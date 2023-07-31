@@ -37,7 +37,7 @@ extern int32_t oscSyncRenderingBuffer[];
 WaveTableBand::~WaveTableBand() {
 	if (data) { // It might be NULL if that BandData was just "stolen".
 		data->~WaveTableBandData();
-		generalMemoryAllocator.dealloc(data);
+		GeneralMemoryAllocator::get().dealloc(data);
 	}
 }
 
@@ -260,8 +260,8 @@ gotError2:
 		int bandSizeBytesWithDuplicates = bandSizeSamplesWithDuplicates << 1; // All bands contain just 16-bit data.
 		    // Ironically we'll even do that if the source file was just 8-bit, but that's really uncommon.
 		void* bandDataMemory =
-		    generalMemoryAllocator.alloc(bandSizeBytesWithDuplicates + sizeof(WaveTableBandData), NULL, false,
-		                                 WAVETABLE_ALLOW_INTERNAL_MEMORY, true); // Stealable!
+		    GeneralMemoryAllocator::get().alloc(bandSizeBytesWithDuplicates + sizeof(WaveTableBandData), NULL, false,
+		                                        WAVETABLE_ALLOW_INTERNAL_MEMORY, true); // Stealable!
 		if (!bandDataMemory) {
 			error = ERROR_INSUFFICIENT_RAM;
 			// All bands from this one onwards still have undefined data, so gotta get rid of them before anything else tries to do anything with them.
@@ -294,7 +294,7 @@ gotError2:
 	// This will also be used for outputting the time-domain cycle data back out of the inverse FFT, so ensure it's big enough for that if our biggest band is bigger
 	// than the cycle size in the file (i.e. if that's not a power-of-two).
 	int currentCycleMemorySize = getMax(rawFileCycleSize, initialBandCycleSizeNoDuplicates);
-	int32_t* __restrict__ currentCycleInt32 = (int32_t*)generalMemoryAllocator.alloc(
+	int32_t* __restrict__ currentCycleInt32 = (int32_t*)GeneralMemoryAllocator::get().alloc(
 	    currentCycleMemorySize * sizeof(int32_t), NULL, false, true); // Internal RAM is good, and it's only temporary
 	if (!currentCycleInt32) {
 		error = ERROR_INSUFFICIENT_RAM;
@@ -303,18 +303,18 @@ gotError2:
 
 	// And temporary FFT output (frequency domain) buffer. The same sizing considerations as above are needed, and we use that same decision here
 	// - except for frequency-domain complex numbers, we only need to store half of it, plus one.
-	ne10_fft_cpx_int32_t* __restrict__ frequencyDomainData = (ne10_fft_cpx_int32_t*)generalMemoryAllocator.alloc(
+	ne10_fft_cpx_int32_t* __restrict__ frequencyDomainData = (ne10_fft_cpx_int32_t*)GeneralMemoryAllocator::get().alloc(
 	    ((currentCycleMemorySize >> 1) + 1) * sizeof(ne10_fft_cpx_int32_t), NULL, false, true);
 	if (!frequencyDomainData) {
 		error = ERROR_INSUFFICIENT_RAM;
 gotError4:
-		generalMemoryAllocator.dealloc(currentCycleInt32);
+		GeneralMemoryAllocator::get().dealloc(currentCycleInt32);
 		goto gotError2;
 	}
 
 	if (false) {
 gotError5:
-		generalMemoryAllocator.dealloc(frequencyDomainData);
+		GeneralMemoryAllocator::get().dealloc(frequencyDomainData);
 		goto gotError4;
 	}
 
@@ -729,8 +729,8 @@ transformBandToTimeDomain:
 	}
 
 	// Dispose of temp memory
-	generalMemoryAllocator.dealloc(currentCycleInt32);
-	generalMemoryAllocator.dealloc(frequencyDomainData);
+	GeneralMemoryAllocator::get().dealloc(currentCycleInt32);
+	GeneralMemoryAllocator::get().dealloc(frequencyDomainData);
 
 	// Printout stats
 	Debug::print("initial band size if all populated: ");
@@ -774,7 +774,7 @@ transformBandToTimeDomain:
 				                  * (band->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE)
 				                  * sizeof(int16_t)
 				              + sizeof(WaveTableBandData);
-				generalMemoryAllocator.shortenRight(band->data, newSize);
+				GeneralMemoryAllocator::get().shortenRight(band->data, newSize);
 			}
 
 			// Left-hand side
@@ -782,7 +782,7 @@ transformBandToTimeDomain:
 				uint32_t idealAmountToShorten =
 				    band->fromCycleNumber
 				    * (band->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE) * sizeof(int16_t);
-				uint32_t amountShortened = generalMemoryAllocator.shortenLeft(
+				uint32_t amountShortened = GeneralMemoryAllocator::get().shortenLeft(
 				    band->data, idealAmountToShorten,
 				    sizeof(WaveTableBandData)); // Tell it to move the WaveTableBandData "header" forward
 				band->data = (WaveTableBandData*)((uint32_t)band->data + amountShortened);
@@ -1166,7 +1166,7 @@ void WaveTable::numReasonsDecreasedToZero(char const* errorCode) {
 				numericDriver.freezeWithError("E388");
 			}
 #endif
-			generalMemoryAllocator.putStealableInQueue(band->data, STEALABLE_QUEUE_NO_SONG_WAVETABLE_BAND_DATA);
+			GeneralMemoryAllocator::get().putStealableInQueue(band->data, STEALABLE_QUEUE_NO_SONG_WAVETABLE_BAND_DATA);
 		}
 	}
 }

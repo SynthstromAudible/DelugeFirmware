@@ -1407,7 +1407,7 @@ deleteInstrumentAndGetOut:
 		newInstrument->deleteBackedUpParamManagers(song);
 		void* toDealloc = dynamic_cast<void*>(newInstrument);
 		newInstrument->~Instrument();
-		generalMemoryAllocator.dealloc(toDealloc);
+		GeneralMemoryAllocator::get().dealloc(toDealloc);
 
 		return error;
 	}
@@ -1473,7 +1473,7 @@ Instrument* StorageManager::createNewInstrument(InstrumentType newInstrumentType
 		instrumentSize = sizeof(Kit);
 	}
 
-	void* instrumentMemory = generalMemoryAllocator.alloc(instrumentSize, NULL, false, true);
+	void* instrumentMemory = GeneralMemoryAllocator::get().alloc(instrumentSize, NULL, false, true);
 	if (!instrumentMemory) {
 		return NULL;
 	}
@@ -1488,7 +1488,7 @@ Instrument* StorageManager::createNewInstrument(InstrumentType newInstrumentType
 			error = paramManager->setupWithPatching();
 			if (error) {
 paramManagerSetupError:
-				generalMemoryAllocator.dealloc(instrumentMemory);
+				GeneralMemoryAllocator::get().dealloc(instrumentMemory);
 				return NULL;
 			}
 			Sound::initParams(paramManager);
@@ -1514,7 +1514,7 @@ paramManagerSetupError:
 
 Instrument* StorageManager::createNewNonAudioInstrument(InstrumentType instrumentType, int slot, int subSlot) {
 	int size = (instrumentType == InstrumentType::MIDI_OUT) ? sizeof(MIDIInstrument) : sizeof(CVInstrument);
-	void* instrumentMemory = generalMemoryAllocator.alloc(size);
+	void* instrumentMemory = GeneralMemoryAllocator::get().alloc(size);
 	if (!instrumentMemory) { // RAM fail
 		return NULL;
 	}
@@ -1545,7 +1545,7 @@ Drum* StorageManager::createNewDrum(DrumType drumType) {
 		memorySize = sizeof(GateDrum);
 	}
 
-	void* drumMemory = generalMemoryAllocator.alloc(memorySize, NULL, false, true);
+	void* drumMemory = GeneralMemoryAllocator::get().alloc(memorySize, NULL, false, true);
 	if (!drumMemory) {
 		return NULL;
 	}

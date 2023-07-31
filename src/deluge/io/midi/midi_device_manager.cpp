@@ -135,7 +135,7 @@ MIDIDeviceUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16
 		return NULL;
 	}
 
-	void* memory = generalMemoryAllocator.alloc(sizeof(MIDIDeviceUSBHosted), NULL, false, true);
+	void* memory = GeneralMemoryAllocator::get().alloc(sizeof(MIDIDeviceUSBHosted), NULL, false, true);
 	if (!memory) {
 		return NULL;
 	}

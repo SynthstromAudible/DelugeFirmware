@@ -81,7 +81,7 @@ void NoteRow::deleteOldDrumNames(bool shouldUpdatePointer) {
 		DrumName* toDelete = oldFirstOldDrumName;
 		oldFirstOldDrumName = oldFirstOldDrumName->next;
 		toDelete->~DrumName();
-		generalMemoryAllocator.dealloc(toDelete);
+		GeneralMemoryAllocator::get().dealloc(toDelete);
 	}
 
 	if (shouldUpdatePointer) {
@@ -362,7 +362,7 @@ int NoteRow::addCorrespondingNotes(int32_t targetPos, int32_t newNotesLength, ui
 
 	// Allocate all the working memory we're going to need for this operation - that's arrays for searchPos and resultingIndexes
 	int32_t* __restrict__ searchTerms =
-	    (int32_t*)generalMemoryAllocator.alloc(numScreensToAddNoteOn * sizeof(int), NULL, false, true);
+	    (int32_t*)GeneralMemoryAllocator::get().alloc(numScreensToAddNoteOn * sizeof(int), NULL, false, true);
 	if (!searchTerms) {
 		return ERROR_INSUFFICIENT_RAM;
 	}
@@ -372,7 +372,7 @@ int NoteRow::addCorrespondingNotes(int32_t targetPos, int32_t newNotesLength, ui
 	int newNotesInitialSize = notes.getNumElements() + numScreensToAddNoteOn;
 	int error = newNotes.insertAtIndex(0, newNotesInitialSize);
 	if (error) {
-		generalMemoryAllocator.dealloc(searchTerms);
+		GeneralMemoryAllocator::get().dealloc(searchTerms);
 		return error;
 	}
 
@@ -462,7 +462,7 @@ addNewNote:
 	}
 
 	// Deallocate working memory - no longer needed
-	generalMemoryAllocator.dealloc(searchTerms);
+	GeneralMemoryAllocator::get().dealloc(searchTerms);
 
 	// Copy the final notes too - after the insertion-point on the final screen
 	while (nextIndexToCopyFrom < notes.getNumElements()) {
@@ -651,7 +651,7 @@ int NoteRow::clearArea(int32_t areaStart, int32_t areaWidth, ModelStackWithNoteR
 
 	// Allocate all the working memory we're going to need for this operation - that's arrays for searchPos and resultingIndexes
 	int32_t* __restrict__ searchTerms =
-	    (int32_t*)generalMemoryAllocator.alloc(numScreens * 2 * sizeof(int), NULL, false, true);
+	    (int32_t*)GeneralMemoryAllocator::get().alloc(numScreens * 2 * sizeof(int), NULL, false, true);
 	if (!searchTerms) {
 		return ERROR_INSUFFICIENT_RAM;
 	}
@@ -661,7 +661,7 @@ int NoteRow::clearArea(int32_t areaStart, int32_t areaWidth, ModelStackWithNoteR
 	int newNotesInitialSize = notes.getNumElements();
 	int error = newNotes.insertAtIndex(0, newNotesInitialSize);
 	if (error) {
-		generalMemoryAllocator.dealloc(searchTerms);
+		GeneralMemoryAllocator::get().dealloc(searchTerms);
 		return error;
 	}
 
@@ -745,7 +745,7 @@ int NoteRow::clearArea(int32_t areaStart, int32_t areaWidth, ModelStackWithNoteR
 	}
 
 	// Deallocate working memory - no longer needed
-	generalMemoryAllocator.dealloc(searchTerms);
+	GeneralMemoryAllocator::get().dealloc(searchTerms);
 
 	Note* __restrict__ destNote = NULL;
 
@@ -946,7 +946,7 @@ int NoteRow::editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareWidth
 
 	// Allocate all the working memory we're going to need for this operation - that's arrays for searchPos and resultingIndexes
 	int32_t* __restrict__ searchTerms =
-	    (int32_t*)generalMemoryAllocator.alloc(numScreens * 2 * sizeof(int), NULL, false, true);
+	    (int32_t*)GeneralMemoryAllocator::get().alloc(numScreens * 2 * sizeof(int), NULL, false, true);
 	if (!searchTerms) {
 		return ERROR_INSUFFICIENT_RAM;
 	}
@@ -958,7 +958,7 @@ int NoteRow::editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareWidth
 	int newNotesInitialSize = numSourceNotes + (newNumNotes - 1) * numScreens;
 	int error = newNotes.insertAtIndex(0, newNotesInitialSize);
 	if (error) {
-		generalMemoryAllocator.dealloc(searchTerms);
+		GeneralMemoryAllocator::get().dealloc(searchTerms);
 		return error;
 	}
 
@@ -1072,7 +1072,7 @@ int NoteRow::editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareWidth
 	}
 
 	// Deallocate working memory - no longer needed
-	generalMemoryAllocator.dealloc(searchTerms);
+	GeneralMemoryAllocator::get().dealloc(searchTerms);
 
 	// Copy the final notes too - after area end on the final screen
 	while (nextIndexToCopyFrom < numSourceNotes) {
@@ -1143,7 +1143,7 @@ int NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* 
 
 	// Allocate all the working memory we're going to need for this operation - that's arrays for searchPos and resultingIndexes
 	int32_t* __restrict__ searchTerms =
-	    (int32_t*)generalMemoryAllocator.alloc(numScreens * 2 * sizeof(int), NULL, false, true);
+	    (int32_t*)GeneralMemoryAllocator::get().alloc(numScreens * 2 * sizeof(int), NULL, false, true);
 	if (!searchTerms) {
 		return ERROR_INSUFFICIENT_RAM;
 	}
@@ -1155,7 +1155,7 @@ int NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* 
 	int newNotesInitialSize = numSourceNotes;
 	int error = newNotes.insertAtIndex(0, newNotesInitialSize);
 	if (error) {
-		generalMemoryAllocator.dealloc(searchTerms);
+		GeneralMemoryAllocator::get().dealloc(searchTerms);
 		return error;
 	}
 
@@ -1325,7 +1325,7 @@ int NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* 
 	}
 
 	// Deallocate working memory - no longer needed
-	generalMemoryAllocator.dealloc(searchTerms);
+	GeneralMemoryAllocator::get().dealloc(searchTerms);
 
 	// Copy the final notes too - after area end on the final screen
 	while (nextIndexToCopyFrom < numSourceNotes) {
@@ -1422,7 +1422,7 @@ int NoteRow::changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow*
 
 	// Allocate all the working memory we're going to need for this operation - that's arrays for searchPos and resultingIndexes
 	int32_t* __restrict__ searchTerms =
-	    (int32_t*)generalMemoryAllocator.alloc(numScreens * sizeof(int), NULL, false, true);
+	    (int32_t*)GeneralMemoryAllocator::get().alloc(numScreens * sizeof(int), NULL, false, true);
 	if (!searchTerms) {
 		return ERROR_INSUFFICIENT_RAM;
 	}
@@ -1468,7 +1468,7 @@ int NoteRow::changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow*
 	}
 
 	// Deallocate working memory - no longer needed
-	generalMemoryAllocator.dealloc(searchTerms);
+	GeneralMemoryAllocator::get().dealloc(searchTerms);
 
 	return NO_ERROR;
 }
@@ -3294,7 +3294,7 @@ void NoteRow::rememberDrumName() {
 		}
 
 		// If we're here, we're at the end of the list, didn't find an instance of the name, and want to add it to the end of the list now
-		void* drumNameMemory = generalMemoryAllocator.alloc(sizeof(DrumName));
+		void* drumNameMemory = GeneralMemoryAllocator::get().alloc(sizeof(DrumName));
 		if (drumNameMemory) {
 			*prevPointer = new (drumNameMemory) DrumName(&soundDrum->name);
 		}

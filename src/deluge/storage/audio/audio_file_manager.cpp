@@ -94,7 +94,7 @@ void AudioFileManager::init() {
 
 	clusterSizeAtBoot = clusterSize;
 
-	void* temp = generalMemoryAllocator.alloc(clusterSizeAtBoot + CACHE_LINE_SIZE * 2, NULL, false, false);
+	void* temp = GeneralMemoryAllocator::get().alloc(clusterSizeAtBoot + CACHE_LINE_SIZE * 2, NULL, false, false);
 	storageManager.fileClusterBuffer = (char*)temp + CACHE_LINE_SIZE;
 
 	clusterObjectSize = sizeof(Cluster) + clusterSize;
@@ -380,7 +380,7 @@ void AudioFileManager::deleteUnusedAudioFileFromMemory(AudioFile* audioFile, int
 	audioFiles.removeElement(i);
 	//audioFile->remove(); // Remove from the unused AudioFiles list, where this already must have been. Actually no, the destructor does this anyway.
 	audioFile->~AudioFile();
-	generalMemoryAllocator.dealloc(audioFile);
+	GeneralMemoryAllocator::get().dealloc(audioFile);
 }
 
 bool AudioFileManager::ensureEnoughMemoryForOneMoreAudioFile() {
@@ -500,7 +500,7 @@ notLoadableAsWaveTable:
 				}
 			}
 
-			void* waveTableMemory = generalMemoryAllocator.alloc(sizeof(WaveTable));
+			void* waveTableMemory = GeneralMemoryAllocator::get().alloc(sizeof(WaveTable));
 			if (!waveTableMemory) {
 				*error = ERROR_INSUFFICIENT_RAM;
 				return NULL;
@@ -515,7 +515,7 @@ notLoadableAsWaveTable:
 			if (*error) {
 waveTableCloneError:
 				newWaveTable->~WaveTable();
-				generalMemoryAllocator.dealloc(waveTableMemory);
+				GeneralMemoryAllocator::get().dealloc(waveTableMemory);
 				return NULL;
 			}
 
@@ -727,7 +727,8 @@ cantLoadFile:
 
 	int memorySizeNeeded = (type == AudioFileType::SAMPLE) ? sizeof(Sample) : sizeof(WaveTable);
 
-	void* audioFileMemory = generalMemoryAllocator.alloc(memorySizeNeeded, NULL, false, true, true); // Stealable!
+	void* audioFileMemory =
+	    GeneralMemoryAllocator::get().alloc(memorySizeNeeded, NULL, false, true, true); // Stealable!
 	if (!audioFileMemory) {
 ramError:
 		*error = ERROR_INSUFFICIENT_RAM;
@@ -744,7 +745,7 @@ ramError:
 		*error = ((Sample*)audioFile)->initialize(numClusters);
 		if (*error) { // Very rare, only if not enough RAM
 			audioFile->~AudioFile();
-			generalMemoryAllocator.dealloc(audioFileMemory);
+			GeneralMemoryAllocator::get().dealloc(audioFileMemory);
 			goto cantLoadFile;
 		}
 
@@ -832,7 +833,7 @@ ensureSafeThenCheckError:
 audioFileError:
 		audioFile
 		    ->~AudioFile(); // Have to call this! This removes the pointers back to the Sample / SampleClusters from any Clusters.
-		generalMemoryAllocator.dealloc(audioFileMemory);
+		GeneralMemoryAllocator::get().dealloc(audioFileMemory);
 		return NULL;
 	}
 
@@ -882,7 +883,8 @@ void AudioFileManager::testQueue() {
 // Caller must initialize() the Cluster after getting it from this function
 Cluster* AudioFileManager::allocateCluster(ClusterType type, bool shouldAddReasons, void* dontStealFromThing) {
 
-	void* clusterMemory = generalMemoryAllocator.alloc(clusterObjectSize, NULL, false, false, true, dontStealFromThing);
+	void* clusterMemory =
+	    GeneralMemoryAllocator::get().alloc(clusterObjectSize, NULL, false, false, true, dontStealFromThing);
 	if (!clusterMemory) {
 		return NULL;
 	}
@@ -900,7 +902,7 @@ Cluster* AudioFileManager::allocateCluster(ClusterType type, bool shouldAddReaso
 
 void AudioFileManager::deallocateCluster(Cluster* cluster) {
 	cluster->~Cluster(); // Removes reasons, and / or from stealable list
-	generalMemoryAllocator.dealloc(cluster);
+	GeneralMemoryAllocator::get().dealloc(cluster);
 }
 
 #define REPORT_LOAD_TIME 0
@@ -1387,7 +1389,7 @@ void AudioFileManager::removeReasonFromCluster(Cluster* cluster, char const* err
 		}
 
 		else {
-			generalMemoryAllocator.putStealableInAppropriateQueue(
+			GeneralMemoryAllocator::get().putStealableInAppropriateQueue(
 			    cluster); // It contains data we may want at some future point, so file it away
 		}
 

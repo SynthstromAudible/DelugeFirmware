@@ -63,8 +63,8 @@ uint8_t DelayBuffer::init(uint32_t newRate, uint32_t failIfThisSize, bool includ
 	sizeIncludingExtra = size + (includeExtraSpace ? delaySpaceBetweenReadAndWrite : 0);
 	AudioEngine::logAction("DelayBuffer::init before");
 
-	bufferStart =
-	    (StereoSample*)generalMemoryAllocator.alloc(sizeIncludingExtra * sizeof(StereoSample), NULL, false, true);
+	bufferStart = (StereoSample*)GeneralMemoryAllocator::get().alloc(sizeIncludingExtra * sizeof(StereoSample), NULL,
+	                                                                 false, true);
 	AudioEngine::logAction("DelayBuffer::init after");
 	if (bufferStart == 0) {
 		return ERROR_INSUFFICIENT_RAM;
@@ -97,7 +97,7 @@ void DelayBuffer::makeNativeRatePreciseRelativeToOtherBuffer(DelayBuffer* otherB
 
 void DelayBuffer::discard(bool beingDestructed) {
 	if (bufferStart) {
-		generalMemoryAllocator.dealloc(bufferStart);
+		GeneralMemoryAllocator::get().dealloc(bufferStart);
 		if (!beingDestructed) {
 			bufferStart = NULL; // If destructing, writing anything would be a waste of time
 		}

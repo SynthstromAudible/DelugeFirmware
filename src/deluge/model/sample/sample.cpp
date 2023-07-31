@@ -113,7 +113,7 @@ Sample::~Sample() {
 	for (int i = 0; i < caches.getNumElements(); i++) {
 		SampleCacheElement* element = (SampleCacheElement*)caches.getElementAddress(i);
 		element->cache->~SampleCache();
-		generalMemoryAllocator.dealloc(element->cache);
+		GeneralMemoryAllocator::get().dealloc(element->cache);
 	}
 }
 
@@ -121,7 +121,7 @@ void Sample::deletePercCache(bool beingDestructed) {
 
 	for (int reversed = 0; reversed < 2; reversed++) {
 		if (percCacheMemory[reversed]) {
-			generalMemoryAllocator.dealloc(percCacheMemory[reversed]);
+			GeneralMemoryAllocator::get().dealloc(percCacheMemory[reversed]);
 			if (!beingDestructed) {
 				percCacheMemory[reversed] = NULL;
 			}
@@ -142,7 +142,7 @@ void Sample::deletePercCache(bool beingDestructed) {
 				}
 			}
 
-			generalMemoryAllocator.dealloc(percCacheClusters[reversed]);
+			GeneralMemoryAllocator::get().dealloc(percCacheClusters[reversed]);
 			if (!beingDestructed) {
 				percCacheClusters[reversed] = NULL;
 			}
@@ -222,15 +222,15 @@ SampleCache* Sample::getOrCreateCache(SampleHolder* sampleHolder, int32_t phaseI
 	}
 
 	int numClusters = ((lengthInBytesCached - 1) >> audioFileManager.clusterSizeMagnitude) + 1;
-	void* memory =
-	    generalMemoryAllocator.alloc(sizeof(SampleCache) + (numClusters - 1) * sizeof(Cluster*), NULL, false, false);
+	void* memory = GeneralMemoryAllocator::get().alloc(sizeof(SampleCache) + (numClusters - 1) * sizeof(Cluster*), NULL,
+	                                                   false, false);
 	if (!memory) {
 		return NULL;
 	}
 
 	i = caches.insertAtKeyMultiWord(keyWords);
 	if (i == -1) { // If error
-		generalMemoryAllocator.dealloc(memory);
+		GeneralMemoryAllocator::get().dealloc(memory);
 		return NULL;
 	}
 
@@ -305,7 +305,7 @@ int Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSamples,
 			numPercCacheClusters = ((lengthInSamplesAfterReduction - 1) >> audioFileManager.clusterSizeMagnitude)
 			                       + 1; // Stores this number for the future too
 			int memorySize = numPercCacheClusters * sizeof(Cluster*);
-			percCacheClusters[reversed] = (Cluster**)generalMemoryAllocator.alloc(memorySize, NULL, false, true);
+			percCacheClusters[reversed] = (Cluster**)GeneralMemoryAllocator::get().alloc(memorySize, NULL, false, true);
 			if (!percCacheClusters[reversed]) {
 				LOCK_EXIT
 				return ERROR_INSUFFICIENT_RAM;
@@ -320,7 +320,7 @@ int Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSamples,
 		if (!percCacheMemory[reversed]) {
 			int percCacheSize = lengthInSamplesAfterReduction;
 
-			percCacheMemory[reversed] = (uint8_t*)generalMemoryAllocator.alloc(percCacheSize);
+			percCacheMemory[reversed] = (uint8_t*)GeneralMemoryAllocator::get().alloc(percCacheSize);
 			if (!percCacheMemory[reversed]) {
 				LOCK_EXIT
 				return ERROR_INSUFFICIENT_RAM;
@@ -1274,8 +1274,8 @@ float Sample::determinePitch(bool doingSingleCycle, float minFreqHz, float maxFr
 	int fftInputSize = kPitchDetectWindowSize * sizeof(int32_t);
 	int fftOutputSize = ((kPitchDetectWindowSize >> 1) + 1) * sizeof(ne10_fft_cpx_int32_t);
 	int floatIndexTableSize = (kPitchDetectWindowSize >> 2) * sizeof(float);
-	int32_t* fftInput =
-	    (int32_t*)generalMemoryAllocator.alloc(fftInputSize + fftOutputSize + floatIndexTableSize, NULL, false, true);
+	int32_t* fftInput = (int32_t*)GeneralMemoryAllocator::get().alloc(
+	    fftInputSize + fftOutputSize + floatIndexTableSize, NULL, false, true);
 	if (!fftInput) {
 		return 0;
 	}
@@ -1328,7 +1328,7 @@ startAgain:
 	if (!cluster) {
 		Debug::println("failed to load first");
 getOut:
-		generalMemoryAllocator.dealloc(fftInput);
+		GeneralMemoryAllocator::get().dealloc(fftInput);
 		return 0;
 	}
 
@@ -1667,7 +1667,7 @@ doneReading:
 		goto startAgain;
 	}
 
-	generalMemoryAllocator.dealloc(fftInput);
+	GeneralMemoryAllocator::get().dealloc(fftInput);
 
 	float freq = freqBeforeAdjustment / (1 << lengthDoublings);
 	Debug::print("freq: ");

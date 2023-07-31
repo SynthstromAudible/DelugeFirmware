@@ -65,7 +65,7 @@ LivePitchShifter::~LivePitchShifter() {
 
 #if INPUT_ENABLE_REPITCHED_BUFFER
 	if (repitchedBuffer) {
-		generalMemoryAllocator.dealloc(repitchedBuffer);
+		GeneralMemoryAllocator::get().dealloc(repitchedBuffer);
 	}
 #endif
 }
@@ -819,7 +819,7 @@ thatsDone:
 	if (repitchedBuffer && !stillWritingToRepitchedBuffer
 	    && playHeads[PLAY_HEAD_NEWER].mode != PLAY_HEAD_MODE_REPITCHED_BUFFER
 	    && playHeads[PLAY_HEAD_OLDER].mode != PLAY_HEAD_MODE_REPITCHED_BUFFER) {
-		generalMemoryAllocator.dealloc(repitchedBuffer);
+		GeneralMemoryAllocator::get().dealloc(repitchedBuffer);
 		repitchedBuffer = NULL;
 	}
 #endif
@@ -839,7 +839,7 @@ void LivePitchShifter::considerRepitchedBuffer(int32_t phaseIncrement) {
 	if (phaseIncrement > 16777216) {
 		if (!repitchedBuffer) {
 
-			repitchedBuffer = (int32_t*)generalMemoryAllocator.alloc(
+			repitchedBuffer = (int32_t*)GeneralMemoryAllocator::get().alloc(
 			    INPUT_REPITCHED_BUFFER_SIZE * sizeof(int32_t) * numChannels, NULL, false, true);
 			if (repitchedBuffer) {
 				repitchedBufferWritePos = 0;

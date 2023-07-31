@@ -164,7 +164,7 @@ void InstrumentClip::copyBasicsFrom(Clip* otherClip) {
 // Will replace the Clip in the modelStack, if success.
 int InstrumentClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing) {
 
-	void* clipMemory = generalMemoryAllocator.alloc(sizeof(InstrumentClip), NULL, false, true);
+	void* clipMemory = GeneralMemoryAllocator::get().alloc(sizeof(InstrumentClip), NULL, false, true);
 	if (!clipMemory) {
 		return ERROR_INSUFFICIENT_RAM;
 	}
@@ -183,7 +183,7 @@ int InstrumentClip::clone(ModelStackWithTimelineCounter* modelStack, bool should
 	if (error) {
 deleteClipAndGetOut:
 		newClip->~InstrumentClip();
-		generalMemoryAllocator.dealloc(clipMemory);
+		GeneralMemoryAllocator::get().dealloc(clipMemory);
 		return error;
 	}
 
@@ -919,7 +919,7 @@ void InstrumentClip::toggleNoteRowMute(ModelStackWithNoteRow* modelStack) {
 	// Record action
 	Action* action = actionLogger.getNewAction(ACTION_MISC);
 	if (action) {
-		void* consMemory = generalMemoryAllocator.alloc(sizeof(ConsequenceNoteRowMute));
+		void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceNoteRowMute));
 
 		if (consMemory) {
 			ConsequenceNoteRowMute* newConsequence =
@@ -1084,7 +1084,7 @@ ModelStackWithNoteRow* InstrumentClip::getOrCreateNoteRowForYNote(int yNote, Mod
 				thisNoteRow->notes.empty(); // Undo our "total hack", above
 
 				if (action) {
-					void* consMemory = generalMemoryAllocator.alloc(sizeof(ConsequenceScaleAddNote));
+					void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceScaleAddNote));
 
 					if (consMemory) {
 						ConsequenceScaleAddNote* newConsequence =
@@ -1798,7 +1798,7 @@ void InstrumentClip::actuallyDeleteEmptyNoteRow(ModelStackWithNoteRow* modelStac
 		noteRow->setDrum(NULL, (Kit*)output, modelStack);
 	}
 	noteRow->~NoteRow();
-	generalMemoryAllocator.dealloc(noteRow);
+	GeneralMemoryAllocator::get().dealloc(noteRow);
 }
 
 // Returns whether to delete it
@@ -2514,7 +2514,8 @@ someError:
 		else if (!strcmp(tagName, "sound") || !strcmp(tagName, "synth")) {
 			if (!output) {
 				{
-					void* instrumentMemory = generalMemoryAllocator.alloc(sizeof(SoundInstrument), NULL, false, true);
+					void* instrumentMemory =
+					    GeneralMemoryAllocator::get().alloc(sizeof(SoundInstrument), NULL, false, true);
 					if (!instrumentMemory) {
 						goto ramError;
 					}
@@ -2547,7 +2548,7 @@ loadInstrument:
 		// For song files from before V2.0, where Instruments were stored within the Clip
 		else if (!strcmp(tagName, "kit")) {
 			if (!output) {
-				void* instrumentMemory = generalMemoryAllocator.alloc(sizeof(Kit), NULL, false, true);
+				void* instrumentMemory = GeneralMemoryAllocator::get().alloc(sizeof(Kit), NULL, false, true);
 				if (!instrumentMemory) {
 					goto ramError;
 				}
@@ -3017,7 +3018,7 @@ bool InstrumentClip::deleteSoundsWhichWontSound(Song* song) {
 
 					void* toDealloc = dynamic_cast<void*>(drum);
 					drum->~Drum();
-					generalMemoryAllocator.dealloc(toDealloc);
+					GeneralMemoryAllocator::get().dealloc(toDealloc);
 				}
 
 				noteRows.deleteNoteRowAtIndex(i);
@@ -3644,7 +3645,7 @@ int InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 				thisNoteRow->drum = kit->getGateDrumForChannel(gateChannel);
 
 				if (!thisNoteRow->drum) {
-					void* drumMemory = generalMemoryAllocator.alloc(sizeof(GateDrum), NULL, true);
+					void* drumMemory = GeneralMemoryAllocator::get().alloc(sizeof(GateDrum), NULL, true);
 					if (!drumMemory) {
 						return ERROR_INSUFFICIENT_RAM;
 					}
@@ -3946,7 +3947,7 @@ void InstrumentClip::finishLinearRecording(ModelStackWithTimelineCounter* modelS
 Clip* InstrumentClip::cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStack, int newOverdubNature) {
 
 	// Allocate memory for Clip
-	void* clipMemory = generalMemoryAllocator.alloc(sizeof(InstrumentClip), NULL, false, true);
+	void* clipMemory = GeneralMemoryAllocator::get().alloc(sizeof(InstrumentClip), NULL, false, true);
 	if (!clipMemory) {
 ramError:
 		numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
