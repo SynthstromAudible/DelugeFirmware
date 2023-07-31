@@ -3,7 +3,6 @@ name: Build
 on:
   push:
     branches:
-      - 'community'
       - 'synthstrom-official'
   pull_request:
     branches:
