@@ -15,7 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "definitions_cxx.hpp"
 #include "gui/menu_item/mod_fx/type.h"
+#include "util/misc.h"
 
 namespace deluge::gui::menu_item::audio_clip::mod_fx {
 class Type final : public menu_item::mod_fx::Type {
@@ -24,16 +26,17 @@ public:
 
 	// We override this to set min value to 1. We don't inherit any getMinValue() function to override more easily
 	void selectEncoderAction(int offset) override {
-		this->value_ += offset;
+		auto current = util::to_underlying(this->value_) + offset;
 		int numOptions = getOptions().size();
 
-		if (this->value_ >= numOptions) {
-			this->value_ -= (numOptions - 1);
+		if (current >= numOptions) {
+			current -= (numOptions - 1);
 		}
-		else if (this->value_ < 1) {
-			this->value_ += (numOptions - 1);
+		else if (current < 1) {
+			current += (numOptions - 1);
 		}
 
+		this->value_ = static_cast<ModFXType>(current);
 		Value::selectEncoderAction(offset);
 	}
 };

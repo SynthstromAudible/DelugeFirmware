@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "gui/menu_item/selection.h"
+#include "gui/menu_item/selection/selection.h"
 #include "zone_selector.h"
 
 namespace deluge::gui::menu_item::mpe {

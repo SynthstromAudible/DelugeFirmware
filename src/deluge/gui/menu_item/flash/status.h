@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "gui/menu_item/selection.h"
+#include "gui/menu_item/selection/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/led/pad_leds.h"
 #include "storage/flash_storage.h"

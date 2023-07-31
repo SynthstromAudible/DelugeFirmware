@@ -16,13 +16,13 @@
 */
 #pragma once
 #include "definitions_cxx.hpp"
-#include "gui/menu_item/selection.h"
+#include "gui/menu_item/selection/typed_selection.h"
 
 namespace deluge::gui::menu_item::lfo {
 
-class Shape : public Selection<kNumLFOTypes> {
+class Shape : public TypedSelection<LFOType, kNumLFOTypes> {
 public:
-	using Selection::Selection;
+	using TypedSelection::TypedSelection;
 
 	static_vector<string, capacity()> getOptions() override {
 		return {"Sine", "Triangle", "Square", "Saw", "S&H", "Random Walk"};

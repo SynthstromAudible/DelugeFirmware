@@ -16,7 +16,7 @@
 */
 #pragma once
 #include "definitions_cxx.hpp"
-#include "gui/menu_item/selection.h"
+#include "gui/menu_item/selection/typed_selection.h"
 #include "gui/ui/sound_editor.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/kit.h"
@@ -26,9 +26,9 @@
 #include "util/misc.h"
 
 namespace deluge::gui::menu_item::sequence {
-class Direction final : public Selection<4> {
+class Direction final : public TypedSelection<SequenceDirection, kNumSequenceDirections + 1> {
 public:
-	using Selection::Selection;
+	using TypedSelection::TypedSelection;
 
 	ModelStackWithNoteRow* getIndividualNoteRow(ModelStackWithTimelineCounter* modelStack) {
 		auto* clip = static_cast<InstrumentClip*>(modelStack->getTimelineCounter());
@@ -47,11 +47,10 @@ public:
 		ModelStackWithNoteRow* modelStackWithNoteRow = getIndividualNoteRow(modelStack);
 
 		if (modelStackWithNoteRow->getNoteRowAllowNull() != nullptr) {
-			this->value_ = util::to_underlying(modelStackWithNoteRow->getNoteRow()->sequenceDirectionMode);
+			this->value_ = modelStackWithNoteRow->getNoteRow()->sequenceDirectionMode;
 		}
 		else {
-			this->value_ =
-			    util::to_underlying((static_cast<InstrumentClip*>(currentSong->currentClip))->sequenceDirectionMode);
+			this->value_ = (static_cast<InstrumentClip*>(currentSong->currentClip))->sequenceDirectionMode;
 		}
 	}
 

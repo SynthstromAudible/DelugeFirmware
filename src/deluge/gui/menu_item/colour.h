@@ -16,7 +16,7 @@
 */
 
 #pragma once
-#include "gui/menu_item/selection.h"
+#include "gui/menu_item/selection/selection.h"
 
 namespace deluge::gui::menu_item {
 

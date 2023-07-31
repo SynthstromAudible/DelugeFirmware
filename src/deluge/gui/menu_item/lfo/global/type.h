@@ -28,7 +28,7 @@ public:
 	using Shape::Shape;
 
 	void readCurrentValue() override {
-		this->value_ = util::to_underlying(soundEditor.currentSound->lfoGlobalWaveType);
+		this->value_ = soundEditor.currentSound->lfoGlobalWaveType;
 	}
 	void writeCurrentValue() override {
 		soundEditor.currentSound->setLFOGlobalWave(static_cast<LFOType>(this->value_));

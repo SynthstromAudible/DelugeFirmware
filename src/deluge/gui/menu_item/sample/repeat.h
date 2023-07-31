@@ -17,7 +17,7 @@
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/formatted_title.h"
-#include "gui/menu_item/selection.h"
+#include "gui/menu_item/selection/typed_selection.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/instrument_clip_view.h"
 #include "model/clip/clip.h"
@@ -29,15 +29,15 @@
 
 namespace deluge::gui::menu_item::sample {
 
-class Repeat final : public Selection<kNumRepeatModes>, public FormattedTitle {
+class Repeat final : public TypedSelection<SampleRepeatMode, kNumRepeatModes>, public FormattedTitle {
 public:
 	Repeat(const string& name, const string& title_format_str)
-	    : Selection<capacity()>(name), FormattedTitle(title_format_str) {}
+	    : TypedSelection(name), FormattedTitle(title_format_str) {}
 
 	[[nodiscard]] const string& getTitle() const override { return FormattedTitle::title(); }
 
 	bool usesAffectEntire() override { return true; }
-	void readCurrentValue() override { this->value_ = util::to_underlying(soundEditor.currentSource->repeatMode); }
+	void readCurrentValue() override { this->value_ = soundEditor.currentSource->repeatMode; }
 	void writeCurrentValue() override {
 
 		// If affect-entire button held, do whole kit
@@ -51,7 +51,7 @@ public:
 					Source* source = &soundDrum->sources[soundEditor.currentSourceIndex];
 
 					// Automatically switch pitch/speed independence on / off if stretch-to-note-length mode is selected
-					if (static_cast<SampleRepeatMode>(this->value_) == SampleRepeatMode::STRETCH) {
+					if (this->value_ == SampleRepeatMode::STRETCH) {
 						soundDrum->unassignAllVoices();
 						source->sampleControls.pitchAndSpeedAreIndependent = true;
 					}
@@ -60,7 +60,7 @@ public:
 						soundEditor.currentSource->sampleControls.pitchAndSpeedAreIndependent = false;
 					}
 
-					source->repeatMode = static_cast<SampleRepeatMode>(this->value_);
+					source->repeatMode = this->value_;
 				}
 			}
 		}

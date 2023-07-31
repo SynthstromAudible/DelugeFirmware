@@ -16,7 +16,7 @@
 */
 #pragma once
 #include "gui/menu_item/gate/mode.h"
-#include "gui/menu_item/selection.h"
+#include "gui/menu_item/selection/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "mode.h"
 #include "off_time.h"

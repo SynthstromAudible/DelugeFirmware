@@ -17,7 +17,7 @@
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/formatted_title.h"
-#include "gui/menu_item/selection.h"
+#include "gui/menu_item/selection/typed_selection.h"
 #include "gui/ui/sound_editor.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
@@ -27,21 +27,21 @@
 #include "util/misc.h"
 
 namespace deluge::gui::menu_item::osc {
-class Type final : public Selection<kNumOscTypes>, public FormattedTitle {
+class Type final : public TypedSelection<OscType, kNumOscTypes>, public FormattedTitle {
 public:
-	Type(const string& name, const string& title_format_str) : Selection(name), FormattedTitle(title_format_str){};
+	Type(const string& name, const string& title_format_str) : TypedSelection(name), FormattedTitle(title_format_str){};
 #if HAVE_OLED
 	void beginSession(MenuItem* navigatedBackwardFrom) override {
-		Selection::beginSession(navigatedBackwardFrom);
+		TypedSelection::beginSession(navigatedBackwardFrom);
 	}
 #endif
 	void readCurrentValue() override {
-		this->value_ = util::to_underlying(soundEditor.currentSource->oscType);
+		this->value_ = soundEditor.currentSource->oscType;
 	}
 	void writeCurrentValue() override {
 
 		OscType oldValue = soundEditor.currentSource->oscType;
-		auto newValue = static_cast<OscType>(this->value_);
+		auto newValue = this->value_;
 
 		auto needs_unassignment = {OscType::INPUT_L, OscType::INPUT_R, OscType::INPUT_STEREO, OscType::SAMPLE,
 
