@@ -35,8 +35,6 @@ char emptySpacesMemoryInternal[sizeof(EmptySpaceRecord) * 1024];
 extern uint32_t __heap_start;
 extern uint32_t __heap_end;
 
-GeneralMemoryAllocator generalMemoryAllocator{};
-
 GeneralMemoryAllocator::GeneralMemoryAllocator() {
 	lock = false;
 	regions[MEMORY_REGION_SDRAM].setup(emptySpacesMemory, sizeof(emptySpacesMemory), EXTERNAL_MEMORY_BEGIN,
