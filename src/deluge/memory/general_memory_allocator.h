@@ -89,3 +89,8 @@ public:
 private:
 	void checkEverythingOk(char const* errorString);
 };
+
+extern "C" {
+void* delugeAlloc(unsigned int requiredSize);
+void delugeDealloc(void* address);
+}

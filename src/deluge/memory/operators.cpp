@@ -1,10 +1,10 @@
-#include "general_memory_allocator.h"
+#include "memory/general_memory_allocator.h"
 #include <new>
 
 void* operator new(std::size_t n) noexcept(false) {
-	generalMemoryAllocator.alloc(n, nullptr, false, true, false, nullptr, false);
+	delugeAlloc(n);
 }
 
 void operator delete(void* p) {
-	generalMemoryAllocator.dealloc(p);
+	delugeDealloc(p);
 }
