@@ -28,9 +28,7 @@ class Type : public TypedSelection<ModFXType, kNumModFXTypes> {
 public:
 	using TypedSelection::TypedSelection;
 
-	void readCurrentValue() override {
-		this->value_ = soundEditor.currentModControllable->modFXType;
-	}
+	void readCurrentValue() override { this->value_ = soundEditor.currentModControllable->modFXType; }
 	void writeCurrentValue() override {
 		if (!soundEditor.currentModControllable->setModFXType(this->value_)) {
 			numericDriver.displayError(ERROR_INSUFFICIENT_RAM);

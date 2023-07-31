@@ -18,9 +18,9 @@
 #pragma once
 #include "definitions.h"
 #include "util/misc.h"
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
-#include <algorithm>
 
 #define ALPHA_OR_BETA_VERSION 1 // Whether to compile with additional error-checking
 

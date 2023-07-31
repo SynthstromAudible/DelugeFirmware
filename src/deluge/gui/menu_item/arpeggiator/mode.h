@@ -33,8 +33,7 @@ public:
 	void writeCurrentValue() override {
 
 		// If was off, or is now becoming off...
-		if (soundEditor.currentArpSettings->mode == ArpMode::OFF
-		    || this->value_ == ArpMode::OFF) {
+		if (soundEditor.currentArpSettings->mode == ArpMode::OFF || this->value_ == ArpMode::OFF) {
 			if (currentSong->currentClip->isActiveOnOutput()) {
 				char modelStackMemory[MODEL_STACK_MAX_SIZE];
 				ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);

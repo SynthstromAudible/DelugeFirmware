@@ -91,5 +91,3 @@ private:
 
 // TODO: should get moved into namespace once project namespacing is complete
 extern deluge::gui::ui::keyboard::KeyboardScreen keyboardScreen;
-
-

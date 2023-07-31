@@ -27,9 +27,7 @@ class Type final : public Shape {
 public:
 	using Shape::Shape;
 
-	void readCurrentValue() override {
-		this->value_ = soundEditor.currentSound->lfoGlobalWaveType;
-	}
+	void readCurrentValue() override { this->value_ = soundEditor.currentSound->lfoGlobalWaveType; }
 	void writeCurrentValue() override {
 		soundEditor.currentSound->setLFOGlobalWave(static_cast<LFOType>(this->value_));
 	}

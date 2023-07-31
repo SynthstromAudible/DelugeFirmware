@@ -33,10 +33,17 @@ class Mode final : public TypedSelection<GateType, 3> {
 #endif
 
 public:
-	Mode() : TypedSelection(mode_title) {}
-	void readCurrentValue() override { this->value_ = cvEngine.gateChannels[soundEditor.currentSourceIndex].mode; }
-	void writeCurrentValue() override { cvEngine.setGateType(soundEditor.currentSourceIndex, this->value_); }
-	static_vector<string, capacity()> getOptions() override { return options_; }
+	Mode() : TypedSelection(mode_title) {
+	}
+	void readCurrentValue() override {
+		this->value_ = cvEngine.gateChannels[soundEditor.currentSourceIndex].mode;
+	}
+	void writeCurrentValue() override {
+		cvEngine.setGateType(soundEditor.currentSourceIndex, this->value_);
+	}
+	static_vector<string, capacity()> getOptions() override {
+		return options_;
+	}
 
 	void updateOptions(int value) {
 		switch (value) {

@@ -2376,7 +2376,8 @@ someError:
 
 		else if (!strcmp(tagName, "keyboardLayout")) {
 			// TODO: Unscope this once namespacing is complete
-			keyboardState.currentLayout = (deluge::gui::ui::keyboard::KeyboardLayoutType)storageManager.readTagOrAttributeValueInt();
+			keyboardState.currentLayout =
+			    (deluge::gui::ui::keyboard::KeyboardLayoutType)storageManager.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "yScrollKeyboard")) {

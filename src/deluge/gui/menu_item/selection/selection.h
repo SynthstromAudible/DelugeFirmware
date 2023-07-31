@@ -45,8 +45,12 @@ public:
 #if HAVE_OLED
 	void drawPixelsForOled() override;
 #endif
-	size_t size() override { return this->getOptions().size(); }
-	constexpr static size_t capacity() { return n; }
+	size_t size() override {
+		return this->getOptions().size();
+	}
+	constexpr static size_t capacity() {
+		return n;
+	}
 };
 
 template <size_t n>

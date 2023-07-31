@@ -81,4 +81,4 @@ void TypedEnumeration<Enum, n>::drawValue() {
 #endif
 }
 
-} // namespace deluge::gui::menu_item::enumeration
+} // namespace deluge::gui::menu_item
