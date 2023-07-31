@@ -22,7 +22,7 @@ namespace deluge::gui::menu_item::patch_cable_strength {
 
 class Fixed : public Regular {
 public:
-	Fixed(char const* newName = nullptr, int newP = 0, PatchSource newS = PatchSource::LFO_GLOBAL)
+	Fixed(const string& newName, int newP = 0, PatchSource newS = PatchSource::LFO_GLOBAL)
 	    : Regular(newName), p(newP), s(newS) {}
 
 	MenuPermission checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) final;

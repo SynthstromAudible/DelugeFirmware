@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/menu_item.h"
+#include "util/string.h"
 
 class MIDIDevice;
 
@@ -26,7 +27,7 @@ namespace deluge::gui::menu_item::midi {
 
 class Command final : public MenuItem {
 public:
-	Command(char const* newName = nullptr, GlobalMIDICommand newCommandNumber = GlobalMIDICommand::PLAYBACK_RESTART)
+	Command(const string& newName, GlobalMIDICommand newCommandNumber = GlobalMIDICommand::PLAYBACK_RESTART)
 	    : MenuItem(newName), commandNumber(newCommandNumber) {}
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
 	void drawValue() const;

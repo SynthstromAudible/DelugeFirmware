@@ -23,7 +23,7 @@ namespace deluge::gui::menu_item {
 template <size_t n>
 class SubmenuReferringToOneThing : public Submenu<n> {
 public:
-	SubmenuReferringToOneThing(char const* newName, MenuItem* const (&newItems)[n], int newThingIndex)
+	SubmenuReferringToOneThing(const string& newName, MenuItem* const (&newItems)[n], int newThingIndex)
 	    : Submenu<n>(newName, newItems), thingIndex(newThingIndex) {}
 
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override {

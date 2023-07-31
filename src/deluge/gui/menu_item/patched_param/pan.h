@@ -20,7 +20,7 @@
 namespace deluge::gui::menu_item::patched_param {
 class Pan : public Integer {
 public:
-	Pan(char const* newName = 0, int newP = 0) : Integer(newName, newP) {}
+	using Integer::Integer;
 #if !HAVE_OLED
 	void drawValue() override;
 #endif

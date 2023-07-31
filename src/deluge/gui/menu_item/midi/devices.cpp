@@ -136,9 +136,6 @@ MenuItem* Devices::selectButtonPress() {
 	return &midiDeviceMenu;
 }
 
-Sized<char const**> getOptions() {
-}
-
 #if HAVE_OLED
 
 void Devices::drawPixelsForOled() {

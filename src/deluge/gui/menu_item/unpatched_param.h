@@ -26,9 +26,9 @@ namespace deluge::gui::menu_item {
 
 class UnpatchedParam : public Param, public IntegerContinuous, public MenuItemWithCCLearning {
 public:
-	UnpatchedParam(char const* newName, char const* title, int newP) : Param(newP), IntegerContinuous(newName, title) {}
+	UnpatchedParam(const string& newName, const string& title, int newP) : Param(newP), IntegerContinuous(newName, title) {}
 
-	UnpatchedParam(char const* newName, int newP) : Param(newP), IntegerContinuous(newName) {}
+	UnpatchedParam(const string& newName, int newP) : Param(newP), IntegerContinuous(newName) {}
 
 	void readCurrentValue() override;
 	void writeCurrentValue() override;

@@ -51,6 +51,6 @@ public:
 
 // Template deduction guide, will not be required with P2582@C++23
 template <size_t n>
-ActualSource(char const*, MenuItem* const (&)[n], int) -> ActualSource<n>;
+ActualSource(const string&, MenuItem* const (&)[n], int) -> ActualSource<n>;
 
 } // namespace deluge::gui::menu_item::submenu
