@@ -94,11 +94,11 @@ public:
 
 	//button action
 	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
-	//void createNewInstrument(InstrumentType instrumentType);
-	//void changeInstrumentType(InstrumentType newInstrumentType);
-	//void transitionToSessionView();
-	//void flashDefaultRootNote();
-	//void cancelAllAuditioning();
+	void createNewInstrument(InstrumentType instrumentType);
+	void changeInstrumentType(InstrumentType newInstrumentType);
+	void transitionToSessionView();
+	void flashDefaultRootNote();
+	void cancelAllAuditioning();
 
 	//pad action
 	ActionResult padAction(int x, int y, int velocity);
@@ -121,9 +121,9 @@ public:
 	//NoteRow* createNewNoteRowForKit(ModelStackWithTimelineCounter* modelStack, int yDisplay, int* getIndex = NULL);
 	//void reassessAllAuditionStatus();
 	//void reassessAuditionStatus(uint8_t yDisplay);
-	//uint8_t getVelocityForAudition(uint8_t yDisplay, uint32_t* sampleSyncLength);
-	//uint8_t oneNoteAuditioning();
-	//uint8_t getNumNoteRowsAuditioning();
+	uint8_t getVelocityForAudition(uint8_t yDisplay, uint32_t* sampleSyncLength);
+	uint8_t oneNoteAuditioning();
+	uint8_t getNumNoteRowsAuditioning();
 	//inline void sendAuditionNote(bool on, uint8_t yDisplay) { sendAuditionNote(on, yDisplay, 64, 0); };
 	//bool
 	//    auditioningSilently; // Sometimes the user will want to hold an audition pad without actually sounding the note, by holding an encoder
@@ -131,8 +131,8 @@ public:
 
 	//horizontal encoder action
 	ActionResult horizontalEncoderAction(int offset);
-	//void doubleClipLengthAction();
-	//ModelStackWithNoteRow* getOrCreateNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int yDisplay);
+	void doubleClipLengthAction();
+	ModelStackWithNoteRow* getOrCreateNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int yDisplay);
 
 	//vertical encoder action
 	ActionResult verticalEncoderAction(int offset, bool inCardRoutine);
@@ -141,7 +141,7 @@ public:
 	//mod encoder action
 	void modEncoderAction(int whichModEncoder, int offset);
 	void modEncoderButtonAction(uint8_t whichModEncoder, bool on);
-	//void dontDeleteNotesOnDepress();
+	void dontDeleteNotesOnDepress();
 	CopiedParamAutomation copiedParamAutomation;
 
 	//tempo encoder action
@@ -160,7 +160,7 @@ public:
 	void notifyPlaybackBegun();
 
 	//called by sound_drum.cpp
-	//bool isDrumAuditioned(Drum* drum);
+	bool isDrumAuditioned(Drum* drum);
 
 	//not sure how this is used
 	ClipMinder* toClipMinder() { return this; }
@@ -183,8 +183,8 @@ private:
 //	uint8_t yDisplayOfNewNoteRow;
 
 	//Pad Action Variables
-	//void endEditPadPress(uint8_t i);
-	//void checkIfAllEditPadPressesEnded(bool mayRenderSidebar = true);
+	void endEditPadPress(uint8_t i);
+	void checkIfAllEditPadPressesEnded(bool mayRenderSidebar = true);
 	//uint8_t numEditPadPressesPerNoteRowOnScreen[kDisplayHeight];
 	//EditAutomationPadPress editPadPresses[kEditPadPressBufferSize];
 	//uint8_t numEditPadPresses;
@@ -210,7 +210,7 @@ private:
 	//    timeHorizontalKnobLastReleased; // Only to be looked at if shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress is true after they rotated a NoteRow and might now be wanting to instead edit its length after releasing the knob
 
 	//Vertical Encoder Action
-	//bool getAffectEntire();
+	bool getAffectEntire();
 	//bool shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress;
 
 	//Mod Encoder Action
@@ -232,13 +232,8 @@ private:
 	                                     int32_t secondPadValue);
 
 	int calculateKnobPosForModEncoderTurn(int32_t knobPos, int32_t offset);
-
 	bool isOnParameterGridMenuView();
-
 	void drawParameterName(int32_t paramID);
-
-	void renderAutomationOverview();
-	void renderAutomationEditor();
 
 	//Interpolation Shape Functions
 	int LERP(int A, int B, int T, int Distance);

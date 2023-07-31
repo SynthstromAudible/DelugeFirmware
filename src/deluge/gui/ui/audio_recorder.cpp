@@ -133,7 +133,12 @@ gotError:
 	}
 
 	if (currentUIMode == UI_MODE_AUDITIONING) {
-		instrumentClipView.cancelAllAuditioning();
+		if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
+			automationClipView.cancelAllAuditioning();
+		}
+		else {
+			instrumentClipView.cancelAllAuditioning();
+		}
 	}
 
 	return success;
