@@ -1126,6 +1126,12 @@ void AutomationClipView::transitionToSessionView() {
 
 ActionResult AutomationClipView::padAction(int x, int y, int velocity) {
 
+	InstrumentClip* clip = getCurrentClip();
+	Instrument* instrument = (Instrument*)clip->output;
+
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+
 	if (x == 15 && y == 2 && velocity > 0
 	    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::DrumRandomizer) == RuntimeFeatureStateToggle::On) {
 		int numRandomized = 0;
@@ -1217,38 +1223,9 @@ ActionResult AutomationClipView::padAction(int x, int y, int velocity) {
 		// not intending to deliberately go into the SoundEditor, but might be trying to edit notes. Which they currently can't do...
 		if (velocity) { //&& (!isUIModeActive(UI_MODE_AUDITIONING) || !editedAnyPerNoteRowStuffSinceAuditioningBegan)) {
 
-			bool flash = false;
+			if (Buttons::isShiftButtonPressed()) {
 
-			if (Buttons::isShiftButtonPressed()) { //need to check why it crashes when I press a non-shortcut pad.
-
-				if (currentSong->currentClip->output->type == InstrumentType::SYNTH) { //|| clip->output->type == InstrumentType::MIDI_OUT){
-
-					lastSelectedParamID = paramShortcutsForAutomation[x][y];
-					numericDriver.displayPopup(getPatchedParamDisplayNameForOled(lastSelectedParamID));
-
-					lastSelectedParamX = x;
-					lastSelectedParamY = y;
-
-					soundEditor.setupShortcutBlink(x, y, 3);
-					soundEditor.blinkShortcut();
-
-				}
-
-				else if (currentSong->currentClip->output->type == InstrumentType::MIDI_OUT) {
-
-					lastSelectedMidiCC = midiCCShortcutsForAutomation[x][y];
-					InstrumentClipMinder::drawMIDIControlNumber(lastSelectedMidiCC,
-																false);
-
-					lastSelectedMidiX = x;
-					lastSelectedMidiY = y;
-
-					soundEditor.setupShortcutBlink(x, y, 3);
-					soundEditor.blinkShortcut();
-
-				}
-
-				uiNeedsRendering(this);
+				handleSinglePadPress(modelStack, clip, x, y, true);
 
 				return ActionResult::DEALT_WITH;
 			}
@@ -3280,24 +3257,23 @@ void AutomationClipView::modEncoderAction(int whichModEncoder, int offset) {
 void AutomationClipView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 
 	InstrumentClip* clip = getCurrentClip();
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 	// If they want to copy or paste automation...
 	if (Buttons::isButtonPressed(hid::button::LEARN)) {
 		if (on && currentSong->currentClip->output->type != InstrumentType::CV) {
 			if (Buttons::isShiftButtonPressed()) {
-				pasteAutomation(whichModEncoder);
+				pasteAutomation();
 			}
 			else {
-				copyAutomation(whichModEncoder);
+				copyAutomation();
 			}
 		}
 	}
 
+	//delete automation of current parameter selected
 	else if (Buttons::isShiftButtonPressed()) {
-
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-
-		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 		if (clip->output->type == InstrumentType::SYNTH) {
 			ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, clip, lastSelectedParamID);
@@ -3321,12 +3297,14 @@ void AutomationClipView::modEncoderButtonAction(uint8_t whichModEncoder, bool on
 		}
 	}
 
+	//press top mod encoder to display current parameter selected
 	else if (whichModEncoder == 1 && on && (clip->output->type == InstrumentType::SYNTH || clip->output->type == InstrumentType::KIT)) {
-		numericDriver.displayPopup(getPatchedParamDisplayNameForOled(lastSelectedParamID));
+		drawParameterName(lastSelectedParamID);
 	}
 
+	//press top mod encoder to display current parameter selected
 	else if (whichModEncoder == 1 && on && clip->output->type == InstrumentType::MIDI_OUT) {
-		InstrumentClipMinder::drawMIDIControlNumber(lastSelectedMidiCC, false);
+		drawParameterName(lastSelectedMidiCC);
 	}
 
 	uiNeedsRendering(this);
@@ -3384,7 +3362,7 @@ void AutomationClipView::modEncoderButtonAction(uint8_t whichModEncoder, bool on
 	//	uiNeedsRendering(this);
 }
 
-void AutomationClipView::copyAutomation(int whichModEncoder) {
+void AutomationClipView::copyAutomation() {
 	if (copiedParamAutomation.nodes) {
 		generalMemoryAllocator.dealloc(copiedParamAutomation.nodes);
 		copiedParamAutomation.nodes = NULL;
@@ -3457,7 +3435,7 @@ void AutomationClipView::copyAutomation(int whichModEncoder) {
 	numericDriver.displayPopup(HAVE_OLED ? "No automation to copy" : "NONE");
 }
 
-void AutomationClipView::pasteAutomation(int whichModEncoder) {
+void AutomationClipView::pasteAutomation() {
 	if (!copiedParamAutomation.nodes) {
 		numericDriver.displayPopup(HAVE_OLED ? "No automation to paste" : "NONE");
 		return;
@@ -3588,9 +3566,6 @@ void AutomationClipView::selectEncoderAction(int8_t offset) {
 	//If the user is holding down shift while turning select, change midi CC or param ID
 	else if (Buttons::isShiftButtonPressed()) {
 
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-
 		lastSelectedParamX = 255;
 		lastSelectedMidiX = 255;
 
@@ -3614,7 +3589,7 @@ void AutomationClipView::selectEncoderAction(int8_t offset) {
 				lastSelectedParamArrayPosition += offset;
 			}
 
-			numericDriver.displayPopup(getPatchedParamDisplayNameForOled(lastSelectedParamID));
+			drawParameterName(lastSelectedParamID);
 
 			for (int x = 0; x < kDisplayWidth; x++) {
 				for (int y = 0; y < kDisplayHeight; y++) {
@@ -3645,16 +3620,7 @@ void AutomationClipView::selectEncoderAction(int8_t offset) {
 				lastSelectedMidiCC += offset;
 			}
 
-			ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, currentSong->currentClip, lastSelectedMidiCC);
-			bool isAutomated = false;
-
-			if (modelStackWithParam) {
-				if (modelStackWithParam->autoParam->isAutomated()) {
-					isAutomated = true;
-				}
-			}
-
-			InstrumentClipMinder::drawMIDIControlNumber(lastSelectedMidiCC, isAutomated);
+			drawParameterName(lastSelectedMidiCC);
 
 			for (int x = 0; x < kDisplayWidth; x++) {
 				for (int y = 0; y < kDisplayHeight; y++) {
@@ -3922,13 +3888,14 @@ void AutomationClipView::setParameterAutomationValue(ModelStackWithAutoParam* mo
 }
 
 void AutomationClipView::handleSinglePadPress(ModelStackWithTimelineCounter* modelStack, Clip* clip, int32_t xDisplay,
-                                              int32_t yDisplay) {
+                                              int32_t yDisplay, bool shortcutPress) {
 
 	if (clip->output->type == InstrumentType::SYNTH) { //|| clip->output->type == InstrumentType::MIDI_OUT){
 
-		if (lastSelectedParamID == 255 && paramShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
+		if ((lastSelectedParamID == 255 || shortcutPress) && paramShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
 			lastSelectedParamID = paramShortcutsForAutomation[xDisplay][yDisplay];
-			numericDriver.displayPopup(getPatchedParamDisplayNameForOled(lastSelectedParamID));
+
+			drawParameterName(lastSelectedParamID);
 
 			lastSelectedParamX = xDisplay;
 			lastSelectedParamY = yDisplay;
@@ -3937,7 +3904,7 @@ void AutomationClipView::handleSinglePadPress(ModelStackWithTimelineCounter* mod
 			soundEditor.blinkShortcut();
 		}
 
-		else if (lastSelectedParamID != 255) {
+		else if (lastSelectedParamID != 255 && !Buttons::isShiftButtonPressed()) {
 
 			lastEditPadPressXDisplay = xDisplay;
 
@@ -3959,10 +3926,10 @@ void AutomationClipView::handleSinglePadPress(ModelStackWithTimelineCounter* mod
 
 	else if (clip->output->type == InstrumentType::MIDI_OUT) {
 
-		if (lastSelectedMidiCC == 255 && midiCCShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
+		if ((lastSelectedMidiCC == 255 || shortcutPress) && midiCCShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
 			lastSelectedMidiCC = midiCCShortcutsForAutomation[xDisplay][yDisplay];
-			InstrumentClipMinder::drawMIDIControlNumber(lastSelectedMidiCC,
-			                                            false); //cant use this cause it uses oled function
+
+			drawParameterName(lastSelectedMidiCC);
 
 			lastSelectedMidiX = xDisplay;
 			lastSelectedMidiY = yDisplay;
@@ -3971,7 +3938,7 @@ void AutomationClipView::handleSinglePadPress(ModelStackWithTimelineCounter* mod
 			soundEditor.blinkShortcut();
 		}
 
-		else if (lastSelectedMidiCC != 255) {
+		else if (lastSelectedMidiCC != 255 && !Buttons::isShiftButtonPressed()) {
 
 			lastEditPadPressXDisplay = xDisplay;
 
@@ -4182,3 +4149,46 @@ bool AutomationClipView::isOnParameterGridMenuView () {
 	}
 	return false;
 }
+
+void AutomationClipView::drawParameterName (int32_t paramID) {
+
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, currentSong->currentClip, paramID);
+	bool isAutomated = false;
+
+	if (modelStackWithParam) {
+		if (modelStackWithParam->autoParam->isAutomated()) {
+			isAutomated = true;
+		}
+	}
+
+	if ((currentSong->currentClip->output->type == InstrumentType::SYNTH || currentSong->currentClip->output->type == InstrumentType::KIT)) {
+
+		char buffer[30];
+
+		strcpy(buffer, getPatchedParamDisplayNameForOled(paramID));
+
+	#if HAVE_OLED
+
+		if (isAutomated) {
+			strcat(buffer, "\n(automated)");
+		}
+
+		OLED::popupText(buffer, true);
+
+	#else
+
+			numericDriver.setText(buffer, true, isAutomated ? 3 : 255, true);
+
+	#endif
+	}
+
+	else if (currentSong->currentClip->output->type == InstrumentType::MIDI_OUT) {
+
+		InstrumentClipMinder::drawMIDIControlNumber(paramID, isAutomated);
+
+	}
+}
+
+

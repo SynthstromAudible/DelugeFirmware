@@ -214,8 +214,8 @@ private:
 	bool shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress;
 
 	//Mod Encoder Action
-	void copyAutomation(int whichModEncoder);
-	void pasteAutomation(int whichModEncoder);
+	void copyAutomation();
+	void pasteAutomation();
 
 	//Automation Lanes Functions
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip, int32_t paramID = 0xFFFFFFFF);
@@ -223,7 +223,7 @@ private:
 	                                 int32_t xDisplay, int32_t effectiveLength);
 
 	void handleSinglePadPress(ModelStackWithTimelineCounter* modelStack, Clip* clip, int32_t xDisplay,
-	                          int32_t yDisplay);
+	                          int32_t yDisplay, bool shortcutPress = false);
 	int calculateKnobPosForSinglePadPress(int32_t yDisplay);
 
 	void handleMultiPadPress(ModelStackWithTimelineCounter* modelStack, Clip* clip, int32_t firstPadX,
@@ -233,6 +233,7 @@ private:
 
 	int calculateKnobPosForModEncoderTurn(int32_t knobPos, int32_t offset);
 	bool isOnParameterGridMenuView();
+	void drawParameterName(int32_t paramID);
 
 	//Interpolation Shape Functions
 	int LERP(int A, int B, int T, int Distance);
