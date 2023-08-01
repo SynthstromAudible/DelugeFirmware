@@ -90,6 +90,8 @@ extern "C" {
 #include "util/cfunctions.h"
 }
 
+#define NUM_NOTEEDIT_SELENCODER_PAGES 3 // 0 = percentage, 1 = transpose , 2 = transpose octaves
+
 InstrumentClipView instrumentClipView{};
 
 InstrumentClipView::InstrumentClipView() {
@@ -719,7 +721,10 @@ doCancelPopup:
 	else if (b == SELECT_ENC && on && numEditPadPresses > 0) {
 		// select encoder pressed. if we are editing notes this goes to the next attribute. if we are not editing notes
 		// then it will be handled by the else branch.       
-		noteEditSelEncoderIndex = 1 - noteEditSelEncoderIndex;
+		noteEditSelEncoderIndex++;
+		if (noteEditSelEncoderIndex == NUM_NOTEEDIT_SELENCODER_PAGES) {
+			noteEditSelEncoderIndex = 0;
+		}
         modifyNotesWithSelEncoder(0); 
 
 	}
@@ -2047,8 +2052,11 @@ void InstrumentClipView::modifyNotesWithSelEncoder(int offset) {
 	if (noteEditSelEncoderIndex == 0) { 
 		adjustProbability(offset);
 	}
-	else {
-		adjustAccidentalTranspose(offset);
+	else if (noteEditSelEncoderIndex == 1) {
+		adjustAccidentalTranspose(offset,false);
+	}
+	else if (noteEditSelEncoderIndex == 2) {
+		adjustAccidentalTranspose(offset,true);
 	}
 
 }
@@ -2296,7 +2304,7 @@ multiplePresses:
 	}
 }
 
-void InstrumentClipView::adjustAccidentalTranspose(int offset) {
+void InstrumentClipView::adjustAccidentalTranspose(int offset, bool useOctaves) {
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -2328,7 +2336,7 @@ void InstrumentClipView::adjustAccidentalTranspose(int offset) {
 					if (!action) return;
                     
 					// Incrementing/ decrementing
-					accidentalTransposeValue += offset;
+					accidentalTransposeValue += useOctaves ? 12 * offset : offset;
 					// clip the accidentalTransposeValue to a value that makes sense for the current noteRow.
 					// THE max and min value are dependent of the y of this noterow
 					// accidentalTranspose should be larger or equal to 0 - y so that we cannot transpose below 0.
@@ -2465,12 +2473,26 @@ multiplePresses:
 		//  notename " / " transposeValue
 		int lengthWithoutDot = 0;
 		noteCodeToString(noteValueAfterTranspose,buffer,&lengthWithoutDot);
+           
+		if (noteEditSelEncoderIndex == 2) {
+			strcpy(buffer + lengthWithoutDot + 1, " /*12 ");
 
-		strcpy(buffer + lengthWithoutDot + 1, " / ");
+		}
+		else {
+			strcpy(buffer + lengthWithoutDot + 1, " /*1  ");
+
+		}
 		intToString(accidentalTransposeValue, buffer + strlen(buffer));
 #else
 		int lengthWithoutDot = 0;
-		noteCodeToString(noteValueAfterTranspose,buffer,&lengthWithoutDot);
+		if (noteEditSelEncoderIndex == 2) {
+            // prefix octave marker
+            strcpy(buffer,"O");
+			noteCodeToString(noteValueAfterTranspose,buffer + 1,&lengthWithoutDot);
+		}
+		else {
+			noteCodeToString(noteValueAfterTranspose,buffer,&lengthWithoutDot);
+		}
 		
 
 #endif

@@ -207,7 +207,7 @@ private:
 	Sound* getSoundForNoteRow(NoteRow* noteRow, ParamManagerForTimeline** getParamManager);
 	void modifyNotesWithSelEncoder(int offset);
 	void adjustProbability(int offset);
-	void adjustAccidentalTranspose(int offset);
+	void adjustAccidentalTranspose(int offset, bool useOctaves);
 	void copyNotes();
 	void pasteNotes();
 	void deleteCopiedNoteRows();
