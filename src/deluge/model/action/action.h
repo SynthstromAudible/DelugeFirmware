@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include <cstdint>
 #include "definitions_cxx.hpp"
+#include <cstdint>
 
 class Consequence;
 class InstrumentClip;
@@ -76,13 +76,15 @@ public:
 	bool containsConsequenceParamChange(ParamCollection* paramCollection, int32_t paramId);
 	void recordParamChangeIfNotAlreadySnapshotted(ModelStackWithAutoParam const* modelStack, bool stealData = false);
 	void recordParamChangeDefinitely(ModelStackWithAutoParam const* modelStack, bool stealData);
-	int32_t recordNoteArrayChangeIfNotAlreadySnapshotted(InstrumentClip* clip, int32_t noteRowId, NoteVector* noteVector,
-	                                                 bool stealData, bool moveToFrontIfAlreadySnapshotted = false);
-	int32_t recordNoteArrayChangeDefinitely(InstrumentClip* clip, int32_t noteRowId, NoteVector* noteVector, bool stealData);
+	int32_t recordNoteArrayChangeIfNotAlreadySnapshotted(InstrumentClip* clip, int32_t noteRowId,
+	                                                     NoteVector* noteVector, bool stealData,
+	                                                     bool moveToFrontIfAlreadySnapshotted = false);
+	int32_t recordNoteArrayChangeDefinitely(InstrumentClip* clip, int32_t noteRowId, NoteVector* noteVector,
+	                                        bool stealData);
 	bool containsConsequenceNoteArrayChange(InstrumentClip* clip, int32_t noteRowId, bool moveToFrontIfFound = false);
 	void recordNoteExistenceChange(InstrumentClip* clip, int32_t noteRowId, Note* note, ExistenceChangeType type);
-	void recordNoteChange(InstrumentClip* clip, int32_t noteRowId, Note* note, int32_t lengthAfter, int32_t velocityAfter,
-	                      int32_t probabilityAfter);
+	void recordNoteChange(InstrumentClip* clip, int32_t noteRowId, Note* note, int32_t lengthAfter,
+	                      int32_t velocityAfter, int32_t probabilityAfter);
 	void updateYScrollClipViewAfter(InstrumentClip* clip = NULL);
 	void recordClipInstanceExistenceChange(Output* output, ClipInstance* clipInstance, ExistenceChangeType type);
 	void prepareForDestruction(int32_t whichQueueActionIn, Song* song);

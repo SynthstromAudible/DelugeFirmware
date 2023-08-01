@@ -16,7 +16,6 @@
  */
 
 #include "storage/multi_range/multisample_range.h"
-#include <cstdint>
 #include "gui/ui/browser/sample_browser.h"
 #include "hid/display/numeric_driver.h"
 #include "model/sample/sample.h"
@@ -25,6 +24,7 @@
 #include "storage/cluster/cluster.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
+#include <cstdint>
 #include <math.h>
 #include <string.h>
 

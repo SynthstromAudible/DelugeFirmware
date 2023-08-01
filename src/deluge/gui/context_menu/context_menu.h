@@ -19,10 +19,10 @@
 
 #include <cstddef>
 
-#include <cstdint>
 #include "gui/ui/ui.h"
 #include "hid/button.h"
 #include "util/sized.h"
+#include <cstdint>
 
 namespace deluge::gui {
 

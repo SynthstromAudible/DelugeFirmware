@@ -120,7 +120,7 @@ void QwertyUI::drawTextForOLEDEditing(int32_t xPixel, int32_t xPixelMax, int32_t
 
 	// Prevent being scrolled too far right.
 	int32_t maxXScroll = std::min<int32_t>(displayStringLength - maxNumChars + atVeryEnd,
-	                        enteredTextEditPos - 3); // First part of this might not be needed I think?
+	                                       enteredTextEditPos - 3); // First part of this might not be needed I think?
 	maxXScroll = std::max(maxXScroll, 0_i32);
 	scrollPosHorizontal = std::min(scrollPosHorizontal, maxXScroll);
 
@@ -154,7 +154,8 @@ void QwertyUI::displayText(bool blinkImmediately) {
 	    numericDriver.getEncodedPosFromLeft(enteredTextEditPos, enteredText.get(), &encodedEditPosAndAHalf);
 
 	bool encodedEndPosAndAHalf;
-	int32_t encodedEndPos = numericDriver.getEncodedPosFromLeft(totalTextLength, enteredText.get(), &encodedEndPosAndAHalf);
+	int32_t encodedEndPos =
+	    numericDriver.getEncodedPosFromLeft(totalTextLength, enteredText.get(), &encodedEndPosAndAHalf);
 
 	int32_t scrollPos = encodedEditPos - (kNumericDisplayLength >> 1) + encodedEditPosAndAHalf;
 	int32_t maxScrollPos = encodedEndPos - kNumericDisplayLength;

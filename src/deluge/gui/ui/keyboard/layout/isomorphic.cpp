@@ -57,7 +57,8 @@ void KeyboardLayoutIsomorphic::handleHorizontalEncoder(int32_t offset, bool shif
 	}
 
 	// Calculate highest possible displayable note with current rowInterval
-	int32_t highestScrolledNote = (getHighestClipNote() - ((kDisplayHeight - 1) * state.rowInterval + kDisplayWidth - 1));
+	int32_t highestScrolledNote =
+	    (getHighestClipNote() - ((kDisplayHeight - 1) * state.rowInterval + kDisplayWidth - 1));
 
 	// Make sure current value is in bounds
 	state.scrollOffset = std::max(getLowestClipNote(), state.scrollOffset);

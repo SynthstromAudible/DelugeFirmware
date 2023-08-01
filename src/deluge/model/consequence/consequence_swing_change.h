@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include <cstdint>
 #include "model/consequence/consequence.h"
+#include <cstdint>
 
 class ConsequenceSwingChange final : public Consequence {
 public:

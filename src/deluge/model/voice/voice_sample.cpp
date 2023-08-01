@@ -167,8 +167,8 @@ void VoiceSample::setupCacheLoopPoints(SamplePlaybackGuide* guide, Sample* sampl
 }
 
 // Returns a status such as LATE_START_ATTEMPT_WAIT
-int32_t VoiceSample::attemptLateSampleStart(SamplePlaybackGuide* voiceSource, Sample* sample, int64_t rawSamplesSinceStart,
-                                        int32_t numSamples) {
+int32_t VoiceSample::attemptLateSampleStart(SamplePlaybackGuide* voiceSource, Sample* sample,
+                                            int64_t rawSamplesSinceStart, int32_t numSamples) {
 
 	int32_t bytesPerSample = sample->numChannels * sample->byteDepth;
 
@@ -266,7 +266,8 @@ goodToGo:
 
 // Returns false if becoming unassigned now
 bool VoiceSample::fudgeTimeStretchingToAvoidClick(Sample* sample, SamplePlaybackGuide* guide, int32_t phaseIncrement,
-                                                  int32_t numSamplesTilLoop, int32_t playDirection, int32_t priorityRating) {
+                                                  int32_t numSamplesTilLoop, int32_t playDirection,
+                                                  int32_t priorityRating) {
 
 	//Debug::print("fudging ");
 	//Debug::println(numSamplesTilLoop);
@@ -400,10 +401,11 @@ static_assert(TimeStretch::kDefaultFirstHopLength >= SSI_TX_BUFFER_NUM_SAMPLES,
               "problems with crossfading out of cache into new timeStretcher");
 
 // Returning false means instant unassign
-bool VoiceSample::render(SamplePlaybackGuide* guide, int32_t* __restrict__ outputBuffer, int32_t numSamples, Sample* sample,
-                         int32_t sampleSourceNumChannels, LoopType loopingType, int32_t phaseIncrement,
+bool VoiceSample::render(SamplePlaybackGuide* guide, int32_t* __restrict__ outputBuffer, int32_t numSamples,
+                         Sample* sample, int32_t sampleSourceNumChannels, LoopType loopingType, int32_t phaseIncrement,
                          int32_t timeStretchRatio, int32_t amplitude, int32_t amplitudeIncrement,
-                         int32_t interpolationBufferSize, InterpolationMode desiredInterpolationMode, int32_t priorityRating) {
+                         int32_t interpolationBufferSize, InterpolationMode desiredInterpolationMode,
+                         int32_t priorityRating) {
 
 	int32_t playDirection = guide->playDirection;
 
@@ -947,8 +949,9 @@ assessLoopPointAgainTimestretched:
 				if (playDirection == -1) {
 					samplePosBigAfterThisUncachedRead += 16777215;
 				}
-				int32_t bytePosAfterThisUncachedRead = (int32_t)(samplePosBigAfterThisUncachedRead >> 24) * bytesPerSample
-				                                   + sample->audioDataStartPosBytes;
+				int32_t bytePosAfterThisUncachedRead =
+				    (int32_t)(samplePosBigAfterThisUncachedRead >> 24) * bytesPerSample
+				    + sample->audioDataStartPosBytes;
 
 				int32_t overshootBytes = (bytePosAfterThisUncachedRead - reassessmentPos) * playDirection;
 
@@ -1003,7 +1006,8 @@ assessLoopPointAgainTimestretched:
 
 					// Or otherwise, just shorten this uncached-read to stop right at the reassessment-point, so we can reassess immediately after
 					else {
-						int32_t combinedIncrementsLeft = (uint64_t)combinedIncrementingLeftToDoAbsolute / combinedIncrement;
+						int32_t combinedIncrementsLeft =
+						    (uint64_t)combinedIncrementingLeftToDoAbsolute / combinedIncrement;
 						if (ALPHA_OR_BETA_VERSION && combinedIncrementsLeft > numSamplesThisUncachedRead) {
 							Debug::println(combinedIncrementsLeft);
 							numericDriver.freezeWithError("E151");
@@ -1169,7 +1173,7 @@ readTimestretched:
 			         && timeStretcher->bufferFillingMode == BUFFER_FILLING_OLDER)) {
 
 				int32_t samplesTilChangeover = (timeStretcher->bufferWritePos - timeStretcher->newerBufferReadPos)
-				                           & (TimeStretch::BUFFER_SIZE - 1);
+				                               & (TimeStretch::BUFFER_SIZE - 1);
 				if (numSamplesThisTimestretchedRead > samplesTilChangeover) {
 					Debug::println("shortening 1");
 					numSamplesThisTimestretchedRead = samplesTilChangeover;
@@ -1182,7 +1186,7 @@ readTimestretched:
 				if (timeStretcher->olderHeadReadingFromBuffer
 				    && timeStretcher->bufferFillingMode != BUFFER_FILLING_NEWER) {
 					int32_t samplesTilChangeover = (timeStretcher->bufferWritePos - timeStretcher->olderBufferReadPos)
-					                           & (TimeStretch::BUFFER_SIZE - 1);
+					                               & (TimeStretch::BUFFER_SIZE - 1);
 					if (numSamplesThisTimestretchedRead > samplesTilChangeover) {
 						Debug::println("shortening 2");
 						numSamplesThisTimestretchedRead = samplesTilChangeover;
@@ -1560,10 +1564,10 @@ loopBackToStartCached:
 
 				if (((VoiceSamplePlaybackGuide*)voiceSource)->shouldObeyLoopEndPointNow()) {
 					int32_t bytePos = timeStretcher->getSamplePos(voiceSource->playDirection)
-					                  * (sample->byteDepth * sample->numChannels)
-					              + sample->audioDataStartPosBytes;
+					                      * (sample->byteDepth * sample->numChannels)
+					                  + sample->audioDataStartPosBytes;
 					int32_t overshootBytes = (bytePos - ((VoiceSamplePlaybackGuide*)voiceSource)->loopEndPlaybackAtByte)
-					                     * voiceSource->playDirection;
+					                         * voiceSource->playDirection;
 
 					if (overshootBytes >= 0) {
 						goto loopBackToStartTimeStretched;
@@ -1616,8 +1620,8 @@ loopBackToStartCached:
 				        || !((VoiceSamplePlaybackGuide*)voiceSource)
 				                ->noteOffReceived)) { // Wait, wouldn't there always be a voiceSource->endPlaybackAtByte()?
 					int32_t bytePos = timeStretcher->getSamplePos(voiceSource->playDirection)
-					                  * (sample->byteDepth * sample->numChannels)
-					              + sample->audioDataStartPosBytes;
+					                      * (sample->byteDepth * sample->numChannels)
+					                  + sample->audioDataStartPosBytes;
 					int32_t overshootBytes = (bytePos - voiceSource->endPlaybackAtByte) * voiceSource->playDirection;
 
 					if (overshootBytes >= 0) {

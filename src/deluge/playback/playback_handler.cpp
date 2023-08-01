@@ -382,7 +382,8 @@ useArranger:
 
 // Call decideOnCurrentPlaybackMode() before this
 void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPos, bool doOneLastAudioRoutineCall,
-                                    bool shouldShiftAccordingToClipInstance, int32_t buttonPressLatencyForTempolessRecord) {
+                                    bool shouldShiftAccordingToClipInstance,
+                                    int32_t buttonPressLatencyForTempolessRecord) {
 
 	actionLogger.closeAction(ACTION_RECORD);
 
@@ -2470,8 +2471,8 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, int32_t channel,
 				    || currentUIMode
 				           == UI_MODE_RECORD_COUNT_IN) { // Not quite sure if this describes exactly what we want but it'll do...
 					int32_t overdubNature = (static_cast<GlobalMIDICommand>(c) == GlobalMIDICommand::LOOP)
-					                        ? OVERDUB_NORMAL
-					                        : OVERDUB_CONTINUOUS_LAYERING;
+					                            ? OVERDUB_NORMAL
+					                            : OVERDUB_CONTINUOUS_LAYERING;
 					loopCommand(overdubNature);
 				}
 				break;
@@ -2518,8 +2519,8 @@ void PlaybackHandler::programChangeReceived(int32_t channel, int32_t program) {
     */
 }
 
-void PlaybackHandler::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32_t channel, int32_t note, int32_t velocity,
-                                          bool* doingMidiThru) {
+void PlaybackHandler::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32_t channel, int32_t note,
+                                          int32_t velocity, bool* doingMidiThru) {
 	// If user assigning/learning MIDI commands, do that
 	if (currentUIMode == UI_MODE_MIDI_LEARN && on) {
 		// Checks velocity to let note-offs pass through,

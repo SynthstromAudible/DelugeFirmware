@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include <cstdint>
 #include "dsp/stereo_sample.h"
+#include <cstdint>
 
 extern const int32_t ir[];
 

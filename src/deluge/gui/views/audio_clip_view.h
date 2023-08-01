@@ -17,10 +17,10 @@
 
 #pragma once
 
-#include <cstdint>
 #include "gui/views/clip_view.h"
 #include "hid/button.h"
 #include "model/clip/clip_minder.h"
+#include <cstdint>
 
 class AudioClipView final : public ClipView, public ClipMinder {
 public:

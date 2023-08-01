@@ -124,7 +124,8 @@ bool WaveformRenderer::renderAsSingleRow(Sample* sample, int64_t xScroll, uint64
 }
 
 // Value out of 255
-int32_t WaveformRenderer::getColBrightnessForSingleRow(int32_t xDisplay, int32_t maxPeakFromZero, WaveformRenderData* data) {
+int32_t WaveformRenderer::getColBrightnessForSingleRow(int32_t xDisplay, int32_t maxPeakFromZero,
+                                                       WaveformRenderData* data) {
 
 	int32_t peak1 = std::abs(data->minPerCol[xDisplay]);
 	int32_t peak2 = std::abs(data->maxPerCol[xDisplay]);
@@ -171,12 +172,10 @@ void WaveformRenderer::renderOneColForCollapseAnimation(int32_t xDisplayWaveform
 
 // For the explode animation. Crams multiple cols of source material into one col of output material.
 // Crudely grabs the max values from all cols in range, which looks totally fine.
-void WaveformRenderer::renderOneColForCollapseAnimationZoomedOut(int32_t xDisplayWaveformLeftEdge,
-                                                                 int32_t xDisplayWaveformRightEdge, int32_t xDisplayOutput,
-                                                                 int32_t maxPeakFromZero, int32_t progress,
-                                                                 uint8_t thisImage[][kDisplayWidth + kSideBarWidth][3],
-                                                                 WaveformRenderData* data, uint8_t rgb[], bool reversed,
-                                                                 int32_t valueCentrePoint, int32_t valueSpan) {
+void WaveformRenderer::renderOneColForCollapseAnimationZoomedOut(
+    int32_t xDisplayWaveformLeftEdge, int32_t xDisplayWaveformRightEdge, int32_t xDisplayOutput,
+    int32_t maxPeakFromZero, int32_t progress, uint8_t thisImage[][kDisplayWidth + kSideBarWidth][3],
+    WaveformRenderData* data, uint8_t rgb[], bool reversed, int32_t valueCentrePoint, int32_t valueSpan) {
 
 	int32_t xDisplayDataLeftEdge = xDisplayWaveformLeftEdge;
 	int32_t xDisplayDataRightEdge = xDisplayWaveformRightEdge;
@@ -238,7 +237,8 @@ void WaveformRenderer::renderOneColForCollapseAnimationInterpolation(
 
 // Returns false if had trouble loading some (will often not be all) Clusters, e.g. cos we're in the card routine
 bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, uint64_t xZoomSamples,
-                                       WaveformRenderData* data, SampleRecorder* recorder, int32_t xStart, int32_t xEnd) {
+                                       WaveformRenderData* data, SampleRecorder* recorder, int32_t xStart,
+                                       int32_t xEnd) {
 
 	if (xScrollSamples != data->xScroll || xZoomSamples != data->xZoom) {
 		memset(data->colStatus, 0, sizeof(data->colStatus));
@@ -296,7 +296,8 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 			continue;
 		}
 
-		int32_t colStartByte = colStartSample * sample->numChannels * sample->byteDepth + sample->audioDataStartPosBytes;
+		int32_t colStartByte =
+		    colStartSample * sample->numChannels * sample->byteDepth + sample->audioDataStartPosBytes;
 		int32_t colEndByte = colEndSample * sample->numChannels * sample->byteDepth + sample->audioDataStartPosBytes;
 
 		int32_t colStartCluster = colStartByte >> audioFileManager.clusterSizeMagnitude;
@@ -332,7 +333,7 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 			int32_t startByteWithinFirstCluster = colStartByte & (audioFileManager.clusterSize - 1);
 
 			int32_t unusedBytesAtEndOfPrevCluster = (audioFileManager.clusterSize - startByteWithinFirstCluster)
-			                                    % (sample->numChannels * sample->byteDepth);
+			                                        % (sample->numChannels * sample->byteDepth);
 			if (unusedBytesAtEndOfPrevCluster == 0) {
 				startByteWithinCluster = 0;
 			}
@@ -364,7 +365,7 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 				clusterIndexToDo = colEndCluster;
 
 				int32_t unusedBytesAtEndOfPrevCluster = (audioFileManager.clusterSize - startByteWithinFirstCluster)
-				                                    % (sample->numChannels * sample->byteDepth);
+				                                        % (sample->numChannels * sample->byteDepth);
 				if (unusedBytesAtEndOfPrevCluster == 0) {
 					startByteWithinCluster = 0;
 				}
@@ -641,8 +642,9 @@ void WaveformRenderer::drawColBar(int32_t xDisplay, int32_t min24, int32_t max24
 	}
 }
 
-void WaveformRenderer::renderOneCol(Sample* sample, int32_t xDisplay, uint8_t thisImage[][kDisplayWidth + kSideBarWidth][3],
-                                    WaveformRenderData* data, bool reversed, uint8_t rgb[]) {
+void WaveformRenderer::renderOneCol(Sample* sample, int32_t xDisplay,
+                                    uint8_t thisImage[][kDisplayWidth + kSideBarWidth][3], WaveformRenderData* data,
+                                    bool reversed, uint8_t rgb[]) {
 	int32_t min24, max24;
 	int32_t brightness = rgb ? 256 : 128;
 

@@ -531,7 +531,7 @@ traverseClips:
 	// Compensation for the change in root note itself
 	int32_t rootNoteChange = rootNote - oldRootNote;
 	int32_t rootNoteChangeEffect = rootNoteChange * (12 - numModeNotes)
-	                           / 12; // I wasn't quite sure whether this should use numModeNotes or oldNumModeNotes
+	                               / 12; // I wasn't quite sure whether this should use numModeNotes or oldNumModeNotes
 
 	// All InstrumentClips in session and arranger
 	clipArray = &sessionClips;
@@ -2052,7 +2052,8 @@ traverseClips2:
 	deleteAllBackedUpParamManagersWithClips();
 }
 
-void Song::renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* reverbBuffer, int32_t sideChainHitPending) {
+void Song::renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* reverbBuffer,
+                       int32_t sideChainHitPending) {
 
 	//int32_t volumePostFX = getParamNeutralValue(Param::Global::VOLUME_POST_FX);
 	int32_t volumePostFX = getFinalParameterValueVolume(
@@ -3011,10 +3012,10 @@ traverseClips:
 
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
-			int32_t error = instrumentClip->changeInstrument(modelStackWithTimelineCounter, newOutput, NULL,
-			                                             InstrumentRemoval::NONE,
-			                                             (InstrumentClip*)favourClipForCloningParamManager,
-			                                             keepNoteRowsWithMIDIInput, true); // Will call audio routine
+			int32_t error = instrumentClip->changeInstrument(
+			    modelStackWithTimelineCounter, newOutput, NULL, InstrumentRemoval::NONE,
+			    (InstrumentClip*)favourClipForCloningParamManager, keepNoteRowsWithMIDIInput,
+			    true); // Will call audio routine
 			// TODO: deal with errors!
 
 			if (newOutput->type == InstrumentType::KIT) {
@@ -3491,7 +3492,7 @@ void Song::deleteBackedUpParamManagersForClip(Clip* clip) {
 
 				// ...and then go find the first one that had this ModControllable
 				int32_t j = backedUpParamManagers.search((uint32_t)modControllable, GREATER_OR_EQUAL, 0,
-				                                     i); // Search by first word only
+				                                         i); // Search by first word only
 				BackedUpParamManager* firstElementWithModControllable =
 				    (BackedUpParamManager*)backedUpParamManagers.getElementAddress(j);
 
@@ -3754,7 +3755,8 @@ void Song::sendAllMIDIPGMs() {
 
 // This is only called right after Song loaded, so we can assume all Instruments have a NULL activeClip
 // It's not possible for this to stop there from being more than zero soloing Clips
-void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack, int32_t playbackWillStartInArrangerAtPos) {
+void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
+                                                        int32_t playbackWillStartInArrangerAtPos) {
 
 	AudioEngine::logAction("aaa5.11");
 

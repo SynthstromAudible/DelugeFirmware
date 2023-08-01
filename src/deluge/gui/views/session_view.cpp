@@ -210,7 +210,8 @@ ActionResult SessionView::buttonAction(hid::Button b, bool on, bool inCardRoutin
 					currentSong->clearArrangementBeyondPos(
 					    arrangerView.xScrollWhenPlaybackStarted,
 					    action); // Want to do this before setting up playback or place new instances
-					int32_t error = currentSong->placeFirstInstancesOfActiveClips(arrangerView.xScrollWhenPlaybackStarted);
+					int32_t error =
+					    currentSong->placeFirstInstancesOfActiveClips(arrangerView.xScrollWhenPlaybackStarted);
 
 					if (error) {
 						numericDriver.displayError(error);
@@ -1270,7 +1271,8 @@ void SessionView::drawSectionSquare(uint8_t yDisplay, uint8_t thisImage[][3]) {
 }
 
 // Will now look in subfolders too if need be.
-int32_t setPresetOrNextUnlaunchedOne(InstrumentClip* clip, InstrumentType instrumentType, bool* instrumentAlreadyInSong) {
+int32_t setPresetOrNextUnlaunchedOne(InstrumentClip* clip, InstrumentType instrumentType,
+                                     bool* instrumentAlreadyInSong) {
 	ReturnOfConfirmPresetOrNextUnlaunchedOne result;
 	result.error = Browser::currentDir.set(getInstrumentFolder(instrumentType));
 	if (result.error) {

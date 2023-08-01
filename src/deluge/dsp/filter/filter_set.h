@@ -17,10 +17,10 @@
 
 #pragma once
 
-#include <cstdint>
 #include "definitions_cxx.hpp"
 #include "dsp/filter/filter_set_config.h"
 #include "util/functions.h"
+#include <cstdint>
 
 class Sound;
 class FilterSetConfig;
@@ -108,7 +108,8 @@ public:
 	bool lpfOnLastTime;
 	inline void renderLPLadder(q31_t* startSample, q31_t* endSample, LPLadderConfig* filterSetConfig, LPFMode lpfMode,
 	                           int32_t sampleIncrement, int32_t extraSaturation, int32_t extraSaturationDrive);
-	inline void renderLPSVF(q31_t* startSample, q31_t* endSample, LPSVFConfig* filterSetConfig, int32_t sampleIncrement);
+	inline void renderLPSVF(q31_t* startSample, q31_t* endSample, LPSVFConfig* filterSetConfig,
+	                        int32_t sampleIncrement);
 	inline void renderLong(q31_t* outputSample, q31_t* endSample, FilterSetConfig* filterSetConfig, LPFMode lpfMode,
 	                       int32_t numSamples, int32_t sampleIncrememt = 1) {
 

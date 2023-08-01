@@ -32,13 +32,13 @@ public:
 	                  int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
 	                  bool shouldLimitDelayFeedback, bool isClipActive);
 	void sendNote(ModelStackWithThreeMainThings* modelStack, bool isOn, int32_t noteCode, int16_t const* mpeValues,
-	              int32_t fromMIDIChannel = 16, uint8_t velocity = 64, uint32_t sampleSyncLength = 0, int32_t ticksLate = 0,
-	              uint32_t samplesLate = 0);
+	              int32_t fromMIDIChannel = 16, uint8_t velocity = 64, uint32_t sampleSyncLength = 0,
+	              int32_t ticksLate = 0, uint32_t samplesLate = 0);
 	int32_t doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) final;
 	ParamManager* getParamManager(Song* song) final;
 
-	void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t whichExpressionDimension, int32_t channelOrNote,
-	                                              MIDICharacteristic whichCharacteristic) final;
+	void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t whichExpressionDimension,
+	                                              int32_t channelOrNote, MIDICharacteristic whichCharacteristic) final;
 
 	void beenEdited(bool shouldMoveToEmptySlot) {} // Probably don't need this anymore...
 

@@ -48,7 +48,7 @@ public:
 	void rowEdited(Output* output, int32_t startPos, int32_t endPos, Clip* clipRemoved,
 	               ClipInstance* clipInstanceAdded);
 	int32_t doUniqueCloneOnClipInstance(ClipInstance* clipInstance, int32_t newLength = -1,
-	                                bool shouldCloneRepeats = false);
+	                                    bool shouldCloneRepeats = false);
 	int32_t getLivePos(uint32_t* timeRemainder = NULL);
 	void endAnyLinearRecording();
 

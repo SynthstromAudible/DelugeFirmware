@@ -17,10 +17,10 @@
 
 #pragma once
 
-#include <cstdint>
 #include "definitions_cxx.hpp"
 #include "menu_item_with_cc_learning.h"
 #include "param.h"
+#include <cstdint>
 
 class ModelStackWithAutoParam;
 

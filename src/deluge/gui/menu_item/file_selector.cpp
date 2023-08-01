@@ -55,7 +55,8 @@ bool FileSelector::isRelevant(Sound* sound, int32_t whichThing) {
 
 	return (sound->getSynthMode() == SynthMode::SUBTRACTIVE && source->oscType == OscType::SAMPLE);
 }
-MenuPermission FileSelector::checkPermissionToBeginSession(Sound* sound, int32_t whichThing, ::MultiRange** currentRange) {
+MenuPermission FileSelector::checkPermissionToBeginSession(Sound* sound, int32_t whichThing,
+                                                           ::MultiRange** currentRange) {
 
 	if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
 		return MenuPermission::YES;

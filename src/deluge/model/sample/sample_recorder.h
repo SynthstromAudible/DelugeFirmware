@@ -17,10 +17,10 @@
 
 #pragma once
 
-#include <cstdint>
 #include "definitions_cxx.hpp"
 #include "dsp/stereo_sample.h"
 #include "util/d_string.h"
+#include <cstdint>
 
 extern "C" {
 #include "fatfs/ff.h"
@@ -45,8 +45,8 @@ class SampleRecorder {
 public:
 	SampleRecorder();
 	~SampleRecorder();
-	int32_t setup(int32_t newNumChannels, AudioInputChannel newMode, bool newKeepingReasons, bool shouldRecordExtraMargins,
-	          AudioRecordingFolder newFolderID, int32_t buttonPressLatency);
+	int32_t setup(int32_t newNumChannels, AudioInputChannel newMode, bool newKeepingReasons,
+	              bool shouldRecordExtraMargins, AudioRecordingFolder newFolderID, int32_t buttonPressLatency);
 	void feedAudio(int32_t* inputAddress, int32_t numSamples, bool applyGain = false);
 	int32_t cardRoutine();
 	void endSyncedRecording(int32_t buttonLatencyForTempolessRecording);
@@ -120,7 +120,8 @@ public:
 private:
 	void setExtraBytesOnPreviousCluster(Cluster* currentCluster, int32_t currentClusterIndex);
 	int32_t writeCluster(int32_t clusterIndex, int32_t numBytes);
-	int32_t alterFile(int32_t action, int32_t lshiftAmount, uint32_t idealFileSizeBeforeAction, uint64_t dataLengthAfterAction);
+	int32_t alterFile(int32_t action, int32_t lshiftAmount, uint32_t idealFileSizeBeforeAction,
+	                  uint64_t dataLengthAfterAction);
 	int32_t finalizeRecordedFile();
 	int32_t createNextCluster();
 	int32_t writeAnyCompletedClusters();

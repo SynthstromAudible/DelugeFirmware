@@ -56,10 +56,10 @@ char midiRxBuffer[MIDI_RX_BUFFER_SIZE] __attribute__((aligned(CACHE_LINE_SIZE)))
 uint32_t midiRxTimingBuffer[MIDI_RX_TIMING_BUFFER_SIZE] __attribute__((aligned(
     CACHE_LINE_SIZE))); // I'd like to store just 16 bits per entry for this, but the DMA wouldn't do it - whether or not I also set its source data size to 16 bits
 
-char* const txBuffers[]      = {picTxBuffer, midiTxBuffer};
+char* const txBuffers[]        = {picTxBuffer, midiTxBuffer};
 const uint16_t txBufferSizes[] = {PIC_TX_BUFFER_SIZE, MIDI_TX_BUFFER_SIZE};
 
-char* const rxBuffers[]      = {picRxBuffer, midiRxBuffer};
+char* const rxBuffers[]        = {picRxBuffer, midiRxBuffer};
 const uint16_t rxBufferSizes[] = {PIC_RX_BUFFER_SIZE, MIDI_RX_BUFFER_SIZE};
 
 const uint8_t uartChannels[]  = {UART_CHANNEL_PIC, UART_CHANNEL_MIDI};
@@ -68,7 +68,7 @@ const uint8_t rxDmaChannels[] = {PIC_RX_DMA_CHANNEL, MIDI_RX_DMA_CHANNEL};
 
 char* rxBufferReadAddr[] = {picRxBuffer, midiRxBuffer};
 
-char const timingCaptureItems[]         = {UART_ITEM_MIDI};
+char const timingCaptureItems[]           = {UART_ITEM_MIDI};
 uint16_t const timingCaptureBufferSizes[] = {MIDI_RX_TIMING_BUFFER_SIZE};
 uint32_t* const timingCaptureBuffers[]    = {midiRxTimingBuffer};
 uint8_t const timingCaptureDMAChannels[]  = {MIDI_RX_TIMING_DMA_CHANNEL};

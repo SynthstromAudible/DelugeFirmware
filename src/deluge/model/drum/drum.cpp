@@ -17,7 +17,6 @@
 
 #include "model/drum/drum.h"
 
-#include <cstdint>
 #include "definitions_cxx.hpp"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
@@ -29,6 +28,7 @@
 #include "playback/playback_handler.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
+#include <cstdint>
 #include <new>
 #include <string.h>
 

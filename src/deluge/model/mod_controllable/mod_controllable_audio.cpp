@@ -778,7 +778,7 @@ void ModControllableAudio::processSRRAndBitcrushing(StereoSample* buffer, int32_
 			// Convert up
 			int32_t strength2 =
 			    std::min(highSampleRatePos,
-			           (uint32_t)4194303); // Would only overshoot if we raised the sample rate during playback
+			             (uint32_t)4194303); // Would only overshoot if we raised the sample rate during playback
 			int32_t strength1 = 4194303 - strength2;
 			currentSample->l = (multiply_32x32_rshift32_rounded(lastGrabbedSample.l, strength1 << 9)
 			                    + multiply_32x32_rshift32_rounded(grabbedSample.l, strength2 << 9))
@@ -1133,7 +1133,7 @@ bool ModControllableAudio::readParamTagFromFile(char const* tagName, ParamManage
 
 // paramManager is optional
 int32_t ModControllableAudio::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager,
-                                          int32_t readAutomationUpToPos, Song* song) {
+                                              int32_t readAutomationUpToPos, Song* song) {
 
 	// All of this is here for compatibility only for people (Lou and Ian) who saved songs with firmware in September 2016
 	//if (paramManager && ModControllableAudio::readParamTagFromFile(tagName, paramManager, readAutomation)) {}
@@ -1468,8 +1468,8 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 						    modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
 
 						//Here we convert the current Parameter Value on the Deluge to a Knob Position Value
-						int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(previousValue,
-						                                                                        modelStackWithParam);
+						int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(
+						    previousValue, modelStackWithParam);
 
 						//Here is where we check if the Knob/Fader on the Midi Controller is out of sync with the Deluge Knob Position
 

@@ -155,7 +155,8 @@ void NumericDriver::setText(char const* newText, bool alignRight, uint8_t drawDo
 }
 
 #if !HAVE_OLED
-NumericLayerScrollingText* NumericDriver::setScrollingText(char const* newText, int32_t startAtTextPos, int32_t initialDelay) {
+NumericLayerScrollingText* NumericDriver::setScrollingText(char const* newText, int32_t startAtTextPos,
+                                                           int32_t initialDelay) {
 	void* layerSpace = GeneralMemoryAllocator::get().alloc(sizeof(NumericLayerScrollingText));
 	if (!layerSpace) {
 		return NULL;
@@ -270,7 +271,7 @@ int32_t NumericDriver::getEncodedPosFromLeft(int32_t textPos, char const* text, 
 // Returns encoded length
 // scrollPos may only be set when aligning left
 int32_t NumericDriver::encodeText(char const* newText, uint8_t* destination, bool alignRight, uint8_t drawDot,
-                              bool limitToDisplayLength, int32_t scrollPos) {
+                                  bool limitToDisplayLength, int32_t scrollPos) {
 
 	int32_t writePos;
 	int32_t readPos;

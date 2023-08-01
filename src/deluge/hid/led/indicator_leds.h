@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include <cstdint>
 #include "definitions_cxx.hpp"
+#include <cstdint>
 
 constexpr size_t numLedBlinkers = 4;
 

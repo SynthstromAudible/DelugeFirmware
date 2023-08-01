@@ -288,7 +288,7 @@ goAgainWithoutIncrement:
 
 				// Get the cable whose range we're adjusting to store a reference back to the one adjusting its range
 				int32_t c = getPatchCableIndex(destination->destinationParamDescriptor.getBottomLevelSource(),
-				                           cableDestination);
+				                               cableDestination);
 				if (c != 255) {
 					patchCables[c].rangeAdjustmentPointer = &rangeFinalValues[i];
 				}
@@ -535,10 +535,10 @@ void PatchCableSet::removeAllPatchingToParam(ModelStackWithParamCollection* mode
 }
 
 #define FOR_EACH_FLAGGED_PARAM(whichParams)                                                                            \
-	for (int32_t i = kNumUnsignedIntegersToRepPatchCables - 1; i >= 0; i--) {                                              \
+	for (int32_t i = kNumUnsignedIntegersToRepPatchCables - 1; i >= 0; i--) {                                          \
 		uint32_t whichParamsHere = whichParams[i];                                                                     \
 		while (whichParamsHere) {                                                                                      \
-			int32_t whichBit = 31 - clz(whichParamsHere);                                                                  \
+			int32_t whichBit = 31 - clz(whichParamsHere);                                                              \
 			whichParamsHere &= ~((uint32_t)1 << whichBit);                                                             \
 			int32_t c = whichBit + (i << 5);
 
@@ -1075,8 +1075,8 @@ void PatchCableSet::deleteAllAutomation(Action* action, ModelStackWithParamColle
 	modelStack->summary->resetInterpolationRecord(kNumUnsignedIntegersToRepPatchCables - 1);
 }
 
-void PatchCableSet::nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int32_t lengthBeforeLoop, Action* action,
-                                                    ModelStackWithParamCollection* modelStack) {
+void PatchCableSet::nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int32_t lengthBeforeLoop,
+                                                    Action* action, ModelStackWithParamCollection* modelStack) {
 
 	bool anyStoppedBeingAutomated = false;
 

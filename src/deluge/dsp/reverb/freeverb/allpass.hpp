@@ -22,8 +22,8 @@
 */
 
 #pragma once
-#include <cstdint>
 #include "util/functions.h"
+#include <cstdint>
 
 class allpass {
 public:

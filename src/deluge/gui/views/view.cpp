@@ -1222,8 +1222,8 @@ void View::displayOutputName(Output* output, bool doBlink, Clip* clip) {
 }
 
 // If HAVE_OLED, must make sure OLED::sendMainImage() gets called after this.
-void View::drawOutputNameFromDetails(InstrumentType instrumentType, int32_t channel, int32_t channelSuffix, char const* name,
-                                     bool editedByUser, bool doBlink, Clip* clip) {
+void View::drawOutputNameFromDetails(InstrumentType instrumentType, int32_t channel, int32_t channelSuffix,
+                                     char const* name, bool editedByUser, bool doBlink, Clip* clip) {
 	if (doBlink) {
 		using namespace indicator_leds;
 		LED led;
@@ -1635,7 +1635,7 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 gotAnInstrument:
 
 			int32_t error = clip->changeInstrument(modelStack, newInstrument, NULL,
-			                                   InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL, true);
+			                                       InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL, true);
 			// TODO: deal with errors
 
 			if (!instrumentAlreadyInSong) {
@@ -1717,7 +1717,7 @@ getOut:
 			// If we're here, we know the Clip is not playing in the arranger (and doesn't even have an instance in there)
 
 			int32_t error = clip->changeInstrument(modelStack, newInstrument, NULL,
-			                                   InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL, true);
+			                                       InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL, true);
 			// TODO: deal with errors!
 
 			if (!instrumentAlreadyInSong) {

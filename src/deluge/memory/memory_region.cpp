@@ -28,7 +28,8 @@ MemoryRegion::MemoryRegion() : emptySpaces(sizeof(EmptySpaceRecord)) {
 	numAllocations = 0;
 }
 
-void MemoryRegion::setup(void* emptySpacesMemory, int32_t emptySpacesMemorySize, uint32_t regionBegin, uint32_t regionEnd) {
+void MemoryRegion::setup(void* emptySpacesMemory, int32_t emptySpacesMemorySize, uint32_t regionBegin,
+                         uint32_t regionEnd) {
 	emptySpaces.setStaticMemory(emptySpacesMemory, emptySpacesMemorySize);
 
 	uint32_t memorySizeWithoutHeaders = regionEnd - regionBegin - 16;
@@ -192,7 +193,7 @@ justInsertRecord:
 
 goingToReplaceOldRecord:
 		int32_t i = emptySpaces.searchMultiWordExact((uint32_t*)recordToMergeWith, &insertRangeBegin,
-		                                         biggerRecordSearchFromIndex);
+		                                             biggerRecordSearchFromIndex);
 		if (i
 		    == -1) { // The record might not exist because there wasn't room to insert it when the empty space was created.
 #if ALPHA_OR_BETA_VERSION
@@ -214,7 +215,8 @@ goingToReplaceOldRecord:
 				newRecordPreview.length = spaceSize;
 				newRecordPreview.address = address;
 
-				int32_t insertBefore = emptySpaces.searchMultiWord((uint32_t*)&newRecordPreview, GREATER_OR_EQUAL, i + 2);
+				int32_t insertBefore =
+				    emptySpaces.searchMultiWord((uint32_t*)&newRecordPreview, GREATER_OR_EQUAL, i + 2);
 				emptySpaces.moveElementsLeft(i + 1, insertBefore, 1);
 				i = insertBefore - 1;
 			}
@@ -510,10 +512,9 @@ finished:
 }
 
 // Returns new space start address, or NULL if couldn't grab enough memory.
-NeighbouringMemoryGrabAttemptResult
-MemoryRegion::attemptToGrabNeighbouringMemory(void* originalSpaceAddress, int32_t originalSpaceSize, int32_t minAmountToExtend,
-                                              int32_t idealAmountToExtend, void* thingNotToStealFrom,
-                                              uint32_t markWithTraversalNo, bool originalSpaceNeedsStealing) {
+NeighbouringMemoryGrabAttemptResult MemoryRegion::attemptToGrabNeighbouringMemory(
+    void* originalSpaceAddress, int32_t originalSpaceSize, int32_t minAmountToExtend, int32_t idealAmountToExtend,
+    void* thingNotToStealFrom, uint32_t markWithTraversalNo, bool originalSpaceNeedsStealing) {
 
 	NeighbouringMemoryGrabAttemptResult toReturn;
 

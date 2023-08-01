@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include <cstdint>
 #include "definitions_cxx.hpp"
 #include "hid/display/numeric_driver.h"
+#include <cstdint>
 
 #define REASSESSMENT_ACTION_STOP_OR_LOOP 0
 #define REASSESSMENT_ACTION_NEXT_CLUSTER 1
@@ -39,11 +39,13 @@ public:
 	~SampleLowLevelReader();
 
 	void unassignAllReasons();
-	void jumpForwardLinear(int32_t numChannels, int32_t byteDepth, uint32_t bitMask, int32_t jumpAmount, int32_t phaseIncrement);
+	void jumpForwardLinear(int32_t numChannels, int32_t byteDepth, uint32_t bitMask, int32_t jumpAmount,
+	                       int32_t phaseIncrement);
 	void jumpForwardZeroes(int32_t bufferSize, int32_t numChannels, int32_t phaseIncrement);
 	void interpolate(int32_t* sampleRead, int32_t numChannels, int32_t whichKernel);
 	void interpolateLinear(int32_t* sampleRead, int32_t numChannels, int32_t whichKernel);
-	void fillInterpolationBufferRetrospectively(Sample* sample, int32_t bufferSize, int32_t startI, int32_t playDirection);
+	void fillInterpolationBufferRetrospectively(Sample* sample, int32_t bufferSize, int32_t startI,
+	                                            int32_t playDirection);
 	void jumpBackSamples(Sample* sample, int32_t numToJumpBack, int32_t playDirection);
 	void setupForPlayPosMovedIntoNewCluster(SamplePlaybackGuide* guide, Sample* sample, int32_t bytePosWithinNewCluster,
 	                                        int32_t byteDepth);
@@ -67,25 +69,27 @@ public:
 
 	virtual bool shouldObeyMarkers() { return false; }
 
-	void readSamplesNative(int32_t** __restrict__ oscBufferPos, int32_t numSamplesTotal, Sample* sample, int32_t jumpAmount,
-	                       int32_t numChannels, int32_t numChannelsAfterCondensing, int32_t* amplitude,
-	                       int32_t amplitudeIncrement, TimeStretcher* timeStretcher = NULL,
+	void readSamplesNative(int32_t** __restrict__ oscBufferPos, int32_t numSamplesTotal, Sample* sample,
+	                       int32_t jumpAmount, int32_t numChannels, int32_t numChannelsAfterCondensing,
+	                       int32_t* amplitude, int32_t amplitudeIncrement, TimeStretcher* timeStretcher = NULL,
 	                       bool bufferingToTimeStretcher = false);
 
-	void readSamplesResampled(int32_t** __restrict__ oscBufferPos, int32_t numSamples, Sample* sample, int32_t jumpAmount,
-	                          int32_t numChannels, int32_t numChannelsAfterCondensing, int32_t phaseIncrement,
-	                          int32_t* amplitude, int32_t amplitudeIncrement, int32_t bufferSize, bool writingCache,
-	                          char** __restrict__ cacheWritePos, bool* doneAnySamplesYet, TimeStretcher* timeStretcher,
-	                          bool bufferingToTimeStretcher, int32_t whichKernel);
+	void readSamplesResampled(int32_t** __restrict__ oscBufferPos, int32_t numSamples, Sample* sample,
+	                          int32_t jumpAmount, int32_t numChannels, int32_t numChannelsAfterCondensing,
+	                          int32_t phaseIncrement, int32_t* amplitude, int32_t amplitudeIncrement,
+	                          int32_t bufferSize, bool writingCache, char** __restrict__ cacheWritePos,
+	                          bool* doneAnySamplesYet, TimeStretcher* timeStretcher, bool bufferingToTimeStretcher,
+	                          int32_t whichKernel);
 
-	bool readSamplesForTimeStretching(int32_t* oscBufferPos, SamplePlaybackGuide* guide, Sample* sample, int32_t numSamples,
-	                                  int32_t numChannels, int32_t numChannelsAfterCondensing, int32_t phaseIncrement,
-	                                  int32_t amplitude, int32_t amplitudeIncrement, bool loopingAtLowLevel,
-	                                  int32_t jumpAmount, int32_t bufferSize, TimeStretcher* timeStretcher,
-	                                  bool bufferingToTimeStretcher, int32_t whichPlayHead, int32_t whichKernel,
-	                                  int32_t priorityRating);
+	bool readSamplesForTimeStretching(int32_t* oscBufferPos, SamplePlaybackGuide* guide, Sample* sample,
+	                                  int32_t numSamples, int32_t numChannels, int32_t numChannelsAfterCondensing,
+	                                  int32_t phaseIncrement, int32_t amplitude, int32_t amplitudeIncrement,
+	                                  bool loopingAtLowLevel, int32_t jumpAmount, int32_t bufferSize,
+	                                  TimeStretcher* timeStretcher, bool bufferingToTimeStretcher,
+	                                  int32_t whichPlayHead, int32_t whichKernel, int32_t priorityRating);
 
-	void bufferIndividualSampleForInterpolation(uint32_t bitMask, int32_t numChannels, int32_t byteDepth, char* playPosNow);
+	void bufferIndividualSampleForInterpolation(uint32_t bitMask, int32_t numChannels, int32_t byteDepth,
+	                                            char* playPosNow);
 	void bufferZeroForInterpolation(int32_t numChannels);
 
 	uint32_t oscPos;

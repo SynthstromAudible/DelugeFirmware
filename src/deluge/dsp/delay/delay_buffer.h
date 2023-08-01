@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include <cstdint>
 #include "dsp/stereo_sample.h"
+#include <cstdint>
 #include <math.h>
 
 class StereoSample;

@@ -198,7 +198,8 @@ deleteFromRightSide:
 
 		// If search-item is in second half, delete from start.
 		if ((foundIndex << 1) >= fileItems.getNumElements()) {
-			int32_t newNumFilesDeleting = foundIndex >> 1; // Delete half the existing items to the left of the search-item.
+			int32_t newNumFilesDeleting =
+			    foundIndex >> 1; // Delete half the existing items to the left of the search-item.
 			if (newNumFilesDeleting <= 0) {
 				return;
 			}
@@ -211,7 +212,7 @@ deleteFromRightSide:
 		// Or, vice versa.
 		else {
 			int32_t newNumFilesDeleting = (fileItems.getNumElements() - foundIndex)
-			                          >> 1; // Delete half the existing items to the right of the search-item.
+			                              >> 1; // Delete half the existing items to the right of the search-item.
 			if (newNumFilesDeleting <= 0) {
 				return;
 			}
@@ -228,8 +229,8 @@ deleteFromRightSide:
 }
 
 int32_t Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFolders,
-                                    char const** allowedFileExtensionsHere, char const* filenameToStartAt,
-                                    int32_t newMaxNumFileItems, int32_t newCatalogSearchDirection) {
+                                        char const** allowedFileExtensionsHere, char const* filenameToStartAt,
+                                        int32_t newMaxNumFileItems, int32_t newCatalogSearchDirection) {
 
 	AudioEngine::logAction("readFileItemsForFolder");
 
@@ -454,15 +455,15 @@ deleteThisItem:
 
 // song may be supplied as NULL, in which case it won't be searched for Instruments; sometimes this will get called when the currentSong is not set up.
 int32_t Browser::readFileItemsFromFolderAndMemory(Song* song, InstrumentType instrumentType, char const* filePrefixHere,
-                                              char const* filenameToStartAt, char const* defaultDirToAlsoTry,
-                                              bool allowFolders, Availability availabilityRequirement,
-                                              int32_t newCatalogSearchDirection) {
+                                                  char const* filenameToStartAt, char const* defaultDirToAlsoTry,
+                                                  bool allowFolders, Availability availabilityRequirement,
+                                                  int32_t newCatalogSearchDirection) {
 	// filenameToStartAt should have .XML at the end of it.
 	bool triedCreatingFolder = false;
 
 tryReadingItems:
 	int32_t error = readFileItemsForFolder(filePrefixHere, allowFolders, allowedFileExtensions, filenameToStartAt,
-	                                   FILE_ITEMS_MAX_NUM_ELEMENTS, newCatalogSearchDirection);
+	                                       FILE_ITEMS_MAX_NUM_ELEMENTS, newCatalogSearchDirection);
 	if (error) {
 
 		// If folder didn't exist, try our alternative one if there is one.
@@ -803,7 +804,7 @@ int32_t Browser::getUnusedSlot(InstrumentType instrumentType, String* newName, c
 	strcpy(filenameToStartAt, thingName);
 	strcat(filenameToStartAt, ":");
 #else
-	char const* filenameToStartAt = ":";     // Colon is the first character after the digits
+	char const* filenameToStartAt = ":";         // Colon is the first character after the digits
 #endif
 
 	int32_t error =

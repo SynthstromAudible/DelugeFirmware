@@ -119,7 +119,8 @@ void SampleRecorder::detachSample() {
 }
 
 int32_t SampleRecorder::setup(int32_t newNumChannels, AudioInputChannel newMode, bool newKeepingReasons,
-                          bool shouldRecordExtraMargins, AudioRecordingFolder newFolderID, int32_t buttonPressLatency) {
+                              bool shouldRecordExtraMargins, AudioRecordingFolder newFolderID,
+                              int32_t buttonPressLatency) {
 
 	if (!audioFileManager.ensureEnoughMemoryForOneMoreAudioFile()) {
 		return ERROR_INSUFFICIENT_RAM;
@@ -1045,7 +1046,8 @@ void SampleRecorder::endSyncedRecording(int32_t buttonLatencyForTempolessRecordi
 	}
 #endif
 
-	int32_t numMoreSamplesTilEndLoopPoint = numSamplesExtraToCaptureAtEndSyncingWise - buttonLatencyForTempolessRecording;
+	int32_t numMoreSamplesTilEndLoopPoint =
+	    numSamplesExtraToCaptureAtEndSyncingWise - buttonLatencyForTempolessRecording;
 	int32_t numMoreSamplesToCapture = numMoreSamplesTilEndLoopPoint;
 
 	Debug::print("buttonLatencyForTempolessRecording: ");
@@ -1117,7 +1119,7 @@ void SampleRecorder::setExtraBytesOnPreviousCluster(Cluster* currentCluster, int
 }
 
 int32_t SampleRecorder::alterFile(int32_t action, int32_t lshiftAmount, uint32_t idealFileSizeBeforeAction,
-                              uint64_t dataLengthAfterAction) {
+                                  uint64_t dataLengthAfterAction) {
 
 	Debug::println("altering file");
 	int32_t currentReadClusterIndex = 0;

@@ -194,7 +194,8 @@ expressionParam:
 	    true); // Yes we do want to force creating it even if we're not recording - so the level indicator can update for the user
 }
 
-void MIDIInstrument::ccReceivedFromInputMIDIChannel(int32_t cc, int32_t value, ModelStackWithTimelineCounter* modelStack) {
+void MIDIInstrument::ccReceivedFromInputMIDIChannel(int32_t cc, int32_t value,
+                                                    ModelStackWithTimelineCounter* modelStack) {
 
 	int32_t valueBig = (value - 64) << 25;
 
@@ -336,7 +337,7 @@ bool MIDIInstrument::readTagFromFile(char const* tagName) {
 
 // paramManager is sometimes NULL (when called from the above function), for reasons I've kinda forgotten, yet everything seems to still work...
 int32_t MIDIInstrument::readModKnobAssignmentsFromFile(int32_t readAutomationUpToPos,
-                                                   ParamManagerForTimeline* paramManager) {
+                                                       ParamManagerForTimeline* paramManager) {
 	int32_t m = 0;
 	char const* tagName;
 
@@ -347,7 +348,7 @@ int32_t MIDIInstrument::readModKnobAssignmentsFromFile(int32_t readAutomationUpT
 				midiParamCollection = paramManager->getMIDIParamCollection();
 			}
 			int32_t error = storageManager.readMIDIParamFromFile(readAutomationUpToPos, midiParamCollection,
-			                                                 &modKnobCCAssignments[m]);
+			                                                     &modKnobCCAssignments[m]);
 			if (error) {
 				return error;
 			}
@@ -384,7 +385,7 @@ int32_t MIDIInstrument::changeControlNumberForModKnob(int32_t offset, int32_t wh
 }
 
 int32_t MIDIInstrument::getFirstUnusedCC(ModelStackWithThreeMainThings* modelStack, int32_t direction, int32_t startAt,
-                                     int32_t stopAt) {
+                                         int32_t stopAt) {
 
 	int32_t proposedCC = startAt;
 
@@ -413,7 +414,8 @@ int32_t MIDIInstrument::getFirstUnusedCC(ModelStackWithThreeMainThings* modelSta
 }
 
 // Returns error code
-int32_t MIDIInstrument::moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC, ModelStackWithThreeMainThings* modelStack) {
+int32_t MIDIInstrument::moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC,
+                                                    ModelStackWithThreeMainThings* modelStack) {
 
 	ModelStackWithAutoParam* modelStackWithAutoParam = getParamToControlFromInputMIDIChannel(oldCC, modelStack);
 
@@ -460,7 +462,7 @@ int32_t MIDIInstrument::moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC
 }
 
 int32_t MIDIInstrument::moveAutomationToDifferentCC(int32_t offset, int32_t whichModEncoder, int32_t modKnobMode,
-                                                ModelStackWithThreeMainThings* modelStack) {
+                                                    ModelStackWithThreeMainThings* modelStack) {
 
 	int8_t* cc = &modKnobCCAssignments[modKnobMode * kNumPhysicalModKnobs + whichModEncoder];
 
@@ -549,8 +551,8 @@ traverseClips2:
 }
 
 void MIDIInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                       MIDIDevice* fromDevice, bool on, int32_t receivedChannel, int32_t note, int32_t velocity,
-                                       bool shouldRecordNotes, bool* doingMidiThru) {
+                                       MIDIDevice* fromDevice, bool on, int32_t receivedChannel, int32_t note,
+                                       int32_t velocity, bool shouldRecordNotes, bool* doingMidiThru) {
 
 	if (midiInput.channelOrZone == receivedChannel) {
 
@@ -585,11 +587,11 @@ void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) {
 	else {
 
 		int32_t lowestMemberChannel = (channel == MIDI_CHANNEL_MPE_LOWER_ZONE)
-		                              ? 1
-		                              : MIDIDeviceManager::highestLastMemberChannelOfUpperZoneOnConnectedOutput;
+		                                  ? 1
+		                                  : MIDIDeviceManager::highestLastMemberChannelOfUpperZoneOnConnectedOutput;
 		int32_t highestMemberChannel = (channel == MIDI_CHANNEL_MPE_LOWER_ZONE)
-		                               ? MIDIDeviceManager::lowestLastMemberChannelOfLowerZoneOnConnectedOutput
-		                               : 14;
+		                                   ? MIDIDeviceManager::lowestLastMemberChannelOfLowerZoneOnConnectedOutput
+		                                   : 14;
 
 		uint8_t numNotesPreviouslyActiveOnMemberChannel[15];
 		memset(numNotesPreviouslyActiveOnMemberChannel, 0, sizeof(numNotesPreviouslyActiveOnMemberChannel));
@@ -770,11 +772,11 @@ void MIDIInstrument::allNotesOff() {
 	else {
 		// We'll send on the master channel as well as the member channels.
 		int32_t lowestMemberChannel = (channel == MIDI_CHANNEL_MPE_LOWER_ZONE)
-		                              ? 0
-		                              : MIDIDeviceManager::highestLastMemberChannelOfUpperZoneOnConnectedOutput;
+		                                  ? 0
+		                                  : MIDIDeviceManager::highestLastMemberChannelOfUpperZoneOnConnectedOutput;
 		int32_t highestMemberChannel = (channel == MIDI_CHANNEL_MPE_LOWER_ZONE)
-		                               ? MIDIDeviceManager::lowestLastMemberChannelOfLowerZoneOnConnectedOutput
-		                               : 15;
+		                                   ? MIDIDeviceManager::lowestLastMemberChannelOfLowerZoneOnConnectedOutput
+		                                   : 15;
 
 		for (int32_t c = lowestMemberChannel; c <= highestMemberChannel; c++) {
 			midiEngine.sendAllNotesOff(c, channel);

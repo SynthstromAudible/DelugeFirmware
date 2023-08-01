@@ -1983,7 +1983,8 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
 #else
 				if (numericDriver.popupActive) {
 #endif
-					editPadPresses[i].intendedVelocity = std::clamp<int32_t>((int32_t)editPadPresses[i].intendedVelocity + velocityChange, 1, 127);
+					editPadPresses[i].intendedVelocity =
+					    std::clamp<int32_t>((int32_t)editPadPresses[i].intendedVelocity + velocityChange, 1, 127);
 					noteRow->changeNotesAcrossAllScreens(editPadPresses[i].intendedPos, modelStackWithNoteRow, action,
 					                                     CORRESPONDING_NOTES_ADJUST_VELOCITY, velocityChange);
 				}
@@ -3075,7 +3076,8 @@ void InstrumentClipView::auditionPadAction(int32_t velocity, int32_t yDisplay, b
 
 					// Remember what NoteRow was pressed - and limit to being no further than 1 above or 1 below the existing NoteRows
 					yDisplayOfNewNoteRow = yDisplay;
-					yDisplayOfNewNoteRow = std::max((int32_t)yDisplayOfNewNoteRow, (int32_t)-1 - getCurrentClip()->yScroll);
+					yDisplayOfNewNoteRow =
+					    std::max((int32_t)yDisplayOfNewNoteRow, (int32_t)-1 - getCurrentClip()->yScroll);
 					int32_t maximum = getCurrentClip()->getNumNoteRows() - getCurrentClip()->yScroll;
 					yDisplayOfNewNoteRow = std::min((int32_t)yDisplayOfNewNoteRow, maximum);
 
@@ -5016,7 +5018,8 @@ bool InstrumentClipView::renderMainPads(uint32_t whichRows, uint8_t image[][kDis
 // occupancyMask now optional
 void InstrumentClipView::performActualRender(uint32_t whichRows, uint8_t* image,
                                              uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xScroll,
-                                             uint32_t xZoom, int32_t renderWidth, int32_t imageWidth, bool drawUndefinedArea) {
+                                             uint32_t xZoom, int32_t renderWidth, int32_t imageWidth,
+                                             bool drawUndefinedArea) {
 	InstrumentClip* clip = getCurrentClip();
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];

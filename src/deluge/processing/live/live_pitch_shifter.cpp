@@ -193,7 +193,8 @@ startRenderAgain:
 	if (!justDidHop && !olderPlayHeadIsCurrentlySounding() && samplesTilHopEnd
 	    && playHeads[PLAY_HEAD_NEWER].mode != PLAY_HEAD_MODE_RAW_DIRECT) {
 
-		int32_t howFarBack = playHeads[PLAY_HEAD_NEWER].getNumRawSamplesBehindInput(liveInputBuffer, this, phaseIncrement);
+		int32_t howFarBack =
+		    playHeads[PLAY_HEAD_NEWER].getNumRawSamplesBehindInput(liveInputBuffer, this, phaseIncrement);
 
 		uint32_t newerPlayHeadPercPos =
 		    (liveInputBuffer->numRawSamplesProcessed - howFarBack - 1) >> kPercBufferReductionMagnitude;
@@ -434,25 +435,27 @@ void LivePitchShifter::hopEnd(int32_t phaseIncrement, LiveInputBuffer* liveInput
 
 	// First, work out the length we'd *like* to use for the moving averages
 	int32_t lengthPerMovingAverage = ((uint64_t)phaseIncrement * TimeStretch::Crossfade::kMovingAverageLength) >> 24;
-	lengthPerMovingAverage = std::clamp<int32_t>(lengthPerMovingAverage, 1, TimeStretch::Crossfade::kMovingAverageLength * 2); // Keep things sensible
+	lengthPerMovingAverage = std::clamp<int32_t>(
+	    lengthPerMovingAverage, 1, TimeStretch::Crossfade::kMovingAverageLength * 2); // Keep things sensible
 
 	// Ok, and this crossfade we're about to do, how long will it be in samples of (unpitched) source material?
 	int32_t crossfadeLengthSamplesSource = ((uint64_t)thisCrossfadeLength * phaseIncrement) >> 24;
 
 	// What's the maximum amount further forward than that older play-head that data actually exists yet for us to examine?
 	int32_t maxOffsetFromHead = (uint32_t)(numRawSamplesProcessedLatest - playHeads[PLAY_HEAD_OLDER].rawBufferReadPos)
-	                        & (kInputRawBufferSize - 1);
+	                            & (kInputRawBufferSize - 1);
 
 	// Ok, work out the end-pos of our moving-averages region
 	int32_t averagesEndOffsetFromHead = (crossfadeLengthSamplesSource >> 1)
-	                                + ((lengthPerMovingAverage * TimeStretch::Crossfade::kNumMovingAverages) >> 1);
-	averagesEndOffsetFromHead = std::min(averagesEndOffsetFromHead,
-	                                   maxOffsetFromHead); // And make sure it's not beyond the end of the existent data
+	                                    + ((lengthPerMovingAverage * TimeStretch::Crossfade::kNumMovingAverages) >> 1);
+	averagesEndOffsetFromHead =
+	    std::min(averagesEndOffsetFromHead,
+	             maxOffsetFromHead); // And make sure it's not beyond the end of the existent data
 
 	// We now know the length of the *total* moving-averages region, so divide down to get the length of *each* moving-average region
 	// If commenting out this next line, must make sure we still don't search back before we started writing to buffer
-	lengthPerMovingAverage =
-	    std::min(lengthPerMovingAverage, averagesEndOffsetFromHead >> 1); // / TimeStretch::Crossfade::kNumMovingAverages
+	lengthPerMovingAverage = std::min(lengthPerMovingAverage,
+	                                  averagesEndOffsetFromHead >> 1); // / TimeStretch::Crossfade::kNumMovingAverages
 
 	int32_t averagesStartOffsetFromHead =
 	    averagesEndOffsetFromHead - (lengthPerMovingAverage * TimeStretch::Crossfade::kNumMovingAverages);
@@ -544,8 +547,8 @@ stopPercSearch:
 		}
 
 		int32_t minDistanceBack = numRawSamplesProcessedAtNowTime - numRawSamplesProcessedLatest
-		                      + averagesStartOffsetFromHead
-		                      + (lengthPerMovingAverage * TimeStretch::Crossfade::kNumMovingAverages);
+		                          + averagesStartOffsetFromHead
+		                          + (lengthPerMovingAverage * TimeStretch::Crossfade::kNumMovingAverages);
 		howFarBack = std::max(howFarBack, minDistanceBack);
 
 		if (howFarBack > numRawSamplesProcessedAtNowTime) {

@@ -139,7 +139,8 @@ private:
 	Instrument* createNewInstrument(InstrumentType newInstrumentType, bool* instrumentAlreadyInSong);
 	void changeOutputToInstrument(InstrumentType newInstrumentType);
 	uint32_t doActualRender(int32_t xScroll, uint32_t xZoom, uint32_t whichRows, uint8_t* image,
-	                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t renderWidth, int32_t imageWidth);
+	                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t renderWidth,
+	                        int32_t imageWidth);
 };
 
 extern ArrangerView arrangerView;

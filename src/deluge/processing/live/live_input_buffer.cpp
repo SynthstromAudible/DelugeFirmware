@@ -107,7 +107,8 @@ void LiveInputBuffer::giveInput(int32_t numSamples, uint32_t currentTime, OscTyp
 	upToTime = currentTime + numSamples;
 }
 
-bool LiveInputBuffer::getAveragesForCrossfade(int32_t* totals, int32_t startPos, int32_t lengthToAverageEach, int32_t numChannels) {
+bool LiveInputBuffer::getAveragesForCrossfade(int32_t* totals, int32_t startPos, int32_t lengthToAverageEach,
+                                              int32_t numChannels) {
 
 	int32_t currentPos = startPos;
 	for (int32_t i = 0; i < TimeStretch::Crossfade::kNumMovingAverages; i++) {

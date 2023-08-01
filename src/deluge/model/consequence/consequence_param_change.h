@@ -17,10 +17,10 @@
 
 #pragma once
 
-#include <cstdint>
 #include "model/consequence/consequence.h"
 #include "model/model_stack.h"
 #include "modulation/automation/auto_param.h"
+#include <cstdint>
 
 class ConsequenceParamChange final : public Consequence {
 public:

@@ -16,9 +16,9 @@
 */
 
 #pragma once
-#include <cstdint>
 #include "definitions_cxx.hpp"
 #include "model/consequence/consequence.h"
+#include <cstdint>
 
 class Output;
 class ClipInstance;

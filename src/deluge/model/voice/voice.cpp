@@ -104,9 +104,10 @@ void Voice::unassignStuff() {
 uint32_t lastSoundOrder = 0;
 
 // Returns false if fail and we need to unassign again
-bool Voice::noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArpeggiation, int32_t newNoteCodeAfterArpeggiation,
-                   uint8_t velocity, uint32_t newSampleSyncLength, int32_t ticksLate, uint32_t samplesLate,
-                   bool resetEnvelopes, int32_t newFromMIDIChannel, const int16_t* mpeValues) {
+bool Voice::noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArpeggiation,
+                   int32_t newNoteCodeAfterArpeggiation, uint8_t velocity, uint32_t newSampleSyncLength,
+                   int32_t ticksLate, uint32_t samplesLate, bool resetEnvelopes, int32_t newFromMIDIChannel,
+                   const int16_t* mpeValues) {
 
 	GeneralMemoryAllocator::get().checkStack("Voice::noteOn");
 
@@ -339,7 +340,8 @@ void Voice::expressionEventSmooth(int32_t newValue, int32_t s) {
 }
 
 void Voice::changeNoteCode(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArpeggiation,
-                           int32_t newNoteCodeAfterArpeggiation, int32_t newInputMIDIChannel, const int16_t* newMPEValues) {
+                           int32_t newNoteCodeAfterArpeggiation, int32_t newInputMIDIChannel,
+                           const int16_t* newMPEValues) {
 	inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] = newNoteCodeBeforeArpeggiation;
 	inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)] = newInputMIDIChannel;
 	noteCodeAfterArpeggiation = newNoteCodeAfterArpeggiation;
@@ -667,9 +669,9 @@ bool Voice::sampleZoneChanged(ModelStackWithVoice* modelStack, int32_t s, Marker
 // Before calling this, you must set the filterSetConfig's doLPF and doHPF to default values
 
 // Returns false if became inactive and needs unassigning
-bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int32_t numSamples, bool soundRenderingInStereo,
-                   bool applyingPanAtVoiceLevel, uint32_t sourcesChanged, FilterSetConfig* filterSetConfig,
-                   int32_t externalPitchAdjust) {
+bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int32_t numSamples,
+                   bool soundRenderingInStereo, bool applyingPanAtVoiceLevel, uint32_t sourcesChanged,
+                   FilterSetConfig* filterSetConfig, int32_t externalPitchAdjust) {
 
 	GeneralMemoryAllocator::get().checkStack("Voice::render");
 
@@ -832,7 +834,8 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int32_
 		// If either / both sources need attention...
 		if (whichSourcesNeedAttention) {
 
-			int32_t releaseStageLengthSamples = (uint32_t)8388608 / (uint32_t)paramFinalValues[Param::Local::ENV_0_RELEASE];
+			int32_t releaseStageLengthSamples =
+			    (uint32_t)8388608 / (uint32_t)paramFinalValues[Param::Local::ENV_0_RELEASE];
 
 			int32_t highestNumSamplesLeft = 0;
 
@@ -2718,10 +2721,10 @@ const int16_t* analogSawTables[] = {
     mysterySynthBSaw_9,    mysterySynthBSaw_7,    mysterySynthBSaw_5,   mysterySynthBSaw_3,   mysterySynthBSaw_1};
 
 __attribute__((optimize("unroll-loops"))) void
-Voice::renderOsc(int32_t s, OscType type, int32_t amplitude, int32_t* bufferStart, int32_t* bufferEnd, int32_t numSamples,
-                 uint32_t phaseIncrement, uint32_t pulseWidth, uint32_t* startPhase, bool applyAmplitude,
-                 int32_t amplitudeIncrement, bool doOscSync, uint32_t resetterPhase, uint32_t resetterPhaseIncrement,
-                 uint32_t retriggerPhase, int32_t waveIndexIncrement) {
+Voice::renderOsc(int32_t s, OscType type, int32_t amplitude, int32_t* bufferStart, int32_t* bufferEnd,
+                 int32_t numSamples, uint32_t phaseIncrement, uint32_t pulseWidth, uint32_t* startPhase,
+                 bool applyAmplitude, int32_t amplitudeIncrement, bool doOscSync, uint32_t resetterPhase,
+                 uint32_t resetterPhaseIncrement, uint32_t retriggerPhase, int32_t waveIndexIncrement) {
 	GeneralMemoryAllocator::get().checkStack("renderOsc");
 
 	// We save a decent bit of processing power by grabbing a local copy of the phase to work with, and just incrementing the startPhase once

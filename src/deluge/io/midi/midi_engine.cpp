@@ -474,7 +474,8 @@ void MidiEngine::sendPolyphonicAftertouch(int32_t channel, uint8_t value, uint8_
 	sendMidi(0x0A, channel, noteCode, value, filter);
 }
 
-void MidiEngine::sendMidi(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2, int32_t filter, bool sendUSB) {
+void MidiEngine::sendMidi(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2, int32_t filter,
+                          bool sendUSB) {
 	// Send USB MIDI
 	if (sendUSB) {
 		sendUsbMidi(statusType, channel, data1, data2, filter);

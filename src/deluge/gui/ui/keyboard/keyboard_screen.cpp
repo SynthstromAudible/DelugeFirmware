@@ -16,7 +16,6 @@
 */
 
 #include "gui/ui/keyboard/keyboard_screen.h"
-#include <cstdint>
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/menu_item/multi_range.h"
@@ -42,6 +41,7 @@
 #include "playback/mode/playback_mode.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_instrument.h"
+#include <cstdint>
 #include <string.h>
 
 #include "gui/ui/keyboard/layout/in_key.h"

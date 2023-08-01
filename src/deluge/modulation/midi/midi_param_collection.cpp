@@ -134,8 +134,8 @@ void MIDIParamCollection::shiftHorizontally(ModelStackWithParamCollection* model
 	}
 }
 
-void MIDIParamCollection::processCurrentPos(ModelStackWithParamCollection* modelStack, int32_t ticksSkipped, bool reversed,
-                                            bool didPingpong, bool mayInterpolate) {
+void MIDIParamCollection::processCurrentPos(ModelStackWithParamCollection* modelStack, int32_t ticksSkipped,
+                                            bool reversed, bool didPingpong, bool mayInterpolate) {
 
 	ticksTilNextEvent -= ticksSkipped;
 

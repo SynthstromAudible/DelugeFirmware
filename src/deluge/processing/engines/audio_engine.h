@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include <cstdint>
 #include "definitions_cxx.hpp"
+#include <cstdint>
 
 extern "C" {
 #include "fatfs/ff.h"
@@ -151,7 +151,8 @@ int32_t getNumSamplesLeftToOutputFromPreviousRender();
 void registerSideChainHit(int32_t strength);
 
 SampleRecorder* getNewRecorder(int32_t numChannels, AudioRecordingFolder folderID, AudioInputChannel mode,
-                               bool keepFirstReasons = false, bool writeLoopPoints = false, int32_t buttonPressLatency = 0);
+                               bool keepFirstReasons = false, bool writeLoopPoints = false,
+                               int32_t buttonPressLatency = 0);
 void discardRecorder(SampleRecorder* recorder);
 bool isAnyInternalRecordingHappening();
 

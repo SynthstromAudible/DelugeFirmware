@@ -41,7 +41,7 @@ public:
 
 	void setupCacheLoopPoints(SamplePlaybackGuide* voiceSource, Sample* sample, LoopType loopingType);
 	int32_t attemptLateSampleStart(SamplePlaybackGuide* voiceSource, Sample* sample, int64_t rawSamplesLate,
-	                           int32_t numSamples = 0);
+	                               int32_t numSamples = 0);
 	void endTimeStretching();
 	bool render(SamplePlaybackGuide* guide, int32_t* oscBuffer, int32_t numSamples, Sample* sample, int32_t numChannels,
 	            LoopType loopingType, int32_t phaseIncrement, int32_t timeStretchRatio, int32_t amplitude,
@@ -57,8 +57,8 @@ public:
 	void readSamplesResampledPossiblyCaching(int32_t** oscBufferPos, int32_t** oscBufferRPos, int32_t numSamples,
 	                                         Sample* sample, int32_t jumpAmount, int32_t numChannels,
 	                                         int32_t numChannelsAfterCondensing, int32_t phaseIncrement,
-	                                         int32_t* sourceAmplitudeNow, int32_t amplitudeIncrement, int32_t bufferSize,
-	                                         int32_t reduceMagnitudeBy = 1);
+	                                         int32_t* sourceAmplitudeNow, int32_t amplitudeIncrement,
+	                                         int32_t bufferSize, int32_t reduceMagnitudeBy = 1);
 
 	bool sampleZoneChanged(SamplePlaybackGuide* voiceSource, Sample* sample, MarkerType markerType,
 	                       LoopType loopingType, int32_t priorityRating, bool forAudioClip = false);
@@ -88,9 +88,9 @@ public:
 	uint32_t cacheLoopLengthBytes;
 
 private:
-	bool weShouldBeTimeStretchingNow(Sample* sample, SamplePlaybackGuide* guide, int32_t numSamples, int32_t phaseIncrement,
-	                                 int32_t timeStretchRatio, int32_t playDirection, int32_t priorityRating,
-	                                 LoopType loopingType);
+	bool weShouldBeTimeStretchingNow(Sample* sample, SamplePlaybackGuide* guide, int32_t numSamples,
+	                                 int32_t phaseIncrement, int32_t timeStretchRatio, int32_t playDirection,
+	                                 int32_t priorityRating, LoopType loopingType);
 	void switchToReadingCacheFromWriting();
 	bool stopReadingFromCache();
 };

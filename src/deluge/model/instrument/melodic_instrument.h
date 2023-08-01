@@ -34,9 +34,9 @@ public:
 
 	// Check activeClip before you call!
 	// mpeValues must be provided for a note-on (can be 0s). Otherwise, can be NULL pointer
-	virtual void sendNote(ModelStackWithThreeMainThings* modelStack, bool isOn, int32_t noteCode, int16_t const* mpeValues,
-	                      int32_t fromMIDIChannel = MIDI_CHANNEL_NONE, uint8_t velocity = 64, uint32_t sampleSyncLength = 0,
-	                      int32_t ticksLate = 0, uint32_t samplesLate = 0) = 0;
+	virtual void sendNote(ModelStackWithThreeMainThings* modelStack, bool isOn, int32_t noteCode,
+	                      int16_t const* mpeValues, int32_t fromMIDIChannel = MIDI_CHANNEL_NONE, uint8_t velocity = 64,
+	                      uint32_t sampleSyncLength = 0, int32_t ticksLate = 0, uint32_t samplesLate = 0) = 0;
 
 	virtual void ccReceivedFromInputMIDIChannel(int32_t cc, int32_t value, ModelStackWithTimelineCounter* modelStack) {}
 
@@ -45,7 +45,8 @@ public:
 	bool readTagFromFile(char const* tagName);
 
 	void offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
-	                       bool on, int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes, bool* doingMidiThru);
+	                       bool on, int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
+	                       bool* doingMidiThru);
 	void offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
 	                            uint8_t channel, uint8_t data1, uint8_t data2, bool* doingMidiThru);
 	void offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,

@@ -16,7 +16,6 @@
 */
 
 #include "model/action/action.h"
-#include <cstdint>
 #include "definitions_cxx.hpp"
 #include "io/debug/print.h"
 #include "memory/general_memory_allocator.h"
@@ -37,6 +36,7 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "util/functions.h"
+#include <cstdint>
 #include <new>
 
 Action::Action(int32_t newActionType) {
@@ -202,8 +202,9 @@ bool Action::containsConsequenceNoteArrayChange(InstrumentClip* clip, int32_t no
 	return false;
 }
 
-int32_t Action::recordNoteArrayChangeIfNotAlreadySnapshotted(InstrumentClip* clip, int32_t noteRowId, NoteVector* noteVector,
-                                                         bool stealData, bool moveToFrontIfAlreadySnapshotted) {
+int32_t Action::recordNoteArrayChangeIfNotAlreadySnapshotted(InstrumentClip* clip, int32_t noteRowId,
+                                                             NoteVector* noteVector, bool stealData,
+                                                             bool moveToFrontIfAlreadySnapshotted) {
 	if (containsConsequenceNoteArrayChange(clip, noteRowId, moveToFrontIfAlreadySnapshotted)) {
 		return NO_ERROR;
 	}
@@ -213,7 +214,7 @@ int32_t Action::recordNoteArrayChangeIfNotAlreadySnapshotted(InstrumentClip* cli
 }
 
 int32_t Action::recordNoteArrayChangeDefinitely(InstrumentClip* clip, int32_t noteRowId, NoteVector* noteVector,
-                                            bool stealData) {
+                                                bool stealData) {
 	void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceNoteArrayChange));
 
 	if (!consMemory) {

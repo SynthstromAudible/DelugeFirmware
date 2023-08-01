@@ -138,7 +138,8 @@ void clearAreaExact(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY, uint
 	}
 }
 
-void moveAreaUpCrude(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY, int32_t delta, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
+void moveAreaUpCrude(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY, int32_t delta,
+                     uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 
 	int32_t firstRow = minY >> 3;
 	int32_t lastRow = maxY >> 3;
@@ -197,8 +198,8 @@ void invertArea(int32_t xMin, int32_t width, int32_t startY, int32_t endY, uint8
 	}
 }
 
-void drawGraphicMultiLine(uint8_t const* graphic, int32_t startX, int32_t startY, int32_t width, uint8_t* image, int32_t height,
-                          int32_t numBytesTall) {
+void drawGraphicMultiLine(uint8_t const* graphic, int32_t startX, int32_t startY, int32_t width, uint8_t* image,
+                          int32_t height, int32_t numBytesTall) {
 	int32_t rowOnDisplay = startY >> 3;
 	int32_t yOffset = startY & 7;
 	int32_t rowOnGraphic = 0;
@@ -312,8 +313,8 @@ void drawHorizontalLine(int32_t pixelY, int32_t startX, int32_t endX, uint8_t im
 	} while (currentPos <= lastPos);
 }
 
-void drawString(char const* string, int32_t pixelX, int32_t pixelY, uint8_t* image, int32_t imageWidth, int32_t textWidth,
-                int32_t textHeight, int32_t scrollPos, int32_t endX) {
+void drawString(char const* string, int32_t pixelX, int32_t pixelY, uint8_t* image, int32_t imageWidth,
+                int32_t textWidth, int32_t textHeight, int32_t scrollPos, int32_t endX) {
 	if (scrollPos) {
 		int32_t numCharsToChopOff = (uint16_t)scrollPos / (uint8_t)textWidth;
 		if (numCharsToChopOff) {
@@ -336,8 +337,8 @@ void drawString(char const* string, int32_t pixelX, int32_t pixelY, uint8_t* ima
 	}
 }
 
-void drawStringFixedLength(char const* string, int32_t length, int32_t pixelX, int32_t pixelY, uint8_t* image, int32_t imageWidth,
-                           int32_t textWidth, int32_t textHeight) {
+void drawStringFixedLength(char const* string, int32_t length, int32_t pixelX, int32_t pixelY, uint8_t* image,
+                           int32_t imageWidth, int32_t textWidth, int32_t textHeight) {
 	char const* const stopAt = string + length;
 	while (string < stopAt) {
 		drawChar(*string, pixelX, pixelY, image, imageWidth, textWidth, textHeight);
@@ -349,22 +350,22 @@ void drawStringFixedLength(char const* string, int32_t length, int32_t pixelX, i
 	}
 }
 
-void drawStringCentred(char const* string, int32_t pixelY, uint8_t* image, int32_t imageWidth, int32_t textWidth, int32_t textHeight,
-                       int32_t centrePos) {
+void drawStringCentred(char const* string, int32_t pixelY, uint8_t* image, int32_t imageWidth, int32_t textWidth,
+                       int32_t textHeight, int32_t centrePos) {
 	int32_t length = strlen(string);
 	int32_t pixelX = centrePos - ((textWidth * length) >> 1);
 	drawStringFixedLength(string, length, pixelX, pixelY, image, imageWidth, textWidth, textHeight);
 }
 
-void drawStringAlignRight(char const* string, int32_t pixelY, uint8_t* image, int32_t imageWidth, int32_t textWidth, int32_t textHeight,
-                          int32_t rightPos) {
+void drawStringAlignRight(char const* string, int32_t pixelY, uint8_t* image, int32_t imageWidth, int32_t textWidth,
+                          int32_t textHeight, int32_t rightPos) {
 	int32_t length = strlen(string);
 	int32_t pixelX = rightPos - (textWidth * length);
 	drawStringFixedLength(string, length, pixelX, pixelY, image, imageWidth, textWidth, textHeight);
 }
 
-void drawStringCentredShrinkIfNecessary(char const* string, int32_t pixelY, uint8_t* image, int32_t imageWidth, int32_t textWidth,
-                                        int32_t textHeight) {
+void drawStringCentredShrinkIfNecessary(char const* string, int32_t pixelY, uint8_t* image, int32_t imageWidth,
+                                        int32_t textWidth, int32_t textHeight) {
 	int32_t length = strlen(string);
 	int32_t maxTextWidth = (uint8_t)OLED_MAIN_WIDTH_PIXELS / (uint32_t)length;
 	if (textWidth > maxTextWidth) {
@@ -394,8 +395,8 @@ void drawStringCentredShrinkIfNecessary(char const* string, int32_t pixelY, uint
 
 #define DO_CHARACTER_SCALING 0
 
-void drawChar(uint8_t theChar, int32_t pixelX, int32_t pixelY, uint8_t* image, int32_t imageWidth, int32_t spacingX, int32_t textHeight,
-              int32_t scrollPos, int32_t endX) {
+void drawChar(uint8_t theChar, int32_t pixelX, int32_t pixelY, uint8_t* image, int32_t imageWidth, int32_t spacingX,
+              int32_t textHeight, int32_t scrollPos, int32_t endX) {
 
 	if (theChar > '~') {
 		return;
@@ -646,8 +647,8 @@ void copyRowWithMask(uint8_t destMask, uint8_t sourceRow[], uint8_t destRow[], i
 }
 
 void copyBackgroundAroundForeground(uint8_t backgroundImage[][OLED_MAIN_WIDTH_PIXELS],
-                                    uint8_t foregroundImage[][OLED_MAIN_WIDTH_PIXELS], int32_t minX, int32_t minY, int32_t maxX,
-                                    int32_t maxY) {
+                                    uint8_t foregroundImage[][OLED_MAIN_WIDTH_PIXELS], int32_t minX, int32_t minY,
+                                    int32_t maxX, int32_t maxY) {
 
 	// Copy everything above
 	int32_t firstRow = minY >> 3;
@@ -974,8 +975,8 @@ struct SideScroller {
 
 SideScroller sideScrollers[NUM_SIDE_SCROLLERS];
 
-void setupSideScroller(int32_t index, char const* text, int32_t startX, int32_t endX, int32_t startY, int32_t endY, int32_t textSpacingX,
-                       int32_t textSizeY, bool doHilight) {
+void setupSideScroller(int32_t index, char const* text, int32_t startX, int32_t endX, int32_t startY, int32_t endY,
+                       int32_t textSpacingX, int32_t textSizeY, bool doHilight) {
 
 	SideScroller* scroller = &sideScrollers[index];
 	scroller->textLength = strlen(text);

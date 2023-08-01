@@ -482,7 +482,8 @@ void Arrangement::rowEdited(Output* output, int32_t startPos, int32_t endPos, Cl
 }
 
 // First, be sure the clipInstance has a Clip
-int32_t Arrangement::doUniqueCloneOnClipInstance(ClipInstance* clipInstance, int32_t newLength, bool shouldCloneRepeats) {
+int32_t Arrangement::doUniqueCloneOnClipInstance(ClipInstance* clipInstance, int32_t newLength,
+                                                 bool shouldCloneRepeats) {
 	if (!currentSong->arrangementOnlyClips.ensureEnoughSpaceAllocated(1)) {
 		return ERROR_INSUFFICIENT_RAM;
 	}

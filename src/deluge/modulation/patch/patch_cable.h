@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include <cstdint>
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param_descriptor.h"
+#include <cstdint>
 
 class Sound;
 class ParamManagerForTimeline;

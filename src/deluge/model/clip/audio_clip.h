@@ -62,7 +62,7 @@ public:
 	void resumePlayback(ModelStackWithTimelineCounter* modelStack, bool mayMakeSound = true);
 	int32_t changeOutput(ModelStackWithTimelineCounter* modelStack, Output* newOutput);
 	int32_t setOutput(ModelStackWithTimelineCounter* modelStack, Output* newOutput,
-	              AudioClip* favourClipForCloningParamManager = NULL);
+	                  AudioClip* favourClipForCloningParamManager = NULL);
 	void getColour(uint8_t rgb[]);
 	bool currentlyScrollableAndZoomable();
 	void getScrollAndZoomInSamples(int32_t xScroll, int32_t xZoom, int64_t* xScrollSamples, int64_t* xZoomSamples);

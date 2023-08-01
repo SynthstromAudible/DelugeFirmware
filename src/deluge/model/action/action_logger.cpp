@@ -134,7 +134,8 @@ Action* ActionLogger::getNewAction(int32_t newActionType, int32_t addToExistingI
 		}
 
 		// Store states of every Clip in existence
-		int32_t numClips = currentSong->sessionClips.getNumElements() + currentSong->arrangementOnlyClips.getNumElements();
+		int32_t numClips =
+		    currentSong->sessionClips.getNumElements() + currentSong->arrangementOnlyClips.getNumElements();
 
 		ActionClipState* clipStates =
 		    (ActionClipState*)GeneralMemoryAllocator::get().alloc(numClips * sizeof(ActionClipState), NULL, true);

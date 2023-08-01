@@ -16,7 +16,6 @@
 */
 
 #include "gui/views/arranger_view.h"
-#include <cstdint>
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "model/clip/clip_instance.h"
@@ -29,6 +28,7 @@
 #include "processing/sound/sound_drum.h"
 #include "storage/audio/audio_file_manager.h"
 #include "util/d_string.h"
+#include <cstdint>
 
 #include "definitions_cxx.hpp"
 #include "extern.h"
@@ -1115,8 +1115,8 @@ void ArrangerView::outputDeactivated(Output* output) {
 }
 
 // For now, we're always supplying clearingWholeArrangement as false, even when we are doing that
-void ArrangerView::deleteClipInstance(Output* output, int32_t clipInstanceIndex, ClipInstance* clipInstance, Action* action,
-                                      bool clearingWholeArrangement) {
+void ArrangerView::deleteClipInstance(Output* output, int32_t clipInstanceIndex, ClipInstance* clipInstance,
+                                      Action* action, bool clearingWholeArrangement) {
 
 	if (action) {
 		action->recordClipInstanceExistenceChange(output, clipInstance, ExistenceChangeType::DELETE);
@@ -1504,7 +1504,7 @@ justGetOut:
 								}
 
 								int32_t size = (output->type == InstrumentType::AUDIO) ? sizeof(AudioClip)
-								                                                   : sizeof(InstrumentClip);
+								                                                       : sizeof(InstrumentClip);
 
 								void* memory = GeneralMemoryAllocator::get().alloc(size, NULL, false, true);
 								if (!memory) {
@@ -2714,7 +2714,7 @@ ActionResult ArrangerView::horizontalEncoderAction(int32_t offset) {
 
 				for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
 					int32_t i = thisOutput->clipInstances.search(currentSong->xScroll[NAVIGATION_ARRANGEMENT],
-					                                         GREATER_OR_EQUAL);
+					                                             GREATER_OR_EQUAL);
 
 					bool movedOneYet = false;
 

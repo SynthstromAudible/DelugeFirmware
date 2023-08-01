@@ -35,7 +35,7 @@ class TestState;
 class TestAction {
 public:
 	TestAction() {}
-	virtual TestState* perform() = 0; // Returns new state, or NULL to stay in same state
+	virtual TestState* perform() = 0;     // Returns new state, or NULL to stay in same state
 	virtual int32_t getTimeBetween() = 0; // Return 0 to say don't do this action at all for now
 };
 

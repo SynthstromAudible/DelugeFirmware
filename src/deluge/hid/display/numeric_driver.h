@@ -42,7 +42,8 @@ public:
 	                   int32_t blinkPos = -1, bool blinkImmediately = false);
 	void timerRoutine();
 	void removeTopLayer();
-	NumericLayerScrollingText* setScrollingText(char const* newText, int32_t startAtPos = 0, int32_t initialDelay = 600);
+	NumericLayerScrollingText* setScrollingText(char const* newText, int32_t startAtPos = 0,
+	                                            int32_t initialDelay = 600);
 	int32_t getEncodedPosFromLeft(int32_t textPos, char const* text, bool* andAHalf);
 	void render();
 	void displayLoadingAnimation(bool delayed = false, bool transparent = false);
@@ -61,7 +62,7 @@ private:
 
 #if !HAVE_OLED
 	int32_t encodeText(char const* newText, uint8_t* destination, bool alignRight, uint8_t drawDot = 255,
-	               bool limitToDisplayLength = true, int32_t scrollPos = 0);
+	                   bool limitToDisplayLength = true, int32_t scrollPos = 0);
 	void replaceBottomLayer(NumericLayer* newLayer);
 	void setTopLayer(NumericLayer* newTopLayer);
 	void transitionToNewLayer(NumericLayer* newLayer);

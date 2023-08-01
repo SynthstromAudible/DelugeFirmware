@@ -205,7 +205,7 @@ void uartInsertFakeChar(int32_t item, char data) {
 uint8_t uartGetChar(int32_t item, char* readData) {
 
 	char const* currentWritePos = (char*)DMACnNonVolatile(rxDmaChannels[item])
-	                                    .CRDA_n; // We deliberately don't go (volatile uint32_t*) here, for speed
+	                                  .CRDA_n; // We deliberately don't go (volatile uint32_t*) here, for speed
 
 	if (currentWritePos == rxBufferReadAddr[item]) {
 		return 0;
@@ -225,7 +225,7 @@ uint32_t* uartGetCharWithTiming(int32_t timingCaptureItem, char* readData) {
 	int32_t item = timingCaptureItems[timingCaptureItem];
 
 	char const* currentWritePos = (char*)DMACnNonVolatile(rxDmaChannels[item])
-	                                    .CRDA_n; // We deliberately don't go (volatile uint32_t*) here, for speed
+	                                  .CRDA_n; // We deliberately don't go (volatile uint32_t*) here, for speed
 
 	if (currentWritePos == rxBufferReadAddr[item]) {
 		return NULL;

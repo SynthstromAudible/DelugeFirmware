@@ -413,7 +413,7 @@ void Sound::recalculatePatchingToParam(uint8_t p, ParamManagerForTimeline* param
 
 #define ENSURE_PARAM_MANAGER_EXISTS                                                                                    \
 	if (!paramManager->containsAnyMainParamCollections()) {                                                            \
-		int32_t error = createParamManagerForLoading(paramManager);                                                        \
+		int32_t error = createParamManagerForLoading(paramManager);                                                    \
 		if (error)                                                                                                     \
 			return error;                                                                                              \
 	}                                                                                                                  \
@@ -424,8 +424,8 @@ void Sound::recalculatePatchingToParam(uint8_t p, ParamManagerForTimeline* param
 
 // paramManager only required for old old song files, or for presets (because you'd be wanting to extract the defaultParams into it).
 // arpSettings optional - no need if you're loading a new V2.0 song where Instruments are all separate from Clips and won't store any arp stuff.
-int32_t Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos,
-                           ArpeggiatorSettings* arpSettings, Song* song) {
+int32_t Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager,
+                               int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song) {
 
 	if (!strcmp(tagName, "osc1")) {
 		int32_t error = readSourceFromFile(0, paramManager, readAutomationUpToPos);
@@ -1377,8 +1377,8 @@ allFine:
 }
 
 void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t noteCodePreArp, int32_t noteCodePostArp,
-                                  int32_t velocity, int16_t const* mpeValues, uint32_t sampleSyncLength, int32_t ticksLate,
-                                  uint32_t samplesLate, int32_t fromMIDIChannel) {
+                                  int32_t velocity, int16_t const* mpeValues, uint32_t sampleSyncLength,
+                                  int32_t ticksLate, uint32_t samplesLate, int32_t fromMIDIChannel) {
 
 	Voice* voiceToReuse = NULL;
 
@@ -2522,7 +2522,7 @@ void Sound::ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Song* song) {
 
 	// We gotta do this for any backedUpParamManagers too!
 	int32_t i = song->backedUpParamManagers.search((uint32_t)(ModControllableAudio*)this,
-	                                           GREATER_OR_EQUAL); // Search by first word only.
+	                                               GREATER_OR_EQUAL); // Search by first word only.
 
 	while (true) {
 		if (i >= song->backedUpParamManagers.getNumElements()) {
@@ -2886,7 +2886,7 @@ void Sound::readParamsFromFile(ParamManagerForTimeline* paramManager, int32_t re
 // paramManager only required for old old song files, or for presets (because you'd be wanting to extract the defaultParams into it)
 // arpSettings optional - no need if you're loading a new V2.0+ song where Instruments are all separate from Clips and won't store any arp stuff
 int32_t Sound::readFromFile(ModelStackWithModControllable* modelStack, int32_t readAutomationUpToPos,
-                        ArpeggiatorSettings* arpSettings) {
+                            ArpeggiatorSettings* arpSettings) {
 
 	modulatorTranspose[1] = 0;
 	memset(oscRetriggerPhase, 0, sizeof(oscRetriggerPhase));
@@ -3833,8 +3833,8 @@ void Sound::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTime
 	endStutter(paramManager);
 }
 
-ModelStackWithAutoParam* Sound::getParamFromModEncoder(int32_t whichModEncoder, ModelStackWithThreeMainThings* modelStack,
-                                                       bool allowCreation) {
+ModelStackWithAutoParam* Sound::getParamFromModEncoder(int32_t whichModEncoder,
+                                                       ModelStackWithThreeMainThings* modelStack, bool allowCreation) {
 
 	// If setting up a macro by holding its encoder down, the knobs will represent macro control-amounts rather than actual "params", so there's no "param".
 	if (isUIModeActive(UI_MODE_MACRO_SETTING_UP)) {

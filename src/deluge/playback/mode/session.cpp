@@ -584,7 +584,8 @@ void Session::justAbortedSomeLinearRecording() {
 	}
 }
 
-void Session::scheduleLaunchTiming(int64_t atTickCount, int32_t numRepeatsUntil, int32_t armedLaunchLengthForOneRepeat) {
+void Session::scheduleLaunchTiming(int64_t atTickCount, int32_t numRepeatsUntil,
+                                   int32_t armedLaunchLengthForOneRepeat) {
 	if (atTickCount > launchEventAtSwungTickCount) {
 		playbackHandler.stopOutputRecordingAtLoopEnd = false;
 		switchToArrangementAtLaunchEvent = false;
@@ -1226,8 +1227,9 @@ void Session::userWantsToArmClipsToStartOrSolo(uint8_t section, Clip* clip, bool
 	}
 }
 
-int32_t Session::investigateSyncedLaunch(Clip* waitForClip, uint32_t* currentPosWithinQuantization, uint32_t* quantization,
-                                     uint32_t longestStartingClipLength, bool allowSubdividedQuantization) {
+int32_t Session::investigateSyncedLaunch(Clip* waitForClip, uint32_t* currentPosWithinQuantization,
+                                         uint32_t* quantization, uint32_t longestStartingClipLength,
+                                         bool allowSubdividedQuantization) {
 
 	// If no Clips are playing...
 	if (!waitForClip) {

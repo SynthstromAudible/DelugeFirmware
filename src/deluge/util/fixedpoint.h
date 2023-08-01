@@ -15,8 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include <cstdint>
 #include "math.h"
+#include <cstdint>
 //signed 31 fractional bits (e.g. one would be 1<<31 but can't be represented)
 typedef int32_t q31_t;
 

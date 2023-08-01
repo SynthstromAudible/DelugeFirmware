@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include <cstdint>
 #include "gui/context_menu/context_menu.h"
+#include <cstdint>
 
 namespace deluge::gui::context_menu {
 class SaveSongOrInstrument final : public ContextMenuForSaving {

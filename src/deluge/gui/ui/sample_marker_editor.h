@@ -17,10 +17,10 @@
 
 #pragma once
 
-#include <cstdint>
 #include "definitions_cxx.hpp"
 #include "gui/ui/ui.h"
 #include "hid/button.h"
+#include <cstdint>
 
 class Sample;
 class MultisampleRange;

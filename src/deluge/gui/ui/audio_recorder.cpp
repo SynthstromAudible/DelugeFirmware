@@ -144,7 +144,8 @@ void AudioRecorder::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 }
 #endif
 
-bool AudioRecorder::setupRecordingToFile(AudioInputChannel newMode, int32_t newNumChannels, AudioRecordingFolder folderID) {
+bool AudioRecorder::setupRecordingToFile(AudioInputChannel newMode, int32_t newNumChannels,
+                                         AudioRecordingFolder folderID) {
 
 	if (ALPHA_OR_BETA_VERSION && recordingSource > AudioInputChannel::NONE) {
 		numericDriver.freezeWithError("E242");

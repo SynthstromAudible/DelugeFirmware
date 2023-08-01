@@ -137,7 +137,8 @@ void dft_r2c(ne10_fft_cpx_int32_t* __restrict__ out, int32_t const* __restrict__
 #define SHOULD_DISCARD_WAVETABLE_DATA_WITH_INSUFFICIENT_HF_CONTENT 0
 
 int32_t WaveTable::setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audioDataStartPosBytes,
-                     uint32_t audioDataLengthBytes, int32_t byteDepth, int32_t rawDataFormat, WaveTableReader* reader) {
+                         uint32_t audioDataLengthBytes, int32_t byteDepth, int32_t rawDataFormat,
+                         WaveTableReader* reader) {
 	AudioEngine::logAction("WaveTable::setup");
 
 	uint32_t originalSampleLengthInSamples;
@@ -771,9 +772,9 @@ transformBandToTimeDomain:
 				Debug::print("deleting num cycles from right-hand side: ");
 				Debug::println(numCycles - band->toCycleNumber);
 				int32_t newSize = band->toCycleNumber
-				                  * (band->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE)
-				                  * sizeof(int16_t)
-				              + sizeof(WaveTableBandData);
+				                      * (band->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE)
+				                      * sizeof(int16_t)
+				                  + sizeof(WaveTableBandData);
 				GeneralMemoryAllocator::get().shortenRight(band->data, newSize);
 			}
 
@@ -895,7 +896,8 @@ WaveTable::doRenderingLoop(int32_t* __restrict__ thisSample, int32_t const* buff
                            const int16_t* __restrict__ kernel) {
 
 	int32_t bandCycleSizeMagnitude = bandHere->cycleSizeMagnitude;
-	int32_t bandCycleSizeWithDuplicates = bandHere->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE;
+	int32_t bandCycleSizeWithDuplicates =
+	    bandHere->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE;
 	const int16_t* bandData = bandHere->dataAccessAddress;
 	int16_t const* __restrict__ table1 = &bandData[firstCycleNumber * bandCycleSizeWithDuplicates];
 	int16_t const* __restrict__ table2 = table1 + bandCycleSizeWithDuplicates;
@@ -1028,10 +1030,10 @@ const int16_t* getKernel(int32_t phaseIncrement, int32_t bandMaxPhaseIncrement) 
 }
 
 // waveIndex comes in as a 31-bit number
-uint32_t WaveTable::render(int32_t* __restrict__ outputBuffer, int32_t numSamples, uint32_t phaseIncrement, uint32_t phase,
-                           bool doOscSync, uint32_t resetterPhaseThisCycle, uint32_t resetterPhaseIncrement,
-                           uint32_t resetterDivideByPhaseIncrement, uint32_t retriggerPhase, int32_t waveIndex,
-                           int32_t waveIndexIncrement) {
+uint32_t WaveTable::render(int32_t* __restrict__ outputBuffer, int32_t numSamples, uint32_t phaseIncrement,
+                           uint32_t phase, bool doOscSync, uint32_t resetterPhaseThisCycle,
+                           uint32_t resetterPhaseIncrement, uint32_t resetterDivideByPhaseIncrement,
+                           uint32_t retriggerPhase, int32_t waveIndex, int32_t waveIndexIncrement) {
 
 	// Decide on ideal band
 	int32_t bHere = bands.search(phaseIncrement, GREATER_OR_EQUAL);

@@ -754,7 +754,7 @@ void SampleMarkerEditor::graphicsRoutine() {
 
 				//int32_t newStartPos = soundEditor.currentMultisampleRange->sample->lengthInSamples;// - (((uint32_t)getNoise() % (44100 * 120)) + 10 * 44100);
 				int32_t newStartPos = soundEditor.currentMultiRange->sample->lengthInSamples
-				                  - (((uint32_t)getNoise() % (44100 * 12)) + 0 * 44100);
+				                      - (((uint32_t)getNoise() % (44100 * 12)) + 0 * 44100);
 
 				if (newStartPos < soundEditor.currentMultiRange->startPos + minDistance)
 					newStartPos = soundEditor.currentMultiRange->startPos + minDistance;

@@ -1,7 +1,7 @@
 #pragma once
 
-#include <cstdint>
 #include "definitions_cxx.hpp"
+#include <cstdint>
 
 namespace hid {
 

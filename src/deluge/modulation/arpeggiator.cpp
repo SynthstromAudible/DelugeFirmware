@@ -122,8 +122,8 @@ void ArpeggiatorForDrum::noteOff(ArpeggiatorSettings* settings, ArpReturnInstruc
 }
 
 // May return the instruction for a note-on, or no instruction. The noteCode instructed might be some octaves up from that provided here.
-void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t velocity, ArpReturnInstruction* instruction,
-                         int32_t fromMIDIChannel, int16_t const* mpeValues) {
+void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t velocity,
+                         ArpReturnInstruction* instruction, int32_t fromMIDIChannel, int16_t const* mpeValues) {
 
 	lastVelocity = velocity;
 

@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include <cstdint>
 #include "definitions_cxx.hpp"
+#include <cstdint>
 
 class NumericLayer {
 public:

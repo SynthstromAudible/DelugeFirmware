@@ -229,8 +229,8 @@ moveOn:
 	return true;
 }
 
-void Kit::writeDrumToFile(Drum* thisDrum, ParamManager* paramManagerForDrum, bool savingSong, int32_t* selectedDrumIndex,
-                          int32_t* drumIndex, Song* song) {
+void Kit::writeDrumToFile(Drum* thisDrum, ParamManager* paramManagerForDrum, bool savingSong,
+                          int32_t* selectedDrumIndex, int32_t* drumIndex, Song* song) {
 	if (thisDrum == selectedDrum) {
 		*selectedDrumIndex = *drumIndex;
 	}
@@ -280,7 +280,8 @@ doReadDrum:
 			storageManager.exitTag("selectedDrumIndex");
 		}
 		else {
-			int32_t result = GlobalEffectableForClip::readTagFromFile(tagName, &paramManager, readAutomationUpToPos, song);
+			int32_t result =
+			    GlobalEffectableForClip::readTagFromFile(tagName, &paramManager, readAutomationUpToPos, song);
 			if (result == NO_ERROR) {}
 			else if (result != RESULT_TAG_UNUSED) {
 				return result;
@@ -611,8 +612,8 @@ yesTickParamManager:
 }
 
 void Kit::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, StereoSample* outputBufferEnd,
-                       int32_t numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
-                       bool shouldLimitDelayFeedback, bool isClipActive) {
+                       int32_t numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
+                       int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive) {
 
 	ParamManager* paramManager = getParamManager(modelStack->song);
 
@@ -1278,8 +1279,8 @@ yesThisDrum:
 	}
 }
 
-void Kit::offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone, int32_t whichBendRange,
-                               int32_t bendSemitones) {
+void Kit::offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone,
+                               int32_t whichBendRange, int32_t bendSemitones) {
 
 	if (whichBendRange == BEND_RANGE_MAIN) {
 		return; // This is not used in Kits for Drums. Drums use their BEND_RANGE_FINGER_LEVEL for both kinds of bend.
@@ -1337,8 +1338,8 @@ bool Kit::isAnyAuditioningHappening() {
 
 // You must supply noteRow if there is an activeClip with a NoteRow for that Drum. The TimelineCounter should be the activeClip.
 // Drum must not be NULL - check first if not sure!
-void Kit::beginAuditioningforDrum(ModelStackWithNoteRow* modelStack, Drum* drum, int32_t velocity, int16_t const* mpeValues,
-                                  int32_t fromMIDIChannel) {
+void Kit::beginAuditioningforDrum(ModelStackWithNoteRow* modelStack, Drum* drum, int32_t velocity,
+                                  int16_t const* mpeValues, int32_t fromMIDIChannel) {
 
 	ParamManager* paramManagerForDrum = NULL;
 

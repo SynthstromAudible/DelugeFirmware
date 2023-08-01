@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include <cstdint>
 #include "value.h"
+#include <cstdint>
 
 namespace menu_item {
 

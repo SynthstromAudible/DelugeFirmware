@@ -23,8 +23,8 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
 
-SampleCache::SampleCache(Sample* newSample, int32_t newNumClusters, int32_t newWaveformLengthBytes, int32_t newPhaseIncrement,
-                         int32_t newTimeStretchRatio, int32_t newSkipSamplesAtStart) {
+SampleCache::SampleCache(Sample* newSample, int32_t newNumClusters, int32_t newWaveformLengthBytes,
+                         int32_t newPhaseIncrement, int32_t newTimeStretchRatio, int32_t newSkipSamplesAtStart) {
 	sample = newSample;
 	phaseIncrement = newPhaseIncrement;
 	timeStretchRatio = newTimeStretchRatio;

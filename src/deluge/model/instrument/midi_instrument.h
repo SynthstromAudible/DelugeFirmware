@@ -45,12 +45,14 @@ public:
 	int32_t readModKnobAssignmentsFromFile(int32_t readAutomationUpToPos, ParamManagerForTimeline* paramManager = NULL);
 	void sendMIDIPGM();
 	int32_t changeControlNumberForModKnob(int32_t offset, int32_t whichModEncoder, int32_t modKnobMode);
-	int32_t getFirstUnusedCC(ModelStackWithThreeMainThings* modelStack, int32_t direction, int32_t startAt, int32_t stopAt);
+	int32_t getFirstUnusedCC(ModelStackWithThreeMainThings* modelStack, int32_t direction, int32_t startAt,
+	                         int32_t stopAt);
 	int32_t moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC, ModelStackWithThreeMainThings* modelStack);
 	int32_t moveAutomationToDifferentCC(int32_t offset, int32_t whichModEncoder, int32_t modKnobMode,
-	                                ModelStackWithThreeMainThings* modelStack);
+	                                    ModelStackWithThreeMainThings* modelStack);
 	void offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
-	                       bool on, int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes, bool* doingMidiThru);
+	                       bool on, int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
+	                       bool* doingMidiThru);
 
 	// ModControllable implementation
 	bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack);
@@ -60,7 +62,8 @@ public:
 	uint8_t* getModKnobMode() { return &modKnobMode; }
 
 	int32_t getKnobPosForNonExistentParam(int32_t whichModEncoder, ModelStackWithAutoParam* modelStack);
-	ModelStackWithAutoParam* getParamToControlFromInputMIDIChannel(int32_t cc, ModelStackWithThreeMainThings* modelStack);
+	ModelStackWithAutoParam* getParamToControlFromInputMIDIChannel(int32_t cc,
+	                                                               ModelStackWithThreeMainThings* modelStack);
 	bool doesAutomationExistOnMIDIParam(ModelStackWithThreeMainThings* modelStack, int32_t cc);
 	int32_t getOutputMasterChannel();
 

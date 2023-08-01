@@ -39,8 +39,8 @@ public:
 	void trimToLength(uint32_t newLength, ModelStackWithParamCollection* modelStack, Action* action,
 	                  bool maySetupPatching);
 	void shiftHorizontally(ModelStackWithParamCollection* modelStack, int32_t amount, int32_t effectiveLength);
-	void processCurrentPos(ModelStackWithParamCollection* modelStack, int32_t ticksSkipped, bool reversed, bool didPingpong,
-	                       bool mayInterpolate);
+	void processCurrentPos(ModelStackWithParamCollection* modelStack, int32_t ticksSkipped, bool reversed,
+	                       bool didPingpong, bool mayInterpolate);
 	void remotelySwapParamState(AutoParamState* state, ModelStackWithParamId* modelStack);
 	void deleteAllAutomation(Action* action, ModelStackWithParamCollection* modelStack);
 	int32_t makeInterpolatedCCsGoodAgain(int32_t clipLength);

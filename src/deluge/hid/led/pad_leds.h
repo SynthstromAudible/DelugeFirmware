@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include <cstdint>
 #include "definitions_cxx.hpp"
+#include <cstdint>
 
 #define FLASH_CURSOR_FAST 0
 #define FLASH_CURSOR_OFF 1

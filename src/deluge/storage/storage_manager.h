@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include <cstdint>
 #include "definitions_cxx.hpp"
+#include <cstdint>
 
 extern "C" {
 #include "fatfs/ff.h"
@@ -67,7 +67,7 @@ public:
 	int32_t createFile(FIL* file, char const* filePath, bool mayOverwrite);
 	int32_t createXMLFile(char const* pathName, bool mayOverwrite = false);
 	int32_t openXMLFile(FilePointer* filePointer, char const* firstTagName, char const* altTagName = "",
-	                bool ignoreIncorrectFirmware = false);
+	                    bool ignoreIncorrectFirmware = false);
 	bool prepareToReadTagOrAttributeValueOneCharAtATime();
 	char readNextCharOfTagOrAttributeValue();
 	char const* readNextCharsOfTagOrAttributeValue(int32_t numChars);
@@ -75,7 +75,7 @@ public:
 	int32_t initSD();
 	bool closeFile();
 	int32_t closeFileAfterWriting(char const* path = NULL, char const* beginningString = NULL,
-	                          char const* endString = NULL);
+	                              char const* endString = NULL);
 	uint32_t readCharXML(char* thisChar);
 	void write(char const* output);
 	bool lseek(uint32_t pos);
@@ -89,12 +89,12 @@ public:
 	int32_t getNumCharsRemainingInValue();
 	Instrument* createNewInstrument(InstrumentType newInstrumentType, ParamManager* getParamManager = NULL);
 	int32_t loadInstrumentFromFile(Song* song, InstrumentClip* clip, InstrumentType instrumentType,
-	                           bool mayReadSamplesFromFiles, Instrument** getInstrument, FilePointer* filePointer,
-	                           String* name, String* dirPath);
+	                               bool mayReadSamplesFromFiles, Instrument** getInstrument, FilePointer* filePointer,
+	                               String* name, String* dirPath);
 	Instrument* createNewNonAudioInstrument(InstrumentType instrumentType, int32_t slot, int32_t subSlot);
 	void writeEarliestCompatibleFirmwareVersion(char const* versionString);
 	int32_t readMIDIParamFromFile(int32_t readAutomationUpToPos, MIDIParamCollection* midiParamCollection,
-	                          int8_t* getCC = NULL);
+	                              int8_t* getCC = NULL);
 	Drum* createNewDrum(DrumType drumType);
 	void openFilePointer(FilePointer* fp);
 	int32_t tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware = false);
@@ -133,7 +133,8 @@ private:
 	uint8_t xmlArea;
 	bool xmlReachedEnd;
 	int32_t tagDepthCaller; // How deeply indented in XML the main Deluge classes think we are, as data being read.
-	int32_t tagDepthFile; // Will temporarily be different to the above as unwanted / unused XML tags parsed on the way to finding next useful data.
+	int32_t
+	    tagDepthFile; // Will temporarily be different to the above as unwanted / unused XML tags parsed on the way to finding next useful data.
 	int32_t xmlReadCount;
 
 	void skipUntilChar(char endChar);

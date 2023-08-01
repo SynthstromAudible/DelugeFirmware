@@ -17,10 +17,10 @@
 
 #pragma once
 
-#include <cstdint>
 #include "definitions_cxx.hpp"
 #include "gui/waveform/waveform_render_data.h"
 #include "pad.h"
+#include <cstdint>
 
 class AudioClip;
 

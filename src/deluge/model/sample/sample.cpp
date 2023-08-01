@@ -17,7 +17,6 @@
 
 #include "model/sample/sample.h"
 #include "NE10.h"
-#include <cstdint>
 #include "definitions_cxx.hpp"
 #include "dsp/fft/fft_config_manager.h"
 #include "dsp/timestretch/time_stretcher.h"
@@ -33,6 +32,7 @@
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
+#include <cstdint>
 #include <math.h>
 #include <new>
 #include <string.h>
@@ -270,7 +270,7 @@ void Sample::deleteCache(SampleCache* cache) {
 
 // Returns error
 int32_t Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSamples, int32_t endPosSamples,
-                          int32_t playDirection, int32_t maxNumSamplesToProcess) {
+                              int32_t playDirection, int32_t maxNumSamplesToProcess) {
 
 #if MEASURE_PERC_CACHE_PERFORMANCE
 	uint16_t startTime = MTU2.TCNT_0;
@@ -603,7 +603,8 @@ doLoading:
 				numSamplesLeftThisPercPixelSegment = kPercBufferReductionSize;
 			}
 
-			numSamplesThisPercPixelSegment = std::min(numSamplesThisPercPixelSegment, numSamplesLeftThisPercPixelSegment);
+			numSamplesThisPercPixelSegment =
+			    std::min(numSamplesThisPercPixelSegment, numSamplesLeftThisPercPixelSegment);
 
 			char* endPos = currentPos + numSamplesThisPercPixelSegment * posIncrement;
 
@@ -664,8 +665,8 @@ doLoading:
 
 	} while (numSamples);
 
-	percCacheZone->samplesAtStartWhichShouldBeReplaced =
-	    std::max<int32_t>(2048, (percCacheZone->endPos - percCacheZone->startPos) * playDirection); // 2048 is fairly arbitrary
+	percCacheZone->samplesAtStartWhichShouldBeReplaced = std::max<int32_t>(
+	    2048, (percCacheZone->endPos - percCacheZone->startPos) * playDirection); // 2048 is fairly arbitrary
 
 	// If we connected up to another, later zone...
 	if (willHitNextElement) {
@@ -713,8 +714,8 @@ getOut:
 	return error; // Usually it'll be NO_ERROR.
 }
 
-bool Sample::getAveragesForCrossfade(int32_t* totals, int32_t startBytePos, int32_t crossfadeLengthSamples, int32_t playDirection,
-                                     int32_t lengthToAverageEach) {
+bool Sample::getAveragesForCrossfade(int32_t* totals, int32_t startBytePos, int32_t crossfadeLengthSamples,
+                                     int32_t playDirection, int32_t lengthToAverageEach) {
 
 	int32_t byteDepthNow = byteDepth;
 	int32_t numChannelsNow = numChannels;
@@ -732,7 +733,7 @@ bool Sample::getAveragesForCrossfade(int32_t* totals, int32_t startBytePos, int3
 	int32_t samplePosMidCrossfade = startSamplePos + halfCrossfadeLengthSamples * playDirection;
 
 	int32_t readSample = samplePosMidCrossfade
-	                 - ((lengthToAverageEach * TimeStretch::Crossfade::kNumMovingAverages) >> 1) * playDirection;
+	                     - ((lengthToAverageEach * TimeStretch::Crossfade::kNumMovingAverages) >> 1) * playDirection;
 
 	int32_t halfCrossfadeLengthBytes = halfCrossfadeLengthSamples * bytesPerSample;
 
@@ -788,9 +789,9 @@ bool Sample::getAveragesForCrossfade(int32_t* totals, int32_t startBytePos, int3
 			int32_t bytePosWithinCluster = readByte & (audioFileManager.clusterSize - 1);
 			int32_t numSamplesThisRead = numSamplesLeftThisAverage;
 
-			int32_t bytesLeftThisCluster = (playDirection == -1)
-			                               ? (bytePosWithinCluster + bytesPerSample)
-			                               : (audioFileManager.clusterSize - bytePosWithinCluster + bytesPerSample - 1);
+			int32_t bytesLeftThisCluster =
+			    (playDirection == -1) ? (bytePosWithinCluster + bytesPerSample)
+			                          : (audioFileManager.clusterSize - bytePosWithinCluster + bytesPerSample - 1);
 			int32_t bytesWeWantToRead = numSamplesThisRead * bytesPerSample;
 			if (bytesWeWantToRead > bytesLeftThisCluster) {
 				numSamplesThisRead = (uint32_t)bytesLeftThisCluster / (uint8_t)bytesPerSample;
@@ -907,9 +908,10 @@ void Sample::percCacheClusterStolen(Cluster* cluster) {
 
 	// TODO: while inside this, don't allow further editing to percCacheZones[reversed]
 
-	int32_t leftBorder = cluster->clusterIndex << (audioFileManager.clusterSizeMagnitude + kPercBufferReductionMagnitude);
+	int32_t leftBorder = cluster->clusterIndex
+	                     << (audioFileManager.clusterSizeMagnitude + kPercBufferReductionMagnitude);
 	int32_t rightBorder = (cluster->clusterIndex + 1)
-	                  << (audioFileManager.clusterSizeMagnitude + kPercBufferReductionMagnitude);
+	                      << (audioFileManager.clusterSizeMagnitude + kPercBufferReductionMagnitude);
 
 	int32_t laterBorder = reversed ? (leftBorder - 1) : rightBorder;
 	int32_t earlierBorder = reversed ? (rightBorder - 1) : leftBorder;
@@ -968,7 +970,7 @@ void Sample::percCacheClusterStolen(Cluster* cluster) {
 		if ((zoneLater->endPos - laterBorder) * playDirection > 0) {
 			zoneLater->samplesAtStartWhichShouldBeReplaced =
 			    std::max<int32_t>(0, zoneLater->samplesAtStartWhichShouldBeReplaced
-			                  - (laterBorder - zoneLater->startPos) * playDirection);
+			                             - (laterBorder - zoneLater->startPos) * playDirection);
 			zoneLater->startPos = laterBorder;
 		}
 		else {
@@ -1065,8 +1067,8 @@ constexpr int32_t kNumPrimes = 6;
 
 // Returns strength
 int32_t Sample::investigateFundamentalPitch(int32_t fundamentalIndexProvided, int32_t tableSize, int32_t* heightTable,
-                                        uint64_t* sumTable, float* floatIndexTable, float* getFundamentalIndex,
-                                        int32_t numDoublings, bool doPrimeTest) {
+                                            uint64_t* sumTable, float* floatIndexTable, float* getFundamentalIndex,
+                                            int32_t numDoublings, bool doPrimeTest) {
 
 	uint64_t total = 0;
 
@@ -1410,8 +1412,8 @@ continueWhileLoop:
 				// If our grabbed window would end beyond the end of the audio file, shift it left
 				beginningOffsetForPitchDetection =
 				    std::min(beginningOffsetForPitchDetection,
-				           (int32_t)(audioDataStartPosBytes + audioDataLengthBytes
-				                     - (kPitchDetectWindowSize << lengthDoublings) * numChannels * byteDepth));
+				             (int32_t)(audioDataStartPosBytes + audioDataLengthBytes
+				                       - (kPitchDetectWindowSize << lengthDoublings) * numChannels * byteDepth));
 
 				// TODO: it's not quite perfect doing that and storing the result, because lengthDoublings will sometimes be different
 

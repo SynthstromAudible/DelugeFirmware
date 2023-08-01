@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include <cstdint>
 #include "definitions_cxx.hpp"
+#include <cstdint>
 
 struct CableGroup;
 
@@ -53,8 +53,7 @@ public:
 private:
 	void applyRangeAdjustment(int32_t* patchedValue, PatchCable* patchCable);
 	int32_t combineCablesLinearForRangeParam(Destination const* destination, ParamManager* paramManager);
-	int32_t combineCablesLinear(Destination const* destination, uint32_t p, Sound* sound,
-	                            ParamManager* paramManager);
+	int32_t combineCablesLinear(Destination const* destination, uint32_t p, Sound* sound, ParamManager* paramManager);
 	int32_t combineCablesExp(Destination const* destination, uint32_t p, Sound* sound, ParamManager* paramManager);
 	void cableToLinearParamWithoutRangeAdjustment(int32_t sourceValue, int32_t cableStrength,
 	                                              int32_t* runningTotalCombination);

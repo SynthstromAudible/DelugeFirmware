@@ -17,9 +17,9 @@
 
 #include "modulation/params/param_node_vector.h"
 
-#include <cstdint>
 #include "io/debug/print.h"
 #include "modulation/params/param_node.h"
+#include <cstdint>
 #include <string.h>
 
 ParamNodeVector::ParamNodeVector() : OrderedResizeableArrayWith32bitKey(sizeof(ParamNode)) {

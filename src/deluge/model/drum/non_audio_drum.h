@@ -17,10 +17,10 @@
 
 #pragma once
 
-#include <cstdint>
 #include "definitions_cxx.hpp"
 #include "model/drum/drum.h"
 #include "model/mod_controllable/mod_controllable.h"
+#include <cstdint>
 
 class NonAudioDrum : public Drum, public ModControllable {
 public:

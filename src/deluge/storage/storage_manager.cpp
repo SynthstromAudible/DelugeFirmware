@@ -549,7 +549,8 @@ int32_t StorageManager::readStringUntilChar(String* string, char endChar) {
 		int32_t numCharsHere = bufferPosNow - fileBufferCurrentPos;
 
 		if (numCharsHere) {
-			int32_t error = string->concatenateAtPos(&fileClusterBuffer[fileBufferCurrentPos], newStringPos, numCharsHere);
+			int32_t error =
+			    string->concatenateAtPos(&fileClusterBuffer[fileBufferCurrentPos], newStringPos, numCharsHere);
 
 			fileBufferCurrentPos = bufferPosNow;
 
@@ -1200,7 +1201,7 @@ bool StorageManager::lseek(uint32_t pos) {
 }
 
 int32_t StorageManager::openXMLFile(FilePointer* filePointer, char const* firstTagName, char const* altTagName,
-                                bool ignoreIncorrectFirmware) {
+                                    bool ignoreIncorrectFirmware) {
 
 	AudioEngine::logAction("openXMLFile");
 
@@ -1374,8 +1375,8 @@ int32_t StorageManager::openInstrumentFile(InstrumentType instrumentType, FilePo
 // Returns error status
 // clip may be NULL
 int32_t StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip, InstrumentType instrumentType,
-                                           bool mayReadSamplesFromFiles, Instrument** getInstrument,
-                                           FilePointer* filePointer, String* name, String* dirPath) {
+                                               bool mayReadSamplesFromFiles, Instrument** getInstrument,
+                                               FilePointer* filePointer, String* name, String* dirPath) {
 
 	AudioEngine::logAction("loadInstrumentFromFile");
 
@@ -1566,7 +1567,7 @@ Drum* StorageManager::createNewDrum(DrumType drumType) {
 // -- Pre-V2.0 files, so we know there's no mention of bend or aftertouch in this case where we have a ParamManager.
 // -- When reading a MIDIInstrument, so we know there's no ParamManager (I checked), so no need to actually read the param.
 int32_t StorageManager::readMIDIParamFromFile(int32_t readAutomationUpToPos, MIDIParamCollection* midiParamCollection,
-                                          int8_t* getCC) {
+                                              int8_t* getCC) {
 
 	char const* tagName;
 	int32_t cc = CC_NUMBER_NONE;

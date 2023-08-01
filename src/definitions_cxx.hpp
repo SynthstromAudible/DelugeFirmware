@@ -18,8 +18,8 @@
 #pragma once
 #include "definitions.h"
 #include "util/misc.h"
-#include <cstdint>
 #include <algorithm>
+#include <cstdint>
 
 #define ALPHA_OR_BETA_VERSION 1 // Whether to compile with additional error-checking
 
@@ -244,7 +244,8 @@ enum class MidiLearn : uint8_t {
 
 constexpr size_t kMinTimePerTimerTick = 1;
 constexpr int32_t kNumInputTicksToAverageTime = 24;
-constexpr int32_t kNumInputTicksToAllowTempoTargeting = 24; // This is probably even high enough to cause audible glitches
+constexpr int32_t kNumInputTicksToAllowTempoTargeting =
+    24; // This is probably even high enough to cause audible glitches
 constexpr int32_t kMaxOutputTickMagnitude = 5;
 
 constexpr int32_t kZoomSpeed = 110;
@@ -261,7 +262,7 @@ constexpr int32_t kSampleMarkerBlinkTime = 200;
 
 constexpr int32_t USE_DEFAULT_VELOCITY = 255;
 
-constexpr int32_t kMaxSequenceLength = 1610612736;     // The biggest multiple of 3 which can fit in a signed 32-bit int32_t
+constexpr int32_t kMaxSequenceLength = 1610612736; // The biggest multiple of 3 which can fit in a signed 32-bit int32_t
 constexpr int32_t kAmountNoteOnLatenessAllowed = 2205; // In audio samples. That's 50mS. Multiply mS by 44.1
 
 enum class GateType : uint8_t {

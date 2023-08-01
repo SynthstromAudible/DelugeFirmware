@@ -17,10 +17,10 @@
 
 #pragma once
 
-#include <cstdint>
 #include "definitions_cxx.hpp"
 #include "hid/display/numeric_driver.h"
 #include "modulation/params/param_collection_summary.h"
+#include <cstdint>
 
 class Song;
 class Sound;
@@ -59,7 +59,7 @@ public:
 
 	void stealParamCollectionsFrom(ParamManager* other, bool stealExpressionParams = false);
 	int32_t cloneParamCollectionsFrom(ParamManager* other, bool copyAutomation, bool cloneExpressionParams = false,
-	                              int32_t reverseDirectionWithLength = 0);
+	                                  int32_t reverseDirectionWithLength = 0);
 	int32_t beenCloned(int32_t reverseDirectionWithLength = 0); // Will clone Collections
 	void forgetParamCollections();
 	void destructAndForgetParamCollections();

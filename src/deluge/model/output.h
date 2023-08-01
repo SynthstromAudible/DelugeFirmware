@@ -17,10 +17,10 @@
 
 #pragma once
 
-#include <cstdint>
 #include "definitions_cxx.hpp"
 #include "model/clip/clip_instance_vector.h"
 #include "util/d_string.h"
+#include <cstdint>
 
 class InstrumentClip;
 class Song;
@@ -75,7 +75,8 @@ public:
 	virtual bool setActiveClip(
 	    ModelStackWithTimelineCounter* modelStack,
 	    PgmChangeSend maySendMIDIPGMs = PgmChangeSend::ONCE); // Will have no effect if it already had that Clip
-	void pickAnActiveClipForArrangementPos(ModelStack* modelStack, int32_t arrangementPos, PgmChangeSend maySendMIDIPGMs);
+	void pickAnActiveClipForArrangementPos(ModelStack* modelStack, int32_t arrangementPos,
+	                                       PgmChangeSend maySendMIDIPGMs);
 	void pickAnActiveClipIfPossible(ModelStack* modelStack, bool searchSessionClipsIfNeeded = true,
 	                                PgmChangeSend maySendMIDIPGMs = PgmChangeSend::ONCE,
 	                                bool setupWithoutActiveClipIfNeeded = true);
@@ -136,8 +137,8 @@ public:
 	                                     bool* doingMidiThru) {}
 
 	virtual void stopAnyAuditioning(ModelStack* modelStack) {}
-	virtual void offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone, int32_t whichBendRange,
-	                                  int32_t bendSemitones) {}
+	virtual void offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone,
+	                                  int32_t whichBendRange, int32_t bendSemitones) {}
 
 	// Arrangement stuff
 	int32_t possiblyBeginArrangementRecording(Song* song, int32_t newPos);

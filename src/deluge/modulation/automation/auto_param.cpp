@@ -992,9 +992,9 @@ yesChangeCurrentValue:
 #define REGION_EDGE_RIGHT 1
 
 // Returns index of leftmost node of region, or -1 if error
-int32_t AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, int32_t startPos, int32_t length, int32_t startValue,
-                                bool interpolateLeftNode, bool interpolateRightNode, int32_t effectiveLength,
-                                bool reversed, int32_t posAtWhichClipWillCut) {
+int32_t AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, int32_t startPos, int32_t length,
+                                    int32_t startValue, bool interpolateLeftNode, bool interpolateRightNode,
+                                    int32_t effectiveLength, bool reversed, int32_t posAtWhichClipWillCut) {
 
 #if ALPHA_OR_BETA_VERSION
 	// Chasing "E433" / "GGGG" error (probably now largely solved - except got E435, see below).

@@ -67,8 +67,8 @@ public:
 	void trimToLength(uint32_t newLength, ModelStackWithParamCollection* modelStack, Action* action,
 	                  bool maySetupPatching);
 	void shiftHorizontally(ModelStackWithParamCollection* modelStack, int32_t amount, int32_t effectiveLength);
-	void processCurrentPos(ModelStackWithParamCollection* modelStack, int32_t ticksSkipped, bool reversed, bool didPingpong,
-	                       bool mayInterpolate);
+	void processCurrentPos(ModelStackWithParamCollection* modelStack, int32_t ticksSkipped, bool reversed,
+	                       bool didPingpong, bool mayInterpolate);
 	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength);
 	ParamManagerForTimeline* getParamManager();
 

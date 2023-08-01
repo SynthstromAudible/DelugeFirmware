@@ -348,7 +348,7 @@ addNewNote:
 }
 
 int32_t NoteRow::addCorrespondingNotes(int32_t targetPos, int32_t newNotesLength, uint8_t velocity,
-                                   ModelStackWithNoteRow* modelStack, bool allowNoteTails, Action* action) {
+                                       ModelStackWithNoteRow* modelStack, bool allowNoteTails, Action* action) {
 
 	uint32_t wrapEditLevel = ((InstrumentClip*)modelStack->getTimelineCounter())->getWrapEditLevel();
 	int32_t posWithinEachScreen = (uint32_t)targetPos % wrapEditLevel;
@@ -358,7 +358,8 @@ int32_t NoteRow::addCorrespondingNotes(int32_t targetPos, int32_t newNotesLength
 		newNotesLength = wrapEditLevel;
 	}
 
-	int32_t numScreensToAddNoteOn = (uint32_t)(effectiveLength + wrapEditLevel - posWithinEachScreen - 1) / wrapEditLevel;
+	int32_t numScreensToAddNoteOn =
+	    (uint32_t)(effectiveLength + wrapEditLevel - posWithinEachScreen - 1) / wrapEditLevel;
 
 	// Allocate all the working memory we're going to need for this operation - that's arrays for searchPos and resultingIndexes
 	int32_t* __restrict__ searchTerms =
@@ -514,7 +515,7 @@ addNewNote:
 // If you supply an Action, it'll add an individual ConsequenceNoteExistenceChange. Or, you can supply NULL and do something else yourself.
 // Returns distanceToNextNote, or 0 on fail.
 int32_t NoteRow::attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, int32_t probability,
-                            ModelStackWithNoteRow* modelStack, Action* action) {
+                                ModelStackWithNoteRow* modelStack, Action* action) {
 
 	int32_t loopLength = modelStack->getLoopLength();
 
@@ -584,7 +585,7 @@ int32_t NoteRow::attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, i
 
 // Returns distanceToNextNote, or 0 on fail.
 int32_t NoteRow::attemptNoteAddReversed(ModelStackWithNoteRow* modelStack, int32_t pos, int32_t velocity,
-                                    bool allowingNoteTails) {
+                                        bool allowingNoteTails) {
 
 	int32_t loopLength = modelStack->getLoopLength();
 	// The length-1 note will be placed at pos-1.
@@ -635,7 +636,7 @@ int32_t NoteRow::attemptNoteAddReversed(ModelStackWithNoteRow* modelStack, int32
 }
 
 int32_t NoteRow::clearArea(int32_t areaStart, int32_t areaWidth, ModelStackWithNoteRow* modelStack, Action* action,
-                       uint32_t wrapEditLevel, bool actuallyExtendNoteAtStartOfArea) {
+                           uint32_t wrapEditLevel, bool actuallyExtendNoteAtStartOfArea) {
 
 	// If no Notes, nothing to do.
 	if (!notes.getNumElements()) {
@@ -926,7 +927,7 @@ void NoteRow::complexSetNoteLength(Note* thisNote, uint32_t newLength, ModelStac
 
 // Caller must call expectEvent on Clip after this
 int32_t NoteRow::editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareWidth, ModelStackWithNoteRow* modelStack,
-                                            Action* action, uint32_t wrapEditLevel, int32_t newNumNotes) {
+                                                Action* action, uint32_t wrapEditLevel, int32_t newNumNotes) {
 
 	int32_t numSourceNotes = notes.getNumElements();
 
@@ -1115,7 +1116,7 @@ int32_t NoteRow::editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareW
 
 // Caller must call expectEvent on Clip after this
 int32_t NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* modelStack, Action* action,
-                                        uint32_t wrapEditLevel, int32_t nudgeOffset) {
+                                            uint32_t wrapEditLevel, int32_t nudgeOffset) {
 
 	int32_t numSourceNotes = notes.getNumElements();
 
@@ -1409,7 +1410,7 @@ int32_t NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteR
 }
 
 int32_t NoteRow::changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* modelStack, Action* action,
-                                         int32_t changeType, int32_t changeValue) {
+                                             int32_t changeType, int32_t changeValue) {
 
 	// If no Notes, nothing to do.
 	if (!notes.getNumElements()) {
@@ -2639,7 +2640,8 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 						if (newDivisor <= 1) {
 							goto switchOff;
 						}
-						int32_t newIterationWithinDivisor = (uint32_t)iterationWithinDivisor / (uint32_t)numRepeatsRounded;
+						int32_t newIterationWithinDivisor =
+						    (uint32_t)iterationWithinDivisor / (uint32_t)numRepeatsRounded;
 
 						newProbability = encodeIterationDependence(newDivisor, newIterationWithinDivisor);
 					}
@@ -2780,7 +2782,7 @@ int32_t NoteRow::readFromFile(int32_t* minY, InstrumentClip* parentClip, Song* s
 
 		else if (!strcmp(tagName, "gateOutput")) {
 			int32_t gateChannel = storageManager.readTagOrAttributeValueInt();
-			gateChannel = std::clamp<int32_t>(gateChannel, 0, NUM_GATE_CHANNELS -1);
+			gateChannel = std::clamp<int32_t>(gateChannel, 0, NUM_GATE_CHANNELS - 1);
 
 			drum = (Drum*)(0xFFFFFFFE - gateChannel);
 		}
@@ -3480,8 +3482,8 @@ void NoteRow::grabMidiCommandsFromDrum() {
 }
 
 // This function completely flattens iteration dependence (but not probability).
-int32_t NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWithNoteRow* otherModelStack, int32_t offset,
-                           int32_t whichRepeatThisIs, int32_t otherNoteRowLength) {
+int32_t NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWithNoteRow* otherModelStack,
+                               int32_t offset, int32_t whichRepeatThisIs, int32_t otherNoteRowLength) {
 
 	NoteRow* otherNoteRow = otherModelStack->getNoteRow();
 	InstrumentClip* clip = (InstrumentClip*)thisModelStack->getTimelineCounter();

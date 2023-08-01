@@ -137,7 +137,8 @@ void LivePitchShifterPlayHead::render(int32_t* __restrict__ outputBuffer, int32_
 // Returns how much longer (in raw samples) this play-head could play for before it reaches "now" time (which is itself moving forward) and runs out of audio
 // Only valid if phaseIncrement > 16777216
 int32_t LivePitchShifterPlayHead::getEstimatedPlaytimeRemaining(uint32_t repitchedBufferWritePos,
-                                                            LiveInputBuffer* liveInputBuffer, int32_t phaseIncrement) {
+                                                                LiveInputBuffer* liveInputBuffer,
+                                                                int32_t phaseIncrement) {
 	uint32_t howFarBack;
 #if INPUT_ENABLE_REPITCHED_BUFFER
 	if (mode == PLAY_HEAD_MODE_REPITCHED_BUFFER) {
@@ -164,7 +165,8 @@ int32_t LivePitchShifterPlayHead::getEstimatedPlaytimeRemaining(uint32_t repitch
 }
 
 int32_t LivePitchShifterPlayHead::getNumRawSamplesBehindInput(LiveInputBuffer* liveInputBuffer,
-                                                          LivePitchShifter* livePitchShifter, int32_t phaseIncrement) {
+                                                              LivePitchShifter* livePitchShifter,
+                                                              int32_t phaseIncrement) {
 #if INPUT_ENABLE_REPITCHED_BUFFER
 	if (mode == PLAY_HEAD_MODE_REPITCHED_BUFFER) {
 		uint32_t howFarBackRepitched = (uint32_t)(livePitchShifter->repitchedBufferWritePos - repitchedBufferReadPos)

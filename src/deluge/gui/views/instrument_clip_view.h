@@ -198,7 +198,8 @@ private:
 	void endEditPadPress(uint8_t i);
 	Drum* getNextDrum(Drum* oldDrum, bool mayBeNone = false);
 	Drum* flipThroughAvailableDrums(int32_t newOffset, Drum* drum, bool mayBeNone = false);
-	NoteRow* createNewNoteRowForKit(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay, int32_t* getIndex = NULL);
+	NoteRow* createNewNoteRowForKit(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay,
+	                                int32_t* getIndex = NULL);
 	void enterDrumCreator(ModelStackWithNoteRow* modelStack, bool doRecording = false);
 	bool getAffectEntire();
 	void createNewInstrument(InstrumentType instrumentType);

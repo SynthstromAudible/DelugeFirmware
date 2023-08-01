@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include <cstdint>
 #include "definitions_cxx.hpp"
+#include <cstdint>
 
 #define GREATER_OR_EQUAL 0
 #define LESS (-1)
@@ -27,7 +27,8 @@
 
 class ResizeableArray {
 public:
-	ResizeableArray(int32_t newElementSize, int32_t newMaxNumEmptySpacesToKeep = 16, int32_t newNumExtrarSpacesToAllocate = 15);
+	ResizeableArray(int32_t newElementSize, int32_t newMaxNumEmptySpacesToKeep = 16,
+	                int32_t newNumExtrarSpacesToAllocate = 15);
 	~ResizeableArray();
 	void init();
 	bool cloneFrom(ResizeableArray* other);

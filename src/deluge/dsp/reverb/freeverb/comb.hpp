@@ -23,8 +23,8 @@
 
 #pragma once
 
-#include <cstdint>
 #include "util/functions.h"
+#include <cstdint>
 
 class comb {
 public:

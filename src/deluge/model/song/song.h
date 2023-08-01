@@ -101,9 +101,9 @@ public:
 	void addOutput(Output* output, bool atStart = true);
 	void deleteOutputThatIsInMainList(Output* output, bool stopAnyAuditioningFirst = true);
 	void markAllInstrumentsAsEdited();
-	Instrument* getInstrumentFromPresetSlot(InstrumentType instrumentType, int32_t presetNumber, int32_t presetSubSlotNumber,
-	                                        char const* name, char const* dirPath, bool searchHibernatingToo = true,
-	                                        bool searchNonHibernating = true);
+	Instrument* getInstrumentFromPresetSlot(InstrumentType instrumentType, int32_t presetNumber,
+	                                        int32_t presetSubSlotNumber, char const* name, char const* dirPath,
+	                                        bool searchHibernatingToo = true, bool searchNonHibernating = true);
 	AudioOutput* getAudioOutputFromName(String* name);
 	void setupPatchingForAllParamManagers();
 	void replaceInstrument(Instrument* oldInstrument, Instrument* newInstrument, bool keepNoteRowsWithMIDIInput = true);
@@ -203,7 +203,8 @@ public:
 	void writeToFile();
 	void loadAllSamples(bool mayActuallyReadFiles = true);
 	bool modeContainsYNoteWithinOctave(uint8_t yNoteWithinOctave);
-	void renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* reverbBuffer, int32_t sideChainHitPending);
+	void renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* reverbBuffer,
+	                 int32_t sideChainHitPending);
 	bool isYNoteAllowed(int32_t yNote, bool inKeyMode);
 	Clip* syncScalingClip;
 	void setTimePerTimerTick(uint64_t newTimeBig, bool shouldLogAction = false);

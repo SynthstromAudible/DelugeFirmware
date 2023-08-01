@@ -70,8 +70,8 @@ public:
 
 class ArpeggiatorBase {
 public:
-	virtual void noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t velocity, ArpReturnInstruction* instruction,
-	                    int32_t fromMIDIChannel, int16_t const* mpeValues) = 0;
+	virtual void noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t velocity,
+	                    ArpReturnInstruction* instruction, int32_t fromMIDIChannel, int16_t const* mpeValues) = 0;
 	void render(ArpeggiatorSettings* settings, int32_t numSamples, uint32_t gateThreshold, uint32_t phaseIncrement,
 	            ArpReturnInstruction* instruction);
 	int32_t doTickForward(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, uint32_t ClipCurrentPos,

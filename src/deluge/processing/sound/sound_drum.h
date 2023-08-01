@@ -56,8 +56,8 @@ public:
 	ModControllable* toModControllable() { return this; }
 
 	void expressionEvent(int32_t newValue, int32_t whichExpressionDimension);
-	void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t whichExpressionDimension, int32_t channelOrNoteNumber,
-	                                              MIDICharacteristic whichCharacteristic);
+	void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t whichExpressionDimension,
+	                                              int32_t channelOrNoteNumber, MIDICharacteristic whichCharacteristic);
 
 	ArpeggiatorBase* getArp();
 	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL) { return &arpSettings; }

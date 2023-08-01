@@ -17,10 +17,10 @@
 
 #pragma once
 
-#include <cstdint>
 #include "definitions_cxx.hpp"
 #include "io/midi/learned_midi.h"
 #include "model/timeline_counter.h"
+#include <cstdint>
 
 #define CLIP_TYPE_INSTRUMENT 0
 #define CLIP_TYPE_AUDIO 1
@@ -67,11 +67,11 @@ public:
 	bool isActiveOnOutput();
 	virtual bool deleteSoundsWhichWontSound(Song* song);
 	virtual int32_t appendClip(ModelStackWithTimelineCounter* thisModelStack,
-	                       ModelStackWithTimelineCounter* otherModelStack);
+	                           ModelStackWithTimelineCounter* otherModelStack);
 	int32_t resumeOriginalClipFromThisClone(ModelStackWithTimelineCounter* modelStackOriginal,
-	                                    ModelStackWithTimelineCounter* modelStackClone);
+	                                        ModelStackWithTimelineCounter* modelStackClone);
 	virtual int32_t transferVoicesToOriginalClipFromThisClone(ModelStackWithTimelineCounter* modelStackOriginal,
-	                                                      ModelStackWithTimelineCounter* modelStackClone) {
+	                                                          ModelStackWithTimelineCounter* modelStackClone) {
 		return NO_ERROR;
 	}
 	virtual void increaseLengthWithRepeats(ModelStackWithTimelineCounter* modelStack, int32_t newLength,
@@ -92,8 +92,8 @@ public:
 	virtual bool renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, TimelineView* editorScreen,
 	                               int32_t xScroll, uint32_t xZoom, uint8_t* image, uint8_t occupancyMask[],
 	                               bool addUndefinedArea = true, int32_t noteRowIndexStart = 0,
-	                               int32_t noteRowIndexEnd = 2147483647, int32_t xStart = 0, int32_t xEnd = kDisplayWidth,
-	                               bool allowBlur = true, bool drawRepeats = false);
+	                               int32_t noteRowIndexEnd = 2147483647, int32_t xStart = 0,
+	                               int32_t xEnd = kDisplayWidth, bool allowBlur = true, bool drawRepeats = false);
 	virtual int32_t
 	claimOutput(ModelStackWithTimelineCounter*
 	                modelStack) = 0; // To be called after Song loaded, to link to the relevant Output object
@@ -185,7 +185,7 @@ protected:
 	virtual bool
 	cloneOutput(ModelStackWithTimelineCounter* modelStack) = 0; // Returns whether a new Output was in fact created
 	int32_t solicitParamManager(Song* song, ParamManager* newParamManager = NULL,
-	                        Clip* favourClipForCloningParamManager = NULL);
+	                            Clip* favourClipForCloningParamManager = NULL);
 	virtual void pingpongOccurred(ModelStackWithTimelineCounter* modelStack) {
 	}
 };

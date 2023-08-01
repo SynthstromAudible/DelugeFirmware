@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include <cstdint>
 #include "gui/views/timeline_view.h"
+#include <cstdint>
 
 class ClipNavigationTimelineView : public TimelineView {
 public:

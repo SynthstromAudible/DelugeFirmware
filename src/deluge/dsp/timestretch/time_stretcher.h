@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include <cstdint>
 #include "definitions_cxx.hpp"
 #include "model/sample/sample_low_level_reader.h"
+#include <cstdint>
 
 #define BUFFER_FILLING_OFF 0
 #define BUFFER_FILLING_NEWER 1
@@ -38,8 +38,8 @@ class TimeStretcher {
 public:
 	TimeStretcher() = default;
 	bool init(Sample* sample, VoiceSample* voiceSample, SamplePlaybackGuide* guide, int64_t newSamplePosBig,
-	          int32_t numChannels, int32_t phaseIncrement, int32_t timeStretchRatio, int32_t playDirection, int32_t priorityRating,
-	          int32_t fudgingNumSamplesTilLoop, LoopType loopingType);
+	          int32_t numChannels, int32_t phaseIncrement, int32_t timeStretchRatio, int32_t playDirection,
+	          int32_t priorityRating, int32_t fudgingNumSamplesTilLoop, LoopType loopingType);
 	void reInit(int64_t newSamplePosBig, SamplePlaybackGuide* guide, VoiceSample* voiceSample, Sample* sample,
 	            int32_t numChannels, int32_t timeStretchRatio, int32_t phaseIncrement, uint64_t combinedIncrement,
 	            int32_t playDirection, LoopType loopingType, int32_t priorityRating);
@@ -56,14 +56,15 @@ public:
 	int32_t getSamplePos(int32_t playDirection);
 	bool allocateBuffer(int32_t numChannels);
 
-	void readFromBuffer(int32_t* oscBufferPos, int32_t numSamples, int32_t numChannels, int32_t numChannelsAfterCondensing,
-	                    int32_t sourceAmplitudeNow, int32_t amplitudeIncrementNow, int32_t* bufferReadPos);
+	void readFromBuffer(int32_t* oscBufferPos, int32_t numSamples, int32_t numChannels,
+	                    int32_t numChannelsAfterCondensing, int32_t sourceAmplitudeNow, int32_t amplitudeIncrementNow,
+	                    int32_t* bufferReadPos);
 
 	void setupCrossfadeFromCache(SampleCache* cache, int32_t cacheBytePos, int32_t numChannels);
 
 #if TIME_STRETCH_ENABLE_BUFFER
-	void reassessWhetherToBeFillingBuffer(int32_t phaseIncrement, int32_t timeStretchRatio, int32_t newBufferFillingMode,
-	                                      int32_t numChannels);
+	void reassessWhetherToBeFillingBuffer(int32_t phaseIncrement, int32_t timeStretchRatio,
+	                                      int32_t newBufferFillingMode, int32_t numChannels);
 #endif
 	TimeStretcher* nextUnassigned;
 
@@ -89,7 +90,7 @@ public:
 	int32_t newerBufferReadPos; // In whole samples including both channels
 
 	uint8_t bufferFillingMode;
-	int32_t bufferWritePos;            // In whole samples including both channels
+	int32_t bufferWritePos;        // In whole samples including both channels
 	uint64_t bufferSamplesWritten; // Hopefully we can do away with the need for this
 #endif
 

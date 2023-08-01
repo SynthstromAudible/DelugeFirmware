@@ -17,13 +17,13 @@
 
 #pragma once
 
-#include <cstdint>
 #include "definitions_cxx.hpp"
 #include "fatfs/ff.h"
 #include "util/fixedpoint.h"
 #include "util/lookuptables/lookuptables.h"
-#include <cstring>
 #include <cmath>
+#include <cstdint>
+#include <cstring>
 extern "C" {
 #include "util/cfunctions.h"
 }
@@ -285,8 +285,9 @@ uint32_t interpolateTableInverse(int32_t tableValueBig, int32_t numBitsInLookupO
 
 // input must not have any extra bits set than numBitsInInput specifies
 // Output of this function (unlike the regular 1d one) is only +- 1073741824
-inline int32_t interpolateTableSigned2d(uint32_t inputX, uint32_t inputY, int32_t numBitsInInputX, int32_t numBitsInInputY,
-                                        const int16_t* table, int32_t numBitsInTableSizeX, int32_t numBitsInTableSizeY) {
+inline int32_t interpolateTableSigned2d(uint32_t inputX, uint32_t inputY, int32_t numBitsInInputX,
+                                        int32_t numBitsInInputY, const int16_t* table, int32_t numBitsInTableSizeX,
+                                        int32_t numBitsInTableSizeY) {
 
 	int32_t whichValue = inputY >> (numBitsInInputY - numBitsInTableSizeY);
 
@@ -434,7 +435,7 @@ inline void drawSquare(uint8_t squareColour[], int32_t intensity, uint8_t square
 
 	for (int32_t colour = 0; colour < 3; colour++) {
 		int32_t newColourValue = rshift_round((int32_t)square[colour] * colourRemainingAmount, 16)
-		                     + rshift_round((int32_t)squareColour[colour] * modifiedIntensity, 16);
+		                         + rshift_round((int32_t)squareColour[colour] * modifiedIntensity, 16);
 		square[colour] = std::min<int32_t>(255, newColourValue);
 	}
 }

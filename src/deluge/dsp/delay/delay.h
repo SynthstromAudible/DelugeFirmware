@@ -17,10 +17,10 @@
 
 #pragma once
 
-#include <cstdint>
 #include "dsp/convolution/impulse_response_processor.h"
 #include "dsp/delay/delay_buffer.h"
 #include "dsp/stereo_sample.h"
+#include <cstdint>
 #include <math.h>
 
 struct DelayWorkingState {

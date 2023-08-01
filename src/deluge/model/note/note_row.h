@@ -70,8 +70,8 @@ public:
 	NoteRow(int16_t newY = -32768);
 	~NoteRow();
 	void renderRow(TimelineView* editorScreen, uint8_t[], uint8_t[], uint8_t[], uint8_t* image, uint8_t[], bool,
-	               uint32_t, bool allowNoteTails, int32_t imageWidth, int32_t xScroll, uint32_t xZoom, int32_t xStart = 0,
-	               int32_t xEnd = kDisplayWidth, bool drawRepeats = false);
+	               uint32_t, bool allowNoteTails, int32_t imageWidth, int32_t xScroll, uint32_t xZoom,
+	               int32_t xStart = 0, int32_t xEnd = kDisplayWidth, bool drawRepeats = false);
 	void deleteNoteByPos(ModelStackWithNoteRow* modelStack, int32_t pos, Action* action);
 	void stopCurrentlyPlayingNote(ModelStackWithNoteRow* modelStack, bool actuallySoundChange = true,
 	                              Note* note = NULL);
@@ -122,18 +122,19 @@ public:
 	bool
 	    skipNextNote; // To be used if we recorded a note which was quantized forwards, and we have to remember not to play it
 
-	int32_t attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, int32_t probability, ModelStackWithNoteRow* modelStack,
-	                   Action* action);
-	int32_t attemptNoteAddReversed(ModelStackWithNoteRow* modelStack, int32_t pos, int32_t velocity, bool allowingNoteTails);
+	int32_t attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, int32_t probability,
+	                       ModelStackWithNoteRow* modelStack, Action* action);
+	int32_t attemptNoteAddReversed(ModelStackWithNoteRow* modelStack, int32_t pos, int32_t velocity,
+	                               bool allowingNoteTails);
 	int32_t addCorrespondingNotes(int32_t pos, int32_t length, uint8_t velocity, ModelStackWithNoteRow* modelStack,
-	                          bool allowNoteTails, Action* action);
+	                              bool allowNoteTails, Action* action);
 	int32_t processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ticksSinceLast,
 	                          PendingNoteOnList* pendingNoteOnList);
 	uint8_t getSquareType(int32_t squareStart, int32_t squareWidth, Note** firstNote, Note** lastNote,
 	                      ModelStackWithNoteRow* modelStack, bool allowNoteTails, int32_t desiredNoteLength,
 	                      Action* action, bool clipCurrentlyPlaying, bool extendPreviousNoteIfPossible);
 	int32_t clearArea(int32_t areaStart, int32_t areaWidth, ModelStackWithNoteRow* modelStack, Action* action,
-	              uint32_t wrapEditLevel, bool actuallyExtendNoteAtStartOfArea = false);
+	                  uint32_t wrapEditLevel, bool actuallyExtendNoteAtStartOfArea = false);
 	void trimToLength(uint32_t newLength, ModelStackWithNoteRow* modelStack, Action* action);
 	void trimNoteDataToNewClipLength(uint32_t newLength, InstrumentClip* clip, Action* action, int32_t noteRowId);
 	void recordNoteOff(uint32_t pos, ModelStackWithNoteRow* modelStack, Action* action, int32_t velocity);
@@ -149,7 +150,7 @@ public:
 	void deleteParamManager(bool shouldUpdatePointer = true);
 	void deleteOldDrumNames(bool shouldUpdatePointer = true);
 	int32_t appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWithNoteRow* otherModelStack, int32_t offset,
-	                  int32_t whichRepeatThisIs, int32_t otherClipLength);
+	                      int32_t whichRepeatThisIs, int32_t otherClipLength);
 	int32_t beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenReversing);
 	void resumeOriginalNoteRowFromThisClone(ModelStackWithNoteRow* modelStackOriginal,
 	                                        ModelStackWithNoteRow* modelStackClone);
@@ -157,12 +158,12 @@ public:
 	void trimParamManager(ModelStackWithNoteRow* modelStack);
 	void deleteNoteByIndex(int32_t index, Action* action, int32_t noteRowId, InstrumentClip* clip);
 	void complexSetNoteLength(Note* thisNote, uint32_t newLength, ModelStackWithNoteRow* modelStack, Action* action);
-	int32_t changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* modelStack, Action* action, int32_t changeType,
-	                                int32_t changeValue);
+	int32_t changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* modelStack, Action* action,
+	                                    int32_t changeType, int32_t changeValue);
 	int32_t nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* modelStack, Action* action,
-	                               uint32_t wrapEditLevel, int32_t nudgeOffset);
+	                                   uint32_t wrapEditLevel, int32_t nudgeOffset);
 	int32_t editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareWidth, ModelStackWithNoteRow* modelStack,
-	                                   Action* action, uint32_t wrapEditLevel, int32_t newNumNotes);
+	                                       Action* action, uint32_t wrapEditLevel, int32_t newNumNotes);
 	void setLength(ModelStackWithNoteRow* modelStack, int32_t newLength, Action* actionToRecordTo, int32_t oldPos,
 	               bool hadIndependentPlayPosBefore);
 	void getMPEValues(ModelStackWithNoteRow* modelStack, int16_t* mpeValues);

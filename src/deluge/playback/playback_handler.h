@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include <cstdint>
 #include "definitions_cxx.hpp"
+#include <cstdint>
 
 #define MIDI_OUT_OFF 0
 #define MIDI_OUT_INCIDENTAL 1
@@ -59,7 +59,8 @@ public:
 	void setupPlaybackUsingInternalClock(int32_t buttonPressLatencyForTempolessRecord = 0, bool allowCountIn = true);
 	void setupPlaybackUsingExternalClock(bool switchingFromInternalClock = false, bool fromContinueCommand = false);
 	void setupPlayback(int32_t newPlaybackState, int32_t playFromPos, bool doOneLastAudioRoutineCall = false,
-	                   bool shouldShiftAccordingToClipInstance = true, int32_t buttonPressLatencyForTempolessRecord = 0);
+	                   bool shouldShiftAccordingToClipInstance = true,
+	                   int32_t buttonPressLatencyForTempolessRecord = 0);
 	void endPlayback();
 	void inputTick(bool fromTriggerClock = false, uint32_t time = 0);
 	void startMessageReceived();
@@ -186,7 +187,8 @@ public:
 	void grabTempoFromClip(Clip* clip);
 	int32_t getTimeLeftInCountIn();
 
-	void noteMessageReceived(MIDIDevice* fromDevice, bool on, int32_t channel, int32_t note, int32_t velocity, bool* doingMidiThru);
+	void noteMessageReceived(MIDIDevice* fromDevice, bool on, int32_t channel, int32_t note, int32_t velocity,
+	                         bool* doingMidiThru);
 	bool subModeAllowsRecording();
 
 	void songSelectReceived(uint8_t songId);

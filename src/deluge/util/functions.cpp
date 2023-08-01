@@ -1736,7 +1736,8 @@ int32_t strcmpspecial(char const* first, char const* second) {
 
 					// If we're still here, one is a leading zero and the other isn't.
 					resultIfGetToEndOfBothStrings =
-					    (int32_t)firstChar - (int32_t)secondChar; // Will still end up as zero when that needs to happen.
+					    (int32_t)firstChar
+					    - (int32_t)secondChar; // Will still end up as zero when that needs to happen.
 					break;
 				}
 			}

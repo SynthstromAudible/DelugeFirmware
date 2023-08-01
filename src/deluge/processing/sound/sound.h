@@ -175,7 +175,7 @@ public:
 	void setModulatorTranspose(int32_t m, int32_t value, ModelStackWithSoundFlags* modelStack);
 	void setModulatorCents(int32_t m, int32_t value, ModelStackWithSoundFlags* modelStack);
 	int32_t readFromFile(ModelStackWithModControllable* modelStack, int32_t readAutomationUpToPos,
-	                 ArpeggiatorSettings* arpSettings);
+	                     ArpeggiatorSettings* arpSettings);
 	void writeToFile(bool savingSong, ParamManager* paramManager, ArpeggiatorSettings* arpSettings);
 	bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false);
 
@@ -219,7 +219,8 @@ public:
 	                                 int32_t readAutomationUpToPos);
 	static void initParams(ParamManager* paramManager);
 	static int32_t createParamManagerForLoading(ParamManagerForTimeline* paramManager);
-	int32_t hasAnyTimeStretchSyncing(ParamManagerForTimeline* paramManager, bool getSampleLength = false, int32_t note = 0);
+	int32_t hasAnyTimeStretchSyncing(ParamManagerForTimeline* paramManager, bool getSampleLength = false,
+	                                 int32_t note = 0);
 	int32_t hasCutOrLoopModeSamples(ParamManagerForTimeline* paramManager, int32_t note, bool* anyLooping = NULL);
 	bool hasCutModeSamples(ParamManagerForTimeline* paramManager);
 	bool allowsVeryLateNoteStart(InstrumentClip* clip, ParamManagerForTimeline* paramManager);
@@ -279,7 +280,7 @@ private:
 	void calculateEffectiveVolume();
 	void ensureKnobReferencesCorrectVolume(Knob* knob);
 	int32_t readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos,
-	                    ArpeggiatorSettings* arpSettings, Song* song);
+	                        ArpeggiatorSettings* arpSettings, Song* song);
 
 	void writeSourceToFile(int32_t s, char const* tagName);
 	int32_t readSourceFromFile(int32_t s, ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos);

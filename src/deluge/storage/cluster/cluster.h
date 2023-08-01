@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include <cstdint>
 #include "definitions_cxx.hpp"
 #include "memory/stealable.h"
+#include <cstdint>
 
 class Sample;
 class SampleCluster;

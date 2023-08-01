@@ -40,7 +40,8 @@ inline int32_t Patcher::getSourceValue(PatchSource s) {
 }
 
 // If NULL Destination, that means no cables - just the preset value
-void Patcher::recalculateFinalValueForParamWithNoCables(int32_t p, Sound* sound, ParamManagerForTimeline* paramManager) {
+void Patcher::recalculateFinalValueForParamWithNoCables(int32_t p, Sound* sound,
+                                                        ParamManagerForTimeline* paramManager) {
 
 	int32_t cableCombination = (p < patchableInfo->firstHybridParam) ? combineCablesLinear(NULL, p, sound, paramManager)
 	                                                                 : combineCablesExp(NULL, p, sound, paramManager);

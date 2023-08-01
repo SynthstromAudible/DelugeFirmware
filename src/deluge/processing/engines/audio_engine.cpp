@@ -356,7 +356,7 @@ void routine() {
 	saddr = (uint32_t)(getTxBufferCurrentPlace());
 	uint32_t saddrPosAtStart = saddr >> (2 + NUM_MONO_OUTPUT_CHANNELS_MAGNITUDE);
 	int32_t numSamples = ((uint32_t)(saddr - i2sTXBufferPos) >> (2 + NUM_MONO_OUTPUT_CHANNELS_MAGNITUDE))
-	                 & (SSI_TX_BUFFER_NUM_SAMPLES - 1);
+	                     & (SSI_TX_BUFFER_NUM_SAMPLES - 1);
 	if (!numSamples) {
 		audioRoutineLocked = false;
 		return;

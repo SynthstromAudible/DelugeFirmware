@@ -50,13 +50,13 @@ public:
 	virtual void cloneFrom(ModControllableAudio* other);
 
 	void processStutter(StereoSample* buffer, int32_t numSamples, ParamManager* paramManager);
-	void processReverbSendAndVolume(StereoSample* buffer, int32_t numSamples, int32_t* reverbBuffer, int32_t postFXVolume,
-	                                int32_t postReverbVolume, int32_t reverbSendAmount, int32_t pan = 0,
-	                                bool doAmplitudeIncrement = false, int32_t amplitudeIncrement = 0);
+	void processReverbSendAndVolume(StereoSample* buffer, int32_t numSamples, int32_t* reverbBuffer,
+	                                int32_t postFXVolume, int32_t postReverbVolume, int32_t reverbSendAmount,
+	                                int32_t pan = 0, bool doAmplitudeIncrement = false, int32_t amplitudeIncrement = 0);
 	void writeAttributesToFile();
 	void writeTagsToFile();
 	int32_t readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos,
-	                    Song* song);
+	                        Song* song);
 	void processSRRAndBitcrushing(StereoSample* buffer, int32_t numSamples, int32_t* postFXVolume,
 	                              ParamManager* paramManager);
 	static void writeParamAttributesToFile(ParamManager* paramManager, bool writeAutomation,
@@ -140,5 +140,6 @@ protected:
 private:
 	void initializeSecondaryDelayBuffer(int32_t newNativeRate, bool makeNativeRatePreciseRelativeToOtherBuffer);
 	void doEQ(bool doBass, bool doTreble, int32_t* inputL, int32_t* inputR, int32_t bassAmount, int32_t trebleAmount);
-	ModelStackWithThreeMainThings* addNoteRowIndexAndStuff(ModelStackWithTimelineCounter* modelStack, int32_t noteRowIndex);
+	ModelStackWithThreeMainThings* addNoteRowIndexAndStuff(ModelStackWithTimelineCounter* modelStack,
+	                                                       int32_t noteRowIndex);
 };

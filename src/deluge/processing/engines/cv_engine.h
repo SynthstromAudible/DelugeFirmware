@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include <cstdint>
 #include "model/drum/gate_drum.h"
+#include <cstdint>
 
 #define WHICH_GATE_OUTPUT_IS_RUN 2
 #define WHICH_GATE_OUTPUT_IS_CLOCK 3

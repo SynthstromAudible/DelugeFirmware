@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include <cstdint>
 #include "gui/ui/ui.h"
 #include "util/d_string.h"
+#include <cstdint>
 
 class QwertyUI : public UI {
 public:

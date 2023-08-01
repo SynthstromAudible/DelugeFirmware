@@ -18,12 +18,13 @@
 #include "util/container/array/ordered_resizeable_array_with_multi_word_key.h"
 #include "io/debug/print.h"
 
-OrderedResizeableArrayWithMultiWordKey::OrderedResizeableArrayWithMultiWordKey(int32_t newElementSize, int32_t newNumWordsInKey)
+OrderedResizeableArrayWithMultiWordKey::OrderedResizeableArrayWithMultiWordKey(int32_t newElementSize,
+                                                                               int32_t newNumWordsInKey)
     : OrderedResizeableArrayWith32bitKey(newElementSize, 16, 15), numWordsInKey(newNumWordsInKey) {
 }
 
 int32_t OrderedResizeableArrayWithMultiWordKey::searchMultiWord(uint32_t* __restrict__ keyWords, int32_t comparison,
-                                                            int32_t rangeBegin, int32_t rangeEnd) {
+                                                                int32_t rangeBegin, int32_t rangeEnd) {
 
 	if (rangeEnd == -1) {
 		rangeEnd = numElements;
@@ -65,7 +66,7 @@ searchFurtherRight:
 
 // Returns -1 if not found
 int32_t OrderedResizeableArrayWithMultiWordKey::searchMultiWordExact(uint32_t* __restrict__ keyWords,
-                                                                 int32_t* getIndexToInsertAt, int32_t rangeBegin) {
+                                                                     int32_t* getIndexToInsertAt, int32_t rangeBegin) {
 	int32_t i = searchMultiWord(keyWords, GREATER_OR_EQUAL, rangeBegin);
 	if (i < numElements) {
 		uint32_t* __restrict__ wordsHere = (uint32_t*)getElementAddress(i);
@@ -86,8 +87,8 @@ notFound:
 }
 
 // Returns index created, or -1 if error
-int32_t OrderedResizeableArrayWithMultiWordKey::insertAtKeyMultiWord(uint32_t* __restrict__ keyWords, int32_t rangeBegin,
-                                                                 int32_t rangeEnd) {
+int32_t OrderedResizeableArrayWithMultiWordKey::insertAtKeyMultiWord(uint32_t* __restrict__ keyWords,
+                                                                     int32_t rangeBegin, int32_t rangeEnd) {
 	int32_t i = searchMultiWord(keyWords, GREATER_OR_EQUAL, 0, rangeEnd);
 
 	int32_t error = insertAtIndex(i);

@@ -144,7 +144,8 @@ bool TimeStretcher::init(Sample* sample, VoiceSample* voiceSample, SamplePlaybac
 
 void TimeStretcher::reInit(int64_t newSamplePosBig, SamplePlaybackGuide* guide, VoiceSample* voiceSample,
                            Sample* sample, int32_t numChannels, int32_t timeStretchRatio, int32_t phaseIncrement,
-                           uint64_t combinedIncrement, int32_t playDirection, LoopType loopingType, int32_t priorityRating) {
+                           uint64_t combinedIncrement, int32_t playDirection, LoopType loopingType,
+                           int32_t priorityRating) {
 
 	samplePosBig = newSamplePosBig;
 
@@ -491,13 +492,13 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 			     beamWidthNow += kPercBufferReductionSize) {
 
 				int32_t beamBackEdge = beamPosAtTop
-				                   + (int32_t)(((int64_t)beamWidthNow * (timeStretchRatio - 16777216))
-				                               >> (25 + kPercBufferReductionMagnitude))
-				                         * playDirection;
+				                       + (int32_t)(((int64_t)beamWidthNow * (timeStretchRatio - 16777216))
+				                                   >> (25 + kPercBufferReductionMagnitude))
+				                             * playDirection;
 				int32_t beamFrontEdge = beamPosAtTop
-				                    + (int32_t)(((uint64_t)beamWidthNow * (timeStretchRatio + 16777216))
-				                                >> (25 + kPercBufferReductionMagnitude))
-				                          * playDirection;
+				                        + (int32_t)(((uint64_t)beamWidthNow * (timeStretchRatio + 16777216))
+				                                    >> (25 + kPercBufferReductionMagnitude))
+				                              * playDirection;
 
 				int32_t pixellatedBeamWidth = (beamFrontEdge - beamBackEdge) * playDirection;
 				if (pixellatedBeamWidth) { // It might be zero near the start
@@ -540,8 +541,8 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 		}
 
 		int32_t beamBackEdge = samplePos
-		                   + (int32_t)(((int64_t)bestBeamWidth * (timeStretchRatio - 16777216)) >> 25)
-		                         * playDirection; // The real, non-pixelated one
+		                       + (int32_t)(((int64_t)bestBeamWidth * (timeStretchRatio - 16777216)) >> 25)
+		                             * playDirection; // The real, non-pixelated one
 
 		int32_t waveformStartSample =
 		    (playDirection == 1)
@@ -600,7 +601,8 @@ skipPercStuff:
 	// the beginning play-point of the new play-head, but the point half-way through the crossfade later. Remember that!
 	if (playHeadStillActive[PLAY_HEAD_OLDER]) { // Added condition, Aug 2019. Surely this makes sense...
 		int32_t lengthToAverageEach = ((uint64_t)phaseIncrement * TimeStretch::Crossfade::kMovingAverageLength) >> 24;
-		lengthToAverageEach = std::clamp<int32_t>(lengthToAverageEach, 1, TimeStretch::Crossfade::kMovingAverageLength * 2); // Keep things sensible
+		lengthToAverageEach = std::clamp<int32_t>(
+		    lengthToAverageEach, 1, TimeStretch::Crossfade::kMovingAverageLength * 2); // Keep things sensible
 
 		int32_t crossfadeLengthSamplesSource = ((uint64_t)crossfadeLengthSamples * phaseIncrement) >> 24;
 
@@ -639,8 +641,9 @@ skipPercStuff:
 
 		int32_t samplePosMidCrossfade = samplePos + (crossfadeLengthSamplesSource >> 1) * playDirection;
 
-		int32_t readSample = samplePosMidCrossfade
-		                 - ((lengthToAverageEach * TimeStretch::Crossfade::kNumMovingAverages) >> 1) * playDirection;
+		int32_t readSample =
+		    samplePosMidCrossfade
+		    - ((lengthToAverageEach * TimeStretch::Crossfade::kNumMovingAverages) >> 1) * playDirection;
 
 		int32_t firstReadByte = readSample * bytesPerSample + sample->audioDataStartPosBytes;
 
@@ -945,7 +948,8 @@ optForDirectReading:
 			bufferFillingMode = BUFFER_FILLING_NEITHER;
 	}
 
-	int32_t newBufferFillingMode = BUFFER_FILLING_NEWER; // Letting it fill from the older buffer initially caused problems
+	int32_t newBufferFillingMode =
+	    BUFFER_FILLING_NEWER; // Letting it fill from the older buffer initially caused problems
 	reassessWhetherToBeFillingBuffer(phaseIncrement, timeStretchRatio, newBufferFillingMode, numChannels);
 
 #else

@@ -16,11 +16,11 @@
  */
 
 #pragma once
-#include <cstdint>
 #include "definitions_cxx.hpp"
 #include "storage/audio/audio_file_vector.h"
 #include "storage/cluster/cluster_priority_queue.h"
 #include "util/container/list/bidirectional_linked_list.h"
+#include <cstdint>
 #include <stdint.h>
 
 extern "C" {
@@ -98,7 +98,7 @@ public:
 	int32_t setupAlternateAudioFileDir(String* newPath, char const* rootDir, String* songFilenameWithoutExtension);
 	bool loadingQueueHasAnyLowestPriorityElements();
 	int32_t getUnusedAudioRecordingFilePath(String* filePath, String* tempFilePathForRecording,
-	                                    AudioRecordingFolder folderID, uint32_t* getNumber);
+	                                        AudioRecordingFolder folderID, uint32_t* getNumber);
 	void deleteAnyTempRecordedSamplesFromMemory();
 	void deleteUnusedAudioFileFromMemory(AudioFile* audioFile, int32_t i);
 	void deleteUnusedAudioFileFromMemoryIndexUnknown(AudioFile* audioFile);
@@ -119,7 +119,8 @@ public:
 	bool cardDisabled;
 
 	Cluster* clusterBeingLoaded;
-	int32_t minNumReasonsForClusterBeingLoaded; // Only valid when clusterBeingLoaded is set. And this exists for bug hunting only.
+	int32_t
+	    minNumReasonsForClusterBeingLoaded; // Only valid when clusterBeingLoaded is set. And this exists for bug hunting only.
 
 	String alternateAudioFileLoadPath;
 	AlternateLoadDirStatus alternateLoadDirStatus;
@@ -133,7 +134,7 @@ private:
 	void setClusterSize(uint32_t newSize);
 	void cardReinserted();
 	int32_t readBytes(char* buffer, int32_t num, int32_t* byteIndexWithinCluster, Cluster** currentCluster,
-	              uint32_t* currentClusterIndex, uint32_t fileSize, Sample* sample);
+	                  uint32_t* currentClusterIndex, uint32_t fileSize, Sample* sample);
 	int32_t loadAiff(Sample* newSample, uint32_t fileSize, Cluster** currentCluster, uint32_t* currentClusterIndex);
 	int32_t loadWav(Sample* newSample, uint32_t fileSize, Cluster** currentCluster, uint32_t* currentClusterIndex);
 };

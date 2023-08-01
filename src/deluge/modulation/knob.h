@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include <cstdint>
 #include "io/midi/learned_midi.h"
 #include "modulation/params/param_descriptor.h"
+#include <cstdint>
 
 class Knob {
 public:

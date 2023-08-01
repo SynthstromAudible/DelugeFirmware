@@ -16,8 +16,8 @@
 */
 
 #pragma once
-#include <cstdint>
 #include "model/consequence/consequence.h"
+#include <cstdint>
 
 class Output;
 class Clip;

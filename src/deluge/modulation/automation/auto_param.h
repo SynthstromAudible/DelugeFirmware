@@ -16,9 +16,9 @@
 */
 
 #pragma once
-#include <cstdint>
 #include "model/action/action.h"
 #include "modulation/params/param_node_vector.h"
+#include <cstdint>
 
 class InstrumentClip;
 class ParamNode;
@@ -92,9 +92,9 @@ public:
 	                            int32_t lengthBeforeLoop, Action* action);
 	void deleteNodesWithinRegion(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t length);
 	int32_t setNodeAtPos(int32_t pos, int32_t value, bool shouldInterpolate);
-	int32_t homogenizeRegion(ModelStackWithAutoParam const* modelStack, int32_t startPos, int32_t length, int32_t startValue,
-	                     bool interpolateLeftNode, bool interpolateRightNode, int32_t effectiveLength, bool reversed,
-	                     int32_t posAtWhichClipWillCut = 2147483647);
+	int32_t homogenizeRegion(ModelStackWithAutoParam const* modelStack, int32_t startPos, int32_t length,
+	                         int32_t startValue, bool interpolateLeftNode, bool interpolateRightNode,
+	                         int32_t effectiveLength, bool reversed, int32_t posAtWhichClipWillCut = 2147483647);
 	int32_t getDistanceToNextNode(ModelStackWithAutoParam const* modelStack, int32_t pos, bool reversed);
 	void setCurrentValueWithNoReversionOrRecording(ModelStackWithAutoParam const* modelStack, int32_t value);
 

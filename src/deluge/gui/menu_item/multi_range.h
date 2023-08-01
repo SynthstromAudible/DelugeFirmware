@@ -34,7 +34,8 @@ public:
 	MenuItem* menuItemHeadingTo;
 
 protected:
-	void getText(char* buffer, int32_t* getLeftLength = NULL, int32_t* getRightLength = NULL, bool mayShowJustOne = true);
+	void getText(char* buffer, int32_t* getLeftLength = NULL, int32_t* getRightLength = NULL,
+	             bool mayShowJustOne = true);
 	bool mayEditRangeEdge(RangeEdit whichEdge);
 
 #if HAVE_OLED

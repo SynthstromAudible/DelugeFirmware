@@ -333,10 +333,9 @@ setupModelStackWithThreeMainThingsButNoNoteRow(void* memory, Song* newSong, ModC
 	    ->addOtherTwoThings(newModControllable, newParamManager);
 }
 
-inline ModelStackWithThreeMainThings*
-setupModelStackWithThreeMainThingsIncludingNoteRow(void* memory, Song* newSong, TimelineCounter* newTimelineCounter,
-                                                   int32_t noteRowId, NoteRow* noteRow, ModControllable* newModControllable,
-                                                   ParamManagerForTimeline* newParamManager) {
+inline ModelStackWithThreeMainThings* setupModelStackWithThreeMainThingsIncludingNoteRow(
+    void* memory, Song* newSong, TimelineCounter* newTimelineCounter, int32_t noteRowId, NoteRow* noteRow,
+    ModControllable* newModControllable, ParamManagerForTimeline* newParamManager) {
 
 	return setupModelStackWithSong(memory, newSong)
 	    ->addTimelineCounter(newTimelineCounter)
@@ -427,7 +426,8 @@ ModelStackWithThreeMainThings::addParamCollectionAndId(ParamCollection* newParam
 
 inline ModelStackWithAutoParam* ModelStackWithThreeMainThings::addParam(ParamCollection* newParamCollection,
                                                                         ParamCollectionSummary* newSummary,
-                                                                        int32_t newParamId, AutoParam* newAutoParam) const {
+                                                                        int32_t newParamId,
+                                                                        AutoParam* newAutoParam) const {
 	ModelStackWithAutoParam* toReturn = (ModelStackWithAutoParam*)this;
 	toReturn->paramCollection = newParamCollection;
 	toReturn->summary = newSummary;

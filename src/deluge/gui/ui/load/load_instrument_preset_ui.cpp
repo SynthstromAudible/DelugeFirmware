@@ -572,7 +572,7 @@ gotAnInstrument:
 		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, instrumentClipToLoadFor);
 
 		int32_t error = instrumentClipToLoadFor->changeInstrument(modelStack, initialInstrument, NULL,
-		                                                      InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED);
+		                                                          InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED);
 		// TODO: deal with errors!
 
 		if (needToAddInstrumentToSong) {
@@ -831,9 +831,9 @@ giveUsedError:
 			}
 		}
 
-		int32_t error = storageManager.loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, instrumentTypeToLoad,
-		                                                  false, &newInstrument, &currentFileItem->filePointer,
-		                                                  &enteredText, &currentDir);
+		int32_t error = storageManager.loadInstrumentFromFile(currentSong, instrumentClipToLoadFor,
+		                                                      instrumentTypeToLoad, false, &newInstrument,
+		                                                      &currentFileItem->filePointer, &enteredText, &currentDir);
 
 		if (error) {
 			return error;

@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include <cstdint>
 #include "modulation/params/param_manager.h"
+#include <cstdint>
 
 class Song;
 class Sound;

@@ -17,15 +17,17 @@
 
 #pragma once
 
-#include <cstdint>
 #include "definitions_cxx.hpp"
 #include "util/misc.h"
+#include <cstdint>
 
 class ParamDescriptor {
 public:
 	inline void setToHaveParamOnly(int32_t p) { data = p | 0xFFFFFF00; }
 
-	inline void setToHaveParamAndSource(int32_t p, PatchSource s) { data = p | (util::to_underlying(s) << 8) | 0xFFFF0000; }
+	inline void setToHaveParamAndSource(int32_t p, PatchSource s) {
+		data = p | (util::to_underlying(s) << 8) | 0xFFFF0000;
+	}
 
 	inline void setToHaveParamAndTwoSources(int32_t p, PatchSource s, PatchSource sLowestLevel) {
 		data = p | (util::to_underlying(s) << 8) | (util::to_underlying(sLowestLevel) << 16) | 0xFF000000;

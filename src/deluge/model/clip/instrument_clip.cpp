@@ -551,7 +551,7 @@ void InstrumentClip::reGetParameterAutomation(ModelStackWithTimelineCounter* mod
 }
 
 int32_t InstrumentClip::transferVoicesToOriginalClipFromThisClone(ModelStackWithTimelineCounter* modelStackOriginal,
-                                                              ModelStackWithTimelineCounter* modelStackClone) {
+                                                                  ModelStackWithTimelineCounter* modelStackClone) {
 	InstrumentClip* originalClip = (InstrumentClip*)modelStackOriginal->getTimelineCounter();
 
 	if (output->type == InstrumentType::KIT) {
@@ -592,7 +592,7 @@ int32_t InstrumentClip::transferVoicesToOriginalClipFromThisClone(ModelStackWith
 
 // Returns error
 int32_t InstrumentClip::appendClip(ModelStackWithTimelineCounter* thisModelStack,
-                               ModelStackWithTimelineCounter* otherModelStack) {
+                                   ModelStackWithTimelineCounter* otherModelStack) {
 
 	InstrumentClip* otherInstrumentClip = (InstrumentClip*)otherModelStack->getTimelineCounter();
 
@@ -614,8 +614,8 @@ int32_t InstrumentClip::appendClip(ModelStackWithTimelineCounter* thisModelStack
 			ModelStackWithNoteRow* thisModelStackWithNoteRow = thisModelStack->addNoteRow(i, thisNoteRow);
 			ModelStackWithNoteRow* otherModelStackWithNoteRow = otherModelStack->addNoteRow(i, otherNoteRow);
 
-			int32_t error = thisNoteRow->appendNoteRow(thisModelStackWithNoteRow, otherModelStackWithNoteRow, loopLength,
-			                                       whichRepeatThisIs, otherInstrumentClip->loopLength);
+			int32_t error = thisNoteRow->appendNoteRow(thisModelStackWithNoteRow, otherModelStackWithNoteRow,
+			                                           loopLength, whichRepeatThisIs, otherInstrumentClip->loopLength);
 			if (error) {
 				return error;
 			}
@@ -637,8 +637,9 @@ int32_t InstrumentClip::appendClip(ModelStackWithTimelineCounter* thisModelStack
 				ModelStackWithNoteRow* otherModelStackWithNoteRow =
 				    otherModelStack->addNoteRow(noteRowId, otherNoteRow);
 
-				int32_t error = thisNoteRow->appendNoteRow(thisModelStackWithNoteRow, otherModelStackWithNoteRow,
-				                                       loopLength, whichRepeatThisIs, otherInstrumentClip->loopLength);
+				int32_t error =
+				    thisNoteRow->appendNoteRow(thisModelStackWithNoteRow, otherModelStackWithNoteRow, loopLength,
+				                               whichRepeatThisIs, otherInstrumentClip->loopLength);
 				if (error) {
 					return error;
 				}
@@ -1052,7 +1053,8 @@ foundIt:
 
 // Beware - this may change yScroll (via currentSong->setRootNote())
 // *scaleAltered will not be set to false first - set it yourself. So that this can be called multiple times
-ModelStackWithNoteRow* InstrumentClip::getOrCreateNoteRowForYNote(int32_t yNote, ModelStackWithTimelineCounter* modelStack,
+ModelStackWithNoteRow* InstrumentClip::getOrCreateNoteRowForYNote(int32_t yNote,
+                                                                  ModelStackWithTimelineCounter* modelStack,
                                                                   Action* action, bool* scaleAltered) {
 	ModelStackWithNoteRow* modelStackWithNoteRow = getNoteRowForYNote(yNote, modelStack);
 
@@ -1251,8 +1253,8 @@ void InstrumentClip::noteRemovedFromMode(int32_t yNoteWithinOctave, Song* song) 
 	}
 }
 
-void InstrumentClip::seeWhatNotesWithinOctaveArePresent(bool notesWithinOctavePresent[], int32_t newRootNote, Song* song,
-                                                        bool deleteEmptyNoteRows) {
+void InstrumentClip::seeWhatNotesWithinOctaveArePresent(bool notesWithinOctavePresent[], int32_t newRootNote,
+                                                        Song* song, bool deleteEmptyNoteRows) {
 	song->rootNote =
 	    newRootNote; // Not ideal to be setting the global root note here... but as it happens, there's no scenario (currently) where this would cause problems
 
@@ -1286,8 +1288,8 @@ void InstrumentClip::transpose(int32_t change, ModelStackWithTimelineCounter* mo
 // Lock rendering before calling this!
 bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, TimelineView* editorScreen,
                                        int32_t xScroll, uint32_t xZoom, uint8_t* image, uint8_t occupancyMask[],
-                                       bool addUndefinedArea, int32_t noteRowIndexStart, int32_t noteRowIndexEnd, int32_t xStart,
-                                       int32_t xEnd, bool allowBlur, bool drawRepeats) {
+                                       bool addUndefinedArea, int32_t noteRowIndexStart, int32_t noteRowIndexEnd,
+                                       int32_t xStart, int32_t xEnd, bool allowBlur, bool drawRepeats) {
 
 	AudioEngine::logAction("InstrumentClip::renderAsSingleRow");
 
@@ -1489,7 +1491,7 @@ int32_t InstrumentClip::setNonAudioInstrument(Instrument* newInstrument, Song* s
 
 // Does not set up patching!
 int32_t InstrumentClip::setInstrument(Instrument* newInstrument, Song* song, ParamManager* newParamManager,
-                                  InstrumentClip* favourClipForCloningParamManager) {
+                                      InstrumentClip* favourClipForCloningParamManager) {
 
 	// If MIDI or CV...
 	if (newInstrument->type == InstrumentType::MIDI_OUT || newInstrument->type == InstrumentType::CV) {
@@ -1542,10 +1544,10 @@ void InstrumentClip::prepareToEnterKitMode(Song* song) {
 // Returns error code in theory - but in reality we're screwed if we get to that stage.
 // newParamManager is optional - normally it's not supplied, and will be searched for
 int32_t InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack, Instrument* newInstrument,
-                                     ParamManagerForTimeline* newParamManager,
-                                     InstrumentRemoval instrumentRemovalInstruction,
-                                     InstrumentClip* favourClipForCloningParamManager, bool keepNoteRowsWithMIDIInput,
-                                     bool giveMidiAssignmentsToNewInstrument) {
+                                         ParamManagerForTimeline* newParamManager,
+                                         InstrumentRemoval instrumentRemovalInstruction,
+                                         InstrumentClip* favourClipForCloningParamManager,
+                                         bool keepNoteRowsWithMIDIInput, bool giveMidiAssignmentsToNewInstrument) {
 
 	bool shouldBackUpExpressionParamsToo = false;
 
@@ -2129,8 +2131,8 @@ int32_t InstrumentClip::undoDetachmentFromOutput(ModelStackWithTimelineCounter* 
 
 // If newInstrument is a Kit, you must call assignDrumsToNoteRows() after this
 int32_t InstrumentClip::setAudioInstrument(Instrument* newInstrument, Song* song, bool shouldSetupPatching,
-                                       ParamManager* newParamManager,
-                                       InstrumentClip* favourClipForCloningParamManager) {
+                                           ParamManager* newParamManager,
+                                           InstrumentClip* favourClipForCloningParamManager) {
 
 	output = newInstrument;
 	affectEntire = (newInstrument->type != InstrumentType::KIT); // Moved here from changeInstrument, March 2021
@@ -2696,7 +2698,8 @@ doReadBendRange:
 				// No break
 
 			case InstrumentType::CV:
-				((NonAudioInstrument*)output)->channel = std::clamp<int32_t>(instrumentPresetSlot, 0, kNumInstrumentSlots);
+				((NonAudioInstrument*)output)->channel =
+				    std::clamp<int32_t>(instrumentPresetSlot, 0, kNumInstrumentSlots);
 				break;
 
 			case InstrumentType::SYNTH:
@@ -3538,8 +3541,8 @@ displayError:
 	}
 
 	else {
-		int32_t error = changeInstrument(modelStack, newInstrument, NULL, InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED,
-		                             NULL, true);
+		int32_t error = changeInstrument(modelStack, newInstrument, NULL,
+		                                 InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL, true);
 		// TODO: deal with errors
 
 		if (!instrumentAlreadyInSong) {
@@ -4157,7 +4160,7 @@ void InstrumentClip::recordNoteOn(ModelStackWithNoteRow* modelStack, int32_t vel
 								if (otherNoteRow) { // It "should" always have it...
 
 									int32_t whichRepeatThisIs = (uint32_t)noteRow->loopLengthIfIndependent
-									                        / (uint32_t)otherNoteRow->loopLengthIfIndependent;
+									                            / (uint32_t)otherNoteRow->loopLengthIfIndependent;
 									noteRow->appendNoteRow(modelStack, otherModelStackWithNoteRow,
 									                       noteRow->loopLengthIfIndependent, whichRepeatThisIs,
 									                       otherNoteRow->loopLengthIfIndependent);

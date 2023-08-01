@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include <cstdint>
 #include "gui/positionable.h"
+#include <cstdint>
 
 class InstrumentClip;
 class Action;

@@ -17,10 +17,10 @@
 
 #pragma once
 
-#include <cstdint>
 #include "definitions_cxx.hpp"
 #include "hid/button.h"
 #include "model/model_stack.h"
+#include <cstdint>
 
 class InstrumentClip;
 class NoteRow;

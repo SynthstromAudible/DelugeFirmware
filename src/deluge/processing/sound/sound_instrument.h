@@ -56,8 +56,8 @@ public:
 	void setupPatching(ModelStackWithTimelineCounter* modelStack);
 
 	void deleteBackedUpParamManagers(Song* song);
-	void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t whichExpressionDimension, int32_t channelOrNoteNumber,
-	                                              MIDICharacteristic whichCharacteristic);
+	void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t whichExpressionDimension,
+	                                              int32_t channelOrNoteNumber, MIDICharacteristic whichCharacteristic);
 	void monophonicExpressionEvent(int32_t newValue, int32_t whichExpressionDimension);
 
 	void sendNote(ModelStackWithThreeMainThings* modelStack, bool isOn, int32_t noteCode, int16_t const* mpeValues,

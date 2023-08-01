@@ -161,7 +161,7 @@ void ParamManager::stealParamCollectionsFrom(ParamManager* other, bool stealExpr
 }
 
 int32_t ParamManager::cloneParamCollectionsFrom(ParamManager* other, bool copyAutomation, bool cloneExpressionParams,
-                                            int32_t reverseDirectionWithLength) {
+                                                int32_t reverseDirectionWithLength) {
 
 	ParamCollectionSummary mpeParamsOrNullHere = *getExpressionParamSetSummary();
 	if (mpeParamsOrNullHere.paramCollection) {

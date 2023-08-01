@@ -75,9 +75,9 @@ public:
 	int32_t createFolder();
 	void selectEncoderAction(int8_t offset);
 	static FileItem* getCurrentFileItem();
-	int32_t readFileItemsForFolder(char const* filePrefixHere, bool allowFolders, char const** allowedFileExtensionsHere,
-	                           char const* filenameToStartAt, int32_t newMaxNumFileItems,
-	                           int32_t newCatalogSearchDirection = CATALOG_SEARCH_BOTH);
+	int32_t readFileItemsForFolder(char const* filePrefixHere, bool allowFolders,
+	                               char const** allowedFileExtensionsHere, char const* filenameToStartAt,
+	                               int32_t newMaxNumFileItems, int32_t newCatalogSearchDirection = CATALOG_SEARCH_BOTH);
 	void sortFileItems();
 	FileItem* getNewFileItem();
 	static void emptyFileItems();
@@ -104,7 +104,8 @@ public:
 protected:
 	int32_t setEnteredTextFromCurrentFilename();
 	int32_t goUpOneDirectoryLevel();
-	virtual int32_t arrivedInNewFolder(int32_t direction, char const* filenameToStartAt = NULL, char const* defaultDir = NULL);
+	virtual int32_t arrivedInNewFolder(int32_t direction, char const* filenameToStartAt = NULL,
+	                                   char const* defaultDir = NULL);
 	bool predictExtendedText();
 	void goIntoDeleteFileContextMenu();
 	ActionResult mainButtonAction(bool on);
@@ -117,14 +118,16 @@ protected:
 	void displayText(bool blinkImmediately = false);
 	static Slot getSlot(char const* displayName);
 	int32_t readFileItemsFromFolderAndMemory(Song* song, InstrumentType instrumentType, char const* filePrefixHere,
-	                                     char const* filenameToStartAt, char const* defaultDirToAlsoTry,
-	                                     bool allowFoldersint, Availability availabilityRequirement = Availability::ANY,
-	                                     int32_t newCatalogSearchDirection = CATALOG_SEARCH_RIGHT);
+	                                         char const* filenameToStartAt, char const* defaultDirToAlsoTry,
+	                                         bool allowFoldersint,
+	                                         Availability availabilityRequirement = Availability::ANY,
+	                                         int32_t newCatalogSearchDirection = CATALOG_SEARCH_RIGHT);
 
 	static int32_t
 	    fileIndexSelected; // If -1, we have not selected any real file/folder. Maybe there are no files, or maybe we're typing a new name.
 	static int32_t scrollPosVertical;
-	static int32_t numCharsInPrefix; // Only used for deciding Drum names within Kit. Oh and initial text scroll position.
+	static int32_t
+	    numCharsInPrefix; // Only used for deciding Drum names within Kit. Oh and initial text scroll position.
 	static bool qwertyVisible;
 	static bool arrivedAtFileByTyping;
 	static bool allowFoldersSharingNameWithFile;

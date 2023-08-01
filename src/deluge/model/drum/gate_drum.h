@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include <cstdint>
 #include "model/drum/non_audio_drum.h"
+#include <cstdint>
 
 class Kit;
 class ParamManagerForTimeline;

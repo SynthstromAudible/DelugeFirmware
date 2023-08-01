@@ -319,7 +319,7 @@ void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, 
 
 	for (int32_t i = 0; i < numAnimatedRows; i++) {
 		int32_t newRowPosition = (int32_t)animatedRowGoingFrom[i] * 65536
-		                     + ((int32_t)animatedRowGoingTo[i] - animatedRowGoingFrom[i]) * (65536 - progress);
+		                         + ((int32_t)animatedRowGoingTo[i] - animatedRowGoingFrom[i]) * (65536 - progress);
 		newRowPosition1Array[i] = newRowPosition >> 16;
 		intensity2Array[i] = newRowPosition; // & 65535;
 		intensity1Array[i] = 65535 - intensity2Array[i];
@@ -401,8 +401,9 @@ void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, 
 				if (col == kDisplayWidth) {
 
 					for (int32_t colour = 0; colour < 3; colour++) {
-						int32_t newColour = rshift_round((int32_t)squareColours[colour] * progress, 16)
-						                + rshift_round((int32_t)clipMuteSquareColour[colour] * (65536 - progress), 16);
+						int32_t newColour =
+						    rshift_round((int32_t)squareColours[colour] * progress, 16)
+						    + rshift_round((int32_t)clipMuteSquareColour[colour] * (65536 - progress), 16);
 						thisColour[colour] = std::clamp<int32_t>(newColour, 0, 255);
 					}
 					squareColours = thisColour;
@@ -465,10 +466,11 @@ void renderAudioClipCollapseAnimation(int32_t progress) {
 			xEnd = 0;
 		}
 
-		int32_t greyTop = waveformRenderer.collapseAnimationToWhichRow + 1
-		              + (((kDisplayHeight - waveformRenderer.collapseAnimationToWhichRow) * progress + 32768) >> 16);
+		int32_t greyTop =
+		    waveformRenderer.collapseAnimationToWhichRow + 1
+		    + (((kDisplayHeight - waveformRenderer.collapseAnimationToWhichRow) * progress + 32768) >> 16);
 		int32_t greyBottom = waveformRenderer.collapseAnimationToWhichRow
-		                 - (((waveformRenderer.collapseAnimationToWhichRow) * progress + 32768) >> 16);
+		                     - (((waveformRenderer.collapseAnimationToWhichRow) * progress + 32768) >> 16);
 
 		if (greyTop > kDisplayHeight) {
 			greyTop = kDisplayHeight;
@@ -560,7 +562,7 @@ void renderExplodeAnimation(int32_t explodedness, bool shouldSendOut) {
 	for (int32_t xSource = 0; xSource < kDisplayWidth; xSource++) {
 		int32_t xSourceBig = xSource << 16;
 		int32_t xOriginBig = explodeAnimationXStartBig
-		                 + (((int64_t)explodeAnimationXWidthBig * xSourceBig) >> (kDisplayWidthMagnitude + 16));
+		                     + (((int64_t)explodeAnimationXWidthBig * xSourceBig) >> (kDisplayWidthMagnitude + 16));
 		//xOriginBig = std::min(xOriginBig, explodeAnimationXStartBig + explodeAnimationXWidthBig - 65536);
 
 		xOriginBig &= ~(
@@ -1062,9 +1064,9 @@ void renderZoom() {
 
 // inImageFadeAmount is how much of the in-image we'll see, out of 65536
 void renderZoomWithProgress(int32_t inImageTimesBiggerThanNative, uint32_t inImageFadeAmount,
-                            uint8_t* __restrict__ innerImage, uint8_t* __restrict__ outerImage, int32_t innerImageLeftEdge,
-                            int32_t outerImageLeftEdge, int32_t innerImageRightEdge, int32_t outerImageRightEdge,
-                            int32_t innerImageTotalWidth, int32_t outerImageTotalWidth) {
+                            uint8_t* __restrict__ innerImage, uint8_t* __restrict__ outerImage,
+                            int32_t innerImageLeftEdge, int32_t outerImageLeftEdge, int32_t innerImageRightEdge,
+                            int32_t outerImageRightEdge, int32_t innerImageTotalWidth, int32_t outerImageTotalWidth) {
 
 	uint32_t outImageTimesBiggerThanNative = inImageTimesBiggerThanNative << zoomMagnitude;
 
@@ -1204,8 +1206,9 @@ void renderZoomedSquare(int32_t outputSquareStartOnSourceImage, int32_t outputSq
 		*drawingAnything = true;
 
 		int32_t sourceSquareRightEdge = sourceSquareLeftEdge + 65536;
-		uint32_t intensity = std::min(sourceSquareRightEdge, outputSquareEndOnSourceImage)
-		                     - std::max(sourceSquareLeftEdge, outputSquareStartOnSourceImage); // Will end up at max 65536
+		uint32_t intensity =
+		    std::min(sourceSquareRightEdge, outputSquareEndOnSourceImage)
+		    - std::max(sourceSquareLeftEdge, outputSquareStartOnSourceImage); // Will end up at max 65536
 
 		intensity = ((uint64_t)intensity * sourceImageFade * sourceImageTimesBiggerThanNormal) >> 32;
 
@@ -1328,8 +1331,8 @@ int32_t getTransitionProgress() {
 	return ((uint64_t)(AudioEngine::audioSampleTimer - transitionStartTime) * 65536) / transitionLength;
 }
 
-void copyBetweenImageStores(uint8_t* __restrict__ dest, uint8_t* __restrict__ source, int32_t destWidth, int32_t sourceWidth,
-                            int32_t copyWidth) {
+void copyBetweenImageStores(uint8_t* __restrict__ dest, uint8_t* __restrict__ source, int32_t destWidth,
+                            int32_t sourceWidth, int32_t copyWidth) {
 	if (destWidth == sourceWidth && copyWidth >= sourceWidth - 2) {
 		memcpy(dest, source, sourceWidth * kDisplayHeight * 3);
 	}

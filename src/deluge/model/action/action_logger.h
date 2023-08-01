@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include <cstdint>
 #include "definitions_cxx.hpp"
 #include "model/action/action.h"
+#include <cstdint>
 
 class ParamCollection;
 class Sound;

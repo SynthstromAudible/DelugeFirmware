@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include <cstdint>
 #include "definitions_cxx.hpp"
 #include "io/midi/learned_midi.h"
+#include <cstdint>
 
 class Kit;
 class ParamManagerForTimeline;
@@ -63,8 +63,8 @@ public:
 	LearnedMIDI muteMIDICommand;
 
 	virtual void noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, Kit* kit, int16_t const* mpeValues,
-	                    int32_t fromMIDIChannel = MIDI_CHANNEL_NONE, uint32_t sampleSyncLength = 0, int32_t ticksLate = 0,
-	                    uint32_t samplesLate = 0) = 0;
+	                    int32_t fromMIDIChannel = MIDI_CHANNEL_NONE, uint32_t sampleSyncLength = 0,
+	                    int32_t ticksLate = 0, uint32_t samplesLate = 0) = 0;
 	virtual void noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity = kDefaultLiftValue) = 0;
 	virtual bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false) = 0;
 	virtual bool anyNoteIsOn() = 0;

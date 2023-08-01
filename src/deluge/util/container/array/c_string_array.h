@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include <cstdint>
 #include "util/container/array/resizeable_array.h"
+#include <cstdint>
 
 class CStringArray : public ResizeableArray {
 public:

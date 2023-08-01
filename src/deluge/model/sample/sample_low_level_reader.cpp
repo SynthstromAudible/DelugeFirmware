@@ -872,8 +872,8 @@ doZeroes:
 	return true;
 }
 
-void SampleLowLevelReader::bufferIndividualSampleForInterpolation(uint32_t bitMask, int32_t numChannels, int32_t byteDepth,
-                                                                  char* __restrict__ playPosNow) {
+void SampleLowLevelReader::bufferIndividualSampleForInterpolation(uint32_t bitMask, int32_t numChannels,
+                                                                  int32_t byteDepth, char* __restrict__ playPosNow) {
 
 	// This works better than using memmoves. Ideally we'd switch this off if not smoothly interpolating - check that that's actually more efficient though
 	for (int32_t i = kInterpolationMaxNumSamples - 1; i >= 1; i--) {
@@ -924,8 +924,8 @@ void SampleLowLevelReader::jumpForwardZeroes(int32_t bufferSize, int32_t numChan
 	}
 }
 
-void SampleLowLevelReader::jumpForwardLinear(int32_t numChannels, int32_t byteDepth, uint32_t bitMask, int32_t jumpAmount,
-                                             int32_t phaseIncrement) {
+void SampleLowLevelReader::jumpForwardLinear(int32_t numChannels, int32_t byteDepth, uint32_t bitMask,
+                                             int32_t jumpAmount, int32_t phaseIncrement) {
 
 	oscPos += phaseIncrement;
 	int32_t numSamplesToJumpForward = oscPos >> 24;
@@ -976,7 +976,8 @@ void SampleLowLevelReader::interpolate(int32_t* __restrict__ sampleRead, int32_t
 #include "dsp/interpolation/interpolate.h"
 }
 
-void SampleLowLevelReader::interpolateLinear(int32_t* __restrict__ sampleRead, int32_t numChannelsNow, int32_t whichKernel) {
+void SampleLowLevelReader::interpolateLinear(int32_t* __restrict__ sampleRead, int32_t numChannelsNow,
+                                             int32_t whichKernel) {
 #include "dsp/interpolation/interpolate_linear.h"
 }
 
@@ -1169,9 +1170,10 @@ skipFirstLinear:
 }
 
 void SampleLowLevelReader::readSamplesNative(int32_t** __restrict__ bufferPos, int32_t numSamplesTotal, Sample* sample,
-                                             int32_t jumpAmount, int32_t numChannels, int32_t numChannelsAfterCondensing,
-                                             int32_t* __restrict__ amplitude, int32_t amplitudeIncrement,
-                                             TimeStretcher* timeStretcher, bool bufferingToTimeStretcher) {
+                                             int32_t jumpAmount, int32_t numChannels,
+                                             int32_t numChannelsAfterCondensing, int32_t* __restrict__ amplitude,
+                                             int32_t amplitudeIncrement, TimeStretcher* timeStretcher,
+                                             bool bufferingToTimeStretcher) {
 
 	char* __restrict__ currentPlayPosNow = currentPlayPos;
 	int32_t* __restrict__ bufferPosNow = *bufferPos;
@@ -1218,13 +1220,11 @@ void SampleLowLevelReader::readSamplesNative(int32_t** __restrict__ bufferPos, i
 }
 
 // Returns false if actual error. Not if it just reached the end. In that case it just sets timeStretcher->playHeadStillActive[whichPlayHead] to false
-bool SampleLowLevelReader::readSamplesForTimeStretching(int32_t* outputBuffer, SamplePlaybackGuide* guide,
-                                                        Sample* sample, int32_t numSamples, int32_t numChannels,
-                                                        int32_t numChannelsAfterCondensing, int32_t phaseIncrement,
-                                                        int32_t amplitude, int32_t amplitudeIncrement,
-                                                        bool loopingAtLowLevel, int32_t jumpAmount, int32_t bufferSize,
-                                                        TimeStretcher* timeStretcher, bool bufferingToTimeStretcher,
-                                                        int32_t whichPlayHead, int32_t whichKernel, int32_t priorityRating) {
+bool SampleLowLevelReader::readSamplesForTimeStretching(
+    int32_t* outputBuffer, SamplePlaybackGuide* guide, Sample* sample, int32_t numSamples, int32_t numChannels,
+    int32_t numChannelsAfterCondensing, int32_t phaseIncrement, int32_t amplitude, int32_t amplitudeIncrement,
+    bool loopingAtLowLevel, int32_t jumpAmount, int32_t bufferSize, TimeStretcher* timeStretcher,
+    bool bufferingToTimeStretcher, int32_t whichPlayHead, int32_t whichKernel, int32_t priorityRating) {
 
 	do {
 		int32_t samplesNow = numSamples;

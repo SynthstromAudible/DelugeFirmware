@@ -249,7 +249,7 @@ void AudioFileManager::deleteAnyTempRecordedSamplesFromMemory() {
 
 // Oi, don't even think about modifying this to take a Sample* pointer - cos the whole Sample could get deleted during the card access.
 int32_t AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String* tempFilePathForRecording,
-                                                      AudioRecordingFolder folder, uint32_t* getNumber) {
+                                                          AudioRecordingFolder folder, uint32_t* getNumber) {
 	const auto folderID = util::to_underlying(folder);
 
 	int32_t error = storageManager.initSD();
@@ -389,7 +389,7 @@ bool AudioFileManager::ensureEnoughMemoryForOneMoreAudioFile() {
 }
 
 int32_t AudioFileManager::setupAlternateAudioFileDir(String* newPath, char const* rootDir,
-                                                 String* songFilenameWithoutExtension) {
+                                                     String* songFilenameWithoutExtension) {
 
 	int32_t error = newPath->set(rootDir);
 	if (error) {

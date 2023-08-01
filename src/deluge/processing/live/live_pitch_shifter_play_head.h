@@ -31,14 +31,14 @@ class LivePitchShifterPlayHead {
 public:
 	LivePitchShifterPlayHead();
 	~LivePitchShifterPlayHead();
-	void render(int32_t* outputBuffer, int32_t numSamples, int32_t numChannels, int32_t phaseIncrement, int32_t amplitude,
-	            int32_t amplitudeIncrement, int32_t* repitchedBuffer, int32_t* rawBuffer, int32_t whichKernel,
-	            int32_t interpolationBufferSize);
+	void render(int32_t* outputBuffer, int32_t numSamples, int32_t numChannels, int32_t phaseIncrement,
+	            int32_t amplitude, int32_t amplitudeIncrement, int32_t* repitchedBuffer, int32_t* rawBuffer,
+	            int32_t whichKernel, int32_t interpolationBufferSize);
 	int32_t getEstimatedPlaytimeRemaining(uint32_t repitchedBufferWritePos, LiveInputBuffer* liveInputBuffer,
-	                                  int32_t phaseIncrement);
+	                                      int32_t phaseIncrement);
 
 	int32_t getNumRawSamplesBehindInput(LiveInputBuffer* liveInputBuffer, LivePitchShifter* livePitchShifter,
-	                                int32_t phaseIncrement);
+	                                    int32_t phaseIncrement);
 
 	void fillInterpolationBuffer(LiveInputBuffer* liveInputBuffer, int32_t numChannels);
 

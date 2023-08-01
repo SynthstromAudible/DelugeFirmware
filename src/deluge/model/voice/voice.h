@@ -87,9 +87,9 @@ public:
 
 	void calculatePhaseIncrements(ModelStackWithVoice* modelStack);
 	bool sampleZoneChanged(ModelStackWithVoice* modelStack, int32_t s, MarkerType markerType);
-	bool noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArpeggiation, int32_t newNoteCodeAfterArpeggiation,
-	            uint8_t velocity, uint32_t newSampleSyncLength, int32_t ticksLate, uint32_t samplesLate,
-	            bool resetEnvelopes, int32_t fromMIDIChannel, const int16_t* mpeValues);
+	bool noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArpeggiation,
+	            int32_t newNoteCodeAfterArpeggiation, uint8_t velocity, uint32_t newSampleSyncLength, int32_t ticksLate,
+	            uint32_t samplesLate, bool resetEnvelopes, int32_t fromMIDIChannel, const int16_t* mpeValues);
 	void noteOff(ModelStackWithVoice* modelStack, bool allowReleaseStage = true);
 	bool doFastRelease(uint32_t releaseIncrement = 4096);
 	void randomizeOscPhases(Sound* sound);
@@ -104,15 +104,15 @@ public:
 private:
 	//inline int32_t doFM(uint32_t *carrierPhase, uint32_t* lastShiftedPhase, uint32_t carrierPhaseIncrement, uint32_t phaseShift);
 
-	void renderOsc(int32_t s, OscType type, int32_t amplitude, int32_t* thisSample, int32_t* bufferEnd, int32_t numSamples,
-	               uint32_t phaseIncrementNow, uint32_t phaseWidth, uint32_t* thisPhase, bool applyAmplitude,
-	               int32_t amplitudeIncrement, bool doOscSync, uint32_t resetterPhase, uint32_t resetterPhaseIncrement,
-	               uint32_t retriggerPhase, int32_t waveIndexIncrement);
+	void renderOsc(int32_t s, OscType type, int32_t amplitude, int32_t* thisSample, int32_t* bufferEnd,
+	               int32_t numSamples, uint32_t phaseIncrementNow, uint32_t phaseWidth, uint32_t* thisPhase,
+	               bool applyAmplitude, int32_t amplitudeIncrement, bool doOscSync, uint32_t resetterPhase,
+	               uint32_t resetterPhaseIncrement, uint32_t retriggerPhase, int32_t waveIndexIncrement);
 	void renderBasicSource(Sound* sound, ParamManagerForTimeline* paramManager, int32_t s, int32_t* oscBuffer,
-	                       int32_t numSamples, bool stereoBuffer, int32_t sourceAmplitude, bool* unisonPartBecameInactive,
-	                       int32_t overallPitchAdjust, bool doOscSync, uint32_t* oscSyncPos,
-	                       uint32_t* oscSyncPhaseIncrements, int32_t amplitudeIncrement, uint32_t* getPhaseIncrements,
-	                       bool getOutAfterPhaseIncrements, int32_t waveIndexIncrement);
+	                       int32_t numSamples, bool stereoBuffer, int32_t sourceAmplitude,
+	                       bool* unisonPartBecameInactive, int32_t overallPitchAdjust, bool doOscSync,
+	                       uint32_t* oscSyncPos, uint32_t* oscSyncPhaseIncrements, int32_t amplitudeIncrement,
+	                       uint32_t* getPhaseIncrements, bool getOutAfterPhaseIncrements, int32_t waveIndexIncrement);
 	bool adjustPitch(uint32_t* phaseIncrement, int32_t adjustment);
 
 	void renderSineWaveWithFeedback(int32_t* thisSample, int32_t numSamples, uint32_t* phase, int32_t amplitude,

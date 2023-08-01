@@ -39,8 +39,8 @@ public:
 
 	inline int32_t getValue(int32_t p) { return params[p].getCurrentValue(); }
 	int32_t getValueAtPos(int32_t p, uint32_t pos, TimelineCounter* playPositionCounter);
-	void processCurrentPos(ModelStackWithParamCollection* modelStack, int32_t ticksSkipped, bool reversed, bool didPingpong,
-	                       bool mayInterpolate) final;
+	void processCurrentPos(ModelStackWithParamCollection* modelStack, int32_t ticksSkipped, bool reversed,
+	                       bool didPingpong, bool mayInterpolate) final;
 	void writeParamAsAttribute(char const* name, int32_t p, bool writeAutomation, bool onlyIfContainsSomething = false,
 	                           int32_t* valuesForOverride = NULL);
 	void readParam(ParamCollectionSummary* summary, int32_t p, int32_t readAutomationUpToPos);

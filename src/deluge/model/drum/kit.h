@@ -84,13 +84,14 @@ public:
 	uint8_t* getModKnobMode() { return &modKnobMode; }
 	Output* toOutput() { return this; }
 	void offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
-	                       bool on, int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes, bool* doingMidiThru);
+	                       bool on, int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
+	                       bool* doingMidiThru);
 	bool isNoteRowStillAuditioningAsLinearRecordingEnded(NoteRow* noteRow);
 	bool allowNoteTails(NoteRow* noteRow);
 	void stopAnyAuditioning(ModelStack* modelStack);
 	bool isAnyAuditioningHappening();
-	void beginAuditioningforDrum(ModelStackWithNoteRow* modelStack, Drum* drum, int32_t velocity, int16_t const* mpeValues,
-	                             int32_t fromMIDIChannel = MIDI_CHANNEL_NONE);
+	void beginAuditioningforDrum(ModelStackWithNoteRow* modelStack, Drum* drum, int32_t velocity,
+	                             int16_t const* mpeValues, int32_t fromMIDIChannel = MIDI_CHANNEL_NONE);
 	void endAuditioningForDrum(ModelStackWithNoteRow* modelStack, Drum* drum, int32_t velocity = kDefaultLiftValue);
 	void offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone, int32_t whichBendRange,
 	                          int32_t bendSemitones);

@@ -297,7 +297,8 @@ playingForwardNow:
 	}
 }
 
-int32_t Clip::appendClip(ModelStackWithTimelineCounter* thisModelStack, ModelStackWithTimelineCounter* otherModelStack) {
+int32_t Clip::appendClip(ModelStackWithTimelineCounter* thisModelStack,
+                         ModelStackWithTimelineCounter* otherModelStack) {
 	Clip* otherClip = (Clip*)otherModelStack->getTimelineCounter();
 	if (paramManager.containsAnyParamCollectionsIncludingExpression()
 	    && otherClip->paramManager.containsAnyParamCollectionsIncludingExpression()) {
@@ -455,7 +456,7 @@ void Clip::reGetParameterAutomation(ModelStackWithTimelineCounter* modelStack) {
 
 // This gets called on the "unique" copy of the original Clip
 int32_t Clip::resumeOriginalClipFromThisClone(ModelStackWithTimelineCounter* modelStackOriginal,
-                                          ModelStackWithTimelineCounter* modelStackClone) {
+                                              ModelStackWithTimelineCounter* modelStackClone) {
 
 	// Take back control!
 	activeIfNoSolo = false;
@@ -604,8 +605,8 @@ void Clip::expectEvent() {
 // occupancyMask can be NULL
 bool Clip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, TimelineView* editorScreen, int32_t xScroll,
                              uint32_t xZoom, uint8_t* image, uint8_t occupancyMask[], bool addUndefinedArea,
-                             int32_t noteRowIndexStart, int32_t noteRowIndexEnd, int32_t xStart, int32_t xEnd, bool allowBlur,
-                             bool drawRepeats) {
+                             int32_t noteRowIndexStart, int32_t noteRowIndexEnd, int32_t xStart, int32_t xEnd,
+                             bool allowBlur, bool drawRepeats) {
 
 	memset(&image[xStart * 3], 0, (xEnd - xStart) * 3);
 	if (occupancyMask) {
@@ -822,7 +823,8 @@ void Clip::lengthChanged(ModelStackWithTimelineCounter* modelStack, int32_t oldL
 
 // occupancyMask now optional
 void Clip::drawUndefinedArea(int32_t xScroll, uint32_t xZoom, int32_t lengthToDisplay, uint8_t* rowImage,
-                             uint8_t occupancyMask[], int32_t imageWidth, TimelineView* timelineView, bool tripletsOnHere) {
+                             uint8_t occupancyMask[], int32_t imageWidth, TimelineView* timelineView,
+                             bool tripletsOnHere) {
 	// If the visible pane extends beyond the end of the Clip, draw it as grey
 	int32_t greyStart = timelineView->getSquareFromPos(lengthToDisplay - 1, NULL, xScroll, xZoom) + 1;
 
@@ -993,7 +995,8 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 			}
 
 			// Find the ClipInstance which we expect to have already been created
-			int32_t clipInstanceI = output->clipInstances.search(playbackHandler.getActualArrangementRecordPos() + 1, LESS);
+			int32_t clipInstanceI =
+			    output->clipInstances.search(playbackHandler.getActualArrangementRecordPos() + 1, LESS);
 
 			// If it can't be found (should be impossible), we'll just get out and leave everything the same, so at least nothing will crash
 			if (clipInstanceI < 0) {

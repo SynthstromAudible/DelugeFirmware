@@ -60,14 +60,14 @@ public:
 	void deleteCache(SampleCache* cache);
 	int32_t getFirstClusterIndexWithAudioData();
 	int32_t getFirstClusterIndexWithNoAudioData();
-	int32_t fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSamples, int32_t endPosSamples, int32_t playDirection,
-	                  int32_t maxNumSamplesToProcess);
+	int32_t fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSamples, int32_t endPosSamples,
+	                      int32_t playDirection, int32_t maxNumSamplesToProcess);
 	void percCacheClusterStolen(Cluster* cluster);
 	void deletePercCache(bool beingDestructed = false);
 	uint8_t* prepareToReadPercCache(int32_t pixellatedPos, int32_t playDirection, int32_t* earliestPixellatedPos,
 	                                int32_t* latestPixellatedPos);
-	bool getAveragesForCrossfade(int32_t* totals, int32_t startBytePos, int32_t crossfadeLengthSamples, int32_t playDirection,
-	                             int32_t lengthToAverageEach);
+	bool getAveragesForCrossfade(int32_t* totals, int32_t startBytePos, int32_t crossfadeLengthSamples,
+	                             int32_t playDirection, int32_t lengthToAverageEach);
 	void convertDataOnAnyClustersIfNecessary();
 	int32_t getMaxPeakFromZero();
 	int32_t getFoundValueCentrePoint();
@@ -148,6 +148,6 @@ protected:
 
 private:
 	int32_t investigateFundamentalPitch(int32_t fundamentalIndexProvided, int32_t tableSize, int32_t* heightTable,
-	                                uint64_t* sumTable, float* floatIndexTable, float* getFreq, int32_t numDoublings,
-	                                bool doPrimeTest);
+	                                    uint64_t* sumTable, float* floatIndexTable, float* getFreq,
+	                                    int32_t numDoublings, bool doPrimeTest);
 };

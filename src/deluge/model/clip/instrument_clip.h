@@ -146,9 +146,9 @@ public:
 	void lengthChanged(ModelStackWithTimelineCounter* modelStack, int32_t oldLength, Action* action = NULL);
 	NoteRow* createNewNoteRowForKit(ModelStackWithTimelineCounter* modelStack, bool atStart, int32_t* getIndex = NULL);
 	int32_t changeInstrument(ModelStackWithTimelineCounter* modelStack, Instrument* newInstrument,
-	                     ParamManagerForTimeline* paramManager, InstrumentRemoval instrumentRemovalInstruction,
-	                     InstrumentClip* favourClipForCloningParamManager = NULL, bool keepNoteRowsWithMIDIInput = true,
-	                     bool giveMidiAssignmentsToNewInstrument = false);
+	                         ParamManagerForTimeline* paramManager, InstrumentRemoval instrumentRemovalInstruction,
+	                         InstrumentClip* favourClipForCloningParamManager = NULL,
+	                         bool keepNoteRowsWithMIDIInput = true, bool giveMidiAssignmentsToNewInstrument = false);
 	void detachFromOutput(ModelStackWithTimelineCounter* modelStack, bool shouldRememberDrumName,
 	                      bool shouldDeleteEmptyNoteRowsAtEndOfList = false, bool shouldRetainLinksToSounds = false,
 	                      bool keepNoteRowsWithMIDIInput = true, bool shouldGrabMidiCommands = false,
@@ -179,7 +179,7 @@ public:
 	bool isScaleModeClip();
 	bool allowNoteTails(ModelStackWithNoteRow* modelStack);
 	int32_t setAudioInstrument(Instrument* newInstrument, Song* song, bool shouldNotifyInstrument,
-	                       ParamManager* newParamManager, InstrumentClip* favourClipForCloningParamManager = NULL);
+	                           ParamManager* newParamManager, InstrumentClip* favourClipForCloningParamManager = NULL);
 
 	void expectEvent();
 	int32_t getDistanceToNextNote(Note* givenNote, ModelStackWithNoteRow* modelStack);
@@ -198,7 +198,7 @@ public:
 	int32_t undoDetachmentFromOutput(ModelStackWithTimelineCounter* modelStack);
 	int32_t setNonAudioInstrument(Instrument* newInstrument, Song* song, ParamManager* newParamManager = NULL);
 	int32_t setInstrument(Instrument* newInstrument, Song* song, ParamManager* newParamManager,
-	                  InstrumentClip* favourClipForCloningParamManager = NULL);
+	                      InstrumentClip* favourClipForCloningParamManager = NULL);
 	void deleteOldDrumNames();
 	void ensureScrollWithinKitBounds();
 	bool isScrollWithinRange(int32_t scrollAmount, int32_t newYNote);
@@ -206,7 +206,7 @@ public:
 	void instrumentBeenEdited();
 	Instrument* changeInstrumentType(ModelStackWithTimelineCounter* modelStack, InstrumentType newInstrumentType);
 	int32_t transferVoicesToOriginalClipFromThisClone(ModelStackWithTimelineCounter* modelStackOriginal,
-	                                              ModelStackWithTimelineCounter* modelStackClone);
+	                                                  ModelStackWithTimelineCounter* modelStackClone);
 	void getSuggestedParamManager(Clip* newClip, ParamManagerForTimeline** suggestedParamManager, Sound* sound);
 	int32_t claimOutput(ModelStackWithTimelineCounter* modelStack);
 	char const* getXMLTag() { return "instrumentClip"; }

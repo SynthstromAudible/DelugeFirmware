@@ -376,8 +376,8 @@ mpeY:
 
 // noteCode -1 means channel-wide, including for MPE input (which then means it could still then just apply to one note).
 void MelodicInstrument::offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                                MIDIDevice* fromDevice, int32_t channel, int32_t value, int32_t noteCode,
-                                                bool* doingMidiThru) {
+                                                MIDIDevice* fromDevice, int32_t channel, int32_t value,
+                                                int32_t noteCode, bool* doingMidiThru) {
 
 	if (midiInput.equalsDevice(fromDevice)) {
 

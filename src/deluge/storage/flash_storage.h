@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include <cstdint>
 #include "definitions_cxx.hpp"
+#include <cstdint>
 
 #define PREVIEW_OFF 0
 #define PREVIEW_ONLY_WHILE_NOT_PLAYING 1

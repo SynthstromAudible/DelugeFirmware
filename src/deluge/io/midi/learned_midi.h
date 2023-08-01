@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include <cstdint>
 #include "io/midi/midi_device_manager.h"
+#include <cstdint>
 
 #define MIDI_MESSAGE_NONE 0
 #define MIDI_MESSAGE_NOTE 1

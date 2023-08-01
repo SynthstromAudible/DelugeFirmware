@@ -19,7 +19,6 @@
 
 #include "RZA1/system/iodefine.h"
 
-
 void R_RSPI_SendBasic8(uint8_t channel, uint8_t data);
 void R_RSPI_SendBasic32(uint8_t channel, uint32_t data);
 void R_RSPI_WaitEnd(uint8_t channel);

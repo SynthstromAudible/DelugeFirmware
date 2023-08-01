@@ -58,8 +58,8 @@ void FilterSet::renderLadderHPF(q31_t* outputSample, HPLadderConfig* filterSetCo
 
 #define HPF_LONG_SATURATION 3
 
-void FilterSet::renderHPFLong(q31_t* outputSample, q31_t* endSample, FilterSetConfig* filterSetConfig, int32_t numSamples,
-                              int32_t sampleIncrement) {
+void FilterSet::renderHPFLong(q31_t* outputSample, q31_t* endSample, FilterSetConfig* filterSetConfig,
+                              int32_t numSamples, int32_t sampleIncrement) {
 
 	do {
 
@@ -243,7 +243,8 @@ void FilterSet::renderLPLadder(q31_t* startSample, q31_t* endSample, LPLadderCon
 	}
 }
 
-void FilterSet::renderLPSVF(q31_t* startSample, q31_t* endSample, LPSVFConfig* filterSetConfig, int32_t sampleIncrement) {
+void FilterSet::renderLPSVF(q31_t* startSample, q31_t* endSample, LPSVFConfig* filterSetConfig,
+                            int32_t sampleIncrement) {
 	q31_t* currentSample = startSample;
 	do {
 		SVF_outs outs = svf.doSVF(*currentSample, filterSetConfig);

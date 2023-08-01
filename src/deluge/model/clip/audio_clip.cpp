@@ -933,8 +933,8 @@ void AudioClip::getScrollAndZoomInSamples(int32_t xScroll, int32_t xZoom, int64_
 // Returns false if can't because in card routine
 bool AudioClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, TimelineView* editorScreen,
                                   int32_t xScroll, uint32_t xZoom, uint8_t* image, uint8_t occupancyMask[],
-                                  bool addUndefinedArea, int32_t noteRowIndexStart, int32_t noteRowIndexEnd, int32_t xStart,
-                                  int32_t xEnd, bool allowBlur, bool drawRepeats) {
+                                  bool addUndefinedArea, int32_t noteRowIndexStart, int32_t noteRowIndexEnd,
+                                  int32_t xStart, int32_t xEnd, bool allowBlur, bool drawRepeats) {
 
 	//Debug::println("AudioClip::renderAsSingleRow");
 
@@ -1125,7 +1125,7 @@ int32_t AudioClip::changeOutput(ModelStackWithTimelineCounter* modelStack, Outpu
 }
 
 int32_t AudioClip::setOutput(ModelStackWithTimelineCounter* modelStack, Output* newOutput,
-                         AudioClip* favourClipForCloningParamManager) {
+                             AudioClip* favourClipForCloningParamManager) {
 	output = newOutput;
 	int32_t error = solicitParamManager(modelStack->song, NULL, favourClipForCloningParamManager);
 	if (error) {

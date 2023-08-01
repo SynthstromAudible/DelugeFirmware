@@ -624,7 +624,7 @@ bool GlobalEffectable::readParamTagFromFile(char const* tagName, ParamManagerFor
 
 // paramManager is optional
 int32_t GlobalEffectable::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager,
-                                      int32_t readAutomationUpToPos, Song* song) {
+                                          int32_t readAutomationUpToPos, Song* song) {
 
 	// This is here for compatibility only for people (Lou and Ian) who saved songs with firmware in September 2016
 	//if (paramManager && strcmp(tagName, "delay") && GlobalEffectable::readParamTagFromFile(tagName, paramManager, readAutomation)) {}
@@ -721,8 +721,9 @@ void GlobalEffectable::setupDelayWorkingState(DelayWorkingState* delayWorkingSta
 	delay.setupWorkingState(delayWorkingState);
 }
 
-void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, int32_t numSamples, int32_t* postFXVolume,
-                                                    ParamManager* paramManager, DelayWorkingState* delayWorkingState,
+void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, int32_t numSamples,
+                                                    int32_t* postFXVolume, ParamManager* paramManager,
+                                                    DelayWorkingState* delayWorkingState,
                                                     int32_t analogDelaySaturationAmount) {
 
 	StereoSample* inputBufferEnd = inputBuffer + numSamples;

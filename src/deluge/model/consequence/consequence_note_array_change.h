@@ -17,15 +17,16 @@
 
 #pragma once
 
-#include <cstdint>
 #include "model/consequence/consequence.h"
 #include "model/note/note_vector.h"
+#include <cstdint>
 
 class InstrumentClip;
 
 class ConsequenceNoteArrayChange final : public Consequence {
 public:
-	ConsequenceNoteArrayChange(InstrumentClip* newClip, int32_t newNoteRowId, NoteVector* newNoteVector, bool stealData);
+	ConsequenceNoteArrayChange(InstrumentClip* newClip, int32_t newNoteRowId, NoteVector* newNoteVector,
+	                           bool stealData);
 	int32_t revert(TimeType time, ModelStack* modelStack);
 
 	InstrumentClip* clip;
