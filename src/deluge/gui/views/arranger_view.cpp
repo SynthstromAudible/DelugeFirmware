@@ -1673,7 +1673,7 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 
 		automationClipView.renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore, false);
 	}
-	else if (clip->type == CLIP_TYPE_AUDIO) {
+	else if (clip->type == ClipType::AUDIO) {
 		// If no sample, just skip directly there
 		if (!((AudioClip*)clip)->sampleHolder.audioFile) {
 			currentUIMode = UI_MODE_NONE;
@@ -1737,7 +1737,7 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 
 	PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
 	PadLEDs::explodeAnimationDirection = 1;
-	if ((clip->type == CLIP_TYPE_AUDIO) && !clip->onAutomationClipView) {
+	if ((clip->type == ClipType::AUDIO) && !clip->onAutomationClipView) {
 		PadLEDs::renderAudioClipExplodeAnimation(0);
 	}
 	else {
@@ -1754,7 +1754,7 @@ bool ArrangerView::transitionToArrangementEditor() {
 
 	Sample* sample;
 
-	if (getCurrentClip()->type == CLIP_TYPE_AUDIO && getCurrentUI() != &automationClipView) {
+	if (getCurrentClip()->type == ClipType::AUDIO && getCurrentUI() != &automationClipView) {
 
 		// If no sample, just skip directly there
 		if (!getCurrentAudioClip()->sampleHolder.audioFile) {
@@ -1793,7 +1793,7 @@ bool ArrangerView::transitionToArrangementEditor() {
 		yDisplay = kDisplayHeight - 1;
 	}
 
-	if (getCurrentClip()->type == CLIP_TYPE_AUDIO && getCurrentUI() != &automationClipView) {
+	if (getCurrentClip()->type == ClipType::AUDIO && getCurrentUI() != &automationClipView) {
 		waveformRenderer.collapseAnimationToWhichRow = yDisplay;
 
 		PadLEDs::setupAudioClipCollapseOrExplodeAnimation(getCurrentAudioClip());

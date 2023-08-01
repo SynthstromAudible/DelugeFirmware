@@ -504,7 +504,7 @@ int32_t Arrangement::doUniqueCloneOnClipInstance(ClipInstance* clipInstance, int
 	newClip->activeIfNoSolo = false; // Always need to set arrangement-only Clips like this on create
 
 	if (shouldCloneRepeats && newLength != -1) {
-		if (newClip->type == CLIP_TYPE_INSTRUMENT) {
+		if (newClip->type == ClipType::INSTRUMENT) {
 			((InstrumentClip*)newClip)->repeatOrChopToExactLength(modelStack, newLength);
 		}
 	}

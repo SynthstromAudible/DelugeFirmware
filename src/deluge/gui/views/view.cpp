@@ -1487,7 +1487,7 @@ void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int
 		}
 
 		InstrumentClip* clip = NULL;
-		if (clip && clip->type == CLIP_TYPE_INSTRUMENT) {
+		if (clip && clip->type == ClipType::INSTRUMENT) {
 			clip = (InstrumentClip*)clip;
 		}
 
@@ -2029,7 +2029,7 @@ RGB View::getClipMuteSquareColour(Clip* clip, RGB thisColour, bool dimInactivePa
 
 	if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING && clip && clip->armedForRecording) {
 		if (blinkOn) {
-			bool shouldGoPurple = clip->type == CLIP_TYPE_AUDIO && ((AudioClip*)clip)->overdubsShouldCloneOutput;
+			bool shouldGoPurple = clip->type == ClipType::AUDIO && ((AudioClip*)clip)->overdubsShouldCloneOutput;
 
 			// Bright colour
 			if (clip->wantsToBeginLinearRecording(currentSong)) {
@@ -2125,13 +2125,13 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 		if (on) {
 			if (!clip->armedForRecording) {
 				clip->armedForRecording = true;
-				if (clip->type == CLIP_TYPE_AUDIO) {
+				if (clip->type == ClipType::AUDIO) {
 					((AudioClip*)clip)->overdubsShouldCloneOutput = false;
 					defaultAudioClipOverdubOutputCloning = 0;
 				}
 			}
 			else {
-				if (clip->type == CLIP_TYPE_AUDIO && !((AudioClip*)clip)->overdubsShouldCloneOutput) {
+				if (clip->type == ClipType::AUDIO && !((AudioClip*)clip)->overdubsShouldCloneOutput) {
 					((AudioClip*)clip)->overdubsShouldCloneOutput = true;
 					defaultAudioClipOverdubOutputCloning = 1;
 					break; // No need to reassess greyout

@@ -46,7 +46,7 @@ namespace params = deluge::modulation::params;
 
 uint32_t loopRecordingCandidateRecentnessNextValue = 1;
 
-Clip::Clip(int32_t newType) : type(newType) {
+Clip::Clip(ClipType newType) : type(newType) {
 	soloingInSessionMode = false;
 	armState = ArmState::OFF;
 	activeIfNoSolo = true;
@@ -814,7 +814,7 @@ void Clip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 			// in one go at the end of the recording - because for those, if recording is aborted part-way, the whole Clip is deleted.
 			// But, don't do this if this Clips still would get deleted as an "abandoned overdub" (meaning it has no notes), cos if that happened,
 			// we definitely don't want to have a consequence - pointer pointing to it!
-			if (true || type != CLIP_TYPE_AUDIO) {
+			if (true || type != ClipType::AUDIO) {
 				D_PRINTLN("getting new action");
 				Action* action = actionLogger.getNewAction(ACTION_RECORD, ACTION_ADDITION_ALLOWED);
 				if (action) {
@@ -1062,7 +1062,7 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 
 			ClipInstance* clipInstance = output->clipInstances.getElement(clipInstanceI);
 
-			if (type == CLIP_TYPE_AUDIO) {
+			if (type == ClipType::AUDIO) {
 
 				// So, we want to create a bunch of repeats. Often there'll be many at the start which just repeat with untouched params,
 				// so that can all be one ClipInstance
@@ -1098,7 +1098,7 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 
 			int32_t newLength = loopLength;
 
-			if (type == CLIP_TYPE_INSTRUMENT) {
+			if (type == ClipType::INSTRUMENT) {
 				newLength *= (repeatCount + 1);
 				// Yes, call this even if length is staying the same,  because there might be shorter NoteRows.
 				newClip->increaseLengthWithRepeats(modelStack, newLength, IndependentNoteRowLengthIncrease::ROUND_UP,
@@ -1124,13 +1124,13 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 					newPlayPos += loopLength;
 				}
 			}
-			if (type == CLIP_TYPE_INSTRUMENT) {
+			if (type == ClipType::INSTRUMENT) {
 				newPlayPos += repeatCount * loopLength;
 			}
 			newClip->setPos(modelStack, newPlayPos, true);
 			newClip->resumePlayback(modelStack, false); // Don't sound
 
-			if (type == CLIP_TYPE_AUDIO) {
+			if (type == ClipType::AUDIO) {
 				((AudioClip*)newClip)->voiceSample = ((AudioClip*)this)->voiceSample;
 				((AudioClip*)this)->voiceSample = NULL;
 			}

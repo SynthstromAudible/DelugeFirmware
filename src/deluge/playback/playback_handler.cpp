@@ -39,6 +39,7 @@
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
+#include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
 #include "model/consequence/consequence.h"
@@ -2219,7 +2220,7 @@ void PlaybackHandler::forceResetPlayPos(Song* song) {
 
 void PlaybackHandler::grabTempoFromClip(Clip* clip) {
 
-	if (clip->type != CLIP_TYPE_AUDIO || clip->getCurrentlyRecordingLinearly()
+	if (clip->type != ClipType::AUDIO || clip->getCurrentlyRecordingLinearly()
 	    || !((AudioClip*)clip)->sampleHolder.audioFile) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_GRAB_TEMPO_FROM_CLIP));
 		return;
@@ -2465,8 +2466,8 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, int32_t channel,
 			case GlobalMIDICommand::LOOP:
 			case GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING:
 				if (actionLogger.allowedToDoReversion()
-				    || currentUIMode
-				           == UI_MODE_RECORD_COUNT_IN) { // Not quite sure if this describes exactly what we want but it'll do...
+				    // Not quite sure if this describes exactly what we want but it'll do...
+				    || currentUIMode == UI_MODE_RECORD_COUNT_IN) {
 					OverDubType overdubNature = (static_cast<GlobalMIDICommand>(c) == GlobalMIDICommand::LOOP)
 					                                ? OverDubType::Normal
 					                                : OverDubType::ContinuousLayering;
@@ -2945,7 +2946,7 @@ doCreateNextOverdub:
 			if (clipToCreateOverdubFrom) {
 
 				// So long as it's got an input source...
-				if (clipToCreateOverdubFrom->type != CLIP_TYPE_AUDIO
+				if (clipToCreateOverdubFrom->type != ClipType::AUDIO
 				    || ((AudioOutput*)clipToCreateOverdubFrom->output)->inputChannel > AudioInputChannel::NONE) {
 
 					// If that Clip wasn't armed to record linearly...

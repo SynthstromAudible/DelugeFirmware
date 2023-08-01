@@ -801,7 +801,7 @@ doReSyncToSongTicks:
 
 				// For AudioClips, even if we're not gonna call resumePlayback(), we still need to do some other stuff if length has been changed (which it probably has if we're here)
 doAudioClipStuff:
-				if (clip->type == CLIP_TYPE_AUDIO) {
+				if (clip->type == ClipType::AUDIO) {
 					((AudioClip*)clip)->setupPlaybackBounds();
 					((AudioClip*)clip)->sampleZoneChanged(modelStack);
 				}
@@ -1977,7 +1977,7 @@ bool Session::wantsToDoTempolessRecord(int32_t newPos) {
 		if (currentSong->isClipActive(clip)) {
 			anyActiveClips = true;
 
-			if (clip->type != CLIP_TYPE_AUDIO) {
+			if (clip->type != ClipType::AUDIO) {
 				return false; // Cos there's a non-audio clip playing or recording
 			}
 

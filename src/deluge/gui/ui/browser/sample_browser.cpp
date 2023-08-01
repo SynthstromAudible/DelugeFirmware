@@ -190,7 +190,7 @@ void SampleBrowser::possiblySetUpBlinking() {
 
 	if (!qwertyVisible && !currentlyShowingSamplePreview) {
 		int32_t x = 0;
-		if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
+		if (getCurrentClip()->type == ClipType::INSTRUMENT) {
 			x = soundEditor.currentSourceIndex;
 		}
 		soundEditor.setupExclusiveShortcutBlink(x, 5);
@@ -286,7 +286,7 @@ ActionResult SampleBrowser::timerCallback() {
 			gui::ContextMenu* contextMenu;
 
 			// AudioClip
-			if (getCurrentClip()->type == CLIP_TYPE_AUDIO) {
+			if (getCurrentClip()->type == ClipType::AUDIO) {
 				display->displayPopup(
 				    deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_IMPORT_WHOLE_FOLDER_INTO_AUDIO_CLIP));
 			}
@@ -376,7 +376,7 @@ void SampleBrowser::enterKeyPress() {
 		if (Buttons::isShiftButtonPressed()) {
 
 			// Can only do this for Kit Clips, and for source 0, not 1, AND there has to be only one drum present, which is assigned to the first NoteRow
-			if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT && canImportWholeKit()) {
+			if (getCurrentClip()->type == ClipType::INSTRUMENT && canImportWholeKit()) {
 				display->displayPopup("SLICER");
 				openUI(&slicer);
 			}
@@ -454,7 +454,7 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 
 	// Record button
 	else if (b == RECORD && audioRecorder.recordingSource == AudioInputChannel::NONE
-	         && getCurrentClip()->type != CLIP_TYPE_AUDIO) {
+	         && getCurrentClip()->type != ClipType::AUDIO) {
 		if (!on || currentUIMode != UI_MODE_NONE) {
 			return ActionResult::DEALT_WITH;
 		}
@@ -770,7 +770,7 @@ int32_t SampleBrowser::claimAudioFileForAudioClip() {
 // For the "may" arguments, 0 means no; 1 means auto; 2 means do definitely as the user has specifically requested it.
 bool SampleBrowser::claimCurrentFile(int32_t mayDoPitchDetection, int32_t mayDoSingleCycle, int32_t mayDoWaveTable) {
 
-	if (getCurrentClip()->type == CLIP_TYPE_AUDIO) {
+	if (getCurrentClip()->type == ClipType::AUDIO) {
 		if (getCurrentClip()->getCurrentlyRecordingLinearly()) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIP_IS_RECORDING));
 			return false;
@@ -782,7 +782,7 @@ bool SampleBrowser::claimCurrentFile(int32_t mayDoPitchDetection, int32_t mayDoS
 	int32_t error;
 
 	// If for AudioClip...
-	if (getCurrentClip()->type == CLIP_TYPE_AUDIO) {
+	if (getCurrentClip()->type == ClipType::AUDIO) {
 
 		error = claimAudioFileForAudioClip();
 		if (error) {

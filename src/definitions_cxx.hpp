@@ -997,3 +997,13 @@ enum GridDefaultActiveMode : uint8_t {
 	GridDefaultActiveModeBlue,
 	GridDefaultActiveModeMaxElement // Keep as boundary
 };
+
+enum class ClipType {
+	INSTRUMENT,
+	AUDIO,
+};
+
+enum class OverdubType {
+	NORMAL,
+	CONTINUOUS_LAYERING,
+};

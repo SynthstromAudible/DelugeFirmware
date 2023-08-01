@@ -223,7 +223,7 @@ traverseClips2:
 			for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
 				Clip* clip = clipArray->getClipAtIndex(c);
 
-				if (clip->type == CLIP_TYPE_INSTRUMENT) {
+				if (clip->type == ClipType::INSTRUMENT) {
 					newAction->clipStates[i].yScrollSessionView[AFTER] = ((InstrumentClip*)clip)->yScroll;
 				}
 				i++;
@@ -486,7 +486,7 @@ traverseClips:
 
 					//clip->modKnobMode = action->clipStates[i].modKnobMode;
 
-					if (clip->type == CLIP_TYPE_INSTRUMENT) {
+					if (clip->type == ClipType::INSTRUMENT) {
 						InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 						instrumentClip->yScroll = action->clipStates[i].yScrollSessionView[time];
 						instrumentClip->affectEntire = action->clipStates[i].affectEntire;
@@ -636,7 +636,7 @@ currentClipSwitchedOver:
 	}
 
 	else if (whichAnimation == ANIMATION_ARRANGEMENT_TO_CLIP_MINDER) {
-		if (getCurrentClip()->type == CLIP_TYPE_AUDIO) {
+		if (getCurrentClip()->type == ClipType::AUDIO) {
 			changeRootUI(&audioClipView);
 		}
 		else if (getCurrentInstrumentClip()->onKeyboardScreen) {
@@ -721,7 +721,7 @@ currentClipSwitchedOver:
 		default:
 			ClipMinder* clipMinder = getCurrentUI()->toClipMinder();
 			if (clipMinder) {
-				if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
+				if (getCurrentClip()->type == ClipType::INSTRUMENT) {
 					((InstrumentClipMinder*)clipMinder)->setLedStates();
 				}
 			}

@@ -46,6 +46,7 @@
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
+#include "model/clip/clip.h"
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
@@ -495,7 +496,7 @@ changeOutputType:
 
 			if (clip != nullptr) {
 				// If AudioClip, we have to convert back to an InstrumentClip
-				if (clip->type == CLIP_TYPE_AUDIO) {
+				if (clip->type == ClipType::AUDIO) {
 					actionLogger.deleteAllLogs();
 					replaceAudioClipWithInstrumentClip(clip, newOutputType);
 				}
@@ -750,7 +751,7 @@ startHoldingDown:
 						return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 					}
 
-					//if (possiblyCreatePendingNextOverdub(clipIndex, OVERDUB_EXTENDING)) return ActionResult::DEALT_WITH;
+					//if (possiblyCreatePendingNextOverdub(clipIndex, OverdubType::EXTENDING)) return ActionResult::DEALT_WITH;
 
 					clip = createNewInstrumentClip(yDisplay);
 					if (!clip) {
@@ -797,7 +798,7 @@ startHoldingDown:
 				if (clip) {
 
 					// AudioClip
-					if (clip->type == CLIP_TYPE_AUDIO) {
+					if (clip->type == ClipType::AUDIO) {
 						if (sdRoutineLock) {
 							return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 						}
@@ -868,7 +869,7 @@ justEndClipPress:
 			}
 
 			else if (isUIModeActive(UI_MODE_MIDI_LEARN)) {
-				if (clip && clip->type == CLIP_TYPE_INSTRUMENT) {
+				if (clip && clip->type == ClipType::INSTRUMENT) {
 					requestRendering(this, 1 << yDisplay, 0);
 					goto midiLearnMelodicInstrumentAction;
 				}
@@ -1580,7 +1581,7 @@ doGetInstrument:
 void SessionView::replaceAudioClipWithInstrumentClip(Clip* clip, OutputType outputType) {
 	int32_t clipIndex = currentSong->sessionClips.getIndexForClip(clip);
 
-	if (!clip || clip->type != CLIP_TYPE_AUDIO) {
+	if (!clip || clip->type != ClipType::AUDIO) {
 		return;
 	}
 
@@ -1672,7 +1673,7 @@ gotErrorDontDisplay:
 void SessionView::replaceInstrumentClipWithAudioClip(Clip* clip) {
 	int32_t clipIndex = currentSong->sessionClips.getIndexForClip(clip);
 
-	if (!clip || clip->type != CLIP_TYPE_INSTRUMENT) {
+	if (!clip || clip->type != ClipType::INSTRUMENT) {
 		return;
 	}
 
@@ -2027,7 +2028,7 @@ void SessionView::graphicsRoutine() {
 			newTickSquare = kDisplayWidth - 1;
 
 			if (clip->getCurrentlyRecordingLinearly()) { // This would have to be true if we got here, I think?
-				if (clip->type == CLIP_TYPE_AUDIO) {
+				if (clip->type == ClipType::AUDIO) {
 					((AudioClip*)clip)->renderData.xScroll = -1; // Make sure values are recalculated
 
 					rowNeedsRenderingDependingOnSubMode(yDisplay);
@@ -2060,7 +2061,7 @@ void SessionView::graphicsRoutine() {
 
 			// Linearly recording
 			if (clip->getCurrentlyRecordingLinearly()) {
-				if (clip->type == CLIP_TYPE_AUDIO) {
+				if (clip->type == ClipType::AUDIO) {
 					if (currentUIMode != UI_MODE_HORIZONTAL_SCROLL && currentUIMode != UI_MODE_HORIZONTAL_ZOOM) {
 						rowNeedsRenderingDependingOnSubMode(yDisplay);
 					}
@@ -2454,14 +2455,14 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 
 		PadLEDs::renderClipExpandOrCollapse();
 
-		if (clip->type == CLIP_TYPE_INSTRUMENT) {
+		if (clip->type == ClipType::INSTRUMENT) {
 			// Hook point for specificMidiDevice
 			iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_TRANSITION_TO_SESSION_VIEW);
 		}
 	}
 
 	// InstrumentClips
-	else if (clip->type == CLIP_TYPE_INSTRUMENT) {
+	else if (clip->type == ClipType::INSTRUMENT) {
 
 		currentUIMode = UI_MODE_INSTRUMENT_CLIP_EXPANDING;
 
@@ -2634,7 +2635,7 @@ void SessionView::playbackEnded() {
 
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 		Clip* clip = getClipOnScreen(yDisplay);
-		if (clip && clip->type == CLIP_TYPE_AUDIO) {
+		if (clip && clip->type == ClipType::AUDIO) {
 			AudioClip* audioClip = (AudioClip*)clip;
 
 			if (!audioClip->sampleHolder.audioFile) {
@@ -2684,7 +2685,7 @@ void SessionView::sampleNeedsReRendering(Sample* sample) {
 
 	for (int32_t c = bottomIndex; c < topIndex; c++) {
 		Clip* thisClip = currentSong->sessionClips.getClipAtIndex(c);
-		if (thisClip->type == CLIP_TYPE_AUDIO && ((AudioClip*)thisClip)->sampleHolder.audioFile == sample) {
+		if (thisClip->type == ClipType::AUDIO && ((AudioClip*)thisClip)->sampleHolder.audioFile == sample) {
 			int32_t yDisplay = c - currentSong->songViewYScroll;
 			requestRendering(this, (1 << yDisplay), 0);
 		}

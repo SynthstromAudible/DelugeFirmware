@@ -327,7 +327,7 @@ traverseClips:
 	for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
 		Clip* thisClip = clipArray->getClipAtIndex(c);
 
-		if (thisClip->type == CLIP_TYPE_INSTRUMENT) {
+		if (thisClip->type == ClipType::INSTRUMENT) {
 
 			if (!clip || thisClip == clip) {
 				clipStates[i].yScrollSessionView[AFTER] = ((InstrumentClip*)thisClip)->yScroll;
