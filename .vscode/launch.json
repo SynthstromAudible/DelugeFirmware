@@ -5,7 +5,7 @@
       "name": "Attach 7SEG Debug",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceRoot}/dbt-build-debug-7seg/Deluge-debug-7seg.elf",
+      "program": "${workspaceRoot}/build/debug/deluge7SEG.elf",
       "MIMode": "gdb",
       "miDebuggerPath": "arm-none-eabi-gdb",
       "windows": {
@@ -17,12 +17,11 @@
       "cwd": "${workspaceRoot}",
       "svdPath": "${workspaceRoot}/contrib/rza1.svd",
     },
-
     {
       "name": "Attach OLED Debug",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceRoot}/dbt-build-debug-oled/Deluge-debug-oled.elf",
+      "program": "${workspaceRoot}/build/debug/delugeOLED.elf",
       "MIMode": "gdb",
       "miDebuggerPath": "arm-none-eabi-gdb",
       "windows": {
@@ -34,14 +33,13 @@
       "cwd": "${workspaceRoot}",
       "svdPath": "${workspaceRoot}/contrib/rza1.svd",
     },
-
     {
       "name": "Load/Run OLED Debug",
       "type": "cppdbg",
       "preLaunchTask": "Build OLED Debug",
       "request": "launch",
       "cwd": "${workspaceRoot}",
-      "program": "${workspaceRoot}/dbt-build-debug-oled/Deluge-debug-oled.elf",
+      "program": "${workspaceRoot}/build/debug/delugeOLED.elf",
       "MIMode": "gdb",
       "miDebuggerPath": "arm-none-eabi-gdb",
       "windows": {
@@ -52,21 +50,30 @@
       "targetArchitecture": "arm",
       "svdPath": "${workspaceRoot}/contrib/rza1.svd",
       "customLaunchSetupCommands": [
-        { "text": "-gdb-set target-async on" },
-        { "text": "-target-select extended-remote localhost:3333" },
-        { "text": "cd ${workspaceRoot}" },
-        { "text": "-file-exec-and-symbols dbt-build-debug-oled/Deluge-debug-oled.elf" },
-        { "text": "-target-download" },
+        {
+          "text": "-gdb-set target-async on"
+        },
+        {
+          "text": "-target-select extended-remote localhost:3333"
+        },
+        {
+          "text": "cd ${workspaceRoot}"
+        },
+        {
+          "text": "-file-exec-and-symbols build/debug/delugeOLED.elf"
+        },
+        {
+          "text": "-target-download"
+        },
       ]
-    }, 
-
+    },
     {
       "name": "Load/Run 7SEG Debug",
       "type": "cppdbg",
       "preLaunchTask": "Build 7SEG Debug",
       "request": "launch",
       "cwd": "${workspaceRoot}",
-      "program": "${workspaceRoot}/dbt-build-debug-7seg/Deluge-debug-7seg.elf",
+      "program": "${workspaceRoot}/build/debug/deluge7SEG.elf",
       "MIMode": "gdb",
       "miDebuggerPath": "arm-none-eabi-gdb",
       "windows": {
@@ -77,21 +84,30 @@
       "targetArchitecture": "arm",
       "svdPath": "${workspaceRoot}/contrib/rza1.svd",
       "customLaunchSetupCommands": [
-        { "text": "-gdb-set target-async on" },
-        { "text": "-target-select extended-remote localhost:3333" },
-        { "text": "cd ${workspaceRoot}" },
-        { "text": "-file-exec-and-symbols dbt-build-debug-7seg/Deluge-debug-7seg.elf" },
-        { "text": "-target-download" },
+        {
+          "text": "-gdb-set target-async on"
+        },
+        {
+          "text": "-target-select extended-remote localhost:3333"
+        },
+        {
+          "text": "cd ${workspaceRoot}"
+        },
+        {
+          "text": "-file-exec-and-symbols build/debug/deluge7SEG.elf"
+        },
+        {
+          "text": "-target-download"
+        },
       ]
-    }, 
-
+    },
     {
       // NOTE: Do not try `load`ing the program using this config
       "name": "LLDB Attach OLED Debug",
       "type": "lldb",
       "request": "launch",
       "targetCreateCommands": [
-        "target create ${workspaceFolder}/dbt-build-debug-oled/Deluge-debug-oled.elf"
+        "target create ${workspaceFolder}/build/debug/delugeOLED.elf"
       ],
       "processCreateCommands": [
         "gdb-remote localhost:3333"
@@ -103,7 +119,7 @@
       "type": "lldb",
       "request": "launch",
       "targetCreateCommands": [
-        "target create ${workspaceFolder}/dbt-build-debug-7seg/Deluge-debug-7seg.elf"
+        "target create ${workspaceFolder}/build/debug/deluge7SEG.elf"
       ],
       "processCreateCommands": [
         "gdb-remote localhost:3333"

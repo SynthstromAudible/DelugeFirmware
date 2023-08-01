@@ -168,7 +168,7 @@ void TimeStretcher::beenUnassigned() {
 	unassignAllReasonsForPercCacheClusters();
 	olderPartReader.unassignAllReasons();
 	if (buffer) {
-		generalMemoryAllocator.dealloc(buffer);
+		GeneralMemoryAllocator::get().dealloc(buffer);
 	}
 }
 
@@ -955,7 +955,7 @@ optForDirectReading:
 	// If no one's reading from the buffer anymore, stop filling it
 	if (buffer
 	    && !olderHeadReadingFromBuffer) { // olderHeadReadingFromBuffer will always be false - we set it above, at the start
-		generalMemoryAllocator.dealloc(buffer);
+		GeneralMemoryAllocator::get().dealloc(buffer);
 		buffer = NULL;
 		Debug::println("abandoning buffer!!!!!!!!!!!!!!!!");
 	}
@@ -1030,7 +1030,7 @@ void TimeStretcher::reassessWhetherToBeFillingBuffer(int32_t phaseIncrement, int
 		// If no one's reading from the buffer anymore, stop filling it
 		if (!newerHeadReadingFromBuffer && !olderHeadReadingFromBuffer && bufferFillingMode == BUFFER_FILLING_NEITHER) {
 			bufferFillingMode = BUFFER_FILLING_OFF;
-			generalMemoryAllocator.dealloc(buffer);
+			GeneralMemoryAllocator::get().dealloc(buffer);
 			buffer = NULL;
 			Debug::println("abandoning buffer!!!!!!!!!!!!!!!!");
 		}
@@ -1039,8 +1039,8 @@ void TimeStretcher::reassessWhetherToBeFillingBuffer(int32_t phaseIncrement, int
 #endif
 
 bool TimeStretcher::allocateBuffer(int numChannels) {
-	buffer = (int32_t*)generalMemoryAllocator.alloc(TimeStretch::kBufferSize * sizeof(int32_t) * numChannels, NULL,
-	                                                false, true);
+	buffer = (int32_t*)GeneralMemoryAllocator::get().alloc(TimeStretch::kBufferSize * sizeof(int32_t) * numChannels,
+	                                                       NULL, false, true);
 	return (buffer != NULL);
 }
 
@@ -1164,7 +1164,7 @@ void TimeStretcher::setupCrossfadeFromCache(SampleCache* cache, int cacheBytePos
 
 	// If we're really unlucky, allocating the buffer may have stolen from the cache
 	if (originalCacheWriteBytePos != cache->writeBytePos) {
-		generalMemoryAllocator.dealloc(buffer);
+		GeneralMemoryAllocator::get().dealloc(buffer);
 		buffer = NULL;
 		return;
 	}

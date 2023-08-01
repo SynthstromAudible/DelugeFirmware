@@ -30,7 +30,7 @@ SamplePlaybackGuide::SamplePlaybackGuide() {
 
 int SamplePlaybackGuide::getFinalClusterIndex(Sample* sample, bool obeyMarkers, int32_t* getEndPlaybackAtByte) {
 
-	generalMemoryAllocator.checkStack("SamplePlaybackGuide::getFinalClusterIndex");
+	GeneralMemoryAllocator::get().checkStack("SamplePlaybackGuide::getFinalClusterIndex");
 
 	int32_t endPlaybackAtByteNow;
 	// If cache, go right to the end of the waveform

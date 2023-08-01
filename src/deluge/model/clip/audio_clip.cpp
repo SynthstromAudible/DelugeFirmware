@@ -79,7 +79,7 @@ AudioClip::~AudioClip() {
 // Will replace the Clip in the modelStack, if success.
 int AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing) {
 
-	void* clipMemory = generalMemoryAllocator.alloc(sizeof(AudioClip), NULL, false, true);
+	void* clipMemory = GeneralMemoryAllocator::get().alloc(sizeof(AudioClip), NULL, false, true);
 	if (!clipMemory) {
 		return ERROR_INSUFFICIENT_RAM;
 	}
@@ -90,7 +90,7 @@ int AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlatt
 	int error = newClip->paramManager.cloneParamCollectionsFrom(&paramManager, true);
 	if (error) {
 		newClip->~AudioClip();
-		generalMemoryAllocator.dealloc(clipMemory);
+		GeneralMemoryAllocator::get().dealloc(clipMemory);
 		return error;
 	}
 
@@ -221,7 +221,7 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 Clip* AudioClip::cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStackOldClip, int newOverdubNature) {
 
 	// Allocate memory for audio clip
-	void* clipMemory = generalMemoryAllocator.alloc(sizeof(AudioClip), NULL, false, true);
+	void* clipMemory = GeneralMemoryAllocator::get().alloc(sizeof(AudioClip), NULL, false, true);
 	if (!clipMemory) {
 ramError:
 		numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
@@ -240,7 +240,7 @@ ramError:
 
 	if (error) {
 		newClip->~AudioClip();
-		generalMemoryAllocator.dealloc(clipMemory);
+		GeneralMemoryAllocator::get().dealloc(clipMemory);
 		goto ramError;
 	}
 

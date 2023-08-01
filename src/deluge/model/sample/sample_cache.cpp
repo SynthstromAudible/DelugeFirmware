@@ -162,7 +162,7 @@ bool SampleCache::setupNewCluster(int clusterIndex) {
 
 void SampleCache::prioritizeNotStealingCluster(int clusterIndex) {
 
-	if (generalMemoryAllocator.getRegion(clusters[clusterIndex]) != MEMORY_REGION_SDRAM) {
+	if (GeneralMemoryAllocator::get().getRegion(clusters[clusterIndex]) != MEMORY_REGION_SDRAM) {
 		return; // Sorta just have to do this
 	}
 
@@ -174,7 +174,7 @@ void SampleCache::prioritizeNotStealingCluster(int clusterIndex) {
 	// First Cluster
 	if (clusterIndex == 0) {
 		const auto q = STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE;
-		CacheManager& cache_manager = generalMemoryAllocator.regions[MEMORY_REGION_SDRAM].cache_manager();
+		CacheManager& cache_manager = GeneralMemoryAllocator::get().regions[MEMORY_REGION_SDRAM].cache_manager();
 		Cluster* cluster = clusters[clusterIndex];
 		if (cluster->list != &cache_manager.queue(q) || !cluster->isLast()) {
 			cluster->remove(); // Remove from old list, if it was already in one (might not have been).
@@ -185,14 +185,14 @@ void SampleCache::prioritizeNotStealingCluster(int clusterIndex) {
 	// Later Clusters
 	else {
 
-		if (generalMemoryAllocator.getRegion(clusters[clusterIndex - 1]) != MEMORY_REGION_SDRAM) {
+		if (GeneralMemoryAllocator::get().getRegion(clusters[clusterIndex - 1]) != MEMORY_REGION_SDRAM) {
 			return; // Sorta just have to do this
 		}
 
 		// In most cases, we'll want to do this thing to alter the ordering - including if the Cluster in question hasn't actually been added to a queue at all yet,
 		// because this functions serves the additional purpose of being what puts Clusters in their queue in the first place.
 		if (clusters[clusterIndex]->list
-		        != &generalMemoryAllocator.regions[MEMORY_REGION_SDRAM].cache_manager().queue(
+		        != &GeneralMemoryAllocator::get().regions[MEMORY_REGION_SDRAM].cache_manager().queue(
 		            STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE)
 		    || clusters[clusterIndex]->next != clusters[clusterIndex - 1]) {
 

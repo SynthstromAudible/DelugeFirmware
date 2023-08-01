@@ -458,7 +458,7 @@ void setUIForLoadedSong(Song* song) {
 }
 
 void setupBlankSong() {
-	void* songMemory = generalMemoryAllocator.alloc(sizeof(Song), NULL, false, true); // TODO: error checking
+	void* songMemory = GeneralMemoryAllocator::get().alloc(sizeof(Song), NULL, false, true); // TODO: error checking
 	preLoadedSong = new (songMemory) Song();
 
 	preLoadedSong->paramManager.setupUnpatched(); // TODO: error checking
@@ -598,7 +598,7 @@ extern "C" int deluge_main(void) {
 	Encoders::init();
 
 #ifdef TEST_GENERAL_MEMORY_ALLOCATION
-	generalMemoryAllocator.test();
+	GeneralMemoryAllocator::get().test();
 #endif
 
 	// Setup for gate output
@@ -931,7 +931,7 @@ void deleteOldSongBeforeLoadingNew() {
 	currentSong = NULL;
 	void* toDealloc = dynamic_cast<void*>(toDelete);
 	toDelete->~Song();
-	generalMemoryAllocator.dealloc(toDelete);
+	GeneralMemoryAllocator::get().dealloc(toDelete);
 }
 
 #if ALLOW_SPAM_MODE
