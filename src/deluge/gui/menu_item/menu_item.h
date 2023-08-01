@@ -27,7 +27,6 @@
 #include "hid/display/oled.h"
 #endif
 
-
 enum class MenuPermission {
 	NO,
 	YES,
@@ -88,7 +87,8 @@ public:
 	}
 
 	template <size_t n>
-	static void drawItemsForOled(deluge::static_vector<deluge::string, n>& options, int32_t selectedOption, int32_t offset = 0);
+	static void drawItemsForOled(deluge::static_vector<deluge::string, n>& options, int32_t selectedOption,
+	                             int32_t offset = 0);
 #else
 	/// Get the title to be used when rendering on OLED. If not overriden, defaults to returning `title`.
 	virtual void drawName();

@@ -27,7 +27,8 @@ public:
 	using MenuItem::MenuItem;
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
 	bool isRelevant(Sound* sound, int32_t whichThing) override;
-	MenuPermission checkPermissionToBeginSession(Sound* sound, int32_t whichThing, ::MultiRange** currentRange) override;
+	MenuPermission checkPermissionToBeginSession(Sound* sound, int32_t whichThing,
+	                                             ::MultiRange** currentRange) override;
 };
 
 extern FileSelector fileSelectorMenu;

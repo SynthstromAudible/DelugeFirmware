@@ -44,7 +44,8 @@ public:
 		return (sound->getSynthMode() == SynthMode::SUBTRACTIVE);
 	}
 
-	MenuPermission checkPermissionToBeginSession(Sound* sound, int32_t whichThing, ::MultiRange** currentRange) override {
+	MenuPermission checkPermissionToBeginSession(Sound* sound, int32_t whichThing,
+	                                             ::MultiRange** currentRange) override {
 
 		bool can = isRelevant(sound, whichThing);
 		if (!can) {

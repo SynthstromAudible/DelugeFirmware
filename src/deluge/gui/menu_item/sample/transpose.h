@@ -66,7 +66,8 @@ public:
 		soundEditor.currentSound->recalculateAllVoicePhaseIncrements(modelStack);
 	}
 
-	MenuPermission checkPermissionToBeginSession(Sound* sound, int32_t whichThing, ::MultiRange** currentRange) override {
+	MenuPermission checkPermissionToBeginSession(Sound* sound, int32_t whichThing,
+	                                             ::MultiRange** currentRange) override {
 
 		if (!isRelevant(sound, whichThing)) {
 			return MenuPermission::NO;

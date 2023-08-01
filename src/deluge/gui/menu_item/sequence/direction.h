@@ -82,7 +82,8 @@ public:
 		return sequenceDirectionOptions;
 	}
 
-	MenuPermission checkPermissionToBeginSession(Sound* sound, int32_t whichThing, ::MultiRange** currentRange) override {
+	MenuPermission checkPermissionToBeginSession(Sound* sound, int32_t whichThing,
+	                                             ::MultiRange** currentRange) override {
 		if (!(static_cast<InstrumentClip*>(currentSong->currentClip))->affectEntire
 		    && currentSong->currentClip->output->type == InstrumentType::KIT
 		    && ((static_cast<Kit*>(currentSong->currentClip->output))->selectedDrum == nullptr)) {

@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include <cstdint>
 #include <array>
+#include <cstdint>
 
 extern const uint16_t centAdjustTableSmall[];
 extern const uint16_t decayTableSmall4[];

@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include <cstdint>
 #include <cstddef>
+#include <cstdint>
 
 class SampleHolder;
 class Sample;
