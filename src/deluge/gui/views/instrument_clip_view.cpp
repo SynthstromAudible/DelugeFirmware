@@ -16,7 +16,7 @@
 */
 
 #include "gui/views/instrument_clip_view.h"
-#include "gui/views/note_renderer.h"
+#include "gui/color_themes/note_color_theme.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/colour.h"
@@ -2625,18 +2625,16 @@ void InstrumentClipView::recalculateColour(uint8_t yDisplay) {
 			rowColourOffset = noteRow->getColourOffset(getCurrentClip());
 		}
 
-		noteRenderer.getKitColourFromY(yNote,colourOffset, rowColourOffset,rowColour[yDisplay]);
+		noteColorTheme.getRowColoursForKit(colourOffset, rowColourOffset,
+			rowColour[yDisplay], rowBlurColour[yDisplay], rowTailColour[yDisplay]);
 	}
 	else {
-		noteRenderer.getNoteColourFromY(yNote,colourOffset,rowColour[yDisplay]);
+		noteColorTheme.getRowColoursForPitch(yNote,colourOffset,
+			rowColour[yDisplay], rowBlurColour[yDisplay], rowTailColour[yDisplay]);
 	}
 
-
-	//getCurrentClip()->getMainColourFromY(getCurrentClip()->getYNoteFromYDisplay(yDisplay, currentSong), colourOffset,
-	//                                    rowColour[yDisplay]);
-	getTailColour(rowTailColour[yDisplay], rowColour[yDisplay]);
-	getBlurColour(rowBlurColour[yDisplay], rowColour[yDisplay]);
 }
+
 
 ActionResult InstrumentClipView::scrollVertical(int scrollAmount, bool inCardRoutine, bool draggingNoteRow) {
 	int noteRowToShiftI;
@@ -3851,18 +3849,13 @@ void InstrumentClipView::enterScaleMode(uint8_t yDisplay) {
 
 			PadLEDs::animatedRowGoingTo[PadLEDs::numAnimatedRows] = yDisplayTo;
 			PadLEDs::animatedRowGoingFrom[PadLEDs::numAnimatedRows] = yDisplayFrom;
-			uint8_t mainColour[3];
-			uint8_t tailColour[3];
-			uint8_t blurColour[3];
-			clip->getMainColourFromY(thisNoteRow->y, thisNoteRow->getColourOffset(clip), mainColour);
-			getTailColour(tailColour, mainColour);
-			getBlurColour(blurColour, mainColour);
+
 
 			thisNoteRow->renderRow(
-			    this, mainColour, tailColour, blurColour, &PadLEDs::imageStore[PadLEDs::numAnimatedRows][0][0],
+			    this, &PadLEDs::imageStore[PadLEDs::numAnimatedRows][0][0],
 			    PadLEDs::occupancyMaskStore[PadLEDs::numAnimatedRows], true, modelStackWithNoteRow->getLoopLength(),
-			    clip->allowNoteTails(modelStackWithNoteRow), kDisplayWidth, currentSong->xScroll[NAVIGATION_CLIP],
-			    currentSong->xZoom[NAVIGATION_CLIP]);
+			    clip->allowNoteTails(modelStackWithNoteRow), kDisplayWidth, currentSong->xScroll[NAVIGATION_CLIP],currentSong->xZoom[NAVIGATION_CLIP],0,
+			    kDisplayWidth, false,clip->colourOffset, false);
 			drawMuteSquare(thisNoteRow, PadLEDs::imageStore[PadLEDs::numAnimatedRows],
 			               PadLEDs::occupancyMaskStore[PadLEDs::numAnimatedRows]);
 			PadLEDs::numAnimatedRows++;
@@ -3941,17 +3934,13 @@ void InstrumentClipView::exitScaleMode() {
 			uint8_t mainColour[3];
 			uint8_t tailColour[3];
 			uint8_t blurColour[3];
-			clip->getMainColourFromY(thisNoteRow->y, thisNoteRow->getColourOffset(clip), mainColour);
-			getTailColour(tailColour, mainColour);
-			getBlurColour(blurColour, mainColour);
-
 			ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(thisNoteRow->y, thisNoteRow);
 
 			thisNoteRow->renderRow(
-			    this, mainColour, tailColour, blurColour, &PadLEDs::imageStore[PadLEDs::numAnimatedRows][0][0],
+			    this, &PadLEDs::imageStore[PadLEDs::numAnimatedRows][0][0],
 			    PadLEDs::occupancyMaskStore[PadLEDs::numAnimatedRows], true, modelStackWithNoteRow->getLoopLength(),
-			    clip->allowNoteTails(modelStackWithNoteRow), kDisplayWidth, currentSong->xScroll[NAVIGATION_CLIP],
-			    currentSong->xZoom[NAVIGATION_CLIP]);
+			    clip->allowNoteTails(modelStackWithNoteRow), kDisplayWidth, currentSong->xScroll[NAVIGATION_CLIP],currentSong->xZoom[NAVIGATION_CLIP],0,
+			    kDisplayWidth, false,clip->colourOffset, false);
 			drawMuteSquare(thisNoteRow, PadLEDs::imageStore[PadLEDs::numAnimatedRows],
 			               PadLEDs::occupancyMaskStore[PadLEDs::numAnimatedRows]);
 			PadLEDs::numAnimatedRows++;
@@ -5269,10 +5258,10 @@ void InstrumentClipView::performActualRender(uint32_t whichRows, uint8_t* image,
 
 			// Otherwise render the row
 			else {
-				noteRenderer.renderNoteRow(noteRow,this, image,
+				noteRow->renderRow(this, image,
 				                   occupancyMaskOfRow, true, modelStackWithNoteRow->getLoopLength(),
 				                   clip->allowNoteTails(modelStackWithNoteRow), renderWidth, xScroll, xZoom, 0,
-				                   renderWidth, false,clip->colourOffset, noteRow->getColourOffset(clip), isKit);
+				                   renderWidth, false,clip->colourOffset, isKit);
 			}
 
 			if (drawUndefinedArea) {

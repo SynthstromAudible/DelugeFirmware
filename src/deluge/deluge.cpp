@@ -20,7 +20,7 @@
 #include "gui/context_menu/clear_song.h"
 #include "gui/context_menu/sample_browser/kit.h"
 #include "gui/context_menu/sample_browser/synth.h"
-#include "gui/views/note_renderer.h"
+#include "gui/color_themes/note_color_theme.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/instrument_clip_view.h"

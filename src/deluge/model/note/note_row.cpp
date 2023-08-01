@@ -17,6 +17,7 @@
 
 #include "model/note/note_row.h"
 #include "definitions_cxx.hpp"
+#include "gui/color_themes/note_color_theme.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/timeline_view.h"
 #include "gui/views/view.h"
@@ -1525,21 +1526,19 @@ void NoteRow::stopCurrentlyPlayingNote(ModelStackWithNoteRow* modelStack, bool a
 }
 
 // occupancyMask now optional!
-void NoteRow::renderRow(TimelineView* editorScreen, uint8_t rowColour[], uint8_t rowTailColour[],
-                        uint8_t rowBlurColour[], uint8_t* image, uint8_t occupancyMask[], bool overwriteExisting,
-                        uint32_t effectiveRowLength, bool allowNoteTails, int renderWidth, int32_t xScroll,
-                        uint32_t xZoom, int xStartNow, int xEnd, bool drawRepeats) {
+
+void NoteRow::renderRow(TimelineView* editorScreen, uint8_t* image, 
+		uint8_t occupancyMask[], bool overwriteExisting, uint32_t effectiveRowLength, 
+		bool allowNoteTails, int renderWidth, int32_t xScroll, uint32_t xZoom, int xStartNow, 
+		int xEnd, bool drawRepeats, int clipColourOffset, bool isKit) {
+
 
 	if (overwriteExisting) {
 		memset(image, 0, renderWidth * 3);
-		if (occupancyMask) {
-			memset(occupancyMask, 0, renderWidth);
-		}
+		if (occupancyMask) memset(occupancyMask, 0, renderWidth);
 	}
 
-	if (!notes.getNumElements()) {
-		return;
-	}
+	if (hasNoNotes()) return;
 
 	int32_t squareEndPos[kMaxImageStoreWidth];
 	int32_t searchTerms[kMaxImageStoreWidth];
@@ -1586,53 +1585,73 @@ void NoteRow::renderRow(TimelineView* editorScreen, uint8_t rowColour[], uint8_t
 		int squareStartPos =
 		    editorScreen->getPosFromSquare(xStartNow, xScroll, xZoom) - effectiveRowLength * whichRepeat;
 
+		uint8_t rowDefaultColour[3];
+		uint8_t rowDefaultBlurColour[3];
+		uint8_t rowDefaultTailColour[3];
+		uint8_t noteColour[3];
+		uint8_t noteBlurColour[3];
+		uint8_t noteTailColour[3];
+
+		if (isKit) {
+			noteColorTheme.getRowColoursForKit(clipColourOffset, colourOffset, 
+				rowDefaultColour,
+				rowDefaultBlurColour,
+				rowDefaultTailColour);
+		}
+		else {
+			noteColorTheme.getRowColoursForPitch(this->y, clipColourOffset,	
+				rowDefaultColour,
+				rowDefaultBlurColour,
+				rowDefaultTailColour);
+		}
+        
 		for (int xDisplay = xStartNow; xDisplay < xEndNow; xDisplay++) {
-			if (xDisplay != xStartNow) {
-				squareStartPos = squareEndPos[xDisplay - xStartNow - 1];
-			}
+			if (xDisplay != xStartNow) squareStartPos = squareEndPos[xDisplay - xStartNow - 1];
 			int i = searchTerms[xDisplay - xStartNow];
 
 			Note* note = notes.getElement(i - 1); // Subtracting 1 to do "LESS"
 
 			uint8_t* pixel = image + xDisplay * 3;
 
+			if (note && !isKit && note->getAccidentalTranspose() != 0) {
+				noteColorTheme.getNoteSpecificColours(this->y, clipColourOffset,  note,  noteColour, noteBlurColour, noteTailColour);
+			}
+			else {
+				for(int i=0; i<3 ; i++) {
+					noteColour[i] = rowDefaultColour[i]; 
+					noteBlurColour[i] = rowDefaultBlurColour[i];
+            		noteTailColour[i] = rowDefaultTailColour[i];
+				}
+			}
+
 			// If Note starts somewhere within square, draw the blur colour
 			if (note && note->pos > squareStartPos) {
-				pixel[0] = rowBlurColour[0];
-				pixel[1] = rowBlurColour[1];
-				pixel[2] = rowBlurColour[2];
-				if (occupancyMask) {
-					occupancyMask[xDisplay] = 64;
-				}
+				pixel[0] = noteBlurColour[0];
+				pixel[1] = noteBlurColour[1];
+				pixel[2] = noteBlurColour[2];
+				if (occupancyMask) occupancyMask[xDisplay] = 64;
 			}
 
 			// Or if Note starts exactly on square...
 			else if (note && note->pos == squareStartPos) {
-				pixel[0] = rowColour[0];
-				pixel[1] = rowColour[1];
-				pixel[2] = rowColour[2];
-				if (occupancyMask) {
-					occupancyMask[xDisplay] = 64;
-				}
+				pixel[0] = noteColour[0];
+				pixel[1] = noteColour[1];
+				pixel[2] = noteColour[2];
+				if (occupancyMask) occupancyMask[xDisplay] = 64;
 			}
 
 			// Draw wrapped notes
 			else if (!drawRepeats || whichRepeat) {
 				bool wrapping = (i == 0); // Subtracting 1 to do "LESS"
-				if (wrapping) {
-					note = notes.getLast();
-				}
+				if (wrapping) note = notes.getLast();
 				int noteEnd = note->pos + note->length;
-				if (wrapping) {
-					noteEnd -= effectiveRowLength;
-				}
+				if (wrapping) noteEnd -= effectiveRowLength;
 				if (noteEnd > squareStartPos && allowNoteTails) {
-					pixel[0] = rowTailColour[0];
-					pixel[1] = rowTailColour[1];
-					pixel[2] = rowTailColour[2];
-					if (occupancyMask) {
-						occupancyMask[xDisplay] = 64;
-					}
+					noteColorTheme.getNoteSpecificColours(this->y, clipColourOffset,  note, noteColour, noteBlurColour, noteTailColour);
+					pixel[0] = noteTailColour[0];
+					pixel[1] = noteTailColour[1];
+					pixel[2] = noteTailColour[2];
+					if (occupancyMask) occupancyMask[xDisplay] = 64;
 				}
 			}
 		}

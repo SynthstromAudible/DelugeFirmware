@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "gui/views/note_renderer.h"
+#include "gui/color_themes/note_color_theme.h"
 #include "gui/ui/keyboard/notes_state.h"
 #include "gui/ui/keyboard/state_data.h"
 #include "hid/button.h"
@@ -123,10 +123,10 @@ protected:
 					rowColourOffset = noteRow->getColourOffset(currentClip());
 				}
 			}
-			noteRenderer.getKitColourFromY(note, clipColourOffset, rowColourOffset, rgb);
+			noteColorTheme.getRowMainColourForKit(clipColourOffset, rowColourOffset, rgb);
 		}
 		else {
-			noteRenderer.getNoteColourFromY(note, clipColourOffset, rgb);
+			noteColorTheme.getRowMainColourForPitch(note, clipColourOffset, rgb);
 
 		}
 

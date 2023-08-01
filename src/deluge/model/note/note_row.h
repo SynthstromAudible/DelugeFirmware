@@ -74,9 +74,13 @@ class NoteRow {
 public:
 	NoteRow(int16_t newY = -32768);
 	~NoteRow();
-	void renderRow(TimelineView* editorScreen, uint8_t[], uint8_t[], uint8_t[], uint8_t* image, uint8_t[], bool,
-	               uint32_t, bool allowNoteTails, int imageWidth, int32_t xScroll, uint32_t xZoom, int xStart = 0,
-	               int xEnd = kDisplayWidth, bool drawRepeats = false);
+	// void renderRow(TimelineView* editorScreen, uint8_t[], uint8_t[], uint8_t[], uint8_t* image, uint8_t[], bool,
+	//                uint32_t, bool allowNoteTails, int imageWidth, int32_t xScroll, uint32_t xZoom, int xStart = 0,
+	//                int xEnd = kDisplayWidth, bool drawRepeats = false);
+	void renderRow(TimelineView* editorScreen, uint8_t* image, 
+		uint8_t occupancyMask[], bool overwriteExisting, uint32_t effectiveRowLength, 
+		bool allowNoteTails, int renderWidth, int32_t xScroll, uint32_t xZoom, int xStartNow, 
+		int xEnd, bool drawRepeats, int clipColourOffset, bool isKit);
 	void deleteNoteByPos(ModelStackWithNoteRow* modelStack, int32_t pos, Action* action);
 	void stopCurrentlyPlayingNote(ModelStackWithNoteRow* modelStack, bool actuallySoundChange = true,
 	                              Note* note = NULL);

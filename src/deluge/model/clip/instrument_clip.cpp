@@ -22,7 +22,7 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/session_view.h"
-#include "gui/views/note_renderer.h"
+#include "gui/color_themes/note_color_theme.h"
 #include "gui/views/view.h"
 #include "hid/display/numeric_driver.h"
 #include "io/debug/print.h"
@@ -1332,9 +1332,9 @@ bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack
 			rowAllowsNoteTails = allowNoteTails(modelStackWithNoteRow);
 		}
 
-		noteRenderer.renderNoteRow(thisNoteRow, editorScreen, image, occupancyMask, false,
+		thisNoteRow->renderRow(editorScreen, image, occupancyMask, false,
 		                       loopLength, rowAllowsNoteTails, kDisplayWidth, xScroll, xZoom, xStart, xEnd,
-		                       drawRepeats, colourOffset,noteRowColourOffset,isKit);
+		                       drawRepeats, colourOffset,isKit);
 	}
 	if (addUndefinedArea) {
 		drawUndefinedArea(xScroll, xZoom, loopLength, image, occupancyMask, kDisplayWidth, editorScreen,
