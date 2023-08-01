@@ -51,9 +51,11 @@
 
 Session session{};
 
-#define LAUNCH_STATUS_NOTHING_TO_SYNC_TO 0
-#define LAUNCH_STATUS_LAUNCH_USING_QUANTIZATION 1
-#define LAUNCH_STATUS_LAUNCH_ALONG_WITH_EXISTING_LAUNCHING 2
+enum class LaunchStatus {
+	NOTHING_TO_SYNC_TO,
+	LAUNCH_USING_QUANTIZATION,
+	LAUNCH_ALONG_WITH_EXISTING_LAUNCHING,
+};
 
 Session::Session() {
 	cancelAllLaunchScheduling();
@@ -70,20 +72,20 @@ void Session::armAllClipsToStop(int32_t afterNumRepeats) {
 
 	uint32_t quantization;
 	uint32_t currentPosWithinQuantization;
-	uint8_t launchStatus =
+	LaunchStatus launchStatus =
 	    investigateSyncedLaunch(waitForClip, &currentPosWithinQuantization, &quantization, 0xFFFFFFFF, false);
 
-	if (launchStatus == LAUNCH_STATUS_NOTHING_TO_SYNC_TO) {
+	if (launchStatus == LaunchStatus::NOTHING_TO_SYNC_TO) {
 		// We'd never actually get here, because there always are Clips playing if this function gets called I think
 	}
 
-	else if (launchStatus == LAUNCH_STATUS_LAUNCH_USING_QUANTIZATION) {
+	else if (launchStatus == LaunchStatus::LAUNCH_USING_QUANTIZATION) {
 		int32_t pos = currentPosWithinQuantization % quantization;
 		int32_t ticksTilSwap = quantization - pos;
 		scheduleLaunchTiming(playbackHandler.getActualSwungTickCount() + ticksTilSwap, afterNumRepeats, quantization);
 	}
 
-	else if (launchStatus == LAUNCH_STATUS_LAUNCH_ALONG_WITH_EXISTING_LAUNCHING) {
+	else if (launchStatus == LaunchStatus::LAUNCH_ALONG_WITH_EXISTING_LAUNCHING) {
 		// Nothing to do!
 	}
 
@@ -1197,20 +1199,20 @@ void Session::scheduleOverdubToStartRecording(Clip* overdub, Clip* clipAbove) {
 
 	uint32_t quantization;
 	uint32_t currentPosWithinQuantization;
-	uint8_t launchStatus =
+	LaunchStatus launchStatus =
 	    investigateSyncedLaunch(waitForClip, &currentPosWithinQuantization, &quantization, overdub->loopLength, true);
 
 	// If nothing to sync to, which means no other Clips playing...
-	if (launchStatus == LAUNCH_STATUS_NOTHING_TO_SYNC_TO) {
+	if (launchStatus == LaunchStatus::NOTHING_TO_SYNC_TO) {
 		playbackHandler.endPlayback();
 		playbackHandler
 		    .setupPlaybackUsingInternalClock(); // We're restarting playback, but it was already happening, so no need for PGMs
 	}
 
 	// This case, too, can only actually happen if no Clips are playing
-	else if (launchStatus == LAUNCH_STATUS_LAUNCH_ALONG_WITH_EXISTING_LAUNCHING) {}
+	else if (launchStatus == LaunchStatus::LAUNCH_ALONG_WITH_EXISTING_LAUNCHING) {}
 
-	else { // LAUNCH_STATUS_LAUNCH_USING_QUANTIZATION
+	else { // LaunchStatus::LAUNCH_USING_QUANTIZATION
 		currentPosWithinQuantization = currentPosWithinQuantization % quantization;
 		uint32_t ticksTilStart = quantization - currentPosWithinQuantization;
 		int64_t launchTime = playbackHandler.getActualSwungTickCount() + ticksTilStart;
@@ -1314,20 +1316,20 @@ void Session::userWantsToArmClipsToStartOrSolo(uint8_t section, Clip* clip, bool
 
 	uint32_t quantization;
 	uint32_t currentPosWithinQuantization;
-	uint8_t launchStatus = investigateSyncedLaunch(waitForClip, &currentPosWithinQuantization, &quantization,
+	LaunchStatus launchStatus = investigateSyncedLaunch(waitForClip, &currentPosWithinQuantization, &quantization,
 	                                               longestStartingClipLength, allowSubdividedQuantization);
 
 	// If nothing to sync to, which means no other Clips playing...
-	if (launchStatus == LAUNCH_STATUS_NOTHING_TO_SYNC_TO) {
+	if (launchStatus == LaunchStatus::NOTHING_TO_SYNC_TO) {
 		armClipsWithNothingToSyncTo(section, clip);
 	}
 
 	// This case, too, can only actually happen if no Clips are playing
-	else if (launchStatus == LAUNCH_STATUS_LAUNCH_ALONG_WITH_EXISTING_LAUNCHING) {
+	else if (launchStatus == LaunchStatus::LAUNCH_ALONG_WITH_EXISTING_LAUNCHING) {
 		armClipsAlongWithExistingLaunching(armState, section, clip);
 	}
 
-	else { // LAUNCH_STATUS_LAUNCH_USING_QUANTIZATION
+	else { // LaunchStatus::LAUNCH_USING_QUANTIZATION
 		armClipsToStartOrSoloWithQuantization(currentPosWithinQuantization, quantization, section, stopAllOtherClips,
 		                                      clip, forceLateStart, allowLateStart, newNumRepeatsTilLaunch, armState);
 
@@ -1340,7 +1342,7 @@ void Session::userWantsToArmClipsToStartOrSolo(uint8_t section, Clip* clip, bool
 	}
 }
 
-int32_t Session::investigateSyncedLaunch(Clip* waitForClip, uint32_t* currentPosWithinQuantization,
+LaunchStatus Session::investigateSyncedLaunch(Clip* waitForClip, uint32_t* currentPosWithinQuantization,
                                          uint32_t* quantization, uint32_t longestStartingClipLength,
                                          bool allowSubdividedQuantization) {
 
@@ -1349,7 +1351,7 @@ int32_t Session::investigateSyncedLaunch(Clip* waitForClip, uint32_t* currentPos
 
 		// See if any other Clips are armed. We can start at the same time as them
 		if (launchEventAtSwungTickCount) {
-			return LAUNCH_STATUS_LAUNCH_ALONG_WITH_EXISTING_LAUNCHING;
+			return LaunchStatus::LAUNCH_ALONG_WITH_EXISTING_LAUNCHING;
 
 			// Otherwise...
 		}
@@ -1387,12 +1389,12 @@ int32_t Session::investigateSyncedLaunch(Clip* waitForClip, uint32_t* currentPos
 				}
 
 				*currentPosWithinQuantization = playbackHandler.getActualSwungTickCount();
-				return LAUNCH_STATUS_LAUNCH_USING_QUANTIZATION;
+				return LaunchStatus::LAUNCH_USING_QUANTIZATION;
 			}
 
 			// Or if using internal clock with no metronome or clock incoming or outgoing, then easy - we can really just restart playback
 			else {
-				return LAUNCH_STATUS_NOTHING_TO_SYNC_TO;
+				return LaunchStatus::NOTHING_TO_SYNC_TO;
 			}
 		}
 	}
@@ -1411,7 +1413,7 @@ int32_t Session::investigateSyncedLaunch(Clip* waitForClip, uint32_t* currentPos
 
 		*currentPosWithinQuantization =
 		    waitForClip->getClipToRecordTo()->getActualCurrentPosAsIfPlayingInForwardDirection();
-		return LAUNCH_STATUS_LAUNCH_USING_QUANTIZATION;
+		return LaunchStatus::LAUNCH_USING_QUANTIZATION;
 	}
 }
 
@@ -1423,24 +1425,24 @@ bool Session::armForSongSwap() {
 
 	uint32_t quantization;
 	uint32_t currentPosWithinQuantization;
-	uint8_t launchStatus =
+	LaunchStatus launchStatus =
 	    investigateSyncedLaunch(waitForClip, &currentPosWithinQuantization, &quantization, 0xFFFFFFFF, false);
 
 	// If nothing to sync to, just do the swap right now
-	if (launchStatus == LAUNCH_STATUS_NOTHING_TO_SYNC_TO) {
+	if (launchStatus == LaunchStatus::NOTHING_TO_SYNC_TO) {
 		playbackHandler.doSongSwap();
 		playbackHandler.endPlayback();
 		playbackHandler.setupPlaybackUsingInternalClock(); // No need to send PGMs - they're sent in doSongSwap().
 		return false;
 	}
 
-	else if (launchStatus == LAUNCH_STATUS_LAUNCH_USING_QUANTIZATION) {
+	else if (launchStatus == LaunchStatus::LAUNCH_USING_QUANTIZATION) {
 		int32_t pos = currentPosWithinQuantization % quantization;
 		int32_t ticksTilSwap = quantization - pos;
 		scheduleLaunchTiming(playbackHandler.getActualSwungTickCount() + ticksTilSwap, 1, quantization);
 		D_PRINTLN("ticksTilSwap:  %d", ticksTilSwap);
 	}
-	else if (launchStatus == LAUNCH_STATUS_LAUNCH_ALONG_WITH_EXISTING_LAUNCHING) {
+	else if (launchStatus == LaunchStatus::LAUNCH_ALONG_WITH_EXISTING_LAUNCHING) {
 		// Nothing to do!
 	}
 
@@ -1454,21 +1456,21 @@ bool Session::armForSwitchToArrangement() {
 
 	uint32_t quantization;
 	uint32_t currentPosWithinQuantization;
-	uint8_t launchStatus =
+	LaunchStatus launchStatus =
 	    investigateSyncedLaunch(waitForClip, &currentPosWithinQuantization, &quantization, 2147483647, false);
 
-	if (launchStatus == LAUNCH_STATUS_NOTHING_TO_SYNC_TO) {
+	if (launchStatus == LaunchStatus::NOTHING_TO_SYNC_TO) {
 		playbackHandler.switchToArrangement();
 		return false;
 	}
 
-	else if (launchStatus == LAUNCH_STATUS_LAUNCH_USING_QUANTIZATION) {
+	else if (launchStatus == LaunchStatus::LAUNCH_USING_QUANTIZATION) {
 		int32_t pos = currentPosWithinQuantization % quantization;
 		int32_t ticksTilSwap = quantization - pos;
 		scheduleLaunchTiming(playbackHandler.getActualSwungTickCount() + ticksTilSwap, 1, quantization);
 		switchToArrangementAtLaunchEvent = true;
 	}
-	else if (launchStatus == LAUNCH_STATUS_LAUNCH_ALONG_WITH_EXISTING_LAUNCHING) {
+	else if (launchStatus == LaunchStatus::LAUNCH_ALONG_WITH_EXISTING_LAUNCHING) {
 		switchToArrangementAtLaunchEvent = true;
 	}
 
