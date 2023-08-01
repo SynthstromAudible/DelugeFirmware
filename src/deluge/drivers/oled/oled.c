@@ -101,7 +101,7 @@ void oledMainInit() {
 }
 
 struct SpiTransferQueueItem spiTransferQueue[SPI_TRANSFER_QUEUE_SIZE];
-volatile bool_t spiTransferQueueCurrentlySending = false;
+volatile bool spiTransferQueueCurrentlySending = false;
 volatile uint8_t spiTransferQueueReadPos = 0;
 uint8_t spiTransferQueueWritePos = 0;
 

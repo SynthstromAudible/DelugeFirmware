@@ -97,13 +97,13 @@ struct UartItem uartItems[NUM_UART_ITEMS] __attribute__((aligned(CACHE_LINE_SIZE
 extern const uint8_t uartChannels[];
 extern const uint16_t txBufferSizes[];
 extern const uint8_t txDmaChannels[];
-extern char_t* const txBuffers[];
-extern char_t* const rxBuffers[];
-extern char_t* rxBufferReadAddr[];
+extern char* const txBuffers[];
+extern char* const rxBuffers[];
+extern char* rxBufferReadAddr[];
 extern const uint16_t rxBufferSizes[];
 extern const uint16_t txBufferSizes[];
 extern const uint8_t rxDmaChannels[];
-extern char_t const timingCaptureItems[];
+extern char const timingCaptureItems[];
 extern uint16_t const timingCaptureBufferSizes[];
 extern uint32_t* const timingCaptureBuffers[];
 extern const void (*txInterruptFunctions[])(uint32_t);
@@ -111,7 +111,7 @@ extern const uint8_t txInterruptPriorities[];
 extern const uint32_t* const uartRxLinkDescriptors[];
 extern uint8_t const timingCaptureDMAChannels[];
 extern const uint32_t* const timingCaptureLinkDescriptors[];
-extern const bool_t uartItemIsScim[];
+extern const bool uartItemIsScim[];
 
 #define DMA_SCIF_TX_CONFIG (0b00000000001000000000000001101000 | DMA_AM_FOR_SCIF)
 #define DMA_SCIM_TX_CONFIG                                                                                             \
@@ -195,16 +195,16 @@ void uartPutCharBack(int item) {
 	rxBufferReadAddr[item] = rxBuffers[item] + readPos;
 }
 
-void uartInsertFakeChar(int item, char_t data) {
+void uartInsertFakeChar(int item, char data) {
 	int readPos = (uint32_t)rxBufferReadAddr[item] - ((uint32_t)rxBuffers[item]);
 	readPos = (readPos - 1) & (rxBufferSizes[item] - 1);
 	rxBufferReadAddr[item] = rxBuffers[item] + readPos;
 	*(rxBufferReadAddr[item] + UNCACHED_MIRROR_OFFSET) = data;
 }
 
-uint8_t uartGetChar(int item, char_t* readData) {
+uint8_t uartGetChar(int item, char* readData) {
 
-	char_t const* currentWritePos = (char_t*)DMACnNonVolatile(rxDmaChannels[item])
+	char const* currentWritePos = (char*)DMACnNonVolatile(rxDmaChannels[item])
 	                                    .CRDA_n; // We deliberately don't go (volatile uint32_t*) here, for speed
 
 	if (currentWritePos == rxBufferReadAddr[item]) {
@@ -220,11 +220,11 @@ uint8_t uartGetChar(int item, char_t* readData) {
 	return 1;
 }
 
-uint32_t* uartGetCharWithTiming(int timingCaptureItem, char_t* readData) {
+uint32_t* uartGetCharWithTiming(int timingCaptureItem, char* readData) {
 
 	int item = timingCaptureItems[timingCaptureItem];
 
-	char_t const* currentWritePos = (char_t*)DMACnNonVolatile(rxDmaChannels[item])
+	char const* currentWritePos = (char*)DMACnNonVolatile(rxDmaChannels[item])
 	                                    .CRDA_n; // We deliberately don't go (volatile uint32_t*) here, for speed
 
 	if (currentWritePos == rxBufferReadAddr[item]) {
@@ -281,7 +281,7 @@ void initUartDMA() {
 	int item;
 	for (item = 0; item < NUM_UART_ITEMS; item++) {
 
-		bool_t isScim = 0;
+		bool isScim = 0;
 
 		uartItems[item].txBufferWritePos = 0;
 		uartItems[item].txBufferReadPos = 0;

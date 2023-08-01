@@ -47,10 +47,10 @@ struct UartItem { // Exactly 8 bytes, so can align nicely to cache line
 extern struct UartItem uartItems[];
 
 extern void initUartDMA();
-uint8_t uartGetChar(int item, char_t* readData);
-uint32_t* uartGetCharWithTiming(int timingCaptureItem, char_t* readData);
+uint8_t uartGetChar(int item, char* readData);
+uint32_t* uartGetCharWithTiming(int timingCaptureItem, char* readData);
 void uartPutCharBack(int item);
-void uartInsertFakeChar(int item, char_t data);
+void uartInsertFakeChar(int item, char data);
 void uartPrintln(char const* output);
 void uartPrint(char const* output);
 void uartPrintNumber(int number);
