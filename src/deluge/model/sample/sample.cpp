@@ -296,7 +296,7 @@ int Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSamples,
 
 	//int lengthInSamplesAfterReduction = ((lengthInSamples + (kPercBufferReductionSize >> 1)) >> PERC_BUFFER_REDUCTION_MAGNITUDE);
 	int lengthInSamplesAfterReduction = ((lengthInSamples - 1) >> kPercBufferReductionMagnitude) + 1;
-	lengthInSamplesAfterReduction = getMax(lengthInSamplesAfterReduction, 1); // Can't allocate less than 1 byte
+	lengthInSamplesAfterReduction = std::max(lengthInSamplesAfterReduction, 1); // Can't allocate less than 1 byte
 
 	bool percCacheDoneWithClusters = (lengthInSamplesAfterReduction >= (audioFileManager.clusterSize >> 1));
 
@@ -470,10 +470,10 @@ doLoading:
 
 	// Make sure we don't shoot past end of waveform
 	if (!reversed) {
-		endPosSamples = getMin(endPosSamples, (int32_t)lengthInSamples);
+		endPosSamples = std::min(endPosSamples, (int32_t)lengthInSamples);
 	}
 	else {
-		endPosSamples = getMax(endPosSamples, (int32_t)-1);
+		endPosSamples = std::max(endPosSamples, (int32_t)-1);
 	}
 
 #if !MEASURE_PERC_CACHE_PERFORMANCE
@@ -557,7 +557,7 @@ doLoading:
 			int samplesLeftThisDestCluster =
 			    reversed ? (posWithinPercClusterBig + 1)
 			             : ((audioFileManager.clusterSize << kPercBufferReductionMagnitude) - posWithinPercClusterBig);
-			numSamplesThisClusterReadWrite = getMin(numSamplesThisClusterReadWrite, samplesLeftThisDestCluster);
+			numSamplesThisClusterReadWrite = std::min(numSamplesThisClusterReadWrite, samplesLeftThisDestCluster);
 		}
 
 		else {
@@ -603,7 +603,7 @@ doLoading:
 				numSamplesLeftThisPercPixelSegment = kPercBufferReductionSize;
 			}
 
-			numSamplesThisPercPixelSegment = getMin(numSamplesThisPercPixelSegment, numSamplesLeftThisPercPixelSegment);
+			numSamplesThisPercPixelSegment = std::min(numSamplesThisPercPixelSegment, numSamplesLeftThisPercPixelSegment);
 
 			char* endPos = currentPos + numSamplesThisPercPixelSegment * posIncrement;
 
@@ -665,7 +665,7 @@ doLoading:
 	} while (numSamples);
 
 	percCacheZone->samplesAtStartWhichShouldBeReplaced =
-	    getMax(2048, (percCacheZone->endPos - percCacheZone->startPos) * playDirection); // 2048 is fairly arbitrary
+	    std::max<int>(2048, (percCacheZone->endPos - percCacheZone->startPos) * playDirection); // 2048 is fairly arbitrary
 
 	// If we connected up to another, later zone...
 	if (willHitNextElement) {
@@ -967,7 +967,7 @@ void Sample::percCacheClusterStolen(Cluster* cluster) {
 
 		if ((zoneLater->endPos - laterBorder) * playDirection > 0) {
 			zoneLater->samplesAtStartWhichShouldBeReplaced =
-			    getMax(0, zoneLater->samplesAtStartWhichShouldBeReplaced
+			    std::max<int>(0, zoneLater->samplesAtStartWhichShouldBeReplaced
 			                  - (laterBorder - zoneLater->startPos) * playDirection);
 			zoneLater->startPos = laterBorder;
 		}
@@ -1046,8 +1046,8 @@ float getPeakIndexFloat(int i, int32_t peakValue, int32_t prevValue, int32_t nex
 
 	int nudgeInDirection = (nextValue > prevValue) ? 1 : -1;
 
-	int32_t lowerValue = getMin(prevValue, nextValue);
-	int32_t higherValue = getMax(prevValue, nextValue);
+	int32_t lowerValue = std::min(prevValue, nextValue);
+	int32_t higherValue = std::max(prevValue, nextValue);
 
 	int32_t totalDistance = peakValue - lowerValue; // Distance from lower neighbouring height to peak height
 
@@ -1409,14 +1409,14 @@ continueWhileLoop:
 
 				// If our grabbed window would end beyond the end of the audio file, shift it left
 				beginningOffsetForPitchDetection =
-				    getMin(beginningOffsetForPitchDetection,
+				    std::min(beginningOffsetForPitchDetection,
 				           (int32_t)(audioDataStartPosBytes + audioDataLengthBytes
 				                     - (kPitchDetectWindowSize << lengthDoublings) * numChannels * byteDepth));
 
 				// TODO: it's not quite perfect doing that and storing the result, because lengthDoublings will sometimes be different
 
 				// And now make sure that hasn't pushed it further back left than where we are right now
-				beginningOffsetForPitchDetection = getMax(beginningOffsetForPitchDetection, currentOffset);
+				beginningOffsetForPitchDetection = std::max(beginningOffsetForPitchDetection, currentOffset);
 			}
 			if (currentOffset < beginningOffsetForPitchDetection) {
 				goto continueWhileLoop;
@@ -1712,7 +1712,7 @@ int32_t Sample::getValueSpan() {
 
 void Sample::finalizeAfterLoad(uint32_t fileSize) {
 
-	audioDataLengthBytes = getMin(audioDataLengthBytes, fileSize - audioDataStartPosBytes);
+	audioDataLengthBytes = std::min<uint64_t>(audioDataLengthBytes, fileSize - audioDataStartPosBytes);
 
 	// If floating point file, Clusers can only be float-processed (as they're loaded) once we've found the data start-pos, which we just did, and
 	// since we've already loaded that first cluster which contains data, we'd better float-process it now!
@@ -1720,7 +1720,7 @@ void Sample::finalizeAfterLoad(uint32_t fileSize) {
 
 	unsigned int bytesPerSample = byteDepth * numChannels;
 
-	audioDataLengthBytes = getMin(audioDataLengthBytes, fileSize - audioDataStartPosBytes);
+	audioDataLengthBytes = std::min<uint64_t>(audioDataLengthBytes, fileSize - audioDataStartPosBytes);
 
 	lengthInSamples = audioDataLengthBytes / bytesPerSample;
 	audioDataLengthBytes = lengthInSamples * bytesPerSample; // Make sure it's an exact number of samples

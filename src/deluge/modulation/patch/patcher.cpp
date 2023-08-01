@@ -101,8 +101,8 @@ void Patcher::performPatching(uint32_t sourcesChanged, Sound* sound, ParamManage
 
 	int32_t* paramFinalValues = getParamFinalValuesPointer();
 
-	uint8_t params[getMax(Param::Global::FIRST, kNumParams - Param::Global::FIRST) + 1];
-	int32_t cableCombinations[getMax(Param::Global::FIRST, kNumParams - Param::Global::FIRST)];
+	uint8_t params[std::max<int>(Param::Global::FIRST, kNumParams - Param::Global::FIRST) + 1];
+	int32_t cableCombinations[std::max<int>(Param::Global::FIRST, kNumParams - Param::Global::FIRST)];
 	int numParamsPatched = 0;
 
 	// Go through regular Destinations going directly to a param

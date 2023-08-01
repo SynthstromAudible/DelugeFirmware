@@ -1357,7 +1357,7 @@ Clip* SessionView::createNewInstrumentClip(int yDisplay) {
 	uint32_t oneBar = currentSong->getBarLength();
 
 	// Default Clip length. Default to current zoom, minimum 1 bar
-	int32_t newClipLength = getMax(currentDisplayLength, oneBar);
+	int32_t newClipLength = std::max<int32_t>(currentDisplayLength, oneBar);
 
 	newClip->colourOffset = random(72);
 	newClip->loopLength = newClipLength;
@@ -2010,7 +2010,7 @@ noTransition:
 }
 
 uint32_t SessionView::getClipLocalScroll(Clip* clip, uint32_t overviewScroll, uint32_t xZoom) {
-	return getMin((clip->loopLength - 1) / (xZoom * kDisplayWidth) * xZoom * kDisplayWidth, overviewScroll);
+	return std::min((clip->loopLength - 1) / (xZoom * kDisplayWidth) * xZoom * kDisplayWidth, overviewScroll);
 }
 
 void SessionView::flashPlayRoutine() {
@@ -2176,7 +2176,7 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 		}
 	}
 	currentSong->currentClip = clip;
-	int clipPlaceOnScreen = getMax((int16_t)-1, getMin((int16_t)kDisplayHeight, getClipPlaceOnScreen(clip)));
+	int clipPlaceOnScreen = std::clamp(getClipPlaceOnScreen(clip), -1, kDisplayHeight);
 
 	currentSong->xScroll[NAVIGATION_CLIP] =
 	    getClipLocalScroll(clip, currentSong->xScroll[NAVIGATION_CLIP], currentSong->xZoom[NAVIGATION_CLIP]);
@@ -2285,8 +2285,8 @@ void SessionView::clipNeedsReRendering(Clip* clip) {
 	int bottomIndex = currentSong->songViewYScroll;
 	int topIndex = bottomIndex + kDisplayHeight;
 
-	bottomIndex = getMax(bottomIndex, 0);
-	topIndex = getMin(topIndex, currentSong->sessionClips.getNumElements());
+	bottomIndex = std::max(bottomIndex, 0);
+	topIndex = std::min(topIndex, currentSong->sessionClips.getNumElements());
 
 	for (int c = bottomIndex; c < topIndex; c++) {
 		Clip* thisClip = currentSong->sessionClips.getClipAtIndex(c);
@@ -2302,8 +2302,8 @@ void SessionView::sampleNeedsReRendering(Sample* sample) {
 	int bottomIndex = currentSong->songViewYScroll;
 	int topIndex = bottomIndex + kDisplayHeight;
 
-	bottomIndex = getMax(bottomIndex, 0);
-	topIndex = getMin(topIndex, currentSong->sessionClips.getNumElements());
+	bottomIndex = std::max(bottomIndex, 0);
+	topIndex = std::min(topIndex, currentSong->sessionClips.getNumElements());
 
 	for (int c = bottomIndex; c < topIndex; c++) {
 		Clip* thisClip = currentSong->sessionClips.getClipAtIndex(c);

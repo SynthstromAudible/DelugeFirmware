@@ -167,8 +167,8 @@ NumericLayerScrollingText* NumericDriver::setScrollingText(char const* newText, 
 	bool andAHalf;
 	int startAtEncodedPos = getEncodedPosFromLeft(startAtTextPos, newText, &andAHalf);
 
-	startAtEncodedPos = getMin(startAtEncodedPos, (int)newLayer->length - 4);
-	startAtEncodedPos = getMax(startAtEncodedPos, 0);
+	startAtEncodedPos = std::min(startAtEncodedPos, (int)newLayer->length - 4);
+	startAtEncodedPos = std::max(startAtEncodedPos, 0);
 
 	newLayer->currentPos = startAtEncodedPos;
 	newLayer->initialDelay = initialDelay;
@@ -289,7 +289,7 @@ int NumericDriver::encodeText(char const* newText, uint8_t* destination, bool al
 
 	while (true) {
 		unsigned char thisChar = newText[readPos];
-		uint8_t* segments = &destination[getMax(writePos, 0)];
+		uint8_t* segments = &destination[std::max(writePos, 0)];
 
 		// First, check if it's a dot, which we might want to add to a previous position
 		bool isDot = (thisChar == '.' || thisChar == '#' || thisChar == ',');
@@ -455,7 +455,7 @@ void NumericDriver::setTextAsSlot(int16_t currentSlot, int8_t currentSubSlot, bo
                                   int blinkPos, bool blinkImmediately) {
 	char text[12];
 
-	//int minNumDigits = getMax(1, blinkPos + 1);
+	//int minNumDigits = std::max(1, blinkPos + 1);
 	int minNumDigits = (blinkPos == -1) ? -1 : 3;
 
 	slotToString(currentSlot, currentSubSlot, text, minNumDigits);

@@ -713,7 +713,7 @@ void GlobalEffectable::setupDelayWorkingState(DelayWorkingState* delayWorkingSta
 	    cableToLinearParamShortcut(unpatchedParams->getValue(Param::Unpatched::GlobalEffectable::DELAY_AMOUNT)));
 	if (shouldLimitDelayFeedback) {
 		delayWorkingState->delayFeedbackAmount =
-		    getMin(delayWorkingState->delayFeedbackAmount, (int32_t)(1 << 30) - (1 << 26));
+		    std::min(delayWorkingState->delayFeedbackAmount, (int32_t)(1 << 30) - (1 << 26));
 	}
 	delayWorkingState->userDelayRate = getFinalParameterValueExp(
 	    paramNeutralValues[Param::Global::DELAY_RATE],

@@ -690,9 +690,9 @@ readCachedWindow:
 
 		int bytesTilCacheClusterEnd = audioFileManager.clusterSize - bytePosWithinCluster;
 
-		int bytesTilThisWindowEnd = getMin(bytesTilCacheClusterEnd, bytesTilCacheEnd);
-		bytesTilThisWindowEnd = getMin(bytesTilThisWindowEnd, bytesTilLoopEndPoint);
-		bytesTilThisWindowEnd = getMin(bytesTilThisWindowEnd, bytesTilWaveformEnd);
+		int bytesTilThisWindowEnd = std::min(bytesTilCacheClusterEnd, bytesTilCacheEnd);
+		bytesTilThisWindowEnd = std::min(bytesTilThisWindowEnd, bytesTilLoopEndPoint);
+		bytesTilThisWindowEnd = std::min(bytesTilThisWindowEnd, bytesTilWaveformEnd);
 
 		int samplesTilThisWindowEnd;
 		if constexpr (kCacheByteDepth == 3) {
@@ -899,8 +899,8 @@ uncachedPlayback:
 			cacheWritePos = &cacheCluster->data[bytePosWithinCluster];
 
 			int cachingBytesTilClusterEnd = audioFileManager.clusterSize - bytePosWithinCluster;
-			int cachingBytesTilUncachedReadEnd = getMin(cachingBytesTilClusterEnd, cachingBytesTilLoopEnd);
-			cachingBytesTilUncachedReadEnd = getMin(cachingBytesTilUncachedReadEnd, cachingBytesTilWaveformEnd);
+			int cachingBytesTilUncachedReadEnd = std::min(cachingBytesTilClusterEnd, cachingBytesTilLoopEnd);
+			cachingBytesTilUncachedReadEnd = std::min(cachingBytesTilUncachedReadEnd, cachingBytesTilWaveformEnd);
 
 			int cachingSamplesTilUncachedReadEnd = 0;
 
@@ -1149,7 +1149,7 @@ readTimestretched:
 
 				if (allowedToDoHop) {
 					numSamplesThisTimestretchedRead =
-					    getMin((int32_t)numSamplesThisTimestretchedRead, timeStretcher->samplesTilHopEnd);
+					    std::min((int32_t)numSamplesThisTimestretchedRead, timeStretcher->samplesTilHopEnd);
 				}
 			}
 

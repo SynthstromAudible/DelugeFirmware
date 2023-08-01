@@ -892,7 +892,7 @@ bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int nu
 						samplesLeft = (((int64_t)samplesLeft << 24) / actualSampleReadRate);
 					}
 
-					highestNumSamplesLeft = getMax(highestNumSamplesLeft, samplesLeft);
+					highestNumSamplesLeft = std::max(highestNumSamplesLeft, samplesLeft);
 				}
 			}
 
@@ -964,8 +964,8 @@ skipAutoRelease : {}
 			int32_t b = multiply_32x32_rshift32(paramFinalValues[Param::Local::OSC_B_VOLUME], overallOscAmplitude);
 
 			// Clip off those amplitudes before they get too high. I think these were originally intended to stop the amplitude rising to more than "4", whatever that meant?
-			sourceAmplitudes[0] = getMin(a, (int32_t)134217727);
-			sourceAmplitudes[1] = getMin(b, (int32_t)134217727);
+			sourceAmplitudes[0] = std::min(a, (int32_t)134217727);
+			sourceAmplitudes[1] = std::min(b, (int32_t)134217727);
 		}
 
 		// Or if subtractive, we don't do that, because we do want to apply the overall amplitude *after* the filter
@@ -1137,7 +1137,7 @@ decidedWhichBufferRenderingInto:
 			}
 
 			// Perform the same limiting that we do above for the oscillators
-			int32_t noiseAmplitude = getMin(n, (int32_t)268435455) >> 2;
+			int32_t noiseAmplitude = std::min(n, (int32_t)268435455) >> 2;
 
 			int32_t* __restrict__ thisSample = oscBuffer;
 			do {
@@ -3215,7 +3215,7 @@ uint32_t Voice::getPriorityRating() {
 	    // - that one really does need to go above state, otherwise "once" samples can still cut out synth drones.
 	    // In a perfect world, culling for the purpose of "soliciting" a Voice would also count the new Voice being
 	    // solicited, preferring to cut out that same Sound's old, say, one Voice, than another Sound's only Voice
-	    + ((uint32_t)getMin(assignedToSound->numVoicesAssigned, 7) << 27)
+	    + ((uint32_t)std::min(assignedToSound->numVoicesAssigned, 7) << 27)
 
 	    // Bits 24-26 - envelope state
 	    + ((uint32_t)envelopes[0].state << 24)

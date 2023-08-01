@@ -215,7 +215,7 @@ void SaveInstrumentPresetUI::selectEncoderAction(int8_t offset) {
 			return;
 		}
 
-		enteredTextEditPos = getMin(enteredTextEditPos, enteredText.getLength());
+		enteredTextEditPos = std::min(enteredTextEditPos, enteredText.getLength());
 
 		currentFilename.set(&enteredText); // Only used for folders.
 	}

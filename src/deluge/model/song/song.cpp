@@ -1085,9 +1085,9 @@ weAreInArrangementEditorOrInClipInstance:
 	uint32_t dampening = AudioEngine::reverb.getdamp() * (uint32_t)2147483648u;
 	uint32_t width = AudioEngine::reverb.getwidth() * (uint32_t)2147483648u;
 
-	roomSize = getMin(roomSize, (uint32_t)2147483647);
-	dampening = getMin(dampening, (uint32_t)2147483647);
-	width = getMin(width, (uint32_t)2147483647);
+	roomSize = std::min(roomSize, (uint32_t)2147483647);
+	dampening = std::min(dampening, (uint32_t)2147483647);
+	width = std::min(width, (uint32_t)2147483647);
 
 	storageManager.writeAttribute("roomSize", roomSize);
 	storageManager.writeAttribute("dampening", dampening);
@@ -1251,7 +1251,7 @@ int Song::readFromFile() {
 						}
 						else if (!strcmp(tagName, "syncLevel")) {
 							reverbCompressorSync = storageManager.readAbsoluteSyncLevelFromFile(this);
-							reverbCompressorSync = (SyncLevel)getMin((uint8_t)reverbCompressorSync, (uint8_t)9);
+							reverbCompressorSync = (SyncLevel)std::min((uint8_t)reverbCompressorSync, (uint8_t)9);
 							storageManager.exitTag("syncLevel");
 						}
 						else {
@@ -1274,14 +1274,14 @@ int Song::readFromFile() {
 			// "xScroll"
 			case 0x006c6c6f:
 				xScroll[NAVIGATION_CLIP] = storageManager.readTagOrAttributeValueInt();
-				xScroll[NAVIGATION_CLIP] = getMax((int32_t)0, xScroll[NAVIGATION_CLIP]);
+				xScroll[NAVIGATION_CLIP] = std::max((int32_t)0, xScroll[NAVIGATION_CLIP]);
 				break;
 
 			// "xScrollSongView"
 			case 0x536c6c6f:
 				if (*(((uint32_t*)tagName) + 2) == 0x56676e6f && *(((uint32_t*)tagName) + 3) == 0x00776965) {
 					xScrollForReturnToSongView = storageManager.readTagOrAttributeValueInt();
-					xScrollForReturnToSongView = getMax((int32_t)0, xScrollForReturnToSongView);
+					xScrollForReturnToSongView = std::max((int32_t)0, xScrollForReturnToSongView);
 					break;
 				}
 				else {
@@ -1315,7 +1315,7 @@ int Song::readFromFile() {
 				if (*(((uint32_t*)tagName) + 2) == 0x65695667
 				    && (*(((uint32_t*)tagName) + 3) & 0x0000FFFF) == 0x00000077) {
 					xZoomForReturnToSongView = storageManager.readTagOrAttributeValueInt();
-					xZoomForReturnToSongView = getMax((int32_t)1, xZoomForReturnToSongView);
+					xZoomForReturnToSongView = std::max((int32_t)1, xZoomForReturnToSongView);
 				}
 				else {
 					goto unknownTag;
@@ -1325,7 +1325,7 @@ int Song::readFromFile() {
 			// "xZoom"
 			else if ((*(((uint32_t*)tagName) + 1) & 0x0000FFFF) == 0x0000006d) {
 				xZoom[NAVIGATION_CLIP] = storageManager.readTagOrAttributeValueInt();
-				xZoom[NAVIGATION_CLIP] = getMax((uint32_t)1, xZoom[NAVIGATION_CLIP]);
+				xZoom[NAVIGATION_CLIP] = std::max((uint32_t)1, xZoom[NAVIGATION_CLIP]);
 			}
 			else {
 				goto unknownTag;
@@ -1343,7 +1343,7 @@ int Song::readFromFile() {
 			case 0x536c6c6f:
 				if (*(((uint32_t*)tagName) + 2) == 0x56676e6f && *(((uint32_t*)tagName) + 3) == 0x00776569) {
 					songViewYScroll = storageManager.readTagOrAttributeValueInt();
-					songViewYScroll = getMax(1 - kDisplayHeight, songViewYScroll);
+					songViewYScroll = std::max(1 - kDisplayHeight, songViewYScroll);
 					break;
 				}
 				else {
@@ -1356,7 +1356,7 @@ int Song::readFromFile() {
 				    && *(((uint32_t*)tagName) + 4) == 0x6956746e
 				    && (*(((uint32_t*)tagName) + 5) & 0x00FFFFFF) == 0x00007765) {
 					arrangementYScroll = storageManager.readTagOrAttributeValueInt();
-					arrangementYScroll = getMax(1 - kDisplayHeight, arrangementYScroll);
+					arrangementYScroll = std::max(1 - kDisplayHeight, arrangementYScroll);
 					break;
 				}
 				else {
@@ -1418,8 +1418,8 @@ unknownTag:
 
 			else if (!strcmp(tagName, "swingAmount")) {
 				swingAmount = storageManager.readTagOrAttributeValueInt();
-				swingAmount = getMin(swingAmount, (int8_t)49);
-				swingAmount = getMax(swingAmount, (int8_t)-49);
+				swingAmount = std::min(swingAmount, (int8_t)49);
+				swingAmount = std::max(swingAmount, (int8_t)-49);
 				storageManager.exitTag("swingAmount");
 			}
 
@@ -1428,7 +1428,7 @@ unknownTag:
 				// after reading the whole song. This is because these two attributes could easily be stored in either order in the file, so we won't know both until
 				// the end. Also, in firmware pre V3.1.0-alpha, all "sync" values were stored as plain old ints, to be read irrespective of insideWorldTickMagnitude
 				swingInterval = storageManager.readTagOrAttributeValueInt();
-				swingInterval = getMin(swingInterval, (uint8_t)9);
+				swingInterval = std::min(swingInterval, (uint8_t)9);
 				storageManager.exitTag("swingInterval");
 			}
 
@@ -1440,7 +1440,7 @@ unknownTag:
 
 			else if (!strcmp(tagName, "activeModFunction")) {
 				globalEffectable.modKnobMode = storageManager.readTagOrAttributeValueInt();
-				globalEffectable.modKnobMode = getMin(globalEffectable.modKnobMode, (uint8_t)(kNumModButtons - 1));
+				globalEffectable.modKnobMode = std::min(globalEffectable.modKnobMode, (uint8_t)(kNumModButtons - 1));
 				storageManager.exitTag("activeModFunction");
 			}
 
@@ -1499,7 +1499,7 @@ unknownTag:
 					if (!strcmp(tagName, "modeNote")) {
 						modeNotes[numModeNotes] = storageManager.readTagOrAttributeValueInt();
 						modeNotes[numModeNotes] =
-						    getMin((uint8_t)11, getMax(lowestCurrentAllowed, modeNotes[numModeNotes]));
+						    std::min((uint8_t)11, std::max(lowestCurrentAllowed, modeNotes[numModeNotes]));
 						lowestCurrentAllowed = modeNotes[numModeNotes] + 1;
 						numModeNotes++;
 						storageManager.exitTag("modeNote");
@@ -2928,8 +2928,8 @@ int Song::removeOutputFromMainList(
 	int bottomYDisplay = -arrangementYScroll;
 	int topYDisplay = bottomYDisplay + getNumOutputs();
 
-	bottomYDisplay = getMax(0, bottomYDisplay);
-	topYDisplay = getMin(kDisplayHeight - 1, topYDisplay);
+	bottomYDisplay = std::max(0, bottomYDisplay);
+	topYDisplay = std::min(kDisplayHeight - 1, topYDisplay);
 
 	int yDisplay = outputIndex - arrangementYScroll;
 
@@ -4805,8 +4805,8 @@ lookAtNextOne:
 	int clipYDisplay = clipIndex - songViewYScroll;
 	int bottomYDisplay = -songViewYScroll;
 	int topYDisplay = bottomYDisplay + sessionClips.getNumElements() - 1;
-	bottomYDisplay = getMax(bottomYDisplay, 0);
-	topYDisplay = getMin(topYDisplay, kDisplayHeight - 1);
+	bottomYDisplay = std::max(bottomYDisplay, 0);
+	topYDisplay = std::min(topYDisplay, kDisplayHeight - 1);
 	int amountOfStuffAbove = topYDisplay - clipYDisplay;
 	int amountOfStuffBelow = clipYDisplay - bottomYDisplay;
 
@@ -4876,7 +4876,7 @@ bool Song::deletePendingOverdubs(Output* onlyWithOutput, int* originalClipIndex,
 }
 
 int Song::getYScrollSongViewWithoutPendingOverdubs() {
-	int numToSearch = getMin(sessionClips.getNumElements(), songViewYScroll + kDisplayHeight);
+	int numToSearch = std::min(sessionClips.getNumElements(), songViewYScroll + kDisplayHeight);
 
 	int outputValue = songViewYScroll;
 
@@ -5060,7 +5060,7 @@ void Song::changeSwingInterval(int newValue) {
 	if (playbackHandler.playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE) {
 
 		int leftShift = 10 - swingInterval;
-		leftShift = getMax(leftShift, 0);
+		leftShift = std::max(leftShift, 0);
 		uint32_t doubleSwingInterval = 3 << (leftShift);
 
 		// Rejig the timer tick stuff

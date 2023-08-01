@@ -372,15 +372,15 @@ noEmptySpace:
 // Returns new size
 uint32_t MemoryRegion::shortenRight(void* address, uint32_t newSize) {
 
-	newSize = getMax(newSize, 4);
+	newSize = std::max<uint32_t>(newSize, 4);
 	newSize = (newSize + 3) & 0b11111111111111111111111111111100; // Round new size up to 4-byte boundary
 
 	uint32_t* __restrict__ header = (uint32_t*)((char*)address - 4);
 	uint32_t oldAllocatedSize = *header & SPACE_SIZE_MASK;
 	uint32_t allocationType = *header & SPACE_TYPE_MASK;
 
-	uint32_t* __restrict__ lookRight = (uint32_t*)((uint32_t)address + oldAllocatedSize
-	                                               + 4); // Looking to what's directly right of our old allocated space
+	// Looking to what's directly right of our old allocated space
+	uint32_t* __restrict__ lookRight = (uint32_t*)((uint32_t)address + oldAllocatedSize + 4);
 
 	int newSizeLowerLimit = oldAllocatedSize;
 	if ((*lookRight & SPACE_TYPE_MASK) != SPACE_HEADER_EMPTY) {
@@ -415,7 +415,7 @@ uint32_t MemoryRegion::shortenLeft(void* address, uint32_t amountToShorten, uint
 	uint32_t* __restrict__ footer = (uint32_t*)((char*)address + oldAllocatedSize);
 	uint32_t newSize = oldAllocatedSize - amountToShorten;
 
-	newSize = getMax(newSize, 4);
+	newSize = std::max<uint32_t>(newSize, 4);
 	newSize = (newSize + 3) & 0b11111111111111111111111111111100; // Round new size up to 4-byte boundary
 
 	uint32_t* __restrict__ lookLeft =
@@ -693,8 +693,9 @@ void MemoryRegion::extend(void* address, uint32_t minAmountToExtend, uint32_t id
 
 			//Debug::println("extend leaving empty space right");
 
-			int amountToCutRightIncludingHeaders = getMax(12, surplusWeGot);
-			amountToCutRightIncludingHeaders = getMin(amountToCutRightIncludingHeaders, grabResult.amountsExtended[0]);
+			int amountToCutRightIncludingHeaders = std::max(12, surplusWeGot);
+			amountToCutRightIncludingHeaders =
+			    std::min(amountToCutRightIncludingHeaders, grabResult.amountsExtended[0]);
 
 			surplusWeGot -= amountToCutRightIncludingHeaders;
 			grabResult.amountsExtended[0] -= amountToCutRightIncludingHeaders;
@@ -710,9 +711,9 @@ void MemoryRegion::extend(void* address, uint32_t minAmountToExtend, uint32_t id
 
 				//Debug::println("extend leaving empty space left");
 
-				int amountToCutLeftIncludingHeaders = getMax(12, surplusWeGot);
+				int amountToCutLeftIncludingHeaders = std::max(12, surplusWeGot);
 				amountToCutLeftIncludingHeaders =
-				    getMin(amountToCutLeftIncludingHeaders, grabResult.amountsExtended[1]);
+				    std::min(amountToCutLeftIncludingHeaders, grabResult.amountsExtended[1]);
 
 				surplusWeGot -= amountToCutLeftIncludingHeaders;
 				grabResult.amountsExtended[1] -= amountToCutLeftIncludingHeaders;

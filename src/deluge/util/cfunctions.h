@@ -19,9 +19,6 @@
 
 #include <stdint.h>
 
-#define getMin(a, b) (((a) < (b)) ? (a) : (b))
-#define getMax(a, b) (((a) > (b)) ? (a) : (b))
-
 int getNumDecimalDigits(uint32_t number);
 void intToString(int32_t number, char* buffer, int minNumDigits);
 void floatToString(float number, char* __restrict__ buffer, int minNumDecimalPlaces, int maxNumDecimalPlaces);

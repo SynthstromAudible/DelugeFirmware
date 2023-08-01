@@ -714,7 +714,7 @@ void PatchCableSet::processCurrentPos(ModelStackWithParamCollection* modelStack,
 		ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(paramId, param);
 
 		int32_t ticksTilNextEventThisCable = param->processCurrentPos(modelStackWithAutoParam, reversed, didPingpong);
-		ticksTilNextEvent = getMin(ticksTilNextEvent, ticksTilNextEventThisCable);
+		ticksTilNextEvent = std::min(ticksTilNextEvent, ticksTilNextEventThisCable);
 
 		if (param->valueIncrementPerHalfTick) {
 			flagCable(modelStack->summary->whichParamsAreInterpolating, c);

@@ -139,7 +139,7 @@ void Range::drawValueForEditingRange(bool blinkImmediately) {
 	uint8_t blinkMask[kNumericDisplayLength];
 	if (soundEditor.editingRangeEdge == RangeEdit::LEFT) {
 		for (int i = 0; i < kNumericDisplayLength; i++) {
-			if (i < leftLength + kNumericDisplayLength - getMin(4, textLength))
+			if (i < leftLength + kNumericDisplayLength - std::min(4, textLength))
 				blinkMask[i] = 0;
 			else
 				blinkMask[i] = 255;

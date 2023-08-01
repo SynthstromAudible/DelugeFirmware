@@ -960,7 +960,7 @@ ramError:
 					Note* noteToCopy = thisNoteRow->notes.getElement(n + startI);
 					Note* newNote = &newCopiedNoteRow->notes[n];
 					newNote->pos = noteToCopy->pos - startPos;
-					newNote->length = getMin(
+					newNote->length = std::min(
 					    noteToCopy->length,
 					    endPos
 					        - noteToCopy
@@ -1595,7 +1595,7 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 
 					// Make sure it doesn't eat into the next note
 					int32_t maxLength = noteRow->getDistanceToNextNote(noteStartPos, modelStackWithNoteRow);
-					newLength = getMin(newLength, maxLength);
+					newLength = std::min<int>(newLength, maxLength);
 
 					areaStart = noteStartPos;
 					areaWidth = newLength;
@@ -1704,11 +1704,11 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 						}
 					}
 
-					desiredNoteLength = getMax(desiredNoteLength, squareWidth);
+					desiredNoteLength = std::max(desiredNoteLength, squareWidth);
 				}
 
 				uint32_t maxNoteLengthHere = clip->getWrapEditLevel();
-				desiredNoteLength = getMin(desiredNoteLength, maxNoteLengthHere);
+				desiredNoteLength = std::min(desiredNoteLength, maxNoteLengthHere);
 
 				Note* firstNote;
 				Note* lastNote;
@@ -1789,7 +1789,7 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 					// Can only set the mod region after setting the selected drum! Otherwise the params' currentValues don't end up right
 					view.setModRegion(
 					    firstNote->pos,
-					    getMax((uint32_t)distanceToNextNote + lastNote->pos - firstNote->pos, squareWidth),
+					    std::max((uint32_t)distanceToNextNote + lastNote->pos - firstNote->pos, squareWidth),
 					    modelStackWithNoteRow->noteRowId);
 
 					// Now that we're holding a note down, get set up for if the user wants to edit its MPE values.
@@ -1984,7 +1984,7 @@ void InstrumentClipView::adjustVelocity(int velocityChange) {
 				if (numericDriver.popupActive) {
 #endif
 					editPadPresses[i].intendedVelocity =
-					    getMax(1, getMin(127, (int)editPadPresses[i].intendedVelocity + velocityChange));
+					    std::max(1, std::min(127, (int)editPadPresses[i].intendedVelocity + velocityChange));
 					noteRow->changeNotesAcrossAllScreens(editPadPresses[i].intendedPos, modelStackWithNoteRow, action,
 					                                     CORRESPONDING_NOTES_ADJUST_VELOCITY, velocityChange);
 				}
@@ -2168,8 +2168,8 @@ multiplePresses:
 		// Decide the probability, based on the existing probability of the leftmost note
 		probabilityValue = editPadPresses[leftMostIndex].intendedProbability & 127;
 		probabilityValue += offset;
-		probabilityValue = getMax(1, probabilityValue);
-		probabilityValue = getMin(kNumProbabilityValues + 35, probabilityValue);
+		probabilityValue = std::max(1, probabilityValue);
+		probabilityValue = std::min(kNumProbabilityValues + 35, probabilityValue);
 
 		Action* action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
 		if (!action) {
@@ -2867,7 +2867,7 @@ void InstrumentClipView::offsetNoteCodeAction(int newOffset) {
 
 	// If in scale mode, need to check whether we're allowed to change scale..
 	if (getCurrentClip()->isScaleModeClip()) {
-		newOffset = getMax(-1, getMin(1, newOffset));
+		newOffset = std::max(-1, std::min(1, newOffset));
 		yVisualWithinOctave = getYVisualWithinOctaveFromYDisplay(lastAuditionedYDisplay);
 
 		// If not allowed to move, blink the scale mode button to remind the user that that's why
@@ -3077,9 +3077,9 @@ void InstrumentClipView::auditionPadAction(int velocity, int yDisplay, bool shif
 
 					// Remember what NoteRow was pressed - and limit to being no further than 1 above or 1 below the existing NoteRows
 					yDisplayOfNewNoteRow = yDisplay;
-					yDisplayOfNewNoteRow = getMax((int)yDisplayOfNewNoteRow, (int)-1 - getCurrentClip()->yScroll);
+					yDisplayOfNewNoteRow = std::max((int)yDisplayOfNewNoteRow, (int)-1 - getCurrentClip()->yScroll);
 					int maximum = getCurrentClip()->getNumNoteRows() - getCurrentClip()->yScroll;
-					yDisplayOfNewNoteRow = getMin((int)yDisplayOfNewNoteRow, maximum);
+					yDisplayOfNewNoteRow = std::min((int)yDisplayOfNewNoteRow, maximum);
 
 					goto justReRender;
 				}
@@ -3948,7 +3948,7 @@ checkIfSelectingRanges:
 					if (soundEditor.isUntransposedNoteWithinRange(yNote)) {
 						for (int colour = 0; colour < 3; colour++) {
 							int value = (int)thisColour[colour] + 30;
-							thisColour[colour] = getMin(value, 255);
+							thisColour[colour] = std::min(value, 255);
 						}
 					}
 				}
@@ -4039,7 +4039,7 @@ ActionResult InstrumentClipView::verticalEncoderAction(int offset, bool inCardRo
 
 			// If shift button not pressed, transpose whole octave
 			if (!Buttons::isShiftButtonPressed()) {
-				offset = getMin((int)1, getMax((int)-1, offset));
+				offset = std::min((int)1, std::max((int)-1, offset));
 				getCurrentClip()->transpose(offset * 12, modelStack);
 				if (getCurrentClip()->isScaleModeClip()) {
 					getCurrentClip()->yScroll += offset * (currentSong->numModeNotes - 12);
@@ -4938,7 +4938,7 @@ void InstrumentClipView::fillOffScreenImageStores() {
 
 uint32_t InstrumentClipView::getSquareWidth(int32_t square, int32_t effectiveLength) {
 	int32_t squareRightEdge = getPosFromSquare(square + 1);
-	return getMin(effectiveLength, squareRightEdge) - getPosFromSquare(square);
+	return std::min(effectiveLength, squareRightEdge) - getPosFromSquare(square);
 }
 
 void InstrumentClipView::flashDefaultRootNote() {

@@ -139,8 +139,8 @@ bool batteryLEDState = false;
 void batteryLEDBlink() {
 	setOutputState(BATTERY_LED.port, BATTERY_LED.pin, batteryLEDState);
 	int blinkPeriod = ((int)batteryMV - 2630) * 3;
-	blinkPeriod = getMin(blinkPeriod, 500);
-	blinkPeriod = getMax(blinkPeriod, 60);
+	blinkPeriod = std::min(blinkPeriod, 500);
+	blinkPeriod = std::max(blinkPeriod, 60);
 	uiTimerManager.setTimer(TIMER_BATT_LED_BLINK, blinkPeriod);
 	batteryLEDState = !batteryLEDState;
 }

@@ -681,12 +681,12 @@ void Clip::readTagFromFile(char const* tagName, Song* song, int32_t* readAutomat
 
 	else if (!strcmp(tagName, "section")) {
 		section = storageManager.readTagOrAttributeValueInt();
-		section = getMin(section, (uint8_t)(kMaxNumSections - 1));
+		section = std::min(section, (uint8_t)(kMaxNumSections - 1));
 	}
 
 	else if (!strcmp(tagName, "trackLength") || !strcmp(tagName, "length")) {
 		loopLength = storageManager.readTagOrAttributeValueInt();
-		loopLength = getMax((int32_t)1, loopLength);
+		loopLength = std::max((int32_t)1, loopLength);
 		*readAutomationUpToPos = loopLength;
 	}
 
@@ -729,7 +729,7 @@ void Clip::readTagFromFile(char const* tagName, Song* song, int32_t* readAutomat
 	/*
 	else if (!strcmp(tagName, "activeModFunction")) {
 		//modKnobMode = stringToInt(storageManager.readTagContents());
-		//modKnobMode = getMin(modKnobMode, (uint8_t)(NUM_MOD_BUTTONS - 1));
+		//modKnobMode = std::min(modKnobMode, (uint8_t)(NUM_MOD_BUTTONS - 1));
 	}
 	*/
 }

@@ -775,7 +775,7 @@ void AutoParam::setupInterpolation(ParamNode* nextNodeInOurDirection, int32_t ef
 
 		// Or if still going...
 		else {
-			timeSinceOverridden = getMax(timeSinceOverridden, (int32_t)0);
+			timeSinceOverridden = std::max(timeSinceOverridden, (int32_t)0);
 
 			int32_t limit = timeSinceOverridden << (26 - OVERRIDE_DURATION_MAGNITUDE_INTERPOLATING);
 			if (valueIncrementPerHalfTick > limit) {
@@ -2029,7 +2029,7 @@ finishedConsideringRestartNode:
 	// Ok now paste the stuff
 	int32_t minPos = 0;
 
-	int32_t maxPos = getMin(endPos, effectiveLength);
+	int32_t maxPos = std::min(endPos, effectiveLength);
 
 	for (int n = 0; n < copiedParamAutomation->numNodes; n++) {
 

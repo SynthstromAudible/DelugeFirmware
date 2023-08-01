@@ -367,7 +367,7 @@ void ParamManagerForTimeline::processCurrentPos(ModelStackWithThreeMainThings* m
 
 		summary->paramCollection->processCurrentPos(modelStackWithParamCollection, ticksSkipped, reversed, didPingpong,
 		                                            mayInterpolate);
-		ticksTilNextEvent = getMin(ticksTilNextEvent, summary->paramCollection->ticksTilNextEvent);
+		ticksTilNextEvent = std::min(ticksTilNextEvent, summary->paramCollection->ticksTilNextEvent);
 
 		FOR_EACH_AUTOMATED_PARAM_COLLECTION_DEFINITELY_SOME_END
 

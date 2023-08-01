@@ -71,7 +71,7 @@ private:
 		}
 		int32_t octave = (((note + kOctaveSize) - rootNote) / kOctaveSize) - 1;
 		// Make sure we don't go into negative because our root note is lower than C-2
-		return getMax(0, octave * scaleNoteCount + padScaleOffset);
+		return std::max<uint16_t>(0, octave * scaleNoteCount + padScaleOffset);
 	}
 
 	// inline uint16_t padIndexFromNote(uint16_t note) {

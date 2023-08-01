@@ -473,7 +473,7 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 			}
 			else if (!strcmp(tagName, "note")) {
 				int presetNote = storageManager.readTagOrAttributeValueInt();
-				presetNote = getMax(0, getMin(127, presetNote));
+				presetNote = std::max(0, std::min(127, presetNote));
 
 				sources[0].transpose += presetNote - 60;
 				sources[1].transpose += presetNote - 60;
@@ -672,17 +672,17 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "num")) {
 				int32_t contents = storageManager.readTagOrAttributeValueInt();
-				numUnison = getMax((int32_t)0, getMin((int32_t)kMaxNumVoicesUnison, contents));
+				numUnison = std::max((int32_t)0, std::min((int32_t)kMaxNumVoicesUnison, contents));
 				storageManager.exitTag("num");
 			}
 			else if (!strcmp(tagName, "detune")) {
 				int contents = storageManager.readTagOrAttributeValueInt();
-				unisonDetune = getMax(0, getMin(kMaxUnisonDetune, contents));
+				unisonDetune = std::max(0, std::min(kMaxUnisonDetune, contents));
 				storageManager.exitTag("detune");
 			}
 			else if (!strcmp(tagName, "spread")) {
 				int contents = storageManager.readTagOrAttributeValueInt();
-				unisonStereoSpread = getMax(0, getMin(kMaxUnisonStereoSpread, contents));
+				unisonStereoSpread = std::max(0, std::min(kMaxUnisonStereoSpread, contents));
 				storageManager.exitTag("spread");
 			}
 			else {
@@ -746,7 +746,7 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 	else if (!strcmp(tagName, "cents")) {
 		int8_t newCents = storageManager.readTagOrAttributeValueInt();
 		// We don't need to call the setTranspose method here, because this will get called soon anyway, once the sample rate is known
-		sources[0].cents = (getMax((int8_t)-50, getMin((int8_t)50, newCents)));
+		sources[0].cents = (std::max((int8_t)-50, std::min((int8_t)50, newCents)));
 		storageManager.exitTag("cents");
 	}
 	else if (!strcmp(tagName, "continuous")) {
@@ -996,7 +996,7 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "status")) {
 				int32_t contents = storageManager.readTagOrAttributeValueInt();
-				switchedOn = getMax((int32_t)0, getMin((int32_t)1, contents));
+				switchedOn = std::max((int32_t)0, std::min((int32_t)1, contents));
 				storageManager.exitTag("status");
 			}
 			else if (!strcmp(tagName, "frequency")) {
@@ -1031,7 +1031,7 @@ int Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramMa
 		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "status")) {
 				int32_t contents = storageManager.readTagOrAttributeValueInt();
-				switchedOn = getMax((int32_t)0, getMin((int32_t)1, contents));
+				switchedOn = std::max((int32_t)0, std::min((int32_t)1, contents));
 				storageManager.exitTag("status");
 			}
 			else if (!strcmp(tagName, "frequency")) {
@@ -1678,7 +1678,7 @@ int32_t Sound::hasCutOrLoopModeSamples(ParamManagerForTimeline* paramManager, in
 
 			// TODO: need a bit here to take into account the fact that the note pitch may well have lengthened or shortened the sample
 
-			maxLength = getMax(maxLength, length);
+			maxLength = std::max(maxLength, length);
 		}
 	}
 
@@ -2075,7 +2075,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 	delayWorkingState.delayFeedbackAmount = paramFinalValues[Param::Global::DELAY_FEEDBACK - Param::Global::FIRST];
 	if (shouldLimitDelayFeedback) {
 		delayWorkingState.delayFeedbackAmount =
-		    getMin(delayWorkingState.delayFeedbackAmount, (int32_t)(1 << 30) - (1 << 26));
+		    std::min(delayWorkingState.delayFeedbackAmount, (int32_t)(1 << 30) - (1 << 26));
 	}
 	delayWorkingState.userDelayRate = paramFinalValues[Param::Global::DELAY_RATE - Param::Global::FIRST];
 	delay.setupWorkingState(&delayWorkingState, numVoicesAssigned != 0);
@@ -2690,7 +2690,7 @@ void Sound::setupUnisonStereoSpread() {
 		for (int u = 0; u < numUnison; u++) {
 			// alternate the voices like -2 +1 0 -1 +2 for more balanced
 			// interaction with detune
-			bool isOdd = getMin(u, numUnison - 1 - u) & 1;
+			bool isOdd = std::min(u, numUnison - 1 - u) & 1;
 			int32_t sign = isOdd ? -1 : 1;
 
 			unisonPan[u] = sign * (lowestVoice + voiceSpacing * u);
@@ -3751,13 +3751,13 @@ int16_t Sound::getMaxOscTranspose(InstrumentClip* clip) {
 	int maxRawOscTranspose = -32768;
 	for (int s = 0; s < kNumSources; s++) {
 		if (getSynthMode() == SynthMode::FM || sources[s].oscType != OscType::SAMPLE) {
-			maxRawOscTranspose = getMax(maxRawOscTranspose, sources[s].transpose);
+			maxRawOscTranspose = std::max<int>(maxRawOscTranspose, sources[s].transpose);
 		}
 	}
 
 	if (getSynthMode() == SynthMode::FM) {
-		maxRawOscTranspose = getMax(maxRawOscTranspose, (int)modulatorTranspose[0]);
-		maxRawOscTranspose = getMax(maxRawOscTranspose, (int)modulatorTranspose[1]);
+		maxRawOscTranspose = std::max(maxRawOscTranspose, (int)modulatorTranspose[0]);
+		maxRawOscTranspose = std::max(maxRawOscTranspose, (int)modulatorTranspose[1]);
 	}
 
 	if (maxRawOscTranspose == -32768) {
@@ -3778,13 +3778,13 @@ int16_t Sound::getMinOscTranspose() {
 	int minRawOscTranspose = 32767;
 	for (int s = 0; s < kNumSources; s++) {
 		if (getSynthMode() == SynthMode::FM || sources[s].oscType != OscType::SAMPLE) {
-			minRawOscTranspose = getMin(minRawOscTranspose, sources[s].transpose);
+			minRawOscTranspose = std::min<int>(minRawOscTranspose, sources[s].transpose);
 		}
 	}
 
 	if (getSynthMode() == SynthMode::FM) {
-		minRawOscTranspose = getMin(minRawOscTranspose, (int)modulatorTranspose[0]);
-		minRawOscTranspose = getMin(minRawOscTranspose, (int)modulatorTranspose[1]);
+		minRawOscTranspose = std::min(minRawOscTranspose, (int)modulatorTranspose[0]);
+		minRawOscTranspose = std::min(minRawOscTranspose, (int)modulatorTranspose[1]);
 	}
 
 	if (minRawOscTranspose == 32767) {

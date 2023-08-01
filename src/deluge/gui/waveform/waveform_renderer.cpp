@@ -129,7 +129,7 @@ int WaveformRenderer::getColBrightnessForSingleRow(int xDisplay, int32_t maxPeak
 	int32_t peak1 = std::abs(data->minPerCol[xDisplay]);
 	int32_t peak2 = std::abs(data->maxPerCol[xDisplay]);
 
-	int32_t peakHere = getMax(peak1, peak2);
+	int32_t peakHere = std::max(peak1, peak2);
 
 	if (false && peakHere >= maxPeakFromZero) {
 		Debug::print("peak: ");
@@ -140,7 +140,7 @@ int WaveformRenderer::getColBrightnessForSingleRow(int xDisplay, int32_t maxPeak
 
 	uint32_t peak16 = ((int64_t)peakHere << 16) / maxPeakFromZero;
 
-	return getMin(peak16 >> 8, 256); // Max 256 - for now. Looks great and bright.
+	return std::min<int>(peak16 >> 8, 256); // Max 256 - for now. Looks great and bright.
 	    // Must manually limit this, cos if we've ended up with values higher than our maxPeakFromZero,
 	    // there'd be trouble otherwise
 }
@@ -608,8 +608,8 @@ void WaveformRenderer::getColBarPositions(int xDisplay, WaveformRenderData* data
 void WaveformRenderer::drawColBar(int xDisplay, int32_t min24, int32_t max24,
                                   uint8_t thisImage[][kDisplayWidth + kSideBarWidth][3], int brightness,
                                   uint8_t rgb[]) {
-	int yStart = getMax((int)(min24 >> 24), -(kDisplayHeight >> 1));
-	int yStop = getMin((int)(max24 >> 24) + 1, kDisplayHeight >> 1);
+	int yStart = std::max((int)(min24 >> 24), -(kDisplayHeight >> 1));
+	int yStop = std::min((int)(max24 >> 24) + 1, kDisplayHeight >> 1);
 
 	for (int y = yStart; y < yStop; y++) {
 

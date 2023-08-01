@@ -48,8 +48,8 @@ void KeyboardLayoutIsomorphic::handleHorizontalEncoder(int offset, bool shiftEna
 
 	if (shiftEnabled) {
 		state.rowInterval += offset;
-		state.rowInterval = getMax(state.rowInterval, kMinIsomorphicRowInterval);
-		state.rowInterval = getMin(kMaxIsomorphicRowInterval, state.rowInterval);
+		state.rowInterval = std::max(state.rowInterval, kMinIsomorphicRowInterval);
+		state.rowInterval = std::min(kMaxIsomorphicRowInterval, state.rowInterval);
 
 		char buffer[13] = "Row step:   ";
 		intToString(state.rowInterval, buffer + (HAVE_OLED ? 10 : 0), 1);
@@ -62,8 +62,8 @@ void KeyboardLayoutIsomorphic::handleHorizontalEncoder(int offset, bool shiftEna
 	int highestScrolledNote = (getHighestClipNote() - ((kDisplayHeight - 1) * state.rowInterval + kDisplayWidth - 1));
 
 	// Make sure current value is in bounds
-	state.scrollOffset = getMax(getLowestClipNote(), state.scrollOffset);
-	state.scrollOffset = getMin(state.scrollOffset, highestScrolledNote);
+	state.scrollOffset = std::max(getLowestClipNote(), state.scrollOffset);
+	state.scrollOffset = std::min(state.scrollOffset, highestScrolledNote);
 
 	// Offset if still in bounds (reject if the next row can not be shown completely)
 	int newOffset = state.scrollOffset + offset;
@@ -122,7 +122,7 @@ void KeyboardLayoutIsomorphic::renderPads(uint8_t image[][kDisplayWidth + kSideB
 				if (soundEditor.isUntransposedNoteWithinRange(noteCode)) {
 					for (int colour = 0; colour < 3; colour++) {
 						int value = (int)image[y][x][colour] + 35;
-						image[y][x][colour] = getMin(value, 255);
+						image[y][x][colour] = std::min(value, 255);
 					}
 				}
 			}

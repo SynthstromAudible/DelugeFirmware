@@ -1303,8 +1303,8 @@ bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack
 	Clip::renderAsSingleRow(modelStack, editorScreen, xScroll, xZoom, image, occupancyMask, addUndefinedArea,
 	                        noteRowIndexStart, noteRowIndexEnd, xStart, xEnd, allowBlur, drawRepeats);
 
-	noteRowIndexStart = getMax(noteRowIndexStart, 0);
-	noteRowIndexEnd = getMin(noteRowIndexEnd, noteRows.getNumElements());
+	noteRowIndexStart = std::max(noteRowIndexStart, 0);
+	noteRowIndexEnd = std::min(noteRowIndexEnd, noteRows.getNumElements());
 
 	bool rowAllowsNoteTails;
 
@@ -1438,7 +1438,7 @@ int InstrumentClip::guessRootNote(Song* song, int previousRoot) {
 				minorIncompatibility++;
 			}
 
-			incompatibility = getMin(majorIncompatibility, minorIncompatibility);
+			incompatibility = std::min(majorIncompatibility, minorIncompatibility);
 		}
 
 		if (incompatibility < lowestIncompatibility
@@ -2486,7 +2486,7 @@ someError:
 				if (!strcmp(tagName, "referToTrackId")) {
 					if (!output) {
 						int clipId = storageManager.readTagOrAttributeValueInt();
-						clipId = getMax((int)0, clipId);
+						clipId = std::max((int)0, clipId);
 						if (clipId >= song->sessionClips.getNumElements()) {
 							error = ERROR_FILE_CORRUPTED;
 							goto someError;
@@ -2691,11 +2691,12 @@ doReadBendRange:
 		if (!instrumentWasLoadedByReferenceFromClip) {
 			switch (output->type) {
 			case InstrumentType::MIDI_OUT:
-				((MIDIInstrument*)output)->channelSuffix = getMin(25, getMax(-1, instrumentPresetSubSlot));
+				((MIDIInstrument*)output)->channelSuffix = std::clamp<int>(instrumentPresetSubSlot, -1, 25);
+				[[fallthrough]];
 				// No break
 
 			case InstrumentType::CV:
-				((NonAudioInstrument*)output)->channel = getMin(kNumInstrumentSlots, getMax(0, instrumentPresetSlot));
+				((NonAudioInstrument*)output)->channel = std::clamp<int>(instrumentPresetSlot, 0, kNumInstrumentSlots);
 				break;
 
 			case InstrumentType::SYNTH:
@@ -3167,11 +3168,11 @@ int32_t InstrumentClip::getDistanceToNextNote(Note* givenNote, ModelStackWithNot
 		for (int i = 0; i < noteRows.getNumElements(); i++) {
 			NoteRow* thisNoteRow = noteRows.getElement(i);
 			int32_t earliestThisRow = thisNoteRow->getDistanceToNextNote(givenNote->pos, modelStack);
-			distance = getMin(earliestThisRow, distance);
+			distance = std::min(earliestThisRow, distance);
 		}
 	}
 
-	return getMax(distance, givenNote->length);
+	return std::max(distance, givenNote->length);
 }
 
 // Make sure noteRow not NULL before you call!
@@ -3550,8 +3551,8 @@ displayError:
 	if (newInstrumentType == InstrumentType::KIT) {
 		// Make sure we're not scrolled too far up (this has to happen amongst this code down here - NoteRows are deleted in the functions called above)
 		int maxScroll = (int)getNumNoteRows() - kDisplayHeight;
-		maxScroll = getMax(0, maxScroll);
-		yScroll = getMin(yScroll, maxScroll);
+		maxScroll = std::max(0, maxScroll);
+		yScroll = std::min(yScroll, maxScroll);
 		((Kit*)newInstrument)->selectedDrum = NULL;
 	}
 

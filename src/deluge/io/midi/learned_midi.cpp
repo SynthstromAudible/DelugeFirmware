@@ -102,7 +102,7 @@ void LearnedMIDI::readFromFile(int midiMessageType) {
 		else if (midiMessageType != MIDI_MESSAGE_NONE
 		         && !strcmp(tagName, getTagNameFromMIDIMessageType(midiMessageType))) {
 			noteOrCC = storageManager.readTagOrAttributeValueInt();
-			noteOrCC = getMin((int)noteOrCC, 127);
+			noteOrCC = std::min((int)noteOrCC, 127);
 		}
 		storageManager.exitTag();
 	}

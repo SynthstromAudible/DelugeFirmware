@@ -165,7 +165,7 @@ int ResizeableArray::copyElementsFromOldMemory(void* __restrict__ otherMemory, i
 		// TODO: ideally, we're wrap the memory in the clone
 
 		// Copy everything before other's wrap
-		int numBytesBefore = getMin(elementsBeforeWrap, numElements) * elementSize;
+		int numBytesBefore = std::min(elementsBeforeWrap, numElements) * elementSize;
 		memcpy((char* __restrict__)memory, (char* __restrict__)otherMemory + (otherMemoryStart * elementSize),
 		       numBytesBefore);
 
@@ -292,7 +292,7 @@ mostBasicDelete:
 
 		else {
 
-			int distanceFromEndPoint = getMin(i, numElements - i - numToDelete);
+			int distanceFromEndPoint = std::min(i, numElements - i - numToDelete);
 
 			int distanceFromWrapPoint;
 			if (i >= elementsBeforeWrap) {
@@ -578,7 +578,7 @@ allocationFail:
 		}
 
 		// Or if we're here, we got our new memory. Copy the stuff over. Before wrap point...
-		int upTo = getMin(elementsBeforeWrap, numElements);
+		int upTo = std::min(elementsBeforeWrap, numElements);
 		copyToNewMemory(newMemory, 0, getElementAddress(0), upTo, newMemorySize, newMemoryStartIndex);
 
 		// And after wrap point...
@@ -784,9 +784,9 @@ void ResizeableArray::moveElementsLeft(int oldStartIndex, int oldStopIndex, int 
 		}
 
 		// Move the elements that need to move past the wrap point
-		int startPastWrapPoint = getMax(oldStartIndex - elementsBeforeWrap,
+		int startPastWrapPoint = std::max(oldStartIndex - elementsBeforeWrap,
 		                                0); // These two new ints are relative to memory, not to memoryStart
-		int stopPastWrapPoint = getMin(oldStopIndex - elementsBeforeWrap, distance);
+		int stopPastWrapPoint = std::min(oldStopIndex - elementsBeforeWrap, distance);
 		int numToMovePastWrapPoint = stopPastWrapPoint - startPastWrapPoint;
 		memcpy((char*)memory + (memorySize - distance + startPastWrapPoint) * elementSize,
 		       (char*)memory + startPastWrapPoint * elementSize, elementSize * numToMovePastWrapPoint);
@@ -848,8 +848,8 @@ void ResizeableArray::moveElementsRight(int oldStartIndex, int oldStopIndex, int
 		}
 
 		// Move the elements that need to move past the wrap point. TODO: this isn't quite ideal...
-		int startPastWrapPoint = getMax(oldStartIndex - elementsBeforeWrap + distance, 0);
-		int stopPastWrapPoint = getMin(oldStopIndex - elementsBeforeWrap + distance, distance);
+		int startPastWrapPoint = std::max(oldStartIndex - elementsBeforeWrap + distance, 0);
+		int stopPastWrapPoint = std::min(oldStopIndex - elementsBeforeWrap + distance, distance);
 		int numToMovePastWrapPoint = stopPastWrapPoint - startPastWrapPoint;
 		memcpy((char*)memory + startPastWrapPoint * elementSize,
 		       (char*)memory + (memorySize - distance + startPastWrapPoint) * elementSize,
@@ -965,7 +965,7 @@ workNormally:
 		// Or, if wrap...
 		else {
 
-			int distanceFromEndPoint = getMin(i, numElements - i);
+			int distanceFromEndPoint = std::min(i, numElements - i);
 			int distanceFromWrapPoint = i - elementsBeforeWrap;
 			if (distanceFromWrapPoint < 0) {
 				distanceFromWrapPoint = -distanceFromWrapPoint;
@@ -1116,14 +1116,14 @@ getBrandNewMemoryAgain:
 			uint32_t newMemoryStartIndex = newMemorySize - (newNum >> 1);
 
 			// Copy until we get up to either the wrap point or the insertion point
-			int firstElements = getMin(i, elementsBeforeWrap);
+			int firstElements = std::min(i, elementsBeforeWrap);
 			if (firstElements > 0) {
 				copyToNewMemory(newMemory, 0, getElementAddress(0), firstElements, newMemorySize, newMemoryStartIndex);
 			}
 
 			// If we didn't reach the wrap point because we reached the insertion point, do some more, up until the wrap point
 			if (firstElements < elementsBeforeWrap) {
-				int secondElementsTotal = getMin(elementsBeforeWrap, numElements);
+				int secondElementsTotal = std::min(elementsBeforeWrap, numElements);
 				if (secondElementsTotal > 0) {
 					copyToNewMemory(newMemory, firstElements + numToInsert, getElementAddress(firstElements),
 					                secondElementsTotal - firstElements, newMemorySize, newMemoryStartIndex);
@@ -1139,7 +1139,7 @@ getBrandNewMemoryAgain:
 			}
 
 			// Ok, we've now passed the wrap point *and* the insertion point. See what's left
-			int upTo = getMax(elementsBeforeWrap, i);
+			int upTo = std::max(elementsBeforeWrap, i);
 			int elementsLeft = numElements - upTo;
 			if (elementsLeft > 0) {
 				copyToNewMemory(newMemory, upTo + numToInsert, getElementAddress(upTo), elementsLeft, newMemorySize,

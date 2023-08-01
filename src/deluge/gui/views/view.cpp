@@ -854,10 +854,10 @@ void View::modEncoderAction(int whichModEncoder, int offset) {
 
 				int32_t value = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
 				int knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
-				int lowerLimit = getMin(-64, knobPos);
+				int lowerLimit = std::min(-64, knobPos);
 				int newKnobPos = knobPos + offset;
-				newKnobPos = getMax(newKnobPos, lowerLimit);
-				newKnobPos = getMin(newKnobPos, 64);
+				newKnobPos = std::max(newKnobPos, lowerLimit);
+				newKnobPos = std::min(newKnobPos, 64);
 				if (newKnobPos == knobPos) {
 					return;
 				}

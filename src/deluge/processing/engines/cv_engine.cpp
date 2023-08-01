@@ -162,8 +162,8 @@ void CVEngine::sendNote(bool on, uint8_t channel, int16_t note) {
 
 			// Calculate the voltage
 			voltage = calculateVoltage(note, channel);
-			voltage = getMin(voltage, (int32_t)65535);
-			voltage = getMax(voltage, (int32_t)0);
+			voltage = std::min(voltage, (int32_t)65535);
+			voltage = std::max(voltage, (int32_t)0);
 			sendVoltageOut(channel, voltage);
 		}
 
@@ -213,8 +213,8 @@ void CVEngine::setCVPitchBend(uint8_t channel, int32_t value, bool outputToo) {
 void CVEngine::recalculateCVChannelVoltage(uint8_t channel) {
 	int32_t voltage = calculateVoltage(cvChannels[channel].noteCurrentlyPlaying, channel);
 
-	voltage = getMin(voltage, (int32_t)65535);
-	voltage = getMax(voltage, (int32_t)0);
+	voltage = std::min(voltage, (int32_t)65535);
+	voltage = std::max(voltage, (int32_t)0);
 	sendVoltageOut(channel, voltage);
 }
 

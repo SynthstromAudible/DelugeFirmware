@@ -77,8 +77,8 @@ void SampleRecorder::detachSample() {
 
 	// If we were holding onto the reasons for the first couple of Clusters, release them now
 	if (keepingReasonsForFirstClusters) {
-		int numClustersToRemoveFor = getMin(kNumClustersLoadedAhead, sample->clusters.getNumElements());
-		numClustersToRemoveFor = getMin(numClustersToRemoveFor, firstUnwrittenClusterIndex);
+		int numClustersToRemoveFor = std::min(kNumClustersLoadedAhead, sample->clusters.getNumElements());
+		numClustersToRemoveFor = std::min<int>(numClustersToRemoveFor, firstUnwrittenClusterIndex);
 
 		for (int l = 0; l < numClustersToRemoveFor; l++) {
 			Cluster* cluster = sample->clusters.getElement(l)->cluster;
@@ -620,7 +620,7 @@ int SampleRecorder::finalizeRecordedFile() {
 			maxPeak = -1 - recordPeakLMinusR;
 		}
 		else {
-			maxPeak = -1 - getMin(recordPeakL, recordPeakR);
+			maxPeak = -1 - std::min(recordPeakL, recordPeakR);
 		}
 
 		for (lshiftAmount = 0; ((uint32_t)2147483648 >> (lshiftAmount + 1)) > maxPeak; lshiftAmount++) {}
@@ -839,7 +839,7 @@ void SampleRecorder::feedAudio(int32_t* __restrict__ inputAddress, int numSample
 		// If haven't actually started recording yet cos we're compensating for lag...
 		if (numSamplesBeenRunning < (uint32_t)numSamplesToRunBeforeBeginningCapturing) {
 			int numSamplesTilBeginRecording = numSamplesToRunBeforeBeginningCapturing - numSamplesBeenRunning;
-			numSamplesThisCycle = getMin(numSamplesThisCycle, numSamplesTilBeginRecording);
+			numSamplesThisCycle = std::min(numSamplesThisCycle, numSamplesTilBeginRecording);
 		}
 
 		// Or, if properly recording...
@@ -855,7 +855,7 @@ doFinishCapturing:
 					return;
 				}
 
-				numSamplesThisCycle = getMin(numSamplesThisCycle, samplesLeft);
+				numSamplesThisCycle = std::min(numSamplesThisCycle, samplesLeft);
 			}
 			if (ALPHA_OR_BETA_VERSION && numSamplesThisCycle <= 0) {
 				numericDriver.freezeWithError("bbbb");
@@ -884,7 +884,7 @@ doFinishCapturing:
 			if (bytesTilClusterEnd <= bytesWeWantToWrite - bytesPerSample) {
 				int samplesTilClusterEnd =
 				    (uint16_t)(bytesTilClusterEnd - 1) / (uint8_t)bytesPerSample + 1; // Rounds up
-				numSamplesThisCycle = getMin(numSamplesThisCycle, samplesTilClusterEnd);
+				numSamplesThisCycle = std::min(numSamplesThisCycle, samplesTilClusterEnd);
 			}
 
 			if (ALPHA_OR_BETA_VERSION && numSamplesThisCycle <= 0) {

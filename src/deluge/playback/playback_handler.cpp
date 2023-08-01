@@ -567,7 +567,7 @@ void PlaybackHandler::actionTimerTickPart2() {
 
 	// Schedule next timer tick. Normal case is two swing intervals away.
 	int leftShift = 10 - currentSong->swingInterval;
-	leftShift = getMax(leftShift, 0);
+	leftShift = std::max(leftShift, 0);
 	uint32_t timeTilNextTimerTick = 3 << (leftShift); // That's doubleSwingInterval
 
 	// But if count-in happening, limit it to one bar's length (or perhaps this should be one beat, to avoid slight screwiness with very long swing intervals?)
@@ -794,7 +794,7 @@ doMetronome:
 				int32_t ticksIntoCurrentBeep = currentMetronomeTick % swungTicksPerQuarterNote;
 				int32_t swungTicksTilNextMetronomeEvent =
 				    swungTicksPerQuarterNote - ticksIntoCurrentBeep; // Ticks til next beep
-				swungTicksTilNextEvent = getMin(swungTicksTilNextEvent, swungTicksTilNextMetronomeEvent);
+				swungTicksTilNextEvent = std::min(swungTicksTilNextEvent, swungTicksTilNextMetronomeEvent);
 			}
 		}
 	}
@@ -826,7 +826,7 @@ void PlaybackHandler::scheduleSwungTickFromInternalClock() {
 
 		if (currentSong->hasAnySwing()) {
 			int leftShift = 9 - currentSong->swingInterval;
-			leftShift = getMax(leftShift, 0);
+			leftShift = std::max(leftShift, 0);
 			uint32_t swingInterval = 3 << (leftShift);
 
 			// Before swing mid-point
@@ -873,7 +873,7 @@ int PlaybackHandler::getNumSwungTicksInSinceLastTimerTick(uint32_t* timeRemainde
 		}
 
 		int leftShift = 9 - currentSong->swingInterval;
-		leftShift = getMax(leftShift, 0);
+		leftShift = std::max(leftShift, 0);
 		uint32_t swingInterval = 3 << (leftShift);
 
 		// First, see if we're in the first half still
@@ -950,7 +950,7 @@ int64_t PlaybackHandler::getActualSwungTickCount(uint32_t* timeRemainder) {
 		else {
 
 			int leftShift = 9 - currentSong->swingInterval;
-			leftShift = getMax(leftShift, 0);
+			leftShift = std::max(leftShift, 0);
 			uint32_t swingInterval = 3 << (leftShift);
 			uint32_t doubleSwingInterval = swingInterval << 1;
 
@@ -1460,7 +1460,7 @@ void PlaybackHandler::scheduleSwungTickFromExternalClock() {
 	else {
 
 		int leftShift = 10 - currentSong->swingInterval;
-		leftShift = getMax(leftShift, 0);
+		leftShift = std::max(leftShift, 0);
 		uint32_t doubleSwingInterval = 3 << (leftShift);
 
 		uint32_t swungTickWithinInterval = nextSwungTick % doubleSwingInterval;
@@ -1796,7 +1796,7 @@ void PlaybackHandler::tempoEncoderAction(int8_t offset, bool encoderButtonPresse
 		return;
 	}
 
-	offset = getMax((int8_t)-1, getMin((int8_t)1, offset));
+	offset = std::max((int8_t)-1, std::min((int8_t)1, offset));
 
 	// Nudging sync
 	if (Buttons::isButtonPressed(hid::button::X_ENC)) {
@@ -1831,8 +1831,8 @@ displayNudge:
 	// Otherwise, adjust swing
 	else if (shiftButtonPressed) {
 		int newSwingAmount = currentSong->swingAmount + offset;
-		newSwingAmount = getMin(newSwingAmount, 49);
-		newSwingAmount = getMax(newSwingAmount, -49);
+		newSwingAmount = std::min(newSwingAmount, 49);
+		newSwingAmount = std::max(newSwingAmount, -49);
 
 		if (newSwingAmount != currentSong->swingAmount) {
 			actionLogger.recordSwingChange(currentSong->swingAmount, newSwingAmount);

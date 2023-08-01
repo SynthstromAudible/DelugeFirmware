@@ -23,6 +23,7 @@
 #include "util/fixedpoint.h"
 #include "util/lookuptables/lookuptables.h"
 #include <cstring>
+#include <cmath>
 extern "C" {
 #include "util/cfunctions.h"
 }
@@ -429,12 +430,12 @@ inline void drawSquare(uint8_t squareColour[], int intensity, uint8_t square[], 
 	// Add the new colour, reducing the old if that's what we're doing
 	int newOccupancyMaskValue =
 	    rshift_round(*occupancyMask * colourRemainingAmount, 16) + rshift_round(modifiedIntensity, 10);
-	*occupancyMask = getMin(64, newOccupancyMaskValue);
+	*occupancyMask = std::min(64, newOccupancyMaskValue);
 
 	for (int colour = 0; colour < 3; colour++) {
 		int newColourValue = rshift_round((int)square[colour] * colourRemainingAmount, 16)
 		                     + rshift_round((int)squareColour[colour] * modifiedIntensity, 16);
-		square[colour] = getMin(255, newColourValue);
+		square[colour] = std::min(255, newColourValue);
 	}
 }
 

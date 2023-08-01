@@ -151,7 +151,7 @@ void Arrangement::doTickForward(int posIncrement) {
 				// Or if it starts later...
 				else {
 					playbackHandler.swungTicksTilNextEvent =
-					    getMin(playbackHandler.swungTicksTilNextEvent, ticksTilStart);
+					    std::min(playbackHandler.swungTicksTilNextEvent, ticksTilStart);
 				}
 			}
 
@@ -176,7 +176,7 @@ notRecording:
 						int32_t ticksTilEnd = endPos - lastProcessedPos;
 						if (ticksTilEnd > 0) {
 							playbackHandler.swungTicksTilNextEvent =
-							    getMin(playbackHandler.swungTicksTilNextEvent, ticksTilEnd);
+							    std::min(playbackHandler.swungTicksTilNextEvent, ticksTilEnd);
 						}
 					}
 				}
@@ -220,7 +220,7 @@ notRecording:
 							// Make sure we come back here when the clipInstance ends
 							int32_t ticksTilEnd = endPos - lastProcessedPos;
 							playbackHandler.swungTicksTilNextEvent =
-							    getMin(playbackHandler.swungTicksTilNextEvent, ticksTilEnd);
+							    std::min(playbackHandler.swungTicksTilNextEvent, ticksTilEnd);
 
 							goto justDoArp; // No need to think about the next ClipInstance yet
 						}
@@ -270,13 +270,13 @@ notRecording:
 
 					// Make sure we come back here when the clipInstance ends
 					playbackHandler.swungTicksTilNextEvent =
-					    getMin(playbackHandler.swungTicksTilNextEvent, nextClipInstance->length);
+					    std::min(playbackHandler.swungTicksTilNextEvent, nextClipInstance->length);
 				}
 
 				// Or if it starts later...
 				else {
 					playbackHandler.swungTicksTilNextEvent =
-					    getMin(playbackHandler.swungTicksTilNextEvent, ticksTilStart);
+					    std::min(playbackHandler.swungTicksTilNextEvent, ticksTilStart);
 				}
 			}
 		}
@@ -291,7 +291,7 @@ justDoArp:
 		}
 
 		int32_t ticksTilNextArpEvent = output->doTickForwardForArp(modelStack, posForArp);
-		nearestArpTickTime = getMin(ticksTilNextArpEvent, nearestArpTickTime);
+		nearestArpTickTime = std::min(ticksTilNextArpEvent, nearestArpTickTime);
 	}
 
 	if (anyChangeToSessionClipsPlaying) {
@@ -313,10 +313,10 @@ justDoArp:
 	}
 
 	// Make sure we come back at right time for any song-level param automation. Must only do these after checking above for (playbackHandler.swungTicksTilNextEvent == 2147483647)
-	playbackHandler.swungTicksTilNextEvent = getMin(playbackHandler.swungTicksTilNextEvent, nearestArpTickTime);
+	playbackHandler.swungTicksTilNextEvent = std::min(playbackHandler.swungTicksTilNextEvent, nearestArpTickTime);
 	if (songParamManagerMightContainAutomation) {
 		playbackHandler.swungTicksTilNextEvent =
-		    getMin(playbackHandler.swungTicksTilNextEvent, currentSong->paramManager.ticksTilNextEvent);
+		    std::min(playbackHandler.swungTicksTilNextEvent, currentSong->paramManager.ticksTilNextEvent);
 		// Yes we could only do that if songParamManagerMightContainAutomation, which means that we did call processCurrentPos() on that paramManager above.
 		// Because otherwise, its ticksTilNextEvent would be an invalid value - often 0, which causes a freeze / infinite loop.
 	}

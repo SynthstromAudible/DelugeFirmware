@@ -114,12 +114,12 @@ void Decimal::scrollToGoodPos() {
 
 	// Negative numbers
 	if (soundEditor.currentValue < 0) {
-		soundEditor.numberScrollAmount = getMax(numDigits - 3, soundEditor.numberEditPos - 2);
+		soundEditor.numberScrollAmount = std::max(numDigits - 3, soundEditor.numberEditPos - 2);
 	}
 
 	// Positive numbers
 	else {
-		soundEditor.numberScrollAmount = getMax(numDigits - 4, soundEditor.numberEditPos - 3);
+		soundEditor.numberScrollAmount = std::max(numDigits - 4, soundEditor.numberEditPos - 3);
 	}
 
 	if (soundEditor.numberScrollAmount < 0) {
@@ -168,11 +168,11 @@ void Decimal::drawPixelsForOled() {
 void Decimal::drawActualValue(bool justDidHorizontalScroll) {
 	char buffer[12];
 	int minNumDigits = getNumDecimalPlaces() + 1;
-	minNumDigits = getMax(minNumDigits, soundEditor.numberEditPos + 1);
+	minNumDigits = std::max(minNumDigits, soundEditor.numberEditPos + 1);
 	intToString(soundEditor.currentValue, buffer, minNumDigits);
 	int stringLength = strlen(buffer);
 
-	char* outputText = buffer + getMax(stringLength - 4 - soundEditor.numberScrollAmount, 0);
+	char* outputText = buffer + std::max(stringLength - 4 - soundEditor.numberScrollAmount, 0);
 
 	if (strlen(outputText) > 4) {
 		outputText[4] = 0;

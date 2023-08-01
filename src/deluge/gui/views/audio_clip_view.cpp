@@ -136,7 +136,7 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayW
 		if (endMarkerVisible && blinkOn) {
 			visibleWaveformXEnd--;
 		}
-		int xEnd = getMin(kDisplayWidth, visibleWaveformXEnd);
+		int xEnd = std::min(kDisplayWidth, visibleWaveformXEnd);
 
 		bool success =
 		    waveformRenderer.renderFullScreen(getSample(), xScrollSamples, xZoomSamples, image, &getClip()->renderData,

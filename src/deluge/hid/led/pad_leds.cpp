@@ -327,7 +327,7 @@ void renderInstrumentClipCollapseAnimation(int xStart, int xEndOverall, int prog
 
 	int greyStart =
 	    instrumentClipView.getSquareFromPos(clipLength - 1, NULL, currentSong->xScroll[NAVIGATION_CLIP]) + 1;
-	int xEnd = getMin(kDisplayWidth, greyStart);
+	int xEnd = std::min(kDisplayWidth, greyStart);
 
 	int greyTop, greyBottom;
 
@@ -403,7 +403,7 @@ void renderInstrumentClipCollapseAnimation(int xStart, int xEndOverall, int prog
 					for (int colour = 0; colour < 3; colour++) {
 						int newColour = rshift_round((int)squareColours[colour] * progress, 16)
 						                + rshift_round((int)clipMuteSquareColour[colour] * (65536 - progress), 16);
-						thisColour[colour] = getMin(255, newColour);
+						thisColour[colour] = std::min(255, newColour);
 					}
 					squareColours = thisColour;
 				}
@@ -451,7 +451,7 @@ void renderAudioClipCollapseAnimation(int progress) {
 	    clipLength - currentSong->xScroll[NAVIGATION_CLIP] - 1,
 	    currentSong->xZoom[NAVIGATION_CLIP]); // Rounds it well down, so we get the "final square" kinda...
 	int greyStart = endSquareDisplay + 1;
-	int xEnd = getMin(kDisplayWidth, greyStart);
+	int xEnd = std::min(kDisplayWidth, greyStart);
 
 	for (int col = 0; col < xEnd; col++) {
 		waveformRenderer.renderOneColForCollapseAnimation(col, col, sampleMaxPeakFromZero, progress, PadLEDs::image,
@@ -526,8 +526,8 @@ void renderAudioClipExplodeAnimation(int explodedness, bool shouldSendOut) {
 		}
 
 		// Ok, we need the max values between xSourceLeftEdge and xSourceRightEdge
-		int xSourceLeftEdgeLimited = getMax(xSourceLeftEdge, 0);
-		int xSourceRightEdgeLimited = getMin(xSourceRightEdge, kDisplayWidth);
+		int xSourceLeftEdgeLimited = std::max(xSourceLeftEdge, 0);
+		int xSourceRightEdgeLimited = std::min(xSourceRightEdge, kDisplayWidth);
 
 		int xDest = xDestSquareRightEdge - 1;
 		waveformRenderer.renderOneColForCollapseAnimationZoomedOut(
@@ -561,7 +561,7 @@ void renderExplodeAnimation(int explodedness, bool shouldSendOut) {
 		int xSourceBig = xSource << 16;
 		int xOriginBig = explodeAnimationXStartBig
 		                 + (((int64_t)explodeAnimationXWidthBig * xSourceBig) >> (kDisplayWidthMagnitude + 16));
-		//xOriginBig = getMin(xOriginBig, explodeAnimationXStartBig + explodeAnimationXWidthBig - 65536);
+		//xOriginBig = std::min(xOriginBig, explodeAnimationXStartBig + explodeAnimationXWidthBig - 65536);
 
 		xOriginBig &= ~(
 		    uint32_t)65535; // Make sure each pixel's "origin-point" is right on an exact square - rounded to the left. That'll match what we'll see in the arranger
@@ -1110,8 +1110,8 @@ void renderZoomWithProgress(int inImageTimesBiggerThanNative, uint32_t inImageFa
 					int32_t outputSquareRightEdge = outputSquareLeftEdge + 65536;
 
 					// Work out how much of this square will be covered by the "in" (thinner) image (often it'll be all of it, or none)
-					int32_t inImageOverlap = getMin(outputSquareRightEdge, inImageRightEdgeOnscreen)
-					                         - getMax(outputSquareLeftEdge, inImageLeftEdgeOnscreen);
+					int32_t inImageOverlap = std::min(outputSquareRightEdge, inImageRightEdgeOnscreen)
+					                         - std::max(outputSquareLeftEdge, inImageLeftEdgeOnscreen);
 					if (inImageOverlap < 0) {
 						inImageOverlap = 0;
 					}
@@ -1166,7 +1166,7 @@ void renderZoomWithProgress(int inImageTimesBiggerThanNative, uint32_t inImageFa
 				if (drawingAnything) {
 					for (int colour = 0; colour < 3; colour++) {
 						int result = rshift_round(outValue[colour], 16);
-						PadLEDs::image[yDisplay][xDisplay][colour] = getMin(255, result);
+						PadLEDs::image[yDisplay][xDisplay][colour] = std::min(255, result);
 					}
 				}
 				else {
@@ -1186,7 +1186,7 @@ void renderZoomedSquare(int32_t outputSquareStartOnSourceImage, int32_t outputSq
                         uint8_t* inputImageRow, int inputImageWidth, bool* drawingAnything) {
 
 	int32_t outImageStartSquareLeftEdge = (uint32_t)(outputSquareStartOnSourceImage) & ~(uint32_t)65535;
-	for (int32_t sourceSquareLeftEdge = getMax((int32_t)0, outImageStartSquareLeftEdge); true;
+	for (int32_t sourceSquareLeftEdge = std::max((int32_t)0, outImageStartSquareLeftEdge); true;
 	     sourceSquareLeftEdge += 65536) {
 		if (sourceSquareLeftEdge >= outputSquareEndOnSourceImage) {
 			break;
@@ -1204,8 +1204,8 @@ void renderZoomedSquare(int32_t outputSquareStartOnSourceImage, int32_t outputSq
 		*drawingAnything = true;
 
 		int32_t sourceSquareRightEdge = sourceSquareLeftEdge + 65536;
-		uint32_t intensity = getMin(sourceSquareRightEdge, outputSquareEndOnSourceImage)
-		                     - getMax(sourceSquareLeftEdge, outputSquareStartOnSourceImage); // Will end up at max 65536
+		uint32_t intensity = std::min(sourceSquareRightEdge, outputSquareEndOnSourceImage)
+		                     - std::max(sourceSquareLeftEdge, outputSquareStartOnSourceImage); // Will end up at max 65536
 
 		intensity = ((uint64_t)intensity * sourceImageFade * sourceImageTimesBiggerThanNormal) >> 32;
 

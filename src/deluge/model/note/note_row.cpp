@@ -225,10 +225,10 @@ addNewNote:
 		newNote->setProbability(kNumProbabilityValues);
 
 		if (i + 1 < notes.getNumElements()) {
-			newNote->setLength(getMin(desiredNoteLength, notes.getElement(i + 1)->pos - newNote->pos));
+			newNote->setLength(std::min(desiredNoteLength, notes.getElement(i + 1)->pos - newNote->pos));
 		}
 		else {
-			newNote->setLength(getMin(desiredNoteLength, notes.getElement(0)->pos + effectiveLength - newNote->pos));
+			newNote->setLength(std::min(desiredNoteLength, notes.getElement(0)->pos + effectiveLength - newNote->pos));
 		}
 
 		// Record consequence
@@ -446,13 +446,13 @@ addNewNote:
 			// If there are more notes coming up to the right, just make sure we're not gonna eat into em
 			if (notes.getNumElements() > thisResultingIndex) {
 				Note* nextNote = notes.getElement(thisResultingIndex);
-				newLength = getMin(newNotesLength, (nextNote->pos - posThisScreen));
+				newLength = std::min(newNotesLength, (nextNote->pos - posThisScreen));
 			}
 
 			// Otherwise, make sure we don't eat into the first note when we wrap back around
 			else {
 				Note* firstNote = notes.getElement(0);
-				newLength = getMin(newNotesLength, (firstNote->pos + effectiveLength - posWithinEachScreen));
+				newLength = std::min(newNotesLength, (firstNote->pos + effectiveLength - posWithinEachScreen));
 			}
 
 			destNote->setLength(newLength);
@@ -555,7 +555,7 @@ int NoteRow::attemptNoteAdd(int32_t pos, int32_t length, int velocity, int proba
 		// Ok, there was no Note there, so let's make one
 	}
 
-	length = getMin(length, distanceToNextNote); // Limit length
+	length = std::min(length, distanceToNextNote); // Limit length
 	if (length <= 0) {
 		length =
 		    1; // Special case where note added at the end of linear record must temporarily be allowed to eat into note at position 0
@@ -1019,7 +1019,7 @@ int NoteRow::editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareWidth
 		int areaEndIndexThisScreen = searchTerms[(screenIndex << 1) + 1];
 		int oldNumNotesThisScreen = areaEndIndexThisScreen - areaBeginIndexThisScreen;
 
-		int copyNumRepeatingNotes = getMin(oldNumNotesThisScreen, newNumNotesThisScreen);
+		int copyNumRepeatingNotes = std::min(oldNumNotesThisScreen, newNumNotesThisScreen);
 		int copyUntil = areaBeginIndexThisScreen + copyNumRepeatingNotes;
 
 		// Copy all notes before this one
@@ -1064,7 +1064,7 @@ int NoteRow::editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareWidth
 
 				int32_t nextDistanceIn = squareWidthThisScreen * (n + 1) / newNumNotesThisScreen;
 
-				newNote->length = getMin(newNote->length, (nextDistanceIn - newDistanceIn));
+				newNote->length = std::min(newNote->length, (nextDistanceIn - newDistanceIn));
 			}
 
 			nextIndexToCopyFrom = areaEndIndexThisScreen;
@@ -1456,7 +1456,7 @@ int NoteRow::changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow*
 
 			switch (changeType) {
 			case CORRESPONDING_NOTES_ADJUST_VELOCITY: {
-				int newVelocity = getMax(1, getMin(127, thisNote->getVelocity() + changeValue));
+				int newVelocity = std::max(1, std::min(127, thisNote->getVelocity() + changeValue));
 				thisNote->setVelocity(newVelocity);
 			} break;
 
@@ -1991,7 +1991,7 @@ gotValidNoteIndex:
 		}
 	}
 
-	return getMin(ticksTilNextNoteEvent, ticksTilNextParamManagerEvent);
+	return std::min(ticksTilNextNoteEvent, ticksTilNextParamManagerEvent);
 }
 
 bool NoteRow::isAuditioning(ModelStackWithNoteRow* modelStack) {
@@ -2554,7 +2554,7 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 	if ((newLoopLength % oldLoopLength) != 0) {
 		Note* lastNote = notes.getLast();
 		int32_t maxNoteLength = newLoopLength - lastNote->pos;
-		lastNote->length = getMin(lastNote->length, maxNoteLength);
+		lastNote->length = std::min(lastNote->length, maxNoteLength);
 	}
 
 	// *** Take care of iteration dependence. ***
@@ -2780,8 +2780,8 @@ int NoteRow::readFromFile(int* minY, InstrumentClip* parentClip, Song* song, int
 
 		else if (!strcmp(tagName, "gateOutput")) {
 			int gateChannel = storageManager.readTagOrAttributeValueInt();
-			gateChannel = getMin(gateChannel, NUM_GATE_CHANNELS - 1);
-			gateChannel = getMax(gateChannel, 0);
+			gateChannel = std::min(gateChannel, NUM_GATE_CHANNELS - 1);
+			gateChannel = std::max(gateChannel, 0);
 
 			drum = (Drum*)(0xFFFFFFFE - gateChannel);
 		}
@@ -2851,19 +2851,19 @@ finishedNormalStuff:
 					while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 						if (!strcmp(tagName, "velocity")) {
 							velocity = storageManager.readTagOrAttributeValueInt();
-							velocity = getMin((uint8_t)127, (uint8_t)getMax((uint8_t)1, (uint8_t)velocity));
+							velocity = std::min((uint8_t)127, (uint8_t)std::max((uint8_t)1, (uint8_t)velocity));
 							storageManager.exitTag("velocity");
 						}
 
 						else if (!strcmp(tagName, "pos")) {
 							pos = storageManager.readTagOrAttributeValueInt();
-							pos = getMax(minPos, pos);
+							pos = std::max(minPos, pos);
 							storageManager.exitTag("pos");
 						}
 
 						else if (!strcmp(tagName, "length")) {
 							length = storageManager.readTagOrAttributeValueInt();
-							length = getMax((uint32_t)1, (uint32_t)length);
+							length = std::max((uint32_t)1, (uint32_t)length);
 							storageManager.exitTag("length");
 						}
 
@@ -3005,7 +3005,7 @@ getOut : {}
 		storageManager.exitTag();
 	}
 
-	y = getMax(y, (int16_t)*minY);
+	y = std::max(y, (int16_t)*minY);
 	*minY = y + 1;
 
 	if (newBendRange != -1) {
@@ -3410,8 +3410,8 @@ bool NoteRow::paste(ModelStackWithNoteRow* modelStack, CopiedNoteRow* copiedNote
                     int32_t screenEndPos, Action* action) {
 
 	int32_t minPos = 0;
-	int effectiveLength = modelStack->getLoopLength();
-	int32_t maxPos = getMin(screenEndPos, effectiveLength);
+	int32_t effectiveLength = modelStack->getLoopLength();
+	int32_t maxPos = std::min(screenEndPos, effectiveLength);
 
 	if (action) {
 		// Snapshot how Notes were before, in bulk. It's quite likely that this has already been done as the area was
@@ -3434,8 +3434,8 @@ bool NoteRow::paste(ModelStackWithNoteRow* modelStack, CopiedNoteRow* copiedNote
 		}
 
 		int32_t newLength = roundf((float)noteSource->length * scaleFactor);
-		newLength = getMax(newLength, (int32_t)1);
-		newLength = getMin(newLength, maxPos - newPos);
+		newLength = std::max(newLength, (int32_t)1);
+		newLength = std::min(newLength, maxPos - newPos);
 
 		int noteDestI = notes.insertAtKey(newPos);
 		Note* noteDest = notes.getElement(noteDestI);

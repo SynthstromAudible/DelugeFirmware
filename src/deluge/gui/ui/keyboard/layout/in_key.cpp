@@ -48,8 +48,8 @@ void KeyboardLayoutInKey::handleHorizontalEncoder(int offset, bool shiftEnabled)
 
 	if (shiftEnabled) {
 		state.rowInterval += offset;
-		state.rowInterval = getMax(state.rowInterval, kMinInKeyRowInterval);
-		state.rowInterval = getMin(kMaxInKeyRowInterval, state.rowInterval);
+		state.rowInterval = std::max(state.rowInterval, kMinInKeyRowInterval);
+		state.rowInterval = std::min(kMaxInKeyRowInterval, state.rowInterval);
 
 		char buffer[13] = "Row step:   ";
 		intToString(state.rowInterval, buffer + (HAVE_OLED ? 10 : 0), 1);
@@ -64,8 +64,8 @@ void KeyboardLayoutInKey::handleHorizontalEncoder(int offset, bool shiftEnabled)
 	    (padIndexFromNote(getHighestClipNote()) - ((kDisplayHeight - 1) * state.rowInterval + kDisplayWidth - 1));
 
 	// Make sure current value is in bounds
-	state.scrollOffset = getMax(lowestScrolledNote, state.scrollOffset);
-	state.scrollOffset = getMin(state.scrollOffset, highestScrolledNote);
+	state.scrollOffset = std::max(lowestScrolledNote, state.scrollOffset);
+	state.scrollOffset = std::min(state.scrollOffset, highestScrolledNote);
 
 	// Offset if still in bounds (reject if the next row can not be shown completely)
 	int newOffset = state.scrollOffset + offset;

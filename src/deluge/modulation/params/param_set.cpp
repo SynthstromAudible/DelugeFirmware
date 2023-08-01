@@ -120,7 +120,7 @@ void ParamSet::processCurrentPos(ModelStackWithParamCollection* modelStack, int 
 		ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(p, param);
 		int32_t ticksTilNextEventThisParam =
 		    param->processCurrentPos(modelStackWithAutoParam, reversed, didPingpong, mayInterpolate);
-		ticksTilNextEvent = getMin(ticksTilNextEvent, ticksTilNextEventThisParam);
+		ticksTilNextEvent = std::min(ticksTilNextEvent, ticksTilNextEventThisParam);
 
 		checkWhetherParamHasInterpolationNow(modelStack, p);
 

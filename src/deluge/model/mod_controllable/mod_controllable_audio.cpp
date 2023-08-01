@@ -777,7 +777,7 @@ void ModControllableAudio::processSRRAndBitcrushing(StereoSample* buffer, int nu
 
 			// Convert up
 			int32_t strength2 =
-			    getMin(highSampleRatePos,
+			    std::min(highSampleRatePos,
 			           (uint32_t)4194303); // Would only overshoot if we raised the sample rate during playback
 			int32_t strength1 = 4194303 - strength2;
 			currentSample->l = (multiply_32x32_rshift32_rounded(lastGrabbedSample.l, strength1 << 9)
@@ -921,7 +921,7 @@ int32_t ModControllableAudio::getStutterRate(ParamManager* paramManager) {
 		    stutterer.sync + 6
 		    - (currentSong->insideWorldTickMagnitude + currentSong->insideWorldTickMagnitudeOffsetFromBPM);
 		int32_t limit = 2147483647 >> lShiftAmount;
-		rate = getMin(rate, limit);
+		rate = std::min(rate, limit);
 		rate <<= lShiftAmount;
 	}
 	return rate;
@@ -1183,12 +1183,12 @@ doReadPatchedParam:
 
 			else if (!strcmp(tagName, "pingPong")) {
 				int32_t contents = storageManager.readTagOrAttributeValueInt();
-				delay.pingPong = getMax((int32_t)0, getMin((int32_t)1, contents));
+				delay.pingPong = std::max((int32_t)0, std::min((int32_t)1, contents));
 				storageManager.exitTag("pingPong");
 			}
 			else if (!strcmp(tagName, "analog")) {
 				int32_t contents = storageManager.readTagOrAttributeValueInt();
-				delay.analog = getMax((int32_t)0, getMin((int32_t)1, contents));
+				delay.analog = std::max((int32_t)0, std::min((int32_t)1, contents));
 				storageManager.exitTag("analog");
 			}
 			else if (!strcmp(tagName, "syncType")) {
@@ -1408,10 +1408,10 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 					    modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
 					int knobPos =
 					    modelStackWithParam->paramCollection->paramValueToKnobPos(previousValue, modelStackWithParam);
-					int lowerLimit = getMin(-64, knobPos);
+					int lowerLimit = std::min(-64, knobPos);
 					newKnobPos = knobPos + offset;
-					newKnobPos = getMax(newKnobPos, lowerLimit);
-					newKnobPos = getMin(newKnobPos, 64);
+					newKnobPos = std::max(newKnobPos, lowerLimit);
+					newKnobPos = std::min(newKnobPos, 64);
 					if (newKnobPos == knobPos) {
 						continue;
 					}

@@ -17,22 +17,22 @@
 
 #include "dsp/timestretch/time_stretcher.h"
 #include "definitions_cxx.hpp"
+#include "io/debug/print.h"
 #include "memory/general_memory_allocator.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_cache.h"
+#include "model/sample/sample_holder.h"
+#include "model/sample/sample_playback_guide.h"
 #include "model/voice/voice_sample.h"
+#include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
 #include "storage/storage_manager.h"
-#include <string.h>
-//#include <math.h>
-#include "io/debug/print.h"
-#include "model/sample/sample_holder.h"
-#include "model/sample/sample_playback_guide.h"
-#include "playback/playback_handler.h"
 #include "util/functions.h"
-#include <stdlib.h>
+#include <cmath>
+#include <cstdlib>
+#include <cstring>
 
 #define MEASURE_HOP_END_PERFORMANCE 0
 
@@ -426,12 +426,11 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 
 						// Note: we don't check that the relevant cluster has loaded. I think nothing too bad will happen if it's not...
 
-						crossfadeLengthSamples = getMax(outputSamplesTilLoop, 10); // Min crossfade length
+						crossfadeLengthSamples = std::max(outputSamplesTilLoop, 10); // Min crossfade length
 
-						samplesTilHopEnd =
-						    minBeamWidth
-						    >> 2; // Bigger sounds bad. Need to make smaller to match similarly resulting deduction which happens in the "normal" case
-						samplesTilHopEnd = getMax(samplesTilHopEnd, crossfadeLengthSamples);
+						// Bigger sounds bad. Need to make smaller to match similarly resulting deduction which happens in the "normal" case
+						samplesTilHopEnd = minBeamWidth >> 2;
+						samplesTilHopEnd = std::max<int32_t>(samplesTilHopEnd, crossfadeLengthSamples);
 
 						crossfadeIncrement = (uint32_t)(16777215 + crossfadeLengthSamples)
 						                     / (uint32_t)crossfadeLengthSamples; // Round up
@@ -578,8 +577,8 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 		samplesTilHopEnd -= crossfadeLengthSamples;
 
 		// Apply maxHopLength
-		samplesTilHopEnd = getMin(samplesTilHopEnd, maxHopLength);
-		crossfadeLengthSamples = getMin(samplesTilHopEnd, crossfadeLengthSamples);
+		samplesTilHopEnd = std::min<int32_t>(samplesTilHopEnd, maxHopLength);
+		crossfadeLengthSamples = std::min<uint32_t>(samplesTilHopEnd, crossfadeLengthSamples);
 
 		crossfadeIncrement = (uint32_t)16777216 / (uint32_t)crossfadeLengthSamples;
 		crossfadeProgress = 0;
@@ -601,9 +600,9 @@ skipPercStuff:
 	// the beginning play-point of the new play-head, but the point half-way through the crossfade later. Remember that!
 	if (playHeadStillActive[PLAY_HEAD_OLDER]) { // Added condition, Aug 2019. Surely this makes sense...
 		int lengthToAverageEach = ((uint64_t)phaseIncrement * TimeStretch::Crossfade::kMovingAverageLength) >> 24;
-		lengthToAverageEach = getMax(lengthToAverageEach, 1);
+		lengthToAverageEach = std::max(lengthToAverageEach, 1);
 		lengthToAverageEach =
-		    getMin(lengthToAverageEach, TimeStretch::Crossfade::kMovingAverageLength * 2); // Keep things sensible
+		    std::min(lengthToAverageEach, TimeStretch::Crossfade::kMovingAverageLength * 2); // Keep things sensible
 
 		int crossfadeLengthSamplesSource = ((uint64_t)crossfadeLengthSamples * phaseIncrement) >> 24;
 
@@ -657,7 +656,7 @@ skipPercStuff:
 		int limit =
 		    (sample->sampleRate / 45)
 		    >> 1; // Allow tracking down to around 45Hz, at input. We >>1 again because this limit is just for searching in one direction, and we're going to do both directions.
-		maxSearchSize = getMin(maxSearchSize, limit);
+		maxSearchSize = std::min(maxSearchSize, limit);
 		//Debug::print("max search length: ");
 		//Debug::println(maxSearchSize);
 
@@ -726,7 +725,7 @@ startSearch:
 				        ? (bytePosWithinCluster + bytesPerSample)
 				        : (audioFileManager.clusterSize - bytePosWithinCluster + bytesPerSample - 1);
 
-				int bytesWeMayRead = getMin(bytesTilWaveformEnd, bytesLeftThisCluster);
+				int bytesWeMayRead = std::min(bytesTilWaveformEnd, bytesLeftThisCluster);
 
 				int bytesWeWantToRead = numSamplesThisRead * bytesPerSample;
 				if (bytesWeWantToRead > bytesWeMayRead) {
@@ -1127,7 +1126,7 @@ void TimeStretcher::updateClustersForPercLookahead(Sample* sample, uint32_t sour
 
 void TimeStretcher::setupCrossfadeFromCache(SampleCache* cache, int cacheBytePos, int numChannels) {
 
-	int numSamplesThisCacheRead = getMin(samplesTilHopEnd, (int32_t)TimeStretch::kBufferSize - 1);
+	int numSamplesThisCacheRead = std::min(samplesTilHopEnd, (int32_t)TimeStretch::kBufferSize - 1);
 
 	// Ignore loop end point
 
@@ -1169,7 +1168,7 @@ void TimeStretcher::setupCrossfadeFromCache(SampleCache* cache, int cacheBytePos
 		return;
 	}
 
-	int bytesTilThisWindowEnd = getMin(bytesTilCacheClusterEnd, bytesTilCacheEnd);
+	int bytesTilThisWindowEnd = std::min(bytesTilCacheClusterEnd, bytesTilCacheEnd);
 
 	int samplesTilThisWindowEnd = 0;
 	if constexpr (kCacheByteDepth == 3) {

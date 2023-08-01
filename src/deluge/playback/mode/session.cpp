@@ -470,7 +470,7 @@ doNormalLaunch:
 
 					// If that caused it to be armed *again*...
 					if (clip->armState == ArmState::ON_NORMAL) {
-						distanceTilLaunchEvent = getMax(distanceTilLaunchEvent, clip->loopLength);
+						distanceTilLaunchEvent = std::max(distanceTilLaunchEvent, clip->loopLength);
 					}
 
 					output->setActiveClip(
@@ -1835,7 +1835,7 @@ yeahNahItsOn:
 					if (clip->armState
 					    == ArmState::
 					        ON_NORMAL) { // What's this for again? Auto arming of sections? I think not linear recording...
-						distanceTilLaunchEvent = getMax(distanceTilLaunchEvent, clip->loopLength);
+						distanceTilLaunchEvent = std::max(distanceTilLaunchEvent, clip->loopLength);
 					}
 				}
 			}
@@ -1986,7 +1986,7 @@ void Session::doTickForward(int posIncrement) {
 	if (launchEventAtSwungTickCount) {
 		int32_t ticksTilLaunchEvent = launchEventAtSwungTickCount - playbackHandler.lastSwungTickActioned;
 
-		playbackHandler.swungTicksTilNextEvent = getMin(ticksTilLaunchEvent, playbackHandler.swungTicksTilNextEvent);
+		playbackHandler.swungTicksTilNextEvent = std::min(ticksTilLaunchEvent, playbackHandler.swungTicksTilNextEvent);
 	}
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -1998,7 +1998,7 @@ void Session::doTickForward(int posIncrement) {
 		if (currentSong->paramManager.mightContainAutomation()) {
 			currentSong->paramManager.processCurrentPos(modelStackWithThreeMainThings, posIncrement, false);
 			playbackHandler.swungTicksTilNextEvent =
-			    getMin(playbackHandler.swungTicksTilNextEvent, currentSong->paramManager.ticksTilNextEvent);
+			    std::min(playbackHandler.swungTicksTilNextEvent, currentSong->paramManager.ticksTilNextEvent);
 		}
 	}
 
@@ -2056,7 +2056,7 @@ traverseClips:
 		}
 
 		int32_t ticksTilNextArpEvent = thisOutput->doTickForwardForArp(modelStack, posForArp);
-		playbackHandler.swungTicksTilNextEvent = getMin(ticksTilNextArpEvent, playbackHandler.swungTicksTilNextEvent);
+		playbackHandler.swungTicksTilNextEvent = std::min(ticksTilNextArpEvent, playbackHandler.swungTicksTilNextEvent);
 	}
 
 	/*

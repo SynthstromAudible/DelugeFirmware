@@ -477,7 +477,7 @@ void routine() {
 		if (samplesOverThreshold > 0) {
 			samplesOverThreshold = samplesOverThreshold << 1;
 			numSamples = sampleThreshold + samplesOverThreshold;
-			numSamples = getMin(numSamples, maxAdjustedNumSamples);
+			numSamples = std::min(numSamples, maxAdjustedNumSamples);
 		}
 	}
 
@@ -997,7 +997,7 @@ bool doSomeOutputting() {
 				    (stopPos - (uint32_t)recorder->sourcePos) >> (2 + NUM_MONO_INPUT_CHANNELS_MAGNITUDE);
 
 				// We also enforce a firm limit on how much to feed, to keep things sane. Any remaining will get done next time.
-				numSamplesFeedingNow = getMin(numSamplesFeedingNow, 256);
+				numSamplesFeedingNow = std::min(numSamplesFeedingNow, 256);
 
 				if (recorder->mode == AudioInputChannel::RIGHT) {
 					streamToRecord++;

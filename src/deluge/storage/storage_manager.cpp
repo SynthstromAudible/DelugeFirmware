@@ -335,7 +335,7 @@ reachedNameEnd:
 		}
 
 		int numCharsHere = fileBufferCurrentPos - bufferPosAtStart;
-		int numCharsToCopy = getMin(numCharsHere, kFilenameBufferSize - 1 - charPos);
+		int numCharsToCopy = std::min<int>(numCharsHere, kFilenameBufferSize - 1 - charPos);
 
 		if (numCharsToCopy > 0) {
 			memcpy(&stringBuffer[charPos], &fileClusterBuffer[bufferPosAtStart], numCharsToCopy);
@@ -586,7 +586,7 @@ char const* StorageManager::readUntilChar(char endChar) {
 		}
 
 		int numCharsHere = fileBufferCurrentPos - bufferPosAtStart;
-		int numCharsToCopy = getMin(numCharsHere, kFilenameBufferSize - 1 - charPos);
+		int numCharsToCopy = std::min<int>(numCharsHere, kFilenameBufferSize - 1 - charPos);
 
 		if (numCharsToCopy > 0) {
 			memcpy(&stringBuffer[charPos], &fileClusterBuffer[bufferPosAtStart], numCharsToCopy);
@@ -615,7 +615,7 @@ char const* StorageManager::readNextCharsOfTagOrAttributeValue(int numChars) {
 		int bufferPosAtStart = fileBufferCurrentPos;
 		int bufferPosAtEnd = bufferPosAtStart + numChars - charPos;
 
-		int currentReadBufferEndPosNow = getMin(currentReadBufferEndPos, bufferPosAtEnd);
+		int currentReadBufferEndPosNow = std::min<int>(currentReadBufferEndPos, bufferPosAtEnd);
 
 		while (fileBufferCurrentPos < currentReadBufferEndPosNow) {
 			if (fileClusterBuffer[fileBufferCurrentPos] == charAtEndOfValue) {
@@ -920,13 +920,13 @@ void StorageManager::readMidiCommand(uint8_t* channel, uint8_t* note) {
 	while (*(tagName = readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "channel")) {
 			*channel = readTagOrAttributeValueInt();
-			*channel = getMin(*channel, (uint8_t)15);
+			*channel = std::min(*channel, (uint8_t)15);
 			exitTag("channel");
 		}
 		else if (!strcmp(tagName, "note")) {
 			if (note != NULL) {
 				*note = readTagOrAttributeValueInt();
-				*note = getMin(*note, (uint8_t)127);
+				*note = std::min(*note, (uint8_t)127);
 			}
 			exitTag("note");
 		}

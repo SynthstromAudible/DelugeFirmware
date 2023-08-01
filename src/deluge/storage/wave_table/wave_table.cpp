@@ -293,7 +293,7 @@ gotError2:
 	// Create the temporary memory where we'll store the 32-bit int version of the current cycle being read, to perform the FFT on.
 	// This will also be used for outputting the time-domain cycle data back out of the inverse FFT, so ensure it's big enough for that if our biggest band is bigger
 	// than the cycle size in the file (i.e. if that's not a power-of-two).
-	int currentCycleMemorySize = getMax(rawFileCycleSize, initialBandCycleSizeNoDuplicates);
+	int currentCycleMemorySize = std::max(rawFileCycleSize, initialBandCycleSizeNoDuplicates);
 	int32_t* __restrict__ currentCycleInt32 = (int32_t*)GeneralMemoryAllocator::get().alloc(
 	    currentCycleMemorySize * sizeof(int32_t), NULL, false, true); // Internal RAM is good, and it's only temporary
 	if (!currentCycleInt32) {
@@ -599,7 +599,7 @@ gotError5:
 		// Or if there *is* enough high-freq content, take note that it's all still happening.
 		else {
 			startedBandsYet |= 1;
-			band->toCycleNumber = getMin(cycleIndex + 2, numCycles);
+			band->toCycleNumber = std::min(cycleIndex + 2, numCycles);
 		}
 
 		// If raw file wasn't power-of-two cycle size, then even this initial band needs the same treatment as the higher ones -
@@ -648,7 +648,7 @@ gotError5:
 				// Or if there *is* enough high-freq content...
 				else {
 					startedBandsYet |= (1 << b);
-					band->toCycleNumber = getMin(cycleIndex + 2, numCycles);
+					band->toCycleNumber = std::min(cycleIndex + 2, numCycles);
 				}
 
 				// The highest frequency we can represent (the Nyquist freq) is about to lose all trace of its imaginary component (fun fact - that's just what happens)

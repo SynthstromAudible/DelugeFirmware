@@ -407,8 +407,8 @@ void MidiEngine::sendNote(bool on, int note, uint8_t velocity, uint8_t channel, 
 	}
 
 	// This is the only place where velocity is limited like this. In the internal engine, it's allowed to go right between 0 and 128
-	velocity = getMax((uint8_t)1, velocity);
-	velocity = getMin((uint8_t)127, velocity);
+	velocity = std::max((uint8_t)1, velocity);
+	velocity = std::min((uint8_t)127, velocity);
 
 	sendMidi(on ? 0x09 : 0x08, channel, note, velocity, filter);
 }
@@ -749,8 +749,8 @@ void midiDebugPrint(MIDIDevice* device, const char* msg, bool nl) {
 	uint8_t reply_hdr[5] = {0xf0, 0x7d, 0x03, 0x40, 0x00};
 	uint8_t* reply = midiEngine.sysex_fmt_buffer;
 	memcpy(reply, reply_hdr, 5);
-	int len = strlen(msg);
-	len = getMin(len, (sizeof midiEngine.sysex_fmt_buffer) - 7);
+	size_t len = strlen(msg);
+	len = std::min(len, sizeof(midiEngine.sysex_fmt_buffer) - 7);
 	memcpy(reply + 5, msg, len);
 	for (int i = 0; i < len; i++) {
 		reply[5 + i] &= 0x7F; // only ascii debug messages

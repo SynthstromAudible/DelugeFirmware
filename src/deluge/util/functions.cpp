@@ -1371,8 +1371,8 @@ int32_t instantTan(int32_t input) {
 int32_t combineHitStrengths(int32_t strength1, int32_t strength2) {
 	// Ideally, we'd do pythagoras on these. But to save computation time, we'll just go half way between the biggest one and the sum
 	uint32_t sum = (uint32_t)strength1 + (uint32_t)strength2;
-	sum = getMin(sum, (uint32_t)2147483647);
-	int32_t maxOne = getMax(strength1, strength2);
+	sum = std::min(sum, (uint32_t)2147483647);
+	int32_t maxOne = std::max(strength1, strength2);
 	return (maxOne >> 1) + (sum >> 1);
 }
 
@@ -1389,7 +1389,7 @@ bool shouldDoPanning(int32_t panAmount, int32_t* amplitudeL, int32_t* amplitudeR
 		return false;
 	}
 
-	int32_t panOffset = getMax((int32_t)-1073741824, (int32_t)(getMin((int32_t)1073741824, (int32_t)panAmount)));
+	int32_t panOffset = std::max((int32_t)-1073741824, (int32_t)(std::min((int32_t)1073741824, (int32_t)panAmount)));
 	*amplitudeR = (panAmount >= 0) ? 1073741823 : (1073741824 + panOffset);
 	*amplitudeL = (panAmount <= 0) ? 1073741823 : (1073741824 - panOffset);
 	return true;
@@ -1405,11 +1405,11 @@ void hueToRGB(int32_t hue, unsigned char* rgb) {
 				channelDarkness = hue;
 			}
 			else {
-				channelDarkness = getMin(64, std::abs(192 - hue));
+				channelDarkness = std::min<int>(64, std::abs(192 - hue));
 			}
 		}
 		else {
-			channelDarkness = getMin(64, std::abs(c * 64 - hue));
+			channelDarkness = std::min<int>(64, std::abs(c * 64 - hue));
 		}
 
 		if (channelDarkness < 64) {
@@ -1433,11 +1433,11 @@ void hueToRGBPastel(int32_t hue, unsigned char* rgb) {
 				channelDarkness = hue;
 			}
 			else {
-				channelDarkness = getMin(64, std::abs(192 - hue));
+				channelDarkness = std::min<int>(64, std::abs(192 - hue));
 			}
 		}
 		else {
-			channelDarkness = getMin(64, std::abs(c * 64 - hue));
+			channelDarkness = std::min<int>(64, std::abs(c * 64 - hue));
 		}
 
 		if (channelDarkness < 64) {
@@ -1577,8 +1577,8 @@ int32_t doLanczos(int32_t* data, int32_t pos, uint32_t posWithinPos, int memoryN
 		strengthR[i] = interpolateTableSigned(16777216 * (i + 1) - posWithinPos, 26, lanczosKernel, 8);
 	}
 
-	int howManyLeft = getMin((int32_t)LANCZOS_A, (int32_t)(pos + 1));
-	int howManyRight = getMin((int32_t)LANCZOS_A, (int32_t)(memoryNumElements - pos));
+	int howManyLeft = std::min((int32_t)LANCZOS_A, (int32_t)(pos + 1));
+	int howManyRight = std::min((int32_t)LANCZOS_A, (int32_t)(memoryNumElements - pos));
 
 	int32_t value = 0;
 	for (int i = 0; i < howManyLeft; i++) {

@@ -78,7 +78,7 @@ int64_t SampleHolder::getEndPos(bool forTimeStretching) {
 		return endPos;
 	}
 	else {
-		return getMin(endPos, ((Sample*)audioFile)->lengthInSamples);
+		return std::min(endPos, ((Sample*)audioFile)->lengthInSamples);
 	}
 }
 
@@ -117,7 +117,7 @@ void SampleHolder::setAudioFile(AudioFile* newSample, bool reversed, bool manual
 
 		// Otherwise, simply make sure that the zone doesn't exceed the length of the sample
 		else {
-			startPos = getMin(startPos, lengthInSamples);
+			startPos = std::min<uint64_t>(startPos, lengthInSamples);
 			if (endPos == 0 || endPos == 9999999) {
 				endPos = lengthInSamples;
 			}

@@ -486,7 +486,7 @@ int64_t AudioClip::getNumSamplesTilLoop(ModelStackWithTimelineCounter* modelStac
 	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(0, NULL);
 
 	int32_t cutPos = modelStackWithNoteRow->getPosAtWhichPlaybackWillCut();
-	int32_t loopPosWithinClip = getMin(cutPos, loopLength);
+	int32_t loopPosWithinClip = std::min(cutPos, loopLength);
 
 	int ticksTilLoop = loopPosWithinClip - lastProcessedPos;
 	uint32_t loopTime = playbackHandler.getInternalTickTime(playbackHandler.lastSwungTickActioned + ticksTilLoop);
@@ -642,7 +642,7 @@ justDontTimeStretch:
 						//Debug::println("");
 						//Debug::println("might attempt fudge");
 
-						int crossfadeLength = getMin(numSamplesOfPreMarginAvailable, kAntiClickCrossfadeLength);
+						int crossfadeLength = std::min(numSamplesOfPreMarginAvailable, kAntiClickCrossfadeLength);
 
 						// If we're right at the end and it's time to crossfade...
 						if (numSamplesTilLoop <= crossfadeLength) {

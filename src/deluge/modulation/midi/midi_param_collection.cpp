@@ -149,7 +149,7 @@ void MIDIParamCollection::processCurrentPos(ModelStackWithParamCollection* model
 
 			int32_t ticksTilNextEventThisParam = param->processCurrentPos(modelStackWithAutoParam, reversed,
 			                                                              didPingpong, false, true); // No interpolating
-			ticksTilNextEvent = getMin(ticksTilNextEvent, ticksTilNextEventThisParam);
+			ticksTilNextEvent = std::min(ticksTilNextEvent, ticksTilNextEventThisParam);
 		}
 	}
 }

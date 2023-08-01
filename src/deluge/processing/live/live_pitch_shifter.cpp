@@ -139,14 +139,14 @@ startRenderAgain:
 		if (samplesTilHopEnd + nextCrossfadeLength > maxPlayableSamplesNewer) {
 
 			int32_t maxTotalPlayable = maxPlayableSamplesNewer + samplesIntoHop;
-			nextCrossfadeLength = getMin(nextCrossfadeLength, maxTotalPlayable >> 1);
+			nextCrossfadeLength = std::min(nextCrossfadeLength, maxTotalPlayable >> 1);
 
 			samplesTilHopEnd = maxPlayableSamplesNewer - nextCrossfadeLength;
 			//Debug::println("shortening hop");
 
 			if (samplesTilHopEnd < 0) {
 				samplesTilHopEnd = 0;
-				nextCrossfadeLength = getMax(maxPlayableSamplesNewer, 0);
+				nextCrossfadeLength = std::max(maxPlayableSamplesNewer, 0);
 				//Debug::println("nex");
 				crossfadeProgress = 16777216;
 			}
@@ -178,7 +178,7 @@ startRenderAgain:
 			}
 			else {
 				uint32_t minCrossfadeIncrement = (uint32_t)(16777216 - crossfadeProgress) / maxPlayableSamplesOlder + 1;
-				//crossfadeIncrement = getMax(crossfadeIncrement, minCrossfadeIncrement);
+				//crossfadeIncrement = std::max(crossfadeIncrement, minCrossfadeIncrement);
 				if (minCrossfadeIncrement > crossfadeIncrement) {
 					crossfadeIncrement = minCrossfadeIncrement;
 					//Debug::println("c");
@@ -228,7 +228,7 @@ startRenderAgain:
 		goto startRenderAgain;
 	}
 
-	int numSamplesThisTimestretchedRead = getMin((int32_t)numSamplesThisFunctionCall, samplesTilHopEnd);
+	int numSamplesThisTimestretchedRead = std::min((int32_t)numSamplesThisFunctionCall, samplesTilHopEnd);
 
 	bool olderPlayHeadAudibleHere = olderPlayHeadIsCurrentlySounding();
 
@@ -434,9 +434,9 @@ void LivePitchShifter::hopEnd(int32_t phaseIncrement, LiveInputBuffer* liveInput
 
 	// First, work out the length we'd *like* to use for the moving averages
 	int lengthPerMovingAverage = ((uint64_t)phaseIncrement * TimeStretch::Crossfade::kMovingAverageLength) >> 24;
-	lengthPerMovingAverage = getMax(lengthPerMovingAverage, 1);
+	lengthPerMovingAverage = std::max(lengthPerMovingAverage, 1);
 	lengthPerMovingAverage =
-	    getMin(lengthPerMovingAverage, TimeStretch::Crossfade::kMovingAverageLength * 2); // Keep things sensible
+	    std::min(lengthPerMovingAverage, TimeStretch::Crossfade::kMovingAverageLength * 2); // Keep things sensible
 
 	// Ok, and this crossfade we're about to do, how long will it be in samples of (unpitched) source material?
 	int crossfadeLengthSamplesSource = ((uint64_t)thisCrossfadeLength * phaseIncrement) >> 24;
@@ -448,13 +448,13 @@ void LivePitchShifter::hopEnd(int32_t phaseIncrement, LiveInputBuffer* liveInput
 	// Ok, work out the end-pos of our moving-averages region
 	int averagesEndOffsetFromHead = (crossfadeLengthSamplesSource >> 1)
 	                                + ((lengthPerMovingAverage * TimeStretch::Crossfade::kNumMovingAverages) >> 1);
-	averagesEndOffsetFromHead = getMin(averagesEndOffsetFromHead,
+	averagesEndOffsetFromHead = std::min(averagesEndOffsetFromHead,
 	                                   maxOffsetFromHead); // And make sure it's not beyond the end of the existent data
 
 	// We now know the length of the *total* moving-averages region, so divide down to get the length of *each* moving-average region
 	// If commenting out this next line, must make sure we still don't search back before we started writing to buffer
 	lengthPerMovingAverage =
-	    getMin(lengthPerMovingAverage, averagesEndOffsetFromHead >> 1); // / TimeStretch::Crossfade::kNumMovingAverages
+	    std::min(lengthPerMovingAverage, averagesEndOffsetFromHead >> 1); // / TimeStretch::Crossfade::kNumMovingAverages
 
 	int averagesStartOffsetFromHead =
 	    averagesEndOffsetFromHead - (lengthPerMovingAverage * TimeStretch::Crossfade::kNumMovingAverages);
@@ -548,7 +548,7 @@ stopPercSearch:
 		int minDistanceBack = numRawSamplesProcessedAtNowTime - numRawSamplesProcessedLatest
 		                      + averagesStartOffsetFromHead
 		                      + (lengthPerMovingAverage * TimeStretch::Crossfade::kNumMovingAverages);
-		howFarBack = getMax(howFarBack, minDistanceBack);
+		howFarBack = std::max(howFarBack, minDistanceBack);
 
 		if (howFarBack > numRawSamplesProcessedAtNowTime) {
 			howFarBack = numRawSamplesProcessedAtNowTime;
@@ -559,7 +559,7 @@ stopPercSearch:
 			                          & (kInputRawBufferSize - 1);
 			searchSize = 490; // Allow tracking down to about 45Hz
 #if !MEASURE_HOP_END_PERFORMANCE
-			searchSize = getMin(searchSize, samplesTilHopEnd);
+			searchSize = std::min(searchSize, samplesTilHopEnd);
 #endif
 			numFullDirectionsSearched = 0;
 			searchDirection = 1;
@@ -579,7 +579,7 @@ stopPercSearch:
 			    & (kInputRawBufferSize - 1);
 			searchSize = 980; // Allow tracking down to about 45Hz
 #if !MEASURE_HOP_END_PERFORMANCE
-			searchSize = getMin(searchSize, samplesIntoHop);
+			searchSize = std::min(searchSize, samplesIntoHop);
 #endif
 			numFullDirectionsSearched = 1;
 			searchDirection = -1;
@@ -658,7 +658,7 @@ startSearch:
 		}
 
 		{
-			int searchSizeHere = getMin(searchSize, searchSizeBoundary);
+			int searchSizeHere = std::min<int>(searchSize, searchSizeBoundary);
 			endOffset = searchSizeHere * searchDirection;
 		}
 
@@ -803,9 +803,9 @@ thatsDone:
 	/*
 	if (phaseIncrement > 16777216) {
 		uint64_t totalPlayableSamples = ((uint64_t)howFarBack << 24) / (uint32_t)(phaseIncrement - 16777216);
-		totalPlayableSamples = getMax(totalPlayableSamples, (uint64_t)2);
+		totalPlayableSamples = std::max(totalPlayableSamples, (uint64_t)2);
 
-		totalPlayableSamples = getMin(totalPlayableSamples, (uint64_t)16384);
+		totalPlayableSamples = std::min(totalPlayableSamples, (uint64_t)16384);
 
 		if (nextCrossfadeLength > totalPlayableSamples - 1) nextCrossfadeLength = totalPlayableSamples - 1;
 

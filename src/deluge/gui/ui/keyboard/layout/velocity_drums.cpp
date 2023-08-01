@@ -15,8 +15,6 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#pragma once
-
 #include "gui/ui/keyboard/layout/velocity_drums.h"
 #include "definitions.h"
 #include "gui/views/instrument_clip_view.h"
@@ -48,8 +46,8 @@ void KeyboardLayoutVelocityDrums::handleHorizontalEncoder(int offset, bool shift
 
 	if (shiftEnabled) {
 		state.edgeSize += offset;
-		state.edgeSize = getMax(state.edgeSize, kMinDrumPadEdgeSize);
-		state.edgeSize = getMin(kMaxDrumPadEdgeSize, state.edgeSize);
+		state.edgeSize = std::max(state.edgeSize, kMinDrumPadEdgeSize);
+		state.edgeSize = std::min(kMaxDrumPadEdgeSize, state.edgeSize);
 
 		char buffer[13] = "Pad size:   ";
 		intToString(state.edgeSize, buffer + (HAVE_OLED ? 10 : 0), 1);
@@ -60,11 +58,10 @@ void KeyboardLayoutVelocityDrums::handleHorizontalEncoder(int offset, bool shift
 
 	// Calculate highest possible displayable note with current edgeSize
 	int32_t displayedfullPadsCount = ((kDisplayHeight / state.edgeSize) * (kDisplayWidth / state.edgeSize));
-	int highestScrolledNote = getMax(0, (getHighestClipNote() + 1 - displayedfullPadsCount));
+	int highestScrolledNote = std::max<int>(0, (getHighestClipNote() + 1 - displayedfullPadsCount));
 
 	// Make sure current value is in bounds
-	state.scrollOffset = getMax(getLowestClipNote(), state.scrollOffset);
-	state.scrollOffset = getMin(state.scrollOffset, highestScrolledNote);
+	state.scrollOffset = std::clamp(state.scrollOffset, getLowestClipNote(), highestScrolledNote);
 
 	// Offset if still in bounds (check for verticalEncoder)
 	int newOffset = state.scrollOffset + offset;

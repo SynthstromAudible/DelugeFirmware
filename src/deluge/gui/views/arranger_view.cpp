@@ -828,8 +828,8 @@ doNewPress:
 				int minY = -currentSong->arrangementYScroll - 1;
 				int maxY = -currentSong->arrangementYScroll + currentSong->getNumOutputs();
 
-				yPressedEffective = getMax((int)yPressedEffective, minY);
-				yPressedEffective = getMin((int)yPressedEffective, maxY);
+				yPressedEffective = std::max((int)yPressedEffective, minY);
+				yPressedEffective = std::min((int)yPressedEffective, maxY);
 
 				bool instrumentAlreadyInSong; // Will always end up false
 
@@ -2070,8 +2070,8 @@ bool ArrangerView::renderRow(ModelStack* modelStack, int yDisplay, int32_t xScro
 		int newStartSquare = getSquareFromPos(newStartPos, &rightOnSquare);
 		int newEndSquare = getSquareEndFromPos(newEndPos);
 
-		newStartSquare = getMax(newStartSquare, 0);
-		newEndSquare = getMin(newEndSquare, renderWidth);
+		newStartSquare = std::max(newStartSquare, 0);
+		newEndSquare = std::min(newEndSquare, renderWidth);
 
 		if (blinkOn) {
 			clipInstance->getColour(&imageThisRow[newStartSquare * 3]);
@@ -3130,14 +3130,14 @@ uint32_t ArrangerView::getMaxLength() {
 	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
 
 		if (thisOutput->recordingInArrangement) {
-			maxEndPos = getMax(maxEndPos, arrangement.getLivePos());
+			maxEndPos = std::max<uint32_t>(maxEndPos, arrangement.getLivePos());
 		}
 
 		int numElements = thisOutput->clipInstances.getNumElements();
 		if (numElements) {
 			ClipInstance* lastInstance = thisOutput->clipInstances.getElement(numElements - 1);
 			uint32_t endPos = lastInstance->pos + lastInstance->length;
-			maxEndPos = getMax(maxEndPos, endPos);
+			maxEndPos = std::max(maxEndPos, endPos);
 		}
 	}
 

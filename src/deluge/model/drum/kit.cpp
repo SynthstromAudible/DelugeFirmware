@@ -943,7 +943,7 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 				    instruction.sampleSyncLengthOn, 0, 0);
 			}
 
-			ticksTilNextArpEvent = getMin(ticksTilNextArpEvent, ticksTilNextArpEventThisDrum);
+			ticksTilNextArpEvent = std::min(ticksTilNextArpEvent, ticksTilNextArpEventThisDrum);
 		}
 	}
 

@@ -114,15 +114,15 @@ void QwertyUI::drawTextForOLEDEditing(int xPixel, int xPixelMax, int yPixel, int
 	int xScrollHere = 0;
 
 	// Prevent being scrolled too far left.
-	int minXScroll = getMin(enteredTextEditPos + 3 - maxNumChars, displayStringLength - maxNumChars + atVeryEnd);
-	minXScroll = getMax(minXScroll, 0);
-	scrollPosHorizontal = getMax(scrollPosHorizontal, minXScroll);
+	int minXScroll = std::min(enteredTextEditPos + 3 - maxNumChars, displayStringLength - maxNumChars + atVeryEnd);
+	minXScroll = std::max(minXScroll, 0);
+	scrollPosHorizontal = std::max(scrollPosHorizontal, minXScroll);
 
 	// Prevent being scrolled too far right.
-	int maxXScroll = getMin(displayStringLength - maxNumChars + atVeryEnd,
+	int maxXScroll = std::min(displayStringLength - maxNumChars + atVeryEnd,
 	                        enteredTextEditPos - 3); // First part of this might not be needed I think?
-	maxXScroll = getMax(maxXScroll, 0);
-	scrollPosHorizontal = getMin(scrollPosHorizontal, maxXScroll);
+	maxXScroll = std::max(maxXScroll, 0);
+	scrollPosHorizontal = std::min(scrollPosHorizontal, maxXScroll);
 
 	OLED::drawString(&displayName[scrollPosHorizontal], xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
 	                 kTextSpacingY);
@@ -161,8 +161,8 @@ void QwertyUI::displayText(bool blinkImmediately) {
 	if (totalTextLength == enteredTextEditPos) {
 		maxScrollPos++;
 	}
-	scrollPos = getMin(scrollPos, maxScrollPos);
-	scrollPos = getMax(scrollPos, 0);
+	scrollPos = std::min(scrollPos, maxScrollPos);
+	scrollPos = std::max(scrollPos, 0);
 
 	int editPosOnscreen = encodedEditPos - scrollPos;
 

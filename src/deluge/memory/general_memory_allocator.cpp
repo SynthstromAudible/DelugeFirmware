@@ -414,10 +414,10 @@ void GeneralMemoryAllocator::test() {
 						int magnitudeReduction = getRandom255() % 25;
 						idealAmountToExtend >>= magnitudeReduction;
 
-						idealAmountToExtend = getMax(idealAmountToExtend, (uint32_t)4);
+						idealAmountToExtend = std::max(idealAmountToExtend, (uint32_t)4);
 						int magnitudeReduction2 = getRandom255() % 25;
 						uint32_t minAmountToExtend = idealAmountToExtend >> magnitudeReduction2;
-						minAmountToExtend = getMax(minAmountToExtend, (uint32_t)4);
+						minAmountToExtend = std::max(minAmountToExtend, (uint32_t)4);
 
 						checkEverythingOk("before extending");
 
