@@ -456,7 +456,7 @@ stopOnlyIfOutputTaken:
 	}
 
 	// Now's the point where old linear recording has ended, and new is yet to begin. So separate any Actions, for separate undoability
-	actionLogger.closeAction(ACTION_RECORD);
+	actionLogger.closeAction(ActionType::RECORD);
 
 	bool sectionWasJustLaunched = (lastSectionArmed < 254);
 	bool anyLinearRecordingAfter = false;
@@ -972,7 +972,7 @@ void Session::toggleClipStatus(Clip* clip, int32_t* clipIndex, bool doInstant, i
 						if (clip->getCurrentlyRecordingLinearly()) {
 							cancelAllArming();
 							cancelAllLaunchScheduling();
-							Action* action = actionLogger.getNewAction(ACTION_RECORD, true);
+							Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
 							currentSong->setClipLength(clip, clip->getLivePos() + 1, action,
 							                           false); // Tell it not to resync
 							armClipToStopAction(clip);

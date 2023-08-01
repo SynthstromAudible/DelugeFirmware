@@ -463,7 +463,7 @@ int32_t InstrumentClip::beginLinearRecording(ModelStackWithTimelineCounter* mode
 				if (noteRow) {
 
 					if (!action) {
-						action = actionLogger.getNewAction(ACTION_RECORD, true);
+						action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
 					}
 
 					ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowIndex, noteRow);
@@ -482,7 +482,7 @@ int32_t InstrumentClip::beginLinearRecording(ModelStackWithTimelineCounter* mode
 		MelodicInstrument* melodicInstrument = (MelodicInstrument*)output;
 		if (melodicInstrument->earlyNotes.getNumElements()) {
 
-			Action* action = actionLogger.getNewAction(ACTION_RECORD, true);
+			Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
 			bool scaleAltered = false;
 
 			for (int32_t i = 0; i < melodicInstrument->earlyNotes.getNumElements(); i++) {
@@ -934,7 +934,7 @@ void InstrumentClip::sendPendingNoteOn(ModelStackWithTimelineCounter* modelStack
 void InstrumentClip::toggleNoteRowMute(ModelStackWithNoteRow* modelStack) {
 
 	// Record action
-	Action* action = actionLogger.getNewAction(ACTION_MISC);
+	Action* action = actionLogger.getNewAction(ActionType::MISC);
 	if (action) {
 		void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceNoteRowMute));
 
@@ -3992,7 +3992,7 @@ void InstrumentClip::finishLinearRecording(ModelStackWithTimelineCounter* modelS
 				    && ((Instrument*)output)->isNoteRowStillAuditioningAsLinearRecordingEnded(thisNoteRow)) {
 
 					if (!action) {
-						action = actionLogger.getNewAction(ACTION_RECORD, true);
+						action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
 					}
 					int32_t noteRowId = getNoteRowId(thisNoteRow, i);
 
@@ -4298,7 +4298,7 @@ doNormal: // Wrap it back to the start.
 	}
 
 	// Since recording usually involves creating lots of notes overall, we'll just snapshot all the notes in bulk
-	Action* action = actionLogger.getNewAction(ACTION_RECORD, true);
+	Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
 	if (action) {
 		action->recordNoteArrayChangeIfNotAlreadySnapshotted(this, modelStack->noteRowId, &noteRow->notes, false, true);
 	}
@@ -4352,7 +4352,7 @@ doNormal: // Wrap it back to the start.
 		AutoParam* param = &mpeParams->params[m];
 		ModelStackWithAutoParam* modelStackWithAutoParam = modelStackWithParamCollection->addAutoParam(m, param);
 
-		Action* action = actionLogger.getNewAction(ACTION_RECORD, true);
+		Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
 		if (action) {
 			action->recordParamChangeIfNotAlreadySnapshotted(modelStackWithAutoParam);
 		}
@@ -4411,7 +4411,7 @@ void InstrumentClip::recordNoteOff(ModelStackWithNoteRow* modelStack, int32_t ve
 		return;
 	}
 
-	Action* action = actionLogger.getNewAction(ACTION_RECORD, true);
+	Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
 
 	modelStack->getNoteRow()->recordNoteOff(getLivePos(), modelStack, action, velocity);
 }

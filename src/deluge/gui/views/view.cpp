@@ -1049,7 +1049,7 @@ void View::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 			        whichModEncoder, &activeModControllableModelStack);
 
 			if (modelStackWithParam && modelStackWithParam->autoParam) {
-				Action* action = actionLogger.getNewAction(ACTION_AUTOMATION_DELETE, false);
+				Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::NOT_ALLOWED);
 				modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam);
 				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_AUTOMATION_DELETED));
 			}

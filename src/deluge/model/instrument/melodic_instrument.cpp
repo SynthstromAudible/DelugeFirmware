@@ -187,7 +187,7 @@ doRecord:
 							    (InstrumentClip*)
 							        modelStack->getTimelineCounter(); // Re-get it, cos it might have changed
 
-							Action* action = actionLogger.getNewAction(ACTION_RECORD, true);
+							Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
 
 							bool scaleAltered = false;
 

@@ -388,7 +388,7 @@ void ArrangerView::clearArrangement() {
 		playbackHandler.endPlayback();
 	}
 
-	Action* action = actionLogger.getNewAction(ACTION_ARRANGEMENT_CLEAR, false);
+	Action* action = actionLogger.getNewAction(ActionType::ARRANGEMENT_CLEAR, ActionAddition::NOT_ALLOWED);
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* modelStack = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
@@ -1347,7 +1347,7 @@ getItFromSection:
 						}
 					}
 
-					Action* action = actionLogger.getNewAction(ACTION_CLIP_INSTANCE_EDIT, false);
+					Action* action = actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::NOT_ALLOWED);
 					if (action) {
 						action->recordClipInstanceExistenceChange(output, clipInstance, ExistenceChangeType::CREATE);
 					}
@@ -1412,7 +1412,7 @@ getItFromSection:
 
 					// Shorten
 					if (clipInstance->length > lengthTilNewSquareStart) {
-						Action* action = actionLogger.getNewAction(ACTION_CLIP_INSTANCE_EDIT, true);
+						Action* action = actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::ALLOWED);
 						if (clipInstance->clip) {
 							arrangement.rowEdited(output, clipInstance->pos + lengthTilNewSquareStart,
 							                      clipInstance->pos + clipInstance->length, clipInstance->clip, NULL);
@@ -1444,7 +1444,7 @@ getItFromSection:
 						// If we are in fact able to lengthen it...
 						if (newLength > oldLength) {
 
-							Action* action = actionLogger.getNewAction(ACTION_CLIP_INSTANCE_EDIT, true);
+							Action* action = actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::ALLOWED);
 
 							clipInstance->change(action, output, clipInstance->pos, newLength, clipInstance->clip);
 							arrangement.rowEdited(output, clipInstance->pos + oldLength,
@@ -1492,7 +1492,7 @@ justGetOut:
 							arrangement.rowEdited(output, clipInstance->pos, clipInstance->pos + clipInstance->length,
 							                      clipInstance->clip, NULL);
 
-							Action* action = actionLogger.getNewAction(ACTION_CLIP_INSTANCE_EDIT, false);
+							Action* action = actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::NOT_ALLOWED);
 							deleteClipInstance(output, pressedClipInstanceIndex, clipInstance, action);
 							goto justGetOut;
 						}
@@ -1566,7 +1566,7 @@ justGetOut:
 
 								currentSong->arrangementOnlyClips.insertClipAtIndex(newClip, 0);
 
-								Action* action = actionLogger.getNewAction(ACTION_CLIP_INSTANCE_EDIT, false);
+								Action* action = actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::NOT_ALLOWED);
 								if (action) {
 									action->recordClipExistenceChange(currentSong, &currentSong->arrangementOnlyClips,
 									                                  newClip, ExistenceChangeType::CREATE);
@@ -1621,7 +1621,7 @@ void ArrangerView::exitSubModeWithoutAction() {
 		}
 		uiNeedsRendering(this, whichRowsNeedReRendering, 0);
 		uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
-		actionLogger.closeAction(ACTION_CLIP_INSTANCE_EDIT);
+		actionLogger.closeAction(ActionType::CLIP_INSTANCE_EDIT);
 	}
 
 	if (isUIModeActive(UI_MODE_MIDI_LEARN)) {
@@ -1940,7 +1940,7 @@ itsInvalid:
 		arrangement.rowEdited(pressedClipInstanceOutput, clipInstance->pos, clipInstance->pos + length, clip, NULL);
 	}
 
-	Action* action = actionLogger.getNewAction(ACTION_CLIP_INSTANCE_EDIT, true);
+	Action* action = actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::ALLOWED);
 
 	// If order of elements hasn't changed and Output hasn't either...
 	if (newOutputToDragInto == pressedClipInstanceOutput
@@ -2327,7 +2327,7 @@ void ArrangerView::selectEncoderAction(int8_t offset) {
 			newLength = kMaxSequenceLength - clipInstance->pos;
 		}
 
-		Action* action = actionLogger.getNewAction(ACTION_CLIP_INSTANCE_EDIT, true);
+		Action* action = actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::ALLOWED);
 		clipInstance->change(action, output, clipInstance->pos, newLength, newClip);
 
 		view.setActiveModControllableTimelineCounter(newClip);
@@ -2579,14 +2579,14 @@ ActionResult ArrangerView::horizontalEncoderAction(int32_t offset) {
 					return ActionResult::DEALT_WITH;
 				}
 
-				int32_t actionType = (offset >= 0) ? ACTION_ARRANGEMENT_TIME_EXPAND : ACTION_ARRANGEMENT_TIME_CONTRACT;
+				ActionType actionType = (offset >= 0) ? ActionType::ARRANGEMENT_TIME_EXPAND : ActionType::ARRANGEMENT_TIME_CONTRACT;
 
-				Action* action = actionLogger.getNewAction(actionType, true);
+				Action* action = actionLogger.getNewAction(actionType, ActionAddition::ALLOWED);
 
 				if (action
 				    && (action->xScrollArranger[BEFORE] != currentSong->xScroll[NAVIGATION_ARRANGEMENT]
 				        || action->xZoomArranger[BEFORE] != currentSong->xZoom[NAVIGATION_ARRANGEMENT])) {
-					action = actionLogger.getNewAction(actionType, false);
+					action = actionLogger.getNewAction(actionType, ActionAddition::NOT_ALLOWED);
 				}
 
 				ParamCollectionSummary* unpatchedParamsSummary =

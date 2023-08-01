@@ -388,33 +388,32 @@ bool Clip::opportunityToBeginSessionLinearRecording(ModelStackWithTimelineCounte
 
 	if (playbackHandler.recording && wantsToBeginLinearRecording(modelStack->song)) {
 
-		Action* action = actionLogger.getNewAction(
-		    ACTION_RECORD, true); // Allow addition to existing Action - one might have already been created because
+		// Allow addition to existing Action - one might have already been created because
 		// note recorded slightly early just before end of count-in
+		Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
 
 		if (isPendingOverdub) {
 			*newOutputCreated = cloneOutput(modelStack);
 
-			if (action) {
+			if (action != nullptr) {
 				action->recordClipExistenceChange(modelStack->song, &modelStack->song->sessionClips, this,
 				                                  ExistenceChangeType::CREATE);
 
 				if (*newOutputCreated) {
 					void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceOutputExistence));
-					if (consMemory) {
-						ConsequenceOutputExistence* cons =
-						    new (consMemory) ConsequenceOutputExistence(output, ExistenceChangeType::CREATE);
+					if (consMemory != nullptr) {
+						auto* cons = new (consMemory) ConsequenceOutputExistence(output, ExistenceChangeType::CREATE);
 						action->addConsequence(cons);
 					}
 				}
 			}
 		}
 		else {
-			if (action) {
+			if (action != nullptr) {
 				void* consMemory =
 				    GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceClipBeginLinearRecord));
-				if (consMemory) {
-					ConsequenceClipBeginLinearRecord* cons = new (consMemory) ConsequenceClipBeginLinearRecord(this);
+				if (consMemory != nullptr) {
+					auto* cons = new (consMemory) ConsequenceClipBeginLinearRecord(this);
 					action->addConsequence(cons);
 				}
 			}
@@ -424,12 +423,12 @@ bool Clip::opportunityToBeginSessionLinearRecording(ModelStackWithTimelineCounte
 		isPendingOverdub = false;
 
 		int32_t error = beginLinearRecording(modelStack, buttonPressLatency);
-		if (error) {
+		if (error != 0) {
 			display->displayError(error);
 			return false;
 		}
 
-		if (action) {
+		if (action != nullptr) {
 			actionLogger.updateAction(action); // Needed for vertical scroll reasons
 		}
 
@@ -816,7 +815,7 @@ void Clip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 			// we definitely don't want to have a consequence - pointer pointing to it!
 			if (true || type != ClipType::AUDIO) {
 				D_PRINTLN("getting new action");
-				Action* action = actionLogger.getNewAction(ACTION_RECORD, ACTION_ADDITION_ALLOWED);
+				Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
 				if (action) {
 					action->recordClipLengthChange(this, oldLength);
 				}

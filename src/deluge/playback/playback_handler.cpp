@@ -230,7 +230,7 @@ void PlaybackHandler::recordButtonPressed() {
 	if (isUIModeWithinRange(recordButtonUIModes)) {
 
 		if (!recording) {
-			actionLogger.closeAction(ACTION_RECORD);
+			actionLogger.closeAction(ActionType::RECORD);
 		}
 
 		// Disallow recording to begin if song pre-loaded
@@ -389,7 +389,7 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
                                     bool shouldShiftAccordingToClipInstance,
                                     int32_t buttonPressLatencyForTempolessRecord) {
 
-	actionLogger.closeAction(ACTION_RECORD);
+	actionLogger.closeAction(ActionType::RECORD);
 
 	if (shouldShiftAccordingToClipInstance && currentPlaybackMode == &arrangement && rootUIIsClipMinderScreen()) {
 		playFromPos += currentSong->lastClipInstanceEnteredStartPos;
@@ -2227,7 +2227,7 @@ void PlaybackHandler::grabTempoFromClip(Clip* clip) {
 	}
 
 	uint64_t loopLengthSamples = ((AudioClip*)clip)->sampleHolder.getLengthInSamplesAtSystemSampleRate(true);
-	Action* action = actionLogger.getNewAction(ACTION_TEMPO_CHANGE);
+	Action* action = actionLogger.getNewAction(ActionType::TEMPO_CHANGE);
 
 	//setTempoFromAudioClipLength(loopLengthSamples, action);
 
@@ -2320,7 +2320,7 @@ void PlaybackHandler::finishTempolessRecording(bool shouldStartPlaybackAgain, in
 
 				foundAnyYet = true;
 				uint64_t loopLengthSamples = sampleHolder->getDurationInSamples(true);
-				action = actionLogger.getNewAction(ACTION_RECORD, true);
+				action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
 
 				ticksLong = setTempoFromAudioClipLength(loopLengthSamples, action);
 			}
@@ -2426,11 +2426,11 @@ void PlaybackHandler::tapTempoButtonPress() {
 		}
 		// timePerQuarterNote no longer represents quarter notes, but 3-ticks's
 
-		actionLogger.closeAction(ACTION_TEMPO_CHANGE); // Don't add to previous action
+		actionLogger.closeAction(ActionType::TEMPO_CHANGE); // Don't add to previous action
 		currentSong->setTimePerTimerTick(
 		    timePerQuarterNoteBig / 3,
 		    true); // Put the fraction in the middle; it's more likely to be accurate since we've been rounding down
-		actionLogger.closeAction(ACTION_TEMPO_CHANGE); // Don't allow next action to add to this one
+		actionLogger.closeAction(ActionType::TEMPO_CHANGE); // Don't allow next action to add to this one
 
 		displayTempoByCalculation();
 	}

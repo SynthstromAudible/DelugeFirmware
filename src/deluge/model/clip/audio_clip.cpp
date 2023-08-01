@@ -183,7 +183,7 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 	}
 
 	// Have to do this before setting currentlyRecordingLinearly to false, for vertical scroll reasons
-	Action* action = actionLogger.getNewAction(ACTION_RECORD, ACTION_ADDITION_ALLOWED);
+	Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
 
 	if (!isUnfinishedAutoOverdub) {
 
