@@ -25,7 +25,7 @@ class WaveTableBandData final : public Stealable {
 public:
 	WaveTableBandData(WaveTable* newWaveTable);
 
-	bool mayBeStolen(void* thingNotToStealFrom = NULL);
+	bool mayBeStolen(void* thingNotToStealFrom = nullptr);
 	void steal(char const* errorCode);
 	int32_t getAppropriateQueue();
 

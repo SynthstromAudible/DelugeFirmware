@@ -21,7 +21,7 @@
 #include "model/model_stack.h"
 #include "util/functions.h"
 
-namespace keyboard::layout {
+namespace deluge::gui::ui::keyboard::layout {
 
 void KeyboardLayoutVelocityDrums::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
 	uint8_t noteIdx = 0;
@@ -109,4 +109,4 @@ void KeyboardLayoutVelocityDrums::renderPads(uint8_t image[][kDisplayWidth + kSi
 	}
 }
 
-}; // namespace keyboard::layout
+}; // namespace deluge::gui::ui::keyboard::layout

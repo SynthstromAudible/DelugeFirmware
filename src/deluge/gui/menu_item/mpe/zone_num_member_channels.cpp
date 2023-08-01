@@ -23,15 +23,9 @@
 #include "io/midi/midi_engine.h"
 #include "string.h"
 
-namespace menu_item::mpe {
+namespace deluge::gui::menu_item::mpe {
 
 ZoneNumMemberChannels zoneNumMemberChannelsMenu{};
-
-ZoneNumMemberChannels::ZoneNumMemberChannels() {
-#if HAVE_OLED
-	basicTitle = "Num member ch.";
-#endif
-}
 
 MIDIPort* ZoneNumMemberChannels::getPort() const {
 	return &soundEditor.currentMIDIDevice->ports[directionSelectorMenu.whichDirection];
@@ -63,20 +57,20 @@ int32_t ZoneNumMemberChannels::getMaxValue() const {
 void ZoneNumMemberChannels::readCurrentValue() {
 	MIDIPort* port = getPort();
 	if (zoneSelectorMenu.whichZone == MPE_ZONE_LOWER_NUMBERED_FROM_0) {
-		soundEditor.currentValue = port->mpeLowerZoneLastMemberChannel;
+		this->value_ = port->mpeLowerZoneLastMemberChannel;
 	}
 	else {
-		soundEditor.currentValue = 15 - port->mpeUpperZoneLastMemberChannel;
+		this->value_ = 15 - port->mpeUpperZoneLastMemberChannel;
 	}
 }
 
 void ZoneNumMemberChannels::writeCurrentValue() {
 	MIDIPort* port = getPort();
 	if (zoneSelectorMenu.whichZone == MPE_ZONE_LOWER_NUMBERED_FROM_0) {
-		port->mpeLowerZoneLastMemberChannel = soundEditor.currentValue;
+		port->mpeLowerZoneLastMemberChannel = this->value_;
 	}
 	else {
-		port->mpeUpperZoneLastMemberChannel = 15 - soundEditor.currentValue;
+		port->mpeUpperZoneLastMemberChannel = 15 - this->value_;
 	}
 
 	MIDIDeviceManager::recountSmallestMPEZones();
@@ -86,7 +80,7 @@ void ZoneNumMemberChannels::writeCurrentValue() {
 	if (directionSelectorMenu.whichDirection == MIDI_DIRECTION_OUTPUT_FROM_DELUGE) {
 		int32_t masterChannel = (zoneSelectorMenu.whichZone == MPE_ZONE_LOWER_NUMBERED_FROM_0) ? 0 : 15;
 
-		soundEditor.currentMIDIDevice->sendRPN(masterChannel, 0, 6, soundEditor.currentValue);
+		soundEditor.currentMIDIDevice->sendRPN(masterChannel, 0, 6, this->value_);
 	}
 }
-} // namespace menu_item::mpe
+} // namespace deluge::gui::menu_item::mpe

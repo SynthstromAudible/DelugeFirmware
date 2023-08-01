@@ -22,14 +22,14 @@
 class ParamSet;
 class ModelStackWithAutoParam;
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
 // Note that this does *not* inherit from MenuItem actually!
 class Param {
 public:
-	Param(int32_t newP = 0) { p = newP; }
-	virtual int32_t getMaxValue() const { return 50; }
-	virtual int32_t getMinValue() const { return 0; }
+	Param(int32_t newP = 0) : p(newP) {}
+	[[nodiscard]] virtual int32_t getMaxValue() const { return 50; }
+	[[nodiscard]] virtual int32_t getMinValue() const { return 0; }
 	virtual uint8_t getP() { return p; };
 	MenuItem* selectButtonPress();
 	virtual ModelStackWithAutoParam* getModelStack(void* memory) = 0;
@@ -39,4 +39,4 @@ public:
 protected:
 	virtual ParamSet* getParamSet() = 0;
 };
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

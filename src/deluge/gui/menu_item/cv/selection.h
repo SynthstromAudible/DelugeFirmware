@@ -15,47 +15,45 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "gui/menu_item/selection.h"
+#include "gui/menu_item/selection/selection.h"
 #include "gui/menu_item/submenu.h"
 #include "gui/ui/sound_editor.h"
 #include "transpose.h"
 #include "volts.h"
 
 extern void setCvNumberForTitle(int32_t m);
-extern menu_item::Submenu cvSubmenu;
+extern deluge::gui::menu_item::Submenu<2> cvSubmenu;
 
-namespace menu_item::cv {
-#if HAVE_OLED
-static char const* cvOutputChannel[] = {"CV output 1", "CV output 2", NULL};
-#else
-static char const* cvOutputChannel[] = {"Out1", "Out2", NULL};
-#endif
-
-class Selection final : public menu_item::Selection {
+namespace deluge::gui::menu_item::cv {
+class Selection final : public menu_item::Selection<2> {
 public:
-	Selection(char const* newName = NULL) : menu_item::Selection(newName) {
-#if HAVE_OLED
-		basicTitle = "CV outputs";
-#endif
-		basicOptions = cvOutputChannel;
-	}
-	void beginSession(MenuItem* navigatedBackwardFrom) {
-		if (!navigatedBackwardFrom) {
-			soundEditor.currentValue = 0;
+	using menu_item::Selection<2>::Selection;
+
+	void beginSession(MenuItem* navigatedBackwardFrom) override {
+		if (navigatedBackwardFrom == nullptr) {
+			this->value_ = 0;
 		}
 		else {
-			soundEditor.currentValue = soundEditor.currentSourceIndex;
+			this->value_ = soundEditor.currentSourceIndex;
 		}
-		menu_item::Selection::beginSession(navigatedBackwardFrom);
+		menu_item::Selection<2>::beginSession(navigatedBackwardFrom);
 	}
 
-	MenuItem* selectButtonPress() {
-		soundEditor.currentSourceIndex = soundEditor.currentValue;
+	MenuItem* selectButtonPress() override {
+		soundEditor.currentSourceIndex = this->value_;
 #if HAVE_OLED
-		cvSubmenu.basicTitle = cvOutputChannel[soundEditor.currentValue];
-		setCvNumberForTitle(soundEditor.currentValue);
+		cvSubmenu.title = getOptions().at(this->value_);
+		setCvNumberForTitle(this->value_);
 #endif
 		return &cvSubmenu;
 	}
+
+	static_vector<string, capacity()> getOptions() override {
+#if HAVE_OLED
+		return {"CV output 1", "CV output 2"};
+#else
+		return {"Out1", "Out2"};
+#endif
+	}
 };
-} // namespace menu_item::cv
+} // namespace deluge::gui::menu_item::cv

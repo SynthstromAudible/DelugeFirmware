@@ -16,19 +16,17 @@
 */
 #pragma once
 #include "definitions_cxx.hpp"
-#include "gui/menu_item/selection.h"
+#include "gui/menu_item/selection/typed_selection.h"
 
-namespace menu_item::lfo {
+namespace deluge::gui::menu_item::lfo {
 
-class Shape : public Selection {
+class Shape : public TypedSelection<LFOType, kNumLFOTypes> {
 public:
-	using Selection::Selection;
+	using TypedSelection::TypedSelection;
 
-	char const** getOptions() {
-		static char const* options[] = {"Sine", "Triangle", "Square", "Saw", "S&H", "Random Walk", NULL};
-		return options;
+	static_vector<string, capacity()> getOptions() override {
+		return {"Sine", "Triangle", "Square", "Saw", "S&H", "Random Walk"};
 	}
-	int32_t getNumOptions() { return kNumLFOTypes; }
 };
 
-} // namespace menu_item::lfo
+} // namespace deluge::gui::menu_item::lfo

@@ -15,39 +15,45 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "gui/menu_item/formatted_title.h"
 #include "gui/menu_item/source/transpose.h"
 #include "processing/sound/sound.h"
 #include "storage/multi_range/multisample_range.h"
 
-namespace menu_item::sample {
-class Transpose final : public source::Transpose {
+namespace deluge::gui::menu_item::sample {
+class Transpose final : public source::Transpose, public FormattedTitle {
 public:
-	Transpose(char const* newName = NULL, int32_t newP = 0) : source::Transpose(newName, newP) {}
-	void readCurrentValue() {
-		int32_t transpose;
-		int32_t cents;
-		if (soundEditor.currentMultiRange && soundEditor.currentSound->getSynthMode() != SynthMode::FM
+	Transpose(const string& name, const string& title_format_str, int32_t newP)
+	    : source::Transpose(name, newP), FormattedTitle(title_format_str) {}
+
+	[[nodiscard]] const string& getTitle() const override { return FormattedTitle::title(); }
+
+	void readCurrentValue() override {
+		int32_t transpose = 0;
+		int32_t cents = 0;
+		if ((soundEditor.currentMultiRange != nullptr) && soundEditor.currentSound->getSynthMode() != SynthMode::FM
 		    && soundEditor.currentSource->oscType == OscType::SAMPLE) {
-			transpose = ((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.transpose;
-			cents = ((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.cents;
+			transpose = (static_cast<MultisampleRange*>(soundEditor.currentMultiRange))->sampleHolder.transpose;
+			cents = (static_cast<MultisampleRange*>(soundEditor.currentMultiRange))->sampleHolder.cents;
 		}
 		else {
 			transpose = soundEditor.currentSource->transpose;
 			cents = soundEditor.currentSource->cents;
 		}
-		soundEditor.currentValue = transpose * 100 + cents;
+		this->value_ = transpose * 100 + cents;
 	}
-	void writeCurrentValue() {
-		int32_t currentValue = soundEditor.currentValue + 25600;
+
+	void writeCurrentValue() override {
+		int32_t currentValue = this->value_ + 25600;
 
 		int32_t semitones = (currentValue + 50) / 100;
 		int32_t cents = currentValue - semitones * 100;
 
 		int32_t transpose = semitones - 256;
-		if (soundEditor.currentMultiRange && soundEditor.currentSound->getSynthMode() != SynthMode::FM
+		if ((soundEditor.currentMultiRange != nullptr) && soundEditor.currentSound->getSynthMode() != SynthMode::FM
 		    && soundEditor.currentSource->oscType == OscType::SAMPLE) {
-			((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.transpose = transpose;
-			((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.setCents(cents);
+			(static_cast<MultisampleRange*>(soundEditor.currentMultiRange))->sampleHolder.transpose = transpose;
+			(static_cast<MultisampleRange*>(soundEditor.currentMultiRange))->sampleHolder.setCents(cents);
 		}
 		else {
 			soundEditor.currentSource->transpose = transpose;
@@ -59,7 +65,9 @@ public:
 
 		soundEditor.currentSound->recalculateAllVoicePhaseIncrements(modelStack);
 	}
-	MenuPermission checkPermissionToBeginSession(Sound* sound, int32_t whichThing, ::MultiRange** currentRange) {
+
+	MenuPermission checkPermissionToBeginSession(Sound* sound, int32_t whichThing,
+	                                             ::MultiRange** currentRange) override {
 
 		if (!isRelevant(sound, whichThing)) {
 			return MenuPermission::NO;
@@ -68,11 +76,13 @@ public:
 		Source* source = &sound->sources[whichThing];
 
 		if (sound->getSynthMode() == SynthMode::FM
-		    || (source->oscType != OscType::SAMPLE && source->oscType != OscType::WAVETABLE))
+		    || (source->oscType != OscType::SAMPLE && source->oscType != OscType::WAVETABLE)) {
 			return MenuPermission::YES;
+		}
 
 		return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, whichThing, true, currentRange);
 	}
-	bool isRangeDependent() { return true; }
+
+	bool isRangeDependent() override { return true; }
 };
-} // namespace menu_item::sample
+} // namespace deluge::gui::menu_item::sample

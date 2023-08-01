@@ -21,12 +21,12 @@
 #include "processing/engines/audio_engine.h"
 #include <cmath>
 
-namespace menu_item::reverb {
+namespace deluge::gui::menu_item::reverb {
 class Width final : public Integer {
 public:
 	using Integer::Integer;
-	void readCurrentValue() { soundEditor.currentValue = std::round(AudioEngine::reverb.getwidth() * 50); }
-	void writeCurrentValue() { AudioEngine::reverb.setwidth((float)soundEditor.currentValue / 50); }
-	int32_t getMaxValue() const { return 50; }
+	void readCurrentValue() override { this->value_ = std::round(AudioEngine::reverb.getwidth() * 50); }
+	void writeCurrentValue() override { AudioEngine::reverb.setwidth((float)this->value_ / 50); }
+	[[nodiscard]] int32_t getMaxValue() const override { return 50; }
 };
-} // namespace menu_item::reverb
+} // namespace deluge::gui::menu_item::reverb

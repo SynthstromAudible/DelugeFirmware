@@ -15,19 +15,25 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "gui/menu_item/submenu.h"
+#include "gui/menu_item/submenu_referring_to_one_thing.h"
 
 extern void setEnvelopeNumberForTitles(int32_t);
 
-namespace menu_item::submenu {
-class Envelope final : public SubmenuReferringToOneThing {
+namespace deluge::gui::menu_item::submenu {
+template <size_t n>
+class Envelope final : public SubmenuReferringToOneThing<n> {
 public:
-	using SubmenuReferringToOneThing::SubmenuReferringToOneThing;
+	using SubmenuReferringToOneThing<n>::SubmenuReferringToOneThing;
 #if HAVE_OLED
-	void beginSession(MenuItem* navigatedBackwardFrom = NULL) {
-		SubmenuReferringToOneThing::beginSession(navigatedBackwardFrom);
-		setEnvelopeNumberForTitles(thingIndex);
+	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) {
+		SubmenuReferringToOneThing<n>::beginSession(navigatedBackwardFrom);
+		setEnvelopeNumberForTitles(this->thingIndex);
 	}
 #endif
 };
-} // namespace menu_item::submenu
+
+// Template deduction guide, will not be required with P2582@C++23
+template <size_t n>
+Envelope(const string&, MenuItem* const (&)[n], int32_t) -> Envelope<n>;
+
+} // namespace deluge::gui::menu_item::submenu

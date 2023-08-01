@@ -16,20 +16,17 @@
 */
 #pragma once
 #include "definitions_cxx.hpp"
-#include "gui/menu_item/selection.h"
+#include "gui/menu_item/selection/typed_selection.h"
 #include "gui/ui/sound_editor.h"
+#include "util/container/static_vector.hpp"
 #include "util/misc.h"
 
-namespace menu_item::voice {
-class Priority final : public Selection {
+namespace deluge::gui::menu_item::voice {
+class Priority final : public TypedSelection<VoicePriority, kNumVoicePriorities> {
 public:
-	Priority(char const* newName = NULL) : Selection(newName) {}
-	void readCurrentValue() { soundEditor.currentValue = util::to_underlying(*soundEditor.currentPriority); }
-	void writeCurrentValue() { *soundEditor.currentPriority = static_cast<VoicePriority>(soundEditor.currentValue); }
-	char const** getOptions() {
-		static char const* options[] = {"LOW", "MEDIUM", "HIGH", NULL};
-		return options;
-	}
-	int32_t getNumOptions() { return kNumVoicePriorities; }
+	using TypedSelection::TypedSelection;
+	void readCurrentValue() override { this->value_ = *soundEditor.currentPriority; }
+	void writeCurrentValue() override { *soundEditor.currentPriority = this->value_; }
+	static_vector<string, capacity()> getOptions() override { return {"LOW", "MEDIUM", "HIGH"}; }
 };
-} // namespace menu_item::voice
+} // namespace deluge::gui::menu_item::voice

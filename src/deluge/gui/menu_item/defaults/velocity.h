@@ -20,16 +20,16 @@
 #include "model/song/song.h"
 #include "storage/flash_storage.h"
 
-namespace menu_item::defaults {
+namespace deluge::gui::menu_item::defaults {
 class Velocity final : public Integer {
 public:
 	using Integer::Integer;
-	int32_t getMinValue() const { return 1; }
-	int32_t getMaxValue() const { return 127; }
-	void readCurrentValue() { soundEditor.currentValue = FlashStorage::defaultVelocity; }
-	void writeCurrentValue() {
-		FlashStorage::defaultVelocity = soundEditor.currentValue;
+	[[nodiscard]] int32_t getMinValue() const override { return 1; }
+	[[nodiscard]] int32_t getMaxValue() const override { return 127; }
+	void readCurrentValue() override { this->value_ = FlashStorage::defaultVelocity; }
+	void writeCurrentValue() override {
+		FlashStorage::defaultVelocity = this->value_;
 		currentSong->setDefaultVelocityForAllInstruments(FlashStorage::defaultVelocity);
 	}
 };
-} // namespace menu_item::defaults
+} // namespace deluge::gui::menu_item::defaults

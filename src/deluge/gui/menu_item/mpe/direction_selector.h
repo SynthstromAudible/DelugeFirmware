@@ -17,21 +17,27 @@
 
 #pragma once
 
-#include "gui/menu_item/selection.h"
+#include "gui/menu_item/selection/selection.h"
+#include "zone_selector.h"
 
-namespace menu_item::mpe {
+namespace deluge::gui::menu_item::mpe {
 
-class DirectionSelector final : public Selection {
+class DirectionSelector final : public Selection<2> {
 public:
-	DirectionSelector(char const* newName = NULL) : Selection(newName) {}
-	void beginSession(MenuItem* navigatedBackwardFrom = NULL);
-	char const** getOptions();
-	void readCurrentValue();
-	void writeCurrentValue();
-	MenuItem* selectButtonPress();
+	using Selection::Selection;
+	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
+	static_vector<string, capacity()> getOptions() override { return {"In", "Out"}; }
+	void readCurrentValue() override { this->value_ = whichDirection; }
+	void writeCurrentValue() override { whichDirection = this->value_; }
+	MenuItem* selectButtonPress() override;
 	uint8_t whichDirection;
+#if HAVE_OLED
+	[[nodiscard]] const string& getTitle() const override {
+		return whichDirection ? "MPE output" : "MPE input";
+	}
+#endif
 };
 
 extern DirectionSelector directionSelectorMenu;
 
-} // namespace menu_item::mpe
+} // namespace deluge::gui::menu_item::mpe

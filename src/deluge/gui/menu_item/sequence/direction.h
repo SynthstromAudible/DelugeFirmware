@@ -16,7 +16,7 @@
 */
 #pragma once
 #include "definitions_cxx.hpp"
-#include "gui/menu_item/selection.h"
+#include "gui/menu_item/selection/typed_selection.h"
 #include "gui/ui/sound_editor.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/kit.h"
@@ -25,77 +25,71 @@
 #include "model/song/song.h"
 #include "util/misc.h"
 
-namespace menu_item::sequence {
-class Direction final : public Selection {
+namespace deluge::gui::menu_item::sequence {
+class Direction final : public TypedSelection<SequenceDirection, kNumSequenceDirections + 1> {
 public:
-	using Selection::Selection;
+	using TypedSelection::TypedSelection;
 
 	ModelStackWithNoteRow* getIndividualNoteRow(ModelStackWithTimelineCounter* modelStack) {
-		InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
+		auto* clip = static_cast<InstrumentClip*>(modelStack->getTimelineCounter());
 		if (!clip->affectEntire && clip->output->type == InstrumentType::KIT) {
-			Kit* kit = (Kit*)currentSong->currentClip->output;
-			if (kit->selectedDrum) {
+			Kit* kit = static_cast<Kit*>(currentSong->currentClip->output);
+			if (kit->selectedDrum != nullptr) {
 				return clip->getNoteRowForDrum(modelStack, kit->selectedDrum); // Still might be NULL;
 			}
 		}
-		return modelStack->addNoteRow(0, NULL);
+		return modelStack->addNoteRow(0, nullptr);
 	}
 
-	void readCurrentValue() {
+	void readCurrentValue() override {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		ModelStackWithNoteRow* modelStackWithNoteRow = getIndividualNoteRow(modelStack);
 
-		if (modelStackWithNoteRow->getNoteRowAllowNull()) {
-			soundEditor.currentValue = util::to_underlying(modelStackWithNoteRow->getNoteRow()->sequenceDirectionMode);
+		if (modelStackWithNoteRow->getNoteRowAllowNull() != nullptr) {
+			this->value_ = modelStackWithNoteRow->getNoteRow()->sequenceDirectionMode;
 		}
 		else {
-			soundEditor.currentValue =
-			    util::to_underlying(((InstrumentClip*)currentSong->currentClip)->sequenceDirectionMode);
+			this->value_ = (static_cast<InstrumentClip*>(currentSong->currentClip))->sequenceDirectionMode;
 		}
 	}
 
-	void writeCurrentValue() {
+	void writeCurrentValue() override {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		ModelStackWithNoteRow* modelStackWithNoteRow = getIndividualNoteRow(modelStack);
-		if (modelStackWithNoteRow->getNoteRowAllowNull()) {
-			modelStackWithNoteRow->getNoteRow()->setSequenceDirectionMode(
-			    modelStackWithNoteRow, static_cast<SequenceDirection>(soundEditor.currentValue));
+		if (modelStackWithNoteRow->getNoteRowAllowNull() != nullptr) {
+			modelStackWithNoteRow->getNoteRow()->setSequenceDirectionMode(modelStackWithNoteRow,
+			                                                              static_cast<SequenceDirection>(this->value_));
 		}
 		else {
-			((InstrumentClip*)currentSong->currentClip)
+			(static_cast<InstrumentClip*>(currentSong->currentClip))
 			    ->setSequenceDirectionMode(modelStackWithNoteRow->toWithTimelineCounter(),
-			                               static_cast<SequenceDirection>(soundEditor.currentValue));
+			                               static_cast<SequenceDirection>(this->value_));
 		}
 	}
 
-	int32_t getNumOptions() {
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-		ModelStackWithNoteRow* modelStackWithNoteRow = getIndividualNoteRow(modelStack);
-		return modelStackWithNoteRow->getNoteRowAllowNull() ? 4 : 3;
-	}
-
-	char const** getOptions() {
-		static char const* sequenceDirectionOptions[] = {"FORWARD", "REVERSED", "PING-PONG", NULL, NULL};
+	static_vector<string, capacity()> getOptions() override {
+		static_vector<string, capacity()> sequenceDirectionOptions = {"FORWARD", "REVERSED", "PING-PONG"};
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		ModelStackWithNoteRow* modelStackWithNoteRow = getIndividualNoteRow(modelStack);
-		sequenceDirectionOptions[3] = modelStackWithNoteRow->getNoteRowAllowNull() ? "NONE" : NULL;
+		if (modelStackWithNoteRow->getNoteRowAllowNull() != nullptr) {
+			sequenceDirectionOptions.push_back("NONE");
+		}
+
 		return sequenceDirectionOptions;
 	}
 
-	MenuPermission checkPermissionToBeginSession(Sound* sound, int32_t whichThing, MultiRange** currentRange) {
-		if (!((InstrumentClip*)currentSong->currentClip)->affectEntire
+	MenuPermission checkPermissionToBeginSession(Sound* sound, int32_t whichThing,
+	                                             ::MultiRange** currentRange) override {
+		if (!(static_cast<InstrumentClip*>(currentSong->currentClip))->affectEntire
 		    && currentSong->currentClip->output->type == InstrumentType::KIT
-		    && !((Kit*)currentSong->currentClip->output)->selectedDrum) {
+		    && ((static_cast<Kit*>(currentSong->currentClip->output))->selectedDrum == nullptr)) {
 			return MenuPermission::NO;
 		}
-		else {
-			return MenuPermission::YES;
-		}
+		return MenuPermission::YES;
 	}
 };
-} // namespace menu_item::sequence
+} // namespace deluge::gui::menu_item::sequence

@@ -19,7 +19,7 @@
 
 #include "gui/ui/keyboard/layout.h"
 
-namespace keyboard::layout {
+namespace deluge::gui::ui::keyboard::layout {
 
 constexpr int32_t kMinDrumPadEdgeSize = 1;
 constexpr int32_t kMaxDrumPadEdgeSize = 8;
@@ -62,4 +62,4 @@ private:
 	uint8_t noteColours[kDisplayHeight * kDisplayWidth][3];
 };
 
-}; // namespace keyboard::layout
+}; // namespace deluge::gui::ui::keyboard::layout

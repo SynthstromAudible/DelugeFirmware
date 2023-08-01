@@ -20,12 +20,12 @@
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/menu_item.h"
 
-namespace menu_item::sample {
+namespace deluge::gui::menu_item::sample {
 
 class LoopPoint : public MenuItem {
 public:
 	using MenuItem::MenuItem;
-	void beginSession(MenuItem* navigatedBackwardFrom = NULL) final;
+	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) final;
 	bool isRelevant(::Sound* sound, int32_t whichThing) final;
 	bool isRangeDependent() final { return true; }
 	MenuPermission checkPermissionToBeginSession(::Sound* sound, int32_t whichThing, ::MultiRange** currentRange) final;
@@ -37,4 +37,4 @@ public:
 	MarkerType markerType;
 };
 
-} // namespace menu_item::sample
+} // namespace deluge::gui::menu_item::sample
