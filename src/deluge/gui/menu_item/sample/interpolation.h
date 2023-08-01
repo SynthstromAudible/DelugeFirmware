@@ -36,7 +36,7 @@ public:
 		static char const* options[] = {"Linear", "Sinc", NULL};
 		return options;
 	}
-	bool isRelevant(Sound* sound, int whichThing) {
+	bool isRelevant(Sound* sound, int32_t whichThing) {
 		if (!sound) {
 			return true;
 		}

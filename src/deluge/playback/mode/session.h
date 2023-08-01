@@ -28,39 +28,39 @@ class Session final : public PlaybackMode {
 public:
 	Session();
 
-	void armAllClipsToStop(int afterNumRepeats);
-	void armNextSection(int oldSection, int numRepetitions = -1);
+	void armAllClipsToStop(int32_t afterNumRepeats);
+	void armNextSection(int32_t oldSection, int32_t numRepetitions = -1);
 	void doLaunch();
-	void scheduleLaunchTiming(int64_t atTickCount, int numRepeatsUntil, int32_t armedLaunchLengthForOneRepeat);
+	void scheduleLaunchTiming(int64_t atTickCount, int32_t numRepeatsUntil, int32_t armedLaunchLengthForOneRepeat);
 	void cancelAllLaunchScheduling();
 	void launchSchedulingMightNeedCancelling();
 	void reSyncClipToSongTicks(Clip* clip);
 	void reSyncClip(ModelStackWithTimelineCounter* modelStack, bool mustSetPosToSomething = false,
 	                bool mayResumeClip = true);
-	void userWantsToUnsoloClip(Clip* clip, bool forceLateStart, int buttonPressLatency);
-	void toggleClipStatus(Clip* clip, int* clipIndex, bool doInstant, int buttonPressLatency);
-	void soloClipAction(Clip* clip, int buttonPressLatency);
-	void armSection(uint8_t section, int buttonPressLatency);
+	void userWantsToUnsoloClip(Clip* clip, bool forceLateStart, int32_t buttonPressLatency);
+	void toggleClipStatus(Clip* clip, int32_t* clipIndex, bool doInstant, int32_t buttonPressLatency);
+	void soloClipAction(Clip* clip, int32_t buttonPressLatency);
+	void armSection(uint8_t section, int32_t buttonPressLatency);
 	void armingChanged();
 	void userWantsToArmClipsToStartOrSolo(uint8_t section, Clip* clip, bool stopAllOtherClips,
 	                                      bool forceLateStart = false, bool allowLateStart = true,
-	                                      int numRepeatsTilLaunch = 1, bool allowSubdividedQuantization = true,
+	                                      int32_t numRepeatsTilLaunch = 1, bool allowSubdividedQuantization = true,
 	                                      ArmState armState = ArmState::ON_NORMAL);
-	int investigateSyncedLaunch(Clip* waitForClip, uint32_t* currentPosWithinQuantization, uint32_t* quantization,
-	                            uint32_t longestStartingClipLength, bool allowSubdividedQuantization);
+	int32_t investigateSyncedLaunch(Clip* waitForClip, uint32_t* currentPosWithinQuantization, uint32_t* quantization,
+	                                uint32_t longestStartingClipLength, bool allowSubdividedQuantization);
 	bool armForSongSwap();
 	bool armForSwitchToArrangement();
 	void armClipsToStartOrSoloWithQuantization(uint32_t pos, uint32_t quantization, uint8_t section,
 	                                           bool stopAllOtherClips, Clip* clip, bool forceLateStart,
-	                                           bool allowLateStart, int numRepeatsTilLaunch,
+	                                           bool allowLateStart, int32_t numRepeatsTilLaunch,
 	                                           ArmState armState = ArmState::ON_NORMAL);
 	void armClipToStartOrSoloUsingQuantization(Clip* thisClip, bool doLateStart, uint32_t pos,
 	                                           ArmState armState = ArmState::ON_NORMAL,
 	                                           bool mustUnarmOtherClipsWithSameOutput = true);
 	void cancelAllArming();
 	void armClipLowLevel(Clip* loopableToArm, ArmState armState, bool mustUnarmOtherClipsWithSameOutput = true);
-	int userWantsToArmNextSection(int numRepetitions = -1);
-	int getCurrentSection();
+	int32_t userWantsToArmNextSection(int32_t numRepetitions = -1);
+	int32_t getCurrentSection();
 	bool areAnyClipsArmed();
 	void unsoloClip(Clip* clip);
 	void soloClipRightNow(ModelStackWithTimelineCounter* modelStack);
@@ -71,8 +71,8 @@ public:
 	// PlaybackMode implementation
 	void setupPlayback();
 	bool endPlayback(); // Returns whether to do an instant song swap
-	void doTickForward(int posIncrement);
-	void resetPlayPos(int32_t newPos, bool doingComplete = true, int buttonPressLatency = 0);
+	void doTickForward(int32_t posIncrement);
+	void resetPlayPos(int32_t newPos, bool doingComplete = true, int32_t buttonPressLatency = 0);
 	void resyncToSongTicks(Song* song);
 	void reversionDone();
 	bool isOutputAvailable(Output* output);
@@ -92,10 +92,10 @@ public:
 	bool switchToArrangementAtLaunchEvent;
 
 private:
-	bool giveClipOpportunityToBeginLinearRecording(Clip* clip, int clipIndex, int buttonPressLatency);
+	bool giveClipOpportunityToBeginLinearRecording(Clip* clip, int32_t clipIndex, int32_t buttonPressLatency);
 	void armClipToStopAction(Clip* clip);
-	void cancelArmingForClip(Clip* clip, int* clipIndex);
-	void armSectionWhenNeitherClockActive(ModelStack* modelStack, int section, bool stopAllOtherClips);
+	void cancelArmingForClip(Clip* clip, int32_t* clipIndex);
+	void armSectionWhenNeitherClockActive(ModelStack* modelStack, int32_t section, bool stopAllOtherClips);
 };
 
 extern Session session;

@@ -31,7 +31,7 @@ LiveInputBuffer::LiveInputBuffer() {
 	numRawSamplesProcessed = 0;
 }
 
-void LiveInputBuffer::giveInput(int numSamples, uint32_t currentTime, OscType inputType) {
+void LiveInputBuffer::giveInput(int32_t numSamples, uint32_t currentTime, OscType inputType) {
 
 	if (upToTime == (uint32_t)(currentTime + numSamples)) {
 		return; // It's already been done
@@ -73,7 +73,7 @@ void LiveInputBuffer::giveInput(int numSamples, uint32_t currentTime, OscType in
 			angle = -angle;
 		}
 
-		for (int p = 0; p < kDifferenceLPFPoles; p++) {
+		for (int32_t p = 0; p < kDifferenceLPFPoles; p++) {
 			int32_t distanceToGo = angle - angleLPFMem[p];
 			angleLPFMem[p] += multiply_32x32_rshift32_rounded(distanceToGo, 1 << 23); //distanceToGo >> 9;
 
@@ -87,7 +87,7 @@ void LiveInputBuffer::giveInput(int numSamples, uint32_t currentTime, OscType in
 				difference = -difference;
 			}
 
-			int percussiveness = ((uint64_t)difference * 262144 / angle) >> 1;
+			int32_t percussiveness = ((uint64_t)difference * 262144 / angle) >> 1;
 
 			percussiveness = getTanH<23>(percussiveness);
 
@@ -107,13 +107,14 @@ void LiveInputBuffer::giveInput(int numSamples, uint32_t currentTime, OscType in
 	upToTime = currentTime + numSamples;
 }
 
-bool LiveInputBuffer::getAveragesForCrossfade(int32_t* totals, int startPos, int lengthToAverageEach, int numChannels) {
+bool LiveInputBuffer::getAveragesForCrossfade(int32_t* totals, int32_t startPos, int32_t lengthToAverageEach,
+                                              int32_t numChannels) {
 
-	int currentPos = startPos;
-	for (int i = 0; i < TimeStretch::Crossfade::kNumMovingAverages; i++) {
+	int32_t currentPos = startPos;
+	for (int32_t i = 0; i < TimeStretch::Crossfade::kNumMovingAverages; i++) {
 
 		totals[i] = 0;
-		int endPos = (currentPos + lengthToAverageEach) & (kInputRawBufferSize - 1);
+		int32_t endPos = (currentPos + lengthToAverageEach) & (kInputRawBufferSize - 1);
 
 		// Splitting this in two by numChannels makes it a bit faster for mono, but slower for stereo
 		do {

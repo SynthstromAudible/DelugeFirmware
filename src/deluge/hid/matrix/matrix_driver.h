@@ -17,10 +17,10 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
 #include "definitions_cxx.hpp"
 #include "gui/waveform/waveform_render_data.h"
 #include "pad.h"
+#include <cstdint>
 
 class AudioClip;
 
@@ -28,9 +28,9 @@ class MatrixDriver {
 public:
 	MatrixDriver();
 
-	bool isPadPressed(int x, int y);
+	bool isPadPressed(int32_t x, int32_t y);
 
-	ActionResult padAction(int x, int y, int velocity);
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
 	void noPressesHappening(bool inCardRoutine);
 	bool isUserDoingBootloaderOverwriteAction();
 

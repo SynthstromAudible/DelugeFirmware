@@ -29,6 +29,6 @@ public:
 		static char const* options[] = {"Off", "Conditional", "On", NULL};
 		return options;
 	}
-	int getNumOptions() { return 3; }
+	int32_t getNumOptions() { return 3; }
 };
 } // namespace menu_item::sample::browser_preview

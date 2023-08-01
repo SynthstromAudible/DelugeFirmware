@@ -23,11 +23,11 @@ namespace menu_item {
 
 class Transpose : public Decimal, public PatchedParam {
 public:
-	Transpose(char const* newName = NULL, int newP = 0) : PatchedParam(newP), Decimal(newName) {}
+	Transpose(char const* newName = NULL, int32_t newP = 0) : PatchedParam(newP), Decimal(newName) {}
 	MenuItem* selectButtonPress() final { return PatchedParam::selectButtonPress(); }
-	virtual int getMinValue() const final { return -9600; }
-	virtual int getMaxValue() const final { return 9600; }
-	virtual int getNumDecimalPlaces() const final { return 2; }
+	virtual int32_t getMinValue() const final { return -9600; }
+	virtual int32_t getMaxValue() const final { return 9600; }
+	virtual int32_t getNumDecimalPlaces() const final { return 2; }
 	uint8_t getPatchedParamIndex() final { return PatchedParam::getPatchedParamIndex(); }
 	uint8_t shouldDrawDotOnName() final { return PatchedParam::shouldDrawDotOnName(); }
 	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) final {
@@ -39,7 +39,7 @@ public:
 
 	void unlearnAction() final { MenuItemWithCCLearning::unlearnAction(); }
 	bool allowsLearnMode() final { return MenuItemWithCCLearning::allowsLearnMode(); }
-	void learnKnob(::MIDIDevice* fromDevice, int whichKnob, int modKnobMode, int midiChannel) final {
+	void learnKnob(::MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) final {
 		MenuItemWithCCLearning::learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel);
 	};
 };

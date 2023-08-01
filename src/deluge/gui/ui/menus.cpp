@@ -187,7 +187,7 @@ char modulatorRetriggerPhaseTitle[] = "FM ModX retrig";
 char cvVoltsTitle[] = "CVx V/octave";
 char cvTransposeTitle[] = "CVx transpose";
 
-void setOscillatorNumberForTitles(int s) {
+void setOscillatorNumberForTitles(int32_t s) {
 	oscTypeTitle[3] = '1' + s;
 	oscLevelTitle[3] = '1' + s;
 	waveIndexTitle[3] = '1' + s;
@@ -203,21 +203,21 @@ void setOscillatorNumberForTitles(int s) {
 	sampleInterpolationTitle[4] = '1' + s;
 }
 
-void setEnvelopeNumberForTitles(int e) {
+void setEnvelopeNumberForTitles(int32_t e) {
 	attackTitle[3] = '1' + e;
 	decayTitle[3] = '1' + e;
 	sustainTitle[3] = '1' + e;
 	releaseTitle[3] = '1' + e;
 }
 
-void setModulatorNumberForTitles(int m) {
+void setModulatorNumberForTitles(int32_t m) {
 	modulatorTransposeTitle[6] = '1' + m;
 	modulatorLevelTitle[6] = '1' + m;
 	modulatorFeedbackTitle[6] = '1' + m;
 	modulatorRetriggerPhaseTitle[6] = '1' + m;
 }
 
-void setCvNumberForTitle(int m) {
+void setCvNumberForTitle(int32_t m) {
 	cvVoltsTitle[2] = '1' + m;
 	cvTransposeTitle[2] = '1' + m;
 }

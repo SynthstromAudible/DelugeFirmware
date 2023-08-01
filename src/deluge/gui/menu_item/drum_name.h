@@ -25,6 +25,6 @@ class DrumName final : public MenuItem {
 public:
 	using MenuItem::MenuItem;
 	void beginSession(MenuItem* navigatedBackwardFrom);
-	bool isRelevant(Sound* sound, int whichThing);
+	bool isRelevant(Sound* sound, int32_t whichThing);
 };
 } // namespace menu_item

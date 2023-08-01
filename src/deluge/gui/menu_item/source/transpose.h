@@ -22,7 +22,7 @@
 namespace menu_item::source {
 class Transpose : public menu_item::Transpose {
 public:
-	Transpose(char const* newName = NULL, int newP = 0) : menu_item::Transpose(newName, newP) {}
+	Transpose(char const* newName = NULL, int32_t newP = 0) : menu_item::Transpose(newName, newP) {}
 
 	ParamDescriptor getLearningThing() final {
 		ParamDescriptor paramDescriptor;

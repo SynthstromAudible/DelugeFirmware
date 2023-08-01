@@ -28,9 +28,9 @@ public:
 	void readCurrentValue() { soundEditor.currentValue = currentSong->swingInterval; }
 	void writeCurrentValue() { currentSong->changeSwingInterval(soundEditor.currentValue); }
 
-	void selectEncoderAction(int offset) { // So that there's no "off" option
+	void selectEncoderAction(int32_t offset) { // So that there's no "off" option
 		soundEditor.currentValue += offset;
-		int numOptions = getNumOptions();
+		int32_t numOptions = getNumOptions();
 
 		// Wrap value
 		if (soundEditor.currentValue >= numOptions) {

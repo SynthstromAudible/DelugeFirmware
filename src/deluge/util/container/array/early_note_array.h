@@ -29,6 +29,6 @@ class EarlyNoteArray : public OrderedResizeableArray {
 public:
 	EarlyNoteArray();
 
-	int insertElementIfNonePresent(int note, int velocity, bool newStillActive = true);
-	void noteNoLongerActive(int note);
+	int32_t insertElementIfNonePresent(int32_t note, int32_t velocity, bool newStillActive = true);
+	void noteNoLongerActive(int32_t note);
 };

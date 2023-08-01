@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
+#include <cstdint>
 
 class ParamNode;
 
@@ -28,5 +28,5 @@ public:
 
 	int32_t width;
 	ParamNode* nodes;
-	int numNodes;
+	int32_t numNodes;
 };

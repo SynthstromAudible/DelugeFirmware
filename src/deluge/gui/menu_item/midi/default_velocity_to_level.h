@@ -24,7 +24,7 @@ namespace menu_item::midi {
 class DefaultVelocityToLevel final : public IntegerWithOff {
 public:
 	DefaultVelocityToLevel(char const* newName = NULL) : IntegerWithOff(newName) {}
-	int getMaxValue() const { return 50; }
+	int32_t getMaxValue() const { return 50; }
 	void readCurrentValue() {
 		soundEditor.currentValue =
 		    ((int64_t)soundEditor.currentMIDIDevice->defaultVelocityToLevel * 50 + 536870912) >> 30;

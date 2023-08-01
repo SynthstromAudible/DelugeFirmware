@@ -22,6 +22,6 @@ namespace menu_item::patched_param {
 class IntegerNonFM : public Integer {
 public:
 	using Integer::Integer;
-	bool isRelevant(Sound* sound, int whichThing) { return (sound->synthMode != SynthMode::FM); }
+	bool isRelevant(Sound* sound, int32_t whichThing) { return (sound->synthMode != SynthMode::FM); }
 };
 } // namespace menu_item::patched_param

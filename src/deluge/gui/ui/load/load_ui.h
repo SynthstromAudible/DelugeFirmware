@@ -26,5 +26,5 @@ public:
 	void focusRegained();
 
 protected:
-	virtual void searchMemoryForBetterFile(int offset, char* bestFilenameFound) {}
+	virtual void searchMemoryForBetterFile(int32_t offset, char* bestFilenameFound) {}
 };

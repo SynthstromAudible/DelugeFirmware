@@ -26,8 +26,8 @@ public:
 	NoteRowVector();
 	~NoteRowVector();
 
-	NoteRow* getElement(int index);
-	NoteRow* insertNoteRowAtIndex(int index);
-	NoteRow* insertNoteRowAtY(int y, int* getIndex = NULL);
-	void deleteNoteRowAtIndex(int index, int numToDelete = 1);
+	NoteRow* getElement(int32_t index);
+	NoteRow* insertNoteRowAtIndex(int32_t index);
+	NoteRow* insertNoteRowAtY(int32_t y, int32_t* getIndex = NULL);
+	void deleteNoteRowAtIndex(int32_t index, int32_t numToDelete = 1);
 };

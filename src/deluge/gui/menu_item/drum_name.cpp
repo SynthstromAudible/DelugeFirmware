@@ -23,7 +23,7 @@
 
 namespace menu_item {
 
-bool DrumName::isRelevant(Sound* sound, int whichThing) {
+bool DrumName::isRelevant(Sound* sound, int32_t whichThing) {
 	return soundEditor.editingKit();
 }
 

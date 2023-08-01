@@ -9,8 +9,8 @@ extern bool skipConsistencyCheck;
 uint32_t currentTraversalNo = 0;
 
 // Size 0 means don't care, just get any memory.
-uint32_t CacheManager::ReclaimMemory(MemoryRegion& region, int totalSizeNeeded, void* thingNotToStealFrom,
-                                     int* __restrict__ foundSpaceSize) {
+uint32_t CacheManager::ReclaimMemory(MemoryRegion& region, int32_t totalSizeNeeded, void* thingNotToStealFrom,
+                                     int32_t* __restrict__ foundSpaceSize) {
 
 #if TEST_GENERAL_MEMORY_ALLOCATION
 	skipConsistencyCheck = true; // Things will not be in an inspectable state during this function call
@@ -24,9 +24,9 @@ uint32_t CacheManager::ReclaimMemory(MemoryRegion& region, int totalSizeNeeded, 
 	uint32_t newSpaceAddress = 0;
 	uint32_t spaceSize = 0;
 
-	int numberReassessed = 0;
+	int32_t numberReassessed = 0;
 
-	int numRefusedTheft = 0;
+	int32_t numRefusedTheft = 0;
 
 	bool found = false;
 	bool stolen = false;
@@ -79,7 +79,7 @@ uint32_t CacheManager::ReclaimMemory(MemoryRegion& region, int totalSizeNeeded, 
 			if (q < NUM_STEALABLE_QUEUES - 1 && numberReassessed < 4) {
 				numberReassessed++;
 
-				int appropriateQueue = stealable->getAppropriateQueue();
+				int32_t appropriateQueue = stealable->getAppropriateQueue();
 
 				// If it was in the wrong queue, put it in the right queue and start again with the next one in our queue
 				if (appropriateQueue > q) {
@@ -106,7 +106,7 @@ uint32_t CacheManager::ReclaimMemory(MemoryRegion& region, int totalSizeNeeded, 
 			stealable->lastTraversalNo = currentTraversalNo;
 
 			// How much additional space would we need on top of this Stealable?
-			int amountToExtend = totalSizeNeeded - spaceSize;
+			int32_t amountToExtend = totalSizeNeeded - spaceSize;
 
 			newSpaceAddress = (uint32_t)stealable;
 

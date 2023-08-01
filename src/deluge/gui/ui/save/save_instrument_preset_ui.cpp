@@ -76,7 +76,7 @@ tryDefaultDir:
 
 	filePrefix = (instrumentTypeToLoad == InstrumentType::SYNTH) ? "SYNT" : "KIT";
 
-	int error = arrivedInNewFolder(0, enteredText.get(), defaultDir);
+	int32_t error = arrivedInNewFolder(0, enteredText.get(), defaultDir);
 	if (error) {
 gotError:
 		numericDriver.displayError(error);
@@ -130,7 +130,7 @@ bool SaveInstrumentPresetUI::performSave(bool mayOverwrite) {
 	}
 
 	String filePath;
-	int error = getCurrentFilePath(&filePath);
+	int32_t error = getCurrentFilePath(&filePath);
 	if (error) {
 fail:
 		numericDriver.displayError(error);
@@ -202,9 +202,9 @@ void SaveInstrumentPresetUI::selectEncoderAction(int8_t offset) {
 
 		Instrument* instrument = (Instrument*)currentSong->currentClip->output;
 
-		int previouslySavedSlot = instrument->name.isEmpty() ? instrument->slot : -1;
+		int32_t previouslySavedSlot = instrument->name.isEmpty() ? instrument->slot : -1;
 
-		int error = storageManager.decideNextSaveableSlot(offset,
+		int32_t error = storageManager.decideNextSaveableSlot(offset,
 				&currentSlot, &currentSubSlot, &enteredText, &currentFileIsFolder,
 				previouslySavedSlot, &currentFileExists, numInstrumentSlots, getThingName(instrumentType), currentDir.get(), instrumentType, (Instrument*)currentSong->currentClip->output);
 		if (error) {
@@ -215,14 +215,14 @@ void SaveInstrumentPresetUI::selectEncoderAction(int8_t offset) {
 			return;
 		}
 
-		enteredTextEditPos = getMin(enteredTextEditPos, enteredText.getLength());
+		enteredTextEditPos = std::min(enteredTextEditPos, enteredText.getLength());
 
 		currentFilename.set(&enteredText); // Only used for folders.
 	}
 
 	// Editing specific digit of numeric names. Pretty much no one will really be using this anymore
 	else {
-		int jumpSize;
+		int32_t jumpSize;
 		if (numberEditPos == 0) jumpSize = 1;
 		else if (numberEditPos == 1) jumpSize = 10;
 		else jumpSize = 100;

@@ -23,8 +23,8 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
 
-SampleCache::SampleCache(Sample* newSample, int newNumClusters, int newWaveformLengthBytes, int newPhaseIncrement,
-                         int newTimeStretchRatio, int newSkipSamplesAtStart) {
+SampleCache::SampleCache(Sample* newSample, int32_t newNumClusters, int32_t newWaveformLengthBytes,
+                         int32_t newPhaseIncrement, int32_t newTimeStretchRatio, int32_t newSkipSamplesAtStart) {
 	sample = newSample;
 	phaseIncrement = newPhaseIncrement;
 	timeStretchRatio = newTimeStretchRatio;
@@ -35,7 +35,7 @@ SampleCache::SampleCache(Sample* newSample, int newNumClusters, int newWaveformL
 	waveformLengthBytes = newWaveformLengthBytes;
 	skipSamplesAtStart = newSkipSamplesAtStart;
 	/*
-	for (int i = 0; i < numClusters; i++) {
+	for (int32_t i = 0; i < numClusters; i++) {
 		clusters[i] = NULL; // We don't actually have to initialize these, since writeBytePos tells us how many are "valid"
 	}
 	*/
@@ -45,7 +45,7 @@ SampleCache::~SampleCache() {
 	unlinkClusters(0, true);
 }
 
-void SampleCache::clusterStolen(int clusterIndex) {
+void SampleCache::clusterStolen(int32_t clusterIndex) {
 
 #if ALPHA_OR_BETA_VERSION
 	if (clusterIndex < 0) {
@@ -77,7 +77,7 @@ void SampleCache::clusterStolen(int clusterIndex) {
 		numericDriver.freezeWithError("E299");
 	}
 
-	int numExistentClusters = getNumExistentClusters(writeBytePos);
+	int32_t numExistentClusters = getNumExistentClusters(writeBytePos);
 
 	if (numExistentClusters != clusterIndex) {
 		numericDriver.freezeWithError("E295");
@@ -87,10 +87,10 @@ void SampleCache::clusterStolen(int clusterIndex) {
 #endif
 }
 
-void SampleCache::unlinkClusters(int startAtIndex, bool beingDestructed) {
+void SampleCache::unlinkClusters(int32_t startAtIndex, bool beingDestructed) {
 	// And there's now no point in having any further Clusters
-	int numExistentClusters = getNumExistentClusters(writeBytePos);
-	for (int i = startAtIndex; i < numExistentClusters; i++) {
+	int32_t numExistentClusters = getNumExistentClusters(writeBytePos);
+	for (int32_t i = startAtIndex; i < numExistentClusters; i++) {
 		if (ALPHA_OR_BETA_VERSION && !clusters[i]) {
 			numericDriver.freezeWithError("E167");
 		}
@@ -104,7 +104,7 @@ void SampleCache::unlinkClusters(int startAtIndex, bool beingDestructed) {
 }
 
 // You must be sure before calling this that newWriteBytePos is a multiple of (sample->numChannels * CACHE_BYTE_DEPTH)
-void SampleCache::setWriteBytePos(int newWriteBytePos) {
+void SampleCache::setWriteBytePos(int32_t newWriteBytePos) {
 
 #if ALPHA_OR_BETA_VERSION
 	if (newWriteBytePos < 0) {
@@ -123,7 +123,7 @@ void SampleCache::setWriteBytePos(int newWriteBytePos) {
 	// When setting it earlier, we may have to discard some Clusters.
 	// Remember, a cache cluster actually gets (bytesPerSample - 1) extra usable bytes after it.
 
-	int newNumExistentClusters = getNumExistentClusters(newWriteBytePos);
+	int32_t newNumExistentClusters = getNumExistentClusters(newWriteBytePos);
 	unlinkClusters(newNumExistentClusters, false);
 
 	writeBytePos = newWriteBytePos;
@@ -135,7 +135,7 @@ void SampleCache::setWriteBytePos(int newWriteBytePos) {
 
 // Does not move the new Cluster to the appropriate "availability queue", because it's expected that the caller is just about to call getCluster(), to get it,
 // which will call prioritizeNotStealingCluster(), and that'll do it
-bool SampleCache::setupNewCluster(int clusterIndex) {
+bool SampleCache::setupNewCluster(int32_t clusterIndex) {
 	//Debug::println("writing cache to new Cluster");
 
 #if ALPHA_OR_BETA_VERSION
@@ -160,7 +160,7 @@ bool SampleCache::setupNewCluster(int clusterIndex) {
 	return true;
 }
 
-void SampleCache::prioritizeNotStealingCluster(int clusterIndex) {
+void SampleCache::prioritizeNotStealingCluster(int32_t clusterIndex) {
 
 	if (GeneralMemoryAllocator::get().getRegion(clusters[clusterIndex]) != MEMORY_REGION_SDRAM) {
 		return; // Sorta just have to do this
@@ -203,16 +203,16 @@ void SampleCache::prioritizeNotStealingCluster(int clusterIndex) {
 	}
 }
 
-Cluster* SampleCache::getCluster(int clusterIndex) {
+Cluster* SampleCache::getCluster(int32_t clusterIndex) {
 	prioritizeNotStealingCluster(clusterIndex);
 	return clusters[clusterIndex];
 }
 
-int SampleCache::getNumExistentClusters(int32_t thisWriteBytePos) {
-	int bytesPerSample = sample->numChannels * kCacheByteDepth;
+int32_t SampleCache::getNumExistentClusters(int32_t thisWriteBytePos) {
+	int32_t bytesPerSample = sample->numChannels * kCacheByteDepth;
 
 	// Remember, a cache Cluster actually gets (bytesPerSample - 1) extra usable bytes after it.
-	int numExistentClusters =
+	int32_t numExistentClusters =
 	    (thisWriteBytePos + audioFileManager.clusterSize - bytesPerSample) >> audioFileManager.clusterSizeMagnitude;
 
 #if ALPHA_OR_BETA_VERSION

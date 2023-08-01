@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
 #include "definitions_cxx.hpp"
+#include <cstdint>
 
 class InstrumentClip;
 class Song;
@@ -36,8 +36,8 @@ public:
 	Consequence();
 	virtual ~Consequence();
 
-	virtual void prepareForDestruction(int whichQueueActionIn, Song* song) {}
-	virtual int revert(TimeType time, ModelStack* modelStack) = 0;
+	virtual void prepareForDestruction(int32_t whichQueueActionIn, Song* song) {}
+	virtual int32_t revert(TimeType time, ModelStack* modelStack) = 0;
 	Consequence* next;
 	uint8_t type;
 };

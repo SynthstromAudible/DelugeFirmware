@@ -25,8 +25,8 @@
 #define MAX_MANUAL_SLICES 64
 
 struct SliceItem {
-	int startPos;
-	int transpose;
+	int32_t startPos;
+	int32_t transpose;
 };
 
 class Slicer final : public UI {
@@ -37,20 +37,20 @@ public:
 	bool canSeeViewUnderneath() { return false; }
 	void selectEncoderAction(int8_t offset);
 	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
-	ActionResult padAction(int x, int y, int velocity);
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
 
 	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea);
 	void graphicsRoutine();
-	ActionResult horizontalEncoderAction(int offset);
-	ActionResult verticalEncoderAction(int offset, bool inCardRoutine);
+	ActionResult horizontalEncoderAction(int32_t offset);
+	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
 
 	void stopAnyPreviewing();
-	void preview(int64_t startPoint, int64_t endPoint, int transpose, int on);
+	void preview(int64_t startPoint, int64_t endPoint, int32_t transpose, int32_t on);
 
-	int numManualSlice;
-	int currentSlice;
-	int slicerMode;
+	int32_t numManualSlice;
+	int32_t currentSlice;
+	int32_t slicerMode;
 	SliceItem manualSlicePoints[MAX_MANUAL_SLICES];
 
 #if HAVE_OLED

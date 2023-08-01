@@ -22,7 +22,7 @@ namespace menu_item {
 class SubmenuReferringToOneThing : public Submenu {
 public:
 	SubmenuReferringToOneThing() {}
-	SubmenuReferringToOneThing(char const* newName, MenuItem** newItems, int newThingIndex)
+	SubmenuReferringToOneThing(char const* newName, MenuItem** newItems, int32_t newThingIndex)
 	    : Submenu(newName, newItems) {
 		thingIndex = newThingIndex;
 	}

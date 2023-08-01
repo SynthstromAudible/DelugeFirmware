@@ -26,13 +26,13 @@ public:
 	Submenu(char const* newName = NULL, MenuItem** newItems = NULL) : MenuItem(newName) { items = newItems; }
 	void beginSession(MenuItem* navigatedBackwardFrom = NULL);
 	void updateDisplay();
-	void selectEncoderAction(int offset) final;
+	void selectEncoderAction(int32_t offset) final;
 	MenuItem* selectButtonPress() final;
 	void readValueAgain() final { updateDisplay(); }
 	void unlearnAction() final;
 	bool allowsLearnMode() final;
-	void learnKnob(MIDIDevice* fromDevice, int whichKnob, int modKnobMode, int midiChannel) final;
-	bool learnNoteOn(MIDIDevice* fromDevice, int channel, int noteCode) final;
+	void learnKnob(MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) final;
+	bool learnNoteOn(MIDIDevice* fromDevice, int32_t channel, int32_t noteCode) final;
 	void drawPixelsForOled();
 
 	MenuItem** items;

@@ -83,8 +83,8 @@ setupSecondaryBuffer:
 			    && sizeLeftUntilBufferSwap == getAmountToWriteBeforeReadingBegins()) {
 
 				int32_t idealBufferSize = secondaryBuffer.getIdealBufferSizeFromRate(userDelayRate);
-				idealBufferSize = getMin(idealBufferSize, (int32_t)DELAY_BUFFER_MAX_SIZE);
-				idealBufferSize = getMax(idealBufferSize, (int32_t)DELAY_BUFFER_MIN_SIZE);
+				idealBufferSize = std::min(idealBufferSize, (int32_t)DELAY_BUFFER_MAX_SIZE);
+				idealBufferSize = std::max(idealBufferSize, (int32_t)DELAY_BUFFER_MIN_SIZE);
 
 				if (idealBufferSize != secondaryBuffer.size) {
 
@@ -115,7 +115,7 @@ void Delay::prepareToBeginWriting() {
 	sizeLeftUntilBufferSwap = getAmountToWriteBeforeReadingBegins(); // If you change this, make sure you
 }
 
-int Delay::getAmountToWriteBeforeReadingBegins() {
+int32_t Delay::getAmountToWriteBeforeReadingBegins() {
 	return secondaryBuffer.size;
 }
 
@@ -141,7 +141,7 @@ void Delay::setupWorkingState(DelayWorkingState* workingState, bool anySoundComi
 
 			// Limit to the biggest number we can store...
 			int32_t limit = 2147483647 >> (syncLevel + 5);
-			workingState->userDelayRate = getMin(workingState->userDelayRate, limit);
+			workingState->userDelayRate = std::min(workingState->userDelayRate, limit);
 			if (syncType == SYNC_TYPE_EVEN) {} // Do nothing
 			else if (syncType == SYNC_TYPE_TRIPLET) {
 				workingState->userDelayRate = workingState->userDelayRate * 3 / 2;

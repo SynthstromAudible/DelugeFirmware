@@ -22,7 +22,7 @@ namespace menu_item::sample {
 class Selection : public menu_item::Selection {
 public:
 	Selection(char const* newName = NULL) : menu_item::Selection(newName) {}
-	bool isRelevant(Sound* sound, int whichThing) {
+	bool isRelevant(Sound* sound, int32_t whichThing) {
 		if (!sound) {
 			return true; // For AudioClips
 		}

@@ -27,7 +27,7 @@ public:
 
 	virtual bool mayBeStolen(void* thingNotToStealFrom) = 0;
 	virtual void steal(char const* errorCode) = 0; // You gotta also call the destructor after this.
-	virtual int getAppropriateQueue() = 0;
+	virtual int32_t getAppropriateQueue() = 0;
 
 	uint32_t lastTraversalNo = 0xFFFFFFFF;
 };

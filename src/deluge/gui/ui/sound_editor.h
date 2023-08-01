@@ -70,16 +70,16 @@ public:
 	menu_item::RangeEdit editingRangeEdge;
 
 	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
-	ActionResult padAction(int x, int y, int velocity);
-	ActionResult verticalEncoderAction(int offset, bool inCardRoutine);
-	void modEncoderAction(int whichModEncoder, int offset);
-	ActionResult horizontalEncoderAction(int offset);
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
+	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
+	void modEncoderAction(int32_t whichModEncoder, int32_t offset);
+	ActionResult horizontalEncoderAction(int32_t offset);
 	bool editingKit();
 
-	void setupShortcutBlink(int x, int y, int frequency);
+	void setupShortcutBlink(int32_t x, int32_t y, int32_t frequency);
 
 	int32_t currentValue;
-	int menuCurrentScroll;
+	int32_t menuCurrentScroll;
 
 	uint8_t navigationDepth;
 	uint8_t patchingParamSelected;
@@ -108,25 +108,25 @@ public:
 	bool pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2);
 	void selectEncoderAction(int8_t offset);
 	bool canSeeViewUnderneath() { return true; }
-	bool setup(Clip* clip = NULL, const MenuItem* item = NULL, int sourceIndex = 0);
+	bool setup(Clip* clip = NULL, const MenuItem* item = NULL, int32_t sourceIndex = 0);
 	void blinkShortcut();
-	ActionResult potentialShortcutPadAction(int x, int y, bool on);
+	ActionResult potentialShortcutPadAction(int32_t x, int32_t y, bool on);
 	bool editingReverbCompressor();
 	MenuItem* getCurrentMenuItem();
 	bool inSettingsMenu();
 	void exitCompletely();
 	void goUpOneLevel();
-	bool noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int channel, int note, int velocity);
+	bool noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channel, int32_t note, int32_t velocity);
 	void markInstrumentAsEdited();
 	bool editingCVOrMIDIClip();
-	bool isUntransposedNoteWithinRange(int noteCode);
-	void setCurrentMultiRange(int i);
+	bool isUntransposedNoteWithinRange(int32_t noteCode);
+	void setCurrentMultiRange(int32_t i);
 	void possibleChangeToCurrentRangeDisplay();
-	MenuPermission checkPermissionToBeginSessionForRangeSpecificParam(Sound* sound, int whichThing,
+	MenuPermission checkPermissionToBeginSessionForRangeSpecificParam(Sound* sound, int32_t whichThing,
 	                                                                  bool automaticallySelectIfOnlyOne,
 	                                                                  MultiRange** previouslySelectedRange);
-	void setupExclusiveShortcutBlink(int x, int y);
-	void setShortcutsVersion(int newVersion);
+	void setupExclusiveShortcutBlink(int32_t x, int32_t y);
+	void setShortcutsVersion(int32_t newVersion);
 	ModelStackWithThreeMainThings* getCurrentModelStack(void* memory);
 
 	void cutSound();

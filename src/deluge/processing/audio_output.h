@@ -30,12 +30,12 @@ public:
 	virtual ~AudioOutput();
 	void cloneFrom(ModControllableAudio* other);
 
-	void renderOutput(ModelStack* modelStack, StereoSample* startPos, StereoSample* endPos, int numSamples,
+	void renderOutput(ModelStack* modelStack, StereoSample* startPos, StereoSample* endPos, int32_t numSamples,
 	                  int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
 	                  bool shouldLimitDelayFeedback, bool isClipActive);
 
 	void renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack, StereoSample* globalEffectableBuffer,
-	                                   int32_t* bufferToTransferTo, int numSamples, int32_t* reverbBuffer,
+	                                   int32_t* bufferToTransferTo, int32_t numSamples, int32_t* reverbBuffer,
 	                                   int32_t reverbAmountAdjust, int32_t sideChainHitPending,
 	                                   bool shouldLimitDelayFeedback, bool isClipActive, int32_t pitchAdjust,
 	                                   int32_t amplitudeAtStart, int32_t amplitudeAtEnd);
@@ -49,7 +49,7 @@ public:
 	void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManagerForTimeline** paramManagerWithMostReverb,
 	                            Kit** kitWithMostReverb, int32_t* highestReverbAmountFound);
 
-	int readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos);
+	int32_t readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos);
 	bool writeDataToFile(Clip* clipForSavingOutputOnly, Song* song);
 	void deleteBackedUpParamManagers(Song* song);
 	bool setActiveClip(ModelStackWithTimelineCounter* modelStack,

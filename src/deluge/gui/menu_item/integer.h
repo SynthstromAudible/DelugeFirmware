@@ -24,12 +24,12 @@ namespace menu_item {
 class Integer : public Number {
 public:
 	using Number::Number;
-	void selectEncoderAction(int offset) override;
+	void selectEncoderAction(int32_t offset) override;
 
 protected:
 #if HAVE_OLED
 	void drawPixelsForOled();
-	virtual void drawInteger(int textWidth, int textHeight, int yPixel);
+	virtual void drawInteger(int32_t textWidth, int32_t textHeight, int32_t yPixel);
 #else
 	void drawValue() override;
 #endif

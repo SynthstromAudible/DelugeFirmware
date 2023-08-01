@@ -26,7 +26,7 @@ extern menu_item::Submenu midiDeviceMenu;
 
 namespace menu_item::midi {
 
-static const int lowestDeviceNum = -3;
+static const int32_t lowestDeviceNum = -3;
 
 void Devices::beginSession(MenuItem* navigatedBackwardFrom) {
 	if (navigatedBackwardFrom) {
@@ -50,9 +50,9 @@ decidedDevice:
 #endif
 }
 
-void Devices::selectEncoderAction(int offset) {
+void Devices::selectEncoderAction(int32_t offset) {
 	do {
-		int newValue = soundEditor.currentValue + offset;
+		int32_t newValue = soundEditor.currentValue + offset;
 
 		if (newValue >= MIDIDeviceManager::hostedMIDIDevices.getNumElements()) {
 			if (HAVE_OLED) {
@@ -80,8 +80,8 @@ void Devices::selectEncoderAction(int offset) {
 	}
 
 	if (offset >= 0) {
-		int d = soundEditor.currentValue;
-		int numSeen = 1;
+		int32_t d = soundEditor.currentValue;
+		int32_t numSeen = 1;
 		while (true) {
 			d--;
 			if (d == soundEditor.menuCurrentScroll) {
@@ -102,7 +102,7 @@ void Devices::selectEncoderAction(int offset) {
 	drawValue();
 }
 
-MIDIDevice* Devices::getDevice(int deviceIndex) {
+MIDIDevice* Devices::getDevice(int32_t deviceIndex) {
 	if (deviceIndex == -3) {
 		return &MIDIDeviceManager::dinMIDIPorts;
 	}
@@ -139,10 +139,10 @@ MenuItem* Devices::selectButtonPress() {
 void Devices::drawPixelsForOled() {
 	char const* itemNames[kOLEDMenuNumOptionsVisible];
 
-	int selectedRow = -1;
+	int32_t selectedRow = -1;
 
-	int d = soundEditor.menuCurrentScroll;
-	int r = 0;
+	int32_t d = soundEditor.menuCurrentScroll;
+	int32_t r = 0;
 	while (r < kOLEDMenuNumOptionsVisible && d < MIDIDeviceManager::hostedMIDIDevices.getNumElements()) {
 		MIDIDevice* device = getDevice(d);
 		if (device->connectionFlags) {

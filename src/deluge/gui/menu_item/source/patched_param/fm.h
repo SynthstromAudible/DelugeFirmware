@@ -22,6 +22,6 @@ namespace menu_item::source::patched_param {
 class FM final : public source::PatchedParam {
 public:
 	using PatchedParam::PatchedParam;
-	bool isRelevant(Sound* sound, int whichThing) { return (sound->getSynthMode() == SynthMode::FM); }
+	bool isRelevant(Sound* sound, int32_t whichThing) { return (sound->getSynthMode() == SynthMode::FM); }
 };
 } // namespace menu_item::source::patched_param

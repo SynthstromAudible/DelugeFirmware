@@ -32,8 +32,8 @@ public:
 		ModelStackWithSoundFlags* modelStack = soundEditor.getCurrentModelStack(modelStackMemory)->addSoundFlags();
 		soundEditor.currentSound->setNumUnison(soundEditor.currentValue, modelStack);
 	}
-	int getMinValue() const { return 1; }
-	int getMaxValue() const { return kMaxNumVoicesUnison; }
+	int32_t getMinValue() const { return 1; }
+	int32_t getMaxValue() const { return kMaxNumVoicesUnison; }
 
 	MenuItem* selectButtonPress() override { return &unisonStereoSpreadMenu; }
 };

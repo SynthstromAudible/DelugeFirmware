@@ -40,23 +40,23 @@ public:
 	} // Returns whether Instrument was changed
 	virtual void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager){};
 	virtual ModelStackWithAutoParam*
-	getParamFromModEncoder(int whichModEncoder, ModelStackWithThreeMainThings* modelStack,
+	getParamFromModEncoder(int32_t whichModEncoder, ModelStackWithThreeMainThings* modelStack,
 	                       bool allowCreation = true); // Check that autoParam isn't NULL, after calling this.
 	virtual ModelStackWithAutoParam* getParamFromMIDIKnob(
 	    MIDIKnob* knob,
 	    ModelStackWithThreeMainThings* modelStack); // Check that autoParam isn't NULL, after calling this
 	virtual uint8_t* getModKnobMode();              // Return NULL if different modes not supported
 	virtual bool isKit() { return false; }
-	virtual int getKnobPosForNonExistentParam(
-	    int whichModEncoder,
+	virtual int32_t getKnobPosForNonExistentParam(
+	    int32_t whichModEncoder,
 	    ModelStackWithAutoParam* modelStack); // modelStack->autoParam will be NULL in this rare case!!
-	virtual ActionResult modEncoderActionForNonExistentParam(int offset, int whichModEncoder,
+	virtual ActionResult modEncoderActionForNonExistentParam(int32_t offset, int32_t whichModEncoder,
 	                                                         ModelStackWithAutoParam* modelStack) {
 		return ActionResult::NOT_DEALT_WITH;
 	}
 	virtual bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false) { return true; }
-	virtual void polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension,
-	                                                      int channelOrNoteNumber,
+	virtual void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t whichExpressionDimension,
+	                                                      int32_t channelOrNoteNumber,
 	                                                      MIDICharacteristic whichCharacteristic) {}
-	virtual void monophonicExpressionEvent(int newValue, int whichExpressionDimension) {}
+	virtual void monophonicExpressionEvent(int32_t newValue, int32_t whichExpressionDimension) {}
 };

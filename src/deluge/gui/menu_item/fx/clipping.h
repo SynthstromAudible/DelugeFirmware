@@ -27,7 +27,7 @@ public:
 
 	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentModControllable->clippingAmount; }
 	void writeCurrentValue() { soundEditor.currentModControllable->clippingAmount = soundEditor.currentValue; }
-	int getMaxValue() const { return 15; }
+	int32_t getMaxValue() const { return 15; }
 };
 
 } // namespace menu_item::fx

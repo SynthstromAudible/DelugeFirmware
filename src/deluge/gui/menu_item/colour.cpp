@@ -40,7 +40,7 @@ char const** Colour::getOptions() {
 	return options;
 }
 
-int Colour::getNumOptions() {
+int32_t Colour::getNumOptions() {
 	return 9;
 }
 

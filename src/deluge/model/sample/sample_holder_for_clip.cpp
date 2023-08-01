@@ -28,7 +28,7 @@ SampleHolderForClip::~SampleHolderForClip() {
 }
 
 void SampleHolderForClip::setAudioFile(AudioFile* newAudioFile, bool reversed, bool manuallySelected,
-                                       int clusterLoadInstruction) {
+                                       int32_t clusterLoadInstruction) {
 
 	SampleHolder::setAudioFile(newAudioFile, reversed, manuallySelected, clusterLoadInstruction);
 
@@ -39,8 +39,8 @@ void SampleHolderForClip::recalculateNeutralPhaseIncrement() {
 
 	if (audioFile) {
 
-		int noteWithinOctave = (uint16_t)(transpose + 240) % 12;
-		int octave = ((uint16_t)(transpose + 120) / 12) - 10;
+		int32_t noteWithinOctave = (uint16_t)(transpose + 240) % 12;
+		int32_t octave = ((uint16_t)(transpose + 120) / 12) - 10;
 
 		neutralPhaseIncrement = noteIntervalTable[noteWithinOctave] >> (6 - octave);
 
