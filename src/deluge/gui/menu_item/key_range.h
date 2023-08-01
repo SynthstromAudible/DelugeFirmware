@@ -18,13 +18,13 @@
 #pragma once
 #include "range.h"
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
 class KeyRange final : public Range {
 public:
-	KeyRange(char const* newName = NULL) : Range(newName) {}
-	void getText(char* buffer, int32_t* getLeftLength, int32_t* getRightLength, bool mayShowJustOne);
-	void selectEncoderAction(int32_t offset);
+	using Range::Range;
+	void getText(char* buffer, int32_t* getLeftLength, int32_t* getRightLength, bool mayShowJustOne) override;
+	void selectEncoderAction(int32_t offset) override;
 	int32_t getRandomValueInRange();
 
 	int32_t lower, upper;
@@ -32,4 +32,4 @@ public:
 private:
 	bool isTotallyRandom();
 };
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

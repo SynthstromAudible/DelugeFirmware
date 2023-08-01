@@ -15,30 +15,20 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "gui/menu_item/selection.h"
+#include "gui/menu_item/selection/selection.h"
 #include "gui/ui/sound_editor.h"
 
-namespace menu_item::shortcuts {
-class Version final : public Selection {
+namespace deluge::gui::menu_item::shortcuts {
+class Version final : public Selection<NUM_SHORTCUTS_VERSIONS> {
 public:
 	using Selection::Selection;
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.shortcutsVersion; }
-	void writeCurrentValue() { soundEditor.setShortcutsVersion(soundEditor.currentValue); }
-	char const** getOptions() {
-		static char const* options[] = {
-#if HAVE_OLED
-			"1.0",
-			"3.0",
-			NULL
-#else
-			"  1.0",
-			"  3.0"
-#endif
+	void readCurrentValue() override { this->value_ = soundEditor.shortcutsVersion; }
+	void writeCurrentValue() override { soundEditor.setShortcutsVersion(this->value_); }
+	static_vector<string, capacity()> getOptions() override {
+		return {
+		    HAVE_OLED ? "1.0" : "  1.0", //<
+		    HAVE_OLED ? "3.0" : "  3.0", //<
 		};
-		return options;
-	}
-	int32_t getNumOptions() {
-		return NUM_SHORTCUTS_VERSIONS;
 	}
 };
-} // namespace menu_item::shortcuts
+} // namespace deluge::gui::menu_item::shortcuts

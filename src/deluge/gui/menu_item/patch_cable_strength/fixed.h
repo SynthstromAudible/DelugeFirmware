@@ -18,14 +18,12 @@
 #include "definitions_cxx.hpp"
 #include "regular.h"
 
-namespace menu_item::patch_cable_strength {
+namespace deluge::gui::menu_item::patch_cable_strength {
 
 class Fixed : public Regular {
 public:
-	Fixed(char const* newName = NULL, int32_t newP = 0, PatchSource newS = PatchSource::LFO_GLOBAL) : Regular(newName) {
-		p = newP;
-		s = newS;
-	}
+	Fixed(const string& newName, int32_t newP = 0, PatchSource newS = PatchSource::LFO_GLOBAL)
+	    : Regular(newName), p(newP), s(newS) {}
 
 	MenuPermission checkPermissionToBeginSession(Sound* sound, int32_t whichThing, MultiRange** currentRange) final;
 	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) final;
@@ -35,4 +33,4 @@ protected:
 	uint8_t p;
 	PatchSource s;
 };
-} // namespace menu_item::patch_cable_strength
+} // namespace deluge::gui::menu_item::patch_cable_strength

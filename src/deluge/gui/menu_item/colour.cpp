@@ -20,29 +20,12 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
 Colour activeColourMenu{"ACTIVE"};
 Colour stoppedColourMenu{"STOPPED"};
 Colour mutedColourMenu{"MUTED"};
 Colour soloColourMenu{"SOLOED"};
-
-void Colour::readCurrentValue() {
-	soundEditor.currentValue = value;
-}
-void Colour::writeCurrentValue() {
-	value = soundEditor.currentValue;
-	renderingNeededRegardlessOfUI();
-}
-
-char const** Colour::getOptions() {
-	static char const* options[] = {"RED", "GREEN", "BLUE", "YELLOW", "CYAN", "PURPLE", "AMBER", "WHITE", "PINK", NULL};
-	return options;
-}
-
-int32_t Colour::getNumOptions() {
-	return 9;
-}
 
 void Colour::getRGB(uint8_t rgb[3]) {
 	switch (value) {
@@ -101,4 +84,4 @@ void Colour::getRGB(uint8_t rgb[3]) {
 		break;
 	}
 }
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

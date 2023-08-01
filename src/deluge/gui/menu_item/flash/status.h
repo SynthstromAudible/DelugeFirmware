@@ -15,26 +15,22 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "gui/menu_item/selection.h"
+#include "gui/menu_item/selection/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/led/pad_leds.h"
 #include "storage/flash_storage.h"
 
-namespace menu_item::flash {
-class Status final : public Selection {
+namespace deluge::gui::menu_item::flash {
+class Status final : public Selection<3> {
 public:
 	using Selection::Selection;
-	void readCurrentValue() { soundEditor.currentValue = PadLEDs::flashCursor; }
-	void writeCurrentValue() {
+	void readCurrentValue() override { this->value_ = PadLEDs::flashCursor; }
+	void writeCurrentValue() override {
 		if (PadLEDs::flashCursor == FLASH_CURSOR_SLOW) {
 			PadLEDs::clearTickSquares();
 		}
-		PadLEDs::flashCursor = soundEditor.currentValue;
+		PadLEDs::flashCursor = this->value_;
 	}
-	char const** getOptions() {
-		static char const* options[] = {"Fast", "Off", "Slow", NULL};
-		return options;
-	}
-	int32_t getNumOptions() { return 3; }
+	static_vector<string, capacity()> getOptions() override { return {"Fast", "Off", "Slow"}; }
 };
-} // namespace menu_item::flash
+} // namespace deluge::gui::menu_item::flash

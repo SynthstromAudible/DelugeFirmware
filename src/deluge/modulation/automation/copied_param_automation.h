@@ -23,10 +23,10 @@ class ParamNode;
 
 class CopiedParamAutomation {
 public:
-	CopiedParamAutomation();
-	virtual ~CopiedParamAutomation();
+	CopiedParamAutomation() = default;
+	virtual ~CopiedParamAutomation() = default;
 
 	int32_t width;
-	ParamNode* nodes;
-	int32_t numNodes;
+	ParamNode* nodes = nullptr;
+	int32_t numNodes = 0;
 };

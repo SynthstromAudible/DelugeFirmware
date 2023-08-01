@@ -23,21 +23,21 @@
 #include "model/model_stack.h"
 #include "processing/sound/sound.h"
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 class MasterTranspose final : public Integer, public PatchedParam {
 public:
 	using Integer::Integer;
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSound->transpose; }
-	void writeCurrentValue() {
-		soundEditor.currentSound->transpose = soundEditor.currentValue;
+	void readCurrentValue() override { this->value_ = soundEditor.currentSound->transpose; }
+	void writeCurrentValue() override {
+		soundEditor.currentSound->transpose = this->value_;
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithSoundFlags* modelStack = soundEditor.getCurrentModelStack(modelStackMemory)->addSoundFlags();
 		soundEditor.currentSound->recalculateAllVoicePhaseIncrements(modelStack);
 	}
-	MenuItem* selectButtonPress() { return PatchedParam::selectButtonPress(); }
-	uint8_t shouldDrawDotOnName() { return PatchedParam::shouldDrawDotOnName(); }
-	uint8_t getPatchedParamIndex() { return ::Param::Local::PITCH_ADJUST; }
-	uint8_t getP() { return ::Param::Local::PITCH_ADJUST; }
+	MenuItem* selectButtonPress() override { return PatchedParam::selectButtonPress(); }
+	uint8_t shouldDrawDotOnName() override { return PatchedParam::shouldDrawDotOnName(); }
+	uint8_t getPatchedParamIndex() override { return ::Param::Local::PITCH_ADJUST; }
+	uint8_t getP() override { return ::Param::Local::PITCH_ADJUST; }
 	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) override {
 		return PatchedParam::shouldBlinkPatchingSourceShortcut(s, colour);
 	}
@@ -45,26 +45,26 @@ public:
 		return PatchedParam::patchingSourceShortcutPress(s, previousPressStillActive);
 	}
 #if !HAVE_OLED
-	void drawValue() {
-		PatchedParam::drawValue();
+	void drawValue() override {
+		numericDriver.setTextAsNumber(this->value_, shouldDrawDotOnName());
 	}
 #endif
 
-	void unlearnAction() {
+	void unlearnAction() override {
 		MenuItemWithCCLearning::unlearnAction();
 	}
-	bool allowsLearnMode() {
+	bool allowsLearnMode() override {
 		return MenuItemWithCCLearning::allowsLearnMode();
 	}
-	void learnKnob(MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) {
+	void learnKnob(MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) override {
 		MenuItemWithCCLearning::learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel);
 	};
 
-	int32_t getMinValue() const {
+	[[nodiscard]] int32_t getMinValue() const override {
 		return -96;
 	}
-	int32_t getMaxValue() const {
+	[[nodiscard]] int32_t getMaxValue() const override {
 		return 96;
 	}
 };
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

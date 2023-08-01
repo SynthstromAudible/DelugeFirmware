@@ -20,16 +20,15 @@
 
 #include "gui/ui/sound_editor.h"
 #include "hid/display/numeric_driver.h"
-#include "model/settings/runtime_feature_settings.h"
 
 #include <algorithm>
 #include <array>
 #include <cstdio>
 #include <iterator>
 
-extern menu_item::runtime_feature::Setting runtimeFeatureSettingMenuItem;
+extern deluge::gui::menu_item::runtime_feature::Setting runtimeFeatureSettingMenuItem;
 
-namespace menu_item::runtime_feature {
+namespace deluge::gui::menu_item::runtime_feature {
 
 // Generic menu item instances
 Setting menuDrumRandomizer(RuntimeFeatureSettingType::DrumRandomizer);
@@ -40,19 +39,13 @@ Setting menuPatchCableResolution(RuntimeFeatureSettingType::PatchCableResolution
 Setting menuCatchNotes(RuntimeFeatureSettingType::CatchNotes);
 Setting menuDeleteUnusedKitRows(RuntimeFeatureSettingType::DeleteUnusedKitRows);
 
-std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement + 1> subMenuEntries{
-    &menuDrumRandomizer,
-    &menuMasterCompressorFx,
-    &menuFineTempo,
-    &menuQuantize,
-    &menuPatchCableResolution,
-    &menuCatchNotes,
-    &menuDeleteUnusedKitRows,
-
-    nullptr,
+std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement> subMenuEntries{
+    &menuDrumRandomizer,       &menuMasterCompressorFx, &menuFineTempo,           &menuQuantize,
+    &menuPatchCableResolution, &menuCatchNotes,         &menuDeleteUnusedKitRows,
 };
 
-Settings::Settings(char const* name) : menu_item::Submenu(name, &subMenuEntries[0]) {
+Settings::Settings(char const* name, char const* title)
+    : menu_item::Submenu<RuntimeFeatureSettingType::MaxElement>(name, title, subMenuEntries) {
 }
 
-} // namespace menu_item::runtime_feature
+} // namespace deluge::gui::menu_item::runtime_feature

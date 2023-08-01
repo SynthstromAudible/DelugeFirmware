@@ -23,7 +23,7 @@
 #include "hid/display/oled.h"
 #endif
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
 #if HAVE_OLED
 void Number::drawBar(int32_t yTop, int32_t marginL, int32_t marginR) {
@@ -47,7 +47,7 @@ void Number::drawBar(int32_t yTop, int32_t marginL, int32_t marginR) {
 	int32_t minValue = getMinValue();
 	int32_t maxValue = getMaxValue();
 	uint32_t range = maxValue - minValue;
-	float posFractional = (float)(soundEditor.currentValue - minValue) / range;
+	float posFractional = (float)(this->value_ - minValue) / range;
 	float zeroPosFractional = (float)(-minValue) / range;
 
 	int32_t width = rightMost - leftMost;
@@ -66,4 +66,4 @@ void Number::drawBar(int32_t yTop, int32_t marginL, int32_t marginR) {
 }
 #endif
 
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

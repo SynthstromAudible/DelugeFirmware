@@ -16,27 +16,32 @@
 */
 #pragma once
 #include "gui/menu_item/decimal.h"
+#include "gui/menu_item/formatted_title.h"
 #include "gui/ui/sound_editor.h"
 #include "processing/engines/cv_engine.h"
 
-namespace menu_item::cv {
-class Transpose final : public Decimal {
+namespace deluge::gui::menu_item::cv {
+class Transpose final : public Decimal, public FormattedTitle {
 public:
-	using Decimal::Decimal;
-	int32_t getMinValue() const { return -9600; }
-	int32_t getMaxValue() const { return 9600; }
-	int32_t getNumDecimalPlaces() const { return 2; }
-	void readCurrentValue() {
-		soundEditor.currentValue = (int32_t)cvEngine.cvChannels[soundEditor.currentSourceIndex].transpose * 100
-		                           + cvEngine.cvChannels[soundEditor.currentSourceIndex].cents;
+	Transpose(const string& name, const string& title_format_str) : Decimal(name), FormattedTitle(title_format_str) {}
+
+	[[nodiscard]] const string& getTitle() const override { return FormattedTitle::title(); }
+
+	[[nodiscard]] int32_t getMinValue() const override { return -9600; }
+	[[nodiscard]] int32_t getMaxValue() const override { return 9600; }
+	[[nodiscard]] int32_t getNumDecimalPlaces() const override { return 2; }
+
+	void readCurrentValue() override {
+		this->value_ = (int32_t)cvEngine.cvChannels[soundEditor.currentSourceIndex].transpose * 100
+		               + cvEngine.cvChannels[soundEditor.currentSourceIndex].cents;
 	}
-	void writeCurrentValue() {
-		int32_t currentValue = soundEditor.currentValue + 25600;
+
+	void writeCurrentValue() override {
+		int32_t currentValue = this->value_ + 25600;
 
 		int32_t semitones = (currentValue + 50) / 100;
 		int32_t cents = currentValue - semitones * 100;
 		cvEngine.setCVTranspose(soundEditor.currentSourceIndex, semitones - 256, cents);
 	}
 };
-
-} // namespace menu_item::cv
+} // namespace deluge::gui::menu_item::cv

@@ -23,38 +23,38 @@
 
 class ParamDescriptor {
 public:
-	inline void setToHaveParamOnly(int32_t p) { data = p | 0xFFFFFF00; }
+	ParamDescriptor() = default;
+	constexpr void setToHaveParamOnly(int32_t p) { data = p | 0xFFFFFF00; }
 
-	inline void setToHaveParamAndSource(int32_t p, PatchSource s) {
+	constexpr void setToHaveParamAndSource(int32_t p, PatchSource s) {
 		data = p | (util::to_underlying(s) << 8) | 0xFFFF0000;
 	}
 
-	inline void setToHaveParamAndTwoSources(int32_t p, PatchSource s, PatchSource sLowestLevel) {
+	constexpr void setToHaveParamAndTwoSources(int32_t p, PatchSource s, PatchSource sLowestLevel) {
 		data = p | (util::to_underlying(s) << 8) | (util::to_underlying(sLowestLevel) << 16) | 0xFF000000;
 	}
 
-	inline bool isSetToParamWithNoSource(int32_t p) { return (data == (p | 0xFFFFFF00)); }
+	[[nodiscard]] constexpr bool isSetToParamWithNoSource(int32_t p) const { return (data == (p | 0xFFFFFF00)); }
 
-	inline bool isSetToParamAndSource(int32_t p, PatchSource s) {
+	[[nodiscard]] constexpr inline bool isSetToParamAndSource(int32_t p, PatchSource s) const {
 		return (data == (p | (util::to_underlying(s) << 8) | 0xFFFF0000));
 	}
 
-	inline bool isJustAParam() { return (data & 0x0000FF00) == 0x0000FF00; }
+	[[nodiscard]] constexpr bool isJustAParam() const { return (data & 0x0000FF00) == 0x0000FF00; }
 
-	inline int32_t getJustTheParam() { return data & 0xFF; }
+	[[nodiscard]] constexpr int32_t getJustTheParam() const { return data & 0xFF; }
 
-	inline void changeParam(int32_t newParam) { data = (data & 0xFFFFFF00) | newParam; }
+	constexpr void changeParam(int32_t newParam) { data = (data & 0xFFFFFF00) | newParam; }
 
-	inline PatchSource getBottomLevelSource() { // As in, the one furthest away from the param.
+	[[nodiscard]] constexpr PatchSource getBottomLevelSource() const { // As in, the one furthest away from the param.
 		if ((data & 0x00FF0000) == 0x00FF0000) {
 			return static_cast<PatchSource>((data >> 8) & 0xFF);
 		}
-		else {
-			return static_cast<PatchSource>((data >> 16) & 0xFF);
-		}
+
+		return static_cast<PatchSource>((data >> 16) & 0xFF);
 	}
 
-	inline void addSource(PatchSource newSource) {
+	constexpr void addSource(PatchSource newSource) {
 		uint8_t newSourceUnderlying = util::to_underlying(newSource);
 		if ((data & 0x0000FF00) == 0x0000FF00) {
 			data = (data & 0xFFFF00FF) | (newSourceUnderlying << 8);
@@ -67,8 +67,8 @@ public:
 		}
 	}
 
-	inline ParamDescriptor getDestination() {
-		ParamDescriptor newParamDescriptor;
+	[[nodiscard]] constexpr ParamDescriptor getDestination() const {
+		ParamDescriptor newParamDescriptor{};
 		if ((data & 0x00FF0000) == 0x00FF0000) {
 			newParamDescriptor.data = data | 0x0000FF00;
 		}
@@ -78,28 +78,30 @@ public:
 		return newParamDescriptor;
 	}
 
-	inline bool hasJustOneSource() {
+	[[nodiscard]] constexpr bool hasJustOneSource() const {
 		return ((data & 0xFFFF0000) == 0xFFFF0000) && ((data & 0x0000FF00) != 0x0000FF00);
 	}
 
-	inline PatchSource getTopLevelSource() { // As in, the one, nearest the param.
+	[[nodiscard]] constexpr PatchSource getTopLevelSource() const { // As in, the one, nearest the param.
 		return static_cast<PatchSource>((data & 0x0000FF00) >> 8);
 	}
 
-	inline PatchSource getSecondSourceFromTop() { return static_cast<PatchSource>((data & 0x00FF0000) >> 16); }
+	[[nodiscard]] constexpr PatchSource getSecondSourceFromTop() const {
+		return static_cast<PatchSource>((data & 0x00FF0000) >> 16);
+	}
 
-	inline bool hasSecondSource() { return ((data & 0x00FF0000) != 0x00FF0000); }
+	[[nodiscard]] constexpr bool hasSecondSource() const { return ((data & 0x00FF0000) != 0x00FF0000); }
 
-	inline void setToNull() { data = 0xFFFFFFFF; }
+	constexpr void setToNull() { data = 0xFFFFFFFF; }
 
-	inline bool isNull() { return (data == 0xFFFFFFFF); }
+	[[nodiscard]] constexpr bool isNull() const { return (data == 0xFFFFFFFF); }
 
-	uint32_t data;
+	uint32_t data{0};
 };
 
-inline bool operator==(const ParamDescriptor& lhs, const ParamDescriptor& rhs) {
+constexpr bool operator==(const ParamDescriptor& lhs, const ParamDescriptor& rhs) {
 	return (lhs.data == rhs.data);
 }
-inline bool operator!=(const ParamDescriptor& lhs, const ParamDescriptor& rhs) {
+constexpr bool operator!=(const ParamDescriptor& lhs, const ParamDescriptor& rhs) {
 	return !(lhs == rhs);
 }

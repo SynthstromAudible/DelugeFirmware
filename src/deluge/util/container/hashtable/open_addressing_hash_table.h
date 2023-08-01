@@ -29,7 +29,7 @@ public:
 	int32_t getBucketIndex(uint32_t key);
 	void* getBucketAddress(int32_t b);
 	void* secondaryMemoryGetBucketAddress(int32_t b);
-	void* insert(uint32_t key, bool* onlyIfNotAlreadyPresent = NULL);
+	void* insert(uint32_t key, bool* onlyIfNotAlreadyPresent = nullptr);
 	void* lookup(uint32_t key);
 	bool remove(uint32_t key);
 	void test();

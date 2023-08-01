@@ -37,7 +37,7 @@ extern "C" {
 #include "util/cfunctions.h"
 }
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 MenuItem* PatchedParam::selectButtonPress() {
 
 	// If shift held down, user wants to delete automation
@@ -54,20 +54,14 @@ MenuItem* PatchedParam::selectButtonPress() {
 	}
 }
 
-#if !HAVE_OLED
-void PatchedParam::drawValue() {
-	ParamDescriptor paramDescriptor;
-	paramDescriptor.setToHaveParamOnly(this->getP());
-	uint8_t drawDot =
-	    soundEditor.currentParamManager->getPatchCableSet()->isAnySourcePatchedToParamVolumeInspecific(paramDescriptor)
-	        ? 3
-	        : 255;
-	numericDriver.setTextAsNumber(soundEditor.currentValue, drawDot);
-}
-#endif
+// #if !HAVE_OLED
+// void PatchedParam::drawValue() {
+// 	numericDriver.setTextAsNumber(soundEditor.currentValue, shouldDrawDotOnName());
+// }
+// #endif
 
 uint8_t PatchedParam::shouldDrawDotOnName() {
-	ParamDescriptor paramDescriptor;
+	ParamDescriptor paramDescriptor{};
 	paramDescriptor.setToHaveParamOnly(this->getP());
 	return soundEditor.currentParamManager->getPatchCableSet()->isAnySourcePatchedToParamVolumeInspecific(
 	           paramDescriptor)
@@ -90,7 +84,7 @@ uint8_t PatchedParam::getPatchedParamIndex() {
 }
 
 uint8_t PatchedParam::shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) {
-	ParamDescriptor paramDescriptor;
+	ParamDescriptor paramDescriptor{};
 	paramDescriptor.setToHaveParamOnly(this->getP());
 	return soundEditor.currentParamManager->getPatchCableSet()->isSourcePatchedToDestinationDescriptorVolumeInspecific(
 	           s, paramDescriptor)
@@ -109,7 +103,7 @@ ModelStackWithAutoParam* PatchedParam::getModelStack(void* memory) {
 	ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
 	int32_t p = this->getP();
 	return modelStack->addParam(summary->paramCollection, summary, p,
-	                            &((ParamSet*)summary->paramCollection)->params[p]);
+	                            &(static_cast<ParamSet*>(summary->paramCollection))->params[p]);
 }
 
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

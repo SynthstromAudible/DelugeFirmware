@@ -27,7 +27,7 @@
 
 class ModelStack;
 
-namespace keyboard {
+namespace deluge::gui::ui::keyboard {
 
 constexpr int32_t kMaxNumKeyboardPadPresses = 10;
 
@@ -87,7 +87,7 @@ private:
 	bool keyboardButtonActive = false;
 	bool keyboardButtonUsed = false;
 };
+}; // namespace deluge::gui::ui::keyboard
 
-}; // namespace keyboard
-
-extern keyboard::KeyboardScreen keyboardScreen;
+// TODO: should get moved into namespace once project namespacing is complete
+extern deluge::gui::ui::keyboard::KeyboardScreen keyboardScreen;

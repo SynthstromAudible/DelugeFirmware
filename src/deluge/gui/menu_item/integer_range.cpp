@@ -24,12 +24,7 @@ extern "C" {
 #include "util/cfunctions.h"
 }
 
-namespace menu_item {
-
-IntegerRange::IntegerRange(char const* newName, int32_t newMin, int32_t newMax) : Range(newName) {
-	minValue = newMin;
-	maxValue = newMax;
-}
+namespace deluge::gui::menu_item {
 
 void IntegerRange::beginSession(MenuItem* navigatedBackwardFrom) {
 	Range::beginSession(navigatedBackwardFrom);
@@ -151,4 +146,4 @@ int32_t IntegerRange::getRandomValueInRange() {
 		return lower + random(upper - lower);
 	}
 }
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

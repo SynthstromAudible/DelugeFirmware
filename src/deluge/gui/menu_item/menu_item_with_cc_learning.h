@@ -22,10 +22,10 @@
 
 class MenuItemWithCCLearning {
 public:
-	MenuItemWithCCLearning() {}
+	MenuItemWithCCLearning() = default;
 
 	virtual ParamDescriptor getLearningThing() = 0;
 	void unlearnAction();
-	bool allowsLearnMode() { return true; }
+	[[nodiscard]] bool allowsLearnMode() const { return true; }
 	void learnKnob(MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel);
 };

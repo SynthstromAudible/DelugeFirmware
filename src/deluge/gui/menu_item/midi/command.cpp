@@ -28,7 +28,7 @@ extern "C" {
 #include "util/cfunctions.h"
 }
 
-namespace menu_item::midi {
+namespace deluge::gui::menu_item::midi {
 
 void Command::beginSession(MenuItem* navigatedBackwardFrom) {
 #if !HAVE_OLED
@@ -91,12 +91,14 @@ void Command::drawPixelsForOled() {
 	}
 }
 #else
-void Command::drawValue() {
-	char const* output;
-	if (!midiEngine.globalMIDICommands[util::to_underlying(commandNumber)].containsSomething())
+void Command::drawValue() const {
+	char const* output = nullptr;
+	if (!midiEngine.globalMIDICommands[util::to_underlying(commandNumber)].containsSomething()) {
 		output = "NONE";
-	else
+	}
+	else {
 		output = "SET";
+	}
 	numericDriver.setText(output);
 }
 #endif
@@ -142,7 +144,8 @@ bool Command::learnNoteOn(MIDIDevice* device, int32_t channel, int32_t noteCode)
 }
 
 void Command::learnCC(MIDIDevice* device, int32_t channel, int32_t ccNumber, int32_t value) {
-	if (value)
+	if (value != 0) {
 		learnNoteOn(device, channel + IS_A_CC, ccNumber);
+	}
 }
-} // namespace menu_item::midi
+} // namespace deluge::gui::menu_item::midi
