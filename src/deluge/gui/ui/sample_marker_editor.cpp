@@ -51,6 +51,9 @@ extern "C" {
 
 const uint8_t zeroes[] = {0, 0, 0, 0, 0, 0, 0, 0};
 
+int loopLength = 0;
+bool loopLocked = false;
+
 SampleMarkerEditor sampleMarkerEditor{};
 
 SampleMarkerEditor::SampleMarkerEditor() {
