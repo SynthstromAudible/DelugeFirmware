@@ -278,7 +278,6 @@ bool MIDIParamCollection::mayParamInterpolate(int32_t paramId) {
 }
 
 int32_t MIDIParamCollection::knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) {
-
 	char buffer[5];
 	int32_t valueForDisplay = knobPos;
 	valueForDisplay += 64;
