@@ -62,6 +62,9 @@ NoteRow::NoteRow(int16_t newY) {
 	drum = NULL;
 	firstOldDrumName = NULL;
 	soundingStatus = STATUS_OFF;
+	lastSentNote = Note(); // note that this is a value not a pointer, wheras the code usually 
+	                       // works with Note*. but we want to keep this around and freeze the values.
+	                       // even if the note gets modified or deleted.
 	skipNextNote = false;
 
 	loopLengthIfIndependent = 0;
@@ -1514,13 +1517,13 @@ void NoteRow::deleteNoteByIndex(int index, Action* action, int noteRowId, Instru
 	notes.deleteAtIndex(index);
 }
 
-// note is usually supplied as NULL, and that means you don't get the lift-velocity
-void NoteRow::stopCurrentlyPlayingNote(ModelStackWithNoteRow* modelStack, bool actuallySoundChange, Note* note) {
+void NoteRow::stopCurrentlyPlayingNote(ModelStackWithNoteRow* modelStack, bool actuallySoundChange) {
 	if (soundingStatus == STATUS_OFF) {
 		return;
 	}
 	if (actuallySoundChange) {
-		playNote(false, modelStack, note);
+		// we dont care about note, because lastSentNote is more reliable about the pitch.
+		playNote(false, modelStack, &lastSentNote);
 	}
 	soundingStatus = STATUS_OFF;
 }
@@ -1817,8 +1820,7 @@ noFurtherNotes:
 			if (!notes.getNumElements()) {
 stopNote:
 				stopCurrentlyPlayingNote(
-				    modelStack, true,
-				    thisNote); // Ideally (but optionally) supply the note, so lift-velocity can be used
+				    modelStack, true) ;
 			}
 			else {
 
@@ -2197,15 +2199,19 @@ storePendingNoteOn:
 		// Or if a note-off, we can just send it now
 		else {
 			int lift = kDefaultLiftValue;
-			if (thisNote) {
-				lift = thisNote->getLift();
+            if (soundingStatus == STATUS_SEQUENCED_NOTE) {
+				lift = lastSentNote.getLift();
 			}
+			if (thisNote) {
+				lift = thisNote->getLift(); // in case lift is somehow updated in "thisNote" we want to use the most recent value
 
+			}
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 			    modelStack->addOtherTwoThings(((Clip*)modelStack->getTimelineCounter())->output->toModControllable(),
 			                                  &modelStack->getTimelineCounter()->paramManager);
+			
 			((MelodicInstrument*)output)
-			    ->sendNote(modelStackWithThreeMainThings, false, getNoteCodeForNote(thisNote), NULL, MIDI_CHANNEL_NONE, lift);
+			    ->sendNote(modelStackWithThreeMainThings, false, getNoteCodeForNote(&lastSentNote), NULL, MIDI_CHANNEL_NONE, lift);
 		}
 	}
 	else if (drum) {
@@ -2248,6 +2254,7 @@ storePendingNoteOn:
 	// And for all cases of a note-on, remember that that's what's happening, for later.
 	if (on) {
 		if (clip->allowNoteTails(modelStack)) {
+			lastSentNote = *thisNote; // copy the note as it is now, so that when stopping we know what was the accidentalTranspose.
 			soundingStatus = STATUS_SEQUENCED_NOTE;
 		}
 	}

@@ -82,8 +82,7 @@ public:
 		bool allowNoteTails, int renderWidth, int32_t xScroll, uint32_t xZoom, int xStartNow, 
 		int xEnd, bool drawRepeats, int clipColourOffset, bool isKit);
 	void deleteNoteByPos(ModelStackWithNoteRow* modelStack, int32_t pos, Action* action);
-	void stopCurrentlyPlayingNote(ModelStackWithNoteRow* modelStack, bool actuallySoundChange = true,
-	                              Note* note = NULL);
+	void stopCurrentlyPlayingNote(ModelStackWithNoteRow* modelStack, bool actuallySoundChange = true);
 	bool generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLength, uint32_t newLength,
 	                     int numRepeatsRounded, Action* action);
 	void toggleMute(ModelStackWithNoteRow* modelStack, bool clipIsActiveAndPlaybackIsOn);
@@ -128,6 +127,7 @@ public:
 
 	// External classes aren't really supposed to set this to OFF. Call something like cancelAutitioning() instead - which calls Clip::expectEvent(), which is needed
 	uint8_t soundingStatus;
+	Note lastSentNote;
 
 	bool
 	    skipNextNote; // To be used if we recorded a note which was quantized forwards, and we have to remember not to play it

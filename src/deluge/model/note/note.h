@@ -21,9 +21,21 @@
 
 #include "gui/positionable.h"
 
+
+
 class Note : public Positionable {
 public:
 	Note();
+
+    // Copy constructor for Note class
+    Note(const Note& other) : Positionable(other) { // Call the base class's copy constructor
+        // Copy Note's member variables
+        length = other.length;
+        velocity = other.velocity;
+        probability = other.probability;
+        lift = other.lift;
+        accidentalTranspose = other.accidentalTranspose;
+    }
 
 	inline void setLength(int newLength) { length = newLength; }
 
