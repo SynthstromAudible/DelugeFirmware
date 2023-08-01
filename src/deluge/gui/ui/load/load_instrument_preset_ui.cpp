@@ -67,9 +67,9 @@ bool LoadInstrumentPresetUI::opened() {
 	if (getRootUI() == &keyboardScreen) {
 		PadLEDs::skipGreyoutFade();
 	}
-	else if (getRootUI() == &automationClipView) {
-		PadLEDs::skipGreyoutFade();
-	}
+//	else if (getRootUI() == &automationClipView) {
+//		PadLEDs::skipGreyoutFade();
+//	}
 
 	initialInstrumentType = instrumentToReplace->type;
 	initialName.set(&instrumentToReplace->name);

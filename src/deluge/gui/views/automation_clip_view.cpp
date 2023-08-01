@@ -287,9 +287,65 @@ void AutomationClipView::openedInBackground() {
 //	InstrumentClipMinder::setLedStates();
 //}
 
-//Not sure what this routine does
 void AutomationClipView::graphicsRoutine() {
-	instrumentClipView.graphicsRoutine();
+	if (!currentSong) {
+		return; // Briefly, if loading a song fails, during the creation of a new blank one, this could happen.
+	}
+
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+
+	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
+
+	if (isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING)) {
+		return;
+	}
+
+	if (PadLEDs::flashCursor == FLASH_CURSOR_OFF) {
+		return;
+	}
+
+	int newTickSquare;
+
+	bool reallyNoTickSquare = (!playbackHandler.isEitherClockActive() || !currentSong->isClipActive(clip)
+	                           || currentUIMode == UI_MODE_EXPLODE_ANIMATION || playbackHandler.ticksLeftInCountIn);
+
+	if (reallyNoTickSquare) {
+		newTickSquare = 255;
+	}
+	else {
+		newTickSquare = getTickSquare();
+		if (newTickSquare < 0 || newTickSquare >= kDisplayWidth) {
+			newTickSquare = 255;
+		}
+	}
+
+	uint8_t tickSquares[kDisplayHeight];
+	memset(tickSquares, newTickSquare, kDisplayHeight);
+
+	uint8_t colours[kDisplayHeight];
+	uint8_t nonMutedColour = clip->getCurrentlyRecordingLinearly() ? 2 : 0;
+	for (int yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+		int noteRowIndex;
+		NoteRow* noteRow = clip->getNoteRowOnScreen(yDisplay, currentSong, &noteRowIndex);
+		colours[yDisplay] = (noteRow && noteRow->muted) ? 1 : nonMutedColour;
+
+		if (!reallyNoTickSquare) {
+			if (noteRow && noteRow->hasIndependentPlayPos()) {
+
+				int noteRowId = clip->getNoteRowId(noteRow, noteRowIndex);
+				ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, noteRow);
+
+				int rowTickSquare = getSquareFromPos(noteRow->getLivePos(modelStackWithNoteRow));
+				if (rowTickSquare < 0 || rowTickSquare >= kDisplayWidth) {
+					rowTickSquare = 255;
+				}
+				tickSquares[yDisplay] = rowTickSquare;
+			}
+		}
+	}
+
+	PadLEDs::setTickSquares(tickSquares, colours);
 }
 
 //rendering
@@ -302,12 +358,24 @@ bool AutomationClipView::renderMainPads(uint32_t whichRows, uint8_t image[][kDis
 		return true;
 	}
 
+	if (!occupancyMask) {
+		return true;
+	}
+
 	if (isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING)) {
 		return true;
 	}
 
 	PadLEDs::renderingLock = true;
+
 	instrumentClipView.recalculateColours();
+
+	memset(image, 0, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth + kSideBarWidth) * 3); // erase current image as it will be refreshed
+
+	memset(occupancyMask, 0,
+	       sizeof(uint8_t) * kDisplayHeight
+	           * (kDisplayWidth + kSideBarWidth)); // erase current occupancy mask as it will be refreshed
+
 	performActualRender(whichRows, &image[0][0][0], occupancyMask, currentSong->xScroll[NAVIGATION_CLIP],
 	                    currentSong->xZoom[NAVIGATION_CLIP], kDisplayWidth, kDisplayWidth + kSideBarWidth,
 	                    drawUndefinedArea);
@@ -351,10 +419,7 @@ void AutomationClipView::performActualRender(uint32_t whichRows, uint8_t* image,
 
 	for (int yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 
-		uint8_t* occupancyMaskOfRow = NULL;
-		if (occupancyMask) {
-			occupancyMaskOfRow = occupancyMask[yDisplay];
-		}
+		uint8_t* occupancyMaskOfRow = occupancyMask[yDisplay];
 
 		if (clip->output->type == InstrumentType::SYNTH && clip->lastSelectedParamID != 255) {
 			ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID);
@@ -372,22 +437,27 @@ void AutomationClipView::performActualRender(uint32_t whichRows, uint8_t* image,
 
 					uint8_t* pixel = image + (yDisplay * imageWidth * 3) + (xDisplay * 3);
 
-					if (knobPos == 0 || (knobPos < yDisplay * 18)) {
-						pixel[0] = 0;
-						pixel[1] = 0;
-						pixel[2] = 0;
-					}
-					else if (knobPos >= yDisplay * 18) {
+				//	if (knobPos == 0 || (knobPos < yDisplay * 18)) {
+				//		pixel[0] = 0;
+				//		pixel[1] = 0;
+				//		pixel[2] = 0;
+				//	}
+					if (knobPos != 0 && knobPos >= yDisplay * 18) {
 						memcpy(pixel, &instrumentClipView.rowTailColour[yDisplay], 3);
+						occupancyMaskOfRow[xDisplay] = 64;
 					}
 				}
 
 				int32_t effectiveLength = 0;
 				effectiveLength = clip->loopLength;
 
-				clip->drawUndefinedArea(xScroll, xZoom, effectiveLength, image + (yDisplay * imageWidth * 3),
-				                        occupancyMaskOfRow, renderWidth, this,
-				                        currentSong->tripletsOn); // Sends image pointer for just the one row
+				if (drawUndefinedArea == true) {
+
+					clip->drawUndefinedArea(xScroll, xZoom, effectiveLength, image + (yDisplay * imageWidth * 3),
+											occupancyMaskOfRow, renderWidth, this,
+											currentSong->tripletsOn); // Sends image pointer for just the one row
+
+				}
 			}
 		}
 
@@ -408,22 +478,26 @@ void AutomationClipView::performActualRender(uint32_t whichRows, uint8_t* image,
 
 					uint8_t* pixel = image + (yDisplay * imageWidth * 3) + (xDisplay * 3);
 
-					if (knobPos == 0 || (knobPos < yDisplay * 18)) {
-						pixel[0] = 0;
-						pixel[1] = 0;
-						pixel[2] = 0;
-					}
-					else if (knobPos >= yDisplay * 18) {
+				//	if (knobPos == 0 || (knobPos < yDisplay * 18)) {
+				//		pixel[0] = 0;
+				//		pixel[1] = 0;
+				//		pixel[2] = 0;
+				//	}
+					if (knobPos != 0 && knobPos >= yDisplay * 18) {
 						memcpy(pixel, &instrumentClipView.rowTailColour[yDisplay], 3);
+						occupancyMaskOfRow[xDisplay] = 64;
 					}
 				}
 
 				int32_t effectiveLength = 0;
 				effectiveLength = clip->loopLength;
 
-				clip->drawUndefinedArea(xScroll, xZoom, effectiveLength, image + (yDisplay * imageWidth * 3),
-				                        occupancyMaskOfRow, renderWidth, this,
-				                        currentSong->tripletsOn); // Sends image pointer for just the one row
+				if (drawUndefinedArea == true) {
+
+					clip->drawUndefinedArea(xScroll, xZoom, effectiveLength, image + (yDisplay * imageWidth * 3),
+											occupancyMaskOfRow, renderWidth, this,
+											currentSong->tripletsOn); // Sends image pointer for just the one row
+				}
 			}
 		}
 
@@ -433,14 +507,15 @@ void AutomationClipView::performActualRender(uint32_t whichRows, uint8_t* image,
 
 					uint8_t* pixel = image + (yDisplay * imageWidth * 3) + (xDisplay * 3);
 
-					if (paramShortcutsForAutomation[xDisplay][yDisplay] == 0xFFFFFFFF) {
+				//	if (paramShortcutsForAutomation[xDisplay][yDisplay] == 0xFFFFFFFF) {
 
-						pixel[0] = 0;
-						pixel[1] = 0;
-						pixel[2] = 0;
-					}
+				//		pixel[0] = 0;
+				//		pixel[1] = 0;
+				//		pixel[2] = 0;
+				//	}
 
-					else {
+				//	else {
+					if (paramShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
 						ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, clip, paramShortcutsForAutomation[xDisplay][yDisplay]);
 
 						if (modelStackWithParam) {
@@ -453,6 +528,8 @@ void AutomationClipView::performActualRender(uint32_t whichRows, uint8_t* image,
 							else {
 								memcpy(pixel, &instrumentClipView.rowTailColour[yDisplay], 3);
 							}
+
+							occupancyMaskOfRow[xDisplay] = 64;
 						}
 					}
 				}
@@ -464,14 +541,16 @@ void AutomationClipView::performActualRender(uint32_t whichRows, uint8_t* image,
 
 					uint8_t* pixel = image + (yDisplay * imageWidth * 3) + (xDisplay * 3);
 
-					if (paramShortcutsForAutomation[xDisplay][yDisplay] == 0xFFFFFFFF) {
+				//	if (paramShortcutsForAutomation[xDisplay][yDisplay] == 0xFFFFFFFF) {
 
-						pixel[0] = 0;
-						pixel[1] = 0;
-						pixel[2] = 0;
-					}
+				//		pixel[0] = 0;
+				//		pixel[1] = 0;
+				//		pixel[2] = 0;
+				//	}
 
-					else {
+				//	else {
+					if (paramShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
+
 						ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, clip, paramShortcutsForAutomation[xDisplay][yDisplay]);
 
 						if (modelStackWithParam) {
@@ -484,6 +563,8 @@ void AutomationClipView::performActualRender(uint32_t whichRows, uint8_t* image,
 							else {
 								memcpy(pixel, &instrumentClipView.rowTailColour[yDisplay], 3);
 							}
+
+							occupancyMaskOfRow[xDisplay] = 64;
 						}
 					}
 				}
@@ -494,14 +575,16 @@ void AutomationClipView::performActualRender(uint32_t whichRows, uint8_t* image,
 
 					uint8_t* pixel = image + (yDisplay * imageWidth * 3) + (xDisplay * 3);
 
-					if (midiCCShortcutsForAutomation[xDisplay][yDisplay] == 0xFFFFFFFF) {
+				//	if (midiCCShortcutsForAutomation[xDisplay][yDisplay] == 0xFFFFFFFF) {
 
-						pixel[0] = 0;
-						pixel[1] = 0;
-						pixel[2] = 0;
-					}
+				//		pixel[0] = 0;
+				//		pixel[1] = 0;
+				//		pixel[2] = 0;
+				//	}
 
-					else {
+				//	else {
+
+					if (midiCCShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
 
 						ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, clip, midiCCShortcutsForAutomation[xDisplay][yDisplay]);
 
@@ -516,14 +599,17 @@ void AutomationClipView::performActualRender(uint32_t whichRows, uint8_t* image,
 							else {
 								memcpy(pixel, &instrumentClipView.rowTailColour[yDisplay], 3);
 							}
+
+							occupancyMaskOfRow[xDisplay] = 64;
 						}
 					}
 				}
 			}
 
-			else {
-				memset(image + (yDisplay * imageWidth * 3), 0, renderWidth * 3);
-			}
+		//	else {
+		//		memset(image + (yDisplay * imageWidth * 3), 0, renderWidth * 3);
+		//		memset(occupancyMask + (yDisplay * imageWidth), 0, renderWidth);
+		//	}
 		}
 	}
 }
@@ -535,9 +621,9 @@ bool AutomationClipView::renderSidebar(uint32_t whichRows, uint8_t image[][kDisp
 		return true;
 	}
 
-	if (isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING)) {
-		return true;
-	}
+//	if (isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING)) {
+//		return true;
+//	}
 
 	for (int i = 0; i < kDisplayHeight; i++) {
 		if (whichRows & (1 << i)) {
@@ -768,7 +854,24 @@ ActionResult AutomationClipView::buttonAction(hid::Button b, bool on, bool inCar
 			}
 			else {
 doOther:
-				transitionToSessionView();
+				//instrumentClipView.transitionToSessionView();
+
+				// Transition back to clip
+				currentUIMode = UI_MODE_INSTRUMENT_CLIP_COLLAPSING;
+				int transitioningToRow = sessionView.getClipPlaceOnScreen(currentSong->currentClip);
+				memcpy(&PadLEDs::imageStore, PadLEDs::image, sizeof(PadLEDs::image));
+				memcpy(&PadLEDs::occupancyMaskStore, PadLEDs::occupancyMask, sizeof(PadLEDs::occupancyMask));
+				//memset(PadLEDs::occupancyMaskStore, 16, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth + kSideBarWidth));
+				PadLEDs::numAnimatedRows = kDisplayHeight;
+				for (int y = 0; y < kDisplayHeight; y++) {
+					PadLEDs::animatedRowGoingTo[y] = transitioningToRow;
+					PadLEDs::animatedRowGoingFrom[y] = y;
+				}
+
+				PadLEDs::setupInstrumentClipCollapseAnimation(true);
+				PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
+				PadLEDs::renderClipExpandOrCollapse();
+
 			}
 		}
 	}
@@ -1055,7 +1158,7 @@ passToOthers:
 	uiNeedsRendering(this);
 }*/
 
-void AutomationClipView::transitionToSessionView() {
+/*void AutomationClipView::transitionToSessionView() {
 	int transitioningToRow = sessionView.getClipPlaceOnScreen(currentSong->currentClip);
 
 	// TODO: could probably just copy data to these...
@@ -1082,7 +1185,7 @@ void AutomationClipView::transitionToSessionView() {
 //	instrumentClipView.fillOffScreenImageStores();
 	PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
 	PadLEDs::renderClipExpandOrCollapse();
-}
+}*/
 
 //pad action
 

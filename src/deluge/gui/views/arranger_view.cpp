@@ -1693,19 +1693,20 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 			memset(PadLEDs::occupancyMaskStore[kDisplayHeight + 1], 0, kDisplayWidth + kSideBarWidth);
 		}
 
-		// If going to AutomationView...
-		else if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
-			instrumentClipView.recalculateColours();
-			automationClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
-			                                  false);
-			instrumentClipView.fillOffScreenImageStores();
-		}
-
-		// Or if just regular old InstrumentClipView
 		else {
 			instrumentClipView.recalculateColours();
-			instrumentClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
-			                                  false);
+
+			// If going to AutomationClipView...
+			if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
+				automationClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
+				                                  false);
+			}
+			// Or if just regular old InstrumentClipView
+			else {
+				instrumentClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
+				                                  false);
+			}
+
 			instrumentClipView.fillOffScreenImageStores();
 		}
 	}
@@ -1770,7 +1771,7 @@ bool ArrangerView::transitionToArrangementEditor() {
 
 	memcpy(PadLEDs::imageStore[1], PadLEDs::image, (kDisplayWidth + kSideBarWidth) * kDisplayHeight * 3);
 	memcpy(PadLEDs::occupancyMaskStore[1], PadLEDs::occupancyMask, (kDisplayWidth + kSideBarWidth) * kDisplayHeight);
-	if (getCurrentUI() == &instrumentClipView) { //|| getCurrentUI() == &automationClipView) {
+	if (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationClipView) {
 		instrumentClipView.fillOffScreenImageStores();
 	}
 

@@ -72,6 +72,7 @@ public:
 
 	//called by ui_timer_manager - might need to revise this routine for automation clip view since it references notes
 	void graphicsRoutine();
+	//void fillOffScreenImageStores();
 
 	//rendering
 	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
@@ -96,7 +97,7 @@ public:
 	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
 	//void createNewInstrument(InstrumentType instrumentType);
 	//void changeInstrumentType(InstrumentType newInstrumentType);
-	void transitionToSessionView();
+	//void transitionToSessionView();
 	//void flashDefaultRootNote();
 	//void cancelAllAuditioning();
 
