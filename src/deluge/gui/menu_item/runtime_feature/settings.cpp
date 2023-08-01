@@ -51,7 +51,7 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement + 1> subMenuEntries{
     &menuCatchNotes,
     &menuDeleteUnusedKitRows,
     &menuClearClipAutomation,
-	&menuNudgeNoteAutomation,
+    &menuNudgeNoteAutomation,
 
     nullptr,
 };

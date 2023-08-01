@@ -85,9 +85,9 @@ void UITimerManager::routine() {
 					else if (getCurrentUI() == &keyboardScreen) {
 						keyboardScreen.flashDefaultRootNote();
 					}
-				//	else if (getCurrentUI() == &automationClipView) {
-				//		automationClipView.flashDefaultRootNote();
-				//	}
+					//	else if (getCurrentUI() == &automationClipView) {
+					//		automationClipView.flashDefaultRootNote();
+					//	}
 					break;
 
 				case TIMER_PLAY_ENABLE_FLASH:

@@ -133,12 +133,12 @@ gotError:
 	}
 
 	if (currentUIMode == UI_MODE_AUDITIONING) {
-	//	if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
-	//		automationClipView.cancelAllAuditioning();
-	//	}
-	//	else {
-			instrumentClipView.cancelAllAuditioning();
-	//	}
+		//	if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
+		//		automationClipView.cancelAllAuditioning();
+		//	}
+		//	else {
+		instrumentClipView.cancelAllAuditioning();
+		//	}
 	}
 
 	return success;

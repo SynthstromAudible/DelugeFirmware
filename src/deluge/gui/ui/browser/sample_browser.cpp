@@ -121,12 +121,12 @@ bool SampleBrowser::opened() {
 #endif
 
 	if (currentUIMode == UI_MODE_AUDITIONING) {
-	//	if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
-	//		automationClipView.cancelAllAuditioning();
-	//	}
-	//	else {
-			instrumentClipView.cancelAllAuditioning();
-	//	}
+		//	if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
+		//		automationClipView.cancelAllAuditioning();
+		//	}
+		//	else {
+		instrumentClipView.cancelAllAuditioning();
+		//	}
 	}
 
 	int error = storageManager.initSD();
@@ -188,12 +188,12 @@ dissectionDone:
 	//soundEditor.setupShortcutBlink(soundEditor.currentSourceIndex, 5, 0);
 
 	if (currentUIMode == UI_MODE_AUDITIONING) {
-	//	if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
-	//		automationClipView.cancelAllAuditioning();
-	//	}
-	//	else {
-			instrumentClipView.cancelAllAuditioning();
-	//	}
+		//	if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
+		//		automationClipView.cancelAllAuditioning();
+		//	}
+		//	else {
+		instrumentClipView.cancelAllAuditioning();
+		//	}
 	}
 
 	possiblySetUpBlinking();

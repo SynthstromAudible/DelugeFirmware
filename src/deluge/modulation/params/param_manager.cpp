@@ -554,9 +554,10 @@ void ParamManagerForTimeline::nudgeAutomationHorizontallyAtPos(int32_t pos, int 
 		else {
 
 			//if this community feature is on, regular (non MPE) automation will not be nudged when you nudge a note
-			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::NudgeNoteAutomation) == RuntimeFeatureStateToggle::Off) {
+			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::NudgeNoteAutomation)
+			    == RuntimeFeatureStateToggle::Off) {
 				summary->paramCollection->nudgeNonInterpolatingNodesAtPos(pos, offset, lengthBeforeLoop, action,
-																		  modelStackWithParamCollection);
+				                                                          modelStackWithParamCollection);
 			}
 		}
 		summary++;

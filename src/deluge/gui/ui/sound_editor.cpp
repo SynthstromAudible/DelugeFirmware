@@ -672,9 +672,9 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 		bool hasNoteTailsNow = currentSound->allowNoteTails(modelStack);
 		if (hadNoteTails != hasNoteTailsNow) {
 			if (!((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
-		//		uiNeedsRendering(&automationClipView, 0xFFFFFFFF, 0);
-		//	}
-		//	else {
+				//		uiNeedsRendering(&automationClipView, 0xFFFFFFFF, 0);
+				//	}
+				//	else {
 				uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
 			}
 		}
@@ -898,9 +898,9 @@ ActionResult SoundEditor::padAction(int x, int y, int on) {
 			automationClipView.padAction(x, y, on);
 			return ActionResult::DEALT_WITH;
 		}
-	//	else {
-	//		return ActionResult::DEALT_WITH;
-	//	}
+		//	else {
+		//		return ActionResult::DEALT_WITH;
+		//	}
 	}
 
 	// Otherwise...

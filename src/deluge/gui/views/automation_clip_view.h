@@ -164,24 +164,25 @@ public:
 	//bool isDrumAuditioned(Drum* drum);
 
 	//not sure how this is used
-	ClipMinder* toClipMinder() { return this; }
+	ClipMinder* toClipMinder() {
+		return this;
+	}
 
 	//Automation Lanes Global Variables / Toggles
 	uint8_t clipClear;
-	uint8_t drawLine;
-	uint8_t flashShortcuts;
-	uint8_t notePassthrough;
-	uint8_t overlayNotes;
+	//uint8_t drawLine;
+	//uint8_t flashShortcuts;
+	//uint8_t notePassthrough;
+	//uint8_t overlayNotes;
 	uint8_t interpolateOn;
 
 private:
-
 	//Rendering Variables
-//	void setLedStates();
-//	uint8_t rowColour[kDisplayHeight][3];
-//	uint8_t rowTailColour[kDisplayHeight][3];
-//	uint8_t rowBlurColour[kDisplayHeight][3];
-//	uint8_t yDisplayOfNewNoteRow;
+	//	void setLedStates();
+	//	uint8_t rowColour[kDisplayHeight][3];
+	//	uint8_t rowTailColour[kDisplayHeight][3];
+	//	uint8_t rowBlurColour[kDisplayHeight][3];
+	//	uint8_t yDisplayOfNewNoteRow;
 
 	//Pad Action Variables
 	//void endEditPadPress(uint8_t i);
@@ -219,7 +220,8 @@ private:
 	void pasteAutomation();
 
 	//Automation Lanes Functions
-	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, int32_t paramID = 0xFFFFFFFF);
+	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip,
+	                                                int32_t paramID = 0xFFFFFFFF);
 	void setParameterAutomationValue(ModelStackWithAutoParam* modelStack, int32_t knobPos, int32_t squareStart,
 	                                 int32_t xDisplay, int32_t effectiveLength);
 
@@ -253,10 +255,10 @@ private:
 	//uint8_t lastSelectedMidiCC;
 	uint8_t lastSelectedMidiX;
 	uint8_t lastSelectedMidiY;
-	uint8_t selectedParamColour[kDisplayHeight][3];
+	//uint8_t selectedParamColour[kDisplayHeight][3];
 	uint8_t lastEditPadPressXDisplay;
-	uint8_t lastAutomationNudgeOffset;
-	uint32_t previousParamValue[kDisplayWidth];
+	//uint8_t lastAutomationNudgeOffset;
+	//uint32_t previousParamValue[kDisplayWidth];
 	bool encoderAction;
 };
 

@@ -194,7 +194,6 @@ public:
 	//made these public so they can be accessed by the automation clip view
 
 private:
-
 	bool doneAnyNudgingSinceFirstEditPadPress;
 	bool offsettingNudgeNumberDisplay;
 	bool

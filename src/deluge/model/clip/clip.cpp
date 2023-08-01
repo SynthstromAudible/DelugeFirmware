@@ -968,9 +968,9 @@ void Clip::clear(Action* action, ModelStackWithTimelineCounter* modelStack) {
 		}
 		else { //if in instrument clip view, clear ALL automations including MPE
 			if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
-					ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-					    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
-					paramManager.deleteAllAutomation(action, modelStackWithThreeMainThings);
+				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+				    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
+				paramManager.deleteAllAutomation(action, modelStackWithThreeMainThings);
 			}
 		}
 	}
