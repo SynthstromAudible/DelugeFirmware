@@ -60,8 +60,8 @@ Functions Prototypes
 ******************************************************************************/
 
 void IoInitScif2(void);
-char_t IoGetchar(uint8_t scifID);
-void IoPutchar(uint8_t scifID, char_t buffer);
+char IoGetchar(uint8_t scifID);
+void IoPutchar(uint8_t scifID, char buffer);
 
 void io_init_scif(uint8_t scifID);
 
@@ -70,15 +70,15 @@ void uartSetBaudRate(uint8_t scifID, uint32_t baudRate);
 
 void Userdef_SCIF_UART_Init(uint8_t channel, uint8_t mode, uint16_t cks, uint32_t baudRate);
 
-extern char_t picTxBuffer[];
-extern char_t midiTxBuffer[];
+extern char picTxBuffer[];
+extern char midiTxBuffer[];
 
 // These are not thread safe! Do not call in ISRs.
 #define bufferPICUart(charToSend)                                                                                      \
     do                                                                                                                 \
     {                                                                                                                  \
         intptr_t writePos = uartItems[UART_ITEM_PIC].txBufferWritePos + UNCACHED_MIRROR_OFFSET;                        \
-        *(((volatile char_t*)(&picTxBuffer[0])) + writePos) = charToSend;                                              \
+        *(((volatile char*)(&picTxBuffer[0])) + writePos) = charToSend;                                                \
                                                                                                                        \
         uartItems[UART_ITEM_PIC].txBufferWritePos += 1;                                                                \
         uartItems[UART_ITEM_PIC].txBufferWritePos &= (PIC_TX_BUFFER_SIZE - 1);                                         \
@@ -88,7 +88,7 @@ extern char_t midiTxBuffer[];
     do                                                                                                                 \
     {                                                                                                                  \
         intptr_t writePos = uartItems[UART_ITEM_MIDI].txBufferWritePos + UNCACHED_MIRROR_OFFSET;                       \
-        *(((volatile char_t*)(&midiTxBuffer[0])) + writePos) = charToSend;                                             \
+        *(((volatile char*)(&midiTxBuffer[0])) + writePos) = charToSend;                                               \
                                                                                                                        \
         uartItems[UART_ITEM_MIDI].txBufferWritePos += 1;                                                               \
         uartItems[UART_ITEM_MIDI].txBufferWritePos &= (PIC_TX_BUFFER_SIZE - 1);                                        \

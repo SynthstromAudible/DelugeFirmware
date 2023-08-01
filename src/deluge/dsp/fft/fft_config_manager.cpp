@@ -23,7 +23,7 @@ namespace FFTConfigManager {
 
 ne10_fft_r2c_cfg_int32_t configs[FFT_CONFIG_MAX_MAGNITUDE + 1];
 
-ne10_fft_r2c_cfg_int32_t getConfig(int magnitude) {
+ne10_fft_r2c_cfg_int32_t getConfig(int32_t magnitude) {
 	if (magnitude > FFT_CONFIG_MAX_MAGNITUDE)
 		return NULL;
 

@@ -27,11 +27,11 @@ public:
 	void beginSession(MenuItem* navigatedBackwardFrom) final;
 	void readCurrentValue() final;
 	void writeCurrentValue();
-	int getMinValue() const final { return -5000; }
-	int getMaxValue() const final { return 5000; }
-	int getNumDecimalPlaces() const final { return 2; }
-	virtual int getDefaultEditPos() { return 2; }
-	virtual MenuPermission checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange);
+	int32_t getMinValue() const final { return -5000; }
+	int32_t getMaxValue() const final { return 5000; }
+	int32_t getNumDecimalPlaces() const final { return 2; }
+	virtual int32_t getDefaultEditPos() { return 2; }
+	virtual MenuPermission checkPermissionToBeginSession(Sound* sound, int32_t whichThing, MultiRange** currentRange);
 	virtual ParamDescriptor getDestinationDescriptor() = 0;
 	virtual PatchSource getS() = 0;
 	uint8_t getIndexOfPatchedParamToBlink() final;
@@ -46,7 +46,7 @@ public:
 	bool allowsLearnMode() final {
 		return MenuItemWithCCLearning::allowsLearnMode();
 	}
-	void learnKnob(MIDIDevice* fromDevice, int whichKnob, int modKnobMode, int midiChannel) final {
+	void learnKnob(MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) final {
 		MenuItemWithCCLearning::learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel);
 	};
 

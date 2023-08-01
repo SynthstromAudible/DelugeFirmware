@@ -27,7 +27,7 @@ public:
 
 	bool mayBeStolen(void* thingNotToStealFrom = NULL);
 	void steal(char const* errorCode);
-	int getAppropriateQueue();
+	int32_t getAppropriateQueue();
 
 	WaveTable* waveTable;
 };

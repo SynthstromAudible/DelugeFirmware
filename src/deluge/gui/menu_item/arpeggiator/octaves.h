@@ -24,7 +24,7 @@ public:
 	Octaves(char const* newName = NULL) : Integer(newName) {}
 	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentArpSettings->numOctaves; }
 	void writeCurrentValue() { soundEditor.currentArpSettings->numOctaves = soundEditor.currentValue; }
-	int getMinValue() const { return 1; }
-	int getMaxValue() const { return 8; }
+	int32_t getMinValue() const { return 1; }
+	int32_t getMaxValue() const { return 8; }
 };
 } // namespace menu_item::arpeggiator

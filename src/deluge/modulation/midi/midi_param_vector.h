@@ -24,8 +24,8 @@ class MIDIParam;
 class MIDIParamVector : public OrderedResizeableArray {
 public:
 	MIDIParamVector();
-	MIDIParam* getElement(int i);
-	MIDIParam* getParamFromCC(int cc);
-	MIDIParam* insertParam(int i);
-	MIDIParam* getOrCreateParamFromCC(int cc, int32_t defaultValue = 0, bool allowCreation = true);
+	MIDIParam* getElement(int32_t i);
+	MIDIParam* getParamFromCC(int32_t cc);
+	MIDIParam* insertParam(int32_t i);
+	MIDIParam* getOrCreateParamFromCC(int32_t cc, int32_t defaultValue = 0, bool allowCreation = true);
 };

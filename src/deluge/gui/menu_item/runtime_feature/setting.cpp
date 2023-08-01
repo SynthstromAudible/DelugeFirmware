@@ -55,7 +55,7 @@ char const** Setting::getOptions() {
 	return (char const**)&options;
 }
 
-int Setting::getNumOptions() {
+int32_t Setting::getNumOptions() {
 	for (uint32_t idx = 0; idx < RUNTIME_FEATURE_SETTING_MAX_OPTIONS; ++idx) {
 		if (runtimeFeatureSettings.settings[currentSettingIndex].options[idx].displayName == NULL) {
 			return idx;

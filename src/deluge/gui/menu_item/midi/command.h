@@ -30,12 +30,12 @@ public:
 	    : MenuItem(newName), commandNumber(newCommandNumber) {}
 	void beginSession(MenuItem* navigatedBackwardFrom);
 	void drawValue();
-	void selectEncoderAction(int offset);
+	void selectEncoderAction(int32_t offset);
 	bool allowsLearnMode() { return true; }
 	bool shouldBlinkLearnLed() { return true; }
 	void unlearnAction();
-	bool learnNoteOn(MIDIDevice* device, int channel, int noteCode);
-	void learnCC(MIDIDevice* device, int channel, int ccNumber, int value);
+	bool learnNoteOn(MIDIDevice* device, int32_t channel, int32_t noteCode);
+	void learnCC(MIDIDevice* device, int32_t channel, int32_t ccNumber, int32_t value);
 #if HAVE_OLED
 	void drawPixelsForOled();
 #endif

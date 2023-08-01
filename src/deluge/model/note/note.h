@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
+#include <cstdint>
 
 #include "gui/positionable.h"
 
@@ -25,21 +25,21 @@ class Note : public Positionable {
 public:
 	Note();
 
-	inline void setLength(int newLength) { length = newLength; }
+	inline void setLength(int32_t newLength) { length = newLength; }
 
-	inline int getLength() { return length; }
+	inline int32_t getLength() { return length; }
 
-	inline void setVelocity(int newVelocity) { velocity = newVelocity; }
+	inline void setVelocity(int32_t newVelocity) { velocity = newVelocity; }
 
-	inline int getVelocity() { return velocity; }
+	inline int32_t getVelocity() { return velocity; }
 
-	inline void setLift(int newLift) { lift = newLift; }
+	inline void setLift(int32_t newLift) { lift = newLift; }
 
-	inline int getLift() { return lift; }
+	inline int32_t getLift() { return lift; }
 
-	inline void setProbability(int newProbability) { probability = newProbability; }
+	inline void setProbability(int32_t newProbability) { probability = newProbability; }
 
-	inline int getProbability() { return probability; }
+	inline int32_t getProbability() { return probability; }
 
 	void writeToFile();
 

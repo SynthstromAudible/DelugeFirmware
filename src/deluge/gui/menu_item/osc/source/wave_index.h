@@ -22,7 +22,7 @@ namespace menu_item::osc::source {
 class WaveIndex final : public menu_item::source::PatchedParam {
 public:
 	using PatchedParam::PatchedParam;
-	bool isRelevant(Sound* sound, int whichThing) {
+	bool isRelevant(Sound* sound, int32_t whichThing) {
 		Source* source = &sound->sources[whichThing];
 		return (sound->getSynthMode() != SynthMode::FM && source->oscType == OscType::WAVETABLE);
 	}

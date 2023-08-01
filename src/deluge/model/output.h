@@ -17,10 +17,10 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
 #include "definitions_cxx.hpp"
 #include "model/clip/clip_instance_vector.h"
 #include "util/d_string.h"
+#include <cstdint>
 
 class InstrumentClip;
 class Song;
@@ -67,7 +67,7 @@ public:
 
 	// reverbAmountAdjust has "1" as 67108864
 	// Only gets called if there's an activeClip
-	virtual void renderOutput(ModelStack* modelStack, StereoSample* startPos, StereoSample* endPos, int numSamples,
+	virtual void renderOutput(ModelStack* modelStack, StereoSample* startPos, StereoSample* endPos, int32_t numSamples,
 	                          int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
 	                          bool shouldLimitDelayFeedback, bool isClipActive) = 0;
 
@@ -75,7 +75,8 @@ public:
 	virtual bool setActiveClip(
 	    ModelStackWithTimelineCounter* modelStack,
 	    PgmChangeSend maySendMIDIPGMs = PgmChangeSend::ONCE); // Will have no effect if it already had that Clip
-	void pickAnActiveClipForArrangementPos(ModelStack* modelStack, int arrangementPos, PgmChangeSend maySendMIDIPGMs);
+	void pickAnActiveClipForArrangementPos(ModelStack* modelStack, int32_t arrangementPos,
+	                                       PgmChangeSend maySendMIDIPGMs);
 	void pickAnActiveClipIfPossible(ModelStack* modelStack, bool searchSessionClipsIfNeeded = true,
 	                                PgmChangeSend maySendMIDIPGMs = PgmChangeSend::ONCE,
 	                                bool setupWithoutActiveClipIfNeeded = true);
@@ -100,7 +101,7 @@ public:
 	void endAnyArrangementRecording(Song* song, int32_t actualEndPos, uint32_t timeRemainder);
 	virtual bool wantsToBeginArrangementRecording() { return armedForRecording; }
 
-	virtual int readFromFile(
+	virtual int32_t readFromFile(
 	    Song* song, Clip* clip,
 	    int32_t readAutomationUpToPos); // I think that supplying clip here is only a hangover from old pre-2.0 files...
 	virtual bool readTagFromFile(char const* tagName);
@@ -108,7 +109,7 @@ public:
 	virtual bool writeDataToFile(Clip* clipForSavingOutputOnly,
 	                             Song* song); // Returns true if it's ended the opening tag and gone into the sub-tags
 
-	virtual int loadAllAudioFiles(bool mayActuallyReadFiles) { return NO_ERROR; }
+	virtual int32_t loadAllAudioFiles(bool mayActuallyReadFiles) { return NO_ERROR; }
 	virtual void loadCrucialAudioFilesOnly() {} // Caller must check that there is an activeClip.
 
 	virtual void
@@ -124,7 +125,7 @@ public:
 	virtual char const* getNameXMLTag() { return "name"; }
 
 	virtual void offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
-	                               bool on, int channel, int note, int velocity, bool shouldRecordNotes,
+	                               bool on, int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
 	                               bool* doingMidiThru) {}
 	virtual void offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
 	                                    MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
@@ -132,15 +133,15 @@ public:
 	virtual void offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
 	                             uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru) {}
 	virtual void offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-	                                     MIDIDevice* fromDevice, int channel, int value, int noteCode,
+	                                     MIDIDevice* fromDevice, int32_t channel, int32_t value, int32_t noteCode,
 	                                     bool* doingMidiThru) {}
 
 	virtual void stopAnyAuditioning(ModelStack* modelStack) {}
-	virtual void offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int channelOrZone, int whichBendRange,
-	                                  int bendSemitones) {}
+	virtual void offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone,
+	                                  int32_t whichBendRange, int32_t bendSemitones) {}
 
 	// Arrangement stuff
-	int possiblyBeginArrangementRecording(Song* song, int newPos);
+	int32_t possiblyBeginArrangementRecording(Song* song, int32_t newPos);
 	void endArrangementPlayback(Song* song, int32_t actualEndPos, uint32_t timeRemainder);
 	bool recordingInArrangement;
 

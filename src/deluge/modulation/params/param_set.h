@@ -35,16 +35,16 @@ class ModelStackWithParamCollection;
 
 class ParamSet : public ParamCollection {
 public:
-	ParamSet(int newObjectSize, ParamCollectionSummary* summary);
+	ParamSet(int32_t newObjectSize, ParamCollectionSummary* summary);
 
-	inline int32_t getValue(int p) { return params[p].getCurrentValue(); }
-	int32_t getValueAtPos(int p, uint32_t pos, TimelineCounter* playPositionCounter);
-	void processCurrentPos(ModelStackWithParamCollection* modelStack, int ticksSkipped, bool reversed, bool didPingpong,
-	                       bool mayInterpolate) final;
-	void writeParamAsAttribute(char const* name, int p, bool writeAutomation, bool onlyIfContainsSomething = false,
+	inline int32_t getValue(int32_t p) { return params[p].getCurrentValue(); }
+	int32_t getValueAtPos(int32_t p, uint32_t pos, TimelineCounter* playPositionCounter);
+	void processCurrentPos(ModelStackWithParamCollection* modelStack, int32_t ticksSkipped, bool reversed,
+	                       bool didPingpong, bool mayInterpolate) final;
+	void writeParamAsAttribute(char const* name, int32_t p, bool writeAutomation, bool onlyIfContainsSomething = false,
 	                           int32_t* valuesForOverride = NULL);
-	void readParam(ParamCollectionSummary* summary, int p, int32_t readAutomationUpToPos);
-	void tickSamples(int numSamples, ModelStackWithParamCollection* modelStack) final;
+	void readParam(ParamCollectionSummary* summary, int32_t p, int32_t readAutomationUpToPos);
+	void tickSamples(int32_t numSamples, ModelStackWithParamCollection* modelStack) final;
 	void setPlayPos(uint32_t pos, ModelStackWithParamCollection* modelStack, bool reversed) final;
 	void playbackHasEnded(ModelStackWithParamCollection* modelStack) final;
 	void grabValuesFromPos(uint32_t pos, ModelStackWithParamCollection* modelStack) final;
@@ -58,16 +58,16 @@ public:
 	void copyOverridingFrom(ParamSet* otherParamSet);
 	void trimToLength(uint32_t newLength, ModelStackWithParamCollection* modelStack, Action* action,
 	                  bool maySetupPatching) final;
-	void nudgeNonInterpolatingNodesAtPos(int32_t pos, int offset, int32_t lengthBeforeLoop, Action* action,
+	void nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int32_t lengthBeforeLoop, Action* action,
 	                                     ModelStackWithParamCollection* modelStack) final;
-	void paramHasAutomationNow(ParamCollectionSummary* summary, int p);
-	void paramHasNoAutomationNow(ModelStackWithParamCollection const* modelStack, int p);
+	void paramHasAutomationNow(ParamCollectionSummary* summary, int32_t p);
+	void paramHasNoAutomationNow(ModelStackWithParamCollection const* modelStack, int32_t p);
 
-	void shiftParamValues(int p, int32_t offset);
-	void shiftParamVolumeByDB(int p, float offset);
+	void shiftParamValues(int32_t p, int32_t offset);
+	void shiftParamVolumeByDB(int32_t p, float offset);
 	void shiftHorizontally(ModelStackWithParamCollection* modelStack, int32_t amount, int32_t effectiveLength) final;
 	void deleteAllAutomation(Action* action, ModelStackWithParamCollection* modelStack);
-	void deleteAutomationForParamBasicForSetup(ModelStackWithParamCollection* modelStack, int p);
+	void deleteAutomationForParamBasicForSetup(ModelStackWithParamCollection* modelStack, int32_t p);
 	void insertTime(ModelStackWithParamCollection* modelStack, int32_t pos, int32_t lengthToInsert);
 	void deleteTime(ModelStackWithParamCollection* modelStack, int32_t startPos, int32_t lengthToDelete);
 	void backUpAllAutomatedParamsToAction(Action* action, ModelStackWithParamCollection* modelStack);
@@ -76,7 +76,7 @@ public:
 	// For undoing / redoing
 	void remotelySwapParamState(AutoParamState* state, ModelStackWithParamId* modelStack) final;
 
-	virtual int getNumParams() = 0;
+	virtual int32_t getNumParams() = 0;
 
 	ModelStackWithAutoParam* getAutoParamFromId(ModelStackWithParamId* modelStack, bool allowCreation = true) final;
 	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
@@ -88,14 +88,14 @@ public:
 	    [1]; // Total hack - we declare this last, then the subclasses "extend" it by having extra unused space after it
 
 private:
-	void backUpParamToAction(int p, Action* action, ModelStackWithParamCollection* modelStack);
-	void checkWhetherParamHasInterpolationNow(ModelStackWithParamCollection const* modelStack, int p);
+	void backUpParamToAction(int32_t p, Action* action, ModelStackWithParamCollection* modelStack);
+	void checkWhetherParamHasInterpolationNow(ModelStackWithParamCollection const* modelStack, int32_t p);
 };
 
 class UnpatchedParamSet final : public ParamSet {
 public:
 	UnpatchedParamSet(ParamCollectionSummary* summary);
-	int getNumParams() { return kMaxNumUnpatchedParams; }
+	int32_t getNumParams() { return kMaxNumUnpatchedParams; }
 	bool shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack);
 	bool doesParamIdAllowAutomation(ModelStackWithParamId const* modelStack);
 
@@ -105,11 +105,11 @@ public:
 class PatchedParamSet final : public ParamSet {
 public:
 	PatchedParamSet(ParamCollectionSummary* summary);
-	int getNumParams() { return kNumParams; }
+	int32_t getNumParams() { return kNumParams; }
 	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
 	                                  bool automationChanged, bool automatedBefore, bool automatedNow);
-	int paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack);
-	int32_t knobPosToParamValue(int knobPos, ModelStackWithAutoParam* modelStack);
+	int32_t paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack);
+	int32_t knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack);
 	bool shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack);
 
 	AutoParam fakeParams[kNumParams - 1];
@@ -118,15 +118,15 @@ public:
 class ExpressionParamSet final : public ParamSet {
 public:
 	ExpressionParamSet(ParamCollectionSummary* summary, bool forDrum = false);
-	int getNumParams() { return kNumExpressionDimensions; }
+	int32_t getNumParams() { return kNumExpressionDimensions; }
 	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
 	                                  bool automationChanged, bool automatedBefore, bool automatedNow);
-	bool mayParamInterpolate(int paramId) { return false; }
-	int32_t knobPosToParamValue(int knobPos, ModelStackWithAutoParam* modelStack);
-	int paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack);
+	bool mayParamInterpolate(int32_t paramId) { return false; }
+	int32_t knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack);
+	int32_t paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack);
 	bool writeToFile(bool mustWriteOpeningTagEndFirst = false);
 	void readFromFile(ParamCollectionSummary* summary, int32_t readAutomationUpToPos);
-	void moveRegionHorizontally(ModelStackWithParamCollection* modelStack, int32_t pos, int32_t length, int offset,
+	void moveRegionHorizontally(ModelStackWithParamCollection* modelStack, int32_t pos, int32_t length, int32_t offset,
 	                            int32_t lengthBeforeLoop, Action* action);
 	void clearValues(ModelStackWithParamCollection const* modelStack);
 	void cancelAllOverriding();

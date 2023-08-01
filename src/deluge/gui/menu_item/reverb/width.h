@@ -27,6 +27,6 @@ public:
 	using Integer::Integer;
 	void readCurrentValue() { soundEditor.currentValue = std::round(AudioEngine::reverb.getwidth() * 50); }
 	void writeCurrentValue() { AudioEngine::reverb.setwidth((float)soundEditor.currentValue / 50); }
-	int getMaxValue() const { return 50; }
+	int32_t getMaxValue() const { return 50; }
 };
 } // namespace menu_item::reverb

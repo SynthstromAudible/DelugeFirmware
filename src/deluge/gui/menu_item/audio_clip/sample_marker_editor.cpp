@@ -27,7 +27,7 @@
 
 namespace menu_item::audio_clip {
 
-MenuPermission SampleMarkerEditor::checkPermissionToBeginSession(Sound* sound, int whichThing,
+MenuPermission SampleMarkerEditor::checkPermissionToBeginSession(Sound* sound, int32_t whichThing,
                                                                  MultiRange** currentRange) {
 
 	if (!isRelevant(sound, whichThing)) {

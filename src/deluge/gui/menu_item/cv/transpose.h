@@ -23,18 +23,18 @@ namespace menu_item::cv {
 class Transpose final : public Decimal {
 public:
 	using Decimal::Decimal;
-	int getMinValue() const { return -9600; }
-	int getMaxValue() const { return 9600; }
-	int getNumDecimalPlaces() const { return 2; }
+	int32_t getMinValue() const { return -9600; }
+	int32_t getMaxValue() const { return 9600; }
+	int32_t getNumDecimalPlaces() const { return 2; }
 	void readCurrentValue() {
 		soundEditor.currentValue = (int32_t)cvEngine.cvChannels[soundEditor.currentSourceIndex].transpose * 100
 		                           + cvEngine.cvChannels[soundEditor.currentSourceIndex].cents;
 	}
 	void writeCurrentValue() {
-		int currentValue = soundEditor.currentValue + 25600;
+		int32_t currentValue = soundEditor.currentValue + 25600;
 
-		int semitones = (currentValue + 50) / 100;
-		int cents = currentValue - semitones * 100;
+		int32_t semitones = (currentValue + 50) / 100;
+		int32_t cents = currentValue - semitones * 100;
 		cvEngine.setCVTranspose(soundEditor.currentSourceIndex, semitones - 256, cents);
 	}
 };

@@ -28,7 +28,7 @@ public:
 		static char const* options[] = {"Sine", "Triangle", "Square", "Saw", "S&H", "Random Walk", NULL};
 		return options;
 	}
-	int getNumOptions() { return kNumLFOTypes; }
+	int32_t getNumOptions() { return kNumLFOTypes; }
 };
 
 } // namespace menu_item::lfo

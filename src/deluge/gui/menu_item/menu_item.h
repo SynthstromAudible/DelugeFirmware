@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
 #include "definitions_cxx.hpp"
+#include <cstdint>
 
 enum class MenuPermission {
 	NO,
@@ -44,18 +44,18 @@ public:
 		return name;
 	}
 
-	virtual void horizontalEncoderAction(int offset) {
+	virtual void horizontalEncoderAction(int32_t offset) {
 	}
-	virtual void selectEncoderAction(int offset) {
+	virtual void selectEncoderAction(int32_t offset) {
 	}
 	virtual void beginSession(MenuItem* navigatedBackwardFrom = NULL){};
-	virtual bool isRelevant(Sound* sound, int whichThing) {
+	virtual bool isRelevant(Sound* sound, int32_t whichThing) {
 		return true;
 	}
 	virtual MenuItem* selectButtonPress() {
 		return NULL;
 	}
-	virtual MenuPermission checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange);
+	virtual MenuPermission checkPermissionToBeginSession(Sound* sound, int32_t whichThing, MultiRange** currentRange);
 	virtual void readValueAgain() {
 	}
 	virtual bool selectEncoderActionEditsInstrument() {
@@ -81,12 +81,12 @@ public:
 	virtual bool allowsLearnMode() {
 		return false;
 	}
-	virtual void learnKnob(MIDIDevice* fromDevice, int whichKnob, int modKnobMode, int midiChannel) {
+	virtual void learnKnob(MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) {
 	}
-	virtual bool learnNoteOn(MIDIDevice* fromDevice, int channel, int noteCode) {
+	virtual bool learnNoteOn(MIDIDevice* fromDevice, int32_t channel, int32_t noteCode) {
 		return false;
 	} // Returns whether it was used, I think?
-	virtual void learnCC(MIDIDevice* fromDevice, int channel, int ccNumber, int value);
+	virtual void learnCC(MIDIDevice* fromDevice, int32_t channel, int32_t ccNumber, int32_t value);
 	virtual bool shouldBlinkLearnLed() {
 		return false;
 	}
@@ -102,7 +102,7 @@ public:
 	virtual void renderOLED();
 	virtual void drawPixelsForOled() {
 	}
-	void drawItemsForOled(char const** options, int selectedOption);
+	void drawItemsForOled(char const** options, int32_t selectedOption);
 
 	/// Get the title to be used when rendering on OLED. If not overriden, defaults to returning `basicTitle`.
 	virtual char const* getTitle();

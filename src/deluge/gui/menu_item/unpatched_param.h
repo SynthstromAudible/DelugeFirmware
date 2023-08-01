@@ -27,18 +27,18 @@ namespace menu_item {
 class UnpatchedParam : public Param, public IntegerContinuous, public MenuItemWithCCLearning {
 public:
 	UnpatchedParam();
-	UnpatchedParam(char const* newName, int newP) : Param(newP), IntegerContinuous(newName) {}
+	UnpatchedParam(char const* newName, int32_t newP) : Param(newP), IntegerContinuous(newName) {}
 
 	void readCurrentValue();
 	void writeCurrentValue();
 	ParamDescriptor getLearningThing() final;
-	int getMaxValue() const { return Param::getMaxValue(); }
-	int getMinValue() const { return Param::getMinValue(); }
+	int32_t getMaxValue() const { return Param::getMaxValue(); }
+	int32_t getMinValue() const { return Param::getMinValue(); }
 	MenuItem* selectButtonPress() final { return Param::selectButtonPress(); }
 
 	void unlearnAction() final { MenuItemWithCCLearning::unlearnAction(); }
 	bool allowsLearnMode() final { return MenuItemWithCCLearning::allowsLearnMode(); }
-	void learnKnob(MIDIDevice* fromDevice, int whichKnob, int modKnobMode, int midiChannel) final {
+	void learnKnob(MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) final {
 		MenuItemWithCCLearning::learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel);
 	};
 

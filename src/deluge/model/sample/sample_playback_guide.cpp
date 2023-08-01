@@ -28,7 +28,7 @@ SamplePlaybackGuide::SamplePlaybackGuide() {
 	// TODO Auto-generated constructor stub
 }
 
-int SamplePlaybackGuide::getFinalClusterIndex(Sample* sample, bool obeyMarkers, int32_t* getEndPlaybackAtByte) {
+int32_t SamplePlaybackGuide::getFinalClusterIndex(Sample* sample, bool obeyMarkers, int32_t* getEndPlaybackAtByte) {
 
 	GeneralMemoryAllocator::get().checkStack("SamplePlaybackGuide::getFinalClusterIndex");
 
@@ -48,7 +48,7 @@ int SamplePlaybackGuide::getFinalClusterIndex(Sample* sample, bool obeyMarkers, 
 		*getEndPlaybackAtByte = endPlaybackAtByteNow;
 	}
 
-	int finalBytePos;
+	int32_t finalBytePos;
 
 	if (playDirection == 1) {
 		finalBytePos = endPlaybackAtByteNow - 1;
@@ -63,11 +63,11 @@ int SamplePlaybackGuide::getFinalClusterIndex(Sample* sample, bool obeyMarkers, 
 void SamplePlaybackGuide::setupPlaybackBounds(bool reversed) {
 	playDirection = reversed ? -1 : 1;
 
-	int startPlaybackAtSample;
-	int endPlaybackAtSample;
+	int32_t startPlaybackAtSample;
+	int32_t endPlaybackAtSample;
 
 	Sample* sample = (Sample*)audioFileHolder->audioFile;
-	int bytesPerSample = sample->numChannels * sample->byteDepth;
+	int32_t bytesPerSample = sample->numChannels * sample->byteDepth;
 
 	// Forwards
 	if (!reversed) {

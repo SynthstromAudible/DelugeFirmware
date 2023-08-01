@@ -47,17 +47,17 @@ char const** Selection::getOptions() {
 	return basicOptions;
 }
 
-int Selection::getNumOptions() {
-	int i = 0;
+int32_t Selection::getNumOptions() {
+	int32_t i = 0;
 	while (basicOptions[i]) {
 		i++;
 	}
 	return i;
 }
 
-void Selection::selectEncoderAction(int offset) {
+void Selection::selectEncoderAction(int32_t offset) {
 	soundEditor.currentValue += offset;
-	int numOptions = getNumOptions();
+	int32_t numOptions = getNumOptions();
 
 #if HAVE_OLED
 	if (soundEditor.currentValue > numOptions - 1) {
@@ -95,7 +95,7 @@ void Selection::drawPixelsForOled() {
 	}
 
 	char const** options = &getOptions()[soundEditor.menuCurrentScroll];
-	int selectedOption = soundEditor.currentValue - soundEditor.menuCurrentScroll;
+	int32_t selectedOption = soundEditor.currentValue - soundEditor.menuCurrentScroll;
 
 	drawItemsForOled(options, selectedOption);
 }

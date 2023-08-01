@@ -38,7 +38,7 @@ void Decimal::beginSession(MenuItem* navigatedBackwardFrom) {
 	soundEditor.numberEditPos = getDefaultEditPos();
 	soundEditor.numberEditSize = 1;
 
-	for (int i = 0; i < soundEditor.numberEditPos; i++) {
+	for (int32_t i = 0; i < soundEditor.numberEditPos; i++) {
 		soundEditor.numberEditSize *= 10;
 	}
 
@@ -57,13 +57,13 @@ void Decimal::drawValue() {
 #endif
 }
 
-void Decimal::selectEncoderAction(int offset) {
+void Decimal::selectEncoderAction(int32_t offset) {
 
 	soundEditor.currentValue += offset * soundEditor.numberEditSize;
 
 	// If turned down
 	if (offset < 0) {
-		int minValue = getMinValue();
+		int32_t minValue = getMinValue();
 		if (soundEditor.currentValue < minValue) {
 			soundEditor.currentValue = minValue;
 		}
@@ -71,7 +71,7 @@ void Decimal::selectEncoderAction(int offset) {
 
 	// If turned up
 	else {
-		int maxValue = getMaxValue();
+		int32_t maxValue = getMaxValue();
 		if (soundEditor.currentValue > maxValue) {
 			soundEditor.currentValue = maxValue;
 		}
@@ -84,7 +84,7 @@ void Decimal::selectEncoderAction(int offset) {
 
 bool movingCursor = false; // Sorry, ugly hack.
 
-void Decimal::horizontalEncoderAction(int offset) {
+void Decimal::horizontalEncoderAction(int32_t offset) {
 	if (offset == 1) {
 		if (soundEditor.numberEditPos > 0) {
 			soundEditor.numberEditPos--;
@@ -110,16 +110,16 @@ void Decimal::horizontalEncoderAction(int offset) {
 }
 
 void Decimal::scrollToGoodPos() {
-	int numDigits = getNumDecimalDigits(std::abs(soundEditor.currentValue));
+	int32_t numDigits = getNumDecimalDigits(std::abs(soundEditor.currentValue));
 
 	// Negative numbers
 	if (soundEditor.currentValue < 0) {
-		soundEditor.numberScrollAmount = getMax(numDigits - 3, soundEditor.numberEditPos - 2);
+		soundEditor.numberScrollAmount = std::max<int8_t>(numDigits - 3, soundEditor.numberEditPos - 2);
 	}
 
 	// Positive numbers
 	else {
-		soundEditor.numberScrollAmount = getMax(numDigits - 4, soundEditor.numberEditPos - 3);
+		soundEditor.numberScrollAmount = std::max<int8_t>(numDigits - 4, soundEditor.numberEditPos - 3);
 	}
 
 	if (soundEditor.numberScrollAmount < 0) {
@@ -136,49 +136,49 @@ void Decimal::scrollToGoodPos() {
 
 #if HAVE_OLED
 void Decimal::drawPixelsForOled() {
-	int numDecimalPlaces = getNumDecimalPlaces();
+	int32_t numDecimalPlaces = getNumDecimalPlaces();
 	char buffer[13];
 	intToString(soundEditor.currentValue, buffer, numDecimalPlaces + 1);
-	int length = strlen(buffer);
+	int32_t length = strlen(buffer);
 
-	int editingChar = length - soundEditor.numberEditPos;
+	int32_t editingChar = length - soundEditor.numberEditPos;
 	if (soundEditor.numberEditPos >= numDecimalPlaces) {
 		editingChar--;
 	}
 
 	if (numDecimalPlaces) {
-		int numCharsBeforeDecimalPoint = length - numDecimalPlaces;
+		int32_t numCharsBeforeDecimalPoint = length - numDecimalPlaces;
 		memmove(&buffer[numCharsBeforeDecimalPoint + 1], &buffer[numCharsBeforeDecimalPoint], numDecimalPlaces + 1);
 		buffer[numCharsBeforeDecimalPoint] = '.';
 		length++;
 	}
 
-	int digitWidth = kTextHugeSpacingX;
-	int stringWidth = digitWidth * length;
-	int stringStartX = (OLED_MAIN_WIDTH_PIXELS - stringWidth) >> 1;
+	int32_t digitWidth = kTextHugeSpacingX;
+	int32_t stringWidth = digitWidth * length;
+	int32_t stringStartX = (OLED_MAIN_WIDTH_PIXELS - stringWidth) >> 1;
 
 	OLED::drawString(buffer, stringStartX, 20, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, digitWidth,
 	                 kTextHugeSizeY);
 
-	int ourDigitStartX = stringStartX + editingChar * digitWidth;
+	int32_t ourDigitStartX = stringStartX + editingChar * digitWidth;
 	OLED::setupBlink(ourDigitStartX, digitWidth, 40, 44, movingCursor);
 }
 
 #else
 void Decimal::drawActualValue(bool justDidHorizontalScroll) {
 	char buffer[12];
-	int minNumDigits = getNumDecimalPlaces() + 1;
-	minNumDigits = getMax(minNumDigits, soundEditor.numberEditPos + 1);
+	int32_t minNumDigits = getNumDecimalPlaces() + 1;
+	minNumDigits = std::max<int32_t>(minNumDigits, soundEditor.numberEditPos + 1);
 	intToString(soundEditor.currentValue, buffer, minNumDigits);
-	int stringLength = strlen(buffer);
+	int32_t stringLength = strlen(buffer);
 
-	char* outputText = buffer + getMax(stringLength - 4 - soundEditor.numberScrollAmount, 0);
+	char* outputText = buffer + std::max(stringLength - 4 - soundEditor.numberScrollAmount, 0_i32);
 
 	if (strlen(outputText) > 4) {
 		outputText[4] = 0;
 	}
 
-	int dotPos;
+	int32_t dotPos;
 	if (getNumDecimalPlaces())
 		dotPos = soundEditor.numberScrollAmount + 3 - getNumDecimalPlaces();
 	else

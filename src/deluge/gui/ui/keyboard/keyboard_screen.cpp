@@ -16,7 +16,6 @@
 */
 
 #include "gui/ui/keyboard/keyboard_screen.h"
-#include "RZA1/system/r_typedefs.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/menu_item/multi_range.h"
@@ -42,6 +41,7 @@
 #include "playback/mode/playback_mode.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_instrument.h"
+#include <cstdint>
 #include <string.h>
 
 #include "gui/ui/keyboard/layout/in_key.h"
@@ -78,7 +78,7 @@ KeyboardScreen::KeyboardScreen() {
 static const uint32_t padActionUIModes[] = {UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN,
                                             0}; // Careful - this is referenced in two places // I'm always careful ;)
 
-ActionResult KeyboardScreen::padAction(int x, int y, int velocity) {
+ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
 	if (sdRoutineLock && !allowSomeUserActionsEvenWhenInCardRoutine) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow some of the time when in card routine.
 	}
@@ -97,8 +97,8 @@ ActionResult KeyboardScreen::padAction(int x, int y, int velocity) {
 
 	// Pad pressed down, add to list if not full
 	if (velocity) {
-		int freeSlotIdx = -1;
-		for (int idx = 0; idx < kMaxNumKeyboardPadPresses; ++idx) {
+		int32_t freeSlotIdx = -1;
+		for (int32_t idx = 0; idx < kMaxNumKeyboardPadPresses; ++idx) {
 			// Free slot found
 			if (!pressedPads[idx].active) {
 				freeSlotIdx = idx;
@@ -122,7 +122,7 @@ ActionResult KeyboardScreen::padAction(int x, int y, int velocity) {
 
 	// Pad released, remove from list
 	else {
-		for (int idx = 0; idx < kMaxNumKeyboardPadPresses; ++idx) {
+		for (int32_t idx = 0; idx < kMaxNumKeyboardPadPresses; ++idx) {
 			// Pad was already active
 			if (pressedPads[idx].active && pressedPads[idx].x == x && pressedPads[idx].y == y) {
 				pressedPads[idx].active = false;
@@ -388,12 +388,12 @@ ActionResult KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRou
 
 		// Transition back to clip
 		currentUIMode = UI_MODE_INSTRUMENT_CLIP_COLLAPSING;
-		int transitioningToRow = sessionView.getClipPlaceOnScreen(currentSong->currentClip);
+		int32_t transitioningToRow = sessionView.getClipPlaceOnScreen(currentSong->currentClip);
 		memcpy(&PadLEDs::imageStore, PadLEDs::image, sizeof(PadLEDs::image));
 		memcpy(&PadLEDs::occupancyMaskStore, PadLEDs::occupancyMask, sizeof(PadLEDs::occupancyMask));
 		//memset(PadLEDs::occupancyMaskStore, 16, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth + kSideBarWidth));
 		PadLEDs::numAnimatedRows = kDisplayHeight;
-		for (int y = 0; y < kDisplayHeight; y++) {
+		for (int32_t y = 0; y < kDisplayHeight; y++) {
 			PadLEDs::animatedRowGoingTo[y] = transitioningToRow;
 			PadLEDs::animatedRowGoingFrom[y] = y;
 		}
@@ -465,7 +465,7 @@ ActionResult KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRou
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult KeyboardScreen::verticalEncoderAction(int offset, bool inCardRoutine) {
+ActionResult KeyboardScreen::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
 	}
@@ -486,7 +486,7 @@ ActionResult KeyboardScreen::verticalEncoderAction(int offset, bool inCardRoutin
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult KeyboardScreen::horizontalEncoderAction(int offset) {
+ActionResult KeyboardScreen::horizontalEncoderAction(int32_t offset) {
 
 	layoutList[getCurrentClip()->keyboardState.currentLayout]->handleHorizontalEncoder(
 	    offset, (Buttons::isShiftButtonPressed() && isUIModeWithinRange(padActionUIModes)));
@@ -565,7 +565,7 @@ void KeyboardScreen::selectEncoderAction(int8_t offset) {
 	else if (getActiveInstrument()->type != InstrumentType::KIT && currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED
 	         && getCurrentClip()->inScaleMode) {
 		exitScaleModeOnButtonRelease = false;
-		int newRootNote = ((currentSong->rootNote + kOctaveSize) + offset) % kOctaveSize;
+		int32_t newRootNote = ((currentSong->rootNote + kOctaveSize) + offset) % kOctaveSize;
 		instrumentClipView.setupChangingOfRootNote(newRootNote);
 
 		char noteName[3] = {0};
@@ -656,7 +656,7 @@ void KeyboardScreen::flashDefaultRootNote() {
 	requestRendering();
 }
 
-void KeyboardScreen::enterScaleMode(int selectedRootNote) {
+void KeyboardScreen::enterScaleMode(int32_t selectedRootNote) {
 	auto requiredScaleMode = layoutList[getCurrentClip()->keyboardState.currentLayout]->requiredScaleMode();
 	if (requiredScaleMode == RequiredScaleMode::Disabled) {
 		return;
@@ -693,7 +693,7 @@ void KeyboardScreen::setLedStates() {
 	InstrumentClipMinder::setLedStates();
 }
 
-void KeyboardScreen::drawNoteCode(int noteCode) {
+void KeyboardScreen::drawNoteCode(int32_t noteCode) {
 	// Might not want to actually do this...
 	if (!getCurrentUI()->toClipMinder()) {
 		return;
@@ -708,12 +708,12 @@ bool KeyboardScreen::getAffectEntire() {
 	return getCurrentClip()->affectEntire;
 }
 
-void KeyboardScreen::unscrolledPadAudition(int velocity, int note, bool shiftButtonDown) {
+void KeyboardScreen::unscrolledPadAudition(int32_t velocity, int32_t note, bool shiftButtonDown) {
 	// Ideally evaluateActiveNotes and InstrumentClipView::auditionPadAction should be harmonized
 	// (even in the original keyboard_screen most of the non kit sounding was a copy from auditionPadAction)
 	// but this refactor needs to wait for another day.
 	// Until then we set the scroll to 0 during the auditioning
-	int yScrollBackup = getCurrentClip()->yScroll;
+	int32_t yScrollBackup = getCurrentClip()->yScroll;
 	getCurrentClip()->yScroll = 0;
 	instrumentClipView.auditionPadAction(velocity, note, shiftButtonDown);
 	getCurrentClip()->yScroll = yScrollBackup;
@@ -724,7 +724,7 @@ const uint8_t keyboardTickColoursBasicRecording[kDisplayHeight] = {0, 0, 0, 0, 0
 const uint8_t keyboardTickColoursLinearRecording[kDisplayHeight] = {0, 0, 0, 0, 0, 0, 0, 2};
 
 void KeyboardScreen::graphicsRoutine() {
-	int newTickSquare;
+	int32_t newTickSquare;
 
 	const uint8_t* colours = keyboardTickColoursBasicRecording;
 

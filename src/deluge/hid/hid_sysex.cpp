@@ -5,7 +5,7 @@
 #include "util/pack.h"
 #include <cstring>
 
-void HIDSysex::sysexReceived(MIDIDevice* device, uint8_t* data, int len) {
+void HIDSysex::sysexReceived(MIDIDevice* device, uint8_t* data, int32_t len) {
 	if (len < 6) {
 		return;
 	}
@@ -24,7 +24,7 @@ void HIDSysex::sysexReceived(MIDIDevice* device, uint8_t* data, int len) {
 	}
 }
 
-void HIDSysex::requestOLEDDisplay(MIDIDevice* device, uint8_t* data, int len) {
+void HIDSysex::requestOLEDDisplay(MIDIDevice* device, uint8_t* data, int32_t len) {
 	if (data[4] == 0 or data[4] == 1) {
 		sendOLEDData(device, (data[4] == 1));
 	}
@@ -33,15 +33,15 @@ void HIDSysex::requestOLEDDisplay(MIDIDevice* device, uint8_t* data, int len) {
 void HIDSysex::sendOLEDData(MIDIDevice* device, bool rle) {
 	// TODO: in the long run, this should not depend on having a physical OLED screen
 #if HAVE_OLED
-	const int data_size = 768;
-	const int max_packed_size = 922;
+	const int32_t data_size = 768;
+	const int32_t max_packed_size = 922;
 
 	uint8_t reply_hdr[5] = {0xf0, 0x7d, 0x02, 0x40, rle ? 0x01 : 0x00};
 	uint8_t* reply = midiEngine.sysex_fmt_buffer;
 	memcpy(reply, reply_hdr, 5);
 	reply[5] = 0; // nominally 32*data[5] is start pos for a delta
 
-	int packed;
+	int32_t packed;
 	if (rle) {
 		packed = pack_8to7_rle(reply + 6, max_packed_size, OLED::oledCurrentImage[0], data_size);
 	}
@@ -56,12 +56,12 @@ void HIDSysex::sendOLEDData(MIDIDevice* device, bool rle) {
 #endif
 }
 
-void HIDSysex::request7SegDisplay(MIDIDevice* device, uint8_t* data, int len) {
+void HIDSysex::request7SegDisplay(MIDIDevice* device, uint8_t* data, int32_t len) {
 #if !HAVE_OLED
 	if (data[4] == 0) {
 		// aschually 8 segments if you count the dot
-		const int data_size = 4;
-		const int packed_data_size = 5;
+		const int32_t data_size = 4;
+		const int32_t packed_data_size = 5;
 		uint8_t reply[11] = {0xf0, 0x7d, 0x02, 0x41, 0x00};
 		pack_8bit_to_7bit(reply + 6, packed_data_size, numericDriver.lastDisplay, data_size);
 		reply[6 + packed_data_size] = 0xf7; // end of transmission

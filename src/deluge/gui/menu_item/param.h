@@ -27,9 +27,9 @@ namespace menu_item {
 // Note that this does *not* inherit from MenuItem actually!
 class Param {
 public:
-	Param(int newP = 0) { p = newP; }
-	virtual int getMaxValue() const { return 50; }
-	virtual int getMinValue() const { return 0; }
+	Param(int32_t newP = 0) { p = newP; }
+	virtual int32_t getMaxValue() const { return 50; }
+	virtual int32_t getMinValue() const { return 0; }
 	virtual uint8_t getP() { return p; };
 	MenuItem* selectButtonPress();
 	virtual ModelStackWithAutoParam* getModelStack(void* memory) = 0;

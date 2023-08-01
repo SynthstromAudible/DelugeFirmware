@@ -30,6 +30,6 @@ public:
 		static char const* options[] = {"LOW", "MEDIUM", "HIGH", NULL};
 		return options;
 	}
-	int getNumOptions() { return kNumVoicePriorities; }
+	int32_t getNumOptions() { return kNumVoicePriorities; }
 };
 } // namespace menu_item::voice

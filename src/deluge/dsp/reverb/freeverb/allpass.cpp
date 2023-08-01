@@ -27,13 +27,13 @@ allpass::allpass() {
 	bufidx = 0;
 }
 
-void allpass::setbuffer(int32_t* buf, int size) {
+void allpass::setbuffer(int32_t* buf, int32_t size) {
 	buffer = (int32_t*)buf;
 	bufsize = size;
 }
 
 void allpass::mute() {
-	for (int i = 0; i < bufsize; i++) {
+	for (int32_t i = 0; i < bufsize; i++) {
 		buffer[i] = 0;
 	}
 }

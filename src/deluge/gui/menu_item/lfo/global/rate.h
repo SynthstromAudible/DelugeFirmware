@@ -23,6 +23,6 @@ class Rate final : public patched_param::Integer {
 public:
 	using Integer::Integer;
 
-	bool isRelevant(Sound* sound, int whichThing) { return (sound->lfoGlobalSyncLevel == 0); }
+	bool isRelevant(Sound* sound, int32_t whichThing) { return (sound->lfoGlobalSyncLevel == 0); }
 };
 } // namespace menu_item::lfo::global

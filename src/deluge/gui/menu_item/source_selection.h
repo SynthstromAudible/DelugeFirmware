@@ -26,7 +26,7 @@ class SourceSelection : public MenuItem {
 public:
 	SourceSelection() = default;
 	void beginSession(MenuItem* navigatedBackwardFrom = NULL);
-	void selectEncoderAction(int offset) final;
+	void selectEncoderAction(int32_t offset) final;
 	virtual ParamDescriptor getDestinationDescriptor() = 0;
 	uint8_t getIndexOfPatchedParamToBlink() final;
 	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) final;
@@ -34,8 +34,8 @@ public:
 
 #if HAVE_OLED
 	void drawPixelsForOled();
-	static int selectedRowOnScreen;
-	int scrollPos; // Each instance needs to store this separately
+	static int32_t selectedRowOnScreen;
+	int32_t scrollPos; // Each instance needs to store this separately
 #else
 	void drawValue();
 #endif

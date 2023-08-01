@@ -31,15 +31,15 @@ public:
 	bool opened();
 	//void selectEncoderAction(int8_t offset);
 	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
-	ActionResult padAction(int x, int y, int velocity);
-	ActionResult verticalEncoderAction(int offset, bool inCardRoutine);
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
+	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
 	void instrumentEdited(Instrument* instrument);
-	int performLoad(bool doClone = false);
+	int32_t performLoad(bool doClone = false);
 	ActionResult timerCallback();
 	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
 	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3] = NULL,
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL, bool drawUndefinedArea = true,
-	                    int navSys = -1) {
+	                    int32_t navSys = -1) {
 		return true;
 	}
 	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
@@ -50,7 +50,7 @@ public:
 	ReturnOfConfirmPresetOrNextUnlaunchedOne confirmPresetOrNextUnlaunchedOne(InstrumentType instrumentType,
 	                                                                          String* searchName,
 	                                                                          Availability availabilityRequirement);
-	PresetNavigationResult doPresetNavigation(int offset, Instrument* oldInstrument,
+	PresetNavigationResult doPresetNavigation(int32_t offset, Instrument* oldInstrument,
 	                                          Availability availabilityRequirement, bool doBlink);
 
 	InstrumentClip* instrumentClipToLoadFor; // Can be NULL - if called from Arranger.
@@ -58,12 +58,12 @@ public:
 
 protected:
 	void enterKeyPress();
-	void folderContentsReady(int entryDirection);
-	void currentFileChanged(int movementDirection);
+	void folderContentsReady(int32_t entryDirection);
+	void currentFileChanged(int32_t movementDirection);
 
 private:
 	bool showingAuditionPads();
-	int setupForInstrumentType();
+	int32_t setupForInstrumentType();
 	void changeInstrumentType(InstrumentType newInstrumentType);
 	void revertToInitialPreset();
 	void exitAction();

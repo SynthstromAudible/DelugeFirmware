@@ -26,15 +26,16 @@ public:
 	MultiRange();
 
 	void beginSession(MenuItem* navigatedBackwardFrom);
-	void selectEncoderAction(int offset);
+	void selectEncoderAction(int32_t offset);
 	MenuItem* selectButtonPress();
-	void noteOnToChangeRange(int noteCode);
+	void noteOnToChangeRange(int32_t noteCode);
 	bool isRangeDependent() { return true; }
 	void deletePress();
 	MenuItem* menuItemHeadingTo;
 
 protected:
-	void getText(char* buffer, int* getLeftLength = NULL, int* getRightLength = NULL, bool mayShowJustOne = true);
+	void getText(char* buffer, int32_t* getLeftLength = NULL, int32_t* getRightLength = NULL,
+	             bool mayShowJustOne = true);
 	bool mayEditRangeEdge(RangeEdit whichEdge);
 
 #if HAVE_OLED

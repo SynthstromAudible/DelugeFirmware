@@ -22,7 +22,7 @@
 namespace menu_item::filter {
 class LPFFreq final : public patched_param::IntegerNonFM {
 public:
-	LPFFreq(char const* newName = 0, int newP = 0) : patched_param::IntegerNonFM(newName, newP) {}
+	LPFFreq(char const* newName = 0, int32_t newP = 0) : patched_param::IntegerNonFM(newName, newP) {}
 #if !HAVE_OLED
 	void drawValue() {
 		if (soundEditor.currentValue == 50

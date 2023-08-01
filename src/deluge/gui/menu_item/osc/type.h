@@ -80,7 +80,7 @@ public:
 		return options;
 	}
 
-	int getNumOptions() {
+	int32_t getNumOptions() {
 		if (soundEditor.currentSound->getSynthMode() == SynthMode::RINGMOD) {
 			return kNumOscTypesRingModdable;
 		}
@@ -91,7 +91,7 @@ public:
 			return kNumOscTypes - 2;
 		}
 	}
-	bool isRelevant(Sound* sound, int whichThing) {
+	bool isRelevant(Sound* sound, int32_t whichThing) {
 		return (sound->getSynthMode() != SynthMode::FM);
 	}
 };

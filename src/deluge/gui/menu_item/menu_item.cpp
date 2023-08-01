@@ -22,12 +22,12 @@
 #include "hid/display/oled.h"
 #endif
 
-MenuPermission MenuItem::checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
+MenuPermission MenuItem::checkPermissionToBeginSession(Sound* sound, int32_t whichThing, MultiRange** currentRange) {
 	bool toReturn = isRelevant(sound, whichThing);
 	return toReturn ? MenuPermission::YES : MenuPermission::NO;
 }
 
-void MenuItem::learnCC(MIDIDevice* fromDevice, int channel, int ccNumber, int value) {
+void MenuItem::learnCC(MIDIDevice* fromDevice, int32_t channel, int32_t ccNumber, int32_t value) {
 	learnKnob(fromDevice, ccNumber, 0, channel);
 }
 
@@ -45,17 +45,17 @@ void MenuItem::renderOLED() {
 }
 
 // A couple of our child classes call this - that's all
-void MenuItem::drawItemsForOled(char const** options, int selectedOption) {
+void MenuItem::drawItemsForOled(char const** options, int32_t selectedOption) {
 
-	int baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
+	int32_t baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
 	baseY += OLED_MAIN_TOPMOST_PIXEL;
 
-	for (int o = 0; o < OLED_HEIGHT_CHARS - 1; o++) {
+	for (int32_t o = 0; o < OLED_HEIGHT_CHARS - 1; o++) {
 		if (!options[o]) {
 			break;
 		}
 
-		int yPixel = o * kTextSpacingY + baseY;
+		int32_t yPixel = o * kTextSpacingY + baseY;
 
 		OLED::drawString(options[o], kTextSpacingX, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
 		                 kTextSpacingX, kTextSpacingY);

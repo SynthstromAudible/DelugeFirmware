@@ -18,9 +18,8 @@
 #pragma once
 
 #include "RZA1/system/iodefine.h"
-#include "RZA1/system/r_typedefs.h"
 
 void R_RSPI_SendBasic8(uint8_t channel, uint8_t data);
 void R_RSPI_SendBasic32(uint8_t channel, uint32_t data);
 void R_RSPI_WaitEnd(uint8_t channel);
-int R_RSPI_HasEnded(uint8_t channel);
+int32_t R_RSPI_HasEnded(uint8_t channel);

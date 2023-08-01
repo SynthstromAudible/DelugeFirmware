@@ -31,6 +31,6 @@ public:
 		static char const* options[] = {"Jump", "Pickup", "Scale", NULL};
 		return options;
 	}
-	int getNumOptions() { return kNumMIDITakeoverModes; }
+	int32_t getNumOptions() { return kNumMIDITakeoverModes; }
 };
 } // namespace menu_item::midi

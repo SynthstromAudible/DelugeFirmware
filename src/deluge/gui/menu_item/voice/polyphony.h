@@ -58,7 +58,7 @@ public:
 		return options;
 	}
 
-	int getNumOptions() { // Hack-ish way of hiding the "choke" option when not editing a Kit
+	int32_t getNumOptions() { // Hack-ish way of hiding the "choke" option when not editing a Kit
 		if (soundEditor.editingKit()) {
 			return kNumPolyphonyModes;
 		}

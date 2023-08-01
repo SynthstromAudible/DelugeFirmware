@@ -16,7 +16,7 @@
 */
 
 #include "model/drum/drum_name.h"
-#include "RZA1/system/r_typedefs.h"
+#include <cstdint>
 #include <string.h>
 
 DrumName::DrumName(String* newName) {
