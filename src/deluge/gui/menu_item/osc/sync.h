@@ -25,7 +25,7 @@ public:
 	Sync(char const* newName = NULL) : Selection(newName) {}
 	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSound->oscillatorSync; }
 	void writeCurrentValue() { soundEditor.currentSound->oscillatorSync = soundEditor.currentValue; }
-	bool isRelevant(Sound* sound, int whichThing) {
+	bool isRelevant(Sound* sound, int32_t whichThing) {
 		return (whichThing == 1 && sound->synthMode != SynthMode::FM && sound->sources[0].oscType != OscType::SAMPLE
 		        && sound->sources[1].oscType != OscType::SAMPLE);
 	}

@@ -24,22 +24,22 @@ NamedThingVectorElement::NamedThingVectorElement(void* newNamedThing, String* ne
 	name.set(newName);
 }
 
-NamedThingVector::NamedThingVector(int newStringOffset)
+NamedThingVector::NamedThingVector(int32_t newStringOffset)
     : ResizeableArray(sizeof(NamedThingVectorElement)), stringOffset(newStringOffset) {
 }
 
-int NamedThingVector::search(char const* searchString, int comparison, bool* foundExact) {
+int32_t NamedThingVector::search(char const* searchString, int32_t comparison, bool* foundExact) {
 
-	int rangeBegin = 0;
-	int rangeEnd = numElements;
-	int proposedIndex;
+	int32_t rangeBegin = 0;
+	int32_t rangeEnd = numElements;
+	int32_t proposedIndex;
 
 	while (rangeBegin != rangeEnd) {
-		int rangeSize = rangeEnd - rangeBegin;
+		int32_t rangeSize = rangeEnd - rangeBegin;
 		proposedIndex = rangeBegin + (rangeSize >> 1);
 
 		NamedThingVectorElement* element = getMemory(proposedIndex);
-		int result = strcasecmp(element->name.get(), searchString);
+		int32_t result = strcasecmp(element->name.get(), searchString);
 
 		if (!result) {
 			if (foundExact) {
@@ -61,11 +61,11 @@ int NamedThingVector::search(char const* searchString, int comparison, bool* fou
 	return rangeBegin + comparison;
 }
 
-NamedThingVectorElement* NamedThingVector::getMemory(int index) {
+NamedThingVectorElement* NamedThingVector::getMemory(int32_t index) {
 	return (NamedThingVectorElement*)getElementAddress(index);
 }
 
-void* NamedThingVector::getElement(int index) {
+void* NamedThingVector::getElement(int32_t index) {
 	return getMemory(index)->namedThing;
 }
 
@@ -74,17 +74,17 @@ String* NamedThingVector::getName(void* namedThing) {
 }
 
 // Returns error code
-int NamedThingVector::insertElement(void* namedThing) {
+int32_t NamedThingVector::insertElement(void* namedThing) {
 
 	String* name = getName(namedThing);
 
-	int i = search(name->get(), GREATER_OR_EQUAL);
+	int32_t i = search(name->get(), GREATER_OR_EQUAL);
 
 	return insertElement(namedThing, i);
 }
 
-int NamedThingVector::insertElement(void* namedThing, int i) {
-	int error = insertAtIndex(
+int32_t NamedThingVector::insertElement(void* namedThing, int32_t i) {
+	int32_t error = insertAtIndex(
 	    i, 1,
 	    this); // While inserting, the stealing of any AudioFiles would cause a simultaneous delete. They all know not to allow theft when passed this AudioFileVector.
 	if (error) {
@@ -97,15 +97,15 @@ int NamedThingVector::insertElement(void* namedThing, int i) {
 	return NO_ERROR;
 }
 
-void NamedThingVector::removeElement(int i) {
+void NamedThingVector::removeElement(int32_t i) {
 	getMemory(i)->~NamedThingVectorElement(); // Have to call this so String gets destructed!
 	deleteAtIndex(i);
 }
 
 // Check the new name is in fact different before calling this, if you want.
-void NamedThingVector::renameMember(int i, String* newName) {
+void NamedThingVector::renameMember(int32_t i, String* newName) {
 
-	int newI = search(newName->get(), GREATER_OR_EQUAL);
+	int32_t newI = search(newName->get(), GREATER_OR_EQUAL);
 
 	NamedThingVectorElement* memory = getMemory(i);
 	memory->name.set(newName);                 // Can't fail

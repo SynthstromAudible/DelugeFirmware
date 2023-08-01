@@ -50,7 +50,7 @@ int32_t WaveformBasicNavigator::getMaxZoom() {
 	return ((sample->lengthInSamples - 1) >> kDisplayWidthMagnitude) + 1;
 }
 
-bool WaveformBasicNavigator::zoom(int offset, bool shouldAllowExtraScrollRight, MarkerColumn* cols,
+bool WaveformBasicNavigator::zoom(int32_t offset, bool shouldAllowExtraScrollRight, MarkerColumn* cols,
                                   MarkerType markerType) {
 	uint32_t oldScroll = xScroll;
 	uint32_t oldZoom = xZoom;
@@ -65,7 +65,7 @@ bool WaveformBasicNavigator::zoom(int offset, bool shouldAllowExtraScrollRight, 
 
 		bool isSquareNumber = false;
 		uint32_t nextSquareNumber;
-		for (int i = 0; i < 31; i++) {
+		for (int32_t i = 0; i < 31; i++) {
 			uint32_t squareNumber = (uint32_t)1 << i;
 			if (squareNumber == xZoom) {
 				isSquareNumber = true;
@@ -93,7 +93,7 @@ bool WaveformBasicNavigator::zoom(int offset, bool shouldAllowExtraScrollRight, 
 
 	// Out
 	else {
-		int limit = getMaxZoom();
+		int32_t limit = getMaxZoom();
 		if (xZoom >= limit) {
 			return false;
 		}
@@ -103,7 +103,7 @@ bool WaveformBasicNavigator::zoom(int offset, bool shouldAllowExtraScrollRight, 
 		}
 	}
 
-	int pinMarkerCol = -1;
+	int32_t pinMarkerCol = -1;
 	int32_t pinMarkerPos = xScroll + xZoom * (kDisplayWidth >> 1);
 	MarkerType pinnedToMarkerType = MarkerType::NONE;
 
@@ -111,8 +111,8 @@ bool WaveformBasicNavigator::zoom(int offset, bool shouldAllowExtraScrollRight, 
 
 		bool foundActiveMarker = false;
 
-		for (int m = 0; m < kNumMarkerTypes; m++) {
-			int col = cols[m].colOnScreen;
+		for (int32_t m = 0; m < kNumMarkerTypes; m++) {
+			int32_t col = cols[m].colOnScreen;
 
 			if (col >= 0 && col < kDisplayWidth) {
 
@@ -126,12 +126,12 @@ bestYet:
 					pinnedToMarkerType = static_cast<MarkerType>(m);
 				}
 				else {
-					int pinMarkerDistanceFromCentre = pinMarkerCol - (kDisplayWidth >> 1);
+					int32_t pinMarkerDistanceFromCentre = pinMarkerCol - (kDisplayWidth >> 1);
 					if (pinMarkerDistanceFromCentre < 0) {
 						pinMarkerDistanceFromCentre = -pinMarkerDistanceFromCentre;
 					}
 
-					int thisMarkerDistanceFromCentre = col - (kDisplayWidth >> 1);
+					int32_t thisMarkerDistanceFromCentre = col - (kDisplayWidth >> 1);
 					if (thisMarkerDistanceFromCentre < 0) {
 						thisMarkerDistanceFromCentre = -thisMarkerDistanceFromCentre;
 					}
@@ -177,7 +177,7 @@ bestYet:
 		if (!shouldAllowExtraScrollRight) {
 			// Make sure not scrolled too far right
 			uint32_t lengthInSamples = sample->lengthInSamples;
-			int scrollLimit = ((lengthInSamples - 1) / xZoom + 1 - kDisplayWidth) * xZoom;
+			int32_t scrollLimit = ((lengthInSamples - 1) / xZoom + 1 - kDisplayWidth) * xZoom;
 			if (xScroll > scrollLimit) {
 				xScroll = scrollLimit;
 			}
@@ -189,12 +189,12 @@ bestYet:
 
 	// Calculate pin squares
 	int32_t zoomPinSquareBig = ((int64_t)(int32_t)(oldScroll - xScroll) << 16) / (int32_t)(newXZoom - oldZoom);
-	for (int i = 0; i < kDisplayHeight; i++) {
+	for (int32_t i = 0; i < kDisplayHeight; i++) {
 		PadLEDs::zoomPinSquare[i] = zoomPinSquareBig;
 		PadLEDs::transitionTakingPlaceOnRow[i] = true;
 	}
 
-	int storeOffset = (offset > 0) ? 0 : kDisplayHeight;
+	int32_t storeOffset = (offset > 0) ? 0 : kDisplayHeight;
 
 	PadLEDs::clearTickSquares(
 	    false); // We were mostly fine without this here, but putting it here fixed weird problem where tick squares would
@@ -212,7 +212,7 @@ bestYet:
 	return true;
 }
 
-bool WaveformBasicNavigator::scroll(int offset, bool shouldAllowExtraScrollRight, MarkerColumn* cols) {
+bool WaveformBasicNavigator::scroll(int32_t offset, bool shouldAllowExtraScrollRight, MarkerColumn* cols) {
 	// Right
 	if (offset >= 0) {
 

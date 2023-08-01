@@ -31,6 +31,6 @@ public:
 
 		soundEditor.currentSound->setUnisonDetune(soundEditor.currentValue, modelStack);
 	}
-	int getMaxValue() const { return kMaxUnisonDetune; }
+	int32_t getMaxValue() const { return kMaxUnisonDetune; }
 };
 } // namespace menu_item::unison

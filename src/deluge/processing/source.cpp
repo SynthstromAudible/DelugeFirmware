@@ -55,7 +55,7 @@ Source::~Source() {
 
 // Destructs the actual MultiRanges, but doesn't actually deallocate the memory, aka calling empty() on the Array - the caller must do this.
 void Source::destructAllMultiRanges() {
-	for (int e = 0; e < ranges.getNumElements(); e++) {
+	for (int32_t e = 0; e < ranges.getNumElements(); e++) {
 		AudioEngine::logAction("destructAllMultiRanges()");
 		AudioEngine::routineWithClusterLoading(); // -----------------------------------
 		ranges.getElement(e)->~MultiRange();
@@ -63,7 +63,7 @@ void Source::destructAllMultiRanges() {
 }
 
 // Only to be called if already determined that oscType == OscType::SAMPLE
-int32_t Source::getLengthInSamplesAtSystemSampleRate(int note, bool forTimeStretching) {
+int32_t Source::getLengthInSamplesAtSystemSampleRate(int32_t note, bool forTimeStretching) {
 	MultiRange* range = getRange(note);
 	if (range) {
 		return ((SampleHolder*)range->getAudioFileHolder())->getLengthInSamplesAtSystemSampleRate(forTimeStretching);
@@ -73,7 +73,7 @@ int32_t Source::getLengthInSamplesAtSystemSampleRate(int note, bool forTimeStret
 	}
 }
 
-void Source::setCents(int newCents) {
+void Source::setCents(int32_t newCents) {
 	cents = newCents;
 	recalculateFineTuner();
 }
@@ -98,7 +98,7 @@ bool Source::renderInStereo(Sound* s, SampleHolder* sampleHolder) {
 }
 
 void Source::detachAllAudioFiles() {
-	for (int e = 0; e < ranges.getNumElements(); e++) {
+	for (int32_t e = 0; e < ranges.getNumElements(); e++) {
 		if (!(e & 7)) {
 			AudioEngine::
 			    routineWithClusterLoading(); // --------------------------------------- // 7 works, 15 occasionally drops voices - for multisampled synths
@@ -107,8 +107,8 @@ void Source::detachAllAudioFiles() {
 	}
 }
 
-int Source::loadAllSamples(bool mayActuallyReadFiles) {
-	for (int e = 0; e < ranges.getNumElements(); e++) {
+int32_t Source::loadAllSamples(bool mayActuallyReadFiles) {
+	for (int32_t e = 0; e < ranges.getNumElements(); e++) {
 		AudioEngine::logAction("Source::loadAllSamples");
 		if (!(e & 3)) {
 			AudioEngine::
@@ -127,7 +127,7 @@ int Source::loadAllSamples(bool mayActuallyReadFiles) {
 // Only to be called if already determined that oscType == OscType::SAMPLE
 void Source::setReversed(bool newReversed) {
 	sampleControls.reversed = newReversed;
-	for (int e = 0; e < ranges.getNumElements(); e++) {
+	for (int32_t e = 0; e < ranges.getNumElements(); e++) {
 		MultiRange* range = (MultisampleRange*)ranges.getElement(e);
 		SampleHolder* holder = (SampleHolder*)range->getAudioFileHolder();
 		Sample* sample = (Sample*)holder->audioFile;
@@ -140,7 +140,7 @@ void Source::setReversed(bool newReversed) {
 	}
 }
 
-MultiRange* Source::getRange(int note) {
+MultiRange* Source::getRange(int32_t note) {
 	if (ranges.getNumElements() == 1) {
 		return ranges.getElement(0);
 	}
@@ -156,12 +156,12 @@ MultiRange* Source::getRange(int note) {
 	}
 }
 
-int Source::getRangeIndex(int note) {
+int32_t Source::getRangeIndex(int32_t note) {
 	if (ranges.getNumElements() <= 1) {
 		return 0;
 	}
 	else {
-		int e = ranges.search(note, GREATER_OR_EQUAL);
+		int32_t e = ranges.search(note, GREATER_OR_EQUAL);
 		if (e == ranges.getNumElements()) {
 			e--;
 		}
@@ -187,7 +187,7 @@ MultiRange* Source::getOrCreateFirstRange() {
 }
 
 bool Source::hasAtLeastOneAudioFileLoaded() {
-	for (int e = 0; e < ranges.getNumElements(); e++) {
+	for (int32_t e = 0; e < ranges.getNumElements(); e++) {
 		if (ranges.getElement(e)->getAudioFileHolder()->audioFile) {
 			return true;
 		}
@@ -209,7 +209,7 @@ void Source::doneReadingFromFile(Sound* sound) {
 	bool isActualSampleOscillator = (synthMode != SynthMode::FM && oscType == OscType::SAMPLE);
 
 	if (oscType == OscType::SAMPLE) {
-		for (int e = 0; e < ranges.getNumElements(); e++) {
+		for (int32_t e = 0; e < ranges.getNumElements(); e++) {
 			MultisampleRange* range = (MultisampleRange*)ranges.getElement(e);
 			if (isActualSampleOscillator) {
 				range->sampleHolder.transpose += transpose;
@@ -233,7 +233,7 @@ void Source::doneReadingFromFile(Sound* sound) {
 
 // Only to be called if already determined that oscType == OscType::SAMPLE
 bool Source::hasAnyLoopEndPoint() {
-	for (int e = 0; e < ranges.getNumElements(); e++) {
+	for (int32_t e = 0; e < ranges.getNumElements(); e++) {
 		MultisampleRange* range = (MultisampleRange*)ranges.getElement(e);
 		if (range->sampleHolder.loopEndPos) {
 			return true;
@@ -245,7 +245,7 @@ bool Source::hasAnyLoopEndPoint() {
 // If setting to SAMPLE or WAVETABLE, you must call unassignAllVoices before this, because ranges is going to get emptied.
 void Source::setOscType(OscType newType) {
 
-	int multiRangeSize;
+	int32_t multiRangeSize;
 	if (newType == OscType::SAMPLE) {
 		multiRangeSize = sizeof(MultisampleRange);
 possiblyDeleteRanges:
@@ -260,7 +260,7 @@ possiblyDeleteRanges:
 			*/
 
 doChangeType:
-			int error = ranges.changeType(multiRangeSize);
+			int32_t error = ranges.changeType(multiRangeSize);
 			if (error) {
 				destructAllMultiRanges();
 				ranges.empty();
@@ -288,7 +288,7 @@ doChangeType:
 }
 
 /*
-	for (int e = 0; e < ranges.getNumElements(); e++) {
+	for (int32_t e = 0; e < ranges.getNumElements(); e++) {
 		ranges.getElement(e)->
 	}
 

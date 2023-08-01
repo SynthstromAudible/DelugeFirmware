@@ -31,7 +31,7 @@ public:
 	void beginSession(MenuItem* navigatedBackwardFrom);
 #endif
 */
-	int getMaxValue() const;
+	int32_t getMaxValue() const;
 	void readCurrentValue();
 	void writeCurrentValue();
 	//char nameChars[16];

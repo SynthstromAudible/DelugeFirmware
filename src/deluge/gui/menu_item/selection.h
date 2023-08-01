@@ -25,13 +25,13 @@ class Selection : public Value {
 public:
 	Selection(char const* newName = NULL);
 	void beginSession(MenuItem* navigatedBackwardFrom);
-	void selectEncoderAction(int offset);
+	void selectEncoderAction(int32_t offset);
 
 	char const** basicOptions;
 
 protected:
 	virtual char const** getOptions();
-	virtual int getNumOptions();
+	virtual int32_t getNumOptions();
 	virtual void drawValue();
 
 #if HAVE_OLED

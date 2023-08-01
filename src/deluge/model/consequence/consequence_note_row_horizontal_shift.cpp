@@ -23,12 +23,12 @@
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
 
-ConsequenceNoteRowHorizontalShift::ConsequenceNoteRowHorizontalShift(int newNoteRowId, int32_t newAmount) {
+ConsequenceNoteRowHorizontalShift::ConsequenceNoteRowHorizontalShift(int32_t newNoteRowId, int32_t newAmount) {
 	amount = newAmount;
 	noteRowId = newNoteRowId;
 }
 
-int ConsequenceNoteRowHorizontalShift::revert(TimeType time, ModelStack* modelStack) {
+int32_t ConsequenceNoteRowHorizontalShift::revert(TimeType time, ModelStack* modelStack) {
 
 	int32_t amountNow = amount;
 

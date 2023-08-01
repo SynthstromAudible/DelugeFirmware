@@ -29,16 +29,16 @@ class ModelStack;
 
 namespace keyboard {
 
-constexpr int kMaxNumKeyboardPadPresses = 10;
+constexpr int32_t kMaxNumKeyboardPadPresses = 10;
 
 class KeyboardScreen final : public RootUI, public InstrumentClipMinder {
 public:
 	KeyboardScreen();
 
-	ActionResult padAction(int x, int y, int velocity);
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
 	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
-	ActionResult verticalEncoderAction(int offset, bool inCardRoutine);
-	ActionResult horizontalEncoderAction(int offset);
+	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
+	ActionResult horizontalEncoderAction(int32_t offset);
 	void selectEncoderAction(int8_t offset);
 
 	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
@@ -62,7 +62,7 @@ private:
 	void graphicsRoutine();
 	bool getAffectEntire();
 
-	void unscrolledPadAudition(int velocity, int note, bool shiftButtonDown);
+	void unscrolledPadAudition(int32_t velocity, int32_t note, bool shiftButtonDown);
 
 #if HAVE_OLED
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
@@ -72,9 +72,9 @@ private:
 
 private:
 	void selectLayout(int8_t offset);
-	void enterScaleMode(int selectedRootNote = kDefaultCalculateRootNote);
+	void enterScaleMode(int32_t selectedRootNote = kDefaultCalculateRootNote);
 	void exitScaleMode();
-	void drawNoteCode(int noteCode);
+	void drawNoteCode(int32_t noteCode);
 
 	inline void requestRendering() {
 		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);

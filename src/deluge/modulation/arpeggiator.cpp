@@ -61,8 +61,8 @@ void Arpeggiator::reset() {
 	notes.empty();
 }
 
-void ArpeggiatorForDrum::noteOn(ArpeggiatorSettings* settings, int noteCode, int velocity,
-                                ArpReturnInstruction* instruction, int fromMIDIChannel, int16_t const* mpeValues) {
+void ArpeggiatorForDrum::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t velocity,
+                                ArpReturnInstruction* instruction, int32_t fromMIDIChannel, int16_t const* mpeValues) {
 	lastVelocity = velocity;
 
 	bool wasActiveBefore = arpNote.velocity;
@@ -74,7 +74,7 @@ void ArpeggiatorForDrum::noteOn(ArpeggiatorSettings* settings, int noteCode, int
 	// in the survey that will happen of existing output member channels.
 	arpNote.outputMemberChannel = MIDI_CHANNEL_NONE;
 
-	for (int m = 0; m < kNumExpressionDimensions; m++) {
+	for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
 		arpNote.mpeValues[m] = mpeValues[m];
 	}
 
@@ -122,12 +122,12 @@ void ArpeggiatorForDrum::noteOff(ArpeggiatorSettings* settings, ArpReturnInstruc
 }
 
 // May return the instruction for a note-on, or no instruction. The noteCode instructed might be some octaves up from that provided here.
-void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int noteCode, int velocity, ArpReturnInstruction* instruction,
-                         int fromMIDIChannel, int16_t const* mpeValues) {
+void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t velocity,
+                         ArpReturnInstruction* instruction, int32_t fromMIDIChannel, int16_t const* mpeValues) {
 
 	lastVelocity = velocity;
 
-	int n = notes.search(noteCode, GREATER_OR_EQUAL);
+	int32_t n = notes.search(noteCode, GREATER_OR_EQUAL);
 
 	ArpNote* arpNote;
 
@@ -146,7 +146,7 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int noteCode, int veloci
 
 	// Insert
 	{
-		int error = notes.insertAtIndex(n);
+		int32_t error = notes.insertAtIndex(n);
 		if (error) {
 			return;
 		}
@@ -159,7 +159,7 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int noteCode, int veloci
 	arpNote->outputMemberChannel =
 	    MIDI_CHANNEL_NONE; // MIDIInstrument might set this, but it needs to be MIDI_CHANNEL_NONE until then so it doesn't get included in the survey that will happen of existing output member channels.
 
-	for (int m = 0; m < kNumExpressionDimensions; m++) {
+	for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
 		arpNote->mpeValues[m] = mpeValues[m];
 	}
 
@@ -195,9 +195,9 @@ noteInserted:
 	}
 }
 
-void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int noteCodePreArp, ArpReturnInstruction* instruction) {
+void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp, ArpReturnInstruction* instruction) {
 
-	int n = notes.search(noteCodePreArp, GREATER_OR_EQUAL);
+	int32_t n = notes.search(noteCodePreArp, GREATER_OR_EQUAL);
 	if (n < notes.getNumElements()) {
 
 		ArpNote* arpNote = (ArpNote*)notes.getElementAddress(n);
@@ -302,7 +302,7 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 
 	playedFirstArpeggiatedNoteYet = true;
 
-	noteCodeCurrentlyOnPostArp = kNoteForDrum + (int)currentOctave * 12;
+	noteCodeCurrentlyOnPostArp = kNoteForDrum + (int32_t)currentOctave * 12;
 
 	instruction->noteCodeOnPostArp = noteCodeCurrentlyOnPostArp;
 	instruction->arpNoteOn = &arpNote;
@@ -347,7 +347,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 			if (whichNoteCurrentlyOnPostArp >= notes.getNumElements()) {
 
 				// If at top octave
-				if ((int)currentOctave >= settings->numOctaves - 1) {
+				if ((int32_t)currentOctave >= settings->numOctaves - 1) {
 
 					if (settings->mode == ArpMode::UP) {
 						whichNoteCurrentlyOnPostArp -= notes.getNumElements();
@@ -416,7 +416,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 	ArpNote* arpNote = (ArpNote*)notes.getElementAddress(whichNoteCurrentlyOnPostArp);
 
 	noteCodeCurrentlyOnPostArp =
-	    arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] + (int)currentOctave * 12;
+	    arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] + (int32_t)currentOctave * 12;
 
 	instruction->noteCodeOnPostArp = noteCodeCurrentlyOnPostArp;
 	instruction->arpNoteOn = arpNote;
@@ -432,7 +432,7 @@ bool ArpeggiatorForDrum::hasAnyInputNotesActive() {
 
 // Check arpeggiator is on before you call this.
 // May switch notes on and/or off.
-void ArpeggiatorBase::render(ArpeggiatorSettings* settings, int numSamples, uint32_t gateThreshold,
+void ArpeggiatorBase::render(ArpeggiatorSettings* settings, int32_t numSamples, uint32_t gateThreshold,
                              uint32_t phaseIncrement, ArpReturnInstruction* instruction) {
 
 	if (settings->mode == ArpMode::OFF || !hasAnyInputNotesActive()) {
@@ -479,7 +479,7 @@ int32_t ArpeggiatorBase::doTickForward(ArpeggiatorSettings* settings, ArpReturnI
 		ticksPerPeriod = ticksPerPeriod * 3 / 2;
 	}
 
-	int howFarIntoPeriod = clipCurrentPos % ticksPerPeriod;
+	int32_t howFarIntoPeriod = clipCurrentPos % ticksPerPeriod;
 
 	if (!howFarIntoPeriod) {
 		if (hasAnyInputNotesActive()) {
@@ -505,7 +505,7 @@ uint32_t ArpeggiatorSettings::getPhaseIncrement(int32_t arpRate) {
 		phaseIncrement = arpRate >> 5;
 	}
 	else {
-		int rightShiftAmount = 9 - syncLevel; // Will be max 0
+		int32_t rightShiftAmount = 9 - syncLevel; // Will be max 0
 		phaseIncrement =
 		    playbackHandler
 		        .getTimePerInternalTickInverse(); //multiply_32x32_rshift32(playbackHandler.getTimePerInternalTickInverse(), arpRate);

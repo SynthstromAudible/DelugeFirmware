@@ -23,9 +23,9 @@ public:
 	using menu_item::mod_fx::Type::Type;
 
 	// We override this to set min value to 1. We don't inherit any getMinValue() function to override more easily
-	void selectEncoderAction(int offset) override {
+	void selectEncoderAction(int32_t offset) override {
 		soundEditor.currentValue += offset;
-		int numOptions = getNumOptions();
+		int32_t numOptions = getNumOptions();
 
 		if (soundEditor.currentValue >= numOptions) {
 			soundEditor.currentValue -= (numOptions - 1);

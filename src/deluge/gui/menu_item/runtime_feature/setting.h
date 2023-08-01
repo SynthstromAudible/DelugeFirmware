@@ -29,7 +29,7 @@ public:
 	void readCurrentValue();
 	void writeCurrentValue();
 	char const** getOptions();
-	int getNumOptions();
+	int32_t getNumOptions();
 	char const* getName();
 	char const* getTitle();
 

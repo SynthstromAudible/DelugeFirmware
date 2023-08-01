@@ -68,15 +68,15 @@ void Submenu::updateDisplay() {
 #if HAVE_OLED
 void Submenu::drawPixelsForOled() {
 	char const* itemNames[kOLEDMenuNumOptionsVisible];
-	for (int i = 0; i < kOLEDMenuNumOptionsVisible; i++) {
+	for (int32_t i = 0; i < kOLEDMenuNumOptionsVisible; i++) {
 		itemNames[i] = NULL;
 	}
 
-	int selectedRow = soundEditor.menuCurrentScroll;
+	int32_t selectedRow = soundEditor.menuCurrentScroll;
 	itemNames[selectedRow] = (*soundEditor.currentSubmenuItem)->getName();
 
 	MenuItem** thisSubmenuItem = soundEditor.currentSubmenuItem;
-	for (int i = selectedRow + 1; i < kOLEDMenuNumOptionsVisible; i++) {
+	for (int32_t i = selectedRow + 1; i < kOLEDMenuNumOptionsVisible; i++) {
 		do {
 			thisSubmenuItem++;
 			if (!*thisSubmenuItem) {
@@ -89,7 +89,7 @@ void Submenu::drawPixelsForOled() {
 
 searchBack:
 	thisSubmenuItem = soundEditor.currentSubmenuItem;
-	for (int i = selectedRow - 1; i >= 0; i--) {
+	for (int32_t i = selectedRow - 1; i >= 0; i--) {
 		do {
 			if (thisSubmenuItem == items) {
 				goto doneSearching;
@@ -105,7 +105,7 @@ doneSearching:
 }
 #endif
 
-void Submenu::selectEncoderAction(int offset) {
+void Submenu::selectEncoderAction(int32_t offset) {
 
 	MenuItem** thisSubmenuItem = soundEditor.currentSubmenuItem;
 
@@ -168,13 +168,13 @@ bool Submenu::allowsLearnMode() {
 	return false;
 }
 
-void Submenu::learnKnob(MIDIDevice* fromDevice, int whichKnob, int modKnobMode, int midiChannel) {
+void Submenu::learnKnob(MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) {
 	if (soundEditor.getCurrentMenuItem() == this) {
 		(*soundEditor.currentSubmenuItem)->learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel);
 	}
 }
 
-bool Submenu::learnNoteOn(MIDIDevice* fromDevice, int channel, int noteCode) {
+bool Submenu::learnNoteOn(MIDIDevice* fromDevice, int32_t channel, int32_t noteCode) {
 	if (soundEditor.getCurrentMenuItem() == this) {
 		return (*soundEditor.currentSubmenuItem)->learnNoteOn(fromDevice, channel, noteCode);
 	}

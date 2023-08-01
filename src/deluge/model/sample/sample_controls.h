@@ -17,13 +17,13 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
 #include "definitions_cxx.hpp"
+#include <cstdint>
 
 class SampleControls {
 public:
 	SampleControls();
-	int getInterpolationBufferSize(int32_t phaseIncrement);
+	int32_t getInterpolationBufferSize(int32_t phaseIncrement);
 
 	InterpolationMode interpolationMode;
 	bool pitchAndSpeedAreIndependent;

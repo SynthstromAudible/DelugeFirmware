@@ -25,12 +25,12 @@ namespace menu_item {
 class SyncLevel : public Selection {
 public:
 	using Selection::Selection;
-	SyncType menuOptionToSyncType(int option);
-	::SyncLevel menuOptionToSyncLevel(int option);
-	int syncTypeAndLevelToMenuOption(SyncType type, ::SyncLevel level);
+	SyncType menuOptionToSyncType(int32_t option);
+	::SyncLevel menuOptionToSyncLevel(int32_t option);
+	int32_t syncTypeAndLevelToMenuOption(SyncType type, ::SyncLevel level);
 
 protected:
-	int getNumOptions() { return 28; }
+	int32_t getNumOptions() { return 28; }
 	void drawValue() final;
 	virtual void getNoteLengthName(char* buffer);
 #if HAVE_OLED

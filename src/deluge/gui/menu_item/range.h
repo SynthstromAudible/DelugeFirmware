@@ -32,14 +32,14 @@ public:
 	Range(char const* newName = NULL) : MenuItem(newName){};
 
 	void beginSession(MenuItem* navigatedBackwardFrom);
-	void horizontalEncoderAction(int offset) final;
+	void horizontalEncoderAction(int32_t offset) final;
 	bool cancelEditingIfItsOn();
 
 protected:
-	virtual void getText(char* buffer, int* getLeftLength = NULL, int* getRightLength = NULL,
+	virtual void getText(char* buffer, int32_t* getLeftLength = NULL, int32_t* getRightLength = NULL,
 	                     bool mayShowJustOne = true) = 0;
 	virtual bool mayEditRangeEdge(RangeEdit whichEdge) { return true; }
-	void drawValue(int startPos = 0, bool renderSidebarToo = true);
+	void drawValue(int32_t startPos = 0, bool renderSidebarToo = true);
 	void drawValueForEditingRange(bool blinkImmediately);
 
 #if HAVE_OLED

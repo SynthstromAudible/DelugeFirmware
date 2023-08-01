@@ -16,8 +16,8 @@
 */
 
 #pragma once
-#include "RZA1/system/r_typedefs.h"
 #include "model/consequence/consequence.h"
+#include <cstdint>
 
 class Output;
 class Clip;
@@ -27,7 +27,7 @@ class ConsequenceClipInstanceChange final : public Consequence {
 public:
 	ConsequenceClipInstanceChange(Output* newOutput, ClipInstance* clipInstance, int32_t posAfter, int32_t lengthAfter,
 	                              Clip* clipAfter);
-	int revert(TimeType time, ModelStack* modelStack);
+	int32_t revert(TimeType time, ModelStack* modelStack);
 
 	Output* output;
 	int32_t pos[2];

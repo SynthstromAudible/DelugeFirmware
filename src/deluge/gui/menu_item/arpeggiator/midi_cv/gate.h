@@ -33,7 +33,7 @@ public:
 		((InstrumentClip*)currentSong->currentClip)->arpeggiatorGate =
 		    (uint32_t)soundEditor.currentValue * 85899345 - 2147483648;
 	}
-	int getMaxValue() const { return 50; }
-	bool isRelevant(Sound* sound, int whichThing) { return soundEditor.editingCVOrMIDIClip(); }
+	int32_t getMaxValue() const { return 50; }
+	bool isRelevant(Sound* sound, int32_t whichThing) { return soundEditor.editingCVOrMIDIClip(); }
 };
 } // namespace menu_item::arpeggiator::midi_cv

@@ -70,7 +70,7 @@ public:
 		}
 	}
 
-	int getNumOptions() {
+	int32_t getNumOptions() {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		ModelStackWithNoteRow* modelStackWithNoteRow = getIndividualNoteRow(modelStack);
@@ -87,7 +87,7 @@ public:
 		return sequenceDirectionOptions;
 	}
 
-	MenuPermission checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
+	MenuPermission checkPermissionToBeginSession(Sound* sound, int32_t whichThing, MultiRange** currentRange) {
 		if (!((InstrumentClip*)currentSong->currentClip)->affectEntire
 		    && currentSong->currentClip->output->type == InstrumentType::KIT
 		    && !((Kit*)currentSong->currentClip->output)->selectedDrum) {

@@ -34,7 +34,7 @@ public:
 			soundEditor.currentSound->sideChainSendLevel = soundEditor.currentValue * 42949673;
 		}
 	}
-	int getMaxValue() const { return 50; }
-	bool isRelevant(Sound* sound, int whichThing) { return (soundEditor.editingKit()); }
+	int32_t getMaxValue() const { return 50; }
+	bool isRelevant(Sound* sound, int32_t whichThing) { return (soundEditor.editingKit()); }
 };
 } // namespace menu_item::sidechain

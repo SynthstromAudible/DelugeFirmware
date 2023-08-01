@@ -22,10 +22,10 @@
 namespace menu_item::sample {
 class Transpose final : public source::Transpose {
 public:
-	Transpose(char const* newName = NULL, int newP = 0) : source::Transpose(newName, newP) {}
+	Transpose(char const* newName = NULL, int32_t newP = 0) : source::Transpose(newName, newP) {}
 	void readCurrentValue() {
-		int transpose;
-		int cents;
+		int32_t transpose;
+		int32_t cents;
 		if (soundEditor.currentMultiRange && soundEditor.currentSound->getSynthMode() != SynthMode::FM
 		    && soundEditor.currentSource->oscType == OscType::SAMPLE) {
 			transpose = ((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.transpose;
@@ -38,12 +38,12 @@ public:
 		soundEditor.currentValue = transpose * 100 + cents;
 	}
 	void writeCurrentValue() {
-		int currentValue = soundEditor.currentValue + 25600;
+		int32_t currentValue = soundEditor.currentValue + 25600;
 
-		int semitones = (currentValue + 50) / 100;
-		int cents = currentValue - semitones * 100;
+		int32_t semitones = (currentValue + 50) / 100;
+		int32_t cents = currentValue - semitones * 100;
 
-		int transpose = semitones - 256;
+		int32_t transpose = semitones - 256;
 		if (soundEditor.currentMultiRange && soundEditor.currentSound->getSynthMode() != SynthMode::FM
 		    && soundEditor.currentSource->oscType == OscType::SAMPLE) {
 			((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.transpose = transpose;
@@ -59,7 +59,7 @@ public:
 
 		soundEditor.currentSound->recalculateAllVoicePhaseIncrements(modelStack);
 	}
-	MenuPermission checkPermissionToBeginSession(Sound* sound, int whichThing, ::MultiRange** currentRange) {
+	MenuPermission checkPermissionToBeginSession(Sound* sound, int32_t whichThing, ::MultiRange** currentRange) {
 
 		if (!isRelevant(sound, whichThing)) {
 			return MenuPermission::NO;

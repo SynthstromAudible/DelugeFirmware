@@ -36,7 +36,7 @@ uint32_t timeModEncoderLastTurned[2];
 int8_t modEncoderInitialTurnDirection[2];
 
 uint32_t timeNextSDTestAction = 0;
-int nextSDTestDirection = 1;
+int32_t nextSDTestDirection = 1;
 
 uint32_t encodersWaitingForCardRoutineEnd;
 
@@ -53,12 +53,12 @@ void init() {
 }
 
 void readEncoders() {
-	for (int i = 0; i < NUM_ENCODERS; i++) {
+	for (int32_t i = 0; i < NUM_ENCODERS; i++) {
 		encoders[i].read();
 	}
 }
 
-extern "C" void readEncoder(int e, int whichPin) {
+extern "C" void readEncoder(int32_t e, int32_t whichPin) {
 	encoders[e].interrupt(whichPin);
 }
 
@@ -78,14 +78,14 @@ bool interpretEncoders(bool inCardRoutine) {
 			nextSDTestDirection *= -1;
 		getCurrentUI()->selectEncoderAction(nextSDTestDirection);
 
-		int random = getRandom255();
+		int32_t random = getRandom255();
 
 		timeNextSDTestAction = AudioEngine::audioSampleTimer + ((random) << 6); // * 44 / 13;
 		anything = true;
 	}
 #endif
 
-	for (int e = 0; e < NUM_FUNCTION_ENCODERS; e++) {
+	for (int32_t e = 0; e < NUM_FUNCTION_ENCODERS; e++) {
 
 		if (e != ENCODER_SCROLL_Y) {
 
@@ -103,7 +103,7 @@ bool interpretEncoders(bool inCardRoutine) {
 			anything = true;
 
 			// Limit. Some functions can break if they receive bigger numbers, e.g. LoadSongUI::selectEncoderAction()
-			int limitedDetentPos = encoders[e].detentPos;
+			int32_t limitedDetentPos = encoders[e].detentPos;
 			encoders[e].detentPos = 0; // Reset. Crucial that this happens before we call selectEncoderAction()
 			if (limitedDetentPos >= 0) {
 				limitedDetentPos = 1;
@@ -167,7 +167,7 @@ checkResult:
 
 	if (!inCardRoutine || currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED) {
 		// Mod knobs
-		for (int e = 0; e < 2; e++) {
+		for (int32_t e = 0; e < 2; e++) {
 
 			// If encoder turned...
 			if (encoders[ENCODER_MOD_0 - e].encPos != 0) {

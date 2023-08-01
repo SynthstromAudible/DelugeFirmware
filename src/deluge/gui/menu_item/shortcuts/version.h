@@ -37,7 +37,7 @@ public:
 		};
 		return options;
 	}
-	int getNumOptions() {
+	int32_t getNumOptions() {
 		return NUM_SHORTCUTS_VERSIONS;
 	}
 };

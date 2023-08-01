@@ -23,9 +23,9 @@ AudioFileVector::AudioFileVector() : NamedThingVector(__builtin_offsetof(AudioFi
 }
 
 // Returns -1 if not found. All times this is called, it actually should get found - but some bugs remain, and the caller must deal with these.
-int AudioFileVector::searchForExactObject(AudioFile* audioFile) {
+int32_t AudioFileVector::searchForExactObject(AudioFile* audioFile) {
 	bool foundExactName;
-	int i = search(audioFile->filePath.get(), GREATER_OR_EQUAL, &foundExactName);
+	int32_t i = search(audioFile->filePath.get(), GREATER_OR_EQUAL, &foundExactName);
 	if (!foundExactName) {
 		return -1;
 	}

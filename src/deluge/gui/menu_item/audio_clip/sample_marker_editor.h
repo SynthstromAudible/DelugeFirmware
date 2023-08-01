@@ -27,7 +27,7 @@ public:
 		whichMarker = newWhichMarker;
 	}
 
-	MenuPermission checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange);
+	MenuPermission checkPermissionToBeginSession(Sound* sound, int32_t whichThing, MultiRange** currentRange);
 	void beginSession(MenuItem* navigatedBackwardFrom);
 
 	MarkerType whichMarker;

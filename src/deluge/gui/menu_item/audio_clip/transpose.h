@@ -30,11 +30,11 @@ public:
 		                           + ((AudioClip*)currentSong->currentClip)->sampleHolder.cents;
 	}
 	void writeCurrentValue() {
-		int currentValue = soundEditor.currentValue + 25600;
+		int32_t currentValue = soundEditor.currentValue + 25600;
 
-		int semitones = (currentValue + 50) / 100;
-		int cents = currentValue - semitones * 100;
-		int transpose = semitones - 256;
+		int32_t semitones = (currentValue + 50) / 100;
+		int32_t cents = currentValue - semitones * 100;
+		int32_t transpose = semitones - 256;
 
 		((AudioClip*)currentSong->currentClip)->sampleHolder.transpose = transpose;
 		((AudioClip*)currentSong->currentClip)->sampleHolder.cents = cents;
@@ -42,13 +42,13 @@ public:
 		((AudioClip*)currentSong->currentClip)->sampleHolder.recalculateNeutralPhaseIncrement();
 	}
 
-	int getMinValue() const { return -9600; }
-	int getMaxValue() const { return 9600; }
-	int getNumDecimalPlaces() const { return 2; }
+	int32_t getMinValue() const { return -9600; }
+	int32_t getMaxValue() const { return 9600; }
+	int32_t getNumDecimalPlaces() const { return 2; }
 
 	void unlearnAction() { MenuItemWithCCLearning::unlearnAction(); }
 	bool allowsLearnMode() { return MenuItemWithCCLearning::allowsLearnMode(); }
-	void learnKnob(MIDIDevice* fromDevice, int whichKnob, int modKnobMode, int midiChannel) {
+	void learnKnob(MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) {
 		MenuItemWithCCLearning::learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel);
 	};
 

@@ -21,6 +21,6 @@
 
 namespace FFTConfigManager {
 
-ne10_fft_r2c_cfg_int32_t getConfig(int magnitude);
+ne10_fft_r2c_cfg_int32_t getConfig(int32_t magnitude);
 
 }

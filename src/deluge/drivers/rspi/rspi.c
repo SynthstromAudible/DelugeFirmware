@@ -52,6 +52,6 @@ void R_RSPI_WaitEnd(uint8_t channel) {
 	while (!RSPI(channel).SPSR.BIT.TEND) {}
 }
 
-int R_RSPI_HasEnded(uint8_t channel) {
+int32_t R_RSPI_HasEnded(uint8_t channel) {
 	return RSPI(channel).SPSR.BIT.TEND;
 }
