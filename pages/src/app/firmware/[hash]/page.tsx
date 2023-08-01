@@ -1,4 +1,12 @@
-import { BIN_FILE_NAMES, getAllRuns, getCommitDetails } from "../../../data";
+import {
+  BIN_FILE_NAMES,
+  getAllInterestingCommits,
+  getAllRuns,
+  getArtifactData,
+  getCommitDetails,
+  lookupBuildWorkflowId,
+  validateConfig,
+} from "../../../data";
 import Link from "next/link";
 
 interface Params {
@@ -7,7 +15,10 @@ interface Params {
 
 export default async function Page({ params }: { params: Params }) {
   const { hash } = params;
+
+  const config = validateConfig();
   const data = await getCommitDetails(hash);
+
   return (
     <div className="w-128 border border-neutral-400 rounded shadow p-4 m-auto">
       <div className="flex flex-row">
@@ -37,7 +48,10 @@ export default async function Page({ params }: { params: Params }) {
 }
 
 export async function generateStaticParams() {
-  const allRuns = await getAllRuns();
+  const config = validateConfig();
+  const workflowId = await lookupBuildWorkflowId(config);
+  const allCommits = await getAllInterestingCommits(config);
+  const allRuns = await getAllRuns(config, workflowId, allCommits);
 
   return Array.from(allRuns.runs, (run) => {
     return { hash: run.commit_sha };
