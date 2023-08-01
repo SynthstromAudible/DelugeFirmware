@@ -119,7 +119,7 @@ void Range::drawValue(int startPos, bool renderSidebarToo) {
 		char* buffer = shortStringBuffer;
 		getText(buffer);
 
-		if (strlen(buffer) <= NUMERIC_DISPLAY_LENGTH) {
+		if (strlen(buffer) <= kNumericDisplayLength) {
 			display.setText(buffer, true);
 		}
 		else {
@@ -131,43 +131,43 @@ void Range::drawValue(int startPos, bool renderSidebarToo) {
 void Range::drawValueForEditingRange(bool blinkImmediately) {
 	if (display.type == DisplayType::OLED) {
 		renderUIsForOled();
+		return;
 	}
+
+	int leftLength, rightLength;
+	char* buffer = shortStringBuffer;
+
+	getText(buffer, &leftLength, &rightLength, false);
+
+	int textLength = leftLength + rightLength + 1;
+
+	uint8_t blinkMask[kNumericDisplayLength];
+	if (soundEditor.editingRangeEdge == RangeEdit::LEFT) {
+		for (int i = 0; i < kNumericDisplayLength; i++) {
+			if (i < leftLength + kNumericDisplayLength - getMin(4, textLength))
+				blinkMask[i] = 0;
+			else
+				blinkMask[i] = 255;
+		}
+	}
+
 	else {
-		int leftLength, rightLength;
-		char* buffer = shortStringBuffer;
-
-		getText(buffer, &leftLength, &rightLength, false);
-
-		int textLength = leftLength + rightLength + 1;
-
-		uint8_t blinkMask[NUMERIC_DISPLAY_LENGTH];
-		if (soundEditor.editingRangeEdge == RangeEdit::LEFT) {
-			for (int i = 0; i < NUMERIC_DISPLAY_LENGTH; i++) {
-				if (i < leftLength + NUMERIC_DISPLAY_LENGTH - getMin(4, textLength))
-					blinkMask[i] = 0;
-				else
-					blinkMask[i] = 255;
-			}
+		for (int i = 0; i < kNumericDisplayLength; i++) {
+			if (kNumericDisplayLength - 1 - i < rightLength)
+				blinkMask[i] = 0;
+			else
+				blinkMask[i] = 255;
 		}
+	}
 
-		else {
-			for (int i = 0; i < NUMERIC_DISPLAY_LENGTH; i++) {
-				if (NUMERIC_DISPLAY_LENGTH - 1 - i < rightLength)
-					blinkMask[i] = 0;
-				else
-					blinkMask[i] = 255;
-			}
-		}
-
-		bool alignRight = (soundEditor.editingRangeEdge == RangeEdit::RIGHT) || (textLength < NUMERIC_DISPLAY_LENGTH);
+	bool alignRight = (soundEditor.editingRangeEdge == RangeEdit::RIGHT) || (textLength < kNumericDisplayLength);
 
 	// Sorta hackish, to reset timing of blinking LED and always show text "on" initially on edit value
 	indicator_leds::blinkLed(IndicatorLED::BACK, 255, 0, !blinkImmediately);
 
 	display.setText(buffer, alignRight, 255, true, blinkMask);
 
-		soundEditor.possibleChangeToCurrentRangeDisplay();
-	}
+	soundEditor.possibleChangeToCurrentRangeDisplay();
 }
 
 void Range::drawPixelsForOled() {
@@ -179,8 +179,8 @@ void Range::drawPixelsForOled() {
 	int textLength = leftLength + rightLength + (bool)rightLength;
 
 	int baseY = 18;
-	int digitWidth = TEXT_HUGE_SPACING_X;
-	int digitHeight = TEXT_HUGE_SIZE_Y;
+	int digitWidth = kTextHugeSpacingX;
+	int digitHeight = kTextHugeSizeY;
 
 	int stringWidth = digitWidth * textLength;
 	int stringStartX = (OLED_MAIN_WIDTH_PIXELS - stringWidth) >> 1;

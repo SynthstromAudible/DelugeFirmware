@@ -55,7 +55,7 @@ public:
 	}
 
 	bool isRelevant(Sound* sound, int whichThing) {
-		return currentSong->currentClip->output->type == INSTRUMENT_TYPE_MIDI_OUT;
+		return currentSong->currentClip->output->type == InstrumentType::MIDI_OUT;
 	}
 
 	void selectEncoderAction(int offset) {

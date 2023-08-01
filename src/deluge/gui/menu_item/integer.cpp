@@ -63,7 +63,7 @@ void Integer::drawInteger(int textWidth, int textHeight, int yPixel) {
 }
 
 void Integer::drawPixelsForOled() {
-	drawInteger(TEXT_HUGE_SPACING_X, TEXT_HUGE_SIZE_Y, 18);
+	drawInteger(kTextHugeSpacingX, kTextHugeSizeY, 18);
 }
 
 void IntegerContinuous::drawPixelsForOled() {
@@ -71,7 +71,7 @@ void IntegerContinuous::drawPixelsForOled() {
 #if OLED_MAIN_HEIGHT_PIXELS == 64
 	drawInteger(13, 15, 20);
 #else
-	drawInteger(TEXT_BIG_SPACING_X, TEXT_BIG_SIZE_Y, 15);
+	drawInteger(kTextBigSpacingX, kTextBigSizeY, 15);
 #endif
 
 	drawBar(35, 10);

@@ -27,7 +27,7 @@ public:
 
 	// 7SEG ONLY
 	void focusRegained();
-	int horizontalEncoderAction(int offset);
+	ActionResult horizontalEncoderAction(int offset);
 
 	int getCurrentFilePath(String* path);
 

@@ -87,7 +87,7 @@ uint8_t PatchedParam::getPatchedParamIndex() {
 	return this->getP();
 }
 
-uint8_t PatchedParam::shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour) {
+uint8_t PatchedParam::shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) {
 	ParamDescriptor paramDescriptor;
 	paramDescriptor.setToHaveParamOnly(this->getP());
 	return soundEditor.currentParamManager->getPatchCableSet()->isSourcePatchedToDestinationDescriptorVolumeInspecific(
@@ -96,7 +96,7 @@ uint8_t PatchedParam::shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour) 
 	           : 255;
 }
 
-MenuItem* PatchedParam::patchingSourceShortcutPress(int s, bool previousPressStillActive) {
+MenuItem* PatchedParam::patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive) {
 	soundEditor.patchingParamSelected = this->getP();
 	source_selection::regularMenu.s = s;
 	return &patch_cable_strength::regularMenu;

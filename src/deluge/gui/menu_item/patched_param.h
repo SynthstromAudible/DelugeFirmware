@@ -18,6 +18,7 @@
 #pragma once
 
 #include "RZA1/system/r_typedefs.h"
+#include "definitions_cxx.hpp"
 #include "param.h"
 #include "menu_item_with_cc_learning.h"
 
@@ -38,8 +39,8 @@ public:
 	uint8_t getPatchedParamIndex();
 	uint8_t shouldDrawDotOnName();
 
-	uint8_t shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour);
-	MenuItem* patchingSourceShortcutPress(int s, bool previousPressStillActive = false);
+	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour);
+	MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive = false);
 	ModelStackWithAutoParam* getModelStack(void* memory);
 
 protected:

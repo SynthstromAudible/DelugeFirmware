@@ -31,6 +31,6 @@ public:
 		soundEditor.currentSound->setNumUnison(soundEditor.currentValue, modelStack);
 	}
 	int getMinValue() const { return 1; }
-	int getMaxValue() const { return maxNumUnison; }
+	int getMaxValue() const { return kMaxNumVoicesUnison; }
 };
 } // namespace menu_item::unison

@@ -15,9 +15,11 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "definitions_cxx.hpp"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "processing/engines/cv_engine.h"
+#include "util/misc.h"
 
 namespace menu_item::gate {
 // Why'd I put two NULLs? (Rohan)
@@ -31,8 +33,12 @@ static char mode_title[] = "Gate outX mode";
 class Mode final : public Selection {
 public:
 	Mode() : Selection(HAVE_OLED ? mode_title : "") { basicOptions = mode_options; }
-	void readCurrentValue() { soundEditor.currentValue = cvEngine.gateChannels[soundEditor.currentSourceIndex].mode; }
-	void writeCurrentValue() { cvEngine.setGateType(soundEditor.currentSourceIndex, soundEditor.currentValue); }
+	void readCurrentValue() {
+		soundEditor.currentValue = util::to_underlying(cvEngine.gateChannels[soundEditor.currentSourceIndex].mode);
+	}
+	void writeCurrentValue() {
+		cvEngine.setGateType(soundEditor.currentSourceIndex, static_cast<GateType>(soundEditor.currentValue));
+	}
 };
 
 } // namespace menu_item::gate

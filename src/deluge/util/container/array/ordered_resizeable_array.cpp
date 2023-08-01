@@ -16,7 +16,7 @@
  */
 
 #include "util/container/array/ordered_resizeable_array.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "util/functions.h"
 #include "RZA1/uart/sio_char.h"
 #include "hid/display.h"
@@ -106,7 +106,7 @@ void OrderedResizeableArrayWith32bitKey::searchMultiple(int32_t* __restrict__ se
 		rangeEnd = numElements;
 	}
 
-	int const maxNumSearchRecords = FILENAME_BUFFER_SIZE / sizeof(SearchRecord);
+	int const maxNumSearchRecords = kFilenameBufferSize / sizeof(SearchRecord);
 	SearchRecord* const __restrict__ searchRecords = (SearchRecord*)miscStringBuffer;
 
 	int rangeBegin = 0;

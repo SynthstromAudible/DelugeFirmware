@@ -60,8 +60,8 @@ public:
 
 	void drawPixelsForOled() {
 		if (soundEditor.currentValue < 0) {
-			OLED::drawStringCentred("OFF", 20, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, TEXT_HUGE_SPACING_X,
-			                        TEXT_HUGE_SIZE_Y);
+			OLED::drawStringCentred("OFF", 20, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextHugeSpacingX,
+			                        kTextHugeSizeY);
 		}
 		else {
 			Decimal::drawPixelsForOled();
@@ -76,10 +76,10 @@ public:
 
 	bool isRelevant(Sound* sound, int whichThing) {
 		Source* source = &sound->sources[whichThing];
-		if (forModulator && sound->getSynthMode() != SYNTH_MODE_FM) {
+		if (forModulator && sound->getSynthMode() != SynthMode::FM) {
 			return false;
 		}
-		return (source->oscType != OSC_TYPE_SAMPLE || sound->getSynthMode() == SYNTH_MODE_FM);
+		return (source->oscType != OscType::SAMPLE || sound->getSynthMode() == SynthMode::FM);
 	}
 
 private:

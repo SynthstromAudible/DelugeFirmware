@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "util/container/array/c_string_array.h"
 #include "storage/file_item.h"
 #include "gui/ui/qwerty_ui.h"
@@ -68,7 +69,7 @@ public:
 
 	void close();
 	virtual int getCurrentFilePath(String* path) = 0;
-	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
 	void currentFileDeleted();
 	int goIntoFolder(char const* folderName);
 	int createFolder();
@@ -81,8 +82,8 @@ public:
 	FileItem* getNewFileItem();
 	static void emptyFileItems();
 	static void deleteSomeFileItems(int startAt, int stopAt);
-	static void deleteFolderAndDuplicateItems(int instrumentAvailabilityRequirement = AVAILABILITY_ANY);
-	int getUnusedSlot(int instrumentType, String* newName, char const* thingName);
+	static void deleteFolderAndDuplicateItems(Availability instrumentAvailabilityRequirement = Availability::ANY);
+	int getUnusedSlot(InstrumentType instrumentType, String* newName, char const* thingName);
 	bool opened();
 	void cullSomeFileItems();
 
@@ -96,7 +97,7 @@ public:
 	static char const* firstFileItemRemaining;
 	static char const* lastFileItemRemaining;
 
-	static int instrumentTypeToLoad;
+	static InstrumentType instrumentTypeToLoad;
 	static char const* filenameToStartSearchAt;
 
 protected:
@@ -105,16 +106,16 @@ protected:
 	virtual int arrivedInNewFolder(int direction, char const* filenameToStartAt = NULL, char const* defaultDir = NULL);
 	bool predictExtendedText();
 	void goIntoDeleteFileContextMenu();
-	int mainButtonAction(bool on);
+	ActionResult mainButtonAction(bool on);
 	virtual void exitAction();
-	virtual int backButtonAction();
+	virtual ActionResult backButtonAction();
 	virtual void folderContentsReady(int entryDirection) {}
 	virtual void currentFileChanged(int movementDirection) {}
 	void displayText(bool blinkImmediately = false);
 	static Slot getSlot(char const* displayName);
-	int readFileItemsFromFolderAndMemory(Song* song, int instrumentType, char const* filePrefixHere,
+	int readFileItemsFromFolderAndMemory(Song* song, InstrumentType instrumentType, char const* filePrefixHere,
 	                                     char const* filenameToStartAt, char const* defaultDirToAlsoTry,
-	                                     bool allowFoldersint, int availabilityRequirement = AVAILABILITY_ANY,
+	                                     bool allowFoldersint, Availability availabilityRequirement = Availability::ANY,
 	                                     int newCatalogSearchDirection = CATALOG_SEARCH_RIGHT);
 
 	static int

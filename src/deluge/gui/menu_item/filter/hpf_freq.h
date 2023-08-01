@@ -29,7 +29,7 @@ public:
 	void drawValue() {
 		if (soundEditor.currentValue == 0
 		    && !soundEditor.currentParamManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(
-		        PARAM_LOCAL_HPF_FREQ)) {
+		        ::Param::Local::HPF_FREQ)) {
 			display.setText("OFF");
 		}
 		else {

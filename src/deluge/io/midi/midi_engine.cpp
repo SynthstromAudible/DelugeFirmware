@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "definitions_cxx.hpp"
 #include "processing/engines/audio_engine.h"
 #include "io/midi/midi_engine.h"
 #include "util/functions.h"
@@ -215,7 +216,7 @@ MidiEngine::MidiEngine() {
 	lastStatusByteSent = 0;
 	currentlyReceivingSysExSerial = false;
 	midiThru = false;
-	midiTakeover = 0;
+	midiTakeover = MIDITakeoverMode::JUMP;
 
 	g_usb_peri_connected = 0; // Needs initializing with A2 driver
 
@@ -425,7 +426,7 @@ void MidiEngine::sendCC(int channel, int cc, int value, int filter) {
 
 void MidiEngine::sendClock(bool sendUSB, int howMany) {
 	while (howMany--) {
-		sendMidi(0x0F, 0x08, 0, 0, MIDI_OUTPUT_FILTER_NO_MPE, sendUSB);
+		sendMidi(0x0F, 0x08, 0, 0, kMIDIOutputFilterNoMPE, sendUSB);
 	}
 }
 
@@ -978,7 +979,7 @@ void MidiEngine::midiMessageReceived(MIDIDevice* fromDevice, uint8_t statusType,
 			case 0x09: // Note on
 				// If velocity 0, interpret that as a note-off.
 				if (!data2) {
-					data2 = DEFAULT_LIFT_VALUE;
+					data2 = kDefaultLiftValue;
 					statusType = 0x08;
 				}
 				// No break
@@ -1028,7 +1029,7 @@ void MidiEngine::midiMessageReceived(MIDIDevice* fromDevice, uint8_t statusType,
 					// All notes off
 					if (data1 == 123) {
 						if (data2 == 0) {
-							playbackHandler.noteMessageReceived(fromDevice, false, channel, -32768, DEFAULT_LIFT_VALUE,
+							playbackHandler.noteMessageReceived(fromDevice, false, channel, -32768, kDefaultLiftValue,
 							                                    NULL);
 						}
 					}
@@ -1054,7 +1055,7 @@ void MidiEngine::midiMessageReceived(MIDIDevice* fromDevice, uint8_t statusType,
 	if (shouldDoMidiThruNow) {
 		bool shouldSendUSB =
 		    (fromDevice == &MIDIDeviceManager::dinMIDIPorts); // Only send out on USB if it didn't originate from USB
-		sendMidi(originalStatusType, channel, data1, originalData2, MIDI_OUTPUT_FILTER_NO_MPE,
+		sendMidi(originalStatusType, channel, data1, originalData2, kMIDIOutputFilterNoMPE,
 		         shouldSendUSB); // TODO: reconsider interaction with MPE?
 	}
 }

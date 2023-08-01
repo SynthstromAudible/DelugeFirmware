@@ -18,6 +18,7 @@
 #pragma once
 
 #include "RZA1/system/r_typedefs.h"
+#include "definitions_cxx.hpp"
 #include "util/d_string.h"
 #include "dsp/stereo_sample.h"
 
@@ -44,8 +45,8 @@ class SampleRecorder {
 public:
 	SampleRecorder();
 	~SampleRecorder();
-	int setup(int newNumChannels, int newMode, bool newKeepingReasons, bool shouldRecordExtraMargins, int newFolderID,
-	          int buttonPressLatency);
+	int setup(int newNumChannels, AudioInputChannel newMode, bool newKeepingReasons, bool shouldRecordExtraMargins,
+	          AudioRecordingFolder newFolderID, int buttonPressLatency);
 	void feedAudio(int32_t* inputAddress, int numSamples, bool applyGain = false);
 	int cardRoutine();
 	void endSyncedRecording(int buttonLatencyForTempolessRecording);
@@ -65,21 +66,23 @@ public:
 
 	int32_t firstUnwrittenClusterIndex;
 	int32_t currentRecordClusterIndex;
-	Cluster*
-	    currentRecordCluster; // Note! If this is NULL, that means that currentRecordClusterIndex refers to a cluster that never got created (cos some error or max file size reached)
+
+	// Note! If this is NULL, that means that currentRecordClusterIndex refers to a cluster that never got created (cos some error or max file size reached)
+	Cluster* currentRecordCluster;
 
 	uint32_t audioFileNumber;
-	uint8_t folderID;
+	AudioRecordingFolder folderID;
 
 	char* writePos;
 	char* clusterEndPos;
 
-	String
-	    filePathCreated; // When this gets set, we add the Sample to the master list. This is stored here in addition to in the Sample,
-	                     // so we can delete an aborted file even after the Sample has been detached / destructed.
-	                     // This will be the temp file path if there is one.
+	// When this gets set, we add the Sample to the master list. This is stored here in addition to in the Sample,
+	// so we can delete an aborted file even after the Sample has been detached / destructed.
+	// This will be the temp file path if there is one.
+	String filePathCreated;
+
 	uint8_t status;
-	uint8_t mode;
+	AudioInputChannel mode;
 
 	bool
 	    haveAddedSampleToArray; // Need to keep track of this, so we know whether to remove it. Well I guess we could just look and see if it's there... but this is nice.

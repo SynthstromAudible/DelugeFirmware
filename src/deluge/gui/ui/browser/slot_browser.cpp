@@ -67,10 +67,10 @@ void SlotBrowser::focusRegained() {
 	displayText(false);
 }
 
-int SlotBrowser::horizontalEncoderAction(int offset) {
+ActionResult SlotBrowser::horizontalEncoderAction(int offset) {
 
 	if (!isNoUIModeActive()) {
-		return ACTION_RESULT_DEALT_WITH;
+		return ActionResult::DEALT_WITH;
 	}
 	if (display.type != DisplayType::OLED) {
 		FileItem* currentFileItem = getCurrentFileItem();
@@ -91,7 +91,7 @@ int SlotBrowser::horizontalEncoderAction(int offset) {
 			}
 
 			displayText(numberEditPos >= 0);
-			return ACTION_RESULT_DEALT_WITH;
+			return ActionResult::DEALT_WITH;
 		}
 	}
 	{

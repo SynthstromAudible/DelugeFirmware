@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "model/clip/clip.h"
 #include "model/sample/sample_holder_for_clip.h"
 #include "model/sample/sample_playback_guide.h"
@@ -44,7 +45,7 @@ public:
 	bool renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, TimelineView* editorScreen, int32_t xScroll,
 	                       uint32_t xZoom, uint8_t* image, uint8_t occupancyMask[], bool addUndefinedArea,
 	                       int noteRowIndexStart = 0, int noteRowIndexEnd = 2147483647, int xStart = 0,
-	                       int xEnd = displayWidth, bool allowBlur = true, bool drawRepeats = false);
+	                       int xEnd = kDisplayWidth, bool allowBlur = true, bool drawRepeats = false);
 	int claimOutput(ModelStackWithTimelineCounter* modelStack);
 	void loadSample(bool mayActuallyReadFile);
 	bool wantsToBeginLinearRecording(Song* song);
@@ -100,7 +101,7 @@ public:
 
 	int32_t attack;
 
-	uint8_t voicePriority;
+	VoicePriority voicePriority;
 
 	bool doingLateStart;
 	bool maySetupCache;
@@ -111,5 +112,5 @@ protected:
 
 private:
 	void detachAudioClipFromOutput(Song* song, bool shouldRetainLinksToOutput, bool shouldTakeParamManagerWith = false);
-	int getLoopingType(ModelStackWithTimelineCounter const* modelStack);
+	LoopType getLoopingType(ModelStackWithTimelineCounter const* modelStack);
 };

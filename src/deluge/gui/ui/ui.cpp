@@ -320,7 +320,7 @@ void doAnyPendingUIRendering() {
 		return;
 	}
 
-	if (uartGetTxBufferSpace(UART_ITEM_PIC_PADS) <= (NUM_BYTES_IN_MAIN_PAD_REDRAW + NUM_BYTES_IN_SIDEBAR_REDRAW) * 2) {
+	if (uartGetTxBufferSpace(UART_ITEM_PIC_PADS) <= (kNumBytesInMainPadRedraw + kNumBytesInSidebarRedraw) * 2) {
 		return; // Trialling the *2 to fix flickering when flicking through presets very fast
 	}
 

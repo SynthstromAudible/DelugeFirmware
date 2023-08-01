@@ -55,8 +55,8 @@ void MultiRange::beginSession(MenuItem* navigatedBackwardFrom) {
 
 	if (display.type == DisplayType::OLED) {
 		soundEditor.menuCurrentScroll = soundEditor.currentValue - 1;
-		if (soundEditor.menuCurrentScroll > soundEditor.currentValue - OLED_MENU_NUM_OPTIONS_VISIBLE + 1) {
-			soundEditor.menuCurrentScroll = soundEditor.currentValue - OLED_MENU_NUM_OPTIONS_VISIBLE + 1;
+		if (soundEditor.menuCurrentScroll > soundEditor.currentValue - kOLEDMenuNumOptionsVisible + 1) {
+			soundEditor.menuCurrentScroll = soundEditor.currentValue - kOLEDMenuNumOptionsVisible + 1;
 		}
 		if (soundEditor.menuCurrentScroll < 0) {
 			soundEditor.menuCurrentScroll = 0;
@@ -236,8 +236,8 @@ void MultiRange::selectEncoderAction(int offset) {
 				if (soundEditor.menuCurrentScroll > soundEditor.currentValue) {
 					soundEditor.menuCurrentScroll = soundEditor.currentValue;
 				}
-				else if (soundEditor.menuCurrentScroll < soundEditor.currentValue - OLED_MENU_NUM_OPTIONS_VISIBLE + 1) {
-					soundEditor.menuCurrentScroll = soundEditor.currentValue - OLED_MENU_NUM_OPTIONS_VISIBLE + 1;
+				else if (soundEditor.menuCurrentScroll < soundEditor.currentValue - kOLEDMenuNumOptionsVisible + 1) {
+					soundEditor.menuCurrentScroll = soundEditor.currentValue - kOLEDMenuNumOptionsVisible + 1;
 				}
 			}
 			else {
@@ -261,8 +261,8 @@ void MultiRange::selectEncoderAction(int offset) {
 				if (soundEditor.menuCurrentScroll > soundEditor.currentValue) {
 					soundEditor.menuCurrentScroll = soundEditor.currentValue;
 				}
-				else if (soundEditor.menuCurrentScroll < soundEditor.currentValue - OLED_MENU_NUM_OPTIONS_VISIBLE + 1) {
-					soundEditor.menuCurrentScroll = soundEditor.currentValue - OLED_MENU_NUM_OPTIONS_VISIBLE + 1;
+				else if (soundEditor.menuCurrentScroll < soundEditor.currentValue - kOLEDMenuNumOptionsVisible + 1) {
+					soundEditor.menuCurrentScroll = soundEditor.currentValue - kOLEDMenuNumOptionsVisible + 1;
 				}
 			}
 		}
@@ -403,8 +403,8 @@ void MultiRange::noteOnToChangeRange(int noteCode) {
 				if (soundEditor.menuCurrentScroll > soundEditor.currentValue) {
 					soundEditor.menuCurrentScroll = soundEditor.currentValue;
 				}
-				else if (soundEditor.menuCurrentScroll < soundEditor.currentValue - OLED_MENU_NUM_OPTIONS_VISIBLE + 1) {
-					soundEditor.menuCurrentScroll = soundEditor.currentValue - OLED_MENU_NUM_OPTIONS_VISIBLE + 1;
+				else if (soundEditor.menuCurrentScroll < soundEditor.currentValue - kOLEDMenuNumOptionsVisible + 1) {
+					soundEditor.menuCurrentScroll = soundEditor.currentValue - kOLEDMenuNumOptionsVisible + 1;
 				}
 
 				renderUIsForOled();
@@ -425,13 +425,13 @@ bool MultiRange::mayEditRangeEdge(RangeEdit whichEdge) {
 
 void MultiRange::drawPixelsForOled() {
 
-	char const* itemNames[OLED_MENU_NUM_OPTIONS_VISIBLE];
-	char nameBuffers[OLED_MENU_NUM_OPTIONS_VISIBLE][20];
+	char const* itemNames[kOLEDMenuNumOptionsVisible];
+	char nameBuffers[kOLEDMenuNumOptionsVisible][20];
 	int actualCurrentRange = soundEditor.currentValue;
 
 	soundEditor.currentValue = soundEditor.menuCurrentScroll;
 	int i = 0;
-	while (i < OLED_MENU_NUM_OPTIONS_VISIBLE) {
+	while (i < kOLEDMenuNumOptionsVisible) {
 		if (soundEditor.currentValue >= soundEditor.currentSource->ranges.getNumElements()) {
 			break;
 		}
@@ -442,7 +442,7 @@ void MultiRange::drawPixelsForOled() {
 		soundEditor.currentValue++;
 	}
 
-	while (i < OLED_MENU_NUM_OPTIONS_VISIBLE) {
+	while (i < kOLEDMenuNumOptionsVisible) {
 		itemNames[i] = NULL;
 		i++;
 	}
@@ -461,16 +461,16 @@ void MultiRange::drawPixelsForOled() {
 	int hilightStartX, hilightWidth;
 
 	if (soundEditor.editingRangeEdge == RangeEdit::LEFT) {
-		hilightStartX = TEXT_SPACING_X;
-		hilightWidth = TEXT_SPACING_X * 6;
+		hilightStartX = kTextSpacingX;
+		hilightWidth = kTextSpacingX * 6;
 doHilightJustOneEdge:
 		int baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
 		baseY += OLED_MAIN_TOPMOST_PIXEL;
-		baseY += (soundEditor.currentValue - soundEditor.menuCurrentScroll) * TEXT_SPACING_Y;
-		OLED::invertArea(hilightStartX, hilightWidth, baseY, baseY + TEXT_SPACING_Y, OLED::oledMainImage);
+		baseY += (soundEditor.currentValue - soundEditor.menuCurrentScroll) * kTextSpacingY;
+		OLED::invertArea(hilightStartX, hilightWidth, baseY, baseY + kTextSpacingY, OLED::oledMainImage);
 	}
 	else if (soundEditor.editingRangeEdge == RangeEdit::RIGHT) {
-		hilightStartX = TEXT_SPACING_X * 10;
+		hilightStartX = kTextSpacingX * 10;
 		hilightWidth = OLED_MAIN_WIDTH_PIXELS - hilightStartX;
 		goto doHilightJustOneEdge;
 	}

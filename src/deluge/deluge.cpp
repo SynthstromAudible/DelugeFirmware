@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "gui/views/arranger_view.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
@@ -136,7 +136,7 @@ uint16_t batteryMV;
 bool batteryLEDState = false;
 
 void batteryLEDBlink() {
-	setOutputState(BATTERY_LED_1, BATTERY_LED_2, batteryLEDState);
+	setOutputState(BATTERY_LED.port, BATTERY_LED.pin, batteryLEDState);
 	int blinkPeriod = ((int)batteryMV - 2630) * 3;
 	blinkPeriod = getMin(blinkPeriod, 500);
 	blinkPeriod = getMax(blinkPeriod, 60);
@@ -148,10 +148,10 @@ void inputRoutine() {
 	disk_timerproc(UI_MS_PER_REFRESH);
 
 	// Check if mono output cable plugged in
-	bool outputPluggedInL = readInput(LINE_OUT_DETECT_L_1, LINE_OUT_DETECT_L_2);
-	bool outputPluggedInR = readInput(LINE_OUT_DETECT_R_1, LINE_OUT_DETECT_R_2);
+	bool outputPluggedInL = readInput(LINE_OUT_DETECT_L.port, LINE_OUT_DETECT_L.pin);
+	bool outputPluggedInR = readInput(LINE_OUT_DETECT_R.port, LINE_OUT_DETECT_R.pin);
 
-	bool headphoneNow = readInput(HEADPHONE_DETECT_1, HEADPHONE_DETECT_2);
+	bool headphoneNow = readInput(HEADPHONE_DETECT.port, HEADPHONE_DETECT.pin);
 	if (headphoneNow != AudioEngine::headphonesPluggedIn) {
 		Debug::print("headphone ");
 		Debug::println(headphoneNow);
@@ -167,7 +167,7 @@ void inputRoutine() {
 
 	if (!ALLOW_SPAM_MODE) {
 		bool speakerOn = (!AudioEngine::headphonesPluggedIn && !outputPluggedInL && !outputPluggedInR);
-		setOutputState(SPEAKER_ENABLE_1, SPEAKER_ENABLE_2, speakerOn);
+		setOutputState(SPEAKER_ENABLE.port, SPEAKER_ENABLE.pin, speakerOn);
 	}
 
 	AudioEngine::renderInStereo =
@@ -201,7 +201,7 @@ void inputRoutine() {
 			if (batteryMV > 2950) {
 makeBattLEDSolid:
 				batteryCurrentRegion = 1;
-				setOutputState(BATTERY_LED_1, BATTERY_LED_2, false);
+				setOutputState(BATTERY_LED.port, BATTERY_LED.pin, false);
 				uiTimerManager.unsetTimer(TIMER_BATT_LED_BLINK);
 			}
 		}
@@ -213,7 +213,7 @@ makeBattLEDSolid:
 
 			else if (batteryMV > 3300) {
 				batteryCurrentRegion = 2;
-				setOutputState(BATTERY_LED_1, BATTERY_LED_2, true);
+				setOutputState(BATTERY_LED.port, BATTERY_LED.pin, true);
 				uiTimerManager.unsetTimer(TIMER_BATT_LED_BLINK);
 			}
 		}
@@ -314,16 +314,16 @@ bool readButtonsAndPads() {
 	}
 #endif
 
-	uint8_t value;
+	PICMessage value{0};
 	bool anything = uartGetChar(UART_ITEM_PIC, (char*)&value);
 	if (anything) {
 
-		if (value < PAD_AND_BUTTON_MESSAGES_END) {
+		if (value < kPadAndButtonMessagesEnd) {
 
 			int thisPadPressIsOn = nextPadPressIsOn;
 			nextPadPressIsOn = USE_DEFAULT_VELOCITY;
 
-			int result;
+			ActionResult result;
 			if (Pad::isPad(value)) {
 				auto p = Pad(value);
 				result = matrixDriver.padAction(p.x, p.y, thisPadPressIsOn);
@@ -336,7 +336,7 @@ bool readButtonsAndPads() {
 				result = Buttons::buttonAction(b, thisPadPressIsOn, sdRoutineLock);
 			}
 
-			if (result == ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE) {
+			if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
 				nextPadPressIsOn = thisPadPressIsOn;
 				Debug::println("putCharBack ---------");
 				uartPutCharBack(UART_ITEM_PIC);
@@ -349,7 +349,7 @@ bool readButtonsAndPads() {
 		}
 
 		// "No presses happening" message
-		else if (value == NO_PRESSES_HAPPENING_MESSAGE) {
+		else if (value == PICMessage::NO_PRESSES_HAPPENING) {
 			if (!sdRoutineLock) {
 				matrixDriver.noPressesHappening(sdRoutineLock);
 				Buttons::noPressesHappening(sdRoutineLock);
@@ -405,7 +405,7 @@ bool readButtonsAndPads() {
 #if LAUNCH_CLIP_TEST_ENABLED
 	if (playbackHandler.playbackState && (int32_t)(audioDriver.audioSampleTimer - timeNextSDTestAction) >= 0) {
 		Buttons::buttonAction(SHIFT, true, false);
-		matrixDriver.padAction(displayWidth, getRandom255() & 7, true, inSDRoutine);
+		matrixDriver.padAction(kDisplayWidth, getRandom255() & 7, true, inSDRoutine);
 		Buttons::buttonAction(SHIFT, false, false);
 		int random = getRandom255();
 		timeNextSDTestAction = audioDriver.audioSampleTimer + ((random) << 4); // * 44 / 13;
@@ -528,32 +528,32 @@ extern "C" int deluge_main(void) {
 
 	currentPlaybackMode = &session;
 
-	setOutputState(BATTERY_LED_1, BATTERY_LED_2, 1); // Switch it off (1 is off for open-drain)
-	setPinAsOutput(BATTERY_LED_1, BATTERY_LED_2);    // Battery LED control
+	setOutputState(BATTERY_LED.port, BATTERY_LED.pin, 1); // Switch it off (1 is off for open-drain)
+	setPinAsOutput(BATTERY_LED.port, BATTERY_LED.pin);    // Battery LED control
 
-	setOutputState(SYNCED_LED_PORT, SYNCED_LED_PIN, 0); // Switch it off
-	setPinAsOutput(SYNCED_LED_PORT, SYNCED_LED_PIN);    // Synced LED
+	setOutputState(SYNCED_LED.port, SYNCED_LED.pin, 0); // Switch it off
+	setPinAsOutput(SYNCED_LED.port, SYNCED_LED.pin);    // Synced LED
 
 	// Codec control
 	setPinAsOutput(6, 12);
 	setOutputState(6, 12, 0); // Switch it off
 
 	// Speaker / amp control
-	setPinAsOutput(SPEAKER_ENABLE_1, SPEAKER_ENABLE_2);
-	setOutputState(SPEAKER_ENABLE_1, SPEAKER_ENABLE_2, 0); // Switch it off
+	setPinAsOutput(SPEAKER_ENABLE.port, SPEAKER_ENABLE.pin);
+	setOutputState(SPEAKER_ENABLE.port, SPEAKER_ENABLE.pin, 0); // Switch it off
 
-	setPinAsInput(HEADPHONE_DETECT_1, HEADPHONE_DETECT_2); // Headphone detect
-	setPinAsInput(6, 6);                                   // Line in detect
-	setPinAsInput(7, 9);                                   // Mic detect
+	setPinAsInput(HEADPHONE_DETECT.port, HEADPHONE_DETECT.pin); // Headphone detect
+	setPinAsInput(6, 6);                                        // Line in detect
+	setPinAsInput(7, 9);                                        // Mic detect
 
 	setPinMux(1, 8 + SYS_VOLT_SENSE_PIN, 1); // Analog input for voltage sense
 
 	// Trigger clock input
-	setPinMux(ANALOG_CLOCK_IN_1, ANALOG_CLOCK_IN_2, 2);
+	setPinMux(ANALOG_CLOCK_IN.port, ANALOG_CLOCK_IN.pin, 2);
 
 	// Line out detect pins
-	setPinAsInput(LINE_OUT_DETECT_L_1, LINE_OUT_DETECT_L_2);
-	setPinAsInput(LINE_OUT_DETECT_R_1, LINE_OUT_DETECT_R_2);
+	setPinAsInput(LINE_OUT_DETECT_L.port, LINE_OUT_DETECT_L.pin);
+	setPinAsInput(LINE_OUT_DETECT_R.port, LINE_OUT_DETECT_R.pin);
 
 	// SPI for CV
 	R_RSPI_Create(
@@ -647,8 +647,8 @@ extern "C" int deluge_main(void) {
 	setPinMux(4, 7, 2);
 	initSPIBSC(); // This will run the audio routine! Ideally, have external RAM set up by now.
 
-	bufferPICUart(245);                          // Request PIC firmware version
-	bufferPICUart(RESEND_BUTTON_STATES_MESSAGE); // Tell PIC to re-send button states
+	bufferPICUart(245);                              // Request PIC firmware version
+	bufferPICUart(PICMessage::RESEND_BUTTON_STATES); // Tell PIC to re-send button states
 	uartFlushIfNotSending(UART_ITEM_PIC_INDICATORS);
 
 	// Check if the user is holding down the select knob to do a factory reset

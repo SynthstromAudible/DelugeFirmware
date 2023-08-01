@@ -65,8 +65,8 @@ void Submenu::updateDisplay() {
 }
 
 void Submenu::drawPixelsForOled() {
-	char const* itemNames[OLED_MENU_NUM_OPTIONS_VISIBLE];
-	for (int i = 0; i < OLED_MENU_NUM_OPTIONS_VISIBLE; i++) {
+	char const* itemNames[kOLEDMenuNumOptionsVisible];
+	for (int i = 0; i < kOLEDMenuNumOptionsVisible; i++) {
 		itemNames[i] = NULL;
 	}
 
@@ -74,7 +74,7 @@ void Submenu::drawPixelsForOled() {
 	itemNames[selectedRow] = (*soundEditor.currentSubmenuItem)->getName();
 
 	MenuItem** thisSubmenuItem = soundEditor.currentSubmenuItem;
-	for (int i = selectedRow + 1; i < OLED_MENU_NUM_OPTIONS_VISIBLE; i++) {
+	for (int i = selectedRow + 1; i < kOLEDMenuNumOptionsVisible; i++) {
 		do {
 			thisSubmenuItem++;
 			if (!*thisSubmenuItem) {
@@ -140,8 +140,8 @@ void Submenu::selectEncoderAction(int offset) {
 		if (soundEditor.menuCurrentScroll < 0) {
 			soundEditor.menuCurrentScroll = 0;
 		}
-		else if (soundEditor.menuCurrentScroll > OLED_MENU_NUM_OPTIONS_VISIBLE - 1) {
-			soundEditor.menuCurrentScroll = OLED_MENU_NUM_OPTIONS_VISIBLE - 1;
+		else if (soundEditor.menuCurrentScroll > kOLEDMenuNumOptionsVisible - 1) {
+			soundEditor.menuCurrentScroll = kOLEDMenuNumOptionsVisible - 1;
 		}
 	}
 

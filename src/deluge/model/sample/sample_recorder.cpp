@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "definitions_cxx.hpp"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
@@ -30,6 +31,7 @@
 #include "hid/display.h"
 #include "io/debug/print.h"
 #include "gui/ui_timer_manager.h"
+#include "util/misc.h"
 
 extern "C" {
 #include "fatfs/diskio.h"
@@ -75,7 +77,7 @@ void SampleRecorder::detachSample() {
 
 	// If we were holding onto the reasons for the first couple of Clusters, release them now
 	if (keepingReasonsForFirstClusters) {
-		int numClustersToRemoveFor = getMin(NUM_CLUSTERS_LOADED_AHEAD, sample->clusters.getNumElements());
+		int numClustersToRemoveFor = getMin(kNumClustersLoadedAhead, sample->clusters.getNumElements());
 		numClustersToRemoveFor = getMin(numClustersToRemoveFor, firstUnwrittenClusterIndex);
 
 		for (int l = 0; l < numClustersToRemoveFor; l++) {
@@ -116,8 +118,8 @@ void SampleRecorder::detachSample() {
 	sample->removeReason("E400");
 }
 
-int SampleRecorder::setup(int newNumChannels, int newMode, bool newKeepingReasons, bool shouldRecordExtraMargins,
-                          int newFolderID, int buttonPressLatency) {
+int SampleRecorder::setup(int newNumChannels, AudioInputChannel newMode, bool newKeepingReasons,
+                          bool shouldRecordExtraMargins, AudioRecordingFolder newFolderID, int buttonPressLatency) {
 
 	if (!audioFileManager.ensureEnoughMemoryForOneMoreAudioFile()) {
 		return ERROR_INSUFFICIENT_RAM;
@@ -174,11 +176,11 @@ gotError:
 	currentRecordClusterIndex = 0;
 
 	numSamplesToRunBeforeBeginningCapturing = numSamplesExtraToCaptureAtEndSyncingWise =
-	    (mode < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION) ? AUDIO_RECORD_LAG_COMPENTATION : 0;
+	    (mode < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION) ? kAudioRecordLagCompensation : 0;
 
 	// Apart from the MIX option, all other audio sources are fed to us during the "outputting" routine. Occasionally, there'll be some more of that
 	// going to happen for the previous render, so we have to compensate for that
-	if (mode != AUDIO_INPUT_CHANNEL_MIX) {
+	if (mode != AudioInputChannel::MIX) {
 		numSamplesToRunBeforeBeginningCapturing += AudioEngine::getNumSamplesLeftToOutputFromPreviousRender();
 	}
 
@@ -344,9 +346,10 @@ aborted:
 
 			// If this was the most recent recording in this category, tick the counter backwards - so long as
 			// either the delete was successful or it was for an AudioClip, which means the file is in the TEMP folder and can be overwritten anyway
-			if (result == FR_OK || folderID == AUDIO_RECORDING_FOLDER_CLIPS) {
-				if (audioFileManager.highestUsedAudioRecordingNumber[folderID] == audioFileNumber) {
-					audioFileManager.highestUsedAudioRecordingNumber[folderID]--;
+			if (result == FR_OK || folderID == AudioRecordingFolder::CLIPS) {
+				if (audioFileManager.highestUsedAudioRecordingNumber[util::to_underlying(folderID)]
+				    == audioFileNumber) {
+					audioFileManager.highestUsedAudioRecordingNumber[util::to_underlying(folderID)]--;
 					Debug::println("ticked file counter backwards");
 				}
 			}
@@ -506,7 +509,7 @@ int SampleRecorder::writeOneCompletedCluster() {
 	int error = writeCluster(writingClusterIndex, audioFileManager.clusterSize);
 
 	// We no longer have a reason to require this Cluster to be kept in memory
-	if (!keepingReasonsForFirstClusters || writingClusterIndex >= NUM_CLUSTERS_LOADED_AHEAD) {
+	if (!keepingReasonsForFirstClusters || writingClusterIndex >= kNumClustersLoadedAhead) {
 		Cluster* cluster = sample->clusters.getElement(writingClusterIndex)->cluster;
 
 		// Some bug-hunting
@@ -566,7 +569,7 @@ int SampleRecorder::finalizeRecordedFile() {
 
 		// Having incremented firstUnwrittenClusterIndex, we need to remove the "reason" for that final cluster.
 		// Normally that happens in writeAnyCompletedClusters(), but well this cluster wasn't "complete" so we're doing the whole thing here instead
-		if (!keepingReasonsForFirstClusters || currentRecordClusterIndex >= NUM_CLUSTERS_LOADED_AHEAD) {
+		if (!keepingReasonsForFirstClusters || currentRecordClusterIndex >= kNumClustersLoadedAhead) {
 
 			// Some bug-hunting
 			if (!currentRecordCluster->numReasonsHeldBySampleRecorder) {
@@ -894,7 +897,7 @@ doFinishCapturing:
 
 			// Balanced input. For this, we skip a bunch of stat-grabbing, cos we knob this is just for AudioClips.
 			// We also know that applyGain is false - that's just for the MIX option
-			if (mode == AUDIO_INPUT_CHANNEL_BALANCED) {
+			if (mode == AudioInputChannel::BALANCED) {
 
 				do {
 					int32_t rxL = *inputAddress;
@@ -1049,7 +1052,7 @@ void SampleRecorder::endSyncedRecording(int buttonLatencyForTempolessRecording) 
 	Debug::println(buttonLatencyForTempolessRecording);
 
 	if (recordingExtraMargins) {
-		numMoreSamplesToCapture += AUDIO_CLIP_MARGIN_SIZE_POST_END; // Means we also have an audioClip
+		numMoreSamplesToCapture += kAudioClipMarginSizePostEnd; // Means we also have an audioClip
 	}
 
 	uint32_t loopEndPointSamples = numSamplesCaptured + numMoreSamplesTilEndLoopPoint;

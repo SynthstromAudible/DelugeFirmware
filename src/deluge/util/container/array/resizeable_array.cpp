@@ -17,7 +17,7 @@
 
 #include "processing/engines/audio_engine.h"
 #include "util/container/array/resizeable_array.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 //#include <algorithm>
 #include "memory/general_memory_allocator.h"
 #include "util/functions.h"
@@ -26,13 +26,22 @@
 #include "io/debug/print.h"
 
 #if RESIZEABLE_ARRAY_DO_LOCKS
-#define LOCK_ENTRY                                                                                                     \
-	if (lock) {                                                                                                        \
-		display.freezeWithError("i008");                                                                               \
-	}                                                                                                                  \
-	lock =                                                                                                             \
-	    true; // Bay_Mud got this error around V4.0.1 (must have been a beta), and thinks a FlashAir card might have been a catalyst. It still "shouldn't" be able to happen though.
-#define LOCK_EXIT lock = false;
+#define LOCK_ENTRY freezeOnLock();
+// Bay_Mud got this error around V4.0.1 (must have been a beta), and thinks a FlashAir card might have been a catalyst.
+//It still "shouldn't" be able to happen though.
+#define LOCK_EXIT exitLock();
+void ResizeableArray::freezeOnLock() {
+	if (lock) {
+		display.freezeWithError("i008");
+	}
+	lock = true;
+}
+void ResizeableArray::exitLock() {
+	if (!lock) {
+		display.freezeWithError("i008");
+	}
+	lock = false;
+}
 #else
 #define LOCK_ENTRY                                                                                                     \
 	{}

@@ -33,7 +33,7 @@ public:
 
 	void focusRegained() override;
 	void selectEncoderAction(int8_t offset) override;
-	int buttonAction(hid::Button b, bool on, bool inCardRoutine) final;
+	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine) final;
 	void drawCurrentOption();
 	virtual bool isCurrentOptionAvailable() { return true; }
 	virtual bool acceptCurrentOption() { return false; } // If returns false, will cause UI to exit
@@ -41,7 +41,7 @@ public:
 	virtual Sized<char const**> getOptions() = 0;
 
 	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) override;
-	int padAction(int x, int y, int velocity) override;
+	ActionResult padAction(int x, int y, int velocity) override;
 	bool setupAndCheckAvailability();
 
 	virtual hid::Button getAcceptButton() { return hid::button::SELECT_ENC; }

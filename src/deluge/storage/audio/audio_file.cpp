@@ -16,6 +16,7 @@
 */
 
 #include "storage/audio/audio_file.h"
+#include "definitions_cxx.hpp"
 #include "storage/audio/audio_file_manager.h"
 #include "util/functions.h"
 #include <string.h>
@@ -26,19 +27,12 @@
 #include "hid/display.h"
 #include "memory/general_memory_allocator.h"
 
-AudioFile::AudioFile(int newType) : type(newType) {
-	numReasonsToBeLoaded = 0;
-}
-
-AudioFile::~AudioFile() {
-}
-
 #define MAX_NUM_MARKERS 8
 
 int AudioFile::loadFile(AudioFileReader* reader, bool isAiff, bool makeWaveTableWorkAtAllCosts) {
 
 	// AIFF files will only be used for WaveTables if the user insists
-	if (type == AUDIO_FILE_TYPE_WAVETABLE && !makeWaveTableWorkAtAllCosts && isAiff) {
+	if (type == AudioFileType::WAVETABLE && !makeWaveTableWorkAtAllCosts && isAiff) {
 		return ERROR_FILE_NOT_LOADABLE_AS_WAVETABLE;
 	}
 
@@ -101,7 +95,7 @@ int AudioFile::loadFile(AudioFileReader* reader, bool isAiff, bool makeWaveTable
 				foundDataChunk = true;
 				audioDataStartPosBytes = bytePosOfThisChunkData;
 				audioDataLengthBytes = bytesCurrentChunkNotRoundedUp;
-				if (type == AUDIO_FILE_TYPE_WAVETABLE) {
+				if (type == AudioFileType::WAVETABLE) {
 doSetupWaveTable:
 					if (byteDepth == 255) {
 						return ERROR_FILE_UNSUPPORTED; // If haven't found "fmt " tag yet, we don't know the bit depth or anything. Shouldn't happen.
@@ -172,7 +166,7 @@ doSetupWaveTable:
 					return ERROR_FILE_UNSUPPORTED;
 				}
 
-				if (type == AUDIO_FILE_TYPE_SAMPLE) {
+				if (type == AudioFileType::SAMPLE) {
 					((Sample*)this)->byteDepth = byteDepth;
 					((Sample*)this)->rawDataFormat = rawDataFormat;
 
@@ -188,7 +182,7 @@ doSetupWaveTable:
 
 			// Sample chunk - "smpl"
 			case charsToIntegerConstant('s', 'm', 'p', 'l'): {
-				if (type == AUDIO_FILE_TYPE_SAMPLE) {
+				if (type == AudioFileType::SAMPLE) {
 
 					uint32_t data[9];
 					error = reader->readBytes((char*)data, 4 * 9);
@@ -245,7 +239,7 @@ doSetupWaveTable:
 
 			// Instrument chunk - "inst"
 			case charsToIntegerConstant('i', 'n', 's', 't'): {
-				if (type == AUDIO_FILE_TYPE_SAMPLE) {
+				if (type == AudioFileType::SAMPLE) {
 
 					uint8_t data[7];
 					error = reader->readBytes((char*)data, 7);
@@ -309,7 +303,7 @@ doSetupWaveTable:
 				// If we're here, we found the data! Take note of where it starts
 				audioDataStartPosBytes = reader->getBytePos() + 4 + offset;
 
-				if (type == AUDIO_FILE_TYPE_WAVETABLE) {
+				if (type == AudioFileType::WAVETABLE) {
 					goto doSetupWaveTable;
 				}
 				break;
@@ -349,7 +343,7 @@ doSetupWaveTable:
 					rawDataFormat = RAW_DATA_ENDIANNESS_WRONG_16 + byteDepth - 2;
 				}
 
-				if (type == AUDIO_FILE_TYPE_SAMPLE) {
+				if (type == AudioFileType::SAMPLE) {
 					((Sample*)this)->byteDepth = byteDepth;
 
 					// Sample rate
@@ -415,7 +409,7 @@ doSetupWaveTable:
 
 			// INST
 			case charsToIntegerConstant('I', 'N', 'S', 'T'): {
-				if (type == AUDIO_FILE_TYPE_SAMPLE) {
+				if (type == AudioFileType::SAMPLE) {
 					uint8_t data[8];
 					error = reader->readBytes((char*)data, 8);
 					if (error) {
@@ -469,7 +463,7 @@ finishedWhileLoop:
 		return ERROR_FILE_CORRUPTED;
 	}
 
-	if (type == AUDIO_FILE_TYPE_SAMPLE) {
+	if (type == AudioFileType::SAMPLE) {
 
 		if (isAiff) {
 			((Sample*)this)->rawDataFormat = rawDataFormat;

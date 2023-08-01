@@ -23,12 +23,12 @@
 class LoadSongUI final : public LoadUI {
 public:
 	LoadSongUI();
-	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
-	int timerCallback();
-	int verticalEncoderAction(int offset, bool inCardRoutine);
+	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult timerCallback();
+	ActionResult verticalEncoderAction(int offset, bool inCardRoutine);
 	void graphicsRoutine() {}
 	void scrollFinished();
-	int padAction(int x, int y, int velocity);
+	ActionResult padAction(int x, int y, int velocity);
 	bool opened();
 	void selectEncoderAction(int8_t offset);
 	void performLoad();

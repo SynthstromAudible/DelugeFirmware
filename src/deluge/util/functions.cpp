@@ -18,7 +18,7 @@
 #include "util/functions.h"
 #include "gui/l10n/strings.h"
 #include "processing/sound/sound.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "hid/display.h"
 #include "fatfs/ff.h"
 #include "gui/views/view.h"
@@ -41,27 +41,27 @@ const uint8_t modButtonY[8] = {0, 1, 2, 3, 0, 1, 2, 3};
 const uint8_t modLedX[8] = {1, 1, 1, 1, 2, 2, 2, 2};
 const uint8_t modLedY[8] = {0, 1, 2, 3, 0, 1, 2, 3};
 
-int32_t paramRanges[NUM_PARAMS];
-int32_t paramNeutralValues[NUM_PARAMS];
+int32_t paramRanges[kNumParams];
+int32_t paramNeutralValues[kNumParams];
 
 // This is just the range of the user-defined "preset" value, it doesn't apply to the outcome of patch cables
 int32_t getParamRange(int p) {
 	switch (p) {
-	case PARAM_LOCAL_ENV_0_ATTACK:
-	case PARAM_LOCAL_ENV_1_ATTACK:
+	case Param::Local::ENV_0_ATTACK:
+	case Param::Local::ENV_1_ATTACK:
 		return 536870912 * 1.5;
 
-	case PARAM_GLOBAL_DELAY_RATE:
+	case Param::Global::DELAY_RATE:
 		return 536870912;
 
-	case PARAM_LOCAL_PITCH_ADJUST:
-	case PARAM_LOCAL_OSC_A_PITCH_ADJUST:
-	case PARAM_LOCAL_OSC_B_PITCH_ADJUST:
-	case PARAM_LOCAL_MODULATOR_0_PITCH_ADJUST:
-	case PARAM_LOCAL_MODULATOR_1_PITCH_ADJUST:
+	case Param::Local::PITCH_ADJUST:
+	case Param::Local::OSC_A_PITCH_ADJUST:
+	case Param::Local::OSC_B_PITCH_ADJUST:
+	case Param::Local::MODULATOR_0_PITCH_ADJUST:
+	case Param::Local::MODULATOR_1_PITCH_ADJUST:
 		return 536870912;
 
-	case PARAM_LOCAL_LPF_FREQ:
+	case Param::Local::LPF_FREQ:
 		return 536870912 * 1.4;
 
 		// For phase width, we have this higher (than I previously did) because these are hibrid params, meaning that with a source (e.g. LFO) patched to them, the might have up to 1073741824 added to them
@@ -73,71 +73,71 @@ int32_t getParamRange(int p) {
 
 int32_t getParamNeutralValue(int p) {
 	switch (p) {
-	case PARAM_LOCAL_OSC_A_VOLUME:
-	case PARAM_LOCAL_OSC_B_VOLUME:
-	case PARAM_GLOBAL_VOLUME_POST_REVERB_SEND:
-	case PARAM_LOCAL_NOISE_VOLUME:
-	case PARAM_GLOBAL_REVERB_AMOUNT:
-	case PARAM_GLOBAL_VOLUME_POST_FX:
-	case PARAM_LOCAL_VOLUME:
+	case Param::Local::OSC_A_VOLUME:
+	case Param::Local::OSC_B_VOLUME:
+	case Param::Global::VOLUME_POST_REVERB_SEND:
+	case Param::Local::NOISE_VOLUME:
+	case Param::Global::REVERB_AMOUNT:
+	case Param::Global::VOLUME_POST_FX:
+	case Param::Local::VOLUME:
 		return 134217728;
 
-	case PARAM_LOCAL_MODULATOR_0_VOLUME:
-	case PARAM_LOCAL_MODULATOR_1_VOLUME:
+	case Param::Local::MODULATOR_0_VOLUME:
+	case Param::Local::MODULATOR_1_VOLUME:
 		return 33554432;
 
-	case PARAM_LOCAL_LPF_FREQ:
+	case Param::Local::LPF_FREQ:
 		return 2000000;
-	case PARAM_LOCAL_HPF_FREQ:
+	case Param::Local::HPF_FREQ:
 		return 2672947;
 
-	case PARAM_GLOBAL_LFO_FREQ:
-	case PARAM_LOCAL_LFO_LOCAL_FREQ:
-	case PARAM_GLOBAL_MOD_FX_RATE:
+	case Param::Global::LFO_FREQ:
+	case Param::Local::LFO_LOCAL_FREQ:
+	case Param::Global::MOD_FX_RATE:
 		return 121739; //lfoRateTable[userValue];
 
-	case PARAM_LOCAL_LPF_RESONANCE:
-	case PARAM_LOCAL_HPF_RESONANCE:
+	case Param::Local::LPF_RESONANCE:
+	case Param::Local::HPF_RESONANCE:
 		return 25 * 10737418; // Room to be quadrupled
 
-	case PARAM_LOCAL_PAN:
-	case PARAM_LOCAL_OSC_A_PHASE_WIDTH:
-	case PARAM_LOCAL_OSC_B_PHASE_WIDTH:
+	case Param::Local::PAN:
+	case Param::Local::OSC_A_PHASE_WIDTH:
+	case Param::Local::OSC_B_PHASE_WIDTH:
 		return 0;
 
-	case PARAM_LOCAL_ENV_0_ATTACK:
-	case PARAM_LOCAL_ENV_1_ATTACK:
+	case Param::Local::ENV_0_ATTACK:
+	case Param::Local::ENV_1_ATTACK:
 		return 4096; //attackRateTable[userValue];
 
-	case PARAM_LOCAL_ENV_0_RELEASE:
-	case PARAM_LOCAL_ENV_1_RELEASE:
+	case Param::Local::ENV_0_RELEASE:
+	case Param::Local::ENV_1_RELEASE:
 		return 140 << 9; //releaseRateTable[userValue];
 
-	case PARAM_LOCAL_ENV_0_DECAY:
-	case PARAM_LOCAL_ENV_1_DECAY:
+	case Param::Local::ENV_0_DECAY:
+	case Param::Local::ENV_1_DECAY:
 		return 70 << 9; //releaseRateTable[userValue] >> 1;
 
-	case PARAM_LOCAL_ENV_0_SUSTAIN:
-	case PARAM_LOCAL_ENV_1_SUSTAIN:
-	case PARAM_GLOBAL_DELAY_FEEDBACK:
+	case Param::Local::ENV_0_SUSTAIN:
+	case Param::Local::ENV_1_SUSTAIN:
+	case Param::Global::DELAY_FEEDBACK:
 		return 1073741824; //536870912;
 
-	case PARAM_LOCAL_MODULATOR_0_FEEDBACK:
-	case PARAM_LOCAL_MODULATOR_1_FEEDBACK:
-	case PARAM_LOCAL_CARRIER_0_FEEDBACK:
-	case PARAM_LOCAL_CARRIER_1_FEEDBACK:
+	case Param::Local::MODULATOR_0_FEEDBACK:
+	case Param::Local::MODULATOR_1_FEEDBACK:
+	case Param::Local::CARRIER_0_FEEDBACK:
+	case Param::Local::CARRIER_1_FEEDBACK:
 		return 5931642;
 
-	case PARAM_GLOBAL_DELAY_RATE:
-	case PARAM_GLOBAL_ARP_RATE:
-	case PARAM_LOCAL_PITCH_ADJUST:
-	case PARAM_LOCAL_OSC_A_PITCH_ADJUST:
-	case PARAM_LOCAL_OSC_B_PITCH_ADJUST:
-	case PARAM_LOCAL_MODULATOR_0_PITCH_ADJUST:
-	case PARAM_LOCAL_MODULATOR_1_PITCH_ADJUST:
+	case Param::Global::DELAY_RATE:
+	case Param::Global::ARP_RATE:
+	case Param::Local::PITCH_ADJUST:
+	case Param::Local::OSC_A_PITCH_ADJUST:
+	case Param::Local::OSC_B_PITCH_ADJUST:
+	case Param::Local::MODULATOR_0_PITCH_ADJUST:
+	case Param::Local::MODULATOR_1_PITCH_ADJUST:
 		return 16777216; // Means we have space to 8x (3-octave-shift) the pitch if we want... (wait, I've since made it 16x smaller)
 
-	case PARAM_GLOBAL_MOD_FX_DEPTH:
+	case Param::Global::MOD_FX_DEPTH:
 		return 526133494; // 2% lower than 536870912
 
 	default:
@@ -147,11 +147,11 @@ int32_t getParamNeutralValue(int p) {
 
 void functionsInit() {
 
-	for (int p = 0; p < NUM_PARAMS; p++) {
+	for (int p = 0; p < kNumParams; p++) {
 		paramRanges[p] = getParamRange(p);
 	}
 
-	for (int p = 0; p < NUM_PARAMS; p++) {
+	for (int p = 0; p < kNumParams; p++) {
 		paramNeutralValues[p] = getParamNeutralValue(p);
 	}
 }
@@ -217,10 +217,10 @@ int32_t getFinalParameterValueExp(int32_t paramNeutralValue, int32_t patchedValu
 
 int32_t getFinalParameterValueExpWithDumbEnvelopeHack(int32_t paramNeutralValue, int32_t patchedValue, int p) {
 	// TODO: this is horribly hard-coded, but works for now
-	if (p >= PARAM_LOCAL_ENV_0_DECAY && p <= PARAM_LOCAL_ENV_1_RELEASE) {
+	if (p >= Param::Local::ENV_0_DECAY && p <= Param::Local::ENV_1_RELEASE) {
 		return multiply_32x32_rshift32(paramNeutralValue, lookupReleaseRate(patchedValue));
 	}
-	if (p == PARAM_LOCAL_ENV_0_ATTACK || p == PARAM_LOCAL_ENV_1_ATTACK) {
+	if (p == Param::Local::ENV_0_ATTACK || p == Param::Local::ENV_1_ATTACK) {
 		patchedValue = -patchedValue;
 	}
 
@@ -249,39 +249,39 @@ int32_t cableToExpParamShortcut(int32_t sourceValue) {
 	return sourceValue >> 2;
 }
 
-char const* sourceToString(uint8_t source) {
+char const* sourceToString(PatchSource source) {
 	switch (source) {
-	case PATCH_SOURCE_LFO_GLOBAL:
+	case PatchSource::LFO_GLOBAL:
 		return "lfo1";
 
-	case PATCH_SOURCE_LFO_LOCAL:
+	case PatchSource::LFO_LOCAL:
 		return "lfo2";
 
-	case PATCH_SOURCE_ENVELOPE_0:
+	case PatchSource::ENVELOPE_0:
 		return "envelope1";
 
-	case PATCH_SOURCE_ENVELOPE_1:
+	case PatchSource::ENVELOPE_1:
 		return "envelope2";
 
-	case PATCH_SOURCE_VELOCITY:
+	case PatchSource::VELOCITY:
 		return "velocity";
 
-	case PATCH_SOURCE_NOTE:
+	case PatchSource::NOTE:
 		return "note";
 
-	case PATCH_SOURCE_COMPRESSOR:
+	case PatchSource::COMPRESSOR:
 		return "compressor";
 
-	case PATCH_SOURCE_RANDOM:
+	case PatchSource::RANDOM:
 		return "random";
 
-	case PATCH_SOURCE_AFTERTOUCH:
+	case PatchSource::AFTERTOUCH:
 		return "aftertouch";
 
-	case PATCH_SOURCE_X:
+	case PatchSource::X:
 		return "x";
 
-	case PATCH_SOURCE_Y:
+	case PatchSource::Y:
 		return "y";
 
 	default:
@@ -289,42 +289,42 @@ char const* sourceToString(uint8_t source) {
 	}
 }
 
-char const* getSourceDisplayNameForOLED(int s) {
+char const* getSourceDisplayNameForOLED(PatchSource s) {
 	using enum l10n::Strings;
 	auto lang = l10n::chosenLanguage;
 
 	switch (s) {
-	case PATCH_SOURCE_LFO_GLOBAL:
+	case PatchSource::LFO_GLOBAL:
 		return l10n::get(lang, STRING_FOR_PATCH_SOURCE_LFO_GLOBAL);
 
-	case PATCH_SOURCE_LFO_LOCAL:
+	case PatchSource::LFO_LOCAL:
 		return l10n::get(lang, STRING_FOR_PATCH_SOURCE_LFO_LOCAL);
 
-	case PATCH_SOURCE_ENVELOPE_0:
+	case PatchSource::ENVELOPE_0:
 		return l10n::get(lang, STRING_FOR_PATCH_SOURCE_ENVELOPE_0);
 
-	case PATCH_SOURCE_ENVELOPE_1:
+	case PatchSource::ENVELOPE_1:
 		return l10n::get(lang, STRING_FOR_PATCH_SOURCE_ENVELOPE_1);
 
-	case PATCH_SOURCE_VELOCITY:
+	case PatchSource::VELOCITY:
 		return l10n::get(lang, STRING_FOR_PATCH_SOURCE_VELOCITY);
 
-	case PATCH_SOURCE_NOTE:
+	case PatchSource::NOTE:
 		return l10n::get(lang, STRING_FOR_PATCH_SOURCE_NOTE);
 
-	case PATCH_SOURCE_COMPRESSOR:
+	case PatchSource::COMPRESSOR:
 		return l10n::get(lang, STRING_FOR_PATCH_SOURCE_COMPRESSOR);
 
-	case PATCH_SOURCE_RANDOM:
+	case PatchSource::RANDOM:
 		return l10n::get(lang, STRING_FOR_PATCH_SOURCE_RANDOM);
 
-	case PATCH_SOURCE_AFTERTOUCH:
+	case PatchSource::AFTERTOUCH:
 		return l10n::get(lang, STRING_FOR_PATCH_SOURCE_AFTERTOUCH);
 
-	case PATCH_SOURCE_X:
+	case PatchSource::X:
 		return l10n::get(lang, STRING_FOR_PATCH_SOURCE_X);
 
-	case PATCH_SOURCE_Y:
+	case PatchSource::Y:
 		return l10n::get(lang, STRING_FOR_PATCH_SOURCE_Y);
 
 	default:
@@ -340,130 +340,130 @@ char const* getPatchedParamDisplayNameForOled(int p) {
 	// These can basically be 13 chars long, or 14 if the last one is a dot.
 	switch (p) {
 
-	case PARAM_LOCAL_OSC_A_VOLUME:
+	case Param::Local::OSC_A_VOLUME:
 		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_OSC_A_VOLUME);
 
-	case PARAM_LOCAL_OSC_B_VOLUME:
+	case Param::Local::OSC_B_VOLUME:
 		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_OSC_B_VOLUME);
 
-	case PARAM_LOCAL_VOLUME:
+	case Param::Local::VOLUME:
 		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_VOLUME);
 
-	case PARAM_LOCAL_NOISE_VOLUME:
+	case Param::Local::NOISE_VOLUME:
 		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_NOISE_VOLUME);
 
-	case PARAM_LOCAL_OSC_A_PHASE_WIDTH:
+	case Param::Local::OSC_A_PHASE_WIDTH:
 		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_OSC_A_PHASE_WIDTH);
 
-	case PARAM_LOCAL_OSC_B_PHASE_WIDTH:
+	case Param::Local::OSC_B_PHASE_WIDTH:
 		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_OSC_B_PHASE_WIDTH);
 
-	case PARAM_LOCAL_OSC_A_WAVE_INDEX:
+	case Param::Local::OSC_A_WAVE_INDEX:
 		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_OSC_A_WAVE_INDEX);
 
-	case PARAM_LOCAL_OSC_B_WAVE_INDEX:
+	case Param::Local::OSC_B_WAVE_INDEX:
 		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_OSC_B_WAVE_INDEX);
 
-	case PARAM_LOCAL_LPF_RESONANCE:
+	case Param::Local::LPF_RESONANCE:
 		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_LPF_RESONANCE);
 
-	case PARAM_LOCAL_HPF_RESONANCE:
+	case Param::Local::HPF_RESONANCE:
 		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_HPF_RESONANCE);
 
-	case PARAM_LOCAL_PAN:
+	case Param::Local::PAN:
 		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_PAN);
 
-	case PARAM_LOCAL_MODULATOR_0_VOLUME:
+	case Param::Local::MODULATOR_0_VOLUME:
 		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_MODULATOR_0_VOLUME);
 
-	case PARAM_LOCAL_MODULATOR_1_VOLUME:
+	case Param::Local::MODULATOR_1_VOLUME:
 		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_MODULATOR_1_VOLUME);
 
-	case PARAM_LOCAL_LPF_FREQ:
+	case Param::Local::LPF_FREQ:
 		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_LPF_FREQ);
 
-	case PARAM_LOCAL_PITCH_ADJUST:
+	case Param::Local::PITCH_ADJUST:
 		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_PITCH_ADJUST);
 
-	case PARAM_LOCAL_OSC_A_PITCH_ADJUST:
+	case Param::Local::OSC_A_PITCH_ADJUST:
 		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_OSC_A_PITCH_ADJUST);
 
-	case PARAM_LOCAL_OSC_B_PITCH_ADJUST:
+	case Param::Local::OSC_B_PITCH_ADJUST:
 		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_OSC_B_PITCH_ADJUST);
 
-	case PARAM_LOCAL_MODULATOR_0_PITCH_ADJUST:
+	case Param::Local::MODULATOR_0_PITCH_ADJUST:
 		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_MODULATOR_0_PITCH_ADJUST);
 
-	case PARAM_LOCAL_MODULATOR_1_PITCH_ADJUST:
+	case Param::Local::MODULATOR_1_PITCH_ADJUST:
 		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_MODULATOR_1_PITCH_ADJUST);
 
-	case PARAM_LOCAL_HPF_FREQ:
+	case Param::Local::HPF_FREQ:
 		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_HPF_FREQ);
 
-	case PARAM_LOCAL_LFO_LOCAL_FREQ:
+	case Param::Local::LFO_LOCAL_FREQ:
 		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_LFO_LOCAL_FREQ);
 
-	case PARAM_LOCAL_ENV_0_ATTACK:
+	case Param::Local::ENV_0_ATTACK:
 		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_ENV_0_ATTACK);
 
-	case PARAM_LOCAL_ENV_0_DECAY:
+	case Param::Local::ENV_0_DECAY:
 		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_ENV_0_DECAY);
 
-	case PARAM_LOCAL_ENV_0_SUSTAIN:
+	case Param::Local::ENV_0_SUSTAIN:
 		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_ENV_0_SUSTAIN);
 
-	case PARAM_LOCAL_ENV_0_RELEASE:
+	case Param::Local::ENV_0_RELEASE:
 		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_ENV_0_RELEASE);
 
-	case PARAM_LOCAL_ENV_1_ATTACK:
+	case Param::Local::ENV_1_ATTACK:
 		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_ENV_1_ATTACK);
 
-	case PARAM_LOCAL_ENV_1_DECAY:
+	case Param::Local::ENV_1_DECAY:
 		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_ENV_1_DECAY);
 
-	case PARAM_LOCAL_ENV_1_SUSTAIN:
+	case Param::Local::ENV_1_SUSTAIN:
 		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_ENV_1_SUSTAIN);
 
-	case PARAM_LOCAL_ENV_1_RELEASE:
+	case Param::Local::ENV_1_RELEASE:
 		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_ENV_1_RELEASE);
 
-	case PARAM_GLOBAL_LFO_FREQ:
+	case Param::Global::LFO_FREQ:
 		return l10n::get(lang, STRING_FOR_PARAM_GLOBAL_LFO_FREQ);
 
-	case PARAM_GLOBAL_VOLUME_POST_FX:
+	case Param::Global::VOLUME_POST_FX:
 		return l10n::get(lang, STRING_FOR_PARAM_GLOBAL_VOLUME_POST_FX);
 
-	case PARAM_GLOBAL_VOLUME_POST_REVERB_SEND:
+	case Param::Global::VOLUME_POST_REVERB_SEND:
 		return l10n::get(lang, STRING_FOR_PARAM_GLOBAL_VOLUME_POST_REVERB_SEND);
 
-	case PARAM_GLOBAL_DELAY_RATE:
+	case Param::Global::DELAY_RATE:
 		return l10n::get(lang, STRING_FOR_PARAM_GLOBAL_DELAY_RATE);
 
-	case PARAM_GLOBAL_DELAY_FEEDBACK:
+	case Param::Global::DELAY_FEEDBACK:
 		return l10n::get(lang, STRING_FOR_PARAM_GLOBAL_DELAY_FEEDBACK);
 
-	case PARAM_GLOBAL_REVERB_AMOUNT:
+	case Param::Global::REVERB_AMOUNT:
 		return l10n::get(lang, STRING_FOR_PARAM_GLOBAL_REVERB_AMOUNT);
 
-	case PARAM_GLOBAL_MOD_FX_RATE:
+	case Param::Global::MOD_FX_RATE:
 		return l10n::get(lang, STRING_FOR_PARAM_GLOBAL_MOD_FX_RATE);
 
-	case PARAM_GLOBAL_MOD_FX_DEPTH:
+	case Param::Global::MOD_FX_DEPTH:
 		return l10n::get(lang, STRING_FOR_PARAM_GLOBAL_MOD_FX_DEPTH);
 
-	case PARAM_GLOBAL_ARP_RATE:
+	case Param::Global::ARP_RATE:
 		return l10n::get(lang, STRING_FOR_PARAM_GLOBAL_ARP_RATE);
 
-	case PARAM_LOCAL_MODULATOR_0_FEEDBACK:
+	case Param::Local::MODULATOR_0_FEEDBACK:
 		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_MODULATOR_0_FEEDBACK);
 
-	case PARAM_LOCAL_MODULATOR_1_FEEDBACK:
+	case Param::Local::MODULATOR_1_FEEDBACK:
 		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_MODULATOR_1_FEEDBACK);
 
-	case PARAM_LOCAL_CARRIER_0_FEEDBACK:
+	case Param::Local::CARRIER_0_FEEDBACK:
 		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_CARRIER_0_FEEDBACK);
 
-	case PARAM_LOCAL_CARRIER_1_FEEDBACK:
+	case Param::Local::CARRIER_1_FEEDBACK:
 		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_CARRIER_1_FEEDBACK);
 
 	default:
@@ -472,13 +472,14 @@ char const* getPatchedParamDisplayNameForOled(int p) {
 	}
 }
 
-uint8_t stringToSource(char const* string) {
-	for (int s = 0; s < NUM_PATCH_SOURCES; s++) {
-		if (!strcmp(string, sourceToString(s))) {
-			return s;
+PatchSource stringToSource(char const* string) {
+	for (int s = 0; s < kNumPatchSources; s++) {
+		auto patchSource = static_cast<PatchSource>(s);
+		if (!strcmp(string, sourceToString(patchSource))) {
+			return patchSource;
 		}
 	}
-	return PATCH_SOURCE_NONE;
+	return PatchSource::NONE;
 }
 
 bool paramNeedsLPF(int p, bool fromAutomation) {
@@ -487,27 +488,27 @@ bool paramNeedsLPF(int p, bool fromAutomation) {
 	// For many params, particularly volumes, we do want the param LPF if the user adjusted it,
 	// so we don't get stepping, but if it's from step automation, we do want it to adjust instantly,
 	// so the new step is instantly at the right volume
-	case PARAM_GLOBAL_VOLUME_POST_FX:
-	case PARAM_GLOBAL_VOLUME_POST_REVERB_SEND:
-	case PARAM_GLOBAL_REVERB_AMOUNT:
-	case PARAM_LOCAL_VOLUME:
-	case PARAM_LOCAL_PAN:
-	case PARAM_LOCAL_LPF_FREQ:
-	case PARAM_LOCAL_HPF_FREQ:
-	case PARAM_LOCAL_OSC_A_VOLUME:
-	case PARAM_LOCAL_OSC_B_VOLUME:
-	case PARAM_LOCAL_OSC_A_WAVE_INDEX:
-	case PARAM_LOCAL_OSC_B_WAVE_INDEX:
+	case Param::Global::VOLUME_POST_FX:
+	case Param::Global::VOLUME_POST_REVERB_SEND:
+	case Param::Global::REVERB_AMOUNT:
+	case Param::Local::VOLUME:
+	case Param::Local::PAN:
+	case Param::Local::LPF_FREQ:
+	case Param::Local::HPF_FREQ:
+	case Param::Local::OSC_A_VOLUME:
+	case Param::Local::OSC_B_VOLUME:
+	case Param::Local::OSC_A_WAVE_INDEX:
+	case Param::Local::OSC_B_WAVE_INDEX:
 		return !fromAutomation;
 
-	case PARAM_LOCAL_MODULATOR_0_VOLUME:
-	case PARAM_LOCAL_MODULATOR_1_VOLUME:
-	case PARAM_LOCAL_MODULATOR_0_FEEDBACK:
-	case PARAM_LOCAL_MODULATOR_1_FEEDBACK:
-	case PARAM_LOCAL_CARRIER_0_FEEDBACK:
-	case PARAM_LOCAL_CARRIER_1_FEEDBACK:
-	case PARAM_GLOBAL_MOD_FX_DEPTH:
-	case PARAM_GLOBAL_DELAY_FEEDBACK:
+	case Param::Local::MODULATOR_0_VOLUME:
+	case Param::Local::MODULATOR_1_VOLUME:
+	case Param::Local::MODULATOR_0_FEEDBACK:
+	case Param::Local::MODULATOR_1_FEEDBACK:
+	case Param::Local::CARRIER_0_FEEDBACK:
+	case Param::Local::CARRIER_1_FEEDBACK:
+	case Param::Global::MOD_FX_DEPTH:
+	case Param::Global::DELAY_FEEDBACK:
 		return true;
 
 	default:
@@ -715,11 +716,11 @@ bool stringIsNumericChars(char const* str) {
 	return memIsNumericChars(str, strlen(str));
 }
 
-char const* getThingName(uint8_t instrumentType) {
-	if (instrumentType == INSTRUMENT_TYPE_SYNTH) {
+char const* getThingName(InstrumentType instrumentType) {
+	if (instrumentType == InstrumentType::SYNTH) {
 		return "SYNT";
 	}
-	else if (instrumentType == INSTRUMENT_TYPE_KIT) {
+	else if (instrumentType == InstrumentType::KIT) {
 		return "KIT";
 	}
 	else {
@@ -823,98 +824,98 @@ void getInstrumentPresetFilename(char const* filePrefix, int16_t presetNumber, i
 	strcat(fileName, ".XML");
 }
 
-char const* oscTypeToString(unsigned int oscType) {
+char const* oscTypeToString(OscType oscType) {
 	switch (oscType) {
-	case OSC_TYPE_SQUARE:
+	case OscType::SQUARE:
 		return "square";
 
-	case OSC_TYPE_SAW:
+	case OscType::SAW:
 		return "saw";
 
-	case OSC_TYPE_ANALOG_SAW_2:
+	case OscType::ANALOG_SAW_2:
 		return "analogSaw";
 
-	case OSC_TYPE_ANALOG_SQUARE:
+	case OscType::ANALOG_SQUARE:
 		return "analogSquare";
 
-	case OSC_TYPE_SINE:
+	case OscType::SINE:
 		return "sine";
 
-	case OSC_TYPE_TRIANGLE:
+	case OscType::TRIANGLE:
 		return "triangle";
 
-	case OSC_TYPE_SAMPLE:
+	case OscType::SAMPLE:
 		return "sample";
 
-	case OSC_TYPE_WAVETABLE:
+	case OscType::WAVETABLE:
 		return "wavetable";
 
-	case OSC_TYPE_INPUT_L:
+	case OscType::INPUT_L:
 		return "inLeft";
 
-	case OSC_TYPE_INPUT_R:
+	case OscType::INPUT_R:
 		return "inRight";
 
-	case OSC_TYPE_INPUT_STEREO:
+	case OscType::INPUT_STEREO:
 		return "inStereo";
 
-	case NUM_OSC_TYPES ... 0xFFFFFFFF:
+	default:
 		__builtin_unreachable();
 	}
 }
 
-int stringToOscType(char const* string) {
+OscType stringToOscType(char const* string) {
 
 	if (!strcmp(string, "square")) {
-		return OSC_TYPE_SQUARE;
+		return OscType::SQUARE;
 	}
 	else if (!strcmp(string, "analogSquare")) {
-		return OSC_TYPE_ANALOG_SQUARE;
+		return OscType::ANALOG_SQUARE;
 	}
 	else if (!strcmp(string, "analogSaw")) {
-		return OSC_TYPE_ANALOG_SAW_2;
+		return OscType::ANALOG_SAW_2;
 	}
 	else if (!strcmp(string, "saw")) {
-		return OSC_TYPE_SAW;
+		return OscType::SAW;
 	}
 	else if (!strcmp(string, "sine")) {
-		return OSC_TYPE_SINE;
+		return OscType::SINE;
 	}
 	else if (!strcmp(string, "sample")) {
-		return OSC_TYPE_SAMPLE;
+		return OscType::SAMPLE;
 	}
 	else if (!strcmp(string, "wavetable")) {
-		return OSC_TYPE_WAVETABLE;
+		return OscType::WAVETABLE;
 	}
 	else if (!strcmp(string, "inLeft")) {
-		return OSC_TYPE_INPUT_L;
+		return OscType::INPUT_L;
 	}
 	else if (!strcmp(string, "inRight")) {
-		return OSC_TYPE_INPUT_R;
+		return OscType::INPUT_R;
 	}
 	else if (!strcmp(string, "inStereo")) {
-		return OSC_TYPE_INPUT_STEREO;
+		return OscType::INPUT_STEREO;
 	}
 	else {
-		return OSC_TYPE_TRIANGLE;
+		return OscType::TRIANGLE;
 	}
 }
 
-char const* lfoTypeToString(int oscType) {
+char const* lfoTypeToString(LFOType oscType) {
 	switch (oscType) {
-	case LFO_TYPE_SQUARE:
+	case LFOType::SQUARE:
 		return "square";
 
-	case LFO_TYPE_SAW:
+	case LFOType::SAW:
 		return "saw";
 
-	case LFO_TYPE_SINE:
+	case LFOType::SINE:
 		return "sine";
 
-	case LFO_TYPE_SAH:
+	case LFOType::SAMPLE_AND_HOLD:
 		return "sah";
 
-	case LFO_TYPE_RWALK:
+	case LFOType::RANDOM_WALK:
 		return "rwalk";
 
 	default:
@@ -922,33 +923,33 @@ char const* lfoTypeToString(int oscType) {
 	}
 }
 
-int stringToLFOType(char const* string) {
+LFOType stringToLFOType(char const* string) {
 	if (!strcmp(string, "square")) {
-		return LFO_TYPE_SQUARE;
+		return LFOType::SQUARE;
 	}
 	else if (!strcmp(string, "saw")) {
-		return LFO_TYPE_SAW;
+		return LFOType::SAW;
 	}
 	else if (!strcmp(string, "sine")) {
-		return LFO_TYPE_SINE;
+		return LFOType::SINE;
 	}
 	else if (!strcmp(string, "sah")) {
-		return LFO_TYPE_SAH;
+		return LFOType::SAMPLE_AND_HOLD;
 	}
 	else if (!strcmp(string, "rwalk")) {
-		return LFO_TYPE_RWALK;
+		return LFOType::RANDOM_WALK;
 	}
 	else {
-		return LFO_TYPE_TRIANGLE;
+		return LFOType::TRIANGLE;
 	}
 }
 
-char const* synthModeToString(int synthMode) {
+char const* synthModeToString(SynthMode synthMode) {
 	switch (synthMode) {
-	case SYNTH_MODE_FM:
+	case SynthMode::FM:
 		return "fm";
 
-	case SYNTH_MODE_RINGMOD:
+	case SynthMode::RINGMOD:
 		return "ringmod";
 
 	default:
@@ -956,73 +957,73 @@ char const* synthModeToString(int synthMode) {
 	}
 }
 
-int stringToSynthMode(char const* string) {
+SynthMode stringToSynthMode(char const* string) {
 	if (!strcmp(string, "fm")) {
-		return SYNTH_MODE_FM;
+		return SynthMode::FM;
 	}
 	else if (!strcmp(string, "ringmod")) {
-		return SYNTH_MODE_RINGMOD;
+		return SynthMode::RINGMOD;
 	}
 	else {
-		return SYNTH_MODE_SUBTRACTIVE;
+		return SynthMode::SUBTRACTIVE;
 	}
 }
 
-char const* polyphonyModeToString(int synthMode) {
+char const* polyphonyModeToString(PolyphonyMode synthMode) {
 	switch (synthMode) {
-	case POLYPHONY_MONO:
+	case PolyphonyMode::MONO:
 		return "mono";
 
-	case POLYPHONY_AUTO:
+	case PolyphonyMode::AUTO:
 		return "auto";
 
-	case POLYPHONY_LEGATO:
+	case PolyphonyMode::LEGATO:
 		return "legato";
 
-	case POLYPHONY_CHOKE:
+	case PolyphonyMode::CHOKE:
 		return "choke";
 
-	default: //case POLYPHONY_POLY:
+	default: //case PolyphonyMode::POLY:
 		return "poly";
 	}
 }
 
-int stringToPolyphonyMode(char const* string) {
+PolyphonyMode stringToPolyphonyMode(char const* string) {
 	if (!strcmp(string, "mono")) {
-		return POLYPHONY_MONO;
+		return PolyphonyMode::MONO;
 	}
 	else if (!strcmp(string, "auto")) {
-		return POLYPHONY_AUTO;
+		return PolyphonyMode::AUTO;
 	}
 	else if (!strcmp(string, "0")) {
-		return POLYPHONY_AUTO; // Old firmware, pre June 2017
+		return PolyphonyMode::AUTO; // Old firmware, pre June 2017
 	}
 	else if (!strcmp(string, "legato")) {
-		return POLYPHONY_LEGATO;
+		return PolyphonyMode::LEGATO;
 	}
 	else if (!strcmp(string, "choke")) {
-		return POLYPHONY_CHOKE;
+		return PolyphonyMode::CHOKE;
 	}
 	else if (!strcmp(string, "2")) {
-		return POLYPHONY_CHOKE; // Old firmware, pre June 2017
+		return PolyphonyMode::CHOKE; // Old firmware, pre June 2017
 	}
 	else {
-		return POLYPHONY_POLY;
+		return PolyphonyMode::POLY;
 	}
 }
 
-char const* fxTypeToString(int fxType) {
+char const* fxTypeToString(ModFXType fxType) {
 	switch (fxType) {
-	case MOD_FX_TYPE_FLANGER:
+	case ModFXType::FLANGER:
 		return "flanger";
 
-	case MOD_FX_TYPE_CHORUS:
+	case ModFXType::CHORUS:
 		return "chorus";
 
-	case MOD_FX_TYPE_CHORUS_STEREO:
+	case ModFXType::CHORUS_STEREO:
 		return "StereoChorus";
 
-	case MOD_FX_TYPE_PHASER:
+	case ModFXType::PHASER:
 		return "phaser";
 
 	default:
@@ -1030,30 +1031,30 @@ char const* fxTypeToString(int fxType) {
 	}
 }
 
-int stringToFXType(char const* string) {
+ModFXType stringToFXType(char const* string) {
 	if (!strcmp(string, "flanger")) {
-		return MOD_FX_TYPE_FLANGER;
+		return ModFXType::FLANGER;
 	}
 	else if (!strcmp(string, "chorus")) {
-		return MOD_FX_TYPE_CHORUS;
+		return ModFXType::CHORUS;
 	}
 	else if (!strcmp(string, "StereoChorus")) {
-		return MOD_FX_TYPE_CHORUS_STEREO;
+		return ModFXType::CHORUS_STEREO;
 	}
 	else if (!strcmp(string, "phaser")) {
-		return MOD_FX_TYPE_PHASER;
+		return ModFXType::PHASER;
 	}
 	else {
-		return MOD_FX_TYPE_NONE;
+		return ModFXType::NONE;
 	}
 }
 
-char const* modFXParamToString(int fxType) {
+char const* modFXParamToString(ModFXParam fxType) {
 	switch (fxType) {
-	case MOD_FX_PARAM_DEPTH:
+	case ModFXParam::DEPTH:
 		return "depth";
 
-	case MOD_FX_PARAM_FEEDBACK:
+	case ModFXParam::FEEDBACK:
 		return "feedback";
 
 	default:
@@ -1061,24 +1062,24 @@ char const* modFXParamToString(int fxType) {
 	}
 }
 
-int stringToModFXParam(char const* string) {
+ModFXParam stringToModFXParam(char const* string) {
 	if (!strcmp(string, "depth")) {
-		return MOD_FX_PARAM_DEPTH;
+		return ModFXParam::DEPTH;
 	}
 	else if (!strcmp(string, "feedback")) {
-		return MOD_FX_PARAM_FEEDBACK;
+		return ModFXParam::FEEDBACK;
 	}
 	else {
-		return MOD_FX_PARAM_OFFSET;
+		return ModFXParam::OFFSET;
 	}
 }
 
-char const* filterTypeToString(int fxType) {
+char const* filterTypeToString(FilterType fxType) {
 	switch (fxType) {
-	case FILTER_TYPE_HPF:
+	case FilterType::HPF:
 		return "hpf";
 
-	case FILTER_TYPE_EQ:
+	case FilterType::EQ:
 		return "eq";
 
 	default:
@@ -1086,30 +1087,30 @@ char const* filterTypeToString(int fxType) {
 	}
 }
 
-int stringToFilterType(char const* string) {
+FilterType stringToFilterType(char const* string) {
 	if (!strcmp(string, "hpf")) {
-		return FILTER_TYPE_HPF;
+		return FilterType::HPF;
 	}
 	else if (!strcmp(string, "eq")) {
-		return FILTER_TYPE_EQ;
+		return FilterType::EQ;
 	}
 	else {
-		return FILTER_TYPE_LPF;
+		return FilterType::LPF;
 	}
 }
 
-char const* arpModeToString(int mode) {
+char const* arpModeToString(ArpMode mode) {
 	switch (mode) {
-	case ARP_MODE_UP:
+	case ArpMode::UP:
 		return "up";
 
-	case ARP_MODE_DOWN:
+	case ArpMode::DOWN:
 		return "down";
 
-	case ARP_MODE_BOTH:
+	case ArpMode::BOTH:
 		return "both";
 
-	case ARP_MODE_RANDOM:
+	case ArpMode::RANDOM:
 		return "random";
 
 	default:
@@ -1117,33 +1118,33 @@ char const* arpModeToString(int mode) {
 	}
 }
 
-int stringToArpMode(char const* string) {
+ArpMode stringToArpMode(char const* string) {
 	if (!strcmp(string, "up")) {
-		return ARP_MODE_UP;
+		return ArpMode::UP;
 	}
 	else if (!strcmp(string, "down")) {
-		return ARP_MODE_DOWN;
+		return ArpMode::DOWN;
 	}
 	else if (!strcmp(string, "both")) {
-		return ARP_MODE_BOTH;
+		return ArpMode::BOTH;
 	}
 	else if (!strcmp(string, "random")) {
-		return ARP_MODE_RANDOM;
+		return ArpMode::RANDOM;
 	}
 	else {
-		return ARP_MODE_OFF;
+		return ArpMode::OFF;
 	}
 }
 
-char const* lpfTypeToString(int lpfType) {
+char const* lpfTypeToString(LPFMode lpfType) {
 	switch (lpfType) {
-	case LPF_MODE_12DB:
+	case LPFMode::TRANSISTOR_12DB:
 		return "12dB";
 
-	case LPF_MODE_TRANSISTOR_24DB_DRIVE:
+	case LPFMode::TRANSISTOR_24DB_DRIVE:
 		return "24dBDrive";
 
-	case LPF_MODE_SVF:
+	case LPFMode::SVF:
 		return "SVF";
 
 	default:
@@ -1151,82 +1152,82 @@ char const* lpfTypeToString(int lpfType) {
 	}
 }
 
-int stringToLPFType(char const* string) {
+LPFMode stringToLPFType(char const* string) {
 	if (!strcmp(string, "24dB")) {
-		return LPF_MODE_TRANSISTOR_24DB;
+		return LPFMode::TRANSISTOR_24DB;
 	}
 	else if (!strcmp(string, "24dBDrive")) {
-		return LPF_MODE_TRANSISTOR_24DB_DRIVE;
+		return LPFMode::TRANSISTOR_24DB_DRIVE;
 	}
 	else if (!strcmp(string, "SVF")) {
-		return LPF_MODE_SVF;
+		return LPFMode::SVF;
 	}
 	else {
-		return LPF_MODE_12DB;
+		return LPFMode::TRANSISTOR_12DB;
 	}
 }
 
-char const* inputChannelToString(int inputChannel) {
+char const* inputChannelToString(AudioInputChannel inputChannel) {
 	switch (inputChannel) {
-	case AUDIO_INPUT_CHANNEL_LEFT:
+	case AudioInputChannel::LEFT:
 		return "left";
 
-	case AUDIO_INPUT_CHANNEL_RIGHT:
+	case AudioInputChannel::RIGHT:
 		return "right";
 
-	case AUDIO_INPUT_CHANNEL_STEREO:
+	case AudioInputChannel::STEREO:
 		return "stereo";
 
-	case AUDIO_INPUT_CHANNEL_BALANCED:
+	case AudioInputChannel::BALANCED:
 		return "balanced";
 
-	case AUDIO_INPUT_CHANNEL_MIX:
+	case AudioInputChannel::MIX:
 		return "mix";
 
-	case AUDIO_INPUT_CHANNEL_OUTPUT:
+	case AudioInputChannel::OUTPUT:
 		return "output";
 
-	default: // AUDIO_INPUT_CHANNEL_NONE
+	default: // AudioInputChannel::NONE
 		return "none";
 	}
 }
 
-int stringToInputChannel(char const* string) {
+AudioInputChannel stringToInputChannel(char const* string) {
 	if (!strcmp(string, "left")) {
-		return AUDIO_INPUT_CHANNEL_LEFT;
+		return AudioInputChannel::LEFT;
 	}
 	else if (!strcmp(string, "right")) {
-		return AUDIO_INPUT_CHANNEL_RIGHT;
+		return AudioInputChannel::RIGHT;
 	}
 	else if (!strcmp(string, "stereo")) {
-		return AUDIO_INPUT_CHANNEL_STEREO;
+		return AudioInputChannel::STEREO;
 	}
 	else if (!strcmp(string, "balanced")) {
-		return AUDIO_INPUT_CHANNEL_BALANCED;
+		return AudioInputChannel::BALANCED;
 	}
 	else if (!strcmp(string, "mix")) {
-		return AUDIO_INPUT_CHANNEL_MIX;
+		return AudioInputChannel::MIX;
 	}
 	else if (!strcmp(string, "output")) {
-		return AUDIO_INPUT_CHANNEL_OUTPUT;
+		return AudioInputChannel::OUTPUT;
 	}
 	else {
-		return AUDIO_INPUT_CHANNEL_NONE;
+		return AudioInputChannel::NONE;
 	}
 }
 
-char const* sequenceDirectionModeToString(int sequenceDirectionMode) {
+char const* sequenceDirectionModeToString(SequenceDirection sequenceDirectionMode) {
 	switch (sequenceDirectionMode) {
-	case SEQUENCE_DIRECTION_FORWARD:
+	case SequenceDirection::FORWARD:
 		return "forward";
 
-	case SEQUENCE_DIRECTION_REVERSE:
+	case SequenceDirection::REVERSE:
 		return "reverse";
 
-	case SEQUENCE_DIRECTION_PINGPONG:
+	case SequenceDirection::PINGPONG:
 		return "pingpong";
 
-	case SEQUENCE_DIRECTION_OBEY_PARENT:
+	case SequenceDirection::OBEY_PARENT:
 		return "none";
 
 	default:
@@ -1235,26 +1236,26 @@ char const* sequenceDirectionModeToString(int sequenceDirectionMode) {
 	}
 }
 
-int stringToSequenceDirectionMode(char const* string) {
+SequenceDirection stringToSequenceDirectionMode(char const* string) {
 	if (!strcmp(string, "reverse")) {
-		return SEQUENCE_DIRECTION_REVERSE;
+		return SequenceDirection::REVERSE;
 	}
 	else if (!strcmp(string, "pingpong")) {
-		return SEQUENCE_DIRECTION_PINGPONG;
+		return SequenceDirection::PINGPONG;
 	}
 	else if (!strcmp(string, "obeyParent")) {
-		return SEQUENCE_DIRECTION_OBEY_PARENT;
+		return SequenceDirection::OBEY_PARENT;
 	}
 	else {
-		return SEQUENCE_DIRECTION_FORWARD;
+		return SequenceDirection::FORWARD;
 	}
 }
 
-char const* getInstrumentFolder(uint8_t instrumentType) {
-	if (instrumentType == INSTRUMENT_TYPE_SYNTH) {
+char const* getInstrumentFolder(InstrumentType instrumentType) {
+	if (instrumentType == InstrumentType::SYNTH) {
 		return "SYNTHS";
 	}
-	else if (instrumentType == INSTRUMENT_TYPE_KIT) {
+	else if (instrumentType == InstrumentType::KIT) {
 		return "KITS";
 	}
 	else {
@@ -1307,22 +1308,22 @@ int32_t getParamFromUserValue(uint8_t p, int8_t userValue) {
 	int32_t positive;
 
 	switch (p) {
-	case PARAM_STATIC_COMPRESSOR_ATTACK:
+	case Param::Static::COMPRESSOR_ATTACK:
 		return attackRateTable[userValue] * 4;
 
-	case PARAM_STATIC_COMPRESSOR_RELEASE:
+	case Param::Static::COMPRESSOR_RELEASE:
 		return releaseRateTable[userValue] * 8;
 
-	case PARAM_LOCAL_OSC_A_PHASE_WIDTH:
-	case PARAM_LOCAL_OSC_B_PHASE_WIDTH:
+	case Param::Local::OSC_A_PHASE_WIDTH:
+	case Param::Local::OSC_B_PHASE_WIDTH:
 		return (uint32_t)userValue * (85899345 >> 1);
 
-	case PARAM_STATIC_PATCH_CABLE:
-	case PARAM_STATIC_COMPRESSOR_VOLUME:
+	case Param::Static::PATCH_CABLE:
+	case Param::Static::COMPRESSOR_VOLUME:
 		return userValue * 21474836;
 
-	case PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_BASS:
-	case PARAM_UNPATCHED_SECTION + PARAM_UNPATCHED_TREBLE:
+	case Param::Unpatched::START + Param::Unpatched::BASS:
+	case Param::Unpatched::START + Param::Unpatched::TREBLE:
 		if (userValue == -50) {
 			return -2147483648;
 		}
@@ -1454,12 +1455,12 @@ void hueToRGBPastel(int32_t hue, unsigned char* rgb) {
 	}
 }
 
-uint32_t getLFOInitialPhaseForNegativeExtreme(uint8_t waveType) {
+uint32_t getLFOInitialPhaseForNegativeExtreme(LFOType waveType) {
 	switch (waveType) {
-	case LFO_TYPE_SAW:
+	case LFOType::SAW:
 		return 2147483648u;
 
-	case LFO_TYPE_SINE:
+	case LFOType::SINE:
 		return 3221225472u;
 
 	default:
@@ -1467,9 +1468,9 @@ uint32_t getLFOInitialPhaseForNegativeExtreme(uint8_t waveType) {
 	}
 }
 
-uint32_t getLFOInitialPhaseForZero(uint8_t waveType) {
+uint32_t getLFOInitialPhaseForZero(LFOType waveType) {
 	switch (waveType) {
-	case LFO_TYPE_TRIANGLE:
+	case LFOType::TRIANGLE:
 		return 1073741824;
 
 	default:
@@ -1477,9 +1478,9 @@ uint32_t getLFOInitialPhaseForZero(uint8_t waveType) {
 	}
 }
 
-uint32_t getOscInitialPhaseForZero(uint8_t waveType) {
+uint32_t getOscInitialPhaseForZero(OscType waveType) {
 	switch (waveType) {
-	case OSC_TYPE_TRIANGLE:
+	case OscType::TRIANGLE:
 		return 1073741824;
 
 	default:
@@ -2195,7 +2196,7 @@ int getWhichKernel(int32_t phaseIncrement) {
 }
 
 void dissectIterationDependence(int probability, int* getDivisor, int* getWhichIterationWithinDivisor) {
-	int value = (probability & 127) - NUM_PROBABILITY_VALUES - 1;
+	int value = (probability & 127) - kNumProbabilityValues - 1;
 	int whichRepeat;
 
 	int tryingWhichDivisor;
@@ -2217,7 +2218,7 @@ int encodeIterationDependence(int divisor, int iterationWithinDivisor) {
 	for (int i = 2; i < divisor; i++) {
 		value += i;
 	}
-	return value + 1 + NUM_PROBABILITY_VALUES;
+	return value + 1 + kNumProbabilityValues;
 }
 
 int getHowManyCharsAreTheSame(char const* a, char const* b) {
@@ -2404,5 +2405,5 @@ int fresultToDelugeErrorCode(FRESULT result) {
 	}
 }
 
-char miscStringBuffer[FILENAME_BUFFER_SIZE] __attribute__((aligned(CACHE_LINE_SIZE)));
+char miscStringBuffer[kFilenameBufferSize] __attribute__((aligned(CACHE_LINE_SIZE)));
 char shortStringBuffer[64] __attribute__((aligned(CACHE_LINE_SIZE)));

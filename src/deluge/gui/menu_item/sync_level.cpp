@@ -72,7 +72,7 @@ void SyncLevel::drawPixelsForOled() {
 		getNoteLengthName(buffer);
 	}
 	OLED::drawStringCentred(text, 20 + OLED_MAIN_TOPMOST_PIXEL, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
-	                        TEXT_BIG_SPACING_X, TEXT_BIG_SIZE_Y);
+	                        kTextBigSpacingX, kTextBigSizeY);
 }
 
 SyncType SyncLevel::menuOptionToSyncType(int option) {

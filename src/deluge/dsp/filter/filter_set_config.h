@@ -17,14 +17,14 @@
 
 #pragma once
 
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "util/fixedpoint.h"
 
 class FilterSetConfig {
 
 public:
 	FilterSetConfig();
-	q31_t init(q31_t lpfFrequency, q31_t lpfResonance, q31_t hpfFrequency, q31_t hpfResonance, uint8_t lpfMode,
+	q31_t init(q31_t lpfFrequency, q31_t lpfResonance, q31_t hpfFrequency, q31_t hpfResonance, LPFMode lpfMode,
 	           q31_t filterGain, bool adjustVolumeForHPFResonance = true, q31_t* overallOscAmplitude = NULL);
 
 	q31_t processedResonance;                            // 1 represented as 1073741824

@@ -66,7 +66,7 @@ int32_t UnpatchedParam::getFinalValue() {
 
 ParamDescriptor UnpatchedParam::getLearningThing() {
 	ParamDescriptor paramDescriptor;
-	paramDescriptor.setToHaveParamOnly(getP() + PARAM_UNPATCHED_SECTION);
+	paramDescriptor.setToHaveParamOnly(getP() + ::Param::Unpatched::START);
 	return paramDescriptor;
 }
 

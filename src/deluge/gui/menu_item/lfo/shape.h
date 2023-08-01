@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "definitions_cxx.hpp"
 #include "gui/menu_item/selection.h"
 
 namespace menu_item::lfo {
@@ -27,7 +28,7 @@ public:
 		static char const* options[] = {"Sine", "Triangle", "Square", "Saw", "S&H", "Random Walk", NULL};
 		return options;
 	}
-	int getNumOptions() { return NUM_LFO_TYPES; }
+	int getNumOptions() { return kNumLFOTypes; }
 };
 
 } // namespace menu_item::lfo

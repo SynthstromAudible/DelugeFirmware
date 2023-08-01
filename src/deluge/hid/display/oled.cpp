@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 
 #include "hid/display.h"
 #include <string.h>
@@ -40,7 +40,7 @@ extern uint8_t usbInitializationPeriodComplete;
 namespace OLED {
 
 uint8_t oledMainImage[OLED_MAIN_HEIGHT_PIXELS >> 3][OLED_MAIN_WIDTH_PIXELS];
-uint8_t oledMainConsoleImage[CONSOLE_IMAGE_NUM_ROWS][OLED_MAIN_WIDTH_PIXELS];
+uint8_t oledMainConsoleImage[kConsoleImageNumRows][OLED_MAIN_WIDTH_PIXELS];
 uint8_t oledMainPopupImage[OLED_MAIN_HEIGHT_PIXELS >> 3][OLED_MAIN_WIDTH_PIXELS];
 
 uint8_t (*oledCurrentImage)[OLED_MAIN_WIDTH_PIXELS] = oledMainImage;
@@ -476,8 +476,8 @@ void drawScreenTitle(char const* title) {
 
 	int startY = extraY + OLED_MAIN_TOPMOST_PIXEL;
 
-	OLED::drawString(title, 0, startY, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, TEXT_TITLE_SPACING_X,
-	                 TEXT_TITLE_SIZE_Y);
+	OLED::drawString(title, 0, startY, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextTitleSpacingX,
+	                 kTextTitleSizeY);
 	OLED::drawHorizontalLine(extraY + 11 + OLED_MAIN_TOPMOST_PIXEL, 0, OLED_MAIN_WIDTH_PIXELS - 1,
 	                         &OLED::oledMainImage[0]);
 }
@@ -568,7 +568,7 @@ int setupConsole(int height) {
 		consoleItems[0].maxY = consoleItems[0].minY + height;
 
 		// If that's too low, we'll have to bump the other ones up immediately
-		int howMuchTooLow = consoleItems[0].maxY - CONSOLE_IMAGE_HEIGHT + 1;
+		int howMuchTooLow = consoleItems[0].maxY - kConsoleImageHeight + 1;
 		if (howMuchTooLow > 0) {
 
 			// Move their min and max values up
@@ -789,8 +789,8 @@ void drawPermanentPopupLookingText(char const* text) {
 
 	breakStringIntoLines(text, &textLineBreakdown);
 
-	int textWidth = textLineBreakdown.longestLineLength * TEXT_SPACING_X;
-	int textHeight = textLineBreakdown.numLines * TEXT_SPACING_Y;
+	int textWidth = textLineBreakdown.longestLineLength * kTextSpacingX;
+	int textHeight = textLineBreakdown.numLines * kTextSpacingY;
 
 	int doubleMargin = 12;
 
@@ -808,10 +808,10 @@ void drawPermanentPopupLookingText(char const* text) {
 	}
 
 	for (int l = 0; l < textLineBreakdown.numLines; l++) {
-		int textPixelX = (OLED_MAIN_WIDTH_PIXELS - (TEXT_SPACING_X * textLineBreakdown.lineLengths[l])) >> 1;
+		int textPixelX = (OLED_MAIN_WIDTH_PIXELS - (kTextSpacingX * textLineBreakdown.lineLengths[l])) >> 1;
 		drawStringFixedLength(textLineBreakdown.lines[l], textLineBreakdown.lineLengths[l], textPixelX, textPixelY,
-		                      oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, TEXT_SPACING_X, TEXT_SPACING_Y);
-		textPixelY += TEXT_SPACING_Y;
+		                      oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+		textPixelY += kTextSpacingY;
 	}
 }
 
@@ -822,8 +822,8 @@ void popupText(char const* text, bool persistent) {
 
 	breakStringIntoLines(text, &textLineBreakdown);
 
-	int textWidth = textLineBreakdown.longestLineLength * TEXT_SPACING_X;
-	int textHeight = textLineBreakdown.numLines * TEXT_SPACING_Y;
+	int textWidth = textLineBreakdown.longestLineLength * kTextSpacingX;
+	int textHeight = textLineBreakdown.numLines * kTextSpacingY;
 
 	int doubleMargin = 12;
 
@@ -835,10 +835,10 @@ void popupText(char const* text, bool persistent) {
 	}
 
 	for (int l = 0; l < textLineBreakdown.numLines; l++) {
-		int textPixelX = (OLED_MAIN_WIDTH_PIXELS - (TEXT_SPACING_X * textLineBreakdown.lineLengths[l])) >> 1;
+		int textPixelX = (OLED_MAIN_WIDTH_PIXELS - (kTextSpacingX * textLineBreakdown.lineLengths[l])) >> 1;
 		drawStringFixedLength(textLineBreakdown.lines[l], textLineBreakdown.lineLengths[l], textPixelX, textPixelY,
-		                      oledMainPopupImage[0], OLED_MAIN_WIDTH_PIXELS, TEXT_SPACING_X, TEXT_SPACING_Y);
-		textPixelY += TEXT_SPACING_Y;
+		                      oledMainPopupImage[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+		textPixelY += kTextSpacingY;
 	}
 
 	sendMainImage();
@@ -922,7 +922,7 @@ union {
 void performBlink() {
 	invertArea(blinkArea.minX, blinkArea.width, blinkArea.minY, blinkArea.maxY, oledMainImage);
 	sendMainImage();
-	uiTimerManager.setTimer(TIMER_OLED_SCROLLING_AND_BLINKING, flashTime);
+	uiTimerManager.setTimer(TIMER_OLED_SCROLLING_AND_BLINKING, kFlashTime);
 }
 
 void setupBlink(int minX, int width, int minY, int maxY, bool shouldBlinkImmediately) {
@@ -933,7 +933,7 @@ void setupBlink(int minX, int width, int minY, int maxY, bool shouldBlinkImmedia
 	if (shouldBlinkImmediately) {
 		invertArea(blinkArea.minX, blinkArea.width, blinkArea.minY, blinkArea.maxY, oledMainImage);
 	}
-	uiTimerManager.setTimer(TIMER_OLED_SCROLLING_AND_BLINKING, flashTime);
+	uiTimerManager.setTimer(TIMER_OLED_SCROLLING_AND_BLINKING, kFlashTime);
 	// Caller must do a sendMainImage() at some point after calling this.
 }
 
@@ -1193,22 +1193,22 @@ checkTimeTilTimeout:
 void freezeWithError(char const* text) {
 	OLED::clearMainImage();
 	int yPixel = OLED_MAIN_TOPMOST_PIXEL;
-	OLED::drawString("Error:", 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, TEXT_SPACING_X,
-	                 TEXT_SIZE_Y_UPDATED, 0, OLED_MAIN_WIDTH_PIXELS);
-	OLED::drawString(text, TEXT_SPACING_X * 7, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, TEXT_SPACING_X,
-	                 TEXT_SIZE_Y_UPDATED, 0, OLED_MAIN_WIDTH_PIXELS);
+	OLED::drawString("Error:", 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
+	                 kTextSizeYUpdated, 0, OLED_MAIN_WIDTH_PIXELS);
+	OLED::drawString(text, kTextSpacingX * 7, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
+	                 kTextSizeYUpdated, 0, OLED_MAIN_WIDTH_PIXELS);
 
-	yPixel += TEXT_SPACING_Y;
-	OLED::drawString("Press select knob to", 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, TEXT_SPACING_X,
-	                 TEXT_SIZE_Y_UPDATED, 0, OLED_MAIN_WIDTH_PIXELS);
+	yPixel += kTextSpacingY;
+	OLED::drawString("Press select knob to", 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
+	                 kTextSizeYUpdated, 0, OLED_MAIN_WIDTH_PIXELS);
 
-	yPixel += TEXT_SPACING_Y;
-	OLED::drawString("attempt resume. Then", 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, TEXT_SPACING_X,
-	                 TEXT_SIZE_Y_UPDATED, 0, OLED_MAIN_WIDTH_PIXELS);
+	yPixel += kTextSpacingY;
+	OLED::drawString("attempt resume. Then", 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
+	                 kTextSizeYUpdated, 0, OLED_MAIN_WIDTH_PIXELS);
 
-	yPixel += TEXT_SPACING_Y;
-	OLED::drawString("save to new file.", 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, TEXT_SPACING_X,
-	                 TEXT_SIZE_Y_UPDATED, 0, OLED_MAIN_WIDTH_PIXELS);
+	yPixel += kTextSpacingY;
+	OLED::drawString("save to new file.", 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
+	                 kTextSizeYUpdated, 0, OLED_MAIN_WIDTH_PIXELS);
 
 	// Wait for existing DMA transfer to finish
 	uint16_t startTime = *TCNT[TIMER_SYSTEM_SLOW];

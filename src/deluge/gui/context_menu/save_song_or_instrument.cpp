@@ -18,6 +18,7 @@
 #include "gui/context_menu/save_song_or_instrument.h"
 #include "gui/l10n.h"
 #include "gui/l10n/strings.h"
+#include "definitions_cxx.hpp"
 #include "hid/display.h"
 #include "gui/ui/save/save_song_ui.h"
 #include "gui/context_menu/delete_file.h"
@@ -93,7 +94,7 @@ bool SaveSongOrInstrument::isCurrentOptionAvailable() {
 	}
 }
 
-int SaveSongOrInstrument::padAction(int x, int y, int on) {
+ActionResult SaveSongOrInstrument::padAction(int x, int y, int on) {
 	return getUIUpOneLevel()->padAction(x, y, on);
 }
 } // namespace deluge::gui::context_menu

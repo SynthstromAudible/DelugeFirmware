@@ -43,10 +43,10 @@ void RenameUI::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 
 	OLED::drawRectangle(windowMinX, windowMinY, windowMaxX, windowMaxY, image);
 
-	OLED::drawStringCentred(title, windowMinY + 6, image[0], OLED_MAIN_WIDTH_PIXELS, TEXT_SPACING_X, TEXT_SPACING_Y);
+	OLED::drawStringCentred(title, windowMinY + 6, image[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 
 	int maxNumChars = 12;
-	int charsWidthPixels = maxNumChars * TEXT_SPACING_X;
+	int charsWidthPixels = maxNumChars * kTextSpacingX;
 	int charsStartPixel = (OLED_MAIN_WIDTH_PIXELS - charsWidthPixels) >> 1;
 	int boxStartPixel = charsStartPixel - 3;
 

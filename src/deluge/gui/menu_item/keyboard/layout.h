@@ -15,16 +15,18 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "definitions_cxx.hpp"
 #include "storage/flash_storage.h"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
+#include "util/misc.h"
 
 namespace menu_item::keyboard {
 class Layout final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() { soundEditor.currentValue = FlashStorage::keyboardLayout; }
-	void writeCurrentValue() { FlashStorage::keyboardLayout = soundEditor.currentValue; }
+	void readCurrentValue() { soundEditor.currentValue = util::to_underlying(FlashStorage::keyboardLayout); }
+	void writeCurrentValue() { FlashStorage::keyboardLayout = static_cast<KeyboardLayout>(soundEditor.currentValue); }
 	char const** getOptions() {
 		static char const* options[] = {"QWERTY",                      // QWERTY
 		                                "AZERTY",                      // AZERTY
@@ -32,6 +34,6 @@ public:
 		                                nullptr};                      // Null-term
 		return options;
 	}
-	int getNumOptions() { return NUM_KEYBOARD_LAYOUTS; }
+	int getNumOptions() { return kNumKeyboardLayouts; }
 };
 } // namespace menu_item::keyboard

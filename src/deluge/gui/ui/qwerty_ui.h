@@ -24,11 +24,11 @@
 class QwertyUI : public UI {
 public:
 	QwertyUI();
-	int padAction(int x, int y, int velocity);
-	int horizontalEncoderAction(int offset);
-	int timerCallback();
-	bool renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3] = NULL,
-	                    uint8_t occupancyMask[][displayWidth + sideBarWidth] = NULL, bool drawUndefinedArea = true) {
+	ActionResult padAction(int x, int y, int velocity);
+	ActionResult horizontalEncoderAction(int offset);
+	ActionResult timerCallback();
+	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3] = NULL,
+	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL, bool drawUndefinedArea = true) {
 		return true;
 	}
 

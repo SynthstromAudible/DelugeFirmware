@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "definitions_cxx.hpp"
 #include "gui/context_menu/save_song_or_instrument.h"
 #include "gui/ui/save/save_ui.h"
 #include "hid/matrix/matrix_driver.h"
@@ -97,7 +98,7 @@ void SaveUI::enterKeyPress() {
 	}
 }
 
-int SaveUI::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+ActionResult SaveUI::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
 	FileItem* currentFileItem = getCurrentFileItem();
@@ -114,10 +115,10 @@ int SaveUI::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		return SlotBrowser::buttonAction(b, on, inCardRoutine);
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
-int SaveUI::timerCallback() {
+ActionResult SaveUI::timerCallback() {
 	if (currentUIMode == UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS) {
 		convertToPrefixFormatIfPossible();
 
@@ -132,7 +133,7 @@ int SaveUI::timerCallback() {
 			exitUIMode(UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS);
 		}
 
-		return ACTION_RESULT_DEALT_WITH;
+		return ActionResult::DEALT_WITH;
 	}
 	else {
 		return SlotBrowser::timerCallback();
