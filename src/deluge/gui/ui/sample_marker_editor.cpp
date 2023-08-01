@@ -429,6 +429,21 @@ ensureNotPastSampleLength:
 
 						goto ensureNotPastSampleLength;
 					}
+					else if (markerHeld == MarkerType::LOOP_START && markerPressed == MarkerType::LOOP_END) {
+						if (loopLocked == false) {
+							loopLocked = true;
+							int loopStart = getCurrentMultisampleRange()->sampleHolder.loopStartPos;
+							int loopEnd = getCurrentMultisampleRange()->sampleHolder.loopEndPos;
+							loopLength = loopEnd - loopStart;
+							numericDriver.displayPopup("LOCK");
+						}
+						else {
+							loopLocked = false;
+							loopLength = 0;
+							numericDriver.displayPopup("FREE");
+						}
+						return ActionResult::DEALT_WITH;
+					}
 
 					// Or if a loop point and they pressed the end marker, remove the loop point
 					else if (markerHeld == MarkerType::LOOP_START) {
