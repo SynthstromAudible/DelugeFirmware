@@ -25,8 +25,7 @@ class Transpose : public Decimal, public PatchedParam {
 public:
 	Transpose(const string& newName, int newP = 0) : Decimal(newName), PatchedParam(newP) {}
 
-	Transpose(const string& newName, const string& title, int newP = 0)
-	    : Decimal(newName, title), PatchedParam(newP) {}
+	Transpose(const string& newName, const string& title, int newP = 0) : Decimal(newName, title), PatchedParam(newP) {}
 
 	MenuItem* selectButtonPress() final { return PatchedParam::selectButtonPress(); }
 	[[nodiscard]] int getMinValue() const final { return -9600; }

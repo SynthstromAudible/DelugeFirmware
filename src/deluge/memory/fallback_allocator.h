@@ -27,9 +27,7 @@ public:
 		return static_cast<T*>(delugeAlloc(n * sizeof(T)));
 	}
 
-	void deallocate(T* p, std::size_t n) {
-		delugeDealloc(p);
-	}
+	void deallocate(T* p, std::size_t n) { delugeDealloc(p); }
 
 	template <typename U>
 	bool operator==(const deluge::memory::fallback_allocator<U>& o) {
