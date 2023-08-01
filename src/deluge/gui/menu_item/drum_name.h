@@ -25,6 +25,6 @@ class DrumName final : public MenuItem {
 public:
 	using MenuItem::MenuItem;
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
-	bool isRelevant(Sound* sound, int whichThing) override;
+	bool isRelevant(Sound* sound, int32_t whichThing) override;
 };
 } // namespace deluge::gui::menu_item

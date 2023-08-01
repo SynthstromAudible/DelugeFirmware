@@ -23,7 +23,7 @@ template <size_t n>
 class Filter final : public Submenu<n> {
 public:
 	using Submenu<n>::Submenu;
-	bool isRelevant(Sound* sound, int whichThing) override { return (sound->synthMode != SynthMode::FM); }
+	bool isRelevant(Sound* sound, int32_t whichThing) override { return (sound->synthMode != SynthMode::FM); }
 };
 
 // Template deduction guide, will not be required with P2582@C++23

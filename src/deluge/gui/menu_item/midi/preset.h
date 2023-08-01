@@ -29,10 +29,10 @@ class Preset : public Integer {
 public:
 	using Integer::Integer;
 
-	[[nodiscard]] int getMaxValue() const override { return 128; } // Probably not needed cos we override below...
+	[[nodiscard]] int32_t getMaxValue() const override { return 128; } // Probably not needed cos we override below...
 
 #if HAVE_OLED
-	void drawInteger(int textWidth, int textHeight, int yPixel) {
+	void drawInteger(int32_t textWidth, int32_t textHeight, int32_t yPixel) {
 		char buffer[12];
 		char const* text;
 		if (this->value_ == 128) {
@@ -55,11 +55,11 @@ public:
 		}
 	}
 #endif
-	bool isRelevant(Sound* sound, int whichThing) override {
+	bool isRelevant(Sound* sound, int32_t whichThing) override {
 		return currentSong->currentClip->output->type == InstrumentType::MIDI_OUT;
 	}
 
-	void selectEncoderAction(int offset) override {
+	void selectEncoderAction(int32_t offset) override {
 		this->value_ += offset;
 		if (this->value_ >= 129) {
 			this->value_ -= 129;

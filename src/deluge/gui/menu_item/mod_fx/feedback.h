@@ -23,7 +23,7 @@ namespace deluge::gui::menu_item::mod_fx {
 class Feedback final : public UnpatchedParam {
 public:
 	using UnpatchedParam::UnpatchedParam;
-	bool isRelevant(Sound* sound, int whichThing) {
+	bool isRelevant(Sound* sound, int32_t whichThing) {
 		// TODO: really want to receive a ModControllableAudio here!
 		return (!sound || util::one_of(sound->modFXType, {ModFXType::FLANGER, ModFXType::PHASER}));
 	}

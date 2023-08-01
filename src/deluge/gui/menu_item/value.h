@@ -22,12 +22,12 @@
 #include "menu_item.h"
 
 namespace deluge::gui::menu_item {
-template <typename T = int>
+template <typename T = int32_t>
 class Value : public MenuItem {
 public:
 	using MenuItem::MenuItem;
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
-	void selectEncoderAction(int offset) override;
+	void selectEncoderAction(int32_t offset) override;
 	void readValueAgain() override;
 	bool selectEncoderActionEditsInstrument() final { return true; }
 
@@ -50,7 +50,7 @@ void Value<T>::beginSession(MenuItem* navigatedBackwardFrom) {
 }
 
 template <typename T>
-void Value<T>::selectEncoderAction(int offset) {
+void Value<T>::selectEncoderAction(int32_t offset) {
 	writeCurrentValue();
 
 	// For MenuItems referring to an AutoParam (so UnpatchedParam and PatchedParam), ideally we wouldn't want to render the display here, because that'll happen soon anyway due to a setting of TIMER_DISPLAY_AUTOMATION.

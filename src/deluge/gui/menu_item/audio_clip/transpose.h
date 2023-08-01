@@ -30,11 +30,11 @@ public:
 		               + (static_cast<AudioClip*>(currentSong->currentClip))->sampleHolder.cents;
 	}
 	void writeCurrentValue() override {
-		int currentValue = this->value_ + 25600;
+		int32_t currentValue = this->value_ + 25600;
 
-		int semitones = (currentValue + 50) / 100;
-		int cents = currentValue - semitones * 100;
-		int transpose = semitones - 256;
+		int32_t semitones = (currentValue + 50) / 100;
+		int32_t cents = currentValue - semitones * 100;
+		int32_t transpose = semitones - 256;
 
 		auto& sampleHolder = (static_cast<AudioClip*>(currentSong->currentClip))->sampleHolder;
 		sampleHolder.transpose = transpose;
@@ -42,13 +42,13 @@ public:
 		sampleHolder.recalculateNeutralPhaseIncrement();
 	}
 
-	[[nodiscard]] int getMinValue() const override { return -9600; }
-	[[nodiscard]] int getMaxValue() const override { return 9600; }
-	[[nodiscard]] int getNumDecimalPlaces() const override { return 2; }
+	[[nodiscard]] int32_t getMinValue() const override { return -9600; }
+	[[nodiscard]] int32_t getMaxValue() const override { return 9600; }
+	[[nodiscard]] int32_t getNumDecimalPlaces() const override { return 2; }
 
 	void unlearnAction() override { MenuItemWithCCLearning::unlearnAction(); }
 	bool allowsLearnMode() override { return MenuItemWithCCLearning::allowsLearnMode(); }
-	void learnKnob(MIDIDevice* fromDevice, int whichKnob, int modKnobMode, int midiChannel) override {
+	void learnKnob(MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) override {
 		MenuItemWithCCLearning::learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel);
 	};
 

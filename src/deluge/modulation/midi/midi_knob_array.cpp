@@ -22,8 +22,8 @@
 MidiKnobArray::MidiKnobArray() : ResizeableArray(sizeof(MIDIKnob)) {
 }
 
-MIDIKnob* MidiKnobArray::insertKnob(int i) {
-	int error = insertAtIndex(i);
+MIDIKnob* MidiKnobArray::insertKnob(int32_t i) {
+	int32_t error = insertAtIndex(i);
 	if (error) {
 		return NULL;
 	}
@@ -38,6 +38,6 @@ MIDIKnob* MidiKnobArray::insertKnobAtEnd() {
 	return insertKnob(getNumElements());
 }
 
-MIDIKnob* MidiKnobArray::getElement(int i) {
+MIDIKnob* MidiKnobArray::getElement(int32_t i) {
 	return (MIDIKnob*)getElementAddress(i);
 }

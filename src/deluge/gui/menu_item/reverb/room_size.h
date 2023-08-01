@@ -27,6 +27,6 @@ public:
 	using Integer::Integer;
 	void readCurrentValue() override { this->value_ = std::round(AudioEngine::reverb.getroomsize() * 50); }
 	void writeCurrentValue() override { AudioEngine::reverb.setroomsize((float)this->value_ / 50); }
-	[[nodiscard]] int getMaxValue() const override { return 50; }
+	[[nodiscard]] int32_t getMaxValue() const override { return 50; }
 };
 } // namespace deluge::gui::menu_item::reverb

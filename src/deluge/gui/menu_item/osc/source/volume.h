@@ -23,11 +23,11 @@ namespace deluge::gui::menu_item::osc::source {
 
 class Volume final : public menu_item::source::PatchedParam, public FormattedTitle {
 public:
-	Volume(const string& name, const string& title_format_str, int newP)
+	Volume(const string& name, const string& title_format_str, int32_t newP)
 	    : PatchedParam(name, newP), FormattedTitle(title_format_str) {}
 
 	[[nodiscard]] const string& getTitle() const override { return FormattedTitle::title(); }
 
-	bool isRelevant(Sound* sound, int whichThing) override { return (sound->getSynthMode() != SynthMode::RINGMOD); }
+	bool isRelevant(Sound* sound, int32_t whichThing) override { return (sound->getSynthMode() != SynthMode::RINGMOD); }
 };
 } // namespace deluge::gui::menu_item::osc::source

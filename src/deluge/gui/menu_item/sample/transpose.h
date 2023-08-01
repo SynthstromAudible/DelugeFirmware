@@ -23,14 +23,14 @@
 namespace deluge::gui::menu_item::sample {
 class Transpose final : public source::Transpose, public FormattedTitle {
 public:
-	Transpose(const string& name, const string& title_format_str, int newP)
+	Transpose(const string& name, const string& title_format_str, int32_t newP)
 	    : source::Transpose(name, newP), FormattedTitle(title_format_str) {}
 
 	[[nodiscard]] const string& getTitle() const override { return FormattedTitle::title(); }
 
 	void readCurrentValue() override {
-		int transpose = 0;
-		int cents = 0;
+		int32_t transpose = 0;
+		int32_t cents = 0;
 		if ((soundEditor.currentMultiRange != nullptr) && soundEditor.currentSound->getSynthMode() != SynthMode::FM
 		    && soundEditor.currentSource->oscType == OscType::SAMPLE) {
 			transpose = (static_cast<MultisampleRange*>(soundEditor.currentMultiRange))->sampleHolder.transpose;
@@ -44,12 +44,12 @@ public:
 	}
 
 	void writeCurrentValue() override {
-		int currentValue = this->value_ + 25600;
+		int32_t currentValue = this->value_ + 25600;
 
-		int semitones = (currentValue + 50) / 100;
-		int cents = currentValue - semitones * 100;
+		int32_t semitones = (currentValue + 50) / 100;
+		int32_t cents = currentValue - semitones * 100;
 
-		int transpose = semitones - 256;
+		int32_t transpose = semitones - 256;
 		if ((soundEditor.currentMultiRange != nullptr) && soundEditor.currentSound->getSynthMode() != SynthMode::FM
 		    && soundEditor.currentSource->oscType == OscType::SAMPLE) {
 			(static_cast<MultisampleRange*>(soundEditor.currentMultiRange))->sampleHolder.transpose = transpose;
@@ -66,7 +66,7 @@ public:
 		soundEditor.currentSound->recalculateAllVoicePhaseIncrements(modelStack);
 	}
 
-	MenuPermission checkPermissionToBeginSession(Sound* sound, int whichThing, ::MultiRange** currentRange) override {
+	MenuPermission checkPermissionToBeginSession(Sound* sound, int32_t whichThing, ::MultiRange** currentRange) override {
 
 		if (!isRelevant(sound, whichThing)) {
 			return MenuPermission::NO;

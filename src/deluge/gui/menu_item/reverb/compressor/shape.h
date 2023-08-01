@@ -32,7 +32,7 @@ public:
 		AudioEngine::reverbCompressorShape = (uint32_t)this->value_ * 85899345 - 2147483648;
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}
-	[[nodiscard]] int getMaxValue() const override { return 50; }
-	bool isRelevant(Sound* sound, int whichThing) override { return (AudioEngine::reverbCompressorVolume >= 0); }
+	[[nodiscard]] int32_t getMaxValue() const override { return 50; }
+	bool isRelevant(Sound* sound, int32_t whichThing) override { return (AudioEngine::reverbCompressorVolume >= 0); }
 };
 } // namespace deluge::gui::menu_item::reverb::compressor

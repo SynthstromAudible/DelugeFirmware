@@ -45,7 +45,7 @@ public:
 		return options_;
 	}
 
-	void updateOptions(int value) {
+	void updateOptions(int32_t value) {
 		switch (value) {
 		case WHICH_GATE_OUTPUT_IS_CLOCK:
 			options_[2] = "Clock";

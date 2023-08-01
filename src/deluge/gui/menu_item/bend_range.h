@@ -21,6 +21,6 @@ namespace deluge::gui::menu_item {
 class BendRange : public Integer {
 public:
 	using Integer::Integer;
-	[[nodiscard]] int getMaxValue() const override { return 96; }
+	[[nodiscard]] int32_t getMaxValue() const override { return 96; }
 };
 } // namespace deluge::gui::menu_item

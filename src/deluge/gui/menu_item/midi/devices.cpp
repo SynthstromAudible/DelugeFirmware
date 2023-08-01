@@ -27,7 +27,7 @@ extern deluge::gui::menu_item::Submenu<2> midiDeviceMenu;
 
 namespace deluge::gui::menu_item::midi {
 
-static const int lowestDeviceNum = -3;
+static const int32_t lowestDeviceNum = -3;
 
 void Devices::beginSession(MenuItem* navigatedBackwardFrom) {
 	if (navigatedBackwardFrom != nullptr) {
@@ -50,9 +50,9 @@ decidedDevice:
 #endif
 }
 
-void Devices::selectEncoderAction(int offset) {
+void Devices::selectEncoderAction(int32_t offset) {
 	do {
-		int newValue = this->value_ + offset;
+		int32_t newValue = this->value_ + offset;
 
 		if (newValue >= MIDIDeviceManager::hostedMIDIDevices.getNumElements()) {
 			if (HAVE_OLED) {
@@ -80,8 +80,8 @@ void Devices::selectEncoderAction(int offset) {
 	}
 
 	if (offset >= 0) {
-		int d = this->value_;
-		int numSeen = 1;
+		int32_t d = this->value_;
+		int32_t numSeen = 1;
 		while (true) {
 			d--;
 			if (d == soundEditor.menuCurrentScroll) {
@@ -102,7 +102,7 @@ void Devices::selectEncoderAction(int offset) {
 	drawValue();
 }
 
-MIDIDevice* Devices::getDevice(int deviceIndex) {
+MIDIDevice* Devices::getDevice(int32_t deviceIndex) {
 	switch (deviceIndex) {
 	case -3: {
 		return &MIDIDeviceManager::dinMIDIPorts;
@@ -141,16 +141,16 @@ MenuItem* Devices::selectButtonPress() {
 void Devices::drawPixelsForOled() {
 	static_vector<string, kOLEDMenuNumOptionsVisible> itemNames = {};
 
-	int selectedRow = -1;
+	int32_t selectedRow = -1;
 
-	int device_idx = soundEditor.menuCurrentScroll;
+	int32_t device_idx = soundEditor.menuCurrentScroll;
 	size_t row = 0;
 	while (row < kOLEDMenuNumOptionsVisible && device_idx < MIDIDeviceManager::hostedMIDIDevices.getNumElements()) {
 		MIDIDevice* device = getDevice(device_idx);
 		if (device->connectionFlags != 0u) {
 			itemNames[row] = device->getDisplayName();
 			if (device_idx == this->value_) {
-				selectedRow = static_cast<int>(row);
+				selectedRow = static_cast<int32_t>(row);
 			}
 			row++;
 		}

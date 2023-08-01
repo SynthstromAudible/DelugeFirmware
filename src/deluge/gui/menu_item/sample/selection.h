@@ -23,7 +23,7 @@ template <size_t n>
 class Selection : public menu_item::Selection<n> {
 public:
 	using menu_item::Selection<n>::Selection;
-	bool isRelevant(Sound* sound, int whichThing) override {
+	bool isRelevant(Sound* sound, int32_t whichThing) override {
 		if (sound == nullptr) {
 			return true; // For AudioClips
 		}

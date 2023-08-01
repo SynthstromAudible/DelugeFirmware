@@ -26,7 +26,7 @@ public:
 	SampleMarkerEditor(char const* newName = nullptr, MarkerType newWhichMarker = MarkerType::START)
 	    : MenuItem(newName), whichMarker(newWhichMarker) {}
 
-	virtual MenuPermission checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange);
+	virtual MenuPermission checkPermissionToBeginSession(Sound* sound, int32_t whichThing, MultiRange** currentRange);
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
 
 	MarkerType whichMarker;

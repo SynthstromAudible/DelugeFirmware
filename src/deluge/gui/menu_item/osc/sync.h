@@ -26,7 +26,7 @@ public:
 	using Toggle::Toggle;
 	void readCurrentValue() override { this->value_ = soundEditor.currentSound->oscillatorSync; }
 	void writeCurrentValue() override { soundEditor.currentSound->oscillatorSync = this->value_; }
-	bool isRelevant(Sound* sound, int whichThing) override {
+	bool isRelevant(Sound* sound, int32_t whichThing) override {
 		return (whichThing == 1 && sound->synthMode != SynthMode::FM && sound->sources[0].oscType != OscType::SAMPLE
 		        && sound->sources[1].oscType != OscType::SAMPLE);
 	}

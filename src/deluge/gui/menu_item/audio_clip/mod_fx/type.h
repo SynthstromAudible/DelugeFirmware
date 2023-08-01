@@ -25,9 +25,9 @@ public:
 	using menu_item::mod_fx::Type::Type;
 
 	// We override this to set min value to 1. We don't inherit any getMinValue() function to override more easily
-	void selectEncoderAction(int offset) override {
+	void selectEncoderAction(int32_t offset) override {
 		auto current = util::to_underlying(this->value_) + offset;
-		int numOptions = getOptions().size();
+		int32_t numOptions = getOptions().size();
 
 		if (current >= numOptions) {
 			current -= (numOptions - 1);

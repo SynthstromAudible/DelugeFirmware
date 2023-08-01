@@ -35,7 +35,7 @@ void IntegerRange::beginSession(MenuItem* navigatedBackwardFrom) {
 #endif
 }
 
-void IntegerRange::selectEncoderAction(int offset) {
+void IntegerRange::selectEncoderAction(int32_t offset) {
 
 	// If editing the range
 	if (soundEditor.editingRangeEdge != RangeEdit::OFF) {
@@ -110,11 +110,11 @@ justDrawOneNumber:
 	}
 }
 
-void IntegerRange::getText(char* buffer, int* getLeftLength, int* getRightLength, bool mayShowJustOne) {
+void IntegerRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRightLength, bool mayShowJustOne) {
 
 	intToString(lower, buffer);
 
-	int leftLength = strlen(buffer);
+	int32_t leftLength = strlen(buffer);
 	if (getLeftLength) {
 		*getLeftLength = leftLength;
 	}
@@ -138,7 +138,7 @@ void IntegerRange::getText(char* buffer, int* getLeftLength, int* getRightLength
 }
 
 // Call seedRandom() before you call this
-int IntegerRange::getRandomValueInRange() {
+int32_t IntegerRange::getRandomValueInRange() {
 	if (lower == upper) {
 		return lower;
 	}

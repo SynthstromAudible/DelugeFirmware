@@ -75,11 +75,11 @@ void revmodel::mute() {
 		return;
 	}
 
-	for (int i = 0; i < numcombs; i++) {
+	for (int32_t i = 0; i < numcombs; i++) {
 		combL[i].mute();
 		combR[i].mute();
 	}
-	for (int i = 0; i < numallpasses; i++) {
+	for (int32_t i = 0; i < numallpasses; i++) {
 		allpassL[i].mute();
 		allpassR[i].mute();
 	}
@@ -88,7 +88,7 @@ void revmodel::mute() {
 void revmodel::update() {
 	// Recalculate internal values after parameter change
 
-	int i;
+	int32_t i;
 
 	wet1 = wet * (width / 2 + 0.5f);
 	wet2 = (((float)1 - width) / 2) / (width / 2 + 0.5f) * 2147483648u;

@@ -31,12 +31,12 @@ public:
 	    : MenuItem(newName), commandNumber(newCommandNumber) {}
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
 	void drawValue() const;
-	void selectEncoderAction(int offset) override;
+	void selectEncoderAction(int32_t offset) override;
 	bool allowsLearnMode() override { return true; }
 	bool shouldBlinkLearnLed() override { return true; }
 	void unlearnAction() override;
-	bool learnNoteOn(MIDIDevice* device, int channel, int noteCode) override;
-	void learnCC(MIDIDevice* device, int channel, int ccNumber, int value) override;
+	bool learnNoteOn(MIDIDevice* device, int32_t channel, int32_t noteCode) override;
+	void learnCC(MIDIDevice* device, int32_t channel, int32_t ccNumber, int32_t value) override;
 #if HAVE_OLED
 	void drawPixelsForOled();
 #endif

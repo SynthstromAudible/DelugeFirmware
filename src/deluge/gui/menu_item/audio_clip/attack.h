@@ -33,6 +33,6 @@ public:
 	void writeCurrentValue() override {
 		(static_cast<AudioClip*>(currentSong->currentClip))->attack = (uint32_t)this->value_ * 85899345 - 2147483648;
 	}
-	[[nodiscard]] int getMaxValue() const override { return 50; }
+	[[nodiscard]] int32_t getMaxValue() const override { return 50; }
 };
 } // namespace deluge::gui::menu_item::audio_clip

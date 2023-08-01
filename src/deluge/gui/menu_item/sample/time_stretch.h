@@ -57,9 +57,9 @@ public:
 			soundEditor.currentSource->timeStretchAmount = this->value_;
 		}
 	}
-	[[nodiscard]] int getMinValue() const override { return -48; }
-	[[nodiscard]] int getMaxValue() const override { return 48; }
-	bool isRelevant(Sound* sound, int whichThing) override {
+	[[nodiscard]] int32_t getMinValue() const override { return -48; }
+	[[nodiscard]] int32_t getMaxValue() const override { return 48; }
+	bool isRelevant(Sound* sound, int32_t whichThing) override {
 		Source* source = &sound->sources[whichThing];
 		return (sound->getSynthMode() == SynthMode::SUBTRACTIVE && source->oscType == OscType::SAMPLE);
 	}

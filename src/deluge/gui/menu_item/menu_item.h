@@ -17,15 +17,16 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
 #include "definitions_cxx.hpp"
 #include "util/container/static_vector.hpp"
 #include "util/sized.h"
 #include "util/string.h"
+#include <cstdint>
 
 #if HAVE_OLED
 #include "hid/display/oled.h"
 #endif
+
 
 enum class MenuPermission {
 	NO,
@@ -48,12 +49,12 @@ public:
 	deluge::string name; // As viewed in a menu list. For OLED, up to 20 chars.
 	[[nodiscard]] virtual const deluge::string& getName() const { return name; }
 
-	virtual void horizontalEncoderAction(int offset) {}
-	virtual void selectEncoderAction(int offset) {}
+	virtual void horizontalEncoderAction(int32_t offset) {}
+	virtual void selectEncoderAction(int32_t offset) {}
 	virtual void beginSession(MenuItem* navigatedBackwardFrom = nullptr){};
-	virtual bool isRelevant(Sound* sound, int whichThing) { return true; }
+	virtual bool isRelevant(Sound* sound, int32_t whichThing) { return true; }
 	virtual MenuItem* selectButtonPress() { return nullptr; }
-	virtual MenuPermission checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange);
+	virtual MenuPermission checkPermissionToBeginSession(Sound* sound, int32_t whichThing, MultiRange** currentRange);
 	virtual void readValueAgain() {}
 	virtual bool selectEncoderActionEditsInstrument() { return false; }
 	virtual uint8_t getPatchedParamIndex() { return 255; }
@@ -67,11 +68,11 @@ public:
 
 	virtual void unlearnAction() {}
 	virtual bool allowsLearnMode() { return false; }
-	virtual void learnKnob(MIDIDevice* fromDevice, int whichKnob, int modKnobMode, int midiChannel) {}
-	virtual bool learnNoteOn(MIDIDevice* fromDevice, int channel, int noteCode) {
+	virtual void learnKnob(MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) {}
+	virtual bool learnNoteOn(MIDIDevice* fromDevice, int32_t channel, int32_t noteCode) {
 		return false;
 	} // Returns whether it was used, I think?
-	virtual void learnCC(MIDIDevice* fromDevice, int channel, int ccNumber, int value);
+	virtual void learnCC(MIDIDevice* fromDevice, int32_t channel, int32_t ccNumber, int32_t value);
 	virtual bool shouldBlinkLearnLed() { return false; }
 	virtual bool isRangeDependent() { return false; }
 	virtual bool usesAffectEntire() { return false; }
@@ -87,7 +88,7 @@ public:
 	}
 
 	template <size_t n>
-	static void drawItemsForOled(deluge::static_vector<deluge::string, n>& options, int selectedOption, int offset = 0);
+	static void drawItemsForOled(deluge::static_vector<deluge::string, n>& options, int32_t selectedOption, int32_t offset = 0);
 #else
 	/// Get the title to be used when rendering on OLED. If not overriden, defaults to returning `title`.
 	virtual void drawName();
@@ -97,14 +98,14 @@ public:
 #if HAVE_OLED
 // A couple of our child classes call this - that's all
 template <size_t n>
-void MenuItem::drawItemsForOled(deluge::static_vector<deluge::string, n>& options, const int selectedOption,
-                                const int offset) {
-	int baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
+void MenuItem::drawItemsForOled(deluge::static_vector<deluge::string, n>& options, const int32_t selectedOption,
+                                const int32_t offset) {
+	int32_t baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
 	baseY += OLED_MAIN_TOPMOST_PIXEL;
 
 	auto* it = std::next(options.begin(), offset); // fast-forward to the first option visible
-	for (int o = 0; o < OLED_HEIGHT_CHARS - 1 && o < options.size() - offset; o++) {
-		int yPixel = o * kTextSpacingY + baseY;
+	for (int32_t o = 0; o < OLED_HEIGHT_CHARS - 1 && o < options.size() - offset; o++) {
+		int32_t yPixel = o * kTextSpacingY + baseY;
 
 		OLED::drawString(options[o + offset].c_str(), kTextSpacingX, yPixel, OLED::oledMainImage[0],
 		                 OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);

@@ -25,7 +25,7 @@ class Depth final : public patched_param::Integer {
 public:
 	using patched_param::Integer::Integer;
 
-	bool isRelevant(Sound* sound, int whichThing) {
+	bool isRelevant(Sound* sound, int32_t whichThing) {
 		return util::one_of(sound->modFXType, {ModFXType::CHORUS, ModFXType::CHORUS_STEREO, ModFXType::PHASER});
 	}
 };

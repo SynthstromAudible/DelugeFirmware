@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
+#include <cstdint>
 #include <array>
 
 extern const uint16_t centAdjustTableSmall[];

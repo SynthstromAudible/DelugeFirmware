@@ -31,7 +31,7 @@ public:
 	void beginSession(MenuItem* navigatedBackwardFrom);
 #endif
 */
-	[[nodiscard]] int getMaxValue() const override;
+	[[nodiscard]] int32_t getMaxValue() const override;
 	void readCurrentValue() override;
 	void writeCurrentValue() override;
 	//char nameChars[16];

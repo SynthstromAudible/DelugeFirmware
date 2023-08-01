@@ -41,7 +41,7 @@ considerEnvelopeStage:
 		}
 		//lastValue = pos << 8;
 		lastValue = 2147483647 - getDecay4(pos, 23); // Makes curved attack
-		lastValue = getMax(lastValue, (int32_t)1);
+		lastValue = std::max(lastValue, (int32_t)1);
 		break;
 
 	case EnvelopeStage::DECAY:

@@ -23,12 +23,12 @@ class MIDIDevice;
 
 namespace deluge::gui::menu_item::midi {
 
-class Devices final : public Value<int> {
+class Devices final : public Value<int32_t> {
 public:
 	using Value::Value;
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
-	void selectEncoderAction(int offset) override;
-	MIDIDevice* getDevice(int deviceIndex);
+	void selectEncoderAction(int32_t offset) override;
+	MIDIDevice* getDevice(int32_t deviceIndex);
 	virtual void drawValue();
 	MenuItem* selectButtonPress() override;
 	void drawPixelsForOled();

@@ -27,22 +27,22 @@ enum KeyboardLayoutType : uint32_t {
 	MaxElement // Keep as boundary
 };
 
-constexpr int kDefaultIsometricRowInterval = 5;
+constexpr int32_t kDefaultIsometricRowInterval = 5;
 struct KeyboardStateIsomorphic {
-	int scrollOffset = (60 - (kDisplayHeight >> 2) * kDefaultIsometricRowInterval);
-	int rowInterval = kDefaultIsometricRowInterval;
+	int32_t scrollOffset = (60 - (kDisplayHeight >> 2) * kDefaultIsometricRowInterval);
+	int32_t rowInterval = kDefaultIsometricRowInterval;
 };
 
 struct KeyboardStateDrums {
-	int scrollOffset = 0;
-	int edgeSize = 4;
+	int32_t scrollOffset = 0;
+	int32_t edgeSize = 4;
 };
 
-constexpr int kDefaultInKeyRowInterval = 3;
+constexpr int32_t kDefaultInKeyRowInterval = 3;
 struct KeyboardStateInKey {
 	// Default scales have 7 elements, multipled by three octaves gives us C1 as first pad
-	int scrollOffset = (7 * 3);
-	int rowInterval = kDefaultInKeyRowInterval;
+	int32_t scrollOffset = (7 * 3);
+	int32_t rowInterval = kDefaultInKeyRowInterval;
 };
 
 /// Please note that saving and restoring currently needs to be added manually in instrument_clip.cpp and all layouts share one struct for storage

@@ -24,8 +24,8 @@ namespace deluge::gui::menu_item::defaults {
 class Velocity final : public Integer {
 public:
 	using Integer::Integer;
-	[[nodiscard]] int getMinValue() const override { return 1; }
-	[[nodiscard]] int getMaxValue() const override { return 127; }
+	[[nodiscard]] int32_t getMinValue() const override { return 1; }
+	[[nodiscard]] int32_t getMaxValue() const override { return 127; }
 	void readCurrentValue() override { this->value_ = FlashStorage::defaultVelocity; }
 	void writeCurrentValue() override {
 		FlashStorage::defaultVelocity = this->value_;

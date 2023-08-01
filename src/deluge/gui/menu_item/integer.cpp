@@ -30,14 +30,14 @@ extern "C" {
 
 namespace deluge::gui::menu_item {
 
-void Integer::selectEncoderAction(int offset) {
+void Integer::selectEncoderAction(int32_t offset) {
 	this->value_ += offset;
-	int maxValue = getMaxValue();
+	int32_t maxValue = getMaxValue();
 	if (this->value_ > maxValue) {
 		this->value_ = maxValue;
 	}
 	else {
-		int minValue = getMinValue();
+		int32_t minValue = getMinValue();
 		if (this->value_ < minValue) {
 			this->value_ = minValue;
 		}
@@ -62,7 +62,7 @@ void IntegerWithOff::drawValue() {
 #endif
 
 #if HAVE_OLED
-void Integer::drawInteger(int textWidth, int textHeight, int yPixel) {
+void Integer::drawInteger(int32_t textWidth, int32_t textHeight, int32_t yPixel) {
 	char buffer[12];
 	intToString(this->value_, buffer, 1);
 	OLED::drawStringCentred(buffer, yPixel + OLED_MAIN_TOPMOST_PIXEL, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,

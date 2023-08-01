@@ -25,7 +25,7 @@ namespace deluge::gui::menu_item::osc {
 class PulseWidth final : public menu_item::source::PatchedParam, public FormattedTitle {
 public:
 	using menu_item::source::PatchedParam::PatchedParam;
-	PulseWidth(const string& name, const string& title_format_str, int newP)
+	PulseWidth(const string& name, const string& title_format_str, int32_t newP)
 	    : source::PatchedParam(name, newP), FormattedTitle(title_format_str) {}
 
 	[[nodiscard]] const string& getTitle() const override { return FormattedTitle::title(); }
@@ -37,7 +37,7 @@ public:
 		    ((int64_t)soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP()) * 100 + 2147483648) >> 32;
 	}
 
-	bool isRelevant(Sound* sound, int whichThing) override {
+	bool isRelevant(Sound* sound, int32_t whichThing) override {
 		if (sound->getSynthMode() == SynthMode::FM) {
 			return false;
 		}

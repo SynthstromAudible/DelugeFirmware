@@ -23,15 +23,15 @@ namespace deluge::gui::menu_item {
 
 class IntegerRange final : public Range {
 public:
-	IntegerRange(const string& newName, const string& title, int newMin, int newMax)
+	IntegerRange(const string& newName, const string& title, int32_t newMin, int32_t newMax)
 	    : Range(newName, title), minValue(newMin), maxValue(newMax) {}
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
-	void getText(char* buffer, int* getLeftLength, int* getRightLength, bool mayShowJustOne) override;
-	void selectEncoderAction(int offset) override;
-	int getRandomValueInRange();
+	void getText(char* buffer, int32_t* getLeftLength, int32_t* getRightLength, bool mayShowJustOne) override;
+	void selectEncoderAction(int32_t offset) override;
+	int32_t getRandomValueInRange();
 
-	int lower, upper;
+	int32_t lower, upper;
 
-	int minValue, maxValue;
+	int32_t minValue, maxValue;
 };
 } // namespace deluge::gui::menu_item

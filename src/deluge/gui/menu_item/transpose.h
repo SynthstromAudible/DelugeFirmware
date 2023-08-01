@@ -23,14 +23,14 @@ namespace deluge::gui::menu_item {
 
 class Transpose : public Decimal, public PatchedParam {
 public:
-	Transpose(const string& newName, int newP = 0) : Decimal(newName), PatchedParam(newP) {}
+	Transpose(const string& newName, int32_t newP = 0) : Decimal(newName), PatchedParam(newP) {}
 
-	Transpose(const string& newName, const string& title, int newP = 0) : Decimal(newName, title), PatchedParam(newP) {}
+	Transpose(const string& newName, const string& title, int32_t newP = 0) : Decimal(newName, title), PatchedParam(newP) {}
 
 	MenuItem* selectButtonPress() final { return PatchedParam::selectButtonPress(); }
-	[[nodiscard]] int getMinValue() const final { return -9600; }
-	[[nodiscard]] int getMaxValue() const final { return 9600; }
-	[[nodiscard]] int getNumDecimalPlaces() const final { return 2; }
+	[[nodiscard]] int32_t getMinValue() const final { return -9600; }
+	[[nodiscard]] int32_t getMaxValue() const final { return 9600; }
+	[[nodiscard]] int32_t getNumDecimalPlaces() const final { return 2; }
 	uint8_t getPatchedParamIndex() final { return PatchedParam::getPatchedParamIndex(); }
 	uint8_t shouldDrawDotOnName() final { return PatchedParam::shouldDrawDotOnName(); }
 
@@ -53,7 +53,7 @@ public:
 	bool allowsLearnMode() final {
 		return MenuItemWithCCLearning::allowsLearnMode();
 	}
-	void learnKnob(::MIDIDevice* fromDevice, int whichKnob, int modKnobMode, int midiChannel) final {
+	void learnKnob(::MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) final {
 		MenuItemWithCCLearning::learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel);
 	};
 };

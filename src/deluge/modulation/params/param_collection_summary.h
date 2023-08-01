@@ -32,24 +32,24 @@ public:
 		}
 	}
 
-	inline void resetInterpolationRecord(int topUintToRepParams) {
-		for (int i = topUintToRepParams; i >= 0; i--) {
+	inline void resetInterpolationRecord(int32_t topUintToRepParams) {
+		for (int32_t i = topUintToRepParams; i >= 0; i--) {
 			whichParamsAreInterpolating[i] = 0;
 		}
 	}
 
-	inline void resetAutomationRecord(int topUintToRepParams) {
-		for (int i = topUintToRepParams; i >= 0; i--) {
+	inline void resetAutomationRecord(int32_t topUintToRepParams) {
+		for (int32_t i = topUintToRepParams; i >= 0; i--) {
 			whichParamsAreAutomated[i] = 0;
 		}
 	}
 
 	void cloneFlagsFrom(ParamCollectionSummary* other) {
-		for (int i = 0; i < kMaxNumUnsignedIntegerstoRepAllParams; i++) {
+		for (int32_t i = 0; i < kMaxNumUnsignedIntegerstoRepAllParams; i++) {
 			whichParamsAreAutomated[i] = other->whichParamsAreAutomated[i];
 		}
 
-		for (int i = 0; i < kMaxNumUnsignedIntegerstoRepAllParams; i++) {
+		for (int32_t i = 0; i < kMaxNumUnsignedIntegerstoRepAllParams; i++) {
 			whichParamsAreInterpolating[i] = other->whichParamsAreInterpolating[i];
 		}
 	}

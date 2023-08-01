@@ -25,7 +25,7 @@ template <size_t n>
 class Bend final : public Submenu<n> {
 public:
 	using Submenu<n>::Submenu;
-	bool isRelevant(Sound* sound, int whichThing) override {
+	bool isRelevant(Sound* sound, int32_t whichThing) override {
 		// Drums within a Kit don't need the two-item submenu - they have their own single item.
 		const auto type = currentSong->currentClip->output->type;
 		return (type == InstrumentType::SYNTH || type == InstrumentType::CV);

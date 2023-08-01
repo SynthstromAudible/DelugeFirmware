@@ -27,7 +27,7 @@ public:
 
 	void readCurrentValue() override { this->value_ = soundEditor.currentModControllable->clippingAmount; }
 	void writeCurrentValue() override { soundEditor.currentModControllable->clippingAmount = this->value_; }
-	[[nodiscard]] int getMaxValue() const override { return 15; }
+	[[nodiscard]] int32_t getMaxValue() const override { return 15; }
 };
 
 } // namespace deluge::gui::menu_item::fx

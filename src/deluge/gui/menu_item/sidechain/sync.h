@@ -35,7 +35,7 @@ public:
 		soundEditor.currentCompressor->syncLevel = menuOptionToSyncLevel(this->value_);
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}
-	bool isRelevant(Sound* sound, int whichThing) override {
+	bool isRelevant(Sound* sound, int32_t whichThing) override {
 		return !soundEditor.editingReverbCompressor() || AudioEngine::reverbCompressorVolume >= 0;
 	}
 };

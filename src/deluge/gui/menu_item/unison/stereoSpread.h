@@ -26,7 +26,7 @@ public:
 	using Integer::Integer;
 	void readCurrentValue() { this->value_ = soundEditor.currentSound->unisonStereoSpread; }
 	void writeCurrentValue() { soundEditor.currentSound->setUnisonStereoSpread(this->value_); }
-	[[nodiscard]] int getMaxValue() const override { return kMaxUnisonStereoSpread; }
+	[[nodiscard]] int32_t getMaxValue() const override { return kMaxUnisonStereoSpread; }
 };
 
 extern StereoSpread stereoSpreadMenu;

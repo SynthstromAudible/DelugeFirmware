@@ -28,9 +28,9 @@ public:
 	void readCurrentValue() override { this->value_ = currentSong->swingInterval; }
 	void writeCurrentValue() override { currentSong->changeSwingInterval(this->value_); }
 
-	void selectEncoderAction(int offset) override { // So that there's no "off" option
+	void selectEncoderAction(int32_t offset) override { // So that there's no "off" option
 		this->value_ += offset;
-		int numOptions = this->size();
+		int32_t numOptions = this->size();
 
 		// Wrap value
 		if (this->value_ >= numOptions) {

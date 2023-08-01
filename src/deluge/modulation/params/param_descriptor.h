@@ -17,34 +17,34 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
 #include "definitions_cxx.hpp"
 #include "util/misc.h"
+#include <cstdint>
 
 class ParamDescriptor {
 public:
 	ParamDescriptor() = default;
-	constexpr void setToHaveParamOnly(int p) { data = p | 0xFFFFFF00; }
+	constexpr void setToHaveParamOnly(int32_t p) { data = p | 0xFFFFFF00; }
 
-	constexpr void setToHaveParamAndSource(int p, PatchSource s) {
+	constexpr void setToHaveParamAndSource(int32_t p, PatchSource s) {
 		data = p | (util::to_underlying(s) << 8) | 0xFFFF0000;
 	}
 
-	constexpr void setToHaveParamAndTwoSources(int p, PatchSource s, PatchSource sLowestLevel) {
+	constexpr void setToHaveParamAndTwoSources(int32_t p, PatchSource s, PatchSource sLowestLevel) {
 		data = p | (util::to_underlying(s) << 8) | (util::to_underlying(sLowestLevel) << 16) | 0xFF000000;
 	}
 
-	[[nodiscard]] constexpr bool isSetToParamWithNoSource(int p) const { return (data == (p | 0xFFFFFF00)); }
+	[[nodiscard]] constexpr bool isSetToParamWithNoSource(int32_t p) const { return (data == (p | 0xFFFFFF00)); }
 
-	[[nodiscard]] constexpr inline bool isSetToParamAndSource(int p, PatchSource s) const {
+	[[nodiscard]] constexpr inline bool isSetToParamAndSource(int32_t p, PatchSource s) const {
 		return (data == (p | (util::to_underlying(s) << 8) | 0xFFFF0000));
 	}
 
 	[[nodiscard]] constexpr bool isJustAParam() const { return (data & 0x0000FF00) == 0x0000FF00; }
 
-	[[nodiscard]] constexpr int getJustTheParam() const { return data & 0xFF; }
+	[[nodiscard]] constexpr int32_t getJustTheParam() const { return data & 0xFF; }
 
-	constexpr void changeParam(int newParam) { data = (data & 0xFFFFFF00) | newParam; }
+	constexpr void changeParam(int32_t newParam) { data = (data & 0xFFFFFF00) | newParam; }
 
 	[[nodiscard]] constexpr PatchSource getBottomLevelSource() const { // As in, the one furthest away from the param.
 		if ((data & 0x00FF0000) == 0x00FF0000) {

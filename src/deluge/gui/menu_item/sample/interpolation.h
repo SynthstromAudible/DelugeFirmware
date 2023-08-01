@@ -37,7 +37,7 @@ public:
 
 	static_vector<string, capacity()> getOptions() override { return {"Linear", "Sinc"}; }
 
-	bool isRelevant(Sound* sound, int whichThing) override {
+	bool isRelevant(Sound* sound, int32_t whichThing) override {
 		if (sound == nullptr) {
 			return true;
 		}

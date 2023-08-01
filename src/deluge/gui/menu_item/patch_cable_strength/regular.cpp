@@ -52,7 +52,7 @@ PatchSource Regular::getS() {
 	return source_selection::regularMenu.s;
 }
 
-MenuPermission Regular::checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
+MenuPermission Regular::checkPermissionToBeginSession(Sound* sound, int32_t whichThing, MultiRange** currentRange) {
 
 	if (soundEditor.patchingParamSelected == ::Param::Global::VOLUME_POST_FX) {
 		if (sound->maySourcePatchToParam(getS(), soundEditor.patchingParamSelected,

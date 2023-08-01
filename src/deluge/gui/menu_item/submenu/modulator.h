@@ -18,7 +18,7 @@
 #include "gui/menu_item/submenu_referring_to_one_thing.h"
 #include "processing/sound/sound.h"
 
-extern void setModulatorNumberForTitles(int);
+extern void setModulatorNumberForTitles(int32_t);
 
 namespace deluge::gui::menu_item::submenu {
 template <size_t n>
@@ -31,13 +31,13 @@ public:
 		SubmenuReferringToOneThing<n>::beginSession(navigatedBackwardFrom);
 	}
 #endif
-	bool isRelevant(Sound* sound, int whichThing) {
+	bool isRelevant(Sound* sound, int32_t whichThing) {
 		return (sound->synthMode == SynthMode::FM);
 	}
 };
 
 // Template deduction guide, will not be required with P2582@C++23
 template <size_t n>
-Modulator(const string&, MenuItem* const (&)[n], int) -> Modulator<n>;
+Modulator(const string&, MenuItem* const (&)[n], int32_t) -> Modulator<n>;
 
 } // namespace deluge::gui::menu_item::submenu

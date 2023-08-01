@@ -22,8 +22,8 @@
 namespace deluge::gui::menu_item::patched_param {
 class Integer : public PatchedParam, public menu_item::IntegerContinuous {
 public:
-	Integer(const string& newName, int newP = 0) : PatchedParam(newP), IntegerContinuous(newName) {}
-	Integer(const string& newName, const deluge::string& title, int newP = 0)
+	Integer(const string& newName, int32_t newP = 0) : PatchedParam(newP), IntegerContinuous(newName) {}
+	Integer(const string& newName, const deluge::string& title, int32_t newP = 0)
 	    : PatchedParam(newP), IntegerContinuous(newName, title) {}
 #if !HAVE_OLED
 	void drawValue() override {
@@ -33,10 +33,10 @@ public:
 	ParamDescriptor getLearningThing() final {
 		return PatchedParam::getLearningThing();
 	}
-	[[nodiscard]] int getMaxValue() const override {
+	[[nodiscard]] int32_t getMaxValue() const override {
 		return PatchedParam::getMaxValue();
 	}
-	[[nodiscard]] int getMinValue() const override {
+	[[nodiscard]] int32_t getMinValue() const override {
 		return PatchedParam::getMinValue();
 	}
 	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) final {
@@ -63,7 +63,7 @@ public:
 	bool allowsLearnMode() final {
 		return MenuItemWithCCLearning::allowsLearnMode();
 	}
-	void learnKnob(MIDIDevice* fromDevice, int whichKnob, int modKnobMode, int midiChannel) final {
+	void learnKnob(MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) final {
 		MenuItemWithCCLearning::learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel);
 	};
 

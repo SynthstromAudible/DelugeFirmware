@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 
 #define ALPHA_OR_BETA_VERSION 1 // Whether to compile with additional error-checking
 
@@ -148,8 +149,8 @@ constexpr FirmwareVersion kCurrentFirmwareVersion = FIRMWARE_4P1P4_ALPHA;
 constexpr uint8_t kOctaveSize = 12;
 
 struct Cartesian {
-	int x;
-	int y;
+	int32_t x;
+	int32_t y;
 };
 
 // Buttons / LEDs ---------------------------------------------------------------
@@ -183,15 +184,15 @@ constexpr Cartesian selectEncButtonCoord = {4, 3};
 constexpr Cartesian backButtonCoord = {7, 1};
 constexpr Cartesian tripletsButtonCoord = {8, 1};
 
-constexpr int kEditPadPressBufferSize = 8;
+constexpr int32_t kEditPadPressBufferSize = 8;
 
-constexpr int kNumModButtons = 8;
+constexpr int32_t kNumModButtons = 8;
 
 // Display information
-constexpr int kDisplayHeight = 8;
-constexpr int kDisplayHeightMagnitude = 3;
-constexpr int kDisplayWidth = 16;
-constexpr int kDisplayWidthMagnitude = 4;
+constexpr int32_t kDisplayHeight = 8;
+constexpr int32_t kDisplayHeightMagnitude = 3;
+constexpr int32_t kDisplayWidth = 16;
+constexpr int32_t kDisplayWidthMagnitude = 4;
 
 enum PICMessage : uint8_t {
 	REFRESH_TIME = 19,
@@ -199,17 +200,17 @@ enum PICMessage : uint8_t {
 	NO_PRESSES_HAPPENING = 254,
 };
 
-constexpr int kPadAndButtonMessagesEnd = 180;
+constexpr int32_t kPadAndButtonMessagesEnd = 180;
 
-constexpr int kNumBytesInColUpdateMessage = 49;
-constexpr int kNumBytesInLongestMessage = 55;
+constexpr int32_t kNumBytesInColUpdateMessage = 49;
+constexpr int32_t kNumBytesInLongestMessage = 55;
 
-constexpr int kNumBytesInSidebarRedraw = (kNumBytesInColUpdateMessage);
+constexpr int32_t kNumBytesInSidebarRedraw = (kNumBytesInColUpdateMessage);
 
-constexpr int kNumBytesInMainPadRedraw = (kNumBytesInColUpdateMessage * 8);
+constexpr int32_t kNumBytesInMainPadRedraw = (kNumBytesInColUpdateMessage * 8);
 
-constexpr int kDefaultClipLength = 96; // You'll want to <<displayWidthMagnitude this each time used
-constexpr int kDefaultArrangerZoom = (kDefaultClipLength >> 1);
+constexpr int32_t kDefaultClipLength = 96; // You'll want to <<displayWidthMagnitude this each time used
+constexpr int32_t kDefaultArrangerZoom = (kDefaultClipLength >> 1);
 
 struct Pin {
 	uint8_t port;
@@ -226,10 +227,10 @@ constexpr Pin MIC = {7, 9};
 constexpr Pin SYNCED_LED = {6, 7};
 
 constexpr Pin BATTERY_LED = {1, 1};
-constexpr int SYS_VOLT_SENSE_PIN = 5;
+constexpr int32_t SYS_VOLT_SENSE_PIN = 5;
 
-constexpr int kSideBarWidth = 2;
-constexpr int kMaxNumAnimatedRows = ((kDisplayHeight * 3) >> 1);
+constexpr int32_t kSideBarWidth = 2;
+constexpr int32_t kMaxNumAnimatedRows = ((kDisplayHeight * 3) >> 1);
 
 enum class MidiLearn : uint8_t {
 	NONE,
@@ -244,26 +245,27 @@ enum class MidiLearn : uint8_t {
 };
 
 constexpr size_t kMinTimePerTimerTick = 1;
-constexpr int kNumInputTicksToAverageTime = 24;
-constexpr int kNumInputTicksToAllowTempoTargeting = 24; // This is probably even high enough to cause audible glitches
-constexpr int kMaxOutputTickMagnitude = 5;
+constexpr int32_t kNumInputTicksToAverageTime = 24;
+constexpr int32_t kNumInputTicksToAllowTempoTargeting =
+    24; // This is probably even high enough to cause audible glitches
+constexpr int32_t kMaxOutputTickMagnitude = 5;
 
-constexpr int kZoomSpeed = 110;
-constexpr int kClipCollapseSpeed = 200;
-constexpr int kFadeSpeed = 300;
+constexpr int32_t kZoomSpeed = 110;
+constexpr int32_t kClipCollapseSpeed = 200;
+constexpr int32_t kFadeSpeed = 300;
 
-constexpr int kNoteRowCollapseSpeed = 150;
-constexpr int kGreyoutSpeed = (300 * 44);
+constexpr int32_t kNoteRowCollapseSpeed = 150;
+constexpr int32_t kGreyoutSpeed = (300 * 44);
 
-constexpr int kInitialFlashTime = 250;
-constexpr int kFlashTime = 110;
-constexpr int kFastFlashTime = 60;
-constexpr int kSampleMarkerBlinkTime = 200;
+constexpr int32_t kInitialFlashTime = 250;
+constexpr int32_t kFlashTime = 110;
+constexpr int32_t kFastFlashTime = 60;
+constexpr int32_t kSampleMarkerBlinkTime = 200;
 
-constexpr int USE_DEFAULT_VELOCITY = 255;
+constexpr int32_t USE_DEFAULT_VELOCITY = 255;
 
-constexpr int kMaxSequenceLength = 1610612736;     // The biggest multiple of 3 which can fit in a signed 32-bit int
-constexpr int kAmountNoteOnLatenessAllowed = 2205; // In audio samples. That's 50mS. Multiply mS by 44.1
+constexpr int32_t kMaxSequenceLength = 1610612736; // The biggest multiple of 3 which can fit in a signed 32-bit int32_t
+constexpr int32_t kAmountNoteOnLatenessAllowed = 2205; // In audio samples. That's 50mS. Multiply mS by 44.1
 
 enum class GateType : uint8_t {
 	V_TRIG,
@@ -271,8 +273,8 @@ enum class GateType : uint8_t {
 	SPECIAL,
 };
 
-constexpr int kNumSongSlots = 1000;
-constexpr int kNumInstrumentSlots = 1000;
+constexpr int32_t kNumSongSlots = 1000;
+constexpr int32_t kNumInstrumentSlots = 1000;
 
 // Don't ever make this less! The zoom rendering code uses this buffer for its stuff
 constexpr size_t kFilenameBufferSize = 256;
@@ -293,29 +295,29 @@ enum class ThingType {
 	NONE,
 };
 
-constexpr int kModFXBufferSize = 512;
-constexpr int kModFXBufferIndexMask = (kModFXBufferSize - 1);
-constexpr int kModFXMaxDelay = ((kModFXBufferSize - 1) << 16);
+constexpr int32_t kModFXBufferSize = 512;
+constexpr int32_t kModFXBufferIndexMask = (kModFXBufferSize - 1);
+constexpr int32_t kModFXMaxDelay = ((kModFXBufferSize - 1) << 16);
 
-constexpr int kFlangerMinTime = (3 << 16);
-constexpr int kFlangerAmplitude = (kModFXMaxDelay - kFlangerMinTime);
-constexpr int kFlangerOffset = ((kModFXMaxDelay + kFlangerMinTime) >> 1);
+constexpr int32_t kFlangerMinTime = (3 << 16);
+constexpr int32_t kFlangerAmplitude = (kModFXMaxDelay - kFlangerMinTime);
+constexpr int32_t kFlangerOffset = ((kModFXMaxDelay + kFlangerMinTime) >> 1);
 
-constexpr int kNumEnvelopes = 2;
-constexpr int kNumLFOs = 2;
-constexpr int kNumModulators = 2;
+constexpr int32_t kNumEnvelopes = 2;
+constexpr int32_t kNumLFOs = 2;
+constexpr int32_t kNumModulators = 2;
 
-constexpr int kMaxNumVoicesUnison = 8;
+constexpr int32_t kMaxNumVoicesUnison = 8;
 
 // TODO: Investigate whether we can move static voices to dynamic allocation and remove these
-constexpr int kNumVoicesStatic = 24;
-constexpr int kNumVoiceSamplesStatic = 20;
-constexpr int kNumTimeStretchersStatic = 6;
+constexpr int32_t kNumVoicesStatic = 24;
+constexpr int32_t kNumVoiceSamplesStatic = 20;
+constexpr int32_t kNumTimeStretchersStatic = 6;
 
-constexpr int kMaxNumNoteOnsPending = 64;
+constexpr int32_t kMaxNumNoteOnsPending = 64;
 
-constexpr int kNumUnsignedIntegersToRepPatchCables = 1;
-constexpr int kMaxNumPatchCables = (kNumUnsignedIntegersToRepPatchCables * 32);
+constexpr int32_t kNumUnsignedIntegersToRepPatchCables = 1;
+constexpr int32_t kMaxNumPatchCables = (kNumUnsignedIntegersToRepPatchCables * 32);
 
 enum class EnvelopeStage : uint8_t {
 	ATTACK,
@@ -325,7 +327,7 @@ enum class EnvelopeStage : uint8_t {
 	FAST_RELEASE,
 	OFF,
 };
-constexpr int kNumEnvelopeStages = util::to_underlying(EnvelopeStage::OFF) + 1;
+constexpr int32_t kNumEnvelopeStages = util::to_underlying(EnvelopeStage::OFF) + 1;
 
 enum class VoicePriority : uint8_t {
 	LOW,
@@ -354,7 +356,7 @@ enum class PatchSource : uint8_t {
 	NOT_AVAILABLE = 255,
 };
 constexpr PatchSource kLastPatchSource = PatchSource::NONE;
-constexpr int kNumPatchSources = static_cast<int>(kLastPatchSource);
+constexpr int32_t kNumPatchSources = static_cast<int32_t>(kLastPatchSource);
 
 //constexpr PatchSource kFirstGlobalSourceWithChangedStatusAutomaticallyUpdated = PatchSource::ENVELOPE_0;
 constexpr PatchSource kFirstLocalSource = PatchSource::ENVELOPE_0;
@@ -535,8 +537,8 @@ enum class OscType {
 };
 
 constexpr OscType kLastRingmoddableOscType = OscType::WAVETABLE;
-constexpr int kNumOscTypesRingModdable = util::to_underlying(kLastRingmoddableOscType) + 1;
-constexpr int kNumOscTypes = util::to_underlying(OscType::INPUT_STEREO) + 1;
+constexpr int32_t kNumOscTypesRingModdable = util::to_underlying(kLastRingmoddableOscType) + 1;
+constexpr int32_t kNumOscTypes = util::to_underlying(OscType::INPUT_STEREO) + 1;
 
 enum class LFOType {
 	SINE,
@@ -547,7 +549,7 @@ enum class LFOType {
 	RANDOM_WALK,
 };
 
-constexpr int kNumLFOTypes = util::to_underlying(LFOType::RANDOM_WALK);
+constexpr int32_t kNumLFOTypes = util::to_underlying(LFOType::RANDOM_WALK);
 
 // SyncType values correspond to the index of the first option of the specific
 // type in the selection menu. There are 9 different levels for each type (see
@@ -586,10 +588,10 @@ enum class ModFXType {
 	CHORUS_STEREO,
 };
 
-constexpr int kNumModFXTypes = util::to_underlying(ModFXType::CHORUS_STEREO) + 1;
+constexpr int32_t kNumModFXTypes = util::to_underlying(ModFXType::CHORUS_STEREO) + 1;
 
-constexpr int SAMPLE_MAX_TRANSPOSE = 24;
-constexpr int SAMPLE_MIN_TRANSPOSE = (-96);
+constexpr int32_t SAMPLE_MAX_TRANSPOSE = 24;
+constexpr int32_t SAMPLE_MIN_TRANSPOSE = (-96);
 
 enum WavFormat {
 	WAV_FORMAT_PCM = 1,
@@ -606,11 +608,11 @@ enum class PolyphonyMode {
 
 constexpr auto kNumPolyphonyModes = util::to_underlying(PolyphonyMode::CHOKE) + 1;
 
-constexpr int kNumericDisplayLength = 4;
+constexpr int32_t kNumericDisplayLength = 4;
 
-constexpr int kMaxNumSections = 12;
+constexpr int32_t kMaxNumSections = 12;
 
-constexpr int kNumPhysicalModKnobs = 2;
+constexpr int32_t kNumPhysicalModKnobs = 2;
 
 enum class LPFMode {
 	TRANSISTOR_12DB,
@@ -618,9 +620,9 @@ enum class LPFMode {
 	TRANSISTOR_24DB_DRIVE,
 	SVF,
 };
-constexpr int kNumLPFModes = util::to_underlying(LPFMode::SVF) + 1;
+constexpr int32_t kNumLPFModes = util::to_underlying(LPFMode::SVF) + 1;
 
-constexpr int kNumAllpassFiltersPhaser = 6;
+constexpr int32_t kNumAllpassFiltersPhaser = 6;
 
 enum ErrorType {
 	NO_ERROR,
@@ -669,7 +671,7 @@ enum class FilterType {
 };
 constexpr auto kNumFilterTypes = util::to_underlying(FilterType::EQ) + 1;
 
-constexpr int kNumSources = 2; // That's sources as in oscillators - within a Sound (synth).
+constexpr int32_t kNumSources = 2; // That's sources as in oscillators - within a Sound (synth).
 
 enum class ArpMode {
 	OFF,
@@ -714,7 +716,7 @@ enum class MIDITakeoverMode : uint8_t {
 };
 constexpr auto kNumMIDITakeoverModes = util::to_underlying(MIDITakeoverMode::SCALE) + 1;
 
-constexpr int kNumClustersLoadedAhead = 2;
+constexpr int32_t kNumClustersLoadedAhead = 2;
 
 enum class InputMonitoringMode : uint8_t {
 	SMART,
@@ -742,8 +744,8 @@ enum class ArmState {
 	ON_TO_SOLO,
 };
 
-constexpr int kNumProbabilityValues = 20;
-constexpr int kDefaultLiftValue = 64;
+constexpr int32_t kNumProbabilityValues = 20;
+constexpr int32_t kDefaultLiftValue = 64;
 
 enum Navigation {
 	NAVIGATION_CLIP,
@@ -771,8 +773,8 @@ enum CCNumber {
 	CC_NUMBER_AFTERTOUCH = 121,
 	CC_NUMBER_NONE = 122,
 };
-constexpr int kNumCCNumbersIncludingFake = 123;
-constexpr int kNumRealCCNumbers = 120;
+constexpr int32_t kNumCCNumbersIncludingFake = 123;
+constexpr int32_t kNumRealCCNumbers = 120;
 
 enum class InstrumentRemoval {
 	NONE,
@@ -799,27 +801,27 @@ enum class MarkerType {
 	LOOP_END,
 	END,
 };
-constexpr int kNumMarkerTypes = util::to_underlying(MarkerType::END) + 1;
+constexpr int32_t kNumMarkerTypes = util::to_underlying(MarkerType::END) + 1;
 
 enum class InterpolationMode {
 	LINEAR,
 	SMOOTH,
 };
-constexpr int kNumInterpolationModes = 2;
+constexpr int32_t kNumInterpolationModes = 2;
 
-constexpr int kCacheByteDepth = 3;
-constexpr int kCacheByteDepthMagnitude = 2; // Invalid / unused for odd numbers of bytes like 3
+constexpr int32_t kCacheByteDepth = 3;
+constexpr int32_t kCacheByteDepthMagnitude = 2; // Invalid / unused for odd numbers of bytes like 3
 
-constexpr int kMaxUnisonDetune = 50;
-constexpr int kMaxUnisonStereoSpread = 50;
+constexpr int32_t kMaxUnisonDetune = 50;
+constexpr int32_t kMaxUnisonStereoSpread = 50;
 
 // This is about right. Making it smaller didn't help. Tried it as 9, and I'm pretty sure some fast percussive details were lost in the output
-constexpr int kPercBufferReductionMagnitude = 7;
-constexpr int kPercBufferReductionSize = (1 << kPercBufferReductionMagnitude);
-constexpr int kDifferenceLPFPoles = 2;
+constexpr int32_t kPercBufferReductionMagnitude = 7;
+constexpr int32_t kPercBufferReductionSize = (1 << kPercBufferReductionMagnitude);
+constexpr int32_t kDifferenceLPFPoles = 2;
 
-constexpr int kInterpolationMaxNumSamples = 16;
-constexpr int kInterpolationMaxNumSamplesMagnitude = 4;
+constexpr int32_t kInterpolationMaxNumSamples = 16;
+constexpr int32_t kInterpolationMaxNumSamplesMagnitude = 4;
 
 enum class ClusterType {
 	EMPTY,
@@ -836,9 +838,9 @@ enum PlayHead {
 	PLAY_HEAD_NEWER,
 };
 
-constexpr int kInputRawBufferSize = 8192;
-constexpr int kInputRepitchedBufferSize = 2048;
-constexpr int kInputPercBufferSize = (kInputRawBufferSize >> kPercBufferReductionMagnitude);
+constexpr int32_t kInputRawBufferSize = 8192;
+constexpr int32_t kInputRepitchedBufferSize = 2048;
+constexpr int32_t kInputPercBufferSize = (kInputRawBufferSize >> kPercBufferReductionMagnitude);
 
 // Experimental, from when developing input pitch shifting. Probably won't actually work now, if it ever did!
 #define INPUT_ENABLE_REPITCHED_BUFFER 0
@@ -849,30 +851,30 @@ constexpr int kInputPercBufferSize = (kInputRawBufferSize >> kPercBufferReductio
 #define TIME_STRETCH_ENABLE_BUFFER 0
 
 namespace TimeStretch {
-constexpr int kDefaultFirstHopLength = 200;
+constexpr int32_t kDefaultFirstHopLength = 200;
 
 namespace Crossfade {
 
 // 3 sounds way better than 2. After that, kinda diminishing returns
-constexpr int kNumMovingAverages = 3;
+constexpr int32_t kNumMovingAverages = 3;
 
 // Anywhere between 30 and 40 seemed ideal. Point of interest - high numbers (e.g. I tried 140) screw up the high notes, so more is not more!
-constexpr int kMovingAverageLength = 35;
+constexpr int32_t kMovingAverageLength = 35;
 
 } // namespace Crossfade
 
-constexpr int kBufferSize = TIME_STRETCH_ENABLE_BUFFER ? 4096 : 256;
+constexpr int32_t kBufferSize = TIME_STRETCH_ENABLE_BUFFER ? 4096 : 256;
 } // namespace TimeStretch
 
 // We don't want the window too short, or some sounds / harmonics can be missed during the attack
-constexpr int kPitchDetectWindowSizeMagnitude = 13;
-constexpr int kPitchDetectWindowSize = (1 << kPitchDetectWindowSizeMagnitude);
+constexpr int32_t kPitchDetectWindowSizeMagnitude = 13;
+constexpr int32_t kPitchDetectWindowSize = (1 << kPitchDetectWindowSizeMagnitude);
 
-constexpr int kMaxFileSize = 0x40000000;
+constexpr int32_t kMaxFileSize = 0x40000000;
 
-constexpr int kQwertyHomeRow = 3;
+constexpr int32_t kQwertyHomeRow = 3;
 
-constexpr int kAudioRecordLagCompensation = 294;
+constexpr int32_t kAudioRecordLagCompensation = 294;
 
 enum class AudioInputChannel {
 	UNSET = -1,
@@ -894,13 +896,13 @@ enum class ActionResult {
 	ACTIONED_AND_CAUSED_CHANGE,
 };
 
-constexpr int kAudioClipMarginSizePostEnd = 2048;
+constexpr int32_t kAudioClipMarginSizePostEnd = 2048;
 
 // Let's just do a 100 sample crossfade. Even 12 samples actually sounded fine for my voice - just obviously not so good for a low sine wave.
 // Of course, if like 60 samples are being processed at a time under CPU load, then this might end up as low as 40.
-constexpr int kAntiClickCrossfadeLength = 100;
+constexpr int32_t kAntiClickCrossfadeLength = 100;
 
-constexpr int kAudioClipDefaultAttackIfPreMargin = (7 * 85899345 - 2147483648);
+constexpr int32_t kAudioClipDefaultAttackIfPreMargin = (7 * 85899345 - 2147483648);
 
 enum class AudioRecordingFolder {
 	CLIPS,
@@ -916,10 +918,10 @@ enum class KeyboardLayout : uint8_t {
 };
 constexpr auto kNumKeyboardLayouts = util::to_underlying(KeyboardLayout::QWERTZ) + 1;
 
-constexpr int kInternalButtonPressLatency = 380;
-constexpr int kMIDIKeyInputLatency = 100;
+constexpr int32_t kInternalButtonPressLatency = 380;
+constexpr int32_t kMIDIKeyInputLatency = 100;
 
-constexpr int kLinearRecordingEarlyFirstNoteAllowance = (100 * 44); // In samples;
+constexpr int32_t kLinearRecordingEarlyFirstNoteAllowance = (100 * 44); // In samples;
 
 enum class LoopType {
 	NONE,
@@ -927,8 +929,8 @@ enum class LoopType {
 	TIMESTRETCHER_LEVEL_IF_ACTIVE, // Will cause low-level looping if no time-stretching;
 };
 
-constexpr int kInternalMemoryEnd = 0x20300000;
-constexpr int kProgramStackMaxSize = 8192;
+constexpr int32_t kInternalMemoryEnd = 0x20300000;
+constexpr int32_t kProgramStackMaxSize = 8192;
 
 enum StealableQueue {
 	STEALABLE_QUEUE_NO_SONG_SAMPLE_DATA,
@@ -944,7 +946,7 @@ enum StealableQueue {
 	NUM_STEALABLE_QUEUES,
 };
 
-constexpr int kUndefinedGreyShade = 7;
+constexpr int32_t kUndefinedGreyShade = 7;
 
 enum class SequenceDirection {
 	FORWARD,
@@ -960,12 +962,12 @@ enum class AudioFileType {
 };
 
 // Not 4 - because NE10 can't do FFTs that small unless we enable its additional C code, which would take up program size for little gain.
-constexpr int kWavetableMinCycleSize = 8;
-constexpr int kWavetableMaxCycleSize = 65536; // TODO: work out what this should actually be.
+constexpr int32_t kWavetableMinCycleSize = 8;
+constexpr int32_t kWavetableMaxCycleSize = 65536; // TODO: work out what this should actually be.
 
-constexpr int kMaxImageStoreWidth = kDisplayWidth;
+constexpr int32_t kMaxImageStoreWidth = kDisplayWidth;
 
-constexpr int kNumExpressionDimensions = 3;
+constexpr int32_t kNumExpressionDimensions = 3;
 
 enum class Expression {
 	X_PITCH_BEND,
@@ -973,37 +975,37 @@ enum class Expression {
 	Z_PRESSURE,
 };
 
-constexpr int MIDI_CHANNEL_MPE_LOWER_ZONE = 16;
-constexpr int MIDI_CHANNEL_MPE_UPPER_ZONE = 17;
-constexpr int NUM_CHANNELS = 18;
-constexpr int MIDI_CHANNEL_NONE = 255;
+constexpr int32_t MIDI_CHANNEL_MPE_LOWER_ZONE = 16;
+constexpr int32_t MIDI_CHANNEL_MPE_UPPER_ZONE = 17;
+constexpr int32_t NUM_CHANNELS = 18;
+constexpr int32_t MIDI_CHANNEL_NONE = 255;
 
-constexpr int IS_A_CC = NUM_CHANNELS;
+constexpr int32_t IS_A_CC = NUM_CHANNELS;
 // To be used instead of MIDI_CHANNEL_MPE_LOWER_ZONE etc for functions that require a "midi output filter". Although in
 // fact, any number <16 or >=18 would work, the way I've defined it.
-constexpr int kMIDIOutputFilterNoMPE = 0;
+constexpr int32_t kMIDIOutputFilterNoMPE = 0;
 
 // OLED -----------------
-constexpr int kOLEDWidthChars = 16;
-constexpr int kOLEDMenuNumOptionsVisible = (OLED_HEIGHT_CHARS - 1);
+constexpr int32_t kOLEDWidthChars = 16;
+constexpr int32_t kOLEDMenuNumOptionsVisible = (OLED_HEIGHT_CHARS - 1);
 
-constexpr int kConsoleImageHeight = (OLED_MAIN_HEIGHT_PIXELS + 16);
-constexpr int kConsoleImageNumRows = (kConsoleImageHeight >> 3);
+constexpr int32_t kConsoleImageHeight = (OLED_MAIN_HEIGHT_PIXELS + 16);
+constexpr int32_t kConsoleImageNumRows = (kConsoleImageHeight >> 3);
 
-constexpr int kTextSpacingX = 6;
-constexpr int kTextSpacingY = 9;
-constexpr int kTextSizeYUpdated = 7;
+constexpr int32_t kTextSpacingX = 6;
+constexpr int32_t kTextSpacingY = 9;
+constexpr int32_t kTextSizeYUpdated = 7;
 
-constexpr int kTextTitleSpacingX = 9;
-constexpr int kTextTitleSizeY = 10;
+constexpr int32_t kTextTitleSpacingX = 9;
+constexpr int32_t kTextTitleSizeY = 10;
 
-constexpr int kTextBigSpacingX = 11;
-constexpr int kTextBigSizeY = 13;
+constexpr int32_t kTextBigSpacingX = 11;
+constexpr int32_t kTextBigSizeY = 13;
 
-constexpr int kTextHugeSpacingX = 18;
-constexpr int kTextHugeSizeY = 20;
+constexpr int32_t kTextHugeSpacingX = 18;
+constexpr int32_t kTextHugeSizeY = 20;
 
-constexpr int kNoteForDrum = 60;
+constexpr int32_t kNoteForDrum = 60;
 
 enum BendRange {
 	BEND_RANGE_MAIN,
@@ -1021,14 +1023,14 @@ enum class IndependentNoteRowLengthIncrease {
 };
 
 // From FatFS - we need access to this:
-constexpr int DIR_FileSize = 28 /* File size (DWORD) */;
+constexpr int32_t DIR_FileSize = 28 /* File size (DWORD) */;
 
-constexpr int kMaxNumUnsignedIntegerstoRepAllParams = 2;
+constexpr int32_t kMaxNumUnsignedIntegerstoRepAllParams = 2;
 
 #if HAVE_OLED
-constexpr int kNumBrowserAndMenuLines = 3;
+constexpr int32_t kNumBrowserAndMenuLines = 3;
 #else
-constexpr int kNumBrowserAndMenuLines = 1;
+constexpr int32_t kNumBrowserAndMenuLines = 1;
 #endif
 
-constexpr int kDefaultCalculateRootNote = std::numeric_limits<int>::max();
+constexpr int32_t kDefaultCalculateRootNote = std::numeric_limits<int32_t>::max();

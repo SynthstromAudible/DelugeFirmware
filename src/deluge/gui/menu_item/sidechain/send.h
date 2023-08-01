@@ -34,7 +34,7 @@ public:
 			soundEditor.currentSound->sideChainSendLevel = this->value_ * 42949673;
 		}
 	}
-	[[nodiscard]] int getMaxValue() const override { return 50; }
-	bool isRelevant(Sound* sound, int whichThing) override { return (soundEditor.editingKit()); }
+	[[nodiscard]] int32_t getMaxValue() const override { return 50; }
+	bool isRelevant(Sound* sound, int32_t whichThing) override { return (soundEditor.editingKit()); }
 };
 } // namespace deluge::gui::menu_item::sidechain

@@ -78,7 +78,7 @@ void TypedSelection<T, n>::drawPixelsForOled() {
 		soundEditor.menuCurrentScroll = current - kOLEDMenuNumOptionsVisible + 1;
 	}
 
-	const int selectedOption = current - soundEditor.menuCurrentScroll;
+	const int32_t selectedOption = current - soundEditor.menuCurrentScroll;
 
 	auto options = getOptions();
 	MenuItem::drawItemsForOled(options, selectedOption, soundEditor.menuCurrentScroll);

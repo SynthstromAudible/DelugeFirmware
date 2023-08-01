@@ -29,10 +29,10 @@ public:
 
 	[[nodiscard]] const string& getTitle() const override { return FormattedTitle::title(); }
 
-	[[nodiscard]] int getMinValue() const override { return -soundEditor.numberEditSize; }
-	[[nodiscard]] int getMaxValue() const override { return 360; }
-	[[nodiscard]] int getNumDecimalPlaces() const override { return 0; }
-	[[nodiscard]] int getDefaultEditPos() const override { return 1; }
+	[[nodiscard]] int32_t getMinValue() const override { return -soundEditor.numberEditSize; }
+	[[nodiscard]] int32_t getMaxValue() const override { return 360; }
+	[[nodiscard]] int32_t getNumDecimalPlaces() const override { return 0; }
+	[[nodiscard]] int32_t getDefaultEditPos() const override { return 1; }
 
 	void readCurrentValue() override {
 		uint32_t value = *getValueAddress();
@@ -75,13 +75,13 @@ public:
 		}
 	}
 #endif
-	void horizontalEncoderAction(int offset) override {
+	void horizontalEncoderAction(int32_t offset) override {
 		if (this->value_ >= 0) {
 			Decimal::horizontalEncoderAction(offset);
 		}
 	}
 
-	bool isRelevant(Sound* sound, int whichThing) override {
+	bool isRelevant(Sound* sound, int32_t whichThing) override {
 		Source* source = &sound->sources[whichThing];
 		if (forModulator && sound->getSynthMode() != SynthMode::FM) {
 			return false;

@@ -35,7 +35,7 @@ public:
 
 	static_vector<string, capacity()> getOptions() override { return {"Subtractive", "FM", "Ringmod"}; }
 
-	bool isRelevant(Sound* sound, int whichThing) override {
+	bool isRelevant(Sound* sound, int32_t whichThing) override {
 		return (sound->sources[0].oscType <= kLastRingmoddableOscType
 		        && sound->sources[1].oscType <= kLastRingmoddableOscType);
 	}

@@ -16,11 +16,11 @@ namespace deluge::gui::menu_item {
  * @brief An enumeration has a fixed number of items, with values from 1 to n (exclusive)
  */
 template <size_t n>
-class Enumeration : public Value<int> {
+class Enumeration : public Value<int32_t> {
 public:
 	using Value::Value;
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
-	void selectEncoderAction(int offset) override;
+	void selectEncoderAction(int32_t offset) override;
 
 	virtual size_t size() { return n; };
 
@@ -44,9 +44,9 @@ void Enumeration<n>::beginSession(MenuItem* navigatedBackwardFrom) {
 }
 
 template <size_t n>
-void Enumeration<n>::selectEncoderAction(int offset) {
+void Enumeration<n>::selectEncoderAction(int32_t offset) {
 	this->value_ += offset;
-	int numOptions = size();
+	int32_t numOptions = size();
 
 #if HAVE_OLED
 	if (this->value_ >= numOptions) {

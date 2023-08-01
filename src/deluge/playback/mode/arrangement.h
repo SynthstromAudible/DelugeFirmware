@@ -30,8 +30,8 @@ public:
 	// PlaybackMode implementation
 	void setupPlayback();
 	bool endPlayback(); // Returns whether to do an instant song swap
-	void doTickForward(int posIncrement);
-	void resetPlayPos(int32_t newPos, bool doingComplete = true, int buttonPressLatency = 0);
+	void doTickForward(int32_t posIncrement);
+	void resetPlayPos(int32_t newPos, bool doingComplete = true, int32_t buttonPressLatency = 0);
 	void resyncToSongTicks(Song* song);
 	void reversionDone();
 	bool isOutputAvailable(Output* output);
@@ -47,9 +47,9 @@ public:
 	                                bool mayActuallyResumeClip = true);
 	void rowEdited(Output* output, int32_t startPos, int32_t endPos, Clip* clipRemoved,
 	               ClipInstance* clipInstanceAdded);
-	int doUniqueCloneOnClipInstance(ClipInstance* clipInstance, int32_t newLength = -1,
-	                                bool shouldCloneRepeats = false);
-	int32_t getLivePos(uint32_t* timeRemainder = NULL);
+	int32_t doUniqueCloneOnClipInstance(ClipInstance* clipInstance, int32_t newLength = -1,
+	                                    bool shouldCloneRepeats = false);
+	int32_t getLivePos(uint32_t* timeRemainder = nullptr);
 	void endAnyLinearRecording();
 
 	int32_t lastProcessedPos;

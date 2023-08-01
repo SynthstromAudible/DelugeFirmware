@@ -25,10 +25,10 @@ public:
 	void drawValue() override;
 #endif
 protected:
-	[[nodiscard]] int getMaxValue() const override {
+	[[nodiscard]] int32_t getMaxValue() const override {
 		return 32;
 	}
-	[[nodiscard]] int getMinValue() const override {
+	[[nodiscard]] int32_t getMinValue() const override {
 		return -32;
 	}
 	int32_t getFinalValue() override;

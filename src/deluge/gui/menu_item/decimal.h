@@ -26,13 +26,13 @@ class Decimal : public Number {
 public:
 	using Number::Number;
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
-	void selectEncoderAction(int offset) final;
-	void horizontalEncoderAction(int offset) override;
+	void selectEncoderAction(int32_t offset) final;
+	void horizontalEncoderAction(int32_t offset) override;
 
 protected:
 	virtual void drawValue();
-	[[nodiscard]] virtual int getNumDecimalPlaces() const = 0;
-	[[nodiscard]] virtual int getDefaultEditPos() const { return 2; }
+	[[nodiscard]] virtual int32_t getNumDecimalPlaces() const = 0;
+	[[nodiscard]] virtual int32_t getDefaultEditPos() const { return 2; }
 #if HAVE_OLED
 	void drawPixelsForOled();
 #else

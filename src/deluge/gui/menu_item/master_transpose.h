@@ -56,14 +56,14 @@ public:
 	bool allowsLearnMode() override {
 		return MenuItemWithCCLearning::allowsLearnMode();
 	}
-	void learnKnob(MIDIDevice* fromDevice, int whichKnob, int modKnobMode, int midiChannel) override {
+	void learnKnob(MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) override {
 		MenuItemWithCCLearning::learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel);
 	};
 
-	[[nodiscard]] int getMinValue() const override {
+	[[nodiscard]] int32_t getMinValue() const override {
 		return -96;
 	}
-	[[nodiscard]] int getMaxValue() const override {
+	[[nodiscard]] int32_t getMaxValue() const override {
 		return 96;
 	}
 };

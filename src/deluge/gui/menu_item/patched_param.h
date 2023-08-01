@@ -17,10 +17,10 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
 #include "definitions_cxx.hpp"
 #include "menu_item_with_cc_learning.h"
 #include "param.h"
+#include <cstdint>
 
 class ModelStackWithAutoParam;
 
@@ -29,7 +29,7 @@ namespace deluge::gui::menu_item {
 class PatchedParam : public Param, public MenuItemWithCCLearning {
 public:
 	PatchedParam() = default;
-	PatchedParam(int newP) : Param(newP) {}
+	PatchedParam(int32_t newP) : Param(newP) {}
 	MenuItem* selectButtonPress();
 #if !HAVE_OLED
 	virtual void drawValue() = 0;

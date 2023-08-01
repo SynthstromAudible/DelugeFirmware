@@ -36,6 +36,6 @@ extern MenuItem* midiOrCVParamShortcuts[8];
 extern MenuItem* paramShortcutsForSounds[15][8];
 extern MenuItem* paramShortcutsForAudioClips[15][8];
 
-void setOscillatorNumberForTitles(int);
-void setModulatorNumberForTitles(int);
-void setEnvelopeNumberForTitles(int);
+void setOscillatorNumberForTitles(int32_t);
+void setModulatorNumberForTitles(int32_t);
+void setEnvelopeNumberForTitles(int32_t);

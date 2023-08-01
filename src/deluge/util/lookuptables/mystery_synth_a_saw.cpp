@@ -18,7 +18,7 @@
 // clang-format off
 
 #include "util/lookuptables/lookuptables.h"
-#include "RZA1/system/r_typedefs.h"
+#include <cstdint>
 
 // Table for up to 22050Hz / 153. Window size: 770.
 const int16_t mysterySynthASaw_153[] {

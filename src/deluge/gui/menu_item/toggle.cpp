@@ -15,7 +15,7 @@ void Toggle::beginSession(MenuItem* navigatedBackwardFrom) {
 #endif
 }
 
-void Toggle::selectEncoderAction(int offset) {
+void Toggle::selectEncoderAction(int32_t offset) {
 	const bool flip = offset & 0b1;
 	if (flip) {
 		this->value_ = !value_;
@@ -33,18 +33,18 @@ void Toggle::drawValue() {
 
 #if HAVE_OLED
 void Toggle::drawPixelsForOled() {
-	const int val = static_cast<int>(this->value_);
+	const int32_t val = static_cast<int32_t>(this->value_);
 	// Move scroll
-	soundEditor.menuCurrentScroll = std::clamp<int>(soundEditor.menuCurrentScroll, 0, 1);
+	soundEditor.menuCurrentScroll = std::clamp<int32_t>(soundEditor.menuCurrentScroll, 0, 1);
 
 	char const* options[] = {"Off", "On"};
-	int selectedOption = this->value_ - soundEditor.menuCurrentScroll;
+	int32_t selectedOption = this->value_ - soundEditor.menuCurrentScroll;
 
-	int baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
+	int32_t baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
 	baseY += OLED_MAIN_TOPMOST_PIXEL;
 
-	for (int o = 0; o < 2; o++) {
-		int yPixel = o * kTextSpacingY + baseY;
+	for (int32_t o = 0; o < 2; o++) {
+		int32_t yPixel = o * kTextSpacingY + baseY;
 
 		OLED::drawString(options[o], kTextSpacingX, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
 		                 kTextSpacingX, kTextSpacingY);

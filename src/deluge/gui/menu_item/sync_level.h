@@ -26,9 +26,9 @@ namespace deluge::gui::menu_item {
 class SyncLevel : public Enumeration<28> {
 public:
 	using Enumeration::Enumeration;
-	SyncType menuOptionToSyncType(int option);
-	::SyncLevel menuOptionToSyncLevel(int option);
-	int syncTypeAndLevelToMenuOption(SyncType type, ::SyncLevel level);
+	SyncType menuOptionToSyncType(int32_t option);
+	::SyncLevel menuOptionToSyncLevel(int32_t option);
+	int32_t syncTypeAndLevelToMenuOption(SyncType type, ::SyncLevel level);
 
 protected:
 	void drawValue() final;

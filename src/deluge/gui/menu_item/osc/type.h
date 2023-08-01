@@ -93,7 +93,7 @@ public:
 		return {options.begin(), options.begin() + kNumOscTypes - 2};
 	}
 
-	bool isRelevant(Sound* sound, int whichThing) override {
+	bool isRelevant(Sound* sound, int32_t whichThing) override {
 		return (sound->getSynthMode() != SynthMode::FM);
 	}
 };

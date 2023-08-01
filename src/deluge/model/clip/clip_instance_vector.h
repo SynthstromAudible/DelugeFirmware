@@ -25,5 +25,5 @@ class ClipInstanceVector : public OrderedResizeableArrayWith32bitKey {
 public:
 	ClipInstanceVector();
 
-	ClipInstance* getElement(int index); // Plz deprecate.
+	ClipInstance* getElement(int32_t index); // Plz deprecate.
 };

@@ -26,7 +26,7 @@ public:
 	void readCurrentValue() override { this->value_ = soundEditor.currentSound->modulator1ToModulator0; }
 	void writeCurrentValue() override { soundEditor.currentSound->modulator1ToModulator0 = this->value_; }
 	static_vector<string, capacity()> getOptions() override { return {"Carriers", HAVE_OLED ? "Modulator 1" : "MOD1"}; }
-	bool isRelevant(Sound* sound, int whichThing) override {
+	bool isRelevant(Sound* sound, int32_t whichThing) override {
 		return (whichThing == 1 && sound->synthMode == SynthMode::FM);
 	}
 };

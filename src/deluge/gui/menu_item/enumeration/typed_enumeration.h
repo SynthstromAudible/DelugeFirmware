@@ -24,7 +24,7 @@ class TypedEnumeration : public Value<Enum> {
 public:
 	using Value<Enum>::Value;
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
-	void selectEncoderAction(int offset) override;
+	void selectEncoderAction(int32_t offset) override;
 
 	virtual size_t size() { return n; };
 
@@ -48,7 +48,7 @@ void TypedEnumeration<Enum, n>::beginSession(MenuItem* navigatedBackwardFrom) {
 }
 
 template <util::enumeration Enum, size_t n>
-void TypedEnumeration<Enum, n>::selectEncoderAction(int offset) {
+void TypedEnumeration<Enum, n>::selectEncoderAction(int32_t offset) {
 	auto current = util::to_underlying(this->value_) + offset;
 	auto numOptions = size();
 

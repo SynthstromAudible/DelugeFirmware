@@ -22,7 +22,7 @@ namespace deluge::gui::menu_item::arpeggiator {
 class Rate final : public patched_param::Integer {
 public:
 	using patched_param::Integer::Integer;
-	bool isRelevant(Sound* sound, int whichThing) override { return !soundEditor.editingCVOrMIDIClip(); }
+	bool isRelevant(Sound* sound, int32_t whichThing) override { return !soundEditor.editingCVOrMIDIClip(); }
 };
 
 } // namespace deluge::gui::menu_item::arpeggiator

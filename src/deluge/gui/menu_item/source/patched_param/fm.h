@@ -22,11 +22,11 @@
 namespace deluge::gui::menu_item::source::patched_param {
 class FM final : public source::PatchedParam, public FormattedTitle {
 public:
-	FM(const string& name, const string& title_format_str, int newP)
+	FM(const string& name, const string& title_format_str, int32_t newP)
 	    : source::PatchedParam(name, newP), FormattedTitle(title_format_str) {}
 
 	[[nodiscard]] const string& getTitle() const override { return FormattedTitle::title(); }
 
-	bool isRelevant(Sound* sound, int whichThing) override { return (sound->getSynthMode() == SynthMode::FM); }
+	bool isRelevant(Sound* sound, int32_t whichThing) override { return (sound->getSynthMode() == SynthMode::FM); }
 };
 } // namespace deluge::gui::menu_item::source::patched_param

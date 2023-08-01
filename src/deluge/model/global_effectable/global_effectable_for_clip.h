@@ -43,7 +43,7 @@ public:
 	inline void saturate(int32_t* data, uint32_t* workingValue) {
 		// Clipping
 		if (clippingAmount) {
-			int shiftAmount = (clippingAmount >= 3) ? (clippingAmount - 3) : 0;
+			int32_t shiftAmount = (clippingAmount >= 3) ? (clippingAmount - 3) : 0;
 			//*data = getTanHUnknown(*data, 5 + clippingAmount) << (shiftAmount);
 			*data = getTanHAntialiased(*data, workingValue, 3 + clippingAmount) << (shiftAmount);
 		}
@@ -53,15 +53,15 @@ public:
 	uint32_t lastSaturationTanHWorkingValue[2];
 
 protected:
-	int getParameterFromKnob(int whichModEncoder) final;
+	int32_t getParameterFromKnob(int32_t whichModEncoder) final;
 	void renderOutput(ModelStackWithTimelineCounter* modelStack, ParamManager* paramManagerForClip,
-	                  StereoSample* outputBuffer, int numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
+	                  StereoSample* outputBuffer, int32_t numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
 	                  int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive,
-	                  InstrumentType instrumentType, int analogDelaySaturationAmount);
+	                  InstrumentType instrumentType, int32_t analogDelaySaturationAmount);
 
 	virtual void renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack,
 	                                           StereoSample* globalEffectableBuffer, int32_t* bufferToTransferTo,
-	                                           int numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
+	                                           int32_t numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
 	                                           int32_t sideChainHitPending, bool shouldLimitDelayFeedback,
 	                                           bool isClipActive, int32_t pitchAdjust, int32_t amplitudeAtStart,
 	                                           int32_t amplitudeAtEnd) = 0;

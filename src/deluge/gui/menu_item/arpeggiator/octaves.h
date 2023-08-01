@@ -24,7 +24,7 @@ public:
 	using Integer::Integer;
 	void readCurrentValue() override { this->value_ = soundEditor.currentArpSettings->numOctaves; }
 	void writeCurrentValue() override { soundEditor.currentArpSettings->numOctaves = this->value_; }
-	[[nodiscard]] int getMinValue() const override { return 1; }
-	[[nodiscard]] int getMaxValue() const override { return 8; }
+	[[nodiscard]] int32_t getMinValue() const override { return 1; }
+	[[nodiscard]] int32_t getMaxValue() const override { return 8; }
 };
 } // namespace deluge::gui::menu_item::arpeggiator

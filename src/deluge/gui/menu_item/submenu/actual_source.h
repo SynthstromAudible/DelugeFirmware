@@ -22,7 +22,7 @@
 #include "string.h"
 #include "util/cfunctions.h"
 
-extern void setOscillatorNumberForTitles(int);
+extern void setOscillatorNumberForTitles(int32_t);
 
 namespace deluge::gui::menu_item::submenu {
 template <size_t n>
@@ -51,6 +51,6 @@ public:
 
 // Template deduction guide, will not be required with P2582@C++23
 template <size_t n>
-ActualSource(const string&, MenuItem* const (&)[n], int) -> ActualSource<n>;
+ActualSource(const string&, MenuItem* const (&)[n], int32_t) -> ActualSource<n>;
 
 } // namespace deluge::gui::menu_item::submenu

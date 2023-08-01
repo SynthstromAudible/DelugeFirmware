@@ -27,20 +27,20 @@ enum class RangeEdit : uint8_t {
 	RIGHT = 2,
 };
 
-class Range : public Value<int> {
+class Range : public Value<int32_t> {
 public:
 	using Value::Value;
 
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
-	void horizontalEncoderAction(int offset) final;
+	void horizontalEncoderAction(int32_t offset) final;
 	bool cancelEditingIfItsOn();
 
 protected:
-	virtual void getText(char* buffer, int* getLeftLength = nullptr, int* getRightLength = nullptr,
+	virtual void getText(char* buffer, int32_t* getLeftLength = nullptr, int32_t* getRightLength = nullptr,
 	                     bool mayShowJustOne = true) = 0;
 	virtual bool mayEditRangeEdge(RangeEdit whichEdge) { return true; }
 	virtual void drawValue() { this->drawValue(0); }
-	void drawValue(int startPos, bool renderSidebarToo = true);
+	void drawValue(int32_t startPos, bool renderSidebarToo = true);
 	void drawValueForEditingRange(bool blinkImmediately);
 
 #if HAVE_OLED

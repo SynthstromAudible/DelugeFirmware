@@ -41,14 +41,14 @@ uint8_t SourceSelection::shouldDrawDotOnValue() {
 
 #if HAVE_OLED
 
-int SourceSelection::selectedRowOnScreen;
+int32_t SourceSelection::selectedRowOnScreen;
 
 void SourceSelection::drawPixelsForOled() {
 	static_vector<string, kOLEDMenuNumOptionsVisible> itemNames{};
 
 	selectedRowOnScreen = 0;
 
-	int thisOption = scrollPos;
+	int32_t thisOption = scrollPos;
 	size_t i = 0;
 
 	while (i < kOLEDMenuNumOptionsVisible) {
@@ -61,7 +61,7 @@ void SourceSelection::drawPixelsForOled() {
 		if (sourceIsAllowed(sHere)) {
 			itemNames.push_back(getSourceDisplayNameForOLED(sHere));
 			if (thisOption == this->value_) {
-				selectedRowOnScreen = static_cast<int>(i);
+				selectedRowOnScreen = static_cast<int32_t>(i);
 			}
 			i++;
 		}
@@ -143,7 +143,7 @@ void SourceSelection::beginSession(MenuItem* navigatedBackwardFrom) {
 		// Scroll pos will be retained from before.
 	}
 	else {
-		int firstAllowedIndex = kNumPatchSources - 1;
+		int32_t firstAllowedIndex = kNumPatchSources - 1;
 		while (true) {
 			s = sourceMenuContents[this->value_];
 
@@ -187,9 +187,9 @@ void SourceSelection::readValueAgain() {
 #endif
 }
 
-void SourceSelection::selectEncoderAction(int offset) {
+void SourceSelection::selectEncoderAction(int32_t offset) {
 	bool isAllowed;
-	int newValue = this->value_;
+	int32_t newValue = this->value_;
 	do {
 		newValue += offset;
 
@@ -239,7 +239,7 @@ bool SourceSelection::sourceIsAllowed(PatchSource source) {
 		}
 	}
 
-	int p = destinationDescriptor.getJustTheParam();
+	int32_t p = destinationDescriptor.getJustTheParam();
 
 	// Check that this source is allowed to be patched to the selected param
 	if (p == ::Param::Global::VOLUME_POST_FX) {

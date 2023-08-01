@@ -29,7 +29,7 @@ public:
 	void readCurrentValue() override { this->value_ = soundEditor.currentModControllable->lpfMode; }
 	void writeCurrentValue() override { soundEditor.currentModControllable->lpfMode = this->value_; }
 	static_vector<string, capacity()> getOptions() override { return {"12dB", "24dB", "Drive", "SVF"}; }
-	bool isRelevant(Sound* sound, int whichThing) override {
+	bool isRelevant(Sound* sound, int32_t whichThing) override {
 		return ((sound == nullptr) || sound->synthMode != SynthMode::FM);
 	}
 };

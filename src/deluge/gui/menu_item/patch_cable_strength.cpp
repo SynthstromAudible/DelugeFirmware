@@ -48,12 +48,12 @@ void PatchCableStrength::beginSession(MenuItem* navigatedBackwardFrom) {
 #if HAVE_OLED
 void PatchCableStrength::renderOLED() {
 
-	int extraY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 0 : 1;
+	int32_t extraY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 0 : 1;
 
 	PatchSource s = getS();
 
-	int yTop = extraY + OLED_MAIN_TOPMOST_PIXEL;
-	int ySpacing;
+	int32_t yTop = extraY + OLED_MAIN_TOPMOST_PIXEL;
+	int32_t ySpacing;
 
 	ParamDescriptor destinationDescriptor = getDestinationDescriptor();
 	if (destinationDescriptor.isJustAParam()) {
@@ -65,7 +65,7 @@ void PatchCableStrength::renderOLED() {
 		ySpacing = 8;
 	}
 
-	int yPixel = yTop;
+	int32_t yPixel = yTop;
 
 	OLED::drawString(getSourceDisplayNameForOLED(s), 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
 	                 kTextSpacingX, kTextSizeYUpdated);
@@ -73,9 +73,9 @@ void PatchCableStrength::renderOLED() {
 
 	if (!destinationDescriptor.isJustAParam()) {
 		//OLED::drawGraphicMultiLine(OLED::downArrowIcon, 0, yPixel, 8, OLED::oledMainImage[0]);
-		int horizontalLineY = yPixel + (ySpacing << 1);
+		int32_t horizontalLineY = yPixel + (ySpacing << 1);
 		OLED::drawVerticalLine(4, yPixel + 1, horizontalLineY, OLED::oledMainImage);
-		int rightArrowX = 3 + kTextSpacingX;
+		int32_t rightArrowX = 3 + kTextSpacingX;
 		OLED::drawHorizontalLine(horizontalLineY, 4, kTextSpacingX * 2 + 4, OLED::oledMainImage);
 		OLED::drawGraphicMultiLine(OLED::rightArrowIcon, rightArrowX, horizontalLineY - 2, 3, OLED::oledMainImage[0]);
 
@@ -93,7 +93,7 @@ void PatchCableStrength::renderOLED() {
 	                           yPixel, 5, OLED::oledMainImage[0]);
 	yPixel += ySpacing;
 
-	int p = destinationDescriptor.getJustTheParam();
+	int32_t p = destinationDescriptor.getJustTheParam();
 
 	OLED::drawString(getPatchedParamDisplayNameForOled(p), 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
 	                 kTextSpacingX, kTextSizeYUpdated);
@@ -104,24 +104,24 @@ void PatchCableStrength::renderOLED() {
 
 	char buffer[12];
 	if (preferBarDrawing) {
-		int rounded = (this->value_ + 50 * (this->value_ > 0 ? 1 : -1)) / 100;
+		int32_t rounded = (this->value_ + 50 * (this->value_ > 0 ? 1 : -1)) / 100;
 		intToString(rounded, buffer, 1);
 		OLED::drawStringAlignRight(buffer, extraY + OLED_MAIN_TOPMOST_PIXEL + 4 + destinationDescriptor.isJustAParam(),
 		                           OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, 18, 20);
 
-		int marginL = destinationDescriptor.isJustAParam() ? 0 : 80;
-		int yBar = destinationDescriptor.isJustAParam() ? 36 : 37;
+		int32_t marginL = destinationDescriptor.isJustAParam() ? 0 : 80;
+		int32_t yBar = destinationDescriptor.isJustAParam() ? 36 : 37;
 		drawBar(yBar, marginL, 0);
 	}
 	else {
-		const int digitWidth = kTextBigSpacingX;
-		const int digitHeight = kTextBigSizeY;
+		const int32_t digitWidth = kTextBigSpacingX;
+		const int32_t digitHeight = kTextBigSizeY;
 		intToString(this->value_, buffer, 3);
-		int textPixelY = extraY + OLED_MAIN_TOPMOST_PIXEL + 10 + destinationDescriptor.isJustAParam();
+		int32_t textPixelY = extraY + OLED_MAIN_TOPMOST_PIXEL + 10 + destinationDescriptor.isJustAParam();
 		OLED::drawStringAlignRight(buffer, textPixelY, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, digitWidth,
 		                           digitHeight);
 
-		int ourDigitStartX = OLED_MAIN_WIDTH_PIXELS - (soundEditor.numberEditPos + 1) * digitWidth;
+		int32_t ourDigitStartX = OLED_MAIN_WIDTH_PIXELS - (soundEditor.numberEditPos + 1) * digitWidth;
 		OLED::setupBlink(ourDigitStartX, digitWidth, 40, 44, movingCursor);
 		OLED::drawVerticalLine(OLED_MAIN_WIDTH_PIXELS - 2 * digitWidth, textPixelY + digitHeight + 1,
 		                       textPixelY + digitHeight + 3, OLED::oledMainImage);
@@ -133,7 +133,7 @@ void PatchCableStrength::renderOLED() {
 
 void PatchCableStrength::readCurrentValue() {
 	PatchCableSet* patchCableSet = soundEditor.currentParamManager->getPatchCableSet();
-	unsigned int c = patchCableSet->getPatchCableIndex(getS(), getDestinationDescriptor());
+	uint32_t c = patchCableSet->getPatchCableIndex(getS(), getDestinationDescriptor());
 	if (c == 255) {
 		this->value_ = 0;
 	}
@@ -169,7 +169,7 @@ void PatchCableStrength::writeCurrentValue() {
 	modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
 }
 
-MenuPermission PatchCableStrength::checkPermissionToBeginSession(Sound* sound, int whichThing,
+MenuPermission PatchCableStrength::checkPermissionToBeginSession(Sound* sound, int32_t whichThing,
                                                                  MultiRange** currentRange) {
 
 	ParamDescriptor destinationDescriptor = getDestinationDescriptor();
@@ -187,7 +187,7 @@ MenuPermission PatchCableStrength::checkPermissionToBeginSession(Sound* sound, i
 		                                                                          : MenuPermission::NO;
 	}
 
-	int p = destinationDescriptor.getJustTheParam();
+	int32_t p = destinationDescriptor.getJustTheParam();
 
 	// Note, that requires soundEditor.currentParamManager be set before this is called, which isn't quite ideal.
 	if (sound->maySourcePatchToParam(s, p, ((ParamManagerForTimeline*)soundEditor.currentParamManager))

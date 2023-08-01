@@ -940,7 +940,7 @@ MenuItem* paramShortcutsForAudioClips[][8] = {
 //clang-format on
 
 #if HAVE_OLED
-void setOscillatorNumberForTitles(int num) {
+void setOscillatorNumberForTitles(int32_t num) {
 	num += 1;
 	oscTypeMenu.format(num);
 	sourceVolumeMenu.format(num);
@@ -957,7 +957,7 @@ void setOscillatorNumberForTitles(int num) {
 	interpolationMenu.format(num);
 }
 
-void setEnvelopeNumberForTitles(int num) {
+void setEnvelopeNumberForTitles(int32_t num) {
 	num += 1;
 	envAttackMenu.format(num);
 	envDecayMenu.format(num);
@@ -965,7 +965,7 @@ void setEnvelopeNumberForTitles(int num) {
 	envReleaseMenu.format(num);
 }
 
-void setModulatorNumberForTitles(int num) {
+void setModulatorNumberForTitles(int32_t num) {
 	num += 1;
 	modulatorTransposeMenu.format(num);
 	modulatorVolume.format(num);
@@ -973,7 +973,7 @@ void setModulatorNumberForTitles(int num) {
 	modulatorPhaseMenu.format(num);
 }
 
-void setCvNumberForTitle(int num) {
+void setCvNumberForTitle(int32_t num) {
 	num += 1;
 	cvVoltsMenu.format(num);
 	cvTransposeMenu.format(num);

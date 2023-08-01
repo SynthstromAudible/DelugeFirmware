@@ -52,13 +52,13 @@ public:
 
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
 	void updateDisplay();
-	void selectEncoderAction(int offset) final;
+	void selectEncoderAction(int32_t offset) final;
 	MenuItem* selectButtonPress() final;
 	void readValueAgain() final { updateDisplay(); }
 	void unlearnAction() final;
 	bool allowsLearnMode() final;
-	void learnKnob(MIDIDevice* fromDevice, int whichKnob, int modKnobMode, int midiChannel) final;
-	bool learnNoteOn(MIDIDevice* fromDevice, int channel, int noteCode) final;
+	void learnKnob(MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) final;
+	bool learnNoteOn(MIDIDevice* fromDevice, int32_t channel, int32_t noteCode) final;
 #if HAVE_OLED
 	void drawPixelsForOled() override;
 #endif
@@ -104,7 +104,7 @@ void Submenu<n>::updateDisplay() {
 
 template <size_t n>
 void Submenu<n>::drawPixelsForOled() {
-	int selectedRow = soundEditor.menuCurrentScroll;
+	int32_t selectedRow = soundEditor.menuCurrentScroll;
 
 	// This finds the next relevant submenu item
 	static_vector<string, kOLEDMenuNumOptionsVisible> nextItemNames = {};
@@ -136,7 +136,7 @@ void Submenu<n>::drawPixelsForOled() {
 #endif
 
 template <size_t n>
-void Submenu<n>::selectEncoderAction(int offset) {
+void Submenu<n>::selectEncoderAction(int32_t offset) {
 
 	auto thisSubmenuItem = current_item_;
 
@@ -201,14 +201,14 @@ bool Submenu<n>::allowsLearnMode() {
 }
 
 template <size_t n>
-void Submenu<n>::learnKnob(MIDIDevice* fromDevice, int whichKnob, int modKnobMode, int midiChannel) {
+void Submenu<n>::learnKnob(MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) {
 	if (soundEditor.getCurrentMenuItem() == this) {
 		(*current_item_)->learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel);
 	}
 }
 
 template <size_t n>
-bool Submenu<n>::learnNoteOn(MIDIDevice* fromDevice, int channel, int noteCode) {
+bool Submenu<n>::learnNoteOn(MIDIDevice* fromDevice, int32_t channel, int32_t noteCode) {
 	if (soundEditor.getCurrentMenuItem() == this) {
 		return (*current_item_)->learnNoteOn(fromDevice, channel, noteCode);
 	}

@@ -17,7 +17,7 @@
 #pragma once
 #include "gui/menu_item/submenu_referring_to_one_thing.h"
 
-extern void setEnvelopeNumberForTitles(int);
+extern void setEnvelopeNumberForTitles(int32_t);
 
 namespace deluge::gui::menu_item::submenu {
 template <size_t n>
@@ -34,6 +34,6 @@ public:
 
 // Template deduction guide, will not be required with P2582@C++23
 template <size_t n>
-Envelope(const string&, MenuItem* const (&)[n], int) -> Envelope<n>;
+Envelope(const string&, MenuItem* const (&)[n], int32_t) -> Envelope<n>;
 
 } // namespace deluge::gui::menu_item::submenu

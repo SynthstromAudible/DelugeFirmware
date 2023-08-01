@@ -29,10 +29,10 @@ public:
 
 	[[nodiscard]] const string& getTitle() const override { return FormattedTitle::title(); }
 
-	[[nodiscard]] int getMinValue() const override { return 0; }
-	[[nodiscard]] int getMaxValue() const override { return 200; }
-	[[nodiscard]] int getNumDecimalPlaces() const override { return 2; }
-	[[nodiscard]] int getDefaultEditPos() const override { return 1; }
+	[[nodiscard]] int32_t getMinValue() const override { return 0; }
+	[[nodiscard]] int32_t getMaxValue() const override { return 200; }
+	[[nodiscard]] int32_t getNumDecimalPlaces() const override { return 2; }
+	[[nodiscard]] int32_t getDefaultEditPos() const override { return 1; }
 	void readCurrentValue() override {
 		this->value_ = cvEngine.cvChannels[soundEditor.currentSourceIndex].voltsPerOctave;
 	}
@@ -57,7 +57,7 @@ public:
 		}
 	}
 #endif
-	void horizontalEncoderAction(int offset) override {
+	void horizontalEncoderAction(int32_t offset) override {
 		if (this->value_ != 0) {
 			Decimal::horizontalEncoderAction(offset);
 		}

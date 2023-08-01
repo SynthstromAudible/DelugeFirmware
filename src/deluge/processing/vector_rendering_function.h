@@ -75,7 +75,7 @@
 		int16x4_t rshiftedA, rshiftedB;                                                                                \
 		uint32x4_t readValueA, readValueB;                                                                             \
                                                                                                                        \
-		int rshiftAmount = (32 - tableSizeMagnitude - 16);                                                             \
+		int32_t rshiftAmount = (32 - tableSizeMagnitude - 16);                                                         \
                                                                                                                        \
 		/* Need to use a macro rather than a for loop here, otherwise won't compile with less than O2. */              \
 		waveRenderingFunctionPulseForLoop(0) waveRenderingFunctionPulseForLoop(1) waveRenderingFunctionPulseForLoop(2) \

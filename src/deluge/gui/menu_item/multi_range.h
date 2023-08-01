@@ -26,15 +26,16 @@ public:
 	using Range::Range;
 
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
-	void selectEncoderAction(int offset) override;
+	void selectEncoderAction(int32_t offset) override;
 	MenuItem* selectButtonPress() override;
-	void noteOnToChangeRange(int noteCode);
+	void noteOnToChangeRange(int32_t noteCode);
 	bool isRangeDependent() override { return true; }
 	void deletePress();
 	MenuItem* menuItemHeadingTo;
 
 protected:
-	void getText(char* buffer, int* getLeftLength = nullptr, int* getRightLength = nullptr,
+	void getText(char* buffer, int32_t* getLeftLength = nullptr, int32_t* getRightLength = nullptr,
+
 	             bool mayShowJustOne = true) override;
 	bool mayEditRangeEdge(RangeEdit whichEdge) override;
 

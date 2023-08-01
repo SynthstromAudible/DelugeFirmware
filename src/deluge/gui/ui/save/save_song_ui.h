@@ -32,7 +32,7 @@ public:
 	bool collectingSamples;
 
 protected:
-	//int arrivedInNewFolder(int direction);
+	//int32_t arrivedInNewFolder(int32_t direction);
 };
 
 extern SaveSongUI saveSongUI;

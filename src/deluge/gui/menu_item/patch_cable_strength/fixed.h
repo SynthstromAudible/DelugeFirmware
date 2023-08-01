@@ -22,10 +22,10 @@ namespace deluge::gui::menu_item::patch_cable_strength {
 
 class Fixed : public Regular {
 public:
-	Fixed(const string& newName, int newP = 0, PatchSource newS = PatchSource::LFO_GLOBAL)
+	Fixed(const string& newName, int32_t newP = 0, PatchSource newS = PatchSource::LFO_GLOBAL)
 	    : Regular(newName), p(newP), s(newS) {}
 
-	MenuPermission checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) final;
+	MenuPermission checkPermissionToBeginSession(Sound* sound, int32_t whichThing, MultiRange** currentRange) final;
 	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) final;
 	MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive) final;
 

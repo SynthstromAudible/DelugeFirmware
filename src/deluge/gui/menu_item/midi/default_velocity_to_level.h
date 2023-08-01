@@ -24,7 +24,7 @@ namespace deluge::gui::menu_item::midi {
 class DefaultVelocityToLevel final : public IntegerWithOff {
 public:
 	DefaultVelocityToLevel(char const* newName = NULL) : IntegerWithOff(newName) {}
-	[[nodiscard]] int getMaxValue() const override { return 50; }
+	[[nodiscard]] int32_t getMaxValue() const override { return 50; }
 	void readCurrentValue() override {
 		this->value_ = ((int64_t)soundEditor.currentMIDIDevice->defaultVelocityToLevel * 50 + 536870912) >> 30;
 	}

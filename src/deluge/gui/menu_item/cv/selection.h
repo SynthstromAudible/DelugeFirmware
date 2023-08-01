@@ -21,7 +21,7 @@
 #include "transpose.h"
 #include "volts.h"
 
-extern void setCvNumberForTitle(int m);
+extern void setCvNumberForTitle(int32_t m);
 extern deluge::gui::menu_item::Submenu<2> cvSubmenu;
 
 namespace deluge::gui::menu_item::cv {

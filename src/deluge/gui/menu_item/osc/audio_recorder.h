@@ -39,12 +39,12 @@ public:
 			audioRecorder.process();
 		}
 	}
-	bool isRelevant(Sound* sound, int whichThing) override {
+	bool isRelevant(Sound* sound, int32_t whichThing) override {
 		Source* source = &sound->sources[whichThing];
 		return (sound->getSynthMode() == SynthMode::SUBTRACTIVE);
 	}
 
-	MenuPermission checkPermissionToBeginSession(Sound* sound, int whichThing, ::MultiRange** currentRange) override {
+	MenuPermission checkPermissionToBeginSession(Sound* sound, int32_t whichThing, ::MultiRange** currentRange) override {
 
 		bool can = isRelevant(sound, whichThing);
 		if (!can) {

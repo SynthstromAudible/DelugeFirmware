@@ -23,7 +23,7 @@ namespace deluge::gui::menu_item::modulator {
 
 class Transpose final : public source::Transpose, public FormattedTitle {
 public:
-	Transpose(const string& name, const string& title_format_str, int newP)
+	Transpose(const string& name, const string& title_format_str, int32_t newP)
 	    : source::Transpose(name, newP), FormattedTitle(title_format_str) {}
 
 	[[nodiscard]] const string& getTitle() const override { return FormattedTitle::title(); }
@@ -34,10 +34,10 @@ public:
 	}
 
 	void writeCurrentValue() override {
-		int currentValue = this->value_ + 25600;
+		int32_t currentValue = this->value_ + 25600;
 
-		int semitones = (currentValue + 50) / 100;
-		int cents = currentValue - semitones * 100;
+		int32_t semitones = (currentValue + 50) / 100;
+		int32_t cents = currentValue - semitones * 100;
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithSoundFlags* modelStack = soundEditor.getCurrentModelStack(modelStackMemory)->addSoundFlags();
@@ -46,7 +46,7 @@ public:
 		soundEditor.currentSound->setModulatorCents(soundEditor.currentSourceIndex, cents, modelStack);
 	}
 
-	bool isRelevant(Sound* sound, int whichThing) override { return (sound->getSynthMode() == SynthMode::FM); }
+	bool isRelevant(Sound* sound, int32_t whichThing) override { return (sound->getSynthMode() == SynthMode::FM); }
 };
 
 } // namespace deluge::gui::menu_item::modulator
