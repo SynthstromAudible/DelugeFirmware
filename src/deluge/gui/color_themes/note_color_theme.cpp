@@ -48,8 +48,8 @@ void NoteColorTheme::getNoteSpecificMainColour(int yNote,
 
 	// copy either the defaults or tranpose
 	int transpose = note->getAccidentalTranspose();
-	if ( transpose == 0) {
-		getThemeColorForPitch(yNote,clipColourOffset, noteColour);
+	if ( transpose % 12 == 0) {
+		getThemeColorForPitch(yNote + transpose,clipColourOffset, noteColour);
 	}
 	else {
     	// use hard red and green if the transpose is less than 1 octave.
