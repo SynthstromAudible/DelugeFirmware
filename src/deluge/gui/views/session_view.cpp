@@ -110,8 +110,6 @@ bool SessionView::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
 }
 
 bool SessionView::opened() {
-	selectLayout(0); // Make sure we get a valid layout from the loaded file
-
 	if (playbackHandler.playbackState && currentPlaybackMode == &arrangement) {
 		PadLEDs::skipGreyoutFade();
 	}
@@ -125,6 +123,7 @@ bool SessionView::opened() {
 }
 
 void SessionView::focusRegained() {
+	selectLayout(0); // Make sure we get a valid layout from the loaded file
 
 	bool doingRender = (currentUIMode != UI_MODE_ANIMATION_FADE);
 	redrawClipsOnScreen(doingRender); // We want this here, not just in opened(), because after coming back from
@@ -931,6 +930,7 @@ void SessionView::sectionPadAction(uint8_t y, bool on) {
 		if (isNoUIModeActive()) {
 			// If user wanting to change Clip's section
 			if (Buttons::isShiftButtonPressed()) {
+				//@TODO: Change behavior so two rows clips in the same instrument can not be the same section
 
 				// Not allowed if recording arrangement
 				if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
@@ -1237,6 +1237,10 @@ bool SessionView::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidt
 		return true;
 	}
 
+	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+		return gridRenderSidebar(whichRows, image, occupancyMask);
+	}
+
 	for (int i = 0; i < kDisplayHeight; i++) {
 		if (whichRows & (1 << i)) {
 			drawStatusSquare(i, image[i]);
@@ -1405,13 +1409,13 @@ doGetInstrument:
 	int index = yDisplay + currentSong->songViewYScroll;
 	if (index <= 0) {
 		index = 0;
-		newClip->section = currentSong->sessionClips.getClipAtIndex(0)->section;
+		newClip->section = currentSong->sessionClips.getClipAtIndex(0)->section; //@TODO: Change behavior
 		currentSong->songViewYScroll++;
 	}
 	else if (index >= currentSong->sessionClips.getNumElements()) {
 		index = currentSong->sessionClips.getNumElements();
-		newClip->section =
-		    currentSong->sessionClips.getClipAtIndex(currentSong->sessionClips.getNumElements() - 1)->section;
+		newClip->section = currentSong->sessionClips.getClipAtIndex(currentSong->sessionClips.getNumElements() - 1)
+		                       ->section; //@TODO: This might need to change as well (didn't read yet)
 	}
 	currentSong->sessionClips.insertClipAtIndex(newClip, index);
 
@@ -1767,7 +1771,8 @@ ramError:
 
 	Clip* newClip = (Clip*)modelStack->getTimelineCounter();
 
-	newClip->section = (uint8_t)(newClip->section + 1) % kMaxNumSections;
+	newClip->section = (uint8_t)(newClip->section + 1)
+	                   % kMaxNumSections; //@TODO: We might need to display can't if all slots are taken
 
 	int newIndex = yDisplayTo + currentSong->songViewYScroll;
 
@@ -1986,7 +1991,10 @@ uint32_t SessionView::getMaxLength() {
 }
 
 bool SessionView::setupScroll(uint32_t oldScroll) {
-
+	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+		//@TODO: Check if this still gets called in Grid layout after changing horizontal/vertical action
+		return false; //@TODO: Check if false is correct
+	}
 	// Ok I'm sorta pretending that this is definitely previously false, though only one caller of this function actually
 	// checks for that. Should be ok-ish though...
 	pendingUIRenderingLock = true;
@@ -2088,6 +2096,10 @@ bool SessionView::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWid
                                  uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
 	if (!image) {
 		return true;
+	}
+
+	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+		return gridRenderMainPads(whichRows, image, occupancyMask, drawUndefinedArea);
 	}
 
 	uint32_t whichRowsCouldntBeRendered = 0;
@@ -2560,10 +2572,43 @@ void SessionView::selectLayout(int8_t offset) {
 		}
 		else if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 			numericDriver.displayPopup("Grid");
+			//@TODO: Maybe reset zoom level
 		}
+
+		currentSong->songViewYScroll = 0;
 	}
 
 	//@TODO: Update scrolling
 
 	uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
+}
+
+bool SessionView::gridRenderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+                                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
+
+	uint32_t sectionColumnIndex = kDisplayWidth;
+	uint32_t unusedColumnIndex = kDisplayWidth + 1;
+	for (int y = (kDisplayHeight - 1); y >= 0; --y) {
+		uint32_t sectionIndex = ((kDisplayHeight - 1) - y) + currentSong->songViewYScroll;
+		hueToRGB(defaultClipGroupColours[sectionIndex], image[y][sectionColumnIndex]);
+		memset(image[y][unusedColumnIndex], 0, 3);
+	}
+
+	return true;
+}
+
+bool SessionView::gridRenderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+                                     uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
+
+	/*
+	int index = yDisplay + currentSong->songViewYScroll;
+
+	if (index < 0 || index >= currentSong->sessionClips.getNumElements()) {
+		return NULL;
+	}
+
+	return currentSong->sessionClips.getClipAtIndex(index);
+*/
+
+	return true;
 }

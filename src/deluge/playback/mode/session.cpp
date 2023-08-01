@@ -116,7 +116,7 @@ void Session::armNextSection(int oldSection, int numRepetitions) {
 		for (int c = 1; c < currentSong->sessionClips.getNumElements(); c++) { // NOTE: starts at 1, not 0
 			Clip* clip = currentSong->sessionClips.getClipAtIndex(c);
 
-			if (clip->section == oldSection) {
+			if (clip->section == oldSection) { //@TODO: Evaluate if anything needs to be done here
 				int newSection =
 				    currentSong->sessionClips.getClipAtIndex(c - 1)->section; // Grab section from next Clip down
 				userWantsToArmClipsToStartOrSolo(newSection, NULL, true, false, false, numRepetitions, false);

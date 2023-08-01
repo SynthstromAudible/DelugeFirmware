@@ -117,11 +117,27 @@ private:
 	void rowNeedsRenderingDependingOnSubMode(int yDisplay);
 	void setCentralLEDStates();
 
+	// Members regarding rendering different layouts
 private:
 	void selectLayout(int8_t offset);
 
 	bool sessionButtonActive = false;
 	bool sessionButtonUsed = false;
+
+	bool gridRenderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	                       uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
+	bool gridRenderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
+	ActionResult gridHandlePads(int x, int y, int velocity);
+
+private:
+	inline uint32_t instrumentCount() {
+		return 0; //@TODO
+	}
+
+	// inline  instrumentAt(uint32_t instrumentIndex) {
+
+	// }
 };
 
 extern SessionView sessionView;

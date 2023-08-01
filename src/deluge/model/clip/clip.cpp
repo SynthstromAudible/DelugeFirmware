@@ -83,7 +83,7 @@ void Clip::copyBasicsFrom(Clip* otherClip) {
 	loopLength = otherClip->loopLength;
 	colourOffset = otherClip->colourOffset;
 	//modKnobMode = otherClip->modKnobMode;
-	section = otherClip->section;
+	section = otherClip->section; //@TODO: change behavior
 }
 
 void Clip::setupForRecordingAsAutoOverdub(Clip* existingClip, Song* song, int newOverdubNature) {

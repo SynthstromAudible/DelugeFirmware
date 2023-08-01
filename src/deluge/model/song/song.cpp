@@ -963,7 +963,7 @@ Clip* Song::getSessionClipWithOutput(Output* output, int requireSection, Clip* e
 			if (clip == excludeClip) {
 				continue;
 			}
-			if (requireSection != -1 && clip->section != requireSection) {
+			if (requireSection != -1 && clip->section != requireSection) { //@TODO: Look at this
 				continue;
 			}
 			if (excludePendingOverdubs && clip->isPendingOverdub) {
@@ -3666,7 +3666,7 @@ void Song::restoreClipStatesBeforeArrangementPlay() {
 }
 
 // Returns 0 if they're all full
-int Song::getLowestSectionWithNoSessionClipForOutput(Output* output) {
+int Song::getLowestSectionWithNoSessionClipForOutput(Output* output) { //@TODO: Maybe this is relevant?
 	bool* sectionRepresented = (bool*)shortStringBuffer;
 	memset(sectionRepresented, 0, kMaxNumSections);
 
