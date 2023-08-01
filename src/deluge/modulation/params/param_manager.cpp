@@ -57,7 +57,7 @@ ParamManagerForTimeline* ParamManagerForTimeline::toForTimeline() {
 #endif
 
 int ParamManager::setupMIDI() {
-	void* memory = generalMemoryAllocator.alloc(sizeof(MIDIParamCollection), NULL, false, true);
+	void* memory = GeneralMemoryAllocator::get().alloc(sizeof(MIDIParamCollection), NULL, false, true);
 	if (!memory) {
 		return ERROR_INSUFFICIENT_RAM;
 	}
@@ -70,7 +70,7 @@ int ParamManager::setupMIDI() {
 }
 
 int ParamManager::setupUnpatched() {
-	void* memoryUnpatched = generalMemoryAllocator.alloc(sizeof(UnpatchedParamSet), NULL, false, true);
+	void* memoryUnpatched = GeneralMemoryAllocator::get().alloc(sizeof(UnpatchedParamSet), NULL, false, true);
 	if (!memoryUnpatched) {
 		return ERROR_INSUFFICIENT_RAM;
 	}
@@ -82,21 +82,21 @@ int ParamManager::setupUnpatched() {
 }
 
 int ParamManager::setupWithPatching() {
-	void* memoryUnpatched = generalMemoryAllocator.alloc(sizeof(UnpatchedParamSet), NULL, false, true);
+	void* memoryUnpatched = GeneralMemoryAllocator::get().alloc(sizeof(UnpatchedParamSet), NULL, false, true);
 	if (!memoryUnpatched) {
 		return ERROR_INSUFFICIENT_RAM;
 	}
 
-	void* memoryPatched = generalMemoryAllocator.alloc(sizeof(PatchedParamSet), NULL, false, true);
+	void* memoryPatched = GeneralMemoryAllocator::get().alloc(sizeof(PatchedParamSet), NULL, false, true);
 	if (!memoryPatched) {
 ramError2:
-		generalMemoryAllocator.dealloc(memoryUnpatched);
+		GeneralMemoryAllocator::get().dealloc(memoryUnpatched);
 		return ERROR_INSUFFICIENT_RAM;
 	}
 
-	void* memoryPatchCables = generalMemoryAllocator.alloc(sizeof(PatchCableSet), NULL, false, true);
+	void* memoryPatchCables = GeneralMemoryAllocator::get().alloc(sizeof(PatchCableSet), NULL, false, true);
 	if (!memoryPatchCables) {
-		generalMemoryAllocator.dealloc(memoryPatched);
+		GeneralMemoryAllocator::get().dealloc(memoryPatched);
 		goto ramError2;
 	}
 
@@ -126,7 +126,7 @@ void ParamManager::stealParamCollectionsFrom(ParamManager* other, bool stealExpr
 		// If "here" has them too, we'll just keep these, and destruct "other"'s ones
 		if (summaries[mpeParamsOffsetHere].paramCollection) {
 			other->summaries[stopAtOther].paramCollection->~ParamCollection();
-			generalMemoryAllocator.dealloc(other->summaries[stopAtOther].paramCollection);
+			GeneralMemoryAllocator::get().dealloc(other->summaries[stopAtOther].paramCollection);
 			other->summaries[stopAtOther] = {0};
 		}
 
@@ -183,7 +183,7 @@ int ParamManager::cloneParamCollectionsFrom(ParamManager* other, bool copyAutoma
 
 	while (otherSummary != otherStopAt) {
 
-		newSummary->paramCollection = (ParamCollection*)generalMemoryAllocator.alloc(
+		newSummary->paramCollection = (ParamCollection*)GeneralMemoryAllocator::get().alloc(
 		    otherSummary->paramCollection->objectSize, NULL, false,
 		    true); // To cut corners, we store this currently blank/undefined memory in our array of type ParamCollectionSummary
 
@@ -191,7 +191,7 @@ int ParamManager::cloneParamCollectionsFrom(ParamManager* other, bool copyAutoma
 		if (!newSummary->paramCollection) {
 			while (newSummary != newSummaries) {
 				newSummary--;
-				generalMemoryAllocator.dealloc(newSummary->paramCollection);
+				GeneralMemoryAllocator::get().dealloc(newSummary->paramCollection);
 			}
 
 			// Mark that there's nothing here
@@ -265,7 +265,7 @@ void ParamManager::destructAndForgetParamCollections() {
 	ParamCollectionSummary* summary = summaries;
 	while (summary->paramCollection) {
 		summary->paramCollection->~ParamCollection();
-		generalMemoryAllocator.dealloc(summary->paramCollection);
+		GeneralMemoryAllocator::get().dealloc(summary->paramCollection);
 		summary++;
 	}
 
@@ -278,7 +278,7 @@ bool ParamManager::ensureExpressionParamSetExists(bool forDrum) {
 	int offset = getExpressionParamSetOffset();
 	if (!summaries[offset].paramCollection) {
 
-		void* memory = generalMemoryAllocator.alloc(sizeof(ExpressionParamSet), NULL, false, true);
+		void* memory = GeneralMemoryAllocator::get().alloc(sizeof(ExpressionParamSet), NULL, false, true);
 		if (!memory) {
 			return false;
 		}

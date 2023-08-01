@@ -211,7 +211,7 @@ void Song::deleteAllOutputs(Output** prevPointer) {
 
 		void* toDealloc = dynamic_cast<void*>(toDelete);
 		toDelete->~Output();
-		generalMemoryAllocator.dealloc(toDealloc);
+		GeneralMemoryAllocator::get().dealloc(toDealloc);
 	}
 }
 
@@ -285,7 +285,7 @@ bool Song::ensureAtLeastOneSessionClip() {
 	// If no Clips added, make just one blank one - we can't have none!
 	if (!sessionClips.getNumElements()) {
 
-		void* memory = generalMemoryAllocator.alloc(sizeof(InstrumentClip), NULL, false, true);
+		void* memory = GeneralMemoryAllocator::get().alloc(sizeof(InstrumentClip), NULL, false, true);
 		InstrumentClip* firstClip = new (memory) InstrumentClip(this);
 
 		sessionClips.insertClipAtIndex(firstClip, 0);
@@ -1584,7 +1584,7 @@ unknownTag:
 					int error;
 
 					if (!strcmp(tagName, "audioTrack")) {
-						memory = generalMemoryAllocator.alloc(sizeof(AudioOutput), NULL, false, true);
+						memory = GeneralMemoryAllocator::get().alloc(sizeof(AudioOutput), NULL, false, true);
 						if (!memory) {
 							return ERROR_INSUFFICIENT_RAM;
 						}
@@ -1593,7 +1593,7 @@ unknownTag:
 					}
 
 					else if (!strcmp(tagName, "sound")) {
-						memory = generalMemoryAllocator.alloc(sizeof(SoundInstrument), NULL, false, true);
+						memory = GeneralMemoryAllocator::get().alloc(sizeof(SoundInstrument), NULL, false, true);
 						if (!memory) {
 							return ERROR_INSUFFICIENT_RAM;
 						}
@@ -1605,7 +1605,7 @@ setDirPathFirst:
 						if (error) {
 gotError:
 							newOutput->~Output();
-							generalMemoryAllocator.dealloc(memory);
+							GeneralMemoryAllocator::get().dealloc(memory);
 							return error;
 						}
 
@@ -1622,7 +1622,7 @@ loadOutput:
 					}
 
 					else if (!strcmp(tagName, "kit")) {
-						memory = generalMemoryAllocator.alloc(sizeof(Kit), NULL, false, true);
+						memory = GeneralMemoryAllocator::get().alloc(sizeof(Kit), NULL, false, true);
 						if (!memory) {
 							return ERROR_INSUFFICIENT_RAM;
 						}
@@ -1632,7 +1632,7 @@ loadOutput:
 					}
 
 					else if (!strcmp(tagName, "midiChannel") || !strcmp(tagName, "mpeZone")) {
-						memory = generalMemoryAllocator.alloc(sizeof(MIDIInstrument), NULL, false, true);
+						memory = GeneralMemoryAllocator::get().alloc(sizeof(MIDIInstrument), NULL, false, true);
 						if (!memory) {
 							return ERROR_INSUFFICIENT_RAM;
 						}
@@ -1641,7 +1641,7 @@ loadOutput:
 					}
 
 					else if (!strcmp(tagName, "cvChannel")) {
-						memory = generalMemoryAllocator.alloc(sizeof(CVInstrument), NULL, false, true);
+						memory = GeneralMemoryAllocator::get().alloc(sizeof(CVInstrument), NULL, false, true);
 						if (!memory) {
 							return ERROR_INSUFFICIENT_RAM;
 						}
@@ -1914,7 +1914,7 @@ readClip:
 				return ERROR_INSUFFICIENT_RAM;
 			}
 
-			void* memory = generalMemoryAllocator.alloc(allocationSize, NULL, false, true);
+			void* memory = GeneralMemoryAllocator::get().alloc(allocationSize, NULL, false, true);
 			if (!memory) {
 				return ERROR_INSUFFICIENT_RAM;
 			}
@@ -1930,7 +1930,7 @@ readClip:
 			int error = newClip->readFromFile(this);
 			if (error) {
 				newClip->~Clip();
-				generalMemoryAllocator.dealloc(memory);
+				GeneralMemoryAllocator::get().dealloc(memory);
 				return error;
 			}
 
@@ -2757,7 +2757,7 @@ void Song::deleteClipObject(Clip* clip, bool songBeingDestroyedToo, InstrumentRe
 
 	void* toDealloc = dynamic_cast<void*>(clip);
 	clip->~Clip();
-	generalMemoryAllocator.dealloc(toDealloc);
+	GeneralMemoryAllocator::get().dealloc(toDealloc);
 }
 
 int Song::getMaxMIDIChannelSuffix(int channel) {
@@ -3103,7 +3103,7 @@ void Song::deleteOutput(Output* output) {
 	output->deleteBackedUpParamManagers(this);
 	void* toDealloc = dynamic_cast<void*>(output);
 	output->~Output();
-	generalMemoryAllocator.dealloc(toDealloc);
+	GeneralMemoryAllocator::get().dealloc(toDealloc);
 }
 
 void Song::moveInstrumentToHibernationList(Instrument* instrument) {
@@ -3995,7 +3995,7 @@ void Song::deleteHibernatingMIDIInstrument() {
 	if (hibernatingMIDIInstrument) {
 		void* toDealloc = dynamic_cast<void*>(hibernatingMIDIInstrument);
 		hibernatingMIDIInstrument->~Instrument();
-		generalMemoryAllocator.dealloc(toDealloc);
+		GeneralMemoryAllocator::get().dealloc(toDealloc);
 		hibernatingMIDIInstrument = NULL;
 	}
 }
@@ -4556,7 +4556,7 @@ AudioOutput* Song::createNewAudioOutput(Output* replaceOutput) {
 		return NULL;
 	}
 
-	void* outputMemory = generalMemoryAllocator.alloc(sizeof(AudioOutput), NULL, false, true);
+	void* outputMemory = GeneralMemoryAllocator::get().alloc(sizeof(AudioOutput), NULL, false, true);
 	if (!outputMemory) {
 		return NULL;
 	}
@@ -5008,7 +5008,7 @@ int8_t defaultAudioClipOverdubOutputCloning = -1; // -1 means no default set
 Clip* Song::replaceInstrumentClipWithAudioClip(Clip* oldClip, int clipIndex) {
 
 	// Allocate memory for audio clip
-	void* clipMemory = generalMemoryAllocator.alloc(sizeof(AudioClip), NULL, false, true);
+	void* clipMemory = GeneralMemoryAllocator::get().alloc(sizeof(AudioClip), NULL, false, true);
 	if (!clipMemory) {
 		return NULL;
 	}
@@ -5016,7 +5016,7 @@ Clip* Song::replaceInstrumentClipWithAudioClip(Clip* oldClip, int clipIndex) {
 	// Suss output
 	AudioOutput* newOutput = createNewAudioOutput();
 	if (!newOutput) {
-		generalMemoryAllocator.dealloc(clipMemory);
+		GeneralMemoryAllocator::get().dealloc(clipMemory);
 		return NULL;
 	}
 

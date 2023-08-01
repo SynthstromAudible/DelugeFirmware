@@ -341,8 +341,8 @@ bool Sound::setModFXType(ModFXType newType) {
 	if (newType == ModFXType::FLANGER || newType == ModFXType::CHORUS || newType == ModFXType::CHORUS_STEREO) {
 		if (!modFXBuffer) {
 			// TODO: should give an error here if no free ram
-			modFXBuffer =
-			    (StereoSample*)generalMemoryAllocator.alloc(kModFXBufferSize * sizeof(StereoSample), NULL, false, true);
+			modFXBuffer = (StereoSample*)GeneralMemoryAllocator::get().alloc(kModFXBufferSize * sizeof(StereoSample),
+			                                                                 NULL, false, true);
 			if (!modFXBuffer) {
 				return false;
 			}
@@ -350,7 +350,7 @@ bool Sound::setModFXType(ModFXType newType) {
 	}
 	else {
 		if (modFXBuffer) {
-			generalMemoryAllocator.dealloc(modFXBuffer);
+			GeneralMemoryAllocator::get().dealloc(modFXBuffer);
 			modFXBuffer = NULL;
 		}
 	}

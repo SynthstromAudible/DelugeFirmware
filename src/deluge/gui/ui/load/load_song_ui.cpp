@@ -277,7 +277,7 @@ void LoadSongUI::performLoad() {
 		playbackHandler.songSwapShouldPreserveTempo = Buttons::isButtonPressed(hid::button::TEMPO_ENC);
 	}
 
-	void* songMemory = generalMemoryAllocator.alloc(sizeof(Song), NULL, false, true);
+	void* songMemory = GeneralMemoryAllocator::get().alloc(sizeof(Song), NULL, false, true);
 	if (!songMemory) {
 ramError:
 		error = ERROR_INSUFFICIENT_RAM;
@@ -310,7 +310,7 @@ fail:
 gotErrorAfterCreatingSong:
 		void* toDealloc = dynamic_cast<void*>(preLoadedSong);
 		preLoadedSong->~Song(); // Will also delete paramManager
-		generalMemoryAllocator.dealloc(toDealloc);
+		GeneralMemoryAllocator::get().dealloc(toDealloc);
 		preLoadedSong = NULL;
 		goto someError;
 	}
@@ -432,7 +432,7 @@ swapDone:
 	if (toDelete) {
 		void* toDealloc = dynamic_cast<void*>(toDelete);
 		toDelete->~Song();
-		generalMemoryAllocator.dealloc(toDealloc);
+		GeneralMemoryAllocator::get().dealloc(toDealloc);
 	}
 
 	audioFileManager.deleteAnyTempRecordedSamplesFromMemory();

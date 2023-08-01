@@ -351,7 +351,7 @@ void routine() {
 
 	// At this point, there may be MIDI, including clocks, waiting to be sent.
 
-	generalMemoryAllocator.checkStack("AudioDriver::routine");
+	GeneralMemoryAllocator::get().checkStack("AudioDriver::routine");
 
 	saddr = (uint32_t)(getTxBufferCurrentPlace());
 	uint32_t saddrPosAtStart = saddr >> (2 + NUM_MONO_OUTPUT_CHANNELS_MAGNITUDE);
@@ -1172,7 +1172,7 @@ doCull:
 	}
 
 	else {
-		void* memory = generalMemoryAllocator.alloc(sizeof(Voice), NULL, false, true);
+		void* memory = GeneralMemoryAllocator::get().alloc(sizeof(Voice), NULL, false, true);
 		if (!memory) {
 			if (activeVoices.getNumElements()) {
 				goto doCull;
@@ -1227,7 +1227,7 @@ void disposeOfVoice(Voice* voice) {
 		firstUnassignedVoice = voice;
 	}
 	else {
-		generalMemoryAllocator.dealloc(voice);
+		GeneralMemoryAllocator::get().dealloc(voice);
 	}
 }
 
@@ -1238,7 +1238,7 @@ VoiceSample* solicitVoiceSample() {
 		return toReturn;
 	}
 	else {
-		void* memory = generalMemoryAllocator.alloc(sizeof(VoiceSample), NULL, false, true);
+		void* memory = GeneralMemoryAllocator::get().alloc(sizeof(VoiceSample), NULL, false, true);
 		if (!memory) {
 			return NULL;
 		}
@@ -1253,7 +1253,7 @@ void voiceSampleUnassigned(VoiceSample* voiceSample) {
 		firstUnassignedVoiceSample = voiceSample;
 	}
 	else {
-		generalMemoryAllocator.dealloc(voiceSample);
+		GeneralMemoryAllocator::get().dealloc(voiceSample);
 	}
 }
 
@@ -1266,7 +1266,7 @@ TimeStretcher* solicitTimeStretcher() {
 	}
 
 	else {
-		void* memory = generalMemoryAllocator.alloc(sizeof(TimeStretcher), NULL, false, true);
+		void* memory = GeneralMemoryAllocator::get().alloc(sizeof(TimeStretcher), NULL, false, true);
 		if (!memory) {
 			return NULL;
 		}
@@ -1282,7 +1282,7 @@ void timeStretcherUnassigned(TimeStretcher* timeStretcher) {
 		firstUnassignedTimeStretcher = timeStretcher;
 	}
 	else {
-		generalMemoryAllocator.dealloc(timeStretcher);
+		GeneralMemoryAllocator::get().dealloc(timeStretcher);
 	}
 }
 
@@ -1299,7 +1299,7 @@ LiveInputBuffer* getOrCreateLiveInputBuffer(OscType inputType, bool mayCreate) {
 			size += kInputRawBufferSize * sizeof(int32_t);
 		}
 
-		void* memory = generalMemoryAllocator.alloc(size, NULL, false, true);
+		void* memory = GeneralMemoryAllocator::get().alloc(size, NULL, false, true);
 		if (!memory) {
 			return NULL;
 		}
@@ -1340,7 +1340,7 @@ void doRecorderCardRoutines() {
 			Debug::println("deleting recorder");
 			*prevPointer = recorder->next;
 			recorder->~SampleRecorder();
-			generalMemoryAllocator.dealloc(recorder);
+			GeneralMemoryAllocator::get().dealloc(recorder);
 		}
 
 		// Otherwise, move on
@@ -1379,7 +1379,7 @@ void slowRoutine() {
 		if (liveInputBuffers[i]) {
 			if (liveInputBuffers[i]->upToTime != audioSampleTimer) {
 				liveInputBuffers[i]->~LiveInputBuffer();
-				generalMemoryAllocator.dealloc(liveInputBuffers[i]);
+				GeneralMemoryAllocator::get().dealloc(liveInputBuffers[i]);
 				liveInputBuffers[i] = NULL;
 			}
 		}
@@ -1395,7 +1395,7 @@ SampleRecorder* getNewRecorder(int numChannels, AudioRecordingFolder folderID, A
                                bool keepFirstReasons, bool writeLoopPoints, int buttonPressLatency) {
 	int error;
 
-	void* recorderMemory = generalMemoryAllocator.alloc(sizeof(SampleRecorder), NULL, false, true);
+	void* recorderMemory = GeneralMemoryAllocator::get().alloc(sizeof(SampleRecorder), NULL, false, true);
 	if (!recorderMemory) {
 		return NULL;
 	}
@@ -1405,7 +1405,7 @@ SampleRecorder* getNewRecorder(int numChannels, AudioRecordingFolder folderID, A
 	error = newRecorder->setup(numChannels, mode, keepFirstReasons, writeLoopPoints, folderID, buttonPressLatency);
 	if (error) {
 		newRecorder->~SampleRecorder();
-		generalMemoryAllocator.dealloc(recorderMemory);
+		GeneralMemoryAllocator::get().dealloc(recorderMemory);
 		return NULL;
 	}
 
@@ -1441,7 +1441,7 @@ void discardRecorder(SampleRecorder* recorder) {
 	}
 
 	recorder->~SampleRecorder();
-	generalMemoryAllocator.dealloc(recorder);
+	GeneralMemoryAllocator::get().dealloc(recorder);
 }
 
 bool isAnyInternalRecordingHappening() {

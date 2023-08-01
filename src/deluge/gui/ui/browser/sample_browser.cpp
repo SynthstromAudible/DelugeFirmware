@@ -1338,7 +1338,8 @@ removeReasonsFromSamplesAndGetOut:
 	// If all samples were tagged with the same MIDI note, we get suspicious and delete them.
 	bool discardingMIDINoteFromFile = (numSamples > 1 && commonMIDINote >= 0);
 
-	Sample** sortArea = (Sample**)generalMemoryAllocator.alloc(numSamples * sizeof(Sample*) * 2, NULL, false, true);
+	Sample** sortArea =
+	    (Sample**)GeneralMemoryAllocator::get().alloc(numSamples * sizeof(Sample*) * 2, NULL, false, true);
 	if (!sortArea) {
 		error = ERROR_INSUFFICIENT_RAM;
 		goto removeReasonsFromSamplesAndGetOut;
@@ -1666,7 +1667,7 @@ doReturnFalse:
 		AudioEngine::audioRoutineLocked = false;
 
 		if (!success) {
-			generalMemoryAllocator.dealloc(sortArea);
+			GeneralMemoryAllocator::get().dealloc(sortArea);
 			for (int s = 0; s < numSamples; s++) {
 				Sample* thisSample = sortArea[s];
 #if ALPHA_OR_BETA_VERSION
@@ -1832,7 +1833,7 @@ skipOctaveCorrection:
 	Debug::print("distinct ranges: ");
 	Debug::println(numSamples);
 
-	generalMemoryAllocator.dealloc(sortArea);
+	GeneralMemoryAllocator::get().dealloc(sortArea);
 
 	audioFileIsNowSet();
 
@@ -1952,7 +1953,7 @@ getOut:
 					goto getOut;
 				}
 
-				void* drumMemory = generalMemoryAllocator.alloc(sizeof(SoundDrum), NULL, false, true);
+				void* drumMemory = GeneralMemoryAllocator::get().alloc(sizeof(SoundDrum), NULL, false, true);
 				if (!drumMemory) {
 					goto getOut;
 				}
@@ -1963,7 +1964,7 @@ getOut:
 				range = source->getOrCreateFirstRange();
 				if (!range) {
 					drum->~Drum();
-					generalMemoryAllocator.dealloc(drumMemory);
+					GeneralMemoryAllocator::get().dealloc(drumMemory);
 					goto getOut;
 				}
 
@@ -2015,7 +2016,7 @@ skipNameStuff:
 			thisSample->removeReason("E395");
 		}
 
-		generalMemoryAllocator.dealloc(sortArea);
+		GeneralMemoryAllocator::get().dealloc(sortArea);
 	}
 
 	// Make NoteRows for all these new Drums

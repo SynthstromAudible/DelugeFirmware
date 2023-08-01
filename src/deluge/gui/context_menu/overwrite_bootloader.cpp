@@ -114,7 +114,7 @@ longError:
 			}
 
 			// Allocate RAM
-			uint8_t* buffer = (uint8_t*)generalMemoryAllocator.alloc(fileSize, NULL, false, true);
+			uint8_t* buffer = (uint8_t*)GeneralMemoryAllocator::get().alloc(fileSize, NULL, false, true);
 			if (!buffer) {
 				error = ERROR_INSUFFICIENT_RAM;
 				goto gotError;
@@ -125,7 +125,7 @@ longError:
 			result = f_open(&currentFile, fno.fname, FA_READ);
 			if (result != FR_OK) {
 gotFresultErrorAfterAllocating:
-				generalMemoryAllocator.dealloc(buffer);
+				GeneralMemoryAllocator::get().dealloc(buffer);
 				goto gotFresultError;
 			}
 
@@ -139,7 +139,7 @@ gotFresultErrorAfterAllocating:
 
 			if (numBytesRead != fileSize) { // Can this happen?
 				error = ERROR_SD_CARD;
-				generalMemoryAllocator.dealloc(buffer);
+				GeneralMemoryAllocator::get().dealloc(buffer);
 				goto gotError;
 			}
 
@@ -200,7 +200,7 @@ gotFlashError:
 				readAddress += FLASH_WRITE_SIZE;
 			}
 
-			generalMemoryAllocator.dealloc(buffer);
+			GeneralMemoryAllocator::get().dealloc(buffer);
 
 #if HAVE_OLED
 			OLED::removeWorkingAnimation();

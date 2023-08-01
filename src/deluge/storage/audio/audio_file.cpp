@@ -509,7 +509,7 @@ void AudioFile::removeReason(char const* errorCode) {
 	// If it's now zero, it's become unused
 	if (numReasonsToBeLoaded == 0) {
 		numReasonsDecreasedToZero(errorCode);
-		generalMemoryAllocator.putStealableInQueue(this, STEALABLE_QUEUE_NO_SONG_AUDIO_FILE_OBJECTS);
+		GeneralMemoryAllocator::get().putStealableInQueue(this, STEALABLE_QUEUE_NO_SONG_AUDIO_FILE_OBJECTS);
 	}
 
 	else if (numReasonsToBeLoaded < 0) {
