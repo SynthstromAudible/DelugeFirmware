@@ -16,7 +16,7 @@
  */
 
 #include "model/note/note_vector.h"
-#include "RZA1/system/r_typedefs.h"
+#include <cstdint>
 #include "io/debug/print.h"
 #include "model/note/note.h"
 #include <string.h>

@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
+#include <stdint.h>
 
 extern const uint32_t ssiDmaTxLinkDescriptor[];
 extern const uint32_t ssiDmaRxLinkDescriptor[];

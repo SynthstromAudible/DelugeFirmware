@@ -16,7 +16,7 @@
 */
 
 #include "gui/ui/keyboard/keyboard_screen.h"
-#include "RZA1/system/r_typedefs.h"
+#include <cstdint>
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/menu_item/multi_range.h"

@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
+#include <stdint.h>
 
 #define getMin(a, b) (((a) < (b)) ? (a) : (b))
 #define getMax(a, b) (((a) > (b)) ? (a) : (b))

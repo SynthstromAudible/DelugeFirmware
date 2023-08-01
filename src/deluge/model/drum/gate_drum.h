@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
+#include <cstdint>
 #include "model/drum/non_audio_drum.h"
 
 class Kit;

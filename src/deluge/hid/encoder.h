@@ -18,7 +18,7 @@
 #pragma once
 
 #define encMinBacktrackTime (20 * 44) // In milliseconds/44
-#include "RZA1/system/r_typedefs.h"
+#include <cstdint>
 
 class Encoder {
 public:

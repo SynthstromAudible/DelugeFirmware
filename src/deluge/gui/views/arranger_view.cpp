@@ -16,7 +16,7 @@
 */
 
 #include "gui/views/arranger_view.h"
-#include "RZA1/system/r_typedefs.h"
+#include <cstdint>
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "model/clip/clip_instance.h"

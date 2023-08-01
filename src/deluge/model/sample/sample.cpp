@@ -17,7 +17,7 @@
 
 #include "model/sample/sample.h"
 #include "NE10.h"
-#include "RZA1/system/r_typedefs.h"
+#include <cstdint>
 #include "definitions_cxx.hpp"
 #include "dsp/fft/fft_config_manager.h"
 #include "dsp/timestretch/time_stretcher.h"

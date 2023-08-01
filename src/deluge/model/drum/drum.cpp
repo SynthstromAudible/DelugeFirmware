@@ -17,7 +17,7 @@
 
 #include "model/drum/drum.h"
 
-#include "RZA1/system/r_typedefs.h"
+#include <cstdint>
 #include "definitions_cxx.hpp"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"

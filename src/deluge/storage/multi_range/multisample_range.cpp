@@ -16,7 +16,7 @@
  */
 
 #include "storage/multi_range/multisample_range.h"
-#include "RZA1/system/r_typedefs.h"
+#include <cstdint>
 #include "gui/ui/browser/sample_browser.h"
 #include "hid/display/numeric_driver.h"
 #include "model/sample/sample.h"

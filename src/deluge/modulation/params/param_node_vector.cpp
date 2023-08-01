@@ -17,7 +17,7 @@
 
 #include "modulation/params/param_node_vector.h"
 
-#include "RZA1/system/r_typedefs.h"
+#include <cstdint>
 #include "io/debug/print.h"
 #include "modulation/params/param_node.h"
 #include <string.h>

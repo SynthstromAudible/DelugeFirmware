@@ -16,8 +16,7 @@
  */
 
 #pragma once
-
-#include "RZA1/system/r_typedefs.h"
+#include <stdint.h>
 
 /*
  * ================= DEBUGGING TEXT OUTPUT =================

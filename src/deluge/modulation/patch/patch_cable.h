@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
+#include <cstdint>
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param_descriptor.h"
 

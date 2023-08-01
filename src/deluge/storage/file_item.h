@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
+#include <cstdint>
 #include "storage/storage_manager.h"
 #include "util/d_string.h"
 

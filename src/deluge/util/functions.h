@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
+#include <cstdint>
 #include "definitions_cxx.hpp"
 #include "fatfs/ff.h"
 #include "util/fixedpoint.h"

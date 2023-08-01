@@ -16,7 +16,7 @@
 */
 
 #include "model/action/action.h"
-#include "RZA1/system/r_typedefs.h"
+#include <cstdint>
 #include "definitions_cxx.hpp"
 #include "io/debug/print.h"
 #include "memory/general_memory_allocator.h"

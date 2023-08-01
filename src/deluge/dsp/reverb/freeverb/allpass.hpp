@@ -22,7 +22,7 @@
 */
 
 #pragma once
-#include "RZA1/system/r_typedefs.h"
+#include <cstdint>
 #include "util/functions.h"
 
 class allpass {

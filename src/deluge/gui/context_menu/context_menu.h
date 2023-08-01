@@ -19,7 +19,7 @@
 
 #include <cstddef>
 
-#include "RZA1/system/r_typedefs.h"
+#include <cstdint>
 #include "gui/ui/ui.h"
 #include "hid/button.h"
 #include "util/sized.h"

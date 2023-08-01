@@ -16,7 +16,7 @@
  */
 
 #pragma once
-#include "RZA1/system/r_typedefs.h"
+#include <cstdint>
 #include "definitions_cxx.hpp"
 #include "storage/audio/audio_file_vector.h"
 #include "storage/cluster/cluster_priority_queue.h"

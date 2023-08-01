@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
+#include <cstdint>
 #include "io/midi/learned_midi.h"
 #include "modulation/params/param_descriptor.h"
 
