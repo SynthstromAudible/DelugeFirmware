@@ -23,25 +23,25 @@
 
 class ParamDescriptor {
 public:
-	inline void setToHaveParamOnly(int p) { data = p | 0xFFFFFF00; }
+	inline void setToHaveParamOnly(int32_t p) { data = p | 0xFFFFFF00; }
 
-	inline void setToHaveParamAndSource(int p, PatchSource s) { data = p | (util::to_underlying(s) << 8) | 0xFFFF0000; }
+	inline void setToHaveParamAndSource(int32_t p, PatchSource s) { data = p | (util::to_underlying(s) << 8) | 0xFFFF0000; }
 
-	inline void setToHaveParamAndTwoSources(int p, PatchSource s, PatchSource sLowestLevel) {
+	inline void setToHaveParamAndTwoSources(int32_t p, PatchSource s, PatchSource sLowestLevel) {
 		data = p | (util::to_underlying(s) << 8) | (util::to_underlying(sLowestLevel) << 16) | 0xFF000000;
 	}
 
-	inline bool isSetToParamWithNoSource(int p) { return (data == (p | 0xFFFFFF00)); }
+	inline bool isSetToParamWithNoSource(int32_t p) { return (data == (p | 0xFFFFFF00)); }
 
-	inline bool isSetToParamAndSource(int p, PatchSource s) {
+	inline bool isSetToParamAndSource(int32_t p, PatchSource s) {
 		return (data == (p | (util::to_underlying(s) << 8) | 0xFFFF0000));
 	}
 
 	inline bool isJustAParam() { return (data & 0x0000FF00) == 0x0000FF00; }
 
-	inline int getJustTheParam() { return data & 0xFF; }
+	inline int32_t getJustTheParam() { return data & 0xFF; }
 
-	inline void changeParam(int newParam) { data = (data & 0xFFFFFF00) | newParam; }
+	inline void changeParam(int32_t newParam) { data = (data & 0xFFFFFF00) | newParam; }
 
 	inline PatchSource getBottomLevelSource() { // As in, the one furthest away from the param.
 		if ((data & 0x00FF0000) == 0x00FF0000) {

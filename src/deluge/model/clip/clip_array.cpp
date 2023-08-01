@@ -21,17 +21,17 @@ ClipArray::ClipArray() {
 	// TODO Auto-generated constructor stub
 }
 
-int ClipArray::insertClipAtIndex(Clip* clip, int index) {
+int32_t ClipArray::insertClipAtIndex(Clip* clip, int32_t index) {
 	return insertPointerAtIndex(clip, index);
 }
 
-Clip* ClipArray::getClipAtIndex(int index) {
+Clip* ClipArray::getClipAtIndex(int32_t index) {
 	return (Clip*)getPointerAtIndex(index);
 }
 
-int ClipArray::getIndexForClip(Clip* clip) {
+int32_t ClipArray::getIndexForClip(Clip* clip) {
 	// For each Clip
-	for (int c = 0; c < numElements; c++) {
+	for (int32_t c = 0; c < numElements; c++) {
 		Clip* thisClip = getClipAtIndex(c);
 		if (thisClip == clip) {
 			return c;

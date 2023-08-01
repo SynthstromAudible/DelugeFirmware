@@ -21,7 +21,7 @@
 namespace menu_item::patched_param {
 class Integer : public PatchedParam, public menu_item::IntegerContinuous {
 public:
-	Integer(char const* newName = NULL, int newP = 0) : PatchedParam(newP), IntegerContinuous(newName) {}
+	Integer(char const* newName = NULL, int32_t newP = 0) : PatchedParam(newP), IntegerContinuous(newName) {}
 #if !HAVE_OLED
 	void drawValue() {
 		PatchedParam::drawValue();
@@ -30,10 +30,10 @@ public:
 	ParamDescriptor getLearningThing() final {
 		return PatchedParam::getLearningThing();
 	}
-	int getMaxValue() const {
+	int32_t getMaxValue() const {
 		return PatchedParam::getMaxValue();
 	}
-	int getMinValue() const {
+	int32_t getMinValue() const {
 		return PatchedParam::getMinValue();
 	}
 	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) final {
@@ -60,7 +60,7 @@ public:
 	bool allowsLearnMode() final {
 		return MenuItemWithCCLearning::allowsLearnMode();
 	}
-	void learnKnob(MIDIDevice* fromDevice, int whichKnob, int modKnobMode, int midiChannel) final {
+	void learnKnob(MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) final {
 		MenuItemWithCCLearning::learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel);
 	};
 

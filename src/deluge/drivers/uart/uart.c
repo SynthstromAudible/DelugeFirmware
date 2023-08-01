@@ -44,7 +44,7 @@ void uartPrintln(char const* output) {
 #endif
 }
 
-void uartPrintNumber(int number) {
+void uartPrintNumber(int32_t number) {
 #if ENABLE_TEXT_OUTPUT
 	char buffer[12];
 	intToString(number, buffer, 1);
@@ -69,8 +69,8 @@ void uartPrint(char const* output) {
 void uartPrintFloat(float number) {
 #if ENABLE_TEXT_OUTPUT
 	char buffer[12];
-	intToString((int)roundf(number * 100), buffer, 3);
-	int length = strlen(buffer);
+	intToString((int32_t)roundf(number * 100), buffer, 3);
+	int32_t length = strlen(buffer);
 	char temp = buffer[length - 2];
 	buffer[length - 2] = 0;
 	uartPrint(buffer);
@@ -120,14 +120,14 @@ extern const bool uartItemIsScim[];
 
 // Returns whether it sent anything
 // Warning - this can get called from a timer ISR, or a DMA ISR, or no ISR
-int uartFlush(int item) {
+int32_t uartFlush(int32_t item) {
 
-	int num = uartItems[item].txBufferWritePos - uartItems[item].txBufferReadPosAfterTransfer;
+	int32_t num = uartItems[item].txBufferWritePos - uartItems[item].txBufferReadPosAfterTransfer;
 	if (!num) {
 		return 0;
 	}
 
-	int fullNum = num & (txBufferSizes[item] - 1);
+	int32_t fullNum = num & (txBufferSizes[item] - 1);
 
 	uint32_t newConfig = DMA_SCIF_TX_CONFIG;
 
@@ -135,7 +135,7 @@ int uartFlush(int item) {
 	if (num < 0) {
 		num = txBufferSizes[item] - uartItems[item].txBufferReadPosAfterTransfer;
 
-		int numLeft = fullNum - num;
+		int32_t numLeft = fullNum - num;
 
 		// If there are also some further bytes starting from the left of the circular buffer that we want to send as well, set that up to happen automatically
 		if (numLeft) {
@@ -147,7 +147,7 @@ int uartFlush(int item) {
 	}
 	DMACn(txDmaChannels[item]).CHCFG_n = newConfig | (txDmaChannels[item] & 7);
 
-	int prevReadPos = uartItems[item].txBufferReadPosAfterTransfer;
+	int32_t prevReadPos = uartItems[item].txBufferReadPosAfterTransfer;
 	uartItems[item].txBufferReadPosAfterTransfer =
 	    (uartItems[item].txBufferReadPosAfterTransfer + fullNum) & (txBufferSizes[item] - 1);
 	uartItems[item].shouldDoConsecutiveTransferAfter = false; // Only actually applies to MIDI
@@ -159,11 +159,11 @@ int uartFlush(int item) {
 }
 
 // Warning - this will sometimes (not always) be called in a timer ISR
-void uartFlushIfNotSending(int item) {
+void uartFlushIfNotSending(int32_t item) {
 
 	if (!uartItems[item].txSending) {
 		// There should be no way the DMA TX-complete interrupt could occur in this bit, cos we could only be here if it'd already completed and set txSending to 0...
-		int sentAny = uartFlush(item);
+		int32_t sentAny = uartFlush(item);
 
 		if (sentAny) {
 			uartItems[item].txSending = 1;
@@ -181,28 +181,28 @@ void uartFlushIfNotSending(int item) {
 	}
 }
 
-int uartGetTxBufferFullnessByItem(int item) {
+int32_t uartGetTxBufferFullnessByItem(int32_t item) {
 	return (uartItems[item].txBufferWritePos - uartItems[item].txBufferReadPos) & (txBufferSizes[item] - 1);
 }
 
-int uartGetTxBufferSpace(int item) {
+int32_t uartGetTxBufferSpace(int32_t item) {
 	return txBufferSizes[item] - uartGetTxBufferFullnessByItem(item);
 }
 
-void uartPutCharBack(int item) {
-	int readPos = (uint32_t)rxBufferReadAddr[item] - ((uint32_t)rxBuffers[item]);
+void uartPutCharBack(int32_t item) {
+	int32_t readPos = (uint32_t)rxBufferReadAddr[item] - ((uint32_t)rxBuffers[item]);
 	readPos = (readPos - 1) & (rxBufferSizes[item] - 1);
 	rxBufferReadAddr[item] = rxBuffers[item] + readPos;
 }
 
-void uartInsertFakeChar(int item, char data) {
-	int readPos = (uint32_t)rxBufferReadAddr[item] - ((uint32_t)rxBuffers[item]);
+void uartInsertFakeChar(int32_t item, char data) {
+	int32_t readPos = (uint32_t)rxBufferReadAddr[item] - ((uint32_t)rxBuffers[item]);
 	readPos = (readPos - 1) & (rxBufferSizes[item] - 1);
 	rxBufferReadAddr[item] = rxBuffers[item] + readPos;
 	*(rxBufferReadAddr[item] + UNCACHED_MIRROR_OFFSET) = data;
 }
 
-uint8_t uartGetChar(int item, char* readData) {
+uint8_t uartGetChar(int32_t item, char* readData) {
 
 	char const* currentWritePos = (char*)DMACnNonVolatile(rxDmaChannels[item])
 	                                    .CRDA_n; // We deliberately don't go (volatile uint32_t*) here, for speed
@@ -213,16 +213,16 @@ uint8_t uartGetChar(int item, char* readData) {
 
 	*readData = *(rxBufferReadAddr[item] + UNCACHED_MIRROR_OFFSET);
 
-	int readPos = (uint32_t)rxBufferReadAddr[item] - ((uint32_t)rxBuffers[item]);
+	int32_t readPos = (uint32_t)rxBufferReadAddr[item] - ((uint32_t)rxBuffers[item]);
 	readPos = (readPos + 1) & (rxBufferSizes[item] - 1);
 	rxBufferReadAddr[item] = rxBuffers[item] + readPos;
 
 	return 1;
 }
 
-uint32_t* uartGetCharWithTiming(int timingCaptureItem, char* readData) {
+uint32_t* uartGetCharWithTiming(int32_t timingCaptureItem, char* readData) {
 
-	int item = timingCaptureItems[timingCaptureItem];
+	int32_t item = timingCaptureItems[timingCaptureItem];
 
 	char const* currentWritePos = (char*)DMACnNonVolatile(rxDmaChannels[item])
 	                                    .CRDA_n; // We deliberately don't go (volatile uint32_t*) here, for speed
@@ -233,7 +233,7 @@ uint32_t* uartGetCharWithTiming(int timingCaptureItem, char* readData) {
 
 	*readData = *(rxBufferReadAddr[item] + UNCACHED_MIRROR_OFFSET);
 
-	int readPos = (uint32_t)rxBufferReadAddr[item] - ((uint32_t)rxBuffers[item]);
+	int32_t readPos = (uint32_t)rxBufferReadAddr[item] - ((uint32_t)rxBuffers[item]);
 
 	uint32_t* timer =
 	    (uint32_t*)((uint32_t)&timingCaptureBuffers[timingCaptureItem]
@@ -248,7 +248,7 @@ uint32_t* uartGetCharWithTiming(int timingCaptureItem, char* readData) {
 
 // Warning - obviously this gets called in a DMA ISR
 // This is the function which seems to cause a crash if called via interrupt during the above one
-void tx_interrupt(int item) {
+void tx_interrupt(int32_t item) {
 
 	uartItems[item].txBufferReadPos = uartItems[item].txBufferReadPosAfterTransfer;
 
@@ -257,7 +257,7 @@ void tx_interrupt(int item) {
 
 		uartItems[item].shouldDoConsecutiveTransferAfter = 0;
 
-		int sentAny = uartFlush(item);
+		int32_t sentAny = uartFlush(item);
 
 		if (sentAny) {
 			DMACn(txDmaChannels[item]).CHCTRL_n =
@@ -278,7 +278,7 @@ void tx_interrupt(int item) {
 void initUartDMA() {
 
 	// For each Uart item...
-	int item;
+	int32_t item;
 	for (item = 0; item < NUM_UART_ITEMS; item++) {
 
 		bool isScim = 0;
@@ -289,10 +289,10 @@ void initUartDMA() {
 		uartItems[item].txSending = 0;
 		uartItems[item].shouldDoConsecutiveTransferAfter = 0;
 
-		int sciChannel = uartChannels[item];
+		int32_t sciChannel = uartChannels[item];
 
 		// Set up TX DMA channel -----------------------------------------------------------------------
-		int txDmaChannel = txDmaChannels[item];
+		int32_t txDmaChannel = txDmaChannels[item];
 
 		// ---- DMA Control Register Setting ----
 		DCTRLn(txDmaChannel) = 0;
@@ -310,7 +310,7 @@ void initUartDMA() {
 		DMACn(txDmaChannel).CHCFG_n = (DMA_SCIF_TX_CONFIG) | (txDmaChannel & 7);
 
 		// ---- DMA Expansion Resource Selector Setting ----
-		unsigned int dmarsTX = (DMARS_FOR_SCIF0_TX) + (sciChannel << 2);
+		uint32_t dmarsTX = (DMARS_FOR_SCIF0_TX) + (sciChannel << 2);
 		setDMARS(txDmaChannel, dmarsTX);
 
 		// ---- DMA Channel Interval Register Setting ----
@@ -328,8 +328,8 @@ void initUartDMA() {
 		R_INTC_Enable(DMA_INTERRUPT_0 + txDmaChannel);
 
 		// Set up RX DMA channel -----------------------------------------------------------------------
-		int rxDmaChannel = rxDmaChannels[item];
-		unsigned int dmarsRX = (DMARS_FOR_SCIF0_RX) + (sciChannel << 2);
+		int32_t rxDmaChannel = rxDmaChannels[item];
+		uint32_t dmarsRX = (DMARS_FOR_SCIF0_RX) + (sciChannel << 2);
 
 		initDMAWithLinkDescriptor(rxDmaChannel, uartRxLinkDescriptors[item], dmarsRX);
 		dmaChannelStart(rxDmaChannel);
@@ -338,12 +338,12 @@ void initUartDMA() {
 	}
 
 	// Set up MIDI RX timing-capture DMA channel -----------------------------------------------------------------------
-	int i;
+	int32_t i;
 	for (i = 0; i < NUM_TIMING_CAPTURE_ITEMS; i++) {
-		int uartItem = timingCaptureItems[i];
-		int dmaChannel = timingCaptureDMAChannels[i];
+		int32_t uartItem = timingCaptureItems[i];
+		int32_t dmaChannel = timingCaptureDMAChannels[i];
 
-		unsigned int dmarsRX = DMARS_FOR_SCIF0_RX + (uartChannels[uartItem] << 2);
+		uint32_t dmarsRX = DMARS_FOR_SCIF0_RX + (uartChannels[uartItem] << 2);
 		initDMAWithLinkDescriptor(dmaChannel, timingCaptureLinkDescriptors[i], dmarsRX);
 		dmaChannelStart(dmaChannel);
 	}

@@ -22,8 +22,8 @@
 
 class ConsequenceScaleAddNote final : public Consequence {
 public:
-	ConsequenceScaleAddNote(int newNoteWithinOctave);
-	int revert(TimeType time, ModelStack* modelStack);
+	ConsequenceScaleAddNote(int32_t newNoteWithinOctave);
+	int32_t revert(TimeType time, ModelStack* modelStack);
 
 	uint8_t noteWithinOctave;
 };

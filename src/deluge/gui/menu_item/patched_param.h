@@ -29,7 +29,7 @@ namespace menu_item {
 class PatchedParam : public Param, public MenuItemWithCCLearning {
 public:
 	PatchedParam() {}
-	PatchedParam(int newP) : Param(newP) {}
+	PatchedParam(int32_t newP) : Param(newP) {}
 	MenuItem* selectButtonPress();
 #if !HAVE_OLED
 	void drawValue();

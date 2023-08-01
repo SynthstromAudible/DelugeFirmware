@@ -35,8 +35,8 @@ public:
 		static char const* options[] = {"Subtractive", "FM", "Ringmod", NULL};
 		return options;
 	}
-	int getNumOptions() { return 3; }
-	bool isRelevant(Sound* sound, int whichThing) {
+	int32_t getNumOptions() { return 3; }
+	bool isRelevant(Sound* sound, int32_t whichThing) {
 		return (sound->sources[0].oscType <= kLastRingmoddableOscType
 		        && sound->sources[1].oscType <= kLastRingmoddableOscType);
 	}

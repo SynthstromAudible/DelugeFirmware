@@ -27,17 +27,17 @@ public:
 	//String(String* otherString); // BEWARE - using this on stack instances sometimes just caused crashes and stuff. Made no sense. Instead, constructing then calling set() works
 	~String();
 	void clear(bool destructing = false);
-	int set(char const* newChars, int newLength = -1);
+	int32_t set(char const* newChars, int32_t newLength = -1);
 	void set(String* otherString);
 	void beenCloned();
-	int getLength();
-	int shorten(int newLength);
-	int concatenateAtPos(char const* newChars, int pos, int newCharsLength = -1);
-	int concatenateInt(int32_t number, int minNumDigits = 1);
-	int setInt(int32_t number, int minNumDigits = 1);
-	int setChar(char newChar, int pos);
-	int concatenate(String* otherString);
-	int concatenate(char const* newChars);
+	int32_t getLength();
+	int32_t shorten(int32_t newLength);
+	int32_t concatenateAtPos(char const* newChars, int32_t pos, int32_t newCharsLength = -1);
+	int32_t concatenateInt(int32_t number, int32_t minNumDigits = 1);
+	int32_t setInt(int32_t number, int32_t minNumDigits = 1);
+	int32_t setChar(char newChar, int32_t pos);
+	int32_t concatenate(String* otherString);
+	int32_t concatenate(char const* newChars);
 	bool equals(char const* otherChars);
 	bool equalsCaseIrrespective(char const* otherChars);
 

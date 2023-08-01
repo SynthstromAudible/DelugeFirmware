@@ -131,7 +131,7 @@ void resetSettings() {
 	cvEngine.setCVTranspose(0, 0, 0);
 	cvEngine.setCVTranspose(1, 0, 0);
 
-	for (int i = 0; i < NUM_GATE_CHANNELS; i++) {
+	for (int32_t i = 0; i < NUM_GATE_CHANNELS; i++) {
 		cvEngine.setGateType(i, GateType::V_TRIG);
 	}
 
@@ -195,7 +195,7 @@ void readSettings() {
 
 	settingsBeenRead = true;
 
-	int previouslySavedByFirmwareVersion = buffer[0];
+	int32_t previouslySavedByFirmwareVersion = buffer[0];
 
 	// If no settings were previously saved, get out
 	if (previouslySavedByFirmwareVersion == 0xFF) {
@@ -211,7 +211,7 @@ void readSettings() {
 	cvEngine.setCVTranspose(0, buffer[14], buffer[18]);
 	cvEngine.setCVTranspose(1, buffer[15], buffer[19]);
 
-	for (int i = 0; i < NUM_GATE_CHANNELS; i++) {
+	for (int32_t i = 0; i < NUM_GATE_CHANNELS; i++) {
 		cvEngine.setGateType(i, static_cast<GateType>(buffer[22 + i]));
 	}
 
@@ -389,7 +389,7 @@ void writeSettings() {
 	buffer[18] = cvEngine.cvChannels[0].cents;
 	buffer[19] = cvEngine.cvChannels[1].cents;
 
-	for (int i = 0; i < NUM_GATE_CHANNELS; i++) {
+	for (int32_t i = 0; i < NUM_GATE_CHANNELS; i++) {
 		buffer[22 + i] = util::to_underlying(cvEngine.gateChannels[i].mode);
 	}
 

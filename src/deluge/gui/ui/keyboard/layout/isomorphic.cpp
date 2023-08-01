@@ -15,8 +15,6 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#pragma once
-
 #include "gui/ui/keyboard/layout/isomorphic.h"
 #include "definitions.h"
 #include "gui/ui/audio_recorder.h"
@@ -31,7 +29,7 @@ void KeyboardLayoutIsomorphic::evaluatePads(PressedPad presses[kMaxNumKeyboardPa
 
 	currentNotesState = NotesState{}; // Erase active notes
 
-	for (int idxPress = 0; idxPress < kMaxNumKeyboardPadPresses; ++idxPress) {
+	for (int32_t idxPress = 0; idxPress < kMaxNumKeyboardPadPresses; ++idxPress) {
 		if (presses[idxPress].active) {
 			currentNotesState.enableNote(noteFromCoords(presses[idxPress].x, presses[idxPress].y),
 			                             getDefaultVelocity());
@@ -39,11 +37,11 @@ void KeyboardLayoutIsomorphic::evaluatePads(PressedPad presses[kMaxNumKeyboardPa
 	}
 }
 
-void KeyboardLayoutIsomorphic::handleVerticalEncoder(int offset) {
+void KeyboardLayoutIsomorphic::handleVerticalEncoder(int32_t offset) {
 	handleHorizontalEncoder(offset * getState().isomorphic.rowInterval, false);
 }
 
-void KeyboardLayoutIsomorphic::handleHorizontalEncoder(int offset, bool shiftEnabled) {
+void KeyboardLayoutIsomorphic::handleHorizontalEncoder(int32_t offset, bool shiftEnabled) {
 	KeyboardStateIsomorphic& state = getState().isomorphic;
 
 	if (shiftEnabled) {
@@ -59,14 +57,14 @@ void KeyboardLayoutIsomorphic::handleHorizontalEncoder(int offset, bool shiftEna
 	}
 
 	// Calculate highest possible displayable note with current rowInterval
-	int highestScrolledNote = (getHighestClipNote() - ((kDisplayHeight - 1) * state.rowInterval + kDisplayWidth - 1));
+	int32_t highestScrolledNote = (getHighestClipNote() - ((kDisplayHeight - 1) * state.rowInterval + kDisplayWidth - 1));
 
 	// Make sure current value is in bounds
 	state.scrollOffset = std::max(getLowestClipNote(), state.scrollOffset);
 	state.scrollOffset = std::min(state.scrollOffset, highestScrolledNote);
 
 	// Offset if still in bounds (reject if the next row can not be shown completely)
-	int newOffset = state.scrollOffset + offset;
+	int32_t newOffset = state.scrollOffset + offset;
 	if (newOffset >= getLowestClipNote() && newOffset <= highestScrolledNote) {
 		state.scrollOffset = newOffset;
 	}
@@ -78,7 +76,7 @@ void KeyboardLayoutIsomorphic::precalculate() {
 	KeyboardStateIsomorphic& state = getState().isomorphic;
 
 	// Pre-Buffer colours for next renderings
-	for (int i = 0; i < (kDisplayHeight * state.rowInterval + kDisplayWidth); ++i) {
+	for (int32_t i = 0; i < (kDisplayHeight * state.rowInterval + kDisplayWidth); ++i) {
 		getNoteColour(state.scrollOffset + i, noteColours[i]);
 	}
 }
@@ -100,12 +98,12 @@ void KeyboardLayoutIsomorphic::renderPads(uint8_t image[][kDisplayWidth + kSideB
 	}
 
 	// Iterate over grid image
-	for (int y = 0; y < kDisplayHeight; ++y) {
-		int noteCode = noteFromCoords(0, y);
-		int normalizedPadOffset = noteCode - getState().isomorphic.scrollOffset;
-		int noteWithinOctave = (uint16_t)((noteCode + kOctaveSize) - getRootNote()) % kOctaveSize;
+	for (int32_t y = 0; y < kDisplayHeight; ++y) {
+		int32_t noteCode = noteFromCoords(0, y);
+		int32_t normalizedPadOffset = noteCode - getState().isomorphic.scrollOffset;
+		int32_t noteWithinOctave = (uint16_t)((noteCode + kOctaveSize) - getRootNote()) % kOctaveSize;
 
-		for (int x = 0; x < kDisplayWidth; x++) {
+		for (int32_t x = 0; x < kDisplayWidth; x++) {
 			// Full color for every octaves root and active notes
 			if (octaveActiveNotes[noteWithinOctave] || noteWithinOctave == 0) {
 				memcpy(image[y][x], noteColours[normalizedPadOffset], 3);
@@ -120,9 +118,9 @@ void KeyboardLayoutIsomorphic::renderPads(uint8_t image[][kDisplayWidth + kSideB
 			if (getCurrentUI() == &sampleBrowser || getCurrentUI() == &audioRecorder
 			    || (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem()->isRangeDependent())) {
 				if (soundEditor.isUntransposedNoteWithinRange(noteCode)) {
-					for (int colour = 0; colour < 3; colour++) {
-						int value = (int)image[y][x][colour] + 35;
-						image[y][x][colour] = std::min(value, 255);
+					for (int32_t colour = 0; colour < 3; colour++) {
+						int32_t value = (int32_t)image[y][x][colour] + 35;
+						image[y][x][colour] = std::min<uint8_t>(value, 255);
 					}
 				}
 			}

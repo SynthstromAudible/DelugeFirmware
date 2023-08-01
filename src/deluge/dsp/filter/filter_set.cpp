@@ -26,7 +26,7 @@
 FilterSet::FilterSet() {
 }
 
-void FilterSet::renderLadderHPF(q31_t* outputSample, HPLadderConfig* filterSetConfig, int extraSaturation) {
+void FilterSet::renderLadderHPF(q31_t* outputSample, HPLadderConfig* filterSetConfig, int32_t extraSaturation) {
 	q31_t input = *outputSample;
 
 	q31_t firstHPFOutput = input - hpfHPF1.doFilter(input, filterSetConfig->hpfMoveability);
@@ -58,8 +58,8 @@ void FilterSet::renderLadderHPF(q31_t* outputSample, HPLadderConfig* filterSetCo
 
 #define HPF_LONG_SATURATION 3
 
-void FilterSet::renderHPFLong(q31_t* outputSample, q31_t* endSample, FilterSetConfig* filterSetConfig, int numSamples,
-                              int sampleIncrement) {
+void FilterSet::renderHPFLong(q31_t* outputSample, q31_t* endSample, FilterSetConfig* filterSetConfig, int32_t numSamples,
+                              int32_t sampleIncrement) {
 
 	do {
 
@@ -68,7 +68,7 @@ void FilterSet::renderHPFLong(q31_t* outputSample, q31_t* endSample, FilterSetCo
 	} while (outputSample < endSample);
 }
 
-inline q31_t FilterSet::do24dBLPFOnSample(q31_t input, LPLadderConfig* filterSetConfig, int saturationLevel) {
+inline q31_t FilterSet::do24dBLPFOnSample(q31_t input, LPLadderConfig* filterSetConfig, int32_t saturationLevel) {
 
 	// For drive filter, apply some heavily lowpassed noise to the filter frequency, to add analog-ness
 	q31_t noise = getNoise() >> 2; //storageManager.devVarA;// 2;
@@ -103,7 +103,7 @@ inline q31_t FilterSet::do24dBLPFOnSample(q31_t input, LPLadderConfig* filterSet
 	       << 1;
 }
 
-inline q31_t FilterSet::doDriveLPFOnSample(q31_t input, LPLadderConfig* filterSetConfig, int extraSaturation) {
+inline q31_t FilterSet::doDriveLPFOnSample(q31_t input, LPLadderConfig* filterSetConfig, int32_t extraSaturation) {
 
 	// For drive filter, apply some heavily lowpassed noise to the filter frequency, to add analog-ness
 	q31_t noise = getNoise() >> 2; //storageManager.devVarA;// 2;
@@ -143,7 +143,7 @@ inline q31_t FilterSet::doDriveLPFOnSample(q31_t input, LPLadderConfig* filterSe
 }
 
 void FilterSet::renderLPLadder(q31_t* startSample, q31_t* endSample, LPLadderConfig* filterSetConfig, LPFMode lpfMode,
-                               int sampleIncrement, int extraSaturation, int extraSaturationDrive) {
+                               int32_t sampleIncrement, int32_t extraSaturation, int32_t extraSaturationDrive) {
 	// Half ladder
 	if (lpfMode == LPFMode::TRANSISTOR_12DB) {
 
@@ -243,7 +243,7 @@ void FilterSet::renderLPLadder(q31_t* startSample, q31_t* endSample, LPLadderCon
 	}
 }
 
-void FilterSet::renderLPSVF(q31_t* startSample, q31_t* endSample, LPSVFConfig* filterSetConfig, int sampleIncrement) {
+void FilterSet::renderLPSVF(q31_t* startSample, q31_t* endSample, LPSVFConfig* filterSetConfig, int32_t sampleIncrement) {
 	q31_t* currentSample = startSample;
 	do {
 		SVF_outs outs = svf.doSVF(*currentSample, filterSetConfig);
@@ -253,7 +253,7 @@ void FilterSet::renderLPSVF(q31_t* startSample, q31_t* endSample, LPSVFConfig* f
 	} while (currentSample < endSample);
 }
 void FilterSet::renderLPFLong(q31_t* startSample, q31_t* endSample, FilterSetConfig* filterSetConfig, LPFMode lpfMode,
-                              int sampleIncrement, int extraSaturation, int extraSaturationDrive) {
+                              int32_t sampleIncrement, int32_t extraSaturation, int32_t extraSaturationDrive) {
 
 	// This should help get rid of crackling on start / stop - but doesn't
 	if (!lpfOnLastTime) {

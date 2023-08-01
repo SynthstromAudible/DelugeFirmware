@@ -15,8 +15,6 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#pragma once
-
 #include "gui/ui/keyboard/layout/in_key.h"
 #include "definitions.h"
 #include "gui/ui/audio_recorder.h"
@@ -31,7 +29,7 @@ void KeyboardLayoutInKey::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPres
 
 	currentNotesState = NotesState{}; // Erase active notes
 
-	for (int idxPress = 0; idxPress < kMaxNumKeyboardPadPresses; ++idxPress) {
+	for (int32_t idxPress = 0; idxPress < kMaxNumKeyboardPadPresses; ++idxPress) {
 		if (presses[idxPress].active) {
 			currentNotesState.enableNote(noteFromCoords(presses[idxPress].x, presses[idxPress].y),
 			                             getDefaultVelocity());
@@ -39,11 +37,11 @@ void KeyboardLayoutInKey::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPres
 	}
 }
 
-void KeyboardLayoutInKey::handleVerticalEncoder(int offset) {
+void KeyboardLayoutInKey::handleVerticalEncoder(int32_t offset) {
 	handleHorizontalEncoder(offset * getState().inKey.rowInterval, false);
 }
 
-void KeyboardLayoutInKey::handleHorizontalEncoder(int offset, bool shiftEnabled) {
+void KeyboardLayoutInKey::handleHorizontalEncoder(int32_t offset, bool shiftEnabled) {
 	KeyboardStateInKey& state = getState().inKey;
 
 	if (shiftEnabled) {
@@ -59,8 +57,8 @@ void KeyboardLayoutInKey::handleHorizontalEncoder(int offset, bool shiftEnabled)
 	}
 
 	// Calculate highest and lowest possible displayable note with current rowInterval
-	int lowestScrolledNote = padIndexFromNote(getLowestClipNote());
-	int highestScrolledNote =
+	int32_t lowestScrolledNote = padIndexFromNote(getLowestClipNote());
+	int32_t highestScrolledNote =
 	    (padIndexFromNote(getHighestClipNote()) - ((kDisplayHeight - 1) * state.rowInterval + kDisplayWidth - 1));
 
 	// Make sure current value is in bounds
@@ -68,7 +66,7 @@ void KeyboardLayoutInKey::handleHorizontalEncoder(int offset, bool shiftEnabled)
 	state.scrollOffset = std::min(state.scrollOffset, highestScrolledNote);
 
 	// Offset if still in bounds (reject if the next row can not be shown completely)
-	int newOffset = state.scrollOffset + offset;
+	int32_t newOffset = state.scrollOffset + offset;
 	if (newOffset >= lowestScrolledNote && newOffset <= highestScrolledNote) {
 		state.scrollOffset = newOffset;
 	}
@@ -80,7 +78,7 @@ void KeyboardLayoutInKey::precalculate() {
 	KeyboardStateInKey& state = getState().inKey;
 
 	// Pre-Buffer colours for next renderings
-	for (int i = 0; i < (kDisplayHeight * state.rowInterval + kDisplayWidth); ++i) {
+	for (int32_t i = 0; i < (kDisplayHeight * state.rowInterval + kDisplayWidth); ++i) {
 		getNoteColour(noteFromPadIndex(state.scrollOffset + i), noteColours[i]);
 	}
 }
@@ -101,11 +99,11 @@ void KeyboardLayoutInKey::renderPads(uint8_t image[][kDisplayWidth + kSideBarWid
 	uint8_t scaleNoteCount = getScaleNoteCount();
 
 	// Iterate over grid image
-	for (int y = 0; y < kDisplayHeight; ++y) {
-		for (int x = 0; x < kDisplayWidth; x++) {
+	for (int32_t y = 0; y < kDisplayHeight; ++y) {
+		for (int32_t x = 0; x < kDisplayWidth; x++) {
 			auto padIndex = padIndexFromCoords(x, y);
 			auto note = noteFromPadIndex(padIndex);
-			int noteWithinScale = (uint16_t)((note + kOctaveSize) - getRootNote()) % kOctaveSize;
+			int32_t noteWithinScale = (uint16_t)((note + kOctaveSize) - getRootNote()) % kOctaveSize;
 			uint8_t* colourSource = noteColours[padIndex - getState().inKey.scrollOffset];
 
 			// Full brightness and color for active root note

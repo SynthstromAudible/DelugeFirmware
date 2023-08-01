@@ -26,12 +26,12 @@ class Number : public Value {
 public:
 	using Value::Value;
 #if HAVE_OLED
-	void drawBar(int yTop, int marginL, int marginR = -1);
+	void drawBar(int32_t yTop, int32_t marginL, int32_t marginR = -1);
 #endif
 
 protected:
-	virtual int getMaxValue() const = 0;
-	virtual int getMinValue() const {
+	virtual int32_t getMaxValue() const = 0;
+	virtual int32_t getMinValue() const {
 		return 0;
 	}
 };

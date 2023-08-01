@@ -32,15 +32,15 @@ class ModelStack;
 class ActionLogger {
 public:
 	ActionLogger();
-	Action* getNewAction(int newActionType, int addToExistingIfPossible = ACTION_ADDITION_NOT_ALLOWED);
+	Action* getNewAction(int32_t newActionType, int32_t addToExistingIfPossible = ACTION_ADDITION_NOT_ALLOWED);
 	void recordUnautomatedParamChange(ModelStackWithAutoParam const* modelStack,
-	                                  int actionType = ACTION_PARAM_UNAUTOMATED_VALUE_CHANGE);
+	                                  int32_t actionType = ACTION_PARAM_UNAUTOMATED_VALUE_CHANGE);
 	void recordSwingChange(int8_t swingBefore, int8_t swingAfter);
 	void recordTempoChange(uint64_t timePerBigBefore, uint64_t timePerBigAfter);
-	void closeAction(int actionType);
-	void closeActionUnlessCreatedJustNow(int actionType);
+	void closeAction(int32_t actionType);
+	void closeActionUnlessCreatedJustNow(int32_t actionType);
 	void deleteAllLogs();
-	void deleteLog(int time);
+	void deleteLog(int32_t time);
 	bool revert(TimeType time, bool updateVisually = true, bool doNavigation = true);
 	void updateAction(Action* newAction);
 	void undo();

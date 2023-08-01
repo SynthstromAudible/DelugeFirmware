@@ -35,9 +35,9 @@ public:
 	int32_t getMaxZoom();
 	bool isZoomedIn();
 
-	bool zoom(int offset, bool shouldAllowExtraScrollRight = false, MarkerColumn* cols = NULL,
+	bool zoom(int32_t offset, bool shouldAllowExtraScrollRight = false, MarkerColumn* cols = NULL,
 	          MarkerType markerType = MarkerType::NONE);
-	bool scroll(int offset, bool shouldAllowExtraScrollRight = false, MarkerColumn* cols = NULL);
+	bool scroll(int32_t offset, bool shouldAllowExtraScrollRight = false, MarkerColumn* cols = NULL);
 
 	Sample* sample;
 

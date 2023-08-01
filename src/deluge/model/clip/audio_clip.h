@@ -35,8 +35,8 @@ public:
 	~AudioClip();
 	void processCurrentPos(ModelStackWithTimelineCounter* modelStack, uint32_t ticksSinceLast);
 	void expectNoFurtherTicks(Song* song, bool actuallySoundChange = true);
-	int clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing = false);
-	void render(ModelStackWithTimelineCounter* modelStack, int32_t* outputBuffer, int numSamples, int32_t amplitude,
+	int32_t clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing = false);
+	void render(ModelStackWithTimelineCounter* modelStack, int32_t* outputBuffer, int32_t numSamples, int32_t amplitude,
 	            int32_t amplitudeIncrement, int32_t pitchAdjust);
 	void detachFromOutput(ModelStackWithTimelineCounter* modelStack, bool shouldRememberDrumName,
 	                      bool shouldDeleteEmptyNoteRowsAtEndOfList = false, bool shouldRetainLinksToSounds = false,
@@ -44,24 +44,24 @@ public:
 	                      bool shouldBackUpExpressionParamsToo = true);
 	bool renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, TimelineView* editorScreen, int32_t xScroll,
 	                       uint32_t xZoom, uint8_t* image, uint8_t occupancyMask[], bool addUndefinedArea,
-	                       int noteRowIndexStart = 0, int noteRowIndexEnd = 2147483647, int xStart = 0,
-	                       int xEnd = kDisplayWidth, bool allowBlur = true, bool drawRepeats = false);
-	int claimOutput(ModelStackWithTimelineCounter* modelStack);
+	                       int32_t noteRowIndexStart = 0, int32_t noteRowIndexEnd = 2147483647, int32_t xStart = 0,
+	                       int32_t xEnd = kDisplayWidth, bool allowBlur = true, bool drawRepeats = false);
+	int32_t claimOutput(ModelStackWithTimelineCounter* modelStack);
 	void loadSample(bool mayActuallyReadFile);
 	bool wantsToBeginLinearRecording(Song* song);
 	bool isAbandonedOverdub();
 	void finishLinearRecording(ModelStackWithTimelineCounter* modelStack, Clip* nextPendingLoop,
-	                           int buttonLatencyForTempolessRecord);
-	int beginLinearRecording(ModelStackWithTimelineCounter* modelStack, int buttonPressLatency);
+	                           int32_t buttonLatencyForTempolessRecord);
+	int32_t beginLinearRecording(ModelStackWithTimelineCounter* modelStack, int32_t buttonPressLatency);
 	void quantizeLengthForArrangementRecording(ModelStackWithTimelineCounter* modelStack, int32_t lengthSoFar,
 	                                           uint32_t timeRemainder, int32_t suggestedLength,
 	                                           int32_t alternativeLongerLength);
-	Clip* cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStack, int newOverdubNature);
+	Clip* cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStack, int32_t newOverdubNature);
 	int64_t getSamplesFromTicks(int32_t ticks);
 	void unassignVoiceSample();
 	void resumePlayback(ModelStackWithTimelineCounter* modelStack, bool mayMakeSound = true);
-	int changeOutput(ModelStackWithTimelineCounter* modelStack, Output* newOutput);
-	int setOutput(ModelStackWithTimelineCounter* modelStack, Output* newOutput,
+	int32_t changeOutput(ModelStackWithTimelineCounter* modelStack, Output* newOutput);
+	int32_t setOutput(ModelStackWithTimelineCounter* modelStack, Output* newOutput,
 	              AudioClip* favourClipForCloningParamManager = NULL);
 	void getColour(uint8_t rgb[]);
 	bool currentlyScrollableAndZoomable();
@@ -78,9 +78,9 @@ public:
 	int64_t getNumSamplesTilLoop(ModelStackWithTimelineCounter* modelStack);
 	void setPos(ModelStackWithTimelineCounter* modelStack, int32_t newPos, bool useActualPosForParamManagers);
 	/// Return true if successfully shifted, as clip cannot be shifted past beginning
-	bool shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int amount);
+	bool shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int32_t amount);
 
-	int readFromFile(Song* song);
+	int32_t readFromFile(Song* song);
 	void writeDataToFile(Song* song);
 	char const* getXMLTag() { return "audioClip"; }
 

@@ -47,10 +47,10 @@ uint8_t oledMainPopupImage[OLED_MAIN_HEIGHT_PIXELS >> 3][OLED_MAIN_WIDTH_PIXELS]
 
 uint8_t (*oledCurrentImage)[OLED_MAIN_WIDTH_PIXELS] = oledMainImage;
 
-int workingAnimationCount;
+int32_t workingAnimationCount;
 char const* workingAnimationText; // NULL means animation not active
 
-int sideScrollerDirection; // 0 means none active
+int32_t sideScrollerDirection; // 0 means none active
 
 const uint8_t folderIcon[] = {
     0b11111100, 0b10000100, 0b10000110, 0b10000101, 0b10000011, 0b10000001, 0b10000001, 0b11111110,
@@ -97,26 +97,26 @@ void clearMainImage() {
 }
 
 // Clears area *inclusive* of maxX, but not maxY? Stupid.
-void clearAreaExact(int minX, int minY, int maxX, int maxY, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
-	int firstRow = minY >> 3;
-	int lastRow = maxY >> 3;
+void clearAreaExact(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
+	int32_t firstRow = minY >> 3;
+	int32_t lastRow = maxY >> 3;
 
-	int firstCompleteRow = firstRow;
-	int lastCompleteRow = lastRow;
+	int32_t firstCompleteRow = firstRow;
+	int32_t lastCompleteRow = lastRow;
 
-	int lastRowPixelWithin = maxY & 7;
+	int32_t lastRowPixelWithin = maxY & 7;
 	bool willDoLastRow = (lastRowPixelWithin != 7);
 	uint8_t lastRowMask = 255 << (lastRowPixelWithin + 1);
 
 	// First row
-	int firstRowPixelWithin = minY & 7;
+	int32_t firstRowPixelWithin = minY & 7;
 	if (firstRowPixelWithin) {
 		firstCompleteRow++;
 		uint8_t firstRowMask = ~(255 << firstRowPixelWithin);
 		if (willDoLastRow && firstRow == lastRow) {
 			firstRowMask &= lastRowMask;
 		}
-		for (int x = minX; x <= maxX; x++) {
+		for (int32_t x = minX; x <= maxX; x++) {
 			image[firstRow][x] &= firstRowMask;
 		}
 
@@ -128,39 +128,39 @@ void clearAreaExact(int minX, int minY, int maxX, int maxY, uint8_t image[][OLED
 	// Last row
 	if (willDoLastRow) {
 		lastCompleteRow--;
-		for (int x = minX; x <= maxX; x++) {
+		for (int32_t x = minX; x <= maxX; x++) {
 			image[lastRow][x] &= lastRowMask;
 		}
 	}
 
-	for (int row = firstCompleteRow; row <= lastCompleteRow; row++) {
+	for (int32_t row = firstCompleteRow; row <= lastCompleteRow; row++) {
 		memset(&image[row][minX], 0, maxX - minX + 1);
 	}
 }
 
-void moveAreaUpCrude(int minX, int minY, int maxX, int maxY, int delta, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
+void moveAreaUpCrude(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY, int32_t delta, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 
-	int firstRow = minY >> 3;
-	int lastRow = maxY >> 3;
+	int32_t firstRow = minY >> 3;
+	int32_t lastRow = maxY >> 3;
 
 	// First move any entire rows
-	int deltaRows = delta >> 3;
+	int32_t deltaRows = delta >> 3;
 	if (deltaRows) {
 		delta &= 7;
 		minY += delta; // There's a bit we can ignore here, potentially
-		int firstRowHere = minY >> 3;
+		int32_t firstRowHere = minY >> 3;
 		lastRow -= deltaRows;
-		for (int row = firstRow; row <= lastRow; row++) {
+		for (int32_t row = firstRow; row <= lastRow; row++) {
 			memcpy(&image[row][minX], &image[row + deltaRows][minX], maxX - minX + 1);
 		}
 	}
 
 	// Move final sub-row amount
 	if (delta) {
-		for (int x = minX; x <= maxX; x++) {
+		for (int32_t x = minX; x <= maxX; x++) {
 			uint8_t carry;
 
-			for (int row = lastRow; row >= firstRow; row--) {
+			for (int32_t row = lastRow; row >= firstRow; row--) {
 				uint8_t prevBitsHere = image[row][x];
 				image[row][x] = (prevBitsHere >> delta) | (carry << (8 - delta));
 				carry = prevBitsHere;
@@ -171,15 +171,15 @@ void moveAreaUpCrude(int minX, int minY, int maxX, int maxY, int delta, uint8_t 
 
 // Caller must ensure area doesn't go beyond edge of canvas.
 // Inverts area inclusive of endY, I think...
-void invertArea(int xMin, int width, int startY, int endY, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
-	int firstRowY = startY >> 3;
-	int lastRowY = endY >> 3;
+void invertArea(int32_t xMin, int32_t width, int32_t startY, int32_t endY, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
+	int32_t firstRowY = startY >> 3;
+	int32_t lastRowY = endY >> 3;
 
 	uint8_t currentRowMask = (255 << (startY & 7));
 	uint8_t lastRowMask = (255 >> (7 - (endY & 7)));
 
 	// For each row
-	for (int rowY = firstRowY; rowY <= lastRowY; rowY++) {
+	for (int32_t rowY = firstRowY; rowY <= lastRowY; rowY++) {
 
 		if (rowY == lastRowY) {
 			currentRowMask &= lastRowMask;
@@ -197,11 +197,11 @@ void invertArea(int xMin, int width, int startY, int endY, uint8_t image[][OLED_
 	}
 }
 
-void drawGraphicMultiLine(uint8_t const* graphic, int startX, int startY, int width, uint8_t* image, int height,
-                          int numBytesTall) {
-	int rowOnDisplay = startY >> 3;
-	int yOffset = startY & 7;
-	int rowOnGraphic = 0;
+void drawGraphicMultiLine(uint8_t const* graphic, int32_t startX, int32_t startY, int32_t width, uint8_t* image, int32_t height,
+                          int32_t numBytesTall) {
+	int32_t rowOnDisplay = startY >> 3;
+	int32_t yOffset = startY & 7;
+	int32_t rowOnGraphic = 0;
 
 	if (width > OLED_MAIN_WIDTH_PIXELS - startX) {
 		width = OLED_MAIN_WIDTH_PIXELS - startX;
@@ -218,7 +218,7 @@ void drawGraphicMultiLine(uint8_t const* graphic, int startX, int startY, int wi
 		graphicPos += numBytesTall;
 	}
 
-	int yOffsetNegative = 8 - yOffset;
+	int32_t yOffsetNegative = 8 - yOffset;
 
 	// Do middle rows
 	while (true) {
@@ -260,7 +260,7 @@ void drawGraphicMultiLine(uint8_t const* graphic, int startX, int startY, int wi
 	}
 }
 
-void drawRectangle(int minX, int minY, int maxX, int maxY, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
+void drawRectangle(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	drawVerticalLine(minX, minY, maxY, image);
 	drawVerticalLine(maxX, minY, maxY, image);
 
@@ -268,9 +268,9 @@ void drawRectangle(int minX, int minY, int maxX, int maxY, uint8_t image[][OLED_
 	drawHorizontalLine(maxY, minX + 1, maxX - 1, image);
 }
 
-void drawVerticalLine(int pixelX, int startY, int endY, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
-	int firstRowY = startY >> 3;
-	int lastRowY = endY >> 3;
+void drawVerticalLine(int32_t pixelX, int32_t startY, int32_t endY, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
+	int32_t firstRowY = startY >> 3;
+	int32_t lastRowY = endY >> 3;
 
 	uint8_t firstRowMask = (255 << (startY & 7));
 	uint8_t lastRowMask = (255 >> (7 - (endY & 7)));
@@ -301,7 +301,7 @@ drawSolid:
 	}
 }
 
-void drawHorizontalLine(int pixelY, int startX, int endX, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
+void drawHorizontalLine(int32_t pixelY, int32_t startX, int32_t endX, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	uint8_t mask = 1 << (pixelY & 7);
 
 	uint8_t* __restrict__ currentPos = &image[pixelY >> 3][startX];
@@ -312,10 +312,10 @@ void drawHorizontalLine(int pixelY, int startX, int endX, uint8_t image[][OLED_M
 	} while (currentPos <= lastPos);
 }
 
-void drawString(char const* string, int pixelX, int pixelY, uint8_t* image, int imageWidth, int textWidth,
-                int textHeight, int scrollPos, int endX) {
+void drawString(char const* string, int32_t pixelX, int32_t pixelY, uint8_t* image, int32_t imageWidth, int32_t textWidth,
+                int32_t textHeight, int32_t scrollPos, int32_t endX) {
 	if (scrollPos) {
-		int numCharsToChopOff = (uint16_t)scrollPos / (uint8_t)textWidth;
+		int32_t numCharsToChopOff = (uint16_t)scrollPos / (uint8_t)textWidth;
 		if (numCharsToChopOff) {
 			if (numCharsToChopOff >= strlen(string)) {
 				return;
@@ -336,8 +336,8 @@ void drawString(char const* string, int pixelX, int pixelY, uint8_t* image, int 
 	}
 }
 
-void drawStringFixedLength(char const* string, int length, int pixelX, int pixelY, uint8_t* image, int imageWidth,
-                           int textWidth, int textHeight) {
+void drawStringFixedLength(char const* string, int32_t length, int32_t pixelX, int32_t pixelY, uint8_t* image, int32_t imageWidth,
+                           int32_t textWidth, int32_t textHeight) {
 	char const* const stopAt = string + length;
 	while (string < stopAt) {
 		drawChar(*string, pixelX, pixelY, image, imageWidth, textWidth, textHeight);
@@ -349,26 +349,26 @@ void drawStringFixedLength(char const* string, int length, int pixelX, int pixel
 	}
 }
 
-void drawStringCentred(char const* string, int pixelY, uint8_t* image, int imageWidth, int textWidth, int textHeight,
-                       int centrePos) {
-	int length = strlen(string);
-	int pixelX = centrePos - ((textWidth * length) >> 1);
+void drawStringCentred(char const* string, int32_t pixelY, uint8_t* image, int32_t imageWidth, int32_t textWidth, int32_t textHeight,
+                       int32_t centrePos) {
+	int32_t length = strlen(string);
+	int32_t pixelX = centrePos - ((textWidth * length) >> 1);
 	drawStringFixedLength(string, length, pixelX, pixelY, image, imageWidth, textWidth, textHeight);
 }
 
-void drawStringAlignRight(char const* string, int pixelY, uint8_t* image, int imageWidth, int textWidth, int textHeight,
-                          int rightPos) {
-	int length = strlen(string);
-	int pixelX = rightPos - (textWidth * length);
+void drawStringAlignRight(char const* string, int32_t pixelY, uint8_t* image, int32_t imageWidth, int32_t textWidth, int32_t textHeight,
+                          int32_t rightPos) {
+	int32_t length = strlen(string);
+	int32_t pixelX = rightPos - (textWidth * length);
 	drawStringFixedLength(string, length, pixelX, pixelY, image, imageWidth, textWidth, textHeight);
 }
 
-void drawStringCentredShrinkIfNecessary(char const* string, int pixelY, uint8_t* image, int imageWidth, int textWidth,
-                                        int textHeight) {
-	int length = strlen(string);
-	int maxTextWidth = (uint8_t)OLED_MAIN_WIDTH_PIXELS / (unsigned int)length;
+void drawStringCentredShrinkIfNecessary(char const* string, int32_t pixelY, uint8_t* image, int32_t imageWidth, int32_t textWidth,
+                                        int32_t textHeight) {
+	int32_t length = strlen(string);
+	int32_t maxTextWidth = (uint8_t)OLED_MAIN_WIDTH_PIXELS / (uint32_t)length;
 	if (textWidth > maxTextWidth) {
-		int newHeight = (unsigned int)(textHeight * maxTextWidth) / (unsigned int)textWidth;
+		int32_t newHeight = (uint32_t)(textHeight * maxTextWidth) / (uint32_t)textWidth;
 		if (newHeight >= 20) {
 			newHeight = 20;
 		}
@@ -384,18 +384,18 @@ void drawStringCentredShrinkIfNecessary(char const* string, int pixelY, uint8_t*
 
 		textWidth = maxTextWidth;
 
-		int heightDiff = textHeight - newHeight;
+		int32_t heightDiff = textHeight - newHeight;
 		pixelY += heightDiff >> 1;
 		textHeight = newHeight;
 	}
-	int pixelX = (imageWidth - textWidth * length) >> 1;
+	int32_t pixelX = (imageWidth - textWidth * length) >> 1;
 	drawStringFixedLength(string, length, pixelX, pixelY, image, imageWidth, textWidth, textHeight);
 }
 
 #define DO_CHARACTER_SCALING 0
 
-void drawChar(uint8_t theChar, int pixelX, int pixelY, uint8_t* image, int imageWidth, int spacingX, int textHeight,
-              int scrollPos, int endX) {
+void drawChar(uint8_t theChar, int32_t pixelX, int32_t pixelY, uint8_t* image, int32_t imageWidth, int32_t spacingX, int32_t textHeight,
+              int32_t scrollPos, int32_t endX) {
 
 	if (theChar > '~') {
 		return;
@@ -410,14 +410,14 @@ void drawChar(uint8_t theChar, int pixelX, int pixelY, uint8_t* image, int image
 		}
 	}
 
-	int charIndex = theChar - 0x20;
+	int32_t charIndex = theChar - 0x20;
 	if (charIndex <= 0) {
 		return;
 	}
 
 	lv_font_glyph_dsc_t const* descriptor;
 	uint8_t const* font;
-	int fontNativeHeight;
+	int32_t fontNativeHeight;
 
 	switch (textHeight) {
 	case 9:
@@ -454,10 +454,10 @@ void drawChar(uint8_t theChar, int pixelX, int pixelY, uint8_t* image, int image
 	descriptor += charIndex;
 
 #if DO_CHARACTER_SCALING
-	int scaledFontWidth =
+	int32_t scaledFontWidth =
 	    (uint16_t)(descriptor->w_px * textHeight + (fontNativeHeight >> 1) - 1) / (uint8_t)fontNativeHeight;
 #else
-	int scaledFontWidth = descriptor->w_px;
+	int32_t scaledFontWidth = descriptor->w_px;
 #endif
 	pixelX += (spacingX - scaledFontWidth) >> 1;
 
@@ -466,17 +466,17 @@ void drawChar(uint8_t theChar, int pixelX, int pixelY, uint8_t* image, int image
 		pixelX = 0;
 	}
 
-	int bytesPerCol = ((textHeight - 1) >> 3) + 1;
+	int32_t bytesPerCol = ((textHeight - 1) >> 3) + 1;
 
-	int textWidth = descriptor->w_px - scrollPos;
+	int32_t textWidth = descriptor->w_px - scrollPos;
 	drawGraphicMultiLine(&font[descriptor->glyph_index + scrollPos * bytesPerCol], pixelX, pixelY, textWidth, image,
 	                     textHeight, bytesPerCol);
 }
 
 void drawScreenTitle(char const* title) {
-	int extraY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 0 : 1;
+	int32_t extraY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 0 : 1;
 
-	int startY = extraY + OLED_MAIN_TOPMOST_PIXEL;
+	int32_t startY = extraY + OLED_MAIN_TOPMOST_PIXEL;
 
 	OLED::drawString(title, 0, startY, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextTitleSpacingX,
 	                 kTextTitleSizeY);
@@ -484,15 +484,15 @@ void drawScreenTitle(char const* title) {
 	                         &OLED::oledMainImage[0]);
 }
 
-int oledPopupWidth = 0; // If 0, means popup isn't present / active.
-int popupHeight;
+int32_t oledPopupWidth = 0; // If 0, means popup isn't present / active.
+int32_t popupHeight;
 
-int popupMinX;
-int popupMaxX;
-int popupMinY;
-int popupMaxY;
+int32_t popupMinX;
+int32_t popupMaxX;
+int32_t popupMinY;
+int32_t popupMaxY;
 
-void setupPopup(int width, int height) {
+void setupPopup(int32_t width, int32_t height) {
 	if (height > OLED_MAIN_HEIGHT_PIXELS) {
 		height = OLED_MAIN_HEIGHT_PIXELS;
 	}
@@ -514,18 +514,18 @@ void setupPopup(int width, int height) {
 	}
 
 	// Clear the popup's area, not including the rectangle we're about to draw
-	int popupFirstRow = (popupMinY + 1) >> 3;
-	int popupLastRow = (popupMaxY - 1) >> 3;
+	int32_t popupFirstRow = (popupMinY + 1) >> 3;
+	int32_t popupLastRow = (popupMaxY - 1) >> 3;
 
-	for (int row = popupFirstRow; row <= popupLastRow; row++) {
+	for (int32_t row = popupFirstRow; row <= popupLastRow; row++) {
 		memset(&oledMainPopupImage[row][popupMinX + 1], 0, popupMaxX - popupMinX - 1);
 	}
 
 	drawRectangle(popupMinX, popupMinY, popupMaxX, popupMaxY, oledMainPopupImage);
 }
 
-int consoleMaxX;
-int consoleMinX = -1;
+int32_t consoleMaxX;
+int32_t consoleMinX = -1;
 
 struct ConsoleItem {
 	uint32_t timeoutTime;
@@ -537,7 +537,7 @@ struct ConsoleItem {
 #define MAX_NUM_CONSOLE_ITEMS 10
 
 ConsoleItem consoleItems[MAX_NUM_CONSOLE_ITEMS];
-int numConsoleItems = 0;
+int32_t numConsoleItems = 0;
 
 void drawConsoleTopLine() {
 	drawHorizontalLine(consoleItems[numConsoleItems - 1].minY - 1, consoleMinX + 1, consoleMaxX - 1,
@@ -545,7 +545,7 @@ void drawConsoleTopLine() {
 }
 
 // Returns y position (minY)
-int setupConsole(int height) {
+int32_t setupConsole(int32_t height) {
 	consoleMinX = 4;
 	consoleMaxX = OLED_MAIN_WIDTH_PIXELS - consoleMinX;
 
@@ -561,7 +561,7 @@ int setupConsole(int height) {
 		}
 
 		// Shuffle existing console items along
-		for (int i = numConsoleItems; i > 0; i--) {
+		for (int32_t i = numConsoleItems; i > 0; i--) {
 			consoleItems[i] = consoleItems[i - 1];
 		}
 
@@ -570,11 +570,11 @@ int setupConsole(int height) {
 		consoleItems[0].maxY = consoleItems[0].minY + height;
 
 		// If that's too low, we'll have to bump the other ones up immediately
-		int howMuchTooLow = consoleItems[0].maxY - kConsoleImageHeight + 1;
+		int32_t howMuchTooLow = consoleItems[0].maxY - kConsoleImageHeight + 1;
 		if (howMuchTooLow > 0) {
 
 			// Move their min and max values up
-			for (int i = numConsoleItems; i >= 0;
+			for (int32_t i = numConsoleItems; i >= 0;
 			     i--) { // numConsoleItems hasn't been updated yet - there's actually one more
 				consoleItems[i].minY -= howMuchTooLow;
 				// If at all offscreen, scrap that one
@@ -632,7 +632,7 @@ bool isPopupPresent() {
 	return oledPopupWidth;
 }
 
-void copyRowWithMask(uint8_t destMask, uint8_t sourceRow[], uint8_t destRow[], int minX, int maxX) {
+void copyRowWithMask(uint8_t destMask, uint8_t sourceRow[], uint8_t destRow[], int32_t minX, int32_t maxX) {
 	uint8_t sourceMask = ~destMask;
 	uint8_t* __restrict__ source = &sourceRow[minX];
 	uint8_t* __restrict__ dest = &destRow[minX];
@@ -646,38 +646,38 @@ void copyRowWithMask(uint8_t destMask, uint8_t sourceRow[], uint8_t destRow[], i
 }
 
 void copyBackgroundAroundForeground(uint8_t backgroundImage[][OLED_MAIN_WIDTH_PIXELS],
-                                    uint8_t foregroundImage[][OLED_MAIN_WIDTH_PIXELS], int minX, int minY, int maxX,
-                                    int maxY) {
+                                    uint8_t foregroundImage[][OLED_MAIN_WIDTH_PIXELS], int32_t minX, int32_t minY, int32_t maxX,
+                                    int32_t maxY) {
 
 	// Copy everything above
-	int firstRow = minY >> 3;
-	int lastRow = maxY >> 3;
+	int32_t firstRow = minY >> 3;
+	int32_t lastRow = maxY >> 3;
 	if (firstRow) {
 		memcpy(foregroundImage, backgroundImage, OLED_MAIN_WIDTH_PIXELS * firstRow);
 	}
 
 	// Partial row above
-	int partialRowPixelsAbove = minY & 7;
+	int32_t partialRowPixelsAbove = minY & 7;
 	if (partialRowPixelsAbove) {
 		uint8_t destMask = 255 << partialRowPixelsAbove;
 		copyRowWithMask(destMask, backgroundImage[firstRow], foregroundImage[firstRow], minX, maxX);
 	}
 
 	// Copy stuff to left and right
-	for (int row = firstRow; row <= lastRow; row++) {
+	for (int32_t row = firstRow; row <= lastRow; row++) {
 		memcpy(foregroundImage[row], backgroundImage[row], minX);
 		memcpy(&foregroundImage[row][maxX + 1], &backgroundImage[row][maxX + 1], OLED_MAIN_WIDTH_PIXELS - maxX - 1);
 	}
 
 	// Partial row below
-	int partialRowPixelsBelow = 7 - (maxY & 7);
+	int32_t partialRowPixelsBelow = 7 - (maxY & 7);
 	if (partialRowPixelsBelow) {
 		uint8_t destMask = 255 >> partialRowPixelsBelow;
 		copyRowWithMask(destMask, backgroundImage[lastRow], foregroundImage[lastRow], minX, maxX);
 	}
 
 	// Copy everything below
-	int numMoreRows = ((OLED_MAIN_HEIGHT_PIXELS - 1) >> 3) - lastRow;
+	int32_t numMoreRows = ((OLED_MAIN_HEIGHT_PIXELS - 1) >> 3) - lastRow;
 	if (numMoreRows > 0) {
 		memcpy(foregroundImage[lastRow + 1], backgroundImage[lastRow + 1], OLED_MAIN_WIDTH_PIXELS * numMoreRows);
 	}
@@ -712,9 +712,9 @@ void sendMainImage() {
 struct TextLineBreakdown {
 	char const* lines[TEXT_MAX_NUM_LINES];
 	uint8_t lineLengths[TEXT_MAX_NUM_LINES];
-	int numLines;
-	int longestLineLength;
-	int maxCharsPerLine;
+	int32_t numLines;
+	int32_t longestLineLength;
+	int32_t maxCharsPerLine;
 };
 
 void breakStringIntoLines(char const* text, TextLineBreakdown* textLineBreakdown) {
@@ -738,7 +738,7 @@ findNextSpace:
 	}
 
 lookAtNextSpace:
-	int lineLength = (int)space - (int)lineStart;
+	int32_t lineLength = (int32_t)space - (int32_t)lineStart;
 	if (*space == '_') {
 		lineLength++; // If "space" was actually an underscore, include it.
 	}
@@ -769,7 +769,7 @@ lookAtNextSpace:
 		goto findNextSpace;
 	}
 	else {
-		lineLength = (int)lineEnd - (int)lineStart;
+		lineLength = (int32_t)lineEnd - (int32_t)lineStart;
 		textLineBreakdown->lines[textLineBreakdown->numLines] = lineStart;
 		textLineBreakdown->lineLengths[textLineBreakdown->numLines] = lineLength;
 		if (lineLength > textLineBreakdown->longestLineLength) {
@@ -791,26 +791,26 @@ void drawPermanentPopupLookingText(char const* text) {
 
 	breakStringIntoLines(text, &textLineBreakdown);
 
-	int textWidth = textLineBreakdown.longestLineLength * kTextSpacingX;
-	int textHeight = textLineBreakdown.numLines * kTextSpacingY;
+	int32_t textWidth = textLineBreakdown.longestLineLength * kTextSpacingX;
+	int32_t textHeight = textLineBreakdown.numLines * kTextSpacingY;
 
-	int doubleMargin = 12;
+	int32_t doubleMargin = 12;
 
-	int minX = (OLED_MAIN_WIDTH_PIXELS - textWidth - doubleMargin) >> 1;
-	int maxX = OLED_MAIN_WIDTH_PIXELS - minX;
+	int32_t minX = (OLED_MAIN_WIDTH_PIXELS - textWidth - doubleMargin) >> 1;
+	int32_t maxX = OLED_MAIN_WIDTH_PIXELS - minX;
 
-	int minY = (OLED_MAIN_HEIGHT_PIXELS - textHeight - doubleMargin) >> 1;
-	int maxY = OLED_MAIN_HEIGHT_PIXELS - minY;
+	int32_t minY = (OLED_MAIN_HEIGHT_PIXELS - textHeight - doubleMargin) >> 1;
+	int32_t maxY = OLED_MAIN_HEIGHT_PIXELS - minY;
 
 	drawRectangle(minX, minY, maxX, maxY, oledMainImage);
 
-	int textPixelY = (OLED_MAIN_HEIGHT_PIXELS - textHeight) >> 1;
+	int32_t textPixelY = (OLED_MAIN_HEIGHT_PIXELS - textHeight) >> 1;
 	if (textPixelY < 0) {
 		textPixelY = 0;
 	}
 
-	for (int l = 0; l < textLineBreakdown.numLines; l++) {
-		int textPixelX = (OLED_MAIN_WIDTH_PIXELS - (kTextSpacingX * textLineBreakdown.lineLengths[l])) >> 1;
+	for (int32_t l = 0; l < textLineBreakdown.numLines; l++) {
+		int32_t textPixelX = (OLED_MAIN_WIDTH_PIXELS - (kTextSpacingX * textLineBreakdown.lineLengths[l])) >> 1;
 		drawStringFixedLength(textLineBreakdown.lines[l], textLineBreakdown.lineLengths[l], textPixelX, textPixelY,
 		                      oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 		textPixelY += kTextSpacingY;
@@ -824,20 +824,20 @@ void popupText(char const* text, bool persistent) {
 
 	breakStringIntoLines(text, &textLineBreakdown);
 
-	int textWidth = textLineBreakdown.longestLineLength * kTextSpacingX;
-	int textHeight = textLineBreakdown.numLines * kTextSpacingY;
+	int32_t textWidth = textLineBreakdown.longestLineLength * kTextSpacingX;
+	int32_t textHeight = textLineBreakdown.numLines * kTextSpacingY;
 
-	int doubleMargin = 12;
+	int32_t doubleMargin = 12;
 
 	setupPopup(textWidth + doubleMargin, textHeight + doubleMargin);
 
-	int textPixelY = (OLED_MAIN_HEIGHT_PIXELS - textHeight) >> 1;
+	int32_t textPixelY = (OLED_MAIN_HEIGHT_PIXELS - textHeight) >> 1;
 	if (textPixelY < 0) {
 		textPixelY = 0;
 	}
 
-	for (int l = 0; l < textLineBreakdown.numLines; l++) {
-		int textPixelX = (OLED_MAIN_WIDTH_PIXELS - (kTextSpacingX * textLineBreakdown.lineLengths[l])) >> 1;
+	for (int32_t l = 0; l < textLineBreakdown.numLines; l++) {
+		int32_t textPixelX = (OLED_MAIN_WIDTH_PIXELS - (kTextSpacingX * textLineBreakdown.lineLengths[l])) >> 1;
 		drawStringFixedLength(textLineBreakdown.lines[l], textLineBreakdown.lineLengths[l], textPixelX, textPixelY,
 		                      oledMainPopupImage[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 		textPixelY += kTextSpacingY;
@@ -856,7 +856,7 @@ void popupText(char const* text, bool persistent) {
 
 void updateWorkingAnimation() {
 	String textNow;
-	int error = textNow.set(workingAnimationText);
+	int32_t error = textNow.set(workingAnimationText);
 	if (error) {
 		return;
 	}
@@ -864,7 +864,7 @@ void updateWorkingAnimation() {
 	char buffer[4];
 	buffer[3] = 0;
 
-	for (int i = 0; i < 3; i++) {
+	for (int32_t i = 0; i < 3; i++) {
 		buffer[i] = (i <= workingAnimationCount) ? '.' : ' ';
 	}
 
@@ -900,15 +900,15 @@ void consoleText(char const* text) {
 
 	breakStringIntoLines(text, &textLineBreakdown);
 
-	int charWidth = 6;
-	int charHeight = 7;
+	int32_t charWidth = 6;
+	int32_t charHeight = 7;
 
-	int margin = 4;
+	int32_t margin = 4;
 
-	int textPixelY = setupConsole(textLineBreakdown.numLines * charHeight + 1) + 1;
+	int32_t textPixelY = setupConsole(textLineBreakdown.numLines * charHeight + 1) + 1;
 
-	for (int l = 0; l < textLineBreakdown.numLines; l++) {
-		int textPixelX = 8;
+	for (int32_t l = 0; l < textLineBreakdown.numLines; l++) {
+		int32_t textPixelX = 8;
 		drawStringFixedLength(textLineBreakdown.lines[l], textLineBreakdown.lineLengths[l], textPixelX, textPixelY,
 		                      oledMainConsoleImage[0], OLED_MAIN_WIDTH_PIXELS, charWidth, charHeight);
 		textPixelY += charHeight;
@@ -935,7 +935,7 @@ void performBlink() {
 	uiTimerManager.setTimer(TIMER_OLED_SCROLLING_AND_BLINKING, kFlashTime);
 }
 
-void setupBlink(int minX, int width, int minY, int maxY, bool shouldBlinkImmediately) {
+void setupBlink(int32_t minX, int32_t width, int32_t minY, int32_t maxY, bool shouldBlinkImmediately) {
 	blinkArea.minX = minX;
 	blinkArea.width = width;
 	blinkArea.minY = minY;
@@ -956,16 +956,16 @@ void stopBlink() {
 
 struct SideScroller {
 	char const* text; // NULL means not active.
-	int textLength;
-	int pos;
-	int startX;
-	int endX;
-	int startY;
-	int endY;
-	int textSpacingX;
-	int textSizeY;
-	int stringLengthPixels;
-	int boxLengthPixels;
+	int32_t textLength;
+	int32_t pos;
+	int32_t startX;
+	int32_t endX;
+	int32_t startY;
+	int32_t endY;
+	int32_t textSpacingX;
+	int32_t textSizeY;
+	int32_t stringLengthPixels;
+	int32_t boxLengthPixels;
 	bool finished;
 	bool doHilight;
 };
@@ -974,8 +974,8 @@ struct SideScroller {
 
 SideScroller sideScrollers[NUM_SIDE_SCROLLERS];
 
-void setupSideScroller(int index, char const* text, int startX, int endX, int startY, int endY, int textSpacingX,
-                       int textSizeY, bool doHilight) {
+void setupSideScroller(int32_t index, char const* text, int32_t startX, int32_t endX, int32_t startY, int32_t endY, int32_t textSpacingX,
+                       int32_t textSizeY, bool doHilight) {
 
 	SideScroller* scroller = &sideScrollers[index];
 	scroller->textLength = strlen(text);
@@ -1003,7 +1003,7 @@ void setupSideScroller(int index, char const* text, int startX, int endX, int st
 void stopScrollingAnimation() {
 	if (sideScrollerDirection) {
 		sideScrollerDirection = 0;
-		for (int s = 0; s < NUM_SIDE_SCROLLERS; s++) {
+		for (int32_t s = 0; s < NUM_SIDE_SCROLLERS; s++) {
 			SideScroller* scroller = &sideScrollers[s];
 			scroller->text = NULL;
 		}
@@ -1036,7 +1036,7 @@ void scrollingAndBlinkingTimerEvent() {
 
 	bool finished = true;
 
-	for (int s = 0; s < NUM_SIDE_SCROLLERS; s++) {
+	for (int32_t s = 0; s < NUM_SIDE_SCROLLERS; s++) {
 		SideScroller* scroller = &sideScrollers[s];
 		if (scroller->text) {
 			if (scroller->finished) {
@@ -1068,14 +1068,14 @@ void scrollingAndBlinkingTimerEvent() {
 
 	sendMainImage();
 
-	int timeInterval;
+	int32_t timeInterval;
 	if (!finished) {
 		timeInterval = (sideScrollerDirection >= 0) ? 15 : 5;
 	}
 	else {
 		timeInterval = 400;
 		sideScrollerDirection = -sideScrollerDirection;
-		for (int s = 0; s < NUM_SIDE_SCROLLERS; s++) {
+		for (int32_t s = 0; s < NUM_SIDE_SCROLLERS; s++) {
 			sideScrollers[s].finished = false;
 		}
 	}
@@ -1088,7 +1088,7 @@ void consoleTimerEvent() {
 		return;
 	}
 
-	int timeTilNext = 0;
+	int32_t timeTilNext = 0;
 
 	// If console moving up
 	if (consoleItems[0].maxY >= OLED_MAIN_HEIGHT_PIXELS) {
@@ -1105,20 +1105,20 @@ void consoleTimerEvent() {
 			drawConsoleTopLine(); // Yeah the line will get copied - it's fine
 		}
 
-		int firstRow = (consoleItems[numConsoleItems - 1].minY - 2) >> 3;
-		int lastRow = consoleItems[0].maxY >> 3;
+		int32_t firstRow = (consoleItems[numConsoleItems - 1].minY - 2) >> 3;
+		int32_t lastRow = consoleItems[0].maxY >> 3;
 
-		for (int x = consoleMinX; x <= consoleMaxX; x++) {
+		for (int32_t x = consoleMinX; x <= consoleMaxX; x++) {
 			uint8_t carry;
 
-			for (int row = lastRow; row >= firstRow; row--) {
+			for (int32_t row = lastRow; row >= firstRow; row--) {
 				uint8_t prevBitsHere = oledMainConsoleImage[row][x];
 				oledMainConsoleImage[row][x] = (prevBitsHere >> 1) | (carry << 7);
 				carry = prevBitsHere;
 			}
 		}
 
-		for (int i = 0; i < numConsoleItems; i++) {
+		for (int32_t i = 0; i < numConsoleItems; i++) {
 			consoleItems[i].minY--;
 			consoleItems[i].maxY--;
 		}
@@ -1133,20 +1133,20 @@ void consoleTimerEvent() {
 	// Or if console moving down
 	else if (false) {
 
-		int firstRow = consoleItems[numConsoleItems - 1].minY >> 3;
-		int lastRow = consoleItems[0].maxY >> 3;
+		int32_t firstRow = consoleItems[numConsoleItems - 1].minY >> 3;
+		int32_t lastRow = consoleItems[0].maxY >> 3;
 
-		for (int x = consoleMinX; x <= consoleMaxX; x++) {
+		for (int32_t x = consoleMinX; x <= consoleMaxX; x++) {
 			uint8_t carry;
 
-			for (int row = firstRow; row <= lastRow; row++) {
+			for (int32_t row = firstRow; row <= lastRow; row++) {
 				uint8_t prevBitsHere = oledMainConsoleImage[row][x];
 				oledMainConsoleImage[row][x] = (prevBitsHere << 1) | (carry >> 7);
 				carry = prevBitsHere;
 			}
 		}
 
-		for (int i = 0; i < numConsoleItems; i++) {
+		for (int32_t i = 0; i < numConsoleItems; i++) {
 			consoleItems[i].minY++;
 			consoleItems[i].maxY++;
 		}
@@ -1202,7 +1202,7 @@ checkTimeTilTimeout:
 
 void freezeWithError(char const* text) {
 	OLED::clearMainImage();
-	int yPixel = OLED_MAIN_TOPMOST_PIXEL;
+	int32_t yPixel = OLED_MAIN_TOPMOST_PIXEL;
 	OLED::drawString("Error:", 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
 	                 kTextSizeYUpdated, 0, OLED_MAIN_WIDTH_PIXELS);
 	OLED::drawString(text, kTextSpacingX * 7, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
@@ -1261,7 +1261,7 @@ void freezeWithError(char const* text) {
 	RSPI(SPI_CHANNEL_OLED_MAIN).SPBFCR.BYTE = 0b01100000;    //0b00100000;
 	//DMACn(OLED_SPI_DMA_CHANNEL).CHCFG_n = 0b00000000001000000000001001101000 | (OLED_SPI_DMA_CHANNEL & 7);
 
-	int transferSize = (OLED_MAIN_HEIGHT_PIXELS >> 3) * OLED_MAIN_WIDTH_PIXELS;
+	int32_t transferSize = (OLED_MAIN_HEIGHT_PIXELS >> 3) * OLED_MAIN_WIDTH_PIXELS;
 	DMACn(OLED_SPI_DMA_CHANNEL).N0TB_n = transferSize; // TODO: only do this once?
 	uint32_t dataAddress = (uint32_t)OLED::oledMainImage;
 	DMACn(OLED_SPI_DMA_CHANNEL).N0SA_n = dataAddress;

@@ -24,8 +24,8 @@ class LiveInputBuffer {
 public:
 	LiveInputBuffer();
 	~LiveInputBuffer() = default;
-	void giveInput(int numSamples, uint32_t currentTime, OscType inputType);
-	bool getAveragesForCrossfade(int32_t* totals, int startPos, int lengthToAverageEach, int numChannels);
+	void giveInput(int32_t numSamples, uint32_t currentTime, OscType inputType);
+	bool getAveragesForCrossfade(int32_t* totals, int32_t startPos, int32_t lengthToAverageEach, int32_t numChannels);
 
 	uint32_t upToTime;
 

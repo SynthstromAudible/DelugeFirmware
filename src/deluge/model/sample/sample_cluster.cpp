@@ -37,7 +37,7 @@ SampleCluster::~SampleCluster() {
 	if (cluster) {
 
 #if ALPHA_OR_BETA_VERSION
-		int numReasonsToBeLoaded = cluster->numReasonsToBeLoaded;
+		int32_t numReasonsToBeLoaded = cluster->numReasonsToBeLoaded;
 		if (cluster == audioFileManager.clusterBeingLoaded) {
 			numReasonsToBeLoaded--;
 		}
@@ -74,7 +74,7 @@ void SampleCluster::ensureNoReason(Sample* sample) {
 
 // Calling this will add a reason to the loaded Cluster!
 // priorityRating is only relevant if enqueuing.
-Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int loadInstruction, uint32_t priorityRating,
+Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int32_t loadInstruction, uint32_t priorityRating,
                                    uint8_t* error) {
 
 	if (error) {

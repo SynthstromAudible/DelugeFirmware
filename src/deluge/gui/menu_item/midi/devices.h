@@ -27,8 +27,8 @@ class Devices final : public MenuItem {
 public:
 	using MenuItem::MenuItem;
 	void beginSession(MenuItem* navigatedBackwardFrom = NULL);
-	void selectEncoderAction(int offset);
-	MIDIDevice* getDevice(int deviceIndex);
+	void selectEncoderAction(int32_t offset);
+	MIDIDevice* getDevice(int32_t deviceIndex);
 	void drawValue();
 	MenuItem* selectButtonPress();
 	void drawPixelsForOled();

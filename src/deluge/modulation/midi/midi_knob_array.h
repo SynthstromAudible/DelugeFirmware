@@ -24,7 +24,7 @@ class MIDIKnob;
 class MidiKnobArray final : public ResizeableArray {
 public:
 	MidiKnobArray();
-	MIDIKnob* insertKnob(int i);
-	MIDIKnob* getElement(int i);
+	MIDIKnob* insertKnob(int32_t i);
+	MIDIKnob* getElement(int32_t i);
 	MIDIKnob* insertKnobAtEnd();
 };

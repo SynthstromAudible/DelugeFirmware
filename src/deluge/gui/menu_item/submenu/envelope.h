@@ -17,7 +17,7 @@
 #pragma once
 #include "gui/menu_item/submenu.h"
 
-extern void setEnvelopeNumberForTitles(int);
+extern void setEnvelopeNumberForTitles(int32_t);
 
 namespace menu_item::submenu {
 class Envelope final : public SubmenuReferringToOneThing {

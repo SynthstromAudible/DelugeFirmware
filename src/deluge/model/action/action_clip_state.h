@@ -27,10 +27,10 @@ public:
 	virtual ~ActionClipState();
 	void grabFromClip(Clip* thisClip);
 
-	int yScrollSessionView[2];
+	int32_t yScrollSessionView[2];
 	//uint8_t modKnobMode;
 	bool affectEntire;
 	bool wrapEditing;
 	uint32_t wrapEditLevel;
-	int selectedDrumIndex; // -1 means none
+	int32_t selectedDrumIndex; // -1 means none
 };

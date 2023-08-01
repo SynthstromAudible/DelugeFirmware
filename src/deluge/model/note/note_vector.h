@@ -27,7 +27,7 @@ class NoteVector : public OrderedResizeableArrayWith32bitKey {
 public:
 	NoteVector();
 
-	Note* getElement(int index);
+	Note* getElement(int32_t index);
 	Note* getLast();
 
 private:

@@ -50,7 +50,7 @@ class ParamManagerForTimeline;
 
 struct PendingNoteOn {
 	NoteRow* noteRow;
-	int noteRowId;
+	int32_t noteRowId;
 	uint32_t sampleSyncLength;
 	int32_t ticksLate;
 	uint8_t probability;
@@ -70,22 +70,22 @@ public:
 	NoteRow(int16_t newY = -32768);
 	~NoteRow();
 	void renderRow(TimelineView* editorScreen, uint8_t[], uint8_t[], uint8_t[], uint8_t* image, uint8_t[], bool,
-	               uint32_t, bool allowNoteTails, int imageWidth, int32_t xScroll, uint32_t xZoom, int xStart = 0,
-	               int xEnd = kDisplayWidth, bool drawRepeats = false);
+	               uint32_t, bool allowNoteTails, int32_t imageWidth, int32_t xScroll, uint32_t xZoom, int32_t xStart = 0,
+	               int32_t xEnd = kDisplayWidth, bool drawRepeats = false);
 	void deleteNoteByPos(ModelStackWithNoteRow* modelStack, int32_t pos, Action* action);
 	void stopCurrentlyPlayingNote(ModelStackWithNoteRow* modelStack, bool actuallySoundChange = true,
 	                              Note* note = NULL);
 	bool generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLength, uint32_t newLength,
-	                     int numRepeatsRounded, Action* action);
+	                     int32_t numRepeatsRounded, Action* action);
 	void toggleMute(ModelStackWithNoteRow* modelStack, bool clipIsActiveAndPlaybackIsOn);
 	bool hasNoNotes();
 	void resumePlayback(ModelStackWithNoteRow* modelStack, bool clipMayMakeSound);
-	void writeToFile(int drumIndex, InstrumentClip* clip);
-	int readFromFile(int*, InstrumentClip*, Song* song, int32_t readAutomationUpToPos);
-	inline int getNoteCode() { return y; }
+	void writeToFile(int32_t drumIndex, InstrumentClip* clip);
+	int32_t readFromFile(int32_t*, InstrumentClip*, Song* song, int32_t readAutomationUpToPos);
+	inline int32_t getNoteCode() { return y; }
 	void writeToFlash();
 	void readFromFlash(InstrumentClip* parentClip);
-	unsigned int getNumNotes();
+	uint32_t getNumNotes();
 	void setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack,
 	             InstrumentClip* favourClipForCloningParamManager = NULL, ParamManager* paramManager = NULL);
 
@@ -122,47 +122,47 @@ public:
 	bool
 	    skipNextNote; // To be used if we recorded a note which was quantized forwards, and we have to remember not to play it
 
-	int attemptNoteAdd(int32_t pos, int32_t length, int velocity, int probability, ModelStackWithNoteRow* modelStack,
+	int32_t attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, int32_t probability, ModelStackWithNoteRow* modelStack,
 	                   Action* action);
-	int attemptNoteAddReversed(ModelStackWithNoteRow* modelStack, int32_t pos, int velocity, bool allowingNoteTails);
-	int addCorrespondingNotes(int32_t pos, int32_t length, uint8_t velocity, ModelStackWithNoteRow* modelStack,
+	int32_t attemptNoteAddReversed(ModelStackWithNoteRow* modelStack, int32_t pos, int32_t velocity, bool allowingNoteTails);
+	int32_t addCorrespondingNotes(int32_t pos, int32_t length, uint8_t velocity, ModelStackWithNoteRow* modelStack,
 	                          bool allowNoteTails, Action* action);
 	int32_t processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ticksSinceLast,
 	                          PendingNoteOnList* pendingNoteOnList);
 	uint8_t getSquareType(int32_t squareStart, int32_t squareWidth, Note** firstNote, Note** lastNote,
 	                      ModelStackWithNoteRow* modelStack, bool allowNoteTails, int32_t desiredNoteLength,
 	                      Action* action, bool clipCurrentlyPlaying, bool extendPreviousNoteIfPossible);
-	int clearArea(int32_t areaStart, int32_t areaWidth, ModelStackWithNoteRow* modelStack, Action* action,
+	int32_t clearArea(int32_t areaStart, int32_t areaWidth, ModelStackWithNoteRow* modelStack, Action* action,
 	              uint32_t wrapEditLevel, bool actuallyExtendNoteAtStartOfArea = false);
 	void trimToLength(uint32_t newLength, ModelStackWithNoteRow* modelStack, Action* action);
-	void trimNoteDataToNewClipLength(uint32_t newLength, InstrumentClip* clip, Action* action, int noteRowId);
-	void recordNoteOff(uint32_t pos, ModelStackWithNoteRow* modelStack, Action* action, int velocity);
+	void trimNoteDataToNewClipLength(uint32_t newLength, InstrumentClip* clip, Action* action, int32_t noteRowId);
+	void recordNoteOff(uint32_t pos, ModelStackWithNoteRow* modelStack, Action* action, int32_t velocity);
 	int8_t getColourOffset(InstrumentClip* clip);
 	void rememberDrumName();
-	void shiftHorizontally(int amount, ModelStackWithNoteRow* modelStack);
+	void shiftHorizontally(int32_t amount, ModelStackWithNoteRow* modelStack);
 	void clear(Action* action, ModelStackWithNoteRow* modelStack);
-	bool doesProbabilityExist(int32_t apartFromPos, int probability, int secondProbability = -1);
+	bool doesProbabilityExist(int32_t apartFromPos, int32_t probability, int32_t secondProbability = -1);
 	bool paste(ModelStackWithNoteRow* modelStack, CopiedNoteRow* copiedNoteRow, float scaleFactor, int32_t screenEndPos,
 	           Action* action);
 	void giveMidiCommandsToDrum();
 	void grabMidiCommandsFromDrum();
 	void deleteParamManager(bool shouldUpdatePointer = true);
 	void deleteOldDrumNames(bool shouldUpdatePointer = true);
-	int appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWithNoteRow* otherModelStack, int offset,
-	                  int whichRepeatThisIs, int32_t otherClipLength);
-	int beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenReversing);
+	int32_t appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWithNoteRow* otherModelStack, int32_t offset,
+	                  int32_t whichRepeatThisIs, int32_t otherClipLength);
+	int32_t beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenReversing);
 	void resumeOriginalNoteRowFromThisClone(ModelStackWithNoteRow* modelStackOriginal,
 	                                        ModelStackWithNoteRow* modelStackClone);
 	void silentlyResumePlayback(ModelStackWithNoteRow* modelStack);
 	void trimParamManager(ModelStackWithNoteRow* modelStack);
-	void deleteNoteByIndex(int index, Action* action, int noteRowId, InstrumentClip* clip);
+	void deleteNoteByIndex(int32_t index, Action* action, int32_t noteRowId, InstrumentClip* clip);
 	void complexSetNoteLength(Note* thisNote, uint32_t newLength, ModelStackWithNoteRow* modelStack, Action* action);
-	int changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* modelStack, Action* action, int changeType,
-	                                int changeValue);
-	int nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* modelStack, Action* action,
-	                               uint32_t wrapEditLevel, int nudgeOffset);
-	int editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareWidth, ModelStackWithNoteRow* modelStack,
-	                                   Action* action, uint32_t wrapEditLevel, int newNumNotes);
+	int32_t changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* modelStack, Action* action, int32_t changeType,
+	                                int32_t changeValue);
+	int32_t nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow* modelStack, Action* action,
+	                               uint32_t wrapEditLevel, int32_t nudgeOffset);
+	int32_t editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareWidth, ModelStackWithNoteRow* modelStack,
+	                                   Action* action, uint32_t wrapEditLevel, int32_t newNumNotes);
 	void setLength(ModelStackWithNoteRow* modelStack, int32_t newLength, Action* actionToRecordTo, int32_t oldPos,
 	               bool hadIndependentPlayPosBefore);
 	void getMPEValues(ModelStackWithNoteRow* modelStack, int16_t* mpeValues);
@@ -170,7 +170,7 @@ public:
 	                             bool shouldJustDeleteNodes = false);
 	SequenceDirection getEffectiveSequenceDirectionMode(ModelStackWithNoteRow const* modelStack);
 	bool recordPolyphonicExpressionEvent(ModelStackWithNoteRow* modelStackWithNoteRow, int32_t newValueBig,
-	                                     int whichExpressionDimension, bool forDrum);
+	                                     int32_t whichExpressionDimension, bool forDrum);
 	void setSequenceDirectionMode(ModelStackWithNoteRow* modelStack, SequenceDirection newMode);
 	bool isAuditioning(ModelStackWithNoteRow* modelStack);
 
@@ -181,7 +181,7 @@ private:
 	              bool noteMightBeConstant = false, PendingNoteOnList* pendingNoteOnList = NULL);
 	void playNextNote(InstrumentClip*, bool, bool noteMightBeConstant = false,
 	                  PendingNoteOnList* pendingNoteOnList = NULL);
-	void findNextNoteToPlay(unsigned int);
+	void findNextNoteToPlay(uint32_t);
 	void attemptLateStartOfNextNoteToPlay(ModelStackWithNoteRow* modelStack, Note* note);
 	bool noteRowMayMakeSound(bool);
 	void drawTail(int32_t startTail, int32_t endTail, uint8_t squareColour[], bool overwriteExisting,

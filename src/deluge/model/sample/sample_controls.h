@@ -23,7 +23,7 @@
 class SampleControls {
 public:
 	SampleControls();
-	int getInterpolationBufferSize(int32_t phaseIncrement);
+	int32_t getInterpolationBufferSize(int32_t phaseIncrement);
 
 	InterpolationMode interpolationMode;
 	bool pitchAndSpeedAreIndependent;

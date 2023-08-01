@@ -49,13 +49,13 @@ public:
 	                           ModelStackWithParamCollection const* modelStack = NULL, bool createIfNotFound = false);
 	void deletePatchCable(ModelStackWithParamCollection const* modelStack, uint8_t c);
 	bool patchCableIsUsable(uint8_t c, ModelStackWithThreeMainThings const* modelStack);
-	int32_t getModifiedPatchCableAmount(int c, int p);
+	int32_t getModifiedPatchCableAmount(int32_t c, int32_t p);
 	void removeAllPatchingToParam(ModelStackWithParamCollection* modelStack, uint8_t p);
 	bool isSourcePatchedToSomething(PatchSource s);
 	bool isSourcePatchedToSomethingManuallyCheckCables(PatchSource s);
-	bool doesParamHaveSomethingPatchedToIt(int p);
+	bool doesParamHaveSomethingPatchedToIt(int32_t p);
 
-	void tickSamples(int numSamples, ModelStackWithParamCollection* modelStack);
+	void tickSamples(int32_t numSamples, ModelStackWithParamCollection* modelStack);
 	void setPlayPos(uint32_t pos, ModelStackWithParamCollection* modelStack, bool reversed);
 	void playbackHasEnded(ModelStackWithParamCollection* modelStack);
 	void grabValuesFromPos(uint32_t pos, ModelStackWithParamCollection* modelStack);
@@ -67,7 +67,7 @@ public:
 	void trimToLength(uint32_t newLength, ModelStackWithParamCollection* modelStack, Action* action,
 	                  bool maySetupPatching);
 	void shiftHorizontally(ModelStackWithParamCollection* modelStack, int32_t amount, int32_t effectiveLength);
-	void processCurrentPos(ModelStackWithParamCollection* modelStack, int ticksSkipped, bool reversed, bool didPingpong,
+	void processCurrentPos(ModelStackWithParamCollection* modelStack, int32_t ticksSkipped, bool reversed, bool didPingpong,
 	                       bool mayInterpolate);
 	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength);
 	ParamManagerForTimeline* getParamManager();
@@ -75,23 +75,23 @@ public:
 	void writePatchCablesToFile(bool writeAutomation);
 	void readPatchCablesFromFile(int32_t readAutomationUpToPos);
 	void deleteAllAutomation(Action* action, ModelStackWithParamCollection* modelStack);
-	void nudgeNonInterpolatingNodesAtPos(int32_t pos, int offset, int32_t lengthBeforeLoop, Action* action,
+	void nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int32_t lengthBeforeLoop, Action* action,
 	                                     ModelStackWithParamCollection* modelStack);
 
 	void remotelySwapParamState(AutoParamState* state, ModelStackWithParamId* modelStack);
 	AutoParam* getParam(ModelStackWithParamCollection const* modelStack, PatchSource s,
 	                    ParamDescriptor destinationParamDescriptor, bool allowCreation = false);
 	ModelStackWithAutoParam* getAutoParamFromId(ModelStackWithParamId* modelStack, bool allowCreation = false);
-	static int getParamId(ParamDescriptor destinationParamDescriptor, PatchSource s);
+	static int32_t getParamId(ParamDescriptor destinationParamDescriptor, PatchSource s);
 
-	AutoParam* getParam(int paramId);
+	AutoParam* getParam(int32_t paramId);
 
 	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
 	                                  bool automationChanged, bool automatedBefore, bool automatedNow);
 	void notifyPingpongOccurred(ModelStackWithParamCollection* modelStack);
 
-	int paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack);
-	int32_t knobPosToParamValue(int knobPos, ModelStackWithAutoParam* modelStack);
+	int32_t paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack);
+	int32_t knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack);
 	bool isSourcePatchedToDestinationDescriptorVolumeInspecific(PatchSource s,
 	                                                            ParamDescriptor destinationParamDescriptor);
 	bool isAnySourcePatchedToParamVolumeInspecific(ParamDescriptor destinationParamDescriptor);
@@ -99,7 +99,7 @@ public:
 	void grabVelocityToLevelFromMIDIDeviceDefinitely(MIDIDevice* device);
 	PatchCable* getPatchCableFromVelocityToLevel();
 
-	Destination* getDestinationForParam(int p);
+	Destination* getDestinationForParam(int32_t p);
 
 	uint32_t sourcesPatchedToAnything[2]; // Only valid after setupPatching()
 
@@ -111,6 +111,6 @@ public:
 
 private:
 	static void dissectParamId(uint32_t paramId, ParamDescriptor* destinationParamDescriptor, PatchSource* s);
-	void swapCables(int c1, int c2);
+	void swapCables(int32_t c1, int32_t c2);
 	void freeDestinationMemory(bool destructing);
 };

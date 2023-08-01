@@ -107,7 +107,7 @@ MenuItem* PatchedParam::patchingSourceShortcutPress(PatchSource s, bool previous
 ModelStackWithAutoParam* PatchedParam::getModelStack(void* memory) {
 	ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(memory);
 	ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
-	int p = this->getP();
+	int32_t p = this->getP();
 	return modelStack->addParam(summary->paramCollection, summary, p,
 	                            &((ParamSet*)summary->paramCollection)->params[p]);
 }

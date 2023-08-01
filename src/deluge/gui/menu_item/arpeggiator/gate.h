@@ -21,8 +21,8 @@
 namespace menu_item::arpeggiator {
 class Gate final : public UnpatchedParam {
 public:
-	Gate(char const* newName = NULL, int newP = 0) : UnpatchedParam(newName, newP) {}
-	bool isRelevant(Sound* sound, int whichThing) { return !soundEditor.editingCVOrMIDIClip(); }
+	Gate(char const* newName = NULL, int32_t newP = 0) : UnpatchedParam(newName, newP) {}
+	bool isRelevant(Sound* sound, int32_t whichThing) { return !soundEditor.editingCVOrMIDIClip(); }
 };
 
 } // namespace menu_item::arpeggiator

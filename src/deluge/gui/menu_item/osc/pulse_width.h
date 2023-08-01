@@ -32,7 +32,7 @@ public:
 		    ((int64_t)soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP()) * 100 + 2147483648) >> 32;
 	}
 
-	bool isRelevant(Sound* sound, int whichThing) {
+	bool isRelevant(Sound* sound, int32_t whichThing) {
 		if (sound->getSynthMode() == SynthMode::FM) {
 			return false;
 		}

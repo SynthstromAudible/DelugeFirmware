@@ -39,7 +39,7 @@
 #include "util/functions.h"
 #include <new>
 
-Action::Action(int newActionType) {
+Action::Action(int32_t newActionType) {
 	firstConsequence = NULL;
 	nextAction = NULL;
 	type = newActionType;
@@ -53,7 +53,7 @@ Action::Action(int newActionType) {
 }
 
 // Call this before the destructor!
-void Action::prepareForDestruction(int whichQueueActionIn, Song* song) {
+void Action::prepareForDestruction(int32_t whichQueueActionIn, Song* song) {
 
 	deleteAllConsequences(whichQueueActionIn, song, true);
 
@@ -62,7 +62,7 @@ void Action::prepareForDestruction(int whichQueueActionIn, Song* song) {
 	}
 }
 
-void Action::deleteAllConsequences(int whichQueueActionIn, Song* song, bool destructing) {
+void Action::deleteAllConsequences(int32_t whichQueueActionIn, Song* song, bool destructing) {
 	Consequence* currentConsequence = firstConsequence;
 	while (currentConsequence) {
 		AudioEngine::routineWithClusterLoading(); // -----------------------------------
@@ -83,7 +83,7 @@ void Action::addConsequence(Consequence* consequence) {
 }
 
 // Returns error code
-int Action::revert(TimeType time, ModelStack* modelStack) {
+int32_t Action::revert(TimeType time, ModelStack* modelStack) {
 
 	Consequence* thisConsequence = firstConsequence;
 
@@ -98,7 +98,7 @@ int Action::revert(TimeType time, ModelStack* modelStack) {
 
 	Consequence* newFirstConsequence = NULL;
 
-	int error = NO_ERROR;
+	int32_t error = NO_ERROR;
 
 	while (thisConsequence) {
 		if (!error) {
@@ -142,7 +142,7 @@ int Action::revert(TimeType time, ModelStack* modelStack) {
 	return error;
 }
 
-bool Action::containsConsequenceParamChange(ParamCollection* paramCollection, int paramId) {
+bool Action::containsConsequenceParamChange(ParamCollection* paramCollection, int32_t paramId) {
 	// See if this param has already had its state snapshotted. If so, get out
 	for (Consequence* thisCons = firstConsequence; thisCons; thisCons = thisCons->next) {
 		if (thisCons->type == Consequence::PARAM_CHANGE) {
@@ -182,7 +182,7 @@ void Action::recordParamChangeDefinitely(ModelStackWithAutoParam const* modelSta
 	}
 }
 
-bool Action::containsConsequenceNoteArrayChange(InstrumentClip* clip, int noteRowId, bool moveToFrontIfFound) {
+bool Action::containsConsequenceNoteArrayChange(InstrumentClip* clip, int32_t noteRowId, bool moveToFrontIfFound) {
 
 	for (Consequence** prevPointer = &firstConsequence; *prevPointer; prevPointer = &(*prevPointer)->next) {
 		Consequence* thisCons = *prevPointer;
@@ -202,7 +202,7 @@ bool Action::containsConsequenceNoteArrayChange(InstrumentClip* clip, int noteRo
 	return false;
 }
 
-int Action::recordNoteArrayChangeIfNotAlreadySnapshotted(InstrumentClip* clip, int noteRowId, NoteVector* noteVector,
+int32_t Action::recordNoteArrayChangeIfNotAlreadySnapshotted(InstrumentClip* clip, int32_t noteRowId, NoteVector* noteVector,
                                                          bool stealData, bool moveToFrontIfAlreadySnapshotted) {
 	if (containsConsequenceNoteArrayChange(clip, noteRowId, moveToFrontIfAlreadySnapshotted)) {
 		return NO_ERROR;
@@ -212,7 +212,7 @@ int Action::recordNoteArrayChangeIfNotAlreadySnapshotted(InstrumentClip* clip, i
 	return recordNoteArrayChangeDefinitely(clip, noteRowId, noteVector, stealData);
 }
 
-int Action::recordNoteArrayChangeDefinitely(InstrumentClip* clip, int noteRowId, NoteVector* noteVector,
+int32_t Action::recordNoteArrayChangeDefinitely(InstrumentClip* clip, int32_t noteRowId, NoteVector* noteVector,
                                             bool stealData) {
 	void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceNoteArrayChange));
 
@@ -227,7 +227,7 @@ int Action::recordNoteArrayChangeDefinitely(InstrumentClip* clip, int noteRowId,
 	return NO_ERROR; // Though we wouldn't know if there was a RAM error as ConsequenceNoteArrayChange tried to clone the data...
 }
 
-void Action::recordNoteExistenceChange(InstrumentClip* clip, int noteRowId, Note* note, ExistenceChangeType type) {
+void Action::recordNoteExistenceChange(InstrumentClip* clip, int32_t noteRowId, Note* note, ExistenceChangeType type) {
 
 	if (containsConsequenceNoteArrayChange(clip, noteRowId)) {
 		return;
@@ -318,12 +318,12 @@ void Action::updateYScrollClipViewAfter(InstrumentClip* clip) {
 		return;
 	}
 
-	int i = 0;
+	int32_t i = 0;
 
 	// For each Clip in session and arranger
 	ClipArray* clipArray = &currentSong->sessionClips;
 traverseClips:
-	for (int c = 0; c < clipArray->getNumElements(); c++) {
+	for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
 		Clip* thisClip = clipArray->getClipAtIndex(c);
 
 		if (thisClip->type == CLIP_TYPE_INSTRUMENT) {

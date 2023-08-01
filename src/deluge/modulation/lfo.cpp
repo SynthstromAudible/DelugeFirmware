@@ -20,7 +20,7 @@
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
 
-int32_t LFO::render(int numSamples, LFOType waveType, uint32_t phaseIncrement) {
+int32_t LFO::render(int32_t numSamples, LFOType waveType, uint32_t phaseIncrement) {
 	int32_t value;
 	switch (waveType) {
 	case LFOType::SAW:
@@ -81,6 +81,6 @@ int32_t LFO::render(int numSamples, LFOType waveType, uint32_t phaseIncrement) {
 	return value;
 }
 
-void LFO::tick(int numSamples, uint32_t phaseIncrement) {
+void LFO::tick(int32_t numSamples, uint32_t phaseIncrement) {
 	phase += phaseIncrement * numSamples;
 }

@@ -28,5 +28,5 @@ public:
 
 	int32_t width;
 	ParamNode* nodes;
-	int numNodes;
+	int32_t numNodes;
 };

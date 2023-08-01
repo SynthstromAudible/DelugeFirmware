@@ -40,7 +40,7 @@ public:
 	LearnedMIDI midiInput;
 	bool relative;
 	bool previousPositionSaved;
-	int previousPosition;
+	int32_t previousPosition;
 };
 
 class ModKnob : public Knob {

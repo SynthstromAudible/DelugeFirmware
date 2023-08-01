@@ -20,15 +20,15 @@
 namespace menu_item::patched_param {
 class Pan : public Integer {
 public:
-	Pan(char const* newName = 0, int newP = 0) : Integer(newName, newP) {}
+	Pan(char const* newName = 0, int32_t newP = 0) : Integer(newName, newP) {}
 #if !HAVE_OLED
 	void drawValue();
 #endif
 protected:
-	int getMaxValue() const override {
+	int32_t getMaxValue() const override {
 		return 32;
 	}
-	int getMinValue() const override {
+	int32_t getMinValue() const override {
 		return -32;
 	}
 	int32_t getFinalValue();

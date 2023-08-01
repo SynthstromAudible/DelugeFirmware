@@ -21,7 +21,7 @@
 #include "transpose.h"
 #include "volts.h"
 
-extern void setCvNumberForTitle(int m);
+extern void setCvNumberForTitle(int32_t m);
 extern menu_item::Submenu cvSubmenu;
 
 namespace menu_item::cv {

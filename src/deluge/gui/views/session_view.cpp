@@ -86,7 +86,7 @@ bool SessionView::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
 	if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING) {
 		*cols = 0xFFFFFFFD;
 		*rows = 0;
-		for (int yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 			Clip* clip = getClipOnScreen(yDisplay);
 			if (clip && !clip->armedForRecording) {
 				*rows |= (1 << yDisplay);
@@ -146,7 +146,7 @@ ActionResult SessionView::buttonAction(hid::Button b, bool on, bool inCardRoutin
 
 	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx)
 	    == RuntimeFeatureStateToggle::On) { //master compressor
-		int modKnobMode = -1;
+		int32_t modKnobMode = -1;
 		if (view.activeModControllableModelStack.modControllable) {
 			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
 			if (modKnobModePointer)
@@ -210,7 +210,7 @@ ActionResult SessionView::buttonAction(hid::Button b, bool on, bool inCardRoutin
 					currentSong->clearArrangementBeyondPos(
 					    arrangerView.xScrollWhenPlaybackStarted,
 					    action); // Want to do this before setting up playback or place new instances
-					int error = currentSong->placeFirstInstancesOfActiveClips(arrangerView.xScrollWhenPlaybackStarted);
+					int32_t error = currentSong->placeFirstInstancesOfActiveClips(arrangerView.xScrollWhenPlaybackStarted);
 
 					if (error) {
 						numericDriver.displayError(error);
@@ -250,13 +250,13 @@ ActionResult SessionView::buttonAction(hid::Button b, bool on, bool inCardRoutin
 
 				Clip* clip = getClipOnScreen(selectedClipYDisplay);
 				Output* output = clip->output;
-				int instrumentIndex = currentSong->getOutputIndex(output);
+				int32_t instrumentIndex = currentSong->getOutputIndex(output);
 				currentSong->arrangementYScroll = instrumentIndex - selectedClipPressYDisplay;
 
 				int32_t posPressed = arrangerView.getPosFromSquare(selectedClipPressXDisplay);
 				int32_t proposedStartPos = posPressed;
 
-				int i = output->clipInstances.search(proposedStartPos, LESS);
+				int32_t i = output->clipInstances.search(proposedStartPos, LESS);
 				ClipInstance* otherInstance = output->clipInstances.getElement(i);
 				if (otherInstance) {
 					if (otherInstance->pos + otherInstance->length > proposedStartPos) {
@@ -284,7 +284,7 @@ moveAfterClipInstance:
 				}
 
 				// If we're here, we're ok!
-				int error = output->clipInstances.insertAtIndex(i);
+				int32_t error = output->clipInstances.insertAtIndex(i);
 				if (error) {
 					numericDriver.displayError(error);
 					return ActionResult::DEALT_WITH;
@@ -366,7 +366,7 @@ moveAfterClipInstance:
 			}
 
 			actionLogger.deleteAllLogs();
-			int yDisplay = selectedClipYDisplay;
+			int32_t yDisplay = selectedClipYDisplay;
 			clipPressEnded();
 			removeClip(yDisplay);
 		}
@@ -509,11 +509,11 @@ void SessionView::beginEditingSectionRepeatsNum() {
 	uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
 }
 
-ActionResult SessionView::padAction(int xDisplay, int yDisplay, int on) {
+ActionResult SessionView::padAction(int32_t xDisplay, int32_t yDisplay, int32_t on) {
 
 	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx)
 	    == RuntimeFeatureStateToggle::On) { //master compressor
-		int modKnobMode = -1;
+		int32_t modKnobMode = -1;
 		if (view.activeModControllableModelStack.modControllable) {
 			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
 			if (modKnobModePointer)
@@ -552,7 +552,7 @@ ActionResult SessionView::padAction(int xDisplay, int yDisplay, int on) {
 	}
 
 	Clip* clip = getClipOnScreen(yDisplay);
-	int clipIndex = yDisplay + currentSong->songViewYScroll;
+	int32_t clipIndex = yDisplay + currentSong->songViewYScroll;
 
 	// If we tapped on a Clip's main pads...
 	if (xDisplay < kDisplayWidth) {
@@ -599,7 +599,7 @@ holdingRecord:
 								return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 							}
 
-							int clipIndex = yDisplay + currentSong->songViewYScroll + 1;
+							int32_t clipIndex = yDisplay + currentSong->songViewYScroll + 1;
 
 							// If source clip currently recording, arm it to stop (but not if tempoless recording)
 							if (playbackHandler.isEitherClockActive() && sourceClip->getCurrentlyRecordingLinearly()
@@ -607,7 +607,7 @@ holdingRecord:
 								session.toggleClipStatus(sourceClip, &clipIndex, false, kInternalButtonPressLatency);
 							}
 
-							int newOverdubNature =
+							int32_t newOverdubNature =
 							    (xDisplay < kDisplayWidth) ? OVERDUB_NORMAL : OVERDUB_CONTINUOUS_LAYERING;
 							Clip* overdub =
 							    currentSong->createPendingNextOverdubBelowClip(sourceClip, clipIndex, newOverdubNature);
@@ -693,7 +693,7 @@ startHoldingDown:
 							return ActionResult::DEALT_WITH;
 						}
 
-						int numClips = currentSong->sessionClips.getNumElements();
+						int32_t numClips = currentSong->sessionClips.getNumElements();
 						if (clipIndex < 0) {
 							clipIndex = 0;
 						}
@@ -929,7 +929,7 @@ void SessionView::sectionPadAction(uint8_t y, bool on) {
 				bool sectionUsed[kMaxNumSections];
 				memset(sectionUsed, 0, sizeof(sectionUsed));
 
-				for (int c = 0; c < currentSong->sessionClips.getNumElements(); c++) {
+				for (int32_t c = 0; c < currentSong->sessionClips.getNumElements(); c++) {
 					Clip* thisClip = currentSong->sessionClips.getClipAtIndex(c);
 
 					if (thisClip->section < kMaxNumSections) {
@@ -938,7 +938,7 @@ void SessionView::sectionPadAction(uint8_t y, bool on) {
 				}
 
 				// Mark first unused section as available
-				for (int i = 0; i < kMaxNumSections; i++) {
+				for (int32_t i = 0; i < kMaxNumSections; i++) {
 					if (!sectionUsed[i]) {
 						sectionUsed[i] = true;
 						break;
@@ -1008,7 +1008,7 @@ ActionResult SessionView::timerCallback() {
 }
 
 void SessionView::drawSectionRepeatNumber() {
-	int number = currentSong->sections[sectionPressed].numRepetitions;
+	int32_t number = currentSong->sections[sectionPressed].numRepetitions;
 	char const* outputText;
 #if HAVE_OLED
 	char buffer[21];
@@ -1093,7 +1093,7 @@ void SessionView::selectEncoderAction(int8_t offset) {
 	}
 }
 
-void SessionView::editNumRepeatsTilLaunch(int offset) {
+void SessionView::editNumRepeatsTilLaunch(int32_t offset) {
 	session.numRepeatsTilLaunch += offset;
 	if (session.numRepeatsTilLaunch < 1) {
 		session.numRepeatsTilLaunch = 1;
@@ -1110,7 +1110,7 @@ void SessionView::editNumRepeatsTilLaunch(int offset) {
 	}
 }
 
-ActionResult SessionView::horizontalEncoderAction(int offset) {
+ActionResult SessionView::horizontalEncoderAction(int32_t offset) {
 	// So long as we're not in a submode...
 	if (isNoUIModeActive()) {
 
@@ -1125,7 +1125,7 @@ ActionResult SessionView::horizontalEncoderAction(int offset) {
 	return ClipNavigationTimelineView::horizontalEncoderAction(offset);
 }
 
-ActionResult SessionView::verticalEncoderAction(int offset, bool inCardRoutine) {
+ActionResult SessionView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 
 	if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW
 	    || currentUIMode == UI_MODE_VIEWING_RECORD_ARMING) {
@@ -1152,7 +1152,7 @@ ActionResult SessionView::verticalEncoderAction(int offset, bool inCardRoutine) 
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult SessionView::verticalScrollOneSquare(int direction) {
+ActionResult SessionView::verticalScrollOneSquare(int32_t direction) {
 
 	if (direction == 1) {
 		if (currentSong->songViewYScroll >= currentSong->sessionClips.getNumElements() - 1) {
@@ -1176,7 +1176,7 @@ ActionResult SessionView::verticalScrollOneSquare(int direction) {
 			return ActionResult::DEALT_WITH;
 		}
 
-		int oldIndex = selectedClipYDisplay + currentSong->songViewYScroll;
+		int32_t oldIndex = selectedClipYDisplay + currentSong->songViewYScroll;
 
 		if (direction == 1) {
 			if (oldIndex >= currentSong->sessionClips.getNumElements() - 1) {
@@ -1195,7 +1195,7 @@ ActionResult SessionView::verticalScrollOneSquare(int direction) {
 
 		actionLogger.deleteAllLogs();
 
-		int newIndex = oldIndex + direction;
+		int32_t newIndex = oldIndex + direction;
 		currentSong->sessionClips.swapElements(newIndex, oldIndex);
 	}
 
@@ -1215,7 +1215,7 @@ bool SessionView::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidt
 		return true;
 	}
 
-	for (int i = 0; i < kDisplayHeight; i++) {
+	for (int32_t i = 0; i < kDisplayHeight; i++) {
 		if (whichRows & (1 << i)) {
 			drawStatusSquare(i, image[i]);
 			drawSectionSquare(i, image[i]);
@@ -1270,7 +1270,7 @@ void SessionView::drawSectionSquare(uint8_t yDisplay, uint8_t thisImage[][3]) {
 }
 
 // Will now look in subfolders too if need be.
-int setPresetOrNextUnlaunchedOne(InstrumentClip* clip, InstrumentType instrumentType, bool* instrumentAlreadyInSong) {
+int32_t setPresetOrNextUnlaunchedOne(InstrumentClip* clip, InstrumentType instrumentType, bool* instrumentAlreadyInSong) {
 	ReturnOfConfirmPresetOrNextUnlaunchedOne result;
 	result.error = Browser::currentDir.set(getInstrumentFolder(instrumentType));
 	if (result.error) {
@@ -1335,7 +1335,7 @@ int setPresetOrNextUnlaunchedOne(InstrumentClip* clip, InstrumentType instrument
 	return NO_ERROR;
 }
 
-Clip* SessionView::createNewInstrumentClip(int yDisplay) {
+Clip* SessionView::createNewInstrumentClip(int32_t yDisplay) {
 
 	actionLogger.deleteAllLogs();
 
@@ -1347,7 +1347,7 @@ Clip* SessionView::createNewInstrumentClip(int yDisplay) {
 
 	InstrumentClip* newClip = new (memory) InstrumentClip(currentSong);
 
-	unsigned int currentDisplayLength = currentSong->xZoom[NAVIGATION_CLIP] * kDisplayWidth;
+	uint32_t currentDisplayLength = currentSong->xZoom[NAVIGATION_CLIP] * kDisplayWidth;
 
 	if (playbackHandler.playbackState
 	    && (currentPlaybackMode == &arrangement || !playbackHandler.isEitherClockActive())) {
@@ -1366,7 +1366,7 @@ Clip* SessionView::createNewInstrumentClip(int yDisplay) {
 
 	InstrumentType instrumentType = InstrumentType::SYNTH;
 doGetInstrument:
-	int error = setPresetOrNextUnlaunchedOne(newClip, instrumentType, &instrumentAlreadyInSong);
+	int32_t error = setPresetOrNextUnlaunchedOne(newClip, instrumentType, &instrumentAlreadyInSong);
 	if (error) {
 
 		// If that was for a synth and there were none, try a kit
@@ -1380,7 +1380,7 @@ doGetInstrument:
 		return NULL;
 	}
 
-	int index = yDisplay + currentSong->songViewYScroll;
+	int32_t index = yDisplay + currentSong->songViewYScroll;
 	if (index <= 0) {
 		index = 0;
 		newClip->section = currentSong->sessionClips.getClipAtIndex(0)->section;
@@ -1444,7 +1444,7 @@ ramError:
 	newClip->colourOffset = random(72);
 
 	bool instrumentAlreadyInSong;
-	int error;
+	int32_t error;
 
 	if (instrumentType == InstrumentType::SYNTH || instrumentType == InstrumentType::KIT) {
 
@@ -1535,7 +1535,7 @@ void SessionView::removeClip(uint8_t yDisplay) {
 	currentSong->ensureAllInstrumentsHaveAClipOrBackedUpParamManager(
 	    "E373", "H373"); // Trying to narrow down H067 that Leo got, below.
 
-	int clipIndex = yDisplay + currentSong->songViewYScroll;
+	int32_t clipIndex = yDisplay + currentSong->songViewYScroll;
 
 	Clip* clip = getClipOnScreen(yDisplay);
 
@@ -1569,8 +1569,8 @@ void SessionView::removeClip(uint8_t yDisplay) {
 	currentSong->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E067", "H067"); // Leo got a H067!!!!
 }
 
-Clip* SessionView::getClipOnScreen(int yDisplay) {
-	int index = yDisplay + currentSong->songViewYScroll;
+Clip* SessionView::getClipOnScreen(int32_t yDisplay) {
+	int32_t index = yDisplay + currentSong->songViewYScroll;
 
 	if (index < 0 || index >= currentSong->sessionClips.getNumElements()) {
 		return NULL;
@@ -1713,7 +1713,7 @@ void SessionView::setCentralLEDStates() {
 	}
 }
 
-unsigned int SessionView::getMaxZoom() {
+uint32_t SessionView::getMaxZoom() {
 	return currentSong->getLongestClip(true, false)->getMaxZoom();
 }
 
@@ -1740,7 +1740,7 @@ ramError:
 	ModelStackWithTimelineCounter* modelStack =
 	    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(clipToClone);
 
-	int error = clipToClone->clone(modelStack);
+	int32_t error = clipToClone->clone(modelStack);
 	if (error) {
 		goto ramError;
 	}
@@ -1749,7 +1749,7 @@ ramError:
 
 	newClip->section = (uint8_t)(newClip->section + 1) % kMaxNumSections;
 
-	int newIndex = yDisplayTo + currentSong->songViewYScroll;
+	int32_t newIndex = yDisplayTo + currentSong->songViewYScroll;
 
 	if (yDisplayTo < yDisplayFrom) {
 		currentSong->songViewYScroll++;
@@ -1777,7 +1777,7 @@ void SessionView::graphicsRoutine() {
 	bool anyLinearRecordingOnNextScreen = false;
 
 	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx) == RuntimeFeatureStateToggle::On) {
-		int modKnobMode = -1;
+		int32_t modKnobMode = -1;
 		if (view.activeModControllableModelStack.modControllable) {
 			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
 			if (modKnobModePointer)
@@ -1791,12 +1791,12 @@ void SessionView::graphicsRoutine() {
 			if (gr <= -12)
 				gr = -12.0;
 			gr = abs(gr);
-			indicator_leds::setKnobIndicatorLevel(1, int(gr / 12.0 * 128)); //Gain Reduction LED
+			indicator_leds::setKnobIndicatorLevel(1, int32_t(gr / 12.0 * 128)); //Gain Reduction LED
 		}
 	}
 
-	for (int yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-		int newTickSquare;
+	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+		int32_t newTickSquare;
 
 		Clip* clip = getClipOnScreen(yDisplay);
 
@@ -1820,14 +1820,14 @@ void SessionView::graphicsRoutine() {
 			}
 		}
 		else {
-			int localScroll =
+			int32_t localScroll =
 			    getClipLocalScroll(clip, currentSong->xScroll[NAVIGATION_CLIP], currentSong->xZoom[NAVIGATION_CLIP]);
 			Clip* clipToRecordTo = clip->getClipToRecordTo();
 			int32_t livePos = clipToRecordTo->getLivePos();
 
 			// If we are recording to another Clip, we have to use its position.
 			if (clipToRecordTo != clip) {
-				int whichRepeat = (uint32_t)livePos / (uint32_t)clip->loopLength;
+				int32_t whichRepeat = (uint32_t)livePos / (uint32_t)clip->loopLength;
 				livePos -= whichRepeat * clip->loopLength;
 
 				// But if it's currently reversing, we have to re-apply that here.
@@ -1914,7 +1914,7 @@ void SessionView::graphicsRoutine() {
 	PadLEDs::setTickSquares(tickSquares, colours);
 }
 
-void SessionView::rowNeedsRenderingDependingOnSubMode(int yDisplay) {
+void SessionView::rowNeedsRenderingDependingOnSubMode(int32_t yDisplay) {
 
 	switch (currentUIMode) {
 	case UI_MODE_HORIZONTAL_SCROLL:
@@ -1936,7 +1936,7 @@ bool SessionView::calculateZoomPinSquares(uint32_t oldScroll, uint32_t newScroll
 
 	bool anyToDo = false;
 
-	for (int yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 
 		Clip* clip = getClipOnScreen(yDisplay);
 
@@ -1957,7 +1957,7 @@ bool SessionView::calculateZoomPinSquares(uint32_t oldScroll, uint32_t newScroll
 	return anyToDo;
 }
 
-int SessionView::getClipPlaceOnScreen(Clip* clip) {
+int32_t SessionView::getClipPlaceOnScreen(Clip* clip) {
 	return currentSong->sessionClips.getIndexForClip(clip) - currentSong->songViewYScroll;
 }
 
@@ -1980,7 +1980,7 @@ bool SessionView::setupScroll(uint32_t oldScroll) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
-	for (int yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 
 		Clip* clip = getClipOnScreen(yDisplay);
 
@@ -2018,7 +2018,7 @@ void SessionView::flashPlayRoutine() {
 	uint32_t whichRowsNeedReRendering = 0;
 
 	bool any = false;
-	for (int yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 		Clip* clip = getClipOnScreen(yDisplay);
 		if ((clip != nullptr) && clip->armState != ArmState::OFF) {
 			whichRowsNeedReRendering |= (1 << yDisplay);
@@ -2046,7 +2046,7 @@ void SessionView::noteRowChanged(InstrumentClip* instrumentClip, NoteRow* noteRo
 		return; // Is this 100% correct? What if that one Clip isn't visually scrolling?
 	}
 
-	for (int yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 		Clip* clip = getClipOnScreen(yDisplay);
 		if (clip == instrumentClip) {
 			uiNeedsRendering(this, 1 << yDisplay, 0);
@@ -2057,7 +2057,7 @@ void SessionView::noteRowChanged(InstrumentClip* instrumentClip, NoteRow* noteRo
 
 uint32_t SessionView::getGreyedOutRowsNotRepresentingOutput(Output* output) {
 	uint32_t rows = 0xFFFFFFFF;
-	for (int yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 		Clip* clip = getClipOnScreen(yDisplay);
 		if (clip && clip->output == output) {
 			rows &= ~(1 << yDisplay);
@@ -2079,7 +2079,7 @@ bool SessionView::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWid
 
 	PadLEDs::renderingLock = true;
 
-	for (int yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 		if (whichRows & (1 << yDisplay)) {
 			bool success = renderRow(modelStack, yDisplay, image[yDisplay], occupancyMask[yDisplay], drawUndefinedArea);
 			if (!success) {
@@ -2111,7 +2111,7 @@ bool SessionView::renderRow(ModelStack* modelStack, uint8_t yDisplay,
 		        || clip->output->type == InstrumentType::CV)
 		    && ((MelodicInstrument*)clip->output)->midiInput.containsSomething()) {
 
-			for (int xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+			for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 				// We halve the intensity of the brightness in this case, because a lot of pads will be lit, it looks mental, and I think one user was having it
 				// cause his Deluge to freeze due to underpowering.
 				thisImage[xDisplay][0] = midiCommandColour.r >> 1;
@@ -2125,7 +2125,7 @@ bool SessionView::renderRow(ModelStack* modelStack, uint8_t yDisplay,
 			bool success = true;
 
 			if (clip->isPendingOverdub) {
-				for (int xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+				for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 					thisImage[xDisplay][0] = 30;
 					thisImage[xDisplay][1] = 0;
 					thisImage[xDisplay][2] = 0;
@@ -2146,7 +2146,7 @@ bool SessionView::renderRow(ModelStack* modelStack, uint8_t yDisplay,
 			           == &((MelodicInstrument*)clip->output)
 			                   ->midiInput) { // Should be fine even if output isn't a MelodicInstrument
 
-				for (int xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+				for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 					thisImage[xDisplay][0] >>= 1;
 					thisImage[xDisplay][1] >>= 1;
 					thisImage[xDisplay][2] >>= 1;
@@ -2176,7 +2176,7 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 		}
 	}
 	currentSong->currentClip = clip;
-	int clipPlaceOnScreen = std::clamp(getClipPlaceOnScreen(clip), -1, kDisplayHeight);
+	int32_t clipPlaceOnScreen = std::clamp<int32_t>(getClipPlaceOnScreen(clip), -1, kDisplayHeight);
 
 	currentSong->xScroll[NAVIGATION_CLIP] =
 	    getClipLocalScroll(clip, currentSong->xScroll[NAVIGATION_CLIP], currentSong->xZoom[NAVIGATION_CLIP]);
@@ -2193,7 +2193,7 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 			keyboardScreen.renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
 
 			PadLEDs::numAnimatedRows = kDisplayHeight;
-			for (int y = 0; y < PadLEDs::numAnimatedRows; y++) {
+			for (int32_t y = 0; y < PadLEDs::numAnimatedRows; y++) {
 				PadLEDs::animatedRowGoingTo[y] = clipPlaceOnScreen;
 				PadLEDs::animatedRowGoingFrom[y] = y;
 			}
@@ -2210,7 +2210,7 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 			    .fillOffScreenImageStores(); // Important that this is done after currentSong->xScroll is changed, above
 
 			PadLEDs::numAnimatedRows = kDisplayHeight + 2;
-			for (int y = 0; y < PadLEDs::numAnimatedRows; y++) {
+			for (int32_t y = 0; y < PadLEDs::numAnimatedRows; y++) {
 				PadLEDs::animatedRowGoingTo[y] = clipPlaceOnScreen;
 				PadLEDs::animatedRowGoingFrom[y] = y - 1;
 			}
@@ -2265,7 +2265,7 @@ void SessionView::playbackEnded() {
 
 	uint32_t whichRowsToReRender = 0;
 
-	for (int yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 		Clip* clip = getClipOnScreen(yDisplay);
 		if (clip && clip->type == CLIP_TYPE_AUDIO) {
 			AudioClip* audioClip = (AudioClip*)clip;
@@ -2282,16 +2282,16 @@ void SessionView::playbackEnded() {
 }
 
 void SessionView::clipNeedsReRendering(Clip* clip) {
-	int bottomIndex = currentSong->songViewYScroll;
-	int topIndex = bottomIndex + kDisplayHeight;
+	int32_t bottomIndex = currentSong->songViewYScroll;
+	int32_t topIndex = bottomIndex + kDisplayHeight;
 
-	bottomIndex = std::max(bottomIndex, 0);
+	bottomIndex = std::max(bottomIndex, 0_i32);
 	topIndex = std::min(topIndex, currentSong->sessionClips.getNumElements());
 
-	for (int c = bottomIndex; c < topIndex; c++) {
+	for (int32_t c = bottomIndex; c < topIndex; c++) {
 		Clip* thisClip = currentSong->sessionClips.getClipAtIndex(c);
 		if (thisClip == clip) {
-			int yDisplay = c - currentSong->songViewYScroll;
+			int32_t yDisplay = c - currentSong->songViewYScroll;
 			uiNeedsRendering(this, (1 << yDisplay), 0);
 			break;
 		}
@@ -2299,16 +2299,16 @@ void SessionView::clipNeedsReRendering(Clip* clip) {
 }
 
 void SessionView::sampleNeedsReRendering(Sample* sample) {
-	int bottomIndex = currentSong->songViewYScroll;
-	int topIndex = bottomIndex + kDisplayHeight;
+	int32_t bottomIndex = currentSong->songViewYScroll;
+	int32_t topIndex = bottomIndex + kDisplayHeight;
 
-	bottomIndex = std::max(bottomIndex, 0);
+	bottomIndex = std::max(bottomIndex, 0_i32);
 	topIndex = std::min(topIndex, currentSong->sessionClips.getNumElements());
 
-	for (int c = bottomIndex; c < topIndex; c++) {
+	for (int32_t c = bottomIndex; c < topIndex; c++) {
 		Clip* thisClip = currentSong->sessionClips.getClipAtIndex(c);
 		if (thisClip->type == CLIP_TYPE_AUDIO && ((AudioClip*)thisClip)->sampleHolder.audioFile == sample) {
-			int yDisplay = c - currentSong->songViewYScroll;
+			int32_t yDisplay = c - currentSong->songViewYScroll;
 			uiNeedsRendering(this, (1 << yDisplay), 0);
 		}
 	}
@@ -2319,7 +2319,7 @@ void SessionView::midiLearnFlash() {
 	uint32_t mainRowsToRender = 0;
 	uint32_t sideRowsToRender = 0;
 
-	for (int yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 		Clip* clip = getClipOnScreen(yDisplay);
 		if (clip) {
 
@@ -2349,12 +2349,12 @@ void SessionView::midiLearnFlash() {
 	uiNeedsRendering(this, mainRowsToRender, sideRowsToRender);
 }
 
-void SessionView::modEncoderAction(int whichModEncoder, int offset) {
+void SessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	performActionOnPadRelease = false;
 
 	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx) == RuntimeFeatureStateToggle::On
 	    && currentUIMode != UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
-		int modKnobMode = -1;
+		int32_t modKnobMode = -1;
 		if (view.activeModControllableModelStack.modControllable) {
 			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
 			if (modKnobModePointer)
@@ -2420,7 +2420,7 @@ void SessionView::modEncoderAction(int whichModEncoder, int offset) {
 #if !HAVE_OLED
 				char buffer[6];
 				strcpy(buffer, "");
-				intToString(int(rel), buffer + strlen(buffer));
+				intToString(int32_t(rel), buffer + strlen(buffer));
 				numericDriver.displayPopup(buffer);
 #endif
 			}
@@ -2450,7 +2450,7 @@ void SessionView::modEncoderAction(int whichModEncoder, int offset) {
 #if !HAVE_OLED
 				char buffer[6];
 				strcpy(buffer, "");
-				intToString(int(wet * 100), buffer + strlen(buffer));
+				intToString(int32_t(wet * 100), buffer + strlen(buffer));
 				numericDriver.displayPopup(buffer);
 #endif
 			}
@@ -2463,8 +2463,8 @@ void SessionView::modEncoderAction(int whichModEncoder, int offset) {
 				double rel = AudioEngine::mastercompressor.compressor.getRelease();
 				double ratio = 1.0 / AudioEngine::mastercompressor.compressor.getRatio();
 				double wet = AudioEngine::mastercompressor.wet;
-				int paddingLeft = 4 + 3;
-				int paddingTop = OLED_MAIN_TOPMOST_PIXEL + 2;
+				int32_t paddingLeft = 4 + 3;
+				int32_t paddingTop = OLED_MAIN_TOPMOST_PIXEL + 2;
 
 				OLED::setupPopup(OLED_MAIN_WIDTH_PIXELS - 2, OLED_MAIN_VISIBLE_HEIGHT - 2);
 				char buffer[18];
@@ -2498,7 +2498,7 @@ void SessionView::modEncoderAction(int whichModEncoder, int offset) {
 				OLED::drawStringAlignRight(buffer, paddingTop + kTextSpacingY * 2, OLED::oledMainPopupImage[0],
 				                           OLED_MAIN_WIDTH_PIXELS - 2, kTextSpacingX, kTextSpacingY,
 				                           paddingLeft + kTextSpacingX * 9);
-				intToString(int(rel), buffer);
+				intToString(int32_t(rel), buffer);
 				OLED::drawStringAlignRight(buffer, paddingTop + kTextSpacingY * 2, OLED::oledMainPopupImage[0],
 				                           OLED_MAIN_WIDTH_PIXELS - 2, kTextSpacingX, kTextSpacingY,
 				                           paddingLeft + kTextSpacingX * 19);
@@ -2506,15 +2506,15 @@ void SessionView::modEncoderAction(int whichModEncoder, int offset) {
 				OLED::drawStringAlignRight(buffer, paddingTop + kTextSpacingY * 3, OLED::oledMainPopupImage[0],
 				                           OLED_MAIN_WIDTH_PIXELS - 2, kTextSpacingX, kTextSpacingY,
 				                           paddingLeft + kTextSpacingX * 9);
-				intToString(int(wet * 100), buffer);
+				intToString(int32_t(wet * 100), buffer);
 				strcpy(buffer + strlen(buffer), "%");
 				OLED::drawStringAlignRight(buffer, paddingTop + kTextSpacingY * 3, OLED::oledMainPopupImage[0],
 				                           OLED_MAIN_WIDTH_PIXELS - 2, kTextSpacingX, kTextSpacingY,
 				                           paddingLeft + kTextSpacingX * 19);
 
 				OLED::invertArea((kTextSpacingX * 10) * (masterCompEditMode % 2) + paddingLeft, kTextSpacingX * 9,
-				                 kTextSpacingY * (int)(masterCompEditMode / 2 + 1) + paddingTop,
-				                 kTextSpacingY * (int)(masterCompEditMode / 2 + 2) + paddingTop,
+				                 kTextSpacingY * (int32_t)(masterCompEditMode / 2 + 1) + paddingTop,
+				                 kTextSpacingY * (int32_t)(masterCompEditMode / 2 + 2) + paddingTop,
 				                 OLED::oledMainPopupImage);
 				OLED::sendMainImage();
 				uiTimerManager.setTimer(TIMER_DISPLAY, 1500);

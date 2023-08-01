@@ -50,7 +50,7 @@ ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	ActionResult result;
 
 	// See if it was one of the mod buttons
-	for (int i = 0; i < kNumModButtons; i++) {
+	for (int32_t i = 0; i < kNumModButtons; i++) {
 
 		if (xy.x == modButtonX[i] && xy.y == modButtonY[i]) {
 
@@ -183,8 +183,8 @@ bool isNewOrShiftButtonPressed() {
 
 // Correct any misunderstandings
 void noPressesHappening(bool inCardRoutine) {
-	for (int x = 0; x < NUM_BUTTON_COLS; x++) {
-		for (int y = 0; y < NUM_BUTTON_ROWS; y++) {
+	for (int32_t x = 0; x < NUM_BUTTON_COLS; x++) {
+		for (int32_t y = 0; y < NUM_BUTTON_ROWS; y++) {
 			if (buttonStates[x][y]) {
 				buttonAction(hid::button::fromXY(x, y), false, inCardRoutine);
 			}

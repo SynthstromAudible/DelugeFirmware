@@ -52,7 +52,7 @@ bool OverwriteBootloader::acceptCurrentOption() {
 	numericDriver.displayLoadingAnimation();
 #endif
 
-	int error = storageManager.initSD();
+	int32_t error = storageManager.initSD();
 	if (error) {
 gotError:
 		numericDriver.displayError(error);
@@ -180,12 +180,12 @@ gotFlashError:
 
 			while (true) {
 
-				int bytesLeft = startFlashAddress + fileSize - flashWriteAddress;
+				int32_t bytesLeft = startFlashAddress + fileSize - flashWriteAddress;
 				if (bytesLeft <= 0) {
 					break;
 				}
 
-				int bytesToWrite = bytesLeft;
+				int32_t bytesToWrite = bytesLeft;
 				if (bytesToWrite > FLASH_WRITE_SIZE) {
 					bytesToWrite = FLASH_WRITE_SIZE;
 				}

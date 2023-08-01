@@ -36,7 +36,7 @@ public:
 		*outputL = buffer[0].l + multiply_32x32_rshift32_rounded(inputL, ir[0]);
 		*outputR = buffer[0].r + multiply_32x32_rshift32_rounded(inputR, ir[0]);
 
-		for (int i = 1; i != IR_BUFFER_SIZE; i++) {
+		for (int32_t i = 1; i != IR_BUFFER_SIZE; i++) {
 			buffer[i - 1].l = buffer[i].l + multiply_32x32_rshift32_rounded(inputL, ir[i]);
 			buffer[i - 1].r = buffer[i].r + multiply_32x32_rshift32_rounded(inputR, ir[i]);
 		}

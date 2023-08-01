@@ -24,10 +24,10 @@
 class FileItem {
 public:
 	FileItem();
-	int setupWithInstrument(Instrument* newInstrument, bool hibernating);
-	int getFilenameWithExtension(String* filenameWithExtension);
-	int getFilenameWithoutExtension(String* filenameWithoutExtension);
-	int getDisplayNameWithoutExtension(String* displayNameWithoutExtension);
+	int32_t setupWithInstrument(Instrument* newInstrument, bool hibernating);
+	int32_t getFilenameWithExtension(String* filenameWithExtension);
+	int32_t getFilenameWithoutExtension(String* filenameWithoutExtension);
+	int32_t getDisplayNameWithoutExtension(String* displayNameWithoutExtension);
 
 	char const*
 	    displayName; // Usually points to filePointer.get(), but for "numeric" files, will cut off the prefix, e.g. "SONG".

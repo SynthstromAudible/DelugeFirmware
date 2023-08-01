@@ -19,10 +19,10 @@
 
 #include <stdint.h>
 
-int getNumDecimalDigits(uint32_t number);
-void intToString(int32_t number, char* buffer, int minNumDigits);
-void floatToString(float number, char* __restrict__ buffer, int minNumDecimalPlaces, int maxNumDecimalPlaces);
-void slotToString(int slot, int subSlot, char* __restrict__ buffer, int minNumDigits);
+int32_t getNumDecimalDigits(uint32_t number);
+void intToString(int32_t number, char* buffer, int32_t minNumDigits);
+void floatToString(float number, char* __restrict__ buffer, int32_t minNumDecimalPlaces, int32_t maxNumDecimalPlaces);
+void slotToString(int32_t slot, int32_t subSlot, char* __restrict__ buffer, int32_t minNumDigits);
 
 uint32_t fastTimerCountToUS(uint32_t timerCount);
 uint32_t usToFastTimerCount(uint32_t us);

@@ -25,11 +25,11 @@ class InstrumentClip;
 
 class ConsequenceNoteArrayChange final : public Consequence {
 public:
-	ConsequenceNoteArrayChange(InstrumentClip* newClip, int newNoteRowId, NoteVector* newNoteVector, bool stealData);
-	int revert(TimeType time, ModelStack* modelStack);
+	ConsequenceNoteArrayChange(InstrumentClip* newClip, int32_t newNoteRowId, NoteVector* newNoteVector, bool stealData);
+	int32_t revert(TimeType time, ModelStack* modelStack);
 
 	InstrumentClip* clip;
-	int noteRowId;
+	int32_t noteRowId;
 
 	NoteVector backedUpNoteVector;
 };

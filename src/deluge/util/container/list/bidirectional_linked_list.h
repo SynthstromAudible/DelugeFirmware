@@ -42,7 +42,7 @@ public:
 	BidirectionalLinkedListNode* getFirst();
 	BidirectionalLinkedListNode* getNext(BidirectionalLinkedListNode* node);
 	void test();
-	int getNum();
+	int32_t getNum();
 
 	BidirectionalLinkedListNode endNode;
 	BidirectionalLinkedListNode* first;

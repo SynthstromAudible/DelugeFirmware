@@ -83,9 +83,9 @@ public:
 	                                    AudioFileType type, bool makeWaveTableWorkAtAllCosts = false);
 	Cluster* allocateCluster(ClusterType type = ClusterType::Sample, bool shouldAddReasons = true,
 	                         void* dontStealFromThing = NULL);
-	int enqueueCluster(Cluster* cluster, uint32_t priorityRating = 0xFFFFFFFF);
-	bool loadCluster(Cluster* cluster, int minNumReasonsAfter = 0);
-	void loadAnyEnqueuedClusters(int maxNum = 128, bool mayProcessUserActionsBetween = false);
+	int32_t enqueueCluster(Cluster* cluster, uint32_t priorityRating = 0xFFFFFFFF);
+	bool loadCluster(Cluster* cluster, int32_t minNumReasonsAfter = 0);
+	void loadAnyEnqueuedClusters(int32_t maxNum = 128, bool mayProcessUserActionsBetween = false);
 	void addReasonToCluster(Cluster* cluster);
 	void removeReasonFromCluster(Cluster* cluster, char const* errorCode);
 	void testQueue();
@@ -94,13 +94,13 @@ public:
 
 	void slowRoutine();
 	void deallocateCluster(Cluster* cluster);
-	int setupAlternateAudioFilePath(String* newPath, int dirPathLength, String* oldPath);
-	int setupAlternateAudioFileDir(String* newPath, char const* rootDir, String* songFilenameWithoutExtension);
+	int32_t setupAlternateAudioFilePath(String* newPath, int32_t dirPathLength, String* oldPath);
+	int32_t setupAlternateAudioFileDir(String* newPath, char const* rootDir, String* songFilenameWithoutExtension);
 	bool loadingQueueHasAnyLowestPriorityElements();
-	int getUnusedAudioRecordingFilePath(String* filePath, String* tempFilePathForRecording,
+	int32_t getUnusedAudioRecordingFilePath(String* filePath, String* tempFilePathForRecording,
 	                                    AudioRecordingFolder folderID, uint32_t* getNumber);
 	void deleteAnyTempRecordedSamplesFromMemory();
-	void deleteUnusedAudioFileFromMemory(AudioFile* audioFile, int i);
+	void deleteUnusedAudioFileFromMemory(AudioFile* audioFile, int32_t i);
 	void deleteUnusedAudioFileFromMemoryIndexUnknown(AudioFile* audioFile);
 	bool tryToDeleteAudioFileFromMemoryIfItExists(char const* filePath);
 
@@ -111,7 +111,7 @@ public:
 
 	uint32_t clusterSize;
 	uint32_t clusterSizeAtBoot;
-	int clusterSizeMagnitude;
+	int32_t clusterSizeMagnitude;
 
 	uint32_t clusterObjectSize;
 
@@ -119,7 +119,7 @@ public:
 	bool cardDisabled;
 
 	Cluster* clusterBeingLoaded;
-	int minNumReasonsForClusterBeingLoaded; // Only valid when clusterBeingLoaded is set. And this exists for bug hunting only.
+	int32_t minNumReasonsForClusterBeingLoaded; // Only valid when clusterBeingLoaded is set. And this exists for bug hunting only.
 
 	String alternateAudioFileLoadPath;
 	AlternateLoadDirStatus alternateLoadDirStatus;
@@ -132,10 +132,10 @@ public:
 private:
 	void setClusterSize(uint32_t newSize);
 	void cardReinserted();
-	int readBytes(char* buffer, int num, int* byteIndexWithinCluster, Cluster** currentCluster,
+	int32_t readBytes(char* buffer, int32_t num, int32_t* byteIndexWithinCluster, Cluster** currentCluster,
 	              uint32_t* currentClusterIndex, uint32_t fileSize, Sample* sample);
-	int loadAiff(Sample* newSample, uint32_t fileSize, Cluster** currentCluster, uint32_t* currentClusterIndex);
-	int loadWav(Sample* newSample, uint32_t fileSize, Cluster** currentCluster, uint32_t* currentClusterIndex);
+	int32_t loadAiff(Sample* newSample, uint32_t fileSize, Cluster** currentCluster, uint32_t* currentClusterIndex);
+	int32_t loadWav(Sample* newSample, uint32_t fileSize, Cluster** currentCluster, uint32_t* currentClusterIndex);
 };
 
 extern AudioFileManager audioFileManager;

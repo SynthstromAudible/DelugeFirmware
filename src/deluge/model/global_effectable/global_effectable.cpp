@@ -97,7 +97,7 @@ void GlobalEffectable::modButtonAction(uint8_t whichModButton, bool on, ParamMan
 bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
                                               ModelStackWithThreeMainThings* modelStack) {
 
-	int modKnobMode = *getModKnobMode();
+	int32_t modKnobMode = *getModKnobMode();
 
 	// Stutter section
 	if (modKnobMode == 6 && whichModEncoder == 1) {
@@ -246,9 +246,9 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 }
 
 // Always check this doesn't return NULL!
-int GlobalEffectable::getParameterFromKnob(int whichModEncoder) {
+int32_t GlobalEffectable::getParameterFromKnob(int32_t whichModEncoder) {
 
-	int modKnobMode = *getModKnobMode();
+	int32_t modKnobMode = *getModKnobMode();
 
 	if (modKnobMode == 0) {
 		if (whichModEncoder != 0) {
@@ -329,12 +329,12 @@ int GlobalEffectable::getParameterFromKnob(int whichModEncoder) {
 	return 255;
 }
 
-ModelStackWithAutoParam* GlobalEffectable::getParamFromModEncoder(int whichModEncoder,
+ModelStackWithAutoParam* GlobalEffectable::getParamFromModEncoder(int32_t whichModEncoder,
                                                                   ModelStackWithThreeMainThings* modelStack,
                                                                   bool allowCreation) {
 	ParamCollectionSummary* summary = modelStack->paramManager->getUnpatchedParamSetSummary();
 	ParamCollection* paramCollection = summary->paramCollection;
-	int paramId;
+	int32_t paramId;
 
 	paramId = getParameterFromKnob(whichModEncoder);
 
@@ -377,17 +377,17 @@ void GlobalEffectable::setupFilterSetConfig(FilterSetConfig* filterSetConfig, in
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-	int lpfFrequency = getFinalParameterValueExp(
+	int32_t lpfFrequency = getFinalParameterValueExp(
 	    paramNeutralValues[Param::Local::LPF_FREQ],
 	    cableToExpParamShortcut(unpatchedParams->getValue(Param::Unpatched::GlobalEffectable::LPF_FREQ)));
-	int lpfResonance = getFinalParameterValueLinear(
+	int32_t lpfResonance = getFinalParameterValueLinear(
 	    paramNeutralValues[Param::Local::LPF_RESONANCE],
 	    cableToLinearParamShortcut(unpatchedParams->getValue(Param::Unpatched::GlobalEffectable::LPF_RES)));
 
-	int hpfFrequency = getFinalParameterValueExp(
+	int32_t hpfFrequency = getFinalParameterValueExp(
 	    paramNeutralValues[Param::Local::HPF_FREQ],
 	    cableToExpParamShortcut(unpatchedParams->getValue(Param::Unpatched::GlobalEffectable::HPF_FREQ)));
-	int hpfResonance = getFinalParameterValueLinear(
+	int32_t hpfResonance = getFinalParameterValueLinear(
 	    paramNeutralValues[Param::Local::HPF_RESONANCE],
 	    cableToLinearParamShortcut(unpatchedParams->getValue(Param::Unpatched::GlobalEffectable::HPF_RES)));
 
@@ -399,7 +399,7 @@ void GlobalEffectable::setupFilterSetConfig(FilterSetConfig* filterSetConfig, in
 	                                      *postFXVolume, false, NULL);
 }
 
-void GlobalEffectable::processFilters(StereoSample* buffer, int numSamples, FilterSetConfig* filterSetConfig) {
+void GlobalEffectable::processFilters(StereoSample* buffer, int32_t numSamples, FilterSetConfig* filterSetConfig) {
 
 	if (filterSetConfig->doHPF) {
 		StereoSample* thisSample = buffer;
@@ -623,7 +623,7 @@ bool GlobalEffectable::readParamTagFromFile(char const* tagName, ParamManagerFor
 }
 
 // paramManager is optional
-int GlobalEffectable::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager,
+int32_t GlobalEffectable::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager,
                                       int32_t readAutomationUpToPos, Song* song) {
 
 	// This is here for compatibility only for people (Lou and Ian) who saved songs with firmware in September 2016
@@ -633,7 +633,7 @@ int GlobalEffectable::readTagFromFile(char const* tagName, ParamManagerForTimeli
 	if (paramManager && !strcmp(tagName, "defaultParams")) {
 
 		if (!paramManager->containsAnyMainParamCollections()) {
-			int error = paramManager->setupUnpatched();
+			int32_t error = paramManager->setupUnpatched();
 			if (error) {
 				return error;
 			}
@@ -721,9 +721,9 @@ void GlobalEffectable::setupDelayWorkingState(DelayWorkingState* delayWorkingSta
 	delay.setupWorkingState(delayWorkingState);
 }
 
-void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, int numSamples, int32_t* postFXVolume,
+void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, int32_t numSamples, int32_t* postFXVolume,
                                                     ParamManager* paramManager, DelayWorkingState* delayWorkingState,
-                                                    int analogDelaySaturationAmount) {
+                                                    int32_t analogDelaySaturationAmount) {
 
 	StereoSample* inputBufferEnd = inputBuffer + numSamples;
 
@@ -814,8 +814,8 @@ char const* GlobalEffectable::paramToString(uint8_t param) {
 	}
 }
 
-int GlobalEffectable::stringToParam(char const* string) {
-	for (int p = Param::Unpatched::START + Param::Unpatched::NUM_SHARED;
+int32_t GlobalEffectable::stringToParam(char const* string) {
+	for (int32_t p = Param::Unpatched::START + Param::Unpatched::NUM_SHARED;
 	     p < Param::Unpatched::START + kMaxNumUnpatchedParams; p++) {
 		if (!strcmp(string, GlobalEffectable::paramToString(p))) {
 			return p;

@@ -46,19 +46,19 @@ struct UartItem { // Exactly 8 bytes, so can align nicely to cache line
 extern struct UartItem uartItems[];
 
 extern void initUartDMA();
-uint8_t uartGetChar(int item, char* readData);
-uint32_t* uartGetCharWithTiming(int timingCaptureItem, char* readData);
-void uartPutCharBack(int item);
-void uartInsertFakeChar(int item, char data);
+uint8_t uartGetChar(int32_t item, char* readData);
+uint32_t* uartGetCharWithTiming(int32_t timingCaptureItem, char* readData);
+void uartPutCharBack(int32_t item);
+void uartInsertFakeChar(int32_t item, char data);
 void uartPrintln(char const* output);
 void uartPrint(char const* output);
-void uartPrintNumber(int number);
-void uartPrintNumberSameLine(int number);
+void uartPrintNumber(int32_t number);
+void uartPrintNumberSameLine(int32_t number);
 void uartPrintlnFloat(float number);
 void uartPrintFloat(float number);
 
-void uartFlushIfNotSending(int item);
-int uartGetTxBufferFullnessByItem(int item);
-int uartGetTxBufferSpace(int item);
+void uartFlushIfNotSending(int32_t item);
+int32_t uartGetTxBufferFullnessByItem(int32_t item);
+int32_t uartGetTxBufferSpace(int32_t item);
 
-extern void tx_interrupt(int item);
+extern void tx_interrupt(int32_t item);

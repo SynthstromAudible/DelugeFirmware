@@ -27,7 +27,7 @@ class AudioFileHolder;
 class SamplePlaybackGuide {
 public:
 	SamplePlaybackGuide();
-	int getFinalClusterIndex(Sample* sample, bool obeyMarkers, int32_t* getEndPlaybackAtByte = NULL);
+	int32_t getFinalClusterIndex(Sample* sample, bool obeyMarkers, int32_t* getEndPlaybackAtByte = NULL);
 	virtual int32_t getBytePosToStartPlayback(bool justLooped) { return startPlaybackAtByte; }
 	virtual int32_t getBytePosToEndOrLoopPlayback() {
 		return endPlaybackAtByte;

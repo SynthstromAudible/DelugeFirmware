@@ -28,22 +28,22 @@ public:
 
 	void setText(char const* newText, bool alignRight = false, uint8_t drawDot = 255, bool doBlink = false,
 	             uint8_t* newBlinkMask = NULL, bool blinkImmediately = false, bool shouldBlinkFast = false,
-	             int scrollPos = 0, uint8_t* blinkAddition = NULL, bool justReplaceBottomLayer = false);
+	             int32_t scrollPos = 0, uint8_t* blinkAddition = NULL, bool justReplaceBottomLayer = false);
 	void setNextTransitionDirection(int8_t thisDirection);
 	void displayPopup(char const* newText, int8_t numFlashes = 3, bool alignRight = false, uint8_t drawDot = 255,
-	                  int blinkSpeed = 1);
+	                  int32_t blinkSpeed = 1);
 	void freezeWithError(char const* text);
 	void cancelPopup();
-	void displayError(int error);
+	void displayError(int32_t error);
 
 #if !HAVE_OLED
 	void setTextAsNumber(int16_t number, uint8_t drawDot = 255, bool doBlink = false);
 	void setTextAsSlot(int16_t currentSlot, int8_t currentSubSlot, bool currentSlotExists, bool doBlink = false,
-	                   int blinkPos = -1, bool blinkImmediately = false);
+	                   int32_t blinkPos = -1, bool blinkImmediately = false);
 	void timerRoutine();
 	void removeTopLayer();
-	NumericLayerScrollingText* setScrollingText(char const* newText, int startAtPos = 0, int initialDelay = 600);
-	int getEncodedPosFromLeft(int textPos, char const* text, bool* andAHalf);
+	NumericLayerScrollingText* setScrollingText(char const* newText, int32_t startAtPos = 0, int32_t initialDelay = 600);
+	int32_t getEncodedPosFromLeft(int32_t textPos, char const* text, bool* andAHalf);
 	void render();
 	void displayLoadingAnimation(bool delayed = false, bool transparent = false);
 	bool isLayerCurrentlyOnTop(NumericLayer* layer);
@@ -60,8 +60,8 @@ private:
 	void deleteAllLayers();
 
 #if !HAVE_OLED
-	int encodeText(char const* newText, uint8_t* destination, bool alignRight, uint8_t drawDot = 255,
-	               bool limitToDisplayLength = true, int scrollPos = 0);
+	int32_t encodeText(char const* newText, uint8_t* destination, bool alignRight, uint8_t drawDot = 255,
+	               bool limitToDisplayLength = true, int32_t scrollPos = 0);
 	void replaceBottomLayer(NumericLayer* newLayer);
 	void setTopLayer(NumericLayer* newTopLayer);
 	void transitionToNewLayer(NumericLayer* newLayer);

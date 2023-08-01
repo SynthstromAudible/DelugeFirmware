@@ -27,44 +27,44 @@
 
 class ResizeableArray {
 public:
-	ResizeableArray(int newElementSize, int newMaxNumEmptySpacesToKeep = 16, int newNumExtrarSpacesToAllocate = 15);
+	ResizeableArray(int32_t newElementSize, int32_t newMaxNumEmptySpacesToKeep = 16, int32_t newNumExtrarSpacesToAllocate = 15);
 	~ResizeableArray();
 	void init();
 	bool cloneFrom(ResizeableArray* other);
 	void empty();
 	void swapStateWith(ResizeableArray* other);
-	void deleteAtIndex(int i, int numToDelete = 1, bool mayShortenMemoryAfter = true);
-	bool ensureEnoughSpaceAllocated(int numAdditionalElementsNeeded);
-	int insertAtIndex(int i, int numToInsert = 1, void* thingNotToStealFrom = NULL);
-	void swapElements(int i1, int i2);
-	void repositionElement(int iFrom, int iTo);
-	int beenCloned();
-	void setMemory(void* newMemory, int newMemorySize);
-	void setStaticMemory(void* newMemory, int newMemorySize);
+	void deleteAtIndex(int32_t i, int32_t numToDelete = 1, bool mayShortenMemoryAfter = true);
+	bool ensureEnoughSpaceAllocated(int32_t numAdditionalElementsNeeded);
+	int32_t insertAtIndex(int32_t i, int32_t numToInsert = 1, void* thingNotToStealFrom = NULL);
+	void swapElements(int32_t i1, int32_t i2);
+	void repositionElement(int32_t iFrom, int32_t iTo);
+	int32_t beenCloned();
+	void setMemory(void* newMemory, int32_t newMemorySize);
+	void setStaticMemory(void* newMemory, int32_t newMemorySize);
 
-	void moveElementsLeft(int oldStartIndex, int oldStopIndex, int distance);
-	void moveElementsRight(int oldStartIndex, int oldStopIndex, int distance);
+	void moveElementsLeft(int32_t oldStartIndex, int32_t oldStopIndex, int32_t distance);
+	void moveElementsRight(int32_t oldStartIndex, int32_t oldStopIndex, int32_t distance);
 
-	inline void* getElementAddress(int index) {
-		int absoluteIndex = index + memoryStart;
+	inline void* getElementAddress(int32_t index) {
+		int32_t absoluteIndex = index + memoryStart;
 		if (absoluteIndex >= memorySize)
 			absoluteIndex -= memorySize;
 		return (char* __restrict__)memory + (absoluteIndex * elementSize);
 	}
 
-	inline int getNumElements() { return numElements; }
+	inline int32_t getNumElements() { return numElements; }
 
-	unsigned int elementSize;
+	uint32_t elementSize;
 	bool emptyingShouldFreeMemory;
 	uint32_t staticMemoryAllocationSize;
 
 protected:
 	void* memory;
-	int numElements;
-	int memorySize; // In elements, not bytes
-	int memoryStart;
+	int32_t numElements;
+	int32_t memorySize; // In elements, not bytes
+	int32_t memoryStart;
 #if TEST_VECTOR
-	int moveCount;
+	int32_t moveCount;
 #endif
 
 #if RESIZEABLE_ARRAY_DO_LOCKS
@@ -75,17 +75,17 @@ protected:
 
 private:
 	void attemptMemoryShorten();
-	bool attemptMemoryExpansion(int minNumToExtend, int idealNumToExtend, bool mayExtendAllocation,
+	bool attemptMemoryExpansion(int32_t minNumToExtend, int32_t idealNumToExtend, bool mayExtendAllocation,
 	                            void* thingNotToStealFrom);
 	void copyToNewMemory(void* newMemory, uint32_t destinationIndex, void* source, uint32_t numElementsToCopy,
 	                     uint32_t newMemorySize, uint32_t newMemoryStartIndex);
-	int copyElementsFromOldMemory(void* otherMemory, int otherMemorySize, int otherMemoryStart);
+	int32_t copyElementsFromOldMemory(void* otherMemory, int32_t otherMemorySize, int32_t otherMemoryStart);
 
-	void moveElementsRightNoWrap(int oldStartIndex, int oldStopIndex, int distance);
-	void moveElementsLeftNoWrap(int oldStartIndex, int oldStopIndex, int distance);
+	void moveElementsRightNoWrap(int32_t oldStartIndex, int32_t oldStopIndex, int32_t distance);
+	void moveElementsLeftNoWrap(int32_t oldStartIndex, int32_t oldStopIndex, int32_t distance);
 
 	void* memoryAllocationStart; // This might be slightly to the left of "memory"
 
-	const int maxNumEmptySpacesToKeep;  // Can go down to 0
-	const int numExtraSpacesToAllocate; // Can go down to 0
+	const int32_t maxNumEmptySpacesToKeep;  // Can go down to 0
+	const int32_t numExtraSpacesToAllocate; // Can go down to 0
 };

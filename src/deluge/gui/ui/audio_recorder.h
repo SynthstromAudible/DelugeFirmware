@@ -50,7 +50,7 @@ public:
 
 	SampleRecorder* recorder;
 
-	void endRecordingSoon(int buttonLatency = 0);
+	void endRecordingSoon(int32_t buttonLatency = 0);
 
 #if HAVE_OLED
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
@@ -58,7 +58,7 @@ public:
 
 private:
 	void finishRecording();
-	bool setupRecordingToFile(AudioInputChannel newMode, int newNumChannels, AudioRecordingFolder folderID);
+	bool setupRecordingToFile(AudioInputChannel newMode, int32_t newNumChannels, AudioRecordingFolder folderID);
 };
 
 extern AudioRecorder audioRecorder;

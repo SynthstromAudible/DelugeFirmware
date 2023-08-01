@@ -29,7 +29,7 @@
 class comb {
 public:
 	comb();
-	void setbuffer(int32_t* buf, int size);
+	void setbuffer(int32_t* buf, int32_t size);
 	inline int32_t process(int32_t inp);
 	void mute();
 	void setdamp(float val);
@@ -43,8 +43,8 @@ private:
 	int32_t damp1;
 	int32_t damp2;
 	int32_t* buffer;
-	int bufsize;
-	int bufidx;
+	int32_t bufsize;
+	int32_t bufidx;
 };
 
 // Big to inline - but crucial for speed

@@ -74,7 +74,7 @@ void Output::pickAnActiveClipIfPossible(ModelStack* modelStack, bool searchSessi
 	if (!activeClip) {
 
 		// First, search ClipInstances in this Output.
-		for (int i = 0; i < clipInstances.getNumElements(); i++) {
+		for (int32_t i = 0; i < clipInstances.getNumElements(); i++) {
 			ClipInstance* instance = clipInstances.getElement(i);
 			if (instance->clip) {
 				setActiveClip(modelStack->addTimelineCounter(instance->clip), maySendMIDIPGMs);
@@ -97,11 +97,11 @@ void Output::pickAnActiveClipIfPossible(ModelStack* modelStack, bool searchSessi
 	}
 }
 
-void Output::pickAnActiveClipForArrangementPos(ModelStack* modelStack, int arrangementPos,
+void Output::pickAnActiveClipForArrangementPos(ModelStack* modelStack, int32_t arrangementPos,
                                                PgmChangeSend maySendMIDIPGMs) {
 
 	// First, see if there's an earlier-starting ClipInstance that's still going at this pos
-	int i = clipInstances.search(arrangementPos + 1, LESS);
+	int32_t i = clipInstances.search(arrangementPos + 1, LESS);
 	ClipInstance* instance = clipInstances.getElement(i);
 	if (instance && instance->clip && instance->pos + instance->length > arrangementPos) {
 		instance->clip->activeIfNoSolo = true;
@@ -130,7 +130,7 @@ yesSetActiveClip:
 }
 
 bool Output::clipHasInstance(Clip* clip) {
-	for (int i = 0; i < clipInstances.getNumElements(); i++) {
+	for (int32_t i = 0; i < clipInstances.getNumElements(); i++) {
 		ClipInstance* instance = clipInstances.getElement(i);
 		if (instance->clip == clip) {
 			return true;
@@ -141,7 +141,7 @@ bool Output::clipHasInstance(Clip* clip) {
 }
 
 void Output::clipLengthChanged(Clip* clip, int32_t oldLength) {
-	for (int i = 0; i < clipInstances.getNumElements(); i++) {
+	for (int32_t i = 0; i < clipInstances.getNumElements(); i++) {
 		ClipInstance* instance = clipInstances.getElement(i);
 		if (instance->clip == clip) {
 			if (instance->length == oldLength) {
@@ -214,7 +214,7 @@ bool Output::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 			storageManager.printIndents();
 			storageManager.write("clipInstances=\"0x");
 
-			for (int i = 0; i < clipInstances.getNumElements(); i++) {
+			for (int32_t i = 0; i < clipInstances.getNumElements(); i++) {
 				ClipInstance* thisInstance = clipInstances.getElement(i);
 
 				char buffer[9];
@@ -248,7 +248,7 @@ bool Output::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 }
 
 // Most classes inheriting from Output actually override this with their own version...
-int Output::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
+int32_t Output::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 	char const* tagName;
 
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
@@ -287,7 +287,7 @@ bool Output::readTagFromFile(char const* tagName) {
 
 		int32_t minPos = 0;
 
-		int numElementsToAllocateFor = 0;
+		int32_t numElementsToAllocateFor = 0;
 
 		if (!storageManager.prepareToReadTagOrAttributeValueOneCharAtATime()) {
 			goto getOut;
@@ -333,13 +333,13 @@ bool Output::readTagFromFile(char const* tagName) {
 			minPos = pos + length;
 
 			// Ok, make the clipInstance
-			int i = clipInstances.insertAtKey(pos, true);
+			int32_t i = clipInstances.insertAtKey(pos, true);
 			if (i == -1) {
 				return true; //ERROR_INSUFFICIENT_RAM;
 			}
 			ClipInstance* newInstance = clipInstances.getElement(i);
 			newInstance->length = length;
-			newInstance->clip = (Clip*)clipCode; // Sneaky - disguising int as Clip*
+			newInstance->clip = (Clip*)clipCode; // Sneaky - disguising int32_t as Clip*
 
 			numElementsToAllocateFor--;
 		}
@@ -358,7 +358,7 @@ getOut:
 	return true;
 }
 
-int Output::possiblyBeginArrangementRecording(Song* song, int newPos) {
+int32_t Output::possiblyBeginArrangementRecording(Song* song, int32_t newPos) {
 
 	if (!song->arrangementOnlyClips.ensureEnoughSpaceAllocated(1)) {
 		return ERROR_INSUFFICIENT_RAM;
@@ -377,7 +377,7 @@ int Output::possiblyBeginArrangementRecording(Song* song, int newPos) {
 	}
 
 	// We can only insert the ClipInstance after the call to createNewClipForArrangementRecording(), because that ends up calling Song::getClipWithOutput(), which searches through ClipInstances for this Output!
-	int i = clipInstances.insertAtKey(newPos); // Can't fail, we checked above.
+	int32_t i = clipInstances.insertAtKey(newPos); // Can't fail, we checked above.
 	if (i == -1) {
 		return ERROR_INSUFFICIENT_RAM;
 	}
@@ -418,7 +418,7 @@ void Output::endAnyArrangementRecording(Song* song, int32_t actualEndPosInternal
 
 	if (recordingInArrangement) {
 
-		int i = clipInstances.search(actualEndPosInternalTicks, LESS);
+		int32_t i = clipInstances.search(actualEndPosInternalTicks, LESS);
 		ClipInstance* clipInstance = clipInstances.getElement(i);
 		if (ALPHA_OR_BETA_VERSION && !clipInstance) {
 			numericDriver.freezeWithError("E261");
@@ -510,7 +510,7 @@ void Output::endArrangementPlayback(Song* song, int32_t actualEndPos, uint32_t t
 	if (!recordingInArrangement) {
 
 		// See if a ClipInstance was already playing
-		int i = clipInstances.search(actualEndPos, LESS);
+		int32_t i = clipInstances.search(actualEndPos, LESS);
 		ClipInstance* clipInstance = clipInstances.getElement(i);
 		if (clipInstance && clipInstance->clip) {
 			int32_t endPos = clipInstance->pos + clipInstance->length;
@@ -524,6 +524,6 @@ void Output::endArrangementPlayback(Song* song, int32_t actualEndPos, uint32_t t
 }
 
 /*
-for (int i = 0; i < clipInstances.getNumElements(); i++) {
+for (int32_t i = 0; i < clipInstances.getNumElements(); i++) {
     ClipInstance* thisInstance = clipInstances.getElement(i);
 */

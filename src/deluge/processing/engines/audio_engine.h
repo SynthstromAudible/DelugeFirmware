@@ -132,7 +132,7 @@ void disposeOfVoice(Voice* voice);
 void songSwapAboutToHappen();
 void unassignAllVoices(bool deletingSong = false);
 void logAction(char const* string);
-void logAction(int number);
+void logAction(int32_t number);
 
 void getReverbParamsFromSong(Song* song);
 
@@ -146,12 +146,12 @@ LiveInputBuffer* getOrCreateLiveInputBuffer(OscType inputType, bool mayCreate);
 void slowRoutine();
 void doRecorderCardRoutines();
 
-int getNumSamplesLeftToOutputFromPreviousRender();
+int32_t getNumSamplesLeftToOutputFromPreviousRender();
 
 void registerSideChainHit(int32_t strength);
 
-SampleRecorder* getNewRecorder(int numChannels, AudioRecordingFolder folderID, AudioInputChannel mode,
-                               bool keepFirstReasons = false, bool writeLoopPoints = false, int buttonPressLatency = 0);
+SampleRecorder* getNewRecorder(int32_t numChannels, AudioRecordingFolder folderID, AudioInputChannel mode,
+                               bool keepFirstReasons = false, bool writeLoopPoints = false, int32_t buttonPressLatency = 0);
 void discardRecorder(SampleRecorder* recorder);
 bool isAnyInternalRecordingHappening();
 
@@ -163,7 +163,7 @@ char* getEmptyLogEntry();
 void printLog();
 #endif
 
-int getNumVoices();
+int32_t getNumVoices();
 Voice* cullVoice(bool saveVoice = false, bool justDoFastRelease = false);
 
 bool doSomeOutputting();
@@ -178,7 +178,7 @@ extern bool mustUpdateReverbParamsBeforeNextRender;
 extern bool bypassCulling;
 extern uint32_t i2sTXBufferPos;
 extern uint32_t i2sRXBufferPos;
-extern int cpuDireness;
+extern int32_t cpuDireness;
 extern InputMonitoringMode inputMonitoringMode;
 extern bool audioRoutineLocked;
 extern uint8_t numHopsEndedThisRoutineCall;

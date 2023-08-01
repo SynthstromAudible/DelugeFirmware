@@ -23,6 +23,6 @@
 
 #define DMA_INTERRUPT_0 INTC_ID_DMAINT0
 
-void setDMARS(int dmaChannel, uint32_t dmarsValue);
-void initDMAWithLinkDescriptor(int dma_channel, const uint32_t* linkDescriptor, uint32_t dmarsValue);
+void setDMARS(int32_t dmaChannel, uint32_t dmarsValue);
+void initDMAWithLinkDescriptor(int32_t dma_channel, const uint32_t* linkDescriptor, uint32_t dmarsValue);
 void dmaChannelStart(const uint32_t dma_channel);

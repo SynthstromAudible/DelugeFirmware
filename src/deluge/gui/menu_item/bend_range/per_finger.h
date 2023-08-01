@@ -38,7 +38,7 @@ public:
 			expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL] = soundEditor.currentValue;
 		}
 	}
-	bool isRelevant(Sound* sound, int whichThing) {
+	bool isRelevant(Sound* sound, int32_t whichThing) {
 		return soundEditor.navigationDepth == 1 || soundEditor.editingKit();
 	}
 };

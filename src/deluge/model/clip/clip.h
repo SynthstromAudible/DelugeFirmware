@@ -39,12 +39,12 @@ class ModelStackWithTimelineCounter;
 
 class Clip : public TimelineCounter {
 public:
-	Clip(int newType);
+	Clip(int32_t newType);
 	virtual ~Clip();
 	bool cancelAnyArming();
-	int getMaxZoom();
+	int32_t getMaxZoom();
 	virtual int32_t getMaxLength();
-	virtual int clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing = false) = 0;
+	virtual int32_t clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing = false) = 0;
 	void cloneFrom(Clip* other);
 	void beginInstance(Song* song, int32_t arrangementRecordPos);
 	void endInstance(int32_t arrangementRecordPos, bool evenIfOtherClip = false);
@@ -66,11 +66,11 @@ public:
 	bool isArrangementOnlyClip();
 	bool isActiveOnOutput();
 	virtual bool deleteSoundsWhichWontSound(Song* song);
-	virtual int appendClip(ModelStackWithTimelineCounter* thisModelStack,
+	virtual int32_t appendClip(ModelStackWithTimelineCounter* thisModelStack,
 	                       ModelStackWithTimelineCounter* otherModelStack);
-	int resumeOriginalClipFromThisClone(ModelStackWithTimelineCounter* modelStackOriginal,
+	int32_t resumeOriginalClipFromThisClone(ModelStackWithTimelineCounter* modelStackOriginal,
 	                                    ModelStackWithTimelineCounter* modelStackClone);
-	virtual int transferVoicesToOriginalClipFromThisClone(ModelStackWithTimelineCounter* modelStackOriginal,
+	virtual int32_t transferVoicesToOriginalClipFromThisClone(ModelStackWithTimelineCounter* modelStackOriginal,
 	                                                      ModelStackWithTimelineCounter* modelStackClone) {
 		return NO_ERROR;
 	}
@@ -88,23 +88,23 @@ public:
 	                 bool shouldBackUpExpressionParamsToo =
 	                     true) = 0; // You're likely to want to call pickAnActiveClipIfPossible() after this
 
-	virtual int undoDetachmentFromOutput(ModelStackWithTimelineCounter* modelStack);
+	virtual int32_t undoDetachmentFromOutput(ModelStackWithTimelineCounter* modelStack);
 	virtual bool renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, TimelineView* editorScreen,
 	                               int32_t xScroll, uint32_t xZoom, uint8_t* image, uint8_t occupancyMask[],
-	                               bool addUndefinedArea = true, int noteRowIndexStart = 0,
-	                               int noteRowIndexEnd = 2147483647, int xStart = 0, int xEnd = kDisplayWidth,
+	                               bool addUndefinedArea = true, int32_t noteRowIndexStart = 0,
+	                               int32_t noteRowIndexEnd = 2147483647, int32_t xStart = 0, int32_t xEnd = kDisplayWidth,
 	                               bool allowBlur = true, bool drawRepeats = false);
-	virtual int
+	virtual int32_t
 	claimOutput(ModelStackWithTimelineCounter*
 	                modelStack) = 0; // To be called after Song loaded, to link to the relevant Output object
 	virtual void finishLinearRecording(ModelStackWithTimelineCounter* modelStack, Clip* nextPendingLoop = NULL,
-	                                   int buttonLatencyForTempolessRecord = 0) = 0;
-	virtual int beginLinearRecording(ModelStackWithTimelineCounter* modelStack, int buttonPressLatency) = 0;
+	                                   int32_t buttonLatencyForTempolessRecord = 0) = 0;
+	virtual int32_t beginLinearRecording(ModelStackWithTimelineCounter* modelStack, int32_t buttonPressLatency) = 0;
 	void drawUndefinedArea(int32_t localScroll, uint32_t, int32_t lengthToDisplay, uint8_t* image, uint8_t[],
-	                       int imageWidth, TimelineView* editorScreen, bool tripletsOnHere);
+	                       int32_t imageWidth, TimelineView* editorScreen, bool tripletsOnHere);
 	bool opportunityToBeginSessionLinearRecording(ModelStackWithTimelineCounter* modelStack, bool* newOutputCreated,
-	                                              int buttonPressLatency);
-	virtual Clip* cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStack, int newOverdubNature) = 0;
+	                                              int32_t buttonPressLatency);
+	virtual Clip* cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStack, int32_t newOverdubNature) = 0;
 	virtual bool getCurrentlyRecordingLinearly() = 0;
 	virtual bool currentlyScrollableAndZoomable() = 0;
 	virtual void clear(Action* action, ModelStackWithTimelineCounter* modelStack);
@@ -112,11 +112,11 @@ public:
 	void writeToFile(Song* song);
 	virtual void writeDataToFile(Song* song);
 	virtual char const* getXMLTag() = 0;
-	virtual int readFromFile(Song* song) = 0;
+	virtual int32_t readFromFile(Song* song) = 0;
 	void readTagFromFile(char const* tagName, Song* song, int32_t* readAutomationUpToPos);
 
 	virtual void copyBasicsFrom(Clip* otherClip);
-	void setupForRecordingAsAutoOverdub(Clip* existingClip, Song* song, int newOverdubNature);
+	void setupForRecordingAsAutoOverdub(Clip* existingClip, Song* song, int32_t newOverdubNature);
 	void outputChanged(ModelStackWithTimelineCounter* modelStack, Output* newOutput);
 	virtual bool isAbandonedOverdub() = 0;
 	virtual bool wantsToBeginLinearRecording(Song* song);
@@ -130,7 +130,7 @@ public:
 	bool possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* modelStack);
 	virtual void incrementPos(ModelStackWithTimelineCounter* modelStack, int32_t numTicks);
 	/// Return true if successfully shifted
-	virtual bool shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int amount) = 0;
+	virtual bool shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int32_t amount) = 0;
 
 	// ----- PlayPositionCounter implementation -------
 	int32_t getLoopLength();
@@ -184,7 +184,7 @@ protected:
 	                  modelStack); // May change the TimelineCounter in the modelStack if new Clip got created
 	virtual bool
 	cloneOutput(ModelStackWithTimelineCounter* modelStack) = 0; // Returns whether a new Output was in fact created
-	int solicitParamManager(Song* song, ParamManager* newParamManager = NULL,
+	int32_t solicitParamManager(Song* song, ParamManager* newParamManager = NULL,
 	                        Clip* favourClipForCloningParamManager = NULL);
 	virtual void pingpongOccurred(ModelStackWithTimelineCounter* modelStack) {
 	}

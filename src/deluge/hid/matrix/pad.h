@@ -4,9 +4,9 @@
 
 class Pad {
 public:
-	int x, y;
+	int32_t x, y;
 
-	Pad(int x_, int y_);
+	Pad(int32_t x_, int32_t y_);
 	Pad(uint8_t value);
 	uint8_t toChar();
 	bool isPad();

@@ -54,8 +54,8 @@ public:
 	LFO lfo;
 
 	FilterSet filterSets[2];
-	int inputCharacteristics[2]; // Contains what used to be called noteCodeBeforeArpeggiation, and fromMIDIChannel
-	int noteCodeAfterArpeggiation;
+	int32_t inputCharacteristics[2]; // Contains what used to be called noteCodeBeforeArpeggiation, and fromMIDIChannel
+	int32_t noteCodeAfterArpeggiation;
 
 	uint32_t portaEnvelopePos;
 	int32_t portaEnvelopeMaxAmplitude;
@@ -81,50 +81,50 @@ public:
 	Voice* nextUnassigned;
 
 	void setAsUnassigned(ModelStackWithVoice* modelStack, bool deletingSong = false);
-	bool render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int numSamples, bool soundRenderingInStereo,
+	bool render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int32_t numSamples, bool soundRenderingInStereo,
 	            bool applyingPanAtVoiceLevel, uint32_t sourcesChanged, FilterSetConfig* filterSetConfig,
 	            int32_t externalPitchAdjust);
 
 	void calculatePhaseIncrements(ModelStackWithVoice* modelStack);
-	bool sampleZoneChanged(ModelStackWithVoice* modelStack, int s, MarkerType markerType);
-	bool noteOn(ModelStackWithVoice* modelStack, int newNoteCodeBeforeArpeggiation, int newNoteCodeAfterArpeggiation,
+	bool sampleZoneChanged(ModelStackWithVoice* modelStack, int32_t s, MarkerType markerType);
+	bool noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArpeggiation, int32_t newNoteCodeAfterArpeggiation,
 	            uint8_t velocity, uint32_t newSampleSyncLength, int32_t ticksLate, uint32_t samplesLate,
-	            bool resetEnvelopes, int fromMIDIChannel, const int16_t* mpeValues);
+	            bool resetEnvelopes, int32_t fromMIDIChannel, const int16_t* mpeValues);
 	void noteOff(ModelStackWithVoice* modelStack, bool allowReleaseStage = true);
 	bool doFastRelease(uint32_t releaseIncrement = 4096);
 	void randomizeOscPhases(Sound* sound);
-	void changeNoteCode(ModelStackWithVoice* modelStack, int newNoteCodeBeforeArpeggiation,
-	                    int newNoteCodeAfterArpeggiation, int newInputMIDIChannel, const int16_t* newMPEValues);
+	void changeNoteCode(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArpeggiation,
+	                    int32_t newNoteCodeAfterArpeggiation, int32_t newInputMIDIChannel, const int16_t* newMPEValues);
 	bool hasReleaseStage();
 	void unassignStuff();
 	uint32_t getPriorityRating();
-	void expressionEventImmediate(Sound* sound, int32_t voiceLevelValue, int s);
-	void expressionEventSmooth(int32_t newValue, int s);
+	void expressionEventImmediate(Sound* sound, int32_t voiceLevelValue, int32_t s);
+	void expressionEventSmooth(int32_t newValue, int32_t s);
 
 private:
 	//inline int32_t doFM(uint32_t *carrierPhase, uint32_t* lastShiftedPhase, uint32_t carrierPhaseIncrement, uint32_t phaseShift);
 
-	void renderOsc(int s, OscType type, int32_t amplitude, int32_t* thisSample, int32_t* bufferEnd, int numSamples,
+	void renderOsc(int32_t s, OscType type, int32_t amplitude, int32_t* thisSample, int32_t* bufferEnd, int32_t numSamples,
 	               uint32_t phaseIncrementNow, uint32_t phaseWidth, uint32_t* thisPhase, bool applyAmplitude,
 	               int32_t amplitudeIncrement, bool doOscSync, uint32_t resetterPhase, uint32_t resetterPhaseIncrement,
 	               uint32_t retriggerPhase, int32_t waveIndexIncrement);
-	void renderBasicSource(Sound* sound, ParamManagerForTimeline* paramManager, int s, int32_t* oscBuffer,
-	                       int numSamples, bool stereoBuffer, int32_t sourceAmplitude, bool* unisonPartBecameInactive,
+	void renderBasicSource(Sound* sound, ParamManagerForTimeline* paramManager, int32_t s, int32_t* oscBuffer,
+	                       int32_t numSamples, bool stereoBuffer, int32_t sourceAmplitude, bool* unisonPartBecameInactive,
 	                       int32_t overallPitchAdjust, bool doOscSync, uint32_t* oscSyncPos,
 	                       uint32_t* oscSyncPhaseIncrements, int32_t amplitudeIncrement, uint32_t* getPhaseIncrements,
 	                       bool getOutAfterPhaseIncrements, int32_t waveIndexIncrement);
 	bool adjustPitch(uint32_t* phaseIncrement, int32_t adjustment);
 
-	void renderSineWaveWithFeedback(int32_t* thisSample, int numSamples, uint32_t* phase, int32_t amplitude,
+	void renderSineWaveWithFeedback(int32_t* thisSample, int32_t numSamples, uint32_t* phase, int32_t amplitude,
 	                                uint32_t phaseIncrement, int32_t feedbackAmount, int32_t* lastFeedbackValue,
 	                                bool add, int32_t amplitudeIncrement);
-	void renderFMWithFeedback(int32_t* thisSample, int numSamples, int32_t* fmBuffer, uint32_t* phase,
+	void renderFMWithFeedback(int32_t* thisSample, int32_t numSamples, int32_t* fmBuffer, uint32_t* phase,
 	                          int32_t amplitude, uint32_t phaseIncrement, int32_t feedbackAmount,
 	                          int32_t* lastFeedbackValue, int32_t amplitudeIncrement);
-	void renderFMWithFeedbackAdd(int32_t* thisSample, int numSamples, int32_t* fmBuffer, uint32_t* phase,
+	void renderFMWithFeedbackAdd(int32_t* thisSample, int32_t numSamples, int32_t* fmBuffer, uint32_t* phase,
 	                             int32_t amplitude, uint32_t phaseIncrement, int32_t feedbackAmount,
 	                             int32_t* lastFeedbackValue, int32_t amplitudeIncrement);
 	bool areAllUnisonPartsInactive(ModelStackWithVoice* modelStackWithVoice);
 	void setupPorta(Sound* sound);
-	int32_t combineExpressionValues(Sound* sound, int whichExpressionDimension);
+	int32_t combineExpressionValues(Sound* sound, int32_t whichExpressionDimension);
 };

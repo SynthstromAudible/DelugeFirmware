@@ -32,7 +32,7 @@ public:
 	void unassignAllVoices();
 	bool readDrumTagFromFile(char const* tagName);
 
-	virtual int getNumChannels() = 0;
+	virtual int32_t getNumChannels() = 0;
 
 	virtual int8_t modEncoderAction(ModelStackWithThreeMainThings* modelStack, int8_t offset, uint8_t whichModEncoder);
 
@@ -45,6 +45,6 @@ public:
 	int8_t channelEncoderCurrentOffset;
 
 protected:
-	void modChange(ModelStackWithThreeMainThings* modelStack, int offset, int8_t* encoderOffset, uint8_t* value,
-	               int numValues);
+	void modChange(ModelStackWithThreeMainThings* modelStack, int32_t offset, int8_t* encoderOffset, uint8_t* value,
+	               int32_t numValues);
 };

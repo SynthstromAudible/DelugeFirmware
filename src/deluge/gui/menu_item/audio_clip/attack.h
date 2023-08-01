@@ -32,6 +32,6 @@ public:
 	void writeCurrentValue() {
 		((AudioClip*)currentSong->currentClip)->attack = (uint32_t)soundEditor.currentValue * 85899345 - 2147483648;
 	}
-	int getMaxValue() const { return 50; }
+	int32_t getMaxValue() const { return 50; }
 };
 } // namespace menu_item::audio_clip

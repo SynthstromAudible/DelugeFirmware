@@ -77,10 +77,10 @@ void SampleRecorder::detachSample() {
 
 	// If we were holding onto the reasons for the first couple of Clusters, release them now
 	if (keepingReasonsForFirstClusters) {
-		int numClustersToRemoveFor = std::min(kNumClustersLoadedAhead, sample->clusters.getNumElements());
-		numClustersToRemoveFor = std::min<int>(numClustersToRemoveFor, firstUnwrittenClusterIndex);
+		int32_t numClustersToRemoveFor = std::min(kNumClustersLoadedAhead, sample->clusters.getNumElements());
+		numClustersToRemoveFor = std::min<int32_t>(numClustersToRemoveFor, firstUnwrittenClusterIndex);
 
-		for (int l = 0; l < numClustersToRemoveFor; l++) {
+		for (int32_t l = 0; l < numClustersToRemoveFor; l++) {
 			Cluster* cluster = sample->clusters.getElement(l)->cluster;
 
 			// Some bug-hunting
@@ -93,7 +93,7 @@ void SampleRecorder::detachSample() {
 		}
 	}
 
-	int removeForClustersUntilIndex = currentRecordClusterIndex;
+	int32_t removeForClustersUntilIndex = currentRecordClusterIndex;
 	if (currentRecordCluster) {
 		removeForClustersUntilIndex++; // If there's a currentRecordCluster (usually will be if aborting), need to remove its "reason" too
 	}
@@ -118,8 +118,8 @@ void SampleRecorder::detachSample() {
 	sample->removeReason("E400");
 }
 
-int SampleRecorder::setup(int newNumChannels, AudioInputChannel newMode, bool newKeepingReasons,
-                          bool shouldRecordExtraMargins, AudioRecordingFolder newFolderID, int buttonPressLatency) {
+int32_t SampleRecorder::setup(int32_t newNumChannels, AudioInputChannel newMode, bool newKeepingReasons,
+                          bool shouldRecordExtraMargins, AudioRecordingFolder newFolderID, int32_t buttonPressLatency) {
 
 	if (!audioFileManager.ensureEnoughMemoryForOneMoreAudioFile()) {
 		return ERROR_INSUFFICIENT_RAM;
@@ -137,7 +137,7 @@ int SampleRecorder::setup(int newNumChannels, AudioInputChannel newMode, bool ne
 
 	sample = new (sampleMemory) Sample;
 	sample->addReason(); // Must call this so it's protected from stealing, before we call initialize().
-	int error = sample->initialize(1);
+	int32_t error = sample->initialize(1);
 	if (error) {
 gotError:
 		sample->~Sample();
@@ -248,10 +248,10 @@ gotError:
 	capturedTooMuch = false;
 
 	recordingNumChannels = newNumChannels;
-	int byteDepth = 3;
-	int lengthSec =
+	int32_t byteDepth = 3;
+	int32_t lengthSec =
 	    5; // Mark it as 5 seconds long initially. We'll update that later when we know how long it actually is
-	int lengthSamples = lengthSec * sample->sampleRate;
+	int32_t lengthSamples = lengthSec * sample->sampleRate;
 	audioDataLengthBytesAsWrittenToFile = lengthSamples * 3 * recordingNumChannels;
 
 	// Riff chunk -------------------------------------------------------
@@ -310,7 +310,7 @@ void SampleRecorder::abort() {
 }
 
 // Returns error if one occurred just now - not if one was already noted before
-int SampleRecorder::cardRoutine() {
+int32_t SampleRecorder::cardRoutine() {
 
 	// If aborted, delete the file.
 	if (status == RECORDER_STATUS_ABORTED) {
@@ -368,7 +368,7 @@ aborted:
 		return NO_ERROR;
 	}
 
-	int errorToReturn = NO_ERROR;
+	int32_t errorToReturn = NO_ERROR;
 
 	if (!hadCardError) {
 
@@ -479,10 +479,10 @@ allDoneForNow:
 	return errorToReturn;
 }
 
-int SampleRecorder::writeAnyCompletedClusters() {
+int32_t SampleRecorder::writeAnyCompletedClusters() {
 	while (firstUnwrittenClusterIndex < currentRecordClusterIndex) {
 
-		int error = writeOneCompletedCluster();
+		int32_t error = writeOneCompletedCluster();
 
 		// If there was an error, we can only return now after removing that reason, because we'd already incremented firstUnwrittenClusterIndex, and we can't leave that incremented without removing the reason
 		if (error) {
@@ -493,7 +493,7 @@ int SampleRecorder::writeAnyCompletedClusters() {
 	return NO_ERROR;
 }
 
-int SampleRecorder::writeOneCompletedCluster() {
+int32_t SampleRecorder::writeOneCompletedCluster() {
 	int32_t writingClusterIndex = firstUnwrittenClusterIndex;
 
 #if ALPHA_OR_BETA_VERSION
@@ -506,7 +506,7 @@ int SampleRecorder::writeOneCompletedCluster() {
 
 	firstUnwrittenClusterIndex++; // Have to increment this before writing, cos while writing, the audio routine will be called, and we need to be counting this cluster as "written", as in too late for it to be modified (by writing a final length to it)
 
-	int error = writeCluster(writingClusterIndex, audioFileManager.clusterSize);
+	int32_t error = writeCluster(writingClusterIndex, audioFileManager.clusterSize);
 
 	// We no longer have a reason to require this Cluster to be kept in memory
 	if (!keepingReasonsForFirstClusters || writingClusterIndex >= kNumClustersLoadedAhead) {
@@ -526,7 +526,7 @@ int SampleRecorder::writeOneCompletedCluster() {
 	return error;
 }
 
-int SampleRecorder::finalizeRecordedFile() {
+int32_t SampleRecorder::finalizeRecordedFile() {
 
 	if (ALPHA_OR_BETA_VERSION && (status == RECORDER_STATUS_ABORTED || hadCardError)) {
 		numericDriver.freezeWithError("E273");
@@ -535,9 +535,9 @@ int SampleRecorder::finalizeRecordedFile() {
 	Debug::println("finalizing");
 
 	// In the very rare case where we've already got between 1 and 5 bytes overhanging the end of our current cluster, we need to allocate a new one right now
-	int bytesTilClusterEnd = (uint32_t)clusterEndPos - (uint32_t)writePos;
+	int32_t bytesTilClusterEnd = (uint32_t)clusterEndPos - (uint32_t)writePos;
 	if (bytesTilClusterEnd < 0) {
-		int error = createNextCluster();
+		int32_t error = createNextCluster();
 
 		if (error == ERROR_MAX_FILE_SIZE_REACHED) {
 		} // So incredibly unlikely. But no real problem - we maybe just lose a byte or two
@@ -557,9 +557,9 @@ int SampleRecorder::finalizeRecordedFile() {
 	// And we probably need to write some of the final cluster(s) to file. (If it's NULL, it means that it couldn't be created, cos or RAM or file size limit.)
 	if (currentRecordCluster) {
 
-		int bytesToWrite = (uint32_t)writePos - (uint32_t)currentRecordCluster->data;
+		int32_t bytesToWrite = (uint32_t)writePos - (uint32_t)currentRecordCluster->data;
 		if (bytesToWrite > 0) { // Will always be true
-			int error = writeCluster(currentRecordClusterIndex, bytesToWrite);
+			int32_t error = writeCluster(currentRecordClusterIndex, bytesToWrite);
 			if (error) {
 				return error;
 			}
@@ -587,8 +587,8 @@ int SampleRecorder::finalizeRecordedFile() {
 	uint32_t dataLengthBeforeAction = sample->audioDataLengthBytes;
 
 	// Figure out what processing needs to happen on the recorded audio
-	int action = 0;
-	int lshiftAmount = 0;
+	int32_t action = 0;
+	int32_t lshiftAmount = 0;
 
 	if (allowFileAlterationAfter
 	    && idealFileSizeBeforeAction <= 67108864) { // Arbitrarily, don't alter files bigger than 64MB
@@ -637,7 +637,7 @@ int SampleRecorder::finalizeRecordedFile() {
 			return ERROR_SD_CARD;
 		}
 
-		int error = alterFile(action, lshiftAmount, idealFileSizeBeforeAction, dataLengthAfterAction);
+		int32_t error = alterFile(action, lshiftAmount, idealFileSizeBeforeAction, dataLengthAfterAction);
 		if (error) {
 			return error;
 		}
@@ -652,7 +652,7 @@ int SampleRecorder::finalizeRecordedFile() {
 			uint32_t correctLength =
 			    sample->audioDataStartPosBytes
 			    + sample->audioDataLengthBytes; // These were written to in totalSampleLengthNowKnown().
-			int error = truncateFileDownToSize(correctLength);
+			int32_t error = truncateFileDownToSize(correctLength);
 		}
 
 		FRESULT result = f_close(&file);
@@ -731,10 +731,10 @@ void SampleRecorder::updateDataLengthInFirstCluster(Cluster* cluster) {
 	}
 }
 
-extern int pendingGlobalMIDICommandNumClustersWritten;
+extern int32_t pendingGlobalMIDICommandNumClustersWritten;
 
 // You'll want to remove the "reason" after calling this
-int SampleRecorder::writeCluster(int32_t clusterIndex, int numBytes) {
+int32_t SampleRecorder::writeCluster(int32_t clusterIndex, int32_t numBytes) {
 	//Debug::println("writeCluster");
 
 	SampleCluster* sampleCluster = sample->clusters.getElement(clusterIndex);
@@ -754,7 +754,7 @@ int SampleRecorder::writeCluster(int32_t clusterIndex, int numBytes) {
 	return NO_ERROR;
 }
 
-int SampleRecorder::createNextCluster() {
+int32_t SampleRecorder::createNextCluster() {
 
 	Cluster* oldRecordCluster =
 	    currentRecordCluster; // Cos we're gonna set that to NULL just below here, but still want to be able to access the old one a bit further down
@@ -769,10 +769,10 @@ int SampleRecorder::createNextCluster() {
 	if (currentRecordClusterIndex >= (1 << (MAX_FILE_SIZE_MAGNITUDE - audioFileManager.clusterSizeMagnitude))) {
 
 		// See if we actually already had any bytes to write into that new cluster we can't have...
-		int bytesTilClusterEnd = (uint32_t)clusterEndPos - (uint32_t)writePos;
+		int32_t bytesTilClusterEnd = (uint32_t)clusterEndPos - (uint32_t)writePos;
 		if (bytesTilClusterEnd < 0) {
 			numSamplesCaptured--;
-			writePos -= (int)recordingNumChannels * 3;
+			writePos -= (int32_t)recordingNumChannels * 3;
 		}
 
 		totalSampleLengthNowKnown(numSamplesCaptured, numSamplesCaptured);
@@ -782,7 +782,7 @@ int SampleRecorder::createNextCluster() {
 	}
 
 	// We need to allocate our next Cluster
-	int error = sample->clusters.insertSampleClustersAtEnd(1);
+	int32_t error = sample->clusters.insertSampleClustersAtEnd(1);
 	if (error) {
 		return error;
 	}
@@ -806,7 +806,7 @@ int SampleRecorder::createNextCluster() {
 	memcpy(currentRecordCluster->data, &oldRecordCluster->data[audioFileManager.clusterSize],
 	       5); // 5 is the max number of bytes we could have overshot
 
-	int bytesOvershot = (uint32_t)writePos - (uint32_t)clusterEndPos;
+	int32_t bytesOvershot = (uint32_t)writePos - (uint32_t)clusterEndPos;
 
 	currentRecordCluster->loaded =
 	    true; // I think this is ok - mark it as loaded even though we're yet to record into it
@@ -828,23 +828,23 @@ void SampleRecorder::finishCapturing() {
 
 // Only call this after checking that status < RECORDER_STATUS_FINISHED_CAPTURING_BUT_STILL_WRITING
 // Watch out - this could be called during SD writing - including during cardRoutine() for this class!
-void SampleRecorder::feedAudio(int32_t* __restrict__ inputAddress, int numSamples, bool applyGain) {
+void SampleRecorder::feedAudio(int32_t* __restrict__ inputAddress, int32_t numSamples, bool applyGain) {
 
 	do {
-		int numSamplesThisCycle = numSamples;
+		int32_t numSamplesThisCycle = numSamples;
 		if (ALPHA_OR_BETA_VERSION && numSamplesThisCycle <= 0) {
 			numericDriver.freezeWithError("cccc");
 		}
 
 		// If haven't actually started recording yet cos we're compensating for lag...
 		if (numSamplesBeenRunning < (uint32_t)numSamplesToRunBeforeBeginningCapturing) {
-			int numSamplesTilBeginRecording = numSamplesToRunBeforeBeginningCapturing - numSamplesBeenRunning;
+			int32_t numSamplesTilBeginRecording = numSamplesToRunBeforeBeginningCapturing - numSamplesBeenRunning;
 			numSamplesThisCycle = std::min(numSamplesThisCycle, numSamplesTilBeginRecording);
 		}
 
 		// Or, if properly recording...
 		else {
-			int samplesLeft;
+			int32_t samplesLeft;
 
 			if (status == RECORDER_STATUS_CAPTURING_DATA_WAITING_TO_STOP) {
 
@@ -861,14 +861,14 @@ doFinishCapturing:
 				numericDriver.freezeWithError("bbbb");
 			}
 
-			int bytesPerSample = recordingNumChannels * 3;
-			int bytesWeWantToWrite = numSamplesThisCycle * bytesPerSample;
+			int32_t bytesPerSample = recordingNumChannels * 3;
+			int32_t bytesWeWantToWrite = numSamplesThisCycle * bytesPerSample;
 
-			int bytesTilClusterEnd = (uint32_t)clusterEndPos - (uint32_t)writePos;
+			int32_t bytesTilClusterEnd = (uint32_t)clusterEndPos - (uint32_t)writePos;
 
 			// If we need a new cluster right now...
 			if (bytesTilClusterEnd <= 0) {
-				int error = createNextCluster();
+				int32_t error = createNextCluster();
 				if (error == ERROR_MAX_FILE_SIZE_REACHED) {
 					goto doFinishCapturing;
 				}
@@ -882,7 +882,7 @@ doFinishCapturing:
 			}
 
 			if (bytesTilClusterEnd <= bytesWeWantToWrite - bytesPerSample) {
-				int samplesTilClusterEnd =
+				int32_t samplesTilClusterEnd =
 				    (uint16_t)(bytesTilClusterEnd - 1) / (uint8_t)bytesPerSample + 1; // Rounds up
 				numSamplesThisCycle = std::min(numSamplesThisCycle, samplesTilClusterEnd);
 			}
@@ -1026,7 +1026,7 @@ doFinishCapturing:
 	} while (numSamples);
 }
 
-void SampleRecorder::endSyncedRecording(int buttonLatencyForTempolessRecording) {
+void SampleRecorder::endSyncedRecording(int32_t buttonLatencyForTempolessRecording) {
 #if ALPHA_OR_BETA_VERSION
 	if (status == RECORDER_STATUS_CAPTURING_DATA_WAITING_TO_STOP) {
 		numericDriver.freezeWithError("E272");
@@ -1045,8 +1045,8 @@ void SampleRecorder::endSyncedRecording(int buttonLatencyForTempolessRecording) 
 	}
 #endif
 
-	int numMoreSamplesTilEndLoopPoint = numSamplesExtraToCaptureAtEndSyncingWise - buttonLatencyForTempolessRecording;
-	int numMoreSamplesToCapture = numMoreSamplesTilEndLoopPoint;
+	int32_t numMoreSamplesTilEndLoopPoint = numSamplesExtraToCaptureAtEndSyncingWise - buttonLatencyForTempolessRecording;
+	int32_t numMoreSamplesToCapture = numMoreSamplesTilEndLoopPoint;
 
 	Debug::print("buttonLatencyForTempolessRecording: ");
 	Debug::println(buttonLatencyForTempolessRecording);
@@ -1103,7 +1103,7 @@ bool SampleRecorder::inputHasNoRightChannel() {
 }
 
 // Only call this if currentRecordCluster points to a real cluster
-void SampleRecorder::setExtraBytesOnPreviousCluster(Cluster* currentCluster, int currentClusterIndex) {
+void SampleRecorder::setExtraBytesOnPreviousCluster(Cluster* currentCluster, int32_t currentClusterIndex) {
 	if (currentClusterIndex <= 0) {
 		return;
 	}
@@ -1116,12 +1116,12 @@ void SampleRecorder::setExtraBytesOnPreviousCluster(Cluster* currentCluster, int
 	}
 }
 
-int SampleRecorder::alterFile(int action, int lshiftAmount, uint32_t idealFileSizeBeforeAction,
+int32_t SampleRecorder::alterFile(int32_t action, int32_t lshiftAmount, uint32_t idealFileSizeBeforeAction,
                               uint64_t dataLengthAfterAction) {
 
 	Debug::println("altering file");
-	int currentReadClusterIndex = 0;
-	int currentWriteClusterIndex = 0;
+	int32_t currentReadClusterIndex = 0;
+	int32_t currentWriteClusterIndex = 0;
 
 	Cluster* currentReadCluster = sample->clusters.getElement(0)->getCluster(
 	    sample, 0, CLUSTER_LOAD_IMMEDIATELY); // Remember, this adds a "reason"
@@ -1132,7 +1132,7 @@ int SampleRecorder::alterFile(int action, int lshiftAmount, uint32_t idealFileSi
 	// Bug hunting - newly gotten Cluster
 	currentReadCluster->numReasonsHeldBySampleRecorder++;
 
-	int numClustersBeforeAction =
+	int32_t numClustersBeforeAction =
 	    ((idealFileSizeBeforeAction - 1) >> audioFileManager.clusterSizeMagnitude) + 1; // Rounds up
 	if (ALPHA_OR_BETA_VERSION && numClustersBeforeAction > sample->clusters.getNumElements()) {
 		numericDriver.freezeWithError("E286");
@@ -1190,7 +1190,7 @@ int SampleRecorder::alterFile(int action, int lshiftAmount, uint32_t idealFileSi
 	char* readPos = &currentReadCluster->data[sample->audioDataStartPosBytes];
 	char* writePos = &currentWriteCluster->data[sample->audioDataStartPosBytes];
 
-	unsigned int bytesFinalCluster = idealFileSizeBeforeAction & (audioFileManager.clusterSize - 1);
+	uint32_t bytesFinalCluster = idealFileSizeBeforeAction & (audioFileManager.clusterSize - 1);
 	if (bytesFinalCluster == 0) {
 		bytesFinalCluster = audioFileManager.clusterSize;
 	}
@@ -1232,7 +1232,7 @@ int SampleRecorder::alterFile(int action, int lshiftAmount, uint32_t idealFileSi
 		*(writePos++) = *(processedPos++);
 
 		// If need to advance write-head past the end of a cluster, then we'll write that current cluster to disk and carry on
-		int writeOvershot = (uint32_t)writePos - (uint32_t)&currentWriteCluster->data[audioFileManager.clusterSize];
+		int32_t writeOvershot = (uint32_t)writePos - (uint32_t)&currentWriteCluster->data[audioFileManager.clusterSize];
 		if (writeOvershot >= 0) {
 
 			// If reached very end of file, break
@@ -1340,7 +1340,7 @@ writeFailed:
 
 			Debug::println("read advance");
 
-			int overshot = (uint32_t)readPos - (uint32_t)&currentReadCluster->data[audioFileManager.clusterSize];
+			int32_t overshot = (uint32_t)readPos - (uint32_t)&currentReadCluster->data[audioFileManager.clusterSize];
 
 			// Some bug-hunting
 			if (!currentReadCluster->numReasonsHeldBySampleRecorder) {
@@ -1404,14 +1404,14 @@ writeFailed:
 
 	currentWriteCluster->loaded = true;
 
-	unsigned int bytesToWriteFinalCluster = (uint32_t)writePos - (uint32_t)currentWriteCluster->data;
+	uint32_t bytesToWriteFinalCluster = (uint32_t)writePos - (uint32_t)currentWriteCluster->data;
 
 	if (bytesToWriteFinalCluster) { // If there is in fact anything to flush out to the file / card...
 
 		// And from this final Cluster, give the Cluster *before that* the extra bytes from its start
 		setExtraBytesOnPreviousCluster(currentWriteCluster, currentWriteClusterIndex);
 
-		unsigned int numSectorsToWrite = ((bytesToWriteFinalCluster - 1) >> 9) + 1;
+		uint32_t numSectorsToWrite = ((bytesToWriteFinalCluster - 1) >> 9) + 1;
 		if (numSectorsToWrite > (audioFileManager.clusterSize >> 9)) {
 			numericDriver.freezeWithError("E239");
 		}
@@ -1449,7 +1449,7 @@ writeFailed:
 				return ERROR_SD_CARD;
 			}
 
-			int error = truncateFileDownToSize(dataLengthAfterAction + sample->audioDataStartPosBytes);
+			int32_t error = truncateFileDownToSize(dataLengthAfterAction + sample->audioDataStartPosBytes);
 			if (error) {
 				return error;
 			}
@@ -1476,15 +1476,15 @@ writeFailed:
 }
 
 // You must still have the file open when you call this
-int SampleRecorder::truncateFileDownToSize(uint32_t newFileSize) {
+int32_t SampleRecorder::truncateFileDownToSize(uint32_t newFileSize) {
 
 	// Update the Sample object to indicate the correct size. Do this before we risk errors below
 
 	uint64_t numClustersAfterAction = ((newFileSize - 1) >> audioFileManager.clusterSizeMagnitude) + 1;
 
-	int numToDelete = sample->clusters.getNumElements() - numClustersAfterAction;
+	int32_t numToDelete = sample->clusters.getNumElements() - numClustersAfterAction;
 	if (numToDelete > 0) {
-		for (int i = numClustersAfterAction; i < sample->clusters.getNumElements(); i++) {
+		for (int32_t i = numClustersAfterAction; i < sample->clusters.getNumElements(); i++) {
 			sample->clusters.getElement(i)->~SampleCluster();
 		}
 		sample->clusters.deleteAtIndex(numClustersAfterAction, numToDelete);

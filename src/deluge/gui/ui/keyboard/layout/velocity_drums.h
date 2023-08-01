@@ -21,8 +21,8 @@
 
 namespace keyboard::layout {
 
-constexpr int kMinDrumPadEdgeSize = 1;
-constexpr int kMaxDrumPadEdgeSize = 8;
+constexpr int32_t kMinDrumPadEdgeSize = 1;
+constexpr int32_t kMaxDrumPadEdgeSize = 8;
 
 class KeyboardLayoutVelocityDrums : KeyboardLayout {
 public:
@@ -30,8 +30,8 @@ public:
 	virtual ~KeyboardLayoutVelocityDrums() {}
 
 	virtual void evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]);
-	virtual void handleVerticalEncoder(int offset);
-	virtual void handleHorizontalEncoder(int offset, bool shiftEnabled);
+	virtual void handleVerticalEncoder(int32_t offset);
+	virtual void handleHorizontalEncoder(int32_t offset, bool shiftEnabled);
 	virtual void precalculate();
 
 	virtual void renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]);
@@ -41,13 +41,13 @@ public:
 	virtual bool supportsKit() { return true; }
 
 private:
-	inline uint8_t noteFromCoords(int x, int y) {
+	inline uint8_t noteFromCoords(int32_t x, int32_t y) {
 		uint8_t edgeSize = (uint32_t)getState().drums.edgeSize;
 		uint8_t padsPerRow = kDisplayWidth / edgeSize;
 		return (x / edgeSize) + ((y / edgeSize) * padsPerRow) + getState().drums.scrollOffset;
 	}
 
-	inline uint8_t intensityFromCoords(int x, int y) {
+	inline uint8_t intensityFromCoords(int32_t x, int32_t y) {
 		uint8_t edgeSize = getState().drums.edgeSize;
 		uint8_t localX = (x % edgeSize);
 		uint8_t localY = (y % edgeSize);

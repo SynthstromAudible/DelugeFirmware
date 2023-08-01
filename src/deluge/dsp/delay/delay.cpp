@@ -115,7 +115,7 @@ void Delay::prepareToBeginWriting() {
 	sizeLeftUntilBufferSwap = getAmountToWriteBeforeReadingBegins(); // If you change this, make sure you
 }
 
-int Delay::getAmountToWriteBeforeReadingBegins() {
+int32_t Delay::getAmountToWriteBeforeReadingBegins() {
 	return secondaryBuffer.size;
 }
 

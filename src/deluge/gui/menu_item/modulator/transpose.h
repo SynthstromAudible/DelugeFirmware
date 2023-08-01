@@ -31,10 +31,10 @@ public:
 	}
 
 	void writeCurrentValue() {
-		int currentValue = soundEditor.currentValue + 25600;
+		int32_t currentValue = soundEditor.currentValue + 25600;
 
-		int semitones = (currentValue + 50) / 100;
-		int cents = currentValue - semitones * 100;
+		int32_t semitones = (currentValue + 50) / 100;
+		int32_t cents = currentValue - semitones * 100;
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithSoundFlags* modelStack = soundEditor.getCurrentModelStack(modelStackMemory)->addSoundFlags();
@@ -43,7 +43,7 @@ public:
 		soundEditor.currentSound->setModulatorCents(soundEditor.currentSourceIndex, cents, modelStack);
 	}
 
-	bool isRelevant(Sound* sound, int whichThing) { return (sound->getSynthMode() == SynthMode::FM); }
+	bool isRelevant(Sound* sound, int32_t whichThing) { return (sound->getSynthMode() == SynthMode::FM); }
 };
 
 } // namespace menu_item::modulator

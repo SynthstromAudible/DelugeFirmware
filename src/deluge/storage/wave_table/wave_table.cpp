@@ -49,7 +49,7 @@ WaveTable::~WaveTable() {
 }
 
 void WaveTable::deleteAllBandsAndData() {
-	for (int b = 0; b < bands.getNumElements(); b++) {
+	for (int32_t b = 0; b < bands.getNumElements(); b++) {
 		WaveTableBand* band = (WaveTableBand*)bands.getElementAddress(b);
 		band->~WaveTableBand();
 	}
@@ -57,7 +57,7 @@ void WaveTable::deleteAllBandsAndData() {
 }
 
 void WaveTable::bandDataBeingStolen(WaveTableBandData* bandData) {
-	for (int b = 0; b < bands.getNumElements(); b++) {
+	for (int32_t b = 0; b < bands.getNumElements(); b++) {
 		WaveTableBand* band = (WaveTableBand*)bands.getElementAddress(b);
 		if (band->data == bandData) {
 			band->data = NULL;
@@ -88,12 +88,12 @@ void dft_r2c(ne10_fft_cpx_int32_t* __restrict__ out, int32_t const* __restrict__
 
 		// We compare that input value separately to each input value again...
 		do {
-			int whichValueSine = angle >> (numBitsInInput - numBitsInTableSize);
+			int32_t whichValueSine = angle >> (numBitsInInput - numBitsInTableSize);
 			whichValueSine &= (1 << numBitsInTableSize) - 1;
 			int32_t sineValue1 = sineWaveSmall[whichValueSine];
 			int32_t sineValue2 = sineWaveSmall[whichValueSine + 1];
 
-			int whichValueCos = whichValueSine + (1 << (numBitsInTableSize - 2));
+			int32_t whichValueCos = whichValueSine + (1 << (numBitsInTableSize - 2));
 			whichValueCos &= (1 << numBitsInTableSize) - 1;
 			int32_t cosValue1 = sineWaveSmall[whichValueCos];
 			int32_t cosValue2 = sineWaveSmall[whichValueCos + 1];
@@ -101,10 +101,10 @@ void dft_r2c(ne10_fft_cpx_int32_t* __restrict__ out, int32_t const* __restrict__
 			int32_t inputValueReal = *realReadPos;
 
 			uint32_t shifted = angle << lshiftAmount;
-			int strength2 = shifted & 65535;
+			int32_t strength2 = shifted & 65535;
 
-			int sineDiff = sineValue2 - sineValue1;
-			int cosDiff = cosValue2 - cosValue1;
+			int32_t sineDiff = sineValue2 - sineValue1;
+			int32_t cosDiff = cosValue2 - cosValue1;
 			int32_t sineValue = (sineValue1 << 16) + sineDiff * strength2;
 			int32_t cosValue = (cosValue1 << 16) + cosDiff * strength2;
 
@@ -136,8 +136,8 @@ void dft_r2c(ne10_fft_cpx_int32_t* __restrict__ out, int32_t const* __restrict__
 #define WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE 7 // That's in samples - it'll be twice as many bytes.
 #define SHOULD_DISCARD_WAVETABLE_DATA_WITH_INSUFFICIENT_HF_CONTENT 0
 
-int WaveTable::setup(Sample* sample, int rawFileCycleSize, uint32_t audioDataStartPosBytes,
-                     uint32_t audioDataLengthBytes, int byteDepth, int rawDataFormat, WaveTableReader* reader) {
+int32_t WaveTable::setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audioDataStartPosBytes,
+                     uint32_t audioDataLengthBytes, int32_t byteDepth, int32_t rawDataFormat, WaveTableReader* reader) {
 	AudioEngine::logAction("WaveTable::setup");
 
 	uint32_t originalSampleLengthInSamples;
@@ -167,7 +167,7 @@ int WaveTable::setup(Sample* sample, int rawFileCycleSize, uint32_t audioDataSta
 		return ERROR_FILE_NOT_LOADABLE_AS_WAVETABLE; // See comment on minimum FFT size - click thru to WAVETABLE_MIN_CYCLE_SIZE.
 	}
 
-	int initialBandCycleMagnitude = getMagnitude(rawFileCycleSize);
+	int32_t initialBandCycleMagnitude = getMagnitude(rawFileCycleSize);
 	bool rawFileCycleSizeIsAPowerOfTwo = (rawFileCycleSize == (1 << initialBandCycleMagnitude));
 
 	// If cycle size isn't a power of two...
@@ -219,7 +219,7 @@ tryGettingFFTConfig:
 		*/
 	}
 
-	int initialBandCycleSizeNoDuplicates =
+	int32_t initialBandCycleSizeNoDuplicates =
 	    1
 	    << initialBandCycleMagnitude; // This will usually be the same as rawFileCycleSize, but not when that's not a power of two.
 
@@ -228,7 +228,7 @@ tryGettingFFTConfig:
 	// numBands is set such that the "smallest" band will have 8 samples per cycle. Not 4 - because NE10 can't do FFTs that small unless we enable its additional C code,
 	// which would take up program size for little advantage.
 	{
-		int numBands =
+		int32_t numBands =
 		    fftCFGForInitialBand ? ((initialBandCycleMagnitude - 2) >> (NUM_OCTAVES_BETWEEN_WAVETABLE_BANDS - 1)) : 1;
 
 		error = bands.insertAtIndex(
@@ -252,12 +252,12 @@ gotError2:
 	    routineWithClusterLoading(); // TODO: the routine calls in this function might be more than needed - I didn't profile very closely.
 	AudioEngine::logAction("about to set up bands");
 
-	for (int b = 0; b < bands.getNumElements(); b++) {
-		int cycleSizeNoDuplicates = initialBandCycleSizeNoDuplicates >> (b * NUM_OCTAVES_BETWEEN_WAVETABLE_BANDS);
+	for (int32_t b = 0; b < bands.getNumElements(); b++) {
+		int32_t cycleSizeNoDuplicates = initialBandCycleSizeNoDuplicates >> (b * NUM_OCTAVES_BETWEEN_WAVETABLE_BANDS);
 
-		int bandSizeSamplesWithDuplicates =
+		int32_t bandSizeSamplesWithDuplicates =
 		    numCycles * (cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE);
-		int bandSizeBytesWithDuplicates = bandSizeSamplesWithDuplicates << 1; // All bands contain just 16-bit data.
+		int32_t bandSizeBytesWithDuplicates = bandSizeSamplesWithDuplicates << 1; // All bands contain just 16-bit data.
 		    // Ironically we'll even do that if the source file was just 8-bit, but that's really uncommon.
 		void* bandDataMemory =
 		    GeneralMemoryAllocator::get().alloc(bandSizeBytesWithDuplicates + sizeof(WaveTableBandData), NULL, false,
@@ -290,10 +290,10 @@ gotError2:
 	AudioEngine::routineWithClusterLoading();
 	AudioEngine::logAction("allocating working memory");
 
-	// Create the temporary memory where we'll store the 32-bit int version of the current cycle being read, to perform the FFT on.
+	// Create the temporary memory where we'll store the 32-bit int32_t version of the current cycle being read, to perform the FFT on.
 	// This will also be used for outputting the time-domain cycle data back out of the inverse FFT, so ensure it's big enough for that if our biggest band is bigger
 	// than the cycle size in the file (i.e. if that's not a power-of-two).
-	int currentCycleMemorySize = std::max(rawFileCycleSize, initialBandCycleSizeNoDuplicates);
+	int32_t currentCycleMemorySize = std::max(rawFileCycleSize, initialBandCycleSizeNoDuplicates);
 	int32_t* __restrict__ currentCycleInt32 = (int32_t*)GeneralMemoryAllocator::get().alloc(
 	    currentCycleMemorySize * sizeof(int32_t), NULL, false, true); // Internal RAM is good, and it's only temporary
 	if (!currentCycleInt32) {
@@ -327,8 +327,8 @@ gotError5:
 	// will be overwritten, just since we're using the same code as for power-of-two.
 	int16_t* __restrict__ initialBandWritePos = initialBand->dataAccessAddress;
 
-	int clusterIndex = audioDataStartPosBytes >> audioFileManager.clusterSizeMagnitude;
-	int byteIndexWithinCluster = audioDataStartPosBytes & (audioFileManager.clusterSize - 1);
+	int32_t clusterIndex = audioDataStartPosBytes >> audioFileManager.clusterSizeMagnitude;
+	int32_t byteIndexWithinCluster = audioDataStartPosBytes & (audioFileManager.clusterSize - 1);
 
 	if (!sample) {
 		reader->jumpForwardToBytePos(
@@ -344,7 +344,7 @@ gotError5:
 	uint32_t bitMask = 0xFFFFFFFF << ((4 - byteDepth) * 8);
 
 	Cluster* cluster = NULL;
-	int clusterIndexCurrentlyLoaded = -1; // Initially, none is loaded yet.
+	int32_t clusterIndexCurrentlyLoaded = -1; // Initially, none is loaded yet.
 
 	uint32_t startedBandsYet = 0;
 
@@ -355,7 +355,7 @@ gotError5:
 	bool needToMisalignData = (rawDataFormat == RAW_DATA_FINE || rawDataFormat == RAW_DATA_UNSIGNED_8);
 
 	// For each wave cycle...
-	for (int cycleIndex = 0; cycleIndex < numCycles; cycleIndex++) {
+	for (int32_t cycleIndex = 0; cycleIndex < numCycles; cycleIndex++) {
 
 		AudioEngine::logAction("new cycle began");
 		AudioEngine::routineWithClusterLoading();
@@ -365,7 +365,7 @@ gotError5:
 		    initialBandWritePos; // Store this so we can refer to it at the end of the cycle, for duplicating values
 
 		int32_t* cycleBufferDestination = currentCycleInt32;
-		int sourceBytesLeftToCopyThisCycle = rawFileCycleSize * byteDepth;
+		int32_t sourceBytesLeftToCopyThisCycle = rawFileCycleSize * byteDepth;
 
 		// Read some clusters of audio data - either from existing Sample in memory, or from file.
 		do {
@@ -428,7 +428,7 @@ gotError5:
 			// If previous Cluster had overlapping sample at end...
 			if (byteIndexWithinCluster < 0) {
 
-				int byteIndexWithinClusterMisaligned = byteIndexWithinCluster;
+				int32_t byteIndexWithinClusterMisaligned = byteIndexWithinCluster;
 				if (needToMisalignData) {
 					byteIndexWithinClusterMisaligned = byteIndexWithinClusterMisaligned - 4 + byteDepth;
 				}
@@ -469,7 +469,7 @@ gotError5:
 			// Stop before we get to the final sample that overlaps the end of the cluster, if that happens.
 			sourceStopAt = sourceStopAt - byteDepth + 1;
 
-			int numSourceBytesLookingAtThisCluster = (uint32_t)sourceStopAt - (uint32_t)source;
+			int32_t numSourceBytesLookingAtThisCluster = (uint32_t)sourceStopAt - (uint32_t)source;
 			if (numSourceBytesLookingAtThisCluster > sourceBytesLeftToCopyThisCycle) {
 				sourceStopAt = source + sourceBytesLeftToCopyThisCycle;
 			}
@@ -489,9 +489,9 @@ gotError5:
 				source += byteDepth;
 			}
 
-			int bytesJustWritten = (uint32_t)initialBandWritePos - (uint32_t)bandDestinationStartedAt;
-			int samplesJustCopied = bytesJustWritten >> 1;
-			int sourceBytesJustRead = samplesJustCopied * byteDepth;
+			int32_t bytesJustWritten = (uint32_t)initialBandWritePos - (uint32_t)bandDestinationStartedAt;
+			int32_t samplesJustCopied = bytesJustWritten >> 1;
+			int32_t sourceBytesJustRead = samplesJustCopied * byteDepth;
 			sourceBytesLeftToCopyThisCycle -= sourceBytesJustRead;
 			byteIndexWithinCluster += sourceBytesJustRead;
 
@@ -527,7 +527,7 @@ gotError5:
 			// Because the raw file cycle size was a bit smaller than the initial band cycle size that we're going to be expanding it out to,
 			// we're going to be feeding a slightly wider bit of (freq domain) data back into the FFT to get time domain data (below), so have to clear the
 			// extra memory part to zeroes now.
-			for (int i = (rawFileCycleSize >> 1) + 1; i <= (initialBandCycleSizeNoDuplicates >> 1); i++) {
+			for (int32_t i = (rawFileCycleSize >> 1) + 1; i <= (initialBandCycleSizeNoDuplicates >> 1); i++) {
 				frequencyDomainData[i].r = 0;
 				frequencyDomainData[i].i = 0;
 			}
@@ -546,7 +546,7 @@ gotError5:
 		else {
 
 			// Write the duplicate values for this initial band - do this now, since we already have the final, useable time-domain data for it.
-			for (int i = 0; i < WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE; i++) {
+			for (int32_t i = 0; i < WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE; i++) {
 				*(initialBandWritePos++) = *(nativeBandCycleStartPos++);
 			}
 
@@ -564,11 +564,11 @@ gotError5:
 		AudioEngine::logAction("scanning freq data");
 
 		int32_t biggestValue = 0;
-		int biggestValueIndex;
-		int highestSignificantHarmonicIndex = 0;
+		int32_t biggestValueIndex;
+		int32_t highestSignificantHarmonicIndex = 0;
 
 		// Scan the frequency domain of this native cycle, as loaded from the raw file (so not necessary power-of-two size), looking at harmonics
-		for (int i = 1; i <= (rawFileCycleSize >> 1); i++) {
+		for (int32_t i = 1; i <= (rawFileCycleSize >> 1); i++) {
 			int32_t thisValue = (fastPythag(frequencyDomainData[i].r, frequencyDomainData[i].i) >> 6)
 			                    * i; // Slope the high frequencies up, 6dB per octave, for fair comparison.
 			if (thisValue > biggestValue) {
@@ -583,7 +583,7 @@ gotError5:
 		}
 
 		WaveTableBand* band = initialBand;
-		int b = 0;
+		int32_t b = 0;
 
 		// If there's no harmonic content high-enough frequency to warrant this band existing...
 		if (SHOULD_DISCARD_WAVETABLE_DATA_WITH_INSUFFICIENT_HF_CONTENT
@@ -620,7 +620,7 @@ gotError5:
 				if (highestSignificantHarmonicIndex > (band->cycleSizeNoDuplicates >> 1)) {
 					highestSignificantHarmonicIndex = 0;
 
-					for (int i = (band->cycleSizeNoDuplicates >> 1); i >= 1; i--) {
+					for (int32_t i = (band->cycleSizeNoDuplicates >> 1); i >= 1; i--) {
 						int32_t pythagValue = fastPythag(frequencyDomainData[i].r, frequencyDomainData[i].i);
 						int32_t thisValue = (pythagValue >> 6)
 						                    * i; // Slope the high frequencies up, 6dB per octave, for fair comparison.
@@ -691,7 +691,7 @@ transformBandToTimeDomain:
 			                             * cycleIndex];
 
 			// Copy 32-bit time domain data to final 16-bit destination
-			for (int i = 0; i < band->cycleSizeNoDuplicates; i++) {
+			for (int32_t i = 0; i < band->cycleSizeNoDuplicates; i++) {
 				destination[i] = signed_saturate<32 - 16>(
 				    currentCycleInt32[i]
 				    >> (16 - MAGNITUDE_REDUCTION_FOR_FFT
@@ -699,7 +699,7 @@ transformBandToTimeDomain:
 			}
 
 			// And copy the duplicate values again
-			for (int i = 0; i < WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE; i++) {
+			for (int32_t i = 0; i < WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE; i++) {
 				destination[i + band->cycleSizeNoDuplicates] = destination[i];
 			}
 		}
@@ -720,7 +720,7 @@ transformBandToTimeDomain:
 	}
 
 	if (numCycles > 1) {
-		int numCycleTransitions = numCycles - 1;
+		int32_t numCycleTransitions = numCycles - 1;
 
 		numCycleTransitionsNextPowerOf2Magnitude = getMagnitudeOld(numCycleTransitions);
 		numCycleTransitionsNextPowerOf2 = 1 << numCycleTransitionsNextPowerOf2Magnitude;
@@ -739,8 +739,8 @@ transformBandToTimeDomain:
 	Debug::print("initial band size after trimming: ");
 	Debug::println((initialBand->toCycleNumber - initialBand->fromCycleNumber)
 	               * (initialBand->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE) * 2);
-	int total = 0;
-	for (int b = 1; b < bands.getNumElements(); b++) {
+	int32_t total = 0;
+	for (int32_t b = 1; b < bands.getNumElements(); b++) {
 		WaveTableBand* band = (WaveTableBand*)bands.getElementAddress(b);
 		total += (band->toCycleNumber - band->fromCycleNumber)
 		         * (band->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE) * 2;
@@ -749,7 +749,7 @@ transformBandToTimeDomain:
 	Debug::println(total);
 
 	// Dispose of bands that didn't end up getting used, or such portions of their memory.
-	for (int b = bands.getNumElements() - 1; b >= 0; b--) { // Traverse backwards because we might delete elements.
+	for (int32_t b = bands.getNumElements() - 1; b >= 0; b--) { // Traverse backwards because we might delete elements.
 		WaveTableBand* band = (WaveTableBand*)bands.getElementAddress(b);
 
 		// Delete whole band if no data needed
@@ -770,7 +770,7 @@ transformBandToTimeDomain:
 				}
 				Debug::print("deleting num cycles from right-hand side: ");
 				Debug::println(numCycles - band->toCycleNumber);
-				int newSize = band->toCycleNumber
+				int32_t newSize = band->toCycleNumber
 				                  * (band->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE)
 				                  * sizeof(int16_t)
 				              + sizeof(WaveTableBandData);
@@ -798,18 +798,18 @@ WaveTable::doRenderingLoopSingleCycle(int32_t* __restrict__ thisSample, int32_t 
                                       WaveTableBand* __restrict__ bandHere, uint32_t phase, uint32_t phaseIncrement,
                                       const int16_t* __restrict__ kernel) {
 
-	int bandCycleSizeMagnitude = bandHere->cycleSizeMagnitude;
+	int32_t bandCycleSizeMagnitude = bandHere->cycleSizeMagnitude;
 	int16_t const* __restrict__ table = bandHere->dataAccessAddress;
 
 	do {
 		phase += phaseIncrement;
 
 		// Work out the location of the waveform data in memory
-		int whichValueCentral = (phase >> (32 - bandCycleSizeMagnitude));
-		unsigned int whichValue = whichValueCentral - (kInterpolationMaxNumSamples >> 1);
-		int whichValueStored[2];
+		int32_t whichValueCentral = (phase >> (32 - bandCycleSizeMagnitude));
+		uint32_t whichValue = whichValueCentral - (kInterpolationMaxNumSamples >> 1);
+		int32_t whichValueStored[2];
 
-		for (int i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
+		for (int32_t i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
 			whichValue = whichValue & ((1 << bandCycleSizeMagnitude) - 1);
 			whichValueStored[i] = whichValue;
 			whichValue += 8;
@@ -817,7 +817,7 @@ WaveTable::doRenderingLoopSingleCycle(int32_t* __restrict__ thisSample, int32_t 
 
 		// Grab the actual waveform data from memory
 		int16x8x2_t interpolationBuffer;
-		for (int i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
+		for (int32_t i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
 			interpolationBuffer.val[i] = vld1q_s16(&table[whichValueStored[i]]);
 		}
 
@@ -831,7 +831,7 @@ WaveTable::doRenderingLoopSingleCycle(int32_t* __restrict__ thisSample, int32_t 
 		        - bandCycleSizeMagnitude); // Warning - rshiftAmount is 13, so bandCycleSizeMagnitude better not be bigger than that!
 		int16_t strength2 = rshifted & 32767;
 
-		int windowedSincTableLineOffsetBytes =
+		int32_t windowedSincTableLineOffsetBytes =
 		    ((uint32_t)-phase)
 		    >> (32 + kInterpolationMaxNumSamplesMagnitude - numBitsInWindowedSyncTableSize - 5
 		        - bandCycleSizeMagnitude); // The -5 is for 32 bytes (16 samples) per line in the windowed sinc table.
@@ -844,14 +844,14 @@ WaveTable::doRenderingLoopSingleCycle(int32_t* __restrict__ thisSample, int32_t 
 		/*
 		int16x8x4_t windowedSincReadValues = vld4q_s16(sincKernelReadPos); // Insanely, I could not get this to work. Tried reading 2 values, too. I just get some noise from final output.
 
-		for (int i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
+		for (int32_t i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
 			int16x8_t difference = vsubq_s16(windowedSincReadValues.val[i + 2], windowedSincReadValues.val[i]);
 			int16x8_t multipliedDifference = vqdmulhq_n_s16(difference, strength2);
 			kernelVector[i] = vaddq_s16(windowedSincReadValues.val[i], multipliedDifference);
 		}
 		*/
 
-		for (int i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
+		for (int32_t i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
 			int16x8_t value1 = vld1q_s16(sincKernelReadPos + (i << 3));
 			int16x8_t value2 = vld1q_s16(sincKernelReadPos + 16 + (i << 3));
 
@@ -862,7 +862,7 @@ WaveTable::doRenderingLoopSingleCycle(int32_t* __restrict__ thisSample, int32_t 
 
 		// Apply the windowed sinc kernel to the waveform data
 		int32x4_t multiplied;
-		for (int i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
+		for (int32_t i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
 
 			if (i == 0) {
 				multiplied = vmull_s16(vget_low_s16(kernelVector[i]), vget_low_s16(interpolationBuffer.val[i]));
@@ -889,13 +889,13 @@ WaveTable::doRenderingLoopSingleCycle(int32_t* __restrict__ thisSample, int32_t 
 #define NUM_BITS_IN_WAVE_INDEX_SCALED_INPUT 30
 
 __attribute__((optimize("unroll-loops"))) void
-WaveTable::doRenderingLoop(int32_t* __restrict__ thisSample, int32_t const* bufferEnd, int firstCycleNumber,
+WaveTable::doRenderingLoop(int32_t* __restrict__ thisSample, int32_t const* bufferEnd, int32_t firstCycleNumber,
                            WaveTableBand* __restrict__ bandHere, uint32_t phase, uint32_t phaseIncrement,
                            uint32_t crossCycleStrength2, int32_t crossCycleStrength2Increment,
                            const int16_t* __restrict__ kernel) {
 
-	int bandCycleSizeMagnitude = bandHere->cycleSizeMagnitude;
-	int bandCycleSizeWithDuplicates = bandHere->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE;
+	int32_t bandCycleSizeMagnitude = bandHere->cycleSizeMagnitude;
+	int32_t bandCycleSizeWithDuplicates = bandHere->cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE;
 	const int16_t* bandData = bandHere->dataAccessAddress;
 	int16_t const* __restrict__ table1 = &bandData[firstCycleNumber * bandCycleSizeWithDuplicates];
 	int16_t const* __restrict__ table2 = table1 + bandCycleSizeWithDuplicates;
@@ -904,11 +904,11 @@ WaveTable::doRenderingLoop(int32_t* __restrict__ thisSample, int32_t const* buff
 		phase += phaseIncrement;
 
 		// Work out the location of the waveform data in memory
-		int whichValueCentral = (phase >> (32 - bandCycleSizeMagnitude));
-		unsigned int whichValue = whichValueCentral - (kInterpolationMaxNumSamples >> 1);
-		int whichValueStored[2];
+		int32_t whichValueCentral = (phase >> (32 - bandCycleSizeMagnitude));
+		uint32_t whichValue = whichValueCentral - (kInterpolationMaxNumSamples >> 1);
+		int32_t whichValueStored[2];
 
-		for (int i = 0; i < kInterpolationMaxNumSamples >> 3; i++) {
+		for (int32_t i = 0; i < kInterpolationMaxNumSamples >> 3; i++) {
 			whichValue = whichValue & ((1 << bandCycleSizeMagnitude) - 1);
 			whichValueStored[i] = whichValue;
 			whichValue += 8;
@@ -916,10 +916,10 @@ WaveTable::doRenderingLoop(int32_t* __restrict__ thisSample, int32_t const* buff
 
 		// Grab the actual waveform data from memory, for both cycles that we need for this sample
 		int16x8x2_t interpolationBuffer[2];
-		for (int i = 0; i < kInterpolationMaxNumSamples >> 3; i++) {
+		for (int32_t i = 0; i < kInterpolationMaxNumSamples >> 3; i++) {
 			interpolationBuffer[0].val[i] = vld1q_s16(&table1[whichValueStored[i]]);
 		}
-		for (int i = 0; i < kInterpolationMaxNumSamples >> 3; i++) {
+		for (int32_t i = 0; i < kInterpolationMaxNumSamples >> 3; i++) {
 			interpolationBuffer[1].val[i] = vld1q_s16(&table2[whichValueStored[i]]);
 		}
 
@@ -933,7 +933,7 @@ WaveTable::doRenderingLoop(int32_t* __restrict__ thisSample, int32_t const* buff
 		        - bandCycleSizeMagnitude); // Warning - rshiftAmount is 13, so bandCycleSizeMagnitude better not be bigger than that!
 		int16_t strength2 = rshifted & 32767;
 
-		int windowedSincTableLineOffsetBytes =
+		int32_t windowedSincTableLineOffsetBytes =
 		    ((uint32_t)-phase)
 		    >> (32 + kInterpolationMaxNumSamplesMagnitude - numBitsInWindowedSyncTableSize - 5
 		        - bandCycleSizeMagnitude); // The -5 is for 32 bytes (16 samples) per line in the windowed sinc table.
@@ -946,14 +946,14 @@ WaveTable::doRenderingLoop(int32_t* __restrict__ thisSample, int32_t const* buff
 		/*
 		int16x8x4_t windowedSincReadValues = vld4q_s16(sincKernelReadPos); // Insanely, I could not get this to work. Tried reading 2 values, too. I just get some noise from final output.
 
-		for (int i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
+		for (int32_t i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
 			int16x8_t difference = vsubq_s16(windowedSincReadValues.val[i + 2], windowedSincReadValues.val[i]);
 			int16x8_t multipliedDifference = vqdmulhq_n_s16(difference, strength2);
 			kernelVector[i] = vaddq_s16(windowedSincReadValues.val[i], multipliedDifference);
 		}
 		*/
 
-		for (int i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
+		for (int32_t i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
 			int16x8_t value1 = vld1q_s16(sincKernelReadPos + (i << 3));
 			int16x8_t value2 = vld1q_s16(sincKernelReadPos + 16 + (i << 3));
 
@@ -964,9 +964,9 @@ WaveTable::doRenderingLoop(int32_t* __restrict__ thisSample, int32_t const* buff
 
 		// Apply the windowed sinc kernel to the waveform data
 		int32x2_t twosies[2];
-		for (int c = 0; c < 2; c++) {
+		for (int32_t c = 0; c < 2; c++) {
 			int32x4_t multiplied;
-			for (int i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
+			for (int32_t i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
 
 				if (i == 0) {
 					multiplied = vmull_s16(vget_low_s16(kernelVector[i]), vget_low_s16(interpolationBuffer[c].val[i]));
@@ -1001,7 +1001,7 @@ WaveTable::doRenderingLoop(int32_t* __restrict__ thisSample, int32_t const* buff
 }
 
 const int16_t* getKernel(int32_t phaseIncrement, int32_t bandMaxPhaseIncrement) {
-	int whichKernel = 0;
+	int32_t whichKernel = 0;
 #if NUM_OCTAVES_BETWEEN_WAVETABLE_BANDS == 2
 	if (phaseIncrement >= (band->maxPhaseIncrement * 0.65))
 		whichKernel = 3;
@@ -1028,13 +1028,13 @@ const int16_t* getKernel(int32_t phaseIncrement, int32_t bandMaxPhaseIncrement) 
 }
 
 // waveIndex comes in as a 31-bit number
-uint32_t WaveTable::render(int32_t* __restrict__ outputBuffer, int numSamples, uint32_t phaseIncrement, uint32_t phase,
+uint32_t WaveTable::render(int32_t* __restrict__ outputBuffer, int32_t numSamples, uint32_t phaseIncrement, uint32_t phase,
                            bool doOscSync, uint32_t resetterPhaseThisCycle, uint32_t resetterPhaseIncrement,
                            uint32_t resetterDivideByPhaseIncrement, uint32_t retriggerPhase, int32_t waveIndex,
                            int32_t waveIndexIncrement) {
 
 	// Decide on ideal band
-	int bHere = bands.search(phaseIncrement, GREATER_OR_EQUAL);
+	int32_t bHere = bands.search(phaseIncrement, GREATER_OR_EQUAL);
 	if (bHere >= bands.getNumElements()) {
 		bHere--;
 	}
@@ -1042,39 +1042,39 @@ uint32_t WaveTable::render(int32_t* __restrict__ outputBuffer, int numSamples, u
 
 	// If we're an actual wave table with more than one cycle...
 	if (numCycles > 1) {
-		int numSamplesLeftToDo = numSamples;
+		int32_t numSamplesLeftToDo = numSamples;
 
 		// Haven't yet investigated why, but we do need to use the "rounded" multiply functions here, otherwise get a click when moving to wav pos 0 if numSamples is 32 (when testing performance).
 		int32_t waveIndexScaled = multiply_32x32_rshift32_rounded(waveIndexMultiplier, waveIndex);
 		int32_t waveIndexIncrementScaled = multiply_32x32_rshift32_rounded(waveIndexMultiplier, waveIndexIncrement);
 
-		int lshiftAmountToGetCrossCycleStrength =
+		int32_t lshiftAmountToGetCrossCycleStrength =
 		    32 + numCycleTransitionsNextPowerOf2Magnitude - NUM_BITS_IN_WAVE_INDEX_SCALED_INPUT; // Always positive.
 		int32_t crossCycleStrength2Increment = waveIndexIncrementScaled << lshiftAmountToGetCrossCycleStrength;
 
 startRenderingACycle:
-		int numSamplesThisCycle = numSamplesLeftToDo;
+		int32_t numSamplesThisCycle = numSamplesLeftToDo;
 
-		int firstCycleNumber =
+		int32_t firstCycleNumber =
 		    waveIndexScaled >> (NUM_BITS_IN_WAVE_INDEX_SCALED_INPUT - numCycleTransitionsNextPowerOf2Magnitude);
 
-		int firstCycleNumberAfterAllIncrements =
+		int32_t firstCycleNumberAfterAllIncrements =
 		    (waveIndexScaled + waveIndexIncrementScaled * (numSamplesLeftToDo - 1))
 		    >> (NUM_BITS_IN_WAVE_INDEX_SCALED_INPUT - numCycleTransitionsNextPowerOf2Magnitude);
 
 		// See if this rendering window will span multiple cycles as waveIndex is incremented?
 		if (firstCycleNumber != firstCycleNumberAfterAllIncrements) {
-			int cycleSizeInWaveIndex =
+			int32_t cycleSizeInWaveIndex =
 			    1 << (NUM_BITS_IN_WAVE_INDEX_SCALED_INPUT - numCycleTransitionsNextPowerOf2Magnitude);
-			int waveIndexPlaceWithinCycle = waveIndexScaled & (cycleSizeInWaveIndex - 1);
-			int waveIndexDistanceUntilFinalBigValueStillInThisCycle =
+			int32_t waveIndexPlaceWithinCycle = waveIndexScaled & (cycleSizeInWaveIndex - 1);
+			int32_t waveIndexDistanceUntilFinalBigValueStillInThisCycle =
 			    (waveIndexIncrementScaled >= 0) ? (cycleSizeInWaveIndex - 1 - waveIndexPlaceWithinCycle)
 			                                    : (waveIndexPlaceWithinCycle);
 			int32_t waveIndexIncrementScaledAbs = waveIndexIncrementScaled;
 			if (waveIndexIncrementScaledAbs < 0) {
 				waveIndexIncrementScaledAbs = -waveIndexIncrementScaledAbs;
 			}
-			int numIncrementsWeCanDoNow =
+			int32_t numIncrementsWeCanDoNow =
 			    (uint32_t)waveIndexDistanceUntilFinalBigValueStillInThisCycle / (uint32_t)waveIndexIncrementScaledAbs;
 			numSamplesThisCycle =
 			    numIncrementsWeCanDoNow
@@ -1103,7 +1103,7 @@ startRenderingACycle:
 			if (doOscSync) {
 				int32_t* bufferStartThisSync = outputBuffer;
 				uint32_t resetterPhase = resetterPhaseThisCycle;
-				int numSamplesThisOscSyncSession = numSamplesThisCycle;
+				int32_t numSamplesThisOscSyncSession = numSamplesThisCycle;
 				RENDER_OSC_SYNC(RENDER_WAVETABLE_LOOP, 0, WAVETABLE_EXTRA_INSTRUCTIONS_FOR_CROSSOVER_SAMPLE_REDO,
 				                startRenderingASyncForWavetable);
 			}
@@ -1131,7 +1131,7 @@ doneRenderingACycle:
 		if (doOscSync) {
 			int32_t* bufferStartThisSync = outputBuffer;
 			uint32_t resetterPhase = resetterPhaseThisCycle;
-			int numSamplesThisOscSyncSession = numSamples;
+			int32_t numSamplesThisOscSyncSession = numSamples;
 			RENDER_OSC_SYNC(RENDER_SINGLE_CYCLE_WAVEFORM_LOOP, 0, 0, startRenderingASyncForSingleCycleWaveform);
 		}
 		else {
@@ -1147,7 +1147,7 @@ doneRenderingACycle:
 void WaveTable::numReasonsIncreasedFromZero() {
 
 	// Remove all bands' data from Stealable-queue, as it may no longer be stolen.
-	for (int b = bands.getNumElements() - 1; b >= 0; b--) {
+	for (int32_t b = bands.getNumElements() - 1; b >= 0; b--) {
 		WaveTableBand* band = (WaveTableBand*)bands.getElementAddress(b);
 		if (band->data) {
 			band->data->remove();
@@ -1158,7 +1158,7 @@ void WaveTable::numReasonsIncreasedFromZero() {
 void WaveTable::numReasonsDecreasedToZero(char const* errorCode) {
 
 	// Put all bands' data in queue to be stolen.
-	for (int b = bands.getNumElements() - 1; b >= 0; b--) {
+	for (int32_t b = bands.getNumElements() - 1; b >= 0; b--) {
 		WaveTableBand* band = (WaveTableBand*)bands.getElementAddress(b);
 		if (band->data) {
 #if ALPHA_OR_BETA_VERSION
@@ -1172,7 +1172,7 @@ void WaveTable::numReasonsDecreasedToZero(char const* errorCode) {
 }
 
 /*
- 	for (int b = bands.getNumElements() - 1; b >= 0; b--) {
+ 	for (int32_t b = bands.getNumElements() - 1; b >= 0; b--) {
 		WaveTableBand* band = (WaveTableBand*)bands.getElementAddress(b);
 
 	}

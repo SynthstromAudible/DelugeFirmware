@@ -21,7 +21,7 @@
 
 void oledMainInit();
 void oledDMAInit();
-void enqueueSPITransfer(int whichOled, uint8_t const* image);
+void enqueueSPITransfer(int32_t whichOled, uint8_t const* image);
 void oledTransferComplete(uint32_t int_sense);
 
 extern volatile bool spiTransferQueueCurrentlySending;

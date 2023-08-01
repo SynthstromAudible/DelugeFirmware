@@ -29,6 +29,6 @@ public:
 };
 
 struct StolenParamNodes {
-	int num;
+	int32_t num;
 	ParamNode* nodes;
 };

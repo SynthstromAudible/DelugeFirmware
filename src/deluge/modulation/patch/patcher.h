@@ -48,14 +48,14 @@ public:
 	Patcher(const PatchableInfo* newInfo);
 	void performInitialPatching(Sound* sound, ParamManager* paramManager);
 	void performPatching(uint32_t sourcesChanged, Sound* sound, ParamManagerForTimeline* paramManager);
-	void recalculateFinalValueForParamWithNoCables(int p, Sound* sound, ParamManagerForTimeline* paramManager);
+	void recalculateFinalValueForParamWithNoCables(int32_t p, Sound* sound, ParamManagerForTimeline* paramManager);
 
 private:
 	void applyRangeAdjustment(int32_t* patchedValue, PatchCable* patchCable);
 	int32_t combineCablesLinearForRangeParam(Destination const* destination, ParamManager* paramManager);
-	int32_t combineCablesLinear(Destination const* destination, unsigned int p, Sound* sound,
+	int32_t combineCablesLinear(Destination const* destination, uint32_t p, Sound* sound,
 	                            ParamManager* paramManager);
-	int32_t combineCablesExp(Destination const* destination, unsigned int p, Sound* sound, ParamManager* paramManager);
+	int32_t combineCablesExp(Destination const* destination, uint32_t p, Sound* sound, ParamManager* paramManager);
 	void cableToLinearParamWithoutRangeAdjustment(int32_t sourceValue, int32_t cableStrength,
 	                                              int32_t* runningTotalCombination);
 	void cableToLinearParam(int32_t sourceValue, int32_t cableStrength, int32_t* runningTotalCombination,

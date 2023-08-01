@@ -63,5 +63,5 @@ public:
 
 private:
 	void prepareToBeginWriting();
-	int getAmountToWriteBeforeReadingBegins();
+	int32_t getAmountToWriteBeforeReadingBegins();
 };

@@ -58,11 +58,11 @@ public:
 	void sendNote(bool on, uint8_t channel, int16_t note = -32768);
 	void setGateType(uint8_t whichGate, GateType value);
 	void setCVVoltsPerOctave(uint8_t channel, uint8_t value);
-	void setCVTranspose(uint8_t channel, int semitones, int cents);
+	void setCVTranspose(uint8_t channel, int32_t semitones, int32_t cents);
 	void setCVPitchBend(uint8_t channel, int32_t value, bool outputToo = true);
 	void delayInterrupt();
-	int32_t calculateVoltage(int note, uint8_t channel);
-	void physicallySwitchGate(int channel);
+	int32_t calculateVoltage(int32_t note, uint8_t channel);
+	void physicallySwitchGate(int32_t channel);
 
 	void analogOutTick();
 	void playbackBegun();
@@ -93,14 +93,14 @@ public:
 
 	void sendVoltageOut(uint8_t channel, uint16_t voltage);
 
-	inline bool isNoteOn(int channel, int note) {
+	inline bool isNoteOn(int32_t channel, int32_t note) {
 		return (gateChannels[channel].on && cvChannels[channel].noteCurrentlyPlaying == note);
 	}
 
 private:
 	void recalculateCVChannelVoltage(uint8_t channel);
-	void switchGateOff(int channel);
-	void switchGateOn(int channel, int doInstantlyIfPossible = false);
+	void switchGateOff(int32_t channel);
+	void switchGateOn(int32_t channel, int32_t doInstantlyIfPossible = false);
 };
 
 extern CVEngine cvEngine;

@@ -28,7 +28,7 @@ class ConsequenceClipInstanceExistence final : public Consequence {
 public:
 	ConsequenceClipInstanceExistence(Output* newOutput, ClipInstance* clipInstance, ExistenceChangeType newType);
 
-	int revert(TimeType time, ModelStack* modelStack);
+	int32_t revert(TimeType time, ModelStack* modelStack);
 
 	Output* output;
 	Clip* clip;

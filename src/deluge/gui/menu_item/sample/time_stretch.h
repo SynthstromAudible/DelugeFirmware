@@ -51,9 +51,9 @@ public:
 			soundEditor.currentSource->timeStretchAmount = soundEditor.currentValue;
 		}
 	}
-	int getMinValue() const { return -48; }
-	int getMaxValue() const { return 48; }
-	bool isRelevant(Sound* sound, int whichThing) {
+	int32_t getMinValue() const { return -48; }
+	int32_t getMaxValue() const { return 48; }
+	bool isRelevant(Sound* sound, int32_t whichThing) {
 		Source* source = &sound->sources[whichThing];
 		return (sound->getSynthMode() == SynthMode::SUBTRACTIVE && source->oscType == OscType::SAMPLE);
 	}

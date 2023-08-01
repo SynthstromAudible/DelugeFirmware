@@ -28,7 +28,7 @@ void KeyboardLayoutVelocityDrums::evaluatePads(PressedPad presses[kMaxNumKeyboar
 
 	currentNotesState = NotesState{}; // Erase active notes
 
-	for (int idxPress = 0; idxPress < kMaxNumKeyboardPadPresses; ++idxPress) {
+	for (int32_t idxPress = 0; idxPress < kMaxNumKeyboardPadPresses; ++idxPress) {
 		if (presses[idxPress].active) {
 			uint8_t note = noteFromCoords(presses[idxPress].x, presses[idxPress].y);
 			uint8_t velocity = (intensityFromCoords(presses[idxPress].x, presses[idxPress].y) >> 1);
@@ -37,11 +37,11 @@ void KeyboardLayoutVelocityDrums::evaluatePads(PressedPad presses[kMaxNumKeyboar
 	}
 }
 
-void KeyboardLayoutVelocityDrums::handleVerticalEncoder(int offset) {
+void KeyboardLayoutVelocityDrums::handleVerticalEncoder(int32_t offset) {
 	handleHorizontalEncoder(offset * (kDisplayWidth / getState().drums.edgeSize), false);
 }
 
-void KeyboardLayoutVelocityDrums::handleHorizontalEncoder(int offset, bool shiftEnabled) {
+void KeyboardLayoutVelocityDrums::handleHorizontalEncoder(int32_t offset, bool shiftEnabled) {
 	KeyboardStateDrums& state = getState().drums;
 
 	if (shiftEnabled) {
@@ -58,13 +58,13 @@ void KeyboardLayoutVelocityDrums::handleHorizontalEncoder(int offset, bool shift
 
 	// Calculate highest possible displayable note with current edgeSize
 	int32_t displayedfullPadsCount = ((kDisplayHeight / state.edgeSize) * (kDisplayWidth / state.edgeSize));
-	int highestScrolledNote = std::max<int>(0, (getHighestClipNote() + 1 - displayedfullPadsCount));
+	int32_t highestScrolledNote = std::max<int32_t>(0, (getHighestClipNote() + 1 - displayedfullPadsCount));
 
 	// Make sure current value is in bounds
 	state.scrollOffset = std::clamp(state.scrollOffset, getLowestClipNote(), highestScrolledNote);
 
 	// Offset if still in bounds (check for verticalEncoder)
-	int newOffset = state.scrollOffset + offset;
+	int32_t newOffset = state.scrollOffset + offset;
 	if (newOffset >= getLowestClipNote() && newOffset <= highestScrolledNote) {
 		state.scrollOffset = newOffset;
 	}
@@ -77,7 +77,7 @@ void KeyboardLayoutVelocityDrums::precalculate() {
 
 	// Pre-Buffer colours for next renderings
 	int32_t displayedfullPadsCount = ((kDisplayHeight / state.edgeSize) * (kDisplayWidth / state.edgeSize));
-	for (int i = 0; i < displayedfullPadsCount; ++i) {
+	for (int32_t i = 0; i < displayedfullPadsCount; ++i) {
 		getNoteColour(state.scrollOffset + i, noteColours[i]);
 	}
 }
@@ -85,8 +85,8 @@ void KeyboardLayoutVelocityDrums::precalculate() {
 void KeyboardLayoutVelocityDrums::renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) {
 	uint8_t highestClipNote = getHighestClipNote();
 
-	for (int y = 0; y < kDisplayHeight; ++y) {
-		for (int x = 0; x < kDisplayWidth; x++) {
+	for (int32_t y = 0; y < kDisplayHeight; ++y) {
+		for (int32_t x = 0; x < kDisplayWidth; x++) {
 			uint8_t note = noteFromCoords(x, y);
 			if (note > highestClipNote) {
 				continue;

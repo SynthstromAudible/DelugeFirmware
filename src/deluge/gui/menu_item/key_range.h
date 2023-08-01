@@ -23,11 +23,11 @@ namespace menu_item {
 class KeyRange final : public Range {
 public:
 	KeyRange(char const* newName = NULL) : Range(newName) {}
-	void getText(char* buffer, int* getLeftLength, int* getRightLength, bool mayShowJustOne);
-	void selectEncoderAction(int offset);
-	int getRandomValueInRange();
+	void getText(char* buffer, int32_t* getLeftLength, int32_t* getRightLength, bool mayShowJustOne);
+	void selectEncoderAction(int32_t offset);
+	int32_t getRandomValueInRange();
 
-	int lower, upper;
+	int32_t lower, upper;
 
 private:
 	bool isTotallyRandom();
