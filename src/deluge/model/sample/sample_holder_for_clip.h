@@ -25,7 +25,7 @@ public:
 	virtual ~SampleHolderForClip();
 
 	void setAudioFile(AudioFile* newAudioFile, bool reversed = false, bool manuallySelected = false,
-	                  int clusterLoadInstruction = CLUSTER_ENQUEUE);
+	                  int32_t clusterLoadInstruction = CLUSTER_ENQUEUE);
 	void recalculateNeutralPhaseIncrement();
 	void beenClonedFrom(SampleHolderForClip* other, bool reversed);
 

@@ -15,13 +15,13 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "gui/menu_item/selection.h"
+#include "gui/menu_item/selection/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/numeric_driver.h"
 #include "hid/display/oled.h"
 #include <version.h>
 
-namespace menu_item::firmware {
+namespace deluge::gui::menu_item::firmware {
 class Version final : public MenuItem {
 public:
 	using MenuItem::MenuItem;
@@ -32,7 +32,7 @@ public:
 		                                         OLED_MAIN_WIDTH_PIXELS, 18, 20);
 	}
 #else
-	void beginSession(MenuItem* navigatedBackwardFrom) {
+	void beginSession(MenuItem* navigatedBackwardFrom) override {
 		drawValue();
 	}
 
@@ -41,4 +41,4 @@ public:
 	}
 #endif
 };
-} // namespace menu_item::firmware
+} // namespace deluge::gui::menu_item::firmware

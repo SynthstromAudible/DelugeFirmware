@@ -16,25 +16,30 @@
 */
 #pragma once
 #include "gui/menu_item/decimal.h"
+#include "gui/menu_item/formatted_title.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/oled.h"
 #include "processing/engines/cv_engine.h"
 
-namespace menu_item::cv {
-class Volts final : public Decimal {
+namespace deluge::gui::menu_item::cv {
+class Volts final : public Decimal, public FormattedTitle {
 public:
 	using Decimal::Decimal;
-	int getMinValue() const { return 0; }
-	int getMaxValue() const { return 200; }
-	int getNumDecimalPlaces() const { return 2; }
-	int getDefaultEditPos() { return 1; }
-	void readCurrentValue() {
-		soundEditor.currentValue = cvEngine.cvChannels[soundEditor.currentSourceIndex].voltsPerOctave;
+	Volts(const string& name, const string& title_format_str) : Decimal(name), FormattedTitle(title_format_str) {}
+
+	[[nodiscard]] const string& getTitle() const override { return FormattedTitle::title(); }
+
+	[[nodiscard]] int32_t getMinValue() const override { return 0; }
+	[[nodiscard]] int32_t getMaxValue() const override { return 200; }
+	[[nodiscard]] int32_t getNumDecimalPlaces() const override { return 2; }
+	[[nodiscard]] int32_t getDefaultEditPos() const override { return 1; }
+	void readCurrentValue() override {
+		this->value_ = cvEngine.cvChannels[soundEditor.currentSourceIndex].voltsPerOctave;
 	}
-	void writeCurrentValue() { cvEngine.setCVVoltsPerOctave(soundEditor.currentSourceIndex, soundEditor.currentValue); }
+	void writeCurrentValue() override { cvEngine.setCVVoltsPerOctave(soundEditor.currentSourceIndex, this->value_); }
 #if HAVE_OLED
-	void drawPixelsForOled() {
-		if (soundEditor.currentValue == 0) {
+	void drawPixelsForOled() override {
+		if (this->value_ == 0) {
 			OLED::drawStringCentred("Hz/V", 20, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextHugeSpacingX,
 			                        kTextHugeSizeY);
 		}
@@ -43,18 +48,19 @@ public:
 		}
 	}
 #else
-	void drawValue() {
-		if (soundEditor.currentValue == 0)
+	void drawValue() override {
+		if (this->value_ == 0) {
 			numericDriver.setText("HZPV", false, 255, true);
+		}
 		else {
 			Decimal::drawValue();
 		}
 	}
 #endif
-	void horizontalEncoderAction(int offset) {
-		if (soundEditor.currentValue != 0) {
+	void horizontalEncoderAction(int32_t offset) override {
+		if (this->value_ != 0) {
 			Decimal::horizontalEncoderAction(offset);
 		}
 	}
 };
-} // namespace menu_item::cv
+} // namespace deluge::gui::menu_item::cv

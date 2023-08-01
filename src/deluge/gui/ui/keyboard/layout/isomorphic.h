@@ -19,10 +19,10 @@
 
 #include "gui/ui/keyboard/layout.h"
 
-namespace keyboard::layout {
+namespace deluge::gui::ui::keyboard::layout {
 
-constexpr int kMinIsomorphicRowInterval = 1;
-constexpr int kMaxIsomorphicRowInterval = 16;
+constexpr int32_t kMinIsomorphicRowInterval = 1;
+constexpr int32_t kMaxIsomorphicRowInterval = 16;
 
 class KeyboardLayoutIsomorphic : public KeyboardLayout {
 public:
@@ -30,8 +30,8 @@ public:
 	virtual ~KeyboardLayoutIsomorphic() {}
 
 	virtual void evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]);
-	virtual void handleVerticalEncoder(int offset);
-	virtual void handleHorizontalEncoder(int offset, bool shiftEnabled);
+	virtual void handleVerticalEncoder(int32_t offset);
+	virtual void handleHorizontalEncoder(int32_t offset, bool shiftEnabled);
 	virtual void precalculate();
 
 	virtual void renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]);
@@ -41,11 +41,11 @@ public:
 	virtual bool supportsKit() { return false; }
 
 private:
-	inline uint8_t noteFromCoords(int x, int y) {
+	inline uint8_t noteFromCoords(int32_t x, int32_t y) {
 		return getState().isomorphic.scrollOffset + x + y * getState().isomorphic.rowInterval;
 	}
 
 	uint8_t noteColours[kDisplayHeight * kMaxIsomorphicRowInterval + kDisplayWidth][3];
 };
 
-}; // namespace keyboard::layout
+}; // namespace deluge::gui::ui::keyboard::layout

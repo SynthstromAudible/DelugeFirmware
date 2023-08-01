@@ -53,7 +53,7 @@ void AudioOutput::cloneFrom(ModControllableAudio* other) {
 }
 
 void AudioOutput::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, StereoSample* outputBufferEnd,
-                               int numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
+                               int32_t numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
                                int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive) {
 
 	ParamManager* paramManager = getParamManager(modelStack->song);
@@ -78,7 +78,7 @@ void AudioOutput::resetEnvelope() {
 
 // Beware - unlike usual, modelStack, a ModelStackWithThreeMainThings*,  might have a NULL timelineCounter
 void AudioOutput::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack, StereoSample* renderBuffer,
-                                                int32_t* bufferToTransferTo, int numSamples, int32_t* reverbBuffer,
+                                                int32_t* bufferToTransferTo, int32_t numSamples, int32_t* reverbBuffer,
                                                 int32_t reverbAmountAdjust, int32_t sideChainHitPending,
                                                 bool shouldLimitDelayFeedback, bool isClipActive, int32_t pitchAdjust,
                                                 int32_t amplitudeAtStart, int32_t amplitudeAtEnd) {
@@ -161,9 +161,9 @@ renderEnvelope:
 
 					// Or, if duplicating within same rendering buffer (cos there's FX to be applied)
 					else {
-						int i = numSamples - 1;
+						int32_t i = numSamples - 1;
 
-						int firstStopAt = numSamples & ~3;
+						int32_t firstStopAt = numSamples & ~3;
 
 						while (i >= firstStopAt) {
 							int32_t sampleValue = intBuffer[i];
@@ -317,7 +317,7 @@ bool AudioOutput::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 }
 
 // clip will always be NULL and is of no consequence - see note in parent output.h
-int AudioOutput::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
+int32_t AudioOutput::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 	char const* tagName;
 
 	ParamManagerForTimeline paramManager;
@@ -338,7 +338,7 @@ int AudioOutput::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpTo
 
 		else {
 
-			int result = GlobalEffectableForClip::readTagFromFile(tagName, &paramManager, 0, song);
+			int32_t result = GlobalEffectableForClip::readTagFromFile(tagName, &paramManager, 0, song);
 			if (result == NO_ERROR) {}
 			else if (result == RESULT_TAG_UNUSED) {
 				storageManager.exitTag();

@@ -31,8 +31,8 @@ class VoiceVector : public OrderedResizeableArrayWithMultiWordKey {
 public:
 	VoiceVector();
 
-	void getRangeForSound(Sound* sound, int* __restrict__ ends);
+	void getRangeForSound(Sound* sound, int32_t* __restrict__ ends);
 	void checkVoiceExists(Voice* voice, Sound* sound, char const* errorCode);
 
-	inline Voice* getVoice(int index) { return ((VoiceVectorElement*)getElementAddress(index))->voice; }
+	inline Voice* getVoice(int32_t index) { return ((VoiceVectorElement*)getElementAddress(index))->voice; }
 };

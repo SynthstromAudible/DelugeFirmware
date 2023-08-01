@@ -26,16 +26,16 @@ class LivePitchShifter {
 public:
 	LivePitchShifter(OscType newInputType, int32_t phaseIncrement);
 	~LivePitchShifter();
-	void giveInput(int numSamples, int inputType, int32_t phaseIncrement);
-	void render(int32_t* outputBuffer, int numSamplesThisFunctionCall, int32_t phaseIncrement, int32_t amplitude,
-	            int32_t amplitudeIncrement, int interpolationBufferSize);
+	void giveInput(int32_t numSamples, int32_t inputType, int32_t phaseIncrement);
+	void render(int32_t* outputBuffer, int32_t numSamplesThisFunctionCall, int32_t phaseIncrement, int32_t amplitude,
+	            int32_t amplitudeIncrement, int32_t interpolationBufferSize);
 
 	bool mayBeRemovedWithoutClick();
 
 #if INPUT_ENABLE_REPITCHED_BUFFER
-	void interpolate(int32_t* sampleRead, int interpolationBufferSize, int numChannelsNow, int whichKernel);
+	void interpolate(int32_t* sampleRead, int32_t interpolationBufferSize, int32_t numChannelsNow, int32_t whichKernel);
 	int32_t* repitchedBuffer;
-	int repitchedBufferWritePos;
+	int32_t repitchedBufferWritePos;
 	uint64_t repitchedBufferNumSamplesWritten;
 	bool stillWritingToRepitchedBuffer;
 	int32_t interpolationBuffer[2][kInterpolationMaxNumSamples];
@@ -51,7 +51,7 @@ public:
 	int32_t samplesTilHopEnd;
 	int32_t samplesIntoHop;
 
-	int percThresholdForCut;
+	int32_t percThresholdForCut;
 
 	LivePitchShifterPlayHead playHeads[2];
 

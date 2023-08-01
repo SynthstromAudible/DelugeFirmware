@@ -70,11 +70,11 @@ public:
 	void test();
 	uint32_t getAllocatedSize(void* address);
 	void checkStack(char const* caller);
-	void testShorten(int i);
-	int getRegion(void* address);
+	void testShorten(int32_t i);
+	int32_t getRegion(void* address);
 	void testMemoryDeallocated(void* address);
 
-	void putStealableInQueue(Stealable* stealable, int q);
+	void putStealableInQueue(Stealable* stealable, int32_t q);
 	void putStealableInAppropriateQueue(Stealable* stealable);
 
 	MemoryRegion regions[NUM_MEMORY_REGIONS];
@@ -89,3 +89,8 @@ public:
 private:
 	void checkEverythingOk(char const* errorString);
 };
+
+extern "C" {
+void* delugeAlloc(unsigned int requiredSize);
+void delugeDealloc(void* address);
+}

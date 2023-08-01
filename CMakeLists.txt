@@ -187,17 +187,6 @@ add_compile_options(
     # ASM stuff
     $<$<COMPILE_LANGUAGE:ASM>:-x>
     $<$<COMPILE_LANGUAGE:ASM>:assembler-with-cpp>
-
-    # Warnings
-    # $<$<CONFIG:DEBUG>:-Wextra> # TODO: Enable when ready
-    # $<$<CONFIG:DEBUG>:-Wall> # TODO: Enable when ready
-    # $<$<CONFIG:DEBUG>:-Wpedantic> # TODO: Enable when ready
-    $<$<CONFIG:DEBUG>:-Wnull-dereference>
-    $<$<CONFIG:DEBUG>:-Wno-psabi>
-
-    # Stack usage
-    $<$<CONFIG:DEBUG>:-Wstack-usage=100>
-    $<$<CONFIG:RELEASE>:-Wstack-usage=1000>
 )
 
 add_link_options(
@@ -224,8 +213,26 @@ if(FORCE_COLORED_OUTPUT)
     endif()
 endif(FORCE_COLORED_OUTPUT)
 
+# Add libraries
+add_subdirectory(lib)
+
 # Add our sources
 add_subdirectory(src)
+
+# Project-only compile options (warnings, etc.)
+target_compile_options(deluge INTERFACE
+
+    # Warnings
+    # $<$<CONFIG:DEBUG>:-Wextra> # TODO: Enable when ready
+    # $<$<CONFIG:DEBUG>:-Wall> # TODO: Enable when ready
+    # $<$<CONFIG:DEBUG>:-Wpedantic> # TODO: Enable when ready
+    $<$<CONFIG:DEBUG>:-Wnull-dereference>
+    $<$<CONFIG:DEBUG>:-Wno-psabi>
+
+    # Stack usage
+    $<$<CONFIG:DEBUG>:-Wstack-usage=100>
+    $<$<CONFIG:RELEASE>:-Wstack-usage=1000>
+)
 
 # 7SEG configuration
 add_firmware(deluge7SEG deluge)

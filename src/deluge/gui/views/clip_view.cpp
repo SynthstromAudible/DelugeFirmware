@@ -40,7 +40,7 @@ static Clip* getCurrentClip() {
 ClipView::ClipView() {
 }
 
-unsigned int ClipView::getMaxZoom() {
+uint32_t ClipView::getMaxZoom() {
 	return getCurrentClip()->getMaxZoom();
 }
 
@@ -97,7 +97,7 @@ Action* ClipView::lengthenClip(int32_t newLength) {
 
 	// Only if that didn't get us directly to the correct length, manually set length. This will do a resync if playback active
 	if (getCurrentClip()->loopLength != newLength) {
-		int actionType =
+		int32_t actionType =
 		    (newLength < getCurrentClip()->loopLength) ? ACTION_CLIP_LENGTH_DECREASE : ACTION_CLIP_LENGTH_INCREASE;
 
 		action = actionLogger.getNewAction(actionType, true);
@@ -134,11 +134,11 @@ Action* ClipView::shortenClip(int32_t newLength) {
 	currentSong->setClipLength(
 	    getCurrentClip(), newLength,
 	    action); // Subsequently shortening by more squares won't cause additional Consequences to be added to the same
-	             // Action - it checks, and only stores the data (snapshots and original length) once
+	// Action - it checks, and only stores the data (snapshots and original length) once
 	return action;
 }
 
-ActionResult ClipView::horizontalEncoderAction(int offset) {
+ActionResult ClipView::horizontalEncoderAction(int32_t offset) {
 
 	// Shift button pressed - edit length
 	if (isNoUIModeActive() && !Buttons::isButtonPressed(hid::button::Y_ENC)
@@ -228,8 +228,8 @@ doReRender:
 	             && Buttons::isButtonPressed(hid::button::CLIP_VIEW))) {
 		if (sdRoutineLock)
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Just be safe - maybe not necessary
-		int squareSize = getPosFromSquare(1) - getPosFromSquare(0);
-		int shiftAmount = offset * squareSize;
+		int32_t squareSize = getPosFromSquare(1) - getPosFromSquare(0);
+		int32_t shiftAmount = offset * squareSize;
 		Clip* clip = getCurrentClip();
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -330,9 +330,9 @@ int32_t ClipView::getLengthExtendAmount(int32_t square) {
 	return xZoom;
 }
 
-int ClipView::getTickSquare() {
+int32_t ClipView::getTickSquare() {
 
-	int newTickSquare = getSquareFromPos(getCurrentClip()->getLivePos());
+	int32_t newTickSquare = getSquareFromPos(getCurrentClip()->getLivePos());
 
 	// See if we maybe want to do an auto-scroll
 	if (getCurrentClip()->getCurrentlyRecordingLinearly()) {

@@ -18,7 +18,7 @@
 #include "util/functions.h"
 //This is a very very rough approximation
 static inline q31_t crappy_square_root(q31_t input) {
-	int leading = clz(input);
+	int32_t leading = clz(input);
 	return ONE_Q31 >> (leading / 2);
 }
 static inline q31_t approximate_inverse_square_root(q31_t raw) {

@@ -16,11 +16,12 @@
 */
 
 #pragma once
+#include <cstdint>
 
 namespace AutomatedTester {
 void init();
-void turnSelectEncoder(int offset);
-void doMomentaryButtonPress(int x, int y);
+void turnSelectEncoder(int32_t offset);
+void doMomentaryButtonPress(int32_t x, int32_t y);
 void possiblyDoSomething();
 
 } // namespace AutomatedTester

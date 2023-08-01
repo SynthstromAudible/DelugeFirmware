@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
+#include <stdint.h>
 
 typedef struct {
 	uint16_t glyph_index;

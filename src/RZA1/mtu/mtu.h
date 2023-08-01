@@ -35,7 +35,7 @@ static inline void disableTimer(int timerNo)
     MTU2.TSTR &= ~timerCST[timerNo];
 }
 
-static inline bool_t isTimerEnabled(int timerNo)
+static inline bool isTimerEnabled(int timerNo)
 {
     return MTU2.TSTR & timerCST[timerNo];
 }

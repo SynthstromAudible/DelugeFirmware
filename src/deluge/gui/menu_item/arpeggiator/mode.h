@@ -16,7 +16,7 @@
 */
 #pragma once
 #include "definitions_cxx.hpp"
-#include "gui/menu_item/selection.h"
+#include "gui/menu_item/selection/typed_selection.h"
 #include "gui/ui/sound_editor.h"
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
@@ -25,22 +25,21 @@
 #include "processing/sound/sound.h"
 #include "util/misc.h"
 
-namespace menu_item::arpeggiator {
-class Mode final : public Selection {
+namespace deluge::gui::menu_item::arpeggiator {
+class Mode final : public TypedSelection<ArpMode, kNumArpModes> {
 public:
-	Mode(char const* newName = NULL) : Selection(newName) {}
-	void readCurrentValue() { soundEditor.currentValue = util::to_underlying(soundEditor.currentArpSettings->mode); }
-	void writeCurrentValue() {
+	using TypedSelection::TypedSelection;
+	void readCurrentValue() override { this->value_ = soundEditor.currentArpSettings->mode; }
+	void writeCurrentValue() override {
 
 		// If was off, or is now becoming off...
-		if (soundEditor.currentArpSettings->mode == ArpMode::OFF
-		    || static_cast<ArpMode>(soundEditor.currentValue) == ArpMode::OFF) {
+		if (soundEditor.currentArpSettings->mode == ArpMode::OFF || this->value_ == ArpMode::OFF) {
 			if (currentSong->currentClip->isActiveOnOutput()) {
 				char modelStackMemory[MODEL_STACK_MAX_SIZE];
 				ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
 
 				if (soundEditor.editingCVOrMIDIClip()) {
-					((InstrumentClip*)currentSong->currentClip)
+					(static_cast<InstrumentClip*>(currentSong->currentClip))
 					    ->stopAllNotesForMIDIOrCV(modelStack->toWithTimelineCounter());
 				}
 				else {
@@ -52,18 +51,13 @@ public:
 				}
 			}
 		}
-		soundEditor.currentArpSettings->mode = static_cast<ArpMode>(soundEditor.currentValue);
+		soundEditor.currentArpSettings->mode = this->value_;
 
 		// Only update the Clip-level arp setting if they hadn't been playing with other synth parameters first (so it's clear that switching the arp on or off was their main intention)
 		if (!soundEditor.editingKit()) {
-			bool arpNow =
-			    (static_cast<ArpMode>(soundEditor.currentValue) != ArpMode::OFF); // Uh.... this does nothing...
+			bool arpNow = (this->value_ != ArpMode::OFF); // Uh.... this does nothing...
 		}
 	}
-	char const** getOptions() {
-		static char const* options[] = {"OFF", "UP", "DOWN", "BOTH", "Random", NULL};
-		return options;
-	}
-	int getNumOptions() { return kNumArpModes; }
+	static_vector<string, capacity()> getOptions() override { return {"OFF", "UP", "DOWN", "BOTH", "Random"}; }
 };
-} // namespace menu_item::arpeggiator
+} // namespace deluge::gui::menu_item::arpeggiator

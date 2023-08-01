@@ -24,9 +24,9 @@ FileItem::FileItem() {
 	instrumentAlreadyInSong = false;
 }
 
-int FileItem::setupWithInstrument(Instrument* newInstrument, bool hibernating) {
+int32_t FileItem::setupWithInstrument(Instrument* newInstrument, bool hibernating) {
 	filename.set(&newInstrument->name);
-	int error = filename.concatenate(".XML");
+	int32_t error = filename.concatenate(".XML");
 	if (error) {
 		return error;
 	}
@@ -38,10 +38,10 @@ int FileItem::setupWithInstrument(Instrument* newInstrument, bool hibernating) {
 	return NO_ERROR;
 }
 
-int FileItem::getFilenameWithExtension(String* filenameWithExtension) {
+int32_t FileItem::getFilenameWithExtension(String* filenameWithExtension) {
 	filenameWithExtension->set(&filename);
 	if (!filenameIncludesExtension) {
-		int error = filenameWithExtension->concatenate(".XML");
+		int32_t error = filenameWithExtension->concatenate(".XML");
 		if (error) {
 			return error;
 		}
@@ -49,14 +49,14 @@ int FileItem::getFilenameWithExtension(String* filenameWithExtension) {
 	return NO_ERROR;
 }
 
-int FileItem::getFilenameWithoutExtension(String* filenameWithoutExtension) {
+int32_t FileItem::getFilenameWithoutExtension(String* filenameWithoutExtension) {
 	filenameWithoutExtension->set(&filename);
 	if (filenameIncludesExtension) {
 		char const* chars = filenameWithoutExtension->get();
 		char const* dotAddress = strrchr(chars, '.');
 		if (dotAddress) {
-			int newLength = (uint32_t)dotAddress - (uint32_t)chars;
-			int error = filenameWithoutExtension->shorten(newLength);
+			int32_t newLength = (uint32_t)dotAddress - (uint32_t)chars;
+			int32_t error = filenameWithoutExtension->shorten(newLength);
 			if (error) {
 				return error;
 			}
@@ -65,10 +65,10 @@ int FileItem::getFilenameWithoutExtension(String* filenameWithoutExtension) {
 	return NO_ERROR;
 }
 
-int FileItem::getDisplayNameWithoutExtension(String* displayNameWithoutExtension) {
+int32_t FileItem::getDisplayNameWithoutExtension(String* displayNameWithoutExtension) {
 #if !HAVE_OLED
 	if (displayName != filename.get()) {
-		int error = displayNameWithoutExtension->set(displayName);
+		int32_t error = displayNameWithoutExtension->set(displayName);
 		if (error) {
 			return error;
 		}
@@ -76,7 +76,7 @@ int FileItem::getDisplayNameWithoutExtension(String* displayNameWithoutExtension
 			char const* chars = displayNameWithoutExtension->get();
 			char const* dotAddress = strrchr(chars, '.');
 			if (dotAddress) {
-				int newLength = (uint32_t)dotAddress - (uint32_t)chars;
+				int32_t newLength = (uint32_t)dotAddress - (uint32_t)chars;
 				error = displayNameWithoutExtension->shorten(newLength);
 				if (error) {
 					return error;

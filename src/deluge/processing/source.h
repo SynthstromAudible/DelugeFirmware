@@ -50,14 +50,14 @@ public:
 	int16_t defaultRangeI; // -1 means none yet
 
 	bool renderInStereo(Sound* s, SampleHolder* sampleHolder = NULL);
-	void setCents(int newCents);
+	void setCents(int32_t newCents);
 	void recalculateFineTuner();
-	int32_t getLengthInSamplesAtSystemSampleRate(int note, bool forTimeStretching = false);
+	int32_t getLengthInSamplesAtSystemSampleRate(int32_t note, bool forTimeStretching = false);
 	void detachAllAudioFiles();
-	int loadAllSamples(bool mayActuallyReadFiles);
+	int32_t loadAllSamples(bool mayActuallyReadFiles);
 	void setReversed(bool newReversed);
-	int getRangeIndex(int note);
-	MultiRange* getRange(int note);
+	int32_t getRangeIndex(int32_t note);
+	MultiRange* getRange(int32_t note);
 	MultiRange* getOrCreateFirstRange();
 	bool hasAtLeastOneAudioFileLoaded();
 	void doneReadingFromFile(Sound* sound);

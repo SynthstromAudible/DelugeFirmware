@@ -28,11 +28,11 @@ uint32_t rshifted = oscPos << (-rshiftAmount);
 
 int16_t strength2 = rshifted & 32767;
 
-int progressSmall = oscPos >> (24 + kInterpolationMaxNumSamplesMagnitude - numBitsInTableSize);
+int32_t progressSmall = oscPos >> (24 + kInterpolationMaxNumSamplesMagnitude - numBitsInTableSize);
 
 int16x8_t kernelVector[kInterpolationMaxNumSamples >> 3];
 
-for (int i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
+for (int32_t i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
 	int16x8_t value1 = vld1q_s16(&windowedSincKernel[whichKernel][progressSmall][i << 3]);
 	int16x8_t value2 = vld1q_s16(&windowedSincKernel[whichKernel][progressSmall + 1][i << 3]);
 	int16x8_t difference = vsubq_s16(value2, value1);
@@ -42,7 +42,7 @@ for (int i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
 
 int32x4_t multiplied;
 
-for (int i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
+for (int32_t i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
 
 	if (i == 0)
 		multiplied = vmull_s16(vget_low_s16(kernelVector[i]), interpolationBuffer[0][i << 1]);
@@ -60,7 +60,7 @@ if (numChannelsNow == 2) {
 
 	int32x4_t multiplied;
 
-	for (int i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
+	for (int32_t i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
 
 		if (i == 0)
 			multiplied = vmull_s16(vget_low_s16(kernelVector[i]), interpolationBuffer[1][i << 1]);

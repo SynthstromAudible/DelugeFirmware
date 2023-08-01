@@ -77,7 +77,7 @@ static void int_irq6(uint32_t sense) {
 * Arguments    : none
 * Return Value : 0
 ******************************************************************************/
-int_t main(void) {
+int main(void) {
 
 	// SSI pins
 	setPinMux(7, 11, 6); // AUDIO_XOUT

@@ -28,18 +28,18 @@ extern "C" {
 #include "util/cfunctions.h"
 }
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
-void Integer::selectEncoderAction(int offset) {
-	soundEditor.currentValue += offset;
-	int maxValue = getMaxValue();
-	if (soundEditor.currentValue > maxValue) {
-		soundEditor.currentValue = maxValue;
+void Integer::selectEncoderAction(int32_t offset) {
+	this->value_ += offset;
+	int32_t maxValue = getMaxValue();
+	if (this->value_ > maxValue) {
+		this->value_ = maxValue;
 	}
 	else {
-		int minValue = getMinValue();
-		if (soundEditor.currentValue < minValue) {
-			soundEditor.currentValue = minValue;
+		int32_t minValue = getMinValue();
+		if (this->value_ < minValue) {
+			this->value_ = minValue;
 		}
 	}
 
@@ -48,11 +48,11 @@ void Integer::selectEncoderAction(int offset) {
 
 #if !HAVE_OLED
 void Integer::drawValue() {
-	numericDriver.setTextAsNumber(soundEditor.currentValue);
+	numericDriver.setTextAsNumber(this->value_);
 }
 
 void IntegerWithOff::drawValue() {
-	if (soundEditor.currentValue == 0) {
+	if (this->value_ == 0) {
 		numericDriver.setText("OFF");
 	}
 	else {
@@ -62,9 +62,9 @@ void IntegerWithOff::drawValue() {
 #endif
 
 #if HAVE_OLED
-void Integer::drawInteger(int textWidth, int textHeight, int yPixel) {
+void Integer::drawInteger(int32_t textWidth, int32_t textHeight, int32_t yPixel) {
 	char buffer[12];
-	intToString(soundEditor.currentValue, buffer, 1);
+	intToString(this->value_, buffer, 1);
 	OLED::drawStringCentred(buffer, yPixel + OLED_MAIN_TOPMOST_PIXEL, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
 	                        textWidth, textHeight);
 }
@@ -84,4 +84,4 @@ void IntegerContinuous::drawPixelsForOled() {
 	drawBar(35, 10);
 }
 #endif
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

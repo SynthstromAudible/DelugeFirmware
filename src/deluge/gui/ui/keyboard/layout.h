@@ -28,7 +28,7 @@
 
 constexpr uint8_t kMaxNumKeyboardPadPresses = 10;
 
-namespace keyboard {
+namespace deluge::gui::ui::keyboard {
 
 inline InstrumentClip* currentClip() {
 	return (InstrumentClip*)currentSong->currentClip;
@@ -38,9 +38,7 @@ inline Instrument* currentInstrument() {
 	return (Instrument*)currentSong->currentClip->output;
 }
 
-struct PressedPad {
-	uint8_t x;
-	uint8_t y;
+struct PressedPad : Cartesian {
 	bool active;
 };
 
@@ -55,17 +53,17 @@ typedef uint8_t ModesArray[kModesArraySize];
 
 class KeyboardLayout {
 public:
-	KeyboardLayout() {}
+	KeyboardLayout() = default;
 	virtual ~KeyboardLayout() {}
 
 	/// Handle input pad presses
 	virtual void evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) = 0;
 
 	/// Shift state not supplied since that function is already taken
-	virtual void handleVerticalEncoder(int offset) = 0;
+	virtual void handleVerticalEncoder(int32_t offset) = 0;
 
 	/// Will be called with offset 0 to recalculate bounds on clip changes
-	virtual void handleHorizontalEncoder(int offset, bool shiftEnabled) = 0;
+	virtual void handleHorizontalEncoder(int32_t offset, bool shiftEnabled) = 0;
 
 	/// This function is called on visibility change and if color offset changes
 	virtual void precalculate() = 0;
@@ -75,7 +73,7 @@ public:
 
 	virtual void renderSidebarPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) {
 		// Clean sidebar if function is not overwritten
-		for (int y = 0; y < kDisplayHeight; y++) {
+		for (int32_t y = 0; y < kDisplayHeight; y++) {
 			memset(image[y][kDisplayWidth], 0, kSideBarWidth * 3);
 		}
 	};
@@ -101,8 +99,8 @@ protected:
 
 	inline uint8_t getDefaultVelocity() { return currentInstrument()->defaultVelocity; }
 
-	inline int getLowestClipNote() { return kLowestKeyboardNote; }
-	inline int getHighestClipNote() {
+	inline int32_t getLowestClipNote() { return kLowestKeyboardNote; }
+	inline int32_t getHighestClipNote() {
 		if (isKit()) {
 			return currentClip()->noteRows.getNumElements() - 1;
 		}
@@ -111,7 +109,7 @@ protected:
 	}
 
 	inline void getNoteColour(uint8_t note, uint8_t rgb[]) {
-		int colourOffset = 0;
+		int32_t colourOffset = 0;
 
 		// Get colour offset for kit rows
 		if (currentInstrument()->type == InstrumentType::KIT) {
@@ -132,4 +130,4 @@ protected:
 	NotesState currentNotesState;
 };
 
-}; // namespace keyboard
+}; // namespace deluge::gui::ui::keyboard
