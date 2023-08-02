@@ -1706,7 +1706,8 @@ void ModControllableAudio::switchDelaySyncType() {
 }
 
 void ModControllableAudio::switchDelaySyncLevel() {
-	delay.syncLevel = (SyncLevel)((delay.syncLevel + 1) % SyncLevel::MAX_NUM);
+	// Note: SYNC_LEVEL_NONE (value 0) can't be selected
+	delay.syncLevel = (SyncLevel)((delay.syncLevel) % SyncLevel::SYNC_LEVEL_256TH + 1); //cycle from 1 to 9 (omit 0)
 
 	char const* displayText;
 	switch (delay.syncLevel) {

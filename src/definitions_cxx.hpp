@@ -571,8 +571,6 @@ enum SyncLevel {
 	SYNC_LEVEL_64TH = 7,
 	SYNC_LEVEL_128TH = 8,
 	SYNC_LEVEL_256TH = 9,
-	// Maximum number of SyncLevel values, update if you add more
-	MAX_NUM = 10,
 };
 
 enum class SynthMode {
