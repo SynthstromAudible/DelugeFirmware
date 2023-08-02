@@ -1838,7 +1838,7 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 
 			// If we're meant to be deleting it on depress...
 			if (editPadPresses[i].deleteOnDepress
-			    && AudioEngine::audioSampleTimer - timeLastEditPadPress < (44100 >> 1)) {
+			    && AudioEngine::audioSampleTimer - timeLastEditPadPress < kShortPressTime) {
 
 				ModelStackWithNoteRow* modelStackWithNoteRow =
 				    getCurrentClip()->getNoteRowOnScreen(yDisplay, modelStack);

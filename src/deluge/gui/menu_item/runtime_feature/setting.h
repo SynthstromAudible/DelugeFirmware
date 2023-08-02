@@ -29,8 +29,8 @@ public:
 	void readCurrentValue() override;
 	void writeCurrentValue() override;
 	static_vector<string, RUNTIME_FEATURE_SETTING_MAX_OPTIONS> getOptions() override;
-	[[nodiscard]] const string& getName() const override;
-	[[nodiscard]] const string& getTitle() const override;
+	[[nodiscard]] std::string_view getName() const override;
+	[[nodiscard]] std::string_view getTitle() const override;
 
 private:
 	friend class Settings;

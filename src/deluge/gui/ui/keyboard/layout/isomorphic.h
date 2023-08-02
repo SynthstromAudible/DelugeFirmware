@@ -36,7 +36,7 @@ public:
 
 	virtual void renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]);
 
-	virtual char* name() { return "Isomorphic"; }
+	virtual char const* name() { return "Isomorphic"; }
 	virtual bool supportsInstrument() { return true; }
 	virtual bool supportsKit() { return false; }
 

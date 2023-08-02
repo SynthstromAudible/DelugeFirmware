@@ -54,11 +54,11 @@ static_vector<string, RUNTIME_FEATURE_SETTING_MAX_OPTIONS> Setting::getOptions()
 	return options;
 }
 
-const string& Setting::getName() const {
+std::string_view Setting::getName() const {
 	return runtimeFeatureSettings.settings[currentSettingIndex].displayName;
 }
 
-const string& Setting::getTitle() const {
+std::string_view Setting::getTitle() const {
 	return runtimeFeatureSettings.settings[currentSettingIndex].displayName;
 }
 
