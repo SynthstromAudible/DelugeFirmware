@@ -80,7 +80,7 @@ public:
 
 	// Properties
 
-	virtual char* name() = 0;
+	virtual char const* name() = 0;
 	/// This currently includes Synth, MIDI and CV
 	virtual bool supportsInstrument() { return false; }
 	virtual bool supportsKit() { return false; }
