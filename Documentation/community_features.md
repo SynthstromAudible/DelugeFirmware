@@ -57,6 +57,9 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 ### Kit Keyboard View
  - ([#112]) All-new use for the "keyboard" button in kit clips, uses the main pad grid for MPC-style 16 level playing. Horizonatal encoder scrolls by one pad at a time, allowing positioning drums left to right, and vertical encoder jumps vertically by rows.
 
+### Quantize and Humanize Notes
+  - ([#129]) Press and hold a note in clip view and turn the tempo knob right or left to apply quantize or humanize respectively to that row. Pressing and turning the tempo knob will apply quantize or humanize to all rows. The amount of quantization/humanization is shown in the display. This feature can be toggled in the [runtime features menu](#runtime-features).
+
 ### Audio Clip View
  - ([#141]) Holding the vertical encoder down while turning the horizontal encoder will shift the clip along the underlying audio file, similar to the same interface for instrument clips.
 
