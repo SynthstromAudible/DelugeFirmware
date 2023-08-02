@@ -73,6 +73,9 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 ### Catch Notes
  - ([#221]) The normal behavior of the Deluge is to try to keep up with 'in progress' notes when instant switching between clips by playing them late. However this leads to glitches with drum clips and other percussive sounds. Changing this setting to OFF will prevent this behavior and *not* try to keep up with those notes, leading to smoother instant switching between clips.
 
+### Alternative Delay Params for golden knobs
+ - ([#281]) Ability to select, using a Community Features Menu, which parameters are controlled when you click the Delay-related golden knobs. The default (for upper and lower knobs) is PingPong On/Off and Type (Digital/Analog), and you can modify it so the knob clicks change the Sync Type (Even, Triplets, Even) and SyncLevel (Off, Whole, 2nd, 4th...) respectively.
+
 <h1 id="runtime-features">Runtime settings aka Community Features Menu</h1>
 
 In the main menu of the deluge (Shift + Pressing selection knob) there is an entry called "Community Features" that allows changing behavior and turning features on and off in comparison to the original and previous community firmwares. Here is a list of all options and what they do:
@@ -91,6 +94,8 @@ In the main menu of the deluge (Shift + Pressing selection knob) there is an ent
 	Enable or disables the 'catch notes' behavior.
 * Delete Unused Kit Rows (DELE)
 	Enable or disables the Delete Unused Kit Rows shortcut (hold KIT then SHIFT+SAVE/DELETE).
+* Alternative Golden Knob Delay Params
+	When On, changes the behaviour of the click action, from the default (PingPong and Type) to the alternative params (SyncType and SyncLevel).
 
 
 # Compiletime settings
@@ -120,3 +125,4 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#170]: https://github.com/SynthstromAudible/DelugeFirmware/pull/170
 [#221]: https://github.com/SynthstromAudible/DelugeFirmware/pull/221
 [#234]: https://github.com/SynthstromAudible/DelugeFirmware/pull/234
+[#281]: https://github.com/SynthstromAudible/DelugeFirmware/pull/281
