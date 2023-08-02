@@ -57,6 +57,13 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 ### Kit Keyboard View
  - ([#112]) All-new use for the "keyboard" button in kit clips, uses the main pad grid for MPC-style 16 level playing. Horizonatal encoder scrolls by one pad at a time, allowing positioning drums left to right, and vertical encoder jumps vertically by rows.
 
+### Instrument & Kit Clip View
+  - ([#129]) Quantize & Humanize
+    - Press and hold a note in clip view and turn the tempo knob right or left to apply quantize or humanize respectively to that row.
+    - Press and hold a note and press and turn the tempo knob to apply quantize or humanize to all rows.
+    - The amount of quantization/humanization is shown in the display.
+    - This feature can be toggled in the [runtime features menu](#runtime-features).
+
 ### Audio Clip View
  - ([#141]) Holding the vertical encoder down while turning the horizontal encoder will shift the clip along the underlying audio file, similar to the same interface for instrument clips.
 
@@ -118,6 +125,7 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#103]: https://github.com/SynthstromAudible/DelugeFirmware/pull/103
 [#112]: https://github.com/SynthstromAudible/DelugeFirmware/pull/112
 [#122]: https://github.com/SynthstromAudible/DelugeFirmware/pull/122
+[#129]: https://github.com/SynthstromAudible/DelugeFirmware/pull/129
 [#141]: https://github.com/SynthstromAudible/DelugeFirmware/pull/141
 [#138]: https://github.com/SynthstromAudible/DelugeFirmware/pull/138
 [#163]: https://github.com/SynthstromAudible/DelugeFirmware/pull/163
