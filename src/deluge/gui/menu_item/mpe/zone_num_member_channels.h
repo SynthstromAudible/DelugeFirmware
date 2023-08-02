@@ -37,7 +37,7 @@ public:
 	//char nameChars[16];
 
 #if HAVE_OLED
-	[[nodiscard]] const string& getTitle() const override {
+	[[nodiscard]] std::string_view getTitle() const override {
 		return "Num member ch.";
 	}
 #endif

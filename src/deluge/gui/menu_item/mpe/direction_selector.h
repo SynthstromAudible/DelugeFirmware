@@ -32,7 +32,7 @@ public:
 	MenuItem* selectButtonPress() override;
 	uint8_t whichDirection;
 #if HAVE_OLED
-	[[nodiscard]] const string& getTitle() const override {
+	[[nodiscard]] std::string_view getTitle() const override {
 		return whichDirection ? "MPE output" : "MPE input";
 	}
 #endif
