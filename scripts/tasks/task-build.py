@@ -6,6 +6,13 @@ import sys
 import util
 import os
 
+# Map of build configuration names to the name CMake uses for them
+BUILD_CONFIGS = {
+    "release": "Release",
+    "debug": "Debug",
+    "relwithdebinfo": "RelWithDebInfo",
+}
+
 
 def argparser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -44,7 +51,7 @@ def argparser() -> argparse.ArgumentParser:
     parser.add_argument(
         "config",
         nargs="?",
-        choices=["release", "debug", "relwithdebinfo"],
+        choices=list(BUILD_CONFIGS.keys()),
     )
     return parser
 
@@ -74,7 +81,8 @@ def main() -> int:
     build_args += ["--target", target]
 
     if args.config:
-        build_args += ["--config", f"{args.config.title()}"]
+        config = BUILD_CONFIGS[args.config]
+        build_args += ["--config", config]
 
     if args.verbose:
         build_args += ["--verbose"]
