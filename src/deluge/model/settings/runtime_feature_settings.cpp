@@ -84,7 +84,7 @@ void RuntimeFeatureSettings::init() {
 	// AltGoldenKnobDelayParams
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AltGoldenKnobDelayParams],
 	                  "Alternative Golden Knob Delay Params", "altGoldenKnobDelayParams",
-	                  RuntimeFeatureStateToggle::On);
+	                  RuntimeFeatureStateToggle::Off);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {
