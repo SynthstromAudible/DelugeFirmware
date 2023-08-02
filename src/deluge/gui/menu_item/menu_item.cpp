@@ -32,14 +32,14 @@ void MenuItem::learnCC(MIDIDevice* fromDevice, int32_t channel, int32_t ccNumber
 #if HAVE_OLED
 
 void MenuItem::renderOLED() {
-	OLED::drawScreenTitle(getTitle().c_str());
+	OLED::drawScreenTitle(getTitle());
 	drawPixelsForOled();
 }
 
 #else
 
 void MenuItem::drawName() {
-	numericDriver.setText(getName().c_str(), false, shouldDrawDotOnName());
+	numericDriver.setText(getName(), false, shouldDrawDotOnName());
 }
 
 #endif

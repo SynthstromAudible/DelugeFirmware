@@ -58,7 +58,7 @@ public:
 		}
 	}
 
-	[[nodiscard]] const string& getTitle() const override {
+	[[nodiscard]] std::string_view getTitle() const override {
 		return FormattedTitle::title();
 	}
 

@@ -28,7 +28,7 @@ public:
 	PulseWidth(const string& name, const string& title_format_str, int32_t newP)
 	    : source::PatchedParam(name, newP), FormattedTitle(title_format_str) {}
 
-	[[nodiscard]] const string& getTitle() const override { return FormattedTitle::title(); }
+	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
 	int32_t getFinalValue() override { return (uint32_t)this->value_ * (85899345 >> 1); }
 

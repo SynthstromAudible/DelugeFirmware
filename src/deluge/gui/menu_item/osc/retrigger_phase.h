@@ -27,7 +27,7 @@ public:
 	RetriggerPhase(const string& newName, const deluge::string& title, bool newForModulator = false)
 	    : Decimal(newName), FormattedTitle(title), forModulator(newForModulator) {}
 
-	[[nodiscard]] const string& getTitle() const override { return FormattedTitle::title(); }
+	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
 	[[nodiscard]] int32_t getMinValue() const override { return -soundEditor.numberEditSize; }
 	[[nodiscard]] int32_t getMaxValue() const override { return 360; }

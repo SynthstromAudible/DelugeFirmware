@@ -14,7 +14,7 @@ public:
 		title_ = fmt::format(fmt::runtime(format_str_), args...);
 	}
 
-	[[nodiscard]] const deluge::string& title() const { return title_; }
+	[[nodiscard]] std::string_view title() const { return title_; }
 
 private:
 	deluge::string format_str_;
