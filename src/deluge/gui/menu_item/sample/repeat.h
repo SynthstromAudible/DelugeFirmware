@@ -15,11 +15,11 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include <gui/views/automation_instrument_clip_view.h>
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/formatted_title.h"
 #include "gui/menu_item/selection/typed_selection.h"
 #include "gui/ui/sound_editor.h"
+#include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "model/clip/clip.h"
 #include "model/drum/drum.h"

@@ -15,10 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <gui/views/automation_instrument_clip_view.h>
 #include "model/drum/non_audio_drum.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/ui.h"
+#include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"

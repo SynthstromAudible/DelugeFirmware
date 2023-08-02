@@ -15,7 +15,6 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include <gui/views/automation_instrument_clip_view.h>
 #include "gui/ui/audio_recorder.h"
 #include "definitions_cxx.hpp"
 #include "dsp/stereo_sample.h"
@@ -23,6 +22,7 @@
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
+#include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/display/numeric_driver.h"
 #include "hid/display/oled.h"

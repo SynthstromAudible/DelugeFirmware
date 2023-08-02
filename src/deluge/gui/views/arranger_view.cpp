@@ -15,7 +15,6 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include <gui/views/automation_instrument_clip_view.h>
 #include "gui/views/arranger_view.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
@@ -28,6 +27,7 @@
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/audio_clip_view.h"
+#include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -1698,8 +1698,8 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 
 			// If going to automationInstrumentClipView...
 			if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
-				automationInstrumentClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
-				                                  false);
+				automationInstrumentClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1],
+				                                            &PadLEDs::occupancyMaskStore[1], false);
 			}
 			// Or if just regular old InstrumentClipView
 			else {

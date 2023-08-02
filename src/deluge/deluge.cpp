@@ -15,7 +15,6 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include <gui/views/automation_instrument_clip_view.h>
 #include "RZA1/system/iodefine.h"
 #include "definitions_cxx.hpp"
 #include "gui/context_menu/clear_song.h"
@@ -23,6 +22,7 @@
 #include "gui/context_menu/sample_browser/synth.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/views/arranger_view.h"
+#include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/led/pad_leds.h"
 #include "model/clip/instrument_clip_minder.h"

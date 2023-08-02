@@ -15,7 +15,6 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <gui/views/automation_instrument_clip_view.h>
 #include "gui/views/session_view.h"
 #include "definitions_cxx.hpp"
 #include "dsp/master_compressor/master_compressor.h"
@@ -30,6 +29,7 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
+#include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "gui/waveform/waveform_renderer.h"
@@ -2205,7 +2205,8 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 		else if (((InstrumentClip*)clip)->onAutomationInstrumentClipView) {
 
 			automationInstrumentClipView.renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
-			automationInstrumentClipView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
+			automationInstrumentClipView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1],
+			                                           &PadLEDs::occupancyMaskStore[1]);
 
 			PadLEDs::numAnimatedRows = kDisplayHeight;
 			for (int32_t y = 0; y < PadLEDs::numAnimatedRows; y++) {

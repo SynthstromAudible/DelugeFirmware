@@ -15,11 +15,11 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <gui/views/automation_instrument_clip_view.h>
 #include "gui/ui/rename/rename_drum_ui.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/ui/sound_editor.h"
+#include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/buttons.h"
 #include "hid/display/numeric_driver.h"

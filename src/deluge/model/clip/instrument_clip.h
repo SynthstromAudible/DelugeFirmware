@@ -140,7 +140,7 @@ public:
 
 	//START ~ new Automation Clip View Variables
 	bool onAutomationInstrumentClipView; //new to save the view that you are currently in
-	                           //(e.g. if you leave clip and want to come back where you left off)
+	                                     //(e.g. if you leave clip and want to come back where you left off)
 
 	uint8_t lastSelectedParamID;
 	uint8_t lastSelectedMidiCC;

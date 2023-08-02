@@ -21,7 +21,7 @@
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/arranger_view.h"
-#include <gui/views/automation_instrument_clip_view.h>
+#include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -3301,31 +3301,33 @@ void InstrumentClip::sendMIDIPGM() {
 }
 
 void InstrumentClip::clear(Action* action, ModelStackWithTimelineCounter* modelStack) {
-	if (getCurrentUI() == &automationInstrumentClipView && !instrumentClipView.getAffectEntire()) { //if in automationClipView and not in Affect Entire mode
-																						  //only clear automation from selected row
+	if (getCurrentUI() == &automationInstrumentClipView
+	    && !instrumentClipView.getAffectEntire()) { //if in automationClipView and not in Affect Entire mode
+		                                            //only clear automation from selected row
 		int32_t noteRowIndex = 0;
 
-		NoteRow* thisNoteRow = getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay, currentSong, &noteRowIndex);
+		NoteRow* thisNoteRow =
+		    getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay, currentSong, &noteRowIndex);
 		ModelStackWithNoteRow* modelStackWithNoteRow =
-				modelStack->addNoteRow(getNoteRowId(thisNoteRow, noteRowIndex), thisNoteRow);
+		    modelStack->addNoteRow(getNoteRowId(thisNoteRow, noteRowIndex), thisNoteRow);
 
 		thisNoteRow->clear(action, modelStackWithNoteRow);
 	}
 	else {
 		Clip::clear(action, modelStack); //this clears automations when "affectEntire" is enabled
 
-		if (getCurrentUI() != &automationInstrumentClipView  //if we're not in the automationClipView, allow the clearing of notes and MPE automations
-			|| (getCurrentUI() == &automationInstrumentClipView //or if we're in the automationClipView Automation Overview for Kit Rows clear all note row automations also
-					&& !instrumentClipView.getAffectEntire()
-					&& lastSelectedParamID == 255)) {
+		if (getCurrentUI()
+		        != &automationInstrumentClipView //if we're not in the automationClipView, allow the clearing of notes and MPE automations
+		    || (getCurrentUI()
+		            == &automationInstrumentClipView //or if we're in the automationClipView Automation Overview for Kit Rows clear all note row automations also
+		        && !instrumentClipView.getAffectEntire() && lastSelectedParamID == 255)) {
 
 			for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
 				NoteRow* thisNoteRow = noteRows.getElement(i);
 				ModelStackWithNoteRow* modelStackWithNoteRow =
-					modelStack->addNoteRow(getNoteRowId(thisNoteRow, i), thisNoteRow);
-					thisNoteRow->clear(action, modelStackWithNoteRow);
+				    modelStack->addNoteRow(getNoteRowId(thisNoteRow, i), thisNoteRow);
+				thisNoteRow->clear(action, modelStackWithNoteRow);
 			}
-
 		}
 	}
 }

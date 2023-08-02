@@ -43,8 +43,8 @@ Setting menuNudgeNoteAutomation(RuntimeFeatureSettingType::NudgeNoteAutomation);
 
 std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement> subMenuEntries{
     &menuDrumRandomizer,       &menuMasterCompressorFx, &menuFineTempo,           &menuQuantize,
-    &menuPatchCableResolution, &menuCatchNotes,         &menuDeleteUnusedKitRows,
-	&menuClearClipAutomation,	&menuNudgeNoteAutomation,
+    &menuPatchCableResolution, &menuCatchNotes,         &menuDeleteUnusedKitRows, &menuClearClipAutomation,
+    &menuNudgeNoteAutomation,
 };
 
 Settings::Settings(char const* name, char const* title)

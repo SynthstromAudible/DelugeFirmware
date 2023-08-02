@@ -794,7 +794,7 @@ Submenu defaultsSubmenu{
     "DEFAULTS",
     {
         &defaultAutomationMenu,
-		&defaultTempoMenu,
+        &defaultTempoMenu,
         &defaultSwingMenu,
         &defaultKeyMenu,
         &defaultScaleMenu,

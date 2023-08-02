@@ -15,9 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include <gui/views/automation_instrument_clip_view.h>
 #include "gui/menu_item/toggle.h"
 #include "gui/ui/sound_editor.h"
+#include "gui/views/automation_instrument_clip_view.h"
 
 namespace deluge::gui::menu_item::defaults {
 class ClipClear final : public Toggle {

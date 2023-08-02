@@ -15,9 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <gui/views/automation_instrument_clip_view.h>
 #include "model/note/note_row.h"
 #include "definitions_cxx.hpp"
+#include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/timeline_view.h"
 #include "gui/views/view.h"
@@ -3371,7 +3371,6 @@ void NoteRow::shiftHorizontally(int32_t amount, ModelStackWithNoteRow* modelStac
 	if (getCurrentUI() != &automationInstrumentClipView) {
 
 		notes.shiftHorizontal(amount, effectiveLength);
-
 	}
 }
 
@@ -3391,7 +3390,8 @@ void NoteRow::clear(Action* action, ModelStackWithNoteRow* modelStack) {
 		}
 	}
 	else { //community feature is disabled, so you can clear all automations from within the regular instrument clip view
-		if (getCurrentUI() == &automationInstrumentClipView) { //if in automation clip view, only clear NON MPE automations
+		if (getCurrentUI()
+		    == &automationInstrumentClipView) { //if in automation clip view, only clear NON MPE automations
 
 			if (paramManager.containsAnyMainParamCollections()) { //excluding expression
 				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
@@ -3416,13 +3416,13 @@ void NoteRow::clear(Action* action, ModelStackWithNoteRow* modelStack) {
 
 		if (action) {
 			int32_t error = action->recordNoteArrayChangeIfNotAlreadySnapshotted(
-				(InstrumentClip*)modelStack->getTimelineCounter(), modelStack->noteRowId, &notes, true); // Steal data
+			    (InstrumentClip*)modelStack->getTimelineCounter(), modelStack->noteRowId, &notes, true); // Steal data
 			if (error) {
 				goto justEmpty;
 			}
 		}
 		else {
-	justEmpty:
+justEmpty:
 			notes.empty();
 		}
 	}
