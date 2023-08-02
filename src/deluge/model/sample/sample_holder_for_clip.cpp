@@ -44,8 +44,8 @@ void SampleHolderForClip::recalculateNeutralPhaseIncrement() {
 
 		neutralPhaseIncrement = noteIntervalTable[noteWithinOctave] >> (6 - octave);
 
-		if (((Sample*)audioFile)->sampleRate != 44100) {
-			neutralPhaseIncrement = (uint64_t)neutralPhaseIncrement * ((Sample*)audioFile)->sampleRate / 44100;
+		if (((Sample*)audioFile)->sampleRate != kSampleRate) {
+			neutralPhaseIncrement = (uint64_t)neutralPhaseIncrement * ((Sample*)audioFile)->sampleRate / kSampleRate;
 		}
 
 		if (cents) {

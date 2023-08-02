@@ -297,7 +297,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 			    || delayWorkingState->userDelayRate != delay.primaryBuffer.nativeRate) {
 
 				// If delay speed has settled for a split second...
-				if (delay.countCyclesWithoutChange >= (44100 >> 5)) {
+				if (delay.countCyclesWithoutChange >= (kSampleRate >> 5)) {
 					//Debug::println("settling");
 					initializeSecondaryDelayBuffer(delayWorkingState->userDelayRate, true);
 				}
@@ -1670,6 +1670,74 @@ void ModControllableAudio::switchDelayAnalog() {
 
 	default:
 		displayText = HAVE_OLED ? "Analog delay" : "ANA";
+		break;
+	}
+	numericDriver.displayPopup(displayText);
+}
+
+void ModControllableAudio::switchDelaySyncType() {
+	switch (delay.syncType) {
+	case SYNC_TYPE_TRIPLET:
+		delay.syncType = SYNC_TYPE_DOTTED;
+		break;
+	case SYNC_TYPE_DOTTED:
+		delay.syncType = SYNC_TYPE_EVEN;
+		break;
+
+	default: //SYNC_TYPE_EVEN
+		delay.syncType = SYNC_TYPE_TRIPLET;
+		break;
+	}
+
+	char const* displayText;
+	switch (delay.syncType) {
+	case SYNC_TYPE_TRIPLET:
+		displayText = "Triplet";
+		break;
+	case SYNC_TYPE_DOTTED:
+		displayText = "Dotted";
+		break;
+
+	default: //SYNC_TYPE_EVEN
+		displayText = "Even";
+		break;
+	}
+	numericDriver.displayPopup(displayText);
+}
+
+void ModControllableAudio::switchDelaySyncLevel() {
+	// Note: SYNC_LEVEL_NONE (value 0) can't be selected
+	delay.syncLevel = (SyncLevel)((delay.syncLevel) % SyncLevel::SYNC_LEVEL_256TH + 1); //cycle from 1 to 9 (omit 0)
+
+	char const* displayText;
+	switch (delay.syncLevel) {
+	case SYNC_LEVEL_2ND:
+		displayText = "2nd";
+		break;
+	case SYNC_LEVEL_4TH:
+		displayText = "4th";
+		break;
+	case SYNC_LEVEL_8TH:
+		displayText = "8th";
+		break;
+	case SYNC_LEVEL_16TH:
+		displayText = "16th";
+		break;
+	case SYNC_LEVEL_32ND:
+		displayText = "32nd";
+		break;
+	case SYNC_LEVEL_64TH:
+		displayText = "64th";
+		break;
+	case SYNC_LEVEL_128TH:
+		displayText = "128th";
+		break;
+	case SYNC_LEVEL_256TH:
+		displayText = "256th";
+		break;
+
+	default: //SYNC_LEVEL_WHOLE
+		displayText = "1-bar";
 		break;
 	}
 	numericDriver.displayPopup(displayText);

@@ -173,7 +173,7 @@ checkResult:
 			if (encoders[ENCODER_MOD_0 - e].encPos != 0) {
 				anything = true;
 
-				bool turnedRecently = (AudioEngine::audioSampleTimer - timeModEncoderLastTurned[e] < (44100 >> 1));
+				bool turnedRecently = (AudioEngine::audioSampleTimer - timeModEncoderLastTurned[e] < kShortPressTime);
 
 				// If it was turned recently...
 				if (turnedRecently) {
@@ -199,7 +199,7 @@ checkResult:
 
 					// If the other one also hasn't been turned for a while...
 					bool otherTurnedRecently =
-					    (AudioEngine::audioSampleTimer - timeModEncoderLastTurned[1 - e] < (44100 >> 1));
+					    (AudioEngine::audioSampleTimer - timeModEncoderLastTurned[1 - e] < kShortPressTime);
 					if (!otherTurnedRecently) {
 						actionLogger.closeAction(ACTION_PARAM_UNAUTOMATED_VALUE_CHANGE);
 					}
