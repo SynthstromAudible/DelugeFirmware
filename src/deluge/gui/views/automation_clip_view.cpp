@@ -3392,7 +3392,16 @@ void AutomationClipView::modEncoderButtonAction(uint8_t whichModEncoder, bool on
 		drawParameterName(clip->lastSelectedMidiCC);
 	}
 
+	else {
+		goto followOnAction;
+	}
+
 	uiNeedsRendering(this);
+	return;
+
+followOnAction:
+
+	view.modEncoderButtonAction(whichModEncoder, on);
 
 	//needed for Automation
 	/*	else {
