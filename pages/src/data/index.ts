@@ -1,8 +1,11 @@
 import { Octokit } from "@octokit/core";
-import { components } from "@octokit/openapi-types";
-import { restEndpointMethods } from "@octokit/plugin-rest-endpoint-methods";
 import { Stream } from "stream";
+import { operations, components } from "@octokit/openapi-types";
 import { fromBuffer as zipFromBuffer } from "yauzl";
+import {
+  RestEndpointMethodTypes,
+  restEndpointMethods,
+} from "@octokit/plugin-rest-endpoint-methods";
 
 const OctokitPlugin = Octokit.plugin(restEndpointMethods);
 const Octo = new OctokitPlugin({
@@ -22,10 +25,19 @@ interface Config {
   repo: string;
 }
 
+interface InterestingCommit {
+  /// The interesting commit's sha
+  sha: string;
+  /// Pull request is present only when the commit is not from the main branch
+  pr: components["schemas"]["pull-request-simple"] | undefined;
+  /// The interesting commit's descriptions, will be undefined if this is from a PR
+  commit_message: string | undefined;
+}
+
 const CONFIG = process.env.REPO
   ? {
-      owner: process.env.REPO.split('/')[0],
-      repo: process.env.REPO.split('/')[1],
+      owner: process.env.REPO.split("/")[0],
+      repo: process.env.REPO.split("/")[1],
     }
   : { owner: undefined, repo: undefined };
 
@@ -137,14 +149,7 @@ async function fetchArtifact(
   });
 }
 
-export async function getArtifactData(hash: string, artifactName: string) {
-  if (!CONFIG.owner || !CONFIG.repo) {
-    throw new Error("Config missing and not found in environment");
-  }
-  const config = {
-    owner: CONFIG.owner!,
-    repo: CONFIG.repo!,
-  };
+export async function getArtifactData(config: Config, hash: string, artifactName: string) {
   const runs = await Octo.rest.actions
     .listWorkflowRuns({
       ...config,
@@ -228,7 +233,8 @@ async function getActionPackageForRun(
   return artifactMap;
 }
 
-export async function getAllRuns(config?: Config): Promise<AllWorkflowRuns> {
+export function validateConfig(config?: Config): Config {
+  // Ensure we have a valid config
   if (!config) {
     if (!CONFIG.owner || !CONFIG.repo) {
       throw new Error("Config missing and not found in environment");
@@ -238,6 +244,47 @@ export async function getAllRuns(config?: Config): Promise<AllWorkflowRuns> {
       repo: CONFIG.repo!,
     };
   }
+
+  return config;
+}
+
+export async function getAllInterestingCommits(
+  config: Config,
+): Promise<Array<InterestingCommit>> {
+  // Collect the latest commits on the "community" branch
+  const commits: Array<InterestingCommit> = await Octo.rest.repos
+    .listCommits({
+      ...config,
+      ...{
+        sha: "community",
+      },
+    })
+    .then((resp) =>
+      Array.from(resp.data, (commit: components["schemas"]["commit"]) => ({
+        sha: commit.sha,
+        commit_message: commit.commit.message,
+        pr: undefined,
+      })),
+    );
+
+  const pullRequests = await Octo.rest.pulls
+    .list({
+      ...config,
+    })
+    .then((data) => data.data);
+
+  pullRequests.forEach((pr) => {
+    commits.push({
+      pr,
+      sha: pr.head.sha,
+      commit_message: undefined,
+    });
+  });
+
+  return commits;
+}
+
+export async function lookupBuildWorkflowId(config: Config): Promise<number> {
   const workflows = await Octo.rest.actions.listRepoWorkflows({
     ...config,
   });
@@ -247,23 +294,47 @@ export async function getAllRuns(config?: Config): Promise<AllWorkflowRuns> {
   if (!buildWorkflow) {
     throw new Error("Failed to find build workflow");
   }
-  const workflowRuns = await Octo.rest.actions.listWorkflowRuns({
-    ...config,
-    ...{
-      workflow_id: buildWorkflow.id,
-      branch: "community",
-      status: "completed",
-    },
-  });
-  const actionPackages: Array<WorkflowRun | undefined> = await Promise.all(
-    workflowRuns.data.workflow_runs.map(async (run) => {
-      if (run.head_commit === null) {
-        throw new Error("Run head commit was null!");
-      }
-      const commit = run.head_commit.id;
-      const commitUrl = `https://github.com/SynthstromAudible/DelugeFirmware/tree/${commit}`;
 
-      const message = run.head_commit.message.split("\n")[0];
+  return buildWorkflow.id;
+}
+
+export async function getAllRuns(
+  config: Config,
+  buildWorkflow: number,
+  commits: Array<InterestingCommit>,
+): Promise<AllWorkflowRuns> {
+  // For each commit, look up the workflow runs and grab the artifacts from it
+  const actionPackages: Array<WorkflowRun | undefined> = await Promise.all(
+    commits.map(async (commit: InterestingCommit) => {
+      const run = await Octo.rest.actions
+        .listWorkflowRuns({
+          ...config!,
+          ...{
+            workflow_id: buildWorkflow,
+            status: "completed",
+            head_sha: commit.sha,
+          },
+        })
+        .then(
+          // we just pick run zero because in theory there should only ever be one run
+          // of the build job (and when there's more, those are spurious and should
+          // be removed anyway)
+          (data) => {
+            if (data.data.total_count < 1) {
+              return undefined;
+            } else {
+              return data.data.workflow_runs[0];
+            }
+          },
+        );
+      if (!run) {
+        return undefined;
+      }
+
+      const commitUrl = `https://github.com/SynthstromAudible/DelugeFirmware/tree/${commit.sha}`;
+      const message = commit.commit_message
+        ? commit.commit_message.split("\n")[0]
+        : `PR #${commit.pr!.number}: ${commit.pr!.title}`;
       const artifacts = await getActionPackageForRun(config!, run);
 
       if (!artifacts) {
@@ -273,13 +344,14 @@ export async function getAllRuns(config?: Config): Promise<AllWorkflowRuns> {
       return {
         id: run.id,
         commit_url: commitUrl,
-        commit_sha: commit,
+        commit_sha: commit.sha,
         run_completion_time: run.updated_at,
         short_message: message,
         run_url: run.html_url,
       };
     }),
   );
+
   return {
     config,
     runs: actionPackages.filter(

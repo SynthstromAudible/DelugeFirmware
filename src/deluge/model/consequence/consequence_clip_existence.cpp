@@ -39,7 +39,7 @@ ConsequenceClipExistence::ConsequenceClipExistence(Clip* newClip, ClipArray* new
 	type = newType;
 }
 
-void ConsequenceClipExistence::prepareForDestruction(int whichQueueActionIn, Song* song) {
+void ConsequenceClipExistence::prepareForDestruction(int32_t whichQueueActionIn, Song* song) {
 	if (whichQueueActionIn != util::to_underlying(type)) {
 		song->deleteBackedUpParamManagersForClip(clip);
 
@@ -52,11 +52,11 @@ void ConsequenceClipExistence::prepareForDestruction(int whichQueueActionIn, Son
 #endif
 
 		clip->~Clip();
-		generalMemoryAllocator.dealloc(clip);
+		GeneralMemoryAllocator::get().dealloc(clip);
 	}
 }
 
-int ConsequenceClipExistence::revert(TimeType time, ModelStack* modelStack) {
+int32_t ConsequenceClipExistence::revert(TimeType time, ModelStack* modelStack) {
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
 	if (time != util::to_underlying(type)) { // (Re-)create
@@ -65,7 +65,7 @@ int ConsequenceClipExistence::revert(TimeType time, ModelStack* modelStack) {
 			return ERROR_INSUFFICIENT_RAM;
 		}
 
-		int error = clip->undoDetachmentFromOutput(modelStackWithTimelineCounter);
+		int32_t error = clip->undoDetachmentFromOutput(modelStackWithTimelineCounter);
 		if (error) { // This shouldn't actually happen, but if it does...
 #if ALPHA_OR_BETA_VERSION
 			numericDriver.freezeWithError("E046");

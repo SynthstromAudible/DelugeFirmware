@@ -6,29 +6,41 @@
 			"label": "Build 7SEG Debug",
 			"command": "./dbt",
 			"windows": {
-				"command": "./dbt.cmd"
+				"command": "./dbt.cmd",
 			},
 			"args": [
 				"build",
-				"dbt-build-debug-7seg"
+				"7seg",
+				"debug"
 			],
-			"group": "build",
-			"problemMatcher": []
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"problemMatcher": {
+				"base": "$gcc",
+				"fileLocation": "absolute"
+			}
 		},
 		{
 			"type": "process",
 			"label": "Build OLED Debug",
 			"command": "./dbt",
 			"windows": {
-				"command": "./dbt.cmd"
+				"command": "./dbt.cmd",
 			},
 			"args": [
 				"build",
-				"dbt-build-debug-oled"
+				"oled",
+				"debug"
 			],
 			"group": {
 				"kind": "build",
 				"isDefault": false
+			},
+			"problemMatcher": {
+				"base": "$gcc",
+				"fileLocation": "absolute"
 			}
 		},
 		{
@@ -36,15 +48,20 @@
 			"label": "Build 7SEG Release",
 			"command": "./dbt",
 			"windows": {
-				"command": "./dbt.cmd"
+				"command": "./dbt.cmd",
 			},
 			"args": [
 				"build",
-				"dbt-build-release-7seg"
+				"7seg",
+				"release"
 			],
 			"group": {
 				"kind": "build",
 				"isDefault": false
+			},
+			"problemMatcher": {
+				"base": "$gcc",
+				"fileLocation": "absolute"
 			}
 		},
 		{
@@ -52,17 +69,63 @@
 			"label": "Build OLED Release",
 			"command": "./dbt",
 			"windows": {
-				"command": "./dbt.cmd"
+				"command": "./dbt.cmd",
 			},
 			"args": [
 				"build",
-				"dbt-build-release-oled"
+				"oled",
+				"release"
 			],
 			"group": {
 				"kind": "build",
-				"isDefault": true
+				"isDefault": false
 			},
-			"problemMatcher": []
+			"problemMatcher": {
+				"base": "$gcc",
+				"fileLocation": "absolute"
+			}
+		},
+		{
+			"type": "process",
+			"label": "Build All Debug",
+			"command": "./dbt",
+			"windows": {
+				"command": "./dbt.cmd",
+			},
+			"args": [
+				"build",
+				"all",
+				"debug"
+			],
+			"group": {
+				"kind": "build",
+				"isDefault": false
+			},
+			"problemMatcher": {
+				"base": "$gcc",
+				"fileLocation": "absolute"
+			}
+		},
+		{
+			"type": "process",
+			"label": "Build All Release",
+			"command": "./dbt",
+			"windows": {
+				"command": "./dbt.cmd",
+			},
+			"args": [
+				"build",
+				"all",
+				"release"
+			],
+			"group": {
+				"kind": "build",
+				"isDefault": false
+			},
+			"problemMatcher": {
+				"base": "$gcc",
+				"fileLocation": "absolute"
+			}
 		},
 		{
 			"type": "process",
@@ -70,11 +133,11 @@
 			"problemMatcher": [],
 			"command": "./dbt",
 			"windows": {
-				"command": "./dbt.cmd"
+				"command": "./dbt.cmd",
 			},
 			"args": [
 				"debug",
-				"-j"
+				"-j",
 			]
 		},
 		{
@@ -83,10 +146,19 @@
 			"problemMatcher": [],
 			"command": "./dbt",
 			"windows": {
-				"command": "./dbt.cmd"
+				"command": "./dbt.cmd",
 			},
 			"args": [
-				"debug"
+				"debug",
+			]
+		},
+		{
+			"type": "process",
+			"label": "Format source",
+			"problemMatcher": [],
+			"command": "./dbt",
+			"args": [
+				"format",
 			]
 		}
 	]

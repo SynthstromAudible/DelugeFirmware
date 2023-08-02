@@ -17,10 +17,10 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
 #include "definitions_cxx.hpp"
 #include "hid/button.h"
 #include "model/clip/clip_minder.h"
+#include <cstdint>
 
 class InstrumentClip;
 class Output;
@@ -39,10 +39,10 @@ public:
 	void calculateDefaultRootNote();
 	void drawActualNoteCode(int16_t noteCode);
 	void cycleThroughScales();
-	void displayScaleName(int scale);
+	void displayScaleName(int32_t scale);
 	void displayCurrentScaleName();
-	void selectEncoderAction(int offset);
-	static void drawMIDIControlNumber(int controlNumber, bool automationExists);
+	void selectEncoderAction(int32_t offset);
+	static void drawMIDIControlNumber(int32_t controlNumber, bool automationExists);
 	bool makeCurrentClipActiveOnInstrumentIfPossible(ModelStack* modelStack);
 	void changeInstrumentType(InstrumentType newInstrumentType);
 	void opened();

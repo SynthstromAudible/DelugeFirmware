@@ -36,14 +36,14 @@ void RenameUI::displayText(bool blinkImmediately) {
 
 void RenameUI::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 
-	int windowWidth = 100;
-	int windowHeight = 40;
+	int32_t windowWidth = 100;
+	int32_t windowHeight = 40;
 
-	int windowMinX = (OLED_MAIN_WIDTH_PIXELS - windowWidth) >> 1;
-	int windowMaxX = OLED_MAIN_WIDTH_PIXELS - windowMinX;
+	int32_t windowMinX = (OLED_MAIN_WIDTH_PIXELS - windowWidth) >> 1;
+	int32_t windowMaxX = OLED_MAIN_WIDTH_PIXELS - windowMinX;
 
-	int windowMinY = (OLED_MAIN_HEIGHT_PIXELS - windowHeight) >> 1;
-	int windowMaxY = OLED_MAIN_HEIGHT_PIXELS - windowMinY;
+	int32_t windowMinY = (OLED_MAIN_HEIGHT_PIXELS - windowHeight) >> 1;
+	int32_t windowMaxY = OLED_MAIN_HEIGHT_PIXELS - windowMinY;
 
 	OLED::clearAreaExact(windowMinX + 1, windowMinY + 1, windowMaxX - 1, windowMaxY - 1, image);
 
@@ -51,10 +51,10 @@ void RenameUI::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 
 	OLED::drawStringCentred(title, windowMinY + 6, image[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 
-	int maxNumChars = 12;
-	int charsWidthPixels = maxNumChars * kTextSpacingX;
-	int charsStartPixel = (OLED_MAIN_WIDTH_PIXELS - charsWidthPixels) >> 1;
-	int boxStartPixel = charsStartPixel - 3;
+	int32_t maxNumChars = 12;
+	int32_t charsWidthPixels = maxNumChars * kTextSpacingX;
+	int32_t charsStartPixel = (OLED_MAIN_WIDTH_PIXELS - charsWidthPixels) >> 1;
+	int32_t boxStartPixel = charsStartPixel - 3;
 
 	OLED::drawRectangle(boxStartPixel, 24, OLED_MAIN_WIDTH_PIXELS - boxStartPixel, 38, &image[0]);
 

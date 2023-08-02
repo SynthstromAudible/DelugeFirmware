@@ -16,10 +16,10 @@
  */
 
 #include "runtime_feature_settings.h"
+#include "util/d_string.h"
+#include <cstdio>
 #include <cstring>
 #include <new>
-#include <stdio.h>
-#include <string.h>
 
 #include "hid/display/numeric_driver.h"
 #include "storage/storage_manager.h"
@@ -32,7 +32,7 @@
 
 /// Unknown Settings container
 struct UnknownSetting {
-	String name;
+	deluge::string name;
 	uint32_t value;
 };
 
@@ -41,25 +41,21 @@ RuntimeFeatureSettings runtimeFeatureSettings{};
 RuntimeFeatureSettings::RuntimeFeatureSettings() : unknownSettings(sizeof(UnknownSetting)) {
 }
 
-static void SetupOnOffSetting(RuntimeFeatureSetting& setting, char const* const displayName, char const* const xmlName,
-                              RuntimeFeatureStateToggle def) {
+static void SetupOnOffSetting(RuntimeFeatureSetting& setting, const deluge::string& displayName,
+                              const deluge::string& xmlName, RuntimeFeatureStateToggle def) {
 	setting.displayName = displayName;
 	setting.xmlName = xmlName;
 	setting.value = static_cast<uint32_t>(def);
 
-	setting.options[0] = {
-	    .displayName = "Off",
-	    .value = RuntimeFeatureStateToggle::Off,
-	};
-
-	setting.options[1] = {
-	    .displayName = "On",
-	    .value = RuntimeFeatureStateToggle::On,
-	};
-
-	setting.options[2] = {
-	    .displayName = NULL,
-	    .value = 0,
+	setting.options = {
+	    {
+	        .displayName = "Off",
+	        .value = RuntimeFeatureStateToggle::Off,
+	    },
+	    {
+	        .displayName = "On",
+	        .value = RuntimeFeatureStateToggle::On,
+	    },
 	};
 }
 
@@ -103,21 +99,21 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 		return;
 	}
 
-	int error = storageManager.openXMLFile(&fp, TAG_RUNTIME_FEATURE_SETTINGS);
+	int32_t error = storageManager.openXMLFile(&fp, TAG_RUNTIME_FEATURE_SETTINGS);
 	if (error) {
 		return;
 	}
 
 	String currentName;
 	int32_t currentValue = 0;
-	char const* currentTag;
+	char const* currentTag = nullptr;
 	while (*(currentTag = storageManager.readNextTagOrAttributeName())) {
 		if (strcmp(currentTag, TAG_RUNTIME_FEATURE_SETTING) == 0) {
 			// Read name
 			currentTag = storageManager.readNextTagOrAttributeName();
 			if (strcmp(currentTag, TAG_RUNTIME_FEATURE_SETTING_ATTR_NAME) != 0) {
 				numericDriver.displayPopup("Community file err");
-				goto readEnd;
+				break;
 			}
 			storageManager.readTagOrAttributeValueString(&currentName);
 			storageManager.exitTag();
@@ -126,29 +122,29 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 			currentTag = storageManager.readNextTagOrAttributeName();
 			if (strcmp(currentTag, TAG_RUNTIME_FEATURE_SETTING_ATTR_VALUE) != 0) {
 				numericDriver.displayPopup("Community file err");
-				goto readEnd;
+				break;
 			}
 			currentValue = storageManager.readTagOrAttributeValueInt();
 			storageManager.exitTag();
 
 			bool found = false;
-			for (uint32_t idxSetting = 0; idxSetting < RuntimeFeatureSettingType::MaxElement; ++idxSetting) {
-				if (strcmp(settings[idxSetting].xmlName, currentName.get()) == 0) {
+			for (auto& setting : settings) {
+				if (strcmp(setting.xmlName.c_str(), currentName.get()) == 0) {
 					found = true;
-					settings[idxSetting].value = currentValue;
+					setting.value = currentValue;
 				}
 			}
 
 			// Remember unknown settings for writing them back
 			if (!found) {
 				//unknownSettings.insertSetting(&currentName, currentValue);
-				int idx = unknownSettings.getNumElements();
+				int32_t idx = unknownSettings.getNumElements();
 				if (unknownSettings.insertAtIndex(idx) != NO_ERROR) {
 					return;
 				}
 				void* address = unknownSettings.getElementAddress(idx);
-				UnknownSetting* unknownSetting = new (address) UnknownSetting();
-				unknownSetting->name.set(&currentName);
+				auto* unknownSetting = new (address) UnknownSetting();
+				unknownSetting->name = deluge::string(currentName.get());
 				unknownSetting->value = currentValue;
 			}
 		}
@@ -156,14 +152,13 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 		storageManager.exitTag();
 	}
 
-readEnd:
 	storageManager.closeFile();
 }
 
 void RuntimeFeatureSettings::writeSettingsToFile() {
 	f_unlink(RUNTIME_FEATURE_SETTINGS_FILE); // May give error, but no real consequence from that.
 
-	int error = storageManager.createXMLFile(RUNTIME_FEATURE_SETTINGS_FILE, true);
+	int32_t error = storageManager.createXMLFile(RUNTIME_FEATURE_SETTINGS_FILE, true);
 	if (error) {
 		return;
 	}
@@ -173,19 +168,19 @@ void RuntimeFeatureSettings::writeSettingsToFile() {
 	storageManager.writeEarliestCompatibleFirmwareVersion("4.1.3");
 	storageManager.writeOpeningTagEnd();
 
-	for (uint32_t idxSetting = 0; idxSetting < RuntimeFeatureSettingType::MaxElement; ++idxSetting) {
+	for (auto& setting : settings) {
 		storageManager.writeOpeningTagBeginning(TAG_RUNTIME_FEATURE_SETTING);
-		storageManager.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_NAME, settings[idxSetting].xmlName, false);
-		storageManager.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_VALUE, settings[idxSetting].value, false);
+		storageManager.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_NAME, setting.xmlName.c_str(), false);
+		storageManager.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_VALUE, setting.value, false);
 		storageManager.writeOpeningTagEnd(false);
 		storageManager.writeClosingTag(TAG_RUNTIME_FEATURE_SETTING, false);
 	}
 
 	// Write unknown elements
-	for (uint32_t idxUnknownSetting; idxUnknownSetting < unknownSettings.getNumElements(); idxUnknownSetting++) {
+	for (uint32_t idxUnknownSetting = 0; idxUnknownSetting < unknownSettings.getNumElements(); idxUnknownSetting++) {
 		UnknownSetting* unknownSetting = (UnknownSetting*)unknownSettings.getElementAddress(idxUnknownSetting);
 		storageManager.writeOpeningTagBeginning(TAG_RUNTIME_FEATURE_SETTING);
-		storageManager.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_NAME, unknownSetting->name.get(), false);
+		storageManager.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_NAME, unknownSetting->name.c_str(), false);
 		storageManager.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_VALUE, unknownSetting->value, false);
 		storageManager.writeOpeningTagEnd(false);
 		storageManager.writeClosingTag(TAG_RUNTIME_FEATURE_SETTING, false);

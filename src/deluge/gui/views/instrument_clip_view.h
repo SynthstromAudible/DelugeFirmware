@@ -68,31 +68,31 @@ public:
 	bool opened();
 	void focusRegained();
 	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
-	ActionResult padAction(int x, int y, int velocity);
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
 	uint8_t getEditPadPressXDisplayOnScreen(uint8_t yDisplay);
-	void editPadAction(bool state, uint8_t yDisplay, uint8_t xDisplay, unsigned int xZoom);
-	void adjustVelocity(int velocityChange);
+	void editPadAction(bool state, uint8_t yDisplay, uint8_t xDisplay, uint32_t xZoom);
+	void adjustVelocity(int32_t velocityChange);
 	void mutePadPress(uint8_t yDisplay);
 	bool ensureNoteRowExistsForYDisplay(uint8_t yDisplay);
 	void recalculateColours();
 	void recalculateColour(uint8_t yDisplay);
-	ActionResult scrollVertical(int scrollAmount, bool inCardRoutine, bool shiftingNoteRow = false);
+	ActionResult scrollVertical(int32_t scrollAmount, bool inCardRoutine, bool shiftingNoteRow = false);
 	void reassessAllAuditionStatus();
 	void reassessAuditionStatus(uint8_t yDisplay);
 	uint8_t getVelocityForAudition(uint8_t yDisplay, uint32_t* sampleSyncLength);
 	uint8_t getNumNoteRowsAuditioning();
 	uint8_t oneNoteAuditioning();
-	void offsetNoteCodeAction(int newOffset);
-	int getYVisualFromYDisplay(int yDisplay);
-	int getYVisualWithinOctaveFromYDisplay(int yDisplay);
-	void auditionPadAction(int velocity, int yDisplay, bool shiftButtonDown);
+	void offsetNoteCodeAction(int32_t newOffset);
+	int32_t getYVisualFromYDisplay(int32_t yDisplay);
+	int32_t getYVisualWithinOctaveFromYDisplay(int32_t yDisplay);
+	void auditionPadAction(int32_t velocity, int32_t yDisplay, bool shiftButtonDown);
 	void enterScaleMode(uint8_t yDisplay = 255);
 	void exitScaleMode();
 	void changeRootNote(uint8_t yDisplay);
 	void drawMuteSquare(NoteRow* thisNoteRow, uint8_t thisImage[][3], uint8_t thisOccupancyMask[]);
 	void cutAuditionedNotesToOne();
-	ActionResult verticalEncoderAction(int offset, bool inCardRoutine);
-	ActionResult horizontalEncoderAction(int offset);
+	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
+	ActionResult horizontalEncoderAction(int32_t offset);
 	void fillOffScreenImageStores();
 	void graphicsRoutine();
 
@@ -103,9 +103,9 @@ public:
 	void noteRowChanged(InstrumentClip* clip, NoteRow* noteRow);
 	void setSelectedDrum(Drum* drum, bool shouldRedrawStuff = true);
 	bool isDrumAuditioned(Drum* drum);
-	int setupForEnteringScaleMode(int newRootNote = 2147483647, int yDisplay = (kDisplayHeight / 2));
-	int setupForExitingScaleMode();
-	void setupChangingOfRootNote(int newRootNote, int yDisplay = (kDisplayHeight / 2));
+	int32_t setupForEnteringScaleMode(int32_t newRootNote = 2147483647, int32_t yDisplay = (kDisplayHeight / 2));
+	int32_t setupForExitingScaleMode();
+	void setupChangingOfRootNote(int32_t newRootNote, int32_t yDisplay = (kDisplayHeight / 2));
 	void deleteDrum(SoundDrum* drum);
 	void cancelAllAuditioning();
 	void modEncoderButtonAction(uint8_t whichModEncoder, bool on);
@@ -117,7 +117,7 @@ public:
 	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
 	void performActualRender(uint32_t whichRows, uint8_t* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
-	                         int32_t xScroll, uint32_t xZoom, int renderWidth, int imageWidth,
+	                         int32_t xScroll, uint32_t xZoom, int32_t renderWidth, int32_t imageWidth,
 	                         bool drawUndefinedArea = true);
 	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
@@ -126,10 +126,10 @@ public:
 	void playbackEnded();
 	void scrollFinished();
 	void clipNeedsReRendering(Clip* clip);
-	void modEncoderAction(int whichModEncoder, int offset);
+	void modEncoderAction(int32_t whichModEncoder, int32_t offset);
 	ClipMinder* toClipMinder() { return this; }
 	void reportMPEInitialValuesForNoteEditing(ModelStackWithNoteRow* modelStack, int16_t const* mpeValues);
-	void reportMPEValueForNoteEditing(int whichExpressionDimension, int32_t value);
+	void reportMPEValueForNoteEditing(int32_t whichExpressionDimension, int32_t value);
 	void reportNoteOffForMPEEditing(ModelStackWithNoteRow* modelStack);
 	void dontDeleteNotesOnDepress();
 
@@ -142,13 +142,10 @@ public:
 	void drawNoteCode(uint8_t yDisplay);
 	void createNewInstrument(InstrumentType instrumentType);
 	void changeInstrumentType(InstrumentType newInstrumentType);
-	Drum* flipThroughAvailableDrums(int newOffset, Drum* drum, bool mayBeNone = false);
-	void enterDrumCreator(ModelStackWithNoteRow* modelStack, bool doRecording = false);
-	NoteRow* createNewNoteRowForKit(ModelStackWithTimelineCounter* modelStack, int yDisplay, int* getIndex = NULL);
 	Sound* getSoundForNoteRow(NoteRow* noteRow, ParamManagerForTimeline** getParamManager);
-	ModelStackWithNoteRow* createNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int yDisplay);
-	ModelStackWithNoteRow* getOrCreateNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int yDisplay);
-	void editNoteRowLength(ModelStackWithNoteRow* modelStack, int offset, int yDisplay);
+	ModelStackWithNoteRow* createNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay);
+	ModelStackWithNoteRow* getOrCreateNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay);
+	void editNoteRowLength(ModelStackWithNoteRow* modelStack, int32_t offset, int32_t yDisplay);
 	void someAuditioningHasEnded(bool recalculateLastAuditionedNoteOnScreen);
 	bool getAffectEntire();
 	void checkIfAllEditPadPressesEnded(bool mayRenderSidebar = true);
@@ -209,26 +206,29 @@ private:
 	int32_t quantizeAmount;
 
 	Drum* getNextDrum(Drum* oldDrum, bool mayBeNone = false);
-
-	void adjustProbability(int offset);
+	Drum* flipThroughAvailableDrums(int32_t newOffset, Drum* drum, bool mayBeNone = false);
+	NoteRow* createNewNoteRowForKit(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay,
+	                                int32_t* getIndex = NULL);
+	void enterDrumCreator(ModelStackWithNoteRow* modelStack, bool doRecording = false);
+	void adjustProbability(int32_t offset);
 	void copyNotes();
 	void pasteNotes();
 	void deleteCopiedNoteRows();
 
-	void copyAutomation(int whichModEncoder);
-	void pasteAutomation(int whichModEncoder);
+	void copyAutomation(int32_t whichModEncoder);
+	void pasteAutomation(int32_t whichModEncoder);
 
 	void createDrumForAuditionedNoteRow(DrumType drumType);
-	void nudgeNotes(int offset);
-	void editNoteRepeat(int offset);
+	void nudgeNotes(int32_t offset);
+	void editNoteRepeat(int32_t offset);
 
-	bool isRowAuditionedByInstrument(int yDisplay);
+	bool isRowAuditionedByInstrument(int32_t yDisplay);
 
-	void editNumEuclideanEvents(ModelStackWithNoteRow* modelStack, int offset, int yDisplay);
-	void rotateNoteRowHorizontally(ModelStackWithNoteRow* modelStack, int offset, int yDisplay,
+	void editNumEuclideanEvents(ModelStackWithNoteRow* modelStack, int32_t offset, int32_t yDisplay);
+	void rotateNoteRowHorizontally(ModelStackWithNoteRow* modelStack, int32_t offset, int32_t yDisplay,
 	                               bool shouldDisplayDirectionEvenIfNoNoteRow = false);
 
-	void quantizeNotes(int offset, int nudgeMode);
+	void quantizeNotes(int32_t offset, int32_t nudgeMode);
 };
 
 extern InstrumentClipView instrumentClipView;

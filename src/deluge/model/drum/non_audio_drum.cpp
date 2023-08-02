@@ -70,12 +70,12 @@ int8_t NonAudioDrum::modEncoderAction(ModelStackWithThreeMainThings* modelStack,
 
 extern int16_t zeroMPEValues[];
 
-void NonAudioDrum::modChange(ModelStackWithThreeMainThings* modelStack, int offset, int8_t* encoderOffset,
-                             uint8_t* value, int numValues) {
+void NonAudioDrum::modChange(ModelStackWithThreeMainThings* modelStack, int32_t offset, int8_t* encoderOffset,
+                             uint8_t* value, int32_t numValues) {
 
 	*encoderOffset += offset;
 
-	int valueChange;
+	int32_t valueChange;
 	if (*encoderOffset >= 4) {
 		valueChange = 1;
 	}
@@ -93,7 +93,7 @@ void NonAudioDrum::modChange(ModelStackWithThreeMainThings* modelStack, int offs
 
 	*encoderOffset = 0;
 
-	int newValue = (int)*value + valueChange;
+	int32_t newValue = (int32_t)*value + valueChange;
 	if (newValue < 0) {
 		newValue += numValues;
 	}

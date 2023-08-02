@@ -32,12 +32,39 @@
 	</natures>
 	<filteredResources>
 		<filter>
-			<id>1685543251679</id>
+			<id>1690592078281</id>
 			<name></name>
-			<type>30</type>
+			<type>9</type>
 			<matcher>
 				<id>org.eclipse.ui.ide.multiFilter</id>
-				<arguments>1.0-projectRelativePath-matches-false-false-toolchain</arguments>
+				<arguments>1.0-projectRelativePath-matches-true-false-toolchain</arguments>
+			</matcher>
+		</filter>
+		<filter>
+			<id>1690592078284</id>
+			<name></name>
+			<type>9</type>
+			<matcher>
+				<id>org.eclipse.ui.ide.multiFilter</id>
+				<arguments>1.0-projectRelativePath-matches-false-false-src</arguments>
+			</matcher>
+		</filter>
+		<filter>
+			<id>1690592078287</id>
+			<name></name>
+			<type>9</type>
+			<matcher>
+				<id>org.eclipse.ui.ide.multiFilter</id>
+				<arguments>1.0-projectRelativePath-matches-false-false-lib</arguments>
+			</matcher>
+		</filter>
+		<filter>
+			<id>1690592078291</id>
+			<name></name>
+			<type>9</type>
+			<matcher>
+				<id>org.eclipse.ui.ide.multiFilter</id>
+				<arguments>1.0-name-matches-false-false-build</arguments>
 			</matcher>
 		</filter>
 	</filteredResources>

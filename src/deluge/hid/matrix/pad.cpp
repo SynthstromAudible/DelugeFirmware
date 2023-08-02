@@ -1,11 +1,11 @@
 #include "pad.h"
 #include "definitions_cxx.hpp"
 
-Pad::Pad(int x_, int y_) : x(x_), y(y_) {
+Pad::Pad(int32_t x_, int32_t y_) : x(x_), y(y_) {
 }
 
 Pad::Pad(uint8_t value) {
-	y = (unsigned int)value / 9;
+	y = (uint32_t)value / 9;
 	x = (value - y * 9) << 1;
 
 	if (y >= kDisplayHeight) {

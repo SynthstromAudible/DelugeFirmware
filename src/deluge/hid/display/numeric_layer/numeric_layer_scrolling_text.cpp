@@ -40,7 +40,7 @@ void NumericLayerScrollingText::isNowOnTop() {
 }
 
 void NumericLayerScrollingText::render(uint8_t* returnSegments) {
-	for (int i = 0; i < kNumericDisplayLength; i++) {
+	for (int32_t i = 0; i < kNumericDisplayLength; i++) {
 		if (i + currentPos < length) {
 			returnSegments[i] = text[i + currentPos];
 		}
@@ -60,7 +60,7 @@ bool NumericLayerScrollingText::callBack() {
 		currentDirection = -currentDirection;
 	}
 
-	int delayTime = reachedEnd ? 600 : ((currentDirection == 1) ? 140 : 50);
+	int32_t delayTime = reachedEnd ? 600 : ((currentDirection == 1) ? 140 : 50);
 	uiTimerManager.setTimer(TIMER_DISPLAY, delayTime);
 
 	return false;

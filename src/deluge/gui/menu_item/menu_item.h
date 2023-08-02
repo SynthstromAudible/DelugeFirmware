@@ -17,8 +17,15 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
 #include "definitions_cxx.hpp"
+#include "util/container/static_vector.hpp"
+#include "util/sized.h"
+#include "util/string.h"
+#include <cstdint>
+
+#if HAVE_OLED
+#include "hid/display/oled.h"
+#endif
 
 enum class MenuPermission {
 	NO,
@@ -32,83 +39,82 @@ class MIDIDevice;
 
 class MenuItem {
 public:
-	MenuItem(char const* newName = NULL) {
-		name = newName;
-#if HAVE_OLED
-		basicTitle = newName;
-#endif
+	MenuItem(const deluge::string& newName = "", const deluge::string& newTitle = "") : name(newName), title(newTitle) {
+		if (newTitle.empty()) {
+			title = newName;
+		}
 	}
 
-	char const* name; // As viewed in a menu list. For OLED, up to 20 chars.
-	virtual char const* getName() {
-		return name;
-	}
+	deluge::string name; // As viewed in a menu list. For OLED, up to 20 chars.
+	[[nodiscard]] virtual const deluge::string& getName() const { return name; }
 
-	virtual void horizontalEncoderAction(int offset) {
-	}
-	virtual void selectEncoderAction(int offset) {
-	}
-	virtual void beginSession(MenuItem* navigatedBackwardFrom = NULL){};
-	virtual bool isRelevant(Sound* sound, int whichThing) {
-		return true;
-	}
-	virtual MenuItem* selectButtonPress() {
-		return NULL;
-	}
-	virtual MenuPermission checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange);
-	virtual void readValueAgain() {
-	}
-	virtual bool selectEncoderActionEditsInstrument() {
-		return false;
-	}
-	virtual uint8_t getPatchedParamIndex() {
-		return 255;
-	}
-	virtual uint8_t getIndexOfPatchedParamToBlink() {
-		return 255;
-	}
-	virtual uint8_t shouldDrawDotOnName() {
-		return 255;
-	}
-	virtual uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) {
-		return 255;
-	}
+	virtual void horizontalEncoderAction(int32_t offset) {}
+	virtual void selectEncoderAction(int32_t offset) {}
+	virtual void beginSession(MenuItem* navigatedBackwardFrom = nullptr){};
+	virtual bool isRelevant(Sound* sound, int32_t whichThing) { return true; }
+	virtual MenuItem* selectButtonPress() { return nullptr; }
+	virtual MenuPermission checkPermissionToBeginSession(Sound* sound, int32_t whichThing, MultiRange** currentRange);
+	virtual void readValueAgain() {}
+	virtual bool selectEncoderActionEditsInstrument() { return false; }
+	virtual uint8_t getPatchedParamIndex() { return 255; }
+	virtual uint8_t getIndexOfPatchedParamToBlink() { return 255; }
+	virtual uint8_t shouldDrawDotOnName() { return 255; }
+	virtual uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) { return 255; }
+
 	virtual MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive = false) {
-		return NULL;
-	} // NULL means do nothing. 0xFFFFFFFF means go up a level
-	virtual void unlearnAction() {
+		return nullptr; // nullptr means do nothing. 0xFFFFFFFF means go up a level
 	}
-	virtual bool allowsLearnMode() {
-		return false;
-	}
-	virtual void learnKnob(MIDIDevice* fromDevice, int whichKnob, int modKnobMode, int midiChannel) {
-	}
-	virtual bool learnNoteOn(MIDIDevice* fromDevice, int channel, int noteCode) {
+
+	virtual void unlearnAction() {}
+	virtual bool allowsLearnMode() { return false; }
+	virtual void learnKnob(MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) {}
+	virtual bool learnNoteOn(MIDIDevice* fromDevice, int32_t channel, int32_t noteCode) {
 		return false;
 	} // Returns whether it was used, I think?
-	virtual void learnCC(MIDIDevice* fromDevice, int channel, int ccNumber, int value);
-	virtual bool shouldBlinkLearnLed() {
-		return false;
-	}
-	virtual bool isRangeDependent() {
-		return false;
-	}
-	virtual bool usesAffectEntire() {
-		return false;
-	}
+	virtual void learnCC(MIDIDevice* fromDevice, int32_t channel, int32_t ccNumber, int32_t value);
+	virtual bool shouldBlinkLearnLed() { return false; }
+	virtual bool isRangeDependent() { return false; }
+	virtual bool usesAffectEntire() { return false; }
+
+	deluge::string title; // Can get overridden by getTitle(). Actual max num chars for OLED display is 14.
+
+	/// Get the title to be used when rendering on OLED. If not overriden, defaults to returning `title`.
+	[[nodiscard]] virtual const deluge::string& getTitle() const { return title; }
 
 #if HAVE_OLED
-	char const* basicTitle; // Can get overridden by getTitle(). Actual max num chars for OLED display is 14.
 	virtual void renderOLED();
 	virtual void drawPixelsForOled() {
 	}
-	void drawItemsForOled(char const** options, int selectedOption);
 
-	/// Get the title to be used when rendering on OLED. If not overriden, defaults to returning `basicTitle`.
-	virtual char const* getTitle();
-
+	template <size_t n>
+	static void drawItemsForOled(deluge::static_vector<deluge::string, n>& options, int32_t selectedOption,
+	                             int32_t offset = 0);
 #else
+	/// Get the title to be used when rendering on OLED. If not overriden, defaults to returning `title`.
 	virtual void drawName();
-
 #endif
 };
+
+#if HAVE_OLED
+// A couple of our child classes call this - that's all
+template <size_t n>
+void MenuItem::drawItemsForOled(deluge::static_vector<deluge::string, n>& options, const int32_t selectedOption,
+                                const int32_t offset) {
+	int32_t baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
+	baseY += OLED_MAIN_TOPMOST_PIXEL;
+
+	auto* it = std::next(options.begin(), offset); // fast-forward to the first option visible
+	for (int32_t o = 0; o < OLED_HEIGHT_CHARS - 1 && o < options.size() - offset; o++) {
+		int32_t yPixel = o * kTextSpacingY + baseY;
+
+		OLED::drawString(options[o + offset].c_str(), kTextSpacingX, yPixel, OLED::oledMainImage[0],
+		                 OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+
+		if (o == selectedOption) {
+			OLED::invertArea(0, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8, &OLED::oledMainImage[0]);
+			OLED::setupSideScroller(0, options[o + offset].c_str(), kTextSpacingX, OLED_MAIN_WIDTH_PIXELS, yPixel,
+			                        yPixel + 8, kTextSpacingX, kTextSpacingY, true);
+		}
+	}
+}
+#endif

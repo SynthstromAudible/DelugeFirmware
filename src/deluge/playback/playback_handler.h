@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
 #include "definitions_cxx.hpp"
+#include <cstdint>
 
 #define MIDI_OUT_OFF 0
 #define MIDI_OUT_INCIDENTAL 1
@@ -54,12 +54,13 @@ public:
 	PlaybackHandler();
 	void routine();
 
-	void playButtonPressed(int buttonPressLatency);
+	void playButtonPressed(int32_t buttonPressLatency);
 	void recordButtonPressed();
-	void setupPlaybackUsingInternalClock(int buttonPressLatencyForTempolessRecord = 0, bool allowCountIn = true);
+	void setupPlaybackUsingInternalClock(int32_t buttonPressLatencyForTempolessRecord = 0, bool allowCountIn = true);
 	void setupPlaybackUsingExternalClock(bool switchingFromInternalClock = false, bool fromContinueCommand = false);
-	void setupPlayback(int newPlaybackState, int32_t playFromPos, bool doOneLastAudioRoutineCall = false,
-	                   bool shouldShiftAccordingToClipInstance = true, int buttonPressLatencyForTempolessRecord = 0);
+	void setupPlayback(int32_t newPlaybackState, int32_t playFromPos, bool doOneLastAudioRoutineCall = false,
+	                   bool shouldShiftAccordingToClipInstance = true,
+	                   int32_t buttonPressLatencyForTempolessRecord = 0);
 	void endPlayback();
 	void inputTick(bool fromTriggerClock = false, uint32_t time = 0);
 	void startMessageReceived();
@@ -69,7 +70,7 @@ public:
 	void tempoEncoderAction(int8_t offset, bool encoderButtonPressed, bool shiftButtonPressed);
 	bool isCurrentlyRecording();
 	void positionPointerReceived(uint8_t data1, uint8_t data2);
-	void programChangeReceived(int channel, int program);
+	void programChangeReceived(int32_t channel, int32_t program);
 	void doSongSwap(bool preservePlayPosition = false);
 	void forceResetPlayPos(Song* song);
 	void expectEvent();
@@ -78,8 +79,8 @@ public:
 	int32_t getArrangementRecordPosAtLastActionedSwungTick();
 	void slowRoutine();
 	void scheduleSwungTickFromExternalClock();
-	int getNumSwungTicksInSinceLastTimerTick(uint32_t* timeRemainder = NULL);
-	int getNumSwungTicksInSinceLastActionedSwungTick(uint32_t* timeRemainder = NULL);
+	int32_t getNumSwungTicksInSinceLastTimerTick(uint32_t* timeRemainder = NULL);
+	int32_t getNumSwungTicksInSinceLastActionedSwungTick(uint32_t* timeRemainder = NULL);
 	int64_t getActualSwungTickCount(uint32_t* timeRemainder = NULL);
 	int64_t getCurrentInternalTickCount(uint32_t* remainder = NULL);
 	void scheduleSwungTick();
@@ -154,7 +155,7 @@ public:
 	int32_t swungTicksTilNextEvent;
 
 	int32_t ticksLeftInCountIn;
-	int currentVisualCountForCountIn;
+	int32_t currentVisualCountForCountIn;
 
 	int32_t metronomeOffset;
 
@@ -180,20 +181,21 @@ public:
 	void setMidiOutClockMode(bool newValue);
 	void pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2, bool* doingMidiThru);
 	void midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru);
-	void aftertouchReceived(MIDIDevice* fromDevice, int channel, int value, int noteCode,
+	void aftertouchReceived(MIDIDevice* fromDevice, int32_t channel, int32_t value, int32_t noteCode,
 	                        bool* doingMidiThru); // noteCode -1 means channel-wide
-	void loopCommand(int overdubNature);
+	void loopCommand(int32_t overdubNature);
 	void grabTempoFromClip(Clip* clip);
 	int32_t getTimeLeftInCountIn();
 
-	void noteMessageReceived(MIDIDevice* fromDevice, bool on, int channel, int note, int velocity, bool* doingMidiThru);
+	void noteMessageReceived(MIDIDevice* fromDevice, bool on, int32_t channel, int32_t note, int32_t velocity,
+	                         bool* doingMidiThru);
 	bool subModeAllowsRecording();
 
 	void songSelectReceived(uint8_t songId);
 	float calculateBPM(float timePerInternalTick);
 	void switchToArrangement();
 	void switchToSession();
-	void finishTempolessRecording(bool startPlaybackAgain, int buttonLatencyForTempolessRecord,
+	void finishTempolessRecording(bool startPlaybackAgain, int32_t buttonLatencyForTempolessRecord,
 	                              bool shouldExitRecordMode = true);
 
 	int32_t arrangementPosToStartAtOnSwitch;
@@ -222,8 +224,8 @@ private:
 	uint16_t tapTempoNumPresses;
 	uint32_t tapTempoFirstPressTime;
 
-	int numOutputClocksWaitingToBeSent;
-	int numInputTicksToSkip;
+	int32_t numOutputClocksWaitingToBeSent;
+	int32_t numInputTicksToSkip;
 
 	void resetTimePerInternalTickMovingAverage();
 	void getCurrentTempoParams(int32_t* magnitude, int8_t* whichValue);
@@ -236,7 +238,7 @@ private:
 	//void scheduleNextTimerTick();
 	bool startIgnoringMidiClockInputIfNecessary();
 	uint32_t setTempoFromAudioClipLength(uint64_t loopLengthSamples, Action* action);
-	bool tryGlobalMIDICommands(MIDIDevice* device, int channel, int note);
+	bool tryGlobalMIDICommands(MIDIDevice* device, int32_t channel, int32_t note);
 	void decideOnCurrentPlaybackMode();
 	float getCurrentInternalTickFloatFollowingExternalClock();
 	void scheduleTriggerClockOutTickParamsKnown(uint32_t analogOutTicksPer, uint64_t fractionLastTimerTick,

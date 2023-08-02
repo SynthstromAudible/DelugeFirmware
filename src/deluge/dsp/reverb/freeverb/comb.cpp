@@ -28,13 +28,13 @@ comb::comb() {
 	bufidx = 0;
 }
 
-void comb::setbuffer(int32_t* buf, int size) {
+void comb::setbuffer(int32_t* buf, int32_t size) {
 	buffer = buf;
 	bufsize = size;
 }
 
 void comb::mute() {
-	for (int i = 0; i < bufsize; i++) {
+	for (int32_t i = 0; i < bufsize; i++) {
 		buffer[i] = 0;
 	}
 }

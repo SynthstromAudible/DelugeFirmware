@@ -21,24 +21,24 @@
 
 class OrderedResizeableArray : public ResizeableArray {
 public:
-	OrderedResizeableArray(int newElementSize, int keyNumBits, int newKeyOffset = 0,
-	                       int newMaxNumEmptySpacesToKeep = 16, int newNumExtraSpacesToAllocate = 15);
-	int search(int32_t key, int comparison, int rangeBegin, int rangeEnd);
-	inline int search(int32_t key, int comparison, int rangeBegin = 0) {
+	OrderedResizeableArray(int32_t newElementSize, int32_t keyNumBits, int32_t newKeyOffset = 0,
+	                       int32_t newMaxNumEmptySpacesToKeep = 16, int32_t newNumExtraSpacesToAllocate = 15);
+	int32_t search(int32_t key, int32_t comparison, int32_t rangeBegin, int32_t rangeEnd);
+	inline int32_t search(int32_t key, int32_t comparison, int32_t rangeBegin = 0) {
 		return search(key, comparison, rangeBegin, numElements);
 	}
 
-	int searchExact(int32_t key);
-	int insertAtKey(int32_t key, bool isDefinitelyLast = false);
+	int32_t searchExact(int32_t key);
+	int32_t insertAtKey(int32_t key, bool isDefinitelyLast = false);
 	void deleteAtKey(int32_t key);
 
 	void test();
 	void testSequentiality(char const* errorCode);
 	void testDuplicates();
 
-	inline int32_t getKeyAtIndex(int i) { return getKeyAtMemoryLocation(getElementAddress(i)); }
+	inline int32_t getKeyAtIndex(int32_t i) { return getKeyAtMemoryLocation(getElementAddress(i)); }
 
-	inline void setKeyAtIndex(int32_t key, int i) { setKeyAtMemoryLocation(key, getElementAddress(i)); }
+	inline void setKeyAtIndex(int32_t key, int32_t i) { setKeyAtMemoryLocation(key, getElementAddress(i)); }
 
 protected:
 	inline int32_t getKeyAtMemoryLocation(void* address) {
@@ -54,24 +54,24 @@ protected:
 
 private:
 	const uint32_t keyMask;
-	const int keyOffset;
-	const int keyShiftAmount;
+	const int32_t keyOffset;
+	const int32_t keyShiftAmount;
 };
 
 // The purpose of this is not so much that special functionality is required for 32-bit keys, but that some further child classes inherit from this, which require that the key be 32-bit.
 class OrderedResizeableArrayWith32bitKey : public OrderedResizeableArray {
 public:
-	OrderedResizeableArrayWith32bitKey(int newElementSize, int newMaxNumEmptySpacesToKeep = 16,
-	                                   int newNumExtraSpacesToAllocate = 15);
+	OrderedResizeableArrayWith32bitKey(int32_t newElementSize, int32_t newMaxNumEmptySpacesToKeep = 16,
+	                                   int32_t newNumExtraSpacesToAllocate = 15);
 	void shiftHorizontal(int32_t amount, int32_t effectiveLength);
-	void searchDual(int32_t const* __restrict__ searchTerms, int* __restrict__ resultingIndexes);
-	void searchMultiple(int32_t* __restrict__ searchTerms, int numSearchTerms, int rangeEnd = -1);
+	void searchDual(int32_t const* __restrict__ searchTerms, int32_t* __restrict__ resultingIndexes);
+	void searchMultiple(int32_t* __restrict__ searchTerms, int32_t numSearchTerms, int32_t rangeEnd = -1);
 	bool generateRepeats(int32_t wrapPoint, int32_t endPos);
 	void testSearchMultiple();
 
-	inline int32_t getKeyAtIndex(int i) { return getKeyAtMemoryLocation(getElementAddress(i)); }
+	inline int32_t getKeyAtIndex(int32_t i) { return getKeyAtMemoryLocation(getElementAddress(i)); }
 
-	inline void setKeyAtIndex(int32_t key, int i) { setKeyAtMemoryLocation(key, getElementAddress(i)); }
+	inline void setKeyAtIndex(int32_t key, int32_t i) { setKeyAtMemoryLocation(key, getElementAddress(i)); }
 
 protected:
 	// These shadow - they don't override. Might give a tiny bit of efficiency

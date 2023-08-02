@@ -17,33 +17,33 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
 #include "definitions_cxx.hpp"
 #include "menu_item_with_cc_learning.h"
 #include "param.h"
+#include <cstdint>
 
 class ModelStackWithAutoParam;
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
 class PatchedParam : public Param, public MenuItemWithCCLearning {
 public:
-	PatchedParam() {}
-	PatchedParam(int newP) : Param(newP) {}
+	PatchedParam() = default;
+	PatchedParam(int32_t newP) : Param(newP) {}
 	MenuItem* selectButtonPress();
 #if !HAVE_OLED
-	void drawValue();
+	virtual void drawValue() = 0;
 #endif
-	ParamDescriptor getLearningThing();
-	uint8_t getPatchedParamIndex();
-	uint8_t shouldDrawDotOnName();
+	ParamDescriptor getLearningThing() override;
+	virtual uint8_t getPatchedParamIndex();
+	virtual uint8_t shouldDrawDotOnName();
 
 	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour);
 	MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive = false);
-	ModelStackWithAutoParam* getModelStack(void* memory);
+	ModelStackWithAutoParam* getModelStack(void* memory) override;
 
 protected:
-	ParamSet* getParamSet();
+	ParamSet* getParamSet() override;
 };
 
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

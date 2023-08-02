@@ -17,21 +17,21 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
+#include <cstdint>
 
 class QuickSorter {
 public:
-	QuickSorter(int newElementSize, int keyNumBits, void* newMemory);
-	void sort(int numElements);
+	QuickSorter(int32_t newElementSize, int32_t keyNumBits, void* newMemory);
+	void sort(int32_t numElements);
 
 private:
-	void quickSort(int low, int high);
-	int partition(int low, int high);
-	int getKey(int i);
-	void swap(int i, int j);
-	void* getElementAddress(int i);
+	void quickSort(int32_t low, int32_t high);
+	int32_t partition(int32_t low, int32_t high);
+	int32_t getKey(int32_t i);
+	void swap(int32_t i, int32_t j);
+	void* getElementAddress(int32_t i);
 
-	const int elementSize;
+	const int32_t elementSize;
 	const uint32_t keyMask;
 	void* const memory;
 };

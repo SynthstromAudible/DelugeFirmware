@@ -132,16 +132,16 @@ extern "C" void timerGoneOff(void) {
 
 uint32_t timeNextGraphicsTick = 0;
 
-int voltageReadingLastTime = 65535 * 3300;
+int32_t voltageReadingLastTime = 65535 * 3300;
 uint8_t batteryCurrentRegion = 2;
 uint16_t batteryMV;
 bool batteryLEDState = false;
 
 void batteryLEDBlink() {
 	setOutputState(BATTERY_LED.port, BATTERY_LED.pin, batteryLEDState);
-	int blinkPeriod = ((int)batteryMV - 2630) * 3;
-	blinkPeriod = getMin(blinkPeriod, 500);
-	blinkPeriod = getMax(blinkPeriod, 60);
+	int32_t blinkPeriod = ((int32_t)batteryMV - 2630) * 3;
+	blinkPeriod = std::min(blinkPeriod, 500_i32);
+	blinkPeriod = std::max(blinkPeriod, 60_i32);
 	uiTimerManager.setTimer(TIMER_BATT_LED_BLINK, blinkPeriod);
 	batteryLEDState = !batteryLEDState;
 }
@@ -186,10 +186,10 @@ void inputRoutine() {
 	// If analog read is ready...
 
 	if (ADC.ADCSR & (1 << 15)) {
-		int numericReading = ADC.ADDRF;
+		int32_t numericReading = ADC.ADDRF;
 		// Apply LPF
-		int voltageReading = numericReading * 3300;
-		int distanceToGo = voltageReading - voltageReadingLastTime;
+		int32_t voltageReading = numericReading * 3300;
+		int32_t distanceToGo = voltageReading - voltageReadingLastTime;
 		voltageReadingLastTime += distanceToGo >> 4;
 		batteryMV =
 		    (voltageReadingLastTime)
@@ -234,7 +234,7 @@ makeBattLEDSolid:
 	uiTimerManager.setTimer(TIMER_READ_INPUTS, 100);
 }
 
-int nextPadPressIsOn = USE_DEFAULT_VELOCITY; // Not actually used for 40-pad
+int32_t nextPadPressIsOn = USE_DEFAULT_VELOCITY; // Not actually used for 40-pad
 bool alreadyDoneScroll = false;
 bool waitingForSDRoutineToEnd = false;
 
@@ -246,7 +246,7 @@ extern "C" {
 uint32_t timeUSBInitializationEnds = 44100;
 uint8_t usbInitializationPeriodComplete = 0;
 
-void setTimeUSBInitializationEnds(int timeFromNow) {
+void setTimeUSBInitializationEnds(int32_t timeFromNow) {
 	timeUSBInitializationEnds = AudioEngine::audioSampleTimer + timeFromNow;
 	usbInitializationPeriodComplete = 0;
 }
@@ -257,7 +257,7 @@ extern "C" void closeUSBHost();
 extern "C" void openUSBPeripheral();
 extern "C" void closeUSBPeripheral(void);
 
-int picFirmwareVersion = 0;
+int32_t picFirmwareVersion = 0;
 bool picSaysOLEDPresent = false;
 
 bool readButtonsAndPads() {
@@ -310,7 +310,7 @@ bool readButtonsAndPads() {
 			Buttons::buttonAction(hid::button::PLAY, true, sdRoutineLock);
 		}
 
-		int random = getRandom255();
+		int32_t random = getRandom255();
 
 		timeNextSDTestAction = AudioEngine::audioSampleTimer + ((random) << 9);
 	}
@@ -322,14 +322,14 @@ bool readButtonsAndPads() {
 
 		if (value < kPadAndButtonMessagesEnd) {
 
-			int thisPadPressIsOn = nextPadPressIsOn;
+			int32_t thisPadPressIsOn = nextPadPressIsOn;
 			nextPadPressIsOn = USE_DEFAULT_VELOCITY;
 
 			ActionResult result;
 			if (Pad::isPad(value)) {
 				auto p = Pad(value);
 				result = matrixDriver.padAction(p.x, p.y, thisPadPressIsOn);
-				/* while this function takes an int for velocity, 255 indicates to the downstream audition pad
+				/* while this function takes an int32_t for velocity, 255 indicates to the downstream audition pad
 				 * function that it should use the default velocity for the instrument
 				 */
 			}
@@ -388,7 +388,7 @@ bool readButtonsAndPads() {
 #if UNDO_REDO_TEST_ENABLED
 	if (playbackHandler.currentlyPlaying && (int32_t)(AudioEngine::audioSampleTimer - timeNextSDTestAction) >= 0) {
 
-		int random0 = getRandom255();
+		int32_t random0 = getRandom255();
 		preLoadedSong = NULL;
 
 		if (random0 < 64 && getCurrentUI() == &instrumentClipView) {
@@ -400,7 +400,7 @@ bool readButtonsAndPads() {
 		else
 			actionLogger.revert(AFTER);
 
-		int random = getRandom255();
+		int32_t random = getRandom255();
 		timeNextSDTestAction = AudioEngine::audioSampleTimer + ((random) << 4); // * 44 / 13;
 		anything = true;
 	}
@@ -411,7 +411,7 @@ bool readButtonsAndPads() {
 		Buttons::buttonAction(SHIFT, true, false);
 		matrixDriver.padAction(kDisplayWidth, getRandom255() & 7, true, inSDRoutine);
 		Buttons::buttonAction(SHIFT, false, false);
-		int random = getRandom255();
+		int32_t random = getRandom255();
 		timeNextSDTestAction = audioDriver.audioSampleTimer + ((random) << 4); // * 44 / 13;
 		anything = true;
 	}
@@ -462,7 +462,7 @@ void setUIForLoadedSong(Song* song) {
 }
 
 void setupBlankSong() {
-	void* songMemory = generalMemoryAllocator.alloc(sizeof(Song), NULL, false, true); // TODO: error checking
+	void* songMemory = GeneralMemoryAllocator::get().alloc(sizeof(Song), NULL, false, true); // TODO: error checking
 	preLoadedSong = new (songMemory) Song();
 
 	preLoadedSong->paramManager.setupUnpatched(); // TODO: error checking
@@ -488,7 +488,7 @@ extern "C" volatile uint32_t usbLock;
 
 extern "C" void usb_main_host(void);
 
-extern "C" int deluge_main(void) {
+extern "C" int32_t deluge_main(void) {
 
 	// Give the PIC some startup instructions
 
@@ -507,7 +507,7 @@ extern "C" int deluge_main(void) {
 	bufferPICUart(23); // Set flash length
 	bufferPICUart(6);
 
-	int newSpeedNumber = 4000000.0f / UART_FULL_SPEED_PIC_PADS_HZ - 0.5f;
+	int32_t newSpeedNumber = 4000000.0f / UART_FULL_SPEED_PIC_PADS_HZ - 0.5f;
 	bufferPICUart(225);            // Set UART speed
 	bufferPICUart(newSpeedNumber); // Speed is 4MHz / (x + 1)
 	uartFlushIfNotSending(UART_ITEM_PIC_PADS);
@@ -602,7 +602,7 @@ extern "C" int deluge_main(void) {
 	Encoders::init();
 
 #ifdef TEST_GENERAL_MEMORY_ALLOCATION
-	generalMemoryAllocator.test();
+	GeneralMemoryAllocator::get().test();
 #endif
 
 	// Setup for gate output
@@ -766,16 +766,16 @@ resetSettings:
 	FATFS fs;
 	DIR dp;
 	FRESULT result; //	 FatFs return code
-	int sdTotalBytesWritten;
+	int32_t sdTotalBytesWritten;
 
-	int count = 0;
+	int32_t count = 0;
 
 	while (true) {
 
 		numericDriver.setTextAsNumber(count);
 
-		int fileNumber = (uint32_t)getNoise() % 10000;
-		int fileSize = (uint32_t)getNoise() % 1000000;
+		int32_t fileNumber = (uint32_t)getNoise() % 10000;
+		int32_t fileSize = (uint32_t)getNoise() % 1000000;
 
 		char fileName[20];
 		strcpy(fineName, "TEST/") intToString(fileNumber, &fileName[5], 4);
@@ -826,7 +826,7 @@ resetSettings:
 
 		AudioEngine::routineWithClusterLoading(true); // -----------------------------------
 
-		int count = 0;
+		int32_t count = 0;
 		while (readButtonsAndPads() && count < 16) {
 			if (!(count & 3)) {
 				AudioEngine::routineWithClusterLoading(true); // -----------------------------------
@@ -911,7 +911,7 @@ extern "C" void setNumeric(char* text) {
 	numericDriver.setText(text);
 }
 
-extern "C" void setNumericNumber(int number) {
+extern "C" void setNumericNumber(int32_t number) {
 	numericDriver.setTextAsNumber(number);
 }
 #endif
@@ -935,7 +935,7 @@ void deleteOldSongBeforeLoadingNew() {
 	currentSong = NULL;
 	void* toDealloc = dynamic_cast<void*>(toDelete);
 	toDelete->~Song();
-	generalMemoryAllocator.dealloc(toDelete);
+	GeneralMemoryAllocator::get().dealloc(toDelete);
 }
 
 #if ALLOW_SPAM_MODE
@@ -953,7 +953,7 @@ void deleteOldSongBeforeLoadingNew() {
 #define SPAM_CLOCK 8
 
 bool spamStates[NUM_SPAM_THINGS];
-int currentSpamThing = 0;
+int32_t currentSpamThing = 0;
 
 void redrawSpamDisplay() {
 	char* thingName;
@@ -1005,17 +1005,17 @@ void spamMode() {
 	uint32_t* ramReadAddress = (uint32_t*)0x0C000000;
 	uint32_t* ramWriteAddress = (uint32_t*)0x0E000000;
 
-	int cvChannel = 0;
+	int32_t cvChannel = 0;
 
 	bool sdReading = false;
 	bool sdFileCurrentlyOpen = false;
-	int sdTotalBytesWritten = 0;
+	int32_t sdTotalBytesWritten = 0;
 
 	uint16_t timeLastCV = 0;
 	uint16_t timeLastPIC = 0;
 	uint16_t timeLastMIDI = 0;
 	uint16_t timeLastUSB = 0;
-	int lastCol = 0;
+	int32_t lastCol = 0;
 
 	FIL fil; // File object
 	FATFS fs;
@@ -1153,9 +1153,9 @@ void spamMode() {
 				timeLastPIC = MTU2.TCNT_0;
 
 				Debug::putChar(UART_CHANNEL_PIC, lastCol + 1);
-				for (int i = 0; i < 16; i++) {
-					int whichColour = getRandom255() % 3;
-					for (int colour = 0; colour < 3; colour++) {
+				for (int32_t i = 0; i < 16; i++) {
+					int32_t whichColour = getRandom255() % 3;
+					for (int32_t colour = 0; colour < 3; colour++) {
 						if (colour == whichColour && (getRandom255() % 3) == 0)
 							Debug::putChar(UART_CHANNEL_PIC, getRandom255());
 						else
@@ -1171,7 +1171,7 @@ void spamMode() {
 		readEncoders();
 
 		// Select encoder
-		int limitedDetentPos = encoders[ENCODER_SELECT].detentPos;
+		int32_t limitedDetentPos = encoders[ENCODER_SELECT].detentPos;
 		encoders[ENCODER_SELECT].detentPos = 0; // Reset. Crucial that this happens before we call selectEncoderAction()
 
 		if (limitedDetentPos != 0) {

@@ -101,14 +101,14 @@ void oledMainInit() {
 }
 
 struct SpiTransferQueueItem spiTransferQueue[SPI_TRANSFER_QUEUE_SIZE];
-volatile bool_t spiTransferQueueCurrentlySending = false;
+volatile bool spiTransferQueueCurrentlySending = false;
 volatile uint8_t spiTransferQueueReadPos = 0;
 uint8_t spiTransferQueueWritePos = 0;
 
-void enqueueSPITransfer(int destinationId, uint8_t const* image) {
+void enqueueSPITransfer(int32_t destinationId, uint8_t const* image) {
 
 	// First check there isn't already an identical transfer enqueued.
-	int readPosNow = spiTransferQueueReadPos;
+	int32_t readPosNow = spiTransferQueueReadPos;
 	/*
 	while (readPosNow != spiTransferQueueWritePos) {
 		if (spiTransferQueue[readPosNow].destinationId == destinationId && spiTransferQueue[readPosNow].dataAddress == image) return;
@@ -148,7 +148,7 @@ void oledDMAInit() {
 
 	DMACn(OLED_SPI_DMA_CHANNEL).N0DA_n = (uint32_t)&RSPI(SPI_CHANNEL_OLED_MAIN).SPDR.BYTE.LL;
 
-	unsigned int dmarsTX = DMARS_FOR_RSPI_TX + (SPI_CHANNEL_OLED_MAIN << 2);
+	uint32_t dmarsTX = DMARS_FOR_RSPI_TX + (SPI_CHANNEL_OLED_MAIN << 2);
 	setDMARS(OLED_SPI_DMA_CHANNEL, dmarsTX);
 
 	R_INTC_RegistIntFunc(DMA_INTERRUPT_0 + OLED_SPI_DMA_CHANNEL, oledTransferComplete);

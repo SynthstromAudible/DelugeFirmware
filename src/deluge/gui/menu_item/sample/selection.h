@@ -15,15 +15,16 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "gui/menu_item/selection.h"
+#include "gui/menu_item/selection/selection.h"
 #include "processing/sound/sound.h"
 
-namespace menu_item::sample {
-class Selection : public menu_item::Selection {
+namespace deluge::gui::menu_item::sample {
+template <size_t n>
+class Selection : public menu_item::Selection<n> {
 public:
-	Selection(char const* newName = NULL) : menu_item::Selection(newName) {}
-	bool isRelevant(Sound* sound, int whichThing) {
-		if (!sound) {
+	using menu_item::Selection<n>::Selection;
+	bool isRelevant(Sound* sound, int32_t whichThing) override {
+		if (sound == nullptr) {
 			return true; // For AudioClips
 		}
 
@@ -32,4 +33,4 @@ public:
 		        && source->hasAtLeastOneAudioFileLoaded());
 	}
 };
-} // namespace menu_item::sample
+} // namespace deluge::gui::menu_item::sample

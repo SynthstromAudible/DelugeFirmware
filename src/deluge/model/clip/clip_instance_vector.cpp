@@ -21,7 +21,7 @@
 ClipInstanceVector::ClipInstanceVector() : OrderedResizeableArrayWith32bitKey(sizeof(ClipInstance)) {
 }
 
-ClipInstance* ClipInstanceVector::getElement(int index) {
+ClipInstance* ClipInstanceVector::getElement(int32_t index) {
 	if (index < 0 || index >= getNumElements()) {
 		return NULL;
 	}

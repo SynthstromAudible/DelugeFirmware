@@ -78,7 +78,7 @@ inline InstrumentClip* getCurrentClip() {
 InstrumentClipMinder::InstrumentClipMinder() {
 }
 
-void InstrumentClipMinder::selectEncoderAction(int offset) {
+void InstrumentClipMinder::selectEncoderAction(int32_t offset) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
@@ -88,7 +88,7 @@ void InstrumentClipMinder::selectEncoderAction(int offset) {
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 			    modelStack->addOtherTwoThingsButNoNoteRow(instrument, &getCurrentClip()->paramManager);
 
-			int newCC;
+			int32_t newCC;
 
 			if (!Buttons::isButtonPressed(hid::button::SELECT_ENC)) {
 				newCC = instrument->changeControlNumberForModKnob(offset, editingMIDICCForWhichModKnob,
@@ -129,7 +129,7 @@ void InstrumentClipMinder::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 }
 #endif
 
-void InstrumentClipMinder::drawMIDIControlNumber(int controlNumber, bool automationExists) {
+void InstrumentClipMinder::drawMIDIControlNumber(int32_t controlNumber, bool automationExists) {
 
 	char buffer[HAVE_OLED ? 30 : 5];
 	if (controlNumber == CC_NUMBER_NONE) {
@@ -162,7 +162,7 @@ void InstrumentClipMinder::drawMIDIControlNumber(int controlNumber, bool automat
 }
 
 void InstrumentClipMinder::createNewInstrument(InstrumentType newInstrumentType) {
-	int error;
+	int32_t error;
 
 	InstrumentType oldInstrumentType = getCurrentClip()->output->type;
 
@@ -199,7 +199,7 @@ gotError:
 	if (error) {
 		void* toDealloc = dynamic_cast<void*>(newInstrument);
 		newInstrument->~Instrument();
-		generalMemoryAllocator.dealloc(toDealloc);
+		GeneralMemoryAllocator::get().dealloc(toDealloc);
 		goto gotError;
 	}
 
@@ -235,9 +235,9 @@ gotError:
 
 	// Or if just adding new Instrument
 	else {
-		int error = getCurrentClip()->changeInstrument(modelStack, newInstrument, &newParamManager,
-		                                               InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL,
-		                                               false); // There'll be no samples cos it's new and blank
+		int32_t error = getCurrentClip()->changeInstrument(modelStack, newInstrument, &newParamManager,
+		                                                   InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL,
+		                                                   false); // There'll be no samples cos it's new and blank
 		// TODO: deal with errors
 
 		currentSong->addOutput(newInstrument);
@@ -473,8 +473,8 @@ void InstrumentClipMinder::calculateDefaultRootNote() {
 }
 
 void InstrumentClipMinder::drawActualNoteCode(int16_t noteCode) {
-	int octave = (noteCode) / 12 - 2;
-	int noteCodeWithinOctave = (uint16_t)(noteCode + 120) % (uint8_t)12;
+	int32_t octave = (noteCode) / 12 - 2;
+	int32_t noteCodeWithinOctave = (uint16_t)(noteCode + 120) % (uint8_t)12;
 
 	char noteName[5];
 	noteName[0] = noteCodeToNoteLetter[noteCodeWithinOctave];
@@ -496,7 +496,7 @@ void InstrumentClipMinder::drawActualNoteCode(int16_t noteCode) {
 }
 
 void InstrumentClipMinder::cycleThroughScales() {
-	int newScale = currentSong->cycleThroughScales();
+	int32_t newScale = currentSong->cycleThroughScales();
 	if (newScale >= NUM_PRESET_SCALES) {
 		numericDriver.displayPopup(HAVE_OLED ? "Custom scale with more than 7 notes in use" : "CANT");
 	}
@@ -505,7 +505,7 @@ void InstrumentClipMinder::cycleThroughScales() {
 	}
 }
 
-void InstrumentClipMinder::displayScaleName(int scale) {
+void InstrumentClipMinder::displayScaleName(int32_t scale) {
 	if (scale >= NUM_PRESET_SCALES) {
 		numericDriver.displayPopup(HAVE_OLED ? "Other scale" : "OTHER");
 	}

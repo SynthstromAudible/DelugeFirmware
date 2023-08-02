@@ -19,10 +19,10 @@
 
 #include "gui/ui/keyboard/layout.h"
 
-namespace keyboard::layout {
+namespace deluge::gui::ui::keyboard::layout {
 
-constexpr int kMinInKeyRowInterval = 1;
-constexpr int kMaxInKeyRowInterval = 16;
+constexpr int32_t kMinInKeyRowInterval = 1;
+constexpr int32_t kMaxInKeyRowInterval = 16;
 
 class KeyboardLayoutInKey : public KeyboardLayout {
 public:
@@ -30,8 +30,8 @@ public:
 	virtual ~KeyboardLayoutInKey() {}
 
 	virtual void evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]);
-	virtual void handleVerticalEncoder(int offset);
-	virtual void handleHorizontalEncoder(int offset, bool shiftEnabled);
+	virtual void handleVerticalEncoder(int32_t offset);
+	virtual void handleHorizontalEncoder(int32_t offset, bool shiftEnabled);
 	virtual void precalculate();
 
 	virtual void renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]);
@@ -42,9 +42,9 @@ public:
 	virtual RequiredScaleMode requiredScaleMode() { return RequiredScaleMode::Enabled; }
 
 private:
-	inline uint16_t noteFromCoords(int x, int y) { return noteFromPadIndex(padIndexFromCoords(x, y)); }
+	inline uint16_t noteFromCoords(int32_t x, int32_t y) { return noteFromPadIndex(padIndexFromCoords(x, y)); }
 
-	inline uint16_t padIndexFromCoords(int x, int y) {
+	inline uint16_t padIndexFromCoords(int32_t x, int32_t y) {
 		return getState().inKey.scrollOffset + x + y * getState().inKey.rowInterval;
 	}
 
@@ -71,7 +71,7 @@ private:
 		}
 		int32_t octave = (((note + kOctaveSize) - rootNote) / kOctaveSize) - 1;
 		// Make sure we don't go into negative because our root note is lower than C-2
-		return getMax(0, octave * scaleNoteCount + padScaleOffset);
+		return std::max<uint16_t>(0, octave * scaleNoteCount + padScaleOffset);
 	}
 
 	// inline uint16_t padIndexFromNote(uint16_t note) {
@@ -92,4 +92,4 @@ private:
 	uint8_t noteColours[kDisplayHeight * kMaxInKeyRowInterval + kDisplayWidth][3];
 };
 
-}; // namespace keyboard::layout
+}; // namespace deluge::gui::ui::keyboard::layout

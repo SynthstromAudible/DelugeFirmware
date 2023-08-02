@@ -16,7 +16,7 @@
  */
 
 #pragma once
-#include "RZA1/system/r_typedefs.h"
+#include <cstdint>
 
 #include "gui/positionable.h"
 
@@ -30,6 +30,6 @@ public:
 };
 
 struct StolenParamNodes {
-	int num;
+	int32_t num;
 	ParamNode* nodes;
 };

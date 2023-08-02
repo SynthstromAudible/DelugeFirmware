@@ -20,13 +20,13 @@
 #include "processing/sound/sound.h"
 #include "util/comparison.h"
 
-namespace menu_item::mod_fx {
+namespace deluge::gui::menu_item::mod_fx {
 class Depth final : public patched_param::Integer {
 public:
 	using patched_param::Integer::Integer;
 
-	bool isRelevant(Sound* sound, int whichThing) {
+	bool isRelevant(Sound* sound, int32_t whichThing) {
 		return util::one_of(sound->modFXType, {ModFXType::CHORUS, ModFXType::CHORUS_STEREO, ModFXType::PHASER});
 	}
 };
-} // namespace menu_item::mod_fx
+} // namespace deluge::gui::menu_item::mod_fx

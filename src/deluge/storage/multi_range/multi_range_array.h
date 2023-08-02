@@ -26,7 +26,7 @@ class MultiRange;
 class MultiRangeArray final : public OrderedResizeableArray {
 public:
 	MultiRangeArray();
-	MultiRange* getElement(int i);
-	MultiRange* insertMultiRange(int i);
-	int changeType(int newSize);
+	MultiRange* getElement(int32_t i);
+	MultiRange* insertMultiRange(int32_t i);
+	int32_t changeType(int32_t newSize);
 };

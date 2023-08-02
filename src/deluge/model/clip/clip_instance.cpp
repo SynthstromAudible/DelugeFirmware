@@ -39,7 +39,7 @@ void ClipInstance::getColour(uint8_t* colour) {
 
 void ClipInstance::change(Action* action, Output* output, int32_t newPos, int32_t newLength, Clip* newClip) {
 	if (action) {
-		void* consMemory = generalMemoryAllocator.alloc(sizeof(ConsequenceClipInstanceChange));
+		void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceClipInstanceChange));
 
 		if (consMemory) {
 			ConsequenceClipInstanceChange* newConsequence =
