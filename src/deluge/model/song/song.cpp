@@ -1051,6 +1051,8 @@ weAreInArrangementEditorOrInClipInstance:
 	storageManager.writeAttribute("xScroll", xScroll[NAVIGATION_CLIP]);
 	storageManager.writeAttribute("xZoom", xZoom[NAVIGATION_CLIP]);
 	storageManager.writeAttribute("yScrollSongView", songViewYScroll);
+	storageManager.writeAttribute("songGridScrollX", songGridScrollX);
+	storageManager.writeAttribute("songGridScrollY", songGridScrollY);
 	storageManager.writeAttribute("sessionLayout", sessionLayout);
 
 	storageManager.writeAttribute("yScrollArrangementView", arrangementYScroll);
@@ -1376,6 +1378,16 @@ unknownTag:
 			if (!strcmp(tagName, "sessionLayout")) {
 				sessionLayout = (SessionLayoutType)storageManager.readTagOrAttributeValueInt();
 				storageManager.exitTag("sessionLayout");
+			}
+
+			else if (!strcmp(tagName, "songGridScrollX")) {
+				songGridScrollX = storageManager.readTagOrAttributeValueInt();
+				storageManager.exitTag("songGridScrollX");
+			}
+
+			else if (!strcmp(tagName, "songGridScrollY")) {
+				songGridScrollY = storageManager.readTagOrAttributeValueInt();
+				storageManager.exitTag("songGridScrollY");
 			}
 
 			else if (!strcmp(tagName, "xZoomArrangementView")) {
@@ -4811,7 +4823,7 @@ lookAtNextOne:
 	}
 
 	int32_t clipYDisplay = clipIndex - songViewYScroll;
-	int32_t bottomYDisplay = -songViewYScroll;
+	int32_t bottomYDisplay = -songViewYScroll; //@TODO: Might have an impact?
 	int32_t topYDisplay = bottomYDisplay + sessionClips.getNumElements() - 1;
 	bottomYDisplay = std::max(bottomYDisplay, 0_i32);
 	topYDisplay = std::min(topYDisplay, kDisplayHeight - 1);
@@ -4884,7 +4896,7 @@ bool Song::deletePendingOverdubs(Output* onlyWithOutput, int32_t* originalClipIn
 }
 
 int32_t Song::getYScrollSongViewWithoutPendingOverdubs() {
-	int32_t numToSearch = std::min(sessionClips.getNumElements(), songViewYScroll + kDisplayHeight);
+	int32_t numToSearch = std::min(sessionClips.getNumElements(), songViewYScroll + kDisplayHeight); //@TODO: look at
 
 	int32_t outputValue = songViewYScroll;
 
@@ -4927,7 +4939,8 @@ Clip* Song::getClipWithOutputAboutToBeginLinearRecording(Output* output) {
 	return NULL;
 }
 
-Clip* Song::createPendingNextOverdubBelowClip(Clip* clip, int32_t clipIndex, int32_t newOverdubNature) {
+Clip* Song::createPendingNextOverdubBelowClip(Clip* clip, int32_t clipIndex,
+                                              int32_t newOverdubNature) { //@TODO: Do scroll here?
 
 	// No automatic overdubs are allowed during soloing, cos that's just too complicated
 	if (anyClipsSoloing) {

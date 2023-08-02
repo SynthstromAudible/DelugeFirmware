@@ -1783,7 +1783,7 @@ void View::instrumentChanged(ModelStackWithTimelineCounter* modelStack, Instrume
 	    modelStack->getTimelineCounter()); // Do a redraw. Obviously the Clip is the same
 }
 
-void View::getClipMuteSquareColour(Clip* clip, uint8_t thisColour[]) {
+void View::getClipMuteSquareColour(Clip* clip, uint8_t thisColour[], bool overwriteStopped, uint8_t stoppedColour[]) {
 
 	if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING && clip && clip->armedForRecording) {
 		if (blinkOn) {
@@ -1847,7 +1847,14 @@ void View::getClipMuteSquareColour(Clip* clip, uint8_t thisColour[]) {
 
 		// If it's stopped, red.
 		if (!clip->activeIfNoSolo) {
-			menu_item::stoppedColourMenu.getRGB(thisColour);
+			if (overwriteStopped) {
+				thisColour[0] = stoppedColour[0];
+				thisColour[1] = stoppedColour[1];
+				thisColour[2] = stoppedColour[2];
+			}
+			else {
+				menu_item::stoppedColourMenu.getRGB(thisColour);
+			}
 		}
 
 		// Or, green.

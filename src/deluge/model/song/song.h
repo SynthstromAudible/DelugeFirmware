@@ -169,6 +169,8 @@ public:
 	bool affectEntire;
 
 	SessionLayoutType sessionLayout = SessionLayoutType::SessionLayoutTypeRows;
+	int32_t songGridScrollX = 0;
+	int32_t songGridScrollY = 0;
 	int32_t songViewYScroll;
 	int32_t arrangementYScroll;
 
