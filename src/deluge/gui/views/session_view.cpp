@@ -2754,13 +2754,73 @@ bool SessionView::gridRenderMainPads(uint32_t whichRows, uint8_t image[][kDispla
 
 ActionResult SessionView::gridHandlePads(int x, int y, int velocity) {
 	Clip* clip = gridClipFromCoords(x, y);
-
-	//@TODO: Incorporate all this behavior
 	/*
-	int32_t clipIndex = yDisplay + currentSong->songViewYScroll;
+	// Sidebar
+	if (x >= kDisplayWidth) {
+		// @TODO: Find out if this is needed and can be shared
+		if (playbackHandler.playbackState && currentPlaybackMode == &arrangement) {
+			if (currentUIMode == UI_MODE_NONE) {
+				if (sdRoutineLock) {
+					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				}
+				playbackHandler.switchToSession();
+			}
 
-	// If we tapped on a Clip's main pads...
-	if (xDisplay < kDisplayWidth) {
+			return;
+		}
+
+		if (clip && clip->isPendingOverdub) {
+			if (on && !currentUIMode) {
+				goto removePendingOverdub;
+			}
+		}
+
+		// Status pad
+		if (xDisplay == kDisplayWidth) {
+
+			// If Clip is present here
+			if (clip) {
+
+				return view.clipStatusPadAction(clip, on, yDisplay);
+			}
+		}
+
+		// Section pad
+		else if (xDisplay == kDisplayWidth + 1) {
+
+			if (on && Buttons::isButtonPressed(hid::button::RECORD)
+				&& (!currentUIMode || currentUIMode == UI_MODE_VIEWING_RECORD_ARMING)) {
+				Buttons::recordButtonPressUsedUp = true;
+				goto holdingRecord;
+			}
+
+			// If Clip is present here
+			if (clip) {
+
+				switch (currentUIMode) {
+				case UI_MODE_MIDI_LEARN:
+					if (sdRoutineLock) {
+						return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+					}
+					view.sectionMidiLearnPadPressed(on, clip->section);
+					break;
+
+				case UI_MODE_NONE:
+				case UI_MODE_CLIP_PRESSED_IN_SONG_VIEW:
+				case UI_MODE_STUTTERING:
+					performActionOnPadRelease = false;
+					// No break
+				case UI_MODE_HOLDING_SECTION_PAD:
+					sectionPadAction(yDisplay, on);
+					break;
+				}
+			}
+		}
+
+	}
+
+	// Main pads
+
 
 		// Press down
 		if (on) {
@@ -3026,70 +3086,6 @@ justEndClipPress:
 		}
 	}
 
-	// Or, status or section (aka audition) pads
-	else {
-
-		if (playbackHandler.playbackState && currentPlaybackMode == &arrangement) {
-			if (currentUIMode == UI_MODE_NONE) {
-				if (sdRoutineLock) {
-					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-				}
-				playbackHandler.switchToSession();
-			}
-		}
-
-		else {
-
-			if (clip && clip->isPendingOverdub) {
-				if (on && !currentUIMode) {
-					goto removePendingOverdub;
-				}
-			}
-
-			// Status pad
-			if (xDisplay == kDisplayWidth) {
-
-				// If Clip is present here
-				if (clip) {
-
-					return view.clipStatusPadAction(clip, on, yDisplay);
-				}
-			}
-
-			// Section pad
-			else if (xDisplay == kDisplayWidth + 1) {
-
-				if (on && Buttons::isButtonPressed(hid::button::RECORD)
-				    && (!currentUIMode || currentUIMode == UI_MODE_VIEWING_RECORD_ARMING)) {
-					Buttons::recordButtonPressUsedUp = true;
-					goto holdingRecord;
-				}
-
-				// If Clip is present here
-				if (clip) {
-
-					switch (currentUIMode) {
-					case UI_MODE_MIDI_LEARN:
-						if (sdRoutineLock) {
-							return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-						}
-						view.sectionMidiLearnPadPressed(on, clip->section);
-						break;
-
-					case UI_MODE_NONE:
-					case UI_MODE_CLIP_PRESSED_IN_SONG_VIEW:
-					case UI_MODE_STUTTERING:
-						performActionOnPadRelease = false;
-						// No break
-					case UI_MODE_HOLDING_SECTION_PAD:
-						sectionPadAction(yDisplay, on);
-						break;
-					}
-				}
-			}
-		}
-	}
-	*/
 
 	return ActionResult::DEALT_WITH;
 }
