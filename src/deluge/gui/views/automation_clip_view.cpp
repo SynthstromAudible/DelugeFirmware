@@ -196,6 +196,24 @@ const uint32_t midiCCShortcutsForAutomation[kDisplayWidth][kDisplayHeight] = {
     {0xFFFFFFFF, 108, 92, 76, 60, 44, 28, 12}, {0xFFFFFFFF, 109, 93, 77, 61, 45, 29, 13},
     {120, 110, 94, 78, 62, 46, 30, 14},        {121, 111, 95, 79, 63, 47, 31, 15}};
 
+const uint32_t easterEgg[kDisplayWidth][kDisplayHeight] = {
+		{0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0xFFFFFFFF, 0xFFFFFFFF, 0, 0},
+		{0, 0, 0, 0xFFFFFFFF, 0, 0, 0xFFFFFFFF, 0},
+		{0, 0, 0xFFFFFFFF, 0, 0, 0, 0, 0xFFFFFFFF},
+		{0, 0xFFFFFFFF, 0, 0, 0, 0, 0xFFFFFFFF, 0},
+		{0xFFFFFFFF, 0, 0, 0, 0, 0xFFFFFFFF, 0, 0},
+		{0, 0xFFFFFFFF, 0, 0, 0, 0, 0xFFFFFFFF, 0},
+		{0, 0, 0xFFFFFFFF, 0, 0, 0, 0, 0xFFFFFFFF},
+		{0, 0, 0, 0xFFFFFFFF, 0, 0, 0xFFFFFFFF, 0},
+		{0, 0, 0, 0, 0xFFFFFFFF, 0xFFFFFFFF, 0, 0},
+		{0xFFFFFFFF, 0xFFFFFFFF, 0, 0, 0, 0, 0, 0},
+		{0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0xFFFFFFFF, 0, 0},
+		{0, 0xFFFFFFFF, 0xFFFFFFFF, 0, 0, 0, 0xFFFFFFFF, 0},
+		{0, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
+		{0, 0, 0, 0, 0, 0, 0, 0}};
+
 //const uint32_t padShortcutsForInterpolation[16][8] = {0};
 
 AutomationClipView automationClipView{};
@@ -462,6 +480,20 @@ void AutomationClipView::performActualRender(uint32_t whichRows, uint8_t* image,
 					                        currentSong->tripletsOn); // Sends image pointer for just the one row
 				}
 			}
+
+			else { //render easterEgg
+				for (int xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+
+					uint8_t* pixel = image + (yDisplay * imageWidth * 3) + (xDisplay * 3);
+
+					if (easterEgg[xDisplay][yDisplay] == 0xFFFFFFFF) {
+
+						memcpy(pixel, &instrumentClipView.rowTailColour[yDisplay], 3);
+						occupancyMaskOfRow[xDisplay] = 64;
+					}
+				}
+			}
+
 		}
 
 		else if (clip->output->type == InstrumentType::MIDI_OUT && clip->lastSelectedMidiCC != 255) {
@@ -503,6 +535,19 @@ void AutomationClipView::performActualRender(uint32_t whichRows, uint8_t* image,
 					                        currentSong->tripletsOn); // Sends image pointer for just the one row
 				}
 			}
+
+			else { //render easterEgg
+				for (int xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+
+					uint8_t* pixel = image + (yDisplay * imageWidth * 3) + (xDisplay * 3);
+
+					if (easterEgg[xDisplay][yDisplay] == 0xFFFFFFFF) {
+
+						memcpy(pixel, &instrumentClipView.rowTailColour[yDisplay], 3);
+						occupancyMaskOfRow[xDisplay] = 64;
+					}
+				}
+			}
 		}
 
 		else {
@@ -535,6 +580,14 @@ void AutomationClipView::performActualRender(uint32_t whichRows, uint8_t* image,
 							}
 
 							occupancyMaskOfRow[xDisplay] = 64;
+						}
+						else { //render easterEgg
+
+							if (easterEgg[xDisplay][yDisplay] == 0xFFFFFFFF) {
+
+								memcpy(pixel, &instrumentClipView.rowTailColour[yDisplay], 3);
+								occupancyMaskOfRow[xDisplay] = 64;
+							}
 						}
 					}
 				}
@@ -573,6 +626,27 @@ void AutomationClipView::performActualRender(uint32_t whichRows, uint8_t* image,
 
 							occupancyMaskOfRow[xDisplay] = 64;
 						}
+						else { //render easterEgg
+
+							if (easterEgg[xDisplay][yDisplay] == 0xFFFFFFFF) {
+
+								memcpy(pixel, &instrumentClipView.rowTailColour[yDisplay], 3);
+								occupancyMaskOfRow[xDisplay] = 64;
+							}
+						}
+					}
+				}
+			}
+
+			else if (clip->output->type == InstrumentType::CV) { //render easterEgg
+				for (int xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+
+					uint8_t* pixel = image + (yDisplay * imageWidth * 3) + (xDisplay * 3);
+
+					if (easterEgg[xDisplay][yDisplay] == 0xFFFFFFFF) {
+
+						memcpy(pixel, &instrumentClipView.rowTailColour[yDisplay], 3);
+						occupancyMaskOfRow[xDisplay] = 64;
 					}
 				}
 			}
@@ -1002,6 +1076,7 @@ doOther:
 			if (currentUIMode == UI_MODE_NONE) {
 				instrumentClipView.changeInstrumentType(InstrumentType::CV);
 			}
+
 			//	else if (currentUIMode == UI_MODE_ADDING_DRUM_NOTEROW || currentUIMode == UI_MODE_AUDITIONING) {
 			//		createDrumForAuditionedNoteRow(DrumType::GATE);
 			//	}
@@ -3876,7 +3951,9 @@ ModelStackWithAutoParam* AutomationClipView::getModelStackWithParam(ModelStackWi
 	}
 
 	else if (clip->output->type == InstrumentType::KIT) {
-		if (!instrumentClipView.getAffectEntire()) {
+		Drum* drum = getCurrentClip()->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay, currentSong)->drum;
+
+		if (!instrumentClipView.getAffectEntire() && drum->type == DrumType::SOUND) {
 			int noteRowIndex = 0;
 
 			NoteRow* thisNoteRow = clip->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay, currentSong, &noteRowIndex);
