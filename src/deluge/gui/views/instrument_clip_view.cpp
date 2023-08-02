@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include <gui/views/automation_instrument_clip_view.h>
 #include "gui/views/instrument_clip_view.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
@@ -31,7 +32,6 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/automation_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/timeline_view.h"
 #include "gui/views/view.h"
@@ -146,7 +146,7 @@ void InstrumentClipView::openedInBackground() {
 		uiNeedsRendering(this);
 	}
 	getCurrentClip()->onKeyboardScreen = false;
-	getCurrentClip()->onAutomationClipView = false;
+	getCurrentClip()->onAutomationInstrumentClipView = false;
 }
 
 // Initializes some stuff to begin a new editing session
@@ -256,7 +256,7 @@ doOther:
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
-			changeRootUI(&automationClipView);
+			changeRootUI(&automationInstrumentClipView);
 		}
 	}
 

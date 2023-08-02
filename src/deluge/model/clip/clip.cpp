@@ -15,9 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include <gui/views/automation_instrument_clip_view.h>
 #include "model/clip/clip.h"
 #include "definitions_cxx.hpp"
-#include "gui/views/automation_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/timeline_view.h"
 #include "gui/views/view.h"
@@ -950,7 +950,7 @@ void Clip::clear(Action* action, ModelStackWithTimelineCounter* modelStack) {
 
 	//If this is enabled, if you want to clear NON MPE automations, you will enter Automation Clip View and clear the clip there.
 	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::ClearClipAutomation) == RuntimeFeatureStateToggle::On) {
-		if (getCurrentUI() == &automationClipView) {
+		if (getCurrentUI() == &automationInstrumentClipView) {
 
 			if (paramManager.containsAnyMainParamCollections()) { //excluding expression
 				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
@@ -960,7 +960,7 @@ void Clip::clear(Action* action, ModelStackWithTimelineCounter* modelStack) {
 		}
 	}
 	else { //community feature is disabled, so you can clear all automations from within the regular instrument clip view
-		if (getCurrentUI() == &automationClipView) { //if in automation clip view, only clear NON MPE automations
+		if (getCurrentUI() == &automationInstrumentClipView) { //if in automation clip view, only clear NON MPE automations
 
 			if (paramManager.containsAnyMainParamCollections()) { //excluding expression
 				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =

@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <gui/views/automation_instrument_clip_view.h>
 #include "gui/views/session_view.h"
 #include "definitions_cxx.hpp"
 #include "dsp/master_compressor/master_compressor.h"
@@ -29,7 +30,6 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
-#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "gui/waveform/waveform_renderer.h"
@@ -2202,13 +2202,13 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 			}
 		}
 
-		else if (((InstrumentClip*)clip)->onAutomationClipView) {
+		else if (((InstrumentClip*)clip)->onAutomationInstrumentClipView) {
 
-			automationClipView.renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
-			automationClipView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
+			automationInstrumentClipView.renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
+			automationInstrumentClipView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
 
 			PadLEDs::numAnimatedRows = kDisplayHeight;
-			for (int y = 0; y < PadLEDs::numAnimatedRows; y++) {
+			for (int32_t y = 0; y < PadLEDs::numAnimatedRows; y++) {
 				PadLEDs::animatedRowGoingTo[y] = clipPlaceOnScreen;
 				PadLEDs::animatedRowGoingFrom[y] = y - 1;
 			}
@@ -2216,12 +2216,12 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 
 		else {
 
-			//	if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
+			//	if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
 			//		instrumentClipView
 			//		    .recalculateColours(); // Won't have happened automatically because we haven't begun the "session"
-			//		automationClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
+			//		automationInstrumentClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
 			//		                                  false);
-			//		automationClipView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
+			//		automationInstrumentClipView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
 			//	}
 
 			//	else {

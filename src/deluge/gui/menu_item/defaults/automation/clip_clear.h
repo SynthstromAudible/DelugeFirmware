@@ -15,20 +15,15 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "gui/menu_item/selection.h"
+#include <gui/views/automation_instrument_clip_view.h>
+#include "gui/menu_item/toggle.h"
 #include "gui/ui/sound_editor.h"
-#include "gui/views/automation_clip_view.h"
 
-namespace menu_item::defaults {
-class ClipClear final : public Selection {
+namespace deluge::gui::menu_item::defaults {
+class ClipClear final : public Toggle {
 public:
-	using Selection::Selection;
-	void readCurrentValue() { soundEditor.currentValue = automationClipView.clipClear; }
-	void writeCurrentValue() { automationClipView.clipClear = soundEditor.currentValue; }
-	char const** getOptions() {
-		static char const* options[] = {"Off", "On", NULL};
-		return options;
-	}
-	int getNumOptions() { return 2; }
+	using Toggle::Toggle;
+	void readCurrentValue() override { this->value_ = automationInstrumentClipView.clipClear; }
+	void writeCurrentValue() override { automationInstrumentClipView.clipClear = this->value_; }
 };
-} // namespace menu_item::defaults
+} // namespace deluge::gui::menu_item::defaults

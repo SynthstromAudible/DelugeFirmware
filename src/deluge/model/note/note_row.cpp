@@ -15,9 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <gui/views/automation_instrument_clip_view.h>
 #include "model/note/note_row.h"
 #include "definitions_cxx.hpp"
-#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/timeline_view.h"
 #include "gui/views/view.h"
@@ -3368,7 +3368,7 @@ void NoteRow::shiftHorizontally(int32_t amount, ModelStackWithNoteRow* modelStac
 
 	//New addition as part of Automation Clip View Implementation
 	//If you are in Automation Clip View, shifting a note row will not shift notes, only NON MPE automations.
-	if (getCurrentUI() != &automationClipView) {
+	if (getCurrentUI() != &automationInstrumentClipView) {
 
 		notes.shiftHorizontal(amount, effectiveLength);
 
@@ -3382,7 +3382,7 @@ void NoteRow::clear(Action* action, ModelStackWithNoteRow* modelStack) {
 
 	//If this is enabled, if you want to clear NON MPE automations, you will enter Automation Clip View and clear the clip there.
 	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::ClearClipAutomation) == RuntimeFeatureStateToggle::On) {
-		if (getCurrentUI() == &automationClipView) {
+		if (getCurrentUI() == &automationInstrumentClipView) {
 			if (paramManager.containsAnyMainParamCollections()) { //excluding expression
 				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 				    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow();
@@ -3391,7 +3391,7 @@ void NoteRow::clear(Action* action, ModelStackWithNoteRow* modelStack) {
 		}
 	}
 	else { //community feature is disabled, so you can clear all automations from within the regular instrument clip view
-		if (getCurrentUI() == &automationClipView) { //if in automation clip view, only clear NON MPE automations
+		if (getCurrentUI() == &automationInstrumentClipView) { //if in automation clip view, only clear NON MPE automations
 
 			if (paramManager.containsAnyMainParamCollections()) { //excluding expression
 				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
@@ -3410,12 +3410,12 @@ void NoteRow::clear(Action* action, ModelStackWithNoteRow* modelStack) {
 
 	//New addition as part of Automation Clip View Implementation
 	//If you are in Automation Clip View, clearing a kit note row will not clear notes, only NON MPE automations.
-	if (getCurrentUI() != &automationClipView) {
+	if (getCurrentUI() != &automationInstrumentClipView) {
 
 		stopCurrentlyPlayingNote(modelStack);
 
 		if (action) {
-			int error = action->recordNoteArrayChangeIfNotAlreadySnapshotted(
+			int32_t error = action->recordNoteArrayChangeIfNotAlreadySnapshotted(
 				(InstrumentClip*)modelStack->getTimelineCounter(), modelStack->noteRowId, &notes, true); // Steal data
 			if (error) {
 				goto justEmpty;

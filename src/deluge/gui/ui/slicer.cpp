@@ -15,12 +15,12 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <gui/views/automation_instrument_clip_view.h>
 #include "gui/ui/slicer.h"
 #include "definitions_cxx.hpp"
 #include "gui/context_menu/sample_browser/kit.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/sound_editor.h"
-#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/waveform/waveform_basic_navigator.h"
 #include "gui/waveform/waveform_renderer.h"
@@ -758,8 +758,8 @@ ramError2:
 	numericDriver.setNextTransitionDirection(-1);
 	sampleBrowser.exitAndNeverDeleteDrum();
 
-	if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
-		uiNeedsRendering(&automationClipView);
+	if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+		uiNeedsRendering(&automationInstrumentClipView);
 	}
 	else {
 		uiNeedsRendering(&instrumentClipView);

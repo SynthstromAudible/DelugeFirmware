@@ -15,12 +15,12 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include <gui/views/automation_instrument_clip_view.h>
 #include "model/action/action_logger.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
-#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -404,10 +404,10 @@ void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavi
 			}
 
 			// Then entering or exiting automation view
-			else if (action->view == &automationClipView && getCurrentUI() != &automationClipView) {
+			else if (action->view == &automationInstrumentClipView && getCurrentUI() != &automationInstrumentClipView) {
 				whichAnimation = ANIMATION_ENTER_AUTOMATION_VIEW;
 			}
-			else if (action->view != &automationClipView && getCurrentUI() == &automationClipView) {
+			else if (action->view != &automationInstrumentClipView && getCurrentUI() == &automationInstrumentClipView) {
 				whichAnimation = ANIMATION_EXIT_AUTOMATION_VIEW;
 			}
 
@@ -582,8 +582,8 @@ currentClipSwitchedOver:
 
 	else if (whichAnimation == ANIMATION_EXIT_KEYBOARD_VIEW) {
 
-		if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
-			changeRootUI(&automationClipView);
+		if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+			changeRootUI(&automationInstrumentClipView);
 		}
 		else {
 			changeRootUI(&instrumentClipView);
@@ -591,7 +591,7 @@ currentClipSwitchedOver:
 	}
 
 	else if (whichAnimation == ANIMATION_ENTER_AUTOMATION_VIEW) {
-		changeRootUI(&automationClipView);
+		changeRootUI(&automationInstrumentClipView);
 	}
 
 	else if (whichAnimation == ANIMATION_EXIT_AUTOMATION_VIEW) {
@@ -619,8 +619,8 @@ currentClipSwitchedOver:
 		else if (((InstrumentClip*)currentSong->currentClip)->onKeyboardScreen) {
 			changeRootUI(&keyboardScreen);
 		}
-		else if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
-			changeRootUI(&automationClipView);
+		else if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+			changeRootUI(&automationInstrumentClipView);
 		}
 		else {
 			changeRootUI(&instrumentClipView);
@@ -647,13 +647,13 @@ currentClipSwitchedOver:
 				}
 			}
 		}
-		else if (getCurrentUI() == &automationClipView) {
+		else if (getCurrentUI() == &automationInstrumentClipView) {
 			if (whichAnimation != ANIMATION_CLIP_MINDER_TO_SESSION
 			    && whichAnimation
 			           != ANIMATION_CLIP_MINDER_TO_ARRANGEMENT) { // If we're not animating away from this view (but something like scrolling sideways would be allowed)
 				instrumentClipView.recalculateColours();
 				if (!whichAnimation) {
-					uiNeedsRendering(&automationClipView);
+					uiNeedsRendering(&automationInstrumentClipView);
 				}
 			}
 		}

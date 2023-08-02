@@ -139,7 +139,7 @@ public:
 	bool onKeyboardScreen;
 
 	//START ~ new Automation Clip View Variables
-	bool onAutomationClipView; //new to save the view that you are currently in
+	bool onAutomationInstrumentClipView; //new to save the view that you are currently in
 	                           //(e.g. if you leave clip and want to come back where you left off)
 
 	uint8_t lastSelectedParamID;

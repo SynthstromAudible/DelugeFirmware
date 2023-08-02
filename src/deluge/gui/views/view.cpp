@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <gui/views/automation_instrument_clip_view.h>
 #include "gui/views/view.h"
 #include "definitions_cxx.hpp"
 #include "dsp/reverb/freeverb/revmodel.hpp"
@@ -30,7 +31,6 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "hid/buttons.h"
@@ -1044,7 +1044,7 @@ void View::setModLedStates() {
 
 	bool affectEntire = getRootUI() && getRootUI()->getAffectEntire();
 	if (!itsTheSong) {
-		if (getRootUI() != &instrumentClipView && getRootUI() != &automationClipView
+		if (getRootUI() != &instrumentClipView && getRootUI() != &automationInstrumentClipView
 		    && getRootUI() != &keyboardScreen) {
 			affectEntire = true;
 		}
@@ -1056,7 +1056,7 @@ void View::setModLedStates() {
 
 	if (!itsTheSong) {
 
-		if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
+		if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
 			indicator_leds::blinkLed(IndicatorLED::CLIP_VIEW);
 		}
 		else {
@@ -1751,10 +1751,10 @@ getOut:
 			uiNeedsRendering(&instrumentClipView);
 		}
 
-		else if (getCurrentUI() == &automationClipView) {
+		else if (getCurrentUI() == &automationInstrumentClipView) {
 			AudioEngine::routineWithClusterLoading(); // -----------------------------------
 			instrumentClipView.recalculateColours();
-			uiNeedsRendering(&automationClipView);
+			uiNeedsRendering(&automationInstrumentClipView);
 		}
 
 #if HAVE_OLED

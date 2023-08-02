@@ -15,11 +15,11 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <gui/views/automation_instrument_clip_view.h>
 #include "gui/ui/rename/rename_drum_ui.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/ui/sound_editor.h"
-#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/buttons.h"
 #include "hid/display/numeric_driver.h"
@@ -125,8 +125,8 @@ ActionResult RenameDrumUI::padAction(int32_t x, int32_t y, int32_t on) {
 
 	// Audition pad
 	if (x == kDisplayWidth + 1) {
-		if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
-			return automationClipView.padAction(x, y, on);
+		if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+			return automationInstrumentClipView.padAction(x, y, on);
 		}
 		return instrumentClipView.padAction(x, y, on);
 	}
@@ -153,8 +153,8 @@ ActionResult RenameDrumUI::verticalEncoderAction(int32_t offset, bool inCardRout
 	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::button::X_ENC)) {
 		return ActionResult::DEALT_WITH;
 	}
-	if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
-		return automationClipView.verticalEncoderAction(offset, inCardRoutine);
+	if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+		return automationInstrumentClipView.verticalEncoderAction(offset, inCardRoutine);
 	}
 	return instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
 }

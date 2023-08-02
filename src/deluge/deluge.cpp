@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include <gui/views/automation_instrument_clip_view.h>
 #include "RZA1/system/iodefine.h"
 #include "definitions_cxx.hpp"
 #include "gui/context_menu/clear_song.h"
@@ -55,7 +56,6 @@
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/audio_clip_view.h"
-#include "gui/views/automation_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "gui/waveform/waveform_basic_navigator.h"
@@ -431,8 +431,8 @@ void setUIForLoadedSong(Song* song) {
 			if (((InstrumentClip*)song->currentClip)->onKeyboardScreen) {
 				newUI = &keyboardScreen;
 			}
-			else if (((InstrumentClip*)song->currentClip)->onAutomationClipView) {
-				newUI = &automationClipView;
+			else if (((InstrumentClip*)song->currentClip)->onAutomationInstrumentClipView) {
+				newUI = &automationInstrumentClipView;
 			}
 			else {
 				newUI = &instrumentClipView;

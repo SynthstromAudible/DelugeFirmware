@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include <gui/views/automation_instrument_clip_view.h>
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
@@ -24,7 +25,6 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -373,8 +373,8 @@ ActionResult KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRou
 		    && !keyboardButtonUsed) { // Leave if key up and not used
 
 			instrumentClipView.recalculateColours();
-			if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
-				changeRootUI(&automationClipView);
+			if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+				changeRootUI(&automationInstrumentClipView);
 			}
 			else {
 				changeRootUI(&instrumentClipView);
@@ -722,8 +722,8 @@ void KeyboardScreen::unscrolledPadAudition(int32_t velocity, int32_t note, bool 
 	// Until then we set the scroll to 0 during the auditioning
 	int32_t yScrollBackup = getCurrentClip()->yScroll;
 	getCurrentClip()->yScroll = 0;
-	if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
-		automationClipView.auditionPadAction(velocity, note, shiftButtonDown);
+	if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+		automationInstrumentClipView.auditionPadAction(velocity, note, shiftButtonDown);
 	}
 	else {
 		instrumentClipView.auditionPadAction(velocity, note, shiftButtonDown);

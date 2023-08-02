@@ -21,7 +21,7 @@
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/automation_clip_view.h"
+#include <gui/views/automation_instrument_clip_view.h>
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -98,7 +98,7 @@ InstrumentClip::InstrumentClip(Song* song) : Clip(CLIP_TYPE_INSTRUMENT) {
 	onKeyboardScreen = false;
 
 	//new automation clip view variables
-	onAutomationClipView = false;
+	onAutomationInstrumentClipView = false;
 	lastSelectedParamID = 255;
 	lastSelectedMidiCC = 255;
 
@@ -145,7 +145,7 @@ void InstrumentClip::copyBasicsFrom(Clip* otherClip) {
 	midiPGM = otherInstrumentClip->midiPGM;
 
 	onKeyboardScreen = otherInstrumentClip->onKeyboardScreen;
-	onAutomationClipView = otherInstrumentClip->onAutomationClipView;
+	onAutomationInstrumentClipView = otherInstrumentClip->onAutomationInstrumentClipView;
 	inScaleMode = otherInstrumentClip->inScaleMode;
 	wrapEditing = otherInstrumentClip->wrapEditing;
 	wrapEditLevel = otherInstrumentClip->wrapEditLevel;
@@ -2180,8 +2180,8 @@ void InstrumentClip::writeDataToFile(Song* song) {
 	if (onKeyboardScreen) {
 		storageManager.writeAttribute("onKeyboardScreen", (char*)"1");
 	}
-	if (onAutomationClipView) {
-		storageManager.writeAttribute("onAutomationClipView", (char*)"1");
+	if (onAutomationInstrumentClipView) {
+		storageManager.writeAttribute("onAutomationInstrumentClipView", (char*)"1");
 	}
 	if (lastSelectedParamID != 255) {
 		storageManager.writeAttribute("lastSelectedParamID", lastSelectedParamID);
@@ -2433,8 +2433,8 @@ someError:
 			onKeyboardScreen = storageManager.readTagOrAttributeValueInt();
 		}
 
-		else if (!strcmp(tagName, "onAutomationClipView")) {
-			onAutomationClipView = storageManager.readTagOrAttributeValueInt();
+		else if (!strcmp(tagName, "onAutomationInstrumentClipView")) {
+			onAutomationInstrumentClipView = storageManager.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "lastSelectedParamID")) {
@@ -3301,9 +3301,9 @@ void InstrumentClip::sendMIDIPGM() {
 }
 
 void InstrumentClip::clear(Action* action, ModelStackWithTimelineCounter* modelStack) {
-	if (getCurrentUI() == &automationClipView && !instrumentClipView.getAffectEntire()) { //if in automationClipView and not in Affect Entire mode
+	if (getCurrentUI() == &automationInstrumentClipView && !instrumentClipView.getAffectEntire()) { //if in automationClipView and not in Affect Entire mode
 																						  //only clear automation from selected row
-		int noteRowIndex = 0;
+		int32_t noteRowIndex = 0;
 
 		NoteRow* thisNoteRow = getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay, currentSong, &noteRowIndex);
 		ModelStackWithNoteRow* modelStackWithNoteRow =
@@ -3314,12 +3314,12 @@ void InstrumentClip::clear(Action* action, ModelStackWithTimelineCounter* modelS
 	else {
 		Clip::clear(action, modelStack); //this clears automations when "affectEntire" is enabled
 
-		if (getCurrentUI() != &automationClipView  //if we're not in the automationClipView, allow the clearing of notes and MPE automations
-			|| (getCurrentUI() == &automationClipView //or if we're in the automationClipView Automation Overview for Kit Rows clear all note row automations also
+		if (getCurrentUI() != &automationInstrumentClipView  //if we're not in the automationClipView, allow the clearing of notes and MPE automations
+			|| (getCurrentUI() == &automationInstrumentClipView //or if we're in the automationClipView Automation Overview for Kit Rows clear all note row automations also
 					&& !instrumentClipView.getAffectEntire()
 					&& lastSelectedParamID == 255)) {
 
-			for (int i = 0; i < noteRows.getNumElements(); i++) {
+			for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
 				NoteRow* thisNoteRow = noteRows.getElement(i);
 				ModelStackWithNoteRow* modelStackWithNoteRow =
 					modelStack->addNoteRow(getNoteRowId(thisNoteRow, i), thisNoteRow);

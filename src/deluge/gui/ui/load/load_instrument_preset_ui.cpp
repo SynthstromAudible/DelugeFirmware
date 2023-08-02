@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include <gui/views/automation_instrument_clip_view.h>
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
@@ -23,7 +24,6 @@
 #include "gui/ui/root_ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
@@ -67,7 +67,7 @@ bool LoadInstrumentPresetUI::opened() {
 	if (getRootUI() == &keyboardScreen) {
 		PadLEDs::skipGreyoutFade();
 	}
-	//	else if (getRootUI() == &automationClipView) {
+	//	else if (getRootUI() == &automationInstrumentClipView) {
 	//		PadLEDs::skipGreyoutFade();
 	//	}
 
@@ -967,8 +967,8 @@ ActionResult LoadInstrumentPresetUI::padAction(int32_t x, int32_t y, int32_t on)
 			}
 		}
 		else {
-			if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
-				return automationClipView.padAction(x, y, on);
+			if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+				return automationInstrumentClipView.padAction(x, y, on);
 			}
 			return instrumentClipView.padAction(x, y, on);
 		}
@@ -1000,8 +1000,8 @@ ActionResult LoadInstrumentPresetUI::verticalEncoderAction(int32_t offset, bool 
 
 		ActionResult result;
 
-		if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
-			result = automationClipView.verticalEncoderAction(offset, inCardRoutine);
+		if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+			result = automationInstrumentClipView.verticalEncoderAction(offset, inCardRoutine);
 		}
 		else {
 			result = instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
@@ -1015,7 +1015,7 @@ ActionResult LoadInstrumentPresetUI::verticalEncoderAction(int32_t offset, bool 
 			uiNeedsRendering(this, 0, 0xFFFFFFFF);
 		}
 
-		else if (getRootUI() == &automationClipView) {
+		else if (getRootUI() == &automationInstrumentClipView) {
 			uiNeedsRendering(this, 0, 0xFFFFFFFF);
 		}
 
@@ -1030,8 +1030,8 @@ bool LoadInstrumentPresetUI::renderSidebar(uint32_t whichRows, uint8_t image[][k
 	if (getRootUI() != &keyboardScreen) {
 		return false;
 	}
-	else if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
-		return automationClipView.renderSidebar(whichRows, image, occupancyMask);
+	else if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+		return automationInstrumentClipView.renderSidebar(whichRows, image, occupancyMask);
 	}
 	return instrumentClipView.renderSidebar(whichRows, image, occupancyMask);
 }

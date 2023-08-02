@@ -1,4 +1,5 @@
 
+#include <gui/views/automation_instrument_clip_view.h>
 #include "gui/ui/sound_editor.h"
 #include "definitions_cxx.hpp"
 #include "dsp/reverb/freeverb/revmodel.hpp"
@@ -13,7 +14,6 @@
 #include "gui/ui/save/save_instrument_preset_ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/audio_clip_view.h"
-#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
@@ -152,7 +152,7 @@ bool SoundEditor::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
 	if (getRootUI() == &keyboardScreen) {
 		return false;
 	}
-	else if (getRootUI() == &automationClipView || getRootUI() == &instrumentClipView) {
+	else if (getRootUI() == &automationInstrumentClipView || getRootUI() == &instrumentClipView) {
 		*cols = 0xFFFFFFFE;
 	}
 	else {
@@ -324,7 +324,7 @@ ActionResult SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutin
 	}
 
 	// Affect-entire button
-	else if (b == AFFECT_ENTIRE && (getRootUI() == &instrumentClipView || getRootUI() == &automationClipView)) {
+	else if (b == AFFECT_ENTIRE && (getRootUI() == &instrumentClipView || getRootUI() == &automationInstrumentClipView)) {
 		if (getCurrentMenuItem()->usesAffectEntire() && editingKit()) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -356,9 +356,9 @@ ActionResult SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutin
 
 			if (getRootUI() == &keyboardScreen) {
 
-				if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
-					swapOutRootUILowLevel(&automationClipView);
-					automationClipView.openedInBackground();
+				if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+					swapOutRootUILowLevel(&automationInstrumentClipView);
+					automationInstrumentClipView.openedInBackground();
 				}
 
 				else {
@@ -371,7 +371,7 @@ ActionResult SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutin
 				keyboardScreen.openedInBackground();
 			}
 
-			else if (getRootUI() == &automationClipView) {
+			else if (getRootUI() == &automationInstrumentClipView) {
 				swapOutRootUILowLevel(&keyboardScreen);
 				keyboardScreen.openedInBackground();
 			}
@@ -575,7 +575,7 @@ shortcutsPicked:
 
 void SoundEditor::possibleChangeToCurrentRangeDisplay() {
 	uiNeedsRendering(&instrumentClipView, 0, 0xFFFFFFFF);
-	uiNeedsRendering(&automationClipView, 0, 0xFFFFFFFF);
+	uiNeedsRendering(&automationInstrumentClipView, 0, 0xFFFFFFFF);
 	uiNeedsRendering(&keyboardScreen, 0xFFFFFFFF, 0);
 }
 
@@ -668,8 +668,8 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 
 		bool hasNoteTailsNow = currentSound->allowNoteTails(modelStack);
 		if (hadNoteTails != hasNoteTailsNow) {
-			if (!((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
-				//		uiNeedsRendering(&automationClipView, 0xFFFFFFFF, 0);
+			if (!((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+				//		uiNeedsRendering(&automationInstrumentClipView, 0xFFFFFFFF, 0);
 				//	}
 				//	else {
 				uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
@@ -890,9 +890,9 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 		}
 	}
 
-	else if (getRootUI() == &automationClipView) {
+	else if (getRootUI() == &automationInstrumentClipView) {
 		if (x == kDisplayWidth + 1) {
-			automationClipView.padAction(x, y, on);
+			automationInstrumentClipView.padAction(x, y, on);
 			return ActionResult::DEALT_WITH;
 		}
 		//	else {

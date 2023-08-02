@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include <gui/views/automation_instrument_clip_view.h>
 #include "model/clip/instrument_clip_minder.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/keyboard/keyboard_screen.h"
@@ -23,7 +24,6 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
@@ -395,9 +395,9 @@ yesLoadInstrument:
 
 			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::ClearClipAutomation)
 			    == RuntimeFeatureStateToggle::On) {
-				if (getCurrentUI() == &automationClipView) {
+				if (getCurrentUI() == &automationInstrumentClipView) {
 					numericDriver.displayPopup(HAVE_OLED ? "Automation cleared" : "CLEAR");
-					uiNeedsRendering(&automationClipView, 0xFFFFFFFF, 0);
+					uiNeedsRendering(&automationInstrumentClipView, 0xFFFFFFFF, 0);
 				}
 				else if (getCurrentUI() == &instrumentClipView) {
 					numericDriver.displayPopup(HAVE_OLED ? "Notes cleared" : "CLEAR");
@@ -409,9 +409,9 @@ yesLoadInstrument:
 					numericDriver.displayPopup(HAVE_OLED ? "Clip cleared" : "CLEAR");
 					uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
 				}
-				else if (getCurrentUI() == &automationClipView) {
+				else if (getCurrentUI() == &automationInstrumentClipView) {
 					numericDriver.displayPopup(HAVE_OLED ? "Clip cleared" : "CLEAR");
-					uiNeedsRendering(&automationClipView, 0xFFFFFFFF, 0);
+					uiNeedsRendering(&automationInstrumentClipView, 0xFFFFFFFF, 0);
 				}
 			}
 		}

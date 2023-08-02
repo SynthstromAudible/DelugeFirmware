@@ -15,11 +15,11 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include <gui/views/automation_instrument_clip_view.h>
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/formatted_title.h"
 #include "gui/menu_item/selection/typed_selection.h"
 #include "gui/ui/sound_editor.h"
-#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "model/clip/clip.h"
 #include "model/drum/drum.h"
@@ -82,8 +82,8 @@ public:
 		}
 
 		// We need to re-render all rows, because this will have changed whether Note tails are displayed. Probably just one row, but we don't know which
-		if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
-			uiNeedsRendering(&automationClipView, 0xFFFFFFFF, 0);
+		if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+			uiNeedsRendering(&automationInstrumentClipView, 0xFFFFFFFF, 0);
 		}
 		else {
 			uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);

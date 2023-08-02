@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <gui/views/automation_instrument_clip_view.h>
 #include "hid/led/pad_leds.h"
 #include "gui/colour.h"
 #include "gui/menu_item/colour.h"
@@ -23,7 +24,6 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
-#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -810,8 +810,8 @@ void timerRoutine() {
 				currentUIMode = UI_MODE_ANIMATION_FADE;
 				if (explodeAnimationDirection == 1) {
 					if (currentSong->currentClip->type == CLIP_TYPE_INSTRUMENT) {
-						if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
-							changeRootUI(&automationClipView); // We want to fade the sidebar in
+						if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+							changeRootUI(&automationInstrumentClipView); // We want to fade the sidebar in
 						}
 						else {
 							changeRootUI(&instrumentClipView); // We want to fade the sidebar in
@@ -989,12 +989,12 @@ void renderClipExpandOrCollapse() {
 			if (((InstrumentClip*)currentSong->currentClip)->onKeyboardScreen) {
 				changeRootUI(&keyboardScreen);
 			}
-			else if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
-				changeRootUI(&automationClipView);
+			else if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+				changeRootUI(&automationInstrumentClipView);
 				// If we need to zoom in horizontally because the Clip's too short...
 				bool anyZoomingDone = instrumentClipView.zoomToMax(true);
 				if (anyZoomingDone) {
-					uiNeedsRendering(&automationClipView, 0, 0xFFFFFFFF);
+					uiNeedsRendering(&automationInstrumentClipView, 0, 0xFFFFFFFF);
 				}
 			}
 			else {
@@ -1029,8 +1029,8 @@ void renderNoteRowExpandOrCollapse() {
 	int32_t progress = getTransitionProgress();
 	if (progress >= 65536) {
 		currentUIMode = UI_MODE_NONE;
-		if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
-			uiNeedsRendering(&automationClipView);
+		if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+			uiNeedsRendering(&automationInstrumentClipView);
 		}
 		else {
 			uiNeedsRendering(&instrumentClipView);

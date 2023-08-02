@@ -63,9 +63,9 @@ class SoundDrum;
 //#define MPE_RECORD_LENGTH_FOR_NOTE_EDITING 3
 //#define MPE_RECORD_INTERVAL_TIME (44100 >> 2) // 250ms
 
-class AutomationClipView final : public ClipView, public InstrumentClipMinder, public ModControllableAudio {
+class AutomationInstrumentClipView final : public ClipView, public InstrumentClipMinder, public ModControllableAudio {
 public:
-	AutomationClipView();
+	AutomationInstrumentClipView();
 	bool opened();
 	void openedInBackground();
 	void focusRegained();
@@ -78,7 +78,7 @@ public:
 	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
 	void performActualRender(uint32_t whichRows, uint8_t* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
-	                         int32_t xScroll, uint32_t xZoom, int renderWidth, int imageWidth,
+	                         int32_t xScroll, uint32_t xZoom, int32_t renderWidth, int32_t imageWidth,
 	                         bool drawUndefinedArea = true);
 	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
@@ -102,13 +102,13 @@ public:
 	//void cancelAllAuditioning();
 
 	//pad action
-	ActionResult padAction(int x, int y, int velocity);
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
 	//void enterScaleMode(uint8_t yDisplay = 255);
 	//void exitScaleMode();
 	//void changeRootNote(uint8_t yDisplay);
 
 	//edit pad action
-	void editPadAction(bool state, uint8_t yDisplay, uint8_t xDisplay, unsigned int xZoom);
+	void editPadAction(bool state, uint8_t yDisplay, uint8_t xDisplay, uint32_t xZoom);
 	//int16_t mpeValuesAtHighestPressure[MPE_RECORD_LENGTH_FOR_NOTE_EDITING][kNumExpressionDimensions];
 	//int16_t mpeMostRecentPressure;
 	//uint32_t mpeRecordLastUpdateTime;
@@ -117,9 +117,9 @@ public:
 	//void mutePadPress(uint8_t yDisplay);
 
 	//audition pad action
-	void auditionPadAction(int velocity, int yDisplay, bool shiftButtonDown);
-	//ModelStackWithNoteRow* createNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int yDisplay);
-	//NoteRow* createNewNoteRowForKit(ModelStackWithTimelineCounter* modelStack, int yDisplay, int* getIndex = NULL);
+	void auditionPadAction(int32_t velocity, int32_t yDisplay, bool shiftButtonDown);
+	//ModelStackWithNoteRow* createNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay);
+	//NoteRow* createNewNoteRowForKit(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay, int32_t* getIndex = NULL);
 	//void reassessAllAuditionStatus();
 	//void reassessAuditionStatus(uint8_t yDisplay);
 	//uint8_t getVelocityForAudition(uint8_t yDisplay, uint32_t* sampleSyncLength);
@@ -131,16 +131,16 @@ public:
 	//bool fileBrowserShouldNotPreview; // Archaic leftover feature that users wouldn't let me get rid of
 
 	//horizontal encoder action
-	ActionResult horizontalEncoderAction(int offset);
+	ActionResult horizontalEncoderAction(int32_t offset);
 	//void doubleClipLengthAction();
-	//ModelStackWithNoteRow* getOrCreateNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int yDisplay);
+	//ModelStackWithNoteRow* getOrCreateNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay);
 
 	//vertical encoder action
-	ActionResult verticalEncoderAction(int offset, bool inCardRoutine);
-	ActionResult scrollVertical(int scrollAmount, bool inCardRoutine, bool shiftingNoteRow = false);
+	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
+	ActionResult scrollVertical(int32_t scrollAmount, bool inCardRoutine, bool shiftingNoteRow = false);
 
 	//mod encoder action
-	void modEncoderAction(int whichModEncoder, int offset);
+	void modEncoderAction(int32_t whichModEncoder, int32_t offset);
 	void modEncoderButtonAction(uint8_t whichModEncoder, bool on);
 	//void dontDeleteNotesOnDepress();
 	CopiedParamAutomation copiedParamAutomation;
@@ -150,7 +150,7 @@ public:
 
 	//Select encoder action
 	void selectEncoderAction(int8_t offset);
-	//void offsetNoteCodeAction(int newOffset);
+	//void offsetNoteCodeAction(int32_t newOffset);
 	//void cutAuditionedNotesToOne();
 	//void setSelectedDrum(Drum* drum, bool shouldRedrawStuff = true);
 
@@ -174,7 +174,7 @@ public:
 	//uint8_t flashShortcuts;
 	//uint8_t notePassthrough;
 	//uint8_t overlayNotes;
-	uint8_t interpolateOn;
+	uint8_t interpolation;
 
 private:
 	//Rendering Variables
@@ -204,7 +204,7 @@ private:
 	//Drum* drumForNewNoteRow;
 
 	//Horizontal Encoder Action
-	void rotateAutomationHorizontally(int offset);
+	void rotateAutomationHorizontally(int32_t offset);
 	//bool offsettingNudgeNumberDisplay;
 	//bool doneAnyNudgingSinceFirstEditPadPress;
 	//bool shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress;
@@ -227,25 +227,25 @@ private:
 
 	void handleSinglePadPress(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, int32_t xDisplay,
 	                          int32_t yDisplay, bool shortcutPress = false);
-	int calculateKnobPosForSinglePadPress(int32_t yDisplay);
+	int32_t calculateKnobPosForSinglePadPress(int32_t yDisplay);
 
 	void handleMultiPadPress(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, int32_t firstPadX,
 	                         int32_t firstPadY, int32_t secondPadX, int32_t secondPadY);
-	int calculateKnobPosForMultiPadPress(int32_t xDisplay, int32_t firstPadX, int32_t firstPadValue, int32_t secondPadX,
+	int32_t calculateKnobPosForMultiPadPress(int32_t xDisplay, int32_t firstPadX, int32_t firstPadValue, int32_t secondPadX,
 	                                     int32_t secondPadValue);
 
-	int calculateKnobPosForModEncoderTurn(int32_t knobPos, int32_t offset);
+	int32_t calculateKnobPosForModEncoderTurn(int32_t knobPos, int32_t offset);
 	bool isOnParameterGridMenuView();
 	void drawParameterName(int32_t paramID);
 	void renderAutomationOverview();
 	void renderAutomationEditor();
 
 	//Interpolation Shape Functions
-	int LERP(int A, int B, int T, int Distance);
-	int LERPRoot(int A, int B, int T, int Distance);
-	int LERPSweep(int A, int B, int T, int Distance);
-	int LERPSweepDown(int A, int B, int T, int Distance);
-	//int smoothstep (int A, int B, int T, int Distance);
+	int32_t LERP(int32_t A, int32_t B, int32_t T, int32_t Distance);
+	int32_t LERPRoot(int32_t A, int32_t B, int32_t T, int32_t Distance);
+	int32_t LERPSweep(int32_t A, int32_t B, int32_t T, int32_t Distance);
+	int32_t LERPSweepDown(int32_t A, int32_t B, int32_t T, int32_t Distance);
+	//int32_t smoothstep (int32_t A, int32_t B, int32_t T, int32_t Distance);
 
 	//Automation Lanes Variables
 	//uint8_t lastSelectedParamID;
@@ -262,4 +262,4 @@ private:
 	bool encoderAction;
 };
 
-extern AutomationClipView automationClipView;
+extern AutomationInstrumentClipView automationInstrumentClipView;

@@ -15,13 +15,13 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <gui/views/automation_instrument_clip_view.h>
 #include "gui/ui/sample_marker_editor.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
-#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/waveform/waveform_basic_navigator.h"
 #include "gui/waveform/waveform_renderer.h"
@@ -90,7 +90,7 @@ bool SampleMarkerEditor::opened() {
 	if (getRootUI() == &keyboardScreen) {
 		PadLEDs::skipGreyoutFade();
 	}
-	else if (getRootUI() == &automationClipView) {
+	else if (getRootUI() == &automationInstrumentClipView) {
 		PadLEDs::skipGreyoutFade();
 	}
 
@@ -113,7 +113,7 @@ bool SampleMarkerEditor::opened() {
 	displayText();
 #endif
 
-	if ((getRootUI() != &instrumentClipView) && (getRootUI() != &automationClipView)) {
+	if ((getRootUI() != &instrumentClipView) && (getRootUI() != &automationInstrumentClipView)) {
 		renderingNeededRegardlessOfUI(0, 0xFFFFFFFF);
 	}
 
@@ -314,8 +314,8 @@ ActionResult SampleMarkerEditor::padAction(int32_t x, int32_t y, int32_t on) {
 	// Audition pads - pass to UI beneath
 	if (x == kDisplayWidth + 1) {
 		if (currentSong->currentClip->type == CLIP_TYPE_INSTRUMENT) {
-			if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
-				automationClipView.padAction(x, y, on);
+			if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+				automationInstrumentClipView.padAction(x, y, on);
 			}
 			else {
 				instrumentClipView.padAction(x, y, on);
@@ -711,8 +711,8 @@ ActionResult SampleMarkerEditor::verticalEncoderAction(int32_t offset, bool inCa
 	ActionResult result;
 
 	// Must say these buttons were not pressed, or else editing might take place
-	if (((InstrumentClip*)currentSong->currentClip)->onAutomationClipView) {
-		result = automationClipView.verticalEncoderAction(offset, inCardRoutine);
+	if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+		result = automationInstrumentClipView.verticalEncoderAction(offset, inCardRoutine);
 	}
 	else {
 		result = instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
@@ -725,7 +725,7 @@ ActionResult SampleMarkerEditor::verticalEncoderAction(int32_t offset, bool inCa
 	if (getRootUI() == &keyboardScreen) {
 		uiNeedsRendering(this, 0, 0xFFFFFFFF);
 	}
-	else if (getRootUI() == &automationClipView) {
+	else if (getRootUI() == &automationInstrumentClipView) {
 		uiNeedsRendering(this, 0, 0xFFFFFFFF);
 	}
 
@@ -737,8 +737,8 @@ bool SampleMarkerEditor::renderSidebar(uint32_t whichRows, uint8_t image[][kDisp
 	if (getRootUI() != &keyboardScreen) {
 		return false;
 	}
-	else if (getRootUI() == &automationClipView) {
-		return automationClipView.renderSidebar(whichRows, image, occupancyMask);
+	else if (getRootUI() == &automationInstrumentClipView) {
+		return automationInstrumentClipView.renderSidebar(whichRows, image, occupancyMask);
 	}
 	return instrumentClipView.renderSidebar(whichRows, image, occupancyMask);
 }

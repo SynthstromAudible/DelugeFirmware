@@ -15,9 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include <gui/views/automation_instrument_clip_view.h>
 #include "modulation/automation/auto_param.h"
 #include "definitions_cxx.hpp"
-#include "gui/views/automation_clip_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/numeric_driver.h"
@@ -959,8 +959,8 @@ void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
 		nodes.testSequentiality("E441");
 #endif
 
-		firstI = homogenizeRegion(modelStack, pos, length, value, automationClipView.interpolateOn,
-		                          automationClipView.interpolateOn, effectiveLength, false);
+		firstI = homogenizeRegion(modelStack, pos, length, value, automationInstrumentClipView.interpolation,
+		                          automationInstrumentClipView.interpolation, effectiveLength, false);
 		if (firstI == -1) {
 			return;
 		}
