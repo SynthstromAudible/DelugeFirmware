@@ -16,8 +16,10 @@
  */
 
 #include "definitions_cxx.hpp"
-#define _GNU_SOURCE     // Wait why?
+#define _GNU_SOURCE // Wait why?
+#undef __GNU_VISIBLE
 #define __GNU_VISIBLE 1 // Makes strcasestr visible. Might already be the reason for the define above
+
 #include "extern.h"
 #include "gui/context_menu/delete_file.h"
 #include "gui/context_menu/sample_browser/kit.h"

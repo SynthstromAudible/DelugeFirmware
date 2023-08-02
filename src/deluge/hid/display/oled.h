@@ -20,10 +20,10 @@
 #if HAVE_OLED
 #ifdef __cplusplus
 #include "definitions_cxx.hpp"
+#include <string>
 
 namespace OLED {
 
-void mainPutText(char const* text);
 void drawOnePixel(int32_t x, int32_t y);
 void clearMainImage();
 void clearAreaExact(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
@@ -31,8 +31,8 @@ void clearAreaExact(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY, uint
 void drawRectangle(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
 void drawVerticalLine(int32_t pixelX, int32_t startY, int32_t endY, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
 void drawHorizontalLine(int32_t pixelY, int32_t startX, int32_t endX, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
-void drawString(char const* string, int32_t pixelX, int32_t pixelY, uint8_t* image, int32_t imageWidth,
-                int32_t textWidth, int32_t textHeight, int32_t scrollPos = 0, int32_t endX = OLED_MAIN_WIDTH_PIXELS);
+void drawString(std::string_view, int32_t pixelX, int32_t pixelY, uint8_t* image, int32_t imageWidth, int32_t textWidth,
+                int32_t textHeight, int32_t scrollPos = 0, int32_t endX = OLED_MAIN_WIDTH_PIXELS);
 void drawStringFixedLength(char const* string, int32_t length, int32_t pixelX, int32_t pixelY, uint8_t* image,
                            int32_t imageWidth, int32_t textWidth, int32_t textHeight);
 void drawStringCentred(char const* string, int32_t pixelY, uint8_t* image, int32_t imageWidth, int32_t textWidth,
@@ -45,7 +45,7 @@ void drawChar(uint8_t theChar, int32_t pixelX, int32_t pixelY, uint8_t* image, i
               int32_t textHeight, int32_t scrollPos = 0, int32_t endX = OLED_MAIN_WIDTH_PIXELS);
 void drawGraphicMultiLine(uint8_t const* graphic, int32_t startX, int32_t startY, int32_t width, uint8_t* image,
                           int32_t height = 8, int32_t numBytesTall = 1);
-void drawScreenTitle(char const* title);
+void drawScreenTitle(std::string_view text);
 
 void setupBlink(int32_t minX, int32_t width, int32_t minY, int32_t maxY, bool shouldBlinkImmediately);
 void stopBlink();

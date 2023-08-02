@@ -313,27 +313,26 @@ void drawHorizontalLine(int32_t pixelY, int32_t startX, int32_t endX, uint8_t im
 	} while (currentPos <= lastPos);
 }
 
-void drawString(char const* string, int32_t pixelX, int32_t pixelY, uint8_t* image, int32_t imageWidth,
+void drawString(std::string_view string, int32_t pixelX, int32_t pixelY, uint8_t* image, int32_t imageWidth,
                 int32_t textWidth, int32_t textHeight, int32_t scrollPos, int32_t endX) {
 	if (scrollPos) {
 		int32_t numCharsToChopOff = (uint16_t)scrollPos / (uint8_t)textWidth;
 		if (numCharsToChopOff) {
-			if (numCharsToChopOff >= strlen(string)) {
+			if (numCharsToChopOff >= string.length()) {
 				return;
 			}
 
-			string += numCharsToChopOff;
+			string = string.substr(numCharsToChopOff);
 			scrollPos -= numCharsToChopOff * textWidth;
 		}
 	}
-	while (*string) {
-		drawChar(*string, pixelX, pixelY, image, imageWidth, textWidth, textHeight, scrollPos, endX);
+	for (char const c : string) {
+		drawChar(c, pixelX, pixelY, image, imageWidth, textWidth, textHeight, scrollPos, endX);
 		pixelX += textWidth - scrollPos;
 		if (pixelX >= endX) {
 			break;
 		}
 		scrollPos = 0;
-		string++;
 	}
 }
 
@@ -474,7 +473,7 @@ void drawChar(uint8_t theChar, int32_t pixelX, int32_t pixelY, uint8_t* image, i
 	                     textHeight, bytesPerCol);
 }
 
-void drawScreenTitle(char const* title) {
+void drawScreenTitle(std::string_view title) {
 	int32_t extraY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 0 : 1;
 
 	int32_t startY = extraY + OLED_MAIN_TOPMOST_PIXEL;
