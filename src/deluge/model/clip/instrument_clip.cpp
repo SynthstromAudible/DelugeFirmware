@@ -3308,6 +3308,7 @@ void InstrumentClip::clear(Action* action, ModelStackWithTimelineCounter* modelS
 
 		NoteRow* thisNoteRow =
 		    getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay, currentSong, &noteRowIndex);
+
 		ModelStackWithNoteRow* modelStackWithNoteRow =
 		    modelStack->addNoteRow(getNoteRowId(thisNoteRow, noteRowIndex), thisNoteRow);
 
