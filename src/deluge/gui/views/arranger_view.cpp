@@ -1469,7 +1469,7 @@ getItFromSection:
 				if (x == xPressed && y == yPressedEffective) {
 
 					// If no action to perform...
-					if (!actionOnDepress || (int32_t)(AudioEngine::audioSampleTimer - pressTime) >= (44100 >> 1)) {
+					if (!actionOnDepress || (int32_t)(AudioEngine::audioSampleTimer - pressTime) >= kShortPressTime) {
 justGetOut:
 						exitSubModeWithoutAction();
 					}

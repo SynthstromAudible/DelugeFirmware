@@ -28,7 +28,7 @@ class Reverse final : public Toggle, public FormattedTitle {
 public:
 	Reverse(const string& name, const string& title_format_str) : Toggle(name), FormattedTitle(title_format_str) {}
 
-	[[nodiscard]] const string& getTitle() const override { return FormattedTitle::title(); }
+	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
 	bool usesAffectEntire() override { return true; }
 

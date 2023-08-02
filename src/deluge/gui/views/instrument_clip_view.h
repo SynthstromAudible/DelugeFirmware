@@ -57,7 +57,7 @@ struct EditPadPress {
 };
 
 #define MPE_RECORD_LENGTH_FOR_NOTE_EDITING 3
-#define MPE_RECORD_INTERVAL_TIME (44100 >> 2) // 250ms
+#define MPE_RECORD_INTERVAL_TIME (kSampleRate >> 2) // 250ms
 
 #define NUDGEMODE_QUANTIZE 1
 #define NUDGEMODE_QUANTIZE_ALL 2

@@ -81,6 +81,10 @@ void RuntimeFeatureSettings::init() {
 	// DeleteUnusedKitRows
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DeleteUnusedKitRows], "Delete Unused Kit Rows",
 	                  "deleteUnusedKitRows", RuntimeFeatureStateToggle::On);
+	// AltGoldenKnobDelayParams
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AltGoldenKnobDelayParams],
+	                  "Alternative Golden Knob Delay Params", "altGoldenKnobDelayParams",
+	                  RuntimeFeatureStateToggle::Off);
 	// ClearClipAutomation
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ClearClipAutomation], "Clear Clip Automation",
 	                  "clearClipAutomation", RuntimeFeatureStateToggle::On);

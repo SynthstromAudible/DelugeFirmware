@@ -38,13 +38,14 @@ Setting menuQuantize(RuntimeFeatureSettingType::Quantize);
 Setting menuPatchCableResolution(RuntimeFeatureSettingType::PatchCableResolution);
 Setting menuCatchNotes(RuntimeFeatureSettingType::CatchNotes);
 Setting menuDeleteUnusedKitRows(RuntimeFeatureSettingType::DeleteUnusedKitRows);
+Setting menuAltGoldenKnobDelayParams(RuntimeFeatureSettingType::AltGoldenKnobDelayParams);
 Setting menuClearClipAutomation(RuntimeFeatureSettingType::ClearClipAutomation);
 Setting menuNudgeNoteAutomation(RuntimeFeatureSettingType::NudgeNoteAutomation);
 
 std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement> subMenuEntries{
-    &menuDrumRandomizer,       &menuMasterCompressorFx, &menuFineTempo,           &menuQuantize,
-    &menuPatchCableResolution, &menuCatchNotes,         &menuDeleteUnusedKitRows, &menuClearClipAutomation,
-    &menuNudgeNoteAutomation,
+    &menuDrumRandomizer,       &menuMasterCompressorFx,  &menuFineTempo,           &menuQuantize,
+    &menuPatchCableResolution, &menuCatchNotes,          &menuDeleteUnusedKitRows, &menuAltGoldenKnobDelayParams,
+    &menuClearClipAutomation,  &menuNudgeNoteAutomation,
 };
 
 Settings::Settings(char const* name, char const* title)

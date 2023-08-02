@@ -134,6 +134,8 @@ protected:
 	void beginStutter(ParamManagerForTimeline* paramManager);
 	void switchDelayPingPong();
 	void switchDelayAnalog();
+	void switchDelaySyncType();
+	void switchDelaySyncLevel();
 	void switchLPFMode();
 	void clearModFXMemory();
 

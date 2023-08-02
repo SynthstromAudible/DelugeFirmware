@@ -31,7 +31,7 @@ namespace deluge::gui::context_menu {
 DeleteFile deleteFile{};
 
 char const* DeleteFile::getTitle() {
-	static char* title;
+	static char const* title;
 	if (getUIUpOneLevel() == &context_menu::saveSongOrInstrument) {
 		title = "Are you sure?";
 	}

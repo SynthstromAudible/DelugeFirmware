@@ -57,6 +57,13 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 ### Kit Keyboard View
  - ([#112]) All-new use for the "keyboard" button in kit clips, uses the main pad grid for MPC-style 16 level playing. Horizonatal encoder scrolls by one pad at a time, allowing positioning drums left to right, and vertical encoder jumps vertically by rows.
 
+### Instrument & Kit Clip View
+  - ([#129]) Quantize & Humanize
+    - Press and hold a note in clip view and turn the tempo knob right or left to apply quantize or humanize respectively to that row.
+    - Press and hold a note and press and turn the tempo knob to apply quantize or humanize to all rows.
+    - The amount of quantization/humanization is shown in the display.
+    - This feature can be toggled in the [runtime features menu](#runtime-features).
+
 ### Audio Clip View
  - ([#141]) Holding the vertical encoder down while turning the horizontal encoder will shift the clip along the underlying audio file, similar to the same interface for instrument clips.
 
@@ -72,6 +79,9 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 
 ### Catch Notes
  - ([#221]) The normal behavior of the Deluge is to try to keep up with 'in progress' notes when instant switching between clips by playing them late. However this leads to glitches with drum clips and other percussive sounds. Changing this setting to OFF will prevent this behavior and *not* try to keep up with those notes, leading to smoother instant switching between clips.
+
+### Alternative Delay Params for golden knobs
+ - ([#282]) Ability to select, using a Community Features Menu, which parameters are controlled when you click the Delay-related golden knobs. The default (for upper and lower knobs) is PingPong On/Off and Type (Digital/Analog), and you can modify it so the knob clicks change the Sync Type (Even, Triplets, Even) and SyncLevel (Off, Whole, 2nd, 4th...) respectively.
 
 <h1 id="runtime-features">Runtime settings aka Community Features Menu</h1>
 
@@ -91,6 +101,8 @@ In the main menu of the deluge (Shift + Pressing selection knob) there is an ent
 	Enable or disables the 'catch notes' behavior.
 * Delete Unused Kit Rows (DELE)
 	Enable or disables the Delete Unused Kit Rows shortcut (hold KIT then SHIFT+SAVE/DELETE).
+* Alternative Golden Knob Delay Params
+	When On, changes the behaviour of the click action, from the default (PingPong and Type) to the alternative params (SyncType and SyncLevel).
 
 
 # Compiletime settings
@@ -113,6 +125,7 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#103]: https://github.com/SynthstromAudible/DelugeFirmware/pull/103
 [#112]: https://github.com/SynthstromAudible/DelugeFirmware/pull/112
 [#122]: https://github.com/SynthstromAudible/DelugeFirmware/pull/122
+[#129]: https://github.com/SynthstromAudible/DelugeFirmware/pull/129
 [#141]: https://github.com/SynthstromAudible/DelugeFirmware/pull/141
 [#138]: https://github.com/SynthstromAudible/DelugeFirmware/pull/138
 [#163]: https://github.com/SynthstromAudible/DelugeFirmware/pull/163
@@ -120,3 +133,4 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#170]: https://github.com/SynthstromAudible/DelugeFirmware/pull/170
 [#221]: https://github.com/SynthstromAudible/DelugeFirmware/pull/221
 [#234]: https://github.com/SynthstromAudible/DelugeFirmware/pull/234
+[#282]: https://github.com/SynthstromAudible/DelugeFirmware/pull/282

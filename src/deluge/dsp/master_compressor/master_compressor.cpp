@@ -19,7 +19,7 @@
 #include "dsp/stereo_sample.h"
 
 MasterCompressor::MasterCompressor() {
-	compressor.setSampleRate(44100);
+	compressor.setSampleRate(kSampleRate);
 	compressor.initRuntime();
 	compressor.setAttack(10.0);
 	compressor.setRelease(100.0);

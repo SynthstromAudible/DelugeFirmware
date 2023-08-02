@@ -229,6 +229,8 @@ target_compile_options(deluge INTERFACE
     $<$<CONFIG:DEBUG>:-Wnull-dereference>
     $<$<CONFIG:DEBUG>:-Wno-psabi>
 
+    $<$<CONFIG:DEBUG>:-Werror=write-strings>
+
     # Stack usage
     $<$<CONFIG:DEBUG>:-Wstack-usage=100>
     $<$<CONFIG:RELEASE>:-Wstack-usage=1000>

@@ -452,7 +452,7 @@ void routine() {
 
 	else if (numSamples < direnessThreshold - 10) {
 
-		if ((int32_t)(audioSampleTimer - timeDirenessChanged) >= (44100 >> 3)) { // Only if it's been long enough
+		if ((int32_t)(audioSampleTimer - timeDirenessChanged) >= (kSampleRate >> 3)) { // Only if it's been long enough
 			timeDirenessChanged = audioSampleTimer;
 			cpuDireness--;
 			if (cpuDireness < 0) {
@@ -626,8 +626,8 @@ startAgain:
 	int32_t reverbAmplitudeL;
 	int32_t reverbAmplitudeR;
 
-	bool reverbOn = ((uint32_t)(audioSampleTimer - timeThereWasLastSomeReverb)
-	                 < 44100 * 12); // Stop reverb after 12 seconds of inactivity
+	// Stop reverb after 12 seconds of inactivity
+	bool reverbOn = ((uint32_t)(audioSampleTimer - timeThereWasLastSomeReverb) < kSampleRate * 12);
 
 	if (reverbOn) {
 		// Patch that to reverb volume
@@ -820,8 +820,8 @@ startAgain:
 
 		R_INTC_Enable(INTC_ID_TGIA[TIMER_MIDI_GATE_OUTPUT]);
 
-		*TGRA[TIMER_MIDI_GATE_OUTPUT] = ((uint32_t)samplesTilMIDIOrGate * 766245)
-		                                >> 16; // Set delay time. This is samplesTilMIDIOrGate * 515616 / 44100.
+		// Set delay time. This is samplesTilMIDIOrGate * 515616 / kSampleRate.
+		*TGRA[TIMER_MIDI_GATE_OUTPUT] = ((uint32_t)samplesTilMIDIOrGate * 766245) >> 16;
 		enableTimer(TIMER_MIDI_GATE_OUTPUT);
 	}
 

@@ -243,7 +243,8 @@ extern uint8_t anythingInitiallyAttachedAsUSBHost;
 bool closedPeripheral = false;
 
 extern "C" {
-uint32_t timeUSBInitializationEnds = 44100;
+/// Wait for one second
+uint32_t timeUSBInitializationEnds = kSampleRate;
 uint8_t usbInitializationPeriodComplete = 0;
 
 void setTimeUSBInitializationEnds(int32_t timeFromNow) {
