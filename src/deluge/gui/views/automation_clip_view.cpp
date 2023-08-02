@@ -424,7 +424,7 @@ void AutomationClipView::performActualRender(uint32_t whichRows, uint8_t* image,
 
 		uint8_t* occupancyMaskOfRow = occupancyMask[yDisplay];
 
-		if (clip->output->type == InstrumentType::SYNTH && clip->lastSelectedParamID != 255) {
+		if ((clip->output->type == InstrumentType::SYNTH || clip->output->type == InstrumentType::KIT) && clip->lastSelectedParamID != 255) {
 			ModelStackWithAutoParam* modelStackWithParam =
 			    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID);
 
@@ -506,7 +506,7 @@ void AutomationClipView::performActualRender(uint32_t whichRows, uint8_t* image,
 		}
 
 		else {
-			if (clip->output->type == InstrumentType::SYNTH) {
+			if (clip->output->type == InstrumentType::SYNTH || clip->output->type == InstrumentType::KIT) {
 				for (int xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 
 					uint8_t* pixel = image + (yDisplay * imageWidth * 3) + (xDisplay * 3);
@@ -520,42 +520,6 @@ void AutomationClipView::performActualRender(uint32_t whichRows, uint8_t* image,
 
 					//	else {
 					if (paramShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
-						ModelStackWithAutoParam* modelStackWithParam =
-						    getModelStackWithParam(modelStack, clip, paramShortcutsForAutomation[xDisplay][yDisplay]);
-
-						if (modelStackWithParam) {
-							if (modelStackWithParam->autoParam->isAutomated()) {
-								pixel[0] = 130;
-								pixel[1] = 120;
-								pixel[2] = 130;
-							}
-
-							else {
-								memcpy(pixel, &instrumentClipView.rowTailColour[yDisplay], 3);
-							}
-
-							occupancyMaskOfRow[xDisplay] = 64;
-						}
-					}
-				}
-			}
-
-			else if (clip->output->type == InstrumentType::KIT) {
-
-				for (int xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
-
-					uint8_t* pixel = image + (yDisplay * imageWidth * 3) + (xDisplay * 3);
-
-					//	if (paramShortcutsForAutomation[xDisplay][yDisplay] == 0xFFFFFFFF) {
-
-					//		pixel[0] = 0;
-					//		pixel[1] = 0;
-					//		pixel[2] = 0;
-					//	}
-
-					//	else {
-					if (paramShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
-
 						ModelStackWithAutoParam* modelStackWithParam =
 						    getModelStackWithParam(modelStack, clip, paramShortcutsForAutomation[xDisplay][yDisplay]);
 
@@ -1427,11 +1391,19 @@ void AutomationClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 			}
 
 			// And create the new NoteRow
-			modelStackWithNoteRow = instrumentClipView.createNoteRowForYDisplay(modelStack, yDisplay);
+			if (clip->output->type != InstrumentType::KIT) {
+				modelStackWithNoteRow = instrumentClipView.createNoteRowForYDisplay(modelStack, yDisplay);
+			}
+			else {
+				NoteRow* noteRow = NULL;
+				int noteRowId;
+				modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, noteRow);
+			}
+
 			if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
-				if (instrument->type == InstrumentType::KIT) {
-					instrumentClipView.setSelectedDrum(NULL);
-				}
+			//	if (instrument->type == InstrumentType::KIT) {
+			//		instrumentClipView.setSelectedDrum(NULL);
+			//	}
 				return;
 			}
 
@@ -1652,9 +1624,9 @@ void AutomationClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 				// Edit mod knob values for this Note's region
 				//	int32_t distanceToNextNote = clip->getDistanceToNextNote(lastNote, modelStackWithNoteRow);
 
-				if (instrument->type == InstrumentType::KIT) {
-					instrumentClipView.setSelectedDrum(noteRow->drum);
-				}
+			//	if (instrument->type == InstrumentType::KIT) {
+			//		instrumentClipView.setSelectedDrum(noteRow->drum);
+			//	}
 
 				// Can only set the mod region after setting the selected drum! Otherwise the params' currentValues don't end up right
 				//	view.setModRegion(
@@ -1992,6 +1964,10 @@ maybeRenderRow:
 
 		// If note on...
 		if (velocity) {
+			if (instrumentClipView.lastAuditionedYDisplay != yDisplay) { //if you pressed a different audition pad than last time, refresh grid
+				uiNeedsRendering(this);
+			}
+
 			int velocityToSound = velocity;
 			if (velocityToSound == USE_DEFAULT_VELOCITY) {
 				velocityToSound = ((Instrument*)currentSong->currentClip->output)->defaultVelocity;
@@ -2331,8 +2307,12 @@ ActionResult AutomationClipView::horizontalEncoderAction(int offset) {
 		return ActionResult::DEALT_WITH;
 	}
 
-	// Auditioning *and* holding down <> encoder - rotate/shift automation
-	else if (isUIModeActiveExclusively(UI_MODE_AUDITIONING | UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
+	// Holding down vertical encoder button and turning horizontal encoder
+	// Holding down clip button, pressing and turning horizontal encoder
+	// Shift clip automation horizontally
+	else if ((isNoUIModeActive() && Buttons::isButtonPressed(hid::button::Y_ENC))
+		         || (isUIModeActiveExclusively(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)
+		             && Buttons::isButtonPressed(hid::button::CLIP_VIEW))) {
 		rotateAutomationHorizontally(offset);
 		return ActionResult::DEALT_WITH;
 	}
@@ -3075,7 +3055,7 @@ void AutomationClipView::modEncoderAction(int whichModEncoder, int offset) {
 
 	Output* output = clip->output;
 
-	if (output->type == InstrumentType::KIT && isUIModeActive(UI_MODE_AUDITIONING)) {
+	/*if (output->type == InstrumentType::KIT && isUIModeActive(UI_MODE_AUDITIONING)) {
 
 		Kit* kit = (Kit*)output;
 
@@ -3104,10 +3084,10 @@ void AutomationClipView::modEncoderAction(int whichModEncoder, int offset) {
 
 			drum->modEncoderAction(modelStackWithThreeMainThings, offset, whichModEncoder);
 		}
-	}
+	}*/
 
 	//Or, if user holding a note(s) down, we'll adjust the value of the selected parameter being automated
-	else if (currentUIMode == UI_MODE_NOTES_PRESSED) {
+	if (currentUIMode == UI_MODE_NOTES_PRESSED) {
 		if (clip->output->type == InstrumentType::SYNTH || clip->output->type == InstrumentType::KIT) {
 
 			if (clip->lastSelectedParamID != 255 && lastEditPadPressXDisplay != 255) {
@@ -3140,6 +3120,10 @@ void AutomationClipView::modEncoderAction(int whichModEncoder, int offset) {
 						numericDriver.displayPopup(buffer);
 					}
 				}
+			}
+
+			else {
+				goto followOnAction;
 			}
 		}
 
@@ -3175,6 +3159,9 @@ void AutomationClipView::modEncoderAction(int whichModEncoder, int offset) {
 						numericDriver.displayPopup(buffer);
 					}
 				}
+			}
+			else {
+				goto followOnAction;
 			}
 		}
 	}
@@ -3218,6 +3205,9 @@ void AutomationClipView::modEncoderAction(int whichModEncoder, int offset) {
 					}
 				}
 			}
+			else {
+				goto followOnAction;
+			}
 		}
 
 		else if (clip->output->type == InstrumentType::MIDI_OUT) {
@@ -3257,10 +3247,17 @@ void AutomationClipView::modEncoderAction(int whichModEncoder, int offset) {
 					}
 				}
 			}
+			else {
+				goto followOnAction;
+			}
 		}
 	}
 
 	uiNeedsRendering(this);
+	return;
+
+followOnAction:
+	ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
 }
 
 void AutomationClipView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
@@ -3878,6 +3875,37 @@ ModelStackWithAutoParam* AutomationClipView::getModelStackWithParam(ModelStackWi
 		}
 	}
 
+	else if (clip->output->type == InstrumentType::KIT) {
+		if (!instrumentClipView.getAffectEntire()) {
+			int noteRowIndex = 0;
+
+			NoteRow* thisNoteRow = clip->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay, currentSong, &noteRowIndex);
+
+			if (thisNoteRow) {
+
+				ModelStackWithNoteRow* modelStackWithNoteRow =
+						modelStack->addNoteRow(clip->getNoteRowId(thisNoteRow, noteRowIndex), thisNoteRow);
+
+				if (modelStackWithNoteRow) {
+
+					ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+						modelStackWithNoteRow->addOtherTwoThingsAutomaticallyGivenNoteRow();
+
+					if (modelStackWithThreeMainThings) {
+
+						ParamCollectionSummary* summary = modelStackWithThreeMainThings->paramManager->getPatchedParamSetSummary();
+
+						if (summary) {
+							ParamSet* paramSet = (ParamSet*)summary->paramCollection;
+							modelStackWithParam =
+							    modelStackWithThreeMainThings->addParam(paramSet, summary, paramID, &paramSet->params[paramID]);
+						}
+					}
+				}
+			}
+		}
+	}
+
 	else if (clip->output->type == InstrumentType::MIDI_OUT) {
 
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
@@ -3911,7 +3939,7 @@ void AutomationClipView::setParameterAutomationValue(ModelStackWithAutoParam* mo
 void AutomationClipView::handleSinglePadPress(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip,
                                               int32_t xDisplay, int32_t yDisplay, bool shortcutPress) {
 
-	if (clip->output->type == InstrumentType::SYNTH) { //|| clip->output->type == InstrumentType::MIDI_OUT){
+	if (clip->output->type == InstrumentType::SYNTH || clip->output->type == InstrumentType::KIT){
 
 		if ((clip->lastSelectedParamID == 255 || (shortcutPress && Buttons::isShiftButtonPressed()))
 		    && paramShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
@@ -4013,7 +4041,7 @@ void AutomationClipView::handleMultiPadPress(ModelStackWithTimelineCounter* mode
 
 		int DistanceBetweenPads = secondPadX - firstPadX;
 
-		if (clip->output->type == InstrumentType::SYNTH) {
+		if (clip->output->type == InstrumentType::SYNTH || clip->output->type == InstrumentType::KIT) {
 
 			ModelStackWithAutoParam* modelStackWithParam =
 			    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID);
@@ -4023,7 +4051,7 @@ void AutomationClipView::handleMultiPadPress(ModelStackWithTimelineCounter* mode
 				for (int x = firstPadX; x <= secondPadX; x++) {
 
 					uint32_t squareStart = getPosFromSquare(x);
-					int effectiveLength = clip->loopLength;
+					int effectiveLength = clip->loopLength; //this will differ for a kit when in note row mode
 
 					if (squareStart < effectiveLength) {
 

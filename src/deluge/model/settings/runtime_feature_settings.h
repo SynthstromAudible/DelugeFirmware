@@ -44,6 +44,7 @@ enum RuntimeFeatureSettingType : uint32_t {
 	DeleteUnusedKitRows,
 	ClearClipAutomation,
 	NudgeNoteAutomation,
+	ShiftNoteAutomation,
 	MaxElement // Keep as boundary
 };
 

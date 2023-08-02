@@ -91,6 +91,9 @@ void RuntimeFeatureSettings::init() {
 	// NudgeNoteAutomation
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::NudgeNoteAutomation], "Nudge Note Automation",
 	                  "nudgeNoteAutomation", RuntimeFeatureStateToggle::On);
+	// ShiftNoteAutomation
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ShiftNoteAutomation], "Shift Note Automation",
+	                  "shiftNoteAutomation", RuntimeFeatureStateToggle::On);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {

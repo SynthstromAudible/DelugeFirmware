@@ -17,6 +17,7 @@
 
 #include "model/note/note_row.h"
 #include "definitions_cxx.hpp"
+#include "gui/views/automation_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/timeline_view.h"
 #include "gui/views/view.h"
@@ -3364,28 +3365,66 @@ void NoteRow::shiftHorizontally(int amount, ModelStackWithNoteRow* modelStack) {
 		                               effectiveLength);
 	}
 
-	notes.shiftHorizontal(amount, effectiveLength);
+	//New addition as part of Automation Clip View Implementation
+	//If you are in Automation Clip View, shifting a note row will not shift notes, only NON MPE automations.
+	if (getCurrentUI() != &automationClipView) {
+
+		notes.shiftHorizontal(amount, effectiveLength);
+
+	}
 }
 
 void NoteRow::clear(Action* action, ModelStackWithNoteRow* modelStack) {
-	if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
-		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-		    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow();
-		paramManager.deleteAllAutomation(action, modelStackWithThreeMainThings);
-	}
+	//New community feature as part of Automation Clip View Implementation
+	//If this is enabled, then when you are in a regular Instrument Clip View (Synth, Kit, MIDI, CV), clearing a clip
+	//will only clear the Notes and MPE data (NON MPE automations remain intact).
 
-	stopCurrentlyPlayingNote(modelStack);
+	//If this is enabled, if you want to clear NON MPE automations, you will enter Automation Clip View and clear the clip there.
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::ClearClipAutomation) == RuntimeFeatureStateToggle::On) {
+		if (getCurrentUI() == &automationClipView) {
 
-	if (action) {
-		int error = action->recordNoteArrayChangeIfNotAlreadySnapshotted(
-		    (InstrumentClip*)modelStack->getTimelineCounter(), modelStack->noteRowId, &notes, true); // Steal data
-		if (error) {
-			goto justEmpty;
+			if (paramManager.containsAnyMainParamCollections()) { //excluding expression
+				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+				    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow();
+				paramManager.deleteAllAutomation(action, modelStackWithThreeMainThings);
+			}
 		}
 	}
-	else {
-justEmpty:
-		notes.empty();
+	else { //community feature is disabled, so you can clear all automations from within the regular instrument clip view
+		if (getCurrentUI() == &automationClipView) { //if in automation clip view, only clear NON MPE automations
+
+			if (paramManager.containsAnyMainParamCollections()) { //excluding expression
+				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+				    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow();
+				paramManager.deleteAllAutomation(action, modelStackWithThreeMainThings);
+			}
+		}
+		else { //if in instrument clip view, clear ALL automations including MPE
+			if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
+				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+				    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow();
+				paramManager.deleteAllAutomation(action, modelStackWithThreeMainThings);
+			}
+		}
+	}
+
+	//New addition as part of Automation Clip View Implementation
+	//If you are in Automation Clip View, clearing a note row will not clear notes, only NON MPE automations.
+	if (getCurrentUI() != &automationClipView) {
+
+		stopCurrentlyPlayingNote(modelStack);
+
+		if (action) {
+			int error = action->recordNoteArrayChangeIfNotAlreadySnapshotted(
+				(InstrumentClip*)modelStack->getTimelineCounter(), modelStack->noteRowId, &notes, true); // Steal data
+			if (error) {
+				goto justEmpty;
+			}
+		}
+		else {
+	justEmpty:
+			notes.empty();
+		}
 	}
 }
 
