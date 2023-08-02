@@ -772,7 +772,7 @@ midiLearnMelodicInstrumentAction:
 				}
 
 				if (performActionOnPadRelease && xDisplay == selectedClipPressXDisplay
-				    && AudioEngine::audioSampleTimer - selectedClipTimePressed < (44100 >> 1)) {
+				    && AudioEngine::audioSampleTimer - selectedClipTimePressed < kShortPressTime) {
 
 					// Not allowed if recording arrangement
 					if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
