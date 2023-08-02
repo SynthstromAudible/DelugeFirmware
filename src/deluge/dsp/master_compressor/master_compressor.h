@@ -17,12 +17,13 @@
 
 #pragma once
 
-#include <cstdint>
+#include "definitions_cxx.hpp"
 
 #define INLINE inline
 #include <algorithm> // for min(), max()
 #include <cassert>   // for assert()
 #include <cmath>
+#include <cstdint>
 
 class StereoSample;
 
@@ -68,7 +69,7 @@ static const double DC_OFFSET = 1.0E-25;
 //-------------------------------------------------------------
 class EnvelopeDetector {
 public:
-	EnvelopeDetector(double ms = 1.0, double sampleRate = 44100.0);
+	EnvelopeDetector(double ms = 1.0, double sampleRate = static_cast<double>(kSampleRate));
 	virtual ~EnvelopeDetector() {}
 
 	// time constant
@@ -95,7 +96,7 @@ protected:
 //-------------------------------------------------------------
 class AttRelEnvelope {
 public:
-	AttRelEnvelope(double att_ms = 10.0, double rel_ms = 100.0, double sampleRate = 44100.0);
+	AttRelEnvelope(double att_ms = 10.0, double rel_ms = 100.0, double sampleRate = static_cast<double>(kSampleRate));
 	virtual ~AttRelEnvelope() {}
 
 	// attack time constant

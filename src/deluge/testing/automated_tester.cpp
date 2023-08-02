@@ -52,7 +52,7 @@ public:
 		AutomatedTester::turnSelectEncoder((getRandom255() >= 128) ? 1 : -1);
 		return NULL;
 	}
-	int32_t getTimeBetween() { return 2 * 44100; }
+	int32_t getTimeBetween() { return 2 * kSampleRate; }
 } changePresetTestAction;
 
 class PlayButtonTestAction final : public TestAction {
@@ -61,7 +61,7 @@ public:
 		AutomatedTester::doMomentaryButtonPress(playButtonX, playButtonY);
 		return NULL;
 	}
-	int32_t getTimeBetween() { return 1 * 44100; }
+	int32_t getTimeBetween() { return 1 * kSampleRate; }
 } playButtonTestAction;
 
 class InstrumentClipViewTestState final : public TestState {

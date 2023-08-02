@@ -119,7 +119,7 @@ ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		// Press off
 		else {
 			if (!recordButtonPressUsedUp
-			    && (int32_t)(AudioEngine::audioSampleTimer - timeRecordButtonPressed) < (44100 >> 1)) {
+			    && (int32_t)(AudioEngine::audioSampleTimer - timeRecordButtonPressed) < kShortPressTime) {
 				if (audioRecorder.isCurrentlyResampling()) {
 					audioRecorder.endRecordingSoon(kInternalButtonPressLatency);
 				}

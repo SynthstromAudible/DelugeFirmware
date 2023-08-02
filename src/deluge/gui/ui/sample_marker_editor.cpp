@@ -737,7 +737,7 @@ void SampleMarkerEditor::graphicsRoutine() {
 
 			if (!soundEditor.currentSource->reversed) {
 
-				int32_t newStartPos = ((uint32_t)getNoise() % (44100 * 120)) + 10 * 44100;
+				int32_t newStartPos = ((uint32_t)getNoise() % (kSampleRate * 120)) + 10 * kSampleRate;
 
 				if (newStartPos > soundEditor.currentMultiRange->endPos - minDistance)
 					newStartPos = soundEditor.currentMultiRange->endPos - minDistance;
@@ -752,9 +752,9 @@ void SampleMarkerEditor::graphicsRoutine() {
 
 				//writeValue(soundEditor.currentMultisampleRange->sample->lengthInSamples, MarkerType::END);
 
-				//int32_t newStartPos = soundEditor.currentMultisampleRange->sample->lengthInSamples;// - (((uint32_t)getNoise() % (44100 * 120)) + 10 * 44100);
+				//int32_t newStartPos = soundEditor.currentMultisampleRange->sample->lengthInSamples;// - (((uint32_t)getNoise() % (kSampleRate * 120)) + 10 * kSampleRate);
 				int32_t newStartPos = soundEditor.currentMultiRange->sample->lengthInSamples
-				                      - (((uint32_t)getNoise() % (44100 * 12)) + 0 * 44100);
+				                      - (((uint32_t)getNoise() % (kSampleRate * 12)) + 0 * kSampleRate);
 
 				if (newStartPos < soundEditor.currentMultiRange->startPos + minDistance)
 					newStartPos = soundEditor.currentMultiRange->startPos + minDistance;
@@ -778,8 +778,8 @@ void SampleMarkerEditor::graphicsRoutine() {
 				}
 				else {
 					Uart::println("set loop end -------------------------------");
-					newLoopEndPos =
-					    soundEditor.currentMultiRange->startPos + minDistance + ((uint32_t)getNoise() % (44100 * 1));
+					newLoopEndPos = soundEditor.currentMultiRange->startPos + minDistance
+					                + ((uint32_t)getNoise() % (kSampleRate * 1));
 
 					if (newLoopEndPos > soundEditor.currentMultiRange->endPos)
 						newLoopEndPos = soundEditor.currentMultiRange->endPos;
@@ -796,8 +796,8 @@ void SampleMarkerEditor::graphicsRoutine() {
 				}
 				else {
 					Uart::println("set loop end -------------------------------");
-					newLoopEndPos =
-					    soundEditor.currentMultiRange->endPos - minDistance - ((uint32_t)getNoise() % (44100 * 1));
+					newLoopEndPos = soundEditor.currentMultiRange->endPos - minDistance
+					                - ((uint32_t)getNoise() % (kSampleRate * 1));
 
 					if (newLoopEndPos < soundEditor.currentMultiRange->startPos)
 						newLoopEndPos = soundEditor.currentMultiRange->startPos;
