@@ -38,13 +38,13 @@ class Song;
 
 struct PresetNavigationResult {
 	FileItem* fileItem;
-	int error;
+	int32_t error;
 	bool loadedFromFile;
 };
 
 struct ReturnOfConfirmPresetOrNextUnlaunchedOne {
 	FileItem* fileItem;
-	int error;
+	int32_t error;
 };
 
 struct Slot {
@@ -68,22 +68,22 @@ public:
 	Browser();
 
 	void close();
-	virtual int getCurrentFilePath(String* path) = 0;
+	virtual int32_t getCurrentFilePath(String* path) = 0;
 	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
 	void currentFileDeleted();
-	int goIntoFolder(char const* folderName);
-	int createFolder();
+	int32_t goIntoFolder(char const* folderName);
+	int32_t createFolder();
 	void selectEncoderAction(int8_t offset);
 	static FileItem* getCurrentFileItem();
-	int readFileItemsForFolder(char const* filePrefixHere, bool allowFolders, char const** allowedFileExtensionsHere,
-	                           char const* filenameToStartAt, int newMaxNumFileItems,
-	                           int newCatalogSearchDirection = CATALOG_SEARCH_BOTH);
+	int32_t readFileItemsForFolder(char const* filePrefixHere, bool allowFolders,
+	                               char const** allowedFileExtensionsHere, char const* filenameToStartAt,
+	                               int32_t newMaxNumFileItems, int32_t newCatalogSearchDirection = CATALOG_SEARCH_BOTH);
 	void sortFileItems();
 	FileItem* getNewFileItem();
 	static void emptyFileItems();
-	static void deleteSomeFileItems(int startAt, int stopAt);
+	static void deleteSomeFileItems(int32_t startAt, int32_t stopAt);
 	static void deleteFolderAndDuplicateItems(Availability instrumentAvailabilityRequirement = Availability::ANY);
-	int getUnusedSlot(InstrumentType instrumentType, String* newName, char const* thingName);
+	int32_t getUnusedSlot(InstrumentType instrumentType, String* newName, char const* thingName);
 	bool opened();
 	void cullSomeFileItems();
 
@@ -93,8 +93,8 @@ public:
 
 	static String currentDir;
 	static CStringArray fileItems;
-	static int numFileItemsDeletedAtStart;
-	static int numFileItemsDeletedAtEnd;
+	static int32_t numFileItemsDeletedAtStart;
+	static int32_t numFileItemsDeletedAtEnd;
 	static char const* firstFileItemRemaining;
 	static char const* lastFileItemRemaining;
 
@@ -102,29 +102,32 @@ public:
 	static char const* filenameToStartSearchAt;
 
 protected:
-	int setEnteredTextFromCurrentFilename();
-	int goUpOneDirectoryLevel();
-	virtual int arrivedInNewFolder(int direction, char const* filenameToStartAt = NULL, char const* defaultDir = NULL);
+	int32_t setEnteredTextFromCurrentFilename();
+	int32_t goUpOneDirectoryLevel();
+	virtual int32_t arrivedInNewFolder(int32_t direction, char const* filenameToStartAt = NULL,
+	                                   char const* defaultDir = NULL);
 	bool predictExtendedText();
 	void goIntoDeleteFileContextMenu();
 	ActionResult mainButtonAction(bool on);
 	virtual void exitAction();
 	virtual ActionResult backButtonAction();
-	virtual void folderContentsReady(int entryDirection) {
+	virtual void folderContentsReady(int32_t entryDirection) {
 	}
-	virtual void currentFileChanged(int movementDirection) {
+	virtual void currentFileChanged(int32_t movementDirection) {
 	}
 	void displayText(bool blinkImmediately = false);
 	static Slot getSlot(char const* displayName);
-	int readFileItemsFromFolderAndMemory(Song* song, InstrumentType instrumentType, char const* filePrefixHere,
-	                                     char const* filenameToStartAt, char const* defaultDirToAlsoTry,
-	                                     bool allowFoldersint, Availability availabilityRequirement = Availability::ANY,
-	                                     int newCatalogSearchDirection = CATALOG_SEARCH_RIGHT);
+	int32_t readFileItemsFromFolderAndMemory(Song* song, InstrumentType instrumentType, char const* filePrefixHere,
+	                                         char const* filenameToStartAt, char const* defaultDirToAlsoTry,
+	                                         bool allowFoldersint,
+	                                         Availability availabilityRequirement = Availability::ANY,
+	                                         int32_t newCatalogSearchDirection = CATALOG_SEARCH_RIGHT);
 
-	static int
+	static int32_t
 	    fileIndexSelected; // If -1, we have not selected any real file/folder. Maybe there are no files, or maybe we're typing a new name.
-	static int scrollPosVertical;
-	static int numCharsInPrefix; // Only used for deciding Drum names within Kit. Oh and initial text scroll position.
+	static int32_t scrollPosVertical;
+	static int32_t
+	    numCharsInPrefix; // Only used for deciding Drum names within Kit. Oh and initial text scroll position.
 	static bool qwertyVisible;
 	static bool arrivedAtFileByTyping;
 	static bool allowFoldersSharingNameWithFile;
@@ -139,6 +142,7 @@ protected:
 #endif
 	bool mayDefaultToBrandNewNameOnEntry;
 	bool qwertyAlwaysVisible;
+	//filePrefix is SONG/SYNT/SAMP etc., signifying the portion of the filesystem you're in
 	char const* filePrefix;
 	bool shouldInterpretNoteNamesForThisBrowser;
 };

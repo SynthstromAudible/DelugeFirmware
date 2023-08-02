@@ -63,8 +63,8 @@ uint8_t DelayBuffer::init(uint32_t newRate, uint32_t failIfThisSize, bool includ
 	sizeIncludingExtra = size + (includeExtraSpace ? delaySpaceBetweenReadAndWrite : 0);
 	AudioEngine::logAction("DelayBuffer::init before");
 
-	bufferStart =
-	    (StereoSample*)generalMemoryAllocator.alloc(sizeIncludingExtra * sizeof(StereoSample), NULL, false, true);
+	bufferStart = (StereoSample*)GeneralMemoryAllocator::get().alloc(sizeIncludingExtra * sizeof(StereoSample), NULL,
+	                                                                 false, true);
 	AudioEngine::logAction("DelayBuffer::init after");
 	if (bufferStart == 0) {
 		return ERROR_INSUFFICIENT_RAM;
@@ -97,7 +97,7 @@ void DelayBuffer::makeNativeRatePreciseRelativeToOtherBuffer(DelayBuffer* otherB
 
 void DelayBuffer::discard(bool beingDestructed) {
 	if (bufferStart) {
-		generalMemoryAllocator.dealloc(bufferStart);
+		GeneralMemoryAllocator::get().dealloc(bufferStart);
 		if (!beingDestructed) {
 			bufferStart = NULL; // If destructing, writing anything would be a waste of time
 		}
@@ -160,7 +160,7 @@ void DelayBuffer::setupForRender(int32_t userDelayRate, DelayBufferSetup* setup)
 
 			// First, let's limit sped up writing to only work perfectly up to 8x speed, for safety (writing faster takes longer).
 			// No need to adjust divideByRate to compensate - it's going to sound shoddy anyway
-			setup->spinRateForSpedUpWriting = getMin(setup->actualSpinRate, (int32_t)16777216 * 8);
+			setup->spinRateForSpedUpWriting = std::min(setup->actualSpinRate, (int32_t)16777216 * 8);
 
 			// We want to squirt the most juice right at the "main" write pos - but we want to spread it wider too.
 			// A basic version of this would involve the triangle's base being as wide as 2 samples if we were writing at the native sample rate.

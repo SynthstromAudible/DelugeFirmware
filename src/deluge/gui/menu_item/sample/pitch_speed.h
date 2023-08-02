@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "gui/menu_item/selection.h"
+#include "gui/menu_item/selection/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "model/clip/clip.h"
 #include "model/drum/drum.h"
@@ -23,42 +23,37 @@
 #include "model/song/song.h"
 #include "processing/sound/sound_drum.h"
 
-namespace menu_item::sample {
-class PitchSpeed final : public Selection {
+namespace deluge::gui::menu_item::sample {
+class PitchSpeed final : public Selection<2> {
 public:
-	PitchSpeed(char const* newName = NULL) : Selection(newName) {}
+	using Selection::Selection;
 
-	bool usesAffectEntire() { return true; }
+	bool usesAffectEntire() override { return true; }
 
-	void readCurrentValue() {
-		soundEditor.currentValue = soundEditor.currentSampleControls->pitchAndSpeedAreIndependent;
-	}
+	void readCurrentValue() override { this->value_ = soundEditor.currentSampleControls->pitchAndSpeedAreIndependent; }
 
-	void writeCurrentValue() {
+	void writeCurrentValue() override {
 		// If affect-entire button held, do whole kit
 		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKit()) {
 
-			Kit* kit = (Kit*)currentSong->currentClip->output;
+			Kit* kit = static_cast<Kit*>(currentSong->currentClip->output);
 
-			for (Drum* thisDrum = kit->firstDrum; thisDrum; thisDrum = thisDrum->next) {
+			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
-					SoundDrum* soundDrum = (SoundDrum*)thisDrum;
+					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
 					Source* source = &soundDrum->sources[soundEditor.currentSourceIndex];
 
-					source->sampleControls.pitchAndSpeedAreIndependent = soundEditor.currentValue;
+					source->sampleControls.pitchAndSpeedAreIndependent = this->value_;
 				}
 			}
 		}
 
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSampleControls->pitchAndSpeedAreIndependent = soundEditor.currentValue;
+			soundEditor.currentSampleControls->pitchAndSpeedAreIndependent = this->value_;
 		}
 	}
 
-	char const** getOptions() {
-		static char const* options[] = {"Linked", "Independent", NULL};
-		return options;
-	}
+	static_vector<string, capacity()> getOptions() override { return {"Linked", "Independent"}; }
 };
-} // namespace menu_item::sample
+} // namespace deluge::gui::menu_item::sample

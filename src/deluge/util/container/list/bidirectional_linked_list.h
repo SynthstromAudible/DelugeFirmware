@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
+#include <cstdint>
 
 class BidirectionalLinkedList;
 
@@ -42,7 +42,7 @@ public:
 	BidirectionalLinkedListNode* getFirst();
 	BidirectionalLinkedListNode* getNext(BidirectionalLinkedListNode* node);
 	void test();
-	int getNum();
+	int32_t getNum();
 
 	BidirectionalLinkedListNode endNode;
 	BidirectionalLinkedListNode* first;

@@ -29,7 +29,7 @@
 
 #define MAX_NUM_MARKERS 8
 
-int AudioFile::loadFile(AudioFileReader* reader, bool isAiff, bool makeWaveTableWorkAtAllCosts) {
+int32_t AudioFile::loadFile(AudioFileReader* reader, bool isAiff, bool makeWaveTableWorkAtAllCosts) {
 
 	// AIFF files will only be used for WaveTables if the user insists
 	if (type == AudioFileType::WAVETABLE && !makeWaveTableWorkAtAllCosts && isAiff) {
@@ -42,7 +42,7 @@ int AudioFile::loadFile(AudioFileReader* reader, bool isAiff, bool makeWaveTable
 
 	uint32_t bytePos = reader->getBytePos();
 
-	int error;
+	int32_t error;
 	bool foundDataChunk = false; // Also applies to AIFF file's SSND chunk
 	bool foundFmtChunk = false;  // Also applies to AIFF file's COMM chunk
 	bool fileExplicitlySpecifiesSelfAsWaveTable = false;
@@ -107,7 +107,7 @@ doSetupWaveTable:
 
 					// If this isn't actually a wavetable-specifying file or at least a wavetable-looking length, and the user isn't insisting, then opt not to do it.
 					if (!fileExplicitlySpecifiesSelfAsWaveTable && !makeWaveTableWorkAtAllCosts) {
-						int audioDataLengthSamples = audioDataLengthBytes / byteDepth;
+						int32_t audioDataLengthSamples = audioDataLengthBytes / byteDepth;
 						if (audioDataLengthSamples & 2047) {
 							return ERROR_FILE_NOT_LOADABLE_AS_WAVETABLE;
 						}
@@ -209,7 +209,7 @@ doSetupWaveTable:
 					if (numLoops == 1) {
 
 						// Go through loops
-						for (int l = 0; l < numLoops; l++) {
+						for (int32_t l = 0; l < numLoops; l++) {
 							//Debug::print("loop ");
 							//Debug::println(l);
 
@@ -269,7 +269,7 @@ doSetupWaveTable:
 
 				if ((*(uint32_t*)data & 0x00FFFFFF) == charsToIntegerConstant('<', '!', '>', 0)) {
 					fileExplicitlySpecifiesSelfAsWaveTable = true;
-					int number = memToUIntOrError(&data[3], &data[7]);
+					int32_t number = memToUIntOrError(&data[3], &data[7]);
 
 					if (number >= 1) {
 						waveTableCycleSize = number;
@@ -372,7 +372,7 @@ doSetupWaveTable:
 					numMarkers = MAX_NUM_MARKERS;
 				}
 
-				for (int m = 0; m < numMarkers; m++) {
+				for (int32_t m = 0; m < numMarkers; m++) {
 					uint16_t markerId;
 					error = reader->readBytes((char*)&markerId, 2);
 					if (error) {
@@ -424,7 +424,7 @@ doSetupWaveTable:
 						//Debug::printlnfloat(newSample->midiNoteFromFile);
 					}
 
-					//for (int l = 0; l < 2; l++) {
+					//for (int32_t l = 0; l < 2; l++) {
 
 					//if (l == 0) Debug::println("sustain loop:");
 					//else Debug::println("release loop:");
@@ -470,7 +470,7 @@ finishedWhileLoop:
 
 			// Sort out the sustain loop
 			if (sustainLoopEndMarkerId != -1) {
-				for (int m = 0; m < numMarkers; m++) {
+				for (int32_t m = 0; m < numMarkers; m++) {
 
 					if (markerIDs[m] == sustainLoopBeginMarkerId) {
 						((Sample*)this)->fileLoopStartSamples = markerPositions[m];
@@ -509,7 +509,7 @@ void AudioFile::removeReason(char const* errorCode) {
 	// If it's now zero, it's become unused
 	if (numReasonsToBeLoaded == 0) {
 		numReasonsDecreasedToZero(errorCode);
-		generalMemoryAllocator.putStealableInQueue(this, STEALABLE_QUEUE_NO_SONG_AUDIO_FILE_OBJECTS);
+		GeneralMemoryAllocator::get().putStealableInQueue(this, STEALABLE_QUEUE_NO_SONG_AUDIO_FILE_OBJECTS);
 	}
 
 	else if (numReasonsToBeLoaded < 0) {
@@ -535,7 +535,7 @@ bool AudioFile::mayBeStolen(void* thingNotToStealFrom) {
 void AudioFile::steal(char const* errorCode) {
 	// The destructor is about to be called too, so we don't have to do too much.
 
-	int i = audioFileManager.audioFiles.searchForExactObject(this);
+	int32_t i = audioFileManager.audioFiles.searchForExactObject(this);
 	if (i < 0) {
 #if ALPHA_OR_BETA_VERSION
 		numericDriver.displayPopup(errorCode); // Jensg still getting.
@@ -546,6 +546,6 @@ void AudioFile::steal(char const* errorCode) {
 	}
 }
 
-int AudioFile::getAppropriateQueue() {
+int32_t AudioFile::getAppropriateQueue() {
 	return STEALABLE_QUEUE_NO_SONG_AUDIO_FILE_OBJECTS;
 }

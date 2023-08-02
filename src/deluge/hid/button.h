@@ -1,7 +1,7 @@
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
 #include "definitions_cxx.hpp"
+#include <cstdint>
 
 namespace hid {
 
@@ -10,7 +10,7 @@ constexpr uint8_t fromCartesian(Cartesian c) {
 	return 9 * (c.y + kDisplayHeight * 2) + c.x;
 }
 
-constexpr uint8_t fromXY(int x, int y) {
+constexpr uint8_t fromXY(int32_t x, int32_t y) {
 	return 9 * (y + kDisplayHeight * 2) + x;
 }
 

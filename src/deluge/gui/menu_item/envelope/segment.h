@@ -1,5 +1,5 @@
 /*
- * Copyright © 2017-2023 Synthstrom Audible Limited
+ * Copyright (c) 2014-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -14,28 +14,17 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
 */
-
 #pragma once
+#include "gui/menu_item/formatted_title.h"
+#include "gui/menu_item/source/patched_param.h"
+#include "gui/ui/sound_editor.h"
 
-#include "value.h"
-
-namespace menu_item {
-
-class Selection : public Value {
+namespace deluge::gui::menu_item::envelope {
+class Segment : public source::PatchedParam, public FormattedTitle {
 public:
-	Selection(char const* newName = NULL);
-	void beginSession(MenuItem* navigatedBackwardFrom);
-	void selectEncoderAction(int offset);
+	Segment(const string& name, const string& title_format_str, int32_t newP)
+	    : PatchedParam(name, newP), FormattedTitle(title_format_str) {}
 
-	char const** basicOptions;
-
-protected:
-	virtual char const** getOptions();
-	virtual int getNumOptions();
-	virtual void drawValue();
-
-#if HAVE_OLED
-	void drawPixelsForOled();
-#endif
+	[[nodiscard]] const string& getTitle() const override { return FormattedTitle::title(); }
 };
-} // namespace menu_item
+} // namespace deluge::gui::menu_item::envelope

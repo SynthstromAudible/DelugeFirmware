@@ -20,19 +20,18 @@
 #include "io/midi/midi_device.h"
 #include "model/song/song.h"
 
-namespace menu_item::midi {
+namespace deluge::gui::menu_item::midi {
 class DefaultVelocityToLevel final : public IntegerWithOff {
 public:
 	DefaultVelocityToLevel(char const* newName = NULL) : IntegerWithOff(newName) {}
-	int getMaxValue() const { return 50; }
-	void readCurrentValue() {
-		soundEditor.currentValue =
-		    ((int64_t)soundEditor.currentMIDIDevice->defaultVelocityToLevel * 50 + 536870912) >> 30;
+	[[nodiscard]] int32_t getMaxValue() const override { return 50; }
+	void readCurrentValue() override {
+		this->value_ = ((int64_t)soundEditor.currentMIDIDevice->defaultVelocityToLevel * 50 + 536870912) >> 30;
 	}
-	void writeCurrentValue() {
-		soundEditor.currentMIDIDevice->defaultVelocityToLevel = soundEditor.currentValue * 21474836;
+	void writeCurrentValue() override {
+		soundEditor.currentMIDIDevice->defaultVelocityToLevel = this->value_ * 21474836;
 		currentSong->grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForEverything(soundEditor.currentMIDIDevice);
 		MIDIDeviceManager::anyChangesToSave = true;
 	}
 };
-} // namespace menu_item::midi
+} // namespace deluge::gui::menu_item::midi

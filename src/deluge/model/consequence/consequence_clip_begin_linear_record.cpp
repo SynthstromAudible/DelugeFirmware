@@ -29,7 +29,7 @@ ConsequenceClipBeginLinearRecord::ConsequenceClipBeginLinearRecord(Clip* newClip
 	type = Consequence::CLIP_BEGIN_LINEAR_RECORD;
 }
 
-int ConsequenceClipBeginLinearRecord::revert(TimeType time, ModelStack* modelStack) {
+int32_t ConsequenceClipBeginLinearRecord::revert(TimeType time, ModelStack* modelStack) {
 
 	// Going backwards...
 	if (time == BEFORE) {
@@ -56,7 +56,7 @@ int ConsequenceClipBeginLinearRecord::revert(TimeType time, ModelStack* modelSta
 			}
 
 doToggle:
-			int clipIndex = modelStack->song->sessionClips.getIndexForClip(clip);
+			int32_t clipIndex = modelStack->song->sessionClips.getIndexForClip(clip);
 			session.toggleClipStatus(clip, &clipIndex, true, 0);
 		}
 	}

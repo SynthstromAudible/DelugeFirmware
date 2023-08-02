@@ -28,7 +28,7 @@ extern "C" {
 #include "util/cfunctions.h"
 }
 
-namespace menu_item::midi {
+namespace deluge::gui::menu_item::midi {
 
 void Command::beginSession(MenuItem* navigatedBackwardFrom) {
 #if !HAVE_OLED
@@ -39,7 +39,7 @@ void Command::beginSession(MenuItem* navigatedBackwardFrom) {
 #if HAVE_OLED
 void Command::drawPixelsForOled() {
 	LearnedMIDI* command = &midiEngine.globalMIDICommands[util::to_underlying(commandNumber)];
-	int yPixel = 20;
+	int32_t yPixel = 20;
 	if (!command->containsSomething()) {
 		OLED::drawString("Command unassigned", 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
 		                 kTextSizeYUpdated);
@@ -66,7 +66,7 @@ void Command::drawPixelsForOled() {
 		else {
 			channelText = "Channel";
 			char buffer[12];
-			int channelmod = (command->channelOrZone >= IS_A_CC) * IS_A_CC;
+			int32_t channelmod = (command->channelOrZone >= IS_A_CC) * IS_A_CC;
 			intToString(command->channelOrZone + 1 - channelmod, buffer, 1);
 			OLED::drawString(buffer, kTextSpacingX * 8, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
 			                 kTextSpacingX, kTextSizeYUpdated);
@@ -91,17 +91,19 @@ void Command::drawPixelsForOled() {
 	}
 }
 #else
-void Command::drawValue() {
-	char const* output;
-	if (!midiEngine.globalMIDICommands[util::to_underlying(commandNumber)].containsSomething())
+void Command::drawValue() const {
+	char const* output = nullptr;
+	if (!midiEngine.globalMIDICommands[util::to_underlying(commandNumber)].containsSomething()) {
 		output = "NONE";
-	else
+	}
+	else {
 		output = "SET";
+	}
 	numericDriver.setText(output);
 }
 #endif
 
-void Command::selectEncoderAction(int offset) {
+void Command::selectEncoderAction(int32_t offset) {
 	midiEngine.globalMIDICommands[util::to_underlying(commandNumber)].clear();
 #if HAVE_OLED
 	renderUIsForOled();
@@ -124,7 +126,7 @@ void Command::unlearnAction() {
 	}
 }
 
-bool Command::learnNoteOn(MIDIDevice* device, int channel, int noteCode) {
+bool Command::learnNoteOn(MIDIDevice* device, int32_t channel, int32_t noteCode) {
 	midiEngine.globalMIDICommands[util::to_underlying(commandNumber)].device = device;
 	midiEngine.globalMIDICommands[util::to_underlying(commandNumber)].channelOrZone = channel;
 	midiEngine.globalMIDICommands[util::to_underlying(commandNumber)].noteOrCC = noteCode;
@@ -141,8 +143,9 @@ bool Command::learnNoteOn(MIDIDevice* device, int channel, int noteCode) {
 	return true;
 }
 
-void Command::learnCC(MIDIDevice* device, int channel, int ccNumber, int value) {
-	if (value)
+void Command::learnCC(MIDIDevice* device, int32_t channel, int32_t ccNumber, int32_t value) {
+	if (value != 0) {
 		learnNoteOn(device, channel + IS_A_CC, ccNumber);
+	}
 }
-} // namespace menu_item::midi
+} // namespace deluge::gui::menu_item::midi

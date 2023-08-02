@@ -18,14 +18,14 @@
 #include "model/sample/sample_perc_cache_zone.h"
 #include <string.h>
 
-SamplePercCacheZone::SamplePercCacheZone(int newStartPos) {
+SamplePercCacheZone::SamplePercCacheZone(int32_t newStartPos) {
 	startPos = newStartPos;
 	resetEndPos(newStartPos);
 
 	samplesAtStartWhichShouldBeReplaced = 0;
 }
 
-void SamplePercCacheZone::resetEndPos(int newEndPos) {
+void SamplePercCacheZone::resetEndPos(int32_t newEndPos) {
 	endPos = newEndPos;
 
 	memset(&angleLPFMem, 0, sizeof(angleLPFMem));

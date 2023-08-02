@@ -45,10 +45,10 @@ OpenAddressingHashTable::~OpenAddressingHashTable() {
 
 void OpenAddressingHashTable::empty(bool destructing) {
 	if (memory) {
-		generalMemoryAllocator.dealloc(memory);
+		GeneralMemoryAllocator::get().dealloc(memory);
 	}
 	if (secondaryMemory) {
-		generalMemoryAllocator.dealloc(secondaryMemory);
+		GeneralMemoryAllocator::get().dealloc(secondaryMemory);
 	}
 
 	if (!destructing) {
@@ -65,22 +65,22 @@ void OpenAddressingHashTable::empty(bool destructing) {
 // See these pages for good hash functions
 // https://stackoverflow.com/questions/664014/what-integer-hash-function-are-good-that-accepts-an-integer-hash-key
 // http://www.azillionmonkeys.com/qed/hash.html
-unsigned int hash(unsigned int x) {
+uint32_t hash(uint32_t x) {
 	x = ((x >> 16) ^ x) * 0x45d9f3b;
 	x = ((x >> 16) ^ x) * 0x45d9f3b;
 	x = (x >> 16) ^ x;
 	return x;
 }
 
-int OpenAddressingHashTable::getBucketIndex(uint32_t key) {
+int32_t OpenAddressingHashTable::getBucketIndex(uint32_t key) {
 	return hash(key) & (numBuckets - 1);
 }
 
-void* OpenAddressingHashTable::getBucketAddress(int b) {
+void* OpenAddressingHashTable::getBucketAddress(int32_t b) {
 	return (void*)((uint32_t)memory + b * elementSize);
 }
 
-void* OpenAddressingHashTable::secondaryMemoryGetBucketAddress(int b) {
+void* OpenAddressingHashTable::secondaryMemoryGetBucketAddress(int32_t b) {
 	return (void*)((uint32_t)secondaryMemory + b * elementSize);
 }
 
@@ -94,8 +94,8 @@ void* OpenAddressingHashTable::insert(uint32_t key, bool* onlyIfNotAlreadyPresen
 
 	// If no memory, get some
 	if (!memory) {
-		int newNumBuckets = initialNumBuckets;
-		memory = generalMemoryAllocator.alloc(newNumBuckets * elementSize, NULL, false, true);
+		int32_t newNumBuckets = initialNumBuckets;
+		memory = GeneralMemoryAllocator::get().alloc(newNumBuckets * elementSize, NULL, false, true);
 		if (!memory) {
 			return NULL;
 		}
@@ -108,9 +108,9 @@ void* OpenAddressingHashTable::insert(uint32_t key, bool* onlyIfNotAlreadyPresen
 
 	// Or if reached 75% full, try getting more
 	else if (numElements >= numBuckets - (numBuckets >> 2)) {
-		int newNumBuckets = numBuckets << 1;
+		int32_t newNumBuckets = numBuckets << 1;
 
-		secondaryMemory = generalMemoryAllocator.alloc(newNumBuckets * elementSize, NULL, false, true);
+		secondaryMemory = GeneralMemoryAllocator::get().alloc(newNumBuckets * elementSize, NULL, false, true);
 		if (secondaryMemory) {
 
 			// Initialize
@@ -123,7 +123,7 @@ void* OpenAddressingHashTable::insert(uint32_t key, bool* onlyIfNotAlreadyPresen
 			memory = secondaryMemory;
 			secondaryMemory = tempMemory;
 
-			int tempNumBuckets = numBuckets;
+			int32_t tempNumBuckets = numBuckets;
 			numBuckets = secondaryMemoryNumBuckets;
 			secondaryMemoryNumBuckets = tempNumBuckets;
 
@@ -137,7 +137,7 @@ void* OpenAddressingHashTable::insert(uint32_t key, bool* onlyIfNotAlreadyPresen
 
 				// If there was something in that bucket, copy it
 				if (!doesKeyIndicateEmptyBucket(keyHere)) {
-					int destBucketIndex = getBucketIndex(keyHere);
+					int32_t destBucketIndex = getBucketIndex(keyHere);
 
 					void* destBucketAddress;
 					while (true) {
@@ -158,7 +158,7 @@ void* OpenAddressingHashTable::insert(uint32_t key, bool* onlyIfNotAlreadyPresen
 
 			// Discard old stuff
 			secondaryMemoryCurrentFunction = SECONDARY_MEMORY_FUNCTION_NONE;
-			generalMemoryAllocator.dealloc(secondaryMemory);
+			GeneralMemoryAllocator::get().dealloc(secondaryMemory);
 			secondaryMemory = NULL;
 			secondaryMemoryNumBuckets = 0;
 		}
@@ -169,7 +169,7 @@ void* OpenAddressingHashTable::insert(uint32_t key, bool* onlyIfNotAlreadyPresen
 		return NULL;
 	}
 
-	int b = getBucketIndex(key);
+	int32_t b = getBucketIndex(key);
 	void* bucketAddress;
 	while (true) {
 		bucketAddress = getBucketAddress(b);
@@ -205,8 +205,8 @@ void* OpenAddressingHashTable::lookup(uint32_t key) {
 		return NULL;
 	}
 
-	int bInitial = getBucketIndex(key);
-	int b = bInitial;
+	int32_t bInitial = getBucketIndex(key);
+	int32_t b = bInitial;
 	while (true) {
 		void* bucketAddress = getBucketAddress(b);
 
@@ -246,8 +246,8 @@ bool OpenAddressingHashTable::remove(uint32_t key) {
 		return false;
 	}
 
-	int bInitial = getBucketIndex(key);
-	int b = bInitial;
+	int32_t bInitial = getBucketIndex(key);
+	int32_t b = bInitial;
 	void* bucketAddress;
 	while (true) {
 		bucketAddress = getBucketAddress(b);
@@ -277,13 +277,13 @@ bool OpenAddressingHashTable::remove(uint32_t key) {
 
 	// If we've hit zero elements, and it's worth getting rid of the memory, just do that
 	if (!numElements && numBuckets > initialNumBuckets) {
-		generalMemoryAllocator.dealloc(memory);
+		GeneralMemoryAllocator::get().dealloc(memory);
 		memory = NULL;
 		numBuckets = 0;
 	}
 
 	else {
-		int lastBucketIndexLeftEmpty = b;
+		int32_t lastBucketIndexLeftEmpty = b;
 		bInitial = b;
 
 		while (true) {
@@ -304,7 +304,7 @@ bool OpenAddressingHashTable::remove(uint32_t key) {
 			}
 
 			// Bucket contains an element. What bucket did this element ideally want to be in?
-			int idealBucket = getBucketIndex(keyHere);
+			int32_t idealBucket = getBucketIndex(keyHere);
 			if (idealBucket != b) {
 				bool shouldMove;
 				if (lastBucketIndexLeftEmpty < b) {
@@ -391,7 +391,7 @@ void OpenAddressingHashTable::test() {
 			Debug::println("still going");
 		}
 
-		int numElementsAdded = 0;
+		int32_t numElementsAdded = 0;
 
 		// Add a bunch of elements
 		while (numElementsAdded < NUM_ELEMENTS_TO_ADD) {
@@ -428,7 +428,7 @@ void OpenAddressingHashTable::test() {
 			}
 		}
 
-		for (int i = 0; i < NUM_ELEMENTS_TO_ADD; i++) {
+		for (int32_t i = 0; i < NUM_ELEMENTS_TO_ADD; i++) {
 			bool result = remove(elementsAdded[i]);
 			if (!result) {
 				Debug::print("remove failed. i == ");

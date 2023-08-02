@@ -24,6 +24,6 @@ public:
 	LFO() = default;
 	uint32_t phase;
 	int32_t holdValue;
-	int32_t render(int numSamples, LFOType waveType, uint32_t phaseIncrement);
-	void tick(int numSamples, uint32_t phaseIncrement);
+	int32_t render(int32_t numSamples, LFOType waveType, uint32_t phaseIncrement);
+	void tick(int32_t numSamples, uint32_t phaseIncrement);
 };

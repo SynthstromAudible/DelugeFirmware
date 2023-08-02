@@ -26,7 +26,7 @@ ConsequenceTempoChange::ConsequenceTempoChange(uint64_t newTimePerBigBefore, uin
 	timePerBig[AFTER] = newTimePerBigAfter;
 }
 
-int ConsequenceTempoChange::revert(TimeType time, ModelStack* modelStack) {
+int32_t ConsequenceTempoChange::revert(TimeType time, ModelStack* modelStack) {
 	float oldBPM = playbackHandler.calculateBPM(modelStack->song->getTimePerTimerTickFloat());
 
 	modelStack->song->setTimePerTimerTick(timePerBig[time], false);

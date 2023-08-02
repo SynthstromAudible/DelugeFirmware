@@ -25,6 +25,6 @@ CopiedNoteRow::CopiedNoteRow() {
 
 CopiedNoteRow::~CopiedNoteRow() {
 	if (notes) {
-		generalMemoryAllocator.dealloc(notes);
+		GeneralMemoryAllocator::get().dealloc(notes);
 	}
 }

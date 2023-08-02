@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
 #include "io/midi/learned_midi.h"
 #include "modulation/params/param_descriptor.h"
+#include <cstdint>
 
 class Knob {
 public:
@@ -40,7 +40,7 @@ public:
 	LearnedMIDI midiInput;
 	bool relative;
 	bool previousPositionSaved;
-	int previousPosition;
+	int32_t previousPosition;
 };
 
 class ModKnob : public Knob {

@@ -15,22 +15,20 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#pragma once
-
 #include "gui/ui/keyboard/layout/velocity_drums.h"
 #include "definitions.h"
 #include "gui/views/instrument_clip_view.h"
 #include "model/model_stack.h"
 #include "util/functions.h"
 
-namespace keyboard::layout {
+namespace deluge::gui::ui::keyboard::layout {
 
 void KeyboardLayoutVelocityDrums::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
 	uint8_t noteIdx = 0;
 
 	currentNotesState = NotesState{}; // Erase active notes
 
-	for (int idxPress = 0; idxPress < kMaxNumKeyboardPadPresses; ++idxPress) {
+	for (int32_t idxPress = 0; idxPress < kMaxNumKeyboardPadPresses; ++idxPress) {
 		if (presses[idxPress].active) {
 			uint8_t note = noteFromCoords(presses[idxPress].x, presses[idxPress].y);
 			uint8_t velocity = (intensityFromCoords(presses[idxPress].x, presses[idxPress].y) >> 1);
@@ -39,17 +37,17 @@ void KeyboardLayoutVelocityDrums::evaluatePads(PressedPad presses[kMaxNumKeyboar
 	}
 }
 
-void KeyboardLayoutVelocityDrums::handleVerticalEncoder(int offset) {
+void KeyboardLayoutVelocityDrums::handleVerticalEncoder(int32_t offset) {
 	handleHorizontalEncoder(offset * (kDisplayWidth / getState().drums.edgeSize), false);
 }
 
-void KeyboardLayoutVelocityDrums::handleHorizontalEncoder(int offset, bool shiftEnabled) {
+void KeyboardLayoutVelocityDrums::handleHorizontalEncoder(int32_t offset, bool shiftEnabled) {
 	KeyboardStateDrums& state = getState().drums;
 
 	if (shiftEnabled) {
 		state.edgeSize += offset;
-		state.edgeSize = getMax(state.edgeSize, kMinDrumPadEdgeSize);
-		state.edgeSize = getMin(kMaxDrumPadEdgeSize, state.edgeSize);
+		state.edgeSize = std::max(state.edgeSize, kMinDrumPadEdgeSize);
+		state.edgeSize = std::min(kMaxDrumPadEdgeSize, state.edgeSize);
 
 		char buffer[13] = "Pad size:   ";
 		intToString(state.edgeSize, buffer + (HAVE_OLED ? 10 : 0), 1);
@@ -60,14 +58,13 @@ void KeyboardLayoutVelocityDrums::handleHorizontalEncoder(int offset, bool shift
 
 	// Calculate highest possible displayable note with current edgeSize
 	int32_t displayedfullPadsCount = ((kDisplayHeight / state.edgeSize) * (kDisplayWidth / state.edgeSize));
-	int highestScrolledNote = getMax(0, (getHighestClipNote() + 1 - displayedfullPadsCount));
+	int32_t highestScrolledNote = std::max<int32_t>(0, (getHighestClipNote() + 1 - displayedfullPadsCount));
 
 	// Make sure current value is in bounds
-	state.scrollOffset = getMax(getLowestClipNote(), state.scrollOffset);
-	state.scrollOffset = getMin(state.scrollOffset, highestScrolledNote);
+	state.scrollOffset = std::clamp(state.scrollOffset, getLowestClipNote(), highestScrolledNote);
 
 	// Offset if still in bounds (check for verticalEncoder)
-	int newOffset = state.scrollOffset + offset;
+	int32_t newOffset = state.scrollOffset + offset;
 	if (newOffset >= getLowestClipNote() && newOffset <= highestScrolledNote) {
 		state.scrollOffset = newOffset;
 	}
@@ -80,7 +77,7 @@ void KeyboardLayoutVelocityDrums::precalculate() {
 
 	// Pre-Buffer colours for next renderings
 	int32_t displayedfullPadsCount = ((kDisplayHeight / state.edgeSize) * (kDisplayWidth / state.edgeSize));
-	for (int i = 0; i < displayedfullPadsCount; ++i) {
+	for (int32_t i = 0; i < displayedfullPadsCount; ++i) {
 		getNoteColour(state.scrollOffset + i, noteColours[i]);
 	}
 }
@@ -88,8 +85,8 @@ void KeyboardLayoutVelocityDrums::precalculate() {
 void KeyboardLayoutVelocityDrums::renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) {
 	uint8_t highestClipNote = getHighestClipNote();
 
-	for (int y = 0; y < kDisplayHeight; ++y) {
-		for (int x = 0; x < kDisplayWidth; x++) {
+	for (int32_t y = 0; y < kDisplayHeight; ++y) {
+		for (int32_t x = 0; x < kDisplayWidth; x++) {
 			uint8_t note = noteFromCoords(x, y);
 			if (note > highestClipNote) {
 				continue;
@@ -112,4 +109,4 @@ void KeyboardLayoutVelocityDrums::renderPads(uint8_t image[][kDisplayWidth + kSi
 	}
 }
 
-}; // namespace keyboard::layout
+}; // namespace deluge::gui::ui::keyboard::layout

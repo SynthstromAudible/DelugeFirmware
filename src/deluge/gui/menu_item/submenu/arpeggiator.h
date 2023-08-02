@@ -16,13 +16,28 @@
 */
 #pragma once
 #include "gui/menu_item/submenu.h"
+#include "gui/ui/sound_editor.h"
+#include "model/clip/instrument_clip.h"
+#include "model/song/song.h"
+#include "modulation/arpeggiator.h"
+#include "processing/sound/sound_drum.h"
 
-namespace menu_item::submenu {
+namespace deluge::gui::menu_item::submenu {
 
-class Arpeggiator final : public Submenu {
+template <size_t n>
+class Arpeggiator final : public Submenu<n> {
 public:
-	Arpeggiator() {}
-	Arpeggiator(char const* newName, MenuItem** newItems) : Submenu(newName, newItems) {}
-	void beginSession(MenuItem* navigatedBackwardFrom = NULL);
+	using Submenu<n>::Submenu;
+	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override {
+
+		soundEditor.currentArpSettings = soundEditor.editingKit()
+		                                     ? &(static_cast<SoundDrum*>(soundEditor.currentSound))->arpSettings
+		                                     : &(static_cast<InstrumentClip*>(currentSong->currentClip))->arpSettings;
+		Submenu<n>::beginSession(navigatedBackwardFrom);
+	}
 };
-} // namespace menu_item::submenu
+
+// Template deduction guide, will not be required with P2582@C++23
+template <size_t n>
+Arpeggiator(const string&, MenuItem* const (&)[n]) -> Arpeggiator<n>;
+} // namespace deluge::gui::menu_item::submenu

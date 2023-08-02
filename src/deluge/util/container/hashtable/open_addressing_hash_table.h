@@ -16,7 +16,7 @@
  */
 
 #pragma once
-#include "RZA1/system/r_typedefs.h"
+#include <cstdint>
 
 class OpenAddressingHashTable {
 public:
@@ -26,21 +26,21 @@ public:
 	virtual void setKeyAtAddress(uint32_t key, void* address) = 0;
 	virtual bool doesKeyIndicateEmptyBucket(uint32_t key) = 0;
 
-	int getBucketIndex(uint32_t key);
-	void* getBucketAddress(int b);
-	void* secondaryMemoryGetBucketAddress(int b);
-	void* insert(uint32_t key, bool* onlyIfNotAlreadyPresent = NULL);
+	int32_t getBucketIndex(uint32_t key);
+	void* getBucketAddress(int32_t b);
+	void* secondaryMemoryGetBucketAddress(int32_t b);
+	void* insert(uint32_t key, bool* onlyIfNotAlreadyPresent = nullptr);
 	void* lookup(uint32_t key);
 	bool remove(uint32_t key);
 	void test();
 	void empty(bool destructing = false);
 
 	void* memory;
-	int numBuckets;
-	int numElements;
+	int32_t numBuckets;
+	int32_t numElements;
 
 	void* secondaryMemory;
-	int secondaryMemoryNumBuckets;
+	int32_t secondaryMemoryNumBuckets;
 	uint32_t secondaryMemoryFunctionCurrentIteration;
 	uint8_t secondaryMemoryCurrentFunction;
 
