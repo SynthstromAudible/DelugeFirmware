@@ -41,6 +41,7 @@ enum RuntimeFeatureSettingType : uint32_t {
 	PatchCableResolution,
 	CatchNotes,
 	DeleteUnusedKitRows,
+	AltGoldenKnobDelayParams,
 	MaxElement // Keep as boundary
 };
 
