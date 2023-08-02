@@ -60,6 +60,9 @@
           "text": "cd ${workspaceRoot}"
         },
         {
+          "text": "monitor reset"
+        },
+        {
           "text": "-file-exec-and-symbols build/debug/delugeOLED.elf"
         },
         {
@@ -92,6 +95,9 @@
         },
         {
           "text": "cd ${workspaceRoot}"
+        },
+        {
+          "text": "monitor reset"
         },
         {
           "text": "-file-exec-and-symbols build/debug/deluge7SEG.elf"
