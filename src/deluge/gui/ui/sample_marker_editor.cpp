@@ -723,11 +723,11 @@ ActionResult SampleMarkerEditor::verticalEncoderAction(int offset, bool inCardRo
 	}
 
 	// Must say these buttons were not pressed, or else editing might take place
-	ActionResult result = instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
+	// ActionResult result = instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
 
-	if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
-		return result;
-	}
+	// if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
+	// 	return result;
+	// }
 
 	// if (getRootUI() == &keyboardScreen) {
 	// 	uiNeedsRendering(this, 0, 0xFFFFFFFF);
@@ -751,7 +751,7 @@ ActionResult SampleMarkerEditor::verticalEncoderAction(int offset, bool inCardRo
 		return ActionResult::DEALT_WITH;
 	}
 	else {
-		return result;
+		return ActionResult::DEALT_WITH;
 	}
 }
 
