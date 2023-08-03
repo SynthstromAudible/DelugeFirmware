@@ -32,9 +32,7 @@ public:
 	void writeCurrentValue() override;
 	//char nameChars[16];
 
-	[[nodiscard]] const string& getTitle() const override {
-		return "Num member ch.";
-	}
+	[[nodiscard]] const string& getTitle() const override { return "Num member ch."; }
 
 private:
 	[[nodiscard]] MIDIPort* getPort() const;

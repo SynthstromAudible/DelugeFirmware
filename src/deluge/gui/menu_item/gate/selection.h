@@ -46,9 +46,10 @@ public:
 			return &gateOffTimeMenu;
 		}
 		soundEditor.currentSourceIndex = this->value_;
-#if HAVE_OLED
-		gate::mode_title[8] = '1' + this->value_;
-#endif
+
+		if (display.type == DisplayType::OLED) {
+			gate::mode_title[8] = '1' + this->value_;
+		}
 
 		// TODO: this needs to be a "UpdateOptions" method on gate::Mode
 		gateModeMenu.updateOptions(this->value_);
@@ -56,12 +57,13 @@ public:
 	}
 
 	static_vector<string, capacity()> getOptions() override {
-#if HAVE_OLED
-
-		return {"Gate output 1", "Gate output 2", "Gate output 3", "Gate output 4", "Minimum off-time"};
-#else
-		return {"Out1", "Out2", "Out3", "Out4", "OFFT"};
-#endif
+		return {
+		    HAVE_OLED ? "Gate output 1" : "OUT1", //<
+		    HAVE_OLED ? "Gate output 2" : "OUT2", //<
+		    HAVE_OLED ? "Gate output 3" : "OUT3", //<
+		    HAVE_OLED ? "Gate output 4" : "OUT4", //<
+		    HAVE_OLED ? "Minimum off-time" : "OFFT",
+		};
 	}
 };
 } // namespace deluge::gui::menu_item::gate

@@ -47,11 +47,10 @@ public:
 	}
 
 	static_vector<string, capacity()> getOptions() override {
-#if HAVE_OLED
-		return {"CV output 1", "CV output 2"};
-#else
-		return {"Out1", "Out2"};
-#endif
+		return {
+		    HAVE_OLED ? "CV output 1" : "OUT1",
+		    HAVE_OLED ? "CV output 2" : "OUT2",
+		};
 	}
 };
 } // namespace deluge::gui::menu_item::cv

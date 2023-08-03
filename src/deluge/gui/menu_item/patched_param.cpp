@@ -56,7 +56,7 @@ MenuItem* PatchedParam::selectButtonPress() {
 
 // #if !HAVE_OLED
 // void PatchedParam::drawValue() {
-// 	numericDriver.setTextAsNumber(soundEditor.currentValue, shouldDrawDotOnName());
+// 	display.setTextAsNumber(soundEditor.currentValue, shouldDrawDotOnName());
 // }
 // #endif
 

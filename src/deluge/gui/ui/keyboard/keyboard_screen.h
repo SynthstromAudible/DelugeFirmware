@@ -72,9 +72,7 @@ private:
 	void exitScaleMode();
 	void drawNoteCode(int32_t noteCode);
 
-	inline void requestRendering() {
-		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
-	}
+	inline void requestRendering() { uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF); }
 
 	PressedPad pressedPads[kMaxNumKeyboardPadPresses];
 	NotesState lastNotesState;

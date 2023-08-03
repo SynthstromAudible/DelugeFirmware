@@ -575,8 +575,8 @@ setEnteredTextAndUseFoundFile:
 				}
 useFoundFile:
 				scrollPosVertical = fileIndexSelected;
-				if constexpr (kNumBrowserAndMenuLines > 1) {
-					int32_t lastAllowed = fileItems.getNumElements() - kNumBrowserAndMenuLines;
+				if (display.kNumBrowserAndMenuLines > 1) {
+					int32_t lastAllowed = fileItems.getNumElements() - display.kNumBrowserAndMenuLines;
 					if (scrollPosVertical > lastAllowed) {
 						scrollPosVertical = lastAllowed;
 						if (scrollPosVertical < 0) {

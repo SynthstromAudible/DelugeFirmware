@@ -19,7 +19,6 @@
 #include "gui/ui/sound_editor.h"
 #include "hid/display.h"
 
-
 namespace deluge::gui::menu_item {
 
 void Number::drawBar(int32_t yTop, int32_t marginL, int32_t marginR) {

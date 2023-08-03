@@ -1027,10 +1027,4 @@ constexpr int32_t DIR_FileSize = 28 /* File size (DWORD) */;
 
 constexpr int32_t kMaxNumUnsignedIntegerstoRepAllParams = 2;
 
-#if HAVE_OLED
-constexpr int32_t kNumBrowserAndMenuLines = 3;
-#else
-constexpr int32_t kNumBrowserAndMenuLines = 1;
-#endif
-
 constexpr int32_t kDefaultCalculateRootNote = std::numeric_limits<int32_t>::max();

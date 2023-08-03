@@ -144,11 +144,11 @@ void QwertyUI::displayText(bool blinkImmediately) {
 	int32_t totalTextLength = enteredText.getLength();
 
 	bool encodedEditPosAndAHalf;
-	int32_t encodedEditPos = display.getEncodedPosFromLeft(enteredTextEditPos, enteredText.get(), &encodedEditPosAndAHalf);
+	int32_t encodedEditPos =
+	    display.getEncodedPosFromLeft(enteredTextEditPos, enteredText.get(), &encodedEditPosAndAHalf);
 
 	bool encodedEndPosAndAHalf;
-	int32_t encodedEndPos =
-	    display.getEncodedPosFromLeft(totalTextLength, enteredText.get(), &encodedEndPosAndAHalf);
+	int32_t encodedEndPos = display.getEncodedPosFromLeft(totalTextLength, enteredText.get(), &encodedEndPosAndAHalf);
 
 	int32_t scrollPos = encodedEditPos - (kNumericDisplayLength >> 1) + encodedEditPosAndAHalf;
 	int32_t maxScrollPos = encodedEndPos - kNumericDisplayLength;

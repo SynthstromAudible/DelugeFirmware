@@ -64,7 +64,6 @@ public:
 		}
 	}
 
-
 	void drawPixelsForOled() override {
 		if (this->value_ < 0) {
 			OLED::drawStringCentred("OFF", 20, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextHugeSpacingX,

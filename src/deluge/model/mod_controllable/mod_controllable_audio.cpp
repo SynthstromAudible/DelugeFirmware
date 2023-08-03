@@ -1702,7 +1702,7 @@ void ModControllableAudio::switchDelaySyncType() {
 		displayText = "Even";
 		break;
 	}
-	numericDriver.displayPopup(displayText);
+	display.displayPopup(displayText);
 }
 
 void ModControllableAudio::switchDelaySyncLevel() {
@@ -1740,7 +1740,7 @@ void ModControllableAudio::switchDelaySyncLevel() {
 		displayText = "1-bar";
 		break;
 	}
-	numericDriver.displayPopup(displayText);
+	display.displayPopup(displayText);
 }
 
 void ModControllableAudio::switchLPFMode() {

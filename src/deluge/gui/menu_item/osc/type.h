@@ -30,9 +30,7 @@ namespace deluge::gui::menu_item::osc {
 class Type final : public TypedSelection<OscType, kNumOscTypes>, public FormattedTitle {
 public:
 	Type(const string& name, const string& title_format_str) : TypedSelection(name), FormattedTitle(title_format_str){};
-	void beginSession(MenuItem* navigatedBackwardFrom) override {
-		TypedSelection::beginSession(navigatedBackwardFrom);
-	}
+	void beginSession(MenuItem* navigatedBackwardFrom) override { TypedSelection::beginSession(navigatedBackwardFrom); }
 
 	void readCurrentValue() override { this->value_ = soundEditor.currentSource->oscType; }
 	void writeCurrentValue() override {
@@ -55,9 +53,7 @@ public:
 		}
 	}
 
-	[[nodiscard]] const string& getTitle() const override {
-		return FormattedTitle::title();
-	}
+	[[nodiscard]] const string& getTitle() const override { return FormattedTitle::title(); }
 
 	//char const** getOptions() { static char const* options[] = {"SINE", "TRIANGLE", "SQUARE", "SAW", "MMS1", "SUB1", "SAMPLE", "INL", "INR", "INLR", "SQ50", "SQ02", "SQ01", "SUB2", "SQ20", "SA50", "S101", "S303", "MMS2", "MMS3", "TABLE"}; return options; }
 	static_vector<string, capacity()> getOptions() override {
@@ -74,12 +70,12 @@ public:
 		    HAVE_OLED ? "Input (right)" : "INR",
 		    HAVE_OLED ? "Input (stereo)" : "INLR",
 		};
-#if HAVE_OLED
-		options[8] = ((AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn)) ? "Input (left)" : "Input";
-#else
-
-		options[8] = ((AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn)) ? "INL" : "IN";
-#endif
+		if (display.type == DisplayType::OLED) {
+			options[8] = ((AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn)) ? "Input (left)" : "Input";
+		}
+		else {
+			options[8] = ((AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn)) ? "INL" : "IN";
+		}
 
 		if (soundEditor.currentSound->getSynthMode() == SynthMode::RINGMOD) {
 			return {options.begin(), options.begin() + kNumOscTypesRingModdable};

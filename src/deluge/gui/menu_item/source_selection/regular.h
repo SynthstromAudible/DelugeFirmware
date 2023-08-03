@@ -26,9 +26,7 @@ public:
 	ParamDescriptor getDestinationDescriptor() override;
 	MenuItem* selectButtonPress() override;
 	MenuItem* patchingSourceShortcutPress(PatchSource newS, bool previousPressStillActive) override;
-	const string& getTitle() const override {
-		return "Modulate with";
-	};
+	const string& getTitle() const override { return "Modulate with"; };
 };
 
 extern Regular regularMenu;

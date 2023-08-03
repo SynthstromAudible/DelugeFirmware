@@ -8,11 +8,12 @@ namespace deluge::gui::menu_item {
 
 void Toggle::beginSession(MenuItem* navigatedBackwardFrom) {
 	Value::beginSession(navigatedBackwardFrom);
-#if HAVE_OLED
-	soundEditor.menuCurrentScroll = 0;
-#else
-	drawValue();
-#endif
+	if (display.type == DisplayType::OLED) {
+		soundEditor.menuCurrentScroll = 0;
+	}
+	else {
+		drawValue();
+	}
 }
 
 void Toggle::selectEncoderAction(int32_t offset) {
@@ -24,14 +25,14 @@ void Toggle::selectEncoderAction(int32_t offset) {
 }
 
 void Toggle::drawValue() {
-#if HAVE_OLED
-	renderUIsForOled();
-#else
-	numericDriver.setText(this->value_ ? "ON" : "OFF");
-#endif
+	if (display.type == DisplayType::OLED) {
+		renderUIsForOled();
+	}
+	else {
+		display.setText(this->value_ ? "ON" : "OFF");
+	}
 }
 
-#if HAVE_OLED
 void Toggle::drawPixelsForOled() {
 	const int32_t val = static_cast<int32_t>(this->value_);
 	// Move scroll
@@ -56,5 +57,4 @@ void Toggle::drawPixelsForOled() {
 		}
 	}
 }
-#endif
 } // namespace deluge::gui::menu_item

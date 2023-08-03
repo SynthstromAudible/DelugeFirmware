@@ -31,11 +31,7 @@ public:
 	void writeCurrentValue() override { whichDirection = this->value_; }
 	MenuItem* selectButtonPress() override;
 	uint8_t whichDirection;
-#if HAVE_OLED
-	[[nodiscard]] const string& getTitle() const override {
-		return whichDirection ? "MPE output" : "MPE input";
-	}
-#endif
+	[[nodiscard]] const string& getTitle() const override { return whichDirection ? "MPE output" : "MPE input"; }
 };
 
 extern DirectionSelector directionSelectorMenu;

@@ -295,11 +295,12 @@ void KeyboardScreen::updateActiveNotes() {
 	if (lastNotesState.count != 0 && currentNotesState.count == 0) {
 		exitUIMode(UI_MODE_AUDITIONING);
 
-#if HAVE_OLED
-		OLED::removePopup();
-#else
-		redrawNumericDisplay();
-#endif
+		if (display.type == DisplayType::OLED) {
+			OLED::removePopup();
+		}
+		else {
+			redrawNumericDisplay();
+		}
 	}
 }
 
@@ -569,11 +570,11 @@ void KeyboardScreen::selectEncoderAction(int8_t offset) {
 
 		char noteName[3] = {0};
 		noteName[0] = noteCodeToNoteLetter[newRootNote];
-#if HAVE_OLED
-		if (noteCodeIsSharp[newRootNote]) {
-			noteName[1] = '#';
+		if (display.type == DisplayType::OLED) {
+			if (noteCodeIsSharp[newRootNote]) {
+				noteName[1] = '#';
+			}
 		}
-#endif
 		display.displayPopup(noteName, 3, false, (noteCodeIsSharp[newRootNote] ? 0 : 255));
 		layoutList[getCurrentClip()->keyboardState.currentLayout]->handleHorizontalEncoder(0, false);
 		layoutList[getCurrentClip()->keyboardState.currentLayout]->precalculate();
@@ -594,9 +595,9 @@ void KeyboardScreen::exitAuditionMode() {
 	updateActiveNotes();
 
 	exitUIMode(UI_MODE_AUDITIONING);
-#if !HAVE_OLED
-	redrawNumericDisplay();
-#endif
+	if (display.type != DisplayType::OLED) {
+		redrawNumericDisplay();
+	}
 }
 
 bool KeyboardScreen::opened() {

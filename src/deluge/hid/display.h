@@ -15,7 +15,9 @@ class Display {};
 template <>
 class Display<DisplayType::OLED> {
 public:
-	static const DisplayType type = DisplayType::OLED;
+	constexpr static DisplayType type = DisplayType::OLED;
+	constexpr static size_t kNumBrowserAndMenuLines = 3;
+
 	void setText(char const* newText, bool alignRight = false, uint8_t drawDot = 255, bool doBlink = false,
 	             uint8_t* newBlinkMask = NULL, bool blinkImmediately = false, bool shouldBlinkFast = false,
 	             int scrollPos = 0, uint8_t* blinkAddition = NULL, bool justReplaceBottomLayer = false) {}
@@ -60,12 +62,15 @@ public:
 	}
 
 	NumericLayer* topLayer = nullptr;
+	uint8_t lastDisplay[kNumericDisplayLength]; // to match NumericDriver
 };
 
 template <>
 class Display<DisplayType::SevenSegment> : public NumericDriver {
 public:
-	static const DisplayType type = DisplayType::SevenSegment;
+	constexpr static DisplayType type = DisplayType::SevenSegment;
+	constexpr static size_t kNumBrowserAndMenuLines = 1;
+
 	void consoleText(char const* text) { this->displayPopup(text); }
 	void popupText(char const* text) { this->displayPopup(text); }
 	void popupTextTemporary(char const* text) { this->displayPopup(text); }

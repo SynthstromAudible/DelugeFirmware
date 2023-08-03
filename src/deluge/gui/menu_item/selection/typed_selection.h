@@ -24,14 +24,7 @@
 #include "util/sized.h"
 
 #include "gui/ui/sound_editor.h"
-#include "hid/display/numeric_driver.h"
-#include "hid/display/oled.h"
-
-extern "C" {
-#if HAVE_OLED
-#include "RZA1/oled/oled_low_level.h"
-#endif
-}
+#include "hid/display.h"
 
 namespace deluge::gui::menu_item {
 template <util::enumeration T, size_t n>
@@ -43,29 +36,22 @@ public:
 
 	void drawValue() override;
 
-#if HAVE_OLED
 	void drawPixelsForOled() override;
-#endif
-	size_t size() override {
-		return this->getOptions().size();
-	}
-	constexpr static size_t capacity() {
-		return n;
-	}
+	size_t size() override { return this->getOptions().size(); }
+	constexpr static size_t capacity() { return n; }
 };
 
 template <util::enumeration T, size_t n>
 void TypedSelection<T, n>::drawValue() {
-#if HAVE_OLED
-	renderUIsForOled();
-#else
-	const auto options = getOptions();
-	auto idx = util::to_underlying(this->value_);
-	numericDriver.setText(options[idx].c_str());
-#endif
+	if (display.type == DisplayType::OLED) {
+		renderUIsForOled();
+	}
+	else {
+		const auto options = getOptions();
+		auto idx = util::to_underlying(this->value_);
+		display.setText(options[idx].c_str());
+	}
 }
-
-#if HAVE_OLED
 
 template <util::enumeration T, size_t n>
 void TypedSelection<T, n>::drawPixelsForOled() {
@@ -83,6 +69,5 @@ void TypedSelection<T, n>::drawPixelsForOled() {
 	auto options = getOptions();
 	MenuItem::drawItemsForOled(options, selectedOption, soundEditor.menuCurrentScroll);
 }
-#endif
 
 } // namespace deluge::gui::menu_item

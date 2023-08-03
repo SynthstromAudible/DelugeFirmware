@@ -241,17 +241,18 @@ ActionResult Slicer::horizontalEncoderAction(int32_t offset) {
 			newPos = waveformBasicNavigator.sample->lengthInSamples;
 		manualSlicePoints[currentSlice].startPos = newPos;
 
-#if HAVE_OLED
-		char buffer[24];
-		strcpy(buffer, "Start: ");
-		intToString(manualSlicePoints[currentSlice].startPos, buffer + strlen(buffer));
-		OLED::popupText(buffer);
-#else
-		char buffer[12];
-		strcpy(buffer, "");
-		intToString(manualSlicePoints[currentSlice].startPos / 1000, buffer + strlen(buffer));
-		display.displayPopup(buffer, 0, true);
-#endif
+		if (display.type == DisplayType::OLED) {
+			char buffer[24];
+			strcpy(buffer, "Start: ");
+			intToString(manualSlicePoints[currentSlice].startPos, buffer + strlen(buffer));
+			OLED::popupText(buffer);
+		}
+		else {
+			char buffer[12];
+			strcpy(buffer, "");
+			intToString(manualSlicePoints[currentSlice].startPos / 1000, buffer + strlen(buffer));
+			display.displayPopup(buffer, 0, true);
+		}
 		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 	}
 	return ActionResult::DEALT_WITH;
@@ -265,17 +266,18 @@ ActionResult Slicer::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 			manualSlicePoints[currentSlice].transpose = 24;
 		if (manualSlicePoints[currentSlice].transpose < -24)
 			manualSlicePoints[currentSlice].transpose = -24;
-#if HAVE_OLED
-		char buffer[24];
-		strcpy(buffer, "Transpose: ");
-		intToString(manualSlicePoints[currentSlice].transpose, buffer + strlen(buffer));
-		OLED::popupText(buffer);
-#else
-		char buffer[12];
-		strcpy(buffer, "");
-		intToString(manualSlicePoints[currentSlice].transpose, buffer + strlen(buffer));
-		display.displayPopup(buffer, 0, true);
-#endif
+		if (display.type == DisplayType::OLED) {
+			char buffer[24];
+			strcpy(buffer, "Transpose: ");
+			intToString(manualSlicePoints[currentSlice].transpose, buffer + strlen(buffer));
+			OLED::popupText(buffer);
+		}
+		else {
+			char buffer[12];
+			strcpy(buffer, "");
+			intToString(manualSlicePoints[currentSlice].transpose, buffer + strlen(buffer));
+			display.displayPopup(buffer, 0, true);
+		}
 	}
 	return ActionResult::DEALT_WITH;
 }
@@ -326,11 +328,12 @@ ActionResult Slicer::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		slicerMode %= 2;
 		if (slicerMode == SLICER_MODE_MANUAL)
 			AudioEngine::stopAnyPreviewing();
-#if HAVE_OLED
-		renderUIsForOled();
-#else
-		redraw();
-#endif
+		if (display.type == DisplayType::OLED) {
+			renderUIsForOled();
+		}
+		else {
+			redraw();
+		}
 
 		((Kit*)currentSong->currentClip->output)->firstDrum->unassignAllVoices(); //stop
 		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
@@ -339,17 +342,18 @@ ActionResult Slicer::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 	//pop up Transpose value
 	if (b == Y_ENC && on && slicerMode == SLICER_MODE_MANUAL && currentSlice < numManualSlice) {
-#if HAVE_OLED
-		char buffer[24];
-		strcpy(buffer, "Transpose: ");
-		intToString(manualSlicePoints[currentSlice].transpose, buffer + strlen(buffer));
-		OLED::popupText(buffer);
-#else
-		char buffer[12];
-		strcpy(buffer, "");
-		intToString(manualSlicePoints[currentSlice].transpose, buffer + strlen(buffer));
-		display.displayPopup(buffer, 0, true);
-#endif
+		if (display.type == DisplayType::OLED) {
+			char buffer[24];
+			strcpy(buffer, "Transpose: ");
+			intToString(manualSlicePoints[currentSlice].transpose, buffer + strlen(buffer));
+			OLED::popupText(buffer);
+		}
+		else {
+			char buffer[12];
+			strcpy(buffer, "");
+			intToString(manualSlicePoints[currentSlice].transpose, buffer + strlen(buffer));
+			display.displayPopup(buffer, 0, true);
+		}
 		return ActionResult::DEALT_WITH;
 	}
 
@@ -377,11 +381,12 @@ ActionResult Slicer::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 			}
 
 			uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
-#if HAVE_OLED
-			renderUIsForOled();
-#else
-			redraw();
-#endif
+			if (display.type == DisplayType::OLED) {
+				renderUIsForOled();
+			}
+			else {
+				redraw();
+			}
 			return ActionResult::DEALT_WITH;
 		}
 	}
@@ -506,13 +511,9 @@ ActionResult Slicer::padAction(int32_t x, int32_t y, int32_t on) {
 				        manualSlicePoints[slicePadIndex].transpose, on);
 			}
 
-#if HAVE_OLED
-			if (closePopup)
-				OLED::removePopup();
-#else
-			if (closePopup)
+			if (closePopup) {
 				display.cancelPopup();
-#endif
+			}
 		}
 		else { // do slice
 
@@ -556,11 +557,7 @@ ActionResult Slicer::padAction(int32_t x, int32_t y, int32_t on) {
 					manualSlicePoints[numManualSlice].transpose = 0;
 
 					numManualSlice++;
-#if HAVE_OLED
-					OLED::removePopup();
-#else
 					display.cancelPopup();
-#endif
 
 					SliceItem tmp;
 					for (int32_t i = 0; i < (numManualSlice - 1); i++) {
@@ -576,11 +573,12 @@ ActionResult Slicer::padAction(int32_t x, int32_t y, int32_t on) {
 			}
 		}
 
-#if HAVE_OLED
-		renderUIsForOled();
-#else
-		redraw();
-#endif
+		if (display.type == DisplayType::OLED) {
+			renderUIsForOled();
+		}
+		else {
+			redraw();
+		}
 		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 	}
 	else if (!on && x < kDisplayWidth && y < kDisplayHeight / 2 && slicerMode == SLICER_MODE_MANUAL) { // pad off

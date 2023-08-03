@@ -45,7 +45,7 @@ public:
 		return PatchedParam::patchingSourceShortcutPress(s, previousPressStillActive);
 	}
 
-	void drawValue() override { numericDriver.setTextAsNumber(this->value_, shouldDrawDotOnName()); }
+	void drawValue() override { display.setTextAsNumber(this->value_, shouldDrawDotOnName()); }
 
 	void unlearnAction() override { MenuItemWithCCLearning::unlearnAction(); }
 	bool allowsLearnMode() override { return MenuItemWithCCLearning::allowsLearnMode(); }

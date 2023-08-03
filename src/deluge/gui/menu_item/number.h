@@ -28,9 +28,7 @@ public:
 
 protected:
 	[[nodiscard]] virtual int32_t getMaxValue() const = 0;
-	[[nodiscard]] virtual int32_t getMinValue() const {
-		return 0;
-	}
+	[[nodiscard]] virtual int32_t getMinValue() const { return 0; }
 };
 
 } // namespace deluge::gui::menu_item
