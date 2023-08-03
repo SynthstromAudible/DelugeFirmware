@@ -279,14 +279,14 @@ bool MIDIParamCollection::mayParamInterpolate(int32_t paramId) {
 
 int32_t MIDIParamCollection::knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) {
 
-	char buffer[5];
-	int32_t valueForDisplay = knobPos;
-	valueForDisplay += 64;
-	if (valueForDisplay == 128) {
-		valueForDisplay = 127;
-	}
-	intToString(valueForDisplay, buffer);
-	numericDriver.displayPopup(buffer, 3, true);
+	// char buffer[5]; 64 32 16 8 4
+	// int32_t valueForDisplay = knobPos;
+	// valueForDisplay += 64;
+	// if (valueForDisplay == 128) {
+	// 	valueForDisplay = 127;
+	// }
+	// intToString(valueForDisplay, buffer);
+	// numericDriver.displayPopup(buffer, 3, true);
 
 	return ParamCollection::knobPosToParamValue(knobPos, modelStack);
 }

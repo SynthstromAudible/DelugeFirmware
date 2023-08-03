@@ -995,7 +995,23 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 		    modelStackWithParam->modControllable->getKnobPosForNonExistentParam(whichModEncoder, modelStackWithParam);
 	}
 
-	indicator_leds::setKnobIndicatorLevel(whichModEncoder, knobPos + 64);
+	if (modelStackWithParam->paramId == Param::Unpatched::STUTTER_RATE) {
+		int32_t knobPosAbs = knobPos + 64;
+		if (knobPosAbs < 25) {
+			indicator_leds::setKnobIndicatorLevel(whichModEncoder, 0);
+		} else if (knobPosAbs < 50) {
+			indicator_leds::setKnobIndicatorLevel(whichModEncoder, 32);
+		} else if (knobPosAbs < 78) {
+			indicator_leds::setKnobIndicatorLevel(whichModEncoder, 64);
+		} else if (knobPosAbs < 103) {
+			indicator_leds::setKnobIndicatorLevel(whichModEncoder, 96);
+		} else {
+			indicator_leds::setKnobIndicatorLevel(whichModEncoder, 128);
+		}
+	} else {
+		indicator_leds::setKnobIndicatorLevel(whichModEncoder, knobPos + 64);
+	}
+
 }
 
 static const uint32_t modButtonUIModes[] = {UI_MODE_AUDITIONING,

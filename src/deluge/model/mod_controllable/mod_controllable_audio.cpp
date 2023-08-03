@@ -1631,16 +1631,16 @@ void ModControllableAudio::endStutter(ParamManagerForTimeline* paramManager) {
 	stutterer.status = STUTTERER_STATUS_OFF;
 	exitUIMode(UI_MODE_STUTTERING);
 
-	if (paramManager) {
+	// if (paramManager) {
 
-		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
+	// 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-		// Normally we shouldn't call this directly, but it's ok because automation isn't allowed for stutter anyway
-		if (unpatchedParams->getValue(Param::Unpatched::STUTTER_RATE) < 0) {
-			unpatchedParams->params[Param::Unpatched::STUTTER_RATE].setCurrentValueBasicForSetup(0);
-			view.notifyParamAutomationOccurred(paramManager);
-		}
-	}
+	// 	// Normally we shouldn't call this directly, but it's ok because automation isn't allowed for stutter anyway
+	// 	if (unpatchedParams->getValue(Param::Unpatched::STUTTER_RATE) < 0) {
+	// 		unpatchedParams->params[Param::Unpatched::STUTTER_RATE].setCurrentValueBasicForSetup(0);
+	// 		view.notifyParamAutomationOccurred(paramManager);
+	// 	}
+	// }
 }
 
 void ModControllableAudio::switchDelayPingPong() {

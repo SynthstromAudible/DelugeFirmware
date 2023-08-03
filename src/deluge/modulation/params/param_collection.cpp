@@ -20,6 +20,7 @@
 #include "model/model_stack.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param_manager.h"
+#include "util/functions.h"
 
 ParamCollection::ParamCollection(int32_t newObjectSize, ParamCollectionSummary* summary) : objectSize(newObjectSize) {
 	for (int32_t i = 0; i < kMaxNumUnsignedIntegerstoRepAllParams; i++) { // Just do both even if we're only using one.
@@ -60,6 +61,15 @@ int32_t ParamCollection::paramValueToKnobPos(int32_t paramValue, ModelStackWithA
 }
 
 int32_t ParamCollection::knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) {
+	char buffer[5];
+	int valueForDisplay = knobPos;
+	valueForDisplay += 64;
+	if (valueForDisplay == 128) {
+		valueForDisplay = 127;
+	}
+	intToString(valueForDisplay, buffer);
+	numericDriver.displayPopup(buffer, 3, true);
+
 	int32_t paramValue = 2147483647;
 	if (knobPos < 64) {
 		paramValue = knobPos << 25;

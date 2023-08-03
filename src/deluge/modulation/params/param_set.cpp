@@ -364,7 +364,6 @@ UnpatchedParamSet::UnpatchedParamSet(ParamCollectionSummary* summary) : ParamSet
 
 bool UnpatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) {
 	switch (modelStack->paramId) {
-	case Param::Unpatched::STUTTER_RATE:
 	case Param::Unpatched::BASS:
 	case Param::Unpatched::TREBLE:
 	case Param::Unpatched::GlobalEffectable::DELAY_RATE:
