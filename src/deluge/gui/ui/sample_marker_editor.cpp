@@ -659,6 +659,39 @@ static const uint32_t zoomUIModes[] = {UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON
 
 ActionResult SampleMarkerEditor::horizontalEncoderAction(int32_t offset) {
 
+	if (loopLocked && Buttons::isShiftButtonPressed()) {
+		if (offset > 0) { // turn clockwise
+			int end = getCurrentSampleHolder()->endPos;
+			int loopEnd = getCurrentMultisampleRange()->sampleHolder.loopEndPos;
+
+			if (loopEnd + loopLength < end) {
+				loopLength = loopLength * 2;
+				numericDriver.displayPopup("DOUB");
+			}
+			else {
+				numericDriver.displayPopup("CANT");
+				return ActionResult::DEALT_WITH;
+			}
+		}
+		else { // turn anti-clockwise
+			if (loopLength > 2) {
+				loopLength = loopLength / 2;
+				numericDriver.displayPopup("HALF");
+			}
+			else {
+				numericDriver.displayPopup("CANT");
+				return ActionResult::DEALT_WITH;
+			}
+		}
+
+		int loopStart = getCurrentMultisampleRange()->sampleHolder.loopStartPos;
+		int newLoopEnd = loopStart + loopLength;
+		writeValue(newLoopEnd, MarkerType::LOOP_END);
+		uiNeedsRendering(this, 0xFFFFFFFF, 0);
+
+		return ActionResult::DEALT_WITH;
+	}
+
 	// We're quite likely going to need to read the SD card to do either scrolling or zooming
 	if (sdRoutineLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -735,51 +768,17 @@ ActionResult SampleMarkerEditor::verticalEncoderAction(int32_t offset, bool inCa
 	}
 
 	// Must say these buttons were not pressed, or else editing might take place
-	// ActionResult result = instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
+	ActionResult result = instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
 
-	// if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
-	// 	return result;
-	// }
-
-	// if (getRootUI() == &keyboardScreen) {
-	// 	uiNeedsRendering(this, 0, 0xFFFFFFFF);
-	// }
-
-	if (loopLocked) {
-		if (offset > 0) { // turn clockwise
-			int end = getCurrentSampleHolder()->endPos;
-			int loopEnd = getCurrentMultisampleRange()->sampleHolder.loopEndPos;
-
-			if (loopEnd + loopLength < end) {
-				loopLength = loopLength * 2;
-				numericDriver.displayPopup("DOUB");
-			}
-			else {
-				numericDriver.displayPopup("CANT");
-				return ActionResult::DEALT_WITH;
-			}
-		}
-		else { // turn anti-clockwise
-			if (loopLength > 2) {
-				loopLength = loopLength / 2;
-				numericDriver.displayPopup("HALF");
-			}
-			else {
-				numericDriver.displayPopup("CANT");
-				return ActionResult::DEALT_WITH;
-			}
-		}
-
-		int loopStart = getCurrentMultisampleRange()->sampleHolder.loopStartPos;
-		int newLoopEnd = loopStart + loopLength;
-		writeValue(newLoopEnd, MarkerType::LOOP_END);
-		uiNeedsRendering(this, 0xFFFFFFFF, 0);
-
-		return ActionResult::DEALT_WITH;
+	if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
+		return result;
 	}
-	else {
-		return ActionResult::DEALT_WITH;
+
+	if (getRootUI() == &keyboardScreen) {
+		uiNeedsRendering(this, 0, 0xFFFFFFFF);
 	}
+
+	return result;
 }
 
 bool SampleMarkerEditor::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
