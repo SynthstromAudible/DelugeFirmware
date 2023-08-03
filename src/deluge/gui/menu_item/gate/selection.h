@@ -16,63 +16,51 @@
 */
 #pragma once
 #include "gui/menu_item/gate/mode.h"
-#include "gui/menu_item/selection.h"
+#include "gui/menu_item/selection/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "mode.h"
 #include "off_time.h"
+#include "util/container/static_vector.hpp"
 
-extern menu_item::gate::OffTime gateOffTimeMenu;
-extern menu_item::gate::Mode gateModeMenu;
+extern deluge::gui::menu_item::gate::OffTime gateOffTimeMenu;
+extern deluge::gui::menu_item::gate::Mode gateModeMenu;
+namespace deluge::gui::menu_item::gate {
 
-namespace menu_item::gate {
-class Selection final : public menu_item::Selection {
+class Selection final : public menu_item::Selection<5> {
 public:
-	Selection(char const* newName = NULL) : menu_item::Selection(newName) {
-#if HAVE_OLED
-		basicTitle = "Gate outputs";
-		static char const* options[] = {"Gate output 1", "Gate output 2",    "Gate output 3",
-		                                "Gate output 4", "Minimum off-time", NULL};
-#else
-		static char const* options[] = {"Out1", "Out2", "Out3", "Out4", "OFFT", NULL};
-#endif
-		basicOptions = options;
-	}
-	void beginSession(MenuItem* navigatedBackwardFrom) {
-		if (!navigatedBackwardFrom) {
-			soundEditor.currentValue = 0;
+	using menu_item::Selection<capacity()>::Selection;
+
+	void beginSession(MenuItem* navigatedBackwardFrom) override {
+		if (navigatedBackwardFrom == nullptr) {
+			this->value_ = 0;
 		}
 		else {
-			soundEditor.currentValue = soundEditor.currentSourceIndex;
+			this->value_ = soundEditor.currentSourceIndex;
 		}
-		menu_item::Selection::beginSession(navigatedBackwardFrom);
+		menu_item::Selection<capacity()>::beginSession(navigatedBackwardFrom);
 	}
 
-	MenuItem* selectButtonPress() {
-		if (soundEditor.currentValue == NUM_GATE_CHANNELS) {
+	MenuItem* selectButtonPress() override {
+		if (this->value_ == NUM_GATE_CHANNELS) {
 			return &gateOffTimeMenu;
 		}
-		else {
-			soundEditor.currentSourceIndex = soundEditor.currentValue;
+		soundEditor.currentSourceIndex = this->value_;
 #if HAVE_OLED
-			gate::mode_title[8] = '1' + soundEditor.currentValue;
+		gate::mode_title[8] = '1' + this->value_;
 #endif
 
-			// TODO: this needs to be a "UpdateOptions" method on gate::Mode
-			switch (soundEditor.currentValue) {
-			case WHICH_GATE_OUTPUT_IS_CLOCK:
-				mode_options[2] = "Clock";
-				break;
+		// TODO: this needs to be a "UpdateOptions" method on gate::Mode
+		gateModeMenu.updateOptions(this->value_);
+		return &gateModeMenu;
+	}
 
-			case WHICH_GATE_OUTPUT_IS_RUN:
-				mode_options[2] = HAVE_OLED ? "\"Run\" signal" : "Run";
-				break;
+	static_vector<string, capacity()> getOptions() override {
+#if HAVE_OLED
 
-			default:
-				mode_options[2] = NULL;
-				break;
-			}
-			return &gateModeMenu;
-		}
+		return {"Gate output 1", "Gate output 2", "Gate output 3", "Gate output 4", "Minimum off-time"};
+#else
+		return {"Out1", "Out2", "Out3", "Out4", "OFFT"};
+#endif
 	}
 };
-} // namespace menu_item::gate
+} // namespace deluge::gui::menu_item::gate

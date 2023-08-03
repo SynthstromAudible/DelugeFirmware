@@ -17,24 +17,23 @@
 
 #pragma once
 
-#include "gui/menu_item/selection.h"
+#include "gui/menu_item/selection/selection.h"
 #include "model/settings/runtime_feature_settings.h"
 
-namespace menu_item::runtime_feature {
+namespace deluge::gui::menu_item::runtime_feature {
 class Settings;
-class Setting final : public Selection {
+class Setting final : public Selection<RUNTIME_FEATURE_SETTING_MAX_OPTIONS> {
 public:
 	explicit Setting(RuntimeFeatureSettingType ty);
 
-	void readCurrentValue();
-	void writeCurrentValue();
-	char const** getOptions();
-	int32_t getNumOptions();
-	char const* getName();
-	char const* getTitle();
+	void readCurrentValue() override;
+	void writeCurrentValue() override;
+	static_vector<string, RUNTIME_FEATURE_SETTING_MAX_OPTIONS> getOptions() override;
+	[[nodiscard]] std::string_view getName() const override;
+	[[nodiscard]] std::string_view getTitle() const override;
 
 private:
 	friend class Settings;
 	uint32_t currentSettingIndex;
 };
-} // namespace menu_item::runtime_feature
+} // namespace deluge::gui::menu_item::runtime_feature

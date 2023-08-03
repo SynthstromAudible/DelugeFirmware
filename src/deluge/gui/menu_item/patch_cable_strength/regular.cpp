@@ -24,7 +24,7 @@
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/sound/sound.h"
 
-namespace menu_item::patch_cable_strength {
+namespace deluge::gui::menu_item::patch_cable_strength {
 Regular regularMenu{};
 
 MenuItem* Regular::selectButtonPress() {
@@ -33,9 +33,7 @@ MenuItem* Regular::selectButtonPress() {
 	if (Buttons::isShiftButtonPressed()) {
 		return PatchCableStrength::selectButtonPress();
 	}
-	else {
-		return &source_selection::rangeMenu;
-	}
+	return &source_selection::rangeMenu;
 }
 
 ParamDescriptor Regular::getLearningThing() {
@@ -98,4 +96,4 @@ MenuItem* Regular::patchingSourceShortcutPress(PatchSource s, bool previousPress
 	return (MenuItem*)0xFFFFFFFF;
 }
 
-} // namespace menu_item::patch_cable_strength
+} // namespace deluge::gui::menu_item::patch_cable_strength

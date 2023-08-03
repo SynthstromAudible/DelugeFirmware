@@ -26,7 +26,7 @@
 #include "storage/audio/audio_file_holder.h"
 #include "storage/multi_range/multi_range.h"
 
-namespace menu_item::sample {
+namespace deluge::gui::menu_item::sample {
 
 bool LoopPoint::isRelevant(Sound* sound, int32_t whichThing) {
 
@@ -70,4 +70,4 @@ void LoopPoint::beginSession(MenuItem* navigatedBackwardFrom) {
 		uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
 	}
 }
-} // namespace menu_item::sample
+} // namespace deluge::gui::menu_item::sample

@@ -49,7 +49,7 @@ public:
 	               ClipInstance* clipInstanceAdded);
 	int32_t doUniqueCloneOnClipInstance(ClipInstance* clipInstance, int32_t newLength = -1,
 	                                    bool shouldCloneRepeats = false);
-	int32_t getLivePos(uint32_t* timeRemainder = NULL);
+	int32_t getLivePos(uint32_t* timeRemainder = nullptr);
 	void endAnyLinearRecording();
 
 	int32_t lastProcessedPos;

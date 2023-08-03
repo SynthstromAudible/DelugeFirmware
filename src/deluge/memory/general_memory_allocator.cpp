@@ -76,7 +76,7 @@ uint32_t totalMallocTime = 0;
 int32_t numMallocTimes = 0;
 #endif
 
-extern "C" void* delugeAlloc(int32_t requiredSize) {
+extern "C" void* delugeAlloc(unsigned int requiredSize) {
 	return GeneralMemoryAllocator::get().alloc(requiredSize, NULL, false, true);
 }
 

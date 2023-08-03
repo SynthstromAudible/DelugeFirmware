@@ -15,23 +15,26 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "gui/menu_item/formatted_title.h"
 #include "gui/menu_item/source/transpose.h"
 #include "processing/sound/sound.h"
 
-namespace menu_item::modulator {
+namespace deluge::gui::menu_item::modulator {
 
-class Transpose final : public source::Transpose {
+class Transpose final : public source::Transpose, public FormattedTitle {
 public:
-	using source::Transpose::Transpose;
+	Transpose(const string& name, const string& title_format_str, int32_t newP)
+	    : source::Transpose(name, newP), FormattedTitle(title_format_str) {}
 
-	void readCurrentValue() {
-		soundEditor.currentValue =
-		    (int32_t)soundEditor.currentSound->modulatorTranspose[soundEditor.currentSourceIndex] * 100
-		    + soundEditor.currentSound->modulatorCents[soundEditor.currentSourceIndex];
+	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
+
+	void readCurrentValue() override {
+		this->value_ = (int32_t)soundEditor.currentSound->modulatorTranspose[soundEditor.currentSourceIndex] * 100
+		               + soundEditor.currentSound->modulatorCents[soundEditor.currentSourceIndex];
 	}
 
-	void writeCurrentValue() {
-		int32_t currentValue = soundEditor.currentValue + 25600;
+	void writeCurrentValue() override {
+		int32_t currentValue = this->value_ + 25600;
 
 		int32_t semitones = (currentValue + 50) / 100;
 		int32_t cents = currentValue - semitones * 100;
@@ -43,7 +46,7 @@ public:
 		soundEditor.currentSound->setModulatorCents(soundEditor.currentSourceIndex, cents, modelStack);
 	}
 
-	bool isRelevant(Sound* sound, int32_t whichThing) { return (sound->getSynthMode() == SynthMode::FM); }
+	bool isRelevant(Sound* sound, int32_t whichThing) override { return (sound->getSynthMode() == SynthMode::FM); }
 };
 
-} // namespace menu_item::modulator
+} // namespace deluge::gui::menu_item::modulator

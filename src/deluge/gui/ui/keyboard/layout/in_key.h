@@ -19,7 +19,7 @@
 
 #include "gui/ui/keyboard/layout.h"
 
-namespace keyboard::layout {
+namespace deluge::gui::ui::keyboard::layout {
 
 constexpr int32_t kMinInKeyRowInterval = 1;
 constexpr int32_t kMaxInKeyRowInterval = 16;
@@ -36,7 +36,7 @@ public:
 
 	virtual void renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]);
 
-	virtual char* name() { return "In-Key"; }
+	virtual char const* name() { return "In-Key"; }
 	virtual bool supportsInstrument() { return true; }
 	virtual bool supportsKit() { return false; }
 	virtual RequiredScaleMode requiredScaleMode() { return RequiredScaleMode::Enabled; }
@@ -92,4 +92,4 @@ private:
 	uint8_t noteColours[kDisplayHeight * kMaxInKeyRowInterval + kDisplayWidth][3];
 };
 
-}; // namespace keyboard::layout
+}; // namespace deluge::gui::ui::keyboard::layout

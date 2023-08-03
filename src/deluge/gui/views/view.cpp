@@ -239,7 +239,7 @@ doEndMidiLearnPressSession:
 
 					currentUIMode = UI_MODE_NONE;
 
-					if ((int32_t)(AudioEngine::audioSampleTimer - timeSaveButtonPressed) < (44100 >> 1)) {
+					if ((int32_t)(AudioEngine::audioSampleTimer - timeSaveButtonPressed) < kShortPressTime) {
 						if (currentSong->hasAnyPendingNextOverdubs()) {
 							numericDriver.displayPopup(HAVE_OLED ? "Can't save while overdubs pending" : "CANT");
 						}
@@ -290,7 +290,7 @@ doEndMidiLearnPressSession:
 					}
 					currentUIMode = UI_MODE_NONE;
 
-					if ((int32_t)(AudioEngine::audioSampleTimer - timeSaveButtonPressed) < (44100 >> 1)) {
+					if ((int32_t)(AudioEngine::audioSampleTimer - timeSaveButtonPressed) < kShortPressTime) {
 						bool success = openUI(&loadSongUI);
 
 						// Need to redraw everything if no success, because the LoadSongUI does some drawing before even determining whether it can start successfully
@@ -889,7 +889,7 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 					indicator_leds::blinkKnobIndicator(whichModEncoder);
 
 					// Make it harder to turn that knob away from its centred position
-					Encoders::timeModEncoderLastTurned[whichModEncoder] = AudioEngine::audioSampleTimer - 44100;
+					Encoders::timeModEncoderLastTurned[whichModEncoder] = AudioEngine::audioSampleTimer - kSampleRate;
 				}
 				else {
 					indicator_leds::stopBlinkingKnobIndicator(whichModEncoder);
@@ -1168,7 +1168,7 @@ void View::setModRegion(uint32_t pos, uint32_t length, int32_t noteRowId) {
 
 void View::pretendModKnobsUntouchedForAWhile() {
 	Encoders::timeModEncoderLastTurned[0] = Encoders::timeModEncoderLastTurned[1] =
-	    AudioEngine::audioSampleTimer - 44100;
+	    AudioEngine::audioSampleTimer - kSampleRate;
 }
 
 void View::cycleThroughReverbPresets() {

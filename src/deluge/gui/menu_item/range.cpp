@@ -26,7 +26,7 @@
 #include "hid/matrix/matrix_driver.h"
 #include "util/functions.h"
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
 void Range::beginSession(MenuItem* navigatedBackwardFrom) {
 
@@ -201,4 +201,4 @@ doHilightJustOneEdge:
 	}
 }
 #endif
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

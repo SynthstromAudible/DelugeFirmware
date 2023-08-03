@@ -16,7 +16,8 @@
 */
 #pragma once
 #include "definitions_cxx.hpp"
-#include "gui/menu_item/selection.h"
+#include "gui/menu_item/formatted_title.h"
+#include "gui/menu_item/selection/typed_selection.h"
 #include "gui/ui/sound_editor.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
@@ -25,28 +26,22 @@
 #include "util/comparison.h"
 #include "util/misc.h"
 
-extern char oscTypeTitle[];
-namespace menu_item::osc {
-class Type final : public Selection {
+namespace deluge::gui::menu_item::osc {
+class Type final : public TypedSelection<OscType, kNumOscTypes>, public FormattedTitle {
 public:
-	Type(char const* newName = NULL) : Selection(newName) {
+	Type(const string& name, const string& title_format_str) : TypedSelection(name), FormattedTitle(title_format_str){};
 #if HAVE_OLED
-		basicTitle = oscTypeTitle;
-#endif
-	}
-#if HAVE_OLED
-	void beginSession(MenuItem* navigatedBackwardFrom) {
-		oscTypeTitle[3] = '1' + soundEditor.currentSourceIndex;
-		Selection::beginSession(navigatedBackwardFrom);
+	void beginSession(MenuItem* navigatedBackwardFrom) override {
+		TypedSelection::beginSession(navigatedBackwardFrom);
 	}
 #endif
-	void readCurrentValue() {
-		soundEditor.currentValue = util::to_underlying(soundEditor.currentSource->oscType);
+	void readCurrentValue() override {
+		this->value_ = soundEditor.currentSource->oscType;
 	}
-	void writeCurrentValue() {
+	void writeCurrentValue() override {
 
 		OscType oldValue = soundEditor.currentSource->oscType;
-		auto newValue = static_cast<OscType>(soundEditor.currentValue);
+		auto newValue = this->value_;
 
 		auto needs_unassignment = {OscType::INPUT_L, OscType::INPUT_R, OscType::INPUT_STEREO, OscType::SAMPLE,
 
@@ -63,37 +58,44 @@ public:
 		}
 	}
 
-	//char const** getOptions() { static char const* options[] = {"SINE", "TRIANGLE", "SQUARE", "SAW", "MMS1", "SUB1", "SAMPLE", "INL", "INR", "INLR", "SQ50", "SQ02", "SQ01", "SUB2", "SQ20", "SA50", "S101", "S303", "MMS2", "MMS3", "TABLE"}; return options; }
-	char const** getOptions() {
-#if HAVE_OLED
-		static char inLText[] = "Input (left)";
-		static char const* options[] = {"SINE",  "TRIANGLE",      "SQUARE",         "Analog square",
-		                                "Saw",   "Analog saw",    "Wavetable",      "SAMPLE",
-		                                inLText, "Input (right)", "Input (stereo)", NULL};
-		inLText[5] = ((AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn)) ? ' ' : 0;
-#else
-		static char inLText[4] = "INL";
-		static char const* options[] = {"SINE",      "TRIANGLE", "SQUARE", "ASQUARE", "SAW", "ASAW",
-		                                "Wavetable", "SAMPLE",   inLText,  "INR",     "INLR"};
-		inLText[2] = ((AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn)) ? 'L' : 0;
-#endif
-		return options;
+	[[nodiscard]] std::string_view getTitle() const override {
+		return FormattedTitle::title();
 	}
 
-	int32_t getNumOptions() {
+	//char const** getOptions() { static char const* options[] = {"SINE", "TRIANGLE", "SQUARE", "SAW", "MMS1", "SUB1", "SAMPLE", "INL", "INR", "INLR", "SQ50", "SQ02", "SQ01", "SUB2", "SQ20", "SA50", "S101", "S303", "MMS2", "MMS3", "TABLE"}; return options; }
+	static_vector<string, capacity()> getOptions() override {
+		static_vector<string, capacity()> options = {
+		    "SINE",
+		    "TRIANGLE",
+		    "SQUARE",
+		    HAVE_OLED ? "Analog square" : "ASQUARE",
+		    "Saw",
+		    HAVE_OLED ? "Analog saw" : "ASAW",
+		    "Wavetable",
+		    "SAMPLE",
+		    HAVE_OLED ? "Input (left)" : "INL",
+		    HAVE_OLED ? "Input (right)" : "INR",
+		    HAVE_OLED ? "Input (stereo)" : "INLR",
+		};
+#if HAVE_OLED
+		options[8] = ((AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn)) ? "Input (left)" : "Input";
+#else
+
+		options[8] = ((AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn)) ? "INL" : "IN";
+#endif
+
 		if (soundEditor.currentSound->getSynthMode() == SynthMode::RINGMOD) {
-			return kNumOscTypesRingModdable;
+			return {options.begin(), options.begin() + kNumOscTypesRingModdable};
 		}
-		else if (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn) {
-			return kNumOscTypes;
+		if (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn) {
+			return {options.begin(), options.begin() + kNumOscTypes};
 		}
-		else {
-			return kNumOscTypes - 2;
-		}
+		return {options.begin(), options.begin() + kNumOscTypes - 2};
 	}
-	bool isRelevant(Sound* sound, int32_t whichThing) {
+
+	bool isRelevant(Sound* sound, int32_t whichThing) override {
 		return (sound->getSynthMode() != SynthMode::FM);
 	}
 };
 
-} // namespace menu_item::osc
+} // namespace deluge::gui::menu_item::osc

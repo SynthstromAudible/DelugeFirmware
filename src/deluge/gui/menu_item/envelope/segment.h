@@ -14,20 +14,17 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
 */
-#include "arpeggiator.h"
+#pragma once
+#include "gui/menu_item/formatted_title.h"
+#include "gui/menu_item/source/patched_param.h"
 #include "gui/ui/sound_editor.h"
-#include "model/clip/instrument_clip.h"
-#include "model/song/song.h"
-#include "processing/sound/sound_drum.h"
 
-namespace menu_item::submenu {
+namespace deluge::gui::menu_item::envelope {
+class Segment : public source::PatchedParam, public FormattedTitle {
+public:
+	Segment(const string& name, const string& title_format_str, int32_t newP)
+	    : PatchedParam(name, newP), FormattedTitle(title_format_str) {}
 
-void Arpeggiator::beginSession(MenuItem* navigatedBackwardFrom) {
-
-	soundEditor.currentArpSettings = soundEditor.editingKit()
-	                                     ? &((SoundDrum*)soundEditor.currentSound)->arpSettings
-	                                     : &((InstrumentClip*)currentSong->currentClip)->arpSettings;
-	Submenu::beginSession(navigatedBackwardFrom);
-}
-
-} // namespace menu_item::submenu
+	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
+};
+} // namespace deluge::gui::menu_item::envelope

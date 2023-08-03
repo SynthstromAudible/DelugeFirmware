@@ -19,7 +19,7 @@
 
 #include "gui/ui/keyboard/layout.h"
 
-namespace keyboard::layout {
+namespace deluge::gui::ui::keyboard::layout {
 
 constexpr int32_t kMinDrumPadEdgeSize = 1;
 constexpr int32_t kMaxDrumPadEdgeSize = 8;
@@ -36,7 +36,7 @@ public:
 
 	virtual void renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]);
 
-	virtual char* name() { return "Drums"; }
+	virtual char const* name() { return "Drums"; }
 	virtual bool supportsInstrument() { return false; }
 	virtual bool supportsKit() { return true; }
 
@@ -62,4 +62,4 @@ private:
 	uint8_t noteColours[kDisplayHeight * kDisplayWidth][3];
 };
 
-}; // namespace keyboard::layout
+}; // namespace deluge::gui::ui::keyboard::layout
