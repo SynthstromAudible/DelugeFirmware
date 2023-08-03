@@ -71,6 +71,8 @@ extern "C" {
 #include "RZA1/uart/sio_char.h"
 }
 
+using namespace deluge;
+
 Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	outputClipInstanceListIsCurrentlyInvalid = false;
 	insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
@@ -176,9 +178,9 @@ Song::~Song() {
 
 #include "gui/menu_item/integer_range.h"
 #include "gui/menu_item/key_range.h"
-extern menu_item::IntegerRange defaultTempoMenu;
-extern menu_item::IntegerRange defaultSwingMenu;
-extern menu_item::KeyRange defaultKeyMenu;
+extern gui::menu_item::IntegerRange defaultTempoMenu;
+extern gui::menu_item::IntegerRange defaultSwingMenu;
+extern gui::menu_item::KeyRange defaultKeyMenu;
 
 void Song::setupDefault() {
 	inClipMinderViewOnLoad = true;

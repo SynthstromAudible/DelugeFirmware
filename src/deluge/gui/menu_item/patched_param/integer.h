@@ -17,17 +17,20 @@
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/patched_param.h"
+#include "util/string.h"
 
-namespace menu_item::patched_param {
+namespace deluge::gui::menu_item::patched_param {
 class Integer : public PatchedParam, public menu_item::IntegerContinuous {
 public:
-	Integer(char const* newName = NULL, int32_t newP = 0) : PatchedParam(newP), IntegerContinuous(newName) {}
+	Integer(const string& newName, int32_t newP = 0) : PatchedParam(newP), IntegerContinuous(newName) {}
+	Integer(const string& newName, const deluge::string& title, int32_t newP = 0)
+	    : PatchedParam(newP), IntegerContinuous(newName, title) {}
 	// 7SEG Only
-	void drawValue() { PatchedParam::drawValue(); }
+	void drawValue() override { numericDriver.setTextAsNumber(this->value_, shouldDrawDotOnName()); }
 
 	ParamDescriptor getLearningThing() final { return PatchedParam::getLearningThing(); }
-	int32_t getMaxValue() const { return PatchedParam::getMaxValue(); }
-	int32_t getMinValue() const { return PatchedParam::getMinValue(); }
+	[[nodiscard]] int32_t getMaxValue() const override { return PatchedParam::getMaxValue(); }
+	[[nodiscard]] int32_t getMinValue() const override { return PatchedParam::getMinValue(); }
 	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) final {
 		return PatchedParam::shouldBlinkPatchingSourceShortcut(s, colour);
 	}
@@ -47,8 +50,8 @@ public:
 	};
 
 protected:
-	void readCurrentValue();
+	void readCurrentValue() override;
 	void writeCurrentValue() final;
 	virtual int32_t getFinalValue();
 };
-} // namespace menu_item::patched_param
+} // namespace deluge::gui::menu_item::patched_param

@@ -18,15 +18,18 @@
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/source_selection.h"
 
-namespace menu_item::source_selection {
+namespace deluge::gui::menu_item::source_selection {
 class Regular final : public SourceSelection {
 public:
-	Regular() { basicTitle = "Modulate with"; }
-	void beginSession(MenuItem* navigatedBackwardFrom = NULL);
-	ParamDescriptor getDestinationDescriptor();
-	MenuItem* selectButtonPress();
+	using SourceSelection::SourceSelection;
+	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
+	ParamDescriptor getDestinationDescriptor() override;
+	MenuItem* selectButtonPress() override;
 	MenuItem* patchingSourceShortcutPress(PatchSource newS, bool previousPressStillActive) override;
+	const string& getTitle() const override {
+		return "Modulate with";
+	};
 };
 
 extern Regular regularMenu;
-} // namespace menu_item::source_selection
+} // namespace deluge::gui::menu_item::source_selection

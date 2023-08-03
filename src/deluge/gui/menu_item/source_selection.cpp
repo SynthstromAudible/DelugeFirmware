@@ -23,8 +23,9 @@
 #include "modulation/patch/patch_cable_set.h"
 #include "patch_cable_strength.h"
 #include "processing/sound/sound.h"
+#include <array>
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 const PatchSource sourceMenuContents[] = {
     PatchSource::ENVELOPE_0, PatchSource::ENVELOPE_1, PatchSource::LFO_GLOBAL, PatchSource::LFO_LOCAL,
     PatchSource::VELOCITY,   PatchSource::NOTE,       PatchSource::COMPRESSOR, PatchSource::RANDOM,
@@ -41,16 +42,12 @@ uint8_t SourceSelection::shouldDrawDotOnValue() {
 int32_t SourceSelection::selectedRowOnScreen;
 
 void SourceSelection::drawPixelsForOled() {
-
-	char const* itemNames[kOLEDMenuNumOptionsVisible];
-	for (int32_t i = 0; i < kOLEDMenuNumOptionsVisible; i++) {
-		itemNames[i] = NULL;
-	}
+	static_vector<string, kOLEDMenuNumOptionsVisible> itemNames{};
 
 	selectedRowOnScreen = 0;
 
 	int32_t thisOption = scrollPos;
-	int32_t i = 0;
+	size_t i = 0;
 
 	while (i < kOLEDMenuNumOptionsVisible) {
 		if (thisOption >= kNumPatchSources) {
@@ -60,9 +57,9 @@ void SourceSelection::drawPixelsForOled() {
 		const PatchSource sHere = sourceMenuContents[thisOption];
 
 		if (sourceIsAllowed(sHere)) {
-			itemNames[i] = getSourceDisplayNameForOLED(sHere);
-			if (thisOption == soundEditor.currentValue) {
-				selectedRowOnScreen = i;
+			itemNames.push_back(getSourceDisplayNameForOLED(sHere));
+			if (thisOption == this->value_) {
+				selectedRowOnScreen = static_cast<int32_t>(i);
 			}
 			i++;
 		}
@@ -79,7 +76,7 @@ void SourceSelection::drawPixelsForOled() {
 
 void SourceSelection::drawValue() {
 	char const* text;
-	switch (sourceMenuContents[soundEditor.currentValue]) {
+	switch (sourceMenuContents[this->value_]) {
 	case PatchSource::LFO_GLOBAL:
 		text = "LFO1";
 		break;
@@ -131,18 +128,18 @@ void SourceSelection::drawValue() {
 }
 
 void SourceSelection::beginSession(MenuItem* navigatedBackwardFrom) {
-	soundEditor.currentValue = 0;
+	this->value_ = 0;
 
 	if (navigatedBackwardFrom) {
-		while (sourceMenuContents[soundEditor.currentValue] != s) {
-			soundEditor.currentValue++;
+		while (sourceMenuContents[this->value_] != s) {
+			this->value_++;
 		}
 		// Scroll pos will be retained from before.
 	}
 	else {
 		int32_t firstAllowedIndex = kNumPatchSources - 1;
 		while (true) {
-			s = sourceMenuContents[soundEditor.currentValue];
+			s = sourceMenuContents[this->value_];
 
 			// If patching already exists on this source, we use this as the initial one to show to the user
 			if (soundEditor.currentParamManager->getPatchCableSet()
@@ -151,21 +148,21 @@ void SourceSelection::beginSession(MenuItem* navigatedBackwardFrom) {
 			}
 
 			// Note down the first "allowed" or "editable" source
-			if (soundEditor.currentValue < firstAllowedIndex && sourceIsAllowed(s)) {
-				firstAllowedIndex = soundEditor.currentValue;
+			if (this->value_ < firstAllowedIndex && sourceIsAllowed(s)) {
+				firstAllowedIndex = this->value_;
 			}
 
-			soundEditor.currentValue++;
+			this->value_++;
 			if (display.type == DisplayType::OLED) {
-				scrollPos = soundEditor.currentValue;
+				scrollPos = this->value_;
 			}
 
-			if (soundEditor.currentValue >= kNumPatchSources) {
-				soundEditor.currentValue = firstAllowedIndex;
+			if (this->value_ >= kNumPatchSources) {
+				this->value_ = firstAllowedIndex;
 				if (display.type == DisplayType::OLED) {
-					scrollPos = soundEditor.currentValue;
+					scrollPos = this->value_;
 				}
-				s = sourceMenuContents[soundEditor.currentValue];
+				s = sourceMenuContents[this->value_];
 				break;
 			}
 		}
@@ -187,7 +184,7 @@ void SourceSelection::readValueAgain() {
 
 void SourceSelection::selectEncoderAction(int32_t offset) {
 	bool isAllowed;
-	int32_t newValue = soundEditor.currentValue;
+	int32_t newValue = this->value_;
 	do {
 		newValue += offset;
 
@@ -207,11 +204,11 @@ void SourceSelection::selectEncoderAction(int32_t offset) {
 
 	} while (!sourceIsAllowed(s));
 
-	soundEditor.currentValue = newValue;
+	this->value_ = newValue;
 
 	if (display.type == DisplayType::OLED) {
-		if (soundEditor.currentValue < scrollPos) {
-			scrollPos = soundEditor.currentValue;
+		if (this->value_ < scrollPos) {
+			scrollPos = this->value_;
 		}
 		else if (offset >= 0 && selectedRowOnScreen == kOLEDMenuNumOptionsVisible - 1) {
 			scrollPos++;
@@ -273,4 +270,4 @@ uint8_t SourceSelection::shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_
 	           : 255;
 }
 
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

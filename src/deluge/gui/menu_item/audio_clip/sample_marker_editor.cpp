@@ -25,7 +25,7 @@
 #include "model/clip/audio_clip.h"
 #include "model/song/song.h"
 
-namespace menu_item::audio_clip {
+namespace deluge::gui::menu_item::audio_clip {
 
 MenuPermission SampleMarkerEditor::checkPermissionToBeginSession(Sound* sound, int32_t whichThing,
                                                                  MultiRange** currentRange) {
@@ -35,7 +35,7 @@ MenuPermission SampleMarkerEditor::checkPermissionToBeginSession(Sound* sound, i
 	}
 
 	// Before going ahead, make sure a Sample is loaded
-	if (!((AudioClip*)currentSong->currentClip)->sampleHolder.audioFile) {
+	if ((static_cast<AudioClip*>(currentSong->currentClip))->sampleHolder.audioFile == nullptr) {
 		return MenuPermission::NO;
 	}
 
@@ -52,4 +52,4 @@ void SampleMarkerEditor::beginSession(MenuItem* navigatedBackwardFrom) {
 	}
 }
 
-} // namespace menu_item::audio_clip
+} // namespace deluge::gui::menu_item::audio_clip

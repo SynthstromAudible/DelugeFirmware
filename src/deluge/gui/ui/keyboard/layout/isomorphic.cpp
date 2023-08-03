@@ -22,7 +22,7 @@
 #include "gui/ui/sound_editor.h"
 #include "util/functions.h"
 
-namespace keyboard::layout {
+namespace deluge::gui::ui::keyboard::layout {
 
 void KeyboardLayoutIsomorphic::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
 	uint8_t noteIdx = 0;
@@ -133,4 +133,4 @@ void KeyboardLayoutIsomorphic::renderPads(uint8_t image[][kDisplayWidth + kSideB
 	}
 }
 
-} // namespace keyboard::layout
+} // namespace deluge::gui::ui::keyboard::layout

@@ -22,19 +22,23 @@
 
 class MIDIPort;
 
-namespace menu_item::mpe {
+namespace deluge::gui::menu_item::mpe {
 class ZoneNumMemberChannels final : public IntegerWithOff {
 public:
-	ZoneNumMemberChannels() { basicTitle = "Num member ch."; }
-	//void beginSession(MenuItem* navigatedBackwardFrom);
-	int32_t getMaxValue() const;
-	void readCurrentValue();
-	void writeCurrentValue();
+	using IntegerWithOff::IntegerWithOff;
+	// void beginSession(MenuItem* navigatedBackwardFrom);
+	[[nodiscard]] int32_t getMaxValue() const override;
+	void readCurrentValue() override;
+	void writeCurrentValue() override;
 	//char nameChars[16];
 
+	[[nodiscard]] const string& getTitle() const override {
+		return "Num member ch.";
+	}
+
 private:
-	MIDIPort* getPort() const;
+	[[nodiscard]] MIDIPort* getPort() const;
 };
 
 extern ZoneNumMemberChannels zoneNumMemberChannelsMenu;
-} // namespace menu_item::mpe
+} // namespace deluge::gui::menu_item::mpe

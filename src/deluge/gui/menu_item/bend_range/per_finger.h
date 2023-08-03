@@ -21,25 +21,25 @@
 #include "modulation/params/param_set.h"
 #include "storage/flash_storage.h"
 
-namespace menu_item::bend_range {
+namespace deluge::gui::menu_item::bend_range {
 class PerFinger final : public BendRange {
 public:
 	using BendRange::BendRange;
-	void readCurrentValue() {
+	void readCurrentValue() override {
 		ExpressionParamSet* expressionParams =
 		    soundEditor.currentParamManager->getOrCreateExpressionParamSet(soundEditor.editingKit());
-		soundEditor.currentValue = expressionParams ? expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL]
-		                                            : FlashStorage::defaultBendRange[BEND_RANGE_FINGER_LEVEL];
+		this->value_ = expressionParams != nullptr ? expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL]
+		                                           : FlashStorage::defaultBendRange[BEND_RANGE_FINGER_LEVEL];
 	}
-	void writeCurrentValue() {
+	void writeCurrentValue() override {
 		ExpressionParamSet* expressionParams =
 		    soundEditor.currentParamManager->getOrCreateExpressionParamSet(soundEditor.editingKit());
-		if (expressionParams) {
-			expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL] = soundEditor.currentValue;
+		if (expressionParams != nullptr) {
+			expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL] = this->value_;
 		}
 	}
-	bool isRelevant(Sound* sound, int32_t whichThing) {
+	bool isRelevant(Sound* sound, int32_t whichThing) override {
 		return soundEditor.navigationDepth == 1 || soundEditor.editingKit();
 	}
 };
-} // namespace menu_item::bend_range
+} // namespace deluge::gui::menu_item::bend_range

@@ -19,7 +19,7 @@
 
 #include "number.h"
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
 class Integer : public Number {
 public:
@@ -52,4 +52,4 @@ protected:
 	void drawPixelsForOled();
 };
 
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

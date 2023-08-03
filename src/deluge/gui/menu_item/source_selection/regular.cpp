@@ -20,11 +20,11 @@
 #include "gui/ui/sound_editor.h"
 #include "modulation/params/param_descriptor.h"
 
-namespace menu_item::source_selection {
+namespace deluge::gui::menu_item::source_selection {
 Regular regularMenu{};
 
 ParamDescriptor Regular::getDestinationDescriptor() {
-	ParamDescriptor descriptor;
+	ParamDescriptor descriptor{};
 	descriptor.setToHaveParamOnly(soundEditor.patchingParamSelected);
 	return descriptor;
 }
@@ -35,7 +35,7 @@ MenuItem* Regular::selectButtonPress() {
 
 void Regular::beginSession(MenuItem* navigatedBackwardFrom) {
 
-	if (navigatedBackwardFrom) {
+	if (navigatedBackwardFrom != nullptr) {
 		if (soundEditor.patchingParamSelected == ::Param::Global::VOLUME_POST_REVERB_SEND
 		    || soundEditor.patchingParamSelected == ::Param::Local::VOLUME) {
 			soundEditor.patchingParamSelected = ::Param::Global::VOLUME_POST_FX;
@@ -50,4 +50,4 @@ MenuItem* Regular::patchingSourceShortcutPress(PatchSource newS, bool previousPr
 	return &regularMenu;
 }
 
-} // namespace menu_item::source_selection
+} // namespace deluge::gui::menu_item::source_selection

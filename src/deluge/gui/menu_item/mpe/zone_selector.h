@@ -17,23 +17,27 @@
 
 #pragma once
 
-#include "gui/menu_item/selection.h"
+#include "gui/menu_item/selection/selection.h"
 
-namespace menu_item::mpe {
+namespace deluge::gui::menu_item::mpe {
 
-class ZoneSelector final : public Selection {
+class ZoneSelector final : public Selection<2> {
 public:
-	ZoneSelector(char const* newName = NULL) : Selection(newName) {}
-	void beginSession(MenuItem* navigatedBackwardFrom = NULL);
-	char const** getOptions();
-	void readCurrentValue();
-	void writeCurrentValue();
-	MenuItem* selectButtonPress();
-	uint8_t whichZone;
+	using Selection::Selection;
+	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
+	void readCurrentValue() override { this->value_ = whichZone; }
+	void writeCurrentValue() override { whichZone = this->value_; }
 
-	// OLED Only
-	char const* getTitle(char* buffer);
+	static_vector<string, capacity()> getOptions() override {
+		return {
+		    HAVE_OLED ? "Lower zone" : "LOWE", //<
+		    HAVE_OLED ? "Upper zone" : "UPPE"  //<
+		};
+	}
+
+	MenuItem* selectButtonPress() override;
+	uint8_t whichZone;
 };
 
 extern ZoneSelector zoneSelectorMenu;
-} // namespace menu_item::mpe
+} // namespace deluge::gui::menu_item::mpe

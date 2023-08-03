@@ -20,11 +20,11 @@
 #include "modulation/params/param_descriptor.h"
 #include "regular.h"
 
-namespace menu_item::source_selection {
+namespace deluge::gui::menu_item::source_selection {
 Range rangeMenu{};
 
 ParamDescriptor Range::getDestinationDescriptor() {
-	ParamDescriptor descriptor;
+	ParamDescriptor descriptor{};
 	descriptor.setToHaveParamAndSource(soundEditor.patchingParamSelected, regularMenu.s);
 	return descriptor;
 }
@@ -33,8 +33,8 @@ MenuItem* Range::selectButtonPress() {
 	return &patch_cable_strength::rangeMenu;
 }
 
-MenuItem* Range::patchingSourceShortcutPress(int32_t newS, bool previousPressStillActive) {
+MenuItem* Range::patchingSourceShortcutPress(PatchSource newS, bool previousPressStillActive) {
 	return (MenuItem*)0xFFFFFFFF;
 }
 
-} // namespace menu_item::source_selection
+} // namespace deluge::gui::menu_item::source_selection

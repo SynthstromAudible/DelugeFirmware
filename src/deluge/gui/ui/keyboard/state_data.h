@@ -18,7 +18,7 @@
 #pragma once
 #include "definitions_cxx.hpp"
 
-namespace keyboard {
+namespace deluge::gui::ui::keyboard {
 
 enum KeyboardLayoutType : uint32_t {
 	Isomorphic,
@@ -54,4 +54,4 @@ struct KeyboardState {
 	KeyboardStateInKey inKey;
 };
 
-}; // namespace keyboard
+}; // namespace deluge::gui::ui::keyboard

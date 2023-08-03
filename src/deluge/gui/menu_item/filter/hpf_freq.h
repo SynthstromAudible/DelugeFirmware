@@ -19,15 +19,15 @@
 #include "gui/ui/sound_editor.h"
 #include "modulation/patch/patch_cable_set.h"
 
-namespace menu_item::filter {
+namespace deluge::gui::menu_item::filter {
 
 class HPFFreq final : public patched_param::IntegerNonFM {
 public:
-	HPFFreq(char const* newName = 0, int32_t newP = 0) : patched_param::IntegerNonFM(newName, newP) {}
+	using patched_param::IntegerNonFM::IntegerNonFM;
 
 	// 7Seg ONLY
-	void drawValue() {
-		if (soundEditor.currentValue == 0
+	void drawValue() override {
+		if (this->value_ == 0
 		    && !soundEditor.currentParamManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(
 		        ::Param::Local::HPF_FREQ)) {
 			display.setText("OFF");
@@ -37,4 +37,4 @@ public:
 		}
 	}
 };
-} // namespace menu_item::filter
+} // namespace deluge::gui::menu_item::filter

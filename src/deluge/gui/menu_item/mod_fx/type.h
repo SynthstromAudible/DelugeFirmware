@@ -16,32 +16,27 @@
 */
 #pragma once
 #include "definitions_cxx.hpp"
-#include "gui/menu_item/selection.h"
+#include "gui/menu_item/selection/typed_selection.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/numeric_driver.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "util/misc.h"
 
-namespace menu_item::mod_fx {
+namespace deluge::gui::menu_item::mod_fx {
 
-class Type : public Selection {
+class Type : public TypedSelection<ModFXType, kNumModFXTypes> {
 public:
-	using Selection::Selection;
+	using TypedSelection::TypedSelection;
 
-	void readCurrentValue() override {
-		soundEditor.currentValue = util::to_underlying(soundEditor.currentModControllable->modFXType);
-	}
+	void readCurrentValue() override { this->value_ = soundEditor.currentModControllable->modFXType; }
 	void writeCurrentValue() override {
-		if (!soundEditor.currentModControllable->setModFXType(static_cast<ModFXType>(soundEditor.currentValue))) {
+		if (!soundEditor.currentModControllable->setModFXType(this->value_)) {
 			display.displayError(ERROR_INSUFFICIENT_RAM);
 		}
 	}
 
-	char const** getOptions() override {
-		static char const* options[] = {"OFF", "FLANGER", "CHORUS", "PHASER", "STEREO CHORUS", NULL};
-		return options;
+	static_vector<string, capacity()> getOptions() override {
+		return {"OFF", "FLANGER", "CHORUS", "PHASER", "STEREO CHORUS"};
 	}
-
-	int32_t getNumOptions() override { return kNumModFXTypes; }
 };
-} // namespace menu_item::mod_fx
+} // namespace deluge::gui::menu_item::mod_fx

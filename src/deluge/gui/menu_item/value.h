@@ -18,16 +18,17 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/ui/ui.h"
 #include "menu_item.h"
 
-namespace menu_item {
-
+namespace deluge::gui::menu_item {
+template <typename T = int32_t>
 class Value : public MenuItem {
 public:
-	Value(char const* newName = NULL) : MenuItem(newName) {}
-	void beginSession(MenuItem* navigatedBackwardFrom);
-	void selectEncoderAction(int32_t offset);
-	void readValueAgain() final;
+	using MenuItem::MenuItem;
+	void beginSession(MenuItem* navigatedBackwardFrom) override;
+	void selectEncoderAction(int32_t offset) override;
+	void readValueAgain() override;
 	bool selectEncoderActionEditsInstrument() final { return true; }
 
 protected:
@@ -36,6 +37,38 @@ protected:
 
 	// 7SEG ONLY
 	virtual void drawValue() = 0;
+	T value_;
 };
 
-} // namespace menu_item
+template <typename T>
+void Value<T>::beginSession(MenuItem* navigatedBackwardFrom) {
+#if HAVE_OLED
+	readCurrentValue();
+#else
+	readValueAgain();
+#endif
+}
+
+template <typename T>
+void Value<T>::selectEncoderAction(int32_t offset) {
+	writeCurrentValue();
+
+	// For MenuItems referring to an AutoParam (so UnpatchedParam and PatchedParam), ideally we wouldn't want to render the display here, because that'll happen soon anyway due to a setting of TIMER_DISPLAY_AUTOMATION.
+#if HAVE_OLED
+	renderUIsForOled();
+#else
+	drawValue(); // Probably not necessary either...
+#endif
+}
+
+template <typename T>
+void Value<T>::readValueAgain() {
+	readCurrentValue();
+#if HAVE_OLED
+	renderUIsForOled();
+#else
+	drawValue();
+#endif
+}
+
+} // namespace deluge::gui::menu_item

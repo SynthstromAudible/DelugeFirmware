@@ -386,7 +386,7 @@ void InstrumentClip::setPos(ModelStackWithTimelineCounter* modelStack, int32_t n
 	Clip::setPosForParamManagers(
 	    modelStack,
 	    useActualPosForParamManagers); // Call on Clip:: only - below in this function, we're going to do the equivalent
-	                                   // of our own setPosForParamManagers().
+	// of our own setPosForParamManagers().
 
 	uint32_t posForParamManagers = useActualPosForParamManagers ? getLivePos() : lastProcessedPos;
 
@@ -2373,7 +2373,9 @@ someError:
 		}
 
 		else if (!strcmp(tagName, "keyboardLayout")) {
-			keyboardState.currentLayout = (keyboard::KeyboardLayoutType)storageManager.readTagOrAttributeValueInt();
+			// TODO: Unscope this once namespacing is complete
+			keyboardState.currentLayout =
+			    (deluge::gui::ui::keyboard::KeyboardLayoutType)storageManager.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "yScrollKeyboard")) {

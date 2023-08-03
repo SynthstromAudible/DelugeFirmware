@@ -182,7 +182,7 @@ const int16_t tanHSmall[] = {
 32767, };
 
 
-const char* presetScaleNames[] = {"MAJOR", "MINOR", "DORIAN", "PHRYGIAN", "LYDIAN", "MIXOLYDIAN", "LOCRIAN", "RANDOM", "NONE", NULL};
+std::array<char const*, 9> presetScaleNames = {"MAJOR", "MINOR", "DORIAN", "PHRYGIAN", "LYDIAN", "MIXOLYDIAN", "LOCRIAN", "RANDOM", "NONE"};
 
 const char* presetReverbNames[] = {
 	HAVE_OLED ? "Small room reverb" : "SMAL", //<

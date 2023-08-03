@@ -18,14 +18,14 @@
 #include "gui/menu_item/unpatched_param.h"
 #include "gui/ui/sound_editor.h"
 
-namespace menu_item::audio_clip {
+namespace deluge::gui::menu_item::audio_clip {
 class LPFFreq final : public UnpatchedParam {
 public:
 	using UnpatchedParam::UnpatchedParam;
 
 	// 7Seg ONLY
-	void drawValue() {
-		if (soundEditor.currentValue == 50) {
+	void drawValue() override {
+		if (this->value_ == 50) {
 			display.setText("OFF");
 		}
 		else {
@@ -33,4 +33,4 @@ public:
 		}
 	}
 };
-} // namespace menu_item::audio_clip
+} // namespace deluge::gui::menu_item::audio_clip

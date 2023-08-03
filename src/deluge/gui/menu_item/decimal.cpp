@@ -30,7 +30,7 @@ extern "C" {
 #include "util/cfunctions.h"
 }
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
 void Decimal::beginSession(MenuItem* navigatedBackwardFrom) {
 	soundEditor.numberScrollAmount = 0;
@@ -57,21 +57,21 @@ void Decimal::drawValue() {
 
 void Decimal::selectEncoderAction(int32_t offset) {
 
-	soundEditor.currentValue += offset * soundEditor.numberEditSize;
+	this->value_ += offset * soundEditor.numberEditSize;
 
 	// If turned down
 	if (offset < 0) {
 		int32_t minValue = getMinValue();
-		if (soundEditor.currentValue < minValue) {
-			soundEditor.currentValue = minValue;
+		if (this->value_ < minValue) {
+			this->value_ = minValue;
 		}
 	}
 
 	// If turned up
 	else {
 		int32_t maxValue = getMaxValue();
-		if (soundEditor.currentValue > maxValue) {
-			soundEditor.currentValue = maxValue;
+		if (this->value_ > maxValue) {
+			this->value_ = maxValue;
 		}
 	}
 
@@ -109,10 +109,10 @@ void Decimal::horizontalEncoderAction(int32_t offset) {
 }
 
 void Decimal::scrollToGoodPos() {
-	int32_t numDigits = getNumDecimalDigits(std::abs(soundEditor.currentValue));
+	int32_t numDigits = getNumDecimalDigits(std::abs(this->value_));
 
 	// Negative numbers
-	if (soundEditor.currentValue < 0) {
+	if (this->value_ < 0) {
 		soundEditor.numberScrollAmount = std::max<int8_t>(numDigits - 3, soundEditor.numberEditPos - 2);
 	}
 
@@ -136,7 +136,7 @@ void Decimal::scrollToGoodPos() {
 void Decimal::drawPixelsForOled() {
 	int32_t numDecimalPlaces = getNumDecimalPlaces();
 	char buffer[13];
-	intToString(soundEditor.currentValue, buffer, numDecimalPlaces + 1);
+	intToString(this->value_, buffer, numDecimalPlaces + 1);
 	int32_t length = strlen(buffer);
 
 	int32_t editingChar = length - soundEditor.numberEditPos;
@@ -166,7 +166,7 @@ void Decimal::drawActualValue(bool justDidHorizontalScroll) {
 	char buffer[12];
 	int32_t minNumDigits = getNumDecimalPlaces() + 1;
 	minNumDigits = std::max<int32_t>(minNumDigits, soundEditor.numberEditPos + 1);
-	intToString(soundEditor.currentValue, buffer, minNumDigits);
+	intToString(this->value_, buffer, minNumDigits);
 	int32_t stringLength = strlen(buffer);
 
 	char* outputText = buffer + std::max(stringLength - 4 - soundEditor.numberScrollAmount, 0_i32);
@@ -195,4 +195,4 @@ void Decimal::drawActualValue(bool justDidHorizontalScroll) {
 	                false); // blinkImmediately
 }
 
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

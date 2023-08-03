@@ -25,9 +25,9 @@
 #include <cstdio>
 #include <iterator>
 
-extern menu_item::runtime_feature::Setting runtimeFeatureSettingMenuItem;
+extern deluge::gui::menu_item::runtime_feature::Setting runtimeFeatureSettingMenuItem;
 
-namespace menu_item::runtime_feature {
+namespace deluge::gui::menu_item::runtime_feature {
 
 // Generic menu item instances
 Setting menuDrumRandomizer(RuntimeFeatureSettingType::DrumRandomizer);
@@ -37,20 +37,15 @@ Setting menuQuantize(RuntimeFeatureSettingType::Quantize);
 Setting menuPatchCableResolution(RuntimeFeatureSettingType::PatchCableResolution);
 Setting menuCatchNotes(RuntimeFeatureSettingType::CatchNotes);
 Setting menuDeleteUnusedKitRows(RuntimeFeatureSettingType::DeleteUnusedKitRows);
+Setting menuAltGoldenKnobDelayParams(RuntimeFeatureSettingType::AltGoldenKnobDelayParams);
 
-std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement + 1> subMenuEntries{
-    &menuDrumRandomizer,
-    &menuMasterCompressorFx,
-    &menuFineTempo,
-    &menuQuantize,
-    &menuPatchCableResolution,
-    &menuCatchNotes,
-    &menuDeleteUnusedKitRows,
-
-    nullptr,
+std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement> subMenuEntries{
+    &menuDrumRandomizer,       &menuMasterCompressorFx, &menuFineTempo,           &menuQuantize,
+    &menuPatchCableResolution, &menuCatchNotes,         &menuDeleteUnusedKitRows, &menuAltGoldenKnobDelayParams,
 };
 
-Settings::Settings(char const* name) : menu_item::Submenu(name, &subMenuEntries[0]) {
+Settings::Settings(char const* name, char const* title)
+    : menu_item::Submenu<RuntimeFeatureSettingType::MaxElement>(name, title, subMenuEntries) {
 }
 
-} // namespace menu_item::runtime_feature
+} // namespace deluge::gui::menu_item::runtime_feature

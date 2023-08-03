@@ -19,7 +19,7 @@
 #include "processing/sound/sound.h"
 #include "util/comparison.h"
 
-namespace menu_item::mod_fx {
+namespace deluge::gui::menu_item::mod_fx {
 
 class Offset final : public UnpatchedParam {
 public:
@@ -31,4 +31,4 @@ public:
 	}
 };
 
-} // namespace menu_item::mod_fx
+} // namespace deluge::gui::menu_item::mod_fx

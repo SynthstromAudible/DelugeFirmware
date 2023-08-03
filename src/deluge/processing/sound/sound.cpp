@@ -33,6 +33,7 @@
 #include "model/drum/kit.h"
 #include "model/model_stack.h"
 #include "model/sample/sample.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "model/timeline_counter.h"
 #include "model/voice/voice.h"
@@ -3904,7 +3905,13 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 	// Switch delay pingpong
 	else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(Param::Global::DELAY_RATE)) {
 		if (on) {
-			switchDelayPingPong();
+			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AltGoldenKnobDelayParams)
+			    == RuntimeFeatureStateToggle::On) {
+				switchDelaySyncType();
+			}
+			else {
+				switchDelayPingPong();
+			}
 			return true;
 		}
 		else {
@@ -3915,7 +3922,13 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 	// Switch delay analog sim
 	else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(Param::Global::DELAY_FEEDBACK)) {
 		if (on) {
-			switchDelayAnalog();
+			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AltGoldenKnobDelayParams)
+			    == RuntimeFeatureStateToggle::On) {
+				switchDelaySyncLevel();
+			}
+			else {
+				switchDelayAnalog();
+			}
 			return true;
 		}
 		else {

@@ -24,6 +24,7 @@
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/model_stack.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_manager.h"
@@ -213,7 +214,13 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 	else if (modKnobMode == 3) {
 		if (whichModEncoder == 1) {
 			if (on) {
-				switchDelayPingPong();
+				if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AltGoldenKnobDelayParams)
+				    == RuntimeFeatureStateToggle::On) {
+					switchDelaySyncType();
+				}
+				else {
+					switchDelayPingPong();
+				}
 				return true;
 			}
 			else {
@@ -222,7 +229,13 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 		}
 		else {
 			if (on) {
-				switchDelayAnalog();
+				if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AltGoldenKnobDelayParams)
+				    == RuntimeFeatureStateToggle::On) {
+					switchDelaySyncLevel();
+				}
+				else {
+					switchDelayAnalog();
+				}
 				return true;
 			}
 			else {

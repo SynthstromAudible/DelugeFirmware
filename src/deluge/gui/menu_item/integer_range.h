@@ -19,18 +19,19 @@
 
 #include "range.h"
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
 class IntegerRange final : public Range {
 public:
-	IntegerRange(char const* newName = NULL, int32_t newMin = 0, int32_t newMax = 0);
-	void beginSession(MenuItem* navigatedBackwardFrom);
-	void getText(char* buffer, int32_t* getLeftLength, int32_t* getRightLength, bool mayShowJustOne);
-	void selectEncoderAction(int32_t offset);
+	IntegerRange(const string& newName, const string& title, int32_t newMin, int32_t newMax)
+	    : Range(newName, title), minValue(newMin), maxValue(newMax) {}
+	void beginSession(MenuItem* navigatedBackwardFrom) override;
+	void getText(char* buffer, int32_t* getLeftLength, int32_t* getRightLength, bool mayShowJustOne) override;
+	void selectEncoderAction(int32_t offset) override;
 	int32_t getRandomValueInRange();
 
 	int32_t lower, upper;
 
 	int32_t minValue, maxValue;
 };
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

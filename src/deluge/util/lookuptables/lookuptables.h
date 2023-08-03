@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <array>
 #include <cstdint>
 
 extern const uint16_t centAdjustTableSmall[];
@@ -129,7 +130,7 @@ extern const int16_t windowedSincKernelBasicForWavetableBetweenCycles[];
 
 #define NUM_PRESET_SCALES 7
 extern const uint8_t presetScaleNotes[NUM_PRESET_SCALES][7];
-extern const char* presetScaleNames[];
+extern std::array<char const*, NUM_PRESET_SCALES + 2> presetScaleNames;
 #define PRESET_SCALE_RANDOM 7
 #define PRESET_SCALE_NONE 8
 

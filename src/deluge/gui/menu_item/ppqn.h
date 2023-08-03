@@ -17,11 +17,11 @@
 #pragma once
 #include "gui/menu_item/integer.h"
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 class PPQN : public Integer {
 public:
 	using Integer::Integer;
-	int32_t getMinValue() const { return 1; }
-	int32_t getMaxValue() const { return 192; }
+	[[nodiscard]] int32_t getMinValue() const override { return 1; }
+	[[nodiscard]] int32_t getMaxValue() const override { return 192; }
 };
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

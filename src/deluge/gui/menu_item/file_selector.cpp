@@ -27,7 +27,7 @@
 #include "processing/sound/sound.h"
 #include "util/functions.h"
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
 FileSelector fileSelectorMenu{"File browser"};
 
@@ -71,4 +71,4 @@ MenuPermission FileSelector::checkPermissionToBeginSession(Sound* sound, int32_t
 
 	return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, whichThing, false, currentRange);
 }
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

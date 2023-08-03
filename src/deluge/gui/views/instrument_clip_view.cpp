@@ -85,6 +85,8 @@ extern "C" {
 #include "util/cfunctions.h"
 }
 
+using namespace deluge::gui;
+
 InstrumentClipView instrumentClipView{};
 
 InstrumentClipView::InstrumentClipView() {

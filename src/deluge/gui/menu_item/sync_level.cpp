@@ -20,10 +20,10 @@
 #include "hid/display.h"
 #include "model/song/song.h"
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
 void SyncLevel::drawValue() {
-	if (soundEditor.currentValue == 0) {
+	if (this->value_ == 0) {
 		display.setText("OFF");
 	}
 	else {
@@ -35,17 +35,17 @@ void SyncLevel::drawValue() {
 
 void SyncLevel::getNoteLengthName(char* buffer) {
 	char type[7] = "";
-	if (soundEditor.currentValue < SYNC_TYPE_TRIPLET) {
-		currentSong->getNoteLengthName(buffer, (uint32_t)3 << (SYNC_LEVEL_256TH - soundEditor.currentValue));
+	if (this->value_ < SYNC_TYPE_TRIPLET) {
+		currentSong->getNoteLengthName(buffer, (uint32_t)3 << (SYNC_LEVEL_256TH - this->value_));
 	}
-	else if (soundEditor.currentValue < SYNC_TYPE_DOTTED) {
-		currentSong->getNoteLengthName(
-		    buffer, (uint32_t)3 << ((SYNC_TYPE_TRIPLET - 1) + SYNC_LEVEL_256TH - soundEditor.currentValue));
+	else if (this->value_ < SYNC_TYPE_DOTTED) {
+		currentSong->getNoteLengthName(buffer,
+		                               (uint32_t)3 << ((SYNC_TYPE_TRIPLET - 1) + SYNC_LEVEL_256TH - this->value_));
 		strcpy(type, "-tplts");
 	}
 	else {
-		currentSong->getNoteLengthName(
-		    buffer, (uint32_t)3 << ((SYNC_TYPE_DOTTED - 1) + SYNC_LEVEL_256TH - soundEditor.currentValue));
+		currentSong->getNoteLengthName(buffer,
+		                               (uint32_t)3 << ((SYNC_TYPE_DOTTED - 1) + SYNC_LEVEL_256TH - this->value_));
 		strcpy(type, "-dtted");
 	}
 	if (strlen(type) > 0) {
@@ -67,7 +67,7 @@ void SyncLevel::getNoteLengthName(char* buffer) {
 void SyncLevel::drawPixelsForOled() {
 	char const* text = "Off";
 	char buffer[30];
-	if (soundEditor.currentValue) {
+	if (this->value_) {
 		text = buffer;
 		getNoteLengthName(buffer);
 	}
@@ -104,4 +104,4 @@ SyncType SyncLevel::menuOptionToSyncType(int32_t option) {
 int32_t SyncLevel::syncTypeAndLevelToMenuOption(::SyncType type, ::SyncLevel level) {
 	return static_cast<int32_t>(type) + (static_cast<int32_t>(level) - (type != SYNC_TYPE_EVEN ? 1 : 0));
 }
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

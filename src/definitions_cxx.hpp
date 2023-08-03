@@ -19,6 +19,8 @@
 #include "definitions.h"
 #include "util/misc.h"
 #include <algorithm>
+#include <cmath>
+#include <cstddef>
 #include <cstdint>
 
 #define ALPHA_OR_BETA_VERSION 1 // Whether to compile with additional error-checking
@@ -576,6 +578,7 @@ enum class SynthMode {
 	FM,
 	RINGMOD,
 };
+constexpr int kNumSynthModes = util::to_underlying(SynthMode::RINGMOD) + 1;
 
 enum class ModFXType {
 	NONE,

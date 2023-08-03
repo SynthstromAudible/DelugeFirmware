@@ -17,13 +17,16 @@
 #pragma once
 #include "gui/menu_item/source_selection.h"
 
-namespace menu_item::source_selection {
+namespace deluge::gui::menu_item::source_selection {
 class Range final : public SourceSelection {
 public:
-	Range() { basicTitle = "Modulate depth"; }
-	ParamDescriptor getDestinationDescriptor();
-	MenuItem* selectButtonPress();
-	MenuItem* patchingSourceShortcutPress(int32_t newS, bool previousPressStillActive);
+	using SourceSelection::SourceSelection;
+	ParamDescriptor getDestinationDescriptor() override;
+	MenuItem* selectButtonPress() override;
+	MenuItem* patchingSourceShortcutPress(PatchSource newS, bool previousPressStillActive) override;
+	const string& getTitle() const override {
+		return "Modulate depth";
+	};
 };
 extern Range rangeMenu;
-} // namespace menu_item::source_selection
+} // namespace deluge::gui::menu_item::source_selection

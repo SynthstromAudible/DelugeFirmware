@@ -20,7 +20,7 @@
 #include "gui/ui/sound_editor.h"
 #include "zone_num_member_channels.h"
 
-namespace menu_item::mpe {
+namespace deluge::gui::menu_item::mpe {
 
 ZoneSelector zoneSelectorMenu{};
 
@@ -31,20 +31,7 @@ void ZoneSelector::beginSession(MenuItem* navigatedBackwardFrom) {
 	Selection::beginSession(navigatedBackwardFrom);
 }
 
-char const** ZoneSelector::getOptions() {
-	static char const* options[] = {"Lower zone", "Upper zone", NULL};
-	return options;
-}
-
-void ZoneSelector::readCurrentValue() {
-	soundEditor.currentValue = whichZone;
-}
-
-void ZoneSelector::writeCurrentValue() {
-	whichZone = soundEditor.currentValue;
-}
-
 MenuItem* ZoneSelector::selectButtonPress() {
 	return &zoneNumMemberChannelsMenu;
 }
-} // namespace menu_item::mpe
+} // namespace deluge::gui::menu_item::mpe

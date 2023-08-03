@@ -24,11 +24,10 @@ public:
 		if (n == 0) {
 			return nullptr;
 		}
-		return static_cast<T*>(
-		    GeneralMemoryAllocator::get().alloc(n * sizeof(T), nullptr, false, true, false, nullptr, false));
+		return static_cast<T*>(delugeAlloc(n * sizeof(T)));
 	}
 
-	void deallocate(T* p, std::size_t n) { GeneralMemoryAllocator::get().dealloc(p); }
+	void deallocate(T* p, std::size_t n) { delugeDealloc(p); }
 
 	template <typename U>
 	bool operator==(const deluge::memory::fallback_allocator<U>& o) {
