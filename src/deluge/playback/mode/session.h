@@ -22,6 +22,7 @@
 class InstrumentClip;
 class Clip;
 class ModelStackWithTimelineCounter;
+class ModelStack;
 
 class Session final : public PlaybackMode {
 public:
