@@ -17,7 +17,6 @@
 
 #include "model/sample/sample.h"
 #include "NE10.h"
-#include "RZA1/system/r_typedefs.h"
 #include "definitions_cxx.hpp"
 #include "dsp/fft/fft_config_manager.h"
 #include "dsp/timestretch/time_stretcher.h"
@@ -33,6 +32,7 @@
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
+#include <cstdint>
 #include <math.h>
 #include <new>
 #include <string.h>
@@ -58,7 +58,7 @@ extern "C" {
 struct SampleCacheElement {
 	int32_t phaseIncrement;
 	int32_t timeStretchRatio;
-	int skipSamplesAtStart;
+	int32_t skipSamplesAtStart;
 	uint32_t reversed; // Bool would be fine, but got to make it 32-bit for OrderedResizeableArrayWithMultiWordKey
 	SampleCache* cache;
 };
@@ -94,7 +94,7 @@ Sample::Sample()
 #endif
 }
 
-int Sample::initialize(int newNumClusters) {
+int32_t Sample::initialize(int32_t newNumClusters) {
 	unloadable = false;
 	unplayable = false;
 	waveTableCycleSize = 2048; // Default
@@ -104,24 +104,24 @@ int Sample::initialize(int newNumClusters) {
 }
 
 Sample::~Sample() {
-	for (int c = 0; c < clusters.getNumElements(); c++) {
+	for (int32_t c = 0; c < clusters.getNumElements(); c++) {
 		clusters.getElement(c)->~SampleCluster();
 	}
 
 	deletePercCache(true);
 
-	for (int i = 0; i < caches.getNumElements(); i++) {
+	for (int32_t i = 0; i < caches.getNumElements(); i++) {
 		SampleCacheElement* element = (SampleCacheElement*)caches.getElementAddress(i);
 		element->cache->~SampleCache();
-		generalMemoryAllocator.dealloc(element->cache);
+		GeneralMemoryAllocator::get().dealloc(element->cache);
 	}
 }
 
 void Sample::deletePercCache(bool beingDestructed) {
 
-	for (int reversed = 0; reversed < 2; reversed++) {
+	for (int32_t reversed = 0; reversed < 2; reversed++) {
 		if (percCacheMemory[reversed]) {
-			generalMemoryAllocator.dealloc(percCacheMemory[reversed]);
+			GeneralMemoryAllocator::get().dealloc(percCacheMemory[reversed]);
 			if (!beingDestructed) {
 				percCacheMemory[reversed] = NULL;
 			}
@@ -129,7 +129,7 @@ void Sample::deletePercCache(bool beingDestructed) {
 
 		if (percCacheClusters[reversed]) {
 
-			for (int c = 0; c < numPercCacheClusters; c++) {
+			for (int32_t c = 0; c < numPercCacheClusters; c++) {
 				if (percCacheClusters[reversed][c]) {
 
 					// If any of them still has a "reason", well, it shouldn't
@@ -142,7 +142,7 @@ void Sample::deletePercCache(bool beingDestructed) {
 				}
 			}
 
-			generalMemoryAllocator.dealloc(percCacheClusters[reversed]);
+			GeneralMemoryAllocator::get().dealloc(percCacheClusters[reversed]);
 			if (!beingDestructed) {
 				percCacheClusters[reversed] = NULL;
 			}
@@ -162,7 +162,7 @@ void Sample::markAsUnloadable() {
 	unloadable = true;
 
 	// If any Clusters in the load-queue, remove them from there
-	for (int c = 0; c < clusters.getNumElements(); c++) {
+	for (int32_t c = 0; c < clusters.getNumElements(); c++) {
 		Cluster* cluster = clusters.getElement(c)->cluster;
 		if (cluster) {
 			if (audioFileManager.loadingQueue.removeIfPresent(cluster)) {
@@ -175,7 +175,7 @@ void Sample::markAsUnloadable() {
 SampleCache* Sample::getOrCreateCache(SampleHolder* sampleHolder, int32_t phaseIncrement, int32_t timeStretchRatio,
                                       bool reversed, bool mayCreate, bool* created) {
 
-	int skipSamplesAtStart;
+	int32_t skipSamplesAtStart;
 	if (!reversed) {
 		skipSamplesAtStart = sampleHolder->startPos;
 	}
@@ -188,7 +188,7 @@ SampleCache* Sample::getOrCreateCache(SampleHolder* sampleHolder, int32_t phaseI
 	keyWords[1] = timeStretchRatio;
 	keyWords[2] = skipSamplesAtStart;
 	keyWords[3] = reversed;
-	int i = caches.searchMultiWordExact(keyWords);
+	int32_t i = caches.searchMultiWordExact(keyWords);
 
 	// If it already existed...
 	if (i != -1) {
@@ -221,16 +221,16 @@ SampleCache* Sample::getOrCreateCache(SampleHolder* sampleHolder, int32_t phaseI
 		return NULL; // If cache would be more than 32MB, assume that it wouldn't be very useful to cache it
 	}
 
-	int numClusters = ((lengthInBytesCached - 1) >> audioFileManager.clusterSizeMagnitude) + 1;
-	void* memory =
-	    generalMemoryAllocator.alloc(sizeof(SampleCache) + (numClusters - 1) * sizeof(Cluster*), NULL, false, false);
+	int32_t numClusters = ((lengthInBytesCached - 1) >> audioFileManager.clusterSizeMagnitude) + 1;
+	void* memory = GeneralMemoryAllocator::get().alloc(sizeof(SampleCache) + (numClusters - 1) * sizeof(Cluster*), NULL,
+	                                                   false, false);
 	if (!memory) {
 		return NULL;
 	}
 
 	i = caches.insertAtKeyMultiWord(keyWords);
 	if (i == -1) { // If error
-		generalMemoryAllocator.dealloc(memory);
+		GeneralMemoryAllocator::get().dealloc(memory);
 		return NULL;
 	}
 
@@ -251,7 +251,7 @@ SampleCache* Sample::getOrCreateCache(SampleHolder* sampleHolder, int32_t phaseI
 void Sample::deleteCache(SampleCache* cache) {
 	// Not currently used anymore
 	/*
-	int i = pitchAdjustmentCaches.search(cache->phaseIncrement, cache->skipSamplesAtStart, cache->reversed, GREATER_OR_EQUAL);
+	int32_t i = pitchAdjustmentCaches.search(cache->phaseIncrement, cache->skipSamplesAtStart, cache->reversed, GREATER_OR_EQUAL);
 	if (i < pitchAdjustmentCaches.getNumElements()) {
 		SampleCacheElement* element = pitchAdjustmentCaches.getElement(i);
 
@@ -269,14 +269,14 @@ void Sample::deleteCache(SampleCache* cache) {
 #define MEASURE_PERC_CACHE_PERFORMANCE 0
 
 // Returns error
-int Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSamples, int32_t endPosSamples,
-                          int playDirection, int maxNumSamplesToProcess) {
+int32_t Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSamples, int32_t endPosSamples,
+                              int32_t playDirection, int32_t maxNumSamplesToProcess) {
 
 #if MEASURE_PERC_CACHE_PERFORMANCE
 	uint16_t startTime = MTU2.TCNT_0;
 #endif
 
-	int reversed = (playDirection == 1) ? 0 : 1;
+	int32_t reversed = (playDirection == 1) ? 0 : 1;
 
 	// If the start pos is already beyond the waveform, we can get out right now!
 	if (!reversed) {
@@ -294,9 +294,9 @@ int Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSamples,
 
 	//AudioEngine::logAction("fillPercCache");
 
-	//int lengthInSamplesAfterReduction = ((lengthInSamples + (kPercBufferReductionSize >> 1)) >> PERC_BUFFER_REDUCTION_MAGNITUDE);
-	int lengthInSamplesAfterReduction = ((lengthInSamples - 1) >> kPercBufferReductionMagnitude) + 1;
-	lengthInSamplesAfterReduction = getMax(lengthInSamplesAfterReduction, 1); // Can't allocate less than 1 byte
+	//int32_t lengthInSamplesAfterReduction = ((lengthInSamples + (kPercBufferReductionSize >> 1)) >> PERC_BUFFER_REDUCTION_MAGNITUDE);
+	int32_t lengthInSamplesAfterReduction = ((lengthInSamples - 1) >> kPercBufferReductionMagnitude) + 1;
+	lengthInSamplesAfterReduction = std::max(lengthInSamplesAfterReduction, 1_i32); // Can't allocate less than 1 byte
 
 	bool percCacheDoneWithClusters = (lengthInSamplesAfterReduction >= (audioFileManager.clusterSize >> 1));
 
@@ -304,8 +304,8 @@ int Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSamples,
 		if (!percCacheClusters[reversed]) {
 			numPercCacheClusters = ((lengthInSamplesAfterReduction - 1) >> audioFileManager.clusterSizeMagnitude)
 			                       + 1; // Stores this number for the future too
-			int memorySize = numPercCacheClusters * sizeof(Cluster*);
-			percCacheClusters[reversed] = (Cluster**)generalMemoryAllocator.alloc(memorySize, NULL, false, true);
+			int32_t memorySize = numPercCacheClusters * sizeof(Cluster*);
+			percCacheClusters[reversed] = (Cluster**)GeneralMemoryAllocator::get().alloc(memorySize, NULL, false, true);
 			if (!percCacheClusters[reversed]) {
 				LOCK_EXIT
 				return ERROR_INSUFFICIENT_RAM;
@@ -318,9 +318,9 @@ int Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSamples,
 	else {
 
 		if (!percCacheMemory[reversed]) {
-			int percCacheSize = lengthInSamplesAfterReduction;
+			int32_t percCacheSize = lengthInSamplesAfterReduction;
 
-			percCacheMemory[reversed] = (uint8_t*)generalMemoryAllocator.alloc(percCacheSize);
+			percCacheMemory[reversed] = (uint8_t*)GeneralMemoryAllocator::get().alloc(percCacheSize);
 			if (!percCacheMemory[reversed]) {
 				LOCK_EXIT
 				return ERROR_INSUFFICIENT_RAM;
@@ -330,10 +330,10 @@ int Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSamples,
 		}
 	}
 
-	int bytesPerSample = numChannels * byteDepth;
-	int posIncrement = bytesPerSample * playDirection;
+	int32_t bytesPerSample = numChannels * byteDepth;
+	int32_t posIncrement = bytesPerSample * playDirection;
 
-	int i;
+	int32_t i;
 	if (!reversed) {
 		i = percCacheZones[reversed].search(startPosSamples + 1, LESS);
 	}
@@ -341,7 +341,7 @@ int Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSamples,
 		i = percCacheZones[reversed].search(startPosSamples, GREATER_OR_EQUAL);
 	}
 
-	int error = NO_ERROR;
+	int32_t error = NO_ERROR;
 	SamplePercCacheZone* percCacheZone;
 	if (i >= 0 && i < percCacheZones[reversed].getNumElements()) {
 		percCacheZone = (SamplePercCacheZone*)percCacheZones[reversed].getElementAddress(i);
@@ -377,7 +377,7 @@ doReturnNoError:
 			// First, update our "current pos for perc cache filling and reading" sorta thing so
 			// no one steals the first Cluster we're gonna need. This is especially important for just now while we're gonna be reading
 			// some of this Cluster, but also we want to keep it in memory for next time we come back here.
-			int percClusterIndexStart;
+			int32_t percClusterIndexStart;
 			if (percCacheDoneWithClusters) {
 				percClusterIndexStart = (uint32_t)startPosSamples
 				                        >> (audioFileManager.clusterSizeMagnitude + kPercBufferReductionMagnitude);
@@ -412,7 +412,7 @@ doReturnNoError:
 
 					// I think the fact that we subtract playDirection here means that we look at the cluster for the very last existing sample, so even
 					// if we've actually filled up right up to the cluster boundary but not allocated a next one, it should be fine, ya know?
-					int percClusterIndexEnd =
+					int32_t percClusterIndexEnd =
 					    (uint32_t)(endPosSamples - playDirection)
 					    >> (audioFileManager.clusterSizeMagnitude + kPercBufferReductionMagnitude);
 					if (percClusterIndexEnd != percClusterIndexStart) {
@@ -461,7 +461,7 @@ doReturnNoError:
 doLoading:
 
 #if MEASURE_PERC_CACHE_PERFORMANCE
-	int length = (endPosSamples - startPosSamples) * playDirection;
+	int32_t length = (endPosSamples - startPosSamples) * playDirection;
 	if (length < kPercBufferReductionSize * 16)
 		goto doReturnResult;
 	else
@@ -470,10 +470,10 @@ doLoading:
 
 	// Make sure we don't shoot past end of waveform
 	if (!reversed) {
-		endPosSamples = getMin(endPosSamples, (int32_t)lengthInSamples);
+		endPosSamples = std::min(endPosSamples, (int32_t)lengthInSamples);
 	}
 	else {
-		endPosSamples = getMax(endPosSamples, (int32_t)-1);
+		endPosSamples = std::max(endPosSamples, (int32_t)-1);
 	}
 
 #if !MEASURE_PERC_CACHE_PERFORMANCE
@@ -484,9 +484,9 @@ doLoading:
 #endif
 
 	// See if there's a next element which we should stop before
-	int iNext = i + playDirection;
+	int32_t iNext = i + playDirection;
 	bool willHitNextElement = false;
-	int endPosSamplesLimit;
+	int32_t endPosSamplesLimit;
 	SamplePercCacheZone* nextPercCacheZone;
 	if (iNext >= 0 && iNext < percCacheZones[reversed].getNumElements()) {
 		nextPercCacheZone = (SamplePercCacheZone*)percCacheZones[reversed].getElementAddress(iNext);
@@ -503,8 +503,8 @@ doLoading:
 		}
 	}
 
-	int sourceBytePos;
-	int numSamples = (endPosSamples - startPosSamples) * playDirection;
+	int32_t sourceBytePos;
+	int32_t numSamples = (endPosSamples - startPosSamples) * playDirection;
 	if (numSamples <= 0) {
 		goto getOut; // This probably would have already been dealt with above - not quite sure
 	}
@@ -512,9 +512,9 @@ doLoading:
 
 	do {
 
-		int numSamplesThisClusterReadWrite = numSamples;
+		int32_t numSamplesThisClusterReadWrite = numSamples;
 
-		int sourceClusterIndex = sourceBytePos >> audioFileManager.clusterSizeMagnitude;
+		int32_t sourceClusterIndex = sourceBytePos >> audioFileManager.clusterSizeMagnitude;
 
 		if (sourceClusterIndex >= getFirstClusterIndexWithNoAudioData()
 		    || sourceClusterIndex
@@ -524,7 +524,7 @@ doLoading:
 
 		uint8_t* percCacheNow;
 		if (percCacheDoneWithClusters) {
-			int percClusterIndex =
+			int32_t percClusterIndex =
 			    startPosSamples >> (audioFileManager.clusterSizeMagnitude + kPercBufferReductionMagnitude);
 			if (ALPHA_OR_BETA_VERSION && percClusterIndex >= numPercCacheClusters) {
 				display.freezeWithError("E136");
@@ -550,14 +550,14 @@ doLoading:
 			percCacheNow = (uint8_t*)percCacheClusters[reversed][percClusterIndex]->data
 			               - (percClusterIndex * audioFileManager.clusterSize);
 
-			int posWithinPercClusterBig =
+			int32_t posWithinPercClusterBig =
 			    startPosSamples & ((audioFileManager.clusterSize << kPercBufferReductionMagnitude) - 1);
 
 			// Bytes and samples are the same for the dest Cluster
-			int samplesLeftThisDestCluster =
+			int32_t samplesLeftThisDestCluster =
 			    reversed ? (posWithinPercClusterBig + 1)
 			             : ((audioFileManager.clusterSize << kPercBufferReductionMagnitude) - posWithinPercClusterBig);
-			numSamplesThisClusterReadWrite = getMin(numSamplesThisClusterReadWrite, samplesLeftThisDestCluster);
+			numSamplesThisClusterReadWrite = std::min(numSamplesThisClusterReadWrite, samplesLeftThisDestCluster);
 		}
 
 		else {
@@ -571,13 +571,13 @@ doLoading:
 			goto getOut;
 		}
 
-		int bytePosWithinCluster = sourceBytePos & (audioFileManager.clusterSize - 1);
+		int32_t bytePosWithinCluster = sourceBytePos & (audioFileManager.clusterSize - 1);
 
 		// Ok, how many samples can we load right now?
-		int bytesLeftThisSourceCluster =
+		int32_t bytesLeftThisSourceCluster =
 		    reversed ? (bytePosWithinCluster + bytesPerSample)
 		             : (audioFileManager.clusterSize - bytePosWithinCluster + bytesPerSample - 1);
-		int bytesWeWantToRead = numSamplesThisClusterReadWrite * bytesPerSample;
+		int32_t bytesWeWantToRead = numSamplesThisClusterReadWrite * bytesPerSample;
 		if (bytesWeWantToRead > bytesLeftThisSourceCluster + bytesPerSample) {
 			numSamplesThisClusterReadWrite = bytesLeftThisSourceCluster / bytesPerSample;
 		}
@@ -592,9 +592,9 @@ doLoading:
 		char* currentPos = (char*)&cluster->data[bytePosWithinCluster] - 4 + byteDepth;
 
 		do {
-			int numSamplesThisPercPixelSegment = numSamplesThisClusterReadWrite;
+			int32_t numSamplesThisPercPixelSegment = numSamplesThisClusterReadWrite;
 
-			int numSamplesLeftThisPercPixelSegment =
+			int32_t numSamplesLeftThisPercPixelSegment =
 			    reversed ? (startPosSamples + 1 + (kPercBufferReductionSize >> 1)) & (kPercBufferReductionSize - 1)
 			             : kPercBufferReductionSize
 			                   - ((startPosSamples + (kPercBufferReductionSize >> 1)) & (kPercBufferReductionSize - 1));
@@ -603,7 +603,8 @@ doLoading:
 				numSamplesLeftThisPercPixelSegment = kPercBufferReductionSize;
 			}
 
-			numSamplesThisPercPixelSegment = getMin(numSamplesThisPercPixelSegment, numSamplesLeftThisPercPixelSegment);
+			numSamplesThisPercPixelSegment =
+			    std::min(numSamplesThisPercPixelSegment, numSamplesLeftThisPercPixelSegment);
 
 			char* endPos = currentPos + numSamplesThisPercPixelSegment * posIncrement;
 
@@ -641,7 +642,7 @@ doLoading:
 
 			startPosSamples += numSamplesThisPercPixelSegment * playDirection;
 
-			int posWithinPercPixel = startPosSamples & (kPercBufferReductionSize - 1);
+			int32_t posWithinPercPixel = startPosSamples & (kPercBufferReductionSize - 1);
 
 			if (posWithinPercPixel == (kPercBufferReductionSize >> 1) - reversed) {
 
@@ -650,7 +651,7 @@ doLoading:
 					difference = -difference;
 				}
 
-				int percussiveness = ((uint64_t)difference * 262144 / angle) >> 1;
+				int32_t percussiveness = ((uint64_t)difference * 262144 / angle) >> 1;
 
 				percussiveness = getTanH<23>(percussiveness);
 
@@ -664,8 +665,8 @@ doLoading:
 
 	} while (numSamples);
 
-	percCacheZone->samplesAtStartWhichShouldBeReplaced =
-	    getMax(2048, (percCacheZone->endPos - percCacheZone->startPos) * playDirection); // 2048 is fairly arbitrary
+	percCacheZone->samplesAtStartWhichShouldBeReplaced = std::max<int32_t>(
+	    2048, (percCacheZone->endPos - percCacheZone->startPos) * playDirection); // 2048 is fairly arbitrary
 
 	// If we connected up to another, later zone...
 	if (willHitNextElement) {
@@ -713,30 +714,30 @@ getOut:
 	return error; // Usually it'll be NO_ERROR.
 }
 
-bool Sample::getAveragesForCrossfade(int32_t* totals, int startBytePos, int crossfadeLengthSamples, int playDirection,
-                                     int lengthToAverageEach) {
+bool Sample::getAveragesForCrossfade(int32_t* totals, int32_t startBytePos, int32_t crossfadeLengthSamples,
+                                     int32_t playDirection, int32_t lengthToAverageEach) {
 
-	int byteDepthNow = byteDepth;
-	int numChannelsNow = numChannels;
-	int bytesPerSample = byteDepthNow * numChannelsNow;
+	int32_t byteDepthNow = byteDepth;
+	int32_t numChannelsNow = numChannels;
+	int32_t bytesPerSample = byteDepthNow * numChannelsNow;
 
 	// This can happen. Not 100% sure if it should, but we'll return false just below in this case anyway, so I think it's ok
 	if (ALPHA_OR_BETA_VERSION && startBytePos < (int32_t)audioDataStartPosBytes) {
 		display.freezeWithError("E283");
 	}
 
-	int startSamplePos = (uint32_t)(startBytePos - audioDataStartPosBytes) / (uint8_t)bytesPerSample;
+	int32_t startSamplePos = (uint32_t)(startBytePos - audioDataStartPosBytes) / (uint8_t)bytesPerSample;
 
-	int halfCrossfadeLengthSamples = crossfadeLengthSamples >> 1;
+	int32_t halfCrossfadeLengthSamples = crossfadeLengthSamples >> 1;
 
-	int samplePosMidCrossfade = startSamplePos + halfCrossfadeLengthSamples * playDirection;
+	int32_t samplePosMidCrossfade = startSamplePos + halfCrossfadeLengthSamples * playDirection;
 
-	int readSample = samplePosMidCrossfade
-	                 - ((lengthToAverageEach * TimeStretch::Crossfade::kNumMovingAverages) >> 1) * playDirection;
+	int32_t readSample = samplePosMidCrossfade
+	                     - ((lengthToAverageEach * TimeStretch::Crossfade::kNumMovingAverages) >> 1) * playDirection;
 
-	int halfCrossfadeLengthBytes = halfCrossfadeLengthSamples * bytesPerSample;
+	int32_t halfCrossfadeLengthBytes = halfCrossfadeLengthSamples * bytesPerSample;
 
-	int readByte = readSample * bytesPerSample + audioDataStartPosBytes;
+	int32_t readByte = readSample * bytesPerSample + audioDataStartPosBytes;
 
 	if (playDirection == 1) {
 		if (readByte < (int32_t)audioDataStartPosBytes + halfCrossfadeLengthBytes) {
@@ -747,7 +748,7 @@ bool Sample::getAveragesForCrossfade(int32_t* totals, int startBytePos, int cros
 		}
 	}
 
-	int endReadByte =
+	int32_t endReadByte =
 	    readByte + lengthToAverageEach * TimeStretch::Crossfade::kNumMovingAverages * bytesPerSample * playDirection;
 
 	if (endReadByte < (int32_t)(audioDataStartPosBytes - 1)
@@ -755,9 +756,9 @@ bool Sample::getAveragesForCrossfade(int32_t* totals, int startBytePos, int cros
 		return false;
 	}
 
-	for (int i = 0; i < TimeStretch::Crossfade::kNumMovingAverages; i++) {
+	for (int32_t i = 0; i < TimeStretch::Crossfade::kNumMovingAverages; i++) {
 
-		int numSamplesLeftThisAverage = lengthToAverageEach;
+		int32_t numSamplesLeftThisAverage = lengthToAverageEach;
 		totals[i] = 0;
 
 		if (ALPHA_OR_BETA_VERSION
@@ -773,7 +774,7 @@ bool Sample::getAveragesForCrossfade(int32_t* totals, int startBytePos, int cros
 				display.freezeWithError("E432"); // Was "GGGG". Sven may have gotten.
 			}
 
-			int whichCluster = readByte >> audioFileManager.clusterSizeMagnitude;
+			int32_t whichCluster = readByte >> audioFileManager.clusterSizeMagnitude;
 			if (ALPHA_OR_BETA_VERSION
 			    && (whichCluster < getFirstClusterIndexWithAudioData()
 			        || whichCluster >= getFirstClusterIndexWithNoAudioData())) {
@@ -785,13 +786,13 @@ bool Sample::getAveragesForCrossfade(int32_t* totals, int startBytePos, int cros
 				return false;
 			}
 
-			int bytePosWithinCluster = readByte & (audioFileManager.clusterSize - 1);
-			int numSamplesThisRead = numSamplesLeftThisAverage;
+			int32_t bytePosWithinCluster = readByte & (audioFileManager.clusterSize - 1);
+			int32_t numSamplesThisRead = numSamplesLeftThisAverage;
 
-			int bytesLeftThisCluster = (playDirection == -1)
-			                               ? (bytePosWithinCluster + bytesPerSample)
-			                               : (audioFileManager.clusterSize - bytePosWithinCluster + bytesPerSample - 1);
-			int bytesWeWantToRead = numSamplesThisRead * bytesPerSample;
+			int32_t bytesLeftThisCluster =
+			    (playDirection == -1) ? (bytePosWithinCluster + bytesPerSample)
+			                          : (audioFileManager.clusterSize - bytePosWithinCluster + bytesPerSample - 1);
+			int32_t bytesWeWantToRead = numSamplesThisRead * bytesPerSample;
 			if (bytesWeWantToRead > bytesLeftThisCluster) {
 				numSamplesThisRead = (uint32_t)bytesLeftThisCluster / (uint8_t)bytesPerSample;
 			}
@@ -820,13 +821,13 @@ bool Sample::getAveragesForCrossfade(int32_t* totals, int startBytePos, int cros
 	return true;
 }
 
-uint8_t* Sample::prepareToReadPercCache(int pixellatedPos, int playDirection, int* earliestPixellatedPos,
-                                        int* latestPixellatedPos) {
+uint8_t* Sample::prepareToReadPercCache(int32_t pixellatedPos, int32_t playDirection, int32_t* earliestPixellatedPos,
+                                        int32_t* latestPixellatedPos) {
 
-	int reversed = (playDirection == 1) ? 0 : 1;
+	int32_t reversed = (playDirection == 1) ? 0 : 1;
 
-	int realPos = (pixellatedPos << kPercBufferReductionMagnitude) + (kPercBufferReductionSize >> 1);
-	int i = percCacheZones[reversed].search(realPos + 1 - reversed, reversed ? GREATER_OR_EQUAL : LESS);
+	int32_t realPos = (pixellatedPos << kPercBufferReductionMagnitude) + (kPercBufferReductionSize >> 1);
+	int32_t i = percCacheZones[reversed].search(realPos + 1 - reversed, reversed ? GREATER_OR_EQUAL : LESS);
 	if (i < 0 || i >= percCacheZones[reversed].getNumElements()) {
 		return NULL;
 	}
@@ -848,14 +849,14 @@ uint8_t* Sample::prepareToReadPercCache(int pixellatedPos, int playDirection, in
 
 	// Or if Cluster-based perc cache...
 	else {
-		int ourCluster = pixellatedPos >> audioFileManager.clusterSizeMagnitude;
+		int32_t ourCluster = pixellatedPos >> audioFileManager.clusterSizeMagnitude;
 		if (ALPHA_OR_BETA_VERSION && !percCacheClusters[reversed][ourCluster]) {
 			display.freezeWithError("E142");
 		}
 
-		int earliestCluster = *earliestPixellatedPos >> audioFileManager.clusterSizeMagnitude;
+		int32_t earliestCluster = *earliestPixellatedPos >> audioFileManager.clusterSizeMagnitude;
 		;
-		int latestCluster = *latestPixellatedPos >> audioFileManager.clusterSizeMagnitude;
+		int32_t latestCluster = *latestPixellatedPos >> audioFileManager.clusterSizeMagnitude;
 
 		// Constrain to Cluster boundaries. This will theoretically hurt the sound a tiny bit... once every 90 seconds. No one will ever know
 		if (earliestCluster < ourCluster) {
@@ -881,9 +882,9 @@ void Sample::percCacheClusterStolen(Cluster* cluster) {
 	LOCK_ENTRY
 
 	Debug::println("percCacheClusterStolen -----------------------------------------------------------!!");
-	int reversed = (cluster->type == ClusterType::PERC_CACHE_REVERSED);
-	int playDirection = reversed ? -1 : 1;
-	int comparison = reversed ? GREATER_OR_EQUAL : LESS;
+	int32_t reversed = (cluster->type == ClusterType::PERC_CACHE_REVERSED);
+	int32_t playDirection = reversed ? -1 : 1;
+	int32_t comparison = reversed ? GREATER_OR_EQUAL : LESS;
 
 #if ALPHA_OR_BETA_VERSION
 	if (cluster->type != ClusterType::PERC_CACHE_FORWARDS && cluster->type != ClusterType::PERC_CACHE_REVERSED) {
@@ -907,15 +908,16 @@ void Sample::percCacheClusterStolen(Cluster* cluster) {
 
 	// TODO: while inside this, don't allow further editing to percCacheZones[reversed]
 
-	int leftBorder = cluster->clusterIndex << (audioFileManager.clusterSizeMagnitude + kPercBufferReductionMagnitude);
-	int rightBorder = (cluster->clusterIndex + 1)
-	                  << (audioFileManager.clusterSizeMagnitude + kPercBufferReductionMagnitude);
+	int32_t leftBorder = cluster->clusterIndex
+	                     << (audioFileManager.clusterSizeMagnitude + kPercBufferReductionMagnitude);
+	int32_t rightBorder = (cluster->clusterIndex + 1)
+	                      << (audioFileManager.clusterSizeMagnitude + kPercBufferReductionMagnitude);
 
-	int laterBorder = reversed ? (leftBorder - 1) : rightBorder;
-	int earlierBorder = reversed ? (rightBorder - 1) : leftBorder;
+	int32_t laterBorder = reversed ? (leftBorder - 1) : rightBorder;
+	int32_t earlierBorder = reversed ? (rightBorder - 1) : leftBorder;
 
 	// Trim anything earlier
-	int iEarlier;
+	int32_t iEarlier;
 	iEarlier = percCacheZones[reversed].search(earlierBorder + reversed, comparison);
 	if (iEarlier >= 0 && iEarlier < percCacheZones[reversed].getNumElements()) {
 		SamplePercCacheZone* zoneEarlier = (SamplePercCacheZone*)percCacheZones[reversed].getElementAddress(iEarlier);
@@ -925,16 +927,16 @@ void Sample::percCacheClusterStolen(Cluster* cluster) {
 
 			// If it also shoots out the other side of the deleted Cluster...
 			if ((zoneEarlier->endPos - laterBorder) * playDirection > 0) {
-				int oldStartPos = zoneEarlier->startPos;
-				int oldSamplesAtStartWhichShouldBeReplaced = zoneEarlier->samplesAtStartWhichShouldBeReplaced;
+				int32_t oldStartPos = zoneEarlier->startPos;
+				int32_t oldSamplesAtStartWhichShouldBeReplaced = zoneEarlier->samplesAtStartWhichShouldBeReplaced;
 
 				zoneEarlier->startPos = laterBorder;
 				zoneEarlier->samplesAtStartWhichShouldBeReplaced = 0;
 
-				int iNew = reversed ? (iEarlier + 1) : iEarlier;
+				int32_t iNew = reversed ? (iEarlier + 1) : iEarlier;
 				// This is reasonably likely to fail, cos it might want to allocate new memory, but that's not allowed if it's currently allocating a Cluster, which it will
 				// be if this Cluster got stolen, which is why we're here. Oh well
-				int error = percCacheZones[reversed].insertAtIndex(
+				int32_t error = percCacheZones[reversed].insertAtIndex(
 				    iNew, 1,
 				    this); // Also specify not to steal perc cache Clusters from this Sample. Could that actually even happen given the above comment? Not sure.
 				if (error) {
@@ -959,7 +961,7 @@ void Sample::percCacheClusterStolen(Cluster* cluster) {
 	}
 
 	// Trim anything later
-	int iLater;
+	int32_t iLater;
 	iLater = percCacheZones[reversed].search(laterBorder + reversed, comparison);
 	if ((iLater - iEarlier) * playDirection > 0) {
 
@@ -967,8 +969,8 @@ void Sample::percCacheClusterStolen(Cluster* cluster) {
 
 		if ((zoneLater->endPos - laterBorder) * playDirection > 0) {
 			zoneLater->samplesAtStartWhichShouldBeReplaced =
-			    getMax(0, zoneLater->samplesAtStartWhichShouldBeReplaced
-			                  - (laterBorder - zoneLater->startPos) * playDirection);
+			    std::max<int32_t>(0, zoneLater->samplesAtStartWhichShouldBeReplaced
+			                             - (laterBorder - zoneLater->startPos) * playDirection);
 			zoneLater->startPos = laterBorder;
 		}
 		else {
@@ -980,20 +982,20 @@ deleteThatOneToo:
 		iLater += playDirection;
 	}
 
-	int numToDelete = (iLater - iEarlier) * playDirection - 1;
+	int32_t numToDelete = (iLater - iEarlier) * playDirection - 1;
 	if (numToDelete) {
-		int deleteFrom = reversed ? (iLater + 1) : (iEarlier + 1);
+		int32_t deleteFrom = reversed ? (iLater + 1) : (iEarlier + 1);
 		percCacheZones[reversed].deleteAtIndex(deleteFrom, numToDelete);
 	}
 
 	LOCK_EXIT
 }
 
-int Sample::getFirstClusterIndexWithAudioData() {
+int32_t Sample::getFirstClusterIndexWithAudioData() {
 	return audioDataStartPosBytes >> audioFileManager.clusterSizeMagnitude;
 }
 
-int Sample::getFirstClusterIndexWithNoAudioData() {
+int32_t Sample::getFirstClusterIndexWithNoAudioData() {
 	uint32_t clusterIndex =
 	    ((audioDataStartPosBytes + audioDataLengthBytes - 1) >> audioFileManager.clusterSizeMagnitude) + 1; // Rounds up
 	if (clusterIndex > clusters.getNumElements()) {
@@ -1041,13 +1043,13 @@ uint32_t Sample::getLengthInMSec() {
 	return (uint64_t)(lengthInSamples - 1) * 1000 / sampleRate + 1;
 }
 
-float getPeakIndexFloat(int i, int32_t peakValue, int32_t prevValue, int32_t nextValue) {
+float getPeakIndexFloat(int32_t i, int32_t peakValue, int32_t prevValue, int32_t nextValue) {
 	float fundamentalPeakIndex = i;
 
-	int nudgeInDirection = (nextValue > prevValue) ? 1 : -1;
+	int32_t nudgeInDirection = (nextValue > prevValue) ? 1 : -1;
 
-	int32_t lowerValue = getMin(prevValue, nextValue);
-	int32_t higherValue = getMax(prevValue, nextValue);
+	int32_t lowerValue = std::min(prevValue, nextValue);
+	int32_t higherValue = std::max(prevValue, nextValue);
 
 	int32_t totalDistance = peakValue - lowerValue; // Distance from lower neighbouring height to peak height
 
@@ -1061,12 +1063,12 @@ float getPeakIndexFloat(int i, int32_t peakValue, int32_t prevValue, int32_t nex
 }
 
 const uint8_t primeNumbers[] = {2, 3, 5, 7, 11, 13};
-constexpr int kNumPrimes = 6;
+constexpr int32_t kNumPrimes = 6;
 
 // Returns strength
-int Sample::investigateFundamentalPitch(int fundamentalIndexProvided, int tableSize, int32_t* heightTable,
-                                        uint64_t* sumTable, float* floatIndexTable, float* getFundamentalIndex,
-                                        int numDoublings, bool doPrimeTest) {
+int32_t Sample::investigateFundamentalPitch(int32_t fundamentalIndexProvided, int32_t tableSize, int32_t* heightTable,
+                                            uint64_t* sumTable, float* floatIndexTable, float* getFundamentalIndex,
+                                            int32_t numDoublings, bool doPrimeTest) {
 
 	uint64_t total = 0;
 
@@ -1080,9 +1082,9 @@ int Sample::investigateFundamentalPitch(int fundamentalIndexProvided, int tableS
 	float fundamentalIndexForContinuedHarmonicInvestigation;
 	float uncertaintyMarginHere;
 
-	int currentIndex = fundamentalIndexProvided;
-	int h = 1; // The number of the harmonic currently being investigated
-	int lastHFound = 1;
+	int32_t currentIndex = fundamentalIndexProvided;
+	int32_t h = 1; // The number of the harmonic currently being investigated
+	int32_t lastHFound = 1;
 
 	uint64_t lastSumTableValue = sumTable[fundamentalIndexProvided >> 1];
 
@@ -1111,17 +1113,17 @@ int Sample::investigateFundamentalPitch(int fundamentalIndexProvided, int tableS
 			}
 
 			float searchCentre =
-			    fundamentalIndexForContinuedHarmonicInvestigation * h + 0.5; // Will round when converted to int
+			    fundamentalIndexForContinuedHarmonicInvestigation * h + 0.5; // Will round when converted to int32_t
 
-			int searchMax = searchCentre + uncertaintyMarginHere;
+			int32_t searchMax = searchCentre + uncertaintyMarginHere;
 			if (searchMax >= tableSize) {
 				break;
 			}
-			int searchMin = searchCentre - uncertaintyMarginHere;
+			int32_t searchMin = searchCentre - uncertaintyMarginHere;
 
 			int32_t highestFoundHere = 0;
 
-			for (int proposedIndex = searchMin; proposedIndex <= searchMax; proposedIndex++) {
+			for (int32_t proposedIndex = searchMin; proposedIndex <= searchMax; proposedIndex++) {
 				int32_t valueHere = heightTable[proposedIndex];
 				if (valueHere > highestFoundHere) {
 					highestFoundHere = valueHere;
@@ -1139,7 +1141,7 @@ int Sample::investigateFundamentalPitch(int fundamentalIndexProvided, int tableS
 examineHarmonic:
 		float newEstimatedFundamentalIndex = floatIndexTable[currentIndex >> 1] / h;
 
-		int nextMidIndex = currentIndex + ((fundamentalIndexProvided + 1) >> 1); // Round up
+		int32_t nextMidIndex = currentIndex + ((fundamentalIndexProvided + 1) >> 1); // Round up
 		uint64_t nextSumTableValue = sumTable[nextMidIndex];
 		uint64_t surroundingSum = nextSumTableValue - lastSumTableValue;
 
@@ -1175,7 +1177,7 @@ examineHarmonic:
 		}
 
 		if (true || doPrimeTest) {
-			for (int p = 0; p < kNumPrimes; p++) {
+			for (int32_t p = 0; p < kNumPrimes; p++) {
 				if (p == 0 && !doPrimeTest) {
 					continue;
 				}
@@ -1185,7 +1187,7 @@ examineHarmonic:
 					break;
 				}
 
-				if (!((unsigned int)h % thisPrime)) {
+				if (!((uint32_t)h % thisPrime)) {
 					primeTotals[p] += strengthThisHarmonic;
 				}
 			}
@@ -1218,10 +1220,10 @@ examineHarmonic:
 
 	*getFundamentalIndex = fundamentalIndexToReturn;
 
-	int threshold = 6;
+	int32_t threshold = 6;
 
 	if (true || doPrimeTest) {
-		for (int p = 0; p < kNumPrimes; p++) {
+		for (int32_t p = 0; p < kNumPrimes; p++) {
 			uint8_t thisPrime = primeNumbers[p];
 			if (thisPrime > h) {
 				break;
@@ -1250,8 +1252,8 @@ examineHarmonic:
 }
 
 // In Hz I think? Could even go +2 here and even a 54Hz sound is ok
-constexpr int kMinAccurateFrequency = (1638400 >> (kPitchDetectWindowSizeMagnitude));
-constexpr int kMaxLengthDoublings = (16 - kPitchDetectWindowSizeMagnitude);
+constexpr int32_t kMinAccurateFrequency = (1638400 >> (kPitchDetectWindowSizeMagnitude));
+constexpr int32_t kMaxLengthDoublings = (16 - kPitchDetectWindowSizeMagnitude);
 
 // We want a fairly small window. Any bigger, and it'll fail to find the tones in short, percussive yet tonal sounds.
 // Or if we were to go much smaller than this, we might incorrectly see low frequencies.
@@ -1271,11 +1273,11 @@ float Sample::determinePitch(bool doingSingleCycle, float minFreqHz, float maxFr
 	ne10_fft_r2c_cfg_int32_t fftCFG = FFTConfigManager::getConfig(kPitchDetectWindowSizeMagnitude);
 
 	// Allocate space for both the real and imaginary number buffers - the imaginary one is tacked on the end
-	int fftInputSize = kPitchDetectWindowSize * sizeof(int32_t);
-	int fftOutputSize = ((kPitchDetectWindowSize >> 1) + 1) * sizeof(ne10_fft_cpx_int32_t);
-	int floatIndexTableSize = (kPitchDetectWindowSize >> 2) * sizeof(float);
-	int32_t* fftInput =
-	    (int32_t*)generalMemoryAllocator.alloc(fftInputSize + fftOutputSize + floatIndexTableSize, NULL, false, true);
+	int32_t fftInputSize = kPitchDetectWindowSize * sizeof(int32_t);
+	int32_t fftOutputSize = ((kPitchDetectWindowSize >> 1) + 1) * sizeof(ne10_fft_cpx_int32_t);
+	int32_t floatIndexTableSize = (kPitchDetectWindowSize >> 2) * sizeof(float);
+	int32_t* fftInput = (int32_t*)GeneralMemoryAllocator::get().alloc(
+	    fftInputSize + fftOutputSize + floatIndexTableSize, NULL, false, true);
 	if (!fftInput) {
 		return 0;
 	}
@@ -1285,14 +1287,14 @@ float Sample::determinePitch(bool doingSingleCycle, float minFreqHz, float maxFr
 
 	float* floatIndexTable = (float*)((uint32_t)fftInput + fftInputSize + fftOutputSize);
 
-	int defaultLengthDoublings = 0;
+	int32_t defaultLengthDoublings = 0;
 
 	// If high sample rate, downsample by default
 	if (sampleRate >= 88200) {
 		defaultLengthDoublings++;
 	}
 
-	int lengthDoublings = defaultLengthDoublings;
+	int32_t lengthDoublings = defaultLengthDoublings;
 
 	// If enforced max freq too low, increase doublings
 	float maxFreqHere = maxFreqHz;
@@ -1321,14 +1323,14 @@ startAgain:
 	// Load the sample into memory
 	int32_t currentOffset = beginningOffsetForPitchDetection;
 	uint32_t currentClusterIndex = currentOffset >> audioFileManager.clusterSizeMagnitude;
-	int writeIndex = 0;
+	int32_t writeIndex = 0;
 
 	Cluster* cluster =
 	    clusters.getElement(currentClusterIndex)->getCluster(this, currentClusterIndex, CLUSTER_LOAD_IMMEDIATELY);
 	if (!cluster) {
 		Debug::println("failed to load first");
 getOut:
-		generalMemoryAllocator.dealloc(fftInput);
+		GeneralMemoryAllocator::get().dealloc(fftInput);
 		return 0;
 	}
 
@@ -1336,10 +1338,10 @@ getOut:
 
 	int32_t biggestValueFound = 0;
 
-	int count = 0;
+	int32_t count = 0;
 
 	// If stereo sample, we want to blend left and right together, and the easiest way is to use our existing "averaging" system
-	int lengthDoublingsNow = lengthDoublings;
+	int32_t lengthDoublingsNow = lengthDoublings;
 	if (numChannels == 2) {
 		lengthDoublingsNow++;
 	}
@@ -1360,7 +1362,7 @@ continueWhileLoop:
 		int32_t thisValue = 0;
 
 		// We may want to average several samples into just one - crudely downsampling, but the aliasing shouldn't hurt us
-		for (int i = 0; i < (1 << lengthDoublingsNow); i++) {
+		for (int32_t i = 0; i < (1 << lengthDoublingsNow); i++) {
 
 			if (!(count & 255)) {
 				AudioEngine::routineWithClusterLoading(); // --------------------------------------
@@ -1409,14 +1411,14 @@ continueWhileLoop:
 
 				// If our grabbed window would end beyond the end of the audio file, shift it left
 				beginningOffsetForPitchDetection =
-				    getMin(beginningOffsetForPitchDetection,
-				           (int32_t)(audioDataStartPosBytes + audioDataLengthBytes
-				                     - (kPitchDetectWindowSize << lengthDoublings) * numChannels * byteDepth));
+				    std::min(beginningOffsetForPitchDetection,
+				             (int32_t)(audioDataStartPosBytes + audioDataLengthBytes
+				                       - (kPitchDetectWindowSize << lengthDoublings) * numChannels * byteDepth));
 
 				// TODO: it's not quite perfect doing that and storing the result, because lengthDoublings will sometimes be different
 
 				// And now make sure that hasn't pushed it further back left than where we are right now
-				beginningOffsetForPitchDetection = getMax(beginningOffsetForPitchDetection, currentOffset);
+				beginningOffsetForPitchDetection = std::max(beginningOffsetForPitchDetection, currentOffset);
 			}
 			if (currentOffset < beginningOffsetForPitchDetection) {
 				goto continueWhileLoop;
@@ -1486,7 +1488,7 @@ doneReading:
 
 	// Go through complex-number FFT result, converting to positive (pythagorassed) heights
 	int32_t biggestValue = 0;
-	for (int i = 0; i < (kPitchDetectWindowSize >> 1); i++) {
+	for (int32_t i = 0; i < (kPitchDetectWindowSize >> 1); i++) {
 
 		if (!(i & 1023)) {
 			AudioEngine::routineWithClusterLoading(); // --------------------------------------
@@ -1511,9 +1513,9 @@ doneReading:
 #endif
 	}
 
-	int minFreqForThresholdAdjusted = 200 << lengthDoublings;
+	int32_t minFreqForThresholdAdjusted = 200 << lengthDoublings;
 	float minPeriodForThreshold = sampleRate / minFreqForThresholdAdjusted;
-	int minIndexForThreshold = (float)kPitchDetectWindowSize / minPeriodForThreshold; // Rounds down
+	int32_t minIndexForThreshold = (float)kPitchDetectWindowSize / minPeriodForThreshold; // Rounds down
 
 	uint64_t sum = 0;
 	int32_t lastValue1;
@@ -1521,7 +1523,7 @@ doneReading:
 	int32_t threshold = biggestValue >> 10;
 
 	// Go through again doing the running sum, interpolating exact peak frequencies, and deleting everything that's not a peak
-	for (int i = 0; i < (kPitchDetectWindowSize >> 1); i++) {
+	for (int32_t i = 0; i < (kPitchDetectWindowSize >> 1); i++) {
 
 		if (!(i & 255)) {
 			AudioEngine::routineWithClusterLoading(); // --------------------------------------
@@ -1558,24 +1560,24 @@ doneReading:
 	Debug::println("");
 #endif
 
-	int minFreqAdjusted = minFreqHz * (1 << lengthDoublings);
+	int32_t minFreqAdjusted = minFreqHz * (1 << lengthDoublings);
 	float minFundamentalPeriod = (float)sampleRate / minFreqAdjusted;
-	int minFundamentalPeakIndex = (float)kPitchDetectWindowSize / minFundamentalPeriod; // Rounds down
+	int32_t minFundamentalPeakIndex = (float)kPitchDetectWindowSize / minFundamentalPeriod; // Rounds down
 
-	int maxFreqAdjusted = maxFreqHz * (1 << lengthDoublings);
+	int32_t maxFreqAdjusted = maxFreqHz * (1 << lengthDoublings);
 	float maxFundamentalPeriod = (float)sampleRate / maxFreqAdjusted;
-	int maxFundamentalPeakIndex = (float)kPitchDetectWindowSize / maxFundamentalPeriod + 1; // Rounds up
+	int32_t maxFundamentalPeakIndex = (float)kPitchDetectWindowSize / maxFundamentalPeriod + 1; // Rounds up
 	if (maxFundamentalPeakIndex > (kPitchDetectWindowSize >> 1)) {
 		maxFundamentalPeakIndex = (kPitchDetectWindowSize >> 1);
 	}
 
 	float bestFundamentalIndex;
-	int bestStrength = 0;
+	int32_t bestStrength = 0;
 
-	int peakCount = 0;
+	int32_t peakCount = 0;
 
 	// For each peak, evaluate its strength as a contender for the fundamental
-	for (int i = minFundamentalPeakIndex; i < maxFundamentalPeakIndex; i++) {
+	for (int32_t i = minFundamentalPeakIndex; i < maxFundamentalPeakIndex; i++) {
 
 		if (!fftHeights[i]) {
 			continue;
@@ -1590,7 +1592,7 @@ doneReading:
 		peakCount++;
 
 		float fundamentalIndexHere;
-		int strengthHere =
+		int32_t strengthHere =
 		    investigateFundamentalPitch(i, (kPitchDetectWindowSize >> 1), fftHeights, (uint64_t*)fftOutput,
 		                                floatIndexTable, &fundamentalIndexHere, lengthDoublings, doPrimeTest);
 
@@ -1631,7 +1633,7 @@ doneReading:
 		Debug::println(maxFundamentalPeakIndex);
 
 #if PITCH_DETECT_DEBUG_LEVEL
-		for (int i = 0; i < (PITCH_DETECT_WINDOW_SIZE >> 1); i++) {
+		for (int32_t i = 0; i < (PITCH_DETECT_WINDOW_SIZE >> 1); i++) {
 			if (!(i & 31)) {
 				Debug::println("");
 				Debug::print(i);
@@ -1649,7 +1651,7 @@ doneReading:
 
 	float freqBeforeAdjustment = (float)sampleRate / fundamentalPeriod;
 
-	int lengthDoublingsLastTime = lengthDoublings;
+	int32_t lengthDoublingsLastTime = lengthDoublings;
 
 	// If frequency too low, go again, taking a longer length into account, for better accuracy
 	if (freqBeforeAdjustment < kMinAccurateFrequency
@@ -1667,7 +1669,7 @@ doneReading:
 		goto startAgain;
 	}
 
-	generalMemoryAllocator.dealloc(fftInput);
+	GeneralMemoryAllocator::get().dealloc(fftInput);
 
 	float freq = freqBeforeAdjustment / (1 << lengthDoublings);
 	Debug::print("freq: ");
@@ -1678,7 +1680,7 @@ doneReading:
 
 void Sample::convertDataOnAnyClustersIfNecessary() {
 	if (rawDataFormat) {
-		for (int c = getFirstClusterIndexWithAudioData(); c < getFirstClusterIndexWithNoAudioData(); c++) {
+		for (int32_t c = getFirstClusterIndexWithAudioData(); c < getFirstClusterIndexWithNoAudioData(); c++) {
 			Cluster* cluster = clusters.getElement(c)->cluster;
 			if (cluster) {
 
@@ -1712,15 +1714,15 @@ int32_t Sample::getValueSpan() {
 
 void Sample::finalizeAfterLoad(uint32_t fileSize) {
 
-	audioDataLengthBytes = getMin(audioDataLengthBytes, fileSize - audioDataStartPosBytes);
+	audioDataLengthBytes = std::min<uint64_t>(audioDataLengthBytes, fileSize - audioDataStartPosBytes);
 
 	// If floating point file, Clusers can only be float-processed (as they're loaded) once we've found the data start-pos, which we just did, and
 	// since we've already loaded that first cluster which contains data, we'd better float-process it now!
 	convertDataOnAnyClustersIfNecessary();
 
-	unsigned int bytesPerSample = byteDepth * numChannels;
+	uint32_t bytesPerSample = byteDepth * numChannels;
 
-	audioDataLengthBytes = getMin(audioDataLengthBytes, fileSize - audioDataStartPosBytes);
+	audioDataLengthBytes = std::min<uint64_t>(audioDataLengthBytes, fileSize - audioDataStartPosBytes);
 
 	lengthInSamples = audioDataLengthBytes / bytesPerSample;
 	audioDataLengthBytes = lengthInSamples * bytesPerSample; // Make sure it's an exact number of samples
@@ -1732,8 +1734,8 @@ void Sample::finalizeAfterLoad(uint32_t fileSize) {
 void Sample::numReasonsDecreasedToZero(char const* errorCode) {
 
 	// Count up the individual reasons, as a bug check
-	int numClusterReasons = 0;
-	for (int c = 0; c < clusters.getNumElements(); c++) {
+	int32_t numClusterReasons = 0;
+	for (int32_t c = 0; c < clusters.getNumElements(); c++) {
 
 		Cluster* cluster = clusters.getElement(c)->cluster;
 		if (cluster) {
@@ -1758,7 +1760,7 @@ void Sample::numReasonsDecreasedToZero(char const* errorCode) {
 
 	if (numClusterReasons) {
 		Debug::println("reason dump---");
-		for (int c = 0; c < clusters.getNumElements(); c++) {
+		for (int32_t c = 0; c < clusters.getNumElements(); c++) {
 
 			Cluster* cluster = clusters.getElement(c)->cluster;
 			if (cluster) {

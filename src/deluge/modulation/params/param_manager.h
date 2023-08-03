@@ -17,10 +17,10 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
 #include "definitions_cxx.hpp"
 #include "hid/display.h"
 #include "modulation/params/param_collection_summary.h"
+#include <cstdint>
 
 class Song;
 class Sound;
@@ -53,19 +53,19 @@ public:
 
 	inline bool containsAnyParamCollectionsIncludingExpression() { return summaries[0].paramCollection; }
 
-	int setupWithPatching();
-	int setupUnpatched();
-	int setupMIDI();
+	int32_t setupWithPatching();
+	int32_t setupUnpatched();
+	int32_t setupMIDI();
 
 	void stealParamCollectionsFrom(ParamManager* other, bool stealExpressionParams = false);
-	int cloneParamCollectionsFrom(ParamManager* other, bool copyAutomation, bool cloneExpressionParams = false,
-	                              int32_t reverseDirectionWithLength = 0);
-	int beenCloned(int32_t reverseDirectionWithLength = 0); // Will clone Collections
+	int32_t cloneParamCollectionsFrom(ParamManager* other, bool copyAutomation, bool cloneExpressionParams = false,
+	                                  int32_t reverseDirectionWithLength = 0);
+	int32_t beenCloned(int32_t reverseDirectionWithLength = 0); // Will clone Collections
 	void forgetParamCollections();
 	void destructAndForgetParamCollections();
 	bool ensureExpressionParamSetExists(bool forDrum = false);
 
-	inline int getExpressionParamSetOffset() { return expressionParamSetOffset; }
+	inline int32_t getExpressionParamSetOffset() { return expressionParamSetOffset; }
 
 	ExpressionParamSet* getOrCreateExpressionParamSet(bool forDrum = false); // Will return NULL if can't create
 
@@ -155,7 +155,7 @@ public:
 		return (PatchCableSet*)summaries[2].paramCollection;
 	}
 
-	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int currentValueChanged,
+	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t currentValueChanged,
 	                                  bool automationChanged, bool paramAutomatedNow);
 
 #if ALPHA_OR_BETA_VERSION
@@ -178,7 +178,7 @@ class ParamManagerForTimeline final : public ParamManager { // I want to rename 
 public:
 	ParamManagerForTimeline();
 
-	void tickSamples(int numSamples, ModelStackWithThreeMainThings* modelStack);
+	void tickSamples(int32_t numSamples, ModelStackWithThreeMainThings* modelStack);
 	void setPlayPos(uint32_t pos, ModelStackWithThreeMainThings* modelStack, bool reversed);
 	void expectNoFurtherTicks(ModelStackWithThreeMainThings* modelStack);
 	void grabValuesFromPos(uint32_t pos, ModelStackWithThreeMainThings* modelStack);
@@ -189,12 +189,12 @@ public:
 	void trimToLength(uint32_t newLength, ModelStackWithThreeMainThings* modelStack, Action* action,
 	                  bool maySetupPatching = true);
 
-	void processCurrentPos(ModelStackWithThreeMainThings* modelStack, int ticksSinceLast, bool reversed,
+	void processCurrentPos(ModelStackWithThreeMainThings* modelStack, int32_t ticksSinceLast, bool reversed,
 	                       bool didPingpong = false, bool mayInterpolate = true);
 	void expectEvent(ModelStackWithThreeMainThings const* modelStack);
 
 	void shiftHorizontally(ModelStackWithThreeMainThings* modelStack, int32_t amount, int32_t effectiveLength);
-	void nudgeAutomationHorizontallyAtPos(int32_t pos, int offset, int32_t lengthBeforeLoop, Action* action,
+	void nudgeAutomationHorizontallyAtPos(int32_t pos, int32_t offset, int32_t lengthBeforeLoop, Action* action,
 	                                      ModelStackWithThreeMainThings* modelStack,
 	                                      int32_t moveMPEDataWithinRegionLength = 0);
 	void deleteAllAutomation(Action* action, ModelStackWithThreeMainThings* modelStack);

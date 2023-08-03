@@ -18,9 +18,7 @@
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display.h"
-#include "hid/display/numeric_driver.h"
-
-extern char const* firmwareString;
+#include <version.h>
 
 namespace menu_item::firmware {
 class Version final : public MenuItem {
@@ -28,12 +26,12 @@ public:
 	using MenuItem::MenuItem;
 
 	void drawPixelsForOled() {
-		OLED::drawStringCentredShrinkIfNecessary(firmwareString, 22, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, 18,
-		                                         20);
+		OLED::drawStringCentredShrinkIfNecessary(kFirmwareVersionString, 22, OLED::oledMainImage[0],
+		                                         OLED_MAIN_WIDTH_PIXELS, 18, 20);
 	}
 
 	void beginSession(MenuItem* navigatedBackwardFrom) { drawValue(); }
 
-	void drawValue() { display.setScrollingText(firmwareString); }
+	void drawValue() { display.setScrollingText(kFirmwareVersionString); }
 };
 } // namespace menu_item::firmware

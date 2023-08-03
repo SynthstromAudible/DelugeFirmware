@@ -36,7 +36,7 @@ void Range::beginSession(MenuItem* navigatedBackwardFrom) {
 	}
 }
 
-void Range::horizontalEncoderAction(int offset) {
+void Range::horizontalEncoderAction(int32_t offset) {
 
 	if (Buttons::isShiftButtonPressed()) {
 		return;
@@ -52,7 +52,7 @@ switchOff:
 				goto justDrawValueForEditingRange;
 			}
 			else {
-				int startPos = (soundEditor.editingRangeEdge == RangeEdit::RIGHT) ? 999 : 0;
+				int32_t startPos = (soundEditor.editingRangeEdge == RangeEdit::RIGHT) ? 999 : 0;
 				drawValue(startPos);
 			}
 		}
@@ -104,13 +104,13 @@ bool Range::cancelEditingIfItsOn() {
 		return false;
 	}
 
-	int startPos = (soundEditor.editingRangeEdge == RangeEdit::RIGHT) ? 999 : 0;
+	int32_t startPos = (soundEditor.editingRangeEdge == RangeEdit::RIGHT) ? 999 : 0;
 	soundEditor.editingRangeEdge = RangeEdit::OFF;
 	drawValue(startPos);
 	return true;
 }
 
-void Range::drawValue(int startPos, bool renderSidebarToo) {
+void Range::drawValue(int32_t startPos, bool renderSidebarToo) {
 	if (display.type == DisplayType::OLED) {
 
 		renderUIsForOled();
@@ -134,17 +134,17 @@ void Range::drawValueForEditingRange(bool blinkImmediately) {
 		return;
 	}
 
-	int leftLength, rightLength;
+	int32_t leftLength, rightLength;
 	char* buffer = shortStringBuffer;
 
 	getText(buffer, &leftLength, &rightLength, false);
 
-	int textLength = leftLength + rightLength + 1;
+	int32_t textLength = leftLength + rightLength + 1;
 
 	uint8_t blinkMask[kNumericDisplayLength];
 	if (soundEditor.editingRangeEdge == RangeEdit::LEFT) {
-		for (int i = 0; i < kNumericDisplayLength; i++) {
-			if (i < leftLength + kNumericDisplayLength - getMin(4, textLength))
+		for (int32_t i = 0; i < kNumericDisplayLength; i++) {
+			if (i < leftLength + kNumericDisplayLength - std::min(4_i32, textLength))
 				blinkMask[i] = 0;
 			else
 				blinkMask[i] = 255;
@@ -152,7 +152,7 @@ void Range::drawValueForEditingRange(bool blinkImmediately) {
 	}
 
 	else {
-		for (int i = 0; i < kNumericDisplayLength; i++) {
+		for (int32_t i = 0; i < kNumericDisplayLength; i++) {
 			if (kNumericDisplayLength - 1 - i < rightLength)
 				blinkMask[i] = 0;
 			else
@@ -171,24 +171,24 @@ void Range::drawValueForEditingRange(bool blinkImmediately) {
 }
 
 void Range::drawPixelsForOled() {
-	int leftLength, rightLength;
+	int32_t leftLength, rightLength;
 	char* buffer = shortStringBuffer;
 
 	getText(buffer, &leftLength, &rightLength, soundEditor.editingRangeEdge == RangeEdit::OFF);
 
-	int textLength = leftLength + rightLength + (bool)rightLength;
+	int32_t textLength = leftLength + rightLength + (bool)rightLength;
 
-	int baseY = 18;
-	int digitWidth = kTextHugeSpacingX;
-	int digitHeight = kTextHugeSizeY;
+	int32_t baseY = 18;
+	int32_t digitWidth = kTextHugeSpacingX;
+	int32_t digitHeight = kTextHugeSizeY;
 
-	int stringWidth = digitWidth * textLength;
-	int stringStartX = (OLED_MAIN_WIDTH_PIXELS - stringWidth) >> 1;
+	int32_t stringWidth = digitWidth * textLength;
+	int32_t stringStartX = (OLED_MAIN_WIDTH_PIXELS - stringWidth) >> 1;
 
 	OLED::drawString(buffer, stringStartX, baseY, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, digitWidth,
 	                 digitHeight);
 
-	int hilightStartX, hilightWidth;
+	int32_t hilightStartX, hilightWidth;
 
 	if (soundEditor.editingRangeEdge == RangeEdit::LEFT) {
 		hilightStartX = stringStartX;
@@ -197,7 +197,7 @@ doHilightJustOneEdge:
 		OLED::invertArea(hilightStartX, hilightWidth, baseY - 1, baseY + digitHeight + 1, OLED::oledMainImage);
 	}
 	else if (soundEditor.editingRangeEdge == RangeEdit::RIGHT) {
-		int stringEndX = (OLED_MAIN_WIDTH_PIXELS + stringWidth) >> 1;
+		int32_t stringEndX = (OLED_MAIN_WIDTH_PIXELS + stringWidth) >> 1;
 		hilightWidth = digitWidth * rightLength;
 		hilightStartX = stringEndX - hilightWidth;
 		goto doHilightJustOneEdge;

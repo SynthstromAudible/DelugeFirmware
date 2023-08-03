@@ -69,13 +69,13 @@ void slowRoutine() {
 	upstreamUSBMIDIDevice_port2.sendMCMsNowIfNeeded();
 	// port3 is not used for channel data
 
-	for (int d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
+	for (int32_t d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
 		MIDIDeviceUSBHosted* device = (MIDIDeviceUSBHosted*)hostedMIDIDevices.getElement(d);
 		device->sendMCMsNowIfNeeded();
 	}
 }
 
-extern "C" void giveDetailsOfDeviceBeingSetUp(int ip, char const* name, uint16_t vendorId, uint16_t productId) {
+extern "C" void giveDetailsOfDeviceBeingSetUp(int32_t ip, char const* name, uint16_t vendorId, uint16_t productId) {
 
 	usbDeviceCurrentlyBeingSetUp[ip].name.set(name); // If that fails, it'll just have a 0-length name
 	usbDeviceCurrentlyBeingSetUp[ip].vendorId = vendorId;
@@ -95,7 +95,7 @@ MIDIDeviceUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16
 	// Do we know any details about this device already?
 
 	bool gotAName = (name && !name->isEmpty());
-	int i = 0; // Need default value for below if we skip first bit because !gotAName
+	int32_t i = 0; // Need default value for below if we skip first bit because !gotAName
 
 	if (gotAName) {
 		// Search by name first
@@ -117,7 +117,7 @@ MIDIDeviceUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16
 	}
 
 	// Ok, try searching by vendor / product id
-	for (int i = 0; i < hostedMIDIDevices.getNumElements(); i++) {
+	for (int32_t i = 0; i < hostedMIDIDevices.getNumElements(); i++) {
 		MIDIDeviceUSBHosted* candidate = (MIDIDeviceUSBHosted*)hostedMIDIDevices.getElement(i);
 
 		if (candidate->vendorId == vendorId && candidate->productId == productId) {
@@ -134,7 +134,7 @@ MIDIDeviceUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16
 		return NULL;
 	}
 
-	void* memory = generalMemoryAllocator.alloc(sizeof(MIDIDeviceUSBHosted), NULL, false, true);
+	void* memory = GeneralMemoryAllocator::get().alloc(sizeof(MIDIDeviceUSBHosted), NULL, false, true);
 	if (!memory) {
 		return NULL;
 	}
@@ -147,7 +147,7 @@ MIDIDeviceUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16
 	device->productId = productId;
 
 	// Store record of this device
-	int error = hostedMIDIDevices.insertElement(device, i); // We made sure, above, that there's space
+	int32_t error = hostedMIDIDevices.insertElement(device, i); // We made sure, above, that there's space
 #if ALPHA_OR_BETA_VERSION
 	if (error) {
 		display.freezeWithError("E405");
@@ -187,14 +187,14 @@ void recountSmallestMPEZones() {
 	recountSmallestMPEZonesForDevice(&upstreamUSBMIDIDevice_port2);
 	recountSmallestMPEZonesForDevice(&dinMIDIPorts);
 
-	for (int d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
+	for (int32_t d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
 		MIDIDeviceUSBHosted* device = (MIDIDeviceUSBHosted*)hostedMIDIDevices.getElement(d);
 		recountSmallestMPEZonesForDevice(device);
 	}
 }
 
 //Create the midi device configuration and add to the USB midi array
-extern "C" void hostedDeviceConfigured(int ip, int midiDeviceNum) {
+extern "C" void hostedDeviceConfigured(int32_t ip, int32_t midiDeviceNum) {
 	MIDIDeviceUSBHosted* device = getOrCreateHostedMIDIDeviceFromDetails(&usbDeviceCurrentlyBeingSetUp[ip].name,
 	                                                                     usbDeviceCurrentlyBeingSetUp[ip].vendorId,
 	                                                                     usbDeviceCurrentlyBeingSetUp[ip].productId);
@@ -209,8 +209,8 @@ extern "C" void hostedDeviceConfigured(int ip, int midiDeviceNum) {
 	ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][midiDeviceNum];
 
 	connectedDevice->setup();
-	int ports = connectedDevice->maxPortConnected;
-	for (int i = 0; i <= ports; i++) {
+	int32_t ports = connectedDevice->maxPortConnected;
+	for (int32_t i = 0; i <= ports; i++) {
 		connectedDevice->device[i] = device;
 	}
 
@@ -223,7 +223,7 @@ extern "C" void hostedDeviceConfigured(int ip, int midiDeviceNum) {
 	if (display.type == DisplayType::OLED) {
 		String text;
 		text.set(&device->name);
-		int error = text.concatenate(" attached");
+		int32_t error = text.concatenate(" attached");
 		if (!error) {
 			consoleTextIfAllBootedUp(text.get());
 		}
@@ -233,7 +233,7 @@ extern "C" void hostedDeviceConfigured(int ip, int midiDeviceNum) {
 	}
 }
 
-extern "C" void hostedDeviceDetached(int ip, int midiDeviceNum) {
+extern "C" void hostedDeviceDetached(int32_t ip, int32_t midiDeviceNum) {
 
 #if ALPHA_OR_BETA_VERSION
 	if (midiDeviceNum == MAX_NUM_USB_MIDI_DEVICES) {
@@ -244,8 +244,8 @@ extern "C" void hostedDeviceDetached(int ip, int midiDeviceNum) {
 	uartPrint("detached MIDI device: ");
 	uartPrintNumber(midiDeviceNum);
 	ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][midiDeviceNum];
-	int ports = connectedDevice->maxPortConnected;
-	for (int i = 0; i <= ports; i++) {
+	int32_t ports = connectedDevice->maxPortConnected;
+	for (int32_t i = 0; i <= ports; i++) {
 		MIDIDeviceUSB* device = connectedDevice->device[i];
 		if (device) { // Surely always has one?
 			device->connectionFlags &= ~(1 << midiDeviceNum);
@@ -256,7 +256,7 @@ extern "C" void hostedDeviceDetached(int ip, int midiDeviceNum) {
 }
 
 //called by USB setup
-extern "C" void configuredAsPeripheral(int ip) {
+extern "C" void configuredAsPeripheral(int32_t ip) {
 	//Leave this - we'll use this device for all upstream ports
 	ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][0];
 
@@ -276,10 +276,10 @@ extern "C" void configuredAsPeripheral(int ip) {
 	recountSmallestMPEZones();
 }
 
-extern "C" void detachedAsPeripheral(int ip) {
+extern "C" void detachedAsPeripheral(int32_t ip) {
 	//will need to reset all devices if more are added
-	int ports = connectedUSBMIDIDevices[ip][0].maxPortConnected;
-	for (int i = 0; i <= ports; i++) {
+	int32_t ports = connectedUSBMIDIDevices[ip][0].maxPortConnected;
+	for (int32_t i = 0; i <= ports; i++) {
 		connectedUSBMIDIDevices[ip][0].device[i] = NULL;
 	}
 	upstreamUSBMIDIDevice_port1.connectionFlags = 0;
@@ -393,7 +393,7 @@ void writeDevicesToFile() {
 		goto worthIt;
 	}
 
-	for (int d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
+	for (int32_t d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
 		MIDIDeviceUSBHosted* device = (MIDIDeviceUSBHosted*)hostedMIDIDevices.getElement(d);
 		if (device->worthWritingToFile()) {
 			goto worthIt;
@@ -405,7 +405,7 @@ void writeDevicesToFile() {
 	return;
 
 worthIt:
-	int error = storageManager.createXMLFile("MIDIDevices.XML", true);
+	int32_t error = storageManager.createXMLFile("MIDIDevices.XML", true);
 	if (error) {
 		return;
 	}
@@ -425,7 +425,7 @@ worthIt:
 		upstreamUSBMIDIDevice_port2.writeToFile("upstreamUSBDevice2");
 	}
 
-	for (int d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
+	for (int32_t d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
 		MIDIDeviceUSBHosted* device = (MIDIDeviceUSBHosted*)hostedMIDIDevices.getElement(d);
 		if (device->worthWritingToFile()) {
 			device->writeToFile("hostedUSBDevice");
@@ -450,7 +450,7 @@ void readDevicesFromFile() {
 		return;
 	}
 
-	int error = storageManager.openXMLFile(&fp, "midiDevices");
+	int32_t error = storageManager.openXMLFile(&fp, "midiDevices");
 	if (error) {
 		return;
 	}
@@ -495,7 +495,7 @@ void readAHostedDeviceFromFile() {
 	char const* tagName;
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 
-		int whichPort;
+		int32_t whichPort;
 
 		if (!strcmp(tagName, "vendorId")) {
 			vendorId = storageManager.readTagOrAttributeValueHex(0);
@@ -579,15 +579,15 @@ bool ConnectedUSBMIDIDevice::consumeSendData() {
 		return false;
 	}
 
-	int i = 0;
-	int max_size = MIDI_SEND_BUFFER_LEN_INNER;
+	int32_t i = 0;
+	uint32_t max_size = MIDI_SEND_BUFFER_LEN_INNER;
 	if (g_usb_usbmode == USB_HOST) {
 		// many devices do not accept more than 64 bytes of data at a time
 		// likely this can be inferred from the device metadata somehow?
 		max_size = MIDI_SEND_BUFFER_LEN_INNER_HOST;
 	}
 
-	int to_send = getMin(queued, max_size);
+	int32_t to_send = std::min(queued, max_size);
 	for (i = 0; i < to_send; i++) {
 		memcpy(dataSendingNow + (i * 4), &sendDataRingBuf[ringBufReadIdx & MIDI_SEND_RING_MASK], 4);
 		ringBufReadIdx++;
@@ -607,7 +607,7 @@ void ConnectedUSBMIDIDevice::setup() {
 }
 
 /*
-	for (int d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
+	for (int32_t d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
 		MIDIDeviceUSBHosted* device = (MIDIDeviceUSBHosted*)hostedMIDIDevices.getElement(d);
 
 	}

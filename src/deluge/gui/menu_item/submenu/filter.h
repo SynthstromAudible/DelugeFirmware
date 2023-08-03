@@ -22,6 +22,6 @@ namespace menu_item::submenu {
 class Filter final : public Submenu {
 public:
 	Filter(char const* newName = NULL, MenuItem** newFirstItem = NULL) : Submenu(newName, newFirstItem) {}
-	bool isRelevant(Sound* sound, int whichThing) { return (sound->synthMode != SynthMode::FM); }
+	bool isRelevant(Sound* sound, int32_t whichThing) { return (sound->synthMode != SynthMode::FM); }
 };
 } // namespace menu_item::submenu

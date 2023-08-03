@@ -42,6 +42,6 @@ public:
 		return options;
 	}
 
-	int getNumOptions() override { return kNumModFXTypes; }
+	int32_t getNumOptions() override { return kNumModFXTypes; }
 };
 } // namespace menu_item::mod_fx

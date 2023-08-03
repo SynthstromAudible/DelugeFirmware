@@ -18,7 +18,7 @@
 #include "gui/menu_item/submenu_referring_to_one_thing.h"
 #include "processing/sound/sound.h"
 
-extern void setModulatorNumberForTitles(int);
+extern void setModulatorNumberForTitles(int32_t);
 
 namespace menu_item::submenu {
 class Modulator final : public SubmenuReferringToOneThing {
@@ -31,7 +31,7 @@ public:
 		SubmenuReferringToOneThing::beginSession(navigatedBackwardFrom);
 	}
 
-	bool isRelevant(Sound* sound, int whichThing) { return (sound->synthMode == SynthMode::FM); }
+	bool isRelevant(Sound* sound, int32_t whichThing) { return (sound->synthMode == SynthMode::FM); }
 };
 
 } // namespace menu_item::submenu

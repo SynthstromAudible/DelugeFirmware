@@ -26,7 +26,7 @@ public:
 	void readCurrentValue();
 	void writeCurrentValue();
 	char const** getOptions();
-	int getNumOptions();
+	int32_t getNumOptions();
 	void getRGB(uint8_t rgb[3]);
 	uint8_t value;
 };

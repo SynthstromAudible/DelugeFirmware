@@ -26,7 +26,7 @@ public:
 	using Selection::Selection;
 	void readCurrentValue() { soundEditor.currentValue = FlashStorage::defaultScale; }
 	void writeCurrentValue() { FlashStorage::defaultScale = soundEditor.currentValue; }
-	int getNumOptions() { return NUM_PRESET_SCALES + 2; }
+	int32_t getNumOptions() { return NUM_PRESET_SCALES + 2; }
 	char const** getOptions() { return presetScaleNames; }
 };
 } // namespace menu_item::defaults

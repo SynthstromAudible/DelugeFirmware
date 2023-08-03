@@ -42,14 +42,14 @@ public:
 		mpeLowerZoneLastMemberChannel = 0;
 		mpeUpperZoneLastMemberChannel = 15;
 	}
-	int channelToZone(int inputChannel);
+	int32_t channelToZone(int32_t inputChannel);
 	void writeToFile(char const* tagName);
 	bool worthWritingToFile();
 	void readFromFile(MIDIDevice* deviceToSendMCMsOn);
 	void moveUpperZoneOutOfWayOfLowerZone();
 	void moveLowerZoneOutOfWayOfUpperZone();
 
-	inline bool isChannelPartOfAnMPEZone(int channel) {
+	inline bool isChannelPartOfAnMPEZone(int32_t channel) {
 		return (channel >= 1 && channel <= 14
 		        && (mpeLowerZoneLastMemberChannel >= channel || mpeUpperZoneLastMemberChannel <= channel));
 	}
@@ -87,20 +87,20 @@ public:
 	virtual char const* getDisplayName() = 0;
 	void writeToFile(char const* tagName);
 	void readFromFile();
-	void dataEntryMessageReceived(ModelStack* modelStack, int channel, int msb);
-	bool wantsToOutputMIDIOnChannel(int channel, int filter);
+	void dataEntryMessageReceived(ModelStack* modelStack, int32_t channel, int32_t msb);
+	bool wantsToOutputMIDIOnChannel(int32_t channel, int32_t filter);
 	void sendAllMCMs();
 	bool worthWritingToFile();
 	void writePorts();
 
 	virtual void sendMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2) = 0;
 
-	inline void sendCC(int channel, int cc, int value) { sendMessage(0x0B, channel, cc, value); }
+	inline void sendCC(int32_t channel, int32_t cc, int32_t value) { sendMessage(0x0B, channel, cc, value); }
 
 	// data should be a complete message with data[0] = 0xf0, data[len-1] = 0xf7
-	virtual void sendSysex(uint8_t* data, int len) = 0;
+	virtual void sendSysex(uint8_t* data, int32_t len) = 0;
 
-	void sendRPN(int channel, int rpnMSB, int rpnLSB, int valueMSB);
+	void sendRPN(int32_t channel, int32_t rpnMSB, int32_t rpnLSB, int32_t valueMSB);
 
 	inline bool hasDefaultVelocityToLevelSet() { return defaultVelocityToLevel; }
 
@@ -127,7 +127,7 @@ public:
 	uint8_t connectionFlags;
 
 	uint8_t incomingSysexBuffer[1024];
-	int incomingSysexPos = 0;
+	int32_t incomingSysexPos = 0;
 
 protected:
 	virtual void
@@ -142,8 +142,8 @@ public:
 		needsToSendMCMs = 0;
 	}
 	void sendMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2);
-	void sendSysex(uint8_t* data, int len) override;
-	void connectedNow(int midiDeviceNum);
+	void sendSysex(uint8_t* data, int32_t len) override;
+	void connectedNow(int32_t midiDeviceNum);
 	void sendMCMsNowIfNeeded();
 	uint8_t needsToSendMCMs;
 	uint8_t portNumber;
@@ -179,5 +179,5 @@ public:
 	void writeToFlash(uint8_t* memory);
 	char const* getDisplayName();
 	void sendMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2);
-	void sendSysex(uint8_t* data, int len) override;
+	void sendSysex(uint8_t* data, int32_t len) override;
 };

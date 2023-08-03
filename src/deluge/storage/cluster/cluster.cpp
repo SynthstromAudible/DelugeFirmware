@@ -47,8 +47,8 @@ void Cluster::convertDataIfNecessary() {
 
 		memcpy(firstThreeBytesPreDataConversion, data, 3);
 
-		int startPos = sample->audioDataStartPosBytes;
-		int startCluster = startPos >> audioFileManager.clusterSizeMagnitude;
+		int32_t startPos = sample->audioDataStartPosBytes;
+		int32_t startCluster = startPos >> audioFileManager.clusterSizeMagnitude;
 
 		if (clusterIndex < startCluster) { // Hmm, there must have been a case where this happens...
 			return;
@@ -64,7 +64,7 @@ void Cluster::convertDataIfNecessary() {
 			else {
 				uint32_t bytesBeforeStartOfCluster =
 				    clusterIndex * audioFileManager.clusterSize - sample->audioDataStartPosBytes;
-				int bytesThatWillBeEatingIntoAnother3Byte = bytesBeforeStartOfCluster % 3;
+				int32_t bytesThatWillBeEatingIntoAnother3Byte = bytesBeforeStartOfCluster % 3;
 				if (bytesThatWillBeEatingIntoAnother3Byte == 0) {
 					bytesThatWillBeEatingIntoAnother3Byte = 3;
 				}
@@ -148,8 +148,8 @@ void Cluster::convertDataIfNecessary() {
 	}
 }
 
-int Cluster::getAppropriateQueue() {
-	int q;
+int32_t Cluster::getAppropriateQueue() {
+	int32_t q;
 
 	// If it's a perc cache...
 	if (type == ClusterType::PERC_CACHE_FORWARDS || type == ClusterType::PERC_CACHE_REVERSED) {

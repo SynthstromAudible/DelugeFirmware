@@ -26,14 +26,14 @@ extern "C" {
 
 namespace menu_item {
 
-void Integer::selectEncoderAction(int offset) {
+void Integer::selectEncoderAction(int32_t offset) {
 	soundEditor.currentValue += offset;
-	int maxValue = getMaxValue();
+	int32_t maxValue = getMaxValue();
 	if (soundEditor.currentValue > maxValue) {
 		soundEditor.currentValue = maxValue;
 	}
 	else {
-		int minValue = getMinValue();
+		int32_t minValue = getMinValue();
 		if (soundEditor.currentValue < minValue) {
 			soundEditor.currentValue = minValue;
 		}
@@ -55,7 +55,7 @@ void IntegerWithOff::drawValue() {
 	}
 }
 
-void Integer::drawInteger(int textWidth, int textHeight, int yPixel) {
+void Integer::drawInteger(int32_t textWidth, int32_t textHeight, int32_t yPixel) {
 	char buffer[12];
 	intToString(soundEditor.currentValue, buffer, 1);
 	OLED::drawStringCentred(buffer, yPixel + OLED_MAIN_TOPMOST_PIXEL, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,

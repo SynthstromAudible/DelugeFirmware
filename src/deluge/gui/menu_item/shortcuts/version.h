@@ -28,6 +28,6 @@ public:
 		static char const* options[] = {HAVE_OLED ? "1.0" : " 1.0", HAVE_OLED ? "3.0" : " 3.0", NULL};
 		return options;
 	}
-	int getNumOptions() { return NUM_SHORTCUTS_VERSIONS; }
+	int32_t getNumOptions() { return NUM_SHORTCUTS_VERSIONS; }
 };
 } // namespace menu_item::shortcuts

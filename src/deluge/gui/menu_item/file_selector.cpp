@@ -18,7 +18,7 @@
 #include "file_selector.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/browser/sample_browser.h"
-#include "gui/ui/keyboard_screen.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/view.h"
@@ -42,7 +42,7 @@ void FileSelector::beginSession(MenuItem* navigatedBackwardFrom) {
 		uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
 	}
 }
-bool FileSelector::isRelevant(Sound* sound, int whichThing) {
+bool FileSelector::isRelevant(Sound* sound, int32_t whichThing) {
 	if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
 		return true;
 	}
@@ -54,7 +54,8 @@ bool FileSelector::isRelevant(Sound* sound, int whichThing) {
 
 	return (sound->getSynthMode() == SynthMode::SUBTRACTIVE && source->oscType == OscType::SAMPLE);
 }
-MenuPermission FileSelector::checkPermissionToBeginSession(Sound* sound, int whichThing, ::MultiRange** currentRange) {
+MenuPermission FileSelector::checkPermissionToBeginSession(Sound* sound, int32_t whichThing,
+                                                           ::MultiRange** currentRange) {
 
 	if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
 		return MenuPermission::YES;

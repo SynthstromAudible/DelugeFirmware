@@ -17,7 +17,7 @@
 
 #include "model/action/action_logger.h"
 #include "definitions_cxx.hpp"
-#include "gui/ui/keyboard_screen.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
@@ -72,10 +72,10 @@ void ActionLogger::deleteLastAction() {
 
 	toDelete->prepareForDestruction(BEFORE, currentSong);
 	toDelete->~Action();
-	generalMemoryAllocator.dealloc(toDelete);
+	GeneralMemoryAllocator::get().dealloc(toDelete);
 }
 
-Action* ActionLogger::getNewAction(int newActionType, int addToExistingIfPossible) {
+Action* ActionLogger::getNewAction(int32_t newActionType, int32_t addToExistingIfPossible) {
 
 	deleteLog(AFTER);
 
@@ -125,7 +125,7 @@ Action* ActionLogger::getNewAction(int newActionType, int addToExistingIfPossibl
 		}
 
 		// And make a new one
-		void* actionMemory = generalMemoryAllocator.alloc(sizeof(Action), NULL, true);
+		void* actionMemory = GeneralMemoryAllocator::get().alloc(sizeof(Action), NULL, true);
 
 		if (!actionMemory) {
 			Debug::println("no ram to create new Action");
@@ -133,25 +133,26 @@ Action* ActionLogger::getNewAction(int newActionType, int addToExistingIfPossibl
 		}
 
 		// Store states of every Clip in existence
-		int numClips = currentSong->sessionClips.getNumElements() + currentSong->arrangementOnlyClips.getNumElements();
+		int32_t numClips =
+		    currentSong->sessionClips.getNumElements() + currentSong->arrangementOnlyClips.getNumElements();
 
 		ActionClipState* clipStates =
-		    (ActionClipState*)generalMemoryAllocator.alloc(numClips * sizeof(ActionClipState), NULL, true);
+		    (ActionClipState*)GeneralMemoryAllocator::get().alloc(numClips * sizeof(ActionClipState), NULL, true);
 
 		if (!clipStates) {
-			generalMemoryAllocator.dealloc(actionMemory);
+			GeneralMemoryAllocator::get().dealloc(actionMemory);
 			return NULL;
 		}
 
 		newAction = new (actionMemory) Action(newActionType);
 		newAction->clipStates = clipStates;
 
-		int i = 0;
+		int32_t i = 0;
 
 		// For each Clip in session and arranger
 		ClipArray* clipArray = &currentSong->sessionClips;
 traverseClips:
-		for (int c = 0; c < clipArray->getNumElements(); c++) {
+		for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
 			Clip* clip = clipArray->getClipAtIndex(c);
 
 			newAction->clipStates[i].grabFromClip(clip);
@@ -202,18 +203,18 @@ void ActionLogger::updateAction(Action* newAction) {
 		if (newAction->numClipStates
 		    != currentSong->sessionClips.getNumElements() + currentSong->arrangementOnlyClips.getNumElements()) {
 			newAction->numClipStates = 0;
-			generalMemoryAllocator.dealloc(newAction->clipStates);
+			GeneralMemoryAllocator::get().dealloc(newAction->clipStates);
 			newAction->clipStates = NULL;
 			Debug::println("discarded clip states");
 		}
 
 		else {
-			int i = 0;
+			int32_t i = 0;
 
 			// For each Clip in session and arranger
 			ClipArray* clipArray = &currentSong->sessionClips;
 traverseClips2:
-			for (int c = 0; c < clipArray->getNumElements(); c++) {
+			for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
 				Clip* clip = clipArray->getClipAtIndex(c);
 
 				if (clip->type == CLIP_TYPE_INSTRUMENT) {
@@ -240,7 +241,7 @@ traverseClips2:
 	memcpy(newAction->modeNotes[AFTER], currentSong->modeNotes, sizeof(currentSong->modeNotes));
 }
 
-void ActionLogger::recordUnautomatedParamChange(ModelStackWithAutoParam const* modelStack, int actionType) {
+void ActionLogger::recordUnautomatedParamChange(ModelStackWithAutoParam const* modelStack, int32_t actionType) {
 
 	Action* action = getNewAction(actionType, true);
 	if (!action) {
@@ -263,7 +264,7 @@ void ActionLogger::recordSwingChange(int8_t swingBefore, int8_t swingAfter) {
 		consequence->swing[AFTER] = swingAfter;
 	}
 	else {
-		void* consMemory = generalMemoryAllocator.alloc(sizeof(ConsequenceSwingChange));
+		void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceSwingChange));
 
 		if (consMemory) {
 			ConsequenceSwingChange* newConsequence = new (consMemory) ConsequenceSwingChange(swingBefore, swingAfter);
@@ -286,7 +287,7 @@ void ActionLogger::recordTempoChange(uint64_t timePerBigBefore, uint64_t timePer
 	}
 	else {
 
-		void* consMemory = generalMemoryAllocator.alloc(sizeof(ConsequenceTempoChange));
+		void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceTempoChange));
 
 		if (consMemory) {
 			ConsequenceTempoChange* newConsequence =
@@ -342,7 +343,7 @@ void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavi
 
 	currentSong->deletePendingOverdubs();
 
-	int whichAnimation = ANIMATION_NONE;
+	int32_t whichAnimation = ANIMATION_NONE;
 	uint32_t songZoomBeforeTransition = currentSong->xZoom[NAVIGATION_CLIP];
 	uint32_t arrangerZoomBeforeTransition = currentSong->xZoom[NAVIGATION_ARRANGEMENT];
 
@@ -436,16 +437,16 @@ void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavi
 
 		// Restore states of each Clip
 		if (action->numClipStates) {
-			int totalNumClips =
+			int32_t totalNumClips =
 			    currentSong->sessionClips.getNumElements() + currentSong->arrangementOnlyClips.getNumElements();
 			if (action->numClipStates == totalNumClips) {
 
-				int i = 0;
+				int32_t i = 0;
 
 				// For each Clip in session and arranger
 				ClipArray* clipArray = &currentSong->sessionClips;
 traverseClips:
-				for (int c = 0; c < clipArray->getNumElements(); c++) {
+				for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
 					Clip* clip = clipArray->getClipAtIndex(c);
 
 					//clip->modKnobMode = action->clipStates[i].modKnobMode;
@@ -560,7 +561,7 @@ currentClipSwitchedOver:
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
-	int error = action->revert(time, modelStack);
+	int32_t error = action->revert(time, modelStack);
 
 	// Some "animations", we prefer to do after we've reverted the action
 	if (whichAnimation == ANIMATION_ENTER_KEYBOARD_VIEW) {
@@ -680,13 +681,13 @@ currentClipSwitchedOver:
 	}
 }
 
-void ActionLogger::closeAction(int actionType) {
+void ActionLogger::closeAction(int32_t actionType) {
 	if (firstAction[BEFORE] && firstAction[BEFORE]->type == actionType) {
 		firstAction[BEFORE]->openForAdditions = false;
 	}
 }
 
-void ActionLogger::closeActionUnlessCreatedJustNow(int actionType) {
+void ActionLogger::closeActionUnlessCreatedJustNow(int32_t actionType) {
 	if (firstAction[BEFORE] && firstAction[BEFORE]->type == actionType
 	    && firstAction[BEFORE]->creationTime != AudioEngine::audioSampleTimer) {
 		firstAction[BEFORE]->openForAdditions = false;
@@ -698,7 +699,7 @@ void ActionLogger::deleteAllLogs() {
 	deleteLog(AFTER);
 }
 
-void ActionLogger::deleteLog(int time) {
+void ActionLogger::deleteLog(int32_t time) {
 	while (firstAction[time]) {
 		Action* toDelete = firstAction[time];
 
@@ -706,7 +707,7 @@ void ActionLogger::deleteLog(int time) {
 
 		toDelete->prepareForDestruction(time, currentSong);
 		toDelete->~Action();
-		generalMemoryAllocator.dealloc(toDelete);
+		GeneralMemoryAllocator::get().dealloc(toDelete);
 	}
 }
 
@@ -795,7 +796,7 @@ bool ActionLogger::undoJustOneConsequencePerNoteRow(ModelStack* modelStack) {
 	if (firstConsequence) { // Should always be true
 
 		// Work out if multiple Consequences per NoteRow (see big comment above)
-		int firstNoteRowId = ((ConsequenceNoteArrayChange*)firstConsequence)->noteRowId;
+		int32_t firstNoteRowId = ((ConsequenceNoteArrayChange*)firstConsequence)->noteRowId;
 
 		Consequence* thisConsequence = firstConsequence->next;
 		while (thisConsequence) {
@@ -818,7 +819,7 @@ gotMultipleConsequencesPerNoteRow:
 
 				firstConsequence->prepareForDestruction(BEFORE, modelStack->song);
 				firstConsequence->~Consequence();
-				generalMemoryAllocator.dealloc(firstConsequence);
+				GeneralMemoryAllocator::get().dealloc(firstConsequence);
 				firstConsequence = firstAction[BEFORE]->firstConsequence;
 			} while (thisConsequence->type != Consequence::NOTE_ARRAY_CHANGE
 			         || ((ConsequenceNoteArrayChange*)firstConsequence)->noteRowId != firstNoteRowId);

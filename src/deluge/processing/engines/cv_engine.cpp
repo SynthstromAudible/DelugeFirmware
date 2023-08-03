@@ -77,7 +77,7 @@ void CVEngine::init() {
 		R_RSPI_SendBasic32(SPI_CHANNEL_CV, 0b00000101000000000000000000000000); // LIN = 0
 	}
 
-	for (int i = 0; i < NUM_GATE_CHANNELS; i++) {
+	for (int32_t i = 0; i < NUM_GATE_CHANNELS; i++) {
 
 		// Setup gate outputs
 		setPinAsOutput(gatePort[i], gatePin[i]);
@@ -93,7 +93,7 @@ void CVEngine::init() {
 // Gets called even for run and clock
 void CVEngine::updateGateOutputs() {
 	if (gateOutputPending || clockOutputPending || asapGateOutputPending) {
-		for (int g = 0; g < NUM_GATE_CHANNELS; g++) {
+		for (int32_t g = 0; g < NUM_GATE_CHANNELS; g++) {
 			physicallySwitchGate(g);
 		}
 
@@ -104,14 +104,14 @@ void CVEngine::updateGateOutputs() {
 }
 
 // These next two functions get called for run but not clock
-void CVEngine::switchGateOff(int channel) {
+void CVEngine::switchGateOff(int32_t channel) {
 	gateChannels[channel].on = false;
 	physicallySwitchGate(channel);
 	gateChannels[channel].timeLastSwitchedOff = AudioEngine::audioSampleTimer;
 }
 
 // In the future, it'd be great if manually-auditioned notes could supply doInstantlyIfPossible as true. Currently there's no infrastructure for an Instrument to know whether a note is manually auditioned.
-void CVEngine::switchGateOn(int channel, int doInstantlyIfPossible) {
+void CVEngine::switchGateOn(int32_t channel, int32_t doInstantlyIfPossible) {
 	gateChannels[channel].on = true;
 
 	if (doInstantlyIfPossible) {
@@ -165,8 +165,8 @@ void CVEngine::sendNote(bool on, uint8_t channel, int16_t note) {
 
 			// Calculate the voltage
 			voltage = calculateVoltage(note, channel);
-			voltage = getMin(voltage, (int32_t)65535);
-			voltage = getMax(voltage, (int32_t)0);
+			voltage = std::min(voltage, (int32_t)65535);
+			voltage = std::max(voltage, (int32_t)0);
 			sendVoltageOut(channel, voltage);
 		}
 
@@ -189,8 +189,8 @@ void CVEngine::sendVoltageOut(uint8_t channel, uint16_t voltage) {
 	}
 }
 
-void CVEngine::physicallySwitchGate(int channel) {
-	int on =
+void CVEngine::physicallySwitchGate(int32_t channel) {
+	int32_t on =
 	    (gateChannels[channel].on == util::one_of(gateChannels[channel].mode, {GateType::V_TRIG, GateType::SPECIAL}));
 	setOutputState(gatePort[channel], gatePin[channel], on);
 }
@@ -200,7 +200,7 @@ void CVEngine::setCVVoltsPerOctave(uint8_t channel, uint8_t value) {
 	recalculateCVChannelVoltage(channel);
 }
 
-void CVEngine::setCVTranspose(uint8_t channel, int semitones, int cents) {
+void CVEngine::setCVTranspose(uint8_t channel, int32_t semitones, int32_t cents) {
 	cvChannels[channel].transpose = semitones;
 	cvChannels[channel].cents = cents;
 	recalculateCVChannelVoltage(channel);
@@ -217,13 +217,13 @@ void CVEngine::setCVPitchBend(uint8_t channel, int32_t value, bool outputToo) {
 void CVEngine::recalculateCVChannelVoltage(uint8_t channel) {
 	int32_t voltage = calculateVoltage(cvChannels[channel].noteCurrentlyPlaying, channel);
 
-	voltage = getMin(voltage, (int32_t)65535);
-	voltage = getMax(voltage, (int32_t)0);
+	voltage = std::min(voltage, (int32_t)65535);
+	voltage = std::max(voltage, (int32_t)0);
 	sendVoltageOut(channel, voltage);
 }
 
 // Represents 1V as 6552. So 10V is 65520.
-int32_t CVEngine::calculateVoltage(int note, uint8_t channel) {
+int32_t CVEngine::calculateVoltage(int32_t note, uint8_t channel) {
 	double transposedNoteCode = (double)(note + cvChannels[channel].transpose)
 	                            + (double)cvChannels[channel].cents * 0.01
 	                            + (double)cvChannels[channel].pitchBend / (1 << 23);

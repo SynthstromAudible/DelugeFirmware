@@ -53,7 +53,7 @@ bool TimelineView::calculateZoomPinSquares(uint32_t oldScroll, uint32_t newScrol
 
 	int32_t zoomPinSquareBig = ((int64_t)(int32_t)(oldScroll - newScroll) << 16) / (int32_t)(newZoom - oldZoom);
 
-	for (int i = 0; i < kDisplayHeight; i++) {
+	for (int32_t i = 0; i < kDisplayHeight; i++) {
 		PadLEDs::zoomPinSquare[i] = zoomPinSquareBig;
 	}
 
@@ -130,7 +130,7 @@ void TimelineView::displayZoomLevel(bool justPopup) {
 bool horizontalEncoderActionLock = false;
 extern bool pendingUIRenderingLock;
 
-ActionResult TimelineView::horizontalEncoderAction(int offset) {
+ActionResult TimelineView::horizontalEncoderAction(int32_t offset) {
 
 	if (sdRoutineLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -148,15 +148,15 @@ ActionResult TimelineView::horizontalEncoderAction(int offset) {
 	}
 	horizontalEncoderActionLock = true;
 
-	int navSysId = getNavSysId();
+	int32_t navSysId = getNavSysId();
 
 	// Encoder button pressed, zoom.
 	if (isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
 
 		if (isUIModeActiveExclusively(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
-			int oldXZoom = currentSong->xZoom[navSysId];
+			int32_t oldXZoom = currentSong->xZoom[navSysId];
 
-			int zoomMagnitude = -offset;
+			int32_t zoomMagnitude = -offset;
 
 			// Constrain to zoom limits
 			if (zoomMagnitude == -1) {
@@ -209,7 +209,7 @@ getOut:
 
 void TimelineView::displayScrollPos() {
 
-	int navSysId = getNavSysId();
+	int32_t navSysId = getNavSysId();
 	uint32_t quantization = currentSong->xZoom[navSysId];
 	if (navSysId == NAVIGATION_CLIP) {
 		quantization *= kDisplayWidth;
@@ -223,15 +223,15 @@ void TimelineView::displayNumberOfBarsAndBeats(uint32_t number, uint32_t quantiz
 
 	uint32_t oneBar = currentSong->getBarLength();
 
-	unsigned int whichBar = number / oneBar;
+	uint32_t whichBar = number / oneBar;
 
-	unsigned int posWithinBar = number - whichBar * oneBar;
+	uint32_t posWithinBar = number - whichBar * oneBar;
 
-	unsigned int whichBeat = posWithinBar / (oneBar >> 2);
+	uint32_t whichBeat = posWithinBar / (oneBar >> 2);
 
-	unsigned int posWithinBeat = posWithinBar - whichBeat * (oneBar >> 2);
+	uint32_t posWithinBeat = posWithinBar - whichBeat * (oneBar >> 2);
 
-	unsigned int whichSubBeat = posWithinBeat / (oneBar >> 4);
+	uint32_t whichSubBeat = posWithinBeat / (oneBar >> 4);
 
 	if (countFromOne) {
 		whichBar++;
@@ -294,11 +294,11 @@ putBeatCountOnFarRight:
 }
 
 // Changes the actual xScroll.
-void TimelineView::initiateXScroll(uint32_t newXScroll, int numSquaresToScroll) {
+void TimelineView::initiateXScroll(uint32_t newXScroll, int32_t numSquaresToScroll) {
 
 	uint32_t oldXScroll = currentSong->xScroll[getNavSysId()];
 
-	int scrollDirection = (newXScroll > currentSong->xScroll[getNavSysId()]) ? 1 : -1;
+	int32_t scrollDirection = (newXScroll > currentSong->xScroll[getNavSysId()]) ? 1 : -1;
 
 	currentSong->xScroll[getNavSysId()] = newXScroll;
 
@@ -313,7 +313,7 @@ void TimelineView::initiateXScroll(uint32_t newXScroll, int numSquaresToScroll) 
 
 // Returns whether any zooming took place - I think?
 bool TimelineView::zoomToMax(bool inOnly) {
-	unsigned int maxZoom = getMaxZoom();
+	uint32_t maxZoom = getMaxZoom();
 	uint32_t oldZoom = currentSong->xZoom[getNavSysId()];
 	if (maxZoom != oldZoom && (!inOnly || maxZoom < oldZoom)) {
 
@@ -331,7 +331,7 @@ bool TimelineView::zoomToMax(bool inOnly) {
 }
 
 // Puts us into zoom mode. Assumes we've already altered currentSong->xZoom.
-void TimelineView::initiateXZoom(int zoomMagnitude, int32_t newScroll, uint32_t oldZoom) {
+void TimelineView::initiateXZoom(int32_t zoomMagnitude, int32_t newScroll, uint32_t oldZoom) {
 
 	memcpy(PadLEDs::imageStore[(zoomMagnitude < 0) ? kDisplayHeight : 0], PadLEDs::image,
 	       (kDisplayWidth + kSideBarWidth) * kDisplayHeight * 3);
@@ -343,7 +343,7 @@ void TimelineView::initiateXZoom(int zoomMagnitude, int32_t newScroll, uint32_t 
 
 	if (anyToAnimate) {
 
-		int storeOffset = (zoomMagnitude < 0) ? 0 : kDisplayHeight;
+		int32_t storeOffset = (zoomMagnitude < 0) ? 0 : kDisplayHeight;
 
 		renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[storeOffset], &PadLEDs::occupancyMaskStore[storeOffset], true);
 
@@ -423,7 +423,7 @@ int32_t TimelineView::getPosFromSquare(int32_t square, int32_t xScroll, uint32_t
 
 int32_t TimelineView::getPosFromSquare(int32_t square, int32_t xScroll) {
 
-	int navSys = getNavSysId();
+	int32_t navSys = getNavSysId();
 
 	if (xScroll == -1) {
 		xScroll = currentSong->xScroll[navSys]; // Sets default
@@ -459,7 +459,7 @@ int32_t TimelineView::getSquareFromPos(int32_t pos, bool* rightOnSquare, int32_t
 			return final;
 		}
 		else if (xZoom < currentSong->tripletsLevel * 2) {
-			int posRelativeToTripletsStart =
+			int32_t posRelativeToTripletsStart =
 			    posRelativeToScroll % (currentSong->tripletsLevel * 3); // Will the % be ok if it's negative? No! :O
 			if (rightOnSquare) {
 				*rightOnSquare =
@@ -484,7 +484,7 @@ int32_t TimelineView::getSquareFromPos(int32_t pos, bool* rightOnSquare, int32_t
 
 int32_t TimelineView::getSquareFromPos(int32_t pos, bool* rightOnSquare, int32_t xScroll) {
 
-	int navSys = getNavSysId();
+	int32_t navSys = getNavSysId();
 
 	if (xScroll == -1) {
 		xScroll = currentSong->xScroll[navSys]; // Defaults to main currentSong->xScroll
@@ -504,7 +504,7 @@ int32_t TimelineView::getSquareEndFromPos(int32_t pos, int32_t localScroll) {
 	return square;
 }
 
-bool TimelineView::isSquareDefined(int square, int32_t xScroll, uint32_t xZoom) {
+bool TimelineView::isSquareDefined(int32_t square, int32_t xScroll, uint32_t xZoom) {
 	if (!inTripletsView()) {
 		return true;
 	}
@@ -515,7 +515,7 @@ bool TimelineView::isSquareDefined(int square, int32_t xScroll, uint32_t xZoom) 
 }
 
 // Deprecate this.
-bool TimelineView::isSquareDefined(int square, int32_t xScroll) {
+bool TimelineView::isSquareDefined(int32_t square, int32_t xScroll) {
 	if (!inTripletsView()) {
 		return true;
 	}

@@ -17,13 +17,13 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
 #include "model/consequence/consequence.h"
+#include <cstdint>
 
 class ConsequenceArrangerParamsTimeInserted final : public Consequence {
 public:
 	ConsequenceArrangerParamsTimeInserted(int32_t newPos, int32_t newLength);
-	int revert(TimeType time, ModelStack* modelStack);
+	int32_t revert(TimeType time, ModelStack* modelStack);
 	int32_t pos;
 	int32_t length;
 };

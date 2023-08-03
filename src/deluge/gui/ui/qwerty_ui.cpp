@@ -32,8 +32,10 @@
 
 bool QwertyUI::predictionInterrupted;
 String QwertyUI::enteredText{};
+//entered text edit position is the first difference from
+//the previously seen name while browsing/editing
 int16_t QwertyUI::enteredTextEditPos;
-int QwertyUI::scrollPosHorizontal;
+int32_t QwertyUI::scrollPosHorizontal;
 
 QwertyUI::QwertyUI() {
 }
@@ -70,65 +72,65 @@ void QwertyUI::drawKeys() {
 	memset(PadLEDs::image[kQwertyHomeRow - 2][5], 160, 6 * 3);
 
 	// Backspace
-	for (int x = 14; x < 16; x++) {
+	for (int32_t x = 14; x < 16; x++) {
 		PadLEDs::image[kQwertyHomeRow + 2][x][0] = 255;
 		PadLEDs::image[kQwertyHomeRow + 2][x][1] = 0;
 		PadLEDs::image[kQwertyHomeRow + 2][x][2] = 0;
 	}
 
 	// Enter
-	for (int x = 14; x < 16; x++) {
+	for (int32_t x = 14; x < 16; x++) {
 		PadLEDs::image[kQwertyHomeRow][x][0] = 0;
 		PadLEDs::image[kQwertyHomeRow][x][1] = 255;
 		PadLEDs::image[kQwertyHomeRow][x][2] = 0;
 	}
 
 	// Shift
-	for (int x = 1; x < 3; x++) {
+	for (int32_t x = 1; x < 3; x++) {
 		PadLEDs::image[kQwertyHomeRow - 1][x][0] = 0;
 		PadLEDs::image[kQwertyHomeRow - 1][x][1] = 0;
 		PadLEDs::image[kQwertyHomeRow - 1][x][2] = 255;
 	}
-	for (int x = 13; x < 15; x++) {
+	for (int32_t x = 13; x < 15; x++) {
 		PadLEDs::image[kQwertyHomeRow - 1][x][0] = 0;
 		PadLEDs::image[kQwertyHomeRow - 1][x][1] = 0;
 		PadLEDs::image[kQwertyHomeRow - 1][x][2] = 255;
 	}
 }
 
-void QwertyUI::drawTextForOLEDEditing(int xPixel, int xPixelMax, int yPixel, int maxNumChars,
+void QwertyUI::drawTextForOLEDEditing(int32_t xPixel, int32_t xPixelMax, int32_t yPixel, int32_t maxNumChars,
                                       uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 
 	char const* displayName = enteredText.get();
-	int displayStringLength = enteredText.getLength();
+	int32_t displayStringLength = enteredText.getLength();
 
 	bool atVeryEnd = (enteredTextEditPos == displayStringLength);
 
-	int xScrollHere = 0;
+	int32_t xScrollHere = 0;
 
 	// Prevent being scrolled too far left.
-	int minXScroll = getMin(enteredTextEditPos + 3 - maxNumChars, displayStringLength - maxNumChars + atVeryEnd);
-	minXScroll = getMax(minXScroll, 0);
-	scrollPosHorizontal = getMax(scrollPosHorizontal, minXScroll);
+	int32_t minXScroll = std::min(enteredTextEditPos + 3 - maxNumChars, displayStringLength - maxNumChars + atVeryEnd);
+	minXScroll = std::max(minXScroll, 0_i32);
+	scrollPosHorizontal = std::max(scrollPosHorizontal, minXScroll);
 
 	// Prevent being scrolled too far right.
-	int maxXScroll = getMin(displayStringLength - maxNumChars + atVeryEnd,
-	                        enteredTextEditPos - 3); // First part of this might not be needed I think?
-	maxXScroll = getMax(maxXScroll, 0);
-	scrollPosHorizontal = getMin(scrollPosHorizontal, maxXScroll);
+	int32_t maxXScroll = std::min<int32_t>(displayStringLength - maxNumChars + atVeryEnd,
+	                                       enteredTextEditPos - 3); // First part of this might not be needed I think?
+	maxXScroll = std::max(maxXScroll, 0_i32);
+	scrollPosHorizontal = std::min(scrollPosHorizontal, maxXScroll);
 
 	OLED::drawString(&displayName[scrollPosHorizontal], xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
 	                 kTextSpacingY);
 
-	int hilightStartX = xPixel + kTextSpacingX * (enteredTextEditPos - scrollPosHorizontal);
-	//int hilightEndX = xPixel + TEXT_SIZE_X * (displayStringLength - scrollPosHorizontal);
+	int32_t hilightStartX = xPixel + kTextSpacingX * (enteredTextEditPos - scrollPosHorizontal);
+	//int32_t hilightEndX = xPixel + TEXT_SIZE_X * (displayStringLength - scrollPosHorizontal);
 	//if (hilightEndX > OLED_MAIN_WIDTH_PIXELS || !enteredTextEditPos) hilightEndX = OLED_MAIN_WIDTH_PIXELS;
-	int hilightWidth = xPixelMax - hilightStartX;
+	int32_t hilightWidth = xPixelMax - hilightStartX;
 
 	if (atVeryEnd) {
 		if (getCurrentUI() == this) {
-			int cursorStartX = xPixel + (displayStringLength - scrollPosHorizontal) * kTextSpacingX;
-			int textBottomY = yPixel + kTextSpacingY;
+			int32_t cursorStartX = xPixel + (displayStringLength - scrollPosHorizontal) * kTextSpacingX;
+			int32_t textBottomY = yPixel + kTextSpacingY;
 			OLED::setupBlink(cursorStartX, kTextSpacingX, textBottomY - 4, textBottomY - 2, true);
 		}
 	}
@@ -139,23 +141,24 @@ void QwertyUI::drawTextForOLEDEditing(int xPixel, int xPixelMax, int yPixel, int
 
 void QwertyUI::displayText(bool blinkImmediately) {
 
-	int totalTextLength = enteredText.getLength();
+	int32_t totalTextLength = enteredText.getLength();
 
 	bool encodedEditPosAndAHalf;
-	int encodedEditPos = display.getEncodedPosFromLeft(enteredTextEditPos, enteredText.get(), &encodedEditPosAndAHalf);
+	int32_t encodedEditPos = display.getEncodedPosFromLeft(enteredTextEditPos, enteredText.get(), &encodedEditPosAndAHalf);
 
 	bool encodedEndPosAndAHalf;
-	int encodedEndPos = display.getEncodedPosFromLeft(totalTextLength, enteredText.get(), &encodedEndPosAndAHalf);
+	int32_t encodedEndPos =
+	    display.getEncodedPosFromLeft(totalTextLength, enteredText.get(), &encodedEndPosAndAHalf);
 
-	int scrollPos = encodedEditPos - (kNumericDisplayLength >> 1) + encodedEditPosAndAHalf;
-	int maxScrollPos = encodedEndPos - kNumericDisplayLength;
+	int32_t scrollPos = encodedEditPos - (kNumericDisplayLength >> 1) + encodedEditPosAndAHalf;
+	int32_t maxScrollPos = encodedEndPos - kNumericDisplayLength;
 	if (totalTextLength == enteredTextEditPos) {
 		maxScrollPos++;
 	}
-	scrollPos = getMin(scrollPos, maxScrollPos);
-	scrollPos = getMax(scrollPos, 0);
+	scrollPos = std::min(scrollPos, maxScrollPos);
+	scrollPos = std::max(scrollPos, 0_i32);
 
-	int editPosOnscreen = encodedEditPos - scrollPos;
+	int32_t editPosOnscreen = encodedEditPos - scrollPos;
 
 	// Place the '_' for editing
 	uint8_t encodedAddition[kNumericDisplayLength];
@@ -170,7 +173,7 @@ void QwertyUI::displayText(bool blinkImmediately) {
 	}
 
 	uint8_t blinkMask[kNumericDisplayLength];
-	for (int i = 0; i < kNumericDisplayLength; i++) {
+	for (int32_t i = 0; i < kNumericDisplayLength; i++) {
 		if (i < editPosOnscreen) {
 			blinkMask[i] = 255; // Blink none
 		}
@@ -210,7 +213,7 @@ const char keyboardChars[][5][11] = {{
                                          {0, 0, ' ', ' ', ' ', ' ', ' ', ' ', 0, 0, 0},
                                      }};
 
-ActionResult QwertyUI::padAction(int x, int y, int on) {
+ActionResult QwertyUI::padAction(int32_t x, int32_t y, int32_t on) {
 
 	// Backspace
 	if (y == kQwertyHomeRow + 2 && x >= 14 && x < 16) {
@@ -357,7 +360,7 @@ ActionResult QwertyUI::padAction(int x, int y, int on) {
 						stringToConcat[0] = newChar;
 						stringToConcat[1] = 0;
 
-						int error = enteredText.concatenateAtPos(stringToConcat, enteredTextEditPos);
+						int32_t error = enteredText.concatenateAtPos(stringToConcat, enteredTextEditPos);
 
 						if (error) {
 							display.displayError(error);
@@ -394,7 +397,7 @@ void QwertyUI::processBackspace() {
 	}
 }
 
-ActionResult QwertyUI::horizontalEncoderAction(int offset) {
+ActionResult QwertyUI::horizontalEncoderAction(int32_t offset) {
 	if (offset == 1) {
 
 		// If already at far right end, just see if we can predict any further characters

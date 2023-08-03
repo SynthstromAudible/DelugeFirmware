@@ -27,7 +27,7 @@ class ZoneNumMemberChannels final : public IntegerWithOff {
 public:
 	ZoneNumMemberChannels() { basicTitle = "Num member ch."; }
 	//void beginSession(MenuItem* navigatedBackwardFrom);
-	int getMaxValue() const;
+	int32_t getMaxValue() const;
 	void readCurrentValue();
 	void writeCurrentValue();
 	//char nameChars[16];

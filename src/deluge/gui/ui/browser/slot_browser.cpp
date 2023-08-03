@@ -32,12 +32,12 @@ SlotBrowser::SlotBrowser() {
 }
 
 // Todo: turn this into the open() function - which will need to also be able to return error codes?
-int SlotBrowser::beginSlotSession(bool shouldDrawKeys, bool allowIfNoFolder) {
+int32_t SlotBrowser::beginSlotSession(bool shouldDrawKeys, bool allowIfNoFolder) {
 
 	currentFileHasSuffixFormatNameImplied = false;
 
 	// We want to check the SD card is generally working here, so that if not, we can exit out before drawing the QWERTY keyboard.
-	int error = storageManager.initSD();
+	int32_t error = storageManager.initSD();
 	if (error) {
 		return error;
 	}
@@ -67,7 +67,7 @@ void SlotBrowser::focusRegained() {
 	displayText(false);
 }
 
-ActionResult SlotBrowser::horizontalEncoderAction(int offset) {
+ActionResult SlotBrowser::horizontalEncoderAction(int32_t offset) {
 
 	if (!isNoUIModeActive()) {
 		return ActionResult::DEALT_WITH;
@@ -133,16 +133,16 @@ void SlotBrowser::convertToPrefixFormatIfPossible() {
 	if (currentFileItem && currentFileHasSuffixFormatNameImplied && !enteredText.isEmpty()
 	    && !currentFileItem->isFolder) {
 
-		int enteredTextLength = enteredText.getLength();
+		int32_t enteredTextLength = enteredText.getLength();
 
 		char const* enteredTextChars = enteredText.get();
 
-		int newSubSlot = -1;
-		int newSlot = 0;
+		int32_t newSubSlot = -1;
+		int32_t newSlot = 0;
 
-		int multiplier = 1;
+		int32_t multiplier = 1;
 
-		for (int i = enteredTextLength - 1; i >= 0; i--) {
+		for (int32_t i = enteredTextLength - 1; i >= 0; i--) {
 
 			if (i == enteredTextLength - 1) {
 				if (enteredTextChars[i] >= 'a' && enteredTextChars[i] <= 'z') {
@@ -176,8 +176,8 @@ void SlotBrowser::convertToPrefixFormatIfPossible() {
 	}
 }
 
-int SlotBrowser::getCurrentFilenameWithoutExtension(String* filenameWithoutExtension) {
-	int error;
+int32_t SlotBrowser::getCurrentFilenameWithoutExtension(String* filenameWithoutExtension) {
+	int32_t error;
 	if (display.type != DisplayType::OLED) {
 		// If numeric...
 		Slot slot = getSlot(enteredText.get());
@@ -211,10 +211,10 @@ int SlotBrowser::getCurrentFilenameWithoutExtension(String* filenameWithoutExten
 	return NO_ERROR;
 }
 
-int SlotBrowser::getCurrentFilePath(String* path) {
+int32_t SlotBrowser::getCurrentFilePath(String* path) {
 	path->set(&currentDir);
 
-	int error = path->concatenate("/");
+	int32_t error = path->concatenate("/");
 	if (error) {
 		return error;
 	}

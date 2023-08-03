@@ -26,10 +26,10 @@ public:
 	RetriggerPhase(char const* newName = NULL, bool newForModulator = false) : Decimal(newName) {
 		forModulator = newForModulator;
 	}
-	int getMinValue() const { return -soundEditor.numberEditSize; }
-	int getMaxValue() const { return 360; }
-	int getNumDecimalPlaces() const { return 0; }
-	int getDefaultEditPos() const { return 1; }
+	int32_t getMinValue() const { return -soundEditor.numberEditSize; }
+	int32_t getMaxValue() const { return 360; }
+	int32_t getNumDecimalPlaces() const { return 0; }
+	int32_t getDefaultEditPos() const { return 1; }
 	void readCurrentValue() {
 		uint32_t value = *getValueAddress();
 		if (value == 0xFFFFFFFF) {
@@ -68,13 +68,13 @@ public:
 		}
 	}
 
-	void horizontalEncoderAction(int offset) {
+	void horizontalEncoderAction(int32_t offset) {
 		if (soundEditor.currentValue >= 0) {
 			Decimal::horizontalEncoderAction(offset);
 		}
 	}
 
-	bool isRelevant(Sound* sound, int whichThing) {
+	bool isRelevant(Sound* sound, int32_t whichThing) {
 		Source* source = &sound->sources[whichThing];
 		if (forModulator && sound->getSynthMode() != SynthMode::FM) {
 			return false;

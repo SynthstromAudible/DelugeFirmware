@@ -26,7 +26,7 @@ public:
 	using Integer::Integer;
 	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSound->unisonStereoSpread; }
 	void writeCurrentValue() { soundEditor.currentSound->setUnisonStereoSpread(soundEditor.currentValue); }
-	int getMaxValue() const { return kMaxUnisonStereoSpread; }
+	int32_t getMaxValue() const { return kMaxUnisonStereoSpread; }
 };
 } // namespace menu_item::unison
 

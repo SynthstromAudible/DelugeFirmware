@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
 #include "definitions_cxx.hpp"
+#include <cstdint>
 
 enum class MenuPermission {
 	NO,
@@ -40,12 +40,12 @@ public:
 	char const* name; // As viewed in a menu list. For OLED, up to 20 chars.
 	virtual char const* getName() { return name; }
 
-	virtual void horizontalEncoderAction(int offset) {}
-	virtual void selectEncoderAction(int offset) {}
+	virtual void horizontalEncoderAction(int32_t offset) {}
+	virtual void selectEncoderAction(int32_t offset) {}
 	virtual void beginSession(MenuItem* navigatedBackwardFrom = NULL){};
-	virtual bool isRelevant(Sound* sound, int whichThing) { return true; }
+	virtual bool isRelevant(Sound* sound, int32_t whichThing) { return true; }
 	virtual MenuItem* selectButtonPress() { return NULL; }
-	virtual MenuPermission checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange);
+	virtual MenuPermission checkPermissionToBeginSession(Sound* sound, int32_t whichThing, MultiRange** currentRange);
 	virtual void readValueAgain() {}
 	virtual bool selectEncoderActionEditsInstrument() { return false; }
 	virtual uint8_t getPatchedParamIndex() { return 255; }
@@ -57,11 +57,11 @@ public:
 	} // NULL means do nothing. 0xFFFFFFFF means go up a level
 	virtual void unlearnAction() {}
 	virtual bool allowsLearnMode() { return false; }
-	virtual void learnKnob(MIDIDevice* fromDevice, int whichKnob, int modKnobMode, int midiChannel) {}
-	virtual bool learnNoteOn(MIDIDevice* fromDevice, int channel, int noteCode) {
+	virtual void learnKnob(MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) {}
+	virtual bool learnNoteOn(MIDIDevice* fromDevice, int32_t channel, int32_t noteCode) {
 		return false;
 	} // Returns whether it was used, I think?
-	virtual void learnCC(MIDIDevice* fromDevice, int channel, int ccNumber, int value);
+	virtual void learnCC(MIDIDevice* fromDevice, int32_t channel, int32_t ccNumber, int32_t value);
 	virtual bool shouldBlinkLearnLed() { return false; }
 	virtual bool isRangeDependent() { return false; }
 	virtual bool usesAffectEntire() { return false; }
@@ -70,7 +70,7 @@ public:
 	char const* basicTitle; // Can get overridden by getTitle(). Actual max num chars for OLED display is 14.
 	virtual void renderOLED();
 	virtual void drawPixelsForOled() {}
-	void drawItemsForOled(char const** options, int selectedOption);
+	void drawItemsForOled(char const** options, int32_t selectedOption);
 
 	/// Get the title to be used when rendering on OLED. If not overriden, defaults to returning `basicTitle`.
 	virtual char const* getTitle();

@@ -27,7 +27,7 @@
 
 // Takes the NoteRow's *index*, not id!
 // NoteRow must have a paramManager.
-ModelStackWithThreeMainThings* ModelStackWithTimelineCounter::addNoteRowAndExtraStuff(int noteRowIndex,
+ModelStackWithThreeMainThings* ModelStackWithTimelineCounter::addNoteRowAndExtraStuff(int32_t noteRowIndex,
                                                                                       NoteRow* newNoteRow) const {
 
 #if ALPHA_OR_BETA_VERSION
@@ -185,8 +185,8 @@ ModelStackWithThreeMainThings* ModelStackWithNoteRow::addOtherTwoThingsAutomatic
 	return toReturn;
 }
 
-bool ModelStackWithSoundFlags::checkSourceEverActiveDisregardingMissingSample(int s) {
-	int flagValue = soundFlags[SOUND_FLAG_SOURCE_0_ACTIVE_DISREGARDING_MISSING_SAMPLE + s];
+bool ModelStackWithSoundFlags::checkSourceEverActiveDisregardingMissingSample(int32_t s) {
+	int32_t flagValue = soundFlags[SOUND_FLAG_SOURCE_0_ACTIVE_DISREGARDING_MISSING_SAMPLE + s];
 	if (flagValue == FLAG_TBD) {
 		flagValue = ((Sound*)modControllable)
 		                ->isSourceActiveEverDisregardingMissingSample(s, (ParamManagerForTimeline*)paramManager);
@@ -195,8 +195,8 @@ bool ModelStackWithSoundFlags::checkSourceEverActiveDisregardingMissingSample(in
 	return flagValue;
 }
 
-bool ModelStackWithSoundFlags::checkSourceEverActive(int s) {
-	int flagValue = soundFlags[SOUND_FLAG_SOURCE_0_ACTIVE + s];
+bool ModelStackWithSoundFlags::checkSourceEverActive(int32_t s) {
+	int32_t flagValue = soundFlags[SOUND_FLAG_SOURCE_0_ACTIVE + s];
 	if (flagValue == FLAG_TBD) {
 		flagValue = checkSourceEverActiveDisregardingMissingSample(s);
 		if (flagValue) { // Does an &&
@@ -211,6 +211,6 @@ bool ModelStackWithSoundFlags::checkSourceEverActive(int s) {
 	return flagValue;
 }
 
-void copyModelStack(void* newMemory, void const* oldMemory, int size) {
+void copyModelStack(void* newMemory, void const* oldMemory, int32_t size) {
 	memcpy(newMemory, oldMemory, size);
 }

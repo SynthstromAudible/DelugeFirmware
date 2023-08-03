@@ -69,7 +69,7 @@ bool DeleteFile::acceptCurrentOption() {
 	Browser* browser = dynamic_cast<Browser*>(ui);
 
 	String filePath;
-	int error = browser->getCurrentFilePath(&filePath);
+	int32_t error = browser->getCurrentFilePath(&filePath);
 	if (error) {
 		display.displayError(error);
 		return false;

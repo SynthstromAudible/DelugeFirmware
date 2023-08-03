@@ -24,7 +24,7 @@ namespace menu_item::submenu {
 class Bend final : public Submenu {
 public:
 	Bend(char const* newName = nullptr, MenuItem** newItems = nullptr) : Submenu(newName, newItems) {}
-	bool isRelevant(Sound* sound, int whichThing) override {
+	bool isRelevant(Sound* sound, int32_t whichThing) override {
 		// Drums within a Kit don't need the two-item submenu - they have their own single item.
 		const auto type = currentSong->currentClip->output->type;
 		return (type == InstrumentType::SYNTH || type == InstrumentType::CV);

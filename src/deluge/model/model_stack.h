@@ -129,9 +129,9 @@ class ModelStackWithTimelineCounter {
 public:
 	Song* song;
 
-	ModelStackWithNoteRow* addNoteRow(int noteRowId, NoteRow* noteRow) const;
-	ModelStackWithNoteRowId* addNoteRowId(int noteRowId) const;
-	ModelStackWithThreeMainThings* addNoteRowAndExtraStuff(int noteRowIndex, NoteRow* newNoteRow) const;
+	ModelStackWithNoteRow* addNoteRow(int32_t noteRowId, NoteRow* noteRow) const;
+	ModelStackWithNoteRowId* addNoteRowId(int32_t noteRowId) const;
+	ModelStackWithThreeMainThings* addNoteRowAndExtraStuff(int32_t noteRowIndex, NoteRow* newNoteRow) const;
 	ModelStackWithThreeMainThings* addOtherTwoThingsButNoNoteRow(ModControllable* newModControllable,
 	                                                             ParamManager* newParamManager) const;
 	ModelStackWithModControllable* addModControllableButNoNoteRow(ModControllable* newModControllable) const;
@@ -186,12 +186,12 @@ public:
 	inline bool timelineCounterIsSet() const { return toWithTimelineCounter()->timelineCounterIsSet(); }
 
 	ModelStackWithNoteRow* automaticallyAddNoteRowFromId() const;
-	int noteRowId; // Valid and mandatory, iff noteRow is set
+	int32_t noteRowId; // Valid and mandatory, iff noteRow is set
 };
 
 class ModelStackWithNoteRow : public ModelStackWithNoteRowId {
 public:
-	inline void setNoteRow(NoteRow* newNoteRow, int newNoteRowId) {
+	inline void setNoteRow(NoteRow* newNoteRow, int32_t newNoteRowId) {
 		noteRow = newNoteRow;
 		noteRowId = newNoteRowId;
 	}
@@ -243,9 +243,9 @@ public:
 	                                                  ParamCollectionSummary* newSummary) const;
 	ModelStackWithParamCollection* addParamCollectionSummary(ParamCollectionSummary* newSummary) const;
 	ModelStackWithParamId* addParamCollectionAndId(ParamCollection* newParamCollection,
-	                                               ParamCollectionSummary* newSummary, int newParamId) const;
+	                                               ParamCollectionSummary* newSummary, int32_t newParamId) const;
 	ModelStackWithAutoParam* addParam(ParamCollection* newParamCollection, ParamCollectionSummary* newSummary,
-	                                  int newParamId, AutoParam* newAutoParam) const;
+	                                  int32_t newParamId, AutoParam* newAutoParam) const;
 
 	inline ModelStackWithSoundFlags* addSoundFlags() const;
 	inline ModelStackWithSoundFlags* addDummySoundFlags() const;
@@ -256,13 +256,13 @@ public:
 	ParamCollection* paramCollection;
 	ParamCollectionSummary* summary;
 
-	ModelStackWithParamId* addParamId(int newParamId) const;
-	ModelStackWithAutoParam* addAutoParam(int newParamId, AutoParam* newAutoParam) const;
+	ModelStackWithParamId* addParamId(int32_t newParamId) const;
+	ModelStackWithAutoParam* addAutoParam(int32_t newParamId, AutoParam* newAutoParam) const;
 };
 
 class ModelStackWithParamId : public ModelStackWithParamCollection {
 public:
-	int paramId;
+	int32_t paramId;
 
 	ModelStackWithAutoParam* addAutoParam(AutoParam* newAutoParam) const;
 };
@@ -288,8 +288,8 @@ public:
 	uint8_t soundFlags[NUM_SOUND_FLAGS];
 
 	ModelStackWithVoice* addVoice(Voice* voice) const;
-	bool checkSourceEverActiveDisregardingMissingSample(int s);
-	bool checkSourceEverActive(int s);
+	bool checkSourceEverActiveDisregardingMissingSample(int32_t s);
+	bool checkSourceEverActive(int32_t s);
 };
 
 class ModelStackWithVoice : public ModelStackWithSoundFlags {
@@ -335,10 +335,9 @@ setupModelStackWithThreeMainThingsButNoNoteRow(void* memory, Song* newSong, ModC
 	    ->addOtherTwoThings(newModControllable, newParamManager);
 }
 
-inline ModelStackWithThreeMainThings*
-setupModelStackWithThreeMainThingsIncludingNoteRow(void* memory, Song* newSong, TimelineCounter* newTimelineCounter,
-                                                   int noteRowId, NoteRow* noteRow, ModControllable* newModControllable,
-                                                   ParamManagerForTimeline* newParamManager) {
+inline ModelStackWithThreeMainThings* setupModelStackWithThreeMainThingsIncludingNoteRow(
+    void* memory, Song* newSong, TimelineCounter* newTimelineCounter, int32_t noteRowId, NoteRow* noteRow,
+    ModControllable* newModControllable, ParamManagerForTimeline* newParamManager) {
 
 	return setupModelStackWithSong(memory, newSong)
 	    ->addTimelineCounter(newTimelineCounter)
@@ -352,13 +351,13 @@ inline ModelStackWithTimelineCounter* ModelStack::addTimelineCounter(TimelineCou
 	return toReturn;
 }
 
-inline ModelStackWithNoteRowId* ModelStackWithTimelineCounter::addNoteRowId(int noteRowId) const {
+inline ModelStackWithNoteRowId* ModelStackWithTimelineCounter::addNoteRowId(int32_t noteRowId) const {
 	ModelStackWithNoteRowId* toReturn = (ModelStackWithNoteRowId*)this;
 	toReturn->noteRowId = noteRowId;
 	return toReturn;
 }
 
-inline ModelStackWithNoteRow* ModelStackWithTimelineCounter::addNoteRow(int noteRowId, NoteRow* noteRow) const {
+inline ModelStackWithNoteRow* ModelStackWithTimelineCounter::addNoteRow(int32_t noteRowId, NoteRow* noteRow) const {
 	ModelStackWithNoteRow* toReturn = (ModelStackWithNoteRow*)this;
 	toReturn->noteRowId = noteRowId;
 	toReturn->setNoteRow(noteRow);
@@ -419,7 +418,7 @@ ModelStackWithThreeMainThings::addParamCollectionSummary(ParamCollectionSummary*
 
 inline ModelStackWithParamId*
 ModelStackWithThreeMainThings::addParamCollectionAndId(ParamCollection* newParamCollection,
-                                                       ParamCollectionSummary* newSummary, int newParamId) const {
+                                                       ParamCollectionSummary* newSummary, int32_t newParamId) const {
 	ModelStackWithParamId* toReturn = (ModelStackWithParamId*)this;
 	toReturn->paramCollection = newParamCollection;
 	toReturn->summary = newSummary;
@@ -429,7 +428,8 @@ ModelStackWithThreeMainThings::addParamCollectionAndId(ParamCollection* newParam
 
 inline ModelStackWithAutoParam* ModelStackWithThreeMainThings::addParam(ParamCollection* newParamCollection,
                                                                         ParamCollectionSummary* newSummary,
-                                                                        int newParamId, AutoParam* newAutoParam) const {
+                                                                        int32_t newParamId,
+                                                                        AutoParam* newAutoParam) const {
 	ModelStackWithAutoParam* toReturn = (ModelStackWithAutoParam*)this;
 	toReturn->paramCollection = newParamCollection;
 	toReturn->summary = newSummary;
@@ -438,13 +438,13 @@ inline ModelStackWithAutoParam* ModelStackWithThreeMainThings::addParam(ParamCol
 	return toReturn;
 }
 
-inline ModelStackWithParamId* ModelStackWithParamCollection::addParamId(int newParamId) const {
+inline ModelStackWithParamId* ModelStackWithParamCollection::addParamId(int32_t newParamId) const {
 	ModelStackWithParamId* toReturn = (ModelStackWithParamId*)this;
 	toReturn->paramId = newParamId;
 	return toReturn;
 }
 
-inline ModelStackWithAutoParam* ModelStackWithParamCollection::addAutoParam(int newParamId,
+inline ModelStackWithAutoParam* ModelStackWithParamCollection::addAutoParam(int32_t newParamId,
                                                                             AutoParam* newAutoParam) const {
 	ModelStackWithAutoParam* toReturn = (ModelStackWithAutoParam*)this;
 	toReturn->paramId = newParamId;
@@ -460,7 +460,7 @@ inline ModelStackWithAutoParam* ModelStackWithParamId::addAutoParam(AutoParam* n
 
 inline ModelStackWithSoundFlags* ModelStackWithThreeMainThings::addSoundFlags() const {
 	ModelStackWithSoundFlags* toReturn = (ModelStackWithSoundFlags*)this;
-	for (int i = 0; i < NUM_SOUND_FLAGS; i++) {
+	for (int32_t i = 0; i < NUM_SOUND_FLAGS; i++) {
 		toReturn->soundFlags[i] = FLAG_TBD;
 	}
 	return toReturn;
@@ -469,7 +469,7 @@ inline ModelStackWithSoundFlags* ModelStackWithThreeMainThings::addSoundFlags() 
 inline ModelStackWithSoundFlags* ModelStackWithThreeMainThings::addDummySoundFlags() const {
 	ModelStackWithSoundFlags* toReturn = (ModelStackWithSoundFlags*)this;
 #if ALPHA_OR_BETA_VERSION
-	for (int i = i; i < NUM_SOUND_FLAGS; i++) {
+	for (int32_t i = i; i < NUM_SOUND_FLAGS; i++) {
 		toReturn->soundFlags[i] = FLAG_SHOULDNT_BE_NEEDED;
 	}
 #endif
@@ -482,7 +482,7 @@ inline ModelStackWithVoice* ModelStackWithSoundFlags::addVoice(Voice* voice) con
 	return toReturn;
 }
 
-void copyModelStack(void* newMemory, void const* oldMemory, int size);
+void copyModelStack(void* newMemory, void const* oldMemory, int32_t size);
 
 /*
 

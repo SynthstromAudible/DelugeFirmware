@@ -35,6 +35,6 @@ public:
 		static char const* options[] = {"Fast", "Off", "Slow", NULL};
 		return options;
 	}
-	int getNumOptions() { return 3; }
+	int32_t getNumOptions() { return 3; }
 };
 } // namespace menu_item::flash

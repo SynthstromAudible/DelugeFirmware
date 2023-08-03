@@ -51,10 +51,10 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 
 // Beware - unlike usual, modelStack might have a NULL timelineCounter.
 void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelStack, ParamManager* paramManagerForClip,
-                                           StereoSample* outputBuffer, int numSamples, int32_t* reverbBuffer,
+                                           StereoSample* outputBuffer, int32_t numSamples, int32_t* reverbBuffer,
                                            int32_t reverbAmountAdjust, int32_t sideChainHitPending,
                                            bool shouldLimitDelayFeedback, bool isClipActive,
-                                           InstrumentType instrumentType, int analogDelaySaturationAmount) {
+                                           InstrumentType instrumentType, int32_t analogDelaySaturationAmount) {
 
 	UnpatchedParamSet* unpatchedParams = paramManagerForClip->getUnpatchedParamSet();
 
@@ -209,9 +209,9 @@ int32_t GlobalEffectableForClip::getSidechainVolumeAmountAsPatchCableDepth(Param
 	return (sidechainVolumeParam >> 2) + 536870912;
 }
 
-int GlobalEffectableForClip::getParameterFromKnob(int whichModEncoder) {
+int32_t GlobalEffectableForClip::getParameterFromKnob(int32_t whichModEncoder) {
 
-	int modKnobMode = *getModKnobMode();
+	int32_t modKnobMode = *getModKnobMode();
 
 	if (modKnobMode == 4 && whichModEncoder) {
 		return Param::Unpatched::GlobalEffectable::SIDECHAIN_VOLUME;

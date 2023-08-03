@@ -27,18 +27,18 @@ public:
 
 	// 7SEG ONLY
 	void focusRegained();
-	ActionResult horizontalEncoderAction(int offset);
+	ActionResult horizontalEncoderAction(int32_t offset);
 
-	int getCurrentFilePath(String* path);
+	int32_t getCurrentFilePath(String* path);
 
 protected:
-	int beginSlotSession(bool shouldDrawKeys = true, bool allowIfNoFolder = false);
+	int32_t beginSlotSession(bool shouldDrawKeys = true, bool allowIfNoFolder = false);
 	void processBackspace();
 	//bool predictExtendedText();
 	virtual void predictExtendedTextFromMemory() {}
 	void convertToPrefixFormatIfPossible();
 	void enterKeyPress();
-	int getCurrentFilenameWithoutExtension(String* filename);
+	int32_t getCurrentFilenameWithoutExtension(String* filename);
 
 	static bool currentFileHasSuffixFormatNameImplied;
 

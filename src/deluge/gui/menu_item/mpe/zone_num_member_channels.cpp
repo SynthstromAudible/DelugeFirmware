@@ -31,11 +31,11 @@ MIDIPort* ZoneNumMemberChannels::getPort() const {
 	return &soundEditor.currentMIDIDevice->ports[directionSelectorMenu.whichDirection];
 }
 
-int ZoneNumMemberChannels::getMaxValue() const {
+int32_t ZoneNumMemberChannels::getMaxValue() const {
 	MIDIPort* port = getPort();
 
 	// This limits it so we don't eat into the other zone
-	int numChannelsAvailable;
+	int32_t numChannelsAvailable;
 	if (zoneSelectorMenu.whichZone == MPE_ZONE_LOWER_NUMBERED_FROM_0) {
 		numChannelsAvailable = port->mpeUpperZoneLastMemberChannel;
 	}
@@ -43,7 +43,7 @@ int ZoneNumMemberChannels::getMaxValue() const {
 		numChannelsAvailable = 15 - port->mpeLowerZoneLastMemberChannel;
 	}
 
-	int numMemberChannelsAvailable = numChannelsAvailable - 1;
+	int32_t numMemberChannelsAvailable = numChannelsAvailable - 1;
 	if (numMemberChannelsAvailable < 0) {
 		numMemberChannelsAvailable = 0;
 	}
@@ -78,7 +78,7 @@ void ZoneNumMemberChannels::writeCurrentValue() {
 
 	// If this was for an output, we transmit an MCM message to tell the device about our MPE zone for the MIDI they'll be receiving from us.
 	if (directionSelectorMenu.whichDirection == MIDI_DIRECTION_OUTPUT_FROM_DELUGE) {
-		int masterChannel = (zoneSelectorMenu.whichZone == MPE_ZONE_LOWER_NUMBERED_FROM_0) ? 0 : 15;
+		int32_t masterChannel = (zoneSelectorMenu.whichZone == MPE_ZONE_LOWER_NUMBERED_FROM_0) ? 0 : 15;
 
 		soundEditor.currentMIDIDevice->sendRPN(masterChannel, 0, 6, soundEditor.currentValue);
 	}

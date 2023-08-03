@@ -71,7 +71,7 @@ bool SoundInstrument::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song)
 }
 
 // arpSettings optional - no need if you're loading a new V2.0 song where Instruments are all separate from Clips and won't store any arp stuff
-int SoundInstrument::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
+int32_t SoundInstrument::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithModControllable* modelStack =
@@ -84,9 +84,9 @@ void SoundInstrument::cutAllSound() {
 	Sound::unassignAllVoices();
 }
 
-void SoundInstrument::renderOutput(ModelStack* modelStack, StereoSample* startPos, StereoSample* endPos, int numSamples,
-                                   int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
-                                   bool shouldLimitDelayFeedback, bool isClipActive) {
+void SoundInstrument::renderOutput(ModelStack* modelStack, StereoSample* startPos, StereoSample* endPos,
+                                   int32_t numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
+                                   int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive) {
 
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 	    modelStack->addTimelineCounter(activeClip)
@@ -165,7 +165,7 @@ yesTickParamManagerForClip:
 		}
 
 		// Do the ParamManagers of each NoteRow, too
-		for (int i = 0; i < ((InstrumentClip*)activeClip)->noteRows.getNumElements(); i++) {
+		for (int32_t i = 0; i < ((InstrumentClip*)activeClip)->noteRows.getNumElements(); i++) {
 			NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->noteRows.getElement(i);
 			// No time to call the proper function and do error checking, sorry.
 			ParamCollectionSummary* expressionParamsSummary = &thisNoteRow->paramManager.summaries[0];
@@ -186,18 +186,18 @@ yesTickParamManagerForClip:
 	}
 }
 
-int SoundInstrument::loadAllAudioFiles(bool mayActuallyReadFiles) {
+int32_t SoundInstrument::loadAllAudioFiles(bool mayActuallyReadFiles) {
 
 	bool doingAlternatePath =
 	    mayActuallyReadFiles && (audioFileManager.alternateLoadDirStatus == AlternateLoadDirStatus::NONE_SET);
 	if (doingAlternatePath) {
-		int error = setupDefaultAudioFileDir();
+		int32_t error = setupDefaultAudioFileDir();
 		if (error) {
 			return error;
 		}
 	}
 
-	int error = Sound::loadAllAudioFiles(mayActuallyReadFiles);
+	int32_t error = Sound::loadAllAudioFiles(mayActuallyReadFiles);
 
 	if (doingAlternatePath) {
 		audioFileManager.thingFinishedLoading();
@@ -252,12 +252,12 @@ bool SoundInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, P
 		// Grab mono expression params
 		ExpressionParamSet* expressionParams = paramManager->getExpressionParamSet();
 		if (expressionParams) {
-			for (int i = 0; i < kNumExpressionDimensions; i++) {
+			for (int32_t i = 0; i < kNumExpressionDimensions; i++) {
 				monophonicExpressionValues[i] = expressionParams->params[i].getCurrentValue();
 			}
 		}
 		else {
-			for (int i = 0; i < kNumExpressionDimensions; i++) {
+			for (int32_t i = 0; i < kNumExpressionDimensions; i++) {
 				monophonicExpressionValues[i] = 0;
 			}
 		}
@@ -280,7 +280,7 @@ void SoundInstrument::setupWithoutActiveClip(ModelStack* modelStack) {
 	patcher.performInitialPatching(this, paramManager);
 
 	// Clear mono expression params
-	for (int i = 0; i < kNumExpressionDimensions; i++) {
+	for (int32_t i = 0; i < kNumExpressionDimensions; i++) {
 		monophonicExpressionValues[i] = 0;
 	}
 	whichExpressionSourcesChangedAtSynthLevel = (1 << kNumExpressionDimensions) - 1;
@@ -302,7 +302,7 @@ void SoundInstrument::deleteBackedUpParamManagers(Song* song) {
 
 extern bool expressionValueChangesMustBeDoneSmoothly;
 
-void SoundInstrument::monophonicExpressionEvent(int newValue, int whichExpressionDimension) {
+void SoundInstrument::monophonicExpressionEvent(int32_t newValue, int32_t whichExpressionDimension) {
 	whichExpressionSourcesChangedAtSynthLevel |= 1 << whichExpressionDimension;
 	monophonicExpressionValues[whichExpressionDimension] = newValue;
 }
@@ -310,16 +310,16 @@ void SoundInstrument::monophonicExpressionEvent(int newValue, int whichExpressio
 // Alternative to what's in the NonAudioInstrument:: implementation, which would almost work here, but we cut corner for Sound by avoiding going through the Arp and just talk directly to the Voices.
 // (Despite my having made it now actually need to talk to the Arp too, as below...)
 // Note, this virtual function actually overrides/implements from two base classes - MelodicInstrument and ModControllable.
-void SoundInstrument::polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension,
-                                                               int channelOrNoteNumber,
+void SoundInstrument::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t whichExpressionDimension,
+                                                               int32_t channelOrNoteNumber,
                                                                MIDICharacteristic whichCharacteristic) {
-	int s = whichExpressionDimension + util::to_underlying(PatchSource::X);
+	int32_t s = whichExpressionDimension + util::to_underlying(PatchSource::X);
 
 	//sourcesChanged |= 1 << s; // We'd ideally not want to apply this to all voices though...
 
-	int ends[2];
+	int32_t ends[2];
 	AudioEngine::activeVoices.getRangeForSound(this, ends);
-	for (int v = ends[0]; v < ends[1]; v++) {
+	for (int32_t v = ends[0]; v < ends[1]; v++) {
 		Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
 		if (thisVoice->inputCharacteristics[util::to_underlying(whichCharacteristic)] == channelOrNoteNumber) {
 			if (expressionValueChangesMustBeDoneSmoothly) {
@@ -332,7 +332,7 @@ void SoundInstrument::polyphonicExpressionEventOnChannelOrNote(int newValue, int
 	}
 
 	// Must update MPE values in Arp too - useful either if it's on, or if we're in true monophonic mode - in either case, we could need to suddenly do a note-on for a different note that the Arp knows about, and need these MPE values.
-	int n, nEnd;
+	int32_t n, nEnd;
 	if (whichCharacteristic == MIDICharacteristic::NOTE) {
 		n = arpeggiator.notes.search(channelOrNoteNumber, GREATER_OR_EQUAL);
 		if (n < arpeggiator.notes.getNumElements()) {
@@ -351,8 +351,8 @@ lookAtArpNote:
 	}
 }
 
-void SoundInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, bool isOn, int noteCode,
-                               int16_t const* mpeValues, int fromMIDIChannel, uint8_t velocity,
+void SoundInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, bool isOn, int32_t noteCode,
+                               int16_t const* mpeValues, int32_t fromMIDIChannel, uint8_t velocity,
                                uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate) {
 
 	if (!inValidState) {
@@ -457,7 +457,7 @@ ArpeggiatorBase* SoundInstrument::getArp() {
 	return &arpeggiator;
 }
 
-bool SoundInstrument::noteIsOn(int noteCode) {
+bool SoundInstrument::noteIsOn(int32_t noteCode) {
 
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 
@@ -465,7 +465,7 @@ bool SoundInstrument::noteIsOn(int noteCode) {
 		if (arpSettings->mode != ArpMode::OFF || polyphonic == PolyphonyMode::LEGATO
 		    || polyphonic == PolyphonyMode::MONO) {
 
-			int n = arpeggiator.notes.search(noteCode, GREATER_OR_EQUAL);
+			int32_t n = arpeggiator.notes.search(noteCode, GREATER_OR_EQUAL);
 			if (n >= arpeggiator.notes.getNumElements()) {
 				return false;
 			}
@@ -478,9 +478,9 @@ bool SoundInstrument::noteIsOn(int noteCode) {
 		return false;
 	}
 
-	int ends[2];
+	int32_t ends[2];
 	AudioEngine::activeVoices.getRangeForSound(this, ends);
-	for (int v = ends[0]; v < ends[1]; v++) {
+	for (int32_t v = ends[0]; v < ends[1]; v++) {
 		Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
 		if ((thisVoice->noteCodeAfterArpeggiation == noteCode)
 		    && thisVoice->envelopes[0].state < EnvelopeStage::RELEASE) { // Ignore releasing notes. Is this right?

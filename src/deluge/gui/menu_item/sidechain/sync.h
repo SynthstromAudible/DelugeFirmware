@@ -25,7 +25,7 @@ class Sync final : public SyncLevel {
 public:
 	using SyncLevel::SyncLevel;
 
-	int getNumOptions() override { return 10; };
+	int32_t getNumOptions() override { return 10; };
 	void readCurrentValue() override {
 		soundEditor.currentValue = syncTypeAndLevelToMenuOption(soundEditor.currentCompressor->syncType,
 		                                                        soundEditor.currentCompressor->syncLevel);
@@ -35,7 +35,7 @@ public:
 		soundEditor.currentCompressor->syncLevel = menuOptionToSyncLevel(soundEditor.currentValue);
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}
-	bool isRelevant(Sound* sound, int whichThing) override {
+	bool isRelevant(Sound* sound, int32_t whichThing) override {
 		return !(soundEditor.editingReverbCompressor() && AudioEngine::reverbCompressorVolume < 0);
 	}
 };

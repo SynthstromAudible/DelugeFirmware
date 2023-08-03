@@ -26,7 +26,7 @@ SampleControls::SampleControls() {
 	reversed = false;
 }
 
-int SampleControls::getInterpolationBufferSize(int32_t phaseIncrement) {
+int32_t SampleControls::getInterpolationBufferSize(int32_t phaseIncrement) {
 	if (interpolationMode == InterpolationMode::LINEAR) {
 useLinearInterpolation:
 		return 2;
@@ -35,7 +35,7 @@ useLinearInterpolation:
 
 		// If CPU dire...
 		if (AudioEngine::cpuDireness) {
-			int octave =
+			int32_t octave =
 			    getMagnitudeOld(phaseIncrement); // Unstretched, and the first octave going up from that, would be '25'
 			if (octave
 			    >= 26

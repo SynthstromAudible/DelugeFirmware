@@ -45,7 +45,7 @@ public:
 	void writeCurrentValue() { AudioEngine::reverbPan = ((int32_t)soundEditor.currentValue * 33554432); }
 
 	void readCurrentValue() { soundEditor.currentValue = ((int64_t)AudioEngine::reverbPan * 128 + 2147483648) >> 32; }
-	int getMaxValue() const { return 32; }
-	int getMinValue() const { return -32; }
+	int32_t getMaxValue() const { return 32; }
+	int32_t getMinValue() const { return -32; }
 };
 } // namespace menu_item::reverb

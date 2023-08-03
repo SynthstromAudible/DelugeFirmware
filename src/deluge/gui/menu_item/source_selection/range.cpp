@@ -33,7 +33,7 @@ MenuItem* Range::selectButtonPress() {
 	return &patch_cable_strength::rangeMenu;
 }
 
-MenuItem* Range::patchingSourceShortcutPress(int newS, bool previousPressStillActive) {
+MenuItem* Range::patchingSourceShortcutPress(int32_t newS, bool previousPressStillActive) {
 	return (MenuItem*)0xFFFFFFFF;
 }
 

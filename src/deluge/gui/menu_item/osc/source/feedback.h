@@ -22,7 +22,7 @@ namespace menu_item::osc::source {
 class Feedback final : public menu_item::source::PatchedParam {
 public:
 	using PatchedParam::PatchedParam;
-	bool isRelevant(Sound* sound, int whichThing) { return (sound->getSynthMode() == SynthMode::FM); }
+	bool isRelevant(Sound* sound, int32_t whichThing) { return (sound->getSynthMode() == SynthMode::FM); }
 };
 
 } // namespace menu_item::osc::source

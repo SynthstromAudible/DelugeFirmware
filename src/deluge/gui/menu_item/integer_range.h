@@ -23,14 +23,14 @@ namespace menu_item {
 
 class IntegerRange final : public Range {
 public:
-	IntegerRange(char const* newName = NULL, int newMin = 0, int newMax = 0);
+	IntegerRange(char const* newName = NULL, int32_t newMin = 0, int32_t newMax = 0);
 	void beginSession(MenuItem* navigatedBackwardFrom);
-	void getText(char* buffer, int* getLeftLength, int* getRightLength, bool mayShowJustOne);
-	void selectEncoderAction(int offset);
-	int getRandomValueInRange();
+	void getText(char* buffer, int32_t* getLeftLength, int32_t* getRightLength, bool mayShowJustOne);
+	void selectEncoderAction(int32_t offset);
+	int32_t getRandomValueInRange();
 
-	int lower, upper;
+	int32_t lower, upper;
 
-	int minValue, maxValue;
+	int32_t minValue, maxValue;
 };
 } // namespace menu_item

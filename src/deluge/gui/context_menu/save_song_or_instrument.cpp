@@ -50,7 +50,7 @@ bool SaveSongOrInstrument::acceptCurrentOption() {
 
 	case 1: { // Create folder
 		Browser* browser = (Browser*)getUIUpOneLevel();
-		int error = browser->createFolder();
+		int32_t error = browser->createFolder();
 
 		if (error) {
 			display.displayError(error);
@@ -94,7 +94,7 @@ bool SaveSongOrInstrument::isCurrentOptionAvailable() {
 	}
 }
 
-ActionResult SaveSongOrInstrument::padAction(int x, int y, int on) {
+ActionResult SaveSongOrInstrument::padAction(int32_t x, int32_t y, int32_t on) {
 	return getUIUpOneLevel()->padAction(x, y, on);
 }
 } // namespace deluge::gui::context_menu

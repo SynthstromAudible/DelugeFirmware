@@ -51,7 +51,7 @@ bool OverwriteBootloader::acceptCurrentOption() {
 		display.displayLoadingAnimation();
 	}
 
-	int error = storageManager.initSD();
+	int32_t error = storageManager.initSD();
 	if (error) {
 gotError:
 		display.displayError(error);
@@ -107,7 +107,7 @@ gotFresultError:
 			}
 
 			// Allocate RAM
-			uint8_t* buffer = (uint8_t*)generalMemoryAllocator.alloc(fileSize, NULL, false, true);
+			uint8_t* buffer = (uint8_t*)GeneralMemoryAllocator::get().alloc(fileSize, NULL, false, true);
 			if (!buffer) {
 				error = ERROR_INSUFFICIENT_RAM;
 				goto gotError;
@@ -118,7 +118,7 @@ gotFresultError:
 			result = f_open(&currentFile, fno.fname, FA_READ);
 			if (result != FR_OK) {
 gotFresultErrorAfterAllocating:
-				generalMemoryAllocator.dealloc(buffer);
+				GeneralMemoryAllocator::get().dealloc(buffer);
 				goto gotFresultError;
 			}
 
@@ -132,7 +132,7 @@ gotFresultErrorAfterAllocating:
 
 			if (numBytesRead != fileSize) { // Can this happen?
 				error = ERROR_SD_CARD;
-				generalMemoryAllocator.dealloc(buffer);
+				GeneralMemoryAllocator::get().dealloc(buffer);
 				goto gotError;
 			}
 
@@ -174,12 +174,12 @@ gotFlashError:
 
 			while (true) {
 
-				int bytesLeft = startFlashAddress + fileSize - flashWriteAddress;
+				int32_t bytesLeft = startFlashAddress + fileSize - flashWriteAddress;
 				if (bytesLeft <= 0) {
 					break;
 				}
 
-				int bytesToWrite = bytesLeft;
+				int32_t bytesToWrite = bytesLeft;
 				if (bytesToWrite > FLASH_WRITE_SIZE) {
 					bytesToWrite = FLASH_WRITE_SIZE;
 				}
@@ -194,7 +194,7 @@ gotFlashError:
 				readAddress += FLASH_WRITE_SIZE;
 			}
 
-			generalMemoryAllocator.dealloc(buffer);
+			GeneralMemoryAllocator::get().dealloc(buffer);
 
 			display.removeWorkingAnimation();
 			display.consoleText(l10n::get(STRING_FOR_BOOTLOADER_UPDATED));

@@ -89,7 +89,7 @@ int16_t encoderTestPos = 128;
 
 void setupSquareWave() {
 	// Send square wave
-	int count = 0;
+	int32_t count = 0;
 	for (int32_t* address = getTxBufferStart(); address < getTxBufferEnd(); address++) {
 		if (count < SSI_TX_BUFFER_NUM_SAMPLES) {
 			*address = 2147483647;
@@ -102,14 +102,14 @@ void setupSquareWave() {
 	}
 }
 
-int hardwareTestWhichColour = 0;
+int32_t hardwareTestWhichColour = 0;
 
 void sendColoursForHardwareTest(bool testButtonStates[9][16]) {
-	for (int x = 0; x < 9; x++) {
+	for (int32_t x = 0; x < 9; x++) {
 		bufferPICUart(x + 1);
-		for (int y = 0; y < 16; y++) {
-			for (int c = 0; c < 3; c++) {
-				int value;
+		for (int32_t y = 0; y < 16; y++) {
+			for (int32_t c = 0; c < 3; c++) {
+				int32_t value;
 				if (testButtonStates[x][y]) {
 					value = 255;
 				}
@@ -149,8 +149,8 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 		}
 		else if (value < 180) {
 
-			int y = (unsigned int)value / 9;
-			int x = value - y * 9;
+			int32_t y = (uint32_t)value / 9;
+			int32_t x = value - y * 9;
 			if (y < kDisplayHeight * 2) {
 
 				testButtonStates[x][y] = !nextIsDepress;
@@ -161,7 +161,7 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 
 				// Send silence
 				if (!HARDWARE_TEST_MODE) {
-					int count = 0;
+					int32_t count = 0;
 					for (int32_t* address = getTxBufferStart(); address < getTxBufferEnd(); address++) {
 						*address = 1024;
 						count++;
@@ -196,14 +196,14 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 	Encoders::readEncoders();
 
 	anything = false;
-	for (int e = 0; e < 4; e++) {
+	for (int32_t e = 0; e < 4; e++) {
 		if (Encoders::encoders[e].detentPos != 0) {
 			encoderTestPos += Encoders::encoders[e].detentPos;
 			Encoders::encoders[e].detentPos = 0;
 			anything = true;
 		}
 	}
-	for (int e = 0; e < 2; e++) {
+	for (int32_t e = 0; e < 2; e++) {
 		if (Encoders::encoders[e + 4].encPos != 0) {
 			encoderTestPos += Encoders::encoders[e + 4].encPos;
 			Encoders::encoders[e + 4].encPos = 0;
@@ -265,11 +265,11 @@ void ramTestLED(bool stuffAlreadySetUp) {
 	indicator_leds::setKnobIndicatorLevel(1, 128);
 
 	// Switch on all round-button LEDs
-	for (int x = 1; x < 9; x++) {
+	for (int32_t x = 1; x < 9; x++) {
 		if (x == 4) {
 			continue; // Skip icecube LEDs
 		}
-		for (int y = 0; y < 4; y++) {
+		for (int32_t y = 0; y < 4; y++) {
 			bufferPICUart(152 + x + y * 9 + 36);
 		}
 	}
@@ -316,7 +316,7 @@ void ramTestLED(bool stuffAlreadySetUp) {
 		setOutputState(SYNCED_LED.port, SYNCED_LED.pin, true);
 
 		// Write gate outputs
-		for (int i = 0; i < NUM_GATE_CHANNELS; i++) {
+		for (int32_t i = 0; i < NUM_GATE_CHANNELS; i++) {
 			cvEngine.gateChannels[i].on = ledState;
 			cvEngine.physicallySwitchGate(i);
 		}
@@ -387,9 +387,9 @@ void ramTestLED(bool stuffAlreadySetUp) {
 #define AUTOPILOT_IN_SONG_SAVER 4
 #define AUTOPILOT_IN_SONG_LOADER 5
 
-int autoPilotMode = 0;
-int autoPilotX;
-int autoPilotY;
+int32_t autoPilotMode = 0;
+int32_t autoPilotX;
+int32_t autoPilotY;
 
 uint32_t timeNextAutoPilotAction = 0;
 
@@ -399,11 +399,11 @@ void autoPilotStuff() {
 	if (!playbackHandler.recording)
 		return;
 
-	int timeTilNextAction = timeNextAutoPilotAction - AudioEngine::audioSampleTimer;
+	int32_t timeTilNextAction = timeNextAutoPilotAction - AudioEngine::audioSampleTimer;
 	if (timeTilNextAction > 0)
 		return;
 
-	int randThing;
+	int32_t randThing;
 
 	switch (autoPilotMode) {
 
@@ -500,7 +500,7 @@ void autoPilotStuff() {
 		// Maybe turn knob
 		if (randThing < 200) {
 			randThing = getRandom255();
-			int direction = (randThing >= 128) ? 1 : -1;
+			int32_t direction = (randThing >= 128) ? 1 : -1;
 			getCurrentUI()->selectEncoderAction(direction);
 		}
 
@@ -545,7 +545,7 @@ void autoPilotStuff() {
 		// Maybe turn knob
 		if (randThing < 200) {
 			randThing = getRandom255();
-			int direction = (randThing >= 128) ? 1 : -1;
+			int32_t direction = (randThing >= 128) ? 1 : -1;
 			getCurrentUI()->selectEncoderAction(direction);
 		}
 

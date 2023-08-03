@@ -113,7 +113,7 @@ void RenameOutputUI::exitUI() {
 	close();
 }
 
-ActionResult RenameOutputUI::padAction(int x, int y, int on) {
+ActionResult RenameOutputUI::padAction(int32_t x, int32_t y, int32_t on) {
 
 	// Main pad
 	if (x < kDisplayWidth) {
@@ -131,7 +131,7 @@ ActionResult RenameOutputUI::padAction(int x, int y, int on) {
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult RenameOutputUI::verticalEncoderAction(int offset, bool inCardRoutine) {
+ActionResult RenameOutputUI::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::button::X_ENC)) {
 		return ActionResult::DEALT_WITH;
 	}

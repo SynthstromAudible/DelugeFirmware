@@ -23,7 +23,7 @@ namespace menu_item::filter {
 
 class HPFFreq final : public patched_param::IntegerNonFM {
 public:
-	HPFFreq(char const* newName = 0, int newP = 0) : patched_param::IntegerNonFM(newName, newP) {}
+	HPFFreq(char const* newName = 0, int32_t newP = 0) : patched_param::IntegerNonFM(newName, newP) {}
 
 	// 7Seg ONLY
 	void drawValue() {

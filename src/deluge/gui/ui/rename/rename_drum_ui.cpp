@@ -113,7 +113,7 @@ void RenameDrumUI::exitUI() {
 	close();
 }
 
-ActionResult RenameDrumUI::padAction(int x, int y, int on) {
+ActionResult RenameDrumUI::padAction(int32_t x, int32_t y, int32_t on) {
 
 	// Audition pad
 	if (x == kDisplayWidth + 1) {
@@ -138,7 +138,7 @@ ActionResult RenameDrumUI::padAction(int x, int y, int on) {
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult RenameDrumUI::verticalEncoderAction(int offset, bool inCardRoutine) {
+ActionResult RenameDrumUI::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::button::X_ENC)) {
 		return ActionResult::DEALT_WITH;
 	}

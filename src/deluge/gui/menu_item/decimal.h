@@ -26,13 +26,13 @@ class Decimal : public Number {
 public:
 	Decimal(char const* newName = NULL) : Number(newName) {}
 	void beginSession(MenuItem* navigatedBackwardFrom = NULL);
-	void selectEncoderAction(int offset) final;
-	void horizontalEncoderAction(int offset);
+	void selectEncoderAction(int32_t offset) final;
+	void horizontalEncoderAction(int32_t offset);
 
 protected:
 	void drawValue();
-	virtual int getNumDecimalPlaces() const = 0;
-	virtual int getDefaultEditPos() const { return 2; }
+	virtual int32_t getNumDecimalPlaces() const = 0;
+	virtual int32_t getDefaultEditPos() const { return 2; }
 
 	// OLED only
 	void drawPixelsForOled();

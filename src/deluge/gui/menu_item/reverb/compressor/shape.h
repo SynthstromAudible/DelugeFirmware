@@ -32,7 +32,7 @@ public:
 		AudioEngine::reverbCompressorShape = (uint32_t)soundEditor.currentValue * 85899345 - 2147483648;
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}
-	int getMaxValue() const { return 50; }
-	bool isRelevant(Sound* sound, int whichThing) { return (AudioEngine::reverbCompressorVolume >= 0); }
+	int32_t getMaxValue() const { return 50; }
+	bool isRelevant(Sound* sound, int32_t whichThing) { return (AudioEngine::reverbCompressorVolume >= 0); }
 };
 } // namespace menu_item::reverb::compressor

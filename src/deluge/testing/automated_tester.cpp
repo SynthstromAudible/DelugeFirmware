@@ -35,8 +35,8 @@ class TestState;
 class TestAction {
 public:
 	TestAction() {}
-	virtual TestState* perform() = 0; // Returns new state, or NULL to stay in same state
-	virtual int getTimeBetween() = 0; // Return 0 to say don't do this action at all for now
+	virtual TestState* perform() = 0;     // Returns new state, or NULL to stay in same state
+	virtual int32_t getTimeBetween() = 0; // Return 0 to say don't do this action at all for now
 };
 
 class TestState {
@@ -52,7 +52,7 @@ public:
 		AutomatedTester::turnSelectEncoder((getRandom255() >= 128) ? 1 : -1);
 		return NULL;
 	}
-	int getTimeBetween() { return 2 * 44100; }
+	int32_t getTimeBetween() { return 2 * 44100; }
 } changePresetTestAction;
 
 class PlayButtonTestAction final : public TestAction {
@@ -61,7 +61,7 @@ public:
 		AutomatedTester::doMomentaryButtonPress(playButtonX, playButtonY);
 		return NULL;
 	}
-	int getTimeBetween() { return 1 * 44100; }
+	int32_t getTimeBetween() { return 1 * 44100; }
 } playButtonTestAction;
 
 class InstrumentClipViewTestState final : public TestState {
@@ -85,12 +85,12 @@ void init() {
 	new (&instrumentClipViewTestState) InstrumentClipViewTestState;
 }
 
-void turnSelectEncoder(int offset) {
+void turnSelectEncoder(int32_t offset) {
 	Encoders::encoders[ENCODER_THIS_CPU_SELECT].detentPos += offset;
 }
 
-void doMomentaryButtonPress(int x, int y) {
-	int value = (y + kDisplayHeight * 2) * 9 + x;
+void doMomentaryButtonPress(int32_t x, int32_t y) {
+	int32_t value = (y + kDisplayHeight * 2) * 9 + x;
 	uartInsertFakeChar(UART_ITEM_PIC, value);
 	uartInsertFakeChar(UART_ITEM_PIC, 252);
 	uartInsertFakeChar(UART_ITEM_PIC, value);
@@ -104,7 +104,7 @@ void possiblyDoSomething() {
 
 	TestAction* const* actions = currentState->getActions();
 	while (*actions) {
-		int timeBetween = (*actions)->getTimeBetween();
+		int32_t timeBetween = (*actions)->getTimeBetween();
 		if (timeBetween) {
 
 			uint32_t randomThing = ((uint64_t)(uint32_t)getNoise() * timeBetween) >> 32;

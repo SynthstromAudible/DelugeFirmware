@@ -108,7 +108,7 @@ bool AudioInputSelector::setupAndCheckAvailability() {
 		valueOption = Value::OFF;
 	}
 
-	currentOption = static_cast<int>(valueOption);
+	currentOption = static_cast<int32_t>(valueOption);
 
 	if (audioOutput->echoing) {
 		currentOption += 1;

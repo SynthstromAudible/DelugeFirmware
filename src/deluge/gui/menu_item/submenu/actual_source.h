@@ -22,13 +22,13 @@
 #include "string.h"
 #include "util/cfunctions.h"
 
-extern void setOscillatorNumberForTitles(int);
+extern void setOscillatorNumberForTitles(int32_t);
 
 namespace menu_item::submenu {
 
 class ActualSource final : public SubmenuReferringToOneThing {
 public:
-	ActualSource(char const* newName = 0, MenuItem** newItems = 0, int newSourceIndex = 0)
+	ActualSource(char const* newName = 0, MenuItem** newItems = 0, int32_t newSourceIndex = 0)
 	    : SubmenuReferringToOneThing(newName, newItems, newSourceIndex) {}
 
 	//OLED Only

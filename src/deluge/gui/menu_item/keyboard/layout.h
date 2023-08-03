@@ -34,6 +34,6 @@ public:
 		                                nullptr};                      // Null-term
 		return options;
 	}
-	int getNumOptions() { return kNumKeyboardLayouts; }
+	int32_t getNumOptions() { return kNumKeyboardLayouts; }
 };
 } // namespace menu_item::keyboard

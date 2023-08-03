@@ -139,25 +139,25 @@ SECTIONS
   .reset : ALIGN(0x20) /* 0x10 isn't enough. Not sure why any of this is necessary though. */
 	{
 		execute = .;
-		*start.o (.text)
-		*start.o (.rodata)
-		*start.o (.data)
+		*start.S.obj (.text)
+		*start.S.obj (.rodata)
+		*start.S.obj (.data)
 		
-		*access.o (.text)
-		*access.o (.rodata)
-		*access.o (.data)
+		*access.S.obj (.text)
+		*access.S.obj (.rodata)
+		*access.S.obj (.data)
 
-		*initsct.o (.text)
-		*initsct.o (.rodata)
-		*initsct.o (.data)
+		*initsct.S.obj (.text)
+		*initsct.S.obj (.rodata)
+		*initsct.S.obj (.data)
 
-		*reset_handler.o (.text)
-		*reset_handler.o (.rodata)
-		*reset_handler.o (.data)
+		*reset_handler.S.obj (.text)
+		*reset_handler.S.obj (.rodata)
+		*reset_handler.S.obj (.data)
 
-		*ttb_init.o (.text)
-		*ttb_init.o (.rodata)
-		*ttb_init.o (.data)
+		*ttb_init.S.obj (.text)
+		*ttb_init.S.obj (.rodata)
+		*ttb_init.S.obj (.data)
 
 		.	= ALIGN(0x4);
 		_stext = .;

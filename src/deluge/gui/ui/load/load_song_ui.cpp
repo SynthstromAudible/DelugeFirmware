@@ -65,7 +65,7 @@ bool LoadSongUI::opened() {
 	instrumentTypeToLoad = InstrumentType::NONE;
 	currentDir.set(&currentSong->dirPath);
 
-	int error = beginSlotSession(false, true);
+	int32_t error = beginSlotSession(false, true);
 	if (error) {
 gotError:
 		display.displayError(error);
@@ -131,7 +131,7 @@ gotError:
 	return true;
 }
 
-void LoadSongUI::folderContentsReady(int entryDirection) {
+void LoadSongUI::folderContentsReady(int32_t entryDirection) {
 
 	drawSongPreview(currentUIMode == UI_MODE_VERTICAL_SCROLL);
 
@@ -146,7 +146,7 @@ void LoadSongUI::enterKeyPress() {
 	// If it's a directory...
 	if (currentFileItem && currentFileItem->isFolder) {
 
-		int error = goIntoFolder(currentFileItem->filename.get());
+		int32_t error = goIntoFolder(currentFileItem->filename.get());
 
 		if (error) {
 			display.displayError(error);
@@ -240,7 +240,7 @@ void LoadSongUI::performLoad() {
 		playbackHandler.switchToSession();
 	}
 
-	int error = storageManager.openXMLFile(&currentFileItem->filePointer, "song");
+	int32_t error = storageManager.openXMLFile(&currentFileItem->filePointer, "song");
 	if (error) {
 		display.displayError(error);
 		return;
@@ -269,7 +269,7 @@ void LoadSongUI::performLoad() {
 		playbackHandler.songSwapShouldPreserveTempo = Buttons::isButtonPressed(hid::button::TEMPO_ENC);
 	}
 
-	void* songMemory = generalMemoryAllocator.alloc(sizeof(Song), NULL, false, true);
+	void* songMemory = GeneralMemoryAllocator::get().alloc(sizeof(Song), NULL, false, true);
 	if (!songMemory) {
 ramError:
 		error = ERROR_INSUFFICIENT_RAM;
@@ -300,7 +300,7 @@ fail:
 gotErrorAfterCreatingSong:
 		void* toDealloc = dynamic_cast<void*>(preLoadedSong);
 		preLoadedSong->~Song(); // Will also delete paramManager
-		generalMemoryAllocator.dealloc(toDealloc);
+		GeneralMemoryAllocator::get().dealloc(toDealloc);
 		preLoadedSong = NULL;
 		goto someError;
 	}
@@ -352,7 +352,7 @@ gotErrorAfterCreatingSong:
 	}
 
 	// Ensure all AudioFile Clusters needed for new song are loaded
-	int count = 0; // Prevent any unforeseen loop. Not sure if that actually could happen
+	int32_t count = 0; // Prevent any unforeseen loop. Not sure if that actually could happen
 	while (audioFileManager.loadingQueueHasAnyLowestPriorityElements() && count < 1024) {
 		audioFileManager.loadAnyEnqueuedClusters();
 		routineForSD();
@@ -424,7 +424,7 @@ swapDone:
 	if (toDelete) {
 		void* toDealloc = dynamic_cast<void*>(toDelete);
 		toDelete->~Song();
-		generalMemoryAllocator.dealloc(toDealloc);
+		GeneralMemoryAllocator::get().dealloc(toDealloc);
 	}
 
 	audioFileManager.deleteAnyTempRecordedSamplesFromMemory();
@@ -506,7 +506,7 @@ void LoadSongUI::exitThisUI() {
 
 // Returns error
 /*
-int LoadSongUI::findNextFile(int offset) {
+int32_t LoadSongUI::findNextFile(int32_t offset) {
 
     //currentFileExists = true;
     int16_t slotToSearchFrom = currentSlot;
@@ -518,7 +518,7 @@ int LoadSongUI::findNextFile(int offset) {
 
 doSearch:
 
-	int result = storageManager.findNextFile(offset,
+	int32_t result = storageManager.findNextFile(offset,
     		&currentSlot, &currentSubSlot, &newName, &currentFileIsFolder,
 			slotToSearchFrom, subSlotToSearchFrom, nameToSearchFrom,
 			"SONG", currentDir.get(), &currentFilePointer, true, 255, NULL, numberEditPos);
@@ -563,7 +563,7 @@ doSearch:
 }
 */
 
-void LoadSongUI::currentFileChanged(int movementDirection) {
+void LoadSongUI::currentFileChanged(int32_t movementDirection) {
 
 	if (movementDirection) {
 		qwertyVisible = false;
@@ -571,7 +571,7 @@ void LoadSongUI::currentFileChanged(int movementDirection) {
 		// Start horizontal scrolling
 		PadLEDs::horizontal::setupScroll(movementDirection, kDisplayWidth + kSideBarWidth, true,
 		                                 kDisplayWidth + kSideBarWidth);
-		for (int i = 0; i < kDisplayHeight; i++) {
+		for (int32_t i = 0; i < kDisplayHeight; i++) {
 			PadLEDs::transitionTakingPlaceOnRow[i] = true;
 		}
 		currentUIMode = UI_MODE_HORIZONTAL_SCROLL;
@@ -586,7 +586,7 @@ void LoadSongUI::currentFileChanged(int movementDirection) {
 		// Set up another horizontal scroll
 		PadLEDs::horizontal::setupScroll(movementDirection, kDisplayWidth + kSideBarWidth, false,
 		                                 kDisplayWidth + kSideBarWidth);
-		for (int i = 0; i < kDisplayHeight; i++) {
+		for (int32_t i = 0; i < kDisplayHeight; i++) {
 			PadLEDs::transitionTakingPlaceOnRow[i] = true;
 		}
 		PadLEDs::horizontal::renderScroll();
@@ -623,12 +623,12 @@ goAgain:
 
 			// Start horizontal scrolling
 			PadLEDs::setupScroll(offset, kDisplayWidth + kSideBarWidth, true, kDisplayWidth + kSideBarWidth);
-			for (int i = 0; i < kDisplayHeight; i++) PadLEDs::transitionTakingPlaceOnRow[i] = true;
+			for (int32_t i = 0; i < kDisplayHeight; i++) PadLEDs::transitionTakingPlaceOnRow[i] = true;
 			currentUIMode = UI_MODE_HORIZONTAL_SCROLL;
 			scrollingIntoSlot = false;
 			PadLEDs::renderScroll(); // The scrolling animation will begin while file is being found and loaded
 
-			int result = findNextFile(offset);
+			int32_t result = findNextFile(offset);
 			if (result) {
 				exitActionWithError();
 				return;
@@ -649,14 +649,14 @@ goAgain:
 
 			// Set up another horizontal scroll
 			PadLEDs::setupScroll(offset, kDisplayWidth + kSideBarWidth, false, kDisplayWidth + kSideBarWidth);
-			for (int i = 0; i < kDisplayHeight; i++) PadLEDs::transitionTakingPlaceOnRow[i] = true;
+			for (int32_t i = 0; i < kDisplayHeight; i++) PadLEDs::transitionTakingPlaceOnRow[i] = true;
 			PadLEDs::renderScroll();
 			*/
 		}
 	}
 }
 
-ActionResult LoadSongUI::verticalEncoderAction(int offset, bool inCardRoutine) {
+ActionResult LoadSongUI::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	if (!currentUIMode && !Buttons::isButtonPressed(hid::button::Y_ENC) && !Buttons::isShiftButtonPressed()
 	    && offset < 0) {
 		if (inCardRoutine) {
@@ -702,7 +702,7 @@ void LoadSongUI::drawSongPreview(bool toStore) {
 		return;
 	}
 
-	int error = storageManager.openXMLFile(&currentFileItem->filePointer, "song", "", true);
+	int32_t error = storageManager.openXMLFile(&currentFileItem->filePointer, "song", "", true);
 	if (error) {
 		if (error) {
 			display.displayError(error);
@@ -711,7 +711,7 @@ void LoadSongUI::drawSongPreview(bool toStore) {
 	}
 
 	char const* tagName;
-	int previewNumPads = 40;
+	int32_t previewNumPads = 40;
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 
 		if (!strcmp(tagName, "previewNumPads")) {
@@ -720,8 +720,8 @@ void LoadSongUI::drawSongPreview(bool toStore) {
 		}
 		else if (!strcmp(tagName, "preview")) {
 
-			int startX, startY, endX, endY;
-			int skipNumCharsAfterRow = 0;
+			int32_t startX, startY, endX, endY;
+			int32_t skipNumCharsAfterRow = 0;
 
 			if (previewNumPads == 40) {
 				startX = 4;
@@ -736,21 +736,21 @@ void LoadSongUI::drawSongPreview(bool toStore) {
 				endY = kDisplayHeight;
 			}
 
-			int width = endX - startX;
-			int numCharsToRead = width * 3 * 2;
+			int32_t width = endX - startX;
+			int32_t numCharsToRead = width * 3 * 2;
 
 			if (!storageManager.prepareToReadTagOrAttributeValueOneCharAtATime()) {
 				goto stopLoadingPreview;
 			}
 
-			for (int y = startY; y < endY; y++) {
+			for (int32_t y = startY; y < endY; y++) {
 				char const* hexChars = storageManager.readNextCharsOfTagOrAttributeValue(numCharsToRead);
 				if (!hexChars) {
 					goto stopLoadingPreview;
 				}
 
-				for (int x = startX; x < endX; x++) {
-					for (int colour = 0; colour < 3; colour++) {
+				for (int32_t x = startX; x < endX; x++) {
+					for (int32_t colour = 0; colour < 3; colour++) {
 						imageStore[y][x][colour] = hexToByte(hexChars);
 						hexChars += 2;
 					}
@@ -787,7 +787,7 @@ void LoadSongUI::displayText(bool blinkImmediately) {
 	}
 }
 
-ActionResult LoadSongUI::padAction(int x, int y, int on) {
+ActionResult LoadSongUI::padAction(int32_t x, int32_t y, int32_t on) {
 	// If QWERTY not visible yet, make it visible now
 	if (!qwertyVisible) {
 		if (on && !currentUIMode) {

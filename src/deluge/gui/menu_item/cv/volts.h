@@ -24,10 +24,10 @@ namespace menu_item::cv {
 class Volts final : public Decimal {
 public:
 	using Decimal::Decimal;
-	int getMinValue() const { return 0; }
-	int getMaxValue() const { return 200; }
-	int getNumDecimalPlaces() const { return 2; }
-	int getDefaultEditPos() { return 1; }
+	int32_t getMinValue() const { return 0; }
+	int32_t getMaxValue() const { return 200; }
+	int32_t getNumDecimalPlaces() const { return 2; }
+	int32_t getDefaultEditPos() { return 1; }
 	void readCurrentValue() {
 		soundEditor.currentValue = cvEngine.cvChannels[soundEditor.currentSourceIndex].voltsPerOctave;
 	}
@@ -50,7 +50,7 @@ public:
 		}
 	}
 
-	void horizontalEncoderAction(int offset) {
+	void horizontalEncoderAction(int32_t offset) {
 		if (soundEditor.currentValue != 0) {
 			Decimal::horizontalEncoderAction(offset);
 		}

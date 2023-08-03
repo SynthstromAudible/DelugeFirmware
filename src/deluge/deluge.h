@@ -22,7 +22,7 @@ extern "C" {
 #endif
 
 extern int main(void);
-extern int deluge_main(void);
+extern int32_t deluge_main(void);
 
 extern void timerGoneOff(void);
 
@@ -38,7 +38,7 @@ extern void routineForSD(void);
 extern void sdCardInserted(void);
 extern void sdCardEjected(void);
 
-extern void setTimeUSBInitializationEnds(int timeFromNow);
+extern void setTimeUSBInitializationEnds(int32_t timeFromNow);
 
 #ifdef __cplusplus
 }

@@ -32,7 +32,7 @@ void NumericLayerScrollTransition::isNowOnTop() {
 }
 
 bool NumericLayerScrollTransition::callBack() {
-	int writingTo;
+	int32_t writingTo;
 
 	// Move characters currently displayed
 
@@ -60,7 +60,7 @@ bool NumericLayerScrollTransition::callBack() {
 
 	// Fill character at the end with either a new one, or blank space
 	if (progressFlipped > 0 && next) {
-		int readingFrom =
+		int32_t readingFrom =
 		    (transitionDirection == 1) ? transitionProgress : (kNumericDisplayLength + transitionProgress - 1);
 
 		uint8_t segmentsTransitioningTo[kNumericDisplayLength];
@@ -96,7 +96,7 @@ bool NumericLayerScrollTransition::callBack() {
 	// Remember to continue transition, if there's some left
 	transitionProgress += transitionDirection;
 	if (transitionProgress * transitionDirection < kNumericDisplayLength) {
-		int timeToWait = (transitionProgress == 0) ? 160 : 32;
+		int32_t timeToWait = (transitionProgress == 0) ? 160 : 32;
 		uiTimerManager.setTimer(TIMER_DISPLAY, timeToWait);
 		return false;
 	}

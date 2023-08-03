@@ -36,7 +36,7 @@ public:
 		static char const* options[] = {"12dB", "24dB", "Drive", "SVF", NULL};
 		return options;
 	}
-	int getNumOptions() { return kNumLPFModes; }
-	bool isRelevant(Sound* sound, int whichThing) { return (!sound || sound->synthMode != SynthMode::FM); }
+	int32_t getNumOptions() { return kNumLPFModes; }
+	bool isRelevant(Sound* sound, int32_t whichThing) { return (!sound || sound->synthMode != SynthMode::FM); }
 };
 } // namespace menu_item::filter

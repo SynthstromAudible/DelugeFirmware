@@ -25,10 +25,10 @@ public:
 			return nullptr;
 		}
 		return static_cast<T*>(
-		    generalMemoryAllocator.alloc(n * sizeof(T), nullptr, false, true, false, nullptr, false));
+		    GeneralMemoryAllocator::get().alloc(n * sizeof(T), nullptr, false, true, false, nullptr, false));
 	}
 
-	void deallocate(T* p, std::size_t n) { generalMemoryAllocator.dealloc(p); }
+	void deallocate(T* p, std::size_t n) { GeneralMemoryAllocator::get().dealloc(p); }
 
 	template <typename U>
 	bool operator==(const deluge::memory::fallback_allocator<U>& o) {

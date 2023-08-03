@@ -61,7 +61,7 @@ bool Kit::acceptCurrentOption() {
 	}
 }
 
-ActionResult Kit::padAction(int x, int y, int on) {
+ActionResult Kit::padAction(int32_t x, int32_t y, int32_t on) {
 	return sampleBrowser.padAction(x, y, on);
 }
 

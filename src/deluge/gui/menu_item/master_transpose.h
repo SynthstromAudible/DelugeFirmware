@@ -49,11 +49,11 @@ public:
 
 	void unlearnAction() { MenuItemWithCCLearning::unlearnAction(); }
 	bool allowsLearnMode() { return MenuItemWithCCLearning::allowsLearnMode(); }
-	void learnKnob(MIDIDevice* fromDevice, int whichKnob, int modKnobMode, int midiChannel) {
+	void learnKnob(MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) {
 		MenuItemWithCCLearning::learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel);
 	};
 
-	int getMinValue() const { return -96; }
-	int getMaxValue() const { return 96; }
+	int32_t getMinValue() const { return -96; }
+	int32_t getMaxValue() const { return 96; }
 };
 } // namespace menu_item

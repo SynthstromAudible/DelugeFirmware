@@ -2,6 +2,7 @@
 
 # Copyright 2023 Kate Whitlock
 import argparse
+import errno
 import os
 import io
 import fnmatch
@@ -59,9 +60,16 @@ def get_header_and_source_files(path, recursive: bool):
     return [file for files in globs for file in list(files)]
 
 
-def format_file(clang_format: str, verbose: bool, path: Path):
+def format_file(clang_format: str, verbose: bool, check: bool, path: Path):
     path = str(path.absolute())
-    util.run([clang_format, "--style=file", "-i", path], verbose, verbose)
+    command = [clang_format, "--style=file"]
+    if check:
+        command.append("--dry-run")
+        command.append("-Werror")
+    else:
+        command.append("-i")
+    command.append(path)
+    return util.run(command, verbose, verbose)
 
 
 def argparser() -> argparse.ArgumentParser:
@@ -83,6 +91,9 @@ def argparser() -> argparse.ArgumentParser:
         "-v", "--verbose", help="print the changes happening", action="store_true"
     )
     parser.add_argument(
+        "-c", "--check", help="check for format compliance locally", action="store_true"
+    )
+    parser.add_argument(
         "directory",
         nargs="?",
         help="the directory of source files to format (defaults to whole project)",
@@ -101,18 +112,24 @@ def main() -> int:
     excludes = excludes_from_file(".clang-format-ignore")
     files = exclude(files, excludes)
     clang_format = get_clang_format()
+    check = args.check
 
     if args.quiet:
-        util.do_parallel(partial(format_file, clang_format, False), files)
+        result = util.do_parallel(partial(format_file, clang_format, False, check), files)
     elif args.verbose:
         # Single-process for output purposes :/
-        for file in files:
-            format_file(clang_format, True, file)
+        result = [0] * len(files)
+        for (i, file) in enumerate(files):
+            result[i] = format_file(clang_format, True, check, file)
             print(f"Formatting {file}")
     else:
-        util.do_parallel_progressbar(
-            partial(format_file, clang_format, False), files, "Formatting: "
+        result = util.do_parallel_progressbar(
+            partial(format_file, clang_format, False, check), files, "Formatting: "
         )
+
+    if any(map(lambda x: x != 0, result)):
+        print("Done, formatting mismatch detected")
+        return 1
 
     print("Done!")
     return 0

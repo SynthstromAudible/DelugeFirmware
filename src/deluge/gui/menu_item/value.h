@@ -26,7 +26,7 @@ class Value : public MenuItem {
 public:
 	Value(char const* newName = NULL) : MenuItem(newName) {}
 	void beginSession(MenuItem* navigatedBackwardFrom);
-	void selectEncoderAction(int offset);
+	void selectEncoderAction(int32_t offset);
 	void readValueAgain() final;
 	bool selectEncoderActionEditsInstrument() final { return true; }
 

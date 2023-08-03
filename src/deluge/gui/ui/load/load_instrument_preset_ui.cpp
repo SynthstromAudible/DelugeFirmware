@@ -19,7 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/context_menu/load_instrument_preset.h"
-#include "gui/ui/keyboard_screen.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
@@ -88,7 +88,7 @@ bool LoadInstrumentPresetUI::opened() {
 		    ->backupPresetSlot(); // Store this now cos we won't be storing it between each navigation we do
 	}
 
-	int error = beginSlotSession(); // Requires currentDir to be set. (Not anymore?)
+	int32_t error = beginSlotSession(); // Requires currentDir to be set. (Not anymore?)
 	if (error) {
 gotError:
 		display.displayError(error);
@@ -108,7 +108,7 @@ gotError:
 }
 
 // If HAVE_OLED, then you should make sure renderUIsForOLED() gets called after this.
-int LoadInstrumentPresetUI::setupForInstrumentType() {
+int32_t LoadInstrumentPresetUI::setupForInstrumentType() {
 	indicator_leds::setLedState(IndicatorLED::SYNTH, false);
 	indicator_leds::setLedState(IndicatorLED::KIT, false);
 	indicator_leds::setLedState(IndicatorLED::MIDI, false);
@@ -166,7 +166,7 @@ int LoadInstrumentPresetUI::setupForInstrumentType() {
 		// Otherwise we just start with nothing. currentSlot etc remain set to "zero" from before
 		else {
 useDefaultFolder:
-			int error = currentDir.set(defaultDir);
+			int32_t error = currentDir.set(defaultDir);
 			if (error) {
 				return error;
 			}
@@ -174,13 +174,13 @@ useDefaultFolder:
 	}
 
 	if (!searchFilename.isEmpty()) {
-		int error = searchFilename.concatenate(".XML");
+		int32_t error = searchFilename.concatenate(".XML");
 		if (error) {
 			return error;
 		}
 	}
 
-	int error = arrivedInNewFolder(0, searchFilename.get(), defaultDir);
+	int32_t error = arrivedInNewFolder(0, searchFilename.get(), defaultDir);
 	if (error) {
 		return error;
 	}
@@ -203,11 +203,11 @@ useDefaultFolder:
 	return NO_ERROR;
 }
 
-void LoadInstrumentPresetUI::folderContentsReady(int entryDirection) {
+void LoadInstrumentPresetUI::folderContentsReady(int32_t entryDirection) {
 	currentFileChanged(0);
 }
 
-void LoadInstrumentPresetUI::currentFileChanged(int movementDirection) {
+void LoadInstrumentPresetUI::currentFileChanged(int32_t movementDirection) {
 	//FileItem* currentFileItem = getCurrentFileItem();
 
 	//if (currentFileItem->instrument != instrumentToReplace) {
@@ -228,7 +228,7 @@ void LoadInstrumentPresetUI::enterKeyPress() {
 	// If it's a directory...
 	if (currentFileItem->isFolder) {
 
-		int error = goIntoFolder(currentFileItem->filename.get());
+		int32_t error = goIntoFolder(currentFileItem->filename.get());
 
 		if (error) {
 			display.displayError(error);
@@ -333,7 +333,7 @@ ActionResult LoadInstrumentPresetUI::timerCallback() {
 		// We want to open the context menu to choose to reload the original file for the currently selected preset in some way.
 		// So first up, make sure there is a file, and that we've got its pointer
 		String filePath;
-		int error = getCurrentFilePath(&filePath);
+		int32_t error = getCurrentFilePath(&filePath);
 		if (error != 0) {
 			display.displayError(error);
 			return ActionResult::DEALT_WITH;
@@ -408,7 +408,7 @@ void LoadInstrumentPresetUI::changeInstrumentType(InstrumentType newInstrumentTy
 		InstrumentType oldInstrumentType = instrumentTypeToLoad;
 		instrumentTypeToLoad = newInstrumentType;
 
-		int error = setupForInstrumentType();
+		int32_t error = setupForInstrumentType();
 		if (error) {
 			instrumentTypeToLoad = oldInstrumentType;
 			return;
@@ -520,7 +520,7 @@ void LoadInstrumentPresetUI::revertToInitialPreset() {
 
 				// Try getting from file
 				String filePath;
-				int error = getCurrentFilePath(&filePath);
+				int32_t error = getCurrentFilePath(&filePath);
 				if (error) {
 					return;
 				}
@@ -567,8 +567,8 @@ gotAnInstrument:
 		ModelStackWithTimelineCounter* modelStack =
 		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, instrumentClipToLoadFor);
 
-		int error = instrumentClipToLoadFor->changeInstrument(modelStack, initialInstrument, NULL,
-		                                                      InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED);
+		int32_t error = instrumentClipToLoadFor->changeInstrument(modelStack, initialInstrument, NULL,
+		                                                          InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED);
 		// TODO: deal with errors!
 
 		if (needToAddInstrumentToSong) {
@@ -595,10 +595,10 @@ bool LoadInstrumentPresetUI::findUnusedSlotVariation(String* oldName, String* ne
 	shouldInterpretNoteNames = false;
 
 	char const* oldNameChars = oldName->get();
-	int oldNameLength = strlen(oldNameChars);
+	int32_t oldNameLength = strlen(oldNameChars);
 
 	if (display.type != DisplayType::OLED) {
-		int subSlot = -1;
+		int32_t subSlot = -1;
 		// For numbered slots
 		if (oldNameLength == 3) {
 doSlotNumber:
@@ -608,7 +608,7 @@ doSlotNumber:
 			buffer[2] = oldNameChars[2];
 			buffer[3] = 0;
 			buffer[4] = 0;
-			int slotNumber = stringToUIntOrError(buffer);
+			int32_t slotNumber = stringToUIntOrError(buffer);
 			if (slotNumber < 0) {
 				goto nonNumeric;
 			}
@@ -624,7 +624,7 @@ doSlotNumber:
 
 				buffer[3] = 'A' + subSlot;
 
-				int i = fileItems.search(buffer);
+				int32_t i = fileItems.search(buffer);
 				if (i >= fileItems.getNumElements()) {
 					break;
 				}
@@ -652,7 +652,7 @@ tryWholeNewSlotNumbers:
 					}
 					intToString(slotNumber, buffer, 3);
 
-					int i = fileItems.search(buffer);
+					int32_t i = fileItems.search(buffer);
 					if (i >= fileItems.getNumElements()) {
 						break;
 					}
@@ -696,19 +696,19 @@ tryWholeNewSlotNumbers:
 
 	{
 nonNumeric:
-		int oldNumber = 1;
+		int32_t oldNumber = 1;
 		newName->set(oldName);
 
-		int numberStartPos;
+		int32_t numberStartPos;
 
 		char const* underscoreAddress = strrchr(oldNameChars, ' ');
 		if (underscoreAddress) {
 lookAtSuffixNumber:
-			int underscorePos = (uint32_t)underscoreAddress - (uint32_t)oldNameChars;
+			int32_t underscorePos = (uint32_t)underscoreAddress - (uint32_t)oldNameChars;
 			numberStartPos = underscorePos + 1;
-			int oldNumberLength = oldNameLength - numberStartPos;
+			int32_t oldNumberLength = oldNameLength - numberStartPos;
 			if (oldNumberLength > 0) {
-				int numberHere = stringToUIntOrError(&oldNameChars[numberStartPos]);
+				int32_t numberHere = stringToUIntOrError(&oldNameChars[numberStartPos]);
 				if (numberHere >= 0) { // If it actually was a number, as opposed to other chars
 					oldNumber = numberHere;
 					newName->shorten(numberStartPos);
@@ -732,14 +732,14 @@ addNumber:
 			newName->concatenateInt(oldNumber + 1);
 			char const* newNameChars = newName->get();
 
-			int i = fileItems.search(newNameChars);
+			int32_t i = fileItems.search(newNameChars);
 			if (i >= fileItems.getNumElements()) {
 				break;
 			}
 
 			FileItem* fileItem = (FileItem*)fileItems.getElementAddress(i);
 			char const* fileItemNameChars = fileItem->filename.get();
-			int newNameLength = strlen(newNameChars);
+			int32_t newNameLength = strlen(newNameChars);
 			if (!memcasecmp(newNameChars, fileItemNameChars, newNameLength)) {
 				if (fileItemNameChars[newNameLength] == 0) {
 					continue;
@@ -757,7 +757,7 @@ addNumber:
 }
 
 // I thiiink you're supposed to check currentFileExists before calling this?
-int LoadInstrumentPresetUI::performLoad(bool doClone) {
+int32_t LoadInstrumentPresetUI::performLoad(bool doClone) {
 
 	FileItem* currentFileItem = getCurrentFileItem();
 	if (!currentFileItem) {
@@ -830,9 +830,9 @@ giveUsedError:
 			}
 		}
 
-		int error = storageManager.loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, instrumentTypeToLoad,
-		                                                  false, &newInstrument, &currentFileItem->filePointer,
-		                                                  &enteredText, &currentDir);
+		int32_t error = storageManager.loadInstrumentFromFile(currentSong, instrumentClipToLoadFor,
+		                                                      instrumentTypeToLoad, false, &newInstrument,
+		                                                      &currentFileItem->filePointer, &enteredText, &currentDir);
 
 		if (error) {
 			return error;
@@ -848,7 +848,7 @@ giveUsedError:
 		}
 	}
 	display.displayLoadingAnimationText("Loading", false, true);
-	int error = newInstrument->loadAllAudioFiles(true);
+	int32_t error = newInstrument->loadAllAudioFiles(true);
 
 	display.removeLoadingAnimation();
 
@@ -887,7 +887,7 @@ giveUsedError:
 
 		// If we're here, we know the Clip is not playing in the arranger (and doesn't even have an instance in there)
 
-		int error = instrumentClipToLoadFor->changeInstrument(
+		int32_t error = instrumentClipToLoadFor->changeInstrument(
 		    modelStack, newInstrument, NULL, InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL, true);
 		// TODO: deal with errors!
 
@@ -901,7 +901,7 @@ giveUsedError:
 	// Check if old Instrument has been deleted, in which case need to update the appropriate FileItem.
 	if (!isInstrumentInList(instrumentToReplace, currentSong->firstOutput)
 	    && !isInstrumentInList(instrumentToReplace, currentSong->firstHibernatingInstrument)) {
-		for (int f = fileItems.getNumElements() - 1; f >= 0; f--) {
+		for (int32_t f = fileItems.getNumElements() - 1; f >= 0; f--) {
 			FileItem* fileItem = (FileItem*)fileItems.getElementAddress(f);
 			if (fileItem->instrument == instrumentToReplace) {
 				fileItem->instrument = NULL;
@@ -938,7 +938,7 @@ void LoadInstrumentPresetUI::exitAction() {
 	LoadUI::exitAction();
 }
 
-ActionResult LoadInstrumentPresetUI::padAction(int x, int y, int on) {
+ActionResult LoadInstrumentPresetUI::padAction(int32_t x, int32_t y, int32_t on) {
 
 	// Audition pad
 	if (x == kDisplayWidth + 1) {
@@ -973,7 +973,7 @@ potentiallyExit:
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult LoadInstrumentPresetUI::verticalEncoderAction(int offset, bool inCardRoutine) {
+ActionResult LoadInstrumentPresetUI::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	if (showingAuditionPads()) {
 		if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::button::X_ENC)) {
 			return ActionResult::DEALT_WITH;
@@ -1027,9 +1027,9 @@ LoadInstrumentPresetUI::findAnUnlaunchedPresetIncludingWithinSubfolders(Song* so
 
 	ReturnOfConfirmPresetOrNextUnlaunchedOne toReturn;
 
-	int initialDirLength = currentDir.getLength();
+	int32_t initialDirLength = currentDir.getLength();
 
-	int folderIndex = -1;
+	int32_t folderIndex = -1;
 	bool doingSubfolders = false;
 	String searchNameLocalCopy;
 
@@ -1080,7 +1080,7 @@ noFurtherFiles:
 	if (!doingSubfolders) {
 
 		// Look through our list of FileItems, for a preset.
-		for (int i = 0; i < fileItems.getNumElements(); i++) {
+		for (int32_t i = 0; i < fileItems.getNumElements(); i++) {
 			toReturn.fileItem = (FileItem*)fileItems.getElementAddress(i);
 			if (!toReturn.fileItem->isFolder) {
 				goto doReturn; // We found a preset / file.
@@ -1102,7 +1102,7 @@ noFurtherFiles:
 	}
 
 	// Ok, do folders now.
-	int i;
+	int32_t i;
 	for (i = 0; i < fileItems.getNumElements(); i++) {
 		toReturn.fileItem = (FileItem*)fileItems.getElementAddress(i);
 		if (toReturn.fileItem->isFolder) {
@@ -1246,7 +1246,7 @@ needToGrabLeftmostButHaveToReadFirst:
 
 // Caller must call emptyFileItems() at some point after calling this function - unless an error is returned.
 // Caller must remove OLED working animation after calling this too.
-PresetNavigationResult LoadInstrumentPresetUI::doPresetNavigation(int offset, Instrument* oldInstrument,
+PresetNavigationResult LoadInstrumentPresetUI::doPresetNavigation(int32_t offset, Instrument* oldInstrument,
                                                                   Availability availabilityRequirement, bool doBlink) {
 
 	AudioEngine::logAction("doPresetNavigation");
@@ -1267,7 +1267,7 @@ doReturn:
 	}
 
 readAgain:
-	int newCatalogSearchDirection = (offset >= 0) ? CATALOG_SEARCH_RIGHT : CATALOG_SEARCH_LEFT;
+	int32_t newCatalogSearchDirection = (offset >= 0) ? CATALOG_SEARCH_RIGHT : CATALOG_SEARCH_LEFT;
 readAgainWithSameOffset:
 	toReturn.error =
 	    readFileItemsForFolder(getThingName(instrumentType), false, allowedFileExtensionsXML, oldNameString.get(),
@@ -1312,7 +1312,7 @@ noErrorButGetOut:
 		goto reachedEnd;
 	}
 
-	int i = (offset >= 0) ? 0 : (fileItems.getNumElements() - 1);
+	int32_t i = (offset >= 0) ? 0 : (fileItems.getNumElements() - 1);
 	/*
 	if (i >= fileItems.getNumElements()) { // If not found *and* we'd be past the end of the list...
 		if (offset >= 0) i = 0;
@@ -1320,7 +1320,7 @@ noErrorButGetOut:
 		goto doneMoving;
 	}
 	else {
-		int oldNameLength = strlen(oldNameChars);
+		int32_t oldNameLength = strlen(oldNameChars);
 		FileItem* searchResultItem = (FileItem*)fileItems.getElementAddress(i);
 		if (memcasecmp(oldNameChars, searchResultItem->displayName, oldNameLength)) {
 notFound:	if (offset < 0) {
@@ -1435,7 +1435,7 @@ doPendingPresetNavigation:
 	//view.displayOutputName(toReturn.fileItem->instrument);
 
 	display.displayLoadingAnimationText("Loading", false, true);
-	int oldUIMode = currentUIMode;
+	int32_t oldUIMode = currentUIMode;
 	currentUIMode = UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED;
 	toReturn.fileItem->instrument->loadAllAudioFiles(true);
 	currentUIMode = oldUIMode;

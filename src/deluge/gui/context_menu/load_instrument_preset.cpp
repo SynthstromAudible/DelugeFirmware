@@ -35,7 +35,7 @@ Sized<char const**> LoadInstrumentPreset::getOptions() {
 }
 
 bool LoadInstrumentPreset::acceptCurrentOption() {
-	int error;
+	int32_t error;
 
 	switch (currentOption) {
 	/*

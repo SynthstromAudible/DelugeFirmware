@@ -82,7 +82,7 @@ public:
 		static char const* options[] = {"CUT", "ONCE", "LOOP", "STRETCH", NULL};
 		return options;
 	}
-	int getNumOptions() { return kNumRepeatModes; }
+	int32_t getNumOptions() { return kNumRepeatModes; }
 };
 
 } // namespace menu_item::sample

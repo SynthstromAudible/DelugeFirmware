@@ -30,8 +30,8 @@ public:
 		AudioEngine::reverbCompressorVolume = soundEditor.currentValue * 21474836;
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}
-	int getMaxValue() const { return 50; }
-	int getMinValue() const { return -1; }
+	int32_t getMaxValue() const { return 50; }
+	int32_t getMinValue() const { return -1; }
 
 	void drawValue() {
 		if (soundEditor.currentValue < 0) {

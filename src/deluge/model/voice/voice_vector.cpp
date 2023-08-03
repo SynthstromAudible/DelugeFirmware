@@ -28,7 +28,7 @@ void VoiceVector::checkVoiceExists(Voice* voice, Sound* sound, char const* error
 		uint32_t searchWords[2];
 		searchWords[0] = (uint32_t)sound;
 		searchWords[1] = (uint32_t)voice;
-		int i = searchMultiWordExact(searchWords);
+		int32_t i = searchMultiWordExact(searchWords);
 
 		if (i == -1) {
 			display.freezeWithError(errorCode);
@@ -37,7 +37,7 @@ void VoiceVector::checkVoiceExists(Voice* voice, Sound* sound, char const* error
 }
 
 // Returns results as if GREAT_OR_EQUAL had been supplied to search. To turn this into LESS, subtract 1
-void VoiceVector::getRangeForSound(Sound* sound, int* __restrict__ ends) {
+void VoiceVector::getRangeForSound(Sound* sound, int32_t* __restrict__ ends) {
 
 	int32_t searchTerms[2];
 	searchTerms[0] = (uint32_t)sound;

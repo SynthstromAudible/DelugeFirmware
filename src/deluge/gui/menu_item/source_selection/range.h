@@ -23,7 +23,7 @@ public:
 	Range() { basicTitle = "Modulate depth"; }
 	ParamDescriptor getDestinationDescriptor();
 	MenuItem* selectButtonPress();
-	MenuItem* patchingSourceShortcutPress(int newS, bool previousPressStillActive);
+	MenuItem* patchingSourceShortcutPress(int32_t newS, bool previousPressStillActive);
 };
 extern Range rangeMenu;
 } // namespace menu_item::source_selection

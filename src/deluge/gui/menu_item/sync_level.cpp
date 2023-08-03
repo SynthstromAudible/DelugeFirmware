@@ -75,7 +75,7 @@ void SyncLevel::drawPixelsForOled() {
 	                        kTextBigSpacingX, kTextBigSizeY);
 }
 
-SyncType SyncLevel::menuOptionToSyncType(int option) {
+SyncType SyncLevel::menuOptionToSyncType(int32_t option) {
 	if (option < SYNC_TYPE_TRIPLET) {
 		return SYNC_TYPE_EVEN;
 	}
@@ -87,7 +87,7 @@ SyncType SyncLevel::menuOptionToSyncType(int option) {
 	}
 }
 
-::SyncLevel SyncLevel::menuOptionToSyncLevel(int option) {
+::SyncLevel SyncLevel::menuOptionToSyncLevel(int32_t option) {
 	::SyncLevel level;
 	if (option < SYNC_TYPE_TRIPLET) {
 		level = static_cast<::SyncLevel>(option);
@@ -101,7 +101,7 @@ SyncType SyncLevel::menuOptionToSyncType(int option) {
 	return level;
 }
 
-int SyncLevel::syncTypeAndLevelToMenuOption(::SyncType type, ::SyncLevel level) {
-	return static_cast<int>(type) + (static_cast<int>(level) - (type != SYNC_TYPE_EVEN ? 1 : 0));
+int32_t SyncLevel::syncTypeAndLevelToMenuOption(::SyncType type, ::SyncLevel level) {
+	return static_cast<int32_t>(type) + (static_cast<int32_t>(level) - (type != SYNC_TYPE_EVEN ? 1 : 0));
 }
 } // namespace menu_item

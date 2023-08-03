@@ -48,9 +48,9 @@ BidirectionalLinkedListNode* BidirectionalLinkedList::getFirst() {
 	}
 }
 
-int BidirectionalLinkedList::getNum() {
+int32_t BidirectionalLinkedList::getNum() {
 	BidirectionalLinkedListNode* node = first;
-	int count = 0;
+	int32_t count = 0;
 	while (node != &endNode) {
 		node = node->next;
 		count++;
@@ -74,7 +74,7 @@ void BidirectionalLinkedList::test() {
 		display.freezeWithError("E005");
 	}
 
-	int count = 0;
+	int32_t count = 0;
 
 	BidirectionalLinkedListNode* thisNode = first;
 	BidirectionalLinkedListNode** prevPointer = &first;
