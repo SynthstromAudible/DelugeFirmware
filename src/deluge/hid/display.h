@@ -18,7 +18,7 @@ public:
 	constexpr static DisplayType type = DisplayType::OLED;
 	constexpr static size_t kNumBrowserAndMenuLines = 3;
 
-	void setText(char const* newText, bool alignRight = false, uint8_t drawDot = 255, bool doBlink = false,
+	void setText(std::string_view newText, bool alignRight = false, uint8_t drawDot = 255, bool doBlink = false,
 	             uint8_t* newBlinkMask = NULL, bool blinkImmediately = false, bool shouldBlinkFast = false,
 	             int scrollPos = 0, uint8_t* blinkAddition = NULL, bool justReplaceBottomLayer = false) {}
 
