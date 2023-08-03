@@ -112,7 +112,7 @@ void ArrangerView::moveClipToSession() {
 		// Clip already exists in session - just go to it
 		if (!clip->isArrangementOnlyClip()) {
 			int32_t index = currentSong->sessionClips.getIndexForClip(clip);
-			currentSong->songViewYScroll = index - yPressedEffective; //@TODO: Check if this will have an effect
+			currentSong->songViewYScroll = index - yPressedEffective;
 		}
 
 		// Or, arrangement-only Clip needs moving to session

@@ -134,10 +134,27 @@ private:
 
 	ActionResult gridHandleScroll(int32_t offsetX, int32_t offsetY);
 
+	bool clipButtonUsed = false;
+	bool gridPreventArm = false;
 	int32_t gridFirstPressedX = -1;
 	int32_t gridFirstPressedY = -1;
 	int32_t gridSecondPressedX = -1;
 	int32_t gridSecondPressedY = -1;
+
+	inline bool gridPadActive() {
+		return (gridFirstPressedX != -1 && gridFirstPressedY != -1);
+	}
+
+	inline void gridResetPresses(bool first = true, bool second = true) {
+		if (first) {
+			gridFirstPressedX = -1;
+			gridFirstPressedY = -1;
+		}
+		if (second) {
+			gridSecondPressedX = -1;
+			gridSecondPressedY = -1;
+		}
+	}
 };
 
 extern SessionView sessionView;

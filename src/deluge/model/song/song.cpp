@@ -963,7 +963,7 @@ Clip* Song::getSessionClipWithOutput(Output* output, int32_t requireSection, Cli
 			if (clip == excludeClip) {
 				continue;
 			}
-			if (requireSection != -1 && clip->section != requireSection) { //@TODO: Look at this
+			if (requireSection != -1 && clip->section != requireSection) {
 				continue;
 			}
 			if (excludePendingOverdubs && clip->isPendingOverdub) {
@@ -3679,7 +3679,7 @@ void Song::restoreClipStatesBeforeArrangementPlay() {
 }
 
 // Returns 0 if they're all full
-int32_t Song::getLowestSectionWithNoSessionClipForOutput(Output* output) { //@TODO: Maybe this is relevant?
+int32_t Song::getLowestSectionWithNoSessionClipForOutput(Output* output) {
 	bool* sectionRepresented = (bool*)shortStringBuffer;
 	memset(sectionRepresented, 0, kMaxNumSections);
 
@@ -4896,7 +4896,7 @@ bool Song::deletePendingOverdubs(Output* onlyWithOutput, int32_t* originalClipIn
 }
 
 int32_t Song::getYScrollSongViewWithoutPendingOverdubs() {
-	int32_t numToSearch = std::min(sessionClips.getNumElements(), songViewYScroll + kDisplayHeight); //@TODO: look at
+	int32_t numToSearch = std::min(sessionClips.getNumElements(), songViewYScroll + kDisplayHeight);
 
 	int32_t outputValue = songViewYScroll;
 
@@ -4939,8 +4939,7 @@ Clip* Song::getClipWithOutputAboutToBeginLinearRecording(Output* output) {
 	return NULL;
 }
 
-Clip* Song::createPendingNextOverdubBelowClip(Clip* clip, int32_t clipIndex,
-                                              int32_t newOverdubNature) { //@TODO: Do scroll here?
+Clip* Song::createPendingNextOverdubBelowClip(Clip* clip, int32_t clipIndex, int32_t newOverdubNature) {
 
 	// No automatic overdubs are allowed during soloing, cos that's just too complicated
 	if (anyClipsSoloing) {
