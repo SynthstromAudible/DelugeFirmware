@@ -45,24 +45,6 @@ class ParamNode;
 class Sound;
 class SoundDrum;
 
-//struct EditAutomationPadPress {
-//	bool isActive;
-//	uint8_t yDisplay;
-//	uint8_t xDisplay;
-//	bool deleteOnDepress; // Can also mean to delete tail
-//	uint8_t intendedVelocity;
-//	uint8_t intendedProbability;
-//	bool deleteOnScroll;
-//	bool isBlurredSquare;
-//	bool mpeCachedYet;
-//	StolenParamNodes stolenMPE[kNumExpressionDimensions];
-//	uint32_t intendedPos;    // For "blurred squares", means start of square
-//	uint32_t intendedLength; // For "blurred squares", means length of square
-//};
-
-//#define MPE_RECORD_LENGTH_FOR_NOTE_EDITING 3
-//#define MPE_RECORD_INTERVAL_TIME (44100 >> 2) // 250ms
-
 class AutomationInstrumentClipView final : public ClipView, public InstrumentClipMinder, public ModControllableAudio {
 public:
 	AutomationInstrumentClipView();
@@ -72,7 +54,6 @@ public:
 
 	//called by ui_timer_manager - might need to revise this routine for automation clip view since it references notes
 	void graphicsRoutine();
-	//void fillOffScreenImageStores();
 
 	//rendering
 	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
@@ -82,10 +63,6 @@ public:
 	                         bool drawUndefinedArea = true);
 	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
-	//void drawAuditionSquare(uint8_t yDisplay, uint8_t thisImage[][3]);
-
-	//void recalculateColours();
-	//void recalculateColour(uint8_t yDisplay);
 
 #if HAVE_OLED
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
@@ -95,45 +72,18 @@ public:
 
 	//button action
 	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
-	//void createNewInstrument(InstrumentType instrumentType);
-	//void changeInstrumentType(InstrumentType newInstrumentType);
-	//void transitionToSessionView();
-	//void flashDefaultRootNote();
-	//void cancelAllAuditioning();
 
 	//pad action
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
-	//void enterScaleMode(uint8_t yDisplay = 255);
-	//void exitScaleMode();
-	//void changeRootNote(uint8_t yDisplay);
 
 	//edit pad action
 	void editPadAction(bool state, uint8_t yDisplay, uint8_t xDisplay, uint32_t xZoom);
-	//int16_t mpeValuesAtHighestPressure[MPE_RECORD_LENGTH_FOR_NOTE_EDITING][kNumExpressionDimensions];
-	//int16_t mpeMostRecentPressure;
-	//uint32_t mpeRecordLastUpdateTime;
-
-	//mute pad press
-	//void mutePadPress(uint8_t yDisplay);
 
 	//audition pad action
 	void auditionPadAction(int32_t velocity, int32_t yDisplay, bool shiftButtonDown);
-	//ModelStackWithNoteRow* createNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay);
-	//NoteRow* createNewNoteRowForKit(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay, int32_t* getIndex = NULL);
-	//void reassessAllAuditionStatus();
-	//void reassessAuditionStatus(uint8_t yDisplay);
-	//uint8_t getVelocityForAudition(uint8_t yDisplay, uint32_t* sampleSyncLength);
-	//uint8_t oneNoteAuditioning();
-	//uint8_t getNumNoteRowsAuditioning();
-	//inline void sendAuditionNote(bool on, uint8_t yDisplay) { sendAuditionNote(on, yDisplay, 64, 0); };
-	//bool
-	//    auditioningSilently; // Sometimes the user will want to hold an audition pad without actually sounding the note, by holding an encoder
-	//bool fileBrowserShouldNotPreview; // Archaic leftover feature that users wouldn't let me get rid of
 
 	//horizontal encoder action
 	ActionResult horizontalEncoderAction(int32_t offset);
-	//void doubleClipLengthAction();
-	//ModelStackWithNoteRow* getOrCreateNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay);
 
 	//vertical encoder action
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
@@ -142,7 +92,6 @@ public:
 	//mod encoder action
 	void modEncoderAction(int32_t whichModEncoder, int32_t offset);
 	void modEncoderButtonAction(uint8_t whichModEncoder, bool on);
-	//void dontDeleteNotesOnDepress();
 	CopiedParamAutomation copiedParamAutomation;
 
 	//tempo encoder action
@@ -150,18 +99,12 @@ public:
 
 	//Select encoder action
 	void selectEncoderAction(int8_t offset);
-	//void offsetNoteCodeAction(int32_t newOffset);
-	//void cutAuditionedNotesToOne();
-	//void setSelectedDrum(Drum* drum, bool shouldRedrawStuff = true);
 
 	//called by melodic_instrument.cpp or kit.cpp
 	void noteRowChanged(InstrumentClip* clip, NoteRow* noteRow);
 
 	//called by playback_handler.cpp
 	void notifyPlaybackBegun();
-
-	//called by sound_drum.cpp
-	//bool isDrumAuditioned(Drum* drum);
 
 	//not sure how this is used
 	ClipMinder* toClipMinder() {
@@ -170,50 +113,11 @@ public:
 
 	//Automation Lanes Global Variables / Toggles
 	uint8_t clipClear;
-	//uint8_t drawLine;
-	//uint8_t flashShortcuts;
-	//uint8_t notePassthrough;
-	//uint8_t overlayNotes;
 	uint8_t interpolation;
 
 private:
-	//Rendering Variables
-	//	void setLedStates();
-	//	uint8_t rowColour[kDisplayHeight][3];
-	//	uint8_t rowTailColour[kDisplayHeight][3];
-	//	uint8_t rowBlurColour[kDisplayHeight][3];
-	//	uint8_t yDisplayOfNewNoteRow;
-
-	//Pad Action Variables
-	//void endEditPadPress(uint8_t i);
-	//void checkIfAllEditPadPressesEnded(bool mayRenderSidebar = true);
-	//uint8_t numEditPadPressesPerNoteRowOnScreen[kDisplayHeight];
-	//EditAutomationPadPress editPadPresses[kEditPadPressBufferSize];
-	//uint8_t numEditPadPresses;
-	//uint32_t timeLastEditPadPress;
-	//uint32_t timeFirstEditPadPress;
-
-	//Audition Pad Action Variables
-	//void sendAuditionNote(bool on, uint8_t yDisplay, uint8_t velocity, uint32_t sampleSyncLength);
-	//void someAuditioningHasEnded(bool recalculateLastAuditionedNoteOnScreen);
-	//uint8_t lastAuditionedYDisplay;
-	//uint8_t lastAuditionedVelocityOnScreen[kDisplayHeight]; // 255 seems to mean none
-	//uint8_t auditionPadIsPressed[kDisplayHeight];
-	//bool
-	//    editedAnyPerNoteRowStuffSinceAuditioningBegan; // Because in this case we can assume that if they press a main pad while auditioning, they're not intending to do that shortcut into the SoundEditor!
-	//Drum* drumForNewNoteRow;
-
 	//Horizontal Encoder Action
 	void rotateAutomationHorizontally(int32_t offset);
-	//bool offsettingNudgeNumberDisplay;
-	//bool doneAnyNudgingSinceFirstEditPadPress;
-	//bool shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress;
-	//uint32_t
-	//    timeHorizontalKnobLastReleased; // Only to be looked at if shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress is true after they rotated a NoteRow and might now be wanting to instead edit its length after releasing the knob
-
-	//Vertical Encoder Action
-	//bool getAffectEntire();
-	//bool shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress;
 
 	//Mod Encoder Action
 	void copyAutomation();
@@ -248,17 +152,10 @@ private:
 	int32_t LERPSweepDown(int32_t A, int32_t B, int32_t T, int32_t Distance);
 	//int32_t smoothstep (int32_t A, int32_t B, int32_t T, int32_t Distance);
 
-	//Automation Lanes Variables
-	//uint8_t lastSelectedParamID;
 	uint8_t lastSelectedParamX;
 	uint8_t lastSelectedParamY;
 	uint8_t lastSelectedParamArrayPosition;
-	//uint8_t lastSelectedMidiX;
-	//uint8_t lastSelectedMidiY;
-	//uint8_t selectedParamColour[kDisplayHeight][3];
 	uint8_t lastEditPadPressXDisplay;
-	//uint8_t lastAutomationNudgeOffset;
-	//uint32_t previousParamValue[kDisplayWidth];
 	bool encoderAction;
 };
 

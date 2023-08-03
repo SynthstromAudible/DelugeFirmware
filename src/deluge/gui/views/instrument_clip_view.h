@@ -150,6 +150,8 @@ public:
 	bool getAffectEntire();
 	void checkIfAllEditPadPressesEnded(bool mayRenderSidebar = true);
 	void endEditPadPress(uint8_t i);
+	void copyAutomation(int32_t whichModEncoder);
+	void pasteAutomation(int32_t whichModEncoder);
 	//made these public so they can be accessed by the automation clip view
 
 #if HAVE_OLED
@@ -215,9 +217,6 @@ private:
 	void copyNotes();
 	void pasteNotes();
 	void deleteCopiedNoteRows();
-
-	void copyAutomation(int32_t whichModEncoder);
-	void pasteAutomation(int32_t whichModEncoder);
 
 	void createDrumForAuditionedNoteRow(DrumType drumType);
 	void nudgeNotes(int32_t offset);
