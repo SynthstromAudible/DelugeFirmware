@@ -297,7 +297,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 			    || delayWorkingState->userDelayRate != delay.primaryBuffer.nativeRate) {
 
 				// If delay speed has settled for a split second...
-				if (delay.countCyclesWithoutChange >= (44100 >> 5)) {
+				if (delay.countCyclesWithoutChange >= (kSampleRate >> 5)) {
 					//Debug::println("settling");
 					initializeSecondaryDelayBuffer(delayWorkingState->userDelayRate, true);
 				}

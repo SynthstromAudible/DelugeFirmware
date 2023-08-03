@@ -26,7 +26,7 @@ public:
 	Transpose(const string& name, const string& title_format_str, int32_t newP)
 	    : source::Transpose(name, newP), FormattedTitle(title_format_str) {}
 
-	[[nodiscard]] const string& getTitle() const override { return FormattedTitle::title(); }
+	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
 	void readCurrentValue() override {
 		int32_t transpose = 0;

@@ -2,7 +2,7 @@
 #include <new>
 
 void* operator new(std::size_t n) noexcept(false) {
-	delugeAlloc(n);
+	return delugeAlloc(n);
 }
 
 void operator delete(void* p) {

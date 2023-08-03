@@ -26,8 +26,8 @@
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "util/functions.h"
+#include <cstring>
 #include <new>
-#include <string.h>
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
@@ -96,9 +96,9 @@ void NumericDriver::removeTopLayer() {
 	}
 }
 
-void NumericDriver::setText(char const* newText, bool alignRight, uint8_t drawDot, bool doBlink, uint8_t* newBlinkMask,
-                            bool blinkImmediately, bool shouldBlinkFast, int32_t scrollPos, uint8_t* encodedAddition,
-                            bool justReplaceBottomLayer) {
+void NumericDriver::setText(std::string_view newText, bool alignRight, uint8_t drawDot, bool doBlink,
+                            uint8_t* newBlinkMask, bool blinkImmediately, bool shouldBlinkFast, int32_t scrollPos,
+                            uint8_t* encodedAddition, bool justReplaceBottomLayer) {
 	void* layerSpace = GeneralMemoryAllocator::get().alloc(sizeof(NumericLayerBasicText));
 	if (!layerSpace) {
 		return;
@@ -260,7 +260,7 @@ int32_t NumericDriver::getEncodedPosFromLeft(int32_t textPos, char const* text, 
 
 // Returns encoded length
 // scrollPos may only be set when aligning left
-int32_t NumericDriver::encodeText(char const* newText, uint8_t* destination, bool alignRight, uint8_t drawDot,
+int32_t NumericDriver::encodeText(std::string_view newText, uint8_t* destination, bool alignRight, uint8_t drawDot,
                                   bool limitToDisplayLength, int32_t scrollPos) {
 
 	int32_t writePos;
@@ -272,7 +272,7 @@ int32_t NumericDriver::encodeText(char const* newText, uint8_t* destination, boo
 	}
 	else {
 		writePos = kNumericDisplayLength - 1;
-		readPos = strlen(newText) - 1;
+		readPos = newText.length() - 1;
 	}
 
 	bool carryingDot = false;

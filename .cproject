@@ -10,6 +10,7 @@
 					<extension id="org.eclipse.cdt.core.GmakeErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
 					<extension id="org.eclipse.cdt.core.CWDLocator" point="org.eclipse.cdt.core.ErrorParser"/>
 					<extension id="org.eclipse.cdt.core.GCCErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.GLDErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
 				</extensions>
 			</storageModule>
 			<storageModule moduleId="com.renesas.cdt.managedbuild.core.toolchainInfo">
@@ -18,7 +19,7 @@
 				<option id="toolchain.enable" value="false"/>
 			</storageModule>
 			<storageModule moduleId="cdtBuildSystem" version="4.0.0">
-				<configuration artifactName="${ProjName}-debug-oled" buildArtefactType="org.eclipse.cdt.build.core.buildArtefactType.exe" buildProperties="org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.cdt.build.core.buildArtefactType.exe,org.eclipse.cdt.build.core.buildType=org.eclipse.cdt.build.core.buildType.debug" cleanCommand="rm -rf *.lst *.lis *.lpp *.map" description="Debug build with OLED support" id="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662" name="build-debug-oled" parent="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug" postbuildStep="arm-none-eabi-objcopy -O binary &quot;Deluge-debug-oled.elf&quot; &quot;Deluge-debug-oled.bin&quot;">
+				<configuration artifactName="${ProjName}-debug-oled" buildArtefactType="org.eclipse.cdt.build.core.buildArtefactType.exe" buildProperties="org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.cdt.build.core.buildArtefactType.exe,org.eclipse.cdt.build.core.buildType=org.eclipse.cdt.build.core.buildType.debug" cleanCommand="rm -rf *.lst *.lis *.lpp *.map" description="Debug build with OLED support" errorParsers="org.eclipse.cdt.core.GASErrorParser;org.eclipse.cdt.core.GmakeErrorParser;org.eclipse.cdt.core.CWDLocator;org.eclipse.cdt.core.GCCErrorParser;org.eclipse.cdt.core.GLDErrorParser" id="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662" name="build-debug-oled" parent="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug" postbuildStep="arm-none-eabi-objcopy -O binary &quot;Deluge-debug-oled.elf&quot; &quot;Deluge-debug-oled.bin&quot;">
 					<folderInfo id="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662." name="/" resourcePath="">
 						<toolChain id="com.renesas.cdt.managedbuild.gcc.rz.toolchain.elf.debug.933765617" name="GCC for Renesas RZ" superClass="com.renesas.cdt.managedbuild.gcc.rz.toolchain.elf.debug">
 							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.addtools.createflash.1549925981" name="Create flash image" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.addtools.createflash" useByScannerDiscovery="false" value="true" valueType="boolean"/>
@@ -501,6 +502,7 @@
 			</storageModule>
 			<storageModule moduleId="org.eclipse.cdt.core.externalSettings"/>
 			<storageModule moduleId="com.renesas.cdt.managedbuild.core.boardInfo"/>
+			<storageModule moduleId="ilg.gnumcueclipse.managedbuild.packs"/>
 		</cconfiguration>
 		<cconfiguration id="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662.1946000861">
 			<storageModule buildSystemId="org.eclipse.cdt.managedbuilder.core.configurationDataProvider" id="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662.1946000861" moduleId="org.eclipse.cdt.core.settings" name="build-release-oled">
@@ -511,6 +513,7 @@
 					<extension id="org.eclipse.cdt.core.GmakeErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
 					<extension id="org.eclipse.cdt.core.CWDLocator" point="org.eclipse.cdt.core.ErrorParser"/>
 					<extension id="org.eclipse.cdt.core.GCCErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.GLDErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
 				</extensions>
 			</storageModule>
 			<storageModule moduleId="com.renesas.cdt.managedbuild.core.toolchainInfo">
@@ -519,7 +522,7 @@
 				<option id="toolchain.enable" value="false"/>
 			</storageModule>
 			<storageModule moduleId="cdtBuildSystem" version="4.0.0">
-				<configuration artifactExtension="elf" artifactName="${ProjName}-release-oled" buildArtefactType="org.eclipse.cdt.build.core.buildArtefactType.exe" buildProperties="org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.cdt.build.core.buildArtefactType.exe,org.eclipse.cdt.build.core.buildType=org.eclipse.cdt.build.core.buildType.debug" cleanCommand="rm -rf *.lst *.lis *.lpp *.map" description="Release build with OLED support" id="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662.1946000861" name="build-release-oled" parent="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug" postbuildStep="arm-none-eabi-objcopy -O binary &quot;Deluge-release-oled.elf&quot; &quot;Deluge-release-oled.bin&quot;">
+				<configuration artifactExtension="elf" artifactName="${ProjName}-release-oled" buildArtefactType="org.eclipse.cdt.build.core.buildArtefactType.exe" buildProperties="org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.cdt.build.core.buildArtefactType.exe,org.eclipse.cdt.build.core.buildType=org.eclipse.cdt.build.core.buildType.debug" cleanCommand="rm -rf *.lst *.lis *.lpp *.map" description="Release build with OLED support" errorParsers="org.eclipse.cdt.core.GASErrorParser;org.eclipse.cdt.core.GmakeErrorParser;org.eclipse.cdt.core.CWDLocator;org.eclipse.cdt.core.GCCErrorParser;org.eclipse.cdt.core.GLDErrorParser" id="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662.1946000861" name="build-release-oled" parent="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug" postbuildStep="arm-none-eabi-objcopy -O binary &quot;Deluge-release-oled.elf&quot; &quot;Deluge-release-oled.bin&quot;">
 					<folderInfo id="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662.1946000861." name="/" resourcePath="">
 						<toolChain id="com.renesas.cdt.managedbuild.gcc.rz.toolchain.elf.debug.412406782" name="GCC for Renesas RZ" superClass="com.renesas.cdt.managedbuild.gcc.rz.toolchain.elf.debug">
 							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.addtools.createflash.1256659619" name="Create flash image" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.addtools.createflash" useByScannerDiscovery="false" value="true" valueType="boolean"/>
@@ -1021,6 +1024,7 @@
 					<extension id="org.eclipse.cdt.core.GmakeErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
 					<extension id="org.eclipse.cdt.core.CWDLocator" point="org.eclipse.cdt.core.ErrorParser"/>
 					<extension id="org.eclipse.cdt.core.GCCErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.GLDErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
 				</extensions>
 			</storageModule>
 			<storageModule moduleId="com.renesas.cdt.managedbuild.core.toolchainInfo">
@@ -1029,7 +1033,7 @@
 				<option id="toolchain.enable" value="false"/>
 			</storageModule>
 			<storageModule moduleId="cdtBuildSystem" version="4.0.0">
-				<configuration artifactExtension="elf" artifactName="${ProjName}-release-7seg" buildArtefactType="org.eclipse.cdt.build.core.buildArtefactType.exe" buildProperties="org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.cdt.build.core.buildArtefactType.exe,org.eclipse.cdt.build.core.buildType=org.eclipse.cdt.build.core.buildType.debug" cleanCommand="rm -rf *.lst *.lis *.lpp *.map" description="Release build with 7-segment display support" id="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662.1946000861.804567042" name="build-release-7seg" parent="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug" postbuildStep="arm-none-eabi-objcopy -O binary &quot;Deluge-release-7seg.elf&quot; &quot;Deluge-release-7seg.bin&quot;">
+				<configuration artifactExtension="elf" artifactName="${ProjName}-release-7seg" buildArtefactType="org.eclipse.cdt.build.core.buildArtefactType.exe" buildProperties="org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.cdt.build.core.buildArtefactType.exe,org.eclipse.cdt.build.core.buildType=org.eclipse.cdt.build.core.buildType.debug" cleanCommand="rm -rf *.lst *.lis *.lpp *.map" description="Release build with 7-segment display support" errorParsers="org.eclipse.cdt.core.GASErrorParser;org.eclipse.cdt.core.GmakeErrorParser;org.eclipse.cdt.core.CWDLocator;org.eclipse.cdt.core.GCCErrorParser;org.eclipse.cdt.core.GLDErrorParser" id="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662.1946000861.804567042" name="build-release-7seg" parent="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug" postbuildStep="arm-none-eabi-objcopy -O binary &quot;Deluge-release-7seg.elf&quot; &quot;Deluge-release-7seg.bin&quot;">
 					<folderInfo id="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662.1946000861.804567042." name="/" resourcePath="">
 						<toolChain id="com.renesas.cdt.managedbuild.gcc.rz.toolchain.elf.debug.1009751527" name="GCC for Renesas RZ" superClass="com.renesas.cdt.managedbuild.gcc.rz.toolchain.elf.debug">
 							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.addtools.createflash.289936862" name="Create flash image" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.addtools.createflash" useByScannerDiscovery="false" value="true" valueType="boolean"/>
@@ -1529,6 +1533,7 @@
 					<extension id="org.eclipse.cdt.core.GmakeErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
 					<extension id="org.eclipse.cdt.core.CWDLocator" point="org.eclipse.cdt.core.ErrorParser"/>
 					<extension id="org.eclipse.cdt.core.GCCErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.GLDErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
 				</extensions>
 			</storageModule>
 			<storageModule moduleId="com.renesas.cdt.managedbuild.core.toolchainInfo">
@@ -1537,7 +1542,7 @@
 				<option id="toolchain.enable" value="false"/>
 			</storageModule>
 			<storageModule moduleId="cdtBuildSystem" version="4.0.0">
-				<configuration artifactName="${ProjName}-debug-7seg" buildArtefactType="org.eclipse.cdt.build.core.buildArtefactType.exe" buildProperties="org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.cdt.build.core.buildArtefactType.exe,org.eclipse.cdt.build.core.buildType=org.eclipse.cdt.build.core.buildType.debug" cleanCommand="rm -rf *.lst *.lis *.lpp *.map" description="Debug build with 7-segment display support" id="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662.2140647267" name="build-debug-7seg" parent="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug" postbuildStep="arm-none-eabi-objcopy -O binary &quot;Deluge-debug-7seg.elf&quot; &quot;Deluge-debug-7seg.bin&quot;">
+				<configuration artifactName="${ProjName}-debug-7seg" buildArtefactType="org.eclipse.cdt.build.core.buildArtefactType.exe" buildProperties="org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.cdt.build.core.buildArtefactType.exe,org.eclipse.cdt.build.core.buildType=org.eclipse.cdt.build.core.buildType.debug" cleanCommand="rm -rf *.lst *.lis *.lpp *.map" description="Debug build with 7-segment display support" errorParsers="org.eclipse.cdt.core.GASErrorParser;org.eclipse.cdt.core.GmakeErrorParser;org.eclipse.cdt.core.CWDLocator;org.eclipse.cdt.core.GCCErrorParser;org.eclipse.cdt.core.GLDErrorParser" id="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662.2140647267" name="build-debug-7seg" parent="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug" postbuildStep="arm-none-eabi-objcopy -O binary &quot;Deluge-debug-7seg.elf&quot; &quot;Deluge-debug-7seg.bin&quot;">
 					<folderInfo id="com.renesas.cdt.managedbuild.gcc.rz.configuration.debug.1445259662.2140647267." name="/" resourcePath="">
 						<toolChain id="com.renesas.cdt.managedbuild.gcc.rz.toolchain.elf.debug.258307926" name="GCC for Renesas RZ" nonInternalBuilderId="com.renesas.cdt.managedbuild.gcc.rz.builder" superClass="com.renesas.cdt.managedbuild.gcc.rz.toolchain.elf.debug">
 							<option id="ilg.gnuarmeclipse.managedbuild.cross.option.addtools.createflash.1623663148" name="Create flash image" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.addtools.createflash" useByScannerDiscovery="false" value="true" valueType="boolean"/>
@@ -2030,10 +2035,10 @@
 	</storageModule>
 	<storageModule moduleId="org.eclipse.cdt.core.LanguageSettingsProviders"/>
 	<storageModule moduleId="refreshScope" versionNumber="2">
-		<configuration configurationName="Release_RZ_A1L">
+		<configuration configurationName="build-release-oled">
 			<resource resourceType="PROJECT" workspacePath="/Deluge"/>
 		</configuration>
-		<configuration configurationName="build-release-oled">
+		<configuration configurationName="Release_RZ_A1L">
 			<resource resourceType="PROJECT" workspacePath="/Deluge"/>
 		</configuration>
 		<configuration configurationName="release-oled">

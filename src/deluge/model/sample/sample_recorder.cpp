@@ -166,7 +166,7 @@ gotError:
 	sample->lengthInSamples = 0x8FFFFFFFFFFFFFFF;
 	sample->audioDataLengthBytes =
 	    0x8FFFFFFFFFFFFFFF; // If you ever change this value, update the check for it in SampleManager::loadCluster()
-	sample->sampleRate = 44100;
+	sample->sampleRate = kSampleRate;
 	sample->workOutBitMask();
 
 	currentRecordCluster->loaded =
@@ -1181,7 +1181,7 @@ int32_t SampleRecorder::alterFile(int32_t action, int32_t lshiftAmount, uint32_t
 		memcpy(&currentWriteCluster->data[22], &data16, 2);
 
 		// Data rate
-		data32 = 44100 * 1 * 3;
+		data32 = kSampleRate * 1 * 3;
 		memcpy(&currentWriteCluster->data[28], &data32, 4);
 
 		// Data block size

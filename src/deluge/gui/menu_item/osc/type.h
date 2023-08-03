@@ -53,7 +53,7 @@ public:
 		}
 	}
 
-	[[nodiscard]] const string& getTitle() const override { return FormattedTitle::title(); }
+	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
 	//char const** getOptions() { static char const* options[] = {"SINE", "TRIANGLE", "SQUARE", "SAW", "MMS1", "SUB1", "SAMPLE", "INL", "INR", "INLR", "SQ50", "SQ02", "SQ01", "SUB2", "SQ20", "SA50", "S101", "S303", "MMS2", "MMS3", "TABLE"}; return options; }
 	static_vector<string, capacity()> getOptions() override {

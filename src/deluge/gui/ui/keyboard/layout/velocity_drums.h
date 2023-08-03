@@ -36,7 +36,7 @@ public:
 
 	virtual void renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]);
 
-	virtual char* name() { return "Drums"; }
+	virtual char const* name() { return "Drums"; }
 	virtual bool supportsInstrument() { return false; }
 	virtual bool supportsKit() { return true; }
 

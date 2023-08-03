@@ -31,7 +31,7 @@ public:
 	void writeCurrentValue() override { whichDirection = this->value_; }
 	MenuItem* selectButtonPress() override;
 	uint8_t whichDirection;
-	[[nodiscard]] const string& getTitle() const override { return whichDirection ? "MPE output" : "MPE input"; }
+	[[nodiscard]] std::string_view getTitle() const override { return whichDirection ? "MPE output" : "MPE input"; }
 };
 
 extern DirectionSelector directionSelectorMenu;

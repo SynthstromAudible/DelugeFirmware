@@ -160,7 +160,7 @@ void SampleHolderForVoice::setTransposeAccordingToSamplePitch(bool minimizeOctav
 
 void SampleHolderForVoice::sampleBeenSet(bool reversed, bool manuallySelected) {
 
-	neutralPhaseIncrement = ((uint64_t)((Sample*)audioFile)->sampleRate << 24) / 44100;
+	neutralPhaseIncrement = ((uint64_t)((Sample*)audioFile)->sampleRate << 24) / kSampleRate;
 
 	uint32_t lengthInSamples = ((Sample*)audioFile)->lengthInSamples;
 

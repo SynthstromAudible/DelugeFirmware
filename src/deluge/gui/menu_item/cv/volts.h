@@ -27,7 +27,7 @@ public:
 	using Decimal::Decimal;
 	Volts(const string& name, const string& title_format_str) : Decimal(name), FormattedTitle(title_format_str) {}
 
-	[[nodiscard]] const string& getTitle() const override { return FormattedTitle::title(); }
+	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
 	[[nodiscard]] int32_t getMinValue() const override { return 0; }
 	[[nodiscard]] int32_t getMaxValue() const override { return 200; }

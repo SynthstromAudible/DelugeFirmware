@@ -42,8 +42,16 @@ public:
 		}
 	}
 
-	deluge::string name; // As viewed in a menu list. For OLED, up to 20 chars.
-	[[nodiscard]] virtual const deluge::string& getName() const { return name; }
+	MenuItem(const MenuItem& other) = delete;
+	MenuItem(const MenuItem&& other) = delete;
+	MenuItem& operator=(const MenuItem& other) = delete;
+	MenuItem& operator=(const MenuItem&& other) = delete;
+
+	virtual ~MenuItem() = default;
+
+	/// As viewed in a menu list. For OLED, up to 20 chars.
+	deluge::string name;
+	[[nodiscard]] virtual std::string_view getName() const { return name; }
 
 	virtual void horizontalEncoderAction(int32_t offset) {}
 	virtual void selectEncoderAction(int32_t offset) {}
@@ -73,10 +81,14 @@ public:
 	virtual bool isRangeDependent() { return false; }
 	virtual bool usesAffectEntire() { return false; }
 
-	deluge::string title; // Can get overridden by getTitle(). Actual max num chars for OLED display is 14.
+	/// Can get overridden by getTitle(). Actual max num chars for OLED display is 14.
+	deluge::string title;
 
 	/// Get the title to be used when rendering on OLED. If not overriden, defaults to returning `title`.
-	[[nodiscard]] virtual const deluge::string& getTitle() const { return title; }
+	///
+	/// The returned pointer must live long enough for us to draw the title, which for practical purposes means "the
+	/// lifetime of this menu item"
+	[[nodiscard]] virtual std::string_view getTitle() const { return title; }
 
 	// OLED ONLY
 	virtual void renderOLED();

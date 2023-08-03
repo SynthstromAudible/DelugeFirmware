@@ -20,13 +20,15 @@
 #ifdef __cplusplus
 #include "definitions_cxx.hpp"
 #include "hid/display/numeric_layer/numeric_layer_basic_text.h"
+
+#include <string>
 class NumericLayerScrollingText;
 
 class NumericDriver {
 public:
 	NumericDriver();
 
-	void setText(char const* newText, bool alignRight = false, uint8_t drawDot = 255, bool doBlink = false,
+	void setText(std::string_view newText, bool alignRight = false, uint8_t drawDot = 255, bool doBlink = false,
 	             uint8_t* newBlinkMask = NULL, bool blinkImmediately = false, bool shouldBlinkFast = false,
 	             int32_t scrollPos = 0, uint8_t* blinkAddition = NULL, bool justReplaceBottomLayer = false);
 	void setNextTransitionDirection(int8_t thisDirection);
@@ -58,7 +60,7 @@ private:
 
 	void deleteAllLayers();
 
-	int32_t encodeText(char const* newText, uint8_t* destination, bool alignRight, uint8_t drawDot = 255,
+	int32_t encodeText(std::string_view newText, uint8_t* destination, bool alignRight, uint8_t drawDot = 255,
 	                   bool limitToDisplayLength = true, int32_t scrollPos = 0);
 	void replaceBottomLayer(NumericLayer* newLayer);
 	void setTopLayer(NumericLayer* newTopLayer);

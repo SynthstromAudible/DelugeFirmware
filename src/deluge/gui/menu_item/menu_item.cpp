@@ -30,10 +30,10 @@ void MenuItem::learnCC(MIDIDevice* fromDevice, int32_t channel, int32_t ccNumber
 }
 
 void MenuItem::renderOLED() {
-	OLED::drawScreenTitle(getTitle().c_str());
+	OLED::drawScreenTitle(getTitle());
 	drawPixelsForOled();
 }
 
 void MenuItem::drawName() {
-	display.setText(getName().c_str(), false, shouldDrawDotOnName());
+	display.setText(getName(), false, shouldDrawDotOnName());
 }

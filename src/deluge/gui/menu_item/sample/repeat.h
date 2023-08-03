@@ -34,7 +34,7 @@ public:
 	Repeat(const string& name, const string& title_format_str)
 	    : TypedSelection(name), FormattedTitle(title_format_str) {}
 
-	[[nodiscard]] const string& getTitle() const override { return FormattedTitle::title(); }
+	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
 	bool usesAffectEntire() override { return true; }
 	void readCurrentValue() override { this->value_ = soundEditor.currentSource->repeatMode; }

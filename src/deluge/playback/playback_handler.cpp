@@ -126,7 +126,7 @@ void PlaybackHandler::routine() {
 
 	// If we're playing synced to analog clock input, auto-start mode, and there hasn't been a rising edge for a while, then stop
 	if ((playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE) && usingAnalogClockInput && analogClockInputAutoStart
-	    && (int32_t)(AudioEngine::audioSampleTimer - timeLastAnalogClockInputRisingEdge) > (44100 >> 1)) {
+	    && (int32_t)(AudioEngine::audioSampleTimer - timeLastAnalogClockInputRisingEdge) > (kSampleRate >> 1)) {
 		endPlayback();
 	}
 }
