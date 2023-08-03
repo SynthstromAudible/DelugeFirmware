@@ -145,15 +145,27 @@ void SampleMarkerEditor::writeValue(uint32_t value, MarkerType markerTypeNow) {
 		getCurrentSampleHolder()->startPos = value;
 	}
 	else if (markerTypeNow == MarkerType::LOOP_START) {
-		getCurrentMultisampleRange()->sampleHolder.loopStartPos = value;
 		if (loopLocked) {
-			getCurrentMultisampleRange()->sampleHolder.loopEndPos = value + loopLength;
+			int intendedLoopEndPos = value + loopLength;
+			if (intendedLoopEndPos < getCurrentSampleHolder()->endPos) {
+				getCurrentMultisampleRange()->sampleHolder.loopStartPos = value;
+				getCurrentMultisampleRange()->sampleHolder.loopEndPos = intendedLoopEndPos;
+			}
+		}
+		else {
+			getCurrentMultisampleRange()->sampleHolder.loopStartPos = value;
 		}
 	}
 	else if (markerTypeNow == MarkerType::LOOP_END) {
-		getCurrentMultisampleRange()->sampleHolder.loopEndPos = value;
 		if (loopLocked) {
-			getCurrentMultisampleRange()->sampleHolder.loopStartPos = value - loopLength;
+			int intendedLoopStartPos = value - loopLength;
+			if (intendedLoopStartPos > getCurrentSampleHolder()->startPos) {
+				getCurrentMultisampleRange()->sampleHolder.loopEndPos = value;
+				getCurrentMultisampleRange()->sampleHolder.loopStartPos = intendedLoopStartPos;
+			}
+		}
+		else {
+			getCurrentMultisampleRange()->sampleHolder.loopEndPos = value;
 		}
 	}
 	else if (markerTypeNow == MarkerType::END) {
