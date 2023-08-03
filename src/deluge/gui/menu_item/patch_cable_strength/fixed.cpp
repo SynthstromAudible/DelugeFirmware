@@ -15,13 +15,13 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #include "fixed.h"
-#include "modulation/patch/patch_cable_set.h"
 #include "gui/menu_item/patch_cable_strength/range.h"
 #include "gui/menu_item/source_selection/range.h"
 #include "gui/menu_item/source_selection/regular.h"
+#include "gui/ui/sound_editor.h"
+#include "modulation/patch/patch_cable_set.h"
 #include "processing/sound/sound.h"
 #include "storage/multi_range/multi_range.h"
-#include "gui/ui/sound_editor.h"
 
 namespace menu_item::patch_cable_strength {
 MenuPermission Fixed::checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {

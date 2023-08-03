@@ -17,8 +17,8 @@
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/selection.h"
-#include "processing/engines/audio_engine.h"
 #include "gui/ui/sound_editor.h"
+#include "processing/engines/audio_engine.h"
 #include "util/misc.h"
 
 namespace menu_item::monitor {

@@ -17,20 +17,20 @@
 
 #include "definitions_cxx.hpp"
 
-#include "hid/display.h"
-#include <string.h>
-#include "gui/ui_timer_manager.h"
-#include "processing/engines/audio_engine.h"
-#include "util/d_string.h"
 #include "RZA1/mtu/mtu.h"
 #include "drivers/dmac/dmac.h"
+#include "gui/ui_timer_manager.h"
+#include "hid/display.h"
+#include "processing/engines/audio_engine.h"
+#include "util/d_string.h"
+#include <string.h>
 
 extern "C" {
 #include "RZA1/oled/oled_low_level.h"
 #include "RZA1/rspi/rspi.h"
+#include "RZA1/uart/sio_char.h"
 #include "drivers/oled/oled.h"
 #include "gui/fonts/fonts.h"
-#include "RZA1/uart/sio_char.h"
 #include "util/cfunctions.h"
 extern void v7_dma_flush_range(uint32_t start, uint32_t end);
 }

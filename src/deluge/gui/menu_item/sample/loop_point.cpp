@@ -18,13 +18,13 @@
 #include "loop_point.h"
 
 #include "gui/menu_item/menu_item.h"
-#include "storage/audio/audio_file_holder.h"
-#include "processing/sound/sound.h"
 #include "gui/ui/keyboard_screen.h"
-#include "storage/multi_range/multi_range.h"
 #include "gui/ui/sample_marker_editor.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
+#include "processing/sound/sound.h"
+#include "storage/audio/audio_file_holder.h"
+#include "storage/multi_range/multi_range.h"
 
 namespace menu_item::sample {
 

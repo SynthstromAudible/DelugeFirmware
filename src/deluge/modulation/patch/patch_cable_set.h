@@ -16,8 +16,8 @@
  */
 
 #pragma once
-#include "modulation/params/param_collection.h"
 #include "definitions_cxx.hpp"
+#include "modulation/params/param_collection.h"
 #include "modulation/patch/patch_cable.h"
 
 class Song;

@@ -19,14 +19,14 @@
 #pragma GCC target("fpu=neon")
 
 #include "model/sample/sample_low_level_reader.h"
-#include "model/sample/sample.h"
-#include "storage/cluster/cluster.h"
-#include "io/debug/print.h"
-#include "storage/audio/audio_file_manager.h"
-#include "hid/display.h"
-#include "model/voice/voice_sample_playback_guide.h"
-#include "model/voice/voice.h"
 #include "dsp/timestretch/time_stretcher.h"
+#include "hid/display.h"
+#include "io/debug/print.h"
+#include "model/sample/sample.h"
+#include "model/voice/voice.h"
+#include "model/voice/voice_sample_playback_guide.h"
+#include "storage/audio/audio_file_manager.h"
+#include "storage/cluster/cluster.h"
 
 #include "arm_neon.h"
 

@@ -15,14 +15,14 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "processing/engines/audio_engine.h"
-#include "model/clip/instrument_clip.h"
 #include "unpatched_param.h"
 #include "gui/ui/sound_editor.h"
-#include "model/song/song.h"
 #include "hid/display.h"
+#include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
+#include "model/song/song.h"
 #include "modulation/params/param_set.h"
+#include "processing/engines/audio_engine.h"
 
 extern "C" {
 #include "util/cfunctions.h"

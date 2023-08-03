@@ -18,10 +18,10 @@
 #include "gui/context_menu/context_menu.h"
 
 #include "definitions_cxx.hpp"
-#include "hid/display.h"
-#include "util/functions.h"
-#include "hid/led/indicator_leds.h"
 #include "extern.h"
+#include "hid/display.h"
+#include "hid/led/indicator_leds.h"
+#include "util/functions.h"
 
 namespace deluge::gui {
 
@@ -188,7 +188,7 @@ probablyAcceptCurrentOption:
 void ContextMenu::drawCurrentOption() {
 	const auto [options, _size] = getOptions();
 	if (display.type != DisplayType::OLED) {
-	indicator_leds::ledBlinkTimeout(0, true);
+		indicator_leds::ledBlinkTimeout(0, true);
 		display.setText(options[currentOption], false, 255, true);
 	}
 }

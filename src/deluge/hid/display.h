@@ -1,7 +1,7 @@
 #pragma once
 #include "definitions.h"
-#include "display/oled.h"
 #include "display/numeric_driver.h"
+#include "display/oled.h"
 #include "hid/display.h"
 #include "hid/display/numeric_driver.h"
 #include "hid/display/oled.h"

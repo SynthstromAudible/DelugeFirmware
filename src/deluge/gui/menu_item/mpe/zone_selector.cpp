@@ -16,9 +16,9 @@
 */
 
 #include "zone_selector.h"
-#include "zone_num_member_channels.h"
-#include "gui/ui/sound_editor.h"
 #include "direction_selector.h"
+#include "gui/ui/sound_editor.h"
+#include "zone_num_member_channels.h"
 
 namespace menu_item::mpe {
 

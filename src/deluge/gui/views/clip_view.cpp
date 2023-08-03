@@ -16,21 +16,21 @@
 */
 
 #include "gui/views/clip_view.h"
-#include "model/song/song.h"
-#include "model/clip/clip.h"
-#include "model/action/action_logger.h"
+#include "definitions_cxx.hpp"
+#include "extern.h"
+#include "gui/views/view.h"
+#include "hid/buttons.h"
+#include "hid/display.h"
 #include "hid/matrix/matrix_driver.h"
+#include "memory/general_memory_allocator.h"
+#include "model/action/action_logger.h"
+#include "model/clip/clip.h"
+#include "model/clip/clip_minder.h"
+#include "model/consequence/consequence_clip_horizontal_shift.h"
+#include "model/song/song.h"
 #include "playback/mode/playback_mode.h"
 #include "playback/mode/session.h"
-#include "hid/display.h"
 #include "playback/playback_handler.h"
-#include "hid/buttons.h"
-#include "extern.h"
-#include "model/clip/clip_minder.h"
-#include "gui/views/view.h"
-#include "definitions_cxx.hpp"
-#include "model/consequence/consequence_clip_horizontal_shift.h"
-#include "memory/general_memory_allocator.h"
 #include <new>
 
 static Clip* getCurrentClip() {

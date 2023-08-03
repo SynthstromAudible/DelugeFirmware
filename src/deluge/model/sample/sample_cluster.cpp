@@ -15,14 +15,14 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "model/sample/sample_cluster.h"
+#include "hid/display.h"
+#include "io/debug/print.h"
+#include "memory/general_memory_allocator.h"
+#include "model/sample/sample.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
-#include "model/sample/sample_cluster.h"
-#include "io/debug/print.h"
 #include "util/functions.h"
-#include "model/sample/sample.h"
-#include "hid/display.h"
-#include "memory/general_memory_allocator.h"
 
 SampleCluster::SampleCluster() {
 	cluster = NULL;

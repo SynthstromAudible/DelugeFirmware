@@ -15,29 +15,28 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "definitions_cxx.hpp"
-#include "processing/engines/audio_engine.h"
-#include "modulation/params/param_manager.h"
-#include "processing/sound/sound.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
-#include "storage/storage_manager.h"
-#include "hid/display.h"
-#include "storage/storage_manager.h"
-#include <string.h>
+#include "definitions_cxx.hpp"
 #include "gui/views/session_view.h"
-#include "playback/playback_handler.h"
-#include "io/debug/print.h"
-#include "memory/general_memory_allocator.h"
 #include "gui/views/view.h"
-#include "model/timeline_counter.h"
-#include "model/song/song.h"
-#include "model/model_stack.h"
+#include "hid/display.h"
+#include "io/debug/print.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
+#include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
+#include "model/model_stack.h"
 #include "model/note/note_row.h"
+#include "model/song/song.h"
+#include "model/timeline_counter.h"
+#include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
+#include "playback/playback_handler.h"
+#include "processing/engines/audio_engine.h"
+#include "processing/sound/sound.h"
+#include "storage/storage_manager.h"
 #include "util/misc.h"
+#include <string.h>
 
 extern "C" {}
 

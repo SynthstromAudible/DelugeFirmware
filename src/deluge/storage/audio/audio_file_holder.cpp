@@ -18,8 +18,8 @@
 #include "storage/audio/audio_file_holder.h"
 #include "storage/audio/audio_file_manager.h"
 
-#include "storage/audio/audio_file.h"
 #include "hid/display.h"
+#include "storage/audio/audio_file.h"
 
 AudioFileHolder::AudioFileHolder() {
 	audioFile = NULL;

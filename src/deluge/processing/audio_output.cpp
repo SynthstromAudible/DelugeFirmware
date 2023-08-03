@@ -15,23 +15,23 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "definitions_cxx.hpp"
-#include "processing/engines/audio_engine.h"
 #include "processing/audio_output.h"
-#include "modulation/params/param_manager.h"
-#include "model/song/song.h"
-#include "model/clip/audio_clip.h"
-#include "model/sample/sample.h"
-#include "storage/storage_manager.h"
-#include "memory/general_memory_allocator.h"
-#include <new>
-#include "playback/playback_handler.h"
-#include "util/lookuptables/lookuptables.h"
-#include "model/voice/voice_sample.h"
-#include "playback/mode/playback_mode.h"
-#include "playback/mode/arrangement.h"
+#include "definitions_cxx.hpp"
 #include "gui/views/view.h"
+#include "memory/general_memory_allocator.h"
+#include "model/clip/audio_clip.h"
 #include "model/model_stack.h"
+#include "model/sample/sample.h"
+#include "model/song/song.h"
+#include "model/voice/voice_sample.h"
+#include "modulation/params/param_manager.h"
+#include "playback/mode/arrangement.h"
+#include "playback/mode/playback_mode.h"
+#include "playback/playback_handler.h"
+#include "processing/engines/audio_engine.h"
+#include "storage/storage_manager.h"
+#include "util/lookuptables/lookuptables.h"
+#include <new>
 
 extern "C" {
 #include "drivers/ssi/ssi.h"

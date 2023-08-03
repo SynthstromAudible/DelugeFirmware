@@ -15,23 +15,23 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "definitions_cxx.hpp"
-#include "modulation/patch/patch_cable.h"
-#include "processing/engines/audio_engine.h"
-#include "model/clip/instrument_clip.h"
-#include "processing/sound/sound.h"
 #include "modulation/patch/patch_cable_set.h"
-#include <string.h>
+#include "definitions_cxx.hpp"
 #include "gui/views/view.h"
-#include "storage/storage_manager.h"
-#include "modulation/params/param_node.h"
-#include "model/action/action_logger.h"
-#include "playback/mode/playback_mode.h"
-#include "model/model_stack.h"
-#include "util/algorithm/quick_sorter.h"
-#include "memory/general_memory_allocator.h"
 #include "io/midi/midi_device.h"
+#include "memory/general_memory_allocator.h"
+#include "model/action/action_logger.h"
+#include "model/clip/instrument_clip.h"
+#include "model/model_stack.h"
+#include "modulation/params/param_node.h"
+#include "modulation/patch/patch_cable.h"
+#include "playback/mode/playback_mode.h"
+#include "processing/engines/audio_engine.h"
+#include "processing/sound/sound.h"
+#include "storage/storage_manager.h"
+#include "util/algorithm/quick_sorter.h"
 #include "util/misc.h"
+#include <string.h>
 
 void flagCable(uint32_t* flags, int c) {
 	int idx;

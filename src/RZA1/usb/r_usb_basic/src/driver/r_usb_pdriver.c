@@ -29,8 +29,8 @@
  Includes   <System Includes> , "Project Includes"
  ***********************************************************************************************************************/
 #include "RZA1/usb/r_usb_basic/r_usb_basic_if.h"
-#include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_typedef.h"
 #include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_extern.h"
+#include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_typedef.h"
 #include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_bitdefine.h"
 #include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_reg_access.h"
 
@@ -75,8 +75,8 @@ usb_pcdreg_t g_usb_pstd_driver;
 usb_setup_t g_usb_pstd_req_reg; /* Device Request - Request structure */
 
 #include "RZA1/usb/r_usb_basic/r_usb_basic_if.h"
-#include "deluge/drivers/usb/userdef/r_usb_pmidi_config.h"
 #include "definitions.h"
+#include "deluge/drivers/usb/userdef/r_usb_pmidi_config.h"
 
 /***********************************************************************************************************************
  Exported global variables

@@ -17,9 +17,9 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "gui/ui/root_ui.h"
 #include "hid/button.h"
-#include "definitions_cxx.hpp"
 
 class InstrumentClip;
 class NoteRow;

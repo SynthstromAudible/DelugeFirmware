@@ -16,19 +16,19 @@
 */
 
 #include "util/functions.h"
-#include "gui/l10n/strings.h"
-#include "processing/sound/sound.h"
 #include "definitions_cxx.hpp"
-#include "hid/display.h"
 #include "fatfs/ff.h"
-#include "gui/views/view.h"
-#include "gui/ui/sound_editor.h"
-#include "model/action/action_logger.h"
-#include <string.h>
-#include "io/debug/print.h"
-#include "hid/encoders.h"
-#include "gui/ui/qwerty_ui.h"
 #include "gui/l10n.h"
+#include "gui/l10n/strings.h"
+#include "gui/ui/qwerty_ui.h"
+#include "gui/ui/sound_editor.h"
+#include "gui/views/view.h"
+#include "hid/display.h"
+#include "hid/encoders.h"
+#include "io/debug/print.h"
+#include "model/action/action_logger.h"
+#include "processing/sound/sound.h"
+#include <string.h>
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"

@@ -16,10 +16,10 @@
 */
 
 #include "integer_range.h"
-#include "hid/display.h"
-#include "util/functions.h"
 #include "gui/menu_item/range.h"
 #include "gui/ui/sound_editor.h"
+#include "hid/display.h"
+#include "util/functions.h"
 
 extern "C" {
 #include "util/cfunctions.h"

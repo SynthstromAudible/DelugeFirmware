@@ -15,17 +15,17 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "model/clip/instrument_clip.h"
 #include "modulation/params/param_manager.h"
 #include "gui/views/view.h"
-#include "model/song/song.h"
-#include "modulation/params/param_collection.h"
-#include "playback/playback_handler.h"
-#include "model/model_stack.h"
 #include "memory/general_memory_allocator.h"
-#include "modulation/params/param_set.h"
+#include "model/clip/instrument_clip.h"
+#include "model/model_stack.h"
+#include "model/song/song.h"
 #include "modulation/midi/midi_param_collection.h"
+#include "modulation/params/param_collection.h"
+#include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
+#include "playback/playback_handler.h"
 #include <new>
 
 ParamManager::ParamManager() {

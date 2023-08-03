@@ -15,11 +15,11 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "storage/flash_storage.h"
 #include "gui/menu_item/selection.h"
-#include "hid/display/numeric_driver.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display.h"
+#include "hid/display/numeric_driver.h"
+#include "storage/flash_storage.h"
 
 namespace menu_item::defaults {
 class Magnitude final : public Selection {

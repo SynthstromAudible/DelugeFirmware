@@ -17,8 +17,8 @@
 
 #include "model/consequence/consequence_instrument_clip_multiply.h"
 #include "model/clip/instrument_clip.h"
-#include "model/song/song.h"
 #include "model/model_stack.h"
+#include "model/song/song.h"
 
 ConsequenceInstrumentClipMultiply::ConsequenceInstrumentClipMultiply() {
 	// TODO Auto-generated constructor stub

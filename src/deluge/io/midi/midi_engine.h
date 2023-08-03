@@ -19,9 +19,9 @@
 
 #ifdef __cplusplus
 
-#include "playback/playback_handler.h"
 #include "definitions_cxx.hpp"
 #include "io/midi/learned_midi.h"
+#include "playback/playback_handler.h"
 
 class MIDIDevice;
 

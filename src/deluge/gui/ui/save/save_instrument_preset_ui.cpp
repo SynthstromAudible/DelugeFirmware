@@ -15,25 +15,25 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "processing/engines/audio_engine.h"
+#include "gui/ui/save/save_instrument_preset_ui.h"
+#include "definitions_cxx.hpp"
+#include "gui/context_menu/overwrite_file.h"
+#include "gui/ui/keyboard_screen.h"
+#include "gui/views/view.h"
+#include "hid/buttons.h"
+#include "hid/display.h"
+#include "hid/led/indicator_leds.h"
+#include "hid/matrix/matrix_driver.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
-#include "processing/sound/sound_instrument.h"
-#include "gui/ui/save/save_instrument_preset_ui.h"
-#include "storage/storage_manager.h"
-#include "definitions_cxx.hpp"
-#include "util/functions.h"
-#include "hid/matrix/matrix_driver.h"
-#include "model/song/song.h"
-#include "util/lookuptables/lookuptables.h"
-#include "hid/display.h"
 #include "model/drum/kit.h"
-#include "gui/ui/keyboard_screen.h"
+#include "model/song/song.h"
+#include "processing/engines/audio_engine.h"
+#include "processing/sound/sound_instrument.h"
+#include "storage/storage_manager.h"
+#include "util/functions.h"
+#include "util/lookuptables/lookuptables.h"
 #include <string.h>
-#include "gui/views/view.h"
-#include "gui/context_menu/overwrite_file.h"
-#include "hid/led/indicator_leds.h"
-#include "hid/buttons.h"
 
 using namespace deluge;
 

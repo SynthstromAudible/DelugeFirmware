@@ -15,18 +15,18 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "storage/audio/audio_file_manager.h"
-#include "storage/cluster/cluster.h"
 #include "storage/multi_range/multisample_range.h"
 #include "RZA1/system/r_typedefs.h"
-#include "model/sample/sample.h"
-#include "hid/display.h"
-#include "processing/source.h"
-#include <string.h>
-#include <math.h>
 #include "gui/ui/browser/sample_browser.h"
-#include "util/functions.h"
+#include "hid/display.h"
+#include "model/sample/sample.h"
+#include "processing/source.h"
+#include "storage/audio/audio_file_manager.h"
+#include "storage/cluster/cluster.h"
 #include "storage/storage_manager.h"
+#include "util/functions.h"
+#include <math.h>
+#include <string.h>
 
 MultisampleRange::MultisampleRange() {
 }

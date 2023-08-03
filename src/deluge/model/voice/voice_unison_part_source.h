@@ -18,8 +18,8 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "model/sample/sample.h"
 #include "hid/display.h"
+#include "model/sample/sample.h"
 
 class TimeStretcher;
 class VoiceSamplePlaybackGuide;

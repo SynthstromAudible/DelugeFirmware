@@ -18,10 +18,10 @@
 #include "gui/menu_item/integer.h"
 #include "gui/menu_item/menu_item_with_cc_learning.h"
 #include "gui/menu_item/patched_param.h"
-#include "menu_item_with_cc_learning.h"
 #include "gui/ui/sound_editor.h"
-#include "processing/sound/sound.h"
+#include "menu_item_with_cc_learning.h"
 #include "model/model_stack.h"
+#include "processing/sound/sound.h"
 
 namespace menu_item {
 class MasterTranspose final : public Integer, public PatchedParam {

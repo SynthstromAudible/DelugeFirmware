@@ -30,8 +30,8 @@
 /***********************************************************************************************************************
 Includes   <System Includes> , "Project Includes"
 ***********************************************************************************************************************/
-#include "RZA1/usb/r_usb_basic/r_usb_basic_if.h"
 #include "RZA1/system/r_typedefs.h"
+#include "RZA1/usb/r_usb_basic/r_usb_basic_if.h"
 
 #include "deluge/drivers/uart/uart.h"
 

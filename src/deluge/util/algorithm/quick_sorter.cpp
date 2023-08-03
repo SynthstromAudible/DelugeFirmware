@@ -20,8 +20,8 @@
  */
 
 #include "util/algorithm/quick_sorter.h"
-#include <string.h>
 #include "hid/display.h"
+#include <string.h>
 
 QuickSorter::QuickSorter(int newElementSize, int keyNumBits, void* newMemory)
     : elementSize(newElementSize), memory(newMemory), keyMask(0xFFFFFFFF >> (32 - keyNumBits)) {

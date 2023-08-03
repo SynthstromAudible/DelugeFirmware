@@ -15,12 +15,12 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "gui/menu_item/submenu_referring_to_one_thing.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/numeric_driver.h"
-#include "gui/menu_item/submenu_referring_to_one_thing.h"
-#include "util/cfunctions.h"
-#include "string.h"
 #include "processing/sound/sound.h"
+#include "string.h"
+#include "util/cfunctions.h"
 
 extern void setOscillatorNumberForTitles(int);
 

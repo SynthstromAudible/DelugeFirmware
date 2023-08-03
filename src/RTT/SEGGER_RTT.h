@@ -114,8 +114,8 @@ Revision: $Rev: 17697 $
 #endif
 
 #ifndef SEGGER_RTT_ASM // defined when SEGGER_RTT.h is included from assembly file
-#include <stdlib.h>
 #include <stdarg.h>
+#include <stdlib.h>
 
 /*********************************************************************
 *

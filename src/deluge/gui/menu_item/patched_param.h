@@ -19,8 +19,8 @@
 
 #include "RZA1/system/r_typedefs.h"
 #include "definitions_cxx.hpp"
-#include "param.h"
 #include "menu_item_with_cc_learning.h"
+#include "param.h"
 
 class ModelStackWithAutoParam;
 

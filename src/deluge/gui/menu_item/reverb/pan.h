@@ -15,14 +15,14 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include <cstring>
 #include <cmath>
+#include <cstring>
 
 #include "gui/menu_item/integer.h"
 
 #include "gui/ui/sound_editor.h"
-#include "util/cfunctions.h"
 #include "hid/display/numeric_driver.h"
+#include "util/cfunctions.h"
 
 #include "processing/engines/audio_engine.h"
 

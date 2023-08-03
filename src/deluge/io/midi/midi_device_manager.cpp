@@ -17,19 +17,18 @@
 
 #include "io/midi/midi_device_manager.h"
 #include "definitions_cxx.hpp"
-#include "util/container/vector/named_thing_vector.h"
-#include "io/midi/midi_device.h"
-#include "memory/general_memory_allocator.h"
-#include <new>
-#include "hid/display.h"
-#include <string.h>
-#include "storage/storage_manager.h"
-#include "io/midi/midi_engine.h"
-#include "gui/ui/sound_editor.h"
 #include "gui/menu_item/mpe/zone_num_member_channels.h"
+#include "gui/ui/sound_editor.h"
 #include "hid/display.h"
+#include "io/midi/midi_device.h"
+#include "io/midi/midi_engine.h"
+#include "memory/general_memory_allocator.h"
+#include "storage/storage_manager.h"
+#include "util/container/vector/named_thing_vector.h"
 #include "util/functions.h"
 #include "util/misc.h"
+#include <new>
+#include <string.h>
 
 extern "C" {
 #include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_basic_define.h"

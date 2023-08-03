@@ -15,23 +15,23 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "gui/context_menu/clear_song.h"
+#include "extern.h"
 #include "gui/l10n.h"
 #include "gui/l10n/strings.h"
+#include "gui/views/view.h"
 #include "hid/display.h"
+#include "hid/led/indicator_leds.h"
+#include "memory/general_memory_allocator.h"
+#include "model/action/action_logger.h"
+#include "model/song/song.h"
+#include "modulation/params/param_manager.h"
+#include "playback/mode/arrangement.h"
+#include "playback/mode/session.h"
+#include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
-#include "gui/context_menu/clear_song.h"
-#include "modulation/params/param_manager.h"
-#include "memory/general_memory_allocator.h"
-#include "gui/views/view.h"
-#include "playback/mode/session.h"
-#include "playback/mode/arrangement.h"
-#include "model/action/action_logger.h"
 #include <new>
-#include "model/song/song.h"
-#include "hid/led/indicator_leds.h"
-#include "extern.h"
-#include "playback/playback_handler.h"
 
 extern void setUIForLoadedSong(Song* song);
 extern void deleteOldSongBeforeLoadingNew();

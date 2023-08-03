@@ -15,14 +15,14 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "model/sample/sample_holder.h"
+#include "gui/ui/browser/sample_browser.h"
+#include "hid/display.h"
+#include "io/debug/print.h"
+#include "model/sample/sample.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
-#include "gui/ui/browser/sample_browser.h"
-#include "model/sample/sample_holder.h"
-#include "model/sample/sample.h"
-#include "hid/display.h"
 #include "util/functions.h"
-#include "io/debug/print.h"
 
 SampleHolder::SampleHolder() {
 	startPos = 0;

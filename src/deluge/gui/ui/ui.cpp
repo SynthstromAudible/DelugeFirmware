@@ -15,15 +15,15 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "gui/ui/root_ui.h"
+#include "gui/ui/sound_editor.h"
+#include "gui/ui_timer_manager.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
-#include "gui/ui/sound_editor.h"
-#include "hid/matrix/matrix_driver.h"
-#include "gui/ui_timer_manager.h"
-#include "gui/ui/root_ui.h"
-#include "io/debug/print.h"
-#include "hid/led/pad_leds.h"
 #include "hid/display.h"
+#include "hid/led/pad_leds.h"
+#include "hid/matrix/matrix_driver.h"
+#include "io/debug/print.h"
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"

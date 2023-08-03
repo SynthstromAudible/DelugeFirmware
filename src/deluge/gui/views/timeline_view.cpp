@@ -15,19 +15,19 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "definitions_cxx.hpp"
-#include "processing/engines/audio_engine.h"
-#include "model/clip/instrument_clip_minder.h"
 #include "gui/views/timeline_view.h"
-#include "hid/matrix/matrix_driver.h"
-#include "string.h"
-#include "model/song/song.h"
+#include "definitions_cxx.hpp"
+#include "extern.h"
 #include "gui/views/view.h"
-#include "hid/led/pad_leds.h"
+#include "hid/buttons.h"
 #include "hid/display.h"
 #include "hid/led/indicator_leds.h"
-#include "hid/buttons.h"
-#include "extern.h"
+#include "hid/led/pad_leds.h"
+#include "hid/matrix/matrix_driver.h"
+#include "model/clip/instrument_clip_minder.h"
+#include "model/song/song.h"
+#include "processing/engines/audio_engine.h"
+#include "string.h"
 
 extern "C" {
 #include "util/cfunctions.h"

@@ -16,8 +16,8 @@
 */
 
 #include "integer.h"
-#include "hid/display.h"
 #include "gui/ui/sound_editor.h"
+#include "hid/display.h"
 #include <cstring>
 
 extern "C" {

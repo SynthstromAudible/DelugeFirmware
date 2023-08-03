@@ -16,11 +16,11 @@
 */
 
 #include "devices.h"
+#include "gui/menu_item/submenu.h"
 #include "gui/ui/sound_editor.h"
-#include "io/midi/midi_device_manager.h"
 #include "hid/display.h"
 #include "io/midi/midi_device.h"
-#include "gui/menu_item/submenu.h"
+#include "io/midi/midi_device_manager.h"
 
 extern menu_item::Submenu midiDeviceMenu;
 

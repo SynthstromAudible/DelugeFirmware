@@ -15,25 +15,25 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "processing/source.h"
 #include "definitions_cxx.hpp"
+#include "gui/ui/browser/sample_browser.h"
+#include "gui/ui/sound_editor.h"
+#include "gui/views/view.h"
+#include "hid/display.h"
+#include "io/debug/print.h"
+#include "model/sample/sample.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/sound/sound.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
-#include "gui/ui/browser/sample_browser.h"
-#include "processing/sound/sound.h"
-#include "processing/source.h"
-#include "io/debug/print.h"
-#include "util/functions.h"
-#include "storage/storage_manager.h"
-#include "model/sample/sample.h"
-#include "hid/display.h"
-#include <cstring>
-#include <cmath>
-#include "storage/wave_table/wave_table.h"
-#include "storage/multi_range/multisample_range.h"
-#include "gui/views/view.h"
-#include "gui/ui/sound_editor.h"
 #include "storage/multi_range/multi_wave_table_range.h"
+#include "storage/multi_range/multisample_range.h"
+#include "storage/storage_manager.h"
+#include "storage/wave_table/wave_table.h"
+#include "util/functions.h"
+#include <cmath>
+#include <cstring>
 
 Source::Source() {
 

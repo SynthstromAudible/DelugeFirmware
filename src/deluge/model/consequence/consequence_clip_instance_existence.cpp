@@ -15,9 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "model/consequence/consequence_clip_instance_existence.h"
 #include "definitions_cxx.hpp"
 #include "model/clip/clip_instance.h"
-#include "model/consequence/consequence_clip_instance_existence.h"
 #include "model/instrument/instrument.h"
 #include "util/misc.h"
 

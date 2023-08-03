@@ -17,17 +17,17 @@
 
 #include "hid/display/numeric_driver.h"
 #include "gui/ui_timer_manager.h"
-#include "io/debug/print.h"
-#include <string.h>
-#include "hid/display/numeric_layer/numeric_layer_scroll_transition.h"
 #include "hid/display/numeric_layer/numeric_layer_basic_text.h"
 #include "hid/display/numeric_layer/numeric_layer_loading_animation.h"
+#include "hid/display/numeric_layer/numeric_layer_scroll_transition.h"
 #include "hid/display/numeric_layer/numeric_layer_scrolling_text.h"
-#include "model/action/action_logger.h"
-#include "memory/general_memory_allocator.h"
-#include <new>
-#include "util/functions.h"
 #include "hid/led/indicator_leds.h"
+#include "io/debug/print.h"
+#include "memory/general_memory_allocator.h"
+#include "model/action/action_logger.h"
+#include "util/functions.h"
+#include <new>
+#include <string.h>
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"

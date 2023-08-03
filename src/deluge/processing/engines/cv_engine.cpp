@@ -15,24 +15,24 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "hid/display.h"
-#include "definitions_cxx.hpp"
-#include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
+#include "definitions_cxx.hpp"
+#include "hid/display.h"
 #include "io/debug/print.h"
-#include <string.h>
-#include <math.h>
+#include "processing/engines/audio_engine.h"
 #include "util/comparison.h"
 #include "util/functions.h"
+#include <math.h>
+#include <string.h>
 //#include <algorithm>
 #include "playback/playback_handler.h"
 
 extern "C" {
 #include "RZA1/gpio/gpio.h"
 
-#include "RZA1/rspi/rspi.h"
 #include "RZA1/intc/devdrv_intc.h"
 #include "RZA1/oled/oled_low_level.h"
+#include "RZA1/rspi/rspi.h"
 }
 
 CVEngine cvEngine{};

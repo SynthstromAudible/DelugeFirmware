@@ -15,23 +15,23 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "definitions_cxx.hpp"
-#include "processing/engines/audio_engine.h"
 #include "model/global_effectable/global_effectable.h"
-#include "modulation/params/param_manager.h"
-#include "model/song/song.h"
+#include "definitions_cxx.hpp"
 #include "gui/views/view.h"
-#include "hid/matrix/matrix_driver.h"
-#include "model/action/action_logger.h"
-#include "storage/storage_manager.h"
-#include "memory/general_memory_allocator.h"
-#include <new>
 #include "hid/buttons.h"
 #include "hid/display.h"
+#include "hid/matrix/matrix_driver.h"
+#include "memory/general_memory_allocator.h"
+#include "model/action/action_logger.h"
 #include "model/model_stack.h"
-#include "modulation/params/param_set.h"
+#include "model/song/song.h"
 #include "modulation/params/param_collection.h"
+#include "modulation/params/param_manager.h"
+#include "modulation/params/param_set.h"
+#include "processing/engines/audio_engine.h"
+#include "storage/storage_manager.h"
 #include "util/misc.h"
+#include <new>
 
 GlobalEffectable::GlobalEffectable() {
 	lpfMode = LPFMode::TRANSISTOR_24DB;

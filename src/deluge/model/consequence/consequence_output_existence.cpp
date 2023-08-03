@@ -17,10 +17,10 @@
 
 #include "model/consequence/consequence_output_existence.h"
 #include "definitions_cxx.hpp"
-#include "model/song/song.h"
 #include "hid/display.h"
-#include "model/output.h"
 #include "model/model_stack.h"
+#include "model/output.h"
+#include "model/song/song.h"
 #include "util/misc.h"
 
 ConsequenceOutputExistence::ConsequenceOutputExistence(Output* newOutput, ExistenceChangeType newType) {

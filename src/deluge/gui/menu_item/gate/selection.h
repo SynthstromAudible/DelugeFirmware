@@ -17,10 +17,10 @@
 #pragma once
 #include "gui/menu_item/gate/mode.h"
 #include "gui/menu_item/selection.h"
-#include "hid/display.h"
-#include "off_time.h"
 #include "gui/ui/sound_editor.h"
+#include "hid/display.h"
 #include "mode.h"
+#include "off_time.h"
 
 extern menu_item::gate::OffTime gateOffTimeMenu;
 extern menu_item::gate::Mode gateModeMenu;

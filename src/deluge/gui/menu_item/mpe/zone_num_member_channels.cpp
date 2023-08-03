@@ -16,10 +16,10 @@
 */
 
 #include "zone_num_member_channels.h"
+#include "gui/menu_item/mpe/direction_selector.h"
+#include "gui/menu_item/mpe/zone_selector.h"
 #include "gui/ui/sound_editor.h"
 #include "io/midi/midi_device.h"
-#include "gui/menu_item/mpe/zone_selector.h"
-#include "gui/menu_item/mpe/direction_selector.h"
 #include "io/midi/midi_engine.h"
 #include "string.h"
 

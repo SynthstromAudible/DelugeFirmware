@@ -15,25 +15,25 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "definitions_cxx.hpp"
-#include "processing/engines/audio_engine.h"
-#include "model/clip/instrument_clip_minder.h"
-#include "gui/views/instrument_clip_view.h"
 #include "gui/ui_timer_manager.h"
-#include "util/functions.h"
-#include "hid/display.h"
+#include "definitions_cxx.hpp"
 #include "gui/ui/keyboard_screen.h"
-#include "gui/views/view.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/led/pad_leds.h"
-#include "hid/led/indicator_leds.h"
-#include "model/clip/clip_minder.h"
+#include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
+#include "gui/views/view.h"
+#include "hid/display.h"
+#include "hid/led/indicator_leds.h"
+#include "hid/led/pad_leds.h"
+#include "model/clip/clip_minder.h"
+#include "model/clip/instrument_clip_minder.h"
 #include "playback/playback_handler.h"
+#include "processing/engines/audio_engine.h"
+#include "util/functions.h"
 
 extern "C" {
-#include "RZA1/uart/sio_char.h"
 #include "RZA1/oled/oled_low_level.h"
+#include "RZA1/uart/sio_char.h"
 }
 
 UITimerManager uiTimerManager{};

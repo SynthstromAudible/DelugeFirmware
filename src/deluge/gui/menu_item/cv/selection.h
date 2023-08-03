@@ -16,10 +16,10 @@
 */
 #pragma once
 #include "gui/menu_item/selection.h"
-#include "gui/ui/sound_editor.h"
 #include "gui/menu_item/submenu.h"
-#include "volts.h"
+#include "gui/ui/sound_editor.h"
 #include "transpose.h"
+#include "volts.h"
 
 extern void setCvNumberForTitle(int m);
 extern menu_item::Submenu cvSubmenu;

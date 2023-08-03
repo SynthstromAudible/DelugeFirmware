@@ -17,14 +17,14 @@
 
 #include "gui/context_menu/sample_browser/synth.h"
 #include "definitions_cxx.hpp"
-#include "gui/ui/browser/sample_browser.h"
 #include "gui/l10n.h"
-#include "hid/display.h"
-#include "util/functions.h"
+#include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/sound_editor.h"
-#include "processing/source.h"
+#include "hid/display.h"
 #include "processing/sound/sound.h"
+#include "processing/source.h"
 #include "storage/file_item.h"
+#include "util/functions.h"
 
 namespace deluge::gui::context_menu::sample_browser {
 Synth synth{};

@@ -16,12 +16,12 @@
  */
 
 #include "gui/context_menu/save_song_or_instrument.h"
+#include "definitions_cxx.hpp"
+#include "gui/context_menu/delete_file.h"
 #include "gui/l10n.h"
 #include "gui/l10n/strings.h"
-#include "definitions_cxx.hpp"
-#include "hid/display.h"
 #include "gui/ui/save/save_song_ui.h"
-#include "gui/context_menu/delete_file.h"
+#include "hid/display.h"
 #include "storage/file_item.h"
 
 namespace deluge::gui::context_menu {

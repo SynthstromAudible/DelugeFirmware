@@ -15,10 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "storage/cluster/cluster.h"
 #include "util/container/list/bidirectional_linked_list.h"
 #include "hid/display.h"
 #include "io/debug/print.h"
+#include "storage/cluster/cluster.h"
 
 BidirectionalLinkedList::BidirectionalLinkedList() {
 	first = &endNode;

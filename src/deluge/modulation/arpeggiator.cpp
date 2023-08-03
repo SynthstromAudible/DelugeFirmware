@@ -16,13 +16,13 @@
 */
 
 #include "modulation/arpeggiator.h"
-#include <string.h>
 #include "definitions_cxx.hpp"
-#include "playback/playback_handler.h"
-#include "util/functions.h"
-#include "model/song/song.h"
 #include "model/model_stack.h"
+#include "model/song/song.h"
+#include "playback/playback_handler.h"
 #include "storage/flash_storage.h"
+#include "util/functions.h"
+#include <string.h>
 
 ArpeggiatorSettings::ArpeggiatorSettings() {
 	numOctaves = 2;

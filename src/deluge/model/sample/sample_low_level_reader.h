@@ -17,9 +17,9 @@
 
 #pragma once
 
+#include "RZA1/system/r_typedefs.h"
 #include "definitions_cxx.hpp"
 #include "hid/display.h"
-#include "RZA1/system/r_typedefs.h"
 
 #define REASSESSMENT_ACTION_STOP_OR_LOOP 0
 #define REASSESSMENT_ACTION_NEXT_CLUSTER 1

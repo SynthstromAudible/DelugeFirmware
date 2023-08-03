@@ -15,9 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "processing/engines/audio_engine.h"
 #include "model/sample/sample_controls.h"
 #include "definitions_cxx.hpp"
+#include "processing/engines/audio_engine.h"
 #include "util/functions.h"
 
 SampleControls::SampleControls() {

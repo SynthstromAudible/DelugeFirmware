@@ -17,8 +17,8 @@
 #pragma once
 #include "gui/menu_item/decimal.h"
 #include "gui/menu_item/menu_item_with_cc_learning.h"
-#include "model/clip/audio_clip.h"
 #include "gui/ui/sound_editor.h"
+#include "model/clip/audio_clip.h"
 #include "model/song/song.h"
 
 namespace menu_item::audio_clip {

@@ -15,8 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "storage/audio/audio_file_manager.h"
 #include "storage/audio/audio_file_reader.h"
+#include "storage/audio/audio_file_manager.h"
 
 AudioFileReader::AudioFileReader() {
 	// TODO Auto-generated constructor stub

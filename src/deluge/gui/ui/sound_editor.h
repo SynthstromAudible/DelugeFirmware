@@ -18,8 +18,8 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "gui/ui/ui.h"
 #include "gui/menu_item/menu_item.h"
+#include "gui/ui/ui.h"
 #include "hid/button.h"
 #include "modulation/arpeggiator.h"
 

@@ -16,11 +16,11 @@
  */
 
 #include "runtime_feature_settings.h"
+#include "hid/display.h"
+#include "storage/storage_manager.h"
 #include <cstring>
 #include <new>
-#include "hid/display.h"
 #include <stdio.h>
-#include "storage/storage_manager.h"
 
 #define RUNTIME_FEATURE_SETTINGS_FILE "CommunityFeatures.XML"
 #define TAG_RUNTIME_FEATURE_SETTINGS "runtimeFeatureSettings"
