@@ -17,15 +17,11 @@
 
 #include "number.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display.h"
 
-#if HAVE_OLED
-#include "hid/display/oled.h"
-#endif
 
 namespace menu_item {
 
-#if HAVE_OLED
 void Number::drawBar(int yTop, int marginL, int marginR) {
 	if (marginR == -1) {
 		marginR = marginL;
@@ -64,6 +60,5 @@ void Number::drawBar(int yTop, int marginL, int marginR) {
 	}
 	OLED::drawRectangle(leftMost, yTop, rightMost, yTop + height, OLED::oledMainImage);
 }
-#endif
 
 } // namespace menu_item

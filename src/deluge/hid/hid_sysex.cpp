@@ -63,7 +63,7 @@ void HIDSysex::request7SegDisplay(MIDIDevice* device, uint8_t* data, int len) {
 		const int data_size = 4;
 		const int packed_data_size = 5;
 		uint8_t reply[11] = {0xf0, 0x7d, 0x02, 0x41, 0x00};
-		pack_8bit_to_7bit(reply + 6, packed_data_size, numericDriver.lastDisplay, data_size);
+		pack_8bit_to_7bit(reply + 6, packed_data_size, display.lastDisplay, data_size);
 		reply[6 + packed_data_size] = 0xf7; // end of transmission
 		device->sendSysex(reply, packed_data_size + 7);
 	}

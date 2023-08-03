@@ -335,7 +335,7 @@ ActionResult LoadInstrumentPresetUI::timerCallback() {
 		String filePath;
 		int error = getCurrentFilePath(&filePath);
 		if (error != 0) {
-			numericDriver.displayError(error);
+			display.displayError(error);
 			return ActionResult::DEALT_WITH;
 		}
 

@@ -709,7 +709,7 @@ void changeRefreshTime(int offset) {
 	setRefreshTime(newTime);
 	char buffer[12];
 	intToString(refreshTime, buffer);
-	numericDriver.displayPopup(buffer);
+	display.displayPopup(buffer);
 }
 
 void changeDimmerInterval(int offset) {

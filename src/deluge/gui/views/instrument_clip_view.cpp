@@ -562,7 +562,7 @@ doOther:
 			InstrumentClip* clip = getCurrentClip();
 
 			if (!clip->containsAnyNotes()) {
-				numericDriver.displayPopup(HAVE_OLED ? "At least one row needs to have notes" : "CANT");
+				display.displayPopup(HAVE_OLED ? "At least one row needs to have notes" : "CANT");
 			}
 			else {
 				char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -588,7 +588,7 @@ doOther:
 				uiNeedsRendering(this);
 
 				// Show popup to make it clear what just happened
-				numericDriver.displayPopup(HAVE_OLED ? "Deleted unused rows" : "DELETED");
+				display.displayPopup(HAVE_OLED ? "Deleted unused rows" : "DELETED");
 			}
 		}
 	}
