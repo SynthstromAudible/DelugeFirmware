@@ -3,6 +3,7 @@
 #include "gui/l10n/english.h"
 #include "gui/l10n/seven_segment.h"
 #include "gui/l10n/strings.h"
+#include "util/misc.h"
 #include <array>
 #include <cstddef>
 #include <initializer_list>
@@ -15,7 +16,7 @@ enum class Language { SevenSegment, English };
 extern Language chosenLanguage;
 
 constexpr const char* get(Language language, l10n::Strings string) {
-	const auto s_idx = static_cast<size_t>(string);
+	const auto s_idx = util::to_underlying(string);
 	switch (language) {
 		// add other languages using switches here
 	case Language::SevenSegment:

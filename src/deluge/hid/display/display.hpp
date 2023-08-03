@@ -1,12 +1,8 @@
 #pragma once
 #include "definitions.h"
-#include "display/numeric_driver.h"
-#include "display/oled.h"
-#include "hid/display.h"
 #include "hid/display/numeric_driver.h"
 #include "hid/display/oled.h"
 
-#ifdef __cplusplus
 enum class DisplayType { OLED, SevenSegment };
 
 template <DisplayType display_type>
@@ -83,7 +79,6 @@ public:
 	}
 	void removeLoadingAnimation() { NumericDriver::removeTopLayer(); }
 
-	bool hasPopup() { return this->popupActive; }
 	void displayError(int error);
 };
 
@@ -94,14 +89,5 @@ using DisplayActual = Display<DisplayType::SevenSegment>;
 #endif
 
 extern DisplayActual display;
-#endif // __cplusplus
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-void consoleTextIfAllBootedUp(char const* text);
-
-#ifdef __cplusplus
-}
-#endif
+extern "C" void consoleTextIfAllBootedUp(char const* text);

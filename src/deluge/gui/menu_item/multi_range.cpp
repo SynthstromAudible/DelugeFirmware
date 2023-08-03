@@ -21,7 +21,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "hid/matrix/matrix_driver.h"
 #include "io/debug/print.h"
 #include "processing/engines/audio_engine.h"

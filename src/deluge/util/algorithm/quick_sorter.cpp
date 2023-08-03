@@ -20,7 +20,7 @@
  */
 
 #include "util/algorithm/quick_sorter.h"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include <string.h>
 
 QuickSorter::QuickSorter(int32_t newElementSize, int32_t keyNumBits, void* newMemory)

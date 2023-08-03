@@ -33,7 +33,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "hid/buttons.h"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"

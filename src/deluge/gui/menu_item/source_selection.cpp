@@ -18,7 +18,7 @@
 #include "source_selection.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/sound_editor.h"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "modulation/params/param_manager.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "patch_cable_strength.h"

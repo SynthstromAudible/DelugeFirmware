@@ -17,7 +17,7 @@
 
 #include "model/output.h"
 #include "definitions_cxx.hpp"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"

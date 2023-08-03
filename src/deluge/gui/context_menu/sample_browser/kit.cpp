@@ -20,7 +20,7 @@
 #include "gui/l10n.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/slicer.h"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "storage/file_item.h"
 #include "util/functions.h"
 

@@ -18,7 +18,6 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "hid/display.h"
 #include "model/sample/sample.h"
 
 class TimeStretcher;

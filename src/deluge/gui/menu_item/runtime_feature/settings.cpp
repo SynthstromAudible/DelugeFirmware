@@ -19,7 +19,7 @@
 #include "setting.h"
 
 #include "gui/ui/sound_editor.h"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include <algorithm>
 #include <array>
 #include <cstdio>

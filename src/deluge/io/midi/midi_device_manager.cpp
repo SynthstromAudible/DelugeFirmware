@@ -19,7 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/mpe/zone_num_member_channels.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
 #include "memory/general_memory_allocator.h"

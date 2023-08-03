@@ -17,7 +17,7 @@
 
 #include "gui/ui/rename/rename_ui.h"
 
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 
 RenameUI::RenameUI() {
 	scrollPosHorizontal = 0;

@@ -28,7 +28,7 @@
 #include "gui/views/view.h"
 #include "gui/waveform/waveform_render_data.h"
 #include "gui/waveform/waveform_renderer.h"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "hid/display/oled.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"

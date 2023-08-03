@@ -19,7 +19,7 @@
 #include "RZA1/mtu/mtu.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/sound_editor.h"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "hid/hid_sysex.h"
 #include "io/debug/print.h"
 #include "io/midi/midi_device.h"

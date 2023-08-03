@@ -41,7 +41,7 @@
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/views/audio_clip_view.h"
 #include "hid/buttons.h"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "model/clip/audio_clip.h"
 #include "model/model_stack.h"
 #include "playback/mode/arrangement.h"

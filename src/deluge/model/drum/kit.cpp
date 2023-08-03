@@ -20,7 +20,7 @@
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "io/debug/print.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"

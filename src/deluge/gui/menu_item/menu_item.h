@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "util/container/static_vector.hpp"
 #include "util/sized.h"
 #include "util/string.h"

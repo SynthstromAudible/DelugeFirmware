@@ -21,7 +21,7 @@
 #include "gui/l10n.h"
 #include "gui/l10n/strings.h"
 #include "gui/ui/save/save_song_ui.h"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "storage/file_item.h"
 
 namespace deluge::gui::context_menu {

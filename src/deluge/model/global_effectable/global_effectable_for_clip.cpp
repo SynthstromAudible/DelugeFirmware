@@ -19,7 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "dsp/filter/filter_set_config.h"
 #include "gui/views/view.h"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "hid/matrix/matrix_driver.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"

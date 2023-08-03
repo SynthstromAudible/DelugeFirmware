@@ -19,7 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "hid/matrix/matrix_driver.h"
 #include "io/debug/print.h"
 #include "memory/general_memory_allocator.h"

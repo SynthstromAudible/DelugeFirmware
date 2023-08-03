@@ -20,7 +20,7 @@
 #include "gui/views/session_view.h"
 #include "gui/views/timeline_view.h"
 #include "gui/views/view.h"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "io/debug/print.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"

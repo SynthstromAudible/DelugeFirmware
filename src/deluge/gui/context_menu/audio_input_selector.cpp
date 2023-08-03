@@ -21,7 +21,7 @@
 #include "gui/l10n.h"
 #include "gui/l10n/strings.h"
 #include "gui/ui/root_ui.h"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "hid/led/indicator_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "processing/audio_output.h"

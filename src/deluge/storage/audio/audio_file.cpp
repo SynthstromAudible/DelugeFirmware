@@ -17,7 +17,7 @@
 
 #include "storage/audio/audio_file.h"
 #include "definitions_cxx.hpp"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "io/debug/print.h"
 #include "memory/general_memory_allocator.h"
 #include "model/sample/sample.h"

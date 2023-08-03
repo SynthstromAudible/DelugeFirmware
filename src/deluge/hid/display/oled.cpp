@@ -20,7 +20,7 @@
 #include "RZA1/mtu/mtu.h"
 #include "drivers/dmac/dmac.h"
 #include "gui/ui_timer_manager.h"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "processing/engines/audio_engine.h"
 #include "util/d_string.h"
 #include <string.h>

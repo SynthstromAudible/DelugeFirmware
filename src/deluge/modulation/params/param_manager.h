@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "modulation/params/param_collection_summary.h"
 #include <cstdint>
 

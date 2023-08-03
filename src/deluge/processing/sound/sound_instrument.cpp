@@ -18,7 +18,7 @@
 #include "processing/sound/sound_instrument.h"
 #include "definitions_cxx.hpp"
 #include "gui/views/view.h"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "io/debug/print.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"

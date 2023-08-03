@@ -20,7 +20,7 @@
 #include "gui/l10n.h"
 #include "gui/l10n/strings.h"
 #include "gui/ui/browser/browser.h"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "hid/matrix/matrix_driver.h"
 #include "io/debug/print.h"
 

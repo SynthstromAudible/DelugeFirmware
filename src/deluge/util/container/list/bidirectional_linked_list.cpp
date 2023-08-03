@@ -16,7 +16,7 @@
 */
 
 #include "util/container/list/bidirectional_linked_list.h"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "io/debug/print.h"
 #include "storage/cluster/cluster.h"
 

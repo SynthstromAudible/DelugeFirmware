@@ -21,7 +21,7 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "hid/led/indicator_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "model/clip/instrument_clip.h"

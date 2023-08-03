@@ -17,7 +17,7 @@
 #pragma once
 #include "gui/menu_item/selection/selection.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include <version.h>
 
 namespace deluge::gui::menu_item::firmware {

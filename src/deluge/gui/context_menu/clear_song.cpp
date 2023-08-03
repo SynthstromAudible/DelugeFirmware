@@ -20,7 +20,7 @@
 #include "gui/l10n.h"
 #include "gui/l10n/strings.h"
 #include "gui/views/view.h"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "hid/led/indicator_leds.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"

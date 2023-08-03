@@ -18,7 +18,6 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "hid/display.h"
 #include <cstdint>
 
 #define REASSESSMENT_ACTION_STOP_OR_LOOP 0

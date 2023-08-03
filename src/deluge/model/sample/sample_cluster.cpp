@@ -16,7 +16,7 @@
  */
 
 #include "model/sample/sample_cluster.h"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "io/debug/print.h"
 #include "memory/general_memory_allocator.h"
 #include "model/sample/sample.h"

@@ -23,7 +23,7 @@
 #include "gui/ui/qwerty_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/view.h"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "hid/encoders.h"
 #include "io/debug/print.h"
 #include "model/action/action_logger.h"

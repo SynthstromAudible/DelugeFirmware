@@ -18,7 +18,7 @@
 #include "command.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/sound_editor.h"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
 #include "util/misc.h"

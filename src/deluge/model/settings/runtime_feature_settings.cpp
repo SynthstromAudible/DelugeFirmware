@@ -16,7 +16,7 @@
  */
 
 #include "runtime_feature_settings.h"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "hid/display/numeric_driver.h"
 #include "storage/storage_manager.h"
 #include "util/d_string.h"

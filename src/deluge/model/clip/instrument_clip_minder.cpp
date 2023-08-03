@@ -26,7 +26,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "hid/led/indicator_leds.h"
 #include "io/debug/print.h"
 #include "io/midi/midi_engine.h"

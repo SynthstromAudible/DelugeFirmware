@@ -17,11 +17,10 @@
 
 #pragma once
 
-#ifdef __cplusplus
 #include "definitions_cxx.hpp"
 #include "hid/display/numeric_layer/numeric_layer_basic_text.h"
-
 #include <string>
+
 class NumericLayerScrollingText;
 
 class NumericDriver {
@@ -51,12 +50,13 @@ public:
 	bool isLayerCurrentlyOnTop(NumericLayer* layer);
 	uint8_t lastDisplay[kNumericDisplayLength];
 
-	bool popupActive;
+	bool hasPopup() { return this->popupActive; }
 
 private:
 	NumericLayer* topLayer;
 	NumericLayerBasicText popup;
 	int8_t nextTransitionDirection;
+	bool popupActive;
 
 	void deleteAllLayers();
 
@@ -67,4 +67,3 @@ private:
 	void transitionToNewLayer(NumericLayer* newLayer);
 	void setTextVeryBasicA1(char const* text);
 };
-#endif

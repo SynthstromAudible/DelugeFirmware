@@ -24,7 +24,7 @@
 #include "gui/waveform/waveform_basic_navigator.h"
 #include "gui/waveform/waveform_renderer.h"
 #include "hid/buttons.h"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "hid/display/oled.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"

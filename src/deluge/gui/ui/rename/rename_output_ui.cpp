@@ -20,7 +20,7 @@
 #include "extern.h"
 #include "gui/views/arranger_view.h"
 #include "hid/buttons.h"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "model/output.h"

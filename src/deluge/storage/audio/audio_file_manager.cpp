@@ -18,7 +18,7 @@
 #include "storage/audio/audio_file_manager.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "io/debug/print.h"
 #include "io/midi/midi_device_manager.h"
 #include "memory/general_memory_allocator.h"

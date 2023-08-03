@@ -18,7 +18,7 @@
 #include "gui/menu_item/decimal.h"
 #include "gui/menu_item/formatted_title.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::osc {

@@ -37,7 +37,7 @@
 #include "gui/waveform/waveform_basic_navigator.h"
 #include "gui/waveform/waveform_renderer.h"
 #include "hid/buttons.h"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "hid/display/numeric_layer/numeric_layer_scrolling_text.h"
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"

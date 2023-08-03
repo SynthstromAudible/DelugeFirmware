@@ -20,7 +20,7 @@
 #include "definitions.h"
 #include "gui/menu_item/menu_item.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "menu_item.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/instrument.h"

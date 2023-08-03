@@ -16,7 +16,7 @@
  */
 
 #include "storage/wave_table/wave_table_band_data.h"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/wave_table/wave_table.h"
 

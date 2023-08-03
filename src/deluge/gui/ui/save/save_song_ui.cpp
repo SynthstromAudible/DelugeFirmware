@@ -22,7 +22,7 @@
 #include "gui/ui/audio_recorder.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "io/debug/print.h"

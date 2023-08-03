@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #include "storage/file_item.h"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "model/instrument/instrument.h"
 #include <string.h>
 

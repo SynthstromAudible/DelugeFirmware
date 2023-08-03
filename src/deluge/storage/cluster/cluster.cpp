@@ -16,7 +16,7 @@
 */
 
 #include "storage/cluster/cluster.h"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "io/debug/print.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_cache.h"

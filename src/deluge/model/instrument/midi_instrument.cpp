@@ -20,7 +20,7 @@
 #include "gui/ui/ui.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "hid/matrix/matrix_driver.h"
 #include "io/midi/midi_engine.h"
 #include "model/action/action_logger.h"

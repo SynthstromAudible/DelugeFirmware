@@ -19,7 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "io/debug/print.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"

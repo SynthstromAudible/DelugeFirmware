@@ -19,7 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "processing/engines/audio_engine.h"
 //#include <algorithm>
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "io/debug/print.h"
 #include "memory/general_memory_allocator.h"
 #include "util/functions.h"

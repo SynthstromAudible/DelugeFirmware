@@ -25,7 +25,7 @@
 #include "deluge/model/settings/runtime_feature_settings.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/buttons.h"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "hid/matrix/matrix_driver.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"

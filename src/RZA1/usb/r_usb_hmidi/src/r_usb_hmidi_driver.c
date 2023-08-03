@@ -39,7 +39,7 @@
 #include "definitions.h"
 
 #include "deluge/drivers/uart/uart.h"
-#include "hid/display.h"
+#include "hid/display/display.h"
 
 /******************************************************************************
  Exported global variables

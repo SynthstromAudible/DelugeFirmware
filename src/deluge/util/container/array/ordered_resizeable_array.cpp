@@ -19,7 +19,7 @@
 #include "RZA1/uart/sio_char.h"
 #include "definitions_cxx.hpp"
 #include "drivers/mtu/mtu.h"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "io/debug/print.h"
 #include "memory/general_memory_allocator.h"
 #include "util/functions.h"

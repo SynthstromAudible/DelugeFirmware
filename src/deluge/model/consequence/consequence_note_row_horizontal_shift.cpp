@@ -16,7 +16,7 @@
 */
 
 #include "model/consequence/consequence_note_row_horizontal_shift.h"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"

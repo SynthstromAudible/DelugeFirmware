@@ -20,7 +20,7 @@
 #include "gui/l10n.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display.h"
+#include "hid/display/display.hpp"
 #include "processing/sound/sound.h"
 #include "processing/source.h"
 #include "storage/file_item.h"
