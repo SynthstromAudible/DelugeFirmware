@@ -253,9 +253,8 @@ private:
 	uint8_t lastSelectedParamX;
 	uint8_t lastSelectedParamY;
 	uint8_t lastSelectedParamArrayPosition;
-	//uint8_t lastSelectedMidiCC;
-	uint8_t lastSelectedMidiX;
-	uint8_t lastSelectedMidiY;
+	//uint8_t lastSelectedMidiX;
+	//uint8_t lastSelectedMidiY;
 	//uint8_t selectedParamColour[kDisplayHeight][3];
 	uint8_t lastEditPadPressXDisplay;
 	//uint8_t lastAutomationNudgeOffset;

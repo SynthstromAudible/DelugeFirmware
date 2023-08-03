@@ -236,9 +236,8 @@ AutomationInstrumentClipView::AutomationInstrumentClipView() {
 	lastSelectedParamX = 255;
 	lastSelectedParamY = 255;
 	lastSelectedParamArrayPosition = 0;
-	//lastSelectedMidiCC = 255;
-	lastSelectedMidiX = 255;
-	lastSelectedMidiY = 255;
+	//lastSelectedMidiX = 255;
+	//lastSelectedMidiY = 255;
 	lastEditPadPressXDisplay = 255;
 	clipClear = 0;
 	//drawLine = 0;
@@ -402,16 +401,16 @@ bool AutomationInstrumentClipView::renderMainPads(uint32_t whichRows, uint8_t im
 	InstrumentClip* clip = getCurrentClip();
 
 	if (encoderAction == false) {
-		if (clip->lastSelectedParamID != 255
-		    && (clip->output->type == InstrumentType::SYNTH || clip->output->type == InstrumentType::KIT)) {
+		if (clip->lastSelectedParamID != 255) {
+		  //  && (clip->output->type == InstrumentType::SYNTH || clip->output->type == InstrumentType::KIT)) {
 			soundEditor.setupShortcutBlink(lastSelectedParamX, lastSelectedParamY, 3);
 			soundEditor.blinkShortcut();
 		}
 
-		else if (clip->lastSelectedMidiCC != 255 && clip->output->type == InstrumentType::MIDI_OUT) {
-			soundEditor.setupShortcutBlink(lastSelectedMidiX, lastSelectedMidiY, 3);
-			soundEditor.blinkShortcut();
-		}
+	//	else if (clip->lastSelectedParamID != 255 && clip->output->type == InstrumentType::MIDI_OUT) {
+	//		soundEditor.setupShortcutBlink(lastSelectedMidiX, lastSelectedMidiY, 3);
+	//		soundEditor.blinkShortcut();
+	//	}
 
 		else {
 			uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
@@ -441,8 +440,8 @@ void AutomationInstrumentClipView::performActualRender(uint32_t whichRows, uint8
 
 		uint8_t* occupancyMaskOfRow = occupancyMask[yDisplay];
 
-		if ((clip->output->type == InstrumentType::SYNTH || clip->output->type == InstrumentType::KIT)
-		    && clip->lastSelectedParamID != 255) {
+		if (clip->lastSelectedParamID != 255) {//((clip->output->type == InstrumentType::SYNTH || clip->output->type == InstrumentType::KIT)
+		    //&& clip->lastSelectedParamID != 255) {
 			ModelStackWithAutoParam* modelStackWithParam =
 			    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID);
 
@@ -495,9 +494,9 @@ void AutomationInstrumentClipView::performActualRender(uint32_t whichRows, uint8
 			}
 		}
 
-		else if (clip->output->type == InstrumentType::MIDI_OUT && clip->lastSelectedMidiCC != 255) {
+/*		else if (clip->output->type == InstrumentType::MIDI_OUT && clip->lastSelectedParamID != 255) {
 			ModelStackWithAutoParam* modelStackWithParam =
-			    getModelStackWithParam(modelStack, clip, clip->lastSelectedMidiCC);
+			    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID);
 
 			if (modelStackWithParam) {
 
@@ -547,7 +546,7 @@ void AutomationInstrumentClipView::performActualRender(uint32_t whichRows, uint8
 					}
 				}
 			}
-		}
+		}*/
 
 		else {
 			if (clip->output->type == InstrumentType::SYNTH || clip->output->type == InstrumentType::KIT) {
@@ -637,7 +636,7 @@ void AutomationInstrumentClipView::performActualRender(uint32_t whichRows, uint8
 				}
 			}
 
-			else if (clip->output->type == InstrumentType::CV) { //render easterEgg
+			else { //render easterEgg
 				for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 
 					uint8_t* pixel = image + (yDisplay * imageWidth * 3) + (xDisplay * 3);
@@ -1050,7 +1049,7 @@ doOther:
 
 	else if (b == MIDI) {
 		if (on) {
-			clip->lastSelectedMidiCC = 255;
+			clip->lastSelectedParamID = 255;
 			lastEditPadPressXDisplay = 255;
 
 			if (inCardRoutine) {
@@ -2595,12 +2594,12 @@ void AutomationInstrumentClipView::rotateAutomationHorizontally(int32_t offset) 
 
 	else if (clip->output->type == InstrumentType::MIDI_OUT) {
 
-		if (clip->lastSelectedMidiCC != 255) {
+		if (clip->lastSelectedParamID != 255) {
 
 			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 			ModelStackWithAutoParam* modelStackWithParam =
-			    getModelStackWithParam(modelStack, clip, clip->lastSelectedMidiCC);
+			    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID);
 
 			if (modelStackWithParam) {
 
@@ -3195,13 +3194,13 @@ void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int
 
 		else if (clip->output->type == InstrumentType::MIDI_OUT) {
 
-			if (clip->lastSelectedMidiCC != 255 && lastEditPadPressXDisplay != 255) {
+			if (clip->lastSelectedParamID != 255 && lastEditPadPressXDisplay != 255) {
 
 				ModelStackWithTimelineCounter* modelStack =
 				    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 				ModelStackWithAutoParam* modelStackWithParam =
-				    getModelStackWithParam(modelStack, clip, clip->lastSelectedMidiCC);
+				    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID);
 
 				if (modelStackWithParam) {
 
@@ -3270,13 +3269,13 @@ void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int
 
 		else if (clip->output->type == InstrumentType::MIDI_OUT) {
 
-			if (clip->lastSelectedMidiCC != 255) {
+			if (clip->lastSelectedParamID != 255) {
 
 				ModelStackWithTimelineCounter* modelStack =
 				    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 				ModelStackWithAutoParam* modelStackWithParam =
-				    getModelStackWithParam(modelStack, clip, clip->lastSelectedMidiCC);
+				    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID);
 
 				if (modelStackWithParam) {
 
@@ -3336,7 +3335,7 @@ void AutomationInstrumentClipView::modEncoderButtonAction(uint8_t whichModEncode
 	//delete automation of current parameter selected
 	else if (Buttons::isShiftButtonPressed()) {
 
-		if (clip->output->type == InstrumentType::SYNTH) {
+	//	if (clip->output->type == InstrumentType::SYNTH) {
 			ModelStackWithAutoParam* modelStackWithParam =
 			    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID);
 
@@ -3346,10 +3345,10 @@ void AutomationInstrumentClipView::modEncoderButtonAction(uint8_t whichModEncode
 
 				numericDriver.displayPopup(HAVE_OLED ? "Automation deleted" : "DELETED");
 			}
-		}
+	/*	}
 		else if (clip->output->type == InstrumentType::MIDI_OUT) {
 			ModelStackWithAutoParam* modelStackWithParam =
-			    getModelStackWithParam(modelStack, clip, clip->lastSelectedMidiCC);
+			    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID);
 
 			if (modelStackWithParam && modelStackWithParam->autoParam) {
 				Action* action = actionLogger.getNewAction(ACTION_AUTOMATION_DELETE, false);
@@ -3357,20 +3356,20 @@ void AutomationInstrumentClipView::modEncoderButtonAction(uint8_t whichModEncode
 
 				numericDriver.displayPopup(HAVE_OLED ? "Automation deleted" : "DELETED");
 			}
-		}
+		}*/
 	}
 
 	//press top mod encoder to display current parameter selected
-	else if (whichModEncoder == 1 && on && clip->lastSelectedParamID != 255
-	         && (clip->output->type == InstrumentType::SYNTH || clip->output->type == InstrumentType::KIT)) {
+	else if (whichModEncoder == 1 && on && clip->lastSelectedParamID != 255) {
+	         //&& (clip->output->type == InstrumentType::SYNTH || clip->output->type == InstrumentType::KIT)) {
 		displayParameterName(clip->lastSelectedParamID);
 	}
 
 	//press top mod encoder to display current parameter selected
-	else if (whichModEncoder == 1 && on && clip->lastSelectedMidiCC != 255
-	         && clip->output->type == InstrumentType::MIDI_OUT) {
-		displayParameterName(clip->lastSelectedMidiCC);
-	}
+//	else if (whichModEncoder == 1 && on && clip->lastSelectedParamID != 255
+//	         && clip->output->type == InstrumentType::MIDI_OUT) {
+//		displayParameterName(clip->lastSelectedParamID);
+//	}
 
 	else {
 		goto followOnAction;
@@ -3417,8 +3416,8 @@ followOnAction:
 			}
 			else if (currentSong->currentClip->output->type == InstrumentType::MIDI_OUT) {
 
-				if (lastSelectedMidiCC != 255) {
-					lastSelectedMidiCC = 255;
+				if (lastSelectedParamID != 255) {
+					lastSelectedParamID = 255;
 					lastSelectedMidiX = 255;
 					lastEditPadPressXDisplay = 255;
 
@@ -3452,7 +3451,7 @@ void AutomationInstrumentClipView::copyAutomation() {
 	InstrumentClip* clip = getCurrentClip();
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 
-	if (clip->output->type == InstrumentType::SYNTH || clip->output->type == InstrumentType::KIT) {
+//	if (clip->output->type == InstrumentType::SYNTH || clip->output->type == InstrumentType::KIT) {
 
 		if (clip->lastSelectedParamID != 255) {
 
@@ -3478,16 +3477,16 @@ void AutomationInstrumentClipView::copyAutomation() {
 				}
 			}
 		}
-	}
+/*	}
 
 	else if (clip->output->type == InstrumentType::MIDI_OUT) {
 
-		if (clip->lastSelectedMidiCC != 255) {
+		if (clip->lastSelectedParamID != 255) {
 
 			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 			ModelStackWithAutoParam* modelStackWithParam =
-			    getModelStackWithParam(modelStack, clip, clip->lastSelectedMidiCC);
+			    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID);
 
 			if (modelStackWithParam && modelStackWithParam->autoParam) {
 
@@ -3506,7 +3505,7 @@ void AutomationInstrumentClipView::copyAutomation() {
 				}
 			}
 		}
-	}
+	}*/
 
 	numericDriver.displayPopup(HAVE_OLED ? "No automation to copy" : "NONE");
 }
@@ -3530,7 +3529,7 @@ void AutomationInstrumentClipView::pasteAutomation() {
 	InstrumentClip* clip = getCurrentClip();
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 
-	if (clip->output->type == InstrumentType::SYNTH || clip->output->type == InstrumentType::KIT) {
+//	if (clip->output->type == InstrumentType::SYNTH || clip->output->type == InstrumentType::KIT) {
 
 		if (clip->lastSelectedParamID != 255) {
 
@@ -3564,16 +3563,16 @@ void AutomationInstrumentClipView::pasteAutomation() {
 				return;
 			}
 		}
-	}
+/*	}
 
 	else if (clip->output->type == InstrumentType::MIDI_OUT) {
 
-		if (clip->lastSelectedMidiCC != 255) {
+		if (clip->lastSelectedParamID != 255) {
 
 			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 			ModelStackWithAutoParam* modelStackWithParam =
-			    getModelStackWithParam(modelStack, clip, clip->lastSelectedMidiCC);
+			    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID);
 
 			if (modelStackWithParam && modelStackWithParam->autoParam) {
 				Action* action = actionLogger.getNewAction(ACTION_AUTOMATION_PASTE, false);
@@ -3600,7 +3599,7 @@ void AutomationInstrumentClipView::pasteAutomation() {
 				return;
 			}
 		}
-	}
+	}*/
 
 	numericDriver.displayPopup(HAVE_OLED ? "Can't paste automation" : "CANT");
 	return;
@@ -3646,7 +3645,7 @@ void AutomationInstrumentClipView::selectEncoderAction(int8_t offset) {
 		InstrumentClip* clip = getCurrentClip();
 
 		lastSelectedParamX = 255;
-		lastSelectedMidiX = 255;
+		//lastSelectedMidiX = 255;
 
 		if (clip->output->type == InstrumentType::SYNTH || clip->output->type == InstrumentType::KIT) {
 
@@ -3685,28 +3684,28 @@ void AutomationInstrumentClipView::selectEncoderAction(int8_t offset) {
 
 		else if (clip->output->type == InstrumentType::MIDI_OUT) {
 
-			if (clip->lastSelectedMidiCC == 255) {
-				clip->lastSelectedMidiCC = 0;
+			if (clip->lastSelectedParamID == 255) {
+				clip->lastSelectedParamID = 0;
 			}
-			else if ((clip->lastSelectedMidiCC + offset) < 0) {
-				clip->lastSelectedMidiCC = 121;
+			else if ((clip->lastSelectedParamID + offset) < 0) {
+				clip->lastSelectedParamID = 121;
 			}
-			else if ((clip->lastSelectedMidiCC + offset) > 121) {
-				clip->lastSelectedMidiCC = 0;
+			else if ((clip->lastSelectedParamID + offset) > 121) {
+				clip->lastSelectedParamID = 0;
 			}
 			else {
-				clip->lastSelectedMidiCC += offset;
+				clip->lastSelectedParamID += offset;
 			}
 
-			displayParameterName(clip->lastSelectedMidiCC);
+			displayParameterName(clip->lastSelectedParamID);
 
 			for (int32_t x = 0; x < kDisplayWidth; x++) {
 				for (int32_t y = 0; y < kDisplayHeight; y++) {
 
-					if (midiCCShortcutsForAutomation[x][y] == clip->lastSelectedMidiCC) {
+					if (midiCCShortcutsForAutomation[x][y] == clip->lastSelectedParamID) {
 
-						lastSelectedMidiX = x;
-						lastSelectedMidiY = y;
+						lastSelectedParamX = x;
+						lastSelectedParamY = y;
 
 						goto flashShortcut;
 					}
@@ -3722,10 +3721,6 @@ flashShortcut:
 
 		if (lastSelectedParamX != 255) {
 			soundEditor.setupShortcutBlink(lastSelectedParamX, lastSelectedParamY, 3);
-			soundEditor.blinkShortcut();
-		}
-		else if (lastSelectedMidiX != 255) {
-			soundEditor.setupShortcutBlink(lastSelectedMidiX, lastSelectedMidiY, 3);
 			soundEditor.blinkShortcut();
 		}
 		//	else {
@@ -4049,25 +4044,25 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 
 	else if (clip->output->type == InstrumentType::MIDI_OUT) {
 
-		if ((clip->lastSelectedMidiCC == 255 || (shortcutPress && Buttons::isShiftButtonPressed()))
+		if ((clip->lastSelectedParamID == 255 || (shortcutPress && Buttons::isShiftButtonPressed()))
 		    && midiCCShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
-			clip->lastSelectedMidiCC = midiCCShortcutsForAutomation[xDisplay][yDisplay];
+			clip->lastSelectedParamID = midiCCShortcutsForAutomation[xDisplay][yDisplay];
 
-			displayParameterName(clip->lastSelectedMidiCC);
+			displayParameterName(clip->lastSelectedParamID);
 
-			lastSelectedMidiX = xDisplay;
-			lastSelectedMidiY = yDisplay;
+			lastSelectedParamX = xDisplay;
+			lastSelectedParamY = yDisplay;
 
 			soundEditor.setupShortcutBlink(xDisplay, yDisplay, 3);
 			soundEditor.blinkShortcut();
 		}
 
-		else if (clip->lastSelectedMidiCC != 255) {
+		else if (clip->lastSelectedParamID != 255) {
 
 			lastEditPadPressXDisplay = xDisplay;
 
 			ModelStackWithAutoParam* modelStackWithParam =
-			    getModelStackWithParam(modelStack, clip, clip->lastSelectedMidiCC);
+			    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID);
 
 			if (modelStackWithParam) {
 
@@ -4113,7 +4108,7 @@ void AutomationInstrumentClipView::handleMultiPadPress(ModelStackWithTimelineCou
 
 		int32_t DistanceBetweenPads = secondPadX - firstPadX;
 
-		if (clip->output->type == InstrumentType::SYNTH || clip->output->type == InstrumentType::KIT) {
+	//	if (clip->output->type == InstrumentType::SYNTH || clip->output->type == InstrumentType::KIT) {
 
 			ModelStackWithAutoParam* modelStackWithParam =
 			    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID);
@@ -4133,12 +4128,12 @@ void AutomationInstrumentClipView::handleMultiPadPress(ModelStackWithTimelineCou
 					}
 				}
 			}
-		}
+	/*	}
 
 		else if (clip->output->type == InstrumentType::MIDI_OUT) {
 
 			ModelStackWithAutoParam* modelStackWithParam =
-			    getModelStackWithParam(modelStack, clip, clip->lastSelectedMidiCC);
+			    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID);
 
 			if (modelStackWithParam) {
 
@@ -4155,7 +4150,7 @@ void AutomationInstrumentClipView::handleMultiPadPress(ModelStackWithTimelineCou
 					}
 				}
 			}
-		}
+		}*/
 	}
 
 	uiNeedsRendering(this);
@@ -4214,14 +4209,16 @@ bool AutomationInstrumentClipView::isOnParameterGridMenuView() {
 
 	InstrumentClip* clip = getCurrentClip();
 
+	if (clip->lastSelectedParamID == 255) {
+
 	//if showing the Parameter selection grid menu, disable horizontal scrolling
-	if ((clip->output->type == InstrumentType::SYNTH || clip->output->type == InstrumentType::KIT)
-	    && (clip->lastSelectedParamID == 255)) {
+//	if ((clip->output->type == InstrumentType::SYNTH || clip->output->type == InstrumentType::KIT)
+//	    && (clip->lastSelectedParamID == 255)) {
 		return true;
 	}
-	else if (clip->output->type == InstrumentType::MIDI_OUT && clip->lastSelectedMidiCC == 255) {
-		return true;
-	}
+//	else if (clip->output->type == InstrumentType::MIDI_OUT && clip->lastSelectedParamID == 255) {
+//		return true;
+//	}
 	return false;
 }
 

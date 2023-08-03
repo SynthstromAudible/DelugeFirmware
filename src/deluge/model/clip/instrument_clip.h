@@ -35,7 +35,6 @@ class ModControllable;
 class Drum;
 class StereoSample;
 class ParamManagerForTimeline;
-class ParamManagerForTimeline;
 class Sound;
 class Note;
 class ParamManagerMIDI;
@@ -142,8 +141,7 @@ public:
 	bool onAutomationInstrumentClipView; //new to save the view that you are currently in
 	                                     //(e.g. if you leave clip and want to come back where you left off)
 
-	uint8_t lastSelectedParamID;
-	uint8_t lastSelectedMidiCC;
+	uint8_t lastSelectedParamID; //last selected Parameter to be edited in Automation Instrument Clip View
 
 	//END ~ new Automation Clip View Variables
 

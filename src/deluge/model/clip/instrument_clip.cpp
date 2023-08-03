@@ -100,7 +100,6 @@ InstrumentClip::InstrumentClip(Song* song) : Clip(CLIP_TYPE_INSTRUMENT) {
 	//new automation clip view variables
 	onAutomationInstrumentClipView = false;
 	lastSelectedParamID = 255;
-	lastSelectedMidiCC = 255;
 
 	if (song) {
 		int32_t yNote = ((uint16_t)(song->rootNote + 120) % 12) + 60;
@@ -2186,9 +2185,6 @@ void InstrumentClip::writeDataToFile(Song* song) {
 	if (lastSelectedParamID != 255) {
 		storageManager.writeAttribute("lastSelectedParamID", lastSelectedParamID);
 	}
-	if (lastSelectedMidiCC != 255) {
-		storageManager.writeAttribute("lastSelectedMidiCC", lastSelectedMidiCC);
-	}
 	if (wrapEditing) {
 		storageManager.writeAttribute("crossScreenEditLevel", wrapEditLevel);
 	}
@@ -2439,10 +2435,6 @@ someError:
 
 		else if (!strcmp(tagName, "lastSelectedParamID")) {
 			lastSelectedParamID = storageManager.readTagOrAttributeValueInt();
-		}
-
-		else if (!strcmp(tagName, "lastSelectedMidiCC")) {
-			lastSelectedMidiCC = storageManager.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "affectEntire")) {
