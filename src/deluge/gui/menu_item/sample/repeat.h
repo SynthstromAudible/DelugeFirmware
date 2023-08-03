@@ -31,7 +31,7 @@ namespace deluge::gui::menu_item::sample {
 
 class Repeat final : public TypedSelection<SampleRepeatMode, kNumRepeatModes>, public FormattedTitle {
 public:
-	Repeat(const string& name, const string& title_format_str)
+	Repeat(const string& name, const fmt::format_string<int32_t>& title_format_str)
 	    : TypedSelection(name), FormattedTitle(title_format_str) {}
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }

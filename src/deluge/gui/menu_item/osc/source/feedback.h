@@ -22,7 +22,7 @@
 namespace deluge::gui::menu_item::osc::source {
 class Feedback final : public menu_item::source::PatchedParam, public FormattedTitle {
 public:
-	Feedback(const string& name, const string& title_format_str, int32_t newP)
+	Feedback(const string& name, const fmt::format_string<int32_t>& title_format_str, int32_t newP)
 	    : PatchedParam(name, newP), FormattedTitle(title_format_str) {}
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }

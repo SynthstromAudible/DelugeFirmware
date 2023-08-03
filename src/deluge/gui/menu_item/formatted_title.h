@@ -7,16 +7,13 @@
 // Mixin for a formatted title
 class FormattedTitle {
 public:
-	FormattedTitle(deluge::string format_str) : format_str_(std::move(format_str)) {}
+	FormattedTitle(const fmt::format_string<int32_t>& format_str) : format_str_(format_str) {}
 
-	template <class... Args>
-	void format(Args&&... args) {
-		title_ = fmt::format(fmt::runtime(format_str_), args...);
-	}
+	void format(int32_t arg) { title_ = fmt::vformat(format_str_.get(), fmt::make_format_args(arg)); }
 
 	[[nodiscard]] std::string_view title() const { return title_; }
 
 private:
-	deluge::string format_str_;
+	fmt::format_string<int32_t> format_str_;
 	deluge::string title_;
 };
