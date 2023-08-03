@@ -722,12 +722,14 @@ void KeyboardScreen::unscrolledPadAudition(int32_t velocity, int32_t note, bool 
 	// Until then we set the scroll to 0 during the auditioning
 	int32_t yScrollBackup = getCurrentClip()->yScroll;
 	getCurrentClip()->yScroll = 0;
+
 	if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
 		automationInstrumentClipView.auditionPadAction(velocity, note, shiftButtonDown);
 	}
 	else {
 		instrumentClipView.auditionPadAction(velocity, note, shiftButtonDown);
 	}
+
 	getCurrentClip()->yScroll = yScrollBackup;
 }
 
