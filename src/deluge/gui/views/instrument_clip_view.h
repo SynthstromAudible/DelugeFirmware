@@ -210,7 +210,7 @@ private:
 	NoteRow* createNewNoteRowForKit(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay,
 	                                int32_t* getIndex = NULL);
 	void enterDrumCreator(ModelStackWithNoteRow* modelStack, bool doRecording = false);
-  
+
 	void adjustProbability(int32_t offset);
 	void copyNotes();
 	void pasteNotes();
