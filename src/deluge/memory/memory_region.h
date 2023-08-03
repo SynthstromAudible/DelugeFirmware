@@ -29,7 +29,7 @@ struct EmptySpaceRecord {
 
 struct NeighbouringMemoryGrabAttemptResult {
 	uint32_t address; // 0 means didn't grab / not found.
-	int amountsExtended[2];
+	int32_t amountsExtended[2];
 	uint32_t longestRunFound; // Only valid if didn't return some space.
 };
 
@@ -43,7 +43,7 @@ struct NeighbouringMemoryGrabAttemptResult {
 class MemoryRegion {
 public:
 	MemoryRegion();
-	void setup(void* emptySpacesMemory, int emptySpacesMemorySize, uint32_t regionBegin, uint32_t regionEnd);
+	void setup(void* emptySpacesMemory, int32_t emptySpacesMemorySize, uint32_t regionBegin, uint32_t regionEnd);
 	void* alloc(uint32_t requiredSize, uint32_t* getAllocatedSize, bool makeStealable, void* thingNotToStealFrom,
 	            bool getBiggestAllocationPossible);
 	uint32_t shortenRight(void* address, uint32_t newSize);
@@ -55,7 +55,7 @@ public:
 	void verifyMemoryNotFree(void* address, uint32_t spaceSize);
 
 	OrderedResizeableArrayWithMultiWordKey emptySpaces;
-	int numAllocations;
+	int32_t numAllocations;
 
 	CacheManager& cache_manager() { return cache_manager_; }
 
@@ -69,8 +69,8 @@ private:
 
 	void markSpaceAsEmpty(uint32_t spaceStart, uint32_t spaceSize, bool mayLookLeft = true, bool mayLookRight = true);
 	NeighbouringMemoryGrabAttemptResult
-	attemptToGrabNeighbouringMemory(void* originalSpaceAddress, int originalSpaceSize, int minAmountToExtend,
-	                                int idealAmountToExtend, void* thingNotToStealFrom,
+	attemptToGrabNeighbouringMemory(void* originalSpaceAddress, int32_t originalSpaceSize, int32_t minAmountToExtend,
+	                                int32_t idealAmountToExtend, void* thingNotToStealFrom,
 	                                uint32_t markWithTraversalNo = 0, bool originalSpaceNeedsStealing = false);
 	void writeTempHeadersBeforeASteal(uint32_t newStartAddress, uint32_t newSize);
 	void sanityCheck();

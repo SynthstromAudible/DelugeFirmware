@@ -22,11 +22,11 @@
 #include "hid/display/numeric_driver.h"
 #include "processing/sound/sound.h"
 
-namespace menu_item::osc {
+namespace deluge::gui::menu_item::osc {
 class AudioRecorder final : public MenuItem {
 public:
-	AudioRecorder(char const* newName = 0) : MenuItem(newName) {}
-	void beginSession(MenuItem* navigatedBackwardFrom) {
+	using MenuItem::MenuItem;
+	void beginSession(MenuItem* navigatedBackwardFrom) override {
 		soundEditor.shouldGoUpOneLevelOnBegin = true;
 		bool success = openUI(&audioRecorder);
 		if (!success) {
@@ -39,12 +39,13 @@ public:
 			audioRecorder.process();
 		}
 	}
-	bool isRelevant(Sound* sound, int whichThing) {
+	bool isRelevant(Sound* sound, int32_t whichThing) override {
 		Source* source = &sound->sources[whichThing];
 		return (sound->getSynthMode() == SynthMode::SUBTRACTIVE);
 	}
 
-	MenuPermission checkPermissionToBeginSession(Sound* sound, int whichThing, ::MultiRange** currentRange) {
+	MenuPermission checkPermissionToBeginSession(Sound* sound, int32_t whichThing,
+	                                             ::MultiRange** currentRange) override {
 
 		bool can = isRelevant(sound, whichThing);
 		if (!can) {
@@ -55,4 +56,4 @@ public:
 		return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, whichThing, false, currentRange);
 	}
 };
-} // namespace menu_item::osc
+} // namespace deluge::gui::menu_item::osc

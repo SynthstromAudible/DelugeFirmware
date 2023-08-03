@@ -27,7 +27,7 @@ public:
 
 	bool opened();
 	//void selectEncoderAction(int8_t offset);
-	void verticalEncoderAction(int offset, bool encoderButtonPressed, bool shiftButtonPressed){};
+	void verticalEncoderAction(int32_t offset, bool encoderButtonPressed, bool shiftButtonPressed){};
 	void endSession(){};
 	bool performSave(bool mayOverwrite);
 
@@ -37,7 +37,7 @@ public:
 	}
 
 protected:
-	//int arrivedInNewFolder(int direction);
+	//int32_t arrivedInNewFolder(int32_t direction);
 };
 
 extern SaveInstrumentPresetUI saveInstrumentPresetUI;

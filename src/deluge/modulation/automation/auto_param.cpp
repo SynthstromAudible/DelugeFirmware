@@ -130,7 +130,7 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 			// 1. While recording, any nodes in that region are going to be ignored anyway.
 			// 2. If recording is exited, we want to have a 0.2s transition before going back to the next node
 			uint32_t timePerInternalTick = playbackHandler.getTimePerInternalTick();
-			int ticksToClear = (uint16_t)SAMPLES_TO_CLEAR_AFTER_RECORD / timePerInternalTick;
+			int32_t ticksToClear = (uint16_t)SAMPLES_TO_CLEAR_AFTER_RECORD / timePerInternalTick;
 
 			// If the Clip is too short to meaningfully record anything / not cause an error
 			int32_t effectiveLength = modelStack->getLoopLength();
@@ -155,11 +155,11 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 			if (!reversed
 			    && nodes
 			           .getNumElements()) { // Yeah turns out we just don't need the result from this if we're reversed. RIP the work I put into making this code reverse-compatible.
-				int prevNodeI = nodes.search(livePos + (int)reversed, reversed ? GREATER_OR_EQUAL : LESS);
+				int32_t prevNodeI = nodes.search(livePos + (int32_t)reversed, reversed ? GREATER_OR_EQUAL : LESS);
 				if (prevNodeI >= 0 && prevNodeI < nodes.getNumElements()) { // If there was a Node before livePos...
 investigatePrevNode:
 					ParamNode* prevNode = (ParamNode*)nodes.getElementAddress(prevNodeI);
-					int ticksAgo = livePos - prevNode->pos;
+					int32_t ticksAgo = livePos - prevNode->pos;
 					if (reversed) {
 						ticksAgo = -ticksAgo;
 					}
@@ -183,7 +183,7 @@ investigatePrevNode:
 				}
 			}
 
-			int leftI;
+			int32_t leftI;
 
 			// Special case (though I feel like this could maybe be used more...)
 			// - recording MPE (not mono expression) *linearly*. Just insert one node, and that can change the value everywhere from here to the next node - we don't
@@ -214,7 +214,7 @@ investigatePrevNode:
 				}
 
 				if (reversed) {
-					int iFurtherRight = leftI + 2;
+					int32_t iFurtherRight = leftI + 2;
 					if (iFurtherRight >= nodes.getNumElements()) {
 						iFurtherRight -= nodes.getNumElements();
 					}
@@ -234,7 +234,7 @@ investigatePrevNode:
 				bool backtrackingCouldLoopBackToEnd =
 				    modelStack->getTimelineCounter()
 				        ->backtrackingCouldLoopBackToEnd(); // Wait, I can no longer see why this matters...
-				int prevI = leftI - 1;
+				int32_t prevI = leftI - 1;
 				if (prevI == -1) {
 					if (!backtrackingCouldLoopBackToEnd) {
 						goto skipThat;
@@ -290,7 +290,7 @@ getOut:
 	                                                          automatedNow);
 }
 
-bool AutoParam::deleteRedundantNodeInLinearRun(int lastNodeInRunI, int32_t effectiveLength,
+bool AutoParam::deleteRedundantNodeInLinearRun(int32_t lastNodeInRunI, int32_t effectiveLength,
                                                bool mayLoopAroundBackToEnd) {
 
 	if (nodes.getNumElements() < 3) {
@@ -300,7 +300,7 @@ bool AutoParam::deleteRedundantNodeInLinearRun(int lastNodeInRunI, int32_t effec
 	ParamNode* lastNodeInRun = nodes.getElement(lastNodeInRunI);
 
 	// But first, now that we've moved on from prevNode, see if prevNode concluded a linear run of nodes for which we can now delete the middle node
-	int middleNodeInRunI = lastNodeInRunI - 1;
+	int32_t middleNodeInRunI = lastNodeInRunI - 1;
 	if (middleNodeInRunI == -1) {
 		if (!mayLoopAroundBackToEnd) {
 			return false;
@@ -311,7 +311,7 @@ bool AutoParam::deleteRedundantNodeInLinearRun(int lastNodeInRunI, int32_t effec
 
 	if (lastNodeInRun->interpolated || !middleNodeInRun->interpolated) {
 
-		int firstNodeInRunI = middleNodeInRunI - 1;
+		int32_t firstNodeInRunI = middleNodeInRunI - 1;
 		if (firstNodeInRunI == -1) {
 			if (!mayLoopAroundBackToEnd) {
 				return false;
@@ -333,12 +333,12 @@ removeMiddleNodeInRun:
 			float valueFraction = (float)((middleNodeInRun->value >> 1) - (firstNodeInRun->value >> 1))
 			                      / ((lastNodeInRun->value >> 1) - (firstNodeInRun->value >> 1));
 
-			int distanceFirstToLast = lastNodeInRun->pos - firstNodeInRun->pos;
+			int32_t distanceFirstToLast = lastNodeInRun->pos - firstNodeInRun->pos;
 			if (distanceFirstToLast <= 0) {
 				distanceFirstToLast += effectiveLength;
 			}
 
-			int distanceFirstToMiddle = middleNodeInRun->pos - firstNodeInRun->pos;
+			int32_t distanceFirstToMiddle = middleNodeInRun->pos - firstNodeInRun->pos;
 			if (distanceFirstToMiddle <= 0) {
 				distanceFirstToMiddle += effectiveLength;
 			}
@@ -396,9 +396,9 @@ int32_t AutoParam::processCurrentPos(ModelStackWithAutoParam const* modelStack, 
 	int32_t effectiveLength = modelStack->getLoopLength();
 
 	// Find next node - here or further along in our direction
-	int searchDirection = -(int)reversed;
-	int32_t searchPos = currentPos + (int)reversed;
-	int iJustReached = nodes.search(searchPos, searchDirection);
+	int32_t searchDirection = -(int32_t)reversed;
+	int32_t searchPos = currentPos + (int32_t)reversed;
+	int32_t iJustReached = nodes.search(searchPos, searchDirection);
 	if (iJustReached < 0) {
 		iJustReached += nodes.getNumElements();
 	}
@@ -407,7 +407,7 @@ int32_t AutoParam::processCurrentPos(ModelStackWithAutoParam const* modelStack, 
 	}
 
 	ParamNode* nodeJustReached = nodes.getElement(iJustReached);
-	int howFarUntilThisNode = nodeJustReached->pos - currentPos;
+	int32_t howFarUntilThisNode = nodeJustReached->pos - currentPos;
 
 	// If we haven't reached the next node yet...
 	if (howFarUntilThisNode) {
@@ -441,7 +441,7 @@ int32_t AutoParam::processCurrentPos(ModelStackWithAutoParam const* modelStack, 
 	valueIncrementPerHalfTick = 0;
 
 	// Now start thinking about the *next* node, which we'll get to in a while
-	int iRight = iJustReached + 1;
+	int32_t iRight = iJustReached + 1;
 	if (iRight >= nodes.getNumElements()) {
 		iRight = 0;
 	}
@@ -449,7 +449,7 @@ int32_t AutoParam::processCurrentPos(ModelStackWithAutoParam const* modelStack, 
 	ParamNode* nextNodeInOurDirection;
 
 	if (reversed) {
-		int iLeft = iJustReached - 1;
+		int32_t iLeft = iJustReached - 1;
 		if (iLeft < 0) {
 			iLeft += nodes.getNumElements();
 		}
@@ -653,7 +653,7 @@ adjustNodeJustReached:
 				}
 
 				if (insertingNodeAtEndOfClearing) {
-					int iNew = nodes.insertAtKey(
+					int32_t iNew = nodes.insertAtKey(
 					    posOverridingEnds); // Can only do this now, after updating nodeJustReached, above
 					if (iNew != -1) {
 						iRight = iNew;
@@ -726,7 +726,7 @@ getOut:
 	// Ok, no node should be at or past the effectiveLength. Sometimes somehow this is still happening - see https://forums.synthstrom.com/discussion/4499/v4-0-0-beta8-freeze-while-recording-long-mpe-clips-jjjj
 	// I'm so sorry, but I'm going to just make it manually fix itself, here.
 	if (nodes.getNumElements()) {
-		int i = nodes.getNumElements() - 1;
+		int32_t i = nodes.getNumElements() - 1;
 		ParamNode* rightmostNode = nodes.getElement(i);
 		if (rightmostNode->pos >= effectiveLength) {
 			nodes.deleteAtIndex(i);
@@ -775,7 +775,7 @@ void AutoParam::setupInterpolation(ParamNode* nextNodeInOurDirection, int32_t ef
 
 		// Or if still going...
 		else {
-			timeSinceOverridden = getMax(timeSinceOverridden, (int32_t)0);
+			timeSinceOverridden = std::max(timeSinceOverridden, (int32_t)0);
 
 			int32_t limit = timeSinceOverridden << (26 - OVERRIDE_DURATION_MAGNITUDE_INTERPOLATING);
 			if (valueIncrementPerHalfTick > limit) {
@@ -794,7 +794,7 @@ void AutoParam::setupInterpolation(ParamNode* nextNodeInOurDirection, int32_t ef
 }
 
 // Returns whether a change was made to currentValue
-bool AutoParam::tickSamples(int numSamples) {
+bool AutoParam::tickSamples(int32_t numSamples) {
 	if (!valueIncrementPerHalfTick) {
 		return false;
 	}
@@ -846,7 +846,7 @@ void AutoParam::deleteNodesWithinRegion(ModelStackWithAutoParam const* modelStac
 		}
 
 		bool wrapping;
-		int resultingIndexes[2];
+		int32_t resultingIndexes[2];
 
 		{
 			int32_t searchTerms[2];
@@ -865,14 +865,14 @@ void AutoParam::deleteNodesWithinRegion(ModelStackWithAutoParam const* modelStac
 			if (resultingIndexes[0]) {
 				nodes.deleteAtIndex(0, resultingIndexes[0]);
 			}
-			int numAtEnd = nodes.getNumElements() - resultingIndexes[1];
+			int32_t numAtEnd = nodes.getNumElements() - resultingIndexes[1];
 			if (numAtEnd) {
 				nodes.deleteAtIndex(resultingIndexes[1], numAtEnd);
 			}
 		}
 
 		else {
-			int numToDelete = resultingIndexes[1] - resultingIndexes[0];
+			int32_t numToDelete = resultingIndexes[1] - resultingIndexes[0];
 			if (numToDelete) {
 				nodes.deleteAtIndex(resultingIndexes[0], numToDelete);
 			}
@@ -886,8 +886,8 @@ void AutoParam::deleteNodesWithinRegion(ModelStackWithAutoParam const* modelStac
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, true, true, isAutomated());
 }
 
-int AutoParam::setNodeAtPos(int32_t pos, int32_t value, bool shouldInterpolate) {
-	int i = nodes.search(pos, GREATER_OR_EQUAL);
+int32_t AutoParam::setNodeAtPos(int32_t pos, int32_t value, bool shouldInterpolate) {
+	int32_t i = nodes.search(pos, GREATER_OR_EQUAL);
 	ParamNode* ourNode;
 
 	// Check there's not already a node there
@@ -899,7 +899,7 @@ int AutoParam::setNodeAtPos(int32_t pos, int32_t value, bool shouldInterpolate) 
 	}
 
 	{
-		int error = nodes.insertAtIndex(i);
+		int32_t error = nodes.insertAtIndex(i);
 		if (error) {
 			return -1;
 		}
@@ -914,13 +914,13 @@ setupNode:
 }
 
 void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
-                                  ModelStackWithAutoParam const* modelStack, int actionType) {
+                                  ModelStackWithAutoParam const* modelStack, int32_t actionType) {
 
 	int32_t oldValue = currentValue;
 	bool automatedBefore = isAutomated();
 	bool automationChanged = false;
 
-	int firstI, mostRecentI;
+	int32_t firstI, mostRecentI;
 
 	int32_t effectiveLength = modelStack->getLoopLength();
 
@@ -992,9 +992,9 @@ yesChangeCurrentValue:
 #define REGION_EDGE_RIGHT 1
 
 // Returns index of leftmost node of region, or -1 if error
-int AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, int32_t startPos, int length, int startValue,
-                                bool interpolateLeftNode, bool interpolateRightNode, int32_t effectiveLength,
-                                bool reversed, int32_t posAtWhichClipWillCut) {
+int32_t AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, int32_t startPos, int32_t length,
+                                    int32_t startValue, bool interpolateLeftNode, bool interpolateRightNode,
+                                    int32_t effectiveLength, bool reversed, int32_t posAtWhichClipWillCut) {
 
 #if ALPHA_OR_BETA_VERSION
 	// Chasing "E433" / "GGGG" error (probably now largely solved - except got E435, see below).
@@ -1092,7 +1092,7 @@ int AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, int32
 		edgePositions[1] = temp;
 	}
 
-	int edgeIndexes[2];
+	int32_t edgeIndexes[2];
 	nodes.searchDual(edgePositions, edgeIndexes);
 
 	if (anyWrap) { // Swap edge positions and indexes back
@@ -1110,7 +1110,7 @@ int AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, int32
 	edgeNodes[REGION_EDGE_LEFT] = NULL;
 	edgeNodes[REGION_EDGE_RIGHT] = NULL;
 
-	for (int i = 0; i < 2; i++) {
+	for (int32_t i = 0; i < 2; i++) {
 		if (edgeIndexes[i] < nodes.getNumElements()) {
 			ParamNode* potentialEdgeNode = nodes.getElement(edgeIndexes[i]);
 			if (potentialEdgeNode->pos == edgePositions[i]) {
@@ -1144,11 +1144,11 @@ getValueNormalWay:
 
 		// Otherwise, insert one
 		else {
-			int error = nodes.insertAtIndex(edgeIndexes[REGION_EDGE_RIGHT]);
+			int32_t error = nodes.insertAtIndex(edgeIndexes[REGION_EDGE_RIGHT]);
 			if (error) {
 				return -1;
 			}
-			edgeIndexes[REGION_EDGE_LEFT] += (int)anyWrap;
+			edgeIndexes[REGION_EDGE_LEFT] += (int32_t)anyWrap;
 			// Theoretically we'd re-get the other edgeNode here - but in fact, if it already existed, we won't access it again anyway.
 		}
 
@@ -1169,11 +1169,11 @@ getValueNormalWay:
 
 		// Otherwise, insert one
 		else {
-			int error = nodes.insertAtIndex(edgeIndexes[REGION_EDGE_LEFT]);
+			int32_t error = nodes.insertAtIndex(edgeIndexes[REGION_EDGE_LEFT]);
 			if (error) {
 				return -1;
 			}
-			edgeIndexes[REGION_EDGE_RIGHT] += (int)(!anyWrap);
+			edgeIndexes[REGION_EDGE_RIGHT] += (int32_t)(!anyWrap);
 			// Theoretically we'd re-get the other edgeNode here - but in fact, if it already existed, we won't access it again anyway.
 		}
 
@@ -1184,9 +1184,9 @@ getValueNormalWay:
 	edgeNodes[REGION_EDGE_LEFT]->interpolated = interpolateLeftNode;
 
 	// Now delete extra nodes. This first bit will delete all of them if no wrap, or the before-wrap bit if there is a wrap.
-	int indexToDeleteFrom = edgeIndexes[REGION_EDGE_LEFT] + 1;
-	int indexToDeleteTo = anyWrap ? nodes.getNumElements() : edgeIndexes[REGION_EDGE_RIGHT];
-	int numToDelete = indexToDeleteTo - indexToDeleteFrom;
+	int32_t indexToDeleteFrom = edgeIndexes[REGION_EDGE_LEFT] + 1;
+	int32_t indexToDeleteTo = anyWrap ? nodes.getNumElements() : edgeIndexes[REGION_EDGE_RIGHT];
+	int32_t numToDelete = indexToDeleteTo - indexToDeleteFrom;
 	if (numToDelete) {
 		nodes.deleteAtIndex(indexToDeleteFrom, numToDelete);
 		// Theoretically we'd decrease edgeIndexes[REGION_EDGE_RIGHT] if no wrap, but it never gets used again in that case of no-wrap.
@@ -1212,13 +1212,13 @@ getValueNormalWay:
 	return edgeIndexes[REGION_EDGE_LEFT];
 }
 
-void AutoParam::homogenizeRegionTestSuccess(int pos, int regionEnd, int startValue, bool interpolateStart,
+void AutoParam::homogenizeRegionTestSuccess(int32_t pos, int32_t regionEnd, int32_t startValue, bool interpolateStart,
                                             bool interpolateEnd) {
 
 	nodes.testSequentiality("E317");
 
-	int startI = nodes.search(pos, GREATER_OR_EQUAL);
-	int endI = nodes.search(regionEnd, GREATER_OR_EQUAL);
+	int32_t startI = nodes.search(pos, GREATER_OR_EQUAL);
+	int32_t endI = nodes.search(regionEnd, GREATER_OR_EQUAL);
 
 	if (endI == startI + 1 || (endI == 0 && startI == nodes.getNumElements() - 1)) {
 		// Fine
@@ -1262,13 +1262,13 @@ int32_t AutoParam::getValueAtPos(uint32_t pos, ModelStackWithAutoParam const* mo
 		return currentValue;
 	}
 
-	int rightI = nodes.search(pos + (int)!reversed, GREATER_OR_EQUAL);
+	int32_t rightI = nodes.search(pos + (int32_t)!reversed, GREATER_OR_EQUAL);
 	if (rightI >= nodes.getNumElements()) {
 		rightI = 0;
 	}
 	ParamNode* rightNode = nodes.getElement(rightI);
 
-	int leftI = rightI - 1;
+	int32_t leftI = rightI - 1;
 	if (leftI < 0) {
 		leftI += nodes.getNumElements();
 	}
@@ -1326,7 +1326,7 @@ void AutoParam::setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelSta
 		currentValue = getValueAtPos(pos, modelStack, reversed);
 
 		// Get next node
-		int rightI = nodes.search(pos + (int)!reversed, GREATER_OR_EQUAL);
+		int32_t rightI = nodes.search(pos + (int32_t)!reversed, GREATER_OR_EQUAL);
 		if (rightI == nodes.getNumElements()) {
 			rightI = 0;
 		}
@@ -1336,7 +1336,7 @@ void AutoParam::setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelSta
 		if (nextNodeOurDirection->interpolated) {
 
 			if (reversed) {
-				int leftI = rightI - 1;
+				int32_t leftI = rightI - 1;
 				if (leftI < 0) {
 					leftI += nodes.getNumElements();
 				}
@@ -1351,13 +1351,13 @@ void AutoParam::setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelSta
 	}
 }
 
-int AutoParam::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
+int32_t AutoParam::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
 
-	int error = NO_ERROR;
+	int32_t error = NO_ERROR;
 
 	if (copyAutomation) {
 
-		int numNodes = nodes.getNumElements();
+		int32_t numNodes = nodes.getNumElements();
 
 		if (reverseDirectionWithLength && numNodes) {
 			ParamNodeVector oldNodes =
@@ -1373,8 +1373,8 @@ int AutoParam::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLengt
 				ParamNode* leftmostNode = (ParamNode*)oldNodes.getElementAddress(0);
 				bool anythingAtZero = !leftmostNode->pos;
 
-				for (int iOld = 0; iOld < numNodes; iOld++) {
-					int iNew = -iOld - !anythingAtZero;
+				for (int32_t iOld = 0; iOld < numNodes; iOld++) {
+					int32_t iNew = -iOld - !anythingAtZero;
 					if (iNew < 0) {
 						iNew += numNodes;
 					}
@@ -1382,7 +1382,7 @@ int AutoParam::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLengt
 					ParamNode* oldNode = (ParamNode*)oldNodes.getElementAddress(iOld);
 					ParamNode* newNode = (ParamNode*)nodes.getElementAddress(iNew);
 
-					int iOldToRight = iOld + 1;
+					int32_t iOldToRight = iOld + 1;
 					if (iOldToRight == numNodes) {
 						iOldToRight = 0;
 					}
@@ -1452,14 +1452,14 @@ void AutoParam::generateRepeats(uint32_t oldLength, uint32_t newLength, bool sho
 			if (nodeAfterWrapIsInterpolated) {
 				int64_t valueDistance = (int64_t)nodeAfterWrap->value - (int64_t)nodeBeforeWrap->value;
 				int32_t ticksSinceLeftNode = oldLength - nodeBeforeWrap->pos;
-				int ticksBetweenNodes = ticksSinceLeftNode + nodeAfterWrap->pos;
+				int32_t ticksBetweenNodes = ticksSinceLeftNode + nodeAfterWrap->pos;
 				valueAtZero = nodeBeforeWrap->value + (valueDistance * ticksSinceLeftNode / ticksBetweenNodes);
 			}
 			else {
 				valueAtZero = nodeBeforeWrap->value;
 			}
 
-			int error = nodes.insertAtIndex(0);
+			int32_t error = nodes.insertAtIndex(0);
 			if (error) {
 				return;
 			}
@@ -1472,25 +1472,25 @@ void AutoParam::generateRepeats(uint32_t oldLength, uint32_t newLength, bool sho
 			nothingAtZero = false;
 		}
 
-		int numRepeats =
+		int32_t numRepeats =
 		    (uint32_t)(newLength - 1) / oldLength + 1; // Rounded up. Including first "repeat", which already exists.
 
-		int numNodesBefore = nodes.getNumElements();
+		int32_t numNodesBefore = nodes.getNumElements();
 
-		int numToInsert = (numRepeats - 1) * numNodesBefore;
+		int32_t numToInsert = (numRepeats - 1) * numNodesBefore;
 		if (numToInsert) { // Should always be true?
-			int error = nodes.insertAtIndex(numNodesBefore, numToInsert);
+			int32_t error = nodes.insertAtIndex(numNodesBefore, numToInsert);
 			if (error) {
 				return;
 			}
 		}
 
-		int highestNodeIndex = numNodesBefore - 1;
+		int32_t highestNodeIndex = numNodesBefore - 1;
 
-		for (int r = 1; r < numRepeats; r++) {
+		for (int32_t r = 1; r < numRepeats; r++) {
 
-			for (int iNewWithinRepeat = 0; iNewWithinRepeat < numNodesBefore; iNewWithinRepeat++) {
-				int iOld = iNewWithinRepeat;
+			for (int32_t iNewWithinRepeat = 0; iNewWithinRepeat < numNodesBefore; iNewWithinRepeat++) {
+				int32_t iOld = iNewWithinRepeat;
 
 				if (r & 1) {
 					iOld = -iOld - nothingAtZero;
@@ -1521,7 +1521,7 @@ void AutoParam::generateRepeats(uint32_t oldLength, uint32_t newLength, bool sho
 				if (r & 1) {
 
 					if (!oldNode->interpolated) {
-						int iOldToLeft = iOld - 1;
+						int32_t iOldToLeft = iOld - 1;
 						if (iOldToLeft < 0) {
 							iOldToLeft += numNodesBefore;
 						}
@@ -1529,7 +1529,7 @@ void AutoParam::generateRepeats(uint32_t oldLength, uint32_t newLength, bool sho
 						newValue = oldNodeToLeft->value;
 					}
 
-					int iOldToRight = iOld + 1;
+					int32_t iOldToRight = iOld + 1;
 					if (iOldToRight >= numNodesBefore) {
 						iOldToRight = 0;
 					}
@@ -1537,7 +1537,7 @@ void AutoParam::generateRepeats(uint32_t oldLength, uint32_t newLength, bool sho
 					newInterpolated = oldNodeToRight->interpolated;
 				}
 
-				int iNew = iNewWithinRepeat + numNodesBefore * r;
+				int32_t iNew = iNewWithinRepeat + numNodesBefore * r;
 				ParamNode* newNode = (ParamNode*)nodes.getElementAddress(iNew);
 
 				newNode->pos = newPos;
@@ -1548,8 +1548,8 @@ void AutoParam::generateRepeats(uint32_t oldLength, uint32_t newLength, bool sho
 			}
 		}
 
-		int newNumNodes = highestNodeIndex + 1;
-		int numToDelete = nodes.getNumElements() - newNumNodes;
+		int32_t newNumNodes = highestNodeIndex + 1;
+		int32_t numToDelete = nodes.getNumElements() - newNumNodes;
 		if (numToDelete) {
 			nodes.deleteAtIndex(newNumNodes, numToDelete);
 		}
@@ -1564,7 +1564,7 @@ void AutoParam::generateRepeats(uint32_t oldLength, uint32_t newLength, bool sho
 void AutoParam::appendParam(AutoParam* otherParam, int32_t oldLength, int32_t reverseThisRepeatWithLength,
                             bool pingpongingGenerally) {
 
-	int numToInsert = otherParam->nodes.getNumElements();
+	int32_t numToInsert = otherParam->nodes.getNumElements();
 	if (!numToInsert) {
 		return;
 	}
@@ -1584,12 +1584,12 @@ void AutoParam::appendParam(AutoParam* otherParam, int32_t oldLength, int32_t re
 		ParamNode* nodeBeforeWrap = (ParamNode*)otherParam->nodes.getElementAddress(numToInsert - 1);
 		int64_t valueDistance = (int64_t)nodeAfterWrap->value - (int64_t)nodeBeforeWrap->value;
 		int32_t ticksSinceLeftNode = oldLength - nodeBeforeWrap->pos;
-		int ticksBetweenNodes = ticksSinceLeftNode + nodeAfterWrap->pos;
+		int32_t ticksBetweenNodes = ticksSinceLeftNode + nodeAfterWrap->pos;
 		int32_t valueAtZero = nodeBeforeWrap->value + (valueDistance * ticksSinceLeftNode / ticksBetweenNodes);
 
-		int newZeroNodeI = nodes.getNumElements();
+		int32_t newZeroNodeI = nodes.getNumElements();
 
-		int error = nodes.insertAtIndex(newZeroNodeI);
+		int32_t error = nodes.insertAtIndex(newZeroNodeI);
 		if (error) {
 			return;
 		}
@@ -1602,16 +1602,16 @@ void AutoParam::appendParam(AutoParam* otherParam, int32_t oldLength, int32_t re
 		//nothingAtZero = false; // Unlike in generateRepeats(), above, the node we've added is not a part of the same array that represents our source material.
 	}
 
-	int oldNumNodes = nodes.getNumElements();
-	int error = nodes.insertAtIndex(oldNumNodes, numToInsert);
+	int32_t oldNumNodes = nodes.getNumElements();
+	int32_t error = nodes.insertAtIndex(oldNumNodes, numToInsert);
 	if (error) {
 		return;
 	}
 
 	if (reverseThisRepeatWithLength) {
 
-		for (int iNewWithinRepeat = 0; iNewWithinRepeat < numToInsert; iNewWithinRepeat++) {
-			int iOld = -iNewWithinRepeat - nothingAtZero;
+		for (int32_t iNewWithinRepeat = 0; iNewWithinRepeat < numToInsert; iNewWithinRepeat++) {
+			int32_t iOld = -iNewWithinRepeat - nothingAtZero;
 			if (iOld < 0) {
 				iOld += numToInsert;
 			}
@@ -1630,7 +1630,7 @@ void AutoParam::appendParam(AutoParam* otherParam, int32_t oldLength, int32_t re
 			bool newInterpolated = oldNode->interpolated;
 
 			if (!oldNode->interpolated) {
-				int iOldToLeft = iOld - 1;
+				int32_t iOldToLeft = iOld - 1;
 				if (iOldToLeft < 0) {
 					iOldToLeft += numToInsert;
 				}
@@ -1638,14 +1638,14 @@ void AutoParam::appendParam(AutoParam* otherParam, int32_t oldLength, int32_t re
 				newValue = oldNodeToLeft->value;
 			}
 
-			int iOldToRight = iOld + 1;
+			int32_t iOldToRight = iOld + 1;
 			if (iOldToRight >= numToInsert) {
 				iOldToRight = 0;
 			}
 			ParamNode* oldNodeToRight = (ParamNode*)otherParam->nodes.getElementAddress(iOldToRight);
 			newInterpolated = oldNodeToRight->interpolated;
 
-			int iNew = iNewWithinRepeat + oldNumNodes;
+			int32_t iNew = iNewWithinRepeat + oldNumNodes;
 			ParamNode* newNode = (ParamNode*)nodes.getElementAddress(iNew);
 
 			newNode->pos = newPos;
@@ -1656,7 +1656,7 @@ void AutoParam::appendParam(AutoParam* otherParam, int32_t oldLength, int32_t re
 
 	else {
 
-		for (int i = 0; i < numToInsert; i++) {
+		for (int32_t i = 0; i < numToInsert; i++) {
 			ParamNode* oldNode = otherParam->nodes.getElement(i);
 			ParamNode* newNode = nodes.getElement(oldNumNodes + i);
 			newNode->pos = oldNode->pos + oldLength;
@@ -1667,8 +1667,8 @@ void AutoParam::appendParam(AutoParam* otherParam, int32_t oldLength, int32_t re
 }
 
 void AutoParam::deleteNodesBeyondPos(int32_t pos) {
-	int i = nodes.search(pos, GREATER_OR_EQUAL);
-	int numToDelete = nodes.getNumElements() - i;
+	int32_t i = nodes.search(pos, GREATER_OR_EQUAL);
+	int32_t numToDelete = nodes.getNumElements() - i;
 	if (numToDelete) {
 		nodes.deleteAtIndex(i, numToDelete);
 	}
@@ -1698,7 +1698,7 @@ void AutoParam::trimToLength(uint32_t newLength, Action* action, ModelStackWithA
 		oldValueAt0 = getValueAtPos(0, modelStack);
 	}
 
-	int newNumNodes = nodes.search(newLength, GREATER_OR_EQUAL);
+	int32_t newNumNodes = nodes.search(newLength, GREATER_OR_EQUAL);
 
 	if (ALPHA_OR_BETA_VERSION && newNumNodes >= nodes.getNumElements()) {
 		numericDriver.freezeWithError("E315");
@@ -1710,13 +1710,13 @@ void AutoParam::trimToLength(uint32_t newLength, Action* action, ModelStackWithA
 		// If no action, just basic trim
 		if (!action) {
 basicTrim : {
-	int numToDelete = nodes.getNumElements() - newNumNodes; // Will always be >= 1
+	int32_t numToDelete = nodes.getNumElements() - newNumNodes; // Will always be >= 1
 	nodes.deleteAtIndex(newNumNodes, numToDelete);
 }
 
 addNewNodeAt0IfNecessary:
 			if (needNewNodeAt0) {
-				int error = nodes.insertAtIndex(0);
+				int32_t error = nodes.insertAtIndex(0);
 				if (!error) { // Should be fine cos we just deleted some, so some free RAM
 					ParamNode* newNode = nodes.getElement(0);
 					newNode->pos = 0;
@@ -1737,12 +1737,12 @@ addNewNodeAt0IfNecessary:
 			}
 			else {
 				ParamNodeVector newNodes;
-				int error = newNodes.insertAtIndex(0, newNumNodes);
+				int32_t error = newNodes.insertAtIndex(0, newNumNodes);
 				if (error) {
 					goto basicTrim;
 				}
 
-				for (int i = 0; i < newNumNodes; i++) {
+				for (int32_t i = 0; i < newNumNodes; i++) {
 					ParamNode* __restrict__ sourceNode = nodes.getElement(i);
 					ParamNode* __restrict__ destNode = newNodes.getElement(i);
 
@@ -1782,7 +1782,7 @@ void AutoParam::writeToFile(bool writeAutomation, int32_t* valueForOverride) {
 
 	if (writeAutomation) {
 
-		for (int i = 0; i < nodes.getNumElements(); i++) {
+		for (int32_t i = 0; i < nodes.getNumElements(); i++) {
 			ParamNode* thisNode = nodes.getElement(i);
 			intToHex(thisNode->value, buffer);
 			storageManager.write(buffer);
@@ -1800,7 +1800,7 @@ void AutoParam::writeToFile(bool writeAutomation, int32_t* valueForOverride) {
 // Returns error code.
 // If you're gonna call this, you probably need to tell the ParamSet that this Param has automation now, if it does.
 // Or, to make things easier, you should just call the ParamSet instead, if possible.
-int AutoParam::readFromFile(int32_t readAutomationUpToPos) {
+int32_t AutoParam::readFromFile(int32_t readAutomationUpToPos) {
 
 	// Must first delete any automation because sometimes, due to that annoying support I have to do for late-2016 files, we'll be overwriting a cloned ParamManager, which might have had automation.
 	deleteAutomationBasicForSetup();
@@ -1821,7 +1821,7 @@ int AutoParam::readFromFile(int32_t readAutomationUpToPos) {
 		buffer[0] = firstChars[0];
 		buffer[1] = firstChars[1];
 
-		for (int i = 2; i < 12 && (buffer[i] = storageManager.readNextCharOfTagOrAttributeValue()); i++) {}
+		for (int32_t i = 2; i < 12 && (buffer[i] = storageManager.readNextCharOfTagOrAttributeValue()); i++) {}
 		buffer[11] = 0;
 		currentValue = stringToInt(buffer);
 		return NO_ERROR;
@@ -1837,7 +1837,7 @@ int AutoParam::readFromFile(int32_t readAutomationUpToPos) {
 	currentValue = hexToIntFixedLength(hexChars, 8);
 
 	// And now read in the automation
-	int numElementsToAllocateFor = 0;
+	int32_t numElementsToAllocateFor = 0;
 
 	if (readAutomationUpToPos) {
 
@@ -1884,7 +1884,7 @@ int AutoParam::readFromFile(int32_t readAutomationUpToPos) {
 				if (pos == readAutomationUpToPos) {
 					ParamNode* firstNode = nodes.getElement(0);
 					if (!firstNode || firstNode->pos) {
-						int error = nodes.insertAtIndex(0);
+						int32_t error = nodes.insertAtIndex(0);
 						if (error) {
 							return error;
 						}
@@ -1899,7 +1899,7 @@ int AutoParam::readFromFile(int32_t readAutomationUpToPos) {
 
 			prevPos = pos;
 
-			int nodeI = nodes.insertAtKey(pos, true);
+			int32_t nodeI = nodes.insertAtKey(pos, true);
 			if (nodeI == -1) {
 				return ERROR_INSUFFICIENT_RAM;
 			}
@@ -1938,7 +1938,7 @@ void AutoParam::shiftValues(int32_t offset) {
 		currentValue = newValue;
 	}
 
-	for (int i = 0; i < nodes.getNumElements(); i++) {
+	for (int32_t i = 0; i < nodes.getNumElements(); i++) {
 		ParamNode* thisNode = nodes.getElement(i);
 		int64_t newValue = (int64_t)thisNode->value + offset;
 		if (newValue >= (int64_t)2147483648u) {
@@ -1956,13 +1956,13 @@ void AutoParam::shiftValues(int32_t offset) {
 void AutoParam::shiftParamVolumeByDB(float offset) {
 	currentValue = shiftVolumeByDB(currentValue, offset);
 
-	for (int i = 0; i < nodes.getNumElements(); i++) {
+	for (int32_t i = 0; i < nodes.getNumElements(); i++) {
 		ParamNode* thisNode = nodes.getElement(i);
 		thisNode->value = shiftVolumeByDB(thisNode->value, offset);
 	}
 }
 
-void AutoParam::shiftHorizontally(int amount, int32_t effectiveLength) {
+void AutoParam::shiftHorizontally(int32_t amount, int32_t effectiveLength) {
 	nodes.shiftHorizontal(amount, effectiveLength);
 }
 
@@ -2008,7 +2008,7 @@ void AutoParam::paste(int32_t startPos, int32_t endPos, float scaleFactor, Model
 	}
 
 	{
-		int restartNodeI = nodes.search(restartPos, GREATER_OR_EQUAL);
+		int32_t restartNodeI = nodes.search(restartPos, GREATER_OR_EQUAL);
 		if (restartNodeI < nodes.getNumElements()) {
 			ParamNode* restartNode = (ParamNode*)nodes.getElementAddress(restartNodeI);
 			if (restartNode->pos != restartPos) {
@@ -2019,9 +2019,9 @@ void AutoParam::paste(int32_t startPos, int32_t endPos, float scaleFactor, Model
 	}
 
 finishedConsideringRestartNode:
-	int iDeleteBegin = nodes.search(startPos, GREATER_OR_EQUAL);
-	int iDeleteEnd = nodes.search(endPos, GREATER_OR_EQUAL);
-	int numToDelete = iDeleteEnd - iDeleteBegin;
+	int32_t iDeleteBegin = nodes.search(startPos, GREATER_OR_EQUAL);
+	int32_t iDeleteEnd = nodes.search(endPos, GREATER_OR_EQUAL);
+	int32_t numToDelete = iDeleteEnd - iDeleteBegin;
 	if (numToDelete > 0) {
 		nodes.deleteAtIndex(iDeleteBegin, numToDelete);
 	}
@@ -2029,9 +2029,9 @@ finishedConsideringRestartNode:
 	// Ok now paste the stuff
 	int32_t minPos = 0;
 
-	int32_t maxPos = getMin(endPos, effectiveLength);
+	int32_t maxPos = std::min(endPos, effectiveLength);
 
-	for (int n = 0; n < copiedParamAutomation->numNodes; n++) {
+	for (int32_t n = 0; n < copiedParamAutomation->numNodes; n++) {
 
 		ParamNode* nodeSource = &copiedParamAutomation->nodes[n];
 
@@ -2042,7 +2042,7 @@ finishedConsideringRestartNode:
 			continue;
 		}
 
-		int nodeDestI = nodes.insertAtKey(newPos);
+		int32_t nodeDestI = nodes.insertAtKey(newPos);
 		ParamNode* nodeDest = nodes.getElement(nodeDestI);
 		if (!nodeDest) {
 			return;
@@ -2059,7 +2059,7 @@ finishedConsideringRestartNode:
 	}
 
 	if (insertingRestartNode) {
-		int newRestartNodeI = nodes.insertAtKey(restartPos);
+		int32_t newRestartNodeI = nodes.insertAtKey(restartPos);
 		ParamNode* newRestartNode = nodes.getElement(newRestartNodeI);
 		if (!newRestartNode) {
 			return;
@@ -2081,8 +2081,8 @@ void AutoParam::copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* co
                      ModelStackWithAutoParam const* modelStack) {
 
 	// And if any of them are in the right zone...
-	int startI = nodes.search(startPos, GREATER_OR_EQUAL);
-	int endI = nodes.search(endPos, GREATER_OR_EQUAL);
+	int32_t startI = nodes.search(startPos, GREATER_OR_EQUAL);
+	int32_t endI = nodes.search(endPos, GREATER_OR_EQUAL);
 
 	copiedParamAutomation->width = endPos - startPos;
 
@@ -2101,8 +2101,8 @@ void AutoParam::copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* co
 	if (copiedParamAutomation->numNodes > 0) {
 
 		// Allocate some memory for the nodes
-		copiedParamAutomation->nodes =
-		    (ParamNode*)generalMemoryAllocator.alloc(sizeof(ParamNode) * copiedParamAutomation->numNodes, NULL, true);
+		copiedParamAutomation->nodes = (ParamNode*)GeneralMemoryAllocator::get().alloc(
+		    sizeof(ParamNode) * copiedParamAutomation->numNodes, NULL, true);
 
 		if (!copiedParamAutomation->nodes) {
 			copiedParamAutomation->numNodes = 0;
@@ -2110,7 +2110,7 @@ void AutoParam::copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* co
 			return;
 		}
 
-		int n = 0;
+		int32_t n = 0;
 
 		if (insertingExtraNodeAtStart) {
 			ParamNode* newNode = &copiedParamAutomation->nodes[n];
@@ -2126,7 +2126,7 @@ void AutoParam::copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* co
 		}
 
 		// Fill in all the Nodes' details
-		int readingNodeI = startI;
+		int32_t readingNodeI = startI;
 
 		for (; n < copiedParamAutomation->numNodes; n++) {
 			ParamNode* nodeToCopy = nodes.getElement(readingNodeI);
@@ -2149,19 +2149,19 @@ void AutoParam::copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* co
 // Returns error code.
 // quantizationRShift would be 25 for 7-bit CC values (cos 32 - 25 == 7).
 // Or it'd ideally be 18 for 14-bit pitch bend data, but that'd be a bit overkill.
-int AutoParam::makeInterpolationGoodAgain(int32_t clipLength, int quantizationRShift) {
+int32_t AutoParam::makeInterpolationGoodAgain(int32_t clipLength, int32_t quantizationRShift) {
 
 	if (nodes.getNumElements() <= 1) {
 		return NO_ERROR;
 	}
 
-	int stopAtElement = nodes.getNumElements();
+	int32_t stopAtElement = nodes.getNumElements();
 
-	for (int i = 0; i < stopAtElement; i++) {
+	for (int32_t i = 0; i < stopAtElement; i++) {
 		ParamNode* thisNode = nodes.getElement(i);
 
 		if (thisNode->interpolated) {
-			int prevI = i - 1;
+			int32_t prevI = i - 1;
 			if (prevI == -1) {
 				prevI = nodes.getNumElements() - 1;
 			}
@@ -2169,13 +2169,13 @@ int AutoParam::makeInterpolationGoodAgain(int32_t clipLength, int quantizationRS
 
 			// This function deals with "small" values, which for CCs will be between -64 and 64. Yup, they're bidirectional.
 
-			int thisSmallValue = rshift_round_signed(thisNode->value >> 1, quantizationRShift - 1);
-			int lastSmallValue = rshift_round_signed(prevNode->value >> 1, quantizationRShift - 1);
+			int32_t thisSmallValue = rshift_round_signed(thisNode->value >> 1, quantizationRShift - 1);
+			int32_t lastSmallValue = rshift_round_signed(prevNode->value >> 1, quantizationRShift - 1);
 
-			int smallValueChange = thisSmallValue - lastSmallValue;
+			int32_t smallValueChange = thisSmallValue - lastSmallValue;
 
-			int absoluteSmallValueChange = smallValueChange;
-			int gradientDirection = 1;
+			int32_t absoluteSmallValueChange = smallValueChange;
+			int32_t gradientDirection = 1;
 			if (absoluteSmallValueChange < 0) {
 				absoluteSmallValueChange = -absoluteSmallValueChange;
 				gradientDirection = -1;
@@ -2195,11 +2195,11 @@ int AutoParam::makeInterpolationGoodAgain(int32_t clipLength, int quantizationRS
 			}
 
 			bool isSteep = (distance < absoluteSmallValueChange);
-			int maxJ = isSteep ? distance : absoluteSmallValueChange;
-			for (int j = 1; j < maxJ; j++) {
+			int32_t maxJ = isSteep ? distance : absoluteSmallValueChange;
+			for (int32_t j = 1; j < maxJ; j++) {
 
-				int thisPos;
-				int newSmallValue;
+				int32_t thisPos;
+				int32_t newSmallValue;
 
 				if (isSteep) {
 					thisPos = prevNodePos + j;
@@ -2214,7 +2214,7 @@ int AutoParam::makeInterpolationGoodAgain(int32_t clipLength, int quantizationRS
 					thisPos -= clipLength;
 				}
 
-				int newNodeI = nodes.insertAtKey(thisPos);
+				int32_t newNodeI = nodes.insertAtKey(thisPos);
 				if (newNodeI == -1) {
 					return ERROR_INSUFFICIENT_RAM;
 				}
@@ -2244,7 +2244,7 @@ int AutoParam::makeInterpolationGoodAgain(int32_t clipLength, int quantizationRS
 }
 
 void AutoParam::transposeCCValuesToChannelPressureValues() {
-	for (int i = 0; i < nodes.getNumElements(); i++) {
+	for (int32_t i = 0; i < nodes.getNumElements(); i++) {
 		ParamNode* thisNode = nodes.getElement(i);
 		thisNode->value = (thisNode->value >> 1) + (1 << 30);
 	}
@@ -2258,10 +2258,10 @@ void AutoParam::deleteTime(int32_t startPos, int32_t lengthToDelete, ModelStackW
 
 	int32_t endPos = startPos + lengthToDelete;
 
-	int start = nodes.search(startPos, GREATER_OR_EQUAL);
-	int end = nodes.search(endPos, GREATER_OR_EQUAL);
+	int32_t start = nodes.search(startPos, GREATER_OR_EQUAL);
+	int32_t end = nodes.search(endPos, GREATER_OR_EQUAL);
 
-	int numToDelete = end - start;
+	int32_t numToDelete = end - start;
 	if (numToDelete > 0) {
 
 		// We might want to put a new node right at the cut-point if not already one there
@@ -2297,7 +2297,7 @@ void AutoParam::deleteTime(int32_t startPos, int32_t lengthToDelete, ModelStackW
 		nodes.deleteAtIndex(start, numToDelete, !shouldAddNodeAtPos0);
 
 		if (shouldAddNodeAtPos0) {
-			int error =
+			int32_t error =
 			    nodes.insertAtIndex(0); // Shouldn't ever fail as we told it not to shorten its memory previously
 			if (!error) {
 				ParamNode* newNode = nodes.getElement(0);
@@ -2310,7 +2310,7 @@ void AutoParam::deleteTime(int32_t startPos, int32_t lengthToDelete, ModelStackW
 	}
 
 allDeleted:
-	for (int i = start; i < nodes.getNumElements(); i++) {
+	for (int32_t i = start; i < nodes.getNumElements(); i++) {
 		ParamNode* node = nodes.getElement(i);
 		node->pos -= lengthToDelete;
 	}
@@ -2322,9 +2322,9 @@ allDeleted:
 }
 
 void AutoParam::insertTime(int32_t pos, int32_t lengthToInsert) {
-	int start = nodes.search(pos, GREATER_OR_EQUAL);
+	int32_t start = nodes.search(pos, GREATER_OR_EQUAL);
 
-	for (int i = start; i < nodes.getNumElements(); i++) {
+	for (int32_t i = start; i < nodes.getNumElements(); i++) {
 		ParamNode* node = nodes.getElement(i);
 		node->pos += lengthToInsert;
 	}
@@ -2332,7 +2332,7 @@ void AutoParam::insertTime(int32_t pos, int32_t lengthToInsert) {
 
 // Offset must be either 1 or -1.
 void AutoParam::moveRegionHorizontally(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t length,
-                                       int offset, int32_t lengthBeforeLoop, Action* action) {
+                                       int32_t offset, int32_t lengthBeforeLoop, Action* action) {
 
 	if (!nodes.getNumElements()) {
 		return;
@@ -2352,7 +2352,7 @@ justShiftEverything:
 	if (endPos > lengthBeforeLoop) { // Wrap
 
 		endPos -= lengthBeforeLoop;
-		int resultingIndexes[2];
+		int32_t resultingIndexes[2];
 		{
 			int32_t searchTerms[2];
 			searchTerms[0] = endPos;
@@ -2370,7 +2370,7 @@ justShiftEverything:
 			// If anything after wrap...
 			if (resultingIndexes[0]) {
 				// If rightmost node collides with endPos, delete it
-				int rightMostIndex = resultingIndexes[0] - 1;
+				int32_t rightMostIndex = resultingIndexes[0] - 1;
 				ParamNode* rightMost = nodes.getElement(rightMostIndex);
 				if (rightMost->pos >= endPos - 1) {
 					nodes.deleteAtIndex(rightMostIndex);
@@ -2381,7 +2381,7 @@ justShiftEverything:
 
 			// And if anything before wrap...
 			if (resultingIndexes[1] < nodes.getNumElements()) {
-				int indexBeforeWrap = nodes.getNumElements() - 1;
+				int32_t indexBeforeWrap = nodes.getNumElements() - 1;
 				ParamNode* nodeBeforeWrap = nodes.getElement(indexBeforeWrap);
 
 				// If that needs to move right and wrap around...
@@ -2397,10 +2397,10 @@ justShiftEverything:
 				}
 			}
 
-			for (int i = 0; i < resultingIndexes[0]; i++) { // After wrap
+			for (int32_t i = 0; i < resultingIndexes[0]; i++) { // After wrap
 				nodes.getElement(i)->pos++;
 			}
-			for (int i = resultingIndexes[1]; i < nodes.getNumElements(); i++) { // Before wrap
+			for (int32_t i = resultingIndexes[1]; i < nodes.getNumElements(); i++) { // Before wrap
 				nodes.getElement(i)->pos++;
 			}
 		}
@@ -2413,7 +2413,7 @@ justShiftEverything:
 				// If we need to wrap it around to the end...
 				if (nodeAfterWrap->pos == 0) {
 					ParamNode tempNode = *nodeAfterWrap;
-					int rightMostIndex = nodes.getNumElements() - 1;
+					int32_t rightMostIndex = nodes.getNumElements() - 1;
 					nodes.deleteAtIndex(0, 1, false);
 					nodes.insertAtIndex(rightMostIndex); // Surely can't fail
 					ParamNode* rightMostNode = nodes.getElement(rightMostIndex);
@@ -2426,7 +2426,7 @@ justShiftEverything:
 
 			// And now if our left edge is going to eat into anything...
 			if (resultingIndexes[1] && resultingIndexes[1] < nodes.getNumElements()) {
-				int prevNodeIndex = resultingIndexes[1] - 1;
+				int32_t prevNodeIndex = resultingIndexes[1] - 1;
 				ParamNode* prevNode = nodes.getElement(prevNodeIndex);
 				if (prevNode->pos >= pos - 1) {
 					nodes.deleteAtIndex(prevNodeIndex);
@@ -2435,16 +2435,16 @@ justShiftEverything:
 			}
 		}
 
-		for (int i = 0; i < resultingIndexes[0]; i++) { // After wrap
+		for (int32_t i = 0; i < resultingIndexes[0]; i++) { // After wrap
 			nodes.getElement(i)->pos--;
 		}
-		for (int i = resultingIndexes[1]; i < nodes.getNumElements(); i++) { // Before wrap
+		for (int32_t i = resultingIndexes[1]; i < nodes.getNumElements(); i++) { // Before wrap
 			nodes.getElement(i)->pos--;
 		}
 	}
 
 	else { // No wrap
-		int resultingIndexes[2];
+		int32_t resultingIndexes[2];
 		{
 			int32_t searchTerms[2];
 			searchTerms[0] = pos;
@@ -2462,14 +2462,14 @@ justShiftEverything:
 			if (offset == 1) {
 
 				// If rightmost node collides with endPos, delete it
-				int rightMostIndex = resultingIndexes[1] - 1;
+				int32_t rightMostIndex = resultingIndexes[1] - 1;
 				ParamNode* rightMost = nodes.getElement(rightMostIndex);
 				if (rightMost->pos >= endPos - 1) {
 					nodes.deleteAtIndex(rightMostIndex);
 					resultingIndexes[1]--;
 				}
 
-				for (int i = resultingIndexes[0]; i < resultingIndexes[1]; i++) {
+				for (int32_t i = resultingIndexes[0]; i < resultingIndexes[1]; i++) {
 					nodes.getElement(i)->pos++;
 				}
 			}
@@ -2480,7 +2480,7 @@ justShiftEverything:
 				// If there's anything to the left that we'll eat into...
 				if (resultingIndexes[0] > 0) {
 
-					int prevNodeIndex = resultingIndexes[0] - 1;
+					int32_t prevNodeIndex = resultingIndexes[0] - 1;
 					ParamNode* prevNode = nodes.getElement(prevNodeIndex);
 					if (prevNode->pos >= pos - 1) {
 						nodes.deleteAtIndex(prevNodeIndex);
@@ -2496,7 +2496,7 @@ justShiftEverything:
 					else {
 						// Ok, we have to wrap it.
 						// Delete any node at the far right of the loop
-						int lastNodeIndex = nodes.getNumElements() - 1;
+						int32_t lastNodeIndex = nodes.getNumElements() - 1;
 						ParamNode* lastNode = nodes.getElement(lastNodeIndex);
 
 						// Well actually, if it's right there, we'll just reuse it and delete our old one
@@ -2519,7 +2519,7 @@ justShiftEverything:
 					}
 				}
 
-				for (int i = resultingIndexes[0]; i < resultingIndexes[1]; i++) {
+				for (int32_t i = resultingIndexes[0]; i < resultingIndexes[1]; i++) {
 					nodes.getElement(i)->pos--;
 				}
 			}
@@ -2527,9 +2527,9 @@ justShiftEverything:
 	}
 }
 
-void AutoParam::nudgeNonInterpolatingNodesAtPos(int32_t pos, int offset, int32_t lengthBeforeLoop, Action* action,
+void AutoParam::nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int32_t lengthBeforeLoop, Action* action,
                                                 ModelStackWithAutoParam const* modelStack) {
-	int nodeI = nodes.searchExact(pos);
+	int32_t nodeI = nodes.searchExact(pos);
 	if (nodeI != -1) {
 
 		if (action) {
@@ -2539,8 +2539,8 @@ void AutoParam::nudgeNonInterpolatingNodesAtPos(int32_t pos, int offset, int32_t
 		ParamNode* node = (ParamNode*)nodes.getElementAddress(nodeI);
 		if (!node->interpolated) {
 
-			int newNodePos = pos + offset;
-			int nextNodeI;
+			int32_t newNodePos = pos + offset;
+			int32_t nextNodeI;
 
 			// If that's caused wrapping left...
 			if (newNodePos < 0) {
@@ -2579,7 +2579,7 @@ doWrap:
 				else {
 					nextNodeI = nodes.getNumElements();
 					{
-						int error = nodes.insertAtIndex(
+						int32_t error = nodes.insertAtIndex(
 						    nextNodeI); // This shouldn't be able to fail, cos we just deleted a node
 						if (ALPHA_OR_BETA_VERSION && error) {
 							numericDriver.freezeWithError("E333");
@@ -2643,20 +2643,20 @@ void AutoParam::stealNodes(ModelStackWithAutoParam const* modelStack, int32_t po
 	int32_t searchTerms[2];
 	searchTerms[0] = pos;
 	searchTerms[1] = stopAt;
-	int resultingIndexes[2];
+	int32_t resultingIndexes[2];
 
 	nodes.searchDual(searchTerms, resultingIndexes);
 
-	int numNodesToStealBeforeWrap = resultingIndexes[1] - resultingIndexes[0];
+	int32_t numNodesToStealBeforeWrap = resultingIndexes[1] - resultingIndexes[0];
 
-	int numNodesToStealAfterWrap = 0;
+	int32_t numNodesToStealAfterWrap = 0;
 
 	if (durationAfterWrap > 0) {
 		numNodesToStealAfterWrap = nodes.search(durationAfterWrap, GREATER_OR_EQUAL);
 	}
 
 	if (stolenNodeRecord) {
-		int numNodesToStealTotal = numNodesToStealBeforeWrap + numNodesToStealAfterWrap;
+		int32_t numNodesToStealTotal = numNodesToStealBeforeWrap + numNodesToStealAfterWrap;
 
 		if (numNodesToStealTotal) {
 
@@ -2664,15 +2664,16 @@ void AutoParam::stealNodes(ModelStackWithAutoParam const* modelStack, int32_t po
 				action->recordParamChangeIfNotAlreadySnapshotted(modelStack);
 			}
 
-			void* memory = generalMemoryAllocator.alloc(numNodesToStealTotal * sizeof(ParamNode), NULL, false, true);
+			void* memory =
+			    GeneralMemoryAllocator::get().alloc(numNodesToStealTotal * sizeof(ParamNode), NULL, false, true);
 			if (memory) {
 				ParamNode* stolenNodes = (ParamNode*)memory;
 				stolenNodeRecord->nodes = stolenNodes;
 				stolenNodeRecord->num = numNodesToStealTotal;
 
-				int sourceI = resultingIndexes[0];
-				int stopAtI = resultingIndexes[1];
-				int destI = 0;
+				int32_t sourceI = resultingIndexes[0];
+				int32_t stopAtI = resultingIndexes[1];
+				int32_t destI = 0;
 
 goAgain:
 				while (sourceI < stopAtI) {
@@ -2722,7 +2723,7 @@ void AutoParam::insertStolenNodes(ModelStackWithAutoParam const* modelStack, int
 	stealNodes(modelStack, pos, regionLength, loopLength, action);
 
 	// This is really inefficient.
-	for (int sourceI = 0; sourceI < stolenNodeRecord->num; sourceI++) {
+	for (int32_t sourceI = 0; sourceI < stolenNodeRecord->num; sourceI++) {
 		ParamNode* stolenNode = &stolenNodeRecord->nodes[sourceI];
 		if (stolenNode->pos >= regionLength) {
 			break; // If our destination region is shorter than that of the stolen nodes
@@ -2732,7 +2733,7 @@ void AutoParam::insertStolenNodes(ModelStackWithAutoParam const* modelStack, int
 			destPos -= loopLength;
 		}
 
-		int destI = nodes.insertAtKey(destPos);
+		int32_t destI = nodes.insertAtKey(destPos);
 		if (destI == -1) {
 			break;
 		}
@@ -2759,7 +2760,7 @@ int32_t AutoParam::getDistanceToNextNode(ModelStackWithAutoParam const* modelSta
 		return effectiveLength;
 	}
 
-	int i = nodes.search(pos + !reversed, GREATER_OR_EQUAL) - reversed;
+	int32_t i = nodes.search(pos + !reversed, GREATER_OR_EQUAL) - reversed;
 	if (i == -1) {
 		i = nodes.getNumElements() - 1;
 	}
@@ -2781,7 +2782,7 @@ int32_t AutoParam::getDistanceToNextNode(ModelStackWithAutoParam const* modelSta
 }
 
 /*
-	for (int i = 0; i < nodes.getNumElements(); i++) {
+	for (int32_t i = 0; i < nodes.getNumElements(); i++) {
 		ParamNode* thisNode = nodes.getElement(i);
 
 	}

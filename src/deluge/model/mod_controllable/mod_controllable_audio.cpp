@@ -70,7 +70,7 @@ ModControllableAudio::~ModControllableAudio() {
 
 	// Free the mod fx memory
 	if (modFXBuffer) {
-		generalMemoryAllocator.dealloc(modFXBuffer);
+		GeneralMemoryAllocator::get().dealloc(modFXBuffer);
 	}
 }
 
@@ -115,9 +115,9 @@ bool ModControllableAudio::hasTrebleAdjusted(ParamManager* paramManager) {
 	return (unpatchedParams->getValue(Param::Unpatched::TREBLE) != 0);
 }
 
-void ModControllableAudio::processFX(StereoSample* buffer, int numSamples, ModFXType modFXType, int32_t modFXRate,
+void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, ModFXType modFXType, int32_t modFXRate,
                                      int32_t modFXDepth, DelayWorkingState* delayWorkingState, int32_t* postFXVolume,
-                                     ParamManager* paramManager, int analogDelaySaturationAmount) {
+                                     ParamManager* paramManager, int32_t analogDelaySaturationAmount) {
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
@@ -127,8 +127,8 @@ void ModControllableAudio::processFX(StereoSample* buffer, int numSamples, ModFX
 	if (modFXType != ModFXType::NONE) {
 
 		LFOType modFXLFOWaveType;
-		int modFXDelayOffset;
-		int thisModFXDelayDepth;
+		int32_t modFXDelayOffset;
+		int32_t thisModFXDelayDepth;
 		int32_t feedback;
 
 		if (modFXType == ModFXType::FLANGER || modFXType == ModFXType::PHASER) {
@@ -205,7 +205,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int numSamples, ModFX
 
 				int32_t strength2 = (delayTime & 65535) << 15;
 				int32_t strength1 = (65535 << 15) - strength2;
-				int sample1Pos = modFXBufferWriteIndex - ((delayTime) >> 16);
+				int32_t sample1Pos = modFXBufferWriteIndex - ((delayTime) >> 16);
 
 				int32_t scaledValue1L =
 				    multiply_32x32_rshift32_rounded(modFXBuffer[sample1Pos & kModFXBufferIndexMask].l, strength1);
@@ -297,7 +297,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int numSamples, ModFX
 			    || delayWorkingState->userDelayRate != delay.primaryBuffer.nativeRate) {
 
 				// If delay speed has settled for a split second...
-				if (delay.countCyclesWithoutChange >= (44100 >> 5)) {
+				if (delay.countCyclesWithoutChange >= (kSampleRate >> 5)) {
 					//Debug::println("settling");
 					initializeSecondaryDelayBuffer(delayWorkingState->userDelayRate, true);
 				}
@@ -326,7 +326,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int numSamples, ModFX
 
 		int32_t* delayWorkingBuffer = spareRenderingBuffer[0];
 
-		generalMemoryAllocator.checkStack("delay");
+		GeneralMemoryAllocator::get().checkStack("delay");
 
 		int32_t* workingBufferEnd = delayWorkingBuffer + numSamples * 2;
 
@@ -629,7 +629,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int numSamples, ModFX
 	}
 }
 
-void ModControllableAudio::processReverbSendAndVolume(StereoSample* buffer, int numSamples, int32_t* reverbBuffer,
+void ModControllableAudio::processReverbSendAndVolume(StereoSample* buffer, int32_t numSamples, int32_t* reverbBuffer,
                                                       int32_t postFXVolume, int32_t postReverbVolume,
                                                       int32_t reverbSendAmount, int32_t pan, bool doAmplitudeIncrement,
                                                       int32_t amplitudeIncrement) {
@@ -697,7 +697,7 @@ bool ModControllableAudio::isSRREnabled(ParamManager* paramManager) {
 	return (unpatchedParams->getValue(Param::Unpatched::SAMPLE_RATE_REDUCTION) != -2147483648);
 }
 
-void ModControllableAudio::processSRRAndBitcrushing(StereoSample* buffer, int numSamples, int32_t* postFXVolume,
+void ModControllableAudio::processSRRAndBitcrushing(StereoSample* buffer, int32_t numSamples, int32_t* postFXVolume,
                                                     ParamManager* paramManager) {
 	StereoSample const* const bufferEnd = buffer + numSamples;
 
@@ -777,8 +777,8 @@ void ModControllableAudio::processSRRAndBitcrushing(StereoSample* buffer, int nu
 
 			// Convert up
 			int32_t strength2 =
-			    getMin(highSampleRatePos,
-			           (uint32_t)4194303); // Would only overshoot if we raised the sample rate during playback
+			    std::min(highSampleRatePos,
+			             (uint32_t)4194303); // Would only overshoot if we raised the sample rate during playback
 			int32_t strength1 = 4194303 - strength2;
 			currentSample->l = (multiply_32x32_rshift32_rounded(lastGrabbedSample.l, strength1 << 9)
 			                    + multiply_32x32_rshift32_rounded(grabbedSample.l, strength2 << 9))
@@ -795,7 +795,7 @@ void ModControllableAudio::processSRRAndBitcrushing(StereoSample* buffer, int nu
 	}
 }
 
-void ModControllableAudio::processStutter(StereoSample* buffer, int numSamples, ParamManager* paramManager) {
+void ModControllableAudio::processStutter(StereoSample* buffer, int32_t numSamples, ParamManager* paramManager) {
 	if (stutterer.status == STUTTERER_STATUS_OFF) {
 		return;
 	}
@@ -917,11 +917,11 @@ int32_t ModControllableAudio::getStutterRate(ParamManager* paramManager) {
 		rate = multiply_32x32_rshift32(rate, playbackHandler.getTimePerInternalTickInverse());
 
 		// Limit to the biggest number we can store...
-		int lShiftAmount =
+		int32_t lShiftAmount =
 		    stutterer.sync + 6
 		    - (currentSong->insideWorldTickMagnitude + currentSong->insideWorldTickMagnitudeOffsetFromBPM);
 		int32_t limit = 2147483647 >> lShiftAmount;
-		rate = getMin(rate, limit);
+		rate = std::min(rate, limit);
 		rate <<= lShiftAmount;
 	}
 	return rate;
@@ -1008,7 +1008,7 @@ void ModControllableAudio::writeTagsToFile() {
 	// MIDI knobs
 	if (midiKnobArray.getNumElements()) {
 		storageManager.writeOpeningTag("midiKnobs");
-		for (int k = 0; k < midiKnobArray.getNumElements(); k++) {
+		for (int32_t k = 0; k < midiKnobArray.getNumElements(); k++) {
 			MIDIKnob* knob = midiKnobArray.getElement(k);
 			storageManager.writeOpeningTagBeginning("midiKnob");
 			knob->midiInput.writeAttributesToFile(
@@ -1132,13 +1132,13 @@ bool ModControllableAudio::readParamTagFromFile(char const* tagName, ParamManage
 }
 
 // paramManager is optional
-int ModControllableAudio::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager,
-                                          int32_t readAutomationUpToPos, Song* song) {
+int32_t ModControllableAudio::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager,
+                                              int32_t readAutomationUpToPos, Song* song) {
 
 	// All of this is here for compatibility only for people (Lou and Ian) who saved songs with firmware in September 2016
 	//if (paramManager && ModControllableAudio::readParamTagFromFile(tagName, paramManager, readAutomation)) {}
 
-	int p;
+	int32_t p;
 
 	//else
 	if (!strcmp(tagName, "lpfMode")) {
@@ -1164,7 +1164,7 @@ int ModControllableAudio::readTagFromFile(char const* tagName, ParamManagerForTi
 doReadPatchedParam:
 				if (paramManager) {
 					if (!paramManager->containsAnyMainParamCollections()) {
-						int error = Sound::createParamManagerForLoading(paramManager);
+						int32_t error = Sound::createParamManagerForLoading(paramManager);
 						if (error) {
 							return error;
 						}
@@ -1183,12 +1183,12 @@ doReadPatchedParam:
 
 			else if (!strcmp(tagName, "pingPong")) {
 				int32_t contents = storageManager.readTagOrAttributeValueInt();
-				delay.pingPong = getMax((int32_t)0, getMin((int32_t)1, contents));
+				delay.pingPong = std::max((int32_t)0, std::min((int32_t)1, contents));
 				storageManager.exitTag("pingPong");
 			}
 			else if (!strcmp(tagName, "analog")) {
 				int32_t contents = storageManager.readTagOrAttributeValueInt();
-				delay.analog = getMax((int32_t)0, getMin((int32_t)1, contents));
+				delay.analog = std::max((int32_t)0, std::min((int32_t)1, contents));
 				storageManager.exitTag("analog");
 			}
 			else if (!strcmp(tagName, "syncType")) {
@@ -1311,7 +1311,7 @@ ModelStackWithAutoParam* ModControllableAudio::getParamFromMIDIKnob(MIDIKnob* kn
 	ParamCollectionSummary* summary = modelStack->paramManager->getUnpatchedParamSetSummary();
 	ParamCollection* paramCollection = summary->paramCollection;
 
-	int paramId = knob->paramDescriptor.getJustTheParam() - Param::Unpatched::START;
+	int32_t paramId = knob->paramDescriptor.getJustTheParam() - Param::Unpatched::START;
 
 	ModelStackWithParamId* modelStackWithParamId =
 	    modelStack->addParamCollectionAndId(paramCollection, summary, paramId);
@@ -1322,9 +1322,9 @@ ModelStackWithAutoParam* ModControllableAudio::getParamFromMIDIKnob(MIDIKnob* kn
 }
 
 ModelStackWithThreeMainThings* ModControllableAudio::addNoteRowIndexAndStuff(ModelStackWithTimelineCounter* modelStack,
-                                                                             int noteRowIndex) {
+                                                                             int32_t noteRowIndex) {
 	NoteRow* noteRow = NULL;
-	int noteRowId = 0;
+	int32_t noteRowId = 0;
 	ParamManager* paramManager;
 
 	if (noteRowIndex != -1) {
@@ -1356,12 +1356,12 @@ ModelStackWithThreeMainThings* ModControllableAudio::addNoteRowIndexAndStuff(Mod
 
 bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber,
                                                           uint8_t value, ModelStackWithTimelineCounter* modelStack,
-                                                          int noteRowIndex) {
+                                                          int32_t noteRowIndex) {
 
 	bool messageUsed = false;
 
 	// For each MIDI knob...
-	for (int k = 0; k < midiKnobArray.getNumElements(); k++) {
+	for (int32_t k = 0; k < midiKnobArray.getNumElements(); k++) {
 		MIDIKnob* knob = midiKnobArray.getElement(k);
 
 		// If this is the knob...
@@ -1396,22 +1396,22 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 			ModelStackWithAutoParam* modelStackWithParam = getParamFromMIDIKnob(knob, modelStackWithThreeMainThings);
 
 			if (modelStackWithParam->autoParam) {
-				int newKnobPos;
+				int32_t newKnobPos;
 
 				if (knob->relative) {
-					int offset = value;
+					int32_t offset = value;
 					if (offset >= 64) {
 						offset -= 128;
 					}
 
 					int32_t previousValue =
 					    modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
-					int knobPos =
+					int32_t knobPos =
 					    modelStackWithParam->paramCollection->paramValueToKnobPos(previousValue, modelStackWithParam);
-					int lowerLimit = getMin(-64, knobPos);
+					int32_t lowerLimit = std::min(-64_i32, knobPos);
 					newKnobPos = knobPos + offset;
-					newKnobPos = getMax(newKnobPos, lowerLimit);
-					newKnobPos = getMin(newKnobPos, 64);
+					newKnobPos = std::max(newKnobPos, lowerLimit);
+					newKnobPos = std::min(newKnobPos, 64_i32);
 					if (newKnobPos == knobPos) {
 						continue;
 					}
@@ -1420,7 +1420,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 					if (midiEngine.midiTakeover == MIDITakeoverMode::JUMP) { //Midi Takeover Mode = Jump
 						newKnobPos = 64;
 						if (value < 127) {
-							newKnobPos = (int)value - 64;
+							newKnobPos = (int32_t)value - 64;
 						}
 						knob->previousPositionSaved = false;
 					}
@@ -1440,7 +1440,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 
 						*/
 
-						int midiKnobPos = value - 64;
+						int32_t midiKnobPos = value - 64;
 
 						//Save previous knob position for first time
 						//The first time a midi knob is turned in a session, no previous midi knob position information exists, so to start, it will be equal to the current midiKnobPos
@@ -1468,8 +1468,8 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 						    modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
 
 						//Here we convert the current Parameter Value on the Deluge to a Knob Position Value
-						int knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(previousValue,
-						                                                                        modelStackWithParam);
+						int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(
+						    previousValue, modelStackWithParam);
 
 						//Here is where we check if the Knob/Fader on the Midi Controller is out of sync with the Deluge Knob Position
 
@@ -1495,22 +1495,22 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 							//positions of Midi Controller Knob and Deluge Knob to min/max of knob range.
 							else { //Midi Value Scaling Mode On
 								//Set the max and min of the deluge midi knob position range
-								int knobMaxPos = 64;
-								int knobMinPos = -64;
+								int32_t knobMaxPos = 64;
+								int32_t knobMinPos = -64;
 
 								//calculate amount of deluge "knob runway" is remaining from current knob position to max and min of knob position range
-								int delugeKnobMaxPosDelta = knobMaxPos - knobPos; //Positive Runway
-								int delugeKnobMinPosDelta = knobPos - knobMinPos; //Negative Runway
+								int32_t delugeKnobMaxPosDelta = knobMaxPos - knobPos; //Positive Runway
+								int32_t delugeKnobMinPosDelta = knobPos - knobMinPos; //Negative Runway
 
 								//calculate amount of midi "knob runway" is remaining from current knob position to max and min of knob position range
-								int midiKnobMaxPosDelta = knobMaxPos - midiKnobPos; //Positive Runway
-								int midiKnobMinPosDelta = midiKnobPos - knobMinPos; //Negative Runway
+								int32_t midiKnobMaxPosDelta = knobMaxPos - midiKnobPos; //Positive Runway
+								int32_t midiKnobMinPosDelta = midiKnobPos - knobMinPos; //Negative Runway
 
 								//calculate by how much the current midiKnobPos has changed from the previous midiKnobPos recorded
-								int midiKnobPosChange = midiKnobPos - knob->previousPosition;
+								int32_t midiKnobPosChange = midiKnobPos - knob->previousPosition;
 
 								//Set fixed point variable which will be used calculate the percentage in midi knob position
-								int midiKnobPosChangePercentage;
+								int32_t midiKnobPosChangePercentage;
 
 								//if midi knob position change is greater than 0, then the midi knob position has increased (e.g. turned knob right)
 								if (midiKnobPosChange > 0) {
@@ -1559,12 +1559,12 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 bool ModControllableAudio::offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1,
                                                                  uint8_t data2,
                                                                  ModelStackWithTimelineCounter* modelStack,
-                                                                 int noteRowIndex) {
+                                                                 int32_t noteRowIndex) {
 
 	bool messageUsed = false;
 
 	// For each MIDI knob...
-	for (int k = 0; k < midiKnobArray.getNumElements(); k++) {
+	for (int32_t k = 0; k < midiKnobArray.getNumElements(); k++) {
 		MIDIKnob* knob = midiKnobArray.getElement(k);
 
 		// If this is the knob...
@@ -1675,6 +1675,74 @@ void ModControllableAudio::switchDelayAnalog() {
 	numericDriver.displayPopup(displayText);
 }
 
+void ModControllableAudio::switchDelaySyncType() {
+	switch (delay.syncType) {
+	case SYNC_TYPE_TRIPLET:
+		delay.syncType = SYNC_TYPE_DOTTED;
+		break;
+	case SYNC_TYPE_DOTTED:
+		delay.syncType = SYNC_TYPE_EVEN;
+		break;
+
+	default: //SYNC_TYPE_EVEN
+		delay.syncType = SYNC_TYPE_TRIPLET;
+		break;
+	}
+
+	char const* displayText;
+	switch (delay.syncType) {
+	case SYNC_TYPE_TRIPLET:
+		displayText = "Triplet";
+		break;
+	case SYNC_TYPE_DOTTED:
+		displayText = "Dotted";
+		break;
+
+	default: //SYNC_TYPE_EVEN
+		displayText = "Even";
+		break;
+	}
+	numericDriver.displayPopup(displayText);
+}
+
+void ModControllableAudio::switchDelaySyncLevel() {
+	// Note: SYNC_LEVEL_NONE (value 0) can't be selected
+	delay.syncLevel = (SyncLevel)((delay.syncLevel) % SyncLevel::SYNC_LEVEL_256TH + 1); //cycle from 1 to 9 (omit 0)
+
+	char const* displayText;
+	switch (delay.syncLevel) {
+	case SYNC_LEVEL_2ND:
+		displayText = "2nd";
+		break;
+	case SYNC_LEVEL_4TH:
+		displayText = "4th";
+		break;
+	case SYNC_LEVEL_8TH:
+		displayText = "8th";
+		break;
+	case SYNC_LEVEL_16TH:
+		displayText = "16th";
+		break;
+	case SYNC_LEVEL_32ND:
+		displayText = "32nd";
+		break;
+	case SYNC_LEVEL_64TH:
+		displayText = "64th";
+		break;
+	case SYNC_LEVEL_128TH:
+		displayText = "128th";
+		break;
+	case SYNC_LEVEL_256TH:
+		displayText = "256th";
+		break;
+
+	default: //SYNC_LEVEL_WHOLE
+		displayText = "1-bar";
+		break;
+	}
+	numericDriver.displayPopup(displayText);
+}
+
 void ModControllableAudio::switchLPFMode() {
 	lpfMode = static_cast<LPFMode>((util::to_underlying(lpfMode) + 1) % kNumLPFModes);
 
@@ -1754,7 +1822,7 @@ bool ModControllableAudio::learnKnob(MIDIDevice* fromDevice, ParamDescriptor par
 		MIDIKnob* knob;
 
 		// Was this MIDI knob already set to control this thing?
-		for (int k = 0; k < midiKnobArray.getNumElements(); k++) {
+		for (int32_t k = 0; k < midiKnobArray.getNumElements(); k++) {
 			knob = midiKnobArray.getElement(k);
 			if (knob->midiInput.equalsNoteOrCC(fromDevice, midiChannel, whichKnob)
 			    && paramDescriptor == knob->paramDescriptor) {
@@ -1790,7 +1858,7 @@ bool ModControllableAudio::unlearnKnobs(ParamDescriptor paramDescriptor, Song* s
 
 	// I've deactivated the unlearning of mod knobs, mainly because, if you want to unlearn a MIDI knob, you might not want to also deactivate a mod knob to the same param at the same time
 
-	for (int k = 0; k < midiKnobArray.getNumElements();) {
+	for (int32_t k = 0; k < midiKnobArray.getNumElements();) {
 		MIDIKnob* knob = midiKnobArray.getElement(k);
 		if (knob->paramDescriptor == paramDescriptor) {
 			anythingFound = true;
@@ -1848,8 +1916,8 @@ char const* ModControllableAudio::paramToString(uint8_t param) {
 	}
 }
 
-int ModControllableAudio::stringToParam(char const* string) {
-	for (int p = Param::Unpatched::START; p < Param::Unpatched::START + Param::Unpatched::NUM_SHARED; p++) {
+int32_t ModControllableAudio::stringToParam(char const* string) {
+	for (int32_t p = Param::Unpatched::START; p < Param::Unpatched::START + Param::Unpatched::NUM_SHARED; p++) {
 		if (!strcmp(string, ModControllableAudio::paramToString(p))) {
 			return p;
 		}
@@ -1857,13 +1925,13 @@ int ModControllableAudio::stringToParam(char const* string) {
 	return Param::Global::NONE;
 }
 
-ModelStackWithAutoParam* ModControllableAudio::getParamFromModEncoder(int whichModEncoder,
+ModelStackWithAutoParam* ModControllableAudio::getParamFromModEncoder(int32_t whichModEncoder,
                                                                       ModelStackWithThreeMainThings* modelStack,
                                                                       bool allowCreation) {
 
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
 
-	int paramId;
+	int32_t paramId;
 	ParamCollectionSummary* summary = modelStack->paramManager->getUnpatchedParamSetSummary();
 	ParamCollection* paramCollection = summary->paramCollection;
 

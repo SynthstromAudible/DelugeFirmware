@@ -27,7 +27,7 @@
 #include <string.h>
 
 void NonAudioInstrument::renderOutput(ModelStack* modelStack, StereoSample* startPos, StereoSample* endPos,
-                                      int numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
+                                      int32_t numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
                                       int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive) {
 
 	// MIDI / CV arpeggiator
@@ -59,8 +59,8 @@ void NonAudioInstrument::renderOutput(ModelStack* modelStack, StereoSample* star
 	}
 }
 
-void NonAudioInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, bool isOn, int noteCodePreArp,
-                                  int16_t const* mpeValues, int fromMIDIChannel, uint8_t velocity,
+void NonAudioInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, bool isOn, int32_t noteCodePreArp,
+                                  int16_t const* mpeValues, int32_t fromMIDIChannel, uint8_t velocity,
                                   uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate) {
 
 	ArpeggiatorSettings* arpSettings = NULL;
@@ -94,13 +94,13 @@ void NonAudioInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, boo
 }
 
 // Inherit / overrides from both MelodicInstrument and ModControllable
-void NonAudioInstrument::polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension,
-                                                                  int channelOrNoteNumber,
+void NonAudioInstrument::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t whichExpressionDimension,
+                                                                  int32_t channelOrNoteNumber,
                                                                   MIDICharacteristic whichCharacteristic) {
 	ArpeggiatorSettings* settings = getArpSettings();
 
-	int n;
-	int nEnd;
+	int32_t n;
+	int32_t nEnd;
 
 	// If for note, we can search right to it.
 	if (whichCharacteristic == MIDICharacteristic::NOTE) {
@@ -124,9 +124,9 @@ lookAtArpNote:
 			// it's hardly any extra work.
 			arpNote->mpeValues[whichExpressionDimension] = newValue >> 16;
 
-			int noteCodeBeforeArpeggiation =
+			int32_t noteCodeBeforeArpeggiation =
 			    arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)];
-			int noteCodeAfterArpeggiation = noteCodeBeforeArpeggiation;
+			int32_t noteCodeAfterArpeggiation = noteCodeBeforeArpeggiation;
 
 			// If there's actual arpeggiation happening right now...
 			if ((settings != nullptr) && settings->mode != ArpMode::OFF) {

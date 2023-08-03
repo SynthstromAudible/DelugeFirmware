@@ -47,7 +47,7 @@ extern void batteryLEDBlink();
 UITimerManager::UITimerManager() {
 	timeNextEvent = 2147483647;
 
-	for (int i = 0; i < NUM_TIMERS; i++) {
+	for (int32_t i = 0; i < NUM_TIMERS; i++) {
 		timers[i].active = false;
 	}
 }
@@ -59,7 +59,7 @@ void UITimerManager::routine() {
 		return;
 	}
 
-	for (int i = 0; i < NUM_TIMERS; i++) {
+	for (int32_t i = 0; i < NUM_TIMERS; i++) {
 		if (timers[i].active) {
 
 			int32_t timeTil = (uint32_t)(timers[i].triggerTime - AudioEngine::audioSampleTimer);
@@ -165,11 +165,11 @@ void UITimerManager::routine() {
 	workOutNextEventTime();
 }
 
-void UITimerManager::setTimer(int i, int ms) {
+void UITimerManager::setTimer(int32_t i, int32_t ms) {
 	setTimerSamples(i, ms * 44);
 }
 
-void UITimerManager::setTimerSamples(int i, int samples) {
+void UITimerManager::setTimerSamples(int32_t i, int32_t samples) {
 	timers[i].triggerTime = AudioEngine::audioSampleTimer + samples;
 	timers[i].active = true;
 
@@ -179,17 +179,17 @@ void UITimerManager::setTimerSamples(int i, int samples) {
 	}
 }
 
-void UITimerManager::setTimerByOtherTimer(int i, int j) {
+void UITimerManager::setTimerByOtherTimer(int32_t i, int32_t j) {
 	timers[i].triggerTime = timers[j].triggerTime;
 	timers[i].active = true;
 }
 
-void UITimerManager::unsetTimer(int i) {
+void UITimerManager::unsetTimer(int32_t i) {
 	timers[i].active = false;
 	workOutNextEventTime();
 }
 
-bool UITimerManager::isTimerSet(int i) {
+bool UITimerManager::isTimerSet(int32_t i) {
 	return timers[i].active;
 }
 
@@ -197,7 +197,7 @@ void UITimerManager::workOutNextEventTime() {
 
 	int32_t timeTilNextEvent = 2147483647;
 
-	for (int i = 0; i < NUM_TIMERS; i++) {
+	for (int32_t i = 0; i < NUM_TIMERS; i++) {
 		if (timers[i].active) {
 			int32_t timeTil = timers[i].triggerTime - AudioEngine::audioSampleTimer;
 			if (timeTil < timeTilNextEvent) {

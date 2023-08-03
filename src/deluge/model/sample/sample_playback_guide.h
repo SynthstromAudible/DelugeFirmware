@@ -17,7 +17,8 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
+#include <cstddef>
+#include <cstdint>
 
 class SampleHolder;
 class Sample;
@@ -27,7 +28,7 @@ class AudioFileHolder;
 class SamplePlaybackGuide {
 public:
 	SamplePlaybackGuide();
-	int getFinalClusterIndex(Sample* sample, bool obeyMarkers, int32_t* getEndPlaybackAtByte = NULL);
+	int32_t getFinalClusterIndex(Sample* sample, bool obeyMarkers, int32_t* getEndPlaybackAtByte = nullptr);
 	virtual int32_t getBytePosToStartPlayback(bool justLooped) { return startPlaybackAtByte; }
 	virtual int32_t getBytePosToEndOrLoopPlayback() {
 		return endPlaybackAtByte;

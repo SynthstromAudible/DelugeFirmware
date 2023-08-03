@@ -21,14 +21,14 @@
 #include "playback/playback_handler.h"
 
 // Trigger clock out menu
-namespace menu_item::trigger::out {
+namespace deluge::gui::menu_item::trigger::out {
 class PPQN : public menu_item::PPQN {
 public:
 	using menu_item::PPQN::PPQN;
-	void readCurrentValue() { soundEditor.currentValue = playbackHandler.analogOutTicksPPQN; }
-	void writeCurrentValue() {
-		playbackHandler.analogOutTicksPPQN = soundEditor.currentValue;
+	void readCurrentValue() override { this->value_ = playbackHandler.analogOutTicksPPQN; }
+	void writeCurrentValue() override {
+		playbackHandler.analogOutTicksPPQN = this->value_;
 		playbackHandler.resyncAnalogOutTicksToInternalTicks();
 	}
 };
-} // namespace menu_item::trigger::out
+} // namespace deluge::gui::menu_item::trigger::out

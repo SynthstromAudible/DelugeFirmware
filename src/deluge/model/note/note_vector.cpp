@@ -16,15 +16,15 @@
  */
 
 #include "model/note/note_vector.h"
-#include "RZA1/system/r_typedefs.h"
 #include "io/debug/print.h"
 #include "model/note/note.h"
+#include <cstdint>
 #include <string.h>
 
 NoteVector::NoteVector() : OrderedResizeableArrayWith32bitKey(sizeof(Note)) {
 }
 
-Note* NoteVector::getElement(int index) {
+Note* NoteVector::getElement(int32_t index) {
 	if (index < 0 || index >= getNumElements()) {
 		return NULL;
 	}

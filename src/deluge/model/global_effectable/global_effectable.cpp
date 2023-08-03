@@ -24,6 +24,7 @@
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/model_stack.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_manager.h"
@@ -97,7 +98,7 @@ void GlobalEffectable::modButtonAction(uint8_t whichModButton, bool on, ParamMan
 bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
                                               ModelStackWithThreeMainThings* modelStack) {
 
-	int modKnobMode = *getModKnobMode();
+	int32_t modKnobMode = *getModKnobMode();
 
 	// Stutter section
 	if (modKnobMode == 6 && whichModEncoder == 1) {
@@ -213,7 +214,13 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 	else if (modKnobMode == 3) {
 		if (whichModEncoder == 1) {
 			if (on) {
-				switchDelayPingPong();
+				if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AltGoldenKnobDelayParams)
+				    == RuntimeFeatureStateToggle::On) {
+					switchDelaySyncType();
+				}
+				else {
+					switchDelayPingPong();
+				}
 				return true;
 			}
 			else {
@@ -222,7 +229,13 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 		}
 		else {
 			if (on) {
-				switchDelayAnalog();
+				if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AltGoldenKnobDelayParams)
+				    == RuntimeFeatureStateToggle::On) {
+					switchDelaySyncLevel();
+				}
+				else {
+					switchDelayAnalog();
+				}
 				return true;
 			}
 			else {
@@ -246,9 +259,9 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 }
 
 // Always check this doesn't return NULL!
-int GlobalEffectable::getParameterFromKnob(int whichModEncoder) {
+int32_t GlobalEffectable::getParameterFromKnob(int32_t whichModEncoder) {
 
-	int modKnobMode = *getModKnobMode();
+	int32_t modKnobMode = *getModKnobMode();
 
 	if (modKnobMode == 0) {
 		if (whichModEncoder != 0) {
@@ -329,12 +342,12 @@ int GlobalEffectable::getParameterFromKnob(int whichModEncoder) {
 	return 255;
 }
 
-ModelStackWithAutoParam* GlobalEffectable::getParamFromModEncoder(int whichModEncoder,
+ModelStackWithAutoParam* GlobalEffectable::getParamFromModEncoder(int32_t whichModEncoder,
                                                                   ModelStackWithThreeMainThings* modelStack,
                                                                   bool allowCreation) {
 	ParamCollectionSummary* summary = modelStack->paramManager->getUnpatchedParamSetSummary();
 	ParamCollection* paramCollection = summary->paramCollection;
-	int paramId;
+	int32_t paramId;
 
 	paramId = getParameterFromKnob(whichModEncoder);
 
@@ -377,17 +390,17 @@ void GlobalEffectable::setupFilterSetConfig(FilterSetConfig* filterSetConfig, in
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-	int lpfFrequency = getFinalParameterValueExp(
+	int32_t lpfFrequency = getFinalParameterValueExp(
 	    paramNeutralValues[Param::Local::LPF_FREQ],
 	    cableToExpParamShortcut(unpatchedParams->getValue(Param::Unpatched::GlobalEffectable::LPF_FREQ)));
-	int lpfResonance = getFinalParameterValueLinear(
+	int32_t lpfResonance = getFinalParameterValueLinear(
 	    paramNeutralValues[Param::Local::LPF_RESONANCE],
 	    cableToLinearParamShortcut(unpatchedParams->getValue(Param::Unpatched::GlobalEffectable::LPF_RES)));
 
-	int hpfFrequency = getFinalParameterValueExp(
+	int32_t hpfFrequency = getFinalParameterValueExp(
 	    paramNeutralValues[Param::Local::HPF_FREQ],
 	    cableToExpParamShortcut(unpatchedParams->getValue(Param::Unpatched::GlobalEffectable::HPF_FREQ)));
-	int hpfResonance = getFinalParameterValueLinear(
+	int32_t hpfResonance = getFinalParameterValueLinear(
 	    paramNeutralValues[Param::Local::HPF_RESONANCE],
 	    cableToLinearParamShortcut(unpatchedParams->getValue(Param::Unpatched::GlobalEffectable::HPF_RES)));
 
@@ -399,7 +412,7 @@ void GlobalEffectable::setupFilterSetConfig(FilterSetConfig* filterSetConfig, in
 	                                      *postFXVolume, false, NULL);
 }
 
-void GlobalEffectable::processFilters(StereoSample* buffer, int numSamples, FilterSetConfig* filterSetConfig) {
+void GlobalEffectable::processFilters(StereoSample* buffer, int32_t numSamples, FilterSetConfig* filterSetConfig) {
 
 	if (filterSetConfig->doHPF) {
 		StereoSample* thisSample = buffer;
@@ -623,8 +636,8 @@ bool GlobalEffectable::readParamTagFromFile(char const* tagName, ParamManagerFor
 }
 
 // paramManager is optional
-int GlobalEffectable::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager,
-                                      int32_t readAutomationUpToPos, Song* song) {
+int32_t GlobalEffectable::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager,
+                                          int32_t readAutomationUpToPos, Song* song) {
 
 	// This is here for compatibility only for people (Lou and Ian) who saved songs with firmware in September 2016
 	//if (paramManager && strcmp(tagName, "delay") && GlobalEffectable::readParamTagFromFile(tagName, paramManager, readAutomation)) {}
@@ -633,7 +646,7 @@ int GlobalEffectable::readTagFromFile(char const* tagName, ParamManagerForTimeli
 	if (paramManager && !strcmp(tagName, "defaultParams")) {
 
 		if (!paramManager->containsAnyMainParamCollections()) {
-			int error = paramManager->setupUnpatched();
+			int32_t error = paramManager->setupUnpatched();
 			if (error) {
 				return error;
 			}
@@ -713,7 +726,7 @@ void GlobalEffectable::setupDelayWorkingState(DelayWorkingState* delayWorkingSta
 	    cableToLinearParamShortcut(unpatchedParams->getValue(Param::Unpatched::GlobalEffectable::DELAY_AMOUNT)));
 	if (shouldLimitDelayFeedback) {
 		delayWorkingState->delayFeedbackAmount =
-		    getMin(delayWorkingState->delayFeedbackAmount, (int32_t)(1 << 30) - (1 << 26));
+		    std::min(delayWorkingState->delayFeedbackAmount, (int32_t)(1 << 30) - (1 << 26));
 	}
 	delayWorkingState->userDelayRate = getFinalParameterValueExp(
 	    paramNeutralValues[Param::Global::DELAY_RATE],
@@ -721,9 +734,10 @@ void GlobalEffectable::setupDelayWorkingState(DelayWorkingState* delayWorkingSta
 	delay.setupWorkingState(delayWorkingState);
 }
 
-void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, int numSamples, int32_t* postFXVolume,
-                                                    ParamManager* paramManager, DelayWorkingState* delayWorkingState,
-                                                    int analogDelaySaturationAmount) {
+void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, int32_t numSamples,
+                                                    int32_t* postFXVolume, ParamManager* paramManager,
+                                                    DelayWorkingState* delayWorkingState,
+                                                    int32_t analogDelaySaturationAmount) {
 
 	StereoSample* inputBufferEnd = inputBuffer + numSamples;
 
@@ -743,8 +757,8 @@ void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, i
 	if (modFXTypeNow == ModFXType::FLANGER || modFXTypeNow == ModFXType::CHORUS
 	    || modFXTypeNow == ModFXType::CHORUS_STEREO) {
 		if (!modFXBuffer) {
-			modFXBuffer =
-			    (StereoSample*)generalMemoryAllocator.alloc(kModFXBufferSize * sizeof(StereoSample), NULL, false, true);
+			modFXBuffer = (StereoSample*)GeneralMemoryAllocator::get().alloc(kModFXBufferSize * sizeof(StereoSample),
+			                                                                 NULL, false, true);
 			if (!modFXBuffer) {
 				modFXTypeNow = ModFXType::NONE;
 			}
@@ -755,7 +769,7 @@ void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, i
 	}
 	else {
 		if (modFXBuffer) {
-			generalMemoryAllocator.dealloc(modFXBuffer);
+			GeneralMemoryAllocator::get().dealloc(modFXBuffer);
 			modFXBuffer = NULL;
 		}
 	}
@@ -814,8 +828,8 @@ char const* GlobalEffectable::paramToString(uint8_t param) {
 	}
 }
 
-int GlobalEffectable::stringToParam(char const* string) {
-	for (int p = Param::Unpatched::START + Param::Unpatched::NUM_SHARED;
+int32_t GlobalEffectable::stringToParam(char const* string) {
+	for (int32_t p = Param::Unpatched::START + Param::Unpatched::NUM_SHARED;
 	     p < Param::Unpatched::START + kMaxNumUnpatchedParams; p++) {
 		if (!strcmp(string, GlobalEffectable::paramToString(p))) {
 			return p;

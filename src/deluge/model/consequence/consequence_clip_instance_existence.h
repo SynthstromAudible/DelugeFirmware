@@ -16,9 +16,9 @@
 */
 
 #pragma once
-#include "RZA1/system/r_typedefs.h"
 #include "definitions_cxx.hpp"
 #include "model/consequence/consequence.h"
+#include <cstdint>
 
 class Output;
 class ClipInstance;
@@ -28,7 +28,7 @@ class ConsequenceClipInstanceExistence final : public Consequence {
 public:
 	ConsequenceClipInstanceExistence(Output* newOutput, ClipInstance* clipInstance, ExistenceChangeType newType);
 
-	int revert(TimeType time, ModelStack* modelStack);
+	int32_t revert(TimeType time, ModelStack* modelStack);
 
 	Output* output;
 	Clip* clip;

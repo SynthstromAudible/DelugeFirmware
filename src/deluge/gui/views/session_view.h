@@ -40,20 +40,20 @@ public:
 	void focusRegained();
 
 	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
-	ActionResult padAction(int x, int y, int velocity);
-	ActionResult horizontalEncoderAction(int offset);
-	ActionResult verticalEncoderAction(int offset, bool inCardRoutine);
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
+	ActionResult horizontalEncoderAction(int32_t offset);
+	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
 	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 	void removeClip(uint8_t yDisplay);
 	void redrawClipsOnScreen(bool doRender = true);
-	unsigned int getMaxZoom();
+	uint32_t getMaxZoom();
 	void cloneClip(uint8_t yDisplayFrom, uint8_t yDisplayTo);
 	bool renderRow(ModelStack* modelStack, uint8_t yDisplay, uint8_t thisImage[kDisplayWidth + kSideBarWidth][3],
 	               uint8_t thisOccupancyMask[kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
 	void graphicsRoutine();
 
-	int getClipPlaceOnScreen(Clip* clip);
+	int32_t getClipPlaceOnScreen(Clip* clip);
 	void drawStatusSquare(uint8_t yDisplay, uint8_t thisImage[][3]);
 	void drawSectionSquare(uint8_t yDisplay, uint8_t thisImage[][3]);
 	bool calculateZoomPinSquares(uint32_t oldScroll, uint32_t newScroll, uint32_t newZoom, uint32_t oldZoom);
@@ -68,7 +68,7 @@ public:
 	ActionResult timerCallback();
 	void noteRowChanged(InstrumentClip* clip, NoteRow* noteRow);
 	void setLedStates();
-	void editNumRepeatsTilLaunch(int offset);
+	void editNumRepeatsTilLaunch(int32_t offset);
 	uint32_t getGreyedOutRowsNotRepresentingOutput(Output* output);
 	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
@@ -79,9 +79,9 @@ public:
 	void playbackEnded();
 	void clipNeedsReRendering(Clip* clip);
 	void sampleNeedsReRendering(Sample* sample);
-	Clip* getClipOnScreen(int yDisplay);
-	void modEncoderAction(int whichModEncoder, int offset);
-	ActionResult verticalScrollOneSquare(int direction);
+	Clip* getClipOnScreen(int32_t yDisplay);
+	void modEncoderAction(int32_t whichModEncoder, int32_t offset);
+	ActionResult verticalScrollOneSquare(int32_t direction);
 
 #if HAVE_OLED
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
@@ -104,11 +104,11 @@ private:
 	void clipPressEnded();
 	void drawSectionRepeatNumber();
 	void beginEditingSectionRepeatsNum();
-	Clip* createNewInstrumentClip(int yDisplay);
+	Clip* createNewInstrumentClip(int32_t yDisplay);
 	void goToArrangementEditor();
 	void replaceInstrumentClipWithAudioClip();
 	void replaceAudioClipWithInstrumentClip(InstrumentType instrumentType);
-	void rowNeedsRenderingDependingOnSubMode(int yDisplay);
+	void rowNeedsRenderingDependingOnSubMode(int32_t yDisplay);
 	void setCentralLEDStates();
 };
 

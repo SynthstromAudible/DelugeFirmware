@@ -37,9 +37,9 @@ startRenderingASyncLabel:                                                       
 	uint32_t distanceTilNextCrossoverSample = -resetterPhase - (resetterPhaseIncrement >> 1);                                                           \
 	samplesIncludingNextCrossoverSample += (uint32_t)(distanceTilNextCrossoverSample - 1) / resetterPhaseIncrement;                                     \
 	bool shouldBeginNextSyncAfter = (numSamplesThisOscSyncSession >= samplesIncludingNextCrossoverSample);                                              \
-	int numSamplesThisSyncRender = shouldBeginNextSyncAfter                                                                                             \
-	                                   ? samplesIncludingNextCrossoverSample                                                                            \
-	                                   : numSamplesThisOscSyncSession; /* Just limit it, basically. */                                                  \
+	int32_t numSamplesThisSyncRender = shouldBeginNextSyncAfter                                                                                         \
+	                                       ? samplesIncludingNextCrossoverSample                                                                        \
+	                                       : numSamplesThisOscSyncSession; /* Just limit it, basically. */                                              \
                                                                                                                                                         \
 	int32_t const* const bufferEndThisSyncRender = bufferStartThisSync + numSamplesThisSyncRender;                                                      \
 	uint32_t phaseTemp = phase;                                                                                                                         \
@@ -122,7 +122,7 @@ startRenderingASyncLabel:                                                       
 #define CREATE_WAVE_RENDER_FUNCTION_INSTANCE(thisFunctionInstanceName, vectorValueFunctionName)                        \
                                                                                                                        \
 	__attribute__((optimize("unroll-loops"))) void thisFunctionInstanceName(                                           \
-	    const int16_t* __restrict__ table, int tableSizeMagnitude, int32_t amplitude,                                  \
+	    const int16_t* __restrict__ table, int32_t tableSizeMagnitude, int32_t amplitude,                              \
 	    int32_t* __restrict__ outputBuffer, int32_t* bufferEnd, uint32_t phaseIncrement, uint32_t phase,               \
 	    bool applyAmplitude, uint32_t phaseToAdd, int32_t amplitudeIncrement) {                                        \
                                                                                                                        \

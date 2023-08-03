@@ -19,10 +19,10 @@
 
 #include "RZA1/mtu/mtu.h"
 
-static inline void timerEnableInterruptsTGRA(int timerNo) {
+static inline void timerEnableInterruptsTGRA(int32_t timerNo) {
 	*TIER[timerNo] = 1;
 }
 
-static inline void timerDisableInterruptsTGRA(int timerNo) {
+static inline void timerDisableInterruptsTGRA(int32_t timerNo) {
 	*TIER[timerNo] = 0;
 }

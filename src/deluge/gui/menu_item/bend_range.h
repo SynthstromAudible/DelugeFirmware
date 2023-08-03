@@ -17,10 +17,10 @@
 #pragma once
 #include "integer.h"
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 class BendRange : public Integer {
 public:
-	BendRange(char const* newName = NULL) : Integer(newName) {}
-	int getMaxValue() const { return 96; }
+	using Integer::Integer;
+	[[nodiscard]] int32_t getMaxValue() const override { return 96; }
 };
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

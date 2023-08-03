@@ -54,7 +54,7 @@ void Instrument::beenEdited(bool shouldMoveToEmptySlot) {
 }
 
 void Instrument::deleteAnyInstancesOfClip(InstrumentClip* clip) {
-	int i = 0;
+	int32_t i = 0;
 
 	while (i < clipInstances.getNumElements()) {
 		ClipInstance* instance = clipInstances.getElement(i);
@@ -103,7 +103,7 @@ bool Instrument::readTagFromFile(char const* tagName) {
 	char const* subSlotXMLTag = getSubSlotXMLTag();
 
 	if (!strcmp(tagName, slotXMLTag)) {
-		int slotHere = storageManager.readTagOrAttributeValueInt();
+		int32_t slotHere = storageManager.readTagOrAttributeValueInt();
 		String slotChars;
 		slotChars.setInt(slotHere, 3);
 		slotChars.concatenate(&name);
@@ -111,7 +111,7 @@ bool Instrument::readTagFromFile(char const* tagName) {
 	}
 
 	else if (!strcmp(tagName, subSlotXMLTag)) {
-		int subSlotHere = storageManager.readTagOrAttributeValueInt();
+		int32_t subSlotHere = storageManager.readTagOrAttributeValueInt();
 		if (subSlotHere >= 0 && subSlotHere < 26) {
 			char buffer[2];
 			buffer[0] = 'A' + subSlotHere;
@@ -142,7 +142,7 @@ bool Instrument::readTagFromFile(char const* tagName) {
 Clip* Instrument::createNewClipForArrangementRecording(ModelStack* modelStack) {
 
 	// Allocate memory for Clip
-	void* clipMemory = generalMemoryAllocator.alloc(sizeof(InstrumentClip), NULL, false, true);
+	void* clipMemory = GeneralMemoryAllocator::get().alloc(sizeof(InstrumentClip), NULL, false, true);
 	if (!clipMemory) {
 		return NULL;
 	}
@@ -154,10 +154,10 @@ Clip* Instrument::createNewClipForArrangementRecording(ModelStack* modelStack) {
 
 	if (type == InstrumentType::SYNTH || type == InstrumentType::KIT) {
 
-		int error = newParamManager.cloneParamCollectionsFrom(getParamManager(modelStack->song), false, true);
+		int32_t error = newParamManager.cloneParamCollectionsFrom(getParamManager(modelStack->song), false, true);
 
 		if (error) {
-			generalMemoryAllocator.dealloc(clipMemory);
+			GeneralMemoryAllocator::get().dealloc(clipMemory);
 			return NULL;
 		}
 	}
@@ -179,9 +179,9 @@ Clip* Instrument::createNewClipForArrangementRecording(ModelStack* modelStack) {
 	return newInstrumentClip;
 }
 
-int Instrument::setupDefaultAudioFileDir() {
+int32_t Instrument::setupDefaultAudioFileDir() {
 	char const* dirPathChars = dirPath.get();
-	int error =
+	int32_t error =
 	    audioFileManager.setupAlternateAudioFileDir(&audioFileManager.alternateAudioFileLoadPath, dirPathChars, &name);
 	if (error) {
 		return error;

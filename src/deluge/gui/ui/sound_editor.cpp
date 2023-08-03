@@ -61,7 +61,8 @@ extern "C" {
 #include "menus.h"
 
 using namespace deluge;
-using namespace menu_item;
+using namespace deluge::gui;
+using namespace deluge::gui::menu_item;
 
 #define comingSoonMenu (MenuItem*)0xFFFFFFFF
 
@@ -89,7 +90,7 @@ PatchSource modSourceShortcuts[2][8] = {
     },
 };
 
-void SoundEditor::setShortcutsVersion(int newVersion) {
+void SoundEditor::setShortcutsVersion(int32_t newVersion) {
 
 	shortcutsVersion = newVersion;
 
@@ -135,10 +136,6 @@ SoundEditor::SoundEditor() {
 	memset(sourceShortcutBlinkFrequencies, 255, sizeof(sourceShortcutBlinkFrequencies));
 	timeLastAttemptedAutomatedParamEdit = 0;
 	shouldGoUpOneLevelOnBegin = false;
-
-#if HAVE_OLED
-	init_menu_titles();
-#endif
 }
 
 bool SoundEditor::editingKit() {
@@ -447,7 +444,7 @@ bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 		// For AudioClips...
 		if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
 
-			int x, y;
+			int32_t x, y;
 
 			// First, see if there's a shortcut for the actual MenuItem we're currently on
 			for (x = 0; x < 15; x++) {
@@ -468,7 +465,7 @@ doSetupBlinkingForAudioClip:
 
 		// Or for MIDI or CV clips
 		else if (editingCVOrMIDIClip()) {
-			for (int y = 0; y < kDisplayHeight; y++) {
+			for (int32_t y = 0; y < kDisplayHeight; y++) {
 				if (midiOrCVParamShortcuts[y] == currentItem) {
 					setupShortcutBlink(11, y, 0);
 					break;
@@ -484,8 +481,8 @@ doSetupBlinkingForAudioClip:
 			}
 
 			// First, see if there's a shortcut for the actual MenuItem we're currently on
-			for (int x = 0; x < 15; x++) {
-				for (int y = 0; y < kDisplayHeight; y++) {
+			for (int32_t x = 0; x < 15; x++) {
+				for (int32_t y = 0; y < kDisplayHeight; y++) {
 					if (paramShortcutsForSounds[x][y] == currentItem) {
 
 						if (x == 10 && y < 6 && editingReverbCompressor()) {
@@ -503,10 +500,10 @@ doSetupBlinkingForAudioClip:
 			// Failing that, if we're doing some patching, see if there's a shortcut for that *param*
 			if (currentParamShorcutX == 255) {
 
-				int paramLookingFor = currentItem->getIndexOfPatchedParamToBlink();
+				int32_t paramLookingFor = currentItem->getIndexOfPatchedParamToBlink();
 				if (paramLookingFor != 255) {
-					for (int x = 0; x < 15; x++) {
-						for (int y = 0; y < kDisplayHeight; y++) {
+					for (int32_t x = 0; x < 15; x++) {
+						for (int32_t y = 0; y < kDisplayHeight; y++) {
 							if (paramShortcutsForSounds[x][y] && paramShortcutsForSounds[x][y] != comingSoonMenu
 							    && ((MenuItem*)paramShortcutsForSounds[x][y])->getPatchedParamIndex()
 							           == paramLookingFor) {
@@ -525,8 +522,8 @@ doSetupBlinkingForAudioClip:
 stopThat : {}
 
 			if (currentParamShorcutX != 255) {
-				for (int x = 0; x < 2; x++) {
-					for (int y = 0; y < kDisplayHeight; y++) {
+				for (int32_t x = 0; x < 2; x++) {
+					for (int32_t y = 0; y < kDisplayHeight; y++) {
 						PatchSource source = modSourceShortcuts[x][y];
 						if (source < kLastPatchSource) {
 							sourceShortcutBlinkFrequencies[x][y] = currentItem->shouldBlinkPatchingSourceShortcut(
@@ -567,7 +564,7 @@ void SoundEditor::possibleChangeToCurrentRangeDisplay() {
 	uiNeedsRendering(&keyboardScreen, 0xFFFFFFFF, 0);
 }
 
-void SoundEditor::setupShortcutBlink(int x, int y, int frequency) {
+void SoundEditor::setupShortcutBlink(int32_t x, int32_t y, int32_t frequency) {
 	currentParamShorcutX = x;
 	currentParamShorcutY = y;
 
@@ -575,7 +572,7 @@ void SoundEditor::setupShortcutBlink(int x, int y, int frequency) {
 	paramShortcutBlinkFrequency = frequency;
 }
 
-void SoundEditor::setupExclusiveShortcutBlink(int x, int y) {
+void SoundEditor::setupExclusiveShortcutBlink(int32_t x, int32_t y) {
 	memset(sourceShortcutBlinkFrequencies, 255, sizeof(sourceShortcutBlinkFrequencies));
 	setupShortcutBlink(x, y, 1);
 	blinkShortcut();
@@ -596,8 +593,8 @@ void SoundEditor::blinkShortcut() {
 
 	else {
 		// Blink source
-		for (int x = 0; x < 2; x++) {
-			for (int y = 0; y < kDisplayHeight; y++) {
+		for (int32_t x = 0; x < 2; x++) {
+			for (int32_t y = 0; y < kDisplayHeight; y++) {
 				if (sourceShortcutBlinkFrequencies[x][y] != 255
 				    && (counterForNow & sourceShortcutBlinkFrequencies[x][y]) == 0) {
 					PadLEDs::flashMainPad(x + 14, y, sourceShortcutBlinkColours[x][y]);
@@ -614,7 +611,7 @@ bool SoundEditor::editingReverbCompressor() {
 	return (getCurrentUI() == &soundEditor && currentCompressor == &AudioEngine::reverbCompressor);
 }
 
-ActionResult SoundEditor::horizontalEncoderAction(int offset) {
+ActionResult SoundEditor::horizontalEncoderAction(int32_t offset) {
 	if (currentUIMode == UI_MODE_AUDITIONING && getRootUI() == &keyboardScreen) {
 		return getRootUI()->horizontalEncoderAction(offset);
 	}
@@ -673,7 +670,7 @@ void SoundEditor::markInstrumentAsEdited() {
 
 static const uint32_t shortcutPadUIModes[] = {UI_MODE_AUDITIONING, 0};
 
-ActionResult SoundEditor::potentialShortcutPadAction(int x, int y, bool on) {
+ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool on) {
 
 	if (!on || x >= kDisplayWidth
 	    || (!Buttons::isShiftButtonPressed()
@@ -743,7 +740,7 @@ doSetup:
 						break;
 					}
 #endif
-					int thingIndex = x & 1;
+					int32_t thingIndex = x & 1;
 
 					bool setupSuccess = setup((currentSong->currentClip), item, thingIndex);
 
@@ -784,8 +781,8 @@ doSetup:
 				}
 
 				bool previousPressStillActive = false;
-				for (int h = 0; h < 2; h++) {
-					for (int i = 0; i < kDisplayHeight; i++) {
+				for (int32_t h = 0; h < 2; h++) {
+					for (int32_t i = 0; i < kDisplayHeight; i++) {
 						if (h == 0 && i < 5) {
 							continue;
 						}
@@ -800,7 +797,7 @@ doSetup:
 getOut:
 				bool wentBack = false;
 
-				int newNavigationDepth = navigationDepth;
+				int32_t newNavigationDepth = navigationDepth;
 
 				while (true) {
 
@@ -846,7 +843,7 @@ getOut:
 
 extern uint16_t batteryMV;
 
-ActionResult SoundEditor::padAction(int x, int y, int on) {
+ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 	if (sdRoutineLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
@@ -898,14 +895,14 @@ ActionResult SoundEditor::padAction(int x, int y, int on) {
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult SoundEditor::verticalEncoderAction(int offset, bool inCardRoutine) {
+ActionResult SoundEditor::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::button::X_ENC)) {
 		return ActionResult::DEALT_WITH;
 	}
 	return getRootUI()->verticalEncoderAction(offset, inCardRoutine);
 }
 
-bool SoundEditor::noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int channel, int note, int velocity) {
+bool SoundEditor::noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channel, int32_t note, int32_t velocity) {
 	return getCurrentMenuItem()->learnNoteOn(fromDevice, channel, note);
 }
 
@@ -931,7 +928,7 @@ bool SoundEditor::pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel, uin
 	return false;
 }
 
-void SoundEditor::modEncoderAction(int whichModEncoder, int offset) {
+void SoundEditor::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	// If learn button is pressed, learn this knob for current param
 	if (currentUIMode == UI_MODE_MIDI_LEARN) {
 
@@ -952,7 +949,7 @@ void SoundEditor::modEncoderAction(int whichModEncoder, int offset) {
 	}
 }
 
-bool SoundEditor::setup(Clip* clip, const MenuItem* item, int sourceIndex) {
+bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 
 	Sound* newSound = NULL;
 	ParamManagerForTimeline* newParamManager = NULL;
@@ -1036,14 +1033,14 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int sourceIndex) {
 			if (clip->type == CLIP_TYPE_INSTRUMENT) {
 				if (currentSong->currentClip->output->type == InstrumentType::MIDI_OUT) {
 #if HAVE_OLED
-					soundEditorRootMenuMIDIOrCV.basicTitle = "MIDI inst.";
+					soundEditorRootMenuMIDIOrCV.title = "MIDI inst.";
 #endif
 doMIDIOrCV:
 					newItem = &soundEditorRootMenuMIDIOrCV;
 				}
 				else if (currentSong->currentClip->output->type == InstrumentType::CV) {
 #if HAVE_OLED
-					soundEditorRootMenuMIDIOrCV.basicTitle = "CV instrument";
+					soundEditorRootMenuMIDIOrCV.title = "CV instrument";
 #endif
 					goto doMIDIOrCV;
 				}
@@ -1130,18 +1127,18 @@ bool SoundEditor::inSettingsMenu() {
 	return (menuItemNavigationRecord[0] == &settingsRootMenu);
 }
 
-bool SoundEditor::isUntransposedNoteWithinRange(int noteCode) {
+bool SoundEditor::isUntransposedNoteWithinRange(int32_t noteCode) {
 	return (soundEditor.currentSource->ranges.getNumElements() > 1
 	        && soundEditor.currentSource->getRange(noteCode + soundEditor.currentSound->transpose)
 	               == soundEditor.currentMultiRange);
 }
 
-void SoundEditor::setCurrentMultiRange(int i) {
+void SoundEditor::setCurrentMultiRange(int32_t i) {
 	currentMultiRangeIndex = i;
 	currentMultiRange = (MultisampleRange*)soundEditor.currentSource->ranges.getElement(i);
 }
 
-MenuPermission SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam(Sound* sound, int whichThing,
+MenuPermission SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam(Sound* sound, int32_t whichThing,
                                                                                bool automaticallySelectIfOnlyOne,
                                                                                ::MultiRange** previouslySelectedRange) {
 
@@ -1187,7 +1184,7 @@ AudioFileHolder* SoundEditor::getCurrentAudioFileHolder() {
 
 ModelStackWithThreeMainThings* SoundEditor::getCurrentModelStack(void* memory) {
 	NoteRow* noteRow = NULL;
-	int noteRowIndex;
+	int32_t noteRowIndex;
 
 	if (currentSong->currentClip->output->type == InstrumentType::KIT) {
 		Drum* selectedDrum = ((Kit*)currentSong->currentClip->output)->selectedDrum;

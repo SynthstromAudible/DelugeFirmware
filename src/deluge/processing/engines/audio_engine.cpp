@@ -82,7 +82,7 @@ extern int32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
 
 #ifdef REPORT_CPU_USAGE
 #define REPORT_AVERAGE_NUM 10
-int usageTimes[REPORT_AVERAGE_NUM];
+int32_t usageTimes[REPORT_AVERAGE_NUM];
 #endif
 
 extern "C" uint32_t getAudioSampleTimerMS() {
@@ -121,10 +121,10 @@ char sampleForPreviewMemory[sizeof(SoundDrum)];
 SampleRecorder* firstRecorder = NULL;
 
 // Let's keep these grouped - the stuff we're gonna access regularly during audio rendering
-int cpuDireness = 0;
+int32_t cpuDireness = 0;
 uint32_t timeDirenessChanged;
 uint32_t timeThereWasLastSomeReverb = 0x8FFFFFFF;
-int numSamplesLastTime;
+int32_t numSamplesLastTime;
 uint32_t nextVoiceState = 1;
 bool renderInStereo = true;
 bool bypassCulling = false;
@@ -158,7 +158,7 @@ int32_t masterVolumeAdjustmentL;
 int32_t masterVolumeAdjustmentR;
 
 bool doMonitoring;
-int monitoringAction;
+int32_t monitoringAction;
 
 uint32_t saddr;
 
@@ -192,15 +192,15 @@ void init() {
 
 	sampleForPreview->sideChainSendLevel = 2147483647;
 
-	for (int i = 0; i < kNumVoiceSamplesStatic; i++) {
+	for (int32_t i = 0; i < kNumVoiceSamplesStatic; i++) {
 		voiceSamples[i].nextUnassigned = (i == kNumVoiceSamplesStatic - 1) ? NULL : &voiceSamples[i + 1];
 	}
 
-	for (int i = 0; i < kNumTimeStretchersStatic; i++) {
+	for (int32_t i = 0; i < kNumTimeStretchersStatic; i++) {
 		timeStretchers[i].nextUnassigned = (i == kNumTimeStretchersStatic - 1) ? NULL : &timeStretchers[i + 1];
 	}
 
-	for (int i = 0; i < kNumVoicesStatic; i++) {
+	for (int32_t i = 0; i < kNumVoicesStatic; i++) {
 		staticVoices[i].nextUnassigned = (i == kNumVoicesStatic - 1) ? NULL : &staticVoices[i + 1];
 	}
 
@@ -213,7 +213,7 @@ void init() {
 
 void unassignAllVoices(bool deletingSong) {
 
-	for (int v = 0; v < activeVoices.getNumElements(); v++) {
+	for (int32_t v = 0; v < activeVoices.getNumElements(); v++) {
 		Voice* thisVoice = activeVoices.getVoice(v);
 
 		thisVoice->setAsUnassigned(NULL, deletingSong);
@@ -249,7 +249,7 @@ Voice* cullVoice(bool saveVoice, bool justDoFastRelease) {
 	uint32_t bestRating = 0;
 	Voice* bestVoice = NULL;
 
-	for (int v = 0; v < activeVoices.getNumElements(); v++) {
+	for (int32_t v = 0; v < activeVoices.getNumElements(); v++) {
 		Voice* thisVoice = activeVoices.getVoice(v);
 
 		uint32_t ratingThisVoice = thisVoice->getPriorityRating();
@@ -298,7 +298,7 @@ Voice* cullVoice(bool saveVoice, bool justDoFastRelease) {
 	return bestVoice;
 }
 
-int getNumVoices() {
+int32_t getNumVoices() {
 	return activeVoices.getNumElements();
 }
 
@@ -319,7 +319,7 @@ void routineWithClusterLoading(bool mayProcessUserActionsBetween) {
 #if DO_AUDIO_LOG
 uint16_t audioLogTimes[AUDIO_LOG_SIZE];
 char audioLogStrings[AUDIO_LOG_SIZE][64];
-int numAudioLogItems = 0;
+int32_t numAudioLogItems = 0;
 #endif
 
 #define TICK_TYPE_SWUNG 1
@@ -351,12 +351,12 @@ void routine() {
 
 	// At this point, there may be MIDI, including clocks, waiting to be sent.
 
-	generalMemoryAllocator.checkStack("AudioDriver::routine");
+	GeneralMemoryAllocator::get().checkStack("AudioDriver::routine");
 
 	saddr = (uint32_t)(getTxBufferCurrentPlace());
 	uint32_t saddrPosAtStart = saddr >> (2 + NUM_MONO_OUTPUT_CHANNELS_MAGNITUDE);
-	int numSamples = ((uint32_t)(saddr - i2sTXBufferPos) >> (2 + NUM_MONO_OUTPUT_CHANNELS_MAGNITUDE))
-	                 & (SSI_TX_BUFFER_NUM_SAMPLES - 1);
+	int32_t numSamples = ((uint32_t)(saddr - i2sTXBufferPos) >> (2 + NUM_MONO_OUTPUT_CHANNELS_MAGNITUDE))
+	                     & (SSI_TX_BUFFER_NUM_SAMPLES - 1);
 	if (!numSamples) {
 		audioRoutineLocked = false;
 		return;
@@ -392,18 +392,18 @@ void routine() {
 		return;
 	}
 	numSamples = NUM_SAMPLES_FOR_CPU_USAGE_REPORT;
-	int unadjustedNumSamplesBeforeLappingPlayHead = numSamples;
+	int32_t unadjustedNumSamplesBeforeLappingPlayHead = numSamples;
 #else
 
 	numSamplesLastTime = numSamples;
 
 	// Consider direness and culling - before increasing the number of samples
-	int numSamplesLimit = 40; //storageManager.devVarC;
-	int direnessThreshold = numSamplesLimit - 17;
+	int32_t numSamplesLimit = 40; //storageManager.devVarC;
+	int32_t direnessThreshold = numSamplesLimit - 17;
 
 	if (numSamples >= direnessThreshold) { // 20
 
-		int newDireness = numSamples - (direnessThreshold - 1);
+		int32_t newDireness = numSamples - (direnessThreshold - 1);
 		if (newDireness > 14) {
 			newDireness = 14;
 		}
@@ -414,14 +414,14 @@ void routine() {
 		}
 
 		if (!bypassCulling) {
-			int numSamplesOverLimit = numSamples - numSamplesLimit;
+			int32_t numSamplesOverLimit = numSamples - numSamplesLimit;
 
 			// If it's real dire, do a proper immediate cull
 			if (numSamplesOverLimit >= 0) {
 
-				int numToCull = (numSamplesOverLimit >> 3) + 1;
+				int32_t numToCull = (numSamplesOverLimit >> 3) + 1;
 
-				for (int i = 0; i < numToCull; i++) {
+				for (int32_t i = 0; i < numToCull; i++) {
 					cullVoice();
 				}
 
@@ -442,7 +442,7 @@ void routine() {
 			}
 		}
 		else {
-			int numSamplesOverLimit = numSamples - numSamplesLimit;
+			int32_t numSamplesOverLimit = numSamples - numSamplesLimit;
 			if (numSamplesOverLimit >= 0) {
 				Debug::print("Won't cull, but numSamples is ");
 				Debug::println(numSamples);
@@ -452,7 +452,7 @@ void routine() {
 
 	else if (numSamples < direnessThreshold - 10) {
 
-		if ((int32_t)(audioSampleTimer - timeDirenessChanged) >= (44100 >> 3)) { // Only if it's been long enough
+		if ((int32_t)(audioSampleTimer - timeDirenessChanged) >= (kSampleRate >> 3)) { // Only if it's been long enough
 			timeDirenessChanged = audioSampleTimer;
 			cpuDireness--;
 			if (cpuDireness < 0) {
@@ -467,17 +467,17 @@ void routine() {
 	bypassCulling = false;
 
 	// Double the number of samples we're going to do - within some constraints
-	int sampleThreshold = 6; // If too low, it'll lead to bigger audio windows and stuff
-	int maxAdjustedNumSamples = SSI_TX_BUFFER_NUM_SAMPLES >> 1;
+	int32_t sampleThreshold = 6; // If too low, it'll lead to bigger audio windows and stuff
+	int32_t maxAdjustedNumSamples = SSI_TX_BUFFER_NUM_SAMPLES >> 1;
 
-	int unadjustedNumSamplesBeforeLappingPlayHead = numSamples;
+	int32_t unadjustedNumSamplesBeforeLappingPlayHead = numSamples;
 
 	if (numSamples < maxAdjustedNumSamples) {
-		int samplesOverThreshold = numSamples - sampleThreshold;
+		int32_t samplesOverThreshold = numSamples - sampleThreshold;
 		if (samplesOverThreshold > 0) {
 			samplesOverThreshold = samplesOverThreshold << 1;
 			numSamples = sampleThreshold + samplesOverThreshold;
-			numSamples = getMin(numSamples, maxAdjustedNumSamples);
+			numSamples = std::min(numSamples, maxAdjustedNumSamples);
 		}
 	}
 
@@ -489,13 +489,13 @@ void routine() {
 
 #endif
 
-	int timeWithinWindowAtWhichMIDIOrGateOccurs = -1; // -1 means none
+	int32_t timeWithinWindowAtWhichMIDIOrGateOccurs = -1; // -1 means none
 
 	// If a timer-tick is due during or directly after this window of audio samples...
 	if (playbackHandler.isEitherClockActive()) {
 
 startAgain:
-		int nextTickType = 0;
+		int32_t nextTickType = 0;
 		uint32_t timeNextTick = audioSampleTimer + 9999;
 
 		if (playbackHandler.playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE) {
@@ -591,11 +591,11 @@ startAgain:
 
 	if (getRandom255() < 3) {
 
-		int value = fastTimerCountToUS((endTime - startTime) * 10);
+		int32_t value = fastTimerCountToUS((endTime - startTime) * 10);
 
-		int total = value;
+		int32_t total = value;
 
-		for (int i = 0; i < REPORT_AVERAGE_NUM - 1; i++) {
+		for (int32_t i = 0; i < REPORT_AVERAGE_NUM - 1; i++) {
 			usageTimes[i] = usageTimes[i + 1];
 			total += usageTimes[i];
 		}
@@ -626,8 +626,8 @@ startAgain:
 	int32_t reverbAmplitudeL;
 	int32_t reverbAmplitudeR;
 
-	bool reverbOn = ((uint32_t)(audioSampleTimer - timeThereWasLastSomeReverb)
-	                 < 44100 * 12); // Stop reverb after 12 seconds of inactivity
+	// Stop reverb after 12 seconds of inactivity
+	bool reverbOn = ((uint32_t)(audioSampleTimer - timeThereWasLastSomeReverb) < kSampleRate * 12);
 
 	if (reverbOn) {
 		// Patch that to reverb volume
@@ -820,8 +820,8 @@ startAgain:
 
 		R_INTC_Enable(INTC_ID_TGIA[TIMER_MIDI_GATE_OUTPUT]);
 
-		*TGRA[TIMER_MIDI_GATE_OUTPUT] = ((uint32_t)samplesTilMIDIOrGate * 766245)
-		                                >> 16; // Set delay time. This is samplesTilMIDIOrGate * 515616 / 44100.
+		// Set delay time. This is samplesTilMIDIOrGate * 515616 / kSampleRate.
+		*TGRA[TIMER_MIDI_GATE_OUTPUT] = ((uint32_t)samplesTilMIDIOrGate * 766245) >> 16;
 		enableTimer(TIMER_MIDI_GATE_OUTPUT);
 	}
 
@@ -831,7 +831,7 @@ startAgain:
 	uint32_t timePassedUSA = fastTimerCountToUS(timePassedA);
 	if (timePassedUSA > storageManager.devVarA * 10) {
 		Debug::println("");
-		for (int i = 0; i < numAudioLogItems; i++) {
+		for (int32_t i = 0; i < numAudioLogItems; i++) {
 			uint16_t timePassed = (uint16_t)audioLogTimes[i] - lastRoutineTime;
 			uint32_t timePassedUS = fastTimerCountToUS(timePassed);
 			Debug::print(timePassedUS);
@@ -853,7 +853,7 @@ startAgain:
 	audioRoutineLocked = false;
 }
 
-int getNumSamplesLeftToOutputFromPreviousRender() {
+int32_t getNumSamplesLeftToOutputFromPreviousRender() {
 	return ((uint32_t)renderingBufferOutputEnd - (uint32_t)renderingBufferOutputPos) >> 3;
 }
 
@@ -861,7 +861,7 @@ int getNumSamplesLeftToOutputFromPreviousRender() {
 bool doSomeOutputting() {
 
 	// Copy to actual output buffer, and apply heaps of gain too, with clipping
-	int numSamplesOutputted = 0;
+	int32_t numSamplesOutputted = 0;
 
 	StereoSample* __restrict__ outputBufferForResampling = (StereoSample*)spareRenderingBuffer;
 	StereoSample* __restrict__ renderingBufferOutputPosNow = renderingBufferOutputPos;
@@ -993,11 +993,11 @@ bool doSomeOutputting() {
 				    (i2sRXBufferPos < (uint32_t)recorder->sourcePos) ? (uint32_t)getRxBufferEnd() : i2sRXBufferPos;
 
 				int32_t* streamToRecord = recorder->sourcePos;
-				int numSamplesFeedingNow =
+				int32_t numSamplesFeedingNow =
 				    (stopPos - (uint32_t)recorder->sourcePos) >> (2 + NUM_MONO_INPUT_CHANNELS_MAGNITUDE);
 
 				// We also enforce a firm limit on how much to feed, to keep things sane. Any remaining will get done next time.
-				numSamplesFeedingNow = getMin(numSamplesFeedingNow, 256);
+				numSamplesFeedingNow = std::min(numSamplesFeedingNow, 256_i32);
 
 				if (recorder->mode == AudioInputChannel::RIGHT) {
 					streamToRecord++;
@@ -1026,7 +1026,7 @@ void logAction(char const* string) {
 #endif
 }
 
-void logAction(int number) {
+void logAction(int32_t number) {
 #if DO_AUDIO_LOG
 	char buffer[12];
 	intToString(number, buffer);
@@ -1068,7 +1068,7 @@ void updateReverbParams() {
 
 			PatchCableSet* patchCableSet = paramManagerWithMostReverb->getPatchCableSet();
 
-			int whichCable = patchCableSet->getPatchCableIndex(PatchSource::COMPRESSOR, paramDescriptor);
+			int32_t whichCable = patchCableSet->getPatchCableIndex(PatchSource::COMPRESSOR, paramDescriptor);
 			if (whichCable != 255) {
 				reverbCompressorVolumeInEffect =
 				    patchCableSet->getModifiedPatchCableAmount(whichCable, Param::Global::VOLUME_POST_REVERB_SEND);
@@ -1116,7 +1116,7 @@ void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySo
 		return;
 	}
 	range->sampleHolder.filePath.set(path);
-	int error = range->sampleHolder.loadFile(false, true, true, CLUSTER_LOAD_IMMEDIATELY, filePointer);
+	int32_t error = range->sampleHolder.loadFile(false, true, true, CLUSTER_LOAD_IMMEDIATELY, filePointer);
 
 	if (error) {
 		numericDriver.displayError(error); // Rare, shouldn't cause later problems.
@@ -1172,7 +1172,7 @@ doCull:
 	}
 
 	else {
-		void* memory = generalMemoryAllocator.alloc(sizeof(Voice), NULL, false, true);
+		void* memory = GeneralMemoryAllocator::get().alloc(sizeof(Voice), NULL, false, true);
 		if (!memory) {
 			if (activeVoices.getNumElements()) {
 				goto doCull;
@@ -1191,7 +1191,7 @@ doCull:
 	keyWords[0] = (uint32_t)forSound;
 	keyWords[1] = (uint32_t)newVoice;
 
-	int i = activeVoices.insertAtKeyMultiWord(keyWords);
+	int32_t i = activeVoices.insertAtKeyMultiWord(keyWords);
 	if (i == -1) {
 		// if (ALPHA_OR_BETA_VERSION) numericDriver.freezeWithError("E193"); // No, having run out of RAM here isn't a reason to not continue.
 		disposeOfVoice(newVoice);
@@ -1227,7 +1227,7 @@ void disposeOfVoice(Voice* voice) {
 		firstUnassignedVoice = voice;
 	}
 	else {
-		generalMemoryAllocator.dealloc(voice);
+		GeneralMemoryAllocator::get().dealloc(voice);
 	}
 }
 
@@ -1238,7 +1238,7 @@ VoiceSample* solicitVoiceSample() {
 		return toReturn;
 	}
 	else {
-		void* memory = generalMemoryAllocator.alloc(sizeof(VoiceSample), NULL, false, true);
+		void* memory = GeneralMemoryAllocator::get().alloc(sizeof(VoiceSample), NULL, false, true);
 		if (!memory) {
 			return NULL;
 		}
@@ -1253,7 +1253,7 @@ void voiceSampleUnassigned(VoiceSample* voiceSample) {
 		firstUnassignedVoiceSample = voiceSample;
 	}
 	else {
-		generalMemoryAllocator.dealloc(voiceSample);
+		GeneralMemoryAllocator::get().dealloc(voiceSample);
 	}
 }
 
@@ -1266,7 +1266,7 @@ TimeStretcher* solicitTimeStretcher() {
 	}
 
 	else {
-		void* memory = generalMemoryAllocator.alloc(sizeof(TimeStretcher), NULL, false, true);
+		void* memory = GeneralMemoryAllocator::get().alloc(sizeof(TimeStretcher), NULL, false, true);
 		if (!memory) {
 			return NULL;
 		}
@@ -1282,7 +1282,7 @@ void timeStretcherUnassigned(TimeStretcher* timeStretcher) {
 		firstUnassignedTimeStretcher = timeStretcher;
 	}
 	else {
-		generalMemoryAllocator.dealloc(timeStretcher);
+		GeneralMemoryAllocator::get().dealloc(timeStretcher);
 	}
 }
 
@@ -1294,12 +1294,12 @@ LiveInputBuffer* getOrCreateLiveInputBuffer(OscType inputType, bool mayCreate) {
 			return NULL;
 		}
 
-		int size = sizeof(LiveInputBuffer);
+		int32_t size = sizeof(LiveInputBuffer);
 		if (inputType == OscType::INPUT_STEREO) {
 			size += kInputRawBufferSize * sizeof(int32_t);
 		}
 
-		void* memory = generalMemoryAllocator.alloc(size, NULL, false, true);
+		void* memory = GeneralMemoryAllocator::get().alloc(size, NULL, false, true);
 		if (!memory) {
 			return NULL;
 		}
@@ -1315,7 +1315,7 @@ bool createdNewRecorder;
 void doRecorderCardRoutines() {
 
 	SampleRecorder** prevPointer = &firstRecorder;
-	int count = 0;
+	int32_t count = 0;
 	while (true) {
 		count++;
 
@@ -1324,7 +1324,7 @@ void doRecorderCardRoutines() {
 			break;
 		}
 
-		int error = recorder->cardRoutine();
+		int32_t error = recorder->cardRoutine();
 		if (error) {
 			numericDriver.displayError(error);
 		}
@@ -1340,7 +1340,7 @@ void doRecorderCardRoutines() {
 			Debug::println("deleting recorder");
 			*prevPointer = recorder->next;
 			recorder->~SampleRecorder();
-			generalMemoryAllocator.dealloc(recorder);
+			GeneralMemoryAllocator::get().dealloc(recorder);
 		}
 
 		// Otherwise, move on
@@ -1375,11 +1375,11 @@ void slowRoutine() {
 	}
 
 	// Discard any LiveInputBuffers which aren't in use
-	for (int i = 0; i < 3; i++) {
+	for (int32_t i = 0; i < 3; i++) {
 		if (liveInputBuffers[i]) {
 			if (liveInputBuffers[i]->upToTime != audioSampleTimer) {
 				liveInputBuffers[i]->~LiveInputBuffer();
-				generalMemoryAllocator.dealloc(liveInputBuffers[i]);
+				GeneralMemoryAllocator::get().dealloc(liveInputBuffers[i]);
 				liveInputBuffers[i] = NULL;
 			}
 		}
@@ -1391,11 +1391,11 @@ void slowRoutine() {
 	doRecorderCardRoutines();
 }
 
-SampleRecorder* getNewRecorder(int numChannels, AudioRecordingFolder folderID, AudioInputChannel mode,
-                               bool keepFirstReasons, bool writeLoopPoints, int buttonPressLatency) {
-	int error;
+SampleRecorder* getNewRecorder(int32_t numChannels, AudioRecordingFolder folderID, AudioInputChannel mode,
+                               bool keepFirstReasons, bool writeLoopPoints, int32_t buttonPressLatency) {
+	int32_t error;
 
-	void* recorderMemory = generalMemoryAllocator.alloc(sizeof(SampleRecorder), NULL, false, true);
+	void* recorderMemory = GeneralMemoryAllocator::get().alloc(sizeof(SampleRecorder), NULL, false, true);
 	if (!recorderMemory) {
 		return NULL;
 	}
@@ -1405,7 +1405,7 @@ SampleRecorder* getNewRecorder(int numChannels, AudioRecordingFolder folderID, A
 	error = newRecorder->setup(numChannels, mode, keepFirstReasons, writeLoopPoints, folderID, buttonPressLatency);
 	if (error) {
 		newRecorder->~SampleRecorder();
-		generalMemoryAllocator.dealloc(recorderMemory);
+		GeneralMemoryAllocator::get().dealloc(recorderMemory);
 		return NULL;
 	}
 
@@ -1424,7 +1424,7 @@ SampleRecorder* getNewRecorder(int numChannels, AudioRecordingFolder folderID, A
 
 // PLEASE don't call this if there's any chance you might be in the SD card routine...
 void discardRecorder(SampleRecorder* recorder) {
-	int count = 0;
+	int32_t count = 0;
 	SampleRecorder** prevPointer = &firstRecorder;
 	while (*prevPointer) {
 
@@ -1441,7 +1441,7 @@ void discardRecorder(SampleRecorder* recorder) {
 	}
 
 	recorder->~SampleRecorder();
-	generalMemoryAllocator.dealloc(recorder);
+	GeneralMemoryAllocator::get().dealloc(recorder);
 }
 
 bool isAnyInternalRecordingHappening() {

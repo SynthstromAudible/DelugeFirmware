@@ -1,4 +1,12 @@
-import { BIN_FILE_NAMES, getAllRuns, getArtifactData, getCommitDetails } from "../../../../data";
+import {
+  BIN_FILE_NAMES,
+  getAllInterestingCommits,
+  getAllRuns,
+  getArtifactData,
+  getCommitDetails,
+  lookupBuildWorkflowId,
+  validateConfig,
+} from "../../../../data";
 import { Download } from "../../../../components/download-button";
 import { Suspense } from "react";
 
@@ -10,16 +18,18 @@ interface Params {
 export default async function Page({ params }: { params: Params }) {
   const { hash, artifact } = params;
 
-  const artifactData = await getArtifactData(hash, artifact);
+  const config = validateConfig();
+  const artifactData = await getArtifactData(config, hash, artifact);
   const commitData = await getCommitDetails(hash);
 
   return (
     <div className="p-24 m-auto flex flex-col gap-4">
       <div className="flex flex-col items-end rounded-xl pt-4 pl-4 pr-4 font-mono bg-neutral-700 shadow">
-        <pre className="">
-          {commitData.message}
-        </pre>
-        <a className="text-teal-300 mt-4 mb-2 hover:underline cursor-pointer" href={commitData.html_url}>
+        <pre className="">{commitData.message}</pre>
+        <a
+          className="text-teal-300 mt-4 mb-2 hover:underline cursor-pointer"
+          href={commitData.html_url}
+        >
           {hash}
         </a>
       </div>
@@ -45,7 +55,10 @@ export default async function Page({ params }: { params: Params }) {
 }
 
 export async function generateStaticParams(arg: any) {
-  const allRuns = await getAllRuns();
+  const config = validateConfig();
+  const workflowId = await lookupBuildWorkflowId(config);
+  const allCommits = await getAllInterestingCommits(config);
+  const allRuns = await getAllRuns(config, workflowId, allCommits);
 
   return allRuns.runs.flatMap((run) =>
     Array.from(BIN_FILE_NAMES, (fname) => ({

@@ -46,6 +46,6 @@ void WaveTableBandData::steal(char const* errorCode) {
 	audioFileManager.deleteUnusedAudioFileFromMemoryIndexUnknown(waveTable);
 }
 
-int WaveTableBandData::getAppropriateQueue() {
+int32_t WaveTableBandData::getAppropriateQueue() {
 	return STEALABLE_QUEUE_NO_SONG_WAVETABLE_BAND_DATA;
 }

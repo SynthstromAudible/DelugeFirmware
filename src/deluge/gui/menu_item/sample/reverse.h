@@ -15,33 +15,39 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "gui/menu_item/formatted_title.h"
+#include "gui/menu_item/toggle.h"
 #include "gui/ui/sound_editor.h"
 #include "model/clip/clip.h"
 #include "model/drum/kit.h"
 #include "model/song/song.h"
 #include "processing/sound/sound_drum.h"
-#include "selection.h"
 
-namespace menu_item::sample {
-class Reverse final : public Selection {
+namespace deluge::gui::menu_item::sample {
+class Reverse final : public Toggle, public FormattedTitle {
 public:
-	Reverse(char const* newName = NULL) : Selection(newName) {}
-	bool usesAffectEntire() { return true; }
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSource->sampleControls.reversed; }
-	void writeCurrentValue() {
+	Reverse(const string& name, const string& title_format_str) : Toggle(name), FormattedTitle(title_format_str) {}
+
+	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
+
+	bool usesAffectEntire() override { return true; }
+
+	void readCurrentValue() override { this->value_ = soundEditor.currentSource->sampleControls.reversed; }
+
+	void writeCurrentValue() override {
 
 		// If affect-entire button held, do whole kit
 		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKit()) {
 
-			Kit* kit = (Kit*)currentSong->currentClip->output;
+			Kit* kit = static_cast<Kit*>(currentSong->currentClip->output);
 
-			for (Drum* thisDrum = kit->firstDrum; thisDrum; thisDrum = thisDrum->next) {
+			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
-					SoundDrum* soundDrum = (SoundDrum*)thisDrum;
+					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
 					Source* source = &soundDrum->sources[soundEditor.currentSourceIndex];
 
 					soundDrum->unassignAllVoices();
-					source->setReversed(soundEditor.currentValue);
+					source->setReversed(this->value_);
 				}
 			}
 		}
@@ -49,8 +55,8 @@ public:
 		// Or, the normal case of just one sound
 		else {
 			soundEditor.currentSound->unassignAllVoices();
-			soundEditor.currentSource->setReversed(soundEditor.currentValue);
+			soundEditor.currentSource->setReversed(this->value_);
 		}
 	}
 };
-} // namespace menu_item::sample
+} // namespace deluge::gui::menu_item::sample

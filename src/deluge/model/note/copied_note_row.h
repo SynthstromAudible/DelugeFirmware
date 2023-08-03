@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
+#include <cstdint>
 class Note;
 
 class CopiedNoteRow {
@@ -26,7 +26,7 @@ public:
 	virtual ~CopiedNoteRow();
 
 	int16_t yDisplay;
-	int numNotes;
+	int32_t numNotes;
 	Note* notes;
 	CopiedNoteRow* next;
 	int16_t yNote;

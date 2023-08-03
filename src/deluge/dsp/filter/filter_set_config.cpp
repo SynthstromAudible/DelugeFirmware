@@ -66,7 +66,7 @@ q31_t LPLadderConfig::init(q31_t lpfFrequency, q31_t lpfResonance, LPFMode lpfMo
 
 		doOversampling = false; //storageManager.devVarA;
 
-		logFreq = getMin(logFreq, (int32_t)63 << 24);
+		logFreq = std::min(logFreq, (int32_t)63 << 24);
 
 		if (AudioEngine::cpuDireness < 14 && (logFreq >> 24) > 51) {
 			int32_t resonanceThreshold = interpolateTableSigned(logFreq, 30, resonanceThresholdsForOversampling, 6);
@@ -85,11 +85,11 @@ q31_t LPLadderConfig::init(q31_t lpfFrequency, q31_t lpfResonance, LPFMode lpfMo
 
 			// Enforce a max frequency. Otherwise we'll generate stuff which will cause problems for down-sampling again.
 			// But only if resonance is high. If it's low, we need to be able to get the freq high, to let all the HF through that we want to hear
-			lpfFrequency = getMin((int32_t)39056384, lpfFrequency);
+			lpfFrequency = std::min((int32_t)39056384, lpfFrequency);
 
 			int32_t resonanceLimit = interpolateTableSigned(logFreq, 30, resonanceLimitTable, 6);
 
-			processedResonance = getMin(processedResonance, resonanceLimit);
+			processedResonance = std::min(processedResonance, resonanceLimit);
 		}
 	}
 
@@ -107,11 +107,11 @@ q31_t LPLadderConfig::init(q31_t lpfFrequency, q31_t lpfResonance, LPFMode lpfMo
 		int32_t howMuchToKeep = ONE_Q31 - 1 * 33;
 
 		int32_t resonanceUpperLimit = 510000000; // Prone to feeding back lots
-		tannedFrequency = getMax(
+		tannedFrequency = std::max(
 		    tannedFrequency,
 		    (int32_t)540817); // We really want to keep the frequency from going lower than it has to - it causes problems
 
-		int32_t resonance = ONE_Q31 - (getMin(lpfResonance, resonanceUpperLimit) << 2); // Limits it
+		int32_t resonance = ONE_Q31 - (std::min(lpfResonance, resonanceUpperLimit) << 2); // Limits it
 		resonance = multiply_32x32_rshift32_rounded(resonance, resonance) << 1;
 		processedResonance =
 		    ONE_Q31 - resonance; //ONE_Q31 - rawResonance2; // Always between 0 and 2. 1 represented as 1073741824
@@ -163,7 +163,7 @@ q31_t LPLadderConfig::init(q31_t lpfFrequency, q31_t lpfResonance, LPFMode lpfMo
 			processedResonance >>= 1;
 		}
 
-		int32_t a = getMin(lpfResonance, (int32_t)536870911);
+		int32_t a = std::min(lpfResonance, (int32_t)536870911);
 		a = 536870912 - a;
 		a = multiply_32x32_rshift32(a, a) << 3;
 		a = 536870912 - a;
@@ -209,13 +209,13 @@ q31_t HPLadderConfig::init(q31_t hpfFrequency, q31_t hpfResonance, bool adjustVo
 	    / (134217728 + (tannedFrequency >> 1)); // Between ~0.1 and 1. 1 represented by 2147483648
 
 	int32_t resonanceUpperLimit = 536870911;
-	int32_t resonance = ONE_Q31 - (getMin(hpfResonance, resonanceUpperLimit) << 2); // Limits it
+	int32_t resonance = ONE_Q31 - (std::min(hpfResonance, resonanceUpperLimit) << 2); // Limits it
 
 	resonance = multiply_32x32_rshift32_rounded(resonance, resonance) << 1;
 	hpfProcessedResonance =
 	    ONE_Q31 - resonance; //ONE_Q31 - rawResonance2; // Always between 0 and 2. 1 represented as 1073741824
 
-	hpfProcessedResonance = getMax(hpfProcessedResonance, (int32_t)134217728); // Set minimum resonance amount
+	hpfProcessedResonance = std::max(hpfProcessedResonance, (int32_t)134217728); // Set minimum resonance amount
 
 	int32_t hpfProcessedResonanceUnaltered = hpfProcessedResonance;
 
@@ -242,7 +242,7 @@ q31_t HPLadderConfig::init(q31_t hpfFrequency, q31_t hpfResonance, bool adjustVo
 
 	if (adjustVolumeForHPFResonance) {
 		// Adjust volume for HPF resonance
-		q31_t rawResonance = getMin(hpfResonance, (q31_t)ONE_Q31 >> 2) << 2;
+		q31_t rawResonance = std::min(hpfResonance, (q31_t)ONE_Q31 >> 2) << 2;
 		q31_t squared = multiply_32x32_rshift32(rawResonance, rawResonance) << 1;
 		squared = (multiply_32x32_rshift32(squared, squared) >> 4)
 		          * 19; // Make bigger to have more of a volume cut happen at high resonance

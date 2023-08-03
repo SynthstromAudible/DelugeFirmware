@@ -96,7 +96,7 @@ int32_t Compressor::getActualAttackRate() {
 		alteredAttack = attack;
 	}
 	else {
-		int rshiftAmount = (9 - syncLevel) - 2;
+		int32_t rshiftAmount = (9 - syncLevel) - 2;
 		alteredAttack = multiply_32x32_rshift32(attack << 11, playbackHandler.getTimePerInternalTickInverse());
 
 		if (rshiftAmount >= 0) {
@@ -176,10 +176,10 @@ doRelease:
 		int32_t preValue;
 
 		// This would be the super simple case
-		//int curvedness16 = (uint32_t)(positiveShapeValue + 32768) >> 16;
+		//int32_t curvedness16 = (uint32_t)(positiveShapeValue + 32768) >> 16;
 
 		// And this is the better, more complicated case
-		int curvedness16 = (positiveShapeValue >> 15) - (pos >> 7);
+		int32_t curvedness16 = (positiveShapeValue >> 15) - (pos >> 7);
 		if (curvedness16 < 0) {
 			preValue = pos << 8;
 		}
@@ -187,7 +187,7 @@ doRelease:
 			if (curvedness16 > 65536) {
 				curvedness16 = 65536;
 			}
-			int straightness = 65536 - curvedness16;
+			int32_t straightness = 65536 - curvedness16;
 			preValue = straightness * (pos >> 8) + (getDecay8(8388608 - pos, 23) >> 16) * curvedness16;
 		}
 
