@@ -735,12 +735,27 @@ ActionResult SampleMarkerEditor::verticalEncoderAction(int offset, bool inCardRo
 
 	if (loopLocked) {
 		if (offset > 0) { // turn clockwise
-			loopLength = loopLength * 2;
-			numericDriver.displayPopup("DOUB");
+			int end = getCurrentSampleHolder()->endPos;
+			int loopEnd = getCurrentMultisampleRange()->sampleHolder.loopEndPos;
+
+			if (loopEnd + loopLength < end) {
+				loopLength = loopLength * 2;
+				numericDriver.displayPopup("DOUB");
+			}
+			else {
+				numericDriver.displayPopup("CANT");
+				return ActionResult::DEALT_WITH;
+			}
 		}
 		else { // turn anti-clockwise
-			loopLength = loopLength / 2;
-			numericDriver.displayPopup("HALF");
+			if (loopLength > 2) {
+				loopLength = loopLength / 2;
+				numericDriver.displayPopup("HALF");
+			}
+			else {
+				numericDriver.displayPopup("CANT");
+				return ActionResult::DEALT_WITH;
+			}
 		}
 
 		int loopStart = getCurrentMultisampleRange()->sampleHolder.loopStartPos;
