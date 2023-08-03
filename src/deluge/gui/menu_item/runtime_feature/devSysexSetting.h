@@ -1,5 +1,5 @@
 /*
- * Copyright © 2015-2023 Synthstrom Audible Limited
+ * Copyright © 2021-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -13,23 +13,28 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
- */
+*/
 
 #pragma once
 
-#include <cstdint>
+#include "gui/menu_item/selection.h"
+#include "model/settings/runtime_feature_settings.h"
 
-class MIDIDevice;
+namespace deluge::gui::menu_item::runtime_feature {
+class Settings;
+class DevSysexSetting final : public Selection<2> {
+public:
+	explicit DevSysexSetting(RuntimeFeatureSettingType ty);
 
-#include "definitions_cxx.hpp"
-namespace Debug {
+	void readCurrentValue() override;
+	void writeCurrentValue() override;
+	static_vector<std::string, 2> getOptions() override;
+	[[nodiscard]] std::string_view getName() const override;
+	[[nodiscard]] std::string_view getTitle() const override;
 
-void sysexReceived(MIDIDevice* device, uint8_t* data, int32_t len);
-void sysexDebugPrint(MIDIDevice* device, const char* msg, bool nl);
-
-#ifdef ENABLE_SYSEX_LOAD
-void loadPacketReceived(uint8_t* data, int32_t len);
-void loadCheckAndRun(uint8_t* data, int32_t len);
-#endif
-
-} // namespace Debug
+private:
+	friend class Settings;
+	uint32_t currentSettingIndex;
+	int32_t onValue;
+};
+} // namespace deluge::gui::menu_item::runtime_feature
