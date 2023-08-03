@@ -330,7 +330,7 @@ char const* getSourceDisplayNameForOLED(PatchSource s) {
 	}
 }
 
-char const* getPatchedParamDisplayNameForOled(int32_t p) {
+char const* getPatchedParamDisplayNameForOLED(int32_t p) {
 
 	// These can basically be 13 chars long, or 14 if the last one is a dot.
 	switch (p) {

@@ -236,7 +236,8 @@ private:
 
 	int32_t calculateKnobPosForModEncoderTurn(int32_t knobPos, int32_t offset);
 	bool isOnParameterGridMenuView();
-	void drawParameterName(int32_t paramID);
+	void displayParameterName(int32_t paramID);
+	void displayParameterValue(int32_t knobPos);
 	void renderAutomationOverview();
 	void renderAutomationEditor();
 

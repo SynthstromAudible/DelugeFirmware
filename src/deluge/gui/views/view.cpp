@@ -1745,15 +1745,16 @@ getOut:
 			((Kit*)newInstrument)->selectedDrum = NULL;
 		}
 
-		if (getCurrentUI() == &instrumentClipView) {
+		if (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationInstrumentClipView) {
 			AudioEngine::routineWithClusterLoading(); // -----------------------------------
 			instrumentClipView.recalculateColours();
+		}
+
+		if (getCurrentUI() == &instrumentClipView) {
 			uiNeedsRendering(&instrumentClipView);
 		}
 
 		else if (getCurrentUI() == &automationInstrumentClipView) {
-			AudioEngine::routineWithClusterLoading(); // -----------------------------------
-			instrumentClipView.recalculateColours();
 			uiNeedsRendering(&automationInstrumentClipView);
 		}
 

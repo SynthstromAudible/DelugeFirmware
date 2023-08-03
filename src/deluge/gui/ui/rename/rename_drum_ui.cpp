@@ -125,9 +125,6 @@ ActionResult RenameDrumUI::padAction(int32_t x, int32_t y, int32_t on) {
 
 	// Audition pad
 	if (x == kDisplayWidth + 1) {
-		if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
-			return automationInstrumentClipView.padAction(x, y, on);
-		}
 		return instrumentClipView.padAction(x, y, on);
 	}
 
@@ -152,9 +149,6 @@ ActionResult RenameDrumUI::padAction(int32_t x, int32_t y, int32_t on) {
 ActionResult RenameDrumUI::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::button::X_ENC)) {
 		return ActionResult::DEALT_WITH;
-	}
-	if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
-		return automationInstrumentClipView.verticalEncoderAction(offset, inCardRoutine);
 	}
 	return instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
 }

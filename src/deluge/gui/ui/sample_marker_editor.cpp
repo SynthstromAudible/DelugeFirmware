@@ -90,9 +90,6 @@ bool SampleMarkerEditor::opened() {
 	if (getRootUI() == &keyboardScreen) {
 		PadLEDs::skipGreyoutFade();
 	}
-	else if (getRootUI() == &automationInstrumentClipView) {
-		PadLEDs::skipGreyoutFade();
-	}
 
 	uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
 
@@ -113,7 +110,7 @@ bool SampleMarkerEditor::opened() {
 	displayText();
 #endif
 
-	if ((getRootUI() != &instrumentClipView) && (getRootUI() != &automationInstrumentClipView)) {
+	if (getRootUI() != &instrumentClipView) {
 		renderingNeededRegardlessOfUI(0, 0xFFFFFFFF);
 	}
 
@@ -314,12 +311,7 @@ ActionResult SampleMarkerEditor::padAction(int32_t x, int32_t y, int32_t on) {
 	// Audition pads - pass to UI beneath
 	if (x == kDisplayWidth + 1) {
 		if (currentSong->currentClip->type == CLIP_TYPE_INSTRUMENT) {
-			if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
-				automationInstrumentClipView.padAction(x, y, on);
-			}
-			else {
-				instrumentClipView.padAction(x, y, on);
-			}
+			instrumentClipView.padAction(x, y, on);
 		}
 		return ActionResult::DEALT_WITH;
 	}
@@ -711,21 +703,13 @@ ActionResult SampleMarkerEditor::verticalEncoderAction(int32_t offset, bool inCa
 	ActionResult result;
 
 	// Must say these buttons were not pressed, or else editing might take place
-	if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
-		result = automationInstrumentClipView.verticalEncoderAction(offset, inCardRoutine);
-	}
-	else {
-		result = instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
-	}
+	result = instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
 
 	if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
 		return result;
 	}
 
 	if (getRootUI() == &keyboardScreen) {
-		uiNeedsRendering(this, 0, 0xFFFFFFFF);
-	}
-	else if (getRootUI() == &automationInstrumentClipView) {
 		uiNeedsRendering(this, 0, 0xFFFFFFFF);
 	}
 
@@ -736,9 +720,6 @@ bool SampleMarkerEditor::renderSidebar(uint32_t whichRows, uint8_t image[][kDisp
                                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	if (getRootUI() != &keyboardScreen) {
 		return false;
-	}
-	else if (getRootUI() == &automationInstrumentClipView) {
-		return automationInstrumentClipView.renderSidebar(whichRows, image, occupancyMask);
 	}
 	return instrumentClipView.renderSidebar(whichRows, image, occupancyMask);
 }

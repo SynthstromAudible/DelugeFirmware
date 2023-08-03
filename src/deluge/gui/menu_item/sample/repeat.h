@@ -82,12 +82,7 @@ public:
 		}
 
 		// We need to re-render all rows, because this will have changed whether Note tails are displayed. Probably just one row, but we don't know which
-		if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
-			uiNeedsRendering(&automationInstrumentClipView, 0xFFFFFFFF, 0);
-		}
-		else {
-			uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
-		}
+		uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
 	}
 	static_vector<string, capacity()> getOptions() override { return {"CUT", "ONCE", "LOOP", "STRETCH"}; }
 };

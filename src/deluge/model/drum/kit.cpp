@@ -1171,7 +1171,7 @@ goingToRecordNoteOnEarly:
 			if (thisNoteRow) {
 				instrumentClip->toggleNoteRowMute(modelStackWithNoteRow);
 
-				if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+				if (getCurrentUI() == &automationInstrumentClipView) {
 					uiNeedsRendering(&automationInstrumentClipView, 0, 0xFFFFFFFF);
 				}
 				else {

@@ -757,11 +757,5 @@ ramError2:
 
 	numericDriver.setNextTransitionDirection(-1);
 	sampleBrowser.exitAndNeverDeleteDrum();
-
-	if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
-		uiNeedsRendering(&automationInstrumentClipView);
-	}
-	else {
-		uiNeedsRendering(&instrumentClipView);
-	}
+	uiNeedsRendering(&instrumentClipView);
 }

@@ -123,12 +123,7 @@ bool SampleBrowser::opened() {
 #endif
 
 	if (currentUIMode == UI_MODE_AUDITIONING) {
-		//	if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
-		//		automationInstrumentClipView.cancelAllAuditioning();
-		//	}
-		//	else {
 		instrumentClipView.cancelAllAuditioning();
-		//	}
 	}
 
 	int32_t error = storageManager.initSD();
@@ -190,12 +185,7 @@ dissectionDone:
 	//soundEditor.setupShortcutBlink(soundEditor.currentSourceIndex, 5, 0);
 
 	if (currentUIMode == UI_MODE_AUDITIONING) {
-		//	if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
-		//		automationInstrumentClipView.cancelAllAuditioning();
-		//	}
-		//	else {
 		instrumentClipView.cancelAllAuditioning();
-		//	}
 	}
 
 	possiblySetUpBlinking();
@@ -283,12 +273,7 @@ void SampleBrowser::exitAction() {
 		           ->getFirstUnassignedDrum((InstrumentClip*)currentSong->currentClip) // Only if some unassigned Drums
 		    && soundEditor.getCurrentAudioFileHolder()->filePath.isEmpty()) {
 			instrumentClipView.deleteDrum((SoundDrum*)soundEditor.currentSound);
-			if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
-				redrawUI = &automationInstrumentClipView;
-			}
-			else {
-				redrawUI = &instrumentClipView;
-			}
+			redrawUI = &instrumentClipView;
 		}
 	}
 
@@ -540,8 +525,7 @@ gotError:
 
 bool SampleBrowser::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
 
-	if (currentlyShowingSamplePreview || qwertyVisible || getRootUI() == &keyboardScreen
-	    || getRootUI() == &automationInstrumentClipView) {
+	if (currentlyShowingSamplePreview || qwertyVisible || getRootUI() == &keyboardScreen) {
 		*cols = 0b10;
 	}
 	else {
@@ -666,9 +650,6 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 				if (getRootUI() != &keyboardScreen) {
 					PadLEDs::reassessGreyout(true);
 				}
-				else if (getRootUI() != &automationInstrumentClipView) {
-					PadLEDs::reassessGreyout(true);
-				}
 				memset(PadLEDs::transitionTakingPlaceOnRow, 1, sizeof(PadLEDs::transitionTakingPlaceOnRow));
 				PadLEDs::horizontal::setupScroll(movementDirection, kDisplayWidth);
 				currentUIMode = UI_MODE_HORIZONTAL_SCROLL;
@@ -697,9 +678,6 @@ ActionResult SampleBrowser::padAction(int32_t x, int32_t y, int32_t on) {
 	if (x == kDisplayWidth + 1) {
 		if (getRootUI() == &instrumentClipView) {
 			return instrumentClipView.padAction(x, y, on);
-		}
-		else if (getRootUI() == &automationInstrumentClipView) {
-			return automationInstrumentClipView.padAction(x, y, on);
 		}
 	}
 
@@ -2053,12 +2031,7 @@ skipNameStuff:
 	((Instrument*)currentSong->currentClip->output)->beenEdited();
 
 	exitAndNeverDeleteDrum();
-	if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
-		uiNeedsRendering(&automationInstrumentClipView);
-	}
-	else {
-		uiNeedsRendering(&instrumentClipView);
-	}
+	uiNeedsRendering(&instrumentClipView);
 #if HAVE_OLED
 	OLED::removeWorkingAnimation();
 #endif
@@ -2135,12 +2108,6 @@ ActionResult SampleBrowser::verticalEncoderAction(int32_t offset, bool inCardRou
 			return ActionResult::DEALT_WITH;
 		}
 		return instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
-	}
-	else if (getRootUI() == &automationInstrumentClipView) {
-		if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::button::X_ENC)) {
-			return ActionResult::DEALT_WITH;
-		}
-		return automationInstrumentClipView.verticalEncoderAction(offset, inCardRoutine);
 	}
 
 	return ActionResult::DEALT_WITH;

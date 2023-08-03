@@ -98,16 +98,12 @@ using namespace deluge::gui;
 
 //extern bool shouldResumePlaybackOnNoteRowLengthSet;
 
-const uint32_t auditionPadActionUIModes[] = {UI_MODE_AUDITIONING,
-                                             UI_MODE_ADDING_DRUM_NOTEROW,
-                                             UI_MODE_HORIZONTAL_SCROLL,
-                                             UI_MODE_RECORD_COUNT_IN,
-                                             UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON,
-                                             0};
+const uint32_t auditionPadActionUIModes[] = {UI_MODE_AUDITIONING, UI_MODE_HORIZONTAL_SCROLL, UI_MODE_RECORD_COUNT_IN,
+                                             UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON, 0};
 
-const uint32_t editPadActionUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON, 0};
+const uint32_t editPadActionUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, 0};
 
-const uint32_t mutePadActionUIModes[] = {UI_MODE_AUDITIONING, UI_MODE_STUTTERING, 0};
+const uint32_t mutePadActionUIModes[] = {UI_MODE_AUDITIONING, 0};
 
 //static const uint32_t noteNudgeUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON, 0};
 
@@ -1129,16 +1125,12 @@ doOther:
 			if (interpolation == 0) {
 				interpolation = 1;
 
-				char* displayText;
-				displayText = "Interpolation On";
-				numericDriver.displayPopup(displayText);
+				numericDriver.displayPopup(HAVE_OLED ? "Interpolation On" : "ON");
 			}
 			else {
 				interpolation = 0;
 
-				char* displayText;
-				displayText = "Interpolation Off";
-				numericDriver.displayPopup(displayText);
+				numericDriver.displayPopup(HAVE_OLED ? "Interpolation Off" : "OFF");
 			}
 		}
 		//needed for Automation
@@ -1249,18 +1241,16 @@ ActionResult AutomationInstrumentClipView::padAction(int32_t x, int32_t y, int32
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 
-		// Perhaps the user wants to enter the SoundEditor via a shortcut. They can do this by holding an audition pad too - but this gets deactivated
-		// if they've done any "euclidean" or per-NoteRow editing already by holding down that audition pad, because if they've done that, they're probably
-		// not intending to deliberately go into the SoundEditor, but might be trying to edit notes. Which they currently can't do...
-		if (velocity) { //&& (!isUIModeActive(UI_MODE_AUDITIONING) || !editedAnyPerNoteRowStuffSinceAuditioningBegan)) {
+		//if the user wants to change the parameter they are editing using Shift + Pad shortcut
+		if (velocity) {
 
-			if (Buttons::isShiftButtonPressed() || isUIModeActive(UI_MODE_AUDITIONING)) {
+			if (Buttons::isShiftButtonPressed()) {
 
 				handleSinglePadPress(modelStack, clip, x, y, true);
 
 				return ActionResult::DEALT_WITH;
 			}
-			else {
+			else { //regular automation step editing action
 				goto doRegularEditPadActionProbably;
 			}
 		}
@@ -1290,7 +1280,7 @@ doRegularEditPadActionProbably:
 			}
 			view.noteRowMuteMidiLearnPadPressed(velocity, noteRow);
 		}
-		else if (currentSong->currentClip->output->type == InstrumentType::KIT
+		/*	else if (currentSong->currentClip->output->type == InstrumentType::KIT
 		         && instrumentClipView.lastAuditionedYDisplay == y && isUIModeActive(UI_MODE_AUDITIONING)
 		         && instrumentClipView.getNumNoteRowsAuditioning() == 1) {
 			if (velocity) {
@@ -1309,12 +1299,12 @@ doRegularEditPadActionProbably:
 					goto maybeRegularMutePress;
 				}
 			}
-		}
-		else {
-maybeRegularMutePress:
-			if (isUIModeWithinRange(mutePadActionUIModes) && velocity) {
-				instrumentClipView.mutePadPress(y);
-			}
+		}*/
+		else if (isUIModeWithinRange(mutePadActionUIModes) && velocity) {
+			//maybeRegularMutePress:
+			//if (isUIModeWithinRange(mutePadActionUIModes) && velocity) {
+			instrumentClipView.mutePadPress(y);
+			//}
 		}
 	}
 
@@ -3168,6 +3158,7 @@ void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int
 
 	//Or, if user holding a note(s) down, we'll adjust the value of the selected parameter being automated
 	if (currentUIMode == UI_MODE_NOTES_PRESSED) {
+
 		if (clip->output->type == InstrumentType::SYNTH || clip->output->type == InstrumentType::KIT) {
 
 			if (clip->lastSelectedParamID != 255 && lastEditPadPressXDisplay != 255) {
@@ -3193,11 +3184,6 @@ void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int
 
 						setParameterAutomationValue(modelStackWithParam, newKnobPos, squareStart,
 						                            lastEditPadPressXDisplay, effectiveLength);
-
-						char buffer[5];
-
-						intToString(newKnobPos + 64, buffer);
-						numericDriver.displayPopup(buffer);
 					}
 				}
 			}
@@ -3232,11 +3218,6 @@ void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int
 
 						setParameterAutomationValue(modelStackWithParam, newKnobPos, squareStart,
 						                            lastEditPadPressXDisplay, effectiveLength);
-
-						char buffer[5];
-
-						intToString(newKnobPos + 64, buffer);
-						numericDriver.displayPopup(buffer);
 					}
 				}
 			}
@@ -3278,10 +3259,7 @@ void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int
 
 						modelStack->getTimelineCounter()->instrumentBeenEdited();
 
-						char buffer[5];
-
-						intToString(newKnobPos + 64, buffer);
-						numericDriver.displayPopup(buffer);
+						displayParameterValue(newKnobPos + 64);
 					}
 				}
 			}
@@ -3320,10 +3298,7 @@ void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int
 
 						modelStack->getTimelineCounter()->instrumentBeenEdited();
 
-						char buffer[5];
-
-						intToString(newKnobPos + 64, buffer);
-						numericDriver.displayPopup(buffer);
+						displayParameterValue(newKnobPos + 64);
 					}
 				}
 			}
@@ -3388,13 +3363,13 @@ void AutomationInstrumentClipView::modEncoderButtonAction(uint8_t whichModEncode
 	//press top mod encoder to display current parameter selected
 	else if (whichModEncoder == 1 && on && clip->lastSelectedParamID != 255
 	         && (clip->output->type == InstrumentType::SYNTH || clip->output->type == InstrumentType::KIT)) {
-		drawParameterName(clip->lastSelectedParamID);
+		displayParameterName(clip->lastSelectedParamID);
 	}
 
 	//press top mod encoder to display current parameter selected
 	else if (whichModEncoder == 1 && on && clip->lastSelectedMidiCC != 255
 	         && clip->output->type == InstrumentType::MIDI_OUT) {
-		drawParameterName(clip->lastSelectedMidiCC);
+		displayParameterName(clip->lastSelectedMidiCC);
 	}
 
 	else {
@@ -3692,7 +3667,7 @@ void AutomationInstrumentClipView::selectEncoderAction(int8_t offset) {
 				lastSelectedParamArrayPosition += offset;
 			}
 
-			drawParameterName(clip->lastSelectedParamID);
+			displayParameterName(clip->lastSelectedParamID);
 
 			for (int32_t x = 0; x < kDisplayWidth; x++) {
 				for (int32_t y = 0; y < kDisplayHeight; y++) {
@@ -3723,7 +3698,7 @@ void AutomationInstrumentClipView::selectEncoderAction(int8_t offset) {
 				clip->lastSelectedMidiCC += offset;
 			}
 
-			drawParameterName(clip->lastSelectedMidiCC);
+			displayParameterName(clip->lastSelectedMidiCC);
 
 			for (int32_t x = 0; x < kDisplayWidth; x++) {
 				for (int32_t y = 0; y < kDisplayHeight; y++) {
@@ -4029,6 +4004,8 @@ void AutomationInstrumentClipView::setParameterAutomationValue(ModelStackWithAut
 	modelStack->autoParam->setValuePossiblyForRegion(newValue, modelStack, squareStart, squareWidth);
 
 	modelStack->getTimelineCounter()->instrumentBeenEdited();
+
+	displayParameterValue(knobPos + 64);
 }
 
 void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip,
@@ -4040,7 +4017,7 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 		    && paramShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
 			clip->lastSelectedParamID = paramShortcutsForAutomation[xDisplay][yDisplay];
 
-			drawParameterName(clip->lastSelectedParamID);
+			displayParameterName(clip->lastSelectedParamID);
 
 			lastSelectedParamX = xDisplay;
 			lastSelectedParamY = yDisplay;
@@ -4076,7 +4053,7 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 		    && midiCCShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
 			clip->lastSelectedMidiCC = midiCCShortcutsForAutomation[xDisplay][yDisplay];
 
-			drawParameterName(clip->lastSelectedMidiCC);
+			displayParameterName(clip->lastSelectedMidiCC);
 
 			lastSelectedMidiX = xDisplay;
 			lastSelectedMidiY = yDisplay;
@@ -4248,7 +4225,7 @@ bool AutomationInstrumentClipView::isOnParameterGridMenuView() {
 	return false;
 }
 
-void AutomationInstrumentClipView::drawParameterName(int32_t paramID) {
+void AutomationInstrumentClipView::displayParameterName(int32_t paramID) {
 
 	InstrumentClip* clip = getCurrentClip();
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -4266,19 +4243,15 @@ void AutomationInstrumentClipView::drawParameterName(int32_t paramID) {
 
 		char buffer[30];
 
-		strcpy(buffer, getPatchedParamDisplayNameForOled(paramID));
+#if HAVE_OLED //drawing Parameter Names on 7SEG isn't legible and not done currently, so won't do it here either
 
-#if HAVE_OLED
+		strcpy(buffer, getPatchedParamDisplayNameForOLED(paramID));
 
 		if (isAutomated) {
 			strcat(buffer, "\n(automated)");
 		}
 
 		OLED::popupText(buffer, true);
-
-#else
-
-		numericDriver.setText(buffer, true, isAutomated ? 3 : 255, true);
 
 #endif
 	}
@@ -4287,6 +4260,14 @@ void AutomationInstrumentClipView::drawParameterName(int32_t paramID) {
 
 		InstrumentClipMinder::drawMIDIControlNumber(paramID, isAutomated);
 	}
+}
+
+void AutomationInstrumentClipView::displayParameterValue(int32_t knobPos) {
+
+	char buffer[5];
+
+	intToString(knobPos, buffer);
+	numericDriver.displayPopup(buffer);
 }
 
 //straight line formula:

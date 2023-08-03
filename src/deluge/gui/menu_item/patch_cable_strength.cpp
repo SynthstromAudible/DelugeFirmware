@@ -95,7 +95,7 @@ void PatchCableStrength::renderOLED() {
 
 	int32_t p = destinationDescriptor.getJustTheParam();
 
-	OLED::drawString(getPatchedParamDisplayNameForOled(p), 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
+	OLED::drawString(getPatchedParamDisplayNameForOLED(p), 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
 	                 kTextSpacingX, kTextSizeYUpdated);
 
 	if (soundEditor.numberEditPos != getDefaultEditPos()) {

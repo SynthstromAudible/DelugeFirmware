@@ -67,9 +67,6 @@ bool LoadInstrumentPresetUI::opened() {
 	if (getRootUI() == &keyboardScreen) {
 		PadLEDs::skipGreyoutFade();
 	}
-	//	else if (getRootUI() == &automationInstrumentClipView) {
-	//		PadLEDs::skipGreyoutFade();
-	//	}
 
 	initialInstrumentType = instrumentToReplace->type;
 	initialName.set(&instrumentToReplace->name);
@@ -967,9 +964,6 @@ ActionResult LoadInstrumentPresetUI::padAction(int32_t x, int32_t y, int32_t on)
 			}
 		}
 		else {
-			if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
-				return automationInstrumentClipView.padAction(x, y, on);
-			}
 			return instrumentClipView.padAction(x, y, on);
 		}
 	}
@@ -1000,7 +994,7 @@ ActionResult LoadInstrumentPresetUI::verticalEncoderAction(int32_t offset, bool 
 
 		ActionResult result;
 
-		if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+		if (getRootUI() == &automationInstrumentClipView) {
 			result = automationInstrumentClipView.verticalEncoderAction(offset, inCardRoutine);
 		}
 		else {
@@ -1015,10 +1009,6 @@ ActionResult LoadInstrumentPresetUI::verticalEncoderAction(int32_t offset, bool 
 			uiNeedsRendering(this, 0, 0xFFFFFFFF);
 		}
 
-		else if (getRootUI() == &automationInstrumentClipView) {
-			uiNeedsRendering(this, 0, 0xFFFFFFFF);
-		}
-
 		return result;
 	}
 
@@ -1029,9 +1019,6 @@ bool LoadInstrumentPresetUI::renderSidebar(uint32_t whichRows, uint8_t image[][k
                                            uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	if (getRootUI() != &keyboardScreen) {
 		return false;
-	}
-	else if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
-		return automationInstrumentClipView.renderSidebar(whichRows, image, occupancyMask);
 	}
 	return instrumentClipView.renderSidebar(whichRows, image, occupancyMask);
 }

@@ -214,7 +214,7 @@ void addAudio(StereoSample* inputBuffer, StereoSample* outputBuffer, int32_t num
 
 #if HAVE_OLED
 char const* getSourceDisplayNameForOLED(PatchSource s);
-char const* getPatchedParamDisplayNameForOled(int32_t p);
+char const* getPatchedParamDisplayNameForOLED(int32_t p);
 #endif
 
 char const* sourceToString(PatchSource source);
