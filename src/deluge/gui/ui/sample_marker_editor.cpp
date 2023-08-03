@@ -729,11 +729,30 @@ ActionResult SampleMarkerEditor::verticalEncoderAction(int offset, bool inCardRo
 		return result;
 	}
 
-	if (getRootUI() == &keyboardScreen) {
-		uiNeedsRendering(this, 0, 0xFFFFFFFF);
-	}
+	// if (getRootUI() == &keyboardScreen) {
+	// 	uiNeedsRendering(this, 0, 0xFFFFFFFF);
+	// }
 
-	return result;
+	if (loopLocked) {
+		if (offset > 0) { // turn clockwise
+			loopLength = loopLength * 2;
+			numericDriver.displayPopup("DOUB");
+		}
+		else { // turn anti-clockwise
+			loopLength = loopLength / 2;
+			numericDriver.displayPopup("HALF");
+		}
+
+		int loopStart = getCurrentMultisampleRange()->sampleHolder.loopStartPos;
+		int newLoopEnd = loopStart + loopLength;
+		writeValue(newLoopEnd, MarkerType::LOOP_END);
+		uiNeedsRendering(this, 0xFFFFFFFF, 0);
+
+		return ActionResult::DEALT_WITH;
+	}
+	else {
+		return result;
+	}
 }
 
 bool SampleMarkerEditor::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
