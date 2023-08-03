@@ -34,6 +34,8 @@ enum SessionLayoutType : uint32_t {
 
 extern float getTransitionProgress();
 
+constexpr uint32_t kGridHeight = kDisplayHeight;
+
 // Clip Group colours
 extern const uint8_t numDefaultClipGroupColours;
 extern const uint8_t defaultClipGroupColours[];
@@ -128,8 +130,14 @@ private:
 	                       uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 	bool gridRenderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
 	                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
-	ActionResult gridHandlePads(int x, int y, int velocity);
+	ActionResult gridHandlePads(int32_t x, int32_t y, int32_t on);
+
 	ActionResult gridHandleScroll(int32_t offsetX, int32_t offsetY);
+
+	int32_t gridFirstPressedX = -1;
+	int32_t gridFirstPressedY = -1;
+	int32_t gridSecondPressedX = -1;
+	int32_t gridSecondPressedY = -1;
 };
 
 extern SessionView sessionView;
