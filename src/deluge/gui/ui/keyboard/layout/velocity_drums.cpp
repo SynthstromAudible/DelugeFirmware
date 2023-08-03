@@ -51,7 +51,7 @@ void KeyboardLayoutVelocityDrums::handleHorizontalEncoder(int32_t offset, bool s
 
 		char buffer[13] = "Pad size:   ";
 		intToString(state.edgeSize, buffer + (HAVE_OLED ? 10 : 0), 1);
-		numericDriver.displayPopup(buffer);
+		display.displayPopup(buffer);
 
 		offset = 0; // Reset offset variable for processing scroll calculation without actually shifting
 	}

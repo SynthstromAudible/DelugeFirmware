@@ -51,7 +51,7 @@ void KeyboardLayoutIsomorphic::handleHorizontalEncoder(int32_t offset, bool shif
 
 		char buffer[13] = "Row step:   ";
 		intToString(state.rowInterval, buffer + (HAVE_OLED ? 10 : 0), 1);
-		numericDriver.displayPopup(buffer);
+		display.displayPopup(buffer);
 
 		offset = 0; // Reset offset variable for processing scroll calculation without actually shifting
 	}

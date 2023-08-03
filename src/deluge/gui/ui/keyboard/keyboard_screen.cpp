@@ -532,7 +532,7 @@ void KeyboardScreen::selectLayout(int8_t offset) {
 
 	getCurrentClip()->keyboardState.currentLayout = (KeyboardLayoutType)nextLayout;
 	if (getCurrentClip()->keyboardState.currentLayout != lastLayout) {
-		numericDriver.displayPopup(layoutList[getCurrentClip()->keyboardState.currentLayout]->name());
+		display.displayPopup(layoutList[getCurrentClip()->keyboardState.currentLayout]->name());
 	}
 
 	// Ensure scale mode is as expected
@@ -575,7 +575,7 @@ void KeyboardScreen::selectEncoderAction(int8_t offset) {
 			noteName[1] = '#';
 		}
 #endif
-		numericDriver.displayPopup(noteName, 3, false, (noteCodeIsSharp[newRootNote] ? 0 : 255));
+		display.displayPopup(noteName, 3, false, (noteCodeIsSharp[newRootNote] ? 0 : 255));
 		layoutList[getCurrentClip()->keyboardState.currentLayout]->handleHorizontalEncoder(0, false);
 		layoutList[getCurrentClip()->keyboardState.currentLayout]->precalculate();
 		requestRendering();
