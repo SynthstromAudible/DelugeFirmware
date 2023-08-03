@@ -22,6 +22,6 @@
 class WaveTableReader final : public AudioFileReader {
 public:
 	WaveTableReader();
-	int readBytesPassedErrorChecking(char* outputBuffer, int num);
-	int readNewCluster();
+	int32_t readBytesPassedErrorChecking(char* outputBuffer, int32_t num);
+	int32_t readNewCluster();
 };

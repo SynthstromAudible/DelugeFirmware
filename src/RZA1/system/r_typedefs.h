@@ -38,49 +38,19 @@
 Includes <System Includes> , "Project Includes"
 ******************************************************************************/
 #include <stdint.h>
+#include <stddef.h>
+#include <stdbool.h>
+
 /* Multiple inclusion prevention macro */
 #ifndef R_TYPEDEFS_H
 #define R_TYPEDEFS_H
 
-
-/* in case <stdio.h> has defined it. */
-#ifndef NULL             
-#define NULL 0
-#endif
-
 /******************************************************************************
 Macro definitions
 ******************************************************************************/
-#if !defined(__bool_true_false_are_defined) && !defined(__cplusplus)
-
-#define     false 0
-#define     true  1
-
-#endif
-
 #define     UNUSED_PARAM(param)             (void)(param)
 
 #define     UNUSED_VARIABLE(param)          (void)(param)
-
-typedef unsigned char byte; // Added by Rohan. Deprecate this!
-
-/******************************************************************************
-Typedef definitions
-******************************************************************************/
-typedef char                char_t;
-typedef unsigned int        bool_t;
-typedef int                 int_t;
-typedef signed char         int8_t;
-typedef signed short        int16_t;
-typedef signed long         int32_t;
-typedef signed long long    int64_t;
-typedef unsigned char       uint8_t;
-typedef unsigned short      uint16_t;
-typedef unsigned long       uint32_t;
-typedef unsigned long long  uint64_t;
-typedef float               float32_t;
-typedef double              float64_t;
-typedef long double         float128_t;
 
 /* R_TYPEDEFS_H */
 #endif

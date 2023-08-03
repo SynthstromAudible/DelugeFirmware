@@ -6,8 +6,8 @@ namespace hid {
 namespace button {
 
 Cartesian toXY(Button b) {
-	int y = (unsigned int)b / 9;
-	int x = b - y * 9;
+	int32_t y = (uint32_t)b / 9;
+	int32_t x = b - y * 9;
 	y -= kDisplayHeight * 2;
 	return {x, y};
 }
@@ -16,7 +16,7 @@ Cartesian toXY(Button b) {
 
 /*
 Button::Button(uint8_t value) {
-	y = (unsigned int)value / 9;
+	y = (uint32_t)value / 9;
 	x = value - y * 9;
 	y -= kDisplayHeight * 2;
 }

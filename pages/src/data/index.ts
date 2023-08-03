@@ -1,8 +1,11 @@
 import { Octokit } from "@octokit/core";
-import { components } from "@octokit/openapi-types";
-import { restEndpointMethods } from "@octokit/plugin-rest-endpoint-methods";
 import { Stream } from "stream";
+import { operations, components } from "@octokit/openapi-types";
 import { fromBuffer as zipFromBuffer } from "yauzl";
+import {
+  RestEndpointMethodTypes,
+  restEndpointMethods,
+} from "@octokit/plugin-rest-endpoint-methods";
 
 const OctokitPlugin = Octokit.plugin(restEndpointMethods);
 const Octo = new OctokitPlugin({
@@ -20,6 +23,15 @@ type CacheDir = string | undefined;
 interface Config {
   owner: string;
   repo: string;
+}
+
+interface InterestingCommit {
+  /// The interesting commit's sha
+  sha: string;
+  /// Pull request is present only when the commit is not from the main branch
+  pr: components["schemas"]["pull-request-simple"] | undefined;
+  /// The interesting commit's descriptions, will be undefined if this is from a PR
+  commit_message: string | undefined;
 }
 
 const CONFIG = process.env.REPO
@@ -137,14 +149,7 @@ async function fetchArtifact(
   });
 }
 
-export async function getArtifactData(hash: string, artifactName: string) {
-  if (!CONFIG.owner || !CONFIG.repo) {
-    throw new Error("Config missing and not found in environment");
-  }
-  const config = {
-    owner: CONFIG.owner!,
-    repo: CONFIG.repo!,
-  };
+export async function getArtifactData(config: Config, hash: string, artifactName: string) {
   const runs = await Octo.rest.actions
     .listWorkflowRuns({
       ...config,
@@ -228,7 +233,7 @@ async function getActionPackageForRun(
   return artifactMap;
 }
 
-export async function getAllRuns(config?: Config): Promise<AllWorkflowRuns> {
+export function validateConfig(config?: Config): Config {
   // Ensure we have a valid config
   if (!config) {
     if (!CONFIG.owner || !CONFIG.repo) {
@@ -240,7 +245,46 @@ export async function getAllRuns(config?: Config): Promise<AllWorkflowRuns> {
     };
   }
 
-  // Find the ID of the "Build" workflow
+  return config;
+}
+
+export async function getAllInterestingCommits(
+  config: Config,
+): Promise<Array<InterestingCommit>> {
+  // Collect the latest commits on the "community" branch
+  const commits: Array<InterestingCommit> = await Octo.rest.repos
+    .listCommits({
+      ...config,
+      ...{
+        sha: "community",
+      },
+    })
+    .then((resp) =>
+      Array.from(resp.data, (commit: components["schemas"]["commit"]) => ({
+        sha: commit.sha,
+        commit_message: commit.commit.message,
+        pr: undefined,
+      })),
+    );
+
+  const pullRequests = await Octo.rest.pulls
+    .list({
+      ...config,
+    })
+    .then((data) => data.data);
+
+  pullRequests.forEach((pr) => {
+    commits.push({
+      pr,
+      sha: pr.head.sha,
+      commit_message: undefined,
+    });
+  });
+
+  return commits;
+}
+
+export async function lookupBuildWorkflowId(config: Config): Promise<number> {
   const workflows = await Octo.rest.actions.listRepoWorkflows({
     ...config,
   });
@@ -251,24 +295,22 @@ export async function getAllRuns(config?: Config): Promise<AllWorkflowRuns> {
     throw new Error("Failed to find build workflow");
   }
 
-  // Collect the latest commits on the "community" branch
-  const commits = await Octo.rest.repos
-    .listCommits({
-      ...config,
-      ...{
-        sha: "community",
-      },
-    })
-    .then((data) => data.data);
+  return buildWorkflow.id;
+}
 
+export async function getAllRuns(
+  config: Config,
+  buildWorkflow: number,
+  commits: Array<InterestingCommit>,
+): Promise<AllWorkflowRuns> {
   // For each commit, look up the workflow runs and grab the artifacts from it
   const actionPackages: Array<WorkflowRun | undefined> = await Promise.all(
-    commits.map(async (commit) => {
+    commits.map(async (commit: InterestingCommit) => {
       const run = await Octo.rest.actions
         .listWorkflowRuns({
           ...config!,
           ...{
-            workflow_id: buildWorkflow.id,
+            workflow_id: buildWorkflow,
             status: "completed",
             head_sha: commit.sha,
           },
@@ -290,7 +332,9 @@ export async function getAllRuns(config?: Config): Promise<AllWorkflowRuns> {
       }
 
       const commitUrl = `https://github.com/SynthstromAudible/DelugeFirmware/tree/${commit.sha}`;
-      const message = commit.commit.message.split("\n")[0];
+      const message = commit.commit_message
+        ? commit.commit_message.split("\n")[0]
+        : `PR #${commit.pr!.number}: ${commit.pr!.title}`;
       const artifacts = await getActionPackageForRun(config!, run);
 
       if (!artifacts) {

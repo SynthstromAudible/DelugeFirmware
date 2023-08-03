@@ -16,5 +16,7 @@ BreakBeforeBinaryOperators: NonAssignment
 BreakBeforeTernaryOperators: True
 AccessModifierOffset: -4
 AlwaysBreakTemplateDeclarations: Yes
+#IndentRequiresClause: False
+#RequiresClausePosition: OwnLine
 
 SortIncludes: CaseSensitive

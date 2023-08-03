@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
+#include <cstdint>
 
 #include "util/container/array/ordered_resizeable_array.h"
 
@@ -27,7 +27,7 @@ class NoteVector : public OrderedResizeableArrayWith32bitKey {
 public:
 	NoteVector();
 
-	Note* getElement(int index);
+	Note* getElement(int32_t index);
 	Note* getLast();
 
 private:

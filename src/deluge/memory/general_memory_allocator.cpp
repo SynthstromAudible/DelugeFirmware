@@ -48,14 +48,14 @@ GeneralMemoryAllocator::GeneralMemoryAllocator() {
 #endif
 }
 
-int closestDistance = 2147483647;
+int32_t closestDistance = 2147483647;
 
 void GeneralMemoryAllocator::checkStack(char const* caller) {
 #if ALPHA_OR_BETA_VERSION
 
 	char a;
 
-	int distance = (int)&a - (kInternalMemoryEnd - kProgramStackMaxSize);
+	int32_t distance = (int32_t)&a - (kInternalMemoryEnd - kProgramStackMaxSize);
 	if (distance < closestDistance) {
 		closestDistance = distance;
 
@@ -73,10 +73,10 @@ void GeneralMemoryAllocator::checkStack(char const* caller) {
 
 #if TEST_GENERAL_MEMORY_ALLOCATION
 uint32_t totalMallocTime = 0;
-int numMallocTimes = 0;
+int32_t numMallocTimes = 0;
 #endif
 
-extern "C" void* delugeAlloc(int requiredSize) {
+extern "C" void* delugeAlloc(unsigned int requiredSize) {
 	return GeneralMemoryAllocator::get().alloc(requiredSize, NULL, false, true);
 }
 
@@ -137,7 +137,7 @@ uint32_t GeneralMemoryAllocator::getAllocatedSize(void* address) {
 	return (*header & SPACE_SIZE_MASK);
 }
 
-int GeneralMemoryAllocator::getRegion(void* address) {
+int32_t GeneralMemoryAllocator::getRegion(void* address) {
 	return ((uint32_t)address >= (uint32_t)INTERNAL_MEMORY_BEGIN) ? MEMORY_REGION_INTERNAL : MEMORY_REGION_SDRAM;
 }
 
@@ -181,13 +181,13 @@ void GeneralMemoryAllocator::dealloc(void* address) {
 	return regions[getRegion(address)].dealloc(address);
 }
 
-void GeneralMemoryAllocator::putStealableInQueue(Stealable* stealable, int q) {
+void GeneralMemoryAllocator::putStealableInQueue(Stealable* stealable, int32_t q) {
 	MemoryRegion& region = regions[getRegion(stealable)];
 	region.cache_manager().QueueForReclamation(q, stealable);
 }
 
 void GeneralMemoryAllocator::putStealableInAppropriateQueue(Stealable* stealable) {
-	int q = stealable->getAppropriateQueue();
+	int32_t q = stealable->getAppropriateQueue();
 	putStealableInQueue(stealable, q);
 }
 
@@ -207,9 +207,9 @@ public:
 		GeneralMemoryAllocator::get().regions[MEMORY_REGION_SDRAM].numAllocations--;
 
 		// The steal() function is allowed to deallocate or shorten some other allocations, too
-		int i = getRandom255() % NUM_TEST_ALLOCATIONS;
+		int32_t i = getRandom255() % NUM_TEST_ALLOCATIONS;
 		if (testAllocations[i]) {
-			int a = getRandom255();
+			int32_t a = getRandom255();
 
 			// Dealloc
 			if (spaceTypes[i] == SPACE_HEADER_STEALABLE || a < 128) {
@@ -228,21 +228,21 @@ public:
 		}
 	}
 	bool mayBeStolen(void* thingNotToStealFrom) { return true; }
-	int getAppropriateQueue() { return 0; }
-	int testIndex;
+	int32_t getAppropriateQueue() { return 0; }
+	int32_t testIndex;
 };
 
-void testReadingMemory(int i) {
+void testReadingMemory(int32_t i) {
 	uint8_t* __restrict__ readPos = (uint8_t*)testAllocations[i];
 	uint8_t readValue = *readPos;
-	for (int j = 0; j < sizes[i]; j++) {
+	for (int32_t j = 0; j < sizes[i]; j++) {
 		if (*readPos != readValue) {
 			Debug::println("data corrupted!");
-			Debug::println((int)readPos);
+			Debug::println((int32_t)readPos);
 			Debug::print("allocation total size: ");
 			Debug::println(sizes[i]);
 			Debug::print("num bytes in: ");
-			Debug::println((int)readPos - (int)testAllocations[i]);
+			Debug::println((int32_t)readPos - (int32_t)testAllocations[i]);
 			while (1) {}
 		}
 		readPos++;
@@ -250,10 +250,10 @@ void testReadingMemory(int i) {
 	}
 }
 
-void testWritingMemory(int i) {
+void testWritingMemory(int32_t i) {
 	uint8_t* __restrict__ writePos = (uint8_t*)testAllocations[i];
 	uint8_t writeValue = getRandom255();
-	for (int j = 0; j < sizes[i]; j++) {
+	for (int32_t j = 0; j < sizes[i]; j++) {
 		*writePos = writeValue;
 		writeValue++;
 		writePos++;
@@ -267,10 +267,10 @@ void GeneralMemoryAllocator::checkEverythingOk(char const* errorString) {
 	if (skipConsistencyCheck)
 		return;
 
-	for (int i = 0; i < NUM_TEST_ALLOCATIONS; i++) {
+	for (int32_t i = 0; i < NUM_TEST_ALLOCATIONS; i++) {
 		if (testAllocations[i]) {
 			uint32_t* header = (uint32_t*)testAllocations[i] - 1;
-			uint32_t* footer = (uint32_t*)((int)testAllocations[i] + sizes[i]);
+			uint32_t* footer = (uint32_t*)((int32_t)testAllocations[i] + sizes[i]);
 
 			uint32_t shouldBe = sizes[i] | spaceTypes[i];
 
@@ -294,7 +294,7 @@ void GeneralMemoryAllocator::checkEverythingOk(char const* errorString) {
 		}
 	}
 
-	for (int i = 0; i < regions[MEMORY_REGION_SDRAM].emptySpaces.getNumElements(); i++) {
+	for (int32_t i = 0; i < regions[MEMORY_REGION_SDRAM].emptySpaces.getNumElements(); i++) {
 		EmptySpaceRecord* record = (EmptySpaceRecord*)regions[MEMORY_REGION_SDRAM].emptySpaces.getElementAddress(i);
 
 		uint32_t* header = (uint32_t*)record->address - 1;
@@ -316,25 +316,25 @@ void GeneralMemoryAllocator::checkEverythingOk(char const* errorString) {
 }
 
 void GeneralMemoryAllocator::testMemoryDeallocated(void* address) {
-	for (int i = 0; i < NUM_TEST_ALLOCATIONS; i++) {
+	for (int32_t i = 0; i < NUM_TEST_ALLOCATIONS; i++) {
 		if (testAllocations[i] == address) {
 			testAllocations[i] = NULL;
 		}
 	}
 }
 
-void GeneralMemoryAllocator::testShorten(int i) {
-	int a = getRandom255();
+void GeneralMemoryAllocator::testShorten(int32_t i) {
+	int32_t a = getRandom255();
 
 	if (a < 128) {
 
 		if (!getRandom255())
 			Debug::println("shortening left");
-		int newSize =
+		int32_t newSize =
 		    ((uint32_t)getRandom255() << 17) | ((uint32_t)getRandom255() << 9) | ((uint32_t)getRandom255() << 1);
 		while (newSize > sizes[i])
 			newSize >>= 1;
-		int amountShortened = shortenLeft(testAllocations[i], sizes[i] - newSize);
+		int32_t amountShortened = shortenLeft(testAllocations[i], sizes[i] - newSize);
 
 		sizes[i] -= amountShortened;
 		testAllocations[i] = (char*)testAllocations[i] + amountShortened;
@@ -346,7 +346,7 @@ void GeneralMemoryAllocator::testShorten(int i) {
 
 		if (!getRandom255())
 			Debug::println("shortening right");
-		int newSize =
+		int32_t newSize =
 		    ((uint32_t)getRandom255() << 17) | ((uint32_t)getRandom255() << 9) | ((uint32_t)getRandom255() << 1);
 		while (newSize > sizes[i])
 			newSize >>= 1;
@@ -366,7 +366,7 @@ void GeneralMemoryAllocator::test() {
 
 	memset(testAllocations, 0, sizeof(testAllocations));
 
-	int count = 0;
+	int32_t count = 0;
 
 	bool goingUp = true;
 
@@ -374,7 +374,7 @@ void GeneralMemoryAllocator::test() {
 		//if (!(count & 15)) Debug::println("...");
 		count++;
 
-		for (int i = 0; i < NUM_TEST_ALLOCATIONS; i++) {
+		for (int32_t i = 0; i < NUM_TEST_ALLOCATIONS; i++) {
 
 			if (testAllocations[i]) {
 
@@ -411,13 +411,13 @@ void GeneralMemoryAllocator::test() {
 						uint32_t idealAmountToExtend = ((uint32_t)getRandom255() << 17)
 						                               | ((uint32_t)getRandom255() << 9)
 						                               | ((uint32_t)getRandom255() << 1);
-						int magnitudeReduction = getRandom255() % 25;
+						int32_t magnitudeReduction = getRandom255() % 25;
 						idealAmountToExtend >>= magnitudeReduction;
 
-						idealAmountToExtend = getMax(idealAmountToExtend, (uint32_t)4);
-						int magnitudeReduction2 = getRandom255() % 25;
+						idealAmountToExtend = std::max(idealAmountToExtend, (uint32_t)4);
+						int32_t magnitudeReduction2 = getRandom255() % 25;
 						uint32_t minAmountToExtend = idealAmountToExtend >> magnitudeReduction2;
-						minAmountToExtend = getMax(minAmountToExtend, (uint32_t)4);
+						minAmountToExtend = std::max(minAmountToExtend, (uint32_t)4);
 
 						checkEverythingOk("before extending");
 
@@ -470,10 +470,10 @@ void GeneralMemoryAllocator::test() {
 				delayMS(200);
 			}
 
-			int desiredSize =
+			int32_t desiredSize =
 			    ((uint32_t)getRandom255() << 9) | ((uint32_t)getRandom255() << 1); // (uint32_t)getRandom255() << 17) |
 
-			int magnitudeReduction = getRandom255() % 25;
+			int32_t magnitudeReduction = getRandom255() % 25;
 			desiredSize >>= magnitudeReduction;
 
 			if (desiredSize < 1)

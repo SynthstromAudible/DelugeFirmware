@@ -19,10 +19,10 @@
 
 #include <cstddef>
 
-#include "RZA1/system/r_typedefs.h"
 #include "gui/ui/ui.h"
 #include "hid/button.h"
 #include "util/sized.h"
+#include <cstdint>
 
 namespace deluge::gui {
 
@@ -39,16 +39,16 @@ public:
 	virtual Sized<char const**> getOptions() = 0;
 
 	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) override;
-	ActionResult padAction(int x, int y, int velocity) override;
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 	bool setupAndCheckAvailability();
 
 	virtual hid::Button getAcceptButton() { return hid::button::SELECT_ENC; }
 
-	int currentOption; // Don't make static. We'll have multiple nested ContextMenus open at the same time
+	int32_t currentOption; // Don't make static. We'll have multiple nested ContextMenus open at the same time
 
 #if HAVE_OLED
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
-	int scrollPos; // Don't make static. We'll have multiple nested ContextMenus open at the same time
+	int32_t scrollPos; // Don't make static. We'll have multiple nested ContextMenus open at the same time
 #endif
 	virtual char const* getTitle() = 0;
 };

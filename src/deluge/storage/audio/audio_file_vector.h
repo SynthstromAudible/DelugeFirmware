@@ -24,5 +24,5 @@ class AudioFile;
 class AudioFileVector final : public NamedThingVector {
 public:
 	AudioFileVector();
-	int searchForExactObject(AudioFile* audioFile);
+	int32_t searchForExactObject(AudioFile* audioFile);
 };

@@ -20,14 +20,14 @@
 #include "model/model_stack.h"
 #include "processing/sound/sound.h"
 
-namespace menu_item::unison {
+namespace deluge::gui::menu_item::unison {
 class StereoSpread final : public Integer {
 public:
 	using Integer::Integer;
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSound->unisonStereoSpread; }
-	void writeCurrentValue() { soundEditor.currentSound->setUnisonStereoSpread(soundEditor.currentValue); }
-	int getMaxValue() const { return kMaxUnisonStereoSpread; }
+	void readCurrentValue() { this->value_ = soundEditor.currentSound->unisonStereoSpread; }
+	void writeCurrentValue() { soundEditor.currentSound->setUnisonStereoSpread(this->value_); }
+	[[nodiscard]] int32_t getMaxValue() const override { return kMaxUnisonStereoSpread; }
 };
-} // namespace menu_item::unison
 
-extern menu_item::unison::StereoSpread unisonStereoSpreadMenu;
+extern StereoSpread stereoSpreadMenu;
+} // namespace deluge::gui::menu_item::unison

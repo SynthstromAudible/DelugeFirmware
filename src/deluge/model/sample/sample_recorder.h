@@ -17,10 +17,10 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
 #include "definitions_cxx.hpp"
 #include "dsp/stereo_sample.h"
 #include "util/d_string.h"
+#include <cstdint>
 
 extern "C" {
 #include "fatfs/ff.h"
@@ -45,11 +45,11 @@ class SampleRecorder {
 public:
 	SampleRecorder();
 	~SampleRecorder();
-	int setup(int newNumChannels, AudioInputChannel newMode, bool newKeepingReasons, bool shouldRecordExtraMargins,
-	          AudioRecordingFolder newFolderID, int buttonPressLatency);
-	void feedAudio(int32_t* inputAddress, int numSamples, bool applyGain = false);
-	int cardRoutine();
-	void endSyncedRecording(int buttonLatencyForTempolessRecording);
+	int32_t setup(int32_t newNumChannels, AudioInputChannel newMode, bool newKeepingReasons,
+	              bool shouldRecordExtraMargins, AudioRecordingFolder newFolderID, int32_t buttonPressLatency);
+	void feedAudio(int32_t* inputAddress, int32_t numSamples, bool applyGain = false);
+	int32_t cardRoutine();
+	void endSyncedRecording(int32_t buttonLatencyForTempolessRecording);
 	bool inputLooksDifferential();
 	bool inputHasNoRightChannel();
 	void abort();
@@ -118,16 +118,17 @@ public:
 	FIL file;
 
 private:
-	void setExtraBytesOnPreviousCluster(Cluster* currentCluster, int currentClusterIndex);
-	int writeCluster(int32_t clusterIndex, int numBytes);
-	int alterFile(int action, int lshiftAmount, uint32_t idealFileSizeBeforeAction, uint64_t dataLengthAfterAction);
-	int finalizeRecordedFile();
-	int createNextCluster();
-	int writeAnyCompletedClusters();
+	void setExtraBytesOnPreviousCluster(Cluster* currentCluster, int32_t currentClusterIndex);
+	int32_t writeCluster(int32_t clusterIndex, int32_t numBytes);
+	int32_t alterFile(int32_t action, int32_t lshiftAmount, uint32_t idealFileSizeBeforeAction,
+	                  uint64_t dataLengthAfterAction);
+	int32_t finalizeRecordedFile();
+	int32_t createNextCluster();
+	int32_t writeAnyCompletedClusters();
 	void finishCapturing();
 	void updateDataLengthInFirstCluster(Cluster* cluster);
 	void totalSampleLengthNowKnown(uint32_t totalLength, uint32_t loopEndPointSamples = 0);
 	void detachSample();
-	int truncateFileDownToSize(uint32_t newFileSize);
-	int writeOneCompletedCluster();
+	int32_t truncateFileDownToSize(uint32_t newFileSize);
+	int32_t writeOneCompletedCluster();
 };

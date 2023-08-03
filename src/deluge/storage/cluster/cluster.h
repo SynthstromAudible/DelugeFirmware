@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
 #include "definitions_cxx.hpp"
 #include "memory/stealable.h"
+#include <cstdint>
 
 class Sample;
 class SampleCluster;
@@ -33,7 +33,7 @@ public:
 	void convertDataIfNecessary();
 	bool mayBeStolen(void* thingNotToStealFrom);
 	void steal(char const* errorCode);
-	int getAppropriateQueue();
+	int32_t getAppropriateQueue();
 
 	ClusterType type;
 	int8_t numReasonsHeldBySampleRecorder;

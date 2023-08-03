@@ -21,9 +21,9 @@
 #include "drivers/mtu/mtu.h"
 #include <string.h>
 
-int getNumDecimalDigits(uint32_t number) {
+int32_t getNumDecimalDigits(uint32_t number) {
 	uint32_t sizeTest = 10;
-	int totalNumDigits = 1;
+	int32_t totalNumDigits = 1;
 	while (number >= sizeTest) {
 		totalNumDigits++;
 		if (totalNumDigits == 10) {
@@ -34,15 +34,15 @@ int getNumDecimalDigits(uint32_t number) {
 	return totalNumDigits;
 }
 
-void intToString(int32_t number, char* __restrict__ buffer, int minNumDigits) {
+void intToString(int32_t number, char* __restrict__ buffer, int32_t minNumDigits) {
 
-	int isNegative = (number < 0);
+	int32_t isNegative = (number < 0);
 	if (isNegative) {
 		number = (uint32_t)0
 		         - (uint32_t)number; // Can't just go "-number", cos somehow that doesn't work for negative 2 billion!
 	}
 
-	int totalNumDigits = getNumDecimalDigits(number);
+	int32_t totalNumDigits = getNumDecimalDigits(number);
 
 	if (totalNumDigits < minNumDigits) {
 		totalNumDigits = minNumDigits;
@@ -54,7 +54,7 @@ void intToString(int32_t number, char* __restrict__ buffer, int minNumDigits) {
 	}
 
 	buffer[totalNumDigits] = 0;
-	int charPos = totalNumDigits - 1;
+	int32_t charPos = totalNumDigits - 1;
 	while (1) {
 		if (charPos == isNegative) {
 			buffer[charPos] = '0' + number;
@@ -66,7 +66,7 @@ void intToString(int32_t number, char* __restrict__ buffer, int minNumDigits) {
 	}
 }
 
-void floatToString(float number, char* __restrict__ buffer, int minNumDecimalPlaces, int maxNumDecimalPlaces) {
+void floatToString(float number, char* __restrict__ buffer, int32_t minNumDecimalPlaces, int32_t maxNumDecimalPlaces) {
 
 	uint32_t rawBinary = *(uint32_t*)&number;
 	char* writePos = buffer;
@@ -78,7 +78,7 @@ void floatToString(float number, char* __restrict__ buffer, int minNumDecimalPla
 
 	char* leftmostDigitPos = writePos; // Not including minus sign.
 
-	int exponent = (int)((rawBinary >> 23) & 255) - 127;
+	int32_t exponent = (int32_t)((rawBinary >> 23) & 255) - 127;
 
 	if (exponent >= 0) {
 
@@ -112,7 +112,7 @@ void floatToString(float number, char* __restrict__ buffer, int minNumDecimalPla
 		fractionRemaining >>= (-5 - exponent); // Yes, in this case, we throw away bits and lose accuracy.
 	}
 
-	int decimalPlace = 0;
+	int32_t decimalPlace = 0;
 
 	while (true) {
 		fractionRemaining &= 0x0FFFFFFF;
@@ -132,7 +132,7 @@ void floatToString(float number, char* __restrict__ buffer, int minNumDecimalPla
 		}
 
 		fractionRemaining *= 10;
-		int decimalDigit = fractionRemaining >> 28;
+		int32_t decimalDigit = fractionRemaining >> 28;
 		*writePos = '0' + decimalDigit;
 		writePos++;
 		decimalPlace++;
@@ -203,11 +203,11 @@ needExtraDigitOnLeft : {}
 	*leftmostDigitPos = '1';
 }
 
-void slotToString(int slot, int subSlot, char* __restrict__ buffer, int minNumDigits) {
+void slotToString(int32_t slot, int32_t subSlot, char* __restrict__ buffer, int32_t minNumDigits) {
 	intToString(slot, buffer, minNumDigits);
 
 	if (subSlot != -1) {
-		int stringLength = strlen(buffer);
+		int32_t stringLength = strlen(buffer);
 		buffer[stringLength] = subSlot + 'A';
 		buffer[stringLength + 1] = 0;
 	}

@@ -16,7 +16,7 @@
  */
 
 #pragma once
-#include "RZA1/system/r_typedefs.h"
+#include <cstdint>
 
 class ParamManagerForTimeline;
 class Sound;
@@ -36,11 +36,11 @@ class ParamCollectionSummary;
 
 class ParamCollection {
 public:
-	ParamCollection(int newObjectSize, ParamCollectionSummary* summary);
+	ParamCollection(int32_t newObjectSize, ParamCollectionSummary* summary);
 	virtual ~ParamCollection();
 
 	virtual void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength = 0) = 0;
-	virtual void tickSamples(int numSamples, ModelStackWithParamCollection* modelStack) = 0;
+	virtual void tickSamples(int32_t numSamples, ModelStackWithParamCollection* modelStack) = 0;
 	virtual void setPlayPos(uint32_t pos, ModelStackWithParamCollection* modelStack, bool reversed);
 	virtual void playbackHasEnded(ModelStackWithParamCollection* modelStack) = 0;
 	virtual void grabValuesFromPos(uint32_t pos, ModelStackWithParamCollection* modelStack) = 0;
@@ -53,11 +53,11 @@ public:
 	                          bool maySetupPatching) = 0;
 	virtual void shiftHorizontally(ModelStackWithParamCollection* modelStack, int32_t amount,
 	                               int32_t effectiveLength) = 0;
-	virtual void processCurrentPos(ModelStackWithParamCollection* modelStack, int ticksSinceLast, bool reversed,
+	virtual void processCurrentPos(ModelStackWithParamCollection* modelStack, int32_t ticksSinceLast, bool reversed,
 	                               bool didPingpong, bool mayInterpolate) = 0;
 	virtual void remotelySwapParamState(AutoParamState* state, ModelStackWithParamId* modelStack) = 0;
 	virtual void deleteAllAutomation(Action* action, ModelStackWithParamCollection* modelStack) = 0;
-	virtual void nudgeNonInterpolatingNodesAtPos(int32_t pos, int offset, int32_t lengthBeforeLoop, Action* action,
+	virtual void nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int32_t lengthBeforeLoop, Action* action,
 	                                             ModelStackWithParamCollection* modelStack) = 0;
 	virtual void
 	notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue, bool automationChanged,
@@ -67,13 +67,13 @@ public:
 	    ModelStackWithParamId* modelStack,
 	    bool allowCreation =
 	        false) = 0; // You must not pass this any child class of ModelStackWithThreeMoreThings (wait why again?). May return NULL
-	virtual bool mayParamInterpolate(int paramId);
+	virtual bool mayParamInterpolate(int32_t paramId);
 	virtual bool shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) { return false; }
 	virtual bool doesParamIdAllowAutomation(ModelStackWithParamId const* modelStack) { return true; }
-	virtual int paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack);
-	virtual int32_t knobPosToParamValue(int knobPos, ModelStackWithAutoParam* modelStack);
+	virtual int32_t paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack);
+	virtual int32_t knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack);
 	virtual void notifyPingpongOccurred(ModelStackWithParamCollection* modelStack);
 
-	const int objectSize;
+	const int32_t objectSize;
 	int32_t ticksTilNextEvent;
 };

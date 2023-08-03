@@ -16,32 +16,19 @@
 */
 #pragma once
 #include "definitions_cxx.hpp"
-#include "gui/menu_item/selection.h"
+#include "gui/menu_item/selection/typed_selection.h"
 #include "gui/ui/sound_editor.h"
 #include "storage/flash_storage.h"
 #include "util/misc.h"
 
-namespace menu_item::keyboard {
-class Layout final : public Selection {
+namespace deluge::gui::menu_item::keyboard {
+class Layout final : public TypedSelection<KeyboardLayout, kNumKeyboardLayouts> {
 public:
-	using Selection::Selection;
-	void readCurrentValue() { soundEditor.currentValue = util::to_underlying(FlashStorage::keyboardLayout); }
-	void writeCurrentValue() { FlashStorage::keyboardLayout = static_cast<KeyboardLayout>(soundEditor.currentValue); }
-	char const** getOptions() {
-		static char const* options[] = {
-			"QWERTY",
-			"AZERTY",
-#if HAVE_OLED
-			"QWERTZ",
-			NULL
-#else
-			"QRTZ"
-#endif
-		};
-		return options;
-	}
-	int getNumOptions() {
-		return kNumKeyboardLayouts;
+	using TypedSelection::TypedSelection;
+	void readCurrentValue() override { this->value_ = FlashStorage::keyboardLayout; }
+	void writeCurrentValue() override { FlashStorage::keyboardLayout = this->value_; }
+	static_vector<string, capacity()> getOptions() override {
+		return {"QWERTY", "AZERTY", HAVE_OLED ? "QWERTZ" : "QRTZ"};
 	}
 };
-} // namespace menu_item::keyboard
+} // namespace deluge::gui::menu_item::keyboard

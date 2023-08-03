@@ -21,11 +21,7 @@ target_link_libraries(deluge INTERFACE
     fatfs
     RTT
     NE10
-)
-
-target_compile_options(deluge INTERFACE
-    # Set preinclude
-    $<$<COMPILE_LANGUAGE:CXX>:-includepreinclude_cxx.h>
+    fmt::fmt # fmtlib
 )
 
 target_compile_definitions(deluge INTERFACE

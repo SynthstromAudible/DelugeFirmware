@@ -17,7 +17,7 @@
 
 #include "drivers/dmac/dmac.h"
 
-void setDMARS(int dmaChannel, uint32_t dmarsValue) {
+void setDMARS(int32_t dmaChannel, uint32_t dmarsValue) {
 
 	uint32_t mask = 0xFFFF0000;
 
@@ -31,7 +31,7 @@ void setDMARS(int dmaChannel, uint32_t dmarsValue) {
 	*dmarsAddress = (*dmarsAddress & mask) | dmarsValue;
 }
 
-void initDMAWithLinkDescriptor(int dma_channel, const uint32_t* linkDescriptor, uint32_t dmarsValue) {
+void initDMAWithLinkDescriptor(int32_t dma_channel, const uint32_t* linkDescriptor, uint32_t dmarsValue) {
 	DCTRLn(dma_channel) = 0;                              // DMA Control Register Setting
 	DMACn(dma_channel).CHCFG_n = linkDescriptor[4];       // Config
 	setDMARS(dma_channel, dmarsValue);                    // DMA Expansion Resource Selector Setting

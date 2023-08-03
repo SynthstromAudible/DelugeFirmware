@@ -24,6 +24,6 @@ class SampleCluster;
 class SampleClusterArray : public ResizeableArray {
 public:
 	SampleClusterArray();
-	int insertSampleClustersAtEnd(int numToInsert);
-	SampleCluster* getElement(int i);
+	int32_t insertSampleClustersAtEnd(int32_t numToInsert);
+	SampleCluster* getElement(int32_t i);
 };

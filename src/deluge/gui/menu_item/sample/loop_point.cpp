@@ -26,16 +26,16 @@
 #include "storage/audio/audio_file_holder.h"
 #include "storage/multi_range/multi_range.h"
 
-namespace menu_item::sample {
+namespace deluge::gui::menu_item::sample {
 
-bool LoopPoint::isRelevant(Sound* sound, int whichThing) {
+bool LoopPoint::isRelevant(Sound* sound, int32_t whichThing) {
 
 	Source* source = &sound->sources[whichThing];
 
 	return (sound->getSynthMode() == SynthMode::SUBTRACTIVE && source->oscType == OscType::SAMPLE);
 }
 
-MenuPermission LoopPoint::checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
+MenuPermission LoopPoint::checkPermissionToBeginSession(Sound* sound, int32_t whichThing, MultiRange** currentRange) {
 
 	if (!isRelevant(sound, whichThing)) {
 		return MenuPermission::NO;
@@ -70,4 +70,4 @@ void LoopPoint::beginSession(MenuItem* navigatedBackwardFrom) {
 		uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
 	}
 }
-} // namespace menu_item::sample
+} // namespace deluge::gui::menu_item::sample

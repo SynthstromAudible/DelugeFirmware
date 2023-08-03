@@ -17,16 +17,16 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
+#include <cstdint>
 
 class ParamNode;
 
 class CopiedParamAutomation {
 public:
-	CopiedParamAutomation();
-	virtual ~CopiedParamAutomation();
+	CopiedParamAutomation() = default;
+	virtual ~CopiedParamAutomation() = default;
 
 	int32_t width;
-	ParamNode* nodes;
-	int numNodes;
+	ParamNode* nodes = nullptr;
+	int32_t numNodes = 0;
 };

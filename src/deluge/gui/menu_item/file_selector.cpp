@@ -28,7 +28,7 @@
 #include "processing/sound/sound.h"
 #include "util/functions.h"
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
 FileSelector fileSelectorMenu{"File browser"};
 
@@ -43,7 +43,7 @@ void FileSelector::beginSession(MenuItem* navigatedBackwardFrom) {
 		uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
 	}
 }
-bool FileSelector::isRelevant(Sound* sound, int whichThing) {
+bool FileSelector::isRelevant(Sound* sound, int32_t whichThing) {
 	if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
 		return true;
 	}
@@ -55,7 +55,8 @@ bool FileSelector::isRelevant(Sound* sound, int whichThing) {
 
 	return (sound->getSynthMode() == SynthMode::SUBTRACTIVE && source->oscType == OscType::SAMPLE);
 }
-MenuPermission FileSelector::checkPermissionToBeginSession(Sound* sound, int whichThing, ::MultiRange** currentRange) {
+MenuPermission FileSelector::checkPermissionToBeginSession(Sound* sound, int32_t whichThing,
+                                                           ::MultiRange** currentRange) {
 
 	if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
 		return MenuPermission::YES;
@@ -71,4 +72,4 @@ MenuPermission FileSelector::checkPermissionToBeginSession(Sound* sound, int whi
 
 	return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, whichThing, false, currentRange);
 }
-} // namespace menu_item
+} // namespace deluge::gui::menu_item
