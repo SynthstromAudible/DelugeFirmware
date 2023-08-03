@@ -36,6 +36,7 @@ Setting menuFineTempo(RuntimeFeatureSettingType::FineTempoKnob);
 Setting menuQuantize(RuntimeFeatureSettingType::Quantize);
 Setting menuPatchCableResolution(RuntimeFeatureSettingType::PatchCableResolution);
 Setting menuCatchNotes(RuntimeFeatureSettingType::CatchNotes);
+Setting menuDeleteUnusedKitRows(RuntimeFeatureSettingType::DeleteUnusedKitRows);
 
 std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement + 1> subMenuEntries{
     &menuDrumRandomizer,
@@ -44,6 +45,7 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement + 1> subMenuEntries{
     &menuQuantize,
     &menuPatchCableResolution,
     &menuCatchNotes,
+    &menuDeleteUnusedKitRows,
 
     nullptr,
 };

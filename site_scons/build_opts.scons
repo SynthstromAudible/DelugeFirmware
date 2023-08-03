@@ -22,7 +22,6 @@ env.AppendUnique(
         "-mfloat-abi=hard",
         "-mthumb-interwork",
         "-mlittle-endian",
-        "-flto",
         "-fdiagnostics-parseable-fixits",
         "-std=gnu++20"
     ],

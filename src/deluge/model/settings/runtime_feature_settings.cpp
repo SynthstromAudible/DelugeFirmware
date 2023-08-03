@@ -80,6 +80,9 @@ void RuntimeFeatureSettings::init() {
 	// CatchNotes
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::CatchNotes], "CatchNotes", "catchNotes",
 	                  RuntimeFeatureStateToggle::On);
+	// DeleteUnusedKitRows
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DeleteUnusedKitRows], "Delete Unused Kit Rows",
+	                  "deleteUnusedKitRows", RuntimeFeatureStateToggle::On);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {
