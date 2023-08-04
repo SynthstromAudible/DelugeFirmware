@@ -24,8 +24,9 @@
 namespace deluge::gui::menu_item::osc {
 class RetriggerPhase final : public Decimal, public FormattedTitle {
 public:
-	RetriggerPhase(const string& newName, const deluge::string& title, bool newForModulator = false)
-	    : Decimal(newName), FormattedTitle(title), forModulator(newForModulator) {}
+	RetriggerPhase(const string& newName, const fmt::format_string<int32_t>& title_format_str,
+	               bool newForModulator = false)
+	    : Decimal(newName), FormattedTitle(title_format_str), forModulator(newForModulator) {}
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 

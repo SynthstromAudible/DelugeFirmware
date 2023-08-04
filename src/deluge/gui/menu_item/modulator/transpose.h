@@ -23,7 +23,7 @@ namespace deluge::gui::menu_item::modulator {
 
 class Transpose final : public source::Transpose, public FormattedTitle {
 public:
-	Transpose(const string& name, const string& title_format_str, int32_t newP)
+	Transpose(const string& name, const fmt::format_string<int32_t>& title_format_str, int32_t newP)
 	    : source::Transpose(name, newP), FormattedTitle(title_format_str) {}
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
