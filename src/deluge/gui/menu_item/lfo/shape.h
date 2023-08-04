@@ -24,7 +24,7 @@ class Shape : public TypedSelection<LFOType, kNumLFOTypes> {
 public:
 	using TypedSelection::TypedSelection;
 
-	static_vector<string, capacity()> getOptions() override {
+	static_vector<std::string, capacity()> getOptions() override {
 		return {"Sine", "Triangle", "Square", "Saw", "S&H", "Random Walk"};
 	}
 };

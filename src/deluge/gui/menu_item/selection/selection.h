@@ -38,7 +38,7 @@ class Selection : public Enumeration<n> {
 public:
 	using Enumeration<n>::Enumeration;
 
-	virtual static_vector<string, n> getOptions() = 0;
+	virtual static_vector<std::string, n> getOptions() = 0;
 
 	void drawValue() override;
 

@@ -34,6 +34,6 @@ public:
 
 // Template deduction guide, will not be required with P2582@C++23
 template <size_t n>
-Bend(const string&, MenuItem* const (&)[n]) -> Bend<n>;
+Bend(const std::string&, MenuItem* const (&)[n]) -> Bend<n>;
 
 } // namespace deluge::gui::menu_item::submenu

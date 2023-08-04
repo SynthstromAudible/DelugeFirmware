@@ -48,7 +48,7 @@ public:
 		return &cvSubmenu;
 	}
 
-	static_vector<string, capacity()> getOptions() override {
+	static_vector<std::string, capacity()> getOptions() override {
 #if HAVE_OLED
 		return {"CV output 1", "CV output 2"};
 #else

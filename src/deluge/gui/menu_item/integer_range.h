@@ -23,7 +23,7 @@ namespace deluge::gui::menu_item {
 
 class IntegerRange final : public Range {
 public:
-	IntegerRange(const string& newName, const string& title, int32_t newMin, int32_t newMax)
+	IntegerRange(const std::string& newName, const std::string& title, int32_t newMin, int32_t newMax)
 	    : Range(newName, title), minValue(newMin), maxValue(newMax) {}
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
 	void getText(char* buffer, int32_t* getLeftLength, int32_t* getRightLength, bool mayShowJustOne) override;
