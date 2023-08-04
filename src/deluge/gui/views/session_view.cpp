@@ -2882,46 +2882,59 @@ Clip* gridCreateClipInTrack(Output* targetOutput) {
 
 	return newClip;
 }
-//@TODO: fix for midi and most likely CV
-Clip* gridCreateClipWithNewTrack(InstrumentType type = InstrumentType::SYNTH) {
-	// Allocate new clip
-	void* memory = GeneralMemoryAllocator::get().alloc(sizeof(InstrumentClip), NULL, false, true);
-	if (!memory) {
-		numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
-		return NULL;
-	}
+//@TODO: fix for midi and CV
+Clip* gridCreateClipWithNewTrack(InstrumentType type) {
+	InstrumentClip* newClip = nullptr;
 
-	InstrumentClip* newClip = new (memory) InstrumentClip(currentSong);
-
-	// MIDI and CV first need a Synth clip and then be converted
-	InstrumentType initialType = type;
-	if (type == InstrumentType::MIDI_OUT || type == InstrumentType::CV) {
-		initialType = InstrumentType::SYNTH;
-	}
-
-	bool instrumentAlreadyInSong = false;
-	int32_t error = setPresetOrNextUnlaunchedOne(newClip, initialType, &instrumentAlreadyInSong);
-	if (error || instrumentAlreadyInSong) {
-		// Deallocate
-		newClip->~InstrumentClip();
-		GeneralMemoryAllocator::get().dealloc(memory);
-		if (error) {
-			numericDriver.displayError(error);
+	if (type == InstrumentType::SYNTH || type == InstrumentType::KIT) {
+		// Allocate new clip
+		void* memory = GeneralMemoryAllocator::get().alloc(sizeof(InstrumentClip), NULL, false, true);
+		if (!memory) {
+			numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+			return NULL;
 		}
-		return nullptr;
+
+		newClip = new (memory) InstrumentClip(currentSong);
+
+		bool instrumentAlreadyInSong = false;
+		int32_t error = setPresetOrNextUnlaunchedOne(newClip, type, &instrumentAlreadyInSong);
+		if (error || instrumentAlreadyInSong) {
+			// Deallocate
+			newClip->~InstrumentClip();
+			GeneralMemoryAllocator::get().dealloc(memory);
+			if (error) {
+				numericDriver.displayError(error);
+			}
+			return nullptr;
+		}
+
+		currentSong->addOutput(newClip->output);
+	}
+	else if (type == InstrumentType::MIDI_OUT || type == InstrumentType::CV) {
+		//@TODO: Does not work
+
+		// // MIDI and CV first need a Synth clip and then be converted
+		// InstrumentType initialType = type;
+		// if (type == InstrumentType::MIDI_OUT || type == InstrumentType::CV) {
+		// 	initialType = InstrumentType::SYNTH;
+		// }
+
+		// In between this the synth was created
+
+		// // Convert to MIDI/CV
+		// if (type == InstrumentType::MIDI_OUT || type == InstrumentType::CV) {
+		// 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		// 	ModelStackWithTimelineCounter* modelStack =
+		// 		setupModelStackWithTimelineCounter(modelStackMemory, currentSong, newClip);
+		// 	InstrumentClip* setupClip = (InstrumentClip*)modelStack->getTimelineCounter();
+
+		// 	setupClip->changeInstrumentType(modelStack, type);
+		// 	newClip = setupClip;
+		// }
 	}
 
-	currentSong->addOutput(newClip->output);
-
-	// Convert to MIDI/CV
-	if (type == InstrumentType::MIDI_OUT || type == InstrumentType::CV) {
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithTimelineCounter* modelStack =
-		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, newClip);
-		InstrumentClip* setupClip = (InstrumentClip*)modelStack->getTimelineCounter();
-
-		setupClip->changeInstrumentType(modelStack, type);
-		newClip = setupClip;
+	if (newClip == nullptr) {
+		return nullptr;
 	}
 
 	// For safety we set it up exactly as we want it
@@ -2980,6 +2993,8 @@ Clip* gridCreateClip(uint32_t targetSection, Output* targetOutput = nullptr, Cli
 
 			InstrumentClip* newInstrumentClip = (InstrumentClip*)newClip;
 
+			//@TODO: Rewrite to allow copying between MIDI/CV/Instrument except for KITS - maybe add a copy function?
+
 			// Copy note row contents if clip was created
 			if (newInstrumentClip != nullptr && sourceInstrumentClip->type == newInstrumentClip->type) {
 				if (!newInstrumentClip->noteRows.cloneFrom(&sourceInstrumentClip->noteRows)) {
@@ -3013,7 +3028,7 @@ Clip* gridCreateClip(uint32_t targetSection, Output* targetOutput = nullptr, Cli
 
 		// Create new clip in new track
 		else {
-			newClip = gridCreateClipWithNewTrack();
+			newClip = gridCreateClipWithNewTrack(InstrumentType::SYNTH); // Default SYNTH
 		}
 	}
 
