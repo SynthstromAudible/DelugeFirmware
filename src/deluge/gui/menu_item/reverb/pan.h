@@ -32,19 +32,19 @@ public:
 	using Integer::Integer;
 	virtual void drawValue() {
 		char buffer[5];
-		intToString(std::abs(this->value_), buffer, 1);
-		if (this->value_ < 0) {
+		intToString(std::abs(this->get_value()), buffer, 1);
+		if (this->get_value() < 0) {
 			strcat(buffer, "L");
 		}
-		else if (this->value_ > 0) {
+		else if (this->get_value() > 0) {
 			strcat(buffer, "R");
 		}
 		numericDriver.setText(buffer, true);
 	}
 
-	void writeCurrentValue() override { AudioEngine::reverbPan = ((int32_t)this->value_ * 33554432); }
+	void writeCurrentValue() override { AudioEngine::reverbPan = ((int32_t)this->get_value() * 33554432); }
 
-	void readCurrentValue() override { this->value_ = ((int64_t)AudioEngine::reverbPan * 128 + 2147483648) >> 32; }
+	void readCurrentValue() override { this->set_value(((int64_t)AudioEngine::reverbPan * 128 + 2147483648) >> 32); }
 	[[nodiscard]] int32_t getMaxValue() const override { return 32; }
 	[[nodiscard]] int32_t getMinValue() const override { return -32; }
 };

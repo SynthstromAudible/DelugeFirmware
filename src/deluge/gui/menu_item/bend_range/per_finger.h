@@ -28,14 +28,14 @@ public:
 	void readCurrentValue() override {
 		ExpressionParamSet* expressionParams =
 		    soundEditor.currentParamManager->getOrCreateExpressionParamSet(soundEditor.editingKit());
-		this->value_ = expressionParams != nullptr ? expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL]
-		                                           : FlashStorage::defaultBendRange[BEND_RANGE_FINGER_LEVEL];
+		this->set_value(expressionParams != nullptr ? expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL]
+		                                            : FlashStorage::defaultBendRange[BEND_RANGE_FINGER_LEVEL]);
 	}
 	void writeCurrentValue() override {
 		ExpressionParamSet* expressionParams =
 		    soundEditor.currentParamManager->getOrCreateExpressionParamSet(soundEditor.editingKit());
 		if (expressionParams != nullptr) {
-			expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL] = this->value_;
+			expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL] = this->get_value();
 		}
 	}
 	bool isRelevant(Sound* sound, int32_t whichThing) override {

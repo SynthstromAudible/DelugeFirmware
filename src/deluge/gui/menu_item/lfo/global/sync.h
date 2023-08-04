@@ -28,12 +28,12 @@ public:
 	using SyncLevel::SyncLevel;
 
 	void readCurrentValue() {
-		this->value_ = syncTypeAndLevelToMenuOption(soundEditor.currentSound->lfoGlobalSyncType,
-		                                            soundEditor.currentSound->lfoGlobalSyncLevel);
+		this->set_value(syncTypeAndLevelToMenuOption(soundEditor.currentSound->lfoGlobalSyncType,
+		                                             soundEditor.currentSound->lfoGlobalSyncLevel));
 	}
 	void writeCurrentValue() {
-		soundEditor.currentSound->setLFOGlobalSyncType(menuOptionToSyncType(this->value_));
-		soundEditor.currentSound->setLFOGlobalSyncLevel(menuOptionToSyncLevel(this->value_));
+		soundEditor.currentSound->setLFOGlobalSyncType(menuOptionToSyncType(this->get_value()));
+		soundEditor.currentSound->setLFOGlobalSyncLevel(menuOptionToSyncLevel(this->get_value()));
 		soundEditor.currentSound->setupPatchingForAllParamManagers(currentSong);
 	}
 };

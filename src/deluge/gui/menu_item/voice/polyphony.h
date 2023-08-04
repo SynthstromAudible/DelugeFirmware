@@ -17,7 +17,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "gui/menu_item/selection/typed_selection.h"
+#include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "model/clip/clip.h"
 #include "model/drum/drum.h"
@@ -29,11 +29,12 @@
 #include "util/misc.h"
 
 namespace deluge::gui::menu_item::voice {
-class Polyphony final : public TypedSelection<PolyphonyMode, kNumPolyphonyModes> {
+class Polyphony final : public Selection<kNumPolyphonyModes> {
 public:
-	using TypedSelection::TypedSelection;
-	void readCurrentValue() override { this->value_ = soundEditor.currentSound->polyphonic; }
+	using Selection::Selection;
+	void readCurrentValue() override { this->set_value(soundEditor.currentSound->polyphonic); }
 	void writeCurrentValue() override {
+		auto current_value = this->get_value<PolyphonyMode>();
 
 		// If affect-entire button held, do whole kit
 		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKit()) {
@@ -43,14 +44,14 @@ public:
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-					soundDrum->polyphonic = this->value_;
+					soundDrum->polyphonic = current_value;
 				}
 			}
 		}
 
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSound->polyphonic = this->value_;
+			soundEditor.currentSound->polyphonic = current_value;
 		}
 	}
 

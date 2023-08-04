@@ -40,11 +40,11 @@ public:
 			transpose = soundEditor.currentSource->transpose;
 			cents = soundEditor.currentSource->cents;
 		}
-		this->value_ = transpose * 100 + cents;
+		this->set_value(transpose * 100 + cents);
 	}
 
 	void writeCurrentValue() override {
-		int32_t currentValue = this->value_ + 25600;
+		int32_t currentValue = this->get_value() + 25600;
 
 		int32_t semitones = (currentValue + 50) / 100;
 		int32_t cents = currentValue - semitones * 100;

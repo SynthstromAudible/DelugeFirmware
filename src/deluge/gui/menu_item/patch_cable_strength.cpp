@@ -104,7 +104,7 @@ void PatchCableStrength::renderOLED() {
 
 	char buffer[12];
 	if (preferBarDrawing) {
-		int32_t rounded = (this->value_ + 50 * (this->value_ > 0 ? 1 : -1)) / 100;
+		int32_t rounded = (this->get_value() + 50 * (this->get_value() > 0 ? 1 : -1)) / 100;
 		intToString(rounded, buffer, 1);
 		OLED::drawStringAlignRight(buffer, extraY + OLED_MAIN_TOPMOST_PIXEL + 4 + destinationDescriptor.isJustAParam(),
 		                           OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, 18, 20);
@@ -116,7 +116,7 @@ void PatchCableStrength::renderOLED() {
 	else {
 		const int32_t digitWidth = kTextBigSpacingX;
 		const int32_t digitHeight = kTextBigSizeY;
-		intToString(this->value_, buffer, 3);
+		intToString(this->get_value(), buffer, 3);
 		int32_t textPixelY = extraY + OLED_MAIN_TOPMOST_PIXEL + 10 + destinationDescriptor.isJustAParam();
 		OLED::drawStringAlignRight(buffer, textPixelY, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, digitWidth,
 		                           digitHeight);
@@ -135,13 +135,13 @@ void PatchCableStrength::readCurrentValue() {
 	PatchCableSet* patchCableSet = soundEditor.currentParamManager->getPatchCableSet();
 	uint32_t c = patchCableSet->getPatchCableIndex(getS(), getDestinationDescriptor());
 	if (c == 255) {
-		this->value_ = 0;
+		this->set_value(0);
 	}
 	else {
 		int32_t paramValue = patchCableSet->patchCables[c].param.getCurrentValue();
 		// the internal values are stored in the range -(2^30) to 2^30.
 		// rescale them to the range -5000 to 5000 and round to nearest.
-		this->value_ = ((int64_t)paramValue * 5000 + (1 << 29)) >> 30;
+		this->set_value(((int64_t)paramValue * 5000 + (1 << 29)) >> 30);
 	}
 }
 
@@ -165,7 +165,7 @@ void PatchCableStrength::writeCurrentValue() {
 	}
 
 	// rescale from 5000 to 2**30. The magic constant is ((2^30)/5000), shifted 32 bits for precision ((1<<(30+32))/5000)
-	int32_t finalValue = ((int64_t)922337203685477 * this->value_) >> 32;
+	int32_t finalValue = ((int64_t)922337203685477 * this->get_value()) >> 32;
 	modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
 }
 

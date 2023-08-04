@@ -25,10 +25,10 @@ class Attack final : public Integer {
 public:
 	using Integer::Integer;
 	void readCurrentValue() override {
-		this->value_ = getLookupIndexFromValue(soundEditor.currentCompressor->attack >> 2, attackRateTable, 50);
+		this->set_value(getLookupIndexFromValue(soundEditor.currentCompressor->attack >> 2, attackRateTable, 50));
 	}
 	void writeCurrentValue() override {
-		soundEditor.currentCompressor->attack = attackRateTable[this->value_] << 2;
+		soundEditor.currentCompressor->attack = attackRateTable[this->get_value()] << 2;
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return 50; }

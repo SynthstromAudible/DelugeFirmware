@@ -27,9 +27,9 @@ namespace deluge::gui::menu_item {
 class MasterTranspose final : public Integer, public PatchedParam {
 public:
 	using Integer::Integer;
-	void readCurrentValue() override { this->value_ = soundEditor.currentSound->transpose; }
+	void readCurrentValue() override { this->set_value(soundEditor.currentSound->transpose); }
 	void writeCurrentValue() override {
-		soundEditor.currentSound->transpose = this->value_;
+		soundEditor.currentSound->transpose = this->get_value();
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithSoundFlags* modelStack = soundEditor.getCurrentModelStack(modelStackMemory)->addSoundFlags();
 		soundEditor.currentSound->recalculateAllVoicePhaseIncrements(modelStack);
@@ -46,7 +46,7 @@ public:
 	}
 #if !HAVE_OLED
 	void drawValue() override {
-		numericDriver.setTextAsNumber(this->value_, shouldDrawDotOnName());
+		numericDriver.setTextAsNumber(this->get_value(), shouldDrawDotOnName());
 	}
 #endif
 

@@ -16,17 +16,17 @@
 */
 #pragma once
 #include "definitions_cxx.hpp"
-#include "gui/menu_item/selection/typed_selection.h"
+#include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "storage/flash_storage.h"
 #include "util/misc.h"
 
 namespace deluge::gui::menu_item::keyboard {
-class Layout final : public TypedSelection<KeyboardLayout, kNumKeyboardLayouts> {
+class Layout final : public Selection<kNumKeyboardLayouts> {
 public:
-	using TypedSelection::TypedSelection;
-	void readCurrentValue() override { this->value_ = FlashStorage::keyboardLayout; }
-	void writeCurrentValue() override { FlashStorage::keyboardLayout = this->value_; }
+	using Selection::Selection;
+	void readCurrentValue() override { this->set_value(FlashStorage::keyboardLayout); }
+	void writeCurrentValue() override { FlashStorage::keyboardLayout = this->get_value<KeyboardLayout>(); }
 	static_vector<string, capacity()> getOptions() override {
 		return {"QWERTY", "AZERTY", HAVE_OLED ? "QWERTZ" : "QRTZ"};
 	}

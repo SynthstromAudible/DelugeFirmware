@@ -23,7 +23,7 @@ namespace deluge::gui::menu_item::defaults {
 class BendRange final : public menu_item::BendRange {
 public:
 	using menu_item::BendRange::BendRange;
-	void readCurrentValue() override { this->value_ = FlashStorage::defaultBendRange[BEND_RANGE_MAIN]; }
-	void writeCurrentValue() override { FlashStorage::defaultBendRange[BEND_RANGE_MAIN] = this->value_; }
+	void readCurrentValue() override { this->set_value(FlashStorage::defaultBendRange[BEND_RANGE_MAIN]); }
+	void writeCurrentValue() override { FlashStorage::defaultBendRange[BEND_RANGE_MAIN] = this->get_value(); }
 };
 } // namespace deluge::gui::menu_item::defaults

@@ -26,10 +26,10 @@ public:
 	DefaultVelocityToLevel(char const* newName = NULL) : IntegerWithOff(newName) {}
 	[[nodiscard]] int32_t getMaxValue() const override { return 50; }
 	void readCurrentValue() override {
-		this->value_ = ((int64_t)soundEditor.currentMIDIDevice->defaultVelocityToLevel * 50 + 536870912) >> 30;
+		this->set_value(((int64_t)soundEditor.currentMIDIDevice->defaultVelocityToLevel * 50 + 536870912) >> 30);
 	}
 	void writeCurrentValue() override {
-		soundEditor.currentMIDIDevice->defaultVelocityToLevel = this->value_ * 21474836;
+		soundEditor.currentMIDIDevice->defaultVelocityToLevel = this->get_value() * 21474836;
 		currentSong->grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForEverything(soundEditor.currentMIDIDevice);
 		MIDIDeviceManager::anyChangesToSave = true;
 	}

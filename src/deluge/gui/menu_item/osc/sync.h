@@ -24,8 +24,8 @@ namespace deluge::gui::menu_item::osc {
 class Sync final : public Toggle {
 public:
 	using Toggle::Toggle;
-	void readCurrentValue() override { this->value_ = soundEditor.currentSound->oscillatorSync; }
-	void writeCurrentValue() override { soundEditor.currentSound->oscillatorSync = this->value_; }
+	void readCurrentValue() override { this->set_value(soundEditor.currentSound->oscillatorSync); }
+	void writeCurrentValue() override { soundEditor.currentSound->oscillatorSync = this->get_value(); }
 	bool isRelevant(Sound* sound, int32_t whichThing) override {
 		return (whichThing == 1 && sound->synthMode != SynthMode::FM && sound->sources[0].oscType != OscType::SAMPLE
 		        && sound->sources[1].oscType != OscType::SAMPLE);

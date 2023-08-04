@@ -23,7 +23,7 @@ namespace deluge::gui::menu_item::tempo {
 class MagnitudeMatching final : public Toggle {
 public:
 	using Toggle::Toggle;
-	void readCurrentValue() override { this->value_ = playbackHandler.tempoMagnitudeMatchingEnabled; }
-	void writeCurrentValue() override { playbackHandler.tempoMagnitudeMatchingEnabled = this->value_; }
+	void readCurrentValue() override { this->set_value(playbackHandler.tempoMagnitudeMatchingEnabled); }
+	void writeCurrentValue() override { playbackHandler.tempoMagnitudeMatchingEnabled = this->get_value(); }
 };
 } // namespace deluge::gui::menu_item::tempo

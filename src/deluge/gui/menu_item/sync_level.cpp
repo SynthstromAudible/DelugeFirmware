@@ -24,7 +24,7 @@
 namespace deluge::gui::menu_item {
 
 void SyncLevel::drawValue() {
-	if (this->value_ == 0) {
+	if (this->get_value() == 0) {
 		numericDriver.setText("OFF");
 	}
 	else {
@@ -41,17 +41,17 @@ void SyncLevel::drawValue() {
 
 void SyncLevel::getNoteLengthName(char* buffer) {
 	char type[7] = "";
-	if (this->value_ < SYNC_TYPE_TRIPLET) {
-		currentSong->getNoteLengthName(buffer, (uint32_t)3 << (SYNC_LEVEL_256TH - this->value_));
+	if (this->get_value() < SYNC_TYPE_TRIPLET) {
+		currentSong->getNoteLengthName(buffer, (uint32_t)3 << (SYNC_LEVEL_256TH - this->get_value()));
 	}
-	else if (this->value_ < SYNC_TYPE_DOTTED) {
+	else if (this->get_value() < SYNC_TYPE_DOTTED) {
 		currentSong->getNoteLengthName(buffer,
-		                               (uint32_t)3 << ((SYNC_TYPE_TRIPLET - 1) + SYNC_LEVEL_256TH - this->value_));
+		                               (uint32_t)3 << ((SYNC_TYPE_TRIPLET - 1) + SYNC_LEVEL_256TH - this->get_value()));
 		strcpy(type, "-tplts");
 	}
 	else {
 		currentSong->getNoteLengthName(buffer,
-		                               (uint32_t)3 << ((SYNC_TYPE_DOTTED - 1) + SYNC_LEVEL_256TH - this->value_));
+		                               (uint32_t)3 << ((SYNC_TYPE_DOTTED - 1) + SYNC_LEVEL_256TH - this->get_value()));
 		strcpy(type, "-dtted");
 	}
 	if (strlen(type) > 0) {
@@ -73,7 +73,7 @@ void SyncLevel::getNoteLengthName(char* buffer) {
 void SyncLevel::drawPixelsForOled() {
 	char const* text = "Off";
 	char buffer[30];
-	if (this->value_) {
+	if (this->get_value()) {
 		text = buffer;
 		getNoteLengthName(buffer);
 	}

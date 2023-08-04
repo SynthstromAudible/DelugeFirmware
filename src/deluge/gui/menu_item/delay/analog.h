@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "gui/menu_item/selection/selection.h"
+#include "gui/menu_item/selection.h"
 #include "gui/menu_item/sync_level.h"
 #include "gui/ui/sound_editor.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
@@ -25,8 +25,8 @@ namespace deluge::gui::menu_item::delay {
 class Analog final : public Selection<2> {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->value_ = soundEditor.currentModControllable->delay.analog; }
-	void writeCurrentValue() override { soundEditor.currentModControllable->delay.analog = this->value_; }
+	void readCurrentValue() override { this->set_value(soundEditor.currentModControllable->delay.analog); }
+	void writeCurrentValue() override { soundEditor.currentModControllable->delay.analog = this->get_value(); }
 	static_vector<string, 2> getOptions() override { return {"Digital", HAVE_OLED ? "Analog" : "ANA"}; }
 };
 

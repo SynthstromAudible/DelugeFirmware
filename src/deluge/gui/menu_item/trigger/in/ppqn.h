@@ -25,9 +25,9 @@ namespace deluge::gui::menu_item::trigger::in {
 class PPQN : public menu_item::PPQN {
 public:
 	using menu_item::PPQN::PPQN;
-	void readCurrentValue() override { this->value_ = playbackHandler.analogInTicksPPQN; }
+	void readCurrentValue() override { this->set_value(playbackHandler.analogInTicksPPQN); }
 	void writeCurrentValue() override {
-		playbackHandler.analogInTicksPPQN = this->value_;
+		playbackHandler.analogInTicksPPQN = this->get_value();
 		if ((playbackHandler.playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE) && playbackHandler.usingAnalogClockInput)
 			playbackHandler.resyncInternalTicksToInputTicks(currentSong);
 	}

@@ -17,10 +17,9 @@
 
 #pragma once
 
-#include "gui/menu_item/enumeration/typed_enumeration.h"
+#include "gui/menu_item/enumeration.h"
 #include "gui/menu_item/menu_item.h"
 #include "util/container/static_vector.hpp"
-#include "util/misc.h"
 #include "util/sized.h"
 
 #include "gui/ui/sound_editor.h"
@@ -34,10 +33,10 @@ extern "C" {
 }
 
 namespace deluge::gui::menu_item {
-template <util::enumeration T, size_t n>
-class TypedSelection : public TypedEnumeration<T, n> {
+template <size_t n>
+class Selection : public Enumeration<n> {
 public:
-	using TypedEnumeration<T, n>::TypedEnumeration;
+	using Enumeration<n>::Enumeration;
 
 	virtual static_vector<string, n> getOptions() = 0;
 
@@ -54,31 +53,29 @@ public:
 	}
 };
 
-template <util::enumeration T, size_t n>
-void TypedSelection<T, n>::drawValue() {
+template <size_t n>
+void Selection<n>::drawValue() {
 #if HAVE_OLED
 	renderUIsForOled();
 #else
 	const auto options = getOptions();
-	auto idx = util::to_underlying(this->value_);
-	numericDriver.setText(options[idx].c_str());
+	numericDriver.setText(options[this->get_value()].c_str());
 #endif
 }
 
 #if HAVE_OLED
 
-template <util::enumeration T, size_t n>
-void TypedSelection<T, n>::drawPixelsForOled() {
-	auto current = util::to_underlying(this->value_);
+template <size_t n>
+void Selection<n>::drawPixelsForOled() {
 	// Move scroll
-	if (soundEditor.menuCurrentScroll > current) {
-		soundEditor.menuCurrentScroll = current;
+	if (soundEditor.menuCurrentScroll > this->get_value()) {
+		soundEditor.menuCurrentScroll = this->get_value();
 	}
-	else if (soundEditor.menuCurrentScroll < current - kOLEDMenuNumOptionsVisible + 1) {
-		soundEditor.menuCurrentScroll = current - kOLEDMenuNumOptionsVisible + 1;
+	else if (soundEditor.menuCurrentScroll < this->get_value() - kOLEDMenuNumOptionsVisible + 1) {
+		soundEditor.menuCurrentScroll = this->get_value() - kOLEDMenuNumOptionsVisible + 1;
 	}
 
-	const int32_t selectedOption = current - soundEditor.menuCurrentScroll;
+	const int32_t selectedOption = this->get_value() - soundEditor.menuCurrentScroll;
 
 	auto options = getOptions();
 	MenuItem::drawItemsForOled(options, selectedOption, soundEditor.menuCurrentScroll);

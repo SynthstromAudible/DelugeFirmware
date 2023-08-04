@@ -16,18 +16,18 @@
 */
 #pragma once
 #include "definitions_cxx.hpp"
-#include "gui/menu_item/selection/typed_selection.h"
+#include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "processing/engines/audio_engine.h"
 #include "util/misc.h"
 
 namespace deluge::gui::menu_item::monitor {
-class Mode final : public TypedSelection<InputMonitoringMode, kNumInputMonitoringModes> {
+class Mode final : public Selection<kNumInputMonitoringModes> {
 public:
-	using TypedSelection::TypedSelection;
+	using Selection::Selection;
 
-	void readCurrentValue() override { this->value_ = AudioEngine::inputMonitoringMode; }
-	void writeCurrentValue() override { AudioEngine::inputMonitoringMode = this->value_; }
+	void readCurrentValue() override { this->set_value(AudioEngine::inputMonitoringMode); }
+	void writeCurrentValue() override { AudioEngine::inputMonitoringMode = this->get_value<InputMonitoringMode>(); }
 	static_vector<string, capacity()> getOptions() override { return {"Conditional", "On", "Off"}; }
 };
 } // namespace deluge::gui::menu_item::monitor

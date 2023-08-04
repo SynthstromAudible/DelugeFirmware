@@ -45,22 +45,22 @@ void Enumeration<n>::beginSession(MenuItem* navigatedBackwardFrom) {
 
 template <size_t n>
 void Enumeration<n>::selectEncoderAction(int32_t offset) {
-	this->value_ += offset;
+	this->set_value(this->get_value() + offset);
 	int32_t numOptions = size();
 
 #if HAVE_OLED
-	if (this->value_ >= numOptions) {
-		this->value_ = numOptions - 1;
+	if (this->get_value() >= numOptions) {
+		this->set_value(numOptions - 1);
 	}
-	else if (this->value_ < 0) {
-		this->value_ = 0;
+	else if (this->get_value() < 0) {
+		this->set_value(0);
 	}
 #else
-	if (this->value_ >= numOptions) {
-		this->value_ -= numOptions;
+	if (this->get_value() >= numOptions) {
+		this->set_value(this->get_value() - numOptions);
 	}
-	else if (this->value_ < 0) {
-		this->value_ += numOptions;
+	else if (this->get_value() < 0) {
+		this->set_value(this->get_value() + numOptions);
 	}
 #endif
 
@@ -72,7 +72,7 @@ void Enumeration<n>::drawValue() {
 #if HAVE_OLED
 	renderUIsForOled();
 #else
-	numericDriver.setTextAsNumber(this->value_);
+	numericDriver.setTextAsNumber(this->get_value());
 #endif
 }
 

@@ -16,7 +16,7 @@
 */
 #pragma once
 #include "gui/menu_item/gate/mode.h"
-#include "gui/menu_item/selection/selection.h"
+#include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "mode.h"
 #include "off_time.h"
@@ -32,25 +32,25 @@ public:
 
 	void beginSession(MenuItem* navigatedBackwardFrom) override {
 		if (navigatedBackwardFrom == nullptr) {
-			this->value_ = 0;
+			this->set_value(0);
 		}
 		else {
-			this->value_ = soundEditor.currentSourceIndex;
+			this->set_value(soundEditor.currentSourceIndex);
 		}
 		menu_item::Selection<capacity()>::beginSession(navigatedBackwardFrom);
 	}
 
 	MenuItem* selectButtonPress() override {
-		if (this->value_ == NUM_GATE_CHANNELS) {
+		if (this->get_value() == NUM_GATE_CHANNELS) {
 			return &gateOffTimeMenu;
 		}
-		soundEditor.currentSourceIndex = this->value_;
+		soundEditor.currentSourceIndex = this->get_value();
 #if HAVE_OLED
-		gate::mode_title[8] = '1' + this->value_;
+		gate::mode_title[8] = '1' + this->get_value();
 #endif
 
 		// TODO: this needs to be a "UpdateOptions" method on gate::Mode
-		gateModeMenu.updateOptions(this->value_);
+		gateModeMenu.updateOptions(this->get_value());
 		return &gateModeMenu;
 	}
 

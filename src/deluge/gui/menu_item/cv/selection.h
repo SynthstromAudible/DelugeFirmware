@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "gui/menu_item/selection/selection.h"
+#include "gui/menu_item/selection.h"
 #include "gui/menu_item/submenu.h"
 #include "gui/ui/sound_editor.h"
 #include "transpose.h"
@@ -31,19 +31,19 @@ public:
 
 	void beginSession(MenuItem* navigatedBackwardFrom) override {
 		if (navigatedBackwardFrom == nullptr) {
-			this->value_ = 0;
+			this->set_value(0);
 		}
 		else {
-			this->value_ = soundEditor.currentSourceIndex;
+			this->set_value(soundEditor.currentSourceIndex);
 		}
 		menu_item::Selection<2>::beginSession(navigatedBackwardFrom);
 	}
 
 	MenuItem* selectButtonPress() override {
-		soundEditor.currentSourceIndex = this->value_;
+		soundEditor.currentSourceIndex = this->get_value();
 #if HAVE_OLED
-		cvSubmenu.title = getOptions().at(this->value_);
-		setCvNumberForTitle(this->value_);
+		cvSubmenu.title = getOptions().at(this->get_value());
+		setCvNumberForTitle(this->get_value());
 #endif
 		return &cvSubmenu;
 	}

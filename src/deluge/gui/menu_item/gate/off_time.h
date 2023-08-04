@@ -27,7 +27,7 @@ public:
 	[[nodiscard]] int32_t getMaxValue() const override { return 100; }
 	[[nodiscard]] int32_t getNumDecimalPlaces() const override { return 1; }
 	[[nodiscard]] int32_t getDefaultEditPos() const override { return 1; }
-	void readCurrentValue() override { this->value_ = cvEngine.minGateOffTime; }
-	void writeCurrentValue() override { cvEngine.minGateOffTime = this->value_; }
+	void readCurrentValue() override { this->set_value(cvEngine.minGateOffTime); }
+	void writeCurrentValue() override { cvEngine.minGateOffTime = this->get_value(); }
 };
 } // namespace deluge::gui::menu_item::gate

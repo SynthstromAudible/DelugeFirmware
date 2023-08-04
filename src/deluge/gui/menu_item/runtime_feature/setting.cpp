@@ -33,17 +33,17 @@ void Setting::readCurrentValue() {
 	for (uint32_t idx = 0; idx < RUNTIME_FEATURE_SETTING_MAX_OPTIONS; ++idx) {
 		if (runtimeFeatureSettings.settings[currentSettingIndex].options[idx].value
 		    == runtimeFeatureSettings.settings[currentSettingIndex].value) {
-			this->value_ = idx;
+			this->set_value(idx);
 			return;
 		}
 	}
 
-	this->value_ = 0;
+	this->set_value(0);
 }
 
 void Setting::writeCurrentValue() {
 	runtimeFeatureSettings.settings[currentSettingIndex].value =
-	    runtimeFeatureSettings.settings[currentSettingIndex].options[this->value_].value;
+	    runtimeFeatureSettings.settings[currentSettingIndex].options[this->get_value()].value;
 }
 
 static_vector<string, RUNTIME_FEATURE_SETTING_MAX_OPTIONS> Setting::getOptions() {

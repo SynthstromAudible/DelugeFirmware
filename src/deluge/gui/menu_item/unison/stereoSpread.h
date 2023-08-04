@@ -24,8 +24,8 @@ namespace deluge::gui::menu_item::unison {
 class StereoSpread final : public Integer {
 public:
 	using Integer::Integer;
-	void readCurrentValue() { this->value_ = soundEditor.currentSound->unisonStereoSpread; }
-	void writeCurrentValue() { soundEditor.currentSound->setUnisonStereoSpread(this->value_); }
+	void readCurrentValue() { this->set_value(soundEditor.currentSound->unisonStereoSpread); }
+	void writeCurrentValue() { soundEditor.currentSound->setUnisonStereoSpread(this->get_value()); }
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxUnisonStereoSpread; }
 };
 

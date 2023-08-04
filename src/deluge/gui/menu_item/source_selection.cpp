@@ -60,7 +60,7 @@ void SourceSelection::drawPixelsForOled() {
 
 		if (sourceIsAllowed(sHere)) {
 			itemNames.push_back(getSourceDisplayNameForOLED(sHere));
-			if (thisOption == this->value_) {
+			if (thisOption == this->get_value()) {
 				selectedRowOnScreen = static_cast<int32_t>(i);
 			}
 			i++;
@@ -80,7 +80,7 @@ void SourceSelection::drawPixelsForOled() {
 
 void SourceSelection::drawValue() {
 	char const* text;
-	switch (sourceMenuContents[this->value_]) {
+	switch (sourceMenuContents[this->get_value()]) {
 	case PatchSource::LFO_GLOBAL:
 		text = "LFO1";
 		break;
@@ -134,18 +134,18 @@ void SourceSelection::drawValue() {
 #endif
 
 void SourceSelection::beginSession(MenuItem* navigatedBackwardFrom) {
-	this->value_ = 0;
+	this->set_value(0);
 
 	if (navigatedBackwardFrom) {
-		while (sourceMenuContents[this->value_] != s) {
-			this->value_++;
+		while (sourceMenuContents[this->get_value()] != s) {
+			this->set_value(this->get_value() + 1);
 		}
 		// Scroll pos will be retained from before.
 	}
 	else {
 		int32_t firstAllowedIndex = kNumPatchSources - 1;
 		while (true) {
-			s = sourceMenuContents[this->value_];
+			s = sourceMenuContents[this->get_value()];
 
 			// If patching already exists on this source, we use this as the initial one to show to the user
 			if (soundEditor.currentParamManager->getPatchCableSet()
@@ -154,21 +154,21 @@ void SourceSelection::beginSession(MenuItem* navigatedBackwardFrom) {
 			}
 
 			// Note down the first "allowed" or "editable" source
-			if (this->value_ < firstAllowedIndex && sourceIsAllowed(s)) {
-				firstAllowedIndex = this->value_;
+			if (this->get_value() < firstAllowedIndex && sourceIsAllowed(s)) {
+				firstAllowedIndex = this->get_value();
 			}
 
-			this->value_++;
+			this->set_value(this->get_value() + 1);
 #if HAVE_OLED
-			scrollPos = this->value_;
+			scrollPos = this->get_value();
 #endif
 
-			if (this->value_ >= kNumPatchSources) {
-				this->value_ = firstAllowedIndex;
+			if (this->get_value() >= kNumPatchSources) {
+				this->set_value(firstAllowedIndex);
 #if HAVE_OLED
-				scrollPos = this->value_;
+				scrollPos = this->get_value();
 #endif
-				s = sourceMenuContents[this->value_];
+				s = sourceMenuContents[this->get_value()];
 				break;
 			}
 		}
@@ -189,7 +189,7 @@ void SourceSelection::readValueAgain() {
 
 void SourceSelection::selectEncoderAction(int32_t offset) {
 	bool isAllowed;
-	int32_t newValue = this->value_;
+	int32_t newValue = this->get_value();
 	do {
 		newValue += offset;
 
@@ -207,11 +207,11 @@ void SourceSelection::selectEncoderAction(int32_t offset) {
 
 	} while (!sourceIsAllowed(s));
 
-	this->value_ = newValue;
+	this->set_value(newValue);
 
 #if HAVE_OLED
-	if (this->value_ < scrollPos) {
-		scrollPos = this->value_;
+	if (this->get_value() < scrollPos) {
+		scrollPos = this->get_value();
 	}
 	else if (offset >= 0 && selectedRowOnScreen == kOLEDMenuNumOptionsVisible - 1) {
 		scrollPos++;

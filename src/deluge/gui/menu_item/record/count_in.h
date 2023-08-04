@@ -23,7 +23,7 @@ namespace deluge::gui::menu_item::record {
 class CountIn final : public Toggle {
 public:
 	using Toggle::Toggle;
-	void readCurrentValue() override { this->value_ = playbackHandler.countInEnabled; }
-	void writeCurrentValue() override { playbackHandler.countInEnabled = this->value_; }
+	void readCurrentValue() override { this->set_value(playbackHandler.countInEnabled); }
+	void writeCurrentValue() override { playbackHandler.countInEnabled = this->get_value(); }
 };
 } // namespace deluge::gui::menu_item::record

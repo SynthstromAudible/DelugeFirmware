@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "gui/menu_item/selection/selection.h"
+#include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "model/clip/clip.h"
 #include "model/drum/drum.h"
@@ -30,7 +30,9 @@ public:
 
 	bool usesAffectEntire() override { return true; }
 
-	void readCurrentValue() override { this->value_ = soundEditor.currentSampleControls->pitchAndSpeedAreIndependent; }
+	void readCurrentValue() override {
+		this->set_value(soundEditor.currentSampleControls->pitchAndSpeedAreIndependent);
+	}
 
 	void writeCurrentValue() override {
 		// If affect-entire button held, do whole kit
@@ -43,14 +45,14 @@ public:
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
 					Source* source = &soundDrum->sources[soundEditor.currentSourceIndex];
 
-					source->sampleControls.pitchAndSpeedAreIndependent = this->value_;
+					source->sampleControls.pitchAndSpeedAreIndependent = this->get_value();
 				}
 			}
 		}
 
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSampleControls->pitchAndSpeedAreIndependent = this->value_;
+			soundEditor.currentSampleControls->pitchAndSpeedAreIndependent = this->get_value();
 		}
 	}
 
