@@ -274,10 +274,11 @@ void FilterSet::renderLPFLong(q31_t* startSample, q31_t* endSample, LPFMode lpfM
 }
 
 int32_t FilterSet::set_config(int32_t lpfFrequency, int32_t lpfResonance, bool doLPF, int32_t hpfFrequency,
-                              int32_t hpfResonance, bool doHPF, LPFMode lpfMode, int32_t filterGain,
+                              int32_t hpfResonance, bool doHPF, LPFMode lpfType, int32_t filterGain,
                               bool adjustVolumeForHPFResonance, int32_t* overallOscAmplitude) {
 	LPFOn = doLPF;
 	HPFOn = doHPF;
+	lpfMode = lpfType;
 
 	hpfResonance =
 	    (hpfResonance >> 21) << 21; // Insanely, having changes happen in the small bytes too often causes rustling

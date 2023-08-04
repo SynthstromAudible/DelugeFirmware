@@ -1501,8 +1501,8 @@ skipUnisonPart : {}
 			int32_t* const oscBufferEnd = oscBuffer + (numSamples << 1);
 
 			// Filters
-			filterSets[0].renderLong(oscBuffer, oscBufferEnd, sound->lpfMode, numSamples, 2);
-			filterSets[1].renderLong(oscBuffer + 1, oscBufferEnd, sound->lpfMode, numSamples, 2);
+			filterSets[0].renderLong(oscBuffer, oscBufferEnd, numSamples, 2);
+			filterSets[1].renderLong(oscBuffer + 1, oscBufferEnd, numSamples, 2);
 
 			// No clipping
 			if (!sound->clippingAmount) {
@@ -1578,7 +1578,7 @@ skipUnisonPart : {}
 			*/
 
 			int32_t* const oscBufferEnd = oscBuffer + numSamples;
-			filterSets[0].renderLong(oscBuffer, oscBufferEnd, sound->lpfMode, numSamples);
+			filterSets[0].renderLong(oscBuffer, oscBufferEnd, numSamples);
 
 			// No clipping
 			if (!sound->clippingAmount) {
@@ -2625,9 +2625,7 @@ void renderPDWave(const int16_t* table, const int16_t* secondTable, int32_t numB
 void getTableNumber(uint32_t phaseIncrementForCalculations, int32_t* tableNumber, int32_t* tableSize) {
 
 	if (phaseIncrementForCalculations <= 1247086) {
-		{
-			*tableNumber = 0;
-		}
+		{ *tableNumber = 0; }
 		*tableSize = 13;
 	}
 	else if (phaseIncrementForCalculations <= 2494173) {
