@@ -86,11 +86,13 @@ extern char loopsRemainingText[];
 extern int8_t defaultAudioClipOverdubOutputCloning;
 
 // Track is used to describe a singular output for now
-inline const uint32_t gridTrackCount() {
+inline const uint32_t gridTrackCount() { //@TODO: Currently this also gives us outputs that are only in the arranger
 	uint32_t count = 0;
 	Output* currentTrack = currentSong->firstOutput;
 	while (currentTrack != nullptr) {
-		++count;
+		if (currentTrack->activeClip != nullptr) {
+			++count;
+		}
 		currentTrack = currentTrack->next;
 	}
 
@@ -107,7 +109,9 @@ inline uint32_t gridTrackIndexFromTrack(Output* track, uint32_t maxTrack = gridT
 		if (ptrOutput == track) {
 			return ((maxTrack - 1) - reverseOutputIndex);
 		}
-		++reverseOutputIndex;
+		if (ptrOutput->activeClip != nullptr) {
+			++reverseOutputIndex;
+		}
 	}
 	return -1;
 }
@@ -116,11 +120,13 @@ inline Output* gridTrackFromIndex(uint32_t trackIndex, uint32_t maxTrack = gridT
 	uint32_t count = 0;
 	Output* currentTrack = currentSong->firstOutput;
 	while (currentTrack != nullptr) {
-		if (((maxTrack - 1) - count) == trackIndex) {
-			return currentTrack;
-		}
+		if (currentTrack->activeClip != nullptr) {
+			if (((maxTrack - 1) - count) == trackIndex) {
+				return currentTrack;
+			}
 
-		++count;
+			++count;
+		}
 		currentTrack = currentTrack->next;
 	}
 
@@ -496,10 +502,16 @@ moveAfterClipInstance:
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
-			actionLogger.deleteAllLogs();
-			int32_t yDisplay = selectedClipYDisplay;
-			clipPressEnded();
-			removeClip(yDisplay); //@TODO: delete in grid mode
+			if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+				actionLogger.deleteAllLogs();
+				//@TODO
+			}
+			else {
+				actionLogger.deleteAllLogs();
+				int32_t yDisplay = selectedClipYDisplay;
+				clipPressEnded();
+				removeClip(yDisplay); //@TODO: change so the clip index is given not the display coord
+			}
 		}
 	}
 
@@ -1047,8 +1059,6 @@ void SessionView::sectionPadAction(uint8_t y, bool on) {
 		if (isNoUIModeActive()) {
 			// If user wanting to change Clip's section
 			if (Buttons::isShiftButtonPressed()) {
-				//@TODO: Change behavior so two rows clips in the same instrument can not be the same section
-
 				// Not allowed if recording arrangement
 				if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
 					numericDriver.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
@@ -1223,7 +1233,7 @@ void SessionView::selectEncoderAction(int8_t offset) {
 		}
 
 		if (clip->type
-		    == CLIP_TYPE_INSTRUMENT) { //@TODO: Decide how to scroll through presets when it means the clip is moving, this currently crashes a lot
+		    == CLIP_TYPE_INSTRUMENT) { //@TODO: Decide how to scroll through presets when it means the clip is moving, this currently crashes a lot -> We need to make sure no used instrument is loaded
 
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStack =
@@ -1558,13 +1568,13 @@ doGetInstrument:
 	int32_t index = yDisplay + currentSong->songViewYScroll;
 	if (index <= 0) {
 		index = 0;
-		newClip->section = currentSong->sessionClips.getClipAtIndex(0)->section; //@TODO: Change behavior
+		newClip->section = currentSong->sessionClips.getClipAtIndex(0)->section;
 		currentSong->songViewYScroll++;
 	}
 	else if (index >= currentSong->sessionClips.getNumElements()) {
 		index = currentSong->sessionClips.getNumElements();
-		newClip->section = currentSong->sessionClips.getClipAtIndex(currentSong->sessionClips.getNumElements() - 1)
-		                       ->section; //@TODO: This might need to change as well (didn't read yet)
+		newClip->section =
+		    currentSong->sessionClips.getClipAtIndex(currentSong->sessionClips.getNumElements() - 1)->section;
 	}
 	currentSong->sessionClips.insertClipAtIndex(newClip, index);
 
@@ -2148,7 +2158,6 @@ bool SessionView::calculateZoomPinSquares(uint32_t oldScroll, uint32_t newScroll
 }
 
 int32_t SessionView::getClipPlaceOnScreen(Clip* clip) {
-	//@TODO: Check if this needs to be compatible with grid
 	return currentSong->sessionClips.getIndexForClip(clip) - currentSong->songViewYScroll;
 }
 
@@ -2372,7 +2381,7 @@ bool SessionView::renderRow(ModelStack* modelStack, uint8_t yDisplay,
 	return true;
 }
 
-void SessionView::transitionToViewForClip(Clip* clip) { //@TODO: Align with grid
+void SessionView::transitionToViewForClip(Clip* clip) {
 
 	// If no Clip, just go back into the previous one we were in
 	if (!clip) {
@@ -2818,11 +2827,227 @@ bool SessionView::gridRenderMainPads(uint32_t whichRows, uint8_t image[][kDispla
 	return true;
 }
 
-// @TODO: Animations
-// Section MIDI learn flash
-// @TODO: Check all buttons if they can fail
+Clip* gridCloneClip(Clip* sourceClip) {
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack =
+	    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(sourceClip);
 
-void gridCloneClip(uint32_t sourceX, uint32_t sourceY, uint32_t targetX, uint32_t targetY) {
+	int32_t error = sourceClip->clone(modelStack, false);
+	if (error) {
+		numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+		return nullptr;
+	}
+
+	return (Clip*)modelStack->getTimelineCounter();
+}
+
+Clip* gridCreateClipInTrack(Output* targetOutput) {
+	Clip* sourceClip = nullptr;
+	for (int32_t idxClip = 0; idxClip < currentSong->sessionClips.getNumElements(); ++idxClip) {
+		Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
+		if (clip->output == targetOutput) {
+			sourceClip = clip;
+			break;
+		}
+	}
+
+	if (sourceClip == nullptr) {
+		return nullptr;
+	}
+
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+
+	// Old method produced E073 for drum clips
+	// ModelStackWithTimelineCounter* modelStack = setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(sourceClip);
+	// Clip* newClip = sourceClip->cloneAsNewOverdub(modelStack, OVERDUB_NOT_REAL_JUST_COPY); // cloneAsNewOverdub was modified at that point to not call setupForRecordingAsAutoOverdub
+
+	// New method is cloning full clip and emptying it
+	Clip* newClip = gridCloneClip(sourceClip);
+
+	ModelStackWithTimelineCounter* modelStack =
+	    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, newClip);
+	Action* action = actionLogger.getNewAction(ACTION_CLIP_CLEAR, false);
+	newClip->clear(action, modelStack); // I wasn't sure if I'm allowed to not supply an action
+	actionLogger.deleteAllLogs();
+
+	// For safety we set it up exactly as we want it
+	newClip->colourOffset = random(72);
+	newClip->loopLength = currentSong->getBarLength();
+	newClip->activeIfNoSolo = false;
+	newClip->soloingInSessionMode = false;
+	newClip->wasActiveBefore = false;
+	newClip->isPendingOverdub = false;
+	newClip->isUnfinishedAutoOverdub = false;
+	newClip->armState = ArmState::OFF;
+
+	return newClip;
+}
+//@TODO: fix for midi and most likely CV
+Clip* gridCreateClipWithNewTrack(InstrumentType type = InstrumentType::SYNTH) {
+	// Allocate new clip
+	void* memory = GeneralMemoryAllocator::get().alloc(sizeof(InstrumentClip), NULL, false, true);
+	if (!memory) {
+		numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+		return NULL;
+	}
+
+	InstrumentClip* newClip = new (memory) InstrumentClip(currentSong);
+
+	// MIDI and CV first need a Synth clip and then be converted
+	InstrumentType initialType = type;
+	if (type == InstrumentType::MIDI_OUT || type == InstrumentType::CV) {
+		initialType = InstrumentType::SYNTH;
+	}
+
+	bool instrumentAlreadyInSong = false;
+	int32_t error = setPresetOrNextUnlaunchedOne(newClip, initialType, &instrumentAlreadyInSong);
+	if (error || instrumentAlreadyInSong) {
+		// Deallocate
+		newClip->~InstrumentClip();
+		GeneralMemoryAllocator::get().dealloc(memory);
+		if (error) {
+			numericDriver.displayError(error);
+		}
+		return nullptr;
+	}
+
+	currentSong->addOutput(newClip->output);
+
+	// Convert to MIDI/CV
+	if (type == InstrumentType::MIDI_OUT || type == InstrumentType::CV) {
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithTimelineCounter* modelStack =
+		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, newClip);
+		InstrumentClip* setupClip = (InstrumentClip*)modelStack->getTimelineCounter();
+
+		setupClip->changeInstrumentType(modelStack, type);
+		newClip = setupClip;
+	}
+
+	// For safety we set it up exactly as we want it
+	newClip->colourOffset = random(72);
+	newClip->loopLength = currentSong->getBarLength();
+	newClip->activeIfNoSolo = false;
+	newClip->soloingInSessionMode = false;
+	newClip->wasActiveBefore = false;
+	newClip->isPendingOverdub = false;
+	newClip->isUnfinishedAutoOverdub = false;
+	newClip->armState = ArmState::OFF;
+
+	return newClip;
+}
+
+Clip* gridCreateClip(uint32_t targetSection, Output* targetOutput = nullptr, Clip* sourceClip = nullptr) {
+	actionLogger.deleteAllLogs();
+
+	Clip* newClip = nullptr;
+
+	// From source
+	if (sourceClip != nullptr) {
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithTimelineCounter* modelStack =
+		    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(sourceClip);
+
+		// Copy existing clip to the same track
+		if (sourceClip->output == targetOutput) {
+			int32_t error = sourceClip->clone(modelStack, false);
+			if (error) {
+				numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+				return nullptr;
+			}
+
+			newClip = (Clip*)modelStack->getTimelineCounter();
+		}
+
+		// We can't use the internal clone
+		else if (sourceClip->type != CLIP_TYPE_AUDIO) {
+			InstrumentClip* sourceInstrumentClip = (InstrumentClip*)sourceClip;
+
+			// Copy existing clip to a new track
+			if (targetOutput == nullptr) {
+				newClip = gridCreateClipWithNewTrack(((InstrumentClip*)sourceClip)->output->type);
+			}
+
+			// Copy existing clip to a different track
+			else if (sourceInstrumentClip->output->type == targetOutput->type) {
+				newClip = gridCreateClipInTrack(targetOutput);
+			}
+
+			// Destination track does not match
+			else {
+				numericDriver.displayPopup(HAVE_OLED ? "Incompatible type" : "CANT");
+			}
+
+			InstrumentClip* newInstrumentClip = (InstrumentClip*)newClip;
+
+			// Copy note row contents if clip was created
+			if (newInstrumentClip != nullptr && sourceInstrumentClip->type == newInstrumentClip->type) {
+				if (!newInstrumentClip->noteRows.cloneFrom(&sourceInstrumentClip->noteRows)) {
+					newInstrumentClip->~InstrumentClip();
+					GeneralMemoryAllocator::get().dealloc(newInstrumentClip);
+					numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+					return nullptr;
+				}
+
+				modelStack->setTimelineCounter(newInstrumentClip);
+
+				for (int32_t i = 0; i < newInstrumentClip->noteRows.getNumElements(); i++) {
+					NoteRow* noteRow = newInstrumentClip->noteRows.getElement(i);
+					int32_t noteRowId = newInstrumentClip->getNoteRowId(noteRow, i);
+					ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, noteRow);
+					int32_t error = noteRow->beenCloned(modelStackWithNoteRow, false);
+				}
+			}
+		}
+		// Can't clone audio to a new track
+		else {
+			numericDriver.displayPopup(HAVE_OLED ? "Can't clone audio to other track" : "CANT");
+		}
+	}
+	// Empty clip
+	else {
+		// Create new clip in existing track
+		if (targetOutput != nullptr) {
+			newClip = gridCreateClipInTrack(targetOutput);
+		}
+
+		// Create new clip in new track
+		else {
+			newClip = gridCreateClipWithNewTrack();
+		}
+	}
+
+	// Set new clip section and add it to the list
+	if (newClip == nullptr) {
+		return nullptr;
+	}
+
+	newClip->section = targetSection;
+	if (currentSong->sessionClips.insertClipAtIndex(newClip, 0) != NO_ERROR) {
+		newClip->~Clip();
+		GeneralMemoryAllocator::get().dealloc(newClip);
+		numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+		return nullptr;
+	}
+
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(newClip);
+
+	// Figure out the play pos for the new Clip if we're currently playing
+	if (session.hasPlaybackActive() && playbackHandler.isEitherClockActive() && currentSong->isClipActive(newClip)) {
+		session.reSyncClip(modelStackWithTimelineCounter, true);
+	}
+
+	// Set to active for new tracks
+	if (targetOutput == nullptr && !newClip->output->activeClip) {
+		newClip->output->setActiveClip(modelStackWithTimelineCounter);
+	}
+
+	return newClip;
+}
+
+void gridClonePad(uint32_t sourceX, uint32_t sourceY, uint32_t targetX, uint32_t targetY) {
 	Clip* sourceClip = gridClipFromCoords(sourceX, sourceY);
 	if (sourceClip == nullptr) {
 		return;
@@ -2840,38 +3065,7 @@ void gridCloneClip(uint32_t sourceX, uint32_t sourceY, uint32_t targetX, uint32_
 		return;
 	}
 
-	bool enoughSpace = currentSong->sessionClips.ensureEnoughSpaceAllocated(1);
-	if (!enoughSpace) {
-		numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
-		return;
-	}
-
-	actionLogger.deleteAllLogs();
-
-	Clip* newClip = nullptr;
-	// Copy in the same track
-	if (sourceX == targetX) {
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithTimelineCounter* modelStack =
-		    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(sourceClip);
-
-		int32_t error = sourceClip->clone(modelStack);
-		if (error) {
-			numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
-			return;
-		}
-
-		newClip = (Clip*)modelStack->getTimelineCounter();
-	}
-	//@TODO: Copy to another track
-	else {}
-
-	if (newClip == nullptr) {
-		return;
-	}
-
-	newClip->section = gridSectionFromY(targetY);
-	currentSong->sessionClips.insertClipAtIndex(newClip, 0);
+	gridCreateClip(gridSectionFromY(targetY), gridTrackFromX(targetX), sourceClip);
 }
 
 ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
@@ -2953,21 +3147,21 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 				if (Buttons::isButtonPressed(hid::button::CLIP_VIEW)) {
 					clipButtonUsed = true;
 
-					// Create clip if it does not exist
-					if (clip == nullptr) {
-						currentUIMode = UI_MODE_CLIP_PRESSED_IN_SONG_VIEW; //@TODO: Should this be here?
+					uint32_t trackCount = gridTrackCount();
+					auto trackIndex = gridTrackIndexFromX(x, trackCount);
 
-						view.setActiveModControllableTimelineCounter(clip);
-						view.displayOutputName(clip->output, true, clip);
-#if HAVE_OLED
-						OLED::sendMainImage();
-#endif
-						// Create a new clip
-						// clip = createNewInstrumentClip(yDisplay); //@TODO
+					// Create clip if it does not exist
+					if (clip == nullptr && (x + currentSong->songGridScrollX) <= trackCount) {
+						clip = gridCreateClip(gridSectionFromY(y), gridTrackFromX(x, trackCount), nullptr);
+						if (clip != nullptr) {
+							session.toggleClipStatus(clip, NULL, false, kInternalButtonPressLatency);
+						}
 					}
 
-					// On release key to open
-					transitionToViewForClip(clip);
+					if (clip != nullptr) {
+						transitionToViewForClip(clip);
+					}
+
 					gridResetPresses(true, true);
 					return ActionResult::DEALT_WITH;
 				}
@@ -3003,7 +3197,7 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 				Clip* clip = gridClipFromCoords(x, y);
 				if (clip != nullptr && !Buttons::isButtonPressed(hid::button::SHIFT)) {
 
-					// Handle cases normally in View::clipStatusPadAction
+					// Handle cases normally in View::clipStatusPadAction //@TODO: Review
 					if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING) {
 						if (!clip->armedForRecording) {
 							clip->armedForRecording = true;
@@ -3030,9 +3224,7 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 					else if (!gridPreventArm
 					         && (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW
 					             || currentUIMode == UI_MODE_STUTTERING))
-						session.toggleClipStatus(
-						    clip, NULL, false,
-						    kInternalButtonPressLatency); //@TODO: This does not sound good if triggered at the edge to the next bar
+						session.toggleClipStatus(clip, NULL, false, kInternalButtonPressLatency);
 				}
 				else if (currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
 					session.soloClipAction(clip, kInternalButtonPressLatency);
@@ -3046,7 +3238,7 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 
 			// Second finger up, clone clip
 			else if (gridSecondPressedX == x && gridSecondPressedY == y) {
-				gridCloneClip(gridFirstPressedX, gridFirstPressedY, gridSecondPressedX, gridSecondPressedY);
+				gridClonePad(gridFirstPressedX, gridFirstPressedY, gridSecondPressedX, gridSecondPressedY);
 				gridResetPresses(true, true); // Also reset first press so clip does not get armed
 				gridPreventArm = false;
 				clipPressEnded();

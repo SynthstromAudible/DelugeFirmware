@@ -4825,7 +4825,7 @@ lookAtNextOne:
 	}
 
 	int32_t clipYDisplay = clipIndex - songViewYScroll;
-	int32_t bottomYDisplay = -songViewYScroll; //@TODO: Might have an impact?
+	int32_t bottomYDisplay = -songViewYScroll;
 	int32_t topYDisplay = bottomYDisplay + sessionClips.getNumElements() - 1;
 	bottomYDisplay = std::max(bottomYDisplay, 0_i32);
 	topYDisplay = std::min(topYDisplay, kDisplayHeight - 1);
