@@ -14,6 +14,7 @@ check_ipo_supported(RESULT IPO_SUPPORTED OUTPUT error)
 if(IPO_SUPPORTED)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION
         $<$<CONFIG:DEBUG>:OFF>
+        $<$<CONFIG:TEST>:ON>
         $<$<CONFIG:RELEASE>:ON>
     )
 endif()
@@ -167,13 +168,16 @@ add_compile_options(
     # Debug symbols
     $<$<CONFIG:DEBUG>:-g> # Include
     $<$<CONFIG:DEBUG>:-ggdb> # Include
+    $<$<CONFIG:RELWITHDEBINFO>:-g> # Include
     $<$<CONFIG:RELEASE>:-s> # Strip
 
     # Optimization level
     $<$<CONFIG:DEBUG>:-Og>
+    $<$<CONFIG:RELWITHDEBINFO>:-O2>
     $<$<CONFIG:RELEASE>:-O2>
 
     # Link time optimizations
+    $<$<CONFIG:RELWITHDEBINFO>:-flto>
     $<$<CONFIG:RELEASE>:-flto>
     -ffunction-sections
     -fdata-sections
@@ -233,6 +237,7 @@ target_compile_options(deluge INTERFACE
 
     # Stack usage
     $<$<CONFIG:DEBUG>:-Wstack-usage=100>
+    $<$<CONFIG:RELWITHDEBINFO>:-Wstack-usage=1000>
     $<$<CONFIG:RELEASE>:-Wstack-usage=1000>
 )
 
