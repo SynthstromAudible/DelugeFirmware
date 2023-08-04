@@ -32,7 +32,7 @@ class TypedSelection : public TypedEnumeration<T, n> {
 public:
 	using TypedEnumeration<T, n>::TypedEnumeration;
 
-	virtual static_vector<string, n> getOptions() = 0;
+	virtual static_vector<std::string, n> getOptions() = 0;
 
 	void drawValue() override;
 

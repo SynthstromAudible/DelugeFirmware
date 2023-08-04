@@ -26,7 +26,7 @@ class DirectionSelector final : public Selection<2> {
 public:
 	using Selection::Selection;
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
-	static_vector<string, capacity()> getOptions() override { return {"In", "Out"}; }
+	static_vector<std::string, capacity()> getOptions() override { return {"In", "Out"}; }
 	void readCurrentValue() override { this->value_ = whichDirection; }
 	void writeCurrentValue() override { whichDirection = this->value_; }
 	MenuItem* selectButtonPress() override;

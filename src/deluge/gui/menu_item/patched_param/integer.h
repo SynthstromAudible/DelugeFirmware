@@ -17,13 +17,12 @@
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/patched_param.h"
-#include "util/string.h"
 
 namespace deluge::gui::menu_item::patched_param {
 class Integer : public PatchedParam, public menu_item::IntegerContinuous {
 public:
-	Integer(const string& newName, int32_t newP = 0) : PatchedParam(newP), IntegerContinuous(newName) {}
-	Integer(const string& newName, const deluge::string& title, int32_t newP = 0)
+	Integer(const std::string& newName, int32_t newP = 0) : PatchedParam(newP), IntegerContinuous(newName) {}
+	Integer(const std::string& newName, const std::string& title, int32_t newP = 0)
 	    : PatchedParam(newP), IntegerContinuous(newName, title) {}
 	// 7SEG Only
 	void drawValue() override { display.setTextAsNumber(this->value_, shouldDrawDotOnName()); }

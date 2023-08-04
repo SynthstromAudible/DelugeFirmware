@@ -42,7 +42,7 @@ uint8_t SourceSelection::shouldDrawDotOnValue() {
 int32_t SourceSelection::selectedRowOnScreen;
 
 void SourceSelection::drawPixelsForOled() {
-	static_vector<string, kOLEDMenuNumOptionsVisible> itemNames{};
+	static_vector<std::string, kOLEDMenuNumOptionsVisible> itemNames{};
 
 	selectedRowOnScreen = 0;
 

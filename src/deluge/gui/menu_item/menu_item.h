@@ -21,7 +21,7 @@
 #include "hid/display/display.hpp"
 #include "util/container/static_vector.hpp"
 #include "util/sized.h"
-#include "util/string.h"
+
 #include <cstdint>
 
 enum class MenuPermission {
@@ -36,7 +36,7 @@ class MIDIDevice;
 
 class MenuItem {
 public:
-	MenuItem(const deluge::string& newName = "", const deluge::string& newTitle = "") : name(newName), title(newTitle) {
+	MenuItem(const std::string& newName = "", const std::string& newTitle = "") : name(newName), title(newTitle) {
 		if (newTitle.empty()) {
 			title = newName;
 		}
@@ -50,7 +50,7 @@ public:
 	virtual ~MenuItem() = default;
 
 	/// As viewed in a menu list. For OLED, up to 20 chars.
-	deluge::string name;
+	std::string name;
 	[[nodiscard]] virtual std::string_view getName() const { return name; }
 
 	virtual void horizontalEncoderAction(int32_t offset) {}
@@ -82,7 +82,7 @@ public:
 	virtual bool usesAffectEntire() { return false; }
 
 	/// Can get overridden by getTitle(). Actual max num chars for OLED display is 14.
-	deluge::string title;
+	std::string title;
 
 	/// Get the title to be used when rendering on OLED. If not overriden, defaults to returning `title`.
 	///
@@ -96,7 +96,7 @@ public:
 	void drawItemsForOled(char const** options, int32_t selectedOption);
 
 	template <size_t n>
-	static void drawItemsForOled(deluge::static_vector<deluge::string, n>& options, int32_t selectedOption,
+	static void drawItemsForOled(deluge::static_vector<std::string, n>& options, int32_t selectedOption,
 	                             int32_t offset = 0);
 	/// Get the title to be used when rendering on OLED. If not overriden, defaults to returning `title`.
 	virtual void drawName();
@@ -104,7 +104,7 @@ public:
 
 // A couple of our child classes call this - that's all
 template <size_t n>
-void MenuItem::drawItemsForOled(deluge::static_vector<deluge::string, n>& options, const int32_t selectedOption,
+void MenuItem::drawItemsForOled(deluge::static_vector<std::string, n>& options, const int32_t selectedOption,
                                 const int32_t offset) {
 	int32_t baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
 	baseY += OLED_MAIN_TOPMOST_PIXEL;

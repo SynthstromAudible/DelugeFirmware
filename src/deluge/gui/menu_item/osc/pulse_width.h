@@ -24,8 +24,7 @@
 namespace deluge::gui::menu_item::osc {
 class PulseWidth final : public menu_item::source::PatchedParam, public FormattedTitle {
 public:
-	using menu_item::source::PatchedParam::PatchedParam;
-	PulseWidth(const string& name, const string& title_format_str, int32_t newP)
+	PulseWidth(const std::string& name, const fmt::format_string<int32_t>& title_format_str, int32_t newP)
 	    : source::PatchedParam(name, newP), FormattedTitle(title_format_str) {}
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }

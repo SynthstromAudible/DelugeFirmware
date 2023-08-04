@@ -23,11 +23,11 @@
 
 namespace deluge::gui::menu_item::gate {
 
-static deluge::string mode_title = HAVE_OLED ? "Gate outX mode" : "";
+static std::string mode_title = HAVE_OLED ? "Gate outX mode" : "";
 
 class Mode final : public TypedSelection<GateType, 3> {
 
-	static_vector<string, capacity()> options_ = {
+	static_vector<std::string, capacity()> options_ = {
 	    HAVE_OLED ? "V-trig" : "VTRI",
 	    HAVE_OLED ? "S-trig" : "STRI",
 	};
@@ -36,7 +36,7 @@ public:
 	Mode() : TypedSelection(HAVE_OLED ? mode_title : "") {}
 	void readCurrentValue() override { this->value_ = cvEngine.gateChannels[soundEditor.currentSourceIndex].mode; }
 	void writeCurrentValue() override { cvEngine.setGateType(soundEditor.currentSourceIndex, this->value_); }
-	static_vector<string, capacity()> getOptions() override { return options_; }
+	static_vector<std::string, capacity()> getOptions() override { return options_; }
 
 	void updateOptions(int32_t value) {
 		switch (value) {

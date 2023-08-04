@@ -419,7 +419,7 @@ bool MultiRange::mayEditRangeEdge(RangeEdit whichEdge) {
 }
 
 void MultiRange::drawPixelsForOled() {
-	static_vector<string, kOLEDMenuNumOptionsVisible> itemNames{};
+	static_vector<std::string, kOLEDMenuNumOptionsVisible> itemNames{};
 	char nameBuffers[kOLEDMenuNumOptionsVisible][20];
 	int32_t actualCurrentRange = this->value_;
 
