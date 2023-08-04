@@ -3012,51 +3012,57 @@ Clip* gridCreateClip(uint32_t targetSection, Output* targetOutput = nullptr, Cli
 			newClip = (Clip*)modelStack->getTimelineCounter();
 		}
 
-		// We can't use the internal clone
-		else if (sourceClip->type != CLIP_TYPE_AUDIO) {
+		// Can't clone audio to other tracks
+		else if (sourceClip->type == CLIP_TYPE_AUDIO || (targetOutput && targetOutput->type == InstrumentType::AUDIO)) {
+			numericDriver.displayPopup(HAVE_OLED ? "Can't clone audio in other track" : "CANT");
+		}
+
+		// Create new clip in other track or new track
+		else {
 			InstrumentClip* sourceInstrumentClip = (InstrumentClip*)sourceClip;
 
-			// Copy existing clip to a new track
-			if (targetOutput == nullptr) {
+			// Copy to a different existing track
+			if(targetOutput != nullptr) {
+				bool bothKit = (sourceInstrumentClip->output->type == InstrumentType::KIT && targetOutput->type == InstrumentType::KIT);
+				bool bothNotKit = (sourceInstrumentClip->output->type != InstrumentType::KIT && targetOutput->type != InstrumentType::KIT);
+
+				if(bothKit || bothNotKit) {
+					newClip = gridCreateClipInTrack(targetOutput);
+				}
+
+				// Destination track incompatible
+				else {
+					numericDriver.displayPopup(HAVE_OLED ? "Incompatible type" : "CANT");
+				}
+			}
+			// Also create a new track
+			else {
 				newClip = gridCreateClipWithNewTrack(((InstrumentClip*)sourceClip)->output->type);
 			}
 
-			// Copy existing clip to a different track
-			else if (sourceInstrumentClip->output->type == targetOutput->type) {
-				newClip = gridCreateClipInTrack(targetOutput);
-			}
+			// We have a compatible target clip
+			if(newClip != nullptr) {
+				InstrumentClip* newInstrumentClip = (InstrumentClip*)newClip;
 
-			// Destination track does not match
-			else {
-				numericDriver.displayPopup(HAVE_OLED ? "Incompatible type" : "CANT");
-			}
+				// Copy note row contents if clip was created
+				if (newInstrumentClip != nullptr && sourceInstrumentClip->type == newInstrumentClip->type) {
+					if (!newInstrumentClip->noteRows.cloneFrom(&sourceInstrumentClip->noteRows)) {
+						newInstrumentClip->~InstrumentClip();
+						GeneralMemoryAllocator::get().dealloc(newInstrumentClip);
+						numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+						return nullptr;
+					}
 
-			InstrumentClip* newInstrumentClip = (InstrumentClip*)newClip;
+					modelStack->setTimelineCounter(newInstrumentClip);
 
-			//@TODO: Rewrite to allow copying between MIDI/CV/Instrument except for KITS - maybe add a copy function?
-
-			// Copy note row contents if clip was created
-			if (newInstrumentClip != nullptr && sourceInstrumentClip->type == newInstrumentClip->type) {
-				if (!newInstrumentClip->noteRows.cloneFrom(&sourceInstrumentClip->noteRows)) {
-					newInstrumentClip->~InstrumentClip();
-					GeneralMemoryAllocator::get().dealloc(newInstrumentClip);
-					numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
-					return nullptr;
-				}
-
-				modelStack->setTimelineCounter(newInstrumentClip);
-
-				for (int32_t i = 0; i < newInstrumentClip->noteRows.getNumElements(); i++) {
-					NoteRow* noteRow = newInstrumentClip->noteRows.getElement(i);
-					int32_t noteRowId = newInstrumentClip->getNoteRowId(noteRow, i);
-					ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, noteRow);
-					int32_t error = noteRow->beenCloned(modelStackWithNoteRow, false);
+					for (int32_t i = 0; i < newInstrumentClip->noteRows.getNumElements(); i++) {
+						NoteRow* noteRow = newInstrumentClip->noteRows.getElement(i);
+						int32_t noteRowId = newInstrumentClip->getNoteRowId(noteRow, i);
+						ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, noteRow);
+						int32_t error = noteRow->beenCloned(modelStackWithNoteRow, false);
+					}
 				}
 			}
-		}
-		// Can't clone audio to a new track
-		else {
-			numericDriver.displayPopup(HAVE_OLED ? "Can't clone audio to other track" : "CANT");
 		}
 	}
 	// Empty clip
