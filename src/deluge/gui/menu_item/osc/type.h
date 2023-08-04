@@ -29,7 +29,8 @@
 namespace deluge::gui::menu_item::osc {
 class Type final : public TypedSelection<OscType, kNumOscTypes>, public FormattedTitle {
 public:
-	Type(const string& name, const string& title_format_str) : TypedSelection(name), FormattedTitle(title_format_str){};
+	Type(const string& name, const fmt::format_string<int32_t>& title_format_str)
+	    : TypedSelection(name), FormattedTitle(title_format_str){};
 #if HAVE_OLED
 	void beginSession(MenuItem* navigatedBackwardFrom) override {
 		TypedSelection::beginSession(navigatedBackwardFrom);
