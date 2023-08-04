@@ -3499,6 +3499,7 @@ bool NoteRow::paste(ModelStackWithNoteRow* modelStack, CopiedNoteRow* copiedNote
 		noteDest->velocity = noteSource->velocity;
 		noteDest->probability = noteSource->probability;
 		noteDest->lift = noteSource->lift;
+		noteDest->accidentalTranspose = noteSource->accidentalTranspose;
 
 		minPos = newPos + newLength;
 	}

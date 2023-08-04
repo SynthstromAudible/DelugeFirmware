@@ -981,6 +981,7 @@ ramError:
 					newNote->velocity = noteToCopy->velocity;
 					newNote->probability = noteToCopy->probability;
 					newNote->lift = noteToCopy->lift;
+					newNote->accidentalTranspose = noteToCopy->accidentalTranspose;
 				}
 			}
 		}
