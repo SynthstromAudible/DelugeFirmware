@@ -27,7 +27,7 @@ public:
 	using TypedSelection::TypedSelection;
 	void readCurrentValue() override { this->value_ = FlashStorage::keyboardLayout; }
 	void writeCurrentValue() override { FlashStorage::keyboardLayout = this->value_; }
-	static_vector<string, capacity()> getOptions() override {
+	static_vector<std::string, capacity()> getOptions() override {
 		return {"QWERTY", "AZERTY", HAVE_OLED ? "QWERTZ" : "QRTZ"};
 	}
 };

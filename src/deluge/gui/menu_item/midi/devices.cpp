@@ -139,7 +139,7 @@ MenuItem* Devices::selectButtonPress() {
 #if HAVE_OLED
 
 void Devices::drawPixelsForOled() {
-	static_vector<string, kOLEDMenuNumOptionsVisible> itemNames = {};
+	static_vector<std::string, kOLEDMenuNumOptionsVisible> itemNames = {};
 
 	int32_t selectedRow = -1;
 
