@@ -2310,149 +2310,80 @@ void InstrumentClipView::adjustAccidentalTranspose(int offset, bool useOctaves) 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
-    int accidentalTransposeValue = 0;
+    int accidentalTransposeValueTemp = 0; // for all notes
+    int accidentalTransposeValue = 0; // for the left most note, to display
+    int noteValueAfterTransposeTemp = 0;
     int noteValueAfterTranspose = 0;
     int yRowToUpdate = -1;
-	// If just one press...
-	if (numEditPadPresses == 1) {
-		// Find it
-		for (int i = 0; i < kEditPadPressBufferSize; i++) {
-			if (editPadPresses[i].isActive) {
-				editPadPresses[i].deleteOnDepress = false;
+    int leftMostPos = 2147483647;
+	for (int i = 0; i < kEditPadPressBufferSize; i++) {
+		if (editPadPresses[i].isActive) {
+			editPadPresses[i].deleteOnDepress = false;
 
-				if (editPadPresses[i].isBlurredSquare) goto multiplePresses;
-                yRowToUpdate = editPadPresses[i].yDisplay;
-				int currentYNote = getCurrentClip()->getYNoteFromYDisplay(editPadPresses[i].yDisplay, currentSong) ;
-				accidentalTransposeValue = editPadPresses[i].intendedAccidentalTranspose;
-				accidentalTransposeValue = getMin(getMax(accidentalTransposeValue, 0 - currentYNote), 127 - currentYNote);
-				noteValueAfterTranspose = accidentalTransposeValue + currentYNote; // 
+            yRowToUpdate = editPadPresses[i].yDisplay;
+			int currentYNote = getCurrentClip()->getYNoteFromYDisplay(editPadPresses[i].yDisplay, currentSong) ;
+			accidentalTransposeValue = editPadPresses[i].intendedAccidentalTranspose;
+			accidentalTransposeValue = getMin(getMax(accidentalTransposeValue, 0 - currentYNote), 127 - currentYNote);
+			noteValueAfterTranspose = accidentalTransposeValue + currentYNote; // 
 
-				// If editing, continue edit
+			// If editing, continue edit
 #if HAVE_OLED
-				if (OLED::isPopupPresent()) {
+			if (OLED::isPopupPresent()) {
 #else
-				if (numericDriver.popupActive) {
+			if (numericDriver.popupActive) {
 #endif
-					Action* action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
-					if (!action) return;
-                    
-					// Incrementing/ decrementing
-					accidentalTransposeValue += useOctaves ? 12 * offset : offset;
-					// clip the accidentalTransposeValue to a value that makes sense for the current noteRow.
-					// THE max and min value are dependent of the y of this noterow
-					// accidentalTranspose should be larger or equal to 0 - y so that we cannot transpose below 0.
-					// accidentalTranspose should be smaller or equal than 127 - y so that we cannot transpose beyond 127.
-					// NOTE: since noterows themselves can be transposed (i.e. by changing the scale or by flipping the whole octave up)
-					// we have to also clip when playing.
-					int currentYNote = getCurrentClip()->getYNoteFromYDisplay(editPadPresses[i].yDisplay, currentSong) ;
-					accidentalTransposeValue = getMin(getMax(accidentalTransposeValue, 0 - currentYNote), 127 - currentYNote);
-					noteValueAfterTranspose = accidentalTransposeValue + currentYNote; // 
-					editPadPresses[i].intendedAccidentalTranspose = accidentalTransposeValue;
-
-					int noteRowIndex;
-					NoteRow* noteRow =
-					    getCurrentClip()->getNoteRowOnScreen(editPadPresses[i].yDisplay, currentSong, &noteRowIndex);
-					int noteRowId = getCurrentClip()->getNoteRowId(noteRow, noteRowIndex);
-					ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, noteRow);
-
-					noteRow->changeNotesAcrossAllScreens(editPadPresses[i].intendedPos, modelStackWithNoteRow, action,
-					                                     CORRESPONDING_NOTES_SET_ACCIDENTAL_TRANSPOSE,
-					                                     editPadPresses[i].intendedAccidentalTranspose);
-				}
-				break;
-			}
-		}
-	}
-
-	// Or if multiple presses...
-	else {
-multiplePresses:
-		// TODO: this is still probability code. should be accidentalTranspose code.
-		int leftMostPos = 2147483647;
-		int leftMostIndex;
-		int probabilityValue;
-
-		// Find the leftmost one. There may be more than one...
-		for (int i = 0; i < kEditPadPressBufferSize; i++) {
-			if (editPadPresses[i].isActive) {
-				editPadPresses[i].deleteOnDepress = false;
-
-				// "blurred square" with multiple notes
-				if (editPadPresses[i].isBlurredSquare) {
-					NoteRow* noteRow = getCurrentClip()->getNoteRowOnScreen(editPadPresses[i].yDisplay, currentSong);
-					int noteI = noteRow->notes.search(editPadPresses[i].intendedPos, GREATER_OR_EQUAL);
-					Note* note = noteRow->notes.getElement(noteI);
-					if (note) {
-						editPadPresses[i].intendedProbability =
-						    note->probability; // This might not have been grabbed properly initially
-						if (note->pos < leftMostPos) {
-							leftMostPos = note->pos;
-							leftMostIndex = i;
-						}
-					}
+				Action* action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
+				if (!action) return;
+                
+				// Incrementing/ decrementing
+				accidentalTransposeValue += useOctaves ? 12 * offset : offset;
+				// clip the accidentalTransposeValue to a value that makes sense for the current noteRow.
+				// THE max and min value are dependent of the y of this noterow
+				// accidentalTranspose should be larger or equal to 0 - y so that we cannot transpose below 0.
+				// accidentalTranspose should be smaller or equal than 127 - y so that we cannot transpose beyond 127.
+				// NOTE: since noterows themselves can be transposed (i.e. by changing the scale or by flipping the whole octave up)
+				// we have to also clip when playing.
+				int currentYNote = getCurrentClip()->getYNoteFromYDisplay(editPadPresses[i].yDisplay, currentSong) ;
+				accidentalTransposeValueTemp = getMin(getMax(accidentalTransposeValue, 0 - currentYNote), 127 - currentYNote);
+				noteValueAfterTransposeTemp = accidentalTransposeValue + currentYNote; // 
+				editPadPresses[i].intendedAccidentalTranspose = accidentalTransposeValueTemp;
+                
+                // check if this was the left most button. if so. update the accidentalTransposeValue for the display.
+				if (editPadPresses[i].intendedPos < leftMostPos) {
+					leftMostPos = editPadPresses[i].intendedPos;
+					accidentalTransposeValue = accidentalTransposeValueTemp;
+					noteValueAfterTranspose = noteValueAfterTransposeTemp;
 				}
 
-				// Or, just 1 note in square
-				else {
-
-					if (editPadPresses[i].intendedPos < leftMostPos) {
-						leftMostPos = editPadPresses[i].intendedPos;
-						leftMostIndex = i;
-					}
-				}
-			}
-		}
-
-		// Decide the probability, based on the existing probability of the leftmost note
-		probabilityValue = editPadPresses[leftMostIndex].intendedProbability & 127;
-		probabilityValue += offset;
-		probabilityValue = getMax(1, probabilityValue);
-		probabilityValue = getMin(kNumProbabilityValues + 35, probabilityValue);
-
-		Action* action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
-		if (!action) return;
-
-		// Set the probability of the other presses, and update all probabilities with the actual notes
-		for (int i = 0; i < kEditPadPressBufferSize; i++) {
-			if (editPadPresses[i].isActive) {
-
-				// Update probability
-				editPadPresses[i].intendedProbability = probabilityValue;
 
 				int noteRowIndex;
 				NoteRow* noteRow =
 				    getCurrentClip()->getNoteRowOnScreen(editPadPresses[i].yDisplay, currentSong, &noteRowIndex);
 				int noteRowId = getCurrentClip()->getNoteRowId(noteRow, noteRowIndex);
-
 				ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, noteRow);
 
-				// "blurred square" with multiple notes
-				if (editPadPresses[i].isBlurredSquare) {
 
+				if (editPadPresses[i].isBlurredSquare) {
 					int noteI = noteRow->notes.search(editPadPresses[i].intendedPos, GREATER_OR_EQUAL);
 					Note* note = noteRow->notes.getElement(noteI);
 					while (note && note->pos - editPadPresses[i].intendedPos < editPadPresses[i].intendedLength) {
 
-						// And if not one of the leftmost notes, make it a prev-base one - if we're doing actual percentage probabilities
-						if (probabilityValue < kNumProbabilityValues && note->pos != leftMostPos)
-							editPadPresses[i].intendedProbability |= 128; // This isn't perfect...
 						noteRow->changeNotesAcrossAllScreens(note->pos, modelStackWithNoteRow, action,
-						                                     CORRESPONDING_NOTES_SET_PROBABILITY,
-						                                     editPadPresses[i].intendedProbability);
+						                                     CORRESPONDING_NOTES_SET_ACCIDENTAL_TRANSPOSE,
+						                                     editPadPresses[i].intendedAccidentalTranspose);
 
 						noteI++;
 						note = noteRow->notes.getElement(noteI);
 					}
 				}
-				// Or, just 1 note in square
 				else {
-					// And if not one of the leftmost notes, make it a prev-base one - if we're doing actual percentage probabilities
-					if (probabilityValue < kNumProbabilityValues && editPadPresses[i].intendedPos != leftMostPos)
-						editPadPresses[i].intendedProbability |= 128;
+
 					noteRow->changeNotesAcrossAllScreens(editPadPresses[i].intendedPos, modelStackWithNoteRow, action,
-					                                     CORRESPONDING_NOTES_SET_PROBABILITY,
-					                                     editPadPresses[i].intendedProbability);
+					                                     CORRESPONDING_NOTES_SET_ACCIDENTAL_TRANSPOSE,
+					                                     editPadPresses[i].intendedAccidentalTranspose);
+
 				}
+
 			}
 		}
 	}
