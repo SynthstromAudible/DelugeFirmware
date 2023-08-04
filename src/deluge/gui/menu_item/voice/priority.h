@@ -27,6 +27,6 @@ public:
 	using TypedSelection::TypedSelection;
 	void readCurrentValue() override { this->value_ = *soundEditor.currentPriority; }
 	void writeCurrentValue() override { *soundEditor.currentPriority = this->value_; }
-	static_vector<string, capacity()> getOptions() override { return {"LOW", "MEDIUM", "HIGH"}; }
+	static_vector<std::string, capacity()> getOptions() override { return {"LOW", "MEDIUM", "HIGH"}; }
 };
 } // namespace deluge::gui::menu_item::voice

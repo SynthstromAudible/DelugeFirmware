@@ -25,6 +25,6 @@ public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->value_ = FlashStorage::sampleBrowserPreviewMode; }
 	void writeCurrentValue() override { FlashStorage::sampleBrowserPreviewMode = this->value_; }
-	static_vector<string, 3> getOptions() override { return {"Off", "Conditional", "On"}; }
+	static_vector<std::string, 3> getOptions() override { return {"Off", "Conditional", "On"}; }
 };
 } // namespace deluge::gui::menu_item::sample::browser_preview
