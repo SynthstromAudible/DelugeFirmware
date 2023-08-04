@@ -71,20 +71,3 @@ public:
 	q31_t processedResonance;
 	q31_t SVFInputScale;
 };
-
-class FilterSetConfig {
-
-public:
-	FilterSetConfig();
-	q31_t init(q31_t lpfFrequency, q31_t lpfResonance, q31_t hpfFrequency, q31_t hpfResonance, LPFMode lpfMode,
-	           q31_t filterGain, bool adjustVolumeForHPFResonance = true, q31_t* overallOscAmplitude = NULL);
-
-	LPLadderConfig lpladderconfig;
-	HPLadderConfig hpladderconfig;
-	LPSVFConfig lpsvfconfig;
-
-	bool doLPF;
-	bool doHPF;
-
-	bool doOversampling;
-};

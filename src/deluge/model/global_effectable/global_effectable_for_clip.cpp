@@ -83,8 +83,7 @@ void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelS
 	DelayWorkingState delayWorkingState;
 	setupDelayWorkingState(&delayWorkingState, paramManagerForClip, shouldLimitDelayFeedback);
 
-	FilterSetConfig filterSetConfig;
-	setupFilterSetConfig(&filterSetConfig, &volumePostFX, paramManagerForClip);
+	setupFilterSetConfig(&volumePostFX, paramManagerForClip);
 
 	int32_t reverbSendAmount = getFinalParameterValueVolume(
 	    reverbAmountAdjust,
@@ -114,7 +113,7 @@ void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelS
 	static StereoSample globalEffectableBuffer[SSI_TX_BUFFER_NUM_SAMPLES] __attribute__((aligned(CACHE_LINE_SIZE)));
 
 	bool canRenderDirectlyIntoSongBuffer =
-	    !isKit() && !filterSetConfig.doLPF && !filterSetConfig.doHPF && !delayWorkingState.doDelay
+	    !isKit() && filterSets[0].isLPFOn() && !filterSets[1].isHPFOn() && !delayWorkingState.doDelay
 	    && (!pan || !AudioEngine::renderInStereo) && !clippingAmount && !hasBassAdjusted(paramManagerForClip)
 	    && !hasTrebleAdjusted(paramManagerForClip) && !reverbSendAmount && !isBitcrushingEnabled(paramManagerForClip)
 	    && !isSRREnabled(paramManagerForClip) && getActiveModFXType(paramManagerForClip) == ModFXType::NONE
@@ -171,7 +170,7 @@ doNormal:
 		}
 
 		// Render filters
-		processFilters(globalEffectableBuffer, numSamples, &filterSetConfig);
+		processFilters(globalEffectableBuffer, numSamples);
 
 		// Render FX
 		processSRRAndBitcrushing(globalEffectableBuffer, numSamples, &volumePostFX, paramManagerForClip);

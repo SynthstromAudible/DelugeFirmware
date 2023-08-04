@@ -2094,16 +2094,13 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 
 		// Setup filters
 		bool thisHasFilters = hasFilters();
-		FilterSetConfig filterSetConfig;
-		filterSetConfig.doLPF =
-		    (thisHasFilters
-		     && (lpfMode == LPFMode::TRANSISTOR_24DB_DRIVE
-		         || paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(Param::Local::LPF_FREQ)
-		         || getSmoothedPatchedParamValue(Param::Local::LPF_FREQ, paramManager) < 2147483602));
-		filterSetConfig.doHPF =
-		    (thisHasFilters
-		     && (paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(Param::Local::HPF_FREQ)
-		         || getSmoothedPatchedParamValue(Param::Local::HPF_FREQ, paramManager) != -2147483648));
+		bool doLPF = (thisHasFilters
+		              && (lpfMode == LPFMode::TRANSISTOR_24DB_DRIVE
+		                  || paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(Param::Local::LPF_FREQ)
+		                  || getSmoothedPatchedParamValue(Param::Local::LPF_FREQ, paramManager) < 2147483602));
+		bool doHPF = (thisHasFilters
+		              && (paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(Param::Local::HPF_FREQ)
+		                  || getSmoothedPatchedParamValue(Param::Local::HPF_FREQ, paramManager) != -2147483648));
 
 		// Each voice will potentially alter the "sources changed" flags, so store a backup to restore between each voice
 		/*
@@ -2128,7 +2125,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 			ModelStackWithVoice* modelStackWithVoice = modelStackWithSoundFlags->addVoice(thisVoice);
 
 			bool stillGoing = thisVoice->render(modelStackWithVoice, soundBuffer, numSamples, renderingInStereo,
-			                                    applyingPanAtVoiceLevel, sourcesChanged, &filterSetConfig, pitchAdjust);
+			                                    applyingPanAtVoiceLevel, sourcesChanged, doLPF, doHPF, pitchAdjust);
 			if (!stillGoing) {
 				AudioEngine::activeVoices.checkVoiceExists(thisVoice, this, "E201");
 				AudioEngine::unassignVoice(thisVoice, this, modelStackWithSoundFlags);

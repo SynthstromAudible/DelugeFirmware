@@ -385,8 +385,7 @@ ohNo:
 	}
 }
 
-void GlobalEffectable::setupFilterSetConfig(FilterSetConfig* filterSetConfig, int32_t* postFXVolume,
-                                            ParamManager* paramManager) {
+void GlobalEffectable::setupFilterSetConfig(int32_t* postFXVolume, ParamManager* paramManager) {
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
@@ -404,17 +403,18 @@ void GlobalEffectable::setupFilterSetConfig(FilterSetConfig* filterSetConfig, in
 	    paramNeutralValues[Param::Local::HPF_RESONANCE],
 	    cableToLinearParamShortcut(unpatchedParams->getValue(Param::Unpatched::GlobalEffectable::HPF_RES)));
 
-	filterSetConfig->doLPF = (lpfMode == LPFMode::TRANSISTOR_24DB_DRIVE || lpfMode == LPFMode::SVF
-	                          || unpatchedParams->getValue(Param::Unpatched::GlobalEffectable::LPF_FREQ) < 2147483602);
-	filterSetConfig->doHPF = unpatchedParams->getValue(Param::Unpatched::GlobalEffectable::HPF_FREQ) != -2147483648;
+	bool doLPF = (lpfMode == LPFMode::TRANSISTOR_24DB_DRIVE || lpfMode == LPFMode::SVF
+	              || unpatchedParams->getValue(Param::Unpatched::GlobalEffectable::LPF_FREQ) < 2147483602);
+	bool doHPF = unpatchedParams->getValue(Param::Unpatched::GlobalEffectable::HPF_FREQ) != -2147483648;
 
-	*postFXVolume = filterSetConfig->init(lpfFrequency, lpfResonance, hpfFrequency, hpfResonance, lpfMode,
-	                                      *postFXVolume, false, NULL);
+	*postFXVolume = filterSets[0].set_config(lpfFrequency, lpfResonance, doLPF, hpfFrequency, hpfResonance, doHPF,
+	                                         lpfMode, *postFXVolume, false, NULL);
+	filterSets[1].copy_config(&filterSets[0]);
 }
 
-void GlobalEffectable::processFilters(StereoSample* buffer, int32_t numSamples, FilterSetConfig* filterSetConfig) {
-	filterSets[0].renderLong(&buffer->l, &(buffer + numSamples)->l, filterSetConfig, lpfMode, numSamples, 2, 2);
-	filterSets[1].renderLong(&buffer->r, &(buffer + numSamples)->r, filterSetConfig, lpfMode, numSamples, 2, 2);
+void GlobalEffectable::processFilters(StereoSample* buffer, int32_t numSamples) {
+	filterSets[0].renderLong(&buffer->l, &(buffer + numSamples)->l, lpfMode, numSamples, 2, 2);
+	filterSets[1].renderLong(&buffer->r, &(buffer + numSamples)->r, lpfMode, numSamples, 2, 2);
 }
 
 void GlobalEffectable::writeAttributesToFile(bool writeAutomation) {

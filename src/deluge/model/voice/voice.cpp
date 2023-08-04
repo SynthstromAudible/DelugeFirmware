@@ -670,8 +670,8 @@ bool Voice::sampleZoneChanged(ModelStackWithVoice* modelStack, int32_t s, Marker
 
 // Returns false if became inactive and needs unassigning
 bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int32_t numSamples,
-                   bool soundRenderingInStereo, bool applyingPanAtVoiceLevel, uint32_t sourcesChanged,
-                   FilterSetConfig* filterSetConfig, int32_t externalPitchAdjust) {
+                   bool soundRenderingInStereo, bool applyingPanAtVoiceLevel, uint32_t sourcesChanged, bool doLPF,
+                   bool doHPF, int32_t externalPitchAdjust) {
 
 	GeneralMemoryAllocator::get().checkStack("Voice::render");
 
@@ -926,15 +926,14 @@ skipAutoRelease : {}
 	int32_t filterGain;
 
 	// Prepare the filters
-	if (sound->hasFilters()) {
-
-		filterGain = filterSetConfig->init(
-		    paramFinalValues[Param::Local::LPF_FREQ], paramFinalValues[Param::Local::LPF_RESONANCE],
-		    paramFinalValues[Param::Local::HPF_FREQ],
-		    (paramFinalValues[Param::Local::HPF_RESONANCE]), // >> storageManager.devVarA) << storageManager.devVarA,
-		    sound->lpfMode,
-		    sound->volumeNeutralValueForUnison << 1); // Level adjustment for unison now happens *before* the filter!
-	}
+	// Checking if filters should run now happens within the filterset
+	filterGain = filterSets[0].set_config(
+	    paramFinalValues[Param::Local::LPF_FREQ], paramFinalValues[Param::Local::LPF_RESONANCE], doLPF,
+	    paramFinalValues[Param::Local::HPF_FREQ],
+	    (paramFinalValues[Param::Local::HPF_RESONANCE]), // >> storageManager.devVarA) << storageManager.devVarA,
+	    doHPF, sound->lpfMode,
+	    sound->volumeNeutralValueForUnison << 1); // Level adjustment for unison now happens *before* the filter!
+	filterSets[1].copy_config(&filterSets[0]);
 
 	SynthMode synthMode = sound->getSynthMode();
 
@@ -1055,7 +1054,7 @@ skipAutoRelease : {}
 	               RINGMOD // We could make this one work - but currently the ringmod rendering code doesn't really have
 	    // proper amplitude control - e.g. no increments - built in, so we rely on the normal final
 	    // buffer-copying bit for that
-	    || filterSetConfig->doHPF || filterSetConfig->doLPF
+	    || filterSets[0].isHPFOn() || filterSets[0].isLPFOn()
 	    || (paramFinalValues[Param::Local::NOISE_VOLUME] != 0
 	        && synthMode != SynthMode::FM) // Not essential, but makes life easier
 	    || paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(Param::Local::PAN)) {
@@ -1252,7 +1251,7 @@ decidedWhichBufferRenderingInto:
 		if (unisonPartBecameInactive && areAllUnisonPartsInactive(modelStack)) {
 
 			// If no filters, we can just unassign
-			if (!filterSetConfig->doHPF && !filterSetConfig->doLPF) {
+			if (!filterSets[0].isHPFOn() && !filterSets[0].isLPFOn()) {
 				unassignVoiceAfter = true;
 			}
 
@@ -1502,8 +1501,8 @@ skipUnisonPart : {}
 			int32_t* const oscBufferEnd = oscBuffer + (numSamples << 1);
 
 			// Filters
-			filterSets[0].renderLong(oscBuffer, oscBufferEnd, filterSetConfig, sound->lpfMode, numSamples, 2);
-			filterSets[1].renderLong(oscBuffer + 1, oscBufferEnd, filterSetConfig, sound->lpfMode, numSamples, 2);
+			filterSets[0].renderLong(oscBuffer, oscBufferEnd, sound->lpfMode, numSamples, 2);
+			filterSets[1].renderLong(oscBuffer + 1, oscBufferEnd, sound->lpfMode, numSamples, 2);
 
 			// No clipping
 			if (!sound->clippingAmount) {
@@ -1579,7 +1578,7 @@ skipUnisonPart : {}
 			*/
 
 			int32_t* const oscBufferEnd = oscBuffer + numSamples;
-			filterSets[0].renderLong(oscBuffer, oscBufferEnd, filterSetConfig, sound->lpfMode, numSamples);
+			filterSets[0].renderLong(oscBuffer, oscBufferEnd, sound->lpfMode, numSamples);
 
 			// No clipping
 			if (!sound->clippingAmount) {
@@ -2626,7 +2625,9 @@ void renderPDWave(const int16_t* table, const int16_t* secondTable, int32_t numB
 void getTableNumber(uint32_t phaseIncrementForCalculations, int32_t* tableNumber, int32_t* tableSize) {
 
 	if (phaseIncrementForCalculations <= 1247086) {
-		{ *tableNumber = 0; }
+		{
+			*tableNumber = 0;
+		}
 		*tableSize = 13;
 	}
 	else if (phaseIncrementForCalculations <= 2494173) {

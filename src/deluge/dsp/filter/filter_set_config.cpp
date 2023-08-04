@@ -251,36 +251,3 @@ q31_t HPLadderConfig::init(q31_t hpfFrequency, q31_t hpfResonance, bool adjustVo
 
 	return filterGain;
 }
-
-FilterSetConfig::FilterSetConfig() {
-	lpsvfconfig = LPSVFConfig();
-	lpladderconfig = LPLadderConfig();
-	hpladderconfig = HPLadderConfig();
-}
-int32_t FilterSetConfig::init(int32_t lpfFrequency, int32_t lpfResonance, int32_t hpfFrequency, int32_t hpfResonance,
-                              LPFMode lpfMode, int32_t filterGain, bool adjustVolumeForHPFResonance,
-                              int32_t* overallOscAmplitude) {
-
-	hpfResonance =
-	    (hpfResonance >> 21) << 21; // Insanely, having changes happen in the small bytes too often causes rustling
-
-	if (doLPF) {
-		if (lpfMode == LPFMode::SVF) {
-			filterGain = lpsvfconfig.init(lpfFrequency, lpfResonance, lpfMode, filterGain);
-		}
-		else {
-			filterGain = lpladderconfig.init(lpfFrequency, lpfResonance, lpfMode, filterGain);
-		}
-	}
-
-	filterGain =
-	    multiply_32x32_rshift32(filterGain, 1720000000)
-	    << 1; // This changes the overall amplitude so that, with resonance on 50%, the amplitude is the same as it was pre June 2017
-
-	// HPF
-	if (doHPF) {
-		filterGain = hpladderconfig.init(hpfFrequency, hpfResonance, adjustVolumeForHPFResonance, filterGain);
-	}
-
-	return filterGain;
-}

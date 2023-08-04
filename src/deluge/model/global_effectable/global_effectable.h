@@ -32,8 +32,8 @@ public:
 	bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack);
 	ModelStackWithAutoParam* getParamFromModEncoder(int32_t whichModEncoder, ModelStackWithThreeMainThings* modelStack,
 	                                                bool allowCreation = true);
-	void setupFilterSetConfig(FilterSetConfig* filterSetConfig, int32_t* postFXVolume, ParamManager* paramManager);
-	void processFilters(StereoSample* buffer, int32_t numSamples, FilterSetConfig* filterSetConfig);
+	void setupFilterSetConfig(int32_t* postFXVolume, ParamManager* paramManager);
+	void processFilters(StereoSample* buffer, int32_t numSamples);
 	void compensateVolumeForResonance(ParamManagerForTimeline* paramManager);
 	void processFXForGlobalEffectable(StereoSample* inputBuffer, int32_t numSamples, int32_t* postFXVolume,
 	                                  ParamManager* paramManager, DelayWorkingState* delayWorkingState,

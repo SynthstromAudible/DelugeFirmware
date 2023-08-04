@@ -26,7 +26,6 @@
 #include "modulation/patch/patcher.h"
 
 class StereoSample;
-class FilterSetConfig;
 class ModelStackWithVoice;
 
 class Voice final {
@@ -82,7 +81,7 @@ public:
 
 	void setAsUnassigned(ModelStackWithVoice* modelStack, bool deletingSong = false);
 	bool render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int32_t numSamples, bool soundRenderingInStereo,
-	            bool applyingPanAtVoiceLevel, uint32_t sourcesChanged, FilterSetConfig* filterSetConfig,
+	            bool applyingPanAtVoiceLevel, uint32_t sourcesChanged, bool doLPF, bool doHPF,
 	            int32_t externalPitchAdjust);
 
 	void calculatePhaseIncrements(ModelStackWithVoice* modelStack);
