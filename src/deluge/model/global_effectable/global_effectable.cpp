@@ -413,21 +413,8 @@ void GlobalEffectable::setupFilterSetConfig(FilterSetConfig* filterSetConfig, in
 }
 
 void GlobalEffectable::processFilters(StereoSample* buffer, int32_t numSamples, FilterSetConfig* filterSetConfig) {
-
-	if (filterSetConfig->doHPF) {
-		StereoSample* thisSample = buffer;
-		StereoSample* bufferEnd = buffer + numSamples;
-
-		do {
-			filterSets[0].renderLadderHPF(&thisSample->l, &filterSetConfig->hpladderconfig, 2);
-			filterSets[1].renderLadderHPF(&thisSample->r, &filterSetConfig->hpladderconfig, 2);
-		} while (++thisSample != bufferEnd);
-	}
-
-	if (filterSetConfig->doLPF) {
-		filterSets[0].renderLPFLong(&buffer->l, &(buffer + numSamples)->l, filterSetConfig, lpfMode, 2, 2, 1);
-		filterSets[1].renderLPFLong(&buffer->r, &(buffer + numSamples)->r, filterSetConfig, lpfMode, 2, 2, 1);
-	}
+	filterSets[0].renderLong(&buffer->l, &(buffer + numSamples)->l, filterSetConfig, lpfMode, numSamples, 2, 2);
+	filterSets[1].renderLong(&buffer->r, &(buffer + numSamples)->r, filterSetConfig, lpfMode, numSamples, 2, 2);
 }
 
 void GlobalEffectable::writeAttributesToFile(bool writeAutomation) {

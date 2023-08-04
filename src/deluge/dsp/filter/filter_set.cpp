@@ -26,7 +26,7 @@
 FilterSet::FilterSet() {
 }
 
-void FilterSet::renderLadderHPF(q31_t* outputSample, HPLadderConfig* filterSetConfig, int32_t extraSaturation) {
+inline void FilterSet::renderLadderHPF(q31_t* outputSample, HPLadderConfig* filterSetConfig, int32_t extraSaturation) {
 	q31_t input = *outputSample;
 
 	q31_t firstHPFOutput = input - hpfHPF1.doFilter(input, filterSetConfig->hpfMoveability);
@@ -56,10 +56,8 @@ void FilterSet::renderLadderHPF(q31_t* outputSample, HPLadderConfig* filterSetCo
 	*outputSample = a;
 }
 
-#define HPF_LONG_SATURATION 3
-
 void FilterSet::renderHPFLong(q31_t* outputSample, q31_t* endSample, FilterSetConfig* filterSetConfig,
-                              int32_t numSamples, int32_t sampleIncrement) {
+                              int32_t numSamples, int32_t sampleIncrement, int32_t extraSaturation) {
 
 	do {
 

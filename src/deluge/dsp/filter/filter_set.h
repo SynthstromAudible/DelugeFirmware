@@ -83,12 +83,45 @@ public:
 class FilterSet {
 public:
 	FilterSet();
+	void reset();
+
+	inline void renderLong(q31_t* outputSample, q31_t* endSample, FilterSetConfig* filterSetConfig, LPFMode lpfMode,
+	                       int32_t numSamples, int32_t sampleIncrememt = 1, int32_t extraSaturation = 1) {
+
+		// Do HPF, if it's on
+		if (filterSetConfig->doHPF) {
+			renderHPFLong(outputSample, endSample, filterSetConfig, numSamples, sampleIncrememt);
+		}
+		else
+			hpfOnLastTime = false;
+
+		// Do LPF, if it's on
+		if (filterSetConfig->doLPF) {
+			renderLPFLong(outputSample, endSample, filterSetConfig, lpfMode, sampleIncrememt, extraSaturation,
+			              extraSaturation >> 1);
+		}
+		else
+			lpfOnLastTime = false;
+	}
+
+private:
+	q31_t noiseLastValue;
+
+	q31_t do24dBLPFOnSample(q31_t input, LPLadderConfig* filterSetConfig, int32_t saturationLevel);
+	q31_t doDriveLPFOnSample(q31_t input, LPLadderConfig* filterSetConfig, int32_t extraSaturation = 0);
+	inline void renderLPLadder(q31_t* startSample, q31_t* endSample, LPLadderConfig* filterSetConfig, LPFMode lpfMode,
+	                           int32_t sampleIncrement, int32_t extraSaturation, int32_t extraSaturationDrive);
+	inline void renderLPSVF(q31_t* startSample, q31_t* endSample, LPSVFConfig* filterSetConfig,
+	                        int32_t sampleIncrement);
 	void renderLPFLong(q31_t* outputSample, q31_t* endSample, FilterSetConfig* filterSetConfig, LPFMode lpfMode,
 	                   int32_t sampleIncrement = 1, int32_t extraSaturation = 0, int32_t extraSaturationDrive = 0);
 	void renderHPFLong(q31_t* outputSample, q31_t* endSample, FilterSetConfig* filterSetConfig, int32_t numSamples,
-	                   int32_t sampleIncrement = 1);
+	                   int32_t sampleIncrement = 1, int32_t extraSaturation = 0);
 	void renderLadderHPF(q31_t* outputSample, HPLadderConfig* filterSetConfig, int32_t extraSaturation = 0);
-	void reset();
+
+	LPLadderConfig lpladderconfig;
+	HPLadderConfig hpladderconfig;
+	LPSVFConfig lpsvfconfig;
 	BasicFilterComponent lpfLPF1;
 	BasicFilterComponent lpfLPF2;
 	BasicFilterComponent lpfLPF3;
@@ -106,31 +139,4 @@ public:
 
 	bool hpfOnLastTime;
 	bool lpfOnLastTime;
-	inline void renderLPLadder(q31_t* startSample, q31_t* endSample, LPLadderConfig* filterSetConfig, LPFMode lpfMode,
-	                           int32_t sampleIncrement, int32_t extraSaturation, int32_t extraSaturationDrive);
-	inline void renderLPSVF(q31_t* startSample, q31_t* endSample, LPSVFConfig* filterSetConfig,
-	                        int32_t sampleIncrement);
-	inline void renderLong(q31_t* outputSample, q31_t* endSample, FilterSetConfig* filterSetConfig, LPFMode lpfMode,
-	                       int32_t numSamples, int32_t sampleIncrememt = 1) {
-
-		// Do HPF, if it's on
-		if (filterSetConfig->doHPF) {
-			renderHPFLong(outputSample, endSample, filterSetConfig, numSamples, sampleIncrememt);
-		}
-		else
-			hpfOnLastTime = false;
-
-		// Do LPF, if it's on
-		if (filterSetConfig->doLPF) {
-			renderLPFLong(outputSample, endSample, filterSetConfig, lpfMode, sampleIncrememt, 1, 1);
-		}
-		else
-			lpfOnLastTime = false;
-	}
-
-private:
-	q31_t noiseLastValue;
-
-	q31_t do24dBLPFOnSample(q31_t input, LPLadderConfig* filterSetConfig, int32_t saturationLevel);
-	q31_t doDriveLPFOnSample(q31_t input, LPLadderConfig* filterSetConfig, int32_t extraSaturation = 0);
 };
