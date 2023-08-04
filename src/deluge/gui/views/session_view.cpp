@@ -86,7 +86,7 @@ extern char loopsRemainingText[];
 extern int8_t defaultAudioClipOverdubOutputCloning;
 
 // Track is used to describe a singular output for now
-inline const uint32_t gridTrackCount() { //@TODO: Currently this also gives us outputs that are only in the arranger
+inline const uint32_t gridTrackCount() {
 	uint32_t count = 0;
 	Output* currentTrack = currentSong->firstOutput;
 	while (currentTrack != nullptr) {
@@ -183,7 +183,14 @@ inline Output* gridTrackFromX(uint32_t x, uint32_t maxTrack = gridTrackCount()) 
 
 inline Clip* gridClipFromCoords(uint32_t x, uint32_t y) {
 	Output* track = gridTrackFromX(x);
+	if (track == nullptr) {
+		return nullptr;
+	}
+
 	auto section = gridSectionFromY(y);
+	if (section == -1) {
+		return nullptr;
+	}
 
 	for (int32_t idxClip = 0; idxClip < currentSong->sessionClips.getNumElements(); ++idxClip) {
 		Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
@@ -361,6 +368,12 @@ ActionResult SessionView::buttonAction(hid::Button b, bool on, bool inCardRoutin
 					return ActionResult::DEALT_WITH;
 				}
 
+				// Rows are not aligned in grid so we disabled this function, the code below also would need to be aligned
+				if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+					numericDriver.displayPopup(HAVE_OLED ? "Impossible from Grid" : "CANT");
+					return ActionResult::DEALT_WITH;
+				}
+
 				actionLogger.deleteAllLogs();
 
 				Clip* clip = getClipOnScreen(selectedClipYDisplay);
@@ -502,15 +515,18 @@ moveAfterClipInstance:
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
+			Clip* clip = nullptr;
 			if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
-				actionLogger.deleteAllLogs();
-				//@TODO
+				clip = gridClipFromCoords(gridFirstPressedX, gridFirstPressedY);
 			}
 			else {
+				clip = getClipOnScreen(selectedClipYDisplay);
+			}
+
+			if (clip != nullptr) {
 				actionLogger.deleteAllLogs();
-				int32_t yDisplay = selectedClipYDisplay;
 				clipPressEnded();
-				removeClip(yDisplay); //@TODO: change so the clip index is given not the display coord
+				removeClip(clip);
 			}
 		}
 	}
@@ -534,7 +550,18 @@ moveAfterClipInstance:
 			else if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
 				actionLogger.deleteAllLogs();
 				performActionOnPadRelease = false;
-				replaceInstrumentClipWithAudioClip();
+
+				Clip* clip = nullptr;
+				if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+					clip = gridClipFromCoords(gridFirstPressedX, gridFirstPressedY);
+				}
+				else {
+					clip = getClipOnScreen(selectedClipYDisplay);
+				}
+
+				if (clip != nullptr) {
+					replaceInstrumentClipWithAudioClip(clip);
+				}
 			}
 			else if (currentUIMode == UI_MODE_NONE) {
 				if (session.hasPlaybackActive()) {
@@ -572,51 +599,59 @@ changeInstrumentType:
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
-			Clip* clip = getClipOnScreen(selectedClipYDisplay);
-
-			// If AudioClip, we have to convert back to an InstrumentClip
-			if (clip->type == CLIP_TYPE_AUDIO) {
-				actionLogger.deleteAllLogs();
-				replaceAudioClipWithInstrumentClip(newInstrumentType);
+			Clip* clip = nullptr;
+			if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+				clip = gridClipFromCoords(gridFirstPressedX, gridFirstPressedY);
+			}
+			else {
+				clip = getClipOnScreen(selectedClipYDisplay);
 			}
 
-			// Or if already an InstrumentClip, changing Instrument type is easier
-			else {
+			if (clip != nullptr) {
+				// If AudioClip, we have to convert back to an InstrumentClip
+				if (clip->type == CLIP_TYPE_AUDIO) {
+					actionLogger.deleteAllLogs();
+					replaceAudioClipWithInstrumentClip(clip, newInstrumentType);
+				}
 
-				InstrumentClip* instrumentClip = (InstrumentClip*)clip;
-				// If load button held, go into LoadInstrumentPresetUI
-				if (Buttons::isButtonPressed(hid::button::LOAD)) {
+				// Or if already an InstrumentClip, changing Instrument type is easier
+				else {
 
-					// Can't do that for MIDI or CV Clips though
-					if (newInstrumentType == InstrumentType::MIDI_OUT || newInstrumentType == InstrumentType::CV) {
-						goto doActualSimpleChange;
+					InstrumentClip* instrumentClip = (InstrumentClip*)clip;
+					// If load button held, go into LoadInstrumentPresetUI
+					if (Buttons::isButtonPressed(hid::button::LOAD)) {
+
+						// Can't do that for MIDI or CV Clips though
+						if (newInstrumentType == InstrumentType::MIDI_OUT || newInstrumentType == InstrumentType::CV) {
+							goto doActualSimpleChange;
+						}
+
+						Instrument* instrument = (Instrument*)instrumentClip->output;
+
+						actionLogger.deleteAllLogs();
+
+						currentUIMode = UI_MODE_NONE;
+						selectedClipYDisplay = 255;
+
+						Browser::instrumentTypeToLoad = newInstrumentType;
+						loadInstrumentPresetUI.instrumentToReplace = instrument;
+						loadInstrumentPresetUI.instrumentClipToLoadFor = instrumentClip;
+						openUI(&loadInstrumentPresetUI);
 					}
 
-					Instrument* instrument = (Instrument*)instrumentClip->output;
-
-					actionLogger.deleteAllLogs();
-
-					currentUIMode = UI_MODE_NONE;
-					selectedClipYDisplay = 255;
-
-					Browser::instrumentTypeToLoad = newInstrumentType;
-					loadInstrumentPresetUI.instrumentToReplace = instrument;
-					loadInstrumentPresetUI.instrumentClipToLoadFor = instrumentClip;
-					openUI(&loadInstrumentPresetUI);
-				}
-
-				// Otherwise, just change the instrument type
-				else {
+					// Otherwise, just change the instrument type
+					else {
 doActualSimpleChange:
-					char modelStackMemory[MODEL_STACK_MAX_SIZE];
-					ModelStackWithTimelineCounter* modelStack =
-					    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, instrumentClip);
+						char modelStackMemory[MODEL_STACK_MAX_SIZE];
+						ModelStackWithTimelineCounter* modelStack =
+						    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, instrumentClip);
 
-					view.changeInstrumentType(newInstrumentType, modelStack, true);
+						view.changeInstrumentType(newInstrumentType, modelStack, true);
+					}
 				}
-			}
 
-			uiNeedsRendering(this, 1 << selectedClipYDisplay, 0);
+				uiNeedsRendering(this, 1 << selectedClipYDisplay, 0);
+			}
 		}
 	}
 	else if (b == KIT) {
@@ -800,7 +835,8 @@ removePendingOverdub:
 							if (sdRoutineLock) {
 								return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Possibly not quite necessary...
 							}
-							removeClip(yDisplay);
+
+							removeClip(getClipOnScreen(yDisplay));
 							session.justAbortedSomeLinearRecording();
 						}
 
@@ -1044,6 +1080,7 @@ void SessionView::clipPressEnded() {
 	redrawNumericDisplay();
 #endif
 	selectedClipYDisplay = 255;
+	gridResetPresses(true, true);
 }
 
 void SessionView::sectionPadAction(uint8_t y, bool on) {
@@ -1227,14 +1264,19 @@ void SessionView::selectEncoderAction(int8_t offset) {
 			return;
 		}
 
-		Clip* clip = getClipOnScreen(selectedClipYDisplay);
+		Clip* clip = nullptr;
+		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+			clip = gridClipFromCoords(gridFirstPressedX, gridFirstPressedY);
+		}
+		else {
+			clip = getClipOnScreen(selectedClipYDisplay);
+		}
+
 		if (clip == nullptr) {
 			return;
 		}
 
-		if (clip->type
-		    == CLIP_TYPE_INSTRUMENT) { //@TODO: Decide how to scroll through presets when it means the clip is moving, this currently crashes a lot -> We need to make sure no used instrument is loaded
-
+		if (clip->type == CLIP_TYPE_INSTRUMENT) {
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStack =
 			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
@@ -1242,7 +1284,10 @@ void SessionView::selectEncoderAction(int8_t offset) {
 			view.navigateThroughPresetsForInstrumentClip(offset, modelStack, true);
 		}
 		else {
-			view.navigateThroughAudioOutputsForAudioClip(offset, (AudioClip*)clip, true);
+			// This moves clips around uncomfortably and we have a track for every Audio anyway
+			if(currentSong->sessionLayout != SessionLayoutType::SessionLayoutTypeGrid) {
+				view.navigateThroughAudioOutputsForAudioClip(offset, (AudioClip*)clip, true);
+			}
 		}
 	}
 	else if (currentUIMode == UI_MODE_NONE && sessionButtonActive) {
@@ -1599,15 +1644,14 @@ doGetInstrument:
 	return newClip;
 }
 
-void SessionView::replaceAudioClipWithInstrumentClip(InstrumentType instrumentType) {
+void SessionView::replaceAudioClipWithInstrumentClip(Clip* clip, InstrumentType instrumentType) {
+	int32_t clipIndex = currentSong->sessionClips.getIndexForClip(clip);
 
-	Clip* oldClip = getClipOnScreen(selectedClipYDisplay);
-
-	if (!oldClip || oldClip->type != CLIP_TYPE_AUDIO) {
+	if (!clip || clip->type != CLIP_TYPE_AUDIO) {
 		return;
 	}
 
-	AudioClip* audioClip = (AudioClip*)oldClip;
+	AudioClip* audioClip = (AudioClip*)clip;
 	if (audioClip->sampleHolder.audioFile || audioClip->getCurrentlyRecordingLinearly()) {
 		numericDriver.displayPopup(HAVE_OLED ? "Clip not empty" : "CANT");
 		return;
@@ -1625,7 +1669,7 @@ ramError:
 	InstrumentClip* newClip = new (clipMemory) InstrumentClip(currentSong);
 
 	// Give the new clip its stuff
-	newClip->cloneFrom(oldClip);
+	newClip->cloneFrom(clip);
 	newClip->colourOffset = random(72);
 
 	bool instrumentAlreadyInSong;
@@ -1673,7 +1717,7 @@ gotErrorDontDisplay:
 		newClip->output->setActiveClip(modelStackWithTimelineCounter);
 	}
 
-	currentSong->swapClips(newClip, oldClip, selectedClipYDisplay + currentSong->songViewYScroll);
+	currentSong->swapClips(newClip, clip, clipIndex);
 
 	view.setActiveModControllableTimelineCounter(newClip);
 	view.displayOutputName(newClip->output, true, newClip);
@@ -1683,21 +1727,20 @@ gotErrorDontDisplay:
 #endif
 }
 
-void SessionView::replaceInstrumentClipWithAudioClip() {
-	Clip* oldClip = getClipOnScreen(selectedClipYDisplay);
+void SessionView::replaceInstrumentClipWithAudioClip(Clip* clip) {
+	int32_t clipIndex = currentSong->sessionClips.getIndexForClip(clip);
 
-	if (!oldClip || oldClip->type != CLIP_TYPE_INSTRUMENT) {
+	if (!clip || clip->type != CLIP_TYPE_INSTRUMENT) {
 		return;
 	}
 
-	InstrumentClip* instrumentClip = (InstrumentClip*)oldClip;
-	if (instrumentClip->containsAnyNotes() || instrumentClip->output->clipHasInstance(oldClip)) {
+	InstrumentClip* instrumentClip = (InstrumentClip*)clip;
+	if (instrumentClip->containsAnyNotes() || instrumentClip->output->clipHasInstance(clip)) {
 		numericDriver.displayPopup(HAVE_OLED ? "Clip not empty" : "CANT");
 		return;
 	}
 
-	Clip* newClip =
-	    currentSong->replaceInstrumentClipWithAudioClip(oldClip, selectedClipYDisplay + currentSong->songViewYScroll);
+	Clip* newClip = currentSong->replaceInstrumentClipWithAudioClip(clip, clipIndex);
 
 	if (!newClip) {
 		numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
@@ -1716,17 +1759,15 @@ void SessionView::replaceInstrumentClipWithAudioClip() {
 	                 1 << selectedClipYDisplay); // If Clip was in keyboard view, need to redraw that
 }
 
-void SessionView::removeClip(uint8_t yDisplay) {
+void SessionView::removeClip(Clip* clip) {
 	currentSong->ensureAllInstrumentsHaveAClipOrBackedUpParamManager(
 	    "E373", "H373"); // Trying to narrow down H067 that Leo got, below.
-
-	int32_t clipIndex = yDisplay + currentSong->songViewYScroll;
-
-	Clip* clip = getClipOnScreen(yDisplay);
 
 	if (!clip) {
 		return;
 	}
+
+	int32_t clipIndex = currentSong->sessionClips.getIndexForClip(clip);
 
 	// If last session Clip left, just don't allow. Easiest
 	if (currentSong->sessionClips.getNumElements() == 1) {
@@ -1763,7 +1804,6 @@ Clip* SessionView::getClipOnScreen(int32_t yDisplay) {
 		return nullptr;
 	}
 
-	//@TODO: Check if this needs to be compatible with grid
 	int32_t index = yDisplay + currentSong->songViewYScroll;
 
 	if (index < 0 || index >= currentSong->sessionClips.getNumElements()) {
@@ -2882,7 +2922,7 @@ Clip* gridCreateClipInTrack(Output* targetOutput) {
 
 	return newClip;
 }
-//@TODO: fix for midi and CV
+
 Clip* gridCreateClipWithNewTrack(InstrumentType type) {
 	InstrumentClip* newClip = nullptr;
 
@@ -3212,24 +3252,10 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 				Clip* clip = gridClipFromCoords(x, y);
 				if (clip != nullptr && !Buttons::isButtonPressed(hid::button::SHIFT)) {
 
-					// Handle cases normally in View::clipStatusPadAction //@TODO: Review
+					// Handle cases normally in View::clipStatusPadAction
 					if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING) {
-						if (!clip->armedForRecording) {
-							clip->armedForRecording = true;
-							if (clip->type == CLIP_TYPE_AUDIO) {
-								((AudioClip*)clip)->overdubsShouldCloneOutput = false;
-								defaultAudioClipOverdubOutputCloning = 0;
-							}
-						}
-						else {
-							if (clip->type == CLIP_TYPE_AUDIO && !((AudioClip*)clip)->overdubsShouldCloneOutput) {
-								((AudioClip*)clip)->overdubsShouldCloneOutput = true;
-								defaultAudioClipOverdubOutputCloning = 1;
-							}
-							else {
-								clip->armedForRecording = false;
-							}
-						}
+						// Here I removed the overdubbing settings
+						clip->armedForRecording = !clip->armedForRecording;
 						PadLEDs::reassessGreyout(true);
 					}
 					else if (currentUIMode == UI_MODE_NONE && Buttons::isButtonPressed(hid::button::RECORD)) {
@@ -3246,7 +3272,6 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 				}
 
 				// Erase second finger if it was/is still pressed
-				gridResetPresses(true, true);
 				gridPreventArm = false;
 				clipPressEnded();
 			}

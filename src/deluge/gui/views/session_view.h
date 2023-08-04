@@ -53,7 +53,7 @@ public:
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
 	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
-	void removeClip(uint8_t yDisplay);
+	void removeClip(Clip* clip);
 	void redrawClipsOnScreen(bool doRender = true);
 	uint32_t getMaxZoom();
 	void cloneClip(uint8_t yDisplayFrom, uint8_t yDisplayTo);
@@ -114,8 +114,8 @@ private:
 	void beginEditingSectionRepeatsNum();
 	Clip* createNewInstrumentClip(int32_t yDisplay);
 	void goToArrangementEditor();
-	void replaceInstrumentClipWithAudioClip();
-	void replaceAudioClipWithInstrumentClip(InstrumentType instrumentType);
+	void replaceInstrumentClipWithAudioClip(Clip* clip);
+	void replaceAudioClipWithInstrumentClip(Clip* clip, InstrumentType instrumentType);
 	void rowNeedsRenderingDependingOnSubMode(int32_t yDisplay);
 	void setCentralLEDStates();
 
