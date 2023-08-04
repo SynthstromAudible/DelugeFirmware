@@ -67,6 +67,9 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 ### Audio Clip View
  - ([#141]) Holding the vertical encoder down while turning the horizontal encoder will shift the clip along the underlying audio file, similar to the same interface for instrument clips.
 
+### Sample Waveform View
+ - ([#293]) When a sample has loop start and loop end points set, holding down loop start and tapping loop end will lock the loop points together. Moving one will move the other, keeping them the same distance apart. Use the same process to unlock the loop points. Use SHIFT+TURN<> to double or half the loop length.
+
 ### Takeover Mode
 
  - ([#170]) The Takeover menu consists of three modes that can be selected from:
@@ -134,3 +137,4 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#221]: https://github.com/SynthstromAudible/DelugeFirmware/pull/221
 [#234]: https://github.com/SynthstromAudible/DelugeFirmware/pull/234
 [#282]: https://github.com/SynthstromAudible/DelugeFirmware/pull/282
+[#293]: https://github.com/SynthstromAudible/DelugeFirmware/pull/293
