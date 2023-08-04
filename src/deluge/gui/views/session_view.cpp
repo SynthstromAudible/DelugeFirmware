@@ -1285,7 +1285,7 @@ void SessionView::selectEncoderAction(int8_t offset) {
 		}
 		else {
 			// This moves clips around uncomfortably and we have a track for every Audio anyway
-			if(currentSong->sessionLayout != SessionLayoutType::SessionLayoutTypeGrid) {
+			if (currentSong->sessionLayout != SessionLayoutType::SessionLayoutTypeGrid) {
 				view.navigateThroughAudioOutputsForAudioClip(offset, (AudioClip*)clip, true);
 			}
 		}
@@ -2858,8 +2858,11 @@ bool SessionView::gridRenderMainPads(uint32_t whichRows, uint8_t image[][kDispla
 		}
 
 		uint8_t occupiedColor[3] = {20, 20, 20};
-		view.getClipMuteSquareColour(clip, image[gridYFromSection(clip->section)][gridXFromTrack(trackIndex)], true,
-		                             occupiedColor);
+		auto x = gridXFromTrack(trackIndex);
+		auto y = gridYFromSection(clip->section);
+		if (x >= 0 && y >= 0) {
+			view.getClipMuteSquareColour(clip, image[y][x], true, occupiedColor);
+		}
 	}
 
 	PadLEDs::renderingLock = false;
@@ -2924,22 +2927,19 @@ Clip* gridCreateClipInTrack(Output* targetOutput) {
 }
 
 Clip* gridCreateClipWithNewTrack(InstrumentType type) {
-	InstrumentClip* newClip = nullptr;
+	// Allocate new clip
+	void* memory = GeneralMemoryAllocator::get().alloc(sizeof(InstrumentClip), NULL, false, true);
+	if (!memory) {
+		numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+		return nullptr;
+	}
+
+	InstrumentClip* newClip = new (memory) InstrumentClip(currentSong);
 
 	if (type == InstrumentType::SYNTH || type == InstrumentType::KIT) {
-		// Allocate new clip
-		void* memory = GeneralMemoryAllocator::get().alloc(sizeof(InstrumentClip), NULL, false, true);
-		if (!memory) {
-			numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
-			return NULL;
-		}
-
-		newClip = new (memory) InstrumentClip(currentSong);
-
 		bool instrumentAlreadyInSong = false;
 		int32_t error = setPresetOrNextUnlaunchedOne(newClip, type, &instrumentAlreadyInSong);
 		if (error || instrumentAlreadyInSong) {
-			// Deallocate
 			newClip->~InstrumentClip();
 			GeneralMemoryAllocator::get().dealloc(memory);
 			if (error) {
@@ -2947,35 +2947,37 @@ Clip* gridCreateClipWithNewTrack(InstrumentType type) {
 			}
 			return nullptr;
 		}
-
-		currentSong->addOutput(newClip->output);
 	}
 	else if (type == InstrumentType::MIDI_OUT || type == InstrumentType::CV) {
-		//@TODO: Does not work
+		bool instrumentAlreadyInSong = false;
+		newClip->output = currentSong->getNonAudioInstrumentToSwitchTo(type, Availability::INSTRUMENT_UNUSED, 0, 0,
+		                                                               &instrumentAlreadyInSong);
+		if (newClip->output == nullptr) {
+			newClip->~InstrumentClip();
+			GeneralMemoryAllocator::get().dealloc(memory);
+			// No displayError here because getNonAudioInstrumentToSwitchTo does it for us
+			return nullptr;
+		}
 
-		// // MIDI and CV first need a Synth clip and then be converted
-		// InstrumentType initialType = type;
-		// if (type == InstrumentType::MIDI_OUT || type == InstrumentType::CV) {
-		// 	initialType = InstrumentType::SYNTH;
-		// }
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithTimelineCounter* modelStack =
+		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, newClip);
 
-		// In between this the synth was created
-
-		// // Convert to MIDI/CV
-		// if (type == InstrumentType::MIDI_OUT || type == InstrumentType::CV) {
-		// 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		// 	ModelStackWithTimelineCounter* modelStack =
-		// 		setupModelStackWithTimelineCounter(modelStackMemory, currentSong, newClip);
-		// 	InstrumentClip* setupClip = (InstrumentClip*)modelStack->getTimelineCounter();
-
-		// 	setupClip->changeInstrumentType(modelStack, type);
-		// 	newClip = setupClip;
-		// }
+		auto error = newClip->claimOutput(modelStack);
+		if (error) {
+			newClip->~InstrumentClip();
+			GeneralMemoryAllocator::get().dealloc(memory);
+			if (error) {
+				numericDriver.displayError(error);
+			}
+			return nullptr;
+		}
 	}
-
-	if (newClip == nullptr) {
+	else {
 		return nullptr;
 	}
+
+	currentSong->addOutput(newClip->output);
 
 	// For safety we set it up exactly as we want it
 	newClip->colourOffset = random(72);
@@ -3022,11 +3024,13 @@ Clip* gridCreateClip(uint32_t targetSection, Output* targetOutput = nullptr, Cli
 			InstrumentClip* sourceInstrumentClip = (InstrumentClip*)sourceClip;
 
 			// Copy to a different existing track
-			if(targetOutput != nullptr) {
-				bool bothKit = (sourceInstrumentClip->output->type == InstrumentType::KIT && targetOutput->type == InstrumentType::KIT);
-				bool bothNotKit = (sourceInstrumentClip->output->type != InstrumentType::KIT && targetOutput->type != InstrumentType::KIT);
+			if (targetOutput != nullptr) {
+				bool bothKit = (sourceInstrumentClip->output->type == InstrumentType::KIT
+				                && targetOutput->type == InstrumentType::KIT);
+				bool bothNotKit = (sourceInstrumentClip->output->type != InstrumentType::KIT
+				                   && targetOutput->type != InstrumentType::KIT);
 
-				if(bothKit || bothNotKit) {
+				if (bothKit || bothNotKit) {
 					newClip = gridCreateClipInTrack(targetOutput);
 				}
 
@@ -3041,7 +3045,7 @@ Clip* gridCreateClip(uint32_t targetSection, Output* targetOutput = nullptr, Cli
 			}
 
 			// We have a compatible target clip
-			if(newClip != nullptr) {
+			if (newClip != nullptr) {
 				InstrumentClip* newInstrumentClip = (InstrumentClip*)newClip;
 
 				// Copy note row contents if clip was created
@@ -3310,7 +3314,7 @@ ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {
 	currentSong->songGridScrollY =
 	    std::clamp<int32_t>(currentSong->songGridScrollY + offsetY, 0, kMaxNumSections - kGridHeight);
 	currentSong->songGridScrollX = std::clamp<int32_t>(currentSong->songGridScrollX + offsetX, 0,
-	                                                   std::max<int32_t>(0, gridTrackCount() - kDisplayWidth));
+	                                                   std::max<int32_t>(0, (gridTrackCount() - kDisplayWidth) + 1));
 
 	// This is the right place to add new features like moving clips or tracks :)
 
