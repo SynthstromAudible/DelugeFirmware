@@ -3361,6 +3361,31 @@ void InstrumentClip::ensureScrollWithinKitBounds() {
 	}
 }
 
+int InstrumentClip::getHighestSupportedPitch() {
+	if (output->type == InstrumentType::SYNTH) {
+		return 127 - ((SoundInstrument*)output)->getMinOscTranspose();
+	}
+	else if (output->type == InstrumentType::CV) {
+		return cvEngine.calculateMaxNoteCode(((CVInstrument*)output)->channel);
+	}
+	else { // InstrumentType::MIDI_OUT
+		return 127;
+	} 		
+}
+
+int InstrumentClip::getLowestSupportedPitch() {
+	if (output->type == InstrumentType::SYNTH) {
+		return 0 - ((SoundInstrument*)output)->getMaxOscTranspose(this);
+	}
+	else if (output->type == InstrumentType::CV) {
+		return 0;
+	}
+	else { // InstrumentType::MIDI_OUT
+		return 0;
+	} 		
+}
+
+
 // Make sure not a Kit before calling this
 bool InstrumentClip::isScrollWithinRange(int scrollAmount, int newYNote) {
 

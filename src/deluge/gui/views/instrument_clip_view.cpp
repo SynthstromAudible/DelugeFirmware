@@ -2321,40 +2321,40 @@ void InstrumentClipView::adjustAccidentalTranspose(int offset, bool useOctaves) 
 			editPadPresses[i].deleteOnDepress = false;
 
             yRowToUpdate = editPadPresses[i].yDisplay;
+            
+            accidentalTransposeValueTemp = editPadPresses[i].intendedAccidentalTranspose;
+                
+			// Incrementing/ decrementing
+			accidentalTransposeValueTemp += useOctaves ? 12 * offset : offset;
+
 			int currentYNote = getCurrentClip()->getYNoteFromYDisplay(editPadPresses[i].yDisplay, currentSong) ;
-			accidentalTransposeValue = editPadPresses[i].intendedAccidentalTranspose;
-			accidentalTransposeValue = getMin(getMax(accidentalTransposeValue, 0 - currentYNote), 127 - currentYNote);
-			noteValueAfterTranspose = accidentalTransposeValue + currentYNote; // 
+
+			// lowest supported pitch = -5 => currentYnote is 10 , transpose can be -15 minimal. 
+
+			accidentalTransposeValueTemp = getMax(accidentalTransposeValueTemp, getCurrentClip()->getLowestSupportedPitch() - currentYNote);
+			// highest supported pitch = 100, currentYNote = 80, transpose can be 20 maximal
+			accidentalTransposeValueTemp = getMin(accidentalTransposeValueTemp, getCurrentClip()->getHighestSupportedPitch() - currentYNote);
+			noteValueAfterTransposeTemp = accidentalTransposeValueTemp + currentYNote; // 
+			editPadPresses[i].intendedAccidentalTranspose = accidentalTransposeValueTemp;
+            
+            // check if this was the left most button. if so. update the accidentalTransposeValue for the display.
+			if (editPadPresses[i].intendedPos < leftMostPos) {
+				leftMostPos = editPadPresses[i].intendedPos;
+				accidentalTransposeValue = accidentalTransposeValueTemp;
+				noteValueAfterTranspose = noteValueAfterTransposeTemp;
+			}
+
 
 			// If editing, continue edit
 #if HAVE_OLED
 			if (OLED::isPopupPresent()) {
 #else
+			// first twist is absorbed to just show the popup. only by the second twist we start updating.
 			if (numericDriver.popupActive) {
 #endif
+
 				Action* action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
 				if (!action) return;
-                
-				// Incrementing/ decrementing
-				accidentalTransposeValue += useOctaves ? 12 * offset : offset;
-				// clip the accidentalTransposeValue to a value that makes sense for the current noteRow.
-				// THE max and min value are dependent of the y of this noterow
-				// accidentalTranspose should be larger or equal to 0 - y so that we cannot transpose below 0.
-				// accidentalTranspose should be smaller or equal than 127 - y so that we cannot transpose beyond 127.
-				// NOTE: since noterows themselves can be transposed (i.e. by changing the scale or by flipping the whole octave up)
-				// we have to also clip when playing.
-				int currentYNote = getCurrentClip()->getYNoteFromYDisplay(editPadPresses[i].yDisplay, currentSong) ;
-				accidentalTransposeValueTemp = getMin(getMax(accidentalTransposeValue, 0 - currentYNote), 127 - currentYNote);
-				noteValueAfterTransposeTemp = accidentalTransposeValue + currentYNote; // 
-				editPadPresses[i].intendedAccidentalTranspose = accidentalTransposeValueTemp;
-                
-                // check if this was the left most button. if so. update the accidentalTransposeValue for the display.
-				if (editPadPresses[i].intendedPos < leftMostPos) {
-					leftMostPos = editPadPresses[i].intendedPos;
-					accidentalTransposeValue = accidentalTransposeValueTemp;
-					noteValueAfterTranspose = noteValueAfterTransposeTemp;
-				}
-
 
 				int noteRowIndex;
 				NoteRow* noteRow =

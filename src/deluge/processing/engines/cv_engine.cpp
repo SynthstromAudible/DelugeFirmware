@@ -218,6 +218,8 @@ void CVEngine::recalculateCVChannelVoltage(uint8_t channel) {
 	sendVoltageOut(channel, voltage);
 }
 
+
+
 // Represents 1V as 6552. So 10V is 65520.
 int32_t CVEngine::calculateVoltage(int note, uint8_t channel) {
 	double transposedNoteCode = (double)(note + cvChannels[channel].transpose)
@@ -240,6 +242,36 @@ int32_t CVEngine::calculateVoltage(int note, uint8_t channel) {
 
 	return voltage;
 }
+
+// derived by inversing above function
+int32_t CVEngine::calculateMaxNoteCode(uint8_t channel) {
+    // Max voltage corresponds to 65520
+    const double maxVoltage = 65520.0; // ( 2log(6552) = 12.67 octaves
+
+    if (cvChannels[channel].voltsPerOctave == 0) {
+        // Inverse formula for Hz per volt case:
+        // assuming max Voltage = 10
+        // voltage = pow(2, ((tranposedNodeCode - 60) / 12))
+        // (tranpposedNodeCode - 60) / 12) = 2log(10)
+        //                                 = 3.3219
+        // (transposedNoteCode - 60)  = 3.3219 * 12 = 39.86 
+        // transposedNoteCode = 99.86 = 100  
+        double maxNoteCode = 100.0;
+        maxNoteCode -= cvChannels[channel].transpose;
+        maxNoteCode -= cvChannels[channel].cents * 0.01;
+        maxNoteCode -= cvChannels[channel].pitchBend / (1 << 23);
+        return static_cast<int32_t>(round(maxNoteCode));
+    } else {
+        // this will return 144 if there are 100 0.01voltsPerOctave. 
+        double maxNoteCode = (maxVoltage / 5.46 / cvChannels[channel].voltsPerOctave) + 24;
+        maxNoteCode -= cvChannels[channel].transpose;
+        maxNoteCode -= cvChannels[channel].cents * 0.01;
+        maxNoteCode -= cvChannels[channel].pitchBend / (1 << 23);
+        return static_cast<int32_t>(round(maxNoteCode));
+    }
+}
+
+
 
 void CVEngine::analogOutTick() {
 	clockState = !clockState;

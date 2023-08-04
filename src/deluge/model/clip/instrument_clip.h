@@ -202,6 +202,8 @@ public:
 	                  InstrumentClip* favourClipForCloningParamManager = NULL);
 	void deleteOldDrumNames();
 	void ensureScrollWithinKitBounds();
+	int getHighestSupportedPitch();
+	int getLowestSupportedPitch();
 	bool isScrollWithinRange(int scrollAmount, int newYNote);
 	int appendClip(ModelStackWithTimelineCounter* thisModelStack, ModelStackWithTimelineCounter* otherModelStack);
 	void instrumentBeenEdited();

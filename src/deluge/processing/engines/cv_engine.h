@@ -62,6 +62,7 @@ public:
 	void setCVPitchBend(uint8_t channel, int32_t value, bool outputToo = true);
 	void delayInterrupt();
 	int32_t calculateVoltage(int note, uint8_t channel);
+	int32_t calculateMaxNoteCode(uint8_t channel); 
 	void physicallySwitchGate(int channel);
 
 	void analogOutTick();
