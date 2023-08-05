@@ -14,7 +14,7 @@ check_ipo_supported(RESULT IPO_SUPPORTED OUTPUT error)
 if(IPO_SUPPORTED)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION
         $<$<CONFIG:DEBUG>:OFF>
-        $<$<CONFIG:TEST>:ON>
+        $<$<CONFIG:RELWITHDEBINFO>:ON>
         $<$<CONFIG:RELEASE>:ON>
     )
 endif()
