@@ -1005,10 +1005,10 @@ void Session::armSection(uint8_t section, int32_t buttonPressLatency, bool noCan
 			goto yupThatsFine; // Remember, we cancelled any soloing, above
 		}
 
-		if(!noCancellingIfEmpty) {
+		if (!noCancellingIfEmpty) {
 			// If a Clip in another section is playing and we're not a "share" section...
 			if (currentSong->sections[section].numRepetitions != -1 && clip->section != section
-				&& ((clip->armState != ArmState::OFF) != clip->activeIfNoSolo)) {
+			    && ((clip->armState != ArmState::OFF) != clip->activeIfNoSolo)) {
 				goto yupThatsFine;
 			}
 		}

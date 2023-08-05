@@ -3069,9 +3069,17 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 		else {
 			// Arm section if immediately released
 			if (isUIModeActive(UI_MODE_HOLDING_SECTION_PAD)) {
-				if (!Buttons::isShiftButtonPressed() && performActionOnSectionPadRelease) {
-					session.armSection(sectionPressed, kInternalButtonPressLatency, true);
+				if (performActionOnSectionPadRelease) {
+					for (int32_t idxClip = 0; idxClip < currentSong->sessionClips.getNumElements(); ++idxClip) {
+						Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
+						if ((clip->section == sectionPressed && !clip->activeIfNoSolo)
+						    || (clip->section != sectionPressed && clip->activeIfNoSolo)) {
+							session.toggleClipStatus(clip, NULL, Buttons::isShiftButtonPressed(),
+							                         kInternalButtonPressLatency);
+						}
+					}
 				}
+
 				exitUIMode(UI_MODE_HOLDING_SECTION_PAD);
 #if HAVE_OLED
 				OLED::removePopup();
@@ -3176,14 +3184,14 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 					}
 					else if (!gridPreventArm
 					         && (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW
-					             || currentUIMode == UI_MODE_STUTTERING))
+					             || currentUIMode == UI_MODE_STUTTERING)) {
 						session.toggleClipStatus(clip, NULL, false, kInternalButtonPressLatency);
-				}
-				else if (currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
-					session.soloClipAction(clip, kInternalButtonPressLatency);
+					}
+					else if (currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
+						session.soloClipAction(clip, kInternalButtonPressLatency);
+					}
 				}
 
-				// Erase second finger if it was/is still pressed
 				gridPreventArm = false;
 				clipPressEnded();
 			}
