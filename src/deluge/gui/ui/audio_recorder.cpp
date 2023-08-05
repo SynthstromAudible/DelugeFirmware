@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "dsp/stereo_sample.h"
 #include "extern.h"
+#include "gui/l10n/l10n.hpp"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
@@ -236,7 +237,7 @@ void AudioRecorder::process() {
 				recorder->recordingClippedRecently = false;
 
 				if (!display.hasPopup()) {
-					display.displayPopup(HAVE_OLED ? "Clipping occurred" : "CLIP");
+					display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CLIPPING_OCCURRED));
 				}
 			}
 		}

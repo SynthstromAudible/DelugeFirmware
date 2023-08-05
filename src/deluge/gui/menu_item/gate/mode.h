@@ -16,8 +16,7 @@
 */
 #pragma once
 #include "definitions_cxx.hpp"
-#include "gui/l10n.h"
-#include "gui/l10n/strings.h"
+#include "gui/l10n/l10n.hpp"
 #include "gui/menu_item/formatted_title.h"
 #include "gui/menu_item/selection/typed_selection.h"
 #include "gui/ui/sound_editor.h"

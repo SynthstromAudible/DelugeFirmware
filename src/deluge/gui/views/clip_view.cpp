@@ -18,6 +18,7 @@
 #include "gui/views/clip_view.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
+#include "gui/l10n/l10n.hpp"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.hpp"
@@ -146,7 +147,7 @@ ActionResult ClipView::horizontalEncoderAction(int32_t offset) {
 
 		// If tempoless recording, don't allow
 		if (!getCurrentClip()->currentlyScrollableAndZoomable()) {
-			display.displayPopup(HAVE_OLED ? "Can't edit length" : "CANT");
+			display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CANT_EDIT_LENGTH));
 			return ActionResult::DEALT_WITH;
 		}
 

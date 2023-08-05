@@ -24,6 +24,7 @@
 #include "gui/context_menu/delete_file.h"
 #include "gui/context_menu/sample_browser/kit.h"
 #include "gui/context_menu/sample_browser/synth.h"
+#include "gui/l10n/l10n.hpp"
 #include "gui/menu_item/multi_range.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
@@ -355,7 +356,7 @@ void SampleBrowser::enterKeyPress() {
 		// Don't allow user to go into TEMP clips folder
 		if (currentFileItem->filename.equalsCaseIrrespective("TEMP")
 		    && currentDir.equalsCaseIrrespective("SAMPLES/CLIPS")) {
-			display.displayPopup(HAVE_OLED ? "TEMP folder can't be browsed" : "CANT");
+			display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_TEMP_FOLDER_CANT_BE_BROWSED));
 			return;
 		}
 
@@ -386,7 +387,7 @@ void SampleBrowser::enterKeyPress() {
 				openUI(&slicer);
 			}
 			else {
-				display.displayPopup(HAVE_OLED ? "Can only user slicer for brand-new kit" : "CANT");
+				display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CAN_ONLY_USE_SLICER_FOR_BRAND_NEW_KIT));
 			}
 		}
 
@@ -430,7 +431,7 @@ ActionResult SampleBrowser::buttonAction(hid::Button b, bool on, bool inCardRout
 					bool allFine = audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(filePath.get());
 
 					if (!allFine) {
-						display.displayPopup(HAVE_OLED ? "Audio file is used in current song" : "USED");
+						display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_AUDIO_FILE_IS_USED_IN_CURRENT_SONG));
 					}
 					else {
 						goIntoDeleteFileContextMenu();
@@ -776,7 +777,7 @@ bool SampleBrowser::claimCurrentFile(int32_t mayDoPitchDetection, int32_t mayDoS
 
 	if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
 		if (currentSong->currentClip->getCurrentlyRecordingLinearly()) {
-			display.displayPopup(HAVE_OLED ? "Clip is recording" : "CANT");
+			display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CLIP_IS_RECORDING));
 			return false;
 		}
 	}
@@ -1802,7 +1803,7 @@ skipOctaveCorrection:
 	numSamples = rangeIndex;
 
 	if (!numSamples) {
-		display.displayPopup(HAVE_OLED ? "Error creating multisampled instrument" : "FAIL");
+		display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_ERROR_CREATING_MULTISAMPLED_INSTRUMENT));
 		goto doReturnFalse;
 	}
 

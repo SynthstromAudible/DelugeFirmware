@@ -185,9 +185,9 @@ const int16_t tanHSmall[] = {
 std::array<char const*, 9> presetScaleNames = {"MAJOR", "MINOR", "DORIAN", "PHRYGIAN", "LYDIAN", "MIXOLYDIAN", "LOCRIAN", "RANDOM", "NONE"};
 
 const char* presetReverbNames[] = {
-	HAVE_OLED ? "Small room reverb" : "SMAL", //<
-	HAVE_OLED ? "Medium room reverb" : "MEDI", //<
-	HAVE_OLED ? "Large room reverb" : "LARG", //<
+	deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_SMALL_ROOM_REVERB), //<
+	deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_MEDIUM_ROOM_REVERB), //<
+	deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_LARGE_ROOM_REVERB), //<
 	nullptr
 };
 

@@ -17,7 +17,7 @@
 
 #include "param.h"
 #include "definitions_cxx.hpp"
-#include "gui/l10n.h"
+#include "gui/l10n/l10n.hpp"
 #include "gui/ui/sound_editor.h"
 #include "hid/buttons.h"
 #include "hid/display/display.hpp"

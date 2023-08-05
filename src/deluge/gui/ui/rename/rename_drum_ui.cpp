@@ -18,6 +18,7 @@
 #include "gui/ui/rename/rename_drum_ui.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
+#include "gui/l10n/l10n.hpp"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/buttons.h"
@@ -99,7 +100,7 @@ void RenameDrumUI::enterKeyPress() {
 	// If actually changing it...
 	if (!getDrum()->name.equalsCaseIrrespective(&enteredText)) {
 		if (((Kit*)currentSong->currentClip->output)->getDrumFromName(enteredText.get())) {
-			display.displayPopup(HAVE_OLED ? "Duplicate names" : "DUPLICATE");
+			display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_DUPLICATE_NAMES));
 			return;
 		}
 	}

@@ -16,8 +16,7 @@
 */
 
 #include "gui/context_menu/overwrite_bootloader.h"
-#include "gui/l10n.h"
-#include "gui/l10n/strings.h"
+#include "gui/l10n/l10n.hpp"
 #include "hid/display/display.hpp"
 #include "memory/general_memory_allocator.h"
 #include "storage/storage_manager.h"

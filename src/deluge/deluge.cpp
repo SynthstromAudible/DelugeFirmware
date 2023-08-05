@@ -694,7 +694,7 @@ extern "C" int32_t deluge_main(void) {
 
 	if (false) {
 resetSettings:
-		display.consoleText(HAVE_OLED ? "Factory reset" : "RESET");
+		display.consoleText(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_FACTORY_RESET));
 		FlashStorage::resetSettings();
 		FlashStorage::writeSettings();
 	}

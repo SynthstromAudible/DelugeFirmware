@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/colour.h"
+#include "gui/l10n/l10n.hpp"
 #include "gui/menu_item/colour.h"
 #include "gui/menu_item/file_selector.h"
 #include "gui/menu_item/multi_range.h"
@@ -564,7 +565,7 @@ doOther:
 			InstrumentClip* clip = getCurrentClip();
 
 			if (!clip->containsAnyNotes()) {
-				display.displayPopup(HAVE_OLED ? "At least one row needs to have notes" : "CANT");
+				display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_AT_LEAST_ONE_ROW_NEEDS_TO_HAVE_NOTES));
 			}
 			else {
 				char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -590,7 +591,7 @@ doOther:
 				uiNeedsRendering(this);
 
 				// Show popup to make it clear what just happened
-				display.displayPopup(HAVE_OLED ? "Deleted unused rows" : "DELETED");
+				display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_DELETED_UNUSED_ROWS));
 			}
 		}
 	}
@@ -878,12 +879,12 @@ void InstrumentClipView::copyAutomation(int32_t whichModEncoder) {
 		modelStack->autoParam->copy(startPos, endPos, &copiedParamAutomation, isPatchCable, modelStack);
 
 		if (copiedParamAutomation.nodes) {
-			display.displayPopup(HAVE_OLED ? "Automation copied" : "COPY");
+			display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_AUTOMATION_COPIED));
 			return;
 		}
 	}
 
-	display.displayPopup(HAVE_OLED ? "No automation to copy" : "NONE");
+	display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_NO_AUTOMATION_TO_COPY));
 }
 
 void InstrumentClipView::copyNotes() {
@@ -971,7 +972,7 @@ ramError:
 		}
 	}
 
-	display.displayPopup(HAVE_OLED ? "Notes copied" : "COPY");
+	display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_NOTES_COPIED));
 }
 
 void InstrumentClipView::deleteCopiedNoteRows() {
@@ -985,7 +986,7 @@ void InstrumentClipView::deleteCopiedNoteRows() {
 
 void InstrumentClipView::pasteAutomation(int32_t whichModEncoder) {
 	if (!copiedParamAutomation.nodes) {
-		display.displayPopup(HAVE_OLED ? "No automation to paste" : "NONE");
+		display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_NO_AUTOMATION_TO_PASTE));
 		return;
 	}
 
@@ -1007,7 +1008,7 @@ void InstrumentClipView::pasteAutomation(int32_t whichModEncoder) {
 	    view.activeModControllableModelStack.modControllable->getParamFromModEncoder(
 	        whichModEncoder, &view.activeModControllableModelStack, true);
 	if (!modelStackWithAutoParam || !modelStackWithAutoParam->autoParam) {
-		display.displayPopup(HAVE_OLED ? "Can't paste automation" : "CANT");
+		display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CANT_PASTE_AUTOMATION));
 		return;
 	}
 
@@ -1026,7 +1027,7 @@ void InstrumentClipView::pasteAutomation(int32_t whichModEncoder) {
 	modelStackWithAutoParam->autoParam->paste(startPos, endPos, scaleFactor, modelStackWithAutoParam,
 	                                          &copiedParamAutomation, isPatchCable);
 
-	display.displayPopup(HAVE_OLED ? "Automation pasted" : "PASTE");
+	display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_AUTOMATION_PASTED));
 	if (playbackHandler.isEitherClockActive()) {
 		currentPlaybackMode->reversionDone(); // Re-gets automation and stuff
 	}
@@ -1123,14 +1124,14 @@ ramError:
 getOut:
 	recalculateColours();
 	uiNeedsRendering(this);
-	display.displayPopup(HAVE_OLED ? "Notes pasted" : "PASTE");
+	display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_NOTES_PASTED));
 }
 
 void InstrumentClipView::doubleClipLengthAction() {
 
 	// If too big...
 	if (currentSong->currentClip->loopLength > (kMaxSequenceLength >> 1)) {
-		display.displayPopup(HAVE_OLED ? "Maximum length reached" : "CANT");
+		display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_MAXIMUM_LENGTH_REACHED));
 		return;
 	}
 
@@ -1318,7 +1319,7 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 			}
 		}
 		if (numRandomized > 0) {
-			display.displayPopup(HAVE_OLED ? "Randomized" : "RND");
+			display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_RANDOMIZED));
 			return ActionResult::DEALT_WITH;
 		}
 	}
@@ -1995,10 +1996,10 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
 		char const* displayString;
 		if (velocityValue == 255) {
 			if (velocityChange >= 0) {
-				displayString = HAVE_OLED ? "Velocity increased" : "MORE";
+				displayString = deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_VELOCITY_INCREASED);
 			}
 			else {
-				displayString = HAVE_OLED ? "Velocity decreased" : "LESS";
+				displayString = deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_VELOCITY_DECREASED);
 			}
 
 			// Don't bother trying to think of some smart way to update lastVelocityInteractedWith. It'll get updated when user releases last press.
@@ -4227,10 +4228,10 @@ void InstrumentClipView::quantizeNotes(int32_t offset, int32_t nudgeMode) {
 	if (!offset) {
 		quantizeAmount = 0;
 		if (nudgeMode == NUDGEMODE_QUANTIZE) {
-			display.displayPopup(HAVE_OLED ? "QUANTIZE" : "QTZ");
+			display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_QUANTIZE));
 		}
 		else if (nudgeMode == NUDGEMODE_QUANTIZE_ALL) {
-			display.displayPopup(HAVE_OLED ? "QUANTIZE ALL ROW" : "QTZA");
+			display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_QUANTIZE_ALL_ROW));
 		}
 		return;
 	}

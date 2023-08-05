@@ -17,7 +17,7 @@
 
 #include "gui/context_menu/sample_browser/synth.h"
 #include "definitions_cxx.hpp"
-#include "gui/l10n.h"
+#include "gui/l10n/l10n.hpp"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.hpp"

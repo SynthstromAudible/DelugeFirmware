@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/context_menu/delete_file.h"
+#include "gui/l10n/l10n.hpp"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
@@ -33,8 +34,8 @@
 #include "storage/file_item.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
+#include <cstring>
 #include <new>
-#include <string.h>
 
 using namespace deluge;
 
@@ -714,7 +715,7 @@ noNumberYet:
 					goto tryAgain;
 				}
 				numberStartPos = endSearchString.getLength() + 1;
-				error = endSearchString.concatenate(HAVE_OLED ? " :" : "_:");
+				error = endSearchString.concatenate(display.type == DisplayType::OLED ? " :" : "_:");
 				if (error) {
 					goto gotErrorAfterAllocating; // See above comment.
 				}
@@ -1471,7 +1472,8 @@ ActionResult Browser::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 			FileItem* currentFileItem = getCurrentFileItem();
 			if (currentFileItem) {
 				if (currentFileItem->isFolder) {
-					display.displayPopup(HAVE_OLED ? "Folders cannot be deleted on the Deluge" : "CANT");
+					display.displayPopup(
+					    deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_FOLDERS_CANNOT_BE_DELETED_ON_THE_DELUGE));
 					return ActionResult::DEALT_WITH;
 				}
 				if (inCardRoutine) {

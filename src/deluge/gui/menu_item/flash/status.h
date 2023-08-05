@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "gui/l10n.h"
+#include "gui/l10n/l10n.hpp"
 #include "gui/menu_item/selection/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/led/pad_leds.h"
@@ -36,7 +36,7 @@ public:
 		using enum l10n::Strings;
 		return {
 		    l10n::get(STRING_FOR_FAST),
-		    l10n::get(STRING_FOR_OFF),
+		    l10n::get(STRING_FOR_DISABLED),
 		    l10n::get(STRING_FOR_SLOW),
 		};
 	}

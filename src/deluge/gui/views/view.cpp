@@ -21,6 +21,7 @@
 #include "extern.h"
 #include "gui/colour.h"
 #include "gui/context_menu/clear_song.h"
+#include "gui/l10n/l10n.hpp"
 #include "gui/menu_item/colour.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
@@ -237,7 +238,7 @@ doEndMidiLearnPressSession:
 
 					if ((int32_t)(AudioEngine::audioSampleTimer - timeSaveButtonPressed) < kShortPressTime) {
 						if (currentSong->hasAnyPendingNextOverdubs()) {
-							display.displayPopup(HAVE_OLED ? "Can't save while overdubs pending" : "CANT");
+							display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CANT_SAVE_WHILE_OVERDUBS_PENDING));
 						}
 						else {
 							openUI(&saveSongUI);
@@ -309,7 +310,7 @@ doEndMidiLearnPressSession:
 
 			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
 cant:
-				display.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
+				display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 				return ActionResult::DEALT_WITH;
 			}
 
@@ -403,7 +404,7 @@ possiblyRevert:
 		if (on && currentUIMode == UI_MODE_NONE) {
 
 			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-				display.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
+				display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 				return ActionResult::DEALT_WITH;
 			}
 
@@ -926,7 +927,7 @@ void View::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 			if (modelStackWithParam && modelStackWithParam->autoParam) {
 				Action* action = actionLogger.getNewAction(ACTION_AUTOMATION_DELETE, false);
 				modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam);
-				display.displayPopup(HAVE_OLED ? "Automation deleted" : "DELETED");
+				display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_AUTOMATION_DELETED));
 			}
 
 			return;
@@ -1416,7 +1417,7 @@ void View::navigateThroughAudioOutputsForAudioClip(int32_t offset, AudioClip* cl
 	currentSong->canOldOutputBeReplaced(clip, &availabilityRequirement);
 
 	if (availabilityRequirement == Availability::INSTRUMENT_UNUSED) {
-		display.displayPopup(HAVE_OLED ? "Clip has instances in arranger" : "CANT");
+		display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CLIP_HAS_INSTANCES_IN_ARRANGER));
 		return;
 	}
 
@@ -1488,7 +1489,7 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 				newChannel = (newChannel + offset) & (NUM_CV_CHANNELS - 1);
 
 				if (newChannel == oldNonAudioInstrument->channel) {
-					display.displayPopup(HAVE_OLED ? "No unused channels" : "CANT");
+					display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_NO_UNUSED_CHANNELS));
 					return;
 				}
 
@@ -1548,7 +1549,7 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 				if (newChannel == oldChannel
 				    && newChannelSuffix == ((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix) {
 					oldNonAudioInstrument->channel = oldChannel; // Put it back
-					display.displayPopup(HAVE_OLED ? "No unused channels" : "CANT");
+					display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_NO_UNUSED_CHANNELS));
 					return;
 				}
 

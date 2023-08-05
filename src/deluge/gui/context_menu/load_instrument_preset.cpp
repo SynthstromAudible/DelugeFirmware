@@ -16,7 +16,7 @@
 */
 
 #include "gui/context_menu/load_instrument_preset.h"
-#include "gui/l10n.h"
+#include "gui/l10n/l10n.hpp"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "hid/display/display.hpp"
 

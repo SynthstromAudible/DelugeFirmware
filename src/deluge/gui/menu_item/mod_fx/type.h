@@ -16,7 +16,7 @@
 */
 #pragma once
 #include "definitions_cxx.hpp"
-#include "gui/l10n.h"
+#include "gui/l10n/l10n.hpp"
 #include "gui/menu_item/selection/typed_selection.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/numeric_driver.h"
@@ -39,7 +39,7 @@ public:
 	static_vector<std::string, capacity()> getOptions() override {
 		using enum l10n::Strings;
 		return {
-		    l10n::get(STRING_FOR_OFF),           //<
+		    l10n::get(STRING_FOR_DISABLED),           //<
 		    l10n::get(STRING_FOR_FLANGER),       //<
 		    l10n::get(STRING_FOR_CHORUS),        //<
 		    l10n::get(STRING_FOR_PHASER),        //<

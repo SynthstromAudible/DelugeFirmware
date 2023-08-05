@@ -16,7 +16,7 @@
 */
 
 #include "sync_level.h"
-#include "gui/l10n.h"
+#include "gui/l10n/l10n.hpp"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.hpp"
 #include "model/song/song.h"

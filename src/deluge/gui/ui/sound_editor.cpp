@@ -291,7 +291,7 @@ ActionResult SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutin
 		if (on) {
 			if (!currentUIMode) {
 				if (!getCurrentMenuItem()->allowsLearnMode()) {
-					display.displayPopup(HAVE_OLED ? "Can't learn" : "CANT");
+					display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CANT_LEARN));
 				}
 				else {
 					if (Buttons::isShiftButtonPressed()) {
@@ -713,7 +713,7 @@ doSetup:
 				if (item) {
 
 					if (item == comingSoonMenu) {
-						display.displayPopup(HAVE_OLED ? "Feature not (yet?) implemented" : "SOON");
+						display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_UNIMPLEMENTED));
 						return ActionResult::DEALT_WITH;
 					}
 
@@ -984,7 +984,7 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 				// Otherwise, do nothing
 				else {
 					if (item == &sequenceDirectionMenu) {
-						display.displayPopup(HAVE_OLED ? "Select a row or affect-entire" : "CANT");
+						display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_SELECT_A_ROW_OR_AFFECT_ENTIRE));
 					}
 					return false;
 				}
@@ -1060,7 +1060,7 @@ doMIDIOrCV:
 	MenuPermission result = newItem->checkPermissionToBeginSession(newSound, sourceIndex, &newRange);
 
 	if (result == MenuPermission::NO) {
-		display.displayPopup(HAVE_OLED ? "Parameter not applicable" : "CANT");
+		display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_PARAMETER_NOT_APPLICABLE));
 		return false;
 	}
 	else if (result == MenuPermission::MUST_SELECT_RANGE) {

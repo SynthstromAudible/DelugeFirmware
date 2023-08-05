@@ -19,6 +19,7 @@
 #include "extern.h"
 #include "gui/context_menu/overwrite_file.h"
 #include "gui/context_menu/save_song_or_instrument.h"
+#include "gui/l10n/l10n.hpp"
 #include "gui/ui/audio_recorder.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
@@ -115,7 +116,7 @@ bool SaveSongUI::performSave(bool mayOverwrite) {
 	}
 
 	if (currentSong->hasAnyPendingNextOverdubs()) {
-		display.displayPopup(HAVE_OLED ? "Can't save while overdubs pending" : "CANT");
+		display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_OVERDUBS_PENDING));
 		return false;
 	}
 
@@ -455,8 +456,8 @@ cardError:
 	}
 
 	display.removeWorkingAnimation();
-	char const* message = anyErrorMovingTempFiles ? (HAVE_OLED ? "Song saved, but error moving temp files" : "TEMP")
-	                                              : (HAVE_OLED ? "Song saved" : "DONE");
+	char const* message = anyErrorMovingTempFiles ? (deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_ERROR_MOVING_TEMP_FILES))
+	                                              : (deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_SONG_SAVED));
 	// Update all of these
 	currentSong->name.set(&enteredText);
 	currentSong->dirPath.set(&currentDir);

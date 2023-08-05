@@ -114,7 +114,7 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 				if (isAutomated()) {
 					Action* action = actionLogger.getNewAction(ACTION_AUTOMATION_DELETE, false);
 					deleteAutomation(action, modelStack);
-					display.displayPopup(HAVE_OLED ? "Parameter automation deleted" : "ExistenceChangeType::DELETE");
+					display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_PARAMETER_AUTOMATION_DELETED));
 				}
 				return;
 			}

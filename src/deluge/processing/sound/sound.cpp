@@ -3970,11 +3970,11 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 
 			if (compressor.syncLevel == (SyncLevel)(7 - insideWorldTickMagnitude)) {
 				compressor.syncLevel = (SyncLevel)(9 - insideWorldTickMagnitude);
-				display.displayPopup(HAVE_OLED ? "Fast sidechain compressor" : "FAST");
+				display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_FAST_SIDECHAIN_COMPRESSOR));
 			}
 			else {
 				compressor.syncLevel = (SyncLevel)(7 - insideWorldTickMagnitude);
-				display.displayPopup(HAVE_OLED ? "Slow sidechain compressor" : "SLOW");
+				display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_SLOW_SIDECHAIN_COMPRESSOR));
 			}
 			return true;
 		}

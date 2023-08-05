@@ -15,8 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "gui/l10n.h"
-#include "gui/l10n/strings.h"
+#include "gui/l10n/l10n.hpp"
 #include "gui/menu_item/selection/selection.h"
 #include "gui/ui/sound_editor.h"
 

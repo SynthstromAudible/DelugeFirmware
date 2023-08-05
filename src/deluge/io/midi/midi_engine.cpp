@@ -18,6 +18,7 @@
 #include "io/midi/midi_engine.h"
 #include "RZA1/mtu/mtu.h"
 #include "definitions_cxx.hpp"
+#include "gui/l10n/l10n.hpp"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.hpp"
 #include "hid/hid_sysex.h"
@@ -784,7 +785,7 @@ void MidiEngine::midiSysexReceived(MIDIDevice* device, uint8_t* data, int32_t le
 		} break;
 
 		case 1:
-			display.displayPopup(HAVE_OLED ? "hello sysex" : "SYSX");
+			display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_HELLO_SYSEX));
 			break;
 
 		case 2:

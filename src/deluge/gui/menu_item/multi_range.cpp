@@ -16,7 +16,7 @@
 */
 
 #include "multi_range.h"
-#include "gui/l10n.h"
+#include "gui/l10n/l10n.hpp"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/instrument_clip_view.h"

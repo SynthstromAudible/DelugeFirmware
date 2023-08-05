@@ -194,7 +194,7 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
 					forceResetPlayPos(currentSong);
 				}
 				else {
-					display.displayPopup(HAVE_OLED ? "Following external clock" : "CANT");
+					display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_FOLLOWING_EXTERNAL_CLOCK));
 				}
 			}
 		}
@@ -1809,7 +1809,7 @@ void PlaybackHandler::tempoEncoderAction(int8_t offset, bool encoderButtonPresse
 					numOutputClocksWaitingToBeSent--; // Send one less clock
 				}
 displayNudge:
-				display.displayPopup(HAVE_OLED ? "Sync nudged" : "NUDGE");
+				display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_SYNC_NUDGED));
 			}
 		}
 
@@ -2219,7 +2219,7 @@ void PlaybackHandler::grabTempoFromClip(Clip* clip) {
 
 	if (clip->type != CLIP_TYPE_AUDIO || clip->getCurrentlyRecordingLinearly()
 	    || !((AudioClip*)clip)->sampleHolder.audioFile) {
-		display.displayPopup(HAVE_OLED ? "Can't grab tempo from clip" : "CANT");
+		display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CANT_GRAB_TEMPO_FROM_CLIP));
 		return;
 	}
 
@@ -2934,11 +2934,11 @@ doCreateNextOverdub:
 					}
 				}
 				else {
-					display.displayPopup(HAVE_OLED ? "Audio track has no input channel" : "CANT");
+					display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_AUDIO_TRACK_HAS_NO_INPUT_CHANNEL));
 				}
 			}
 			else {
-				display.displayPopup(HAVE_OLED ? "Create overdub from which clip?" : "WHICH");
+				display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CREATE_OVERDUB_FROM_WHICH_CLIP));
 			}
 		}
 	}

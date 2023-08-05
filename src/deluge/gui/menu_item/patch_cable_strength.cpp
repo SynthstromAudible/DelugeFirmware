@@ -16,7 +16,7 @@
 */
 
 #include "patch_cable_strength.h"
-#include "gui/l10n.h"
+#include "gui/l10n/l10n.hpp"
 #include "gui/menu_item/menu_item.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"

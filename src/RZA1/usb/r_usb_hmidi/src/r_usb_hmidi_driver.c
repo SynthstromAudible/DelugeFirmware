@@ -39,7 +39,8 @@
 #include "definitions.h"
 
 #include "deluge/drivers/uart/uart.h"
-#include "hid/display/display.h"
+#include "deluge/hid/display/display.h"
+#include "deluge/gui/l10n/l10n.h"
 
 /******************************************************************************
  Exported global variables
@@ -592,7 +593,7 @@ uint16_t usb_hmidi_pipe_info(usb_utr_t* ptr, uint8_t* table, uint16_t speed, uin
 
                     // If still here, we didn't find a pipe
                     uartPrintln("no free pipe");
-                    consoleTextIfAllBootedUp(HAVE_OLED ? "Maximum number of USB devices already hosted" : "FULL");
+                    consoleTextIfAllBootedUp(l10n_get(STRING_FOR_MAXIMUM_NUMBER_OF_USB_DEVICES_ALREADY_HOSTED));
                     goto moveOnToNextDescriptor;
 
 pickedReceivePipe:

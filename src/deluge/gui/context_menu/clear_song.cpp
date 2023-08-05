@@ -17,8 +17,7 @@
 
 #include "gui/context_menu/clear_song.h"
 #include "extern.h"
-#include "gui/l10n.h"
-#include "gui/l10n/strings.h"
+#include "gui/l10n/l10n.hpp"
 #include "gui/views/view.h"
 #include "hid/display/display.hpp"
 #include "hid/led/indicator_leds.h"

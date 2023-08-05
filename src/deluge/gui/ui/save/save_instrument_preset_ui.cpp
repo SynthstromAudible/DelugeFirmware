@@ -18,6 +18,7 @@
 #include "gui/ui/save/save_instrument_preset_ui.h"
 #include "definitions_cxx.hpp"
 #include "gui/context_menu/overwrite_file.h"
+#include "gui/l10n/l10n.hpp"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
@@ -114,7 +115,7 @@ bool SaveInstrumentPresetUI::performSave(bool mayOverwrite) {
 		// We can't save into this slot if another Instrument in this Song already uses it
 		if (currentSong->getInstrumentFromPresetSlot(instrumentTypeToLoad, 0, 0, enteredText.get(), currentDir.get(),
 		                                             false)) {
-			display.displayPopup(HAVE_OLED ? "Another instrument in the song has the same name / number" : "CANT");
+			display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_SAME_NAME));
 			display.removeWorkingAnimation();
 			return false;
 		}
@@ -175,7 +176,7 @@ fail:
 
 	// There's now no chance that we saved over a preset that's already in use in the song, because we didn't allow the user to select such a slot
 
-	display.consoleText(HAVE_OLED ? "Preset saved" : "DONE");
+	display.consoleText(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_PRESET_SAVED));
 	close();
 	return true;
 }

@@ -17,8 +17,7 @@
 
 #include "gui/context_menu/delete_file.h"
 #include "gui/context_menu/save_song_or_instrument.h"
-#include "gui/l10n.h"
-#include "gui/l10n/strings.h"
+#include "gui/l10n/l10n.hpp"
 #include "gui/ui/browser/browser.h"
 #include "hid/display/display.hpp"
 #include "hid/matrix/matrix_driver.h"

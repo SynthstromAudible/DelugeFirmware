@@ -102,7 +102,7 @@ void ArrangerView::moveClipToSession() {
 
 	// Empty ClipInstance - can't do
 	if (!clip) {
-		display.displayPopup(HAVE_OLED ? "Empty clip instances can't be moved to the session" : "EMPTY");
+		display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_EMPTY_CLIP_INSTANCES_CANT_BE_MOVED_TO_THE_SESSION));
 	}
 
 	else {
@@ -366,7 +366,7 @@ cant:
 
 void ArrangerView::clearArrangement() {
 
-	display.displayPopup(HAVE_OLED ? "Arrangement cleared" : "CLEAR");
+	display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_ARRANGEMENT_CLEARED));
 
 	if (arrangement.hasPlaybackActive()) {
 		playbackHandler.endPlayback();
@@ -715,7 +715,7 @@ void ArrangerView::changeOutputToInstrument(InstrumentType newInstrumentType) {
 	}
 
 	if (currentSong->getClipWithOutput(oldOutput)) {
-		display.displayPopup(HAVE_OLED ? "Audio tracks with clips can't be turned into an instrument" : "CANT");
+		display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_AUDIO_TRACKS_WITH_CLIPS_CANT_BE_TURNED_INTO_AN_INSTRUMENT));
 		return;
 	}
 
@@ -910,7 +910,7 @@ ActionResult ArrangerView::padAction(int32_t x, int32_t y, int32_t velocity) {
 				}
 				else if (output->type == InstrumentType::KIT) {
 					if (velocity) {
-						display.displayPopup(HAVE_OLED ? "MIDI must be learned to kit items individually" : "CANT");
+						display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_MIDI_MUST_BE_LEARNED_TO_KIT_ITEMS_INDIVIDUALLY));
 					}
 				}
 				else {
@@ -2381,7 +2381,7 @@ void ArrangerView::navigateThroughPresets(int32_t offset) {
 
 				if (newChannel == oldChannel) {
 cantDoIt:
-					display.displayPopup(HAVE_OLED ? "No free channel slots available in song" : "CANT");
+					display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_NO_FREE_CHANNEL_SLOTS_AVAILABLE_IN_SONG));
 					return;
 				}
 
@@ -2520,7 +2520,7 @@ void ArrangerView::changeOutputToAudio() {
 
 	if (oldOutput->clipInstances.getNumElements()) {
 cant:
-		display.displayPopup(HAVE_OLED ? "Instruments with clips can't be turned into audio tracks" : "CANT");
+		display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_INSTRUMENTS_WITH_CLIPS_CANT_BE_TURNED_INTO_AUDIO_TRACKS));
 		return;
 	}
 

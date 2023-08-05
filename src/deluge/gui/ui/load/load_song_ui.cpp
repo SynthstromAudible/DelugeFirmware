@@ -18,6 +18,7 @@
 #include "gui/ui/load/load_song_ui.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
+#include "gui/l10n/l10n.hpp"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -320,7 +321,7 @@ gotErrorAfterCreatingSong:
 	bool success = storageManager.closeFile();
 
 	if (!success) {
-		display.displayPopup(HAVE_OLED ? "Error loading song" : "ERROR");
+		display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_ERROR_LOADING_SONG));
 		goto fail;
 	}
 
@@ -495,7 +496,7 @@ void LoadSongUI::scrollFinished() {
 }
 
 void LoadSongUI::exitActionWithError() {
-	display.displayPopup(HAVE_OLED ? "SD card error" : "CARD");
+	display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_SD_CARD_ERROR));
 	exitAction();
 }
 
@@ -672,7 +673,7 @@ void LoadSongUI::exitAction() {
 
 	// If parts of the old song have been deleted, sorry, there's no way we can exit without loading a new song
 	if (deletedPartsOfOldSong) {
-		display.displayPopup(HAVE_OLED ? "Can't return to current song, as parts have been unloaded" : "CANT");
+		display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_UNLOADED_PARTS));
 		return;
 	}
 

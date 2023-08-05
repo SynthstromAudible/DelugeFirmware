@@ -38,6 +38,7 @@
 
 #include "deluge/deluge.h"
 #include "hid/display/display.h"
+#include "gui/l10n/l10n.h"
 
 #if ((USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST)
 /***********************************************************************************************************************
@@ -935,7 +936,7 @@ static void usb_hhub_init_down_port(usb_utr_t* ptr, uint16_t hubaddr, usb_clsinf
                 g_usb_shhub_init_seq[ptr->ip]  = USB_SEQ_1; /* Next Sequence */
                 g_usb_shhub_init_port[ptr->ip] = USB_HUB_P1;
                 usb_hhub_specified_path(mess);                                    /* Next Process Selector */
-                consoleTextIfAllBootedUp(HAVE_OLED ? "USB hub attached" : "HUB"); // By Rohan
+                consoleTextIfAllBootedUp(l10n_get(STRING_FOR_USB_HUB_ATTACHED)); // By Rohan
                 setTimeUSBInitializationEnds(44100 << 1);                         // No more popups for 2 seconds
 
                 break;
@@ -1481,7 +1482,7 @@ noPortConnection:
                             {
                                 usb_hhub_port_detach(ptr, hubaddr, g_usb_shhub_event_port[ptr->ip]);
                                 USB_PRINTF1(" Hubport disconnect address%d\n", devaddr);
-                                consoleTextIfAllBootedUp(HAVE_OLED ? "USB device detached" : "DETACH"); // By Rohan
+                                consoleTextIfAllBootedUp(l10n_get(STRING_FOR_USB_DEVICE_DETACHED)); // By Rohan
                                 g_usb_shhub_info_data[ptr->ip][devaddr].up_addr     = 0; /* Up-address clear */
                                 g_usb_shhub_info_data[ptr->ip][devaddr].up_port_num = 0; /* Up-port num clear */
                                 g_usb_shhub_info_data[ptr->ip][devaddr].port_num    = 0; /* Port number clear */
@@ -2833,7 +2834,7 @@ static void usb_hhub_new_connect(usb_utr_t* ptr, uint16_t hubaddr, uint16_t port
     else
     {
         USB_PRINTF0("### device count over !\n");
-        consoleTextIfAllBootedUp(HAVE_OLED ? "Maximum number of USB devices already hosted" : "FULL");
+        consoleTextIfAllBootedUp(l10n_get(STRING_FOR_MAXIMUM_NUMBER_OF_USB_DEVICES_ALREADY_HOSTED));
     }
 } /* End of function usb_hhub_new_connect() */
 

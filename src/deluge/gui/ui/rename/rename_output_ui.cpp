@@ -18,6 +18,7 @@
 #include "gui/ui/rename/rename_output_ui.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
+#include "gui/l10n/l10n.hpp"
 #include "gui/views/arranger_view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.hpp"
@@ -99,7 +100,7 @@ void RenameOutputUI::enterKeyPress() {
 	// If actually changing it...
 	if (!output->name.equalsCaseIrrespective(&enteredText)) {
 		if (currentSong->getAudioOutputFromName(&enteredText)) {
-			display.displayPopup(HAVE_OLED ? "Duplicate names" : "DUPLICATE");
+			display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_DUPLICATE_NAMES));
 			return;
 		}
 	}

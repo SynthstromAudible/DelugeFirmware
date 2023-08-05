@@ -241,7 +241,7 @@ ActionResult SessionView::buttonAction(hid::Button b, bool on, bool inCardRoutin
 
 			else if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
 				if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-					display.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
+					display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 					return ActionResult::DEALT_WITH;
 				}
 
@@ -278,7 +278,7 @@ moveAfterClipInstance:
 
 				// Make sure it won't be extending beyond numerical limit
 				if (proposedStartPos > kMaxSequenceLength - clip->loopLength) {
-					display.displayPopup(HAVE_OLED ? "Clip would breach max arrangement length" : "CANT");
+					display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CLIP_WOULD_BREACH_MAX_ARRANGEMENT_LENGTH));
 					return ActionResult::DEALT_WITH;
 				}
 
@@ -355,7 +355,7 @@ moveAfterClipInstance:
 		if (on) {
 
 			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-				display.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
+				display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 				performActionOnPadRelease = false;
 				return ActionResult::DEALT_WITH;
 			}
@@ -421,7 +421,7 @@ changeInstrumentType:
 			performActionOnPadRelease = false;
 
 			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-				display.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
+				display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 				return ActionResult::DEALT_WITH;
 			}
 
@@ -591,7 +591,7 @@ holdingRecord:
 							}
 
 							if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-								display.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
+								display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 								return ActionResult::DEALT_WITH;
 							}
 
@@ -634,7 +634,7 @@ holdingRecord:
 								}
 							}
 							else if (currentSong->anyClipsSoloing) {
-								display.displayPopup(HAVE_OLED ? "Can't create overdub while clips soloing" : "SOLO");
+								display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CANT_CREATE_OVERDUB_WHILE_CLIPS_SOLOING));
 							}
 						}
 					}
@@ -711,7 +711,7 @@ startHoldingDown:
 					if (selectedClipYDisplay != yDisplay && performActionOnPadRelease) {
 
 						if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-							display.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
+							display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 							return ActionResult::DEALT_WITH;
 						}
 
@@ -774,7 +774,7 @@ midiLearnMelodicInstrumentAction:
 
 					// Not allowed if recording arrangement
 					if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-						display.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
+						display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 						goto justEndClipPress;
 					}
 
@@ -916,7 +916,7 @@ void SessionView::sectionPadAction(uint8_t y, bool on) {
 
 				// Not allowed if recording arrangement
 				if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-					display.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
+					display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 					return;
 				}
 
@@ -1065,7 +1065,7 @@ void SessionView::selectEncoderAction(int8_t offset) {
 		performActionOnPadRelease = false;
 
 		if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-			display.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
+			display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 			return;
 		}
 
@@ -1175,7 +1175,7 @@ ActionResult SessionView::verticalScrollOneSquare(int32_t direction) {
 
 		// Not allowed if recording arrangement
 		if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-			display.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
+			display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 			return ActionResult::DEALT_WITH;
 		}
 
@@ -1428,7 +1428,7 @@ void SessionView::replaceAudioClipWithInstrumentClip(InstrumentType instrumentTy
 
 	AudioClip* audioClip = (AudioClip*)oldClip;
 	if (audioClip->sampleHolder.audioFile || audioClip->getCurrentlyRecordingLinearly()) {
-		display.displayPopup(HAVE_OLED ? "Clip not empty" : "CANT");
+		display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CLIP_NOT_EMPTY));
 		return;
 	}
 
@@ -1511,7 +1511,7 @@ void SessionView::replaceInstrumentClipWithAudioClip() {
 
 	InstrumentClip* instrumentClip = (InstrumentClip*)oldClip;
 	if (instrumentClip->containsAnyNotes() || instrumentClip->output->clipHasInstance(oldClip)) {
-		display.displayPopup(HAVE_OLED ? "Clip not empty" : "CANT");
+		display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CLIP_NOT_EMPTY));
 		return;
 	}
 
@@ -1549,7 +1549,7 @@ void SessionView::removeClip(uint8_t yDisplay) {
 
 	// If last session Clip left, just don't allow. Easiest
 	if (currentSong->sessionClips.getNumElements() == 1) {
-		display.displayPopup(HAVE_OLED ? "Can't remove final clip" : "LAST");
+		display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CANT_REMOVE_FINAL_CLIP));
 		return;
 	}
 
@@ -1724,7 +1724,7 @@ void SessionView::cloneClip(uint8_t yDisplayFrom, uint8_t yDisplayTo) {
 
 	// Just don't allow cloning of Clips which are linearly recording
 	if (clipToClone->getCurrentlyRecordingLinearly()) {
-		display.displayPopup(HAVE_OLED ? "Recording in progress" : "CANT");
+		display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_RECORDING_IN_PROGRESS));
 		return;
 	}
 

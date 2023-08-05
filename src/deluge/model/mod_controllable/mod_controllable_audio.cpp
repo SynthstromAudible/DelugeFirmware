@@ -1669,7 +1669,7 @@ void ModControllableAudio::switchDelayAnalog() {
 		break;
 
 	default:
-		displayText = HAVE_OLED ? "Analog delay" : "ANA";
+		displayText = deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_ANALOG_DELAY);
 		break;
 	}
 	display.displayPopup(displayText);

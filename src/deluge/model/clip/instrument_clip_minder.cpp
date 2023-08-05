@@ -17,6 +17,7 @@
 
 #include "model/clip/instrument_clip_minder.h"
 #include "definitions_cxx.hpp"
+#include "gui/l10n/l10n.hpp"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
@@ -93,7 +94,7 @@ void InstrumentClipMinder::selectEncoderAction(int32_t offset) {
 				newCC = instrument->moveAutomationToDifferentCC(offset, editingMIDICCForWhichModKnob,
 				                                                instrument->modKnobMode, modelStackWithThreeMainThings);
 				if (newCC == -1) {
-					display.displayPopup(HAVE_OLED ? "No further unused MIDI params" : "FULL");
+					display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_NO_FURTHER_UNUSED_MIDI_PARAMS));
 					return;
 				}
 			}
@@ -125,13 +126,13 @@ void InstrumentClipMinder::drawMIDIControlNumber(int32_t controlNumber, bool aut
 	char buffer[HAVE_OLED ? 30 : 5];
 	bool finish = false;
 	if (controlNumber == CC_NUMBER_NONE) {
-		strcpy(buffer, HAVE_OLED ? "No param" : "NONE");
+		strcpy(buffer, deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_NO_PARAM));
 	}
 	else if (controlNumber == CC_NUMBER_PITCH_BEND) {
-		strcpy(buffer, HAVE_OLED ? "Pitch bend" : "BEND");
+		strcpy(buffer, deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_PITCH_BEND));
 	}
 	else if (controlNumber == CC_NUMBER_AFTERTOUCH) {
-		strcpy(buffer, HAVE_OLED ? "Channel pressure" : "AFTE");
+		strcpy(buffer, deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CHANNEL_PRESSURE));
 	}
 	else {
 		buffer[0] = 'C';
@@ -179,7 +180,7 @@ gotError:
 	}
 
 	if (newName.isEmpty()) {
-		display.displayPopup(HAVE_OLED ? "No further unused instrument numbers" : "FULL");
+		display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_NO_FURTHER_UNUSED_INSTRUMENT_NUMBERS));
 		return;
 	}
 
@@ -379,7 +380,7 @@ yesLoadInstrument:
 			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, currentSong->currentClip);
 
 			getCurrentClip()->clear(action, modelStack);
-			display.displayPopup(HAVE_OLED ? "Clip cleared" : "CLEAR");
+			display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CLIP_CLEARED));
 			if (getCurrentUI() == &instrumentClipView) {
 				uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
 			}
@@ -468,7 +469,7 @@ void InstrumentClipMinder::drawActualNoteCode(int16_t noteCode) {
 void InstrumentClipMinder::cycleThroughScales() {
 	int32_t newScale = currentSong->cycleThroughScales();
 	if (newScale >= NUM_PRESET_SCALES) {
-		display.displayPopup(HAVE_OLED ? "Custom scale with more than 7 notes in use" : "CANT");
+		display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES_IN_USE));
 	}
 	else {
 		displayScaleName(newScale);
@@ -477,7 +478,7 @@ void InstrumentClipMinder::cycleThroughScales() {
 
 void InstrumentClipMinder::displayScaleName(int32_t scale) {
 	if (scale >= NUM_PRESET_SCALES) {
-		display.displayPopup(HAVE_OLED ? "Other scale" : "OTHER");
+		display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_OTHER_SCALE));
 	}
 	else {
 		display.displayPopup(presetScaleNames[scale]);

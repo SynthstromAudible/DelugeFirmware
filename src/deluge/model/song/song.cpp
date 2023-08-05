@@ -4400,7 +4400,7 @@ Instrument* Song::changeInstrumentType(Instrument* oldInstrument, InstrumentType
 
 			// If we've searched all channels...
 			if (newSlot == oldSlot) {
-				display.displayPopup(HAVE_OLED ? "No available channels" : "CANT");
+				display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_NO_AVAILABLE_CHANNELS));
 				return NULL;
 			}
 		}
@@ -4708,7 +4708,7 @@ Instrument* Song::getNonAudioInstrumentToSwitchTo(InstrumentType newInstrumentTy
 
 		// If we've searched all channels...
 		if (newSlot == oldSlot) {
-			display.displayPopup(HAVE_OLED ? "No unused channels available" : "CANT");
+			display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_NO_UNUSED_CHANNELS_AVAILABLE));
 			return NULL;
 		}
 	}

@@ -18,8 +18,7 @@
 #include "gui/context_menu/audio_input_selector.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
-#include "gui/l10n.h"
-#include "gui/l10n/strings.h"
+#include "gui/l10n/l10n.hpp"
 #include "gui/ui/root_ui.h"
 #include "hid/display/display.hpp"
 #include "hid/led/indicator_leds.h"
@@ -61,7 +60,7 @@ char const* AudioInputSelector::getTitle() {
 Sized<const char**> AudioInputSelector::getOptions() {
 	using enum l10n::Strings;
 	static const char* options[] = {
-	    l10n::get(STRING_FOR_OFF),
+	    l10n::get(STRING_FOR_DISABLED),
 	    l10n::get(STRING_FOR_LEFT_INPUT),
 	    l10n::get(STRING_FOR_LEFT_INPUT_MONITORING),
 	    l10n::get(STRING_FOR_RIGHT_INPUT),

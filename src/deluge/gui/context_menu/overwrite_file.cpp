@@ -16,8 +16,7 @@
 */
 
 #include "gui/context_menu/overwrite_file.h"
-#include "gui/l10n.h"
-#include "gui/l10n/strings.h"
+#include "gui/l10n/l10n.hpp"
 #include "gui/ui/save/save_ui.h"
 #include "hid/display/display.hpp"
 
