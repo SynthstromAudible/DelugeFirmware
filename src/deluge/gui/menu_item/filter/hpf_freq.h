@@ -26,7 +26,7 @@ public:
 	using patched_param::IntegerNonFM::IntegerNonFM;
 #if !HAVE_OLED
 	void drawValue() override {
-		if (this->value_ == 0
+		if (this->getValue() == 0
 		    && !soundEditor.currentParamManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(
 		        ::Param::Local::HPF_FREQ)) {
 			numericDriver.setText("OFF");
