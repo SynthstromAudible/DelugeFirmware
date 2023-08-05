@@ -1568,7 +1568,8 @@ doSilentAudition:
 
 			if (isKit) {
 				instrumentClipView.setSelectedDrum(drum);
-				goto getOut; // No need to redraw any squares, because instrumentClipView.setSelectedDrum() has done it
+				uiNeedsRendering(this); // need to redraw automation grid squares cause selected drum may have changed
+				goto getOut;
 			}
 		}
 
