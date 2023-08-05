@@ -218,19 +218,19 @@ submenu::Envelope env1Menu{HAVE_OLED ? "Envelope 2" : "ENV2", envMenuItems, 1};
 // Osc menu -------------------------------------------------------------------------------------------------------
 
 osc::Type oscTypeMenu{"TYPE", "Osc{} type"};
-osc::source::WaveIndex sourceWaveIndexMenu{"Wave-index", "Osc{} wave-ind.", Param::Local::OSC_A_WAVE_INDEX};
-osc::source::Volume sourceVolumeMenu{HAVE_OLED ? "Level" : "VOLUME", "Osc{} level", Param::Local::OSC_A_VOLUME};
-osc::source::Feedback sourceFeedbackMenu{"FEEDBACK", "Carrier{} feed.", Param::Local::CARRIER_0_FEEDBACK};
+osc::source::WaveIndex sourceWaveIndexMenu{"Wave-index", "Osc{} wave-ind.", ::Param::Local::OSC_A_WAVE_INDEX};
+osc::source::Volume sourceVolumeMenu{HAVE_OLED ? "Level" : "VOLUME", "Osc{} level", ::Param::Local::OSC_A_VOLUME};
+osc::source::Feedback sourceFeedbackMenu{"FEEDBACK", "Carrier{} feed.", ::Param::Local::CARRIER_0_FEEDBACK};
 osc::AudioRecorder audioRecorderMenu{"Record audio"};
 sample::Reverse sampleReverseMenu{"REVERSE", "Samp{} reverse"};
 sample::Repeat sampleRepeatMenu{HAVE_OLED ? "Repeat mode" : "MODE", "Samp{} repeat"};
 sample::Start sampleStartMenu{"Start-point"};
 sample::End sampleEndMenu{"End-point"};
-sample::Transpose sourceTransposeMenu{"TRANSPOSE", "Osc{} transpose", Param::Local::OSC_A_PITCH_ADJUST};
+sample::Transpose sourceTransposeMenu{"TRANSPOSE", "Osc{} transpose", ::Param::Local::OSC_A_PITCH_ADJUST};
 sample::PitchSpeed samplePitchSpeedMenu{HAVE_OLED ? "Pitch/speed" : "PISP"};
 sample::TimeStretch timeStretchMenu{"SPEED", "Samp{} speed"};
 sample::Interpolation interpolationMenu{"INTERPOLATION", "Samp{} interp."};
-osc::PulseWidth pulseWidthMenu{"PULSE WIDTH", "Osc{} p. width", Param::Local::OSC_A_PHASE_WIDTH};
+osc::PulseWidth pulseWidthMenu{"PULSE WIDTH", "Osc{} p. width", ::Param::Local::OSC_A_PHASE_WIDTH};
 osc::Sync oscSyncMenu{HAVE_OLED ? "Oscillator sync" : "SYNC"};
 osc::RetriggerPhase oscPhaseMenu{"Retrigger phase", "Osc{} r. phase", false};
 

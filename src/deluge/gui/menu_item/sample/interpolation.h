@@ -26,7 +26,7 @@
 namespace deluge::gui::menu_item::sample {
 class Interpolation final : public TypedSelection<InterpolationMode, kNumInterpolationModes>, public FormattedTitle {
 public:
-	Interpolation(const string& name, const string& title_format_str)
+	Interpolation(const std::string& name, const fmt::format_string<int32_t>& title_format_str)
 	    : TypedSelection(name), FormattedTitle(title_format_str) {}
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
@@ -35,7 +35,7 @@ public:
 
 	void writeCurrentValue() override { soundEditor.currentSampleControls->interpolationMode = this->value_; }
 
-	static_vector<string, capacity()> getOptions() override { return {"Linear", "Sinc"}; }
+	static_vector<std::string, capacity()> getOptions() override { return {"Linear", "Sinc"}; }
 
 	bool isRelevant(Sound* sound, int32_t whichThing) override {
 		if (sound == nullptr) {

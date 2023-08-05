@@ -27,7 +27,7 @@ public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->value_ = soundEditor.currentModControllable->delay.analog; }
 	void writeCurrentValue() override { soundEditor.currentModControllable->delay.analog = this->value_; }
-	static_vector<string, 2> getOptions() override { return {"Digital", HAVE_OLED ? "Analog" : "ANA"}; }
+	static_vector<std::string, 2> getOptions() override { return {"Digital", HAVE_OLED ? "Analog" : "ANA"}; }
 };
 
 } // namespace deluge::gui::menu_item::delay
