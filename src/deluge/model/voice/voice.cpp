@@ -933,7 +933,6 @@ skipAutoRelease : {}
 	    (paramFinalValues[Param::Local::HPF_RESONANCE]), // >> storageManager.devVarA) << storageManager.devVarA,
 	    doHPF, sound->lpfMode,
 	    sound->volumeNeutralValueForUnison << 1); // Level adjustment for unison now happens *before* the filter!
-	filterSets[1].copy_config(&filterSets[0]);
 
 	SynthMode synthMode = sound->getSynthMode();
 
@@ -1499,7 +1498,8 @@ skipUnisonPart : {}
 	if (!renderingDirectlyIntoSoundBuffer) {
 		if (didStereoTempBuffer) {
 			int32_t* const oscBufferEnd = oscBuffer + (numSamples << 1);
-
+			//copy config over to the right stereo filter
+			filterSets[1].copy_config(&filterSets[0]);
 			// Filters
 			filterSets[0].renderLong(oscBuffer, oscBufferEnd, numSamples, 2);
 			filterSets[1].renderLong(oscBuffer + 1, oscBufferEnd, numSamples, 2);
