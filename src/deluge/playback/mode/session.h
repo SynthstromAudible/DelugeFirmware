@@ -40,7 +40,7 @@ public:
 	void userWantsToUnsoloClip(Clip* clip, bool forceLateStart, int32_t buttonPressLatency);
 	void toggleClipStatus(Clip* clip, int32_t* clipIndex, bool doInstant, int32_t buttonPressLatency);
 	void soloClipAction(Clip* clip, int32_t buttonPressLatency);
-	void armSection(uint8_t section, int32_t buttonPressLatency);
+	void armSection(uint8_t section, int32_t buttonPressLatency, bool noCancellingIfEmpty = false);
 	void armingChanged();
 	void userWantsToArmClipsToStartOrSolo(uint8_t section, Clip* clip, bool stopAllOtherClips,
 	                                      bool forceLateStart = false, bool allowLateStart = true,

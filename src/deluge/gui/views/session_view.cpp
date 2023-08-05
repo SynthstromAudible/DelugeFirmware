@@ -3070,7 +3070,7 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 			// Arm section if immediately released
 			if (isUIModeActive(UI_MODE_HOLDING_SECTION_PAD)) {
 				if (!Buttons::isShiftButtonPressed() && performActionOnSectionPadRelease) {
-					session.armSection(sectionPressed, kInternalButtonPressLatency);
+					session.armSection(sectionPressed, kInternalButtonPressLatency, true);
 				}
 				exitUIMode(UI_MODE_HOLDING_SECTION_PAD);
 #if HAVE_OLED
