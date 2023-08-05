@@ -59,6 +59,6 @@ public:
 			bool arpNow = (current_value != ArpMode::OFF); // Uh.... this does nothing...
 		}
 	}
-	static_vector<string, capacity()> getOptions() override { return {"OFF", "UP", "DOWN", "BOTH", "Random"}; }
+	static_vector<std::string, capacity()> getOptions() override { return {"OFF", "UP", "DOWN", "BOTH", "Random"}; }
 };
 } // namespace deluge::gui::menu_item::arpeggiator

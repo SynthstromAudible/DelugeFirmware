@@ -31,6 +31,6 @@ public:
 		}
 		PadLEDs::flashCursor = this->getValue();
 	}
-	static_vector<string, capacity()> getOptions() override { return {"Fast", "Off", "Slow"}; }
+	static_vector<std::string, capacity()> getOptions() override { return {"Fast", "Off", "Slow"}; }
 };
 } // namespace deluge::gui::menu_item::flash

@@ -32,7 +32,7 @@
 
 /// Unknown Settings container
 struct UnknownSetting {
-	deluge::string name;
+	std::string name;
 	uint32_t value;
 };
 
@@ -41,8 +41,8 @@ RuntimeFeatureSettings runtimeFeatureSettings{};
 RuntimeFeatureSettings::RuntimeFeatureSettings() : unknownSettings(sizeof(UnknownSetting)) {
 }
 
-static void SetupOnOffSetting(RuntimeFeatureSetting& setting, const deluge::string& displayName,
-                              const deluge::string& xmlName, RuntimeFeatureStateToggle def) {
+static void SetupOnOffSetting(RuntimeFeatureSetting& setting, const std::string& displayName,
+                              const std::string& xmlName, RuntimeFeatureStateToggle def) {
 	setting.displayName = displayName;
 	setting.xmlName = xmlName;
 	setting.value = static_cast<uint32_t>(def);
@@ -139,7 +139,7 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 				}
 				void* address = unknownSettings.getElementAddress(idx);
 				auto* unknownSetting = new (address) UnknownSetting();
-				unknownSetting->name = deluge::string(currentName.get());
+				unknownSetting->name = std::string(currentName.get());
 				unknownSetting->value = currentValue;
 			}
 		}

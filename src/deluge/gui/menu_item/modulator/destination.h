@@ -25,7 +25,9 @@ public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(soundEditor.currentSound->modulator1ToModulator0); }
 	void writeCurrentValue() override { soundEditor.currentSound->modulator1ToModulator0 = this->getValue(); }
-	static_vector<string, capacity()> getOptions() override { return {"Carriers", HAVE_OLED ? "Modulator 1" : "MOD1"}; }
+	static_vector<std::string, capacity()> getOptions() override {
+		return {"Carriers", HAVE_OLED ? "Modulator 1" : "MOD1"};
+	}
 	bool isRelevant(Sound* sound, int32_t whichThing) override {
 		return (whichThing == 1 && sound->synthMode == SynthMode::FM);
 	}

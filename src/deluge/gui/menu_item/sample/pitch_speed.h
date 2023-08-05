@@ -54,6 +54,6 @@ public:
 		}
 	}
 
-	static_vector<string, capacity()> getOptions() override { return {"Linked", "Independent"}; }
+	static_vector<std::string, capacity()> getOptions() override { return {"Linked", "Independent"}; }
 };
 } // namespace deluge::gui::menu_item::sample

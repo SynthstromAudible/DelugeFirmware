@@ -2,8 +2,6 @@
 #include <fmt/core.h>
 #include <utility>
 
-#include "util/string.h"
-
 // Mixin for a formatted title
 class FormattedTitle {
 public:
@@ -15,5 +13,5 @@ public:
 
 private:
 	fmt::format_string<int32_t> format_str_;
-	deluge::string title_;
+	std::string title_;
 };

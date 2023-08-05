@@ -28,7 +28,7 @@ public:
 	void readCurrentValue() override { this->setValue(whichZone); }
 	void writeCurrentValue() override { whichZone = this->getValue(); }
 
-	static_vector<string, capacity()> getOptions() override {
+	static_vector<std::string, capacity()> getOptions() override {
 		return {
 		    HAVE_OLED ? "Lower zone" : "LOWE", //<
 		    HAVE_OLED ? "Upper zone" : "UPPE"  //<

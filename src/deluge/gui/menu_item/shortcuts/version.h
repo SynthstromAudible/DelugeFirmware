@@ -24,7 +24,7 @@ public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(soundEditor.shortcutsVersion); }
 	void writeCurrentValue() override { soundEditor.setShortcutsVersion(this->getValue()); }
-	static_vector<string, capacity()> getOptions() override {
+	static_vector<std::string, capacity()> getOptions() override {
 		return {
 		    HAVE_OLED ? "1.0" : "  1.0", //<
 		    HAVE_OLED ? "3.0" : "  3.0", //<

@@ -68,8 +68,8 @@ public:
 		}
 	}
 
-	static_vector<string, capacity()> getOptions() override {
-		static_vector<string, capacity()> sequenceDirectionOptions = {"FORWARD", "REVERSED", "PING-PONG"};
+	static_vector<std::string, capacity()> getOptions() override {
+		static_vector<std::string, capacity()> sequenceDirectionOptions = {"FORWARD", "REVERSED", "PING-PONG"};
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);

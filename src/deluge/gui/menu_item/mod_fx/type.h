@@ -35,7 +35,7 @@ public:
 		}
 	}
 
-	static_vector<string, capacity()> getOptions() override {
+	static_vector<std::string, capacity()> getOptions() override {
 		return {"OFF", "FLANGER", "CHORUS", "PHASER", "STEREO CHORUS"};
 	}
 };

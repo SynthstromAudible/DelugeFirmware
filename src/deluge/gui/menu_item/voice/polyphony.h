@@ -55,8 +55,8 @@ public:
 		}
 	}
 
-	static_vector<string, capacity()> getOptions() override {
-		static_vector<string, capacity()> options = {"Auto", "Polyphonic", "Monophonic", "Legato"};
+	static_vector<std::string, capacity()> getOptions() override {
+		static_vector<std::string, capacity()> options = {"Auto", "Polyphonic", "Monophonic", "Legato"};
 
 		if (soundEditor.editingKit()) {
 			options.push_back("Choke");

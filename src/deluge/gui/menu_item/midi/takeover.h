@@ -27,6 +27,6 @@ public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(midiEngine.midiTakeover); }
 	void writeCurrentValue() override { midiEngine.midiTakeover = this->getValue<MIDITakeoverMode>(); }
-	static_vector<string, capacity()> getOptions() override { return {"Jump", "Pickup", "Scale"}; }
+	static_vector<std::string, capacity()> getOptions() override { return {"Jump", "Pickup", "Scale"}; }
 };
 } // namespace deluge::gui::menu_item::midi

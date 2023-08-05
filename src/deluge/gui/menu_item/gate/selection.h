@@ -54,7 +54,7 @@ public:
 		return &gateModeMenu;
 	}
 
-	static_vector<string, capacity()> getOptions() override {
+	static_vector<std::string, capacity()> getOptions() override {
 #if HAVE_OLED
 
 		return {"Gate output 1", "Gate output 2", "Gate output 3", "Gate output 4", "Minimum off-time"};
