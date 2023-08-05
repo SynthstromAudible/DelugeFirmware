@@ -159,17 +159,17 @@
 #include "processing/sound/sound.h"
 
 using namespace deluge;
-using namespace deluge::gui;
-using namespace deluge::gui::menu_item;
+using namespace gui;
+using namespace gui::menu_item;
 
 // Dev vars
-dev_var::AMenu devVarAMenu{HAVE_OLED ? "Dev Menu A" : "DEVA"};
-dev_var::BMenu devVarBMenu{HAVE_OLED ? "Dev Menu B" : "DEVB"};
-dev_var::CMenu devVarCMenu{HAVE_OLED ? "Dev Menu C" : "DEVC"};
-dev_var::DMenu devVarDMenu{HAVE_OLED ? "Dev Menu D" : "DEVD"};
-dev_var::EMenu devVarEMenu{HAVE_OLED ? "Dev Menu E" : "DEVE"};
-dev_var::FMenu devVarFMenu{HAVE_OLED ? "Dev Menu F" : "DEVF"};
-dev_var::GMenu devVarGMenu{HAVE_OLED ? "Dev Menu G" : "DEVG"};
+dev_var::AMenu devVarAMenu{l10n::get(l10n::Strings::STRING_FOR_DEV_MENU_A)};
+dev_var::BMenu devVarBMenu{l10n::get(l10n::Strings::STRING_FOR_DEV_MENU_B)};
+dev_var::CMenu devVarCMenu{l10n::get(l10n::Strings::STRING_FOR_DEV_MENU_C)};
+dev_var::DMenu devVarDMenu{l10n::get(l10n::Strings::STRING_FOR_DEV_MENU_D)};
+dev_var::EMenu devVarEMenu{l10n::get(l10n::Strings::STRING_FOR_DEV_MENU_E)};
+dev_var::FMenu devVarFMenu{l10n::get(l10n::Strings::STRING_FOR_DEV_MENU_F)};
+dev_var::GMenu devVarGMenu{l10n::get(l10n::Strings::STRING_FOR_DEV_MENU_G)};
 
 // LPF menu ----------------------------------------------------------------------------------------------------
 
@@ -212,26 +212,26 @@ MenuItem* envMenuItems[] = {
     &envSustainMenu,
     &envReleaseMenu,
 };
-submenu::Envelope env0Menu{HAVE_OLED ? "Envelope 1" : "ENV1", envMenuItems, 0};
-submenu::Envelope env1Menu{HAVE_OLED ? "Envelope 2" : "ENV2", envMenuItems, 1};
+submenu::Envelope env0Menu{l10n::get(l10n::Strings::STRING_FOR_ENVELOPE_1), envMenuItems, 0};
+submenu::Envelope env1Menu{l10n::get(l10n::Strings::STRING_FOR_ENVELOPE_2), envMenuItems, 1};
 
 // Osc menu -------------------------------------------------------------------------------------------------------
 
 osc::Type oscTypeMenu{"TYPE", "Osc{} type"};
 osc::source::WaveIndex sourceWaveIndexMenu{"Wave-index", "Osc{} wave-ind.", ::Param::Local::OSC_A_WAVE_INDEX};
-osc::source::Volume sourceVolumeMenu{HAVE_OLED ? "Level" : "VOLUME", "Osc{} level", ::Param::Local::OSC_A_VOLUME};
+osc::source::Volume sourceVolumeMenu{l10n::get(l10n::Strings::STRING_FOR_VOLUME_LEVEL), "Osc{} level", ::Param::Local::OSC_A_VOLUME};
 osc::source::Feedback sourceFeedbackMenu{"FEEDBACK", "Carrier{} feed.", ::Param::Local::CARRIER_0_FEEDBACK};
 osc::AudioRecorder audioRecorderMenu{"Record audio"};
 sample::Reverse sampleReverseMenu{"REVERSE", "Samp{} reverse"};
-sample::Repeat sampleRepeatMenu{HAVE_OLED ? "Repeat mode" : "MODE", "Samp{} repeat"};
+sample::Repeat sampleRepeatMenu{l10n::get(l10n::Strings::STRING_FOR_REPEAT_MODE), "Samp{} repeat"};
 sample::Start sampleStartMenu{"Start-point"};
 sample::End sampleEndMenu{"End-point"};
 sample::Transpose sourceTransposeMenu{"TRANSPOSE", "Osc{} transpose", ::Param::Local::OSC_A_PITCH_ADJUST};
-sample::PitchSpeed samplePitchSpeedMenu{HAVE_OLED ? "Pitch/speed" : "PISP"};
+sample::PitchSpeed samplePitchSpeedMenu{l10n::get(l10n::Strings::STRING_FOR_PITCH_SPEED)};
 sample::TimeStretch timeStretchMenu{"SPEED", "Samp{} speed"};
 sample::Interpolation interpolationMenu{"INTERPOLATION", "Samp{} interp."};
 osc::PulseWidth pulseWidthMenu{"PULSE WIDTH", "Osc{} p. width", ::Param::Local::OSC_A_PHASE_WIDTH};
-osc::Sync oscSyncMenu{HAVE_OLED ? "Oscillator sync" : "SYNC"};
+osc::Sync oscSyncMenu{l10n::get(l10n::Strings::STRING_FOR_OSCILLATOR_SYNC)};
 osc::RetriggerPhase oscPhaseMenu{"Retrigger phase", "Osc{} r. phase", false};
 
 MenuItem* oscMenuItems[] = {
@@ -241,14 +241,14 @@ MenuItem* oscMenuItems[] = {
     &oscSyncMenu,         &oscPhaseMenu,
 };
 
-submenu::ActualSource source0Menu{HAVE_OLED ? "Oscillator 1" : "OSC1", oscMenuItems, 0};
-submenu::ActualSource source1Menu{HAVE_OLED ? "Oscillator 2" : "OSC2", oscMenuItems, 1};
+submenu::ActualSource source0Menu{l10n::get(l10n::Strings::STRING_FOR_OSCILLATOR_1), oscMenuItems, 0};
+submenu::ActualSource source1Menu{l10n::get(l10n::Strings::STRING_FOR_OSCILLATOR_2), oscMenuItems, 1};
 
 // Unison --------------------------------------------------------------------------------------
 
-unison::Count numUnisonMenu{HAVE_OLED ? "Unison number" : "NUM"};
-unison::Detune unisonDetuneMenu{HAVE_OLED ? "Unison detune" : "DETUNE"};
-unison::StereoSpread unison::stereoSpreadMenu{HAVE_OLED ? "Unison stereo spread" : "SPREAD"};
+unison::Count numUnisonMenu{l10n::get(l10n::Strings::STRING_FOR_UNISON_NUMBER)};
+unison::Detune unisonDetuneMenu{l10n::get(l10n::Strings::STRING_FOR_UNISON_DETUNE)};
+unison::StereoSpread unison::stereoSpreadMenu{l10n::get(l10n::Strings::STRING_FOR_UNISON_STEREO_SPREAD)};
 
 Submenu unisonMenu{
     "UNISON",
@@ -262,7 +262,7 @@ Submenu unisonMenu{
 // Arp --------------------------------------------------------------------------------------
 arpeggiator::Mode arpModeMenu{"MODE", "Arp. mode"};
 arpeggiator::Sync arpSyncMenu{"SYNC", "Arp. sync"};
-arpeggiator::Octaves arpOctavesMenu{HAVE_OLED ? "Number of octaves" : "OCTAVES", "Arp. octaves"};
+arpeggiator::Octaves arpOctavesMenu{l10n::get(l10n::Strings::STRING_FOR_NUMBER_OF_OCTAVES), "Arp. octaves"};
 arpeggiator::Gate arpGateMenu{"GATE", "Arp. gate", ::Param::Unpatched::Sound::ARP_GATE};
 arpeggiator::midi_cv::Gate arpGateMenuMIDIOrCV{"GATE", "Arp. gate"};
 arpeggiator::Rate arpRateMenu{"RATE", "Arp. rate", ::Param::Global::ARP_RATE};
@@ -292,7 +292,7 @@ Submenu voiceMenu{"VOICE", {&polyphonyMenu, &unisonMenu, &portaMenu, &arpMenu, &
 // Modulator menu -----------------------------------------------------------------------
 
 modulator::Transpose modulatorTransposeMenu{"Transpose", "FM Mod{} tran.", ::Param::Local::MODULATOR_0_PITCH_ADJUST};
-source::patched_param::FM modulatorVolume{HAVE_OLED ? "Level" : "AMOUNT", "FM Mod{} level",
+source::patched_param::FM modulatorVolume{l10n::get(l10n::Strings::STRING_FOR_AMOUNT_LEVEL), "FM Mod{} level",
                                           ::Param::Local::MODULATOR_0_VOLUME};
 source::patched_param::FM modulatorFeedbackMenu{"FEEDBACK", "FM Mod{} f.back", ::Param::Local::MODULATOR_0_FEEDBACK};
 modulator::Destination modulatorDestMenu{"Destination", "FM Mod2 dest."};
@@ -300,14 +300,14 @@ osc::RetriggerPhase modulatorPhaseMenu{"Retrigger phase", "FM Mod{} retrig", tru
 
 // LFO1 menu ---------------------------------------------------------------------------------
 
-lfo::global::Type lfo1TypeMenu{HAVE_OLED ? "SHAPE" : "TYPE", "LFO1 type"};
+lfo::global::Type lfo1TypeMenu{l10n::get(l10n::Strings::STRING_FOR_SHAPE), "LFO1 type"};
 lfo::global::Rate lfo1RateMenu{"RATE", "LFO1 rate", ::Param::Global::LFO_FREQ};
 lfo::global::Sync lfo1SyncMenu{"SYNC", "LFO1 sync"};
 
 Submenu lfo0Menu{"LFO1", {&lfo1TypeMenu, &lfo1RateMenu, &lfo1SyncMenu}};
 
 // LFO2 menu ---------------------------------------------------------------------------------
-lfo::local::Type lfo2TypeMenu{HAVE_OLED ? "SHAPE" : "TYPE", "LFO2 type"};
+lfo::local::Type lfo2TypeMenu{l10n::get(l10n::Strings::STRING_FOR_SHAPE), "LFO2 type"};
 patched_param::Integer lfo2RateMenu{"RATE", "LFO2 rate", ::Param::Local::LFO_LOCAL_FREQ};
 
 Submenu lfo1Menu{"LFO2", {&lfo2TypeMenu, &lfo2RateMenu}};
@@ -320,7 +320,7 @@ mod_fx::Depth modFXDepthMenu{"DEPTH", "MODFX depth", ::Param::Global::MOD_FX_DEP
 mod_fx::Offset modFXOffsetMenu{"OFFSET", "MODFX offset", ::Param::Unpatched::MOD_FX_OFFSET};
 
 Submenu modFXMenu{
-    HAVE_OLED ? "Mod-fx" : "MODU",
+    l10n::get(l10n::Strings::STRING_FOR_MOD_FX),
     {
         &modFXTypeMenu,
         &modFXRateMenu,
@@ -333,8 +333,8 @@ Submenu modFXMenu{
 // EQ -------------------------------------------------------------------------------------
 UnpatchedParam bassMenu{"BASS", ::Param::Unpatched::BASS};
 UnpatchedParam trebleMenu{"TREBLE", ::Param::Unpatched::TREBLE};
-UnpatchedParam bassFreqMenu{HAVE_OLED ? "Bass frequency" : "BAFR", ::Param::Unpatched::BASS_FREQ};
-UnpatchedParam trebleFreqMenu{HAVE_OLED ? "Treble frequency" : "TRFR", ::Param::Unpatched::TREBLE_FREQ};
+UnpatchedParam bassFreqMenu{l10n::get(l10n::Strings::STRING_FOR_BASS_FREQUENCY), ::Param::Unpatched::BASS_FREQ};
+UnpatchedParam trebleFreqMenu{l10n::get(l10n::Strings::STRING_FOR_TREBLE_FREQUENCY), ::Param::Unpatched::TREBLE_FREQ};
 
 Submenu eqMenu{
     "EQ",
@@ -367,7 +367,7 @@ Submenu delayMenu{
 // Bend Ranges -------------------------------------------------------------------------------
 
 bend_range::Main mainBendRangeMenu{"Normal"};
-bend_range::PerFinger perFingerBendRangeMenu{HAVE_OLED ? "Poly / finger / MPE" : "MPE"};
+bend_range::PerFinger perFingerBendRangeMenu{l10n::get(l10n::Strings::STRING_FOR_POLY_FINGER_MPE)};
 
 submenu::Bend bendMenu{
     "Bend range",
@@ -405,7 +405,7 @@ submenu::Compressor compressorMenu{
 };
 
 submenu::Compressor reverbCompressorMenu{
-    HAVE_OLED ? "Reverb sidechain" : "SIDE",
+    l10n::get(l10n::Strings::STRING_FOR_REVERB_SIDECHAIN),
     "Reverb sidech.",
     {
         &reverbCompressorVolumeMenu,
@@ -419,7 +419,7 @@ submenu::Compressor reverbCompressorMenu{
 
 // Reverb ----------------------------------------------------------------------------------
 patched_param::Integer reverbAmountMenu{"AMOUNT", "Reverb amount", ::Param::Global::REVERB_AMOUNT};
-reverb::RoomSize reverbRoomSizeMenu{HAVE_OLED ? "Room size" : "SIZE"};
+reverb::RoomSize reverbRoomSizeMenu{l10n::get(l10n::Strings::STRING_FOR_ROOM_SIZE)};
 reverb::Dampening reverbDampeningMenu{"DAMPENING"};
 reverb::Width reverbWidthMenu{"WIDTH", "Reverb width"};
 reverb::Pan reverbPanMenu{"PAN", "Reverb pan"};
@@ -440,7 +440,7 @@ Submenu reverbMenu{
 
 fx::Clipping clippingMenu{"SATURATION"};
 UnpatchedParam srrMenu{"DECIMATION", ::Param::Unpatched::SAMPLE_RATE_REDUCTION};
-UnpatchedParam bitcrushMenu{HAVE_OLED ? "Bitcrush" : "CRUSH", ::Param::Unpatched::BITCRUSHING};
+UnpatchedParam bitcrushMenu{l10n::get(l10n::Strings::STRING_FOR_BITCRUSH), ::Param::Unpatched::BITCRUSHING};
 
 Submenu fxMenu{
     "FX",
@@ -458,12 +458,12 @@ Submenu fxMenu{
 // MIDIInstrument menu ----------------------------------------------------------------------
 
 midi::Bank midiBankMenu{"BANK", "MIDI bank"};
-midi::Sub midiSubMenu{HAVE_OLED ? "Sub-bank" : "SUB", "MIDI sub-bank"};
+midi::Sub midiSubMenu{l10n::get(l10n::Strings::STRING_FOR_SUB_BANK), "MIDI sub-bank"};
 midi::PGM midiPGMMenu{"PGM", "MIDI PGM numb."};
 
 // Clip-level stuff --------------------------------------------------------------------------
 
-sequence::Direction sequenceDirectionMenu{HAVE_OLED ? "Play direction" : "DIRECTION"};
+sequence::Direction sequenceDirectionMenu{l10n::get(l10n::Strings::STRING_FOR_PLAY_DIRECTION)};
 
 // AudioClip stuff ---------------------------------------------------------------------------
 
@@ -514,7 +514,7 @@ UnpatchedParam audioClipModFXRateMenu{"RATE", "MOD FX rate", ::Param::Unpatched:
 UnpatchedParam audioClipModFXDepthMenu{"DEPTH", "MOD FX depth", ::Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH};
 
 Submenu audioClipModFXMenu{
-    HAVE_OLED ? "Mod-fx" : "MODU",
+    l10n::get(l10n::Strings::STRING_FOR_MOD_FX),
     {
         &audioClipModFXTypeMenu,
         &audioClipModFXRateMenu,
@@ -588,7 +588,7 @@ Submenu audioClipFXMenu{
     },
 };
 
-UnpatchedParam audioClipLevelMenu{HAVE_OLED ? "Level" : "VOLUME", ::Param::Unpatched::GlobalEffectable::VOLUME};
+UnpatchedParam audioClipLevelMenu{l10n::get(l10n::Strings::STRING_FOR_VOLUME_LEVEL), ::Param::Unpatched::GlobalEffectable::VOLUME};
 unpatched_param::Pan audioClipPanMenu{"PAN", ::Param::Unpatched::GlobalEffectable::PAN};
 
 const MenuItem* midiOrCVParamShortcuts[8] = {
@@ -610,11 +610,11 @@ Submenu<2> cvSubmenu{"", {&cvVoltsMenu, &cvTransposeMenu}};
 cv::Selection cvSelectionMenu{"CV", "CV outputs"};
 gate::Selection gateSelectionMenu{"GATE", "Gate outputs"};
 
-swing::Interval swingIntervalMenu{HAVE_OLED ? "Swing interval" : "SWIN"};
+swing::Interval swingIntervalMenu{l10n::get(l10n::Strings::STRING_FOR_SWING_INTERVAL)};
 
 // Pads menu
-shortcuts::Version shortcutsVersionMenu{HAVE_OLED ? "Shortcuts version" : "SHOR", "Shortcuts ver."};
-menu_item::keyboard::Layout keyboardLayoutMenu{HAVE_OLED ? "Keyboard for text" : "KEYB", "Key layout"};
+shortcuts::Version shortcutsVersionMenu{l10n::get(l10n::Strings::STRING_FOR_SHORTCUTS_VERSION), "Shortcuts ver."};
+menu_item::keyboard::Layout keyboardLayoutMenu{l10n::get(l10n::Strings::STRING_FOR_KEYBOARD_FOR_TEXT), "Key layout"};
 
 // Colours submenu
 Submenu coloursSubmenu{
@@ -638,9 +638,9 @@ Submenu padsSubmenu{
 
 // Record submenu
 record::Quantize recordQuantizeMenu{"Quantization"};
-record::Margins recordMarginsMenu{HAVE_OLED ? "Loop margins" : "MARGINS"};
+record::Margins recordMarginsMenu{l10n::get(l10n::Strings::STRING_FOR_LOOP_MARGINS)};
 record::CountIn recordCountInMenu{"Count-in", "Rec count-in"};
-monitor::Mode monitorModeMenu{HAVE_OLED ? "Sampling monitoring" : "MONITORING", "Monitoring"};
+monitor::Mode monitorModeMenu{l10n::get(l10n::Strings::STRING_FOR_SAMPLING_MONITORING), "Monitoring"};
 
 Submenu recordSubmenu{
     "Recording",
@@ -652,27 +652,27 @@ Submenu recordSubmenu{
     },
 };
 
-sample::browser_preview::Mode sampleBrowserPreviewModeMenu{HAVE_OLED ? "Sample preview" : "PREV"};
+sample::browser_preview::Mode sampleBrowserPreviewModeMenu{l10n::get(l10n::Strings::STRING_FOR_SAMPLE_PREVIEW)};
 
-flash::Status flashStatusMenu{HAVE_OLED ? "Play-cursor" : "CURS"};
+flash::Status flashStatusMenu{l10n::get(l10n::Strings::STRING_FOR_PLAY_CURSOR)};
 
-firmware::Version firmwareVersionMenu{HAVE_OLED ? "Firmware version" : "VER.", "Firmware ver."};
+firmware::Version firmwareVersionMenu{l10n::get(l10n::Strings::STRING_FOR_FIRMWARE_VERSION), "Firmware ver."};
 
-runtime_feature::Settings runtimeFeatureSettingsMenu{HAVE_OLED ? "Community fts." : "FEAT", "Community fts."};
+runtime_feature::Settings runtimeFeatureSettingsMenu{l10n::get(l10n::Strings::STRING_FOR_COMMUNITY_FTS), "Community fts."};
 
 // CV menu
 
 // MIDI
 // MIDI thru
-midi::Thru midiThruMenu{HAVE_OLED ? "MIDI-thru" : "THRU"};
+midi::Thru midiThruMenu{l10n::get(l10n::Strings::STRING_FOR_MIDI_THRU)};
 
 // MIDI Takeover
-midi::Takeover midiTakeoverMenu{HAVE_OLED ? "TAKEOVER" : "TOVR"};
+midi::Takeover midiTakeoverMenu{l10n::get(l10n::Strings::STRING_FOR_TAKEOVER)};
 
 // MIDI commands submenu
 midi::Command playbackRestartMidiCommand{"Restart", GlobalMIDICommand::PLAYBACK_RESTART};
 midi::Command playMidiCommand{"PLAY", GlobalMIDICommand::PLAY};
-midi::Command recordMidiCommand{HAVE_OLED ? "Record" : "REC", GlobalMIDICommand::RECORD};
+midi::Command recordMidiCommand{l10n::get(l10n::Strings::STRING_FOR_RECORD), GlobalMIDICommand::RECORD};
 midi::Command tapMidiCommand{"Tap tempo", GlobalMIDICommand::TAP};
 midi::Command undoMidiCommand{"UNDO", GlobalMIDICommand::UNDO};
 midi::Command redoMidiCommand{"REDO", GlobalMIDICommand::REDO};
@@ -680,7 +680,7 @@ midi::Command loopMidiCommand{"LOOP", GlobalMIDICommand::LOOP};
 midi::Command loopContinuousLayeringMidiCommand{"LAYERING loop", GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING};
 
 Submenu midiCommandsMenu{
-    HAVE_OLED ? "Commands" : "CMD",
+    l10n::get(l10n::Strings::STRING_FOR_COMMANDS),
     "MIDI commands",
     {
         &playMidiCommand,
@@ -709,9 +709,9 @@ Submenu midiDeviceMenu{
 midi::InputDifferentiation midiInputDifferentiationMenu{"Differentiate inputs"};
 
 // MIDI clock menu
-midi::ClockOutStatus midiClockOutStatusMenu{HAVE_OLED ? "Output" : "OUT", "MIDI clock out"};
-midi::ClockInStatus midiClockInStatusMenu{HAVE_OLED ? "Input" : "IN", "MIDI clock in"};
-tempo::MagnitudeMatching tempoMagnitudeMatchingMenu{HAVE_OLED ? "Tempo magnitude matching" : "MAGN", "Tempo m. match"};
+midi::ClockOutStatus midiClockOutStatusMenu{l10n::get(l10n::Strings::STRING_FOR_OUTPUT), "MIDI clock out"};
+midi::ClockInStatus midiClockInStatusMenu{l10n::get(l10n::Strings::STRING_FOR_INPUT), "MIDI clock in"};
+tempo::MagnitudeMatching tempoMagnitudeMatchingMenu{l10n::get(l10n::Strings::STRING_FOR_TEMPO_MAGNITUDE_MATCHING), "Tempo m. match"};
 
 //Midi devices menu
 midi::Devices midi::devicesMenu{"Devices", "MIDI devices"};
@@ -744,7 +744,7 @@ Submenu midiMenu{
 trigger::in::PPQN triggerInPPQNMenu{"PPQN", "Input PPQN"};
 trigger::in::AutoStart triggerInAutoStartMenu{"Auto-start"};
 Submenu triggerClockInMenu{
-    HAVE_OLED ? "Input" : "IN",
+    l10n::get(l10n::Strings::STRING_FOR_INPUT),
     "T. clock input",
     {
         &triggerInPPQNMenu,
@@ -755,7 +755,7 @@ Submenu triggerClockInMenu{
 // Trigger clock out menu
 trigger::out::PPQN triggerOutPPQNMenu{"PPQN", "Output PPQN"};
 Submenu triggerClockOutMenu{
-    HAVE_OLED ? "Output" : "OUT",
+    l10n::get(l10n::Strings::STRING_FOR_OUTPUT),
     "T. clock out",
     {
         &triggerOutPPQNMenu,
@@ -764,7 +764,7 @@ Submenu triggerClockOutMenu{
 
 // Trigger clock menu
 Submenu triggerClockMenu{
-    HAVE_OLED ? "Trigger clock" : "TCLOCK",
+    l10n::get(l10n::Strings::STRING_FOR_TRIGGER_CLOCK),
     {
         &triggerClockInMenu,
         &triggerClockOutMenu,
@@ -800,13 +800,13 @@ MenuItem* modulatorMenuItems[] = {
     &modulatorVolume, &modulatorTransposeMenu, &modulatorFeedbackMenu, &modulatorDestMenu, &modulatorPhaseMenu,
 };
 
-submenu::Modulator modulator0Menu{HAVE_OLED ? "FM modulator 1" : "MOD1", modulatorMenuItems, 0};
-submenu::Modulator modulator1Menu{HAVE_OLED ? "FM modulator 2" : "MOD2", modulatorMenuItems, 1};
+submenu::Modulator modulator0Menu{l10n::get(l10n::Strings::STRING_FOR_FM_MODULATOR_1), modulatorMenuItems, 0};
+submenu::Modulator modulator1Menu{l10n::get(l10n::Strings::STRING_FOR_FM_MODULATOR_2), modulatorMenuItems, 1};
 
 // Not FM
-patched_param::IntegerNonFM noiseMenu{HAVE_OLED ? "Noise level" : "NOISE", ::Param::Local::NOISE_VOLUME};
+patched_param::IntegerNonFM noiseMenu{l10n::get(l10n::Strings::STRING_FOR_NOISE_LEVEL), ::Param::Local::NOISE_VOLUME};
 
-MasterTranspose masterTransposeMenu{HAVE_OLED ? "Master transpose" : "TRANSPOSE", "Master tran."};
+MasterTranspose masterTransposeMenu{l10n::get(l10n::Strings::STRING_FOR_MASTER_TRANSPOSE), "Master tran."};
 
 patch_cable_strength::Fixed vibratoMenu{"VIBRATO", ::Param::Local::PITCH_ADJUST, PatchSource::LFO_GLOBAL};
 
@@ -814,10 +814,10 @@ patch_cable_strength::Fixed vibratoMenu{"VIBRATO", ::Param::Local::PITCH_ADJUST,
 menu_item::DrumName drumNameMenu{"NAME"};
 
 // Synth only
-menu_item::SynthMode synthModeMenu{HAVE_OLED ? "Synth mode" : "MODE"};
+menu_item::SynthMode synthModeMenu{l10n::get(l10n::Strings::STRING_FOR_SYNTH_MODE)};
 
 bend_range::PerFinger drumBendRangeMenu{"Bend range"}; // The single option available for Drums
-patched_param::Integer volumeMenu{HAVE_OLED ? "Level" : "VOLUME", "Master level", ::Param::Global::VOLUME_POST_FX};
+patched_param::Integer volumeMenu{l10n::get(l10n::Strings::STRING_FOR_VOLUME_LEVEL), "Master level", ::Param::Global::VOLUME_POST_FX};
 patched_param::Pan panMenu{"PAN", ::Param::Local::PAN};
 
 menu_item::Submenu soundEditorRootMenu{

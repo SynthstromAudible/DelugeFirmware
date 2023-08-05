@@ -25,7 +25,7 @@
 
 namespace deluge::gui::menu_item::gate {
 
-class Mode final : public TypedSelection<GateType, 3>, FormattedTitle {
+class Mode final : public TypedSelection<GateType, 3>, public FormattedTitle {
 
 	static_vector<std::string, capacity()> options_ = {
 	    l10n::get(l10n::Strings::STRING_FOR_V_TRIGGER),
@@ -33,7 +33,8 @@ class Mode final : public TypedSelection<GateType, 3>, FormattedTitle {
 	};
 
 public:
-	Mode() : TypedSelection(), FormattedTitle(l10n::Strings::STRING_FOR_GATE_MODE_TITLE) {}
+	//Mode() : TypedSelection(), FormattedTitle(l10n::Strings::STRING_FOR_GATE_MODE_TITLE) {}
+	Mode() : TypedSelection(), FormattedTitle("Gate out{} mode") {}
 	void readCurrentValue() override { this->value_ = cvEngine.gateChannels[soundEditor.currentSourceIndex].mode; }
 	void writeCurrentValue() override { cvEngine.setGateType(soundEditor.currentSourceIndex, this->value_); }
 	static_vector<std::string, capacity()> getOptions() override { return options_; }

@@ -18,6 +18,7 @@
 // clang-format off
 
 #include "util/lookuptables/lookuptables.h"
+#include "gui/l10n/l10n.hpp"
 #include "util/functions.h"
 #include "definitions_cxx.hpp"
 
@@ -184,11 +185,10 @@ const int16_t tanHSmall[] = {
 
 std::array<char const*, 9> presetScaleNames = {"MAJOR", "MINOR", "DORIAN", "PHRYGIAN", "LYDIAN", "MIXOLYDIAN", "LOCRIAN", "RANDOM", "NONE"};
 
-const char* presetReverbNames[] = {
-	deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_SMALL_ROOM_REVERB), //<
-	deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_MEDIUM_ROOM_REVERB), //<
-	deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_LARGE_ROOM_REVERB), //<
-	nullptr
+deluge::l10n::Strings presetReverbNames[] = {
+	deluge::l10n::Strings::STRING_FOR_SMALL_ROOM_REVERB, //<
+	deluge::l10n::Strings::STRING_FOR_MEDIUM_ROOM_REVERB, //<
+	deluge::l10n::Strings::STRING_FOR_LARGE_ROOM_REVERB, //<
 };
 
 const int16_t tanH2d[][129] = {

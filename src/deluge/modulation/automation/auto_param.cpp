@@ -17,6 +17,7 @@
 
 #include "modulation/automation/auto_param.h"
 #include "definitions_cxx.hpp"
+#include "gui/l10n/l10n.hpp"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.hpp"
@@ -114,7 +115,8 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 				if (isAutomated()) {
 					Action* action = actionLogger.getNewAction(ACTION_AUTOMATION_DELETE, false);
 					deleteAutomation(action, modelStack);
-					display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_PARAMETER_AUTOMATION_DELETED));
+					display.displayPopup(
+					    deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_PARAMETER_AUTOMATION_DELETED));
 				}
 				return;
 			}

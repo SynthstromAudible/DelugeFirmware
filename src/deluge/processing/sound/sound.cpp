@@ -18,6 +18,7 @@
 #include "processing/sound/sound.h"
 #include "definitions_cxx.hpp"
 #include "dsp/filter/filter_set_config.h"
+#include "gui/l10n/l10n.hpp"
 #include "gui/ui/root_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/view.h"

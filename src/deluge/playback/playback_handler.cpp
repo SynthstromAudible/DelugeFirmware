@@ -23,6 +23,7 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/l10n/l10n.hpp"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"

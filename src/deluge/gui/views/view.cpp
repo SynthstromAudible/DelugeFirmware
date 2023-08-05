@@ -238,7 +238,8 @@ doEndMidiLearnPressSession:
 
 					if ((int32_t)(AudioEngine::audioSampleTimer - timeSaveButtonPressed) < kShortPressTime) {
 						if (currentSong->hasAnyPendingNextOverdubs()) {
-							display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CANT_SAVE_WHILE_OVERDUBS_PENDING));
+							display.displayPopup(
+							    deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CANT_SAVE_WHILE_OVERDUBS_PENDING));
 						}
 						else {
 							openUI(&saveSongUI);
@@ -1193,7 +1194,7 @@ void View::cycleThroughReverbPresets() {
 	AudioEngine::reverb.setroomsize((float)presetReverbRoomSize[newPreset] / 50);
 	AudioEngine::reverb.setdamp((float)presetReverbDampening[newPreset] / 50);
 
-	display.displayPopup(presetReverbNames[newPreset]);
+	display.displayPopup(deluge::l10n::get(presetReverbNames[newPreset]));
 }
 
 // If HAVE_OLED, must make sure OLED::sendMainImage() gets called after this.

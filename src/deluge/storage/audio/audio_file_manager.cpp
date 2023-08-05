@@ -18,6 +18,7 @@
 #include "storage/audio/audio_file_manager.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
+#include "gui/l10n/l10n.hpp"
 #include "hid/display/display.hpp"
 #include "io/debug/print.h"
 #include "io/midi/midi_device_manager.h"

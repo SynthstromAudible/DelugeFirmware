@@ -49,7 +49,7 @@ public:
 		soundEditor.currentSourceIndex = this->value_;
 
 		if (display.type == DisplayType::OLED) {
-			gate::mode_title[8] = '1' + this->value_;
+			gateModeMenu.format(this->value_);
 		}
 
 		gateModeMenu.updateOptions(this->value_);
