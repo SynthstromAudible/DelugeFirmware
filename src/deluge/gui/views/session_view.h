@@ -132,7 +132,6 @@ private:
 	                       uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 	bool gridRenderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
 	                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
-	void gridGraphicsRoutine();
 
 	ActionResult gridHandlePads(int32_t x, int32_t y, int32_t on);
 

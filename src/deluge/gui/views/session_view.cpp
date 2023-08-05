@@ -1903,13 +1903,16 @@ void SessionView::graphicsRoutine() {
 		}
 	}
 
-	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
-		gridGraphicsRoutine();
-		return;
-	}
-
 	uint8_t tickSquares[kDisplayHeight];
 	uint8_t colours[kDisplayHeight];
+
+	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+		// Nothing to do here but clear since we don't render playhead
+		memset(&tickSquares, 255, sizeof(tickSquares));
+		memset(&colours, 255, sizeof(colours));
+		PadLEDs::setTickSquares(tickSquares, colours);
+		return;
+	}
 
 	bool anyLinearRecordingOnThisScreen = false;
 	bool anyLinearRecordingOnNextScreen = false;
@@ -2747,75 +2750,6 @@ bool SessionView::gridRenderMainPads(uint32_t whichRows, uint8_t image[][kDispla
 	PadLEDs::renderingLock = false;
 
 	return true;
-}
-
-void SessionView::gridGraphicsRoutine() {
-//@TODO: Finish
-
-	// When do we need to set this?
-	//uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF); // Only do if somthing changed etc.
-
-
-	// What about
-	// case UI_MODE_ANIMATION_FADE:
-	// case UI_MODE_EXPLODE_ANIMATION:
-
-	uint8_t tickSquares[kDisplayHeight] = {0};
-	uint8_t colours[kDisplayHeight] = {0};
-
-	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-		int32_t newTickSquare;
-
-		Clip* clip = getClipOnScreen(yDisplay);
-
-		if (!playbackHandler.playbackState || !clip || !currentSong->isClipActive(clip)
-		    || playbackHandler.ticksLeftInCountIn || currentUIMode == UI_MODE_HORIZONTAL_ZOOM
-		    || (currentUIMode == UI_MODE_HORIZONTAL_SCROLL && PadLEDs::transitionTakingPlaceOnRow[yDisplay])) {
-			newTickSquare = 255;
-		}
-
-		int32_t localScroll =
-			getClipLocalScroll(clip, currentSong->xScroll[NAVIGATION_CLIP], currentSong->xZoom[NAVIGATION_CLIP]);
-		Clip* clipToRecordTo = clip->getClipToRecordTo();
-		int32_t livePos = clipToRecordTo->getLivePos();
-
-		// If we are recording to another Clip, we have to use its position.
-		if (clipToRecordTo != clip) {
-			int32_t whichRepeat = (uint32_t)livePos / (uint32_t)clip->loopLength;
-			livePos -= whichRepeat * clip->loopLength;
-
-			// But if it's currently reversing, we have to re-apply that here.
-			if (clip->sequenceDirectionMode == SequenceDirection::REVERSE
-				|| (clip->sequenceDirectionMode == SequenceDirection::PINGPONG && (whichRepeat & 1))) {
-				livePos = -livePos;
-				if (livePos < 0) {
-					livePos += clip->loopLength;
-				}
-			}
-		}
-
-		newTickSquare = getSquareFromPos(livePos, NULL, localScroll);
-
-		// Linearly recording
-		if (clip->getCurrentlyRecordingLinearly()) {
-			colours[yDisplay] = 2;
-		}
-
-		// Not linearly recording
-		else {
-			colours[yDisplay] = 0;
-		}
-
-		if (newTickSquare < 0 || newTickSquare >= kDisplayWidth) {
-			newTickSquare = 255;
-		}
-
-
-		tickSquares[yDisplay] = newTickSquare;
-	}
-
-
-	PadLEDs::setTickSquares(tickSquares, colours);
 }
 
 Clip* SessionView::gridCloneClip(Clip* sourceClip) {
