@@ -126,10 +126,14 @@ private:
 	bool sessionButtonActive = false;
 	bool sessionButtonUsed = false;
 
+	// Members for grid layout
+private:
 	bool gridRenderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
 	                       uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 	bool gridRenderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
 	                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
+	void gridGraphicsRoutine();
+
 	ActionResult gridHandlePads(int32_t x, int32_t y, int32_t on);
 
 	ActionResult gridHandleScroll(int32_t offsetX, int32_t offsetY);
@@ -155,6 +159,22 @@ private:
 			gridSecondPressedY = -1;
 		}
 	}
+
+	Clip* gridCloneClip(Clip* sourceClip);
+	Clip* gridCreateClipInTrack(Output* targetOutput);
+	Clip* gridCreateClipWithNewTrack(InstrumentType type);
+	Clip* gridCreateClip(uint32_t targetSection, Output* targetOutput = nullptr, Clip* sourceClip = nullptr);
+	void gridClonePad(uint32_t sourceX, uint32_t sourceY, uint32_t targetX, uint32_t targetY);
+
+	const uint32_t gridTrackCount();
+	uint32_t gridTrackIndexFromTrack(Output* track, uint32_t maxTrack);
+	Output* gridTrackFromIndex(uint32_t trackIndex, uint32_t maxTrack);
+	int32_t gridYFromSection(uint32_t section);
+	int32_t gridSectionFromY(uint32_t y);
+	int32_t gridXFromTrack(uint32_t trackIndex);
+	int32_t gridTrackIndexFromX(uint32_t x, uint32_t maxTrack);
+	Output* gridTrackFromX(uint32_t x, uint32_t maxTrack);
+	Clip* gridClipFromCoords(uint32_t x, uint32_t y);
 };
 
 extern SessionView sessionView;

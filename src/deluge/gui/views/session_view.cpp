@@ -85,123 +85,6 @@ extern char loopsRemainingText[];
 
 extern int8_t defaultAudioClipOverdubOutputCloning;
 
-// Track is used to describe a singular output for now
-inline const uint32_t gridTrackCount() {
-	uint32_t count = 0;
-	Output* currentTrack = currentSong->firstOutput;
-	while (currentTrack != nullptr) {
-		if (currentTrack->activeClip != nullptr) {
-			++count;
-		}
-		currentTrack = currentTrack->next;
-	}
-
-	return count;
-}
-
-inline uint32_t gridTrackIndexFromTrack(Output* track, uint32_t maxTrack = gridTrackCount()) {
-	if (maxTrack <= 0) {
-		return -1;
-	}
-
-	uint32_t reverseOutputIndex = 0;
-	for (Output* ptrOutput = currentSong->firstOutput; ptrOutput; ptrOutput = ptrOutput->next) {
-		if (ptrOutput == track) {
-			return ((maxTrack - 1) - reverseOutputIndex);
-		}
-		if (ptrOutput->activeClip != nullptr) {
-			++reverseOutputIndex;
-		}
-	}
-	return -1;
-}
-
-inline Output* gridTrackFromIndex(uint32_t trackIndex, uint32_t maxTrack = gridTrackCount()) {
-	uint32_t count = 0;
-	Output* currentTrack = currentSong->firstOutput;
-	while (currentTrack != nullptr) {
-		if (currentTrack->activeClip != nullptr) {
-			if (((maxTrack - 1) - count) == trackIndex) {
-				return currentTrack;
-			}
-
-			++count;
-		}
-		currentTrack = currentTrack->next;
-	}
-
-	return nullptr;
-}
-
-inline int32_t gridYFromSection(uint32_t section) {
-	int32_t result = (kGridHeight - 1) - section + currentSong->songGridScrollY;
-	if (result >= kGridHeight) {
-		return -1;
-	}
-
-	return result;
-}
-
-inline int32_t gridSectionFromY(uint32_t y) {
-	int32_t result = ((kGridHeight - 1) - y) + currentSong->songGridScrollY;
-	if (result >= kMaxNumSections) {
-		return -1;
-	}
-
-	return result;
-}
-
-inline int32_t gridXFromTrack(uint32_t trackIndex) {
-	int32_t result = trackIndex - currentSong->songGridScrollX;
-	if (result >= kDisplayWidth) {
-		return -1;
-	}
-
-	return result;
-}
-
-inline int32_t gridTrackIndexFromX(uint32_t x, uint32_t maxTrack = gridTrackCount()) {
-	if (maxTrack <= 0) {
-		return 0;
-	}
-	int32_t result = x + currentSong->songGridScrollX;
-	if (result >= maxTrack) {
-		return -1;
-	}
-
-	return result;
-}
-
-inline Output* gridTrackFromX(uint32_t x, uint32_t maxTrack = gridTrackCount()) {
-	auto trackIndex = gridTrackIndexFromX(x, maxTrack);
-	if (trackIndex < 0) {
-		return nullptr;
-	}
-
-	return gridTrackFromIndex(trackIndex, maxTrack);
-}
-
-inline Clip* gridClipFromCoords(uint32_t x, uint32_t y) {
-	Output* track = gridTrackFromX(x);
-	if (track == nullptr) {
-		return nullptr;
-	}
-
-	auto section = gridSectionFromY(y);
-	if (section == -1) {
-		return nullptr;
-	}
-
-	for (int32_t idxClip = 0; idxClip < currentSong->sessionClips.getNumElements(); ++idxClip) {
-		Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
-		if (clip->output == track && clip->section == section) {
-			return clip;
-		}
-	}
-
-	return nullptr;
-}
-
 SessionView::SessionView() {
 	xScrollBeforeFollowingAutoExtendingLinearRecording = -1;
 }
@@ -2001,21 +1884,6 @@ ramError:
 }
 
 void SessionView::graphicsRoutine() {
-	//@TODO: Implement correctly and find out why we have artifacts from playhead of other views
-	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
-		//uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF); // Only do if somthing changed etc.
-		// uint8_t tickSquares[kDisplayHeight] = { 0 };
-		// uint8_t colours[kDisplayHeight] = { 0 };
-		// PadLEDs::setTickSquares(tickSquares, colours);
-		return;
-	}
-
-	uint8_t tickSquares[kDisplayHeight];
-	uint8_t colours[kDisplayHeight];
-
-	bool anyLinearRecordingOnThisScreen = false;
-	bool anyLinearRecordingOnNextScreen = false;
-
 	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx) == RuntimeFeatureStateToggle::On) {
 		int32_t modKnobMode = -1;
 		if (view.activeModControllableModelStack.modControllable) {
@@ -2034,6 +1902,17 @@ void SessionView::graphicsRoutine() {
 			indicator_leds::setKnobIndicatorLevel(1, int32_t(gr / 12.0 * 128)); //Gain Reduction LED
 		}
 	}
+
+	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+		gridGraphicsRoutine();
+		return;
+	}
+
+	uint8_t tickSquares[kDisplayHeight];
+	uint8_t colours[kDisplayHeight];
+
+	bool anyLinearRecordingOnThisScreen = false;
+	bool anyLinearRecordingOnNextScreen = false;
 
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 		int32_t newTickSquare;
@@ -2870,7 +2749,76 @@ bool SessionView::gridRenderMainPads(uint32_t whichRows, uint8_t image[][kDispla
 	return true;
 }
 
-Clip* gridCloneClip(Clip* sourceClip) {
+void SessionView::gridGraphicsRoutine() {
+//@TODO: Finish
+
+	// When do we need to set this?
+	//uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF); // Only do if somthing changed etc.
+
+
+	// What about
+	// case UI_MODE_ANIMATION_FADE:
+	// case UI_MODE_EXPLODE_ANIMATION:
+
+	uint8_t tickSquares[kDisplayHeight] = {0};
+	uint8_t colours[kDisplayHeight] = {0};
+
+	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+		int32_t newTickSquare;
+
+		Clip* clip = getClipOnScreen(yDisplay);
+
+		if (!playbackHandler.playbackState || !clip || !currentSong->isClipActive(clip)
+		    || playbackHandler.ticksLeftInCountIn || currentUIMode == UI_MODE_HORIZONTAL_ZOOM
+		    || (currentUIMode == UI_MODE_HORIZONTAL_SCROLL && PadLEDs::transitionTakingPlaceOnRow[yDisplay])) {
+			newTickSquare = 255;
+		}
+
+		int32_t localScroll =
+			getClipLocalScroll(clip, currentSong->xScroll[NAVIGATION_CLIP], currentSong->xZoom[NAVIGATION_CLIP]);
+		Clip* clipToRecordTo = clip->getClipToRecordTo();
+		int32_t livePos = clipToRecordTo->getLivePos();
+
+		// If we are recording to another Clip, we have to use its position.
+		if (clipToRecordTo != clip) {
+			int32_t whichRepeat = (uint32_t)livePos / (uint32_t)clip->loopLength;
+			livePos -= whichRepeat * clip->loopLength;
+
+			// But if it's currently reversing, we have to re-apply that here.
+			if (clip->sequenceDirectionMode == SequenceDirection::REVERSE
+				|| (clip->sequenceDirectionMode == SequenceDirection::PINGPONG && (whichRepeat & 1))) {
+				livePos = -livePos;
+				if (livePos < 0) {
+					livePos += clip->loopLength;
+				}
+			}
+		}
+
+		newTickSquare = getSquareFromPos(livePos, NULL, localScroll);
+
+		// Linearly recording
+		if (clip->getCurrentlyRecordingLinearly()) {
+			colours[yDisplay] = 2;
+		}
+
+		// Not linearly recording
+		else {
+			colours[yDisplay] = 0;
+		}
+
+		if (newTickSquare < 0 || newTickSquare >= kDisplayWidth) {
+			newTickSquare = 255;
+		}
+
+
+		tickSquares[yDisplay] = newTickSquare;
+	}
+
+
+	PadLEDs::setTickSquares(tickSquares, colours);
+}
+
+Clip* SessionView::gridCloneClip(Clip* sourceClip) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack =
 	    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(sourceClip);
@@ -2884,7 +2832,7 @@ Clip* gridCloneClip(Clip* sourceClip) {
 	return (Clip*)modelStack->getTimelineCounter();
 }
 
-Clip* gridCreateClipInTrack(Output* targetOutput) {
+Clip* SessionView::gridCreateClipInTrack(Output* targetOutput) {
 	Clip* sourceClip = nullptr;
 	for (int32_t idxClip = 0; idxClip < currentSong->sessionClips.getNumElements(); ++idxClip) {
 		Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
@@ -2926,7 +2874,7 @@ Clip* gridCreateClipInTrack(Output* targetOutput) {
 	return newClip;
 }
 
-Clip* gridCreateClipWithNewTrack(InstrumentType type) {
+Clip* SessionView::gridCreateClipWithNewTrack(InstrumentType type) {
 	// Allocate new clip
 	void* memory = GeneralMemoryAllocator::get().alloc(sizeof(InstrumentClip), NULL, false, true);
 	if (!memory) {
@@ -2992,7 +2940,7 @@ Clip* gridCreateClipWithNewTrack(InstrumentType type) {
 	return newClip;
 }
 
-Clip* gridCreateClip(uint32_t targetSection, Output* targetOutput = nullptr, Clip* sourceClip = nullptr) {
+Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, Clip* sourceClip) {
 	actionLogger.deleteAllLogs();
 
 	Clip* newClip = nullptr;
@@ -3112,7 +3060,7 @@ Clip* gridCreateClip(uint32_t targetSection, Output* targetOutput = nullptr, Cli
 	return newClip;
 }
 
-void gridClonePad(uint32_t sourceX, uint32_t sourceY, uint32_t targetX, uint32_t targetY) {
+void SessionView::gridClonePad(uint32_t sourceX, uint32_t sourceY, uint32_t targetX, uint32_t targetY) {
 	Clip* sourceClip = gridClipFromCoords(sourceX, sourceY);
 	if (sourceClip == nullptr) {
 		return;
@@ -3130,7 +3078,7 @@ void gridClonePad(uint32_t sourceX, uint32_t sourceY, uint32_t targetX, uint32_t
 		return;
 	}
 
-	gridCreateClip(gridSectionFromY(targetY), gridTrackFromX(targetX), sourceClip);
+	gridCreateClip(gridSectionFromY(targetY), gridTrackFromX(targetX, gridTrackCount()), sourceClip);
 }
 
 ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
@@ -3186,7 +3134,7 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 	else {
 		// Learn MIDI for tracks
 		//@TODO: Currently still flashes after releasing on a non handled pad
-		Output* output = gridTrackFromX(x);
+		Output* output = gridTrackFromX(x, gridTrackCount());
 		if (output && currentUIMode == UI_MODE_MIDI_LEARN
 		    && (output->type == InstrumentType::SYNTH || output->type == InstrumentType::MIDI_OUT
 		        || output->type == InstrumentType::CV)) {
@@ -3320,4 +3268,121 @@ ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {
 
 	uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 	return ActionResult::DEALT_WITH;
+}
+
+const uint32_t SessionView::gridTrackCount() {
+	uint32_t count = 0;
+	Output* currentTrack = currentSong->firstOutput;
+	while (currentTrack != nullptr) {
+		if (currentTrack->activeClip != nullptr) {
+			++count;
+		}
+		currentTrack = currentTrack->next;
+	}
+
+	return count;
+}
+
+uint32_t SessionView::gridTrackIndexFromTrack(Output* track, uint32_t maxTrack) {
+	if (maxTrack <= 0) {
+		return -1;
+	}
+
+	uint32_t reverseOutputIndex = 0;
+	for (Output* ptrOutput = currentSong->firstOutput; ptrOutput; ptrOutput = ptrOutput->next) {
+		if (ptrOutput == track) {
+			return ((maxTrack - 1) - reverseOutputIndex);
+		}
+		if (ptrOutput->activeClip != nullptr) {
+			++reverseOutputIndex;
+		}
+	}
+	return -1;
+}
+
+Output* SessionView::gridTrackFromIndex(uint32_t trackIndex, uint32_t maxTrack) {
+	uint32_t count = 0;
+	Output* currentTrack = currentSong->firstOutput;
+	while (currentTrack != nullptr) {
+		if (currentTrack->activeClip != nullptr) {
+			if (((maxTrack - 1) - count) == trackIndex) {
+				return currentTrack;
+			}
+
+			++count;
+		}
+		currentTrack = currentTrack->next;
+	}
+
+	return nullptr;
+}
+
+int32_t SessionView::gridYFromSection(uint32_t section) {
+	int32_t result = (kGridHeight - 1) - section + currentSong->songGridScrollY;
+	if (result >= kGridHeight) {
+		return -1;
+	}
+
+	return result;
+}
+
+int32_t SessionView::gridSectionFromY(uint32_t y) {
+	int32_t result = ((kGridHeight - 1) - y) + currentSong->songGridScrollY;
+	if (result >= kMaxNumSections) {
+		return -1;
+	}
+
+	return result;
+}
+
+int32_t SessionView::gridXFromTrack(uint32_t trackIndex) {
+	int32_t result = trackIndex - currentSong->songGridScrollX;
+	if (result >= kDisplayWidth) {
+		return -1;
+	}
+
+	return result;
+}
+
+int32_t SessionView::gridTrackIndexFromX(uint32_t x, uint32_t maxTrack) {
+	if (maxTrack <= 0) {
+		return 0;
+	}
+	int32_t result = x + currentSong->songGridScrollX;
+	if (result >= maxTrack) {
+		return -1;
+	}
+
+	return result;
+}
+
+Output* SessionView::gridTrackFromX(uint32_t x, uint32_t maxTrack) {
+	auto trackIndex = gridTrackIndexFromX(x, maxTrack);
+	if (trackIndex < 0) {
+		return nullptr;
+	}
+
+	return gridTrackFromIndex(trackIndex, maxTrack);
+}
+
+Clip* SessionView::gridClipFromCoords(uint32_t x, uint32_t y) {
+	auto maxTrack = gridTrackCount();
+	Output* track = gridTrackFromX(x, maxTrack);
+	if (track == nullptr) {
+		return nullptr;
+	}
+
+	auto section = gridSectionFromY(y);
+	if (section == -1) {
+		return nullptr;
+	}
+
+	for (int32_t idxClip = 0; idxClip < currentSong->sessionClips.getNumElements(); ++idxClip) {
+		Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
+		if (clip->output == track && clip->section == section) {
+			return clip;
+		}
+	}
+
+	return nullptr;
 }
