@@ -18,33 +18,14 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "dsp/filter/filter.h"
 #include "dsp/filter/filter_set_config.h"
+#include "dsp/filter/svf.h"
 #include "util/functions.h"
 #include <cstdint>
 
 class Sound;
 class FilterSetConfig;
-
-struct SVF_outs {
-	q31_t lpf;
-	q31_t bpf;
-	q31_t hpf;
-	q31_t notch;
-};
-
-class SVFilter {
-public:
-	//input f is actually filter 'moveability', tan(f)/(1+tan(f)) and falls between 0 and 1. 1 represented by 2147483648
-	//resonance is 2147483647 - rawResonance2 Always between 0 and 2. 1 represented as 1073741824
-	SVF_outs doSVF(q31_t input, LPSVFConfig* filterSetConfig);
-	void reset() {
-		low = 0;
-		band = 0;
-	}
-
-	q31_t low;
-	q31_t band;
-};
 
 class BasicFilterComponent {
 public:
@@ -117,7 +98,6 @@ private:
 	q31_t doDriveLPFOnSample(q31_t input, int32_t extraSaturation = 0);
 	inline void renderLPLadder(q31_t* startSample, q31_t* endSample, LPFMode lpfMode, int32_t sampleIncrement,
 	                           int32_t extraSaturation, int32_t extraSaturationDrive);
-	inline void renderLPSVF(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement);
 	void renderLPFLong(q31_t* outputSample, q31_t* endSample, LPFMode lpfMode, int32_t sampleIncrement = 1,
 	                   int32_t extraSaturation = 0, int32_t extraSaturationDrive = 0);
 	void renderHPFLong(q31_t* outputSample, q31_t* endSample, int32_t numSamples, int32_t sampleIncrement = 1,
@@ -126,7 +106,6 @@ private:
 
 	LPLadderConfig lpladderconfig;
 	HPLadderConfig hpladderconfig;
-	LPSVFConfig lpsvfconfig;
 	LPFMode lpfMode;
 
 	BasicFilterComponent lpfLPF1;
@@ -134,7 +113,7 @@ private:
 	BasicFilterComponent lpfLPF3;
 	BasicFilterComponent lpfLPF4;
 
-	SVFilter svf;
+	SVFilter lpsvf;
 
 	BasicFilterComponent hpfHPF1;
 	BasicFilterComponent hpfLPF1;

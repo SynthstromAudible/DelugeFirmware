@@ -60,14 +60,3 @@ public:
 	q31_t alteredHpfMomentumMultiplier;
 	q31_t thisHpfResonance;
 };
-
-class LPSVFConfig {
-
-public:
-	LPSVFConfig();
-	q31_t init(q31_t lpfFrequency, q31_t lpfResonance, LPFMode lpfMode, q31_t filterGain);
-
-	q31_t moveability;
-	q31_t processedResonance;
-	q31_t SVFInputScale;
-};

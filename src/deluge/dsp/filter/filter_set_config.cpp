@@ -179,24 +179,6 @@ q31_t LPLadderConfig::init(q31_t lpfFrequency, q31_t lpfResonance, LPFMode lpfMo
 	return filterGain;
 }
 
-LPSVFConfig::LPSVFConfig() = default;
-q31_t LPSVFConfig::init(q31_t lpfFrequency, q31_t lpfResonance, LPFMode lpfMode, q31_t filterGain) {
-	int32_t tannedFrequency = instantTan(lshiftAndSaturate<5>(lpfFrequency));
-	int32_t divideBy1PlusTannedFrequency =
-	    (int64_t)2147483648u * 134217728
-	    / (134217728 + (tannedFrequency >> 1)); // Between ~0.1 and 1. 1 represented by 2147483648
-	moveability = multiply_32x32_rshift32_rounded(tannedFrequency, divideBy1PlusTannedFrequency)
-	              << 4; // Between 0 and 1. 1 represented by 2147483648 I'm pretty sure
-	// raw resonance is 0 - 536870896 (2^28ish, don't know where it comes from)
-	// Multiply by 4 to bring it to the q31 0-1 range
-	processedResonance = (ONE_Q31 - 4 * (lpfResonance));
-	SVFInputScale = (processedResonance >> 1) + (ONE_Q31 >> 1);
-	//squared q is a better match for the ladders
-	//also the input scale needs to be sqrt(q) for the level compensation to work so it's a win win
-	processedResonance = multiply_32x32_rshift32_rounded(processedResonance, processedResonance) << 1;
-	return filterGain;
-}
-
 HPLadderConfig::HPLadderConfig() = default;
 q31_t HPLadderConfig::init(q31_t hpfFrequency, q31_t hpfResonance, bool adjustVolumeForHPFResonance, q31_t filterGain) {
 	int32_t extraFeedback = 1200000000;

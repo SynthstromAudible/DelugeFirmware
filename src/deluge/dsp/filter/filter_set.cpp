@@ -17,14 +17,16 @@
 
 #include "dsp/filter/filter_set.h"
 #include "definitions_cxx.hpp"
+#include "dsp/filter/filter.h"
 #include "dsp/filter/filter_set_config.h"
+#include "dsp/filter/svf.h"
 #include "dsp/timestretch/time_stretcher.h"
 #include "processing/sound/sound.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 
 FilterSet::FilterSet() {
-	lpsvfconfig = LPSVFConfig();
+	lpsvf = SVFilter();
 	lpladderconfig = LPLadderConfig();
 	hpladderconfig = HPLadderConfig();
 }
@@ -243,15 +245,6 @@ void FilterSet::renderLPLadder(q31_t* startSample, q31_t* endSample, LPFMode lpf
 	}
 }
 
-void FilterSet::renderLPSVF(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement) {
-	q31_t* currentSample = startSample;
-	do {
-		SVF_outs outs = svf.doSVF(*currentSample, &lpsvfconfig);
-		*currentSample = outs.lpf << 1;
-
-		currentSample += sampleIncrement;
-	} while (currentSample < endSample);
-}
 void FilterSet::renderLPFLong(q31_t* startSample, q31_t* endSample, LPFMode lpfMode, int32_t sampleIncrement,
                               int32_t extraSaturation, int32_t extraSaturationDrive) {
 
@@ -262,11 +255,11 @@ void FilterSet::renderLPFLong(q31_t* startSample, q31_t* endSample, LPFMode lpfM
 		lpfLPF2.reset();
 		lpfLPF3.reset();
 		lpfLPF4.reset();
-		svf.reset();
+		lpsvf.reset();
 	}
 
 	if (lpfMode == LPFMode::SVF) {
-		renderLPSVF(startSample, endSample, sampleIncrement);
+		lpsvf.filter(startSample, endSample, sampleIncrement);
 	}
 	else {
 		renderLPLadder(startSample, endSample, lpfMode, sampleIncrement, extraSaturation, extraSaturationDrive);
@@ -285,7 +278,7 @@ int32_t FilterSet::set_config(int32_t lpfFrequency, int32_t lpfResonance, bool d
 
 	if (LPFOn) {
 		if (lpfMode == LPFMode::SVF) {
-			filterGain = lpsvfconfig.init(lpfFrequency, lpfResonance, lpfMode, filterGain);
+			filterGain = lpsvf.configure(lpfFrequency, lpfResonance, lpfMode, filterGain);
 		}
 		else {
 			filterGain = lpladderconfig.init(lpfFrequency, lpfResonance, lpfMode, filterGain);
@@ -305,7 +298,7 @@ int32_t FilterSet::set_config(int32_t lpfFrequency, int32_t lpfResonance, bool d
 }
 void FilterSet::copy_config(FilterSet* other) {
 	memcpy(&lpladderconfig, &other->lpladderconfig, sizeof(LPLadderConfig));
-	memcpy(&lpsvfconfig, &other->lpsvfconfig, sizeof(LPSVFConfig));
+	memcpy(&lpsvf, &other->lpsvf, sizeof(lpsvf));
 	memcpy(&hpladderconfig, &other->hpladderconfig, sizeof(HPLadderConfig));
 	LPFOn = other->isLPFOn();
 	HPFOn = other->isHPFOn();
@@ -322,42 +315,7 @@ void FilterSet::reset() {
 	hpfLastWorkingValue = 2147483648;
 	hpfDoingAntialiasingNow = false;
 	hpfOnLastTime = false;
-	svf.reset();
+	lpsvf.reset();
 	lpfOnLastTime = false;
 	noiseLastValue = 0;
-}
-
-SVF_outs SVFilter::doSVF(int32_t input, LPSVFConfig* lpsvfconfig) {
-	q31_t high = 0;
-	q31_t notch = 0;
-	q31_t lowi;
-	q31_t f = lpsvfconfig->moveability;
-	q31_t q = lpsvfconfig->processedResonance;
-	q31_t in = lpsvfconfig->SVFInputScale;
-
-	input = multiply_32x32_rshift32(in, input);
-
-	low = low + 2 * multiply_32x32_rshift32(band, f);
-	high = input - low;
-	high = high - 2 * multiply_32x32_rshift32(band, q);
-	band = 2 * multiply_32x32_rshift32(high, f) + band;
-	notch = high + low;
-
-	//saturate band feedback
-	band = getTanHUnknown(band, 3);
-
-	lowi = low;
-	//double sample to increase the cutoff frequency
-	low = low + 2 * multiply_32x32_rshift32(band, f);
-	high = input - low;
-	high = high - 2 * multiply_32x32_rshift32(band, q);
-	band = 2 * multiply_32x32_rshift32(high, f) + band;
-
-	//saturate band feedback
-	band = getTanHUnknown(band, 3);
-	notch = high + low;
-
-	SVF_outs result = {(lowi) + (low), band, high, notch};
-
-	return result;
 }
