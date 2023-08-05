@@ -10,3 +10,6 @@ FetchContent_Declare(
   URL_HASH MD5=fa629bc1178918b7af4b2ea6b6a271dc
 )
 FetchContent_MakeAvailable(fmt)
+
+target_compile_options(fmt PRIVATE -Oz)
+target_compile_definitions(fmt PUBLIC FMT_STATIC_THOUSANDS_SEPARATOR)

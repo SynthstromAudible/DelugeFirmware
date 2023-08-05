@@ -28,6 +28,6 @@ public:
 
 	void readCurrentValue() override { this->value_ = AudioEngine::inputMonitoringMode; }
 	void writeCurrentValue() override { AudioEngine::inputMonitoringMode = this->value_; }
-	static_vector<string, capacity()> getOptions() override { return {"Conditional", "On", "Off"}; }
+	static_vector<std::string, capacity()> getOptions() override { return {"Conditional", "On", "Off"}; }
 };
 } // namespace deluge::gui::menu_item::monitor
