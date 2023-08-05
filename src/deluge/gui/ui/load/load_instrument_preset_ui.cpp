@@ -107,7 +107,7 @@ gotError:
 	return true;
 }
 
-// If HAVE_OLED, then you should make sure renderUIsForOLED() gets called after this.
+// If OLED, then you should make sure renderUIsForOLED() gets called after this.
 int32_t LoadInstrumentPresetUI::setupForInstrumentType() {
 	indicator_leds::setLedState(IndicatorLED::SYNTH, false);
 	indicator_leds::setLedState(IndicatorLED::KIT, false);
@@ -765,7 +765,7 @@ int32_t LoadInstrumentPresetUI::performLoad(bool doClone) {
 
 	FileItem* currentFileItem = getCurrentFileItem();
 	if (!currentFileItem) {
-		return HAVE_OLED
+		return display.type == DisplayType::OLED
 		           ? ERROR_FILE_NOT_FOUND
 		           : ERROR_NO_FURTHER_FILES_THIS_DIRECTION; // Make it say "NONE" on numeric Deluge, for consistency with old times.
 	}

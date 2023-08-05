@@ -1197,7 +1197,7 @@ void View::cycleThroughReverbPresets() {
 	display.displayPopup(deluge::l10n::get(presetReverbNames[newPreset]));
 }
 
-// If HAVE_OLED, must make sure OLED::sendMainImage() gets called after this.
+// If OLED, must make sure OLED::sendMainImage() gets called after this.
 void View::displayOutputName(Output* output, bool doBlink, Clip* clip) {
 
 	int32_t channel, channelSuffix;
@@ -1219,7 +1219,7 @@ void View::displayOutputName(Output* output, bool doBlink, Clip* clip) {
 	drawOutputNameFromDetails(output->type, channel, channelSuffix, output->name.get(), editedByUser, doBlink, clip);
 }
 
-// If HAVE_OLED, must make sure OLED::sendMainImage() gets called after this.
+// If OLED, must make sure OLED::sendMainImage() gets called after this.
 void View::drawOutputNameFromDetails(InstrumentType instrumentType, int32_t channel, int32_t channelSuffix,
                                      char const* name, bool editedByUser, bool doBlink, Clip* clip) {
 	if (doBlink) {

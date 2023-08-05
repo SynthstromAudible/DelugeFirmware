@@ -102,7 +102,8 @@ void ArrangerView::moveClipToSession() {
 
 	// Empty ClipInstance - can't do
 	if (!clip) {
-		display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_EMPTY_CLIP_INSTANCES_CANT_BE_MOVED_TO_THE_SESSION));
+		display.displayPopup(
+		    deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_EMPTY_CLIP_INSTANCES_CANT_BE_MOVED_TO_THE_SESSION));
 	}
 
 	else {
@@ -337,22 +338,20 @@ void ArrangerView::deleteOutput() {
 	char const* errorMessage;
 
 	if (currentSong->getNumOutputs() <= 1) {
-		errorMessage = "Can't delete final Clip";
-cant:
-		display.displayPopup(HAVE_OLED ? errorMessage : "CANT");
+		display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CANT_DELETE_FINAL_CLIP));
 		return;
 	}
 
 	for (int32_t i = 0; i < output->clipInstances.getNumElements(); i++) {
 		if (output->clipInstances.getElement(i)->clip) {
-			errorMessage = "Delete all track's clips first";
-			goto cant;
+			display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_DELETE_ALL_TRACKS_CLIPS_FIRST));
+			return;
 		}
 	}
 
 	if (currentSong->getSessionClipWithOutput(output)) {
-		errorMessage = "Track still has clips in session";
-		goto cant;
+		display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_TRACK_STILL_HAS_CLIPS_IN_SESSION));
+		return;
 	}
 
 	output->clipInstances.empty(); // Because none of these have Clips, this is ok
@@ -715,7 +714,8 @@ void ArrangerView::changeOutputToInstrument(InstrumentType newInstrumentType) {
 	}
 
 	if (currentSong->getClipWithOutput(oldOutput)) {
-		display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_AUDIO_TRACKS_WITH_CLIPS_CANT_BE_TURNED_INTO_AN_INSTRUMENT));
+		display.displayPopup(deluge::l10n::get(
+		    deluge::l10n::Strings::STRING_FOR_AUDIO_TRACKS_WITH_CLIPS_CANT_BE_TURNED_INTO_AN_INSTRUMENT));
 		return;
 	}
 
@@ -910,7 +910,8 @@ ActionResult ArrangerView::padAction(int32_t x, int32_t y, int32_t velocity) {
 				}
 				else if (output->type == InstrumentType::KIT) {
 					if (velocity) {
-						display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_MIDI_MUST_BE_LEARNED_TO_KIT_ITEMS_INDIVIDUALLY));
+						display.displayPopup(deluge::l10n::get(
+						    deluge::l10n::Strings::STRING_FOR_MIDI_MUST_BE_LEARNED_TO_KIT_ITEMS_INDIVIDUALLY));
 					}
 				}
 				else {
@@ -2381,7 +2382,8 @@ void ArrangerView::navigateThroughPresets(int32_t offset) {
 
 				if (newChannel == oldChannel) {
 cantDoIt:
-					display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_NO_FREE_CHANNEL_SLOTS_AVAILABLE_IN_SONG));
+					display.displayPopup(
+					    deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_NO_FREE_CHANNEL_SLOTS_AVAILABLE_IN_SONG));
 					return;
 				}
 
@@ -2520,7 +2522,8 @@ void ArrangerView::changeOutputToAudio() {
 
 	if (oldOutput->clipInstances.getNumElements()) {
 cant:
-		display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_INSTRUMENTS_WITH_CLIPS_CANT_BE_TURNED_INTO_AUDIO_TRACKS));
+		display.displayPopup(deluge::l10n::get(
+		    deluge::l10n::Strings::STRING_FOR_INSTRUMENTS_WITH_CLIPS_CANT_BE_TURNED_INTO_AUDIO_TRACKS));
 		return;
 	}
 

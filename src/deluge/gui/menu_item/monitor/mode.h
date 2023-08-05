@@ -32,9 +32,9 @@ public:
 	static_vector<std::string, capacity()> getOptions() override {
 		using enum l10n::Strings;
 		return {
-			l10n::get(STRING_FOR_CONDITIONAL),
-			l10n::get(STRING_FOR_ENABLED),
-			l10n::get(STRING_FOR_DISABLED),
+		    l10n::get(STRING_FOR_CONDITIONAL),
+		    l10n::get(STRING_FOR_ENABLED),
+		    l10n::get(STRING_FOR_DISABLED),
 		};
 	}
 };

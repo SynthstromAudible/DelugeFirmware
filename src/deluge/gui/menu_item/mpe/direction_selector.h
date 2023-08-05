@@ -30,8 +30,8 @@ public:
 	static_vector<std::string, capacity()> getOptions() override {
 		using enum l10n::Strings;
 		return {
-			l10n::get(STRING_FOR_IN),
-			l10n::get(STRING_FOR_OUT),
+		    l10n::get(STRING_FOR_IN),
+		    l10n::get(STRING_FOR_OUT),
 		};
 	}
 	void readCurrentValue() override { this->value_ = whichDirection; }

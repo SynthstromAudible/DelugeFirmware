@@ -525,7 +525,7 @@ tryReadingItems:
 	return NO_ERROR;
 }
 
-// If HAVE_OLED, then you should make sure renderUIsForOLED() gets called after this.
+// If OLED, then you should make sure renderUIsForOLED() gets called after this.
 // instrumentTypeToLoad must be set before calling this.
 int32_t Browser::arrivedInNewFolder(int32_t direction, char const* filenameToStartAt, char const* defaultDirToAlsoTry) {
 	arrivedAtFileByTyping = false;

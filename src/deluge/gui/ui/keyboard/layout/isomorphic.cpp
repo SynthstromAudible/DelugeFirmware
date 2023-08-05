@@ -61,7 +61,7 @@ void KeyboardLayoutIsomorphic::handleHorizontalEncoder(int32_t offset, bool shif
 	    (getHighestClipNote() - ((kDisplayHeight - 1) * state.rowInterval + kDisplayWidth - 1));
 
 	// Make sure current value is in bounds
-	state.scrollOffset = std::clamp(state.scrollOffset, getLowestClipNote(),  highestScrolledNote);
+	state.scrollOffset = std::clamp(state.scrollOffset, getLowestClipNote(), highestScrolledNote);
 
 	// Offset if still in bounds (reject if the next row can not be shown completely)
 	int32_t newOffset = state.scrollOffset + offset;

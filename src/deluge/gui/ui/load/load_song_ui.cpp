@@ -229,7 +229,7 @@ void LoadSongUI::performLoad() {
 
 	if (!currentFileItem) {
 		display.displayError(
-		    HAVE_OLED
+		    display.type == DisplayType::OLED
 		        ? ERROR_FILE_NOT_FOUND
 		        : ERROR_NO_FURTHER_FILES_THIS_DIRECTION); // Make it say "NONE" on numeric Deluge, for consistency with old times.
 		return;

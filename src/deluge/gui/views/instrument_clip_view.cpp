@@ -565,7 +565,8 @@ doOther:
 			InstrumentClip* clip = getCurrentClip();
 
 			if (!clip->containsAnyNotes()) {
-				display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_AT_LEAST_ONE_ROW_NEEDS_TO_HAVE_NOTES));
+				display.displayPopup(
+				    deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_AT_LEAST_ONE_ROW_NEEDS_TO_HAVE_NOTES));
 			}
 			else {
 				char modelStackMemory[MODEL_STACK_MAX_SIZE];

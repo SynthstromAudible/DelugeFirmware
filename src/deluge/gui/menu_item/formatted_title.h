@@ -18,4 +18,4 @@ private:
 	fmt::format_string<int32_t> format_str_;
 	std::string title_;
 };
-}
+} // namespace deluge::gui::menu_item

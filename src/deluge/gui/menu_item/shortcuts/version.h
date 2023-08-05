@@ -28,8 +28,8 @@ public:
 	static_vector<std::string, capacity()> getOptions() override {
 		using enum l10n::Strings;
 		return {
-			l10n::get(STRING_FOR_SHORTCUTS_VERSION_1),
-			l10n::get(STRING_FOR_SHORTCUTS_VERSION_3),
+		    l10n::get(STRING_FOR_SHORTCUTS_VERSION_1),
+		    l10n::get(STRING_FOR_SHORTCUTS_VERSION_3),
 		};
 	}
 };

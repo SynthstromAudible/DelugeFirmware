@@ -32,8 +32,8 @@ public:
 	static_vector<std::string, capacity()> getOptions() override {
 		using enum l10n::Strings;
 		return {
-			l10n::get(STRING_FOR_LOWER_ZONE),
-			l10n::get(STRING_FOR_UPPER_ZONE),
+		    l10n::get(STRING_FOR_LOWER_ZONE),
+		    l10n::get(STRING_FOR_UPPER_ZONE),
 		};
 	}
 

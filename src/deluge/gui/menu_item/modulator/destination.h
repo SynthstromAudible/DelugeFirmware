@@ -30,8 +30,8 @@ public:
 	static_vector<std::string, capacity()> getOptions() override {
 		using enum l10n::Strings;
 		return {
-			l10n::get(STRING_FOR_CARRIERS),
-			fmt::vformat(l10n::get(STRING_FOR_MODULATOR_N), fmt::make_format_args(1)),
+		    l10n::get(STRING_FOR_CARRIERS),
+		    fmt::vformat(l10n::get(STRING_FOR_MODULATOR_N), fmt::make_format_args(1)),
 		};
 	}
 	bool isRelevant(Sound* sound, int32_t whichThing) override {

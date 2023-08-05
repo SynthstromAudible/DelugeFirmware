@@ -39,8 +39,8 @@
 #include "definitions.h"
 
 #include "deluge/drivers/uart/uart.h"
-#include "deluge/hid/display/display.h"
 #include "deluge/gui/l10n/l10n.h"
+#include "deluge/hid/display/display.h"
 
 /******************************************************************************
  Exported global variables

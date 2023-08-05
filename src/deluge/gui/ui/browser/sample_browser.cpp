@@ -291,10 +291,8 @@ ActionResult SampleBrowser::timerCallback() {
 
 			// AudioClip
 			if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
-				if (display.type == DisplayType::OLED) {
-					errorMessage = "Can't import whole folder into audio clip";
-				}
-				goto cant;
+				display.displayPopup(
+				    deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CANT_IMPORT_WHOLE_FOLDER_INTO_AUDIO_CLIP));
 			}
 
 			// Kit
@@ -305,11 +303,8 @@ ActionResult SampleBrowser::timerCallback() {
 					goto considerContextMenu;
 				}
 				else {
-					if (display.type == DisplayType::OLED) {
-						errorMessage = "Can only import whole folder into brand-new kit";
-					}
-cant:
-					display.displayPopup(HAVE_OLED ? errorMessage : "CANT");
+					display.displayPopup(deluge::l10n::get(
+					    deluge::l10n::Strings::STRING_FOR_CAN_ONLY_IMPORT_WHOLE_FOLDER_INTO_BRAND_NEW_KIT));
 				}
 			}
 
@@ -341,10 +336,13 @@ void SampleBrowser::enterKeyPress() {
 	FileItem* currentFileItem = getCurrentFileItem();
 
 	if (!currentFileItem) {
-		display.displayError(
-		    HAVE_OLED
-		        ? ERROR_FILE_NOT_FOUND
-		        : ERROR_NO_FURTHER_FILES_THIS_DIRECTION); // Make it say "NONE" on numeric Deluge, for consistency with old times.
+		if (display.type == DisplayType::OLED) {
+			display.displayError(ERROR_FILE_NOT_FOUND);
+		}
+		else {
+			// Make it say "NONE" on numeric Deluge, for consistency with old times.
+			display.displayError(ERROR_NO_FURTHER_FILES_THIS_DIRECTION);
+		}
 		return;
 	}
 
@@ -387,7 +385,8 @@ void SampleBrowser::enterKeyPress() {
 				openUI(&slicer);
 			}
 			else {
-				display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CAN_ONLY_USE_SLICER_FOR_BRAND_NEW_KIT));
+				display.displayPopup(
+				    deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CAN_ONLY_USE_SLICER_FOR_BRAND_NEW_KIT));
 			}
 		}
 
@@ -431,7 +430,8 @@ ActionResult SampleBrowser::buttonAction(hid::Button b, bool on, bool inCardRout
 					bool allFine = audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(filePath.get());
 
 					if (!allFine) {
-						display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_AUDIO_FILE_IS_USED_IN_CURRENT_SONG));
+						display.displayPopup(
+						    deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_AUDIO_FILE_IS_USED_IN_CURRENT_SONG));
 					}
 					else {
 						goIntoDeleteFileContextMenu();
@@ -1803,7 +1803,8 @@ skipOctaveCorrection:
 	numSamples = rangeIndex;
 
 	if (!numSamples) {
-		display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_ERROR_CREATING_MULTISAMPLED_INSTRUMENT));
+		display.displayPopup(
+		    deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_ERROR_CREATING_MULTISAMPLED_INSTRUMENT));
 		goto doReturnFalse;
 	}
 

@@ -7,4 +7,4 @@ enum l10n_string {
 	STRING_FOR_USB_DEVICE_NOT_RECOGNIZED,
 };
 
-char const *l10n_get(enum l10n_string s);
+char const* l10n_get(enum l10n_string s);

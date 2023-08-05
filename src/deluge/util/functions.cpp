@@ -2113,7 +2113,7 @@ void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutD
 	*thisChar = noteCodeToNoteLetter[noteCodeWithinOctave];
 	thisChar++;
 	if (noteCodeIsSharp[noteCodeWithinOctave]) {
-		*thisChar = HAVE_OLED ? '#' : '.';
+		*thisChar = display.type == DisplayType::OLED ? '#' : '.';
 		thisChar++;
 	}
 	intToString(octave, thisChar, 1);

@@ -37,8 +37,8 @@
 #include "deluge/drivers/uart/uart.h"
 
 #include "deluge/deluge.h"
-#include "hid/display/display.h"
 #include "gui/l10n/l10n.h"
+#include "hid/display/display.h"
 
 #if ((USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST)
 /***********************************************************************************************************************
@@ -935,9 +935,9 @@ static void usb_hhub_init_down_port(usb_utr_t* ptr, uint16_t hubaddr, usb_clsinf
                 USB_PRINTF0("HHHHHHHHHHHHHHHHHHHHHHHHH\n\n");
                 g_usb_shhub_init_seq[ptr->ip]  = USB_SEQ_1; /* Next Sequence */
                 g_usb_shhub_init_port[ptr->ip] = USB_HUB_P1;
-                usb_hhub_specified_path(mess);                                    /* Next Process Selector */
+                usb_hhub_specified_path(mess);                                   /* Next Process Selector */
                 consoleTextIfAllBootedUp(l10n_get(STRING_FOR_USB_HUB_ATTACHED)); // By Rohan
-                setTimeUSBInitializationEnds(44100 << 1);                         // No more popups for 2 seconds
+                setTimeUSBInitializationEnds(44100 << 1);                        // No more popups for 2 seconds
 
                 break;
 

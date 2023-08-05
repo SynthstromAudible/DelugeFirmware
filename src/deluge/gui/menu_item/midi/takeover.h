@@ -31,9 +31,9 @@ public:
 	static_vector<std::string, capacity()> getOptions() override {
 		using enum l10n::Strings;
 		return {
-			l10n::get(STRING_FOR_JUMP),
-			l10n::get(STRING_FOR_PICK_UP),
-			l10n::get(STRING_FOR_SCALE),
+		    l10n::get(STRING_FOR_JUMP),
+		    l10n::get(STRING_FOR_PICK_UP),
+		    l10n::get(STRING_FOR_SCALE),
 		};
 	}
 };

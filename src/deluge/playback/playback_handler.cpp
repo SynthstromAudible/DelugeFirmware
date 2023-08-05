@@ -17,13 +17,13 @@
 
 #include "playback/playback_handler.h"
 #include "definitions_cxx.hpp"
+#include "gui/l10n/l10n.hpp"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/l10n/l10n.hpp"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
@@ -2935,11 +2935,13 @@ doCreateNextOverdub:
 					}
 				}
 				else {
-					display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_AUDIO_TRACK_HAS_NO_INPUT_CHANNEL));
+					display.displayPopup(
+					    deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_AUDIO_TRACK_HAS_NO_INPUT_CHANNEL));
 				}
 			}
 			else {
-				display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CREATE_OVERDUB_FROM_WHICH_CLIP));
+				display.displayPopup(
+				    deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CREATE_OVERDUB_FROM_WHICH_CLIP));
 			}
 		}
 	}

@@ -94,7 +94,8 @@ void InstrumentClipMinder::selectEncoderAction(int32_t offset) {
 				newCC = instrument->moveAutomationToDifferentCC(offset, editingMIDICCForWhichModKnob,
 				                                                instrument->modKnobMode, modelStackWithThreeMainThings);
 				if (newCC == -1) {
-					display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_NO_FURTHER_UNUSED_MIDI_PARAMS));
+					display.displayPopup(
+					    deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_NO_FURTHER_UNUSED_MIDI_PARAMS));
 					return;
 				}
 			}
@@ -123,7 +124,7 @@ void InstrumentClipMinder::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 
 void InstrumentClipMinder::drawMIDIControlNumber(int32_t controlNumber, bool automationExists) {
 
-	char buffer[HAVE_OLED ? 30 : 5];
+	char buffer[display.type == DisplayType::OLED ? 30 : 5];
 	bool finish = false;
 	if (controlNumber == CC_NUMBER_NONE) {
 		strcpy(buffer, deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_NO_PARAM));
@@ -206,9 +207,12 @@ gotError:
 
 	getCurrentClip()->backupPresetSlot();
 
-	char const* message =
-	    HAVE_OLED ? ((newInstrumentType == InstrumentType::KIT) ? "New kit created" : "New synth created") : "NEW";
-	display.consoleText(message);
+	if (newInstrumentType == InstrumentType::KIT) {
+		display.consoleText(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_NEW_KIT_CREATED));
+	}
+	else {
+		display.consoleText(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_NEW_SYNTH_CREATED));
+	}
 
 	if (newInstrumentType == InstrumentType::SYNTH) {
 		((SoundInstrument*)newInstrument)->setupAsBlankSynth(&newParamManager);
@@ -240,7 +244,6 @@ gotError:
 	newInstrument->existsOnCard = false;
 
 	if (newInstrumentType == InstrumentType::KIT) {
-
 		// If we weren't a Kit already...
 		if (oldInstrumentType != InstrumentType::KIT) {
 			getCurrentClip()->yScroll = 0;
@@ -469,7 +472,8 @@ void InstrumentClipMinder::drawActualNoteCode(int16_t noteCode) {
 void InstrumentClipMinder::cycleThroughScales() {
 	int32_t newScale = currentSong->cycleThroughScales();
 	if (newScale >= NUM_PRESET_SCALES) {
-		display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES_IN_USE));
+		display.displayPopup(
+		    deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES_IN_USE));
 	}
 	else {
 		displayScaleName(newScale);

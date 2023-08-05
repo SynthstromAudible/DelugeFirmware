@@ -456,8 +456,9 @@ cardError:
 	}
 
 	display.removeWorkingAnimation();
-	char const* message = anyErrorMovingTempFiles ? (deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_ERROR_MOVING_TEMP_FILES))
-	                                              : (deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_SONG_SAVED));
+	char const* message = anyErrorMovingTempFiles
+	                          ? (deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_ERROR_MOVING_TEMP_FILES))
+	                          : (deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_SONG_SAVED));
 	// Update all of these
 	currentSong->name.set(&enteredText);
 	currentSong->dirPath.set(&currentDir);

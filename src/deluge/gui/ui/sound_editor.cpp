@@ -984,7 +984,8 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 				// Otherwise, do nothing
 				else {
 					if (item == &sequenceDirectionMenu) {
-						display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_SELECT_A_ROW_OR_AFFECT_ENTIRE));
+						display.displayPopup(
+						    deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_SELECT_A_ROW_OR_AFFECT_ENTIRE));
 					}
 					return false;
 				}

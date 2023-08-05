@@ -1,3 +1,4 @@
+#include "gui/l10n/strings.hpp"
 #include "gui/menu_item/arpeggiator/gate.h"
 #include "gui/menu_item/arpeggiator/midi_cv/gate.h"
 #include "gui/menu_item/arpeggiator/midi_cv/rate.h"
@@ -219,7 +220,8 @@ submenu::Envelope env1Menu{l10n::get(l10n::Strings::STRING_FOR_ENVELOPE_2), envM
 
 osc::Type oscTypeMenu{"TYPE", "Osc{} type"};
 osc::source::WaveIndex sourceWaveIndexMenu{"Wave-index", "Osc{} wave-ind.", ::Param::Local::OSC_A_WAVE_INDEX};
-osc::source::Volume sourceVolumeMenu{l10n::get(l10n::Strings::STRING_FOR_VOLUME_LEVEL), "Osc{} level", ::Param::Local::OSC_A_VOLUME};
+osc::source::Volume sourceVolumeMenu{l10n::get(l10n::Strings::STRING_FOR_VOLUME_LEVEL), "Osc{} level",
+                                     ::Param::Local::OSC_A_VOLUME};
 osc::source::Feedback sourceFeedbackMenu{"FEEDBACK", "Carrier{} feed.", ::Param::Local::CARRIER_0_FEEDBACK};
 osc::AudioRecorder audioRecorderMenu{"Record audio"};
 sample::Reverse sampleReverseMenu{"REVERSE", "Samp{} reverse"};
@@ -588,7 +590,8 @@ Submenu audioClipFXMenu{
     },
 };
 
-UnpatchedParam audioClipLevelMenu{l10n::get(l10n::Strings::STRING_FOR_VOLUME_LEVEL), ::Param::Unpatched::GlobalEffectable::VOLUME};
+UnpatchedParam audioClipLevelMenu{l10n::get(l10n::Strings::STRING_FOR_VOLUME_LEVEL),
+                                  ::Param::Unpatched::GlobalEffectable::VOLUME};
 unpatched_param::Pan audioClipPanMenu{"PAN", ::Param::Unpatched::GlobalEffectable::PAN};
 
 const MenuItem* midiOrCVParamShortcuts[8] = {
@@ -597,7 +600,7 @@ const MenuItem* midiOrCVParamShortcuts[8] = {
 
 // Gate stuff
 gate::Mode gateModeMenu;
-gate::OffTime gateOffTimeMenu{HAVE_OLED ? "Min. off-time" : ""};
+gate::OffTime gateOffTimeMenu{"", l10n::get(l10n::Strings::STRING_FOR_MINIMUM_OFF_TIME)};
 
 // Root menu
 
@@ -658,7 +661,8 @@ flash::Status flashStatusMenu{l10n::get(l10n::Strings::STRING_FOR_PLAY_CURSOR)};
 
 firmware::Version firmwareVersionMenu{l10n::get(l10n::Strings::STRING_FOR_FIRMWARE_VERSION), "Firmware ver."};
 
-runtime_feature::Settings runtimeFeatureSettingsMenu{l10n::get(l10n::Strings::STRING_FOR_COMMUNITY_FTS), "Community fts."};
+runtime_feature::Settings runtimeFeatureSettingsMenu{l10n::get(l10n::Strings::STRING_FOR_COMMUNITY_FTS),
+                                                     "Community fts."};
 
 // CV menu
 
@@ -711,7 +715,8 @@ midi::InputDifferentiation midiInputDifferentiationMenu{"Differentiate inputs"};
 // MIDI clock menu
 midi::ClockOutStatus midiClockOutStatusMenu{l10n::get(l10n::Strings::STRING_FOR_OUTPUT), "MIDI clock out"};
 midi::ClockInStatus midiClockInStatusMenu{l10n::get(l10n::Strings::STRING_FOR_INPUT), "MIDI clock in"};
-tempo::MagnitudeMatching tempoMagnitudeMatchingMenu{l10n::get(l10n::Strings::STRING_FOR_TEMPO_MAGNITUDE_MATCHING), "Tempo m. match"};
+tempo::MagnitudeMatching tempoMagnitudeMatchingMenu{l10n::get(l10n::Strings::STRING_FOR_TEMPO_MAGNITUDE_MATCHING),
+                                                    "Tempo m. match"};
 
 //Midi devices menu
 midi::Devices midi::devicesMenu{"Devices", "MIDI devices"};
@@ -817,7 +822,8 @@ menu_item::DrumName drumNameMenu{"NAME"};
 menu_item::SynthMode synthModeMenu{l10n::get(l10n::Strings::STRING_FOR_SYNTH_MODE)};
 
 bend_range::PerFinger drumBendRangeMenu{"Bend range"}; // The single option available for Drums
-patched_param::Integer volumeMenu{l10n::get(l10n::Strings::STRING_FOR_VOLUME_LEVEL), "Master level", ::Param::Global::VOLUME_POST_FX};
+patched_param::Integer volumeMenu{l10n::get(l10n::Strings::STRING_FOR_VOLUME_LEVEL), "Master level",
+                                  ::Param::Global::VOLUME_POST_FX};
 patched_param::Pan panMenu{"PAN", ::Param::Local::PAN};
 
 menu_item::Submenu soundEditorRootMenu{

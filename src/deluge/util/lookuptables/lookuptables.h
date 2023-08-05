@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "util/lookuptables/lookuptables.h"
 #include "gui/l10n/strings.hpp"
+#include "util/lookuptables/lookuptables.h"
 #include <array>
 #include <cstdint>
 

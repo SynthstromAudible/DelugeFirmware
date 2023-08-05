@@ -39,7 +39,7 @@ public:
 	static_vector<std::string, capacity()> getOptions() override {
 		using enum l10n::Strings;
 		return {
-		    l10n::get(STRING_FOR_DISABLED),           //<
+		    l10n::get(STRING_FOR_DISABLED),      //<
 		    l10n::get(STRING_FOR_FLANGER),       //<
 		    l10n::get(STRING_FOR_CHORUS),        //<
 		    l10n::get(STRING_FOR_PHASER),        //<

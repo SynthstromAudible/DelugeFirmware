@@ -278,7 +278,8 @@ moveAfterClipInstance:
 
 				// Make sure it won't be extending beyond numerical limit
 				if (proposedStartPos > kMaxSequenceLength - clip->loopLength) {
-					display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CLIP_WOULD_BREACH_MAX_ARRANGEMENT_LENGTH));
+					display.displayPopup(
+					    deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CLIP_WOULD_BREACH_MAX_ARRANGEMENT_LENGTH));
 					return ActionResult::DEALT_WITH;
 				}
 
@@ -591,7 +592,8 @@ holdingRecord:
 							}
 
 							if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-								display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_RECORDING_TO_ARRANGEMENT));
+								display.displayPopup(
+								    deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 								return ActionResult::DEALT_WITH;
 							}
 
@@ -634,7 +636,8 @@ holdingRecord:
 								}
 							}
 							else if (currentSong->anyClipsSoloing) {
-								display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CANT_CREATE_OVERDUB_WHILE_CLIPS_SOLOING));
+								display.displayPopup(deluge::l10n::get(
+								    deluge::l10n::Strings::STRING_FOR_CANT_CREATE_OVERDUB_WHILE_CLIPS_SOLOING));
 							}
 						}
 					}
@@ -711,7 +714,8 @@ startHoldingDown:
 					if (selectedClipYDisplay != yDisplay && performActionOnPadRelease) {
 
 						if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-							display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_RECORDING_TO_ARRANGEMENT));
+							display.displayPopup(
+							    deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 							return ActionResult::DEALT_WITH;
 						}
 
@@ -774,7 +778,8 @@ midiLearnMelodicInstrumentAction:
 
 					// Not allowed if recording arrangement
 					if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-						display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_RECORDING_TO_ARRANGEMENT));
+						display.displayPopup(
+						    deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 						goto justEndClipPress;
 					}
 
@@ -1698,7 +1703,7 @@ nothingToDisplay:
 	setCentralLEDStates();
 }
 
-// This gets called by redrawNumericDisplay() - or, if HAVE_OLED, it gets called instead, because this still needs to happen.
+// This gets called by redrawNumericDisplay() - or, if OLED, it gets called instead, because this still needs to happen.
 void SessionView::setCentralLEDStates() {
 	indicator_leds::setLedState(IndicatorLED::SYNTH, false);
 	indicator_leds::setLedState(IndicatorLED::KIT, false);
