@@ -2037,9 +2037,9 @@ void SessionView::graphicsRoutine() {
 	PadLEDs::setTickSquares(tickSquares, colours);
 }
 
-//@TODO: Maybe rip out again
 void SessionView::requestRendering(UI* ui, uint32_t whichMainRows, uint32_t whichSideRows) {
 	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+		// For safety do a rerender of everything in case of grid
 		uiNeedsRendering(ui, 0xFFFFFFFF, 0xFFFFFFFF);
 	}
 
@@ -2147,33 +2147,34 @@ uint32_t SessionView::getClipLocalScroll(Clip* clip, uint32_t overviewScroll, ui
 
 void SessionView::flashPlayRoutine() {
 	view.clipArmFlashOn = !view.clipArmFlashOn;
-	uint32_t whichRowsNeedReRendering = 0;
 
 	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+		requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
+
 		for (int32_t idxClip = 0; idxClip < currentSong->sessionClips.getNumElements(); ++idxClip) {
 			Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
-			//@TODO: Maybe we should call this outside the loop
-			requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
-
 			if (clip->armState != ArmState::OFF) {
 				view.flashPlayEnable();
 				return;
 			}
 		}
 	}
+
 	else {
+		uint32_t whichRowsNeedReRendering = 0;
 		bool any = false;
+
 		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 			Clip* clip = getClipOnScreen(yDisplay);
 			if ((clip != nullptr) && clip->armState != ArmState::OFF) {
 				whichRowsNeedReRendering |= (1 << yDisplay);
 			}
 		}
-	}
 
-	if (whichRowsNeedReRendering) {
-		view.flashPlayEnable();
-		requestRendering(this, 0, whichRowsNeedReRendering);
+		if (whichRowsNeedReRendering) {
+			view.flashPlayEnable();
+			requestRendering(this, 0, whichRowsNeedReRendering);
+		}
 	}
 }
 
@@ -2367,7 +2368,8 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 			}
 		}
 
-		PadLEDs::setupInstrumentClipCollapseAnimation(true);
+		PadLEDs::setupInstrumentClipCollapseAnimation(true); //@TODO: Change this for grid
+		//PadLEDs::setupAudioClipCollapseOrExplodeAnimation()
 
 		PadLEDs::renderClipExpandOrCollapse();
 	}
@@ -2385,9 +2387,9 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 
 			waveformRenderer.collapseAnimationToWhichRow = clipPlaceOnScreen;
 
-			PadLEDs::setupAudioClipCollapseOrExplodeAnimation(clip);
+			PadLEDs::setupAudioClipCollapseOrExplodeAnimation(clip); //@TODO: align animation
 
-			PadLEDs::renderAudioClipExpandOrCollapse();
+			PadLEDs::renderAudioClipExpandOrCollapse(); //@TODO: Align animation
 
 			PadLEDs::clearSideBar(); // Sends "now"
 		}
@@ -2717,6 +2719,7 @@ void SessionView::selectLayout(int8_t offset) {
 	}
 
 	requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
+	view.flashPlayEnable();
 }
 
 bool SessionView::gridRenderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
@@ -2726,7 +2729,10 @@ bool SessionView::gridRenderSidebar(uint32_t whichRows, uint8_t image[][kDisplay
 	uint32_t unusedColumnIndex = kDisplayWidth + 1;
 	for (int32_t y = (kGridHeight - 1); y >= 0; --y) {
 		hueToRGB(defaultClipGroupColours[gridSectionFromY(y)], image[y][sectionColumnIndex]);
+		occupancyMask[y][sectionColumnIndex] = 64;
+
 		memset(image[y][unusedColumnIndex], 0, 3);
+		occupancyMask[y][unusedColumnIndex] = 0;
 	}
 
 	return true;
@@ -2756,6 +2762,7 @@ bool SessionView::gridRenderMainPads(uint32_t whichRows, uint8_t image[][kDispla
 		auto y = gridYFromSection(clip->section);
 		if (x >= 0 && y >= 0) {
 			view.getClipMuteSquareColour(clip, image[y][x], true, occupiedColor);
+			occupancyMask[y][x] = 64;
 		}
 	}
 
@@ -3099,6 +3106,7 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 				if (clip && Buttons::isButtonPressed(hid::button::SHIFT)) {
 					session.toggleClipStatus(clip, NULL, true, kInternalButtonPressLatency);
 					requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
+					view.flashPlayEnable();
 					return ActionResult::DEALT_WITH;
 				}
 
@@ -3197,7 +3205,7 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 	}
 
 	requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
-	view.flashPlayEnable(); //@TODO: Check if there is a better way
+	view.flashPlayEnable();
 	return ActionResult::DEALT_WITH;
 }
 
@@ -3213,6 +3221,7 @@ ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {
 	// This is the right place to add new features like moving clips or tracks :)
 
 	requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
+	view.flashPlayEnable();
 	return ActionResult::DEALT_WITH;
 }
 
