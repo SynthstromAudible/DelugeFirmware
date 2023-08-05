@@ -28,7 +28,7 @@ constexpr size_t kNonTopLevelSettings = 3;
 
 class Settings final : public Submenu<RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettings> {
 public:
-	        Settings(char const* name, char const* title);
+	Settings(char const* name, char const* title);
 
 private:
 };

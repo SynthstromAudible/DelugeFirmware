@@ -89,14 +89,14 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationInterpolate], "Interpolation",
 	                  "automationInterpolate", RuntimeFeatureStateToggle::On);
 	// ClearClipAutomation
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationClearClip], "Clear Clip",
-	                  "automationClearClip", RuntimeFeatureStateToggle::On);
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationClearClip], "Clear Clip", "automationClearClip",
+	                  RuntimeFeatureStateToggle::On);
 	// NudgeNoteAutomation
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationNudgeNote], "Nudge Note",
-	                  "automationNudgeNote", RuntimeFeatureStateToggle::On);
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationNudgeNote], "Nudge Note", "automationNudgeNote",
+	                  RuntimeFeatureStateToggle::On);
 	// ShiftNoteAutomation
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationShiftNote], "Shift Note",
-	                  "automationShiftNote", RuntimeFeatureStateToggle::On);
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationShiftNote], "Shift Note", "automationShiftNote",
+	                  RuntimeFeatureStateToggle::On);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {

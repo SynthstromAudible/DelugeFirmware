@@ -965,11 +965,10 @@ void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
 
 		if (getCurrentUI() == &automationInstrumentClipView) {
 			firstI = homogenizeRegion(modelStack, pos, length, value, automationInstrumentClipView.interpolation,
-										automationInstrumentClipView.interpolation, effectiveLength, false);
+			                          automationInstrumentClipView.interpolation, effectiveLength, false);
 		}
 		else {
-			firstI = homogenizeRegion(modelStack, pos, length, value, false,
-										false, effectiveLength, false);
+			firstI = homogenizeRegion(modelStack, pos, length, value, false, false, effectiveLength, false);
 		}
 
 		if (firstI == -1) {

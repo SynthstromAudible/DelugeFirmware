@@ -45,23 +45,23 @@ Setting menuAutomationNudgeNote(RuntimeFeatureSettingType::AutomationNudgeNote);
 Setting menuAutomationShiftNote(RuntimeFeatureSettingType::AutomationShiftNote);
 
 Submenu subMenuAutomation{
-	HAVE_OLED ? "AUTOMATION" : "AUTO",
+    HAVE_OLED ? "AUTOMATION" : "AUTO",
     {
-    	&menuAutomationInterpolate,
-		&menuAutomationClearClip,
-		&menuAutomationNudgeNote,
-		&menuAutomationShiftNote,
+        &menuAutomationInterpolate,
+        &menuAutomationClearClip,
+        &menuAutomationNudgeNote,
+        &menuAutomationShiftNote,
     },
 };
 
 std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettings> subMenuEntries{
-    &menuDrumRandomizer,       &menuMasterCompressorFx,  &menuFineTempo,           &menuQuantize,
-    &menuPatchCableResolution, &menuCatchNotes,          &menuDeleteUnusedKitRows, &menuAltGoldenKnobDelayParams,
+    &menuDrumRandomizer,       &menuMasterCompressorFx, &menuFineTempo,           &menuQuantize,
+    &menuPatchCableResolution, &menuCatchNotes,         &menuDeleteUnusedKitRows, &menuAltGoldenKnobDelayParams,
     &subMenuAutomation,
 };
 
 Settings::Settings(char const* name, char const* title)
-	: menu_item::Submenu<subMenuEntries.size()>(name, title, subMenuEntries) {
- }
+    : menu_item::Submenu<subMenuEntries.size()>(name, title, subMenuEntries) {
+}
 
 } // namespace deluge::gui::menu_item::runtime_feature
