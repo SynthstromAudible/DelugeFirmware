@@ -16,6 +16,8 @@
 */
 #pragma once
 #include "definitions_cxx.hpp"
+#include "gui/l10n.h"
+#include "gui/l10n/strings.h"
 #include "gui/menu_item/selection/typed_selection.h"
 #include "gui/ui/sound_editor.h"
 #include "processing/engines/audio_engine.h"
@@ -28,6 +30,13 @@ public:
 
 	void readCurrentValue() override { this->value_ = AudioEngine::inputMonitoringMode; }
 	void writeCurrentValue() override { AudioEngine::inputMonitoringMode = this->value_; }
-	static_vector<std::string, capacity()> getOptions() override { return {"Conditional", "On", "Off"}; }
+	static_vector<std::string, capacity()> getOptions() override {
+		using enum l10n::Strings;
+		return {
+			l10n::get(STRING_FOR_CONDITIONAL),
+			l10n::get(STRING_FOR_ENABLED),
+			l10n::get(STRING_FOR_DISABLED),
+		};
+	}
 };
 } // namespace deluge::gui::menu_item::monitor

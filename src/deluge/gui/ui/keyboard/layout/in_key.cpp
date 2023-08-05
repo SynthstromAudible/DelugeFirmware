@@ -46,11 +46,11 @@ void KeyboardLayoutInKey::handleHorizontalEncoder(int32_t offset, bool shiftEnab
 
 	if (shiftEnabled) {
 		state.rowInterval += offset;
-		state.rowInterval = std::max(state.rowInterval, kMinInKeyRowInterval);
-		state.rowInterval = std::min(kMaxInKeyRowInterval, state.rowInterval);
+		state.rowInterval = std::clamp(state.rowInterval, kMinInKeyRowInterval, kMaxInKeyRowInterval);
 
 		char buffer[13] = "Row step:   ";
-		intToString(state.rowInterval, buffer + (HAVE_OLED ? 10 : 0), 1);
+		int32_t offset = (display.type == DisplayType::OLED ? 10 : 0);
+		intToString(state.rowInterval, buffer + offset, 1);
 		display.displayPopup(buffer);
 
 		offset = 0; // Reset offset variable for processing scroll calculation without actually shifting
@@ -62,8 +62,7 @@ void KeyboardLayoutInKey::handleHorizontalEncoder(int32_t offset, bool shiftEnab
 	    (padIndexFromNote(getHighestClipNote()) - ((kDisplayHeight - 1) * state.rowInterval + kDisplayWidth - 1));
 
 	// Make sure current value is in bounds
-	state.scrollOffset = std::max(lowestScrolledNote, state.scrollOffset);
-	state.scrollOffset = std::min(state.scrollOffset, highestScrolledNote);
+	state.scrollOffset = std::clamp(state.scrollOffset, lowestScrolledNote, highestScrolledNote);
 
 	// Offset if still in bounds (reject if the next row can not be shown completely)
 	int32_t newOffset = state.scrollOffset + offset;

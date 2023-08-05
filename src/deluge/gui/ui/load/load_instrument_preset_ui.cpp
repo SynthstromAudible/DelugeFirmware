@@ -392,10 +392,14 @@ void LoadInstrumentPresetUI::changeInstrumentType(InstrumentType newInstrumentTy
 
 			// If going back to a view where the new selection won't immediately be displayed, gotta give some confirmation
 			if (!getRootUI()->toClipMinder()) {
-				char const* message =
-				    HAVE_OLED ? ((newInstrumentType == InstrumentType::MIDI_OUT) ? "Instrument switched to MIDI channel"
-				                                                                 : "Instrument switched to CV channel")
-				              : "DONE";
+				char const* message;
+				if (display.type == DisplayType::OLED) {
+					message = ((newInstrumentType == InstrumentType::MIDI_OUT) ? "Instrument switched to MIDI channel"
+					                                                           : "Instrument switched to CV channel");
+				}
+				else {
+					message = "DONE";
+				}
 				display.displayPopup(message);
 			}
 

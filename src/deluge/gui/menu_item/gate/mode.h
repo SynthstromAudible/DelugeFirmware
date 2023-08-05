@@ -16,6 +16,9 @@
 */
 #pragma once
 #include "definitions_cxx.hpp"
+#include "gui/l10n.h"
+#include "gui/l10n/strings.h"
+#include "gui/menu_item/formatted_title.h"
 #include "gui/menu_item/selection/typed_selection.h"
 #include "gui/ui/sound_editor.h"
 #include "processing/engines/cv_engine.h"
@@ -23,29 +26,28 @@
 
 namespace deluge::gui::menu_item::gate {
 
-static std::string mode_title = HAVE_OLED ? "Gate outX mode" : "";
-
-class Mode final : public TypedSelection<GateType, 3> {
+class Mode final : public TypedSelection<GateType, 3>, FormattedTitle {
 
 	static_vector<std::string, capacity()> options_ = {
-	    HAVE_OLED ? "V-trig" : "VTRI",
-	    HAVE_OLED ? "S-trig" : "STRI",
+	    l10n::get(l10n::Strings::STRING_FOR_V_TRIGGER),
+	    l10n::get(l10n::Strings::STRING_FOR_S_TRIGGER),
 	};
 
 public:
-	Mode() : TypedSelection(HAVE_OLED ? mode_title : "") {}
+	Mode() : TypedSelection(), FormattedTitle(l10n::Strings::STRING_FOR_GATE_MODE_TITLE) {}
 	void readCurrentValue() override { this->value_ = cvEngine.gateChannels[soundEditor.currentSourceIndex].mode; }
 	void writeCurrentValue() override { cvEngine.setGateType(soundEditor.currentSourceIndex, this->value_); }
 	static_vector<std::string, capacity()> getOptions() override { return options_; }
 
 	void updateOptions(int32_t value) {
+		using enum l10n::Strings;
 		switch (value) {
 		case WHICH_GATE_OUTPUT_IS_CLOCK:
-			options_[2] = "Clock";
+			options_[2] = l10n::get(STRING_FOR_CLOCK);
 			break;
 
 		case WHICH_GATE_OUTPUT_IS_RUN:
-			options_[2] = HAVE_OLED ? "\"Run\" signal" : "Run";
+			options_[2] = l10n::get(STRING_FOR_RUN_SIGNAL);
 			break;
 
 		default:

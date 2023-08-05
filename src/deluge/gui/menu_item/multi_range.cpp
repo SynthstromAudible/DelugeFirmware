@@ -16,6 +16,7 @@
 */
 
 #include "multi_range.h"
+#include "gui/l10n.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/instrument_clip_view.h"
@@ -188,7 +189,7 @@ void MultiRange::selectEncoderAction(int32_t offset) {
 			}
 
 			if (currentRangeTop == currentRangeBottom) {
-				display.displayPopup(HAVE_OLED ? "Range contains only 1 note" : "CANT");
+				display.displayPopup(l10n::get(l10n::Strings::STRING_FOR_RANGE_CONTAINS_ONE_NOTE));
 				return;
 			}
 
@@ -286,7 +287,7 @@ void MultiRange::deletePress() {
 
 	// Want to delete the current range
 	if (oldNum <= 1) {
-		display.displayPopup(HAVE_OLED ? "Only 1 range - can't delete" : "CANT");
+		display.displayPopup(l10n::get(l10n::Strings::STRING_FOR_LAST_RANGE_CANT_DELETE));
 		return;
 	}
 
@@ -322,7 +323,7 @@ void MultiRange::deletePress() {
 		}
 	}
 
-	display.displayPopup(HAVE_OLED ? "Range deleted" : "DELETE");
+	display.displayPopup(l10n::get(l10n::Strings::STRING_FOR_RANGE_DELETED));
 	soundEditor.possibleChangeToCurrentRangeDisplay();
 	if (display.type == DisplayType::OLED) {
 		renderUIsForOled();
@@ -336,9 +337,9 @@ void MultiRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRight
 
 	// Lower end
 	if (this->value_ == 0) {
-		strcpy(buffer, HAVE_OLED ? "Bottom" : "BOT");
+		strcpy(buffer, l10n::get(l10n::Strings::STRING_FOR_BOTTOM));
 		if (getLeftLength) {
-			*getLeftLength = HAVE_OLED ? 6 : 3;
+			*getLeftLength = display.type == DisplayType::OLED ? 6 : 3;
 		}
 	}
 	else {

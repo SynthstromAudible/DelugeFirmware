@@ -16,6 +16,7 @@
 */
 #pragma once
 #include "definitions_cxx.hpp"
+#include "gui/l10n.h"
 #include "gui/menu_item/selection/typed_selection.h"
 #include "gui/ui/sound_editor.h"
 #include "io/midi/midi_engine.h"
@@ -27,6 +28,13 @@ public:
 	using TypedSelection::TypedSelection;
 	void readCurrentValue() override { this->value_ = midiEngine.midiTakeover; }
 	void writeCurrentValue() override { midiEngine.midiTakeover = this->value_; }
-	static_vector<std::string, capacity()> getOptions() override { return {"Jump", "Pickup", "Scale"}; }
+	static_vector<std::string, capacity()> getOptions() override {
+		using enum l10n::Strings;
+		return {
+			l10n::get(STRING_FOR_JUMP),
+			l10n::get(STRING_FOR_PICK_UP),
+			l10n::get(STRING_FOR_SCALE),
+		};
+	}
 };
 } // namespace deluge::gui::menu_item::midi

@@ -15,6 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "gui/l10n.h"
+#include "gui/l10n/strings.h"
 #include "gui/menu_item/selection/selection.h"
 #include "gui/ui/sound_editor.h"
 
@@ -25,9 +27,10 @@ public:
 	void readCurrentValue() override { this->value_ = soundEditor.shortcutsVersion; }
 	void writeCurrentValue() override { soundEditor.setShortcutsVersion(this->value_); }
 	static_vector<std::string, capacity()> getOptions() override {
+		using enum l10n::Strings;
 		return {
-		    HAVE_OLED ? "1.0" : "  1.0", //<
-		    HAVE_OLED ? "3.0" : "  3.0", //<
+			l10n::get(STRING_FOR_SHORTCUTS_VERSION_1),
+			l10n::get(STRING_FOR_SHORTCUTS_VERSION_3),
 		};
 	}
 };

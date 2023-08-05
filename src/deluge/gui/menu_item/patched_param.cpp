@@ -44,14 +44,8 @@ MenuItem* PatchedParam::selectButtonPress() {
 	if (Buttons::isShiftButtonPressed()) {
 		return Param::selectButtonPress();
 	}
-	else {
-#if 0 && HAVE_OLED
-		return NULL;
-#else
-		soundEditor.patchingParamSelected = this->getP();
-		return &source_selection::regularMenu;
-#endif
-	}
+	soundEditor.patchingParamSelected = this->getP();
+	return &source_selection::regularMenu;
 }
 
 // #if !HAVE_OLED

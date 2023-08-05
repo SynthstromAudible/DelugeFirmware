@@ -15,11 +15,14 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "fmt/core.h"
+#include "gui/l10n.h"
 #include "gui/menu_item/selection/selection.h"
 #include "gui/menu_item/submenu.h"
 #include "gui/ui/sound_editor.h"
 #include "transpose.h"
 #include "volts.h"
+#include <ranges>
 
 extern void setCvNumberForTitle(int32_t m);
 extern deluge::gui::menu_item::Submenu<2> cvSubmenu;
@@ -27,7 +30,7 @@ extern deluge::gui::menu_item::Submenu<2> cvSubmenu;
 namespace deluge::gui::menu_item::cv {
 class Selection final : public menu_item::Selection<2> {
 public:
-	using menu_item::Selection<2>::Selection;
+	using menu_item::Selection<capacity()>::Selection;
 
 	void beginSession(MenuItem* navigatedBackwardFrom) override {
 		if (navigatedBackwardFrom == nullptr) {
@@ -47,9 +50,21 @@ public:
 	}
 
 	static_vector<std::string, capacity()> getOptions() override {
+		using enum l10n::Strings;
+
+		// // Just a test
+		// auto strings =                               //<
+		//     std::views::iota(1_u32, capacity())      //<
+		//     | std::views::transform([](size_t idx) { //<
+		// 	      return fmt::vformat(l10n::get(STRING_FOR_CV_OUTPUT_N), fmt::make_format_args(idx));
+		//       })
+		//     | std::views::common;
+
+		// return {strings.begin(), strings.begin() + capacity()};
+
 		return {
-		    HAVE_OLED ? "CV output 1" : "OUT1",
-		    HAVE_OLED ? "CV output 2" : "OUT2",
+		    string{fmt::vformat(l10n::get(STRING_FOR_CV_OUTPUT_N), fmt::make_format_args(1))},
+		    string{fmt::vformat(l10n::get(STRING_FOR_CV_OUTPUT_N), fmt::make_format_args(2))},
 		};
 	}
 };

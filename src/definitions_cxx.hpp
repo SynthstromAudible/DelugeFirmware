@@ -549,7 +549,7 @@ enum class LFOType {
 	RANDOM_WALK,
 };
 
-constexpr int32_t kNumLFOTypes = util::to_underlying(LFOType::RANDOM_WALK);
+constexpr int32_t kNumLFOTypes = util::to_underlying(LFOType::RANDOM_WALK) + 1;
 
 // SyncType values correspond to the index of the first option of the specific
 // type in the selection menu. There are 9 different levels for each type (see

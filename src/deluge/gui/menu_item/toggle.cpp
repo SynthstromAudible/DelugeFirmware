@@ -1,4 +1,5 @@
 #include "toggle.h"
+#include "gui/l10n.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/numeric_driver.h"
 #include "hid/display/oled.h"
@@ -29,7 +30,9 @@ void Toggle::drawValue() {
 		renderUIsForOled();
 	}
 	else {
-		display.setText(this->value_ ? "ON" : "OFF");
+		display.setText(this->value_ //<
+		                    ? l10n::get(l10n::Strings::STRING_FOR_ENABLED)
+		                    : l10n::get(l10n::Strings::STRING_FOR_DISABLED));
 	}
 }
 
@@ -38,7 +41,10 @@ void Toggle::drawPixelsForOled() {
 	// Move scroll
 	soundEditor.menuCurrentScroll = std::clamp<int32_t>(soundEditor.menuCurrentScroll, 0, 1);
 
-	char const* options[] = {"Off", "On"};
+	char const* options[] = {
+	    l10n::get(l10n::Strings::STRING_FOR_DISABLED),
+	    l10n::get(l10n::Strings::STRING_FOR_ENABLED),
+	};
 	int32_t selectedOption = this->value_ - soundEditor.menuCurrentScroll;
 
 	int32_t baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;

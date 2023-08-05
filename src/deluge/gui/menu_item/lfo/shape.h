@@ -16,6 +16,7 @@
 */
 #pragma once
 #include "definitions_cxx.hpp"
+#include "gui/l10n.h"
 #include "gui/menu_item/selection/typed_selection.h"
 
 namespace deluge::gui::menu_item::lfo {
@@ -25,7 +26,15 @@ public:
 	using TypedSelection::TypedSelection;
 
 	static_vector<std::string, capacity()> getOptions() override {
-		return {"Sine", "Triangle", "Square", "Saw", "S&H", "Random Walk"};
+		using enum l10n::Strings;
+		return {
+		    l10n::get(STRING_FOR_SINE),
+			l10n::get(STRING_FOR_TRIANGLE),
+			l10n::get(STRING_FOR_SQUARE),
+			l10n::get(STRING_FOR_SAW),
+			l10n::get(STRING_FOR_SAMPLE_AND_HOLD),
+			l10n::get(STRING_FOR_RANDOM_WALK),
+		};
 	}
 };
 

@@ -15,6 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "fmt/core.h"
+#include "gui/l10n/strings.h"
 #include "gui/menu_item/gate/mode.h"
 #include "gui/menu_item/selection/selection.h"
 #include "gui/ui/sound_editor.h"
@@ -51,18 +53,19 @@ public:
 			gate::mode_title[8] = '1' + this->value_;
 		}
 
-		// TODO: this needs to be a "UpdateOptions" method on gate::Mode
 		gateModeMenu.updateOptions(this->value_);
 		return &gateModeMenu;
 	}
 
 	static_vector<std::string, capacity()> getOptions() override {
+		using enum l10n::Strings;
+		auto gate_output_fmt_string = l10n::get(STRING_FOR_GATE_OUTPUT_N);
 		return {
-		    HAVE_OLED ? "Gate output 1" : "OUT1", //<
-		    HAVE_OLED ? "Gate output 2" : "OUT2", //<
-		    HAVE_OLED ? "Gate output 3" : "OUT3", //<
-		    HAVE_OLED ? "Gate output 4" : "OUT4", //<
-		    HAVE_OLED ? "Minimum off-time" : "OFFT",
+		    fmt::vformat(gate_output_fmt_string, fmt::make_format_args(1)),
+		    fmt::vformat(gate_output_fmt_string, fmt::make_format_args(2)),
+		    fmt::vformat(gate_output_fmt_string, fmt::make_format_args(3)),
+		    fmt::vformat(gate_output_fmt_string, fmt::make_format_args(4)),
+		    l10n::get(STRING_FOR_MINIMUM_OFF_TIME),
 		};
 	}
 };

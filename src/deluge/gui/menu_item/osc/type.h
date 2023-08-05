@@ -56,27 +56,24 @@ public:
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
-	//char const** getOptions() { static char const* options[] = {"SINE", "TRIANGLE", "SQUARE", "SAW", "MMS1", "SUB1", "SAMPLE", "INL", "INR", "INLR", "SQ50", "SQ02", "SQ01", "SUB2", "SQ20", "SA50", "S101", "S303", "MMS2", "MMS3", "TABLE"}; return options; }
 	static_vector<std::string, capacity()> getOptions() override {
+		using enum l10n::Strings;
 		static_vector<std::string, capacity()> options = {
-		    "SINE",
-		    "TRIANGLE",
-		    "SQUARE",
-		    HAVE_OLED ? "Analog square" : "ASQUARE",
-		    "Saw",
-		    HAVE_OLED ? "Analog saw" : "ASAW",
-		    "Wavetable",
-		    "SAMPLE",
-		    HAVE_OLED ? "Input (left)" : "INL",
-		    HAVE_OLED ? "Input (right)" : "INR",
-		    HAVE_OLED ? "Input (stereo)" : "INLR",
+		    l10n::get(STRING_FOR_SINE),          //<
+		    l10n::get(STRING_FOR_TRIANGLE),      //<
+		    l10n::get(STRING_FOR_SQUARE),        //<
+		    l10n::get(STRING_FOR_ANALOG_SQUARE), //<
+		    l10n::get(STRING_FOR_SAW),           //<
+		    l10n::get(STRING_FOR_ANALOG_SAW),    //<
+		    l10n::get(STRING_FOR_WAVETABLE),     //<
+		    l10n::get(STRING_FOR_SAMPLE),        //<
+		    l10n::get(STRING_FOR_INPUT_LEFT),    //<
+		    l10n::get(STRING_FOR_INPUT_RIGHT),   //<
+		    l10n::get(STRING_FOR_INPUT_STEREO),  //<
 		};
-		if (display.type == DisplayType::OLED) {
-			options[8] = ((AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn)) ? "Input (left)" : "Input";
-		}
-		else {
-			options[8] = ((AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn)) ? "INL" : "IN";
-		}
+		options[8] = ((AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn)) //<
+		                 ? l10n::get(STRING_FOR_INPUT_LEFT)
+		                 : l10n::get(STRING_FOR_INPUT);
 
 		if (soundEditor.currentSound->getSynthMode() == SynthMode::RINGMOD) {
 			return {options.begin(), options.begin() + kNumOscTypesRingModdable};

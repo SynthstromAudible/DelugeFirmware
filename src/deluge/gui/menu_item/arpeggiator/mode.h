@@ -16,6 +16,7 @@
 */
 #pragma once
 #include "definitions_cxx.hpp"
+#include "gui/l10n.h"
 #include "gui/menu_item/selection/typed_selection.h"
 #include "gui/ui/sound_editor.h"
 #include "model/clip/clip.h"
@@ -58,6 +59,15 @@ public:
 			bool arpNow = (this->value_ != ArpMode::OFF); // Uh.... this does nothing...
 		}
 	}
-	static_vector<std::string, capacity()> getOptions() override { return {"OFF", "UP", "DOWN", "BOTH", "Random"}; }
+	static_vector<std::string, capacity()> getOptions() override {
+		using enum l10n::Strings;
+		return {
+		    l10n::get(STRING_FOR_OFF),    //<
+		    l10n::get(STRING_FOR_UP),     //<
+		    l10n::get(STRING_FOR_DOWN),   //<
+		    l10n::get(STRING_FOR_BOTH),   //<
+		    l10n::get(STRING_FOR_RANDOM), //<
+		};
+	}
 };
 } // namespace deluge::gui::menu_item::arpeggiator

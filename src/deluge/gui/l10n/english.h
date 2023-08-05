@@ -214,7 +214,8 @@ constexpr std::array english = build_l10n_map( //
          "Carrier2 feed."},
 
         // General
-        {STRING_FOR_OFF, "Off"},
+        {STRING_FOR_DISABLED, "Disabled"},
+        {STRING_FOR_ENABLED, "Enabled"},
         {STRING_FOR_OK, "OK"},
         {STRING_FOR_NEW, "New"},
         {STRING_FOR_DELETE, "Delete"},
@@ -273,5 +274,84 @@ constexpr std::array english = build_l10n_map( //
         {STRING_FOR_COLLECT_MEDIA, "Collect media"},
         {STRING_FOR_CREATE_FOLDER, "Create folder"},
 
+        // gui/menu_item/arpeggiator/mode.h
+        {STRING_FOR_UP, "Up"},
+        {STRING_FOR_DOWN, "Down"},
+        {STRING_FOR_BOTH, "Both"},
+        {STRING_FOR_RANDOM, "Random"},
+
+        // gui/menu_item/cv/selection.h
+        {STRING_FOR_CV_OUTPUT_N, "CV output {}"},
+
+        // gui/menu_item/delay/analog.h
+        {STRING_FOR_DIGITAL, "Digital"},
+        {STRING_FOR_ANALOG, "Analog"},
+
+        // gui/menu_item/filter/lpf_mode.h
+        {STRING_FOR_DRIVE, "Drive"},
+        {STRING_FOR_SVF, "State-Variable Filter"},
+
+        // gui/menu_item/flash/status.h
+        {STRING_FOR_FAST, "Fast"},
+        {STRING_FOR_SLOW, "Slow"},
+
+        // gui/menu_item/flash/status.h
+        {STRING_FOR_V_TRIGGER, "V-trig"},
+        {STRING_FOR_S_TRIGGER, "S-trig"},
+        {STRING_FOR_CLOCK, "Clock"},
+        {STRING_FOR_RUN_SIGNAL, "Run signal"},
+
+        // gui/menu_item/gate/selection.h
+        {STRING_FOR_GATE_MODE_TITLE, "Gate out{} mode"},
+        {STRING_FOR_GATE_OUTPUT_N, "Gate output {}"},
+        {STRING_FOR_MINIMUM_OFF_TIME, "Minimum off-time"},
+
+        // gui/menu_item/lfo/shape.h
+        {STRING_FOR_SINE, "Sine"},
+        {STRING_FOR_TRIANGLE, "Triangle"},
+        {STRING_FOR_SQUARE, "Square"},
+        {STRING_FOR_SAW, "Saw"},
+        {STRING_FOR_SAMPLE_AND_HOLD, "S&H"},
+        {STRING_FOR_RANDOM_WALK, "Random Walk"},
+
+        // gui/menu_item/midi/takeover.h
+        {STRING_FOR_JUMP, "Jump"},
+        {STRING_FOR_PICK_UP, "Pickup"},
+        {STRING_FOR_SCALE, "Scale"},
+
+        // gui/menu_item/mod_fx/type.h
+        {STRING_FOR_FLANGER, "Flanger"},
+        {STRING_FOR_CHORUS, "Chorus"},
+        {STRING_FOR_PHASER, "Phaser"},
+        {STRING_FOR_STEREO_CHORUS, "Stereo Chorus"},
+
+        // gui/menu_item/modulator/destination.h
+        {STRING_FOR_CARRIERS, "Carriers"},
+        {STRING_FOR_MODULATOR_N, "Modulator {}"},
+
+        // gui/menu_item/monitor/mode.h
+        {STRING_FOR_CONDITIONAL, "Conditional"},
+
+        {STRING_FOR_LOWER_ZONE, "Lower zone"},
+        {STRING_FOR_UPPER_ZONE, "Upper zone"},
+
+        {STRING_FOR_ANALOG_SQUARE, "Analog square"},
+        {STRING_FOR_ANALOG_SAW, "Analog saw"},
+        {STRING_FOR_SAMPLE, "Sample"},
+        {STRING_FOR_INPUT, "Input"},
+        {STRING_FOR_INPUT_LEFT, "Input (left)"},
+        {STRING_FOR_INPUT_RIGHT, "Input (right)"},
+        {STRING_FOR_INPUT_STEREO, "Input (stereo)"},
+
+        {STRING_FOR_AUTOMATION_DELETED, "Automation deleted"},
+
+        {STRING_FOR_RANGE_CONTAINS_ONE_NOTE, "Range contains only 1 note"},
+        {STRING_FOR_LAST_RANGE_CANT_DELETE, "Only 1 range - can't delete"},
+        {STRING_FOR_RANGE_DELETED, "Range deleted"},
+        {STRING_FOR_BOTTOM, "Bottom"},
+
+        {STRING_FOR_SHORTCUTS_VERSION_1, "1.0"},
+        {STRING_FOR_SHORTCUTS_VERSION_3, "3.0"},
+		{STRING_FOR_CANT_RECORD_AUDIO_FM_MODE, "Can't record audio into an FM synth"},
     });
 } // namespace deluge::l10n::language_map

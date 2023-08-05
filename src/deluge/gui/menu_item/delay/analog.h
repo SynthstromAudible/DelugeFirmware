@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "gui/l10n.h"
 #include "gui/menu_item/selection/selection.h"
 #include "gui/menu_item/sync_level.h"
 #include "gui/ui/sound_editor.h"
@@ -27,7 +28,13 @@ public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->value_ = soundEditor.currentModControllable->delay.analog; }
 	void writeCurrentValue() override { soundEditor.currentModControllable->delay.analog = this->value_; }
-	static_vector<std::string, 2> getOptions() override { return {"Digital", HAVE_OLED ? "Analog" : "ANA"}; }
+	static_vector<std::string, 2> getOptions() override {
+		using enum l10n::Strings;
+		return {
+			l10n::get(STRING_FOR_DIGITAL),
+			l10n::get(STRING_FOR_ANALOG)
+		};
+	}
 };
 
 } // namespace deluge::gui::menu_item::delay

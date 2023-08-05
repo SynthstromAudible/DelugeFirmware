@@ -17,6 +17,8 @@
 
 #include "source_selection.h"
 #include "definitions_cxx.hpp"
+#include "gui/l10n.h"
+#include "gui/l10n/strings.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.hpp"
 #include "modulation/params/param_manager.h"
@@ -74,57 +76,60 @@ void SourceSelection::drawPixelsForOled() {
 	drawItemsForOled(itemNames, selectedRowOnScreen);
 }
 
+// 7SEG only
 void SourceSelection::drawValue() {
-	char const* text;
+	l10n::Strings text;
+	using enum l10n::Strings;
+
 	switch (sourceMenuContents[this->value_]) {
 	case PatchSource::LFO_GLOBAL:
-		text = "LFO1";
+		text = STRING_FOR_PATCH_SOURCE_LFO_GLOBAL;
 		break;
 
 	case PatchSource::LFO_LOCAL:
-		text = "LFO2";
+		text = STRING_FOR_PATCH_SOURCE_LFO_LOCAL;
 		break;
 
 	case PatchSource::ENVELOPE_0:
-		text = "ENV1";
+		text = STRING_FOR_PATCH_SOURCE_ENVELOPE_0;
 		break;
 
 	case PatchSource::ENVELOPE_1:
-		text = "ENV2";
+		text = STRING_FOR_PATCH_SOURCE_ENVELOPE_1;
 		break;
 
 	case PatchSource::COMPRESSOR:
-		text = "SIDE";
+		text = STRING_FOR_PATCH_SOURCE_COMPRESSOR;
 		break;
 
 	case PatchSource::VELOCITY:
-		text = "VELOCITY";
+		text = STRING_FOR_PATCH_SOURCE_VELOCITY;
 		break;
 
 	case PatchSource::NOTE:
-		text = "NOTE";
+		text = STRING_FOR_PATCH_SOURCE_NOTE;
 		break;
 
 	case PatchSource::RANDOM:
-		text = "RANDOM";
+		text = STRING_FOR_PATCH_SOURCE_RANDOM;
 		break;
 
 	case PatchSource::AFTERTOUCH:
-		text = "AFTERTOUCH";
+		text = STRING_FOR_PATCH_SOURCE_AFTERTOUCH;
 		break;
 
 	case PatchSource::X:
-		text = "X";
+		text = STRING_FOR_PATCH_SOURCE_X;
 		break;
 
 	case PatchSource::Y:
-		text = "Y";
+		text = STRING_FOR_PATCH_SOURCE_Y;
 		break;
 	}
 
 	uint8_t drawDot = shouldDrawDotOnValue();
 
-	display.setText(text, false, drawDot);
+	display.setText(l10n::get(text), false, drawDot);
 }
 
 void SourceSelection::beginSession(MenuItem* navigatedBackwardFrom) {

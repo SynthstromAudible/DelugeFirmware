@@ -2212,7 +2212,7 @@ multiplePresses:
 	}
 
 	if (probabilityValue != -1) {
-		char buffer[HAVE_OLED ? 29 : 5];
+		char buffer[display.type == DisplayType::OLED ? 29 : 5];
 		char* displayString;
 		if (probabilityValue <= kNumProbabilityValues) {
 			if (display.type == DisplayType::OLED) {
@@ -4713,7 +4713,7 @@ doCompareNote:
 	}
 
 	// Now, decide what message to display ---------------------------------------------------
-	char buffer[HAVE_OLED ? 24 : 5];
+	char buffer[display.type == DisplayType::OLED ? 24 : 5];
 	char const* message;
 	bool alignRight = false;
 

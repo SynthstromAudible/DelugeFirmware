@@ -17,6 +17,7 @@
 
 #include "param.h"
 #include "definitions_cxx.hpp"
+#include "gui/l10n.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/buttons.h"
 #include "hid/display/display.hpp"
@@ -30,22 +31,19 @@
 namespace deluge::gui::menu_item {
 
 MenuItem* Param::selectButtonPress() {
+	if (!Buttons::isShiftButtonPressed()) { // Shift button not pressed,
+		return nullptr;                     // So navigate backwards
+	}
 
 	// If shift button pressed, delete automation
-	if (Buttons::isShiftButtonPressed()) {
+	Action* action = actionLogger.getNewAction(ACTION_AUTOMATION_DELETE, false);
 
-		Action* action = actionLogger.getNewAction(ACTION_AUTOMATION_DELETE, false);
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithAutoParam* modelStack = getModelStack(modelStackMemory);
 
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithAutoParam* modelStack = getModelStack(modelStackMemory);
+	modelStack->autoParam->deleteAutomation(action, modelStack);
 
-		modelStack->autoParam->deleteAutomation(action, modelStack);
-
-		display.displayPopup(HAVE_OLED ? "Automation deleted" : "DELETED");
-		return (MenuItem*)0xFFFFFFFF; // Don't navigate away
-	}
-	else {
-		return NULL; // Navigate backwards
-	}
+	display.displayPopup(l10n::get(l10n::Strings::STRING_FOR_AUTOMATION_DELETED));
+	return (MenuItem*)0xFFFFFFFF; // Don't navigate away
 }
 } // namespace deluge::gui::menu_item

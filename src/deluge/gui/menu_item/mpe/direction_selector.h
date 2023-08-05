@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "gui/l10n.h"
 #include "gui/menu_item/selection/selection.h"
 #include "zone_selector.h"
 
@@ -26,7 +27,13 @@ class DirectionSelector final : public Selection<2> {
 public:
 	using Selection::Selection;
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
-	static_vector<std::string, capacity()> getOptions() override { return {"In", "Out"}; }
+	static_vector<std::string, capacity()> getOptions() override {
+		using enum l10n::Strings;
+		return {
+			l10n::get(STRING_FOR_IN),
+			l10n::get(STRING_FOR_OUT),
+		};
+	}
 	void readCurrentValue() override { this->value_ = whichDirection; }
 	void writeCurrentValue() override { whichDirection = this->value_; }
 	MenuItem* selectButtonPress() override;

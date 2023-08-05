@@ -1,4 +1,5 @@
 #pragma once
+#include "gui/l10n/strings.h"
 #include <array>
 #include <cstddef>
 
@@ -89,7 +90,8 @@ enum class Strings : size_t {
 	STRING_FOR_PARAM_LOCAL_CARRIER_1_FEEDBACK,
 
 	// General
-	STRING_FOR_OFF,
+	STRING_FOR_DISABLED,
+	STRING_FOR_ENABLED,
 	STRING_FOR_OK,
 	STRING_FOR_NEW,
 	STRING_FOR_DELETE,
@@ -148,6 +150,86 @@ enum class Strings : size_t {
 	STRING_FOR_COLLECT_MEDIA,
 	STRING_FOR_CREATE_FOLDER,
 
+	// gui/menu_item/arpeggiator/mode.h
+	STRING_FOR_UP,
+	STRING_FOR_DOWN,
+	STRING_FOR_BOTH,
+	STRING_FOR_RANDOM,
+
+	// gui/menu_item/cv/selection.h
+	STRING_FOR_CV_OUTPUT_N,
+
+	// gui/menu_item/delay/analog.h
+	STRING_FOR_DIGITAL,
+	STRING_FOR_ANALOG,
+
+	// gui/menu_item/filter/lpf_mode.h
+	STRING_FOR_DRIVE,
+	STRING_FOR_SVF,
+
+	// gui/menu_item/flash/status.h
+	STRING_FOR_FAST,
+	STRING_FOR_SLOW,
+
+	// gui/menu_item/gate/mode.h
+	STRING_FOR_V_TRIGGER,
+	STRING_FOR_S_TRIGGER,
+	STRING_FOR_CLOCK,
+	STRING_FOR_RUN_SIGNAL,
+
+	// gui/menu_item/gate/selection.h
+	STRING_FOR_GATE_MODE_TITLE,
+	STRING_FOR_GATE_OUTPUT_N,
+	STRING_FOR_MINIMUM_OFF_TIME,
+
+	// gui/menu_item/lfo/shape.h
+	STRING_FOR_SINE,
+	STRING_FOR_TRIANGLE,
+	STRING_FOR_SQUARE,
+	STRING_FOR_SAW,
+	STRING_FOR_SAMPLE_AND_HOLD,
+	STRING_FOR_RANDOM_WALK,
+
+	// gui/menu_item/midi/takeover.h
+	STRING_FOR_JUMP,
+	STRING_FOR_PICK_UP,
+	STRING_FOR_SCALE,
+
+	// gui/menu_item/mod_fx/type.h
+	STRING_FOR_FLANGER,
+	STRING_FOR_CHORUS,
+	STRING_FOR_PHASER,
+	STRING_FOR_STEREO_CHORUS,
+
+	// gui/menu_item/modulator/destination.h
+	STRING_FOR_CARRIERS,
+	STRING_FOR_MODULATOR_N,
+
+	// gui/menu_item/monitor/mode.h
+	STRING_FOR_CONDITIONAL,
+
+	STRING_FOR_LOWER_ZONE,
+	STRING_FOR_UPPER_ZONE,
+
+	STRING_FOR_ANALOG_SQUARE,
+	STRING_FOR_ANALOG_SAW,
+	STRING_FOR_SAMPLE,
+	STRING_FOR_INPUT,
+	STRING_FOR_INPUT_LEFT,
+	STRING_FOR_INPUT_RIGHT,
+	STRING_FOR_INPUT_STEREO,
+
+	STRING_FOR_AUTOMATION_DELETED,
+
+	STRING_FOR_RANGE_CONTAINS_ONE_NOTE,
+	STRING_FOR_LAST_RANGE_CANT_DELETE,
+	STRING_FOR_RANGE_DELETED,
+	STRING_FOR_BOTTOM,
+
+	STRING_FOR_SHORTCUTS_VERSION_1,
+	STRING_FOR_SHORTCUTS_VERSION_3,
+	STRING_FOR_CANT_RECORD_AUDIO_FM_MODE,
+
 	STRINGS_LAST
 };
 
@@ -156,8 +238,6 @@ constexpr size_t kNumStrings = static_cast<size_t>(Strings::STRINGS_LAST);
 
 /**
  * @brief Helper for creating localization maps
- * @todo: When c++20 support can be finalized (e2 calls dbt for building),
- *        this should be switched to `consteval` so that it _never_ runs on the Deluge
  */
 consteval std::array<const char*, kNumStrings>
 build_l10n_map(std::initializer_list<std::pair<l10n::Strings, const char*>> stringmaps) {

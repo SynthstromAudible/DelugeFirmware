@@ -16,6 +16,7 @@
 */
 #pragma once
 #include "definitions_cxx.hpp"
+#include "gui/l10n.h"
 #include "gui/menu_item/selection/typed_selection.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/numeric_driver.h"
@@ -36,7 +37,14 @@ public:
 	}
 
 	static_vector<std::string, capacity()> getOptions() override {
-		return {"OFF", "FLANGER", "CHORUS", "PHASER", "STEREO CHORUS"};
+		using enum l10n::Strings;
+		return {
+		    l10n::get(STRING_FOR_OFF),           //<
+		    l10n::get(STRING_FOR_FLANGER),       //<
+		    l10n::get(STRING_FOR_CHORUS),        //<
+		    l10n::get(STRING_FOR_PHASER),        //<
+		    l10n::get(STRING_FOR_STEREO_CHORUS), //<
+		};
 	}
 };
 } // namespace deluge::gui::menu_item::mod_fx

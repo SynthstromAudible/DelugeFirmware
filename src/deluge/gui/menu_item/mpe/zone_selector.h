@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "gui/l10n.h"
 #include "gui/menu_item/selection/selection.h"
 
 namespace deluge::gui::menu_item::mpe {
@@ -29,9 +30,10 @@ public:
 	void writeCurrentValue() override { whichZone = this->value_; }
 
 	static_vector<std::string, capacity()> getOptions() override {
+		using enum l10n::Strings;
 		return {
-		    HAVE_OLED ? "Lower zone" : "LOWE", //<
-		    HAVE_OLED ? "Upper zone" : "UPPE"  //<
+			l10n::get(STRING_FOR_LOWER_ZONE),
+			l10n::get(STRING_FOR_UPPER_ZONE),
 		};
 	}
 

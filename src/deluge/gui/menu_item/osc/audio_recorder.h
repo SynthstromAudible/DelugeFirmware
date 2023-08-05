@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "gui/l10n.h"
 #include "gui/menu_item/menu_item.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/sound_editor.h"
@@ -49,7 +50,7 @@ public:
 
 		bool can = isRelevant(sound, whichThing);
 		if (!can) {
-			display.displayPopup(HAVE_OLED ? "Can't record audio into an FM synth" : "CANT");
+			display.displayPopup(l10n::get(l10n::Strings::STRING_FOR_CANT_RECORD_AUDIO_FM_MODE));
 			return MenuPermission::NO;
 		}
 

@@ -76,7 +76,8 @@ constexpr std::array seven_segment = build_l10n_map({
      "Y"},
 
     // General
-    {STRING_FOR_OFF, "OFF"},
+    {STRING_FOR_DISABLED, "OFF"},
+    {STRING_FOR_ENABLED, "ON"},
     {STRING_FOR_OK, "OK"},
     {STRING_FOR_NEW, "NEW"},
     {STRING_FOR_DELETE, "DELETE"},
@@ -124,5 +125,84 @@ constexpr std::array seven_segment = build_l10n_map({
     {STRING_FOR_COLLECT_MEDIA, "COLLECT MEDIA"},
     {STRING_FOR_CREATE_FOLDER, "CREATE FOLDER"},
 
+    // gui/menu_item/arpeggiator/mode.h
+    {STRING_FOR_UP, "UP"},
+    {STRING_FOR_DOWN, "DOWN"},
+    {STRING_FOR_BOTH, "BOTH"},
+    {STRING_FOR_RANDOM, "RANDOM"},
+
+    // gui/menu_item/cv/selection.h
+    {STRING_FOR_CV_OUTPUT_N, "OUT{}"},
+
+    // gui/menu_item/delay/analog.h
+    {STRING_FOR_DIGITAL, "DIGI"},
+    {STRING_FOR_ANALOG, "ANA"},
+
+    // gui/menu_item/filter/lpf_mode.h
+    {STRING_FOR_DRIVE, "Drive"},
+    {STRING_FOR_SVF, "SVF"},
+
+    // gui/menu_item/flash/status.h
+    {STRING_FOR_FAST, "FAST"},
+    {STRING_FOR_SLOW, "SLOW"},
+
+    // gui/menu_item/flash/status.h
+    {STRING_FOR_V_TRIGGER, "VTRI"},
+    {STRING_FOR_S_TRIGGER, "STRI"},
+    {STRING_FOR_CLOCK, "CLK"},
+    {STRING_FOR_RUN_SIGNAL, "RUN"},
+
+    // gui/menu_item/gate/selection.h
+    {STRING_FOR_GATE_MODE_TITLE, ""},
+    {STRING_FOR_GATE_OUTPUT_N, "OUT{}"},
+    {STRING_FOR_MINIMUM_OFF_TIME, "OFFT"},
+
+    // gui/menu_item/lfo/shape.h
+    {STRING_FOR_SINE, "SINE"},
+    {STRING_FOR_TRIANGLE, "TRIA"},
+    {STRING_FOR_SQUARE, "SQUA"},
+    {STRING_FOR_SAW, "SAW"},
+    {STRING_FOR_SAMPLE_AND_HOLD, "S/H"},
+    {STRING_FOR_RANDOM_WALK, "R.WLK"},
+
+    // gui/menu_item/midi/takeover.h
+    {STRING_FOR_JUMP, "JUMP"},
+    {STRING_FOR_PICK_UP, "PICK"},
+    {STRING_FOR_SCALE, "SCAL"},
+
+    // gui/menu_item/mod_fx/type.h
+    {STRING_FOR_FLANGER, "FLANGER"},
+    {STRING_FOR_CHORUS, "CHORUS"},
+    {STRING_FOR_PHASER, "PHASER"},
+    {STRING_FOR_STEREO_CHORUS, "S.CHORUS"},
+
+    // gui/menu_item/modulator/destination.h
+    {STRING_FOR_CARRIERS, "CARRIERS"},
+    {STRING_FOR_MODULATOR_N, "Mod{}"},
+
+    // gui/menu_item/monitor/mode.h
+    {STRING_FOR_CONDITIONAL, "COND"},
+
+    {STRING_FOR_LOWER_ZONE, "LOWE"},
+    {STRING_FOR_UPPER_ZONE, "UPPE"},
+
+    {STRING_FOR_ANALOG_SQUARE, "ASQUARE"},
+    {STRING_FOR_ANALOG_SAW, "ASAW"},
+    {STRING_FOR_SAMPLE, "SAMP"},
+    {STRING_FOR_INPUT, "IN"},
+    {STRING_FOR_INPUT_LEFT, "INL"},
+    {STRING_FOR_INPUT_RIGHT, "INR"},
+    {STRING_FOR_INPUT_STEREO, "INLR"},
+
+    {STRING_FOR_AUTOMATION_DELETED, "DELETED"},
+
+    {STRING_FOR_RANGE_CONTAINS_ONE_NOTE, "CANT"},
+    {STRING_FOR_LAST_RANGE_CANT_DELETE, "CANT"},
+    {STRING_FOR_RANGE_DELETED, "DELETED"},
+    {STRING_FOR_BOTTOM, "BOT"},
+
+        {STRING_FOR_SHORTCUTS_VERSION_1, "  1.0"},
+        {STRING_FOR_SHORTCUTS_VERSION_3, "  3.0"},
+		{STRING_FOR_CANT_RECORD_AUDIO_FM_MODE, "CANT"},
 });
 } // namespace deluge::l10n::language_map

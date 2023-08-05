@@ -16,6 +16,7 @@
 */
 
 #include "patch_cable_strength.h"
+#include "gui/l10n.h"
 #include "gui/menu_item/menu_item.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
@@ -215,7 +216,7 @@ MenuItem* PatchCableStrength::selectButtonPress() {
 			modelStack->autoParam->deleteAutomation(action, modelStack);
 		}
 
-		display.displayPopup(HAVE_OLED ? "Automation deleted" : "DELETED");
+		display.displayPopup(l10n::get(l10n::Strings::STRING_FOR_AUTOMATION_DELETED));
 		return (MenuItem*)0xFFFFFFFF; // No navigation
 	}
 	return nullptr; // Navigate back

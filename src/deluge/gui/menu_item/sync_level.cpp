@@ -16,6 +16,7 @@
 */
 
 #include "sync_level.h"
+#include "gui/l10n.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.hpp"
 #include "model/song/song.h"
@@ -65,7 +66,7 @@ void SyncLevel::getNoteLengthName(char* buffer) {
 }
 
 void SyncLevel::drawPixelsForOled() {
-	char const* text = "Off";
+	char const* text = l10n::get(l10n::Strings::STRING_FOR_DISABLED);
 	char buffer[30];
 	if (this->value_) {
 		text = buffer;
