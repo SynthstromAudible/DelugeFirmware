@@ -25,8 +25,8 @@ namespace deluge::gui::menu_item::midi {
 class Takeover final : public Selection<kNumMIDITakeoverModes> {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->set_value(midiEngine.midiTakeover); }
-	void writeCurrentValue() override { midiEngine.midiTakeover = this->get_value<MIDITakeoverMode>(); }
+	void readCurrentValue() override { this->setValue(midiEngine.midiTakeover); }
+	void writeCurrentValue() override { midiEngine.midiTakeover = this->getValue<MIDITakeoverMode>(); }
 	static_vector<string, capacity()> getOptions() override { return {"Jump", "Pickup", "Scale"}; }
 };
 } // namespace deluge::gui::menu_item::midi

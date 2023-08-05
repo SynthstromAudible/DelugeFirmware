@@ -26,8 +26,8 @@ class Mode final : public Selection<kNumInputMonitoringModes> {
 public:
 	using Selection::Selection;
 
-	void readCurrentValue() override { this->set_value(AudioEngine::inputMonitoringMode); }
-	void writeCurrentValue() override { AudioEngine::inputMonitoringMode = this->get_value<InputMonitoringMode>(); }
+	void readCurrentValue() override { this->setValue(AudioEngine::inputMonitoringMode); }
+	void writeCurrentValue() override { AudioEngine::inputMonitoringMode = this->getValue<InputMonitoringMode>(); }
 	static_vector<string, capacity()> getOptions() override { return {"Conditional", "On", "Off"}; }
 };
 } // namespace deluge::gui::menu_item::monitor

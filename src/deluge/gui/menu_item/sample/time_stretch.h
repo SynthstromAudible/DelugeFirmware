@@ -34,7 +34,7 @@ public:
 
 	bool usesAffectEntire() override { return true; }
 
-	void readCurrentValue() override { this->set_value(soundEditor.currentSource->timeStretchAmount); }
+	void readCurrentValue() override { this->setValue(soundEditor.currentSource->timeStretchAmount); }
 
 	void writeCurrentValue() override {
 
@@ -48,14 +48,14 @@ public:
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
 					Source* source = &soundDrum->sources[soundEditor.currentSourceIndex];
 
-					source->timeStretchAmount = this->get_value();
+					source->timeStretchAmount = this->getValue();
 				}
 			}
 		}
 
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSource->timeStretchAmount = this->get_value();
+			soundEditor.currentSource->timeStretchAmount = this->getValue();
 		}
 	}
 	[[nodiscard]] int32_t getMinValue() const override { return -48; }

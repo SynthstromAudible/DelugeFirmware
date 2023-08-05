@@ -22,8 +22,8 @@ namespace deluge::gui::menu_item::shortcuts {
 class Version final : public Selection<NUM_SHORTCUTS_VERSIONS> {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->set_value(soundEditor.shortcutsVersion); }
-	void writeCurrentValue() override { soundEditor.setShortcutsVersion(this->get_value()); }
+	void readCurrentValue() override { this->setValue(soundEditor.shortcutsVersion); }
+	void writeCurrentValue() override { soundEditor.setShortcutsVersion(this->getValue()); }
 	static_vector<string, capacity()> getOptions() override {
 		return {
 		    HAVE_OLED ? "1.0" : "  1.0", //<

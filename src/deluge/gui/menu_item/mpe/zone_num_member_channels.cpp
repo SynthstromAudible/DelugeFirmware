@@ -57,20 +57,20 @@ int32_t ZoneNumMemberChannels::getMaxValue() const {
 void ZoneNumMemberChannels::readCurrentValue() {
 	MIDIPort* port = getPort();
 	if (zoneSelectorMenu.whichZone == MPE_ZONE_LOWER_NUMBERED_FROM_0) {
-		this->set_value(port->mpeLowerZoneLastMemberChannel);
+		this->setValue(port->mpeLowerZoneLastMemberChannel);
 	}
 	else {
-		this->set_value(15 - port->mpeUpperZoneLastMemberChannel);
+		this->setValue(15 - port->mpeUpperZoneLastMemberChannel);
 	}
 }
 
 void ZoneNumMemberChannels::writeCurrentValue() {
 	MIDIPort* port = getPort();
 	if (zoneSelectorMenu.whichZone == MPE_ZONE_LOWER_NUMBERED_FROM_0) {
-		port->mpeLowerZoneLastMemberChannel = this->get_value();
+		port->mpeLowerZoneLastMemberChannel = this->getValue();
 	}
 	else {
-		port->mpeUpperZoneLastMemberChannel = 15 - this->get_value();
+		port->mpeUpperZoneLastMemberChannel = 15 - this->getValue();
 	}
 
 	MIDIDeviceManager::recountSmallestMPEZones();
@@ -80,7 +80,7 @@ void ZoneNumMemberChannels::writeCurrentValue() {
 	if (directionSelectorMenu.whichDirection == MIDI_DIRECTION_OUTPUT_FROM_DELUGE) {
 		int32_t masterChannel = (zoneSelectorMenu.whichZone == MPE_ZONE_LOWER_NUMBERED_FROM_0) ? 0 : 15;
 
-		soundEditor.currentMIDIDevice->sendRPN(masterChannel, 0, 6, this->get_value());
+		soundEditor.currentMIDIDevice->sendRPN(masterChannel, 0, 6, this->getValue());
 	}
 }
 } // namespace deluge::gui::menu_item::mpe

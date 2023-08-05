@@ -27,9 +27,9 @@ namespace deluge::gui::menu_item {
 class SynthMode final : public Selection<kNumSynthModes> {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->set_value(soundEditor.currentSound->synthMode); }
+	void readCurrentValue() override { this->setValue(soundEditor.currentSound->synthMode); }
 	void writeCurrentValue() override {
-		soundEditor.currentSound->setSynthMode(this->get_value<::SynthMode>(), currentSong);
+		soundEditor.currentSound->setSynthMode(this->getValue<::SynthMode>(), currentSong);
 		view.setKnobIndicatorLevels();
 	}
 

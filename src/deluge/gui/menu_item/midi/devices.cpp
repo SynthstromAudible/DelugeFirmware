@@ -32,21 +32,20 @@ static const int32_t lowestDeviceNum = -3;
 void Devices::beginSession(MenuItem* navigatedBackwardFrom) {
 	// TODO: this should _not_ be using value_ as a scratch var, I don't know why it did this with soundEditor.currentValue either
 	if (navigatedBackwardFrom != nullptr) {
-		for (this->set_value(lowestDeviceNum);
-		     this->get_value() < MIDIDeviceManager::hostedMIDIDevices.getNumElements();
-		     this->set_value(this->get_value() + 1)) {
-			if (getDevice(this->get_value()) == soundEditor.currentMIDIDevice) {
+		for (this->setValue(lowestDeviceNum); this->getValue() < MIDIDeviceManager::hostedMIDIDevices.getNumElements();
+		     this->setValue(this->getValue() + 1)) {
+			if (getDevice(this->getValue()) == soundEditor.currentMIDIDevice) {
 				goto decidedDevice;
 			}
 		}
 	}
 
-	this->set_value(lowestDeviceNum); // Start on "DIN". That's the only one that'll always be there.
+	this->setValue(lowestDeviceNum); // Start on "DIN". That's the only one that'll always be there.
 
 decidedDevice:
-	soundEditor.currentMIDIDevice = getDevice(this->get_value());
+	soundEditor.currentMIDIDevice = getDevice(this->getValue());
 #if HAVE_OLED
-	soundEditor.menuCurrentScroll = this->get_value();
+	soundEditor.menuCurrentScroll = this->getValue();
 #else
 	drawValue();
 #endif
@@ -54,7 +53,7 @@ decidedDevice:
 
 void Devices::selectEncoderAction(int32_t offset) {
 	do {
-		int32_t newValue = this->get_value() + offset;
+		int32_t newValue = this->getValue() + offset;
 
 		if (newValue >= MIDIDeviceManager::hostedMIDIDevices.getNumElements()) {
 			if (HAVE_OLED) {
@@ -69,20 +68,20 @@ void Devices::selectEncoderAction(int32_t offset) {
 			newValue = MIDIDeviceManager::hostedMIDIDevices.getNumElements() - 1;
 		}
 
-		this->set_value(newValue);
+		this->setValue(newValue);
 
-		soundEditor.currentMIDIDevice = getDevice(this->get_value());
+		soundEditor.currentMIDIDevice = getDevice(this->getValue());
 
 	} while (!soundEditor.currentMIDIDevice->connectionFlags);
 	// Don't show devices which aren't connected. Sometimes we won't even have a name to display for them.
 
 #if HAVE_OLED
-	if (this->get_value() < soundEditor.menuCurrentScroll) {
-		soundEditor.menuCurrentScroll = this->get_value();
+	if (this->getValue() < soundEditor.menuCurrentScroll) {
+		soundEditor.menuCurrentScroll = this->getValue();
 	}
 
 	if (offset >= 0) {
-		int32_t d = this->get_value();
+		int32_t d = this->getValue();
 		int32_t numSeen = 1;
 		while (true) {
 			d--;
@@ -151,7 +150,7 @@ void Devices::drawPixelsForOled() {
 		MIDIDevice* device = getDevice(device_idx);
 		if (device->connectionFlags != 0u) {
 			itemNames[row] = device->getDisplayName();
-			if (device_idx == this->get_value()) {
+			if (device_idx == this->getValue()) {
 				selectedRow = static_cast<int32_t>(row);
 			}
 			row++;

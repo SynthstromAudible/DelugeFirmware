@@ -25,8 +25,8 @@ namespace deluge::gui::menu_item::voice {
 class Priority final : public Selection<kNumVoicePriorities> {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->set_value(*soundEditor.currentPriority); }
-	void writeCurrentValue() override { *soundEditor.currentPriority = this->get_value<VoicePriority>(); }
+	void readCurrentValue() override { this->setValue(*soundEditor.currentPriority); }
+	void writeCurrentValue() override { *soundEditor.currentPriority = this->getValue<VoicePriority>(); }
 	static_vector<string, capacity()> getOptions() override { return {"LOW", "MEDIUM", "HIGH"}; }
 };
 } // namespace deluge::gui::menu_item::voice

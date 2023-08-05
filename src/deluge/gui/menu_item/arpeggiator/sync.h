@@ -23,12 +23,12 @@ class Sync final : public SyncLevel {
 public:
 	using SyncLevel::SyncLevel;
 	void readCurrentValue() {
-		this->set_value(syncTypeAndLevelToMenuOption(soundEditor.currentArpSettings->syncType,
-		                                             soundEditor.currentArpSettings->syncLevel));
+		this->setValue(syncTypeAndLevelToMenuOption(soundEditor.currentArpSettings->syncType,
+		                                            soundEditor.currentArpSettings->syncLevel));
 	}
 	void writeCurrentValue() {
-		soundEditor.currentArpSettings->syncType = menuOptionToSyncType(this->get_value());
-		soundEditor.currentArpSettings->syncLevel = menuOptionToSyncLevel(this->get_value());
+		soundEditor.currentArpSettings->syncType = menuOptionToSyncType(this->getValue());
+		soundEditor.currentArpSettings->syncLevel = menuOptionToSyncLevel(this->getValue());
 	}
 };
 

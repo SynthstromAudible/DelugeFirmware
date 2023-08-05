@@ -24,7 +24,7 @@ public:
 	using UnpatchedParam::UnpatchedParam;
 #if !HAVE_OLED
 	void drawValue() override {
-		if (this->get_value() == 50) {
+		if (this->getValue() == 50) {
 			numericDriver.setText("OFF");
 		}
 		else {

@@ -25,10 +25,10 @@ class Release final : public Integer {
 public:
 	using Integer::Integer;
 	void readCurrentValue() override {
-		this->set_value(getLookupIndexFromValue(soundEditor.currentCompressor->release >> 3, releaseRateTable, 50));
+		this->setValue(getLookupIndexFromValue(soundEditor.currentCompressor->release >> 3, releaseRateTable, 50));
 	}
 	void writeCurrentValue() override {
-		soundEditor.currentCompressor->release = releaseRateTable[this->get_value()] << 3;
+		soundEditor.currentCompressor->release = releaseRateTable[this->getValue()] << 3;
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return 50; }

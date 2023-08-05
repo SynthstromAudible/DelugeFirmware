@@ -47,15 +47,15 @@ public:
 		ModelStackWithNoteRow* modelStackWithNoteRow = getIndividualNoteRow(modelStack);
 
 		if (modelStackWithNoteRow->getNoteRowAllowNull() != nullptr) {
-			this->set_value(modelStackWithNoteRow->getNoteRow()->sequenceDirectionMode);
+			this->setValue(modelStackWithNoteRow->getNoteRow()->sequenceDirectionMode);
 		}
 		else {
-			this->set_value((static_cast<InstrumentClip*>(currentSong->currentClip))->sequenceDirectionMode);
+			this->setValue((static_cast<InstrumentClip*>(currentSong->currentClip))->sequenceDirectionMode);
 		}
 	}
 
 	void writeCurrentValue() override {
-		auto current_value = this->get_value<SequenceDirection>();
+		auto current_value = this->getValue<SequenceDirection>();
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		ModelStackWithNoteRow* modelStackWithNoteRow = getIndividualNoteRow(modelStack);

@@ -26,12 +26,12 @@ public:
 	using SyncLevel::SyncLevel;
 
 	void readCurrentValue() override {
-		this->set_value(syncTypeAndLevelToMenuOption(soundEditor.currentModControllable->delay.syncType,
-		                                             soundEditor.currentModControllable->delay.syncLevel));
+		this->setValue(syncTypeAndLevelToMenuOption(soundEditor.currentModControllable->delay.syncType,
+		                                            soundEditor.currentModControllable->delay.syncLevel));
 	}
 	void writeCurrentValue() override {
-		soundEditor.currentModControllable->delay.syncType = menuOptionToSyncType(this->get_value());
-		soundEditor.currentModControllable->delay.syncLevel = menuOptionToSyncLevel(this->get_value());
+		soundEditor.currentModControllable->delay.syncType = menuOptionToSyncType(this->getValue());
+		soundEditor.currentModControllable->delay.syncLevel = menuOptionToSyncLevel(this->getValue());
 	}
 };
 } // namespace deluge::gui::menu_item::delay

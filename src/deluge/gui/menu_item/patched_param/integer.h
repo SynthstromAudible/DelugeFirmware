@@ -27,7 +27,7 @@ public:
 	    : PatchedParam(newP), IntegerContinuous(newName, title) {}
 #if !HAVE_OLED
 	void drawValue() override {
-		numericDriver.setTextAsNumber(this->get_value(), shouldDrawDotOnName());
+		numericDriver.setTextAsNumber(this->getValue(), shouldDrawDotOnName());
 	}
 #endif
 	ParamDescriptor getLearningThing() final {

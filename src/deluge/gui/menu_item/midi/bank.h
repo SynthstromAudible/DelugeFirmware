@@ -22,11 +22,11 @@ class Bank final : public Preset {
 public:
 	using Preset::Preset;
 	void readCurrentValue() override {
-		this->set_value((static_cast<InstrumentClip*>(currentSong->currentClip))->midiBank);
+		this->setValue((static_cast<InstrumentClip*>(currentSong->currentClip))->midiBank);
 	}
 	void writeCurrentValue() override {
 		auto& currentClip = *static_cast<InstrumentClip*>(currentSong->currentClip);
-		currentClip.midiBank = this->get_value();
+		currentClip.midiBank = this->getValue();
 		if (currentClip.isActiveOnOutput()) {
 			currentClip.sendMIDIPGM();
 		}

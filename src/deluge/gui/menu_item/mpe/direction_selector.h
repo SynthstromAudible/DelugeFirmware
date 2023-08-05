@@ -27,8 +27,8 @@ public:
 	using Selection::Selection;
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
 	static_vector<string, capacity()> getOptions() override { return {"In", "Out"}; }
-	void readCurrentValue() override { this->set_value(whichDirection); }
-	void writeCurrentValue() override { whichDirection = this->get_value(); }
+	void readCurrentValue() override { this->setValue(whichDirection); }
+	void writeCurrentValue() override { whichDirection = this->getValue(); }
 	MenuItem* selectButtonPress() override;
 	uint8_t whichDirection;
 #if HAVE_OLED

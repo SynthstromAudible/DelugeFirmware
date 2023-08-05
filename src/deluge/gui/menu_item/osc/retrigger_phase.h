@@ -38,26 +38,26 @@ public:
 	void readCurrentValue() override {
 		uint32_t value = *getValueAddress();
 		if (value == 0xFFFFFFFF) {
-			this->set_value(-soundEditor.numberEditSize);
+			this->setValue(-soundEditor.numberEditSize);
 		}
 		else {
-			this->set_value(value / 11930464);
+			this->setValue(value / 11930464);
 		}
 	}
 
 	void writeCurrentValue() override {
 		uint32_t value;
-		if (this->get_value() < 0) {
+		if (this->getValue() < 0) {
 			value = 0xFFFFFFFF;
 		}
 		else {
-			value = this->get_value() * 11930464;
+			value = this->getValue() * 11930464;
 		}
 		*getValueAddress() = value;
 	}
 
 	void drawValue() override {
-		if (this->get_value() < 0) {
+		if (this->getValue() < 0) {
 			numericDriver.setText("OFF", false, 255, true);
 		}
 		else {
@@ -67,7 +67,7 @@ public:
 
 #if HAVE_OLED
 	void drawPixelsForOled() override {
-		if (this->get_value() < 0) {
+		if (this->getValue() < 0) {
 			OLED::drawStringCentred("OFF", 20, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextHugeSpacingX,
 			                        kTextHugeSizeY);
 		}
@@ -77,7 +77,7 @@ public:
 	}
 #endif
 	void horizontalEncoderAction(int32_t offset) override {
-		if (this->get_value() >= 0) {
+		if (this->getValue() >= 0) {
 			Decimal::horizontalEncoderAction(offset);
 		}
 	}

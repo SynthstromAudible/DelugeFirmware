@@ -36,10 +36,10 @@ public:
 	Mode() : Selection(mode_title) {
 	}
 	void readCurrentValue() override {
-		this->set_value(cvEngine.gateChannels[soundEditor.currentSourceIndex].mode);
+		this->setValue(cvEngine.gateChannels[soundEditor.currentSourceIndex].mode);
 	}
 	void writeCurrentValue() override {
-		cvEngine.setGateType(soundEditor.currentSourceIndex, this->get_value<GateType>());
+		cvEngine.setGateType(soundEditor.currentSourceIndex, this->getValue<GateType>());
 	}
 	static_vector<string, capacity()> getOptions() override {
 		return options_;

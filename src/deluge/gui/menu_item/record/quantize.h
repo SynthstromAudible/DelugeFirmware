@@ -22,7 +22,7 @@ namespace deluge::gui::menu_item::record {
 class Quantize final : public sync_level::RelativeToSong {
 public:
 	using RelativeToSong::RelativeToSong;
-	void readCurrentValue() { this->set_value(FlashStorage::recordQuantizeLevel); }
-	void writeCurrentValue() { FlashStorage::recordQuantizeLevel = this->get_value(); }
+	void readCurrentValue() { this->setValue(FlashStorage::recordQuantizeLevel); }
+	void writeCurrentValue() { FlashStorage::recordQuantizeLevel = this->getValue(); }
 };
 } // namespace deluge::gui::menu_item::record

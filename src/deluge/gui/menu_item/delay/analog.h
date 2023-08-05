@@ -25,8 +25,8 @@ namespace deluge::gui::menu_item::delay {
 class Analog final : public Selection<2> {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->set_value(soundEditor.currentModControllable->delay.analog); }
-	void writeCurrentValue() override { soundEditor.currentModControllable->delay.analog = this->get_value(); }
+	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->delay.analog); }
+	void writeCurrentValue() override { soundEditor.currentModControllable->delay.analog = this->getValue(); }
 	static_vector<string, 2> getOptions() override { return {"Digital", HAVE_OLED ? "Analog" : "ANA"}; }
 };
 

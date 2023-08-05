@@ -32,25 +32,25 @@ public:
 
 	void beginSession(MenuItem* navigatedBackwardFrom) override {
 		if (navigatedBackwardFrom == nullptr) {
-			this->set_value(0);
+			this->setValue(0);
 		}
 		else {
-			this->set_value(soundEditor.currentSourceIndex);
+			this->setValue(soundEditor.currentSourceIndex);
 		}
 		menu_item::Selection<capacity()>::beginSession(navigatedBackwardFrom);
 	}
 
 	MenuItem* selectButtonPress() override {
-		if (this->get_value() == NUM_GATE_CHANNELS) {
+		if (this->getValue() == NUM_GATE_CHANNELS) {
 			return &gateOffTimeMenu;
 		}
-		soundEditor.currentSourceIndex = this->get_value();
+		soundEditor.currentSourceIndex = this->getValue();
 #if HAVE_OLED
-		gate::mode_title[8] = '1' + this->get_value();
+		gate::mode_title[8] = '1' + this->getValue();
 #endif
 
 		// TODO: this needs to be a "UpdateOptions" method on gate::Mode
-		gateModeMenu.updateOptions(this->get_value());
+		gateModeMenu.updateOptions(this->getValue());
 		return &gateModeMenu;
 	}
 

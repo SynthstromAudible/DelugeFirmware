@@ -30,7 +30,7 @@ public:
 	using Toggle::Toggle;
 
 	void readCurrentValue() override {
-		this->set_value((static_cast<AudioClip*>(currentSong->currentClip))->sampleControls.reversed);
+		this->setValue((static_cast<AudioClip*>(currentSong->currentClip))->sampleControls.reversed);
 	}
 	void writeCurrentValue() override {
 		auto* clip = static_cast<AudioClip*>(currentSong->currentClip);
@@ -38,7 +38,7 @@ public:
 
 		clip->unassignVoiceSample();
 
-		clip->sampleControls.reversed = this->get_value();
+		clip->sampleControls.reversed = this->getValue();
 
 		if (clip->sampleHolder.audioFile != nullptr) {
 			if (clip->sampleControls.reversed) {

@@ -23,9 +23,9 @@ namespace deluge::gui::menu_item {
 class Colour final : public Selection<9> {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->set_value(value); }
+	void readCurrentValue() override { this->setValue(value); }
 	void writeCurrentValue() override {
-		value = this->get_value();
+		value = this->getValue();
 		renderingNeededRegardlessOfUI();
 	};
 	static_vector<string, capacity()> getOptions() override {

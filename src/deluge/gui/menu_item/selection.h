@@ -59,7 +59,7 @@ void Selection<n>::drawValue() {
 	renderUIsForOled();
 #else
 	const auto options = getOptions();
-	numericDriver.setText(options[this->get_value()].c_str());
+	numericDriver.setText(options[this->getValue()].c_str());
 #endif
 }
 
@@ -68,14 +68,14 @@ void Selection<n>::drawValue() {
 template <size_t n>
 void Selection<n>::drawPixelsForOled() {
 	// Move scroll
-	if (soundEditor.menuCurrentScroll > this->get_value()) {
-		soundEditor.menuCurrentScroll = this->get_value();
+	if (soundEditor.menuCurrentScroll > this->getValue()) {
+		soundEditor.menuCurrentScroll = this->getValue();
 	}
-	else if (soundEditor.menuCurrentScroll < this->get_value() - kOLEDMenuNumOptionsVisible + 1) {
-		soundEditor.menuCurrentScroll = this->get_value() - kOLEDMenuNumOptionsVisible + 1;
+	else if (soundEditor.menuCurrentScroll < this->getValue() - kOLEDMenuNumOptionsVisible + 1) {
+		soundEditor.menuCurrentScroll = this->getValue() - kOLEDMenuNumOptionsVisible + 1;
 	}
 
-	const int32_t selectedOption = this->get_value() - soundEditor.menuCurrentScroll;
+	const int32_t selectedOption = this->getValue() - soundEditor.menuCurrentScroll;
 
 	auto options = getOptions();
 	MenuItem::drawItemsForOled(options, selectedOption, soundEditor.menuCurrentScroll);

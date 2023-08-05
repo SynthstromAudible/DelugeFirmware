@@ -31,7 +31,7 @@ extern "C" {
 namespace deluge::gui::menu_item {
 
 void UnpatchedParam::readCurrentValue() {
-	this->set_value(
+	this->setValue(
 	    (((int64_t)soundEditor.currentParamManager->getUnpatchedParamSet()->getValue(getP()) + 2147483648) * 50
 	     + 2147483648)
 	    >> 32);
@@ -52,11 +52,11 @@ void UnpatchedParam::writeCurrentValue() {
 }
 
 int32_t UnpatchedParam::getFinalValue() {
-	if (this->get_value() == 25) {
+	if (this->getValue() == 25) {
 		return 0;
 	}
 	else {
-		return (uint32_t)this->get_value() * 85899345 - 2147483648;
+		return (uint32_t)this->getValue() * 85899345 - 2147483648;
 	}
 }
 

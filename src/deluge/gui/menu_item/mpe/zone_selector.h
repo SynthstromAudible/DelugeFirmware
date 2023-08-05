@@ -25,8 +25,8 @@ class ZoneSelector final : public Selection<2> {
 public:
 	using Selection::Selection;
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
-	void readCurrentValue() override { this->set_value(whichZone); }
-	void writeCurrentValue() override { whichZone = this->get_value(); }
+	void readCurrentValue() override { this->setValue(whichZone); }
+	void writeCurrentValue() override { whichZone = this->getValue(); }
 
 	static_vector<string, capacity()> getOptions() override {
 		return {

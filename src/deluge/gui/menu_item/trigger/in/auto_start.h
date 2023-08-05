@@ -23,7 +23,7 @@ namespace deluge::gui::menu_item::trigger::in {
 class AutoStart final : public Toggle {
 public:
 	using Toggle::Toggle;
-	void readCurrentValue() override { this->set_value(playbackHandler.analogClockInputAutoStart); }
-	void writeCurrentValue() override { playbackHandler.analogClockInputAutoStart = this->get_value(); }
+	void readCurrentValue() override { this->setValue(playbackHandler.analogClockInputAutoStart); }
+	void writeCurrentValue() override { playbackHandler.analogClockInputAutoStart = this->getValue(); }
 };
 } // namespace deluge::gui::menu_item::trigger::in

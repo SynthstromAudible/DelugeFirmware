@@ -32,17 +32,17 @@ public:
 	void readValueAgain() override;
 	bool selectEncoderActionEditsInstrument() final { return true; }
 
-	void set_value(T value) { value_ = value; }
+	void setValue(T value) { value_ = value; }
 
 	template <util::enumeration E>
-	void set_value(E value) {
+	void setValue(E value) {
 		value_ = util::to_underlying(value);
 	}
 
-	T get_value() { return value_; }
+	T getValue() { return value_; }
 
 	template <util::enumeration E>
-	E get_value() {
+	E getValue() {
 		return static_cast<E>(value_);
 	}
 

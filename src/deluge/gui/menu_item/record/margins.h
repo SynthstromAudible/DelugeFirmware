@@ -23,7 +23,7 @@ namespace deluge::gui::menu_item::record {
 class Margins final : public Toggle {
 public:
 	using Toggle::Toggle;
-	void readCurrentValue() override { this->set_value(FlashStorage::audioClipRecordMargins); }
-	void writeCurrentValue() override { FlashStorage::audioClipRecordMargins = this->get_value(); }
+	void readCurrentValue() override { this->setValue(FlashStorage::audioClipRecordMargins); }
+	void writeCurrentValue() override { FlashStorage::audioClipRecordMargins = this->getValue(); }
 };
 } // namespace deluge::gui::menu_item::record

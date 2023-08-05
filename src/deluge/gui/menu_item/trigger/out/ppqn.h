@@ -25,9 +25,9 @@ namespace deluge::gui::menu_item::trigger::out {
 class PPQN : public menu_item::PPQN {
 public:
 	using menu_item::PPQN::PPQN;
-	void readCurrentValue() override { this->set_value(playbackHandler.analogOutTicksPPQN); }
+	void readCurrentValue() override { this->setValue(playbackHandler.analogOutTicksPPQN); }
 	void writeCurrentValue() override {
-		playbackHandler.analogOutTicksPPQN = this->get_value();
+		playbackHandler.analogOutTicksPPQN = this->getValue();
 		playbackHandler.resyncAnalogOutTicksToInternalTicks();
 	}
 };

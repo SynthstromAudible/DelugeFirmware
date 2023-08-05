@@ -23,8 +23,8 @@ namespace deluge::gui::menu_item::modulator {
 class Destination final : public Selection<2> {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->set_value(soundEditor.currentSound->modulator1ToModulator0); }
-	void writeCurrentValue() override { soundEditor.currentSound->modulator1ToModulator0 = this->get_value(); }
+	void readCurrentValue() override { this->setValue(soundEditor.currentSound->modulator1ToModulator0); }
+	void writeCurrentValue() override { soundEditor.currentSound->modulator1ToModulator0 = this->getValue(); }
 	static_vector<string, capacity()> getOptions() override { return {"Carriers", HAVE_OLED ? "Modulator 1" : "MOD1"}; }
 	bool isRelevant(Sound* sound, int32_t whichThing) override {
 		return (whichThing == 1 && sound->synthMode == SynthMode::FM);

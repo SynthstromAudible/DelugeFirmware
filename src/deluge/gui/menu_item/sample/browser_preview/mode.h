@@ -23,8 +23,8 @@ namespace deluge::gui::menu_item::sample::browser_preview {
 class Mode final : public Selection<3> {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->set_value(FlashStorage::sampleBrowserPreviewMode); }
-	void writeCurrentValue() override { FlashStorage::sampleBrowserPreviewMode = this->get_value(); }
+	void readCurrentValue() override { this->setValue(FlashStorage::sampleBrowserPreviewMode); }
+	void writeCurrentValue() override { FlashStorage::sampleBrowserPreviewMode = this->getValue(); }
 	static_vector<string, 3> getOptions() override { return {"Off", "Conditional", "On"}; }
 };
 } // namespace deluge::gui::menu_item::sample::browser_preview

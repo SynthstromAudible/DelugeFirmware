@@ -36,11 +36,11 @@ void Pan::drawValue() {
 	        ? 3
 	        : 255;
 	char buffer[5];
-	intToString(std::abs(this->get_value()), buffer, 1);
-	if (this->get_value() < 0) {
+	intToString(std::abs(this->getValue()), buffer, 1);
+	if (this->getValue() < 0) {
 		strcat(buffer, "L");
 	}
-	else if (this->get_value() > 0) {
+	else if (this->getValue() > 0) {
 		strcat(buffer, "R");
 	}
 	numericDriver.setText(buffer, true, drawDot);
@@ -48,17 +48,17 @@ void Pan::drawValue() {
 #endif
 
 int32_t Pan::getFinalValue() {
-	if (this->get_value() == 32) {
+	if (this->getValue() == 32) {
 		return 2147483647;
 	}
-	if (this->get_value() == -32) {
+	if (this->getValue() == -32) {
 		return -2147483648;
 	}
-	return ((int32_t)this->get_value() * 33554432 * 2);
+	return ((int32_t)this->getValue() * 33554432 * 2);
 }
 
 void Pan::readCurrentValue() {
-	this->set_value(((int64_t)soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP()) * 64 + 2147483648)
-	                >> 32);
+	this->setValue(((int64_t)soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP()) * 64 + 2147483648)
+	               >> 32);
 }
 } // namespace deluge::gui::menu_item::patched_param

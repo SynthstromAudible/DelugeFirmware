@@ -29,12 +29,12 @@ public:
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
 	void readCurrentValue() override {
-		this->set_value((int32_t)soundEditor.currentSound->modulatorTranspose[soundEditor.currentSourceIndex] * 100
-		                + soundEditor.currentSound->modulatorCents[soundEditor.currentSourceIndex]);
+		this->setValue((int32_t)soundEditor.currentSound->modulatorTranspose[soundEditor.currentSourceIndex] * 100
+		               + soundEditor.currentSound->modulatorCents[soundEditor.currentSourceIndex]);
 	}
 
 	void writeCurrentValue() override {
-		int32_t currentValue = this->get_value() + 25600;
+		int32_t currentValue = this->getValue() + 25600;
 
 		int32_t semitones = (currentValue + 50) / 100;
 		int32_t cents = currentValue - semitones * 100;

@@ -25,8 +25,8 @@ namespace deluge::gui::menu_item::delay {
 class PingPong final : public Toggle {
 public:
 	using Toggle::Toggle;
-	void readCurrentValue() override { this->set_value(soundEditor.currentModControllable->delay.pingPong); }
-	void writeCurrentValue() override { soundEditor.currentModControllable->delay.pingPong = this->get_value(); }
+	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->delay.pingPong); }
+	void writeCurrentValue() override { soundEditor.currentModControllable->delay.pingPong = this->getValue(); }
 };
 
 } // namespace deluge::gui::menu_item::delay

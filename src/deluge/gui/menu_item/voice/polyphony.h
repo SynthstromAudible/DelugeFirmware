@@ -32,9 +32,9 @@ namespace deluge::gui::menu_item::voice {
 class Polyphony final : public Selection<kNumPolyphonyModes> {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->set_value(soundEditor.currentSound->polyphonic); }
+	void readCurrentValue() override { this->setValue(soundEditor.currentSound->polyphonic); }
 	void writeCurrentValue() override {
-		auto current_value = this->get_value<PolyphonyMode>();
+		auto current_value = this->getValue<PolyphonyMode>();
 
 		// If affect-entire button held, do whole kit
 		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKit()) {

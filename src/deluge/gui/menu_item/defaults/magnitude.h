@@ -25,18 +25,18 @@ namespace deluge::gui::menu_item::defaults {
 class Magnitude final : public Enumeration<7> {
 public:
 	using Enumeration::Enumeration;
-	void readCurrentValue() override { this->set_value(FlashStorage::defaultMagnitude); }
-	void writeCurrentValue() override { FlashStorage::defaultMagnitude = this->get_value(); }
+	void readCurrentValue() override { this->setValue(FlashStorage::defaultMagnitude); }
+	void writeCurrentValue() override { FlashStorage::defaultMagnitude = this->getValue(); }
 #if HAVE_OLED
 	void drawPixelsForOled() override {
 		char buffer[12];
-		intToString(96 << this->get_value(), buffer);
+		intToString(96 << this->getValue(), buffer);
 		OLED::drawStringCentred(buffer, 20 + OLED_MAIN_TOPMOST_PIXEL, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
 		                        18, 20);
 	}
 #else
 	void drawValue() override {
-		numericDriver.setTextAsNumber(96 << this->get_value());
+		numericDriver.setTextAsNumber(96 << this->getValue());
 	}
 #endif
 };

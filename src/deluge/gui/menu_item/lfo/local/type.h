@@ -26,8 +26,8 @@ namespace deluge::gui::menu_item::lfo::local {
 class Type final : public Shape {
 public:
 	using Shape::Shape;
-	void readCurrentValue() override { this->set_value(soundEditor.currentSound->lfoLocalWaveType); }
-	void writeCurrentValue() override { soundEditor.currentSound->lfoLocalWaveType = this->get_value<LFOType>(); }
+	void readCurrentValue() override { this->setValue(soundEditor.currentSound->lfoLocalWaveType); }
+	void writeCurrentValue() override { soundEditor.currentSound->lfoLocalWaveType = this->getValue<LFOType>(); }
 };
 
 } // namespace deluge::gui::menu_item::lfo::local

@@ -31,19 +31,19 @@ public:
 
 	void beginSession(MenuItem* navigatedBackwardFrom) override {
 		if (navigatedBackwardFrom == nullptr) {
-			this->set_value(0);
+			this->setValue(0);
 		}
 		else {
-			this->set_value(soundEditor.currentSourceIndex);
+			this->setValue(soundEditor.currentSourceIndex);
 		}
 		menu_item::Selection<2>::beginSession(navigatedBackwardFrom);
 	}
 
 	MenuItem* selectButtonPress() override {
-		soundEditor.currentSourceIndex = this->get_value();
+		soundEditor.currentSourceIndex = this->getValue();
 #if HAVE_OLED
-		cvSubmenu.title = getOptions().at(this->get_value());
-		setCvNumberForTitle(this->get_value());
+		cvSubmenu.title = getOptions().at(this->getValue());
+		setCvNumberForTitle(this->getValue());
 #endif
 		return &cvSubmenu;
 	}

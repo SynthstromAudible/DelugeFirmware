@@ -31,10 +31,10 @@ public:
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
-	void readCurrentValue() override { this->set_value(soundEditor.currentSampleControls->interpolationMode); }
+	void readCurrentValue() override { this->setValue(soundEditor.currentSampleControls->interpolationMode); }
 
 	void writeCurrentValue() override {
-		soundEditor.currentSampleControls->interpolationMode = this->get_value<InterpolationMode>();
+		soundEditor.currentSampleControls->interpolationMode = this->getValue<InterpolationMode>();
 	}
 
 	static_vector<string, capacity()> getOptions() override { return {"Linear", "Sinc"}; }

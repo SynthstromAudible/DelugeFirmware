@@ -25,8 +25,8 @@ namespace deluge::gui::menu_item::keyboard {
 class Layout final : public Selection<kNumKeyboardLayouts> {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->set_value(FlashStorage::keyboardLayout); }
-	void writeCurrentValue() override { FlashStorage::keyboardLayout = this->get_value<KeyboardLayout>(); }
+	void readCurrentValue() override { this->setValue(FlashStorage::keyboardLayout); }
+	void writeCurrentValue() override { FlashStorage::keyboardLayout = this->getValue<KeyboardLayout>(); }
 	static_vector<string, capacity()> getOptions() override {
 		return {"QWERTY", "AZERTY", HAVE_OLED ? "QWERTZ" : "QRTZ"};
 	}

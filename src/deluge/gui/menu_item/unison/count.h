@@ -26,11 +26,11 @@ namespace deluge::gui::menu_item::unison {
 class Count final : public Integer {
 public:
 	using Integer::Integer;
-	void readCurrentValue() override { this->set_value(soundEditor.currentSound->numUnison); }
+	void readCurrentValue() override { this->setValue(soundEditor.currentSound->numUnison); }
 	void writeCurrentValue() override {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithSoundFlags* modelStack = soundEditor.getCurrentModelStack(modelStackMemory)->addSoundFlags();
-		soundEditor.currentSound->setNumUnison(this->get_value(), modelStack);
+		soundEditor.currentSound->setNumUnison(this->getValue(), modelStack);
 	}
 	[[nodiscard]] int32_t getMinValue() const override { return 1; }
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxNumVoicesUnison; }

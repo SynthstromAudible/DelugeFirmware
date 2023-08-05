@@ -37,12 +37,12 @@ public:
 	}
 #endif
 	void readCurrentValue() override {
-		this->set_value(soundEditor.currentSource->oscType);
+		this->setValue(soundEditor.currentSource->oscType);
 	}
 	void writeCurrentValue() override {
 
 		OscType oldValue = soundEditor.currentSource->oscType;
-		auto newValue = this->get_value<OscType>();
+		auto newValue = this->getValue<OscType>();
 
 		auto needs_unassignment = {
 		    OscType::INPUT_L,

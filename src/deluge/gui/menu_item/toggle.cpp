@@ -18,7 +18,7 @@ void Toggle::beginSession(MenuItem* navigatedBackwardFrom) {
 void Toggle::selectEncoderAction(int32_t offset) {
 	const bool flip = offset & 0b1;
 	if (flip) {
-		this->set_value(!this->get_value());
+		this->setValue(!this->getValue());
 	}
 	Value::selectEncoderAction(offset);
 }
@@ -27,18 +27,18 @@ void Toggle::drawValue() {
 #if HAVE_OLED
 	renderUIsForOled();
 #else
-	numericDriver.setText(this->get_value() ? "ON" : "OFF");
+	numericDriver.setText(this->getValue() ? "ON" : "OFF");
 #endif
 }
 
 #if HAVE_OLED
 void Toggle::drawPixelsForOled() {
-	const int32_t val = static_cast<int32_t>(this->get_value());
+	const int32_t val = static_cast<int32_t>(this->getValue());
 	// Move scroll
 	soundEditor.menuCurrentScroll = std::clamp<int32_t>(soundEditor.menuCurrentScroll, 0, 1);
 
 	char const* options[] = {"Off", "On"};
-	int32_t selectedOption = this->get_value() - soundEditor.menuCurrentScroll;
+	int32_t selectedOption = this->getValue() - soundEditor.menuCurrentScroll;
 
 	int32_t baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
 	baseY += OLED_MAIN_TOPMOST_PIXEL;

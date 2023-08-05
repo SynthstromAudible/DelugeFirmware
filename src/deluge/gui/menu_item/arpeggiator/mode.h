@@ -29,9 +29,9 @@ namespace deluge::gui::menu_item::arpeggiator {
 class Mode final : public Selection<kNumArpModes> {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->set_value(soundEditor.currentArpSettings->mode); }
+	void readCurrentValue() override { this->setValue(soundEditor.currentArpSettings->mode); }
 	void writeCurrentValue() override {
-		auto current_value = this->get_value<ArpMode>();
+		auto current_value = this->getValue<ArpMode>();
 
 		// If was off, or is now becoming off...
 		if (soundEditor.currentArpSettings->mode == ArpMode::OFF || current_value == ArpMode::OFF) {

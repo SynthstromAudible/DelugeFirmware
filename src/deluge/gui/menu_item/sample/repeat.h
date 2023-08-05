@@ -37,9 +37,9 @@ public:
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
 	bool usesAffectEntire() override { return true; }
-	void readCurrentValue() override { this->set_value(soundEditor.currentSource->repeatMode); }
+	void readCurrentValue() override { this->setValue(soundEditor.currentSource->repeatMode); }
 	void writeCurrentValue() override {
-		auto current_value = this->get_value<SampleRepeatMode>();
+		auto current_value = this->getValue<SampleRepeatMode>();
 
 		// If affect-entire button held, do whole kit
 		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKit()) {

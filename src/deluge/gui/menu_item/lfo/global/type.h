@@ -27,8 +27,8 @@ class Type final : public Shape {
 public:
 	using Shape::Shape;
 
-	void readCurrentValue() override { this->set_value(soundEditor.currentSound->lfoGlobalWaveType); }
-	void writeCurrentValue() override { soundEditor.currentSound->setLFOGlobalWave(this->get_value<LFOType>()); }
+	void readCurrentValue() override { this->setValue(soundEditor.currentSound->lfoGlobalWaveType); }
+	void writeCurrentValue() override { soundEditor.currentSound->setLFOGlobalWave(this->getValue<LFOType>()); }
 };
 
 } // namespace deluge::gui::menu_item::lfo::global

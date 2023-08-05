@@ -34,14 +34,14 @@ public:
 	[[nodiscard]] int32_t getNumDecimalPlaces() const override { return 2; }
 	[[nodiscard]] int32_t getDefaultEditPos() const override { return 1; }
 	void readCurrentValue() override {
-		this->set_value(cvEngine.cvChannels[soundEditor.currentSourceIndex].voltsPerOctave);
+		this->setValue(cvEngine.cvChannels[soundEditor.currentSourceIndex].voltsPerOctave);
 	}
 	void writeCurrentValue() override {
-		cvEngine.setCVVoltsPerOctave(soundEditor.currentSourceIndex, this->get_value());
+		cvEngine.setCVVoltsPerOctave(soundEditor.currentSourceIndex, this->getValue());
 	}
 #if HAVE_OLED
 	void drawPixelsForOled() override {
-		if (this->get_value() == 0) {
+		if (this->getValue() == 0) {
 			OLED::drawStringCentred("Hz/V", 20, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextHugeSpacingX,
 			                        kTextHugeSizeY);
 		}
@@ -51,7 +51,7 @@ public:
 	}
 #else
 	void drawValue() override {
-		if (this->get_value() == 0) {
+		if (this->getValue() == 0) {
 			numericDriver.setText("HZPV", false, 255, true);
 		}
 		else {
@@ -60,7 +60,7 @@ public:
 	}
 #endif
 	void horizontalEncoderAction(int32_t offset) override {
-		if (this->get_value() != 0) {
+		if (this->getValue() != 0) {
 			Decimal::horizontalEncoderAction(offset);
 		}
 	}

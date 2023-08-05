@@ -22,11 +22,11 @@ class PGM final : public Preset {
 public:
 	using Preset::Preset;
 	void readCurrentValue() override {
-		this->set_value((static_cast<InstrumentClip*>(currentSong->currentClip))->midiPGM);
+		this->setValue((static_cast<InstrumentClip*>(currentSong->currentClip))->midiPGM);
 	}
 	void writeCurrentValue() override {
 		auto& currentClip = *(static_cast<InstrumentClip*>(currentSong->currentClip));
-		currentClip.midiPGM = this->get_value();
+		currentClip.midiPGM = this->getValue();
 		if (currentClip.isActiveOnOutput()) {
 			currentClip.sendMIDIPGM();
 		}

@@ -25,8 +25,8 @@ namespace deluge::gui::menu_item::defaults {
 class Scale final : public Selection<NUM_PRESET_SCALES + 2> {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->set_value(FlashStorage::defaultScale); }
-	void writeCurrentValue() override { FlashStorage::defaultScale = this->get_value(); }
+	void readCurrentValue() override { this->setValue(FlashStorage::defaultScale); }
+	void writeCurrentValue() override { FlashStorage::defaultScale = this->getValue(); }
 	static_vector<string, capacity()> getOptions() override {
 		return {presetScaleNames.begin(), presetScaleNames.begin() + capacity()};
 	}

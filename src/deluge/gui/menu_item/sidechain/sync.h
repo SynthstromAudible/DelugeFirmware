@@ -27,12 +27,12 @@ public:
 
 	size_t size() override { return 10; };
 	void readCurrentValue() override {
-		this->set_value(syncTypeAndLevelToMenuOption(soundEditor.currentCompressor->syncType,
-		                                             soundEditor.currentCompressor->syncLevel));
+		this->setValue(syncTypeAndLevelToMenuOption(soundEditor.currentCompressor->syncType,
+		                                            soundEditor.currentCompressor->syncLevel));
 	}
 	void writeCurrentValue() override {
-		soundEditor.currentCompressor->syncType = menuOptionToSyncType(this->get_value());
-		soundEditor.currentCompressor->syncLevel = menuOptionToSyncLevel(this->get_value());
+		soundEditor.currentCompressor->syncType = menuOptionToSyncType(this->getValue());
+		soundEditor.currentCompressor->syncLevel = menuOptionToSyncLevel(this->getValue());
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}
 	bool isRelevant(Sound* sound, int32_t whichThing) override {

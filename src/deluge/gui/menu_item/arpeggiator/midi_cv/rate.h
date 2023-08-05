@@ -25,18 +25,18 @@ class Rate final : public Integer {
 public:
 	using Integer::Integer;
 	void readCurrentValue() override {
-		this->set_value(
+		this->setValue(
 		    (((int64_t)(static_cast<InstrumentClip*>(currentSong->currentClip))->arpeggiatorRate + 2147483648) * 50
 		     + 2147483648)
 		    >> 32);
 	}
 	void writeCurrentValue() override {
-		if (this->get_value() == 25) {
+		if (this->getValue() == 25) {
 			(static_cast<InstrumentClip*>(currentSong->currentClip))->arpeggiatorRate = 0;
 		}
 		else {
 			(static_cast<InstrumentClip*>(currentSong->currentClip))->arpeggiatorRate =
-			    (uint32_t)this->get_value() * 85899345 - 2147483648;
+			    (uint32_t)this->getValue() * 85899345 - 2147483648;
 		}
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return 50; }
