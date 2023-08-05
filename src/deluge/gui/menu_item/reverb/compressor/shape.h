@@ -26,10 +26,10 @@ class Shape final : public Integer {
 public:
 	using Integer::Integer;
 	void readCurrentValue() override {
-		this->value_ = (((int64_t)AudioEngine::reverbCompressorShape + 2147483648) * 50 + 2147483648) >> 32;
+		this->setValue((((int64_t)AudioEngine::reverbCompressorShape + 2147483648) * 50 + 2147483648) >> 32);
 	}
 	void writeCurrentValue() override {
-		AudioEngine::reverbCompressorShape = (uint32_t)this->value_ * 85899345 - 2147483648;
+		AudioEngine::reverbCompressorShape = (uint32_t)this->getValue() * 85899345 - 2147483648;
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return 50; }
