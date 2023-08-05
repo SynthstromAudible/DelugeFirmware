@@ -1,5 +1,5 @@
-#include "display.hpp"
-#include "gui/l10n/l10n.hpp"
+#include "display.h"
+#include "gui/l10n/l10n.h"
 
 using namespace deluge;
 

@@ -19,7 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "extern.h"
-#include "hid/display/display.hpp"
+#include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
 #include "util/functions.h"
 

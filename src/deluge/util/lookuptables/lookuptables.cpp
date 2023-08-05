@@ -18,7 +18,7 @@
 // clang-format off
 
 #include "util/lookuptables/lookuptables.h"
-#include "gui/l10n/l10n.hpp"
+#include "gui/l10n/l10n.h"
 #include "util/functions.h"
 #include "definitions_cxx.hpp"
 

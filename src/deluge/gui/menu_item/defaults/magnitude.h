@@ -17,7 +17,7 @@
 #pragma once
 #include "gui/menu_item/enumeration/enumeration.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/display.hpp"
+#include "hid/display/display.h"
 #include "hid/display/numeric_driver.h"
 #include "storage/flash_storage.h"
 

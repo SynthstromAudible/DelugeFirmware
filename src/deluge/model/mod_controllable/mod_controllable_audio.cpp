@@ -17,10 +17,10 @@
 
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "definitions_cxx.hpp"
-#include "gui/l10n/l10n.hpp"
+#include "gui/l10n/l10n.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
-#include "hid/display/display.hpp"
+#include "hid/display/display.h"
 #include "io/debug/print.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"

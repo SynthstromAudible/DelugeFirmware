@@ -18,7 +18,7 @@
 #include "modulation/midi/midi_param_collection.h"
 #include "definitions_cxx.hpp"
 #include "gui/views/view.h"
-#include "hid/display/display.hpp"
+#include "hid/display/display.h"
 #include "io/midi/midi_engine.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"

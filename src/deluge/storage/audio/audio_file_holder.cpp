@@ -18,7 +18,7 @@
 #include "storage/audio/audio_file_holder.h"
 #include "storage/audio/audio_file_manager.h"
 
-#include "hid/display/display.hpp"
+#include "hid/display/display.h"
 #include "storage/audio/audio_file.h"
 
 AudioFileHolder::AudioFileHolder() {

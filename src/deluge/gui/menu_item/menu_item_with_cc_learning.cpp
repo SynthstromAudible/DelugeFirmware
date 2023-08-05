@@ -18,7 +18,7 @@
 #include "menu_item_with_cc_learning.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/view.h"
-#include "hid/display/display.hpp"
+#include "hid/display/display.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
 

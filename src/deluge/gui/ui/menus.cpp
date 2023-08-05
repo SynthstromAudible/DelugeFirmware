@@ -1,4 +1,4 @@
-#include "gui/l10n/strings.hpp"
+#include "gui/l10n/l10n.h"
 #include "gui/menu_item/arpeggiator/gate.h"
 #include "gui/menu_item/arpeggiator/midi_cv/gate.h"
 #include "gui/menu_item/arpeggiator/midi_cv/rate.h"

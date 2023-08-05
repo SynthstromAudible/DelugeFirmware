@@ -18,11 +18,11 @@
 #include "util/functions.h"
 #include "definitions_cxx.hpp"
 #include "fatfs/ff.h"
-#include "gui/l10n/l10n.hpp"
+#include "gui/l10n/l10n.h"
 #include "gui/ui/qwerty_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/view.h"
-#include "hid/display/display.hpp"
+#include "hid/display/display.h"
 #include "hid/encoders.h"
 #include "io/debug/print.h"
 #include "model/action/action_logger.h"
@@ -294,37 +294,37 @@ char const* getSourceDisplayNameForOLED(PatchSource s) {
 
 	switch (s) {
 	case PatchSource::LFO_GLOBAL:
-		return l10n::get(lang, STRING_FOR_PATCH_SOURCE_LFO_GLOBAL);
+		return l10n::get(STRING_FOR_PATCH_SOURCE_LFO_GLOBAL);
 
 	case PatchSource::LFO_LOCAL:
-		return l10n::get(lang, STRING_FOR_PATCH_SOURCE_LFO_LOCAL);
+		return l10n::get(STRING_FOR_PATCH_SOURCE_LFO_LOCAL);
 
 	case PatchSource::ENVELOPE_0:
-		return l10n::get(lang, STRING_FOR_PATCH_SOURCE_ENVELOPE_0);
+		return l10n::get(STRING_FOR_PATCH_SOURCE_ENVELOPE_0);
 
 	case PatchSource::ENVELOPE_1:
-		return l10n::get(lang, STRING_FOR_PATCH_SOURCE_ENVELOPE_1);
+		return l10n::get(STRING_FOR_PATCH_SOURCE_ENVELOPE_1);
 
 	case PatchSource::VELOCITY:
-		return l10n::get(lang, STRING_FOR_PATCH_SOURCE_VELOCITY);
+		return l10n::get(STRING_FOR_PATCH_SOURCE_VELOCITY);
 
 	case PatchSource::NOTE:
-		return l10n::get(lang, STRING_FOR_PATCH_SOURCE_NOTE);
+		return l10n::get(STRING_FOR_PATCH_SOURCE_NOTE);
 
 	case PatchSource::COMPRESSOR:
-		return l10n::get(lang, STRING_FOR_PATCH_SOURCE_COMPRESSOR);
+		return l10n::get(STRING_FOR_PATCH_SOURCE_COMPRESSOR);
 
 	case PatchSource::RANDOM:
-		return l10n::get(lang, STRING_FOR_PATCH_SOURCE_RANDOM);
+		return l10n::get(STRING_FOR_PATCH_SOURCE_RANDOM);
 
 	case PatchSource::AFTERTOUCH:
-		return l10n::get(lang, STRING_FOR_PATCH_SOURCE_AFTERTOUCH);
+		return l10n::get(STRING_FOR_PATCH_SOURCE_AFTERTOUCH);
 
 	case PatchSource::X:
-		return l10n::get(lang, STRING_FOR_PATCH_SOURCE_X);
+		return l10n::get(STRING_FOR_PATCH_SOURCE_X);
 
 	case PatchSource::Y:
-		return l10n::get(lang, STRING_FOR_PATCH_SOURCE_Y);
+		return l10n::get(STRING_FOR_PATCH_SOURCE_Y);
 
 	default:
 		__builtin_unreachable();
@@ -340,130 +340,130 @@ char const* getPatchedParamDisplayNameForOled(int32_t p) {
 	switch (p) {
 
 	case Param::Local::OSC_A_VOLUME:
-		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_OSC_A_VOLUME);
+		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_A_VOLUME);
 
 	case Param::Local::OSC_B_VOLUME:
-		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_OSC_B_VOLUME);
+		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_B_VOLUME);
 
 	case Param::Local::VOLUME:
-		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_VOLUME);
+		return l10n::get(STRING_FOR_PARAM_LOCAL_VOLUME);
 
 	case Param::Local::NOISE_VOLUME:
-		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_NOISE_VOLUME);
+		return l10n::get(STRING_FOR_PARAM_LOCAL_NOISE_VOLUME);
 
 	case Param::Local::OSC_A_PHASE_WIDTH:
-		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_OSC_A_PHASE_WIDTH);
+		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_A_PHASE_WIDTH);
 
 	case Param::Local::OSC_B_PHASE_WIDTH:
-		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_OSC_B_PHASE_WIDTH);
+		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_B_PHASE_WIDTH);
 
 	case Param::Local::OSC_A_WAVE_INDEX:
-		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_OSC_A_WAVE_INDEX);
+		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_A_WAVE_INDEX);
 
 	case Param::Local::OSC_B_WAVE_INDEX:
-		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_OSC_B_WAVE_INDEX);
+		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_B_WAVE_INDEX);
 
 	case Param::Local::LPF_RESONANCE:
-		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_LPF_RESONANCE);
+		return l10n::get(STRING_FOR_PARAM_LOCAL_LPF_RESONANCE);
 
 	case Param::Local::HPF_RESONANCE:
-		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_HPF_RESONANCE);
+		return l10n::get(STRING_FOR_PARAM_LOCAL_HPF_RESONANCE);
 
 	case Param::Local::PAN:
-		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_PAN);
+		return l10n::get(STRING_FOR_PARAM_LOCAL_PAN);
 
 	case Param::Local::MODULATOR_0_VOLUME:
-		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_MODULATOR_0_VOLUME);
+		return l10n::get(STRING_FOR_PARAM_LOCAL_MODULATOR_0_VOLUME);
 
 	case Param::Local::MODULATOR_1_VOLUME:
-		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_MODULATOR_1_VOLUME);
+		return l10n::get(STRING_FOR_PARAM_LOCAL_MODULATOR_1_VOLUME);
 
 	case Param::Local::LPF_FREQ:
-		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_LPF_FREQ);
+		return l10n::get(STRING_FOR_PARAM_LOCAL_LPF_FREQ);
 
 	case Param::Local::PITCH_ADJUST:
-		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_PITCH_ADJUST);
+		return l10n::get(STRING_FOR_PARAM_LOCAL_PITCH_ADJUST);
 
 	case Param::Local::OSC_A_PITCH_ADJUST:
-		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_OSC_A_PITCH_ADJUST);
+		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_A_PITCH_ADJUST);
 
 	case Param::Local::OSC_B_PITCH_ADJUST:
-		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_OSC_B_PITCH_ADJUST);
+		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_B_PITCH_ADJUST);
 
 	case Param::Local::MODULATOR_0_PITCH_ADJUST:
-		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_MODULATOR_0_PITCH_ADJUST);
+		return l10n::get(STRING_FOR_PARAM_LOCAL_MODULATOR_0_PITCH_ADJUST);
 
 	case Param::Local::MODULATOR_1_PITCH_ADJUST:
-		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_MODULATOR_1_PITCH_ADJUST);
+		return l10n::get(STRING_FOR_PARAM_LOCAL_MODULATOR_1_PITCH_ADJUST);
 
 	case Param::Local::HPF_FREQ:
-		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_HPF_FREQ);
+		return l10n::get(STRING_FOR_PARAM_LOCAL_HPF_FREQ);
 
 	case Param::Local::LFO_LOCAL_FREQ:
-		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_LFO_LOCAL_FREQ);
+		return l10n::get(STRING_FOR_PARAM_LOCAL_LFO_LOCAL_FREQ);
 
 	case Param::Local::ENV_0_ATTACK:
-		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_ENV_0_ATTACK);
+		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_0_ATTACK);
 
 	case Param::Local::ENV_0_DECAY:
-		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_ENV_0_DECAY);
+		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_0_DECAY);
 
 	case Param::Local::ENV_0_SUSTAIN:
-		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_ENV_0_SUSTAIN);
+		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_0_SUSTAIN);
 
 	case Param::Local::ENV_0_RELEASE:
-		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_ENV_0_RELEASE);
+		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_0_RELEASE);
 
 	case Param::Local::ENV_1_ATTACK:
-		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_ENV_1_ATTACK);
+		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_1_ATTACK);
 
 	case Param::Local::ENV_1_DECAY:
-		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_ENV_1_DECAY);
+		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_1_DECAY);
 
 	case Param::Local::ENV_1_SUSTAIN:
-		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_ENV_1_SUSTAIN);
+		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_1_SUSTAIN);
 
 	case Param::Local::ENV_1_RELEASE:
-		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_ENV_1_RELEASE);
+		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_1_RELEASE);
 
 	case Param::Global::LFO_FREQ:
-		return l10n::get(lang, STRING_FOR_PARAM_GLOBAL_LFO_FREQ);
+		return l10n::get(STRING_FOR_PARAM_GLOBAL_LFO_FREQ);
 
 	case Param::Global::VOLUME_POST_FX:
-		return l10n::get(lang, STRING_FOR_PARAM_GLOBAL_VOLUME_POST_FX);
+		return l10n::get(STRING_FOR_PARAM_GLOBAL_VOLUME_POST_FX);
 
 	case Param::Global::VOLUME_POST_REVERB_SEND:
-		return l10n::get(lang, STRING_FOR_PARAM_GLOBAL_VOLUME_POST_REVERB_SEND);
+		return l10n::get(STRING_FOR_PARAM_GLOBAL_VOLUME_POST_REVERB_SEND);
 
 	case Param::Global::DELAY_RATE:
-		return l10n::get(lang, STRING_FOR_PARAM_GLOBAL_DELAY_RATE);
+		return l10n::get(STRING_FOR_PARAM_GLOBAL_DELAY_RATE);
 
 	case Param::Global::DELAY_FEEDBACK:
-		return l10n::get(lang, STRING_FOR_PARAM_GLOBAL_DELAY_FEEDBACK);
+		return l10n::get(STRING_FOR_PARAM_GLOBAL_DELAY_FEEDBACK);
 
 	case Param::Global::REVERB_AMOUNT:
-		return l10n::get(lang, STRING_FOR_PARAM_GLOBAL_REVERB_AMOUNT);
+		return l10n::get(STRING_FOR_PARAM_GLOBAL_REVERB_AMOUNT);
 
 	case Param::Global::MOD_FX_RATE:
-		return l10n::get(lang, STRING_FOR_PARAM_GLOBAL_MOD_FX_RATE);
+		return l10n::get(STRING_FOR_PARAM_GLOBAL_MOD_FX_RATE);
 
 	case Param::Global::MOD_FX_DEPTH:
-		return l10n::get(lang, STRING_FOR_PARAM_GLOBAL_MOD_FX_DEPTH);
+		return l10n::get(STRING_FOR_PARAM_GLOBAL_MOD_FX_DEPTH);
 
 	case Param::Global::ARP_RATE:
-		return l10n::get(lang, STRING_FOR_PARAM_GLOBAL_ARP_RATE);
+		return l10n::get(STRING_FOR_PARAM_GLOBAL_ARP_RATE);
 
 	case Param::Local::MODULATOR_0_FEEDBACK:
-		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_MODULATOR_0_FEEDBACK);
+		return l10n::get(STRING_FOR_PARAM_LOCAL_MODULATOR_0_FEEDBACK);
 
 	case Param::Local::MODULATOR_1_FEEDBACK:
-		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_MODULATOR_1_FEEDBACK);
+		return l10n::get(STRING_FOR_PARAM_LOCAL_MODULATOR_1_FEEDBACK);
 
 	case Param::Local::CARRIER_0_FEEDBACK:
-		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_CARRIER_0_FEEDBACK);
+		return l10n::get(STRING_FOR_PARAM_LOCAL_CARRIER_0_FEEDBACK);
 
 	case Param::Local::CARRIER_1_FEEDBACK:
-		return l10n::get(lang, STRING_FOR_PARAM_LOCAL_CARRIER_1_FEEDBACK);
+		return l10n::get(STRING_FOR_PARAM_LOCAL_CARRIER_1_FEEDBACK);
 
 	default:
 		__builtin_unreachable();

@@ -29,7 +29,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/waveform/waveform_renderer.h"
-#include "hid/display/display.hpp"
+#include "hid/display/display.h"
 #include "hid/led/pad_leds.h"
 #include "io/debug/print.h"
 #include "model/clip/audio_clip.h"

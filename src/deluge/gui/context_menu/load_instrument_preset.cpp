@@ -16,9 +16,9 @@
 */
 
 #include "gui/context_menu/load_instrument_preset.h"
-#include "gui/l10n/l10n.hpp"
+#include "gui/l10n/l10n.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
-#include "hid/display/display.hpp"
+#include "hid/display/display.h"
 
 namespace deluge::gui::context_menu {
 LoadInstrumentPreset loadInstrumentPreset{};

@@ -16,7 +16,7 @@
 */
 #pragma once
 #include "fmt/core.h"
-#include "gui/l10n/l10n.hpp"
+#include "gui/l10n/l10n.h"
 #include "gui/menu_item/selection/selection.h"
 #include "gui/menu_item/submenu.h"
 #include "gui/ui/sound_editor.h"

@@ -17,9 +17,9 @@
 
 #include "source_selection.h"
 #include "definitions_cxx.hpp"
-#include "gui/l10n/l10n.hpp"
+#include "gui/l10n/l10n.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/display.hpp"
+#include "hid/display/display.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "patch_cable_strength.h"

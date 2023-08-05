@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "hid/display/display.hpp"
+#include "hid/display/display.h"
 #include "modulation/params/param_manager.h"
 
 class Song;

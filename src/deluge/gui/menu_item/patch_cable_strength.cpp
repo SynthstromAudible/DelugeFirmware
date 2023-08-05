@@ -16,7 +16,7 @@
 */
 
 #include "patch_cable_strength.h"
-#include "gui/l10n/l10n.hpp"
+#include "gui/l10n/l10n.h"
 #include "gui/menu_item/menu_item.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
@@ -26,7 +26,7 @@
 #include "deluge/model/settings/runtime_feature_settings.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/buttons.h"
-#include "hid/display/display.hpp"
+#include "hid/display/display.h"
 #include "hid/matrix/matrix_driver.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"

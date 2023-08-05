@@ -17,10 +17,10 @@
 
 #include "param.h"
 #include "definitions_cxx.hpp"
-#include "gui/l10n/l10n.hpp"
+#include "gui/l10n/l10n.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/buttons.h"
-#include "hid/display/display.hpp"
+#include "hid/display/display.h"
 #include "hid/matrix/matrix_driver.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"

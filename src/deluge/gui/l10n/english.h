@@ -1,9 +1,10 @@
 #pragma once
-#include "strings.hpp"
+#include "gui/l10n/language.h"
 
-namespace deluge::l10n::language_map {
+namespace deluge::l10n::built_in {
 using enum Strings;
-constexpr std::array english = build_l10n_map( //
+constexpr Language english{
+    "English",
     {
         {STRING_FOR_ERROR_INSUFFICIENT_RAM, "Insufficient RAM"},
         {STRING_FOR_ERROR_INSUFFICIENT_RAM_FOR_FOLDER_CONTENTS_SIZE, "Too many files in folder"},
@@ -373,6 +374,6 @@ constexpr std::array english = build_l10n_map( //
 
         {STRING_FOR_CAN_ONLY_IMPORT_WHOLE_FOLDER_INTO_BRAND_NEW_KIT, "Can only import whole folder into brand-new kit"},
         {STRING_FOR_CANT_IMPORT_WHOLE_FOLDER_INTO_AUDIO_CLIP, "Can't import whole folder into audio clip"},
-
-    });
-} // namespace deluge::l10n::language_map
+    },
+};
+} // namespace deluge::l10n::built_in

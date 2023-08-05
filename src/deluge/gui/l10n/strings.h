@@ -1,5 +1,5 @@
 #pragma once
-#include "gui/l10n/strings.hpp"
+#include "gui/l10n/strings.h"
 #include <array>
 #include <cstddef>
 
@@ -387,23 +387,5 @@ enum class Strings : size_t {
 
 // The maximum number of strings that can be localized
 constexpr size_t kNumStrings = static_cast<size_t>(Strings::STRINGS_LAST);
-
-/**
- * @brief Helper for creating localization maps
- */
-consteval std::array<const char*, kNumStrings>
-build_l10n_map(std::initializer_list<std::pair<l10n::Strings, const char*>> stringmaps) {
-	std::array<const char*, kNumStrings> output = {};
-
-	// default all values to empty string
-	std::fill(output.begin(), output.end(), "");
-
-	// Replace with stringmap values for valid entries
-	for (auto [string_id, s] : stringmaps) {
-		const auto id = static_cast<size_t>(string_id);
-		output[id] = s;
-	}
-	return output;
-};
 
 } // namespace deluge::l10n

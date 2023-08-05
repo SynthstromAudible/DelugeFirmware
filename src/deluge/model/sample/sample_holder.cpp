@@ -17,7 +17,7 @@
 
 #include "model/sample/sample_holder.h"
 #include "gui/ui/browser/sample_browser.h"
-#include "hid/display/display.hpp"
+#include "hid/display/display.h"
 #include "io/debug/print.h"
 #include "model/sample/sample.h"
 #include "storage/audio/audio_file_manager.h"

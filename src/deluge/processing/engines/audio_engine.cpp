@@ -28,7 +28,7 @@
 #include "gui/ui/slicer.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/view.h"
-#include "hid/display/display.hpp"
+#include "hid/display/display.h"
 #include "io/debug/print.h"
 #include "io/midi/midi_engine.h"
 #include "memory/general_memory_allocator.h"

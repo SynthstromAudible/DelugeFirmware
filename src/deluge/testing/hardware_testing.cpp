@@ -20,7 +20,7 @@
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/root_ui.h"
 #include "hid/buttons.h"
-#include "hid/display/display.hpp"
+#include "hid/display/display.h"
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/matrix/matrix_driver.h"

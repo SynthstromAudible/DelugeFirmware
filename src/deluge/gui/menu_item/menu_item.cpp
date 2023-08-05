@@ -16,7 +16,7 @@
 */
 
 #include "menu_item.h"
-#include "hid/display/display.hpp"
+#include "hid/display/display.h"
 
 using namespace deluge;
 

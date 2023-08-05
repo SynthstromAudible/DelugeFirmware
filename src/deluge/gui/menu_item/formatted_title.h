@@ -1,5 +1,5 @@
 #pragma once
-#include "gui/l10n/l10n.hpp"
+#include "gui/l10n/l10n.h"
 #include <fmt/core.h>
 #include <utility>
 

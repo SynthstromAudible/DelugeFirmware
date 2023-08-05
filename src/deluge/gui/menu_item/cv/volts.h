@@ -18,7 +18,7 @@
 #include "gui/menu_item/decimal.h"
 #include "gui/menu_item/formatted_title.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/display.hpp"
+#include "hid/display/display.h"
 #include "processing/engines/cv_engine.h"
 
 namespace deluge::gui::menu_item::cv {

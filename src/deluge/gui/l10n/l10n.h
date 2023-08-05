@@ -1,10 +1,18 @@
 #pragma once
+#include "gui/l10n/english.h"
+#include "gui/l10n/language.h"
+#include "gui/l10n/seven_segment.h"
+#include "util/misc.h"
+#include <array>
+#include <cstddef>
+#include <initializer_list>
 
-enum l10n_string {
-	STRING_FOR_MAXIMUM_NUMBER_OF_USB_DEVICES_ALREADY_HOSTED = 253,
-	STRING_FOR_USB_DEVICE_DETACHED,
-	STRING_FOR_USB_HUB_ATTACHED,
-	STRING_FOR_USB_DEVICE_NOT_RECOGNIZED,
-};
+namespace deluge::l10n {
+constexpr const char* get(size_t language_idx, l10n::Strings string) {
+	return languages.at(language_idx)->get(string);
+}
 
-char const* l10n_get(enum l10n_string s);
+inline const char* get(l10n::Strings string) {
+	return chosenLanguage->get(string);
+}
+} // namespace deluge::l10n

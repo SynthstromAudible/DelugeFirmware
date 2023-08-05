@@ -23,7 +23,7 @@
 #include "util/sized.h"
 
 #include "gui/ui/sound_editor.h"
-#include "hid/display/display.hpp"
+#include "hid/display/display.h"
 
 namespace deluge::gui::menu_item {
 template <size_t n>

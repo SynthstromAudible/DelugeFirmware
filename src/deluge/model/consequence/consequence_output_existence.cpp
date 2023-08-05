@@ -17,7 +17,7 @@
 
 #include "model/consequence/consequence_output_existence.h"
 #include "definitions_cxx.hpp"
-#include "hid/display/display.hpp"
+#include "hid/display/display.h"
 #include "model/model_stack.h"
 #include "model/output.h"
 #include "model/song/song.h"

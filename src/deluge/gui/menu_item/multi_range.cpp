@@ -16,13 +16,13 @@
 */
 
 #include "multi_range.h"
-#include "gui/l10n/l10n.hpp"
+#include "gui/l10n/l10n.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
-#include "hid/display/display.hpp"
+#include "hid/display/display.h"
 #include "hid/matrix/matrix_driver.h"
 #include "io/debug/print.h"
 #include "processing/engines/audio_engine.h"

@@ -16,7 +16,7 @@
  */
 
 #include "gui/ui/browser/slot_browser.h"
-#include "hid/display/display.hpp"
+#include "hid/display/display.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "io/debug/print.h"

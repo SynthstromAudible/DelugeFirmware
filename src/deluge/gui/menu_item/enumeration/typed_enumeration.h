@@ -2,7 +2,7 @@
 
 #include "gui/menu_item/value.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/display.hpp"
+#include "hid/display/display.h"
 #include "util/misc.h"
 #include "util/sized.h"
 #include <type_traits>

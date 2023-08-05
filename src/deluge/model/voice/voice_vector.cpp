@@ -17,7 +17,7 @@
 
 #include "model/voice/voice_vector.h"
 #include "definitions_cxx.hpp"
-#include "hid/display/display.hpp"
+#include "hid/display/display.h"
 
 VoiceVector::VoiceVector() {
 }

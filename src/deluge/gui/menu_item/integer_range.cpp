@@ -18,7 +18,7 @@
 #include "integer_range.h"
 #include "gui/menu_item/range.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/display.hpp"
+#include "hid/display/display.h"
 #include "util/functions.h"
 
 extern "C" {
