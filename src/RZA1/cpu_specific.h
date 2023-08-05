@@ -127,12 +127,6 @@ DMA channels:
 
 #define NUM_LEVEL_INDICATORS 2
 
-// Moving this to preprocessor build directives
-// eventually will be distinguished by build script flags
-// Change your build to change whether you're building OLED or not
-#ifndef HAVE_OLED
-#define HAVE_OLED 0
-#endif
 #ifndef HAVE_RTT
 #define HAVE_RTT 0
 #endif

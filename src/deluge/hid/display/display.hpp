@@ -82,7 +82,7 @@ public:
 	void displayError(int error);
 };
 
-#if HAVE_OLED
+#ifdef HAVE_OLED
 using DisplayActual = Display<DisplayType::OLED>;
 #else
 using DisplayActual = Display<DisplayType::SevenSegment>;

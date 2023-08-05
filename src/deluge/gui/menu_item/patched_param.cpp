@@ -48,12 +48,6 @@ MenuItem* PatchedParam::selectButtonPress() {
 	return &source_selection::regularMenu;
 }
 
-// #if !HAVE_OLED
-// void PatchedParam::drawValue() {
-// 	display.setTextAsNumber(soundEditor.currentValue, shouldDrawDotOnName());
-// }
-// #endif
-
 uint8_t PatchedParam::shouldDrawDotOnName() {
 	ParamDescriptor paramDescriptor{};
 	paramDescriptor.setToHaveParamOnly(this->getP());

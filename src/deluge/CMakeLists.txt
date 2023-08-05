@@ -21,6 +21,7 @@ target_link_libraries(deluge INTERFACE
     fatfs
     RTT
     NE10
+    RZA1
     fmt::fmt # fmtlib
 )
 

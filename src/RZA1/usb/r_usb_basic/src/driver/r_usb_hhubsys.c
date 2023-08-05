@@ -37,8 +37,8 @@
 #include "deluge/drivers/uart/uart.h"
 
 #include "deluge/deluge.h"
-#include "gui/l10n/l10n.h"
-#include "hid/display/display.h"
+#include "deluge/gui/l10n/l10n.h"
+#include "deluge/hid/display/display.h"
 
 #if ((USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST)
 /***********************************************************************************************************************
