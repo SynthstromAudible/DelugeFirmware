@@ -60,6 +60,7 @@ public:
 	bool renderRow(ModelStack* modelStack, uint8_t yDisplay, uint8_t thisImage[kDisplayWidth + kSideBarWidth][3],
 	               uint8_t thisOccupancyMask[kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
 	void graphicsRoutine();
+	void requestRendering(UI* ui, uint32_t whichMainRows = 0xFFFFFFFF, uint32_t whichSideRows = 0xFFFFFFFF);
 
 	int32_t getClipPlaceOnScreen(Clip* clip);
 	void drawStatusSquare(uint8_t yDisplay, uint8_t thisImage[][3]);

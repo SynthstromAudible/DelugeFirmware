@@ -375,7 +375,7 @@ moveAfterClipInstance:
 			if (isUIModeActive(UI_MODE_VIEWING_RECORD_ARMING)) {
 				exitUIMode(UI_MODE_VIEWING_RECORD_ARMING);
 				PadLEDs::reassessGreyout(false);
-				uiNeedsRendering(this, 0, 0xFFFFFFFF);
+				requestRendering(this, 0, 0xFFFFFFFF);
 			}
 			else {
 				goto notDealtWith;
@@ -437,6 +437,7 @@ moveAfterClipInstance:
 				Clip* clip = nullptr;
 				if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 					clip = gridClipFromCoords(gridFirstPressedX, gridFirstPressedY);
+					requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 				}
 				else {
 					clip = getClipOnScreen(selectedClipYDisplay);
@@ -457,7 +458,7 @@ moveAfterClipInstance:
 #else
 						redrawNumericDisplay();
 #endif
-						uiNeedsRendering(this, 0, 0xFFFFFFFF);
+						requestRendering(this, 0, 0xFFFFFFFF);
 					}
 				}
 			}
@@ -533,7 +534,7 @@ doActualSimpleChange:
 					}
 				}
 
-				uiNeedsRendering(this, 1 << selectedClipYDisplay, 0);
+				requestRendering(this, 1 << selectedClipYDisplay, 0);
 			}
 		}
 	}
@@ -689,7 +690,7 @@ holdingRecord:
 									uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
 									currentUIMode = UI_MODE_NONE;
 									PadLEDs::reassessGreyout(false);
-									uiNeedsRendering(this, 0, 0xFFFFFFFF);
+									requestRendering(this, 0, 0xFFFFFFFF);
 								}
 
 								// If we were doing a tempoless record, now's the time to stop that and restart playback
@@ -767,7 +768,7 @@ startHoldingDown:
 						}
 
 						selectedClipYDisplay = clipIndex - currentSong->songViewYScroll;
-						uiNeedsRendering(this, 0, 1 << selectedClipYDisplay);
+						requestRendering(this, 0, 1 << selectedClipYDisplay);
 						goto startHoldingDown;
 					}
 				}
@@ -869,7 +870,7 @@ justEndClipPress:
 
 			else if (isUIModeActive(UI_MODE_MIDI_LEARN)) {
 				if (clip && clip->type == CLIP_TYPE_INSTRUMENT) {
-					uiNeedsRendering(this, 1 << yDisplay, 0);
+					requestRendering(this, 1 << yDisplay, 0);
 					goto midiLearnMelodicInstrumentAction;
 				}
 			}
@@ -1016,7 +1017,7 @@ void SessionView::sectionPadAction(uint8_t y, bool on) {
 
 				clip->section = oldSection;
 
-				uiNeedsRendering(this, 0, 1 << y);
+				requestRendering(this, 0, 1 << y);
 			}
 
 			else {
@@ -1077,7 +1078,7 @@ ActionResult SessionView::timerCallback() {
 			enterUIMode(UI_MODE_VIEWING_RECORD_ARMING);
 			PadLEDs::reassessGreyout(false);
 		case UI_MODE_VIEWING_RECORD_ARMING:
-			uiNeedsRendering(this, 0, 0xFFFFFFFF);
+			requestRendering(this, 0, 0xFFFFFFFF);
 			view.blinkOn = !view.blinkOn;
 			uiTimerManager.setTimer(TIMER_UI_SPECIFIC, kFastFlashTime);
 		}
@@ -1240,7 +1241,7 @@ ActionResult SessionView::verticalEncoderAction(int32_t offset, bool inCardRouti
 				return ActionResult::NOT_DEALT_WITH;
 
 			clip->colourOffset += offset;
-			uiNeedsRendering(this, 1 << selectedClipYDisplay, 0);
+			requestRendering(this, 1 << selectedClipYDisplay, 0);
 
 			return ActionResult::DEALT_WITH;
 		}
@@ -1638,7 +1639,7 @@ void SessionView::replaceInstrumentClipWithAudioClip(Clip* clip) {
 #if HAVE_OLED
 	OLED::sendMainImage();
 #endif
-	uiNeedsRendering(this, 1 << selectedClipYDisplay,
+	requestRendering(this, 1 << selectedClipYDisplay,
 	                 1 << selectedClipYDisplay); // If Clip was in keyboard view, need to redraw that
 }
 
@@ -1698,7 +1699,7 @@ Clip* SessionView::getClipOnScreen(int32_t yDisplay) {
 
 void SessionView::redrawClipsOnScreen(bool doRender) {
 	if (doRender) {
-		uiNeedsRendering(this);
+		requestRendering(this);
 	}
 	view.flashPlayEnable();
 }
@@ -2036,6 +2037,15 @@ void SessionView::graphicsRoutine() {
 	PadLEDs::setTickSquares(tickSquares, colours);
 }
 
+//@TODO: Maybe rip out again
+void SessionView::requestRendering(UI* ui, uint32_t whichMainRows, uint32_t whichSideRows) {
+	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+		uiNeedsRendering(ui, 0xFFFFFFFF, 0xFFFFFFFF);
+	}
+
+	uiNeedsRendering(ui, whichMainRows, whichSideRows);
+}
+
 void SessionView::rowNeedsRenderingDependingOnSubMode(int32_t yDisplay) {
 
 	switch (currentUIMode) {
@@ -2050,7 +2060,7 @@ void SessionView::rowNeedsRenderingDependingOnSubMode(int32_t yDisplay) {
 		break;
 
 	default:
-		uiNeedsRendering(this, 1 << yDisplay, 0);
+		requestRendering(this, 1 << yDisplay, 0);
 	}
 }
 
@@ -2142,9 +2152,11 @@ void SessionView::flashPlayRoutine() {
 	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 		for (int32_t idxClip = 0; idxClip < currentSong->sessionClips.getNumElements(); ++idxClip) {
 			Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
+			//@TODO: Maybe we should call this outside the loop
+			requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
+
 			if (clip->armState != ArmState::OFF) {
 				view.flashPlayEnable();
-				uiNeedsRendering(this, 0xFFFFFFFF, 0);
 				return;
 			}
 		}
@@ -2161,7 +2173,7 @@ void SessionView::flashPlayRoutine() {
 
 	if (whichRowsNeedReRendering) {
 		view.flashPlayEnable();
-		uiNeedsRendering(this, 0, whichRowsNeedReRendering);
+		requestRendering(this, 0, whichRowsNeedReRendering);
 	}
 }
 
@@ -2184,7 +2196,7 @@ void SessionView::noteRowChanged(InstrumentClip* instrumentClip, NoteRow* noteRo
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 		Clip* clip = getClipOnScreen(yDisplay);
 		if (clip == instrumentClip) {
-			uiNeedsRendering(this, 1 << yDisplay, 0);
+			requestRendering(this, 1 << yDisplay, 0);
 			return;
 		}
 	}
@@ -2229,7 +2241,7 @@ bool SessionView::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWid
 	PadLEDs::renderingLock = false;
 
 	if (whichRowsCouldntBeRendered && image == PadLEDs::image) {
-		uiNeedsRendering(this, whichRowsCouldntBeRendered, 0);
+		requestRendering(this, whichRowsCouldntBeRendered, 0);
 	}
 
 	return true;
@@ -2402,7 +2414,7 @@ void SessionView::finishedTransitioningHere() {
 
 void SessionView::playbackEnded() {
 	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
-		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
+		requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 		return;
 	}
 
@@ -2420,13 +2432,13 @@ void SessionView::playbackEnded() {
 	}
 
 	if (whichRowsToReRender) {
-		uiNeedsRendering(this, whichRowsToReRender, 0);
+		requestRendering(this, whichRowsToReRender, 0);
 	}
 }
 
 void SessionView::clipNeedsReRendering(Clip* clip) {
 	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
-		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
+		requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 		return;
 	}
 
@@ -2440,7 +2452,7 @@ void SessionView::clipNeedsReRendering(Clip* clip) {
 		Clip* thisClip = currentSong->sessionClips.getClipAtIndex(c);
 		if (thisClip == clip) {
 			int32_t yDisplay = c - currentSong->songViewYScroll;
-			uiNeedsRendering(this, (1 << yDisplay), 0);
+			requestRendering(this, (1 << yDisplay), 0);
 			break;
 		}
 	}
@@ -2448,7 +2460,7 @@ void SessionView::clipNeedsReRendering(Clip* clip) {
 
 void SessionView::sampleNeedsReRendering(Sample* sample) {
 	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
-		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
+		requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 		return;
 	}
 
@@ -2462,7 +2474,7 @@ void SessionView::sampleNeedsReRendering(Sample* sample) {
 		Clip* thisClip = currentSong->sessionClips.getClipAtIndex(c);
 		if (thisClip->type == CLIP_TYPE_AUDIO && ((AudioClip*)thisClip)->sampleHolder.audioFile == sample) {
 			int32_t yDisplay = c - currentSong->songViewYScroll;
-			uiNeedsRendering(this, (1 << yDisplay), 0);
+			requestRendering(this, (1 << yDisplay), 0);
 		}
 	}
 }
@@ -2499,7 +2511,7 @@ void SessionView::midiLearnFlash() {
 		}
 	}
 
-	uiNeedsRendering(this, mainRowsToRender, sideRowsToRender);
+	requestRendering(this, mainRowsToRender, sideRowsToRender);
 }
 
 void SessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
@@ -2704,7 +2716,7 @@ void SessionView::selectLayout(int8_t offset) {
 		}
 	}
 
-	uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
+	requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 }
 
 bool SessionView::gridRenderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
@@ -3073,7 +3085,7 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 		    && (output->type == InstrumentType::SYNTH || output->type == InstrumentType::MIDI_OUT
 		        || output->type == InstrumentType::CV)) {
 			view.melodicInstrumentMidiLearnPadPressed(on, (MelodicInstrument*)output);
-			//@TODO: Do we need uiNeedsRendering here?
+			//@TODO: Do we need requestRendering here?
 			return ActionResult::DEALT_WITH;
 		}
 
@@ -3086,7 +3098,7 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 
 				if (clip && Buttons::isButtonPressed(hid::button::SHIFT)) {
 					session.toggleClipStatus(clip, NULL, true, kInternalButtonPressLatency);
-					uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
+					requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 					return ActionResult::DEALT_WITH;
 				}
 
@@ -3184,7 +3196,7 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 		}
 	}
 
-	uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
+	requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 	view.flashPlayEnable(); //@TODO: Check if there is a better way
 	return ActionResult::DEALT_WITH;
 }
@@ -3200,7 +3212,7 @@ ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {
 
 	// This is the right place to add new features like moving clips or tracks :)
 
-	uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
+	requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 	return ActionResult::DEALT_WITH;
 }
 
