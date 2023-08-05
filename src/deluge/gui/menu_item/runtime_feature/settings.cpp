@@ -39,17 +39,29 @@ Setting menuPatchCableResolution(RuntimeFeatureSettingType::PatchCableResolution
 Setting menuCatchNotes(RuntimeFeatureSettingType::CatchNotes);
 Setting menuDeleteUnusedKitRows(RuntimeFeatureSettingType::DeleteUnusedKitRows);
 Setting menuAltGoldenKnobDelayParams(RuntimeFeatureSettingType::AltGoldenKnobDelayParams);
-Setting menuClearClipAutomation(RuntimeFeatureSettingType::ClearClipAutomation);
-Setting menuNudgeNoteAutomation(RuntimeFeatureSettingType::NudgeNoteAutomation);
+Setting menuAutomationInterpolate(RuntimeFeatureSettingType::AutomationInterpolate);
+Setting menuAutomationClearClip(RuntimeFeatureSettingType::AutomationClearClip);
+Setting menuAutomationNudgeNote(RuntimeFeatureSettingType::AutomationNudgeNote);
+Setting menuAutomationShiftNote(RuntimeFeatureSettingType::AutomationShiftNote);
 
-std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement> subMenuEntries{
+Submenu subMenuAutomation{
+	HAVE_OLED ? "AUTOMATION" : "AUTO",
+    {
+    	&menuAutomationInterpolate,
+		&menuAutomationClearClip,
+		&menuAutomationNudgeNote,
+		&menuAutomationShiftNote,
+    },
+};
+
+std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettings> subMenuEntries{
     &menuDrumRandomizer,       &menuMasterCompressorFx,  &menuFineTempo,           &menuQuantize,
     &menuPatchCableResolution, &menuCatchNotes,          &menuDeleteUnusedKitRows, &menuAltGoldenKnobDelayParams,
-    &menuClearClipAutomation,  &menuNudgeNoteAutomation,
+    &subMenuAutomation,
 };
 
 Settings::Settings(char const* name, char const* title)
-    : menu_item::Submenu<RuntimeFeatureSettingType::MaxElement>(name, title, subMenuEntries) {
-}
+	: menu_item::Submenu<subMenuEntries.size()>(name, title, subMenuEntries) {
+ }
 
 } // namespace deluge::gui::menu_item::runtime_feature

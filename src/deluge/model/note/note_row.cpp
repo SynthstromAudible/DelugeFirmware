@@ -3380,7 +3380,7 @@ void NoteRow::clear(Action* action, ModelStackWithNoteRow* modelStack) {
 	//will only clear the Notes and MPE data (NON MPE automations remain intact).
 
 	//If this is enabled, if you want to clear NON MPE automations, you will enter Automation Clip View and clear the clip there.
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::ClearClipAutomation) == RuntimeFeatureStateToggle::On) {
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationClearClip) == RuntimeFeatureStateToggle::On) {
 		if (getCurrentUI() == &automationInstrumentClipView) {
 			if (paramManager.containsAnyMainParamCollections()) { //excluding expression
 				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =

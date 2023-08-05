@@ -1070,7 +1070,12 @@ doMIDIOrCV:
 			}
 		}
 		else {
-			newItem = &settingsRootMenu;
+			if(getCurrentUI() == &automationInstrumentClipView) {
+				newItem = &deluge::gui::menu_item::runtime_feature::subMenuAutomation;
+			}
+			else {
+				newItem = &settingsRootMenu;
+			}
 		}
 	}
 

@@ -111,9 +111,7 @@ public:
 		return this;
 	}
 
-	//Automation Lanes Global Variables / Toggles
-	uint8_t clipClear;
-	uint8_t interpolation;
+	bool interpolation;
 
 private:
 	//Horizontal Encoder Action
@@ -124,6 +122,7 @@ private:
 	void pasteAutomation();
 
 	//Automation Lanes Functions
+	void initParameterSelection();
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip,
 	                                                int32_t paramID = 0xFFFFFFFF);
 	void setParameterAutomationValue(ModelStackWithAutoParam* modelStack, int32_t knobPos, int32_t squareStart,
@@ -145,18 +144,15 @@ private:
 	void renderAutomationOverview();
 	void renderAutomationEditor();
 
+	bool encoderAction;
+	bool shortcutBlinking;
+
 	//Interpolation Shape Functions
 	int32_t LERP(int32_t A, int32_t B, int32_t T, int32_t Distance);
 	int32_t LERPRoot(int32_t A, int32_t B, int32_t T, int32_t Distance);
 	int32_t LERPSweep(int32_t A, int32_t B, int32_t T, int32_t Distance);
 	int32_t LERPSweepDown(int32_t A, int32_t B, int32_t T, int32_t Distance);
 	//int32_t smoothstep (int32_t A, int32_t B, int32_t T, int32_t Distance);
-
-	uint8_t lastSelectedParamX;
-	uint8_t lastSelectedParamY;
-	uint8_t lastSelectedParamArrayPosition;
-	uint8_t lastEditPadPressXDisplay;
-	bool encoderAction;
 };
 
 extern AutomationInstrumentClipView automationInstrumentClipView;

@@ -85,15 +85,18 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AltGoldenKnobDelayParams],
 	                  "Alternative Golden Knob Delay Params", "altGoldenKnobDelayParams",
 	                  RuntimeFeatureStateToggle::Off);
+	// InterpolateAutomation
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationInterpolate], "Interpolation",
+	                  "automationInterpolate", RuntimeFeatureStateToggle::On);
 	// ClearClipAutomation
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ClearClipAutomation], "Clear Clip Automation",
-	                  "clearClipAutomation", RuntimeFeatureStateToggle::On);
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationClearClip], "Clear Clip",
+	                  "automationClearClip", RuntimeFeatureStateToggle::On);
 	// NudgeNoteAutomation
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::NudgeNoteAutomation], "Nudge Note Automation",
-	                  "nudgeNoteAutomation", RuntimeFeatureStateToggle::On);
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationNudgeNote], "Nudge Note",
+	                  "automationNudgeNote", RuntimeFeatureStateToggle::On);
 	// ShiftNoteAutomation
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ShiftNoteAutomation], "Shift Note Automation",
-	                  "shiftNoteAutomation", RuntimeFeatureStateToggle::On);
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationShiftNote], "Shift Note",
+	                  "automationShiftNote", RuntimeFeatureStateToggle::On);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {

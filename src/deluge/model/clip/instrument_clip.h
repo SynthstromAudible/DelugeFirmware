@@ -141,7 +141,10 @@ public:
 	bool onAutomationInstrumentClipView; //new to save the view that you are currently in
 	                                     //(e.g. if you leave clip and want to come back where you left off)
 
-	uint8_t lastSelectedParamID; //last selected Parameter to be edited in Automation Instrument Clip View
+	int32_t lastSelectedParamID; //last selected Parameter to be edited in Automation Instrument Clip View
+	int32_t lastSelectedParamShortcutX;
+	int32_t lastSelectedParamShortcutY;
+	int32_t lastSelectedParamArrayPosition;
 
 	//END ~ new Automation Clip View Variables
 

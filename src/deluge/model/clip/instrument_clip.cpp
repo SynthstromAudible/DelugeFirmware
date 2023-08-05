@@ -97,9 +97,13 @@ InstrumentClip::InstrumentClip(Song* song) : Clip(CLIP_TYPE_INSTRUMENT) {
 	inScaleMode = (FlashStorage::defaultScale != PRESET_SCALE_NONE);
 	onKeyboardScreen = false;
 
-	//new automation clip view variables
+	//initialize automation instrument clip view variables
 	onAutomationInstrumentClipView = false;
 	lastSelectedParamID = 255;
+	lastSelectedParamShortcutX = 255;
+	lastSelectedParamShortcutY = 255;
+	lastSelectedParamArrayPosition = 0;
+	//end initialize of automation instrument clip view variables
 
 	if (song) {
 		int32_t yNote = ((uint16_t)(song->rootNote + 120) % 12) + 60;
@@ -2185,6 +2189,15 @@ void InstrumentClip::writeDataToFile(Song* song) {
 	if (lastSelectedParamID != 255) {
 		storageManager.writeAttribute("lastSelectedParamID", lastSelectedParamID);
 	}
+	if (lastSelectedParamShortcutX != 255) {
+		storageManager.writeAttribute("lastSelectedParamShortcutX", lastSelectedParamShortcutX);
+	}
+	if (lastSelectedParamShortcutY != 255) {
+		storageManager.writeAttribute("lastSelectedParamShortcutY", lastSelectedParamShortcutY);
+	}
+	if (lastSelectedParamArrayPosition != 255) {
+		storageManager.writeAttribute("lastSelectedParamArrayPosition", lastSelectedParamArrayPosition);
+	}
 	if (wrapEditing) {
 		storageManager.writeAttribute("crossScreenEditLevel", wrapEditLevel);
 	}
@@ -2435,6 +2448,18 @@ someError:
 
 		else if (!strcmp(tagName, "lastSelectedParamID")) {
 			lastSelectedParamID = storageManager.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "lastSelectedParamShortcutX")) {
+			lastSelectedParamShortcutX = storageManager.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "lastSelectedParamShortcutY")) {
+			lastSelectedParamShortcutY = storageManager.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "lastSelectedParamArrayPosition")) {
+			lastSelectedParamArrayPosition = storageManager.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "affectEntire")) {

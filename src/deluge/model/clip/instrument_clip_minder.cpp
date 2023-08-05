@@ -393,7 +393,7 @@ yesLoadInstrument:
 			//If this is enabled, if you want to clear automations, you will enter Automation Clip View and clear the clip there.
 			//If this is enabled, the message displayed on the OLED screen is adjusted to reflect the nature of what is being cleared
 
-			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::ClearClipAutomation)
+			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationClearClip)
 			    == RuntimeFeatureStateToggle::On) {
 				if (getCurrentUI() == &automationInstrumentClipView) {
 					numericDriver.displayPopup(HAVE_OLED ? "Automation cleared" : "CLEAR");
