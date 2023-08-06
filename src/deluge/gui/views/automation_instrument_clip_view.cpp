@@ -190,7 +190,7 @@ const uint32_t midiCCShortcutsForAutomation[kDisplayWidth][kDisplayHeight] = {
     {0xFFFFFFFF, 108, 92, 76, 60, 44, 28, 12}, {0xFFFFFFFF, 109, 93, 77, 61, 45, 29, 13},
     {120, 110, 94, 78, 62, 46, 30, 14},        {121, 111, 95, 79, 63, 47, 31, 15}};
 
-const uint32_t easterEgg[kDisplayWidth][kDisplayHeight] = {
+const uint32_t love[kDisplayWidth][kDisplayHeight] = {
     {0, 0, 0, 0, 0, 0, 0, 0},
     {0, 0, 0, 0, 0xFFFFFFFF, 0xFFFFFFFF, 0, 0},
     {0, 0, 0, 0xFFFFFFFF, 0, 0, 0xFFFFFFFF, 0},
@@ -428,166 +428,101 @@ void AutomationInstrumentClipView::performActualRender(uint32_t whichRows, uint8
 
 		uint8_t* occupancyMaskOfRow = occupancyMask[yDisplay];
 
-		if (clip->lastSelectedParamID != 255) { //if parameter has been selected, show Automation Editor
-			ModelStackWithAutoParam* modelStackWithParam =
-			    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID);
+		if (instrument->type != InstrumentType::CV) {
 
-			if (modelStackWithParam && modelStackWithParam->autoParam) {
+			if (clip->lastSelectedParamID != 255) { //if parameter has been selected, show Automation Editor
 
-				int32_t effectiveLength;
+				renderAutomationEditor(modelStack, clip, instrument, image + (yDisplay * imageWidth * 3), occupancyMaskOfRow, renderWidth, xScroll, xZoom,
+							yDisplay, drawUndefinedArea);
 
-				if (instrument->type == InstrumentType::KIT) {
-					ModelStackWithNoteRow* modelStackWithNoteRow =
-								    clip->getNoteRowForSelectedDrum(modelStack);
-
-					effectiveLength = modelStackWithNoteRow->getLoopLength();
-				}
-				else {
-					effectiveLength = clip->loopLength; //this will differ for a kit when in note row mode
-				}
-
-				if (!modelStackWithParam->autoParam->nodes.getNumElements()) {
-
-					for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
-
-						uint32_t squareStart = getPosFromSquare(xDisplay);
-						int32_t currentValue =
-							modelStackWithParam->autoParam->getValuePossiblyAtPos(squareStart, modelStackWithParam);
-						int32_t knobPos =
-							modelStackWithParam->paramCollection->paramValueToKnobPos(currentValue, modelStackWithParam);
-						knobPos = knobPos + 64;
-
-						uint8_t* pixel = image + (yDisplay * imageWidth * 3) + (xDisplay * 3);
-
-						if (knobPos != 0 && knobPos >= yDisplay * 18) {
-							memcpy(pixel, &instrumentClipView.rowColour[yDisplay], 3);
-							occupancyMaskOfRow[xDisplay] = 64;
-						}
-					}
-				}
-				else {
-					renderRow(modelStackWithParam, instrumentClipView.rowColour[yDisplay], instrumentClipView.rowTailColour[yDisplay], instrumentClipView.rowBlurColour[yDisplay], image + (yDisplay * imageWidth * 3),
-									   occupancyMaskOfRow, true, effectiveLength,
-									   true, renderWidth, xScroll, xZoom, 0,
-									   renderWidth, false, yDisplay);
-				}
-
-				if (drawUndefinedArea == true) {
-
-					clip->drawUndefinedArea(xScroll, xZoom, effectiveLength, image + (yDisplay * imageWidth * 3),
-					                        occupancyMaskOfRow, renderWidth, this,
-					                        currentSong->tripletsOn); // Sends image pointer for just the one row
-				}
 			}
 
-			else { //render easterEgg
-				for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+			else { //if not editing a parameter, show Automation Overview
 
-					uint8_t* pixel = image + (yDisplay * imageWidth * 3) + (xDisplay * 3);
-
-					if (easterEgg[xDisplay][yDisplay] == 0xFFFFFFFF) {
-
-						memcpy(pixel, &instrumentClipView.rowColour[yDisplay], 3);
-						occupancyMaskOfRow[xDisplay] = 64;
-					}
-				}
+				renderAutomationOverview(modelStack, clip, instrument, image + (yDisplay * imageWidth * 3), occupancyMaskOfRow, yDisplay);
 			}
 		}
 
-		else { //if not editing a parameter, show Automation Overview
-
-			if (instrument->type == InstrumentType::SYNTH || instrument->type == InstrumentType::KIT) {
-				for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
-
-					uint8_t* pixel = image + (yDisplay * imageWidth * 3) + (xDisplay * 3);
-
-					if (paramShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
-						ModelStackWithAutoParam* modelStackWithParam =
-						    getModelStackWithParam(modelStack, clip, paramShortcutsForAutomation[xDisplay][yDisplay]);
-
-						if (modelStackWithParam && modelStackWithParam->autoParam) {
-							if (modelStackWithParam->autoParam
-							        ->isAutomated()) { //highlight pad white if the parameter it represents is currently automated
-								pixel[0] = 130;
-								pixel[1] = 120;
-								pixel[2] = 130;
-							}
-
-							else {
-								memcpy(pixel, &instrumentClipView.rowColour[yDisplay], 3);
-							}
-
-							occupancyMaskOfRow[xDisplay] = 64;
-						}
-						//	else { //render easterEgg
-
-						//		if (easterEgg[xDisplay][yDisplay] == 0xFFFFFFFF) {
-
-						//			memcpy(pixel, &instrumentClipView.rowTailColour[yDisplay], 3);
-						//			occupancyMaskOfRow[xDisplay] = 64;
-						//		}
-						//	}
-					}
-				}
-			}
-
-			else if (instrument->type == InstrumentType::MIDI_OUT) {
-				for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
-
-					uint8_t* pixel = image + (yDisplay * imageWidth * 3) + (xDisplay * 3);
-
-					if (midiCCShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
-
-						ModelStackWithAutoParam* modelStackWithParam =
-						    getModelStackWithParam(modelStack, clip, midiCCShortcutsForAutomation[xDisplay][yDisplay]);
-
-						if (modelStackWithParam && modelStackWithParam->autoParam) {
-
-							if (modelStackWithParam->autoParam
-							        ->isAutomated()) { //highlight pad white if the parameter it represents is currently automated
-								pixel[0] = 130;
-								pixel[1] = 120;
-								pixel[2] = 130;
-							}
-
-							else {
-								memcpy(pixel, &instrumentClipView.rowColour[yDisplay], 3);
-							}
-
-							occupancyMaskOfRow[xDisplay] = 64;
-						}
-						//	else { //render easterEgg
-
-						//		if (easterEgg[xDisplay][yDisplay] == 0xFFFFFFFF) {
-
-						//			memcpy(pixel, &instrumentClipView.rowTailColour[yDisplay], 3);
-						//			occupancyMaskOfRow[xDisplay] = 64;
-						//		}
-						//	}
-					}
-				}
-			}
-
-			else { //render easterEgg
-				for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
-
-					uint8_t* pixel = image + (yDisplay * imageWidth * 3) + (xDisplay * 3);
-
-					if (easterEgg[xDisplay][yDisplay] == 0xFFFFFFFF) {
-
-						memcpy(pixel, &instrumentClipView.rowColour[yDisplay], 3);
-						occupancyMaskOfRow[xDisplay] = 64;
-					}
-				}
-			}
+		else {
+			renderLove(image + (yDisplay * imageWidth * 3), occupancyMaskOfRow, yDisplay);
 		}
 	}
 }
 
-// occupancyMask now optional!
+void AutomationInstrumentClipView::renderAutomationOverview(ModelStackWithTimelineCounter* modelStack,
+			InstrumentClip* clip, Instrument* instrument, uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay) {
+
+	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+
+		uint8_t* pixel = image + (xDisplay * 3);
+
+		ModelStackWithAutoParam* modelStackWithParam = 0;
+
+		if ((instrument->type == InstrumentType::SYNTH || instrument->type == InstrumentType::KIT) && (paramShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF)) {
+			modelStackWithParam =
+							    getModelStackWithParam(modelStack, clip, paramShortcutsForAutomation[xDisplay][yDisplay]);
+		}
+
+		else if (instrument->type == InstrumentType::MIDI_OUT && midiCCShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
+			modelStackWithParam =
+							    getModelStackWithParam(modelStack, clip, midiCCShortcutsForAutomation[xDisplay][yDisplay]);
+		}
+
+		if (modelStackWithParam && modelStackWithParam->autoParam) {
+			if (modelStackWithParam->autoParam ->isAutomated()) { //highlight pad white if the parameter it represents is currently automated
+				pixel[0] = 130;
+				pixel[1] = 120;
+				pixel[2] = 130;
+			}
+
+			else {
+				memcpy(pixel, &instrumentClipView.rowColour[yDisplay], 3);
+			}
+
+			occupancyMask[xDisplay] = 64;
+		}
+
+	}
+
+}
+
+void AutomationInstrumentClipView::renderAutomationEditor(ModelStackWithTimelineCounter* modelStack,
+			InstrumentClip* clip, Instrument* instrument, uint8_t* image, uint8_t occupancyMask[], int32_t renderWidth,
+			int32_t xScroll, uint32_t xZoom, int32_t yDisplay, bool drawUndefinedArea) {
+
+	ModelStackWithAutoParam* modelStackWithParam =
+	    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID);
+
+	if (modelStackWithParam && modelStackWithParam->autoParam) {
+
+		int32_t effectiveLength;
+
+		if (instrument->type == InstrumentType::KIT) {
+			ModelStackWithNoteRow* modelStackWithNoteRow =
+						    clip->getNoteRowForSelectedDrum(modelStack);
+
+			effectiveLength = modelStackWithNoteRow->getLoopLength();
+		}
+		else {
+			effectiveLength = clip->loopLength; //this will differ for a kit when in note row mode
+		}
+
+		renderRow(modelStackWithParam, instrumentClipView.rowColour[yDisplay], instrumentClipView.rowTailColour[yDisplay], instrumentClipView.rowBlurColour[yDisplay], image,
+							   occupancyMask, true, effectiveLength, true, xScroll, xZoom, 0, renderWidth, false, yDisplay);
+
+		if (drawUndefinedArea == true) {
+
+			clip->drawUndefinedArea(xScroll, xZoom, effectiveLength, image,
+			                        occupancyMask, renderWidth, this,
+			                        currentSong->tripletsOn); // Sends image pointer for just the one row
+		}
+	}
+
+}
+
 void AutomationInstrumentClipView::renderRow(ModelStackWithAutoParam* modelStack, uint8_t rowColour[], uint8_t rowTailColour[],
                         uint8_t rowBlurColour[], uint8_t* image, uint8_t occupancyMask[], bool overwriteExisting,
-                        uint32_t effectiveRowLength, bool allowNoteTails, int32_t renderWidth, int32_t xScroll,
+                        uint32_t effectiveRowLength, bool allowNoteTails, int32_t xScroll,
                         uint32_t xZoom, int32_t xStartNow, int32_t xEnd, bool drawRepeats, int32_t yDisplay) {
 
 //	if (overwriteExisting) {
@@ -597,12 +532,29 @@ void AutomationInstrumentClipView::renderRow(ModelStackWithAutoParam* modelStack
 //		}
 //	}
 
-//	if (!modelStack->autoParam->nodes.getNumElements()) {
+	if (!modelStack->autoParam->nodes.getNumElements()) {
+
+		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+
+			uint32_t squareStart = getPosFromSquare(xDisplay);
+			int32_t currentValue =
+				modelStack->autoParam->getValuePossiblyAtPos(squareStart, modelStack);
+			int32_t knobPos =
+				modelStack->paramCollection->paramValueToKnobPos(currentValue, modelStack);
+			knobPos = knobPos + 64;
+
+			uint8_t* pixel = image + (xDisplay * 3);
+
+			if (knobPos != 0 && knobPos >= yDisplay * 18) {
+				memcpy(pixel, &instrumentClipView.rowColour[yDisplay], 3);
+				occupancyMask[xDisplay] = 64;
+			}
+		}
 
 //		numericDriver.displayPopup(HAVE_OLED ? "No Nodes!" : "NO");
 
-//		return;
-//	}
+		return;
+	}
 
 	int32_t squareEndPos[kMaxImageStoreWidth];
 	int32_t searchTerms[kMaxImageStoreWidth];
@@ -678,9 +630,7 @@ void AutomationInstrumentClipView::renderRow(ModelStackWithAutoParam* modelStack
 					pixel[0] = rowBlurColour[0];
 					pixel[1] = rowBlurColour[1];
 					pixel[2] = rowBlurColour[2];
-					if (occupancyMask) {
-						occupancyMask[xDisplay] = 64;
-					}
+					occupancyMask[xDisplay] = 64;
 				}
 
 				// Or if Note starts exactly on square...
@@ -688,18 +638,14 @@ void AutomationInstrumentClipView::renderRow(ModelStackWithAutoParam* modelStack
 					pixel[0] = rowColour[0];
 					pixel[1] = rowColour[1];
 					pixel[2] = rowColour[2];
-					if (occupancyMask) {
-						occupancyMask[xDisplay] = 64;
-					}
+					occupancyMask[xDisplay] = 64;
 				}
 
 				else if (node && node->pos < thisSquareEndPos) {
 					pixel[0] = rowTailColour[0];
 					pixel[1] = rowTailColour[1];
 					pixel[2] = rowTailColour[2];
-					if (occupancyMask) {
-						occupancyMask[xDisplay] = 64;
-					}
+					occupancyMask[xDisplay] = 64;
 				}
 			}
 		}
@@ -710,6 +656,21 @@ void AutomationInstrumentClipView::renderRow(ModelStackWithAutoParam* modelStack
 	} while (
 	    xStartNow
 	    != xEnd); // This will only do another repeat if we'd modified xEndNow, which can only happen if drawRepeats
+}
+
+void AutomationInstrumentClipView::renderLove(uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay) {
+
+	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+
+		uint8_t* pixel = image + (xDisplay * 3);
+
+		if (love[xDisplay][yDisplay] == 0xFFFFFFFF) {
+
+			memcpy(pixel, &instrumentClipView.rowColour[yDisplay], 3);
+			occupancyMask[xDisplay] = 64;
+		}
+	}
+
 }
 
 bool AutomationInstrumentClipView::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
@@ -986,10 +947,6 @@ doOther:
 			goto passToOthers;
 		}
 	}
-
-	// Vertical encoder button
-	//else if (b == Y_ENC) {
-	//}
 
 	//Select encoder
 	else if (!Buttons::isShiftButtonPressed() && b == SELECT_ENC) {
@@ -2395,10 +2352,10 @@ void AutomationInstrumentClipView::modEncoderButtonAction(uint8_t whichModEncode
 	}
 
 	//press top mod encoder to display current parameter selected and its automation status
-	else if (whichModEncoder == 1 && on && clip->lastSelectedParamID != 255) {
-		//&& (instrument->type == InstrumentType::SYNTH || instrument->type == InstrumentType::KIT)) {
-		displayParameterName(clip->lastSelectedParamID);
-	}
+	//else if (whichModEncoder == 1 && on && clip->lastSelectedParamID != 255) {
+	//	//&& (instrument->type == InstrumentType::SYNTH || instrument->type == InstrumentType::KIT)) {
+	//	displayParameterName(clip->lastSelectedParamID);
+	//}
 
 	/*	else if (view.activeModControllableModelStack.modControllable) {
 

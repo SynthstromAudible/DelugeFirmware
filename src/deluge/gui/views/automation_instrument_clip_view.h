@@ -58,12 +58,6 @@ public:
 	//rendering
 	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
-	void performActualRender(uint32_t whichRows, uint8_t* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
-	                         int32_t xScroll, uint32_t xZoom, int32_t renderWidth, int32_t imageWidth,
-	                         bool drawUndefinedArea = true);
-	void renderRow(ModelStackWithAutoParam* modelStack, uint8_t[], uint8_t[], uint8_t[], uint8_t* image, uint8_t[], bool,
-	               uint32_t, bool allowNoteTails, int32_t imageWidth, int32_t xScroll, uint32_t xZoom,
-	               int32_t xStart = 0, int32_t xEnd = kDisplayWidth, bool drawRepeats = false, int32_t yDisplay = 0);
 	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 
@@ -117,6 +111,19 @@ public:
 	bool interpolation;
 
 private:
+	//Automation View Render Functions
+	void performActualRender(uint32_t whichRows, uint8_t* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
+	                         int32_t xScroll, uint32_t xZoom, int32_t renderWidth, int32_t imageWidth,
+	                         bool drawUndefinedArea = true);
+	void renderAutomationOverview(ModelStackWithTimelineCounter* modelStack,
+			InstrumentClip* clip, Instrument* instrument, uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
+	void renderAutomationEditor(ModelStackWithTimelineCounter* modelStack,
+			InstrumentClip* clip, Instrument* instrument, uint8_t* image, uint8_t occupancyMask[], int32_t renderWidth, int32_t xScroll, uint32_t xZoom,
+			int32_t yDisplay = 0, bool drawUndefinedArea = true);
+	void renderRow(ModelStackWithAutoParam* modelStack, uint8_t[], uint8_t[], uint8_t[], uint8_t* image, uint8_t occupancyMask[], bool,
+	               uint32_t, bool allowNoteTails, int32_t xScroll, uint32_t xZoom,
+	               int32_t xStart = 0, int32_t xEnd = kDisplayWidth, bool drawRepeats = false, int32_t yDisplay = 0);
+	void renderLove(uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
 
 	//Horizontal Encoder Action
 	void rotateAutomationHorizontally(int32_t offset);
@@ -145,8 +152,6 @@ private:
 	bool isOnParameterGridMenuView();
 	void displayParameterName(int32_t paramID);
 	void displayParameterValue(int32_t knobPos);
-	void renderAutomationOverview();
-	void renderAutomationEditor();
 
 	bool encoderAction;
 	bool shortcutBlinking;
