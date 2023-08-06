@@ -2437,19 +2437,30 @@ void SessionView::transitionToSessionView() {
 	}
 	else {
 		int32_t transitioningToRow = getClipPlaceOnScreen(currentSong->currentClip);
+		InstrumentClip* instrumentClip = (InstrumentClip*)currentSong->currentClip;
+		if(instrumentClip->onKeyboardScreen) {
+			keyboardScreen.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1], false);
+			keyboardScreen.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
 
-		// TODO: could probably just copy data to these...
-		instrumentClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1], false);
-		instrumentClipView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
+			PadLEDs::numAnimatedRows = kDisplayHeight;
+			for (int32_t y = 0; y < kDisplayHeight; y++) {
+				PadLEDs::animatedRowGoingTo[y] = transitioningToRow;
+				PadLEDs::animatedRowGoingFrom[y] = y;
+			}
+		}
+		else {
+			instrumentClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1], false);
+			instrumentClipView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
+
+			PadLEDs::numAnimatedRows = kDisplayHeight + 2; // I didn't see a difference but the + 2 seems intentional
+			for (int32_t y = 0; y < PadLEDs::numAnimatedRows; y++) {
+				PadLEDs::animatedRowGoingTo[y] = transitioningToRow;
+				PadLEDs::animatedRowGoingFrom[y] = y - 1;
+			}
+		}
 
 		// Must set this after above render calls, or else they'll see it and not render
 		currentUIMode = UI_MODE_INSTRUMENT_CLIP_COLLAPSING;
-
-		PadLEDs::numAnimatedRows = kDisplayHeight + 2;
-		for (int32_t y = 0; y < kDisplayHeight + 2; y++) {
-			PadLEDs::animatedRowGoingTo[y] = transitioningToRow;
-			PadLEDs::animatedRowGoingFrom[y] = y - 1;
-		}
 
 		// Set occupancy masks to full for the sidebar squares in the Store
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
@@ -2459,7 +2470,9 @@ void SessionView::transitionToSessionView() {
 
 		PadLEDs::setupInstrumentClipCollapseAnimation(true);
 
-		instrumentClipView.fillOffScreenImageStores();
+		if(!instrumentClip->onKeyboardScreen) {
+			instrumentClipView.fillOffScreenImageStores();
+		}
 		PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
 		PadLEDs::renderClipExpandOrCollapse();
 	}
