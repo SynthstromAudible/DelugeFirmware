@@ -388,8 +388,6 @@ bool AutomationInstrumentClipView::renderMainPads(uint32_t whichRows, uint8_t im
 	if (encoderAction == false) {
 		if (clip->lastSelectedParamShortcutX
 		    != 255) { //if a Param has been selected for editing, blink its shortcut pad
-			//soundEditor.setupShortcutBlink(clip->lastSelectedParamShortcutX, clip->lastSelectedParamShortcutY, 3);
-			//soundEditor.blinkShortcut();
 			if (shortcutBlinking == false) {
 				memset(soundEditor.sourceShortcutBlinkFrequencies, 255,
 				       sizeof(soundEditor.sourceShortcutBlinkFrequencies));
@@ -429,7 +427,7 @@ void AutomationInstrumentClipView::performActualRender(uint32_t whichRows, uint8
 
 		uint8_t* occupancyMaskOfRow = occupancyMask[yDisplay];
 
-		if (instrument->type != InstrumentType::CV) {
+		if (instrument->type != InstrumentType::CV && !(instrument->type == InstrumentType::KIT && !instrumentClipView.getAffectEntire() && !((Kit*)instrument)->selectedDrum)) {
 
 			if (clip->lastSelectedParamID != 255) { //if parameter has been selected, show Automation Editor
 
@@ -445,6 +443,14 @@ void AutomationInstrumentClipView::performActualRender(uint32_t whichRows, uint8
 		}
 
 		else {
+
+			//if a Kit clip is selected, affect entire is not enabled and a row has not been selected yet, you cannot do anything in the automation instrument clip view
+			if (instrument->type == InstrumentType::KIT && !instrumentClipView.getAffectEntire() && !clip->getNoteRowForSelectedDrum(modelStack)) {
+
+				numericDriver.displayPopup(HAVE_OLED ? "Select Row" : "SEL");
+
+			}
+
 			renderLove(image + (yDisplay * imageWidth * 3), occupancyMaskOfRow, yDisplay);
 		}
 	}
@@ -528,13 +534,6 @@ void AutomationInstrumentClipView::renderRow(ModelStackWithAutoParam* modelStack
                                              uint32_t xZoom, int32_t xStartNow, int32_t xEnd, bool drawRepeats,
                                              int32_t yDisplay) {
 
-	//	if (overwriteExisting) {
-	//		memset(image, 0, renderWidth * 3);
-	//		if (occupancyMask) {
-	//			memset(occupancyMask, 0, renderWidth);
-	//		}
-	//	}
-
 	if (!modelStack->autoParam->nodes.getNumElements()) {
 
 		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
@@ -551,8 +550,6 @@ void AutomationInstrumentClipView::renderRow(ModelStackWithAutoParam* modelStack
 				occupancyMask[xDisplay] = 64;
 			}
 		}
-
-		//		numericDriver.displayPopup(HAVE_OLED ? "No Nodes!" : "NO");
 
 		return;
 	}
@@ -944,7 +941,6 @@ doOther:
 
 	//Select encoder
 	else if (!Buttons::isShiftButtonPressed() && b == SELECT_ENC) {
-		//needed for Automation
 		if (on) {
 			if (interpolation == RuntimeFeatureStateToggle::Off) {
 
@@ -958,7 +954,6 @@ doOther:
 				numericDriver.displayPopup(HAVE_OLED ? "Interpolation Off" : "OFF");
 			}
 		}
-		//needed for Automation
 	}
 
 	else if (b == AFFECT_ENTIRE) {
@@ -1148,73 +1143,12 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 	// If button down
 	if (state) {
 
-		// Don't allow further new presses if already done nudging
-		//	if (numEditPadPresses && doneAnyNudgingSinceFirstEditPadPress) {
-
-		//		return;
-		//	}
-
 		if (!isSquareDefined(xDisplay)) {
 
 			return;
 		}
 
-		// Get existing NoteRow if there was one
-		//ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(yDisplay, modelStack);
-
-		// If no NoteRow yet...
-		//if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
-
-		// Just check we're not beyond Clip length
-		//	if (squareStart >= clip->loopLength) {
-		//		return;
-		//	}
-
-		// And create the new NoteRow
-		//	if (instrument->type != InstrumentType::KIT) {
-		//		modelStackWithNoteRow = instrumentClipView.createNoteRowForYDisplay(modelStack, yDisplay);
-		//	}
-		//	else {
-		//		NoteRow* noteRow = NULL;
-		//		int32_t noteRowId;
-		//		modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, noteRow);
-		//	}
-
-		//	if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
-		//		//	if (instrument->type == InstrumentType::KIT) {
-		//		//		instrumentClipView.setSelectedDrum(NULL);
-		//		//	}
-		//		return;
-		//	}
-
-		// If that just created a new NoteRow for a Kit, then we can't undo any further back than this
-		//	if (instrument->type == InstrumentType::KIT) {
-		//		actionLogger.deleteAllLogs();
-		//	}
-		//	}
-
-		//	int32_t effectiveLength = modelStackWithNoteRow->getLoopLength();
-
-		// Now that we've definitely got a NoteRow, check against NoteRow "effective" length here (though it'll very possibly be the same as the Clip length we may have tested against above).
-		//don't need this check for automation clip view because we are not working with a note row concept, except for kit's, but we can check that later. for now we just need to get pads pressed.
-		//	if (squareStart >= effectiveLength) {
-		//		return;
-		//	}
-
-		//	uint32_t squareWidth = instrumentClipView.getSquareWidth(xDisplay, effectiveLength);
-
-		//	NoteRow* noteRow = modelStackWithNoteRow->getNoteRow();
-
-		//	ParamManagerForTimeline* paramManager = NULL;
-		//	if (instrument->type == InstrumentType::SYNTH) {
-		//		paramManager = &clip->paramManager; //for a synth the params are saved at clip level
-		//	}
-		//	else if (instrument->type == InstrumentType::KIT) {
-		//		paramManager = &noteRow->paramManager; //for a kit, params are saved at note level
-		//	}
-
 		// If this is a note-length-edit press...
-		//needed for Automation
 		if (clip->lastSelectedParamID != 255 && instrumentClipView.numEditPadPresses == 1
 		    && ((int32_t)(instrumentClipView.timeLastEditPadPress + 80 * 44 - AudioEngine::audioSampleTimer) < 0)) {
 
@@ -1237,7 +1171,6 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 				handleMultiPadPress(modelStack, clip, firstPadX, firstPadY, xDisplay, yDisplay);
 			}
 		}
-		//needed for Automation
 
 		// Or, if this is a regular create-or-select press...
 		else {
@@ -1252,184 +1185,21 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 			}
 			if (i < kEditPadPressBufferSize) {
 
-				/*	ParamManagerForTimeline* paramManagerDummy;
-				Sound* sound = instrumentClipView.getSoundForNoteRow(noteRow, &paramManagerDummy);
-
-				uint32_t whichRowsToReRender = (1 << yDisplay);
-
-				Action* action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
-
-				uint32_t desiredNoteLength = squareWidth;
-				if (sound) {
-
-					int32_t yNote;
-
-					if (instrument->type == InstrumentType::KIT) {
-						yNote = 60;
-					}
-					else {
-						yNote = clip->getYNoteFromYDisplay(yDisplay, currentSong);
-					}
-
-					// If a time-synced sample...
-					uint32_t sampleLength = sound->hasAnyTimeStretchSyncing(paramManager, true, yNote);
-					if (sampleLength) {
-						uint32_t sampleLengthInTicks =
-						    ((uint64_t)sampleLength << 32) / currentSong->timePerTimerTickBig;
-
-						// Previously I was having it always jump to a "square" number, but as James Meharry pointed out, what if the Clip is deliberately a
-						// non-square length?
-						desiredNoteLength = effectiveLength;
-						while (!(desiredNoteLength & 1)) {
-							desiredNoteLength >>= 1;
-						}
-
-						while (desiredNoteLength * 1.41 < sampleLengthInTicks) {
-							desiredNoteLength <<= 1;
-						}
-
-						// If desired note length too long and no existing notes, extend the Clip (or if the NoteRow has independent length, do that instead).
-						if (noteRow->hasNoNotes() && !clip->wrapEditing && desiredNoteLength > effectiveLength) {
-							squareStart = 0;
-							if (noteRow->loopLengthIfIndependent) {
-								noteRow->loopLengthIfIndependent = desiredNoteLength;
-							}
-							else {
-								currentSong->setClipLength(clip, desiredNoteLength, action);
-
-								// Clip length changing may visually change other rows too, so must re-render them all
-								whichRowsToReRender = 0xFFFFFFFF;
-							}
-						}
-					}
-
-					// Or if general cut-mode samples - but only for kit Clips, not synth
-					else if (instrument->type == InstrumentType::KIT) {
-						bool anyLooping;
-						sampleLength = sound->hasCutOrLoopModeSamples(paramManager, yNote, &anyLooping);
-						if (sampleLength) {
-
-							// If sample loops, we want to cut out before we get to the loop-point
-							if (anyLooping) {
-								desiredNoteLength = ((uint64_t)sampleLength << 32) / currentSong->timePerTimerTickBig;
-							}
-
-							// Or if sample doesn't loop, we want to extend just past the end point
-							else {
-								desiredNoteLength =
-								    (int32_t)((sampleLength - 2) / currentSong->getTimePerTimerTickFloat()) + 1;
-							}
-						}
-					}
-
-					desiredNoteLength = std::max(desiredNoteLength, squareWidth);
-				}
-
-				uint32_t maxNoteLengthHere = clip->getWrapEditLevel();
-				desiredNoteLength = std::min(desiredNoteLength, maxNoteLengthHere);*/
-
-				//	Note* firstNote;
-				//	Note* lastNote;
-				//	uint8_t squareType =
-				//	    noteRow->getSquareType(squareStart, squareWidth, &firstNote, &lastNote, modelStackWithNoteRow,
-				//	                           clip->allowNoteTails(modelStackWithNoteRow), desiredNoteLength, action,
-				//	                           playbackHandler.isEitherClockActive() && currentSong->isClipActive(clip),
-				//	                           isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON));
-
-				// If error (no ram left), get out
-				//	if (!squareType) {
-				//		numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
-				//		return;
-				//	}
-
-				// Otherwise, we've selected a note
-				//	else {
-
-				//needed for Automation
 				handleSinglePadPress(modelStack, clip, xDisplay, yDisplay);
-				//needed for Automation
 
 				instrumentClipView.shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress = false;
 
 				// If this is the first press, record the time
 				if (instrumentClipView.numEditPadPresses == 0) {
 					instrumentClipView.timeFirstEditPadPress = AudioEngine::audioSampleTimer;
-					//	doneAnyNudgingSinceFirstEditPadPress = false;
-					//	offsettingNudgeNumberDisplay = false;
 					instrumentClipView.shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress = false;
 				}
 
-				//	if (squareType == SQUARE_BLURRED) {
-				//		instrumentClipView.editPadPresses[i].intendedPos = squareStart;
-				//		instrumentClipView.editPadPresses[i].intendedLength = squareWidth;
-				//		instrumentClipView.editPadPresses[i].deleteOnDepress = true;
-				//	}
-				//	else {
-				//		instrumentClipView.editPadPresses[i].intendedPos = lastNote->pos;
-				//		instrumentClipView.editPadPresses[i].intendedLength = lastNote->getLength();
-				//		instrumentClipView.editPadPresses[i].deleteOnDepress =
-				//		    (squareType == SQUARE_NOTE_HEAD || squareType == SQUARE_NOTE_TAIL_UNMODIFIED);
-				//	}
-
-				//	instrumentClipView.editPadPresses[i].isBlurredSquare = false; //(squareType == SQUARE_BLURRED);
-				//	instrumentClipView.editPadPresses[i].intendedVelocity = firstNote->getVelocity();
-				//	instrumentClipView.editPadPresses[i].intendedProbability = firstNote->getProbability();
 				instrumentClipView.editPadPresses[i].isActive = true;
 				instrumentClipView.editPadPresses[i].yDisplay = yDisplay;
-				instrumentClipView.editPadPresses[i].xDisplay = xDisplay;
-				//	instrumentClipView.editPadPresses[i].deleteOnScroll = true;
-				//	instrumentClipView.editPadPresses[i].mpeCachedYet = false;
-				//	for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
-				//		instrumentClipView.editPadPresses[i].stolenMPE[m].num = 0;
-				//	}
 				instrumentClipView.numEditPadPresses++;
 				instrumentClipView.numEditPadPressesPerNoteRowOnScreen[yDisplay]++;
 				enterUIMode(UI_MODE_NOTES_PRESSED);
-
-				// If new note...
-				/*	if (squareType == SQUARE_NEW_NOTE) {
-
-						// If we're cross-screen-editing, create other corresponding notes too
-						if (clip->wrapEditing) {
-							int32_t error = noteRow->addCorrespondingNotes(
-							    squareStart, desiredNoteLength, instrumentClipView.editPadPresses[i].intendedVelocity,
-							    modelStackWithNoteRow, clip->allowNoteTails(modelStackWithNoteRow), action);
-
-							if (error) {
-								numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
-							}
-						}
-					}*/
-
-				// Edit mod knob values for this Note's region
-				//	int32_t distanceToNextNote = clip->getDistanceToNextNote(lastNote, modelStackWithNoteRow);
-
-				//	if (instrument->type == InstrumentType::KIT) {
-				//		instrumentClipView.setSelectedDrum(noteRow->drum);
-				//	}
-
-				// Can only set the mod region after setting the selected drum! Otherwise the params' currentValues don't end up right
-				//	view.setModRegion(
-				//	    firstNote->pos,
-				//	    std::max((uint32_t)distanceToNextNote + lastNote->pos - firstNote->pos, squareWidth),
-				//	    modelStackWithNoteRow->noteRowId);
-
-				// Now that we're holding a note down, get set up for if the user wants to edit its MPE values.
-				//	for (int32_t t = 0; t < MPE_RECORD_LENGTH_FOR_NOTE_EDITING; t++) {
-				//		mpeValuesAtHighestPressure[t][0] = 0;
-				//		mpeValuesAtHighestPressure[t][1] = 0;
-				//		mpeValuesAtHighestPressure[t][2] = -1; // -1 means not valid yet
-				//	}
-				//	mpeMostRecentPressure = 0;
-				//	mpeRecordLastUpdateTime = AudioEngine::audioSampleTimer;
-
-				//	instrumentClipView.reassessAuditionStatus(yDisplay);
-				//	}
-
-				// Might need to re-render row, if it was changed
-				//	if (squareType == SQUARE_NEW_NOTE || squareType == SQUARE_NOTE_TAIL_MODIFIED) {
-				//		uiNeedsRendering(this, whichRowsToReRender, 0);
-				//	}
 			}
 		}
 	}
@@ -1450,46 +1220,11 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 		// If we found it...
 		if (i < kEditPadPressBufferSize) {
 
-			numericDriver.cancelPopup(); // Crude way of getting rid of the probability-editing permanent popup
-
-			//	uint8_t velocity = instrumentClipView.editPadPresses[i].intendedVelocity;
-
 			// Must mark it as inactive first, otherwise, the note-deletion code may do so and then we'd do it again here
 			instrumentClipView.endEditPadPress(i);
 
-			// If we're meant to be deleting it on depress...
-			/*	if (instrumentClipView.editPadPresses[i].deleteOnDepress
-			    && AudioEngine::audioSampleTimer - instrumentClipView.timeLastEditPadPress < (44100 >> 1)) {
-
-				ModelStackWithNoteRow* modelStackWithNoteRow =
-				    getCurrentClip()->getNoteRowOnScreen(yDisplay, modelStack);
-
-				Action* action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
-
-				NoteRow* noteRow = modelStackWithNoteRow->getNoteRow();
-
-				int32_t wrapEditLevel = clip->getWrapEditLevel();
-
-				noteRow->clearArea(squareStart, instrumentClipView.getSquareWidth(xDisplay, modelStackWithNoteRow->getLoopLength()),
-				                   modelStackWithNoteRow, action, wrapEditLevel);
-
-				noteRow->clearMPEUpUntilNextNote(modelStackWithNoteRow, squareStart, wrapEditLevel, true);
-
-				uiNeedsRendering(this, 1 << yDisplay, 0);
-			}*/
-
-			// Or if not deleting...
-			//	else {
-			//		instrument->defaultVelocity = velocity;
-			//	}
-
-			// Close last note nudge action, if there was one - so each such action is for one consistent set of notes
-			//actionLogger.closeAction(ACTION_NOTE_NUDGE);
-
 			// If *all* presses are now ended
 			instrumentClipView.checkIfAllEditPadPressesEnded();
-
-			//	instrumentClipView.reassessAuditionStatus(yDisplay);
 		}
 	}
 }
@@ -1679,7 +1414,6 @@ doSilentAudition:
 			if (!isUIModeActive(UI_MODE_AUDITIONING)) {
 				instrumentClipView.shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress = false;
 				instrumentClipView.shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress = false;
-				//editedAnyPerNoteRowStuffSinceAuditioningBegan = false;
 				enterUIMode(UI_MODE_AUDITIONING);
 			}
 
@@ -1711,13 +1445,8 @@ doSilentAudition:
 					instrumentClipView.sendAuditionNote(false, yDisplay, 64, 0);
 				}
 			}
-			numericDriver.cancelPopup();                      // In case euclidean stuff was being edited etc
-			instrumentClipView.someAuditioningHasEnded(true); //instrumentClipView.lastAuditionedYDisplay == yDisplay);
+			instrumentClipView.someAuditioningHasEnded(true);
 			actionLogger.closeAction(ACTION_NOTEROW_ROTATE);
-
-			//	if (instrument->type == InstrumentType::KIT) {
-			//		adjustScroll(clip);
-			//	}
 		}
 
 		renderingNeededRegardlessOfUI(0, 1 << yDisplay);
@@ -1795,10 +1524,8 @@ wantToEditNoteRowLength:
 // Supply offset as 0 to just popup number, not change anything
 void AutomationInstrumentClipView::rotateAutomationHorizontally(int32_t offset) {
 
-	//	instrumentClipView.shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress = true;
-
 	// If just popping up number, but multiple presses, we're quite limited with what intelligible stuff we can display
-	if (!offset) { // && numEditPadPresses > 1) {
+	if (!offset) {
 		return;
 	}
 
@@ -2005,8 +1732,6 @@ ActionResult AutomationInstrumentClipView::scrollVertical(int32_t scrollAmount, 
 
 	bool isKit = instrument->type == InstrumentType::KIT;
 
-	//displayParameterValue(clip->yScroll);
-
 	// If a Kit...
 	if (isKit) {
 		// Limit scrolling
@@ -2020,27 +1745,6 @@ ActionResult AutomationInstrumentClipView::scrollVertical(int32_t scrollAmount, 
 				return ActionResult::DEALT_WITH;
 			}
 		}
-
-		// Limit how far we can shift a NoteRow
-		/*	if (draggingNoteRow) {
-			noteRowToShiftI = instrumentClipView.lastAuditionedYDisplay + clip->yScroll;
-			if (noteRowToShiftI < 0 || noteRowToShiftI >= clip->noteRows.getNumElements()) {
-				return ActionResult::DEALT_WITH;
-			}
-
-			if (scrollAmount >= 0) {
-				if (noteRowToShiftI >= clip->noteRows.getNumElements() - 1) {
-					return ActionResult::DEALT_WITH;
-				}
-				noteRowToSwapWithI = noteRowToShiftI + 1;
-			}
-			else {
-				if (noteRowToShiftI == 0) {
-					return ActionResult::DEALT_WITH;
-				}
-				noteRowToSwapWithI = noteRowToShiftI - 1;
-			}
-		}*/
 	}
 
 	// Or if not a Kit...
@@ -2087,10 +1791,6 @@ ActionResult AutomationInstrumentClipView::scrollVertical(int32_t scrollAmount, 
 
 	// Do actual scroll
 	clip->yScroll += scrollAmount;
-
-	//	if ((clip->yScroll == (1 - kDisplayHeight)) || (clip->yScroll == (clip->getNumNoteRows() - 1))) {
-	//		scrollAdjustmentNeeded = true;
-	//	}
 
 	instrumentClipView
 	    .recalculateColours(); // Don't render - we'll do that after we've dealt with presses (potentially creating Notes)
@@ -2327,145 +2027,6 @@ void AutomationInstrumentClipView::modEncoderButtonAction(uint8_t whichModEncode
 		}
 	}
 
-	//press top mod encoder to display current parameter selected and its automation status
-	//else if (whichModEncoder == 1 && on && clip->lastSelectedParamID != 255) {
-	//	//&& (instrument->type == InstrumentType::SYNTH || instrument->type == InstrumentType::KIT)) {
-	//	displayParameterName(clip->lastSelectedParamID);
-	//}
-
-	/*	else if (view.activeModControllableModelStack.modControllable) {
-
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		copyModelStack(modelStackMemory, &view.activeModControllableModelStack, sizeof(ModelStackWithThreeMainThings));
-		ModelStackWithThreeMainThings* modelStack = (ModelStackWithThreeMainThings*)modelStackMemory;
-
-	//	bool anyEditingDone =
-	//		view.activeModControllableModelStack.modControllable->modEncoderButtonAction(whichModEncoder, on, modelStack);
-
-		//Sidechain
-		if (clip->lastSelectedParamID == ::Param::Global::VOLUME_POST_REVERB_SEND) {
-			if (whichModEncoder == 1 && on) {
-				if (compressor.syncLevel == SYNC_LEVEL_32ND) {
-					compressor.syncLevel = SYNC_LEVEL_128TH;
-				}
-				else {
-					compressor.syncLevel = SYNC_LEVEL_32ND;
-				}
-				if (compressor.syncLevel == SYNC_LEVEL_32ND) {
-					numericDriver.displayPopup("SLOW");
-				}
-				else {
-					numericDriver.displayPopup("FAST");
-				}
-			}
-		}
-
-		// Mod FX section
-		else if (clip->lastSelectedParamID == ::Param::Global::MOD_FX_DEPTH || clip->lastSelectedParamID == ::Param::Global::MOD_FX_RATE) {
-			if (whichModEncoder == 1 && on) {
-				if (on) {
-					((GlobalEffectable*)modelStack)->modFXType = static_cast<ModFXType>((util::to_underlying(((GlobalEffectable*)modelStack)->modFXType) + 1) % kNumModFXTypes);
-					if (((GlobalEffectable*)modelStack)->modFXType == ModFXType::NONE) {
-						((GlobalEffectable*)modelStack)->modFXType = static_cast<ModFXType>(1);
-					}
-					char const* displayText;
-					switch (((GlobalEffectable*)modelStack)->modFXType) {
-					case ModFXType::FLANGER:
-						displayText = "FLANGER";
-						break;
-
-					case ModFXType::PHASER:
-						displayText = "PHASER";
-						break;
-
-					case ModFXType::CHORUS:
-						displayText = "CHORUS";
-						break;
-
-					case ModFXType::CHORUS_STEREO:
-						displayText = "STEREO CHORUS";
-						break;
-					}
-					numericDriver.displayPopup(displayText);
-
-
-					((GlobalEffectable*)modelStack)->ensureModFXParamIsValid();
-				}
-			}
-			else {
-				if (on) {
-					((GlobalEffectable*)modelStack)->currentModFXParam =
-						static_cast<ModFXParam>((util::to_underlying(((GlobalEffectable*)modelStack)->currentModFXParam) + 1) % kNumModFXParams);
-					((GlobalEffectable*)modelStack)->ensureModFXParamIsValid();
-
-					char const* displayText;
-					switch (((GlobalEffectable*)modelStack)->currentModFXParam) {
-					case ModFXParam::DEPTH:
-						displayText = "DEPTH";
-						break;
-
-					case ModFXParam::FEEDBACK:
-						displayText = "FEEDBACK";
-						break;
-
-					case ModFXParam::OFFSET:
-						displayText = "OFFSET";
-						break;
-					}
-					numericDriver.displayPopup(displayText);
-				}
-			}
-		}*/
-
-	//LPF Section
-	/*	else if (clip->lastSelectedParamID == ::Param::Local::LPF_FREQ || clip->lastSelectedParamID == ::Param::Local::LPF_RESONANCE) {
-			if (whichModEncoder == 0) {
-				if (on && ((GlobalEffectable*)modelStack)->currentFilterType == FilterType::LPF) {
-					((GlobalEffectable*)modelStack)->switchLPFMode();
-				}
-			}
-		}
-
-		// Delay section
-		else if (clip->lastSelectedParamID == ::Param::Global::DELAY_RATE || clip->lastSelectedParamID == ::Param::Global::DELAY_FEEDBACK) {
-			if (whichModEncoder == 1) {
-				if (on) {
-					if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AltGoldenKnobDelayParams)
-						== RuntimeFeatureStateToggle::On) {
-						((GlobalEffectable*)modelStack)->switchDelaySyncType();
-					}
-					else {
-						((GlobalEffectable*)modelStack)->switchDelayPingPong();
-					}
-				}
-			}
-			else {
-				if (on) {
-					if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AltGoldenKnobDelayParams)
-						== RuntimeFeatureStateToggle::On) {
-						((GlobalEffectable*)modelStack)->switchDelaySyncLevel();
-					}
-					else {
-						((GlobalEffectable*)modelStack)->switchDelayAnalog();
-					}
-				}
-			}
-		}*/
-
-	// Reverb section
-	/*	else if (clip->lastSelectedParamID == ::Param::Global::REVERB_AMOUNT) {
-			if (whichModEncoder == 0) { // Reverb
-				if (on) {
-					view.cycleThroughReverbPresets();
-				}
-			}
-		}*/
-
-	//	if (modelStack->timelineCounterIsSet()) {
-	//		modelStack->getTimelineCounter()->instrumentBeenEdited();
-	//	}
-	//	}
-
 	else {
 		goto followOnAction;
 	}
@@ -2655,11 +2216,6 @@ void AutomationInstrumentClipView::selectEncoderAction(int8_t offset) {
 
 flashShortcut:
 
-		//	if (clip->lastSelectedParamShortcutX != 255) {
-		//		soundEditor.setupShortcutBlink(clip->lastSelectedParamShortcutX, clip->lastSelectedParamShortcutY, 3);
-		//		soundEditor.blinkShortcut();
-		//	}
-
 		uiNeedsRendering(this);
 	}
 
@@ -2748,7 +2304,6 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
 							}
 						}
 					}
-					//	}
 				}
 			}
 		}
@@ -2758,13 +2313,7 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
 			Drum* drum = ((Kit*)instrument)->selectedDrum;
 
 			ModelStackWithNoteRow* modelStackWithNoteRow =
-			    clip->getNoteRowForSelectedDrum(modelStack); //clip->getNoteRowForSelectedDrum(modelStack);
-			//clip->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay, currentSong, &noteRowIndex);
-
-			//	if (thisNoteRow) {
-
-			//	ModelStackWithNoteRow* modelStackWithNoteRow =
-			//		modelStack->addNoteRow(clip->getNoteRowId(thisNoteRow, noteRowIndex), thisNoteRow);
+			    clip->getNoteRowForSelectedDrum(modelStack);
 
 			if (modelStackWithNoteRow) {
 
@@ -2882,7 +2431,7 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 
 	Instrument* instrument = (Instrument*)clip->output;
 
-	if (shortcutPress) { //this means you are selecting a parameter
+	if (shortcutPress && !(instrument->type == InstrumentType::KIT && !instrumentClipView.getAffectEntire() && !((Kit*)instrument)->selectedDrum)) { //this means you are selecting a parameter
 
 		if ((instrument->type == InstrumentType::SYNTH || instrument->type == InstrumentType::KIT)
 		    && paramShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
