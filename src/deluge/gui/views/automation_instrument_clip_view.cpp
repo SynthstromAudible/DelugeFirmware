@@ -434,23 +434,6 @@ void AutomationInstrumentClipView::performActualRender(uint32_t whichRows, uint8
 
 			if (modelStackWithParam && modelStackWithParam->autoParam) {
 
-				for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
-
-					uint32_t squareStart = getPosFromSquare(xDisplay);
-					int32_t currentValue =
-					    modelStackWithParam->autoParam->getValuePossiblyAtPos(squareStart, modelStackWithParam);
-					int32_t knobPos =
-					    modelStackWithParam->paramCollection->paramValueToKnobPos(currentValue, modelStackWithParam);
-					knobPos = knobPos + 64;
-
-					uint8_t* pixel = image + (yDisplay * imageWidth * 3) + (xDisplay * 3);
-
-					if (knobPos != 0 && knobPos >= yDisplay * 18) {
-						memcpy(pixel, &instrumentClipView.rowTailColour[yDisplay], 3);
-						occupancyMaskOfRow[xDisplay] = 64;
-					}
-				}
-
 				int32_t effectiveLength;
 
 				if (instrument->type == InstrumentType::KIT) {
@@ -461,6 +444,32 @@ void AutomationInstrumentClipView::performActualRender(uint32_t whichRows, uint8
 				}
 				else {
 					effectiveLength = clip->loopLength; //this will differ for a kit when in note row mode
+				}
+
+				if (!modelStackWithParam->autoParam->nodes.getNumElements()) {
+
+					for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+
+						uint32_t squareStart = getPosFromSquare(xDisplay);
+						int32_t currentValue =
+							modelStackWithParam->autoParam->getValuePossiblyAtPos(squareStart, modelStackWithParam);
+						int32_t knobPos =
+							modelStackWithParam->paramCollection->paramValueToKnobPos(currentValue, modelStackWithParam);
+						knobPos = knobPos + 64;
+
+						uint8_t* pixel = image + (yDisplay * imageWidth * 3) + (xDisplay * 3);
+
+						if (knobPos != 0 && knobPos >= yDisplay * 18) {
+							memcpy(pixel, &instrumentClipView.rowColour[yDisplay], 3);
+							occupancyMaskOfRow[xDisplay] = 64;
+						}
+					}
+				}
+				else {
+					renderRow(modelStackWithParam, instrumentClipView.rowColour[yDisplay], instrumentClipView.rowTailColour[yDisplay], instrumentClipView.rowBlurColour[yDisplay], image + (yDisplay * imageWidth * 3),
+									   occupancyMaskOfRow, true, effectiveLength,
+									   true, renderWidth, xScroll, xZoom, 0,
+									   renderWidth, false, yDisplay);
 				}
 
 				if (drawUndefinedArea == true) {
@@ -478,7 +487,7 @@ void AutomationInstrumentClipView::performActualRender(uint32_t whichRows, uint8
 
 					if (easterEgg[xDisplay][yDisplay] == 0xFFFFFFFF) {
 
-						memcpy(pixel, &instrumentClipView.rowTailColour[yDisplay], 3);
+						memcpy(pixel, &instrumentClipView.rowColour[yDisplay], 3);
 						occupancyMaskOfRow[xDisplay] = 64;
 					}
 				}
@@ -505,7 +514,7 @@ void AutomationInstrumentClipView::performActualRender(uint32_t whichRows, uint8
 							}
 
 							else {
-								memcpy(pixel, &instrumentClipView.rowTailColour[yDisplay], 3);
+								memcpy(pixel, &instrumentClipView.rowColour[yDisplay], 3);
 							}
 
 							occupancyMaskOfRow[xDisplay] = 64;
@@ -542,7 +551,7 @@ void AutomationInstrumentClipView::performActualRender(uint32_t whichRows, uint8
 							}
 
 							else {
-								memcpy(pixel, &instrumentClipView.rowTailColour[yDisplay], 3);
+								memcpy(pixel, &instrumentClipView.rowColour[yDisplay], 3);
 							}
 
 							occupancyMaskOfRow[xDisplay] = 64;
@@ -566,13 +575,141 @@ void AutomationInstrumentClipView::performActualRender(uint32_t whichRows, uint8
 
 					if (easterEgg[xDisplay][yDisplay] == 0xFFFFFFFF) {
 
-						memcpy(pixel, &instrumentClipView.rowTailColour[yDisplay], 3);
+						memcpy(pixel, &instrumentClipView.rowColour[yDisplay], 3);
 						occupancyMaskOfRow[xDisplay] = 64;
 					}
 				}
 			}
 		}
 	}
+}
+
+// occupancyMask now optional!
+void AutomationInstrumentClipView::renderRow(ModelStackWithAutoParam* modelStack, uint8_t rowColour[], uint8_t rowTailColour[],
+                        uint8_t rowBlurColour[], uint8_t* image, uint8_t occupancyMask[], bool overwriteExisting,
+                        uint32_t effectiveRowLength, bool allowNoteTails, int32_t renderWidth, int32_t xScroll,
+                        uint32_t xZoom, int32_t xStartNow, int32_t xEnd, bool drawRepeats, int32_t yDisplay) {
+
+//	if (overwriteExisting) {
+//		memset(image, 0, renderWidth * 3);
+//		if (occupancyMask) {
+//			memset(occupancyMask, 0, renderWidth);
+//		}
+//	}
+
+//	if (!modelStack->autoParam->nodes.getNumElements()) {
+
+//		numericDriver.displayPopup(HAVE_OLED ? "No Nodes!" : "NO");
+
+//		return;
+//	}
+
+	int32_t squareEndPos[kMaxImageStoreWidth];
+	int32_t searchTerms[kMaxImageStoreWidth];
+
+	int32_t whichRepeat = 0;
+
+	int32_t xEndNow;
+
+	do {
+		// Start by presuming we'll do all the squares now... though we may decide in a second to do a smaller number now, and come back for more batches
+		xEndNow = xEnd;
+
+		// For each square we might do now...
+		for (int32_t square = xStartNow; square < xEndNow; square++) {
+
+			// Work out its endPos...
+			int32_t thisSquareEndPos =
+			    getPosFromSquare(square + 1, xScroll, xZoom) - effectiveRowLength * whichRepeat;
+
+			// If we're drawing repeats and the square ends beyond end of Clip...
+			if (drawRepeats && thisSquareEndPos > effectiveRowLength) {
+
+				// If this is the first square we're doing now, we can take a shortcut to skip forward some repeats
+				if (square == xStartNow) {
+					int32_t numExtraRepeats = (uint32_t)(thisSquareEndPos - 1) / effectiveRowLength;
+					whichRepeat += numExtraRepeats;
+					thisSquareEndPos -= numExtraRepeats * effectiveRowLength;
+				}
+
+				// Otherwise, we'll come back in a moment to do the rest of the repeats - just record that we want to stop rendering before this square until then
+				else {
+					xEndNow = square;
+					break;
+				}
+			}
+
+			squareEndPos[square - xStartNow] = thisSquareEndPos;
+		}
+
+		memcpy(searchTerms, squareEndPos, sizeof(squareEndPos));
+
+		modelStack->autoParam->nodes.searchMultiple(searchTerms, xEndNow - xStartNow);
+
+		int32_t squareStartPos =
+		    getPosFromSquare(xStartNow, xScroll, xZoom) - effectiveRowLength * whichRepeat;
+
+		int32_t thisSquareEndPos =
+		    getPosFromSquare(xStartNow + 1, xScroll, xZoom) - effectiveRowLength * whichRepeat;
+
+		for (int32_t xDisplay = xStartNow; xDisplay < xEndNow; xDisplay++) {
+			if (xDisplay != xStartNow) {
+				squareStartPos = squareEndPos[xDisplay - xStartNow - 1];
+				thisSquareEndPos = squareEndPos[xDisplay - xStartNow];
+			}
+			int32_t i = searchTerms[xDisplay - xStartNow];
+
+			ParamNode* node = modelStack->autoParam->nodes.getElement(i - 1); // Subtracting 1 to do "LESS"
+
+			uint8_t* pixel = image + xDisplay * 3;
+
+			uint32_t squareStart = getPosFromSquare(xDisplay);
+			int32_t currentValue =
+				modelStack->autoParam->getValueAtPos(squareStart, modelStack);
+			int32_t knobPos =
+					modelStack->paramCollection->paramValueToKnobPos(currentValue, modelStack);
+
+		    knobPos = knobPos + 64;
+
+		    if (knobPos != 0 && knobPos >= yDisplay * 18) {
+
+				// If Node starts somewhere within square, draw the blur colour
+				if (node && node->pos > squareStartPos) {
+					pixel[0] = rowBlurColour[0];
+					pixel[1] = rowBlurColour[1];
+					pixel[2] = rowBlurColour[2];
+					if (occupancyMask) {
+						occupancyMask[xDisplay] = 64;
+					}
+				}
+
+				// Or if Note starts exactly on square...
+				else if (node && node->pos == squareStartPos) {
+					pixel[0] = rowColour[0];
+					pixel[1] = rowColour[1];
+					pixel[2] = rowColour[2];
+					if (occupancyMask) {
+						occupancyMask[xDisplay] = 64;
+					}
+				}
+
+				else if (node && node->pos < thisSquareEndPos) {
+					pixel[0] = rowTailColour[0];
+					pixel[1] = rowTailColour[1];
+					pixel[2] = rowTailColour[2];
+					if (occupancyMask) {
+						occupancyMask[xDisplay] = 64;
+					}
+				}
+			}
+		}
+
+		xStartNow = xEndNow;
+		whichRepeat++;
+		// TODO: if we're gonna repeat, we probably don't need to do the multi search again...
+	} while (
+	    xStartNow
+	    != xEnd); // This will only do another repeat if we'd modified xEndNow, which can only happen if drawRepeats
 }
 
 bool AutomationInstrumentClipView::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
@@ -2811,8 +2948,7 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 
 	Instrument* instrument = (Instrument*)clip->output;
 
-	if (clip->lastSelectedParamID == 255
-	    || (shortcutPress && Buttons::isShiftButtonPressed())) { //this means you are selecting a parameter
+	if (shortcutPress) { //this means you are selecting a parameter
 
 		if ((instrument->type == InstrumentType::SYNTH || instrument->type == InstrumentType::KIT)
 		    && paramShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
@@ -2839,7 +2975,7 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 		displayParameterName(clip->lastSelectedParamID);
 	}
 
-	else { //this means you are editing a parameter's value
+	else if (clip->lastSelectedParamID != 255) { //this means you are editing a parameter's value
 
 		ModelStackWithAutoParam* modelStackWithParam =
 		    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID);
