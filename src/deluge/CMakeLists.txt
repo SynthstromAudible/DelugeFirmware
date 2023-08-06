@@ -27,11 +27,14 @@ target_link_libraries(deluge INTERFACE
 target_compile_definitions(deluge INTERFACE
     $<$<CONFIG:DEBUG>:IN_HARDWARE_DEBUG=1>
     $<$<CONFIG:DEBUG>:ENABLE_TEXT_OUTPUT=1>
+    $<$<CONFIG:RELWITHDEBINFO>:IN_HARDWARE_DEBUG=1>
+    $<$<CONFIG:RELWITHDEBINFO>:ENABLE_TEXT_OUTPUT=1>
 )
 
 if(ENABLE_RTT)
     message(STATUS "RTT enabled for deluge")
     target_compile_definitions(deluge INTERFACE
         $<$<CONFIG:DEBUG>:HAVE_RTT=1>
+        $<$<CONFIG:RELWITHDEBINFO>:HAVE_RTT=1>
     )
 endif(ENABLE_RTT)

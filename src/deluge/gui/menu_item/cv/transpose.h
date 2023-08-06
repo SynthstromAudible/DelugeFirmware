@@ -33,12 +33,12 @@ public:
 	[[nodiscard]] int32_t getNumDecimalPlaces() const override { return 2; }
 
 	void readCurrentValue() override {
-		this->value_ = (int32_t)cvEngine.cvChannels[soundEditor.currentSourceIndex].transpose * 100
-		               + cvEngine.cvChannels[soundEditor.currentSourceIndex].cents;
+		this->setValue((int32_t)cvEngine.cvChannels[soundEditor.currentSourceIndex].transpose * 100
+		               + cvEngine.cvChannels[soundEditor.currentSourceIndex].cents);
 	}
 
 	void writeCurrentValue() override {
-		int32_t currentValue = this->value_ + 25600;
+		int32_t currentValue = this->getValue() + 25600;
 
 		int32_t semitones = (currentValue + 50) / 100;
 		int32_t cents = currentValue - semitones * 100;
