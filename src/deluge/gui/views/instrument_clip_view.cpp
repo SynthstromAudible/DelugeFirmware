@@ -242,7 +242,7 @@ ActionResult InstrumentClipView::buttonAction(hid::Button b, bool on, bool inCar
 			}
 			else {
 doOther:
-				transitionToSessionView();
+				sessionView.transitionToSessionView();
 			}
 		}
 	}
@@ -5066,35 +5066,6 @@ void InstrumentClipView::performActualRender(uint32_t whichRows, uint8_t* image,
 
 		image += imageWidth * 3;
 	}
-}
-
-void InstrumentClipView::transitionToSessionView() {
-	int32_t transitioningToRow = sessionView.getClipPlaceOnScreen(currentSong->currentClip);
-
-	// TODO: could probably just copy data to these...
-	renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1], false);
-	renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
-
-	currentUIMode =
-	    UI_MODE_INSTRUMENT_CLIP_COLLAPSING; // Must set this after above render calls, or else they'll see it and not render
-
-	PadLEDs::numAnimatedRows = kDisplayHeight + 2;
-	for (int32_t y = 0; y < kDisplayHeight + 2; y++) {
-		PadLEDs::animatedRowGoingTo[y] = transitioningToRow;
-		PadLEDs::animatedRowGoingFrom[y] = y - 1;
-	}
-
-	// Set occupancy masks to full for the sidebar squares in the Store
-	for (int32_t y = 0; y < kDisplayHeight; y++) {
-		PadLEDs::occupancyMaskStore[y + 1][kDisplayWidth] = 64;
-		PadLEDs::occupancyMaskStore[y + 1][kDisplayWidth + 1] = 64;
-	}
-
-	PadLEDs::setupInstrumentClipCollapseAnimation(true);
-
-	fillOffScreenImageStores();
-	PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
-	PadLEDs::renderClipExpandOrCollapse();
 }
 
 void InstrumentClipView::playbackEnded() {

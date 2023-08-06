@@ -2408,6 +2408,53 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 	}
 }
 
+void SessionView::transitionToSessionView() {
+	if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
+		AudioClip* clip = (AudioClip*)currentSong->currentClip;
+		if (!clip || !clip->sampleHolder.audioFile) { // !clip probably couldn't happen, but just in case...
+			memcpy(PadLEDs::imageStore, PadLEDs::image, sizeof(PadLEDs::image));
+			sessionView.finishedTransitioningHere();
+		}
+		else {
+			currentUIMode = UI_MODE_AUDIO_CLIP_COLLAPSING;
+			waveformRenderer.collapseAnimationToWhichRow = getClipPlaceOnScreen(currentSong->currentClip);
+
+			PadLEDs::setupAudioClipCollapseOrExplodeAnimation(clip);
+
+			PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
+			PadLEDs::renderAudioClipExpandOrCollapse();
+		}
+	}
+	else {
+		int32_t transitioningToRow = getClipPlaceOnScreen(currentSong->currentClip);
+
+		// TODO: could probably just copy data to these...
+		instrumentClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1], false);
+		instrumentClipView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
+
+		// Must set this after above render calls, or else they'll see it and not render
+		currentUIMode = UI_MODE_INSTRUMENT_CLIP_COLLAPSING;
+
+		PadLEDs::numAnimatedRows = kDisplayHeight + 2;
+		for (int32_t y = 0; y < kDisplayHeight + 2; y++) {
+			PadLEDs::animatedRowGoingTo[y] = transitioningToRow;
+			PadLEDs::animatedRowGoingFrom[y] = y - 1;
+		}
+
+		// Set occupancy masks to full for the sidebar squares in the Store
+		for (int32_t y = 0; y < kDisplayHeight; y++) {
+			PadLEDs::occupancyMaskStore[y + 1][kDisplayWidth] = 64;
+			PadLEDs::occupancyMaskStore[y + 1][kDisplayWidth + 1] = 64;
+		}
+
+		PadLEDs::setupInstrumentClipCollapseAnimation(true);
+
+		instrumentClipView.fillOffScreenImageStores();
+		PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
+		PadLEDs::renderClipExpandOrCollapse();
+	}
+}
+
 // Might be called during card routine! So renders might fail. Not too likely
 void SessionView::finishedTransitioningHere() {
 	AudioEngine::routineWithClusterLoading(); // -----------------------------------
@@ -2719,6 +2766,7 @@ void SessionView::selectLayout(int8_t offset) {
 		// After change
 		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
 			numericDriver.displayPopup("Rows");
+			selectedClipYDisplay = 255;
 			currentSong->songViewYScroll = (currentSong->sessionClips.getNumElements() - kDisplayHeight);
 		}
 		else if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {

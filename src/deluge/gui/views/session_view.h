@@ -84,6 +84,7 @@ public:
 	void midiLearnFlash();
 
 	void transitionToViewForClip(Clip* clip = NULL);
+	void transitionToSessionView();
 	void finishedTransitioningHere();
 	void playbackEnded();
 	void clipNeedsReRendering(Clip* clip);
