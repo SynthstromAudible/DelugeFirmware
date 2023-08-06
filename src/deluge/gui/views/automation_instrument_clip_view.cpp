@@ -231,7 +231,7 @@ AutomationInstrumentClipView::AutomationInstrumentClipView() {
 	instrumentClipView.timeLastEditPadPress = 0;
 
 	//initialize automation view specific variables
-	interpolation = runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationInterpolate);
+	interpolation = true;
 	encoderAction = false;
 	shortcutBlinking = false;
 }
@@ -241,6 +241,8 @@ inline InstrumentClip* getCurrentClip() {
 }
 
 bool AutomationInstrumentClipView::opened() {
+
+	interpolation = runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationInterpolate);
 
 	openedInBackground();
 
