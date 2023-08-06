@@ -3280,8 +3280,9 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 
 					// Create clip if it does not exist
 					if (clip == nullptr && (x + currentSong->songGridScrollX) <= trackCount) {
-						clip = gridCreateClip(gridSectionFromY(y), gridTrackFromX(x, trackCount), nullptr);
-						if (clip != nullptr) {
+						Output* track = gridTrackFromX(x, trackCount);
+						clip = gridCreateClip(gridSectionFromY(y), track, nullptr);
+						if (clip != nullptr && track == nullptr) {
 							session.toggleClipStatus(clip, NULL, true, kInternalButtonPressLatency);
 						}
 					}
