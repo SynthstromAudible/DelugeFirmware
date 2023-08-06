@@ -39,7 +39,30 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 ## New behaviors
 
 ### Session view
- - ([]) @TODO: Display clips as a grid instead of rows
+ - ([#251]) Add new grid session layout to "Song" mode. All functionality from (classic) row layout applies except for the following:
+	 - The data model of rows and grid mode are compatible, you can switch between them freely
+	 - In grid mode you will not be able to see multiple clips that are in the same section, only the first one. To make them visible move the clips to other sections
+	 - The colored coloumn on the right are all available sections, the columns are automatically filled with the tracks in the same order as in arrangement mode
+	 - In session mode hold "Song" and turn selection encoder to switch between row layout and grid layout
+	 - Existing clips (dimly white or green) can be opened by holding "Clip" button and clicking on them
+	 - New clips can be created by holding "Clip" button and clicking on an empty pad. If the column was empty a new track is created
+	 - By quickly clicking (and releasing) populated pads you can change the arm state
+		 - If "Shift" is held at the same time the clip will launch immediately
+		 - If "Record" is held at the same time you can change recording status
+		 - If horizontal encoder <> is held at the same time you can change solo state 
+	 - By holding a populated pad you can see the track, change the parameters and convert it to other instruments similar to rows layout
+	 - Hold an existing pad and press on another pad in the same, other or empty row to copy clips. If possible the content will be converted to the target track type
+	 - To delete a clip hold the pad and press the "Save/Delete" button
+	 - To arm a whole row click on the section color to the right
+	 - To immediately switch to a whole row hold "Shift" and click on the section color
+	 - To MIDI learn:
+		 - Arming a section hold "Learn/Input" and hold the section pad
+		 - Arming a clip hold "Learn/Input" and hold the clip pad
+		 - Note input to a track hold "Shift" + "Learn/Input" and hold the pad of any populated clip for that track
+	 - Compared to rows layout the following is not supported
+	 	 - Overdub recording
+		 - Copying clips to arranger
+		 - Copying audio clips between different tracks
 
 ### Song View
  - ([#163]) Pressing a clip row + shift & scroll vertically changes the selected row color. This is the same shortcut like before when setting the color in the clip view.
@@ -137,4 +160,5 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#170]: https://github.com/SynthstromAudible/DelugeFirmware/pull/170
 [#221]: https://github.com/SynthstromAudible/DelugeFirmware/pull/221
 [#234]: https://github.com/SynthstromAudible/DelugeFirmware/pull/234
+[#251]: https://github.com/SynthstromAudible/DelugeFirmware/pull/251
 [#282]: https://github.com/SynthstromAudible/DelugeFirmware/pull/282
