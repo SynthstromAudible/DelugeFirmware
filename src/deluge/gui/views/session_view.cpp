@@ -3321,6 +3321,12 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 		}
 		// Release
 		else {
+			// End stuttering on any key up for safety
+			if (isUIModeActive(UI_MODE_STUTTERING)) {
+				((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
+				    ->endStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
+			}
+
 			// First finger up
 			if (gridFirstPressedX == x && gridFirstPressedY == y) {
 				Clip* clip = gridClipFromCoords(x, y);
@@ -3360,12 +3366,6 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 				gridResetPresses(true, true); // Also reset first press so clip does not get armed
 				gridPreventArm = false;
 				clipPressEnded();
-			}
-
-			// End stuttering on any key up for safety
-			if (isUIModeActive(UI_MODE_STUTTERING)) {
-				((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
-				    ->endStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
 			}
 		}
 	}
