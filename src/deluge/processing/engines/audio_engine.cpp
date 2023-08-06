@@ -1152,6 +1152,15 @@ void getReverbParamsFromSong(Song* song) {
 	reverbCompressor.syncLevel = song->reverbCompressorSync;
 }
 
+void getMasterCompressorParamsFromSong(Song* song) {
+	AudioEngine::mastercompressor.compressor.setAttack(song->masterCompressorAttack);
+	AudioEngine::mastercompressor.compressor.setRelease(song->masterCompressorRelease);
+	AudioEngine::mastercompressor.compressor.setThresh(song->masterCompressorThresh);
+	AudioEngine::mastercompressor.compressor.setRatio(song->masterCompressorRatio);
+	AudioEngine::mastercompressor.setMakeup(song->masterCompressorMakeup);
+	AudioEngine::mastercompressor.wet = song->masterCompressorWet;
+}
+
 Voice* solicitVoice(Sound* forSound) {
 
 	Voice* newVoice;
