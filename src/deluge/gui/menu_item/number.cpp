@@ -47,7 +47,7 @@ void Number::drawBar(int32_t yTop, int32_t marginL, int32_t marginR) {
 	int32_t minValue = getMinValue();
 	int32_t maxValue = getMaxValue();
 	uint32_t range = maxValue - minValue;
-	float posFractional = (float)(this->value_ - minValue) / range;
+	float posFractional = (float)(this->getValue() - minValue) / range;
 	float zeroPosFractional = (float)(-minValue) / range;
 
 	int32_t width = rightMost - leftMost;

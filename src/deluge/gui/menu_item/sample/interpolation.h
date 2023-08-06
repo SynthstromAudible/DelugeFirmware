@@ -17,23 +17,25 @@
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/formatted_title.h"
-#include "gui/menu_item/selection/typed_selection.h"
+#include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "model/sample/sample_controls.h"
 #include "processing/sound/sound.h"
 #include "util/misc.h"
 
 namespace deluge::gui::menu_item::sample {
-class Interpolation final : public TypedSelection<InterpolationMode, kNumInterpolationModes>, public FormattedTitle {
+class Interpolation final : public Selection<kNumInterpolationModes>, public FormattedTitle {
 public:
 	Interpolation(const std::string& name, const fmt::format_string<int32_t>& title_format_str)
-	    : TypedSelection(name), FormattedTitle(title_format_str) {}
+	    : Selection(name), FormattedTitle(title_format_str) {}
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
-	void readCurrentValue() override { this->value_ = soundEditor.currentSampleControls->interpolationMode; }
+	void readCurrentValue() override { this->setValue(soundEditor.currentSampleControls->interpolationMode); }
 
-	void writeCurrentValue() override { soundEditor.currentSampleControls->interpolationMode = this->value_; }
+	void writeCurrentValue() override {
+		soundEditor.currentSampleControls->interpolationMode = this->getValue<InterpolationMode>();
+	}
 
 	static_vector<std::string, capacity()> getOptions() override { return {"Linear", "Sinc"}; }
 

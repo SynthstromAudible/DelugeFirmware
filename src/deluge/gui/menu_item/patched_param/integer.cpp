@@ -21,9 +21,9 @@
 
 namespace deluge::gui::menu_item::patched_param {
 void Integer::readCurrentValue() {
-	this->value_ = (((int64_t)soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP()) + 2147483648) * 50
+	this->setValue((((int64_t)soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP()) + 2147483648) * 50
 	                + 2147483648)
-	               >> 32;
+	               >> 32);
 }
 
 void Integer::writeCurrentValue() {
@@ -35,10 +35,10 @@ void Integer::writeCurrentValue() {
 }
 
 int32_t Integer::getFinalValue() {
-	if (this->value_ == 25) {
+	if (this->getValue() == 25) {
 		return 0;
 	}
-	return (uint32_t)this->value_ * 85899345 - 2147483648;
+	return (uint32_t)this->getValue() * 85899345 - 2147483648;
 }
 
 } // namespace deluge::gui::menu_item::patched_param

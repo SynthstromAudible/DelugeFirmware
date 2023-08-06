@@ -16,16 +16,16 @@
 */
 
 #pragma once
-#include "gui/menu_item/selection/selection.h"
+#include "gui/menu_item/selection.h"
 
 namespace deluge::gui::menu_item {
 
 class Colour final : public Selection<9> {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->value_ = value; }
+	void readCurrentValue() override { this->setValue(value); }
 	void writeCurrentValue() override {
-		value = this->value_;
+		value = this->getValue();
 		renderingNeededRegardlessOfUI();
 	};
 	static_vector<std::string, capacity()> getOptions() override {

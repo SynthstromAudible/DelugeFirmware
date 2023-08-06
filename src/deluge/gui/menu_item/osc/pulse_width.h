@@ -29,11 +29,12 @@ public:
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
-	int32_t getFinalValue() override { return (uint32_t)this->value_ * (85899345 >> 1); }
+	int32_t getFinalValue() override { return (uint32_t)this->getValue() * (85899345 >> 1); }
 
 	void readCurrentValue() override {
-		this->value_ =
-		    ((int64_t)soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP()) * 100 + 2147483648) >> 32;
+		this->setValue(
+		    ((int64_t)soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP()) * 100 + 2147483648)
+		    >> 32);
 	}
 
 	bool isRelevant(Sound* sound, int32_t whichThing) override {

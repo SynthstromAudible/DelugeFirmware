@@ -26,9 +26,9 @@ public:
 	using Integer::Integer;
 	[[nodiscard]] int32_t getMinValue() const override { return 1; }
 	[[nodiscard]] int32_t getMaxValue() const override { return 127; }
-	void readCurrentValue() override { this->value_ = FlashStorage::defaultVelocity; }
+	void readCurrentValue() override { this->setValue(FlashStorage::defaultVelocity); }
 	void writeCurrentValue() override {
-		FlashStorage::defaultVelocity = this->value_;
+		FlashStorage::defaultVelocity = this->getValue();
 		currentSong->setDefaultVelocityForAllInstruments(FlashStorage::defaultVelocity);
 	}
 };

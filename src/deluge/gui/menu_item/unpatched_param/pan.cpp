@@ -32,31 +32,31 @@ namespace deluge::gui::menu_item::unpatched_param {
 void Pan::drawValue() {    // TODO: should really combine this with the "patched" version
 	uint8_t drawDot = 255; //soundEditor.doesParamHaveAnyCables(getP()) ? 3 : 255;
 	char buffer[5];
-	intToString(std::abs(this->value_), buffer, 1);
-	if (this->value_ < 0) {
+	intToString(std::abs(this->getValue()), buffer, 1);
+	if (this->getValue() < 0) {
 		strcat(buffer, "L");
 	}
-	else if (this->value_ > 0) {
+	else if (this->getValue() > 0) {
 		strcat(buffer, "R");
 	}
 	numericDriver.setText(buffer, true, drawDot);
 }
 
 int32_t Pan::getFinalValue() {
-	if (this->value_ == 32) {
+	if (this->getValue() == 32) {
 		return 2147483647;
 	}
-	else if (this->value_ == -32) {
+	else if (this->getValue() == -32) {
 		return -2147483648;
 	}
 	else {
-		return ((int32_t)this->value_ * 33554432 * 2);
+		return ((int32_t)this->getValue() * 33554432 * 2);
 	}
 }
 
 void Pan::readCurrentValue() {
-	this->value_ =
-	    ((int64_t)soundEditor.currentParamManager->getUnpatchedParamSet()->getValue(getP()) * 64 + 2147483648) >> 32;
+	this->setValue(
+	    ((int64_t)soundEditor.currentParamManager->getUnpatchedParamSet()->getValue(getP()) * 64 + 2147483648) >> 32);
 }
 
 } // namespace deluge::gui::menu_item::unpatched_param

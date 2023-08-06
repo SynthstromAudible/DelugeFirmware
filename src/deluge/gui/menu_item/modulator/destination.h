@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "gui/menu_item/selection/selection.h"
+#include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "processing/sound/sound.h"
 
@@ -23,8 +23,8 @@ namespace deluge::gui::menu_item::modulator {
 class Destination final : public Selection<2> {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->value_ = soundEditor.currentSound->modulator1ToModulator0; }
-	void writeCurrentValue() override { soundEditor.currentSound->modulator1ToModulator0 = this->value_; }
+	void readCurrentValue() override { this->setValue(soundEditor.currentSound->modulator1ToModulator0); }
+	void writeCurrentValue() override { soundEditor.currentSound->modulator1ToModulator0 = this->getValue(); }
 	static_vector<std::string, capacity()> getOptions() override {
 		return {"Carriers", HAVE_OLED ? "Modulator 1" : "MOD1"};
 	}

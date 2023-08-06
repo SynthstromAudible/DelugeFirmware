@@ -50,14 +50,14 @@ void MultiRange::beginSession(MenuItem* navigatedBackwardFrom) {
 		soundEditor.currentSource->defaultRangeI = numRanges >> 1;
 	}
 
-	this->value_ = soundEditor.currentSource->defaultRangeI;
+	this->setValue(soundEditor.currentSource->defaultRangeI);
 	soundEditor.currentSource->getOrCreateFirstRange(); // TODO: deal with error
-	soundEditor.setCurrentMultiRange(this->value_);
+	soundEditor.setCurrentMultiRange(this->getValue());
 
 #if HAVE_OLED
-	soundEditor.menuCurrentScroll = this->value_ - 1;
-	if (soundEditor.menuCurrentScroll > this->value_ - kOLEDMenuNumOptionsVisible + 1) {
-		soundEditor.menuCurrentScroll = this->value_ - kOLEDMenuNumOptionsVisible + 1;
+	soundEditor.menuCurrentScroll = this->getValue() - 1;
+	if (soundEditor.menuCurrentScroll > this->getValue() - kOLEDMenuNumOptionsVisible + 1) {
+		soundEditor.menuCurrentScroll = this->getValue() - kOLEDMenuNumOptionsVisible + 1;
 	}
 	if (soundEditor.menuCurrentScroll < 0) {
 		soundEditor.menuCurrentScroll = 0;
@@ -79,13 +79,13 @@ void MultiRange::selectEncoderAction(int32_t offset) {
 		// Editing left
 		if (soundEditor.editingRangeEdge == RangeEdit::LEFT) {
 
-			::MultiRange* lowerRange = soundEditor.currentSource->ranges.getElement(this->value_ - 1);
+			::MultiRange* lowerRange = soundEditor.currentSource->ranges.getElement(this->getValue() - 1);
 
 			// Raising
 			if (offset >= 0) {
 				int32_t maximum;
-				if (this->value_ < soundEditor.currentSource->ranges.getNumElements() - 1) {
-					::MultiRange* currentRange = soundEditor.currentSource->ranges.getElement(this->value_);
+				if (this->getValue() < soundEditor.currentSource->ranges.getNumElements() - 1) {
+					::MultiRange* currentRange = soundEditor.currentSource->ranges.getElement(this->getValue());
 					maximum = currentRange->topNote - 1;
 				}
 				else {
@@ -100,8 +100,8 @@ void MultiRange::selectEncoderAction(int32_t offset) {
 			// Lowering
 			else {
 				int32_t minimum;
-				if (this->value_ >= 2) {
-					::MultiRange* lowerLowerRange = soundEditor.currentSource->ranges.getElement(this->value_ - 2);
+				if (this->getValue() >= 2) {
+					::MultiRange* lowerLowerRange = soundEditor.currentSource->ranges.getElement(this->getValue() - 2);
 					minimum = lowerLowerRange->topNote + 1;
 				}
 				else {
@@ -117,13 +117,13 @@ void MultiRange::selectEncoderAction(int32_t offset) {
 		// Editing right
 		else {
 
-			::MultiRange* currentRange = soundEditor.currentSource->ranges.getElement(this->value_);
+			::MultiRange* currentRange = soundEditor.currentSource->ranges.getElement(this->getValue());
 
 			// Raising
 			if (offset >= 0) {
 				int32_t maximum;
-				if (this->value_ < soundEditor.currentSource->ranges.getNumElements() - 2) {
-					::MultiRange* higherRange = soundEditor.currentSource->ranges.getElement(this->value_ + 1);
+				if (this->getValue() < soundEditor.currentSource->ranges.getNumElements() - 2) {
+					::MultiRange* higherRange = soundEditor.currentSource->ranges.getElement(this->getValue() + 1);
 					maximum = higherRange->topNote - 1;
 				}
 				else {
@@ -138,8 +138,8 @@ void MultiRange::selectEncoderAction(int32_t offset) {
 			// Lowering
 			else {
 				int32_t minimum;
-				if (this->value_ >= 1) {
-					::MultiRange* lowerRange = soundEditor.currentSource->ranges.getElement(this->value_ - 1);
+				if (this->getValue() >= 1) {
+					::MultiRange* lowerRange = soundEditor.currentSource->ranges.getElement(this->getValue() - 1);
 					minimum = lowerRange->topNote + 1;
 				}
 				else {
@@ -166,25 +166,25 @@ void MultiRange::selectEncoderAction(int32_t offset) {
 		if (Buttons::isShiftButtonPressed()) {
 
 			int32_t currentRangeBottom;
-			if (this->value_ == 0) {
-				currentRangeBottom = soundEditor.currentSource->ranges.getElement(this->value_)->topNote - 1;
+			if (this->getValue() == 0) {
+				currentRangeBottom = soundEditor.currentSource->ranges.getElement(this->getValue())->topNote - 1;
 				if (currentRangeBottom > 0) {
 					currentRangeBottom = 0;
 				}
 			}
 			else {
-				currentRangeBottom = soundEditor.currentSource->ranges.getElement(this->value_ - 1)->topNote + 1;
+				currentRangeBottom = soundEditor.currentSource->ranges.getElement(this->getValue() - 1)->topNote + 1;
 			}
 
 			int32_t currentRangeTop;
-			if (this->value_ == soundEditor.currentSource->ranges.getNumElements() - 1) {
+			if (this->getValue() == soundEditor.currentSource->ranges.getNumElements() - 1) {
 				currentRangeTop = currentRangeBottom + 1;
 				if (currentRangeTop < 127) {
 					currentRangeTop = 127;
 				}
 			}
 			else {
-				currentRangeTop = soundEditor.currentSource->ranges.getElement(this->value_)->topNote;
+				currentRangeTop = soundEditor.currentSource->ranges.getElement(this->getValue())->topNote;
 			}
 
 			if (currentRangeTop == currentRangeBottom) {
@@ -194,7 +194,7 @@ void MultiRange::selectEncoderAction(int32_t offset) {
 
 			int32_t midPoint = (currentRangeTop + currentRangeBottom) >> 1;
 
-			int32_t newI = this->value_;
+			int32_t newI = this->getValue();
 			if (offset == 1) {
 				newI++;
 			}
@@ -212,7 +212,7 @@ void MultiRange::selectEncoderAction(int32_t offset) {
 			// Inserted after
 			if (offset >= 0) {
 				newRange->topNote = currentRangeTop;
-				::MultiRange* oldRange = soundEditor.currentSource->ranges.getElement(this->value_);
+				::MultiRange* oldRange = soundEditor.currentSource->ranges.getElement(this->getValue());
 				oldRange->topNote = midPoint;
 			}
 
@@ -225,14 +225,14 @@ void MultiRange::selectEncoderAction(int32_t offset) {
 #endif
 			}
 
-			this->value_ = newI;
+			this->setValue(newI);
 #if HAVE_OLED
 			OLED::consoleText("Range inserted");
-			if (soundEditor.menuCurrentScroll > this->value_) {
-				soundEditor.menuCurrentScroll = this->value_;
+			if (soundEditor.menuCurrentScroll > this->getValue()) {
+				soundEditor.menuCurrentScroll = this->getValue();
 			}
-			else if (soundEditor.menuCurrentScroll < this->value_ - kOLEDMenuNumOptionsVisible + 1) {
-				soundEditor.menuCurrentScroll = this->value_ - kOLEDMenuNumOptionsVisible + 1;
+			else if (soundEditor.menuCurrentScroll < this->getValue() - kOLEDMenuNumOptionsVisible + 1) {
+				soundEditor.menuCurrentScroll = this->getValue() - kOLEDMenuNumOptionsVisible + 1;
 			}
 #else
 			numericDriver.displayPopup("INSERT");
@@ -242,25 +242,25 @@ void MultiRange::selectEncoderAction(int32_t offset) {
 		// Or the normal thing of just flicking through existing ranges
 		else {
 			// Stay within bounds
-			int32_t newValue = this->value_ + offset;
+			int32_t newValue = this->getValue() + offset;
 			if (newValue < 0 || newValue >= soundEditor.currentSource->ranges.getNumElements()) {
 				return;
 			}
 
-			this->value_ = newValue;
-			soundEditor.currentSource->defaultRangeI = this->value_;
+			this->setValue(newValue);
+			soundEditor.currentSource->defaultRangeI = this->getValue();
 
 #if HAVE_OLED
-			if (soundEditor.menuCurrentScroll > this->value_) {
-				soundEditor.menuCurrentScroll = this->value_;
+			if (soundEditor.menuCurrentScroll > this->getValue()) {
+				soundEditor.menuCurrentScroll = this->getValue();
 			}
-			else if (soundEditor.menuCurrentScroll < this->value_ - kOLEDMenuNumOptionsVisible + 1) {
-				soundEditor.menuCurrentScroll = this->value_ - kOLEDMenuNumOptionsVisible + 1;
+			else if (soundEditor.menuCurrentScroll < this->getValue() - kOLEDMenuNumOptionsVisible + 1) {
+				soundEditor.menuCurrentScroll = this->getValue() - kOLEDMenuNumOptionsVisible + 1;
 			}
 #endif
 		}
 
-		soundEditor.setCurrentMultiRange(this->value_);
+		soundEditor.setCurrentMultiRange(this->getValue());
 		soundEditor.possibleChangeToCurrentRangeDisplay();
 #if HAVE_OLED
 		renderUIsForOled();
@@ -287,29 +287,29 @@ void MultiRange::deletePress() {
 		return;
 	}
 
-	::MultiRange* oldRange = soundEditor.currentSource->ranges.getElement(this->value_);
+	::MultiRange* oldRange = soundEditor.currentSource->ranges.getElement(this->getValue());
 	int32_t oldTopNote = oldRange->topNote;
 
 	soundEditor.currentSound->deleteMultiRange(soundEditor.currentSourceIndex,
-	                                           this->value_); // Unassigns all Voices
+	                                           this->getValue()); // Unassigns all Voices
 
 	// If bottom one, nothing to do
-	if (this->value_ == 0) {
-		soundEditor.setCurrentMultiRange(this->value_);
+	if (this->getValue() == 0) {
+		soundEditor.setCurrentMultiRange(this->getValue());
 	}
 
 	// Otherwise...
 	else {
 
-		this->value_--;
-		soundEditor.setCurrentMultiRange(this->value_);
+		this->setValue(this->getValue() - 1);
+		soundEditor.setCurrentMultiRange(this->getValue());
 #if HAVE_OLED
-		if (soundEditor.menuCurrentScroll > this->value_) {
-			soundEditor.menuCurrentScroll = this->value_;
+		if (soundEditor.menuCurrentScroll > this->getValue()) {
+			soundEditor.menuCurrentScroll = this->getValue();
 		}
 #endif
 		// If top one...
-		if (this->value_ == oldNum - 2) {
+		if (this->getValue() == oldNum - 2) {
 			soundEditor.currentMultiRange->topNote = 32767;
 		}
 
@@ -331,14 +331,14 @@ void MultiRange::deletePress() {
 void MultiRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRightLength, bool mayShowJustOne) {
 
 	// Lower end
-	if (this->value_ == 0) {
+	if (this->getValue() == 0) {
 		strcpy(buffer, HAVE_OLED ? "Bottom" : "BOT");
 		if (getLeftLength) {
 			*getLeftLength = HAVE_OLED ? 6 : 3;
 		}
 	}
 	else {
-		int32_t note = soundEditor.currentSource->ranges.getElement(this->value_ - 1)->topNote + 1;
+		int32_t note = soundEditor.currentSource->ranges.getElement(this->getValue() - 1)->topNote + 1;
 		noteCodeToString(note, buffer, getLeftLength);
 	}
 
@@ -352,7 +352,7 @@ void MultiRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRight
 #endif
 
 	// Upper end
-	if (this->value_ == soundEditor.currentSource->ranges.getNumElements() - 1) {
+	if (this->getValue() == soundEditor.currentSource->ranges.getNumElements() - 1) {
 		*(bufferPos++) = '-';
 #if HAVE_OLED
 		*(bufferPos++) = ' ';
@@ -366,10 +366,10 @@ void MultiRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRight
 		}
 	}
 	else {
-		int32_t note = soundEditor.currentSource->ranges.getElement(this->value_)->topNote;
+		int32_t note = soundEditor.currentSource->ranges.getElement(this->getValue())->topNote;
 
-		if (mayShowJustOne && this->value_ > 0
-		    && note == soundEditor.currentSource->ranges.getElement(this->value_ - 1)->topNote + 1) {
+		if (mayShowJustOne && this->getValue() > 0
+		    && note == soundEditor.currentSource->ranges.getElement(this->getValue() - 1)->topNote + 1) {
 			return;
 		}
 
@@ -386,16 +386,16 @@ MenuItem* MultiRange::selectButtonPress() {
 void MultiRange::noteOnToChangeRange(int32_t noteCode) {
 	if (soundEditor.editingRangeEdge == RangeEdit::OFF) {
 		int32_t newI = soundEditor.currentSource->getRangeIndex(noteCode);
-		if (newI != this->value_) {
-			this->value_ = newI;
-			soundEditor.setCurrentMultiRange(this->value_);
+		if (newI != this->getValue()) {
+			this->setValue(newI);
+			soundEditor.setCurrentMultiRange(this->getValue());
 			soundEditor.possibleChangeToCurrentRangeDisplay();
 #if HAVE_OLED
-			if (soundEditor.menuCurrentScroll > this->value_) {
-				soundEditor.menuCurrentScroll = this->value_;
+			if (soundEditor.menuCurrentScroll > this->getValue()) {
+				soundEditor.menuCurrentScroll = this->getValue();
 			}
-			else if (soundEditor.menuCurrentScroll < this->value_ - kOLEDMenuNumOptionsVisible + 1) {
-				soundEditor.menuCurrentScroll = this->value_ - kOLEDMenuNumOptionsVisible + 1;
+			else if (soundEditor.menuCurrentScroll < this->getValue() - kOLEDMenuNumOptionsVisible + 1) {
+				soundEditor.menuCurrentScroll = this->getValue() - kOLEDMenuNumOptionsVisible + 1;
 			}
 
 			renderUIsForOled();
@@ -408,34 +408,34 @@ void MultiRange::noteOnToChangeRange(int32_t noteCode) {
 
 bool MultiRange::mayEditRangeEdge(RangeEdit whichEdge) {
 	if (whichEdge == RangeEdit::LEFT) {
-		return (this->value_ != 0);
+		return (this->getValue() != 0);
 	}
-	return (this->value_ != soundEditor.currentSource->ranges.getNumElements() - 1);
+	return (this->getValue() != soundEditor.currentSource->ranges.getNumElements() - 1);
 }
 
 #if HAVE_OLED
 void MultiRange::drawPixelsForOled() {
 	static_vector<std::string, kOLEDMenuNumOptionsVisible> itemNames{};
 	char nameBuffers[kOLEDMenuNumOptionsVisible][20];
-	int32_t actualCurrentRange = this->value_;
+	int32_t actualCurrentRange = this->getValue();
 
-	this->value_ = soundEditor.menuCurrentScroll;
+	this->setValue(soundEditor.menuCurrentScroll);
 	size_t idx = 0;
 	for (idx = 0; idx < kOLEDMenuNumOptionsVisible; idx++) {
-		if (this->value_ >= soundEditor.currentSource->ranges.getNumElements()) {
+		if (this->getValue() >= soundEditor.currentSource->ranges.getNumElements()) {
 			break;
 		}
 		getText(nameBuffers[idx], nullptr, nullptr, false);
 		itemNames.push_back(nameBuffers[idx]);
 
-		this->value_++;
+		this->setValue(this->getValue() + 1);
 	}
 
-	this->value_ = actualCurrentRange;
+	this->setValue(actualCurrentRange);
 
 	int32_t selectedOption = -1;
 	if (soundEditor.editingRangeEdge == RangeEdit::OFF) {
-		selectedOption = this->value_ - soundEditor.menuCurrentScroll;
+		selectedOption = this->getValue() - soundEditor.menuCurrentScroll;
 	}
 	drawItemsForOled(itemNames, selectedOption);
 
@@ -454,7 +454,7 @@ void MultiRange::drawPixelsForOled() {
 
 		int32_t baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
 		baseY += OLED_MAIN_TOPMOST_PIXEL;
-		baseY += (this->value_ - soundEditor.menuCurrentScroll) * kTextSpacingY;
+		baseY += (this->getValue() - soundEditor.menuCurrentScroll) * kTextSpacingY;
 		OLED::invertArea(hilightStartX, hilightWidth, baseY, baseY + kTextSpacingY, OLED::oledMainImage);
 	}
 }
