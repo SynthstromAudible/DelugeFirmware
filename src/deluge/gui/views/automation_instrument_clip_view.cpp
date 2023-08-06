@@ -450,7 +450,7 @@ void AutomationInstrumentClipView::performActualRender(uint32_t whichRows, uint8
 
 			//if a Kit clip is selected, affect entire is not enabled and a row has not been selected yet, you cannot do anything in the automation instrument clip view
 			if (instrument->type == InstrumentType::KIT && !instrumentClipView.getAffectEntire()
-			    && !clip->getNoteRowForSelectedDrum(modelStack)) {
+			    && !((Kit*)instrument)->selectedDrum) {
 
 				numericDriver.displayPopup(HAVE_OLED ? "Select Row" : "SEL");
 			}
