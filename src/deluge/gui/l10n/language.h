@@ -17,8 +17,8 @@ class Language {
 public:
 	using map_type = std::array<char const*, kNumStrings>;
 
-	Language(std::string name) : name_(std::move(name)){
-		std::copy(languages[0]->map_.cbegin(), languages[0]->map_.cend(), this->map_.begin());
+	Language(std::string name, Language const* fallback = languages[0]) : name_(std::move(name)) {
+		std::copy(fallback->map_.cbegin(), fallback->map_.cend(), this->map_.begin());
 	};
 
 	/** @brief Builder-style constructor for creating localization language maps (compile-time only) */
@@ -27,7 +27,7 @@ public:
 	    : name_(name) {
 
 		if (fallback != nullptr) { // copy the string pointers from the fallback
-			//std::copy(fallback->map_.cbegin(), fallback->map_.cend(), this->map_.begin());
+			                       //std::copy(fallback->map_.cbegin(), fallback->map_.cend(), this->map_.begin());
 		}
 		else { // If we have no languages yet...
 			   // default all values to empty string
@@ -40,7 +40,9 @@ public:
 		}
 	}
 
-	[[nodiscard]] constexpr map_type::value_type get(Strings entry) const { return map_.at(util::to_underlying(entry)); }
+	[[nodiscard]] constexpr map_type::value_type get(Strings entry) const {
+		return map_.at(util::to_underlying(entry));
+	}
 
 	constexpr Language& add(Strings entry, map_type::value_type value) {
 		size_t idx = util::to_underlying(entry);

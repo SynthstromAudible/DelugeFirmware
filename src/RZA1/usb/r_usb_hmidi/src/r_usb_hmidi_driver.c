@@ -38,8 +38,8 @@
 #include "RZA1/usb/userdef/r_usb_hmidi_config.h"
 #include "definitions.h"
 
-#include "deluge/drivers/uart/uart.h"
 #include "deluge/deluge.h"
+#include "deluge/drivers/uart/uart.h"
 
 /******************************************************************************
  Exported global variables
