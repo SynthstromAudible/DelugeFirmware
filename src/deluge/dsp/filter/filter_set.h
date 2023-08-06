@@ -20,46 +20,14 @@
 #include "definitions_cxx.hpp"
 #include "dsp/filter/filter.h"
 #include "dsp/filter/filter_set_config.h"
+#include "dsp/filter/ladder_components.h"
+#include "dsp/filter/lpladder.h"
 #include "dsp/filter/svf.h"
 #include "util/functions.h"
 #include <cstdint>
 
 class Sound;
 class FilterSetConfig;
-
-class BasicFilterComponent {
-public:
-	//moveability is tan(f)/(1+tan(f))
-	inline q31_t doFilter(q31_t input, q31_t moveability) {
-		q31_t a = multiply_32x32_rshift32_rounded(input - memory, moveability) << 1;
-		q31_t b = a + memory;
-		memory = b + a;
-		return b;
-	}
-
-	inline int32_t doAPF(q31_t input, int32_t moveability) {
-		q31_t a = multiply_32x32_rshift32_rounded(input - memory, moveability) << 1;
-		q31_t b = a + memory;
-		memory = a + b;
-		return b * 2 - input;
-	}
-
-	inline void affectFilter(q31_t input, int32_t moveability) {
-		memory += multiply_32x32_rshift32_rounded(input - memory, moveability) << 2;
-	}
-
-	inline void reset() { memory = 0; }
-
-	inline q31_t getFeedbackOutput(int32_t feedbackAmount) {
-		return multiply_32x32_rshift32_rounded(memory, feedbackAmount) << 2;
-	}
-
-	inline q31_t getFeedbackOutputWithoutLshift(int32_t feedbackAmount) {
-		return multiply_32x32_rshift32_rounded(memory, feedbackAmount);
-	}
-
-	q31_t memory;
-};
 
 class FilterSet {
 public:
@@ -85,7 +53,7 @@ public:
 			renderLPFLong(outputSample, endSample, lpfMode, sampleIncrememt, extraSaturation, extraSaturation >> 1);
 		}
 		else
-			lpfOnLastTime = false;
+			lastLPFMode = LPFMode::OFF;
 	}
 	//used to check whether the filter is used at all
 	inline bool isLPFOn() { return LPFOn; }
@@ -93,28 +61,19 @@ public:
 
 private:
 	q31_t noiseLastValue;
+	LPFMode lpfMode;
+	LPFMode lastLPFMode;
 
-	q31_t do24dBLPFOnSample(q31_t input, int32_t saturationLevel);
-	q31_t doDriveLPFOnSample(q31_t input, int32_t extraSaturation = 0);
-	inline void renderLPLadder(q31_t* startSample, q31_t* endSample, LPFMode lpfMode, int32_t sampleIncrement,
-	                           int32_t extraSaturation, int32_t extraSaturationDrive);
 	void renderLPFLong(q31_t* outputSample, q31_t* endSample, LPFMode lpfMode, int32_t sampleIncrement = 1,
 	                   int32_t extraSaturation = 0, int32_t extraSaturationDrive = 0);
 	void renderHPFLong(q31_t* outputSample, q31_t* endSample, int32_t numSamples, int32_t sampleIncrement = 1,
 	                   int32_t extraSaturation = 0);
 	void renderLadderHPF(q31_t* outputSample, int32_t extraSaturation = 0);
 
-	LPLadderConfig lpladderconfig;
-	HPLadderConfig hpladderconfig;
-	LPFMode lpfMode;
-
-	BasicFilterComponent lpfLPF1;
-	BasicFilterComponent lpfLPF2;
-	BasicFilterComponent lpfLPF3;
-	BasicFilterComponent lpfLPF4;
-
 	Filter<SVFilter> lpsvf;
+	Filter<LpLadderFilter> lpladder;
 
+	HPLadderConfig hpladderconfig;
 	BasicFilterComponent hpfHPF1;
 	BasicFilterComponent hpfLPF1;
 	BasicFilterComponent hpfHPF3;
@@ -127,6 +86,4 @@ private:
 	bool lpfOnLastTime;
 	bool LPFOn;
 	bool HPFOn;
-
-	bool doOversampling;
 };

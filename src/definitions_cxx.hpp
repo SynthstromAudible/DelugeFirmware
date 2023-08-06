@@ -617,10 +617,13 @@ constexpr int32_t kNumPhysicalModKnobs = 2;
 enum class LPFMode {
 	TRANSISTOR_12DB,
 	TRANSISTOR_24DB,
-	TRANSISTOR_24DB_DRIVE,
+	TRANSISTOR_24DB_DRIVE, //keep ladders first for quick comparisons
 	SVF,
+	OFF,
 };
-constexpr int32_t kNumLPFModes = util::to_underlying(LPFMode::SVF) + 1;
+constexpr LPFMode kLastLadder = LPFMode::TRANSISTOR_24DB_DRIVE;
+//Off is not an LPF mode but is used to reset filters
+constexpr int32_t kNumLPFModes = util::to_underlying(LPFMode::OFF);
 
 constexpr int32_t kNumAllpassFiltersPhaser = 6;
 

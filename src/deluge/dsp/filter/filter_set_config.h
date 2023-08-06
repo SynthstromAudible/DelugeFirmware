@@ -20,27 +20,6 @@
 #include "definitions_cxx.hpp"
 #include "util/fixedpoint.h"
 
-class LPLadderConfig {
-
-public:
-	LPLadderConfig();
-	q31_t init(q31_t lpfFrequency, q31_t lpfResonance, LPFMode lpfMode, q31_t filterGain);
-
-	q31_t processedResonance;                            // 1 represented as 1073741824
-	q31_t divideByTotalMoveabilityAndProcessedResonance; // 1 represented as 1073741824
-
-	//moveability is tan(f)/(1+tan(f))
-	q31_t moveability;                  // 1 represented by 2147483648
-	q31_t divideBy1PlusTannedFrequency; // 1 represented by 2147483648
-
-	// All feedbacks have 1 represented as 1073741824
-	q31_t lpf1Feedback;
-	q31_t lpf2Feedback;
-	q31_t lpf3Feedback;
-
-	bool doOversampling;
-};
-
 class HPLadderConfig {
 public:
 	HPLadderConfig();

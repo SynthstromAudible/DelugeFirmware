@@ -19,8 +19,7 @@
 #include "util/functions.h"
 #include <cstdint>
 
-void SVFilter::do_filter(q31_t* startSample, q31_t* endSample, int32_t numSamples, int32_t sampleIncrememt,
-                         int32_t extraSaturation) {
+void SVFilter::do_filter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrememt, int32_t extraSaturation) {
 	q31_t* currentSample = startSample;
 	do {
 		q31_t outs = doSVF(*currentSample);
