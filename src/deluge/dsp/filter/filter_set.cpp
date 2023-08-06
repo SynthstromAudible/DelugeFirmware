@@ -297,9 +297,17 @@ int32_t FilterSet::set_config(int32_t lpfFrequency, int32_t lpfResonance, bool d
 	return filterGain;
 }
 void FilterSet::copy_config(FilterSet* other) {
-	memcpy(&lpladderconfig, &other->lpladderconfig, sizeof(LPLadderConfig));
-	memcpy(&lpsvf, &other->lpsvf, sizeof(lpsvf));
-	memcpy(&hpladderconfig, &other->hpladderconfig, sizeof(HPLadderConfig));
+	if (other->LPFOn) {
+		if (other->lpfMode == LPFMode::SVF) {
+			memcpy(&lpsvf, &other->lpsvf, sizeof(lpsvf));
+		}
+		else {
+			memcpy(&lpladderconfig, &other->lpladderconfig, sizeof(lpladderconfig));
+		}
+	}
+	if (other->HPFOn) {
+		memcpy(&hpladderconfig, &other->hpladderconfig, sizeof(HPLadderConfig));
+	}
 	LPFOn = other->isLPFOn();
 	HPFOn = other->isHPFOn();
 }
