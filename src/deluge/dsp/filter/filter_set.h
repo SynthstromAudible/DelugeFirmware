@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "dsp/filter/filter.h"
 #include "dsp/filter/filter_set_config.h"
+#include "dsp/filter/hpladder.h"
 #include "dsp/filter/ladder_components.h"
 #include "dsp/filter/lpladder.h"
 #include "dsp/filter/svf.h"
@@ -38,19 +39,19 @@ public:
 	                 q31_t* overallOscAmplitude = NULL);
 	void copy_config(FilterSet*);
 
-	inline void renderLong(q31_t* outputSample, q31_t* endSample, int32_t numSamples, int32_t sampleIncrememt = 1,
+	inline void renderLong(q31_t* startSample, q31_t* endSample, int32_t numSamples, int32_t sampleIncrememt = 1,
 	                       int32_t extraSaturation = 1) {
 
 		// Do HPF, if it's on
 		if (HPFOn) {
-			renderHPFLong(outputSample, endSample, numSamples, sampleIncrememt);
+			renderHPFLong(startSample, endSample, lpfMode, sampleIncrememt);
 		}
 		else
 			hpfOnLastTime = false;
 
 		// Do LPF, if it's on
 		if (LPFOn) {
-			renderLPFLong(outputSample, endSample, lpfMode, sampleIncrememt, extraSaturation, extraSaturation >> 1);
+			renderLPFLong(startSample, endSample, lpfMode, sampleIncrememt, extraSaturation, extraSaturation >> 1);
 		}
 		else
 			lastLPFMode = LPFMode::OFF;
@@ -64,23 +65,15 @@ private:
 	LPFMode lpfMode;
 	LPFMode lastLPFMode;
 
-	void renderLPFLong(q31_t* outputSample, q31_t* endSample, LPFMode lpfMode, int32_t sampleIncrement = 1,
+	void renderLPFLong(q31_t* startSample, q31_t* endSample, LPFMode lpfMode, int32_t sampleIncrement = 1,
 	                   int32_t extraSaturation = 0, int32_t extraSaturationDrive = 0);
-	void renderHPFLong(q31_t* outputSample, q31_t* endSample, int32_t numSamples, int32_t sampleIncrement = 1,
+	void renderHPFLong(q31_t* startSample, q31_t* endSample, LPFMode lpfMode, int32_t sampleIncrement = 1,
 	                   int32_t extraSaturation = 0);
 	void renderLadderHPF(q31_t* outputSample, int32_t extraSaturation = 0);
 
 	SVFilter lpsvf;
 	LpLadderFilter lpladder;
-
-	HPLadderConfig hpladderconfig;
-	BasicFilterComponent hpfHPF1;
-	BasicFilterComponent hpfLPF1;
-	BasicFilterComponent hpfHPF3;
-	uint32_t hpfLastWorkingValue;
-	bool hpfDoingAntialiasingNow;
-	int32_t hpfDivideByTotalMoveabilityLastTime;
-	int32_t hpfDivideByProcessedResonanceLastTime;
+	HpLadderFilter hpladder;
 
 	bool hpfOnLastTime;
 	bool lpfOnLastTime;

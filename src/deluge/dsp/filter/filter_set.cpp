@@ -30,47 +30,13 @@ FilterSet::FilterSet() {
 
 	lpsvf = SVFilter();
 	lpladder = LpLadderFilter();
-
-	hpladderconfig = HPLadderConfig();
+	hpladder = HpLadderFilter();
 }
 
-inline void FilterSet::renderLadderHPF(q31_t* outputSample, int32_t extraSaturation) {
-	q31_t input = *outputSample;
-
-	q31_t firstHPFOutput = input - hpfHPF1.doFilter(input, hpladderconfig.hpfMoveability);
-
-	q31_t feedbacksValue = hpfHPF3.getFeedbackOutput(hpladderconfig.hpfHPF3Feedback)
-	                       + hpfLPF1.getFeedbackOutput(hpladderconfig.hpfLPF1Feedback);
-
-	q31_t a = multiply_32x32_rshift32_rounded(hpladderconfig.divideByTotalMoveability, firstHPFOutput + feedbacksValue)
-	          << (4 + 1);
-
-	// Only saturate / anti-alias if lots of resonance
-	if (hpladderconfig.hpfProcessedResonance > 900000000) { // 890551738
-		a = getTanHAntialiased(a, &hpfLastWorkingValue, 2 + extraSaturation);
-	}
-	else {
-		hpfLastWorkingValue = (uint32_t)lshiftAndSaturate<2>(a) + 2147483648u;
-		if (hpladderconfig.hpfProcessedResonance > 750000000) { // 400551738
-			a = getTanHUnknown(a, 2 + extraSaturation);
-		}
-	}
-
-	hpfLPF1.doFilter(a - hpfHPF3.doFilter(a, hpladderconfig.hpfMoveability), hpladderconfig.hpfMoveability);
-
-	a = multiply_32x32_rshift32_rounded(a, hpladderconfig.hpfDivideByProcessedResonance) << (8 - 1); // Normalization
-
-	*outputSample = a;
-}
-
-void FilterSet::renderHPFLong(q31_t* outputSample, q31_t* endSample, int32_t numSamples, int32_t sampleIncrement,
+void FilterSet::renderHPFLong(q31_t* startSample, q31_t* endSample, LPFMode lpfMode, int32_t sampleIncrement,
                               int32_t extraSaturation) {
 
-	do {
-
-		renderLadderHPF(outputSample, extraSaturation);
-		outputSample += sampleIncrement;
-	} while (outputSample < endSample);
+	hpladder.filter(startSample, endSample, sampleIncrement, extraSaturation);
 }
 
 void FilterSet::renderLPFLong(q31_t* startSample, q31_t* endSample, LPFMode lpfMode, int32_t sampleIncrement,
@@ -115,7 +81,7 @@ int32_t FilterSet::set_config(int32_t lpfFrequency, int32_t lpfResonance, bool d
 
 	// HPF
 	if (HPFOn) {
-		filterGain = hpladderconfig.init(hpfFrequency, hpfResonance, adjustVolumeForHPFResonance, filterGain);
+		filterGain = hpladder.configure(hpfFrequency, hpfResonance, lpfmode, filterGain);
 	}
 
 	return filterGain;
@@ -130,7 +96,7 @@ void FilterSet::copy_config(FilterSet* other) {
 		}
 	}
 	if (other->HPFOn) {
-		memcpy(&hpladderconfig, &other->hpladderconfig, sizeof(HPLadderConfig));
+		memcpy(&hpladder, &other->hpladder, sizeof(hpladder));
 	}
 	LPFOn = other->isLPFOn();
 	HPFOn = other->isHPFOn();
@@ -138,11 +104,7 @@ void FilterSet::copy_config(FilterSet* other) {
 	lastLPFMode = other->lastLPFMode;
 }
 void FilterSet::reset() {
-	hpfHPF1.reset();
-	hpfLPF1.reset();
-	hpfHPF3.reset();
-	hpfLastWorkingValue = 2147483648;
-	hpfDoingAntialiasingNow = false;
+	hpladder.reset();
 	hpfOnLastTime = false;
 	lpsvf.reset();
 	lpladder.reset();
