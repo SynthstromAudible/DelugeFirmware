@@ -28,6 +28,7 @@ extern "C" {
 #include "RZA1/uart/sio_char.h"
 }
 
+class UI;
 class AudioClip;
 
 namespace PadLEDs {
@@ -43,6 +44,7 @@ extern int32_t explodeAnimationXStartBig;
 extern int32_t explodeAnimationXWidthBig;
 
 extern int8_t explodeAnimationDirection;
+extern UI* explodeAnimationTargetUI;
 extern bool renderingLock;
 extern uint8_t flashCursor;
 

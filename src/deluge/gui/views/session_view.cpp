@@ -2323,7 +2323,6 @@ bool SessionView::renderRow(ModelStack* modelStack, uint8_t yDisplay,
 }
 
 void SessionView::transitionToViewForClip(Clip* clip) {
-
 	// If no Clip, just go back into the previous one we were in
 	if (!clip) {
 		clip = currentSong->currentClip;
@@ -2333,7 +2332,14 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 			return;
 		}
 	}
+
 	currentSong->currentClip = clip;
+
+	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+		gridTransitionToViewForClip(clip);
+		return;
+	}
+
 	int32_t clipPlaceOnScreen = std::clamp<int32_t>(getClipPlaceOnScreen(clip), -1, kDisplayHeight);
 
 	currentSong->xScroll[NAVIGATION_CLIP] =
@@ -2374,8 +2380,7 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 			}
 		}
 
-		PadLEDs::setupInstrumentClipCollapseAnimation(true); //@TODO: Change this for grid
-		//PadLEDs::setupAudioClipCollapseOrExplodeAnimation()
+		PadLEDs::setupInstrumentClipCollapseAnimation(true);
 
 		PadLEDs::renderClipExpandOrCollapse();
 	}
@@ -2393,9 +2398,9 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 
 			waveformRenderer.collapseAnimationToWhichRow = clipPlaceOnScreen;
 
-			PadLEDs::setupAudioClipCollapseOrExplodeAnimation(clip); //@TODO: align animation
+			PadLEDs::setupAudioClipCollapseOrExplodeAnimation(clip);
 
-			PadLEDs::renderAudioClipExpandOrCollapse(); //@TODO: Align animation
+			PadLEDs::renderAudioClipExpandOrCollapse();
 
 			PadLEDs::clearSideBar(); // Sends "now"
 		}
@@ -2409,11 +2414,16 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 }
 
 void SessionView::transitionToSessionView() {
+	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+		gridTransitionToSessionView();
+		return;
+	}
+
 	if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
 		AudioClip* clip = (AudioClip*)currentSong->currentClip;
 		if (!clip || !clip->sampleHolder.audioFile) { // !clip probably couldn't happen, but just in case...
 			memcpy(PadLEDs::imageStore, PadLEDs::image, sizeof(PadLEDs::image));
-			sessionView.finishedTransitioningHere();
+			finishedTransitioningHere();
 		}
 		else {
 			currentUIMode = UI_MODE_AUDIO_CLIP_COLLAPSING;
@@ -3099,6 +3109,10 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 	}
 
 	newClip->section = targetSection;
+	if (newClip->type == CLIP_TYPE_INSTRUMENT) {
+		((InstrumentClip*)newClip)->onKeyboardScreen = false;
+	}
+
 	if (currentSong->sessionClips.insertClipAtIndex(newClip, 0) != NO_ERROR) {
 		newClip->~Clip();
 		GeneralMemoryAllocator::get().dealloc(newClip);
@@ -3355,6 +3369,129 @@ ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {
 	requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 	view.flashPlayEnable();
 	return ActionResult::DEALT_WITH;
+}
+
+void SessionView::gridTransitionToSessionView() {
+	Sample* sample;
+
+	if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
+		// If no sample, just skip directly there
+		if (!((AudioClip*)currentSong->currentClip)->sampleHolder.audioFile) {
+			changeRootUI(&sessionView);
+			memcpy(PadLEDs::imageStore, PadLEDs::image, sizeof(PadLEDs::image));
+			finishedTransitioningHere();
+			return;
+		}
+	}
+
+	int32_t start = instrumentClipView.getPosFromSquare(0);
+	int32_t end = instrumentClipView.getPosFromSquare(kDisplayWidth);
+
+	currentUIMode = UI_MODE_EXPLODE_ANIMATION;
+
+	memcpy(PadLEDs::imageStore[1], PadLEDs::image, (kDisplayWidth + kSideBarWidth) * kDisplayHeight * 3);
+	memcpy(PadLEDs::occupancyMaskStore[1], PadLEDs::occupancyMask, (kDisplayWidth + kSideBarWidth) * kDisplayHeight);
+	if (getCurrentUI() == &instrumentClipView) {
+		instrumentClipView.fillOffScreenImageStores();
+	}
+
+	auto clipX = std::clamp<int32_t>(
+	    gridXFromTrack(gridTrackIndexFromTrack(currentSong->currentClip->output, gridTrackCount())), 0, kDisplayWidth);
+	auto clipY = std::clamp<int32_t>(gridYFromSection(currentSong->currentClip->section), 0, kDisplayHeight);
+
+	if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
+		waveformRenderer.collapseAnimationToWhichRow = clipY;
+
+		PadLEDs::setupAudioClipCollapseOrExplodeAnimation((AudioClip*)currentSong->currentClip);
+	}
+	else {
+		PadLEDs::explodeAnimationYOriginBig = clipY << 16;
+	}
+
+	PadLEDs::explodeAnimationXStartBig = clipX << 16;
+	PadLEDs::explodeAnimationXWidthBig = (1 << 16);
+
+	PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
+	PadLEDs::explodeAnimationDirection = -1;
+
+	if (getCurrentUI() == &instrumentClipView) {
+		PadLEDs::clearSideBar();
+	}
+
+	PadLEDs::explodeAnimationTargetUI = this;
+	uiTimerManager.setTimer(TIMER_MATRIX_DRIVER, 35);
+}
+
+void SessionView::gridTransitionToViewForClip(Clip* clip) {
+	if (clip->type == CLIP_TYPE_AUDIO) {
+		// If no sample, just skip directly there
+		if (!((AudioClip*)clip)->sampleHolder.audioFile) {
+			currentUIMode = UI_MODE_NONE;
+			changeRootUI(&audioClipView);
+			return;
+		}
+	}
+
+	currentUIMode = UI_MODE_EXPLODE_ANIMATION;
+
+	auto clipX = std::clamp<int32_t>(
+	    gridXFromTrack(gridTrackIndexFromTrack(currentSong->currentClip->output, gridTrackCount())), 0, kDisplayWidth);
+	auto clipY = std::clamp<int32_t>(gridYFromSection(currentSong->currentClip->section), 0, kDisplayHeight);
+
+	if (clip->type == CLIP_TYPE_AUDIO) {
+		waveformRenderer.collapseAnimationToWhichRow = clipY;
+
+		int64_t xScrollSamples;
+		int64_t xZoomSamples;
+
+		((AudioClip*)clip)
+		    ->getScrollAndZoomInSamples(currentSong->xScroll[NAVIGATION_CLIP], currentSong->xZoom[NAVIGATION_CLIP],
+		                                &xScrollSamples, &xZoomSamples);
+
+		waveformRenderer.findPeaksPerCol((Sample*)((AudioClip*)clip)->sampleHolder.audioFile, xScrollSamples,
+		                                 xZoomSamples, &((AudioClip*)clip)->renderData);
+
+		PadLEDs::setupAudioClipCollapseOrExplodeAnimation((AudioClip*)clip);
+	}
+
+	else {
+		PadLEDs::explodeAnimationYOriginBig = clipY << 16;
+
+		// If going to KeyboardView...
+		if (((InstrumentClip*)clip)->onKeyboardScreen) {
+			keyboardScreen.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
+			memset(PadLEDs::occupancyMaskStore[0], 0, kDisplayWidth + kSideBarWidth);
+			memset(PadLEDs::occupancyMaskStore[kDisplayHeight + 1], 0, kDisplayWidth + kSideBarWidth);
+		}
+
+		// Or if just regular old InstrumentClipView
+		else {
+			instrumentClipView.recalculateColours();
+			instrumentClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
+			                                  false);
+			instrumentClipView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
+
+			instrumentClipView.fillOffScreenImageStores();
+		}
+	}
+
+	int32_t start = instrumentClipView.getPosFromSquare(0);
+	int32_t end = instrumentClipView.getPosFromSquare(kDisplayWidth);
+
+	PadLEDs::explodeAnimationXStartBig = clipX << 16;
+	PadLEDs::explodeAnimationXWidthBig = 1 << 16;
+
+	PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
+	PadLEDs::explodeAnimationDirection = 1;
+
+	if (clip->type == CLIP_TYPE_AUDIO) {
+		PadLEDs::renderAudioClipExplodeAnimation(0);
+	}
+	else {
+		PadLEDs::renderExplodeAnimation(0);
+	}
+
+	PadLEDs::sendOutSidebarColours(); // They'll have been cleared by the first explode render
 }
 
 const uint32_t SessionView::gridTrackCount() {

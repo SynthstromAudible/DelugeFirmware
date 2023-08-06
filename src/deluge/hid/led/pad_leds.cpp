@@ -54,6 +54,7 @@ int8_t zoomMagnitude;
 int32_t zoomPinSquare[kDisplayHeight];
 bool transitionTakingPlaceOnRow[kDisplayHeight];
 int8_t explodeAnimationDirection;
+UI* explodeAnimationTargetUI = nullptr;
 
 namespace horizontal {
 uint8_t areaToScroll;
@@ -817,9 +818,15 @@ void timerRoutine() {
 					}
 				}
 				else {
-					changeRootUI(&arrangerView);
+					UI* nextUI = &arrangerView;
+					if (explodeAnimationTargetUI != nullptr) {
+						nextUI = explodeAnimationTargetUI;
+						explodeAnimationTargetUI = nullptr;
+					}
 
-					if (arrangerView.doingAutoScrollNow) {
+					changeRootUI(nextUI);
+
+					if (nextUI == &arrangerView && arrangerView.doingAutoScrollNow) {
 						goto stopFade; // If we suddenly just started doing an auto-scroll, there's no time to fade
 					}
 				}

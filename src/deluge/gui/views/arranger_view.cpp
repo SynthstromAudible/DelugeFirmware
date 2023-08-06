@@ -1829,6 +1829,7 @@ bool ArrangerView::transitionToArrangementEditor() {
 		PadLEDs::clearSideBar();
 	}
 
+	PadLEDs::explodeAnimationTargetUI = this;
 	uiTimerManager.setTimer(TIMER_MATRIX_DRIVER, 35);
 
 	doingAutoScrollNow = false; // May get changed back at new scroll pos soon

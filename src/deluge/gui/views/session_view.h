@@ -139,6 +139,9 @@ private:
 
 	ActionResult gridHandleScroll(int32_t offsetX, int32_t offsetY);
 
+	void gridTransitionToSessionView();
+	void gridTransitionToViewForClip(Clip* clip);
+
 	bool clipButtonUsed = false;
 	bool gridPreventArm = false;
 	int32_t gridFirstPressedX = -1;
