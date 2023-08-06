@@ -25,19 +25,19 @@ class Interval final : public SyncLevel {
 public:
 	using SyncLevel::SyncLevel;
 
-	void readCurrentValue() override { this->value_ = currentSong->swingInterval; }
-	void writeCurrentValue() override { currentSong->changeSwingInterval(this->value_); }
+	void readCurrentValue() override { this->setValue(currentSong->swingInterval); }
+	void writeCurrentValue() override { currentSong->changeSwingInterval(this->getValue()); }
 
 	void selectEncoderAction(int32_t offset) override { // So that there's no "off" option
-		this->value_ += offset;
+		this->setValue(this->getValue() + offset);
 		int32_t numOptions = this->size();
 
 		// Wrap value
-		if (this->value_ >= numOptions) {
-			this->value_ -= (numOptions - 1);
+		if (this->getValue() >= numOptions) {
+			this->setValue(this->getValue() - (numOptions - 1));
 		}
-		else if (this->value_ < 1) {
-			this->value_ += (numOptions - 1);
+		else if (this->getValue() < 1) {
+			this->setValue(this->getValue() + (numOptions - 1));
 		}
 
 		Value::selectEncoderAction(offset);

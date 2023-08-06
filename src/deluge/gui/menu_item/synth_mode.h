@@ -16,7 +16,7 @@
 */
 #pragma once
 #include "definitions_cxx.hpp"
-#include "gui/menu_item/selection/typed_selection.h"
+#include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/view.h"
 #include "model/song/song.h"
@@ -24,12 +24,12 @@
 #include "util/misc.h"
 
 namespace deluge::gui::menu_item {
-class SynthMode final : public TypedSelection<::SynthMode, kNumSynthModes> {
+class SynthMode final : public Selection<kNumSynthModes> {
 public:
-	using TypedSelection::TypedSelection;
-	void readCurrentValue() override { this->value_ = soundEditor.currentSound->synthMode; }
+	using Selection::Selection;
+	void readCurrentValue() override { this->setValue(soundEditor.currentSound->synthMode); }
 	void writeCurrentValue() override {
-		soundEditor.currentSound->setSynthMode(this->value_, currentSong);
+		soundEditor.currentSound->setSynthMode(this->getValue<::SynthMode>(), currentSong);
 		view.setKnobIndicatorLevels();
 	}
 

@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "gui/menu_item/selection/selection.h"
+#include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "storage/flash_storage.h"
 #include "util/container/static_vector.hpp"
@@ -25,8 +25,8 @@ namespace deluge::gui::menu_item::defaults {
 class Scale final : public Selection<NUM_PRESET_SCALES + 2> {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->value_ = FlashStorage::defaultScale; }
-	void writeCurrentValue() override { FlashStorage::defaultScale = this->value_; }
+	void readCurrentValue() override { this->setValue(FlashStorage::defaultScale); }
+	void writeCurrentValue() override { FlashStorage::defaultScale = this->getValue(); }
 	static_vector<std::string, capacity()> getOptions() override {
 		return {presetScaleNames.begin(), presetScaleNames.begin() + capacity()};
 	}
