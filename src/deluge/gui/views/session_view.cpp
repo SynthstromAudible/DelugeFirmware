@@ -2488,7 +2488,11 @@ void SessionView::sampleNeedsReRendering(Sample* sample) {
 }
 
 void SessionView::midiLearnFlash() {
-	//@TODO: Make compatible with Grid
+	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+		requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
+		return;
+	}
+
 	uint32_t mainRowsToRender = 0;
 	uint32_t sideRowsToRender = 0;
 
@@ -2731,14 +2735,38 @@ void SessionView::selectLayout(int8_t offset) {
 bool SessionView::gridRenderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
                                     uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 
+	// Section column
 	uint32_t sectionColumnIndex = kDisplayWidth;
-	uint32_t unusedColumnIndex = kDisplayWidth + 1;
 	for (int32_t y = (kGridHeight - 1); y >= 0; --y) {
-		hueToRGB(defaultClipGroupColours[gridSectionFromY(y)], image[y][sectionColumnIndex]);
 		occupancyMask[y][sectionColumnIndex] = 64;
 
-		memset(image[y][unusedColumnIndex], 0, 3);
+		auto section = gridSectionFromY(y);
+		auto* ptrSectionColour = image[y][sectionColumnIndex];
+
+		hueToRGB(defaultClipGroupColours[gridSectionFromY(y)], ptrSectionColour);
+
+		if (view.midiLearnFlashOn && !Buttons::isButtonPressed(hid::button::SHIFT)) {
+			// MIDI colour if necessary
+			if (currentSong->sections[section].launchMIDICommand.containsSomething()) {
+				ptrSectionColour[0] = midiCommandColour.r;
+				ptrSectionColour[1] = midiCommandColour.g;
+				ptrSectionColour[2] = midiCommandColour.b;
+			}
+
+			else {
+				// If user assigning MIDI controls and has this section selected, flash to half brightness
+				if (currentSong && view.learnedThing == &currentSong->sections[section].launchMIDICommand) {
+					ptrSectionColour[0] >>= 1;
+					ptrSectionColour[1] >>= 1;
+					ptrSectionColour[2] >>= 1;
+				}
+			}
+		}
+
+		// Empty unused column
+		uint32_t unusedColumnIndex = kDisplayWidth + 1;
 		occupancyMask[y][unusedColumnIndex] = 0;
+		memset(image[y][unusedColumnIndex], 0, 3);
 	}
 
 	return true;
@@ -2752,6 +2780,7 @@ bool SessionView::gridRenderMainPads(uint32_t whichRows, uint8_t image[][kDispla
 
 	// Iterate over all clips and render them where they are
 	auto trackCount = gridTrackCount();
+	bool shiftPressed = Buttons::isButtonPressed(hid::button::SHIFT);
 
 	PadLEDs::renderingLock = true;
 
@@ -2766,9 +2795,36 @@ bool SessionView::gridRenderMainPads(uint32_t whichRows, uint8_t image[][kDispla
 		uint8_t occupiedColor[3] = {20, 20, 20};
 		auto x = gridXFromTrack(trackIndex);
 		auto y = gridYFromSection(clip->section);
+
+		// Render colour for every valid clip
 		if (x >= 0 && y >= 0) {
-			view.getClipMuteSquareColour(clip, image[y][x], true, occupiedColor);
 			occupancyMask[y][x] = 64;
+			auto* ptrClipColour = image[y][x];
+
+			view.getClipMuteSquareColour(clip, ptrClipColour, true, occupiedColor, !shiftPressed);
+
+			// If we should MIDI learn flash and shift is pressed (different learn layer)
+			if (view.midiLearnFlashOn && shiftPressed && clip->output != nullptr) {
+				// If user assigning MIDI controls and this Clip has a command assigned, flash pink
+				InstrumentType type = clip->output->type;
+				bool canLearn =
+				    (type == InstrumentType::SYNTH || type == InstrumentType::MIDI_OUT || type == InstrumentType::CV);
+				if (canLearn && ((MelodicInstrument*)clip->output)->midiInput.containsSomething()) {
+					// We halve the intensity of the brightness in this case, because a lot of pads will be lit,
+					// it looks mental, and I think one user was having it cause his Deluge to freeze due to underpowering.
+					ptrClipColour[0] = midiCommandColour.r >> 1;
+					ptrClipColour[1] = midiCommandColour.g >> 1;
+					ptrClipColour[2] = midiCommandColour.b >> 1;
+				}
+
+				// Should be fine even if output isn't a MelodicInstrument
+				else if (view.thingPressedForMidiLearn == MidiLearn::MELODIC_INSTRUMENT_INPUT
+				         && view.learnedThing == &((MelodicInstrument*)clip->output)->midiInput) {
+					ptrClipColour[0] >>= 1;
+					ptrClipColour[1] >>= 1;
+					ptrClipColour[2] >>= 1;
+				}
+			}
 		}
 	}
 
@@ -3100,19 +3156,26 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 	// Main pads
 	else {
 		// Learn MIDI for tracks
-		//@TODO: Currently still flashes after releasing on a non handled pad
-		Output* output = gridTrackFromX(x, gridTrackCount());
-		if (output && currentUIMode == UI_MODE_MIDI_LEARN
-		    && (output->type == InstrumentType::SYNTH || output->type == InstrumentType::MIDI_OUT
-		        || output->type == InstrumentType::CV)) {
-			view.melodicInstrumentMidiLearnPadPressed(on, (MelodicInstrument*)output);
-			//@TODO: Do we need requestRendering here?
-			return ActionResult::DEALT_WITH;
+		if (currentUIMode == UI_MODE_MIDI_LEARN) {
+			Clip* clip = gridClipFromCoords(x, y);
+			if (clip != nullptr) {
+				// Shift + Learn + Holding pad = Learn MIDI channel
+				if (Buttons::isButtonPressed(hid::button::SHIFT)) {
+					Output* output = gridTrackFromX(x, gridTrackCount());
+					if (output
+					    && (output->type == InstrumentType::SYNTH || output->type == InstrumentType::MIDI_OUT
+					        || output->type == InstrumentType::CV)) {
+						view.melodicInstrumentMidiLearnPadPressed(on, (MelodicInstrument*)output);
+					}
+				}
+				// Learn + Clicking pad = Learn arm by MIDI
+				else {
+					view.clipStatusMidiLearnPadPressed(on, clip);
+				}
+			}
 		}
 
-		//view.clipStatusMidiLearnPadPressed(on, clip); //@TODO: Find out where and why to call
-
-		if (on) {
+		else if (on) {
 			// Only do this if no other pad is pressed
 			if (gridFirstPressedX == -1 && gridFirstPressedY == -1) {
 				Clip* clip = gridClipFromCoords(x, y);
@@ -3164,7 +3227,7 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 				}
 
 				// Set timer for displaying clip info if not arming (otherwise the animation is broken)
-				if(currentUIMode != UI_MODE_VIEWING_RECORD_ARMING) {
+				if (currentUIMode != UI_MODE_VIEWING_RECORD_ARMING) {
 					uiTimerManager.setTimer(TIMER_UI_SPECIFIC, 300);
 				}
 			}
