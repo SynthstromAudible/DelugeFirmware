@@ -2046,7 +2046,7 @@ void SessionView::graphicsRoutine() {
 
 void SessionView::requestRendering(UI* ui, uint32_t whichMainRows, uint32_t whichSideRows) {
 	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
-		// For safety do a rerender of everything in case of grid
+		// Just redrawing should be faster than evaluating every cell in every row
 		uiNeedsRendering(ui, 0xFFFFFFFF, 0xFFFFFFFF);
 	}
 
@@ -2167,8 +2167,10 @@ void SessionView::flashPlayRoutine() {
 
 		// view.clipArmFlashOn needs to be off so the pad is finally rendered after flashing
 		if (renderFlashing || view.clipArmFlashOn) {
-			requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
-			view.flashPlayEnable();
+			if(currentUIMode != UI_MODE_EXPLODE_ANIMATION) {
+				requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
+				view.flashPlayEnable();
+			}
 		}
 	}
 
