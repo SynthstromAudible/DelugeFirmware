@@ -212,11 +212,13 @@ ActionResult SessionView::buttonAction(hid::Button b, bool on, bool inCardRoutin
 		if (inCardRoutine) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
-
+		bool lastSessionButtonActiveState = sessionButtonActive;
 		sessionButtonActive = on;
 
 		// Press with special modes
-		if (on && currentUIMode != UI_MODE_NONE) {
+		if (on) {
+			sessionButtonUsed = false;
+
 			// If holding record button...
 			if (Buttons::isButtonPressed(hid::button::RECORD)) {
 				Buttons::recordButtonPressUsedUp = true;
@@ -331,16 +333,13 @@ moveAfterClipInstance:
 
 				arrangerView.repopulateOutputsOnScreen(false);
 				arrangerView.putDraggedClipInstanceInNewPosition(output);
+				sessionButtonActive = false;
 				goToArrangementEditor();
 			}
 		}
-		// Press without special mode
-		else if (on) {
-			sessionButtonUsed = false;
-		}
 		// Release without special mode
 		else if (!on && currentUIMode == UI_MODE_NONE) {
-			if (!sessionButtonActive && !sessionButtonUsed && !gridPadActive()) {
+			if (lastSessionButtonActiveState && !sessionButtonActive && !sessionButtonUsed && !gridPadActive()) {
 				if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
 					currentSong->endInstancesOfActiveClips(playbackHandler.getActualArrangementRecordPos());
 					currentSong
