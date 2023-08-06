@@ -3319,26 +3319,25 @@ void InstrumentClip::sendMIDIPGM() {
 
 void InstrumentClip::clear(Action* action, ModelStackWithTimelineCounter* modelStack) {
 	if (getCurrentUI() == &automationInstrumentClipView
-	    && !instrumentClipView.getAffectEntire()) { //if in automationClipView and not in Affect Entire mode
-		                                            //only clear automation from selected row
-		int32_t noteRowIndex = 0;
+	    && output->type == InstrumentType::KIT && !affectEntire
+		         && ((Kit*)output)->selectedDrum && lastSelectedParamID == 255) { //if in automationClipView Overview screen and not in Affect Entire mode and in a kit
+		                                            								//only clear automation from selected row
 
-		NoteRow* thisNoteRow =
-		    getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay, currentSong, &noteRowIndex);
+		ModelStackWithNoteRow* modelStackWithNoteRow = getNoteRowForSelectedDrum(modelStack);
 
-		ModelStackWithNoteRow* modelStackWithNoteRow =
-		    modelStack->addNoteRow(getNoteRowId(thisNoteRow, noteRowIndex), thisNoteRow);
+		if (modelStackWithNoteRow) {
+			NoteRow* thisNoteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 
-		thisNoteRow->clear(action, modelStackWithNoteRow);
+			if (thisNoteRow) {
+				thisNoteRow->clear(action, modelStackWithNoteRow);
+			}
+		}
 	}
 	else {
 		Clip::clear(action, modelStack); //this clears automations when "affectEntire" is enabled
 
 		if (getCurrentUI()
-		        != &automationInstrumentClipView //if we're not in the automationClipView, allow the clearing of notes and MPE automations
-		    || (getCurrentUI()
-		            == &automationInstrumentClipView //or if we're in the automationClipView Automation Overview for Kit Rows clear all note row automations also
-		        && !instrumentClipView.getAffectEntire() && lastSelectedParamID == 255)) {
+		        != &automationInstrumentClipView) { //if we're not in the automationClipView, allow the clearing of notes and MPE automations
 
 			for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
 				NoteRow* thisNoteRow = noteRows.getElement(i);

@@ -943,7 +943,6 @@ trimFoundParamManager:
 }
 
 void Clip::clear(Action* action, ModelStackWithTimelineCounter* modelStack) {
-
 	//New community feature as part of Automation Clip View Implementation
 	//If this is enabled, then when you are in a regular Instrument Clip View (Synth, Kit, MIDI, CV), clearing a clip
 	//will only clear the Notes and MPE data (NON MPE automations remain intact).
@@ -951,7 +950,6 @@ void Clip::clear(Action* action, ModelStackWithTimelineCounter* modelStack) {
 	//If this is enabled, if you want to clear NON MPE automations, you will enter Automation Clip View and clear the clip there.
 	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationClearClip) == RuntimeFeatureStateToggle::On) {
 		if (getCurrentUI() == &automationInstrumentClipView) {
-
 			if (paramManager.containsAnyMainParamCollections()) { //excluding expression
 				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 				    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
