@@ -2438,7 +2438,7 @@ void SessionView::transitionToSessionView() {
 	else {
 		int32_t transitioningToRow = getClipPlaceOnScreen(currentSong->currentClip);
 		InstrumentClip* instrumentClip = (InstrumentClip*)currentSong->currentClip;
-		if(instrumentClip->onKeyboardScreen) {
+		if (instrumentClip->onKeyboardScreen) {
 			keyboardScreen.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1], false);
 			keyboardScreen.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
 
@@ -2449,7 +2449,8 @@ void SessionView::transitionToSessionView() {
 			}
 		}
 		else {
-			instrumentClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1], false);
+			instrumentClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
+			                                  false);
 			instrumentClipView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
 
 			PadLEDs::numAnimatedRows = kDisplayHeight + 2; // I didn't see a difference but the + 2 seems intentional
@@ -2470,7 +2471,7 @@ void SessionView::transitionToSessionView() {
 
 		PadLEDs::setupInstrumentClipCollapseAnimation(true);
 
-		if(!instrumentClip->onKeyboardScreen) {
+		if (!instrumentClip->onKeyboardScreen) {
 			instrumentClipView.fillOffScreenImageStores();
 		}
 		PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
