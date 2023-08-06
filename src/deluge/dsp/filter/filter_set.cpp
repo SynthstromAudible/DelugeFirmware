@@ -28,8 +28,8 @@
 
 FilterSet::FilterSet() {
 
-	lpsvf = Filter<SVFilter>();
-	lpladder = Filter<LpLadderFilter>();
+	lpsvf = SVFilter();
+	lpladder = LpLadderFilter();
 
 	hpladderconfig = HPLadderConfig();
 }

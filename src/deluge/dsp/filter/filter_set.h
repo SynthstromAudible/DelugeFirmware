@@ -70,8 +70,8 @@ private:
 	                   int32_t extraSaturation = 0);
 	void renderLadderHPF(q31_t* outputSample, int32_t extraSaturation = 0);
 
-	Filter<SVFilter> lpsvf;
-	Filter<LpLadderFilter> lpladder;
+	SVFilter lpsvf;
+	LpLadderFilter lpladder;
 
 	HPLadderConfig hpladderconfig;
 	BasicFilterComponent hpfHPF1;
