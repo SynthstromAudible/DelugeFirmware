@@ -986,6 +986,7 @@ void SessionView::sectionPadAction(uint8_t y, bool on) {
 		if (isNoUIModeActive()) {
 			// If user wanting to change Clip's section
 			if (Buttons::isShiftButtonPressed()) {
+
 				// Not allowed if recording arrangement
 				if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
 					numericDriver.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
@@ -1001,7 +1002,7 @@ void SessionView::sectionPadAction(uint8_t y, bool on) {
 				bool sectionUsed[kMaxNumSections];
 				memset(sectionUsed, 0, sizeof(sectionUsed));
 
-				for (int32_t c = 0; c < currentSong->sessionClips.getNumElements(); ++c) {
+				for (int32_t c = 0; c < currentSong->sessionClips.getNumElements(); c++) {
 					Clip* thisClip = currentSong->sessionClips.getClipAtIndex(c);
 
 					if (thisClip->section < kMaxNumSections) {
@@ -1233,6 +1234,7 @@ ActionResult SessionView::horizontalEncoderAction(int32_t offset) {
 }
 
 ActionResult SessionView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+
 	if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW
 	    || currentUIMode == UI_MODE_VIEWING_RECORD_ARMING) {
 
@@ -2169,7 +2171,6 @@ void SessionView::flashPlayRoutine() {
 	else {
 		uint32_t whichRowsNeedReRendering = 0;
 		bool any = false;
-
 		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 			Clip* clip = getClipOnScreen(yDisplay);
 			if ((clip != nullptr) && clip->armState != ArmState::OFF) {
@@ -2798,10 +2799,10 @@ void SessionView::selectLayout(int8_t offset) {
 			currentSong->songGridScrollX = 0;
 			currentSong->songGridScrollY = 0;
 		}
-	}
 
-	requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
-	view.flashPlayEnable();
+		requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
+		view.flashPlayEnable();
+	}
 }
 
 bool SessionView::gridRenderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
@@ -3397,9 +3398,6 @@ void SessionView::gridTransitionToSessionView() {
 			return;
 		}
 	}
-
-	int32_t start = instrumentClipView.getPosFromSquare(0);
-	int32_t end = instrumentClipView.getPosFromSquare(kDisplayWidth);
 
 	currentUIMode = UI_MODE_EXPLODE_ANIMATION;
 
