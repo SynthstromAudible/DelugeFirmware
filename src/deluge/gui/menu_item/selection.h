@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "gui/menu_item/enumeration/enumeration.h"
+#include "gui/menu_item/enumeration.h"
 #include "gui/menu_item/menu_item.h"
 #include "util/container/static_vector.hpp"
 #include "util/sized.h"
@@ -47,21 +47,21 @@ void Selection<n>::drawValue() {
 	}
 	else {
 		const auto options = getOptions();
-		display.setText(options[this->value_].c_str());
+		display.setText(options[this->getValue()].c_str());
 	}
 }
 
 template <size_t n>
 void Selection<n>::drawPixelsForOled() {
 	// Move scroll
-	if (soundEditor.menuCurrentScroll > this->value_) {
-		soundEditor.menuCurrentScroll = this->value_;
+	if (soundEditor.menuCurrentScroll > this->getValue()) {
+		soundEditor.menuCurrentScroll = this->getValue();
 	}
-	else if (soundEditor.menuCurrentScroll < this->value_ - kOLEDMenuNumOptionsVisible + 1) {
-		soundEditor.menuCurrentScroll = this->value_ - kOLEDMenuNumOptionsVisible + 1;
+	else if (soundEditor.menuCurrentScroll < this->getValue() - kOLEDMenuNumOptionsVisible + 1) {
+		soundEditor.menuCurrentScroll = this->getValue() - kOLEDMenuNumOptionsVisible + 1;
 	}
 
-	const int32_t selectedOption = this->value_ - soundEditor.menuCurrentScroll;
+	const int32_t selectedOption = this->getValue() - soundEditor.menuCurrentScroll;
 
 	auto options = getOptions();
 	MenuItem::drawItemsForOled(options, selectedOption, soundEditor.menuCurrentScroll);

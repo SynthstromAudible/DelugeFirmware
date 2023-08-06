@@ -25,7 +25,7 @@ public:
 
 	// 7SEG ONLY
 	void drawValue() override {
-		if (this->value_ == 0) {
+		if (this->getValue() == 0) {
 			display.setText("OFF");
 		}
 		else {

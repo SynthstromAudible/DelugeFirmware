@@ -18,7 +18,7 @@
 #pragma once
 
 #include "gui/l10n/l10n.h"
-#include "gui/menu_item/selection/selection.h"
+#include "gui/menu_item/selection.h"
 #include "zone_selector.h"
 
 namespace deluge::gui::menu_item::mpe {
@@ -34,8 +34,8 @@ public:
 		    l10n::get(STRING_FOR_OUT),
 		};
 	}
-	void readCurrentValue() override { this->value_ = whichDirection; }
-	void writeCurrentValue() override { whichDirection = this->value_; }
+	void readCurrentValue() override { this->setValue(whichDirection); }
+	void writeCurrentValue() override { whichDirection = this->getValue(); }
 	MenuItem* selectButtonPress() override;
 	uint8_t whichDirection;
 	[[nodiscard]] std::string_view getTitle() const override { return whichDirection ? "MPE output" : "MPE input"; }

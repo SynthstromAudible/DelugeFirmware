@@ -16,15 +16,15 @@
 */
 #pragma once
 #include "gui/l10n/l10n.h"
-#include "gui/menu_item/selection/selection.h"
+#include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 
 namespace deluge::gui::menu_item::shortcuts {
 class Version final : public Selection<NUM_SHORTCUTS_VERSIONS> {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->value_ = soundEditor.shortcutsVersion; }
-	void writeCurrentValue() override { soundEditor.setShortcutsVersion(this->value_); }
+	void readCurrentValue() override { this->setValue(soundEditor.shortcutsVersion); }
+	void writeCurrentValue() override { soundEditor.setShortcutsVersion(this->getValue()); }
 	static_vector<std::string, capacity()> getOptions() override {
 		using enum l10n::Strings;
 		return {

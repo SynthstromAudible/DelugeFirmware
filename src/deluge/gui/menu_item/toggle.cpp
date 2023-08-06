@@ -20,7 +20,7 @@ void Toggle::beginSession(MenuItem* navigatedBackwardFrom) {
 void Toggle::selectEncoderAction(int32_t offset) {
 	const bool flip = offset & 0b1;
 	if (flip) {
-		this->value_ = !value_;
+		this->setValue(!this->getValue());
 	}
 	Value::selectEncoderAction(offset);
 }
@@ -30,14 +30,14 @@ void Toggle::drawValue() {
 		renderUIsForOled();
 	}
 	else {
-		display.setText(this->value_ //<
+		display.setText(this->getValue() //<
 		                    ? l10n::get(l10n::Strings::STRING_FOR_ENABLED)
 		                    : l10n::get(l10n::Strings::STRING_FOR_DISABLED));
 	}
 }
 
 void Toggle::drawPixelsForOled() {
-	const int32_t val = static_cast<int32_t>(this->value_);
+	const int32_t val = static_cast<int32_t>(this->getValue());
 	// Move scroll
 	soundEditor.menuCurrentScroll = std::clamp<int32_t>(soundEditor.menuCurrentScroll, 0, 1);
 
@@ -45,7 +45,7 @@ void Toggle::drawPixelsForOled() {
 	    l10n::get(l10n::Strings::STRING_FOR_DISABLED),
 	    l10n::get(l10n::Strings::STRING_FOR_ENABLED),
 	};
-	int32_t selectedOption = this->value_ - soundEditor.menuCurrentScroll;
+	int32_t selectedOption = this->getValue() - soundEditor.menuCurrentScroll;
 
 	int32_t baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
 	baseY += OLED_MAIN_TOPMOST_PIXEL;

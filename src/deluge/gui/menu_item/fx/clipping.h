@@ -25,8 +25,8 @@ class Clipping final : public IntegerWithOff {
 public:
 	using IntegerWithOff::IntegerWithOff;
 
-	void readCurrentValue() override { this->value_ = soundEditor.currentModControllable->clippingAmount; }
-	void writeCurrentValue() override { soundEditor.currentModControllable->clippingAmount = this->value_; }
+	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->clippingAmount); }
+	void writeCurrentValue() override { soundEditor.currentModControllable->clippingAmount = this->getValue(); }
 	[[nodiscard]] int32_t getMaxValue() const override { return 15; }
 };
 

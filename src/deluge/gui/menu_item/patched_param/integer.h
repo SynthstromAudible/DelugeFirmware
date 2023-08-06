@@ -25,7 +25,7 @@ public:
 	Integer(const std::string& newName, const std::string& title, int32_t newP = 0)
 	    : PatchedParam(newP), IntegerContinuous(newName, title) {}
 	// 7SEG Only
-	void drawValue() override { display.setTextAsNumber(this->value_, shouldDrawDotOnName()); }
+	void drawValue() override { display.setTextAsNumber(this->getValue(), shouldDrawDotOnName()); }
 
 	ParamDescriptor getLearningThing() final { return PatchedParam::getLearningThing(); }
 	[[nodiscard]] int32_t getMaxValue() const override { return PatchedParam::getMaxValue(); }

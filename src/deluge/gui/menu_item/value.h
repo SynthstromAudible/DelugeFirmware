@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/ui.h"
 #include "menu_item.h"
+#include "util/misc.h"
 
 namespace deluge::gui::menu_item {
 template <typename T = int32_t>
@@ -31,12 +32,28 @@ public:
 	void readValueAgain() override;
 	bool selectEncoderActionEditsInstrument() final { return true; }
 
+	void setValue(T value) { value_ = value; }
+
+	template <util::enumeration E>
+	void setValue(E value) {
+		value_ = util::to_underlying(value);
+	}
+
+	T getValue() { return value_; }
+
+	template <util::enumeration E>
+	E getValue() {
+		return static_cast<E>(value_);
+	}
+
 protected:
 	virtual void readCurrentValue() {}
 	virtual void writeCurrentValue() {}
 
 	// 7SEG ONLY
 	virtual void drawValue() = 0;
+
+private:
 	T value_;
 };
 

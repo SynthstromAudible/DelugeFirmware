@@ -17,7 +17,7 @@
 #pragma once
 #include "fmt/core.h"
 #include "gui/l10n/l10n.h"
-#include "gui/menu_item/selection/selection.h"
+#include "gui/menu_item/selection.h"
 #include "gui/menu_item/submenu.h"
 #include "gui/ui/sound_editor.h"
 #include "transpose.h"
@@ -34,18 +34,18 @@ public:
 
 	void beginSession(MenuItem* navigatedBackwardFrom) override {
 		if (navigatedBackwardFrom == nullptr) {
-			this->value_ = 0;
+			this->setValue(0);
 		}
 		else {
-			this->value_ = soundEditor.currentSourceIndex;
+			this->setValue(soundEditor.currentSourceIndex);
 		}
 		menu_item::Selection<2>::beginSession(navigatedBackwardFrom);
 	}
 
 	MenuItem* selectButtonPress() override {
-		soundEditor.currentSourceIndex = this->value_;
-		cvSubmenu.title = getOptions().at(this->value_);
-		setCvNumberForTitle(this->value_);
+		soundEditor.currentSourceIndex = this->getValue();
+		cvSubmenu.title = getOptions().at(this->getValue());
+		setCvNumberForTitle(this->getValue());
 		return &cvSubmenu;
 	}
 

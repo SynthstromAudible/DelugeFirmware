@@ -17,13 +17,13 @@
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
-#include "gui/menu_item/selection/typed_selection.h"
+#include "gui/menu_item/selection.h"
 
 namespace deluge::gui::menu_item::lfo {
 
-class Shape : public TypedSelection<LFOType, kNumLFOTypes> {
+class Shape : public Selection<kNumLFOTypes> {
 public:
-	using TypedSelection::TypedSelection;
+	using Selection::Selection;
 
 	static_vector<std::string, capacity()> getOptions() override {
 		using enum l10n::Strings;

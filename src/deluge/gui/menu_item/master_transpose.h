@@ -27,9 +27,9 @@ namespace deluge::gui::menu_item {
 class MasterTranspose final : public Integer, public PatchedParam {
 public:
 	using Integer::Integer;
-	void readCurrentValue() override { this->value_ = soundEditor.currentSound->transpose; }
+	void readCurrentValue() override { this->setValue(soundEditor.currentSound->transpose); }
 	void writeCurrentValue() override {
-		soundEditor.currentSound->transpose = this->value_;
+		soundEditor.currentSound->transpose = this->getValue();
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithSoundFlags* modelStack = soundEditor.getCurrentModelStack(modelStackMemory)->addSoundFlags();
 		soundEditor.currentSound->recalculateAllVoicePhaseIncrements(modelStack);
@@ -45,7 +45,7 @@ public:
 		return PatchedParam::patchingSourceShortcutPress(s, previousPressStillActive);
 	}
 
-	void drawValue() override { display.setTextAsNumber(this->value_, shouldDrawDotOnName()); }
+	void drawValue() override { display.setTextAsNumber(this->getValue(), shouldDrawDotOnName()); }
 
 	void unlearnAction() override { MenuItemWithCCLearning::unlearnAction(); }
 	bool allowsLearnMode() override { return MenuItemWithCCLearning::allowsLearnMode(); }

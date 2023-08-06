@@ -17,7 +17,7 @@
 #pragma once
 #include "fmt/core.h"
 #include "gui/menu_item/gate/mode.h"
-#include "gui/menu_item/selection/selection.h"
+#include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
 #include "mode.h"
@@ -34,25 +34,25 @@ public:
 
 	void beginSession(MenuItem* navigatedBackwardFrom) override {
 		if (navigatedBackwardFrom == nullptr) {
-			this->value_ = 0;
+			this->setValue(0);
 		}
 		else {
-			this->value_ = soundEditor.currentSourceIndex;
+			this->setValue(soundEditor.currentSourceIndex);
 		}
 		menu_item::Selection<capacity()>::beginSession(navigatedBackwardFrom);
 	}
 
 	MenuItem* selectButtonPress() override {
-		if (this->value_ == NUM_GATE_CHANNELS) {
+		if (this->getValue() == NUM_GATE_CHANNELS) {
 			return &gateOffTimeMenu;
 		}
-		soundEditor.currentSourceIndex = this->value_;
+		soundEditor.currentSourceIndex = this->getValue();
 
 		if (display.type == DisplayType::OLED) {
-			gateModeMenu.format(this->value_);
+			gateModeMenu.format(this->getValue());
 		}
 
-		gateModeMenu.updateOptions(this->value_);
+		gateModeMenu.updateOptions(this->getValue());
 		return &gateModeMenu;
 	}
 

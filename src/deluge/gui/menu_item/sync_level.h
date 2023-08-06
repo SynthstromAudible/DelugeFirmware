@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "gui/menu_item/enumeration/enumeration.h"
-#include "gui/menu_item/selection/selection.h"
+#include "gui/menu_item/enumeration.h"
+#include "gui/menu_item/selection.h"
 
 namespace deluge::gui::menu_item {
 

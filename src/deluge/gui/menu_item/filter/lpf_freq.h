@@ -26,7 +26,7 @@ public:
 
 	// 7Seg ONLY
 	void drawValue() override {
-		if (this->value_ == 50
+		if (this->getValue() == 50
 		    && !soundEditor.currentParamManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(
 		        ::Param::Local::LPF_FREQ)) {
 			display.setText("Off");
