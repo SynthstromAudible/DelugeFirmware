@@ -2157,14 +2157,19 @@ void SessionView::flashPlayRoutine() {
 	view.clipArmFlashOn = !view.clipArmFlashOn;
 
 	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
-		requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
-
+		bool renderFlashing = false;
 		for (int32_t idxClip = 0; idxClip < currentSong->sessionClips.getNumElements(); ++idxClip) {
 			Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
 			if (clip->armState != ArmState::OFF) {
-				view.flashPlayEnable();
-				return;
+				renderFlashing = true;
+				break;
 			}
+		}
+
+		// view.clipArmFlashOn needs to be off so the pad is finally rendered after flashing
+		if (renderFlashing || view.clipArmFlashOn) {
+			requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
+			view.flashPlayEnable();
 		}
 	}
 
@@ -3276,7 +3281,7 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 					if (clip == nullptr && (x + currentSong->songGridScrollX) <= trackCount) {
 						clip = gridCreateClip(gridSectionFromY(y), gridTrackFromX(x, trackCount), nullptr);
 						if (clip != nullptr) {
-							session.toggleClipStatus(clip, NULL, false, kInternalButtonPressLatency);
+							session.toggleClipStatus(clip, NULL, true, kInternalButtonPressLatency);
 						}
 					}
 
@@ -3365,8 +3370,10 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 		}
 	}
 
-	requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
-	view.flashPlayEnable();
+	if (currentUIMode != UI_MODE_EXPLODE_ANIMATION) {
+		requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
+		view.flashPlayEnable();
+	}
 	return ActionResult::DEALT_WITH;
 }
 

@@ -829,6 +829,9 @@ void timerRoutine() {
 					if (nextUI == &arrangerView && arrangerView.doingAutoScrollNow) {
 						goto stopFade; // If we suddenly just started doing an auto-scroll, there's no time to fade
 					}
+					else if (nextUI == &sessionView) {
+						sessionView.finishedTransitioningHere();
+					}
 				}
 
 				recordTransitionBegin(130);
