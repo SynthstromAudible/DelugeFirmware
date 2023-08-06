@@ -1218,9 +1218,9 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 		//if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
 
 			// Just check we're not beyond Clip length
-			if (squareStart >= clip->loopLength) {
-				return;
-			}
+		//	if (squareStart >= clip->loopLength) {
+		//		return;
+		//	}
 
 			// And create the new NoteRow
 		//	if (instrument->type != InstrumentType::KIT) {
@@ -1832,6 +1832,7 @@ wantToEditNoteRowLength:
 			instrumentClipView.editNoteRowLength(modelStackWithNoteRow, offset,
 			                                     instrumentClipView.lastAuditionedYDisplay);
 			//editedAnyPerNoteRowStuffSinceAuditioningBegan = true;
+			uiNeedsRendering(this);
 		}
 
 		// Unlike for all other cases where we protect against the user accidentally turning the encoder more after releasing their press on it,
