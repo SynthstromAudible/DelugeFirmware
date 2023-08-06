@@ -113,7 +113,7 @@ private:
 	BasicFilterComponent lpfLPF3;
 	BasicFilterComponent lpfLPF4;
 
-	SVFilter lpsvf;
+	Filter<SVFilter> lpsvf;
 
 	BasicFilterComponent hpfHPF1;
 	BasicFilterComponent hpfLPF1;

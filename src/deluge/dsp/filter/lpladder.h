@@ -23,7 +23,7 @@
 #include "util/functions.h"
 #include <cstdint>
 
-class LpLadderFilter : public LowPassFilter<LpLadderFilter> {
+class LpLadderFilter : public Filter<LpLadderFilter> {
 public:
 	LpLadderFilter() = default;
 	//returns a compensatory gain value

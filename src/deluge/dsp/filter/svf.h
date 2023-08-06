@@ -30,7 +30,7 @@ struct SVF_outs {
 	q31_t notch;
 };
 
-class SVFilter : public LowPassFilter<SVFilter> {
+class SVFilter : public Filter<SVFilter> {
 public:
 	SVFilter() = default;
 	//returns a compensatory gain value

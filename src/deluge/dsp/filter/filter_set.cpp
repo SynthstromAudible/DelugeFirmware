@@ -26,7 +26,7 @@
 #include "util/functions.h"
 
 FilterSet::FilterSet() {
-	lpsvf = SVFilter();
+	lpsvf = Filter<SVFilter>();
 	lpladderconfig = LPLadderConfig();
 	hpladderconfig = HPLadderConfig();
 }

@@ -23,9 +23,9 @@
 
 // Filter Interface
 template <typename T>
-class LowPassFilter {
+class Filter {
 public:
-	LowPassFilter() = default;
+	Filter() = default;
 	//returns a gain compensation value
 	q31_t configure(q31_t frequency, q31_t resonance, LPFMode lpfMode, q31_t filterGain) {
 		return static_cast<T*>(this)->set_config(frequency, resonance, lpfMode, filterGain);
