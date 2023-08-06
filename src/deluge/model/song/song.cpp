@@ -133,13 +133,13 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	reverbCompressorShape = -601295438;
 	reverbCompressorSync = SYNC_LEVEL_8TH;
 
-	AudioEngine::mastercompressor.compressor.setAttack(10.0);
-	AudioEngine::mastercompressor.compressor.setRelease(100.0);
-	AudioEngine::mastercompressor.compressor.setThresh(0.0);
-	AudioEngine::mastercompressor.compressor.setRatio(1.0 / 4.0);
-	AudioEngine::mastercompressor.setMakeup(0.0);
+	masterCompressorAttack = 10.0;
+	masterCompressorRelease = 100.0;
+	masterCompressorThresh = 0.0;
+	masterCompressorRatio = 1.0 / 4.0;
+	masterCompressorMakeup = 0.0;
+	masterCompressorWet = 1.0;
 	AudioEngine::mastercompressor.gr = 0.0;
-	AudioEngine::mastercompressor.wet = 1.0;
 
 	dirPath.set("SONGS");
 }
@@ -1475,32 +1475,27 @@ unknownTag:
 				AudioEngine::mastercompressor.gr = 0.0;
 				while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "attack")) { //ms
-						AudioEngine::mastercompressor.compressor.setAttack(
-						    (double)storageManager.readTagOrAttributeValueInt() / 100.0);
+						masterCompressorAttack = (double)storageManager.readTagOrAttributeValueInt() / 100.0;
 						storageManager.exitTag("attack");
 					}
 					else if (!strcmp(tagName, "release")) { //ms
-						AudioEngine::mastercompressor.compressor.setRelease(
-						    (double)storageManager.readTagOrAttributeValueInt() / 100.0);
+						masterCompressorRelease = (double)storageManager.readTagOrAttributeValueInt() / 100.0;
 						storageManager.exitTag("release");
 					}
 					else if (!strcmp(tagName, "thresh")) { //db
-						AudioEngine::mastercompressor.compressor.setThresh(
-						    (double)storageManager.readTagOrAttributeValueInt() / 100.0);
+						masterCompressorThresh = (double)storageManager.readTagOrAttributeValueInt() / 100.0;
 						storageManager.exitTag("thresh");
 					}
 					else if (!strcmp(tagName, "ratio")) { //r:1
-						AudioEngine::mastercompressor.compressor.setRatio(
-						    1.0 / ((double)storageManager.readTagOrAttributeValueInt() / 100.0));
+						masterCompressorRatio = 1.0 / ((double)storageManager.readTagOrAttributeValueInt() / 100.0);
 						storageManager.exitTag("ratio");
 					}
 					else if (!strcmp(tagName, "makeup")) { //db
-						AudioEngine::mastercompressor.setMakeup((double)storageManager.readTagOrAttributeValueInt()
-						                                        / 100.0);
+						masterCompressorMakeup = (double)storageManager.readTagOrAttributeValueInt() / 100.0;
 						storageManager.exitTag("makeup");
 					}
 					else if (!strcmp(tagName, "wet")) { //0.0-1.0
-						AudioEngine::mastercompressor.wet = (double)storageManager.readTagOrAttributeValueInt() / 100.0;
+						masterCompressorWet = (double)storageManager.readTagOrAttributeValueInt() / 100.0;
 						storageManager.exitTag("wet");
 					}
 					else {
