@@ -2167,7 +2167,7 @@ void SessionView::flashPlayRoutine() {
 
 		// view.clipArmFlashOn needs to be off so the pad is finally rendered after flashing
 		if (renderFlashing || view.clipArmFlashOn) {
-			if(currentUIMode != UI_MODE_EXPLODE_ANIMATION) {
+			if (currentUIMode != UI_MODE_EXPLODE_ANIMATION) {
 				requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 				view.flashPlayEnable();
 			}
