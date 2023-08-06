@@ -87,6 +87,27 @@
 		},
 		{
 			"type": "process",
+			"label": "Build OLED RelWithDebInfo",
+			"command": "./dbt",
+			"windows": {
+				"command": "./dbt.cmd",
+			},
+			"args": [
+				"build",
+				"oled",
+				"relwithdebinfo"
+			],
+			"group": {
+				"kind": "build",
+				"isDefault": false
+			},
+			"problemMatcher": {
+				"base": "$gcc",
+				"fileLocation": "absolute"
+			}
+		},
+		{
+			"type": "process",
 			"label": "Build All Debug",
 			"command": "./dbt",
 			"windows": {
