@@ -37,7 +37,7 @@ public:
 
 #if !HAVE_OLED
 	void drawValue() override {
-		numericDriver.setTextAsNumber(this->value_, shouldDrawDotOnName());
+		numericDriver.setTextAsNumber(this->getValue(), shouldDrawDotOnName());
 	}
 #endif
 
