@@ -114,6 +114,7 @@ public:
 	bool interpolation;
 
 private:
+
 	//Horizontal Encoder Action
 	void rotateAutomationHorizontally(int32_t offset);
 
