@@ -22,7 +22,7 @@
 void SVFilter::do_filter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrememt, int32_t extraSaturation) {
 	q31_t* currentSample = startSample;
 	do {
-		q31_t outs = doSVF(*currentSample);
+		q31_t outs = doSVF(*currentSample, &l);
 		*currentSample = outs << 1;
 
 		currentSample += sampleIncrememt;
@@ -46,10 +46,12 @@ q31_t SVFilter::set_config(q31_t lpfFrequency, q31_t lpfResonance, LPFMode lpfMo
 	return filterGain;
 }
 
-inline q31_t SVFilter::doSVF(int32_t input) {
+inline q31_t SVFilter::doSVF(int32_t input, SVF_state* state) {
 	q31_t high = 0;
 	q31_t notch = 0;
 	q31_t lowi;
+	q31_t low = state->low;
+	q31_t band = state->band;
 
 	input = multiply_32x32_rshift32(in, input);
 
@@ -74,6 +76,7 @@ inline q31_t SVFilter::doSVF(int32_t input) {
 	//notch = high + low;
 
 	//SVF_outs result = {(lowi) + (low), band, high, notch};
-
+	state->low = low;
+	state->band = band;
 	return lowi + low;
 }

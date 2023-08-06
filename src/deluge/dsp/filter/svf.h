@@ -29,21 +29,28 @@ struct SVF_outs {
 	q31_t notch;
 };
 
+struct SVF_state {
+	q31_t low;
+	q31_t band;
+};
+
 class SVFilter : public Filter<SVFilter> {
 public:
 	SVFilter() = default;
 	//returns a compensatory gain value
 	q31_t set_config(q31_t lpfFrequency, q31_t lpfResonance, LPFMode lpfMode, q31_t filterGain);
-	void do_filter(q31_t* outputSample, q31_t* endSample, int32_t sampleIncrememt, int32_t extraSaturation);
+	void do_filter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrememt, int32_t extraSaturation);
+	void do_filter_stereo(StereoSample* startSample, StereoSample* endSample, int32_t sampleIncrememt,
+	                      int32_t extraSaturation);
 	void reset_filter() {
-		low = 0;
-		band = 0;
+		l = (SVF_state){0, 0};
+		r = (SVF_state){0, 0};
 	}
 
 private:
-	inline q31_t doSVF(q31_t input);
-	q31_t low;
-	q31_t band;
+	inline q31_t doSVF(q31_t input, SVF_state* state);
+	SVF_state l;
+	SVF_state r;
 	q31_t f;
 	q31_t q;
 	q31_t in;
