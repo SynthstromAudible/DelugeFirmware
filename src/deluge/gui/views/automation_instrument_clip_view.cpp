@@ -427,7 +427,9 @@ void AutomationInstrumentClipView::performActualRender(uint32_t whichRows, uint8
 
 		uint8_t* occupancyMaskOfRow = occupancyMask[yDisplay];
 
-		if (instrument->type != InstrumentType::CV && !(instrument->type == InstrumentType::KIT && !instrumentClipView.getAffectEntire() && !((Kit*)instrument)->selectedDrum)) {
+		if (instrument->type != InstrumentType::CV
+		    && !(instrument->type == InstrumentType::KIT && !instrumentClipView.getAffectEntire()
+		         && !((Kit*)instrument)->selectedDrum)) {
 
 			if (clip->lastSelectedParamID != 255) { //if parameter has been selected, show Automation Editor
 
@@ -445,10 +447,10 @@ void AutomationInstrumentClipView::performActualRender(uint32_t whichRows, uint8
 		else {
 
 			//if a Kit clip is selected, affect entire is not enabled and a row has not been selected yet, you cannot do anything in the automation instrument clip view
-			if (instrument->type == InstrumentType::KIT && !instrumentClipView.getAffectEntire() && !clip->getNoteRowForSelectedDrum(modelStack)) {
+			if (instrument->type == InstrumentType::KIT && !instrumentClipView.getAffectEntire()
+			    && !clip->getNoteRowForSelectedDrum(modelStack)) {
 
 				numericDriver.displayPopup(HAVE_OLED ? "Select Row" : "SEL");
-
 			}
 
 			renderLove(image + (yDisplay * imageWidth * 3), occupancyMaskOfRow, yDisplay);
@@ -2312,8 +2314,7 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
 
 			Drum* drum = ((Kit*)instrument)->selectedDrum;
 
-			ModelStackWithNoteRow* modelStackWithNoteRow =
-			    clip->getNoteRowForSelectedDrum(modelStack);
+			ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowForSelectedDrum(modelStack);
 
 			if (modelStackWithNoteRow) {
 
@@ -2431,7 +2432,9 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 
 	Instrument* instrument = (Instrument*)clip->output;
 
-	if (shortcutPress && !(instrument->type == InstrumentType::KIT && !instrumentClipView.getAffectEntire() && !((Kit*)instrument)->selectedDrum)) { //this means you are selecting a parameter
+	if (shortcutPress
+	    && !(instrument->type == InstrumentType::KIT && !instrumentClipView.getAffectEntire()
+	         && !((Kit*)instrument)->selectedDrum)) { //this means you are selecting a parameter
 
 		if ((instrument->type == InstrumentType::SYNTH || instrument->type == InstrumentType::KIT)
 		    && paramShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
