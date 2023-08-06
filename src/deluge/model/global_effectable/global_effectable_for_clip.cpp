@@ -17,7 +17,6 @@
 
 #include "model/global_effectable/global_effectable_for_clip.h"
 #include "definitions_cxx.hpp"
-#include "dsp/filter/filter_set_config.h"
 #include "gui/views/view.h"
 #include "hid/display/numeric_driver.h"
 #include "hid/matrix/matrix_driver.h"

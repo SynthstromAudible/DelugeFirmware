@@ -19,7 +19,6 @@
 #include "arm_neon.h"
 #include "definitions_cxx.hpp"
 #include "dsp/filter/filter_set.h"
-#include "dsp/filter/filter_set_config.h"
 #include "dsp/timestretch/time_stretcher.h"
 #include "gui/waveform/waveform_renderer.h"
 #include "io/debug/print.h"
@@ -2626,7 +2625,9 @@ void renderPDWave(const int16_t* table, const int16_t* secondTable, int32_t numB
 void getTableNumber(uint32_t phaseIncrementForCalculations, int32_t* tableNumber, int32_t* tableSize) {
 
 	if (phaseIncrementForCalculations <= 1247086) {
-		{ *tableNumber = 0; }
+		{
+			*tableNumber = 0;
+		}
 		*tableSize = 13;
 	}
 	else if (phaseIncrementForCalculations <= 2494173) {

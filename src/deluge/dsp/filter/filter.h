@@ -30,8 +30,12 @@ public:
 	q31_t configure(q31_t frequency, q31_t resonance, LPFMode lpfMode, q31_t filterGain) {
 		return static_cast<T*>(this)->set_config(frequency, resonance, lpfMode, filterGain);
 	}
-	void filter(q31_t* outputSample, q31_t* endSample, int32_t sampleIncrememt = 1, int32_t extraSaturation = 1) {
+	void filter_mono(q31_t* outputSample, q31_t* endSample, int32_t sampleIncrememt = 1, int32_t extraSaturation = 1) {
 		static_cast<T*>(this)->do_filter(outputSample, endSample, sampleIncrememt, extraSaturation);
+	}
+	void filter_stereo(StereoSample* outputSample, StereoSample* endSample, int32_t sampleIncrememt = 2,
+	                   int32_t extraSaturation = 1) {
+		static_cast<T*>(this)->do_filter_stereo(outputSample, endSample, sampleIncrememt, extraSaturation);
 	}
 	void reset() { static_cast<T*>(this)->reset_filter(); }
 };

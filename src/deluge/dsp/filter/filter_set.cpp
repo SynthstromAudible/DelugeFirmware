@@ -18,7 +18,6 @@
 #include "dsp/filter/filter_set.h"
 #include "definitions_cxx.hpp"
 #include "dsp/filter/filter.h"
-#include "dsp/filter/filter_set_config.h"
 #include "dsp/filter/lpladder.h"
 #include "dsp/filter/svf.h"
 #include "dsp/timestretch/time_stretcher.h"
@@ -36,7 +35,7 @@ FilterSet::FilterSet() {
 void FilterSet::renderHPFLong(q31_t* startSample, q31_t* endSample, LPFMode lpfMode, int32_t sampleIncrement,
                               int32_t extraSaturation) {
 
-	hpladder.filter(startSample, endSample, sampleIncrement, extraSaturation);
+	hpladder.filter_mono(startSample, endSample, sampleIncrement, extraSaturation);
 }
 
 void FilterSet::renderLPFLong(q31_t* startSample, q31_t* endSample, LPFMode lpfMode, int32_t sampleIncrement,
@@ -46,13 +45,13 @@ void FilterSet::renderLPFLong(q31_t* startSample, q31_t* endSample, LPFMode lpfM
 		if (lastLPFMode != LPFMode::SVF) {
 			lpsvf.reset();
 		}
-		lpsvf.filter(startSample, endSample, sampleIncrement);
+		lpsvf.filter_mono(startSample, endSample, sampleIncrement);
 	}
 	else {
 		if (lastLPFMode > kLastLadder) {
 			lpladder.reset();
 		}
-		lpladder.filter(startSample, endSample, sampleIncrement, extraSaturation);
+		lpladder.filter_mono(startSample, endSample, sampleIncrement, extraSaturation);
 	}
 	lastLPFMode = lpfMode;
 }

@@ -19,7 +19,6 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp/filter/filter.h"
-#include "dsp/filter/filter_set_config.h"
 #include "dsp/filter/hpladder.h"
 #include "dsp/filter/ladder_components.h"
 #include "dsp/filter/lpladder.h"

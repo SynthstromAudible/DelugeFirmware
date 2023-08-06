@@ -19,7 +19,6 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp/filter/filter.h"
-#include "dsp/filter/filter_set_config.h"
 #include "util/functions.h"
 #include <cstdint>
 
