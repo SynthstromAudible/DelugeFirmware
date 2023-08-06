@@ -990,7 +990,7 @@ renderAndGetOut:
 	}
 }
 
-void Session::armSection(uint8_t section, int32_t buttonPressLatency, bool noCancellingIfEmpty) {
+void Session::armSection(uint8_t section, int32_t buttonPressLatency) {
 
 	// Get rid of soloing. And if we're not a "share" section, get rid of arming too
 	currentSong->turnSoloingIntoJustPlaying(currentSong->sections[section].numRepetitions != -1);
@@ -1005,12 +1005,10 @@ void Session::armSection(uint8_t section, int32_t buttonPressLatency, bool noCan
 			goto yupThatsFine; // Remember, we cancelled any soloing, above
 		}
 
-		if (!noCancellingIfEmpty) {
-			// If a Clip in another section is playing and we're not a "share" section...
-			if (currentSong->sections[section].numRepetitions != -1 && clip->section != section
-			    && ((clip->armState != ArmState::OFF) != clip->activeIfNoSolo)) {
-				goto yupThatsFine;
-			}
+		// If a Clip in another section is playing and we're not a "share" section...
+		if (currentSong->sections[section].numRepetitions != -1 && clip->section != section
+		    && ((clip->armState != ArmState::OFF) != clip->activeIfNoSolo)) {
+			goto yupThatsFine;
 		}
 	}
 

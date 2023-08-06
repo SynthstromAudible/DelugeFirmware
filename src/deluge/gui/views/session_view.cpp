@@ -251,6 +251,7 @@ ActionResult SessionView::buttonAction(hid::Button b, bool on, bool inCardRoutin
 
 					indicator_leds::blinkLed(IndicatorLED::RECORD, 255, 1);
 					indicator_leds::blinkLed(IndicatorLED::SESSION_VIEW, 255, 1);
+					sessionButtonUsed = true;
 				}
 			}
 			else if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
