@@ -91,12 +91,18 @@ SessionView::SessionView() {
 
 bool SessionView::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
 	if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING) {
-		*cols = 0xFFFFFFFD;
-		*rows = 0;
-		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-			Clip* clip = getClipOnScreen(yDisplay);
-			if (clip && !clip->armedForRecording) {
-				*rows |= (1 << yDisplay);
+		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+			*cols = 0xFFFFFFFF;
+			*rows = 0xFFFFFFFF;
+		}
+		else {
+			*cols = 0xFFFFFFFD;
+			*rows = 0;
+			for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+				Clip* clip = getClipOnScreen(yDisplay);
+				if (clip && !clip->armedForRecording) {
+					*rows |= (1 << yDisplay);
+				}
 			}
 		}
 		return true;
@@ -995,7 +1001,7 @@ void SessionView::sectionPadAction(uint8_t y, bool on) {
 				bool sectionUsed[kMaxNumSections];
 				memset(sectionUsed, 0, sizeof(sectionUsed));
 
-				for (int32_t c = 0; c < currentSong->sessionClips.getNumElements(); c++) {
+				for (int32_t c = 0; c < currentSong->sessionClips.getNumElements(); ++c) {
 					Clip* thisClip = currentSong->sessionClips.getClipAtIndex(c);
 
 					if (thisClip->section < kMaxNumSections) {
@@ -3111,6 +3117,7 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 			if (gridFirstPressedX == -1 && gridFirstPressedY == -1) {
 				Clip* clip = gridClipFromCoords(x, y);
 
+				// Immediate arming
 				if (clip && Buttons::isButtonPressed(hid::button::SHIFT)) {
 					session.toggleClipStatus(clip, NULL, true, kInternalButtonPressLatency);
 					requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
@@ -3156,8 +3163,10 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 					openUI(&gui::context_menu::audioInputSelector);
 				}
 
-				// Set timer for displaying clip info
-				uiTimerManager.setTimer(TIMER_UI_SPECIFIC, 300);
+				// Set timer for displaying clip info if not arming (otherwise the animation is broken)
+				if(currentUIMode != UI_MODE_VIEWING_RECORD_ARMING) {
+					uiTimerManager.setTimer(TIMER_UI_SPECIFIC, 300);
+				}
 			}
 			// Remember the second press down if empty
 			else if (gridSecondPressedX == -1 || gridSecondPressedY == -1) {
@@ -3189,6 +3198,10 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 					}
 					else if (currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
 						session.soloClipAction(clip, kInternalButtonPressLatency);
+						// Make sure we can mute additional pads after this and don't loose UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON
+						requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
+						gridResetPresses();
+						return ActionResult::DEALT_WITH;
 					}
 				}
 
