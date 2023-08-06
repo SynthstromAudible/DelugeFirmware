@@ -16,9 +16,10 @@
  */
 
 #include "gui/context_menu/save_song_or_instrument.h"
-#include "hid/display/numeric_driver.h"
-#include "gui/ui/save/save_song_ui.h"
+#include "definitions_cxx.hpp"
 #include "gui/context_menu/delete_file.h"
+#include "gui/ui/save/save_song_ui.h"
+#include "hid/display/numeric_driver.h"
 #include "storage/file_item.h"
 
 namespace deluge::gui::context_menu {
@@ -42,7 +43,7 @@ bool SaveSongOrInstrument::acceptCurrentOption() {
 
 	case 1: { // Create folder
 		Browser* browser = (Browser*)getUIUpOneLevel();
-		int error = browser->createFolder();
+		int32_t error = browser->createFolder();
 
 		if (error) {
 			numericDriver.displayError(error);
@@ -86,7 +87,7 @@ bool SaveSongOrInstrument::isCurrentOptionAvailable() {
 	}
 }
 
-int SaveSongOrInstrument::padAction(int x, int y, int on) {
+ActionResult SaveSongOrInstrument::padAction(int32_t x, int32_t y, int32_t on) {
 	return getUIUpOneLevel()->padAction(x, y, on);
 }
 } // namespace deluge::gui::context_menu

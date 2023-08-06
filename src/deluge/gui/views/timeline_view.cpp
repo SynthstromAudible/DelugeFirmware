@@ -15,19 +15,20 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "processing/engines/audio_engine.h"
-#include "model/clip/instrument_clip_minder.h"
 #include "gui/views/timeline_view.h"
-#include "hid/matrix/matrix_driver.h"
-#include "string.h"
-#include "model/song/song.h"
-#include "gui/views/view.h"
-#include "hid/led/pad_leds.h"
-#include "hid/display/numeric_driver.h"
-#include "hid/led/indicator_leds.h"
-#include "hid/buttons.h"
+#include "definitions_cxx.hpp"
 #include "extern.h"
+#include "gui/views/view.h"
+#include "hid/buttons.h"
+#include "hid/display/numeric_driver.h"
 #include "hid/display/oled.h"
+#include "hid/led/indicator_leds.h"
+#include "hid/led/pad_leds.h"
+#include "hid/matrix/matrix_driver.h"
+#include "model/clip/instrument_clip_minder.h"
+#include "model/song/song.h"
+#include "processing/engines/audio_engine.h"
+#include "string.h"
 
 extern "C" {
 #include "util/cfunctions.h"
@@ -44,7 +45,7 @@ void TimelineView::scrollFinished() {
 bool TimelineView::setupScroll(uint32_t oldScroll) {
 	memset(PadLEDs::transitionTakingPlaceOnRow, 1, sizeof(PadLEDs::transitionTakingPlaceOnRow));
 
-	renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, &PadLEDs::occupancyMaskStore[displayHeight], true);
+	renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, &PadLEDs::occupancyMaskStore[kDisplayHeight], true);
 
 	return true;
 }
@@ -53,7 +54,7 @@ bool TimelineView::calculateZoomPinSquares(uint32_t oldScroll, uint32_t newScrol
 
 	int32_t zoomPinSquareBig = ((int64_t)(int32_t)(oldScroll - newScroll) << 16) / (int32_t)(newZoom - oldZoom);
 
-	for (int i = 0; i < displayHeight; i++) {
+	for (int32_t i = 0; i < kDisplayHeight; i++) {
 		PadLEDs::zoomPinSquare[i] = zoomPinSquareBig;
 	}
 
@@ -62,7 +63,7 @@ bool TimelineView::calculateZoomPinSquares(uint32_t oldScroll, uint32_t newScrol
 	return true;
 }
 
-int TimelineView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+ActionResult TimelineView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
 	// Horizontal encoder button
@@ -89,7 +90,7 @@ int TimelineView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	else if (b == TRIPLETS) {
 		if (on) {
 			if (inCardRoutine) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			tripletsButtonPressed();
 		}
@@ -116,7 +117,7 @@ int TimelineView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		return view.buttonAction(b, on, inCardRoutine);
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 void TimelineView::displayZoomLevel(bool justPopup) {
@@ -130,31 +131,33 @@ void TimelineView::displayZoomLevel(bool justPopup) {
 bool horizontalEncoderActionLock = false;
 extern bool pendingUIRenderingLock;
 
-int TimelineView::horizontalEncoderAction(int offset) {
+ActionResult TimelineView::horizontalEncoderAction(int32_t offset) {
 
 	if (sdRoutineLock) {
-		return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 
 	// These next two, I had here before adding the actual SD lock check / remind-later above. Maybe they're not still necessary? If either was true, wouldn't
 	// sdRoutineLock be true also for us to have gotten here?
 	if (pendingUIRenderingLock) {
-		return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Would possibly prefer to have this case cause it to still come back later and do it, but oh well
+		return ActionResult::
+		    REMIND_ME_OUTSIDE_CARD_ROUTINE; // Would possibly prefer to have this case cause it to still come back later and do it, but oh well
 	}
 	if (horizontalEncoderActionLock) {
-		return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Really wouldn't want to get in here multiple times, while pre-rendering the waveforms for the new navigation
+		return ActionResult::
+		    REMIND_ME_OUTSIDE_CARD_ROUTINE; // Really wouldn't want to get in here multiple times, while pre-rendering the waveforms for the new navigation
 	}
 	horizontalEncoderActionLock = true;
 
-	int navSysId = getNavSysId();
+	int32_t navSysId = getNavSysId();
 
 	// Encoder button pressed, zoom.
 	if (isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
 
 		if (isUIModeActiveExclusively(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
-			int oldXZoom = currentSong->xZoom[navSysId];
+			int32_t oldXZoom = currentSong->xZoom[navSysId];
 
-			int zoomMagnitude = -offset;
+			int32_t zoomMagnitude = -offset;
 
 			// Constrain to zoom limits
 			if (zoomMagnitude == -1) {
@@ -171,7 +174,7 @@ int TimelineView::horizontalEncoderAction(int offset) {
 			}
 
 			uint32_t newZoom = currentSong->xZoom[navSysId];
-			int32_t newScroll = currentSong->xScroll[navSysId] / (newZoom * displayWidth) * (newZoom * displayWidth);
+			int32_t newScroll = currentSong->xScroll[navSysId] / (newZoom * kDisplayWidth) * (newZoom * kDisplayWidth);
 
 			initiateXZoom(zoomMagnitude, newScroll, oldXZoom);
 			displayZoomLevel();
@@ -183,7 +186,7 @@ int TimelineView::horizontalEncoderAction(int offset) {
 		// If shift button not pressed
 		if (!Buttons::isShiftButtonPressed()) {
 
-			int32_t newXScroll = currentSong->xScroll[navSysId] + offset * currentSong->xZoom[navSysId] * displayWidth;
+			int32_t newXScroll = currentSong->xScroll[navSysId] + offset * currentSong->xZoom[navSysId] * kDisplayWidth;
 
 			// Make sure we don't scroll too far left
 			if (newXScroll < 0) {
@@ -202,15 +205,15 @@ int TimelineView::horizontalEncoderAction(int offset) {
 
 getOut:
 	horizontalEncoderActionLock = false;
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 void TimelineView::displayScrollPos() {
 
-	int navSysId = getNavSysId();
+	int32_t navSysId = getNavSysId();
 	uint32_t quantization = currentSong->xZoom[navSysId];
 	if (navSysId == NAVIGATION_CLIP) {
-		quantization *= displayWidth;
+		quantization *= kDisplayWidth;
 	}
 
 	displayNumberOfBarsAndBeats(currentSong->xScroll[navSysId], quantization, true, "FAR");
@@ -221,15 +224,15 @@ void TimelineView::displayNumberOfBarsAndBeats(uint32_t number, uint32_t quantiz
 
 	uint32_t oneBar = currentSong->getBarLength();
 
-	unsigned int whichBar = number / oneBar;
+	uint32_t whichBar = number / oneBar;
 
-	unsigned int posWithinBar = number - whichBar * oneBar;
+	uint32_t posWithinBar = number - whichBar * oneBar;
 
-	unsigned int whichBeat = posWithinBar / (oneBar >> 2);
+	uint32_t whichBeat = posWithinBar / (oneBar >> 2);
 
-	unsigned int posWithinBeat = posWithinBar - whichBeat * (oneBar >> 2);
+	uint32_t posWithinBeat = posWithinBar - whichBeat * (oneBar >> 2);
 
-	unsigned int whichSubBeat = posWithinBeat / (oneBar >> 4);
+	uint32_t whichSubBeat = posWithinBeat / (oneBar >> 4);
 
 	if (countFromOne) {
 		whichBar++;
@@ -291,11 +294,11 @@ putBeatCountOnFarRight:
 }
 
 // Changes the actual xScroll.
-void TimelineView::initiateXScroll(uint32_t newXScroll, int numSquaresToScroll) {
+void TimelineView::initiateXScroll(uint32_t newXScroll, int32_t numSquaresToScroll) {
 
 	uint32_t oldXScroll = currentSong->xScroll[getNavSysId()];
 
-	int scrollDirection = (newXScroll > currentSong->xScroll[getNavSysId()]) ? 1 : -1;
+	int32_t scrollDirection = (newXScroll > currentSong->xScroll[getNavSysId()]) ? 1 : -1;
 
 	currentSong->xScroll[getNavSysId()] = newXScroll;
 
@@ -304,20 +307,20 @@ void TimelineView::initiateXScroll(uint32_t newXScroll, int numSquaresToScroll) 
 	if (anyAnimationToDo) {
 		currentUIMode |=
 		    UI_MODE_HORIZONTAL_SCROLL; // Must set this before calling PadLEDs::setupScroll(), which might then unset it
-		PadLEDs::horizontal::setupScroll(scrollDirection, displayWidth, false, numSquaresToScroll);
+		PadLEDs::horizontal::setupScroll(scrollDirection, kDisplayWidth, false, numSquaresToScroll);
 	}
 }
 
 // Returns whether any zooming took place - I think?
 bool TimelineView::zoomToMax(bool inOnly) {
-	unsigned int maxZoom = getMaxZoom();
+	uint32_t maxZoom = getMaxZoom();
 	uint32_t oldZoom = currentSong->xZoom[getNavSysId()];
 	if (maxZoom != oldZoom && (!inOnly || maxZoom < oldZoom)) {
 
 		// Zoom to view what's new
 		currentSong->xZoom[getNavSysId()] = maxZoom;
 
-		int32_t newScroll = currentSong->xScroll[getNavSysId()] / (maxZoom * displayWidth) * (maxZoom * displayWidth);
+		int32_t newScroll = currentSong->xScroll[getNavSysId()] / (maxZoom * kDisplayWidth) * (maxZoom * kDisplayWidth);
 
 		initiateXZoom(howMuchMoreMagnitude(maxZoom, oldZoom), newScroll, oldZoom);
 		return true;
@@ -328,10 +331,10 @@ bool TimelineView::zoomToMax(bool inOnly) {
 }
 
 // Puts us into zoom mode. Assumes we've already altered currentSong->xZoom.
-void TimelineView::initiateXZoom(int zoomMagnitude, int32_t newScroll, uint32_t oldZoom) {
+void TimelineView::initiateXZoom(int32_t zoomMagnitude, int32_t newScroll, uint32_t oldZoom) {
 
-	memcpy(PadLEDs::imageStore[(zoomMagnitude < 0) ? displayHeight : 0], PadLEDs::image,
-	       (displayWidth + sideBarWidth) * displayHeight * 3);
+	memcpy(PadLEDs::imageStore[(zoomMagnitude < 0) ? kDisplayHeight : 0], PadLEDs::image,
+	       (kDisplayWidth + kSideBarWidth) * kDisplayHeight * 3);
 
 	uint32_t oldScroll = currentSong->xScroll[getNavSysId()];
 
@@ -340,7 +343,7 @@ void TimelineView::initiateXZoom(int zoomMagnitude, int32_t newScroll, uint32_t 
 
 	if (anyToAnimate) {
 
-		int storeOffset = (zoomMagnitude < 0) ? 0 : displayHeight;
+		int32_t storeOffset = (zoomMagnitude < 0) ? 0 : kDisplayHeight;
 
 		renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[storeOffset], &PadLEDs::occupancyMaskStore[storeOffset], true);
 
@@ -348,7 +351,7 @@ void TimelineView::initiateXZoom(int zoomMagnitude, int32_t newScroll, uint32_t 
 		PadLEDs::zoomMagnitude = PadLEDs::zoomingIn ? -zoomMagnitude : zoomMagnitude;
 
 		enterUIMode(UI_MODE_HORIZONTAL_ZOOM);
-		PadLEDs::recordTransitionBegin(zoomSpeed);
+		PadLEDs::recordTransitionBegin(kZoomSpeed);
 		PadLEDs::renderZoom();
 	}
 }
@@ -356,9 +359,9 @@ void TimelineView::initiateXZoom(int zoomMagnitude, int32_t newScroll, uint32_t 
 bool TimelineView::scrollRightToEndOfLengthIfNecessary(int32_t maxLength) {
 
 	// If we're not scrolled all the way to the right, go there now
-	if (getPosFromSquare(displayWidth) < maxLength) {
+	if (getPosFromSquare(kDisplayWidth) < maxLength) {
 
-		uint32_t displayLength = currentSong->xZoom[getNavSysId()] * displayWidth;
+		uint32_t displayLength = currentSong->xZoom[getNavSysId()] * kDisplayWidth;
 
 		initiateXScroll((maxLength - 1) / displayLength * displayLength);
 		//displayScrollPos();
@@ -370,7 +373,7 @@ bool TimelineView::scrollRightToEndOfLengthIfNecessary(int32_t maxLength) {
 bool TimelineView::scrollLeftIfTooFarRight(int32_t maxLength) {
 
 	if (getPosFromSquare(0) >= maxLength) {
-		initiateXScroll(currentSong->xScroll[getNavSysId()] - currentSong->xZoom[getNavSysId()] * displayWidth);
+		initiateXScroll(currentSong->xScroll[getNavSysId()] - currentSong->xZoom[getNavSysId()] * kDisplayWidth);
 		//displayScrollPos();
 		return true;
 	}
@@ -420,7 +423,7 @@ int32_t TimelineView::getPosFromSquare(int32_t square, int32_t xScroll, uint32_t
 
 int32_t TimelineView::getPosFromSquare(int32_t square, int32_t xScroll) {
 
-	int navSys = getNavSysId();
+	int32_t navSys = getNavSysId();
 
 	if (xScroll == -1) {
 		xScroll = currentSong->xScroll[navSys]; // Sets default
@@ -456,7 +459,7 @@ int32_t TimelineView::getSquareFromPos(int32_t pos, bool* rightOnSquare, int32_t
 			return final;
 		}
 		else if (xZoom < currentSong->tripletsLevel * 2) {
-			int posRelativeToTripletsStart =
+			int32_t posRelativeToTripletsStart =
 			    posRelativeToScroll % (currentSong->tripletsLevel * 3); // Will the % be ok if it's negative? No! :O
 			if (rightOnSquare) {
 				*rightOnSquare =
@@ -481,7 +484,7 @@ int32_t TimelineView::getSquareFromPos(int32_t pos, bool* rightOnSquare, int32_t
 
 int32_t TimelineView::getSquareFromPos(int32_t pos, bool* rightOnSquare, int32_t xScroll) {
 
-	int navSys = getNavSysId();
+	int32_t navSys = getNavSysId();
 
 	if (xScroll == -1) {
 		xScroll = currentSong->xScroll[navSys]; // Defaults to main currentSong->xScroll
@@ -501,7 +504,7 @@ int32_t TimelineView::getSquareEndFromPos(int32_t pos, int32_t localScroll) {
 	return square;
 }
 
-bool TimelineView::isSquareDefined(int square, int32_t xScroll, uint32_t xZoom) {
+bool TimelineView::isSquareDefined(int32_t square, int32_t xScroll, uint32_t xZoom) {
 	if (!inTripletsView()) {
 		return true;
 	}
@@ -512,7 +515,7 @@ bool TimelineView::isSquareDefined(int square, int32_t xScroll, uint32_t xZoom) 
 }
 
 // Deprecate this.
-bool TimelineView::isSquareDefined(int square, int32_t xScroll) {
+bool TimelineView::isSquareDefined(int32_t square, int32_t xScroll) {
 	if (!inTripletsView()) {
 		return true;
 	}

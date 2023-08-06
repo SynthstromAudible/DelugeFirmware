@@ -15,22 +15,22 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "model/sample/sample_holder.h"
+#include "gui/ui/browser/sample_browser.h"
+#include "hid/display/numeric_driver.h"
+#include "io/debug/print.h"
+#include "model/sample/sample.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
-#include "gui/ui/browser/sample_browser.h"
-#include "model/sample/sample_holder.h"
-#include "model/sample/sample.h"
-#include "hid/display/numeric_driver.h"
 #include "util/functions.h"
-#include "io/uart/uart.h"
 
 SampleHolder::SampleHolder() {
 	startPos = 0;
 	endPos = 9999999;
 	waveformViewZoom = 0;
-	audioFileType = AUDIO_FILE_TYPE_SAMPLE;
+	audioFileType = AudioFileType::SAMPLE;
 
-	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
 		clustersForStart[l] = NULL;
 	}
 }
@@ -63,7 +63,7 @@ void SampleHolder::beenClonedFrom(SampleHolder* other, bool reversed) {
 }
 
 void SampleHolder::unassignAllClusterReasons(bool beingDestructed) {
-	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
 		if (clustersForStart[l]) {
 			audioFileManager.removeReasonFromCluster(clustersForStart[l], "E123");
 			if (!beingDestructed) {
@@ -78,7 +78,7 @@ int64_t SampleHolder::getEndPos(bool forTimeStretching) {
 		return endPos;
 	}
 	else {
-		return getMin(endPos, ((Sample*)audioFile)->lengthInSamples);
+		return std::min(endPos, ((Sample*)audioFile)->lengthInSamples);
 	}
 }
 
@@ -97,7 +97,7 @@ int32_t SampleHolder::getLengthInSamplesAtSystemSampleRate(bool forTimeStretchin
 }
 
 void SampleHolder::setAudioFile(AudioFile* newSample, bool reversed, bool manuallySelected,
-                                int clusterLoadInstruction) {
+                                int32_t clusterLoadInstruction) {
 
 	AudioFileHolder::setAudioFile(newSample, reversed, manuallySelected, clusterLoadInstruction);
 
@@ -117,7 +117,7 @@ void SampleHolder::setAudioFile(AudioFile* newSample, bool reversed, bool manual
 
 		// Otherwise, simply make sure that the zone doesn't exceed the length of the sample
 		else {
-			startPos = getMin(startPos, lengthInSamples);
+			startPos = std::min<uint64_t>(startPos, lengthInSamples);
 			if (endPos == 0 || endPos == 9999999) {
 				endPos = lengthInSamples;
 			}
@@ -138,11 +138,11 @@ void SampleHolder::setAudioFile(AudioFile* newSample, bool reversed, bool manual
 	}
 }
 
-#define MARKER_SAMPLES_BEFORE_TO_CLAIM 150
+constexpr int32_t kMarkerSamplesBeforeToClaim = 150;
 
 // Reassesses which Clusters we want to be a "reason" for.
 // Ensure there is a sample before you call this.
-void SampleHolder::claimClusterReasons(bool reversed, int clusterLoadInstruction) {
+void SampleHolder::claimClusterReasons(bool reversed, int32_t clusterLoadInstruction) {
 
 	if (ALPHA_OR_BETA_VERSION && !audioFile) {
 		numericDriver.freezeWithError("E368");
@@ -150,45 +150,45 @@ void SampleHolder::claimClusterReasons(bool reversed, int clusterLoadInstruction
 
 	//unassignAllReasons(); // This now happens as part of reassessPosForMarker(), called below
 
-	int playDirection = reversed ? -1 : 1;
-	int bytesPerSample = audioFile->numChannels * ((Sample*)audioFile)->byteDepth;
+	int32_t playDirection = reversed ? -1 : 1;
+	int32_t bytesPerSample = audioFile->numChannels * ((Sample*)audioFile)->byteDepth;
 
 	// This code basically copied from VoiceSource::setupPlaybackBounds()
-	int startPlaybackAtSample;
+	int32_t startPlaybackAtSample;
 
 	if (!reversed) {
-		startPlaybackAtSample = (int64_t)startPos - MARKER_SAMPLES_BEFORE_TO_CLAIM;
+		startPlaybackAtSample = (int64_t)startPos - kMarkerSamplesBeforeToClaim;
 		if (startPlaybackAtSample < 0) {
 			startPlaybackAtSample = 0;
 		}
 	}
 	else {
-		startPlaybackAtSample = getEndPos() - 1 + MARKER_SAMPLES_BEFORE_TO_CLAIM;
+		startPlaybackAtSample = getEndPos() - 1 + kMarkerSamplesBeforeToClaim;
 		if (startPlaybackAtSample > ((Sample*)audioFile)->lengthInSamples - 1) {
 			startPlaybackAtSample = ((Sample*)audioFile)->lengthInSamples - 1;
 		}
 	}
 
-	int startPlaybackAtByte = ((Sample*)audioFile)->audioDataStartPosBytes + startPlaybackAtSample * bytesPerSample;
+	int32_t startPlaybackAtByte = ((Sample*)audioFile)->audioDataStartPosBytes + startPlaybackAtSample * bytesPerSample;
 
 	claimClusterReasonsForMarker(clustersForStart, startPlaybackAtByte, playDirection, clusterLoadInstruction);
 }
 
-void SampleHolder::claimClusterReasonsForMarker(Cluster** clusters, uint32_t startPlaybackAtByte, int playDirection,
-                                                int clusterLoadInstruction) {
+void SampleHolder::claimClusterReasonsForMarker(Cluster** clusters, uint32_t startPlaybackAtByte, int32_t playDirection,
+                                                int32_t clusterLoadInstruction) {
 
-	int clusterIndex = startPlaybackAtByte >> audioFileManager.clusterSizeMagnitude;
+	int32_t clusterIndex = startPlaybackAtByte >> audioFileManager.clusterSizeMagnitude;
 
 	uint32_t posWithinCluster = startPlaybackAtByte & (audioFileManager.clusterSize - 1);
 
 	// Set up new temp list
-	Cluster* newClusters[NUM_CLUSTERS_LOADED_AHEAD];
-	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+	Cluster* newClusters[kNumClustersLoadedAhead];
+	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
 		newClusters[l] = NULL;
 	}
 
 	// Populate new list
-	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
 
 		/*
 		// If final one, only load it if posWithinCluster is at least a quarter of the way in
@@ -207,10 +207,10 @@ void SampleHolder::claimClusterReasonsForMarker(Cluster** clusters, uint32_t sta
 		newClusters[l] = sampleCluster->getCluster(((Sample*)audioFile), clusterIndex, clusterLoadInstruction);
 
 		if (!newClusters[l]) {
-			Uart::println("NULL!!");
+			Debug::println("NULL!!");
 		}
 		else if (clusterLoadInstruction == CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE && !newClusters[l]->loaded) {
-			Uart::println("not loaded!!");
+			Debug::println("not loaded!!");
 		}
 
 		clusterIndex += playDirection;
@@ -221,7 +221,7 @@ void SampleHolder::claimClusterReasonsForMarker(Cluster** clusters, uint32_t sta
 	}
 
 	// Replace old list
-	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
 		if (clusters[l]) {
 			audioFileManager.removeReasonFromCluster(clusters[l], "E146");
 		}

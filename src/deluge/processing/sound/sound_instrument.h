@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include "processing/sound/sound.h"
 #include "model/instrument/melodic_instrument.h"
 #include "modulation/arpeggiator.h"
+#include "processing/sound/sound.h"
 
 class ParamManagerForTimeline;
 class ParamManagerForTimeline;
@@ -30,11 +30,11 @@ class SoundInstrument final : public Sound, public MelodicInstrument {
 public:
 	SoundInstrument();
 	bool writeDataToFile(Clip* clipForSavingOutputOnly, Song* song);
-	int readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos);
+	int32_t readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos);
 	void cutAllSound();
-	bool noteIsOn(int noteCode);
+	bool noteIsOn(int32_t noteCode);
 
-	void renderOutput(ModelStack* modelStack, StereoSample* startPos, StereoSample* endPos, int numSamples,
+	void renderOutput(ModelStack* modelStack, StereoSample* startPos, StereoSample* endPos, int32_t numSamples,
 	                  int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
 	                  bool shouldLimitDelayFeedback, bool isClipActive);
 
@@ -48,20 +48,20 @@ public:
 		return Sound::offerReceivedPitchBendToLearnedParams(fromDevice, channel, data1, data2, modelStack);
 	}
 
-	int loadAllAudioFiles(bool mayActuallyReadFiles);
+	int32_t loadAllAudioFiles(bool mayActuallyReadFiles);
 	void resyncLFOs();
 	ModControllable* toModControllable();
-	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMIDIPGMs);
+	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs);
 	void setupPatchingForAllParamManagers(Song* song);
 	void setupPatching(ModelStackWithTimelineCounter* modelStack);
 
 	void deleteBackedUpParamManagers(Song* song);
-	void polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension, int channelOrNoteNumber,
-	                                              int whichCharacteristic);
-	void monophonicExpressionEvent(int newValue, int whichExpressionDimension);
+	void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t whichExpressionDimension,
+	                                              int32_t channelOrNoteNumber, MIDICharacteristic whichCharacteristic);
+	void monophonicExpressionEvent(int32_t newValue, int32_t whichExpressionDimension);
 
-	void sendNote(ModelStackWithThreeMainThings* modelStack, bool isOn, int noteCode, int16_t const* mpeValues,
-	              int fromMIDIChannel, uint8_t velocity, uint32_t sampleSyncLength, int32_t ticksLate,
+	void sendNote(ModelStackWithThreeMainThings* modelStack, bool isOn, int32_t noteCode, int16_t const* mpeValues,
+	              int32_t fromMIDIChannel, uint8_t velocity, uint32_t sampleSyncLength, int32_t ticksLate,
 	              uint32_t samplesLate);
 
 	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL);

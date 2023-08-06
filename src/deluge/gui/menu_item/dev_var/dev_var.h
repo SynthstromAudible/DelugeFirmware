@@ -19,62 +19,62 @@
 #include "gui/ui/sound_editor.h"
 #include "storage/storage_manager.h"
 
-namespace menu_item::dev_var {
+namespace deluge::gui::menu_item::dev_var {
 
 class AMenu final : public Integer {
 public:
 	using Integer::Integer;
-	void readCurrentValue() override { soundEditor.currentValue = storageManager.devVarA; }
-	void writeCurrentValue() override { storageManager.devVarA = soundEditor.currentValue; }
-	int getMaxValue() const override { return 512; }
+	void readCurrentValue() override { this->setValue(storageManager.devVarA); }
+	void writeCurrentValue() override { storageManager.devVarA = this->getValue(); }
+	[[nodiscard]] int32_t getMaxValue() const override { return 512; }
 };
 
 class BMenu final : public Integer {
 public:
 	using Integer::Integer;
-	void readCurrentValue() override { soundEditor.currentValue = storageManager.devVarB; }
-	void writeCurrentValue() override { storageManager.devVarB = soundEditor.currentValue; }
-	int getMaxValue() const override { return 512; }
+	void readCurrentValue() override { this->setValue(storageManager.devVarB); }
+	void writeCurrentValue() override { storageManager.devVarB = this->getValue(); }
+	[[nodiscard]] int32_t getMaxValue() const override { return 512; }
 };
 
 class CMenu final : public Integer {
 public:
 	using Integer::Integer;
-	void readCurrentValue() override { soundEditor.currentValue = storageManager.devVarC; }
-	void writeCurrentValue() override { storageManager.devVarC = soundEditor.currentValue; }
-	int getMaxValue() const override { return 1024; }
+	void readCurrentValue() override { this->setValue(storageManager.devVarC); }
+	void writeCurrentValue() override { storageManager.devVarC = this->getValue(); }
+	[[nodiscard]] int32_t getMaxValue() const override { return 1024; }
 };
 
 class DMenu final : public Integer {
 public:
 	using Integer::Integer;
-	void readCurrentValue() override { soundEditor.currentValue = storageManager.devVarD; }
-	void writeCurrentValue() override { storageManager.devVarD = soundEditor.currentValue; }
-	int getMaxValue() const override { return 1024; }
+	void readCurrentValue() override { this->setValue(storageManager.devVarD); }
+	void writeCurrentValue() override { storageManager.devVarD = this->getValue(); }
+	[[nodiscard]] int32_t getMaxValue() const override { return 1024; }
 };
 
 class EMenu final : public Integer {
 public:
 	using Integer::Integer;
-	void readCurrentValue() override { soundEditor.currentValue = storageManager.devVarE; }
-	void writeCurrentValue() override { storageManager.devVarE = soundEditor.currentValue; }
-	int getMaxValue() const override { return 1024; }
+	void readCurrentValue() override { this->setValue(storageManager.devVarE); }
+	void writeCurrentValue() override { storageManager.devVarE = this->getValue(); }
+	[[nodiscard]] int32_t getMaxValue() const override { return 1024; }
 };
 
 class FMenu final : public Integer {
 public:
 	using Integer::Integer;
-	void readCurrentValue() override { soundEditor.currentValue = storageManager.devVarF; }
-	void writeCurrentValue() override { storageManager.devVarF = soundEditor.currentValue; }
-	int getMaxValue() const override { return 1024; }
+	void readCurrentValue() override { this->setValue(storageManager.devVarF); }
+	void writeCurrentValue() override { storageManager.devVarF = this->getValue(); }
+	[[nodiscard]] int32_t getMaxValue() const override { return 1024; }
 };
 
 class GMenu final : public Integer {
 public:
 	using Integer::Integer;
-	void readCurrentValue() { soundEditor.currentValue = storageManager.devVarG; }
-	void writeCurrentValue() { storageManager.devVarG = soundEditor.currentValue; }
-	int getMaxValue() const override { return 1024; }
-	int getMinValue() const override { return -1024; }
+	void readCurrentValue() override { this->setValue(storageManager.devVarG); }
+	void writeCurrentValue() override { storageManager.devVarG = this->getValue(); }
+	[[nodiscard]] int32_t getMaxValue() const override { return 1024; }
+	[[nodiscard]] int32_t getMinValue() const override { return -1024; }
 };
-} // namespace menu_item::dev_var
+} // namespace deluge::gui::menu_item::dev_var

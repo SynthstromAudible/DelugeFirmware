@@ -15,18 +15,18 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "model/mod_controllable/mod_controllable_audio.h"
-#include "gui/menu_item/selection.h"
 #include "gui/menu_item/sync_level.h"
+#include "gui/menu_item/toggle.h"
 #include "gui/ui/sound_editor.h"
+#include "model/mod_controllable/mod_controllable_audio.h"
 
-namespace menu_item::delay {
+namespace deluge::gui::menu_item::delay {
 
-class PingPong final : public Selection {
+class PingPong final : public Toggle {
 public:
-	using Selection::Selection;
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentModControllable->delay.pingPong; }
-	void writeCurrentValue() { soundEditor.currentModControllable->delay.pingPong = soundEditor.currentValue; }
+	using Toggle::Toggle;
+	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->delay.pingPong); }
+	void writeCurrentValue() override { soundEditor.currentModControllable->delay.pingPong = this->getValue(); }
 };
 
-} // namespace menu_item::delay
+} // namespace deluge::gui::menu_item::delay

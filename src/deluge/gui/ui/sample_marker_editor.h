@@ -17,9 +17,10 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "gui/ui/ui.h"
-#include "RZA1/system/r_typedefs.h"
 #include "hid/button.h"
+#include <cstdint>
 
 class Sample;
 class MultisampleRange;
@@ -35,23 +36,23 @@ public:
 	bool opened();
 	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
 	void selectEncoderAction(int8_t offset);
-	int padAction(int x, int y, int velocity);
-	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
-	int verticalEncoderAction(int offset, bool inCardRoutine);
-	int horizontalEncoderAction(int offset);
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
+	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
+	ActionResult horizontalEncoderAction(int32_t offset);
 	void graphicsRoutine();
-	int timerCallback();
-	bool renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3] = NULL,
-	                    uint8_t occupancyMask[][displayWidth + sideBarWidth] = NULL, bool drawUndefinedArea = true);
-	bool renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3] = NULL,
-	                   uint8_t occupancyMask[][displayWidth + sideBarWidth] = NULL);
+	ActionResult timerCallback();
+	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3] = NULL,
+	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL, bool drawUndefinedArea = true);
+	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3] = NULL,
+	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL);
 
 #if HAVE_OLED
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
 #else
 	void displayText();
 #endif
-	int8_t markerType;
+	MarkerType markerType;
 
 	bool blinkInvisible;
 
@@ -59,19 +60,19 @@ public:
 	int8_t pressY;
 
 private:
-	void writeValue(uint32_t value, int markerTypeNow = -2);
+	void writeValue(uint32_t value, MarkerType markerTypeNow = MarkerType::NOT_AVAILABLE);
 	void exitUI();
 
-	int getStartColOnScreen(int32_t unscrolledPos);
-	int getEndColOnScreen(int32_t unscrolledPos);
-	int getStartPosFromCol(int col);
-	int getEndPosFromCol(int col);
+	int32_t getStartColOnScreen(int32_t unscrolledPos);
+	int32_t getEndColOnScreen(int32_t unscrolledPos);
+	int32_t getStartPosFromCol(int32_t col);
+	int32_t getEndPosFromCol(int32_t col);
 	void getColsOnScreen(MarkerColumn* cols);
 	void recordScrollAndZoom();
 	bool shouldAllowExtraScrollRight();
-	void renderForOneCol(int xDisplay, uint8_t thisImage[displayHeight][displayWidth + sideBarWidth][3],
+	void renderForOneCol(int32_t xDisplay, uint8_t thisImage[kDisplayHeight][kDisplayWidth + kSideBarWidth][3],
 	                     MarkerColumn* cols);
-	void renderMarkersForOneCol(int xDisplay, uint8_t thisImage[displayHeight][displayWidth + sideBarWidth][3],
+	void renderMarkersForOneCol(int32_t xDisplay, uint8_t thisImage[kDisplayHeight][kDisplayWidth + kSideBarWidth][3],
 	                            MarkerColumn* cols);
 };
 

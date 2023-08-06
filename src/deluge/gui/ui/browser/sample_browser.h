@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "gui/ui/browser/browser.h"
 #include "hid/button.h"
 
@@ -40,21 +41,21 @@ public:
 	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
 	bool opened();
 	void focusRegained();
-	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
-	int verticalEncoderAction(int offset, bool inCardRoutine);
-	int horizontalEncoderAction(int offset);
-	int padAction(int x, int y, int velocity);
+	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
+	ActionResult horizontalEncoderAction(int32_t offset);
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
 	bool canSeeViewUnderneath();
-	int claimAudioFileForInstrument(bool makeWaveTableWorkAtAllCosts = false);
-	int claimAudioFileForAudioClip();
+	int32_t claimAudioFileForInstrument(bool makeWaveTableWorkAtAllCosts = false);
+	int32_t claimAudioFileForAudioClip();
 	void scrollFinished();
 	bool importFolderAsKit();
 	bool importFolderAsMultisamples();
-	int timerCallback();
-	bool claimCurrentFile(int mayDoPitchDetection = 1, int mayDoSingleCycle = 1,
-	                      int mayDoWaveTable = 1); // 0 means no. 1 means auto. 2 means yes definitely
-	bool renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
-	                    uint8_t occupancyMask[][displayWidth + sideBarWidth], bool drawUndefinedArea = true);
+	ActionResult timerCallback();
+	bool claimCurrentFile(int32_t mayDoPitchDetection = 1, int32_t mayDoSingleCycle = 1,
+	                      int32_t mayDoWaveTable = 1); // 0 means no. 1 means auto. 2 means yes definitely
+	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
 	void exitAndNeverDeleteDrum();
 
 	String lastFilePathLoaded;
@@ -62,18 +63,18 @@ public:
 protected:
 	void enterKeyPress();
 	void exitAction();
-	int backButtonAction();
-	void folderContentsReady(int entryDirection);
-	void currentFileChanged(int movementDirection);
+	ActionResult backButtonAction();
+	void folderContentsReady(int32_t entryDirection);
+	void currentFileChanged(int32_t movementDirection);
 
 private:
 	void displayCurrentFilename();
-	void previewIfPossible(int movementDirection = 1);
+	void previewIfPossible(int32_t movementDirection = 1);
 	void audioFileIsNowSet();
 	bool canImportWholeKit();
-	bool loadAllSamplesInFolder(bool detectPitch, int* getNumSamples, Sample*** getSortArea,
-	                            bool* getDoingSingleCycle = NULL, int* getNumCharsInPrefix = NULL);
-	int getCurrentFilePath(String* path);
+	bool loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamples, Sample*** getSortArea,
+	                            bool* getDoingSingleCycle = NULL, int32_t* getNumCharsInPrefix = NULL);
+	int32_t getCurrentFilePath(String* path);
 	void drawKeysOverWaveform();
 	void autoDetectSideChainSending(SoundDrum* drum, Source* source, char const* fileName);
 	void possiblySetUpBlinking();

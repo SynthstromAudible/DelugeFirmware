@@ -16,18 +16,18 @@
 */
 
 #include "param.h"
-#include "processing/engines/audio_engine.h"
-#include "definitions.h"
-#include "modulation/params/param_set.h"
+#include "definitions_cxx.hpp"
 #include "gui/ui/sound_editor.h"
+#include "hid/buttons.h"
 #include "hid/display/numeric_driver.h"
 #include "hid/matrix/matrix_driver.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
-#include "hid/buttons.h"
 #include "model/model_stack.h"
+#include "modulation/params/param_set.h"
+#include "processing/engines/audio_engine.h"
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
 MenuItem* Param::selectButtonPress() {
 
@@ -48,4 +48,4 @@ MenuItem* Param::selectButtonPress() {
 		return NULL; // Navigate backwards
 	}
 }
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

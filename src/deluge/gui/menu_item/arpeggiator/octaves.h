@@ -18,13 +18,13 @@
 #include "gui/menu_item/integer.h"
 #include "gui/ui/sound_editor.h"
 
-namespace menu_item::arpeggiator {
+namespace deluge::gui::menu_item::arpeggiator {
 class Octaves final : public Integer {
 public:
-	Octaves(char const* newName = NULL) : Integer(newName) {}
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentArpSettings->numOctaves; }
-	void writeCurrentValue() { soundEditor.currentArpSettings->numOctaves = soundEditor.currentValue; }
-	int getMinValue() const { return 1; }
-	int getMaxValue() const { return 8; }
+	using Integer::Integer;
+	void readCurrentValue() override { this->setValue(soundEditor.currentArpSettings->numOctaves); }
+	void writeCurrentValue() override { soundEditor.currentArpSettings->numOctaves = this->getValue(); }
+	[[nodiscard]] int32_t getMinValue() const override { return 1; }
+	[[nodiscard]] int32_t getMaxValue() const override { return 8; }
 };
-} // namespace menu_item::arpeggiator
+} // namespace deluge::gui::menu_item::arpeggiator

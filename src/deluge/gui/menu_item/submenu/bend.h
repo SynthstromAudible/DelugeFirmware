@@ -17,17 +17,23 @@
 #pragma once
 #include "gui/menu_item/submenu.h"
 #include "model/clip/clip.h"
-#include "model/song/song.h"
 #include "model/output.h"
+#include "model/song/song.h"
 
-namespace menu_item::submenu {
-class Bend final : public Submenu {
+namespace deluge::gui::menu_item::submenu {
+template <size_t n>
+class Bend final : public Submenu<n> {
 public:
-	Bend(char const* newName = nullptr, MenuItem** newItems = nullptr) : Submenu(newName, newItems) {}
-	bool isRelevant(Sound* sound, int whichThing) override {
+	using Submenu<n>::Submenu;
+	bool isRelevant(Sound* sound, int32_t whichThing) override {
 		// Drums within a Kit don't need the two-item submenu - they have their own single item.
 		const auto type = currentSong->currentClip->output->type;
-		return (type == INSTRUMENT_TYPE_SYNTH || type == INSTRUMENT_TYPE_CV);
+		return (type == InstrumentType::SYNTH || type == InstrumentType::CV);
 	}
 };
-} // namespace menu_item::submenu
+
+// Template deduction guide, will not be required with P2582@C++23
+template <size_t n>
+Bend(const std::string&, MenuItem* const (&)[n]) -> Bend<n>;
+
+} // namespace deluge::gui::menu_item::submenu

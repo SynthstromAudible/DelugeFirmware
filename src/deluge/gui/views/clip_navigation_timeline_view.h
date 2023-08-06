@@ -18,13 +18,13 @@
 #pragma once
 
 #include "gui/views/timeline_view.h"
-#include "RZA1/system/r_typedefs.h"
+#include <cstdint>
 
 class ClipNavigationTimelineView : public TimelineView {
 public:
-	ClipNavigationTimelineView();
+	ClipNavigationTimelineView() = default;
 	void focusRegained();
-	int horizontalEncoderAction(int offset);
+	ActionResult horizontalEncoderAction(int32_t offset);
 
 protected:
 	void horizontalScrollForLinearRecording(int32_t newXScroll);

@@ -16,23 +16,23 @@
 */
 
 #include "util/container/array/c_string_array.h"
+#include "hid/display/numeric_driver.h"
 #include "memory/general_memory_allocator.h"
-#include <string.h>
+#include "processing/engines/audio_engine.h"
 #include "util/d_string.h"
 #include "util/functions.h"
-#include "hid/display/numeric_driver.h"
-#include "processing/engines/audio_engine.h"
+#include <string.h>
 
-int workCount;
+int32_t workCount;
 
 // This uses Hoare's partitioning scheme, which has the advantage that it won't go slow if the elements are already sorted - which they often will be as filenames read off an SD card.
 // You must set shouldInterpretNoteNames and octaveStartsFromA before calling this.
-int CStringArray::partitionForStrings(int low, int high) {
+int32_t CStringArray::partitionForStrings(int32_t low, int32_t high) {
 	char const* pivotString = *(char const**)getElementAddress(
 	    (low + high) >> 1); // Pivot - rightmost element. Though this is very bad if the array is already sorted...
 
-	int i = low - 1;
-	int j = high + 1;
+	int32_t i = low - 1;
+	int32_t j = high + 1;
 
 	while (true) {
 		do {
@@ -52,11 +52,11 @@ int CStringArray::partitionForStrings(int low, int high) {
 }
 
 // You must set shouldInterpretNoteNames and octaveStartsFromA before calling this.
-void CStringArray::quickSortForStrings(int low, int high) {
+void CStringArray::quickSortForStrings(int32_t low, int32_t high) {
 	while (low < high) {
 		/* pi is partitioning index, arr[p] is now
         at right place */
-		int pi = partitionForStrings(low, high);
+		int32_t pi = partitionForStrings(low, high);
 
 		// Separately sort elements before partition and after partition.
 		// The recursive call gets done on the smaller of those two regions
@@ -88,18 +88,18 @@ void CStringArray::sortForStrings() {
 
 // Array must be sorted before you call this.
 // You must set shouldInterpretNoteNames and octaveStartsFromA before calling this.
-int CStringArray::search(char const* searchString, bool* foundExact) {
+int32_t CStringArray::search(char const* searchString, bool* foundExact) {
 
-	int rangeBegin = 0;
-	int rangeEnd = numElements;
-	int proposedIndex;
+	int32_t rangeBegin = 0;
+	int32_t rangeEnd = numElements;
+	int32_t proposedIndex;
 
 	while (rangeBegin != rangeEnd) {
-		int rangeSize = rangeEnd - rangeBegin;
+		int32_t rangeSize = rangeEnd - rangeBegin;
 		proposedIndex = rangeBegin + (rangeSize >> 1);
 
 		char const* stringHere = *(char const**)getElementAddress(proposedIndex);
-		int result = strcmpspecial(stringHere, searchString);
+		int32_t result = strcmpspecial(stringHere, searchString);
 
 		if (!result) {
 			if (foundExact) {

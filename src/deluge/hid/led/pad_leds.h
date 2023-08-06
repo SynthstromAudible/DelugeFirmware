@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
+#include <cstdint>
 
 #define FLASH_CURSOR_FAST 0
 #define FLASH_CURSOR_OFF 1
@@ -31,16 +31,16 @@ extern "C" {
 class AudioClip;
 
 namespace PadLEDs {
-extern uint8_t image[displayHeight][displayWidth + sideBarWidth][3];               // 255 = full brightness
-extern uint8_t occupancyMask[displayHeight][displayWidth + sideBarWidth];          // 64 = full occupancy
-extern uint8_t imageStore[displayHeight * 2][displayWidth + sideBarWidth][3];      // 255 = full brightness
-extern uint8_t occupancyMaskStore[displayHeight * 2][displayWidth + sideBarWidth]; // 64 = full occupancy
+extern uint8_t image[kDisplayHeight][kDisplayWidth + kSideBarWidth][3];               // 255 = full brightness
+extern uint8_t occupancyMask[kDisplayHeight][kDisplayWidth + kSideBarWidth];          // 64 = full occupancy
+extern uint8_t imageStore[kDisplayHeight * 2][kDisplayWidth + kSideBarWidth][3];      // 255 = full brightness
+extern uint8_t occupancyMaskStore[kDisplayHeight * 2][kDisplayWidth + kSideBarWidth]; // 64 = full occupancy
 
-extern bool transitionTakingPlaceOnRow[displayHeight];
+extern bool transitionTakingPlaceOnRow[kDisplayHeight];
 
-extern int explodeAnimationYOriginBig;
-extern int explodeAnimationXStartBig;
-extern int explodeAnimationXWidthBig;
+extern int32_t explodeAnimationYOriginBig;
+extern int32_t explodeAnimationXStartBig;
+extern int32_t explodeAnimationXWidthBig;
 
 extern int8_t explodeAnimationDirection;
 extern bool renderingLock;
@@ -50,14 +50,14 @@ extern int16_t animatedRowGoingTo[];
 extern int16_t animatedRowGoingFrom[];
 extern uint8_t numAnimatedRows;
 
-extern int zoomPinSquare[displayHeight];
+extern int32_t zoomPinSquare[kDisplayHeight];
 extern bool zoomingIn;
 extern int8_t zoomMagnitude;
 
 void init();
-void sortLedsForCol(int x);
+void sortLedsForCol(int32_t x);
 void writeToSideBar(uint8_t sideBarX, uint8_t yDisplay, uint8_t red, uint8_t green, uint8_t blue);
-void renderInstrumentClipCollapseAnimation(int xStart, int xEnd, int progress);
+void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEnd, int32_t progress);
 void renderClipExpandOrCollapse();
 void renderNoteRowExpandOrCollapse();
 void clearAllPadsWithoutSending();
@@ -72,20 +72,20 @@ void skipGreyoutFade();
 void reassessGreyout(bool doInstantly = false);
 void doGreyoutInstantly();
 
-void setRefreshTime(int newTime);
-void changeRefreshTime(int offset);
-void changeDimmerInterval(int offset);
-void setDimmerInterval(int newInterval);
+void setRefreshTime(int32_t newTime);
+void changeRefreshTime(int32_t offset);
+void changeDimmerInterval(int32_t offset);
+void setDimmerInterval(int32_t newInterval);
 
 void renderZoom();
-void renderZoomWithProgress(int inImageTimesBiggerThanNative, uint32_t inImageFadeAmount, uint8_t* innerImage,
-                            uint8_t* outerImage, int innerImageLeftEdge, int outerImageLeftEdge,
-                            int innerImageRightEdge, int outerImageRightEdge, int innerImageTotalWidth,
-                            int outerImageTotalWidth);
+void renderZoomWithProgress(int32_t inImageTimesBiggerThanNative, uint32_t inImageFadeAmount, uint8_t* innerImage,
+                            uint8_t* outerImage, int32_t innerImageLeftEdge, int32_t outerImageLeftEdge,
+                            int32_t innerImageRightEdge, int32_t outerImageRightEdge, int32_t innerImageTotalWidth,
+                            int32_t outerImageTotalWidth);
 
 namespace horizontal {
 void setupScroll(int8_t thisScrollDirection, uint8_t thisAreaToScroll, bool scrollIntoNothing = false,
-                 int numSquaresToScroll = displayWidth);
+                 int32_t numSquaresToScroll = kDisplayWidth);
 void renderScroll();
 } // namespace horizontal
 
@@ -98,39 +98,39 @@ extern int8_t scrollDirection;
 extern bool scrollingToNothing;
 } // namespace vertical
 
-void sendRGBForOnePadFast(int x, int y, const uint8_t* colourSource);
+void sendRGBForOnePadFast(int32_t x, int32_t y, const uint8_t* colourSource);
 void clearTickSquares(bool shouldSend = true);
 void setTickSquares(const uint8_t* squares, const uint8_t* colours);
-void renderExplodeAnimation(int explodedness, bool shouldSendOut = true);
-void renderAudioClipExplodeAnimation(int explodedness, bool shouldSendOut = true);
+void renderExplodeAnimation(int32_t explodedness, bool shouldSendOut = true);
+void renderAudioClipExplodeAnimation(int32_t explodedness, bool shouldSendOut = true);
 void clearSideBar();
-void renderFade(int progress);
-void recordTransitionBegin(unsigned int newTransitionLength);
-int getTransitionProgress();
+void renderFade(int32_t progress);
+void recordTransitionBegin(uint32_t newTransitionLength);
+int32_t getTransitionProgress();
 void renderAudioClipExpandOrCollapse();
 void setupInstrumentClipCollapseAnimation(bool collapsingOutOfClipMinder);
 void setupAudioClipCollapseOrExplodeAnimation(AudioClip* clip);
 
 void setGreyoutAmount(float newAmount);
 
-static inline void flashMainPad(int x, int y, int color = 0) {
+static inline void flashMainPad(int32_t x, int32_t y, int32_t color = 0) {
 	if (color > 0) {
 		bufferPICUart(10 + color);
 	}
 
-	bufferPICUart(24 + y + (x * displayHeight));
+	bufferPICUart(24 + y + (x * kDisplayHeight));
 }
 
-inline void sendRGBForOneCol(int x);
+inline void sendRGBForOneCol(int32_t x);
 void setTimerForSoon();
 void renderZoomedSquare(int32_t outputSquareStartOnOutImage, int32_t outputSquareEndOnOutImage,
-                        uint32_t outImageTimesBigerThanNormal, unsigned int sourceImageFade, uint32_t* output,
-                        uint8_t* inputImageRow, int inputImageWidth, bool* drawingAnything);
+                        uint32_t outImageTimesBigerThanNormal, uint32_t sourceImageFade, uint32_t* output,
+                        uint8_t* inputImageRow, int32_t inputImageWidth, bool* drawingAnything);
 bool shouldNotRenderDuringTimerRoutine();
-void renderAudioClipCollapseAnimation(int progress);
+void renderAudioClipCollapseAnimation(int32_t progress);
 
 void timerRoutine();
-void copyBetweenImageStores(uint8_t* dest, uint8_t* source, int destWidth, int sourceWidth, int copyWidth);
-void moveBetweenImageStores(uint8_t* dest, uint8_t* source, int destWidth, int sourceWidth, int copyWidth);
+void copyBetweenImageStores(uint8_t* dest, uint8_t* source, int32_t destWidth, int32_t sourceWidth, int32_t copyWidth);
+void moveBetweenImageStores(uint8_t* dest, uint8_t* source, int32_t destWidth, int32_t sourceWidth, int32_t copyWidth);
 
 } // namespace PadLEDs

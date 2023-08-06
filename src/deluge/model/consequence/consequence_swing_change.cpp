@@ -16,15 +16,15 @@
 */
 
 #include "model/consequence/consequence_swing_change.h"
-#include "model/song/song.h"
 #include "model/model_stack.h"
+#include "model/song/song.h"
 
 ConsequenceSwingChange::ConsequenceSwingChange(int8_t newSwingBefore, int8_t newSwingAfter) {
 	swing[BEFORE] = newSwingBefore;
 	swing[AFTER] = newSwingAfter;
 }
 
-int ConsequenceSwingChange::revert(int time, ModelStack* modelStack) {
+int32_t ConsequenceSwingChange::revert(TimeType time, ModelStack* modelStack) {
 	modelStack->song->swingAmount = swing[time];
 
 	return NO_ERROR;

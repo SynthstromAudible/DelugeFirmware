@@ -18,18 +18,19 @@
 #pragma once
 
 #include "model/consequence/consequence.h"
-#include "RZA1/system/r_typedefs.h"
 #include "model/note/note_vector.h"
+#include <cstdint>
 
 class InstrumentClip;
 
 class ConsequenceNoteArrayChange final : public Consequence {
 public:
-	ConsequenceNoteArrayChange(InstrumentClip* newClip, int newNoteRowId, NoteVector* newNoteVector, bool stealData);
-	int revert(int time, ModelStack* modelStack);
+	ConsequenceNoteArrayChange(InstrumentClip* newClip, int32_t newNoteRowId, NoteVector* newNoteVector,
+	                           bool stealData);
+	int32_t revert(TimeType time, ModelStack* modelStack);
 
 	InstrumentClip* clip;
-	int noteRowId;
+	int32_t noteRowId;
 
 	NoteVector backedUpNoteVector;
 };

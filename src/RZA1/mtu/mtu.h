@@ -18,10 +18,10 @@
 #ifndef DRIVERS_RZA1_MTU_MTU_H_
 #define DRIVERS_RZA1_MTU_MTU_H_
 
-#include "RZA1/system/iodefine.h"
-#include "RZA1/system/iobitmasks/mtu2_iobitmask.h"
-#include "RZA1/system/r_typedefs.h"
 #include "RZA1/intc/devdrv_intc.h"
+#include "RZA1/system/iobitmasks/mtu2_iobitmask.h"
+#include "RZA1/system/iodefine.h"
+#include "RZA1/system/r_typedefs.h"
 
 static const uint8_t timerCST[] = {MTU2_TSTR_CST0, MTU2_TSTR_CST1, MTU2_TSTR_CST2, MTU2_TSTR_CST3, MTU2_TSTR_CST4};
 
@@ -35,7 +35,7 @@ static inline void disableTimer(int timerNo)
     MTU2.TSTR &= ~timerCST[timerNo];
 }
 
-static inline bool_t isTimerEnabled(int timerNo)
+static inline bool isTimerEnabled(int timerNo)
 {
     return MTU2.TSTR & timerCST[timerNo];
 }

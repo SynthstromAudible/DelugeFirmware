@@ -15,38 +15,39 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "processing/engines/audio_engine.h"
-#include "storage/audio/audio_file_manager.h"
+#include "model/drum/kit.h"
+#include "definitions_cxx.hpp"
+#include "gui/ui/ui.h"
+#include "gui/views/instrument_clip_view.h"
+#include "gui/views/view.h"
+#include "hid/display/numeric_driver.h"
+#include "io/debug/print.h"
+#include "io/midi/midi_device.h"
+#include "io/midi/midi_device_manager.h"
+#include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
-#include "gui/views/instrument_clip_view.h"
-#include "modulation/params/param_manager.h"
-#include "processing/sound/sound_drum.h"
-#include "model/drum/kit.h"
-#include "storage/storage_manager.h"
 #include "model/drum/drum.h"
-#include "util/functions.h"
-#include "gui/views/view.h"
-#include <string.h>
-#include <new>
-#include "memory/general_memory_allocator.h"
 #include "model/drum/gate_drum.h"
+#include "model/drum/midi_drum.h"
+#include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
-#include "playback/playback_handler.h"
-#include "playback/mode/playback_mode.h"
-#include "gui/ui/ui.h"
-#include "playback/mode/session.h"
-#include "model/drum/midi_drum.h"
-#include "io/uart/uart.h"
-#include "hid/display/numeric_driver.h"
-#include "model/model_stack.h"
-#include "io/midi/midi_device_manager.h"
-#include "io/midi/midi_device.h"
+#include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
+#include "playback/mode/playback_mode.h"
+#include "playback/mode/session.h"
+#include "playback/playback_handler.h"
+#include "processing/engines/audio_engine.h"
+#include "processing/sound/sound_drum.h"
+#include "storage/audio/audio_file_manager.h"
+#include "storage/storage_manager.h"
+#include "util/functions.h"
+#include <new>
+#include <string.h>
 
-Kit::Kit() : Instrument(INSTRUMENT_TYPE_KIT), drumsWithRenderingActive(sizeof(Drum*)) {
+Kit::Kit() : Instrument(InstrumentType::KIT), drumsWithRenderingActive(sizeof(Drum*)) {
 	firstDrum = NULL;
 	selectedDrum = NULL;
 }
@@ -62,7 +63,7 @@ Kit::~Kit() {
 		void* toDealloc = dynamic_cast<void*>(toDelete);
 
 		toDelete->~Drum();
-		generalMemoryAllocator.dealloc(toDealloc);
+		GeneralMemoryAllocator::get().dealloc(toDealloc);
 	}
 }
 
@@ -112,8 +113,8 @@ bool Kit::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 	GlobalEffectableForClip::writeTagsToFile(paramManager, clipForSavingOutputOnly == NULL);
 
 	storageManager.writeOpeningTag("soundSources"); // TODO: change this?
-	int selectedDrumIndex = -1;
-	int drumIndex = 0;
+	int32_t selectedDrumIndex = -1;
+	int32_t drumIndex = 0;
 
 	Drum* newFirstDrum = NULL;
 	Drum** newLastDrum = &newFirstDrum;
@@ -126,7 +127,7 @@ bool Kit::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 	// If we have a Clip to take the Drum order from...
 	if (clipToTakeDrumOrderFrom) {
 		// First, write Drums in the order of their NoteRows. Remove these drums from our list - we'll re-add them in a moment, at the start, i.e. in the same order they appear in the file
-		for (int i = 0; i < ((InstrumentClip*)clipToTakeDrumOrderFrom)->noteRows.getNumElements(); i++) {
+		for (int32_t i = 0; i < ((InstrumentClip*)clipToTakeDrumOrderFrom)->noteRows.getNumElements(); i++) {
 			NoteRow* thisNoteRow = ((InstrumentClip*)clipToTakeDrumOrderFrom)->noteRows.getElement(i);
 			if (thisNoteRow->drum) {
 				Drum* drum = thisNoteRow->drum;
@@ -163,7 +164,7 @@ bool Kit::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 
 		// If saving Kit (not song), only save Drums if some other NoteRow in the song has it - in which case, save as "default" the params from that NoteRow
 		if (clipForSavingOutputOnly) {
-			Uart::println("yup, clipForSavingOutputOnly");
+			Debug::println("yup, clipForSavingOutputOnly");
 			NoteRow* noteRow = song->findNoteRowForDrum(this, thisDrum);
 			if (!noteRow) {
 				goto moveOn;
@@ -177,8 +178,8 @@ bool Kit::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 			// If no activeClip, this means we want to store all Drums
 			// - and for SoundDrums, save as "default" any backedUpParamManagers (if none for a SoundDrum, definitely skip it)
 			if (!activeClip) {
-				Uart::println("nah, !activeClip");
-				if (thisDrum->type == DRUM_TYPE_SOUND) {
+				Debug::println("nah, !activeClip");
+				if (thisDrum->type == DrumType::SOUND) {
 					paramManagerForDrum = song->getBackedUpParamManagerPreferablyWithClip((SoundDrum*)thisDrum, NULL);
 					if (!paramManagerForDrum) {
 						goto moveOn;
@@ -194,7 +195,7 @@ bool Kit::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 
 					*prevPointer = thisDrum->next;
 
-					if (thisDrum->type == DRUM_TYPE_SOUND) {
+					if (thisDrum->type == DrumType::SOUND) {
 						song->deleteBackedUpParamManagersForModControllable((SoundDrum*)thisDrum);
 					}
 
@@ -202,7 +203,7 @@ bool Kit::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 
 					void* toDealloc = dynamic_cast<void*>(thisDrum);
 					thisDrum->~Drum();
-					generalMemoryAllocator.dealloc(toDealloc);
+					GeneralMemoryAllocator::get().dealloc(toDealloc);
 
 					continue;
 				}
@@ -228,8 +229,8 @@ moveOn:
 	return true;
 }
 
-void Kit::writeDrumToFile(Drum* thisDrum, ParamManager* paramManagerForDrum, bool savingSong, int* selectedDrumIndex,
-                          int* drumIndex, Song* song) {
+void Kit::writeDrumToFile(Drum* thisDrum, ParamManager* paramManagerForDrum, bool savingSong,
+                          int32_t* selectedDrumIndex, int32_t* drumIndex, Song* song) {
 	if (thisDrum == selectedDrum) {
 		*selectedDrumIndex = *drumIndex;
 	}
@@ -238,9 +239,9 @@ void Kit::writeDrumToFile(Drum* thisDrum, ParamManager* paramManagerForDrum, boo
 	(*drumIndex)++;
 }
 
-int Kit::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
+int32_t Kit::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 
-	int selectedDrumIndex = -1;
+	int32_t selectedDrumIndex = -1;
 
 	ParamManagerForTimeline paramManager;
 
@@ -249,23 +250,23 @@ int Kit::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 
 		if (!strcmp(tagName, "soundSources")) {
 			while (*(tagName = storageManager.readNextTagOrAttributeName())) {
-				int drumType;
+				DrumType drumType;
 
 				if (!strcmp(tagName, "sample") || !strcmp(tagName, "synth") || !strcmp(tagName, "sound")) {
-					drumType = DRUM_TYPE_SOUND;
+					drumType = DrumType::SOUND;
 doReadDrum:
-					int error = readDrumFromFile(song, clip, drumType, readAutomationUpToPos);
+					int32_t error = readDrumFromFile(song, clip, drumType, readAutomationUpToPos);
 					if (error) {
 						return error;
 					}
 					storageManager.exitTag();
 				}
 				else if (!strcmp(tagName, "midiOutput")) {
-					drumType = DRUM_TYPE_MIDI;
+					drumType = DrumType::MIDI;
 					goto doReadDrum;
 				}
 				else if (!strcmp(tagName, "gateOutput")) {
-					drumType = DRUM_TYPE_GATE;
+					drumType = DrumType::GATE;
 					goto doReadDrum;
 				}
 				else {
@@ -279,7 +280,8 @@ doReadDrum:
 			storageManager.exitTag("selectedDrumIndex");
 		}
 		else {
-			int result = GlobalEffectableForClip::readTagFromFile(tagName, &paramManager, readAutomationUpToPos, song);
+			int32_t result =
+			    GlobalEffectableForClip::readTagFromFile(tagName, &paramManager, readAutomationUpToPos, song);
 			if (result == NO_ERROR) {}
 			else if (result != RESULT_TAG_UNUSED) {
 				return result;
@@ -287,7 +289,7 @@ doReadDrum:
 			else {
 				if (Instrument::readTagFromFile(tagName)) {}
 				else {
-					int result = storageManager.tryReadingFirmwareTagFromFile(tagName);
+					int32_t result = storageManager.tryReadingFirmwareTagFromFile(tagName);
 					if (result && result != RESULT_TAG_UNUSED) {
 						return result;
 					}
@@ -309,19 +311,19 @@ doReadDrum:
 	return NO_ERROR;
 }
 
-int Kit::readDrumFromFile(Song* song, Clip* clip, int drumType, int32_t readAutomationUpToPos) {
+int32_t Kit::readDrumFromFile(Song* song, Clip* clip, DrumType drumType, int32_t readAutomationUpToPos) {
 
 	Drum* newDrum = storageManager.createNewDrum(drumType);
 	if (!newDrum) {
 		return ERROR_INSUFFICIENT_RAM;
 	}
 
-	int error = newDrum->readFromFile(
+	int32_t error = newDrum->readFromFile(
 	    song, clip, readAutomationUpToPos); // Will create and "back up" a new ParamManager if anything to read into it
 	if (error) {
 		void* toDealloc = dynamic_cast<void*>(newDrum);
 		newDrum->~Drum();
-		generalMemoryAllocator.dealloc(toDealloc);
+		GeneralMemoryAllocator::get().dealloc(toDealloc);
 		return error;
 	}
 	addDrum(newDrum);
@@ -330,12 +332,12 @@ int Kit::readDrumFromFile(Song* song, Clip* clip, int drumType, int32_t readAuto
 }
 
 // Returns true if more loading needed later
-int Kit::loadAllAudioFiles(bool mayActuallyReadFiles) {
+int32_t Kit::loadAllAudioFiles(bool mayActuallyReadFiles) {
 
-	int error = NO_ERROR;
+	int32_t error = NO_ERROR;
 
 	bool doingAlternatePath =
-	    mayActuallyReadFiles && (audioFileManager.alternateLoadDirStatus == ALTERNATE_LOAD_DIR_NONE_SET);
+	    mayActuallyReadFiles && (audioFileManager.alternateLoadDirStatus == AlternateLoadDirStatus::NONE_SET);
 	if (doingAlternatePath) {
 		error = setupDefaultAudioFileDir();
 		if (error) {
@@ -366,16 +368,16 @@ getOut:
 // Caller must check that there is an activeClip.
 void Kit::loadCrucialAudioFilesOnly() {
 
-	bool doingAlternatePath = (audioFileManager.alternateLoadDirStatus == ALTERNATE_LOAD_DIR_NONE_SET);
+	bool doingAlternatePath = (audioFileManager.alternateLoadDirStatus == AlternateLoadDirStatus::NONE_SET);
 	if (doingAlternatePath) {
-		int error = setupDefaultAudioFileDir();
+		int32_t error = setupDefaultAudioFileDir();
 		if (error) {
 			return;
 		}
 	}
 
 	AudioEngine::logAction("Kit::loadCrucialSamplesOnly");
-	for (int i = 0; i < ((InstrumentClip*)activeClip)->noteRows.getNumElements(); i++) {
+	for (int32_t i = 0; i < ((InstrumentClip*)activeClip)->noteRows.getNumElements(); i++) {
 		NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->noteRows.getElement(i);
 		if (!thisNoteRow->muted && !thisNoteRow->hasNoNotes() && thisNoteRow->drum) {
 			thisNoteRow->drum->loadAllSamples(true); // Why don't we deal with the error?
@@ -420,7 +422,7 @@ void Kit::drumRemoved(Drum* drum) {
 	}
 
 #if ALPHA_OR_BETA_VERSION
-	int i = drumsWithRenderingActive.searchExact((int32_t)drum);
+	int32_t i = drumsWithRenderingActive.searchExact((int32_t)drum);
 	if (i != -1) {
 		numericDriver.freezeWithError("E321");
 	}
@@ -437,15 +439,15 @@ Drum* Kit::getFirstUnassignedDrum(InstrumentClip* clip) {
 	return NULL;
 }
 
-int Kit::getDrumIndex(Drum* drum) {
-	int index = 0;
+int32_t Kit::getDrumIndex(Drum* drum) {
+	int32_t index = 0;
 	for (Drum* thisDrum = firstDrum; thisDrum != drum; thisDrum = thisDrum->next) {
 		index++;
 	}
 	return index;
 }
 
-Drum* Kit::getDrumFromIndex(int index) {
+Drum* Kit::getDrumFromIndex(int32_t index) {
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		if (index == 0) {
 			return thisDrum;
@@ -464,7 +466,7 @@ SoundDrum* Kit::getDrumFromName(char const* name, bool onlyIfNoNoteRow) {
 			continue;
 		}
 
-		if (thisDrum->type == DRUM_TYPE_SOUND && ((SoundDrum*)thisDrum)->name.equalsCaseIrrespective(name)) {
+		if (thisDrum->type == DrumType::SOUND && ((SoundDrum*)thisDrum)->name.equalsCaseIrrespective(name)) {
 			return (SoundDrum*)thisDrum;
 		}
 	}
@@ -480,16 +482,16 @@ void Kit::cutAllSound() {
 
 // Beware - unlike usual, modelStack, a ModelStackWithThreeMainThings*,  might have a NULL timelineCounter
 void Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack, StereoSample* globalEffectableBuffer,
-                                        int32_t* bufferToTransferTo, int numSamples, int32_t* reverbBuffer,
+                                        int32_t* bufferToTransferTo, int32_t numSamples, int32_t* reverbBuffer,
                                         int32_t reverbAmountAdjust, int32_t sideChainHitPending,
                                         bool shouldLimitDelayFeedback, bool isClipActive, int32_t pitchAdjust,
                                         int32_t amplitudeAtStart, int32_t amplitudeAtEnd) {
 
 	// Render Drums. Traverse backwards, in case one stops rendering (removing itself from the list) as we render it
-	for (int d = drumsWithRenderingActive.getNumElements() - 1; d >= 0; d--) {
+	for (int32_t d = drumsWithRenderingActive.getNumElements() - 1; d >= 0; d--) {
 		Drum* thisDrum = (Drum*)drumsWithRenderingActive.getKeyAtIndex(d);
 
-		if (ALPHA_OR_BETA_VERSION && thisDrum->type != DRUM_TYPE_SOUND) {
+		if (ALPHA_OR_BETA_VERSION && thisDrum->type != DrumType::SOUND) {
 			numericDriver.freezeWithError("E253");
 		}
 
@@ -501,7 +503,7 @@ void Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStac
 
 		ParamManager* drumParamManager;
 		NoteRow* thisNoteRow = NULL;
-		int noteRowIndex;
+		int32_t noteRowIndex;
 
 		if (activeClip) {
 			thisNoteRow = ((InstrumentClip*)activeClip)->getNoteRowForDrum(thisDrum, &noteRowIndex);
@@ -532,21 +534,26 @@ void Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStac
 
 		NoteRowVector* noteRows = &((InstrumentClip*)activeClip)->noteRows;
 
-		for (int i = 0; i < noteRows->getNumElements(); i++) {
+		for (int32_t i = 0; i < noteRows->getNumElements(); i++) {
 			NoteRow* thisNoteRow = noteRows->getElement(i);
-			if (thisNoteRow->drum
-			    && thisNoteRow->drum->type
-			           == DRUM_TYPE_SOUND) { // Just don't bother ticking other ones for now - their MPE doesn't need to interpolate.
 
-				ParamCollectionSummary* patchedParamsSummary =
-				    &thisNoteRow->paramManager
-				         .summaries[1]; // No time to call the proper function and do error checking, sorry.
-				if (patchedParamsSummary->whichParamsAreInterpolating[0]
-				    || patchedParamsSummary->whichParamsAreInterpolating[1]
-#if NUM_PARAMS > 64
-				    || patchedParamsSummary->whichParamsAreInterpolating[2]
-#endif
-				) {
+			// Just don't bother ticking other ones for now - their MPE doesn't need to interpolate.
+			if (thisNoteRow->drum && thisNoteRow->drum->type == DrumType::SOUND) {
+
+				// No time to call the proper function and do error checking, sorry.
+				ParamCollectionSummary* patchedParamsSummary = &thisNoteRow->paramManager.summaries[1];
+
+				bool anyInterpolating = false;
+				if constexpr (kNumParams > 64) {
+					anyInterpolating = patchedParamsSummary->whichParamsAreInterpolating[0]
+					                   || patchedParamsSummary->whichParamsAreInterpolating[1]
+					                   || patchedParamsSummary->whichParamsAreInterpolating[2];
+				}
+				else {
+					anyInterpolating = patchedParamsSummary->whichParamsAreInterpolating[0]
+					                   || patchedParamsSummary->whichParamsAreInterpolating[1];
+				}
+				if (anyInterpolating) {
 yesTickParamManager:
 					ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 					    modelStack->addNoteRow(i, thisNoteRow)
@@ -557,37 +564,46 @@ yesTickParamManager:
 
 				// Try other options too.
 
-				ParamCollectionSummary* unpatchedParamsSummary =
-				    &thisNoteRow->paramManager
-				         .summaries[0]; // No time to call the proper function and do error checking, sorry.
-				if (unpatchedParamsSummary->whichParamsAreInterpolating[0]
-#if MAX_NUM_UNPATCHED_PARAM_FOR_SOUNDS > 32
-				    || unpatchedParamsSummary->whichParamsAreInterpolating[1]
-#endif
-				) {
-					goto yesTickParamManager;
+				// No time to call the proper function and do error checking, sorry.
+				ParamCollectionSummary* unpatchedParamsSummary = &thisNoteRow->paramManager.summaries[0];
+				if constexpr (Param::Unpatched::Sound::MAX_NUM > 32) {
+					if (unpatchedParamsSummary->whichParamsAreInterpolating[0]
+					    || unpatchedParamsSummary->whichParamsAreInterpolating[1]) {
+						goto yesTickParamManager;
+					}
+				}
+				else {
+					if (unpatchedParamsSummary->whichParamsAreInterpolating[0]) {
+						goto yesTickParamManager;
+					}
 				}
 
-				ParamCollectionSummary* patchCablesSummary =
-				    &thisNoteRow->paramManager
-				         .summaries[2]; // No time to call the proper function and do error checking, sorry.
-				if (patchCablesSummary->whichParamsAreInterpolating[0]
-#if MAX_NUM_PATCH_CABLES > 32
-				    || patchCablesSummary->whichParamsAreInterpolating[1]
-#endif
-				) {
-					goto yesTickParamManager;
+				// No time to call the proper function and do error checking, sorry.
+				ParamCollectionSummary* patchCablesSummary = &thisNoteRow->paramManager.summaries[2];
+				if constexpr (kMaxNumPatchCables > 32) {
+					if (patchCablesSummary->whichParamsAreInterpolating[0]
+					    || patchCablesSummary->whichParamsAreInterpolating[1]) {
+						goto yesTickParamManager;
+					}
+				}
+				else {
+					if (patchCablesSummary->whichParamsAreInterpolating[0]) {
+						goto yesTickParamManager;
+					}
 				}
 
-				ParamCollectionSummary* expressionParamsSummary =
-				    &thisNoteRow->paramManager
-				         .summaries[3]; // No time to call the proper function and do error checking, sorry.
-				if (expressionParamsSummary->whichParamsAreInterpolating[0]
-#if NUM_EXPRESSION_DIMENSIONS > 32
-				    || expressionParamsSummary->whichParamsAreInterpolating[1]
-#endif
-				) {
-					goto yesTickParamManager;
+				// No time to call the proper function and do error checking, sorry.
+				ParamCollectionSummary* expressionParamsSummary = &thisNoteRow->paramManager.summaries[3];
+				if constexpr (kNumExpressionDimensions > 32) {
+					if (expressionParamsSummary->whichParamsAreInterpolating[0]
+					    || expressionParamsSummary->whichParamsAreInterpolating[1]) {
+						goto yesTickParamManager;
+					}
+				}
+				else {
+					if (expressionParamsSummary->whichParamsAreInterpolating[0]) {
+						goto yesTickParamManager;
+					}
 				}
 				// Was that right? Until Jan 2022 I didn't have it checking for expression params automation here for some reason...
 			}
@@ -596,8 +612,8 @@ yesTickParamManager:
 }
 
 void Kit::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, StereoSample* outputBufferEnd,
-                       int numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
-                       bool shouldLimitDelayFeedback, bool isClipActive) {
+                       int32_t numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
+                       int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive) {
 
 	ParamManager* paramManager = getParamManager(modelStack->song);
 
@@ -606,7 +622,7 @@ void Kit::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, Stere
 
 	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, outputBuffer, numSamples,
 	                                      reverbBuffer, reverbAmountAdjust, sideChainHitPending,
-	                                      shouldLimitDelayFeedback, isClipActive, INSTRUMENT_TYPE_KIT, 8);
+	                                      shouldLimitDelayFeedback, isClipActive, InstrumentType::KIT, 8);
 }
 
 void Kit::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
@@ -622,10 +638,10 @@ void Kit::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel
 	        ->timelineCounterIsSet()) { // This is always actually true currently for calls to this function, but let's make this safe and future proof.
 		InstrumentClip* clip =
 		    (InstrumentClip*)modelStack->getTimelineCounter(); // May have been changed by call above!
-		for (int i = 0; i < clip->noteRows.getNumElements(); i++) {
+		for (int32_t i = 0; i < clip->noteRows.getNumElements(); i++) {
 			NoteRow* thisNoteRow = clip->noteRows.getElement(i);
 			Drum* thisDrum = thisNoteRow->drum;
-			if (thisDrum && thisDrum->type == DRUM_TYPE_SOUND) {
+			if (thisDrum && thisDrum->type == DrumType::SOUND) {
 				((SoundDrum*)thisDrum)
 				    ->offerReceivedCCToLearnedParams(fromDevice, channel, ccNumber, value, modelStack, i);
 			}
@@ -646,10 +662,10 @@ bool Kit::offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t 
 	        ->timelineCounterIsSet()) { // This is always actually true currently for calls to this function, but let's make this safe and future proof.
 		InstrumentClip* clip =
 		    (InstrumentClip*)modelStack->getTimelineCounter(); // May have been changed by call above!
-		for (int i = 0; i < clip->noteRows.getNumElements(); i++) {
+		for (int32_t i = 0; i < clip->noteRows.getNumElements(); i++) {
 			NoteRow* thisNoteRow = clip->noteRows.getElement(i);
 			Drum* thisDrum = thisNoteRow->drum;
-			if (thisDrum && thisDrum->type == DRUM_TYPE_SOUND) {
+			if (thisDrum && thisDrum->type == DrumType::SOUND) {
 				if (((SoundDrum*)thisDrum)
 				        ->offerReceivedPitchBendToLearnedParams(fromDevice, channel, data1, data2, modelStack)) {
 					messageUsed = true;
@@ -669,7 +685,7 @@ void Kit::choke() {
 
 void Kit::resyncLFOs() {
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-		if (thisDrum && thisDrum->type == DRUM_TYPE_SOUND) {
+		if (thisDrum && thisDrum->type == DrumType::SOUND) {
 			((SoundDrum*)thisDrum)->resyncGlobalLFO();
 		}
 	}
@@ -680,16 +696,16 @@ ModControllable* Kit::toModControllable() {
 }
 
 // newName must be allowed to be edited by this function
-int Kit::makeDrumNameUnique(String* name, int startAtNumber) {
+int32_t Kit::makeDrumNameUnique(String* name, int32_t startAtNumber) {
 
-	Uart::println("making unique newName:");
+	Debug::println("making unique newName:");
 
-	int originalLength = name->getLength();
+	int32_t originalLength = name->getLength();
 
 	do {
 		char numberString[12];
 		intToString(startAtNumber, numberString);
-		int error = name->concatenateAtPos(numberString, originalLength);
+		int32_t error = name->concatenateAtPos(numberString, originalLength);
 		if (error) {
 			return error;
 		}
@@ -705,9 +721,9 @@ void Kit::setupWithoutActiveClip(ModelStack* modelStack) {
 
 	setupPatching(modelStackWithTimelineCounter);
 
-	int count = 0;
+	int32_t count = 0;
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-		if (thisDrum->type == DRUM_TYPE_SOUND) {
+		if (thisDrum->type == DrumType::SOUND) {
 
 			if (!(count & 7)) {
 				AudioEngine::routineWithClusterLoading(); // -----------------------------------
@@ -734,12 +750,12 @@ void Kit::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounterAllowNull();
 
-	int count = 0;
+	int32_t count = 0;
 
 	if (clip) {
-		for (int i = 0; i < clip->noteRows.getNumElements(); i++) {
+		for (int32_t i = 0; i < clip->noteRows.getNumElements(); i++) {
 			NoteRow* thisNoteRow = clip->noteRows.getElement(i);
-			if (thisNoteRow->drum && thisNoteRow->drum->type == DRUM_TYPE_SOUND) {
+			if (thisNoteRow->drum && thisNoteRow->drum->type == DrumType::SOUND) {
 
 				if (!(count & 7)) {
 					AudioEngine::routineWithClusterLoading(); // -----------------------------------
@@ -764,7 +780,7 @@ void Kit::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 
 	else {
 		for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-			if (thisDrum->type == DRUM_TYPE_SOUND) {
+			if (thisDrum->type == DrumType::SOUND) {
 
 				if (!(count & 7)) {
 					AudioEngine::routineWithClusterLoading(); // -----------------------------------
@@ -794,16 +810,16 @@ void Kit::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 	}
 }
 
-bool Kit::setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMIDIPGMs) {
+bool Kit::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) {
 	bool clipChanged = Instrument::setActiveClip(modelStack, maySendMIDIPGMs);
 
 	if (clipChanged) {
 
 		resetDrumTempValues();
 
-		int count = 0;
+		int32_t count = 0;
 		NoteRowVector* noteRows = &((InstrumentClip*)modelStack->getTimelineCounter())->noteRows;
-		for (int i = 0; i < noteRows->getNumElements(); i++) {
+		for (int32_t i = 0; i < noteRows->getNumElements(); i++) {
 			NoteRow* thisNoteRow = noteRows->getElement(i);
 
 			if (thisNoteRow
@@ -812,7 +828,7 @@ bool Kit::setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMI
 				thisNoteRow->drum->noteRowAssignedTemp = true;
 				thisNoteRow->drum->earlyNoteVelocity = 0;
 
-				if (thisNoteRow->drum->type == DRUM_TYPE_SOUND) {
+				if (thisNoteRow->drum->type == DrumType::SOUND) {
 
 					if (!(count & 7)) {
 						AudioEngine::
@@ -855,12 +871,12 @@ void Kit::compensateInstrumentVolumeForResonance(ParamManagerForTimeline* paramM
 		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
 		int32_t compensation =
-		    interpolateTableSigned(unpatchedParams->getValue(PARAM_UNPATCHED_GLOBALEFFECTABLE_LPF_RES) + 2147483648, 32,
-		                           oldResonanceCompensation, 3);
+		    interpolateTableSigned(unpatchedParams->getValue(Param::Unpatched::GlobalEffectable::LPF_RES) + 2147483648,
+		                           32, oldResonanceCompensation, 3);
 		float compensationDB = (float)compensation / (1024 << 16);
 
 		if (compensationDB > 0.1) {
-			unpatchedParams->shiftParamVolumeByDB(PARAM_UNPATCHED_GLOBALEFFECTABLE_VOLUME, compensationDB);
+			unpatchedParams->shiftParamVolumeByDB(Param::Unpatched::GlobalEffectable::VOLUME, compensationDB);
 		}
 
 		// The SoundDrums, like all Sounds, will have already had resonance compensation done on their default ParamManagers if and when any were in fact loaded.
@@ -874,7 +890,7 @@ void Kit::deleteBackedUpParamManagers(Song* song) {
 	song->deleteBackedUpParamManagersForModControllable(this);
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-		if (thisDrum->type == DRUM_TYPE_SOUND) {
+		if (thisDrum->type == DrumType::SOUND) {
 			AudioEngine::routineWithClusterLoading(); // -----------------------------------
 			song->deleteBackedUpParamManagersForModControllable((SoundDrum*)thisDrum);
 		}
@@ -892,11 +908,12 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
 
 	int32_t ticksTilNextArpEvent = 2147483647;
-	for (int i = 0; i < ((InstrumentClip*)activeClip)->noteRows.getNumElements(); i++) {
+	for (int32_t i = 0; i < ((InstrumentClip*)activeClip)->noteRows.getNumElements(); i++) {
 		NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->noteRows.getElement(i);
 		if (thisNoteRow->drum
 		    && thisNoteRow->drum->type
-		           == DRUM_TYPE_SOUND) { // For now, only SoundDrums have Arps, but that's actually a kinda pointless restriction...
+		           == DrumType::
+		               SOUND) { // For now, only SoundDrums have Arps, but that's actually a kinda pointless restriction...
 			SoundDrum* soundDrum = (SoundDrum*)thisNoteRow->drum;
 
 			ArpReturnInstruction instruction;
@@ -921,21 +938,22 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 
 			if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) {
 				soundDrum->noteOnPostArpeggiator(
-				    modelStackWithSoundFlags, instruction.arpNoteOn->inputCharacteristics[MIDI_CHARACTERISTIC_NOTE],
+				    modelStackWithSoundFlags,
+				    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
 				    instruction.noteCodeOnPostArp, instruction.arpNoteOn->velocity, instruction.arpNoteOn->mpeValues,
 				    instruction.sampleSyncLengthOn, 0, 0);
 			}
 
-			ticksTilNextArpEvent = getMin(ticksTilNextArpEvent, ticksTilNextArpEventThisDrum);
+			ticksTilNextArpEvent = std::min(ticksTilNextArpEvent, ticksTilNextArpEventThisDrum);
 		}
 	}
 
 	return ticksTilNextArpEvent;
 }
 
-GateDrum* Kit::getGateDrumForChannel(int gateChannel) {
+GateDrum* Kit::getGateDrumForChannel(int32_t gateChannel) {
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-		if (thisDrum->type == DRUM_TYPE_GATE) {
+		if (thisDrum->type == DrumType::GATE) {
 			GateDrum* gateDrum = (GateDrum*)thisDrum;
 			if (gateDrum->channel == gateChannel) {
 				return gateDrum;
@@ -960,9 +978,9 @@ void Kit::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** par
 
 	if (activeClip) {
 
-		for (int i = 0; i < ((InstrumentClip*)activeClip)->noteRows.getNumElements(); i++) {
+		for (int32_t i = 0; i < ((InstrumentClip*)activeClip)->noteRows.getNumElements(); i++) {
 			NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->noteRows.getElement(i);
-			if (!thisNoteRow->drum || thisNoteRow->drum->type != DRUM_TYPE_SOUND) {
+			if (!thisNoteRow->drum || thisNoteRow->drum->type != DrumType::SOUND) {
 				continue;
 			}
 			((SoundDrum*)thisNoteRow->drum)
@@ -973,8 +991,8 @@ void Kit::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** par
 	}
 }
 
-void Kit::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on, int channel,
-                            int note, int velocity, bool shouldRecordNotes, bool* doingMidiThru) {
+void Kit::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on, int32_t channel,
+                            int32_t note, int32_t velocity, bool shouldRecordNotes, bool* doingMidiThru) {
 
 	InstrumentClip* instrumentClip = (InstrumentClip*)modelStack->getTimelineCounterAllowNull(); // Yup it might be NULL
 
@@ -990,13 +1008,10 @@ void Kit::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevic
 
 		// If this is the "input" command, to sound / audition the Drum...
 		// Returns true if midi channel and note match the learned midi note
-		// Calls equalsChannelAllowMPE to check channel equivalence
-		// Convert channel+device into zone before comparison to stop crossover between MPE and non MPE channels
-		int channelOrZone = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
-		if (thisDrum->midiInput.equalsNoteOrCCAllowMPE(fromDevice, channelOrZone, note)) {
+		if (thisDrum->midiInput.equalsNoteOrCCAllowMPE(fromDevice, channel, note)) {
 
 			// If MIDIDrum, outputting same note, then don't additionally do thru
-			if (doingMidiThru && thisDrum->type == DRUM_TYPE_MIDI && ((MIDIDrum*)thisDrum)->channel == channel
+			if (doingMidiThru && thisDrum->type == DrumType::MIDI && ((MIDIDrum*)thisDrum)->channel == channel
 			    && ((MIDIDrum*)thisDrum)->note == note) {
 				*doingMidiThru = false;
 			}
@@ -1029,10 +1044,10 @@ goingToRecordNoteOnEarly:
 				// and activeClip is not linearly recording (and maybe not even active)...
 				else if (currentPlaybackMode == &session && session.launchEventAtSwungTickCount
 				         && !instrumentClip->getCurrentlyRecordingLinearly()) {
-					int ticksTilLaunch =
+					int32_t ticksTilLaunch =
 					    session.launchEventAtSwungTickCount - playbackHandler.getActualSwungTickCount();
-					int samplesTilLaunch = ticksTilLaunch * playbackHandler.getTimePerInternalTick();
-					if (samplesTilLaunch <= LINEAR_RECORDING_EARLY_FIRST_NOTE_ALLOWANCE) {
+					int32_t samplesTilLaunch = ticksTilLaunch * playbackHandler.getTimePerInternalTick();
+					if (samplesTilLaunch <= kLinearRecordingEarlyFirstNoteAllowance) {
 						Clip* clipAboutToRecord = currentSong->getClipWithOutputAboutToBeginLinearRecording(this);
 						if (clipAboutToRecord) {
 							goto goingToRecordNoteOnEarly;
@@ -1067,7 +1082,7 @@ goingToRecordNoteOnEarly:
 				// If input is MPE, we need to give the Drum the most recent MPE expression values received on the channel on the Device. It doesn't keep track of these when a note isn't on, and
 				// even if it did, this new note might be on a different channel (just same notecode).
 				if (thisDrum->midiInput.isForMPEZone()) {
-					for (int i = 0; i < NUM_EXPRESSION_DIMENSIONS; i++) {
+					for (int32_t i = 0; i < kNumExpressionDimensions; i++) {
 						thisDrum->lastExpressionInputsReceived[BEND_RANGE_FINGER_LEVEL][i] =
 						    fromDevice->defaultInputMPEValuesPerMIDIChannel[channel][i] >> 8;
 					}
@@ -1075,12 +1090,12 @@ goingToRecordNoteOnEarly:
 
 				// And if non-MPE input, just set those finger-level MPE values to 0. If an MPE instrument had been used just before, it could have left them set to something.
 				else {
-					for (int i = 0; i < NUM_EXPRESSION_DIMENSIONS; i++) {
+					for (int32_t i = 0; i < kNumExpressionDimensions; i++) {
 						thisDrum->lastExpressionInputsReceived[BEND_RANGE_FINGER_LEVEL][i] = 0;
 					}
 				}
 
-				int16_t mpeValues[NUM_EXPRESSION_DIMENSIONS];
+				int16_t mpeValues[kNumExpressionDimensions];
 				thisDrum->getCombinedExpressionInputs(mpeValues);
 
 				// MPE stuff - if editing note, we need to take note of the initial values which might have been sent before this note-on.
@@ -1104,7 +1119,7 @@ goingToRecordNoteOnEarly:
 					// TODO: possibly should change the MPE params' currentValue to the initial values, since that usually does get updated by the
 					// subsequent MPE that will come in. Or does that not matter?
 
-					if (thisNoteRow && thisDrum->type == DRUM_TYPE_SOUND
+					if (thisNoteRow && thisDrum->type == DrumType::SOUND
 					    && !thisNoteRow->paramManager.containsAnyMainParamCollections()) {
 						numericDriver.freezeWithError("E326"); // Trying to catch an E313 that Vinz got
 					}
@@ -1165,7 +1180,7 @@ void Kit::offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTi
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		if (thisDrum->midiInput.equalsChannelAllowMPE(fromDevice, channel)) {
-			int level = BEND_RANGE_MAIN;
+			int32_t level = BEND_RANGE_MAIN;
 			if (thisDrum->midiInput.isForMPEZone()) { // If Drum has MPE input.
 				if (channel
 				    == thisDrum->midiInput
@@ -1202,7 +1217,7 @@ void Kit::offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineC
 		if (thisDrum->midiInput.equalsChannelAllowMPE(fromDevice, channel)) {
 
 			if (thisDrum->midiInput.isForMPEZone()) { // If Drum has MPE input.
-				int level = BEND_RANGE_MAIN;
+				int32_t level = BEND_RANGE_MAIN;
 				if (channel
 				    == thisDrum->midiInput
 				           .getMasterChannel()) { // Message coming in on master channel - that's "main"/zone-level, too.
@@ -1226,10 +1241,10 @@ yesThisDrum:
 // noteCode -1 means channel-wide, including for MPE input (which then means it could still then just apply to one note).
 // This function could be optimized a bit better, there are lots of calls to similar functions.
 void Kit::offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
-                                  int channel, int value, int noteCode, bool* doingMidiThru) {
+                                  int32_t channel, int32_t value, int32_t noteCode, bool* doingMidiThru) {
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-		int level = BEND_RANGE_MAIN;
+		int32_t level = BEND_RANGE_MAIN;
 		if (noteCode == -1) { // Channel pressure message...
 			if (thisDrum->midiInput.equalsChannelAllowMPE(fromDevice, channel)) {
 				if (thisDrum->midiInput.isForMPEZone()) { // If Drum has MPE input.
@@ -1264,8 +1279,8 @@ yesThisDrum:
 	}
 }
 
-void Kit::offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int channelOrZone, int whichBendRange,
-                               int bendSemitones) {
+void Kit::offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone,
+                               int32_t whichBendRange, int32_t bendSemitones) {
 
 	if (whichBendRange == BEND_RANGE_MAIN) {
 		return; // This is not used in Kits for Drums. Drums use their BEND_RANGE_FINGER_LEVEL for both kinds of bend.
@@ -1323,19 +1338,19 @@ bool Kit::isAnyAuditioningHappening() {
 
 // You must supply noteRow if there is an activeClip with a NoteRow for that Drum. The TimelineCounter should be the activeClip.
 // Drum must not be NULL - check first if not sure!
-void Kit::beginAuditioningforDrum(ModelStackWithNoteRow* modelStack, Drum* drum, int velocity, int16_t const* mpeValues,
-                                  int fromMIDIChannel) {
+void Kit::beginAuditioningforDrum(ModelStackWithNoteRow* modelStack, Drum* drum, int32_t velocity,
+                                  int16_t const* mpeValues, int32_t fromMIDIChannel) {
 
 	ParamManager* paramManagerForDrum = NULL;
 
 	if (modelStack->getNoteRowAllowNull()) {
 		paramManagerForDrum = &modelStack->getNoteRow()->paramManager;
-		if (!paramManagerForDrum->containsAnyMainParamCollections() && drum->type == DRUM_TYPE_SOUND) {
+		if (!paramManagerForDrum->containsAnyMainParamCollections() && drum->type == DrumType::SOUND) {
 			numericDriver.freezeWithError("E313"); // Vinz got this!
 		}
 	}
 	else {
-		if (drum->type == DRUM_TYPE_SOUND) {
+		if (drum->type == DrumType::SOUND) {
 			paramManagerForDrum = modelStack->song->getBackedUpParamManagerPreferablyWithClip((SoundDrum*)drum, NULL);
 			if (!paramManagerForDrum) {
 				numericDriver.freezeWithError(
@@ -1358,7 +1373,7 @@ void Kit::beginAuditioningforDrum(ModelStackWithNoteRow* modelStack, Drum* drum,
 
 // Check that it's auditioned before calling this if you don't want it potentially sending an extra note-off in some rare cases.
 // You must supply noteRow if there is an activeClip with a NoteRow for that Drum. The TimelineCounter should be the activeClip.
-void Kit::endAuditioningForDrum(ModelStackWithNoteRow* modelStack, Drum* drum, int velocity) {
+void Kit::endAuditioningForDrum(ModelStackWithNoteRow* modelStack, Drum* drum, int32_t velocity) {
 
 	drum->auditioned = false;
 	drum->lastMIDIChannelAuditioned = MIDI_CHANNEL_NONE; // So it won't record any more MPE
@@ -1366,7 +1381,7 @@ void Kit::endAuditioningForDrum(ModelStackWithNoteRow* modelStack, Drum* drum, i
 
 	ParamManager* paramManagerForDrum = NULL;
 
-	if (drum->type == DRUM_TYPE_SOUND) {
+	if (drum->type == DrumType::SOUND) {
 
 		NoteRow* noteRow = modelStack->getNoteRowAllowNull();
 

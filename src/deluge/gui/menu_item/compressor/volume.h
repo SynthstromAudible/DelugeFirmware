@@ -15,18 +15,18 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "processing/engines/audio_engine.h"
 #include "gui/menu_item/patch_cable_strength/fixed.h"
+#include "processing/engines/audio_engine.h"
 
-namespace menu_item::compressor {
+namespace deluge::gui::menu_item::compressor {
 
 class VolumeShortcut final : public patch_cable_strength::Fixed {
 public:
 	using Fixed::Fixed;
-	void writeCurrentValue() {
+	void writeCurrentValue() override {
 		Fixed::writeCurrentValue();
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}
 };
 
-} // namespace menu_item::compressor
+} // namespace deluge::gui::menu_item::compressor

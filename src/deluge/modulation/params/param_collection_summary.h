@@ -17,45 +17,46 @@
 
 #pragma once
 
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 
 class ParamCollection;
 
 class ParamCollectionSummary {
 public:
 	inline bool containsAutomation() {
-		return (whichParamsAreAutomated[0] | whichParamsAreAutomated[1]
-#if MAX_NUM_UINTS_TO_REP_ALL_PARAMS > 2
-		        | whichParamsAreAutomated[2]
-#endif
-		);
+		if constexpr (kMaxNumUnsignedIntegerstoRepAllParams > 2) {
+			return (whichParamsAreAutomated[0] | whichParamsAreAutomated[1] | whichParamsAreAutomated[2]);
+		}
+		else {
+			return (whichParamsAreAutomated[0] | whichParamsAreAutomated[1]);
+		}
 	}
 
-	inline void resetInterpolationRecord(int topUintToRepParams) {
-		for (int i = topUintToRepParams; i >= 0; i--) {
+	inline void resetInterpolationRecord(int32_t topUintToRepParams) {
+		for (int32_t i = topUintToRepParams; i >= 0; i--) {
 			whichParamsAreInterpolating[i] = 0;
 		}
 	}
 
-	inline void resetAutomationRecord(int topUintToRepParams) {
-		for (int i = topUintToRepParams; i >= 0; i--) {
+	inline void resetAutomationRecord(int32_t topUintToRepParams) {
+		for (int32_t i = topUintToRepParams; i >= 0; i--) {
 			whichParamsAreAutomated[i] = 0;
 		}
 	}
 
 	void cloneFlagsFrom(ParamCollectionSummary* other) {
-		for (int i = 0; i < MAX_NUM_UINTS_TO_REP_ALL_PARAMS; i++) {
+		for (int32_t i = 0; i < kMaxNumUnsignedIntegerstoRepAllParams; i++) {
 			whichParamsAreAutomated[i] = other->whichParamsAreAutomated[i];
 		}
 
-		for (int i = 0; i < MAX_NUM_UINTS_TO_REP_ALL_PARAMS; i++) {
+		for (int32_t i = 0; i < kMaxNumUnsignedIntegerstoRepAllParams; i++) {
 			whichParamsAreInterpolating[i] = other->whichParamsAreInterpolating[i];
 		}
 	}
 
 	ParamCollection* paramCollection;
-	uint32_t whichParamsAreAutomated[MAX_NUM_UINTS_TO_REP_ALL_PARAMS];
-	uint32_t whichParamsAreInterpolating[MAX_NUM_UINTS_TO_REP_ALL_PARAMS];
+	uint32_t whichParamsAreAutomated[kMaxNumUnsignedIntegerstoRepAllParams];
+	uint32_t whichParamsAreInterpolating[kMaxNumUnsignedIntegerstoRepAllParams];
 
 	// The list of these ParamCollectionSummarys, in ParamManager, must be terminated by one whose values are *all* zero. This helps because if we know this, we can check for stuff faster.
 };

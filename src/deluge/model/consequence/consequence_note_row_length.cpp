@@ -16,17 +16,17 @@
 */
 
 #include "model/consequence/consequence_note_row_length.h"
-#include "model/model_stack.h"
-#include "model/song/song.h"
-#include "model/note/note_row.h"
 #include "model/clip/clip.h"
+#include "model/model_stack.h"
+#include "model/note/note_row.h"
+#include "model/song/song.h"
 
-ConsequenceNoteRowLength::ConsequenceNoteRowLength(int newNoteRowId, int newLength) {
+ConsequenceNoteRowLength::ConsequenceNoteRowLength(int32_t newNoteRowId, int32_t newLength) {
 	noteRowId = newNoteRowId;
 	backedUpLength = newLength;
 }
 
-int ConsequenceNoteRowLength::revert(int time, ModelStack* modelStack) {
+int32_t ConsequenceNoteRowLength::revert(TimeType time, ModelStack* modelStack) {
 	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addTimelineCounter(modelStack->song->currentClip)
 	                                                   ->addNoteRowId(noteRowId)
 	                                                   ->automaticallyAddNoteRowFromId();

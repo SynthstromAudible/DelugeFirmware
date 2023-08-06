@@ -15,18 +15,18 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "storage/audio/audio_file_manager.h"
 #include "storage/wave_table/wave_table_reader.h"
+#include "storage/audio/audio_file_manager.h"
 #include "storage/storage_manager.h"
 
 WaveTableReader::WaveTableReader() {
 	// TODO Auto-generated constructor stub
 }
 
-int WaveTableReader::readBytesPassedErrorChecking(char* outputBuffer, int num) {
+int32_t WaveTableReader::readBytesPassedErrorChecking(char* outputBuffer, int32_t num) {
 
 	while (num--) {
-		int error = advanceClustersIfNecessary();
+		int32_t error = advanceClustersIfNecessary();
 		if (error) {
 			return error;
 		}
@@ -39,7 +39,7 @@ int WaveTableReader::readBytesPassedErrorChecking(char* outputBuffer, int num) {
 	return NO_ERROR;
 }
 
-int WaveTableReader::readNewCluster() {
+int32_t WaveTableReader::readNewCluster() {
 
 	UINT bytesRead;
 	FRESULT result = f_read(&fileSystemStuff.currentFile, storageManager.fileClusterBuffer,

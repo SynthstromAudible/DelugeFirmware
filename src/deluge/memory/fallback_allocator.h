@@ -15,17 +15,19 @@ class fallback_allocator {
 public:
 	using value_type = T;
 
-	fallback_allocator() = default;
+	constexpr fallback_allocator() noexcept = default;
+
+	template <typename U>
+	constexpr fallback_allocator(const fallback_allocator<U>&) noexcept {};
 
 	[[nodiscard]] T* allocate(std::size_t n) noexcept {
 		if (n == 0) {
 			return nullptr;
 		}
-		return static_cast<T*>(
-		    generalMemoryAllocator.alloc(n * sizeof(T), nullptr, false, true, false, nullptr, false));
+		return static_cast<T*>(delugeAlloc(n * sizeof(T)));
 	}
 
-	void deallocate(T* p, std::size_t n) { generalMemoryAllocator.dealloc(p); }
+	void deallocate(T* p, std::size_t n) { delugeDealloc(p); }
 
 	template <typename U>
 	bool operator==(const deluge::memory::fallback_allocator<U>& o) {

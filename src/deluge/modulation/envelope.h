@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
+#include <cstdint>
 
 class Sound;
 class Voice;
@@ -29,7 +29,7 @@ public:
 	Envelope();
 
 	uint32_t pos;
-	uint8_t state; // You may not set this directly, even from this class. Call setState()
+	EnvelopeStage state; // You may not set this directly, even from this class. Call setState()
 	int32_t lastValue;
 	int32_t lastValuePreCurrentStage;
 	uint32_t timeEnteredState;
@@ -40,9 +40,10 @@ public:
 	void noteOff(uint8_t envelopeIndex, Sound* sound, ParamManagerForTimeline* paramManager);
 	int32_t render(uint32_t numSamples, uint32_t attack, uint32_t decay, uint32_t sustain, uint32_t release,
 	               const uint16_t* releaseTable);
-	void unconditionalRelease(uint8_t typeOfRelease = ENVELOPE_STAGE_RELEASE, uint32_t newFastReleaseIncrement = 4096);
+	void unconditionalRelease(EnvelopeStage typeOfRelease = EnvelopeStage::RELEASE,
+	                          uint32_t newFastReleaseIncrement = 4096);
 	void resumeAttack(int32_t oldLastValue);
 
 private:
-	void setState(uint8_t newState);
+	void setState(EnvelopeStage newState);
 };

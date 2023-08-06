@@ -15,9 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "model/clip/clip_instance.h"
 #include "model/consequence/consequence_clip_instance_change.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
+#include "model/clip/clip_instance.h"
 #include "model/instrument/instrument.h"
 
 ConsequenceClipInstanceChange::ConsequenceClipInstanceChange(Output* newOutput, ClipInstance* clipInstance,
@@ -31,8 +31,8 @@ ConsequenceClipInstanceChange::ConsequenceClipInstanceChange(Output* newOutput, 
 	clip[AFTER] = clipAfter;
 }
 
-int ConsequenceClipInstanceChange::revert(int time, ModelStack* modelStack) {
-	int i = output->clipInstances.search(pos[1 - time], GREATER_OR_EQUAL);
+int32_t ConsequenceClipInstanceChange::revert(TimeType time, ModelStack* modelStack) {
+	int32_t i = output->clipInstances.search(pos[1 - time], GREATER_OR_EQUAL);
 	ClipInstance* clipInstance = output->clipInstances.getElement(i);
 	if (!clipInstance) {
 		return ERROR_BUG;

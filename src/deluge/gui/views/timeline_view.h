@@ -17,9 +17,9 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "gui/ui/root_ui.h"
 #include "hid/button.h"
-#include "definitions.h"
 
 class InstrumentClip;
 class NoteRow;
@@ -30,26 +30,26 @@ public:
 
 	void scrollFinished();
 
-	virtual unsigned int getMaxZoom() = 0;
+	virtual uint32_t getMaxZoom() = 0;
 	virtual bool calculateZoomPinSquares(uint32_t oldScroll, uint32_t newScroll, uint32_t newZoom,
 	                                     uint32_t oldZoom); // Returns false if no animation needed
 	virtual uint32_t getMaxLength() = 0;
 	virtual bool setupScroll(uint32_t oldScroll); // Returns false if no animation needed
-	virtual int getNavSysId() { return NAVIGATION_CLIP; }
+	virtual int32_t getNavSysId() { return NAVIGATION_CLIP; }
 
 	virtual void tellMatrixDriverWhichRowsContainSomethingZoomable() {
 	} // SessionView doesn't have this because it does this a different way. Sorry, confusing I know
 	bool isTimelineView() { return true; }
 
-	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine) override;
 	void displayZoomLevel(bool justPopup = false);
-	int horizontalEncoderAction(int offset);
+	ActionResult horizontalEncoderAction(int32_t offset) override;
 	void displayScrollPos();
 	void displayNumberOfBarsAndBeats(uint32_t number, uint32_t quantization, bool countFromOne,
 	                                 char const* tooLongText);
-	void initiateXScroll(uint32_t newXScroll, int numSquaresToScroll = displayWidth);
+	void initiateXScroll(uint32_t newXScroll, int32_t numSquaresToScroll = kDisplayWidth);
 	bool zoomToMax(bool inOnly = false);
-	void initiateXZoom(int zoomMagnitude, int32_t newScroll, uint32_t oldZoom);
+	void initiateXZoom(int32_t zoomMagnitude, int32_t newScroll, uint32_t oldZoom);
 	void midiLearnFlash();
 
 	bool scrollRightToEndOfLengthIfNecessary(int32_t maxLength);
@@ -63,8 +63,8 @@ public:
 	int32_t getSquareFromPos(int32_t pos, bool* rightOnSquare = NULL, int32_t localScroll = -1);
 	int32_t getSquareFromPos(int32_t pos, bool* rightOnSquare, int32_t xScroll, uint32_t xZoom);
 	int32_t getSquareEndFromPos(int32_t pos, int32_t localScroll = -1);
-	bool isSquareDefined(int square, int32_t xScroll = -1);
-	bool isSquareDefined(int square, int32_t xScroll, uint32_t xZoom);
+	bool isSquareDefined(int32_t square, int32_t xScroll = -1);
+	bool isSquareDefined(int32_t square, int32_t xScroll, uint32_t xZoom);
 
 	bool inTripletsView();
 };

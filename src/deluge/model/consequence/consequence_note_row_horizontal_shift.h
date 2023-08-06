@@ -18,13 +18,13 @@
 #pragma once
 
 #include "model/consequence/consequence.h"
-#include "RZA1/system/r_typedefs.h"
+#include <cstdint>
 
 class ConsequenceNoteRowHorizontalShift final : public Consequence {
 public:
-	ConsequenceNoteRowHorizontalShift(int newNoteRowId, int32_t newAmount);
-	int revert(int time, ModelStack* modelStack);
+	ConsequenceNoteRowHorizontalShift(int32_t newNoteRowId, int32_t newAmount);
+	int32_t revert(TimeType time, ModelStack* modelStack);
 
-	int noteRowId;
+	int32_t noteRowId;
 	int32_t amount;
 };

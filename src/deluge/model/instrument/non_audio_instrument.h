@@ -18,43 +18,43 @@
 #pragma once
 
 #include "model/instrument/melodic_instrument.h"
-#include "modulation/arpeggiator.h"
 #include "model/mod_controllable/mod_controllable.h"
+#include "modulation/arpeggiator.h"
 
 class ModelStack;
 class ModelStackWithSoundFlags;
 
 class NonAudioInstrument : public MelodicInstrument, public ModControllable {
 public:
-	NonAudioInstrument(int newType);
+	NonAudioInstrument(InstrumentType newType) : MelodicInstrument(newType) {}
 
-	void renderOutput(ModelStack* modelStack, StereoSample* startPos, StereoSample* endPos, int numSamples,
+	void renderOutput(ModelStack* modelStack, StereoSample* startPos, StereoSample* endPos, int32_t numSamples,
 	                  int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
 	                  bool shouldLimitDelayFeedback, bool isClipActive);
-	void sendNote(ModelStackWithThreeMainThings* modelStack, bool isOn, int noteCode, int16_t const* mpeValues,
-	              int fromMIDIChannel = 16, uint8_t velocity = 64, uint32_t sampleSyncLength = 0, int32_t ticksLate = 0,
-	              uint32_t samplesLate = 0);
+	void sendNote(ModelStackWithThreeMainThings* modelStack, bool isOn, int32_t noteCode, int16_t const* mpeValues,
+	              int32_t fromMIDIChannel = 16, uint8_t velocity = 64, uint32_t sampleSyncLength = 0,
+	              int32_t ticksLate = 0, uint32_t samplesLate = 0);
 	int32_t doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) final;
 	ParamManager* getParamManager(Song* song) final;
 
-	void polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension, int channelOrNote,
-	                                              int whichCharacteristic) final;
+	void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t whichExpressionDimension,
+	                                              int32_t channelOrNote, MIDICharacteristic whichCharacteristic) final;
 
 	void beenEdited(bool shouldMoveToEmptySlot) {} // Probably don't need this anymore...
 
 	char const* getSlotXMLTag() { return "channel"; }
 	char const* getSubSlotXMLTag() { return NULL; }
 
-	virtual void noteOnPostArp(int noteCodePostArp, ArpNote* arpNote) = 0;
-	virtual void noteOffPostArp(int noteCodePostArp, int oldMIDIChannel, int velocity) = 0;
+	virtual void noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) = 0;
+	virtual void noteOffPostArp(int32_t noteCodePostArp, int32_t oldMIDIChannel, int32_t velocity) = 0;
 
 	bool readTagFromFile(char const* tagName);
 
 	ModControllable* toModControllable() { return this; }
 
-	int channel;
+	int32_t channel = 0;
 
 protected:
-	virtual void polyphonicExpressionEventPostArpeggiator(int newValue, int noteCodeAfterArpeggiation,
-	                                                      int whichExpressionDimension, ArpNote* arpNote) = 0;
+	virtual void polyphonicExpressionEventPostArpeggiator(int32_t newValue, int32_t noteCodeAfterArpeggiation,
+	                                                      int32_t whichExpressionDimension, ArpNote* arpNote) = 0;
 };

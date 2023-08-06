@@ -16,22 +16,22 @@
  */
 
 #include "storage/multi_range/multi_range_array.h"
-#include "storage/multi_range/multisample_range.h"
-#include "storage/multi_range/multi_wave_table_range.h"
-#include <new>
 #include "hid/display/numeric_driver.h"
+#include "storage/multi_range/multi_wave_table_range.h"
+#include "storage/multi_range/multisample_range.h"
+#include <new>
 
 MultiRangeArray::MultiRangeArray()
     : OrderedResizeableArray(sizeof(MultisampleRange), 16, __builtin_offsetof(MultiRange, topNote), 0, 0) {
 }
 
 // This function could sorta be done without...
-MultiRange* MultiRangeArray::getElement(int i) {
+MultiRange* MultiRangeArray::getElement(int32_t i) {
 	return (MultiRange*)getElementAddress(i);
 }
 
-MultiRange* MultiRangeArray::insertMultiRange(int i) {
-	int error = insertAtIndex(i);
+MultiRange* MultiRangeArray::insertMultiRange(int32_t i) {
+	int32_t error = insertAtIndex(i);
 	if (error) {
 		return NULL;
 	}
@@ -47,7 +47,7 @@ MultiRange* MultiRangeArray::insertMultiRange(int i) {
 	return range;
 }
 
-int MultiRangeArray::changeType(int newSize) {
+int32_t MultiRangeArray::changeType(int32_t newSize) {
 
 	if (!numElements) {
 		elementSize = newSize;
@@ -56,13 +56,13 @@ int MultiRangeArray::changeType(int newSize) {
 
 	MultiRangeArray newArray;
 	newArray.elementSize = newSize;
-	int error = newArray.insertAtIndex(0, numElements);
+	int32_t error = newArray.insertAtIndex(0, numElements);
 	if (error) {
 		return error;
 	}
 
 	// We're changing range types, but want to preserve their topNotes.
-	for (int i = 0; i < numElements; i++) {
+	for (int32_t i = 0; i < numElements; i++) {
 		MultiRange* oldRange = (MultiRange*)getElementAddress(i);
 		void* newMemory = newArray.getElementAddress(i);
 

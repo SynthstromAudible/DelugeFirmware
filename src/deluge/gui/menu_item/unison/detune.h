@@ -15,22 +15,22 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "model/model_stack.h"
 #include "gui/menu_item/integer.h"
 #include "gui/ui/sound_editor.h"
+#include "model/model_stack.h"
 #include "processing/sound/sound.h"
 
-namespace menu_item::unison {
+namespace deluge::gui::menu_item::unison {
 class Detune final : public Integer {
 public:
 	using Integer::Integer;
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSound->unisonDetune; }
-	void writeCurrentValue() {
+	void readCurrentValue() override { this->setValue(soundEditor.currentSound->unisonDetune); }
+	void writeCurrentValue() override {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithSoundFlags* modelStack = soundEditor.getCurrentModelStack(modelStackMemory)->addSoundFlags();
 
-		soundEditor.currentSound->setUnisonDetune(soundEditor.currentValue, modelStack);
+		soundEditor.currentSound->setUnisonDetune(this->getValue(), modelStack);
 	}
-	int getMaxValue() const { return MAX_UNISON_DETUNE; }
+	[[nodiscard]] int32_t getMaxValue() const override { return kMaxUnisonDetune; }
 };
-} // namespace menu_item::unison
+} // namespace deluge::gui::menu_item::unison

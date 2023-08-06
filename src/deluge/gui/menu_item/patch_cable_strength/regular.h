@@ -15,22 +15,23 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "definitions_cxx.hpp"
 #include "gui/menu_item/patch_cable_strength.h"
 
-namespace menu_item::patch_cable_strength {
+namespace deluge::gui::menu_item::patch_cable_strength {
 
 class Regular : public PatchCableStrength {
 public:
 	using PatchCableStrength::PatchCableStrength;
 
 	ParamDescriptor getDestinationDescriptor() final;
-	uint8_t getS() final;
+	PatchSource getS() final;
 	ParamDescriptor getLearningThing() final;
-	int checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange);
-	uint8_t shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour);
-	MenuItem* patchingSourceShortcutPress(int s, bool previousPressStillActive);
+	MenuPermission checkPermissionToBeginSession(Sound* sound, int32_t whichThing, MultiRange** currentRange) override;
+	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) override;
+	MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive) override;
 	MenuItem* selectButtonPress() final;
 };
 
 extern Regular regularMenu;
-} // namespace menu_item::patch_cable_strength
+} // namespace deluge::gui::menu_item::patch_cable_strength

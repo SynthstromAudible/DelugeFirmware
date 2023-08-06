@@ -1,0 +1,4 @@
+#pragma once
+
+
+constexpr char const * kFirmwareVersionString = "@BUILD_VERSION_STRING@";

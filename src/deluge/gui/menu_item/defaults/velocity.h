@@ -15,21 +15,21 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "storage/flash_storage.h"
-#include "model/song/song.h"
-#include "gui/ui/sound_editor.h"
 #include "gui/menu_item/integer.h"
+#include "gui/ui/sound_editor.h"
+#include "model/song/song.h"
+#include "storage/flash_storage.h"
 
-namespace menu_item::defaults {
+namespace deluge::gui::menu_item::defaults {
 class Velocity final : public Integer {
 public:
 	using Integer::Integer;
-	int getMinValue() const { return 1; }
-	int getMaxValue() const { return 127; }
-	void readCurrentValue() { soundEditor.currentValue = FlashStorage::defaultVelocity; }
-	void writeCurrentValue() {
-		FlashStorage::defaultVelocity = soundEditor.currentValue;
+	[[nodiscard]] int32_t getMinValue() const override { return 1; }
+	[[nodiscard]] int32_t getMaxValue() const override { return 127; }
+	void readCurrentValue() override { this->setValue(FlashStorage::defaultVelocity); }
+	void writeCurrentValue() override {
+		FlashStorage::defaultVelocity = this->getValue();
 		currentSong->setDefaultVelocityForAllInstruments(FlashStorage::defaultVelocity);
 	}
 };
-} // namespace menu_item::defaults
+} // namespace deluge::gui::menu_item::defaults

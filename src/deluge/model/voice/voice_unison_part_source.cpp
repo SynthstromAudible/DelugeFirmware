@@ -15,17 +15,17 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "processing/engines/audio_engine.h"
-#include "model/voice/voice_sample_playback_guide.h"
 #include "model/voice/voice_unison_part_source.h"
-#include "model/sample/sample_cache.h"
-#include "model/voice/voice.h"
-#include "processing/source.h"
-#include "model/voice/voice_sample.h"
-#include "storage/multi_range/multisample_range.h"
 #include "memory/general_memory_allocator.h"
-#include "playback/playback_handler.h"
+#include "model/sample/sample_cache.h"
 #include "model/song/song.h"
+#include "model/voice/voice.h"
+#include "model/voice/voice_sample.h"
+#include "model/voice/voice_sample_playback_guide.h"
+#include "playback/playback_handler.h"
+#include "processing/engines/audio_engine.h"
+#include "processing/source.h"
+#include "storage/multi_range/multisample_range.h"
 
 VoiceUnisonPartSource::VoiceUnisonPartSource() {
 	voiceSample = NULL;
@@ -33,9 +33,9 @@ VoiceUnisonPartSource::VoiceUnisonPartSource() {
 }
 
 bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlaybackGuide* guide, uint32_t samplesLate,
-                                   uint32_t oscRetriggerPhase, bool resetEverything, uint8_t synthMode) {
+                                   uint32_t oscRetriggerPhase, bool resetEverything, SynthMode synthMode) {
 
-	if (synthMode != SYNTH_MODE_FM && source->oscType == OSC_TYPE_SAMPLE) {
+	if (synthMode != SynthMode::FM && source->oscType == OscType::SAMPLE) {
 
 		if (!guide->audioFileHolder || !guide->audioFileHolder->audioFile
 		    || ((Sample*)guide->audioFileHolder->audioFile)->unplayable) {
@@ -55,9 +55,9 @@ bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlay
 		return voiceSample->setupClusersForInitialPlay(guide, (Sample*)guide->audioFileHolder->audioFile, 0, false, 1);
 	}
 
-	if (synthMode != SYNTH_MODE_FM
-	    && (source->oscType == OSC_TYPE_SAMPLE || source->oscType == OSC_TYPE_INPUT_L
-	        || source->oscType == OSC_TYPE_INPUT_R || source->oscType == OSC_TYPE_INPUT_STEREO)) {
+	if (synthMode != SynthMode::FM
+	    && (source->oscType == OscType::SAMPLE || source->oscType == OscType::INPUT_L
+	        || source->oscType == OscType::INPUT_R || source->oscType == OscType::INPUT_STEREO)) {
 		//oscPos = 0;
 	}
 	else {
@@ -82,7 +82,7 @@ void VoiceUnisonPartSource::unassign() {
 	}
 
 	if (livePitchShifter) {
-		generalMemoryAllocator.dealloc(livePitchShifter);
+		GeneralMemoryAllocator::get().dealloc(livePitchShifter);
 		livePitchShifter = NULL;
 	}
 }

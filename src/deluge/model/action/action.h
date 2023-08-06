@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
+#include <cstdint>
 
 class Consequence;
 class InstrumentClip;
@@ -70,38 +70,40 @@ class ModelStack;
 
 class Action {
 public:
-	Action(int newActionType);
+	Action(int32_t newActionType);
 	void addConsequence(Consequence* consequence);
-	int revert(int time, ModelStack* modelStack);
-	bool containsConsequenceParamChange(ParamCollection* paramCollection, int paramId);
+	int32_t revert(TimeType time, ModelStack* modelStack);
+	bool containsConsequenceParamChange(ParamCollection* paramCollection, int32_t paramId);
 	void recordParamChangeIfNotAlreadySnapshotted(ModelStackWithAutoParam const* modelStack, bool stealData = false);
 	void recordParamChangeDefinitely(ModelStackWithAutoParam const* modelStack, bool stealData);
-	int recordNoteArrayChangeIfNotAlreadySnapshotted(InstrumentClip* clip, int noteRowId, NoteVector* noteVector,
-	                                                 bool stealData, bool moveToFrontIfAlreadySnapshotted = false);
-	int recordNoteArrayChangeDefinitely(InstrumentClip* clip, int noteRowId, NoteVector* noteVector, bool stealData);
-	bool containsConsequenceNoteArrayChange(InstrumentClip* clip, int noteRowId, bool moveToFrontIfFound = false);
-	void recordNoteExistenceChange(InstrumentClip* clip, int noteRowId, Note* note, int type);
-	void recordNoteChange(InstrumentClip* clip, int noteRowId, Note* note, int32_t lengthAfter, int velocityAfter,
-	                      int probabilityAfter);
+	int32_t recordNoteArrayChangeIfNotAlreadySnapshotted(InstrumentClip* clip, int32_t noteRowId,
+	                                                     NoteVector* noteVector, bool stealData,
+	                                                     bool moveToFrontIfAlreadySnapshotted = false);
+	int32_t recordNoteArrayChangeDefinitely(InstrumentClip* clip, int32_t noteRowId, NoteVector* noteVector,
+	                                        bool stealData);
+	bool containsConsequenceNoteArrayChange(InstrumentClip* clip, int32_t noteRowId, bool moveToFrontIfFound = false);
+	void recordNoteExistenceChange(InstrumentClip* clip, int32_t noteRowId, Note* note, ExistenceChangeType type);
+	void recordNoteChange(InstrumentClip* clip, int32_t noteRowId, Note* note, int32_t lengthAfter,
+	                      int32_t velocityAfter, int32_t probabilityAfter);
 	void updateYScrollClipViewAfter(InstrumentClip* clip = NULL);
-	void recordClipInstanceExistenceChange(Output* output, ClipInstance* clipInstance, int type);
-	void prepareForDestruction(int whichQueueActionIn, Song* song);
+	void recordClipInstanceExistenceChange(Output* output, ClipInstance* clipInstance, ExistenceChangeType type);
+	void prepareForDestruction(int32_t whichQueueActionIn, Song* song);
 	void recordClipLengthChange(Clip* clip, int32_t oldLength);
-	bool recordClipExistenceChange(Song* song, ClipArray* clipArray, Clip* clip, int type);
+	bool recordClipExistenceChange(Song* song, ClipArray* clipArray, Clip* clip, ExistenceChangeType type);
 	void recordAudioClipSampleChange(AudioClip* clip);
-	void deleteAllConsequences(int whichQueueActionIn, Song* song, bool destructing = false);
+	void deleteAllConsequences(int32_t whichQueueActionIn, Song* song, bool destructing = false);
 
 	uint8_t type;
 	bool openForAdditions;
 
 	// A bunch of snapshot-things here store their state both before or after the action - because the action could have changed these
-	int xScrollClip[2];
-	int yScrollSongView[2];
-	int xZoomClip[2];
+	int32_t xScrollClip[2];
+	int32_t yScrollSongView[2];
+	int32_t xZoomClip[2];
 
-	int xScrollArranger[2];
-	int yScrollArranger[2];
-	int xZoomArranger[2];
+	int32_t xScrollArranger[2];
+	int32_t yScrollArranger[2];
+	int32_t xZoomArranger[2];
 
 	uint8_t modeNotes[2][12];
 	uint8_t numModeNotes[2];
@@ -132,7 +134,7 @@ public:
 
 	uint32_t creationTime;
 
-	int numClipStates;
+	int32_t numClipStates;
 
 	int8_t offset; // Recorded for the purpose of knowing when we can do those "partial undos"
 

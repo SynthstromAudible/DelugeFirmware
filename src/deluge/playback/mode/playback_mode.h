@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
+#include <cstdint>
 
 class Song;
 class StereoSample;
@@ -35,8 +35,8 @@ public:
 
 	virtual void setupPlayback() = 0; // Call this *before* resetPlayPos
 	virtual bool endPlayback() = 0;   // Returns whether to do an instant song swap
-	virtual void doTickForward(int posIncrement) = 0;
-	virtual void resetPlayPos(int32_t newPos, bool doingComplete = true, int buttonPressLatency = 0) = 0;
+	virtual void doTickForward(int32_t posIncrement) = 0;
+	virtual void resetPlayPos(int32_t newPos, bool doingComplete = true, int32_t buttonPressLatency = 0) = 0;
 	virtual void resyncToSongTicks(Song* song) = 0;
 	virtual void reversionDone() = 0; // This is only to be called if playbackHandler.isEitherClockActive()
 	virtual bool isOutputAvailable(Output* output) = 0;

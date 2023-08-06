@@ -17,23 +17,24 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "model/consequence/consequence.h"
-#include "RZA1/system/r_typedefs.h"
+#include <cstdint>
 
 class Note;
 
 class ConsequenceNoteExistence final : public Consequence {
 public:
-	ConsequenceNoteExistence(InstrumentClip* newClip, int newNoteRowId, Note* note, int newType);
-	int revert(int time, ModelStack* modelStack);
+	ConsequenceNoteExistence(InstrumentClip* newClip, int32_t newNoteRowId, Note* note, ExistenceChangeType newType);
+	int32_t revert(TimeType time, ModelStack* modelStack);
 
 	InstrumentClip* clip;
-	int noteRowId;
-	int pos;
-	int length;
+	int32_t noteRowId;
+	int32_t pos;
+	int32_t length;
 	int8_t velocity;
 	int8_t probability;
 	uint8_t lift;
 
-	uint8_t type;
+	ExistenceChangeType type;
 };

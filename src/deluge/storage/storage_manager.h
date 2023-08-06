@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "definitions.h"
-#include "RZA1/system/r_typedefs.h"
+#include "definitions_cxx.hpp"
+#include <cstdint>
 
 extern "C" {
 #include "fatfs/ff.h"
@@ -51,7 +51,7 @@ public:
 
 	void writeAttribute(char const* name, int32_t number, bool onNewLine = true);
 	void writeAttribute(char const* name, char const* value, bool onNewLine = true);
-	void writeAttributeHex(char const* name, int32_t number, int numChars, bool onNewLine = true);
+	void writeAttributeHex(char const* name, int32_t number, int32_t numChars, bool onNewLine = true);
 	void writeTag(char const* tag, int32_t number);
 	void writeTag(char const* tag, char const* contents);
 	void writeOpeningTag(char const* tag, bool startNewLineAfter = true);
@@ -64,44 +64,45 @@ public:
 	void exitTag(char const* exitTagName = NULL);
 	char const* readTagOrAttributeValue();
 
-	int createFile(FIL* file, char const* filePath, bool mayOverwrite);
-	int createXMLFile(char const* pathName, bool mayOverwrite = false);
-	int openXMLFile(FilePointer* filePointer, char const* firstTagName, char const* altTagName = "",
-	                bool ignoreIncorrectFirmware = false);
+	int32_t createFile(FIL* file, char const* filePath, bool mayOverwrite);
+	int32_t createXMLFile(char const* pathName, bool mayOverwrite = false);
+	int32_t openXMLFile(FilePointer* filePointer, char const* firstTagName, char const* altTagName = "",
+	                    bool ignoreIncorrectFirmware = false);
 	bool prepareToReadTagOrAttributeValueOneCharAtATime();
 	char readNextCharOfTagOrAttributeValue();
-	char const* readNextCharsOfTagOrAttributeValue(int numChars);
+	char const* readNextCharsOfTagOrAttributeValue(int32_t numChars);
 	void readMidiCommand(uint8_t* channel, uint8_t* note = NULL);
-	int initSD();
+	int32_t initSD();
 	bool closeFile();
-	int closeFileAfterWriting(char const* path = NULL, char const* beginningString = NULL,
-	                          char const* endString = NULL);
+	int32_t closeFileAfterWriting(char const* path = NULL, char const* beginningString = NULL,
+	                              char const* endString = NULL);
 	uint32_t readCharXML(char* thisChar);
 	void write(char const* output);
 	bool lseek(uint32_t pos);
 	bool fileExists(char const* pathName);
 	bool fileExists(char const* pathName, FilePointer* fp);
-	int openInstrumentFile(int instrumentType, FilePointer* filePointer);
+	int32_t openInstrumentFile(InstrumentType instrumentType, FilePointer* filePointer);
 	void writeFirmwareVersion();
 	bool checkSDPresent();
 	bool checkSDInitialized();
 	bool readXMLFileCluster();
-	int getNumCharsRemainingInValue();
-	Instrument* createNewInstrument(uint8_t newInstrumentType, ParamManager* getParamManager = NULL);
-	int loadInstrumentFromFile(Song* song, InstrumentClip* clip, int instrumentType, bool mayReadSamplesFromFiles,
-	                           Instrument** getInstrument, FilePointer* filePointer, String* name, String* dirPath);
-	Instrument* createNewNonAudioInstrument(int instrumentType, int slot, int subSlot);
+	int32_t getNumCharsRemainingInValue();
+	Instrument* createNewInstrument(InstrumentType newInstrumentType, ParamManager* getParamManager = NULL);
+	int32_t loadInstrumentFromFile(Song* song, InstrumentClip* clip, InstrumentType instrumentType,
+	                               bool mayReadSamplesFromFiles, Instrument** getInstrument, FilePointer* filePointer,
+	                               String* name, String* dirPath);
+	Instrument* createNewNonAudioInstrument(InstrumentType instrumentType, int32_t slot, int32_t subSlot);
 	void writeEarliestCompatibleFirmwareVersion(char const* versionString);
-	int readMIDIParamFromFile(int32_t readAutomationUpToPos, MIDIParamCollection* midiParamCollection,
-	                          int8_t* getCC = NULL);
-	Drum* createNewDrum(int drumType);
+	int32_t readMIDIParamFromFile(int32_t readAutomationUpToPos, MIDIParamCollection* midiParamCollection,
+	                              int8_t* getCC = NULL);
+	Drum* createNewDrum(DrumType drumType);
 	void openFilePointer(FilePointer* fp);
-	int tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware = false);
+	int32_t tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware = false);
 	int32_t readTagOrAttributeValueInt();
-	int32_t readTagOrAttributeValueHex(int errorValue);
+	int32_t readTagOrAttributeValueHex(int32_t errorValue);
 
-	int readTagOrAttributeValueString(String* string);
-	int checkSpaceOnCard();
+	int32_t readTagOrAttributeValueString(String* string);
+	int32_t checkSpaceOnCard();
 
 	SyncType readSyncTypeFromFile(Song* song);
 	void writeSyncTypeToFile(Song* song, char const* name, SyncType value, bool onNewLine = true);
@@ -110,30 +111,31 @@ public:
 
 	bool fileAccessFailedDuring;
 
-	int firmwareVersionOfFileBeingRead;
+	int32_t firmwareVersionOfFileBeingRead;
 
 	char* fileClusterBuffer;
 	UINT currentReadBufferEndPos;
-	int fileBufferCurrentPos;
+	int32_t fileBufferCurrentPos;
 
-	int fileTotalBytesWritten;
+	int32_t fileTotalBytesWritten;
 
-	int devVarA;
-	int devVarB;
-	int devVarC;
-	int devVarD;
-	int devVarE;
-	int devVarF;
-	int devVarG;
+	int32_t devVarA;
+	int32_t devVarB;
+	int32_t devVarC;
+	int32_t devVarD;
+	int32_t devVarE;
+	int32_t devVarF;
+	int32_t devVarG;
 
 private:
 	uint8_t indentAmount;
 
 	uint8_t xmlArea;
 	bool xmlReachedEnd;
-	int tagDepthCaller; // How deeply indented in XML the main Deluge classes think we are, as data being read.
-	int tagDepthFile; // Will temporarily be different to the above as unwanted / unused XML tags parsed on the way to finding next useful data.
-	int xmlReadCount;
+	int32_t tagDepthCaller; // How deeply indented in XML the main Deluge classes think we are, as data being read.
+	int32_t
+	    tagDepthFile; // Will temporarily be different to the above as unwanted / unused XML tags parsed on the way to finding next useful data.
+	int32_t xmlReadCount;
 
 	void skipUntilChar(char endChar);
 	char const* readTagName();
@@ -144,12 +146,12 @@ private:
 	bool getIntoAttributeValue();
 	int32_t readAttributeValueInt();
 	bool readXMLFileClusterIfNecessary();
-	int readStringUntilChar(String* string, char endChar);
-	int readAttributeValueString(String* string);
+	int32_t readStringUntilChar(String* string, char endChar);
+	int32_t readAttributeValueString(String* string);
 	void restoreBackedUpCharIfNecessary();
 	void xmlReadDone();
 
-	int writeBufferToFile();
+	int32_t writeBufferToFile();
 };
 
 extern StorageManager storageManager;

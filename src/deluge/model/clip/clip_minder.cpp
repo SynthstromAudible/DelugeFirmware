@@ -16,10 +16,11 @@
 */
 
 #include "model/clip/clip_minder.h"
-#include "model/song/song.h"
+#include "definitions_cxx.hpp"
 #include "gui/views/view.h"
 #include "model/clip/clip.h"
+#include "model/song/song.h"
 
-int ClipMinder::buttonAction(hid::Button b, bool on) {
-	return ACTION_RESULT_NOT_DEALT_WITH;
+ActionResult ClipMinder::buttonAction(hid::Button b, bool on) {
+	return ActionResult::NOT_DEALT_WITH;
 }

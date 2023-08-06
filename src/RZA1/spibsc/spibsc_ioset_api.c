@@ -36,9 +36,9 @@
 /******************************************************************************
 Includes <System Includes> , "Project Includes"
 ******************************************************************************/
-#include "RZA1/system/r_typedefs.h"
-#include "RZA1/spibsc/spibsc.h"
 #include "RZA1/spibsc/r_spibsc_ioset_api.h"
+#include "RZA1/spibsc/spibsc.h"
+#include "RZA1/system/r_typedefs.h"
 
 //#pragma arm section code   = "CODE_SPIBSC_INIT2"
 //#pragma arm section rodata = "CONST_SPIBSC_INIT2"

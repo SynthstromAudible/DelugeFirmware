@@ -16,17 +16,17 @@
 */
 
 #include "model/instrument/cv_instrument.h"
-#include "processing/engines/cv_engine.h"
-#include "storage/storage_manager.h"
-#include <string.h>
-#include "util/functions.h"
-#include "storage/flash_storage.h"
-#include "modulation/params/param_set.h"
-#include "modulation/params/param_manager.h"
 #include "model/model_stack.h"
 #include "model/timeline_counter.h"
+#include "modulation/params/param_manager.h"
+#include "modulation/params/param_set.h"
+#include "processing/engines/cv_engine.h"
+#include "storage/flash_storage.h"
+#include "storage/storage_manager.h"
+#include "util/functions.h"
+#include <string.h>
 
-CVInstrument::CVInstrument() : NonAudioInstrument(INSTRUMENT_TYPE_CV) {
+CVInstrument::CVInstrument() : NonAudioInstrument(InstrumentType::CV) {
 	monophonicPitchBendValue = 0;
 	polyPitchBendValue = 0;
 
@@ -34,7 +34,7 @@ CVInstrument::CVInstrument() : NonAudioInstrument(INSTRUMENT_TYPE_CV) {
 	cachedBendRanges[BEND_RANGE_FINGER_LEVEL] = FlashStorage::defaultBendRange[BEND_RANGE_FINGER_LEVEL];
 }
 
-void CVInstrument::noteOnPostArp(int noteCodePostArp, ArpNote* arpNote) {
+void CVInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) {
 	// First update pitch bend for the new note
 	polyPitchBendValue = (int32_t)arpNote->mpeValues[0] << 16;
 	updatePitchBendOutput(false);
@@ -42,12 +42,12 @@ void CVInstrument::noteOnPostArp(int noteCodePostArp, ArpNote* arpNote) {
 	cvEngine.sendNote(true, channel, noteCodePostArp);
 }
 
-void CVInstrument::noteOffPostArp(int noteCodePostArp, int oldMIDIChannel, int velocity) {
+void CVInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldMIDIChannel, int32_t velocity) {
 	cvEngine.sendNote(false, channel, noteCodePostArp);
 }
 
-void CVInstrument::polyphonicExpressionEventPostArpeggiator(int newValue, int noteCodeAfterArpeggiation,
-                                                            int whichExpressionDimension, ArpNote* arpNote) {
+void CVInstrument::polyphonicExpressionEventPostArpeggiator(int32_t newValue, int32_t noteCodeAfterArpeggiation,
+                                                            int32_t whichExpressionDimension, ArpNote* arpNote) {
 	if (!whichExpressionDimension) { // Pitch bend only
 		if (cvEngine.isNoteOn(channel, noteCodeAfterArpeggiation)) {
 			polyPitchBendValue = newValue;
@@ -56,7 +56,7 @@ void CVInstrument::polyphonicExpressionEventPostArpeggiator(int newValue, int no
 	}
 }
 
-void CVInstrument::monophonicExpressionEvent(int newValue, int whichExpressionDimension) {
+void CVInstrument::monophonicExpressionEvent(int32_t newValue, int32_t whichExpressionDimension) {
 	if (!whichExpressionDimension) { // Pitch bend only
 		monophonicPitchBendValue = newValue;
 		updatePitchBendOutput();
@@ -97,7 +97,7 @@ bool CVInstrument::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 	return true;
 }
 
-bool CVInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMIDIPGMs) {
+bool CVInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) {
 	bool clipChanged = NonAudioInstrument::setActiveClip(modelStack, maySendMIDIPGMs);
 
 	if (clipChanged) {

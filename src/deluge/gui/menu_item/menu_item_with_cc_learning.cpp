@@ -15,12 +15,12 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "processing/sound/sound.h"
 #include "menu_item_with_cc_learning.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/numeric_driver.h"
 #include "gui/views/view.h"
+#include "hid/display/numeric_driver.h"
 #include "model/song/song.h"
+#include "processing/sound/sound.h"
 
 void MenuItemWithCCLearning::unlearnAction() {
 
@@ -38,7 +38,8 @@ void MenuItemWithCCLearning::unlearnAction() {
 	}
 }
 
-void MenuItemWithCCLearning::learnKnob(MIDIDevice* fromDevice, int whichKnob, int modKnobMode, int midiChannel) {
+void MenuItemWithCCLearning::learnKnob(MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode,
+                                       int32_t midiChannel) {
 	ParamDescriptor paramDescriptor = getLearningThing();
 
 	bool success = soundEditor.currentModControllable->learnKnob(fromDevice, paramDescriptor, whichKnob, modKnobMode,

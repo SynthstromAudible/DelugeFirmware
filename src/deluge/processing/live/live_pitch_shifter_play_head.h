@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 
 typedef __simd64_int16_t int16x4_t;
 
@@ -31,29 +31,29 @@ class LivePitchShifterPlayHead {
 public:
 	LivePitchShifterPlayHead();
 	~LivePitchShifterPlayHead();
-	void render(int32_t* outputBuffer, int numSamples, int numChannels, int32_t phaseIncrement, int32_t amplitude,
-	            int32_t amplitudeIncrement, int32_t* repitchedBuffer, int32_t* rawBuffer, int whichKernel,
-	            int interpolationBufferSize);
-	int getEstimatedPlaytimeRemaining(uint32_t repitchedBufferWritePos, LiveInputBuffer* liveInputBuffer,
-	                                  int32_t phaseIncrement);
+	void render(int32_t* outputBuffer, int32_t numSamples, int32_t numChannels, int32_t phaseIncrement,
+	            int32_t amplitude, int32_t amplitudeIncrement, int32_t* repitchedBuffer, int32_t* rawBuffer,
+	            int32_t whichKernel, int32_t interpolationBufferSize);
+	int32_t getEstimatedPlaytimeRemaining(uint32_t repitchedBufferWritePos, LiveInputBuffer* liveInputBuffer,
+	                                      int32_t phaseIncrement);
 
-	int getNumRawSamplesBehindInput(LiveInputBuffer* liveInputBuffer, LivePitchShifter* livePitchShifter,
-	                                int32_t phaseIncrement);
+	int32_t getNumRawSamplesBehindInput(LiveInputBuffer* liveInputBuffer, LivePitchShifter* livePitchShifter,
+	                                    int32_t phaseIncrement);
 
-	void fillInterpolationBuffer(LiveInputBuffer* liveInputBuffer, int numChannels);
+	void fillInterpolationBuffer(LiveInputBuffer* liveInputBuffer, int32_t numChannels);
 
 	uint8_t mode;
 #if INPUT_ENABLE_REPITCHED_BUFFER
-	int repitchedBufferReadPos;
+	int32_t repitchedBufferReadPos;
 #endif
-	int rawBufferReadPos;
+	int32_t rawBufferReadPos;
 	uint32_t oscPos;
 
-	int16x4_t interpolationBuffer[2][INTERPOLATION_MAX_NUM_SAMPLES >> 2];
+	int16x4_t interpolationBuffer[2][kInterpolationMaxNumSamples >> 2];
 
 	uint32_t percPos;
 
 private:
-	void interpolate(int32_t* sampleRead, int numChannelsNow, int whichKernel);
-	void interpolateLinear(int32_t* sampleRead, int numChannelsNow, int whichKernel);
+	void interpolate(int32_t* sampleRead, int32_t numChannelsNow, int32_t whichKernel);
+	void interpolateLinear(int32_t* sampleRead, int32_t numChannelsNow, int32_t whichKernel);
 };

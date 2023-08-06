@@ -19,7 +19,7 @@
 
 #include "util/lookuptables/lookuptables.h"
 #include "util/functions.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 
 const uint16_t centAdjustTableSmall[257] = {
 31835, 31842, 31850, 31857, 31864, 31871, 31878, 31885, 31893, 31900, 31907, 31914, 31921, 31929, 31936, 31943,
@@ -182,7 +182,7 @@ const int16_t tanHSmall[] = {
 32767, };
 
 
-const char* presetScaleNames[] = {"MAJOR", "MINOR", "DORIAN", "PHRYGIAN", "LYDIAN", "MIXOLYDIAN", "LOCRIAN", "RANDOM", "NONE", NULL};
+std::array<char const*, 9> presetScaleNames = {"MAJOR", "MINOR", "DORIAN", "PHRYGIAN", "LYDIAN", "MIXOLYDIAN", "LOCRIAN", "RANDOM", "NONE"};
 
 #if HAVE_OLED
 const char* presetReverbNames[] = {"Small room reverb", "Medium room reverb", "Large room reverb", NULL};

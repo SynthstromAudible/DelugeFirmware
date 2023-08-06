@@ -19,9 +19,9 @@
 
 #ifdef __cplusplus
 
-#include "playback/playback_handler.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "io/midi/learned_midi.h"
+#include "playback/playback_handler.h"
 
 class MIDIDevice;
 
@@ -29,40 +29,44 @@ class MidiEngine {
 public:
 	MidiEngine();
 
-	void sendNote(bool on, int note, uint8_t velocity, uint8_t channel, int filter);
-	void sendCC(int channel, int cc, int value, int filter);
+	void sendNote(bool on, int32_t note, uint8_t velocity, uint8_t channel, int32_t filter);
+	void sendCC(int32_t channel, int32_t cc, int32_t value, int32_t filter);
 	bool checkIncomingSerialMidi();
 	void checkIncomingUsbMidi();
 
-	void checkIncomingUsbSysex(uint8_t const* message, int ip, int d, int cable);
+	void checkIncomingUsbSysex(uint8_t const* message, int32_t ip, int32_t d, int32_t cable);
 
 	void sendMidi(uint8_t statusType, uint8_t channel, uint8_t data1 = 0, uint8_t data2 = 0,
-	              int filter = MIDI_OUTPUT_FILTER_NO_MPE, bool sendUSB = true);
-	void sendClock(bool sendUSB = true, int howMany = 1);
+	              int32_t filter = kMIDIOutputFilterNoMPE, bool sendUSB = true);
+	void sendClock(bool sendUSB = true, int32_t howMany = 1);
 	void sendStart();
 	void sendStop();
 	void sendPositionPointer(uint16_t positionPointer);
 	void sendContinue();
 	void flushMIDI();
-	void sendUsbMidi(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2, int filter);
+	void sendUsbMidi(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2, int32_t filter);
 
 	void sendSerialMidi(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2);
-	void sendPGMChange(int channel, int pgm, int filter);
-	void sendAllNotesOff(int channel, int filter);
-	void sendBank(int channel, int num, int filter);
-	void sendSubBank(int channel, int num, int filter);
-	void sendPitchBend(int channel, uint8_t lsbs, uint8_t msbs, int filter);
-	void sendChannelAftertouch(int channel, uint8_t value, int filter);
-	void sendPolyphonicAftertouch(int channel, uint8_t value, uint8_t noteCode, int filter);
+	void sendPGMChange(int32_t channel, int32_t pgm, int32_t filter);
+	void sendAllNotesOff(int32_t channel, int32_t filter);
+	void sendBank(int32_t channel, int32_t num, int32_t filter);
+	void sendSubBank(int32_t channel, int32_t num, int32_t filter);
+	void sendPitchBend(int32_t channel, uint8_t lsbs, uint8_t msbs, int32_t filter);
+	void sendChannelAftertouch(int32_t channel, uint8_t value, int32_t filter);
+	void sendPolyphonicAftertouch(int32_t channel, uint8_t value, uint8_t noteCode, int32_t filter);
 	bool anythingInOutputBuffer();
-	void setupUSBHostReceiveTransfer(int ip, int midiDeviceNum);
+	void setupUSBHostReceiveTransfer(int32_t ip, int32_t midiDeviceNum);
 	void flushUSBMIDIOutput();
 
-	LearnedMIDI globalMIDICommands
-	    [NUM_GLOBAL_MIDI_COMMANDS]; // If bit "16" (actually bit 4) is 1, this is a program change. (Wait, still?)
+	// If bit "16" (actually bit 4) is 1, this is a program change. (Wait, still?)
+	LearnedMIDI globalMIDICommands[kNumGlobalMIDICommands];
 
 	bool midiThru;
-	uint8_t midiTakeover;
+	MIDITakeoverMode midiTakeover;
+
+	// shared buffer for formatting sysex messages.
+	// Not safe for use in interrupts.
+	uint8_t sysex_fmt_buffer[1024];
 
 private:
 	uint8_t serialMidiInput[3];
@@ -71,15 +75,17 @@ private:
 
 	bool currentlyReceivingSysExSerial;
 
-	int getMidiMessageLength(uint8_t statusuint8_t);
+	int32_t getMidiMessageLength(uint8_t statusuint8_t);
 	void midiMessageReceived(MIDIDevice* fromDevice, uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2,
 	                         uint32_t* timer = NULL);
 
-	// or midi device?? whatever makes sense for a consumer as a reply address.
-	void midiSysexReceived(MIDIDevice* device, uint8_t* data, int len);
-	int getPotentialNumConnectedUSBMIDIDevices(int ip);
+	void midiSysexReceived(MIDIDevice* device, uint8_t* data, int32_t len);
+	int32_t getPotentialNumConnectedUSBMIDIDevices(int32_t ip);
+
+	void debugSysexReceived(MIDIDevice* device, uint8_t* data, int32_t len);
 };
 
+void midiDebugPrint(MIDIDevice* device, const char* msg, bool nl);
 uint32_t setupUSBMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2);
 
 extern MidiEngine midiEngine;
@@ -89,8 +95,8 @@ extern "C" {
 #endif
 extern uint16_t g_usb_usbmode;
 
-void usbSendCompleteAsHost(int ip);       // used when deluge is in host mode
-void usbSendCompleteAsPeripheral(int ip); // used in peripheral mode
+void usbSendCompleteAsHost(int32_t ip);       // used when deluge is in host mode
+void usbSendCompleteAsPeripheral(int32_t ip); // used in peripheral mode
 #ifdef __cplusplus
 }
 #endif

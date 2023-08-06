@@ -26,16 +26,16 @@ class ClipView : public ClipNavigationTimelineView {
 public:
 	ClipView();
 
-	unsigned int getMaxZoom();
+	uint32_t getMaxZoom();
 	uint32_t getMaxLength();
-	int horizontalEncoderAction(int offset);
+	ActionResult horizontalEncoderAction(int32_t offset);
 	int32_t getLengthChopAmount(int32_t square);
 	int32_t getLengthExtendAmount(int32_t square);
 	void focusRegained();
-	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
 
 protected:
-	int getTickSquare();
+	int32_t getTickSquare();
 
 private:
 	Action* lengthenClip(int32_t newLength);

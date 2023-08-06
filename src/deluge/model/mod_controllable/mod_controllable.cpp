@@ -17,15 +17,15 @@
 
 #include "model/mod_controllable/mod_controllable.h"
 #include "model/model_stack.h"
+#include "model/timeline_counter.h"
 #include "modulation/automation/auto_param.h"
 #include "util/functions.h"
-#include "model/timeline_counter.h"
 
 ModControllable::ModControllable() {
 }
 
 // modelStack->autoParam will be NULL in this rare case!!
-int ModControllable::getKnobPosForNonExistentParam(int whichModEncoder, ModelStackWithAutoParam* modelStack) {
+int32_t ModControllable::getKnobPosForNonExistentParam(int32_t whichModEncoder, ModelStackWithAutoParam* modelStack) {
 	return -64;
 }
 
@@ -34,7 +34,7 @@ void setTheAutoParamToNull(ModelStackWithThreeMainThings* modelStack) {
 	modelStackWithAutoParam->autoParam = NULL;
 }
 
-ModelStackWithAutoParam* ModControllable::getParamFromModEncoder(int whichModEncoder,
+ModelStackWithAutoParam* ModControllable::getParamFromModEncoder(int32_t whichModEncoder,
                                                                  ModelStackWithThreeMainThings* modelStack,
                                                                  bool allowCreation) {
 	setTheAutoParamToNull(modelStack);

@@ -16,14 +16,14 @@
 */
 
 #include "model/consequence/consequence_scale_add_note.h"
-#include "model/song/song.h"
 #include "model/model_stack.h"
+#include "model/song/song.h"
 
-ConsequenceScaleAddNote::ConsequenceScaleAddNote(int newNoteWithinOctave) {
+ConsequenceScaleAddNote::ConsequenceScaleAddNote(int32_t newNoteWithinOctave) {
 	noteWithinOctave = newNoteWithinOctave;
 }
 
-int ConsequenceScaleAddNote::revert(int time, ModelStack* modelStack) {
+int32_t ConsequenceScaleAddNote::revert(TimeType time, ModelStack* modelStack) {
 
 	// The only thing we actually have to do is delete any NoteRows that had the new yNoteWithinOctave.
 	// The changing back of the scale itself is handled by the Action, which

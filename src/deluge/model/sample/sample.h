@@ -17,14 +17,14 @@
 
 #pragma once
 
-#include "model/sample/sample_cluster.h"
-#include "util/functions.h"
-#include "util/container/array/ordered_resizeable_array_with_multi_word_key.h"
-#include "util/container/array/ordered_resizeable_array.h"
 #include "NE10_types.h"
-#include "util/d_string.h"
+#include "model/sample/sample_cluster.h"
 #include "model/sample/sample_cluster_array.h"
 #include "storage/audio/audio_file.h"
+#include "util/container/array/ordered_resizeable_array.h"
+#include "util/container/array/ordered_resizeable_array_with_multi_word_key.h"
+#include "util/d_string.h"
+#include "util/functions.h"
 
 #define SAMPLE_DO_LOCKS (ALPHA_OR_BETA_VERSION)
 
@@ -50,7 +50,7 @@ public:
 	~Sample();
 
 	void workOutBitMask();
-	int initialize(int numClusters);
+	int32_t initialize(int32_t numClusters);
 	void markAsUnloadable();
 	float determinePitch(bool doingSingleCycle, float minFreqHz, float maxFreqHz, bool doPrimeTest);
 	void workOutMIDINote(bool doingSingleCycle, float minFreqHz = 20, float maxFreqHz = 10000, bool doPrimeTest = true);
@@ -58,16 +58,16 @@ public:
 	SampleCache* getOrCreateCache(SampleHolder* sampleHolder, int32_t phaseIncrement, int32_t timeStretchRatio,
 	                              bool reversed, bool mayCreate, bool* created);
 	void deleteCache(SampleCache* cache);
-	int getFirstClusterIndexWithAudioData();
-	int getFirstClusterIndexWithNoAudioData();
-	int fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSamples, int32_t endPosSamples, int playDirection,
-	                  int maxNumSamplesToProcess);
+	int32_t getFirstClusterIndexWithAudioData();
+	int32_t getFirstClusterIndexWithNoAudioData();
+	int32_t fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSamples, int32_t endPosSamples,
+	                      int32_t playDirection, int32_t maxNumSamplesToProcess);
 	void percCacheClusterStolen(Cluster* cluster);
 	void deletePercCache(bool beingDestructed = false);
-	uint8_t* prepareToReadPercCache(int pixellatedPos, int playDirection, int* earliestPixellatedPos,
-	                                int* latestPixellatedPos);
-	bool getAveragesForCrossfade(int32_t* totals, int startBytePos, int crossfadeLengthSamples, int playDirection,
-	                             int lengthToAverageEach);
+	uint8_t* prepareToReadPercCache(int32_t pixellatedPos, int32_t playDirection, int32_t* earliestPixellatedPos,
+	                                int32_t* latestPixellatedPos);
+	bool getAveragesForCrossfade(int32_t* totals, int32_t startBytePos, int32_t crossfadeLengthSamples,
+	                             int32_t playDirection, int32_t lengthToAverageEach);
 	void convertDataOnAnyClustersIfNecessary();
 	int32_t getMaxPeakFromZero();
 	int32_t getFoundValueCentrePoint();
@@ -132,7 +132,7 @@ public:
 	OrderedResizeableArrayWith32bitKey percCacheZones[2]; // One for each play-direction: 0=forwards; 1=reversed
 
 	Cluster** percCacheClusters[2]; // One for each play-direction: 0=forwards; 1=reversed
-	int numPercCacheClusters;
+	int32_t numPercCacheClusters;
 
 	int32_t beginningOffsetForPitchDetection;
 	bool beginningOffsetForPitchDetectionFound;
@@ -147,7 +147,7 @@ protected:
 #endif
 
 private:
-	int investigateFundamentalPitch(int fundamentalIndexProvided, int tableSize, int32_t* heightTable,
-	                                uint64_t* sumTable, float* floatIndexTable, float* getFreq, int numDoublings,
-	                                bool doPrimeTest);
+	int32_t investigateFundamentalPitch(int32_t fundamentalIndexProvided, int32_t tableSize, int32_t* heightTable,
+	                                    uint64_t* sumTable, float* floatIndexTable, float* getFreq,
+	                                    int32_t numDoublings, bool doPrimeTest);
 };

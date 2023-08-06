@@ -15,14 +15,14 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "model/sample/sample_cluster.h"
+#include "hid/display/numeric_driver.h"
+#include "io/debug/print.h"
+#include "memory/general_memory_allocator.h"
+#include "model/sample/sample.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
-#include "model/sample/sample_cluster.h"
-#include "io/uart/uart.h"
 #include "util/functions.h"
-#include "model/sample/sample.h"
-#include "hid/display/numeric_driver.h"
-#include "memory/general_memory_allocator.h"
 
 SampleCluster::SampleCluster() {
 	cluster = NULL;
@@ -37,14 +37,14 @@ SampleCluster::~SampleCluster() {
 	if (cluster) {
 
 #if ALPHA_OR_BETA_VERSION
-		int numReasonsToBeLoaded = cluster->numReasonsToBeLoaded;
+		int32_t numReasonsToBeLoaded = cluster->numReasonsToBeLoaded;
 		if (cluster == audioFileManager.clusterBeingLoaded) {
 			numReasonsToBeLoaded--;
 		}
 
 		if (numReasonsToBeLoaded) {
-			Uart::print("uh oh, some reasons left... ");
-			Uart::println(numReasonsToBeLoaded);
+			Debug::print("uh oh, some reasons left... ");
+			Debug::println(numReasonsToBeLoaded);
 
 			numericDriver.freezeWithError(
 			    "E036"); // Bay_Mud got this, and thinks a FlashAir card might have been a catalyst. It still "shouldn't" be able to happen though.
@@ -57,9 +57,9 @@ SampleCluster::~SampleCluster() {
 void SampleCluster::ensureNoReason(Sample* sample) {
 	if (cluster) {
 		if (cluster->numReasonsToBeLoaded) {
-			Uart::print("Cluster has reason! ");
-			Uart::println(cluster->numReasonsToBeLoaded);
-			Uart::println(sample->filePath.get());
+			Debug::print("Cluster has reason! ");
+			Debug::println(cluster->numReasonsToBeLoaded);
+			Debug::println(sample->filePath.get());
 
 			if (cluster->numReasonsToBeLoaded >= 0) {
 				numericDriver.freezeWithError("E068");
@@ -74,8 +74,8 @@ void SampleCluster::ensureNoReason(Sample* sample) {
 
 // Calling this will add a reason to the loaded Cluster!
 // priorityRating is only relevant if enqueuing.
-Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int loadInstruction, uint32_t priorityRating,
-                                   uint8_t* error) {
+Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int32_t loadInstruction,
+                                   uint32_t priorityRating, uint8_t* error) {
 
 	if (error) {
 		*error = NO_ERROR;
@@ -86,18 +86,18 @@ Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int lo
 
 		// If the file can no longer be found on the card, we're in trouble
 		if (sample->unloadable) {
-			Uart::println("unloadable");
+			Debug::println("unloadable");
 			if (error) {
 				*error = ERROR_FILE_NOT_FOUND;
 			}
 			return NULL;
 		}
 
-		//Uart::println("loading");
+		//Debug::println("loading");
 		cluster = audioFileManager.allocateCluster(); // Adds 1 reason
 
 		if (!cluster) {
-			Uart::println("couldn't allocate");
+			Debug::println("couldn't allocate");
 			if (error) {
 				*error = ERROR_INSUFFICIENT_RAM;
 			}
@@ -108,7 +108,7 @@ Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int lo
 		if (cluster->numReasonsToBeLoaded < 1) {
 			numericDriver.freezeWithError("i005"); // Diversifying Qui's E341. It should actually be exactly 1
 		}
-		if (cluster->type != CLUSTER_SAMPLE) {
+		if (cluster->type != ClusterType::Sample) {
 			numericDriver.freezeWithError("E256"); // Cos I got E236
 		}
 #endif
@@ -125,7 +125,7 @@ Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int lo
 		if (loadInstruction == CLUSTER_ENQUEUE) {
 justEnqueue:
 
-			if (ALPHA_OR_BETA_VERSION && cluster->type != CLUSTER_SAMPLE) {
+			if (ALPHA_OR_BETA_VERSION && cluster->type != ClusterType::Sample) {
 				numericDriver.freezeWithError("E236"); // Cos Chris F got an E205
 			}
 
@@ -143,7 +143,7 @@ justEnqueue:
 
 			// cluster has (at least?) one reason - added above
 
-			if (ALPHA_OR_BETA_VERSION && cluster->type != CLUSTER_SAMPLE) {
+			if (ALPHA_OR_BETA_VERSION && cluster->type != ClusterType::Sample) {
 				numericDriver.freezeWithError("E234"); // Cos Chris F got an E205
 			}
 			bool result = audioFileManager.loadCluster(cluster, 1);
@@ -190,8 +190,8 @@ justEnqueue:
 
 			// If it's still not loaded and it was a must-load-now...
 			if (loadInstruction == CLUSTER_LOAD_IMMEDIATELY && !cluster->loaded) {
-				Uart::print("hurrying loading along failed for index: ");
-				Uart::println(clusterIndex);
+				Debug::print("hurrying loading along failed for index: ");
+				Debug::println(clusterIndex);
 				if (error) {
 					*error = ERROR_UNSPECIFIED; // TODO: get actual error
 				}

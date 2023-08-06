@@ -18,13 +18,13 @@
 #include "sync_level.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/numeric_driver.h"
-#include "model/song/song.h"
 #include "hid/display/oled.h"
+#include "model/song/song.h"
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
 void SyncLevel::drawValue() {
-	if (soundEditor.currentValue == 0) {
+	if (this->getValue() == 0) {
 		numericDriver.setText("OFF");
 	}
 	else {
@@ -41,17 +41,17 @@ void SyncLevel::drawValue() {
 
 void SyncLevel::getNoteLengthName(char* buffer) {
 	char type[7] = "";
-	if (soundEditor.currentValue < SYNC_TYPE_TRIPLET) {
-		currentSong->getNoteLengthName(buffer, (uint32_t)3 << (SYNC_LEVEL_256TH - soundEditor.currentValue));
+	if (this->getValue() < SYNC_TYPE_TRIPLET) {
+		currentSong->getNoteLengthName(buffer, (uint32_t)3 << (SYNC_LEVEL_256TH - this->getValue()));
 	}
-	else if (soundEditor.currentValue < SYNC_TYPE_DOTTED) {
-		currentSong->getNoteLengthName(
-		    buffer, (uint32_t)3 << ((SYNC_TYPE_TRIPLET - 1) + SYNC_LEVEL_256TH - soundEditor.currentValue));
+	else if (this->getValue() < SYNC_TYPE_DOTTED) {
+		currentSong->getNoteLengthName(buffer,
+		                               (uint32_t)3 << ((SYNC_TYPE_TRIPLET - 1) + SYNC_LEVEL_256TH - this->getValue()));
 		strcpy(type, "-tplts");
 	}
 	else {
-		currentSong->getNoteLengthName(
-		    buffer, (uint32_t)3 << ((SYNC_TYPE_DOTTED - 1) + SYNC_LEVEL_256TH - soundEditor.currentValue));
+		currentSong->getNoteLengthName(buffer,
+		                               (uint32_t)3 << ((SYNC_TYPE_DOTTED - 1) + SYNC_LEVEL_256TH - this->getValue()));
 		strcpy(type, "-dtted");
 	}
 	if (strlen(type) > 0) {
@@ -73,16 +73,16 @@ void SyncLevel::getNoteLengthName(char* buffer) {
 void SyncLevel::drawPixelsForOled() {
 	char const* text = "Off";
 	char buffer[30];
-	if (soundEditor.currentValue) {
+	if (this->getValue()) {
 		text = buffer;
 		getNoteLengthName(buffer);
 	}
 	OLED::drawStringCentred(text, 20 + OLED_MAIN_TOPMOST_PIXEL, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
-	                        TEXT_BIG_SPACING_X, TEXT_BIG_SIZE_Y);
+	                        kTextBigSpacingX, kTextBigSizeY);
 }
 #endif
 
-SyncType SyncLevel::menuOptionToSyncType(int option) {
+SyncType SyncLevel::menuOptionToSyncType(int32_t option) {
 	if (option < SYNC_TYPE_TRIPLET) {
 		return SYNC_TYPE_EVEN;
 	}
@@ -94,7 +94,7 @@ SyncType SyncLevel::menuOptionToSyncType(int option) {
 	}
 }
 
-::SyncLevel SyncLevel::menuOptionToSyncLevel(int option) {
+::SyncLevel SyncLevel::menuOptionToSyncLevel(int32_t option) {
 	::SyncLevel level;
 	if (option < SYNC_TYPE_TRIPLET) {
 		level = static_cast<::SyncLevel>(option);
@@ -108,7 +108,7 @@ SyncType SyncLevel::menuOptionToSyncType(int option) {
 	return level;
 }
 
-int SyncLevel::syncTypeAndLevelToMenuOption(::SyncType type, ::SyncLevel level) {
-	return static_cast<int>(type) + (static_cast<int>(level) - (type != SYNC_TYPE_EVEN ? 1 : 0));
+int32_t SyncLevel::syncTypeAndLevelToMenuOption(::SyncType type, ::SyncLevel level) {
+	return static_cast<int32_t>(type) + (static_cast<int32_t>(level) - (type != SYNC_TYPE_EVEN ? 1 : 0));
 }
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

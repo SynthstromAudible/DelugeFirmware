@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
 #include "gui/context_menu/context_menu.h"
+#include <cstdint>
 
 namespace deluge::gui::context_menu {
 class SaveSongOrInstrument final : public ContextMenuForSaving {
@@ -29,7 +29,7 @@ public:
 	Sized<char const**> getOptions() override;
 	bool isCurrentOptionAvailable() override;
 
-	int padAction(int x, int y, int velocity) override;
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 
 	char const* getTitle() override;
 };

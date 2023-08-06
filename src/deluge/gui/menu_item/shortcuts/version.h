@@ -18,27 +18,17 @@
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 
-namespace menu_item::shortcuts {
-class Version final : public Selection {
+namespace deluge::gui::menu_item::shortcuts {
+class Version final : public Selection<NUM_SHORTCUTS_VERSIONS> {
 public:
 	using Selection::Selection;
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.shortcutsVersion; }
-	void writeCurrentValue() { soundEditor.setShortcutsVersion(soundEditor.currentValue); }
-	char const** getOptions() {
-		static char const* options[] = {
-#if HAVE_OLED
-			"1.0",
-			"3.0",
-			NULL
-#else
-			"  1.0",
-			"  3.0"
-#endif
+	void readCurrentValue() override { this->setValue(soundEditor.shortcutsVersion); }
+	void writeCurrentValue() override { soundEditor.setShortcutsVersion(this->getValue()); }
+	static_vector<std::string, capacity()> getOptions() override {
+		return {
+		    HAVE_OLED ? "1.0" : "  1.0", //<
+		    HAVE_OLED ? "3.0" : "  3.0", //<
 		};
-		return options;
-	}
-	int getNumOptions() {
-		return NUM_SHORTCUTS_VERSIONS;
 	}
 };
-} // namespace menu_item::shortcuts
+} // namespace deluge::gui::menu_item::shortcuts

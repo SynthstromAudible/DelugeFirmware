@@ -17,10 +17,10 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "hid/button.h"
-#include "definitions.h"
 
 class ClipMinder {
 public:
-	int buttonAction(hid::Button b, bool on);
+	ActionResult buttonAction(hid::Button b, bool on);
 };

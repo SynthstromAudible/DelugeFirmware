@@ -15,10 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "storage/cluster/cluster.h"
 #include "util/container/list/bidirectional_linked_list.h"
 #include "hid/display/numeric_driver.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
+#include "storage/cluster/cluster.h"
 
 BidirectionalLinkedList::BidirectionalLinkedList() {
 	first = &endNode;
@@ -48,9 +48,9 @@ BidirectionalLinkedListNode* BidirectionalLinkedList::getFirst() {
 	}
 }
 
-int BidirectionalLinkedList::getNum() {
+int32_t BidirectionalLinkedList::getNum() {
 	BidirectionalLinkedListNode* node = first;
-	int count = 0;
+	int32_t count = 0;
 	while (node != &endNode) {
 		node = node->next;
 		count++;
@@ -74,7 +74,7 @@ void BidirectionalLinkedList::test() {
 		numericDriver.freezeWithError("E005");
 	}
 
-	int count = 0;
+	int32_t count = 0;
 
 	BidirectionalLinkedListNode* thisNode = first;
 	BidirectionalLinkedListNode** prevPointer = &first;
@@ -103,8 +103,8 @@ void BidirectionalLinkedList::test() {
 		thisNode = thisNode->next;
 	}
 
-	Uart::print("list size: ");
-	Uart::println(count);
+	Debug::print("list size: ");
+	Debug::println(count);
 }
 
 BidirectionalLinkedListNode::BidirectionalLinkedListNode() {
@@ -133,12 +133,12 @@ void BidirectionalLinkedListNode::remove() {
 }
 
 void BidirectionalLinkedListNode::insertOtherNodeBefore(BidirectionalLinkedListNode* otherNode) {
-#if ALPHA_OR_BETA_VERSION || (CURRENT_FIRMWARE_VERSION <= FIRMWARE_4P0P0)
-	// If we're not already in a list, that means we also don't have a valid prevPointer, so everything's about to break. This happened!
-	if (!list) {
-		numericDriver.freezeWithError("E443");
+	if constexpr (ALPHA_OR_BETA_VERSION || kCurrentFirmwareVersion <= FIRMWARE_4P0P0) {
+		// If we're not already in a list, that means we also don't have a valid prevPointer, so everything's about to break. This happened!
+		if (!list) {
+			numericDriver.freezeWithError("E443");
+		}
 	}
-#endif
 	otherNode->list = list;
 
 	otherNode->next = this;
@@ -150,10 +150,10 @@ void BidirectionalLinkedListNode::insertOtherNodeBefore(BidirectionalLinkedListN
 
 // Ok this is a little bit dangerous - you'd better make damn sure list is set before calling this!
 bool BidirectionalLinkedListNode::isLast() {
-#if ALPHA_OR_BETA_VERSION || (CURRENT_FIRMWARE_VERSION <= FIRMWARE_4P0P0)
-	if (!list) {
-		numericDriver.freezeWithError("E444");
+	if constexpr (ALPHA_OR_BETA_VERSION || kCurrentFirmwareVersion <= FIRMWARE_4P0P0) {
+		if (!list) {
+			numericDriver.freezeWithError("E444");
+		}
 	}
-#endif
 	return (next == &list->endNode);
 }

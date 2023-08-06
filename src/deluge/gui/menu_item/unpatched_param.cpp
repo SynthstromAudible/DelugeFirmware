@@ -15,36 +15,32 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "processing/engines/audio_engine.h"
-#include "model/clip/instrument_clip.h"
 #include "unpatched_param.h"
 #include "gui/ui/sound_editor.h"
-#include "model/song/song.h"
 #include "hid/display/numeric_driver.h"
+#include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
+#include "model/song/song.h"
 #include "modulation/params/param_set.h"
+#include "processing/engines/audio_engine.h"
 
 extern "C" {
 #include "util/cfunctions.h"
 }
 
-namespace menu_item {
-
-UnpatchedParam::UnpatchedParam() {
-	// TODO Auto-generated constructor stub
-}
+namespace deluge::gui::menu_item {
 
 void UnpatchedParam::readCurrentValue() {
-	soundEditor.currentValue =
+	this->setValue(
 	    (((int64_t)soundEditor.currentParamManager->getUnpatchedParamSet()->getValue(getP()) + 2147483648) * 50
 	     + 2147483648)
-	    >> 32;
+	    >> 32);
 }
 
 ModelStackWithAutoParam* UnpatchedParam::getModelStack(void* memory) {
 	ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(memory);
 	ParamCollectionSummary* summary = modelStack->paramManager->getUnpatchedParamSetSummary();
-	int p = getP();
+	int32_t p = getP();
 	return modelStack->addParam(summary->paramCollection, summary, p,
 	                            &((ParamSet*)summary->paramCollection)->params[p]);
 }
@@ -56,17 +52,17 @@ void UnpatchedParam::writeCurrentValue() {
 }
 
 int32_t UnpatchedParam::getFinalValue() {
-	if (soundEditor.currentValue == 25) {
+	if (this->getValue() == 25) {
 		return 0;
 	}
 	else {
-		return (uint32_t)soundEditor.currentValue * 85899345 - 2147483648;
+		return (uint32_t)this->getValue() * 85899345 - 2147483648;
 	}
 }
 
 ParamDescriptor UnpatchedParam::getLearningThing() {
 	ParamDescriptor paramDescriptor;
-	paramDescriptor.setToHaveParamOnly(getP() + PARAM_UNPATCHED_SECTION);
+	paramDescriptor.setToHaveParamOnly(getP() + ::Param::Unpatched::START);
 	return paramDescriptor;
 }
 
@@ -78,4 +74,4 @@ ParamSet* UnpatchedParam::getParamSet() {
 
 // ---------------------------------------
 
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

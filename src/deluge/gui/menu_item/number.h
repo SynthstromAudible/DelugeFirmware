@@ -17,23 +17,22 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
 #include "value.h"
+#include <cstdint>
 
-namespace menu_item {
-
-class Number : public Value {
+namespace deluge::gui::menu_item {
+class Number : public Value<int32_t> {
 public:
 	using Value::Value;
 #if HAVE_OLED
-	void drawBar(int yTop, int marginL, int marginR = -1);
+	void drawBar(int32_t yTop, int32_t marginL, int32_t marginR = -1);
 #endif
 
 protected:
-	virtual int getMaxValue() const = 0;
-	virtual int getMinValue() const {
+	[[nodiscard]] virtual int32_t getMaxValue() const = 0;
+	[[nodiscard]] virtual int32_t getMinValue() const {
 		return 0;
 	}
 };
 
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

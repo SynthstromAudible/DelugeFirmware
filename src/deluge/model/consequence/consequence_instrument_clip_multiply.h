@@ -18,11 +18,11 @@
 #pragma once
 
 #include "model/consequence/consequence.h"
-#include "RZA1/system/r_typedefs.h"
+#include <cstdint>
 
 class ConsequenceInstrumentClipMultiply final : public Consequence {
 public:
 	ConsequenceInstrumentClipMultiply();
 
-	int revert(int time, ModelStack* modelStack);
+	int32_t revert(TimeType time, ModelStack* modelStack);
 };

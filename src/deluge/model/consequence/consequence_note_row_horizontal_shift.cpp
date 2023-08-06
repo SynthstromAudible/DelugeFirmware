@@ -16,19 +16,19 @@
 */
 
 #include "model/consequence/consequence_note_row_horizontal_shift.h"
-#include "model/song/song.h"
-#include "model/clip/instrument_clip.h"
-#include "model/note/note_row.h"
 #include "hid/display/numeric_driver.h"
-#include "playback/playback_handler.h"
+#include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
+#include "model/note/note_row.h"
+#include "model/song/song.h"
+#include "playback/playback_handler.h"
 
-ConsequenceNoteRowHorizontalShift::ConsequenceNoteRowHorizontalShift(int newNoteRowId, int32_t newAmount) {
+ConsequenceNoteRowHorizontalShift::ConsequenceNoteRowHorizontalShift(int32_t newNoteRowId, int32_t newAmount) {
 	amount = newAmount;
 	noteRowId = newNoteRowId;
 }
 
-int ConsequenceNoteRowHorizontalShift::revert(int time, ModelStack* modelStack) {
+int32_t ConsequenceNoteRowHorizontalShift::revert(TimeType time, ModelStack* modelStack) {
 
 	int32_t amountNow = amount;
 

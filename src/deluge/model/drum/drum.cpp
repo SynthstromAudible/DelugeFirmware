@@ -17,21 +17,22 @@
 
 #include "model/drum/drum.h"
 
-#include "RZA1/system/r_typedefs.h"
-#include "storage/storage_manager.h"
-#include <string.h>
-#include "model/model_stack.h"
-#include "playback/playback_handler.h"
-#include "model/clip/instrument_clip.h"
-#include "model/note/note_row.h"
-#include "memory/general_memory_allocator.h"
-#include <new>
-#include "gui/views/view.h"
+#include "definitions_cxx.hpp"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/view.h"
+#include "memory/general_memory_allocator.h"
+#include "model/clip/instrument_clip.h"
+#include "model/model_stack.h"
+#include "model/note/note_row.h"
 #include "modulation/params/param_set.h"
+#include "playback/playback_handler.h"
+#include "storage/storage_manager.h"
 #include "util/functions.h"
+#include <cstdint>
+#include <new>
+#include <string.h>
 
-Drum::Drum(int newType) : type(newType) {
+Drum::Drum(DrumType newType) : type(newType) {
 	next = NULL;
 
 	earlyNoteVelocity = 0;
@@ -69,7 +70,7 @@ bool Drum::readDrumTagFromFile(char const* tagName) {
 	return true;
 }
 
-void Drum::recordNoteOnEarly(int velocity, bool noteTailsAllowed) {
+void Drum::recordNoteOnEarly(int32_t velocity, bool noteTailsAllowed) {
 	earlyNoteVelocity = velocity;
 	earlyNoteStillActive = noteTailsAllowed;
 }
@@ -81,7 +82,7 @@ void Drum::drumWontBeRenderedForAWhile() { // This is virtual, and gets extended
 extern bool expressionValueChangesMustBeDoneSmoothly;
 
 void Drum::getCombinedExpressionInputs(int16_t* combined) {
-	for (int i = 0; i < NUM_EXPRESSION_DIMENSIONS; i++) {
+	for (int32_t i = 0; i < kNumExpressionDimensions; i++) {
 		int32_t combinedValue =
 		    (int32_t)lastExpressionInputsReceived[0][i] + (int32_t)lastExpressionInputsReceived[1][i];
 		combined[i] = lshiftAndSaturate<8>(combinedValue);
@@ -89,7 +90,7 @@ void Drum::getCombinedExpressionInputs(int16_t* combined) {
 }
 
 void Drum::expressionEventPossiblyToRecord(ModelStackWithTimelineCounter* modelStack, int16_t newValue,
-                                           int whichExpressionimension, int level) {
+                                           int32_t whichExpressionimension, int32_t level) {
 
 	// Ok we have to first combine the expression inputs that the user might have sent at both MPE/polyphonic/finger level, *and* at channel/instrument level.
 	// Yes, we combine these here at the input before the data gets recorded or sounded, because unlike for Instruments, we're a Drum, and all we have is the NoteRow level to store this stuff.

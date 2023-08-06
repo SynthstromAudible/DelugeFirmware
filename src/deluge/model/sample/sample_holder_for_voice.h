@@ -27,9 +27,9 @@ public:
 	SampleHolderForVoice();
 	~SampleHolderForVoice();
 	void unassignAllClusterReasons(bool beingDestructed = false);
-	void setCents(int newCents);
+	void setCents(int32_t newCents);
 	void recalculateFineTuner();
-	void claimClusterReasons(bool reversed, int clusterLoadInstruction = CLUSTER_ENQUEUE);
+	void claimClusterReasons(bool reversed, int32_t clusterLoadInstruction = CLUSTER_ENQUEUE);
 	void setTransposeAccordingToSamplePitch(bool minimizeOctaves = false, bool doingSingleCycle = false,
 	                                        bool rangeCoversJustOneNote = false, bool thatOneNote = 0);
 	uint32_t getMSecLimit(Source* source);
@@ -42,7 +42,7 @@ public:
 	int8_t cents;
 	PhaseIncrementFineTuner fineTuner;
 
-	Cluster* clustersForLoopStart[NUM_CLUSTERS_LOADED_AHEAD];
+	Cluster* clustersForLoopStart[kNumClustersLoadedAhead];
 
 	// These two now only exist for loading in data from old files
 	uint32_t startMSec;

@@ -32,17 +32,17 @@ public:
 // Note: these are currently non-destructible. If you do destruct, well currently it doesn't destruct all the Strings in the Elements!
 class NamedThingVector : public ResizeableArray {
 public:
-	NamedThingVector(int newStringOffset);
-	int search(char const* searchString, int comparison, bool* foundExact = NULL);
-	void* getElement(int index);
-	void removeElement(int i);
-	int insertElement(void* namedThing);
-	int insertElement(void* namedThing, int i);
-	void renameMember(int i, String* newName);
+	NamedThingVector(int32_t newStringOffset);
+	int32_t search(char const* searchString, int32_t comparison, bool* foundExact = NULL);
+	void* getElement(int32_t index);
+	void removeElement(int32_t i);
+	int32_t insertElement(void* namedThing);
+	int32_t insertElement(void* namedThing, int32_t i);
+	void renameMember(int32_t i, String* newName);
 
-	const int stringOffset;
+	const int32_t stringOffset;
 
 private:
-	NamedThingVectorElement* getMemory(int index);
+	NamedThingVectorElement* getMemory(int32_t index);
 	String* getName(void* namedThing);
 };

@@ -16,18 +16,18 @@
  */
 
 #include "model/model_stack.h"
-#include "model/timeline_counter.h"
-#include "model/note/note_row.h"
 #include "model/clip/instrument_clip.h"
+#include "model/note/note_row.h"
+#include "model/output.h"
+#include "model/timeline_counter.h"
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
-#include "model/output.h"
 
 // Takes the NoteRow's *index*, not id!
 // NoteRow must have a paramManager.
-ModelStackWithThreeMainThings* ModelStackWithTimelineCounter::addNoteRowAndExtraStuff(int noteRowIndex,
+ModelStackWithThreeMainThings* ModelStackWithTimelineCounter::addNoteRowAndExtraStuff(int32_t noteRowIndex,
                                                                                       NoteRow* newNoteRow) const {
 
 #if ALPHA_OR_BETA_VERSION
@@ -40,7 +40,7 @@ ModelStackWithThreeMainThings* ModelStackWithTimelineCounter::addNoteRowAndExtra
 
 	InstrumentClip* clip = (InstrumentClip*)getTimelineCounter();
 	Output* output = clip->output;
-	bool isKit = (output->type == INSTRUMENT_TYPE_KIT);
+	bool isKit = (output->type == InstrumentType::KIT);
 	toReturn->noteRowId = isKit ? noteRowIndex : newNoteRow->y;
 	toReturn->setNoteRow(newNoteRow);
 	toReturn->modControllable =
@@ -63,9 +63,9 @@ bool ModelStackWithNoteRow::isCurrentlyPlayingReversed() const {
 
 	// Under a few different conditions, we just use the parent Clip's reversing status.
 	if (!noteRow
-	    || (noteRow->sequenceDirectionMode == SEQUENCE_DIRECTION_OBEY_PARENT
+	    || (noteRow->sequenceDirectionMode == SequenceDirection::OBEY_PARENT
 	        && (!noteRow->loopLengthIfIndependent
-	            || ((Clip*)getTimelineCounter())->sequenceDirectionMode != SEQUENCE_DIRECTION_PINGPONG))) {
+	            || ((Clip*)getTimelineCounter())->sequenceDirectionMode != SequenceDirection::PINGPONG))) {
 		return ((Clip*)getTimelineCounter())->currentlyPlayingReversed;
 	}
 
@@ -134,7 +134,7 @@ int32_t ModelStackWithNoteRow::getPosAtWhichPlaybackWillCut() const {
 			}
 
 			// If pingponging, that's actually going to get referred to as a cut.
-			if (noteRow->getEffectiveSequenceDirectionMode(this) == SEQUENCE_DIRECTION_PINGPONG) {
+			if (noteRow->getEffectiveSequenceDirectionMode(this) == SequenceDirection::PINGPONG) {
 				if (reversed) {
 					if (cutPos < 0) {
 						cutPos =
@@ -178,15 +178,15 @@ ModelStackWithThreeMainThings* ModelStackWithNoteRow::addOtherTwoThingsAutomatic
 	NoteRow* noteRowHere = getNoteRow();
 	InstrumentClip* clip = (InstrumentClip*)getTimelineCounter();
 	toReturn->modControllable =
-	    (clip->output->type == INSTRUMENT_TYPE_KIT && noteRowHere->drum) // What if there's no Drum?
+	    (clip->output->type == InstrumentType::KIT && noteRowHere->drum) // What if there's no Drum?
 	        ? noteRowHere->drum->toModControllable()
 	        : clip->output->toModControllable();
 	toReturn->paramManager = &noteRowHere->paramManager;
 	return toReturn;
 }
 
-bool ModelStackWithSoundFlags::checkSourceEverActiveDisregardingMissingSample(int s) {
-	int flagValue = soundFlags[SOUND_FLAG_SOURCE_0_ACTIVE_DISREGARDING_MISSING_SAMPLE + s];
+bool ModelStackWithSoundFlags::checkSourceEverActiveDisregardingMissingSample(int32_t s) {
+	int32_t flagValue = soundFlags[SOUND_FLAG_SOURCE_0_ACTIVE_DISREGARDING_MISSING_SAMPLE + s];
 	if (flagValue == FLAG_TBD) {
 		flagValue = ((Sound*)modControllable)
 		                ->isSourceActiveEverDisregardingMissingSample(s, (ParamManagerForTimeline*)paramManager);
@@ -195,15 +195,15 @@ bool ModelStackWithSoundFlags::checkSourceEverActiveDisregardingMissingSample(in
 	return flagValue;
 }
 
-bool ModelStackWithSoundFlags::checkSourceEverActive(int s) {
-	int flagValue = soundFlags[SOUND_FLAG_SOURCE_0_ACTIVE + s];
+bool ModelStackWithSoundFlags::checkSourceEverActive(int32_t s) {
+	int32_t flagValue = soundFlags[SOUND_FLAG_SOURCE_0_ACTIVE + s];
 	if (flagValue == FLAG_TBD) {
 		flagValue = checkSourceEverActiveDisregardingMissingSample(s);
 		if (flagValue) { // Does an &&
 			Sound* sound = (Sound*)modControllable;
 			flagValue =
-			    sound->synthMode == SYNTH_MODE_FM
-			    || (sound->sources[s].oscType != OSC_TYPE_SAMPLE && sound->sources[s].oscType != OSC_TYPE_WAVETABLE)
+			    sound->synthMode == SynthMode::FM
+			    || (sound->sources[s].oscType != OscType::SAMPLE && sound->sources[s].oscType != OscType::WAVETABLE)
 			    || sound->sources[s].hasAtLeastOneAudioFileLoaded();
 		}
 		soundFlags[SOUND_FLAG_SOURCE_0_ACTIVE + s] = flagValue;
@@ -211,6 +211,6 @@ bool ModelStackWithSoundFlags::checkSourceEverActive(int s) {
 	return flagValue;
 }
 
-void copyModelStack(void* newMemory, void const* oldMemory, int size) {
+void copyModelStack(void* newMemory, void const* oldMemory, int32_t size) {
 	memcpy(newMemory, oldMemory, size);
 }

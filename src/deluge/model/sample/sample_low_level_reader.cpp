@@ -19,19 +19,19 @@
 #pragma GCC target("fpu=neon")
 
 #include "model/sample/sample_low_level_reader.h"
-#include "model/sample/sample.h"
-#include "storage/cluster/cluster.h"
-#include "io/uart/uart.h"
-#include "storage/audio/audio_file_manager.h"
-#include "hid/display/numeric_driver.h"
-#include "model/voice/voice_sample_playback_guide.h"
-#include "model/voice/voice.h"
 #include "dsp/timestretch/time_stretcher.h"
+#include "hid/display/numeric_driver.h"
+#include "io/debug/print.h"
+#include "model/sample/sample.h"
+#include "model/voice/voice.h"
+#include "model/voice/voice_sample_playback_guide.h"
+#include "storage/audio/audio_file_manager.h"
+#include "storage/cluster/cluster.h"
 
 #include "arm_neon.h"
 
 SampleLowLevelReader::SampleLowLevelReader() {
-	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
 		clusters[l] = NULL;
 	}
 }
@@ -41,7 +41,7 @@ SampleLowLevelReader::~SampleLowLevelReader() {
 }
 
 void SampleLowLevelReader::unassignAllReasons() {
-	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
 		if (clusters[l]) {
 			audioFileManager.removeReasonFromCluster(clusters[l], "E027");
 			clusters[l] = NULL;
@@ -58,7 +58,7 @@ int32_t SampleLowLevelReader::getPlayByteLowLevel(Sample* sample, SamplePlayback
 		                         - sample->byteDepth; // Remove deliberate misalignment
 
 		if (compensateForInterpolationBuffer && interpolationBufferSizeLastTime) {
-			int extraSamples = -(interpolationBufferSizeLastTime >> 1);
+			int32_t extraSamples = -(interpolationBufferSizeLastTime >> 1);
 			//if (oscPos >= 8388608) extraSamples++; // This would be good, but we go one better and just copy this to the new hop, in time stretching
 			withinCluster += extraSamples * sample->numChannels * sample->byteDepth * guide->playDirection;
 		}
@@ -72,7 +72,7 @@ int32_t SampleLowLevelReader::getPlayByteLowLevel(Sample* sample, SamplePlayback
 }
 
 void SampleLowLevelReader::setupForPlayPosMovedIntoNewCluster(SamplePlaybackGuide* guide, Sample* sample,
-                                                              int bytePosWithinNewCluster, int byteDepth) {
+                                                              int32_t bytePosWithinNewCluster, int32_t byteDepth) {
 
 #if ALPHA_OR_BETA_VERSION
 	if (!clusters[0]) {
@@ -101,8 +101,8 @@ void SampleLowLevelReader::realignPlaybackParameters(Sample* sample) {
 // There is no guarantee that this won't put the reassessmentLocation back before the currentPlayPos, which is not generally allowed
 // (though it'd be harmless for "natively" playing Samples). Caller must ensure safety here.
 bool SampleLowLevelReader::reassessReassessmentLocation(SamplePlaybackGuide* guide, Sample* sample,
-                                                        int priorityRating) {
-	//Uart::println("reassessing");
+                                                        int32_t priorityRating) {
+	//Debug::println("reassessing");
 
 	if (!clusters[0]) {
 		return true; // Is this for if we've gone past the end of the audio data, while re-pitching / interpolating?
@@ -110,13 +110,13 @@ bool SampleLowLevelReader::reassessReassessmentLocation(SamplePlaybackGuide* gui
 
 	realignPlaybackParameters(sample);
 
-	int clusterIndex = clusters[0]->clusterIndex;
+	int32_t clusterIndex = clusters[0]->clusterIndex;
 
 	// We may have ended up past the finalClusterIndex if we've just switched from using a cache.
 	// This needs correcting, so "looping" can occur at next render. Must happen before setupReassessmentLocation() is called.
-	int finalClusterIndex = guide->getFinalClusterIndex(sample, shouldObeyMarkers());
+	int32_t finalClusterIndex = guide->getFinalClusterIndex(sample, shouldObeyMarkers());
 	if ((clusterIndex - finalClusterIndex) * guide->playDirection > 0) {
-		Uart::println("saving from being past finalCluster");
+		Debug::println("saving from being past finalCluster");
 		Cluster* finalCluster = sample->clusters.getElement(finalClusterIndex)->cluster;
 		if (!finalCluster) {
 			return false;
@@ -132,7 +132,7 @@ bool SampleLowLevelReader::reassessReassessmentLocation(SamplePlaybackGuide* gui
 	unassignAllReasons(); // Can only do this after we've done the above stuff, which references clusters, which this will clear
 	bool success = assignClusters(guide, sample, clusterIndex, priorityRating);
 	if (!success) {
-		Uart::println("reassessReassessmentLocation fail");
+		Debug::println("reassessReassessmentLocation fail");
 		return false;
 	}
 	setupReassessmentLocation(guide, sample);
@@ -150,16 +150,16 @@ void SampleLowLevelReader::setupReassessmentLocation(SamplePlaybackGuide* guide,
 	}
 #endif
 
-	int bytesPerSample = (sample->byteDepth * sample->numChannels);
+	int32_t bytesPerSample = (sample->byteDepth * sample->numChannels);
 
-	int currentClusterIndex = clusters[0]->clusterIndex;
+	int32_t currentClusterIndex = clusters[0]->clusterIndex;
 
 	int32_t endPlaybackAtByte;
-	int finalClusterIndex = guide->getFinalClusterIndex(sample, shouldObeyMarkers(), &endPlaybackAtByte);
+	int32_t finalClusterIndex = guide->getFinalClusterIndex(sample, shouldObeyMarkers(), &endPlaybackAtByte);
 
 	// Is this the final Cluster?
 	if (currentClusterIndex == finalClusterIndex) {
-		int bytePosWithinClusterToStopAt = endPlaybackAtByte & (audioFileManager.clusterSize - 1);
+		int32_t bytePosWithinClusterToStopAt = endPlaybackAtByte & (audioFileManager.clusterSize - 1);
 		if (guide->playDirection == 1) {
 			if (bytePosWithinClusterToStopAt == 0) {
 				bytePosWithinClusterToStopAt = audioFileManager.clusterSize;
@@ -185,7 +185,7 @@ void SampleLowLevelReader::setupReassessmentLocation(SamplePlaybackGuide* guide,
 
 			uint32_t bytesBeforeCurrentClusterEnd =
 			    (currentClusterIndex + 1) * audioFileManager.clusterSize - sample->audioDataStartPosBytes;
-			int excess = bytesBeforeCurrentClusterEnd % (uint8_t)bytesPerSample;
+			int32_t excess = bytesBeforeCurrentClusterEnd % (uint8_t)bytesPerSample;
 			if (excess == 0) {
 				excess = bytesPerSample;
 			}
@@ -207,7 +207,7 @@ void SampleLowLevelReader::setupReassessmentLocation(SamplePlaybackGuide* guide,
 			uint32_t bytesBeforeCurrentClusterEnd =
 			    currentClusterIndex * audioFileManager.clusterSize
 			    - sample->audioDataStartPosBytes; // Well, it's really the "start" - the left-most edge
-			int excess = bytesBeforeCurrentClusterEnd % (uint8_t)bytesPerSample;
+			int32_t excess = bytesBeforeCurrentClusterEnd % (uint8_t)bytesPerSample;
 			if (excess == 0) {
 				excess = bytesPerSample;
 			}
@@ -220,7 +220,7 @@ void SampleLowLevelReader::setupReassessmentLocation(SamplePlaybackGuide* guide,
 	// Do the Cluster start location
 	// Playing forwards
 	if (guide->playDirection == 1) {
-		int firstClusterWithData = sample->getFirstClusterIndexWithAudioData();
+		int32_t firstClusterWithData = sample->getFirstClusterIndexWithAudioData();
 		if (currentClusterIndex == firstClusterWithData) {
 			clusterStartLocation =
 			    &clusters[0]->data[sample->audioDataStartPosBytes & (audioFileManager.clusterSize - 1)];
@@ -232,8 +232,8 @@ void SampleLowLevelReader::setupReassessmentLocation(SamplePlaybackGuide* guide,
 
 	// Playing backwards
 	else {
-		int audioDataStopPos = sample->audioDataStartPosBytes + sample->audioDataLengthBytes;
-		int highestClusterIndex =
+		int32_t audioDataStopPos = sample->audioDataStartPosBytes + sample->audioDataLengthBytes;
+		int32_t highestClusterIndex =
 		    audioDataStopPos
 		    >> audioFileManager
 		           .clusterSizeMagnitude; // There may actually be 1 less Cluster than this if the audio data ends right at the Cluster end, but that won't cause problems
@@ -250,8 +250,8 @@ void SampleLowLevelReader::setupReassessmentLocation(SamplePlaybackGuide* guide,
 
 // Make sure reasons are unassigned before you call this!
 // Call changeClusterIfNecessary() after this if byteOvershoot isn't 0
-bool SampleLowLevelReader::setupClusersForInitialPlay(SamplePlaybackGuide* guide, Sample* sample, int byteOvershoot,
-                                                      bool justLooped, int priorityRating) {
+bool SampleLowLevelReader::setupClusersForInitialPlay(SamplePlaybackGuide* guide, Sample* sample, int32_t byteOvershoot,
+                                                      bool justLooped, int32_t priorityRating) {
 
 	if (sample->unplayable) {
 		return false; // TODO: this probably shouldn't be here
@@ -264,7 +264,7 @@ bool SampleLowLevelReader::setupClusersForInitialPlay(SamplePlaybackGuide* guide
 	bool success = setupClustersForPlayFromByte(guide, sample, startPlaybackAtByte, priorityRating);
 
 	if (!success) {
-		Uart::println("setupClustersForInitialPlay fail");
+		Debug::println("setupClustersForInitialPlay fail");
 	}
 
 	return success;
@@ -273,7 +273,7 @@ bool SampleLowLevelReader::setupClusersForInitialPlay(SamplePlaybackGuide* guide
 // Make sure reasons are unassigned before you call this!
 // Call changeClusterIfNecessary() after this if byteOvershoot isn't 0
 bool SampleLowLevelReader::setupClustersForPlayFromByte(SamplePlaybackGuide* guide, Sample* sample,
-                                                        int32_t startPlaybackAtByte, int priorityRating) {
+                                                        int32_t startPlaybackAtByte, int32_t priorityRating) {
 
 	// Change in Aug 2019 - we return false if stuff is out of range. Seems right? Previously we were constraining ClusterIndex
 	// to the range, but not changing startPlaybackAtByte - didn't seem to make sense.
@@ -284,13 +284,13 @@ bool SampleLowLevelReader::setupClustersForPlayFromByte(SamplePlaybackGuide* gui
 		return false;
 	}
 
-	int clusterIndex = startPlaybackAtByte >> audioFileManager.clusterSizeMagnitude;
+	int32_t clusterIndex = startPlaybackAtByte >> audioFileManager.clusterSizeMagnitude;
 
 	bool success = assignClusters(guide, sample, clusterIndex, priorityRating);
 	if (!success) {
-		Uart::println("setupClustersForPlayFromByte fail");
-		Uart::print("byte: ");
-		Uart::println(startPlaybackAtByte);
+		Debug::println("setupClustersForPlayFromByte fail");
+		Debug::print("byte: ");
+		Debug::println(startPlaybackAtByte);
 		return false;
 	}
 
@@ -305,11 +305,11 @@ bool SampleLowLevelReader::setupClustersForPlayFromByte(SamplePlaybackGuide* gui
 }
 
 // Unassign the old ones before you call this.
-bool SampleLowLevelReader::assignClusters(SamplePlaybackGuide* guide, Sample* sample, int clusterIndex,
-                                          int priorityRating) {
-	int finalClusterIndex = guide->getFinalClusterIndex(sample, shouldObeyMarkers());
+bool SampleLowLevelReader::assignClusters(SamplePlaybackGuide* guide, Sample* sample, int32_t clusterIndex,
+                                          int32_t priorityRating) {
+	int32_t finalClusterIndex = guide->getFinalClusterIndex(sample, shouldObeyMarkers());
 
-	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
 
 		// Grab it.
 		clusters[l] = sample->clusters.getElement(clusterIndex)
@@ -335,7 +335,7 @@ bool SampleLowLevelReader::assignClusters(SamplePlaybackGuide* guide, Sample* sa
 	return true;
 }
 
-bool SampleLowLevelReader::moveOnToNextCluster(SamplePlaybackGuide* guide, Sample* sample, int priorityRating) {
+bool SampleLowLevelReader::moveOnToNextCluster(SamplePlaybackGuide* guide, Sample* sample, int32_t priorityRating) {
 
 #if ALPHA_OR_BETA_VERSION
 	if (!clusters[0]) {
@@ -343,30 +343,30 @@ bool SampleLowLevelReader::moveOnToNextCluster(SamplePlaybackGuide* guide, Sampl
 	}
 #endif
 
-	int oldClusterIndex = clusters[0]->clusterIndex;
+	int32_t oldClusterIndex = clusters[0]->clusterIndex;
 
-	int bytePosWithinOldCluster = (uint32_t)currentPlayPos - (uint32_t)&clusters[0]->data;
+	int32_t bytePosWithinOldCluster = (uint32_t)currentPlayPos - (uint32_t)&clusters[0]->data;
 	audioFileManager.removeReasonFromCluster(clusters[0], "E035");
 
-	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD - 1; l++) {
+	for (int32_t l = 0; l < kNumClustersLoadedAhead - 1; l++) {
 		clusters[l] = clusters[l + 1];
 	}
 
-	clusters[NUM_CLUSTERS_LOADED_AHEAD - 1] = NULL;
+	clusters[kNumClustersLoadedAhead - 1] = NULL;
 
 	// First things first - if there is no next Cluster or it's not loaded...
 	if (!clusters[0]) {
-		Uart::print("reached end of waveform. last Cluster was: ");
-		Uart::println(oldClusterIndex);
+		Debug::print("reached end of waveform. last Cluster was: ");
+		Debug::println(oldClusterIndex);
 		currentPlayPos = 0;
 		return false;
 	}
 
 	if (!clusters[0]->loaded) {
-		Uart::print("late ");
-		Uart::print(clusters[0]->sample->filePath.get());
-		Uart::print(" p ");
-		Uart::println(clusters[0]->clusterIndex);
+		Debug::print("late ");
+		Debug::print(clusters[0]->sample->filePath.get());
+		Debug::print(" p ");
+		Debug::println(clusters[0]->clusterIndex);
 
 		return false;
 	}
@@ -375,24 +375,24 @@ bool SampleLowLevelReader::moveOnToNextCluster(SamplePlaybackGuide* guide, Sampl
 	bytePosWithinOldCluster = bytePosWithinOldCluster + 4 - sample->byteDepth;
 
 	// And for the one at the far end, just grab the next one
-	Cluster* oldLastCluster = clusters[NUM_CLUSTERS_LOADED_AHEAD - 2];
+	Cluster* oldLastCluster = clusters[kNumClustersLoadedAhead - 2];
 
 	if (oldLastCluster) {
-		int prevClusterIndex = oldLastCluster->clusterIndex;
+		int32_t prevClusterIndex = oldLastCluster->clusterIndex;
 
-		int newClusterIndex = prevClusterIndex + guide->playDirection;
+		int32_t newClusterIndex = prevClusterIndex + guide->playDirection;
 
 		// Check that there actually is a next Cluster. If not...
 		if (newClusterIndex * guide->playDirection
 		    > guide->getFinalClusterIndex(sample, shouldObeyMarkers()) * guide->playDirection) {
-			clusters[NUM_CLUSTERS_LOADED_AHEAD - 1] = NULL;
+			clusters[kNumClustersLoadedAhead - 1] = NULL;
 		}
 
 		// Or if there is...
 		else {
 
 			// Grab it.
-			clusters[NUM_CLUSTERS_LOADED_AHEAD - 1] =
+			clusters[kNumClustersLoadedAhead - 1] =
 			    sample->clusters.getElement(newClusterIndex)
 			        ->getCluster(sample, newClusterIndex, CLUSTER_ENQUEUE, priorityRating);
 
@@ -410,10 +410,10 @@ bool SampleLowLevelReader::moveOnToNextCluster(SamplePlaybackGuide* guide, Sampl
 // Returns false if stopping deliberately or clusters weren't loaded in time. In that case, caller may wish to output some zeros to work through the interpolation buffer.
 // All reasons (e.g. clusters[0]) will be unassigned / set to NULL in this case.
 bool SampleLowLevelReader::changeClusterIfNecessary(SamplePlaybackGuide* guide, Sample* sample, bool loopingAtLowLevel,
-                                                    int priorityRating) {
+                                                    int32_t priorityRating) {
 
 #if ALPHA_OR_BETA_VERSION
-	int count = 0;
+	int32_t count = 0;
 #endif
 
 	while (true) {
@@ -427,7 +427,7 @@ bool SampleLowLevelReader::changeClusterIfNecessary(SamplePlaybackGuide* guide, 
 		if (reassessmentAction == REASSESSMENT_ACTION_NEXT_CLUSTER) {
 			bool success = moveOnToNextCluster(guide, sample, priorityRating);
 			if (!success) {
-				Uart::println("next failed");
+				Debug::println("next failed");
 				return false;
 			}
 		}
@@ -436,7 +436,7 @@ bool SampleLowLevelReader::changeClusterIfNecessary(SamplePlaybackGuide* guide, 
 			if (loopingAtLowLevel) {
 				bool success = setupClusersForInitialPlay(guide, sample, byteOvershoot, true, priorityRating);
 				if (!success) {
-					Uart::println("loop failed");
+					Debug::println("loop failed");
 					// TODO: shouldn't we set currentPlayPos = 0 here too?
 					return false;
 				}
@@ -458,12 +458,12 @@ bool SampleLowLevelReader::changeClusterIfNecessary(SamplePlaybackGuide* guide, 
 	return true;
 }
 
-void SampleLowLevelReader::fillInterpolationBufferRetrospectively(Sample* sample, int bufferSize, int startI,
-                                                                  int playDirection) {
+void SampleLowLevelReader::fillInterpolationBufferRetrospectively(Sample* sample, int32_t bufferSize, int32_t startI,
+                                                                  int32_t playDirection) {
 
 	// Fill up the furthest-back end of the interpolation buffer
 	char* thisPlayPos = currentPlayPos;
-	for (int i = startI; i < bufferSize; i++) {
+	for (int32_t i = startI; i < bufferSize; i++) {
 
 		if (!clusters[0]) {
 justWriteZeros:
@@ -477,7 +477,7 @@ justWriteZeros:
 
 			// Jump back 1 sample
 			thisPlayPos = thisPlayPos - playDirection * sample->numChannels * sample->byteDepth;
-			int bytesPastClusterStart = ((int)thisPlayPos - (int)clusterStartLocation) * playDirection;
+			int32_t bytesPastClusterStart = ((int32_t)thisPlayPos - (int32_t)clusterStartLocation) * playDirection;
 
 			// If there was valid audio data there...
 			if (bytesPastClusterStart >= 0) {
@@ -497,9 +497,9 @@ justWriteZeros:
 }
 
 bool SampleLowLevelReader::fillInterpolationBufferForward(SamplePlaybackGuide* guide, Sample* sample,
-                                                          int interpolationBufferSize, bool loopingAtLowLevel,
-                                                          int numSpacesToFill, int priorityRating) {
-	for (int i = numSpacesToFill - 1; i >= 0; i--) {
+                                                          int32_t interpolationBufferSize, bool loopingAtLowLevel,
+                                                          int32_t numSpacesToFill, int32_t priorityRating) {
+	for (int32_t i = numSpacesToFill - 1; i >= 0; i--) {
 
 		if (!clusters[0]) {
 doZeroesFillingBuffer:
@@ -533,16 +533,16 @@ doZeroesFillingBuffer:
 	return true;
 }
 
-void SampleLowLevelReader::jumpBackSamples(Sample* sample, int numToJumpBack, int playDirection) {
+void SampleLowLevelReader::jumpBackSamples(Sample* sample, int32_t numToJumpBack, int32_t playDirection) {
 	while (numToJumpBack--) { // Could probably be more efficient, but why bother - this whole function is rare
 
 		// Jump back 1 sample
 		char* newPlayPos = currentPlayPos - playDirection * sample->numChannels * sample->byteDepth;
-		int bytesPastClusterStart = ((int)newPlayPos - (int)clusterStartLocation) * playDirection;
+		int32_t bytesPastClusterStart = ((int32_t)newPlayPos - (int32_t)clusterStartLocation) * playDirection;
 
 		// If there was no valid audio data there...
 		if (bytesPastClusterStart < 0) {
-			Uart::println("failed to go back!");
+			Debug::println("failed to go back!");
 			break;
 		}
 
@@ -560,16 +560,16 @@ void SampleLowLevelReader::jumpBackSamples(Sample* sample, int numToJumpBack, in
 //
 // Non-interpolating playback, too, checks in this function (so at the start of the render) whether we need to change to the
 // next cluster.
-bool SampleLowLevelReader::considerUpcomingWindow(SamplePlaybackGuide* guide, Sample* sample, int* numSamples,
+bool SampleLowLevelReader::considerUpcomingWindow(SamplePlaybackGuide* guide, Sample* sample, int32_t* numSamples,
                                                   int32_t phaseIncrement, bool loopingAtLowLevel,
-                                                  int interpolationBufferSize, bool allowEndlessSilenceAtEnd,
-                                                  int priorityRating) {
+                                                  int32_t interpolationBufferSize, bool allowEndlessSilenceAtEnd,
+                                                  int32_t priorityRating) {
 
 	if (ALPHA_OR_BETA_VERSION && phaseIncrement < 0) {
 		numericDriver.freezeWithError("E228");
 	}
 
-	int bytesPerSample = sample->numChannels * sample->byteDepth;
+	int32_t bytesPerSample = sample->numChannels * sample->byteDepth;
 
 	// Interpolating
 	if (phaseIncrement != 16777216) {
@@ -578,7 +578,7 @@ bool SampleLowLevelReader::considerUpcomingWindow(SamplePlaybackGuide* guide, Sa
 		if (!interpolationBufferSizeLastTime) {
 			interpolationBufferSizeLastTime = interpolationBufferSize;
 
-			int halfBufferSize = interpolationBufferSize >> 1;
+			int32_t halfBufferSize = interpolationBufferSize >> 1;
 
 			// Fill up the furthest-back end of the interpolation buffer
 			fillInterpolationBufferRetrospectively(sample, interpolationBufferSize, halfBufferSize,
@@ -614,10 +614,10 @@ bool SampleLowLevelReader::considerUpcomingWindow(SamplePlaybackGuide* guide, Sa
 					}
 				}
 
-				int difference = interpolationBufferSizeLastTime - interpolationBufferSize;
-				int offset = difference >> 1;
+				int32_t difference = interpolationBufferSizeLastTime - interpolationBufferSize;
+				int32_t offset = difference >> 1;
 
-				for (int i = 0; i < interpolationBufferSize; i++) {
+				for (int32_t i = 0; i < interpolationBufferSize; i++) {
 					interpolationBuffer[0][0][i] = interpolationBuffer[0][0][i + offset];
 					if (sample->numChannels == 2) {
 						interpolationBuffer[1][0][i] = interpolationBuffer[1][0][i + offset];
@@ -646,10 +646,10 @@ bool SampleLowLevelReader::considerUpcomingWindow(SamplePlaybackGuide* guide, Sa
 					}
 				}
 
-				int difference = interpolationBufferSize - interpolationBufferSizeLastTime;
-				int offset = difference >> 1;
+				int32_t difference = interpolationBufferSize - interpolationBufferSizeLastTime;
+				int32_t offset = difference >> 1;
 
-				for (int i = 0; i < interpolationBufferSizeLastTime; i++) {
+				for (int32_t i = 0; i < interpolationBufferSizeLastTime; i++) {
 					interpolationBuffer[0][0][i + offset] = interpolationBuffer[0][0][i];
 					if (sample->numChannels == 2) {
 						interpolationBuffer[1][0][i + offset] = interpolationBuffer[1][0][i];
@@ -664,7 +664,7 @@ bool SampleLowLevelReader::considerUpcomingWindow(SamplePlaybackGuide* guide, Sa
 				}
 
 				// If still here, fill far end with zeros. Not perfect, but it'll do.
-				for (int i = (interpolationBufferSize - offset); i < interpolationBufferSize; i++) {
+				for (int32_t i = (interpolationBufferSize - offset); i < interpolationBufferSize; i++) {
 					interpolationBuffer[0][0][i] = 0;
 					if (sample->numChannels == 2) {
 						interpolationBuffer[1][0][i] = 0;
@@ -684,7 +684,7 @@ bool SampleLowLevelReader::considerUpcomingWindow(SamplePlaybackGuide* guide, Sa
 		}
 
 		oscPos += phaseIncrement;
-		int numSamplesToJumpForward = oscPos >> 24;
+		int32_t numSamplesToJumpForward = oscPos >> 24;
 
 		// If jumping forward at least 1...
 		if (numSamplesToJumpForward) {
@@ -770,9 +770,9 @@ doZeroes:
 		// The rest of this window is going to require that we jump forward (*numSamples - 1) times
 		if (*numSamples >= 2) {
 
-			int samplesWeWantToReadThisWindow = ((uint64_t)phaseIncrement * (*numSamples - 1) + oscPos) >> 24;
+			int32_t samplesWeWantToReadThisWindow = ((uint64_t)phaseIncrement * (*numSamples - 1) + oscPos) >> 24;
 
-			unsigned int samplesLeftWhichMayBeRead;
+			uint32_t samplesLeftWhichMayBeRead;
 			bool shouldShorten;
 
 			// If finished waveform and just reading zeros
@@ -792,7 +792,7 @@ doZeroes:
 					numericDriver.freezeWithError("E148");
 				}
 
-				int bytesWeWantToRead = samplesWeWantToReadThisWindow * bytesPerSample;
+				int32_t bytesWeWantToRead = samplesWeWantToReadThisWindow * bytesPerSample;
 				shouldShorten = (bytesWeWantToRead > bytesLeftWhichMayBeRead);
 				if (shouldShorten) {
 					samplesLeftWhichMayBeRead =
@@ -836,7 +836,7 @@ doZeroes:
 				return false;
 			}
 
-			int numToJumpBack = (interpolationBufferSizeLastTime >> 1) - (oscPos >> 23);
+			int32_t numToJumpBack = (interpolationBufferSizeLastTime >> 1) - (oscPos >> 23);
 			jumpBackSamples(sample, numToJumpBack, guide->playDirection);
 			interpolationBufferSizeLastTime = 0;
 
@@ -861,8 +861,8 @@ doZeroes:
 			*numSamples = (uint32_t)bytesLeftWhichMayBeRead / (uint8_t)bytesPerSample;
 
 			if (ALPHA_OR_BETA_VERSION && *numSamples <= 0) {
-				Uart::print("bytesLeftWhichMayBeRead: ");
-				Uart::println(bytesLeftWhichMayBeRead);
+				Debug::print("bytesLeftWhichMayBeRead: ");
+				Debug::println(bytesLeftWhichMayBeRead);
 				numericDriver.freezeWithError(
 				    "E147"); // Crazily, Michael B got in Nov 2022, when "closing" a recorded loop.
 			}
@@ -872,11 +872,11 @@ doZeroes:
 	return true;
 }
 
-void SampleLowLevelReader::bufferIndividualSampleForInterpolation(uint32_t bitMask, int numChannels, int byteDepth,
-                                                                  char* __restrict__ playPosNow) {
+void SampleLowLevelReader::bufferIndividualSampleForInterpolation(uint32_t bitMask, int32_t numChannels,
+                                                                  int32_t byteDepth, char* __restrict__ playPosNow) {
 
 	// This works better than using memmoves. Ideally we'd switch this off if not smoothly interpolating - check that that's actually more efficient though
-	for (int i = INTERPOLATION_MAX_NUM_SAMPLES - 1; i >= 1; i--) {
+	for (int32_t i = kInterpolationMaxNumSamples - 1; i >= 1; i--) {
 		interpolationBuffer[0][0][i] = interpolationBuffer[0][0][i - 1];
 		if (numChannels == 2) {
 			interpolationBuffer[1][0][i] = interpolationBuffer[1][0][i - 1];
@@ -890,10 +890,10 @@ void SampleLowLevelReader::bufferIndividualSampleForInterpolation(uint32_t bitMa
 	}
 }
 
-void SampleLowLevelReader::bufferZeroForInterpolation(int numChannels) {
+void SampleLowLevelReader::bufferZeroForInterpolation(int32_t numChannels) {
 
 	// This works better than using memmoves. Ideally we'd switch this off if not smoothly interpolating - check that that's actually more efficient though
-	for (int i = INTERPOLATION_MAX_NUM_SAMPLES - 1; i >= 1; i--) {
+	for (int32_t i = kInterpolationMaxNumSamples - 1; i >= 1; i--) {
 		interpolationBuffer[0][0][i] = interpolationBuffer[0][0][i - 1];
 		if (numChannels == 2) {
 			interpolationBuffer[1][0][i] = interpolationBuffer[1][0][i - 1];
@@ -910,10 +910,10 @@ void SampleLowLevelReader::bufferZeroForInterpolation(int numChannels) {
 }
 
 // This could be optimized, but why bother, it doesn't get called much
-void SampleLowLevelReader::jumpForwardZeroes(int bufferSize, int numChannels, int32_t phaseIncrement) {
+void SampleLowLevelReader::jumpForwardZeroes(int32_t bufferSize, int32_t numChannels, int32_t phaseIncrement) {
 
 	oscPos += phaseIncrement;
-	int numSamplesToJumpForward = oscPos >> 24;
+	int32_t numSamplesToJumpForward = oscPos >> 24;
 	if (numSamplesToJumpForward) {
 		oscPos &= 16777215;
 
@@ -924,11 +924,11 @@ void SampleLowLevelReader::jumpForwardZeroes(int bufferSize, int numChannels, in
 	}
 }
 
-void SampleLowLevelReader::jumpForwardLinear(int numChannels, int byteDepth, uint32_t bitMask, int jumpAmount,
-                                             int32_t phaseIncrement) {
+void SampleLowLevelReader::jumpForwardLinear(int32_t numChannels, int32_t byteDepth, uint32_t bitMask,
+                                             int32_t jumpAmount, int32_t phaseIncrement) {
 
 	oscPos += phaseIncrement;
-	int numSamplesToJumpForward = oscPos >> 24;
+	int32_t numSamplesToJumpForward = oscPos >> 24;
 	if (numSamplesToJumpForward) {
 		oscPos &= 16777215;
 
@@ -969,29 +969,30 @@ void SampleLowLevelReader::jumpForwardLinear(int numChannels, int byteDepth, uin
 
 #define numBitsInTableSize 8
 #define rshiftAmount                                                                                                   \
-	((24 + INTERPOLATION_MAX_NUM_SAMPLES_MAGNITUDE) - 16 - numBitsInTableSize                                          \
+	((24 + kInterpolationMaxNumSamplesMagnitude) - 16 - numBitsInTableSize                                             \
 	 + 1) // that's (numBitsInInput - 16 - numBitsInTableSize); = 4 for now
 
-void SampleLowLevelReader::interpolate(int32_t* __restrict__ sampleRead, int numChannelsNow, int whichKernel) {
+void SampleLowLevelReader::interpolate(int32_t* __restrict__ sampleRead, int32_t numChannelsNow, int32_t whichKernel) {
 #include "dsp/interpolation/interpolate.h"
 }
 
-void SampleLowLevelReader::interpolateLinear(int32_t* __restrict__ sampleRead, int numChannelsNow, int whichKernel) {
+void SampleLowLevelReader::interpolateLinear(int32_t* __restrict__ sampleRead, int32_t numChannelsNow,
+                                             int32_t whichKernel) {
 #include "dsp/interpolation/interpolate_linear.h"
 }
 
 // This stuff is in its own function here rather than in Voice because for some reason it's faster
-void SampleLowLevelReader::readSamplesResampled(int32_t** __restrict__ oscBufferPos, int numSamplesTotal,
-                                                Sample* sample, int jumpAmount, int numChannels,
-                                                int numChannelsAfterCondensing, int32_t phaseIncrement,
+void SampleLowLevelReader::readSamplesResampled(int32_t** __restrict__ oscBufferPos, int32_t numSamplesTotal,
+                                                Sample* sample, int32_t jumpAmount, int32_t numChannels,
+                                                int32_t numChannelsAfterCondensing, int32_t phaseIncrement,
                                                 int32_t* amplitude, int32_t amplitudeIncrement,
-                                                int interpolationBufferSize, bool writingCache,
+                                                int32_t interpolationBufferSize, bool writingCache,
                                                 char** __restrict__ cacheWritePos, bool* __restrict__ doneAnySamplesYet,
                                                 TimeStretcher* timeStretcher, bool bufferingToTimeStretcher,
-                                                int whichKernel) {
+                                                int32_t whichKernel) {
 
 	uint32_t const bitMask = sample->bitMask;
-	int const byteDepth = sample->byteDepth;
+	int32_t const byteDepth = sample->byteDepth;
 
 	int32_t* __restrict__ oscBufferPosNow = *oscBufferPos;
 
@@ -1016,24 +1017,24 @@ void SampleLowLevelReader::readSamplesResampled(int32_t** __restrict__ oscBuffer
 			if (__builtin_expect(stillGotActualData, 1)) {
 
 				oscPos += phaseIncrement;
-				int numSamplesToJumpForward = oscPos >> 24;
+				int32_t numSamplesToJumpForward = oscPos >> 24;
 				if (numSamplesToJumpForward) {
 					oscPos &= 16777215;
 
-					// If jumping forward by more than INTERPOLATION_MAX_NUM_SAMPLES, we first need to jump to the one before we're jumping forward to, to grab its value
-					if (numSamplesToJumpForward > INTERPOLATION_MAX_NUM_SAMPLES) {
-						currentPlayPosNow += (numSamplesToJumpForward - INTERPOLATION_MAX_NUM_SAMPLES) * jumpAmount;
-						numSamplesToJumpForward = INTERPOLATION_MAX_NUM_SAMPLES;
+					// If jumping forward by more than kInterpolationMaxNumSamples, we first need to jump to the one before we're jumping forward to, to grab its value
+					if (numSamplesToJumpForward > kInterpolationMaxNumSamples) {
+						currentPlayPosNow += (numSamplesToJumpForward - kInterpolationMaxNumSamples) * jumpAmount;
+						numSamplesToJumpForward = kInterpolationMaxNumSamples;
 					}
 
 					int16_t sourceL = *(int16_t*)currentPlayPosNow;
 
-					for (int i = INTERPOLATION_MAX_NUM_SAMPLES - 1; i >= numSamplesToJumpForward; i--) {
+					for (int32_t i = kInterpolationMaxNumSamples - 1; i >= numSamplesToJumpForward; i--) {
 						interpolationBuffer[0][0][i] = interpolationBuffer[0][0][i - numSamplesToJumpForward];
 					}
 
 					if (numChannels == 2) {
-						for (int i = INTERPOLATION_MAX_NUM_SAMPLES - 1; i >= numSamplesToJumpForward; i--) {
+						for (int32_t i = kInterpolationMaxNumSamples - 1; i >= numSamplesToJumpForward; i--) {
 							interpolationBuffer[1][0][i] = interpolationBuffer[1][0][i - numSamplesToJumpForward];
 						}
 
@@ -1080,13 +1081,13 @@ skipFirstSmooth:
 
 			// If caching, do that now
 			if (writingCache) {
-				for (int i = 4 - CACHE_BYTE_DEPTH; i < 4; i++) {
+				for (int32_t i = 4 - kCacheByteDepth; i < 4; i++) {
 					*cacheWritePosNow = ((char*)&sampleRead[0])[i];
 					cacheWritePosNow++;
 				}
 
 				if (numChannels == 2) {
-					for (int i = 4 - CACHE_BYTE_DEPTH; i < 4; i++) {
+					for (int32_t i = 4 - kCacheByteDepth; i < 4; i++) {
 						*cacheWritePosNow = ((char*)&sampleRead[1])[i];
 						cacheWritePosNow++;
 					}
@@ -1168,16 +1169,17 @@ skipFirstLinear:
 	}
 }
 
-void SampleLowLevelReader::readSamplesNative(int32_t** __restrict__ bufferPos, int numSamplesTotal, Sample* sample,
-                                             int jumpAmount, int numChannels, int numChannelsAfterCondensing,
-                                             int32_t* __restrict__ amplitude, int32_t amplitudeIncrement,
-                                             TimeStretcher* timeStretcher, bool bufferingToTimeStretcher) {
+void SampleLowLevelReader::readSamplesNative(int32_t** __restrict__ bufferPos, int32_t numSamplesTotal, Sample* sample,
+                                             int32_t jumpAmount, int32_t numChannels,
+                                             int32_t numChannelsAfterCondensing, int32_t* __restrict__ amplitude,
+                                             int32_t amplitudeIncrement, TimeStretcher* timeStretcher,
+                                             bool bufferingToTimeStretcher) {
 
 	char* __restrict__ currentPlayPosNow = currentPlayPos;
 	int32_t* __restrict__ bufferPosNow = *bufferPos;
 	int32_t const* const bufferEndNow = bufferPosNow + numSamplesTotal * numChannelsAfterCondensing;
 
-	int const byteDepth = sample->byteDepth;
+	int32_t const byteDepth = sample->byteDepth;
 	uint32_t const bitMask = sample->bitMask;
 
 	do {
@@ -1218,16 +1220,14 @@ void SampleLowLevelReader::readSamplesNative(int32_t** __restrict__ bufferPos, i
 }
 
 // Returns false if actual error. Not if it just reached the end. In that case it just sets timeStretcher->playHeadStillActive[whichPlayHead] to false
-bool SampleLowLevelReader::readSamplesForTimeStretching(int32_t* outputBuffer, SamplePlaybackGuide* guide,
-                                                        Sample* sample, int numSamples, int numChannels,
-                                                        int numChannelsAfterCondensing, int32_t phaseIncrement,
-                                                        int32_t amplitude, int32_t amplitudeIncrement,
-                                                        bool loopingAtLowLevel, int jumpAmount, int bufferSize,
-                                                        TimeStretcher* timeStretcher, bool bufferingToTimeStretcher,
-                                                        int whichPlayHead, int whichKernel, int priorityRating) {
+bool SampleLowLevelReader::readSamplesForTimeStretching(
+    int32_t* outputBuffer, SamplePlaybackGuide* guide, Sample* sample, int32_t numSamples, int32_t numChannels,
+    int32_t numChannelsAfterCondensing, int32_t phaseIncrement, int32_t amplitude, int32_t amplitudeIncrement,
+    bool loopingAtLowLevel, int32_t jumpAmount, int32_t bufferSize, TimeStretcher* timeStretcher,
+    bool bufferingToTimeStretcher, int32_t whichPlayHead, int32_t whichKernel, int32_t priorityRating) {
 
 	do {
-		int samplesNow = numSamples;
+		int32_t samplesNow = numSamples;
 
 		timeStretcher->playHeadStillActive[whichPlayHead] = considerUpcomingWindow(
 		    guide, sample, &samplesNow, phaseIncrement, loopingAtLowLevel, bufferSize, 0, priorityRating);
@@ -1238,7 +1238,7 @@ bool SampleLowLevelReader::readSamplesForTimeStretching(int32_t* outputBuffer, S
 				return false;
 			}
 
-			//Uart::println("one head no longer active for timeStretcher");
+			//Debug::println("one head no longer active for timeStretcher");
 			break;
 		}
 
@@ -1264,7 +1264,7 @@ bool SampleLowLevelReader::readSamplesForTimeStretching(int32_t* outputBuffer, S
 
 void SampleLowLevelReader::cloneFrom(SampleLowLevelReader* other, bool stealReasons) {
 
-	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
 		if (clusters[l]) {
 			audioFileManager.removeReasonFromCluster(clusters[l], "E131");
 		}

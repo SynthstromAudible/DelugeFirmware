@@ -19,22 +19,25 @@
 
 #include "gui/menu_item/selection.h"
 
-namespace menu_item::mpe {
+namespace deluge::gui::menu_item::mpe {
 
-class ZoneSelector final : public Selection {
+class ZoneSelector final : public Selection<2> {
 public:
-	ZoneSelector(char const* newName = NULL) : Selection(newName) {}
-	void beginSession(MenuItem* navigatedBackwardFrom = NULL);
-	char const** getOptions();
-	void readCurrentValue();
-	void writeCurrentValue();
-	MenuItem* selectButtonPress();
-	uint8_t whichZone;
+	using Selection::Selection;
+	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
+	void readCurrentValue() override { this->setValue(whichZone); }
+	void writeCurrentValue() override { whichZone = this->getValue(); }
 
-#if HAVE_OLED
-	char const* getTitle(char* buffer);
-#endif
+	static_vector<std::string, capacity()> getOptions() override {
+		return {
+		    HAVE_OLED ? "Lower zone" : "LOWE", //<
+		    HAVE_OLED ? "Upper zone" : "UPPE"  //<
+		};
+	}
+
+	MenuItem* selectButtonPress() override;
+	uint8_t whichZone;
 };
 
 extern ZoneSelector zoneSelectorMenu;
-} // namespace menu_item::mpe
+} // namespace deluge::gui::menu_item::mpe

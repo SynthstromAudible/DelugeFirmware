@@ -15,17 +15,18 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "modulation/params/param_manager.h"
 #include "modulation/params/param_collection.h"
+#include "definitions_cxx.hpp"
 #include "model/model_stack.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/params/param_manager.h"
 
-ParamCollection::ParamCollection(int newObjectSize, ParamCollectionSummary* summary) : objectSize(newObjectSize) {
-	for (int i = 0; i < MAX_NUM_UINTS_TO_REP_ALL_PARAMS; i++) { // Just do both even if we're only using one.
+ParamCollection::ParamCollection(int32_t newObjectSize, ParamCollectionSummary* summary) : objectSize(newObjectSize) {
+	for (int32_t i = 0; i < kMaxNumUnsignedIntegerstoRepAllParams; i++) { // Just do both even if we're only using one.
 		summary->whichParamsAreAutomated[i] = 0;
 	}
 
-	for (int i = 0; i < MAX_NUM_UINTS_TO_REP_ALL_PARAMS; i++) { // Just do both even if we're only using one.
+	for (int32_t i = 0; i < kMaxNumUnsignedIntegerstoRepAllParams; i++) { // Just do both even if we're only using one.
 		summary->whichParamsAreInterpolating[i] = 0;
 	}
 }
@@ -47,19 +48,19 @@ void ParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const
 	}
 }
 
-bool ParamCollection::mayParamInterpolate(int paramId) {
+bool ParamCollection::mayParamInterpolate(int32_t paramId) {
 	return true;
 }
 
-int ParamCollection::paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) {
+int32_t ParamCollection::paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) {
 	if (paramValue >= (int32_t)(0x80000000 - (1 << 24))) {
 		return 64;
 	}
 	return (paramValue + (1 << 24)) >> 25;
 }
 
-int32_t ParamCollection::knobPosToParamValue(int knobPos, ModelStackWithAutoParam* modelStack) {
-	int paramValue = 2147483647;
+int32_t ParamCollection::knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) {
+	int32_t paramValue = 2147483647;
 	if (knobPos < 64) {
 		paramValue = knobPos << 25;
 	}

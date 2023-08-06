@@ -15,47 +15,54 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "gui/menu_item/formatted_title.h"
+#include "gui/menu_item/integer.h"
+#include "gui/ui/sound_editor.h"
 #include "model/clip/clip.h"
 #include "model/drum/drum.h"
-#include "gui/menu_item/integer.h"
-#include "processing/sound/sound_drum.h"
-#include "gui/ui/sound_editor.h"
 #include "model/drum/kit.h"
 #include "model/song/song.h"
+#include "processing/sound/sound_drum.h"
 
-namespace menu_item::sample {
-class TimeStretch final : public Integer {
+namespace deluge::gui::menu_item::sample {
+class TimeStretch final : public Integer, public FormattedTitle {
 public:
-	TimeStretch(char const* newName = NULL) : Integer(newName) {}
-	bool usesAffectEntire() { return true; }
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSource->timeStretchAmount; }
-	void writeCurrentValue() {
+	TimeStretch(const std::string& name, const fmt::format_string<int32_t>& title_format_str)
+	    : Integer(name), FormattedTitle(title_format_str) {}
+
+	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
+
+	bool usesAffectEntire() override { return true; }
+
+	void readCurrentValue() override { this->setValue(soundEditor.currentSource->timeStretchAmount); }
+
+	void writeCurrentValue() override {
 
 		// If affect-entire button held, do whole kit
 		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKit()) {
 
-			Kit* kit = (Kit*)currentSong->currentClip->output;
+			Kit* kit = static_cast<Kit*>(currentSong->currentClip->output);
 
-			for (Drum* thisDrum = kit->firstDrum; thisDrum; thisDrum = thisDrum->next) {
-				if (thisDrum->type == DRUM_TYPE_SOUND) {
-					SoundDrum* soundDrum = (SoundDrum*)thisDrum;
+			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
+				if (thisDrum->type == DrumType::SOUND) {
+					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
 					Source* source = &soundDrum->sources[soundEditor.currentSourceIndex];
 
-					source->timeStretchAmount = soundEditor.currentValue;
+					source->timeStretchAmount = this->getValue();
 				}
 			}
 		}
 
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSource->timeStretchAmount = soundEditor.currentValue;
+			soundEditor.currentSource->timeStretchAmount = this->getValue();
 		}
 	}
-	int getMinValue() const { return -48; }
-	int getMaxValue() const { return 48; }
-	bool isRelevant(Sound* sound, int whichThing) {
+	[[nodiscard]] int32_t getMinValue() const override { return -48; }
+	[[nodiscard]] int32_t getMaxValue() const override { return 48; }
+	bool isRelevant(Sound* sound, int32_t whichThing) override {
 		Source* source = &sound->sources[whichThing];
-		return (sound->getSynthMode() == SYNTH_MODE_SUBTRACTIVE && source->oscType == OSC_TYPE_SAMPLE);
+		return (sound->getSynthMode() == SynthMode::SUBTRACTIVE && source->oscType == OscType::SAMPLE);
 	}
 };
-} // namespace menu_item::sample
+} // namespace deluge::gui::menu_item::sample

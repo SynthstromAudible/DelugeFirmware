@@ -15,20 +15,20 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "gui/ui/browser/sample_browser.h"
-#include "processing/sound/sound.h"
 #include "file_selector.h"
-#include "definitions.h"
-#include "gui/ui_timer_manager.h"
+#include "definitions_cxx.hpp"
+#include "gui/ui/browser/sample_browser.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
-#include "util/functions.h"
-#include "hid/display/numeric_driver.h"
+#include "gui/ui_timer_manager.h"
 #include "gui/views/view.h"
-#include "gui/ui/keyboard_screen.h"
-#include "model/song/song.h"
+#include "hid/display/numeric_driver.h"
 #include "model/clip/clip.h"
+#include "model/song/song.h"
+#include "processing/sound/sound.h"
+#include "util/functions.h"
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
 FileSelector fileSelectorMenu{"File browser"};
 
@@ -43,32 +43,33 @@ void FileSelector::beginSession(MenuItem* navigatedBackwardFrom) {
 		uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
 	}
 }
-bool FileSelector::isRelevant(Sound* sound, int whichThing) {
+bool FileSelector::isRelevant(Sound* sound, int32_t whichThing) {
 	if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
 		return true;
 	}
 	Source* source = &sound->sources[whichThing];
 
-	if (source->oscType == OSC_TYPE_WAVETABLE) {
-		return (sound->getSynthMode() != SYNTH_MODE_FM);
+	if (source->oscType == OscType::WAVETABLE) {
+		return (sound->getSynthMode() != SynthMode::FM);
 	}
 
-	return (sound->getSynthMode() == SYNTH_MODE_SUBTRACTIVE && source->oscType == OSC_TYPE_SAMPLE);
+	return (sound->getSynthMode() == SynthMode::SUBTRACTIVE && source->oscType == OscType::SAMPLE);
 }
-int FileSelector::checkPermissionToBeginSession(Sound* sound, int whichThing, ::MultiRange** currentRange) {
+MenuPermission FileSelector::checkPermissionToBeginSession(Sound* sound, int32_t whichThing,
+                                                           ::MultiRange** currentRange) {
 
 	if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
-		return MENU_PERMISSION_YES;
+		return MenuPermission::YES;
 	}
 
 	bool can =
-	    (sound->getSynthMode() == SYNTH_MODE_SUBTRACTIVE
-	     || (sound->getSynthMode() == SYNTH_MODE_RINGMOD && sound->sources[whichThing].oscType == OSC_TYPE_WAVETABLE));
+	    (sound->getSynthMode() == SynthMode::SUBTRACTIVE
+	     || (sound->getSynthMode() == SynthMode::RINGMOD && sound->sources[whichThing].oscType == OscType::WAVETABLE));
 
 	if (!can) {
-		return MENU_PERMISSION_NO;
+		return MenuPermission::NO;
 	}
 
 	return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, whichThing, false, currentRange);
 }
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

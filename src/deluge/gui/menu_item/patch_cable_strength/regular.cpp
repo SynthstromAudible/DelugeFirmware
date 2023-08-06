@@ -15,15 +15,16 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #include "regular.h"
+#include "definitions_cxx.hpp"
+#include "gui/menu_item/patch_cable_strength/range.h"
+#include "gui/menu_item/source_selection/range.h"
+#include "gui/menu_item/source_selection/regular.h"
+#include "gui/ui/sound_editor.h"
 #include "hid/buttons.h"
 #include "modulation/patch/patch_cable_set.h"
-#include "gui/menu_item/patch_cable_strength/range.h"
-#include "gui/menu_item/source_selection/regular.h"
 #include "processing/sound/sound.h"
-#include "gui/ui/sound_editor.h"
-#include "gui/menu_item/source_selection/range.h"
 
-namespace menu_item::patch_cable_strength {
+namespace deluge::gui::menu_item::patch_cable_strength {
 Regular regularMenu{};
 
 MenuItem* Regular::selectButtonPress() {
@@ -32,9 +33,7 @@ MenuItem* Regular::selectButtonPress() {
 	if (Buttons::isShiftButtonPressed()) {
 		return PatchCableStrength::selectButtonPress();
 	}
-	else {
-		return &source_selection::rangeMenu;
-	}
+	return &source_selection::rangeMenu;
 }
 
 ParamDescriptor Regular::getLearningThing() {
@@ -49,19 +48,21 @@ ParamDescriptor Regular::getDestinationDescriptor() {
 	return paramDescriptor;
 }
 
-uint8_t Regular::getS() {
+PatchSource Regular::getS() {
 	return source_selection::regularMenu.s;
 }
 
-int Regular::checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
+MenuPermission Regular::checkPermissionToBeginSession(Sound* sound, int32_t whichThing, MultiRange** currentRange) {
 
-	if (soundEditor.patchingParamSelected == PARAM_GLOBAL_VOLUME_POST_FX) {
-		if (!sound->maySourcePatchToParam(getS(), soundEditor.patchingParamSelected,
-		                                  ((ParamManagerForTimeline*)soundEditor.currentParamManager))) {
-			soundEditor.patchingParamSelected = PARAM_GLOBAL_VOLUME_POST_REVERB_SEND;
-			if (!sound->maySourcePatchToParam(getS(), soundEditor.patchingParamSelected,
-			                                  ((ParamManagerForTimeline*)soundEditor.currentParamManager))) {
-				soundEditor.patchingParamSelected = PARAM_LOCAL_VOLUME;
+	if (soundEditor.patchingParamSelected == ::Param::Global::VOLUME_POST_FX) {
+		if (sound->maySourcePatchToParam(getS(), soundEditor.patchingParamSelected,
+		                                 ((ParamManagerForTimeline*)soundEditor.currentParamManager))
+		    == PatchCableAcceptance::DISALLOWED) {
+			soundEditor.patchingParamSelected = ::Param::Global::VOLUME_POST_REVERB_SEND;
+			if (sound->maySourcePatchToParam(getS(), soundEditor.patchingParamSelected,
+			                                 ((ParamManagerForTimeline*)soundEditor.currentParamManager))
+			    == PatchCableAcceptance::DISALLOWED) {
+				soundEditor.patchingParamSelected = ::Param::Local::VOLUME;
 			}
 		}
 	}
@@ -69,7 +70,7 @@ int Regular::checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRa
 	return PatchCableStrength::checkPermissionToBeginSession(sound, whichThing, currentRange);
 }
 
-uint8_t Regular::shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour) {
+uint8_t Regular::shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) {
 
 	// If this is the actual source we're editing for...
 	if (s == getS()) {
@@ -87,7 +88,7 @@ uint8_t Regular::shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour) {
 	return 255;
 }
 
-MenuItem* Regular::patchingSourceShortcutPress(int s, bool previousPressStillActive) {
+MenuItem* Regular::patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive) {
 	if (previousPressStillActive) {
 		source_selection::rangeMenu.s = s;
 		return &patch_cable_strength::rangeMenu;
@@ -95,4 +96,4 @@ MenuItem* Regular::patchingSourceShortcutPress(int s, bool previousPressStillAct
 	return (MenuItem*)0xFFFFFFFF;
 }
 
-} // namespace menu_item::patch_cable_strength
+} // namespace deluge::gui::menu_item::patch_cable_strength

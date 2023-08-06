@@ -15,15 +15,15 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "gui/menu_item/selection.h"
-#include "io/midi/midi_engine.h"
+#include "gui/menu_item/toggle.h"
 #include "gui/ui/sound_editor.h"
+#include "io/midi/midi_engine.h"
 
-namespace menu_item::midi {
-class Thru final : public Selection {
+namespace deluge::gui::menu_item::midi {
+class Thru final : public Toggle {
 public:
-	using Selection::Selection;
-	void readCurrentValue() { soundEditor.currentValue = midiEngine.midiThru; }
-	void writeCurrentValue() { midiEngine.midiThru = soundEditor.currentValue; }
+	using Toggle::Toggle;
+	void readCurrentValue() override { this->setValue(midiEngine.midiThru); }
+	void writeCurrentValue() override { midiEngine.midiThru = this->getValue(); }
 };
-} // namespace menu_item::midi
+} // namespace deluge::gui::menu_item::midi

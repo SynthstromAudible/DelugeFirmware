@@ -1,5 +1,10 @@
 import os
 import multiprocessing
+import sys
+import pathlib
+
+# Remove current directory from search list (dbt package and dbt.py name collision)
+sys.path = [d for d in sys.path if str(pathlib.Path(d)) != os.getcwd()]
 
 from SCons.Action import Action
 from SCons.Platform import TempFileMunge
@@ -134,6 +139,12 @@ for build_env in env_standalone_builds:
         duplicate=False,
     )
 
+    VariantDir(
+        os.path.relpath(os.path.join(build_env["BUILD_DIR"], 'lib')),
+        "#lib",
+        duplicate=False,
+    )
+
     # If we're in "only prepare mode" don't queue up any of the actual compilation steps.
     # Just bail at this point. There's also no point putting compilation db creation
     # before this as it won't compile the DB without awareness of the build steps.
@@ -145,6 +156,8 @@ for build_env in env_standalone_builds:
 
     # Compilation DB settings wrapper
     build_env.Tool("compdb")
+
+    build_env.StaticLibrary('fmt', ['lib/fmt/format.cc'])
 
     # Using the specified include dirs rather than walking every path in src was
     # preventing a successful .elf build so generically went with the latter approach.

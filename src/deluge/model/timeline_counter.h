@@ -18,7 +18,7 @@
 #pragma once
 
 #include "modulation/params/param_manager.h"
-#include "RZA1/system/r_typedefs.h"
+#include <cstdint>
 
 class Song;
 class Sound;

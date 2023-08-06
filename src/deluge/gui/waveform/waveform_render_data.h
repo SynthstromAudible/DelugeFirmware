@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "definitions.h"
-#include "RZA1/system/r_typedefs.h"
+#include "definitions_cxx.hpp"
+#include <cstdint>
 
 #define COL_STATUS_INVESTIGATED 1
 #define COL_STATUS_INVESTIGATED_BUT_BEYOND_WAVEFORM 2
@@ -26,7 +26,7 @@
 struct WaveformRenderData {
 	int64_t xScroll;
 	int64_t xZoom;
-	int32_t maxPerCol[displayWidth];
-	int32_t minPerCol[displayWidth];
-	uint8_t colStatus[displayWidth];
+	int32_t maxPerCol[kDisplayWidth];
+	int32_t minPerCol[kDisplayWidth];
+	uint8_t colStatus[kDisplayWidth];
 };

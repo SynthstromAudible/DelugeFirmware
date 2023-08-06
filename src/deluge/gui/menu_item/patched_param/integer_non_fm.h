@@ -18,10 +18,10 @@
 #include "integer.h"
 #include "processing/sound/sound.h"
 
-namespace menu_item::patched_param {
+namespace deluge::gui::menu_item::patched_param {
 class IntegerNonFM : public Integer {
 public:
 	using Integer::Integer;
-	bool isRelevant(Sound* sound, int whichThing) { return (sound->synthMode != SYNTH_MODE_FM); }
+	bool isRelevant(Sound* sound, int32_t whichThing) override { return (sound->synthMode != SynthMode::FM); }
 };
-} // namespace menu_item::patched_param
+} // namespace deluge::gui::menu_item::patched_param

@@ -24,21 +24,21 @@ public:
 	MIDIDrum();
 
 	void noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, Kit* kit, int16_t const* mpeValues,
-	            int fromMIDIChannel = MIDI_CHANNEL_NONE, uint32_t sampleSyncLength = 0, int32_t ticksLate = 0,
+	            int32_t fromMIDIChannel = MIDI_CHANNEL_NONE, uint32_t sampleSyncLength = 0, int32_t ticksLate = 0,
 	            uint32_t samplesLate = 0);
-	void noteOff(ModelStackWithThreeMainThings* modelStack, int velocity = DEFAULT_LIFT_VALUE);
+	void noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity = kDefaultLiftValue);
 	void writeToFile(bool savingSong, ParamManager* paramManager);
-	int readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos);
+	int32_t readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos);
 	void getName(char* buffer);
-	int getNumChannels() { return 16; }
+	int32_t getNumChannels() { return 16; }
 	void unassignAllVoices();
 
 	int8_t modEncoderAction(ModelStackWithThreeMainThings* modelStack, int8_t offset, uint8_t whichModEncoder);
 
-	void expressionEvent(int newValue, int whichExpressionDimension);
+	void expressionEvent(int32_t newValue, int32_t whichExpressionDimension);
 
-	void polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension, int channelOrNoteNumber,
-	                                              int whichCharacteristic);
+	void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t whichExpressionDimension,
+	                                              int32_t channelOrNoteNumber, MIDICharacteristic whichCharacteristic);
 
 	uint8_t note;
 	int8_t noteEncoderCurrentOffset;

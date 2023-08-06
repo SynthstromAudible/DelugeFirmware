@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
+#include <cstdint>
 
 class Cluster;
 class Sample;
@@ -28,7 +28,7 @@ class SampleCluster {
 public:
 	SampleCluster();
 	~SampleCluster();
-	Cluster* getCluster(Sample* sample, uint32_t clusterIndex, int loadInstruction = CLUSTER_ENQUEUE,
+	Cluster* getCluster(Sample* sample, uint32_t clusterIndex, int32_t loadInstruction = CLUSTER_ENQUEUE,
 	                    uint32_t priorityRating = 0xFFFFFFFF, uint8_t* error = NULL);
 	void ensureNoReason(Sample* sample);
 

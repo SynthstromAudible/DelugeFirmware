@@ -17,18 +17,18 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
 #include "gui/ui/ui.h"
 #include "util/d_string.h"
+#include <cstdint>
 
 class QwertyUI : public UI {
 public:
 	QwertyUI();
-	int padAction(int x, int y, int velocity);
-	int horizontalEncoderAction(int offset);
-	int timerCallback();
-	bool renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3] = NULL,
-	                    uint8_t occupancyMask[][displayWidth + sideBarWidth] = NULL, bool drawUndefinedArea = true) {
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
+	ActionResult horizontalEncoderAction(int32_t offset);
+	ActionResult timerCallback();
+	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3] = NULL,
+	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL, bool drawUndefinedArea = true) {
 		return true;
 	}
 
@@ -47,13 +47,13 @@ protected:
 #if HAVE_OLED
 	char const* title;
 	virtual void displayText(bool blinkImmediately = false) = 0;
-	void drawTextForOLEDEditing(int textStartX, int xPixelMax, int yPixel, int maxChars,
+	void drawTextForOLEDEditing(int32_t textStartX, int32_t xPixelMax, int32_t yPixel, int32_t maxChars,
 	                            uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
 #else
 	virtual void displayText(bool blinkImmediately = false);
 #endif
 	static int16_t enteredTextEditPos;
-	static int scrollPosHorizontal;
+	static int32_t scrollPosHorizontal;
 
 private:
 };

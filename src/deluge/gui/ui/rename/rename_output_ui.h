@@ -26,9 +26,9 @@ class RenameOutputUI final : public RenameUI {
 public:
 	RenameOutputUI();
 	bool opened();
-	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
-	int padAction(int x, int y, int velocity);
-	int verticalEncoderAction(int offset, bool inCardRoutine);
+	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
+	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
 	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
 
 	Output* output;

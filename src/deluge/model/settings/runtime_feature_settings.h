@@ -17,16 +17,15 @@
 
 #pragma once
 
-#include <cstdint>
-#include "util/d_string.h"
 #include "util/container/array/resizeable_array.h"
+#include "util/container/static_vector.hpp"
 
-#define RUNTIME_FEATURE_SETTING_MAX_OPTIONS 8
+#include <cstdint>
 
-namespace menu_item::runtime_feature {
+namespace deluge::gui::menu_item::runtime_feature {
 class Setting;
 class Settings;
-} // namespace menu_item::runtime_feature
+} // namespace deluge::gui::menu_item::runtime_feature
 
 // State declarations
 enum RuntimeFeatureStateToggle : uint32_t { Off = 0, On = 1 };
@@ -40,21 +39,26 @@ enum RuntimeFeatureSettingType : uint32_t {
 	Quantize,
 	FineTempoKnob,
 	PatchCableResolution,
+	CatchNotes,
+	DeleteUnusedKitRows,
+	AltGoldenKnobDelayParams,
 	MaxElement // Keep as boundary
 };
 
 /// Definition for selectable options
 struct RuntimeFeatureSettingOption {
-	const char* displayName;
+	std::string displayName;
 	uint32_t value; // Value to be defined as typed Enum above
 };
 
 /// Every setting keeps its metadata and value in here
 struct RuntimeFeatureSetting {
-	const char* displayName;
-	const char* xmlName;
+	std::string displayName;
+	std::string xmlName;
 	uint32_t value;
-	RuntimeFeatureSettingOption options[RUNTIME_FEATURE_SETTING_MAX_OPTIONS]; // Limited to safe memory
+
+	// Limited to safe memory
+	deluge::static_vector<RuntimeFeatureSettingOption, RUNTIME_FEATURE_SETTING_MAX_OPTIONS> options;
 };
 
 /// Encapsulating class
@@ -70,14 +74,14 @@ public:
 	void writeSettingsToFile();
 
 protected:
-	RuntimeFeatureSetting settings[RuntimeFeatureSettingType::MaxElement] = {};
+	std::array<RuntimeFeatureSetting, RuntimeFeatureSettingType::MaxElement> settings = {};
 
 private:
 	ResizeableArray unknownSettings;
 
 public:
-	friend class menu_item::runtime_feature::Setting;
-	friend class menu_item::runtime_feature::Settings;
+	friend class deluge::gui::menu_item::runtime_feature::Setting;
+	friend class deluge::gui::menu_item::runtime_feature::Settings;
 };
 
 /// Static instance for external access

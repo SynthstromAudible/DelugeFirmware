@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "gui/views/timeline_view.h"
 #include "hid/button.h"
 
@@ -39,28 +40,28 @@ public:
 	ArrangerView();
 	bool opened();
 	void focusRegained();
-	int padAction(int x, int y, int velocity);
-	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
-	int verticalEncoderAction(int offset, bool inCardRoutine);
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
+	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
 	void selectEncoderAction(int8_t offset);
 
 	void repopulateOutputsOnScreen(bool doRender = true);
-	bool renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
-	                   uint8_t occupancyMask[][displayWidth + sideBarWidth]);
-	void drawMuteSquare(int yDisplay, uint8_t thisImage[][3]);
-	bool renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
-	                    uint8_t occupancyMask[][displayWidth + sideBarWidth], bool drawUndefinedArea = true);
-	bool renderRow(ModelStack* modelStack, int yDisplay, int32_t xScroll, uint32_t xZoom, uint8_t* thisImage,
-	               uint8_t thisOccupancyMask[], int renderWidth);
-	void editPadAction(int x, int y, bool on);
-	int horizontalEncoderAction(int offset);
+	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
+	void drawMuteSquare(int32_t yDisplay, uint8_t thisImage[][3]);
+	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
+	bool renderRow(ModelStack* modelStack, int32_t yDisplay, int32_t xScroll, uint32_t xZoom, uint8_t* thisImage,
+	               uint8_t thisOccupancyMask[], int32_t renderWidth);
+	void editPadAction(int32_t x, int32_t y, bool on);
+	ActionResult horizontalEncoderAction(int32_t offset) override;
 	uint32_t getMaxLength();
-	unsigned int getMaxZoom();
+	uint32_t getMaxZoom();
 	void graphicsRoutine();
-	int getNavSysId() { return NAVIGATION_ARRANGEMENT; }
-	void navigateThroughPresets(int offset);
+	int32_t getNavSysId() { return NAVIGATION_ARRANGEMENT; }
+	void navigateThroughPresets(int32_t offset);
 	void notifyActiveClipChangedOnOutput(Output* output);
-	int timerCallback();
+	ActionResult timerCallback() override;
 	void reassessWhetherDoingAutoScroll(int32_t pos = -1);
 	void autoScrollOnPlaybackEnd();
 	bool initiateXScroll(int32_t newScrollPos);
@@ -76,13 +77,13 @@ public:
 	bool transitionToArrangementEditor();
 	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
 	void setLedStates();
-	int verticalScrollOneSquare(int direction);
-	int horizontalScrollOneSquare(int direction);
+	ActionResult verticalScrollOneSquare(int32_t direction);
+	ActionResult horizontalScrollOneSquare(int32_t direction);
 #if HAVE_OLED
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
 #endif
 
-	Output* outputsOnScreen[displayHeight];
+	Output* outputsOnScreen[kDisplayHeight];
 	int8_t yPressedEffective;
 	int8_t yPressedActual;
 	int8_t xPressed;
@@ -92,7 +93,7 @@ public:
 	int32_t originallyPressedClipActualLength;
 	bool pressedHead;
 
-	int pressedClipInstanceIndex;
+	int32_t pressedClipInstanceIndex;
 	Output* pressedClipInstanceOutput;
 	int32_t pressedClipInstanceXScrollWhenLastInValidPosition;
 	bool pressedClipInstanceIsInValidPosition;
@@ -102,43 +103,44 @@ public:
 	bool doingAutoScrollNow;
 	bool mustRedrawTickSquares;
 
-	int autoScrollNumSquaresBehind;
+	int32_t autoScrollNumSquaresBehind;
 
-	int lastInteractedOutputIndex;
-	int lastInteractedPos;
+	int32_t lastInteractedOutputIndex;
+	int32_t lastInteractedPos;
 	uint8_t lastInteractedSection;
 
-	int lastTickSquare;
+	int32_t lastTickSquare;
 
 	int32_t xScrollWhenPlaybackStarted;
 
 private:
-	void changeInstrumentType(int newInstrumentType);
+	void changeInstrumentType(InstrumentType newInstrumentType);
 	void moveClipToSession();
-	void auditionPadAction(bool on, int y);
+	void auditionPadAction(bool on, int32_t y);
 	void beginAudition(Output* output);
 	void endAudition(Output* output, bool evenIfPlaying = false);
 	ModelStackWithNoteRow* getNoteRowForAudition(ModelStack* modelStack, Kit* kit);
 	Drum* getDrumForAudition(Kit* kit);
-	void drawAuditionSquare(int yDisplay, uint8_t thisImage[][3]);
+	void drawAuditionSquare(int32_t yDisplay, uint8_t thisImage[][3]);
 	void setNoSubMode();
 	void outputActivated(Output* output);
 	void outputDeactivated(Output* output);
 	void transitionToClipView(ClipInstance* clipInstance);
-	void deleteClipInstance(Output* output, int clipInstanceIndex, ClipInstance* clipInstance, Action* action,
+	void deleteClipInstance(Output* output, int32_t clipInstanceIndex, ClipInstance* clipInstance, Action* action,
 	                        bool clearingWholeArrangement = false);
 	void clearArrangement();
-	void rememberInteractionWithClipInstance(int yDisplay, ClipInstance* clipInstance);
+	void rememberInteractionWithClipInstance(int32_t yDisplay, ClipInstance* clipInstance);
 	void deleteOutput();
 	void auditionEnded();
 	void goToSongView();
 	void changeOutputToAudio();
 	bool renderRowForOutput(ModelStack* modelStack, Output* output, int32_t xScroll, uint32_t xZoom, uint8_t* image,
-	                        uint8_t occupancyMask[], int renderWidth, int ignoreI);
-	Instrument* createNewInstrument(int newInstrumentType, bool* instrumentAlreadyInSong);
-	void changeOutputToInstrument(int newInstrumentType);
+	                        uint8_t occupancyMask[], int32_t renderWidth, int32_t ignoreI);
+	Instrument* createNewInstrument(InstrumentType newInstrumentType, bool* instrumentAlreadyInSong);
+	void changeOutputToInstrument(InstrumentType newInstrumentType);
 	uint32_t doActualRender(int32_t xScroll, uint32_t xZoom, uint32_t whichRows, uint8_t* image,
-	                        uint8_t occupancyMask[][displayWidth + sideBarWidth], int renderWidth, int imageWidth);
+	                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t renderWidth,
+	                        int32_t imageWidth);
 };
 
 extern ArrangerView arrangerView;

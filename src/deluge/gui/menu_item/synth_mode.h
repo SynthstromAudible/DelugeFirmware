@@ -15,29 +15,29 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "definitions_cxx.hpp"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
-#include "processing/sound/sound.h"
-#include "model/song/song.h"
 #include "gui/views/view.h"
+#include "model/song/song.h"
+#include "processing/sound/sound.h"
+#include "util/misc.h"
 
-namespace menu_item {
-class SynthMode final : public Selection {
+namespace deluge::gui::menu_item {
+class SynthMode final : public Selection<kNumSynthModes> {
 public:
 	using Selection::Selection;
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSound->synthMode; }
-	void writeCurrentValue() {
-		soundEditor.currentSound->setSynthMode(soundEditor.currentValue, currentSong);
+	void readCurrentValue() override { this->setValue(soundEditor.currentSound->synthMode); }
+	void writeCurrentValue() override {
+		soundEditor.currentSound->setSynthMode(this->getValue<::SynthMode>(), currentSong);
 		view.setKnobIndicatorLevels();
 	}
-	char const** getOptions() {
-		static char const* options[] = {"Subtractive", "FM", "Ringmod", NULL};
-		return options;
-	}
-	int getNumOptions() { return 3; }
-	bool isRelevant(Sound* sound, int whichThing) {
-		return (sound->sources[0].oscType < NUM_OSC_TYPES_RINGMODDABLE
-		        && sound->sources[1].oscType < NUM_OSC_TYPES_RINGMODDABLE);
+
+	static_vector<std::string, capacity()> getOptions() override { return {"Subtractive", "FM", "Ringmod"}; }
+
+	bool isRelevant(Sound* sound, int32_t whichThing) override {
+		return (sound->sources[0].oscType <= kLastRingmoddableOscType
+		        && sound->sources[1].oscType <= kLastRingmoddableOscType);
 	}
 };
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

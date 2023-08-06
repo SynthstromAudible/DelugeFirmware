@@ -17,21 +17,22 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "model/consequence/consequence.h"
-#include "RZA1/system/r_typedefs.h"
+#include <cstdint>
 
 class Clip;
 class ClipArray;
 
 class ConsequenceClipExistence final : public Consequence {
 public:
-	ConsequenceClipExistence(Clip* newClip, ClipArray* newClipArray, int newType);
-	void prepareForDestruction(int whichQueueActionIn, Song* song);
-	int revert(int time, ModelStack* modelStack);
+	ConsequenceClipExistence(Clip* newClip, ClipArray* newClipArray, ExistenceChangeType newType);
+	void prepareForDestruction(int32_t whichQueueActionIn, Song* song);
+	int32_t revert(TimeType time, ModelStack* modelStack);
 
 	Clip* clip;
 	ClipArray* clipArray;
-	int clipIndex;
-	uint8_t type;
+	int32_t clipIndex;
+	ExistenceChangeType type;
 	bool shouldBeActiveWhileExistent;
 };

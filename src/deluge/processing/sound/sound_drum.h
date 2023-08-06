@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include "processing/sound/sound.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "model/drum/drum.h"
+#include "processing/sound/sound.h"
 #include "util/d_string.h"
 
 class ModelStackWithTimelineCounter;
@@ -38,26 +38,26 @@ public:
 	bool anyNoteIsOn();
 	bool hasAnyVoices();
 	void noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, Kit* kit, int16_t const* mpeValues,
-	            int fromMIDIChannel = MIDI_CHANNEL_NONE, uint32_t sampleSyncLength = 0, int32_t ticksLate = 0,
+	            int32_t fromMIDIChannel = MIDI_CHANNEL_NONE, uint32_t sampleSyncLength = 0, int32_t ticksLate = 0,
 	            uint32_t samplesLate = 0);
-	void noteOff(ModelStackWithThreeMainThings* modelStack, int velocity);
+	void noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity);
 	void unassignAllVoices();
 	void setupPatchingForAllParamManagers(Song* song);
 	bool readTagFromFile(char const* tagName);
-	int loadAllSamples(bool mayActuallyReadFiles);
+	int32_t loadAllSamples(bool mayActuallyReadFiles);
 	void prepareForHibernation();
 	void writeToFile(bool savingSong, ParamManager* paramManager);
 	void getName(char* buffer);
-	int readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos);
+	int32_t readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos);
 	void choke(ModelStackWithSoundFlags* modelStack);
 	void setSkippingRendering(bool newSkipping);
 	uint8_t* getModKnobMode();
 	void drumWontBeRenderedForAWhile();
 	ModControllable* toModControllable() { return this; }
 
-	void expressionEvent(int newValue, int whichExpressionDimension);
-	void polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension, int channelOrNoteNumber,
-	                                              int whichCharacteristic);
+	void expressionEvent(int32_t newValue, int32_t whichExpressionDimension);
+	void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t whichExpressionDimension,
+	                                              int32_t channelOrNoteNumber, MIDICharacteristic whichCharacteristic);
 
 	ArpeggiatorBase* getArp();
 	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL) { return &arpSettings; }

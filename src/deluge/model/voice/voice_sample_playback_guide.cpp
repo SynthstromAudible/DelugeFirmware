@@ -15,13 +15,14 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "storage/audio/audio_file_manager.h"
 #include "model/voice/voice_sample_playback_guide.h"
-#include "processing/source.h"
+#include "definitions_cxx.hpp"
 #include "model/sample/sample.h"
-#include "storage/multi_range/multisample_range.h"
-#include "model/voice/voice.h"
 #include "model/sample/sample_holder_for_voice.h"
+#include "model/voice/voice.h"
+#include "processing/source.h"
+#include "storage/audio/audio_file_manager.h"
+#include "storage/multi_range/multisample_range.h"
 
 VoiceSamplePlaybackGuide::VoiceSamplePlaybackGuide() {
 }
@@ -30,8 +31,8 @@ void VoiceSamplePlaybackGuide::setupPlaybackBounds(bool reversed) {
 
 	SamplePlaybackGuide::setupPlaybackBounds(reversed);
 
-	int loopStartPlaybackAtSample = 0;
-	int loopEndPlaybackAtSample = 0;
+	int32_t loopStartPlaybackAtSample = 0;
+	int32_t loopEndPlaybackAtSample = 0;
 
 	// Loop points are only obeyed if not in STRETCH mode
 	if (!sequenceSyncLengthTicks) {
@@ -55,7 +56,7 @@ void VoiceSamplePlaybackGuide::setupPlaybackBounds(bool reversed) {
 	loopEndPlaybackAtByte = 0;
 
 	Sample* sample = (Sample*)audioFileHolder->audioFile;
-	int bytesPerSample = sample->numChannels * sample->byteDepth;
+	int32_t bytesPerSample = sample->numChannels * sample->byteDepth;
 
 	if (loopStartPlaybackAtSample) {
 		loopStartPlaybackAtByte = sample->audioDataStartPosBytes + loopStartPlaybackAtSample * bytesPerSample;
@@ -93,11 +94,9 @@ int32_t VoiceSamplePlaybackGuide::getBytePosToEndOrLoopPlayback() {
 	}
 }
 
-int VoiceSamplePlaybackGuide::getLoopingType(Source* source) {
+LoopType VoiceSamplePlaybackGuide::getLoopingType(Source* source) {
 	if (loopEndPlaybackAtByte) {
-		return noteOffReceived ? 0 : LOOP_LOW_LEVEL;
+		return noteOffReceived ? LoopType::NONE : LoopType::LOW_LEVEL;
 	}
-	else {
-		return (source->repeatMode == SAMPLE_REPEAT_LOOP) ? LOOP_LOW_LEVEL : 0;
-	}
+	return (source->repeatMode == SampleRepeatMode::LOOP) ? LoopType::LOW_LEVEL : LoopType::NONE;
 }

@@ -16,46 +16,44 @@
 */
 #pragma once
 #include "gui/menu_item/selection.h"
-#include "gui/ui/sound_editor.h"
 #include "gui/menu_item/submenu.h"
-#include "volts.h"
+#include "gui/ui/sound_editor.h"
 #include "transpose.h"
+#include "volts.h"
 
-extern void setCvNumberForTitle(int m);
-extern menu_item::Submenu cvSubmenu;
+extern void setCvNumberForTitle(int32_t m);
+extern deluge::gui::menu_item::Submenu<2> cvSubmenu;
 
-namespace menu_item::cv {
-#if HAVE_OLED
-static char const* cvOutputChannel[] = {"CV output 1", "CV output 2", NULL};
-#else
-static char const* cvOutputChannel[] = {"Out1", "Out2", NULL};
-#endif
-
-class Selection final : public menu_item::Selection {
+namespace deluge::gui::menu_item::cv {
+class Selection final : public menu_item::Selection<2> {
 public:
-	Selection(char const* newName = NULL) : menu_item::Selection(newName) {
-#if HAVE_OLED
-		basicTitle = "CV outputs";
-#endif
-		basicOptions = cvOutputChannel;
-	}
-	void beginSession(MenuItem* navigatedBackwardFrom) {
-		if (!navigatedBackwardFrom) {
-			soundEditor.currentValue = 0;
+	using menu_item::Selection<2>::Selection;
+
+	void beginSession(MenuItem* navigatedBackwardFrom) override {
+		if (navigatedBackwardFrom == nullptr) {
+			this->setValue(0);
 		}
 		else {
-			soundEditor.currentValue = soundEditor.currentSourceIndex;
+			this->setValue(soundEditor.currentSourceIndex);
 		}
-		menu_item::Selection::beginSession(navigatedBackwardFrom);
+		menu_item::Selection<2>::beginSession(navigatedBackwardFrom);
 	}
 
-	MenuItem* selectButtonPress() {
-		soundEditor.currentSourceIndex = soundEditor.currentValue;
+	MenuItem* selectButtonPress() override {
+		soundEditor.currentSourceIndex = this->getValue();
 #if HAVE_OLED
-		cvSubmenu.basicTitle = cvOutputChannel[soundEditor.currentValue];
-		setCvNumberForTitle(soundEditor.currentValue);
+		cvSubmenu.title = getOptions().at(this->getValue());
+		setCvNumberForTitle(this->getValue());
 #endif
 		return &cvSubmenu;
 	}
+
+	static_vector<std::string, capacity()> getOptions() override {
+#if HAVE_OLED
+		return {"CV output 1", "CV output 2"};
+#else
+		return {"Out1", "Out2"};
+#endif
+	}
 };
-} // namespace menu_item::cv
+} // namespace deluge::gui::menu_item::cv

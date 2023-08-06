@@ -19,7 +19,7 @@
 #include "dsp/stereo_sample.h"
 
 MasterCompressor::MasterCompressor() {
-	compressor.setSampleRate(44100);
+	compressor.setSampleRate(kSampleRate);
 	compressor.initRuntime();
 	compressor.setAttack(10.0);
 	compressor.setRelease(100.0);
@@ -30,14 +30,21 @@ MasterCompressor::MasterCompressor() {
 	wet = 1.0;
 }
 
-void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples) {
+void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples, int32_t masterVolumeAdjustmentL,
+                              int32_t masterVolumeAdjustmentR) {
 
 	StereoSample* thisSample = buffer;
 	StereoSample* bufferEnd = buffer + numSamples;
 	if (compressor.getThresh() < -0.001) {
+		double adjustmentL = (masterVolumeAdjustmentL) / 4294967296.0; //  *2.0 is <<1 from multiply_32x32_rshift32
+		double adjustmentR = (masterVolumeAdjustmentR) / 4294967296.0;
+		if (adjustmentL < 0.000001)
+			adjustmentL = 0.000001;
+		if (adjustmentR < 0.000001)
+			adjustmentR = 0.000001;
 		do {
-			double l = thisSample->l / 2147483648.0;
-			double r = thisSample->r / 2147483648.0;
+			double l = thisSample->l / (double)ONE_Q31 / adjustmentL;
+			double r = thisSample->r / (double)ONE_Q31 / adjustmentR;
 			double rawl = l;
 			double rawr = r;
 			compressor.process(l, r);
@@ -54,8 +61,10 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples) {
 				r = rawr * (1.0 - wet) + r * wet;
 			}
 
-			thisSample->l = l * 2147483647;
-			thisSample->r = r * 2147483647;
+			thisSample->l = l * ONE_Q31;
+			thisSample->r = r * ONE_Q31;
+			thisSample->l = multiply_32x32_rshift32(thisSample->l, masterVolumeAdjustmentL);
+			thisSample->r = multiply_32x32_rshift32(thisSample->r, masterVolumeAdjustmentR);
 
 		} while (++thisSample != bufferEnd);
 	}

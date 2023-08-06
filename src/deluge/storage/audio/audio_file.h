@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "memory/stealable.h"
 #include "util/d_string.h"
 
@@ -24,9 +25,10 @@ class AudioFileReader;
 
 class AudioFile : public Stealable {
 public:
-	AudioFile(int newType);
-	virtual ~AudioFile();
-	int loadFile(AudioFileReader* reader, bool isAiff, bool makeWaveTableWorkAtAllCosts);
+	AudioFile(AudioFileType newType) : type(newType) {}
+	~AudioFile() override = default;
+
+	int32_t loadFile(AudioFileReader* reader, bool isAiff, bool makeWaveTableWorkAtAllCosts);
 	virtual void finalizeAfterLoad(uint32_t fileSize) {}
 
 	void addReason();
@@ -35,15 +37,15 @@ public:
 	// Stealable implementation
 	bool mayBeStolen(void* thingNotToStealFrom = NULL);
 	void steal(char const* errorCode);
-	int getAppropriateQueue();
+	int32_t getAppropriateQueue();
 
 	String filePath;
 
-	const uint8_t type;
+	const AudioFileType type;
 	uint8_t numChannels;
 	String
 	    loadedFromAlternatePath; // We now need to store this, since "alternate" files can now just have the same filename (in special folder) as the original. So we need to remember which format the name took.
-	int32_t numReasonsToBeLoaded; // This functionality should probably be merged between AudioFile and Cluster.
+	int32_t numReasonsToBeLoaded{}; // This functionality should probably be merged between AudioFile and Cluster.
 
 protected:
 	virtual void numReasonsIncreasedFromZero() {}

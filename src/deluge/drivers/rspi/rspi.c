@@ -16,8 +16,8 @@
  */
 
 #include "drivers/rspi/rspi.h"
-#include "RZA1/system/iodefines/rspi_iodefine.h"
 #include "RZA1/system/iobitmasks/rspi_iobitmask.h"
+#include "RZA1/system/iodefines/rspi_iodefine.h"
 #include "RZA1/system/rza_io_regrw.h"
 
 void R_RSPI_SendBasic8(uint8_t channel, uint8_t data) {
@@ -52,6 +52,6 @@ void R_RSPI_WaitEnd(uint8_t channel) {
 	while (!RSPI(channel).SPSR.BIT.TEND) {}
 }
 
-int R_RSPI_HasEnded(uint8_t channel) {
+int32_t R_RSPI_HasEnded(uint8_t channel) {
 	return RSPI(channel).SPSR.BIT.TEND;
 }

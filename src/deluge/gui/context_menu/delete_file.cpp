@@ -16,11 +16,11 @@
 */
 
 #include "gui/context_menu/delete_file.h"
+#include "gui/context_menu/save_song_or_instrument.h"
 #include "gui/ui/browser/browser.h"
 #include "hid/display/numeric_driver.h"
-#include "io/uart/uart.h"
 #include "hid/matrix/matrix_driver.h"
-#include "gui/context_menu/save_song_or_instrument.h"
+#include "io/debug/print.h"
 
 extern "C" {
 #include "fatfs/ff.h"
@@ -31,7 +31,7 @@ namespace deluge::gui::context_menu {
 DeleteFile deleteFile{};
 
 char const* DeleteFile::getTitle() {
-	static char* title;
+	static char const* title;
 	if (getUIUpOneLevel() == &context_menu::saveSongOrInstrument) {
 		title = "Are you sure?";
 	}
@@ -68,7 +68,7 @@ bool DeleteFile::acceptCurrentOption() {
 	Browser* browser = (Browser*)ui;
 
 	String filePath;
-	int error = browser->getCurrentFilePath(&filePath);
+	int32_t error = browser->getCurrentFilePath(&filePath);
 	if (error) {
 		numericDriver.displayError(error);
 		return false;

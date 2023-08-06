@@ -17,8 +17,8 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "hid/button.h"
-#include "definitions.h"
 
 class RootUI;
 class ClipMinder;
@@ -83,17 +83,19 @@ class UI {
 public:
 	UI();
 
-	virtual int padAction(int x, int y, int velocity) { return ACTION_RESULT_DEALT_WITH; }
-	virtual int buttonAction(hid::Button b, bool on, bool inCardRoutine) { return ACTION_RESULT_NOT_DEALT_WITH; }
-	virtual int horizontalEncoderAction(int offset) { return ACTION_RESULT_DEALT_WITH; }
-	virtual int verticalEncoderAction(int offset, bool inCardRoutine) { return ACTION_RESULT_DEALT_WITH; }
+	virtual ActionResult padAction(int32_t x, int32_t y, int32_t velocity) { return ActionResult::DEALT_WITH; }
+	virtual ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+		return ActionResult::NOT_DEALT_WITH;
+	}
+	virtual ActionResult horizontalEncoderAction(int32_t offset) { return ActionResult::DEALT_WITH; }
+	virtual ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) { return ActionResult::DEALT_WITH; }
 	virtual void selectEncoderAction(int8_t offset) {}
-	virtual void modEncoderAction(int whichModEncoder, int offset);
+	virtual void modEncoderAction(int32_t whichModEncoder, int32_t offset);
 	virtual void modButtonAction(uint8_t whichButton, bool on);
 	virtual void modEncoderButtonAction(uint8_t whichModEncoder, bool on);
 
 	virtual void graphicsRoutine();
-	virtual int timerCallback() { return ACTION_RESULT_DEALT_WITH; }
+	virtual ActionResult timerCallback() { return ActionResult::DEALT_WITH; }
 
 	virtual bool opened() {
 		focusRegained();
@@ -103,7 +105,7 @@ public:
 	virtual bool canSeeViewUnderneath() { return false; }
 	virtual ClipMinder* toClipMinder() { return NULL; }
 	virtual void scrollFinished() {}
-	virtual bool noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int channel, int note, int velocity) {
+	virtual bool noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channel, int32_t note, int32_t velocity) {
 		return false;
 	} // Returns whether it was used, I think?
 
@@ -114,13 +116,13 @@ public:
 	// When these return false it means they're transparent, showing what's underneath.
 	// These *must* check whether image has been supplied - if not, just return, saying whether opaque or not.
 	// Cos we need to be able to quiz these without actually getting any rendering done.
-	virtual bool renderMainPads(uint32_t whichRows = 0, uint8_t image[][displayWidth + sideBarWidth][3] = NULL,
-	                            uint8_t occupancyMask[][displayWidth + sideBarWidth] = NULL,
+	virtual bool renderMainPads(uint32_t whichRows = 0, uint8_t image[][kDisplayWidth + kSideBarWidth][3] = NULL,
+	                            uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL,
 	                            bool drawUndefinedArea = true) {
 		return false;
 	}
-	virtual bool renderSidebar(uint32_t whichRows = 0, uint8_t image[][displayWidth + sideBarWidth][3] = NULL,
-	                           uint8_t occupancyMask[][displayWidth + sideBarWidth] = NULL) {
+	virtual bool renderSidebar(uint32_t whichRows = 0, uint8_t image[][kDisplayWidth + kSideBarWidth][3] = NULL,
+	                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL) {
 		return false;
 	}
 
@@ -135,7 +137,7 @@ public:
 // UIs
 UI* getCurrentUI();
 RootUI* getRootUI();
-UI* getUIUpOneLevel(int numLevelsUp);
+UI* getUIUpOneLevel(int32_t numLevelsUp);
 static UI* getUIUpOneLevel() {
 	return getUIUpOneLevel(1);
 }
@@ -143,7 +145,7 @@ void closeUI(UI* ui);
 bool openUI(UI* newUI);
 void changeRootUI(UI* newUI);
 bool changeUISideways(UI* newUI);
-bool changeUIAtLevel(UI* newUI, int level);
+bool changeUIAtLevel(UI* newUI, int32_t level);
 bool isUIOpen(UI* ui);
 void setRootUILowLevel(UI* newUI);
 void swapOutRootUILowLevel(UI* newUI);

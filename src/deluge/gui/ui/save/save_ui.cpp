@@ -15,17 +15,18 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "gui/context_menu/save_song_or_instrument.h"
 #include "gui/ui/save/save_ui.h"
-#include "hid/matrix/matrix_driver.h"
-#include "hid/display/numeric_driver.h"
-#include "storage/storage_manager.h"
-#include "hid/led/pad_leds.h"
-#include "hid/led/indicator_leds.h"
+#include "definitions_cxx.hpp"
+#include "gui/context_menu/save_song_or_instrument.h"
 #include "gui/ui/ui.h"
-#include "hid/buttons.h"
 #include "gui/ui_timer_manager.h"
+#include "hid/buttons.h"
+#include "hid/display/numeric_driver.h"
+#include "hid/led/indicator_leds.h"
+#include "hid/led/pad_leds.h"
+#include "hid/matrix/matrix_driver.h"
 #include "storage/file_item.h"
+#include "storage/storage_manager.h"
 
 using namespace deluge;
 
@@ -36,7 +37,7 @@ SaveUI::SaveUI() {
 }
 
 bool SaveUI::opened() {
-	int error = beginSlotSession(true, true);
+	int32_t error = beginSlotSession(true, true);
 	if (error) {
 		numericDriver.displayError(error);
 		return false;
@@ -74,7 +75,7 @@ void SaveUI::enterKeyPress() {
 	// If it's a directory...
 	if (currentFileItem && currentFileItem->isFolder) {
 
-		int error = goIntoFolder(currentFileItem->filename.get());
+		int32_t error = goIntoFolder(currentFileItem->filename.get());
 
 		if (error) {
 			numericDriver.displayError(error);
@@ -97,7 +98,7 @@ void SaveUI::enterKeyPress() {
 	}
 }
 
-int SaveUI::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+ActionResult SaveUI::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
 	FileItem* currentFileItem = getCurrentFileItem();
@@ -114,10 +115,10 @@ int SaveUI::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		return SlotBrowser::buttonAction(b, on, inCardRoutine);
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
-int SaveUI::timerCallback() {
+ActionResult SaveUI::timerCallback() {
 	if (currentUIMode == UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS) {
 		convertToPrefixFormatIfPossible();
 
@@ -132,7 +133,7 @@ int SaveUI::timerCallback() {
 			exitUIMode(UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS);
 		}
 
-		return ACTION_RESULT_DEALT_WITH;
+		return ActionResult::DEALT_WITH;
 	}
 	else {
 		return SlotBrowser::timerCallback();

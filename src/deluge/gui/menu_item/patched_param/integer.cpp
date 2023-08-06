@@ -15,16 +15,15 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #include "integer.h"
+#include "gui/ui/sound_editor.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param_set.h"
-#include "gui/ui/sound_editor.h"
 
-namespace menu_item::patched_param {
+namespace deluge::gui::menu_item::patched_param {
 void Integer::readCurrentValue() {
-	soundEditor.currentValue =
-	    (((int64_t)soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP()) + 2147483648) * 50
-	     + 2147483648)
-	    >> 32;
+	this->setValue((((int64_t)soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP()) + 2147483648) * 50
+	                + 2147483648)
+	               >> 32);
 }
 
 void Integer::writeCurrentValue() {
@@ -36,10 +35,10 @@ void Integer::writeCurrentValue() {
 }
 
 int32_t Integer::getFinalValue() {
-	if (soundEditor.currentValue == 25) {
+	if (this->getValue() == 25) {
 		return 0;
 	}
-	return (uint32_t)soundEditor.currentValue * 85899345 - 2147483648;
+	return (uint32_t)this->getValue() * 85899345 - 2147483648;
 }
 
-} // namespace menu_item::patched_param
+} // namespace deluge::gui::menu_item::patched_param

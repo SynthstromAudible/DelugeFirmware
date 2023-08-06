@@ -15,19 +15,19 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "model/clip/instrument_clip.h"
 #include "model/consequence/consequence_note_row_mute.h"
+#include "model/clip/instrument_clip.h"
+#include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
-#include "model/model_stack.h"
 
-ConsequenceNoteRowMute::ConsequenceNoteRowMute(InstrumentClip* newClip, int newNoteRowId) {
+ConsequenceNoteRowMute::ConsequenceNoteRowMute(InstrumentClip* newClip, int32_t newNoteRowId) {
 	noteRowId = newNoteRowId;
 	clip = newClip;
 }
 
-int ConsequenceNoteRowMute::revert(int time, ModelStack* modelStack) {
+int32_t ConsequenceNoteRowMute::revert(TimeType time, ModelStack* modelStack) {
 	NoteRow* noteRow = clip->getNoteRowFromId(noteRowId);
 	if (!noteRow) {
 		return ERROR_BUG;

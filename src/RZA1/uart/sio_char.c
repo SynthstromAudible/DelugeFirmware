@@ -36,40 +36,39 @@
 /******************************************************************************
 Includes   <System Includes> , "Project Includes"
 ******************************************************************************/
-#include "RZA1/system/rza_io_regrw.h"
 #include "RZA1/uart/sio_char.h"
-#include "RZA1/system/iodefine.h"
-#include "RZA1/system/iobitmasks/scif_iobitmask.h"
-#include "RZA1/system/iobitmasks/gpio_iobitmask.h"
-#include "RZA1/system/iodefine.h"
-#include "definitions.h"
-#include <stdlib.h>
 #include "RZA1/cpu_specific.h"
+#include "RZA1/system/iobitmasks/gpio_iobitmask.h"
+#include "RZA1/system/iobitmasks/scif_iobitmask.h"
+#include "RZA1/system/iodefine.h"
+#include "RZA1/system/rza_io_regrw.h"
+#include "definitions.h"
 #include <math.h>
+#include <stdlib.h>
 
 #include "deluge/drivers/uart/uart.h"
 
-char_t picTxBuffer[PIC_TX_BUFFER_SIZE] __attribute__((aligned(CACHE_LINE_SIZE)));
-char_t midiTxBuffer[MIDI_TX_BUFFER_SIZE] __attribute__((aligned(CACHE_LINE_SIZE)));
+char picTxBuffer[PIC_TX_BUFFER_SIZE] __attribute__((aligned(CACHE_LINE_SIZE)));
+char midiTxBuffer[MIDI_TX_BUFFER_SIZE] __attribute__((aligned(CACHE_LINE_SIZE)));
 
-char_t picRxBuffer[PIC_RX_BUFFER_SIZE] __attribute__((aligned(CACHE_LINE_SIZE)));
-char_t midiRxBuffer[MIDI_RX_BUFFER_SIZE] __attribute__((aligned(CACHE_LINE_SIZE)));
+char picRxBuffer[PIC_RX_BUFFER_SIZE] __attribute__((aligned(CACHE_LINE_SIZE)));
+char midiRxBuffer[MIDI_RX_BUFFER_SIZE] __attribute__((aligned(CACHE_LINE_SIZE)));
 uint32_t midiRxTimingBuffer[MIDI_RX_TIMING_BUFFER_SIZE] __attribute__((aligned(
     CACHE_LINE_SIZE))); // I'd like to store just 16 bits per entry for this, but the DMA wouldn't do it - whether or not I also set its source data size to 16 bits
 
-char_t* const txBuffers[]      = {picTxBuffer, midiTxBuffer};
+char* const txBuffers[]        = {picTxBuffer, midiTxBuffer};
 const uint16_t txBufferSizes[] = {PIC_TX_BUFFER_SIZE, MIDI_TX_BUFFER_SIZE};
 
-char_t* const rxBuffers[]      = {picRxBuffer, midiRxBuffer};
+char* const rxBuffers[]        = {picRxBuffer, midiRxBuffer};
 const uint16_t rxBufferSizes[] = {PIC_RX_BUFFER_SIZE, MIDI_RX_BUFFER_SIZE};
 
 const uint8_t uartChannels[]  = {UART_CHANNEL_PIC, UART_CHANNEL_MIDI};
 const uint8_t txDmaChannels[] = {PIC_TX_DMA_CHANNEL, MIDI_TX_DMA_CHANNEL};
 const uint8_t rxDmaChannels[] = {PIC_RX_DMA_CHANNEL, MIDI_RX_DMA_CHANNEL};
 
-char_t* rxBufferReadAddr[] = {picRxBuffer, midiRxBuffer};
+char* rxBufferReadAddr[] = {picRxBuffer, midiRxBuffer};
 
-char_t const timingCaptureItems[]         = {UART_ITEM_MIDI};
+char const timingCaptureItems[]           = {UART_ITEM_MIDI};
 uint16_t const timingCaptureBufferSizes[] = {MIDI_RX_TIMING_BUFFER_SIZE};
 uint32_t* const timingCaptureBuffers[]    = {midiRxTimingBuffer};
 uint8_t const timingCaptureDMAChannels[]  = {MIDI_RX_TIMING_DMA_CHANNEL};

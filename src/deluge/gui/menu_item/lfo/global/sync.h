@@ -15,27 +15,27 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "gui/menu_item/sync_level.h"
-#include "model/song/song.h"
 #include "gui/ui/sound_editor.h"
+#include "model/song/song.h"
 #include "processing/sound/sound.h"
 
-namespace menu_item::lfo::global {
+namespace deluge::gui::menu_item::lfo::global {
 
 class Sync final : public SyncLevel {
 public:
 	using SyncLevel::SyncLevel;
 
 	void readCurrentValue() {
-		soundEditor.currentValue = syncTypeAndLevelToMenuOption(soundEditor.currentSound->lfoGlobalSyncType,
-		                                                        soundEditor.currentSound->lfoGlobalSyncLevel);
+		this->setValue(syncTypeAndLevelToMenuOption(soundEditor.currentSound->lfoGlobalSyncType,
+		                                            soundEditor.currentSound->lfoGlobalSyncLevel));
 	}
 	void writeCurrentValue() {
-		soundEditor.currentSound->setLFOGlobalSyncType(menuOptionToSyncType(soundEditor.currentValue));
-		soundEditor.currentSound->setLFOGlobalSyncLevel(menuOptionToSyncLevel(soundEditor.currentValue));
+		soundEditor.currentSound->setLFOGlobalSyncType(menuOptionToSyncType(this->getValue()));
+		soundEditor.currentSound->setLFOGlobalSyncLevel(menuOptionToSyncLevel(this->getValue()));
 		soundEditor.currentSound->setupPatchingForAllParamManagers(currentSong);
 	}
 };
 
-} // namespace menu_item::lfo::global
+} // namespace deluge::gui::menu_item::lfo::global

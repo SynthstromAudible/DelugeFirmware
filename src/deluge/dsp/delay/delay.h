@@ -17,11 +17,11 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
-#include "dsp/stereo_sample.h"
-#include <math.h>
-#include "dsp/delay/delay_buffer.h"
 #include "dsp/convolution/impulse_response_processor.h"
+#include "dsp/delay/delay_buffer.h"
+#include "dsp/stereo_sample.h"
+#include <cstdint>
+#include <math.h>
 
 struct DelayWorkingState {
 	bool doDelay;
@@ -63,5 +63,5 @@ public:
 
 private:
 	void prepareToBeginWriting();
-	int getAmountToWriteBeforeReadingBegins();
+	int32_t getAmountToWriteBeforeReadingBegins();
 };

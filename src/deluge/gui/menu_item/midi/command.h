@@ -17,29 +17,29 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "gui/menu_item/menu_item.h"
 
 class MIDIDevice;
 
-namespace menu_item::midi {
+namespace deluge::gui::menu_item::midi {
 
 class Command final : public MenuItem {
 public:
-	Command(char const* newName = NULL, int newCommandNumber = 0) : MenuItem(newName) {
-		commandNumber = newCommandNumber;
-	}
-	void beginSession(MenuItem* navigatedBackwardFrom);
-	void drawValue();
-	void selectEncoderAction(int offset);
-	bool allowsLearnMode() { return true; }
-	bool shouldBlinkLearnLed() { return true; }
-	void unlearnAction();
-	bool learnNoteOn(MIDIDevice* device, int channel, int noteCode);
-	void learnCC(MIDIDevice* device, int channel, int ccNumber, int value);
+	Command(const std::string& newName, GlobalMIDICommand newCommandNumber = GlobalMIDICommand::PLAYBACK_RESTART)
+	    : MenuItem(newName), commandNumber(newCommandNumber) {}
+	void beginSession(MenuItem* navigatedBackwardFrom) override;
+	void drawValue() const;
+	void selectEncoderAction(int32_t offset) override;
+	bool allowsLearnMode() override { return true; }
+	bool shouldBlinkLearnLed() override { return true; }
+	void unlearnAction() override;
+	bool learnNoteOn(MIDIDevice* device, int32_t channel, int32_t noteCode) override;
+	void learnCC(MIDIDevice* device, int32_t channel, int32_t ccNumber, int32_t value) override;
 #if HAVE_OLED
 	void drawPixelsForOled();
 #endif
 
-	uint8_t commandNumber;
+	GlobalMIDICommand commandNumber;
 };
-} // namespace menu_item::midi
+} // namespace deluge::gui::menu_item::midi

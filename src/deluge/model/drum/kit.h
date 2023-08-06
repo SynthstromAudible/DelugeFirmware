@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "model/global_effectable/global_effectable_for_clip.h"
 #include "model/instrument/instrument.h"
 #include "util/container/array/ordered_resizeable_array.h"
@@ -37,15 +38,15 @@ public:
 	Drum* getPrevDrum(Drum* fromSoundSource);
 	bool writeDataToFile(Clip* clipForSavingOutputOnly, Song* song);
 	void addDrum(Drum* newDrum);
-	int readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos);
+	int32_t readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos);
 	Drum* getFirstUnassignedDrum(InstrumentClip* clip);
 	~Kit();
-	int getDrumIndex(Drum* drum);
-	Drum* getDrumFromIndex(int index);
+	int32_t getDrumIndex(Drum* drum);
+	Drum* getDrumFromIndex(int32_t index);
 	void modKnobAction(uint8_t whichKnob, int8_t offset);
-	int loadAllAudioFiles(bool mayActuallyReadFiles);
+	int32_t loadAllAudioFiles(bool mayActuallyReadFiles);
 	void cutAllSound();
-	void renderOutput(ModelStack* modelStack, StereoSample* startPos, StereoSample* endPos, int numSamples,
+	void renderOutput(ModelStack* modelStack, StereoSample* startPos, StereoSample* endPos, int32_t numSamples,
 	                  int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
 	                  bool shouldLimitDelayFeedback, bool isClipActive);
 	void notifySamplesInterruptsSuspended();
@@ -59,22 +60,22 @@ public:
 	void offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
 	                     uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru);
 	void offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
-	                             int channel, int value, int noteCode, bool* doingMidiThru);
+	                             int32_t channel, int32_t value, int32_t noteCode, bool* doingMidiThru);
 
 	void choke();
 	void resyncLFOs();
 	void removeDrum(Drum* drum);
 	ModControllable* toModControllable();
 	SoundDrum* getDrumFromName(char const* name, bool onlyIfNoNoteRow = false);
-	int makeDrumNameUnique(String* name, int startAtNumber);
-	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMIDIPGMs);
+	int32_t makeDrumNameUnique(String* name, int32_t startAtNumber);
+	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs);
 	void setupPatching(ModelStackWithTimelineCounter* modelStack);
 	void compensateInstrumentVolumeForResonance(ParamManagerForTimeline* paramManager, Song* song);
 	void deleteBackedUpParamManagers(Song* song);
 	void prepareForHibernationOrDeletion();
 	int32_t doTickForwardForArp(ModelStack* modelStack, int32_t currentPos);
 	void loadCrucialAudioFilesOnly();
-	GateDrum* getGateDrumForChannel(int gateChannel);
+	GateDrum* getGateDrumForChannel(int32_t gateChannel);
 	void resetDrumTempValues();
 	void setupWithoutActiveClip(ModelStack* modelStack);
 	void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb,
@@ -83,19 +84,20 @@ public:
 	uint8_t* getModKnobMode() { return &modKnobMode; }
 	Output* toOutput() { return this; }
 	void offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
-	                       bool on, int channel, int note, int velocity, bool shouldRecordNotes, bool* doingMidiThru);
+	                       bool on, int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
+	                       bool* doingMidiThru);
 	bool isNoteRowStillAuditioningAsLinearRecordingEnded(NoteRow* noteRow);
 	bool allowNoteTails(NoteRow* noteRow);
 	void stopAnyAuditioning(ModelStack* modelStack);
 	bool isAnyAuditioningHappening();
-	void beginAuditioningforDrum(ModelStackWithNoteRow* modelStack, Drum* drum, int velocity, int16_t const* mpeValues,
-	                             int fromMIDIChannel = MIDI_CHANNEL_NONE);
-	void endAuditioningForDrum(ModelStackWithNoteRow* modelStack, Drum* drum, int velocity = DEFAULT_LIFT_VALUE);
-	void offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int channelOrZone, int whichBendRange,
-	                          int bendSemitones);
+	void beginAuditioningforDrum(ModelStackWithNoteRow* modelStack, Drum* drum, int32_t velocity,
+	                             int16_t const* mpeValues, int32_t fromMIDIChannel = MIDI_CHANNEL_NONE);
+	void endAuditioningForDrum(ModelStackWithNoteRow* modelStack, Drum* drum, int32_t velocity = kDefaultLiftValue);
+	void offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone, int32_t whichBendRange,
+	                          int32_t bendSemitones);
 
 	void renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack, StereoSample* globalEffectableBuffer,
-	                                   int32_t* bufferToTransferTo, int numSamples, int32_t* reverbBuffer,
+	                                   int32_t* bufferToTransferTo, int32_t numSamples, int32_t* reverbBuffer,
 	                                   int32_t reverbAmountAdjust, int32_t sideChainHitPending,
 	                                   bool shouldLimitDelayFeedback, bool isClipActive, int32_t pitchAdjust,
 	                                   int32_t amplitudeAtStart, int32_t amplitudeAtEnd);
@@ -111,9 +113,9 @@ protected:
 	bool isKit() { return true; }
 
 private:
-	int readDrumFromFile(Song* song, Clip* clip, int drumType, int32_t readAutomationUpToPos);
-	void writeDrumToFile(Drum* thisDrum, ParamManager* paramManagerForDrum, bool savingSong, int* selectedDrumIndex,
-	                     int* drumIndex, Song* song);
+	int32_t readDrumFromFile(Song* song, Clip* clip, DrumType drumType, int32_t readAutomationUpToPos);
+	void writeDrumToFile(Drum* thisDrum, ParamManager* paramManagerForDrum, bool savingSong, int32_t* selectedDrumIndex,
+	                     int32_t* drumIndex, Song* song);
 
 	void removeDrumFromLinkedList(Drum* drum);
 	void drumRemoved(Drum* drum);

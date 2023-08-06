@@ -18,14 +18,14 @@
 #pragma once
 
 #include "model/consequence/consequence.h"
-#include "RZA1/system/r_typedefs.h"
+#include <cstdint>
 
 class Clip;
 
 class ConsequenceClipLength final : public Consequence {
 public:
 	ConsequenceClipLength(Clip* newClip, int32_t oldLength);
-	int revert(int time, ModelStack* modelStack);
+	int32_t revert(TimeType time, ModelStack* modelStack);
 
 	Clip* clip;
 	int32_t lengthToRevertTo;

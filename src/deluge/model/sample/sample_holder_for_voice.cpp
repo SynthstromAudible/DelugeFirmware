@@ -15,12 +15,12 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "storage/audio/audio_file_manager.h"
 #include "model/sample/sample_holder_for_voice.h"
-#include "model/sample/sample.h"
-#include "storage/storage_manager.h"
-#include "processing/source.h"
 #include "hid/display/numeric_driver.h"
+#include "model/sample/sample.h"
+#include "processing/source.h"
+#include "storage/audio/audio_file_manager.h"
+#include "storage/storage_manager.h"
 
 SampleHolderForVoice::SampleHolderForVoice() {
 	loopStartPos = 0;
@@ -33,7 +33,7 @@ SampleHolderForVoice::SampleHolderForVoice() {
 	startMSec = 0;
 	endMSec = 0;
 
-	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
 		clustersForLoopStart[l] = NULL;
 	}
 }
@@ -41,7 +41,7 @@ SampleHolderForVoice::SampleHolderForVoice() {
 SampleHolderForVoice::~SampleHolderForVoice() {
 	// We have to unassign reasons here, even though our parent destructor will call unassignAllReasons() - our overriding of that virtual function
 	// won't happen as we've already been destructed!
-	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
 		if (clustersForLoopStart[l]) {
 			audioFileManager.removeReasonFromCluster(clustersForLoopStart[l], "E247");
 		}
@@ -50,7 +50,7 @@ SampleHolderForVoice::~SampleHolderForVoice() {
 
 void SampleHolderForVoice::unassignAllClusterReasons(bool beingDestructed) {
 	SampleHolder::unassignAllClusterReasons(beingDestructed);
-	for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
 		if (clustersForLoopStart[l]) {
 			audioFileManager.removeReasonFromCluster(clustersForLoopStart[l],
 			                                         "E320"); // Happened to me while auto-pilot testing, I think
@@ -63,7 +63,7 @@ void SampleHolderForVoice::unassignAllClusterReasons(bool beingDestructed) {
 
 // Reassesses which Clusters we want to be a "reason" for.
 // Ensure there is a sample before you call this.
-void SampleHolderForVoice::claimClusterReasons(bool reversed, int clusterLoadInstruction) {
+void SampleHolderForVoice::claimClusterReasons(bool reversed, int32_t clusterLoadInstruction) {
 
 #if ALPHA_OR_BETA_VERSION
 	if (!audioFile) {
@@ -73,10 +73,10 @@ void SampleHolderForVoice::claimClusterReasons(bool reversed, int clusterLoadIns
 
 	SampleHolder::claimClusterReasons(reversed, clusterLoadInstruction);
 
-	int playDirection = reversed ? -1 : 1;
-	int bytesPerSample = ((Sample*)audioFile)->numChannels * ((Sample*)audioFile)->byteDepth;
+	int32_t playDirection = reversed ? -1 : 1;
+	int32_t bytesPerSample = ((Sample*)audioFile)->numChannels * ((Sample*)audioFile)->byteDepth;
 
-	int loopStartPlaybackAtSample = reversed ? loopEndPos : loopStartPos;
+	int32_t loopStartPlaybackAtSample = reversed ? loopEndPos : loopStartPos;
 
 	if (reversed) { // Don't mix this with the above - we want to keep 0s as 0
 		if (loopStartPlaybackAtSample) {
@@ -85,7 +85,7 @@ void SampleHolderForVoice::claimClusterReasons(bool reversed, int clusterLoadIns
 	}
 
 	if (loopStartPlaybackAtSample) {
-		int loopStartPlaybackAtByte =
+		int32_t loopStartPlaybackAtByte =
 		    ((Sample*)audioFile)->audioDataStartPosBytes + loopStartPlaybackAtSample * bytesPerSample;
 		claimClusterReasonsForMarker(clustersForLoopStart, loopStartPlaybackAtByte, playDirection,
 		                             clusterLoadInstruction);
@@ -93,7 +93,7 @@ void SampleHolderForVoice::claimClusterReasons(bool reversed, int clusterLoadIns
 
 	// Or if no loop start point now, clear out any reasons we had before
 	else {
-		for (int l = 0; l < NUM_CLUSTERS_LOADED_AHEAD; l++) {
+		for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
 			if (clustersForLoopStart[l]) {
 				audioFileManager.removeReasonFromCluster(clustersForLoopStart[l], "E246");
 				clustersForLoopStart[l] = NULL;
@@ -102,7 +102,7 @@ void SampleHolderForVoice::claimClusterReasons(bool reversed, int clusterLoadIns
 	}
 }
 
-void SampleHolderForVoice::setCents(int newCents) {
+void SampleHolderForVoice::setCents(int32_t newCents) {
 	cents = newCents;
 	recalculateFineTuner();
 }
@@ -112,7 +112,7 @@ void SampleHolderForVoice::recalculateFineTuner() {
 }
 
 uint32_t SampleHolderForVoice::getMSecLimit(Source* source) {
-	if (source->repeatMode == SAMPLE_REPEAT_STRETCH) {
+	if (source->repeatMode == SampleRepeatMode::STRETCH) {
 		return 9999999;
 	}
 	else {
@@ -131,8 +131,8 @@ void SampleHolderForVoice::setTransposeAccordingToSamplePitch(bool minimizeOctav
 	float midiNote = ((Sample*)audioFile)->midiNote;
 	if (midiNote != -1000) {
 		float semitones = (float)60 - midiNote;
-		int semitonesInt = roundf(semitones);
-		int cents = roundf((semitones - semitonesInt) * 100);
+		int32_t semitonesInt = roundf(semitones);
+		int32_t cents = roundf((semitones - semitonesInt) * 100);
 
 		// If it's the only range, minimize the transpose
 		if (minimizeOctaves) {
@@ -160,7 +160,7 @@ void SampleHolderForVoice::setTransposeAccordingToSamplePitch(bool minimizeOctav
 
 void SampleHolderForVoice::sampleBeenSet(bool reversed, bool manuallySelected) {
 
-	neutralPhaseIncrement = ((uint64_t)((Sample*)audioFile)->sampleRate << 24) / 44100;
+	neutralPhaseIncrement = ((uint64_t)((Sample*)audioFile)->sampleRate << 24) / kSampleRate;
 
 	uint32_t lengthInSamples = ((Sample*)audioFile)->lengthInSamples;
 
@@ -171,9 +171,9 @@ void SampleHolderForVoice::sampleBeenSet(bool reversed, bool manuallySelected) {
 
 		if (((Sample*)audioFile)->fileLoopEndSamples && ((Sample*)audioFile)->fileLoopEndSamples <= lengthInSamples) {
 
-			int loopLength = ((Sample*)audioFile)->fileLoopEndSamples - ((Sample*)audioFile)->fileLoopStartSamples;
+			int32_t loopLength = ((Sample*)audioFile)->fileLoopEndSamples - ((Sample*)audioFile)->fileLoopStartSamples;
 
-			int lengthAfterLoop = lengthInSamples - ((Sample*)audioFile)->fileLoopEndSamples;
+			int32_t lengthAfterLoop = lengthInSamples - ((Sample*)audioFile)->fileLoopEndSamples;
 
 			if (loopLength >= lengthAfterLoop) {
 				endPos = ((Sample*)audioFile)->fileLoopEndSamples;
@@ -222,7 +222,7 @@ void SampleHolderForVoice::sampleBeenSet(bool reversed, bool manuallySelected) {
 			}
 
 			if (convertedMSecValues && reversed) {
-				int oldStartPos = startPos;
+				int32_t oldStartPos = startPos;
 				startPos = lengthInSamples - endPos;
 				endPos = lengthInSamples - oldStartPos;
 

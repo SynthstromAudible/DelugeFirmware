@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include "definitions.h"
-#include "util/d_string.h"
+#include "definitions_cxx.hpp"
 #include "storage/audio/audio_file_holder.h"
+#include "util/d_string.h"
 
 extern "C" {
 #include "fatfs/ff.h"
@@ -36,10 +36,10 @@ public:
 	int64_t getEndPos(bool forTimeStretching = false);
 	int64_t getDurationInSamples(bool forTimeStretching = false);
 	void beenClonedFrom(SampleHolder* other, bool reversed);
-	virtual void claimClusterReasons(bool reversed, int clusterLoadInstruction = CLUSTER_ENQUEUE);
+	virtual void claimClusterReasons(bool reversed, int32_t clusterLoadInstruction = CLUSTER_ENQUEUE);
 	int32_t getLengthInSamplesAtSystemSampleRate(bool forTimeStretching = false);
 	void setAudioFile(AudioFile* newAudioFile, bool reversed = false, bool manuallySelected = false,
-	                  int clusterLoadInstruction = CLUSTER_ENQUEUE);
+	                  int32_t clusterLoadInstruction = CLUSTER_ENQUEUE);
 
 	// In samples.
 	uint64_t startPos;
@@ -50,10 +50,10 @@ public:
 
 	int32_t neutralPhaseIncrement;
 
-	Cluster* clustersForStart[NUM_CLUSTERS_LOADED_AHEAD];
+	Cluster* clustersForStart[kNumClustersLoadedAhead];
 
 protected:
-	void claimClusterReasonsForMarker(Cluster** clusters, uint32_t startPlaybackAtByte, int playDirection,
-	                                  int clusterLoadInstruction);
+	void claimClusterReasonsForMarker(Cluster** clusters, uint32_t startPlaybackAtByte, int32_t playDirection,
+	                                  int32_t clusterLoadInstruction);
 	virtual void sampleBeenSet(bool reversed, bool manuallySelected) {}
 };

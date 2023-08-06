@@ -15,13 +15,16 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "model/clip/instrument_clip.h"
 #include "model/consequence/consequence_note_existence.h"
-#include "model/note/note_vector.h"
+#include "definitions_cxx.hpp"
+#include "model/clip/instrument_clip.h"
 #include "model/note/note.h"
 #include "model/note/note_row.h"
+#include "model/note/note_vector.h"
+#include "util/misc.h"
 
-ConsequenceNoteExistence::ConsequenceNoteExistence(InstrumentClip* newClip, int newNoteRowId, Note* note, int newType) {
+ConsequenceNoteExistence::ConsequenceNoteExistence(InstrumentClip* newClip, int32_t newNoteRowId, Note* note,
+                                                   ExistenceChangeType newType) {
 	clip = newClip;
 	noteRowId = newNoteRowId;
 	pos = note->pos;
@@ -33,15 +36,15 @@ ConsequenceNoteExistence::ConsequenceNoteExistence(InstrumentClip* newClip, int 
 	type = newType;
 }
 
-int ConsequenceNoteExistence::revert(int time, ModelStack* modelStack) {
+int32_t ConsequenceNoteExistence::revert(TimeType time, ModelStack* modelStack) {
 	NoteRow* noteRow = clip->getNoteRowFromId(noteRowId);
 	if (!noteRow) {
 		return ERROR_BUG;
 	}
 
-	if (time == type) {
+	if (time == util::to_underlying(type)) {
 		// Delete a note now
-		int i = noteRow->notes.search(pos, GREATER_OR_EQUAL);
+		int32_t i = noteRow->notes.search(pos, GREATER_OR_EQUAL);
 		if (i < 0 || i >= noteRow->notes.getNumElements() || noteRow->notes.getElement(i)->pos != pos) {
 			return NO_ERROR; // This can happen, and is fine, when redoing a "Clip multiply" action with notes with iteration dependence
 		}
@@ -49,7 +52,7 @@ int ConsequenceNoteExistence::revert(int time, ModelStack* modelStack) {
 	}
 	else {
 		// Create a note now
-		int i = noteRow->notes.insertAtKey(pos);
+		int32_t i = noteRow->notes.insertAtKey(pos);
 		Note* note = noteRow->notes.getElement(i);
 		if (!note) {
 			return ERROR_INSUFFICIENT_RAM;

@@ -17,10 +17,10 @@
 
 #pragma once
 
-#include "util/container/array/early_note_array.h"
 #include "io/midi/learned_midi.h"
 #include "model/instrument/instrument.h"
 #include "modulation/arpeggiator.h"
+#include "util/container/array/early_note_array.h"
 
 class PostArpTriggerable;
 class NoteRow;
@@ -30,51 +30,53 @@ class MIDIDevice;
 
 class MelodicInstrument : public Instrument {
 public:
-	MelodicInstrument(int newType);
+	MelodicInstrument(InstrumentType newType) : Instrument(newType) {}
 
 	// Check activeClip before you call!
 	// mpeValues must be provided for a note-on (can be 0s). Otherwise, can be NULL pointer
-	virtual void sendNote(ModelStackWithThreeMainThings* modelStack, bool isOn, int noteCode, int16_t const* mpeValues,
-	                      int fromMIDIChannel = MIDI_CHANNEL_NONE, uint8_t velocity = 64, uint32_t sampleSyncLength = 0,
-	                      int32_t ticksLate = 0, uint32_t samplesLate = 0) = 0;
+	virtual void sendNote(ModelStackWithThreeMainThings* modelStack, bool isOn, int32_t noteCode,
+	                      int16_t const* mpeValues, int32_t fromMIDIChannel = MIDI_CHANNEL_NONE, uint8_t velocity = 64,
+	                      uint32_t sampleSyncLength = 0, int32_t ticksLate = 0, uint32_t samplesLate = 0) = 0;
 
-	virtual void ccReceivedFromInputMIDIChannel(int cc, int value, ModelStackWithTimelineCounter* modelStack) {}
+	virtual void ccReceivedFromInputMIDIChannel(int32_t cc, int32_t value, ModelStackWithTimelineCounter* modelStack) {}
 
 	bool writeMelodicInstrumentAttributesToFile(Clip* clipForSavingOutputOnly, Song* song);
 	void writeMelodicInstrumentTagsToFile(Clip* clipForSavingOutputOnly, Song* song);
 	bool readTagFromFile(char const* tagName);
 
 	void offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
-	                       bool on, int channel, int note, int velocity, bool shouldRecordNotes, bool* doingMidiThru);
+	                       bool on, int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
+	                       bool* doingMidiThru);
 	void offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
 	                            uint8_t channel, uint8_t data1, uint8_t data2, bool* doingMidiThru);
 	void offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
 	                     uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru);
 	void offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
-	                             int channel, int value, int noteCode, bool* doingMidiThru);
+	                             int32_t channel, int32_t value, int32_t noteCode, bool* doingMidiThru);
 
-	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMIDIPGMs);
+	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs);
 	bool isNoteRowStillAuditioningAsLinearRecordingEnded(NoteRow* noteRow) final;
 	void stopAnyAuditioning(ModelStack* modelStack) final;
-	bool isNoteAuditioning(int noteCode);
+	bool isNoteAuditioning(int32_t noteCode);
 	bool isAnyAuditioningHappening() final;
-	void beginAuditioningForNote(ModelStack* modelStack, int note, int velocity, int16_t const* mpeValues,
-	                             int fromMIDIChannel = MIDI_CHANNEL_NONE, uint32_t sampleSyncLength = 0);
-	void endAuditioningForNote(ModelStack* modelStack, int note, int velocity = DEFAULT_LIFT_VALUE);
-	virtual ModelStackWithAutoParam* getParamToControlFromInputMIDIChannel(int cc,
+	void beginAuditioningForNote(ModelStack* modelStack, int32_t note, int32_t velocity, int16_t const* mpeValues,
+	                             int32_t fromMIDIChannel = MIDI_CHANNEL_NONE, uint32_t sampleSyncLength = 0);
+	void endAuditioningForNote(ModelStack* modelStack, int32_t note, int32_t velocity = kDefaultLiftValue);
+	virtual ModelStackWithAutoParam* getParamToControlFromInputMIDIChannel(int32_t cc,
 	                                                                       ModelStackWithThreeMainThings* modelStack);
-	void processParamFromInputMIDIChannel(int cc, int32_t newValue, ModelStackWithTimelineCounter* modelStack);
+	void processParamFromInputMIDIChannel(int32_t cc, int32_t newValue, ModelStackWithTimelineCounter* modelStack);
 
 	void polyphonicExpressionEventPossiblyToRecord(ModelStackWithTimelineCounter* modelStack, int32_t newValue,
-	                                               int whichExpressionDimension, int channelOrNoteNumber,
-	                                               int whichCharacteristic);
+	                                               int32_t whichExpressionDimension, int32_t channelOrNoteNumber,
+	                                               MIDICharacteristic whichCharacteristic);
 	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL);
 
-	virtual void polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension,
-	                                                      int channelOrNoteNumber, int whichCharacteristic) = 0;
+	virtual void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t whichExpressionDimension,
+	                                                      int32_t channelOrNoteNumber,
+	                                                      MIDICharacteristic whichCharacteristic) = 0;
 
-	void offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int channelOrZone, int whichBendRange,
-	                          int bendSemitones);
+	void offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone, int32_t whichBendRange,
+	                          int32_t bendSemitones);
 
 	Arpeggiator arpeggiator;
 

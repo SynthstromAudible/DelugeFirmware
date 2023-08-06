@@ -35,40 +35,43 @@ class MIDIInstrument final : public NonAudioInstrument {
 public:
 	MIDIInstrument();
 
-	void ccReceivedFromInputMIDIChannel(int cc, int value, ModelStackWithTimelineCounter* modelStack);
+	void ccReceivedFromInputMIDIChannel(int32_t cc, int32_t value, ModelStackWithTimelineCounter* modelStack);
 
 	void allNotesOff();
 
-	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMIDIPGMs);
+	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs);
 	bool writeDataToFile(Clip* clipForSavingOutputOnly, Song* song);
 	bool readTagFromFile(char const* tagName);
-	int readModKnobAssignmentsFromFile(int32_t readAutomationUpToPos, ParamManagerForTimeline* paramManager = NULL);
+	int32_t readModKnobAssignmentsFromFile(int32_t readAutomationUpToPos, ParamManagerForTimeline* paramManager = NULL);
 	void sendMIDIPGM();
-	int changeControlNumberForModKnob(int offset, int whichModEncoder, int modKnobMode);
-	int getFirstUnusedCC(ModelStackWithThreeMainThings* modelStack, int direction, int startAt, int stopAt);
-	int moveAutomationToDifferentCC(int oldCC, int newCC, ModelStackWithThreeMainThings* modelStack);
-	int moveAutomationToDifferentCC(int offset, int whichModEncoder, int modKnobMode,
-	                                ModelStackWithThreeMainThings* modelStack);
+	int32_t changeControlNumberForModKnob(int32_t offset, int32_t whichModEncoder, int32_t modKnobMode);
+	int32_t getFirstUnusedCC(ModelStackWithThreeMainThings* modelStack, int32_t direction, int32_t startAt,
+	                         int32_t stopAt);
+	int32_t moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC, ModelStackWithThreeMainThings* modelStack);
+	int32_t moveAutomationToDifferentCC(int32_t offset, int32_t whichModEncoder, int32_t modKnobMode,
+	                                    ModelStackWithThreeMainThings* modelStack);
 	void offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
-	                       bool on, int channel, int note, int velocity, bool shouldRecordNotes, bool* doingMidiThru);
+	                       bool on, int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
+	                       bool* doingMidiThru);
 
 	// ModControllable implementation
 	bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack);
 	void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager);
-	ModelStackWithAutoParam* getParamFromModEncoder(int whichModEncoder, ModelStackWithThreeMainThings* modelStack,
+	ModelStackWithAutoParam* getParamFromModEncoder(int32_t whichModEncoder, ModelStackWithThreeMainThings* modelStack,
 	                                                bool allowCreation = true);
 	uint8_t* getModKnobMode() { return &modKnobMode; }
 
-	int getKnobPosForNonExistentParam(int whichModEncoder, ModelStackWithAutoParam* modelStack);
-	ModelStackWithAutoParam* getParamToControlFromInputMIDIChannel(int cc, ModelStackWithThreeMainThings* modelStack);
-	bool doesAutomationExistOnMIDIParam(ModelStackWithThreeMainThings* modelStack, int cc);
-	int getOutputMasterChannel();
+	int32_t getKnobPosForNonExistentParam(int32_t whichModEncoder, ModelStackWithAutoParam* modelStack);
+	ModelStackWithAutoParam* getParamToControlFromInputMIDIChannel(int32_t cc,
+	                                                               ModelStackWithThreeMainThings* modelStack);
+	bool doesAutomationExistOnMIDIParam(ModelStackWithThreeMainThings* modelStack, int32_t cc);
+	int32_t getOutputMasterChannel();
 
 	inline bool sendsToMPE() { return (channel >= 16); }
 
-	int channelSuffix;
+	int32_t channelSuffix;
 
-	int8_t modKnobCCAssignments[NUM_MOD_BUTTONS * NUM_PHYSICAL_MOD_KNOBS];
+	int8_t modKnobCCAssignments[kNumModButtons * kNumPhysicalModKnobs];
 
 	MPEOutputMemberChannel mpeOutputMemberChannels[15]; // Numbers 1 to 14. 0 is bogus
 
@@ -77,12 +80,12 @@ public:
 	char const* getSubSlotXMLTag() { return "suffix"; }
 
 protected:
-	void polyphonicExpressionEventPostArpeggiator(int newValue, int noteCodeAfterArpeggiation,
-	                                              int whichExpressionDimension, ArpNote* arpNote);
-	void noteOnPostArp(int noteCodePostArp, ArpNote* arpNote);
-	void noteOffPostArp(int noteCodePostArp, int oldMIDIChannel, int velocity);
-	void monophonicExpressionEvent(int newValue, int whichExpressionDimension);
+	void polyphonicExpressionEventPostArpeggiator(int32_t newValue, int32_t noteCodeAfterArpeggiation,
+	                                              int32_t whichExpressionDimension, ArpNote* arpNote);
+	void noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote);
+	void noteOffPostArp(int32_t noteCodePostArp, int32_t oldMIDIChannel, int32_t velocity);
+	void monophonicExpressionEvent(int32_t newValue, int32_t whichExpressionDimension);
 
 private:
-	void outputAllMPEValuesOnMemberChannel(int16_t const* mpeValuesToUse, int outputMemberChannel);
+	void outputAllMPEValuesOnMemberChannel(int16_t const* mpeValuesToUse, int32_t outputMemberChannel);
 };

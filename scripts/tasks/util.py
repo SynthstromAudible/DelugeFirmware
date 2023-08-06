@@ -1,5 +1,7 @@
 from functools import partial
+import itertools
 import multiprocessing
+import os
 import subprocess
 import sys
 import shutil
@@ -16,6 +18,7 @@ def run(args, redirect_input: bool = True, redirect_output: bool = True):
         stdout=(sys.stdout if redirect_output else None),
         stdin=(sys.stdin if redirect_input else None),
         stderr=(sys.stderr if redirect_output else None),
+        env=os.environ,
     )
 
     return process.returncode
@@ -51,7 +54,7 @@ def get_header_and_source_files(path: Path, recursive: bool):
     return [file for files in globs for file in list(files)]
 
 
-def prepend_file(text: str, path: Path):
+def prepend_file(text: str, path: Path) -> None:
     for linenum, line in enumerate(fileinput.FileInput(path.absolute(), inplace=1)):
         if linenum == 0:
             print(text)
@@ -60,13 +63,13 @@ def prepend_file(text: str, path: Path):
             print(line.rstrip())
 
 
-def convert_path_if_mingw(path: str):
+def convert_path_if_mingw(path: str) -> str:
     if sysconfig.get_platform().startswith("mingw"):
         path = run_get_output(["cygpath", "-w", path])
     return path
 
 
-def get_git_root():
+def get_git_root() -> Path:
     git_root = run_get_output(["git", "rev-parse", "--show-toplevel"])
     git_root = convert_path_if_mingw(git_root)
     return Path(git_root)
@@ -100,6 +103,8 @@ def do_parallel(func, it):
     pool.close()
     pool.join()
 
+    return result.get()
+
 
 class Counter(object):
     def __init__(self, initval=0):
@@ -117,14 +122,16 @@ class Counter(object):
 
 ## Multiprocessing
 
+
 def init_globals(cntr):
     global counter
     counter = cntr
 
 
 def call_and_increment(func, arg):
-    func(arg)
+    result = func(arg)
     counter.increment()
+    return result
 
 
 def do_parallel_progressbar(func, it, prefix: str, size: int = 60, out=sys.stdout):
@@ -153,3 +160,37 @@ def do_parallel_progressbar(func, it, prefix: str, size: int = 60, out=sys.stdou
     pool.close()
     pool.join()
     print("", flush=True, file=out)
+    return result.get()
+
+
+# Environment extraction
+# from https://stackoverflow.com/a/2214292
+def get_environment_from_batch_command(env_cmd, initial=None):
+    """
+    Take a command (either a single command or list of arguments)
+    and return the environment created after running that command.
+    Note that if the command must be a batch file or .cmd file, or the
+    changes to the environment will not be captured.
+
+    If initial is supplied, it is used as the initial environment passed
+    to the child process.
+    """
+    if not isinstance(env_cmd, (list, tuple)):
+        env_cmd = [env_cmd]
+
+    # construct the command that will alter the environment
+    env_cmd = subprocess.list2cmdline(env_cmd)
+
+    # construct a cmd.exe command to do accomplish this
+    cmd = f'cmd.exe /c {env_cmd} && set'
+
+    # launch the process
+    proc = subprocess.run(cmd, capture_output=True, env=initial, text=True)
+
+    result = {}
+
+    for line in proc.stdout.splitlines():
+        k, v = line.rstrip().split("=", 1)
+        result[k] = v
+
+    return result

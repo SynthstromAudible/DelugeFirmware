@@ -18,18 +18,18 @@
 #include "gui/menu_item/sync_level.h"
 #include "gui/ui/sound_editor.h"
 
-namespace menu_item::arpeggiator {
+namespace deluge::gui::menu_item::arpeggiator {
 class Sync final : public SyncLevel {
 public:
-	Sync(char const* newName = NULL) : SyncLevel(newName) {}
+	using SyncLevel::SyncLevel;
 	void readCurrentValue() {
-		soundEditor.currentValue = syncTypeAndLevelToMenuOption(soundEditor.currentArpSettings->syncType,
-		                                                        soundEditor.currentArpSettings->syncLevel);
+		this->setValue(syncTypeAndLevelToMenuOption(soundEditor.currentArpSettings->syncType,
+		                                            soundEditor.currentArpSettings->syncLevel));
 	}
 	void writeCurrentValue() {
-		soundEditor.currentArpSettings->syncType = menuOptionToSyncType(soundEditor.currentValue);
-		soundEditor.currentArpSettings->syncLevel = menuOptionToSyncLevel(soundEditor.currentValue);
+		soundEditor.currentArpSettings->syncType = menuOptionToSyncType(this->getValue());
+		soundEditor.currentArpSettings->syncLevel = menuOptionToSyncLevel(this->getValue());
 	}
 };
 
-} // namespace menu_item::arpeggiator
+} // namespace deluge::gui::menu_item::arpeggiator

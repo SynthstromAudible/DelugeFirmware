@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "definitions.h"
-#include "RZA1/system/r_typedefs.h"
+#include "definitions_cxx.hpp"
+#include <cstdint>
 
 class Song;
 
@@ -27,7 +27,7 @@ public:
 	Compressor();
 	void cloneFrom(Compressor* other);
 
-	uint8_t status;
+	EnvelopeStage status;
 	uint32_t pos;
 	int32_t lastValue;
 	int32_t pendingHitStrength;

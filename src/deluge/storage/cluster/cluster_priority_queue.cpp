@@ -16,8 +16,8 @@
 */
 
 #include "storage/cluster/cluster_priority_queue.h"
-#include "definitions.h"
-#include "io/uart/uart.h"
+#include "definitions_cxx.hpp"
+#include "io/debug/print.h"
 
 class Cluster;
 
@@ -26,8 +26,8 @@ ClusterPriorityQueue::ClusterPriorityQueue()
 }
 
 // Returns error
-int ClusterPriorityQueue::add(Cluster* cluster, uint32_t priorityRating) {
-	int i = insertAtKey((int32_t)cluster);
+int32_t ClusterPriorityQueue::add(Cluster* cluster, uint32_t priorityRating) {
+	int32_t i = insertAtKey((int32_t)cluster);
 	if (i == -1) {
 		return ERROR_INSUFFICIENT_RAM;
 	}
@@ -49,7 +49,7 @@ Cluster* ClusterPriorityQueue::grabHead() {
 
 // Returns whether it was present
 bool ClusterPriorityQueue::removeIfPresent(Cluster* cluster) {
-	for (int i = 0; i < numElements; i++) {
+	for (int32_t i = 0; i < numElements; i++) {
 		PriorityQueueElement* element = (PriorityQueueElement*)getElementAddress(i);
 		if (element->cluster == cluster) {
 			deleteAtIndex(i);
@@ -61,7 +61,7 @@ bool ClusterPriorityQueue::removeIfPresent(Cluster* cluster) {
 }
 
 bool ClusterPriorityQueue::checkPresent(Cluster* cluster) {
-	for (int i = 0; i < numElements; i++) {
+	for (int32_t i = 0; i < numElements; i++) {
 		PriorityQueueElement* element = (PriorityQueueElement*)getElementAddress(i);
 		if (element->cluster == cluster) {
 			return true;

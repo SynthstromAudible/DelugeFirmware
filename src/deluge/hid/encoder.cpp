@@ -15,8 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "processing/engines/audio_engine.h"
 #include "hid/encoder.h"
+#include "processing/engines/audio_engine.h"
 
 extern "C" {
 #include "RZA1/gpio/gpio.h"
@@ -42,7 +42,7 @@ void Encoder::read() {
 	// If they've both changed...
 	if (pinANewVal != pinALastSwitch && pinBNewVal != pinBLastSwitch) {
 
-		int change = 0;
+		int32_t change = 0;
 
 		// Had pin A changed first?
 		if (pinALastRead != pinALastSwitch) {
@@ -90,7 +90,7 @@ void Encoder::read() {
 	pinBLastRead = pinBNewVal;
 }
 
-void Encoder::interrupt(int which) {
+void Encoder::interrupt(int32_t which) {
 
 	valuesNow[which] = !valuesNow[which];
 
@@ -128,8 +128,8 @@ void Encoder::setNonDetentMode() {
 	pinBLastSwitch = readInput(portB, pinB);
 }
 
-int Encoder::getLimitedDetentPosAndReset() {
-	int toReturn = (detentPos >= 0) ? 1 : -1;
+int32_t Encoder::getLimitedDetentPosAndReset() {
+	int32_t toReturn = (detentPos >= 0) ? 1 : -1;
 	detentPos = 0;
 	return toReturn;
 }

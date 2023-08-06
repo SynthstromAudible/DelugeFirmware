@@ -15,27 +15,27 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "playback/mode/arrangement.h"
+#include "gui/ui/audio_recorder.h"
+#include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
-#include "processing/engines/audio_engine.h"
+#include "gui/views/session_view.h"
+#include "gui/views/view.h"
+#include "hid/display/numeric_driver.h"
+#include "hid/led/pad_leds.h"
+#include "hid/matrix/matrix_driver.h"
+#include "io/debug/print.h"
+#include "io/midi/midi_engine.h"
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
-#include "modulation/params/param_manager.h"
-#include "gui/views/session_view.h"
-#include "playback/mode/arrangement.h"
-#include "model/song/song.h"
-#include "playback/playback_handler.h"
-#include "io/uart/uart.h"
 #include "model/instrument/instrument.h"
-#include "gui/ui/ui.h"
-#include "gui/views/view.h"
-#include "playback/mode/session.h"
-#include "hid/matrix/matrix_driver.h"
-#include "gui/ui/audio_recorder.h"
-#include "io/midi/midi_engine.h"
-#include "util/functions.h"
-#include "hid/led/pad_leds.h"
-#include "hid/display/numeric_driver.h"
 #include "model/model_stack.h"
+#include "model/song/song.h"
+#include "modulation/params/param_manager.h"
+#include "playback/mode/session.h"
+#include "playback/playback_handler.h"
+#include "processing/engines/audio_engine.h"
+#include "util/functions.h"
 
 extern "C" {}
 
@@ -53,7 +53,7 @@ void Arrangement::setupPlayback() {
 	    0; // It seems strange that I ever put this here. It's now also in PlaybackHandler::setupPlayback,
 	       // so maybe extra unneeded here - but that's not the only place that calls us, so have left it in for now
 
-	for (int c = 0; c < currentSong->sessionClips.getNumElements(); c++) {
+	for (int32_t c = 0; c < currentSong->sessionClips.getNumElements(); c++) {
 		Clip* clip = currentSong->sessionClips.getClipAtIndex(c);
 
 		clip->wasActiveBefore = clip->activeIfNoSolo;
@@ -66,7 +66,7 @@ void Arrangement::setupPlayback() {
 
 	// Got to deactiveate all arrangement-only Clips too! Especially cos some of them might be muted or something (this made stuff look very buggy!)
 	// For each Clip in arrangement
-	for (int c = 0; c < currentSong->arrangementOnlyClips.getNumElements(); c++) {
+	for (int32_t c = 0; c < currentSong->arrangementOnlyClips.getNumElements(); c++) {
 		Clip* clip = currentSong->arrangementOnlyClips.getClipAtIndex(c);
 		clip->activeIfNoSolo = false;
 	}
@@ -106,7 +106,7 @@ bool Arrangement::endPlayback() {
 	return false; // No song swap
 }
 
-void Arrangement::doTickForward(int posIncrement) {
+void Arrangement::doTickForward(int32_t posIncrement) {
 
 	bool anyChangeToSessionClipsPlaying = false;
 
@@ -136,7 +136,7 @@ void Arrangement::doTickForward(int posIncrement) {
 			if (!posIncrement) {
 				searchPos++; // If first, 0-length tick, don't look at the one that starts here.
 			}
-			int nextI = output->clipInstances.search(searchPos, GREATER_OR_EQUAL);
+			int32_t nextI = output->clipInstances.search(searchPos, GREATER_OR_EQUAL);
 
 			ClipInstance* nextClipInstance = output->clipInstances.getElement(nextI);
 			if (nextClipInstance) {
@@ -151,7 +151,7 @@ void Arrangement::doTickForward(int posIncrement) {
 				// Or if it starts later...
 				else {
 					playbackHandler.swungTicksTilNextEvent =
-					    getMin(playbackHandler.swungTicksTilNextEvent, ticksTilStart);
+					    std::min(playbackHandler.swungTicksTilNextEvent, ticksTilStart);
 				}
 			}
 
@@ -176,7 +176,7 @@ notRecording:
 						int32_t ticksTilEnd = endPos - lastProcessedPos;
 						if (ticksTilEnd > 0) {
 							playbackHandler.swungTicksTilNextEvent =
-							    getMin(playbackHandler.swungTicksTilNextEvent, ticksTilEnd);
+							    std::min(playbackHandler.swungTicksTilNextEvent, ticksTilEnd);
 						}
 					}
 				}
@@ -184,7 +184,7 @@ notRecording:
 
 			else {
 				// See if a ClipInstance was already playing
-				int i = output->clipInstances.search(lastProcessedPos, LESS);
+				int32_t i = output->clipInstances.search(lastProcessedPos, LESS);
 				if (i >= 0 && i < output->clipInstances.getNumElements()) {
 
 					ClipInstance* clipInstance = output->clipInstances.getElement(i);
@@ -220,7 +220,7 @@ notRecording:
 							// Make sure we come back here when the clipInstance ends
 							int32_t ticksTilEnd = endPos - lastProcessedPos;
 							playbackHandler.swungTicksTilNextEvent =
-							    getMin(playbackHandler.swungTicksTilNextEvent, ticksTilEnd);
+							    std::min(playbackHandler.swungTicksTilNextEvent, ticksTilEnd);
 
 							goto justDoArp; // No need to think about the next ClipInstance yet
 						}
@@ -270,13 +270,13 @@ notRecording:
 
 					// Make sure we come back here when the clipInstance ends
 					playbackHandler.swungTicksTilNextEvent =
-					    getMin(playbackHandler.swungTicksTilNextEvent, nextClipInstance->length);
+					    std::min(playbackHandler.swungTicksTilNextEvent, nextClipInstance->length);
 				}
 
 				// Or if it starts later...
 				else {
 					playbackHandler.swungTicksTilNextEvent =
-					    getMin(playbackHandler.swungTicksTilNextEvent, ticksTilStart);
+					    std::min(playbackHandler.swungTicksTilNextEvent, ticksTilStart);
 				}
 			}
 		}
@@ -291,7 +291,7 @@ justDoArp:
 		}
 
 		int32_t ticksTilNextArpEvent = output->doTickForwardForArp(modelStack, posForArp);
-		nearestArpTickTime = getMin(ticksTilNextArpEvent, nearestArpTickTime);
+		nearestArpTickTime = std::min(ticksTilNextArpEvent, nearestArpTickTime);
 	}
 
 	if (anyChangeToSessionClipsPlaying) {
@@ -313,16 +313,16 @@ justDoArp:
 	}
 
 	// Make sure we come back at right time for any song-level param automation. Must only do these after checking above for (playbackHandler.swungTicksTilNextEvent == 2147483647)
-	playbackHandler.swungTicksTilNextEvent = getMin(playbackHandler.swungTicksTilNextEvent, nearestArpTickTime);
+	playbackHandler.swungTicksTilNextEvent = std::min(playbackHandler.swungTicksTilNextEvent, nearestArpTickTime);
 	if (songParamManagerMightContainAutomation) {
 		playbackHandler.swungTicksTilNextEvent =
-		    getMin(playbackHandler.swungTicksTilNextEvent, currentSong->paramManager.ticksTilNextEvent);
+		    std::min(playbackHandler.swungTicksTilNextEvent, currentSong->paramManager.ticksTilNextEvent);
 		// Yes we could only do that if songParamManagerMightContainAutomation, which means that we did call processCurrentPos() on that paramManager above.
 		// Because otherwise, its ticksTilNextEvent would be an invalid value - often 0, which causes a freeze / infinite loop.
 	}
 }
 
-void Arrangement::resetPlayPos(int32_t newPos, bool doingComplete, int buttonPressLatency) {
+void Arrangement::resetPlayPos(int32_t newPos, bool doingComplete, int32_t buttonPressLatency) {
 
 	AudioEngine::bypassCulling = true;
 
@@ -343,7 +343,7 @@ void Arrangement::resetPlayPos(int32_t newPos, bool doingComplete, int buttonPre
 			continue;
 		}
 
-		int i = output->clipInstances.search(lastProcessedPos + 1, LESS);
+		int32_t i = output->clipInstances.search(lastProcessedPos + 1, LESS);
 		ClipInstance* clipInstance = output->clipInstances.getElement(i);
 
 		// If there's a ClipInstance...
@@ -355,7 +355,7 @@ void Arrangement::resetPlayPos(int32_t newPos, bool doingComplete, int buttonPre
 		else {
 			if (doingComplete && playbackHandler.recording && output->wantsToBeginArrangementRecording()) {
 
-				int error = output->possiblyBeginArrangementRecording(currentSong, newPos);
+				int32_t error = output->possiblyBeginArrangementRecording(currentSong, newPos);
 				if (error) {
 					numericDriver.displayError(error);
 				}
@@ -410,7 +410,7 @@ void Arrangement::reSyncClip(ModelStackWithTimelineCounter* modelStack, bool mus
 
 	int32_t actualPos = getLivePos();
 
-	int i = output->clipInstances.search(actualPos + 1, LESS);
+	int32_t i = output->clipInstances.search(actualPos + 1, LESS);
 	ClipInstance* clipInstance = output->clipInstances.getElement(i);
 	if (clipInstance && clipInstance->clip == clip && clipInstance->pos + clipInstance->length > actualPos + 1) {
 		resumeClipInstancePlayback(clipInstance, true, mayResumeClip);
@@ -433,7 +433,7 @@ void Arrangement::reversionDone() {
 			continue;
 		}
 
-		int i = output->clipInstances.search(actualPos + 1, LESS);
+		int32_t i = output->clipInstances.search(actualPos + 1, LESS);
 		ClipInstance* clipInstance = output->clipInstances.getElement(i);
 		if (clipInstance && clipInstance->pos + clipInstance->length > actualPos + 1) {
 			resumeClipInstancePlayback(clipInstance);
@@ -457,7 +457,7 @@ bool Arrangement::isOutputAvailable(Output* output) {
 		return true;
 	}
 
-	int i = output->clipInstances.search(lastProcessedPos + 1, LESS);
+	int32_t i = output->clipInstances.search(lastProcessedPos + 1, LESS);
 	ClipInstance* clipInstance = output->clipInstances.getElement(i);
 	return (!clipInstance || clipInstance->pos + clipInstance->length <= lastProcessedPos);
 }
@@ -482,7 +482,8 @@ void Arrangement::rowEdited(Output* output, int32_t startPos, int32_t endPos, Cl
 }
 
 // First, be sure the clipInstance has a Clip
-int Arrangement::doUniqueCloneOnClipInstance(ClipInstance* clipInstance, int32_t newLength, bool shouldCloneRepeats) {
+int32_t Arrangement::doUniqueCloneOnClipInstance(ClipInstance* clipInstance, int32_t newLength,
+                                                 bool shouldCloneRepeats) {
 	if (!currentSong->arrangementOnlyClips.ensureEnoughSpaceAllocated(1)) {
 		return ERROR_INSUFFICIENT_RAM;
 	}
@@ -492,7 +493,7 @@ int Arrangement::doUniqueCloneOnClipInstance(ClipInstance* clipInstance, int32_t
 	ModelStackWithTimelineCounter* modelStack =
 	    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(oldClip);
 
-	int error = oldClip->clone(modelStack, true);
+	int32_t error = oldClip->clone(modelStack, true);
 	if (error) {
 		return error;
 	}
@@ -540,7 +541,7 @@ int32_t Arrangement::getPosAtWhichClipWillCut(ModelStackWithTimelineCounter cons
 
 	Clip* clip = (Clip*)modelStack->getTimelineCounter();
 
-	int i = clip->output->clipInstances.search(lastProcessedPos + 1, LESS);
+	int32_t i = clip->output->clipInstances.search(lastProcessedPos + 1, LESS);
 	ClipInstance* clipInstance = clip->output->clipInstances.getElement(i);
 	if (!clipInstance || clipInstance->clip != clip) {
 		return clip->currentlyPlayingReversed ? (-2147483648) : 2147483647; // This shouldn't normally happen right?
@@ -605,7 +606,7 @@ bool Arrangement::willClipLoopAtSomePoint(ModelStackWithTimelineCounter const* m
 
 	Clip* clip = (Clip*)modelStack->getTimelineCounter();
 
-	int i = clip->output->clipInstances.search(lastProcessedPos + 1, LESS);
+	int32_t i = clip->output->clipInstances.search(lastProcessedPos + 1, LESS);
 	ClipInstance* clipInstance = clip->output->clipInstances.getElement(i);
 	if (!clipInstance || clipInstance->clip != clip) {
 		return false;

@@ -16,15 +16,15 @@
 */
 
 #include "gui/context_menu/overwrite_bootloader.h"
-#include "storage/storage_manager.h"
 #include "hid/display/numeric_driver.h"
-#include "util/functions.h"
-#include "memory/general_memory_allocator.h"
 #include "hid/display/oled.h"
+#include "memory/general_memory_allocator.h"
+#include "storage/storage_manager.h"
+#include "util/functions.h"
 
 extern "C" {
-#include "RZA1/spibsc/spibsc.h"
 #include "RZA1/spibsc/r_spibsc_flash_api.h"
+#include "RZA1/spibsc/spibsc.h"
 }
 
 namespace deluge::gui::context_menu {
@@ -52,7 +52,7 @@ bool OverwriteBootloader::acceptCurrentOption() {
 	numericDriver.displayLoadingAnimation();
 #endif
 
-	int error = storageManager.initSD();
+	int32_t error = storageManager.initSD();
 	if (error) {
 gotError:
 		numericDriver.displayError(error);
@@ -114,7 +114,7 @@ longError:
 			}
 
 			// Allocate RAM
-			uint8_t* buffer = (uint8_t*)generalMemoryAllocator.alloc(fileSize, NULL, false, true);
+			uint8_t* buffer = (uint8_t*)GeneralMemoryAllocator::get().alloc(fileSize, NULL, false, true);
 			if (!buffer) {
 				error = ERROR_INSUFFICIENT_RAM;
 				goto gotError;
@@ -125,7 +125,7 @@ longError:
 			result = f_open(&currentFile, fno.fname, FA_READ);
 			if (result != FR_OK) {
 gotFresultErrorAfterAllocating:
-				generalMemoryAllocator.dealloc(buffer);
+				GeneralMemoryAllocator::get().dealloc(buffer);
 				goto gotFresultError;
 			}
 
@@ -139,7 +139,7 @@ gotFresultErrorAfterAllocating:
 
 			if (numBytesRead != fileSize) { // Can this happen?
 				error = ERROR_SD_CARD;
-				generalMemoryAllocator.dealloc(buffer);
+				GeneralMemoryAllocator::get().dealloc(buffer);
 				goto gotError;
 			}
 
@@ -180,12 +180,12 @@ gotFlashError:
 
 			while (true) {
 
-				int bytesLeft = startFlashAddress + fileSize - flashWriteAddress;
+				int32_t bytesLeft = startFlashAddress + fileSize - flashWriteAddress;
 				if (bytesLeft <= 0) {
 					break;
 				}
 
-				int bytesToWrite = bytesLeft;
+				int32_t bytesToWrite = bytesLeft;
 				if (bytesToWrite > FLASH_WRITE_SIZE) {
 					bytesToWrite = FLASH_WRITE_SIZE;
 				}
@@ -200,7 +200,7 @@ gotFlashError:
 				readAddress += FLASH_WRITE_SIZE;
 			}
 
-			generalMemoryAllocator.dealloc(buffer);
+			GeneralMemoryAllocator::get().dealloc(buffer);
 
 #if HAVE_OLED
 			OLED::removeWorkingAnimation();

@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
-#include <math.h>
 #include "dsp/stereo_sample.h"
+#include <cstdint>
+#include <math.h>
 
 class StereoSample;
 

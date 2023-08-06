@@ -18,18 +18,19 @@
 #include "gui/menu_item/selection.h"
 #include "processing/sound/sound.h"
 
-namespace menu_item::sample {
-class Selection : public menu_item::Selection {
+namespace deluge::gui::menu_item::sample {
+template <size_t n>
+class Selection : public menu_item::Selection<n> {
 public:
-	Selection(char const* newName = NULL) : menu_item::Selection(newName) {}
-	bool isRelevant(Sound* sound, int whichThing) {
-		if (!sound) {
+	using menu_item::Selection<n>::Selection;
+	bool isRelevant(Sound* sound, int32_t whichThing) override {
+		if (sound == nullptr) {
 			return true; // For AudioClips
 		}
 
 		Source* source = &sound->sources[whichThing];
-		return (sound->getSynthMode() == SYNTH_MODE_SUBTRACTIVE && source->oscType == OSC_TYPE_SAMPLE
+		return (sound->getSynthMode() == SynthMode::SUBTRACTIVE && source->oscType == OscType::SAMPLE
 		        && source->hasAtLeastOneAudioFileLoaded());
 	}
 };
-} // namespace menu_item::sample
+} // namespace deluge::gui::menu_item::sample

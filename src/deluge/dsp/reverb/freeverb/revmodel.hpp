@@ -23,8 +23,8 @@
 
 #pragma once
 
-#include "dsp/reverb/freeverb/comb.hpp"
 #include "dsp/reverb/freeverb/allpass.hpp"
+#include "dsp/reverb/freeverb/comb.hpp"
 #include "dsp/reverb/freeverb/tuning.h"
 
 class revmodel {
@@ -51,13 +51,13 @@ public:
 		outL = outR = 0;
 
 		// Accumulate comb filters in parallel
-		for (int i = 0; i < numcombs; i++) {
+		for (int32_t i = 0; i < numcombs; i++) {
 			outL += combL[i].process(input);
 			outR += combR[i].process(input);
 		}
 
 		// Feed through allpasses in series
-		for (int i = 0; i < numallpasses; i++) {
+		for (int32_t i = 0; i < numallpasses; i++) {
 			outL = allpassL[i].process(outL);
 			outR = allpassR[i].process(outR);
 		}

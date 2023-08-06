@@ -23,12 +23,12 @@
 class LoadSongUI final : public LoadUI {
 public:
 	LoadSongUI();
-	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
-	int timerCallback();
-	int verticalEncoderAction(int offset, bool inCardRoutine);
+	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult timerCallback();
+	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
 	void graphicsRoutine() {}
 	void scrollFinished();
-	int padAction(int x, int y, int velocity);
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
 	bool opened();
 	void selectEncoderAction(int8_t offset);
 	void performLoad();
@@ -39,8 +39,8 @@ public:
 protected:
 	void displayText(bool blinkImmediately = false);
 	void enterKeyPress();
-	void folderContentsReady(int entryDirection);
-	void currentFileChanged(int movementDirection);
+	void folderContentsReady(int32_t entryDirection);
+	void currentFileChanged(int32_t movementDirection);
 	void exitAction();
 
 private:
@@ -50,7 +50,7 @@ private:
 #endif
 
 	bool scrollingIntoSlot;
-	//int findNextFile(int offset);
+	//int32_t findNextFile(int32_t offset);
 	void exitThisUI();
 	void exitActionWithError();
 };

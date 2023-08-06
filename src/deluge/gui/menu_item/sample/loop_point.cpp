@@ -17,36 +17,37 @@
 
 #include "loop_point.h"
 
-#include "storage/audio/audio_file_holder.h"
-#include "processing/sound/sound.h"
-#include "gui/ui/keyboard_screen.h"
-#include "storage/multi_range/multi_range.h"
+#include "gui/menu_item/menu_item.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sample_marker_editor.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
+#include "processing/sound/sound.h"
+#include "storage/audio/audio_file_holder.h"
+#include "storage/multi_range/multi_range.h"
 
-namespace menu_item::sample {
+namespace deluge::gui::menu_item::sample {
 
-bool LoopPoint::isRelevant(Sound* sound, int whichThing) {
+bool LoopPoint::isRelevant(Sound* sound, int32_t whichThing) {
 
 	Source* source = &sound->sources[whichThing];
 
-	return (sound->getSynthMode() == SYNTH_MODE_SUBTRACTIVE && source->oscType == OSC_TYPE_SAMPLE);
+	return (sound->getSynthMode() == SynthMode::SUBTRACTIVE && source->oscType == OscType::SAMPLE);
 }
 
-int LoopPoint::checkPermissionToBeginSession(Sound* sound, int whichThing, MultiRange** currentRange) {
+MenuPermission LoopPoint::checkPermissionToBeginSession(Sound* sound, int32_t whichThing, MultiRange** currentRange) {
 
 	if (!isRelevant(sound, whichThing)) {
-		return MENU_PERMISSION_NO;
+		return MenuPermission::NO;
 	}
 
-	int permission =
+	MenuPermission permission =
 	    soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, whichThing, true, currentRange);
 
 	// Before going ahead, make sure a Sample is loaded
-	if (permission == MENU_PERMISSION_YES) {
+	if (permission == MenuPermission::YES) {
 		if (!(*currentRange)->getAudioFileHolder()->audioFile) {
-			permission = MENU_PERMISSION_NO;
+			permission = MenuPermission::NO;
 		}
 	}
 
@@ -69,4 +70,4 @@ void LoopPoint::beginSession(MenuItem* navigatedBackwardFrom) {
 		uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
 	}
 }
-} // namespace menu_item::sample
+} // namespace deluge::gui::menu_item::sample

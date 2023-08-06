@@ -17,37 +17,19 @@
 
 #include "direction_selector.h"
 #include "gui/ui/sound_editor.h"
-#include "zone_selector.h"
 #include "io/midi/midi_device.h"
+#include "zone_selector.h"
 
-namespace menu_item::mpe {
-
-DirectionSelector directionSelectorMenu{"MPE"};
+namespace deluge::gui::menu_item::mpe {
 
 void DirectionSelector::beginSession(MenuItem* navigatedBackwardFrom) {
-	if (!navigatedBackwardFrom) {
+	if (navigatedBackwardFrom == nullptr) {
 		whichDirection = MIDI_DIRECTION_INPUT_TO_DELUGE;
 	}
 	Selection::beginSession(navigatedBackwardFrom);
 }
 
-char const** DirectionSelector::getOptions() {
-	static char const* options[] = {"In", "Out", NULL};
-	return options;
-}
-
-void DirectionSelector::readCurrentValue() {
-	soundEditor.currentValue = whichDirection;
-}
-
-void DirectionSelector::writeCurrentValue() {
-	whichDirection = soundEditor.currentValue;
-}
-
 MenuItem* DirectionSelector::selectButtonPress() {
-#if HAVE_OLED
-	zoneSelectorMenu.basicTitle = whichDirection ? "MPE output" : "MPE input";
-#endif
 	return &zoneSelectorMenu;
 }
-} // namespace menu_item::mpe
+} // namespace deluge::gui::menu_item::mpe

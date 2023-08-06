@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include "definitions.h"
-#include "RZA1/system/r_typedefs.h"
+#include "definitions_cxx.hpp"
 #include "io/midi/learned_midi.h"
+#include <cstdint>
 
 class Kit;
 class ParamManagerForTimeline;
@@ -42,12 +42,12 @@ class ParamManager;
 
 class Drum {
 public:
-	Drum(int newType);
-	virtual ~Drum() {}
+	Drum(DrumType newType);
+	virtual ~Drum() = default;
 
 	Kit* kit;
 
-	const uint8_t type;
+	const DrumType type;
 	bool noteRowAssignedTemp;
 	uint8_t earlyNoteVelocity; // If 0, then there's none
 	bool earlyNoteStillActive;
@@ -55,7 +55,7 @@ public:
 	bool auditioned;
 	uint8_t lastMIDIChannelAuditioned; // Primarily for MPE purposes
 
-	int8_t lastExpressionInputsReceived[2][NUM_EXPRESSION_DIMENSIONS];
+	int8_t lastExpressionInputsReceived[2][kNumExpressionDimensions];
 
 	Drum* next;
 
@@ -63,30 +63,30 @@ public:
 	LearnedMIDI muteMIDICommand;
 
 	virtual void noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, Kit* kit, int16_t const* mpeValues,
-	                    int fromMIDIChannel = MIDI_CHANNEL_NONE, uint32_t sampleSyncLength = 0, int32_t ticksLate = 0,
-	                    uint32_t samplesLate = 0) = 0;
-	virtual void noteOff(ModelStackWithThreeMainThings* modelStack, int velocity = DEFAULT_LIFT_VALUE) = 0;
+	                    int32_t fromMIDIChannel = MIDI_CHANNEL_NONE, uint32_t sampleSyncLength = 0,
+	                    int32_t ticksLate = 0, uint32_t samplesLate = 0) = 0;
+	virtual void noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity = kDefaultLiftValue) = 0;
 	virtual bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false) = 0;
 	virtual bool anyNoteIsOn() = 0;
 	virtual bool hasAnyVoices() = 0;
 	virtual void unassignAllVoices() = 0;
 
-	virtual int loadAllSamples(bool mayActuallyReadFiles) { return NO_ERROR; }
+	virtual int32_t loadAllSamples(bool mayActuallyReadFiles) { return NO_ERROR; }
 	virtual void prepareForHibernation() {}
 	virtual void prepareDrumToHaveNoActiveClip() {}
 
 	virtual void writeToFile(bool savingSong, ParamManager* paramManager) = 0;
-	virtual int readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) = 0;
+	virtual int32_t readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) = 0;
 	virtual void drumWontBeRenderedForAWhile();
 
 	virtual void getName(char* buffer) = 0; // May return up to 5 actual characters, so supply at least a char[6]
 	virtual void choke(ModelStackWithSoundFlags* modelStack) {} // modelStack can be NULL if you really insist
 	void writeMIDICommandsToFile();
 	bool readDrumTagFromFile(char const* tagName);
-	void recordNoteOnEarly(int velocity, bool noteTailsAllowed);
+	void recordNoteOnEarly(int32_t velocity, bool noteTailsAllowed);
 	void expressionEventPossiblyToRecord(ModelStackWithTimelineCounter* modelStack, int16_t newValue,
-	                                     int whichExpressionimension, int level);
-	virtual void expressionEvent(int newValue, int whichExpressionimension) {}
+	                                     int32_t whichExpressionimension, int32_t level);
+	virtual void expressionEvent(int32_t newValue, int32_t whichExpressionimension) {}
 	void getCombinedExpressionInputs(int16_t* combined);
 
 	virtual ModControllable* toModControllable() { return NULL; }

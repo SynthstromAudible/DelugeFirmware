@@ -24,10 +24,10 @@ class ModelStackWithNoteRow;
 
 class ConsequenceNoteRowLength final : public Consequence {
 public:
-	ConsequenceNoteRowLength(int newNoteRowId, int newLength);
-	int revert(int time, ModelStack* modelStack);
+	ConsequenceNoteRowLength(int32_t newNoteRowId, int32_t newLength);
+	int32_t revert(TimeType time, ModelStack* modelStack);
 	void performChange(ModelStackWithNoteRow* modelStack, Action* actionToRecordTo, int32_t oldPos,
 	                   bool hadIndependentPlayPosBefore);
 	int32_t backedUpLength;
-	int noteRowId;
+	int32_t noteRowId;
 };

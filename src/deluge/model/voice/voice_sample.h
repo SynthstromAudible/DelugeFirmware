@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "model/sample/sample_low_level_reader.h"
 
 #define LATE_START_ATTEMPT_SUCCESS 0
@@ -35,16 +36,17 @@ class VoiceSample final : public SampleLowLevelReader {
 public:
 	VoiceSample();
 
-	void noteOn(SamplePlaybackGuide* guide, uint32_t samplesLate, int priorityRating);
+	void noteOn(SamplePlaybackGuide* guide, uint32_t samplesLate, int32_t priorityRating);
 	bool noteOffWhenLoopEndPointExists(Voice* voice, VoiceSamplePlaybackGuide* voiceSource);
 
-	void setupCacheLoopPoints(SamplePlaybackGuide* voiceSource, Sample* sample, int loopingType);
-	int attemptLateSampleStart(SamplePlaybackGuide* voiceSource, Sample* sample, int64_t rawSamplesLate,
-	                           int numSamples = 0);
+	void setupCacheLoopPoints(SamplePlaybackGuide* voiceSource, Sample* sample, LoopType loopingType);
+	int32_t attemptLateSampleStart(SamplePlaybackGuide* voiceSource, Sample* sample, int64_t rawSamplesLate,
+	                               int32_t numSamples = 0);
 	void endTimeStretching();
-	bool render(SamplePlaybackGuide* guide, int32_t* oscBuffer, int numSamples, Sample* sample, int numChannels,
-	            int loopingType, int32_t phaseIncrement, int32_t timeStretchRatio, int32_t amplitude,
-	            int32_t amplitudeIncrement, int bufferSize, int desiredInterpolationMode, int priorityRating);
+	bool render(SamplePlaybackGuide* guide, int32_t* oscBuffer, int32_t numSamples, Sample* sample, int32_t numChannels,
+	            LoopType loopingType, int32_t phaseIncrement, int32_t timeStretchRatio, int32_t amplitude,
+	            int32_t amplitudeIncrement, int32_t bufferSize, InterpolationMode desiredInterpolationMode,
+	            int32_t priorityRating);
 	void beenUnassigned();
 	bool shouldObeyMarkers() {
 		return (!cache && !timeStretcher && !forAudioClip);
@@ -52,20 +54,20 @@ public:
 	  // Or if fudging can't happen cos no pre-margin, then
 	  // AudioClip::doTickForward() manually forces restart.
 
-	void readSamplesResampledPossiblyCaching(int32_t** oscBufferPos, int32_t** oscBufferRPos, int numSamples,
-	                                         Sample* sample, int jumpAmount, int numChannels,
-	                                         int numChannelsAfterCondensing, int32_t phaseIncrement,
-	                                         int32_t* sourceAmplitudeNow, int32_t amplitudeIncrement, int bufferSize,
-	                                         int reduceMagnitudeBy = 1);
+	void readSamplesResampledPossiblyCaching(int32_t** oscBufferPos, int32_t** oscBufferRPos, int32_t numSamples,
+	                                         Sample* sample, int32_t jumpAmount, int32_t numChannels,
+	                                         int32_t numChannelsAfterCondensing, int32_t phaseIncrement,
+	                                         int32_t* sourceAmplitudeNow, int32_t amplitudeIncrement,
+	                                         int32_t bufferSize, int32_t reduceMagnitudeBy = 1);
 
-	bool sampleZoneChanged(SamplePlaybackGuide* voiceSource, Sample* sample, int markerType, int loopingType,
-	                       int priorityRating, bool forAudioClip = false);
+	bool sampleZoneChanged(SamplePlaybackGuide* voiceSource, Sample* sample, MarkerType markerType,
+	                       LoopType loopingType, int32_t priorityRating, bool forAudioClip = false);
 	int32_t getPlaySample(Sample* sample, SamplePlaybackGuide* guide);
-	bool stopUsingCache(SamplePlaybackGuide* guide, Sample* sample, int priorityRating, bool loopingAtLowLevel);
+	bool stopUsingCache(SamplePlaybackGuide* guide, Sample* sample, int32_t priorityRating, bool loopingAtLowLevel);
 	bool possiblySetUpCache(SampleControls* sampleControls, SamplePlaybackGuide* guide, int32_t phaseIncrement,
-	                        int32_t timeStretchRatio, int priorityRating, int loopingType);
+	                        int32_t timeStretchRatio, int32_t priorityRating, LoopType loopingType);
 	bool fudgeTimeStretchingToAvoidClick(Sample* sample, SamplePlaybackGuide* guide, int32_t phaseIncrement,
-	                                     int numSamplesTilLoop, int playDirection, int priorityRating);
+	                                     int32_t numSamplesTilLoop, int32_t playDirection, int32_t priorityRating);
 
 	VoiceSample* nextUnassigned;
 
@@ -86,8 +88,9 @@ public:
 	uint32_t cacheLoopLengthBytes;
 
 private:
-	bool weShouldBeTimeStretchingNow(Sample* sample, SamplePlaybackGuide* guide, int numSamples, int32_t phaseIncrement,
-	                                 int32_t timeStretchRatio, int playDirection, int priorityRating, int loopingType);
+	bool weShouldBeTimeStretchingNow(Sample* sample, SamplePlaybackGuide* guide, int32_t numSamples,
+	                                 int32_t phaseIncrement, int32_t timeStretchRatio, int32_t playDirection,
+	                                 int32_t priorityRating, LoopType loopingType);
 	void switchToReadingCacheFromWriting();
 	bool stopReadingFromCache();
 };

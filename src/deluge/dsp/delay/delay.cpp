@@ -16,15 +16,15 @@
 */
 
 #include "dsp/delay/delay.h"
-#include <stdlib.h>
+#include "definitions_cxx.hpp"
 #include "dsp/stereo_sample.h"
-#include "definitions.h"
+#include <stdlib.h>
 //#include <algorithm>
-#include "io/uart/uart.h"
-#include "playback/playback_handler.h"
-#include "util/functions.h"
+#include "io/debug/print.h"
 #include "model/song/song.h"
+#include "playback/playback_handler.h"
 #include "storage/flash_storage.h"
+#include "util/functions.h"
 
 Delay::Delay() {
 	pingPong = true;
@@ -83,12 +83,12 @@ setupSecondaryBuffer:
 			    && sizeLeftUntilBufferSwap == getAmountToWriteBeforeReadingBegins()) {
 
 				int32_t idealBufferSize = secondaryBuffer.getIdealBufferSizeFromRate(userDelayRate);
-				idealBufferSize = getMin(idealBufferSize, (int32_t)DELAY_BUFFER_MAX_SIZE);
-				idealBufferSize = getMax(idealBufferSize, (int32_t)DELAY_BUFFER_MIN_SIZE);
+				idealBufferSize = std::min(idealBufferSize, (int32_t)DELAY_BUFFER_MAX_SIZE);
+				idealBufferSize = std::max(idealBufferSize, (int32_t)DELAY_BUFFER_MIN_SIZE);
 
 				if (idealBufferSize != secondaryBuffer.size) {
 
-					Uart::println("new secondary buffer before writing starts");
+					Debug::println("new secondary buffer before writing starts");
 
 					// Ditch that secondary buffer, make a new one
 					secondaryBuffer.discard();
@@ -115,7 +115,7 @@ void Delay::prepareToBeginWriting() {
 	sizeLeftUntilBufferSwap = getAmountToWriteBeforeReadingBegins(); // If you change this, make sure you
 }
 
-int Delay::getAmountToWriteBeforeReadingBegins() {
+int32_t Delay::getAmountToWriteBeforeReadingBegins() {
 	return secondaryBuffer.size;
 }
 
@@ -141,7 +141,7 @@ void Delay::setupWorkingState(DelayWorkingState* workingState, bool anySoundComi
 
 			// Limit to the biggest number we can store...
 			int32_t limit = 2147483647 >> (syncLevel + 5);
-			workingState->userDelayRate = getMin(workingState->userDelayRate, limit);
+			workingState->userDelayRate = std::min(workingState->userDelayRate, limit);
 			if (syncType == SYNC_TYPE_EVEN) {} // Do nothing
 			else if (syncType == SYNC_TYPE_TRIPLET) {
 				workingState->userDelayRate = workingState->userDelayRate * 3 / 2;
@@ -214,7 +214,7 @@ void Delay::setTimeToAbandon(DelayWorkingState* workingState) {
 		repeatsUntilAbandon = 255;
 	}
 
-	//if (!getRandom255()) Uart::println(workingState->delayFeedbackAmount);
+	//if (!getRandom255()) Debug::println(workingState->delayFeedbackAmount);
 }
 
 void Delay::hasWrapped() {
@@ -224,7 +224,7 @@ void Delay::hasWrapped() {
 
 	repeatsUntilAbandon--;
 	if (!repeatsUntilAbandon) {
-		//Uart::println("discarding");
+		//Debug::println("discarding");
 		discardBuffers();
 	}
 }

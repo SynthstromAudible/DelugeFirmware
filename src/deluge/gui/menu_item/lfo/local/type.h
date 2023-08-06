@@ -15,17 +15,19 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "definitions_cxx.hpp"
 #include "gui/menu_item/lfo/shape.h"
 #include "gui/ui/sound_editor.h"
 #include "processing/sound/sound.h"
+#include "util/misc.h"
 
-namespace menu_item::lfo::local {
+namespace deluge::gui::menu_item::lfo::local {
 
 class Type final : public Shape {
 public:
 	using Shape::Shape;
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSound->lfoLocalWaveType; }
-	void writeCurrentValue() { soundEditor.currentSound->lfoLocalWaveType = soundEditor.currentValue; }
+	void readCurrentValue() override { this->setValue(soundEditor.currentSound->lfoLocalWaveType); }
+	void writeCurrentValue() override { soundEditor.currentSound->lfoLocalWaveType = this->getValue<LFOType>(); }
 };
 
-} // namespace menu_item::lfo::local
+} // namespace deluge::gui::menu_item::lfo::local

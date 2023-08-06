@@ -15,38 +15,38 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "model/action/action_clip_state.h"
-#include "gui/views/arranger_view.h"
-#include "processing/engines/audio_engine.h"
-#include "model/clip/instrument_clip_minder.h"
-#include "gui/views/instrument_clip_view.h"
 #include "model/action/action_logger.h"
-#include "definitions.h"
-#include "model/action/action.h"
-#include "gui/ui/keyboard_screen.h"
-#include "util/functions.h"
-#include "hid/display/numeric_driver.h"
-#include "gui/views/view.h"
-#include "model/consequence/consequence_swing_change.h"
-#include "model/consequence/consequence_tempo_change.h"
-#include "model/consequence/consequence_param_change.h"
-#include "model/drum/kit.h"
-#include <new>
-#include "io/uart/uart.h"
-#include <string.h>
-#include "memory/general_memory_allocator.h"
-#include "playback/mode/playback_mode.h"
-#include "model/song/song.h"
+#include "definitions_cxx.hpp"
+#include "gui/ui/keyboard/keyboard_screen.h"
+#include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
-#include "playback/mode/arrangement.h"
-#include "playback/mode/session.h"
+#include "gui/views/instrument_clip_view.h"
+#include "gui/views/session_view.h"
+#include "gui/views/view.h"
+#include "hid/display/numeric_driver.h"
+#include "hid/display/oled.h"
+#include "hid/led/indicator_leds.h"
+#include "io/debug/print.h"
+#include "memory/general_memory_allocator.h"
+#include "model/action/action.h"
+#include "model/action/action_clip_state.h"
+#include "model/clip/instrument_clip.h"
+#include "model/clip/instrument_clip_minder.h"
 #include "model/consequence/consequence_clip_begin_linear_record.h"
 #include "model/consequence/consequence_note_array_change.h"
-#include "hid/led/indicator_leds.h"
-#include "gui/views/session_view.h"
-#include "model/clip/instrument_clip.h"
+#include "model/consequence/consequence_param_change.h"
+#include "model/consequence/consequence_swing_change.h"
+#include "model/consequence/consequence_tempo_change.h"
+#include "model/drum/kit.h"
+#include "model/song/song.h"
+#include "playback/mode/arrangement.h"
+#include "playback/mode/playback_mode.h"
+#include "playback/mode/session.h"
 #include "playback/playback_handler.h"
-#include "hid/display/oled.h"
+#include "processing/engines/audio_engine.h"
+#include "util/functions.h"
+#include <new>
+#include <string.h>
 
 ActionLogger actionLogger{};
 
@@ -73,10 +73,10 @@ void ActionLogger::deleteLastAction() {
 
 	toDelete->prepareForDestruction(BEFORE, currentSong);
 	toDelete->~Action();
-	generalMemoryAllocator.dealloc(toDelete);
+	GeneralMemoryAllocator::get().dealloc(toDelete);
 }
 
-Action* ActionLogger::getNewAction(int newActionType, int addToExistingIfPossible) {
+Action* ActionLogger::getNewAction(int32_t newActionType, int32_t addToExistingIfPossible) {
 
 	deleteLog(AFTER);
 
@@ -126,33 +126,34 @@ Action* ActionLogger::getNewAction(int newActionType, int addToExistingIfPossibl
 		}
 
 		// And make a new one
-		void* actionMemory = generalMemoryAllocator.alloc(sizeof(Action), NULL, true);
+		void* actionMemory = GeneralMemoryAllocator::get().alloc(sizeof(Action), NULL, true);
 
 		if (!actionMemory) {
-			Uart::println("no ram to create new Action");
+			Debug::println("no ram to create new Action");
 			return NULL;
 		}
 
 		// Store states of every Clip in existence
-		int numClips = currentSong->sessionClips.getNumElements() + currentSong->arrangementOnlyClips.getNumElements();
+		int32_t numClips =
+		    currentSong->sessionClips.getNumElements() + currentSong->arrangementOnlyClips.getNumElements();
 
 		ActionClipState* clipStates =
-		    (ActionClipState*)generalMemoryAllocator.alloc(numClips * sizeof(ActionClipState), NULL, true);
+		    (ActionClipState*)GeneralMemoryAllocator::get().alloc(numClips * sizeof(ActionClipState), NULL, true);
 
 		if (!clipStates) {
-			generalMemoryAllocator.dealloc(actionMemory);
+			GeneralMemoryAllocator::get().dealloc(actionMemory);
 			return NULL;
 		}
 
 		newAction = new (actionMemory) Action(newActionType);
 		newAction->clipStates = clipStates;
 
-		int i = 0;
+		int32_t i = 0;
 
 		// For each Clip in session and arranger
 		ClipArray* clipArray = &currentSong->sessionClips;
 traverseClips:
-		for (int c = 0; c < clipArray->getNumElements(); c++) {
+		for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
 			Clip* clip = clipArray->getClipAtIndex(c);
 
 			newAction->clipStates[i].grabFromClip(clip);
@@ -203,18 +204,18 @@ void ActionLogger::updateAction(Action* newAction) {
 		if (newAction->numClipStates
 		    != currentSong->sessionClips.getNumElements() + currentSong->arrangementOnlyClips.getNumElements()) {
 			newAction->numClipStates = 0;
-			generalMemoryAllocator.dealloc(newAction->clipStates);
+			GeneralMemoryAllocator::get().dealloc(newAction->clipStates);
 			newAction->clipStates = NULL;
-			Uart::println("discarded clip states");
+			Debug::println("discarded clip states");
 		}
 
 		else {
-			int i = 0;
+			int32_t i = 0;
 
 			// For each Clip in session and arranger
 			ClipArray* clipArray = &currentSong->sessionClips;
 traverseClips2:
-			for (int c = 0; c < clipArray->getNumElements(); c++) {
+			for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
 				Clip* clip = clipArray->getClipAtIndex(c);
 
 				if (clip->type == CLIP_TYPE_INSTRUMENT) {
@@ -241,7 +242,7 @@ traverseClips2:
 	memcpy(newAction->modeNotes[AFTER], currentSong->modeNotes, sizeof(currentSong->modeNotes));
 }
 
-void ActionLogger::recordUnautomatedParamChange(ModelStackWithAutoParam const* modelStack, int actionType) {
+void ActionLogger::recordUnautomatedParamChange(ModelStackWithAutoParam const* modelStack, int32_t actionType) {
 
 	Action* action = getNewAction(actionType, true);
 	if (!action) {
@@ -264,7 +265,7 @@ void ActionLogger::recordSwingChange(int8_t swingBefore, int8_t swingAfter) {
 		consequence->swing[AFTER] = swingAfter;
 	}
 	else {
-		void* consMemory = generalMemoryAllocator.alloc(sizeof(ConsequenceSwingChange));
+		void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceSwingChange));
 
 		if (consMemory) {
 			ConsequenceSwingChange* newConsequence = new (consMemory) ConsequenceSwingChange(swingBefore, swingAfter);
@@ -287,7 +288,7 @@ void ActionLogger::recordTempoChange(uint64_t timePerBigBefore, uint64_t timePer
 	}
 	else {
 
-		void* consMemory = generalMemoryAllocator.alloc(sizeof(ConsequenceTempoChange));
+		void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceTempoChange));
 
 		if (consMemory) {
 			ConsequenceTempoChange* newConsequence =
@@ -300,8 +301,8 @@ void ActionLogger::recordTempoChange(uint64_t timePerBigBefore, uint64_t timePer
 // Returns whether anything was reverted.
 // doNavigation and updateVisually are only false when doing one of those undo-Clip-resize things as part of another Clip resize.
 // You must not call this during the card routine - though I've lost track of the exact reason why not - is it just because we could then be in the middle of executing whichever function accessed the card and we don't know if things will break?
-bool ActionLogger::revert(int time, bool updateVisually, bool doNavigation) {
-	Uart::println("ActionLogger::revert");
+bool ActionLogger::revert(TimeType time, bool updateVisually, bool doNavigation) {
+	Debug::println("ActionLogger::revert");
 
 	deleteLastActionIfEmpty();
 
@@ -339,11 +340,11 @@ bool ActionLogger::revert(int time, bool updateVisually, bool doNavigation) {
 #define ANIMATION_ARRANGEMENT_TO_SESSION 11
 
 // doNavigation and updateVisually are only false when doing one of those undo-Clip-resize things as part of another Clip resize
-void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavigation, int time) {
+void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavigation, TimeType time) {
 
 	currentSong->deletePendingOverdubs();
 
-	int whichAnimation = ANIMATION_NONE;
+	int32_t whichAnimation = ANIMATION_NONE;
 	uint32_t songZoomBeforeTransition = currentSong->xZoom[NAVIGATION_CLIP];
 	uint32_t arrangerZoomBeforeTransition = currentSong->xZoom[NAVIGATION_ARRANGEMENT];
 
@@ -437,16 +438,16 @@ void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavi
 
 		// Restore states of each Clip
 		if (action->numClipStates) {
-			int totalNumClips =
+			int32_t totalNumClips =
 			    currentSong->sessionClips.getNumElements() + currentSong->arrangementOnlyClips.getNumElements();
 			if (action->numClipStates == totalNumClips) {
 
-				int i = 0;
+				int32_t i = 0;
 
 				// For each Clip in session and arranger
 				ClipArray* clipArray = &currentSong->sessionClips;
 traverseClips:
-				for (int c = 0; c < clipArray->getNumElements(); c++) {
+				for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
 					Clip* clip = clipArray->getClipAtIndex(c);
 
 					//clip->modKnobMode = action->clipStates[i].modKnobMode;
@@ -458,7 +459,7 @@ traverseClips:
 						instrumentClip->wrapEditing = action->clipStates[i].wrapEditing;
 						instrumentClip->wrapEditLevel = action->clipStates[i].wrapEditLevel;
 
-						if (clip->output->type == INSTRUMENT_TYPE_KIT) {
+						if (clip->output->type == InstrumentType::KIT) {
 							Kit* kit = (Kit*)clip->output;
 							if (action->clipStates[i].selectedDrumIndex == -1) {
 								kit->selectedDrum = NULL;
@@ -477,7 +478,7 @@ traverseClips:
 				}
 			}
 			else {
-				Uart::println("clip states wrong number so not restoring");
+				Debug::println("clip states wrong number so not restoring");
 			}
 		}
 
@@ -561,7 +562,7 @@ currentClipSwitchedOver:
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
-	int error = action->revert(time, modelStack);
+	int32_t error = action->revert(time, modelStack);
 
 	// Some "animations", we prefer to do after we've reverted the action
 	if (whichAnimation == ANIMATION_ENTER_KEYBOARD_VIEW) {
@@ -681,13 +682,13 @@ currentClipSwitchedOver:
 	}
 }
 
-void ActionLogger::closeAction(int actionType) {
+void ActionLogger::closeAction(int32_t actionType) {
 	if (firstAction[BEFORE] && firstAction[BEFORE]->type == actionType) {
 		firstAction[BEFORE]->openForAdditions = false;
 	}
 }
 
-void ActionLogger::closeActionUnlessCreatedJustNow(int actionType) {
+void ActionLogger::closeActionUnlessCreatedJustNow(int32_t actionType) {
 	if (firstAction[BEFORE] && firstAction[BEFORE]->type == actionType
 	    && firstAction[BEFORE]->creationTime != AudioEngine::audioSampleTimer) {
 		firstAction[BEFORE]->openForAdditions = false;
@@ -699,7 +700,7 @@ void ActionLogger::deleteAllLogs() {
 	deleteLog(AFTER);
 }
 
-void ActionLogger::deleteLog(int time) {
+void ActionLogger::deleteLog(int32_t time) {
 	while (firstAction[time]) {
 		Action* toDelete = firstAction[time];
 
@@ -707,7 +708,7 @@ void ActionLogger::deleteLog(int time) {
 
 		toDelete->prepareForDestruction(time, currentSong);
 		toDelete->~Action();
-		generalMemoryAllocator.dealloc(toDelete);
+		GeneralMemoryAllocator::get().dealloc(toDelete);
 	}
 }
 
@@ -779,7 +780,7 @@ void ActionLogger::notifyClipRecordingAborted(Clip* clip) {
 	// If there's an Action which only recorded the beginning of this Clip recording, we don't want it anymore.
 	if (firstAction[BEFORE] && firstAction[BEFORE]->type == ACTION_RECORD) {
 		Consequence* firstConsequence = firstAction[BEFORE]->firstConsequence;
-		if (!firstConsequence->next && firstConsequence->type == CONSEQUENCE_CLIP_BEGIN_LINEAR_RECORD) {
+		if (!firstConsequence->next && firstConsequence->type == Consequence::CLIP_BEGIN_LINEAR_RECORD) {
 			if (clip == ((ConsequenceClipBeginLinearRecord*)firstConsequence)->clip) {
 				deleteLastAction();
 			}
@@ -800,11 +801,11 @@ bool ActionLogger::undoJustOneConsequencePerNoteRow(ModelStack* modelStack) {
 	if (firstConsequence) { // Should always be true
 
 		// Work out if multiple Consequences per NoteRow (see big comment above)
-		int firstNoteRowId = ((ConsequenceNoteArrayChange*)firstConsequence)->noteRowId;
+		int32_t firstNoteRowId = ((ConsequenceNoteArrayChange*)firstConsequence)->noteRowId;
 
 		Consequence* thisConsequence = firstConsequence->next;
 		while (thisConsequence) {
-			if (thisConsequence->type == CONSEQUENCE_NOTE_ARRAY_CHANGE
+			if (thisConsequence->type == Consequence::NOTE_ARRAY_CHANGE
 			    && ((ConsequenceNoteArrayChange*)thisConsequence)->noteRowId == firstNoteRowId) {
 				goto gotMultipleConsequencesPerNoteRow;
 			}
@@ -823,18 +824,18 @@ gotMultipleConsequencesPerNoteRow:
 
 				firstConsequence->prepareForDestruction(BEFORE, modelStack->song);
 				firstConsequence->~Consequence();
-				generalMemoryAllocator.dealloc(firstConsequence);
+				GeneralMemoryAllocator::get().dealloc(firstConsequence);
 				firstConsequence = firstAction[BEFORE]->firstConsequence;
-			} while (thisConsequence->type != CONSEQUENCE_NOTE_ARRAY_CHANGE
+			} while (thisConsequence->type != Consequence::NOTE_ARRAY_CHANGE
 			         || ((ConsequenceNoteArrayChange*)firstConsequence)->noteRowId != firstNoteRowId);
 
-			Uart::println("did secret undo, just one Consequence");
+			Debug::println("did secret undo, just one Consequence");
 		}
 
 		// Or if only one Consequence (per NoteRow), revert whole Action
 		else {
 			revert(BEFORE, true, false);
-			Uart::println("did secret undo, whole Action");
+			Debug::println("did secret undo, whole Action");
 			revertedWholeAction = true;
 		}
 

@@ -15,34 +15,30 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "model/clip/instrument_clip.h"
-#include "modulation/params/param_manager.h"
 #include "model/instrument/melodic_instrument.h"
-#include "storage/storage_manager.h"
-#include <string.h>
-#include "util/functions.h"
-#include "playback/playback_handler.h"
-#include "model/note/note_row.h"
-#include "playback/mode/session.h"
-#include "model/song/song.h"
-#include "model/action/action_logger.h"
-#include "gui/ui/root_ui.h"
-#include "gui/views/view.h"
-#include "model/model_stack.h"
-#include "modulation/automation/auto_param.h"
-#include "model/model_stack.h"
-#include "modulation/automation/auto_param.h"
-#include "memory/general_memory_allocator.h"
-#include <new>
-#include "io/midi/midi_device_manager.h"
-#include "io/midi/midi_device.h"
+#include "definitions_cxx.hpp"
 #include "extern.h"
+#include "gui/ui/root_ui.h"
 #include "gui/views/instrument_clip_view.h"
-#include "modulation/params/param_set.h"
+#include "gui/views/view.h"
+#include "io/midi/midi_device.h"
+#include "io/midi/midi_device_manager.h"
+#include "memory/general_memory_allocator.h"
+#include "model/action/action_logger.h"
+#include "model/clip/instrument_clip.h"
 #include "model/instrument/midi_instrument.h"
-
-MelodicInstrument::MelodicInstrument(int newType) : Instrument(newType) {
-}
+#include "model/model_stack.h"
+#include "model/note/note_row.h"
+#include "model/song/song.h"
+#include "modulation/automation/auto_param.h"
+#include "modulation/params/param_manager.h"
+#include "modulation/params/param_set.h"
+#include "playback/mode/session.h"
+#include "playback/playback_handler.h"
+#include "storage/storage_manager.h"
+#include "util/functions.h"
+#include <new>
+#include <string.h>
 
 bool MelodicInstrument::writeMelodicInstrumentAttributesToFile(Clip* clipForSavingOutputOnly, Song* song) {
 	Instrument::writeDataToFile(clipForSavingOutputOnly, song);
@@ -101,7 +97,7 @@ bool MelodicInstrument::readTagFromFile(char const* tagName) {
 }
 
 void MelodicInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on,
-                                          int midiChannel, int note, int velocity, bool shouldRecordNotes,
+                                          int32_t midiChannel, int32_t note, int32_t velocity, bool shouldRecordNotes,
                                           bool* doingMidiThru) {
 
 	if (MIDIDeviceManager::differentiatingInputsByDevice && midiInput.device && fromDevice != midiInput.device) {
@@ -157,11 +153,11 @@ recordingEarly:
 						// and activeClip is not linearly recording (and maybe not even active)...
 						else if (currentPlaybackMode == &session && session.launchEventAtSwungTickCount
 						         && !instrumentClip->getCurrentlyRecordingLinearly()) {
-							int ticksTilLaunch =
+							int32_t ticksTilLaunch =
 							    session.launchEventAtSwungTickCount - playbackHandler.getActualSwungTickCount();
-							int samplesTilLaunch = ticksTilLaunch * playbackHandler.getTimePerInternalTick();
+							int32_t samplesTilLaunch = ticksTilLaunch * playbackHandler.getTimePerInternalTick();
 
-							if (samplesTilLaunch <= LINEAR_RECORDING_EARLY_FIRST_NOTE_ALLOWANCE) {
+							if (samplesTilLaunch <= kLinearRecordingEarlyFirstNoteAllowance) {
 								Clip* clipAboutToRecord =
 								    currentSong->getClipWithOutputAboutToBeginLinearRecording(this);
 								if (clipAboutToRecord) {
@@ -214,7 +210,7 @@ justAuditionNote:
 					ParamManager* paramManager = getParamManager(modelStackWithNoteRow->song);
 					MPEParamSet* expressionParams = paramManager->getMPEParamSet();
 					if (expressionParams) {
-						for (int m = 0; m < NUM_MPE_SOURCES; m++) {
+						for (int32_t m = 0; m < NUM_MPE_SOURCES; m++) {
 							tempExpressionParams[m] = expressionParams->params[m].getCurrentValue() >> 16;
 						}
 						mpeValues = tempExpressionParams;
@@ -292,7 +288,7 @@ void MelodicInstrument::offerReceivedPitchBend(ModelStackWithTimelineCounter* mo
 		if (midiInput.channelOrZone == channel) {
 forMasterChannel:
 			// If it's a MIDIInstrtument...
-			if (type == INSTRUMENT_TYPE_MIDI_OUT) {
+			if (type == InstrumentType::MIDI_OUT) {
 				// .. and it's outputting on the same channel as this MIDI message came in, don't do MIDI thru!
 				if (doingMidiThru && ((MIDIInstrument*)this)->channel == channel) {
 					*doingMidiThru = false;
@@ -316,7 +312,7 @@ mpeX:
 				    (int32_t)value16
 				    << 16; // Unlike for whole-Instrument pitch bend, this per-note kind is a modulation *source*, not the "preset" value for the parameter!
 				polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, value32, 0, channel,
-				                                          MIDI_CHARACTERISTIC_CHANNEL);
+				                                          MIDICharacteristic::CHANNEL);
 			}
 		}
 		else if (midiInput.channelOrZone == MIDI_CHANNEL_MPE_UPPER_ZONE) {
@@ -339,7 +335,7 @@ void MelodicInstrument::offerReceivedCC(ModelStackWithTimelineCounter* modelStac
 		if (midiInput.channelOrZone == channel) {
 forMasterChannel:
 			// If it's a MIDI Clip...
-			if (type == INSTRUMENT_TYPE_MIDI_OUT) {
+			if (type == InstrumentType::MIDI_OUT) {
 				// .. and it's outputting on the same channel as this MIDI message came in, don't do MIDI thru!
 				if (doingMidiThru && ((MIDIInstrument*)this)->channel == channel) {
 					*doingMidiThru = false;
@@ -363,7 +359,7 @@ mpeY:
 				if (ccNumber == 74) { // All other CCs are not supposed to be used for Member Channels, for anything.
 					int32_t value32 = (value - 64) << 25;
 					polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, value32, 1, channel,
-					                                          MIDI_CHARACTERISTIC_CHANNEL);
+					                                          MIDICharacteristic::CHANNEL);
 				}
 			}
 		}
@@ -380,8 +376,8 @@ mpeY:
 
 // noteCode -1 means channel-wide, including for MPE input (which then means it could still then just apply to one note).
 void MelodicInstrument::offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                                MIDIDevice* fromDevice, int channel, int value, int noteCode,
-                                                bool* doingMidiThru) {
+                                                MIDIDevice* fromDevice, int32_t channel, int32_t value,
+                                                int32_t noteCode, bool* doingMidiThru) {
 
 	if (midiInput.equalsDevice(fromDevice)) {
 
@@ -391,7 +387,7 @@ void MelodicInstrument::offerReceivedAftertouch(ModelStackWithTimelineCounter* m
 forMasterChannel:
 
 			// If it's a MIDI Clip...
-			if (type == INSTRUMENT_TYPE_MIDI_OUT) {
+			if (type == InstrumentType::MIDI_OUT) {
 				// .. and it's outputting on the same channel as this MIDI message came in, don't do MIDI thru!
 				if (doingMidiThru && ((MIDIInstrument*)this)->channel == channel) {
 					*doingMidiThru = false;
@@ -403,7 +399,7 @@ forMasterChannel:
 			// Polyphonic aftertouch gets processed along with MPE
 			if (noteCode != -1) {
 				polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, valueBig, 2, noteCode,
-				                                          MIDI_CHARACTERISTIC_NOTE);
+				                                          MIDICharacteristic::NOTE);
 				// We wouldn't be here if this was MPE input, so we know this incoming polyphonic aftertouch message is allowed
 			}
 
@@ -426,7 +422,7 @@ forMasterChannel:
 						}
 processPolyphonicZ:
 						polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, valueBig, 2, channel,
-						                                          MIDI_CHARACTERISTIC_CHANNEL);
+						                                          MIDICharacteristic::CHANNEL);
 					}
 				}
 				else if (midiInput.channelOrZone == MIDI_CHANNEL_MPE_UPPER_ZONE) {
@@ -442,8 +438,8 @@ processPolyphonicZ:
 	}
 }
 
-void MelodicInstrument::offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int channelOrZone,
-                                             int whichBendRange, int bendSemitones) {
+void MelodicInstrument::offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone,
+                                             int32_t whichBendRange, int32_t bendSemitones) {
 
 	if (midiInput.equalsChannelOrZone(device, channelOrZone)) {
 
@@ -470,7 +466,7 @@ void MelodicInstrument::offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice*
 	}
 }
 
-bool MelodicInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMIDIPGMs) {
+bool MelodicInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) {
 
 	earlyNotes.empty();
 
@@ -487,7 +483,7 @@ void MelodicInstrument::stopAnyAuditioning(ModelStack* modelStack) {
 	    modelStack->addTimelineCounter(activeClip)
 	        ->addOtherTwoThingsButNoNoteRow(toModControllable(), getParamManager(modelStack->song));
 
-	for (int i = 0; i < notesAuditioned.getNumElements(); i++) {
+	for (int32_t i = 0; i < notesAuditioned.getNumElements(); i++) {
 		EarlyNote* note = (EarlyNote*)notesAuditioned.getElementAddress(i);
 		sendNote(modelStackWithThreeMainThings, false, note->note, NULL);
 	}
@@ -500,12 +496,12 @@ void MelodicInstrument::stopAnyAuditioning(ModelStack* modelStack) {
 	}
 }
 
-bool MelodicInstrument::isNoteAuditioning(int noteCode) {
+bool MelodicInstrument::isNoteAuditioning(int32_t noteCode) {
 	return (notesAuditioned.searchExact(noteCode) != -1);
 }
 
-void MelodicInstrument::beginAuditioningForNote(ModelStack* modelStack, int note, int velocity,
-                                                int16_t const* mpeValues, int fromMIDIChannel,
+void MelodicInstrument::beginAuditioningForNote(ModelStack* modelStack, int32_t note, int32_t velocity,
+                                                int16_t const* mpeValues, int32_t fromMIDIChannel,
                                                 uint32_t sampleSyncLength) {
 
 	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addTimelineCounter(activeClip)->addNoteRow(0, NULL);
@@ -520,7 +516,7 @@ void MelodicInstrument::beginAuditioningForNote(ModelStack* modelStack, int note
 	sendNote(modelStackWithThreeMainThings, true, note, mpeValues, fromMIDIChannel, velocity, sampleSyncLength);
 }
 
-void MelodicInstrument::endAuditioningForNote(ModelStack* modelStack, int note, int velocity) {
+void MelodicInstrument::endAuditioningForNote(ModelStack* modelStack, int32_t note, int32_t velocity) {
 	notesAuditioned.deleteAtKey(note);
 	earlyNotes.noteNoLongerActive(note);
 	if (activeClip) {
@@ -540,7 +536,7 @@ bool MelodicInstrument::isAnyAuditioningHappening() {
 
 // Virtual function, gets overridden.
 ModelStackWithAutoParam*
-MelodicInstrument::getParamToControlFromInputMIDIChannel(int cc, ModelStackWithThreeMainThings* modelStack) {
+MelodicInstrument::getParamToControlFromInputMIDIChannel(int32_t cc, ModelStackWithThreeMainThings* modelStack) {
 
 	modelStack->paramManager->ensureExpressionParamSetExists();
 	ParamCollectionSummary* summary = modelStack->paramManager->getExpressionParamSetSummary();
@@ -550,7 +546,7 @@ MelodicInstrument::getParamToControlFromInputMIDIChannel(int cc, ModelStackWithT
 		return modelStack->addParam(NULL, NULL, 0, NULL); // Crude way of saying "none".
 	}
 
-	int paramId;
+	int32_t paramId;
 
 	switch (cc) {
 	case CC_NUMBER_PITCH_BEND:
@@ -573,7 +569,7 @@ MelodicInstrument::getParamToControlFromInputMIDIChannel(int cc, ModelStackWithT
 }
 
 // Big part of this function is that it can decide to call possiblyCloneForArrangementRecording().
-void MelodicInstrument::processParamFromInputMIDIChannel(int cc, int32_t newValue,
+void MelodicInstrument::processParamFromInputMIDIChannel(int32_t cc, int32_t newValue,
                                                          ModelStackWithTimelineCounter* modelStack) {
 
 	int32_t modPos = 0;
@@ -623,8 +619,9 @@ bool expressionValueChangesMustBeDoneSmoothly = false; // Wee bit of a workaroun
 // (i.e. because the member channel might have multiple notes / NoteRows). And also because the AutoParam is allowed to not exist at all - e.g. if there's no NoteRow for the note
 // - but we still want to cause a sound change in response to the message.
 void MelodicInstrument::polyphonicExpressionEventPossiblyToRecord(ModelStackWithTimelineCounter* modelStack,
-                                                                  int32_t newValue, int whichExpressionDimension,
-                                                                  int channelOrNoteNumber, int whichCharacteristic) {
+                                                                  int32_t newValue, int32_t whichExpressionDimension,
+                                                                  int32_t channelOrNoteNumber,
+                                                                  MIDICharacteristic whichCharacteristic) {
 	expressionValueChangesMustBeDoneSmoothly = true;
 
 	// If recording, we send the new value to the AutoParam, which will also sound that change right now.
@@ -632,16 +629,16 @@ void MelodicInstrument::polyphonicExpressionEventPossiblyToRecord(ModelStackWith
 	        ->timelineCounterIsSet()) { // && playbackHandler.isEitherClockActive() && playbackHandler.recording) {
 		modelStack->getTimelineCounter()->possiblyCloneForArrangementRecording(modelStack);
 
-		for (int n = 0; n < arpeggiator.notes.getNumElements(); n++) {
+		for (int32_t n = 0; n < arpeggiator.notes.getNumElements(); n++) {
 			ArpNote* arpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
-			if (arpNote->inputCharacteristics[whichCharacteristic]
-			    == channelOrNoteNumber) { // If we're actually identifying by MIDI_CHARACTERISTIC_NOTE, we could do a much faster search,
+			if (arpNote->inputCharacteristics[util::to_underlying(whichCharacteristic)]
+			    == channelOrNoteNumber) { // If we're actually identifying by MIDICharacteristic::NOTE, we could do a much faster search,
 				// but let's not bother - that's only done when we're receiving MIDI polyphonic aftertouch
 				// messages, and there's hardly much to search through.
 				ModelStackWithNoteRow* modelStackWithNoteRow =
 				    ((InstrumentClip*)modelStack->getTimelineCounter())
 				        ->getNoteRowForYNote(
-				            arpNote->inputCharacteristics[MIDI_CHARACTERISTIC_NOTE],
+				            arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
 				            modelStack); // No need to create - it should already exist if they're recording a note here.
 				NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 				if (noteRow) {
@@ -653,9 +650,10 @@ void MelodicInstrument::polyphonicExpressionEventPossiblyToRecord(ModelStackWith
 				}
 
 				// If still here, that didn't work, so just send it without recording.
-				polyphonicExpressionEventOnChannelOrNote(newValue, whichExpressionDimension,
-				                                         arpNote->inputCharacteristics[MIDI_CHARACTERISTIC_NOTE],
-				                                         MIDI_CHARACTERISTIC_NOTE);
+				polyphonicExpressionEventOnChannelOrNote(
+				    newValue, whichExpressionDimension,
+				    arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
+				    MIDICharacteristic::NOTE);
 			}
 		}
 	}

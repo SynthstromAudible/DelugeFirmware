@@ -17,36 +17,36 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
+#include <cstdint>
 
 class Sample;
 class Cluster;
 
 class SampleCache {
 public:
-	SampleCache(Sample* newSample, int newNumClusters, int newWaveformLengthBytes, int newPhaseIncrement,
-	            int newTimeStretchRatio, int newSkipSamplesAtStart);
+	SampleCache(Sample* newSample, int32_t newNumClusters, int32_t newWaveformLengthBytes, int32_t newPhaseIncrement,
+	            int32_t newTimeStretchRatio, int32_t newSkipSamplesAtStart);
 	~SampleCache();
-	void clusterStolen(int clusterIndex);
-	bool setupNewCluster(int cachedClusterIndex);
-	Cluster* getCluster(int clusterIndex);
-	void setWriteBytePos(int newWriteBytePos);
+	void clusterStolen(int32_t clusterIndex);
+	bool setupNewCluster(int32_t cachedClusterIndex);
+	Cluster* getCluster(int32_t clusterIndex);
+	void setWriteBytePos(int32_t newWriteBytePos);
 
 	int32_t writeBytePos;
 #if ALPHA_OR_BETA_VERSION
-	int numClusters;
+	int32_t numClusters;
 #endif
-	int waveformLengthBytes;
+	int32_t waveformLengthBytes;
 	Sample* sample;
 	int32_t phaseIncrement;
 	int32_t timeStretchRatio;
-	int skipSamplesAtStart;
+	int32_t skipSamplesAtStart;
 
 private:
-	void unlinkClusters(int startAtIndex, bool beingDestructed);
-	int getNumExistentClusters(int32_t thisWriteBytePos);
-	void prioritizeNotStealingCluster(int clusterIndex);
+	void unlinkClusters(int32_t startAtIndex, bool beingDestructed);
+	int32_t getNumExistentClusters(int32_t thisWriteBytePos);
+	void prioritizeNotStealingCluster(int32_t clusterIndex);
 
 	// This has to be last!!!
 	Cluster* clusters[1]; // These are not initialized, and are only "valid" as far as writeBytePos dictates

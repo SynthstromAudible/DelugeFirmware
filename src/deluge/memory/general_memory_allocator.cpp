@@ -15,19 +15,19 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "memory/general_memory_allocator.h"
+#include "definitions_cxx.hpp"
+#include "drivers/mtu/mtu.h"
+#include "hid/display/numeric_driver.h"
+#include "io/debug/print.h"
+#include "memory/stealable.h"
+#include "model/action/action_logger.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
-#include "memory/general_memory_allocator.h"
-#include <new>
-#include "io/uart/uart.h"
 #include "util/functions.h"
-#include <string.h>
-#include "model/action/action_logger.h"
-#include "hid/display/numeric_driver.h"
-#include "memory/stealable.h"
-#include "drivers/mtu/mtu.h"
-#include "definitions.h"
+#include <cstring>
+#include <new>
 
 char emptySpacesMemory[sizeof(EmptySpaceRecord) * 512];
 char emptySpacesMemoryInternal[sizeof(EmptySpaceRecord) * 1024];
@@ -35,14 +35,12 @@ char emptySpacesMemoryInternal[sizeof(EmptySpaceRecord) * 1024];
 extern uint32_t __heap_start;
 extern uint32_t __heap_end;
 
-GeneralMemoryAllocator generalMemoryAllocator{};
-
 GeneralMemoryAllocator::GeneralMemoryAllocator() {
 	lock = false;
 	regions[MEMORY_REGION_SDRAM].setup(emptySpacesMemory, sizeof(emptySpacesMemory), EXTERNAL_MEMORY_BEGIN,
 	                                   EXTERNAL_MEMORY_END);
 	regions[MEMORY_REGION_INTERNAL].setup(emptySpacesMemoryInternal, sizeof(emptySpacesMemoryInternal),
-	                                      (uint32_t)&__heap_start, INTERNAL_MEMORY_END - 8192);
+	                                      (uint32_t)&__heap_start, kInternalMemoryEnd - 8192);
 
 #if ALPHA_OR_BETA_VERSION
 	regions[MEMORY_REGION_SDRAM].name = "external";
@@ -50,23 +48,23 @@ GeneralMemoryAllocator::GeneralMemoryAllocator() {
 #endif
 }
 
-int closestDistance = 2147483647;
+int32_t closestDistance = 2147483647;
 
 void GeneralMemoryAllocator::checkStack(char const* caller) {
 #if ALPHA_OR_BETA_VERSION
 
 	char a;
 
-	int distance = (int)&a - (INTERNAL_MEMORY_END - PROGRAM_STACK_MAX_SIZE);
+	int32_t distance = (int32_t)&a - (kInternalMemoryEnd - kProgramStackMaxSize);
 	if (distance < closestDistance) {
 		closestDistance = distance;
 
-		Uart::print(distance);
-		Uart::print(" free bytes in stack at ");
-		Uart::println(caller);
+		Debug::print(distance);
+		Debug::print(" free bytes in stack at ");
+		Debug::println(caller);
 
 		if (distance < 200) {
-			Uart::println("COLLISION");
+			Debug::println("COLLISION");
 			numericDriver.freezeWithError("E338");
 		}
 	}
@@ -75,11 +73,11 @@ void GeneralMemoryAllocator::checkStack(char const* caller) {
 
 #if TEST_GENERAL_MEMORY_ALLOCATION
 uint32_t totalMallocTime = 0;
-int numMallocTimes = 0;
+int32_t numMallocTimes = 0;
 #endif
 
-extern "C" void* delugeAlloc(int requiredSize) {
-	return generalMemoryAllocator.alloc(requiredSize, NULL, false, true);
+extern "C" void* delugeAlloc(unsigned int requiredSize) {
+	return GeneralMemoryAllocator::get().alloc(requiredSize, NULL, false, true);
 }
 
 // Watch the heck out - in the older V3.1 branch, this had one less argument - makeStealable was missing - so in code from there, thingNotToStealFrom could be interpreted as makeStealable!
@@ -110,11 +108,11 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, uint32_t* getAllocate
 			totalMallocTime += timeTaken;
 			numMallocTimes++;
 
-			Uart::print("average malloc time: ");
-			Uart::println(totalMallocTime / numMallocTimes);
+			Debug::print("average malloc time: ");
+			Debug::println(totalMallocTime / numMallocTimes);
 
-			//Uart::print("total: ");
-			//Uart::println(totalMallocTime);
+			//Debug::print("total: ");
+			//Debug::println(totalMallocTime);
 			*/
 			return address;
 		}
@@ -122,7 +120,7 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, uint32_t* getAllocate
 
 #if TEST_GENERAL_MEMORY_ALLOCATION
 	if (requiredSize < 1) {
-		Uart::println("alloc too little a bit");
+		Debug::println("alloc too little a bit");
 		while (1) {}
 	}
 #endif
@@ -139,7 +137,7 @@ uint32_t GeneralMemoryAllocator::getAllocatedSize(void* address) {
 	return (*header & SPACE_SIZE_MASK);
 }
 
-int GeneralMemoryAllocator::getRegion(void* address) {
+int32_t GeneralMemoryAllocator::getRegion(void* address) {
 	return ((uint32_t)address >= (uint32_t)INTERNAL_MEMORY_BEGIN) ? MEMORY_REGION_INTERNAL : MEMORY_REGION_SDRAM;
 }
 
@@ -176,21 +174,20 @@ uint32_t GeneralMemoryAllocator::extendRightAsMuchAsEasilyPossible(void* address
 }
 
 extern "C" void delugeDealloc(void* address) {
-	generalMemoryAllocator.dealloc(address);
+	GeneralMemoryAllocator::get().dealloc(address);
 }
 
 void GeneralMemoryAllocator::dealloc(void* address) {
 	return regions[getRegion(address)].dealloc(address);
 }
 
-void GeneralMemoryAllocator::putStealableInQueue(Stealable* stealable, int q) {
-	MemoryRegion* region = &regions[getRegion(stealable)];
-	region->stealableClusterQueues[q].addToEnd(stealable);
-	region->stealableClusterQueueLongestRuns[q] = 0xFFFFFFFF; // TODO: actually investigate neighbouring memory "run".
+void GeneralMemoryAllocator::putStealableInQueue(Stealable* stealable, int32_t q) {
+	MemoryRegion& region = regions[getRegion(stealable)];
+	region.cache_manager().QueueForReclamation(q, stealable);
 }
 
 void GeneralMemoryAllocator::putStealableInAppropriateQueue(Stealable* stealable) {
-	int q = stealable->getAppropriateQueue();
+	int32_t q = stealable->getAppropriateQueue();
 	putStealableInQueue(stealable, q);
 }
 
@@ -207,12 +204,12 @@ public:
 	void steal() {
 		//Stealable::steal();
 		testAllocations[testIndex] = 0;
-		generalMemoryAllocator.regions[MEMORY_REGION_SDRAM].numAllocations--;
+		GeneralMemoryAllocator::get().regions[MEMORY_REGION_SDRAM].numAllocations--;
 
 		// The steal() function is allowed to deallocate or shorten some other allocations, too
-		int i = getRandom255() % NUM_TEST_ALLOCATIONS;
+		int32_t i = getRandom255() % NUM_TEST_ALLOCATIONS;
 		if (testAllocations[i]) {
-			int a = getRandom255();
+			int32_t a = getRandom255();
 
 			// Dealloc
 			if (spaceTypes[i] == SPACE_HEADER_STEALABLE || a < 128) {
@@ -220,32 +217,32 @@ public:
 				if (spaceTypes[i] == SPACE_HEADER_STEALABLE) {
 					((Stealable*)testAllocations[i])->~Stealable();
 				}
-				generalMemoryAllocator.dealloc(testAllocations[i]);
+				GeneralMemoryAllocator::get().dealloc(testAllocations[i]);
 				testAllocations[i] = NULL;
 			}
 
 			else {
 				// Shorten
-				generalMemoryAllocator.testShorten(i);
+				GeneralMemoryAllocator::get().testShorten(i);
 			}
 		}
 	}
 	bool mayBeStolen(void* thingNotToStealFrom) { return true; }
-	int getAppropriateQueue() { return 0; }
-	int testIndex;
+	int32_t getAppropriateQueue() { return 0; }
+	int32_t testIndex;
 };
 
-void testReadingMemory(int i) {
+void testReadingMemory(int32_t i) {
 	uint8_t* __restrict__ readPos = (uint8_t*)testAllocations[i];
 	uint8_t readValue = *readPos;
-	for (int j = 0; j < sizes[i]; j++) {
+	for (int32_t j = 0; j < sizes[i]; j++) {
 		if (*readPos != readValue) {
-			Uart::println("data corrupted!");
-			Uart::println((int)readPos);
-			Uart::print("allocation total size: ");
-			Uart::println(sizes[i]);
-			Uart::print("num bytes in: ");
-			Uart::println((int)readPos - (int)testAllocations[i]);
+			Debug::println("data corrupted!");
+			Debug::println((int32_t)readPos);
+			Debug::print("allocation total size: ");
+			Debug::println(sizes[i]);
+			Debug::print("num bytes in: ");
+			Debug::println((int32_t)readPos - (int32_t)testAllocations[i]);
 			while (1) {}
 		}
 		readPos++;
@@ -253,10 +250,10 @@ void testReadingMemory(int i) {
 	}
 }
 
-void testWritingMemory(int i) {
+void testWritingMemory(int32_t i) {
 	uint8_t* __restrict__ writePos = (uint8_t*)testAllocations[i];
 	uint8_t writeValue = getRandom255();
-	for (int j = 0; j < sizes[i]; j++) {
+	for (int32_t j = 0; j < sizes[i]; j++) {
 		*writePos = writeValue;
 		writeValue++;
 		writePos++;
@@ -270,34 +267,34 @@ void GeneralMemoryAllocator::checkEverythingOk(char const* errorString) {
 	if (skipConsistencyCheck)
 		return;
 
-	for (int i = 0; i < NUM_TEST_ALLOCATIONS; i++) {
+	for (int32_t i = 0; i < NUM_TEST_ALLOCATIONS; i++) {
 		if (testAllocations[i]) {
 			uint32_t* header = (uint32_t*)testAllocations[i] - 1;
-			uint32_t* footer = (uint32_t*)((int)testAllocations[i] + sizes[i]);
+			uint32_t* footer = (uint32_t*)((int32_t)testAllocations[i] + sizes[i]);
 
 			uint32_t shouldBe = sizes[i] | spaceTypes[i];
 
 			if (*header != shouldBe) {
-				Uart::println("allocation header wrong");
-				Uart::println(errorString);
-				Uart::println(*header);
-				Uart::println(shouldBe);
+				Debug::println("allocation header wrong");
+				Debug::println(errorString);
+				Debug::println(*header);
+				Debug::println(shouldBe);
 				while (1) {}
 			}
 			if (*footer != shouldBe) {
-				Uart::println("allocation footer wrong");
-				Uart::println(errorString);
+				Debug::println("allocation footer wrong");
+				Debug::println(errorString);
 				while (1) {}
 			}
 			if (spaceTypes[i] == SPACE_HEADER_STEALABLE && *(header + 1) != vtableAddress) {
-				Uart::println("vtable address corrupted");
-				Uart::println(errorString);
+				Debug::println("vtable address corrupted");
+				Debug::println(errorString);
 				while (1) {}
 			}
 		}
 	}
 
-	for (int i = 0; i < regions[MEMORY_REGION_SDRAM].emptySpaces.getNumElements(); i++) {
+	for (int32_t i = 0; i < regions[MEMORY_REGION_SDRAM].emptySpaces.getNumElements(); i++) {
 		EmptySpaceRecord* record = (EmptySpaceRecord*)regions[MEMORY_REGION_SDRAM].emptySpaces.getElementAddress(i);
 
 		uint32_t* header = (uint32_t*)record->address - 1;
@@ -306,38 +303,38 @@ void GeneralMemoryAllocator::checkEverythingOk(char const* errorString) {
 		uint32_t shouldBe = record->length | SPACE_HEADER_EMPTY;
 
 		if (*header != shouldBe) {
-			Uart::println("empty space header wrong");
-			Uart::println(errorString);
+			Debug::println("empty space header wrong");
+			Debug::println(errorString);
 			while (1) {}
 		}
 		if (*footer != shouldBe) {
-			Uart::println("empty space footer wrong");
-			Uart::println(errorString);
+			Debug::println("empty space footer wrong");
+			Debug::println(errorString);
 			while (1) {}
 		}
 	}
 }
 
 void GeneralMemoryAllocator::testMemoryDeallocated(void* address) {
-	for (int i = 0; i < NUM_TEST_ALLOCATIONS; i++) {
+	for (int32_t i = 0; i < NUM_TEST_ALLOCATIONS; i++) {
 		if (testAllocations[i] == address) {
 			testAllocations[i] = NULL;
 		}
 	}
 }
 
-void GeneralMemoryAllocator::testShorten(int i) {
-	int a = getRandom255();
+void GeneralMemoryAllocator::testShorten(int32_t i) {
+	int32_t a = getRandom255();
 
 	if (a < 128) {
 
 		if (!getRandom255())
-			Uart::println("shortening left");
-		int newSize =
+			Debug::println("shortening left");
+		int32_t newSize =
 		    ((uint32_t)getRandom255() << 17) | ((uint32_t)getRandom255() << 9) | ((uint32_t)getRandom255() << 1);
 		while (newSize > sizes[i])
 			newSize >>= 1;
-		int amountShortened = shortenLeft(testAllocations[i], sizes[i] - newSize);
+		int32_t amountShortened = shortenLeft(testAllocations[i], sizes[i] - newSize);
 
 		sizes[i] -= amountShortened;
 		testAllocations[i] = (char*)testAllocations[i] + amountShortened;
@@ -348,8 +345,8 @@ void GeneralMemoryAllocator::testShorten(int i) {
 	else {
 
 		if (!getRandom255())
-			Uart::println("shortening right");
-		int newSize =
+			Debug::println("shortening right");
+		int32_t newSize =
 		    ((uint32_t)getRandom255() << 17) | ((uint32_t)getRandom255() << 9) | ((uint32_t)getRandom255() << 1);
 		while (newSize > sizes[i])
 			newSize >>= 1;
@@ -361,7 +358,7 @@ void GeneralMemoryAllocator::testShorten(int i) {
 
 void GeneralMemoryAllocator::test() {
 
-	Uart::println("GeneralMemoryAllocator::test()");
+	Debug::println("GeneralMemoryAllocator::test()");
 
 	// Corrupt the crap out of these two so we know they can take it!
 	sampleManager.clusterSize = 0;
@@ -369,15 +366,15 @@ void GeneralMemoryAllocator::test() {
 
 	memset(testAllocations, 0, sizeof(testAllocations));
 
-	int count = 0;
+	int32_t count = 0;
 
 	bool goingUp = true;
 
 	while (1) {
-		//if (!(count & 15)) Uart::println("...");
+		//if (!(count & 15)) Debug::println("...");
 		count++;
 
-		for (int i = 0; i < NUM_TEST_ALLOCATIONS; i++) {
+		for (int32_t i = 0; i < NUM_TEST_ALLOCATIONS; i++) {
 
 			if (testAllocations[i]) {
 
@@ -408,19 +405,19 @@ void GeneralMemoryAllocator::test() {
 
 					else {
 						if (!getRandom255())
-							Uart::println("extending");
+							Debug::println("extending");
 						uint32_t amountExtendedLeft, amountExtendedRight;
 
 						uint32_t idealAmountToExtend = ((uint32_t)getRandom255() << 17)
 						                               | ((uint32_t)getRandom255() << 9)
 						                               | ((uint32_t)getRandom255() << 1);
-						int magnitudeReduction = getRandom255() % 25;
+						int32_t magnitudeReduction = getRandom255() % 25;
 						idealAmountToExtend >>= magnitudeReduction;
 
-						idealAmountToExtend = getMax(idealAmountToExtend, (uint32_t)4);
-						int magnitudeReduction2 = getRandom255() % 25;
+						idealAmountToExtend = std::max(idealAmountToExtend, (uint32_t)4);
+						int32_t magnitudeReduction2 = getRandom255() % 25;
 						uint32_t minAmountToExtend = idealAmountToExtend >> magnitudeReduction2;
-						minAmountToExtend = getMax(minAmountToExtend, (uint32_t)4);
+						minAmountToExtend = std::max(minAmountToExtend, (uint32_t)4);
 
 						checkEverythingOk("before extending");
 
@@ -440,7 +437,7 @@ void GeneralMemoryAllocator::test() {
 
 						if (amountExtended > 0) {
 							if (amountExtended < minAmountToExtend) {
-								Uart::println("extended too little!");
+								Debug::println("extended too little!");
 								while (1) {}
 							}
 						}
@@ -457,26 +454,26 @@ void GeneralMemoryAllocator::test() {
 			}
 
 			if (getRandom255() < 2) {
-				Uart::print("\nfree spaces: ");
-				Uart::println(regions[MEMORY_REGION_SDRAM].emptySpaces.getNumElements());
-				Uart::print("allocations: ");
-				Uart::println(regions[MEMORY_REGION_SDRAM].numAllocations);
+				Debug::print("\nfree spaces: ");
+				Debug::println(regions[MEMORY_REGION_SDRAM].emptySpaces.getNumElements());
+				Debug::print("allocations: ");
+				Debug::println(regions[MEMORY_REGION_SDRAM].numAllocations);
 
 				if (regions[MEMORY_REGION_SDRAM].emptySpaces.getNumElements() == 1) {
 					EmptySpaceRecord* firstRecord =
 					    (EmptySpaceRecord*)regions[MEMORY_REGION_SDRAM].emptySpaces.getElementAddress(0);
-					Uart::print("free space size: ");
-					Uart::println(firstRecord->length);
-					Uart::print("free space address: ");
-					Uart::println(firstRecord->address);
+					Debug::print("free space size: ");
+					Debug::println(firstRecord->length);
+					Debug::print("free space address: ");
+					Debug::println(firstRecord->address);
 				}
 				delayMS(200);
 			}
 
-			int desiredSize =
+			int32_t desiredSize =
 			    ((uint32_t)getRandom255() << 9) | ((uint32_t)getRandom255() << 1); // (uint32_t)getRandom255() << 17) |
 
-			int magnitudeReduction = getRandom255() % 25;
+			int32_t magnitudeReduction = getRandom255() % 25;
 			desiredSize >>= magnitudeReduction;
 
 			if (desiredSize < 1)
@@ -495,8 +492,8 @@ void GeneralMemoryAllocator::test() {
 					//if ((uint32_t)testAllocations[i] >= (uint32_t)INTERNAL_MEMORY_BEGIN) actualSize = desiredSize; // If on-chip memory
 
 					if (actualSize < desiredSize) {
-						Uart::println("got too little!!");
-						Uart::println(desiredSize - actualSize);
+						Debug::println("got too little!!");
+						Debug::println(desiredSize - actualSize);
 						while (1) {}
 					}
 

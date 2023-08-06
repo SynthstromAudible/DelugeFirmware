@@ -17,33 +17,33 @@
 
 #pragma once
 
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "processing/live/live_pitch_shifter_play_head.h"
 
 class LiveInputBuffer;
 
 class LivePitchShifter {
 public:
-	LivePitchShifter(int newInputType, int32_t phaseIncrement);
+	LivePitchShifter(OscType newInputType, int32_t phaseIncrement);
 	~LivePitchShifter();
-	void giveInput(int numSamples, int inputType, int32_t phaseIncrement);
-	void render(int32_t* outputBuffer, int numSamplesThisFunctionCall, int32_t phaseIncrement, int32_t amplitude,
-	            int32_t amplitudeIncrement, int interpolationBufferSize);
+	void giveInput(int32_t numSamples, int32_t inputType, int32_t phaseIncrement);
+	void render(int32_t* outputBuffer, int32_t numSamplesThisFunctionCall, int32_t phaseIncrement, int32_t amplitude,
+	            int32_t amplitudeIncrement, int32_t interpolationBufferSize);
 
 	bool mayBeRemovedWithoutClick();
 
 #if INPUT_ENABLE_REPITCHED_BUFFER
-	void interpolate(int32_t* sampleRead, int interpolationBufferSize, int numChannelsNow, int whichKernel);
+	void interpolate(int32_t* sampleRead, int32_t interpolationBufferSize, int32_t numChannelsNow, int32_t whichKernel);
 	int32_t* repitchedBuffer;
-	int repitchedBufferWritePos;
+	int32_t repitchedBufferWritePos;
 	uint64_t repitchedBufferNumSamplesWritten;
 	bool stillWritingToRepitchedBuffer;
-	int32_t interpolationBuffer[2][INTERPOLATION_MAX_NUM_SAMPLES];
+	int32_t interpolationBuffer[2][kInterpolationMaxNumSamples];
 	uint32_t oscPos;
 #endif
 
 	int8_t numChannels;
-	uint8_t inputType;
+	OscType inputType;
 
 	uint32_t crossfadeProgress; // Out of 16777216
 	uint32_t crossfadeIncrement;
@@ -51,7 +51,7 @@ public:
 	int32_t samplesTilHopEnd;
 	int32_t samplesIntoHop;
 
-	int percThresholdForCut;
+	int32_t percThresholdForCut;
 
 	LivePitchShifterPlayHead playHeads[2];
 

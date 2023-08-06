@@ -17,16 +17,17 @@
 
 #pragma once
 
-#include "modulation/patch/patcher.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "dsp/compressor/compressor.h"
-#include "modulation/lfo.h"
-#include "processing/source.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/knob.h"
-#include "modulation/params/param_set.h"
+#include "modulation/lfo.h"
 #include "modulation/params/param_manager.h"
+#include "modulation/params/param_set.h"
+#include "modulation/patch/patcher.h"
+#include "processing/source.h"
+#include "util/misc.h"
 
 struct CableGroup;
 class StereoSample;
@@ -44,7 +45,7 @@ class ModelStackWithModControllable;
 #define PARAM_LPF_OFF (-1)
 
 struct ParamLPF {
-	int p; // PARAM_LPF_OFF means none
+	int32_t p; // PARAM_LPF_OFF means none
 	int32_t currentValue;
 };
 
@@ -69,50 +70,50 @@ public:
 
 	ParamLPF paramLPF;
 
-	Source sources[NUM_SOURCES];
+	Source sources[kNumSources];
 
-	int32_t paramFinalValues
-	    [NUM_PARAMS
-	     - FIRST_GLOBAL_PARAM]; // This is for the *global* params only, and begins with FIRST_GLOBAL_PARAM, so subtract that from your p value before accessing this array!
-	int32_t globalSourceValues[FIRST_LOCAL_SOURCE];
+	// This is for the *global* params only, and begins with Global::FIRST_PARAM, so subtract that from your p value before accessing this array!
+	int32_t paramFinalValues[kNumParams - Param::Global::FIRST];
+	int32_t globalSourceValues[util::to_underlying(kFirstLocalSource)];
 
 	uint32_t sourcesChanged; // Applies from first source up to FIRST_UNCHANGEABLE_SOURCE
 
 	LFO globalLFO;
-	uint8_t lfoGlobalWaveType;
-	uint8_t lfoLocalWaveType;
+	LFOType lfoGlobalWaveType;
+	LFOType lfoLocalWaveType;
 	SyncType lfoGlobalSyncType;
 	SyncLevel lfoGlobalSyncLevel;
 
-	ModKnob modKnobs[NUM_MOD_BUTTONS][NUM_PHYSICAL_MOD_KNOBS];
+	ModKnob modKnobs[kNumModButtons][kNumPhysicalModKnobs];
 
 	int32_t sideChainSendLevel;
 
-	uint8_t polyphonic;
+	PolyphonyMode polyphonic;
 
 	int16_t transpose;
 
 	uint8_t numUnison;
-
 	int8_t unisonDetune;
+	uint8_t unisonStereoSpread;
 
-	int16_t modulatorTranspose[numModulators];
-	int8_t modulatorCents[numModulators];
+	int16_t modulatorTranspose[kNumModulators];
+	int8_t modulatorCents[kNumModulators];
 
-	PhaseIncrementFineTuner modulatorTransposers[numModulators];
+	PhaseIncrementFineTuner modulatorTransposers[kNumModulators];
 
-	PhaseIncrementFineTuner unisonDetuners[maxNumUnison];
+	PhaseIncrementFineTuner unisonDetuners[kMaxNumVoicesUnison];
+	int32_t unisonPan[kMaxNumVoicesUnison];
 
-	uint8_t synthMode;
+	SynthMode synthMode;
 	bool modulator1ToModulator0;
 
 	int32_t volumeNeutralValueForUnison;
 
-	int lastNoteCode;
+	int32_t lastNoteCode;
 
 	bool oscillatorSync;
 
-	uint8_t voicePriority;
+	VoicePriority voicePriority;
 
 	bool skippingRendering;
 
@@ -121,10 +122,10 @@ public:
 	// I really didn't want to store these here, since they're stored in the ParamManager, but.... complications! Always 0
 	// for Drums - that was part of the problem - a Drum's main ParamManager's expression data has been sent to the
 	// "polyphonic" bit, and we don't want it to get referred to twice. These get manually refreshed in setActiveClip().
-	int32_t monophonicExpressionValues[NUM_EXPRESSION_DIMENSIONS];
+	int32_t monophonicExpressionValues[kNumExpressionDimensions];
 
-	uint32_t oscRetriggerPhase[NUM_SOURCES]; // 4294967295 means "off"
-	uint32_t modulatorRetriggerPhase[numModulators];
+	uint32_t oscRetriggerPhase[kNumSources]; // 4294967295 means "off"
+	uint32_t modulatorRetriggerPhase[kNumModulators];
 
 	int32_t postReverbVolumeLastTime;
 
@@ -138,11 +139,11 @@ public:
 	virtual ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL) = 0;
 	virtual void setSkippingRendering(bool newSkipping);
 
-	bool setModFXType(int newType) final;
+	bool setModFXType(ModFXType newType) final;
 
 	void patchedParamPresetValueChanged(uint8_t p, ModelStackWithSoundFlags* modelStack, int32_t oldValue,
 	                                    int32_t newValue);
-	void render(ModelStackWithThreeMainThings* modelStack, StereoSample* outputBuffer, int numSamples,
+	void render(ModelStackWithThreeMainThings* modelStack, StereoSample* outputBuffer, int32_t numSamples,
 	            int32_t* reverbBuffer, int32_t sideChainHitPending, int32_t reverbAmountAdjust = 134217728,
 	            bool shouldLimitDelayFeedback = false, int32_t pitchAdjust = 16777216);
 	void unassignAllVoices();
@@ -151,59 +152,60 @@ public:
 	void ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(ModelStackWithThreeMainThings* modelStack);
 	void ensureInaccessibleParamPresetValuesWithoutKnobsAreZeroWithMinimalDetails(ParamManager* paramManager);
 	void ensureParamPresetValueWithoutKnobIsZero(ModelStackWithAutoParam* modelStack);
-	void ensureParamPresetValueWithoutKnobIsZeroWithMinimalDetails(ParamManager* paramManager, int p);
+	void ensureParamPresetValueWithoutKnobIsZeroWithMinimalDetails(ParamManager* paramManager, int32_t p);
 
-	uint8_t maySourcePatchToParam(uint8_t s, uint8_t p, ParamManager* paramManager);
+	PatchCableAcceptance maySourcePatchToParam(PatchSource s, uint8_t p, ParamManager* paramManager);
 
 	void setLFOGlobalSyncType(SyncType newType);
 	void setLFOGlobalSyncLevel(SyncLevel newLevel);
 	void resyncGlobalLFO();
-	void setLFOGlobalWave(uint8_t newWave);
+	void setLFOGlobalWave(LFOType newWave);
 
 	int8_t getKnobPos(uint8_t p, ParamManagerForTimeline* paramManager, uint32_t timePos, TimelineCounter* counter);
-	int32_t getKnobPosBig(int p, ParamManagerForTimeline* paramManager, uint32_t timePos, TimelineCounter* counter);
+	int32_t getKnobPosBig(int32_t p, ParamManagerForTimeline* paramManager, uint32_t timePos, TimelineCounter* counter);
 	bool learnKnob(MIDIDevice* fromDevice, ParamDescriptor paramDescriptor, uint8_t whichKnob, uint8_t modKnobMode,
 	               uint8_t midiChannel, Song* song) final;
 
 	bool hasFilters();
 
-	void sampleZoneChanged(int markerType, int s, ModelStackWithSoundFlags* modelStack);
-	void setNumUnison(int newNum, ModelStackWithSoundFlags* modelStack);
-	void setUnisonDetune(int newAmount, ModelStackWithSoundFlags* modelStack);
-	void setModulatorTranspose(int m, int value, ModelStackWithSoundFlags* modelStack);
-	void setModulatorCents(int m, int value, ModelStackWithSoundFlags* modelStack);
-	int readFromFile(ModelStackWithModControllable* modelStack, int32_t readAutomationUpToPos,
-	                 ArpeggiatorSettings* arpSettings);
+	void sampleZoneChanged(MarkerType markerType, int32_t s, ModelStackWithSoundFlags* modelStack);
+	void setNumUnison(int32_t newNum, ModelStackWithSoundFlags* modelStack);
+	void setUnisonDetune(int32_t newAmount, ModelStackWithSoundFlags* modelStack);
+	void setUnisonStereoSpread(int32_t newAmount);
+	void setModulatorTranspose(int32_t m, int32_t value, ModelStackWithSoundFlags* modelStack);
+	void setModulatorCents(int32_t m, int32_t value, ModelStackWithSoundFlags* modelStack);
+	int32_t readFromFile(ModelStackWithModControllable* modelStack, int32_t readAutomationUpToPos,
+	                     ArpeggiatorSettings* arpSettings);
 	void writeToFile(bool savingSong, ParamManager* paramManager, ArpeggiatorSettings* arpSettings);
 	bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false);
 
 	void voiceUnassigned(ModelStackWithVoice* modelStack);
-	bool isSourceActiveCurrently(int s, ParamManagerForTimeline* paramManager);
-	bool isSourceActiveEverDisregardingMissingSample(int s, ParamManager* paramManager);
-	bool isSourceActiveEver(int s, ParamManager* paramManager);
+	bool isSourceActiveCurrently(int32_t s, ParamManagerForTimeline* paramManager);
+	bool isSourceActiveEverDisregardingMissingSample(int32_t s, ParamManager* paramManager);
+	bool isSourceActiveEver(int32_t s, ParamManager* paramManager);
 	bool isNoiseActiveEver(ParamManagerForTimeline* paramManager);
-	void noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* arpeggiator, int noteCode,
+	void noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* arpeggiator, int32_t noteCode,
 	            int16_t const* mpeValues, uint32_t sampleSyncLength = 0, int32_t ticksLate = 0,
-	            uint32_t samplesLate = 0, int velocity = 64, int fromMIDIChannel = 16);
+	            uint32_t samplesLate = 0, int32_t velocity = 64, int32_t fromMIDIChannel = 16);
 	void allNotesOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* arpeggiator);
 
-	void noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int noteCode = -32768);
-	void noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int newNoteCodeBeforeArpeggiation,
-	                           int newNoteCodeAfterArpeggiation, int velocity, int16_t const* mpeValues,
+	void noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t noteCode = -32768);
+	void noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBeforeArpeggiation,
+	                           int32_t newNoteCodeAfterArpeggiation, int32_t velocity, int16_t const* mpeValues,
 	                           uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate,
-	                           int fromMIDIChannel = 16);
+	                           int32_t fromMIDIChannel = 16);
 
 	int16_t getMaxOscTranspose(InstrumentClip* clip);
 	int16_t getMinOscTranspose();
-	void setSynthMode(uint8_t value, Song* song);
-	inline uint8_t getSynthMode() { return synthMode; }
+	void setSynthMode(SynthMode value, Song* song);
+	inline SynthMode getSynthMode() { return synthMode; }
 	bool anyNoteIsOn();
 	virtual bool isDrum() { return false; }
 	void setupAsSample(ParamManagerForTimeline* paramManager);
 	void recalculateAllVoicePhaseIncrements(ModelStackWithSoundFlags* modelStack);
-	int loadAllAudioFiles(bool mayActuallyReadFiles);
-	bool envelopeHasSustainCurrently(int e, ParamManagerForTimeline* paramManager);
-	bool envelopeHasSustainEver(int e, ParamManagerForTimeline* paramManager);
+	int32_t loadAllAudioFiles(bool mayActuallyReadFiles);
+	bool envelopeHasSustainCurrently(int32_t e, ParamManagerForTimeline* paramManager);
+	bool envelopeHasSustainEver(int32_t e, ParamManagerForTimeline* paramManager);
 	bool renderingOscillatorSyncCurrently(ParamManagerForTimeline* paramManager);
 	bool renderingOscillatorSyncEver(ParamManager* paramManager);
 	bool hasAnyVoices();
@@ -216,9 +218,10 @@ public:
 	static bool readParamTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager,
 	                                 int32_t readAutomationUpToPos);
 	static void initParams(ParamManager* paramManager);
-	static int createParamManagerForLoading(ParamManagerForTimeline* paramManager);
-	int32_t hasAnyTimeStretchSyncing(ParamManagerForTimeline* paramManager, bool getSampleLength = false, int note = 0);
-	int32_t hasCutOrLoopModeSamples(ParamManagerForTimeline* paramManager, int note, bool* anyLooping = NULL);
+	static int32_t createParamManagerForLoading(ParamManagerForTimeline* paramManager);
+	int32_t hasAnyTimeStretchSyncing(ParamManagerForTimeline* paramManager, bool getSampleLength = false,
+	                                 int32_t note = 0);
+	int32_t hasCutOrLoopModeSamples(ParamManagerForTimeline* paramManager, int32_t note, bool* anyLooping = NULL);
 	bool hasCutModeSamples(ParamManagerForTimeline* paramManager);
 	bool allowsVeryLateNoteStart(InstrumentClip* clip, ParamManagerForTimeline* paramManager);
 	void fastReleaseAllVoices(ModelStackWithSoundFlags* modelStack);
@@ -226,8 +229,8 @@ public:
 	void doneReadingFromFile();
 	virtual void setupPatchingForAllParamManagers(Song* song) {}
 	void compensateVolumeForResonance(ModelStackWithThreeMainThings* modelStack);
-	//void channelAftertouchReceivedFromInputMIDIChannel(int newValue);
-	ModelStackWithAutoParam* getParamFromModEncoder(int whichModEncoder, ModelStackWithThreeMainThings* modelStack,
+	//void channelAftertouchReceivedFromInputMIDIChannel(int32_t newValue);
+	ModelStackWithAutoParam* getParamFromModEncoder(int32_t whichModEncoder, ModelStackWithThreeMainThings* modelStack,
 	                                                bool allowCreation = true) final;
 	void reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, bool shouldJustCutModFX = false);
 	void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb,
@@ -237,7 +240,7 @@ public:
 	void detachSourcesFromAudioFiles();
 	void confirmNumVoices(char const* error);
 
-	inline int32_t getSmoothedPatchedParamValue(int p,
+	inline int32_t getSmoothedPatchedParamValue(int32_t p,
 	                                            ParamManager* paramManager) { // Yup, inlining this helped a tiny bit.
 		if (paramLPF.p == p) {
 			return paramLPF.currentValue;
@@ -247,13 +250,13 @@ public:
 		}
 	}
 
-	void notifyValueChangeViaLPF(int p, bool shouldDoParamLPF, ModelStackWithThreeMainThings const* modelStack,
+	void notifyValueChangeViaLPF(int32_t p, bool shouldDoParamLPF, ModelStackWithThreeMainThings const* modelStack,
 	                             int32_t oldValue, int32_t newValue, bool fromAutomation);
-	void deleteMultiRange(int s, int r);
+	void deleteMultiRange(int32_t s, int32_t r);
 	void prepareForHibernation();
 	void wontBeRenderedForAWhile();
 	char const* paramToString(uint8_t param) final;
-	int stringToParam(char const* string) final;
+	int32_t stringToParam(char const* string) final;
 	ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob* knob, ModelStackWithThreeMainThings* modelStack) final;
 	virtual ArpeggiatorBase* getArp() = 0;
 	void possiblySetupDefaultExpressionPatching(ParamManager* paramManager);
@@ -261,34 +264,35 @@ public:
 	inline void saturate(int32_t* data, uint32_t* workingValue) {
 		// Clipping
 		if (clippingAmount) {
-			int shiftAmount = (clippingAmount >= 2) ? (clippingAmount - 2) : 0;
+			int32_t shiftAmount = (clippingAmount >= 2) ? (clippingAmount - 2) : 0;
 			//*data = getTanHUnknown(*data, 5 + clippingAmount) << (shiftAmount);
 			*data = getTanHAntialiased(*data, workingValue, 5 + clippingAmount) << (shiftAmount);
 		}
 	}
 
-	int numVoicesAssigned;
+	int32_t numVoicesAssigned;
 
 private:
 	uint32_t getGlobalLFOPhaseIncrement();
 	void recalculateModulatorTransposer(uint8_t m, ModelStackWithSoundFlags* modelStack);
 	void setupUnisonDetuners(ModelStackWithSoundFlags* modelStack);
+	void setupUnisonStereoSpread();
 	void calculateEffectiveVolume();
 	void ensureKnobReferencesCorrectVolume(Knob* knob);
-	int readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos,
-	                    ArpeggiatorSettings* arpSettings, Song* song);
+	int32_t readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos,
+	                        ArpeggiatorSettings* arpSettings, Song* song);
 
-	void writeSourceToFile(int s, char const* tagName);
-	int readSourceFromFile(int s, ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos);
+	void writeSourceToFile(int32_t s, char const* tagName);
+	int32_t readSourceFromFile(int32_t s, ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos);
 	void stopSkippingRendering(ArpeggiatorSettings* arpSettings);
 	void startSkippingRendering(ModelStackWithSoundFlags* modelStack);
 	void getArpBackInTimeAfterSkippingRendering(ArpeggiatorSettings* arpSettings);
-	void doParamLPF(int numSamples, ModelStackWithSoundFlags* modelStack);
+	void doParamLPF(int32_t numSamples, ModelStackWithSoundFlags* modelStack);
 	void stopParamLPF(ModelStackWithSoundFlags* modelStack);
 	bool renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack);
 	void setupDefaultExpressionPatching(ParamManager* paramManager);
-	void pushSwitchActionOnEncoderForParam(int p, bool on, ModelStackWithThreeMainThings* modelStack);
-	ModelStackWithAutoParam* getParamFromModEncoderDeeper(int whichModEncoder,
+	void pushSwitchActionOnEncoderForParam(int32_t p, bool on, ModelStackWithThreeMainThings* modelStack);
+	ModelStackWithAutoParam* getParamFromModEncoderDeeper(int32_t whichModEncoder,
 	                                                      ModelStackWithThreeMainThings* modelStack,
 	                                                      bool allowCreation = true);
 };

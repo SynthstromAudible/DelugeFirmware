@@ -42,7 +42,7 @@ void setLedState(LED led, bool newState, bool allowContinuedBlinking) {
 		stopLedBlinking(led);
 	}
 
-	uint8_t l = static_cast<int>(led);
+	uint8_t l = static_cast<int32_t>(led);
 	ledStates[l] = newState;
 
 	bufferPICUart(uartBase + l + (newState ? 36 : 0));
@@ -53,7 +53,7 @@ void blinkLed(LED led, uint8_t numBlinks, uint8_t blinkingType, bool initialStat
 	stopLedBlinking(led, true);
 
 	// Find unallocated blinker
-	int i;
+	int32_t i;
 	for (i = 0; i < numLedBlinkers - 1; i++) {
 		if (!ledBlinkers[i].active) {
 			break;
@@ -68,23 +68,23 @@ void blinkLed(LED led, uint8_t numBlinks, uint8_t blinkingType, bool initialStat
 		ledBlinkers[i].blinksLeft = 255;
 	}
 	else {
-		ledBlinkers[i].returnToState = ledStates[static_cast<int>(led)];
+		ledBlinkers[i].returnToState = ledStates[static_cast<int32_t>(led)];
 		ledBlinkers[i].blinksLeft = numBlinks * 2;
 	}
 
 	ledBlinkState[blinkingType] = initialState;
 	updateBlinkingLedStates(blinkingType);
 
-	int thisInitialFlashTime;
+	int32_t thisInitialFlashTime;
 	if (blinkingType) {
-		thisInitialFlashTime = fastFlashTime;
+		thisInitialFlashTime = kFastFlashTime;
 	}
 	else {
 		if (initialState) {
-			thisInitialFlashTime = initialFlashTime;
+			thisInitialFlashTime = kInitialFlashTime;
 		}
 		else {
-			thisInitialFlashTime = flashTime;
+			thisInitialFlashTime = kFlashTime;
 		}
 	}
 
@@ -101,7 +101,7 @@ void ledBlinkTimeout(uint8_t blinkingType, bool forceReset, bool resetToState) {
 
 	bool anyActive = updateBlinkingLedStates(blinkingType);
 
-	int thisFlashTime = (blinkingType ? fastFlashTime : flashTime);
+	int32_t thisFlashTime = (blinkingType ? kFastFlashTime : kFlashTime);
 	if (anyActive) {
 		uiTimerManager.setTimer(TIMER_LED_BLINK + blinkingType, thisFlashTime);
 	}
@@ -110,7 +110,7 @@ void ledBlinkTimeout(uint8_t blinkingType, bool forceReset, bool resetToState) {
 // Returns true if some blinking still active
 bool updateBlinkingLedStates(uint8_t blinkingType) {
 	bool anyActive = false;
-	for (int i = 0; i < numLedBlinkers; i++) {
+	for (int32_t i = 0; i < numLedBlinkers; i++) {
 		if (ledBlinkers[i].active && ledBlinkers[i].blinkingType == blinkingType) {
 
 			// If only doing a fixed number of blinks...
@@ -170,13 +170,13 @@ void setKnobIndicatorLevel(uint8_t whichKnob, uint8_t level) {
 
 	bufferPICUart(20 + whichKnob);
 
-	int numIndicatorLedsFullyOn = level >> 5;
+	int32_t numIndicatorLedsFullyOn = level >> 5;
 
-	int brightness = (level & 31) << 3;
+	int32_t brightness = (level & 31) << 3;
 	brightness = (brightness * brightness) >> 8; // Square it
 
-	for (int i = 0; i < 4; i++) {
-		int brightnessOutputValue = 0;
+	for (int32_t i = 0; i < 4; i++) {
+		int32_t brightnessOutputValue = 0;
 
 		if (i < numIndicatorLedsFullyOn) {
 			brightnessOutputValue = 255;
@@ -190,7 +190,7 @@ void setKnobIndicatorLevel(uint8_t whichKnob, uint8_t level) {
 	knobIndicatorLevels[whichKnob] = level;
 }
 
-void blinkKnobIndicator(int whichKnob) {
+void blinkKnobIndicator(int32_t whichKnob) {
 	if (uiTimerManager.isTimerSet(TIMER_LEVEL_INDICATOR_BLINK)) {
 		uiTimerManager.unsetTimer(TIMER_LEVEL_INDICATOR_BLINK);
 		if (whichLevelIndicatorBlinking != whichKnob) {
@@ -204,7 +204,7 @@ void blinkKnobIndicator(int whichKnob) {
 	blinkKnobIndicatorLevelTimeout();
 }
 
-void stopBlinkingKnobIndicator(int whichKnob) {
+void stopBlinkingKnobIndicator(int32_t whichKnob) {
 	if (isKnobIndicatorBlinking(whichKnob)) {
 		levelIndicatorBlinksLeft = 0;
 		uiTimerManager.unsetTimer(TIMER_LEVEL_INDICATOR_BLINK);
@@ -220,12 +220,12 @@ void blinkKnobIndicatorLevelTimeout() {
 	}
 }
 
-bool isKnobIndicatorBlinking(int whichKnob) {
+bool isKnobIndicatorBlinking(int32_t whichKnob) {
 	return (levelIndicatorBlinksLeft && whichLevelIndicatorBlinking == whichKnob);
 }
 
 void clearKnobIndicatorLevels() {
-	for (int i = 0; i < NUM_LEVEL_INDICATORS; i++) {
+	for (int32_t i = 0; i < NUM_LEVEL_INDICATORS; i++) {
 		setKnobIndicatorLevel(i, 0);
 	}
 }

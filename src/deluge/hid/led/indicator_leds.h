@@ -17,54 +17,46 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
+#include <cstdint>
 
-#define numLedBlinkers 4
+constexpr size_t numLedBlinkers = 4;
 
 namespace indicator_leds {
 
-constexpr uint8_t uartBase =
-#if DELUGE_MODEL >= DELUGE_MODEL_144_PAD
-    152;
-#else
-    120;
-#endif
+constexpr uint8_t uartBase = (DELUGE_MODEL >= DELUGE_MODEL_144_PAD) ? 152 : 120;
 
-constexpr uint8_t fromXY(int x, int y) {
+constexpr uint8_t fromCartesian(Cartesian c) {
+	return c.x + c.y * NUM_LED_COLS;
+}
+
+constexpr uint8_t fromXY(int32_t x, int32_t y) {
 	return x + y * NUM_LED_COLS;
 }
 
 // clang-format off
 enum class LED : uint8_t {
-	AFFECT_ENTIRE     = fromXY(affectEntireLedX, affectEntireLedY),
-	SESSION_VIEW      = fromXY(sessionViewLedX, sessionViewLedY),
-	CLIP_VIEW         = fromXY(clipViewLedX, clipViewLedY),
-	SYNTH             = fromXY(synthLedX, synthLedY),
-	KIT               = fromXY(kitLedX, kitLedY),
-	MIDI              = fromXY(midiLedX, midiLedY),
-	CV                = fromXY(cvLedX, cvLedY),
-	KEYBOARD          = fromXY(keyboardLedX, keyboardLedY),
-	SCALE_MODE        = fromXY(scaleModeLedX, scaleModeLedY),
-	CROSS_SCREEN_EDIT = fromXY(crossScreenEditLedX, crossScreenEditLedY),
-	BACK              = fromXY(backLedX, backLedY),
-	LOAD              = fromXY(loadLedX, loadLedY),
-	SAVE              = fromXY(saveLedX, saveLedY),
-	LEARN             = fromXY(learnLedX, learnLedY),
-	TAP_TEMPO         = fromXY(tapTempoLedX, tapTempoLedY),
-	SYNC_SCALING      = fromXY(syncScalingLedX, syncScalingLedY),
-	TRIPLETS          = fromXY(tripletsLedX, tripletsLedY),
-	PLAY              = fromXY(playLedX, playLedY),
-	RECORD            = fromXY(recordLedX, recordLedY),
-	SHIFT             = fromXY(shiftLedX, shiftLedY),
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-	MOD_0 = fromXY(0,2),
-	MOD_1 = fromXY(0,3),
-	MOD_2 = fromXY(1,3),
-	MOD_3 = fromXY(1,2),
-	MOD_4 = fromXY(2,2),
-	MOD_5 = fromXY(3,2),
-#else
+	AFFECT_ENTIRE     = fromCartesian(affectEntireButtonCoord),
+	SESSION_VIEW      = fromCartesian(sessionViewButtonCoord),
+	CLIP_VIEW         = fromCartesian(clipViewButtonCoord),
+	SYNTH             = fromCartesian(synthButtonCoord),
+	KIT               = fromCartesian(kitButtonCoord),
+	MIDI              = fromCartesian(midiButtonCoord),
+	CV                = fromCartesian(cvButtonCoord),
+	KEYBOARD          = fromCartesian(keyboardButtonCoord),
+	SCALE_MODE        = fromCartesian(scaleModeButtonCoord),
+	CROSS_SCREEN_EDIT = fromCartesian(crossScreenEditButtonCoord),
+	BACK              = fromCartesian(backButtonCoord),
+	LOAD              = fromCartesian(loadButtonCoord),
+	SAVE              = fromCartesian(saveButtonCoord),
+	LEARN             = fromCartesian(learnButtonCoord),
+	TAP_TEMPO         = fromCartesian(tapTempoButtonCoord),
+	SYNC_SCALING      = fromCartesian(syncScalingButtonCoord),
+	TRIPLETS          = fromCartesian(tripletsButtonCoord),
+	PLAY              = fromCartesian(playButtonCoord),
+	RECORD            = fromCartesian(recordButtonCoord),
+	SHIFT             = fromCartesian(shiftButtonCoord),
+
 	MOD_0 = fromXY(1,0),
 	MOD_1 = fromXY(1,1),
 	MOD_2 = fromXY(1,2),
@@ -73,15 +65,10 @@ enum class LED : uint8_t {
 	MOD_5 = fromXY(2,1),
 	MOD_6 = fromXY(2,2),
 	MOD_7 = fromXY(2,3),
-#endif
 };
 // clang-format on
 
-#if DELUGE_MODEL == DELUGE_MODEL_40_PAD
-const LED modLed[6] = {LED::MOD_0, LED::MOD_1, LED::MOD_2, LED::MOD_3, LED::MOD_4, LED::MOD_5};
-#else
 const LED modLed[8] = {LED::MOD_0, LED::MOD_1, LED::MOD_2, LED::MOD_3, LED::MOD_4, LED::MOD_5, LED::MOD_6, LED::MOD_7};
-#endif
 
 struct LedBlinker {
 	LED led;
@@ -99,14 +86,14 @@ void ledBlinkTimeout(uint8_t blinkingType, bool forceRestart = false, bool reset
 void indicateAlertOnLed(LED led);
 void setKnobIndicatorLevel(uint8_t whichKnob, uint8_t level);
 void clearKnobIndicatorLevels();
-void blinkKnobIndicator(int whichKnob);
-void stopBlinkingKnobIndicator(int whichKnob);
+void blinkKnobIndicator(int32_t whichKnob);
+void stopBlinkingKnobIndicator(int32_t whichKnob);
 void blinkKnobIndicatorLevelTimeout();
 uint8_t getLedBlinkerIndex(LED led);
 void stopLedBlinking(LED led, bool resetState = false);
 bool updateBlinkingLedStates(uint8_t blinkingType);
-bool isKnobIndicatorBlinking(int whichKnob);
+bool isKnobIndicatorBlinking(int32_t whichKnob);
 
 } // namespace indicator_leds
 
-typedef indicator_leds::LED IndicatorLED;
+using IndicatorLED = indicator_leds::LED;

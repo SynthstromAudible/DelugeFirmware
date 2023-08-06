@@ -16,11 +16,12 @@
 */
 
 #include "gui/context_menu/sample_browser/kit.h"
+#include "definitions_cxx.hpp"
 #include "gui/ui/browser/sample_browser.h"
-#include "util/functions.h"
-#include "hid/display/numeric_driver.h"
 #include "gui/ui/slicer.h"
+#include "hid/display/numeric_driver.h"
 #include "storage/file_item.h"
+#include "util/functions.h"
 
 namespace deluge::gui::context_menu::sample_browser {
 Kit kit{};
@@ -59,7 +60,7 @@ bool Kit::acceptCurrentOption() {
 	}
 }
 
-int Kit::padAction(int x, int y, int on) {
+ActionResult Kit::padAction(int32_t x, int32_t y, int32_t on) {
 	return sampleBrowser.padAction(x, y, on);
 }
 

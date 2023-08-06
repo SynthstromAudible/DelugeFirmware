@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "gui/ui/ui.h"
 #include "hid/button.h"
 #include "model/sample/sample.h"
@@ -39,17 +40,17 @@ public:
 	bool opened();
 	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
 
-	int buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
 	bool beginOutputRecording();
 	void process();
 	void slowRoutine();
 	bool isCurrentlyResampling();
 
-	uint8_t recordingSource;
+	AudioInputChannel recordingSource;
 
 	SampleRecorder* recorder;
 
-	void endRecordingSoon(int buttonLatency = 0);
+	void endRecordingSoon(int32_t buttonLatency = 0);
 
 #if HAVE_OLED
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
@@ -57,7 +58,7 @@ public:
 
 private:
 	void finishRecording();
-	bool setupRecordingToFile(int newMode, int newNumChannels, int folderID);
+	bool setupRecordingToFile(AudioInputChannel newMode, int32_t newNumChannels, AudioRecordingFolder folderID);
 };
 
 extern AudioRecorder audioRecorder;

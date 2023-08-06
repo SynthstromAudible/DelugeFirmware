@@ -15,19 +15,19 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "modulation/patch/patch_cable_set.h"
 #include "gui/menu_item/patched_param/integer_non_fm.h"
 #include "gui/ui/sound_editor.h"
+#include "modulation/patch/patch_cable_set.h"
 
-namespace menu_item::filter {
+namespace deluge::gui::menu_item::filter {
 class LPFFreq final : public patched_param::IntegerNonFM {
 public:
-	LPFFreq(char const* newName = 0, int newP = 0) : patched_param::IntegerNonFM(newName, newP) {}
+	using patched_param::IntegerNonFM::IntegerNonFM;
 #if !HAVE_OLED
-	void drawValue() {
-		if (soundEditor.currentValue == 50
+	void drawValue() override {
+		if (this->getValue() == 50
 		    && !soundEditor.currentParamManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(
-		        PARAM_LOCAL_LPF_FREQ)) {
+		        ::Param::Local::LPF_FREQ)) {
 			numericDriver.setText("Off");
 		}
 		else {
@@ -36,4 +36,4 @@ public:
 	}
 #endif
 };
-} // namespace menu_item::filter
+} // namespace deluge::gui::menu_item::filter

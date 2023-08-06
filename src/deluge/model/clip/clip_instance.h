@@ -18,7 +18,7 @@
 #pragma once
 
 #include "gui/positionable.h"
-#include "RZA1/system/r_typedefs.h"
+#include <cstdint>
 
 class InstrumentClip;
 class Action;

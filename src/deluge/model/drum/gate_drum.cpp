@@ -17,25 +17,25 @@
 
 #include "model/drum/gate_drum.h"
 #include "processing/engines/cv_engine.h"
-#include <string.h>
-#include "util/functions.h"
 #include "storage/storage_manager.h"
+#include "util/functions.h"
+#include <string.h>
 
 extern "C" {
 #include "util/cfunctions.h"
 }
 
-GateDrum::GateDrum() : NonAudioDrum(DRUM_TYPE_GATE) {
+GateDrum::GateDrum() : NonAudioDrum(DrumType::GATE) {
 	channel = 2;
 }
 
 void GateDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, Kit* kit, int16_t const* mpeValues,
-                      int fromMIDIChannel, uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate) {
+                      int32_t fromMIDIChannel, uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate) {
 	cvEngine.sendNote(true, channel);
 	state = true;
 }
 
-void GateDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int velocity) {
+void GateDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity) {
 	cvEngine.sendNote(false, channel);
 	state = false;
 }
@@ -55,7 +55,7 @@ void GateDrum::writeToFile(bool savingSong, ParamManager* paramManager) {
 	}
 }
 
-int GateDrum::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
+int32_t GateDrum::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 	char const* tagName;
 
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
@@ -73,6 +73,6 @@ void GateDrum::getName(char* buffer) {
 	intToString(channel + 1, &buffer[3]);
 }
 
-int GateDrum::getNumChannels() {
+int32_t GateDrum::getNumChannels() {
 	return NUM_GATE_CHANNELS;
 }

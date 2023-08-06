@@ -15,14 +15,12 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "modulation/patch/patch_cable.h"
+#include "definitions_cxx.hpp"
 #include "model/clip/instrument_clip.h"
 #include "processing/sound/sound.h"
-#include "modulation/patch/patch_cable.h"
 
-PatchCable::PatchCable() {
-}
-
-void PatchCable::setup(uint8_t newFrom, uint8_t newTo, int32_t newAmount) {
+void PatchCable::setup(PatchSource newFrom, uint8_t newTo, int32_t newAmount) {
 	from = newFrom;
 	destinationParamDescriptor.setToHaveParamOnly(newTo);
 	initAmount(newAmount);

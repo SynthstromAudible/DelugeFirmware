@@ -28,7 +28,7 @@ public:
 	bool isCurrentOptionAvailable() override;
 	bool canSeeViewUnderneath() override;
 
-	int padAction(int x, int y, int velocity) override;
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 	bool acceptCurrentOption() override;
 
 	char const* getTitle() override;

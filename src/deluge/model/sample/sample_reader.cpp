@@ -15,19 +15,19 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "storage/audio/audio_file_manager.h"
 #include "model/sample/sample_reader.h"
 #include "model/sample/sample.h"
+#include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
 
 SampleReader::SampleReader() {
 	// TODO Auto-generated constructor stub
 }
 
-int SampleReader::readBytesPassedErrorChecking(char* outputBuffer, int num) {
+int32_t SampleReader::readBytesPassedErrorChecking(char* outputBuffer, int32_t num) {
 
 	while (num--) {
-		int error = advanceClustersIfNecessary();
+		int32_t error = advanceClustersIfNecessary();
 		if (error) {
 			return error;
 		}
@@ -40,7 +40,7 @@ int SampleReader::readBytesPassedErrorChecking(char* outputBuffer, int num) {
 	return NO_ERROR;
 }
 
-int SampleReader::readNewCluster() {
+int32_t SampleReader::readNewCluster() {
 	if (currentCluster) {
 		audioFileManager.removeReasonFromCluster(currentCluster, "E031");
 	}

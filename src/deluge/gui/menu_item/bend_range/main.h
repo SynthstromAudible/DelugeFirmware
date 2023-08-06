@@ -17,26 +17,26 @@
 #pragma once
 #include "gui/menu_item/bend_range.h"
 #include "gui/ui/sound_editor.h"
+#include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "storage/flash_storage.h"
-#include "modulation/params/param_manager.h"
 
-namespace menu_item::bend_range {
+namespace deluge::gui::menu_item::bend_range {
 class Main final : public BendRange {
 public:
 	using BendRange::BendRange;
-	void readCurrentValue() {
+	void readCurrentValue() override {
 		ExpressionParamSet* expressionParams =
 		    soundEditor.currentParamManager->getOrCreateExpressionParamSet(soundEditor.editingKit());
-		soundEditor.currentValue = expressionParams ? expressionParams->bendRanges[BEND_RANGE_MAIN]
-		                                            : FlashStorage::defaultBendRange[BEND_RANGE_MAIN];
+		this->setValue(expressionParams != nullptr ? expressionParams->bendRanges[BEND_RANGE_MAIN]
+		                                           : FlashStorage::defaultBendRange[BEND_RANGE_MAIN]);
 	}
-	void writeCurrentValue() {
+	void writeCurrentValue() override {
 		ExpressionParamSet* expressionParams =
 		    soundEditor.currentParamManager->getOrCreateExpressionParamSet(soundEditor.editingKit());
-		if (expressionParams) {
-			expressionParams->bendRanges[BEND_RANGE_MAIN] = soundEditor.currentValue;
+		if (expressionParams != nullptr) {
+			expressionParams->bendRanges[BEND_RANGE_MAIN] = this->getValue();
 		}
 	}
 };
-} // namespace menu_item::bend_range
+} // namespace deluge::gui::menu_item::bend_range

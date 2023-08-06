@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include "definitions.h"
-#include "model/sample/sample.h"
+#include "definitions_cxx.hpp"
 #include "hid/display/numeric_driver.h"
+#include "model/sample/sample.h"
 
 class TimeStretcher;
 class VoiceSamplePlaybackGuide;
@@ -32,7 +32,7 @@ class VoiceUnisonPartSource {
 public:
 	VoiceUnisonPartSource();
 	bool noteOn(Voice* voice, Source* source, VoiceSamplePlaybackGuide* voiceSource, uint32_t samplesLate,
-	            uint32_t oscPhase, bool resetEverything, uint8_t synthMode);
+	            uint32_t oscPhase, bool resetEverything, SynthMode synthMode);
 	void unassign();
 	bool getPitchAndSpeedParams(Source* source, VoiceSamplePlaybackGuide* voiceSource, uint32_t* phaseIncrement,
 	                            uint32_t* timeStretchRatio, uint32_t* noteLengthInSamples);

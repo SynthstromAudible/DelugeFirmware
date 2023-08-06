@@ -15,31 +15,31 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "gui/views/instrument_clip_view.h"
 #include "model/drum/midi_drum.h"
-#include "storage/storage_manager.h"
-#include <string.h>
+#include "gui/views/instrument_clip_view.h"
 #include "io/midi/midi_engine.h"
+#include "storage/storage_manager.h"
 #include "util/functions.h"
+#include <string.h>
 
 extern "C" {
 #include "util/cfunctions.h"
 }
 
-MIDIDrum::MIDIDrum() : NonAudioDrum(DRUM_TYPE_MIDI) {
+MIDIDrum::MIDIDrum() : NonAudioDrum(DrumType::MIDI) {
 	channel = 0;
 	note = 0;
 }
 
 void MIDIDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, Kit* kit, int16_t const* mpeValues,
-                      int fromMIDIChannel, uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate) {
+                      int32_t fromMIDIChannel, uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate) {
 	lastVelocity = velocity;
-	midiEngine.sendNote(true, note, velocity, channel, MIDI_OUTPUT_FILTER_NO_MPE);
+	midiEngine.sendNote(true, note, velocity, channel, kMIDIOutputFilterNoMPE);
 	state = true;
 }
 
-void MIDIDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int velocity) {
-	midiEngine.sendNote(false, note, velocity, channel, MIDI_OUTPUT_FILTER_NO_MPE);
+void MIDIDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity) {
+	midiEngine.sendNote(false, note, velocity, channel, kMIDIOutputFilterNoMPE);
 	state = false;
 }
 
@@ -65,7 +65,7 @@ void MIDIDrum::writeToFile(bool savingSong, ParamManager* paramManager) {
 	}
 }
 
-int MIDIDrum::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
+int32_t MIDIDrum::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 	char const* tagName;
 
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
@@ -84,7 +84,7 @@ int MIDIDrum::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos
 
 void MIDIDrum::getName(char* buffer) {
 
-	int channelToDisplay = channel + 1;
+	int32_t channelToDisplay = channel + 1;
 
 	if (channelToDisplay < 10 && note < 100) {
 		strcpy(buffer, " ");
@@ -124,17 +124,18 @@ int8_t MIDIDrum::modEncoderAction(ModelStackWithThreeMainThings* modelStack, int
 	return -64;
 }
 
-void MIDIDrum::expressionEvent(int newValue, int whichExpressionDimension) {
+void MIDIDrum::expressionEvent(int32_t newValue, int32_t whichExpressionDimension) {
 
 	// Aftertouch only
 	if (whichExpressionDimension == 2) {
-		int value7 = newValue >> 24;
-		midiEngine.sendPolyphonicAftertouch(channel, value7, note, MIDI_OUTPUT_FILTER_NO_MPE);
+		int32_t value7 = newValue >> 24;
+		midiEngine.sendPolyphonicAftertouch(channel, value7, note, kMIDIOutputFilterNoMPE);
 	}
 }
 
-void MIDIDrum::polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension,
-                                                        int channelOrNoteNumber, int whichCharacteristic) {
+void MIDIDrum::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t whichExpressionDimension,
+                                                        int32_t channelOrNoteNumber,
+                                                        MIDICharacteristic whichCharacteristic) {
 	// Because this is a Drum, we disregard the noteCode (which is what channelOrNoteNumber always is in our case - but yeah, that's all irrelevant.
 	expressionEvent(newValue, whichExpressionDimension);
 }

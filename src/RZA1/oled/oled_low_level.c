@@ -16,16 +16,16 @@
  */
 
 #include "RZA1/oled/oled_low_level.h"
-#include "deluge/drivers/oled/oled.h"
 #include "definitions.h"
+#include "deluge/drivers/oled/oled.h"
 
 #include "RZA1/compiler/asm/inc/asm.h"
-#include "deluge/util/cfunctions.h"
-#include "deluge/drivers/dmac/dmac.h"
 #include "RZA1/gpio/gpio.h"
 #include "RZA1/mtu/mtu.h"
-#include "deluge/drivers/rspi/rspi.h"
 #include "RZA1/uart/sio_char.h"
+#include "deluge/drivers/dmac/dmac.h"
+#include "deluge/drivers/rspi/rspi.h"
+#include "deluge/util/cfunctions.h"
 
 #define OLED_CODE_FOR_CV 1
 

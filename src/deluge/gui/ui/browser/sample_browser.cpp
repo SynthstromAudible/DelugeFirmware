@@ -15,60 +15,63 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "definitions_cxx.hpp"
 #define _GNU_SOURCE // Wait why?
-#include "gui/ui/browser/sample_browser.h"
-#include "util/functions.h"
-#include "gui/ui/sound_editor.h"
-#include "hid/matrix/matrix_driver.h"
-#include "processing/engines/audio_engine.h"
-#include "storage/storage_manager.h"
-#include "hid/display/numeric_driver.h"
-#include "io/uart/uart.h"
-#include <string.h>
-#include "processing/source.h"
-#include "processing/sound/sound.h"
-#include "gui/ui/audio_recorder.h"
-#include "processing/sound/sound_drum.h"
-#include "model/instrument/instrument.h"
-#include "modulation/params/param_manager.h"
-#include "model/drum/kit.h"
-#include "gui/ui/slicer.h"
-#include "storage/audio/audio_file_manager.h"
-#include "storage/cluster/cluster.h"
-#include "storage/wave_table/wave_table.h"
-#include "hid/display/numeric_layer/numeric_layer_scrolling_text.h"
-#include "storage/audio/audio_file_manager.h"
-#include "model/action/action_logger.h"
-#include "storage/multi_range/multisample_range.h"
-#include "memory/general_memory_allocator.h"
-#include "gui/waveform/waveform_renderer.h"
-#include "gui/views/view.h"
-#include "hid/encoders.h"
-#include "gui/ui/keyboard_screen.h"
-#include <new>
+#undef __GNU_VISIBLE
+#define __GNU_VISIBLE 1 // Makes strcasestr visible. Might already be the reason for the define above
+
+#include "extern.h"
+#include "gui/context_menu/delete_file.h"
 #include "gui/context_menu/sample_browser/kit.h"
 #include "gui/context_menu/sample_browser/synth.h"
-#include "util/d_string.h"
-#include "gui/context_menu/delete_file.h"
-#include "gui/waveform/waveform_basic_navigator.h"
-#include "gui/ui_timer_manager.h"
-#include "gui/views/instrument_clip_view.h"
-#include "model/song/song.h"
-#include "model/clip/audio_clip.h"
-#include "gui/views/audio_clip_view.h"
-#include "hid/led/pad_leds.h"
-#include "hid/led/indicator_leds.h"
-#include "storage/flash_storage.h"
-#include "hid/buttons.h"
-#include "model/model_stack.h"
-#include "extern.h"
-#include "model/clip/instrument_clip.h"
-#include "modulation/automation/auto_param.h"
-#include "modulation/params/param_set.h"
-#include "model/note/note_row.h"
 #include "gui/menu_item/multi_range.h"
-#include "storage/file_item.h"
+#include "gui/ui/audio_recorder.h"
+#include "gui/ui/browser/sample_browser.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
+#include "gui/ui/slicer.h"
+#include "gui/ui/sound_editor.h"
+#include "gui/ui_timer_manager.h"
+#include "gui/views/audio_clip_view.h"
+#include "gui/views/instrument_clip_view.h"
+#include "gui/views/view.h"
+#include "gui/waveform/waveform_basic_navigator.h"
+#include "gui/waveform/waveform_renderer.h"
+#include "hid/buttons.h"
+#include "hid/display/numeric_driver.h"
+#include "hid/display/numeric_layer/numeric_layer_scrolling_text.h"
+#include "hid/encoders.h"
+#include "hid/led/indicator_leds.h"
+#include "hid/led/pad_leds.h"
+#include "hid/matrix/matrix_driver.h"
+#include "io/debug/print.h"
+#include "memory/general_memory_allocator.h"
+#include "model/action/action_logger.h"
+#include "model/clip/audio_clip.h"
+#include "model/clip/instrument_clip.h"
+#include "model/drum/kit.h"
+#include "model/instrument/instrument.h"
+#include "model/model_stack.h"
+#include "model/note/note_row.h"
+#include "model/song/song.h"
+#include "modulation/automation/auto_param.h"
+#include "modulation/params/param_manager.h"
+#include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
+#include "processing/engines/audio_engine.h"
+#include "processing/sound/sound.h"
+#include "processing/sound/sound_drum.h"
+#include "processing/source.h"
+#include "storage/audio/audio_file_manager.h"
+#include "storage/cluster/cluster.h"
+#include "storage/file_item.h"
+#include "storage/flash_storage.h"
+#include "storage/multi_range/multisample_range.h"
+#include "storage/storage_manager.h"
+#include "storage/wave_table/wave_table.h"
+#include "util/d_string.h"
+#include "util/functions.h"
+#include <new>
+#include <string.h>
 
 #if HAVE_OLED
 #include "hid/display/oled.h"
@@ -108,7 +111,7 @@ bool SampleBrowser::opened() {
 
 	allowedFileExtensions = allowedFileExtensionsAudio;
 	allowFoldersSharingNameWithFile = true;
-	instrumentTypeToLoad = 255;
+	instrumentTypeToLoad = InstrumentType::NONE;
 	qwertyVisible = false;
 	qwertyCurrentlyDrawnOnscreen = false;
 
@@ -122,7 +125,7 @@ bool SampleBrowser::opened() {
 		instrumentClipView.cancelAllAuditioning();
 	}
 
-	int error = storageManager.initSD();
+	int32_t error = storageManager.initSD();
 	if (error) {
 sdError:
 		numericDriver.displayError(error);
@@ -156,7 +159,7 @@ sdError:
 			currentDir.clear();
 		}
 		else {
-			int slashPos = (uint32_t)slashAddress - (uint32_t)currentPathChars;
+			int32_t slashPos = (uint32_t)slashAddress - (uint32_t)currentPathChars;
 			searchFilename = &currentPathChars[slashPos + 1];
 
 			currentDir.set(currentPathChars);
@@ -192,7 +195,7 @@ dissectionDone:
 void SampleBrowser::possiblySetUpBlinking() {
 
 	if (!qwertyVisible && !currentlyShowingSamplePreview) {
-		int x = 0;
+		int32_t x = 0;
 		if (currentSong->currentClip->type == CLIP_TYPE_INSTRUMENT) {
 			x = soundEditor.currentSourceIndex;
 		}
@@ -205,7 +208,7 @@ void SampleBrowser::focusRegained() {
 	indicator_leds::setLedState(IndicatorLED::SAVE, false); // In case returning from delete-file context menu
 }
 
-void SampleBrowser::folderContentsReady(int entryDirection) {
+void SampleBrowser::folderContentsReady(int32_t entryDirection) {
 
 	// If just one file, there's no prefix.
 	if (fileItems.getNumElements() <= 1) {
@@ -218,10 +221,10 @@ void SampleBrowser::folderContentsReady(int entryDirection) {
 
 		char const* currentFilenameChars = currentFileItem->filename.get();
 
-		for (int f = 0; numCharsInPrefix && f < fileItems.getNumElements(); f++) {
+		for (int32_t f = 0; numCharsInPrefix && f < fileItems.getNumElements(); f++) {
 			FileItem* fileItem = (FileItem*)fileItems.getElementAddress(f);
 
-			for (int i = 0; i < numCharsInPrefix; i++) {
+			for (int32_t i = 0; i < numCharsInPrefix; i++) {
 				char const* thisFileName = fileItem->filename.get();
 				if (!thisFileName[i] || thisFileName[i] != currentFilenameChars[i]) {
 					numCharsInPrefix = i;
@@ -234,7 +237,7 @@ void SampleBrowser::folderContentsReady(int entryDirection) {
 	previewIfPossible(entryDirection);
 }
 
-void SampleBrowser::currentFileChanged(int movementDirection) {
+void SampleBrowser::currentFileChanged(int32_t movementDirection) {
 
 	// Can start scrolling right now, while next preview loads
 	if (movementDirection && (currentlyShowingSamplePreview || qwertyVisible)) {
@@ -243,7 +246,7 @@ void SampleBrowser::currentFileChanged(int movementDirection) {
 		uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
 
 		memset(PadLEDs::transitionTakingPlaceOnRow, 1, sizeof(PadLEDs::transitionTakingPlaceOnRow));
-		PadLEDs::horizontal::setupScroll(movementDirection, displayWidth, true);
+		PadLEDs::horizontal::setupScroll(movementDirection, kDisplayWidth, true);
 		currentUIMode = UI_MODE_HORIZONTAL_SCROLL;
 	}
 
@@ -280,7 +283,7 @@ void SampleBrowser::exitAction() {
 	}
 }
 
-int SampleBrowser::timerCallback() {
+ActionResult SampleBrowser::timerCallback() {
 
 	if (currentUIMode == UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS) {
 		currentUIMode = UI_MODE_NONE;
@@ -329,7 +332,7 @@ considerContextMenu:
 				}
 			}
 		}
-		return ACTION_RESULT_DEALT_WITH;
+		return ActionResult::DEALT_WITH;
 	}
 	else {
 		return Browser::timerCallback();
@@ -364,7 +367,7 @@ void SampleBrowser::enterKeyPress() {
 		// it returns an empty string (&nothing). Surely this is a compiler error??
 		char const* filenameChars = currentFileItem->filename.get();
 
-		int error = goIntoFolder(filenameChars);
+		int32_t error = goIntoFolder(filenameChars);
 
 		if (error) {
 			numericDriver.displayError(error);
@@ -398,13 +401,13 @@ void SampleBrowser::enterKeyPress() {
 	}
 }
 
-int SampleBrowser::backButtonAction() {
+ActionResult SampleBrowser::backButtonAction() {
 	AudioEngine::stopAnyPreviewing();
 
 	return Browser::backButtonAction();
 }
 
-int SampleBrowser::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+ActionResult SampleBrowser::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
 	// Save button, to delete audio file
@@ -417,15 +420,15 @@ int SampleBrowser::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 					AudioEngine::stopAnyPreviewing();
 
 					if (inCardRoutine) {
-						return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+						return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 					}
 
 					// Ensure sample isn't used in current song
 					String filePath;
-					int error = getCurrentFilePath(&filePath);
+					int32_t error = getCurrentFilePath(&filePath);
 					if (error) {
 						numericDriver.displayError(error);
-						return ACTION_RESULT_DEALT_WITH;
+						return ActionResult::DEALT_WITH;
 					}
 
 					bool allFine = audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(filePath.get());
@@ -463,14 +466,15 @@ int SampleBrowser::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	}
 
 	// Record button
-	else if (b == RECORD && !audioRecorder.recordingSource && currentSong->currentClip->type != CLIP_TYPE_AUDIO) {
+	else if (b == RECORD && audioRecorder.recordingSource == AudioInputChannel::NONE
+	         && currentSong->currentClip->type != CLIP_TYPE_AUDIO) {
 		if (!on || currentUIMode != UI_MODE_NONE) {
-			return ACTION_RESULT_DEALT_WITH;
+			return ActionResult::DEALT_WITH;
 		}
 		AudioEngine::stopAnyPreviewing();
 
 		if (inCardRoutine) {
-			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 
 		bool success = changeUISideways(&audioRecorder); // If this fails, we will become the current UI again
@@ -484,7 +488,7 @@ int SampleBrowser::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		return Browser::buttonAction(b, on, inCardRoutine);
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 bool SampleBrowser::canImportWholeKit() {
@@ -494,11 +498,11 @@ bool SampleBrowser::canImportWholeKit() {
 	        && (!((Kit*)currentSong->currentClip->output)->firstDrum->next));
 }
 
-int SampleBrowser::getCurrentFilePath(String* path) {
-	int error;
+int32_t SampleBrowser::getCurrentFilePath(String* path) {
+	int32_t error;
 
 	path->set(&currentDir);
-	int oldLength = path->getLength();
+	int32_t oldLength = path->getLength();
 	if (oldLength) {
 		error = path->concatenateAtPos("/", oldLength);
 		if (error) {
@@ -530,12 +534,12 @@ bool SampleBrowser::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
 	return true;
 }
 
-void SampleBrowser::previewIfPossible(int movementDirection) {
+void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 
 	/*
 	// Was this in case they've already turned the knob further?
 	if (movementDirection && movementDirection * Encoders::encoders[ENCODER_THIS_CPU_SELECT].detentPos > 0 && numFilesFoundInRightDirection > 1) {
-		Uart::println("returned 1");
+		Debug::println("returned 1");
 		return;
 	}
 	*/
@@ -548,7 +552,7 @@ void SampleBrowser::previewIfPossible(int movementDirection) {
 	if (currentFileItem && !currentFileItem->isFolder) {
 
 		String filePath;
-		int error = getCurrentFilePath(&filePath);
+		int32_t error = getCurrentFilePath(&filePath);
 		if (error) {
 			numericDriver.displayError(error);
 			return;
@@ -578,7 +582,7 @@ void SampleBrowser::previewIfPossible(int movementDirection) {
 
 		/*
 		if (movementDirection && movementDirection * Encoders::encoders[ENCODER_THIS_CPU_SELECT].detentPos > 0 && numFilesFoundInRightDirection > 1) {
-			Uart::println("returned 2");
+			Debug::println("returned 2");
 			return;
 		}
 		*/
@@ -603,7 +607,7 @@ void SampleBrowser::previewIfPossible(int movementDirection) {
 					                                  waveformBasicNavigator.xZoom, PadLEDs::imageStore,
 					                                  &waveformBasicNavigator.renderData);
 					memset(PadLEDs::transitionTakingPlaceOnRow, 1, sizeof(PadLEDs::transitionTakingPlaceOnRow));
-					PadLEDs::horizontal::setupScroll(movementDirection, displayWidth);
+					PadLEDs::horizontal::setupScroll(movementDirection, kDisplayWidth);
 
 					currentUIMode = UI_MODE_HORIZONTAL_SCROLL;
 				}
@@ -646,7 +650,7 @@ void SampleBrowser::previewIfPossible(int movementDirection) {
 					PadLEDs::reassessGreyout(true);
 				}
 				memset(PadLEDs::transitionTakingPlaceOnRow, 1, sizeof(PadLEDs::transitionTakingPlaceOnRow));
-				PadLEDs::horizontal::setupScroll(movementDirection, displayWidth);
+				PadLEDs::horizontal::setupScroll(movementDirection, kDisplayWidth);
 				currentUIMode = UI_MODE_HORIZONTAL_SCROLL;
 			}
 
@@ -667,22 +671,22 @@ void SampleBrowser::displayCurrentFilename() {
 	else {}
 }
 
-int SampleBrowser::padAction(int x, int y, int on) {
+ActionResult SampleBrowser::padAction(int32_t x, int32_t y, int32_t on) {
 
 	// Allow auditioning
-	if (x == displayWidth + 1) {
+	if (x == kDisplayWidth + 1) {
 		if (getRootUI() == &instrumentClipView) {
 			return instrumentClipView.padAction(x, y, on);
 		}
 	}
 
 	// Mute pads - exit UI
-	else if (x == displayWidth) { // !currentlyShowingSamplePreview ||
+	else if (x == kDisplayWidth) { // !currentlyShowingSamplePreview ||
 possiblyExit:
 		if (on && !currentUIMode) {
 			AudioEngine::stopAnyPreviewing();
 			if (sdRoutineLock) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			exitAction();
 		}
@@ -693,7 +697,7 @@ possiblyExit:
 		if (!qwertyVisible) {
 			if (on && !currentUIMode) {
 				if (sdRoutineLock) {
-					return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 				}
 
 				qwertyVisible = true;
@@ -722,18 +726,18 @@ possiblyExit:
 			return QwertyUI::padAction(x, y, on);
 		}
 		else {
-			return ACTION_RESULT_DEALT_WITH;
+			return ActionResult::DEALT_WITH;
 		}
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 void SampleBrowser::drawKeysOverWaveform() {
 
 	// Do manual greyout on all main pads
-	for (int y = 0; y < displayHeight; y++) {
-		for (int x = 0; x < displayWidth; x++) {
+	for (int32_t y = 0; y < kDisplayHeight; y++) {
+		for (int32_t x = 0; x < kDisplayWidth; x++) {
 			greyColourOut(PadLEDs::image[y][x], PadLEDs::image[y][x], 6500000);
 		}
 	}
@@ -741,12 +745,12 @@ void SampleBrowser::drawKeysOverWaveform() {
 	drawKeys();
 }
 
-int SampleBrowser::claimAudioFileForInstrument(bool makeWaveTableWorkAtAllCosts) {
+int32_t SampleBrowser::claimAudioFileForInstrument(bool makeWaveTableWorkAtAllCosts) {
 	soundEditor.cutSound();
 
 	AudioFileHolder* holder = soundEditor.getCurrentAudioFileHolder();
 	holder->setAudioFile(NULL);
-	int error = getCurrentFilePath(&holder->filePath);
+	int32_t error = getCurrentFilePath(&holder->filePath);
 	if (error) {
 		return error;
 	}
@@ -755,12 +759,12 @@ int SampleBrowser::claimAudioFileForInstrument(bool makeWaveTableWorkAtAllCosts)
 	                        makeWaveTableWorkAtAllCosts);
 }
 
-int SampleBrowser::claimAudioFileForAudioClip() {
+int32_t SampleBrowser::claimAudioFileForAudioClip() {
 	soundEditor.cutSound();
 
 	AudioFileHolder* holder = soundEditor.getCurrentAudioFileHolder();
 	holder->setAudioFile(NULL);
-	int error = getCurrentFilePath(&holder->filePath);
+	int32_t error = getCurrentFilePath(&holder->filePath);
 	if (error) {
 		return error;
 	}
@@ -770,7 +774,7 @@ int SampleBrowser::claimAudioFileForAudioClip() {
 
 	// If there's a pre-margin, we want to set an attack-time
 	if (!error && ((SampleHolder*)holder)->startPos) {
-		((AudioClip*)currentSong->currentClip)->attack = AUDIO_CLIP_DEFAULT_ATTACK_IF_PRE_MARGIN;
+		((AudioClip*)currentSong->currentClip)->attack = kAudioClipDefaultAttackIfPreMargin;
 	}
 
 	return error;
@@ -778,7 +782,7 @@ int SampleBrowser::claimAudioFileForAudioClip() {
 
 // This displays any (rare) specific errors generated, then spits out just a boolean success.
 // For the "may" arguments, 0 means no; 1 means auto; 2 means do definitely as the user has specifically requested it.
-bool SampleBrowser::claimCurrentFile(int mayDoPitchDetection, int mayDoSingleCycle, int mayDoWaveTable) {
+bool SampleBrowser::claimCurrentFile(int32_t mayDoPitchDetection, int32_t mayDoSingleCycle, int32_t mayDoWaveTable) {
 
 	if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
 		if (currentSong->currentClip->getCurrentlyRecordingLinearly()) {
@@ -793,7 +797,7 @@ bool SampleBrowser::claimCurrentFile(int mayDoPitchDetection, int mayDoSingleCyc
 	numericDriver.displayLoadingAnimation();
 #endif
 
-	int error;
+	int32_t error;
 
 	// If for AudioClip...
 	if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
@@ -812,7 +816,7 @@ removeLoadingAnimationAndGetOut:
 
 		AudioClip* clip = (AudioClip*)currentSong->currentClip;
 
-		uint64_t lengthInSamplesAt44 = (uint64_t)clip->sampleHolder.getDurationInSamples(true) * 44100
+		uint64_t lengthInSamplesAt44 = (uint64_t)clip->sampleHolder.getDurationInSamples(true) * kSampleRate
 		                               / ((Sample*)clip->sampleHolder.audioFile)->sampleRate;
 		uint32_t sampleLengthInTicks = (lengthInSamplesAt44 << 32) / currentSong->timePerTimerTickBig;
 
@@ -840,27 +844,27 @@ removeLoadingAnimationAndGetOut:
 		soundEditor.currentSound->unassignAllVoices(); // We used to only do this if osc type wasn't already SAMPLE...
 
 		bool makeWaveTableWorkAtAllCosts = (mayDoWaveTable == 2) || (mayDoSingleCycle == 2)
-		                                   || (soundEditor.currentSound->getSynthMode() == SYNTH_MODE_RINGMOD);
+		                                   || (soundEditor.currentSound->getSynthMode() == SynthMode::RINGMOD);
 
-		int numTypesTried = 0;
+		int32_t numTypesTried = 0;
 
 		// If we already know we want to try doing WaveTable...
 		if (makeWaveTableWorkAtAllCosts
-		    || (mayDoWaveTable == 1 && soundEditor.currentSource->oscType == OSC_TYPE_WAVETABLE)) {
+		    || (mayDoWaveTable == 1 && soundEditor.currentSource->oscType == OscType::WAVETABLE)) {
 doLoadAsWaveTable:
 			numTypesTried++;
 
 			/*
 			// If multiple Ranges, then forbid the changing from Sample to WaveTable.
 			if (soundEditor.currentSource->ranges.getNumElements() > 1
-					&& soundEditor.currentSource->oscType == OSC_TYPE_SAMPLE) {
+					&& soundEditor.currentSource->oscType == OscType::SAMPLE) {
 #if ALPHA_OR_BETA_VERSION
 				if (mayDoWaveTable == 2) numericDriver.freezeWithError("E425");
 #endif
 				goto doLoadAsSample;
 			}
 			*/
-			soundEditor.currentSource->setOscType(OSC_TYPE_WAVETABLE);
+			soundEditor.currentSource->setOscType(OscType::WAVETABLE);
 
 			error = claimAudioFileForInstrument(makeWaveTableWorkAtAllCosts);
 			if (error) {
@@ -870,7 +874,7 @@ doLoadAsWaveTable:
 
 					// If that was what the user really specified they wanted, and we couldn't do it, then we have to tell them no.
 					if (mayDoWaveTable == 2 || numTypesTried > 1
-					    || (soundEditor.currentSound->getSynthMode() == SYNTH_MODE_RINGMOD)) {
+					    || (soundEditor.currentSound->getSynthMode() == SynthMode::RINGMOD)) {
 						goto removeLoadingAnimationAndGetOut;
 					}
 
@@ -890,17 +894,17 @@ doLoadAsWaveTable:
 
 			if (soundEditor.currentSourceIndex == 0) { // Osc 1
 				soundEditor.currentSound->modKnobs[7][1].paramDescriptor.setToHaveParamOnly(
-				    PARAM_LOCAL_OSC_A_WAVE_INDEX);
+				    Param::Local::OSC_A_WAVE_INDEX);
 
 				if (!soundEditor.currentSound->modKnobs[7][0].paramDescriptor.isSetToParamWithNoSource(
-				        PARAM_LOCAL_OSC_B_WAVE_INDEX)) {
+				        Param::Local::OSC_B_WAVE_INDEX)) {
 					soundEditor.currentSound->modKnobs[7][0].paramDescriptor.setToHaveParamAndSource(
-					    PARAM_LOCAL_OSC_A_WAVE_INDEX, PATCH_SOURCE_LFO_LOCAL);
+					    Param::Local::OSC_A_WAVE_INDEX, PatchSource::LFO_LOCAL);
 				}
 			}
 			else { // Osc 2
 				soundEditor.currentSound->modKnobs[7][0].paramDescriptor.setToHaveParamOnly(
-				    PARAM_LOCAL_OSC_B_WAVE_INDEX);
+				    Param::Local::OSC_B_WAVE_INDEX);
 			}
 			currentSong->currentClip->output->modKnobMode = 7;
 			view.setKnobIndicatorLevels(); // Visually update.
@@ -915,7 +919,7 @@ doLoadAsSample:
 			/*
 			// If multiple Ranges, then forbid the changing from WaveTable to Sample.
 			if (soundEditor.currentSource->ranges.getNumElements() > 1
-					&& soundEditor.currentSource->oscType == OSC_TYPE_WAVETABLE) {
+					&& soundEditor.currentSource->oscType == OscType::WAVETABLE) {
 #if ALPHA_OR_BETA_VERSION
 				if (!mayDoWaveTable) numericDriver.freezeWithError("E426");
 #endif
@@ -923,7 +927,7 @@ doLoadAsSample:
 			}
 			*/
 
-			soundEditor.currentSource->setOscType(OSC_TYPE_SAMPLE);
+			soundEditor.currentSource->setOscType(OscType::SAMPLE);
 
 			error = claimAudioFileForInstrument();
 			if (error) {
@@ -939,15 +943,15 @@ doLoadAsSample:
 
 			bool doingSingleCycleNow = false;
 
-			int mSec = sample->getLengthInMSec();
+			int32_t mSec = sample->getLengthInMSec();
 
 			// If 20ms or less, and we're not a kit, then we'd like to be a single-cycle waveform.
 			if (!soundEditor.editingKit() && (mayDoSingleCycle == 2 || (mayDoSingleCycle == 1 && mSec <= 20))) {
 
 				// Ideally, we'd like to use the wavetable engine for this single-cycle-ness
 				if (mayDoWaveTable && numTypesTried <= 1 && sample->numChannels == 1
-				    && sample->lengthInSamples >= WAVETABLE_MIN_CYCLE_SIZE
-				    && sample->lengthInSamples <= WAVETABLE_MAX_CYCLE_SIZE) {
+				    && sample->lengthInSamples >= kWavetableMinCycleSize
+				    && sample->lengthInSamples <= kWavetableMaxCycleSize) {
 
 					makeWaveTableWorkAtAllCosts =
 					    true; // So that the loading functions don't just chicken out when it doesn't look all that wavetabley.
@@ -955,13 +959,13 @@ doLoadAsSample:
 				}
 
 				// Otherwise, set play mode to LOOP, and we'll just do single-cycle as a sample. (This is now pretty rare.)
-				soundEditor.currentSource->repeatMode = SAMPLE_REPEAT_LOOP;
+				soundEditor.currentSource->repeatMode = SampleRepeatMode::LOOP;
 				doingSingleCycleNow = true;
 			}
 
 			// If time stretching or looping on (or we just decided to do single-cycle, above), leave that the case
-			if (soundEditor.currentSource->repeatMode == SAMPLE_REPEAT_STRETCH
-			    || soundEditor.currentSource->repeatMode == SAMPLE_REPEAT_LOOP) {}
+			if (soundEditor.currentSource->repeatMode == SampleRepeatMode::STRETCH
+			    || soundEditor.currentSource->repeatMode == SampleRepeatMode::LOOP) {}
 
 			// Otherwise...
 			else {
@@ -971,17 +975,18 @@ doLoadAsSample:
 
 					// If this led to an actual loop end pos, with more waveform after it, and the sample's not too long, we can do a ONCE.
 					if (((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.loopEndPos && mSec < 2002) {
-						soundEditor.currentSource->repeatMode = SAMPLE_REPEAT_ONCE;
+						soundEditor.currentSource->repeatMode = SampleRepeatMode::ONCE;
 					}
 					else {
-						soundEditor.currentSource->repeatMode = SAMPLE_REPEAT_LOOP;
+						soundEditor.currentSource->repeatMode = SampleRepeatMode::LOOP;
 					}
 				}
 
 				else {
 
 					// If 2 seconds or less, set play mode to ONCE. Otherwise, CUT.
-					soundEditor.currentSource->repeatMode = (mSec < 2002) ? SAMPLE_REPEAT_ONCE : SAMPLE_REPEAT_CUT;
+					soundEditor.currentSource->repeatMode =
+					    (mSec < 2002) ? SampleRepeatMode::ONCE : SampleRepeatMode::CUT;
 				}
 			}
 
@@ -1042,15 +1047,15 @@ doLoadAsSample:
 			// Anyway, by now we know we've loaded as a Sample, not a Wavetable.
 			// So remove WaveTable gold knob assignments.
 			bool anyChange = false;
-			int p = PARAM_LOCAL_OSC_A_WAVE_INDEX + soundEditor.currentSourceIndex;
+			int32_t p = Param::Local::OSC_A_WAVE_INDEX + soundEditor.currentSourceIndex;
 			if (soundEditor.currentSound->modKnobs[7][0].paramDescriptor.getJustTheParam() == p) {
-				soundEditor.currentSound->modKnobs[7][0].paramDescriptor.setToHaveParamOnly(PARAM_UNPATCHED_BITCRUSHING
-				                                                                            + PARAM_UNPATCHED_SECTION);
+				soundEditor.currentSound->modKnobs[7][0].paramDescriptor.setToHaveParamOnly(
+				    Param::Unpatched::BITCRUSHING + Param::Unpatched::START);
 				anyChange = true;
 			}
 			if (soundEditor.currentSound->modKnobs[7][1].paramDescriptor.getJustTheParam() == p) {
 				soundEditor.currentSound->modKnobs[7][1].paramDescriptor.setToHaveParamOnly(
-				    PARAM_UNPATCHED_SAMPLE_RATE_REDUCTION + PARAM_UNPATCHED_SECTION);
+				    Param::Unpatched::SAMPLE_RATE_REDUCTION + Param::Unpatched::START);
 				anyChange = true;
 			}
 
@@ -1083,7 +1088,7 @@ doLoadAsSample:
 void SampleBrowser::autoDetectSideChainSending(SoundDrum* drum, Source* source, char const* fileName) {
 
 	// If this looks like a kick, make it send to sidechain. Otherwise, no change
-	if (source->repeatMode == SAMPLE_REPEAT_ONCE && (strcasestr(fileName, "kick") || strcasestr(fileName, "bd"))) {
+	if (source->repeatMode == SampleRepeatMode::ONCE && (strcasestr(fileName, "kick") || strcasestr(fileName, "bd"))) {
 		drum->sideChainSendLevel = 2147483647;
 	}
 }
@@ -1094,7 +1099,7 @@ void SampleBrowser::audioFileIsNowSet() {
 	ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
 	ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
 	PatchedParamSet* paramSet = (PatchedParamSet*)summary->paramCollection;
-	int paramId = PARAM_LOCAL_OSC_A_VOLUME + soundEditor.currentSourceIndex;
+	int32_t paramId = Param::Local::OSC_A_VOLUME + soundEditor.currentSourceIndex;
 	ModelStackWithAutoParam* modelStackWithParam =
 	    modelStack->addParam(paramSet, summary, paramId, &paramSet->params[paramId]);
 
@@ -1103,7 +1108,7 @@ void SampleBrowser::audioFileIsNowSet() {
 		modelStackWithParam->autoParam->setCurrentValueWithNoReversionOrRecording(modelStackWithParam, 2147483647);
 
 		// Hmm crap, we probably still do need to notify...
-		//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(PARAM_LOCAL_OSC_A_VOLUME + soundEditor.currentSourceIndex, 2147483647, 0xFFFFFFFF, 0, soundEditor.currentSound, currentSong, currentSong->currentClip, false);
+		//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(Param::Local::OSC_A_VOLUME + soundEditor.currentSourceIndex, 2147483647, 0xFFFFFFFF, 0, soundEditor.currentSound, currentSong, currentSong->currentClip, false);
 	}
 }
 
@@ -1123,11 +1128,11 @@ bool filenameGreaterOrEqualOctaveStartingFromA(Sample* a, Sample* b) {
 	return (strcmpspecial(a->filePath.get(), b->filePath.get()) >= 0);
 }
 
-void sortSamples(bool (*sortFunction)(Sample*, Sample*), int numSamples, Sample*** sortAreas, int* readArea,
-                 int* writeArea) {
-	int numComparing = 1;
+void sortSamples(bool (*sortFunction)(Sample*, Sample*), int32_t numSamples, Sample*** sortAreas, int32_t* readArea,
+                 int32_t* writeArea) {
+	int32_t numComparing = 1;
 
-	int whichComparison = 0;
+	int32_t whichComparison = 0;
 
 	// Go through various iterations of numComparing
 	while (numComparing < numSamples) {
@@ -1135,12 +1140,12 @@ void sortSamples(bool (*sortFunction)(Sample*, Sample*), int numSamples, Sample*
 		AudioEngine::routineWithClusterLoading(); // --------------------------------------------------
 
 		// And now, for this selected comparison size, do a number of comparisions
-		for (int whichComparison = 0; whichComparison * numComparing * 2 < numSamples; whichComparison++) {
+		for (int32_t whichComparison = 0; whichComparison * numComparing * 2 < numSamples; whichComparison++) {
 
-			int a = numComparing * (whichComparison * 2);
-			int b = numComparing * (whichComparison * 2 + 1);
+			int32_t a = numComparing * (whichComparison * 2);
+			int32_t b = numComparing * (whichComparison * 2 + 1);
 
-			for (int writeI = numComparing * whichComparison * 2;
+			for (int32_t writeI = numComparing * whichComparison * 2;
 			     writeI < numComparing * (whichComparison + 1) * 2 && writeI < numSamples; writeI++) {
 				Sample* sampleA = sortAreas[*readArea][a];
 				Sample* sampleB = sortAreas[*readArea][b];
@@ -1165,11 +1170,11 @@ void sortSamples(bool (*sortFunction)(Sample*, Sample*), int numSamples, Sample*
 	}
 }
 
-int getNumTimesIncorrectSampleOrderSeen(int numSamples, Sample** samples) {
+int32_t getNumTimesIncorrectSampleOrderSeen(int32_t numSamples, Sample** samples) {
 
-	int timesIncorrectOrderSeen = 0;
+	int32_t timesIncorrectOrderSeen = 0;
 
-	for (int s = 1; s < numSamples; s++) {
+	for (int32_t s = 1; s < numSamples; s++) {
 		Sample* sampleA = samples[s - 1];
 		Sample* sampleB = samples[s];
 
@@ -1178,14 +1183,14 @@ int getNumTimesIncorrectSampleOrderSeen(int numSamples, Sample** samples) {
 		}
 	}
 
-	Uart::print("timesIncorrectOrderSeen: ");
-	Uart::println(timesIncorrectOrderSeen);
+	Debug::print("timesIncorrectOrderSeen: ");
+	Debug::println(timesIncorrectOrderSeen);
 
 	return timesIncorrectOrderSeen;
 }
 
-bool SampleBrowser::loadAllSamplesInFolder(bool detectPitch, int* getNumSamples, Sample*** getSortArea,
-                                           bool* getDoingSingleCycle, int* getPrefixAndDirLength) {
+bool SampleBrowser::loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamples, Sample*** getSortArea,
+                                           bool* getDoingSingleCycle, int32_t* getPrefixAndDirLength) {
 
 	String dirToLoad;
 	uint8_t error;
@@ -1212,7 +1217,7 @@ bool SampleBrowser::loadAllSamplesInFolder(bool detectPitch, int* getNumSamples,
 		return false;
 	}
 
-	int numSamples = 0;
+	int32_t numSamples = 0;
 
 	bool doingSingleCycle = true; // Until we find a sample too long
 
@@ -1221,10 +1226,10 @@ bool SampleBrowser::loadAllSamplesInFolder(bool detectPitch, int* getNumSamples,
 	if (false) {
 removeReasonsFromSamplesAndGetOut:
 		// Remove reasons from any samples we loaded in just before
-		for (int e = 0; e < audioFileManager.audioFiles.getNumElements(); e++) {
+		for (int32_t e = 0; e < audioFileManager.audioFiles.getNumElements(); e++) {
 			AudioFile* audioFile = (AudioFile*)audioFileManager.audioFiles.getElement(e);
 
-			if (audioFile->type == AUDIO_FILE_TYPE_SAMPLE) {
+			if (audioFile->type == AudioFileType::SAMPLE) {
 				Sample* thisSample = (Sample*)audioFile;
 
 				// If this sample is one of the ones we loaded a moment ago...
@@ -1246,11 +1251,11 @@ removeReasonsFromSamplesAndGetOut:
 
 	AudioEngine::routineWithClusterLoading(); // --------------------------------------------------
 
-	int numCharsInPrefixForFolderLoad = 65535;
+	int32_t numCharsInPrefixForFolderLoad = 65535;
 
 	String filePath;
 	filePath.set(&dirToLoad);
-	int dirWithSlashLength = filePath.getLength();
+	int32_t dirWithSlashLength = filePath.getLength();
 	if (dirWithSlashLength) {
 		filePath.concatenateAtPos("/", dirWithSlashLength);
 		dirWithSlashLength++;
@@ -1281,7 +1286,7 @@ removeReasonsFromSamplesAndGetOut:
 		// currentFilename will be set to the name of the first file in the folder, or another one we looked at more recently
 		if (numSamples > 0) {
 
-			for (int i = 0; i < numCharsInPrefixForFolderLoad; i++) {
+			for (int32_t i = 0; i < numCharsInPrefixForFolderLoad; i++) {
 				if (!staticFNO.fname[i] || staticFNO.fname[i] != previouslyViewedFilename[i]) {
 					numCharsInPrefixForFolderLoad = i;
 					break;
@@ -1293,7 +1298,7 @@ removeReasonsFromSamplesAndGetOut:
 
 		Sample* newSample = (Sample*)audioFileManager.getAudioFileFromFilename(
 		    &filePath, true, &error, &thisFilePointer,
-		    AUDIO_FILE_TYPE_SAMPLE); // We really want to be able to pass a file pointer in here
+		    AudioFileType::SAMPLE); // We really want to be able to pass a file pointer in here
 		if (error || !newSample) {
 			f_closedir(&staticDIR);
 			goto removeReasonsFromSamplesAndGetOut;
@@ -1329,13 +1334,14 @@ removeReasonsFromSamplesAndGetOut:
 
 	// Ok, the samples are now all in memory.
 
-	Uart::print("loaded from folder: ");
-	Uart::println(numSamples);
+	Debug::print("loaded from folder: ");
+	Debug::println(numSamples);
 
 	// If all samples were tagged with the same MIDI note, we get suspicious and delete them.
 	bool discardingMIDINoteFromFile = (numSamples > 1 && commonMIDINote >= 0);
 
-	Sample** sortArea = (Sample**)generalMemoryAllocator.alloc(numSamples * sizeof(Sample*) * 2, NULL, false, true);
+	Sample** sortArea =
+	    (Sample**)GeneralMemoryAllocator::get().alloc(numSamples * sizeof(Sample*) * 2, NULL, false, true);
 	if (!sortArea) {
 		error = ERROR_INSUFFICIENT_RAM;
 		goto removeReasonsFromSamplesAndGetOut;
@@ -1344,11 +1350,11 @@ removeReasonsFromSamplesAndGetOut:
 	Sample** thisSamplePointer = sortArea;
 
 	// Go through each sample in memory that was from the folder in question, adding them to our pointer list
-	int sampleI = 0;
-	for (int e = 0; e < audioFileManager.audioFiles.getNumElements(); e++) {
+	int32_t sampleI = 0;
+	for (int32_t e = 0; e < audioFileManager.audioFiles.getNumElements(); e++) {
 		AudioFile* audioFile = (AudioFile*)audioFileManager.audioFiles.getElement(e);
 
-		if (audioFile->type == AUDIO_FILE_TYPE_SAMPLE) {
+		if (audioFile->type == AudioFileType::SAMPLE) {
 
 			Sample* thisSample = (Sample*)audioFile;
 			// If this sample is one of the ones we loaded a moment ago...
@@ -1376,15 +1382,15 @@ removeReasonsFromSamplesAndGetOut:
 
 	numSamples = sampleI; // In case it's lower now, e.g. due to some samples' pitch detection failing
 
-	Uart::print("successfully detected pitch: ");
-	Uart::println(numSamples);
+	Debug::print("successfully detected pitch: ");
+	Debug::println(numSamples);
 
 	Sample** sortAreas[2];
 	sortAreas[0] = sortArea;
 	sortAreas[1] = &sortArea[numSamples];
 
-	int readArea = 0;
-	int writeArea = 1;
+	int32_t readArea = 0;
+	int32_t writeArea = 1;
 
 	// Sort by filename
 	sortSamples(filenameGreaterOrEqual, numSamples, sortAreas, &readArea, &writeArea);
@@ -1394,7 +1400,7 @@ removeReasonsFromSamplesAndGetOut:
 
 #define NOTE_CHECK_ERROR_MARGIN 0.75
 
-		int badnessRatingFromC = getNumTimesIncorrectSampleOrderSeen(numSamples, sortAreas[readArea]);
+		int32_t badnessRatingFromC = getNumTimesIncorrectSampleOrderSeen(numSamples, sortAreas[readArea]);
 		if (!badnessRatingFromC) {
 			goto allSorted; // If that's all fine, we're done
 		}
@@ -1402,7 +1408,7 @@ removeReasonsFromSamplesAndGetOut:
 		// If the Samples are in precisely the wrong order, something's happened like we've been interpretting a dash (-) in the filenames as a minus sign.
 		// Just reverse the order.
 		if (badnessRatingFromC == numSamples - 1) {
-			for (int s = 0; s < (numSamples >> 1); s++) {
+			for (int32_t s = 0; s < (numSamples >> 1); s++) {
 				Sample* temp = sortAreas[readArea][s];
 				sortAreas[readArea][s] = sortAreas[readArea][numSamples - 1 - s];
 				sortAreas[readArea][numSamples - 1 - s] = temp;
@@ -1413,7 +1419,7 @@ removeReasonsFromSamplesAndGetOut:
 		/*
 		// Try sorting from A instead
 		sortSamples(filenameGreaterOrEqualOctaveStartingFromA, numSamples, sortAreas, &readArea, &writeArea);
-		int badnessRatingFromA = getNumTimesIncorrectSampleOrderSeen(numSamples, sortAreas[readArea]);
+		int32_t badnessRatingFromA = getNumTimesIncorrectSampleOrderSeen(numSamples, sortAreas[readArea]);
 		if (!badnessRatingFromA) goto allSorted; // If that's all fine, we're done
 
 		// If from A was actually worse than C, go back
@@ -1422,7 +1428,7 @@ removeReasonsFromSamplesAndGetOut:
 			// But if C is actually bad enough, we might conclude that the filenames are irrelevant
 			if ((badnessRatingFromC * 3) > numSamples) goto justSortByPitch;
 
-			Uart::println("going back to ordering from C");
+			Debug::println("going back to ordering from C");
 			sortSamples(filenameGreaterOrEqual, numSamples, sortAreas, &readArea, &writeArea);
 		}
 
@@ -1435,11 +1441,11 @@ removeReasonsFromSamplesAndGetOut:
 		*/
 
 		// Ok, we're here, the samples are optimally ordered by file, but, the pitch is out.
-		Uart::println("sample order by file finalized");
+		Debug::println("sample order by file finalized");
 
 		float prevNote = sortAreas[readArea][0]->midiNote; // May be MIDI_NOTE_ERROR
 
-		for (int s = 1; s < numSamples; s++) {
+		for (int32_t s = 1; s < numSamples; s++) {
 
 			prevNote += 1;
 
@@ -1455,9 +1461,9 @@ removeReasonsFromSamplesAndGetOut:
 				// Ok, this one's lower than the last. Who's wrong?
 
 				// If we correct backwards, how many would we have to redo?
-				int numIncorrectBackwards = 0;
+				int32_t numIncorrectBackwards = 0;
 
-				for (int t = s - 1; t >= 0; t--) {
+				for (int32_t t = s - 1; t >= 0; t--) {
 					Sample* thatSample = sortAreas[readArea][t];
 					if (thatSample->midiNote == MIDI_NOTE_ERROR) {
 						continue;
@@ -1470,9 +1476,9 @@ removeReasonsFromSamplesAndGetOut:
 				}
 
 				// Ok, and if we corrected forwards, how many?
-				int numIncorrectForwards = 1;
+				int32_t numIncorrectForwards = 1;
 
-				for (int t = s + 1; t < numSamples; t++) {
+				for (int32_t t = s + 1; t < numSamples; t++) {
 					Sample* thatSample = sortAreas[readArea][t];
 					if (thatSample->midiNote == MIDI_NOTE_ERROR) {
 						continue;
@@ -1486,7 +1492,7 @@ removeReasonsFromSamplesAndGetOut:
 
 				// If we decide to correct backwards...
 				if (numIncorrectBackwards < numIncorrectForwards) {
-					for (int t = s - 1; t >= 0; t--) {
+					for (int32_t t = s - 1; t >= 0; t--) {
 						Sample* thatSample = sortAreas[readArea][t];
 						if (thatSample->midiNote == MIDI_NOTE_ERROR) {
 							continue;
@@ -1502,7 +1508,7 @@ removeReasonsFromSamplesAndGetOut:
 				// Or if we decide to correct forwards...
 				else {
 					thisSample->midiNote = MIDI_NOTE_ERROR;
-					for (int t = s + 1; t < numSamples; t++) {
+					for (int32_t t = s + 1; t < numSamples; t++) {
 						Sample* thatSample = sortAreas[readArea][t];
 						if (thatSample->midiNote == MIDI_NOTE_ERROR) {
 							continue;
@@ -1524,7 +1530,7 @@ removeReasonsFromSamplesAndGetOut:
 
 		// Ok, we've now marked a bunch of samples as having the incorrect pitch, which we know because it doesn't match the filename order.
 		// So go through and correct them, now that we've got a better idea of the range they should fit in.
-		for (int s = 0; s < numSamples; s++) {
+		for (int32_t s = 0; s < numSamples; s++) {
 			Sample* thisSample = sortAreas[readArea][s];
 
 			if (thisSample->midiNote != MIDI_NOTE_ERROR) {
@@ -1533,7 +1539,7 @@ removeReasonsFromSamplesAndGetOut:
 			}
 
 			float nextNote = 999;
-			for (int t = s + 1; t < numSamples; t++) {
+			for (int32_t t = s + 1; t < numSamples; t++) {
 				Sample* thatSample = sortAreas[readArea][t];
 				if (thatSample->midiNote != MIDI_NOTE_ERROR) {
 					nextNote = thatSample->midiNote - t + s;
@@ -1567,10 +1573,10 @@ removeReasonsFromSamplesAndGetOut:
 				continue;
 			}
 
-			Uart::print("redoing, limited to ");
-			Uart::print(minFreqHz);
-			Uart::print(" to ");
-			Uart::println(maxFreqHz);
+			Debug::print("redoing, limited to ");
+			Debug::print(minFreqHz);
+			Debug::print(" to ");
+			Debug::println(maxFreqHz);
 
 			thisSample->workOutMIDINote(doingSingleCycle, minFreqHz, maxFreqHz, false);
 
@@ -1581,7 +1587,7 @@ removeReasonsFromSamplesAndGetOut:
 				minFreqHz *= 2;
 				maxFreqHz *= 2;
 
-				Uart::println("pretending an octave up...");
+				Debug::println("pretending an octave up...");
 
 				thisSample->workOutMIDINote(doingSingleCycle, minFreqHz, maxFreqHz, false);
 
@@ -1632,7 +1638,7 @@ bool SampleBrowser::importFolderAsMultisamples() {
 	numericDriver.displayLoadingAnimation();
 #endif
 
-	int numSamples;
+	int32_t numSamples;
 	bool doingSingleCycle;
 	Sample** sortArea;
 
@@ -1645,13 +1651,13 @@ doReturnFalse:
 		return false;
 	}
 
-	Uart::println("loaded and sorted samples");
+	Debug::println("loaded and sorted samples");
 
 	AudioEngine::routineWithClusterLoading(); // --------------------------------------------------
 
 	// Delete all but first pre-existing range
-	int oldNumRanges = soundEditor.currentSource->ranges.getNumElements();
-	for (int i = oldNumRanges - 1; i >= 1; i--) {
+	int32_t oldNumRanges = soundEditor.currentSource->ranges.getNumElements();
+	for (int32_t i = oldNumRanges - 1; i >= 1; i--) {
 		soundEditor.currentSound->deleteMultiRange(soundEditor.currentSourceIndex, i);
 	}
 
@@ -1663,8 +1669,8 @@ doReturnFalse:
 		AudioEngine::audioRoutineLocked = false;
 
 		if (!success) {
-			generalMemoryAllocator.dealloc(sortArea);
-			for (int s = 0; s < numSamples; s++) {
+			GeneralMemoryAllocator::get().dealloc(sortArea);
+			for (int32_t s = 0; s < numSamples; s++) {
 				Sample* thisSample = sortArea[s];
 #if ALPHA_OR_BETA_VERSION
 				if (thisSample->numReasonsToBeLoaded <= 0) {
@@ -1683,11 +1689,11 @@ doReturnFalse:
 	AudioEngine::audioRoutineLocked = false;
 
 	// If we've ended up with some samples a whole octave higher than the others, this may be in error
-	int whichSampleIsAnOctaveUp = 0;
+	int32_t whichSampleIsAnOctaveUp = 0;
 
 	if (numSamples) {
 		float prevNote = sortArea[0]->midiNote;
-		for (int s = 1; s < numSamples; s++) {
+		for (int32_t s = 1; s < numSamples; s++) {
 			Sample* thisSample = sortArea[s];
 			float noteHere = thisSample->midiNote;
 			if (noteHere >= prevNote + 12.5 && noteHere <= prevNote + 13.5) {
@@ -1701,7 +1707,7 @@ doReturnFalse:
 			else {
 				// If there are other intervals of more than a semitone, we can't really take it for granted what's going on, so get out
 				if (noteHere >= prevNote + 1.85) {
-					Uart::println("aaa");
+					Debug::println("aaa");
 					uartPrintlnFloat(noteHere - prevNote);
 					goto skipOctaveCorrection;
 				}
@@ -1711,17 +1717,17 @@ doReturnFalse:
 		}
 
 		if (whichSampleIsAnOctaveUp) {
-			Uart::println("correcting octaves");
+			Debug::println("correcting octaves");
 			// Correct earlier ones?
 			if (whichSampleIsAnOctaveUp * 2 < numSamples) {
-				for (int s = 0; s < whichSampleIsAnOctaveUp; s++) {
+				for (int32_t s = 0; s < whichSampleIsAnOctaveUp; s++) {
 					sortArea[s]->midiNote += 12;
 				}
 			}
 
 			// Or correct later ones?
 			else {
-				for (int s = whichSampleIsAnOctaveUp; s < numSamples; s++) {
+				for (int32_t s = whichSampleIsAnOctaveUp; s < numSamples; s++) {
 					sortArea[s]->midiNote -= 12;
 				}
 			}
@@ -1730,23 +1736,23 @@ doReturnFalse:
 
 skipOctaveCorrection:
 
-	int rangeIndex =
+	int32_t rangeIndex =
 	    0; // Keep this different to the sample index, just in case we need to skip a sample because it has the same pitch as a previous one. Skipping a range would leave our rangeArray with unused space allocated, but that's ok
 
-	int lastTopNote = MIDI_NOTE_ERROR;
+	int32_t lastTopNote = MIDI_NOTE_ERROR;
 
-	int totalMSec = 0;
-	int numWithFileLoopPoints = 0;
-	int numWithResultingLoopEndPoints = 0;
+	int32_t totalMSec = 0;
+	int32_t numWithFileLoopPoints = 0;
+	int32_t numWithResultingLoopEndPoints = 0;
 
-	if (soundEditor.currentSource->oscType != OSC_TYPE_SAMPLE) {
+	if (soundEditor.currentSource->oscType != OscType::SAMPLE) {
 		soundEditor.currentSound->unassignAllVoices();
-		soundEditor.currentSource->setOscType(OSC_TYPE_SAMPLE);
+		soundEditor.currentSource->setOscType(OscType::SAMPLE);
 	}
 
-	Uart::println("creating ranges");
+	Debug::println("creating ranges");
 
-	for (int s = 0; s < numSamples; s++) {
+	for (int32_t s = 0; s < numSamples; s++) {
 
 		if (!(s & 31)) {
 			AudioEngine::routineWithClusterLoading(); // --------------------------------------------------
@@ -1755,12 +1761,12 @@ skipOctaveCorrection:
 		Sample* thisSample = sortArea[s];
 
 		if (thisSample->midiNote == MIDI_NOTE_ERROR) {
-			Uart::println("dismissing 1 sample for which pitch couldn't be detected");
+			Debug::println("dismissing 1 sample for which pitch couldn't be detected");
 			// TODO: shouldn't we remove a reason here?
 			continue;
 		}
 
-		int topNote = 32767;
+		int32_t topNote = 32767;
 
 		if (s < numSamples - 1) {
 			Sample* nextSample = sortArea[s + 1];
@@ -1768,10 +1774,10 @@ skipOctaveCorrection:
 			float midPoint = (thisSample->midiNote + nextSample->midiNote) * 0.5;
 			topNote = midPoint; // Round down
 			if (topNote <= lastTopNote) {
-				Uart::print("skipping sample cos ");
-				Uart::print(topNote);
-				Uart::print(" <= ");
-				Uart::println(lastTopNote);
+				Debug::print("skipping sample cos ");
+				Debug::print(topNote);
+				Debug::print(" <= ");
+				Debug::println(lastTopNote);
 				// TODO: shouldn't we remove a reason here?
 				continue;
 			}
@@ -1791,8 +1797,8 @@ skipOctaveCorrection:
 			    rangeIndex); // We know it's gonna succeed
 		}
 
-		Uart::print("top note: ");
-		Uart::println(topNote);
+		Debug::print("top note: ");
+		Debug::println(topNote);
 
 		range->topNote = topNote;
 
@@ -1826,31 +1832,31 @@ skipOctaveCorrection:
 		goto doReturnFalse;
 	}
 
-	Uart::print("distinct ranges: ");
-	Uart::println(numSamples);
+	Debug::print("distinct ranges: ");
+	Debug::println(numSamples);
 
-	generalMemoryAllocator.dealloc(sortArea);
+	GeneralMemoryAllocator::get().dealloc(sortArea);
 
 	audioFileIsNowSet();
 
-	int averageMSec = totalMSec / numSamples;
+	int32_t averageMSec = totalMSec / numSamples;
 
 	// If source files had loop points set...
 	if (numWithFileLoopPoints * 2 >= numSamples) {
 
 		// If this led to an actual loop end pos, with more waveform after it, and the sample's not too long, we can do a ONCE
 		if (numWithResultingLoopEndPoints * 2 >= numSamples && averageMSec < 2002) {
-			soundEditor.currentSource->repeatMode = SAMPLE_REPEAT_ONCE;
+			soundEditor.currentSource->repeatMode = SampleRepeatMode::ONCE;
 		}
 		else {
-			soundEditor.currentSource->repeatMode = SAMPLE_REPEAT_LOOP;
+			soundEditor.currentSource->repeatMode = SampleRepeatMode::LOOP;
 		}
 	}
 
 	// Or if no loop points set...
 	else {
 		// If 2 seconds or less, set play mode to ONCE. Otherwise, cut
-		soundEditor.currentSource->repeatMode = (averageMSec < 2002) ? SAMPLE_REPEAT_ONCE : SAMPLE_REPEAT_CUT;
+		soundEditor.currentSource->repeatMode = (averageMSec < 2002) ? SampleRepeatMode::ONCE : SampleRepeatMode::CUT;
 	}
 
 	soundEditor.setCurrentMultiRange(numSamples >> 1);
@@ -1874,10 +1880,10 @@ bool SampleBrowser::importFolderAsKit() {
 	numericDriver.displayLoadingAnimation();
 #endif
 
-	int numSamples;
+	int32_t numSamples;
 	Sample** sortArea;
 
-	int prefixAndDirLength;
+	int32_t prefixAndDirLength;
 	bool success = loadAllSamplesInFolder(false, &numSamples, &sortArea, NULL, &prefixAndDirLength);
 
 	if (!success) {
@@ -1895,7 +1901,7 @@ doReturnFalse:
 	{
 		ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
 
-		for (int s = 0; s < numSamples; s++) {
+		for (int32_t s = 0; s < numSamples; s++) {
 
 			Sample* thisSample = sortArea[s];
 
@@ -1917,14 +1923,14 @@ getOut:
 				}
 
 				// Ensure osc type is "sample". For the later drums, calling setupAsSample() does this same thing
-				if (soundEditor.currentSource->oscType != OSC_TYPE_SAMPLE) {
+				if (soundEditor.currentSource->oscType != OscType::SAMPLE) {
 					soundEditor.currentSound->unassignAllVoices();
-					soundEditor.currentSource->setOscType(OSC_TYPE_SAMPLE);
+					soundEditor.currentSource->setOscType(OscType::SAMPLE);
 				}
 
 				ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
 				ParamSet* paramSet = (ParamSet*)summary->paramCollection;
-				int paramId = PARAM_LOCAL_OSC_A_VOLUME + soundEditor.currentSourceIndex;
+				int32_t paramId = Param::Local::OSC_A_VOLUME + soundEditor.currentSourceIndex;
 				ModelStackWithAutoParam* modelStackWithParam =
 				    modelStack->addParam(paramSet, summary, paramId, &paramSet->params[paramId]);
 
@@ -1932,7 +1938,7 @@ getOut:
 				if (!modelStackWithParam->autoParam->isAutomated()) {
 					modelStackWithParam->autoParam->setCurrentValueWithNoReversionOrRecording(modelStackWithParam,
 					                                                                          2147483647);
-					//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(PARAM_LOCAL_OSC_A_VOLUME + soundEditor.currentSourceIndex, 2147483647, 0xFFFFFFFF, 0, firstDrum, currentSong, currentSong->currentClip, false);
+					//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(Param::Local::OSC_A_VOLUME + soundEditor.currentSourceIndex, 2147483647, 0xFFFFFFFF, 0, firstDrum, currentSong, currentSong->currentClip, false);
 				}
 
 				drum->unassignAllVoices();
@@ -1944,12 +1950,12 @@ getOut:
 				// Make the Drum and its ParamManager
 
 				ParamManagerForTimeline paramManager;
-				int error = paramManager.setupWithPatching();
+				int32_t error = paramManager.setupWithPatching();
 				if (error) {
 					goto getOut;
 				}
 
-				void* drumMemory = generalMemoryAllocator.alloc(sizeof(SoundDrum), NULL, false, true);
+				void* drumMemory = GeneralMemoryAllocator::get().alloc(sizeof(SoundDrum), NULL, false, true);
 				if (!drumMemory) {
 					goto getOut;
 				}
@@ -1960,7 +1966,7 @@ getOut:
 				range = source->getOrCreateFirstRange();
 				if (!range) {
 					drum->~Drum();
-					generalMemoryAllocator.dealloc(drumMemory);
+					GeneralMemoryAllocator::get().dealloc(drumMemory);
 					goto getOut;
 				}
 
@@ -1980,13 +1986,13 @@ getOut:
 			autoDetectSideChainSending(drum, source, thisSample->filePath.get());
 
 			String newName;
-			int error = newName.set(&thisSample->filePath.get()[prefixAndDirLength]);
+			int32_t error = newName.set(&thisSample->filePath.get()[prefixAndDirLength]);
 			if (!error) {
 
 				char const* newNameChars = newName.get();
 				char const* dotAddress = strrchr(newNameChars, '.');
 				if (dotAddress) {
-					int dotPos = (uint32_t)dotAddress - (uint32_t)newNameChars;
+					int32_t dotPos = (uint32_t)dotAddress - (uint32_t)newNameChars;
 					newName.shorten(dotPos);
 				}
 
@@ -2001,7 +2007,8 @@ getOut:
 			}
 skipNameStuff:
 
-			source->repeatMode = (thisSample->getLengthInMSec() < 2002) ? SAMPLE_REPEAT_ONCE : SAMPLE_REPEAT_CUT;
+			source->repeatMode =
+			    (thisSample->getLengthInMSec() < 2002) ? SampleRepeatMode::ONCE : SampleRepeatMode::CUT;
 
 #if ALPHA_OR_BETA_VERSION
 			if (thisSample->numReasonsToBeLoaded <= 0) {
@@ -2011,7 +2018,7 @@ skipNameStuff:
 			thisSample->removeReason("E395");
 		}
 
-		generalMemoryAllocator.dealloc(sortArea);
+		GeneralMemoryAllocator::get().dealloc(sortArea);
 	}
 
 	// Make NoteRows for all these new Drums
@@ -2032,7 +2039,7 @@ skipNameStuff:
 
 static const uint32_t zoomUIModes[] = {UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON, UI_MODE_AUDITIONING, 0};
 
-int SampleBrowser::horizontalEncoderAction(int offset) {
+ActionResult SampleBrowser::horizontalEncoderAction(int32_t offset) {
 
 	if (qwertyVisible) {
 doNormal:
@@ -2046,7 +2053,7 @@ doNormal:
 
 			// We're quite likely going to need to read the SD card to do either scrolling or zooming
 			if (sdRoutineLock) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
 			// Zoom
@@ -2076,7 +2083,7 @@ doNormal:
 				uiTimerManager.unsetTimer(TIMER_DISPLAY);
 				scrollingText->currentPos += offset;
 
-				int maxScroll = scrollingText->length - NUMERIC_DISPLAY_LENGTH;
+				int32_t maxScroll = scrollingText->length - kNumericDisplayLength;
 
 				if (scrollingText->currentPos < 0) scrollingText->currentPos = 0;
 				if (scrollingText->currentPos > maxScroll) scrollingText->currentPos = maxScroll;
@@ -2090,27 +2097,27 @@ doNormal:
 			qwertyVisible = true;
 			goto doNormal;
 		}
-		return ACTION_RESULT_DEALT_WITH;
+		return ActionResult::DEALT_WITH;
 	}
 }
 
-int SampleBrowser::verticalEncoderAction(int offset, bool inCardRoutine) {
+ActionResult SampleBrowser::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	if (getRootUI() == &instrumentClipView) {
 		if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::button::X_ENC)) {
-			return ACTION_RESULT_DEALT_WITH;
+			return ActionResult::DEALT_WITH;
 		}
 		return instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 bool SampleBrowser::canSeeViewUnderneath() {
 	return !currentlyShowingSamplePreview && !qwertyVisible;
 }
 
-bool SampleBrowser::renderMainPads(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3],
-                                   uint8_t occupancyMask[][displayWidth + sideBarWidth], bool drawUndefinedArea) {
+bool SampleBrowser::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+                                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
 
 	return (qwertyVisible || currentlyShowingSamplePreview);
 }

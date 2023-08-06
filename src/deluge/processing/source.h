@@ -17,9 +17,10 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
+#include "model/sample/sample_controls.h"
 #include "storage/multi_range/multi_range_array.h"
 #include "util/phase_increment_fine_tuner.h"
-#include "model/sample/sample_controls.h"
 
 class Sound;
 class ParamManagerForTimeline;
@@ -33,7 +34,7 @@ public:
 
 	SampleControls sampleControls;
 
-	uint8_t oscType;
+	OscType oscType;
 
 	// These are not valid for Samples
 	int16_t transpose;
@@ -42,26 +43,26 @@ public:
 
 	MultiRangeArray ranges;
 
-	uint8_t repeatMode;
+	SampleRepeatMode repeatMode;
 
 	int8_t timeStretchAmount;
 
 	int16_t defaultRangeI; // -1 means none yet
 
-	bool renderInStereo(SampleHolder* sampleHolder = NULL);
-	void setCents(int newCents);
+	bool renderInStereo(Sound* s, SampleHolder* sampleHolder = NULL);
+	void setCents(int32_t newCents);
 	void recalculateFineTuner();
-	int32_t getLengthInSamplesAtSystemSampleRate(int note, bool forTimeStretching = false);
+	int32_t getLengthInSamplesAtSystemSampleRate(int32_t note, bool forTimeStretching = false);
 	void detachAllAudioFiles();
-	int loadAllSamples(bool mayActuallyReadFiles);
+	int32_t loadAllSamples(bool mayActuallyReadFiles);
 	void setReversed(bool newReversed);
-	int getRangeIndex(int note);
-	MultiRange* getRange(int note);
+	int32_t getRangeIndex(int32_t note);
+	MultiRange* getRange(int32_t note);
 	MultiRange* getOrCreateFirstRange();
 	bool hasAtLeastOneAudioFileLoaded();
 	void doneReadingFromFile(Sound* sound);
 	bool hasAnyLoopEndPoint();
-	void setOscType(int newType);
+	void setOscType(OscType newType);
 
 private:
 	void destructAllMultiRanges();

@@ -15,30 +15,31 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "gui/views/instrument_clip_view.h"
 #include "processing/sound/sound_drum.h"
-#include "model/drum/kit.h"
-#include <string.h>
-#include "storage/storage_manager.h"
-#include "model/song/song.h"
+#include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
-#include "io/uart/uart.h"
+#include "io/debug/print.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
-#include "processing/engines/audio_engine.h"
-#include "model/voice/voice_vector.h"
-#include "model/voice/voice.h"
-#include <new>
 #include "model/clip/clip.h"
+#include "model/drum/kit.h"
+#include "model/song/song.h"
+#include "model/voice/voice.h"
+#include "model/voice/voice_vector.h"
+#include "processing/engines/audio_engine.h"
+#include "storage/storage_manager.h"
+#include "util/misc.h"
+#include <new>
+#include <string.h>
 
-SoundDrum::SoundDrum() : Drum(DRUM_TYPE_SOUND), arpeggiator() {
+SoundDrum::SoundDrum() : Drum(DrumType::SOUND), arpeggiator() {
 	nameIsDiscardable = false;
 }
 
 /*
 // Started but didn't finish this - it's hard!
 Drum* SoundDrum::clone() {
-	void* drumMemory = generalMemoryAllocator.alloc(sizeof(SoundDrum), NULL, false, true);
+	void* drumMemory = GeneralMemoryAllocator::get().alloc(sizeof(SoundDrum), NULL, false, true);
 	if (!drumMemory) return NULL;
 	SoundDrum* newDrum = new (drumMemory) SoundDrum();
 
@@ -75,31 +76,31 @@ bool SoundDrum::hasAnyVoices() {
 }
 
 void SoundDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, Kit* kit, int16_t const* mpeValues,
-                       int fromMIDIChannel, uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate) {
+                       int32_t fromMIDIChannel, uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate) {
 
 	// If part of a Kit, and in choke mode, choke other drums
-	if (polyphonic == POLYPHONY_CHOKE) {
+	if (polyphonic == PolyphonyMode::CHOKE) {
 		kit->choke();
 	}
 
-	Sound::noteOn(modelStack, &arpeggiator, NOTE_FOR_DRUM, mpeValues, sampleSyncLength, ticksLate, samplesLate,
-	              velocity, fromMIDIChannel);
+	Sound::noteOn(modelStack, &arpeggiator, kNoteForDrum, mpeValues, sampleSyncLength, ticksLate, samplesLate, velocity,
+	              fromMIDIChannel);
 }
-void SoundDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int velocity) {
+void SoundDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity) {
 	Sound::allNotesOff(modelStack, &arpeggiator);
 }
 
 extern bool expressionValueChangesMustBeDoneSmoothly;
 
-void SoundDrum::expressionEvent(int newValue, int whichExpressionDimension) {
+void SoundDrum::expressionEvent(int32_t newValue, int32_t whichExpressionDimension) {
 
-	int s = whichExpressionDimension + PATCH_SOURCE_X;
+	int32_t s = whichExpressionDimension + util::to_underlying(PatchSource::X);
 
 	//sourcesChanged |= 1 << s; // We'd ideally not want to apply this to all voices though...
 
-	int ends[2];
+	int32_t ends[2];
 	AudioEngine::activeVoices.getRangeForSound(this, ends);
-	for (int v = ends[0]; v < ends[1]; v++) {
+	for (int32_t v = ends[0]; v < ends[1]; v++) {
 		Voice* thisVoice = AudioEngine::activeVoices.getVoice(v);
 		if (expressionValueChangesMustBeDoneSmoothly) {
 			thisVoice->expressionEventSmooth(newValue, s);
@@ -113,8 +114,9 @@ void SoundDrum::expressionEvent(int newValue, int whichExpressionDimension) {
 	arpeggiator.arpNote.mpeValues[whichExpressionDimension] = newValue >> 16;
 }
 
-void SoundDrum::polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension,
-                                                         int channelOrNoteNumber, int whichCharacteristic) {
+void SoundDrum::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t whichExpressionDimension,
+                                                         int32_t channelOrNoteNumber,
+                                                         MIDICharacteristic whichCharacteristic) {
 	// Because this is a Drum, we disregard the noteCode (which is what channelOrNoteNumber always is in our case - but yeah, that's all irrelevant.
 	expressionEvent(newValue, whichExpressionDimension);
 }
@@ -127,7 +129,7 @@ void SoundDrum::setupPatchingForAllParamManagers(Song* song) {
 	song->setupPatchingForAllParamManagersForDrum(this);
 }
 
-int SoundDrum::loadAllSamples(bool mayActuallyReadFiles) {
+int32_t SoundDrum::loadAllSamples(bool mayActuallyReadFiles) {
 	return Sound::loadAllAudioFiles(mayActuallyReadFiles);
 }
 
@@ -151,7 +153,7 @@ void SoundDrum::writeToFile(bool savingSong, ParamManager* paramManager) {
 void SoundDrum::getName(char* buffer) {
 }
 
-int SoundDrum::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
+int32_t SoundDrum::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithModControllable* modelStack =
 	    setupModelStackWithSong(modelStackMemory, song)->addTimelineCounter(clip)->addModControllableButNoNoteRow(this);
@@ -161,7 +163,7 @@ int SoundDrum::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPo
 
 // modelStack may be NULL
 void SoundDrum::choke(ModelStackWithSoundFlags* modelStack) {
-	if (polyphonic == POLYPHONY_CHOKE) {
+	if (polyphonic == PolyphonyMode::CHOKE) {
 
 		// Don't choke it if it's auditioned
 		if (getRootUI() == &instrumentClipView && instrumentClipView.isDrumAuditioned(this)) {

@@ -29,7 +29,7 @@ public:
 	bool canSeeViewUnderneath() override;
 
 	bool acceptCurrentOption() override;
-	int padAction(int x, int y, int velocity) override;
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 
 	char const* getTitle() override;
 };

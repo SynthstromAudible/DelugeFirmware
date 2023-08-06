@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "util/container/array/ordered_resizeable_array.h"
 
 class PostArpTriggerable;
@@ -39,13 +39,13 @@ public:
 	uint8_t numOctaves;
 	SyncLevel syncLevel;
 	SyncType syncType;
-	uint8_t mode;
+	ArpMode mode;
 };
 
 struct ArpNote {
 	int16_t inputCharacteristics
 	    [2]; // Before arpeggiation. And applying to MIDI input if that's happening. Or, channel might be MIDI_CHANNEL_NONE.
-	int16_t mpeValues[NUM_EXPRESSION_DIMENSIONS];
+	int16_t mpeValues[kNumExpressionDimensions];
 	uint8_t velocity;
 	uint8_t outputMemberChannel;
 };
@@ -70,9 +70,9 @@ public:
 
 class ArpeggiatorBase {
 public:
-	virtual void noteOn(ArpeggiatorSettings* settings, int noteCode, int velocity, ArpReturnInstruction* instruction,
-	                    int fromMIDIChannel, int16_t const* mpeValues) = 0;
-	void render(ArpeggiatorSettings* settings, int numSamples, uint32_t gateThreshold, uint32_t phaseIncrement,
+	virtual void noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t velocity,
+	                    ArpReturnInstruction* instruction, int32_t fromMIDIChannel, int16_t const* mpeValues) = 0;
+	void render(ArpeggiatorSettings* settings, int32_t numSamples, uint32_t gateThreshold, uint32_t phaseIncrement,
 	            ArpReturnInstruction* instruction);
 	int32_t doTickForward(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, uint32_t ClipCurrentPos,
 	                      bool currentlyPlayingReversed);
@@ -96,8 +96,8 @@ protected:
 class ArpeggiatorForDrum final : public ArpeggiatorBase {
 public:
 	ArpeggiatorForDrum();
-	void noteOn(ArpeggiatorSettings* settings, int noteCode, int velocity, ArpReturnInstruction* instruction,
-	            int fromMIDIChannel, int16_t const* mpeValues);
+	void noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t velocity, ArpReturnInstruction* instruction,
+	            int32_t fromMIDIChannel, int16_t const* mpeValues);
 	void noteOff(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction);
 	void reset();
 	ArpNote arpNote; // For the one note. noteCode will always be 60. velocity will be 0 if off.
@@ -113,9 +113,9 @@ public:
 
 	void reset();
 
-	void noteOn(ArpeggiatorSettings* settings, int noteCode, int velocity, ArpReturnInstruction* instruction,
-	            int fromMIDIChannel, int16_t const* mpeValues);
-	void noteOff(ArpeggiatorSettings* settings, int noteCodePreArp, ArpReturnInstruction* instruction);
+	void noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t velocity, ArpReturnInstruction* instruction,
+	            int32_t fromMIDIChannel, int16_t const* mpeValues);
+	void noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp, ArpReturnInstruction* instruction);
 	bool hasAnyInputNotesActive();
 
 	OrderedResizeableArray notes;

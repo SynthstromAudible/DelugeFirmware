@@ -15,15 +15,15 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "io/midi/midi_device_manager.h"
-#include "gui/menu_item/selection.h"
+#include "gui/menu_item/toggle.h"
 #include "gui/ui/sound_editor.h"
+#include "io/midi/midi_device_manager.h"
 
-namespace menu_item::midi {
-class InputDifferentiation final : public Selection {
+namespace deluge::gui::menu_item::midi {
+class InputDifferentiation final : public Toggle {
 public:
-	using Selection::Selection;
-	void readCurrentValue() { soundEditor.currentValue = MIDIDeviceManager::differentiatingInputsByDevice; }
-	void writeCurrentValue() { MIDIDeviceManager::differentiatingInputsByDevice = soundEditor.currentValue; }
+	using Toggle::Toggle;
+	void readCurrentValue() override { this->setValue(MIDIDeviceManager::differentiatingInputsByDevice); }
+	void writeCurrentValue() override { MIDIDeviceManager::differentiatingInputsByDevice = this->getValue(); }
 };
-} // namespace menu_item::midi
+} // namespace deluge::gui::menu_item::midi

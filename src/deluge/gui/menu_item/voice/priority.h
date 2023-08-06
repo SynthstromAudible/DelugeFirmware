@@ -15,19 +15,18 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "definitions_cxx.hpp"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
+#include "util/container/static_vector.hpp"
+#include "util/misc.h"
 
-namespace menu_item::voice {
-class Priority final : public Selection {
+namespace deluge::gui::menu_item::voice {
+class Priority final : public Selection<kNumVoicePriorities> {
 public:
-	Priority(char const* newName = NULL) : Selection(newName) {}
-	void readCurrentValue() { soundEditor.currentValue = *soundEditor.currentPriority; }
-	void writeCurrentValue() { *soundEditor.currentPriority = soundEditor.currentValue; }
-	char const** getOptions() {
-		static char const* options[] = {"LOW", "MEDIUM", "HIGH", NULL};
-		return options;
-	}
-	int getNumOptions() { return NUM_PRIORITY_OPTIONS; }
+	using Selection::Selection;
+	void readCurrentValue() override { this->setValue(*soundEditor.currentPriority); }
+	void writeCurrentValue() override { *soundEditor.currentPriority = this->getValue<VoicePriority>(); }
+	static_vector<std::string, capacity()> getOptions() override { return {"LOW", "MEDIUM", "HIGH"}; }
 };
-} // namespace menu_item::voice
+} // namespace deluge::gui::menu_item::voice

@@ -16,15 +16,15 @@
 */
 
 #include "model/consequence/consequence_clip_horizontal_shift.h"
-#include "model/song/song.h"
 #include "model/clip/clip.h"
 #include "model/model_stack.h"
+#include "model/song/song.h"
 
 ConsequenceClipHorizontalShift::ConsequenceClipHorizontalShift(int32_t newAmount) {
 	amount = newAmount;
 }
 
-int ConsequenceClipHorizontalShift::revert(int time, ModelStack* modelStack) {
+int32_t ConsequenceClipHorizontalShift::revert(TimeType time, ModelStack* modelStack) {
 
 	int32_t amountNow = amount;
 

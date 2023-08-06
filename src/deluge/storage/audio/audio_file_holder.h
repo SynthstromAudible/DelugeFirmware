@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "util/d_string.h"
 
 extern "C" {
@@ -32,13 +32,13 @@ public:
 	AudioFileHolder();
 	virtual ~AudioFileHolder();
 	virtual void setAudioFile(AudioFile* newSample, bool reversed = false, bool manuallySelected = false,
-	                          int clusterLoadInstruction = CLUSTER_ENQUEUE);
-	int loadFile(bool reversed, bool manuallySelected, bool mayActuallyReadFile,
-	             int clusterLoadInstruction = CLUSTER_ENQUEUE, FilePointer* filePointer = NULL,
-	             bool makeWaveTableWorkAtAllCosts = false);
+	                          int32_t clusterLoadInstruction = CLUSTER_ENQUEUE);
+	int32_t loadFile(bool reversed, bool manuallySelected, bool mayActuallyReadFile,
+	                 int32_t clusterLoadInstruction = CLUSTER_ENQUEUE, FilePointer* filePointer = NULL,
+	                 bool makeWaveTableWorkAtAllCosts = false);
 	virtual void unassignAllClusterReasons(bool beingDestructed = false) {}
 
 	String filePath;
 	AudioFile* audioFile;
-	uint8_t audioFileType;
+	AudioFileType audioFileType;
 };

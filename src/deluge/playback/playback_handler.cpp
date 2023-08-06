@@ -15,57 +15,58 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "gui/views/arranger_view.h"
-#include "processing/engines/audio_engine.h"
-#include "storage/audio/audio_file_manager.h"
-#include "model/clip/instrument_clip.h"
-#include "model/clip/instrument_clip_minder.h"
-#include "gui/views/instrument_clip_view.h"
 #include "playback/playback_handler.h"
-#include "util/functions.h"
-#include "hid/display/numeric_driver.h"
-#include "model/song/song.h"
-#include "io/midi/midi_engine.h"
-#include <math.h>
-#include "processing/sound/sound_drum.h"
-#include "processing/sound/sound_instrument.h"
-#include "gui/views/session_view.h"
-#include "processing/engines/cv_engine.h"
-#include "gui/ui/sound_editor.h"
-#include "gui/views/view.h"
+#include "definitions_cxx.hpp"
 #include "gui/ui/audio_recorder.h"
+#include "gui/ui/load/load_song_ui.h"
+#include "gui/ui/sound_editor.h"
+#include "gui/ui_timer_manager.h"
+#include "gui/views/arranger_view.h"
+#include "gui/views/instrument_clip_view.h"
+#include "gui/views/session_view.h"
+#include "gui/views/view.h"
+#include "hid/buttons.h"
+#include "hid/display/numeric_driver.h"
+#include "hid/display/oled.h"
+#include "hid/led/indicator_leds.h"
+#include "hid/led/pad_leds.h"
+#include "hid/matrix/matrix_driver.h"
+#include "io/debug/print.h"
+#include "io/midi/midi_device.h"
+#include "io/midi/midi_engine.h"
+#include "memory/general_memory_allocator.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
-#include "model/consequence/consequence.h"
-#include "playback/mode/session.h"
-#include "playback/mode/arrangement.h"
-#include "model/drum/kit.h"
-#include "storage/storage_manager.h"
-#include "hid/matrix/matrix_driver.h"
-#include "model/sample/sample_holder.h"
 #include "model/clip/audio_clip.h"
-#include "model/consequence/consequence_tempo_change.h"
-#include "memory/general_memory_allocator.h"
-#include <new>
+#include "model/clip/instrument_clip.h"
+#include "model/clip/instrument_clip_minder.h"
+#include "model/consequence/consequence.h"
 #include "model/consequence/consequence_begin_playback.h"
-#include "processing/audio_output.h"
-#include "hid/led/pad_leds.h"
-#include "hid/led/indicator_leds.h"
-#include "storage/flash_storage.h"
-#include "hid/buttons.h"
-#include "io/uart/uart.h"
-#include "processing/metronome/metronome.h"
+#include "model/consequence/consequence_tempo_change.h"
+#include "model/drum/kit.h"
 #include "model/model_stack.h"
-#include "io/midi/midi_device.h"
-#include "gui/ui/load/load_song_ui.h"
-#include "gui/ui_timer_manager.h"
-#include "hid/display/oled.h"
+#include "model/sample/sample_holder.h"
 #include "model/settings/runtime_feature_settings.h"
+#include "model/song/song.h"
+#include "playback/mode/arrangement.h"
+#include "playback/mode/session.h"
+#include "processing/audio_output.h"
+#include "processing/engines/audio_engine.h"
+#include "processing/engines/cv_engine.h"
+#include "processing/metronome/metronome.h"
+#include "processing/sound/sound_drum.h"
+#include "processing/sound/sound_instrument.h"
+#include "storage/audio/audio_file_manager.h"
+#include "storage/flash_storage.h"
+#include "storage/storage_manager.h"
+#include "util/functions.h"
+#include <math.h>
+#include <new>
 
 extern "C" {
 #include "RZA1/gpio/gpio.h"
-#include "util/cfunctions.h"
 #include "RZA1/uart/sio_char.h"
+#include "util/cfunctions.h"
 }
 
 PlaybackHandler playbackHandler{};
@@ -74,12 +75,12 @@ extern void songLoaded(Song* song);
 
 #define slowpassedTimePerInternalTickSlowness 8
 
-int8_t pendingGlobalMIDICommand = -1; // -1 means none
-int pendingGlobalMIDICommandNumClustersWritten;
+GlobalMIDICommand pendingGlobalMIDICommand = GlobalMIDICommand::NONE; // -1 means none
+int32_t pendingGlobalMIDICommandNumClustersWritten;
 extern uint8_t currentlyAccessingCard;
 
 //FineTempoKnob variable
-int tempoKnobMode = 1;
+int32_t tempoKnobMode = 1;
 
 bool currentlyActioningSwungTickOrResettingPlayPos = false;
 
@@ -112,7 +113,7 @@ void PlaybackHandler::routine() {
 	midiEngine.checkIncomingUsbMidi();
 
 	// Check incoming Serial MIDI
-	for (int i = 0; i < 12 && midiEngine.checkIncomingSerialMidi(); i++) {
+	for (int32_t i = 0; i < 12 && midiEngine.checkIncomingSerialMidi(); i++) {
 		;
 	}
 
@@ -126,25 +127,25 @@ void PlaybackHandler::routine() {
 
 	// If we're playing synced to analog clock input, auto-start mode, and there hasn't been a rising edge for a while, then stop
 	if ((playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE) && usingAnalogClockInput && analogClockInputAutoStart
-	    && (int32_t)(AudioEngine::audioSampleTimer - timeLastAnalogClockInputRisingEdge) > (44100 >> 1)) {
+	    && (int32_t)(AudioEngine::audioSampleTimer - timeLastAnalogClockInputRisingEdge) > (kSampleRate >> 1)) {
 		endPlayback();
 	}
 }
 
 void PlaybackHandler::slowRoutine() {
 	// See if any MIDI commands are pending which couldn't be actioned before (see comments in tryGlobalMIDICommands())
-	if (pendingGlobalMIDICommand != -1 && !currentlyAccessingCard) {
+	if (pendingGlobalMIDICommand != GlobalMIDICommand::NONE && !currentlyAccessingCard) {
 
-		Uart::println("actioning pending command -----------------------------------------");
+		Debug::println("actioning pending command -----------------------------------------");
 
 		if (actionLogger.allowedToDoReversion()) {
 
 			switch (pendingGlobalMIDICommand) {
-			case GLOBAL_MIDI_COMMAND_UNDO:
+			case GlobalMIDICommand::UNDO:
 				actionLogger.undo();
 				break;
 
-			case GLOBAL_MIDI_COMMAND_REDO:
+			case GlobalMIDICommand::REDO:
 				actionLogger.redo();
 				break;
 			}
@@ -156,11 +157,11 @@ void PlaybackHandler::slowRoutine() {
 			}
 		}
 
-		pendingGlobalMIDICommand = -1;
+		pendingGlobalMIDICommand = GlobalMIDICommand::NONE;
 	}
 }
 
-void PlaybackHandler::playButtonPressed(int buttonPressLatency) {
+void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
 
 	// If not currently playing
 	if (!playbackState) {
@@ -261,7 +262,7 @@ void PlaybackHandler::recordButtonPressed() {
 	}
 }
 
-void PlaybackHandler::setupPlaybackUsingInternalClock(int buttonPressLatency, bool allowCountIn) {
+void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency, bool allowCountIn) {
 	if (!currentSong) {
 		return;
 	}
@@ -273,7 +274,7 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int buttonPressLatency, bo
 	if (Buttons::isButtonPressed(hid::button::X_ENC)
 	    || (getRootUI() == &arrangerView && recording == RECORDING_NORMAL)) {
 
-		int navSys;
+		int32_t navSys;
 		if (getRootUI() && getRootUI()->isTimelineView()) {
 			navSys = ((TimelineView*)getRootUI())->getNavSysId();
 		}
@@ -320,7 +321,7 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int buttonPressLatency, bo
 		}
 	}
 
-	int newPlaybackState = PLAYBACK_SWITCHED_ON;
+	int32_t newPlaybackState = PLAYBACK_SWITCHED_ON;
 	if (!doingTempolessRecord) {
 		newPlaybackState |= PLAYBACK_CLOCK_INTERNAL_ACTIVE;
 	}
@@ -380,8 +381,9 @@ useArranger:
 }
 
 // Call decideOnCurrentPlaybackMode() before this
-void PlaybackHandler::setupPlayback(int newPlaybackState, int32_t playFromPos, bool doOneLastAudioRoutineCall,
-                                    bool shouldShiftAccordingToClipInstance, int buttonPressLatencyForTempolessRecord) {
+void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPos, bool doOneLastAudioRoutineCall,
+                                    bool shouldShiftAccordingToClipInstance,
+                                    int32_t buttonPressLatencyForTempolessRecord) {
 
 	actionLogger.closeAction(ACTION_RECORD);
 
@@ -565,8 +567,8 @@ void PlaybackHandler::actionTimerTick() {
 void PlaybackHandler::actionTimerTickPart2() {
 
 	// Schedule next timer tick. Normal case is two swing intervals away.
-	int leftShift = 10 - currentSong->swingInterval;
-	leftShift = getMax(leftShift, 0);
+	int32_t leftShift = 10 - currentSong->swingInterval;
+	leftShift = std::max(leftShift, 0_i32);
 	uint32_t timeTilNextTimerTick = 3 << (leftShift); // That's doubleSwingInterval
 
 	// But if count-in happening, limit it to one bar's length (or perhaps this should be one beat, to avoid slight screwiness with very long swing intervals?)
@@ -743,7 +745,7 @@ void PlaybackHandler::actionSwungTick() {
 		// Or if there was still more count-in left...
 		else {
 
-			int newVisualCount = (uint32_t)(ticksLeftInCountIn - 1) / currentSong->getQuarterNoteLength() + 1;
+			int32_t newVisualCount = (uint32_t)(ticksLeftInCountIn - 1) / currentSong->getQuarterNoteLength() + 1;
 
 			if (newVisualCount != currentVisualCountForCountIn) {
 				currentVisualCountForCountIn = newVisualCount;
@@ -793,7 +795,7 @@ doMetronome:
 				int32_t ticksIntoCurrentBeep = currentMetronomeTick % swungTicksPerQuarterNote;
 				int32_t swungTicksTilNextMetronomeEvent =
 				    swungTicksPerQuarterNote - ticksIntoCurrentBeep; // Ticks til next beep
-				swungTicksTilNextEvent = getMin(swungTicksTilNextEvent, swungTicksTilNextMetronomeEvent);
+				swungTicksTilNextEvent = std::min(swungTicksTilNextEvent, swungTicksTilNextMetronomeEvent);
 			}
 		}
 	}
@@ -824,8 +826,8 @@ void PlaybackHandler::scheduleSwungTickFromInternalClock() {
 		uint32_t swungTicksIntoTimerBit = nextSwungTick - lastTimerTickActioned;
 
 		if (currentSong->hasAnySwing()) {
-			int leftShift = 9 - currentSong->swingInterval;
-			leftShift = getMax(leftShift, 0);
+			int32_t leftShift = 9 - currentSong->swingInterval;
+			leftShift = std::max(leftShift, 0_i32);
 			uint32_t swingInterval = 3 << (leftShift);
 
 			// Before swing mid-point
@@ -851,7 +853,7 @@ void PlaybackHandler::scheduleSwungTickFromInternalClock() {
 }
 
 // This just uses the rounded timePerTimerTick. Should be adequate
-int PlaybackHandler::getNumSwungTicksInSinceLastTimerTick(uint32_t* timeRemainder) {
+int32_t PlaybackHandler::getNumSwungTicksInSinceLastTimerTick(uint32_t* timeRemainder) {
 
 	// If first timer tick not actioned yet (currently the only function that calls this function already separately deals with this though)...
 	if (!nextTimerTickScheduled) {
@@ -871,8 +873,8 @@ int PlaybackHandler::getNumSwungTicksInSinceLastTimerTick(uint32_t* timeRemainde
 			*timeRemainder = 0; // To be improved
 		}
 
-		int leftShift = 9 - currentSong->swingInterval;
-		leftShift = getMax(leftShift, 0);
+		int32_t leftShift = 9 - currentSong->swingInterval;
+		leftShift = std::max(leftShift, 0_i32);
 		uint32_t swingInterval = 3 << (leftShift);
 
 		// First, see if we're in the first half still
@@ -889,12 +891,12 @@ int PlaybackHandler::getNumSwungTicksInSinceLastTimerTick(uint32_t* timeRemainde
 		if (!timeTilNextFiddledWith) {
 			return 1; // Otherwise we'd get a negative number when subtracting 1 below
 		}
-		int ticksTilEnd = (uint32_t)(timeTilNextFiddledWith - 1) / (uint32_t)timePerTimerTick + 1; // Rounds up.
+		int32_t ticksTilEnd = (uint32_t)(timeTilNextFiddledWith - 1) / (uint32_t)timePerTimerTick + 1; // Rounds up.
 		return (swingInterval << 1) - ticksTilEnd;
 	}
 
 	else {
-		int numSwungTicks = timePassed / timePerTimerTick;
+		int32_t numSwungTicks = timePassed / timePerTimerTick;
 		if (timeRemainder) {
 			*timeRemainder = timePassed - numSwungTicks * timePerTimerTick;
 		}
@@ -902,7 +904,7 @@ int PlaybackHandler::getNumSwungTicksInSinceLastTimerTick(uint32_t* timeRemainde
 	}
 }
 
-int PlaybackHandler::getNumSwungTicksInSinceLastActionedSwungTick(uint32_t* timeRemainder) {
+int32_t PlaybackHandler::getNumSwungTicksInSinceLastActionedSwungTick(uint32_t* timeRemainder) {
 	if (currentlyActioningSwungTickOrResettingPlayPos) {
 		if (timeRemainder) {
 			*timeRemainder = 0;
@@ -948,8 +950,8 @@ int64_t PlaybackHandler::getActualSwungTickCount(uint32_t* timeRemainder) {
 		// Yes swing
 		else {
 
-			int leftShift = 9 - currentSong->swingInterval;
-			leftShift = getMax(leftShift, 0);
+			int32_t leftShift = 9 - currentSong->swingInterval;
+			leftShift = std::max(leftShift, 0_i32);
 			uint32_t swingInterval = 3 << (leftShift);
 			uint32_t doubleSwingInterval = swingInterval << 1;
 
@@ -1017,7 +1019,7 @@ int64_t PlaybackHandler::getCurrentInternalTickCount(uint32_t* timeRemainder) {
 		// Or, the normal case - calculate the answer
 		else {
 			uint32_t timeSinceLastTimerTick = AudioEngine::audioSampleTimer - (uint32_t)(timeLastTimerTickBig >> 32);
-			int ticksSinceLastTimerTick = timeSinceLastTimerTick / timePerTimerTick;
+			int32_t ticksSinceLastTimerTick = timeSinceLastTimerTick / timePerTimerTick;
 			if (timeRemainder) {
 				*timeRemainder = timeSinceLastTimerTick - (ticksSinceLastTimerTick * timePerTimerTick);
 			}
@@ -1059,7 +1061,7 @@ float PlaybackHandler::getCurrentInternalTickFloatFollowingExternalClock() {
 		return 0;
 	}
 
-	int t = 0;
+	int32_t t = 0;
 
 	int32_t timeSinceLastInputTick = AudioEngine::audioSampleTimer - timeLastInputTicks[t];
 
@@ -1129,7 +1131,7 @@ int32_t PlaybackHandler::getInternalTickTime(int64_t internalTickCount) {
 			       + (((int64_t)currentSong->timePerTimerTickBig * internalTickCount) >> 32);
 		}
 
-		int numTicksAfterLastTimerTick = internalTickCount - lastTimerTickActioned; // Could be negative
+		int32_t numTicksAfterLastTimerTick = internalTickCount - lastTimerTickActioned; // Could be negative
 		return (int64_t)(timeLastTimerTickBig + (int64_t)currentSong->timePerTimerTickBig * numTicksAfterLastTimerTick)
 		       >> 32;
 	}
@@ -1165,7 +1167,7 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 
 				// We want to keep the old song's tempo. We need to account for the fact that the two songs might have different magnitudes though,
 				// before we do anything like copy the timePerTimerTick. So we apply any difference in magnitude to the timePerTimerTick before we copy / compare it.
-				int magnitudeDifference =
+				int32_t magnitudeDifference =
 				    preLoadedSong->insideWorldTickMagnitude - currentSong->insideWorldTickMagnitude;
 
 				if (magnitudeDifference >= 0) {
@@ -1325,7 +1327,7 @@ void PlaybackHandler::setupPlaybackUsingExternalClock(bool switchingFromInternal
 		timePerInputTickMovingAverage = targetedTimePerInputTick;
 	}
 
-	int newPlaybackState = PLAYBACK_SWITCHED_ON | PLAYBACK_CLOCK_EXTERNAL_ACTIVE;
+	int32_t newPlaybackState = PLAYBACK_SWITCHED_ON | PLAYBACK_CLOCK_EXTERNAL_ACTIVE;
 
 	if (!switchingFromInternalClock) {
 		bool shouldShiftAccordingToClipInstance = (!fromContinueCommand && posToNextContinuePlaybackFrom == 0);
@@ -1340,8 +1342,8 @@ void PlaybackHandler::setupPlaybackUsingExternalClock(bool switchingFromInternal
 }
 
 void PlaybackHandler::positionPointerReceived(uint8_t data1, uint8_t data2) {
-	Uart::println("position");
-	unsigned int pos = (((unsigned int)data2 << 7) | data1) * 6;
+	Debug::println("position");
+	uint32_t pos = (((uint32_t)data2 << 7) | data1) * 6;
 
 	if (currentSong->insideWorldTickMagnitude >= 0) {
 		pos <<= currentSong->insideWorldTickMagnitude;
@@ -1371,7 +1373,7 @@ void PlaybackHandler::startMessageReceived() {
 	if (ignoringMidiClockInput || !midiInClockEnabled) {
 		return;
 	}
-	Uart::println("start");
+	Debug::println("start");
 	// If we already are playing
 	if (playbackState) {
 
@@ -1393,7 +1395,7 @@ bool PlaybackHandler::startIgnoringMidiClockInputIfNecessary() {
 
 	if ((playbackHandler.playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE)
 	    && (int32_t)(AudioEngine::audioSampleTimer - timeLastMIDIStartOrContinueMessageSent) < 50 * 44) {
-		Uart::println("ignoring midi clock input");
+		Debug::println("ignoring midi clock input");
 		ignoringMidiClockInput = true;
 		return true;
 	}
@@ -1408,7 +1410,7 @@ void PlaybackHandler::continueMessageReceived() {
 		return;
 	}
 
-	Uart::println("continue");
+	Debug::println("continue");
 	// If we already are playing
 	if (playbackState) {
 
@@ -1443,7 +1445,7 @@ void PlaybackHandler::clockMessageReceived(uint32_t time) {
 	if (ignoringMidiClockInput || !midiInClockEnabled) {
 		return;
 	}
-	//Uart::println("clock");
+	//Debug::println("clock");
 
 	if (playbackState) {
 		inputTick(false, time);
@@ -1458,8 +1460,8 @@ void PlaybackHandler::scheduleSwungTickFromExternalClock() {
 	}
 	else {
 
-		int leftShift = 10 - currentSong->swingInterval;
-		leftShift = getMax(leftShift, 0);
+		int32_t leftShift = 10 - currentSong->swingInterval;
+		leftShift = std::max(leftShift, 0_i32);
 		uint32_t doubleSwingInterval = 3 << (leftShift);
 
 		uint32_t swungTickWithinInterval = nextSwungTick % doubleSwingInterval;
@@ -1474,7 +1476,7 @@ void PlaybackHandler::scheduleSwungTickFromExternalClock() {
 
 		// Or if in second half of interval
 		else {
-			int ticksTilEnd = doubleSwingInterval - swungTickWithinInterval;
+			int32_t ticksTilEnd = doubleSwingInterval - swungTickWithinInterval;
 			internalTickWithinIntervalTimes50 =
 			    doubleSwingInterval * 50 - ticksTilEnd * (50 - currentSong->swingAmount);
 		}
@@ -1581,10 +1583,10 @@ void PlaybackHandler::inputTick(bool fromTriggerClock, uint32_t time) {
 			}
 
 			// If we've done this enough times, don't do it again
-			if (lastInputTickReceived >= numInputTicksToAllowTempoTargeting) {
+			if (lastInputTickReceived >= kNumInputTicksToAllowTempoTargeting) {
 				tempoMagnitudeMatchingActiveNow = false;
-				Uart::print("finished tempo magnitude matching. magnitude = ");
-				Uart::println(currentSong->insideWorldTickMagnitude);
+				Debug::print("finished tempo magnitude matching. magnitude = ");
+				Debug::println(currentSong->insideWorldTickMagnitude);
 			}
 		}
 	}
@@ -1595,8 +1597,8 @@ void PlaybackHandler::inputTick(bool fromTriggerClock, uint32_t time) {
 	if (lastInputTickReceived != 0) {
 		uint32_t timeLastInputTickTook = timeThisInputTick - timeLastInputTicks[0];
 
-		Uart::print("time since last: ");
-		Uart::println(timeLastInputTickTook);
+		Debug::print("time since last: ");
+		Debug::println(timeLastInputTickTook);
 
 		uint32_t internalTicksPer;
 		uint32_t inputTicksPer;
@@ -1627,8 +1629,8 @@ void PlaybackHandler::inputTick(bool fromTriggerClock, uint32_t time) {
 		// 5% = 1127428915
 		if ((lowpassedTimePerInternalTick >> 2) > multiply_32x32_rshift32(1127428915, stickyTimePerInternalTick)
 		    || (stickyTimePerInternalTick >> 2) > multiply_32x32_rshift32(1127428915, lowpassedTimePerInternalTick)) {
-			//Uart::println("5% tempo jump");
-			//Uart::println(lowpassedTimePerInternalTick);
+			//Debug::println("5% tempo jump");
+			//Debug::println(lowpassedTimePerInternalTick);
 			slowpassedTimePerInternalTick = lowpassedTimePerInternalTick << slowpassedTimePerInternalTickSlowness;
 			stickyTimePerInternalTick = lowpassedTimePerInternalTick;
 
@@ -1638,7 +1640,7 @@ void PlaybackHandler::inputTick(bool fromTriggerClock, uint32_t time) {
 		             > multiply_32x32_rshift32(1084479242, stickyTimePerInternalTick)
 		         || (stickyTimePerInternalTick >> 2) > multiply_32x32_rshift32(
 		                1084479242, slowpassedTimePerInternalTick >> slowpassedTimePerInternalTickSlowness)) {
-			//Uart::println("1% tempo jump");
+			//Debug::println("1% tempo jump");
 			stickyTimePerInternalTick = lowpassedTimePerInternalTick =
 			    slowpassedTimePerInternalTick >> slowpassedTimePerInternalTickSlowness;
 
@@ -1656,7 +1658,7 @@ void PlaybackHandler::inputTick(bool fromTriggerClock, uint32_t time) {
 	if (numInputTickTimesCounted < NUM_INPUT_TICKS_FOR_MOVING_AVERAGE) {
 		numInputTickTimesCounted++;
 	}
-	for (int i = numInputTickTimesCounted - 1; i >= 1; i--) {
+	for (int32_t i = numInputTickTimesCounted - 1; i >= 1; i--) {
 		timeLastInputTicks[i] = timeLastInputTicks[i - 1];
 	}
 
@@ -1795,7 +1797,7 @@ void PlaybackHandler::tempoEncoderAction(int8_t offset, bool encoderButtonPresse
 		return;
 	}
 
-	offset = getMax((int8_t)-1, getMin((int8_t)1, offset));
+	offset = std::max((int8_t)-1, std::min((int8_t)1, offset));
 
 	// Nudging sync
 	if (Buttons::isButtonPressed(hid::button::X_ENC)) {
@@ -1829,9 +1831,7 @@ displayNudge:
 
 	// Otherwise, adjust swing
 	else if (shiftButtonPressed) {
-		int newSwingAmount = currentSong->swingAmount + offset;
-		newSwingAmount = getMin(newSwingAmount, 49);
-		newSwingAmount = getMax(newSwingAmount, -49);
+		int32_t newSwingAmount = std::clamp<int32_t>(currentSong->swingAmount + offset, -49, 49);
 
 		if (newSwingAmount != currentSong->swingAmount) {
 			actionLogger.recordSwingChange(currentSong->swingAmount, newSwingAmount);
@@ -1955,7 +1955,7 @@ displayNudge:
 void PlaybackHandler::sendOutPositionViaMIDI(int32_t pos, bool sendContinueMessageToo) {
 	uint32_t newOutputTicksDone = timerTicksToOutputTicks(pos);
 	uint32_t positionPointer = newOutputTicksDone / 6;
-	int surplusOutputTicks = (newOutputTicksDone % 6);
+	int32_t surplusOutputTicks = (newOutputTicksDone % 6);
 
 	// Or if position pointer too big to fit into 14-bit number...
 	if (positionPointer >= 16384) {
@@ -1994,7 +1994,7 @@ void PlaybackHandler::sendOutPositionViaMIDI(int32_t pos, bool sendContinueMessa
 		midiEngine.sendContinue();
 	}
 
-	for (int i = 0; i < surplusOutputTicks; i++) {
+	for (int32_t i = 0; i < surplusOutputTicks; i++) {
 		midiEngine.sendClock(i != 0);
 	}
 }
@@ -2003,7 +2003,7 @@ void PlaybackHandler::setMidiOutClockMode(bool newValue) {
 	if (newValue == midiOutClockEnabled) {
 		return;
 	}
-	int oldValue = midiOutClockEnabled;
+	int32_t oldValue = midiOutClockEnabled;
 	midiOutClockEnabled = newValue;
 
 	// If currently playing on internal clock...
@@ -2050,7 +2050,7 @@ void PlaybackHandler::getCurrentTempoParams(int32_t* magnitude, int8_t* whichVal
 
 	*whichValue = 15;
 
-	for (int i = 0; i < 16; i++) {
+	for (int32_t i = 0; i < 16; i++) {
 		if (timePer > ((uint64_t)metronomeValueBoundaries[i] << 32)) {
 			*whichValue = i;
 			break;
@@ -2091,7 +2091,7 @@ void PlaybackHandler::displayTempoBPM(float tempoBPM) {
 #if HAVE_OLED
 	char buffer[27];
 	strcpy(buffer, "Tempo: ");
-	if (currentSong->timePerTimerTickBig <= ((uint64_t)minTimePerTimerTick << 32)) {
+	if (currentSong->timePerTimerTickBig <= ((uint64_t)kMinTimePerTimerTick << 32)) {
 		strcpy(&buffer[7], "FAST");
 	}
 	else {
@@ -2104,8 +2104,8 @@ void PlaybackHandler::displayTempoBPM(float tempoBPM) {
 		return;
 	}
 
-	int divisor = 1;
-	int dotMask = (1 << 7);
+	int32_t divisor = 1;
+	int32_t dotMask = (1 << 7);
 
 	if (tempoBPM >= 999.95) {}
 	else if (tempoBPM >= 99.995) {
@@ -2121,7 +2121,7 @@ void PlaybackHandler::displayTempoBPM(float tempoBPM) {
 		dotMask |= (1 << 3);
 	}
 
-	int roundedBigger = tempoBPM * divisor + 0.5; // This will now be a 4 digit number
+	int32_t roundedBigger = tempoBPM * divisor + 0.5; // This will now be a 4 digit number
 	double roundedSmallerAgain = (double)roundedBigger / divisor;
 
 	bool isPerfect = false;
@@ -2146,7 +2146,7 @@ void PlaybackHandler::displayTempoBPM(float tempoBPM) {
 		isPerfect = (currentSong->timePerTimerTickBig == newTimePerTimerTickBig);
 	}
 
-	int roundedTempoBPM = roundedSmallerAgain + 0.5;
+	int32_t roundedTempoBPM = roundedSmallerAgain + 0.5;
 
 	// If perfect and integer...
 	if (isPerfect && roundedBigger == roundedTempoBPM * divisor) {
@@ -2172,7 +2172,7 @@ void PlaybackHandler::setLedStates() {
 	}
 
 	bool syncedLEDOn = playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE;
-	setOutputState(SYNCED_LED_PORT, SYNCED_LED_PIN, syncedLEDOn);
+	setOutputState(SYNCED_LED.port, SYNCED_LED.pin, syncedLEDOn);
 
 	if (currentUIMode == UI_MODE_TAP_TEMPO) {
 		indicator_leds::blinkLed(IndicatorLED::TAP_TEMPO, 255, 1);
@@ -2242,7 +2242,7 @@ void PlaybackHandler::grabTempoFromClip(Clip* clip) {
 	// Record that change, ourselves. We sent false above because that mechanism of recording it would do all this other stuff
 	if (action) {
 
-		void* consMemory = generalMemoryAllocator.alloc(sizeof(ConsequenceTempoChange));
+		void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceTempoChange));
 
 		if (consMemory) {
 			ConsequenceTempoChange* newConsequence =
@@ -2276,7 +2276,7 @@ uint32_t PlaybackHandler::setTempoFromAudioClipLength(uint64_t loopLengthSamples
 	// Record that change, ourselves. We sent false above because that mechanism of recording it would do all this other stuff
 	if (action) {
 
-		void* consMemory = generalMemoryAllocator.alloc(sizeof(ConsequenceTempoChange));
+		void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceTempoChange));
 
 		if (consMemory) {
 			ConsequenceTempoChange* newConsequence =
@@ -2290,7 +2290,7 @@ uint32_t PlaybackHandler::setTempoFromAudioClipLength(uint64_t loopLengthSamples
 	return ticksLong;
 }
 
-void PlaybackHandler::finishTempolessRecording(bool shouldStartPlaybackAgain, int buttonLatencyForTempolessRecord,
+void PlaybackHandler::finishTempolessRecording(bool shouldStartPlaybackAgain, int32_t buttonLatencyForTempolessRecord,
                                                bool shouldExitRecordMode) {
 
 	bool foundAnyYet = false;
@@ -2301,7 +2301,7 @@ void PlaybackHandler::finishTempolessRecording(bool shouldStartPlaybackAgain, in
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
-	for (int c = 0; c < currentSong->sessionClips.getNumElements(); c++) {
+	for (int32_t c = 0; c < currentSong->sessionClips.getNumElements(); c++) {
 		Clip* clip = currentSong->sessionClips.getClipAtIndex(c);
 
 		if (clip->getCurrentlyRecordingLinearly()) {
@@ -2360,7 +2360,7 @@ void PlaybackHandler::finishTempolessRecording(bool shouldStartPlaybackAgain, in
 
 		// And remember that this tempoless-record Action included beginning playback, so undoing / redoing it later will stop and start playback respectively
 		if (action) {
-			void* consMemory = generalMemoryAllocator.alloc(sizeof(ConsequenceBeginPlayback));
+			void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceBeginPlayback));
 
 			if (consMemory) {
 				ConsequenceBeginPlayback* newConsequence = new (consMemory) ConsequenceBeginPlayback();
@@ -2382,7 +2382,7 @@ bool PlaybackHandler::shouldRecordNotesNow() {
 	    isEitherClockActive() && recording && isUIModeWithinRange(noteRecordingUIModes)
 	    && (!playbackHandler.ticksLeftInCountIn
 	        || getTimeLeftInCountIn()
-	               <= LINEAR_RECORDING_EARLY_FIRST_NOTE_ALLOWANCE) // If doing a count-in, only allow notes to be recorded up to 100mS early
+	               <= kLinearRecordingEarlyFirstNoteAllowance) // If doing a count-in, only allow notes to be recorded up to 100mS early
 	);
 }
 
@@ -2444,49 +2444,51 @@ void PlaybackHandler::tapTempoButtonPress() {
 }
 
 // Returns whether the message has been used up by a command
-bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, int channel, int note) {
+bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, int32_t channel, int32_t note) {
 
 	bool foundAnything = false;
 
-	for (int c = 0; c < NUM_GLOBAL_MIDI_COMMANDS; c++) {
+	for (int32_t c = 0; c < kNumGlobalMIDICommands; c++) {
 		if (midiEngine.globalMIDICommands[c].equalsNoteOrCC(device, channel, note)) {
-			switch (c) {
-			case GLOBAL_MIDI_COMMAND_PLAYBACK_RESTART:
+			switch (static_cast<GlobalMIDICommand>(c)) {
+			case GlobalMIDICommand::PLAYBACK_RESTART:
 				if (recording != RECORDING_ARRANGEMENT) {
 					forceResetPlayPos(currentSong);
 				}
 				break;
 
-			case GLOBAL_MIDI_COMMAND_PLAY:
-				playButtonPressed(MIDI_KEY_INPUT_LATENCY);
+			case GlobalMIDICommand::PLAY:
+				playButtonPressed(kMIDIKeyInputLatency);
 				break;
 
-			case GLOBAL_MIDI_COMMAND_RECORD:
+			case GlobalMIDICommand::RECORD:
 				recordButtonPressed();
 				break;
 
-			case GLOBAL_MIDI_COMMAND_LOOP:
-			case GLOBAL_MIDI_COMMAND_LOOP_CONTINUOUS_LAYERING:
+			case GlobalMIDICommand::LOOP:
+			case GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING:
 				if (actionLogger.allowedToDoReversion()
 				    || currentUIMode
 				           == UI_MODE_RECORD_COUNT_IN) { // Not quite sure if this describes exactly what we want but it'll do...
-					int overdubNature = (c == GLOBAL_MIDI_COMMAND_LOOP) ? OVERDUB_NORMAL : OVERDUB_CONTINUOUS_LAYERING;
+					int32_t overdubNature = (static_cast<GlobalMIDICommand>(c) == GlobalMIDICommand::LOOP)
+					                            ? OVERDUB_NORMAL
+					                            : OVERDUB_CONTINUOUS_LAYERING;
 					loopCommand(overdubNature);
 				}
 				break;
 
-			case GLOBAL_MIDI_COMMAND_REDO:
-			case GLOBAL_MIDI_COMMAND_UNDO:
+			case GlobalMIDICommand::REDO:
+			case GlobalMIDICommand::UNDO:
 				if (actionLogger.allowedToDoReversion()) {
 					// We're going to "pend" it rather than do it right now in any case.
 					// Firstly, we don't want to do it while we may be in some card access routine - e.g. by a SampleRecorder.
 					// Secondly, reversion can take a lot of time, and may want to call the audio routine - which is locked cos we're in it!
-					pendingGlobalMIDICommand = c;
+					pendingGlobalMIDICommand = static_cast<GlobalMIDICommand>(c);
 					pendingGlobalMIDICommandNumClustersWritten = 0;
 				}
 				break;
 
-			//case GLOBAL_MIDI_COMMAND_TAP:
+			//case GlobalMIDICommand::TAP:
 			default:
 				if (getCurrentUI() == getRootUI()) {
 					if (currentUIMode == UI_MODE_NONE) {
@@ -2503,7 +2505,7 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, int channel, int
 	return foundAnything;
 }
 
-void PlaybackHandler::programChangeReceived(int channel, int program) {
+void PlaybackHandler::programChangeReceived(int32_t channel, int32_t program) {
 
 	/*
     // If user assigning MIDI commands, do that
@@ -2517,13 +2519,13 @@ void PlaybackHandler::programChangeReceived(int channel, int program) {
     */
 }
 
-void PlaybackHandler::noteMessageReceived(MIDIDevice* fromDevice, bool on, int channel, int note, int velocity,
-                                          bool* doingMidiThru) {
+void PlaybackHandler::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32_t channel, int32_t note,
+                                          int32_t velocity, bool* doingMidiThru) {
 	// If user assigning/learning MIDI commands, do that
 	if (currentUIMode == UI_MODE_MIDI_LEARN && on) {
 		// Checks velocity to let note-offs pass through,
 		// so no risk of stuck note if they pressed learn while holding a note
-		int channelOrZone = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
+		int32_t channelOrZone = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
 
 		if (getCurrentUI()->noteOnReceivedForMidiLearn(fromDevice, channelOrZone, note, velocity)) {}
 
@@ -2543,20 +2545,20 @@ void PlaybackHandler::noteMessageReceived(MIDIDevice* fromDevice, bool on, int c
 	}
 
 	// Go through all sections
-	for (int s = 0; s < MAX_NUM_SECTIONS; s++) {
+	for (int32_t s = 0; s < kMaxNumSections; s++) {
 		if (currentSong->sections[s].launchMIDICommand.equalsNoteOrCC(fromDevice, channel, note)) {
 			if (on) {
 				if (arrangement.hasPlaybackActive()) {
 					switchToSession();
 				}
-				session.armSection(s, MIDI_KEY_INPUT_LATENCY);
+				session.armSection(s, kMIDIKeyInputLatency);
 			}
 			foundAnything = true;
 		}
 	}
 
 	// Go through all Clips in session only
-	for (int c = currentSong->sessionClips.getNumElements() - 1; c >= 0; c--) {
+	for (int32_t c = currentSong->sessionClips.getNumElements() - 1; c >= 0; c--) {
 		Clip* clip = currentSong->sessionClips.getClipAtIndex(c);
 
 		// Mute action on Clip?
@@ -2567,8 +2569,8 @@ void PlaybackHandler::noteMessageReceived(MIDIDevice* fromDevice, bool on, int c
 					switchToSession();
 				}
 
-				session.toggleClipStatus(
-				    clip, &c, false, MIDI_KEY_INPUT_LATENCY); // Beware - calling this might insert or delete a Clip!
+				session.toggleClipStatus(clip, &c, false,
+				                         kMIDIKeyInputLatency); // Beware - calling this might insert or delete a Clip!
 				uiNeedsRendering(&sessionView, 0, 0xFFFFFFFF);
 			}
 			foundAnything = true;
@@ -2745,7 +2747,8 @@ void PlaybackHandler::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, ui
 		}
 
 		if (value) {
-			if (tryGlobalMIDICommands(fromDevice, channel + IS_A_CC, ccNumber)) {
+			int32_t channelOrZone = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
+			if (tryGlobalMIDICommands(fromDevice, channelOrZone + IS_A_CC, ccNumber)) {
 				return;
 			}
 		}
@@ -2777,7 +2780,7 @@ void PlaybackHandler::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, ui
 }
 
 // noteCode -1 means channel-wide, including for MPE input (which then means it could still then just apply to one note).
-void PlaybackHandler::aftertouchReceived(MIDIDevice* fromDevice, int channel, int value, int noteCode,
+void PlaybackHandler::aftertouchReceived(MIDIDevice* fromDevice, int32_t channel, int32_t value, int32_t noteCode,
                                          bool* doingMidiThru) {
 
 	bool isMPE =
@@ -2810,7 +2813,7 @@ int32_t PlaybackHandler::getArrangementRecordPosAtLastActionedSwungTick() {
 }
 
 // Warning - this might get called during card routine!
-void PlaybackHandler::loopCommand(int overdubNature) {
+void PlaybackHandler::loopCommand(int32_t overdubNature) {
 
 	bool anyGotArmedToStop;
 	bool mustEndTempolessRecordingAfter = false;
@@ -2820,7 +2823,7 @@ void PlaybackHandler::loopCommand(int overdubNature) {
 		if (!recording) {
 			recording = RECORDING_NORMAL;
 		}
-		playButtonPressed(MIDI_KEY_INPUT_LATENCY);
+		playButtonPressed(kMIDIKeyInputLatency);
 	}
 
 	// Or, if doing count-in, stop that and playback altogether
@@ -2868,11 +2871,11 @@ probablyExitRecordMode:
 		anyGotArmedToStop = false;
 
 		// For each Clip in session
-		for (int c = currentSong->sessionClips.getNumElements() - 1; c >= 0; c--) {
+		for (int32_t c = currentSong->sessionClips.getNumElements() - 1; c >= 0; c--) {
 			Clip* clip = currentSong->sessionClips.getClipAtIndex(c);
-			if (!clip->armState && clip->getCurrentlyRecordingLinearly()) {
+			if (clip->armState == ArmState::OFF && clip->getCurrentlyRecordingLinearly()) {
 				anyGotArmedToStop = true;
-				session.toggleClipStatus(clip, &c, false, MIDI_KEY_INPUT_LATENCY);
+				session.toggleClipStatus(clip, &c, false, kMIDIKeyInputLatency);
 			}
 		}
 
@@ -2882,7 +2885,7 @@ probablyExitRecordMode:
 doCreateNextOverdub:
 
 			Clip* clipToCreateOverdubFrom = NULL;
-			int clipIndexToCreateOverdubFrom;
+			int32_t clipIndexToCreateOverdubFrom;
 
 			// If we're holding down a Clip in Session View, prioritize that
 			if (getRootUI() == &sessionView && currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
@@ -2902,7 +2905,7 @@ doCreateNextOverdub:
 
 				// So long as it's got an input source...
 				if (clipToCreateOverdubFrom->type != CLIP_TYPE_AUDIO
-				    || ((AudioOutput*)clipToCreateOverdubFrom->output)->inputChannel) {
+				    || ((AudioOutput*)clipToCreateOverdubFrom->output)->inputChannel > AudioInputChannel::NONE) {
 
 					// If that Clip wasn't armed to record linearly...
 					if (!clipToCreateOverdubFrom->armedForRecording) {
@@ -2946,6 +2949,6 @@ doCreateNextOverdub:
 
 	if (mustEndTempolessRecordingAfter) {
 		bool shouldExitRecordMode = (overdubNature != OVERDUB_CONTINUOUS_LAYERING);
-		finishTempolessRecording(true, MIDI_KEY_INPUT_LATENCY, shouldExitRecordMode);
+		finishTempolessRecording(true, kMIDIKeyInputLatency, shouldExitRecordMode);
 	}
 }

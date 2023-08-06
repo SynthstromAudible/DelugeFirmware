@@ -15,20 +15,18 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "definitions_cxx.hpp"
 #include "gui/menu_item/selection.h"
-#include "io/midi/midi_engine.h"
 #include "gui/ui/sound_editor.h"
+#include "io/midi/midi_engine.h"
+#include "util/misc.h"
 
-namespace menu_item::midi {
-class Takeover final : public Selection {
+namespace deluge::gui::menu_item::midi {
+class Takeover final : public Selection<kNumMIDITakeoverModes> {
 public:
 	using Selection::Selection;
-	void readCurrentValue() { soundEditor.currentValue = midiEngine.midiTakeover; }
-	void writeCurrentValue() { midiEngine.midiTakeover = soundEditor.currentValue; }
-	char const** getOptions() {
-		static char const* options[] = {"Jump", "Pickup", "Scale", NULL};
-		return options;
-	}
-	int getNumOptions() { return NUM_MIDI_TAKEOVER_MODES; }
+	void readCurrentValue() override { this->setValue(midiEngine.midiTakeover); }
+	void writeCurrentValue() override { midiEngine.midiTakeover = this->getValue<MIDITakeoverMode>(); }
+	static_vector<std::string, capacity()> getOptions() override { return {"Jump", "Pickup", "Scale"}; }
 };
-} // namespace menu_item::midi
+} // namespace deluge::gui::menu_item::midi

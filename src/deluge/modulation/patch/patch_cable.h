@@ -17,8 +17,9 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/params/param_descriptor.h"
+#include <cstdint>
 
 class Sound;
 class ParamManagerForTimeline;
@@ -26,13 +27,13 @@ class InstrumentClip;
 
 class PatchCable {
 public:
-	PatchCable();
-	void setup(uint8_t newFrom, uint8_t newTo, int32_t newAmount);
+	PatchCable() = default;
+	void setup(PatchSource newFrom, uint8_t newTo, int32_t newAmount);
 	bool isActive();
 	void initAmount(int32_t value);
 	void makeUnusable();
 
-	uint8_t from;
+	PatchSource from;
 	ParamDescriptor destinationParamDescriptor;
 	AutoParam param; // Amounts have to be within +1073741824 and -1073741824
 	int32_t const* rangeAdjustmentPointer;

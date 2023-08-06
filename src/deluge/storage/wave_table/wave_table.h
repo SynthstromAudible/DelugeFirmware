@@ -17,11 +17,11 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
-#include "util/container/array/ordered_resizeable_array.h"
-#include "util/d_string.h"
 #include "storage/audio/audio_file.h"
 #include "storage/wave_table/wave_table_band_data.h"
+#include "util/container/array/ordered_resizeable_array.h"
+#include "util/d_string.h"
+#include <cstdint>
 
 class Sample;
 class WaveTableReader;
@@ -43,21 +43,22 @@ class WaveTable final : public AudioFile {
 public:
 	WaveTable();
 	~WaveTable();
-	int cloneFromSample(Sample* sample);
-	uint32_t render(int32_t* outputBuffer, int numSamples, uint32_t phaseIncrementNow, uint32_t phase, bool doOscSync,
-	                uint32_t resetterPhase, uint32_t resetterPhaseIncrement, uint32_t resetterDivideByPhaseIncrement,
-	                uint32_t retriggerPhase, int32_t waveIndex, int32_t waveIndexIncrement);
-	int setup(Sample* sample, int nativeNumSamplesPerCycle = 0, uint32_t audioDataStartPosBytes = 0,
-	          uint32_t audioDataLengthBytes = 0, int byteDepth = 0, int rawDataFormat = 0,
-	          WaveTableReader* reader = NULL);
+	int32_t cloneFromSample(Sample* sample);
+	uint32_t render(int32_t* outputBuffer, int32_t numSamples, uint32_t phaseIncrementNow, uint32_t phase,
+	                bool doOscSync, uint32_t resetterPhase, uint32_t resetterPhaseIncrement,
+	                uint32_t resetterDivideByPhaseIncrement, uint32_t retriggerPhase, int32_t waveIndex,
+	                int32_t waveIndexIncrement);
+	int32_t setup(Sample* sample, int32_t nativeNumSamplesPerCycle = 0, uint32_t audioDataStartPosBytes = 0,
+	              uint32_t audioDataLengthBytes = 0, int32_t byteDepth = 0, int32_t rawDataFormat = 0,
+	              WaveTableReader* reader = NULL);
 	void deleteAllBandsAndData();
 	void bandDataBeingStolen(WaveTableBandData* bandData);
 
-	int numCycles;
-	int numCyclesMagnitude;
+	int32_t numCycles;
+	int32_t numCyclesMagnitude;
 
-	int numCycleTransitionsNextPowerOf2;
-	int numCycleTransitionsNextPowerOf2Magnitude;
+	int32_t numCycleTransitionsNextPowerOf2;
+	int32_t numCycleTransitionsNextPowerOf2Magnitude;
 	int32_t waveIndexMultiplier;
 	OrderedResizeableArrayWith32bitKey bands;
 
@@ -66,7 +67,7 @@ protected:
 	void numReasonsDecreasedToZero(char const* errorCode);
 
 private:
-	void doRenderingLoop(int32_t* __restrict__ thisSample, int32_t const* bufferEnd, int firstCycleNumber,
+	void doRenderingLoop(int32_t* __restrict__ thisSample, int32_t const* bufferEnd, int32_t firstCycleNumber,
 	                     WaveTableBand* __restrict__ bandHere, uint32_t phase, uint32_t phaseIncrement,
 	                     uint32_t waveIndexScaled, int32_t waveIndexIncrementScaled,
 	                     const int16_t* __restrict__ kernel);

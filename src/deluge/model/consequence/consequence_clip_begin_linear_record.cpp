@@ -17,19 +17,19 @@
 
 #include "model/consequence/consequence_clip_begin_linear_record.h"
 
+#include "gui/ui/ui.h"
 #include "model/clip/clip.h"
+#include "model/model_stack.h"
 #include "model/song/song.h"
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
-#include "gui/ui/ui.h"
-#include "model/model_stack.h"
 
 ConsequenceClipBeginLinearRecord::ConsequenceClipBeginLinearRecord(Clip* newClip) {
 	clip = newClip;
-	type = CONSEQUENCE_CLIP_BEGIN_LINEAR_RECORD;
+	type = Consequence::CLIP_BEGIN_LINEAR_RECORD;
 }
 
-int ConsequenceClipBeginLinearRecord::revert(int time, ModelStack* modelStack) {
+int32_t ConsequenceClipBeginLinearRecord::revert(TimeType time, ModelStack* modelStack) {
 
 	// Going backwards...
 	if (time == BEFORE) {
@@ -56,7 +56,7 @@ int ConsequenceClipBeginLinearRecord::revert(int time, ModelStack* modelStack) {
 			}
 
 doToggle:
-			int clipIndex = modelStack->song->sessionClips.getIndexForClip(clip);
+			int32_t clipIndex = modelStack->song->sessionClips.getIndexForClip(clip);
 			session.toggleClipStatus(clip, &clipIndex, true, 0);
 		}
 	}

@@ -27,17 +27,17 @@ public:
 
 	bool opened();
 	//void selectEncoderAction(int8_t offset);
-	void verticalEncoderAction(int offset, bool encoderButtonPressed, bool shiftButtonPressed){};
+	void verticalEncoderAction(int32_t offset, bool encoderButtonPressed, bool shiftButtonPressed){};
 	void endSession(){};
 	bool performSave(bool mayOverwrite);
 
-	bool renderSidebar(uint32_t whichRows, uint8_t image[][displayWidth + sideBarWidth][3] = NULL,
-	                   uint8_t occupancyMask[][displayWidth + sideBarWidth] = NULL) {
+	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3] = NULL,
+	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL) {
 		return true;
 	}
 
 protected:
-	//int arrivedInNewFolder(int direction);
+	//int32_t arrivedInNewFolder(int32_t direction);
 };
 
 extern SaveInstrumentPresetUI saveInstrumentPresetUI;

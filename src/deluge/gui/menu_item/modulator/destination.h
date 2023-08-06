@@ -16,20 +16,21 @@
 */
 #pragma once
 #include "gui/menu_item/selection.h"
-#include "processing/sound/sound.h"
 #include "gui/ui/sound_editor.h"
+#include "processing/sound/sound.h"
 
-namespace menu_item::modulator {
-class Destination final : public Selection {
+namespace deluge::gui::menu_item::modulator {
+class Destination final : public Selection<2> {
 public:
-	Destination(char const* newName = NULL) : Selection(newName) {}
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSound->modulator1ToModulator0; }
-	void writeCurrentValue() { soundEditor.currentSound->modulator1ToModulator0 = soundEditor.currentValue; }
-	char const** getOptions() {
-		static char const* options[] = {"Carriers", HAVE_OLED ? "Modulator 1" : "MOD1", NULL};
-		return options;
+	using Selection::Selection;
+	void readCurrentValue() override { this->setValue(soundEditor.currentSound->modulator1ToModulator0); }
+	void writeCurrentValue() override { soundEditor.currentSound->modulator1ToModulator0 = this->getValue(); }
+	static_vector<std::string, capacity()> getOptions() override {
+		return {"Carriers", HAVE_OLED ? "Modulator 1" : "MOD1"};
 	}
-	bool isRelevant(Sound* sound, int whichThing) { return (whichThing == 1 && sound->synthMode == SYNTH_MODE_FM); }
+	bool isRelevant(Sound* sound, int32_t whichThing) override {
+		return (whichThing == 1 && sound->synthMode == SynthMode::FM);
+	}
 };
 
-} // namespace menu_item::modulator
+} // namespace deluge::gui::menu_item::modulator

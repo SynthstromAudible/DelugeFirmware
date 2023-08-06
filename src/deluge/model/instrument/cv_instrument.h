@@ -27,13 +27,13 @@ class ModelStackWithSoundFlags;
 class CVInstrument final : public NonAudioInstrument {
 public:
 	CVInstrument();
-	void noteOnPostArp(int noteCodePostArp, ArpNote* arpNote);
-	void noteOffPostArp(int noteCode, int oldMIDIChannel, int velocity);
-	void polyphonicExpressionEventPostArpeggiator(int newValue, int noteCodeAfterArpeggiation,
-	                                              int whichExpressionDmiension, ArpNote* arpNote);
+	void noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote);
+	void noteOffPostArp(int32_t noteCode, int32_t oldMIDIChannel, int32_t velocity);
+	void polyphonicExpressionEventPostArpeggiator(int32_t newValue, int32_t noteCodeAfterArpeggiation,
+	                                              int32_t whichExpressionDmiension, ArpNote* arpNote);
 	bool writeDataToFile(Clip* clipForSavingOutputOnly, Song* song);
-	void monophonicExpressionEvent(int newValue, int whichExpressionDmiension);
-	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, int maySendMIDIPGMs);
+	void monophonicExpressionEvent(int32_t newValue, int32_t whichExpressionDmiension);
+	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs);
 	void setupWithoutActiveClip(ModelStack* modelStack);
 
 	// It's much easier to store local copies of the most recent of these, so we never have to go doing complex quizzing of the arp, or MPE params, which we otherwise would have to do regularly.

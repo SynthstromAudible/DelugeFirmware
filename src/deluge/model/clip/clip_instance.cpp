@@ -16,13 +16,13 @@
 */
 
 #include "model/clip/clip_instance.h"
-#include "model/consequence/consequence_clip_instance_change.h"
-#include "model/clip/instrument_clip.h"
-#include <string.h>
-#include "util/functions.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action.h"
+#include "model/clip/instrument_clip.h"
+#include "model/consequence/consequence_clip_instance_change.h"
+#include "util/functions.h"
 #include <new>
+#include <string.h>
 
 ClipInstance::ClipInstance() {
 	// TODO Auto-generated constructor stub
@@ -39,7 +39,7 @@ void ClipInstance::getColour(uint8_t* colour) {
 
 void ClipInstance::change(Action* action, Output* output, int32_t newPos, int32_t newLength, Clip* newClip) {
 	if (action) {
-		void* consMemory = generalMemoryAllocator.alloc(sizeof(ConsequenceClipInstanceChange));
+		void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceClipInstanceChange));
 
 		if (consMemory) {
 			ConsequenceClipInstanceChange* newConsequence =

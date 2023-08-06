@@ -16,21 +16,21 @@
 */
 
 #include "gui/views/clip_view.h"
-#include "model/song/song.h"
-#include "model/clip/clip.h"
-#include "model/action/action_logger.h"
+#include "definitions_cxx.hpp"
+#include "extern.h"
+#include "gui/views/view.h"
+#include "hid/buttons.h"
+#include "hid/display/numeric_driver.h"
 #include "hid/matrix/matrix_driver.h"
+#include "memory/general_memory_allocator.h"
+#include "model/action/action_logger.h"
+#include "model/clip/clip.h"
+#include "model/clip/clip_minder.h"
+#include "model/consequence/consequence_clip_horizontal_shift.h"
+#include "model/song/song.h"
 #include "playback/mode/playback_mode.h"
 #include "playback/mode/session.h"
-#include "hid/display/numeric_driver.h"
 #include "playback/playback_handler.h"
-#include "hid/buttons.h"
-#include "extern.h"
-#include "model/clip/clip_minder.h"
-#include "gui/views/view.h"
-#include "definitions.h"
-#include "model/consequence/consequence_clip_horizontal_shift.h"
-#include "memory/general_memory_allocator.h"
 #include <new>
 
 static Clip* getCurrentClip() {
@@ -40,7 +40,7 @@ static Clip* getCurrentClip() {
 ClipView::ClipView() {
 }
 
-unsigned int ClipView::getMaxZoom() {
+uint32_t ClipView::getMaxZoom() {
 	return getCurrentClip()->getMaxZoom();
 }
 
@@ -52,7 +52,7 @@ void ClipView::focusRegained() {
 	ClipNavigationTimelineView::focusRegained();
 }
 
-int ClipView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+ActionResult ClipView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
 	// Horizontal encoder button press-down - don't let it do its zoom level thing if zooming etc not currently accessible
@@ -73,7 +73,7 @@ int ClipView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		return ClipNavigationTimelineView::buttonAction(b, on, inCardRoutine);
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 extern bool allowResyncingDuringClipLengthChange;
@@ -97,7 +97,7 @@ Action* ClipView::lengthenClip(int32_t newLength) {
 
 	// Only if that didn't get us directly to the correct length, manually set length. This will do a resync if playback active
 	if (getCurrentClip()->loopLength != newLength) {
-		int actionType =
+		int32_t actionType =
 		    (newLength < getCurrentClip()->loopLength) ? ACTION_CLIP_LENGTH_DECREASE : ACTION_CLIP_LENGTH_INCREASE;
 
 		action = actionLogger.getNewAction(actionType, true);
@@ -134,11 +134,11 @@ Action* ClipView::shortenClip(int32_t newLength) {
 	currentSong->setClipLength(
 	    getCurrentClip(), newLength,
 	    action); // Subsequently shortening by more squares won't cause additional Consequences to be added to the same
-	             // Action - it checks, and only stores the data (snapshots and original length) once
+	// Action - it checks, and only stores the data (snapshots and original length) once
 	return action;
 }
 
-int ClipView::horizontalEncoderAction(int offset) {
+ActionResult ClipView::horizontalEncoderAction(int32_t offset) {
 
 	// Shift button pressed - edit length
 	if (isNoUIModeActive() && !Buttons::isButtonPressed(hid::button::Y_ENC)
@@ -147,20 +147,20 @@ int ClipView::horizontalEncoderAction(int offset) {
 		// If tempoless recording, don't allow
 		if (!getCurrentClip()->currentlyScrollableAndZoomable()) {
 			numericDriver.displayPopup(HAVE_OLED ? "Can't edit length" : "CANT");
-			return ACTION_RESULT_DEALT_WITH;
+			return ActionResult::DEALT_WITH;
 		}
 
 		uint32_t oldLength = getCurrentClip()->loopLength;
 
 		// If we're not scrolled all the way to the right, go there now
 		if (scrollRightToEndOfLengthIfNecessary(oldLength)) {
-			return ACTION_RESULT_DEALT_WITH;
+			return ActionResult::DEALT_WITH;
 		}
 
 		// Or if still here, we've already scrolled far-right
 
 		if (sdRoutineLock) {
-			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 
 		uint32_t newLength;
@@ -176,7 +176,7 @@ int ClipView::horizontalEncoderAction(int offset) {
 			newLength = getPosFromSquare(endSquare) + getLengthExtendAmount(endSquare);
 
 			// If we're still within limits
-			if (newLength <= (uint32_t)MAX_SEQUENCE_LENGTH) {
+			if (newLength <= (uint32_t)kMaxSequenceLength) {
 
 				action = lengthenClip(newLength);
 
@@ -219,7 +219,7 @@ doReRender:
 		if (action) {
 			action->xScrollClip[AFTER] = currentSong->xScroll[NAVIGATION_CLIP];
 		}
-		return ACTION_RESULT_DEALT_WITH;
+		return ActionResult::DEALT_WITH;
 	}
 
 	// Or, maybe shift everything horizontally
@@ -227,9 +227,9 @@ doReRender:
 	         || (isUIModeActiveExclusively(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)
 	             && Buttons::isButtonPressed(hid::button::CLIP_VIEW))) {
 		if (sdRoutineLock)
-			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE; // Just be safe - maybe not necessary
-		int squareSize = getPosFromSquare(1) - getPosFromSquare(0);
-		int shiftAmount = offset * squareSize;
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Just be safe - maybe not necessary
+		int32_t squareSize = getPosFromSquare(1) - getPosFromSquare(0);
+		int32_t shiftAmount = offset * squareSize;
 		Clip* clip = getCurrentClip();
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -238,7 +238,7 @@ doReRender:
 		bool wasShifted = clip->shiftHorizontally(modelStack, shiftAmount);
 		if (!wasShifted) {
 			// No need to show the user why it didnt succeed, usually these cases are fairly trivial
-			return ACTION_RESULT_DEALT_WITH;
+			return ActionResult::DEALT_WITH;
 		}
 
 		uiNeedsRendering(this, 0xFFFFFFFF, 0);
@@ -266,7 +266,7 @@ doReRender:
 			action = actionLogger.getNewAction(ACTION_CLIP_HORIZONTAL_SHIFT, ACTION_ADDITION_NOT_ALLOWED);
 			if (action) {
 addConsequenceToAction:
-				void* consMemory = generalMemoryAllocator.alloc(sizeof(ConsequenceClipHorizontalShift));
+				void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceClipHorizontalShift));
 
 				if (consMemory) {
 					ConsequenceClipHorizontalShift* newConsequence =
@@ -275,7 +275,7 @@ addConsequenceToAction:
 				}
 			}
 		}
-		return ACTION_RESULT_DEALT_WITH;
+		return ActionResult::DEALT_WITH;
 	}
 
 	// Or, if shift button not pressed...
@@ -283,7 +283,7 @@ addConsequenceToAction:
 
 		// If tempoless recording, don't allow
 		if (!getCurrentClip()->currentlyScrollableAndZoomable()) {
-			return ACTION_RESULT_DEALT_WITH;
+			return ActionResult::DEALT_WITH;
 		}
 
 		// Otherwise, let parent do scrolling and zooming
@@ -330,23 +330,23 @@ int32_t ClipView::getLengthExtendAmount(int32_t square) {
 	return xZoom;
 }
 
-int ClipView::getTickSquare() {
+int32_t ClipView::getTickSquare() {
 
-	int newTickSquare = getSquareFromPos(getCurrentClip()->getLivePos());
+	int32_t newTickSquare = getSquareFromPos(getCurrentClip()->getLivePos());
 
 	// See if we maybe want to do an auto-scroll
 	if (getCurrentClip()->getCurrentlyRecordingLinearly()) {
 
-		if (newTickSquare == displayWidth && (!currentUIMode || currentUIMode == UI_MODE_AUDITIONING)
+		if (newTickSquare == kDisplayWidth && (!currentUIMode || currentUIMode == UI_MODE_AUDITIONING)
 		    && getCurrentUI() == this && // currentPlaybackMode == &session &&
-		    (!getCurrentClip()->armState || xScrollBeforeFollowingAutoExtendingLinearRecording != -1)) {
+		    (getCurrentClip()->armState == ArmState::OFF || xScrollBeforeFollowingAutoExtendingLinearRecording != -1)) {
 
 			if (xScrollBeforeFollowingAutoExtendingLinearRecording == -1) {
 				xScrollBeforeFollowingAutoExtendingLinearRecording = currentSong->xScroll[NAVIGATION_CLIP];
 			}
 
 			int32_t newXScroll =
-			    currentSong->xScroll[NAVIGATION_CLIP] + currentSong->xZoom[NAVIGATION_CLIP] * displayWidth;
+			    currentSong->xScroll[NAVIGATION_CLIP] + currentSong->xZoom[NAVIGATION_CLIP] * kDisplayWidth;
 
 			horizontalScrollForLinearRecording(newXScroll);
 		}

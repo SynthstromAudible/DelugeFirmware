@@ -16,8 +16,8 @@
  */
 
 #include "model/sample/sample_holder_for_clip.h"
-#include "util/lookuptables/lookuptables.h"
 #include "model/sample/sample.h"
+#include "util/lookuptables/lookuptables.h"
 
 SampleHolderForClip::SampleHolderForClip() {
 	transpose = 0;
@@ -28,7 +28,7 @@ SampleHolderForClip::~SampleHolderForClip() {
 }
 
 void SampleHolderForClip::setAudioFile(AudioFile* newAudioFile, bool reversed, bool manuallySelected,
-                                       int clusterLoadInstruction) {
+                                       int32_t clusterLoadInstruction) {
 
 	SampleHolder::setAudioFile(newAudioFile, reversed, manuallySelected, clusterLoadInstruction);
 
@@ -39,13 +39,13 @@ void SampleHolderForClip::recalculateNeutralPhaseIncrement() {
 
 	if (audioFile) {
 
-		int noteWithinOctave = (uint16_t)(transpose + 240) % 12;
-		int octave = ((uint16_t)(transpose + 120) / 12) - 10;
+		int32_t noteWithinOctave = (uint16_t)(transpose + 240) % 12;
+		int32_t octave = ((uint16_t)(transpose + 120) / 12) - 10;
 
 		neutralPhaseIncrement = noteIntervalTable[noteWithinOctave] >> (6 - octave);
 
-		if (((Sample*)audioFile)->sampleRate != 44100) {
-			neutralPhaseIncrement = (uint64_t)neutralPhaseIncrement * ((Sample*)audioFile)->sampleRate / 44100;
+		if (((Sample*)audioFile)->sampleRate != kSampleRate) {
+			neutralPhaseIncrement = (uint64_t)neutralPhaseIncrement * ((Sample*)audioFile)->sampleRate / kSampleRate;
 		}
 
 		if (cents) {

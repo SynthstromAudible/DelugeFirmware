@@ -15,25 +15,25 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "processing/engines/audio_engine.h"
-#include "storage/audio/audio_file_manager.h"
 #include "model/note/note_row_vector.h"
 #include "model/note/note_row.h"
+#include "processing/engines/audio_engine.h"
+#include "storage/audio/audio_file_manager.h"
 #include <new>
 
 NoteRowVector::NoteRowVector() : OrderedResizeableArray(sizeof(NoteRow), 16, 0, 16, 7) {
 }
 
 NoteRowVector::~NoteRowVector() {
-	for (int i = 0; i < numElements; i++) {
+	for (int32_t i = 0; i < numElements; i++) {
 		AudioEngine::routineWithClusterLoading(); // -----------------------------------
 
 		getElement(i)->~NoteRow();
 	}
 }
 
-NoteRow* NoteRowVector::insertNoteRowAtIndex(int index) {
-	int error = insertAtIndex(index);
+NoteRow* NoteRowVector::insertNoteRowAtIndex(int32_t index) {
+	int32_t error = insertAtIndex(index);
 	if (error) {
 		return NULL;
 	}
@@ -42,15 +42,15 @@ NoteRow* NoteRowVector::insertNoteRowAtIndex(int index) {
 	return new (memory) NoteRow();
 }
 
-void NoteRowVector::deleteNoteRowAtIndex(int startIndex, int numToDelete) {
-	for (int i = startIndex; i < startIndex + numToDelete; i++) {
+void NoteRowVector::deleteNoteRowAtIndex(int32_t startIndex, int32_t numToDelete) {
+	for (int32_t i = startIndex; i < startIndex + numToDelete; i++) {
 		getElement(i)->~NoteRow();
 	}
 	deleteAtIndex(startIndex, numToDelete);
 }
 
-NoteRow* NoteRowVector::insertNoteRowAtY(int y, int* getIndex) {
-	int i = search(y, GREATER_OR_EQUAL);
+NoteRow* NoteRowVector::insertNoteRowAtY(int32_t y, int32_t* getIndex) {
+	int32_t i = search(y, GREATER_OR_EQUAL);
 	NoteRow* noteRow = insertNoteRowAtIndex(i);
 	if (noteRow) {
 		if (getIndex) {
@@ -62,6 +62,6 @@ NoteRow* NoteRowVector::insertNoteRowAtY(int y, int* getIndex) {
 }
 
 // Function could theoretically be gotten rid of
-NoteRow* NoteRowVector::getElement(int index) {
+NoteRow* NoteRowVector::getElement(int32_t index) {
 	return (NoteRow*)getElementAddress(index);
 }

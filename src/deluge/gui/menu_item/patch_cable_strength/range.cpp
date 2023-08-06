@@ -19,7 +19,7 @@
 #include "gui/menu_item/source_selection/regular.h"
 #include "gui/ui/sound_editor.h"
 
-namespace menu_item::patch_cable_strength {
+namespace deluge::gui::menu_item::patch_cable_strength {
 Range rangeMenu{};
 
 ParamDescriptor Range::getLearningThing() {
@@ -35,11 +35,11 @@ ParamDescriptor Range::getDestinationDescriptor() {
 	return paramDescriptor;
 }
 
-uint8_t Range::getS() {
+PatchSource Range::getS() {
 	return source_selection::rangeMenu.s;
 }
 
-uint8_t Range::shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour) {
+uint8_t Range::shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) {
 
 	// If this is the actual source we're editing for...
 	if (s == getS()) {
@@ -55,10 +55,10 @@ uint8_t Range::shouldBlinkPatchingSourceShortcut(int s, uint8_t* colour) {
 	return 255;
 }
 
-MenuItem* Range::patchingSourceShortcutPress(int newS, bool previousPressStillActive) {
+MenuItem* Range::patchingSourceShortcutPress(PatchSource newS, bool previousPressStillActive) {
 	return (MenuItem*)0xFFFFFFFF;
 }
 
 // FixedPatchCableStrength ----------------------------------------------------------------------------
 
-} // namespace menu_item::patch_cable_strength
+} // namespace deluge::gui::menu_item::patch_cable_strength

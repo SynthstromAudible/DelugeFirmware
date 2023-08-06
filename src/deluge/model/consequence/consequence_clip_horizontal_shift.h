@@ -18,12 +18,12 @@
 #pragma once
 
 #include "model/consequence/consequence.h"
-#include "RZA1/system/r_typedefs.h"
+#include <cstdint>
 
 class ConsequenceClipHorizontalShift final : public Consequence {
 public:
 	ConsequenceClipHorizontalShift(int32_t newAmount);
-	int revert(int time, ModelStack* modelStack);
+	int32_t revert(TimeType time, ModelStack* modelStack);
 
 	int32_t amount;
 };

@@ -15,16 +15,21 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "gui/menu_item/formatted_title.h"
 #include "gui/menu_item/source/patched_param.h"
 #include "processing/sound/sound.h"
 
-namespace menu_item::osc::source {
-class WaveIndex final : public menu_item::source::PatchedParam {
+namespace deluge::gui::menu_item::osc::source {
+class WaveIndex final : public menu_item::source::PatchedParam, public FormattedTitle {
 public:
-	using PatchedParam::PatchedParam;
-	bool isRelevant(Sound* sound, int whichThing) {
+	WaveIndex(const std::string& name, const fmt::format_string<int32_t>& title_format_str, int32_t newP)
+	    : PatchedParam(name, newP), FormattedTitle(title_format_str) {}
+
+	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
+
+	bool isRelevant(Sound* sound, int32_t whichThing) override {
 		Source* source = &sound->sources[whichThing];
-		return (sound->getSynthMode() != SYNTH_MODE_FM && source->oscType == OSC_TYPE_WAVETABLE);
+		return (sound->getSynthMode() != SynthMode::FM && source->oscType == OscType::WAVETABLE);
 	}
 };
-} // namespace menu_item::osc::source
+} // namespace deluge::gui::menu_item::osc::source

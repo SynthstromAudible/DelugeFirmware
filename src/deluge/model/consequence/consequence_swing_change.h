@@ -18,12 +18,12 @@
 #pragma once
 
 #include "model/consequence/consequence.h"
-#include "RZA1/system/r_typedefs.h"
+#include <cstdint>
 
 class ConsequenceSwingChange final : public Consequence {
 public:
 	ConsequenceSwingChange(int8_t newSwingBefore, int8_t newSwingAfter);
-	int revert(int time, ModelStack* modelStack);
+	int32_t revert(TimeType time, ModelStack* modelStack);
 
 	int8_t swing[2];
 };

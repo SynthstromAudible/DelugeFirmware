@@ -18,12 +18,12 @@
 #pragma once
 
 #include "model/consequence/consequence.h"
-#include "RZA1/system/r_typedefs.h"
+#include <cstdint>
 
 class ConsequenceScaleAddNote final : public Consequence {
 public:
-	ConsequenceScaleAddNote(int newNoteWithinOctave);
-	int revert(int time, ModelStack* modelStack);
+	ConsequenceScaleAddNote(int32_t newNoteWithinOctave);
+	int32_t revert(TimeType time, ModelStack* modelStack);
 
 	uint8_t noteWithinOctave;
 };

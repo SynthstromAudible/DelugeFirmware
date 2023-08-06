@@ -17,77 +17,77 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
-#include "util/functions.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "dsp/filter/filter_set_config.h"
+#include "util/functions.h"
+#include <cstdint>
 
 class Sound;
 class FilterSetConfig;
 
 struct SVF_outs {
-	int32_t lpf;
-	int32_t bpf;
-	int32_t hpf;
-	int32_t notch;
+	q31_t lpf;
+	q31_t bpf;
+	q31_t hpf;
+	q31_t notch;
 };
 
 class SVFilter {
 public:
 	//input f is actually filter 'moveability', tan(f)/(1+tan(f)) and falls between 0 and 1. 1 represented by 2147483648
 	//resonance is 2147483647 - rawResonance2 Always between 0 and 2. 1 represented as 1073741824
-	SVF_outs doSVF(int32_t input, FilterSetConfig* filterSetConfig);
+	SVF_outs doSVF(q31_t input, LPSVFConfig* filterSetConfig);
 	void reset() {
 		low = 0;
 		band = 0;
 	}
 
-	int32_t low;
-	int32_t band;
+	q31_t low;
+	q31_t band;
 };
 
 class BasicFilterComponent {
 public:
 	//moveability is tan(f)/(1+tan(f))
-	inline int32_t doFilter(int32_t input, int32_t moveability) {
-		int32_t a = multiply_32x32_rshift32_rounded(input - memory, moveability) << 1;
-		int32_t b = a + memory;
+	inline q31_t doFilter(q31_t input, q31_t moveability) {
+		q31_t a = multiply_32x32_rshift32_rounded(input - memory, moveability) << 1;
+		q31_t b = a + memory;
 		memory = b + a;
 		return b;
 	}
 
-	inline int32_t doAPF(int32_t input, int32_t moveability) {
-		int32_t a = multiply_32x32_rshift32_rounded(input - memory, moveability) << 1;
-		int32_t b = a + memory;
+	inline int32_t doAPF(q31_t input, int32_t moveability) {
+		q31_t a = multiply_32x32_rshift32_rounded(input - memory, moveability) << 1;
+		q31_t b = a + memory;
 		memory = a + b;
 		return b * 2 - input;
 	}
 
-	inline void affectFilter(int32_t input, int32_t moveability) {
+	inline void affectFilter(q31_t input, int32_t moveability) {
 		memory += multiply_32x32_rshift32_rounded(input - memory, moveability) << 2;
 	}
 
 	inline void reset() { memory = 0; }
 
-	inline int32_t getFeedbackOutput(int32_t feedbackAmount) {
+	inline q31_t getFeedbackOutput(int32_t feedbackAmount) {
 		return multiply_32x32_rshift32_rounded(memory, feedbackAmount) << 2;
 	}
 
-	inline int32_t getFeedbackOutputWithoutLshift(int32_t feedbackAmount) {
+	inline q31_t getFeedbackOutputWithoutLshift(int32_t feedbackAmount) {
 		return multiply_32x32_rshift32_rounded(memory, feedbackAmount);
 	}
 
-	int32_t memory;
+	q31_t memory;
 };
 
 class FilterSet {
 public:
 	FilterSet();
-	void renderLPFLong(int32_t* outputSample, int32_t* endSample, FilterSetConfig* filterSetConfig, uint8_t lpfMode,
-	                   int sampleIncrement = 1, int extraSaturation = 0, int extraSaturationDrive = 0);
-	void renderHPFLong(int32_t* outputSample, int32_t* endSample, FilterSetConfig* filterSetConfig, int numSamples,
-	                   int sampleIncrement = 1);
-	void renderHPF(int32_t* outputSample, FilterSetConfig* filterSetConfig, int extraSaturation = 0);
+	void renderLPFLong(q31_t* outputSample, q31_t* endSample, FilterSetConfig* filterSetConfig, LPFMode lpfMode,
+	                   int32_t sampleIncrement = 1, int32_t extraSaturation = 0, int32_t extraSaturationDrive = 0);
+	void renderHPFLong(q31_t* outputSample, q31_t* endSample, FilterSetConfig* filterSetConfig, int32_t numSamples,
+	                   int32_t sampleIncrement = 1);
+	void renderLadderHPF(q31_t* outputSample, HPLadderConfig* filterSetConfig, int32_t extraSaturation = 0);
 	void reset();
 	BasicFilterComponent lpfLPF1;
 	BasicFilterComponent lpfLPF2;
@@ -106,9 +106,12 @@ public:
 
 	bool hpfOnLastTime;
 	bool lpfOnLastTime;
-
-	inline void renderLong(int32_t* outputSample, int32_t* endSample, FilterSetConfig* filterSetConfig, uint8_t lpfMode,
-	                       int numSamples, int sampleIncrememt = 1) {
+	inline void renderLPLadder(q31_t* startSample, q31_t* endSample, LPLadderConfig* filterSetConfig, LPFMode lpfMode,
+	                           int32_t sampleIncrement, int32_t extraSaturation, int32_t extraSaturationDrive);
+	inline void renderLPSVF(q31_t* startSample, q31_t* endSample, LPSVFConfig* filterSetConfig,
+	                        int32_t sampleIncrement);
+	inline void renderLong(q31_t* outputSample, q31_t* endSample, FilterSetConfig* filterSetConfig, LPFMode lpfMode,
+	                       int32_t numSamples, int32_t sampleIncrememt = 1) {
 
 		// Do HPF, if it's on
 		if (filterSetConfig->doHPF) {
@@ -126,8 +129,8 @@ public:
 	}
 
 private:
-	int32_t noiseLastValue;
+	q31_t noiseLastValue;
 
-	int32_t do24dBLPFOnSample(int32_t input, FilterSetConfig* filterSetConfig, int saturationLevel);
-	int32_t doDriveLPFOnSample(int32_t input, FilterSetConfig* filterSetConfig, int extraSaturation = 0);
+	q31_t do24dBLPFOnSample(q31_t input, LPLadderConfig* filterSetConfig, int32_t saturationLevel);
+	q31_t doDriveLPFOnSample(q31_t input, LPLadderConfig* filterSetConfig, int32_t extraSaturation = 0);
 };

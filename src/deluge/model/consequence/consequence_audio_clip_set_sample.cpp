@@ -16,12 +16,12 @@
 */
 
 #include "model/consequence/consequence_audio_clip_set_sample.h"
+#include "io/debug/print.h"
 #include "model/clip/audio_clip.h"
-#include "playback/playback_handler.h"
-#include "io/uart/uart.h"
-#include "playback/mode/session.h"
-#include "model/song/song.h"
 #include "model/model_stack.h"
+#include "model/song/song.h"
+#include "playback/mode/session.h"
+#include "playback/playback_handler.h"
 
 ConsequenceAudioClipSetSample::ConsequenceAudioClipSetSample(AudioClip* newClip) {
 
@@ -30,7 +30,7 @@ ConsequenceAudioClipSetSample::ConsequenceAudioClipSetSample(AudioClip* newClip)
 	endPosToRevertTo = newClip->sampleHolder.endPos;
 }
 
-int ConsequenceAudioClipSetSample::revert(int time, ModelStack* modelStack) {
+int32_t ConsequenceAudioClipSetSample::revert(TimeType time, ModelStack* modelStack) {
 
 	String filePathBeforeRevert;
 	filePathBeforeRevert.set(&clip->sampleHolder.filePath);
@@ -51,7 +51,7 @@ int ConsequenceAudioClipSetSample::revert(int time, ModelStack* modelStack) {
 		}
 	}
 	else {
-		int error = clip->sampleHolder.loadFile(false, false, true);
+		int32_t error = clip->sampleHolder.loadFile(false, false, true);
 		if (error) {
 			numericDriver.displayError(error); // Rare, shouldn't cause later problems.
 		}

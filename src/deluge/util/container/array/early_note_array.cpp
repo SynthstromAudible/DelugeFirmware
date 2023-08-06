@@ -16,20 +16,20 @@
 */
 
 #include "util/container/array/early_note_array.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 
 EarlyNoteArray::EarlyNoteArray() : OrderedResizeableArray(sizeof(EarlyNote), 16) {
 }
 
-int EarlyNoteArray::insertElementIfNonePresent(int note, int velocity, bool newStillActive) {
+int32_t EarlyNoteArray::insertElementIfNonePresent(int32_t note, int32_t velocity, bool newStillActive) {
 
-	int i = search(note, GREATER_OR_EQUAL);
+	int32_t i = search(note, GREATER_OR_EQUAL);
 
 	EarlyNote* earlyNote;
 
 	if (i >= getNumElements()) {
 doInsert:
-		int error = insertAtIndex(i);
+		int32_t error = insertAtIndex(i);
 		if (error) {
 			return error;
 		}
@@ -38,7 +38,7 @@ doInsert:
 	}
 	else {
 		earlyNote = (EarlyNote*)getElementAddress(i);
-		if ((int)earlyNote->note != note) {
+		if ((int32_t)earlyNote->note != note) {
 			goto doInsert;
 		}
 	}
@@ -49,8 +49,8 @@ doInsert:
 	return NO_ERROR;
 }
 
-void EarlyNoteArray::noteNoLongerActive(int note) {
-	int i = searchExact(note);
+void EarlyNoteArray::noteNoLongerActive(int32_t note) {
+	int32_t i = searchExact(note);
 
 	if (i != -1) {
 		EarlyNote* earlyNote = (EarlyNote*)getElementAddress(i);

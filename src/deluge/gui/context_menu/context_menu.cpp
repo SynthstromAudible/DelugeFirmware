@@ -17,10 +17,11 @@
 
 #include "gui/context_menu/context_menu.h"
 
-#include "hid/display/numeric_driver.h"
-#include "util/functions.h"
-#include "hid/led/indicator_leds.h"
+#include "definitions_cxx.hpp"
 #include "extern.h"
+#include "hid/display/numeric_driver.h"
+#include "hid/led/indicator_leds.h"
+#include "util/functions.h"
 
 #if HAVE_OLED
 #include "hid/display/oled.h"
@@ -70,27 +71,27 @@ void ContextMenu::focusRegained() {
 void ContextMenu::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	const auto [options, numOptions] = getOptions();
 
-	int windowWidth = 100;
-	int windowHeight = 40;
+	int32_t windowWidth = 100;
+	int32_t windowHeight = 40;
 
-	int windowMinX = (OLED_MAIN_WIDTH_PIXELS - windowWidth) >> 1;
-	int windowMaxX = OLED_MAIN_WIDTH_PIXELS - windowMinX;
+	int32_t windowMinX = (OLED_MAIN_WIDTH_PIXELS - windowWidth) >> 1;
+	int32_t windowMaxX = OLED_MAIN_WIDTH_PIXELS - windowMinX;
 
-	int windowMinY = (OLED_MAIN_HEIGHT_PIXELS - windowHeight) >> 1;
-	int windowMaxY = OLED_MAIN_HEIGHT_PIXELS - windowMinY;
+	int32_t windowMinY = (OLED_MAIN_HEIGHT_PIXELS - windowHeight) >> 1;
+	int32_t windowMaxY = OLED_MAIN_HEIGHT_PIXELS - windowMinY;
 
 	OLED::clearAreaExact(windowMinX + 1, windowMinY + 1, windowMaxX - 1, windowMaxY - 1, image);
 
 	OLED::drawRectangle(windowMinX, windowMinY, windowMaxX, windowMaxY, image);
 	OLED::drawHorizontalLine(windowMinY + 15, 22, OLED_MAIN_WIDTH_PIXELS - 30, &image[0]);
-	OLED::drawString(this->getTitle(), 22, windowMinY + 6, image[0], OLED_MAIN_WIDTH_PIXELS, TEXT_SPACING_X,
-	                 TEXT_SPACING_Y);
+	OLED::drawString(this->getTitle(), 22, windowMinY + 6, image[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
+	                 kTextSpacingY);
 
-	int textPixelY = windowMinY + 18;
-	int actualCurrentOption = currentOption;
+	int32_t textPixelY = windowMinY + 18;
+	int32_t actualCurrentOption = currentOption;
 
 	currentOption = scrollPos;
-	int i = 0;
+	int32_t i = 0;
 
 	while (true) {
 		if (currentOption >= numOptions) {
@@ -101,14 +102,14 @@ void ContextMenu::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 		}
 
 		if (isCurrentOptionAvailable()) {
-			OLED::drawString(options[currentOption], 22, textPixelY, image[0], OLED_MAIN_WIDTH_PIXELS, TEXT_SPACING_X,
-			                 TEXT_SPACING_Y, 0, OLED_MAIN_WIDTH_PIXELS - 22);
+			OLED::drawString(options[currentOption], 22, textPixelY, image[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
+			                 kTextSpacingY, 0, OLED_MAIN_WIDTH_PIXELS - 22);
 			if (currentOption == actualCurrentOption) {
 				OLED::invertArea(22, OLED_MAIN_WIDTH_PIXELS - 44, textPixelY, textPixelY + 8, &image[0]);
 				OLED::setupSideScroller(0, options[currentOption], 22, OLED_MAIN_WIDTH_PIXELS - 22, textPixelY,
-				                        textPixelY + 8, TEXT_SPACING_X, TEXT_SPACING_Y, true);
+				                        textPixelY + 8, kTextSpacingX, kTextSpacingY, true);
 			}
-			textPixelY += TEXT_SPACING_Y;
+			textPixelY += kTextSpacingY;
 			i++;
 		}
 		currentOption++;
@@ -123,7 +124,7 @@ void ContextMenu::selectEncoderAction(int8_t offset) {
 
 #if HAVE_OLED
 	bool wasOnScrollPos = (currentOption == scrollPos);
-	int oldCurrentOption = currentOption;
+	int32_t oldCurrentOption = currentOption;
 	do {
 		currentOption += offset;
 		if (currentOption >= numOptions || currentOption < 0) {
@@ -160,13 +161,13 @@ void ContextMenu::selectEncoderAction(int8_t offset) {
 #endif
 }
 
-int ContextMenu::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+ActionResult ContextMenu::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
 	if (b == BACK) {
 		if (on && !currentUIMode) {
 			if (inCardRoutine) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 getOut:
 			numericDriver.setNextTransitionDirection(-1);
@@ -178,7 +179,7 @@ getOut:
 probablyAcceptCurrentOption:
 		if (on && !currentUIMode) {
 			if (inCardRoutine) {
-				return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			bool success = acceptCurrentOption();
 			if (!success) {
@@ -192,10 +193,10 @@ probablyAcceptCurrentOption:
 	}
 
 	else {
-		return ACTION_RESULT_NOT_DEALT_WITH;
+		return ActionResult::NOT_DEALT_WITH;
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 void ContextMenu::drawCurrentOption() {
@@ -209,16 +210,16 @@ void ContextMenu::drawCurrentOption() {
 #endif
 }
 
-int ContextMenu::padAction(int x, int y, int on) {
+ActionResult ContextMenu::padAction(int32_t x, int32_t y, int32_t on) {
 	if (on && !currentUIMode) {
 		if (sdRoutineLock) {
-			return ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 		numericDriver.setNextTransitionDirection(-1);
 		close();
 	}
 
-	return ACTION_RESULT_DEALT_WITH;
+	return ActionResult::DEALT_WITH;
 }
 
 void ContextMenuForSaving::focusRegained() {

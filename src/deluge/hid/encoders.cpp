@@ -15,19 +15,19 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "processing/engines/audio_engine.h"
 #include "hid/encoders.h"
-#include "definitions.h"
+#include "definitions_cxx.hpp"
 #include "gui/ui/ui.h"
-#include "hid/matrix/matrix_driver.h"
-#include "playback/playback_handler.h"
-#include "model/action/action_logger.h"
-#include <new>
-#include "hid/buttons.h"
-#include "util/functions.h"
 #include "gui/views/instrument_clip_view.h"
-#include "model/settings/runtime_feature_settings.h"
+#include "hid/buttons.h"
 #include "hid/led/pad_leds.h"
+#include "hid/matrix/matrix_driver.h"
+#include "model/action/action_logger.h"
+#include "model/settings/runtime_feature_settings.h"
+#include "playback/playback_handler.h"
+#include "processing/engines/audio_engine.h"
+#include "util/functions.h"
+#include <new>
 
 namespace Encoders {
 
@@ -36,7 +36,7 @@ uint32_t timeModEncoderLastTurned[2];
 int8_t modEncoderInitialTurnDirection[2];
 
 uint32_t timeNextSDTestAction = 0;
-int nextSDTestDirection = 1;
+int32_t nextSDTestDirection = 1;
 
 uint32_t encodersWaitingForCardRoutineEnd;
 
@@ -53,12 +53,12 @@ void init() {
 }
 
 void readEncoders() {
-	for (int i = 0; i < NUM_ENCODERS; i++) {
+	for (int32_t i = 0; i < NUM_ENCODERS; i++) {
 		encoders[i].read();
 	}
 }
 
-extern "C" void readEncoder(int e, int whichPin) {
+extern "C" void readEncoder(int32_t e, int32_t whichPin) {
 	encoders[e].interrupt(whichPin);
 }
 
@@ -78,14 +78,14 @@ bool interpretEncoders(bool inCardRoutine) {
 			nextSDTestDirection *= -1;
 		getCurrentUI()->selectEncoderAction(nextSDTestDirection);
 
-		int random = getRandom255();
+		int32_t random = getRandom255();
 
 		timeNextSDTestAction = AudioEngine::audioSampleTimer + ((random) << 6); // * 44 / 13;
 		anything = true;
 	}
 #endif
 
-	for (int e = 0; e < NUM_FUNCTION_ENCODERS; e++) {
+	for (int32_t e = 0; e < NUM_FUNCTION_ENCODERS; e++) {
 
 		if (e != ENCODER_SCROLL_Y) {
 
@@ -103,7 +103,7 @@ bool interpretEncoders(bool inCardRoutine) {
 			anything = true;
 
 			// Limit. Some functions can break if they receive bigger numbers, e.g. LoadSongUI::selectEncoderAction()
-			int limitedDetentPos = encoders[e].detentPos;
+			int32_t limitedDetentPos = encoders[e].detentPos;
 			encoders[e].detentPos = 0; // Reset. Crucial that this happens before we call selectEncoderAction()
 			if (limitedDetentPos >= 0) {
 				limitedDetentPos = 1;
@@ -112,7 +112,7 @@ bool interpretEncoders(bool inCardRoutine) {
 				limitedDetentPos = -1;
 			}
 
-			int result;
+			ActionResult result;
 
 			switch (e) {
 
@@ -121,7 +121,7 @@ bool interpretEncoders(bool inCardRoutine) {
 				// Actually, after coding this up, I realise I actually have it above stopping the X encoder from even getting here during the SD routine. Ok so we'll leave it that way,
 				// in addition to me having made all the horizontalEncoderAction() calls SD-routine-safe
 checkResult:
-				if (result == ACTION_RESULT_REMIND_ME_OUTSIDE_CARD_ROUTINE) {
+				if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
 					encodersWaitingForCardRoutineEnd |= (1 << e);
 					encoders[e].detentPos = limitedDetentPos; // Put it back for next time
 				}
@@ -167,13 +167,13 @@ checkResult:
 
 	if (!inCardRoutine || currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED) {
 		// Mod knobs
-		for (int e = 0; e < 2; e++) {
+		for (int32_t e = 0; e < 2; e++) {
 
 			// If encoder turned...
 			if (encoders[ENCODER_MOD_0 - e].encPos != 0) {
 				anything = true;
 
-				bool turnedRecently = (AudioEngine::audioSampleTimer - timeModEncoderLastTurned[e] < (44100 >> 1));
+				bool turnedRecently = (AudioEngine::audioSampleTimer - timeModEncoderLastTurned[e] < kShortPressTime);
 
 				// If it was turned recently...
 				if (turnedRecently) {
@@ -199,7 +199,7 @@ checkResult:
 
 					// If the other one also hasn't been turned for a while...
 					bool otherTurnedRecently =
-					    (AudioEngine::audioSampleTimer - timeModEncoderLastTurned[1 - e] < (44100 >> 1));
+					    (AudioEngine::audioSampleTimer - timeModEncoderLastTurned[1 - e] < kShortPressTime);
 					if (!otherTurnedRecently) {
 						actionLogger.closeAction(ACTION_PARAM_UNAUTOMATED_VALUE_CHANGE);
 					}

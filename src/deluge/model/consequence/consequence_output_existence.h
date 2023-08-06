@@ -17,16 +17,17 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "model/consequence/consequence.h"
 
 class Output;
 
 class ConsequenceOutputExistence final : public Consequence {
 public:
-	ConsequenceOutputExistence(Output* newOutput, int newType);
-	int revert(int time, ModelStack* modelStack);
+	ConsequenceOutputExistence(Output* newOutput, ExistenceChangeType newType);
+	int32_t revert(TimeType time, ModelStack* modelStack) override;
 
 	Output* output;
-	int outputIndex;
-	uint8_t type;
+	int32_t outputIndex;
+	ExistenceChangeType type;
 };

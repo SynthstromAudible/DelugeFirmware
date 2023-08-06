@@ -26,7 +26,7 @@
 * Device(s)     : RZ/A1H (R7S721001)
 * Tool-Chain    : GNUARM-NONEv14.02-EABI
 * H/W Platform  : RSK+RZA1H CPU Board
-* Description   : 
+* Description   :
 *******************************************************************************/
 /*******************************************************************************
 * History       : DD.MM.YYYY Version Description
@@ -36,13 +36,13 @@
 /******************************************************************************
 Includes   <System Includes> , "Project Includes"
 ******************************************************************************/
-#include "RZA1/system/rza_io_regrw.h"
-#include "RZA1/system/r_typedefs.h"
-#include "RZA1/system/iodefine.h"
-#include "RZA1/spibsc/spibsc.h"
 #include "RZA1/spibsc/r_spibsc_ioset_api.h"
-#include "RZA1/system/iobitmasks/spibsc_iobitmask.h"
+#include "RZA1/spibsc/spibsc.h"
 #include "RZA1/system/iobitmasks/gpio_iobitmask.h"
+#include "RZA1/system/iobitmasks/spibsc_iobitmask.h"
+#include "RZA1/system/iodefine.h"
+#include "RZA1/system/r_typedefs.h"
+#include "RZA1/system/rza_io_regrw.h"
 
 #include "deluge/deluge.h"
 
@@ -66,7 +66,7 @@ Exported global variables and functions (to be accessed by other files)
 /******************************************************************************
 Private global variables and functions
 ******************************************************************************/
-static int32_t io_spibsc_port_setting(uint32_t ch_no, int_t data_bus_width, uint32_t bsz);
+static int32_t io_spibsc_port_setting(uint32_t ch_no, int data_bus_width, uint32_t bsz);
 
 /******************************************************************************
 * Function Name: spibsc_bsz_set
@@ -110,7 +110,7 @@ int32_t spibsc_bsz_set(uint32_t ch_no, uint32_t bsz, uint8_t data_width)
 
 /******************************************************************************
 * Function Name: spibsc_common_init
-* Description  : Initialize the operation mode independent part of a SPI 
+* Description  : Initialize the operation mode independent part of a SPI
 *                multi-I/O bus controller.
 * Arguments    : uint32_t ch_no : use channel No
 *                uint32_t bsz : BSZ bit
@@ -503,12 +503,12 @@ int32_t spibsc_transfer(uint32_t ch_no, st_spibsc_spimd_reg_t* regset)
 * Function Name: io_spibsc_port_setting
 * Description  : Port Setting of SPIBSC
 * Arguments    : uint32_t ch_no : use channel No
-*                int_t data_bus_width
+*                int data_bus_width
 *                uint32_t bsz : BSZ bit
 * Return Value :  0 : success
 *                -1 : error
 ******************************************************************************/
-static int32_t io_spibsc_port_setting(uint32_t ch_no, int_t data_bus_width, uint32_t bsz)
+static int32_t io_spibsc_port_setting(uint32_t ch_no, int data_bus_width, uint32_t bsz)
 {
     if (ch_no > 1)
     {

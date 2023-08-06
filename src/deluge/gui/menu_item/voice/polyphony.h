@@ -16,53 +16,54 @@
 */
 #pragma once
 
+#include "definitions_cxx.hpp"
+#include "gui/menu_item/selection.h"
+#include "gui/ui/sound_editor.h"
 #include "model/clip/clip.h"
 #include "model/drum/drum.h"
 #include "model/drum/kit.h"
-#include "gui/menu_item/selection.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
-#include "gui/ui/sound_editor.h"
+#include "util/container/static_vector.hpp"
+#include "util/misc.h"
 
-namespace menu_item::voice {
-class Polyphony final : public Selection {
+namespace deluge::gui::menu_item::voice {
+class Polyphony final : public Selection<kNumPolyphonyModes> {
 public:
-	Polyphony(char const* newName = NULL) : Selection(newName) {}
-	void readCurrentValue() { soundEditor.currentValue = soundEditor.currentSound->polyphonic; }
-	void writeCurrentValue() {
+	using Selection::Selection;
+	void readCurrentValue() override { this->setValue(soundEditor.currentSound->polyphonic); }
+	void writeCurrentValue() override {
+		auto current_value = this->getValue<PolyphonyMode>();
 
 		// If affect-entire button held, do whole kit
 		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKit()) {
 
-			Kit* kit = (Kit*)currentSong->currentClip->output;
+			Kit* kit = static_cast<Kit*>(currentSong->currentClip->output);
 
-			for (Drum* thisDrum = kit->firstDrum; thisDrum; thisDrum = thisDrum->next) {
-				if (thisDrum->type == DRUM_TYPE_SOUND) {
-					SoundDrum* soundDrum = (SoundDrum*)thisDrum;
-					soundDrum->polyphonic = soundEditor.currentValue;
+			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
+				if (thisDrum->type == DrumType::SOUND) {
+					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
+					soundDrum->polyphonic = current_value;
 				}
 			}
 		}
 
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSound->polyphonic = soundEditor.currentValue;
+			soundEditor.currentSound->polyphonic = current_value;
 		}
 	}
 
-	char const** getOptions() {
-		static char const* options[] = {"Auto", "Polyphonic", "Monophonic", "Legato", "Choke", NULL};
+	static_vector<std::string, capacity()> getOptions() override {
+		static_vector<std::string, capacity()> options = {"Auto", "Polyphonic", "Monophonic", "Legato"};
+
+		if (soundEditor.editingKit()) {
+			options.push_back("Choke");
+		}
 		return options;
 	}
 
-	int getNumOptions() { // Hack-ish way of hiding the "choke" option when not editing a Kit
-		if (soundEditor.editingKit()) {
-			return NUM_POLYPHONY_TYPES;
-		}
-		return NUM_POLYPHONY_TYPES - 1;
-	}
-
-	bool usesAffectEntire() { return true; }
+	bool usesAffectEntire() override { return true; }
 };
-} // namespace menu_item::voice
+} // namespace deluge::gui::menu_item::voice

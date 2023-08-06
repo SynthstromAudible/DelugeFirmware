@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "definitions.h"
-#include "RZA1/system/r_typedefs.h"
+#include "definitions_cxx.hpp"
+#include <cstdint>
 
 class NumericLayer {
 public:

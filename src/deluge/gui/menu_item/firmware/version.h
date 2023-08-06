@@ -16,30 +16,29 @@
 */
 #pragma once
 #include "gui/menu_item/selection.h"
-#include "hid/display/numeric_driver.h"
 #include "gui/ui/sound_editor.h"
+#include "hid/display/numeric_driver.h"
 #include "hid/display/oled.h"
+#include <version.h>
 
-extern char const* firmwareString;
-
-namespace menu_item::firmware {
+namespace deluge::gui::menu_item::firmware {
 class Version final : public MenuItem {
 public:
 	using MenuItem::MenuItem;
 
 #if HAVE_OLED
 	void drawPixelsForOled() {
-		OLED::drawStringCentredShrinkIfNecessary(firmwareString, 22, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, 18,
-		                                         20);
+		OLED::drawStringCentredShrinkIfNecessary(kFirmwareVersionString, 22, OLED::oledMainImage[0],
+		                                         OLED_MAIN_WIDTH_PIXELS, 18, 20);
 	}
 #else
-	void beginSession(MenuItem* navigatedBackwardFrom) {
+	void beginSession(MenuItem* navigatedBackwardFrom) override {
 		drawValue();
 	}
 
 	void drawValue() {
-		numericDriver.setScrollingText(firmwareString);
+		numericDriver.setScrollingText(kFirmwareVersionString);
 	}
 #endif
 };
-} // namespace menu_item::firmware
+} // namespace deluge::gui::menu_item::firmware
