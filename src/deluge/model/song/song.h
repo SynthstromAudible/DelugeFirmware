@@ -320,6 +320,13 @@ public:
 	int32_t reverbCompressorRelease;
 	SyncLevel reverbCompressorSync;
 
+	double masterCompressorAttack;
+	double masterCompressorRelease;
+	double masterCompressorThresh;
+	double masterCompressorRatio;
+	double masterCompressorMakeup;
+	double masterCompressorWet;
+
 private:
 	void inputTickScalePotentiallyJustChanged(uint32_t oldScale);
 	int32_t readClipsFromFile(ClipArray* clipArray);
