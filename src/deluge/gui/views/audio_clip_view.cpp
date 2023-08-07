@@ -200,7 +200,7 @@ bool AudioClipView::renderSidebar(uint32_t whichRows, Colour image[][kDisplayWid
 	}
 
 	for (int32_t y = 0; y < kDisplayHeight; y++) {
-		Colour *const start = &image[y][kDisplayWidth];
+		Colour* const start = &image[y][kDisplayWidth];
 		std::fill(start, start + kSideBarWidth, colours::black);
 	}
 

@@ -17,7 +17,7 @@
 
 #include "testing/hardware_testing.h"
 #include "definitions_cxx.hpp"
-#include "drivers/pic/pic.hpp"
+#include "drivers/pic/pic.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/root_ui.h"
 #include "hid/buttons.h"
@@ -116,7 +116,7 @@ void sendColoursForHardwareTest(bool testButtonStates[9][16]) {
 				if (testButtonStates[x][y]) {
 					value = 255;
 				}
-				else if (c == hardwareTestWhichColour){
+				else if (c == hardwareTestWhichColour) {
 					value = 64;
 				}
 				raw_colour[c] = value;
@@ -124,7 +124,7 @@ void sendColoursForHardwareTest(bool testButtonStates[9][16]) {
 			colours[y] = {raw_colour[0], raw_colour[1], raw_colour[2]};
 		}
 
-		PIC::setColorForTwoColumns(x, colours);
+		PIC::setColourForTwoColumns(x, colours);
 	}
 
 	PIC::flush();

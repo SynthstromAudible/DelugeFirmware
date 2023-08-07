@@ -17,7 +17,7 @@
 
 #include "hid/led/indicator_leds.h"
 #include "RZA1/uart/sio_char.h"
-#include "drivers/pic/pic.hpp"
+#include "drivers/pic/pic.h"
 #include "gui/ui_timer_manager.h"
 #include <array>
 #include <cstdint>
@@ -50,7 +50,8 @@ void setLedState(LED led, bool newState, bool allowContinuedBlinking) {
 
 	if (newState) {
 		PIC::setLEDOn(l);
-	} else {
+	}
+	else {
 		PIC::setLEDOff(l);
 	}
 }

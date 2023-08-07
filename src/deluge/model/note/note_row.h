@@ -70,9 +70,9 @@ class NoteRow {
 public:
 	NoteRow(int16_t newY = -32768);
 	~NoteRow();
-	void renderRow(TimelineView* editorScreen, Colour, Colour, Colour, Colour* image, uint8_t[], bool,
-	               uint32_t, bool allowNoteTails, int32_t imageWidth, int32_t xScroll, uint32_t xZoom,
-	               int32_t xStart = 0, int32_t xEnd = kDisplayWidth, bool drawRepeats = false);
+	void renderRow(TimelineView* editorScreen, Colour, Colour, Colour, Colour* image, uint8_t[], bool, uint32_t,
+	               bool allowNoteTails, int32_t imageWidth, int32_t xScroll, uint32_t xZoom, int32_t xStart = 0,
+	               int32_t xEnd = kDisplayWidth, bool drawRepeats = false);
 	void deleteNoteByPos(ModelStackWithNoteRow* modelStack, int32_t pos, Action* action);
 	void stopCurrentlyPlayingNote(ModelStackWithNoteRow* modelStack, bool actuallySoundChange = true,
 	                              Note* note = NULL);

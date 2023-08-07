@@ -24,7 +24,7 @@ public:
 	enum class Message : uint8_t {
 		NONE = 0,
 
-		SET_COLOR_FOR_TWO_COLUMNS = 1, // This allows updating the Deluge main pads in groups of columns
+		SET_COLOUR_FOR_TWO_COLUMNS = 1, // This allows updating the Deluge main pads in groups of columns
 		/* 9 of these (8 pairs of main pads, 1 pair of side pads)*/
 
 		SET_FLASH_COLOR = 10,
@@ -67,8 +67,8 @@ public:
 
 	};
 
-	static void setColorForTwoColumns(size_t idx, const std::array<Colour, kDisplayHeight * 2>& colours) {
-		send(util::to_underlying(Message::SET_COLOR_FOR_TWO_COLUMNS) + idx);
+	static void setColourForTwoColumns(size_t idx, const std::array<Colour, kDisplayHeight * 2>& colours) {
+		send(util::to_underlying(Message::SET_COLOUR_FOR_TWO_COLUMNS) + idx);
 		for (const Colour& colour : colours) {
 			send(colour);
 		}
@@ -87,8 +87,8 @@ public:
 
 	static void flashPad(size_t idx) { send(util::to_underlying(Message::SET_PAD_FLASHING) + idx); }
 
-	static void flashPadWithColor(size_t idx, int32_t color) {
-		send(util::to_underlying(Message::SET_FLASH_COLOR) + color);
+	static void flashPadWithColour(size_t idx, int32_t colour) {
+		send(util::to_underlying(Message::SET_FLASH_COLOR) + colour);
 		flashPad(idx);
 	}
 

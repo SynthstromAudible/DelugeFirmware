@@ -679,7 +679,7 @@ ActionResult SampleMarkerEditor::timerCallback() {
 	blinkInvisible = !blinkInvisible;
 
 	// Clear col
-	for (auto & y : PadLEDs::image) {
+	for (auto& y : PadLEDs::image) {
 		y[x] = colours::black;
 	}
 

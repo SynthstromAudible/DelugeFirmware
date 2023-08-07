@@ -1519,10 +1519,10 @@ void NoteRow::stopCurrentlyPlayingNote(ModelStackWithNoteRow* modelStack, bool a
 }
 
 // occupancyMask now optional!
-void NoteRow::renderRow(TimelineView* editorScreen, Colour rowColour, Colour rowTailColour,
-                        Colour rowBlurColour, Colour* image, uint8_t occupancyMask[], bool overwriteExisting,
-                        uint32_t effectiveRowLength, bool allowNoteTails, int32_t renderWidth, int32_t xScroll,
-                        uint32_t xZoom, int32_t xStartNow, int32_t xEnd, bool drawRepeats) {
+void NoteRow::renderRow(TimelineView* editorScreen, Colour rowColour, Colour rowTailColour, Colour rowBlurColour,
+                        Colour* image, uint8_t occupancyMask[], bool overwriteExisting, uint32_t effectiveRowLength,
+                        bool allowNoteTails, int32_t renderWidth, int32_t xScroll, uint32_t xZoom, int32_t xStartNow,
+                        int32_t xEnd, bool drawRepeats) {
 
 	if (overwriteExisting) {
 		memset(image, 0, renderWidth * 3);
@@ -1588,7 +1588,7 @@ void NoteRow::renderRow(TimelineView* editorScreen, Colour rowColour, Colour row
 
 			Note* note = notes.getElement(i - 1); // Subtracting 1 to do "LESS"
 
-			Colour &pixel = image[xDisplay];
+			Colour& pixel = image[xDisplay];
 
 			// If Note starts somewhere within square, draw the blur colour
 			if (note && note->pos > squareStartPos) {

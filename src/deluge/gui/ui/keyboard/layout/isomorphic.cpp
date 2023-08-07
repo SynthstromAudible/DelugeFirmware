@@ -105,7 +105,7 @@ void KeyboardLayoutIsomorphic::renderPads(Colour image[][kDisplayWidth + kSideBa
 		int32_t noteWithinOctave = (uint16_t)((noteCode + kOctaveSize) - getRootNote()) % kOctaveSize;
 
 		for (int32_t x = 0; x < kDisplayWidth; x++) {
-			// Full color for every octaves root and active notes
+			// Full colour for every octaves root and active notes
 			if (octaveActiveNotes[noteWithinOctave] || noteWithinOctave == 0) {
 				image[y][x] = noteColours[normalizedPadOffset];
 			}

@@ -696,7 +696,7 @@ void LoadSongUI::exitAction() {
 
 void LoadSongUI::drawSongPreview(bool toStore) {
 
-	Colour(* imageStore)[kDisplayWidth + kSideBarWidth];
+	Colour(*imageStore)[kDisplayWidth + kSideBarWidth];
 	if (toStore) {
 		imageStore = PadLEDs::imageStore;
 	}

@@ -17,13 +17,13 @@
 
 #include "hid/display/numeric_driver.h"
 #include "definitions_cxx.hpp"
+#include "drivers/pic/pic.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/numeric_layer/numeric_layer_basic_text.h"
 #include "hid/display/numeric_layer/numeric_layer_loading_animation.h"
 #include "hid/display/numeric_layer/numeric_layer_scroll_transition.h"
 #include "hid/display/numeric_layer/numeric_layer_scrolling_text.h"
 #include "hid/led/indicator_leds.h"
-#include "drivers/pic/pic.hpp"
 #include "io/debug/print.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
@@ -554,7 +554,7 @@ void NumericDriver::render() {
 		layer = topLayer;
 	}
 
-	std::array<uint8_t,kNumericDisplayLength> segments;
+	std::array<uint8_t, kNumericDisplayLength> segments;
 	layer->render(segments.data());
 
 	memcpy(lastDisplay, segments.data(), kNumericDisplayLength);
@@ -576,7 +576,7 @@ void NumericDriver::displayLoadingAnimation(bool delayed, bool transparent) {
 }
 
 void NumericDriver::setTextVeryBasicA1(char const* text) {
-	std::array<uint8_t,kNumericDisplayLength> segments;
+	std::array<uint8_t, kNumericDisplayLength> segments;
 	encodeText(text, segments.data(), false, 255, true, 0);
 	PIC::update7SEG(segments);
 }

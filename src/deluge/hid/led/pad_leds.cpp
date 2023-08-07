@@ -223,13 +223,13 @@ void clearAllPadsWithoutSending() {
 }
 
 void clearMainPadsWithoutSending() {
-	for (auto & y : image) {
+	for (auto& y : image) {
 		std::fill(&y[0], &y[kDisplayWidth], colours::black);
 	}
 }
 
 void clearSideBar() {
-	for (auto & y : image) {
+	for (auto& y : image) {
 		y[kDisplayWidth] = colours::black;
 		y[kDisplayWidth + 1] = colours::black;
 	}
@@ -251,7 +251,7 @@ void sortLedsForCol(int32_t x) {
 	for (size_t y = 0; y < kDisplayHeight; y++) {
 		doubleColumn[total++] = prepareColour(x + 1, y, image[y][x + 1]);
 	}
-	PIC::setColorForTwoColumns((x >> 1), doubleColumn);
+	PIC::setColourForTwoColumns((x >> 1), doubleColumn);
 }
 
 const Colour flashColours[3] = {

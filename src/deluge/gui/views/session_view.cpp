@@ -1135,7 +1135,7 @@ ActionResult SessionView::verticalEncoderAction(int32_t offset, bool inCardRouti
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
 		}
 
-		// Change row color by pressing row & shift - same shortcut as in clip view.
+		// Change row colour by pressing row & shift - same shortcut as in clip view.
 		if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW && Buttons::isShiftButtonPressed()) {
 			Clip* clip = getClipOnScreen(selectedClipYDisplay);
 			if (!clip)

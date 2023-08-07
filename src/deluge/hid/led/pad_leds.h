@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "drivers/pic/pic.hpp"
+#include "drivers/pic/pic.h"
 #include <cstdint>
 
 #define FLASH_CURSOR_FAST 0
@@ -114,10 +114,10 @@ void setupAudioClipCollapseOrExplodeAnimation(AudioClip* clip);
 
 void setGreyoutAmount(float newAmount);
 
-static inline void flashMainPad(int32_t x, int32_t y, int32_t color = 0) {
+static inline void flashMainPad(int32_t x, int32_t y, int32_t colour = 0) {
 	auto idx = y + (x * kDisplayHeight);
-	if (color > 0) {
-		PIC::flashPadWithColor(idx, color);
+	if (colour > 0) {
+		PIC::flashPadWithColour(idx, colour);
 		return;
 	}
 	PIC::flashPad(idx);

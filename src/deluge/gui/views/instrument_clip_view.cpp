@@ -3719,7 +3719,8 @@ void InstrumentClipView::exitScaleMode() {
 			PadLEDs::animatedRowGoingFrom[PadLEDs::numAnimatedRows] = yDisplayFrom;
 			Colour mainColour = clip->getMainColourFromY(thisNoteRow->y, thisNoteRow->getColourOffset(clip));
 			Colour tailColour = mainColour.forTail();
-			Colour blurColour = mainColour.forBlur();;
+			Colour blurColour = mainColour.forBlur();
+			;
 
 			ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(thisNoteRow->y, thisNoteRow);
 
@@ -3792,7 +3793,7 @@ bool InstrumentClipView::renderSidebar(uint32_t whichRows, Colour image[][kDispl
 }
 
 void InstrumentClipView::drawMuteSquare(NoteRow* thisNoteRow, Colour thisImage[], uint8_t thisOccupancyMask[]) {
-	Colour &thisColour = thisImage[kDisplayWidth];
+	Colour& thisColour = thisImage[kDisplayWidth];
 	uint8_t* thisOccupancy = &(thisOccupancyMask[kDisplayWidth]);
 
 	// If user assigning MIDI controls and this NoteRow has a command assigned, flash pink
@@ -3838,7 +3839,7 @@ bool InstrumentClipView::isRowAuditionedByInstrument(int32_t yDisplay) {
 }
 
 void InstrumentClipView::drawAuditionSquare(uint8_t yDisplay, Colour thisImage[]) {
-	Colour &thisColour = thisImage[kDisplayWidth + 1];
+	Colour& thisColour = thisImage[kDisplayWidth + 1];
 
 	if (view.midiLearnFlashOn) {
 		NoteRow* noteRow = getCurrentClip()->getNoteRowOnScreen(yDisplay, currentSong);

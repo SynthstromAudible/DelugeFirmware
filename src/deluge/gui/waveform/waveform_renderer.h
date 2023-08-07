@@ -40,11 +40,10 @@ public:
 
 	bool renderFullScreen(Sample* sample, uint64_t xScroll, uint64_t xZoom,
 	                      Colour thisImage[][kDisplayWidth + kSideBarWidth], WaveformRenderData* data,
-	                      SampleRecorder* recorder = NULL, std::optional<Colour> rgb = std::nullopt, bool reversed = false,
-	                      int32_t xEnd = kDisplayWidth);
-	bool renderAsSingleRow(Sample* sample, int64_t xScroll, uint64_t xZoom, Colour* thisImage,
-	                       WaveformRenderData* data, SampleRecorder* recorder, Colour rgb, bool reversed,
-	                       int32_t xStart, int32_t xEnd);
+	                      SampleRecorder* recorder = NULL, std::optional<Colour> rgb = std::nullopt,
+	                      bool reversed = false, int32_t xEnd = kDisplayWidth);
+	bool renderAsSingleRow(Sample* sample, int64_t xScroll, uint64_t xZoom, Colour* thisImage, WaveformRenderData* data,
+	                       SampleRecorder* recorder, Colour rgb, bool reversed, int32_t xStart, int32_t xEnd);
 	void renderOneCol(Sample* sample, int32_t xDisplay, Colour thisImage[][kDisplayWidth + kSideBarWidth],
 	                  WaveformRenderData* data, bool reversed = false, std::optional<Colour> rgb = std::nullopt);
 	void renderOneColForCollapseAnimation(int32_t xDisplay, int32_t xDisplayOutput, int32_t maxPeakFromZero,
@@ -65,9 +64,8 @@ private:
 	int32_t getColBrightnessForSingleRow(int32_t xDisplay, int32_t maxPeakFromZero, WaveformRenderData* data);
 	void getColBarPositions(int32_t xDisplay, WaveformRenderData* data, int32_t* min24, int32_t* max24,
 	                        int32_t valueCentrePoint, int32_t valueSpan);
-	void drawColBar(int32_t xDisplay, int32_t min24, int32_t max24,
-	                Colour thisImage[][kDisplayWidth + kSideBarWidth], int32_t brightness = 128,
-	                std::optional<Colour> rgb = std::nullopt);
+	void drawColBar(int32_t xDisplay, int32_t min24, int32_t max24, Colour thisImage[][kDisplayWidth + kSideBarWidth],
+	                int32_t brightness = 128, std::optional<Colour> rgb = std::nullopt);
 	void renderOneColForCollapseAnimationInterpolation(int32_t xDisplayOutput, int32_t min24, int32_t max24,
 	                                                   int32_t singleSquareBrightness, int32_t progress,
 	                                                   Colour thisImage[][kDisplayWidth + kSideBarWidth],

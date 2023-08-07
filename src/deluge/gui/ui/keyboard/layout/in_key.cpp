@@ -107,15 +107,15 @@ void KeyboardLayoutInKey::renderPads(Colour image[][kDisplayWidth + kSideBarWidt
 			int32_t noteWithinScale = (uint16_t)((note + kOctaveSize) - getRootNote()) % kOctaveSize;
 			Colour colourSource = noteColours[padIndex - getState().inKey.scrollOffset];
 
-			// Full brightness and color for active root note
+			// Full brightness and colour for active root note
 			if (noteWithinScale == 0 && scaleActiveNotes[noteWithinScale]) {
 				image[y][x] = prepareColour(colourSource, 255, 1);
 			}
-			// Full color but less brightness for inactive root note
+			// Full colour but less brightness for inactive root note
 			else if (noteWithinScale == 0) {
 				image[y][x] = prepareColour(colourSource, 255, 2);
 			}
-			// TOned down color but high brightness for active scale note
+			// TOned down colour but high brightness for active scale note
 			else if (scaleActiveNotes[noteWithinScale]) {
 				image[y][x] = prepareColour(colourSource, 127, 3);
 			}

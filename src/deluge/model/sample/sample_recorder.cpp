@@ -16,8 +16,8 @@
  */
 
 #include "model/sample/sample_recorder.h"
-#include "drivers/pic/pic.hpp"
 #include "definitions_cxx.hpp"
+#include "drivers/pic/pic.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui_timer_manager.h"

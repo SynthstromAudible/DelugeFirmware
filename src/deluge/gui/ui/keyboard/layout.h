@@ -65,7 +65,7 @@ public:
 	/// Will be called with offset 0 to recalculate bounds on clip changes
 	virtual void handleHorizontalEncoder(int32_t offset, bool shiftEnabled) = 0;
 
-	/// This function is called on visibility change and if color offset changes
+	/// This function is called on visibility change and if colour offset changes
 	virtual void precalculate() = 0;
 
 	/// Handle output

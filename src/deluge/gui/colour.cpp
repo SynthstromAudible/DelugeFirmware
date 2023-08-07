@@ -1,7 +1,7 @@
 #include "colour.h"
 #include "util/functions.h"
 
- Colour Colour::fromHue(int32_t hue){
+Colour Colour::fromHue(int32_t hue) {
 	Colour rgb{};
 	hue = (uint16_t)(hue + 1920) % 192;
 

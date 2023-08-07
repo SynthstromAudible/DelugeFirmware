@@ -21,7 +21,7 @@
 
 #include "RZA1/mtu/mtu.h"
 #include "drivers/dmac/dmac.h"
-#include "drivers/pic/pic.hpp"
+#include "drivers/pic/pic.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/oled.h"
 #include "processing/engines/audio_engine.h"

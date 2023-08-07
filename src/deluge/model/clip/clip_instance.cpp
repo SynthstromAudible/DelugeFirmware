@@ -34,7 +34,6 @@ Colour ClipInstance::getColour() {
 	}
 
 	return Colour::fromHue(defaultClipGroupColours[clip->section]);
-
 }
 
 void ClipInstance::change(Action* action, Output* output, int32_t newPos, int32_t newLength, Clip* newClip) {

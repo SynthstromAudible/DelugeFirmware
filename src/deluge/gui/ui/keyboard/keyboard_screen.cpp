@@ -551,7 +551,7 @@ void KeyboardScreen::selectLayout(int8_t offset) {
 	// Ensure scroll values are calculated in bounds
 	layoutList[getCurrentClip()->keyboardState.currentLayout]->handleHorizontalEncoder(0, false);
 
-	// Precalculate because changing instruments can change pad colors
+	// Precalculate because changing instruments can change pad colours
 	layoutList[getCurrentClip()->keyboardState.currentLayout]->precalculate();
 	requestRendering();
 }

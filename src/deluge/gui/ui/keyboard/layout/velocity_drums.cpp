@@ -79,7 +79,7 @@ void KeyboardLayoutVelocityDrums::precalculate() {
 	// Pre-Buffer colours for next renderings
 	int32_t displayedfullPadsCount = ((kDisplayHeight / state.edgeSize) * (kDisplayWidth / state.edgeSize));
 	for (int32_t i = 0; i < displayedfullPadsCount; ++i) {
-		 noteColours[i] = getNoteColour(state.scrollOffset + i);
+		noteColours[i] = getNoteColour(state.scrollOffset + i);
 	}
 }
 
@@ -95,13 +95,13 @@ void KeyboardLayoutVelocityDrums::renderPads(Colour image[][kDisplayWidth + kSid
 
 			Colour noteColour = noteColours[note - getState().drums.scrollOffset];
 
-			uint8_t colorIntensity = intensityFromCoords(x, y);
+			uint8_t colourIntensity = intensityFromCoords(x, y);
 
 			// Highlight active notes
 			uint8_t brightnessDivider = currentNotesState.noteEnabled(note) ? 1 : 3;
 
-			image[y][x] = noteColour.transform([colorIntensity, brightnessDivider](uint8_t chan) {
-				return ((chan * colorIntensity / 255) / brightnessDivider);
+			image[y][x] = noteColour.transform([colourIntensity, brightnessDivider](uint8_t chan) {
+				return ((chan * colourIntensity / 255) / brightnessDivider);
 			});
 		}
 	}

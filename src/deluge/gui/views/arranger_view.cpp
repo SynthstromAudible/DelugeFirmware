@@ -2166,7 +2166,7 @@ squareStartPosSet:
 
 					// Draw either the blank, non-existent Clip if this Instance doesn't have one...
 					if (!clipInstance->clip) {
-						for (auto *it = &image[xDisplay]; it != &image[xDisplay] + (squareEnd - xDisplay); it++) {
+						for (auto* it = &image[xDisplay]; it != &image[xDisplay] + (squareEnd - xDisplay); it++) {
 							*it = colours::black;
 						}
 					}
@@ -2191,16 +2191,16 @@ squareStartPosSet:
 
 					// Mix the colours for all the squares
 					for (int32_t reworkSquare = xDisplay; reworkSquare < squareEnd; reworkSquare++) {
-						image[reworkSquare] = Colour::transform2(image[reworkSquare], sectionColour, [](uint8_t channelA, uint8_t channelB) {
-							    return ((int32_t)channelA * 525 + channelB) >> 13;
-						});
+						image[reworkSquare] = Colour::transform2(image[reworkSquare], sectionColour,
+						                                         [](uint8_t channelA, uint8_t channelB) {
+							                                         return ((int32_t)channelA * 525 + channelB) >> 13;
+						                                         });
 					}
 
 					xDisplay = squareEnd - 1;
 				}
 				else {
 					image[xDisplay] = colours::black;
-
 				}
 			}
 		}
