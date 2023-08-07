@@ -59,7 +59,7 @@ void FilterSet::renderLPFLong(q31_t* startSample, q31_t* endSample, LPFMode lpfM
 	}
 	lastLPFMode = lpfMode;
 }
-//expects to receive an interleaved stereo stream
+
 void FilterSet::renderLPFLongStereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation) {
 
 	if (lpfMode == LPFMode::SVF) {
@@ -95,10 +95,8 @@ int32_t FilterSet::setConfig(int32_t lpfFrequency, int32_t lpfResonance, bool do
 			filterGain = lpladder.configure(lpfFrequency, lpfResonance, lpfmode, filterGain);
 		}
 	}
-
-	filterGain =
-	    multiply_32x32_rshift32(filterGain, 1720000000)
-	    << 1; // This changes the overall amplitude so that, with resonance on 50%, the amplitude is the same as it was pre June 2017
+	// This changes the overall amplitude so that, with resonance on 50%, the amplitude is the same as it was pre June 2017
+	filterGain = multiply_32x32_rshift32(filterGain, 1720000000) << 1;
 
 	// HPF
 	if (HPFOn) {
@@ -107,29 +105,11 @@ int32_t FilterSet::setConfig(int32_t lpfFrequency, int32_t lpfResonance, bool do
 
 	return filterGain;
 }
-void FilterSet::copy_config(FilterSet* other) {
-	if (other->LPFOn) {
-		if (other->lpfMode == LPFMode::SVF) {
-			memcpy(&lpsvf, &other->lpsvf, sizeof(lpsvf));
-		}
-		else {
-			memcpy(&lpladder, &other->lpladder, sizeof(lpladder));
-		}
-	}
-	if (other->HPFOn) {
-		memcpy(&hpladder, &other->hpladder, sizeof(hpladder));
-	}
-	LPFOn = other->isLPFOn();
-	HPFOn = other->isHPFOn();
-	lpfMode = other->lpfMode;
-	lastLPFMode = other->lastLPFMode;
-}
+
 void FilterSet::reset() {
 	hpladder.reset();
-	hpfOnLastTime = false;
 	lpsvf.reset();
 	lpladder.reset();
-	lpfOnLastTime = false;
 	noiseLastValue = 0;
 }
 } // namespace deluge::dsp::filter

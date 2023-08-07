@@ -36,7 +36,6 @@ public:
 	q31_t setConfig(q31_t lpfFrequency, q31_t lpfResonance, bool doLPF, q31_t hpfFrequency, q31_t hpfResonance,
 	                bool doHPF, LPFMode lpfType, q31_t filterGain, bool adjustVolumeForHPFResonance = true,
 	                q31_t* overallOscAmplitude = NULL);
-	void copy_config(FilterSet*);
 
 	inline void renderLong(q31_t* startSample, q31_t* endSample, int32_t numSamples, int32_t sampleIncrememt = 1,
 	                       int32_t extraSaturation = 1) {
@@ -45,9 +44,7 @@ public:
 		if (HPFOn) {
 			renderHPFLong(startSample, endSample, lpfMode, sampleIncrememt);
 		}
-		else {
-			hpfOnLastTime = false;
-		}
+
 		// Do LPF, if it's on
 		if (LPFOn) {
 			renderLPFLong(startSample, endSample, lpfMode, sampleIncrememt, extraSaturation, extraSaturation >> 1);
@@ -56,14 +53,13 @@ public:
 			lastLPFMode = LPFMode::OFF;
 		}
 	}
+	//expects to receive an interleaved stereo stream
 	inline void renderLongStereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation = 1) {
 		// Do HPF, if it's on
 		if (HPFOn) {
 			renderHPFLongStereo(startSample, endSample, extraSaturation);
 		}
-		else {
-			hpfOnLastTime = false;
-		}
+
 		// Do LPF, if it's on
 		if (LPFOn) {
 			renderLPFLongStereo(startSample, endSample, extraSaturation);
@@ -94,8 +90,6 @@ private:
 	LpLadderFilter lpladder;
 	HpLadderFilter hpladder;
 
-	bool hpfOnLastTime;
-	bool lpfOnLastTime;
 	bool LPFOn;
 	bool HPFOn;
 };
