@@ -14,11 +14,7 @@ check_ipo_supported(RESULT IPO_SUPPORTED OUTPUT error)
 if(IPO_SUPPORTED)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION
         $<$<CONFIG:DEBUG>:OFF>
-<<<<<<< HEAD
         $<$<CONFIG:RELWITHDEBINFO>:ON>
-=======
-        $<$<CONFIG:TEST>:ON>
->>>>>>> 71c266fe (update relwithdebinfo target)
         $<$<CONFIG:RELEASE>:ON>
     )
 endif()
