@@ -20,7 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "dsp/filter/filter_set.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
-
+using namespace deluge;
 class GlobalEffectable : public ModControllableAudio {
 public:
 	GlobalEffectable();
@@ -55,7 +55,7 @@ public:
 	void setupDelayWorkingState(DelayWorkingState* delayWorkingState, ParamManager* paramManager,
 	                            bool shouldLimitDelayFeedback = false);
 
-	FilterSet filterSets[2];
+	dsp::filter::FilterSet filterSets[2];
 	ModFXParam currentModFXParam;
 	FilterType currentFilterType;
 

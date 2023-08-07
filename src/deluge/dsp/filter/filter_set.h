@@ -27,8 +27,8 @@
 #include <cstdint>
 
 class Sound;
-class FilterSetConfig;
 
+namespace deluge::dsp::filter {
 class FilterSet {
 public:
 	FilterSet();
@@ -96,3 +96,4 @@ private:
 	bool LPFOn;
 	bool HPFOn;
 };
+} // namespace deluge::dsp::filter

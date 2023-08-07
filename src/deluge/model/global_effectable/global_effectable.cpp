@@ -33,6 +33,7 @@
 #include "storage/storage_manager.h"
 #include "util/misc.h"
 #include <new>
+using namespace deluge;
 
 GlobalEffectable::GlobalEffectable() {
 	lpfMode = LPFMode::TRANSISTOR_24DB;

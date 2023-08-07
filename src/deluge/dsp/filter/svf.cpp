@@ -18,7 +18,7 @@
 #include "definitions_cxx.hpp"
 #include "util/functions.h"
 #include <cstdint>
-
+namespace deluge::dsp::filter {
 void SVFilter::do_filter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrememt, int32_t extraSaturation) {
 	q31_t* currentSample = startSample;
 	do {
@@ -42,11 +42,10 @@ void SVFilter::do_filter_stereo(q31_t* startSample, q31_t* endSample, int32_t ex
 
 q31_t SVFilter::set_config(q31_t lpfFrequency, q31_t lpfResonance, LPFMode lpfMode, q31_t filterGain) {
 	int32_t tannedFrequency = instantTan(lshiftAndSaturate<5>(lpfFrequency));
-	int32_t divideBy1PlusTannedFrequency =
-	    (int64_t)2147483648u * 134217728
-	    / (134217728 + (tannedFrequency >> 1)); // Between ~0.1 and 1. 1 represented by 2147483648
-	f = multiply_32x32_rshift32_rounded(tannedFrequency, divideBy1PlusTannedFrequency)
-	    << 4; // Between 0 and 1. 1 represented by 2147483648 I'm pretty sure
+	// Between ~0.1 and 1. 1 represented by 2147483648
+	int32_t divideBy1PlusTannedFrequency = (int64_t)2147483648u * 134217728 / (134217728 + (tannedFrequency >> 1));
+	// Between 0 and 1. 1 represented by 2147483648 I'm pretty sure
+	f = multiply_32x32_rshift32_rounded(tannedFrequency, divideBy1PlusTannedFrequency) << 4;
 	// raw resonance is 0 - 536870896 (2^28ish, don't know where it comes from)
 	// Multiply by 4 to bring it to the q31 0-1 range
 	q = (ONE_Q31 - 4 * (lpfResonance));
@@ -91,3 +90,4 @@ inline q31_t SVFilter::doSVF(int32_t input, SVF_state* state) {
 	state->band = band;
 	return lowi + low;
 }
+} // namespace deluge::dsp::filter

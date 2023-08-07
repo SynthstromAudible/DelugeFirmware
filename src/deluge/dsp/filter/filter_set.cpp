@@ -24,7 +24,7 @@
 #include "processing/sound/sound.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
-
+namespace deluge::dsp::filter {
 FilterSet::FilterSet() {
 
 	lpsvf = SVFilter();
@@ -132,3 +132,4 @@ void FilterSet::reset() {
 	lpfOnLastTime = false;
 	noiseLastValue = 0;
 }
+} // namespace deluge::dsp::filter

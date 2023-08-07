@@ -21,13 +21,15 @@
 #include "processing/engines/audio_engine.h"
 #include "util/functions.h"
 #include <cstdint>
-
+namespace deluge::dsp::filter {
 q31_t HpLadderFilter::set_config(q31_t hpfFrequency, q31_t hpfResonance, LPFMode lpfMode, q31_t filterGain) {
 	int32_t extraFeedback = 1200000000;
 
 	int32_t tannedFrequency =
 	    instantTan(lshiftAndSaturate<5>(hpfFrequency)); // Between 0 and 8, by my making. 1 represented by 268435456
 
+	//this is 1q31*1q16/(1q16+tan(f)/2)
+	//tan(f) is q17 based on rohan's comment above
 	int32_t hpfDivideBy1PlusTannedFrequency =
 	    (int64_t)2147483648u * 134217728
 	    / (134217728 + (tannedFrequency >> 1)); // Between ~0.1 and 1. 1 represented by 2147483648
@@ -116,3 +118,4 @@ inline q31_t HpLadderFilter::doHPF(q31_t input, int32_t extraSaturation, HPLadde
 
 	return a;
 }
+} // namespace deluge::dsp::filter

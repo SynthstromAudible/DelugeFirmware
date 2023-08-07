@@ -22,6 +22,7 @@
 #include "dsp/filter/ladder_components.h"
 #include "util/functions.h"
 #include <cstdint>
+namespace deluge::dsp::filter {
 struct HPLadder_state {
 	BasicFilterComponent hpfHPF1;
 	BasicFilterComponent hpfLPF1;
@@ -72,3 +73,4 @@ private:
 	HPLadder_state l;
 	HPLadder_state r;
 };
+} // namespace deluge::dsp::filter

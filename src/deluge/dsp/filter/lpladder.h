@@ -22,7 +22,7 @@
 #include "dsp/filter/ladder_components.h"
 #include "util/functions.h"
 #include <cstdint>
-
+namespace deluge::dsp::filter {
 struct LpLadderState {
 	q31_t noiseLastValue;
 	BasicFilterComponent lpfLPF1;
@@ -79,3 +79,4 @@ private:
 
 	bool doOversampling;
 };
+} // namespace deluge::dsp::filter

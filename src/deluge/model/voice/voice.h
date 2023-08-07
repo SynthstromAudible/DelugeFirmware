@@ -27,7 +27,7 @@
 
 class StereoSample;
 class ModelStackWithVoice;
-
+using namespace deluge;
 class Voice final {
 public:
 	Voice();
@@ -52,7 +52,7 @@ public:
 	Envelope envelopes[kNumEnvelopes];
 	LFO lfo;
 
-	FilterSet filterSets[2];
+	dsp::filter::FilterSet filterSets[2];
 	int32_t inputCharacteristics[2]; // Contains what used to be called noteCodeBeforeArpeggiation, and fromMIDIChannel
 	int32_t noteCodeAfterArpeggiation;
 

@@ -21,7 +21,7 @@
 #include "processing/engines/audio_engine.h"
 #include "util/functions.h"
 #include <cstdint>
-
+namespace deluge::dsp::filter {
 const int16_t resonanceThresholdsForOversampling[] = {
     16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384,
     16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384,
@@ -446,3 +446,4 @@ inline q31_t LpLadderFilter::doDriveLPFOnSample(q31_t input, LpLadderState* stat
 
 	return d;
 }
+} // namespace deluge::dsp::filter

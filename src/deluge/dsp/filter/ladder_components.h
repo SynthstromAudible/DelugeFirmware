@@ -20,7 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "util/functions.h"
 #include <cstdint>
-
+namespace deluge::dsp::filter {
 class BasicFilterComponent {
 public:
 	//moveability is tan(f)/(1+tan(f))
@@ -54,3 +54,4 @@ public:
 
 	q31_t memory;
 };
+} // namespace deluge::dsp::filter

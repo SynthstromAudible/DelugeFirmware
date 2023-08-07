@@ -21,7 +21,7 @@
 #include "dsp/filter/filter.h"
 #include "util/functions.h"
 #include <cstdint>
-
+namespace deluge::dsp::filter {
 struct SVF_outs {
 	q31_t lpf;
 	q31_t bpf;
@@ -54,3 +54,4 @@ private:
 	q31_t q;
 	q31_t in;
 };
+} // namespace deluge::dsp::filter

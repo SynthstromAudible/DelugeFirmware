@@ -21,7 +21,7 @@
 #include "deluge/dsp/stereo_sample.h"
 #include "util/functions.h"
 #include <cstdint>
-
+namespace deluge::dsp::filter {
 // Filter Interface
 template <typename T>
 class Filter {
@@ -41,3 +41,5 @@ public:
 	}
 	void reset() { static_cast<T*>(this)->reset_filter(); }
 };
+
+} // namespace deluge::dsp::filter
