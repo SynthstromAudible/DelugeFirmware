@@ -187,6 +187,16 @@ ActionResult SessionView::buttonAction(hid::Button b, bool on, bool inCardRoutin
 	if (b == CLIP_VIEW) {
 		if (on) {
 			clipButtonUsed = false;
+			// Directly transition
+			if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+				if (gridFirstPadActive() && gridSecondPadInactive()) {
+					clipButtonUsed = true;
+					auto clipX = gridFirstPressedX;
+					auto clipY = gridFirstPressedY;
+					clipPressEnded();
+					gridOpenPadClip(gridClipFromCoords(clipX, clipY), clipX, clipY);
+				}
+			}
 		}
 		else {
 			if (!clipButtonUsed && currentUIMode == UI_MODE_NONE
@@ -340,7 +350,7 @@ moveAfterClipInstance:
 		}
 		// Release without special mode
 		else if (!on && currentUIMode == UI_MODE_NONE) {
-			if (lastSessionButtonActiveState && !sessionButtonActive && !sessionButtonUsed && !gridPadActive()) {
+			if (lastSessionButtonActiveState && !sessionButtonActive && !sessionButtonUsed && !gridFirstPadActive()) {
 				if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
 					currentSong->endInstancesOfActiveClips(playbackHandler.getActualArrangementRecordPos());
 					currentSong
@@ -391,7 +401,7 @@ moveAfterClipInstance:
 	}
 
 	// If save / delete button pressed, delete the Clip!
-	else if (b == SAVE && (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW || gridPadActive())) {
+	else if (b == SAVE && (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW || gridFirstPadActive())) {
 		if (on) {
 
 			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
@@ -1066,8 +1076,8 @@ ActionResult SessionView::timerCallback() {
 		break;
 
 	case UI_MODE_NONE:
-		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid && gridPadActive()
-		    && gridSecondPressedX == -1 && gridSecondPressedY == -1) {
+		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid && gridFirstPadActive()
+		    && gridSecondPadInactive()) {
 			Clip* clip = gridClipFromCoords(gridFirstPressedX, gridFirstPressedY);
 			if (clip != nullptr) {
 				currentUIMode = UI_MODE_CLIP_PRESSED_IN_SONG_VIEW;
@@ -1689,7 +1699,7 @@ void SessionView::removeClip(Clip* clip) {
 
 Clip* SessionView::getClipOnScreen(int32_t yDisplay) {
 	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
-		if (gridPadActive()) {
+		if (gridFirstPadActive()) {
 			return gridClipFromCoords(gridFirstPressedX, gridFirstPressedY);
 		}
 
@@ -3180,6 +3190,27 @@ void SessionView::gridClonePad(uint32_t sourceX, uint32_t sourceY, uint32_t targ
 	gridCreateClip(gridSectionFromY(targetY), gridTrackFromX(targetX, gridTrackCount()), sourceClip);
 }
 
+/// Clip is supplied because lookup is expensive
+void SessionView::gridOpenPadClip(Clip* clip, uint32_t x, uint32_t y) {
+
+	uint32_t trackCount = gridTrackCount();
+	auto trackIndex = gridTrackIndexFromX(x, trackCount);
+
+	// Create clip if it does not exist
+	if (clip == nullptr && (x + currentSong->songGridScrollX) <= trackCount) {
+		Output* track = gridTrackFromX(x, trackCount);
+		clip = gridCreateClip(gridSectionFromY(y), track, nullptr);
+		// Immediately start playing it for new tracks
+		if (clip != nullptr && track == nullptr) {
+			gridToggleClipPlay(clip, true);
+		}
+	}
+
+	if (clip != nullptr) {
+		transitionToViewForClip(clip);
+	}
+}
+
 void SessionView::gridStartSection(uint32_t section, bool instant) {
 	if (instant) {
 		currentSong->turnSoloingIntoJustPlaying(currentSong->sections[section].numRepetitions != -1);
@@ -3292,7 +3323,7 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 
 				// Immediate arming, immediate consumption, don't save the pad press
 				if (clip && Buttons::isButtonPressed(hid::button::SHIFT)) {
-					if(currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
+					if (currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
 						session.soloClipAction(clip, kInternalButtonPressLatency);
 					}
 					else {
@@ -3306,24 +3337,7 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 				// Open or create and open clip if no other pad was previously pressed and clip is pressed
 				if (Buttons::isButtonPressed(hid::button::CLIP_VIEW)) {
 					clipButtonUsed = true;
-
-					uint32_t trackCount = gridTrackCount();
-					auto trackIndex = gridTrackIndexFromX(x, trackCount);
-
-					// Create clip if it does not exist
-					if (clip == nullptr && (x + currentSong->songGridScrollX) <= trackCount) {
-						Output* track = gridTrackFromX(x, trackCount);
-						clip = gridCreateClip(gridSectionFromY(y), track, nullptr);
-						// Immediately start playing it for new tracks
-						if (clip != nullptr && track == nullptr) {
-							gridToggleClipPlay(clip, true);
-						}
-					}
-
-					if (clip != nullptr) {
-						transitionToViewForClip(clip);
-					}
-
+					gridOpenPadClip(clip, x, y);
 					gridResetPresses();
 					return ActionResult::DEALT_WITH;
 				}
@@ -3378,8 +3392,8 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 						sessionView.timerCallback();
 					}
 					else if (!gridPreventArm
-								&& (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW
-									|| currentUIMode == UI_MODE_STUTTERING)) {
+					         && (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW
+					             || currentUIMode == UI_MODE_STUTTERING)) {
 						gridToggleClipPlay(clip, false);
 					}
 					else if (currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {

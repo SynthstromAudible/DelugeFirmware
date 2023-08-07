@@ -149,8 +149,12 @@ private:
 	int32_t gridSecondPressedX = -1;
 	int32_t gridSecondPressedY = -1;
 
-	inline bool gridPadActive() {
+	inline bool gridFirstPadActive() {
 		return (gridFirstPressedX != -1 && gridFirstPressedY != -1);
+	}
+
+	inline bool gridSecondPadInactive() {
+		return (gridSecondPressedX == -1 && gridSecondPressedY == -1);
 	}
 
 	inline void gridResetPresses(bool first = true, bool second = true) {
@@ -169,6 +173,8 @@ private:
 	Clip* gridCreateClipWithNewTrack(InstrumentType type);
 	Clip* gridCreateClip(uint32_t targetSection, Output* targetOutput = nullptr, Clip* sourceClip = nullptr);
 	void gridClonePad(uint32_t sourceX, uint32_t sourceY, uint32_t targetX, uint32_t targetY);
+	void gridOpenPadClip(Clip* clip, uint32_t x, uint32_t y);
+
 	void gridStartSection(uint32_t section, bool instant);
 	void gridToggleClipPlay(Clip* clip, bool instant);
 
