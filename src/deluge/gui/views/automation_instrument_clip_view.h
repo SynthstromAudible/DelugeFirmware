@@ -158,13 +158,6 @@ private:
 
 	bool encoderAction;
 	bool shortcutBlinking;
-
-	//Interpolation Shape Functions
-	int32_t LERP(int32_t A, int32_t B, int32_t T, int32_t Distance);
-	int32_t LERPRoot(int32_t A, int32_t B, int32_t T, int32_t Distance);
-	int32_t LERPSweep(int32_t A, int32_t B, int32_t T, int32_t Distance);
-	int32_t LERPSweepDown(int32_t A, int32_t B, int32_t T, int32_t Distance);
-	//int32_t smoothstep (int32_t A, int32_t B, int32_t T, int32_t Distance);
 };
 
 extern AutomationInstrumentClipView automationInstrumentClipView;
