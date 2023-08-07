@@ -52,6 +52,7 @@
 #include "util/functions.h"
 #include "util/misc.h"
 #include <new>
+#include <numeric>
 #include <string.h>
 
 #if AUTOMATED_TESTER_ENABLED
@@ -74,15 +75,70 @@ extern bool inSpamMode;
 extern bool anythingProbablyPressed;
 extern int32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
 
-//#define REPORT_CPU_USAGE 1
+#define REPORT_CPU_USAGE 1
 
 #define NUM_SAMPLES_FOR_CPU_USAGE_REPORT 32
 
 #define AUDIO_OUTPUT_GAIN_DOUBLINGS 8
 
 #ifdef REPORT_CPU_USAGE
-#define REPORT_AVERAGE_NUM 10
-int32_t usageTimes[REPORT_AVERAGE_NUM];
+namespace profiler {
+constexpr uint32_t kNumSamplesBetweenReports = 44100;
+uint32_t totalCyclesSinceLastReport;
+uint32_t totalSamplesSinceLastReport;
+
+void init() {
+	// Enable the PMU cycle counter
+	//
+	// See ARM DDI 0406C.d, page B4-1671 (PMCR, Performance Monitors Control Register, VMSA)
+	uint32_t const pmcr = 0;
+	uint32_t const pmcntenset = 0b10000000000000000000000000000000u;
+
+	asm volatile("MRC p15, 0, %0, c9, c12, 0\n"
+	             // Set bit 0, the "E" flag
+	             "orr %0, #1\n"
+	             "MCR p15, 0, %0, c9, c12, 0\n"
+	             "MCR p15, 0, %1, c9, c12, 1\n"
+	             :
+	             : "r"(pmcr), "r"(pmcntenset));
+	profiler::totalCyclesSinceLastReport = 0;
+	profiler::totalSamplesSinceLastReport = 0;
+}
+
+[[gnu::always_inline]] inline void preparePMUForAudioLoop() {
+	// Reset the PMU so we can read out a time later.
+	// See DDI0406C.d, page B4-1672 (PMCR, Performance Monitors Control Register, VMSA)
+	//  - bit 4 [1] Enable export of the PMU events during halt
+	//  - bit 3 [0] No cycle count divider
+	//  - bit 2 [1] Cycle counter reset
+	//  - bit 1 [1] Event counter reset
+	//  - bit 0 [1] Enable all counters.
+	uint32_t const pmcr = 0b10111;
+	asm volatile("MCR p15, 0, %0, c9, c12, 0\n" : : "r"(pmcr));
+}
+
+[[gnu::always_inline]] inline void onSongRenderComplete(uint32_t samples) {
+	uint32_t cycles = 0;
+	asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(cycles) :);
+
+	totalCyclesSinceLastReport += cycles;
+	totalSamplesSinceLastReport += samples;
+
+	if (totalSamplesSinceLastReport > kNumSamplesBetweenReports) {
+		int32_t average = totalCyclesSinceLastReport / totalSamplesSinceLastReport;
+
+		Debug::print("cycles per ");
+		Debug::print(totalSamplesSinceLastReport);
+		Debug::print(" samples: ");
+		Debug::print(totalCyclesSinceLastReport);
+		Debug::print(" avg / sample: ");
+		Debug::println(average);
+
+		totalCyclesSinceLastReport = 0;
+		totalSamplesSinceLastReport = 0;
+	}
+}
+} // namespace profiler
 #endif
 
 extern "C" uint32_t getAudioSampleTimerMS() {
@@ -174,6 +230,10 @@ Voice* firstUnassignedVoice;
 
 // You must set up dynamic memory allocation before calling this, because of its call to setupWithPatching()
 void init() {
+#ifdef REPORT_CPU_USAGE
+	profiler::init();
+#endif
+
 	paramManagerForSamplePreview = new ((void*)paramManagerForSamplePreviewMemory) ParamManagerForTimeline();
 	paramManagerForSamplePreview->setupWithPatching(); // Shouldn't be an error at init time...
 	Sound::initParams(paramManagerForSamplePreview);
@@ -386,15 +446,6 @@ void routine() {
 		}
 	}
 
-#ifdef REPORT_CPU_USAGE
-	if (numSamples < (NUM_SAMPLES_FOR_CPU_USAGE_REPORT)) {
-		audioRoutineLocked = false;
-		return;
-	}
-	numSamples = NUM_SAMPLES_FOR_CPU_USAGE_REPORT;
-	int32_t unadjustedNumSamplesBeforeLappingPlayHead = numSamples;
-#else
-
 	numSamplesLastTime = numSamples;
 
 	// Consider direness and culling - before increasing the number of samples
@@ -487,8 +538,6 @@ void routine() {
 		numSamples = (numSamples + 2) & ~3;
 	}
 
-#endif
-
 	int32_t timeWithinWindowAtWhichMIDIOrGateOccurs = -1; // -1 means none
 
 	// If a timer-tick is due during or directly after this window of audio samples...
@@ -571,7 +620,7 @@ startAgain:
 	memset(&reverbBuffer, 0, numSamples * sizeof(int32_t));
 
 #ifdef REPORT_CPU_USAGE
-	uint16_t startTime = MTU2.TCNT_0;
+	profiler::preparePMUForAudioLoop();
 #endif
 
 	if (sideChainHitPending) {
@@ -587,26 +636,7 @@ startAgain:
 	}
 
 #ifdef REPORT_CPU_USAGE
-	uint16_t endTime = MTU2.TCNT_0;
-
-	if (getRandom255() < 3) {
-
-		int32_t value = fastTimerCountToUS((endTime - startTime) * 10);
-
-		int32_t total = value;
-
-		for (int32_t i = 0; i < REPORT_AVERAGE_NUM - 1; i++) {
-			usageTimes[i] = usageTimes[i + 1];
-			total += usageTimes[i];
-		}
-
-		usageTimes[REPORT_AVERAGE_NUM - 1] = value;
-
-		Debug::print("uS per ");
-		Debug::print(NUM_SAMPLES_FOR_CPU_USAGE_REPORT * 10);
-		Debug::print(" samples: ");
-		Debug::println(total / REPORT_AVERAGE_NUM);
-	}
+	profiler::onSongRenderComplete(numSamples);
 #endif
 
 	if (currentSong && mustUpdateReverbParamsBeforeNextRender) {
