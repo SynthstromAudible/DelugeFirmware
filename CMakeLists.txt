@@ -286,7 +286,7 @@ if(DOXYGEN_FOUND)
 
     doxygen_add_docs(doxygen ${markdown_SOURCES} docs src/deluge)
 else(DOXYGEN_FOUND)
-    message(FATAL_ERROR
+    message(WARNING
         "Doxygen need to be installed to generate documentation."
         "Please install from https://github.com/doxygen/doxygen/releases")
 endif(DOXYGEN_FOUND)
