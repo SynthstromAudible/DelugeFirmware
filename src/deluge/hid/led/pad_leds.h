@@ -117,7 +117,7 @@ void setGreyoutAmount(float newAmount);
 static inline void flashMainPad(int32_t x, int32_t y, int32_t color = 0) {
 	auto idx = y + (x * kDisplayHeight);
 	if (color > 0) {
-		PIC::flashPadWithColor(idx, color);
+		PIC::flashPadWithColorIdx(idx, color);
 		return;
 	}
 	PIC::flashPad(idx);

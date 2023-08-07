@@ -284,7 +284,7 @@ if(DOXYGEN_FOUND)
     file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/assets
         DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/html/)
 
-    doxygen_add_docs(doxygen ${markdown_SOURCES} docs src)
+    doxygen_add_docs(doxygen ${markdown_SOURCES} docs src/deluge)
 else(DOXYGEN_FOUND)
     message(FATAL_ERROR
         "Doxygen need to be installed to generate documentation."
