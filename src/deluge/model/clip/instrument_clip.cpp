@@ -3263,9 +3263,39 @@ NoteRow* InstrumentClip::getNoteRowFromId(int32_t id) {
 
 bool InstrumentClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int32_t amount) {
 
+	//New community feature as part of Automation Clip View Implementation
+	//If this is enabled, then when you are in a regular Instrument Clip View (Synth, Kit, MIDI, CV), shifting a clip
+	//will only shift the Notes and MPE data (NON MPE automations remain intact).
+
+	//If this is enabled, if you want to shift NON MPE automations, you will enter Automation Clip View and shift the clip there.
+
+	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
+
 	if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
-		paramManager.shiftHorizontally(
-		    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager), amount, loopLength);
+		ParamCollectionSummary* summary = paramManager.summaries;
+
+		int32_t i = 0;
+
+		while (summary->paramCollection) {
+
+			ModelStackWithParamCollection* modelStackWithParamCollection =
+				modelStackWithThreeMainThings->addParamCollection(summary->paramCollection, summary);
+
+			// Special case for MPE only - not even "mono" / Clip-level expression.
+			if (i == paramManager.getExpressionParamSetOffset()) {
+				((ExpressionParamSet*)summary->paramCollection)->shiftHorizontally(modelStackWithParamCollection, amount, loopLength);
+			}
+
+			//Normal case
+			else {
+
+				if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationShiftClip) == RuntimeFeatureStateToggle::Off) {
+					summary->paramCollection->shiftHorizontally(modelStackWithParamCollection, amount, loopLength);
+				}
+			}
+			summary++;
+			i++;
+		}
 	}
 
 	for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
@@ -3318,34 +3348,13 @@ void InstrumentClip::sendMIDIPGM() {
 }
 
 void InstrumentClip::clear(Action* action, ModelStackWithTimelineCounter* modelStack) {
-	if (getCurrentUI() == &automationInstrumentClipView
-	    && output->type == InstrumentType::KIT && !affectEntire
-		         && ((Kit*)output)->selectedDrum && lastSelectedParamID == 255) { //if in automationClipView Overview screen and not in Affect Entire mode and in a kit
-		                                            								//only clear automation from selected row
+	Clip::clear(action, modelStack); //this clears automations when "affectEntire" is enabled
 
-		ModelStackWithNoteRow* modelStackWithNoteRow = getNoteRowForSelectedDrum(modelStack);
-
-		if (modelStackWithNoteRow) {
-			NoteRow* thisNoteRow = modelStackWithNoteRow->getNoteRowAllowNull();
-
-			if (thisNoteRow) {
-				thisNoteRow->clear(action, modelStackWithNoteRow);
-			}
-		}
-	}
-	else {
-		Clip::clear(action, modelStack); //this clears automations when "affectEntire" is enabled
-
-		if (getCurrentUI()
-		        != &automationInstrumentClipView) { //if we're not in the automationClipView, allow the clearing of notes and MPE automations
-
-			for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
-				NoteRow* thisNoteRow = noteRows.getElement(i);
-				ModelStackWithNoteRow* modelStackWithNoteRow =
-				    modelStack->addNoteRow(getNoteRowId(thisNoteRow, i), thisNoteRow);
-				thisNoteRow->clear(action, modelStackWithNoteRow);
-			}
-		}
+	for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
+		NoteRow* thisNoteRow = noteRows.getElement(i);
+		ModelStackWithNoteRow* modelStackWithNoteRow =
+		    modelStack->addNoteRow(getNoteRowId(thisNoteRow, i), thisNoteRow);
+		thisNoteRow->clear(action, modelStackWithNoteRow);
 	}
 }
 

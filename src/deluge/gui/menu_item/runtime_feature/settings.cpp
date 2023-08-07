@@ -42,7 +42,7 @@ Setting menuAltGoldenKnobDelayParams(RuntimeFeatureSettingType::AltGoldenKnobDel
 Setting menuAutomationInterpolate(RuntimeFeatureSettingType::AutomationInterpolate);
 Setting menuAutomationClearClip(RuntimeFeatureSettingType::AutomationClearClip);
 Setting menuAutomationNudgeNote(RuntimeFeatureSettingType::AutomationNudgeNote);
-Setting menuAutomationShiftNote(RuntimeFeatureSettingType::AutomationShiftNote);
+Setting menuAutomationShiftClip(RuntimeFeatureSettingType::AutomationShiftClip);
 
 Submenu subMenuAutomation{
     HAVE_OLED ? "AUTOMATION" : "AUTO",
@@ -50,7 +50,7 @@ Submenu subMenuAutomation{
         &menuAutomationInterpolate,
         &menuAutomationClearClip,
         &menuAutomationNudgeNote,
-        &menuAutomationShiftNote,
+        &menuAutomationShiftClip,
     },
 };
 

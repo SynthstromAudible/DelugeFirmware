@@ -44,7 +44,7 @@ enum RuntimeFeatureSettingType : uint32_t {
 	AltGoldenKnobDelayParams,
 	AutomationClearClip,
 	AutomationNudgeNote,
-	AutomationShiftNote,
+	AutomationShiftClip,
 	AutomationInterpolate,
 	MaxElement // Keep as boundary
 };

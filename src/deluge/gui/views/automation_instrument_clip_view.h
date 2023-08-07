@@ -127,7 +127,7 @@ private:
 	void renderLove(uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
 
 	//Horizontal Encoder Action
-	void rotateAutomationHorizontally(int32_t offset);
+	void shiftAutomationHorizontally(int32_t offset);
 
 	//Mod Encoder Action
 	void copyAutomation();

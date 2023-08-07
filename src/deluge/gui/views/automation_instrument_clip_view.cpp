@@ -938,7 +938,7 @@ doOther:
 	}
 
 	else if (b == BACK && currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
-		if (on && clip->lastSelectedParamID == 255) {
+		if (on && clip->lastSelectedParamID == 255) { //only allow clearing of a clip if you're in the automation overview
 			goto passToOthers;
 		}
 	}
@@ -1678,6 +1678,7 @@ doSilentAudition:
 			if (!isUIModeActive(UI_MODE_AUDITIONING)) {
 				instrumentClipView.shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress = false;
 				instrumentClipView.shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress = false;
+				//instrumentClipView.editedAnyPerNoteRowStuffSinceAuditioningBegan = false;
 				enterUIMode(UI_MODE_AUDITIONING);
 			}
 
@@ -1732,20 +1733,37 @@ getOut:
 
 ActionResult AutomationInstrumentClipView::horizontalEncoderAction(int32_t offset) {
 
+	InstrumentClip* clip = getCurrentClip();
+
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+
 	encoderAction = true;
 
-	//if showing the Parameter selection grid menu, disable this action
-	if (isOnParameterGridMenuView()) {
+	if (clip->lastSelectedParamID != 255 && ((isNoUIModeActive() && Buttons::isButtonPressed(hid::button::Y_ENC))
+		         || (isUIModeActiveExclusively(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)
+		             && Buttons::isButtonPressed(hid::button::CLIP_VIEW))
+					 || (isUIModeActiveExclusively(UI_MODE_AUDITIONING | UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)))) {
+
+		if (sdRoutineLock) {
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Just be safe - maybe not necessary
+		}
+
+		shiftAutomationHorizontally(offset);
+
+		if (offset < 0) {
+			numericDriver.displayPopup(HAVE_OLED ? "Shift Left" : "LEFT");
+		}
+		else if (offset > 0) {
+			numericDriver.displayPopup(HAVE_OLED ? "Shift Right" : "RIGHT");
+		}
+
 		return ActionResult::DEALT_WITH;
+
 	}
 
-	// Holding down vertical encoder button and turning horizontal encoder
-	// Holding down clip button, pressing and turning horizontal encoder
-	// Shift clip automation horizontally
-	else if ((isNoUIModeActive() && Buttons::isButtonPressed(hid::button::Y_ENC))
-	         || (isUIModeActiveExclusively(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)
-	             && Buttons::isButtonPressed(hid::button::CLIP_VIEW))) {
-		rotateAutomationHorizontally(offset);
+	//else if showing the Parameter selection grid menu, disable this action
+	else if (isOnParameterGridMenuView()) {
 		return ActionResult::DEALT_WITH;
 	}
 
@@ -1757,14 +1775,12 @@ wantToEditNoteRowLength:
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Just be safe - maybe not necessary
 			}
 
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
-			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 			ModelStackWithNoteRow* modelStackWithNoteRow =
 			    instrumentClipView.getOrCreateNoteRowForYDisplay(modelStack, instrumentClipView.lastAuditionedYDisplay);
 
 			instrumentClipView.editNoteRowLength(modelStackWithNoteRow, offset,
 			                                     instrumentClipView.lastAuditionedYDisplay);
-			//editedAnyPerNoteRowStuffSinceAuditioningBegan = true;
+			//instrumentClipView.editedAnyPerNoteRowStuffSinceAuditioningBegan = true;
 			uiNeedsRendering(this);
 		}
 
@@ -1781,83 +1797,43 @@ wantToEditNoteRowLength:
 
 	// Or, let parent deal with it
 	else {
-		return ClipView::horizontalEncoderAction(offset);
+		ActionResult result = ClipView::horizontalEncoderAction(offset);
+		uiNeedsRendering(this);
+		return result;
 	}
 }
 
 // Supply offset as 0 to just popup number, not change anything
-void AutomationInstrumentClipView::rotateAutomationHorizontally(int32_t offset) {
-
-	// If just popping up number, but multiple presses, we're quite limited with what intelligible stuff we can display
-	if (!offset) {
-		return;
-	}
-
-	//	int32_t resultingTotalOffset = 0;
-
-	//	lastAutomationNudgeOffset += offset;
-	//	resultingTotalOffset = lastAutomationNudgeOffset + offset;
-
-	// Nudge automation at NoteRow level, while our ModelStack still has a pointer to the NoteRow
-	//			{
-	//				ModelStackWithThreeMainThings* modelStackWithThreeMainThingsForNoteRow =
-	//				    modelStackWithNoteRow->addOtherTwoThingsAutomaticallyGivenNoteRow();
-	//				noteRow->paramManager.nudgeAutomationHorizontallyAtPos(
-	//				    instrumentClipView.editPadPresses[i].intendedPos, offset,
-	//				    modelStackWithThreeMainThingsForNoteRow->getLoopLength(), action,
-	//				    modelStackWithThreeMainThingsForNoteRow, distanceTilNext);
-	//			}
-
-	// WARNING! A bit dodgy, but at this stage, we can no longer refer to modelStackWithNoteRow, cos we're going to reuse its
-	// parent ModelStackWithTimelineCounter, below.
-
-	// Nudge automation at Clip level
-	//	{
+void AutomationInstrumentClipView::shiftAutomationHorizontally(int32_t offset) {
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	InstrumentClip* clip = getCurrentClip();
 	Instrument* instrument = (Instrument*)clip->output;
 
-	if (instrument->type == InstrumentType::SYNTH) {
+	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
-		if (clip->lastSelectedParamID != 255) {
+	ModelStackWithAutoParam* modelStackWithParam =
+	    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID);
 
-			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+	if (modelStackWithParam && modelStackWithParam->autoParam) {
 
-			ModelStackWithAutoParam* modelStackWithParam =
-			    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID);
+		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 
-			if (modelStackWithParam && modelStackWithParam->autoParam) {
+			uint32_t squareStart = getPosFromSquare(xDisplay);
 
-				for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+			int32_t effectiveLength;
 
-					int32_t effectiveLength = clip->loopLength;
-					uint32_t squareStart = getPosFromSquare(xDisplay);
-					modelStackWithParam->autoParam->moveRegionHorizontally(
-					    modelStackWithParam, squareStart, effectiveLength, offset, effectiveLength, NULL);
-				}
+			if (instrument->type == InstrumentType::KIT) {
+				ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowForSelectedDrum(modelStack);
+
+				effectiveLength = modelStackWithNoteRow->getLoopLength();
 			}
-		}
-	}
+			else {
+				effectiveLength = clip->loopLength; //this will differ for a kit when in note row mode
+			}
 
-	else if (instrument->type == InstrumentType::MIDI_OUT) {
-
-		if (clip->lastSelectedParamID != 255) {
-
-			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-
-			ModelStackWithAutoParam* modelStackWithParam =
-			    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID);
-
-			if (modelStackWithParam && modelStackWithParam->autoParam) {
-
-				for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
-
-					int32_t effectiveLength = clip->loopLength;
-					uint32_t squareStart = getPosFromSquare(xDisplay);
-					modelStackWithParam->autoParam->moveRegionHorizontally(
-					    modelStackWithParam, squareStart, effectiveLength, offset, effectiveLength, NULL);
-				}
+			if (squareStart < effectiveLength) {
+				modelStackWithParam->autoParam->shiftHorizontally(offset, effectiveLength);
 			}
 		}
 	}
@@ -1928,7 +1904,7 @@ ActionResult AutomationInstrumentClipView::verticalEncoderAction(int32_t offset,
 
 		// If NoteRow(s) auditioned, shift its colour (Kits only)
 		if (isUIModeActive(UI_MODE_AUDITIONING)) {
-			//editedAnyPerNoteRowStuffSinceAuditioningBegan = true;
+			//instrumentClipView.editedAnyPerNoteRowStuffSinceAuditioningBegan = true;
 			if (!instrumentClipView.shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress) {
 				if (instrument->type != InstrumentType::KIT) {
 					goto shiftAllColour;

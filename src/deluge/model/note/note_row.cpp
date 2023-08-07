@@ -3361,9 +3361,39 @@ void NoteRow::shiftHorizontally(int32_t amount, ModelStackWithNoteRow* modelStac
 
 	int32_t effectiveLength = modelStack->getLoopLength();
 
+	//New community feature as part of Automation Clip View Implementation
+	//If this is enabled, then when you are in a regular Instrument Clip View (Synth, Kit, MIDI, CV), shifting a clip
+	//will only shift the Notes and MPE data (NON MPE automations remain intact).
+
+	//If this is enabled, if you want to shift NON MPE automations, you will enter Automation Clip View and shift the clip there.
+
+	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow();
+
 	if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
-		paramManager.shiftHorizontally(modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow(), amount,
-		                               effectiveLength);
+		ParamCollectionSummary* summary = paramManager.summaries;
+
+		int32_t i = 0;
+
+		while (summary->paramCollection) {
+
+			ModelStackWithParamCollection* modelStackWithParamCollection =
+				modelStackWithThreeMainThings->addParamCollection(summary->paramCollection, summary);
+
+			// Special case for MPE only - not even "mono" / Clip-level expression.
+			if (i == paramManager.getExpressionParamSetOffset()) {
+				((ExpressionParamSet*)summary->paramCollection)->shiftHorizontally(modelStackWithParamCollection, amount, effectiveLength);
+			}
+
+			//Normal case
+			else {
+
+				if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationShiftClip) == RuntimeFeatureStateToggle::Off) {
+					summary->paramCollection->shiftHorizontally(modelStackWithParamCollection, amount, effectiveLength);
+				}
+			}
+			summary++;
+			i++;
+		}
 	}
 
 	//New addition as part of Automation Clip View Implementation
@@ -3380,31 +3410,33 @@ void NoteRow::clear(Action* action, ModelStackWithNoteRow* modelStack) {
 	//will only clear the Notes and MPE data (NON MPE automations remain intact).
 
 	//If this is enabled, if you want to clear NON MPE automations, you will enter Automation Clip View and clear the clip there.
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationClearClip) == RuntimeFeatureStateToggle::On) {
-		if (getCurrentUI() == &automationInstrumentClipView) {
-			if (paramManager.containsAnyMainParamCollections()) { //excluding expression
-				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-				    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow();
-				paramManager.deleteAllAutomation(action, modelStackWithThreeMainThings);
-			}
-		}
-	}
-	else { //community feature is disabled, so you can clear all automations from within the regular instrument clip view
-		if (getCurrentUI()
-		    == &automationInstrumentClipView) { //if in automation clip view, only clear NON MPE automations
 
-			if (paramManager.containsAnyMainParamCollections()) { //excluding expression
-				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-				    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow();
-				paramManager.deleteAllAutomation(action, modelStackWithThreeMainThings);
+	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow();
+
+	if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
+		ParamCollectionSummary* summary = paramManager.summaries;
+
+		int32_t i = 0;
+
+		while (summary->paramCollection) {
+
+			ModelStackWithParamCollection* modelStackWithParamCollection =
+				modelStackWithThreeMainThings->addParamCollection(summary->paramCollection, summary);
+
+			// Special case for MPE only - not even "mono" / Clip-level expression.
+			if (i == paramManager.getExpressionParamSetOffset()) {
+				((ExpressionParamSet*)summary->paramCollection)->deleteAllAutomation(action, modelStackWithParamCollection);
 			}
-		}
-		else { //if in instrument clip view, clear ALL automations including MPE
-			if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
-				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-				    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow();
-				paramManager.deleteAllAutomation(action, modelStackWithThreeMainThings);
+
+			//Normal case
+			else {
+				if (getCurrentUI() == &automationInstrumentClipView || runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationClearClip) == RuntimeFeatureStateToggle::Off) {
+
+					summary->paramCollection->deleteAllAutomation(action, modelStackWithParamCollection);
+				}
 			}
+			summary++;
+			i++;
 		}
 	}
 

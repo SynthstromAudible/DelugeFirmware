@@ -95,7 +95,7 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationNudgeNote], "Nudge Note", "automationNudgeNote",
 	                  RuntimeFeatureStateToggle::On);
 	// ShiftNoteAutomation
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationShiftNote], "Shift Note", "automationShiftNote",
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationShiftClip], "Shift Note", "AutomationShiftClip",
 	                  RuntimeFeatureStateToggle::On);
 }
 

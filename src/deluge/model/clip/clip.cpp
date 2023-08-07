@@ -948,31 +948,32 @@ void Clip::clear(Action* action, ModelStackWithTimelineCounter* modelStack) {
 	//will only clear the Notes and MPE data (NON MPE automations remain intact).
 
 	//If this is enabled, if you want to clear NON MPE automations, you will enter Automation Clip View and clear the clip there.
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationClearClip) == RuntimeFeatureStateToggle::On) {
-		if (getCurrentUI() == &automationInstrumentClipView) {
-			if (paramManager.containsAnyMainParamCollections()) { //excluding expression
-				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-				    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
-				paramManager.deleteAllAutomation(action, modelStackWithThreeMainThings);
-			}
-		}
-	}
-	else { //community feature is disabled, so you can clear all automations from within the regular instrument clip view
-		if (getCurrentUI()
-		    == &automationInstrumentClipView) { //if in automation clip view, only clear NON MPE automations
 
-			if (paramManager.containsAnyMainParamCollections()) { //excluding expression
-				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-				    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
-				paramManager.deleteAllAutomation(action, modelStackWithThreeMainThings);
+	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
+
+	if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
+		ParamCollectionSummary* summary = paramManager.summaries;
+
+		int32_t i = 0;
+
+		while (summary->paramCollection) {
+
+			ModelStackWithParamCollection* modelStackWithParamCollection =
+				modelStackWithThreeMainThings->addParamCollection(summary->paramCollection, summary);
+
+			// Special case for MPE only - not even "mono" / Clip-level expression.
+			if (i == paramManager.getExpressionParamSetOffset()) {
+				((ExpressionParamSet*)summary->paramCollection)->deleteAllAutomation(action, modelStackWithParamCollection);
 			}
-		}
-		else { //if in instrument clip view, clear ALL automations including MPE
-			if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
-				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-				    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
-				paramManager.deleteAllAutomation(action, modelStackWithThreeMainThings);
+
+			//Normal case
+			else {
+				if (getCurrentUI() == &automationInstrumentClipView || runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationClearClip) == RuntimeFeatureStateToggle::Off) {
+					summary->paramCollection->deleteAllAutomation(action, modelStackWithParamCollection);
+				}
 			}
+			summary++;
+			i++;
 		}
 	}
 }
