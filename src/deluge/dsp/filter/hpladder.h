@@ -23,17 +23,6 @@
 #include "util/functions.h"
 #include <cstdint>
 namespace deluge::dsp::filter {
-struct HPLadder_state {
-	BasicFilterComponent hpfHPF1;
-	BasicFilterComponent hpfLPF1;
-	BasicFilterComponent hpfHPF3;
-
-	void reset() {
-		hpfHPF1.reset();
-		hpfLPF1.reset();
-		hpfHPF3.reset();
-	}
-};
 
 class HpLadderFilter : public Filter<HpLadderFilter> {
 public:
@@ -48,6 +37,17 @@ public:
 	}
 
 private:
+	struct HPLadder_state {
+		BasicFilterComponent hpfHPF1;
+		BasicFilterComponent hpfLPF1;
+		BasicFilterComponent hpfHPF3;
+
+		void reset() {
+			hpfHPF1.reset();
+			hpfLPF1.reset();
+			hpfHPF3.reset();
+		}
+	};
 	inline q31_t doHPF(q31_t input, int32_t saturationLevel, HPLadder_state* state);
 
 	//config

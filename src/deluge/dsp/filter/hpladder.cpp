@@ -71,8 +71,8 @@ q31_t HpLadderFilter::setConfig(q31_t hpfFrequency, q31_t hpfResonance, LPFMode 
 	// Adjust volume for HPF resonance
 	q31_t rawResonance = std::min(hpfResonance, (q31_t)ONE_Q31 >> 2) << 2;
 	q31_t squared = multiply_32x32_rshift32(rawResonance, rawResonance) << 1;
-	squared = (multiply_32x32_rshift32(squared, squared) >> 4)
-	          * 19; // Make bigger to have more of a volume cut happen at high resonance
+	// Make bigger to have more of a volume cut happen at high resonance
+	squared = (multiply_32x32_rshift32(squared, squared) >> 4) * 19;
 	filterGain = multiply_32x32_rshift32(filterGain, ONE_Q31 - squared) << 1;
 
 	return filterGain;

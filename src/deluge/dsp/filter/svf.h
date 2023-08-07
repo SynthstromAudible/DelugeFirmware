@@ -22,17 +22,6 @@
 #include "util/functions.h"
 #include <cstdint>
 namespace deluge::dsp::filter {
-struct SVF_outs {
-	q31_t lpf;
-	q31_t bpf;
-	q31_t hpf;
-	q31_t notch;
-};
-
-struct SVF_state {
-	q31_t low;
-	q31_t band;
-};
 
 class SVFilter : public Filter<SVFilter> {
 public:
@@ -47,6 +36,17 @@ public:
 	}
 
 private:
+	struct SVF_outs {
+		q31_t lpf;
+		q31_t bpf;
+		q31_t hpf;
+		q31_t notch;
+	};
+
+	struct SVF_state {
+		q31_t low;
+		q31_t band;
+	};
 	inline q31_t doSVF(q31_t input, SVF_state* state);
 	SVF_state l;
 	SVF_state r;

@@ -23,19 +23,6 @@
 #include "util/functions.h"
 #include <cstdint>
 namespace deluge::dsp::filter {
-struct LpLadderState {
-	q31_t noiseLastValue;
-	BasicFilterComponent lpfLPF1;
-	BasicFilterComponent lpfLPF2;
-	BasicFilterComponent lpfLPF3;
-	BasicFilterComponent lpfLPF4;
-	void reset() {
-		lpfLPF1.reset();
-		lpfLPF2.reset();
-		lpfLPF3.reset();
-		lpfLPF4.reset();
-	}
-};
 
 class LpLadderFilter : public Filter<LpLadderFilter> {
 public:
@@ -50,6 +37,19 @@ public:
 	}
 
 private:
+	struct LpLadderState {
+		q31_t noiseLastValue;
+		BasicFilterComponent lpfLPF1;
+		BasicFilterComponent lpfLPF2;
+		BasicFilterComponent lpfLPF3;
+		BasicFilterComponent lpfLPF4;
+		void reset() {
+			lpfLPF1.reset();
+			lpfLPF2.reset();
+			lpfLPF3.reset();
+			lpfLPF4.reset();
+		}
+	};
 	inline q31_t do24dBLPFOnSample(q31_t input, LpLadderState* state, int32_t saturationLevel);
 	inline q31_t do12dBLPFOnSample(q31_t input, LpLadderState* state, int32_t saturationLevel);
 	inline q31_t doDriveLPFOnSample(q31_t input, LpLadderState* state, int32_t extraSaturation = 0);
