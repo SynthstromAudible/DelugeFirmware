@@ -3233,16 +3233,22 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 
 		// Immediate release of the pad arms the section, holding allows changing repeats
 		if (on) {
-			enterUIMode(UI_MODE_HOLDING_SECTION_PAD);
-			performActionOnSectionPadRelease = true;
-			sectionPressed = section;
-			uiTimerManager.setTimer(TIMER_UI_SPECIFIC, 300);
+			if(Buttons::isShiftButtonPressed()) {
+				gridStartSection(section, true);
+				performActionOnSectionPadRelease = false;
+			}
+			else {
+				enterUIMode(UI_MODE_HOLDING_SECTION_PAD);
+				performActionOnSectionPadRelease = true;
+				sectionPressed = section;
+				uiTimerManager.setTimer(TIMER_UI_SPECIFIC, 300);
+			}
 		}
 		else {
 			// Arm section if immediately released
 			if (isUIModeActive(UI_MODE_HOLDING_SECTION_PAD)) {
-				if (performActionOnSectionPadRelease) {
-					gridStartSection(sectionPressed, Buttons::isShiftButtonPressed());
+				if (performActionOnSectionPadRelease && !Buttons::isShiftButtonPressed()) {
+					gridStartSection(sectionPressed, false);
 				}
 
 				exitUIMode(UI_MODE_HOLDING_SECTION_PAD);
