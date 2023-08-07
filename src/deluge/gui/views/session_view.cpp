@@ -3180,6 +3180,32 @@ void SessionView::gridClonePad(uint32_t sourceX, uint32_t sourceY, uint32_t targ
 	gridCreateClip(gridSectionFromY(targetY), gridTrackFromX(targetX, gridTrackCount()), sourceClip);
 }
 
+void SessionView::gridStartSection(uint32_t section, bool instant) {
+	if(instant) {
+		currentSong->turnSoloingIntoJustPlaying(currentSong->sections[section].numRepetitions != -1);
+
+		for (int32_t idxClip = 0; idxClip < currentSong->sessionClips.getNumElements(); ++idxClip) {
+			Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
+
+			if ((clip->section == section && !clip->activeIfNoSolo) || (clip->section != section && clip->activeIfNoSolo)) {
+				gridToggleClipPlay(clip, instant);
+			}
+			else {
+				clip->armState = ArmState::OFF;
+			}
+		}
+
+		session.launchSchedulingMightNeedCancelling();
+	}
+	else {
+		session.armSection(section, kInternalButtonPressLatency);
+	}
+}
+
+void SessionView::gridToggleClipPlay(Clip* clip, bool instant) {
+	session.toggleClipStatus(clip, nullptr, instant, kInternalButtonPressLatency);
+}
+
 ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 	// Except for the path to sectionPadAction in the original function all paths contained this check. Can probably be refactored
 	if (sdRoutineLock) {
@@ -3205,7 +3231,7 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 			return ActionResult::DEALT_WITH;
 		}
 
-		// Immediate release arms section, holding allows changing repeats
+		// Immediate release of the pad arms the section, holding allows changing repeats
 		if (on) {
 			enterUIMode(UI_MODE_HOLDING_SECTION_PAD);
 			performActionOnSectionPadRelease = true;
@@ -3216,14 +3242,7 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 			// Arm section if immediately released
 			if (isUIModeActive(UI_MODE_HOLDING_SECTION_PAD)) {
 				if (performActionOnSectionPadRelease) {
-					for (int32_t idxClip = 0; idxClip < currentSong->sessionClips.getNumElements(); ++idxClip) {
-						Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
-						if ((clip->section == sectionPressed && !clip->activeIfNoSolo)
-						    || (clip->section != sectionPressed && clip->activeIfNoSolo)) {
-							session.toggleClipStatus(clip, NULL, Buttons::isShiftButtonPressed(),
-							                         kInternalButtonPressLatency);
-						}
-					}
+					gridStartSection(sectionPressed, Buttons::isShiftButtonPressed());
 				}
 
 				exitUIMode(UI_MODE_HOLDING_SECTION_PAD);
@@ -3260,13 +3279,13 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 		}
 
 		else if (on) {
-			// Only do this if no other pad is pressed
+			// Only do this if no pad is pressed yet
 			if (gridFirstPressedX == -1 && gridFirstPressedY == -1) {
 				Clip* clip = gridClipFromCoords(x, y);
 
-				// Immediate arming
+				// Immediate arming, immediate consumption, don't save the pad press
 				if (clip && Buttons::isButtonPressed(hid::button::SHIFT)) {
-					session.toggleClipStatus(clip, NULL, true, kInternalButtonPressLatency);
+					gridToggleClipPlay(clip, true);
 					requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 					view.flashPlayEnable();
 					return ActionResult::DEALT_WITH;
@@ -3283,8 +3302,9 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 					if (clip == nullptr && (x + currentSong->songGridScrollX) <= trackCount) {
 						Output* track = gridTrackFromX(x, trackCount);
 						clip = gridCreateClip(gridSectionFromY(y), track, nullptr);
+						// Immediately start playing it for new tracks
 						if (clip != nullptr && track == nullptr) {
-							session.toggleClipStatus(clip, NULL, true, kInternalButtonPressLatency);
+							gridToggleClipPlay(clip, true);
 						}
 					}
 
@@ -3348,7 +3368,7 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 					else if (!gridPreventArm
 					         && (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW
 					             || currentUIMode == UI_MODE_STUTTERING)) {
-						session.toggleClipStatus(clip, NULL, false, kInternalButtonPressLatency);
+						gridToggleClipPlay(clip, false);
 					}
 					else if (currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
 						session.soloClipAction(clip, kInternalButtonPressLatency);

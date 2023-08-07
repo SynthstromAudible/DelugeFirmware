@@ -169,6 +169,8 @@ private:
 	Clip* gridCreateClipWithNewTrack(InstrumentType type);
 	Clip* gridCreateClip(uint32_t targetSection, Output* targetOutput = nullptr, Clip* sourceClip = nullptr);
 	void gridClonePad(uint32_t sourceX, uint32_t sourceY, uint32_t targetX, uint32_t targetY);
+	void gridStartSection(uint32_t section, bool instant);
+	void gridToggleClipPlay(Clip* clip, bool instant);
 
 	const uint32_t gridTrackCount();
 	uint32_t gridTrackIndexFromTrack(Output* track, uint32_t maxTrack);
