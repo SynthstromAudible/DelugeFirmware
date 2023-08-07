@@ -32,9 +32,9 @@ extern "C" {
 class AudioClip;
 
 namespace PadLEDs {
-extern RGB image[kDisplayHeight][kDisplayWidth + kSideBarWidth];                   // 255 = full brightness
+extern RGB image[kDisplayHeight][kDisplayWidth + kSideBarWidth];                      // 255 = full brightness
 extern uint8_t occupancyMask[kDisplayHeight][kDisplayWidth + kSideBarWidth];          // 64 = full occupancy
-extern RGB imageStore[kDisplayHeight * 2][kDisplayWidth + kSideBarWidth];          // 255 = full brightness
+extern RGB imageStore[kDisplayHeight * 2][kDisplayWidth + kSideBarWidth];             // 255 = full brightness
 extern uint8_t occupancyMaskStore[kDisplayHeight * 2][kDisplayWidth + kSideBarWidth]; // 64 = full occupancy
 
 extern bool transitionTakingPlaceOnRow[kDisplayHeight];

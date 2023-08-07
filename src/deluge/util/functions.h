@@ -413,7 +413,7 @@ int32_t stringToFirmwareVersion(char const* firmwareVersionString);
 // intensity is out of 65536 now
 // occupancyMask is out of 64 now
 inline RGB drawSquare(const RGB& squareColor, int32_t intensity, const RGB& square, uint8_t* occupancyMask,
-                         int32_t occupancyFromWhichColorCame) {
+                      int32_t occupancyFromWhichColorCame) {
 
 	int32_t modifiedIntensity = intensity; //(intensity * occupancyFromWhichColorCame) >> 6; // Out of 65536
 

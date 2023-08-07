@@ -186,6 +186,6 @@ private:
 	void findNextNoteToPlay(uint32_t);
 	void attemptLateStartOfNextNoteToPlay(ModelStackWithNoteRow* modelStack, Note* note);
 	bool noteRowMayMakeSound(bool);
-	void drawTail(int32_t startTail, int32_t endTail, uint8_t squareColor[], bool overwriteExisting,
-	              uint8_t image[][3], uint8_t occupancyMask[]);
+	void drawTail(int32_t startTail, int32_t endTail, uint8_t squareColor[], bool overwriteExisting, uint8_t image[][3],
+	              uint8_t occupancyMask[]);
 };

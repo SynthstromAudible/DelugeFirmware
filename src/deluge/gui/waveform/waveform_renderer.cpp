@@ -51,8 +51,7 @@ WaveformRenderer::WaveformRenderer() {
 // Returns false if had trouble loading some (will often not be all) Clusters, e.g. cos we're in the card routine
 bool WaveformRenderer::renderFullScreen(Sample* sample, uint64_t xScroll, uint64_t xZoom,
                                         RGB thisImage[][kDisplayWidth + kSideBarWidth], WaveformRenderData* data,
-                                        SampleRecorder* recorder, std::optional<RGB> rgb, bool reversed,
-                                        int32_t xEnd) {
+                                        SampleRecorder* recorder, std::optional<RGB> rgb, bool reversed, int32_t xEnd) {
 
 	bool completeSuccess = findPeaksPerCol(sample, xScroll, xZoom, data, recorder);
 	if (!completeSuccess) {
@@ -146,8 +145,8 @@ int32_t WaveformRenderer::getColBrightnessForSingleRow(int32_t xDisplay, int32_t
 void WaveformRenderer::renderOneColForCollapseAnimation(int32_t xDisplayWaveform, int32_t xDisplayOutput,
                                                         int32_t maxPeakFromZero, int32_t progress,
                                                         RGB thisImage[][kDisplayWidth + kSideBarWidth],
-                                                        WaveformRenderData* data, std::optional<RGB> rgb,
-                                                        bool reversed, int32_t valueCentrePoint, int32_t valueSpan) {
+                                                        WaveformRenderData* data, std::optional<RGB> rgb, bool reversed,
+                                                        int32_t valueCentrePoint, int32_t valueSpan) {
 
 	int32_t xDisplayData = xDisplayWaveform;
 	if (reversed) {
@@ -171,8 +170,8 @@ void WaveformRenderer::renderOneColForCollapseAnimation(int32_t xDisplayWaveform
 // Crudely grabs the max values from all cols in range, which looks totally fine.
 void WaveformRenderer::renderOneColForCollapseAnimationZoomedOut(
     int32_t xDisplayWaveformLeftEdge, int32_t xDisplayWaveformRightEdge, int32_t xDisplayOutput,
-    int32_t maxPeakFromZero, int32_t progress, RGB thisImage[][kDisplayWidth + kSideBarWidth],
-    WaveformRenderData* data, std::optional<RGB> rgb, bool reversed, int32_t valueCentrePoint, int32_t valueSpan) {
+    int32_t maxPeakFromZero, int32_t progress, RGB thisImage[][kDisplayWidth + kSideBarWidth], WaveformRenderData* data,
+    std::optional<RGB> rgb, bool reversed, int32_t valueCentrePoint, int32_t valueSpan) {
 
 	int32_t xDisplayDataLeftEdge = xDisplayWaveformLeftEdge;
 	int32_t xDisplayDataRightEdge = xDisplayWaveformRightEdge;

@@ -1337,9 +1337,8 @@ bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack
 			rowAllowsNoteTails = allowNoteTails(modelStackWithNoteRow);
 		}
 
-		thisNoteRow->renderRow(editorScreen, mainColor, tailColor, blurColor, image, occupancyMask, false,
-		                       loopLength, rowAllowsNoteTails, kDisplayWidth, xScroll, xZoom, xStart, xEnd,
-		                       drawRepeats);
+		thisNoteRow->renderRow(editorScreen, mainColor, tailColor, blurColor, image, occupancyMask, false, loopLength,
+		                       rowAllowsNoteTails, kDisplayWidth, xScroll, xZoom, xStart, xEnd, drawRepeats);
 	}
 	if (addUndefinedArea) {
 		drawUndefinedArea(xScroll, xZoom, loopLength, image, occupancyMask, kDisplayWidth, editorScreen,

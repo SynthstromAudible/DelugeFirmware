@@ -2191,10 +2191,10 @@ squareStartPosSet:
 
 					// Mix the colors for all the squares
 					for (int32_t reworkSquare = xDisplay; reworkSquare < squareEnd; reworkSquare++) {
-						image[reworkSquare] = RGB::transform2(image[reworkSquare], sectionColor,
-						                                         [](uint8_t channelA, uint8_t channelB) {
-							                                         return ((int32_t)channelA * 525 + channelB) >> 13;
-						                                         });
+						image[reworkSquare] =
+						    RGB::transform2(image[reworkSquare], sectionColor, [](uint8_t channelA, uint8_t channelB) {
+							    return ((int32_t)channelA * 525 + channelB) >> 13;
+						    });
 					}
 
 					xDisplay = squareEnd - 1;

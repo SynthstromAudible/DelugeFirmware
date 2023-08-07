@@ -106,7 +106,6 @@ public:
 		send(knob, indicator);
 	}
 
-
 	static void setLEDOff(size_t idx) { send(util::to_underlying(Message::SET_LED_OFF) + idx); }
 	static void setLEDOn(size_t idx) { send(util::to_underlying(Message::SET_LED_ON) + idx); }
 

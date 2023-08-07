@@ -45,9 +45,9 @@ extern "C" {
 using namespace deluge;
 
 namespace PadLEDs {
-RGB image[kDisplayHeight][kDisplayWidth + kSideBarWidth];                   // 255 = full brightness
+RGB image[kDisplayHeight][kDisplayWidth + kSideBarWidth];                      // 255 = full brightness
 uint8_t occupancyMask[kDisplayHeight][kDisplayWidth + kSideBarWidth];          // 64 = full occupancy
-RGB imageStore[kDisplayHeight * 2][kDisplayWidth + kSideBarWidth];          // 255 = full brightness
+RGB imageStore[kDisplayHeight * 2][kDisplayWidth + kSideBarWidth];             // 255 = full brightness
 uint8_t occupancyMaskStore[kDisplayHeight * 2][kDisplayWidth + kSideBarWidth]; // 64 = full occupancy
 
 bool zoomingIn;
@@ -1317,8 +1317,8 @@ int32_t getTransitionProgress() {
 	return ((uint64_t)(AudioEngine::audioSampleTimer - transitionStartTime) * 65536) / transitionLength;
 }
 
-void copyBetweenImageStores(RGB* __restrict__ dest, RGB* __restrict__ source, int32_t destWidth,
-                            int32_t sourceWidth, int32_t copyWidth) {
+void copyBetweenImageStores(RGB* __restrict__ dest, RGB* __restrict__ source, int32_t destWidth, int32_t sourceWidth,
+                            int32_t copyWidth) {
 	if (destWidth == sourceWidth && copyWidth >= sourceWidth - 2) {
 		memcpy(dest, source, sourceWidth * kDisplayHeight * sizeof(RGB));
 		return;

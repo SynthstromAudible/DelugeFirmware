@@ -2413,8 +2413,8 @@ void InstrumentClipView::recalculateColor(uint8_t yDisplay) {
 	if (noteRow) {
 		colorOffset = noteRow->getColorOffset(getCurrentClip());
 	}
-	rowColor[yDisplay] = getCurrentClip()->getMainColorFromY(
-	    getCurrentClip()->getYNoteFromYDisplay(yDisplay, currentSong), colorOffset);
+	rowColor[yDisplay] =
+	    getCurrentClip()->getMainColorFromY(getCurrentClip()->getYNoteFromYDisplay(yDisplay, currentSong), colorOffset);
 	rowTailColor[yDisplay] = rowColor[yDisplay].forTail();
 	rowBlurColor[yDisplay] = rowColor[yDisplay].forBlur();
 }
@@ -3637,11 +3637,11 @@ void InstrumentClipView::enterScaleMode(uint8_t yDisplay) {
 			RGB tailColor = mainColor.forTail();
 			RGB blurColor = mainColor.forBlur();
 
-			thisNoteRow->renderRow(
-			    this, mainColor, tailColor, blurColor, PadLEDs::imageStore[PadLEDs::numAnimatedRows],
-			    PadLEDs::occupancyMaskStore[PadLEDs::numAnimatedRows], true, modelStackWithNoteRow->getLoopLength(),
-			    clip->allowNoteTails(modelStackWithNoteRow), kDisplayWidth, currentSong->xScroll[NAVIGATION_CLIP],
-			    currentSong->xZoom[NAVIGATION_CLIP]);
+			thisNoteRow->renderRow(this, mainColor, tailColor, blurColor, PadLEDs::imageStore[PadLEDs::numAnimatedRows],
+			                       PadLEDs::occupancyMaskStore[PadLEDs::numAnimatedRows], true,
+			                       modelStackWithNoteRow->getLoopLength(), clip->allowNoteTails(modelStackWithNoteRow),
+			                       kDisplayWidth, currentSong->xScroll[NAVIGATION_CLIP],
+			                       currentSong->xZoom[NAVIGATION_CLIP]);
 			drawMuteSquare(thisNoteRow, PadLEDs::imageStore[PadLEDs::numAnimatedRows],
 			               PadLEDs::occupancyMaskStore[PadLEDs::numAnimatedRows]);
 			PadLEDs::numAnimatedRows++;
@@ -3724,11 +3724,11 @@ void InstrumentClipView::exitScaleMode() {
 
 			ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(thisNoteRow->y, thisNoteRow);
 
-			thisNoteRow->renderRow(
-			    this, mainColor, tailColor, blurColor, PadLEDs::imageStore[PadLEDs::numAnimatedRows],
-			    PadLEDs::occupancyMaskStore[PadLEDs::numAnimatedRows], true, modelStackWithNoteRow->getLoopLength(),
-			    clip->allowNoteTails(modelStackWithNoteRow), kDisplayWidth, currentSong->xScroll[NAVIGATION_CLIP],
-			    currentSong->xZoom[NAVIGATION_CLIP]);
+			thisNoteRow->renderRow(this, mainColor, tailColor, blurColor, PadLEDs::imageStore[PadLEDs::numAnimatedRows],
+			                       PadLEDs::occupancyMaskStore[PadLEDs::numAnimatedRows], true,
+			                       modelStackWithNoteRow->getLoopLength(), clip->allowNoteTails(modelStackWithNoteRow),
+			                       kDisplayWidth, currentSong->xScroll[NAVIGATION_CLIP],
+			                       currentSong->xZoom[NAVIGATION_CLIP]);
 			drawMuteSquare(thisNoteRow, PadLEDs::imageStore[PadLEDs::numAnimatedRows],
 			               PadLEDs::occupancyMaskStore[PadLEDs::numAnimatedRows]);
 			PadLEDs::numAnimatedRows++;
@@ -3898,8 +3898,8 @@ drawNormally:
 
 				for (int32_t color = 0; color < 3; color++) {
 					thisColor[color] = ((int32_t)rowColor[yDisplay][color] * (8421504 - 6500000)
-					                      + ((int32_t)totalColor * (6500000 >> 5)))
-					                     >> 23;
+					                    + ((int32_t)totalColor * (6500000 >> 5)))
+					                   >> 23;
 				}
 				return;
 			}
