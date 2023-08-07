@@ -938,7 +938,8 @@ doOther:
 	}
 
 	else if (b == BACK && currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
-		if (on && clip->lastSelectedParamID == 255) { //only allow clearing of a clip if you're in the automation overview
+		if (on
+		    && clip->lastSelectedParamID == 255) { //only allow clearing of a clip if you're in the automation overview
 			goto passToOthers;
 		}
 	}
@@ -1164,12 +1165,12 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 		// If no NoteRow yet...
 		//if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
 
-			// Just check we're not beyond Clip length
+		// Just check we're not beyond Clip length
 		//	if (squareStart >= clip->loopLength) {
 		//		return;
 		//	}
 
-			// And create the new NoteRow
+		// And create the new NoteRow
 		//	if (instrument->type != InstrumentType::KIT) {
 		//		modelStackWithNoteRow = instrumentClipView.createNoteRowForYDisplay(modelStack, yDisplay);
 		//	}
@@ -1186,13 +1187,13 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 		//		return;
 		//	}
 
-			// If that just created a new NoteRow for a Kit, then we can't undo any further back than this
+		// If that just created a new NoteRow for a Kit, then we can't undo any further back than this
 		//	if (instrument->type == InstrumentType::KIT) {
 		//		actionLogger.deleteAllLogs();
 		//	}
-	//	}
+		//	}
 
-	//	int32_t effectiveLength = modelStackWithNoteRow->getLoopLength();
+		//	int32_t effectiveLength = modelStackWithNoteRow->getLoopLength();
 
 		// Now that we've definitely got a NoteRow, check against NoteRow "effective" length here (though it'll very possibly be the same as the Clip length we may have tested against above).
 		//don't need this check for automation clip view because we are not working with a note row concept, except for kit's, but we can check that later. for now we just need to get pads pressed.
@@ -1200,17 +1201,17 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 		//		return;
 		//	}
 
-	//	uint32_t squareWidth = instrumentClipView.getSquareWidth(xDisplay, effectiveLength);
+		//	uint32_t squareWidth = instrumentClipView.getSquareWidth(xDisplay, effectiveLength);
 
-	//	NoteRow* noteRow = modelStackWithNoteRow->getNoteRow();
+		//	NoteRow* noteRow = modelStackWithNoteRow->getNoteRow();
 
-	//	ParamManagerForTimeline* paramManager = NULL;
-	//	if (instrument->type == InstrumentType::SYNTH) {
-	//		paramManager = &clip->paramManager; //for a synth the params are saved at clip level
-	//	}
-	//	else if (instrument->type == InstrumentType::KIT) {
-	//		paramManager = &noteRow->paramManager; //for a kit, params are saved at note level
-	//	}
+		//	ParamManagerForTimeline* paramManager = NULL;
+		//	if (instrument->type == InstrumentType::SYNTH) {
+		//		paramManager = &clip->paramManager; //for a synth the params are saved at clip level
+		//	}
+		//	else if (instrument->type == InstrumentType::KIT) {
+		//		paramManager = &noteRow->paramManager; //for a kit, params are saved at note level
+		//	}
 
 		// If this is a note-length-edit press...
 		//needed for Automation
@@ -1740,10 +1741,11 @@ ActionResult AutomationInstrumentClipView::horizontalEncoderAction(int32_t offse
 
 	encoderAction = true;
 
-	if (clip->lastSelectedParamID != 255 && ((isNoUIModeActive() && Buttons::isButtonPressed(hid::button::Y_ENC))
-		         || (isUIModeActiveExclusively(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)
-		             && Buttons::isButtonPressed(hid::button::CLIP_VIEW))
-					 || (isUIModeActiveExclusively(UI_MODE_AUDITIONING | UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)))) {
+	if (clip->lastSelectedParamID != 255
+	    && ((isNoUIModeActive() && Buttons::isButtonPressed(hid::button::Y_ENC))
+	        || (isUIModeActiveExclusively(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)
+	            && Buttons::isButtonPressed(hid::button::CLIP_VIEW))
+	        || (isUIModeActiveExclusively(UI_MODE_AUDITIONING | UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)))) {
 
 		if (sdRoutineLock) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Just be safe - maybe not necessary
@@ -1759,7 +1761,6 @@ ActionResult AutomationInstrumentClipView::horizontalEncoderAction(int32_t offse
 		}
 
 		return ActionResult::DEALT_WITH;
-
 	}
 
 	//else if showing the Parameter selection grid menu, disable this action
@@ -1812,8 +1813,7 @@ void AutomationInstrumentClipView::shiftAutomationHorizontally(int32_t offset) {
 
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
-	ModelStackWithAutoParam* modelStackWithParam =
-	    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID);
+	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID);
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 

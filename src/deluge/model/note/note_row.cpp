@@ -3367,7 +3367,8 @@ void NoteRow::shiftHorizontally(int32_t amount, ModelStackWithNoteRow* modelStac
 
 	//If this is enabled, if you want to shift NON MPE automations, you will enter Automation Clip View and shift the clip there.
 
-	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow();
+	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+	    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow();
 
 	if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
 		ParamCollectionSummary* summary = paramManager.summaries;
@@ -3377,17 +3378,19 @@ void NoteRow::shiftHorizontally(int32_t amount, ModelStackWithNoteRow* modelStac
 		while (summary->paramCollection) {
 
 			ModelStackWithParamCollection* modelStackWithParamCollection =
-				modelStackWithThreeMainThings->addParamCollection(summary->paramCollection, summary);
+			    modelStackWithThreeMainThings->addParamCollection(summary->paramCollection, summary);
 
 			// Special case for MPE only - not even "mono" / Clip-level expression.
 			if (i == paramManager.getExpressionParamSetOffset()) {
-				((ExpressionParamSet*)summary->paramCollection)->shiftHorizontally(modelStackWithParamCollection, amount, effectiveLength);
+				((ExpressionParamSet*)summary->paramCollection)
+				    ->shiftHorizontally(modelStackWithParamCollection, amount, effectiveLength);
 			}
 
 			//Normal case
 			else {
 
-				if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationShiftClip) == RuntimeFeatureStateToggle::Off) {
+				if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationShiftClip)
+				    == RuntimeFeatureStateToggle::Off) {
 					summary->paramCollection->shiftHorizontally(modelStackWithParamCollection, amount, effectiveLength);
 				}
 			}
@@ -3411,7 +3414,8 @@ void NoteRow::clear(Action* action, ModelStackWithNoteRow* modelStack) {
 
 	//If this is enabled, if you want to clear NON MPE automations, you will enter Automation Clip View and clear the clip there.
 
-	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow();
+	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+	    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow();
 
 	if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
 		ParamCollectionSummary* summary = paramManager.summaries;
@@ -3421,16 +3425,19 @@ void NoteRow::clear(Action* action, ModelStackWithNoteRow* modelStack) {
 		while (summary->paramCollection) {
 
 			ModelStackWithParamCollection* modelStackWithParamCollection =
-				modelStackWithThreeMainThings->addParamCollection(summary->paramCollection, summary);
+			    modelStackWithThreeMainThings->addParamCollection(summary->paramCollection, summary);
 
 			// Special case for MPE only - not even "mono" / Clip-level expression.
 			if (i == paramManager.getExpressionParamSetOffset()) {
-				((ExpressionParamSet*)summary->paramCollection)->deleteAllAutomation(action, modelStackWithParamCollection);
+				((ExpressionParamSet*)summary->paramCollection)
+				    ->deleteAllAutomation(action, modelStackWithParamCollection);
 			}
 
 			//Normal case
 			else {
-				if (getCurrentUI() == &automationInstrumentClipView || runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationClearClip) == RuntimeFeatureStateToggle::Off) {
+				if (getCurrentUI() == &automationInstrumentClipView
+				    || runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationClearClip)
+				           == RuntimeFeatureStateToggle::Off) {
 
 					summary->paramCollection->deleteAllAutomation(action, modelStackWithParamCollection);
 				}

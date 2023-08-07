@@ -949,7 +949,8 @@ void Clip::clear(Action* action, ModelStackWithTimelineCounter* modelStack) {
 
 	//If this is enabled, if you want to clear NON MPE automations, you will enter Automation Clip View and clear the clip there.
 
-	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
+	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+	    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
 
 	if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
 		ParamCollectionSummary* summary = paramManager.summaries;
@@ -959,16 +960,19 @@ void Clip::clear(Action* action, ModelStackWithTimelineCounter* modelStack) {
 		while (summary->paramCollection) {
 
 			ModelStackWithParamCollection* modelStackWithParamCollection =
-				modelStackWithThreeMainThings->addParamCollection(summary->paramCollection, summary);
+			    modelStackWithThreeMainThings->addParamCollection(summary->paramCollection, summary);
 
 			// Special case for MPE only - not even "mono" / Clip-level expression.
 			if (i == paramManager.getExpressionParamSetOffset()) {
-				((ExpressionParamSet*)summary->paramCollection)->deleteAllAutomation(action, modelStackWithParamCollection);
+				((ExpressionParamSet*)summary->paramCollection)
+				    ->deleteAllAutomation(action, modelStackWithParamCollection);
 			}
 
 			//Normal case
 			else {
-				if (getCurrentUI() == &automationInstrumentClipView || runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationClearClip) == RuntimeFeatureStateToggle::Off) {
+				if (getCurrentUI() == &automationInstrumentClipView
+				    || runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationClearClip)
+				           == RuntimeFeatureStateToggle::Off) {
 					summary->paramCollection->deleteAllAutomation(action, modelStackWithParamCollection);
 				}
 			}

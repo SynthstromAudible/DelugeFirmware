@@ -3269,7 +3269,8 @@ bool InstrumentClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack
 
 	//If this is enabled, if you want to shift NON MPE automations, you will enter Automation Clip View and shift the clip there.
 
-	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
+	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+	    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
 
 	if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
 		ParamCollectionSummary* summary = paramManager.summaries;
@@ -3279,17 +3280,19 @@ bool InstrumentClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack
 		while (summary->paramCollection) {
 
 			ModelStackWithParamCollection* modelStackWithParamCollection =
-				modelStackWithThreeMainThings->addParamCollection(summary->paramCollection, summary);
+			    modelStackWithThreeMainThings->addParamCollection(summary->paramCollection, summary);
 
 			// Special case for MPE only - not even "mono" / Clip-level expression.
 			if (i == paramManager.getExpressionParamSetOffset()) {
-				((ExpressionParamSet*)summary->paramCollection)->shiftHorizontally(modelStackWithParamCollection, amount, loopLength);
+				((ExpressionParamSet*)summary->paramCollection)
+				    ->shiftHorizontally(modelStackWithParamCollection, amount, loopLength);
 			}
 
 			//Normal case
 			else {
 
-				if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationShiftClip) == RuntimeFeatureStateToggle::Off) {
+				if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationShiftClip)
+				    == RuntimeFeatureStateToggle::Off) {
 					summary->paramCollection->shiftHorizontally(modelStackWithParamCollection, amount, loopLength);
 				}
 			}
