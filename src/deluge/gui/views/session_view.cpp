@@ -3575,6 +3575,18 @@ const uint32_t SessionView::gridTrackCount() {
 	return count;
 }
 
+uint32_t SessionView::gridClipCountForTrack(Output* track) {
+	uint32_t count = 0;
+	for (int32_t idxClip = 0; idxClip < currentSong->sessionClips.getNumElements(); ++idxClip) {
+		Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
+		if (clip->output == track) {
+			++count;
+		}
+	}
+
+	return count;
+}
+
 uint32_t SessionView::gridTrackIndexFromTrack(Output* track, uint32_t maxTrack) {
 	if (maxTrack <= 0) {
 		return -1;
