@@ -2983,15 +2983,10 @@ Clip* SessionView::gridCreateClipInTrack(Output* targetOutput) {
 		return nullptr;
 	}
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-
-	// Old method produced E073 for drum clips
-	// ModelStackWithTimelineCounter* modelStack = setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(sourceClip);
-	// Clip* newClip = sourceClip->cloneAsNewOverdub(modelStack, OVERDUB_NOT_REAL_JUST_COPY); // cloneAsNewOverdub was modified at that point to not call setupForRecordingAsAutoOverdub
-
 	// New method is cloning full clip and emptying it
 	Clip* newClip = gridCloneClip(sourceClip);
 
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack =
 	    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, newClip);
 	Action* action = actionLogger.getNewAction(ACTION_CLIP_CLEAR, false);
@@ -3011,7 +3006,7 @@ Clip* SessionView::gridCreateClipInTrack(Output* targetOutput) {
 	return newClip;
 }
 
-Clip* SessionView::gridCreateClipWithNewTrack(InstrumentType type) {
+InstrumentClip* SessionView::gridCreateClipWithNewTrack(InstrumentType type) {
 	// Allocate new clip
 	void* memory = GeneralMemoryAllocator::get().alloc(sizeof(InstrumentClip), NULL, false, true);
 	if (!memory) {
@@ -3084,19 +3079,13 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 
 	// From source
 	if (sourceClip != nullptr) {
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithTimelineCounter* modelStack =
-		    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(sourceClip);
 
 		// Copy existing clip to the same track
 		if (sourceClip->output == targetOutput) {
-			int32_t error = sourceClip->clone(modelStack, false);
-			if (error) {
-				numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+			newClip = gridCloneClip(sourceClip);
+			if (newClip == nullptr) {
 				return nullptr;
 			}
-
-			newClip = (Clip*)modelStack->getTimelineCounter();
 		}
 
 		// Can't clone audio to other tracks
@@ -3132,9 +3121,19 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 			// We have a compatible target clip
 			if (newClip != nullptr) {
 				InstrumentClip* newInstrumentClip = (InstrumentClip*)newClip;
+				//@TODO: This still produces crashes
 
-				// Copy note row contents if clip was created
-				if (newInstrumentClip != nullptr && sourceInstrumentClip->type == newInstrumentClip->type) {
+				// Copy note row contents if clip type matches
+				if (sourceInstrumentClip->type == newInstrumentClip->type) {
+					newInstrumentClip->loopLength = sourceInstrumentClip->loopLength;
+
+					// if(newInstrumentClip->paramManager.cloneParamCollectionsFrom(&sourceInstrumentClip->paramManager, true, true, 0) != NO_ERROR) {
+					// 	newInstrumentClip->~InstrumentClip();
+					// 	GeneralMemoryAllocator::get().dealloc(newInstrumentClip);
+					// 	numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+					// 	return nullptr;
+					// }
+
 					if (!newInstrumentClip->noteRows.cloneFrom(&sourceInstrumentClip->noteRows)) {
 						newInstrumentClip->~InstrumentClip();
 						GeneralMemoryAllocator::get().dealloc(newInstrumentClip);
@@ -3142,6 +3141,9 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 						return nullptr;
 					}
 
+					char modelStackMemory[MODEL_STACK_MAX_SIZE];
+					ModelStackWithTimelineCounter* modelStack =
+					    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(sourceClip);
 					modelStack->setTimelineCounter(newInstrumentClip);
 
 					for (int32_t i = 0; i < newInstrumentClip->noteRows.getNumElements(); i++) {
@@ -3149,6 +3151,12 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 						int32_t noteRowId = newInstrumentClip->getNoteRowId(noteRow, i);
 						ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, noteRow);
 						int32_t error = noteRow->beenCloned(modelStackWithNoteRow, false);
+						if (error != NO_ERROR) {
+							newInstrumentClip->~InstrumentClip();
+							GeneralMemoryAllocator::get().dealloc(newInstrumentClip);
+							numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+							return nullptr;
+						}
 					}
 				}
 			}
