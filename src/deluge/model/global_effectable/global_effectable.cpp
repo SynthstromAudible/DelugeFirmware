@@ -409,12 +409,12 @@ void GlobalEffectable::setupFilterSetConfig(int32_t* postFXVolume, ParamManager*
 
 	*postFXVolume = filterSets[0].set_config(lpfFrequency, lpfResonance, doLPF, hpfFrequency, hpfResonance, doHPF,
 	                                         lpfMode, *postFXVolume, false, NULL);
-	filterSets[1].copy_config(&filterSets[0]);
+	//filterSets[1].copy_config(&filterSets[0]);
 }
 
 void GlobalEffectable::processFilters(StereoSample* buffer, int32_t numSamples) {
-	filterSets[0].renderLong(&buffer->l, &(buffer + numSamples)->l, numSamples, 2, 2);
-	filterSets[1].renderLong(&buffer->r, &(buffer + numSamples)->r, numSamples, 2, 2);
+	filterSets[0].renderLongStereo(&buffer->l, &(buffer + numSamples)->l, 2);
+	//filterSets[1].renderLong(&buffer->r, &(buffer + numSamples)->r, numSamples, 2, 2);
 }
 
 void GlobalEffectable::writeAttributesToFile(bool writeAutomation) {

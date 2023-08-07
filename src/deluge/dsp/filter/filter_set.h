@@ -55,7 +55,7 @@ public:
 		else
 			lastLPFMode = LPFMode::OFF;
 	}
-	inline void renderStereoLong(q31_t* startSample, q31_t* endSample, int32_t extraSaturation = 1) {
+	inline void renderLongStereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation = 1) {
 		// Do HPF, if it's on
 		if (HPFOn) {
 			renderHPFLongStereo(startSample, endSample, extraSaturation);

@@ -68,6 +68,12 @@ void FilterSet::renderLPFLongStereo(q31_t* startSample, q31_t* endSample, int32_
 		}
 		lpsvf.filter_stereo(startSample, endSample, extraSaturation);
 	}
+	else {
+		if (lastLPFMode > kLastLadder) {
+			lpladder.reset();
+		}
+		lpladder.filter_stereo(startSample, endSample, extraSaturation);
+	}
 
 	lastLPFMode = lpfMode;
 }
