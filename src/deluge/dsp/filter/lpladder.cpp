@@ -54,8 +54,8 @@ const int16_t resonanceLimitTable[] = {
     17000, 17000, 17000, 17000, 17000, 17000, 17000, 17000,
 };
 
-q31_t LpLadderFilter::set_config(q31_t lpfFrequency, q31_t lpfResonance, LPFMode lpfMode, q31_t filterGain) {
-
+q31_t LpLadderFilter::set_config(q31_t lpfFrequency, q31_t lpfResonance, LPFMode lpfmode, q31_t filterGain) {
+	lpfMode = lpfmode;
 	// Hot transistor ladder - needs oversampling and stuff
 	if (lpfMode == LPFMode::TRANSISTOR_24DB_DRIVE) {
 
@@ -186,27 +186,7 @@ void LpLadderFilter::do_filter(q31_t* startSample, q31_t* endSample, int32_t sam
 
 		q31_t* currentSample = startSample;
 		do {
-
-			// For drive filter, apply some heavily lowpassed noise to the filter frequency, to add analog-ness
-			q31_t noise = getNoise() >> 2; //storageManager.devVarA;// 2;
-			q31_t distanceToGo = noise - noiseLastValue;
-			noiseLastValue += distanceToGo >> 7; //storageManager.devVarB;
-			q31_t noisy_m = moveability + multiply_32x32_rshift32(moveability, noiseLastValue);
-
-			q31_t feedbacksSum = lpfLPF1.getFeedbackOutput(lpf1Feedback) + lpfLPF2.getFeedbackOutput(lpf2Feedback)
-			                     + lpfLPF3.getFeedbackOutput(divideBy1PlusTannedFrequency);
-			q31_t x = multiply_32x32_rshift32_rounded(
-			              (*currentSample - (multiply_32x32_rshift32_rounded(feedbacksSum, processedResonance) << 3)),
-			              divideByTotalMoveabilityAndProcessedResonance)
-			          << 2;
-
-			// Only saturate if resonance is high enough. Surprisingly, saturation makes no audible difference until very near the point of feedback
-			if (true || processedResonance > 510000000) {   // Re-check this?
-				x = getTanHUnknown(x, 1 + extraSaturation); // Saturation
-			}
-
-			*currentSample = lpfLPF3.doAPF(lpfLPF2.doFilter(lpfLPF1.doFilter(x, noisy_m), noisy_m), noisy_m) << 1;
-
+			*currentSample = do12dBLPFOnSample(*currentSample, &l, 0);
 			currentSample += sampleIncrement;
 		} while (currentSample < endSample);
 	}
@@ -219,7 +199,7 @@ void LpLadderFilter::do_filter(q31_t* startSample, q31_t* endSample, int32_t sam
 		    > 900000000) { // Careful - pushing this too high leads to crackling, only at the highest frequencies, and at the top of the non-saturating resonance range
 			q31_t* currentSample = startSample;
 			do {
-				*currentSample = do24dBLPFOnSample(*currentSample, 1 + extraSaturation);
+				*currentSample = do24dBLPFOnSample(*currentSample, &l, 1 + extraSaturation);
 
 				currentSample += sampleIncrement;
 			} while (currentSample < endSample);
@@ -228,7 +208,7 @@ void LpLadderFilter::do_filter(q31_t* startSample, q31_t* endSample, int32_t sam
 		else {
 			q31_t* currentSample = startSample;
 			do {
-				*currentSample = do24dBLPFOnSample(*currentSample, 0);
+				*currentSample = do24dBLPFOnSample(*currentSample, &l, 0);
 
 				currentSample += sampleIncrement;
 			} while (currentSample < endSample);
@@ -252,10 +232,10 @@ void LpLadderFilter::do_filter(q31_t* startSample, q31_t* endSample, int32_t sam
 				// And even, making our "interpolated" sample just a 0 and doubling the amplitude of the actual sample works very nearly as well as this,
 				// but gives a little bit more aliasing on high notes fed in.
 
-				doDriveLPFOnSample(*currentSample, extraSaturationDrive);
+				doDriveLPFOnSample(*currentSample, &l, extraSaturationDrive);
 
 				// Crude downsampling - just take every second sample, with no anti-aliasing filter. Works fine cos the ladder LPF filter takes care of lots of those high harmonics!
-				q31_t outputSampleToKeep = doDriveLPFOnSample(*currentSample, extraSaturationDrive);
+				q31_t outputSampleToKeep = doDriveLPFOnSample(*currentSample, &l, extraSaturationDrive);
 
 				// Only perform the final saturation stage on this one sample, which we want to keep
 				*currentSample = getTanHUnknown(outputSampleToKeep, 3 + extraSaturationDrive);
@@ -267,7 +247,7 @@ void LpLadderFilter::do_filter(q31_t* startSample, q31_t* endSample, int32_t sam
 		else {
 			q31_t* currentSample = startSample;
 			do {
-				q31_t outputSampleToKeep = doDriveLPFOnSample(*currentSample, extraSaturationDrive);
+				q31_t outputSampleToKeep = doDriveLPFOnSample(*currentSample, &l, extraSaturationDrive);
 				*currentSample = getTanHUnknown(outputSampleToKeep, 3 + extraSaturationDrive);
 
 				currentSample += sampleIncrement;
@@ -275,20 +255,41 @@ void LpLadderFilter::do_filter(q31_t* startSample, q31_t* endSample, int32_t sam
 		}
 	}
 }
+inline q31_t LpLadderFilter::do12dBLPFOnSample(q31_t input, LpLadderState* state, int32_t saturationLevel) {
+	// For drive filter, apply some heavily lowpassed noise to the filter frequency, to add analog-ness
+	q31_t noise = getNoise() >> 2; //storageManager.devVarA;// 2;
+	q31_t distanceToGo = noise - state->noiseLastValue;
+	state->noiseLastValue += distanceToGo >> 7; //storageManager.devVarB;
+	q31_t noisy_m = moveability + multiply_32x32_rshift32(moveability, state->noiseLastValue);
 
-inline q31_t LpLadderFilter::do24dBLPFOnSample(q31_t input, int32_t saturationLevel) {
+	q31_t feedbacksSum = state->lpfLPF1.getFeedbackOutput(lpf1Feedback) + state->lpfLPF2.getFeedbackOutput(lpf2Feedback)
+	                     + state->lpfLPF3.getFeedbackOutput(divideBy1PlusTannedFrequency);
+	q31_t x = multiply_32x32_rshift32_rounded(
+	              (input - (multiply_32x32_rshift32_rounded(feedbacksSum, processedResonance) << 3)),
+	              divideByTotalMoveabilityAndProcessedResonance)
+	          << 2;
+
+	// Only saturate if resonance is high enough. Surprisingly, saturation makes no audible difference until very near the point of feedback
+	if (saturationLevel || processedResonance > 510000000) { // Re-check this?
+		x = getTanHUnknown(x, 1 + saturationLevel);          // Saturation
+	}
+
+	return state->lpfLPF3.doAPF(state->lpfLPF2.doFilter(state->lpfLPF1.doFilter(x, noisy_m), noisy_m), noisy_m) << 1;
+}
+
+inline q31_t LpLadderFilter::do24dBLPFOnSample(q31_t input, LpLadderState* state, int32_t saturationLevel) {
 
 	// For drive filter, apply some heavily lowpassed noise to the filter frequency, to add analog-ness
 	q31_t noise = getNoise() >> 2; //storageManager.devVarA;// 2;
-	q31_t distanceToGo = noise - noiseLastValue;
-	noiseLastValue += distanceToGo >> 7; //storageManager.devVarB;
-	q31_t noisy_m = moveability + multiply_32x32_rshift32(moveability, noiseLastValue);
+	q31_t distanceToGo = noise - state->noiseLastValue;
+	state->noiseLastValue += distanceToGo >> 7; //storageManager.devVarB;
+	q31_t noisy_m = moveability + multiply_32x32_rshift32(moveability, state->noiseLastValue);
 
-	q31_t feedbacksSum =
-	    (lpfLPF1.getFeedbackOutputWithoutLshift(lpf1Feedback) + lpfLPF2.getFeedbackOutputWithoutLshift(lpf2Feedback)
-	     + lpfLPF3.getFeedbackOutputWithoutLshift(lpf3Feedback)
-	     + lpfLPF4.getFeedbackOutputWithoutLshift(divideBy1PlusTannedFrequency))
-	    << 2;
+	q31_t feedbacksSum = (state->lpfLPF1.getFeedbackOutputWithoutLshift(lpf1Feedback)
+	                      + state->lpfLPF2.getFeedbackOutputWithoutLshift(lpf2Feedback)
+	                      + state->lpfLPF3.getFeedbackOutputWithoutLshift(lpf3Feedback)
+	                      + state->lpfLPF4.getFeedbackOutputWithoutLshift(divideBy1PlusTannedFrequency))
+	                     << 2;
 
 	// Note: in the line above, we "should" halve filterSetConfig->divideBy1plusg to get it into the 1=1073741824 range. But it doesn't sound as good.
 	// Primarily it stops us getting to full resonance. But even if we allow further resonance increase, the sound just doesn't quite compare.
@@ -300,27 +301,30 @@ inline q31_t LpLadderFilter::do24dBLPFOnSample(q31_t input, int32_t saturationLe
 	          << 2;
 
 	// Only saturate if resonance is high enough. Surprisingly, saturation makes no audible difference until very near the point of feedback
+	//check for resonance is actually done in the filter loop for 24db
 	if (saturationLevel) {
 		x = getTanHUnknown(x, saturationLevel);
 	}
 
-	return lpfLPF4.doFilter(lpfLPF3.doFilter(lpfLPF2.doFilter(lpfLPF1.doFilter(x, noisy_m), noisy_m), noisy_m), noisy_m)
+	return state->lpfLPF4.doFilter(
+	           state->lpfLPF3.doFilter(state->lpfLPF2.doFilter(state->lpfLPF1.doFilter(x, noisy_m), noisy_m), noisy_m),
+	           noisy_m)
 	       << 1;
 }
 
-inline q31_t LpLadderFilter::doDriveLPFOnSample(q31_t input, int32_t extraSaturation) {
+inline q31_t LpLadderFilter::doDriveLPFOnSample(q31_t input, LpLadderState* state, int32_t extraSaturation) {
 
 	// For drive filter, apply some heavily lowpassed noise to the filter frequency, to add analog-ness
 	q31_t noise = getNoise() >> 2; //storageManager.devVarA;// 2;
-	q31_t distanceToGo = noise - noiseLastValue;
-	noiseLastValue += distanceToGo >> 7; //storageManager.devVarB;
-	q31_t noisy_m = moveability + multiply_32x32_rshift32(moveability, noiseLastValue);
+	q31_t distanceToGo = noise - state->noiseLastValue;
+	state->noiseLastValue += distanceToGo >> 7; //storageManager.devVarB;
+	q31_t noisy_m = moveability + multiply_32x32_rshift32(moveability, state->noiseLastValue);
 
-	q31_t feedbacksSum =
-	    (lpfLPF1.getFeedbackOutputWithoutLshift(lpf1Feedback) + lpfLPF2.getFeedbackOutputWithoutLshift(lpf2Feedback)
-	     + lpfLPF3.getFeedbackOutputWithoutLshift(lpf3Feedback)
-	     + lpfLPF4.getFeedbackOutputWithoutLshift(divideBy1PlusTannedFrequency))
-	    << 2;
+	q31_t feedbacksSum = (state->lpfLPF1.getFeedbackOutputWithoutLshift(lpf1Feedback)
+	                      + state->lpfLPF2.getFeedbackOutputWithoutLshift(lpf2Feedback)
+	                      + state->lpfLPF3.getFeedbackOutputWithoutLshift(lpf3Feedback)
+	                      + state->lpfLPF4.getFeedbackOutputWithoutLshift(divideBy1PlusTannedFrequency))
+	                     << 2;
 
 	// Note: in the line above, we "should" halve filterSetConfig->divideBy1plusg to get it into the 1=1073741824 range. But it doesn't sound as good.
 	// Primarily it stops us getting to full resonance. But even if we allow further resonance increase, the sound just doesn't quite compare.
@@ -335,13 +339,13 @@ inline q31_t LpLadderFilter::doDriveLPFOnSample(q31_t input, int32_t extraSatura
 	              divideByTotalMoveabilityAndProcessedResonance)
 	          << 2;
 
-	q31_t a = lpfLPF1.doFilter(x, noisy_m);
+	q31_t a = state->lpfLPF1.doFilter(x, noisy_m);
 
-	q31_t b = lpfLPF2.doFilter(a, noisy_m);
+	q31_t b = state->lpfLPF2.doFilter(a, noisy_m);
 
-	q31_t c = lpfLPF3.doFilter(b, noisy_m);
+	q31_t c = state->lpfLPF3.doFilter(b, noisy_m);
 
-	q31_t d = lpfLPF4.doFilter(c, noisy_m) << 1;
+	q31_t d = state->lpfLPF4.doFilter(c, noisy_m) << 1;
 
 	return d;
 }

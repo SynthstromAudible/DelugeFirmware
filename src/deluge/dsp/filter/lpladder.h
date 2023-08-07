@@ -23,22 +23,36 @@
 #include "util/functions.h"
 #include <cstdint>
 
+struct LpLadderState {
+	q31_t noiseLastValue;
+	BasicFilterComponent lpfLPF1;
+	BasicFilterComponent lpfLPF2;
+	BasicFilterComponent lpfLPF3;
+	BasicFilterComponent lpfLPF4;
+	void reset() {
+		lpfLPF1.reset();
+		lpfLPF2.reset();
+		lpfLPF3.reset();
+		lpfLPF4.reset();
+	}
+};
+
 class LpLadderFilter : public Filter<LpLadderFilter> {
 public:
 	LpLadderFilter() = default;
 	//returns a compensatory gain value
 	q31_t set_config(q31_t lpfFrequency, q31_t lpfResonance, LPFMode lpfMode, q31_t filterGain);
 	void do_filter(q31_t* outputSample, q31_t* endSample, int32_t sampleIncrememt, int32_t extraSaturation);
+	void do_filter_stereo(q31_t* startSample, q31_t* endSample, q31_t* extraSaturation);
 	void reset_filter() {
-		lpfLPF1.reset();
-		lpfLPF2.reset();
-		lpfLPF3.reset();
-		lpfLPF4.reset();
+		l.reset();
+		r.reset();
 	}
 
 private:
-	inline q31_t do24dBLPFOnSample(q31_t input, int32_t saturationLevel);
-	inline q31_t doDriveLPFOnSample(q31_t input, int32_t extraSaturation = 0);
+	inline q31_t do24dBLPFOnSample(q31_t input, LpLadderState* state, int32_t saturationLevel);
+	inline q31_t do12dBLPFOnSample(q31_t input, LpLadderState* state, int32_t saturationLevel);
+	inline q31_t doDriveLPFOnSample(q31_t input, LpLadderState* state, int32_t extraSaturation = 0);
 	inline void renderLPLadder(q31_t* startSample, q31_t* endSample, LPFMode lpfMode, int32_t sampleIncrement,
 	                           int32_t extraSaturation, int32_t extraSaturationDrive);
 
@@ -47,11 +61,8 @@ private:
 	LPFMode lpfMode;
 
 	//state
-	q31_t noiseLastValue;
-	BasicFilterComponent lpfLPF1;
-	BasicFilterComponent lpfLPF2;
-	BasicFilterComponent lpfLPF3;
-	BasicFilterComponent lpfLPF4;
+	LpLadderState l;
+	LpLadderState r;
 
 	//configuration
 	q31_t processedResonance;
