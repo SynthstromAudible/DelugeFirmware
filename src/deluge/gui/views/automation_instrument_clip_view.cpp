@@ -457,6 +457,9 @@ void AutomationInstrumentClipView::performActualRender(uint32_t whichRows, uint8
 
 				numericDriver.displayPopup(HAVE_OLED ? "Select Row" : "SEL");
 			}
+			else if (instrument->type == InstrumentType::KIT && instrumentClipView.getAffectEntire()) {
+				numericDriver.displayPopup(HAVE_OLED ? "Coming Soon" : "SOON");
+			}
 
 			renderLove(image + (yDisplay * imageWidth * 3), occupancyMaskOfRow, yDisplay);
 		}
