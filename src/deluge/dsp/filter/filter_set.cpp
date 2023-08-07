@@ -37,6 +37,10 @@ void FilterSet::renderHPFLong(q31_t* startSample, q31_t* endSample, LPFMode lpfM
 
 	hpladder.filter_mono(startSample, endSample, sampleIncrement, extraSaturation);
 }
+void FilterSet::renderHPFLongStereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation) {
+
+	hpladder.filter_stereo(startSample, endSample, extraSaturation);
+}
 
 void FilterSet::renderLPFLong(q31_t* startSample, q31_t* endSample, LPFMode lpfMode, int32_t sampleIncrement,
                               int32_t extraSaturation, int32_t extraSaturationDrive) {
@@ -55,7 +59,8 @@ void FilterSet::renderLPFLong(q31_t* startSample, q31_t* endSample, LPFMode lpfM
 	}
 	lastLPFMode = lpfMode;
 }
-void FilterSet::renderLPFLongStereo(StereoSample* startSample, StereoSample* endSample, int32_t extraSaturation) {
+//expects to receive an interleaved stereo stream
+void FilterSet::renderLPFLongStereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation) {
 
 	if (lpfMode == LPFMode::SVF) {
 		if (lastLPFMode != LPFMode::SVF) {

@@ -76,16 +76,26 @@ q31_t HpLadderFilter::set_config(q31_t hpfFrequency, q31_t hpfResonance, LPFMode
 void HpLadderFilter::do_filter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement, int32_t extraSaturation) {
 	q31_t* currentSample = startSample;
 	do {
-		*currentSample = doHPF(*currentSample, extraSaturation);
+		*currentSample = doHPF(*currentSample, extraSaturation, &l);
 		currentSample += sampleIncrement;
 	} while (currentSample < endSample);
 }
+//filter an interleaved stereo buffer
+void HpLadderFilter::do_filter_stereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation) {
+	q31_t* currentSample = startSample;
+	do {
+		*currentSample = doHPF(*currentSample, extraSaturation, &l);
+		currentSample += 1;
+		*currentSample = doHPF(*currentSample, extraSaturation, &r);
+		currentSample += 1;
+	} while (currentSample < endSample);
+}
+inline q31_t HpLadderFilter::doHPF(q31_t input, int32_t extraSaturation, HPLadder_state* state) {
 
-inline q31_t HpLadderFilter::doHPF(q31_t input, int32_t extraSaturation) {
+	q31_t firstHPFOutput = input - state->hpfHPF1.doFilter(input, hpfMoveability);
 
-	q31_t firstHPFOutput = input - hpfHPF1.doFilter(input, hpfMoveability);
-
-	q31_t feedbacksValue = hpfHPF3.getFeedbackOutput(hpfHPF3Feedback) + hpfLPF1.getFeedbackOutput(hpfLPF1Feedback);
+	q31_t feedbacksValue =
+	    state->hpfHPF3.getFeedbackOutput(hpfHPF3Feedback) + state->hpfLPF1.getFeedbackOutput(hpfLPF1Feedback);
 
 	q31_t a = multiply_32x32_rshift32_rounded(divideByTotalMoveability, firstHPFOutput + feedbacksValue) << (4 + 1);
 
@@ -100,7 +110,7 @@ inline q31_t HpLadderFilter::doHPF(q31_t input, int32_t extraSaturation) {
 		}
 	}
 
-	hpfLPF1.doFilter(a - hpfHPF3.doFilter(a, hpfMoveability), hpfMoveability);
+	state->hpfLPF1.doFilter(a - state->hpfHPF3.doFilter(a, hpfMoveability), hpfMoveability);
 
 	a = multiply_32x32_rshift32_rounded(a, hpfDivideByProcessedResonance) << (8 - 1); // Normalization
 

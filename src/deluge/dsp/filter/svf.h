@@ -40,7 +40,7 @@ public:
 	//returns a compensatory gain value
 	q31_t set_config(q31_t lpfFrequency, q31_t lpfResonance, LPFMode lpfMode, q31_t filterGain);
 	void do_filter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrememt, int32_t extraSaturation);
-	void do_filter_stereo(StereoSample* startSample, StereoSample* endSample, int32_t extraSaturation);
+	void do_filter_stereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation);
 	void reset_filter() {
 		l = (SVF_state){0, 0};
 		r = (SVF_state){0, 0};

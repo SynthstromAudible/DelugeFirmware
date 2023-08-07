@@ -22,6 +22,17 @@
 #include "dsp/filter/ladder_components.h"
 #include "util/functions.h"
 #include <cstdint>
+struct HPLadder_state {
+	BasicFilterComponent hpfHPF1;
+	BasicFilterComponent hpfLPF1;
+	BasicFilterComponent hpfHPF3;
+
+	void reset() {
+		hpfHPF1.reset();
+		hpfLPF1.reset();
+		hpfHPF3.reset();
+	}
+};
 
 class HpLadderFilter : public Filter<HpLadderFilter> {
 public:
@@ -29,14 +40,14 @@ public:
 	//returns a compensatory gain value
 	q31_t set_config(q31_t hpfFrequency, q31_t hpfResonance, LPFMode lpfMode, q31_t filterGain);
 	void do_filter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrememt, int32_t extraSaturation);
+	void do_filter_stereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation);
 	void reset_filter() {
-		hpfHPF1.reset();
-		hpfLPF1.reset();
-		hpfHPF3.reset();
+		l.reset();
+		r.reset();
 	}
 
 private:
-	inline q31_t doHPF(q31_t input, int32_t saturationLevel);
+	inline q31_t doHPF(q31_t input, int32_t saturationLevel, HPLadder_state* state);
 
 	//config
 	uint32_t hpfLastWorkingValue;
@@ -58,8 +69,6 @@ private:
 	q31_t alteredHpfMomentumMultiplier;
 	q31_t thisHpfResonance;
 
-	//state
-	BasicFilterComponent hpfHPF1;
-	BasicFilterComponent hpfLPF1;
-	BasicFilterComponent hpfHPF3;
+	HPLadder_state l;
+	HPLadder_state r;
 };

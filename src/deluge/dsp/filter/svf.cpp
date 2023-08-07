@@ -28,8 +28,8 @@ void SVFilter::do_filter(q31_t* startSample, q31_t* endSample, int32_t sampleInc
 		currentSample += sampleIncrememt;
 	} while (currentSample < endSample);
 }
-void SVFilter::do_filter_stereo(StereoSample* startSample, StereoSample* endSample, int32_t extraSaturation) {
-	q31_t* currentSample = (q31_t*)startSample;
+void SVFilter::do_filter_stereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation) {
+	q31_t* currentSample = startSample;
 	do {
 		q31_t outs = doSVF(*currentSample, &l);
 
@@ -37,7 +37,7 @@ void SVFilter::do_filter_stereo(StereoSample* startSample, StereoSample* endSamp
 		q31_t outs2 = doSVF(*(currentSample + 1), &r);
 		*(currentSample + 1) = outs2 << 1;
 		currentSample += 2;
-	} while (currentSample < (q31_t*)endSample);
+	} while (currentSample < endSample);
 }
 
 q31_t SVFilter::set_config(q31_t lpfFrequency, q31_t lpfResonance, LPFMode lpfMode, q31_t filterGain) {

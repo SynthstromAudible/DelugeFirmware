@@ -1501,7 +1501,7 @@ skipUnisonPart : {}
 			//todo - have the filterset class handle stereo filtering
 			//filterSets[1].copy_config(&filterSets[0]);
 			// Filters
-			filterSets[0].renderStereoLong((StereoSample*)oscBuffer, (StereoSample*)oscBufferEnd);
+			filterSets[0].renderStereoLong(oscBuffer, oscBufferEnd);
 
 			// No clipping
 			if (!sound->clippingAmount) {

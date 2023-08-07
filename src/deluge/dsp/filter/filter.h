@@ -34,7 +34,8 @@ public:
 	void filter_mono(q31_t* startSample, q31_t* endSample, int32_t sampleIncrememt = 1, int32_t extraSaturation = 1) {
 		static_cast<T*>(this)->do_filter(startSample, endSample, sampleIncrememt, extraSaturation);
 	}
-	void filter_stereo(StereoSample* startSample, StereoSample* endSample, int32_t extraSaturation = 1) {
+	//filter an interleaved stereo buffer
+	void filter_stereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation = 1) {
 		static_cast<T*>(this)->do_filter_stereo(startSample, endSample, extraSaturation);
 		;
 	}
