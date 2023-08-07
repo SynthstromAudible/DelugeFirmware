@@ -970,7 +970,7 @@ void SessionView::clipPressEnded() {
 	redrawNumericDisplay();
 #endif
 	selectedClipYDisplay = 255;
-	gridResetPresses(true, true);
+	gridResetPresses();
 }
 
 void SessionView::sectionPadAction(uint8_t y, bool on) {
@@ -2784,7 +2784,7 @@ void SessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 
 void SessionView::selectLayout(int8_t offset) {
 	gridPreventArm = false;
-	gridResetPresses(true, true);
+	gridResetPresses();
 
 	// Layout change
 	if (offset != 0) {
@@ -3181,13 +3181,14 @@ void SessionView::gridClonePad(uint32_t sourceX, uint32_t sourceY, uint32_t targ
 }
 
 void SessionView::gridStartSection(uint32_t section, bool instant) {
-	if(instant) {
+	if (instant) {
 		currentSong->turnSoloingIntoJustPlaying(currentSong->sections[section].numRepetitions != -1);
 
 		for (int32_t idxClip = 0; idxClip < currentSong->sessionClips.getNumElements(); ++idxClip) {
 			Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
 
-			if ((clip->section == section && !clip->activeIfNoSolo) || (clip->section != section && clip->activeIfNoSolo)) {
+			if ((clip->section == section && !clip->activeIfNoSolo)
+			    || (clip->section != section && clip->activeIfNoSolo)) {
 				gridToggleClipPlay(clip, instant);
 			}
 			else {
@@ -3233,7 +3234,7 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 
 		// Immediate release of the pad arms the section, holding allows changing repeats
 		if (on) {
-			if(Buttons::isShiftButtonPressed()) {
+			if (Buttons::isShiftButtonPressed()) {
 				gridStartSection(section, true);
 				performActionOnSectionPadRelease = false;
 			}
@@ -3291,7 +3292,12 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 
 				// Immediate arming, immediate consumption, don't save the pad press
 				if (clip && Buttons::isButtonPressed(hid::button::SHIFT)) {
-					gridToggleClipPlay(clip, true);
+					if(currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
+						session.soloClipAction(clip, kInternalButtonPressLatency);
+					}
+					else {
+						gridToggleClipPlay(clip, true);
+					}
 					requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 					view.flashPlayEnable();
 					return ActionResult::DEALT_WITH;
@@ -3318,7 +3324,7 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 						transitionToViewForClip(clip);
 					}
 
-					gridResetPresses(true, true);
+					gridResetPresses();
 					return ActionResult::DEALT_WITH;
 				}
 
@@ -3372,8 +3378,8 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 						sessionView.timerCallback();
 					}
 					else if (!gridPreventArm
-					         && (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW
-					             || currentUIMode == UI_MODE_STUTTERING)) {
+								&& (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW
+									|| currentUIMode == UI_MODE_STUTTERING)) {
 						gridToggleClipPlay(clip, false);
 					}
 					else if (currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
@@ -3392,7 +3398,7 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 			// Second finger up, clone clip
 			else if (gridSecondPressedX == x && gridSecondPressedY == y) {
 				gridClonePad(gridFirstPressedX, gridFirstPressedY, gridSecondPressedX, gridSecondPressedY);
-				gridResetPresses(true, true); // Also reset first press so clip does not get armed
+				gridResetPresses(); // Also reset first press so clip does not get armed
 				gridPreventArm = false;
 				clipPressEnded();
 			}
@@ -3407,7 +3413,7 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 }
 
 ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {
-	gridResetPresses(true, true);
+	gridResetPresses();
 
 	// Fix the range
 	currentSong->songGridScrollY =
