@@ -155,6 +155,7 @@ private:
 	bool isOnParameterGridMenuView();
 	void displayParameterName(int32_t paramID);
 	void displayParameterValue(int32_t knobPos);
+	void resetShortcutBlinking();
 
 	bool encoderAction;
 	bool shortcutBlinking;

@@ -208,6 +208,10 @@ const uint32_t love[kDisplayWidth][kDisplayHeight] = {
     {0, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
     {0, 0, 0, 0, 0, 0, 0, 0}};
 
+//const uint32_t selectArrow[kDisplayWidth][kDisplayHeight] = {
+
+//};
+
 //const uint32_t padShortcutsForInterpolation[16][8] = {0};
 
 AutomationInstrumentClipView automationInstrumentClipView{};
@@ -244,6 +248,8 @@ inline InstrumentClip* getCurrentClip() {
 bool AutomationInstrumentClipView::opened() {
 
 	interpolation = runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationInterpolate);
+
+	resetShortcutBlinking();
 
 	openedInBackground();
 
@@ -401,9 +407,7 @@ bool AutomationInstrumentClipView::renderMainPads(uint32_t whichRows, uint8_t im
 			}
 		}
 		else { //unset previously set blink timers if not editing a parameter
-			memset(soundEditor.sourceShortcutBlinkFrequencies, 255, sizeof(soundEditor.sourceShortcutBlinkFrequencies));
-			uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
-			shortcutBlinking = false;
+			resetShortcutBlinking();
 		}
 	}
 	else {
@@ -624,7 +628,7 @@ void AutomationInstrumentClipView::renderRow(ModelStackWithAutoParam* modelStack
 
 			knobPos = knobPos + 64;
 
-			if (knobPos != 0 && knobPos >= yDisplay * 18) {
+			if (knobPos != 0 && knobPos >= yDisplay * 16) {
 
 				// If Node starts somewhere within square, draw the blur colour
 				if (node && node->pos > thisSquareStartPos) {
@@ -812,7 +816,7 @@ doOther:
 				PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
 				PadLEDs::renderClipExpandOrCollapse();
 			}
-			//uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
+			resetShortcutBlinking();
 		}
 	}
 
@@ -833,8 +837,14 @@ doOther:
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
-			changeRootUI(&instrumentClipView);
-			//uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
+
+			if (Buttons::isShiftButtonPressed()) {
+				initParameterSelection();
+			}
+			else {
+				changeRootUI(&instrumentClipView);
+			}
+			resetShortcutBlinking();
 		}
 	}
 
@@ -866,6 +876,7 @@ doOther:
 	else if (b == KIT && currentUIMode == UI_MODE_NONE) {
 		if (on) {
 			initParameterSelection();
+			resetShortcutBlinking();
 
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -884,6 +895,7 @@ doOther:
 	         && currentUIMode != UI_MODE_HOLDING_LOAD_BUTTON) {
 		if (on) {
 			initParameterSelection();
+			resetShortcutBlinking();
 
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -904,6 +916,7 @@ doOther:
 	else if (b == MIDI) {
 		if (on) {
 			initParameterSelection();
+			resetShortcutBlinking();
 
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -917,6 +930,8 @@ doOther:
 
 	else if (b == CV) {
 		initParameterSelection();
+		resetShortcutBlinking();
+
 		if (on) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -969,6 +984,22 @@ doOther:
 		    && clip->lastSelectedParamID == 255) { //only allow clearing of a clip if you're in the automation overview
 			goto passToOthers;
 		}
+		else if (on && clip->lastSelectedParamID != 255) {
+			//delete automation of current parameter selected
+
+			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+
+			ModelStackWithAutoParam* modelStackWithParam =
+			    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID);
+
+			if (modelStackWithParam && modelStackWithParam->autoParam) {
+				Action* action = actionLogger.getNewAction(ACTION_AUTOMATION_DELETE, false);
+				modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam);
+
+				numericDriver.displayPopup(HAVE_OLED ? "Automation deleted" : "DELETED");
+			}
+		}
 	}
 
 	//Select encoder
@@ -1011,6 +1042,7 @@ passToOthers:
 		uiNeedsRendering(this);
 	}
 
+	numericDriver.cancelPopup();
 	return ActionResult::DEALT_WITH;
 }
 
@@ -2145,95 +2177,84 @@ void AutomationInstrumentClipView::pasteAutomation() {
 
 void AutomationInstrumentClipView::selectEncoderAction(int8_t offset) {
 
-	encoderAction = true;
+	//change midi CC or param ID
+	InstrumentClip* clip = getCurrentClip();
+	Instrument* instrument = (Instrument*)clip->output;
 
-	//If the user is holding down mod encoder while turning select, change midi CC or param ID
-	if (Buttons::isButtonPressed(hid::button::MOD_ENCODER_0) || Buttons::isButtonPressed(hid::button::MOD_ENCODER_1)) {
-		InstrumentClip* clip = getCurrentClip();
-		Instrument* instrument = (Instrument*)clip->output;
+	clip->lastSelectedParamShortcutX = 255;
 
-		clip->lastSelectedParamShortcutX = 255;
+	if (instrument->type == InstrumentType::SYNTH || instrument->type == InstrumentType::KIT) {
 
-		if (instrument->type == InstrumentType::SYNTH || instrument->type == InstrumentType::KIT) {
+		if (clip->lastSelectedParamID == 255) {
+			clip->lastSelectedParamID = paramsForAutomation[0];
+			clip->lastSelectedParamArrayPosition = 0;
+		}
+		else if ((clip->lastSelectedParamArrayPosition + offset) < 0) {
+			clip->lastSelectedParamID = paramsForAutomation[40];
+			clip->lastSelectedParamArrayPosition = 40;
+		}
+		else if ((clip->lastSelectedParamArrayPosition + offset) > 40) {
+			clip->lastSelectedParamID = paramsForAutomation[0];
+			clip->lastSelectedParamArrayPosition = 0;
+		}
+		else {
+			clip->lastSelectedParamID = paramsForAutomation[clip->lastSelectedParamArrayPosition + offset];
+			clip->lastSelectedParamArrayPosition += offset;
+		}
 
-			if (clip->lastSelectedParamID == 255) {
-				clip->lastSelectedParamID = paramsForAutomation[0];
-				clip->lastSelectedParamArrayPosition = 0;
+		displayParameterName(clip->lastSelectedParamID);
+
+		for (int32_t x = 0; x < kDisplayWidth; x++) {
+			for (int32_t y = 0; y < kDisplayHeight; y++) {
+
+				if (paramShortcutsForAutomation[x][y] == clip->lastSelectedParamID) {
+					clip->lastSelectedParamShortcutX = x;
+					clip->lastSelectedParamShortcutY = y;
+
+					goto flashShortcut;
+				}
 			}
-			else if ((clip->lastSelectedParamArrayPosition + offset) < 0) {
-				clip->lastSelectedParamID = paramsForAutomation[40];
-				clip->lastSelectedParamArrayPosition = 40;
-			}
-			else if ((clip->lastSelectedParamArrayPosition + offset) > 40) {
-				clip->lastSelectedParamID = paramsForAutomation[0];
-				clip->lastSelectedParamArrayPosition = 0;
-			}
-			else {
-				clip->lastSelectedParamID = paramsForAutomation[clip->lastSelectedParamArrayPosition + offset];
-				clip->lastSelectedParamArrayPosition += offset;
-			}
+		}
+	}
 
-			displayParameterName(clip->lastSelectedParamID);
+	else if (instrument->type == InstrumentType::MIDI_OUT) {
 
-			for (int32_t x = 0; x < kDisplayWidth; x++) {
-				for (int32_t y = 0; y < kDisplayHeight; y++) {
+		if (clip->lastSelectedParamID == 255) {
+			clip->lastSelectedParamID = 0;
+		}
+		else if ((clip->lastSelectedParamID + offset) < 0) {
+			clip->lastSelectedParamID = 121;
+		}
+		else if ((clip->lastSelectedParamID + offset) > 121) {
+			clip->lastSelectedParamID = 0;
+		}
+		else {
+			clip->lastSelectedParamID += offset;
+		}
 
-					if (paramShortcutsForAutomation[x][y] == clip->lastSelectedParamID) {
+		displayParameterName(clip->lastSelectedParamID);
 
-						clip->lastSelectedParamShortcutX = x;
-						clip->lastSelectedParamShortcutY = y;
+		for (int32_t x = 0; x < kDisplayWidth; x++) {
+			for (int32_t y = 0; y < kDisplayHeight; y++) {
+				if (midiCCShortcutsForAutomation[x][y] == clip->lastSelectedParamID) {
 
-						goto flashShortcut;
-					}
+					clip->lastSelectedParamShortcutX = x;
+					clip->lastSelectedParamShortcutY = y;
+
+					goto flashShortcut;
 				}
 			}
 		}
 
-		else if (instrument->type == InstrumentType::MIDI_OUT) {
+		goto flashShortcut;
+	}
 
-			if (clip->lastSelectedParamID == 255) {
-				clip->lastSelectedParamID = 0;
-			}
-			else if ((clip->lastSelectedParamID + offset) < 0) {
-				clip->lastSelectedParamID = 121;
-			}
-			else if ((clip->lastSelectedParamID + offset) > 121) {
-				clip->lastSelectedParamID = 0;
-			}
-			else {
-				clip->lastSelectedParamID += offset;
-			}
-
-			displayParameterName(clip->lastSelectedParamID);
-
-			for (int32_t x = 0; x < kDisplayWidth; x++) {
-				for (int32_t y = 0; y < kDisplayHeight; y++) {
-
-					if (midiCCShortcutsForAutomation[x][y] == clip->lastSelectedParamID) {
-
-						clip->lastSelectedParamShortcutX = x;
-						clip->lastSelectedParamShortcutY = y;
-
-						goto flashShortcut;
-					}
-				}
-			}
-
-			goto flashShortcut;
-		}
-
-		return;
+	return;
 
 flashShortcut:
 
-		uiNeedsRendering(this);
-	}
-
-	// Or, normal option - trying to change Instrument presets
-	else {
-
-		InstrumentClipMinder::selectEncoderAction(offset);
-	}
+	resetShortcutBlinking();
+	uiNeedsRendering(this);
 }
 
 //tempo encoder action
@@ -2440,7 +2461,7 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 
 	Instrument* instrument = (Instrument*)clip->output;
 
-	if (shortcutPress
+	if ((shortcutPress || clip->lastSelectedParamID == 255)
 	    && !(instrument->type == InstrumentType::KIT && !instrumentClipView.getAffectEntire()
 	         && !((Kit*)instrument)->selectedDrum)) { //this means you are selecting a parameter
 
@@ -2467,6 +2488,7 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 		clip->lastSelectedParamShortcutY = yDisplay;
 
 		displayParameterName(clip->lastSelectedParamID);
+		resetShortcutBlinking();
 	}
 
 	else if (clip->lastSelectedParamID != 255) { //this means you are editing a parameter's value
@@ -2701,4 +2723,10 @@ void AutomationInstrumentClipView::displayParameterValue(int32_t knobPos) {
 
 	intToString(knobPos, buffer);
 	numericDriver.displayPopup(buffer);
+}
+
+void AutomationInstrumentClipView::resetShortcutBlinking() {
+	memset(soundEditor.sourceShortcutBlinkFrequencies, 255, sizeof(soundEditor.sourceShortcutBlinkFrequencies));
+	uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
+	shortcutBlinking = false;
 }
