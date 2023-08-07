@@ -139,7 +139,7 @@ const uint8_t presetReverbRoomSize[NUM_PRESET_REVERBS] = {16, 30, 44};
 const uint8_t presetReverbDampening[NUM_PRESET_REVERBS] = {29, 36, 45};
 extern const char* presetReverbNames[];
 
-extern const uint8_t defaultClipGroupColours[];
+extern const uint8_t defaultClipGroupColors[];
 
 extern const uint8_t noteCodeToNoteLetter[];
 extern const bool noteCodeIsSharp[];

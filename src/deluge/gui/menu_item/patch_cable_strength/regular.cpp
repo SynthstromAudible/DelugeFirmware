@@ -70,7 +70,7 @@ MenuPermission Regular::checkPermissionToBeginSession(Sound* sound, int32_t whic
 	return PatchCableStrength::checkPermissionToBeginSession(sound, whichThing, currentRange);
 }
 
-uint8_t Regular::shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) {
+uint8_t Regular::shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* color) {
 
 	// If this is the actual source we're editing for...
 	if (s == getS()) {
@@ -81,7 +81,7 @@ uint8_t Regular::shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colou
 
 	// Or, if it's the source controlling the range of the source we're editing for...
 	if (patchCableSet->getPatchCableIndex(s, getLearningThing()) != 255) {
-		*colour = 0b110;
+		*color = 0b110;
 		return 3;
 	}
 

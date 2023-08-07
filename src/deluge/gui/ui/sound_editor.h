@@ -86,7 +86,7 @@ public:
 	uint8_t currentParamShorcutY;
 	uint8_t paramShortcutBlinkFrequency;
 	uint8_t sourceShortcutBlinkFrequencies[2][kDisplayHeight];
-	uint8_t sourceShortcutBlinkColours[2][kDisplayHeight];
+	uint8_t sourceShortcutBlinkColors[2][kDisplayHeight];
 	uint32_t shortcutBlinkCounter;
 
 	uint32_t timeLastAttemptedAutomatedParamEdit;

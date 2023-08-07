@@ -1026,9 +1026,9 @@ void Song::writeToFile() {
 
 	for (int32_t y = 0; y < kDisplayHeight; y++) {
 		for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
-			for (int32_t colour = 0; colour < 3; colour++) {
+			for (int32_t color = 0; color < 3; color++) {
 				char buffer[3];
-				byteToHex(PadLEDs::imageStore[y][x][colour], buffer);
+				byteToHex(PadLEDs::imageStore[y][x][color], buffer);
 				storageManager.write(buffer);
 			}
 		}
@@ -5018,7 +5018,7 @@ Clip* Song::replaceInstrumentClipWithAudioClip(Clip* oldClip, int32_t clipIndex)
 
 	// Give the new clip its stuff
 	newClip->cloneFrom(oldClip);
-	newClip->colourOffset = random(72);
+	newClip->colorOffset = random(72);
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 	newClip->setOutput(modelStack->addTimelineCounter(newClip), newOutput);

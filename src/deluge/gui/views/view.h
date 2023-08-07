@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "gui/colour.h"
+#include "gui/color/color.h"
 #include "hid/button.h"
 #include "model/model_stack.h"
 #include <cstdint>
@@ -86,7 +86,7 @@ public:
 	void drawOutputNameFromDetails(InstrumentType instrumentType, int32_t slot, int32_t subSlot, char const* name,
 	                               bool editedByUser, bool doBlink, Clip* clip = NULL);
 	void endMIDILearn();
-	Colour getClipMuteSquareColour(Clip* clip, Colour thisColour);
+	RGB getClipMuteSquareColor(Clip* clip, RGB thisColor);
 	ActionResult clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfInSessionView = -1);
 	void flashPlayEnable();
 	void flashPlayDisable();

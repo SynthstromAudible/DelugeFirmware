@@ -211,10 +211,10 @@ void closeUI(UI* uiToClose) {
 	}
 
 	if (redrawMainPadsOrig) {
-		PadLEDs::sendOutMainPadColours();
+		PadLEDs::sendOutMainPadColors();
 	}
 	if (redrawSidebarOrig) {
-		PadLEDs::sendOutSidebarColours();
+		PadLEDs::sendOutSidebarColors();
 	}
 }
 
@@ -349,7 +349,7 @@ void doAnyPendingUIRendering() {
 			bool usedUp = thisUI->renderMainPads(mainRowsNow, PadLEDs::image, PadLEDs::occupancyMask);
 			if (usedUp) {
 				if (!whichMainRowsNeedRendering) {
-					PadLEDs::sendOutMainPadColours();
+					PadLEDs::sendOutMainPadColors();
 				}
 				mainRowsNow = 0;
 			}
@@ -359,7 +359,7 @@ void doAnyPendingUIRendering() {
 			bool usedUp = thisUI->renderSidebar(sideRowsNow, PadLEDs::image, PadLEDs::occupancyMask);
 			if (usedUp) {
 				if (!whichSideRowsNeedRendering) {
-					PadLEDs::sendOutSidebarColours();
+					PadLEDs::sendOutSidebarColors();
 				}
 				sideRowsNow = 0;
 			}

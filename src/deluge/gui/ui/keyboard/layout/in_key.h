@@ -34,7 +34,7 @@ public:
 	virtual void handleHorizontalEncoder(int32_t offset, bool shiftEnabled);
 	virtual void precalculate();
 
-	virtual void renderPads(Colour image[][kDisplayWidth + kSideBarWidth]);
+	virtual void renderPads(RGB image[][kDisplayWidth + kSideBarWidth]);
 
 	virtual char const* name() { return "In-Key"; }
 	virtual bool supportsInstrument() { return true; }
@@ -89,7 +89,7 @@ private:
 	// 	// return octave * kOctaveSize + getRootNote() + getScaleNotes()[octaveNoteIndex];
 	// }
 
-	Colour noteColours[kDisplayHeight * kMaxInKeyRowInterval + kDisplayWidth];
+	RGB noteColors[kDisplayHeight * kMaxInKeyRowInterval + kDisplayWidth];
 };
 
 }; // namespace deluge::gui::ui::keyboard::layout

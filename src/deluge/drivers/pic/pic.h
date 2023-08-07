@@ -1,6 +1,6 @@
 #pragma once
 #include "definitions_cxx.hpp"
-#include "gui/colour.h"
+#include "gui/color/color.h"
 #include "util/misc.h"
 #include <array>
 #include <cstddef>
@@ -67,10 +67,10 @@ public:
 
 	};
 
-	static void setColourForTwoColumns(size_t idx, const std::array<Colour, kDisplayHeight * 2>& colours) {
+	static void setColorForTwoColumns(size_t idx, const std::array<RGB, kDisplayHeight * 2>& colors) {
 		send(util::to_underlying(Message::SET_COLOUR_FOR_TWO_COLUMNS) + idx);
-		for (const Colour& colour : colours) {
-			send(colour);
+		for (const RGB& color : colors) {
+			send(color);
 		}
 	}
 	static void setDebounce(uint8_t time_ms) { send(Message::SET_DEBOUNCE_TIME, time_ms); }
@@ -87,8 +87,8 @@ public:
 
 	static void flashPad(size_t idx) { send(util::to_underlying(Message::SET_PAD_FLASHING) + idx); }
 
-	static void flashPadWithColour(size_t idx, int32_t colour) {
-		send(util::to_underlying(Message::SET_FLASH_COLOR) + colour);
+	static void flashPadWithColor(size_t idx, int32_t color) {
+		send(util::to_underlying(Message::SET_FLASH_COLOR) + color);
 		flashPad(idx);
 	}
 
@@ -108,7 +108,7 @@ public:
 
 	static void requestFirmwareVersion() { send(Message::REQUEST_FIRMWARE_VERSION); }
 
-	static void sendColour(const Colour& colour) { send(colour); }
+	static void sendColor(const RGB& color) { send(color); }
 
 	static void setRefreshTime(uint8_t time_ms) { send(Message::SET_REFRESH_TIME, time_ms); }
 	static void setDimmerInterval(uint8_t interval) { send(Message::SET_DIMMER_INTERVAL, interval); }
@@ -120,18 +120,18 @@ public:
 	 *
 	 * @param idx the row to set
 	 */
-	static void sendScrollRow(size_t idx, Colour colour) {
+	static void sendScrollRow(size_t idx, RGB color) {
 		send(util::to_underlying(Message::SET_SCROLL_ROW) + idx);
-		send(colour);
+		send(color);
 	}
 
 	static void setupHorizontalScroll(uint8_t bitflags) {
 		send(util::to_underlying(Message::SET_SCROLL_LEFT) + bitflags);
 	}
 
-	static void setupVerticalScroll(bool direction, const std::array<Colour, kDisplayWidth + kSideBarWidth>& colours) {
+	static void setupVerticalScroll(bool direction, const std::array<RGB, kDisplayWidth + kSideBarWidth>& colors) {
 		Message msg = direction ? Message::SET_SCROLL_UP : Message::SET_SCROLL_DOWN;
-		send(msg, colours);
+		send(msg, colors);
 	}
 
 	static void doneSendingRows() { send(Message::DONE_SENDING_ROWS); }
@@ -157,10 +157,10 @@ private:
 
 	inline static void send(Message msg) { send(util::to_underlying(msg)); }
 
-	inline static void send(const Colour& colour) {
-		send(colour.r);
-		send(colour.g);
-		send(colour.b);
+	inline static void send(const RGB& color) {
+		send(color.r);
+		send(color.g);
+		send(color.b);
 	}
 
 	inline static void send(uint8_t msg) {

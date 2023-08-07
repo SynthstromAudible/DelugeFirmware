@@ -74,8 +74,8 @@ public:
 	void adjustVelocity(int32_t velocityChange);
 	void mutePadPress(uint8_t yDisplay);
 	bool ensureNoteRowExistsForYDisplay(uint8_t yDisplay);
-	void recalculateColours();
-	void recalculateColour(uint8_t yDisplay);
+	void recalculateColors();
+	void recalculateColor(uint8_t yDisplay);
 	ActionResult scrollVertical(int32_t scrollAmount, bool inCardRoutine, bool shiftingNoteRow = false);
 	void reassessAllAuditionStatus();
 	void reassessAuditionStatus(uint8_t yDisplay);
@@ -89,14 +89,14 @@ public:
 	void enterScaleMode(uint8_t yDisplay = 255);
 	void exitScaleMode();
 	void changeRootNote(uint8_t yDisplay);
-	void drawMuteSquare(NoteRow* thisNoteRow, Colour thisImage[], uint8_t thisOccupancyMask[]);
+	void drawMuteSquare(NoteRow* thisNoteRow, RGB thisImage[], uint8_t thisOccupancyMask[]);
 	void cutAuditionedNotesToOne();
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
 	ActionResult horizontalEncoderAction(int32_t offset);
 	void fillOffScreenImageStores();
 	void graphicsRoutine();
 
-	void drawAuditionSquare(uint8_t yDisplay, Colour thisImage[]);
+	void drawAuditionSquare(uint8_t yDisplay, RGB thisImage[]);
 	void flashDefaultRootNote();
 	void selectEncoderAction(int8_t offset);
 	void doubleClipLengthAction();
@@ -114,12 +114,12 @@ public:
 	void drawDrumName(Drum* drum, bool justPopUp = false);
 	void notifyPlaybackBegun();
 	void openedInBackground();
-	bool renderMainPads(uint32_t whichRows, Colour image[][kDisplayWidth + kSideBarWidth],
+	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
-	void performActualRender(uint32_t whichRows, Colour* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
+	void performActualRender(uint32_t whichRows, RGB* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
 	                         int32_t xScroll, uint32_t xZoom, int32_t renderWidth, int32_t imageWidth,
 	                         bool drawUndefinedArea = true);
-	bool renderSidebar(uint32_t whichRows, Colour image[][kDisplayWidth + kSideBarWidth],
+	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 
 	void transitionToSessionView();
@@ -160,9 +160,9 @@ public:
 private:
 	uint8_t lastAuditionedVelocityOnScreen[kDisplayHeight]; // 255 seems to mean none
 	uint8_t auditionPadIsPressed[kDisplayHeight];
-	Colour rowColour[kDisplayHeight];
-	Colour rowTailColour[kDisplayHeight];
-	Colour rowBlurColour[kDisplayHeight];
+	RGB rowColor[kDisplayHeight];
+	RGB rowTailColor[kDisplayHeight];
+	RGB rowBlurColor[kDisplayHeight];
 	uint8_t numEditPadPressesPerNoteRowOnScreen[kDisplayHeight];
 	uint8_t lastAuditionedYDisplay;
 

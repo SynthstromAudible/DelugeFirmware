@@ -1126,9 +1126,9 @@ void spamMode() {
 
 				Debug::putChar(UART_CHANNEL_PIC, lastCol + 1);
 				for (int32_t i = 0; i < 16; i++) {
-					int32_t whichColour = getRandom255() % 3;
-					for (int32_t colour = 0; colour < 3; colour++) {
-						if (colour == whichColour && (getRandom255() % 3) == 0)
+					int32_t whichColor = getRandom255() % 3;
+					for (int32_t color = 0; color < 3; color++) {
+						if (color == whichColor && (getRandom255() % 3) == 0)
 							Debug::putChar(UART_CHANNEL_PIC, getRandom255());
 						else
 							Debug::putChar(UART_CHANNEL_PIC, 0);

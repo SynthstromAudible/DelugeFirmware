@@ -37,12 +37,12 @@ public:
 	int32_t performLoad(bool doClone = false);
 	ActionResult timerCallback();
 	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
-	bool renderMainPads(uint32_t whichRows, Colour image[][kDisplayWidth + kSideBarWidth] = NULL,
+	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = NULL,
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL, bool drawUndefinedArea = true,
 	                    int32_t navSys = -1) {
 		return true;
 	}
-	bool renderSidebar(uint32_t whichRows, Colour image[][kDisplayWidth + kSideBarWidth],
+	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 	ReturnOfConfirmPresetOrNextUnlaunchedOne
 	findAnUnlaunchedPresetIncludingWithinSubfolders(Song* song, InstrumentType instrumentType,

@@ -76,13 +76,13 @@ void KeyboardLayoutIsomorphic::handleHorizontalEncoder(int32_t offset, bool shif
 void KeyboardLayoutIsomorphic::precalculate() {
 	KeyboardStateIsomorphic& state = getState().isomorphic;
 
-	// Pre-Buffer colours for next renderings
+	// Pre-Buffer colors for next renderings
 	for (int32_t i = 0; i < (kDisplayHeight * state.rowInterval + kDisplayWidth); ++i) {
-		noteColours[i] = getNoteColour(state.scrollOffset + i);
+		noteColors[i] = getNoteColor(state.scrollOffset + i);
 	}
 }
 
-void KeyboardLayoutIsomorphic::renderPads(Colour image[][kDisplayWidth + kSideBarWidth]) {
+void KeyboardLayoutIsomorphic::renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) {
 	// Precreate list of all active notes per octave
 	bool octaveActiveNotes[kOctaveSize] = {0};
 	for (uint8_t idx = 0; idx < currentNotesState.count; ++idx) {
@@ -105,13 +105,13 @@ void KeyboardLayoutIsomorphic::renderPads(Colour image[][kDisplayWidth + kSideBa
 		int32_t noteWithinOctave = (uint16_t)((noteCode + kOctaveSize) - getRootNote()) % kOctaveSize;
 
 		for (int32_t x = 0; x < kDisplayWidth; x++) {
-			// Full colour for every octaves root and active notes
+			// Full color for every octaves root and active notes
 			if (octaveActiveNotes[noteWithinOctave] || noteWithinOctave == 0) {
-				image[y][x] = noteColours[normalizedPadOffset];
+				image[y][x] = noteColors[normalizedPadOffset];
 			}
 			// Or, if this note is just within the current scale, show it dim
 			else if (octaveScaleNotes[noteWithinOctave]) {
-				image[y][x] = noteColours[normalizedPadOffset].forTail();
+				image[y][x] = noteColors[normalizedPadOffset].forTail();
 			}
 
 			//@TODO: In a future revision it would be nice to add this to the API
@@ -119,9 +119,9 @@ void KeyboardLayoutIsomorphic::renderPads(Colour image[][kDisplayWidth + kSideBa
 			if (getCurrentUI() == &sampleBrowser || getCurrentUI() == &audioRecorder
 			    || (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem()->isRangeDependent())) {
 				if (soundEditor.isUntransposedNoteWithinRange(noteCode)) {
-					for (int32_t colour = 0; colour < 3; colour++) {
-						int32_t value = (int32_t)image[y][x][colour] + 35;
-						image[y][x][colour] = std::min<uint8_t>(value, 255);
+					for (int32_t color = 0; color < 3; color++) {
+						int32_t value = (int32_t)image[y][x][color] + 35;
+						image[y][x][color] = std::min<uint8_t>(value, 255);
 					}
 				}
 			}

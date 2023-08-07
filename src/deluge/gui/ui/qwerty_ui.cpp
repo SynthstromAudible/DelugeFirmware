@@ -18,7 +18,7 @@
 #include "gui/ui/qwerty_ui.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
-#include "gui/colour.h"
+#include "gui/color/color.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/numeric_driver.h"
 #include "hid/led/indicator_leds.h"
@@ -62,42 +62,42 @@ void QwertyUI::drawKeys() {
 	// General key area
 	for (size_t i = 0; i < 11; i++) {
 		if (i < 10) {
-			PadLEDs::image[kQwertyHomeRow + 2][3 + i] = Colour::monochrome(64); // 1234
-			PadLEDs::image[kQwertyHomeRow + 1][3 + i] = Colour::monochrome(10); // qwer
+			PadLEDs::image[kQwertyHomeRow + 2][3 + i] = RGB::monochrome(64); // 1234
+			PadLEDs::image[kQwertyHomeRow + 1][3 + i] = RGB::monochrome(10); // qwer
 		}
-		PadLEDs::image[kQwertyHomeRow][3 + i] = Colour::monochrome(10); // asdf
+		PadLEDs::image[kQwertyHomeRow][3 + i] = RGB::monochrome(10); // asdf
 		if (i < 9) {
-			PadLEDs::image[kQwertyHomeRow - 1][3 + i] = Colour::monochrome(10); // zxcv
+			PadLEDs::image[kQwertyHomeRow - 1][3 + i] = RGB::monochrome(10); // zxcv
 		}
 	}
 
-	PadLEDs::image[kQwertyHomeRow + 2][13] = Colour::monochrome(10);
+	PadLEDs::image[kQwertyHomeRow + 2][13] = RGB::monochrome(10);
 
 	// Home rows
-	PadLEDs::image[kQwertyHomeRow][3] = Colour::monochrome(64);
-	PadLEDs::image[kQwertyHomeRow][4] = Colour::monochrome(64);
-	PadLEDs::image[kQwertyHomeRow][5] = Colour::monochrome(64);
-	PadLEDs::image[kQwertyHomeRow][6] = Colour::monochrome(160);
-	PadLEDs::image[kQwertyHomeRow][9] = Colour::monochrome(160);
-	PadLEDs::image[kQwertyHomeRow][10] = Colour::monochrome(64);
-	PadLEDs::image[kQwertyHomeRow][11] = Colour::monochrome(64);
-	PadLEDs::image[kQwertyHomeRow][12] = Colour::monochrome(64);
+	PadLEDs::image[kQwertyHomeRow][3] = RGB::monochrome(64);
+	PadLEDs::image[kQwertyHomeRow][4] = RGB::monochrome(64);
+	PadLEDs::image[kQwertyHomeRow][5] = RGB::monochrome(64);
+	PadLEDs::image[kQwertyHomeRow][6] = RGB::monochrome(160);
+	PadLEDs::image[kQwertyHomeRow][9] = RGB::monochrome(160);
+	PadLEDs::image[kQwertyHomeRow][10] = RGB::monochrome(64);
+	PadLEDs::image[kQwertyHomeRow][11] = RGB::monochrome(64);
+	PadLEDs::image[kQwertyHomeRow][12] = RGB::monochrome(64);
 
 	// Space bar
 	for (size_t i = 0; i < 6; i++) {
-		PadLEDs::image[kQwertyHomeRow - 2][5 + i] = Colour::monochrome(160);
+		PadLEDs::image[kQwertyHomeRow - 2][5 + i] = RGB::monochrome(160);
 	}
 
 	for (int32_t x = 0; x < 2; x++) {
 		// Backspace
-		PadLEDs::image[kQwertyHomeRow + 2][14 + x] = colours::red;
+		PadLEDs::image[kQwertyHomeRow + 2][14 + x] = colors::red;
 
 		// Enter
-		PadLEDs::image[kQwertyHomeRow][14 + x] = colours::green;
+		PadLEDs::image[kQwertyHomeRow][14 + x] = colors::green;
 
 		// Shift
-		PadLEDs::image[kQwertyHomeRow - 1][1 + x] = colours::blue;
-		PadLEDs::image[kQwertyHomeRow - 1][13 + x] = colours::blue;
+		PadLEDs::image[kQwertyHomeRow - 1][1 + x] = colors::blue;
+		PadLEDs::image[kQwertyHomeRow - 1][13 + x] = colors::blue;
 	}
 }
 

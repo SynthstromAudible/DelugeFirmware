@@ -26,7 +26,7 @@ public:
 	    : Regular(newName), p(newP), s(newS) {}
 
 	MenuPermission checkPermissionToBeginSession(Sound* sound, int32_t whichThing, MultiRange** currentRange) final;
-	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) final;
+	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* color) final;
 	MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive) final;
 
 protected:

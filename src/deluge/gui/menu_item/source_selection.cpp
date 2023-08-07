@@ -265,7 +265,7 @@ uint8_t SourceSelection::getIndexOfPatchedParamToBlink() {
 	return soundEditor.patchingParamSelected;
 }
 
-uint8_t SourceSelection::shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) {
+uint8_t SourceSelection::shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* color) {
 	return soundEditor.currentParamManager->getPatchCableSet()->isSourcePatchedToDestinationDescriptorVolumeInspecific(
 	           s, getDestinationDescriptor())
 	           ? 3

@@ -20,7 +20,7 @@
 #include "const_functions.h"
 #include "definitions_cxx.hpp"
 #include "fatfs/ff.h"
-#include "gui/colour.h"
+#include "gui/color/color.h"
 #include "util/fixedpoint.h"
 #include "util/lookuptables/lookuptables.h"
 #include <cmath>
@@ -412,28 +412,28 @@ int32_t stringToFirmwareVersion(char const* firmwareVersionString);
 
 // intensity is out of 65536 now
 // occupancyMask is out of 64 now
-inline Colour drawSquare(const Colour& squareColour, int32_t intensity, const Colour& square, uint8_t* occupancyMask,
-                         int32_t occupancyFromWhichColourCame) {
+inline RGB drawSquare(const RGB& squareColor, int32_t intensity, const RGB& square, uint8_t* occupancyMask,
+                         int32_t occupancyFromWhichColorCame) {
 
-	int32_t modifiedIntensity = intensity; //(intensity * occupancyFromWhichColourCame) >> 6; // Out of 65536
+	int32_t modifiedIntensity = intensity; //(intensity * occupancyFromWhichColorCame) >> 6; // Out of 65536
 
-	// Make new colour being drawn into this square marginalise the colour already in the square
-	int32_t colourRemainingAmount = 65536;
+	// Make new color being drawn into this square marginalise the color already in the square
+	int32_t colorRemainingAmount = 65536;
 
-	// We know how much colour we want to add to this square, so constrain any existing colour to the remaining "space" that it may still occupy
+	// We know how much color we want to add to this square, so constrain any existing color to the remaining "space" that it may still occupy
 	int32_t maxOldOccupancy = (65536 - modifiedIntensity) >> 10;
 
-	// If the square has more colour in it than it's allowed to retain, then plan to reduce it
+	// If the square has more color in it than it's allowed to retain, then plan to reduce it
 	if (*occupancyMask > maxOldOccupancy) {
-		colourRemainingAmount = (maxOldOccupancy << 16) / *occupancyMask; // out of 65536
+		colorRemainingAmount = (maxOldOccupancy << 16) / *occupancyMask; // out of 65536
 	}
 
-	// Add the new colour, reducing the old if that's what we're doing
+	// Add the new color, reducing the old if that's what we're doing
 	int32_t newOccupancyMaskValue =
-	    rshift_round(*occupancyMask * colourRemainingAmount, 16) + rshift_round(modifiedIntensity, 10);
+	    rshift_round(*occupancyMask * colorRemainingAmount, 16) + rshift_round(modifiedIntensity, 10);
 	*occupancyMask = std::min<int32_t>(64, newOccupancyMaskValue);
 
-	return Colour::blend2(square, squareColour, colourRemainingAmount, modifiedIntensity);
+	return RGB::blend2(square, squareColor, colorRemainingAmount, modifiedIntensity);
 }
 
 inline int32_t increaseMagnitude(int32_t number, int32_t magnitude) {
@@ -491,7 +491,7 @@ int32_t getWhichKernel(int32_t phaseIncrement);
 
 int32_t memcasecmp(char const* first, char const* second, int32_t size);
 int32_t getHowManyCharsAreTheSame(char const* a, char const* b);
-void dimColour(uint8_t colour[3]);
+void dimColor(uint8_t color[3]);
 bool charCaseEqual(char firstChar, char secondChar);
 bool shouldAbortLoading();
 void getNoteLengthNameFromMagnitude(char* text, int32_t magnitude, bool clarifyPerColumn = false);

@@ -15,42 +15,47 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#pragma once
-#include "gui/colour.h"
-#include "gui/menu_item/selection.h"
+#include "color.h"
+#include "gui/color/color.h"
+#include "gui/color/palette.h"
+#include "gui/ui/sound_editor.h"
+#include "gui/ui/ui.h"
 
 namespace deluge::gui::menu_item {
 
-class Colour final : public Selection<9> {
-public:
-	enum Option : uint8_t {
-		RED,
-		GREEN,
-		BLUE,
-		YELLOW,
-		CYAN,
-		MAGENTA,
-		AMBER,
-		WHITE,
-		PINK,
-	};
+Color activeColorMenu{"ACTIVE"};
+Color stoppedColorMenu{"STOPPED"};
+Color mutedColorMenu{"MUTED"};
+Color soloColorMenu{"SOLOED"};
 
-	using Selection::Selection;
-	void readCurrentValue() override { this->setValue(value); }
-	void writeCurrentValue() override {
-		value = static_cast<Option>(this->getValue());
-		renderingNeededRegardlessOfUI();
-	};
-	static_vector<std::string, capacity()> getOptions() override {
-		return {"RED", "GREEN", "BLUE", "YELLOW", "CYAN", "MAGENTA", "AMBER", "WHITE", "PINK"};
+RGB Color::getRGB() const {
+	switch (value) {
+	case RED: // Red
+		return colors::red;
+
+	case GREEN: // Green
+		return colors::enabled;
+
+	case BLUE: // Blue
+		return colors::blue;
+
+	case YELLOW: // Yellow
+		return colors::yellow_orange;
+
+	case CYAN: // Cyan
+		return colors::cyan;
+
+	case MAGENTA: // Purple
+		return colors::magenta;
+
+	case AMBER: // Amber
+		return colors::amber;
+
+	case WHITE: // White
+		return colors::white;
+
+	case PINK: // Pink
+		return colors::pink;
 	}
-	[[nodiscard]] ::Colour getRGB() const;
-	Option value;
-};
-
-extern Colour activeColourMenu;
-extern Colour stoppedColourMenu;
-extern Colour mutedColourMenu;
-extern Colour soloColourMenu;
-
+}
 } // namespace deluge::gui::menu_item

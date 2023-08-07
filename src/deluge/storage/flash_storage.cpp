@@ -17,7 +17,7 @@
 
 #include "storage/flash_storage.h"
 #include "definitions_cxx.hpp"
-#include "gui/menu_item/colour.h"
+#include "gui/menu_item/color.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/led/pad_leds.h"
 #include "io/midi/midi_engine.h"
@@ -94,10 +94,10 @@ namespace FlashStorage {
 71: GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING noteCode + 1
 72: sample browser preview mode
 73: default velocity
-74: "active" colour
-75: "stopped" colour
-76: "muted" colour
-77: "solo" colour
+74: "active" color
+75: "stopped" color
+76: "muted" color
+77: "solo" color
 78: default magnitude (resolution)
 79: MIDI input device differentiation on/off
 80: GlobalMIDICommand::PLAYBACK_RESTART			product / vendor ids
@@ -179,10 +179,10 @@ void resetSettings() {
 
 	defaultVelocity = 64;
 
-	gui::menu_item::activeColourMenu.value = gui::menu_item::Colour::GREEN; // Green
-	gui::menu_item::stoppedColourMenu.value = gui::menu_item::Colour::RED;  // Red
-	gui::menu_item::mutedColourMenu.value = gui::menu_item::Colour::YELLOW; // Yellow
-	gui::menu_item::soloColourMenu.value = gui::menu_item::Colour::BLUE;    // Blue
+	gui::menu_item::activeColorMenu.value = gui::menu_item::Color::GREEN; // Green
+	gui::menu_item::stoppedColorMenu.value = gui::menu_item::Color::RED;  // Red
+	gui::menu_item::mutedColorMenu.value = gui::menu_item::Color::YELLOW; // Yellow
+	gui::menu_item::soloColorMenu.value = gui::menu_item::Color::BLUE;    // Blue
 
 	defaultMagnitude = 2;
 
@@ -327,34 +327,34 @@ void readSettings() {
 	}
 
 	if (previouslySavedByFirmwareVersion < FIRMWARE_3P1P0_ALPHA) {
-		gui::menu_item::activeColourMenu.value = gui::menu_item::Colour::GREEN; // Green
-		gui::menu_item::stoppedColourMenu.value = gui::menu_item::Colour::RED;  // Red
-		gui::menu_item::mutedColourMenu.value = gui::menu_item::Colour::YELLOW; // Yellow
-		gui::menu_item::soloColourMenu.value = gui::menu_item::Colour::BLUE;    // Blue
+		gui::menu_item::activeColorMenu.value = gui::menu_item::Color::GREEN; // Green
+		gui::menu_item::stoppedColorMenu.value = gui::menu_item::Color::RED;  // Red
+		gui::menu_item::mutedColorMenu.value = gui::menu_item::Color::YELLOW; // Yellow
+		gui::menu_item::soloColorMenu.value = gui::menu_item::Color::BLUE;    // Blue
 
 		defaultMagnitude = 2;
 
 		MIDIDeviceManager::differentiatingInputsByDevice = false;
 	}
 	else {
-		gui::menu_item::activeColourMenu.value = static_cast<gui::menu_item::Colour::Option>(buffer[74]);
-		gui::menu_item::stoppedColourMenu.value = static_cast<gui::menu_item::Colour::Option>(buffer[75]);
-		gui::menu_item::mutedColourMenu.value = static_cast<gui::menu_item::Colour::Option>(buffer[76]);
-		gui::menu_item::soloColourMenu.value = static_cast<gui::menu_item::Colour::Option>(buffer[77]);
+		gui::menu_item::activeColorMenu.value = static_cast<gui::menu_item::Color::Option>(buffer[74]);
+		gui::menu_item::stoppedColorMenu.value = static_cast<gui::menu_item::Color::Option>(buffer[75]);
+		gui::menu_item::mutedColorMenu.value = static_cast<gui::menu_item::Color::Option>(buffer[76]);
+		gui::menu_item::soloColorMenu.value = static_cast<gui::menu_item::Color::Option>(buffer[77]);
 
 		defaultMagnitude = buffer[78];
 
 		MIDIDeviceManager::differentiatingInputsByDevice = buffer[79];
 
 		if (previouslySavedByFirmwareVersion == FIRMWARE_3P1P0_ALPHA) { // Could surely delete this code?
-			if (!gui::menu_item::activeColourMenu.value) {
-				gui::menu_item::activeColourMenu.value = gui::menu_item::Colour::GREEN;
+			if (!gui::menu_item::activeColorMenu.value) {
+				gui::menu_item::activeColorMenu.value = gui::menu_item::Color::GREEN;
 			}
-			if (!gui::menu_item::mutedColourMenu.value) {
-				gui::menu_item::mutedColourMenu.value = gui::menu_item::Colour::YELLOW;
+			if (!gui::menu_item::mutedColorMenu.value) {
+				gui::menu_item::mutedColorMenu.value = gui::menu_item::Color::YELLOW;
 			}
-			if (!gui::menu_item::soloColourMenu.value) {
-				gui::menu_item::soloColourMenu.value = gui::menu_item::Colour::BLUE;
+			if (!gui::menu_item::soloColorMenu.value) {
+				gui::menu_item::soloColorMenu.value = gui::menu_item::Color::BLUE;
 			}
 
 			if (!defaultMagnitude) {
@@ -459,10 +459,10 @@ void writeSettings() {
 
 	buffer[73] = defaultVelocity;
 
-	buffer[74] = gui::menu_item::activeColourMenu.value;
-	buffer[75] = gui::menu_item::stoppedColourMenu.value;
-	buffer[76] = gui::menu_item::mutedColourMenu.value;
-	buffer[77] = gui::menu_item::soloColourMenu.value;
+	buffer[74] = gui::menu_item::activeColorMenu.value;
+	buffer[75] = gui::menu_item::stoppedColorMenu.value;
+	buffer[76] = gui::menu_item::mutedColorMenu.value;
+	buffer[77] = gui::menu_item::soloColorMenu.value;
 
 	buffer[78] = defaultMagnitude;
 	buffer[79] = MIDIDeviceManager::differentiatingInputsByDevice;

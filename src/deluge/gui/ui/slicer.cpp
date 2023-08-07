@@ -17,7 +17,7 @@
 
 #include "gui/ui/slicer.h"
 #include "definitions_cxx.hpp"
-#include "gui/colour.h"
+#include "gui/color/color.h"
 #include "gui/context_menu/sample_browser/kit.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/sound_editor.h"
@@ -113,28 +113,28 @@ void Slicer::redraw() {
 }
 #endif
 
-bool Slicer::renderMainPads(uint32_t whichRows, Colour image[][kDisplayWidth + kSideBarWidth],
+bool Slicer::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                             uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
 
 	if (slicerMode == SLICER_MODE_REGION) {
-		Colour myImage[kDisplayHeight][kDisplayWidth + kSideBarWidth];
+		RGB myImage[kDisplayHeight][kDisplayWidth + kSideBarWidth];
 		waveformRenderer.renderFullScreen(waveformBasicNavigator.sample, waveformBasicNavigator.xScroll,
 		                                  waveformBasicNavigator.xZoom, image, &waveformBasicNavigator.renderData);
 	}
 	else if (slicerMode == SLICER_MODE_MANUAL) {
 
-		Colour myImage[kDisplayHeight][kDisplayWidth + kSideBarWidth];
+		RGB myImage[kDisplayHeight][kDisplayWidth + kSideBarWidth];
 		waveformRenderer.renderFullScreen(waveformBasicNavigator.sample, waveformBasicNavigator.xScroll,
 		                                  waveformBasicNavigator.xZoom, myImage, &waveformBasicNavigator.renderData);
 
 		for (int32_t xx = 0; xx < kDisplayWidth; xx++) {
 			for (int32_t yy = 0; yy < kDisplayHeight / 2; yy++) {
-				image[yy + 4][xx] = Colour::average(myImage[yy * 2][xx], myImage[yy * 2 + 1][xx]);
+				image[yy + 4][xx] = RGB::average(myImage[yy * 2][xx], myImage[yy * 2 + 1][xx]);
 			}
 		}
 		for (int32_t i = 0; i < numManualSlice; i++) { // Slices
 			int32_t x = manualSlicePoints[i].startPos / (waveformBasicNavigator.sample->lengthInSamples + 0.0) * 16;
-			image[4][x] = Colour{
+			image[4][x] = RGB{
 			    1,
 			    (i == currentSlice) ? 200_u8 : 16_u8,
 			    1,
@@ -146,19 +146,19 @@ bool Slicer::renderMainPads(uint32_t whichRows, Colour image[][kDisplayWidth + k
 			int32_t yy = (i / 4) % 4;
 			int32_t page = i / 16;
 
-			Colour colour = Colour::monochrome(3);
+			RGB color = RGB::monochrome(3);
 			size_t dimLevel = (i < numManualSlice) ? 2 : 6;
 			if (page % 2 == 0) {
-				colour = colours::green.dim(dimLevel);
+				color = colors::green.dim(dimLevel);
 			}
 			else {
-				colour = colours::darkblue.dim(dimLevel);
+				color = colors::darkblue.dim(dimLevel);
 			}
 			if (i == this->currentSlice) {
-				colour = colours::green.dim();
+				color = colors::green.dim();
 			}
 
-			image[yy][xx] = colour;
+			image[yy][xx] = color;
 		}
 	}
 	return true;
@@ -421,7 +421,7 @@ ActionResult Slicer::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 		if (slicerMode == SLICER_MODE_MANUAL) {
-			Colour myImage[kDisplayHeight][kDisplayWidth + kSideBarWidth];
+			RGB myImage[kDisplayHeight][kDisplayWidth + kSideBarWidth];
 			waveformRenderer.renderFullScreen(waveformBasicNavigator.sample, waveformBasicNavigator.xScroll,
 			                                  waveformBasicNavigator.xZoom, PadLEDs::image,
 			                                  &waveformBasicNavigator.renderData);
@@ -748,8 +748,8 @@ ramError2:
 
 	((Instrument*)currentSong->currentClip->output)->beenEdited();
 
-	// New NoteRows have probably been created, whose colours haven't been grabbed yet.
-	instrumentClipView.recalculateColours();
+	// New NoteRows have probably been created, whose colors haven't been grabbed yet.
+	instrumentClipView.recalculateColors();
 
 	numericDriver.setNextTransitionDirection(-1);
 	sampleBrowser.exitAndNeverDeleteDrum();

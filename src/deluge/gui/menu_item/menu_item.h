@@ -67,7 +67,7 @@ public:
 	virtual uint8_t getPatchedParamIndex() { return 255; }
 	virtual uint8_t getIndexOfPatchedParamToBlink() { return 255; }
 	virtual uint8_t shouldDrawDotOnName() { return 255; }
-	virtual uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) { return 255; }
+	virtual uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* color) { return 255; }
 
 	virtual MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive = false) {
 		return nullptr; // nullptr means do nothing. 0xFFFFFFFF means go up a level

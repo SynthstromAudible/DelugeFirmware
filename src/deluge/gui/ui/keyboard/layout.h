@@ -65,17 +65,17 @@ public:
 	/// Will be called with offset 0 to recalculate bounds on clip changes
 	virtual void handleHorizontalEncoder(int32_t offset, bool shiftEnabled) = 0;
 
-	/// This function is called on visibility change and if colour offset changes
+	/// This function is called on visibility change and if color offset changes
 	virtual void precalculate() = 0;
 
 	/// Handle output
-	virtual void renderPads(Colour image[][kDisplayWidth + kSideBarWidth]) {}
+	virtual void renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) {}
 
-	virtual void renderSidebarPads(Colour image[][kDisplayWidth + kSideBarWidth]) {
+	virtual void renderSidebarPads(RGB image[][kDisplayWidth + kSideBarWidth]) {
 		// Clean sidebar if function is not overwritten
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
-			image[y][kDisplayWidth] = colours::black;
-			image[y][kDisplayWidth + 1] = colours::black;
+			image[y][kDisplayWidth] = colors::black;
+			image[y][kDisplayWidth + 1] = colors::black;
 		}
 	};
 
@@ -109,20 +109,20 @@ protected:
 		return kHighestKeyboardNote;
 	}
 
-	inline Colour getNoteColour(uint8_t note) {
-		int8_t colourOffset = 0;
+	inline RGB getNoteColor(uint8_t note) {
+		int8_t colorOffset = 0;
 
-		// Get colour offset for kit rows
+		// Get color offset for kit rows
 		if (currentInstrument()->type == InstrumentType::KIT) {
 			if (note >= 0 && note < currentClip()->noteRows.getNumElements()) {
 				NoteRow* noteRow = currentClip()->noteRows.getElement(note);
 				if (noteRow) {
-					colourOffset = noteRow->getColourOffset(currentClip());
+					colorOffset = noteRow->getColorOffset(currentClip());
 				}
 			}
 		}
 
-		return currentClip()->getMainColourFromY(note, colourOffset);
+		return currentClip()->getMainColorFromY(note, colorOffset);
 	}
 
 	inline KeyboardState& getState() { return currentClip()->keyboardState; }

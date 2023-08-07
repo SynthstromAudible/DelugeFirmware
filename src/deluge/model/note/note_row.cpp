@@ -57,7 +57,7 @@ extern "C" {
 NoteRow::NoteRow(int16_t newY) {
 	y = newY;
 	muted = false;
-	colourOffset = random(71);
+	colorOffset = random(71);
 	drum = NULL;
 	firstOldDrumName = NULL;
 	soundingStatus = STATUS_OFF;
@@ -1519,8 +1519,8 @@ void NoteRow::stopCurrentlyPlayingNote(ModelStackWithNoteRow* modelStack, bool a
 }
 
 // occupancyMask now optional!
-void NoteRow::renderRow(TimelineView* editorScreen, Colour rowColour, Colour rowTailColour, Colour rowBlurColour,
-                        Colour* image, uint8_t occupancyMask[], bool overwriteExisting, uint32_t effectiveRowLength,
+void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColor, RGB rowTailColor, RGB rowBlurColor,
+                        RGB* image, uint8_t occupancyMask[], bool overwriteExisting, uint32_t effectiveRowLength,
                         bool allowNoteTails, int32_t renderWidth, int32_t xScroll, uint32_t xZoom, int32_t xStartNow,
                         int32_t xEnd, bool drawRepeats) {
 
@@ -1588,11 +1588,11 @@ void NoteRow::renderRow(TimelineView* editorScreen, Colour rowColour, Colour row
 
 			Note* note = notes.getElement(i - 1); // Subtracting 1 to do "LESS"
 
-			Colour& pixel = image[xDisplay];
+			RGB& pixel = image[xDisplay];
 
-			// If Note starts somewhere within square, draw the blur colour
+			// If Note starts somewhere within square, draw the blur color
 			if (note && note->pos > squareStartPos) {
-				pixel = rowBlurColour;
+				pixel = rowBlurColor;
 				if (occupancyMask) {
 					occupancyMask[xDisplay] = 64;
 				}
@@ -1600,7 +1600,7 @@ void NoteRow::renderRow(TimelineView* editorScreen, Colour rowColour, Colour row
 
 			// Or if Note starts exactly on square...
 			else if (note && note->pos == squareStartPos) {
-				pixel = rowColour;
+				pixel = rowColor;
 				if (occupancyMask) {
 					occupancyMask[xDisplay] = 64;
 				}
@@ -1617,9 +1617,9 @@ void NoteRow::renderRow(TimelineView* editorScreen, Colour rowColour, Colour row
 					noteEnd -= effectiveRowLength;
 				}
 				if (noteEnd > squareStartPos && allowNoteTails) {
-					pixel[0] = rowTailColour[0];
-					pixel[1] = rowTailColour[1];
-					pixel[2] = rowTailColour[2];
+					pixel[0] = rowTailColor[0];
+					pixel[1] = rowTailColor[1];
+					pixel[2] = rowTailColor[2];
 					if (occupancyMask) {
 						occupancyMask[xDisplay] = 64;
 					}
@@ -2766,8 +2766,8 @@ int32_t NoteRow::readFromFile(int32_t* minY, InstrumentClip* parentClip, Song* s
 			y = storageManager.readTagOrAttributeValueInt();
 		}
 
-		else if (!strcmp(tagName, "colourOffset")) {
-			colourOffset = storageManager.readTagOrAttributeValueInt();
+		else if (!strcmp(tagName, "colorOffset")) {
+			colorOffset = storageManager.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "drumIndex")) {
@@ -3028,7 +3028,7 @@ void NoteRow::writeToFile(int32_t drumIndex, InstrumentClip* clip) {
 	}
 
 	if (forKit) {
-		storageManager.writeAttribute("colourOffset", getColourOffset(clip));
+		storageManager.writeAttribute("colorOffset", getColorOffset(clip));
 	}
 
 	if (loopLengthIfIndependent) {
@@ -3100,9 +3100,9 @@ void NoteRow::writeToFile(int32_t drumIndex, InstrumentClip* clip) {
 	}
 }
 
-int8_t NoteRow::getColourOffset(InstrumentClip* clip) {
+int8_t NoteRow::getColorOffset(InstrumentClip* clip) {
 	if (clip->output->type == InstrumentType::KIT) {
-		return colourOffset;
+		return colorOffset;
 	}
 	else {
 		return 0;

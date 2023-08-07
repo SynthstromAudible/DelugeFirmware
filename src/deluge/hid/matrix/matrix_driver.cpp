@@ -18,7 +18,7 @@
 #include "hid/matrix/matrix_driver.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
-#include "gui/menu_item/colour.h"
+#include "gui/menu_item/color.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/keyboard/keyboard_screen.h"

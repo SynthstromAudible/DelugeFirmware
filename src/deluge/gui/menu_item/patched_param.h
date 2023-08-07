@@ -38,7 +38,7 @@ public:
 	virtual uint8_t getPatchedParamIndex();
 	virtual uint8_t shouldDrawDotOnName();
 
-	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour);
+	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* color);
 	MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive = false);
 	ModelStackWithAutoParam* getModelStack(void* memory) override;
 

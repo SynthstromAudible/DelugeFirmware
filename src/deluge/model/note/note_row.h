@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "gui/colour.h"
+#include "gui/color/color.h"
 #include "io/midi/learned_midi.h"
 #include "model/note/note_vector.h"
 #include "modulation/params/param_manager.h"
@@ -70,7 +70,7 @@ class NoteRow {
 public:
 	NoteRow(int16_t newY = -32768);
 	~NoteRow();
-	void renderRow(TimelineView* editorScreen, Colour, Colour, Colour, Colour* image, uint8_t[], bool, uint32_t,
+	void renderRow(TimelineView* editorScreen, RGB, RGB, RGB, RGB* image, uint8_t[], bool, uint32_t,
 	               bool allowNoteTails, int32_t imageWidth, int32_t xScroll, uint32_t xZoom, int32_t xStart = 0,
 	               int32_t xEnd = kDisplayWidth, bool drawRepeats = false);
 	void deleteNoteByPos(ModelStackWithNoteRow* modelStack, int32_t pos, Action* action);
@@ -115,7 +115,7 @@ public:
 	LearnedMIDI muteMIDICommand;
 	LearnedMIDI midiInput;
 
-	int8_t colourOffset;
+	int8_t colorOffset;
 
 	// External classes aren't really supposed to set this to OFF. Call something like cancelAutitioning() instead - which calls Clip::expectEvent(), which is needed
 	uint8_t soundingStatus;
@@ -139,7 +139,7 @@ public:
 	void trimToLength(uint32_t newLength, ModelStackWithNoteRow* modelStack, Action* action);
 	void trimNoteDataToNewClipLength(uint32_t newLength, InstrumentClip* clip, Action* action, int32_t noteRowId);
 	void recordNoteOff(uint32_t pos, ModelStackWithNoteRow* modelStack, Action* action, int32_t velocity);
-	int8_t getColourOffset(InstrumentClip* clip);
+	int8_t getColorOffset(InstrumentClip* clip);
 	void rememberDrumName();
 	void shiftHorizontally(int32_t amount, ModelStackWithNoteRow* modelStack);
 	void clear(Action* action, ModelStackWithNoteRow* modelStack);
@@ -186,6 +186,6 @@ private:
 	void findNextNoteToPlay(uint32_t);
 	void attemptLateStartOfNextNoteToPlay(ModelStackWithNoteRow* modelStack, Note* note);
 	bool noteRowMayMakeSound(bool);
-	void drawTail(int32_t startTail, int32_t endTail, uint8_t squareColour[], bool overwriteExisting,
+	void drawTail(int32_t startTail, int32_t endTail, uint8_t squareColor[], bool overwriteExisting,
 	              uint8_t image[][3], uint8_t occupancyMask[]);
 };

@@ -18,7 +18,7 @@
 #include "util/functions.h"
 #include "definitions_cxx.hpp"
 #include "fatfs/ff.h"
-#include "gui/colour.h"
+#include "gui/color/color.h"
 #include "gui/ui/qwerty_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/view.h"

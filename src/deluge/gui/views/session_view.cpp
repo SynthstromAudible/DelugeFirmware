@@ -19,9 +19,9 @@
 #include "definitions_cxx.hpp"
 #include "dsp/master_compressor/master_compressor.h"
 #include "extern.h"
-#include "gui/colour.h"
+#include "gui/color/color.h"
 #include "gui/context_menu/audio_input_selector.h"
-#include "gui/menu_item/colour.h"
+#include "gui/menu_item/color.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/load/load_song_ui.h"
@@ -1135,13 +1135,13 @@ ActionResult SessionView::verticalEncoderAction(int32_t offset, bool inCardRouti
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
 		}
 
-		// Change row colour by pressing row & shift - same shortcut as in clip view.
+		// Change row color by pressing row & shift - same shortcut as in clip view.
 		if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW && Buttons::isShiftButtonPressed()) {
 			Clip* clip = getClipOnScreen(selectedClipYDisplay);
 			if (!clip)
 				return ActionResult::NOT_DEALT_WITH;
 
-			clip->colourOffset += offset;
+			clip->colorOffset += offset;
 			uiNeedsRendering(this, 1 << selectedClipYDisplay, 0);
 
 			return ActionResult::DEALT_WITH;
@@ -1210,7 +1210,7 @@ ActionResult SessionView::verticalScrollOneSquare(int32_t direction) {
 	return ActionResult::DEALT_WITH;
 }
 
-bool SessionView::renderSidebar(uint32_t whichRows, Colour image[][kDisplayWidth + kSideBarWidth],
+bool SessionView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                 uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	if (!image) {
 		return true;
@@ -1226,41 +1226,41 @@ bool SessionView::renderSidebar(uint32_t whichRows, Colour image[][kDisplayWidth
 	return true;
 }
 
-void SessionView::drawStatusSquare(uint8_t yDisplay, Colour thisImage[]) {
-	Colour& thisColour = thisImage[kDisplayWidth];
+void SessionView::drawStatusSquare(uint8_t yDisplay, RGB thisImage[]) {
+	RGB& thisColor = thisImage[kDisplayWidth];
 
 	Clip* clip = getClipOnScreen(yDisplay);
 
 	// If no Clip, black
 	if (!clip) {
-		thisColour = colours::black;
+		thisColor = colors::black;
 	}
 	else {
-		view.getClipMuteSquareColour(clip, thisColour);
+		view.getClipMuteSquareColor(clip, thisColor);
 	}
 }
 
-void SessionView::drawSectionSquare(uint8_t yDisplay, Colour thisImage[]) {
-	Colour& thisColour = thisImage[kDisplayWidth + 1];
+void SessionView::drawSectionSquare(uint8_t yDisplay, RGB thisImage[]) {
+	RGB& thisColor = thisImage[kDisplayWidth + 1];
 
 	Clip* clip = getClipOnScreen(yDisplay);
 
 	// If no Clip, black
 	if (!clip) {
-		thisColour = colours::black;
+		thisColor = colors::black;
 	}
 	else {
 		if (view.midiLearnFlashOn && currentSong->sections[clip->section].launchMIDICommand.containsSomething()) {
-			thisColour = colours::midi_command;
+			thisColor = colors::midi_command;
 		}
 
 		else {
-			thisColour = Colour::fromHue(defaultClipGroupColours[clip->section]);
+			thisColor = RGB::fromHue(defaultClipGroupColors[clip->section]);
 
 			// If user assigning MIDI controls and has this section selected, flash to half brightness
 			if (view.midiLearnFlashOn && currentSong
 			    && view.learnedThing == &currentSong->sections[clip->section].launchMIDICommand) {
-				thisColour = thisColour.dim();
+				thisColor = thisColor.dim();
 			}
 		}
 	}
@@ -1357,7 +1357,7 @@ Clip* SessionView::createNewInstrumentClip(int32_t yDisplay) {
 	// Default Clip length. Default to current zoom, minimum 1 bar
 	int32_t newClipLength = std::max<int32_t>(currentDisplayLength, oneBar);
 
-	newClip->colourOffset = random(72);
+	newClip->colorOffset = random(72);
 	newClip->loopLength = newClipLength;
 
 	bool instrumentAlreadyInSong;
@@ -1439,7 +1439,7 @@ ramError:
 
 	// Give the new clip its stuff
 	newClip->cloneFrom(oldClip);
-	newClip->colourOffset = random(72);
+	newClip->colorOffset = random(72);
 
 	bool instrumentAlreadyInSong;
 	int32_t error;
@@ -1769,7 +1769,7 @@ ramError:
 void SessionView::graphicsRoutine() {
 
 	uint8_t tickSquares[kDisplayHeight];
-	uint8_t colours[kDisplayHeight];
+	uint8_t colors[kDisplayHeight];
 
 	bool anyLinearRecordingOnThisScreen = false;
 	bool anyLinearRecordingOnNextScreen = false;
@@ -1814,7 +1814,7 @@ void SessionView::graphicsRoutine() {
 
 					rowNeedsRenderingDependingOnSubMode(yDisplay);
 				}
-				colours[yDisplay] = 2;
+				colors[yDisplay] = 2;
 			}
 		}
 		else {
@@ -1860,12 +1860,12 @@ void SessionView::graphicsRoutine() {
 					}
 				}
 
-				colours[yDisplay] = 2;
+				colors[yDisplay] = 2;
 			}
 
 			// Not linearly recording
 			else {
-				colours[yDisplay] = 0;
+				colors[yDisplay] = 0;
 			}
 
 			if (newTickSquare < 0 || newTickSquare >= kDisplayWidth) {
@@ -1909,7 +1909,7 @@ void SessionView::graphicsRoutine() {
 		}
 	}
 
-	PadLEDs::setTickSquares(tickSquares, colours);
+	PadLEDs::setTickSquares(tickSquares, colors);
 }
 
 void SessionView::rowNeedsRenderingDependingOnSubMode(int32_t yDisplay) {
@@ -2064,7 +2064,7 @@ uint32_t SessionView::getGreyedOutRowsNotRepresentingOutput(Output* output) {
 	return rows;
 }
 
-bool SessionView::renderMainPads(uint32_t whichRows, Colour image[][kDisplayWidth + kSideBarWidth],
+bool SessionView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                  uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
 	if (!image) {
 		return true;
@@ -2095,7 +2095,7 @@ bool SessionView::renderMainPads(uint32_t whichRows, Colour image[][kDisplayWidt
 }
 
 // Returns false if can't because in card routine
-bool SessionView::renderRow(ModelStack* modelStack, uint8_t yDisplay, Colour thisImage[kDisplayWidth + kSideBarWidth],
+bool SessionView::renderRow(ModelStack* modelStack, uint8_t yDisplay, RGB thisImage[kDisplayWidth + kSideBarWidth],
                             uint8_t thisOccupancyMask[kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
 
 	Clip* clip = getClipOnScreen(yDisplay);
@@ -2111,7 +2111,7 @@ bool SessionView::renderRow(ModelStack* modelStack, uint8_t yDisplay, Colour thi
 			for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 				// We halve the intensity of the brightness in this case, because a lot of pads will be lit, it looks mental, and I think one user was having it
 				// cause his Deluge to freeze due to underpowering.
-				thisImage[xDisplay] = colours::midi_command.dim();
+				thisImage[xDisplay] = colors::midi_command.dim();
 			}
 		}
 
@@ -2194,7 +2194,7 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 
 		else {
 			instrumentClipView
-			    .recalculateColours(); // Won't have happened automatically because we haven't begun the "session"
+			    .recalculateColors(); // Won't have happened automatically because we haven't begun the "session"
 			instrumentClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
 			                                  false);
 			instrumentClipView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);

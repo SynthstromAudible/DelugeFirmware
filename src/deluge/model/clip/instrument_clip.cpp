@@ -80,7 +80,7 @@ InstrumentClip::InstrumentClip(Song* song) : Clip(CLIP_TYPE_INSTRUMENT) {
 	currentlyRecordingLinearly = false;
 
 	if (song) {
-		colourOffset -= song->rootNote;
+		colorOffset -= song->rootNote;
 	}
 
 	wrapEditing = false;
@@ -1204,8 +1204,8 @@ NoteRow* InstrumentClip::createNewNoteRowForKit(ModelStackWithTimelineCounter* m
 	if (atStart) {
 		yScroll++;
 
-		// Adjust colour offset, because colour offset is relative to the lowest NoteRow, and we just made a new lowest one
-		colourOffset--;
+		// Adjust color offset, because color offset is relative to the lowest NoteRow, and we just made a new lowest one
+		colorOffset--;
 	}
 
 	if (getIndex) {
@@ -1214,8 +1214,8 @@ NoteRow* InstrumentClip::createNewNoteRowForKit(ModelStackWithTimelineCounter* m
 	return newNoteRow;
 }
 
-Colour InstrumentClip::getMainColourFromY(int32_t yNote, int8_t noteRowColourOffset) {
-	return Colour::fromHue((yNote + colourOffset + noteRowColourOffset) * -8 / 3);
+RGB InstrumentClip::getMainColorFromY(int32_t yNote, int8_t noteRowColorOffset) {
+	return RGB::fromHue((yNote + colorOffset + noteRowColorOffset) * -8 / 3);
 }
 
 void InstrumentClip::musicalModeChanged(uint8_t yVisualWithinOctave, int32_t change,
@@ -1282,12 +1282,12 @@ void InstrumentClip::transpose(int32_t change, ModelStackWithTimelineCounter* mo
 		thisNoteRow->y += change;
 	}
 	yScroll += change;
-	colourOffset -= change;
+	colorOffset -= change;
 }
 
 // Lock rendering before calling this!
 bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, TimelineView* editorScreen,
-                                       int32_t xScroll, uint32_t xZoom, Colour* image, uint8_t occupancyMask[],
+                                       int32_t xScroll, uint32_t xZoom, RGB* image, uint8_t occupancyMask[],
                                        bool addUndefinedArea, int32_t noteRowIndexStart, int32_t noteRowIndexEnd,
                                        int32_t xStart, int32_t xEnd, bool allowBlur, bool drawRepeats) {
 
@@ -1297,7 +1297,7 @@ bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack
 	if (onKeyboardScreen && !containsAnyNotes()) {
 		int32_t increment = (kDisplayWidth + (kDisplayHeight * keyboardState.isomorphic.rowInterval)) / kDisplayWidth;
 		for (int32_t x = xStart; x < xEnd; x++) {
-			image[x] = getMainColourFromY(keyboardState.isomorphic.scrollOffset + x * increment, 0);
+			image[x] = getMainColorFromY(keyboardState.isomorphic.scrollOffset + x * increment, 0);
 		}
 		return true;
 	}
@@ -1328,16 +1328,16 @@ bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack
 			yNote = thisNoteRow->y;
 		}
 
-		Colour mainColour = getMainColourFromY(yNote, thisNoteRow->getColourOffset(this));
-		Colour tailColour = mainColour.forTail();
-		Colour blurColour = allowBlur ? mainColour.forBlur() : mainColour;
+		RGB mainColor = getMainColorFromY(yNote, thisNoteRow->getColorOffset(this));
+		RGB tailColor = mainColor.forTail();
+		RGB blurColor = allowBlur ? mainColor.forBlur() : mainColor;
 		if (i == noteRowIndexStart || output->type == InstrumentType::KIT) {
 			ModelStackWithNoteRow* modelStackWithNoteRow =
 			    modelStack->addNoteRow(getNoteRowId(thisNoteRow, i), thisNoteRow);
 			rowAllowsNoteTails = allowNoteTails(modelStackWithNoteRow);
 		}
 
-		thisNoteRow->renderRow(editorScreen, mainColour, tailColour, blurColour, image, occupancyMask, false,
+		thisNoteRow->renderRow(editorScreen, mainColor, tailColor, blurColor, image, occupancyMask, false,
 		                       loopLength, rowAllowsNoteTails, kDisplayWidth, xScroll, xZoom, xStart, xEnd,
 		                       drawRepeats);
 	}
@@ -3969,14 +3969,14 @@ ramError:
 
 	newInstrumentClip->setupAsNewKitClipIfNecessary(modelStackNewClip);
 
-	// If Kit, copy NoteRow colours
+	// If Kit, copy NoteRow colors
 	if (output->type == InstrumentType::KIT
 	    && noteRows.getNumElements() == newInstrumentClip->noteRows.getNumElements()) {
 		for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
 			NoteRow* oldNoteRow = noteRows.getElement(i);
 			NoteRow* newNoteRow = newInstrumentClip->noteRows.getElement(i);
 
-			newNoteRow->colourOffset = oldNoteRow->colourOffset;
+			newNoteRow->colorOffset = oldNoteRow->colorOffset;
 		}
 	}
 

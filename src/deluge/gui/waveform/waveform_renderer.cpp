@@ -17,7 +17,7 @@
 
 #include "gui/waveform/waveform_renderer.h"
 #include "definitions_cxx.hpp"
-#include "gui/colour.h"
+#include "gui/color/color.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/instrument_clip_view.h"
@@ -50,8 +50,8 @@ WaveformRenderer::WaveformRenderer() {
 
 // Returns false if had trouble loading some (will often not be all) Clusters, e.g. cos we're in the card routine
 bool WaveformRenderer::renderFullScreen(Sample* sample, uint64_t xScroll, uint64_t xZoom,
-                                        Colour thisImage[][kDisplayWidth + kSideBarWidth], WaveformRenderData* data,
-                                        SampleRecorder* recorder, std::optional<Colour> rgb, bool reversed,
+                                        RGB thisImage[][kDisplayWidth + kSideBarWidth], WaveformRenderData* data,
+                                        SampleRecorder* recorder, std::optional<RGB> rgb, bool reversed,
                                         int32_t xEnd) {
 
 	bool completeSuccess = findPeaksPerCol(sample, xScroll, xZoom, data, recorder);
@@ -72,8 +72,8 @@ bool WaveformRenderer::renderFullScreen(Sample* sample, uint64_t xScroll, uint64
 }
 
 // Returns false if had trouble loading some (will often not be all) Clusters
-bool WaveformRenderer::renderAsSingleRow(Sample* sample, int64_t xScroll, uint64_t xZoom, Colour* thisImage,
-                                         WaveformRenderData* data, SampleRecorder* recorder, Colour rgb, bool reversed,
+bool WaveformRenderer::renderAsSingleRow(Sample* sample, int64_t xScroll, uint64_t xZoom, RGB* thisImage,
+                                         WaveformRenderData* data, SampleRecorder* recorder, RGB rgb, bool reversed,
                                          int32_t xStart, int32_t xEnd) {
 
 	int32_t xStartSource = xStart;
@@ -103,15 +103,15 @@ bool WaveformRenderer::renderAsSingleRow(Sample* sample, int64_t xScroll, uint64
 			continue;
 		}
 
-		int32_t colourValue = getColBrightnessForSingleRow(xDisplaySource, maxPeakFromZero, data);
-		colourValue = (colourValue * colourValue); // >> 8;
-		//if (colourValue > 255) colourValue = 255; // May sometimes go juuust over
+		int32_t colorValue = getColBrightnessForSingleRow(xDisplaySource, maxPeakFromZero, data);
+		colorValue = (colorValue * colorValue); // >> 8;
+		//if (colorValue > 255) colorValue = 255; // May sometimes go juuust over
 
 		for (int32_t c = 0; c < 3; c++) {
-			int32_t valueHere = (colourValue * rgb[c]) >> 16;
-			// Limit the heck out of the bit depth, to avoid problem with PIC firmware where too many different colour shades cause big problems.
+			int32_t valueHere = (colorValue * rgb[c]) >> 16;
+			// Limit the heck out of the bit depth, to avoid problem with PIC firmware where too many different color shades cause big problems.
 			// The 6 is quite arbitrary, but I think it looks good
-			valueHere = std::clamp<int32_t>((valueHere + 6) & ~15, 0, Colour::channel_max);
+			valueHere = std::clamp<int32_t>((valueHere + 6) & ~15, 0, RGB::channel_max);
 
 			thisImage[xDisplayOutput][c] = valueHere;
 		}
@@ -145,8 +145,8 @@ int32_t WaveformRenderer::getColBrightnessForSingleRow(int32_t xDisplay, int32_t
 
 void WaveformRenderer::renderOneColForCollapseAnimation(int32_t xDisplayWaveform, int32_t xDisplayOutput,
                                                         int32_t maxPeakFromZero, int32_t progress,
-                                                        Colour thisImage[][kDisplayWidth + kSideBarWidth],
-                                                        WaveformRenderData* data, std::optional<Colour> rgb,
+                                                        RGB thisImage[][kDisplayWidth + kSideBarWidth],
+                                                        WaveformRenderData* data, std::optional<RGB> rgb,
                                                         bool reversed, int32_t valueCentrePoint, int32_t valueSpan) {
 
 	int32_t xDisplayData = xDisplayWaveform;
@@ -171,8 +171,8 @@ void WaveformRenderer::renderOneColForCollapseAnimation(int32_t xDisplayWaveform
 // Crudely grabs the max values from all cols in range, which looks totally fine.
 void WaveformRenderer::renderOneColForCollapseAnimationZoomedOut(
     int32_t xDisplayWaveformLeftEdge, int32_t xDisplayWaveformRightEdge, int32_t xDisplayOutput,
-    int32_t maxPeakFromZero, int32_t progress, Colour thisImage[][kDisplayWidth + kSideBarWidth],
-    WaveformRenderData* data, std::optional<Colour> rgb, bool reversed, int32_t valueCentrePoint, int32_t valueSpan) {
+    int32_t maxPeakFromZero, int32_t progress, RGB thisImage[][kDisplayWidth + kSideBarWidth],
+    WaveformRenderData* data, std::optional<RGB> rgb, bool reversed, int32_t valueCentrePoint, int32_t valueSpan) {
 
 	int32_t xDisplayDataLeftEdge = xDisplayWaveformLeftEdge;
 	int32_t xDisplayDataRightEdge = xDisplayWaveformRightEdge;
@@ -217,8 +217,8 @@ void WaveformRenderer::renderOneColForCollapseAnimationZoomedOut(
 void WaveformRenderer::renderOneColForCollapseAnimationInterpolation(int32_t xDisplayOutput, int32_t min24,
                                                                      int32_t max24, int32_t singleSquareBrightness,
                                                                      int32_t progress,
-                                                                     Colour thisImage[][kDisplayWidth + kSideBarWidth],
-                                                                     std::optional<Colour> rgb) {
+                                                                     RGB thisImage[][kDisplayWidth + kSideBarWidth],
+                                                                     std::optional<RGB> rgb) {
 
 	int32_t minStart = ((int32_t)collapseAnimationToWhichRow - (kDisplayHeight >> 1)) << 24;
 	int32_t maxStart = ((int32_t)collapseAnimationToWhichRow - (kDisplayHeight >> 1) + 1) << 24;
@@ -606,31 +606,31 @@ void WaveformRenderer::getColBarPositions(int32_t xDisplay, WaveformRenderData* 
 }
 
 void WaveformRenderer::drawColBar(int32_t xDisplay, int32_t min24, int32_t max24,
-                                  Colour thisImage[][kDisplayWidth + kSideBarWidth], int32_t brightness,
-                                  std::optional<Colour> rgb) {
+                                  RGB thisImage[][kDisplayWidth + kSideBarWidth], int32_t brightness,
+                                  std::optional<RGB> rgb) {
 	int32_t yStart = std::max((int32_t)(min24 >> 24), -(kDisplayHeight >> 1));
 	int32_t yStop = std::min((int32_t)(max24 >> 24) + 1, kDisplayHeight >> 1);
 
 	for (int32_t y = yStart; y < yStop; y++) {
 
-		int32_t colourAmount; // Out of 256
+		int32_t colorAmount; // Out of 256
 
 		if (y == (min24 >> 24)) {
 			int32_t howMuchThisSquare = (min24 - (y << 24)) >> 16; // Comes out as 8-bit
-			colourAmount = brightness - ((howMuchThisSquare * brightness) >> 8);
+			colorAmount = brightness - ((howMuchThisSquare * brightness) >> 8);
 		}
 
 		else if (y < (max24 >> 24)) {
-			colourAmount = brightness;
+			colorAmount = brightness;
 		}
 
 		else {
 			int32_t howMuchThisSquare = (max24 - (y << 24)) >> 16; // Comes out as 8-bit
-			colourAmount = ((howMuchThisSquare * brightness) >> 8);
+			colorAmount = ((howMuchThisSquare * brightness) >> 8);
 		}
 
-		for (int32_t c = 0; c < Colour::size(); c++) {
-			int32_t valueHere = (colourAmount * colourAmount) >> 8;
+		for (int32_t c = 0; c < RGB::size(); c++) {
+			int32_t valueHere = (colorAmount * colorAmount) >> 8;
 
 			if (rgb.has_value()) {
 				valueHere = (valueHere * rgb.value()[c]) >> 8;
@@ -641,8 +641,8 @@ void WaveformRenderer::drawColBar(int32_t xDisplay, int32_t min24, int32_t max24
 	}
 }
 
-void WaveformRenderer::renderOneCol(Sample* sample, int32_t xDisplay, Colour thisImage[][kDisplayWidth + kSideBarWidth],
-                                    WaveformRenderData* data, bool reversed, std::optional<Colour> rgb) {
+void WaveformRenderer::renderOneCol(Sample* sample, int32_t xDisplay, RGB thisImage[][kDisplayWidth + kSideBarWidth],
+                                    WaveformRenderData* data, bool reversed, std::optional<RGB> rgb) {
 	int32_t min24, max24;
 	int32_t brightness = rgb ? 256 : 128;
 

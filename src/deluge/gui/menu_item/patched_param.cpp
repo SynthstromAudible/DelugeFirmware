@@ -83,7 +83,7 @@ uint8_t PatchedParam::getPatchedParamIndex() {
 	return this->getP();
 }
 
-uint8_t PatchedParam::shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) {
+uint8_t PatchedParam::shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* color) {
 	ParamDescriptor paramDescriptor{};
 	paramDescriptor.setToHaveParamOnly(this->getP());
 	return soundEditor.currentParamManager->getPatchCableSet()->isSourcePatchedToDestinationDescriptorVolumeInspecific(

@@ -31,7 +31,7 @@ public:
 	void endSession(){};
 	bool performSave(bool mayOverwrite);
 
-	bool renderSidebar(uint32_t whichRows, Colour image[][kDisplayWidth + kSideBarWidth] = NULL,
+	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = NULL,
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL) {
 		return true;
 	}

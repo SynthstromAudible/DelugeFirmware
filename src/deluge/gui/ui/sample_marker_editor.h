@@ -42,9 +42,9 @@ public:
 	ActionResult horizontalEncoderAction(int32_t offset);
 	void graphicsRoutine();
 	ActionResult timerCallback();
-	bool renderMainPads(uint32_t whichRows, Colour image[][kDisplayWidth + kSideBarWidth] = NULL,
+	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = NULL,
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL, bool drawUndefinedArea = true);
-	bool renderSidebar(uint32_t whichRows, Colour image[][kDisplayWidth + kSideBarWidth] = NULL,
+	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = NULL,
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL);
 
 #if HAVE_OLED
@@ -70,9 +70,9 @@ private:
 	void getColsOnScreen(MarkerColumn* cols);
 	void recordScrollAndZoom();
 	bool shouldAllowExtraScrollRight();
-	void renderForOneCol(int32_t xDisplay, Colour thisImage[kDisplayHeight][kDisplayWidth + kSideBarWidth],
+	void renderForOneCol(int32_t xDisplay, RGB thisImage[kDisplayHeight][kDisplayWidth + kSideBarWidth],
 	                     MarkerColumn* cols);
-	void renderMarkersForOneCol(int32_t xDisplay, Colour thisImage[kDisplayHeight][kDisplayWidth + kSideBarWidth],
+	void renderMarkersForOneCol(int32_t xDisplay, RGB thisImage[kDisplayHeight][kDisplayWidth + kSideBarWidth],
 	                            MarkerColumn* cols);
 };
 

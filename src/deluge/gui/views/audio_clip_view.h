@@ -28,9 +28,9 @@ public:
 
 	bool opened();
 	void focusRegained();
-	bool renderMainPads(uint32_t whichRows, Colour image[][kDisplayWidth + kSideBarWidth],
+	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
-	bool renderSidebar(uint32_t whichRows, Colour image[][kDisplayWidth + kSideBarWidth],
+	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 	bool setupScroll(uint32_t oldScroll);
 	void transitionToSessionView();

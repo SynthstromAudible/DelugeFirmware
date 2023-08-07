@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "gui/colour.h"
+#include "gui/color/color.h"
 #include "gui/positionable.h"
 #include <cstdint>
 
@@ -29,7 +29,7 @@ class Clip;
 class ClipInstance : public Positionable {
 public:
 	ClipInstance();
-	Colour getColour();
+	RGB getColor();
 	void change(Action* action, Output* output, int32_t newPos, int32_t newLength, Clip* newClip);
 
 	int32_t length;

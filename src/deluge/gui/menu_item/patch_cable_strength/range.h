@@ -25,7 +25,7 @@ public:
 	ParamDescriptor getDestinationDescriptor() override;
 	PatchSource getS() override;
 	ParamDescriptor getLearningThing() override;
-	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) override;
+	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* color) override;
 	MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive) override;
 };
 extern Range rangeMenu;

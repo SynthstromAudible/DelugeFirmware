@@ -53,7 +53,7 @@ Clip::Clip(int32_t newType) : type(newType) {
 	beingRecordedFromClip = NULL;
 	isPendingOverdub = false;
 	isUnfinishedAutoOverdub = false;
-	colourOffset = -60;
+	colorOffset = -60;
 	overdubNature = OVERDUB_NORMAL;
 	originalLength = 0;
 	armedForRecording = true;
@@ -81,7 +81,7 @@ void Clip::cloneFrom(Clip* otherClip) {
 
 void Clip::copyBasicsFrom(Clip* otherClip) {
 	loopLength = otherClip->loopLength;
-	colourOffset = otherClip->colourOffset;
+	colorOffset = otherClip->colorOffset;
 	//modKnobMode = otherClip->modKnobMode;
 	section = otherClip->section;
 }
@@ -604,11 +604,11 @@ void Clip::expectEvent() {
 // Returns false if can't because in card routine
 // occupancyMask can be NULL
 bool Clip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, TimelineView* editorScreen, int32_t xScroll,
-                             uint32_t xZoom, Colour* image, uint8_t occupancyMask[], bool addUndefinedArea,
+                             uint32_t xZoom, RGB* image, uint8_t occupancyMask[], bool addUndefinedArea,
                              int32_t noteRowIndexStart, int32_t noteRowIndexEnd, int32_t xStart, int32_t xEnd,
                              bool allowBlur, bool drawRepeats) {
 
-	std::fill(&image[xStart], &image[xStart] + (xEnd - xStart), colours::black);
+	std::fill(&image[xStart], &image[xStart] + (xEnd - xStart), colors::black);
 	if (occupancyMask) {
 		memset(&occupancyMask[xStart], 0, (xEnd - xStart));
 	}
@@ -636,7 +636,7 @@ void Clip::writeDataToFile(Song* song) {
 	if (sequenceDirectionMode != SequenceDirection::FORWARD) {
 		storageManager.writeAttribute("sequenceDirection", sequenceDirectionModeToString(sequenceDirectionMode));
 	}
-	storageManager.writeAttribute("colourOffset", colourOffset);
+	storageManager.writeAttribute("colorOffset", colorOffset);
 	if (section != 255) {
 		storageManager.writeAttribute("section", section);
 	}
@@ -691,8 +691,8 @@ void Clip::readTagFromFile(char const* tagName, Song* song, int32_t* readAutomat
 		*readAutomationUpToPos = loopLength;
 	}
 
-	else if (!strcmp(tagName, "colourOffset")) {
-		colourOffset = storageManager.readTagOrAttributeValueInt();
+	else if (!strcmp(tagName, "colorOffset")) {
+		colorOffset = storageManager.readTagOrAttributeValueInt();
 	}
 
 	else if (!strcmp(tagName, "beingEdited")) {
@@ -822,7 +822,7 @@ void Clip::lengthChanged(ModelStackWithTimelineCounter* modelStack, int32_t oldL
 }
 
 // occupancyMask now optional
-void Clip::drawUndefinedArea(int32_t xScroll, uint32_t xZoom, int32_t lengthToDisplay, Colour* rowImage,
+void Clip::drawUndefinedArea(int32_t xScroll, uint32_t xZoom, int32_t lengthToDisplay, RGB* rowImage,
                              uint8_t occupancyMask[], int32_t imageWidth, TimelineView* timelineView,
                              bool tripletsOnHere) {
 	// If the visible pane extends beyond the end of the Clip, draw it as grey
@@ -833,7 +833,7 @@ void Clip::drawUndefinedArea(int32_t xScroll, uint32_t xZoom, int32_t lengthToDi
 	}
 
 	if (greyStart < imageWidth) {
-		std::fill(rowImage + greyStart, rowImage + greyStart + (imageWidth - greyStart), Colour::monochrome(7));
+		std::fill(rowImage + greyStart, rowImage + greyStart + (imageWidth - greyStart), RGB::monochrome(7));
 		if (occupancyMask) {
 			memset(occupancyMask + greyStart, 64, imageWidth - greyStart);
 		}
@@ -842,7 +842,7 @@ void Clip::drawUndefinedArea(int32_t xScroll, uint32_t xZoom, int32_t lengthToDi
 	if (tripletsOnHere && timelineView->supportsTriplets()) {
 		for (int32_t xDisplay = 0; xDisplay < imageWidth; xDisplay++) {
 			if (!timelineView->isSquareDefined(xDisplay, xScroll, xZoom)) {
-				rowImage[xDisplay] = Colour::monochrome(7);
+				rowImage[xDisplay] = RGB::monochrome(7);
 
 				if (occupancyMask) {
 					occupancyMask[xDisplay] = 64;

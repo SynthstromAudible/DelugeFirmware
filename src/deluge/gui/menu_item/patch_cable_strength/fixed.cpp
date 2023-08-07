@@ -30,7 +30,7 @@ MenuPermission Fixed::checkPermissionToBeginSession(Sound* sound, int32_t whichT
 	return PatchCableStrength::checkPermissionToBeginSession(sound, whichThing, currentRange);
 }
 
-uint8_t Fixed::shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) {
+uint8_t Fixed::shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* color) {
 	PatchCableSet& patchCableSet = *soundEditor.currentParamManager->getPatchCableSet();
 
 	// If it's the source controlling the range of the source we're editing for...

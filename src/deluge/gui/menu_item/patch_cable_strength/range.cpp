@@ -39,11 +39,11 @@ PatchSource Range::getS() {
 	return source_selection::rangeMenu.s;
 }
 
-uint8_t Range::shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) {
+uint8_t Range::shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* color) {
 
 	// If this is the actual source we're editing for...
 	if (s == getS()) {
-		*colour = 0b110;
+		*color = 0b110;
 		return 0;
 	}
 

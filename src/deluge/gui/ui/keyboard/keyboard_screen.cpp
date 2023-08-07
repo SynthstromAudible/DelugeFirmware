@@ -370,7 +370,7 @@ ActionResult KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRou
 		keyboardButtonActive = on;
 		if (currentUIMode == UI_MODE_NONE && !keyboardButtonActive
 		    && !keyboardButtonUsed) { // Leave if key up and not used
-			instrumentClipView.recalculateColours();
+			instrumentClipView.recalculateColors();
 			changeRootUI(&instrumentClipView);
 			keyboardButtonUsed = false;
 		}
@@ -470,7 +470,7 @@ ActionResult KeyboardScreen::verticalEncoderAction(int32_t offset, bool inCardRo
 	}
 
 	if (Buttons::isShiftButtonPressed() && currentUIMode == UI_MODE_NONE) {
-		getCurrentClip()->colourOffset += offset;
+		getCurrentClip()->colorOffset += offset;
 		layoutList[getCurrentClip()->keyboardState.currentLayout]->precalculate();
 	}
 	else {
@@ -551,7 +551,7 @@ void KeyboardScreen::selectLayout(int8_t offset) {
 	// Ensure scroll values are calculated in bounds
 	layoutList[getCurrentClip()->keyboardState.currentLayout]->handleHorizontalEncoder(0, false);
 
-	// Precalculate because changing instruments can change pad colours
+	// Precalculate because changing instruments can change pad colors
 	layoutList[getCurrentClip()->keyboardState.currentLayout]->precalculate();
 	requestRendering();
 }
@@ -622,7 +622,7 @@ void KeyboardScreen::openedInBackground() {
 	requestRendering(); // This one originally also included sidebar, the other ones didn't
 }
 
-bool KeyboardScreen::renderMainPads(uint32_t whichRows, Colour image[][kDisplayWidth + kSideBarWidth],
+bool KeyboardScreen::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                     uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
 	if (!image) {
 		return true;
@@ -638,7 +638,7 @@ bool KeyboardScreen::renderMainPads(uint32_t whichRows, Colour image[][kDisplayW
 	return true;
 }
 
-bool KeyboardScreen::renderSidebar(uint32_t whichRows, Colour image[][kDisplayWidth + kSideBarWidth],
+bool KeyboardScreen::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	if (!image) {
 		return true;
@@ -719,13 +719,13 @@ void KeyboardScreen::unscrolledPadAudition(int32_t velocity, int32_t note, bool 
 }
 
 uint8_t keyboardTickSquares[kDisplayHeight] = {255, 255, 255, 255, 255, 255, 255, 255};
-const uint8_t keyboardTickColoursBasicRecording[kDisplayHeight] = {0, 0, 0, 0, 0, 0, 0, 0};
-const uint8_t keyboardTickColoursLinearRecording[kDisplayHeight] = {0, 0, 0, 0, 0, 0, 0, 2};
+const uint8_t keyboardTickColorsBasicRecording[kDisplayHeight] = {0, 0, 0, 0, 0, 0, 0, 0};
+const uint8_t keyboardTickColorsLinearRecording[kDisplayHeight] = {0, 0, 0, 0, 0, 0, 0, 2};
 
 void KeyboardScreen::graphicsRoutine() {
 	int32_t newTickSquare;
 
-	const uint8_t* colours = keyboardTickColoursBasicRecording;
+	const uint8_t* colors = keyboardTickColorsBasicRecording;
 
 	if (!playbackHandler.isEitherClockActive() || !playbackHandler.isCurrentlyRecording()
 	    || !currentSong->isClipActive(currentSong->currentClip) || currentUIMode == UI_MODE_EXPLODE_ANIMATION
@@ -741,13 +741,13 @@ void KeyboardScreen::graphicsRoutine() {
 		}
 
 		if (currentSong->currentClip->getCurrentlyRecordingLinearly()) {
-			colours = keyboardTickColoursLinearRecording;
+			colors = keyboardTickColorsLinearRecording;
 		}
 	}
 
 	keyboardTickSquares[kDisplayHeight - 1] = newTickSquare;
 
-	PadLEDs::setTickSquares(keyboardTickSquares, colours);
+	PadLEDs::setTickSquares(keyboardTickSquares, colors);
 }
 
 } // namespace deluge::gui::ui::keyboard

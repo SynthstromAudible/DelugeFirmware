@@ -435,7 +435,7 @@ bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 	    && currentItem != &fileSelectorMenu && currentItem != static_cast<void*>(&drumNameMenu)) {
 
 		memset(sourceShortcutBlinkFrequencies, 255, sizeof(sourceShortcutBlinkFrequencies));
-		memset(sourceShortcutBlinkColours, 0, sizeof(sourceShortcutBlinkColours));
+		memset(sourceShortcutBlinkColors, 0, sizeof(sourceShortcutBlinkColors));
 		paramShortcutBlinkFrequency = 3;
 
 		// Find param shortcut
@@ -527,7 +527,7 @@ stopThat : {}
 						PatchSource source = modSourceShortcuts[x][y];
 						if (source < kLastPatchSource) {
 							sourceShortcutBlinkFrequencies[x][y] = currentItem->shouldBlinkPatchingSourceShortcut(
-							    source, &sourceShortcutBlinkColours[x][y]);
+							    source, &sourceShortcutBlinkColors[x][y]);
 						}
 					}
 				}
@@ -597,7 +597,7 @@ void SoundEditor::blinkShortcut() {
 			for (int32_t y = 0; y < kDisplayHeight; y++) {
 				if (sourceShortcutBlinkFrequencies[x][y] != 255
 				    && (counterForNow & sourceShortcutBlinkFrequencies[x][y]) == 0) {
-					PadLEDs::flashMainPad(x + 14, y, sourceShortcutBlinkColours[x][y]);
+					PadLEDs::flashMainPad(x + 14, y, sourceShortcutBlinkColors[x][y]);
 				}
 			}
 		}

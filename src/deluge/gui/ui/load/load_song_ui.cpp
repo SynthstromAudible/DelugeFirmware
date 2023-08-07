@@ -18,7 +18,7 @@
 #include "gui/ui/load/load_song_ui.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
-#include "gui/colour.h"
+#include "gui/color/color.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -139,8 +139,8 @@ void LoadSongUI::folderContentsReady(int32_t entryDirection) {
 
 	drawSongPreview(currentUIMode == UI_MODE_VERTICAL_SCROLL);
 
-	PadLEDs::sendOutMainPadColours();
-	PadLEDs::sendOutSidebarColours();
+	PadLEDs::sendOutMainPadColors();
+	PadLEDs::sendOutSidebarColors();
 }
 
 void LoadSongUI::enterKeyPress() {
@@ -696,7 +696,7 @@ void LoadSongUI::exitAction() {
 
 void LoadSongUI::drawSongPreview(bool toStore) {
 
-	Colour(*imageStore)[kDisplayWidth + kSideBarWidth];
+	RGB(*imageStore)[kDisplayWidth + kSideBarWidth];
 	if (toStore) {
 		imageStore = PadLEDs::imageStore;
 	}
@@ -705,7 +705,7 @@ void LoadSongUI::drawSongPreview(bool toStore) {
 	}
 
 	for (auto* it = imageStore; it != imageStore + (kDisplayHeight * (kDisplayWidth + kSideBarWidth)); it++) {
-		std::fill(*it, *it + kDisplayWidth + kSideBarWidth, colours::black);
+		std::fill(*it, *it + kDisplayWidth + kSideBarWidth, colors::black);
 	}
 
 	FileItem* currentFileItem = getCurrentFileItem();
@@ -762,8 +762,8 @@ void LoadSongUI::drawSongPreview(bool toStore) {
 				}
 
 				for (int32_t x = startX; x < endX; x++) {
-					for (int32_t colour = 0; colour < 3; colour++) {
-						imageStore[y][x][colour] = hexToByte(hexChars);
+					for (int32_t color = 0; color < 3; color++) {
+						imageStore[y][x][color] = hexToByte(hexChars);
 						hexChars += 2;
 					}
 					imageStore[y][x] = imageStore[y][x].greyOut(6500000);
@@ -794,8 +794,8 @@ void LoadSongUI::displayText(bool blinkImmediately) {
 		}
 
 		drawKeys();
-		PadLEDs::sendOutMainPadColours();
-		PadLEDs::sendOutSidebarColours();
+		PadLEDs::sendOutMainPadColors();
+		PadLEDs::sendOutSidebarColors();
 	}
 }
 

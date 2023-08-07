@@ -38,8 +38,8 @@ public:
 	[[nodiscard]] int32_t getMinValue() const override {
 		return PatchedParam::getMinValue();
 	}
-	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) final {
-		return PatchedParam::shouldBlinkPatchingSourceShortcut(s, colour);
+	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* color) final {
+		return PatchedParam::shouldBlinkPatchingSourceShortcut(s, color);
 	}
 
 	uint8_t shouldDrawDotOnName() final {

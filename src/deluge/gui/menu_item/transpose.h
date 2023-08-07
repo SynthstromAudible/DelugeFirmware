@@ -41,8 +41,8 @@ public:
 	}
 #endif
 
-	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) final {
-		return PatchedParam::shouldBlinkPatchingSourceShortcut(s, colour);
+	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* color) final {
+		return PatchedParam::shouldBlinkPatchingSourceShortcut(s, color);
 	}
 	MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive = false) final {
 		return PatchedParam::patchingSourceShortcutPress(s, previousPressStillActive);

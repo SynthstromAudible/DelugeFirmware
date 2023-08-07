@@ -15,7 +15,7 @@
 #include "gui/menu_item/bend_range.h"
 #include "gui/menu_item/bend_range/main.h"
 #include "gui/menu_item/bend_range/per_finger.h"
-#include "gui/menu_item/colour.h"
+#include "gui/menu_item/color.h"
 #include "gui/menu_item/compressor/attack.h"
 #include "gui/menu_item/compressor/release.h"
 #include "gui/menu_item/compressor/volume.h"
@@ -616,14 +616,14 @@ swing::Interval swingIntervalMenu{HAVE_OLED ? "Swing interval" : "SWIN"};
 shortcuts::Version shortcutsVersionMenu{HAVE_OLED ? "Shortcuts version" : "SHOR", "Shortcuts ver."};
 menu_item::keyboard::Layout keyboardLayoutMenu{HAVE_OLED ? "Keyboard for text" : "KEYB", "Key layout"};
 
-// Colours submenu
-Submenu coloursSubmenu{
+// Colors submenu
+Submenu colorsSubmenu{
     "COLOURS",
     {
-        &activeColourMenu,
-        &stoppedColourMenu,
-        &mutedColourMenu,
-        &soloColourMenu,
+        &activeColorMenu,
+        &stoppedColorMenu,
+        &mutedColorMenu,
+        &soloColorMenu,
     },
 };
 
@@ -632,7 +632,7 @@ Submenu padsSubmenu{
     {
         &shortcutsVersionMenu,
         &keyboardLayoutMenu,
-        &coloursSubmenu,
+        &colorsSubmenu,
     },
 };
 

@@ -625,9 +625,9 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 						                                  &waveformBasicNavigator.renderData);
 					}
 					qwertyCurrentlyDrawnOnscreen = qwertyVisible;
-					PadLEDs::sendOutMainPadColours();
+					PadLEDs::sendOutMainPadColors();
 				}
-				PadLEDs::sendOutSidebarColours(); // For greyout (wait what?)
+				PadLEDs::sendOutSidebarColors(); // For greyout (wait what?)
 
 				didDraw = true;
 			}
@@ -715,7 +715,7 @@ possiblyExit:
 
 				qwertyCurrentlyDrawnOnscreen = true;
 
-				PadLEDs::sendOutMainPadColours();
+				PadLEDs::sendOutMainPadColors();
 
 				enteredTextEditPos = 0;
 				displayText(false);
@@ -2071,7 +2071,7 @@ doNormal:
 					waveformRenderer.renderFullScreen(waveformBasicNavigator.sample, waveformBasicNavigator.xScroll,
 					                                  waveformBasicNavigator.xZoom, PadLEDs::image,
 					                                  &waveformBasicNavigator.renderData);
-					PadLEDs::sendOutMainPadColours();
+					PadLEDs::sendOutMainPadColors();
 				}
 			}
 		}
@@ -2116,7 +2116,7 @@ bool SampleBrowser::canSeeViewUnderneath() {
 	return !currentlyShowingSamplePreview && !qwertyVisible;
 }
 
-bool SampleBrowser::renderMainPads(uint32_t whichRows, Colour image[][kDisplayWidth + kSideBarWidth],
+bool SampleBrowser::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
 
 	return (qwertyVisible || currentlyShowingSamplePreview);

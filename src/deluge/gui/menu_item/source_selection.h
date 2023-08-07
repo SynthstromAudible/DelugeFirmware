@@ -29,7 +29,7 @@ public:
 	void selectEncoderAction(int32_t offset) final;
 	virtual ParamDescriptor getDestinationDescriptor() = 0;
 	uint8_t getIndexOfPatchedParamToBlink() final;
-	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) final;
+	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* color) final;
 	void readValueAgain() final;
 
 #if HAVE_OLED

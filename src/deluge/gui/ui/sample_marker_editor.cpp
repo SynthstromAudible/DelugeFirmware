@@ -18,7 +18,7 @@
 #include "gui/ui/sample_marker_editor.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
-#include "gui/colour.h"
+#include "gui/color/color.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
@@ -680,7 +680,7 @@ ActionResult SampleMarkerEditor::timerCallback() {
 
 	// Clear col
 	for (auto& y : PadLEDs::image) {
-		y[x] = colours::black;
+		y[x] = colors::black;
 	}
 
 	renderForOneCol(x, PadLEDs::image, cols);
@@ -713,7 +713,7 @@ ActionResult SampleMarkerEditor::verticalEncoderAction(int32_t offset, bool inCa
 	return result;
 }
 
-bool SampleMarkerEditor::renderSidebar(uint32_t whichRows, Colour image[][kDisplayWidth + kSideBarWidth],
+bool SampleMarkerEditor::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	if (getRootUI() != &keyboardScreen) {
 		return false;
@@ -891,7 +891,7 @@ bool SampleMarkerEditor::shouldAllowExtraScrollRight() {
 }
 
 void SampleMarkerEditor::renderForOneCol(int32_t xDisplay,
-                                         Colour thisImage[kDisplayHeight][kDisplayWidth + kSideBarWidth],
+                                         RGB thisImage[kDisplayHeight][kDisplayWidth + kSideBarWidth],
                                          MarkerColumn* cols) {
 
 	waveformRenderer.renderOneCol(waveformBasicNavigator.sample, xDisplay, thisImage,
@@ -901,7 +901,7 @@ void SampleMarkerEditor::renderForOneCol(int32_t xDisplay,
 }
 
 void SampleMarkerEditor::renderMarkersForOneCol(int32_t xDisplay,
-                                                Colour thisImage[kDisplayHeight][kDisplayWidth + kSideBarWidth],
+                                                RGB thisImage[kDisplayHeight][kDisplayWidth + kSideBarWidth],
                                                 MarkerColumn* cols) {
 
 	if (markerType != MarkerType::NONE) {
@@ -928,32 +928,32 @@ void SampleMarkerEditor::renderMarkersForOneCol(int32_t xDisplay,
 					    static_cast<MarkerType>((util::to_underlying(currentMarkerType) + 1) % kNumMarkerTypes);
 				}
 
-				int32_t existingColourAmount = thisImage[y][xDisplay][0];
+				int32_t existingColorAmount = thisImage[y][xDisplay][0];
 
 				// Green
 				if (currentMarkerType == greenMarker) {
 					thisImage[y][xDisplay][0] >>= 2;
-					thisImage[y][xDisplay][1] = 255 - existingColourAmount * 2;
+					thisImage[y][xDisplay][1] = 255 - existingColorAmount * 2;
 					thisImage[y][xDisplay][2] >>= 2;
 				}
 
 				// Cyan
 				else if (currentMarkerType == cyanMarker) {
 					thisImage[y][xDisplay][0] >>= 1;
-					thisImage[y][xDisplay][1] = 140 - existingColourAmount;
-					thisImage[y][xDisplay][2] = 140 - existingColourAmount;
+					thisImage[y][xDisplay][1] = 140 - existingColorAmount;
+					thisImage[y][xDisplay][2] = 140 - existingColorAmount;
 				}
 
 				// Purple
 				else if (currentMarkerType == purpleMarker) {
-					thisImage[y][xDisplay][0] = 140 - existingColourAmount;
+					thisImage[y][xDisplay][0] = 140 - existingColorAmount;
 					thisImage[y][xDisplay][1] >>= 1;
-					thisImage[y][xDisplay][2] = 140 - existingColourAmount;
+					thisImage[y][xDisplay][2] = 140 - existingColorAmount;
 				}
 
 				// Red
 				else if (currentMarkerType == redMarker) {
-					thisImage[y][xDisplay][0] = 255 - existingColourAmount * 2;
+					thisImage[y][xDisplay][0] = 255 - existingColorAmount * 2;
 					thisImage[y][xDisplay][1] >>= 2;
 					thisImage[y][xDisplay][2] >>= 2;
 				}
@@ -1119,7 +1119,7 @@ void SampleMarkerEditor::displayText() {
 }
 #endif
 
-bool SampleMarkerEditor::renderMainPads(uint32_t whichRows, Colour image[][kDisplayWidth + kSideBarWidth],
+bool SampleMarkerEditor::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                         uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
                                         bool drawUndefinedArea) {
 	if (!image) {

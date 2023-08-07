@@ -18,7 +18,7 @@
 #include "gui/views/audio_clip_view.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
-#include "gui/colour.h"
+#include "gui/color/color.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
@@ -97,7 +97,7 @@ void AudioClipView::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 }
 #endif
 
-bool AudioClipView::renderMainPads(uint32_t whichRows, Colour image[][kDisplayWidth + kSideBarWidth],
+bool AudioClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
 	if (!image) {
 		return true;
@@ -130,7 +130,7 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, Colour image[][kDisplayWi
 		getClip()->getScrollAndZoomInSamples(currentSong->xScroll[NAVIGATION_CLIP], currentSong->xZoom[NAVIGATION_CLIP],
 		                                     &xScrollSamples, &xZoomSamples);
 
-		Colour rgb = getClip()->getColour();
+		RGB rgb = getClip()->getColor();
 
 		int32_t visibleWaveformXEnd = endSquareDisplay + 1;
 		if (endMarkerVisible && blinkOn) {
@@ -172,7 +172,7 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, Colour image[][kDisplayWi
 					xDisplay = 0;
 				}
 
-				std::fill(&image[y][xDisplay], &image[y][xDisplay] + (kDisplayWidth - xDisplay), Colour::monochrome(7));
+				std::fill(&image[y][xDisplay], &image[y][xDisplay] + (kDisplayWidth - xDisplay), RGB::monochrome(7));
 			}
 		}
 	}
@@ -189,7 +189,7 @@ ActionResult AudioClipView::timerCallback() {
 	return ActionResult::DEALT_WITH;
 }
 
-bool AudioClipView::renderSidebar(uint32_t whichRows, Colour image[][kDisplayWidth + kSideBarWidth],
+bool AudioClipView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	if (!image) {
 		return true;
@@ -200,8 +200,8 @@ bool AudioClipView::renderSidebar(uint32_t whichRows, Colour image[][kDisplayWid
 	}
 
 	for (int32_t y = 0; y < kDisplayHeight; y++) {
-		Colour* const start = &image[y][kDisplayWidth];
-		std::fill(start, start + kSideBarWidth, colours::black);
+		RGB* const start = &image[y][kDisplayWidth];
+		std::fill(start, start + kSideBarWidth, colors::black);
 	}
 
 	return true;
@@ -253,8 +253,8 @@ void AudioClipView::graphicsRoutine() {
 		uint8_t tickSquares[kDisplayHeight];
 		memset(tickSquares, newTickSquare, kDisplayHeight);
 
-		const uint8_t* colours = currentSong->currentClip->getCurrentlyRecordingLinearly() ? twos : zeroes;
-		PadLEDs::setTickSquares(tickSquares, colours);
+		const uint8_t* colors = currentSong->currentClip->getCurrentlyRecordingLinearly() ? twos : zeroes;
+		PadLEDs::setTickSquares(tickSquares, colors);
 
 		lastTickSquare = newTickSquare;
 
@@ -621,8 +621,8 @@ ActionResult AudioClipView::verticalEncoderAction(int32_t offset, bool inCardRou
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
 		}
 
-		// Shift colour spectrum
-		getClip()->colourOffset += offset;
+		// Shift color spectrum
+		getClip()->colorOffset += offset;
 		uiNeedsRendering(this, 0xFFFFFFFF, 0);
 	}
 	return ActionResult::DEALT_WITH;

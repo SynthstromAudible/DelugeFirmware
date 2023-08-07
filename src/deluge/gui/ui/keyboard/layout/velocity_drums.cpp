@@ -76,14 +76,14 @@ void KeyboardLayoutVelocityDrums::handleHorizontalEncoder(int32_t offset, bool s
 void KeyboardLayoutVelocityDrums::precalculate() {
 	KeyboardStateDrums& state = getState().drums;
 
-	// Pre-Buffer colours for next renderings
+	// Pre-Buffer colors for next renderings
 	int32_t displayedfullPadsCount = ((kDisplayHeight / state.edgeSize) * (kDisplayWidth / state.edgeSize));
 	for (int32_t i = 0; i < displayedfullPadsCount; ++i) {
-		noteColours[i] = getNoteColour(state.scrollOffset + i);
+		noteColors[i] = getNoteColor(state.scrollOffset + i);
 	}
 }
 
-void KeyboardLayoutVelocityDrums::renderPads(Colour image[][kDisplayWidth + kSideBarWidth]) {
+void KeyboardLayoutVelocityDrums::renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) {
 	uint8_t highestClipNote = getHighestClipNote();
 
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
@@ -93,15 +93,15 @@ void KeyboardLayoutVelocityDrums::renderPads(Colour image[][kDisplayWidth + kSid
 				continue;
 			}
 
-			Colour noteColour = noteColours[note - getState().drums.scrollOffset];
+			RGB noteColor = noteColors[note - getState().drums.scrollOffset];
 
-			uint8_t colourIntensity = intensityFromCoords(x, y);
+			uint8_t colorIntensity = intensityFromCoords(x, y);
 
 			// Highlight active notes
 			uint8_t brightnessDivider = currentNotesState.noteEnabled(note) ? 1 : 3;
 
-			image[y][x] = noteColour.transform([colourIntensity, brightnessDivider](uint8_t chan) {
-				return ((chan * colourIntensity / 255) / brightnessDivider);
+			image[y][x] = noteColor.transform([colorIntensity, brightnessDivider](uint8_t chan) {
+				return ((chan * colorIntensity / 255) / brightnessDivider);
 			});
 		}
 	}

@@ -15,46 +15,42 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "colour.h"
-#include "gui/colour.h"
-#include "gui/ui/sound_editor.h"
-#include "gui/ui/ui.h"
+#pragma once
+#include "gui/color/color.h"
+#include "gui/menu_item/selection.h"
 
 namespace deluge::gui::menu_item {
 
-Colour activeColourMenu{"ACTIVE"};
-Colour stoppedColourMenu{"STOPPED"};
-Colour mutedColourMenu{"MUTED"};
-Colour soloColourMenu{"SOLOED"};
+class Color final : public Selection<9> {
+public:
+	enum Option : uint8_t {
+		RED,
+		GREEN,
+		BLUE,
+		YELLOW,
+		CYAN,
+		MAGENTA,
+		AMBER,
+		WHITE,
+		PINK,
+	};
 
-::Colour Colour::getRGB() const {
-	switch (value) {
-	case RED: // Red
-		return colours::disabled;
-
-	case GREEN: // Green
-		return colours::enabled;
-
-	case BLUE: // Blue
-		return colours::blue;
-
-	case YELLOW: // Yellow
-		return colours::muted;
-
-	case CYAN: // Cyan
-		return colours::cyan;
-
-	case MAGENTA: // Purple
-		return colours::magenta;
-
-	case AMBER: // Amber
-		return colours::amber;
-
-	case WHITE: // White
-		return colours::white;
-
-	case PINK: // Pink
-		return colours::pink;
+	using Selection::Selection;
+	void readCurrentValue() override { this->setValue(value); }
+	void writeCurrentValue() override {
+		value = static_cast<Option>(this->getValue());
+		renderingNeededRegardlessOfUI();
+	};
+	static_vector<std::string, capacity()> getOptions() override {
+		return {"RED", "GREEN", "BLUE", "YELLOW", "CYAN", "MAGENTA", "AMBER", "WHITE", "PINK"};
 	}
-}
+	[[nodiscard]] RGB getRGB() const;
+	Option value;
+};
+
+extern Color activeColorMenu;
+extern Color stoppedColorMenu;
+extern Color mutedColorMenu;
+extern Color soloColorMenu;
+
 } // namespace deluge::gui::menu_item

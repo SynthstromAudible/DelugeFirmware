@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "gui/colour.h"
+#include "gui/color/color.h"
 #include <cstdint>
 #include <optional>
 
@@ -39,21 +39,21 @@ public:
 	WaveformRenderer();
 
 	bool renderFullScreen(Sample* sample, uint64_t xScroll, uint64_t xZoom,
-	                      Colour thisImage[][kDisplayWidth + kSideBarWidth], WaveformRenderData* data,
-	                      SampleRecorder* recorder = NULL, std::optional<Colour> rgb = std::nullopt,
+	                      RGB thisImage[][kDisplayWidth + kSideBarWidth], WaveformRenderData* data,
+	                      SampleRecorder* recorder = NULL, std::optional<RGB> rgb = std::nullopt,
 	                      bool reversed = false, int32_t xEnd = kDisplayWidth);
-	bool renderAsSingleRow(Sample* sample, int64_t xScroll, uint64_t xZoom, Colour* thisImage, WaveformRenderData* data,
-	                       SampleRecorder* recorder, Colour rgb, bool reversed, int32_t xStart, int32_t xEnd);
-	void renderOneCol(Sample* sample, int32_t xDisplay, Colour thisImage[][kDisplayWidth + kSideBarWidth],
-	                  WaveformRenderData* data, bool reversed = false, std::optional<Colour> rgb = std::nullopt);
+	bool renderAsSingleRow(Sample* sample, int64_t xScroll, uint64_t xZoom, RGB* thisImage, WaveformRenderData* data,
+	                       SampleRecorder* recorder, RGB rgb, bool reversed, int32_t xStart, int32_t xEnd);
+	void renderOneCol(Sample* sample, int32_t xDisplay, RGB thisImage[][kDisplayWidth + kSideBarWidth],
+	                  WaveformRenderData* data, bool reversed = false, std::optional<RGB> rgb = std::nullopt);
 	void renderOneColForCollapseAnimation(int32_t xDisplay, int32_t xDisplayOutput, int32_t maxPeakFromZero,
-	                                      int32_t progress, Colour thisImage[][kDisplayWidth + kSideBarWidth],
-	                                      WaveformRenderData* data, std::optional<Colour> rgb, bool reversed,
+	                                      int32_t progress, RGB thisImage[][kDisplayWidth + kSideBarWidth],
+	                                      WaveformRenderData* data, std::optional<RGB> rgb, bool reversed,
 	                                      int32_t valueCentrePoint, int32_t valueSpan);
 	void renderOneColForCollapseAnimationZoomedOut(int32_t xDisplayWaveformLeftEdge, int32_t xDisplayWaveformRightEdge,
 	                                               int32_t xDisplayOutput, int32_t maxPeakFromZero, int32_t progress,
-	                                               Colour thisImage[][kDisplayWidth + kSideBarWidth],
-	                                               WaveformRenderData* data, std::optional<Colour> rgb, bool reversed,
+	                                               RGB thisImage[][kDisplayWidth + kSideBarWidth],
+	                                               WaveformRenderData* data, std::optional<RGB> rgb, bool reversed,
 	                                               int32_t valueCentrePoint, int32_t valueSpan);
 	bool findPeaksPerCol(Sample* sample, int64_t xScroll, uint64_t xZoom, WaveformRenderData* data,
 	                     SampleRecorder* recorder = NULL, int32_t xStart = 0, int32_t xEnd = kDisplayWidth);
@@ -64,12 +64,12 @@ private:
 	int32_t getColBrightnessForSingleRow(int32_t xDisplay, int32_t maxPeakFromZero, WaveformRenderData* data);
 	void getColBarPositions(int32_t xDisplay, WaveformRenderData* data, int32_t* min24, int32_t* max24,
 	                        int32_t valueCentrePoint, int32_t valueSpan);
-	void drawColBar(int32_t xDisplay, int32_t min24, int32_t max24, Colour thisImage[][kDisplayWidth + kSideBarWidth],
-	                int32_t brightness = 128, std::optional<Colour> rgb = std::nullopt);
+	void drawColBar(int32_t xDisplay, int32_t min24, int32_t max24, RGB thisImage[][kDisplayWidth + kSideBarWidth],
+	                int32_t brightness = 128, std::optional<RGB> rgb = std::nullopt);
 	void renderOneColForCollapseAnimationInterpolation(int32_t xDisplayOutput, int32_t min24, int32_t max24,
 	                                                   int32_t singleSquareBrightness, int32_t progress,
-	                                                   Colour thisImage[][kDisplayWidth + kSideBarWidth],
-	                                                   std::optional<Colour> rgb);
+	                                                   RGB thisImage[][kDisplayWidth + kSideBarWidth],
+	                                                   std::optional<RGB> rgb);
 };
 
 extern WaveformRenderer waveformRenderer;

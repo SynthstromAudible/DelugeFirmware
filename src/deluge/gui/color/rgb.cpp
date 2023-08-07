@@ -1,8 +1,8 @@
-#include "colour.h"
+#include "rgb.h"
 #include "util/functions.h"
 
-Colour Colour::fromHue(int32_t hue) {
-	Colour rgb{};
+RGB RGB::fromHue(int32_t hue) {
+	RGB rgb{};
 	hue = (uint16_t)(hue + 1920) % 192;
 
 	for (int32_t c = 0; c < 3; c++) {
@@ -31,8 +31,8 @@ Colour Colour::fromHue(int32_t hue) {
 
 constexpr int32_t kMaxPastel = 230;
 
-Colour Colour::fromHuePastel(int32_t hue) {
-	Colour rgb;
+RGB RGB::fromHuePastel(int32_t hue) {
+	RGB rgb;
 	hue = (uint16_t)(hue + 1920) % 192;
 
 	for (int32_t c = 0; c < 3; c++) {

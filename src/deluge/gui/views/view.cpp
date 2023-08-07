@@ -19,9 +19,9 @@
 #include "definitions_cxx.hpp"
 #include "dsp/reverb/freeverb/revmodel.hpp"
 #include "extern.h"
-#include "gui/colour.h"
+#include "gui/color/color.h"
 #include "gui/context_menu/clear_song.h"
-#include "gui/menu_item/colour.h"
+#include "gui/menu_item/color.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/load/load_song_ui.h"
@@ -1733,7 +1733,7 @@ getOut:
 
 		if (getCurrentUI() == &instrumentClipView) {
 			AudioEngine::routineWithClusterLoading(); // -----------------------------------
-			instrumentClipView.recalculateColours();
+			instrumentClipView.recalculateColors();
 			uiNeedsRendering(&instrumentClipView);
 		}
 
@@ -1783,40 +1783,40 @@ void View::instrumentChanged(ModelStackWithTimelineCounter* modelStack, Instrume
 	    modelStack->getTimelineCounter()); // Do a redraw. Obviously the Clip is the same
 }
 
-Colour View::getClipMuteSquareColour(Clip* clip, Colour thisColour) {
+RGB View::getClipMuteSquareColor(Clip* clip, RGB thisColor) {
 	if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING && clip && clip->armedForRecording) {
 		if (blinkOn) {
 			bool shouldGoPurple = clip->type == CLIP_TYPE_AUDIO && ((AudioClip*)clip)->overdubsShouldCloneOutput;
 
-			// Bright colour
+			// Bright color
 			if (clip->wantsToBeginLinearRecording(currentSong)) {
 				if (shouldGoPurple) {
-					return colours::magenta;
+					return colors::magenta;
 				}
-				return colours::red_alt;
+				return colors::red;
 			}
 
-			// Dull colour, cos can't actually begin linear recording despite being armed
+			// Dull color, cos can't actually begin linear recording despite being armed
 			if (shouldGoPurple) {
-				return colours::magenta_dull;
+				return colors::magenta_dull;
 			}
-			return colours::red_dull;
+			return colors::red_dull;
 		}
-		return colours::black;
+		return colors::black;
 	}
 
 	// If user assigning MIDI controls and this Clip has a command assigned, flash pink
 	if (midiLearnFlashOn && clip->muteMIDICommand.containsSomething()) {
-		return colours::midi_command;
+		return colors::midi_command;
 	}
 
 	if (clipArmFlashOn && clip->armState != ArmState::OFF) {
-		thisColour = colours::black;
+		thisColor = colors::black;
 	}
 
 	// If it's soloed or armed to solo, blue
 	else if (clip->soloingInSessionMode || clip->armState == ArmState::ON_TO_SOLO) {
-		thisColour = menu_item::soloColourMenu.getRGB();
+		thisColor = menu_item::soloColorMenu.getRGB();
 	}
 
 	// Or if not soloing...
@@ -1824,24 +1824,24 @@ Colour View::getClipMuteSquareColour(Clip* clip, Colour thisColour) {
 
 		// If it's stopped, red.
 		if (!clip->activeIfNoSolo) {
-			thisColour = menu_item::stoppedColourMenu.getRGB();
+			thisColor = menu_item::stoppedColorMenu.getRGB();
 		}
 
 		// Or, green.
 		else {
-			thisColour = menu_item::activeColourMenu.getRGB();
+			thisColor = menu_item::activeColorMenu.getRGB();
 		}
 
 		if (currentSong->getAnyClipsSoloing()) {
-			thisColour = thisColour.dull();
+			thisColor = thisColor.dull();
 		}
 	}
 
 	// If user assigning MIDI controls and has this Clip selected, flash to half brightness
 	if (midiLearnFlashOn && learnedThing == &clip->muteMIDICommand) {
-		return thisColour.dim();
+		return thisColor.dim();
 	}
-	return thisColour;
+	return thisColor;
 }
 
 extern int8_t defaultAudioClipOverdubOutputCloning;

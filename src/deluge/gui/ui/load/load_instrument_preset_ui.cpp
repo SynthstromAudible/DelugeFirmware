@@ -191,10 +191,10 @@ useDefaultFolder:
 	// The redrawing of the sidebar only actually has to happen if we just changed to a different type *or* if we came in from (musical) keyboard view, I think
 	PadLEDs::clearAllPadsWithoutSending();
 	drawKeys();
-	PadLEDs::sendOutMainPadColours();
+	PadLEDs::sendOutMainPadColors();
 
 	if (showingAuditionPads()) {
-		instrumentClipView.recalculateColours();
+		instrumentClipView.recalculateColors();
 		renderingNeededRegardlessOfUI(0, 0xFFFFFFFF);
 	}
 
@@ -254,8 +254,8 @@ void LoadInstrumentPresetUI::enterKeyPress() {
 		}
 
 		if (instrumentTypeToLoad == InstrumentType::KIT && showingAuditionPads()) {
-			// New NoteRows have probably been created, whose colours haven't been grabbed yet.
-			instrumentClipView.recalculateColours();
+			// New NoteRows have probably been created, whose colors haven't been grabbed yet.
+			instrumentClipView.recalculateColors();
 		}
 
 		close();
@@ -1006,7 +1006,7 @@ ActionResult LoadInstrumentPresetUI::verticalEncoderAction(int32_t offset, bool 
 	return ActionResult::DEALT_WITH;
 }
 
-bool LoadInstrumentPresetUI::renderSidebar(uint32_t whichRows, Colour image[][kDisplayWidth + kSideBarWidth],
+bool LoadInstrumentPresetUI::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                            uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	if (getRootUI() != &keyboardScreen) {
 		return false;

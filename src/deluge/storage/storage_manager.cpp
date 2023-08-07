@@ -18,7 +18,7 @@
 #include "storage/storage_manager.h"
 #include "RZA1/gpio/gpio.h"
 #include "definitions_cxx.hpp"
-#include "gui/menu_item/colour.h"
+#include "gui/menu_item/color.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"

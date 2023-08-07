@@ -103,28 +103,28 @@ void setupSquareWave() {
 	}
 }
 
-int32_t hardwareTestWhichColour = 0;
+int32_t hardwareTestWhichColor = 0;
 
-void sendColoursForHardwareTest(bool testButtonStates[9][16]) {
+void sendColorsForHardwareTest(bool testButtonStates[9][16]) {
 	for (int32_t x = 0; x < 9; x++) {
 
-		std::array<Colour, 16> colours{};
+		std::array<RGB, 16> colors{};
 		for (int32_t y = 0; y < 16; y++) {
-			std::array<uint8_t, 3> raw_colour{};
+			std::array<uint8_t, 3> raw_color{};
 			for (int32_t c = 0; c < 3; c++) {
 				int32_t value = 0;
 				if (testButtonStates[x][y]) {
 					value = 255;
 				}
-				else if (c == hardwareTestWhichColour) {
+				else if (c == hardwareTestWhichColor) {
 					value = 64;
 				}
-				raw_colour[c] = value;
+				raw_color[c] = value;
 			}
-			colours[y] = {raw_colour[0], raw_colour[1], raw_colour[2]};
+			colors[y] = {raw_color[0], raw_color[1], raw_color[2]};
 		}
 
-		PIC::setColourForTwoColumns(x, colours);
+		PIC::setColorForTwoColumns(x, colors);
 	}
 
 	PIC::flush();
@@ -160,7 +160,7 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 			if (y < kDisplayHeight * 2) {
 
 				testButtonStates[x][y] = !nextIsDepress;
-				sendColoursForHardwareTest(testButtonStates);
+				sendColorsForHardwareTest(testButtonStates);
 			}
 
 			if (nextIsDepress) {
@@ -311,9 +311,9 @@ void ramTestLED(bool stuffAlreadySetUp) {
 
 	while (1) {
 
-		sendColoursForHardwareTest(testButtonStates);
+		sendColorsForHardwareTest(testButtonStates);
 
-		hardwareTestWhichColour = (hardwareTestWhichColour + 1) % 3;
+		hardwareTestWhichColor = (hardwareTestWhichColor + 1) % 3;
 
 		// Write Synced LED
 		setOutputState(SYNCED_LED.port, SYNCED_LED.pin, true);

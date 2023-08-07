@@ -51,7 +51,7 @@ bool RenameOutputUI::opened() {
 
 	PadLEDs::clearMainPadsWithoutSending();
 	drawKeys();
-	PadLEDs::sendOutMainPadColours();
+	PadLEDs::sendOutMainPadColors();
 	return true;
 }
 

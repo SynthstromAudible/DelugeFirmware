@@ -32,9 +32,9 @@ extern "C" {
 class AudioClip;
 
 namespace PadLEDs {
-extern Colour image[kDisplayHeight][kDisplayWidth + kSideBarWidth];                   // 255 = full brightness
+extern RGB image[kDisplayHeight][kDisplayWidth + kSideBarWidth];                   // 255 = full brightness
 extern uint8_t occupancyMask[kDisplayHeight][kDisplayWidth + kSideBarWidth];          // 64 = full occupancy
-extern Colour imageStore[kDisplayHeight * 2][kDisplayWidth + kSideBarWidth];          // 255 = full brightness
+extern RGB imageStore[kDisplayHeight * 2][kDisplayWidth + kSideBarWidth];          // 255 = full brightness
 extern uint8_t occupancyMaskStore[kDisplayHeight * 2][kDisplayWidth + kSideBarWidth]; // 64 = full occupancy
 
 extern bool transitionTakingPlaceOnRow[kDisplayHeight];
@@ -64,10 +64,10 @@ void renderNoteRowExpandOrCollapse();
 void clearAllPadsWithoutSending();
 void clearMainPadsWithoutSending();
 
-void sendOutMainPadColours();
-void sendOutMainPadColoursSoon();
-void sendOutSidebarColours();
-void sendOutSidebarColoursSoon();
+void sendOutMainPadColors();
+void sendOutMainPadColorsSoon();
+void sendOutSidebarColors();
+void sendOutSidebarColorsSoon();
 
 void skipGreyoutFade();
 void reassessGreyout(bool doInstantly = false);
@@ -99,9 +99,9 @@ extern int8_t scrollDirection;
 extern bool scrollingToNothing;
 } // namespace vertical
 
-Colour prepareColour(int32_t x, int32_t y, Colour colourSource);
+RGB prepareColor(int32_t x, int32_t y, RGB colorSource);
 void clearTickSquares(bool shouldSend = true);
-void setTickSquares(const uint8_t* squares, const uint8_t* colours);
+void setTickSquares(const uint8_t* squares, const uint8_t* colors);
 void renderExplodeAnimation(int32_t explodedness, bool shouldSendOut = true);
 void renderAudioClipExplodeAnimation(int32_t explodedness, bool shouldSendOut = true);
 void clearSideBar();
@@ -114,10 +114,10 @@ void setupAudioClipCollapseOrExplodeAnimation(AudioClip* clip);
 
 void setGreyoutAmount(float newAmount);
 
-static inline void flashMainPad(int32_t x, int32_t y, int32_t colour = 0) {
+static inline void flashMainPad(int32_t x, int32_t y, int32_t color = 0) {
 	auto idx = y + (x * kDisplayHeight);
-	if (colour > 0) {
-		PIC::flashPadWithColour(idx, colour);
+	if (color > 0) {
+		PIC::flashPadWithColor(idx, color);
 		return;
 	}
 	PIC::flashPad(idx);
