@@ -22,6 +22,8 @@
 #include "util/functions.h"
 #include <cstdint>
 namespace deluge::dsp::filter {
+constexpr uint32_t ONE_Q31U = 2147483648u;
+constexpr int32_t ONE_Q16 = 134217728;
 q31_t HpLadderFilter::setConfig(q31_t hpfFrequency, q31_t hpfResonance, LPFMode lpfMode, q31_t filterGain) {
 	int32_t extraFeedback = 1200000000;
 
@@ -31,8 +33,8 @@ q31_t HpLadderFilter::setConfig(q31_t hpfFrequency, q31_t hpfResonance, LPFMode 
 	//this is 1q31*1q16/(1q16+tan(f)/2)
 	//tan(f) is q17 based on rohan's comment above
 	int32_t hpfDivideBy1PlusTannedFrequency =
-	    (int64_t)2147483648u * 134217728
-	    / (134217728 + (tannedFrequency >> 1)); // Between ~0.1 and 1. 1 represented by 2147483648
+	    (int64_t)ONE_Q31U * ONE_Q16
+	    / (ONE_Q16 + (tannedFrequency >> 1)); // Between ~0.1 and 1. 1 represented by 2147483648
 
 	int32_t resonanceUpperLimit = 536870911;
 	int32_t resonance = ONE_Q31 - (std::min(hpfResonance, resonanceUpperLimit) << 2); // Limits it
