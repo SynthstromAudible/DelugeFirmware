@@ -55,6 +55,15 @@ public:
 		else
 			lastLPFMode = LPFMode::OFF;
 	}
+	inline void renderStereoLong(StereoSample* startSample, StereoSample* endSample, int32_t extraSaturation = 1) {
+		// Do LPF, if it's on
+		if (LPFOn) {
+			renderLPFLongStereo(startSample, endSample, extraSaturation);
+		}
+		else
+			lastLPFMode = LPFMode::OFF;
+	}
+
 	//used to check whether the filter is used at all
 	inline bool isLPFOn() { return LPFOn; }
 	inline bool isHPFOn() { return HPFOn; }
@@ -66,6 +75,7 @@ private:
 
 	void renderLPFLong(q31_t* startSample, q31_t* endSample, LPFMode lpfMode, int32_t sampleIncrement = 1,
 	                   int32_t extraSaturation = 0, int32_t extraSaturationDrive = 0);
+	void renderLPFLongStereo(StereoSample* startSample, StereoSample* endSample, int32_t extraSaturation = 0);
 	void renderHPFLong(q31_t* startSample, q31_t* endSample, LPFMode lpfMode, int32_t sampleIncrement = 1,
 	                   int32_t extraSaturation = 0);
 	void renderLadderHPF(q31_t* outputSample, int32_t extraSaturation = 0);

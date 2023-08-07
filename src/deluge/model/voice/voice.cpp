@@ -1499,10 +1499,9 @@ skipUnisonPart : {}
 			int32_t* const oscBufferEnd = oscBuffer + (numSamples << 1);
 			//copy config over to the right stereo filter
 			//todo - have the filterset class handle stereo filtering
-			filterSets[1].copy_config(&filterSets[0]);
+			//filterSets[1].copy_config(&filterSets[0]);
 			// Filters
-			filterSets[0].renderLong(oscBuffer, oscBufferEnd, numSamples, 2);
-			filterSets[1].renderLong(oscBuffer + 1, oscBufferEnd, numSamples, 2);
+			filterSets[0].renderStereoLong((StereoSample*)oscBuffer, (StereoSample*)oscBufferEnd);
 
 			// No clipping
 			if (!sound->clippingAmount) {

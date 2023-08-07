@@ -55,6 +55,17 @@ void FilterSet::renderLPFLong(q31_t* startSample, q31_t* endSample, LPFMode lpfM
 	}
 	lastLPFMode = lpfMode;
 }
+void FilterSet::renderLPFLongStereo(StereoSample* startSample, StereoSample* endSample, int32_t extraSaturation) {
+
+	if (lpfMode == LPFMode::SVF) {
+		if (lastLPFMode != LPFMode::SVF) {
+			lpsvf.reset();
+		}
+		lpsvf.filter_stereo(startSample, endSample, extraSaturation);
+	}
+
+	lastLPFMode = lpfMode;
+}
 
 int32_t FilterSet::set_config(int32_t lpfFrequency, int32_t lpfResonance, bool doLPF, int32_t hpfFrequency,
                               int32_t hpfResonance, bool doHPF, LPFMode lpfmode, int32_t filterGain,
