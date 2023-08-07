@@ -21,6 +21,7 @@
 
 #include "RZA1/mtu/mtu.h"
 #include "drivers/dmac/dmac.h"
+#include "drivers/pic/pic.hpp"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/oled.h"
 #include "processing/engines/audio_engine.h"
@@ -1240,8 +1241,8 @@ void freezeWithError(char const* text) {
 	spiTransferQueueCurrentlySending = false;
 
 	// Select OLED
-	bufferPICUart(248); // Select OLED
-	uartFlushIfNotSending(UART_ITEM_PIC);
+	PIC::selectOLED();
+	PIC::flush();
 	oledWaitingForMessage = 248;
 
 	// Wait for selection to be done
@@ -1271,7 +1272,7 @@ void freezeWithError(char const* text) {
 	    DMAC_CHCTRL_0S_CLRTC | DMAC_CHCTRL_0S_SETEN; // ---- Enable DMA Transfer and clear TC bit ----
 
 	while (1) {
-		uartFlushIfNotSending(UART_ITEM_PIC);
+		PIC::flush();
 		uartFlushIfNotSending(UART_ITEM_MIDI);
 
 		uint8_t value;

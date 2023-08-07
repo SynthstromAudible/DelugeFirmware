@@ -17,6 +17,7 @@
 
 #include "testing/hardware_testing.h"
 #include "definitions_cxx.hpp"
+#include "drivers/pic/pic.hpp"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/root_ui.h"
 #include "hid/buttons.h"
@@ -106,22 +107,27 @@ int32_t hardwareTestWhichColour = 0;
 
 void sendColoursForHardwareTest(bool testButtonStates[9][16]) {
 	for (int32_t x = 0; x < 9; x++) {
-		bufferPICUart(x + 1);
+
+		std::array<Colour, 16> colours{};
 		for (int32_t y = 0; y < 16; y++) {
+			std::array<uint8_t, 3> raw_colour{};
 			for (int32_t c = 0; c < 3; c++) {
-				int32_t value;
+				int32_t value = 0;
 				if (testButtonStates[x][y]) {
 					value = 255;
 				}
-				else {
-					value = (c == hardwareTestWhichColour) ? 64 : 0;
+				else if (c == hardwareTestWhichColour){
+					value = 64;
 				}
-				bufferPICUart(value);
+				raw_colour[c] = value;
 			}
+			colours[y] = {raw_colour[0], raw_colour[1], raw_colour[2]};
 		}
+
+		PIC::setColorForTwoColumns(x, colours);
 	}
 
-	uartFlushIfNotSending(UART_ITEM_PIC_PADS);
+	PIC::flush();
 }
 
 bool anythingProbablyPressed = false;
@@ -130,8 +136,8 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 	bool outputPluggedInL = readInput(LINE_OUT_DETECT_L.port, LINE_OUT_DETECT_L.pin);
 	bool outputPluggedInR = readInput(LINE_OUT_DETECT_R.port, LINE_OUT_DETECT_R.pin);
 	bool headphoneNow = readInput(HEADPHONE_DETECT.port, HEADPHONE_DETECT.pin);
-	bool micNow = !readInput(MIC.port, MIC.pin);
-	bool lineInNow = readInput(LINE_IN.port, LINE_IN.pin);
+	bool micNow = !readInput(MIC_DETECT.port, MIC_DETECT.pin);
+	bool lineInNow = readInput(LINE_IN_DETECT.port, LINE_IN_DETECT.pin);
 	bool gateInNow = readInput(ANALOG_CLOCK_IN.port, ANALOG_CLOCK_IN.pin);
 
 	bool inputStateNow = (outputPluggedInL == outputPluggedInR == headphoneNow == micNow == lineInNow == gateInNow);
@@ -227,7 +233,7 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 #if HAVE_OLED
 	oledRoutine();
 #endif
-	uartFlushIfNotSending(UART_ITEM_PIC);
+	PIC::flush();
 	uartFlushIfNotSending(UART_ITEM_MIDI);
 }
 
@@ -252,15 +258,10 @@ void ramTestLED(bool stuffAlreadySetUp) {
 		setupSquareWave();
 	}
 
-	bufferPICUart(23); // Set flash length
-	bufferPICUart(100);
+	PIC::setFlashLength(100);
 
 	// Switch on numeric display
-	bufferPICUart(224);
-	bufferPICUart(0xFF);
-	bufferPICUart(0xFF);
-	bufferPICUart(0xFF);
-	bufferPICUart(0xFF);
+	PIC::update7SEG({0xFF, 0xFF, 0xFF, 0xFF});
 
 	// Switch on level indicator LEDs
 	indicator_leds::setKnobIndicatorLevel(0, 128);
@@ -272,28 +273,28 @@ void ramTestLED(bool stuffAlreadySetUp) {
 			continue; // Skip icecube LEDs
 		}
 		for (int32_t y = 0; y < 4; y++) {
-			bufferPICUart(152 + x + y * 9 + 36);
+			PIC::setLEDOn(x + y * 9);
 		}
 	}
 
-	uartFlushIfNotSending(UART_ITEM_PIC);
+	PIC::flush();
 
 	// Codec
-	setPinAsOutput(6, 12);
-	setOutputState(6, 12, 1); // Switch it on
+	setPinAsOutput(CODEC.port, CODEC.pin);
+	setOutputState(CODEC.port, CODEC.pin, 1); // Switch it on
 
 	// Speaker / amp control
 	setPinAsOutput(SPEAKER_ENABLE.port, SPEAKER_ENABLE.pin);
 	setOutputState(SPEAKER_ENABLE.port, SPEAKER_ENABLE.pin, 1); // Switch it on
 
 	setPinAsInput(HEADPHONE_DETECT.port, HEADPHONE_DETECT.pin); // Headphone detect
-	setPinAsInput(6, 6);                                        // Line in detect
-	setPinAsInput(7, 9);                                        // Mic detect
+	setPinAsInput(LINE_IN_DETECT.port, LINE_IN_DETECT.pin);     // Line in detect
+	setPinAsInput(MIC_DETECT.port, MIC_DETECT.pin);             // Mic detect
 
 	setPinAsOutput(BATTERY_LED.port, BATTERY_LED.pin);    // Battery LED control
 	setOutputState(BATTERY_LED.port, BATTERY_LED.pin, 1); // Switch it off (1 is off for open-drain)
 
-	setPinMux(1, 8 + SYS_VOLT_SENSE_PIN, 1); // Analog input for voltage sense
+	setPinMux(VOLT_SENSE.port, VOLT_SENSE.pin, 1); // Analog input for voltage sense
 
 	setPinAsInput(ANALOG_CLOCK_IN.port, ANALOG_CLOCK_IN.pin); // Gate input
 

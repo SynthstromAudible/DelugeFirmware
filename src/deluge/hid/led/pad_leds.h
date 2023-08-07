@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "drivers/pic/pic.hpp"
 #include <cstdint>
 
 #define FLASH_CURSOR_FAST 0
@@ -31,9 +32,9 @@ extern "C" {
 class AudioClip;
 
 namespace PadLEDs {
-extern uint8_t image[kDisplayHeight][kDisplayWidth + kSideBarWidth][3];               // 255 = full brightness
+extern Colour image[kDisplayHeight][kDisplayWidth + kSideBarWidth];                   // 255 = full brightness
 extern uint8_t occupancyMask[kDisplayHeight][kDisplayWidth + kSideBarWidth];          // 64 = full occupancy
-extern uint8_t imageStore[kDisplayHeight * 2][kDisplayWidth + kSideBarWidth][3];      // 255 = full brightness
+extern Colour imageStore[kDisplayHeight * 2][kDisplayWidth + kSideBarWidth];          // 255 = full brightness
 extern uint8_t occupancyMaskStore[kDisplayHeight * 2][kDisplayWidth + kSideBarWidth]; // 64 = full occupancy
 
 extern bool transitionTakingPlaceOnRow[kDisplayHeight];
@@ -98,7 +99,7 @@ extern int8_t scrollDirection;
 extern bool scrollingToNothing;
 } // namespace vertical
 
-void sendRGBForOnePadFast(int32_t x, int32_t y, const uint8_t* colourSource);
+Colour prepareColour(int32_t x, int32_t y, Colour colourSource);
 void clearTickSquares(bool shouldSend = true);
 void setTickSquares(const uint8_t* squares, const uint8_t* colours);
 void renderExplodeAnimation(int32_t explodedness, bool shouldSendOut = true);
@@ -114,14 +115,14 @@ void setupAudioClipCollapseOrExplodeAnimation(AudioClip* clip);
 void setGreyoutAmount(float newAmount);
 
 static inline void flashMainPad(int32_t x, int32_t y, int32_t color = 0) {
+	auto idx = y + (x * kDisplayHeight);
 	if (color > 0) {
-		bufferPICUart(10 + color);
+		PIC::flashPadWithColor(idx, color);
+		return;
 	}
-
-	bufferPICUart(24 + y + (x * kDisplayHeight));
+	PIC::flashPad(idx);
 }
 
-inline void sendRGBForOneCol(int32_t x);
 void setTimerForSoon();
 void renderZoomedSquare(int32_t outputSquareStartOnOutImage, int32_t outputSquareEndOnOutImage,
                         uint32_t outImageTimesBigerThanNormal, uint32_t sourceImageFade, uint32_t* output,

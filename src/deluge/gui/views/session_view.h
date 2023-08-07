@@ -43,19 +43,19 @@ public:
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
 	ActionResult horizontalEncoderAction(int32_t offset);
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
-	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	bool renderSidebar(uint32_t whichRows, Colour image[][kDisplayWidth + kSideBarWidth],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 	void removeClip(uint8_t yDisplay);
 	void redrawClipsOnScreen(bool doRender = true);
 	uint32_t getMaxZoom();
 	void cloneClip(uint8_t yDisplayFrom, uint8_t yDisplayTo);
-	bool renderRow(ModelStack* modelStack, uint8_t yDisplay, uint8_t thisImage[kDisplayWidth + kSideBarWidth][3],
+	bool renderRow(ModelStack* modelStack, uint8_t yDisplay, Colour thisImage[kDisplayWidth + kSideBarWidth],
 	               uint8_t thisOccupancyMask[kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
 	void graphicsRoutine();
 
 	int32_t getClipPlaceOnScreen(Clip* clip);
-	void drawStatusSquare(uint8_t yDisplay, uint8_t thisImage[][3]);
-	void drawSectionSquare(uint8_t yDisplay, uint8_t thisImage[][3]);
+	void drawStatusSquare(uint8_t yDisplay, Colour thisImage[]);
+	void drawSectionSquare(uint8_t yDisplay, Colour thisImage[]);
 	bool calculateZoomPinSquares(uint32_t oldScroll, uint32_t newScroll, uint32_t newZoom, uint32_t oldZoom);
 	uint32_t getMaxLength();
 	bool setupScroll(uint32_t oldScroll);
@@ -70,7 +70,7 @@ public:
 	void setLedStates();
 	void editNumRepeatsTilLaunch(int32_t offset);
 	uint32_t getGreyedOutRowsNotRepresentingOutput(Output* output);
-	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	bool renderMainPads(uint32_t whichRows, Colour image[][kDisplayWidth + kSideBarWidth],
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
 	void midiLearnFlash();
 

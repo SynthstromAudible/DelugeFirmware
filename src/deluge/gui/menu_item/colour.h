@@ -16,23 +16,36 @@
 */
 
 #pragma once
+#include "gui/colour.h"
 #include "gui/menu_item/selection.h"
 
 namespace deluge::gui::menu_item {
 
 class Colour final : public Selection<9> {
 public:
+	enum Option : uint8_t {
+		RED,
+		GREEN,
+		BLUE,
+		YELLOW,
+		CYAN,
+		MAGENTA,
+		AMBER,
+		WHITE,
+		PINK,
+	};
+
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(value); }
 	void writeCurrentValue() override {
-		value = this->getValue();
+		value = static_cast<Option>(this->getValue());
 		renderingNeededRegardlessOfUI();
 	};
 	static_vector<std::string, capacity()> getOptions() override {
-		return {"RED", "GREEN", "BLUE", "YELLOW", "CYAN", "PURPLE", "AMBER", "WHITE", "PINK"};
+		return {"RED", "GREEN", "BLUE", "YELLOW", "CYAN", "MAGENTA", "AMBER", "WHITE", "PINK"};
 	}
-	void getRGB(uint8_t rgb[3]);
-	uint8_t value;
+	[[nodiscard]] ::Colour getRGB() const;
+	Option value;
 };
 
 extern Colour activeColourMenu;

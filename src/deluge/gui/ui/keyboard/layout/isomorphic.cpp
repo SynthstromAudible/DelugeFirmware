@@ -78,11 +78,11 @@ void KeyboardLayoutIsomorphic::precalculate() {
 
 	// Pre-Buffer colours for next renderings
 	for (int32_t i = 0; i < (kDisplayHeight * state.rowInterval + kDisplayWidth); ++i) {
-		getNoteColour(state.scrollOffset + i, noteColours[i]);
+		noteColours[i] = getNoteColour(state.scrollOffset + i);
 	}
 }
 
-void KeyboardLayoutIsomorphic::renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) {
+void KeyboardLayoutIsomorphic::renderPads(Colour image[][kDisplayWidth + kSideBarWidth]) {
 	// Precreate list of all active notes per octave
 	bool octaveActiveNotes[kOctaveSize] = {0};
 	for (uint8_t idx = 0; idx < currentNotesState.count; ++idx) {
@@ -107,11 +107,11 @@ void KeyboardLayoutIsomorphic::renderPads(uint8_t image[][kDisplayWidth + kSideB
 		for (int32_t x = 0; x < kDisplayWidth; x++) {
 			// Full color for every octaves root and active notes
 			if (octaveActiveNotes[noteWithinOctave] || noteWithinOctave == 0) {
-				memcpy(image[y][x], noteColours[normalizedPadOffset], 3);
+				image[y][x] = noteColours[normalizedPadOffset];
 			}
 			// Or, if this note is just within the current scale, show it dim
 			else if (octaveScaleNotes[noteWithinOctave]) {
-				getTailColour(image[y][x], noteColours[normalizedPadOffset]);
+				image[y][x] = noteColours[normalizedPadOffset].forTail();
 			}
 
 			//@TODO: In a future revision it would be nice to add this to the API

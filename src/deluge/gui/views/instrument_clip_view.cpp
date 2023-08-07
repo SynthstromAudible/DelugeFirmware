@@ -77,6 +77,7 @@
 #include "storage/multi_range/multi_range.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
+#include <limits>
 #include <new>
 #include <string.h>
 
@@ -2411,10 +2412,10 @@ void InstrumentClipView::recalculateColour(uint8_t yDisplay) {
 	if (noteRow) {
 		colourOffset = noteRow->getColourOffset(getCurrentClip());
 	}
-	getCurrentClip()->getMainColourFromY(getCurrentClip()->getYNoteFromYDisplay(yDisplay, currentSong), colourOffset,
-	                                     rowColour[yDisplay]);
-	getTailColour(rowTailColour[yDisplay], rowColour[yDisplay]);
-	getBlurColour(rowBlurColour[yDisplay], rowColour[yDisplay]);
+	rowColour[yDisplay] = getCurrentClip()->getMainColourFromY(
+	    getCurrentClip()->getYNoteFromYDisplay(yDisplay, currentSong), colourOffset);
+	rowTailColour[yDisplay] = rowColour[yDisplay].forTail();
+	rowBlurColour[yDisplay] = rowColour[yDisplay].forBlur();
 }
 
 ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCardRoutine, bool draggingNoteRow) {
@@ -3631,15 +3632,12 @@ void InstrumentClipView::enterScaleMode(uint8_t yDisplay) {
 
 			PadLEDs::animatedRowGoingTo[PadLEDs::numAnimatedRows] = yDisplayTo;
 			PadLEDs::animatedRowGoingFrom[PadLEDs::numAnimatedRows] = yDisplayFrom;
-			uint8_t mainColour[3];
-			uint8_t tailColour[3];
-			uint8_t blurColour[3];
-			clip->getMainColourFromY(thisNoteRow->y, thisNoteRow->getColourOffset(clip), mainColour);
-			getTailColour(tailColour, mainColour);
-			getBlurColour(blurColour, mainColour);
+			Colour mainColour = clip->getMainColourFromY(thisNoteRow->y, thisNoteRow->getColourOffset(clip));
+			Colour tailColour = mainColour.forTail();
+			Colour blurColour = mainColour.forBlur();
 
 			thisNoteRow->renderRow(
-			    this, mainColour, tailColour, blurColour, &PadLEDs::imageStore[PadLEDs::numAnimatedRows][0][0],
+			    this, mainColour, tailColour, blurColour, PadLEDs::imageStore[PadLEDs::numAnimatedRows],
 			    PadLEDs::occupancyMaskStore[PadLEDs::numAnimatedRows], true, modelStackWithNoteRow->getLoopLength(),
 			    clip->allowNoteTails(modelStackWithNoteRow), kDisplayWidth, currentSong->xScroll[NAVIGATION_CLIP],
 			    currentSong->xZoom[NAVIGATION_CLIP]);
@@ -3718,17 +3716,14 @@ void InstrumentClipView::exitScaleMode() {
 		if ((yDisplayTo >= 0 && yDisplayTo < kDisplayHeight) || (yDisplayFrom >= 0 && yDisplayFrom < kDisplayHeight)) {
 			PadLEDs::animatedRowGoingTo[PadLEDs::numAnimatedRows] = yDisplayTo;
 			PadLEDs::animatedRowGoingFrom[PadLEDs::numAnimatedRows] = yDisplayFrom;
-			uint8_t mainColour[3];
-			uint8_t tailColour[3];
-			uint8_t blurColour[3];
-			clip->getMainColourFromY(thisNoteRow->y, thisNoteRow->getColourOffset(clip), mainColour);
-			getTailColour(tailColour, mainColour);
-			getBlurColour(blurColour, mainColour);
+			Colour mainColour = clip->getMainColourFromY(thisNoteRow->y, thisNoteRow->getColourOffset(clip));
+			Colour tailColour = mainColour.forTail();
+			Colour blurColour = mainColour.forBlur();;
 
 			ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(thisNoteRow->y, thisNoteRow);
 
 			thisNoteRow->renderRow(
-			    this, mainColour, tailColour, blurColour, &PadLEDs::imageStore[PadLEDs::numAnimatedRows][0][0],
+			    this, mainColour, tailColour, blurColour, PadLEDs::imageStore[PadLEDs::numAnimatedRows],
 			    PadLEDs::occupancyMaskStore[PadLEDs::numAnimatedRows], true, modelStackWithNoteRow->getLoopLength(),
 			    clip->allowNoteTails(modelStackWithNoteRow), kDisplayWidth, currentSong->xScroll[NAVIGATION_CLIP],
 			    currentSong->xZoom[NAVIGATION_CLIP]);
@@ -3775,7 +3770,7 @@ void InstrumentClipView::changeRootNote(uint8_t yDisplay) {
 	uiNeedsRendering(this);
 }
 
-bool InstrumentClipView::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+bool InstrumentClipView::renderSidebar(uint32_t whichRows, Colour image[][kDisplayWidth + kSideBarWidth],
                                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	if (!image) {
 		return true;
@@ -3795,38 +3790,34 @@ bool InstrumentClipView::renderSidebar(uint32_t whichRows, uint8_t image[][kDisp
 	return true;
 }
 
-void InstrumentClipView::drawMuteSquare(NoteRow* thisNoteRow, uint8_t thisImage[][3], uint8_t thisOccupancyMask[]) {
-	uint8_t* thisColour = thisImage[kDisplayWidth];
+void InstrumentClipView::drawMuteSquare(NoteRow* thisNoteRow, Colour thisImage[], uint8_t thisOccupancyMask[]) {
+	Colour &thisColour = thisImage[kDisplayWidth];
 	uint8_t* thisOccupancy = &(thisOccupancyMask[kDisplayWidth]);
 
 	// If user assigning MIDI controls and this NoteRow has a command assigned, flash pink
 	if (view.midiLearnFlashOn && thisNoteRow && thisNoteRow->drum
 	    && thisNoteRow->drum->muteMIDICommand.containsSomething()) {
-		thisColour[0] = midiCommandColour.r;
-		thisColour[1] = midiCommandColour.g;
-		thisColour[2] = midiCommandColour.b;
+		thisColour = colours::midi_command;
 		*thisOccupancy = 64;
 	}
 
 	else if (thisNoteRow == NULL || !thisNoteRow->muted) {
 		if (thisNoteRow == NULL && currentSong->currentClip->output->type == InstrumentType::KIT) {
-			memset(thisColour, 0, 3);
+			thisColour = colours::black;
 		}
 		else {
-			menu_item::activeColourMenu.getRGB(thisColour);
+			thisColour = menu_item::activeColourMenu.getRGB();
 		}
 	}
 	else {
-		menu_item::mutedColourMenu.getRGB(thisColour);
+		thisColour = menu_item::mutedColourMenu.getRGB();
 		*thisOccupancy = 64;
 	}
 
 	// If user assigning MIDI controls and has this Clip selected, flash to half brightness
 	if (view.midiLearnFlashOn && thisNoteRow != NULL && view.thingPressedForMidiLearn == MidiLearn::NOTEROW_MUTE
 	    && thisNoteRow->drum && &thisNoteRow->drum->muteMIDICommand == view.learnedThing) {
-		thisColour[0] >>= 1;
-		thisColour[1] >>= 1;
-		thisColour[2] >>= 1;
+		thisColour = thisColour.dim();
 		*thisOccupancy = 64;
 	}
 }
@@ -3845,8 +3836,8 @@ bool InstrumentClipView::isRowAuditionedByInstrument(int32_t yDisplay) {
 	}
 }
 
-void InstrumentClipView::drawAuditionSquare(uint8_t yDisplay, uint8_t thisImage[][3]) {
-	uint8_t* thisColour = thisImage[kDisplayWidth + 1];
+void InstrumentClipView::drawAuditionSquare(uint8_t yDisplay, Colour thisImage[]) {
+	Colour &thisColour = thisImage[kDisplayWidth + 1];
 
 	if (view.midiLearnFlashOn) {
 		NoteRow* noteRow = getCurrentClip()->getNoteRowOnScreen(yDisplay, currentSong);
@@ -3862,9 +3853,7 @@ void InstrumentClipView::drawAuditionSquare(uint8_t yDisplay, uint8_t thisImage[
 
 		// If MIDI command already assigned...
 		if (midiCommandAssigned) {
-			thisColour[0] = midiCommandColour.r;
-			thisColour[1] = midiCommandColour.g;
-			thisColour[2] = midiCommandColour.b;
+			thisColour = colours::midi_command;
 		}
 
 		// Or if not assigned but we're holding it down...
@@ -3878,10 +3867,7 @@ void InstrumentClipView::drawAuditionSquare(uint8_t yDisplay, uint8_t thisImage[
 			}
 
 			if (holdingDown) {
-				memcpy(thisColour, rowColour[yDisplay], 3);
-				thisColour[0] >>= 1;
-				thisColour[1] >>= 1;
-				thisColour[2] >>= 1;
+				thisColour = rowColour[yDisplay].dim();
 			}
 			else {
 				goto drawNormally;
@@ -3892,7 +3878,7 @@ void InstrumentClipView::drawAuditionSquare(uint8_t yDisplay, uint8_t thisImage[
 	// If audition pad pressed...
 	else if (auditionPadIsPressed[yDisplay]
 	         || (currentUIMode == UI_MODE_ADDING_DRUM_NOTEROW && yDisplay == yDisplayOfNewNoteRow)) {
-		memcpy(thisColour, rowColour[yDisplay], 3);
+		thisColour = rowColour[yDisplay];
 		goto checkIfSelectingRanges;
 	}
 
@@ -3924,7 +3910,7 @@ drawNormally:
 				if (flashDefaultRootNoteOn) {
 					int32_t yNote = getCurrentClip()->getYNoteFromYDisplay(yDisplay, currentSong);
 					if ((uint16_t)(yNote - defaultRootNote + 120) % (uint8_t)12 == 0) {
-						memcpy(thisColour, rowColour[yDisplay], 3);
+						thisColour = rowColour[yDisplay];
 						return;
 					}
 				}
@@ -3935,10 +3921,10 @@ drawNormally:
 					// If this is the root note, indicate
 					int32_t yNote = getCurrentClip()->getYNoteFromYDisplay(yDisplay, currentSong);
 					if ((uint16_t)(yNote - currentSong->rootNote + 120) % (uint8_t)12 == 0) {
-						memcpy(thisColour, rowColour[yDisplay], 3);
+						thisColour = rowColour[yDisplay];
 					}
 					else {
-						memset(thisColour, 0, 3);
+						thisColour = colours::black;
 					}
 				}
 
@@ -3948,17 +3934,16 @@ checkIfSelectingRanges:
 				    || (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem()->isRangeDependent())) {
 					int32_t yNote = getCurrentClip()->getYNoteFromYDisplay(yDisplay, currentSong);
 					if (soundEditor.isUntransposedNoteWithinRange(yNote)) {
-						for (int32_t colour = 0; colour < 3; colour++) {
-							int32_t value = (int32_t)thisColour[colour] + 30;
-							thisColour[colour] = std::min(value, 255_i32);
-						}
+						thisColour = thisColour.transform([](Colour::channel_type channel) {
+							return std::clamp<uint32_t>((uint32_t)channel + 30, 0, Colour::channel_max);
+						});
 					}
 				}
 
 				return;
 			}
 		}
-		memset(thisColour, 0, 3);
+		thisColour = colours::black;
 	}
 }
 
@@ -3980,8 +3965,9 @@ void InstrumentClipView::cutAuditionedNotesToOne() {
 	}
 }
 
-static const uint32_t verticalScrollUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN,
-                                                 UI_MODE_DRAGGING_KIT_NOTEROW, 0};
+static const uint32_t verticalScrollUIModes[] = {
+    UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN, UI_MODE_DRAGGING_KIT_NOTEROW, 0,
+};
 
 ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 
@@ -4919,11 +4905,11 @@ void InstrumentClipView::fillOffScreenImageStores() {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
-	currentSong->currentClip->renderAsSingleRow(modelStack, this, xScroll, xZoom, PadLEDs::imageStore[0][0],
+	currentSong->currentClip->renderAsSingleRow(modelStack, this, xScroll, xZoom, PadLEDs::imageStore[0],
 	                                            PadLEDs::occupancyMaskStore[0], false, 0, noteRowIndexBottom, 0,
 	                                            kDisplayWidth, true, false);
 	currentSong->currentClip->renderAsSingleRow(modelStack, this, xScroll, xZoom,
-	                                            PadLEDs::imageStore[kDisplayHeight + 1][0],
+	                                            PadLEDs::imageStore[kDisplayHeight + 1],
 	                                            PadLEDs::occupancyMaskStore[kDisplayHeight + 1], false, noteRowIndexTop,
 	                                            2147483647, 0, kDisplayWidth, true, false);
 
@@ -4997,7 +4983,7 @@ void InstrumentClipView::notifyPlaybackBegun() {
 	reassessAllAuditionStatus();
 }
 
-bool InstrumentClipView::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+bool InstrumentClipView::renderMainPads(uint32_t whichRows, Colour image[][kDisplayWidth + kSideBarWidth],
                                         uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
                                         bool drawUndefinedArea) {
 	if (!image) {
@@ -5009,7 +4995,7 @@ bool InstrumentClipView::renderMainPads(uint32_t whichRows, uint8_t image[][kDis
 	}
 
 	PadLEDs::renderingLock = true;
-	performActualRender(whichRows, &image[0][0][0], occupancyMask, currentSong->xScroll[NAVIGATION_CLIP],
+	performActualRender(whichRows, image[0], occupancyMask, currentSong->xScroll[NAVIGATION_CLIP],
 	                    currentSong->xZoom[NAVIGATION_CLIP], kDisplayWidth, kDisplayWidth + kSideBarWidth,
 	                    drawUndefinedArea);
 	PadLEDs::renderingLock = false;
@@ -5018,7 +5004,7 @@ bool InstrumentClipView::renderMainPads(uint32_t whichRows, uint8_t image[][kDis
 }
 
 // occupancyMask now optional
-void InstrumentClipView::performActualRender(uint32_t whichRows, uint8_t* image,
+void InstrumentClipView::performActualRender(uint32_t whichRows, Colour* image,
                                              uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xScroll,
                                              uint32_t xZoom, int32_t renderWidth, int32_t imageWidth,
                                              bool drawUndefinedArea) {

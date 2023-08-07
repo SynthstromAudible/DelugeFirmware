@@ -18,6 +18,7 @@
 #include "gui/views/audio_clip_view.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
+#include "gui/colour.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
@@ -96,7 +97,7 @@ void AudioClipView::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 }
 #endif
 
-bool AudioClipView::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+bool AudioClipView::renderMainPads(uint32_t whichRows, Colour image[][kDisplayWidth + kSideBarWidth],
                                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
 	if (!image) {
 		return true;
@@ -129,8 +130,7 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayW
 		getClip()->getScrollAndZoomInSamples(currentSong->xScroll[NAVIGATION_CLIP], currentSong->xZoom[NAVIGATION_CLIP],
 		                                     &xScrollSamples, &xZoomSamples);
 
-		uint8_t rgb[3];
-		getClip()->getColour(rgb);
+		Colour rgb = getClip()->getColour();
 
 		int32_t visibleWaveformXEnd = endSquareDisplay + 1;
 		if (endMarkerVisible && blinkOn) {
@@ -172,7 +172,7 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayW
 					xDisplay = 0;
 				}
 
-				memset(image[y][xDisplay], 7, (kDisplayWidth - xDisplay) * 3);
+				std::fill(&image[y][xDisplay], &image[y][xDisplay] + (kDisplayWidth - xDisplay), Colour::monochrome(7));
 			}
 		}
 	}
@@ -189,7 +189,7 @@ ActionResult AudioClipView::timerCallback() {
 	return ActionResult::DEALT_WITH;
 }
 
-bool AudioClipView::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+bool AudioClipView::renderSidebar(uint32_t whichRows, Colour image[][kDisplayWidth + kSideBarWidth],
                                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	if (!image) {
 		return true;
@@ -200,7 +200,8 @@ bool AudioClipView::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWi
 	}
 
 	for (int32_t y = 0; y < kDisplayHeight; y++) {
-		memset(image[y][kDisplayWidth], 0, kSideBarWidth * 3);
+		Colour *const start = &image[y][kDisplayWidth];
+		std::fill(start, start + kSideBarWidth, colours::black);
 	}
 
 	return true;

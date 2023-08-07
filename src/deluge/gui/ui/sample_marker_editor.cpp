@@ -18,6 +18,7 @@
 #include "gui/ui/sample_marker_editor.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
+#include "gui/colour.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
@@ -678,14 +679,14 @@ ActionResult SampleMarkerEditor::timerCallback() {
 	blinkInvisible = !blinkInvisible;
 
 	// Clear col
-	for (int32_t y = 0; y < kDisplayHeight; y++) {
-		memset(PadLEDs::image[y][x], 0, 3);
+	for (auto & y : PadLEDs::image) {
+		y[x] = colours::black;
 	}
 
 	renderForOneCol(x, PadLEDs::image, cols);
 
 	PadLEDs::sortLedsForCol(x);
-	uartFlushIfNotSending(UART_ITEM_PIC_PADS);
+	PIC::flush();
 
 	uiTimerManager.setTimer(TIMER_UI_SPECIFIC, kSampleMarkerBlinkTime);
 
@@ -712,7 +713,7 @@ ActionResult SampleMarkerEditor::verticalEncoderAction(int32_t offset, bool inCa
 	return result;
 }
 
-bool SampleMarkerEditor::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+bool SampleMarkerEditor::renderSidebar(uint32_t whichRows, Colour image[][kDisplayWidth + kSideBarWidth],
                                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	if (getRootUI() != &keyboardScreen) {
 		return false;
@@ -890,7 +891,7 @@ bool SampleMarkerEditor::shouldAllowExtraScrollRight() {
 }
 
 void SampleMarkerEditor::renderForOneCol(int32_t xDisplay,
-                                         uint8_t thisImage[kDisplayHeight][kDisplayWidth + kSideBarWidth][3],
+                                         Colour thisImage[kDisplayHeight][kDisplayWidth + kSideBarWidth],
                                          MarkerColumn* cols) {
 
 	waveformRenderer.renderOneCol(waveformBasicNavigator.sample, xDisplay, thisImage,
@@ -900,7 +901,7 @@ void SampleMarkerEditor::renderForOneCol(int32_t xDisplay,
 }
 
 void SampleMarkerEditor::renderMarkersForOneCol(int32_t xDisplay,
-                                                uint8_t thisImage[kDisplayHeight][kDisplayWidth + kSideBarWidth][3],
+                                                Colour thisImage[kDisplayHeight][kDisplayWidth + kSideBarWidth],
                                                 MarkerColumn* cols) {
 
 	if (markerType != MarkerType::NONE) {
@@ -1118,7 +1119,7 @@ void SampleMarkerEditor::displayText() {
 }
 #endif
 
-bool SampleMarkerEditor::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+bool SampleMarkerEditor::renderMainPads(uint32_t whichRows, Colour image[][kDisplayWidth + kSideBarWidth],
                                         uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
                                         bool drawUndefinedArea) {
 	if (!image) {

@@ -69,12 +69,13 @@ public:
 	virtual void precalculate() = 0;
 
 	/// Handle output
-	virtual void renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) {}
+	virtual void renderPads(Colour image[][kDisplayWidth + kSideBarWidth]) {}
 
-	virtual void renderSidebarPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) {
+	virtual void renderSidebarPads(Colour image[][kDisplayWidth + kSideBarWidth]) {
 		// Clean sidebar if function is not overwritten
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
-			memset(image[y][kDisplayWidth], 0, kSideBarWidth * 3);
+			image[y][kDisplayWidth] = colours::black;
+			image[y][kDisplayWidth + 1] = colours::black;
 		}
 	};
 
@@ -108,7 +109,7 @@ protected:
 		return kHighestKeyboardNote;
 	}
 
-	inline void getNoteColour(uint8_t note, uint8_t rgb[]) {
+	inline Colour getNoteColour(uint8_t note) {
 		int32_t colourOffset = 0;
 
 		// Get colour offset for kit rows
@@ -121,7 +122,7 @@ protected:
 			}
 		}
 
-		currentClip()->getMainColourFromY(note, colourOffset, rgb);
+		return currentClip()->getMainColourFromY(note, colourOffset);
 	}
 
 	inline KeyboardState& getState() { return currentClip()->keyboardState; }

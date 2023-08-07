@@ -34,7 +34,7 @@ public:
 	virtual void handleHorizontalEncoder(int32_t offset, bool shiftEnabled);
 	virtual void precalculate();
 
-	virtual void renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]);
+	virtual void renderPads(Colour image[][kDisplayWidth + kSideBarWidth]);
 
 	virtual char const* name() { return "Isomorphic"; }
 	virtual bool supportsInstrument() { return true; }
@@ -45,7 +45,7 @@ private:
 		return getState().isomorphic.scrollOffset + x + y * getState().isomorphic.rowInterval;
 	}
 
-	uint8_t noteColours[kDisplayHeight * kMaxIsomorphicRowInterval + kDisplayWidth][3];
+	Colour noteColours[kDisplayHeight * kMaxIsomorphicRowInterval + kDisplayWidth];
 };
 
 }; // namespace deluge::gui::ui::keyboard::layout

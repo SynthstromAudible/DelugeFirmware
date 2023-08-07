@@ -18,6 +18,7 @@
 #include "gui/ui/load/load_song_ui.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
+#include "gui/colour.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -695,7 +696,7 @@ void LoadSongUI::exitAction() {
 
 void LoadSongUI::drawSongPreview(bool toStore) {
 
-	uint8_t(*imageStore)[kDisplayWidth + kSideBarWidth][3];
+	Colour(* imageStore)[kDisplayWidth + kSideBarWidth];
 	if (toStore) {
 		imageStore = PadLEDs::imageStore;
 	}
@@ -703,7 +704,9 @@ void LoadSongUI::drawSongPreview(bool toStore) {
 		imageStore = PadLEDs::image;
 	}
 
-	memset(imageStore, 0, kDisplayHeight * (kDisplayWidth + kSideBarWidth) * 3);
+	for (auto* it = imageStore; it != imageStore + (kDisplayHeight * (kDisplayWidth + kSideBarWidth)); it++) {
+		std::fill(*it, *it + kDisplayWidth + kSideBarWidth, colours::black);
+	}
 
 	FileItem* currentFileItem = getCurrentFileItem();
 
@@ -763,7 +766,7 @@ void LoadSongUI::drawSongPreview(bool toStore) {
 						imageStore[y][x][colour] = hexToByte(hexChars);
 						hexChars += 2;
 					}
-					greyColourOut(imageStore[y][x], imageStore[y][x], 6500000);
+					imageStore[y][x] = imageStore[y][x].greyOut(6500000);
 				}
 			}
 			goto stopLoadingPreview;

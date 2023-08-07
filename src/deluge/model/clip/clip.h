@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/colour.h"
 #include "io/midi/learned_midi.h"
 #include "model/timeline_counter.h"
 #include <cstdint>
@@ -90,7 +91,7 @@ public:
 
 	virtual int32_t undoDetachmentFromOutput(ModelStackWithTimelineCounter* modelStack);
 	virtual bool renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, TimelineView* editorScreen,
-	                               int32_t xScroll, uint32_t xZoom, uint8_t* image, uint8_t occupancyMask[],
+	                               int32_t xScroll, uint32_t xZoom, Colour* image, uint8_t occupancyMask[],
 	                               bool addUndefinedArea = true, int32_t noteRowIndexStart = 0,
 	                               int32_t noteRowIndexEnd = 2147483647, int32_t xStart = 0,
 	                               int32_t xEnd = kDisplayWidth, bool allowBlur = true, bool drawRepeats = false);
@@ -100,7 +101,7 @@ public:
 	virtual void finishLinearRecording(ModelStackWithTimelineCounter* modelStack, Clip* nextPendingLoop = NULL,
 	                                   int32_t buttonLatencyForTempolessRecord = 0) = 0;
 	virtual int32_t beginLinearRecording(ModelStackWithTimelineCounter* modelStack, int32_t buttonPressLatency) = 0;
-	void drawUndefinedArea(int32_t localScroll, uint32_t, int32_t lengthToDisplay, uint8_t* image, uint8_t[],
+	void drawUndefinedArea(int32_t localScroll, uint32_t, int32_t lengthToDisplay, Colour* image, uint8_t[],
 	                       int32_t imageWidth, TimelineView* editorScreen, bool tripletsOnHere);
 	bool opportunityToBeginSessionLinearRecording(ModelStackWithTimelineCounter* modelStack, bool* newOutputCreated,
 	                                              int32_t buttonPressLatency);

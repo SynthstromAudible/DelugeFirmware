@@ -1214,8 +1214,8 @@ NoteRow* InstrumentClip::createNewNoteRowForKit(ModelStackWithTimelineCounter* m
 	return newNoteRow;
 }
 
-void InstrumentClip::getMainColourFromY(int32_t yNote, int8_t noteRowColourOffset, uint8_t rgb[]) {
-	hueToRGB((yNote + colourOffset + noteRowColourOffset) * -8 / 3, rgb);
+Colour InstrumentClip::getMainColourFromY(int32_t yNote, int8_t noteRowColourOffset) {
+	return Colour::fromHue((yNote + colourOffset + noteRowColourOffset) * -8 / 3);
 }
 
 void InstrumentClip::musicalModeChanged(uint8_t yVisualWithinOctave, int32_t change,
@@ -1287,7 +1287,7 @@ void InstrumentClip::transpose(int32_t change, ModelStackWithTimelineCounter* mo
 
 // Lock rendering before calling this!
 bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, TimelineView* editorScreen,
-                                       int32_t xScroll, uint32_t xZoom, uint8_t* image, uint8_t occupancyMask[],
+                                       int32_t xScroll, uint32_t xZoom, Colour* image, uint8_t occupancyMask[],
                                        bool addUndefinedArea, int32_t noteRowIndexStart, int32_t noteRowIndexEnd,
                                        int32_t xStart, int32_t xEnd, bool allowBlur, bool drawRepeats) {
 
@@ -1297,7 +1297,7 @@ bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack
 	if (onKeyboardScreen && !containsAnyNotes()) {
 		int32_t increment = (kDisplayWidth + (kDisplayHeight * keyboardState.isomorphic.rowInterval)) / kDisplayWidth;
 		for (int32_t x = xStart; x < xEnd; x++) {
-			getMainColourFromY(keyboardState.isomorphic.scrollOffset + x * increment, 0, &image[x * 3]);
+			image[x] = getMainColourFromY(keyboardState.isomorphic.scrollOffset + x * increment, 0);
 		}
 		return true;
 	}
@@ -1328,19 +1328,9 @@ bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack
 			yNote = thisNoteRow->y;
 		}
 
-		uint8_t mainColour[3];
-		uint8_t tailColour[3];
-		uint8_t blurColour[3];
-
-		getMainColourFromY(yNote, thisNoteRow->getColourOffset(this), mainColour);
-		getTailColour(tailColour, mainColour);
-		if (allowBlur) {
-			getBlurColour(blurColour, mainColour);
-		}
-		else {
-			memcpy(blurColour, mainColour, 3);
-		}
-
+		Colour mainColour = getMainColourFromY(yNote, thisNoteRow->getColourOffset(this));
+		Colour tailColour = mainColour.forTail();
+		Colour blurColour = allowBlur ? mainColour.forBlur() : mainColour;
 		if (i == noteRowIndexStart || output->type == InstrumentType::KIT) {
 			ModelStackWithNoteRow* modelStackWithNoteRow =
 			    modelStack->addNoteRow(getNoteRowId(thisNoteRow, i), thisNoteRow);

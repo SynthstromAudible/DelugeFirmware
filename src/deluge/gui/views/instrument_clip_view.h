@@ -89,14 +89,14 @@ public:
 	void enterScaleMode(uint8_t yDisplay = 255);
 	void exitScaleMode();
 	void changeRootNote(uint8_t yDisplay);
-	void drawMuteSquare(NoteRow* thisNoteRow, uint8_t thisImage[][3], uint8_t thisOccupancyMask[]);
+	void drawMuteSquare(NoteRow* thisNoteRow, Colour thisImage[], uint8_t thisOccupancyMask[]);
 	void cutAuditionedNotesToOne();
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
 	ActionResult horizontalEncoderAction(int32_t offset);
 	void fillOffScreenImageStores();
 	void graphicsRoutine();
 
-	void drawAuditionSquare(uint8_t yDisplay, uint8_t thisImage[][3]);
+	void drawAuditionSquare(uint8_t yDisplay, Colour thisImage[]);
 	void flashDefaultRootNote();
 	void selectEncoderAction(int8_t offset);
 	void doubleClipLengthAction();
@@ -114,12 +114,12 @@ public:
 	void drawDrumName(Drum* drum, bool justPopUp = false);
 	void notifyPlaybackBegun();
 	void openedInBackground();
-	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	bool renderMainPads(uint32_t whichRows, Colour image[][kDisplayWidth + kSideBarWidth],
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
-	void performActualRender(uint32_t whichRows, uint8_t* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
+	void performActualRender(uint32_t whichRows, Colour* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
 	                         int32_t xScroll, uint32_t xZoom, int32_t renderWidth, int32_t imageWidth,
 	                         bool drawUndefinedArea = true);
-	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	bool renderSidebar(uint32_t whichRows, Colour image[][kDisplayWidth + kSideBarWidth],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 
 	void transitionToSessionView();
@@ -160,9 +160,9 @@ public:
 private:
 	uint8_t lastAuditionedVelocityOnScreen[kDisplayHeight]; // 255 seems to mean none
 	uint8_t auditionPadIsPressed[kDisplayHeight];
-	uint8_t rowColour[kDisplayHeight][3];
-	uint8_t rowTailColour[kDisplayHeight][3];
-	uint8_t rowBlurColour[kDisplayHeight][3];
+	Colour rowColour[kDisplayHeight];
+	Colour rowTailColour[kDisplayHeight];
+	Colour rowBlurColour[kDisplayHeight];
 	uint8_t numEditPadPressesPerNoteRowOnScreen[kDisplayHeight];
 	uint8_t lastAuditionedYDisplay;
 

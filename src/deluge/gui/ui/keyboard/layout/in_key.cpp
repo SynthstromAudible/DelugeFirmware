@@ -17,6 +17,7 @@
 
 #include "gui/ui/keyboard/layout/in_key.h"
 #include "definitions.h"
+#include "gui/colour.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/sound_editor.h"
@@ -79,17 +80,17 @@ void KeyboardLayoutInKey::precalculate() {
 
 	// Pre-Buffer colours for next renderings
 	for (int32_t i = 0; i < (kDisplayHeight * state.rowInterval + kDisplayWidth); ++i) {
-		getNoteColour(noteFromPadIndex(state.scrollOffset + i), noteColours[i]);
+		noteColours[i] = getNoteColour(noteFromPadIndex(state.scrollOffset + i));
 	}
 }
 
-inline void colorCopy(uint8_t* dest, uint8_t* src, uint8_t intensity, uint8_t brightnessDivider) {
-	dest[0] = (uint8_t)((src[0] * intensity / 255) / brightnessDivider);
-	dest[1] = (uint8_t)((src[1] * intensity / 255) / brightnessDivider);
-	dest[2] = (uint8_t)((src[2] * intensity / 255) / brightnessDivider);
+inline Colour prepareColour(const Colour& colour, uint8_t intensity, uint8_t brightnessDivider) {
+	return colour.transform([intensity, brightnessDivider](uint8_t channel) { //<
+		return ((channel * intensity / 255) / brightnessDivider);
+	});
 }
 
-void KeyboardLayoutInKey::renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) {
+void KeyboardLayoutInKey::renderPads(Colour image[][kDisplayWidth + kSideBarWidth]) {
 	// Precreate list of all active notes per octave
 	bool scaleActiveNotes[kOctaveSize] = {0};
 	for (uint8_t idx = 0; idx < currentNotesState.count; ++idx) {
@@ -104,23 +105,23 @@ void KeyboardLayoutInKey::renderPads(uint8_t image[][kDisplayWidth + kSideBarWid
 			auto padIndex = padIndexFromCoords(x, y);
 			auto note = noteFromPadIndex(padIndex);
 			int32_t noteWithinScale = (uint16_t)((note + kOctaveSize) - getRootNote()) % kOctaveSize;
-			uint8_t* colourSource = noteColours[padIndex - getState().inKey.scrollOffset];
+			Colour colourSource = noteColours[padIndex - getState().inKey.scrollOffset];
 
 			// Full brightness and color for active root note
 			if (noteWithinScale == 0 && scaleActiveNotes[noteWithinScale]) {
-				colorCopy(image[y][x], colourSource, 255, 1);
+				image[y][x] = prepareColour(colourSource, 255, 1);
 			}
 			// Full color but less brightness for inactive root note
 			else if (noteWithinScale == 0) {
-				colorCopy(image[y][x], colourSource, 255, 2);
+				image[y][x] = prepareColour(colourSource, 255, 2);
 			}
 			// TOned down color but high brightness for active scale note
 			else if (scaleActiveNotes[noteWithinScale]) {
-				colorCopy(image[y][x], colourSource, 127, 3);
+				image[y][x] = prepareColour(colourSource, 127, 3);
 			}
 			// Dimly white for inactive scale notes
 			else {
-				memset(image[y][x], 1, 3);
+				image[y][x] = Colour::monochrome(1);
 			}
 		}
 	}

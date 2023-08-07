@@ -34,7 +34,7 @@ public:
 	virtual void handleHorizontalEncoder(int32_t offset, bool shiftEnabled);
 	virtual void precalculate();
 
-	virtual void renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]);
+	virtual void renderPads(Colour image[][kDisplayWidth + kSideBarWidth]);
 
 	virtual char const* name() { return "Drums"; }
 	virtual bool supportsInstrument() { return false; }
@@ -59,7 +59,7 @@ private:
 		return (position * stepSize) >> 8;
 	}
 
-	uint8_t noteColours[kDisplayHeight * kDisplayWidth][3];
+	Colour noteColours[kDisplayHeight * kDisplayWidth];
 };
 
 }; // namespace deluge::gui::ui::keyboard::layout

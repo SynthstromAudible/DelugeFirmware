@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/colour.h"
 #include "io/midi/learned_midi.h"
 #include "model/note/note_vector.h"
 #include "modulation/params/param_manager.h"
@@ -69,7 +70,7 @@ class NoteRow {
 public:
 	NoteRow(int16_t newY = -32768);
 	~NoteRow();
-	void renderRow(TimelineView* editorScreen, uint8_t[], uint8_t[], uint8_t[], uint8_t* image, uint8_t[], bool,
+	void renderRow(TimelineView* editorScreen, Colour, Colour, Colour, Colour* image, uint8_t[], bool,
 	               uint32_t, bool allowNoteTails, int32_t imageWidth, int32_t xScroll, uint32_t xZoom,
 	               int32_t xStart = 0, int32_t xEnd = kDisplayWidth, bool drawRepeats = false);
 	void deleteNoteByPos(ModelStackWithNoteRow* modelStack, int32_t pos, Action* action);
