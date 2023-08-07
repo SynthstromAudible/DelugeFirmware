@@ -232,6 +232,8 @@ AutomationInstrumentClipView::AutomationInstrumentClipView() {
 
 	//initialize automation view specific variables
 	interpolation = true;
+	interpolationBefore = false;
+	interpolationAfter = false;
 	encoderAction = false;
 	shortcutBlinking = false;
 }
@@ -396,7 +398,7 @@ bool AutomationInstrumentClipView::renderMainPads(uint32_t whichRows, uint8_t im
 				soundEditor.setupShortcutBlink(clip->lastSelectedParamShortcutX, clip->lastSelectedParamShortcutY, 10);
 				soundEditor.blinkShortcut();
 
-				shortcutBlinking == true;
+				shortcutBlinking = true;
 			}
 		}
 		else { //unset previously set blink timers if not editing a parameter
@@ -599,13 +601,13 @@ void AutomationInstrumentClipView::renderRow(ModelStackWithAutoParam* modelStack
 
 		modelStack->autoParam->nodes.searchMultiple(searchTerms, xEndNow - xStartNow);
 
-		int32_t squareStartPos = getPosFromSquare(xStartNow, xScroll, xZoom) - effectiveRowLength * whichRepeat;
+		int32_t thisSquareStartPos = getPosFromSquare(xStartNow, xScroll, xZoom) - effectiveRowLength * whichRepeat;
 
 		int32_t thisSquareEndPos = getPosFromSquare(xStartNow + 1, xScroll, xZoom) - effectiveRowLength * whichRepeat;
 
 		for (int32_t xDisplay = xStartNow; xDisplay < xEndNow; xDisplay++) {
 			if (xDisplay != xStartNow) {
-				squareStartPos = squareEndPos[xDisplay - xStartNow - 1];
+				thisSquareStartPos = squareEndPos[xDisplay - xStartNow - 1];
 				thisSquareEndPos = squareEndPos[xDisplay - xStartNow];
 			}
 			int32_t i = searchTerms[xDisplay - xStartNow];
@@ -614,8 +616,8 @@ void AutomationInstrumentClipView::renderRow(ModelStackWithAutoParam* modelStack
 
 			uint8_t* pixel = image + xDisplay * 3;
 
-			uint32_t squareStart = getPosFromSquare(xDisplay);
-			int32_t currentValue = modelStack->autoParam->getValueAtPos(squareStart, modelStack);
+			//uint32_t squareStart = getPosFromSquare(thisSquareStartPos);
+			int32_t currentValue = modelStack->autoParam->getValueAtPos(thisSquareStartPos, modelStack);
 			int32_t knobPos = modelStack->paramCollection->paramValueToKnobPos(currentValue, modelStack);
 
 			knobPos = knobPos + 64;
@@ -623,20 +625,42 @@ void AutomationInstrumentClipView::renderRow(ModelStackWithAutoParam* modelStack
 			if (knobPos != 0 && knobPos >= yDisplay * 18) {
 
 				// If Node starts somewhere within square, draw the blur colour
-				if (node && node->pos > squareStartPos) {
+				if (node && node->pos > thisSquareStartPos) {
+
 					pixel[0] = rowBlurColour[0];
 					pixel[1] = rowBlurColour[1];
 					pixel[2] = rowBlurColour[2];
 					occupancyMask[xDisplay] = 64;
 				}
 
-				// Or if Note starts exactly on square...
-				else if (node && node->pos == squareStartPos) {
+				// Or if Node starts exactly on square...
+				else if (node && node->pos == thisSquareStartPos) {
 					pixel[0] = rowColour[0];
 					pixel[1] = rowColour[1];
 					pixel[2] = rowColour[2];
 					occupancyMask[xDisplay] = 64;
 				}
+
+				// Draw wrapped notes
+				//	else if (!drawRepeats || whichRepeat) {
+				//		bool wrapping = (i == 0); // Subtracting 1 to do "LESS"
+				//	if (wrapping) {
+				//		int32_t lastNodeIndex = modelStack->autoParam->nodes.getNumElements() - 1;
+				//		node = modelStack->autoParam->nodes.getElement(lastNodeIndex);
+				//	}
+				//		int32_t nodeEnd = effectiveRowLength - 1;
+				//		if (wrapping) {
+				//			nodeEnd -= effectiveRowLength;
+				//		}
+				//		if (nodeEnd > thisSquareStartPos && allowNoteTails) {
+				//			pixel[0] = rowTailColour[0];
+				//			pixel[1] = rowTailColour[1];
+				//			pixel[2] = rowTailColour[2];
+				//			if (occupancyMask) {
+				//				occupancyMask[xDisplay] = 64;
+				//			}
+				//		}
+				//	}
 
 				else if (node && node->pos < thisSquareEndPos) {
 					pixel[0] = rowTailColour[0];
@@ -1137,7 +1161,7 @@ possiblyAuditionPad:
 
 void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDisplay, uint32_t xZoom) {
 
-	uint32_t squareStart = getPosFromSquare(xDisplay);
+	//uint32_t squareStart = getPosFromSquare(xDisplay);
 
 	InstrumentClip* clip = getCurrentClip();
 	Instrument* instrument = (Instrument*)clip->output;
@@ -2168,6 +2192,9 @@ void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int
 
 							int32_t newKnobPos = calculateKnobPosForModEncoderTurn(knobPos, offset);
 
+							automationInstrumentClipView.interpolationBefore = false;
+							automationInstrumentClipView.interpolationAfter = false;
+
 							setParameterAutomationValue(modelStackWithParam, newKnobPos, squareStart,
 							                            instrumentClipView.editPadPresses[i].xDisplay, effectiveLength);
 						}
@@ -2204,6 +2231,9 @@ void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int
 
 					int32_t newValue =
 					    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
+
+					automationInstrumentClipView.interpolationBefore = false;
+					automationInstrumentClipView.interpolationAfter = false;
 
 					modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam,
 					                                                          view.modPos, view.modLength);
@@ -2662,7 +2692,7 @@ void AutomationInstrumentClipView::setParameterAutomationValue(ModelStackWithAut
 
 	modelStack->getTimelineCounter()->instrumentBeenEdited();
 
-	//displayParameterValue(knobPos + 64);
+	displayParameterValue(knobPos + 64);
 }
 
 void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip,
@@ -2721,7 +2751,10 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 
 			if (squareStart < effectiveLength) {
 
-				numericDriver.displayPopup(HAVE_OLED ? "Single Pad" : "SP");
+				//numericDriver.displayPopup(HAVE_OLED ? "Single Pad" : "SP");
+
+				automationInstrumentClipView.interpolationBefore = false;
+				automationInstrumentClipView.interpolationAfter = false;
 
 				int32_t newKnobPos = calculateKnobPosForSinglePadPress(yDisplay);
 				setParameterAutomationValue(modelStackWithParam, newKnobPos, squareStart, xDisplay, effectiveLength);
@@ -2787,11 +2820,31 @@ void AutomationInstrumentClipView::handleMultiPadPress(ModelStackWithTimelineCou
 
 				if (squareStart < effectiveLength) {
 
-					numericDriver.displayPopup(HAVE_OLED ? "Multi Pad" : "SP");
+					if (automationInstrumentClipView.interpolation) {
+
+						automationInstrumentClipView.interpolationBefore = true;
+						automationInstrumentClipView.interpolationAfter = true;
+
+						if (x == firstPadX) {
+							automationInstrumentClipView.interpolationBefore = false;
+						}
+						else if (x == secondPadX) {
+							automationInstrumentClipView.interpolationAfter = false;
+						}
+					}
+					else {
+						automationInstrumentClipView.interpolationBefore = false;
+						automationInstrumentClipView.interpolationAfter = false;
+					}
+
+					//numericDriver.displayPopup(HAVE_OLED ? "Multi Pad" : "SP");
 
 					int32_t newKnobPos =
 					    calculateKnobPosForMultiPadPress(x, firstPadX, firstPadValue, secondPadX, secondPadValue);
 					setParameterAutomationValue(modelStackWithParam, newKnobPos, squareStart, x, effectiveLength);
+
+					automationInstrumentClipView.interpolationBefore = false;
+					automationInstrumentClipView.interpolationAfter = false;
 				}
 			}
 		}

@@ -109,6 +109,8 @@ public:
 	}
 
 	bool interpolation;
+	bool interpolationBefore;
+	bool interpolationAfter;
 
 private:
 	//Automation View Render Functions
