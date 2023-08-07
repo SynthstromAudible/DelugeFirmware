@@ -1497,9 +1497,6 @@ skipUnisonPart : {}
 	if (!renderingDirectlyIntoSoundBuffer) {
 		if (didStereoTempBuffer) {
 			int32_t* const oscBufferEnd = oscBuffer + (numSamples << 1);
-			//copy config over to the right stereo filter
-			//todo - have the filterset class handle stereo filtering
-			//filterSets[1].copy_config(&filterSets[0]);
 			// Filters
 			filterSets[0].renderLongStereo(oscBuffer, oscBufferEnd);
 
