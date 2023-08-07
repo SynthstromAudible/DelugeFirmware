@@ -110,7 +110,7 @@ protected:
 	}
 
 	inline Colour getNoteColour(uint8_t note) {
-		int32_t colourOffset = 0;
+		int8_t colourOffset = 0;
 
 		// Get colour offset for kit rows
 		if (currentInstrument()->type == InstrumentType::KIT) {

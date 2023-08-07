@@ -816,8 +816,8 @@ resetSettings:
 
 		AudioEngine::routineWithClusterLoading(true); // -----------------------------------
 
-		audioFileManager
-		    .slowRoutine(); // Only actually needs calling a couple of times per second, but we can't put it in uiTimerManager cos that gets called in card routine
+		// Only actually needs calling a couple of times per second, but we can't put it in uiTimerManager cos that gets called in card routine
+		audioFileManager.slowRoutine();
 		AudioEngine::slowRoutine();
 
 		audioRecorder.slowRoutine();

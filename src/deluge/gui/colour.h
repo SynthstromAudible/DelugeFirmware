@@ -97,7 +97,7 @@ public:
 			return r;
 		case 1:
 			return g;
-		case 3:
+		case 2:
 			return b;
 		}
 	}

@@ -223,14 +223,15 @@ void clearAllPadsWithoutSending() {
 }
 
 void clearMainPadsWithoutSending() {
-	for (int32_t y = 0; y < kDisplayHeight; y++) {
-		memset(image[y], 0, kDisplayWidth * 3);
+	for (auto & y : image) {
+		std::fill(&y[0], &y[kDisplayWidth], colours::black);
 	}
 }
 
 void clearSideBar() {
-	for (int32_t y = 0; y < kDisplayHeight; y++) {
-		memset(&image[y][kDisplayWidth], 0, 6);
+	for (auto & y : image) {
+		y[kDisplayWidth] = colours::black;
+		y[kDisplayWidth + 1] = colours::black;
 	}
 
 	sendOutSidebarColours();
@@ -244,16 +245,13 @@ void sortLedsForCol(int32_t x) {
 
 	std::array<Colour, kDisplayHeight * 2> doubleColumn{};
 	size_t total = 0;
-	for (int32_t y = 0; y < kDisplayHeight; y++) {
+	for (size_t y = 0; y < kDisplayHeight; y++) {
 		doubleColumn[total++] = prepareColour(x, y, image[y][x]);
 	}
-	for (int32_t y = 0; y < kDisplayHeight; y++, total++) {
+	for (size_t y = 0; y < kDisplayHeight; y++) {
 		doubleColumn[total++] = prepareColour(x + 1, y, image[y][x + 1]);
 	}
 	PIC::setColorForTwoColumns((x >> 1), doubleColumn);
-}
-
-inline void sendRGBForOneCol(int32_t x) {
 }
 
 const Colour flashColours[3] = {

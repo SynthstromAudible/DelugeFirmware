@@ -79,6 +79,7 @@
 #include "util/functions.h"
 #include <limits>
 #include <new>
+#include <stdint.h>
 #include <string.h>
 
 #if HAVE_OLED
@@ -2407,7 +2408,7 @@ void InstrumentClipView::recalculateColours() {
 }
 
 void InstrumentClipView::recalculateColour(uint8_t yDisplay) {
-	int32_t colourOffset = 0;
+	int8_t colourOffset = 0;
 	NoteRow* noteRow = getCurrentClip()->getNoteRowOnScreen(yDisplay, currentSong);
 	if (noteRow) {
 		colourOffset = noteRow->getColourOffset(getCurrentClip());
@@ -5028,7 +5029,7 @@ void InstrumentClipView::performActualRender(uint32_t whichRows, Colour* image,
 
 			// If row doesn't have a NoteRow, wipe it empty
 			if (!noteRow) {
-				memset(image, 0, renderWidth * 3);
+				std::fill(image, &image[renderWidth], colours::black);
 				if (occupancyMask) {
 					memset(occupancyMaskOfRow, 0, renderWidth);
 				}
@@ -5050,7 +5051,7 @@ void InstrumentClipView::performActualRender(uint32_t whichRows, Colour* image,
 			}
 		}
 
-		image += imageWidth * 3;
+		image += imageWidth;
 	}
 }
 

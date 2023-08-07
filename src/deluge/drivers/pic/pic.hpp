@@ -67,7 +67,7 @@ public:
 
 	};
 
-	static void setColorForTwoColumns(size_t idx, const std::array<Colour, 16>& colours) {
+	static void setColorForTwoColumns(size_t idx, const std::array<Colour, kDisplayHeight * 2>& colours) {
 		send(util::to_underlying(Message::SET_COLOR_FOR_TWO_COLUMNS) + idx);
 		for (const Colour& colour : colours) {
 			send(colour);

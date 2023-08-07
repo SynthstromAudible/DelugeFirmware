@@ -2,7 +2,7 @@
 #include "util/functions.h"
 
  Colour Colour::fromHue(int32_t hue){
-	Colour rgb;
+	Colour rgb{};
 	hue = (uint16_t)(hue + 1920) % 192;
 
 	for (int32_t c = 0; c < 3; c++) {
@@ -20,7 +20,7 @@
 		}
 
 		if (channelDarkness < 64) {
-			rgb[c] = ((uint32_t)getSine(((channelDarkness << 3) + 256) & 1023, 10) + 2147483648u) >> 24;
+			rgb[c] = ((uint32_t)getSine(((channelDarkness << 3) + 256) & 1023, 10) + 0x80000000) >> 24;
 		}
 		else {
 			rgb[c] = 0;
