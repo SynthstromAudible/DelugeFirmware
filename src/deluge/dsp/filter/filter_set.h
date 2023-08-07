@@ -45,29 +45,32 @@ public:
 		if (HPFOn) {
 			renderHPFLong(startSample, endSample, lpfMode, sampleIncrememt);
 		}
-		else
+		else {
 			hpfOnLastTime = false;
-
+		}
 		// Do LPF, if it's on
 		if (LPFOn) {
 			renderLPFLong(startSample, endSample, lpfMode, sampleIncrememt, extraSaturation, extraSaturation >> 1);
 		}
-		else
+		else {
 			lastLPFMode = LPFMode::OFF;
+		}
 	}
 	inline void renderLongStereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation = 1) {
 		// Do HPF, if it's on
 		if (HPFOn) {
 			renderHPFLongStereo(startSample, endSample, extraSaturation);
 		}
-		else
+		else {
 			hpfOnLastTime = false;
+		}
 		// Do LPF, if it's on
 		if (LPFOn) {
 			renderLPFLongStereo(startSample, endSample, extraSaturation);
 		}
-		else
+		else {
 			lastLPFMode = LPFMode::OFF;
+		}
 	}
 
 	//used to check whether the filter is used at all
