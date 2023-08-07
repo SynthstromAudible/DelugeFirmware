@@ -4332,6 +4332,134 @@ bool Song::canOldOutputBeReplaced(Clip* clip, Availability* availabilityRequirem
 	}
 }
 
+Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset) {
+	if (output->type == InstrumentType::AUDIO) {
+		return output;
+	}
+
+	actionLogger.deleteAllLogs();
+
+	Instrument* oldInstrument = (Instrument*)output;
+
+	InstrumentType instrumentType = oldInstrument->type;
+
+	currentSong->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E063", "H063");
+
+	// If we're in MIDI or CV mode, easy - just change the channel
+	if (instrumentType == InstrumentType::MIDI_OUT || instrumentType == InstrumentType::CV) {
+
+		NonAudioInstrument* oldNonAudioInstrument = (NonAudioInstrument*)oldInstrument;
+
+		int32_t oldChannel = oldNonAudioInstrument->channel;
+		int32_t newChannel = oldNonAudioInstrument->channel;
+
+		int32_t oldChannelSuffix, newChannelSuffix;
+		if (instrumentType == InstrumentType::MIDI_OUT) {
+			oldChannelSuffix = ((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix;
+			newChannelSuffix = ((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix;
+		}
+
+		// CV
+		if (instrumentType == InstrumentType::CV) {
+			do {
+				newChannel = (newChannel + offset) & (NUM_CV_CHANNELS - 1);
+
+				if (newChannel == oldChannel) {
+cantDoIt:
+					numericDriver.displayPopup(HAVE_OLED ? "No free channel slots available in song" : "CANT");
+					return output;
+				}
+
+			} while (currentSong->getInstrumentFromPresetSlot(instrumentType, newChannel, -1, NULL, NULL, false));
+		}
+
+		// Or MIDI
+		else {
+
+			oldNonAudioInstrument->channel = -1; // Get it out of the way
+
+			do {
+				newChannelSuffix += offset;
+
+				// Turned left
+				if (offset == -1) {
+					if (newChannelSuffix < -1) {
+						newChannel = (newChannel + offset) & 15;
+						newChannelSuffix = currentSong->getMaxMIDIChannelSuffix(newChannel);
+					}
+				}
+
+				// Turned right
+				else {
+					if (newChannelSuffix >= 26 || newChannelSuffix > currentSong->getMaxMIDIChannelSuffix(newChannel)) {
+						newChannel = (newChannel + offset) & 15;
+						newChannelSuffix = -1;
+					}
+				}
+
+				if (newChannel == oldChannel && newChannelSuffix == oldChannelSuffix) {
+					oldNonAudioInstrument->channel = oldChannel; // Put it back
+					goto cantDoIt;
+				}
+
+			} while (currentSong->getInstrumentFromPresetSlot(instrumentType, newChannel, newChannelSuffix, NULL, NULL,
+			                                                  false));
+
+			oldNonAudioInstrument->channel = oldChannel; // Put it back, before switching notes off etc
+		}
+
+		if (oldNonAudioInstrument->activeClip && (playbackHandler.playbackState & PLAYBACK_CLOCK_EITHER_ACTIVE)) {
+			oldNonAudioInstrument->activeClip->expectNoFurtherTicks(currentSong);
+		}
+
+		// Because these are just MIDI / CV instruments and we're changing them for all Clips, we can just change the existing Instrument object!
+		oldNonAudioInstrument->channel = newChannel;
+		if (instrumentType == InstrumentType::MIDI_OUT) {
+			((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix = newChannelSuffix;
+		}
+
+		view.displayOutputName(oldNonAudioInstrument);
+#if HAVE_OLED
+		OLED::sendMainImage();
+#endif
+	}
+
+	// Or if we're on a Kit or Synth...
+	else {
+		PresetNavigationResult results =
+		    loadInstrumentPresetUI.doPresetNavigation(offset, oldInstrument, Availability::INSTRUMENT_UNUSED, true);
+		if (results.error == NO_ERROR_BUT_GET_OUT) {
+removeWorkingAnimationAndGetOut:
+#if HAVE_OLED
+			OLED::removeWorkingAnimation();
+#endif
+			return output;
+		}
+		else if (results.error) {
+			numericDriver.displayError(results.error);
+			goto removeWorkingAnimationAndGetOut;
+		}
+
+		Instrument* newInstrument = results.fileItem->instrument;
+		Browser::emptyFileItems();
+
+		currentSong->replaceInstrument(oldInstrument, newInstrument);
+
+		oldInstrument = newInstrument;
+#if HAVE_OLED
+		OLED::removeWorkingAnimation();
+#else
+		numericDriver.removeTopLayer();
+#endif
+	}
+
+	currentSong->instrumentSwapped(oldInstrument);
+
+	currentSong->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E064", "H064");
+
+	return oldInstrument;
+}
+
 void Song::instrumentSwapped(Instrument* newInstrument) {
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];

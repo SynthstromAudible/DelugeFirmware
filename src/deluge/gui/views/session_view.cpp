@@ -540,7 +540,7 @@ changeInstrumentType:
 							loadInstrumentPresetUI.instrumentClipToLoadFor = NULL;
 						}
 						else {
-						loadInstrumentPresetUI.instrumentClipToLoadFor = instrumentClip;
+							loadInstrumentPresetUI.instrumentClipToLoadFor = instrumentClip;
 						}
 						openUI(&loadInstrumentPresetUI);
 					}
@@ -555,21 +555,21 @@ doActualSimpleChange:
 								    currentSong->changeInstrumentType(instrument, newInstrumentType);
 								if (newInstrument) {
 									view.displayOutputName(newInstrument);
-								#if HAVE_OLED
+#if HAVE_OLED
 									OLED::sendMainImage();
-								#endif
+#endif
 									view.setActiveModControllableTimelineCounter(newInstrument->activeClip);
 								}
 							}
 						}
 						else {
-						char modelStackMemory[MODEL_STACK_MAX_SIZE];
-						ModelStackWithTimelineCounter* modelStack =
-						    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, instrumentClip);
+							char modelStackMemory[MODEL_STACK_MAX_SIZE];
+							ModelStackWithTimelineCounter* modelStack =
+							    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, instrumentClip);
 
-						view.changeInstrumentType(newInstrumentType, modelStack, true);
+							view.changeInstrumentType(newInstrumentType, modelStack, true);
+						}
 					}
-				}
 				}
 
 				requestRendering(this, 1 << selectedClipYDisplay, 0);
@@ -1204,7 +1204,17 @@ void SessionView::selectEncoderAction(int8_t offset) {
 			ModelStackWithTimelineCounter* modelStack =
 			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
 
-			view.navigateThroughPresetsForInstrumentClip(offset, modelStack, true);
+			if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+				Output* oldOutput = clip->output;
+				Output* newOutput = currentSong->navigateThroughPresetsForInstrument(oldOutput, offset);
+				if (oldOutput != newOutput) {
+					view.setActiveModControllableTimelineCounter(newOutput->activeClip);
+					requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
+				}
+			}
+			else {
+				view.navigateThroughPresetsForInstrumentClip(offset, modelStack, true);
+			}
 		}
 		else {
 			// This moves clips around uncomfortably and we have a track for every Audio anyway

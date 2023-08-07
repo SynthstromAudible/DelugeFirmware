@@ -282,6 +282,7 @@ public:
 	int32_t getLastProcessedPos();
 	void setParamsInAutomationMode(bool newState);
 	bool canOldOutputBeReplaced(Clip* clip, Availability* availabilityRequirement = NULL);
+	Output* navigateThroughPresetsForInstrument(Output* output, int32_t offset);
 	void instrumentSwapped(Instrument* newInstrument);
 	Instrument* changeInstrumentType(Instrument* oldInstrument, InstrumentType newInstrumentType);
 	AudioOutput* getFirstAudioOutput();
