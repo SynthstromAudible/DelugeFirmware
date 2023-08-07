@@ -433,7 +433,8 @@ void AutomationInstrumentClipView::performActualRender(uint32_t whichRows, uint8
 
 		if (instrument->type != InstrumentType::CV
 		    && !(instrument->type == InstrumentType::KIT && !instrumentClipView.getAffectEntire()
-		         && !((Kit*)instrument)->selectedDrum)) {
+		         && !((Kit*)instrument)->selectedDrum)
+		    && !(instrument->type == InstrumentType::KIT && instrumentClipView.getAffectEntire())) {
 
 			if (clip->lastSelectedParamID != 255) { //if parameter has been selected, show Automation Editor
 
@@ -2577,7 +2578,7 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
 				}
 			}
 		}
-		else {
+		/*else {
 			//	int32_t noteRowIndex = 0;
 
 			Drum* drum = ((Kit*)instrument)->selectedDrum;
@@ -2600,9 +2601,9 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
 						                                                              &paramSet->params[paramID]);
 					}
 				}
-			}
-			//	}
-		}
+			}*/
+		//	}
+		//	}
 
 		// You must first be sure that noteRow is set, and has a ParamManager
 		/*	ModelStackWithThreeMainThings* ModelStackWithNoteRow::addOtherTwoThingsAutomaticallyGivenNoteRow() const {
