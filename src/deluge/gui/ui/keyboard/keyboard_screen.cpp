@@ -713,8 +713,8 @@ void KeyboardScreen::unscrolledPadAudition(int32_t velocity, int32_t note, bool 
 	// but this refactor needs to wait for another day.
 	// Until then we set the scroll to 0 during the auditioning
 	int32_t yScrollBackup = getCurrentClip()->yScroll;
-	getCurrentClip()->yScroll = 0;
-	instrumentClipView.auditionPadAction(velocity, note, shiftButtonDown);
+	getCurrentClip()->yScroll = trunc(note / 8) * 8;
+	instrumentClipView.auditionPadAction(velocity, note % 8, shiftButtonDown);
 	getCurrentClip()->yScroll = yScrollBackup;
 }
 
