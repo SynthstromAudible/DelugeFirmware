@@ -35,11 +35,11 @@ FilterSet::FilterSet() {
 void FilterSet::renderHPFLong(q31_t* startSample, q31_t* endSample, LPFMode lpfMode, int32_t sampleIncrement,
                               int32_t extraSaturation) {
 
-	hpladder.filter_mono(startSample, endSample, sampleIncrement, extraSaturation);
+	hpladder.filterMono(startSample, endSample, sampleIncrement, extraSaturation);
 }
 void FilterSet::renderHPFLongStereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation) {
 
-	hpladder.filter_stereo(startSample, endSample, extraSaturation);
+	hpladder.filterStereo(startSample, endSample, extraSaturation);
 }
 
 void FilterSet::renderLPFLong(q31_t* startSample, q31_t* endSample, LPFMode lpfMode, int32_t sampleIncrement,
@@ -49,13 +49,13 @@ void FilterSet::renderLPFLong(q31_t* startSample, q31_t* endSample, LPFMode lpfM
 		if (lastLPFMode != LPFMode::SVF) {
 			lpsvf.reset();
 		}
-		lpsvf.filter_mono(startSample, endSample, sampleIncrement);
+		lpsvf.filterMono(startSample, endSample, sampleIncrement);
 	}
 	else {
 		if (lastLPFMode > kLastLadder) {
 			lpladder.reset();
 		}
-		lpladder.filter_mono(startSample, endSample, sampleIncrement, extraSaturation);
+		lpladder.filterMono(startSample, endSample, sampleIncrement, extraSaturation);
 	}
 	lastLPFMode = lpfMode;
 }
@@ -66,21 +66,21 @@ void FilterSet::renderLPFLongStereo(q31_t* startSample, q31_t* endSample, int32_
 		if (lastLPFMode != LPFMode::SVF) {
 			lpsvf.reset();
 		}
-		lpsvf.filter_stereo(startSample, endSample, extraSaturation);
+		lpsvf.filterStereo(startSample, endSample, extraSaturation);
 	}
 	else {
 		if (lastLPFMode > kLastLadder) {
 			lpladder.reset();
 		}
-		lpladder.filter_stereo(startSample, endSample, extraSaturation);
+		lpladder.filterStereo(startSample, endSample, extraSaturation);
 	}
 
 	lastLPFMode = lpfMode;
 }
 
-int32_t FilterSet::set_config(int32_t lpfFrequency, int32_t lpfResonance, bool doLPF, int32_t hpfFrequency,
-                              int32_t hpfResonance, bool doHPF, LPFMode lpfmode, int32_t filterGain,
-                              bool adjustVolumeForHPFResonance, int32_t* overallOscAmplitude) {
+int32_t FilterSet::setConfig(int32_t lpfFrequency, int32_t lpfResonance, bool doLPF, int32_t hpfFrequency,
+                             int32_t hpfResonance, bool doHPF, LPFMode lpfmode, int32_t filterGain,
+                             bool adjustVolumeForHPFResonance, int32_t* overallOscAmplitude) {
 	LPFOn = doLPF;
 	HPFOn = doHPF;
 	lpfMode = lpfmode;

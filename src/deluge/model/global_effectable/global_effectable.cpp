@@ -408,8 +408,8 @@ void GlobalEffectable::setupFilterSetConfig(int32_t* postFXVolume, ParamManager*
 	              || unpatchedParams->getValue(Param::Unpatched::GlobalEffectable::LPF_FREQ) < 2147483602);
 	bool doHPF = unpatchedParams->getValue(Param::Unpatched::GlobalEffectable::HPF_FREQ) != -2147483648;
 
-	*postFXVolume = filterSets[0].set_config(lpfFrequency, lpfResonance, doLPF, hpfFrequency, hpfResonance, doHPF,
-	                                         lpfMode, *postFXVolume, false, NULL);
+	*postFXVolume = filterSets[0].setConfig(lpfFrequency, lpfResonance, doLPF, hpfFrequency, hpfResonance, doHPF,
+	                                        lpfMode, *postFXVolume, false, NULL);
 	//filterSets[1].copy_config(&filterSets[0]);
 }
 

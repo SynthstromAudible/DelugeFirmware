@@ -54,7 +54,7 @@ const int16_t resonanceLimitTable[] = {
     17000, 17000, 17000, 17000, 17000, 17000, 17000, 17000,
 };
 
-q31_t LpLadderFilter::set_config(q31_t lpfFrequency, q31_t lpfResonance, LPFMode lpfmode, q31_t filterGain) {
+q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, LPFMode lpfmode, q31_t filterGain) {
 	lpfMode = lpfmode;
 	// Hot transistor ladder - needs oversampling and stuff
 	if (lpfMode == LPFMode::TRANSISTOR_24DB_DRIVE) {
@@ -179,7 +179,7 @@ q31_t LpLadderFilter::set_config(q31_t lpfFrequency, q31_t lpfResonance, LPFMode
 	return filterGain;
 }
 
-void LpLadderFilter::do_filter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement, int32_t extraSaturation) {
+void LpLadderFilter::doFilter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement, int32_t extraSaturation) {
 
 	// Half ladder
 	if (lpfMode == LPFMode::TRANSISTOR_12DB) {
@@ -255,7 +255,7 @@ void LpLadderFilter::do_filter(q31_t* startSample, q31_t* endSample, int32_t sam
 		}
 	}
 }
-void LpLadderFilter::do_filter_stereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation) {
+void LpLadderFilter::doFilterStereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation) {
 
 	// Half ladder
 	if (lpfMode == LPFMode::TRANSISTOR_12DB) {

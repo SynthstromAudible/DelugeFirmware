@@ -19,7 +19,7 @@
 #include "util/functions.h"
 #include <cstdint>
 namespace deluge::dsp::filter {
-void SVFilter::do_filter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrememt, int32_t extraSaturation) {
+void SVFilter::doFilter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrememt, int32_t extraSaturation) {
 	q31_t* currentSample = startSample;
 	do {
 		q31_t outs = doSVF(*currentSample, &l);
@@ -28,7 +28,7 @@ void SVFilter::do_filter(q31_t* startSample, q31_t* endSample, int32_t sampleInc
 		currentSample += sampleIncrememt;
 	} while (currentSample < endSample);
 }
-void SVFilter::do_filter_stereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation) {
+void SVFilter::doFilterStereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation) {
 	q31_t* currentSample = startSample;
 	do {
 		q31_t outs = doSVF(*currentSample, &l);
@@ -40,7 +40,7 @@ void SVFilter::do_filter_stereo(q31_t* startSample, q31_t* endSample, int32_t ex
 	} while (currentSample < endSample);
 }
 
-q31_t SVFilter::set_config(q31_t lpfFrequency, q31_t lpfResonance, LPFMode lpfMode, q31_t filterGain) {
+q31_t SVFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, LPFMode lpfMode, q31_t filterGain) {
 	int32_t tannedFrequency = instantTan(lshiftAndSaturate<5>(lpfFrequency));
 	// Between ~0.1 and 1. 1 represented by 2147483648
 	int32_t divideBy1PlusTannedFrequency = (int64_t)2147483648u * 134217728 / (134217728 + (tannedFrequency >> 1));

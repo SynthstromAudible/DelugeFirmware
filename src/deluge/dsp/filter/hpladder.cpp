@@ -22,7 +22,7 @@
 #include "util/functions.h"
 #include <cstdint>
 namespace deluge::dsp::filter {
-q31_t HpLadderFilter::set_config(q31_t hpfFrequency, q31_t hpfResonance, LPFMode lpfMode, q31_t filterGain) {
+q31_t HpLadderFilter::setConfig(q31_t hpfFrequency, q31_t hpfResonance, LPFMode lpfMode, q31_t filterGain) {
 	int32_t extraFeedback = 1200000000;
 
 	int32_t tannedFrequency =
@@ -75,7 +75,7 @@ q31_t HpLadderFilter::set_config(q31_t hpfFrequency, q31_t hpfResonance, LPFMode
 
 	return filterGain;
 }
-void HpLadderFilter::do_filter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement, int32_t extraSaturation) {
+void HpLadderFilter::doFilter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement, int32_t extraSaturation) {
 	q31_t* currentSample = startSample;
 	do {
 		*currentSample = doHPF(*currentSample, extraSaturation, &l);
@@ -83,7 +83,7 @@ void HpLadderFilter::do_filter(q31_t* startSample, q31_t* endSample, int32_t sam
 	} while (currentSample < endSample);
 }
 //filter an interleaved stereo buffer
-void HpLadderFilter::do_filter_stereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation) {
+void HpLadderFilter::doFilterStereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation) {
 	q31_t* currentSample = startSample;
 	do {
 		*currentSample = doHPF(*currentSample, extraSaturation, &l);

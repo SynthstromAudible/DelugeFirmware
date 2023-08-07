@@ -926,7 +926,7 @@ skipAutoRelease : {}
 
 	// Prepare the filters
 	// Checking if filters should run now happens within the filterset
-	filterGain = filterSets[0].set_config(
+	filterGain = filterSets[0].setConfig(
 	    paramFinalValues[Param::Local::LPF_FREQ], paramFinalValues[Param::Local::LPF_RESONANCE], doLPF,
 	    paramFinalValues[Param::Local::HPF_FREQ],
 	    (paramFinalValues[Param::Local::HPF_RESONANCE]), // >> storageManager.devVarA) << storageManager.devVarA,

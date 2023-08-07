@@ -39,10 +39,10 @@ class HpLadderFilter : public Filter<HpLadderFilter> {
 public:
 	HpLadderFilter() = default;
 	//returns a compensatory gain value
-	q31_t set_config(q31_t hpfFrequency, q31_t hpfResonance, LPFMode lpfMode, q31_t filterGain);
-	void do_filter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrememt, int32_t extraSaturation);
-	void do_filter_stereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation);
-	void reset_filter() {
+	q31_t setConfig(q31_t hpfFrequency, q31_t hpfResonance, LPFMode lpfMode, q31_t filterGain);
+	void doFilter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrememt, int32_t extraSaturation);
+	void doFilterStereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation);
+	void resetFilter() {
 		l.reset();
 		r.reset();
 	}
