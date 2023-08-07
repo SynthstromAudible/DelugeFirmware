@@ -518,6 +518,8 @@ changeInstrumentType:
 				else {
 
 					InstrumentClip* instrumentClip = (InstrumentClip*)clip;
+					Instrument* instrument = (Instrument*)instrumentClip->output;
+
 					// If load button held, go into LoadInstrumentPresetUI
 					if (Buttons::isButtonPressed(hid::button::LOAD)) {
 
@@ -526,8 +528,6 @@ changeInstrumentType:
 							goto doActualSimpleChange;
 						}
 
-						Instrument* instrument = (Instrument*)instrumentClip->output;
-
 						actionLogger.deleteAllLogs();
 
 						currentUIMode = UI_MODE_NONE;
@@ -535,19 +535,41 @@ changeInstrumentType:
 
 						Browser::instrumentTypeToLoad = newInstrumentType;
 						loadInstrumentPresetUI.instrumentToReplace = instrument;
+						if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+							// Not supplying an instrument will make it replace the output for all clips
+							loadInstrumentPresetUI.instrumentClipToLoadFor = NULL;
+						}
+						else {
 						loadInstrumentPresetUI.instrumentClipToLoadFor = instrumentClip;
+						}
 						openUI(&loadInstrumentPresetUI);
 					}
 
 					// Otherwise, just change the instrument type
 					else {
 doActualSimpleChange:
+						if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+							// Mostly taken from ArrangerView::changeInstrumentType
+							if (instrument->type != newInstrumentType) {
+								Instrument* newInstrument =
+								    currentSong->changeInstrumentType(instrument, newInstrumentType);
+								if (newInstrument) {
+									view.displayOutputName(newInstrument);
+								#if HAVE_OLED
+									OLED::sendMainImage();
+								#endif
+									view.setActiveModControllableTimelineCounter(newInstrument->activeClip);
+								}
+							}
+						}
+						else {
 						char modelStackMemory[MODEL_STACK_MAX_SIZE];
 						ModelStackWithTimelineCounter* modelStack =
 						    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, instrumentClip);
 
 						view.changeInstrumentType(newInstrumentType, modelStack, true);
 					}
+				}
 				}
 
 				requestRendering(this, 1 << selectedClipYDisplay, 0);
