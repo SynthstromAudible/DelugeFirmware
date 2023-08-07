@@ -52,7 +52,7 @@ public:
 	Envelope envelopes[kNumEnvelopes];
 	LFO lfo;
 
-	dsp::filter::FilterSet filterSets[2];
+	dsp::filter::FilterSet filterSet;
 	int32_t inputCharacteristics[2]; // Contains what used to be called noteCodeBeforeArpeggiation, and fromMIDIChannel
 	int32_t noteCodeAfterArpeggiation;
 

@@ -166,8 +166,7 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArp
 		overallOscAmplitudeLastTime = 0;
 		doneFirstRender = false;
 
-		filterSets[0].reset();
-		filterSets[1].reset();
+		filterSet.reset();
 
 		lastSaturationTanHWorkingValue[0] = 2147483648;
 		lastSaturationTanHWorkingValue[1] = 2147483648;
@@ -926,7 +925,7 @@ skipAutoRelease : {}
 
 	// Prepare the filters
 	// Checking if filters should run now happens within the filterset
-	filterGain = filterSets[0].setConfig(
+	filterGain = filterSet.setConfig(
 	    paramFinalValues[Param::Local::LPF_FREQ], paramFinalValues[Param::Local::LPF_RESONANCE], doLPF,
 	    paramFinalValues[Param::Local::HPF_FREQ],
 	    (paramFinalValues[Param::Local::HPF_RESONANCE]), // >> storageManager.devVarA) << storageManager.devVarA,
@@ -1052,7 +1051,7 @@ skipAutoRelease : {}
 	               RINGMOD // We could make this one work - but currently the ringmod rendering code doesn't really have
 	    // proper amplitude control - e.g. no increments - built in, so we rely on the normal final
 	    // buffer-copying bit for that
-	    || filterSets[0].isHPFOn() || filterSets[0].isLPFOn()
+	    || filterSet.isHPFOn() || filterSet.isLPFOn()
 	    || (paramFinalValues[Param::Local::NOISE_VOLUME] != 0
 	        && synthMode != SynthMode::FM) // Not essential, but makes life easier
 	    || paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(Param::Local::PAN)) {
@@ -1249,7 +1248,7 @@ decidedWhichBufferRenderingInto:
 		if (unisonPartBecameInactive && areAllUnisonPartsInactive(modelStack)) {
 
 			// If no filters, we can just unassign
-			if (!filterSets[0].isHPFOn() && !filterSets[0].isLPFOn()) {
+			if (!filterSet.isHPFOn() && !filterSet.isLPFOn()) {
 				unassignVoiceAfter = true;
 			}
 
@@ -1498,7 +1497,7 @@ skipUnisonPart : {}
 		if (didStereoTempBuffer) {
 			int32_t* const oscBufferEnd = oscBuffer + (numSamples << 1);
 			// Filters
-			filterSets[0].renderLongStereo(oscBuffer, oscBufferEnd);
+			filterSet.renderLongStereo(oscBuffer, oscBufferEnd);
 
 			// No clipping
 			if (!sound->clippingAmount) {
@@ -1574,7 +1573,7 @@ skipUnisonPart : {}
 			*/
 
 			int32_t* const oscBufferEnd = oscBuffer + numSamples;
-			filterSets[0].renderLong(oscBuffer, oscBufferEnd, numSamples);
+			filterSet.renderLong(oscBuffer, oscBufferEnd, numSamples);
 
 			// No clipping
 			if (!sound->clippingAmount) {

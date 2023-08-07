@@ -55,7 +55,7 @@ public:
 	void setupDelayWorkingState(DelayWorkingState* delayWorkingState, ParamManager* paramManager,
 	                            bool shouldLimitDelayFeedback = false);
 
-	dsp::filter::FilterSet filterSets[2];
+	dsp::filter::FilterSet filterSet;
 	ModFXParam currentModFXParam;
 	FilterType currentFilterType;
 

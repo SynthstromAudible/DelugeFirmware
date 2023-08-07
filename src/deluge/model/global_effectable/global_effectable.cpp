@@ -37,8 +37,8 @@ using namespace deluge;
 
 GlobalEffectable::GlobalEffectable() {
 	lpfMode = LPFMode::TRANSISTOR_24DB;
-	filterSets[0].reset();
-	filterSets[1].reset();
+	filterSet.reset();
+
 	modFXType = ModFXType::FLANGER;
 	currentModFXParam = ModFXParam::FEEDBACK;
 	currentFilterType = FilterType::LPF;
@@ -408,14 +408,12 @@ void GlobalEffectable::setupFilterSetConfig(int32_t* postFXVolume, ParamManager*
 	              || unpatchedParams->getValue(Param::Unpatched::GlobalEffectable::LPF_FREQ) < 2147483602);
 	bool doHPF = unpatchedParams->getValue(Param::Unpatched::GlobalEffectable::HPF_FREQ) != -2147483648;
 
-	*postFXVolume = filterSets[0].setConfig(lpfFrequency, lpfResonance, doLPF, hpfFrequency, hpfResonance, doHPF,
-	                                        lpfMode, *postFXVolume, false, NULL);
-	//filterSets[1].copy_config(&filterSets[0]);
+	*postFXVolume = filterSet.setConfig(lpfFrequency, lpfResonance, doLPF, hpfFrequency, hpfResonance, doHPF, lpfMode,
+	                                    *postFXVolume, false, NULL);
 }
 
 void GlobalEffectable::processFilters(StereoSample* buffer, int32_t numSamples) {
-	filterSets[0].renderLongStereo(&buffer->l, &(buffer + numSamples)->l, 2);
-	//filterSets[1].renderLong(&buffer->r, &(buffer + numSamples)->r, numSamples, 2, 2);
+	filterSet.renderLongStereo(&buffer->l, &(buffer + numSamples)->l, 2);
 }
 
 void GlobalEffectable::writeAttributesToFile(bool writeAutomation) {
