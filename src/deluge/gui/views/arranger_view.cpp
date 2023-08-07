@@ -1749,7 +1749,7 @@ bool ArrangerView::transitionToArrangementEditor() {
 
 	currentUIMode = UI_MODE_EXPLODE_ANIMATION;
 
-	memcpy(PadLEDs::imageStore[1], PadLEDs::image, (kDisplayWidth + kSideBarWidth) * kDisplayHeight * 3);
+	memcpy(PadLEDs::imageStore[1], PadLEDs::image, (kDisplayWidth + kSideBarWidth) * kDisplayHeight * sizeof(Colour));
 	memcpy(PadLEDs::occupancyMaskStore[1], PadLEDs::occupancyMask, (kDisplayWidth + kSideBarWidth) * kDisplayHeight);
 	if (getCurrentUI() == &instrumentClipView) {
 		instrumentClipView.fillOffScreenImageStores();

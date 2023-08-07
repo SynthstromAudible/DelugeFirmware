@@ -356,7 +356,7 @@ bool readButtonsAndPads() {
 			}
 		}
 #if HAVE_OLED
-		else if (value == oledWaitingForMessage) {
+		else if (util::to_underlying(value) == oledWaitingForMessage) {
 			uiTimerManager.setTimer(TIMER_OLED_LOW_LEVEL, 3);
 		}
 #endif
@@ -489,10 +489,10 @@ extern "C" int32_t deluge_main(void) {
 	// Give the PIC some startup instructions
 
 #if HAVE_OLED
-	PIC::enableOLED()
+	PIC::enableOLED();
 #endif
 
-	    PIC::setDebounce(20); // Set debounce time (mS) to...
+	PIC::setDebounce(20); // Set debounce time (mS) to...
 
 	PadLEDs::setRefreshTime(23);
 

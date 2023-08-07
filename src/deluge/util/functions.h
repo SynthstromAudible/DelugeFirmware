@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "definitions_cxx.hpp"
 #include "const_functions.h"
+#include "definitions_cxx.hpp"
 #include "fatfs/ff.h"
 #include "gui/colour.h"
 #include "util/fixedpoint.h"
@@ -436,23 +436,18 @@ inline Colour drawSquare(const Colour& squareColour, int32_t intensity, const Co
 	return Colour::blend2(square, squareColour, colourRemainingAmount, modifiedIntensity);
 }
 
-inline void drawSolidSquare(uint8_t squareColour[], uint8_t square[], uint8_t* occupancyMask) {
-	memcpy(square, squareColour, 3);
-	*occupancyMask = 64;
-}
-
 inline int32_t increaseMagnitude(int32_t number, int32_t magnitude) {
-	if (magnitude >= 0)
+	if (magnitude >= 0) {
 		return number << magnitude;
-	else
-		return number >> (-magnitude);
+	}
+	return number >> (-magnitude);
 }
 
 inline int32_t increaseMagnitudeAndSaturate(int32_t number, int32_t magnitude) {
-	if (magnitude > 0)
+	if (magnitude > 0) {
 		return lshiftAndSaturateUnknown(number, magnitude);
-	else
-		return number >> (-magnitude);
+	}
+	return number >> (-magnitude);
 }
 
 int32_t howMuchMoreMagnitude(uint32_t to, uint32_t from);

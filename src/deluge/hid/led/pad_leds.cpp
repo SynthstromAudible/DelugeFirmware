@@ -251,11 +251,9 @@ void sortLedsForCol(int32_t x) {
 		doubleColumn[total++] = prepareColour(x + 1, y, image[y][x + 1]);
 	}
 	PIC::setColorForTwoColumns((x >> 1), doubleColumn);
-
 }
 
 inline void sendRGBForOneCol(int32_t x) {
-
 }
 
 const Colour flashColours[3] = {
@@ -292,8 +290,7 @@ void setupInstrumentClipCollapseAnimation(bool collapsingOutOfClipMinder) {
 
 	if (collapsingOutOfClipMinder) {
 		// This shouldn't have to be done every time
-		view.getClipMuteSquareColour(currentSong->currentClip,
-		                             clipMuteSquareColour);
+		view.getClipMuteSquareColour(currentSong->currentClip, clipMuteSquareColour);
 	}
 }
 
@@ -793,7 +790,8 @@ void timerRoutine() {
 				else {
 					renderAudioClipExplodeAnimation(explodedness, false);
 				}
-				memcpy(PadLEDs::imageStore, PadLEDs::image, (kDisplayWidth + kSideBarWidth) * kDisplayHeight * 3);
+				memcpy(PadLEDs::imageStore, PadLEDs::image,
+				       (kDisplayWidth + kSideBarWidth) * kDisplayHeight * sizeof(Colour));
 
 				currentUIMode = UI_MODE_ANIMATION_FADE;
 				if (explodeAnimationDirection == 1) {
@@ -1230,7 +1228,7 @@ void horizontal::renderScroll() {
 				}
 			}
 
-			PIC::sendScrollRow(row,prepareColour(endSquare, row, image[row][endSquare]));
+			PIC::sendScrollRow(row, prepareColour(endSquare, row, image[row][endSquare]));
 		}
 	}
 	PIC::doneSendingRows();
@@ -1271,14 +1269,15 @@ void vertical::renderScroll() {
 	//matrixDriver.greyoutMinYDisplay = (scrollDirection > 0) ? kDisplayHeight - squaresScrolled : squaresScrolled;
 
 	// Move the scrolling region
-	memmove(image[startSquare], image[1 - startSquare], (kDisplayWidth + kSideBarWidth) * (kDisplayHeight - 1) * 3);
+	memmove(image[startSquare], image[1 - startSquare],
+	        (kDisplayWidth + kSideBarWidth) * (kDisplayHeight - 1) * sizeof(Colour));
 
 	// And, bring in a row from the temp image (or from nowhere)
 	if (scrollingToNothing) {
 		memset(image[endSquare], 0, (kDisplayWidth + kSideBarWidth) * 3);
 	}
 	else {
-		memcpy(image[endSquare], imageStore[copyRow], (kDisplayWidth + kSideBarWidth) * 3);
+		memcpy(image[endSquare], imageStore[copyRow], (kDisplayWidth + kSideBarWidth) * sizeof(Colour));
 	}
 
 	std::array<Colour, kDisplayWidth + kSideBarWidth> colours{};
@@ -1320,18 +1319,16 @@ int32_t getTransitionProgress() {
 	return ((uint64_t)(AudioEngine::audioSampleTimer - transitionStartTime) * 65536) / transitionLength;
 }
 
-void copyBetweenImageStores(uint8_t* __restrict__ dest, uint8_t* __restrict__ source, int32_t destWidth,
+void copyBetweenImageStores(Colour* __restrict__ dest, Colour* __restrict__ source, int32_t destWidth,
                             int32_t sourceWidth, int32_t copyWidth) {
 	if (destWidth == sourceWidth && copyWidth >= sourceWidth - 2) {
-		memcpy(dest, source, sourceWidth * kDisplayHeight * 3);
+		memcpy(dest, source, sourceWidth * kDisplayHeight * sizeof(Colour));
+		return;
 	}
-	else {
-		uint8_t* destEndOverall = dest + destWidth * kDisplayHeight * 3;
-		do {
-			memcpy(dest, source, copyWidth * 3);
-			dest += destWidth * 3;
-			source += sourceWidth * 3;
-		} while (dest < destEndOverall);
+
+	Colour* destEndOverall = dest + destWidth * kDisplayHeight;
+	for (; dest < destEndOverall; dest += destWidth, source += sourceWidth) {
+		memcpy(dest, source, copyWidth * sizeof(Colour));
 	}
 }
 
