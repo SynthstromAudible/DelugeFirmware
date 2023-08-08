@@ -3015,6 +3015,43 @@ Clip* SessionView::gridCreateClipInTrack(Output* targetOutput) {
 	return newClip;
 }
 
+bool SessionView::gridCreateNewTrackForClip(InstrumentType type, InstrumentClip* clip) {
+	if (type == InstrumentType::SYNTH || type == InstrumentType::KIT) {
+		bool instrumentAlreadyInSong = false;
+		int32_t error = setPresetOrNextUnlaunchedOne(clip, type, &instrumentAlreadyInSong);
+		if (error || instrumentAlreadyInSong) {
+			if (error) {
+				numericDriver.displayError(error);
+			}
+			return false;
+		}
+	}
+	else if (type == InstrumentType::MIDI_OUT || type == InstrumentType::CV) {
+		bool instrumentAlreadyInSong = false;
+		clip->output = currentSong->getNonAudioInstrumentToSwitchTo(type, Availability::INSTRUMENT_UNUSED, 0, 0,
+		                                                            &instrumentAlreadyInSong);
+		if (clip->output == nullptr) {
+			return false;
+		}
+
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithTimelineCounter* modelStack =
+		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
+
+		auto error = clip->claimOutput(modelStack);
+		if (error) {
+			numericDriver.displayError(error);
+			return false;
+		}
+	}
+	else {
+		return false;
+	}
+
+	currentSong->addOutput(clip->output);
+	return true;
+}
+
 InstrumentClip* SessionView::gridCreateClipWithNewTrack(InstrumentType type) {
 	// Allocate new clip
 	void* memory = GeneralMemoryAllocator::get().alloc(sizeof(InstrumentClip), NULL, false, true);
@@ -3024,49 +3061,11 @@ InstrumentClip* SessionView::gridCreateClipWithNewTrack(InstrumentType type) {
 	}
 
 	InstrumentClip* newClip = new (memory) InstrumentClip(currentSong);
-
-	if (type == InstrumentType::SYNTH || type == InstrumentType::KIT) {
-		bool instrumentAlreadyInSong = false;
-		int32_t error = setPresetOrNextUnlaunchedOne(newClip, type, &instrumentAlreadyInSong);
-		if (error || instrumentAlreadyInSong) {
-			newClip->~InstrumentClip();
-			GeneralMemoryAllocator::get().dealloc(memory);
-			if (error) {
-				numericDriver.displayError(error);
-			}
-			return nullptr;
-		}
-	}
-	else if (type == InstrumentType::MIDI_OUT || type == InstrumentType::CV) {
-		bool instrumentAlreadyInSong = false;
-		newClip->output = currentSong->getNonAudioInstrumentToSwitchTo(type, Availability::INSTRUMENT_UNUSED, 0, 0,
-		                                                               &instrumentAlreadyInSong);
-		if (newClip->output == nullptr) {
-			newClip->~InstrumentClip();
-			GeneralMemoryAllocator::get().dealloc(memory);
-			// No displayError here because getNonAudioInstrumentToSwitchTo does it for us
-			return nullptr;
-		}
-
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithTimelineCounter* modelStack =
-		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, newClip);
-
-		auto error = newClip->claimOutput(modelStack);
-		if (error) {
-			newClip->~InstrumentClip();
-			GeneralMemoryAllocator::get().dealloc(memory);
-			if (error) {
-				numericDriver.displayError(error);
-			}
-			return nullptr;
-		}
-	}
-	else {
+	if (!gridCreateNewTrackForClip(type, newClip)) {
+		newClip->~InstrumentClip();
+		GeneralMemoryAllocator::get().dealloc(memory);
 		return nullptr;
 	}
-
-	currentSong->addOutput(newClip->output);
 
 	// For safety we set it up exactly as we want it
 	newClip->colourOffset = random(72);
@@ -3138,40 +3137,8 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 		InstrumentClip* newInstrumentClip = (InstrumentClip*)newClip;
 		// Switch to next available track
 		if (targetOutput == nullptr) {
-			InstrumentType newType = sourceClip->output->type;
-			//@TODO: Factor this out of here and gridCreateClipWithNewTrack
-			if (newType == InstrumentType::SYNTH || newType == InstrumentType::KIT) {
-				bool instrumentAlreadyInSong = false;
-				int32_t error = setPresetOrNextUnlaunchedOne(newInstrumentClip, newType, &instrumentAlreadyInSong);
-				if (error || instrumentAlreadyInSong) {
-					numericDriver.displayPopup(HAVE_OLED ? "Can't create output" : "ESG3");
-					return nullptr;
-				}
-			}
-			else if (newType == InstrumentType::MIDI_OUT || newType == InstrumentType::CV) {
-				bool instrumentAlreadyInSong = false;
-				newClip->output = currentSong->getNonAudioInstrumentToSwitchTo(newType, Availability::INSTRUMENT_UNUSED,
-				                                                               0, 0, &instrumentAlreadyInSong);
-				if (newInstrumentClip->output == nullptr) {
-					numericDriver.displayPopup(HAVE_OLED ? "Can't create output" : "ESG3");
-					return nullptr;
-				}
-
-				char modelStackMemory[MODEL_STACK_MAX_SIZE];
-				ModelStackWithTimelineCounter* modelStack =
-				    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, newInstrumentClip);
-
-				auto error = newInstrumentClip->claimOutput(modelStack);
-				if (error) {
-					numericDriver.displayPopup(HAVE_OLED ? "Can't claim output" : "ESG4");
-					return nullptr;
-				}
-			}
-			else {
-				return nullptr;
-			}
-
-			currentSong->addOutput(newInstrumentClip->output);
+			// We ignore errors here because the clip itself is valid
+			gridCreateNewTrackForClip(sourceClip->output->type, newInstrumentClip);
 		}
 		// Different instrument, switch the cloned clip to it
 		else if (targetOutput != sourceClip->output) {
