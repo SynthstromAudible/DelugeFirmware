@@ -403,8 +403,8 @@ ActionResult KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRou
 	}
 
 	// Kit button
-	else if (b == KIT) {
-		if (on && currentUIMode == UI_MODE_NONE) {
+	else if (b == KIT && currentUIMode == UI_MODE_NONE) {
+		if (on) {
 			if (Buttons::isNewOrShiftButtonPressed()) {
 				createNewInstrument(InstrumentType::KIT);
 			}
@@ -415,8 +415,8 @@ ActionResult KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRou
 		}
 	}
 
-	else if (b == SYNTH) {
-		if (on && currentUIMode == UI_MODE_NONE) {
+	else if (b == SYNTH && currentUIMode == UI_MODE_NONE) {
+		if (on) {
 			if (Buttons::isNewOrShiftButtonPressed()) {
 				createNewInstrument(InstrumentType::SYNTH);
 			}
@@ -610,11 +610,12 @@ void KeyboardScreen::focusRegained() {
 	keyboardButtonUsed = true; // Ensure we don't leave the mode on button up
 	InstrumentClipMinder::focusRegained();
 	setLedStates();
+
+	selectLayout(0); // Make sure we get a valid layout from the loaded file
 }
 
 void KeyboardScreen::openedInBackground() {
 	getCurrentClip()->onKeyboardScreen = true;
-	selectLayout(0); // Make sure we get a valid layout from the loaded file
 
 	// Ensure scroll values are calculated in bounds
 	layoutList[getCurrentClip()->keyboardState.currentLayout]->handleHorizontalEncoder(0, false);
@@ -713,8 +714,8 @@ void KeyboardScreen::unscrolledPadAudition(int32_t velocity, int32_t note, bool 
 	// but this refactor needs to wait for another day.
 	// Until then we set the scroll to 0 during the auditioning
 	int32_t yScrollBackup = getCurrentClip()->yScroll;
-	getCurrentClip()->yScroll = 0;
-	instrumentClipView.auditionPadAction(velocity, note, shiftButtonDown);
+	getCurrentClip()->yScroll = trunc(note / 8) * 8;
+	instrumentClipView.auditionPadAction(velocity, note % 8, shiftButtonDown);
 	getCurrentClip()->yScroll = yScrollBackup;
 }
 
