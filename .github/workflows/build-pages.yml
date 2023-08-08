@@ -30,7 +30,7 @@ concurrency:
 
 jobs:
   # Build job
-  build:
+  build-pages:
     runs-on: ubuntu-latest
     # Run when we're triggered by something other than a workflow run (i.e.
     # workflow dispatch) or the workflow run is a success
@@ -100,7 +100,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-    needs: build
+    needs: build-pages
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
