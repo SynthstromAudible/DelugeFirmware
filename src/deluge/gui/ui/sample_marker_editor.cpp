@@ -666,20 +666,20 @@ ActionResult SampleMarkerEditor::horizontalEncoderAction(int32_t offset) {
 
 			if (loopEnd + loopLength < end) {
 				loopLength = loopLength * 2;
-				numericDriver.displayPopup("DOUB");
+				numericDriver.displayPopup(HAVE_OLED ? "Loop doubled" : "DOUB");
 			}
 			else {
-				numericDriver.displayPopup("CANT");
+				numericDriver.displayPopup(HAVE_OLED ? "Loop too long" : "CANT");
 				return ActionResult::DEALT_WITH;
 			}
 		}
 		else { // turn anti-clockwise
 			if (loopLength > 2) {
 				loopLength = loopLength / 2;
-				numericDriver.displayPopup("HALF");
+				numericDriver.displayPopup(HAVE_OLED ? "Loop halved" : "HALF");
 			}
 			else {
-				numericDriver.displayPopup("CANT");
+				numericDriver.displayPopup(HAVE_OLED ? "Loop too short" : "CANT");
 				return ActionResult::DEALT_WITH;
 			}
 		}
