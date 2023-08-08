@@ -55,7 +55,6 @@ private:
 	bool hpfDoingAntialiasingNow;
 	int32_t hpfDivideByTotalMoveabilityLastTime;
 	int32_t hpfDivideByProcessedResonanceLastTime;
-	q31_t hpfMoveability; // 1 represented by 2147483648
 
 	// All feedbacks have 1 represented as 1073741824
 	q31_t hpfLPF1Feedback;

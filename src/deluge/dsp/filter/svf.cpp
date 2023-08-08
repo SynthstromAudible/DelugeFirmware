@@ -41,11 +41,7 @@ void SVFilter::doFilterStereo(q31_t* startSample, q31_t* endSample, int32_t extr
 }
 
 q31_t SVFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, LPFMode lpfMode, q31_t filterGain) {
-	int32_t tannedFrequency = instantTan(lshiftAndSaturate<5>(lpfFrequency));
-	// Between ~0.1 and 1. 1 represented by 2147483648
-	int32_t divideBy1PlusTannedFrequency = (int64_t)2147483648u * 134217728 / (134217728 + (tannedFrequency >> 1));
-	// Between 0 and 1. 1 represented by 2147483648 I'm pretty sure
-	f = multiply_32x32_rshift32_rounded(tannedFrequency, divideBy1PlusTannedFrequency) << 4;
+	curveFrequency(lpfFrequency);
 	// raw resonance is 0 - 536870896 (2^28ish, don't know where it comes from)
 	// Multiply by 4 to bring it to the q31 0-1 range
 	q = (ONE_Q31 - 4 * (lpfResonance));
@@ -65,10 +61,10 @@ inline q31_t SVFilter::doSVF(int32_t input, SVFState* state) {
 
 	input = multiply_32x32_rshift32(in, input);
 
-	low = low + 2 * multiply_32x32_rshift32(band, f);
+	low = low + 2 * multiply_32x32_rshift32(band, fc);
 	high = input - low;
 	high = high - 2 * multiply_32x32_rshift32(band, q);
-	band = 2 * multiply_32x32_rshift32(high, f) + band;
+	band = 2 * multiply_32x32_rshift32(high, fc) + band;
 	//notch = high + low;
 
 	//saturate band feedback
@@ -76,10 +72,10 @@ inline q31_t SVFilter::doSVF(int32_t input, SVFState* state) {
 
 	lowi = low;
 	//double sample to increase the cutoff frequency
-	low = low + 2 * multiply_32x32_rshift32(band, f);
+	low = low + 2 * multiply_32x32_rshift32(band, fc);
 	high = input - low;
 	high = high - 2 * multiply_32x32_rshift32(band, q);
-	band = 2 * multiply_32x32_rshift32(high, f) + band;
+	band = 2 * multiply_32x32_rshift32(high, fc) + band;
 
 	//saturate band feedback
 	band = getTanHUnknown(band, 3);

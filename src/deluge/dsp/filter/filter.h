@@ -22,6 +22,8 @@
 #include "util/functions.h"
 #include <cstdint>
 namespace deluge::dsp::filter {
+constexpr uint32_t ONE_Q31U = 2147483648u;
+constexpr int32_t ONE_Q16 = 134217728;
 /// @brief Interface for filters in the sound engine
 ///This is a CRTP base class for all filters used in the sound engine. To implement a new filter,
 ///Add an entry for the filter in deluge::dsp::filter::LPFMode
@@ -50,6 +52,19 @@ public:
 		;
 	}
 	void reset() { static_cast<T*>(this)->resetFilter(); }
+
+	void curveFrequency(q31_t frequency) {
+		// Between 0 and 8, by my making. 1 represented by 268435456
+		tannedFrequency = instantTan(lshiftAndSaturate<5>(frequency));
+
+		//this is 1q31*1q16/(1q16+tan(f)/2)
+		//tan(f) is q17
+		DivideBy1PlusTannedFrequency = (int64_t)ONE_Q31U * ONE_Q16 / (ONE_Q16 + (tannedFrequency >> 1));
+		fc = multiply_32x32_rshift32_rounded(tannedFrequency, DivideBy1PlusTannedFrequency) << 4;
+	}
+	q31_t fc;
+	q31_t tannedFrequency;
+	q31_t DivideBy1PlusTannedFrequency;
 };
 
 } // namespace deluge::dsp::filter

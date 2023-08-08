@@ -93,23 +93,13 @@ q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, LPFMode 
 		}
 	}
 
-	// Between 0 and 8, by my making. 1 represented by 268435456
-	int32_t tannedFrequency = instantTan(lshiftAndSaturate<5>(lpfFrequency));
-
 	// Cold transistor ladder
 	if ((lpfMode == LPFMode::TRANSISTOR_24DB) || (lpfMode == LPFMode::TRANSISTOR_12DB)) {
 		// Some long-winded stuff to make it so if frequency goes really low, resonance goes down. This is tuned a bit, but isn't perfect
-		int32_t howMuchTooLow = 0;
-		if (tannedFrequency < 6000000) {
-			howMuchTooLow = 6000000 - tannedFrequency;
-		}
 
 		int32_t howMuchToKeep = ONE_Q31 - 1 * 33;
 
 		int32_t resonanceUpperLimit = 510000000; // Prone to feeding back lots
-		tannedFrequency = std::max(
-		    tannedFrequency,
-		    (int32_t)540817); // We really want to keep the frequency from going lower than it has to - it causes problems
 
 		int32_t resonance = ONE_Q31 - (std::min(lpfResonance, resonanceUpperLimit) << 2); // Limits it
 		resonance = multiply_32x32_rshift32_rounded(resonance, resonance) << 1;
@@ -118,12 +108,10 @@ q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, LPFMode 
 		processedResonance = multiply_32x32_rshift32_rounded(processedResonance, howMuchToKeep) << 1;
 	}
 
-	divideBy1PlusTannedFrequency =
-	    (int64_t)2147483648u * 134217728
-	    / (134217728 + (tannedFrequency >> 1)); // Between ~0.1 and 1. 1 represented by 2147483648
-	moveability = multiply_32x32_rshift32_rounded(tannedFrequency, divideBy1PlusTannedFrequency)
-	              << 4; // Between 0 and 1. 1 represented by 2147483648 I'm pretty sure
-
+	curveFrequency(lpfFrequency);
+	//for backwards compatibility, equivalent to prior lower limit on tan
+	moveability = std::max(fc, (q31_t)4317840);
+	//min moveability is 4317840
 	// Half ladder
 	if (lpfMode == LPFMode::TRANSISTOR_12DB) {
 		int32_t moveabilityNegative = moveability - 1073741824; // Between -2 and 0. 1 represented as 1073741824

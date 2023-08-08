@@ -22,20 +22,11 @@
 #include "util/functions.h"
 #include <cstdint>
 namespace deluge::dsp::filter {
-constexpr uint32_t ONE_Q31U = 2147483648u;
-constexpr int32_t ONE_Q16 = 134217728;
+
 q31_t HpLadderFilter::setConfig(q31_t hpfFrequency, q31_t hpfResonance, LPFMode lpfMode, q31_t filterGain) {
 	int32_t extraFeedback = 1200000000;
 
-	int32_t tannedFrequency =
-	    instantTan(lshiftAndSaturate<5>(hpfFrequency)); // Between 0 and 8, by my making. 1 represented by 268435456
-
-	//this is 1q31*1q16/(1q16+tan(f)/2)
-	//tan(f) is q17 based on rohan's comment above
-	int32_t hpfDivideBy1PlusTannedFrequency =
-	    (int64_t)ONE_Q31U * ONE_Q16
-	    / (ONE_Q16 + (tannedFrequency >> 1)); // Between ~0.1 and 1. 1 represented by 2147483648
-	hpfMoveability = multiply_32x32_rshift32_rounded(tannedFrequency, hpfDivideBy1PlusTannedFrequency) << 4;
+	curveFrequency(hpfFrequency);
 
 	int32_t resonanceUpperLimit = 536870911;
 	int32_t resonance = ONE_Q31 - (std::min(hpfResonance, resonanceUpperLimit) << 2); // Limits it
@@ -54,12 +45,12 @@ q31_t HpLadderFilter::setConfig(q31_t hpfFrequency, q31_t hpfResonance, LPFMode 
 	hpfDivideByProcessedResonance = 2147483648u / (hpfProcessedResonance >> (23));
 
 	int32_t moveabilityTimesProcessedResonance =
-	    multiply_32x32_rshift32(hpfProcessedResonanceUnaltered, hpfMoveability); // 1 = 536870912
+	    multiply_32x32_rshift32(hpfProcessedResonanceUnaltered, fc); // 1 = 536870912
 	int32_t moveabilitySquaredTimesProcessedResonance =
-	    multiply_32x32_rshift32(moveabilityTimesProcessedResonance, hpfMoveability); // 1 = 268435456
+	    multiply_32x32_rshift32(moveabilityTimesProcessedResonance, fc); // 1 = 268435456
 
-	hpfHPF3Feedback = -multiply_32x32_rshift32_rounded(hpfMoveability, hpfDivideBy1PlusTannedFrequency);
-	hpfLPF1Feedback = hpfDivideBy1PlusTannedFrequency >> 1;
+	hpfHPF3Feedback = -multiply_32x32_rshift32_rounded(fc, DivideBy1PlusTannedFrequency);
+	hpfLPF1Feedback = DivideBy1PlusTannedFrequency >> 1;
 
 	uint32_t toDivideBy =
 	    ((int32_t)268435456 - (moveabilityTimesProcessedResonance >> 1) + moveabilitySquaredTimesProcessedResonance);
@@ -95,7 +86,7 @@ void HpLadderFilter::doFilterStereo(q31_t* startSample, q31_t* endSample, int32_
 }
 inline q31_t HpLadderFilter::doHPF(q31_t input, int32_t extraSaturation, HPLadderState* state) {
 
-	q31_t firstHPFOutput = input - state->hpfHPF1.doFilter(input, hpfMoveability);
+	q31_t firstHPFOutput = input - state->hpfHPF1.doFilter(input, fc);
 
 	q31_t feedbacksValue =
 	    state->hpfHPF3.getFeedbackOutput(hpfHPF3Feedback) + state->hpfLPF1.getFeedbackOutput(hpfLPF1Feedback);
@@ -113,7 +104,7 @@ inline q31_t HpLadderFilter::doHPF(q31_t input, int32_t extraSaturation, HPLadde
 		}
 	}
 
-	state->hpfLPF1.doFilter(a - state->hpfHPF3.doFilter(a, hpfMoveability), hpfMoveability);
+	state->hpfLPF1.doFilter(a - state->hpfHPF3.doFilter(a, fc), fc);
 
 	a = multiply_32x32_rshift32_rounded(a, hpfDivideByProcessedResonance) << (8 - 1); // Normalization
 
