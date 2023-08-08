@@ -17,6 +17,7 @@
 
 #include "model/sample/sample_recorder.h"
 #include "definitions_cxx.hpp"
+#include "drivers/pic/pic.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui_timer_manager.h"
@@ -1208,7 +1209,7 @@ int32_t SampleRecorder::alterFile(int32_t action, int32_t lshiftAmount, uint32_t
 
 			uiTimerManager.routine();
 
-			uartFlushIfNotSending(UART_ITEM_PIC);
+			PIC::flush();
 		}
 
 		count++;

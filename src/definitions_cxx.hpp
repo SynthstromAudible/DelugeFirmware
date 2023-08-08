@@ -194,14 +194,6 @@ constexpr int32_t kDisplayHeightMagnitude = 3;
 constexpr int32_t kDisplayWidth = 16;
 constexpr int32_t kDisplayWidthMagnitude = 4;
 
-enum PICMessage : uint8_t {
-	REFRESH_TIME = 19,
-	RESEND_BUTTON_STATES = 22,
-	NO_PRESSES_HAPPENING = 254,
-};
-
-constexpr int32_t kPadAndButtonMessagesEnd = 180;
-
 constexpr int32_t kNumBytesInColUpdateMessage = 49;
 constexpr int32_t kNumBytesInLongestMessage = 55;
 
@@ -222,12 +214,18 @@ constexpr Pin LINE_OUT_DETECT_R = {6, 4};
 constexpr Pin ANALOG_CLOCK_IN = {1, 14};
 constexpr Pin SPEAKER_ENABLE = {4, 1};
 constexpr Pin HEADPHONE_DETECT = {6, 5};
-constexpr Pin LINE_IN = {6, 6};
-constexpr Pin MIC = {7, 9};
+constexpr Pin LINE_IN_DETECT = {6, 6};
+constexpr Pin MIC_DETECT = {7, 9};
 constexpr Pin SYNCED_LED = {6, 7};
+constexpr Pin CODEC = {6, 12};
 
 constexpr Pin BATTERY_LED = {1, 1};
 constexpr int32_t SYS_VOLT_SENSE_PIN = 5;
+constexpr Pin VOLT_SENSE = {1, 8 + SYS_VOLT_SENSE_PIN};
+
+constexpr Pin SPI_CLK = {6, 0};
+constexpr Pin SPI_MOSI = {6, 2};
+constexpr Pin SPI_SSL = {6, 1};
 
 constexpr int32_t kSideBarWidth = 2;
 constexpr int32_t kMaxNumAnimatedRows = ((kDisplayHeight * 3) >> 1);
@@ -609,6 +607,7 @@ enum class PolyphonyMode {
 constexpr auto kNumPolyphonyModes = util::to_underlying(PolyphonyMode::CHOKE) + 1;
 
 constexpr int32_t kNumericDisplayLength = 4;
+constexpr size_t kNumGoldKnobIndicatorLEDs = 4;
 
 constexpr int32_t kMaxNumSections = 12;
 
