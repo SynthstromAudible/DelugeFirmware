@@ -3286,7 +3286,7 @@ bool InstrumentClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack
 			// Special case for MPE only - not even "mono" / Clip-level expression.
 			if (i == paramManager.getExpressionParamSetOffset()) {
 				if (getCurrentUI()
-				    != &automationInstrumentClipView) { //don't clear MPE if you're in the automation view
+				    != &automationInstrumentClipView) { //don't shift MPE if you're in the automation view
 					((ExpressionParamSet*)summary->paramCollection)
 					    ->shiftHorizontally(modelStackWithParamCollection, amount, loopLength);
 				}
