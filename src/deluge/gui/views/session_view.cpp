@@ -3085,8 +3085,6 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 	actionLogger.deleteAllLogs();
 
 	Clip* newClip = nullptr;
-	bool switchToNextAvailableOutput = false;
-	bool switchToTargetOutput = false;
 
 	// From source
 	if (sourceClip != nullptr) {
@@ -3100,16 +3098,6 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 		newClip = gridCloneClip(sourceClip);
 		if (newClip == nullptr) {
 			return nullptr;
-		}
-
-		// New track will be created, switch to a new preset
-		if (targetOutput == nullptr) {
-			switchToNextAvailableOutput = true;
-		}
-
-		// Different instrument, switch the cloned clip to it
-		else if (targetOutput != sourceClip->output) {
-			switchToTargetOutput = true;
 		}
 	}
 
@@ -3128,6 +3116,9 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 		return nullptr;
 	}
 
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(newClip);
+
 	newClip->section = targetSection;
 	if (newClip->type == CLIP_TYPE_INSTRUMENT) {
 		((InstrumentClip*)newClip)->onKeyboardScreen = false;
@@ -3140,58 +3131,59 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 		return nullptr;
 	}
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
-	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(newClip);
+	// If we copied from source and the clip should go in another track we need to move it after putting it in the session
+	// Remember this assumes a non Audio clip
+	if (sourceClip != nullptr) {
+		InstrumentClip* newInstrumentClip = (InstrumentClip*)newClip;
+		// Switch to next available track
+		if (targetOutput == nullptr) {
+			//@TODO: Fix next track selection behavior
+			Output* lastOutput = nullptr;
+			do {
+				Output* lastOutput = newInstrumentClip->output;
+				view.navigateThroughPresetsForInstrumentClip(1, modelStack, false);
+
+				bool outputPresent = false;
+				for (int32_t idxClip = 0; idxClip < currentSong->sessionClips.getNumElements(); ++idxClip) {
+					Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
+					if (clip != newInstrumentClip && clip->output == newInstrumentClip->output) {
+						outputPresent = true;
+					}
+				}
+
+				if(!outputPresent) {
+					break;
+				}
+
+			} while(newInstrumentClip->output != lastOutput);
+		}
+		// Different instrument, switch the cloned clip to it
+		else if (targetOutput != sourceClip->output) {
+			int32_t error = newInstrumentClip->changeInstrument(modelStack, (Instrument*)targetOutput, NULL, InstrumentRemoval::NONE);
+			if(error != NO_ERROR) {
+				numericDriver.displayPopup(HAVE_OLED ? "Switching to track failed" : "ESG1");
+			}
+
+			// If we weren't a Kit already...
+			if(targetOutput->type == InstrumentType::KIT) {
+				if (sourceClip->output->type != InstrumentType::KIT) {
+					newInstrumentClip->yScroll = 0;
+				}
+				else {
+					newInstrumentClip->ensureScrollWithinKitBounds();
+				}
+			}
+		}
+	}
 
 	// Figure out the play pos for the new Clip if we're currently playing
 	if (session.hasPlaybackActive() && playbackHandler.isEitherClockActive() && currentSong->isClipActive(newClip)) {
-		session.reSyncClip(modelStackWithTimelineCounter, true);
-	}
-
-	if (switchToNextAvailableOutput) {
-		//@TODO: Fix next track selection behavior
-		view.navigateThroughPresetsForInstrumentClip(2, modelStackWithTimelineCounter, false);
-	}
-
-	if (switchToTargetOutput) {
-		// // Convert clip to the right type //@TODO: Not yet sure if necessary
-		// if(newClip->output->type != targetOutput->type) {
-		// 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		// 	ModelStackWithTimelineCounter* modelStack =
-		// 		setupModelStackWithTimelineCounter(modelStackMemory, currentSong, newClip);
-
-		// 	view.changeInstrumentType(targetOutput->type, modelStack, true);
-		// }
-
-		// See InstrumentClip::cloneAsNewOverdub
-
-		//@TODO: This still crashes but might be the way to go, we just need to switch to the right instrument correctly
-		ParamManagerForTimeline newParamManager;
-
-		int32_t error = newParamManager.cloneParamCollectionsFrom(&sourceClip->paramManager, false, true);
-		if (error) {
-			numericDriver.displayError(error);
-			return NULL;
-		}
-
-		InstrumentClip* srcInst = (InstrumentClip*)sourceClip;
-		InstrumentClip* dstInst = (InstrumentClip*)newClip;
-
-		dstInst->setInstrument((Instrument*)targetOutput, currentSong, &newParamManager);
-
-		// char modelStackMemoryNewClip[MODEL_STACK_MAX_SIZE];
-		// ModelStackWithTimelineCounter* modelStackNewClip =
-		// 	setupModelStackWithTimelineCounter(modelStackMemoryNewClip, currentSong, dstInst);
-
-		// dstInst->setupAsNewKitClipIfNecessary(modelStackNewClip);
-
-		//@TODO: switch instrument
+		session.reSyncClip(modelStack, true);
 	}
 
 	// Set to active for new tracks
 	if (targetOutput == nullptr && !newClip->output->activeClip) {
-		newClip->output->setActiveClip(modelStackWithTimelineCounter);
+		newClip->output->setActiveClip(modelStack);
 	}
 
 	return newClip;
