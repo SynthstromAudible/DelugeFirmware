@@ -33,9 +33,9 @@ class FilterSet {
 public:
 	FilterSet();
 	void reset();
-	q31_t setConfig(q31_t lpfFrequency, q31_t lpfResonance, bool doLPF, q31_t hpfFrequency, q31_t hpfResonance,
-	                bool doHPF, LPFMode lpfType, q31_t filterGain, bool adjustVolumeForHPFResonance = true,
-	                q31_t* overallOscAmplitude = NULL);
+	q31_t setConfig(q31_t lpfFrequency, q31_t lpfResonance, bool doLPF, LPFMode lpfmode, q31_t hpfFrequency,
+	                q31_t hpfResonance, bool doHPF, HPFMode hpfmode, q31_t filterGain,
+	                bool adjustVolumeForHPFResonance = true, q31_t* overallOscAmplitude = NULL);
 
 	inline void renderLong(q31_t* startSample, q31_t* endSample, int32_t numSamples, int32_t sampleIncrememt = 1,
 	                       int32_t extraSaturation = 1) {
@@ -78,6 +78,8 @@ private:
 	q31_t noiseLastValue;
 	LPFMode lpfMode;
 	LPFMode lastLPFMode;
+	HPFMode hpfMode;
+	HPFMode lastHPFMode;
 
 	void renderLPFLong(q31_t* startSample, q31_t* endSample, LPFMode lpfMode, int32_t sampleIncrement = 1,
 	                   int32_t extraSaturation = 0, int32_t extraSaturationDrive = 0);

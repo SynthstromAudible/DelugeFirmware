@@ -625,6 +625,13 @@ constexpr LPFMode kLastLadder = LPFMode::TRANSISTOR_24DB_DRIVE;
 //Off is not an LPF mode but is used to reset filters
 constexpr int32_t kNumLPFModes = util::to_underlying(LPFMode::OFF);
 
+enum class HPFMode {
+	HPLADDER,
+	OFF, //Keep last as a sentinel. Signifies that the filter is not on, used for filter reset logic
+};
+//Off is not an LPF mode but is used to reset filters
+constexpr int32_t kNumHPFModes = util::to_underlying(HPFMode::OFF);
+
 constexpr int32_t kNumAllpassFiltersPhaser = 6;
 
 enum ErrorType {

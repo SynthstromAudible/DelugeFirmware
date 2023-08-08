@@ -63,44 +63,58 @@ void FilterSet::renderLPFLong(q31_t* startSample, q31_t* endSample, LPFMode lpfM
 void FilterSet::renderLPFLongStereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation) {
 
 	if (lpfMode == LPFMode::SVF) {
-		if (lastLPFMode != LPFMode::SVF) {
-			lpsvf.reset();
-		}
+
 		lpsvf.filterStereo(startSample, endSample, extraSaturation);
 	}
 	else {
-		if (lastLPFMode > kLastLadder) {
-			lpladder.reset();
-		}
+
 		lpladder.filterStereo(startSample, endSample, extraSaturation);
 	}
-
-	lastLPFMode = lpfMode;
 }
 
-int32_t FilterSet::setConfig(int32_t lpfFrequency, int32_t lpfResonance, bool doLPF, int32_t hpfFrequency,
-                             int32_t hpfResonance, bool doHPF, LPFMode lpfmode, int32_t filterGain,
-                             bool adjustVolumeForHPFResonance, int32_t* overallOscAmplitude) {
+int32_t FilterSet::setConfig(int32_t lpfFrequency, int32_t lpfResonance, bool doLPF, LPFMode lpfmode,
+                             int32_t hpfFrequency, int32_t hpfResonance, bool doHPF, HPFMode hpfmode,
+                             int32_t filterGain, bool adjustVolumeForHPFResonance, int32_t* overallOscAmplitude) {
 	LPFOn = doLPF;
 	HPFOn = doHPF;
 	lpfMode = lpfmode;
+	hpfMode = hpfmode;
 	hpfResonance =
 	    (hpfResonance >> 21) << 21; // Insanely, having changes happen in the small bytes too often causes rustling
 
 	if (LPFOn) {
 		if (lpfmode == LPFMode::SVF) {
+			if (lastLPFMode != LPFMode::SVF) {
+				lpsvf.reset();
+			}
 			filterGain = lpsvf.configure(lpfFrequency, lpfResonance, lpfmode, filterGain);
 		}
 		else {
+			if (lastLPFMode > kLastLadder) {
+				lpladder.reset();
+			}
 			filterGain = lpladder.configure(lpfFrequency, lpfResonance, lpfmode, filterGain);
 		}
+		lastLPFMode = lpfMode;
+	}
+	else {
+		lastLPFMode = LPFMode::OFF;
 	}
 	// This changes the overall amplitude so that, with resonance on 50%, the amplitude is the same as it was pre June 2017
 	filterGain = multiply_32x32_rshift32(filterGain, 1720000000) << 1;
 
 	// HPF
 	if (HPFOn) {
-		filterGain = hpladder.configure(hpfFrequency, hpfResonance, lpfmode, filterGain);
+		if (hpfMode == HPFMode::HPLADDER) {
+			filterGain = hpladder.configure(hpfFrequency, hpfResonance, lpfmode, filterGain);
+			if (lastHPFMode != hpfMode) {
+				hpladder.reset();
+			}
+		}
+		lastHPFMode = hpfMode;
+	}
+	else {
+		lastHPFMode == HPFMode::OFF;
 	}
 
 	return filterGain;

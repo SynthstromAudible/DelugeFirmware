@@ -404,12 +404,12 @@ void GlobalEffectable::setupFilterSetConfig(int32_t* postFXVolume, ParamManager*
 	    paramNeutralValues[Param::Local::HPF_RESONANCE],
 	    cableToLinearParamShortcut(unpatchedParams->getValue(Param::Unpatched::GlobalEffectable::HPF_RES)));
 
-	bool doLPF = (lpfMode == LPFMode::TRANSISTOR_24DB_DRIVE || lpfMode == LPFMode::SVF
+	bool doLPF = (lpfMode == LPFMode::TRANSISTOR_24DB_DRIVE
 	              || unpatchedParams->getValue(Param::Unpatched::GlobalEffectable::LPF_FREQ) < 2147483602);
 	bool doHPF = unpatchedParams->getValue(Param::Unpatched::GlobalEffectable::HPF_FREQ) != -2147483648;
 
-	*postFXVolume = filterSet.setConfig(lpfFrequency, lpfResonance, doLPF, hpfFrequency, hpfResonance, doHPF, lpfMode,
-	                                    *postFXVolume, false, NULL);
+	*postFXVolume = filterSet.setConfig(lpfFrequency, lpfResonance, doLPF, lpfMode, hpfFrequency, hpfResonance, doHPF,
+	                                    HPFMode::HPLADDER, *postFXVolume, false, NULL);
 }
 
 void GlobalEffectable::processFilters(StereoSample* buffer, int32_t numSamples) {
