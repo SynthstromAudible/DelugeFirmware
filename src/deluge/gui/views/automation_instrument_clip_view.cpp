@@ -525,10 +525,8 @@ void AutomationInstrumentClipView::renderAutomationOverview(ModelStackWithTimeli
 
 					pixel[0] = 2 + (midiCCShortcutsForAutomation[xDisplay][yDisplay] * ((51 << 20) / 119)) >> 20; //red
 					pixel[1] =
-					    53
-					    - ((midiCCShortcutsForAutomation[xDisplay][yDisplay] * ((51 << 20) / 119))
-					       >> 20); //green
-					pixel[2] = 2;  //blue
+					    53 - ((midiCCShortcutsForAutomation[xDisplay][yDisplay] * ((51 << 20) / 119)) >> 20); //green
+					pixel[2] = 2;                                                                             //blue
 				}
 
 				else {
