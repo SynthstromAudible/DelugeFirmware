@@ -3138,25 +3138,40 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 		InstrumentClip* newInstrumentClip = (InstrumentClip*)newClip;
 		// Switch to next available track
 		if (targetOutput == nullptr) {
-			//@TODO: Fix next track selection behavior
-			Output* lastOutput = nullptr;
-			do {
-				Output* lastOutput = newInstrumentClip->output;
-				view.navigateThroughPresetsForInstrumentClip(1, modelStack, false);
-
-				bool outputPresent = false;
-				for (int32_t idxClip = 0; idxClip < currentSong->sessionClips.getNumElements(); ++idxClip) {
-					Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
-					if (clip != newInstrumentClip && clip->output == newInstrumentClip->output) {
-						outputPresent = true;
-					}
+			InstrumentType newType = sourceClip->output->type;
+			//@TODO: Factor this out of here and gridCreateClipWithNewTrack
+			if (newType == InstrumentType::SYNTH || newType == InstrumentType::KIT) {
+				bool instrumentAlreadyInSong = false;
+				int32_t error = setPresetOrNextUnlaunchedOne(newInstrumentClip, newType, &instrumentAlreadyInSong);
+				if (error || instrumentAlreadyInSong) {
+					numericDriver.displayPopup(HAVE_OLED ? "Can't create output" : "ESG3");
+					return nullptr;
+				}
+			}
+			else if (newType == InstrumentType::MIDI_OUT || newType == InstrumentType::CV) {
+				bool instrumentAlreadyInSong = false;
+				newClip->output = currentSong->getNonAudioInstrumentToSwitchTo(newType, Availability::INSTRUMENT_UNUSED,
+				                                                               0, 0, &instrumentAlreadyInSong);
+				if (newInstrumentClip->output == nullptr) {
+					numericDriver.displayPopup(HAVE_OLED ? "Can't create output" : "ESG3");
+					return nullptr;
 				}
 
-				if (!outputPresent) {
-					break;
-				}
+				char modelStackMemory[MODEL_STACK_MAX_SIZE];
+				ModelStackWithTimelineCounter* modelStack =
+				    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, newInstrumentClip);
 
-			} while (newInstrumentClip->output != lastOutput);
+				auto error = newInstrumentClip->claimOutput(modelStack);
+				if (error) {
+					numericDriver.displayPopup(HAVE_OLED ? "Can't claim output" : "ESG4");
+					return nullptr;
+				}
+			}
+			else {
+				return nullptr;
+			}
+
+			currentSong->addOutput(newInstrumentClip->output);
 		}
 		// Different instrument, switch the cloned clip to it
 		else if (targetOutput != sourceClip->output) {
