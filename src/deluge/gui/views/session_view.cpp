@@ -1422,8 +1422,8 @@ void SessionView::drawSectionSquare(uint8_t yDisplay, uint8_t thisImage[][3]) {
 }
 
 // Will now look in subfolders too if need be.
-int32_t setPresetOrNextUnlaunchedOne(InstrumentClip* clip, InstrumentType instrumentType,
-                                     bool* instrumentAlreadyInSong) {
+int32_t setPresetOrNextUnlaunchedOne(InstrumentClip* clip, InstrumentType instrumentType, bool* instrumentAlreadyInSong,
+                                     bool copyDrumsFromClip = true) {
 	ReturnOfConfirmPresetOrNextUnlaunchedOne result;
 	result.error = Browser::currentDir.set(getInstrumentFolder(instrumentType));
 	if (result.error) {
@@ -1469,20 +1469,35 @@ int32_t setPresetOrNextUnlaunchedOne(InstrumentClip* clip, InstrumentType instru
 	OLED::removeWorkingAnimation();
 #endif
 
-	result.error = clip->setAudioInstrument(newInstrument, currentSong, true, NULL); // Does a setupPatching()
-	if (result.error) {
-		// TODO: needs more thought - we'd want to deallocate the Instrument...
-		return result.error;
+	if (copyDrumsFromClip) {
+		result.error = clip->setAudioInstrument(newInstrument, currentSong, true, NULL); // Does a setupPatching()
+		if (result.error) {
+			// TODO: needs more thought - we'd want to deallocate the Instrument...
+			return result.error;
+		}
+
+		if (instrumentType == InstrumentType::KIT) {
+
+			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithTimelineCounter* modelStack =
+			    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(clip);
+
+			clip->assignDrumsToNoteRows(modelStack); // Does a setupPatching() for each Drum
+			clip->yScroll = 0;
+		}
 	}
-
-	if (instrumentType == InstrumentType::KIT) {
-
+	else {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack =
 		    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(clip);
+		int32_t error = clip->changeInstrument(modelStack, newInstrument, NULL, InstrumentRemoval::NONE);
+		if (error != NO_ERROR) {
+			numericDriver.displayPopup(HAVE_OLED ? "Switching to track failed" : "ESG1");
+		}
 
-		clip->assignDrumsToNoteRows(modelStack); // Does a setupPatching() for each Drum
-		clip->yScroll = 0;
+		if (newInstrument->type == InstrumentType::KIT) {
+			clip->yScroll = 0;
+		}
 	}
 
 	return NO_ERROR;
@@ -3015,10 +3030,10 @@ Clip* SessionView::gridCreateClipInTrack(Output* targetOutput) {
 	return newClip;
 }
 
-bool SessionView::gridCreateNewTrackForClip(InstrumentType type, InstrumentClip* clip) {
+bool SessionView::gridCreateNewTrackForClip(InstrumentType type, InstrumentClip* clip, bool copyDrumsFromClip) {
 	if (type == InstrumentType::SYNTH || type == InstrumentType::KIT) {
 		bool instrumentAlreadyInSong = false;
-		int32_t error = setPresetOrNextUnlaunchedOne(clip, type, &instrumentAlreadyInSong);
+		int32_t error = setPresetOrNextUnlaunchedOne(clip, type, &instrumentAlreadyInSong, copyDrumsFromClip);
 		if (error || instrumentAlreadyInSong) {
 			if (error) {
 				numericDriver.displayError(error);
@@ -3061,7 +3076,7 @@ InstrumentClip* SessionView::gridCreateClipWithNewTrack(InstrumentType type) {
 	}
 
 	InstrumentClip* newClip = new (memory) InstrumentClip(currentSong);
-	if (!gridCreateNewTrackForClip(type, newClip)) {
+	if (!gridCreateNewTrackForClip(type, newClip, true)) {
 		newClip->~InstrumentClip();
 		GeneralMemoryAllocator::get().dealloc(memory);
 		return nullptr;
@@ -3135,11 +3150,12 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 	// Remember this assumes a non Audio clip
 	if (sourceClip != nullptr) {
 		InstrumentClip* newInstrumentClip = (InstrumentClip*)newClip;
-		// Switch to next available track
+		// Create a new track for the clip
 		if (targetOutput == nullptr) {
-			// We ignore errors here because the clip itself is valid
-			gridCreateNewTrackForClip(sourceClip->output->type, newInstrumentClip);
+			gridCreateNewTrackForClip(sourceClip->output->type, newInstrumentClip, false);
+			targetOutput = newInstrumentClip->output;
 		}
+
 		// Different instrument, switch the cloned clip to it
 		else if (targetOutput != sourceClip->output) {
 			int32_t error = newInstrumentClip->changeInstrument(modelStack, (Instrument*)targetOutput, NULL,
@@ -3148,14 +3164,8 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 				numericDriver.displayPopup(HAVE_OLED ? "Switching to track failed" : "ESG1");
 			}
 
-			// If we weren't a Kit already...
 			if (targetOutput->type == InstrumentType::KIT) {
-				if (sourceClip->output->type != InstrumentType::KIT) {
-					newInstrumentClip->yScroll = 0;
-				}
-				else {
-					newInstrumentClip->ensureScrollWithinKitBounds();
-				}
+				newInstrumentClip->yScroll = 0;
 			}
 		}
 	}

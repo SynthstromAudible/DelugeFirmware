@@ -171,7 +171,7 @@ private:
 
 	Clip* gridCloneClip(Clip* sourceClip);
 	Clip* gridCreateClipInTrack(Output* targetOutput);
-	bool gridCreateNewTrackForClip(InstrumentType type, InstrumentClip* clip);
+	bool gridCreateNewTrackForClip(InstrumentType type, InstrumentClip* clip, bool copyDrumsFromClip);
 	InstrumentClip* gridCreateClipWithNewTrack(InstrumentType type);
 	Clip* gridCreateClip(uint32_t targetSection, Output* targetOutput = nullptr, Clip* sourceClip = nullptr);
 	void gridClonePad(uint32_t sourceX, uint32_t sourceY, uint32_t targetX, uint32_t targetY);
