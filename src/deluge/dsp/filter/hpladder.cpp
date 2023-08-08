@@ -70,7 +70,7 @@ q31_t HpLadderFilter::setConfig(q31_t hpfFrequency, q31_t hpfResonance, LPFMode 
 void HpLadderFilter::doFilter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement, int32_t extraSaturation) {
 	q31_t* currentSample = startSample;
 	do {
-		*currentSample = doHPF(*currentSample, extraSaturation, &l);
+		*currentSample = doHPF(*currentSample, extraSaturation, l);
 		currentSample += sampleIncrement;
 	} while (currentSample < endSample);
 }
@@ -78,18 +78,18 @@ void HpLadderFilter::doFilter(q31_t* startSample, q31_t* endSample, int32_t samp
 void HpLadderFilter::doFilterStereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation) {
 	q31_t* currentSample = startSample;
 	do {
-		*currentSample = doHPF(*currentSample, extraSaturation, &l);
+		*currentSample = doHPF(*currentSample, extraSaturation, l);
 		currentSample += 1;
-		*currentSample = doHPF(*currentSample, extraSaturation, &r);
+		*currentSample = doHPF(*currentSample, extraSaturation, r);
 		currentSample += 1;
 	} while (currentSample < endSample);
 }
-inline q31_t HpLadderFilter::doHPF(q31_t input, int32_t extraSaturation, HPLadderState* state) {
+inline q31_t HpLadderFilter::doHPF(q31_t input, int32_t extraSaturation, HPLadderState& state) {
 
-	q31_t firstHPFOutput = input - state->hpfHPF1.doFilter(input, fc);
+	q31_t firstHPFOutput = input - state.hpfHPF1.doFilter(input, fc);
 
 	q31_t feedbacksValue =
-	    state->hpfHPF3.getFeedbackOutput(hpfHPF3Feedback) + state->hpfLPF1.getFeedbackOutput(hpfLPF1Feedback);
+	    state.hpfHPF3.getFeedbackOutput(hpfHPF3Feedback) + state.hpfLPF1.getFeedbackOutput(hpfLPF1Feedback);
 
 	q31_t a = multiply_32x32_rshift32_rounded(divideByTotalMoveability, firstHPFOutput + feedbacksValue) << (4 + 1);
 
@@ -104,7 +104,7 @@ inline q31_t HpLadderFilter::doHPF(q31_t input, int32_t extraSaturation, HPLadde
 		}
 	}
 
-	state->hpfLPF1.doFilter(a - state->hpfHPF3.doFilter(a, fc), fc);
+	state.hpfLPF1.doFilter(a - state.hpfHPF3.doFilter(a, fc), fc);
 
 	a = multiply_32x32_rshift32_rounded(a, hpfDivideByProcessedResonance) << (8 - 1); // Normalization
 

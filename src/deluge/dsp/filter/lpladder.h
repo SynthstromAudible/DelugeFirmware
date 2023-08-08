@@ -50,9 +50,9 @@ private:
 			lpfLPF4.reset();
 		}
 	};
-	inline q31_t do24dBLPFOnSample(q31_t input, LpLadderState* state, int32_t saturationLevel);
-	inline q31_t do12dBLPFOnSample(q31_t input, LpLadderState* state, int32_t saturationLevel);
-	inline q31_t doDriveLPFOnSample(q31_t input, LpLadderState* state, int32_t extraSaturation = 0);
+	inline q31_t do24dBLPFOnSample(q31_t input, LpLadderState& state, int32_t saturationLevel);
+	inline q31_t do12dBLPFOnSample(q31_t input, LpLadderState& state, int32_t saturationLevel);
+	inline q31_t doDriveLPFOnSample(q31_t input, LpLadderState& state, int32_t extraSaturation = 0);
 	inline void renderLPLadder(q31_t* startSample, q31_t* endSample, LPFMode lpfMode, int32_t sampleIncrement,
 	                           int32_t extraSaturation, int32_t extraSaturationDrive);
 

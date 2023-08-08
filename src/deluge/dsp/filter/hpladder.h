@@ -48,7 +48,7 @@ private:
 			hpfHPF3.reset();
 		}
 	};
-	inline q31_t doHPF(q31_t input, int32_t saturationLevel, HPLadderState* state);
+	inline q31_t doHPF(q31_t input, int32_t saturationLevel, HPLadderState& state);
 
 	//config
 	uint32_t hpfLastWorkingValue;

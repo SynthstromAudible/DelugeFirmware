@@ -174,7 +174,7 @@ void LpLadderFilter::doFilter(q31_t* startSample, q31_t* endSample, int32_t samp
 
 		q31_t* currentSample = startSample;
 		do {
-			*currentSample = do12dBLPFOnSample(*currentSample, &l, 0);
+			*currentSample = do12dBLPFOnSample(*currentSample, l, 0);
 			currentSample += sampleIncrement;
 		} while (currentSample < endSample);
 	}
@@ -187,7 +187,7 @@ void LpLadderFilter::doFilter(q31_t* startSample, q31_t* endSample, int32_t samp
 		    > 900000000) { // Careful - pushing this too high leads to crackling, only at the highest frequencies, and at the top of the non-saturating resonance range
 			q31_t* currentSample = startSample;
 			do {
-				*currentSample = do24dBLPFOnSample(*currentSample, &l, 1 + extraSaturation);
+				*currentSample = do24dBLPFOnSample(*currentSample, l, 1 + extraSaturation);
 
 				currentSample += sampleIncrement;
 			} while (currentSample < endSample);
@@ -196,7 +196,7 @@ void LpLadderFilter::doFilter(q31_t* startSample, q31_t* endSample, int32_t samp
 		else {
 			q31_t* currentSample = startSample;
 			do {
-				*currentSample = do24dBLPFOnSample(*currentSample, &l, 0);
+				*currentSample = do24dBLPFOnSample(*currentSample, l, 0);
 
 				currentSample += sampleIncrement;
 			} while (currentSample < endSample);
@@ -220,10 +220,10 @@ void LpLadderFilter::doFilter(q31_t* startSample, q31_t* endSample, int32_t samp
 				// And even, making our "interpolated" sample just a 0 and doubling the amplitude of the actual sample works very nearly as well as this,
 				// but gives a little bit more aliasing on high notes fed in.
 
-				doDriveLPFOnSample(*currentSample, &l, extraSaturationDrive);
+				doDriveLPFOnSample(*currentSample, l, extraSaturationDrive);
 
 				// Crude downsampling - just take every second sample, with no anti-aliasing filter. Works fine cos the ladder LPF filter takes care of lots of those high harmonics!
-				q31_t outputSampleToKeep = doDriveLPFOnSample(*currentSample, &l, extraSaturationDrive);
+				q31_t outputSampleToKeep = doDriveLPFOnSample(*currentSample, l, extraSaturationDrive);
 
 				// Only perform the final saturation stage on this one sample, which we want to keep
 				*currentSample = getTanHUnknown(outputSampleToKeep, 3 + extraSaturationDrive);
@@ -235,7 +235,7 @@ void LpLadderFilter::doFilter(q31_t* startSample, q31_t* endSample, int32_t samp
 		else {
 			q31_t* currentSample = startSample;
 			do {
-				q31_t outputSampleToKeep = doDriveLPFOnSample(*currentSample, &l, extraSaturationDrive);
+				q31_t outputSampleToKeep = doDriveLPFOnSample(*currentSample, l, extraSaturationDrive);
 				*currentSample = getTanHUnknown(outputSampleToKeep, 3 + extraSaturationDrive);
 
 				currentSample += sampleIncrement;
@@ -250,9 +250,9 @@ void LpLadderFilter::doFilterStereo(q31_t* startSample, q31_t* endSample, int32_
 
 		q31_t* currentSample = startSample;
 		do {
-			*currentSample = do12dBLPFOnSample(*currentSample, &l, 0);
+			*currentSample = do12dBLPFOnSample(*currentSample, l, 0);
 			currentSample += 1;
-			*currentSample = do12dBLPFOnSample(*currentSample, &r, 0);
+			*currentSample = do12dBLPFOnSample(*currentSample, r, 0);
 			currentSample += 1;
 		} while (currentSample < endSample);
 	}
@@ -265,10 +265,10 @@ void LpLadderFilter::doFilterStereo(q31_t* startSample, q31_t* endSample, int32_
 		    > 900000000) { // Careful - pushing this too high leads to crackling, only at the highest frequencies, and at the top of the non-saturating resonance range
 			q31_t* currentSample = startSample;
 			do {
-				*currentSample = do24dBLPFOnSample(*currentSample, &l, 1 + extraSaturation);
+				*currentSample = do24dBLPFOnSample(*currentSample, l, 1 + extraSaturation);
 
 				currentSample += 1;
-				*currentSample = do24dBLPFOnSample(*currentSample, &r, 1 + extraSaturation);
+				*currentSample = do24dBLPFOnSample(*currentSample, r, 1 + extraSaturation);
 
 				currentSample += 1;
 			} while (currentSample < endSample);
@@ -277,10 +277,10 @@ void LpLadderFilter::doFilterStereo(q31_t* startSample, q31_t* endSample, int32_
 		else {
 			q31_t* currentSample = startSample;
 			do {
-				*currentSample = do24dBLPFOnSample(*currentSample, &l, 0);
+				*currentSample = do24dBLPFOnSample(*currentSample, l, 0);
 
 				currentSample += 1;
-				*currentSample = do24dBLPFOnSample(*currentSample, &r, 0);
+				*currentSample = do24dBLPFOnSample(*currentSample, r, 0);
 
 				currentSample += 1;
 			} while (currentSample < endSample);
@@ -304,19 +304,19 @@ void LpLadderFilter::doFilterStereo(q31_t* startSample, q31_t* endSample, int32_
 				// And even, making our "interpolated" sample just a 0 and doubling the amplitude of the actual sample works very nearly as well as this,
 				// but gives a little bit more aliasing on high notes fed in.
 
-				doDriveLPFOnSample(*currentSample, &l, extraSaturationDrive);
+				doDriveLPFOnSample(*currentSample, l, extraSaturationDrive);
 
 				// Crude downsampling - just take every second sample, with no anti-aliasing filter. Works fine cos the ladder LPF filter takes care of lots of those high harmonics!
-				q31_t outputSampleToKeep = doDriveLPFOnSample(*currentSample, &l, extraSaturationDrive);
+				q31_t outputSampleToKeep = doDriveLPFOnSample(*currentSample, l, extraSaturationDrive);
 
 				// Only perform the final saturation stage on this one sample, which we want to keep
 				*currentSample = getTanHUnknown(outputSampleToKeep, 3 + extraSaturationDrive);
 
 				currentSample += 1;
-				doDriveLPFOnSample(*currentSample, &r, extraSaturationDrive);
+				doDriveLPFOnSample(*currentSample, r, extraSaturationDrive);
 
 				// Crude downsampling - just take every second sample, with no anti-aliasing filter. Works fine cos the ladder LPF filter takes care of lots of those high harmonics!
-				outputSampleToKeep = doDriveLPFOnSample(*currentSample, &r, extraSaturationDrive);
+				outputSampleToKeep = doDriveLPFOnSample(*currentSample, r, extraSaturationDrive);
 
 				// Only perform the final saturation stage on this one sample, which we want to keep
 				*currentSample = getTanHUnknown(outputSampleToKeep, 3 + extraSaturationDrive);
@@ -328,11 +328,11 @@ void LpLadderFilter::doFilterStereo(q31_t* startSample, q31_t* endSample, int32_
 		else {
 			q31_t* currentSample = startSample;
 			do {
-				q31_t outputSampleToKeep = doDriveLPFOnSample(*currentSample, &l, extraSaturationDrive);
+				q31_t outputSampleToKeep = doDriveLPFOnSample(*currentSample, l, extraSaturationDrive);
 				*currentSample = getTanHUnknown(outputSampleToKeep, 3 + extraSaturationDrive);
 
 				currentSample += 1;
-				outputSampleToKeep = doDriveLPFOnSample(*currentSample, &r, extraSaturationDrive);
+				outputSampleToKeep = doDriveLPFOnSample(*currentSample, r, extraSaturationDrive);
 				*currentSample = getTanHUnknown(outputSampleToKeep, 3 + extraSaturationDrive);
 
 				currentSample += 1;
@@ -340,15 +340,15 @@ void LpLadderFilter::doFilterStereo(q31_t* startSample, q31_t* endSample, int32_
 		}
 	}
 }
-inline q31_t LpLadderFilter::do12dBLPFOnSample(q31_t input, LpLadderState* state, int32_t saturationLevel) {
+inline q31_t LpLadderFilter::do12dBLPFOnSample(q31_t input, LpLadderState& state, int32_t saturationLevel) {
 	// For drive filter, apply some heavily lowpassed noise to the filter frequency, to add analog-ness
 	q31_t noise = getNoise() >> 2; //storageManager.devVarA;// 2;
-	q31_t distanceToGo = noise - state->noiseLastValue;
-	state->noiseLastValue += distanceToGo >> 7; //storageManager.devVarB;
-	q31_t noisy_m = moveability + multiply_32x32_rshift32(moveability, state->noiseLastValue);
+	q31_t distanceToGo = noise - state.noiseLastValue;
+	state.noiseLastValue += distanceToGo >> 7; //storageManager.devVarB;
+	q31_t noisy_m = moveability + multiply_32x32_rshift32(moveability, state.noiseLastValue);
 
-	q31_t feedbacksSum = state->lpfLPF1.getFeedbackOutput(lpf1Feedback) + state->lpfLPF2.getFeedbackOutput(lpf2Feedback)
-	                     + state->lpfLPF3.getFeedbackOutput(divideBy1PlusTannedFrequency);
+	q31_t feedbacksSum = state.lpfLPF1.getFeedbackOutput(lpf1Feedback) + state.lpfLPF2.getFeedbackOutput(lpf2Feedback)
+	                     + state.lpfLPF3.getFeedbackOutput(divideBy1PlusTannedFrequency);
 	q31_t x = multiply_32x32_rshift32_rounded(
 	              (input - (multiply_32x32_rshift32_rounded(feedbacksSum, processedResonance) << 3)),
 	              divideByTotalMoveabilityAndProcessedResonance)
@@ -359,21 +359,21 @@ inline q31_t LpLadderFilter::do12dBLPFOnSample(q31_t input, LpLadderState* state
 		x = getTanHUnknown(x, 1 + saturationLevel);          // Saturation
 	}
 
-	return state->lpfLPF3.doAPF(state->lpfLPF2.doFilter(state->lpfLPF1.doFilter(x, noisy_m), noisy_m), noisy_m) << 1;
+	return state.lpfLPF3.doAPF(state.lpfLPF2.doFilter(state.lpfLPF1.doFilter(x, noisy_m), noisy_m), noisy_m) << 1;
 }
 
-inline q31_t LpLadderFilter::do24dBLPFOnSample(q31_t input, LpLadderState* state, int32_t saturationLevel) {
+inline q31_t LpLadderFilter::do24dBLPFOnSample(q31_t input, LpLadderState& state, int32_t saturationLevel) {
 
 	// For drive filter, apply some heavily lowpassed noise to the filter frequency, to add analog-ness
 	q31_t noise = getNoise() >> 2; //storageManager.devVarA;// 2;
-	q31_t distanceToGo = noise - state->noiseLastValue;
-	state->noiseLastValue += distanceToGo >> 7; //storageManager.devVarB;
-	q31_t noisy_m = moveability + multiply_32x32_rshift32(moveability, state->noiseLastValue);
+	q31_t distanceToGo = noise - state.noiseLastValue;
+	state.noiseLastValue += distanceToGo >> 7; //storageManager.devVarB;
+	q31_t noisy_m = moveability + multiply_32x32_rshift32(moveability, state.noiseLastValue);
 
-	q31_t feedbacksSum = (state->lpfLPF1.getFeedbackOutputWithoutLshift(lpf1Feedback)
-	                      + state->lpfLPF2.getFeedbackOutputWithoutLshift(lpf2Feedback)
-	                      + state->lpfLPF3.getFeedbackOutputWithoutLshift(lpf3Feedback)
-	                      + state->lpfLPF4.getFeedbackOutputWithoutLshift(divideBy1PlusTannedFrequency))
+	q31_t feedbacksSum = (state.lpfLPF1.getFeedbackOutputWithoutLshift(lpf1Feedback)
+	                      + state.lpfLPF2.getFeedbackOutputWithoutLshift(lpf2Feedback)
+	                      + state.lpfLPF3.getFeedbackOutputWithoutLshift(lpf3Feedback)
+	                      + state.lpfLPF4.getFeedbackOutputWithoutLshift(divideBy1PlusTannedFrequency))
 	                     << 2;
 
 	// Note: in the line above, we "should" halve filterSetConfig->divideBy1plusg to get it into the 1=1073741824 range. But it doesn't sound as good.
@@ -391,24 +391,24 @@ inline q31_t LpLadderFilter::do24dBLPFOnSample(q31_t input, LpLadderState* state
 		x = getTanHUnknown(x, saturationLevel);
 	}
 
-	return state->lpfLPF4.doFilter(
-	           state->lpfLPF3.doFilter(state->lpfLPF2.doFilter(state->lpfLPF1.doFilter(x, noisy_m), noisy_m), noisy_m),
+	return state.lpfLPF4.doFilter(
+	           state.lpfLPF3.doFilter(state.lpfLPF2.doFilter(state.lpfLPF1.doFilter(x, noisy_m), noisy_m), noisy_m),
 	           noisy_m)
 	       << 1;
 }
 
-inline q31_t LpLadderFilter::doDriveLPFOnSample(q31_t input, LpLadderState* state, int32_t extraSaturation) {
+inline q31_t LpLadderFilter::doDriveLPFOnSample(q31_t input, LpLadderState& state, int32_t extraSaturation) {
 
 	// For drive filter, apply some heavily lowpassed noise to the filter frequency, to add analog-ness
 	q31_t noise = getNoise() >> 2; //storageManager.devVarA;// 2;
-	q31_t distanceToGo = noise - state->noiseLastValue;
-	state->noiseLastValue += distanceToGo >> 7; //storageManager.devVarB;
-	q31_t noisy_m = moveability + multiply_32x32_rshift32(moveability, state->noiseLastValue);
+	q31_t distanceToGo = noise - state.noiseLastValue;
+	state.noiseLastValue += distanceToGo >> 7; //storageManager.devVarB;
+	q31_t noisy_m = moveability + multiply_32x32_rshift32(moveability, state.noiseLastValue);
 
-	q31_t feedbacksSum = (state->lpfLPF1.getFeedbackOutputWithoutLshift(lpf1Feedback)
-	                      + state->lpfLPF2.getFeedbackOutputWithoutLshift(lpf2Feedback)
-	                      + state->lpfLPF3.getFeedbackOutputWithoutLshift(lpf3Feedback)
-	                      + state->lpfLPF4.getFeedbackOutputWithoutLshift(divideBy1PlusTannedFrequency))
+	q31_t feedbacksSum = (state.lpfLPF1.getFeedbackOutputWithoutLshift(lpf1Feedback)
+	                      + state.lpfLPF2.getFeedbackOutputWithoutLshift(lpf2Feedback)
+	                      + state.lpfLPF3.getFeedbackOutputWithoutLshift(lpf3Feedback)
+	                      + state.lpfLPF4.getFeedbackOutputWithoutLshift(divideBy1PlusTannedFrequency))
 	                     << 2;
 
 	// Note: in the line above, we "should" halve filterSetConfig->divideBy1plusg to get it into the 1=1073741824 range. But it doesn't sound as good.
@@ -424,13 +424,13 @@ inline q31_t LpLadderFilter::doDriveLPFOnSample(q31_t input, LpLadderState* stat
 	              divideByTotalMoveabilityAndProcessedResonance)
 	          << 2;
 
-	q31_t a = state->lpfLPF1.doFilter(x, noisy_m);
+	q31_t a = state.lpfLPF1.doFilter(x, noisy_m);
 
-	q31_t b = state->lpfLPF2.doFilter(a, noisy_m);
+	q31_t b = state.lpfLPF2.doFilter(a, noisy_m);
 
-	q31_t c = state->lpfLPF3.doFilter(b, noisy_m);
+	q31_t c = state.lpfLPF3.doFilter(b, noisy_m);
 
-	q31_t d = state->lpfLPF4.doFilter(c, noisy_m) << 1;
+	q31_t d = state.lpfLPF4.doFilter(c, noisy_m) << 1;
 
 	return d;
 }

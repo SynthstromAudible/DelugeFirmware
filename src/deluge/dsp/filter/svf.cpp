@@ -22,7 +22,7 @@ namespace deluge::dsp::filter {
 void SVFilter::doFilter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrememt, int32_t extraSaturation) {
 	q31_t* currentSample = startSample;
 	do {
-		q31_t outs = doSVF(*currentSample, &l);
+		q31_t outs = doSVF(*currentSample, l);
 		*currentSample = outs << 1;
 
 		currentSample += sampleIncrememt;
@@ -31,10 +31,10 @@ void SVFilter::doFilter(q31_t* startSample, q31_t* endSample, int32_t sampleIncr
 void SVFilter::doFilterStereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation) {
 	q31_t* currentSample = startSample;
 	do {
-		q31_t outs = doSVF(*currentSample, &l);
+		q31_t outs = doSVF(*currentSample, l);
 
 		*currentSample = outs << 1;
-		q31_t outs2 = doSVF(*(currentSample + 1), &r);
+		q31_t outs2 = doSVF(*(currentSample + 1), r);
 		*(currentSample + 1) = outs2 << 1;
 		currentSample += 2;
 	} while (currentSample < endSample);
@@ -52,12 +52,12 @@ q31_t SVFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, LPFMode lpfMod
 	return filterGain;
 }
 
-inline q31_t SVFilter::doSVF(int32_t input, SVFState* state) {
+inline q31_t SVFilter::doSVF(int32_t input, SVFState& state) {
 	q31_t high = 0;
 	q31_t notch = 0;
 	q31_t lowi;
-	q31_t low = state->low;
-	q31_t band = state->band;
+	q31_t low = state.low;
+	q31_t band = state.band;
 
 	input = multiply_32x32_rshift32(in, input);
 
@@ -82,8 +82,8 @@ inline q31_t SVFilter::doSVF(int32_t input, SVFState* state) {
 	//notch = high + low;
 
 	//SVF_outs result = {(lowi) + (low), band, high, notch};
-	state->low = low;
-	state->band = band;
+	state.low = low;
+	state.band = band;
 	return lowi + low;
 }
 } // namespace deluge::dsp::filter
