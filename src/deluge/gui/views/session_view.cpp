@@ -3076,103 +3076,42 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 	actionLogger.deleteAllLogs();
 
 	Clip* newClip = nullptr;
+	bool switchToNextAvailableOutput = false;
+	bool switchToTargetOutput = false;
 
 	// From source
 	if (sourceClip != nullptr) {
-
-		// Copy existing clip to the same track
-		if (sourceClip->output == targetOutput) {
-			newClip = gridCloneClip(sourceClip);
-			if (newClip == nullptr) {
-				return nullptr;
-			}
-		}
-
 		// Can't clone audio to other tracks
-		else if (sourceClip->type == CLIP_TYPE_AUDIO || (targetOutput && targetOutput->type == InstrumentType::AUDIO)) {
+		if (sourceClip->type == CLIP_TYPE_AUDIO || (targetOutput && targetOutput->type == InstrumentType::AUDIO)) {
 			numericDriver.displayPopup(HAVE_OLED ? "Can't clone audio in other track" : "CANT");
+			return nullptr;
 		}
 
-		// Create new clip in other track or new track
-		else {
-			InstrumentClip* sourceInstrumentClip = (InstrumentClip*)sourceClip;
+		// First we make an identical copy
+		newClip = gridCloneClip(sourceClip);
+		if (newClip == nullptr) {
+			return nullptr;
+		}
 
-			// Copy to a different existing track
-			if (targetOutput != nullptr) {
-				bool bothKit = (sourceInstrumentClip->output->type == InstrumentType::KIT
-				                && targetOutput->type == InstrumentType::KIT);
-				bool bothNotKit = (sourceInstrumentClip->output->type != InstrumentType::KIT
-				                   && targetOutput->type != InstrumentType::KIT);
+		// New track will be created, switch to a new preset
+		if (targetOutput == nullptr) {
+			switchToNextAvailableOutput = true;
+		}
 
-				if (bothKit || bothNotKit) {
-					newClip = gridCreateClipInTrack(targetOutput);
-				}
-
-				// Destination track incompatible
-				else {
-					numericDriver.displayPopup(HAVE_OLED ? "Incompatible type" : "CANT");
-				}
-			}
-			// Also create a new track
-			else {
-				newClip = gridCreateClipWithNewTrack(((InstrumentClip*)sourceClip)->output->type);
-			}
-
-			// We have a compatible target clip
-			if (newClip != nullptr) {
-				InstrumentClip* newInstrumentClip = (InstrumentClip*)newClip;
-				//@TODO: This still produces crashes
-
-				// Copy note row contents if clip type matches
-				if (sourceInstrumentClip->type == newInstrumentClip->type) {
-					newInstrumentClip->loopLength = sourceInstrumentClip->loopLength;
-
-					// if(newInstrumentClip->paramManager.cloneParamCollectionsFrom(&sourceInstrumentClip->paramManager, true, true, 0) != NO_ERROR) {
-					// 	newInstrumentClip->~InstrumentClip();
-					// 	GeneralMemoryAllocator::get().dealloc(newInstrumentClip);
-					// 	numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
-					// 	return nullptr;
-					// }
-
-					if (!newInstrumentClip->noteRows.cloneFrom(&sourceInstrumentClip->noteRows)) {
-						newInstrumentClip->~InstrumentClip();
-						GeneralMemoryAllocator::get().dealloc(newInstrumentClip);
-						numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
-						return nullptr;
-					}
-
-					char modelStackMemory[MODEL_STACK_MAX_SIZE];
-					ModelStackWithTimelineCounter* modelStack =
-					    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(sourceClip);
-					modelStack->setTimelineCounter(newInstrumentClip);
-
-					for (int32_t i = 0; i < newInstrumentClip->noteRows.getNumElements(); i++) {
-						NoteRow* noteRow = newInstrumentClip->noteRows.getElement(i);
-						int32_t noteRowId = newInstrumentClip->getNoteRowId(noteRow, i);
-						ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, noteRow);
-						int32_t error = noteRow->beenCloned(modelStackWithNoteRow, false);
-						if (error != NO_ERROR) {
-							newInstrumentClip->~InstrumentClip();
-							GeneralMemoryAllocator::get().dealloc(newInstrumentClip);
-							numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
-							return nullptr;
-						}
-					}
-				}
-			}
+		// Different instrument, switch the cloned clip to it
+		else if (targetOutput != sourceClip->output) {
+			switchToTargetOutput = true;
 		}
 	}
-	// Empty clip
-	else {
-		// Create new clip in existing track
-		if (targetOutput != nullptr) {
-			newClip = gridCreateClipInTrack(targetOutput);
-		}
 
-		// Create new clip in new track
-		else {
-			newClip = gridCreateClipWithNewTrack(InstrumentType::SYNTH); // Default SYNTH
-		}
+	// Create new clip in existing track
+	else if (targetOutput != nullptr) {
+		newClip = gridCreateClipInTrack(targetOutput);
+	}
+
+	// Create new clip in new track
+	else {
+		newClip = gridCreateClipWithNewTrack(InstrumentType::SYNTH); // Default SYNTH
 	}
 
 	// Set new clip section and add it to the list
@@ -3199,6 +3138,46 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 	// Figure out the play pos for the new Clip if we're currently playing
 	if (session.hasPlaybackActive() && playbackHandler.isEitherClockActive() && currentSong->isClipActive(newClip)) {
 		session.reSyncClip(modelStackWithTimelineCounter, true);
+	}
+
+	if (switchToNextAvailableOutput) {
+		//@TODO: Fix next track selection behavior
+		view.navigateThroughPresetsForInstrumentClip(2, modelStackWithTimelineCounter, false);
+	}
+
+	if (switchToTargetOutput) {
+		// // Convert clip to the right type //@TODO: Not yet sure if necessary
+		// if(newClip->output->type != targetOutput->type) {
+		// 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		// 	ModelStackWithTimelineCounter* modelStack =
+		// 		setupModelStackWithTimelineCounter(modelStackMemory, currentSong, newClip);
+
+		// 	view.changeInstrumentType(targetOutput->type, modelStack, true);
+		// }
+
+		// See InstrumentClip::cloneAsNewOverdub
+
+		//@TODO: This still crashes but might be the way to go, we just need to switch to the right instrument correctly
+		ParamManagerForTimeline newParamManager;
+
+		int32_t error = newParamManager.cloneParamCollectionsFrom(&sourceClip->paramManager, false, true);
+		if (error) {
+			numericDriver.displayError(error);
+			return NULL;
+		}
+
+		InstrumentClip* srcInst = (InstrumentClip*)sourceClip;
+		InstrumentClip* dstInst = (InstrumentClip*)newClip;
+
+		dstInst->setInstrument((Instrument*)targetOutput, currentSong, &newParamManager);
+
+		// char modelStackMemoryNewClip[MODEL_STACK_MAX_SIZE];
+		// ModelStackWithTimelineCounter* modelStackNewClip =
+		// 	setupModelStackWithTimelineCounter(modelStackMemoryNewClip, currentSong, dstInst);
+
+		// dstInst->setupAsNewKitClipIfNecessary(modelStackNewClip);
+
+		//@TODO: switch instrument
 	}
 
 	// Set to active for new tracks
