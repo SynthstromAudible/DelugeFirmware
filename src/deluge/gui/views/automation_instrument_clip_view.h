@@ -159,6 +159,8 @@ private:
 
 	bool encoderAction;
 	bool shortcutBlinking;
+	int32_t pixelSelection;
+	int32_t colourSelection; //0 = row, 1 = tail, 2 = blur
 };
 
 extern AutomationInstrumentClipView automationInstrumentClipView;

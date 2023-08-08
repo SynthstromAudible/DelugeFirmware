@@ -239,6 +239,8 @@ AutomationInstrumentClipView::AutomationInstrumentClipView() {
 	interpolationAfter = false;
 	encoderAction = false;
 	shortcutBlinking = false;
+	colourSelection = 2;
+	pixelSelection = 0;
 }
 
 inline InstrumentClip* getCurrentClip() {
@@ -454,17 +456,9 @@ void AutomationInstrumentClipView::performActualRender(uint32_t whichRows, uint8
 
 		else {
 
-			//if a Kit clip is selected, affect entire is not enabled and a row has not been selected yet, you cannot do anything in the automation instrument clip view
-			if (instrument->type == InstrumentType::KIT && !instrumentClipView.getAffectEntire()
-			    && !((Kit*)instrument)->selectedDrum) {
-
-				numericDriver.displayPopup(HAVE_OLED ? "Select Row" : "SEL");
+			if (instrument->type == InstrumentType::CV) {
+				renderLove(image + (yDisplay * imageWidth * 3	), occupancyMaskOfRow, yDisplay);
 			}
-			else if (instrument->type == InstrumentType::KIT && instrumentClipView.getAffectEntire()) {
-				numericDriver.displayPopup(HAVE_OLED ? "Coming Soon" : "SOON");
-			}
-
-			renderLove(image + (yDisplay * imageWidth * 3), occupancyMaskOfRow, yDisplay);
 		}
 	}
 }
@@ -786,6 +780,8 @@ ActionResult AutomationInstrumentClipView::buttonAction(hid::Button b, bool on, 
 		}
 	}
 
+
+
 	// Song view button
 	else if (b == SESSION_VIEW) {
 		if (on && currentUIMode == UI_MODE_NONE) {
@@ -875,8 +871,10 @@ doOther:
 	// Kit button. Unlike the other instrument-type buttons, whose code is in InstrumentClipMinder, this one is only allowed in the KeyboardScreen
 	else if (b == KIT && currentUIMode == UI_MODE_NONE) {
 		if (on) {
-			initParameterSelection();
-			resetShortcutBlinking();
+			if (instrument->type != InstrumentType::KIT) {
+				initParameterSelection();
+				resetShortcutBlinking();
+			}
 
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -894,8 +892,10 @@ doOther:
 	else if (b == SYNTH && currentUIMode != UI_MODE_HOLDING_SAVE_BUTTON
 	         && currentUIMode != UI_MODE_HOLDING_LOAD_BUTTON) {
 		if (on) {
-			initParameterSelection();
-			resetShortcutBlinking();
+			if (instrument->type != InstrumentType::SYNTH) {
+				initParameterSelection();
+				resetShortcutBlinking();
+			}
 
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -915,8 +915,10 @@ doOther:
 
 	else if (b == MIDI) {
 		if (on) {
-			initParameterSelection();
-			resetShortcutBlinking();
+			if (instrument->type != InstrumentType::MIDI_OUT) {
+				initParameterSelection();
+				resetShortcutBlinking();
+			}
 
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -1067,7 +1069,170 @@ ActionResult AutomationInstrumentClipView::padAction(int32_t x, int32_t y, int32
 
 			if (Buttons::isShiftButtonPressed()) {
 
-				handleSinglePadPress(modelStack, clip, x, y, true);
+				if (colourSelection == 0) { //row
+
+					if (isUIModeActive(UI_MODE_AUDITIONING)){
+						colourSelection = 1;
+					}
+
+					if (pixelSelection == 0) {
+
+						char buffer[30];
+
+						intToString(instrumentClipView.rowColour[y][pixelSelection], buffer);
+
+						strcat(buffer, "\n(Red)");
+
+						OLED::popupText(buffer, true);
+
+						//displayParameterValue(instrumentClipView.rowColour[y][pixelSelection]);
+
+						pixelSelection++;
+
+					}
+
+					else if (pixelSelection == 1) {
+
+						char buffer[30];
+
+						intToString(instrumentClipView.rowColour[y][pixelSelection], buffer);
+
+						strcat(buffer, "\n(Green)");
+
+						OLED::popupText(buffer, true);
+
+						//displayParameterValue(instrumentClipView.rowColour[y][pixelSelection]);
+
+						pixelSelection++;
+
+					}
+
+					else if (pixelSelection == 2) {
+
+						char buffer[30];
+
+						intToString(instrumentClipView.rowColour[y][pixelSelection], buffer);
+
+						strcat(buffer, "\n(Blue)");
+						
+						OLED::popupText(buffer, true);
+
+						//displayParameterValue(instrumentClipView.rowColour[y][pixelSelection]);
+
+						pixelSelection = 0;
+
+					}
+
+				}
+				else if (colourSelection == 1) { //tail
+					if (isUIModeActive(UI_MODE_AUDITIONING)){
+						colourSelection = 2;
+					}
+
+					if (pixelSelection == 0) {
+
+						char buffer[30];
+
+						intToString(instrumentClipView.rowTailColour[y][pixelSelection], buffer);
+
+						strcat(buffer, "\n(Red)");
+
+						OLED::popupText(buffer, true);
+
+						//displayParameterValue(instrumentClipView.rowColour[y][pixelSelection]);
+
+						pixelSelection++;
+
+					}
+
+					else if (pixelSelection == 1) {
+
+						char buffer[30];
+
+						intToString(instrumentClipView.rowTailColour[y][pixelSelection], buffer);
+
+						strcat(buffer, "\n(Green)");
+
+						OLED::popupText(buffer, true);
+
+						//displayParameterValue(instrumentClipView.rowColour[y][pixelSelection]);
+
+						pixelSelection++;
+
+					}
+
+					else if (pixelSelection == 2) {
+
+						char buffer[30];
+
+						intToString(instrumentClipView.rowTailColour[y][pixelSelection], buffer);
+
+						strcat(buffer, "\n(Blue)");
+						
+						OLED::popupText(buffer, true);
+						
+						//displayParameterValue(instrumentClipView.rowColour[y][pixelSelection]);
+
+						pixelSelection = 0;
+
+					}
+
+				}
+				else if (colourSelection == 2) { //blur
+					if (isUIModeActive(UI_MODE_AUDITIONING)){
+						colourSelection = 3;
+					}
+
+					if (pixelSelection == 0) {
+
+						char buffer[30];
+
+						intToString(instrumentClipView.rowBlurColour[y][pixelSelection], buffer);
+
+						strcat(buffer, "\n(Red)");
+
+						OLED::popupText(buffer, true);
+
+						//displayParameterValue(instrumentClipView.rowColour[y][pixelSelection]);
+
+						pixelSelection++;
+
+					}
+
+					else if (pixelSelection == 1) {
+
+						char buffer[30];
+
+						intToString(instrumentClipView.rowBlurColour[y][pixelSelection], buffer);
+
+						strcat(buffer, "\n(Green)");
+
+						OLED::popupText(buffer, true);
+
+						//displayParameterValue(instrumentClipView.rowColour[y][pixelSelection]);
+
+						pixelSelection++;
+
+					}
+
+					else if (pixelSelection == 2) {
+
+						char buffer[30];
+
+						intToString(instrumentClipView.rowBlurColour[y][pixelSelection], buffer);
+
+						strcat(buffer, "\n(Blue)");
+						
+						OLED::popupText(buffer, true);
+						
+						//displayParameterValue(instrumentClipView.rowColour[y][pixelSelection]);
+
+						pixelSelection = 0;
+
+					}
+				}
+
+				//handleSinglePadPress(modelStack, clip, x, y, true);
 
 				return ActionResult::DEALT_WITH;
 			}
