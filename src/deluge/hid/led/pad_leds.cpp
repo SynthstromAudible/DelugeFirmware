@@ -1295,11 +1295,12 @@ void vertical::setupScroll(int8_t thisScrollDirection, bool scrollIntoNothing) {
 void renderFade(int32_t progress) {
 	for (int32_t y = 0; y < kDisplayHeight; y++) {
 		for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
-			for (int32_t c = 0; c < 3; c++) {
-				int32_t difference = (int32_t)imageStore[y + kDisplayHeight][x][c] - (int32_t)imageStore[y][x][c];
-				int32_t progressedDifference = rshift_round(difference * progress, 16);
-				PadLEDs::image[y][x][c] = imageStore[y][x][c] + progressedDifference;
-			}
+			PadLEDs::image[y][x] = RGB::transform2(
+			    imageStore[y][x], imageStore[y + kDisplayHeight][x], [progress](auto channelA, auto channelB) {
+				    int32_t difference = (int32_t)channelB - (int32_t)channelA;
+				    uint32_t progressedDifference = rshift_round(difference * progress, 16);
+				    return channelA + progressedDifference;
+			    });
 		}
 	}
 	sendOutMainPadColors();

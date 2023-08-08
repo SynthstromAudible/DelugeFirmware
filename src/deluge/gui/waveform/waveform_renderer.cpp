@@ -106,14 +106,12 @@ bool WaveformRenderer::renderAsSingleRow(Sample* sample, int64_t xScroll, uint64
 		colorValue = (colorValue * colorValue); // >> 8;
 		//if (colorValue > 255) colorValue = 255; // May sometimes go juuust over
 
-		for (int32_t c = 0; c < 3; c++) {
-			int32_t valueHere = (colorValue * rgb[c]) >> 16;
+		thisImage[xDisplayOutput] = rgb.transform([colorValue](auto channel) {
+			int32_t valueHere = (colorValue * channel) >> 16;
 			// Limit the heck out of the bit depth, to avoid problem with PIC firmware where too many different color shades cause big problems.
 			// The 6 is quite arbitrary, but I think it looks good
-			valueHere = std::clamp<int32_t>((valueHere + 6) & ~15, 0, RGB::channel_max);
-
-			thisImage[xDisplayOutput][c] = valueHere;
-		}
+			return std::clamp<int32_t>((valueHere + 6) & ~15, 0, RGB::channel_max);
+		});
 	}
 
 	return true;

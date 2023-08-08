@@ -93,10 +93,11 @@ void setupSquareWave() {
 	int32_t count = 0;
 	for (int32_t* address = getTxBufferStart(); address < getTxBufferEnd(); address++) {
 		if (count < SSI_TX_BUFFER_NUM_SAMPLES) {
-			*address = 2147483647;
+			*address = std::numeric_limits<int32_t>::max();
 		}
 		else {
-			*address = -2147483648;
+			*address = std::numeric_limits<int32_t>::min();
+			;
 		}
 
 		count++;
