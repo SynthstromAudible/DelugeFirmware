@@ -3117,7 +3117,8 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 	}
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithTimelineCounter* modelStack = setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(newClip);
+	ModelStackWithTimelineCounter* modelStack =
+	    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(newClip);
 
 	newClip->section = targetSection;
 	if (newClip->type == CLIP_TYPE_INSTRUMENT) {
@@ -3151,21 +3152,22 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 					}
 				}
 
-				if(!outputPresent) {
+				if (!outputPresent) {
 					break;
 				}
 
-			} while(newInstrumentClip->output != lastOutput);
+			} while (newInstrumentClip->output != lastOutput);
 		}
 		// Different instrument, switch the cloned clip to it
 		else if (targetOutput != sourceClip->output) {
-			int32_t error = newInstrumentClip->changeInstrument(modelStack, (Instrument*)targetOutput, NULL, InstrumentRemoval::NONE);
-			if(error != NO_ERROR) {
+			int32_t error = newInstrumentClip->changeInstrument(modelStack, (Instrument*)targetOutput, NULL,
+			                                                    InstrumentRemoval::NONE);
+			if (error != NO_ERROR) {
 				numericDriver.displayPopup(HAVE_OLED ? "Switching to track failed" : "ESG1");
 			}
 
 			// If we weren't a Kit already...
-			if(targetOutput->type == InstrumentType::KIT) {
+			if (targetOutput->type == InstrumentType::KIT) {
 				if (sourceClip->output->type != InstrumentType::KIT) {
 					newInstrumentClip->yScroll = 0;
 				}
