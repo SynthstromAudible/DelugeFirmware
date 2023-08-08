@@ -159,7 +159,6 @@ private:
 
 	bool encoderAction;
 	bool shortcutBlinking;
-	bool auditionPadPressed;
 };
 
 extern AutomationInstrumentClipView automationInstrumentClipView;
