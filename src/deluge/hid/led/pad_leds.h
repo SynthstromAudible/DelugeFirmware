@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "drivers/pic/pic.h"
 #include <cstdint>
 
 #define FLASH_CURSOR_FAST 0
@@ -113,15 +114,15 @@ void setupAudioClipCollapseOrExplodeAnimation(AudioClip* clip);
 
 void setGreyoutAmount(float newAmount);
 
-static inline void flashMainPad(int32_t x, int32_t y, int32_t color = 0) {
-	if (color > 0) {
-		bufferPICUart(10 + color);
+static inline void flashMainPad(int32_t x, int32_t y, int32_t colour = 0) {
+	auto idx = y + (x * kDisplayHeight);
+	if (colour > 0) {
+		PIC::flashMainPadWithColourIdx(idx, colour);
+		return;
 	}
-
-	bufferPICUart(24 + y + (x * kDisplayHeight));
+	PIC::flashMainPad(idx);
 }
 
-inline void sendRGBForOneCol(int32_t x);
 void setTimerForSoon();
 void renderZoomedSquare(int32_t outputSquareStartOnOutImage, int32_t outputSquareEndOnOutImage,
                         uint32_t outImageTimesBigerThanNormal, uint32_t sourceImageFade, uint32_t* output,

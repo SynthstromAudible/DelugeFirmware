@@ -1,10 +1,21 @@
 #pragma once
+#include <array>
 #include <cstdint>
 
 struct Colour {
 	uint8_t r;
 	uint8_t g;
 	uint8_t b;
+
+	static constexpr Colour fromArray(const uint8_t colour[3]) {
+		return Colour{
+		    colour[0],
+		    colour[1],
+		    colour[2],
+		};
+	}
+
+	constexpr std::array<uint8_t, 3> toArray() { return {r, g, b}; }
 };
 
 constexpr Colour disabledColour = {255, 0, 0};
