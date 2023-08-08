@@ -28,9 +28,9 @@
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "util/functions.h"
+#include <cstdint>
 #include <cstring>
 #include <new>
-#include <stdint.h>
 #if HAVE_OLED
 #include "hid/display/oled.h"
 #endif
