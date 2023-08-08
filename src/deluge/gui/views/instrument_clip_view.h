@@ -178,9 +178,6 @@ public:
 	EditPadPress editPadPresses[kEditPadPressBufferSize];
 	uint8_t lastAuditionedVelocityOnScreen[kDisplayHeight]; // 255 seems to mean none
 	uint8_t auditionPadIsPressed[kDisplayHeight];
-	uint8_t rowColour[kDisplayHeight][3];
-	uint8_t rowTailColour[kDisplayHeight][3];
-	uint8_t rowBlurColour[kDisplayHeight][3];
 	uint8_t numEditPadPressesPerNoteRowOnScreen[kDisplayHeight];
 	uint8_t lastAuditionedYDisplay;
 	uint8_t numEditPadPresses;
@@ -206,6 +203,10 @@ private:
 	uint8_t yDisplayOfNewNoteRow;
 
 	int32_t quantizeAmount;
+
+	uint8_t rowColour[kDisplayHeight][3];
+	uint8_t rowTailColour[kDisplayHeight][3];
+	uint8_t rowBlurColour[kDisplayHeight][3];
 
 	Drum* getNextDrum(Drum* oldDrum, bool mayBeNone = false);
 	Drum* flipThroughAvailableDrums(int32_t newOffset, Drum* drum, bool mayBeNone = false);

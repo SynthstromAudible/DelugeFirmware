@@ -103,6 +103,7 @@ InstrumentClip::InstrumentClip(Song* song) : Clip(CLIP_TYPE_INSTRUMENT) {
 	lastSelectedParamShortcutX = 255;
 	lastSelectedParamShortcutY = 255;
 	lastSelectedParamArrayPosition = 0;
+	lastSelectedInstrumentType = InstrumentType::NONE;
 	//end initialize of automation instrument clip view variables
 
 	if (song) {

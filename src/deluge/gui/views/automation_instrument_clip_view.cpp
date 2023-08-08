@@ -181,14 +181,22 @@ const uint32_t paramShortcutsForAutomation[kDisplayWidth][kDisplayHeight] = {
     {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF}};
 
 const uint32_t midiCCShortcutsForAutomation[kDisplayWidth][kDisplayHeight] = {
-    {112, 96, 80, 64, 48, 32, 16, 0},          {113, 97, 81, 65, 49, 33, 17, 1},
-    {114, 98, 82, 66, 50, 34, 18, 2},          {115, 99, 83, 67, 51, 35, 19, 3},
-    {116, 100, 84, 68, 52, 36, 20, 4},         {117, 101, 85, 69, 53, 37, 21, 5},
-    {118, 102, 86, 70, 54, 38, 22, 6},         {119, 103, 87, 71, 55, 39, 23, 7},
-    {0xFFFFFFFF, 104, 88, 72, 56, 40, 24, 8},  {0xFFFFFFFF, 105, 89, 73, 57, 41, 25, 9},
-    {0xFFFFFFFF, 106, 90, 74, 58, 42, 26, 10}, {0xFFFFFFFF, 107, 91, 75, 59, 43, 27, 11},
-    {0xFFFFFFFF, 108, 92, 76, 60, 44, 28, 12}, {0xFFFFFFFF, 109, 93, 77, 61, 45, 29, 13},
-    {120, 110, 94, 78, 62, 46, 30, 14},        {121, 111, 95, 79, 63, 47, 31, 15}};
+
+    {0, 16, 32, 48, 64, 80, 96, 112},          {1, 17, 33, 49, 65, 81, 97, 113},
+
+    {2, 18, 34, 50, 66, 82, 98, 114},          {3, 19, 35, 51, 67, 83, 99, 115},
+
+    {4, 20, 36, 52, 68, 84, 100, 116},         {5, 21, 37, 53, 69, 85, 101, 117},
+
+    {6, 22, 38, 54, 70, 86, 102, 118},         {7, 23, 39, 55, 71, 87, 103, 119},
+
+    {8, 24, 40, 56, 72, 88, 104, 0xFFFFFFFF},  {9, 25, 41, 57, 73, 89, 105, 0xFFFFFFFF},
+
+    {10, 26, 42, 58, 74, 90, 106, 0xFFFFFFFF}, {11, 27, 43, 59, 75, 91, 107, 0xFFFFFFFF},
+
+    {12, 28, 44, 60, 76, 92, 108, 0xFFFFFFFF}, {13, 29, 45, 61, 77, 93, 109, 0xFFFFFFFF},
+
+    {14, 30, 46, 62, 78, 94, 110, 120},        {15, 31, 47, 63, 79, 95, 111, 121}};
 
 const uint32_t love[kDisplayWidth][kDisplayHeight] = {
     {0, 0, 0, 0, 0, 0, 0, 0},
@@ -207,6 +215,18 @@ const uint32_t love[kDisplayWidth][kDisplayHeight] = {
     {0, 0xFFFFFFFF, 0xFFFFFFFF, 0, 0, 0, 0xFFFFFFFF, 0},
     {0, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
     {0, 0, 0, 0, 0, 0, 0, 0}};
+
+const uint8_t rowColour[kDisplayHeight][3] = {
+
+    {0, 255, 0}, {36, 219, 0}, {73, 182, 0}, {109, 146, 0}, {146, 109, 0}, {182, 73, 0}, {219, 36, 0}, {255, 0, 0}};
+
+const uint8_t rowTailColour[kDisplayHeight][3] = {
+
+    {2, 53, 2}, {9, 46, 2}, {17, 38, 2}, {24, 31, 2}, {31, 24, 2}, {38, 17, 2}, {46, 9, 2}, {53, 2, 2}};
+
+const uint8_t rowBlurColour[kDisplayHeight][3] = {
+
+    {71, 111, 71}, {72, 101, 66}, {73, 90, 62}, {74, 80, 57}, {76, 70, 53}, {77, 60, 48}, {78, 49, 44}, {79, 39, 39}};
 
 //const uint32_t selectArrow[kDisplayWidth][kDisplayHeight] = {
 
@@ -239,8 +259,6 @@ AutomationInstrumentClipView::AutomationInstrumentClipView() {
 	interpolationAfter = false;
 	encoderAction = false;
 	shortcutBlinking = false;
-	colourSelection = 2;
-	pixelSelection = 0;
 }
 
 inline InstrumentClip* getCurrentClip() {
@@ -250,6 +268,14 @@ inline InstrumentClip* getCurrentClip() {
 bool AutomationInstrumentClipView::opened() {
 
 	interpolation = runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationInterpolate);
+
+	InstrumentClip* clip = getCurrentClip();
+
+	if (clip->output->type != clip->lastSelectedInstrumentType) {
+		initParameterSelection();
+
+		clip->lastSelectedInstrumentType = clip->output->type;
+	}
 
 	resetShortcutBlinking();
 
@@ -456,7 +482,7 @@ void AutomationInstrumentClipView::performActualRender(uint32_t whichRows, uint8
 
 		else {
 			if (instrument->type == InstrumentType::CV) {
-				renderLove(image + (yDisplay * imageWidth * 3	), occupancyMaskOfRow, yDisplay);
+				renderLove(image + (yDisplay * imageWidth * 3), occupancyMaskOfRow, yDisplay);
 			}
 		}
 	}
@@ -493,7 +519,24 @@ void AutomationInstrumentClipView::renderAutomationOverview(ModelStackWithTimeli
 			}
 
 			else {
-				memcpy(pixel, &instrumentClipView.rowColour[yDisplay], 3);
+
+				if (instrument->type == InstrumentType::MIDI_OUT
+				    && midiCCShortcutsForAutomation[xDisplay][yDisplay] <= 119) {
+
+					pixel[0] = 2 + (midiCCShortcutsForAutomation[xDisplay][yDisplay] * ((51 << 20) / 119)) >> 20; //red
+					pixel[1] =
+					    53
+					    - ((midiCCShortcutsForAutomation[xDisplay][yDisplay] * ((51 << 20) / 119))
+					       >> 20); //green
+					pixel[2] = 2;  //blue
+				}
+
+				else {
+
+					pixel[0] = 10;
+					pixel[1] = 10;
+					pixel[2] = 10;
+				}
 			}
 
 			occupancyMask[xDisplay] = 64;
@@ -521,9 +564,8 @@ void AutomationInstrumentClipView::renderAutomationEditor(ModelStackWithTimeline
 			effectiveLength = clip->loopLength; //this will differ for a kit when in note row mode
 		}
 
-		renderRow(modelStackWithParam, instrumentClipView.rowColour[yDisplay],
-		          instrumentClipView.rowTailColour[yDisplay], instrumentClipView.rowBlurColour[yDisplay], image,
-		          occupancyMask, true, effectiveLength, true, xScroll, xZoom, 0, renderWidth, false, yDisplay);
+		renderRow(modelStackWithParam, image, occupancyMask, true, effectiveLength, true, xScroll, xZoom, 0,
+		          renderWidth, false, yDisplay);
 
 		if (drawUndefinedArea == true) {
 
@@ -533,32 +575,31 @@ void AutomationInstrumentClipView::renderAutomationEditor(ModelStackWithTimeline
 	}
 }
 
-void AutomationInstrumentClipView::renderRow(ModelStackWithAutoParam* modelStack, uint8_t rowColour[],
-                                             uint8_t rowTailColour[], uint8_t rowBlurColour[], uint8_t* image,
+void AutomationInstrumentClipView::renderRow(ModelStackWithAutoParam* modelStack, uint8_t* image,
                                              uint8_t occupancyMask[], bool overwriteExisting,
                                              uint32_t effectiveRowLength, bool allowNoteTails, int32_t xScroll,
                                              uint32_t xZoom, int32_t xStartNow, int32_t xEnd, bool drawRepeats,
                                              int32_t yDisplay) {
 
-	if (!modelStack->autoParam->nodes.getNumElements()) {
+	//if (!modelStack->autoParam->nodes.getNumElements()) {
 
-		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 
-			uint32_t squareStart = getPosFromSquare(xDisplay);
-			int32_t currentValue = modelStack->autoParam->getValuePossiblyAtPos(squareStart, modelStack);
-			int32_t knobPos = modelStack->paramCollection->paramValueToKnobPos(currentValue, modelStack);
-			knobPos = knobPos + 64;
+		uint32_t squareStart = getPosFromSquare(xDisplay);
+		int32_t currentValue = modelStack->autoParam->getValuePossiblyAtPos(squareStart, modelStack);
+		int32_t knobPos = modelStack->paramCollection->paramValueToKnobPos(currentValue, modelStack);
+		knobPos = knobPos + 64;
 
-			uint8_t* pixel = image + (xDisplay * 3);
+		uint8_t* pixel = image + (xDisplay * 3);
 
-			if (knobPos != 0 && knobPos >= yDisplay * 18) {
-				memcpy(pixel, &instrumentClipView.rowColour[yDisplay], 3);
-				occupancyMask[xDisplay] = 64;
-			}
+		if (knobPos != 0 && knobPos >= yDisplay * 16) {
+			memcpy(pixel, &rowColour[yDisplay], 3);
+			occupancyMask[xDisplay] = 64;
 		}
-
-		return;
 	}
+
+	return;
+	//}
 
 	int32_t squareEndPos[kMaxImageStoreWidth];
 	int32_t searchTerms[kMaxImageStoreWidth];
@@ -603,12 +644,12 @@ void AutomationInstrumentClipView::renderRow(ModelStackWithAutoParam* modelStack
 
 		int32_t thisSquareStartPos = getPosFromSquare(xStartNow, xScroll, xZoom) - effectiveRowLength * whichRepeat;
 
-		int32_t thisSquareEndPos = getPosFromSquare(xStartNow + 1, xScroll, xZoom) - effectiveRowLength * whichRepeat;
+		//int32_t thisSquareEndPos = getPosFromSquare(xStartNow + 1, xScroll, xZoom) - effectiveRowLength * whichRepeat;
 
 		for (int32_t xDisplay = xStartNow; xDisplay < xEndNow; xDisplay++) {
 			if (xDisplay != xStartNow) {
 				thisSquareStartPos = squareEndPos[xDisplay - xStartNow - 1];
-				thisSquareEndPos = squareEndPos[xDisplay - xStartNow];
+				//thisSquareEndPos = squareEndPos[xDisplay - xStartNow];
 			}
 			int32_t i = searchTerms[xDisplay - xStartNow];
 
@@ -626,48 +667,38 @@ void AutomationInstrumentClipView::renderRow(ModelStackWithAutoParam* modelStack
 				// If Node starts somewhere within square, draw the blur colour
 				if (node && node->pos > thisSquareStartPos) {
 
-					pixel[0] = rowBlurColour[0];
-					pixel[1] = rowBlurColour[1];
-					pixel[2] = rowBlurColour[2];
+					memcpy(pixel, &rowBlurColour[yDisplay], 3);
 					occupancyMask[xDisplay] = 64;
 				}
 
 				// Or if Node starts exactly on square...
 				else if (node && node->pos == thisSquareStartPos) {
-					pixel[0] = rowColour[0];
-					pixel[1] = rowColour[1];
-					pixel[2] = rowColour[2];
+					memcpy(pixel, &rowColour[yDisplay], 3);
 					occupancyMask[xDisplay] = 64;
 				}
 
 				// Draw wrapped notes
-				else if (node && node->pos < thisSquareEndPos) {
-					pixel[0] = rowTailColour[0];
-					pixel[1] = rowTailColour[1];
-					pixel[2] = rowTailColour[2];
-					occupancyMask[xDisplay] = 64;
-				}
+				//	else if (node && node->pos < thisSquareEndPos) {
+				//		memcpy(pixel, &rowTailColour[yDisplay], 3);
+				//		occupancyMask[xDisplay] = 64;
+				//	}
 
-				// Draw wrapped notes
-				//	else if (!drawRepeats || whichRepeat) {
-				//		bool wrapping = (i == 0); // Subtracting 1 to do "LESS"
-				//	if (wrapping) {
-				//		int32_t lastNodeIndex = modelStack->autoParam->nodes.getNumElements() - 1;
-				//		node = modelStack->autoParam->nodes.getElement(lastNodeIndex);
-				//	}
-				//		int32_t nodeEnd = effectiveRowLength - 1;
-				//		if (wrapping) {
-				//			nodeEnd -= effectiveRowLength;
-				//		}
-				//		if (nodeEnd > thisSquareStartPos && allowNoteTails) {
-				//			pixel[0] = rowTailColour[0];
-				//			pixel[1] = rowTailColour[1];
-				//			pixel[2] = rowTailColour[2];
-				//			if (occupancyMask) {
-				//				occupancyMask[xDisplay] = 64;
-				//			}
-				//		}
-				//	}
+				//Draw wrapped notes
+				else if (!drawRepeats || whichRepeat) {
+					bool wrapping = (i == 0); // Subtracting 1 to do "LESS"
+					                          //	if (wrapping) {
+					//		int32_t lastNodeIndex = modelStack->autoParam->nodes.getNumElements() - 1;
+					//		node = modelStack->autoParam->nodes.getElement(lastNodeIndex);
+					//	}
+					int32_t nodeEnd = effectiveRowLength - 1;
+					if (wrapping) {
+						nodeEnd -= effectiveRowLength;
+					}
+					if (nodeEnd > thisSquareStartPos && allowNoteTails) {
+						memcpy(pixel, &rowTailColour[yDisplay], 3);
+						occupancyMask[xDisplay] = 64;
+					}
+				}
 			}
 		}
 
@@ -687,7 +718,7 @@ void AutomationInstrumentClipView::renderLove(uint8_t* image, uint8_t occupancyM
 
 		if (love[xDisplay][yDisplay] == 0xFFFFFFFF) {
 
-			memcpy(pixel, &instrumentClipView.rowColour[yDisplay], 3);
+			memcpy(pixel, &rowColour[yDisplay], 3);
 			occupancyMask[xDisplay] = 64;
 		}
 	}
@@ -779,8 +810,6 @@ ActionResult AutomationInstrumentClipView::buttonAction(hid::Button b, bool on, 
 		}
 	}
 
-
-
 	// Song view button
 	else if (b == SESSION_VIEW) {
 		if (on && currentUIMode == UI_MODE_NONE) {
@@ -823,6 +852,7 @@ doOther:
 			}
 
 			changeRootUI(&keyboardScreen);
+			resetShortcutBlinking();
 		}
 	}
 
@@ -839,6 +869,10 @@ doOther:
 			else {
 				changeRootUI(&instrumentClipView);
 			}
+			resetShortcutBlinking();
+		}
+		else if (on && currentUIMode == UI_MODE_AUDITIONING) {
+			initParameterSelection();
 			resetShortcutBlinking();
 		}
 	}
@@ -1039,11 +1073,11 @@ passToOthers:
 		return ClipView::buttonAction(b, on, inCardRoutine);
 	}
 
-	if (b != SESSION_VIEW && b != SCALE_MODE) {
+	if (b != SCALE_MODE) {
 		uiNeedsRendering(this);
 	}
 
-	numericDriver.cancelPopup();
+	//numericDriver.cancelPopup();
 	return ActionResult::DEALT_WITH;
 }
 
@@ -1068,170 +1102,7 @@ ActionResult AutomationInstrumentClipView::padAction(int32_t x, int32_t y, int32
 
 			if (Buttons::isShiftButtonPressed()) {
 
-				if (colourSelection == 0) { //row
-
-					if (isUIModeActive(UI_MODE_AUDITIONING)){
-						colourSelection = 1;
-					}
-
-					if (pixelSelection == 0) {
-
-						char buffer[30];
-
-						intToString(instrumentClipView.rowColour[y][pixelSelection], buffer);
-
-						strcat(buffer, "\n(Red)");
-
-						OLED::popupText(buffer, true);
-
-						//displayParameterValue(instrumentClipView.rowColour[y][pixelSelection]);
-
-						pixelSelection++;
-
-					}
-
-					else if (pixelSelection == 1) {
-
-						char buffer[30];
-
-						intToString(instrumentClipView.rowColour[y][pixelSelection], buffer);
-
-						strcat(buffer, "\n(Green)");
-
-						OLED::popupText(buffer, true);
-
-						//displayParameterValue(instrumentClipView.rowColour[y][pixelSelection]);
-
-						pixelSelection++;
-
-					}
-
-					else if (pixelSelection == 2) {
-
-						char buffer[30];
-
-						intToString(instrumentClipView.rowColour[y][pixelSelection], buffer);
-
-						strcat(buffer, "\n(Blue)");
-						
-						OLED::popupText(buffer, true);
-
-						//displayParameterValue(instrumentClipView.rowColour[y][pixelSelection]);
-
-						pixelSelection = 0;
-
-					}
-
-				}
-				else if (colourSelection == 1) { //tail
-					if (isUIModeActive(UI_MODE_AUDITIONING)){
-						colourSelection = 2;
-					}
-
-					if (pixelSelection == 0) {
-
-						char buffer[30];
-
-						intToString(instrumentClipView.rowTailColour[y][pixelSelection], buffer);
-
-						strcat(buffer, "\n(Red)");
-
-						OLED::popupText(buffer, true);
-
-						//displayParameterValue(instrumentClipView.rowColour[y][pixelSelection]);
-
-						pixelSelection++;
-
-					}
-
-					else if (pixelSelection == 1) {
-
-						char buffer[30];
-
-						intToString(instrumentClipView.rowTailColour[y][pixelSelection], buffer);
-
-						strcat(buffer, "\n(Green)");
-
-						OLED::popupText(buffer, true);
-
-						//displayParameterValue(instrumentClipView.rowColour[y][pixelSelection]);
-
-						pixelSelection++;
-
-					}
-
-					else if (pixelSelection == 2) {
-
-						char buffer[30];
-
-						intToString(instrumentClipView.rowTailColour[y][pixelSelection], buffer);
-
-						strcat(buffer, "\n(Blue)");
-						
-						OLED::popupText(buffer, true);
-						
-						//displayParameterValue(instrumentClipView.rowColour[y][pixelSelection]);
-
-						pixelSelection = 0;
-
-					}
-
-				}
-				else if (colourSelection == 2) { //blur
-					if (isUIModeActive(UI_MODE_AUDITIONING)){
-						colourSelection = 3;
-					}
-
-					if (pixelSelection == 0) {
-
-						char buffer[30];
-
-						intToString(instrumentClipView.rowBlurColour[y][pixelSelection], buffer);
-
-						strcat(buffer, "\n(Red)");
-
-						OLED::popupText(buffer, true);
-
-						//displayParameterValue(instrumentClipView.rowColour[y][pixelSelection]);
-
-						pixelSelection++;
-
-					}
-
-					else if (pixelSelection == 1) {
-
-						char buffer[30];
-
-						intToString(instrumentClipView.rowBlurColour[y][pixelSelection], buffer);
-
-						strcat(buffer, "\n(Green)");
-
-						OLED::popupText(buffer, true);
-
-						//displayParameterValue(instrumentClipView.rowColour[y][pixelSelection]);
-
-						pixelSelection++;
-
-					}
-
-					else if (pixelSelection == 2) {
-
-						char buffer[30];
-
-						intToString(instrumentClipView.rowBlurColour[y][pixelSelection], buffer);
-
-						strcat(buffer, "\n(Blue)");
-						
-						OLED::popupText(buffer, true);
-						
-						//displayParameterValue(instrumentClipView.rowColour[y][pixelSelection]);
-
-						pixelSelection = 0;
-
-					}
-				}
-
-				//handleSinglePadPress(modelStack, clip, x, y, true);
+				handleSinglePadPress(modelStack, clip, x, y, true);
 
 				return ActionResult::DEALT_WITH;
 			}
@@ -2763,7 +2634,7 @@ void AutomationInstrumentClipView::handleMultiPadPress(ModelStackWithTimelineCou
 						automationInstrumentClipView.interpolationAfter = false;
 					}
 
-					//numericDriver.displayPopup(HAVE_OLED ? "Multi Pad" : "SP");
+					numericDriver.displayPopup(HAVE_OLED ? "Multi Pad" : "SP");
 
 					int32_t newKnobPos =
 					    calculateKnobPosForMultiPadPress(x, firstPadX, firstPadValue, secondPadX, secondPadValue);
