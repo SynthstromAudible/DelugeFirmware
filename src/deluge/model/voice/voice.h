@@ -26,9 +26,8 @@
 #include "modulation/patch/patcher.h"
 
 class StereoSample;
-class FilterSetConfig;
 class ModelStackWithVoice;
-
+using namespace deluge;
 class Voice final {
 public:
 	Voice();
@@ -53,7 +52,7 @@ public:
 	Envelope envelopes[kNumEnvelopes];
 	LFO lfo;
 
-	FilterSet filterSets[2];
+	dsp::filter::FilterSet filterSet;
 	int32_t inputCharacteristics[2]; // Contains what used to be called noteCodeBeforeArpeggiation, and fromMIDIChannel
 	int32_t noteCodeAfterArpeggiation;
 
@@ -82,7 +81,7 @@ public:
 
 	void setAsUnassigned(ModelStackWithVoice* modelStack, bool deletingSong = false);
 	bool render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int32_t numSamples, bool soundRenderingInStereo,
-	            bool applyingPanAtVoiceLevel, uint32_t sourcesChanged, FilterSetConfig* filterSetConfig,
+	            bool applyingPanAtVoiceLevel, uint32_t sourcesChanged, bool doLPF, bool doHPF,
 	            int32_t externalPitchAdjust);
 
 	void calculatePhaseIncrements(ModelStackWithVoice* modelStack);

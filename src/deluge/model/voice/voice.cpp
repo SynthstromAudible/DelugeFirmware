@@ -19,7 +19,6 @@
 #include "arm_neon.h"
 #include "definitions_cxx.hpp"
 #include "dsp/filter/filter_set.h"
-#include "dsp/filter/filter_set_config.h"
 #include "dsp/timestretch/time_stretcher.h"
 #include "gui/waveform/waveform_renderer.h"
 #include "io/debug/print.h"
@@ -167,8 +166,7 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArp
 		overallOscAmplitudeLastTime = 0;
 		doneFirstRender = false;
 
-		filterSets[0].reset();
-		filterSets[1].reset();
+		filterSet.reset();
 
 		lastSaturationTanHWorkingValue[0] = 2147483648;
 		lastSaturationTanHWorkingValue[1] = 2147483648;
@@ -670,8 +668,8 @@ bool Voice::sampleZoneChanged(ModelStackWithVoice* modelStack, int32_t s, Marker
 
 // Returns false if became inactive and needs unassigning
 bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int32_t numSamples,
-                   bool soundRenderingInStereo, bool applyingPanAtVoiceLevel, uint32_t sourcesChanged,
-                   FilterSetConfig* filterSetConfig, int32_t externalPitchAdjust) {
+                   bool soundRenderingInStereo, bool applyingPanAtVoiceLevel, uint32_t sourcesChanged, bool doLPF,
+                   bool doHPF, int32_t externalPitchAdjust) {
 
 	GeneralMemoryAllocator::get().checkStack("Voice::render");
 
@@ -926,15 +924,13 @@ skipAutoRelease : {}
 	int32_t filterGain;
 
 	// Prepare the filters
-	if (sound->hasFilters()) {
-
-		filterGain = filterSetConfig->init(
-		    paramFinalValues[Param::Local::LPF_FREQ], paramFinalValues[Param::Local::LPF_RESONANCE],
-		    paramFinalValues[Param::Local::HPF_FREQ],
-		    (paramFinalValues[Param::Local::HPF_RESONANCE]), // >> storageManager.devVarA) << storageManager.devVarA,
-		    sound->lpfMode,
-		    sound->volumeNeutralValueForUnison << 1); // Level adjustment for unison now happens *before* the filter!
-	}
+	// Checking if filters should run now happens within the filterset
+	filterGain = filterSet.setConfig(
+	    paramFinalValues[Param::Local::LPF_FREQ], paramFinalValues[Param::Local::LPF_RESONANCE], doLPF, sound->lpfMode,
+	    paramFinalValues[Param::Local::HPF_FREQ],
+	    (paramFinalValues[Param::Local::HPF_RESONANCE]), // >> storageManager.devVarA) << storageManager.devVarA,
+	    doHPF, FilterMode::HPLADDER,
+	    sound->volumeNeutralValueForUnison << 1); // Level adjustment for unison now happens *before* the filter!
 
 	SynthMode synthMode = sound->getSynthMode();
 
@@ -1055,7 +1051,7 @@ skipAutoRelease : {}
 	               RINGMOD // We could make this one work - but currently the ringmod rendering code doesn't really have
 	    // proper amplitude control - e.g. no increments - built in, so we rely on the normal final
 	    // buffer-copying bit for that
-	    || filterSetConfig->doHPF || filterSetConfig->doLPF
+	    || filterSet.isHPFOn() || filterSet.isLPFOn()
 	    || (paramFinalValues[Param::Local::NOISE_VOLUME] != 0
 	        && synthMode != SynthMode::FM) // Not essential, but makes life easier
 	    || paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(Param::Local::PAN)) {
@@ -1252,7 +1248,7 @@ decidedWhichBufferRenderingInto:
 		if (unisonPartBecameInactive && areAllUnisonPartsInactive(modelStack)) {
 
 			// If no filters, we can just unassign
-			if (!filterSetConfig->doHPF && !filterSetConfig->doLPF) {
+			if (!filterSet.isHPFOn() && !filterSet.isLPFOn()) {
 				unassignVoiceAfter = true;
 			}
 
@@ -1500,10 +1496,8 @@ skipUnisonPart : {}
 	if (!renderingDirectlyIntoSoundBuffer) {
 		if (didStereoTempBuffer) {
 			int32_t* const oscBufferEnd = oscBuffer + (numSamples << 1);
-
 			// Filters
-			filterSets[0].renderLong(oscBuffer, oscBufferEnd, filterSetConfig, sound->lpfMode, numSamples, 2);
-			filterSets[1].renderLong(oscBuffer + 1, oscBufferEnd, filterSetConfig, sound->lpfMode, numSamples, 2);
+			filterSet.renderLongStereo(oscBuffer, oscBufferEnd);
 
 			// No clipping
 			if (!sound->clippingAmount) {
@@ -1579,7 +1573,7 @@ skipUnisonPart : {}
 			*/
 
 			int32_t* const oscBufferEnd = oscBuffer + numSamples;
-			filterSets[0].renderLong(oscBuffer, oscBufferEnd, filterSetConfig, sound->lpfMode, numSamples);
+			filterSet.renderLong(oscBuffer, oscBufferEnd, numSamples);
 
 			// No clipping
 			if (!sound->clippingAmount) {
