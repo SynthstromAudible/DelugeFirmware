@@ -46,7 +46,7 @@ def argparser() -> argparse.ArgumentParser:
         default="all",
         const="all",
         nargs="?",
-        choices=["7seg", "oled", "all", "clean"],
+        choices=["7seg", "oled", "all", "clean", "doxygen"],
     )
     parser.add_argument(
         "config",
