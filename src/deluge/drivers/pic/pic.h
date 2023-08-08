@@ -144,7 +144,7 @@ public:
 		send(Message::SET_UART_SPEED, speed);
 	}
 
-	static void flashPad(size_t idx) { send(util::to_underlying(Message::SET_PAD_FLASHING) + idx); }
+	static void flashMainPad(size_t idx) { send(util::to_underlying(Message::SET_PAD_FLASHING) + idx); }
 
 	/**
 	 * @brief Flash a pad using the PIC's built-in timer and colour system
@@ -152,9 +152,9 @@ public:
 	 * @param idx The pad to flash
 	 * @param colour_idx The colour "index" of colours the PIC knows
 	 */
-	static void flashPadWithColourIdx(size_t idx, int32_t colour_idx) {
+	static void flashMainPadWithColourIdx(size_t idx, int32_t colour_idx) {
 		send(util::to_underlying(Message::SET_FLASH_COLOR) + colour_idx);
-		flashPad(idx);
+		flashMainPad(idx);
 	}
 
 	static void update7SEG(const std::array<uint8_t, kNumericDisplayLength>& display) {
@@ -190,7 +190,7 @@ public:
 		send(util::to_underlying(Message::SET_SCROLL_LEFT) + bitflags);
 	}
 
-	static void setupVerticalScroll(bool direction, const std::array<Colour, kDisplayWidth + kSideBarWidth>& colours) {
+	static void doVerticalScroll(bool direction, const std::array<Colour, kDisplayWidth + kSideBarWidth>& colours) {
 		Message msg = direction ? Message::SET_SCROLL_UP : Message::SET_SCROLL_DOWN;
 		send(msg, colours);
 	}
@@ -212,7 +212,7 @@ public:
 	/**
 	 * @brief Read a single response from the PIC
 	 *
-	 * @return Response The PIC response message
+	 * @return Response The PIC response message (Response::NONE if no byte immediately available)
 	 */
 	static Response read() {
 		uint8_t value;

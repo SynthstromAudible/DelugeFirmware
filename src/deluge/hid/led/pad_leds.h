@@ -117,10 +117,10 @@ void setGreyoutAmount(float newAmount);
 static inline void flashMainPad(int32_t x, int32_t y, int32_t colour = 0) {
 	auto idx = y + (x * kDisplayHeight);
 	if (colour > 0) {
-		PIC::flashPadWithColourIdx(idx, colour);
+		PIC::flashMainPadWithColourIdx(idx, colour);
 		return;
 	}
-	PIC::flashPad(idx);
+	PIC::flashMainPad(idx);
 }
 
 void setTimerForSoon();
