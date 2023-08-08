@@ -23,7 +23,6 @@
 #include "gui/ui/root_ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
@@ -195,7 +194,6 @@ useDefaultFolder:
 	PadLEDs::sendOutMainPadColours();
 
 	if (showingAuditionPads()) {
-
 		instrumentClipView.recalculateColours();
 		renderingNeededRegardlessOfUI(0, 0xFFFFFFFF);
 	}
@@ -992,14 +990,7 @@ ActionResult LoadInstrumentPresetUI::verticalEncoderAction(int32_t offset, bool 
 			return ActionResult::DEALT_WITH;
 		}
 
-		ActionResult result;
-
-		if (getRootUI() == &automationInstrumentClipView) {
-			result = automationInstrumentClipView.verticalEncoderAction(offset, inCardRoutine);
-		}
-		else {
-			result = instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
-		}
+		ActionResult result = instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
 
 		if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
 			return result;

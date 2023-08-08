@@ -772,7 +772,6 @@ Submenu triggerClockMenu{
 };
 
 // Defaults menu
-
 IntegerRange defaultTempoMenu{"TEMPO", "Default tempo", 60, 240};
 IntegerRange defaultSwingMenu{"SWING", "Default swing", 1, 99};
 KeyRange defaultKeyMenu{"KEY", "Default key"};

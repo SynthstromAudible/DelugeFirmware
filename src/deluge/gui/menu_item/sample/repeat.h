@@ -19,7 +19,6 @@
 #include "gui/menu_item/formatted_title.h"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
-#include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "model/clip/clip.h"
 #include "model/drum/drum.h"

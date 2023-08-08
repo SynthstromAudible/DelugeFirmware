@@ -127,7 +127,9 @@ void UITimerManager::routine() {
 				}
 
 				case TIMER_DISPLAY_AUTOMATION:
-					view.displayAutomation();
+					if (getCurrentUI() != &automationInstrumentClipView) {
+						view.displayAutomation();
+					}
 					break;
 
 				case TIMER_READ_INPUTS:

@@ -26,7 +26,6 @@ public:
 
 	int32_t value;
 	bool interpolated; // From the previous node
-	bool keyframe;
 };
 
 struct StolenParamNodes {

@@ -21,7 +21,6 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
-#include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/waveform/waveform_basic_navigator.h"
 #include "gui/waveform/waveform_renderer.h"
@@ -31,7 +30,6 @@
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "model/clip/audio_clip.h"
-#include "model/clip/instrument_clip.h"
 #include "model/instrument/instrument.h"
 #include "model/model_stack.h"
 #include "model/sample/sample.h"
@@ -700,10 +698,8 @@ ActionResult SampleMarkerEditor::verticalEncoderAction(int32_t offset, bool inCa
 		return ActionResult::DEALT_WITH;
 	}
 
-	ActionResult result;
-
 	// Must say these buttons were not pressed, or else editing might take place
-	result = instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
+	ActionResult result = instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
 
 	if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
 		return result;

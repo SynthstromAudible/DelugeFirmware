@@ -3382,13 +3382,16 @@ void NoteRow::shiftHorizontally(int32_t amount, ModelStackWithNoteRow* modelStac
 
 			// Special case for MPE only - not even "mono" / Clip-level expression.
 			if (i == paramManager.getExpressionParamSetOffset()) {
-				((ExpressionParamSet*)summary->paramCollection)
-				    ->shiftHorizontally(modelStackWithParamCollection, amount, effectiveLength);
+				if (getCurrentUI()
+				    != &automationInstrumentClipView) { //don't shift MPE if you're in the automation view
+					((ExpressionParamSet*)summary->paramCollection)
+					    ->shiftHorizontally(modelStackWithParamCollection, amount, effectiveLength);
+				}
 			}
 
 			//Normal case
 			else {
-
+				//not called from automation view because in the automation view we shift specific parameters, not all parameters
 				if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationShiftClip)
 				    == RuntimeFeatureStateToggle::Off) {
 					summary->paramCollection->shiftHorizontally(modelStackWithParamCollection, amount, effectiveLength);
@@ -3429,8 +3432,11 @@ void NoteRow::clear(Action* action, ModelStackWithNoteRow* modelStack) {
 
 			// Special case for MPE only - not even "mono" / Clip-level expression.
 			if (i == paramManager.getExpressionParamSetOffset()) {
-				((ExpressionParamSet*)summary->paramCollection)
-				    ->deleteAllAutomation(action, modelStackWithParamCollection);
+				if (getCurrentUI()
+				    != &automationInstrumentClipView) { //don't delete MPE if you're in the automation view
+					((ExpressionParamSet*)summary->paramCollection)
+					    ->deleteAllAutomation(action, modelStackWithParamCollection);
+				}
 			}
 
 			//Normal case

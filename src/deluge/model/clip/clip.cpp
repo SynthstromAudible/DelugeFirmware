@@ -964,8 +964,11 @@ void Clip::clear(Action* action, ModelStackWithTimelineCounter* modelStack) {
 
 			// Special case for MPE only - not even "mono" / Clip-level expression.
 			if (i == paramManager.getExpressionParamSetOffset()) {
-				((ExpressionParamSet*)summary->paramCollection)
-				    ->deleteAllAutomation(action, modelStackWithParamCollection);
+				if (getCurrentUI()
+				    != &automationInstrumentClipView) { //don't clear MPE if you're in the Automation View
+					((ExpressionParamSet*)summary->paramCollection)
+					    ->deleteAllAutomation(action, modelStackWithParamCollection);
+				}
 			}
 
 			//Normal case
