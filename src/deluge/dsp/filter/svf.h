@@ -31,25 +31,25 @@ public:
 	void doFilter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrememt, int32_t extraSaturation);
 	void doFilterStereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation);
 	void resetFilter() {
-		l = (SVF_state){0, 0};
-		r = (SVF_state){0, 0};
+		l = (SVFState){0, 0};
+		r = (SVFState){0, 0};
 	}
 
 private:
-	struct SVF_outs {
+	struct SVFOuts {
 		q31_t lpf;
 		q31_t bpf;
 		q31_t hpf;
 		q31_t notch;
 	};
 
-	struct SVF_state {
+	struct SVFState {
 		q31_t low;
 		q31_t band;
 	};
-	inline q31_t doSVF(q31_t input, SVF_state* state);
-	SVF_state l;
-	SVF_state r;
+	inline q31_t doSVF(q31_t input, SVFState* state);
+	SVFState l;
+	SVFState r;
 	q31_t f;
 	q31_t q;
 	q31_t in;

@@ -35,6 +35,7 @@ q31_t HpLadderFilter::setConfig(q31_t hpfFrequency, q31_t hpfResonance, LPFMode 
 	int32_t hpfDivideBy1PlusTannedFrequency =
 	    (int64_t)ONE_Q31U * ONE_Q16
 	    / (ONE_Q16 + (tannedFrequency >> 1)); // Between ~0.1 and 1. 1 represented by 2147483648
+	hpfMoveability = multiply_32x32_rshift32_rounded(tannedFrequency, hpfDivideBy1PlusTannedFrequency) << 4;
 
 	int32_t resonanceUpperLimit = 536870911;
 	int32_t resonance = ONE_Q31 - (std::min(hpfResonance, resonanceUpperLimit) << 2); // Limits it
@@ -51,8 +52,6 @@ q31_t HpLadderFilter::setConfig(q31_t hpfFrequency, q31_t hpfResonance, LPFMode 
 	hpfProcessedResonance = multiply_32x32_rshift32(hpfProcessedResonance, extraFeedback) << 1;
 
 	hpfDivideByProcessedResonance = 2147483648u / (hpfProcessedResonance >> (23));
-
-	hpfMoveability = multiply_32x32_rshift32_rounded(tannedFrequency, hpfDivideBy1PlusTannedFrequency) << 4;
 
 	int32_t moveabilityTimesProcessedResonance =
 	    multiply_32x32_rshift32(hpfProcessedResonanceUnaltered, hpfMoveability); // 1 = 536870912
@@ -94,7 +93,7 @@ void HpLadderFilter::doFilterStereo(q31_t* startSample, q31_t* endSample, int32_
 		currentSample += 1;
 	} while (currentSample < endSample);
 }
-inline q31_t HpLadderFilter::doHPF(q31_t input, int32_t extraSaturation, HPLadder_state* state) {
+inline q31_t HpLadderFilter::doHPF(q31_t input, int32_t extraSaturation, HPLadderState* state) {
 
 	q31_t firstHPFOutput = input - state->hpfHPF1.doFilter(input, hpfMoveability);
 

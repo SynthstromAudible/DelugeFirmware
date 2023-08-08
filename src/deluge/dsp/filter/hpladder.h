@@ -37,7 +37,7 @@ public:
 	}
 
 private:
-	struct HPLadder_state {
+	struct HPLadderState {
 		BasicFilterComponent hpfHPF1;
 		BasicFilterComponent hpfLPF1;
 		BasicFilterComponent hpfHPF3;
@@ -48,7 +48,7 @@ private:
 			hpfHPF3.reset();
 		}
 	};
-	inline q31_t doHPF(q31_t input, int32_t saturationLevel, HPLadder_state* state);
+	inline q31_t doHPF(q31_t input, int32_t saturationLevel, HPLadderState* state);
 
 	//config
 	uint32_t hpfLastWorkingValue;
@@ -70,7 +70,7 @@ private:
 	q31_t alteredHpfMomentumMultiplier;
 	q31_t thisHpfResonance;
 
-	HPLadder_state l;
-	HPLadder_state r;
+	HPLadderState l;
+	HPLadderState r;
 };
 } // namespace deluge::dsp::filter

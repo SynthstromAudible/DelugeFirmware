@@ -72,6 +72,7 @@ public:
 	//used to check whether the filter is used at all
 	inline bool isLPFOn() { return LPFOn; }
 	inline bool isHPFOn() { return HPFOn; }
+	inline bool isOn() { return HPFOn || LPFOn; }
 
 private:
 	q31_t noiseLastValue;

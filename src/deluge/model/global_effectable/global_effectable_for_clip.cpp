@@ -112,11 +112,10 @@ void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelS
 	static StereoSample globalEffectableBuffer[SSI_TX_BUFFER_NUM_SAMPLES] __attribute__((aligned(CACHE_LINE_SIZE)));
 
 	bool canRenderDirectlyIntoSongBuffer =
-	    !isKit() && !filterSet.isLPFOn() && !filterSet.isHPFOn() && !delayWorkingState.doDelay
-	    && (!pan || !AudioEngine::renderInStereo) && !clippingAmount && !hasBassAdjusted(paramManagerForClip)
-	    && !hasTrebleAdjusted(paramManagerForClip) && !reverbSendAmount && !isBitcrushingEnabled(paramManagerForClip)
-	    && !isSRREnabled(paramManagerForClip) && getActiveModFXType(paramManagerForClip) == ModFXType::NONE
-	    && stutterer.status == STUTTERER_STATUS_OFF;
+	    !isKit() && !filterSet.isOn() && !delayWorkingState.doDelay && (!pan || !AudioEngine::renderInStereo)
+	    && !clippingAmount && !hasBassAdjusted(paramManagerForClip) && !hasTrebleAdjusted(paramManagerForClip)
+	    && !reverbSendAmount && !isBitcrushingEnabled(paramManagerForClip) && !isSRREnabled(paramManagerForClip)
+	    && getActiveModFXType(paramManagerForClip) == ModFXType::NONE && stutterer.status == STUTTERER_STATUS_OFF;
 
 	if (canRenderDirectlyIntoSongBuffer) {
 

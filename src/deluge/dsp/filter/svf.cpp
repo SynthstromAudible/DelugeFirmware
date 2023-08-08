@@ -56,7 +56,7 @@ q31_t SVFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, LPFMode lpfMod
 	return filterGain;
 }
 
-inline q31_t SVFilter::doSVF(int32_t input, SVF_state* state) {
+inline q31_t SVFilter::doSVF(int32_t input, SVFState* state) {
 	q31_t high = 0;
 	q31_t notch = 0;
 	q31_t lowi;
