@@ -455,7 +455,6 @@ void AutomationInstrumentClipView::performActualRender(uint32_t whichRows, uint8
 		}
 
 		else {
-
 			if (instrument->type == InstrumentType::CV) {
 				renderLove(image + (yDisplay * imageWidth * 3	), occupancyMaskOfRow, yDisplay);
 			}
