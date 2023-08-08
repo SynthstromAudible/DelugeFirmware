@@ -353,8 +353,8 @@ moveAfterClipInstance:
 			if (lastSessionButtonActiveState && !sessionButtonActive && !sessionButtonUsed && !gridFirstPadActive()) {
 				if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
 					currentSong->endInstancesOfActiveClips(playbackHandler.getActualArrangementRecordPos());
-					currentSong
-					    ->resumeClipsClonedForArrangementRecording(); // Must call before calling getArrangementRecordPos(), cos that detaches the cloned Clip
+					// Must call before calling getArrangementRecordPos(), cos that detaches the cloned Clip
+					currentSong->resumeClipsClonedForArrangementRecording();
 					playbackHandler.recording = RECORDING_OFF;
 					view.setModLedStates();
 					playbackHandler.setLedStates();
@@ -414,13 +414,7 @@ moveAfterClipInstance:
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
-			Clip* clip = nullptr;
-			if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
-				clip = gridClipFromCoords(gridFirstPressedX, gridFirstPressedY);
-			}
-			else {
-				clip = getClipOnScreen(selectedClipYDisplay);
-			}
+			Clip* clip = getClipForLayout();
 
 			if (clip != nullptr) {
 				actionLogger.deleteAllLogs();
@@ -450,13 +444,9 @@ moveAfterClipInstance:
 				actionLogger.deleteAllLogs();
 				performActionOnPadRelease = false;
 
-				Clip* clip = nullptr;
+				Clip* clip = getClipForLayout();
 				if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
-					clip = gridClipFromCoords(gridFirstPressedX, gridFirstPressedY);
 					requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
-				}
-				else {
-					clip = getClipOnScreen(selectedClipYDisplay);
 				}
 
 				if (clip != nullptr) {
@@ -499,13 +489,7 @@ changeInstrumentType:
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
-			Clip* clip = nullptr;
-			if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
-				clip = gridClipFromCoords(gridFirstPressedX, gridFirstPressedY);
-			}
-			else {
-				clip = getClipOnScreen(selectedClipYDisplay);
-			}
+			Clip* clip = getClipForLayout();
 
 			if (clip != nullptr) {
 				// If AudioClip, we have to convert back to an InstrumentClip
@@ -1187,13 +1171,7 @@ void SessionView::selectEncoderAction(int8_t offset) {
 			return;
 		}
 
-		Clip* clip = nullptr;
-		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
-			clip = gridClipFromCoords(gridFirstPressedX, gridFirstPressedY);
-		}
-		else {
-			clip = getClipOnScreen(selectedClipYDisplay);
-		}
+		Clip* clip = getClipForLayout();
 
 		if (clip == nullptr) {
 			return;
@@ -1689,8 +1667,8 @@ void SessionView::replaceInstrumentClipWithAudioClip(Clip* clip) {
 #if HAVE_OLED
 	OLED::sendMainImage();
 #endif
-	requestRendering(this, 1 << selectedClipYDisplay,
-	                 1 << selectedClipYDisplay); // If Clip was in keyboard view, need to redraw that
+	// If Clip was in keyboard view, need to redraw that
+	requestRendering(this, 1 << selectedClipYDisplay, 1 << selectedClipYDisplay);
 }
 
 void SessionView::removeClip(Clip* clip) {
@@ -2822,6 +2800,19 @@ void SessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	}
 
 	ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
+}
+
+Clip* SessionView::getClipForLayout() {
+	switch (currentSong->sessionLayout) {
+	case SessionLayoutType::SessionLayoutTypeGrid: {
+		return gridClipFromCoords(gridFirstPressedX, gridFirstPressedY);
+		break;
+	}
+	case SessionLayoutType::SessionLayoutTypeRows:
+	default: {
+		return getClipOnScreen(selectedClipYDisplay);
+	}
+	}
 }
 
 void SessionView::selectLayout(int8_t offset) {

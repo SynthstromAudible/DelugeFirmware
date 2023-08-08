@@ -123,6 +123,7 @@ private:
 
 	// Members regarding rendering different layouts
 private:
+	Clip* getClipForLayout();
 	void selectLayout(int8_t offset);
 
 	bool sessionButtonActive = false;
