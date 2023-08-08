@@ -129,7 +129,6 @@ void TimelineView::displayZoomLevel(bool justPopup) {
 }
 
 bool horizontalEncoderActionLock = false;
-extern bool pendingUIRenderingLock;
 
 ActionResult TimelineView::horizontalEncoderAction(int32_t offset) {
 

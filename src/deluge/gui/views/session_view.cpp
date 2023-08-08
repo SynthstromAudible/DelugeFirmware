@@ -77,14 +77,6 @@ using namespace deluge;
 
 SessionView sessionView{};
 
-// Used here but delcared in ui.cpp
-extern bool pendingUIRenderingLock;
-
-// Used here but declared in load_song_ui.cpp
-extern char loopsRemainingText[];
-
-extern int8_t defaultAudioClipOverdubOutputCloning;
-
 SessionView::SessionView() {
 	xScrollBeforeFollowingAutoExtendingLinearRecording = -1;
 }

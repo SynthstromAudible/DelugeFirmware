@@ -1876,8 +1876,6 @@ void View::getClipMuteSquareColour(Clip* clip, uint8_t thisColour[], bool overwr
 	}
 }
 
-extern int8_t defaultAudioClipOverdubOutputCloning;
-
 ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfInSessionView) {
 
 	switch (currentUIMode) {
