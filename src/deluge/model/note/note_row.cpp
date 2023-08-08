@@ -3433,7 +3433,7 @@ void NoteRow::clear(Action* action, ModelStackWithNoteRow* modelStack) {
 			// Special case for MPE only - not even "mono" / Clip-level expression.
 			if (i == paramManager.getExpressionParamSetOffset()) {
 				if (getCurrentUI()
-				    != &automationInstrumentClipView) { //don't delete MPE if you're in the automation view
+				    != &automationInstrumentClipView) { //don't clear MPE if you're in the automation view
 					((ExpressionParamSet*)summary->paramCollection)
 					    ->deleteAllAutomation(action, modelStackWithParamCollection);
 				}
