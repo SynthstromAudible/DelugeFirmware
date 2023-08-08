@@ -1744,23 +1744,23 @@ void ModControllableAudio::switchDelaySyncLevel() {
 }
 
 void ModControllableAudio::switchLPFMode() {
-	lpfMode = static_cast<LPFMode>((util::to_underlying(lpfMode) + 1) % kNumLPFModes);
+	lpfMode = static_cast<FilterMode>((util::to_underlying(lpfMode) + 1) % kNumLPFModes);
 
 	char const* displayText;
 	switch (lpfMode) {
-	case LPFMode::TRANSISTOR_12DB:
+	case FilterMode::TRANSISTOR_12DB:
 		displayText = "12DB LPF";
 		break;
 
-	case LPFMode::TRANSISTOR_24DB:
+	case FilterMode::TRANSISTOR_24DB:
 		displayText = "24DB LPF";
 		break;
 
-	case LPFMode::TRANSISTOR_24DB_DRIVE:
+	case FilterMode::TRANSISTOR_24DB_DRIVE:
 		displayText = "DRIVE LPF";
 		break;
 
-	case LPFMode::SVF:
+	case FilterMode::SVF:
 		displayText = "SVF";
 		break;
 	}

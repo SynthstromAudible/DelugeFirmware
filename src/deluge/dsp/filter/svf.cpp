@@ -40,7 +40,7 @@ void SVFilter::doFilterStereo(q31_t* startSample, q31_t* endSample, int32_t extr
 	} while (currentSample < endSample);
 }
 
-q31_t SVFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, LPFMode lpfMode, q31_t filterGain) {
+q31_t SVFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMode lpfMode, q31_t filterGain) {
 	curveFrequency(lpfFrequency);
 	// raw resonance is 0 - 536870896 (2^28ish, don't know where it comes from)
 	// Multiply by 4 to bring it to the q31 0-1 range

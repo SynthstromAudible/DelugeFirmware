@@ -23,7 +23,7 @@
 #include <cstdint>
 namespace deluge::dsp::filter {
 
-q31_t HpLadderFilter::setConfig(q31_t hpfFrequency, q31_t hpfResonance, LPFMode lpfMode, q31_t filterGain) {
+q31_t HpLadderFilter::setConfig(q31_t hpfFrequency, q31_t hpfResonance, FilterMode lpfMode, q31_t filterGain) {
 	int32_t extraFeedback = 1200000000;
 
 	curveFrequency(hpfFrequency);

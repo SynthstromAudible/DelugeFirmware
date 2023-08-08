@@ -106,7 +106,7 @@ Sound::Sound() : patcher(&patchableInfoForSound) {
 	synthMode = SynthMode::SUBTRACTIVE;
 	modulator1ToModulator0 = false;
 
-	lpfMode = LPFMode::TRANSISTOR_24DB; // Good for samples, I think
+	lpfMode = FilterMode::TRANSISTOR_24DB; // Good for samples, I think
 
 	postReverbVolumeLastTime = -1; // Special state to make it grab the actual value the first time it's rendered
 
@@ -210,7 +210,7 @@ void Sound::initParams(ParamManager* paramManager) {
 void Sound::setupAsSample(ParamManagerForTimeline* paramManager) {
 
 	polyphonic = PolyphonyMode::AUTO;
-	lpfMode = LPFMode::TRANSISTOR_24DB;
+	lpfMode = FilterMode::TRANSISTOR_24DB;
 
 	sources[0].oscType = OscType::SAMPLE;
 	sources[1].oscType = OscType::SAMPLE;
@@ -266,7 +266,7 @@ void Sound::setupAsDefaultSynth(ParamManager* paramManager) {
 
 	setupDefaultExpressionPatching(paramManager);
 
-	lpfMode = LPFMode::TRANSISTOR_24DB; // Good for samples, I think
+	lpfMode = FilterMode::TRANSISTOR_24DB; // Good for samples, I think
 
 	sources[0].oscType = OscType::SAW;
 	sources[1].transpose = -12;
@@ -2094,7 +2094,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 		// Setup filters
 		bool thisHasFilters = hasFilters();
 		bool doLPF = (thisHasFilters
-		              && (lpfMode == LPFMode::TRANSISTOR_24DB_DRIVE
+		              && (lpfMode == FilterMode::TRANSISTOR_24DB_DRIVE
 		                  || paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(Param::Local::LPF_FREQ)
 		                  || getSmoothedPatchedParamValue(Param::Local::LPF_FREQ, paramManager) < 2147483602));
 		bool doHPF = (thisHasFilters

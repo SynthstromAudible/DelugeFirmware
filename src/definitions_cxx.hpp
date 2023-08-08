@@ -614,16 +614,17 @@ constexpr int32_t kMaxNumSections = 12;
 
 constexpr int32_t kNumPhysicalModKnobs = 2;
 
-enum class LPFMode {
+enum class FilterMode {
 	TRANSISTOR_12DB,
 	TRANSISTOR_24DB,
 	TRANSISTOR_24DB_DRIVE, //filter logic relies on ladders being first and contiguous
 	SVF,
-	OFF, //Keep last as a sentinel. Signifies that the filter is not on, used for filter reset logic
+	HPLADDER, //first HPF mode
+	OFF,      //Keep last as a sentinel. Signifies that the filter is not on, used for filter reset logic
 };
-constexpr LPFMode kLastLadder = LPFMode::TRANSISTOR_24DB_DRIVE;
+constexpr FilterMode kLastLadder = FilterMode::TRANSISTOR_24DB_DRIVE;
 //Off is not an LPF mode but is used to reset filters
-constexpr int32_t kNumLPFModes = util::to_underlying(LPFMode::OFF);
+constexpr int32_t kNumLPFModes = util::to_underlying(FilterMode::HPLADDER);
 
 enum class HPFMode {
 	HPLADDER,

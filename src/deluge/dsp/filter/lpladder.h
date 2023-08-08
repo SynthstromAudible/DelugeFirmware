@@ -28,7 +28,7 @@ class LpLadderFilter : public Filter<LpLadderFilter> {
 public:
 	LpLadderFilter() = default;
 	//returns a compensatory gain value
-	q31_t setConfig(q31_t lpfFrequency, q31_t lpfResonance, LPFMode lpfMode, q31_t filterGain);
+	q31_t setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMode lpfMode, q31_t filterGain);
 	void doFilter(q31_t* outputSample, q31_t* endSample, int32_t sampleIncrememt, int32_t extraSaturation);
 	void doFilterStereo(q31_t* startSample, q31_t* endSample, q31_t extraSaturation);
 	void resetFilter() {
@@ -53,12 +53,12 @@ private:
 	inline q31_t do24dBLPFOnSample(q31_t input, LpLadderState& state, int32_t saturationLevel);
 	inline q31_t do12dBLPFOnSample(q31_t input, LpLadderState& state, int32_t saturationLevel);
 	inline q31_t doDriveLPFOnSample(q31_t input, LpLadderState& state, int32_t extraSaturation = 0);
-	inline void renderLPLadder(q31_t* startSample, q31_t* endSample, LPFMode lpfMode, int32_t sampleIncrement,
+	inline void renderLPLadder(q31_t* startSample, q31_t* endSample, FilterMode lpfMode, int32_t sampleIncrement,
 	                           int32_t extraSaturation, int32_t extraSaturationDrive);
 
 	//all ladders are in this class to share the basic components
 	//this differentiates between them
-	LPFMode lpfMode;
+	FilterMode lpfMode;
 
 	//state
 	LpLadderState l;

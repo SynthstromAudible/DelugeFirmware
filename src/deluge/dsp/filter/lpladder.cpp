@@ -54,10 +54,10 @@ const int16_t resonanceLimitTable[] = {
     17000, 17000, 17000, 17000, 17000, 17000, 17000, 17000,
 };
 
-q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, LPFMode lpfmode, q31_t filterGain) {
+q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMode lpfmode, q31_t filterGain) {
 	lpfMode = lpfmode;
 	// Hot transistor ladder - needs oversampling and stuff
-	if (lpfMode == LPFMode::TRANSISTOR_24DB_DRIVE) {
+	if (lpfMode == FilterMode::TRANSISTOR_24DB_DRIVE) {
 
 		int32_t resonance = ONE_Q31 - (lpfResonance << 2); // Limits it
 		processedResonance = ONE_Q31 - resonance;          // Always between 0 and 2. 1 represented as 1073741824
@@ -94,7 +94,7 @@ q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, LPFMode 
 	}
 
 	// Cold transistor ladder
-	if ((lpfMode == LPFMode::TRANSISTOR_24DB) || (lpfMode == LPFMode::TRANSISTOR_12DB)) {
+	if ((lpfMode == FilterMode::TRANSISTOR_24DB) || (lpfMode == FilterMode::TRANSISTOR_12DB)) {
 		// Some long-winded stuff to make it so if frequency goes really low, resonance goes down. This is tuned a bit, but isn't perfect
 
 		int32_t howMuchToKeep = ONE_Q31 - 1 * 33;
@@ -113,7 +113,7 @@ q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, LPFMode 
 	moveability = std::max(fc, (q31_t)4317840);
 	//min moveability is 4317840
 	// Half ladder
-	if (lpfMode == LPFMode::TRANSISTOR_12DB) {
+	if (lpfMode == FilterMode::TRANSISTOR_12DB) {
 		int32_t moveabilityNegative = moveability - 1073741824; // Between -2 and 0. 1 represented as 1073741824
 		lpf2Feedback = multiply_32x32_rshift32_rounded(moveabilityNegative, divideBy1PlusTannedFrequency) << 1;
 		lpf1Feedback = multiply_32x32_rshift32_rounded(lpf2Feedback, moveability) << 1;
@@ -142,7 +142,7 @@ q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, LPFMode 
 		divideByTotalMoveabilityAndProcessedResonance = (int64_t)67108864 * 1073741824 / onePlusThing;
 	}
 
-	if (lpfMode != LPFMode::TRANSISTOR_24DB_DRIVE) { // Cold transistor ladder only
+	if (lpfMode != FilterMode::TRANSISTOR_24DB_DRIVE) { // Cold transistor ladder only
 		// Extra feedback - but only if freq isn't too high. Otherwise we get aliasing
 		if (tannedFrequency <= 304587486) {
 			processedResonance = multiply_32x32_rshift32_rounded(processedResonance, 1150000000) << 1;
@@ -170,7 +170,7 @@ q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, LPFMode 
 void LpLadderFilter::doFilter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement, int32_t extraSaturation) {
 
 	// Half ladder
-	if (lpfMode == LPFMode::TRANSISTOR_12DB) {
+	if (lpfMode == FilterMode::TRANSISTOR_12DB) {
 
 		q31_t* currentSample = startSample;
 		do {
@@ -180,7 +180,7 @@ void LpLadderFilter::doFilter(q31_t* startSample, q31_t* endSample, int32_t samp
 	}
 
 	// Full ladder (regular)
-	else if (lpfMode == LPFMode::TRANSISTOR_24DB) {
+	else if (lpfMode == FilterMode::TRANSISTOR_24DB) {
 
 		// Only saturate if resonance is high enough
 		if (processedResonance
@@ -204,7 +204,7 @@ void LpLadderFilter::doFilter(q31_t* startSample, q31_t* endSample, int32_t samp
 	}
 
 	// Full ladder (drive)
-	else if (lpfMode == LPFMode::TRANSISTOR_24DB_DRIVE) {
+	else if (lpfMode == FilterMode::TRANSISTOR_24DB_DRIVE) {
 		int32_t extraSaturationDrive = extraSaturation >> 1;
 		if (doOversampling) {
 			q31_t* currentSample = startSample;
@@ -246,7 +246,7 @@ void LpLadderFilter::doFilter(q31_t* startSample, q31_t* endSample, int32_t samp
 void LpLadderFilter::doFilterStereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation) {
 
 	// Half ladder
-	if (lpfMode == LPFMode::TRANSISTOR_12DB) {
+	if (lpfMode == FilterMode::TRANSISTOR_12DB) {
 
 		q31_t* currentSample = startSample;
 		do {
@@ -258,7 +258,7 @@ void LpLadderFilter::doFilterStereo(q31_t* startSample, q31_t* endSample, int32_
 	}
 
 	// Full ladder (regular)
-	else if (lpfMode == LPFMode::TRANSISTOR_24DB) {
+	else if (lpfMode == FilterMode::TRANSISTOR_24DB) {
 
 		// Only saturate if resonance is high enough
 		if (processedResonance
@@ -288,7 +288,7 @@ void LpLadderFilter::doFilterStereo(q31_t* startSample, q31_t* endSample, int32_
 	}
 
 	// Full ladder (drive)
-	else if (lpfMode == LPFMode::TRANSISTOR_24DB_DRIVE) {
+	else if (lpfMode == FilterMode::TRANSISTOR_24DB_DRIVE) {
 		int32_t extraSaturationDrive = extraSaturation >> 1;
 		if (doOversampling) {
 			q31_t* currentSample = startSample;
