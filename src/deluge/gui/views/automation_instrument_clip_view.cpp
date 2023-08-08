@@ -286,6 +286,10 @@ bool AutomationInstrumentClipView::opened() {
 		clip->lastSelectedInstrumentType = clip->output->type;
 	}
 
+	if (clip->lastSelectedParamID != 255) {
+		displayAutomation(); //update led indicator levels
+	}
+
 	resetShortcutBlinking();
 
 	openedInBackground();
@@ -769,6 +773,33 @@ bool AutomationInstrumentClipView::renderSidebar(uint32_t whichRows, uint8_t ima
 	}
 
 	return true;
+}
+
+//adjust the LED meters
+void AutomationInstrumentClipView::displayAutomation() {
+
+	InstrumentClip* clip = getCurrentClip();
+
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+
+	ModelStackWithAutoParam* modelStackWithParam =
+	    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID);
+
+	if (modelStackWithParam && modelStackWithParam->autoParam) {
+
+		if (modelStackWithParam->getTimelineCounter()
+		    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+
+			int32_t currentValue =
+			    modelStackWithParam->autoParam->getValuePossiblyAtPos(view.modPos, modelStackWithParam);
+			int32_t knobPos =
+			    modelStackWithParam->paramCollection->paramValueToKnobPos(currentValue, modelStackWithParam);
+
+			indicator_leds::setKnobIndicatorLevel(0, knobPos + 64);
+			indicator_leds::setKnobIndicatorLevel(1, knobPos + 64);
+		}
+	}
 }
 
 //button action
@@ -2106,6 +2137,9 @@ void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int
 					modelStack->getTimelineCounter()->instrumentBeenEdited();
 
 					displayParameterValue(newKnobPos + 64);
+
+					indicator_leds::setKnobIndicatorLevel(0, newKnobPos + 64);
+					indicator_leds::setKnobIndicatorLevel(1, newKnobPos + 64);
 				}
 			}
 		}
@@ -2298,8 +2332,6 @@ void AutomationInstrumentClipView::selectEncoderAction(int8_t offset) {
 			clip->lastSelectedParamArrayPosition += offset;
 		}
 
-		displayParameterName(clip->lastSelectedParamID);
-
 		for (int32_t x = 0; x < kDisplayWidth; x++) {
 			for (int32_t y = 0; y < kDisplayHeight; y++) {
 
@@ -2328,8 +2360,6 @@ void AutomationInstrumentClipView::selectEncoderAction(int8_t offset) {
 			clip->lastSelectedParamID += offset;
 		}
 
-		displayParameterName(clip->lastSelectedParamID);
-
 		for (int32_t x = 0; x < kDisplayWidth; x++) {
 			for (int32_t y = 0; y < kDisplayHeight; y++) {
 				if (midiCCShortcutsForAutomation[x][y] == clip->lastSelectedParamID) {
@@ -2349,6 +2379,8 @@ void AutomationInstrumentClipView::selectEncoderAction(int8_t offset) {
 
 flashShortcut:
 
+	displayParameterName(clip->lastSelectedParamID);
+	displayAutomation();
 	resetShortcutBlinking();
 	uiNeedsRendering(this);
 }
@@ -2558,6 +2590,8 @@ void AutomationInstrumentClipView::setParameterAutomationValue(ModelStackWithAut
 	modelStack->getTimelineCounter()->instrumentBeenEdited();
 
 	displayParameterValue(knobPos + 64);
+	indicator_leds::setKnobIndicatorLevel(0, knobPos + 64);
+	indicator_leds::setKnobIndicatorLevel(1, knobPos + 64);
 }
 
 //takes care of setting the automation value for the single pad that was pressed
@@ -2593,6 +2627,7 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 		clip->lastSelectedParamShortcutY = yDisplay;
 
 		displayParameterName(clip->lastSelectedParamID);
+		displayAutomation();
 		resetShortcutBlinking();
 	}
 

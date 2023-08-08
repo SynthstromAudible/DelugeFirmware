@@ -79,7 +79,7 @@ void UITimerManager::routine() {
 					break;
 
 				case TIMER_DEFAULT_ROOT_NOTE:
-					if (getCurrentUI() == &instrumentClipView) {
+					if (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationInstrumentClipView) {
 						instrumentClipView.flashDefaultRootNote();
 					}
 					else if (getCurrentUI() == &keyboardScreen) {
@@ -127,7 +127,13 @@ void UITimerManager::routine() {
 				}
 
 				case TIMER_DISPLAY_AUTOMATION:
-					if (getCurrentUI() != &automationInstrumentClipView) {
+					if (getCurrentUI() == &automationInstrumentClipView &&
+						 (((InstrumentClip*)currentSong->currentClip)->lastSelectedParamID != 255)) {
+
+						automationInstrumentClipView.displayAutomation();
+					}
+
+					else {
 						view.displayAutomation();
 					}
 					break;
