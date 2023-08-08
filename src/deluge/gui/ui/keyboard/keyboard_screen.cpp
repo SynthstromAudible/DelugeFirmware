@@ -723,12 +723,7 @@ void KeyboardScreen::unscrolledPadAudition(int32_t velocity, int32_t note, bool 
 	int32_t yScrollBackup = getCurrentClip()->yScroll;
 	getCurrentClip()->yScroll = 0;
 
-	if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
-		automationInstrumentClipView.auditionPadAction(velocity, note, shiftButtonDown);
-	}
-	else {
-		instrumentClipView.auditionPadAction(velocity, note, shiftButtonDown);
-	}
+	instrumentClipView.auditionPadAction(velocity, note, shiftButtonDown);
 
 	getCurrentClip()->yScroll = yScrollBackup;
 }
