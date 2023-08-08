@@ -23,7 +23,8 @@
 namespace deluge::gui::menu_item::cv {
 class Transpose final : public Decimal, public FormattedTitle {
 public:
-	Transpose(const string& name, const string& title_format_str) : Decimal(name), FormattedTitle(title_format_str) {}
+	Transpose(const std::string& name, const fmt::format_string<int32_t>& title_format_str)
+	    : Decimal(name), FormattedTitle(title_format_str) {}
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
@@ -32,12 +33,12 @@ public:
 	[[nodiscard]] int32_t getNumDecimalPlaces() const override { return 2; }
 
 	void readCurrentValue() override {
-		this->value_ = (int32_t)cvEngine.cvChannels[soundEditor.currentSourceIndex].transpose * 100
-		               + cvEngine.cvChannels[soundEditor.currentSourceIndex].cents;
+		this->setValue((int32_t)cvEngine.cvChannels[soundEditor.currentSourceIndex].transpose * 100
+		               + cvEngine.cvChannels[soundEditor.currentSourceIndex].cents);
 	}
 
 	void writeCurrentValue() override {
-		int32_t currentValue = this->value_ + 25600;
+		int32_t currentValue = this->getValue() + 25600;
 
 		int32_t semitones = (currentValue + 50) / 100;
 		int32_t cents = currentValue - semitones * 100;

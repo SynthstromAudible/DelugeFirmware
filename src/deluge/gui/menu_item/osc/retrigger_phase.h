@@ -24,8 +24,9 @@
 namespace deluge::gui::menu_item::osc {
 class RetriggerPhase final : public Decimal, public FormattedTitle {
 public:
-	RetriggerPhase(const string& newName, const deluge::string& title, bool newForModulator = false)
-	    : Decimal(newName), FormattedTitle(title), forModulator(newForModulator) {}
+	RetriggerPhase(const std::string& newName, const fmt::format_string<int32_t>& title_format_str,
+	               bool newForModulator = false)
+	    : Decimal(newName), FormattedTitle(title_format_str), forModulator(newForModulator) {}
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
@@ -37,26 +38,26 @@ public:
 	void readCurrentValue() override {
 		uint32_t value = *getValueAddress();
 		if (value == 0xFFFFFFFF) {
-			this->value_ = -soundEditor.numberEditSize;
+			this->setValue(-soundEditor.numberEditSize);
 		}
 		else {
-			this->value_ = value / 11930464;
+			this->setValue(value / 11930464);
 		}
 	}
 
 	void writeCurrentValue() override {
 		uint32_t value;
-		if (this->value_ < 0) {
+		if (this->getValue() < 0) {
 			value = 0xFFFFFFFF;
 		}
 		else {
-			value = this->value_ * 11930464;
+			value = this->getValue() * 11930464;
 		}
 		*getValueAddress() = value;
 	}
 
 	void drawValue() override {
-		if (this->value_ < 0) {
+		if (this->getValue() < 0) {
 			numericDriver.setText("OFF", false, 255, true);
 		}
 		else {
@@ -66,7 +67,7 @@ public:
 
 #if HAVE_OLED
 	void drawPixelsForOled() override {
-		if (this->value_ < 0) {
+		if (this->getValue() < 0) {
 			OLED::drawStringCentred("OFF", 20, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextHugeSpacingX,
 			                        kTextHugeSizeY);
 		}
@@ -76,7 +77,7 @@ public:
 	}
 #endif
 	void horizontalEncoderAction(int32_t offset) override {
-		if (this->value_ >= 0) {
+		if (this->getValue() >= 0) {
 			Decimal::horizontalEncoderAction(offset);
 		}
 	}

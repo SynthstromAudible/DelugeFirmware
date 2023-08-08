@@ -23,7 +23,7 @@ namespace deluge::gui::menu_item::midi {
 class InputDifferentiation final : public Toggle {
 public:
 	using Toggle::Toggle;
-	void readCurrentValue() override { this->value_ = MIDIDeviceManager::differentiatingInputsByDevice; }
-	void writeCurrentValue() override { MIDIDeviceManager::differentiatingInputsByDevice = this->value_; }
+	void readCurrentValue() override { this->setValue(MIDIDeviceManager::differentiatingInputsByDevice); }
+	void writeCurrentValue() override { MIDIDeviceManager::differentiatingInputsByDevice = this->getValue(); }
 };
 } // namespace deluge::gui::menu_item::midi

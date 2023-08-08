@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "gui/menu_item/selection/selection.h"
+#include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "storage/flash_storage.h"
 
@@ -23,8 +23,8 @@ namespace deluge::gui::menu_item::sample::browser_preview {
 class Mode final : public Selection<3> {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->value_ = FlashStorage::sampleBrowserPreviewMode; }
-	void writeCurrentValue() override { FlashStorage::sampleBrowserPreviewMode = this->value_; }
-	static_vector<string, 3> getOptions() override { return {"Off", "Conditional", "On"}; }
+	void readCurrentValue() override { this->setValue(FlashStorage::sampleBrowserPreviewMode); }
+	void writeCurrentValue() override { FlashStorage::sampleBrowserPreviewMode = this->getValue(); }
+	static_vector<std::string, 3> getOptions() override { return {"Off", "Conditional", "On"}; }
 };
 } // namespace deluge::gui::menu_item::sample::browser_preview

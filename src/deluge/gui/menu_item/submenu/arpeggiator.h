@@ -39,5 +39,5 @@ public:
 
 // Template deduction guide, will not be required with P2582@C++23
 template <size_t n>
-Arpeggiator(const string&, MenuItem* const (&)[n]) -> Arpeggiator<n>;
+Arpeggiator(const std::string&, MenuItem* const (&)[n]) -> Arpeggiator<n>;
 } // namespace deluge::gui::menu_item::submenu

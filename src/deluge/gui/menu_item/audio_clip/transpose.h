@@ -26,11 +26,11 @@ class Transpose final : public Decimal, public MenuItemWithCCLearning {
 public:
 	using Decimal::Decimal;
 	void readCurrentValue() override {
-		this->value_ = (static_cast<AudioClip*>(currentSong->currentClip))->sampleHolder.transpose * 100
-		               + (static_cast<AudioClip*>(currentSong->currentClip))->sampleHolder.cents;
+		this->setValue((static_cast<AudioClip*>(currentSong->currentClip))->sampleHolder.transpose * 100
+		               + (static_cast<AudioClip*>(currentSong->currentClip))->sampleHolder.cents);
 	}
 	void writeCurrentValue() override {
-		int32_t currentValue = this->value_ + 25600;
+		int32_t currentValue = this->getValue() + 25600;
 
 		int32_t semitones = (currentValue + 50) / 100;
 		int32_t cents = currentValue - semitones * 100;

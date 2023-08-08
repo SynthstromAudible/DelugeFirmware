@@ -27,13 +27,14 @@
 namespace deluge::gui::menu_item::sample {
 class TimeStretch final : public Integer, public FormattedTitle {
 public:
-	TimeStretch(const string& name, const string& title_format_str) : Integer(name), FormattedTitle(title_format_str) {}
+	TimeStretch(const std::string& name, const fmt::format_string<int32_t>& title_format_str)
+	    : Integer(name), FormattedTitle(title_format_str) {}
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
 	bool usesAffectEntire() override { return true; }
 
-	void readCurrentValue() override { this->value_ = soundEditor.currentSource->timeStretchAmount; }
+	void readCurrentValue() override { this->setValue(soundEditor.currentSource->timeStretchAmount); }
 
 	void writeCurrentValue() override {
 
@@ -47,14 +48,14 @@ public:
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
 					Source* source = &soundDrum->sources[soundEditor.currentSourceIndex];
 
-					source->timeStretchAmount = this->value_;
+					source->timeStretchAmount = this->getValue();
 				}
 			}
 		}
 
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSource->timeStretchAmount = this->value_;
+			soundEditor.currentSource->timeStretchAmount = this->getValue();
 		}
 	}
 	[[nodiscard]] int32_t getMinValue() const override { return -48; }

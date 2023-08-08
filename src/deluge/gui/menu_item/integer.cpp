@@ -31,15 +31,15 @@ extern "C" {
 namespace deluge::gui::menu_item {
 
 void Integer::selectEncoderAction(int32_t offset) {
-	this->value_ += offset;
+	this->setValue(this->getValue() + offset);
 	int32_t maxValue = getMaxValue();
-	if (this->value_ > maxValue) {
-		this->value_ = maxValue;
+	if (this->getValue() > maxValue) {
+		this->setValue(maxValue);
 	}
 	else {
 		int32_t minValue = getMinValue();
-		if (this->value_ < minValue) {
-			this->value_ = minValue;
+		if (this->getValue() < minValue) {
+			this->setValue(minValue);
 		}
 	}
 
@@ -48,11 +48,11 @@ void Integer::selectEncoderAction(int32_t offset) {
 
 #if !HAVE_OLED
 void Integer::drawValue() {
-	numericDriver.setTextAsNumber(this->value_);
+	numericDriver.setTextAsNumber(this->getValue());
 }
 
 void IntegerWithOff::drawValue() {
-	if (this->value_ == 0) {
+	if (this->getValue() == 0) {
 		numericDriver.setText("OFF");
 	}
 	else {
@@ -64,7 +64,7 @@ void IntegerWithOff::drawValue() {
 #if HAVE_OLED
 void Integer::drawInteger(int32_t textWidth, int32_t textHeight, int32_t yPixel) {
 	char buffer[12];
-	intToString(this->value_, buffer, 1);
+	intToString(this->getValue(), buffer, 1);
 	OLED::drawStringCentred(buffer, yPixel + OLED_MAIN_TOPMOST_PIXEL, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
 	                        textWidth, textHeight);
 }

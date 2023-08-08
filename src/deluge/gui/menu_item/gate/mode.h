@@ -16,32 +16,32 @@
 */
 #pragma once
 #include "definitions_cxx.hpp"
-#include "gui/menu_item/selection/typed_selection.h"
+#include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "processing/engines/cv_engine.h"
 #include "util/misc.h"
 
 namespace deluge::gui::menu_item::gate {
 
-static deluge::string mode_title = HAVE_OLED ? "Gate outX mode" : "";
+static std::string mode_title = HAVE_OLED ? "Gate outX mode" : "";
 
-class Mode final : public TypedSelection<GateType, 3> {
+class Mode final : public Selection<3> {
 #if HAVE_OLED
-	static_vector<string, capacity()> options_ = {"V-trig", "S-trig"};
+	static_vector<std::string, capacity()> options_ = {"V-trig", "S-trig"};
 #else
-	static_vector<string, capacity()> options_ = {"VTRI", "STRI"};
+	static_vector<std::string, capacity()> options_ = {"VTRI", "STRI"};
 #endif
 
 public:
-	Mode() : TypedSelection(mode_title) {
+	Mode() : Selection(mode_title) {
 	}
 	void readCurrentValue() override {
-		this->value_ = cvEngine.gateChannels[soundEditor.currentSourceIndex].mode;
+		this->setValue(cvEngine.gateChannels[soundEditor.currentSourceIndex].mode);
 	}
 	void writeCurrentValue() override {
-		cvEngine.setGateType(soundEditor.currentSourceIndex, this->value_);
+		cvEngine.setGateType(soundEditor.currentSourceIndex, this->getValue<GateType>());
 	}
-	static_vector<string, capacity()> getOptions() override {
+	static_vector<std::string, capacity()> getOptions() override {
 		return options_;
 	}
 
