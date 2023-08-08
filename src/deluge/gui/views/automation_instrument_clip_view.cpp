@@ -260,7 +260,8 @@ AutomationInstrumentClipView::AutomationInstrumentClipView() {
 	interpolation = true;
 	interpolationBefore = false;
 	interpolationAfter = false;
-	encoderAction = false; //used to prevent excessive blinking when you're scrolling with horizontal / vertical / mod encoders
+	encoderAction =
+	    false; //used to prevent excessive blinking when you're scrolling with horizontal / vertical / mod encoders
 	shortcutBlinking = false; //used to reset shortcut blinking
 }
 
@@ -314,7 +315,7 @@ void AutomationInstrumentClipView::openedInBackground() {
 	Instrument* instrument = (Instrument*)clip->output;
 
 	clip->onAutomationInstrumentClipView = true; //used when you're in song view / arranger view / keyboard view
-	clip->onKeyboardScreen = false;							//(so it knows to come back to automation view)
+	clip->onKeyboardScreen = false;              //(so it knows to come back to automation view)
 
 	bool renderingToStore = (currentUIMode == UI_MODE_ANIMATION_FADE);
 
@@ -622,7 +623,6 @@ void AutomationInstrumentClipView::renderRow(ModelStackWithAutoParam* modelStack
 	return;
 	//}
 
-
 	//disabling the rest of this code for now as it's not working properly
 
 	/*
@@ -883,7 +883,7 @@ doOther:
 
 			changeRootUI(&keyboardScreen);
 			resetShortcutBlinking(); //reset blinking if you're leaving automation view for keyboard view
-									//blinking will be reset when you come back
+			                         //blinking will be reset when you come back
 		}
 	}
 
