@@ -955,9 +955,11 @@ void View::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 }
 
 void View::setKnobIndicatorLevels() {
-	if (!getRootUI() || (getCurrentUI() == &automationInstrumentClipView && //don't update knob indicator levels
-			 (((InstrumentClip*)currentSong->currentClip)->lastSelectedParamID != 255))) {		//when you're in automation editor
-		return; // What's this?
+	if (!getRootUI()
+	    || (getCurrentUI() == &automationInstrumentClipView && //don't update knob indicator levels
+	        (((InstrumentClip*)currentSong->currentClip)->lastSelectedParamID
+	         != 255))) { //when you're in automation editor
+		return;          // What's this?
 	}
 
 	if (activeModControllableModelStack.modControllable) {

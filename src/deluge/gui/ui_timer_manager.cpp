@@ -127,8 +127,8 @@ void UITimerManager::routine() {
 				}
 
 				case TIMER_DISPLAY_AUTOMATION:
-					if (getCurrentUI() == &automationInstrumentClipView &&
-						 (((InstrumentClip*)currentSong->currentClip)->lastSelectedParamID != 255)) {
+					if (getCurrentUI() == &automationInstrumentClipView
+					    && (((InstrumentClip*)currentSong->currentClip)->lastSelectedParamID != 255)) {
 
 						automationInstrumentClipView.displayAutomation();
 					}

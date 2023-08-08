@@ -783,8 +783,7 @@ void AutomationInstrumentClipView::displayAutomation() {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
-	ModelStackWithAutoParam* modelStackWithParam =
-	    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID);
+	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID);
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 
