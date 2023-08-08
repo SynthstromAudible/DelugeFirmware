@@ -2827,7 +2827,7 @@ void AutomationInstrumentClipView::displayParameterName(int32_t paramID) {
 	}
 }
 
-//disable parameter value when it is changed
+//display parameter value when it is changed
 void AutomationInstrumentClipView::displayParameterValue(int32_t knobPos) {
 
 	char buffer[5];
