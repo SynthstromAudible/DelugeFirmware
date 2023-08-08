@@ -91,11 +91,8 @@ SessionView::SessionView() {
 
 bool SessionView::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
 	if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING) {
-		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
-			*cols = 0xFFFFFFFF;
-			*rows = 0xFFFFFFFF;
-		}
-		else {
+		switch (currentSong->sessionLayout) {
+		case SessionLayoutType::SessionLayoutTypeRows: {
 			*cols = 0xFFFFFFFD;
 			*rows = 0;
 			for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
@@ -104,7 +101,15 @@ bool SessionView::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
 					*rows |= (1 << yDisplay);
 				}
 			}
+			break;
 		}
+		case SessionLayoutType::SessionLayoutTypeGrid: {
+			*cols = 0xFFFFFFFF;
+			*rows = 0xFFFFFFFF;
+			break;
+		}
+		}
+
 		return true;
 	}
 	else if (playbackHandler.playbackState && currentPlaybackMode == &arrangement) {
@@ -519,20 +524,35 @@ changeInstrumentType:
 
 						Browser::instrumentTypeToLoad = newInstrumentType;
 						loadInstrumentPresetUI.instrumentToReplace = instrument;
-						if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+						switch (currentSong->sessionLayout) {
+						case SessionLayoutType::SessionLayoutTypeRows: {
+							loadInstrumentPresetUI.instrumentClipToLoadFor = instrumentClip;
+							break;
+						}
+						case SessionLayoutType::SessionLayoutTypeGrid: {
 							// Not supplying an instrument will make it replace the output for all clips
 							loadInstrumentPresetUI.instrumentClipToLoadFor = NULL;
+							break;
 						}
-						else {
-							loadInstrumentPresetUI.instrumentClipToLoadFor = instrumentClip;
 						}
+
 						openUI(&loadInstrumentPresetUI);
 					}
 
 					// Otherwise, just change the instrument type
 					else {
 doActualSimpleChange:
-						if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+
+						switch (currentSong->sessionLayout) {
+						case SessionLayoutType::SessionLayoutTypeRows: {
+							char modelStackMemory[MODEL_STACK_MAX_SIZE];
+							ModelStackWithTimelineCounter* modelStack =
+							    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, instrumentClip);
+
+							view.changeInstrumentType(newInstrumentType, modelStack, true);
+							break;
+						}
+						case SessionLayoutType::SessionLayoutTypeGrid: {
 							// Mostly taken from ArrangerView::changeInstrumentType
 							if (instrument->type != newInstrumentType) {
 								Instrument* newInstrument =
@@ -545,13 +565,8 @@ doActualSimpleChange:
 									view.setActiveModControllableTimelineCounter(newInstrument->activeClip);
 								}
 							}
+							break;
 						}
-						else {
-							char modelStackMemory[MODEL_STACK_MAX_SIZE];
-							ModelStackWithTimelineCounter* modelStack =
-							    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, instrumentClip);
-
-							view.changeInstrumentType(newInstrumentType, modelStack, true);
 						}
 					}
 				}
@@ -1182,16 +1197,20 @@ void SessionView::selectEncoderAction(int8_t offset) {
 			ModelStackWithTimelineCounter* modelStack =
 			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
 
-			if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+			switch (currentSong->sessionLayout) {
+			case SessionLayoutType::SessionLayoutTypeRows: {
+				view.navigateThroughPresetsForInstrumentClip(offset, modelStack, true);
+				break;
+			}
+			case SessionLayoutType::SessionLayoutTypeGrid: {
 				Output* oldOutput = clip->output;
 				Output* newOutput = currentSong->navigateThroughPresetsForInstrument(oldOutput, offset);
 				if (oldOutput != newOutput) {
 					view.setActiveModControllableTimelineCounter(newOutput->activeClip);
 					requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 				}
+				break;
 			}
-			else {
-				view.navigateThroughPresetsForInstrumentClip(offset, modelStack, true);
 			}
 		}
 		else {
@@ -2176,7 +2195,24 @@ uint32_t SessionView::getClipLocalScroll(Clip* clip, uint32_t overviewScroll, ui
 void SessionView::flashPlayRoutine() {
 	view.clipArmFlashOn = !view.clipArmFlashOn;
 
-	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+	switch (currentSong->sessionLayout) {
+	case SessionLayoutType::SessionLayoutTypeRows: {
+		uint32_t whichRowsNeedReRendering = 0;
+		bool any = false;
+		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+			Clip* clip = getClipOnScreen(yDisplay);
+			if ((clip != nullptr) && clip->armState != ArmState::OFF) {
+				whichRowsNeedReRendering |= (1 << yDisplay);
+			}
+		}
+
+		if (whichRowsNeedReRendering) {
+			view.flashPlayEnable();
+			requestRendering(this, 0, whichRowsNeedReRendering);
+		}
+		break;
+	}
+	case SessionLayoutType::SessionLayoutTypeGrid: {
 		bool renderFlashing = false;
 		for (int32_t idxClip = 0; idxClip < currentSong->sessionClips.getNumElements(); ++idxClip) {
 			Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
@@ -2193,22 +2229,8 @@ void SessionView::flashPlayRoutine() {
 				view.flashPlayEnable();
 			}
 		}
+		break;
 	}
-
-	else {
-		uint32_t whichRowsNeedReRendering = 0;
-		bool any = false;
-		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-			Clip* clip = getClipOnScreen(yDisplay);
-			if ((clip != nullptr) && clip->armState != ArmState::OFF) {
-				whichRowsNeedReRendering |= (1 << yDisplay);
-			}
-		}
-
-		if (whichRowsNeedReRendering) {
-			view.flashPlayEnable();
-			requestRendering(this, 0, whichRowsNeedReRendering);
-		}
 	}
 }
 
@@ -2821,11 +2843,15 @@ void SessionView::selectLayout(int8_t offset) {
 
 	// Layout change
 	if (offset != 0) {
-		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
+		switch (currentSong->sessionLayout) {
+		case SessionLayoutType::SessionLayoutTypeRows: {
 			currentSong->sessionLayout = SessionLayoutType::SessionLayoutTypeGrid;
+			break;
 		}
-		else if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+		case SessionLayoutType::SessionLayoutTypeGrid: {
 			currentSong->sessionLayout = SessionLayoutType::SessionLayoutTypeRows;
+			break;
+		}
 		}
 
 		// After change
@@ -2981,7 +3007,7 @@ Clip* SessionView::gridCreateClipInTrack(Output* targetOutput) {
 	ModelStackWithTimelineCounter* modelStack =
 	    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, newClip);
 	Action* action = actionLogger.getNewAction(ACTION_CLIP_CLEAR, false);
-	newClip->clear(action, modelStack); // I wasn't sure if I'm allowed to not supply an action
+	newClip->clear(action, modelStack);
 	actionLogger.deleteAllLogs();
 
 	// For safety we set it up exactly as we want it
