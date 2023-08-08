@@ -1,0 +1,19 @@
+name: Pull Request Build
+
+on:
+  push:
+    branches:
+      - 'synthstrom-official'
+  pull_request:
+    branches:
+      - 'community'
+  merge_group:
+  workflow_dispatch:
+
+jobs:
+  pr-build:
+    name: Build Check
+    uses: ./.github/workflows/build.yml
+    with:
+      firmware-retention-days: 5
+      build-type: 'dev'
