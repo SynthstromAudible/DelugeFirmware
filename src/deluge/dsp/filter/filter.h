@@ -24,18 +24,18 @@
 namespace deluge::dsp::filter {
 constexpr uint32_t ONE_Q31U = 2147483648u;
 constexpr int32_t ONE_Q16 = 134217728;
-/// @brief Interface for filters in the sound engine
-///This is a CRTP base class for all filters used in the sound engine. To implement a new filter,
-///Add an entry for the filter in deluge::dsp::filter::FilterMode
-///Create a subclass of Filter, using itself as the template parameter (the CRTP). Then implement the following methods:
-///	a. setConfig. This is run when the filter is reconfigured, and should be used to convert the user-level parameters (frequency, resonance) to internal parameters
-///	b. doFilter runs the filter on a series of samples, densely packed
-/// c. doFilterStereo runs the filter on stereo samples packed in the LRLRLR... format.
-/// d. reset resets any internal state of the filter to avoid clicks when processing a new voice
-///Add a menu entry for the filter.
-///Add item to string conversion in ModControllableAudio::switchLPFMode
-///Filters are extremely sensitive to performance, as they're run per channel, per voice. One additional multiply instruction can have a noticeable impact on maximum voice count, so care should be taken to ensure any filter is as performant as possible.
-/// @tparam T
+/**
+ *  Interface for filters in the sound engine
+ * This is a CRTP base class for all filters used in the sound engine. To implement a new filter,
+ * Add an entry for the filter in deluge::dsp::filter::FilterMode
+ * Create a subclass of Filter, using itself as the template parameter (the CRTP). Then implement the following methods:
+ * a. setConfig. This is run when the filter is reconfigured, and should be used to convert the user-level parameters (frequency, resonance) to internal parameters
+ * b. doFilter runs the filter on a series of samples, densely packed
+ * c. doFilterStereo runs the filter on stereo samples packed in the LRLRLR... format.
+ * d. reset resets any internal state of the filter to avoid clicks when processing a new voice
+ * Then add a menu entry for the filter, and add item to string conversion in ModControllableAudio::switchLPFMode
+ * Filters are extremely sensitive to performance, as they're run per channel, per voice. One additional multiply instruction can have a noticeable impact on maximum voice count, so care should be taken to ensure any filter is as performant as possible.
+ */
 template <typename T>
 class Filter {
 public:
@@ -44,16 +44,35 @@ public:
 	q31_t configure(q31_t frequency, q31_t resonance, FilterMode lpfMode, q31_t filterGain) {
 		return static_cast<T*>(this)->setConfig(frequency, resonance, lpfMode, filterGain);
 	}
+	/**
+	 * Filter a buffer of mono samples from startSample to endSample incrememnting by the increment
+	 * @param startSample pointer to first sample in buffer
+	 * @param endSample pointer to last sample
+	 * @param sampleIncrement increment between samples
+	 * @param extraSaturation extra saturation value
+	*/
 	void filterMono(q31_t* startSample, q31_t* endSample, int32_t sampleIncrememt = 1, int32_t extraSaturation = 1) {
 		static_cast<T*>(this)->doFilter(startSample, endSample, sampleIncrememt, extraSaturation);
 	}
-	//filter an interleaved stereo buffer
+	/**
+	 * Filter a buffer of interleaved stereo samples from startSample to endSample incrememnting by the increment
+	 * @param startSample pointer to first sample in buffer
+	 * @param endSample pointer to last sample
+	 * @param extraSaturation extra saturation value
+	*/
 	void filterStereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation = 1) {
 		static_cast<T*>(this)->doFilterStereo(startSample, endSample, extraSaturation);
 		;
 	}
+	/**
+	 * reset the internal filter state to avoid clicks and pops
+	*/
 	void reset() { static_cast<T*>(this)->resetFilter(); }
 
+	/**
+	 * Applies a pleasing curve to the linear frequency from the knob
+	 * Stores tan(f) and 1/(tan(f)) as well for use in further calculations
+	*/
 	void curveFrequency(q31_t frequency) {
 		// Between 0 and 8, by my making. 1 represented by 268435456
 		tannedFrequency = instantTan(lshiftAndSaturate<5>(frequency));
