@@ -1,0 +1,23 @@
+name: Nightly Build
+
+on:
+  workflow_dispatch: # allows manual triggering
+  schedule:
+    - cron: '14 0 * * *' # runs daily at 00:14
+
+jobs:
+  nightly-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 # Required to count the commits
+      - name: Get new commits
+        run: echo "NEW_COMMIT_COUNT=$(git log --oneline --since '24 hours ago' | wc -l)" >> $GITHUB_ENV
+      - name: Build nightly
+        uses: ./.github/workflows/build.yml
+        if: ${{ env.NEW_COMMIT_COUNT > 0 }}
+        with:
+          firmware-retention-days: 30
+          build-type: 'nightly'
+          
