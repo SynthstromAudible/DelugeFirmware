@@ -886,6 +886,13 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 		}
 	}
 
+	else if (getRootUI() == &automationInstrumentClipView) {
+		if (x == kDisplayWidth + 1) {
+			automationInstrumentClipView.padAction(x, y, on);
+			return ActionResult::DEALT_WITH;
+		}
+	}
+
 	// Otherwise...
 	if (currentUIMode == UI_MODE_NONE && on) {
 
@@ -905,6 +912,10 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 		// Otherwise, exit.
 		else {
 			exitCompletely();
+
+			if (getRootUI() == &automationInstrumentClipView) {
+				automationInstrumentClipView.setDisplayParameterNameTimer();
+			}
 		}
 	}
 
