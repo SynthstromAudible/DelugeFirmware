@@ -33,11 +33,12 @@
 #include "storage/storage_manager.h"
 #include "util/misc.h"
 #include <new>
+using namespace deluge;
 
 GlobalEffectable::GlobalEffectable() {
-	lpfMode = LPFMode::TRANSISTOR_24DB;
-	filterSets[0].reset();
-	filterSets[1].reset();
+	lpfMode = FilterMode::TRANSISTOR_24DB;
+	filterSet.reset();
+
 	modFXType = ModFXType::FLANGER;
 	currentModFXParam = ModFXParam::FEEDBACK;
 	currentFilterType = FilterType::LPF;
@@ -385,8 +386,7 @@ ohNo:
 	}
 }
 
-void GlobalEffectable::setupFilterSetConfig(FilterSetConfig* filterSetConfig, int32_t* postFXVolume,
-                                            ParamManager* paramManager) {
+void GlobalEffectable::setupFilterSetConfig(int32_t* postFXVolume, ParamManager* paramManager) {
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
@@ -404,30 +404,16 @@ void GlobalEffectable::setupFilterSetConfig(FilterSetConfig* filterSetConfig, in
 	    paramNeutralValues[Param::Local::HPF_RESONANCE],
 	    cableToLinearParamShortcut(unpatchedParams->getValue(Param::Unpatched::GlobalEffectable::HPF_RES)));
 
-	filterSetConfig->doLPF = (lpfMode == LPFMode::TRANSISTOR_24DB_DRIVE || lpfMode == LPFMode::SVF
-	                          || unpatchedParams->getValue(Param::Unpatched::GlobalEffectable::LPF_FREQ) < 2147483602);
-	filterSetConfig->doHPF = unpatchedParams->getValue(Param::Unpatched::GlobalEffectable::HPF_FREQ) != -2147483648;
+	bool doLPF = (lpfMode == FilterMode::TRANSISTOR_24DB_DRIVE
+	              || unpatchedParams->getValue(Param::Unpatched::GlobalEffectable::LPF_FREQ) < 2147483602);
+	bool doHPF = unpatchedParams->getValue(Param::Unpatched::GlobalEffectable::HPF_FREQ) != -2147483648;
 
-	*postFXVolume = filterSetConfig->init(lpfFrequency, lpfResonance, hpfFrequency, hpfResonance, lpfMode,
-	                                      *postFXVolume, false, NULL);
+	*postFXVolume = filterSet.setConfig(lpfFrequency, lpfResonance, doLPF, lpfMode, hpfFrequency, hpfResonance, doHPF,
+	                                    FilterMode::HPLADDER, *postFXVolume, false, NULL);
 }
 
-void GlobalEffectable::processFilters(StereoSample* buffer, int32_t numSamples, FilterSetConfig* filterSetConfig) {
-
-	if (filterSetConfig->doHPF) {
-		StereoSample* thisSample = buffer;
-		StereoSample* bufferEnd = buffer + numSamples;
-
-		do {
-			filterSets[0].renderLadderHPF(&thisSample->l, &filterSetConfig->hpladderconfig, 2);
-			filterSets[1].renderLadderHPF(&thisSample->r, &filterSetConfig->hpladderconfig, 2);
-		} while (++thisSample != bufferEnd);
-	}
-
-	if (filterSetConfig->doLPF) {
-		filterSets[0].renderLPFLong(&buffer->l, &(buffer + numSamples)->l, filterSetConfig, lpfMode, 2, 2, 1);
-		filterSets[1].renderLPFLong(&buffer->r, &(buffer + numSamples)->r, filterSetConfig, lpfMode, 2, 2, 1);
-	}
+void GlobalEffectable::processFilters(StereoSample* buffer, int32_t numSamples) {
+	filterSet.renderLongStereo(&buffer->l, &(buffer + numSamples)->l, 2);
 }
 
 void GlobalEffectable::writeAttributesToFile(bool writeAutomation) {
