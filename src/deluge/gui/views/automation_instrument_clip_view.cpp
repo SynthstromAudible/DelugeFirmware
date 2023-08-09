@@ -351,14 +351,15 @@ bool AutomationInstrumentClipView::opened() {
 	interpolation = runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationInterpolate);
 
 	InstrumentClip* clip = getCurrentClip();
+	Instrument* instrument = (Instrument*)clip->output;
 
 	//check if we for some reason, left the automation view, then switch clip types, then came back in
 	//if you did that...reset the parameter selection and save the current parameter type selection
 	//so we can check this again next time it happens
-	if (clip->output->type != clip->lastSelectedInstrumentType) {
+	if (instrument->type != clip->lastSelectedInstrumentType) {
 		initParameterSelection();
 
-		clip->lastSelectedInstrumentType = clip->output->type;
+		clip->lastSelectedInstrumentType = instrument->type;
 	}
 
 	if (clip->lastSelectedParamID != 255) {
@@ -1318,8 +1319,9 @@ doRegularEditPadActionProbably:
 				if (modelStackWithNoteRow->getNoteRowAllowNull()) {
 					Drum* drum = modelStackWithNoteRow->getNoteRow()->drum;
 					if (((Kit*)instrument)->selectedDrum != drum) {
-						initParameterSelection();
-						renderingNeeded = true;
+						if (!instrumentClipView.getAffectEntire()) {
+							initParameterSelection();
+						}
 					}
 				}
 			}
@@ -1527,8 +1529,9 @@ void AutomationInstrumentClipView::auditionPadAction(int32_t velocity, int32_t y
 		if (modelStackWithNoteRowOnCurrentClip->getNoteRowAllowNull()) {
 			drum = modelStackWithNoteRowOnCurrentClip->getNoteRow()->drum;
 			if (((Kit*)instrument)->selectedDrum != drum) {
-				initParameterSelection();
-				renderingNeeded = true;
+				if (!instrumentClipView.getAffectEntire()) {
+					initParameterSelection();
+				}
 			}
 		}
 
@@ -2444,11 +2447,11 @@ void AutomationInstrumentClipView::selectEncoderAction(int8_t offset) {
 				clip->lastSelectedParamArrayPosition = 0;
 			}
 			else if ((clip->lastSelectedParamArrayPosition + offset) < 0) {
-				clip->lastSelectedParamID = globalEffectableParamsForAutomation[10];
+				clip->lastSelectedParamID = globalEffectableParamsForAutomation[11];
 				clip->lastSelectedParamType = GLOBAL_EFFECTABLE;
-				clip->lastSelectedParamArrayPosition = 10;
+				clip->lastSelectedParamArrayPosition = 11;
 			}
-			else if ((clip->lastSelectedParamArrayPosition + offset) > 10) {
+			else if ((clip->lastSelectedParamArrayPosition + offset) > 11) {
 				clip->lastSelectedParamID = globalEffectableParamsForAutomation[0];
 				clip->lastSelectedParamType = GLOBAL_EFFECTABLE;
 				clip->lastSelectedParamArrayPosition = 0;
@@ -2622,8 +2625,8 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
 
 		else { //model stack for automating kit params when "affect entire" is enabled
 
-			ModelStackWithThreeMainThings* modelStackWithThreeMainThings = modelStack->addOtherTwoThingsButNoNoteRow(
-			    (GlobalEffectable*)instrument->toModControllable(), &clip->paramManager);
+			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+			    modelStack->addOtherTwoThingsButNoNoteRow(instrument->toModControllable(), &clip->paramManager);
 
 			if (modelStackWithThreeMainThings) {
 
@@ -2643,7 +2646,7 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
 	else if (instrument->type == InstrumentType::MIDI_OUT) {
 
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-		    modelStack->addOtherTwoThingsButNoNoteRow(clip->output->toModControllable(), &clip->paramManager);
+		    modelStack->addOtherTwoThingsButNoNoteRow(instrument->toModControllable(), &clip->paramManager);
 
 		if (modelStackWithThreeMainThings) {
 
