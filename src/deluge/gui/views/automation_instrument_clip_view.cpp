@@ -108,7 +108,7 @@ static const uint32_t verticalScrollUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_
 
 const uint32_t PATCHED = 0;
 const uint32_t UNPATCHED = 1;
-const uint32_t GLOBALEFFECTABLE = 2;
+const uint32_t GLOBAL_EFFECTABLE = 2;
 
 //synth and kit rows FX - sorted in the order that Parameters are scrolled through on the display
 const uint32_t paramsForAutomation[51][2] = {
@@ -558,8 +558,7 @@ void AutomationInstrumentClipView::performActualRender(uint32_t whichRows, uint8
 
 		if (instrument->type != InstrumentType::CV
 		    && !(instrument->type == InstrumentType::KIT && !instrumentClipView.getAffectEntire()
-		         && !((Kit*)instrument)->selectedDrum)
-		    && !(instrument->type == InstrumentType::KIT && instrumentClipView.getAffectEntire())) {
+		         && !((Kit*)instrument)->selectedDrum)) {
 
 			if (clip->lastSelectedParamID != 255) { //if parameter has been selected, show Automation Editor
 
@@ -611,9 +610,12 @@ void AutomationInstrumentClipView::renderAutomationOverview(ModelStackWithTimeli
 			}
 		}
 
-		//	else if (instrument->type == InstrumentType::KIT && instrumentClipView.getAffectEntire() && globalEffectableParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
-		//
-		//	}
+		else if (instrument->type == InstrumentType::KIT && instrumentClipView.getAffectEntire()
+		         && globalEffectableParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
+
+			modelStackWithParam = getModelStackWithParam(
+			    modelStack, clip, globalEffectableParamShortcutsForAutomation[xDisplay][yDisplay]);
+		}
 
 		else if (instrument->type == InstrumentType::MIDI_OUT
 		         && midiCCShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
@@ -668,7 +670,7 @@ void AutomationInstrumentClipView::renderAutomationEditor(ModelStackWithTimeline
 
 		int32_t effectiveLength;
 
-		if (instrument->type == InstrumentType::KIT) {
+		if (instrument->type == InstrumentType::KIT && !instrumentClipView.getAffectEntire()) {
 			ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowForSelectedDrum(modelStack);
 
 			effectiveLength = modelStackWithNoteRow->getLoopLength();
@@ -1828,7 +1830,7 @@ void AutomationInstrumentClipView::shiftAutomationHorizontally(int32_t offset) {
 
 			int32_t effectiveLength;
 
-			if (instrument->type == InstrumentType::KIT) {
+			if (instrument->type == InstrumentType::KIT && !instrumentClipView.getAffectEntire()) {
 				ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowForSelectedDrum(modelStack);
 
 				effectiveLength = modelStackWithNoteRow->getLoopLength();
@@ -2163,7 +2165,7 @@ void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int
 
 						int32_t effectiveLength;
 
-						if (instrument->type == InstrumentType::KIT) {
+						if (instrument->type == InstrumentType::KIT && !instrumentClipView.getAffectEntire()) {
 							ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowForSelectedDrum(modelStack);
 
 							effectiveLength = modelStackWithNoteRow->getLoopLength();
@@ -2434,23 +2436,27 @@ void AutomationInstrumentClipView::selectEncoderAction(int8_t offset) {
 			}
 		}
 
-		else {
+		else if (instrument->type == InstrumentType::KIT && instrumentClipView.getAffectEntire()) {
 
 			if (clip->lastSelectedParamID == 255) {
 				clip->lastSelectedParamID = globalEffectableParamsForAutomation[0];
+				clip->lastSelectedParamType = GLOBAL_EFFECTABLE;
 				clip->lastSelectedParamArrayPosition = 0;
 			}
 			else if ((clip->lastSelectedParamArrayPosition + offset) < 0) {
 				clip->lastSelectedParamID = globalEffectableParamsForAutomation[10];
+				clip->lastSelectedParamType = GLOBAL_EFFECTABLE;
 				clip->lastSelectedParamArrayPosition = 10;
 			}
 			else if ((clip->lastSelectedParamArrayPosition + offset) > 10) {
 				clip->lastSelectedParamID = globalEffectableParamsForAutomation[0];
+				clip->lastSelectedParamType = GLOBAL_EFFECTABLE;
 				clip->lastSelectedParamArrayPosition = 0;
 			}
 			else {
 				clip->lastSelectedParamID =
 				    globalEffectableParamsForAutomation[clip->lastSelectedParamArrayPosition + offset];
+				clip->lastSelectedParamType = GLOBAL_EFFECTABLE;
 				clip->lastSelectedParamArrayPosition += offset;
 			}
 		}
@@ -2461,7 +2467,9 @@ void AutomationInstrumentClipView::selectEncoderAction(int8_t offset) {
 				if ((clip->lastSelectedParamType == PATCHED
 				     && patchedParamShortcutsForAutomation[x][y] == clip->lastSelectedParamID)
 				    || (clip->lastSelectedParamType == UNPATCHED
-				        && unpatchedParamShortcutsForAutomation[x][y] == clip->lastSelectedParamID)) {
+				        && unpatchedParamShortcutsForAutomation[x][y] == clip->lastSelectedParamID)
+				    || (clip->lastSelectedParamType == GLOBAL_EFFECTABLE
+				        && globalEffectableParamShortcutsForAutomation[x][y] == clip->lastSelectedParamID)) {
 					clip->lastSelectedParamShortcutX = x;
 					clip->lastSelectedParamShortcutY = y;
 
@@ -2612,18 +2620,16 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
 			}
 		}
 
-		/*	else {
+		else { //model stack for automating kit params when "affect entire" is enabled
 
-			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-			    modelStack->addOtherTwoThingsButNoNoteRow(instrument->toModControllable(), &clip->paramManager);
+			ModelStackWithThreeMainThings* modelStackWithThreeMainThings = modelStack->addOtherTwoThingsButNoNoteRow(
+			    (GlobalEffectable*)instrument->toModControllable(), &clip->paramManager);
 
 			if (modelStackWithThreeMainThings) {
 
-				if (paramType == 2) {
+				ParamCollectionSummary* summary = 0;
 
-					ParamCollectionSummary* summary = modelStackWithThreeMainThings->paramManager->getUnpatchedParamSetSummary();
-
-				}
+				summary = modelStackWithThreeMainThings->paramManager->getUnpatchedParamSetSummary();
 
 				if (summary) {
 					ParamSet* paramSet = (ParamSet*)summary->paramCollection;
@@ -2631,96 +2637,7 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
 					    modelStackWithThreeMainThings->addParam(paramSet, summary, paramID, &paramSet->params[paramID]);
 				}
 			}
-		}*/
-
-		//kits affect entire use: global effectable for kit
-
-		//code below was my attempts at getting kit affect entire automations working
-		//not successful yet, so commented it out.
-
-		/*else {
-			//	int32_t noteRowIndex = 0;
-
-			Drum* drum = ((Kit*)instrument)->selectedDrum;
-
-			ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowForSelectedDrum(modelStack);
-
-			if (modelStackWithNoteRow) {
-
-				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-				    modelStackWithNoteRow->addOtherTwoThingsAutomaticallyGivenNoteRow();
-
-				if (modelStackWithThreeMainThings) {
-
-					ParamCollectionSummary* summary =
-					    modelStackWithThreeMainThings->paramManager->getPatchedParamSetSummary();
-
-					if (summary) {
-						ParamSet* paramSet = (ParamSet*)summary->paramCollection;
-						modelStackWithParam = modelStackWithThreeMainThings->addParam(paramSet, summary, paramID,
-						                                                              &paramSet->params[paramID]);
-					}
-				}
-			}*/
-		//	}
-		//	}
-
-		// You must first be sure that noteRow is set, and has a ParamManager
-		/*	ModelStackWithThreeMainThings* ModelStackWithNoteRow::addOtherTwoThingsAutomaticallyGivenNoteRow() const {
-			ModelStackWithThreeMainThings* toReturn = (ModelStackWithThreeMainThings*)this;
-			NoteRow* noteRowHere = getNoteRow();
-			InstrumentClip* clip = (InstrumentClip*)getTimelineCounter();
-			toReturn->modControllable =
-			    (clip->output->type == InstrumentType::KIT && noteRowHere->drum) // What if there's no Drum?
-			        ? noteRowHere->drum->toModControllable()
-			        : clip->output->toModControllable();
-			toReturn->paramManager = &noteRowHere->paramManager;
-			return toReturn;
-		}		*/
-
-		//if affect entire is enabled, set automation at kit clip level, not kit row level
-		/*else if (instrumentClipView.getAffectEntire()) {
-
-			// Get existing NoteRow if there was one
-			ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay, modelStack);
-
-			// If no NoteRow yet...
-			if (modelStackWithNoteRow->getNoteRowAllowNull()) {
-
-				NoteRow* noteRow = modelStackWithNoteRow->getNoteRow();
-
-				if (noteRow) {
-
-					ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-						modelStackWithNoteRow->addOtherTwoThingsAutomaticallyGivenNoteRow();
-
-					if (modelStackWithThreeMainThings) {
-
-						ParamCollectionSummary* summary =
-							modelStackWithThreeMainThings->paramManager->getPatchedParamSetSummary();
-
-					//	if (summary) {
-					//		ParamSet* paramSet = (ParamSet*)summary->paramCollection;
-					//		modelStackWithParam = modelStackWithThreeMainThings->addParam(paramSet, summary, paramID,
-					//																	  &paramSet->params[paramID]);
-					//	}
-					}
-
-					//ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-					//	modelStack->addOtherTwoThingsButNoNoteRow(cli->toModControllable(), &clip->paramManager);
-
-					//if (modelStackWithThreeMainThings) {
-					//		ParamCollectionSummary* summary = modelStackWithThreeMainThings->paramManager->getPatchedParamSetSummary();
-
-					//	if (summary) {
-					//		ParamSet* paramSet = (ParamSet*)summary->paramCollection;
-					//		modelStackWithParam =
-					//			modelStackWithThreeMainThings->addParam(paramSet, summary, paramID, &paramSet->params[paramID]);
-					//	}
-					//}
-				}
-			}
-		}*/
+		}
 	}
 
 	else if (instrument->type == InstrumentType::MIDI_OUT) {
@@ -2768,8 +2685,10 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 	Instrument* instrument = (Instrument*)clip->output;
 
 	if ((shortcutPress || clip->lastSelectedParamID == 255)
-	    && !(instrument->type == InstrumentType::KIT && !instrumentClipView.getAffectEntire()
-	         && !((Kit*)instrument)->selectedDrum)) { //this means you are selecting a parameter
+	    && (!(instrument->type == InstrumentType::KIT && !instrumentClipView.getAffectEntire()
+	          && !((Kit*)instrument)->selectedDrum)
+	        || (instrument->type == InstrumentType::KIT
+	            && instrumentClipView.getAffectEntire()))) { //this means you are selecting a parameter
 
 		if ((instrument->type == InstrumentType::SYNTH
 		     || (instrument->type == InstrumentType::KIT && !instrumentClipView.getAffectEntire()))
@@ -2787,6 +2706,14 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 				//if you are in a synth or a kit clip and the shortcut is valid, set current selected ParamID
 				clip->lastSelectedParamID = unpatchedParamShortcutsForAutomation[xDisplay][yDisplay];
 			}
+		}
+
+		else if (instrument->type == InstrumentType::KIT && instrumentClipView.getAffectEntire()
+		         && (globalEffectableParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF)) {
+
+			clip->lastSelectedParamType = GLOBAL_EFFECTABLE;
+			//if you are in a kit clip with affect entire enabled and the shortcut is valid, set current selected ParamID
+			clip->lastSelectedParamID = globalEffectableParamShortcutsForAutomation[xDisplay][yDisplay];
 		}
 
 		else if (instrument->type == InstrumentType::MIDI_OUT
@@ -2809,14 +2736,6 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 		resetShortcutBlinking();
 	}
 
-	//	else if (instrument->type == InstrumentType::KIT && instrumentClipView.getAffectEntire() && (globalEffectableParamShortcutsForAutomation[x][y] != 0xFFFFFFFF)) {
-
-	//		clip->lastSelectedParamType = 2;
-	//		//if you are in a kit clip with affect entire enabled and the shortcut is valid, set current selected ParamID
-	//		clip->lastSelectedParamID = globalEffectableParamShortcutsForAutomation[xDisplay][yDisplay];
-
-	//	}
-
 	else if (clip->lastSelectedParamID != 255) { //this means you are editing a parameter's value
 
 		ModelStackWithAutoParam* modelStackWithParam =
@@ -2828,7 +2747,7 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 
 			int32_t effectiveLength;
 
-			if (instrument->type == InstrumentType::KIT) {
+			if (instrument->type == InstrumentType::KIT && !instrumentClipView.getAffectEntire()) {
 				ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowForSelectedDrum(modelStack);
 
 				effectiveLength = modelStackWithNoteRow->getLoopLength();
@@ -2910,7 +2829,7 @@ void AutomationInstrumentClipView::handleMultiPadPress(ModelStackWithTimelineCou
 
 				int32_t effectiveLength;
 
-				if (instrument->type == InstrumentType::KIT) {
+				if (instrument->type == InstrumentType::KIT && !instrumentClipView.getAffectEntire()) {
 					ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowForSelectedDrum(modelStack);
 
 					effectiveLength = modelStackWithNoteRow->getLoopLength();
@@ -3051,7 +2970,7 @@ void AutomationInstrumentClipView::displayParameterName(int32_t paramID) {
 		else if (clip->lastSelectedParamType == UNPATCHED) {
 			strcpy(buffer, getUnpatchedParamDisplayNameForOLED(paramID));
 		}
-		else if (clip->lastSelectedParamType == GLOBALEFFECTABLE) {
+		else if (clip->lastSelectedParamType == GLOBAL_EFFECTABLE) {
 			strcpy(buffer, getGlobalEffectableParamDisplayNameForOLED(paramID));
 		}
 
