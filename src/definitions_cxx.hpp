@@ -632,8 +632,8 @@ enum class FilterRoute {
 	LOW_TO_HIGH,
 	PARALLEL,
 };
-//Off is not an LPF mode but is used to reset filters
-constexpr int32_t kNumFilterRoutes = util::to_underlying(FilterRoute::PARALLEL);
+
+constexpr int32_t kNumFilterRoutes = util::to_underlying(FilterRoute::PARALLEL) + 1;
 
 constexpr int32_t kNumAllpassFiltersPhaser = 6;
 

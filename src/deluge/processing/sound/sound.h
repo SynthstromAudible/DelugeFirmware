@@ -111,7 +111,6 @@ public:
 
 	int32_t lastNoteCode;
 
-	FilterRoutes filterRoute;
 	bool oscillatorSync;
 
 	VoicePriority voicePriority;

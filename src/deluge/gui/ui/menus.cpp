@@ -34,6 +34,7 @@
 #include "gui/menu_item/drum_name.h"
 #include "gui/menu_item/envelope/segment.h"
 #include "gui/menu_item/file_selector.h"
+#include "gui/menu_item/filter/filter_route.h"
 #include "gui/menu_item/filter/hpf_freq.h"
 #include "gui/menu_item/filter/lpf_freq.h"
 #include "gui/menu_item/filter/lpf_mode.h"
@@ -198,6 +199,9 @@ submenu::Filter hpfMenu{
         &hpfResMenu,
     },
 };
+
+//Filter Route Menu ----------------------------------------------------------------------------------------------
+filter::FilterRouting filterRoutingMenu{"ROUTE", "Filter Routing"};
 
 // Envelope menu ----------------------------------------------------------------------------------------------------
 
@@ -823,29 +827,10 @@ patched_param::Pan panMenu{"PAN", ::Param::Local::PAN};
 menu_item::Submenu soundEditorRootMenu{
     "Sound",
     {
-        &source0Menu,
-        &source1Menu,
-        &modulator0Menu,
-        &modulator1Menu,
-        &noiseMenu,
-        &masterTransposeMenu,
-        &vibratoMenu,
-        &lpfMenu,
-        &hpfMenu,
-        &drumNameMenu,
-        &synthModeMenu,
-        &env0Menu,
-        &env1Menu,
-        &lfo0Menu,
-        &lfo1Menu,
-        &voiceMenu,
-        &fxMenu,
-        &compressorMenu,
-        &bendMenu,
-        &drumBendRangeMenu,
-        &volumeMenu,
-        &panMenu,
-        &sequenceDirectionMenu,
+        &source0Menu,    &source1Menu, &modulator0Menu,    &modulator1Menu,    &noiseMenu,    &masterTransposeMenu,
+        &vibratoMenu,    &lpfMenu,     &hpfMenu,           &filterRoutingMenu, &drumNameMenu, &synthModeMenu,
+        &env0Menu,       &env1Menu,    &lfo0Menu,          &lfo1Menu,          &voiceMenu,    &fxMenu,
+        &compressorMenu, &bendMenu,    &drumBendRangeMenu, &volumeMenu,        &panMenu,      &sequenceDirectionMenu,
     },
 };
 

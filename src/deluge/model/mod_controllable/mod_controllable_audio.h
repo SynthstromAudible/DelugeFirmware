@@ -107,6 +107,7 @@ public:
 	bool sampleRateReductionOnLastTime;
 	uint8_t clippingAmount; // Song probably doesn't currently use this?
 	FilterMode lpfMode;
+	FilterRoute filterRoute;
 
 	// Mod FX
 	ModFXType modFXType;

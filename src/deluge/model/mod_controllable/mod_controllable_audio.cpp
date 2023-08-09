@@ -1145,6 +1145,10 @@ int32_t ModControllableAudio::readTagFromFile(char const* tagName, ParamManagerF
 		lpfMode = stringToLPFType(storageManager.readTagOrAttributeValue());
 		storageManager.exitTag("lpfMode");
 	}
+	else if (!strcmp(tagName, "filterRoute")) {
+		filterRoute = stringToFilterRoute(storageManager.readTagOrAttributeValue());
+		storageManager.exitTag("sideChainSend");
+	}
 
 	else if (!strcmp(tagName, "clippingAmount")) {
 		clippingAmount = storageManager.readTagOrAttributeValueInt();
