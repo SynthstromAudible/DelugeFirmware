@@ -97,7 +97,7 @@ private:
 	void armClipToStopAction(Clip* clip);
 	void cancelArmingForClip(Clip* clip, int32_t* clipIndex);
 	void armSectionWhenNeitherClockActive(ModelStack* modelStack, int32_t section, bool stopAllOtherClips);
-	void armClipsAlongWithExistingLaunching(int armState, uint8_t section,
+	void armClipsAlongWithExistingLaunching(ArmState armState, uint8_t section,
 			Clip *clip);
 	void armClipsWithNothingToSyncTo(uint8_t section, Clip *clip);
 	void scheduleFillClips(Clip *clip);

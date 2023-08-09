@@ -1152,7 +1152,7 @@ void Session::scheduleOverdubToStartRecording(Clip* overdub, Clip* clipAbove) {
 	armingChanged();
 }
 
-void Session::armClipsAlongWithExistingLaunching(int armState, uint8_t section,
+void Session::armClipsAlongWithExistingLaunching(ArmState armState, uint8_t section,
 		Clip *clip) {
 	// If just one Clip...
 	if (clip) {
@@ -1572,8 +1572,8 @@ void Session::scheduleFillClips(Clip *clip) {
 
 					doLateStart = true;
 
-					if (clip->armState) { // In case also already armed
-						clip->armState = ARM_STATE_OFF;
+					if (clip->armState != ArmState::OFF) { // In case also already armed
+						clip->armState = ArmState::OFF;
 					}
 
 					clip->activeIfNoSolo = true;
@@ -1593,7 +1593,7 @@ void Session::scheduleFillClips(Clip *clip) {
 					}
 
 					/* Arm to stop once started */
-					clip->armState = ARM_STATE_ON_NORMAL;
+					clip->armState = ArmState::ON_NORMAL;
 				} else {
 				    /* Schedule start time if not immediate launch */
 					if (launchEventAtSwungTickCount
@@ -1602,7 +1602,7 @@ void Session::scheduleFillClips(Clip *clip) {
 
 						scheduleFillEvent(clip,
 								launchEventAtSwungTickCount - clip->getMaxLength());
-						armClipLowLevel(clip, ARM_STATE_ON_NORMAL, false);
+						armClipLowLevel(clip, ArmState::ON_NORMAL, false);
 					}
 				}
 			}
@@ -2073,9 +2073,9 @@ traverseClips:
 			/* Ensure any fill clips that are playing will end here */
 			for (int c = currentSong->sessionClips.getNumElements() - 1; c >= 0; c--) {
 				Clip* clip = currentSong->sessionClips.getClipAtIndex(c);
-				if (clip->armState && clip->launchStyle == LAUNCH_STYLE_FILL) {
+				if (clip->armState != ArmState::OFF && clip->launchStyle == LAUNCH_STYLE_FILL) {
 
-					clip->armState = ARM_STATE_OFF;
+					clip->armState = ArmState::OFF;
 					clip->activeIfNoSolo = false;
 					ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 					currentSong->assertActiveness(modelStackWithTimelineCounter);
