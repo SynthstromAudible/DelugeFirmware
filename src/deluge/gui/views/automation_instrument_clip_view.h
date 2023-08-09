@@ -139,7 +139,7 @@ private:
 	//Automation Lanes Functions
 	void initParameterSelection();
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip,
-	                                                int32_t paramID = 0xFFFFFFFF);
+	                                                int32_t paramID = 0xFFFFFFFF, int32_t paramType = 0xFFFFFFFF);
 	void setParameterAutomationValue(ModelStackWithAutoParam* modelStack, int32_t knobPos, int32_t squareStart,
 	                                 int32_t xDisplay, int32_t effectiveLength);
 

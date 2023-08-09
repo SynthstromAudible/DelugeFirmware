@@ -100,6 +100,7 @@ InstrumentClip::InstrumentClip(Song* song) : Clip(CLIP_TYPE_INSTRUMENT) {
 	//initialize automation instrument clip view variables
 	onAutomationInstrumentClipView = false;
 	lastSelectedParamID = 255;
+	lastSelectedParamType = 255;
 	lastSelectedParamShortcutX = 255;
 	lastSelectedParamShortcutY = 255;
 	lastSelectedParamArrayPosition = 0;
@@ -2190,6 +2191,9 @@ void InstrumentClip::writeDataToFile(Song* song) {
 	if (lastSelectedParamID != 255) {
 		storageManager.writeAttribute("lastSelectedParamID", lastSelectedParamID);
 	}
+	if (lastSelectedParamType != 255) {
+		storageManager.writeAttribute("lastSelectedParamType", lastSelectedParamType);
+	}
 	if (lastSelectedParamShortcutX != 255) {
 		storageManager.writeAttribute("lastSelectedParamShortcutX", lastSelectedParamShortcutX);
 	}
@@ -2447,8 +2451,8 @@ someError:
 			onAutomationInstrumentClipView = storageManager.readTagOrAttributeValueInt();
 		}
 
-		else if (!strcmp(tagName, "lastSelectedParamID")) {
-			lastSelectedParamID = storageManager.readTagOrAttributeValueInt();
+		else if (!strcmp(tagName, "lastSelectedParamType")) {
+			lastSelectedParamType = storageManager.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "lastSelectedParamShortcutX")) {

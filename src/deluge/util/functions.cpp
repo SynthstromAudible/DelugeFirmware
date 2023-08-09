@@ -466,6 +466,94 @@ char const* getPatchedParamDisplayNameForOLED(int32_t p) {
 		return NULL;
 	}
 }
+
+char const* getUnpatchedParamDisplayNameForOLED(int32_t p) {
+
+	// These can basically be 13 chars long, or 14 if the last one is a dot.
+	switch (p) {
+
+	case Param::Unpatched::BASS:
+		return "Bass";
+
+	case Param::Unpatched::BASS_FREQ:
+		return "Bass frequency";
+
+	case Param::Unpatched::TREBLE:
+		return "Treble";
+
+	case Param::Unpatched::TREBLE_FREQ:
+		return "Treble frequency";
+
+	case Param::Unpatched::COMPRESSOR_SHAPE:
+		return "Sidechain shape";
+
+	case Param::Unpatched::BITCRUSHING:
+		return "Bitcrush";
+
+	case Param::Unpatched::SAMPLE_RATE_REDUCTION:
+		return "Decimation";
+
+	case Param::Unpatched::Sound::ARP_GATE:
+		return "Arp. gate";
+
+	case Param::Unpatched::MOD_FX_FEEDBACK:
+		return "Mod-FX feedback";
+
+	case Param::Unpatched::MOD_FX_OFFSET:
+		return "Mod-FX offset";
+
+	default:
+		__builtin_unreachable();
+		return NULL;
+	}
+}
+
+char const* getGlobalEffectableParamDisplayNameForOLED(int32_t p) {
+
+	// These can basically be 13 chars long, or 14 if the last one is a dot.
+	switch (p) {
+
+	case Param::Unpatched::GlobalEffectable::LPF_RES:
+		return "LPF resonance";
+
+	case Param::Unpatched::GlobalEffectable::HPF_RES:
+		return "HPF resonance";
+
+	case Param::Unpatched::GlobalEffectable::PAN:
+		return "Master pan";
+
+	case Param::Unpatched::GlobalEffectable::LPF_FREQ:
+		return "LPF frequency";
+
+	case Param::Unpatched::GlobalEffectable::HPF_FREQ:
+		return "HPF frequency";
+
+	case Param::Unpatched::GlobalEffectable::VOLUME:
+		return "Master level";
+
+	case Param::Unpatched::GlobalEffectable::SIDECHAIN_VOLUME:
+		return "Sidechain level";
+
+	case Param::Unpatched::GlobalEffectable::DELAY_RATE:
+		return "Delay rate";
+
+	case Param::Unpatched::GlobalEffectable::DELAY_AMOUNT:
+		return "Delay amount";
+
+	case Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT:
+		return "Reverb amount";
+
+	case Param::Unpatched::GlobalEffectable::MOD_FX_RATE:
+		return "Mod-FX rate";
+
+	case Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH:
+		return "Mod-FX depth";
+
+	default:
+		__builtin_unreachable();
+		return NULL;
+	}
+}
 #endif
 
 PatchSource stringToSource(char const* string) {
