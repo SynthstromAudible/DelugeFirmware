@@ -176,7 +176,7 @@ const uint32_t globalEffectableParamsForAutomation[12] = {
     ::Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT, //Reverb Amount
     ::Param::Unpatched::GlobalEffectable::DELAY_RATE,         //Delay Rate, Amount
     ::Param::Unpatched::GlobalEffectable::DELAY_AMOUNT,
-    ::Param::Unpatched::GlobalEffectable::SIDECHAIN_VOLUME, //Sidechain Send, Shape
+    ::Param::Unpatched::GlobalEffectable::SIDECHAIN_VOLUME, //Sidechain Send
     ::Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH,     //Mod FX Depth, Rate
     ::Param::Unpatched::GlobalEffectable::MOD_FX_RATE};
 
@@ -495,6 +495,10 @@ bool AutomationInstrumentClipView::renderMainPads(uint32_t whichRows, uint8_t im
 	}
 
 	if (isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING)) {
+		return true;
+	}
+
+	if (isUIModeActive(UI_MODE_SCALE_MODE_BUTTON_PRESSED)) {
 		return true;
 	}
 
@@ -939,15 +943,8 @@ ActionResult AutomationInstrumentClipView::buttonAction(hid::Button b, bool on, 
 					if (!clip->inScaleMode) {
 						calculateDefaultRootNote(); // Calculate it now so we can show the user even before they've released the button
 						flashDefaultRootNoteOn = false;
-						instrumentClipView.flashDefaultRootNote();
 					}
 				}
-			}
-
-			// If user is auditioning just one NoteRow, we can go directly into Scale Mode and set that root note
-			else if (instrumentClipView.oneNoteAuditioning() && !clip->inScaleMode) {
-				instrumentClipView.cancelAllAuditioning();
-				instrumentClipView.enterScaleMode(instrumentClipView.lastAuditionedYDisplay);
 			}
 		}
 		else {
@@ -955,11 +952,11 @@ ActionResult AutomationInstrumentClipView::buttonAction(hid::Button b, bool on, 
 				currentUIMode = UI_MODE_NONE;
 				if (clip->inScaleMode) {
 					if (instrumentClipView.exitScaleModeOnButtonRelease) {
-						instrumentClipView.exitScaleMode();
+						exitScaleMode();
 					}
 				}
 				else {
-					instrumentClipView.enterScaleMode();
+					enterScaleMode();
 				}
 			}
 		}
@@ -1242,12 +1239,48 @@ passToOthers:
 		return ClipView::buttonAction(b, on, inCardRoutine);
 	}
 
-	//disabled re-rendering when scale mode button is pressed as it causes the grid to flicker weirdly
-	if (b != SCALE_MODE) {
-		uiNeedsRendering(this);
-	}
+	uiNeedsRendering(this);
 
 	return ActionResult::DEALT_WITH;
+}
+
+//simplified version of the InstrumentClipView::enterScaleMode function. No need to render any animation.
+void AutomationInstrumentClipView::enterScaleMode(uint8_t yDisplay) {
+
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
+
+	int32_t newRootNote;
+	if (yDisplay == 255) {
+		newRootNote = 2147483647;
+	}
+	else {
+		newRootNote = clip->getYNoteFromYDisplay(yDisplay, currentSong);
+	}
+
+	int32_t newScroll = instrumentClipView.setupForEnteringScaleMode(newRootNote, yDisplay);
+
+	clip->yScroll = newScroll;
+
+	displayCurrentScaleName();
+
+	// And tidy up
+	setLedStates();
+}
+
+//simplified version of the InstrumentClipView::enterScaleMode function. No need to render any animation.
+void AutomationInstrumentClipView::exitScaleMode() {
+	int32_t scrollAdjust = instrumentClipView.setupForExitingScaleMode();
+
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
+
+	clip->yScroll += scrollAdjust;
+
+	instrumentClipView.recalculateColours();
+	setLedStates();
 }
 
 //pad action
@@ -1360,28 +1393,6 @@ possiblyAuditionPad:
 					}
 					else {
 						view.melodicInstrumentMidiLearnPadPressed(velocity, (MelodicInstrument*)instrument);
-					}
-				}
-			}
-
-			// Changing the scale:
-			else if (isUIModeActiveExclusively(UI_MODE_SCALE_MODE_BUTTON_PRESSED)) {
-				if (sdRoutineLock) {
-					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-				}
-
-				if (velocity
-				    && instrument->type
-				           != InstrumentType::
-				               KIT) { // We probably couldn't have got this far if it was a Kit, but let's just check
-					if (clip->inScaleMode) {
-						currentUIMode = UI_MODE_NONE; // So that the upcoming render of the sidebar comes out correctly
-						instrumentClipView.changeRootNote(y);
-						instrumentClipView.exitScaleModeOnButtonRelease = false;
-					}
-					else {
-						instrumentClipView.enterScaleMode(y);
-						uiNeedsRendering(this);
 					}
 				}
 			}
@@ -1602,7 +1613,6 @@ void AutomationInstrumentClipView::auditionPadAction(int32_t velocity, int32_t y
 				if (modelStackWithNoteRowOnCurrentClip->getNoteRowAllowNull()) {
 					clip->recordNoteOn(modelStackWithNoteRowOnCurrentClip,
 					                   (velocity == USE_DEFAULT_VELOCITY) ? instrument->defaultVelocity : velocity);
-					goto maybeRenderRow;
 				}
 			}
 		}
@@ -1612,10 +1622,6 @@ void AutomationInstrumentClipView::auditionPadAction(int32_t velocity, int32_t y
 
 			if (modelStackWithNoteRowOnCurrentClip->getNoteRowAllowNull()) {
 				clip->recordNoteOff(modelStackWithNoteRowOnCurrentClip);
-maybeRenderRow:
-				if (!(currentUIMode & UI_MODE_HORIZONTAL_SCROLL)) { // What about zoom too?
-					uiNeedsRendering(this, 1 << yDisplay, 0);
-				}
 			}
 		}
 	}
@@ -1642,10 +1648,10 @@ maybeRenderRow:
 
 		// If note on...
 		if (velocity) {
-			if (instrumentClipView.lastAuditionedYDisplay
-			    != yDisplay) { //if you pressed a different audition pad than last time, refresh grid
-				renderingNeeded = true;
-			}
+		//	if (instrumentClipView.lastAuditionedYDisplay
+		//	    != yDisplay) { //if you pressed a different audition pad than last time, refresh grid
+		//		renderingNeeded = true;
+		//	}
 
 			int32_t velocityToSound = velocity;
 			if (velocityToSound == USE_DEFAULT_VELOCITY) {

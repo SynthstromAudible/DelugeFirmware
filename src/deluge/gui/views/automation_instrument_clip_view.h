@@ -129,6 +129,10 @@ private:
 	               int32_t xEnd = kDisplayWidth, bool drawRepeats = false, int32_t yDisplay = 0);
 	void renderLove(uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
 
+	//Enter/Exit Scale Mode
+	void enterScaleMode(uint8_t yDisplay = 255);
+	void exitScaleMode();
+
 	//Horizontal Encoder Action
 	void shiftAutomationHorizontally(int32_t offset);
 
