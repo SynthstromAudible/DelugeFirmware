@@ -70,7 +70,6 @@ private:
 
 	//moveability is tan(f)/(1+tan(f))
 	q31_t moveability;
-	q31_t divideBy1PlusTannedFrequency;
 
 	// All feedbacks have 1 represented as 1073741824
 	q31_t lpf1Feedback;

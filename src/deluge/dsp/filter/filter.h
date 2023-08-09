@@ -79,12 +79,12 @@ public:
 
 		//this is 1q31*1q16/(1q16+tan(f)/2)
 		//tan(f) is q17
-		DivideBy1PlusTannedFrequency = (int64_t)ONE_Q31U * ONE_Q16 / (ONE_Q16 + (tannedFrequency >> 1));
-		fc = multiply_32x32_rshift32_rounded(tannedFrequency, DivideBy1PlusTannedFrequency) << 4;
+		divideBy1PlusTannedFrequency = (int64_t)ONE_Q31U * ONE_Q16 / (ONE_Q16 + (tannedFrequency >> 1));
+		fc = multiply_32x32_rshift32_rounded(tannedFrequency, divideBy1PlusTannedFrequency) << 4;
 	}
 	q31_t fc;
 	q31_t tannedFrequency;
-	q31_t DivideBy1PlusTannedFrequency;
+	q31_t divideBy1PlusTannedFrequency;
 };
 
 } // namespace deluge::dsp::filter

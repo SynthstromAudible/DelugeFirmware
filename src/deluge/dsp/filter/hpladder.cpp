@@ -49,8 +49,8 @@ q31_t HpLadderFilter::setConfig(q31_t hpfFrequency, q31_t hpfResonance, FilterMo
 	int32_t moveabilitySquaredTimesProcessedResonance =
 	    multiply_32x32_rshift32(moveabilityTimesProcessedResonance, fc); // 1 = 268435456
 
-	hpfHPF3Feedback = -multiply_32x32_rshift32_rounded(fc, DivideBy1PlusTannedFrequency);
-	hpfLPF1Feedback = DivideBy1PlusTannedFrequency >> 1;
+	hpfHPF3Feedback = -multiply_32x32_rshift32_rounded(fc, divideBy1PlusTannedFrequency);
+	hpfLPF1Feedback = divideBy1PlusTannedFrequency >> 1;
 
 	uint32_t toDivideBy =
 	    ((int32_t)268435456 - (moveabilityTimesProcessedResonance >> 1) + moveabilitySquaredTimesProcessedResonance);
