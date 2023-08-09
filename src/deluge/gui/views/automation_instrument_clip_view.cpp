@@ -2703,7 +2703,8 @@ void AutomationInstrumentClipView::handleMultiPadPress(ModelStackWithTimelineCou
 
 		if (modelStackWithParam && modelStackWithParam->autoParam) {
 
-			if (secondPadX < firstPadX) { //swap them if you pressed a pad on the right first
+			//if you want to enter long presses backwards, swap the first pad pressed with the second pad pressed
+			if (secondPadX < firstPadX) {
 
 				int32_t temp;
 				temp = firstPadX;
