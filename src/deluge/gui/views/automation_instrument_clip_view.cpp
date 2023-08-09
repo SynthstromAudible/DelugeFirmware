@@ -2714,7 +2714,6 @@ void AutomationInstrumentClipView::handleMultiPadPress(ModelStackWithTimelineCou
 				temp = firstPadValue;
 				firstPadValue = secondPadValue;
 				secondPadValue = temp;
-
 			}
 
 			//loop from the firstPad to the secondPad, setting the values in between
