@@ -1343,8 +1343,6 @@ doRegularEditPadActionProbably:
 		else if (isUIModeWithinRange(mutePadActionUIModes) && velocity) {
 			ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(y, modelStack);
 
-			bool renderingNeeded = false;
-
 			//if we're in a kit, and you press a mute pad
 			//check if it's a mute pad corresponding to the current selected drum
 			//if not, change the drum selection, refresh parameter selection and go back to automation overview
@@ -1358,17 +1356,10 @@ doRegularEditPadActionProbably:
 					}
 				}
 			}
-			else {
-				if (modelStackWithNoteRow->getNoteRowAllowNull()) {
-					renderingNeeded = true;
-				}
-			}
 
 			instrumentClipView.mutePadPress(y);
 
-			if (renderingNeeded) { //re-rendering mute pads
-				uiNeedsRendering(this);
-			}
+			uiNeedsRendering(this); //re-render mute pads
 		}
 	}
 
