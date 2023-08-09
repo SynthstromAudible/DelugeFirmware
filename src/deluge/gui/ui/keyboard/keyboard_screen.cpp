@@ -410,6 +410,20 @@ ActionResult KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRou
 		PadLEDs::renderClipExpandOrCollapse();
 	}
 
+	//toggle UI to go back to after you exit keyboard mode between automation instrument clip view and regular instrument clip view
+	else if (b == CLIP_VIEW) {
+		if (on) {
+			if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+				((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView = false;
+				indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, true);
+			}
+			else {
+				((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView = true;
+				indicator_leds::blinkLed(IndicatorLED::CLIP_VIEW);
+			}
+		}
+	}
+
 	// Kit button
 	else if (b == KIT && currentUIMode == UI_MODE_NONE) {
 		if (on) {

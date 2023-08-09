@@ -2703,6 +2703,19 @@ void AutomationInstrumentClipView::handleMultiPadPress(ModelStackWithTimelineCou
 
 		if (modelStackWithParam && modelStackWithParam->autoParam) {
 
+			if (secondPadX < firstPadX) { //swap them if you pressed a pad on the right first
+
+				int32_t temp;
+				temp = firstPadX;
+				firstPadX = secondPadX;
+				secondPadX = temp;
+
+				temp = firstPadValue;
+				firstPadValue = secondPadValue;
+				secondPadValue = temp;
+
+			}
+
 			//loop from the firstPad to the secondPad, setting the values in between
 			for (int32_t x = firstPadX; x <= secondPadX; x++) {
 
