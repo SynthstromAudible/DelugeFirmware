@@ -17,7 +17,6 @@
 
 #include "processing/sound/sound.h"
 #include "definitions_cxx.hpp"
-#include "dsp/filter/filter_set_config.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/view.h"
@@ -107,7 +106,7 @@ Sound::Sound() : patcher(&patchableInfoForSound) {
 	synthMode = SynthMode::SUBTRACTIVE;
 	modulator1ToModulator0 = false;
 
-	lpfMode = LPFMode::TRANSISTOR_24DB; // Good for samples, I think
+	lpfMode = FilterMode::TRANSISTOR_24DB; // Good for samples, I think
 
 	postReverbVolumeLastTime = -1; // Special state to make it grab the actual value the first time it's rendered
 
@@ -211,7 +210,7 @@ void Sound::initParams(ParamManager* paramManager) {
 void Sound::setupAsSample(ParamManagerForTimeline* paramManager) {
 
 	polyphonic = PolyphonyMode::AUTO;
-	lpfMode = LPFMode::TRANSISTOR_24DB;
+	lpfMode = FilterMode::TRANSISTOR_24DB;
 
 	sources[0].oscType = OscType::SAMPLE;
 	sources[1].oscType = OscType::SAMPLE;
@@ -267,7 +266,7 @@ void Sound::setupAsDefaultSynth(ParamManager* paramManager) {
 
 	setupDefaultExpressionPatching(paramManager);
 
-	lpfMode = LPFMode::TRANSISTOR_24DB; // Good for samples, I think
+	lpfMode = FilterMode::TRANSISTOR_24DB; // Good for samples, I think
 
 	sources[0].oscType = OscType::SAW;
 	sources[1].transpose = -12;
@@ -2094,16 +2093,13 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 
 		// Setup filters
 		bool thisHasFilters = hasFilters();
-		FilterSetConfig filterSetConfig;
-		filterSetConfig.doLPF =
-		    (thisHasFilters
-		     && (lpfMode == LPFMode::TRANSISTOR_24DB_DRIVE
-		         || paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(Param::Local::LPF_FREQ)
-		         || getSmoothedPatchedParamValue(Param::Local::LPF_FREQ, paramManager) < 2147483602));
-		filterSetConfig.doHPF =
-		    (thisHasFilters
-		     && (paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(Param::Local::HPF_FREQ)
-		         || getSmoothedPatchedParamValue(Param::Local::HPF_FREQ, paramManager) != -2147483648));
+		bool doLPF = (thisHasFilters
+		              && (lpfMode == FilterMode::TRANSISTOR_24DB_DRIVE
+		                  || paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(Param::Local::LPF_FREQ)
+		                  || getSmoothedPatchedParamValue(Param::Local::LPF_FREQ, paramManager) < 2147483602));
+		bool doHPF = (thisHasFilters
+		              && (paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(Param::Local::HPF_FREQ)
+		                  || getSmoothedPatchedParamValue(Param::Local::HPF_FREQ, paramManager) != -2147483648));
 
 		// Each voice will potentially alter the "sources changed" flags, so store a backup to restore between each voice
 		/*
@@ -2128,7 +2124,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 			ModelStackWithVoice* modelStackWithVoice = modelStackWithSoundFlags->addVoice(thisVoice);
 
 			bool stillGoing = thisVoice->render(modelStackWithVoice, soundBuffer, numSamples, renderingInStereo,
-			                                    applyingPanAtVoiceLevel, sourcesChanged, &filterSetConfig, pitchAdjust);
+			                                    applyingPanAtVoiceLevel, sourcesChanged, doLPF, doHPF, pitchAdjust);
 			if (!stillGoing) {
 				AudioEngine::activeVoices.checkVoiceExists(thisVoice, this, "E201");
 				AudioEngine::unassignVoice(thisVoice, this, modelStackWithSoundFlags);

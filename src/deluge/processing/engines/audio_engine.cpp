@@ -693,10 +693,8 @@ startAgain:
 	// 167763968 is 134217728 made a bit bigger so that default filter resonance doesn't reduce volume overall
 
 	if (currentSong) {
-		FilterSetConfig filterSetConfig;
-		currentSong->globalEffectable.setupFilterSetConfig(&filterSetConfig, &masterVolumeAdjustmentL,
-		                                                   &currentSong->paramManager);
-		currentSong->globalEffectable.processFilters(renderingBuffer, numSamples, &filterSetConfig);
+		currentSong->globalEffectable.setupFilterSetConfig(&masterVolumeAdjustmentL, &currentSong->paramManager);
+		currentSong->globalEffectable.processFilters(renderingBuffer, numSamples);
 		currentSong->globalEffectable.processSRRAndBitcrushing(renderingBuffer, numSamples, &masterVolumeAdjustmentL,
 		                                                       &currentSong->paramManager);
 

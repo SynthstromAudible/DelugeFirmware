@@ -16,6 +16,8 @@
  */
 
 #include "hid/display/numeric_driver.h"
+#include "definitions_cxx.hpp"
+#include "drivers/pic/pic.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/numeric_layer/numeric_layer_basic_text.h"
 #include "hid/display/numeric_layer/numeric_layer_loading_animation.h"
@@ -26,6 +28,7 @@
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "util/functions.h"
+#include <cstdint>
 #include <cstring>
 #include <new>
 #if HAVE_OLED
@@ -551,14 +554,12 @@ void NumericDriver::render() {
 		layer = topLayer;
 	}
 
-	uint8_t segments[kNumericDisplayLength];
-	layer->render(segments);
+	std::array<uint8_t, kNumericDisplayLength> segments;
+	layer->render(segments.data());
 
-	memcpy(lastDisplay, segments, kNumericDisplayLength);
-	bufferPICUart(224);
-	for (int32_t whichChar = 0; whichChar < kNumericDisplayLength; whichChar++) {
-		bufferPICUart(segments[whichChar]);
-	}
+	memcpy(lastDisplay, segments.data(), kNumericDisplayLength);
+
+	PIC::update7SEG(segments);
 }
 
 // Call this to make the loading animation happen
@@ -575,13 +576,9 @@ void NumericDriver::displayLoadingAnimation(bool delayed, bool transparent) {
 }
 
 void NumericDriver::setTextVeryBasicA1(char const* text) {
-
-	uint8_t segments[kNumericDisplayLength];
-	encodeText(text, segments, false, 255, true, 0);
-	bufferPICUart(224);
-	for (int32_t whichChar = 0; whichChar < kNumericDisplayLength; whichChar++) {
-		bufferPICUart(segments[whichChar]);
-	}
+	std::array<uint8_t, kNumericDisplayLength> segments;
+	encodeText(text, segments.data(), false, 255, true, 0);
+	PIC::update7SEG(segments);
 }
 #endif
 
@@ -596,7 +593,7 @@ void NumericDriver::freezeWithError(char const* text) {
 	setTextVeryBasicA1(text);
 
 	while (1) {
-		uartFlushIfNotSending(UART_ITEM_PIC);
+		PIC::flush();
 		uartFlushIfNotSending(UART_ITEM_MIDI);
 
 		uint8_t value;

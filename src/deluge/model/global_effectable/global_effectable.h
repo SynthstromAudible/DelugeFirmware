@@ -20,7 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "dsp/filter/filter_set.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
-
+using namespace deluge;
 class GlobalEffectable : public ModControllableAudio {
 public:
 	GlobalEffectable();
@@ -32,8 +32,8 @@ public:
 	bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack);
 	ModelStackWithAutoParam* getParamFromModEncoder(int32_t whichModEncoder, ModelStackWithThreeMainThings* modelStack,
 	                                                bool allowCreation = true);
-	void setupFilterSetConfig(FilterSetConfig* filterSetConfig, int32_t* postFXVolume, ParamManager* paramManager);
-	void processFilters(StereoSample* buffer, int32_t numSamples, FilterSetConfig* filterSetConfig);
+	void setupFilterSetConfig(int32_t* postFXVolume, ParamManager* paramManager);
+	void processFilters(StereoSample* buffer, int32_t numSamples);
 	void compensateVolumeForResonance(ParamManagerForTimeline* paramManager);
 	void processFXForGlobalEffectable(StereoSample* inputBuffer, int32_t numSamples, int32_t* postFXVolume,
 	                                  ParamManager* paramManager, DelayWorkingState* delayWorkingState,
@@ -55,7 +55,7 @@ public:
 	void setupDelayWorkingState(DelayWorkingState* delayWorkingState, ParamManager* paramManager,
 	                            bool shouldLimitDelayFeedback = false);
 
-	FilterSet filterSets[2];
+	dsp::filter::FilterSet filterSet;
 	ModFXParam currentModFXParam;
 	FilterType currentFilterType;
 

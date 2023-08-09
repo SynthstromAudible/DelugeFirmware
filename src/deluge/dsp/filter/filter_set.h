@@ -18,119 +18,82 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp/filter/filter_set_config.h"
+#include "dsp/filter/filter.h"
+#include "dsp/filter/hpladder.h"
+#include "dsp/filter/ladder_components.h"
+#include "dsp/filter/lpladder.h"
+#include "dsp/filter/svf.h"
 #include "util/functions.h"
 #include <cstdint>
 
 class Sound;
-class FilterSetConfig;
 
-struct SVF_outs {
-	q31_t lpf;
-	q31_t bpf;
-	q31_t hpf;
-	q31_t notch;
-};
-
-class SVFilter {
-public:
-	//input f is actually filter 'moveability', tan(f)/(1+tan(f)) and falls between 0 and 1. 1 represented by 2147483648
-	//resonance is 2147483647 - rawResonance2 Always between 0 and 2. 1 represented as 1073741824
-	SVF_outs doSVF(q31_t input, LPSVFConfig* filterSetConfig);
-	void reset() {
-		low = 0;
-		band = 0;
-	}
-
-	q31_t low;
-	q31_t band;
-};
-
-class BasicFilterComponent {
-public:
-	//moveability is tan(f)/(1+tan(f))
-	inline q31_t doFilter(q31_t input, q31_t moveability) {
-		q31_t a = multiply_32x32_rshift32_rounded(input - memory, moveability) << 1;
-		q31_t b = a + memory;
-		memory = b + a;
-		return b;
-	}
-
-	inline int32_t doAPF(q31_t input, int32_t moveability) {
-		q31_t a = multiply_32x32_rshift32_rounded(input - memory, moveability) << 1;
-		q31_t b = a + memory;
-		memory = a + b;
-		return b * 2 - input;
-	}
-
-	inline void affectFilter(q31_t input, int32_t moveability) {
-		memory += multiply_32x32_rshift32_rounded(input - memory, moveability) << 2;
-	}
-
-	inline void reset() { memory = 0; }
-
-	inline q31_t getFeedbackOutput(int32_t feedbackAmount) {
-		return multiply_32x32_rshift32_rounded(memory, feedbackAmount) << 2;
-	}
-
-	inline q31_t getFeedbackOutputWithoutLshift(int32_t feedbackAmount) {
-		return multiply_32x32_rshift32_rounded(memory, feedbackAmount);
-	}
-
-	q31_t memory;
-};
-
+namespace deluge::dsp::filter {
 class FilterSet {
 public:
 	FilterSet();
-	void renderLPFLong(q31_t* outputSample, q31_t* endSample, FilterSetConfig* filterSetConfig, LPFMode lpfMode,
-	                   int32_t sampleIncrement = 1, int32_t extraSaturation = 0, int32_t extraSaturationDrive = 0);
-	void renderHPFLong(q31_t* outputSample, q31_t* endSample, FilterSetConfig* filterSetConfig, int32_t numSamples,
-	                   int32_t sampleIncrement = 1);
-	void renderLadderHPF(q31_t* outputSample, HPLadderConfig* filterSetConfig, int32_t extraSaturation = 0);
 	void reset();
-	BasicFilterComponent lpfLPF1;
-	BasicFilterComponent lpfLPF2;
-	BasicFilterComponent lpfLPF3;
-	BasicFilterComponent lpfLPF4;
+	q31_t setConfig(q31_t lpfFrequency, q31_t lpfResonance, bool doLPF, FilterMode lpfmode, q31_t hpfFrequency,
+	                q31_t hpfResonance, bool doHPF, FilterMode hpfmode, q31_t filterGain,
+	                bool adjustVolumeForHPFResonance = true, q31_t* overallOscAmplitude = NULL);
 
-	SVFilter svf;
-
-	BasicFilterComponent hpfHPF1;
-	BasicFilterComponent hpfLPF1;
-	BasicFilterComponent hpfHPF3;
-	uint32_t hpfLastWorkingValue;
-	bool hpfDoingAntialiasingNow;
-	int32_t hpfDivideByTotalMoveabilityLastTime;
-	int32_t hpfDivideByProcessedResonanceLastTime;
-
-	bool hpfOnLastTime;
-	bool lpfOnLastTime;
-	inline void renderLPLadder(q31_t* startSample, q31_t* endSample, LPLadderConfig* filterSetConfig, LPFMode lpfMode,
-	                           int32_t sampleIncrement, int32_t extraSaturation, int32_t extraSaturationDrive);
-	inline void renderLPSVF(q31_t* startSample, q31_t* endSample, LPSVFConfig* filterSetConfig,
-	                        int32_t sampleIncrement);
-	inline void renderLong(q31_t* outputSample, q31_t* endSample, FilterSetConfig* filterSetConfig, LPFMode lpfMode,
-	                       int32_t numSamples, int32_t sampleIncrememt = 1) {
+	inline void renderLong(q31_t* startSample, q31_t* endSample, int32_t numSamples, int32_t sampleIncrememt = 1,
+	                       int32_t extraSaturation = 1) {
 
 		// Do HPF, if it's on
-		if (filterSetConfig->doHPF) {
-			renderHPFLong(outputSample, endSample, filterSetConfig, numSamples, sampleIncrememt);
+		if (HPFOn) {
+			renderHPFLong(startSample, endSample, lpfMode, sampleIncrememt);
 		}
-		else
-			hpfOnLastTime = false;
 
 		// Do LPF, if it's on
-		if (filterSetConfig->doLPF) {
-			renderLPFLong(outputSample, endSample, filterSetConfig, lpfMode, sampleIncrememt, 1, 1);
+		if (LPFOn) {
+			renderLPFLong(startSample, endSample, lpfMode, sampleIncrememt, extraSaturation, extraSaturation >> 1);
 		}
-		else
-			lpfOnLastTime = false;
+		else {
+			lastLPFMode = FilterMode::OFF;
+		}
 	}
+	//expects to receive an interleaved stereo stream
+	inline void renderLongStereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation = 1) {
+		// Do HPF, if it's on
+		if (HPFOn) {
+			renderHPFLongStereo(startSample, endSample, extraSaturation);
+		}
+
+		// Do LPF, if it's on
+		if (LPFOn) {
+			renderLPFLongStereo(startSample, endSample, extraSaturation);
+		}
+		else {
+			lastLPFMode = FilterMode::OFF;
+		}
+	}
+
+	//used to check whether the filter is used at all
+	inline bool isLPFOn() { return LPFOn; }
+	inline bool isHPFOn() { return HPFOn; }
+	inline bool isOn() { return HPFOn || LPFOn; }
 
 private:
 	q31_t noiseLastValue;
+	FilterMode lpfMode;
+	FilterMode lastLPFMode;
+	FilterMode hpfMode;
+	FilterMode lastHPFMode;
 
-	q31_t do24dBLPFOnSample(q31_t input, LPLadderConfig* filterSetConfig, int32_t saturationLevel);
-	q31_t doDriveLPFOnSample(q31_t input, LPLadderConfig* filterSetConfig, int32_t extraSaturation = 0);
+	void renderLPFLong(q31_t* startSample, q31_t* endSample, FilterMode lpfMode, int32_t sampleIncrement = 1,
+	                   int32_t extraSaturation = 0, int32_t extraSaturationDrive = 0);
+	void renderLPFLongStereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation = 0);
+	void renderHPFLongStereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation = 0);
+	void renderHPFLong(q31_t* startSample, q31_t* endSample, FilterMode lpfMode, int32_t sampleIncrement = 1,
+	                   int32_t extraSaturation = 0);
+	void renderLadderHPF(q31_t* outputSample, int32_t extraSaturation = 0);
+
+	SVFilter lpsvf;
+	LpLadderFilter lpladder;
+	HpLadderFilter hpladder;
+
+	bool LPFOn;
+	bool HPFOn;
 };
+} // namespace deluge::dsp::filter
