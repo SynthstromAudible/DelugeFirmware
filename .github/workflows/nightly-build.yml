@@ -6,18 +6,24 @@ on:
     - cron: '14 0 * * *' # runs daily at 00:14
 
 jobs:
-  nightly-build:
+  nightly-detect:
     runs-on: ubuntu-latest
+    outputs:
+      new-commits: ${{ steps.count-commits.outputs.count }}
     steps:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0 # Required to count the commits
       - name: Get new commits
-        run: echo "NEW_COMMIT_COUNT=$(git log --oneline --since '24 hours ago' | wc -l)" >> $GITHUB_ENV
-      - name: Build nightly
-        uses: ./.github/workflows/build.yml
-        if: ${{ env.NEW_COMMIT_COUNT > 0 }}
-        with:
-          firmware-retention-days: 30
-          build-type: 'nightly'
-          
+        id: count-commits
+        run: |
+          count=$(git log --oneline --since '24 hours ago' | wc -l)
+          echo "Saw $count commits"
+          echo "count=$count" >> $GITHUB_OUTPUT
+  nightly-build:
+    uses: ./.github/workflows/build.yml
+    needs: nightly-detect
+    if: needs.nightly-detect.outputs.new-commits > 0
+    with:
+      firmware-retention-days: 30
+      build-type: 'nightly'
