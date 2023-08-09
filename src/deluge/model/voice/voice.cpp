@@ -929,8 +929,8 @@ skipAutoRelease : {}
 	    paramFinalValues[Param::Local::LPF_FREQ], paramFinalValues[Param::Local::LPF_RESONANCE], doLPF, sound->lpfMode,
 	    paramFinalValues[Param::Local::HPF_FREQ],
 	    (paramFinalValues[Param::Local::HPF_RESONANCE]), // >> storageManager.devVarA) << storageManager.devVarA,
-	    doHPF, FilterMode::HPLADDER,
-	    sound->volumeNeutralValueForUnison << 1); // Level adjustment for unison now happens *before* the filter!
+	    doHPF, FilterMode::HPLADDER, sound->volumeNeutralValueForUnison << 1,
+	    sound->filterRoute); // Level adjustment for unison now happens *before* the filter!
 
 	SynthMode synthMode = sound->getSynthMode();
 
@@ -1248,7 +1248,7 @@ decidedWhichBufferRenderingInto:
 		if (unisonPartBecameInactive && areAllUnisonPartsInactive(modelStack)) {
 
 			// If no filters, we can just unassign
-			if (!filterSet.isHPFOn() && !filterSet.isLPFOn()) {
+			if (!filterSet.isOn()) {
 				unassignVoiceAfter = true;
 			}
 
@@ -2620,7 +2620,9 @@ void renderPDWave(const int16_t* table, const int16_t* secondTable, int32_t numB
 void getTableNumber(uint32_t phaseIncrementForCalculations, int32_t* tableNumber, int32_t* tableSize) {
 
 	if (phaseIncrementForCalculations <= 1247086) {
-		{ *tableNumber = 0; }
+		{
+			*tableNumber = 0;
+		}
 		*tableSize = 13;
 	}
 	else if (phaseIncrementForCalculations <= 2494173) {
