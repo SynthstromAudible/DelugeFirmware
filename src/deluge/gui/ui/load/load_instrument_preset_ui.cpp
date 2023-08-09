@@ -1391,7 +1391,7 @@ doneMoving:
 	toReturn.fileItem = (FileItem*)fileItems.getElementAddress(i);
 
 	bool isAlreadyInSong = toReturn.fileItem->instrument && toReturn.fileItem->instrumentAlreadyInSong;
-	if(availabilityRequirement == Availability::INSTRUMENT_UNUSED && isAlreadyInSong) {
+	if (availabilityRequirement == Availability::INSTRUMENT_UNUSED && isAlreadyInSong) {
 		goto moveAgain;
 	}
 
