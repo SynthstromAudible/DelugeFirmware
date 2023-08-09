@@ -3031,8 +3031,8 @@ Clip* SessionView::gridCreateClipInTrack(Output* targetOutput) {
 }
 
 bool SessionView::gridCreateNewTrackForClip(InstrumentType type, InstrumentClip* clip, bool copyDrumsFromClip) {
+	bool instrumentAlreadyInSong = false;
 	if (type == InstrumentType::SYNTH || type == InstrumentType::KIT) {
-		bool instrumentAlreadyInSong = false;
 		int32_t error = setPresetOrNextUnlaunchedOne(clip, type, &instrumentAlreadyInSong, copyDrumsFromClip);
 		if (error || instrumentAlreadyInSong) {
 			if (error) {
@@ -3042,18 +3042,13 @@ bool SessionView::gridCreateNewTrackForClip(InstrumentType type, InstrumentClip*
 		}
 	}
 	else if (type == InstrumentType::MIDI_OUT || type == InstrumentType::CV) {
-		bool instrumentAlreadyInSong = false;
-		clip->output = currentSong->getNonAudioInstrumentToSwitchTo(type, Availability::INSTRUMENT_UNUSED, 0, 0,
+		clip->output = currentSong->getNonAudioInstrumentToSwitchTo(type, Availability::INSTRUMENT_UNUSED, 0, -1,
 		                                                            &instrumentAlreadyInSong);
 		if (clip->output == nullptr) {
 			return false;
 		}
 
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithTimelineCounter* modelStack =
-		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
-
-		auto error = clip->claimOutput(modelStack);
+		auto error = clip->setNonAudioInstrument((Instrument*)(clip->output), currentSong);
 		if (error) {
 			numericDriver.displayError(error);
 			return false;
@@ -3063,7 +3058,19 @@ bool SessionView::gridCreateNewTrackForClip(InstrumentType type, InstrumentClip*
 		return false;
 	}
 
-	currentSong->addOutput(clip->output);
+	if (!instrumentAlreadyInSong) {
+		currentSong->addOutput(clip->output);
+	}
+
+	if (!clip->output->activeClip) {
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+
+		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
+
+		clip->output->setActiveClip(modelStackWithTimelineCounter);
+	}
+
 	return true;
 }
 
@@ -3122,7 +3129,8 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 
 	// Create new clip in new track
 	else {
-		newClip = gridCreateClipWithNewTrack(InstrumentType::SYNTH); // Default SYNTH
+		// This is the right position to add immediate type creation
+		newClip = gridCreateClipWithNewTrack(InstrumentType::SYNTH);
 	}
 
 	// Set new clip section and add it to the list
