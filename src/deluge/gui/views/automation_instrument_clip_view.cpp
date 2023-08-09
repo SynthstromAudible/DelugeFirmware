@@ -1525,8 +1525,6 @@ void AutomationInstrumentClipView::auditionPadAction(int32_t velocity, int32_t y
 
 	bool isKit = (instrument->type == InstrumentType::KIT);
 
-	bool renderingNeeded = false;
-
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
 	ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip =
@@ -1648,11 +1646,6 @@ void AutomationInstrumentClipView::auditionPadAction(int32_t velocity, int32_t y
 
 		// If note on...
 		if (velocity) {
-		//	if (instrumentClipView.lastAuditionedYDisplay
-		//	    != yDisplay) { //if you pressed a different audition pad than last time, refresh grid
-		//		renderingNeeded = true;
-		//	}
-
 			int32_t velocityToSound = velocity;
 			if (velocityToSound == USE_DEFAULT_VELOCITY) {
 				velocityToSound = instrument->defaultVelocity;
@@ -1736,10 +1729,6 @@ getOut:
 	// This has to happen after instrumentClipView.setSelectedDrum is called, cos that resets LEDs
 	if (!clipIsActiveOnInstrument && velocity) {
 		indicator_leds::indicateAlertOnLed(IndicatorLED::SESSION_VIEW);
-	}
-
-	if (renderingNeeded) {
-		uiNeedsRendering(this);
 	}
 }
 
