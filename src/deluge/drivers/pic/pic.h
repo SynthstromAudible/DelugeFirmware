@@ -124,7 +124,7 @@ public:
 	 * @param indicator An array of brightness values for each LED
 	 */
 	static void setGoldKnobIndicator(bool which, const std::array<uint8_t, kNumGoldKnobIndicatorLEDs>& indicator) {
-		Message knob = which ? Message::SET_GOLD_KNOB_0_INDICATORS : Message::SET_GOLD_KNOB_1_INDICATORS;
+		Message knob = which ? Message::SET_GOLD_KNOB_1_INDICATORS : Message::SET_GOLD_KNOB_0_INDICATORS;
 		send(knob, indicator);
 	}
 
