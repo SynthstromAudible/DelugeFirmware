@@ -165,6 +165,16 @@ void UITimerManager::routine() {
 				case TIMER_OLED_SCROLLING_AND_BLINKING:
 					OLED::scrollingAndBlinkingTimerEvent();
 					break;
+
+				case TIMER_OLED_AUTOMATION_VIEW: //timer to redisplay the parameter name on the screen in automation view
+					if (getCurrentUI() == &automationInstrumentClipView
+					    && (((InstrumentClip*)currentSong->currentClip)->lastSelectedParamID != 255)) {
+
+						automationInstrumentClipView.displayParameterName(
+						    ((InstrumentClip*)currentSong->currentClip)->lastSelectedParamID);
+						unsetTimer(TIMER_OLED_AUTOMATION_VIEW);
+					}
+					break;
 #endif
 				}
 			}

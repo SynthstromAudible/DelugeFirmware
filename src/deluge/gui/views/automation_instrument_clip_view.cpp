@@ -364,6 +364,7 @@ bool AutomationInstrumentClipView::opened() {
 
 	if (clip->lastSelectedParamID != 255) {
 		displayAutomation(); //update led indicator levels
+		displayParameterName(clip->lastSelectedParamID);
 	}
 
 	resetShortcutBlinking();
@@ -1007,6 +1008,9 @@ doOther:
 			changeRootUI(&keyboardScreen);
 			resetShortcutBlinking(); //reset blinking if you're leaving automation view for keyboard view
 			                         //blinking will be reset when you come back
+			if (clip->lastSelectedParamID != 255) {
+				numericDriver.cancelPopup(); //cancel display of parameter name
+			}
 		}
 	}
 
@@ -1167,7 +1171,6 @@ doOther:
 			if (isUIModeActive(UI_MODE_AUDITIONING)) {
 				if (!on) {
 					instrumentClipView.timeHorizontalKnobLastReleased = AudioEngine::audioSampleTimer;
-					numericDriver.cancelPopup();
 				}
 			}
 			goto passToOthers; // For exiting the UI mode, I think
@@ -1197,6 +1200,7 @@ doOther:
 				modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam);
 
 				numericDriver.displayPopup(HAVE_OLED ? "Automation deleted" : "DELETED");
+				setDisplayParameterNameTimer();
 			}
 		}
 	}
@@ -1217,6 +1221,7 @@ doOther:
 
 				numericDriver.displayPopup(HAVE_OLED ? "Interpolation Off" : "OFF");
 			}
+			setDisplayParameterNameTimer();
 		}
 	}
 
@@ -1228,7 +1233,6 @@ doOther:
 	else {
 passToOthers:
 
-		numericDriver.cancelPopup();
 		uiNeedsRendering(this);
 
 		ActionResult result = InstrumentClipMinder::buttonAction(b, on, inCardRoutine);
@@ -1236,10 +1240,17 @@ passToOthers:
 			return result;
 		}
 
-		return ClipView::buttonAction(b, on, inCardRoutine);
+		result = ClipView::buttonAction(b, on, inCardRoutine);
+
+		setDisplayParameterNameTimer();
+
+		return result;
 	}
 
-	uiNeedsRendering(this);
+	if (b != KEYBOARD) {
+		setDisplayParameterNameTimer();
+		uiNeedsRendering(this);
+	}
 
 	return ActionResult::DEALT_WITH;
 }
@@ -1267,6 +1278,7 @@ void AutomationInstrumentClipView::enterScaleMode(uint8_t yDisplay) {
 
 	// And tidy up
 	setLedStates();
+	setDisplayParameterNameTimer();
 }
 
 //simplified version of the InstrumentClipView::enterScaleMode function. No need to render any animation.
@@ -1395,6 +1407,7 @@ possiblyAuditionPad:
 				}
 				auditionPadAction(velocity, y, Buttons::isShiftButtonPressed());
 			}
+			setDisplayParameterNameTimer();
 		}
 	}
 
@@ -1491,9 +1504,6 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 
 		// If we found it...
 		if (i < kEditPadPressBufferSize) {
-
-			numericDriver.cancelPopup(); // Crude way of getting rid of the probability-editing permanent popup
-
 			instrumentClipView.endEditPadPress(i);
 
 			instrumentClipView.checkIfAllEditPadPressesEnded();
@@ -1753,6 +1763,10 @@ ActionResult AutomationInstrumentClipView::horizontalEncoderAction(int32_t offse
 			numericDriver.displayPopup(HAVE_OLED ? "Shift Right" : "RIGHT");
 		}
 
+		if (offset != 0) {
+			setDisplayParameterNameTimer();
+		}
+
 		return ActionResult::DEALT_WITH;
 	}
 
@@ -1793,6 +1807,7 @@ wantToEditNoteRowLength:
 	else {
 		ActionResult result = ClipView::horizontalEncoderAction(offset);
 		uiNeedsRendering(this);
+		setDisplayParameterNameTimer();
 		return result;
 	}
 }
@@ -2278,6 +2293,7 @@ void AutomationInstrumentClipView::modEncoderButtonAction(uint8_t whichModEncode
 			modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam);
 
 			numericDriver.displayPopup(HAVE_OLED ? "Automation deleted" : "DELETED");
+			setDisplayParameterNameTimer();
 		}
 	}
 
@@ -2286,12 +2302,14 @@ void AutomationInstrumentClipView::modEncoderButtonAction(uint8_t whichModEncode
 	}
 
 	uiNeedsRendering(this);
+	setDisplayParameterNameTimer();
 	return;
 
 followOnAction: //it will come here when you are on the automation overview iscreen
 
 	view.modEncoderButtonAction(whichModEncoder, on);
 	uiNeedsRendering(this);
+	setDisplayParameterNameTimer();
 }
 
 void AutomationInstrumentClipView::copyAutomation() {
@@ -2328,16 +2346,19 @@ void AutomationInstrumentClipView::copyAutomation() {
 
 		if (copiedParamAutomation.nodes) {
 			numericDriver.displayPopup(HAVE_OLED ? "Automation copied" : "COPY");
+			setDisplayParameterNameTimer();
 			return;
 		}
 	}
 
 	numericDriver.displayPopup(HAVE_OLED ? "No automation to copy" : "NONE");
+	setDisplayParameterNameTimer();
 }
 
 void AutomationInstrumentClipView::pasteAutomation() {
 	if (!copiedParamAutomation.nodes) {
 		numericDriver.displayPopup(HAVE_OLED ? "No automation to paste" : "NONE");
+		setDisplayParameterNameTimer();
 		return;
 	}
 
@@ -2376,6 +2397,7 @@ void AutomationInstrumentClipView::pasteAutomation() {
 		                                      &copiedParamAutomation, isPatchCable);
 
 		numericDriver.displayPopup(HAVE_OLED ? "Automation pasted" : "PASTE");
+		setDisplayParameterNameTimer();
 
 		if (playbackHandler.isEitherClockActive()) {
 			currentPlaybackMode->reversionDone(); // Re-gets automation and stuff
@@ -2385,6 +2407,7 @@ void AutomationInstrumentClipView::pasteAutomation() {
 	}
 
 	numericDriver.displayPopup(HAVE_OLED ? "Can't paste automation" : "CANT");
+	setDisplayParameterNameTimer();
 }
 
 //select encoder action
@@ -2513,6 +2536,7 @@ void AutomationInstrumentClipView::tempoEncoderAction(int8_t offset, bool encode
                                                       bool shiftButtonPressed) {
 
 	playbackHandler.tempoEncoderAction(offset, encoderButtonPressed, shiftButtonPressed);
+	setDisplayParameterNameTimer();
 }
 
 //called by melodic_instrument.cpp or kit.cpp
@@ -2530,10 +2554,30 @@ void AutomationInstrumentClipView::notifyPlaybackBegun() {
 //these values are saved on a clip basis
 void AutomationInstrumentClipView::initParameterSelection() {
 	InstrumentClip* clip = getCurrentClip();
+	Instrument* instrument = (Instrument*)clip->output;
 
 	clip->lastSelectedParamID = 255;
 	clip->lastSelectedParamType = 255;
 	clip->lastSelectedParamShortcutX = 255;
+
+	numericDriver.cancelPopup();
+
+	if (instrument->type
+	    == InstrumentType::
+	        MIDI_OUT) { //if we're going back to the Automation Overview, set the display to show Midi Channel again (7seg only)
+
+#if !HAVE_OLED
+		if (((MIDIInstrument*)instrument)->channel < 16) {
+			numericDriver.setTextAsSlot(((MIDIInstrument*)instrument)->channel + 1,
+			                            ((MIDIInstrument*)instrument)->channelSuffix, false, false);
+		}
+		else {
+			char const* text =
+			    (((MIDIInstrument*)instrument)->channel == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "Lower" : "Upper";
+			numericDriver.setText(text, false, 255, false);
+		}
+#endif
+	}
 }
 
 //get's the modelstack for the parameters that are being edited
@@ -2906,6 +2950,9 @@ int32_t AutomationInstrumentClipView::calculateKnobPosForModEncoderTurn(int32_t 
 	else if ((knobPos + offset) <= 127) {
 		newKnobPos = knobPos + offset;
 	}
+	else if ((knobPos + offset) > 127) {
+		newKnobPos = 127;
+	}
 	else {
 		newKnobPos = knobPos;
 	}
@@ -2984,7 +3031,23 @@ void AutomationInstrumentClipView::displayParameterValue(int32_t knobPos) {
 	char buffer[5];
 
 	intToString(knobPos, buffer);
-	numericDriver.displayPopup(buffer);
+	numericDriver.displayPopup(buffer, 3);
+
+	setDisplayParameterNameTimer();
+}
+
+void AutomationInstrumentClipView::setDisplayParameterNameTimer() {
+
+	InstrumentClip* clip = getCurrentClip();
+	Instrument* instrument = (Instrument*)clip->output;
+
+	if (clip->lastSelectedParamID
+	    != 255) { //after you displayed a pop up with the parameter value, redisplay the parameter name on the screen
+
+#if HAVE_OLED
+		uiTimerManager.setTimer(TIMER_OLED_AUTOMATION_VIEW, 700);
+#endif
+	}
 }
 
 //created this function to undo any existing blinking so that it doesn't get rendered in my view

@@ -61,6 +61,8 @@ public:
 	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 	void displayAutomation();
+	void displayParameterName(int32_t paramID);
+	void setDisplayParameterNameTimer();
 
 #if HAVE_OLED
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
@@ -158,7 +160,6 @@ private:
 
 	int32_t calculateKnobPosForModEncoderTurn(int32_t knobPos, int32_t offset);
 	bool isOnParameterGridMenuView();
-	void displayParameterName(int32_t paramID);
 	void displayParameterValue(int32_t knobPos);
 	void resetShortcutBlinking();
 

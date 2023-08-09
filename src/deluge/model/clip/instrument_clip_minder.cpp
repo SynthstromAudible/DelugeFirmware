@@ -157,7 +157,8 @@ void InstrumentClipMinder::drawMIDIControlNumber(int32_t controlNumber, bool aut
 		char* numberStartPos = (controlNumber < 100) ? (buffer + 2) : (buffer + 1);
 		intToString(controlNumber, numberStartPos);
 	}
-	numericDriver.setText(buffer, true, automationExists ? 3 : 255, true);
+
+	numericDriver.setText(buffer, true, automationExists ? 3 : 255, false);
 #endif
 }
 

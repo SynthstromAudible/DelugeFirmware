@@ -1071,6 +1071,7 @@ doMIDIOrCV:
 		}
 		else {
 			if (getCurrentUI() == &automationInstrumentClipView) {
+				numericDriver.cancelPopup();
 				newItem = &deluge::gui::menu_item::runtime_feature::subMenuAutomation;
 			}
 			else {
