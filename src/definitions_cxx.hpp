@@ -379,6 +379,7 @@ enum : ParamType {
 	NOISE_VOLUME,
 	MODULATOR_0_VOLUME,
 	MODULATOR_1_VOLUME,
+	LPF_DRIVE,
 
 	// Local non-volume params begin
 	MODULATOR_0_FEEDBACK,
@@ -389,6 +390,7 @@ enum : ParamType {
 	HPF_RESONANCE,
 	ENV_0_SUSTAIN,
 	ENV_1_SUSTAIN,
+	HPF_MORPH,
 
 	// Local hybrid params begin
 	OSC_A_PHASE_WIDTH,
