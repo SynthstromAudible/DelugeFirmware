@@ -119,18 +119,18 @@ const uint32_t paramsForAutomation[51][2] = {
     {PATCHED, ::Param::Local::LPF_RESONANCE},
     {PATCHED, ::Param::Local::HPF_FREQ}, //HPF Cutoff, Resonance
     {PATCHED, ::Param::Local::HPF_RESONANCE},
-	{UNPATCHED, ::Param::Unpatched::BASS}, //Bass, Bass Freq
-	{UNPATCHED, ::Param::Unpatched::BASS_FREQ},
-	{UNPATCHED, ::Param::Unpatched::TREBLE}, //Treble, Treble Freq
-	{UNPATCHED, ::Param::Unpatched::TREBLE_FREQ},
-	{PATCHED, ::Param::Global::REVERB_AMOUNT}, //Reverb Amount
-	{PATCHED, ::Param::Global::DELAY_RATE},    //Delay Rate, Amount
-	{PATCHED, ::Param::Global::DELAY_FEEDBACK},
-	{PATCHED, ::Param::Global::VOLUME_POST_REVERB_SEND}, //Sidechain Send, Shape
-	{UNPATCHED, ::Param::Unpatched::COMPRESSOR_SHAPE},
-	{UNPATCHED, ::Param::Unpatched::SAMPLE_RATE_REDUCTION}, //Decimation, Bitcrush
-	{UNPATCHED, ::Param::Unpatched::BITCRUSHING},
-    {PATCHED, ::Param::Local::OSC_A_VOLUME},             //OSC 1 Volume, Pitch, Phase Width, Carrier Feedback, Wave Index
+    {UNPATCHED, ::Param::Unpatched::BASS}, //Bass, Bass Freq
+    {UNPATCHED, ::Param::Unpatched::BASS_FREQ},
+    {UNPATCHED, ::Param::Unpatched::TREBLE}, //Treble, Treble Freq
+    {UNPATCHED, ::Param::Unpatched::TREBLE_FREQ},
+    {PATCHED, ::Param::Global::REVERB_AMOUNT}, //Reverb Amount
+    {PATCHED, ::Param::Global::DELAY_RATE},    //Delay Rate, Amount
+    {PATCHED, ::Param::Global::DELAY_FEEDBACK},
+    {PATCHED, ::Param::Global::VOLUME_POST_REVERB_SEND}, //Sidechain Send, Shape
+    {UNPATCHED, ::Param::Unpatched::COMPRESSOR_SHAPE},
+    {UNPATCHED, ::Param::Unpatched::SAMPLE_RATE_REDUCTION}, //Decimation, Bitcrush
+    {UNPATCHED, ::Param::Unpatched::BITCRUSHING},
+    {PATCHED, ::Param::Local::OSC_A_VOLUME}, //OSC 1 Volume, Pitch, Phase Width, Carrier Feedback, Wave Index
     {PATCHED, ::Param::Local::OSC_A_PITCH_ADJUST},
     {PATCHED, ::Param::Local::OSC_A_PHASE_WIDTH},
     {PATCHED, ::Param::Local::CARRIER_0_FEEDBACK},
@@ -154,32 +154,31 @@ const uint32_t paramsForAutomation[51][2] = {
     {PATCHED, ::Param::Local::ENV_1_DECAY},
     {PATCHED, ::Param::Local::ENV_1_SUSTAIN},
     {PATCHED, ::Param::Local::ENV_1_RELEASE},
-    {PATCHED, ::Param::Global::LFO_FREQ},      //LFO 1 Freq
-    {PATCHED, ::Param::Local::LFO_LOCAL_FREQ}, //LFO 2 Freq
+    {PATCHED, ::Param::Global::LFO_FREQ},           //LFO 1 Freq
+    {PATCHED, ::Param::Local::LFO_LOCAL_FREQ},      //LFO 2 Freq
     {UNPATCHED, ::Param::Unpatched::MOD_FX_OFFSET}, //Mod FX Offset, Feedback, Depth, Rate
-	{UNPATCHED, ::Param::Unpatched::MOD_FX_FEEDBACK},
+    {UNPATCHED, ::Param::Unpatched::MOD_FX_FEEDBACK},
     {PATCHED, ::Param::Global::MOD_FX_DEPTH},
     {PATCHED, ::Param::Global::MOD_FX_RATE},
-    {PATCHED, ::Param::Global::ARP_RATE},   //Arp Rate, Gate
-	{UNPATCHED, ::Param::Unpatched::Sound::ARP_GATE},
+    {PATCHED, ::Param::Global::ARP_RATE}, //Arp Rate, Gate
+    {UNPATCHED, ::Param::Unpatched::Sound::ARP_GATE},
     {PATCHED, ::Param::Local::NOISE_VOLUME} //Noise
 };
 
 //kit affect entire FX - sorted in the order that Parameters are scrolled through on the display
 const uint32_t globalEffectableParamsForAutomation[12] = {
-	::Param::Unpatched::GlobalEffectable::VOLUME, //Master Volume, Pan
-	::Param::Unpatched::GlobalEffectable::PAN,
-	::Param::Unpatched::GlobalEffectable::LPF_FREQ, //LPF Cutoff, Resonance
-	::Param::Unpatched::GlobalEffectable::LPF_RES,
-	::Param::Unpatched::GlobalEffectable::HPF_FREQ, //HPF Cutoff, Resonance
-	::Param::Unpatched::GlobalEffectable::HPF_RES,
-	::Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT, //Reverb Amount
-	::Param::Unpatched::GlobalEffectable::DELAY_RATE,    //Delay Rate, Amount
-	::Param::Unpatched::GlobalEffectable::DELAY_AMOUNT,
-	::Param::Unpatched::GlobalEffectable::SIDECHAIN_VOLUME, //Sidechain Send, Shape
-	::Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH, //Mod FX Depth, Rate
-	::Param::Unpatched::GlobalEffectable::MOD_FX_RATE
-};
+    ::Param::Unpatched::GlobalEffectable::VOLUME, //Master Volume, Pan
+    ::Param::Unpatched::GlobalEffectable::PAN,
+    ::Param::Unpatched::GlobalEffectable::LPF_FREQ, //LPF Cutoff, Resonance
+    ::Param::Unpatched::GlobalEffectable::LPF_RES,
+    ::Param::Unpatched::GlobalEffectable::HPF_FREQ, //HPF Cutoff, Resonance
+    ::Param::Unpatched::GlobalEffectable::HPF_RES,
+    ::Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT, //Reverb Amount
+    ::Param::Unpatched::GlobalEffectable::DELAY_RATE,         //Delay Rate, Amount
+    ::Param::Unpatched::GlobalEffectable::DELAY_AMOUNT,
+    ::Param::Unpatched::GlobalEffectable::SIDECHAIN_VOLUME, //Sidechain Send, Shape
+    ::Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH,     //Mod FX Depth, Rate
+    ::Param::Unpatched::GlobalEffectable::MOD_FX_RATE};
 
 //grid sized arrays to assign automatable parameters to the grid
 
@@ -219,13 +218,17 @@ const uint32_t unpatchedParamShortcutsForAutomation[kDisplayWidth][kDisplayHeigh
     {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
     {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
     {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
-	{0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, ::Param::Unpatched::SAMPLE_RATE_REDUCTION, ::Param::Unpatched::BITCRUSHING, 0xFFFFFFFF},
+    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, ::Param::Unpatched::SAMPLE_RATE_REDUCTION,
+     ::Param::Unpatched::BITCRUSHING, 0xFFFFFFFF},
     {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
     {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
     {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
-	{0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, ::Param::Unpatched::COMPRESSOR_SHAPE, 0xFFFFFFFF, ::Param::Unpatched::BASS, ::Param::Unpatched::BASS_FREQ},
-    {0xFFFFFFFF, 0xFFFFFFFF, ::Param::Unpatched::Sound::ARP_GATE, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, ::Param::Unpatched::TREBLE, ::Param::Unpatched::TREBLE_FREQ},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, ::Param::Unpatched::MOD_FX_OFFSET, ::Param::Unpatched::MOD_FX_FEEDBACK, 0xFFFFFFFF, 0xFFFFFFFF},
+    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, ::Param::Unpatched::COMPRESSOR_SHAPE, 0xFFFFFFFF,
+     ::Param::Unpatched::BASS, ::Param::Unpatched::BASS_FREQ},
+    {0xFFFFFFFF, 0xFFFFFFFF, ::Param::Unpatched::Sound::ARP_GATE, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
+     ::Param::Unpatched::TREBLE, ::Param::Unpatched::TREBLE_FREQ},
+    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, ::Param::Unpatched::MOD_FX_OFFSET,
+     ::Param::Unpatched::MOD_FX_FEEDBACK, 0xFFFFFFFF, 0xFFFFFFFF},
     {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
     {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
     {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF}};
@@ -237,15 +240,22 @@ const uint32_t globalEffectableParamShortcutsForAutomation[kDisplayWidth][kDispl
     {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
     {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
     {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
-    {::Param::Unpatched::GlobalEffectable::VOLUME, 0xFFFFFFFF, 0xFFFFFFFF, ::Param::Unpatched::GlobalEffectable::PAN, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
+    {::Param::Unpatched::GlobalEffectable::VOLUME, 0xFFFFFFFF, 0xFFFFFFFF, ::Param::Unpatched::GlobalEffectable::PAN,
+     0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
     {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, ::Param::Unpatched::GlobalEffectable::LPF_RES, ::Param::Unpatched::GlobalEffectable::LPF_FREQ},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, ::Param::Unpatched::GlobalEffectable::HPF_RES, ::Param::Unpatched::GlobalEffectable::HPF_FREQ},
-    {0xFFFFFFFF, 0xFFFFFFFF, ::Param::Unpatched::GlobalEffectable::SIDECHAIN_VOLUME, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
+    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
+     ::Param::Unpatched::GlobalEffectable::LPF_RES, ::Param::Unpatched::GlobalEffectable::LPF_FREQ},
+    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
+     ::Param::Unpatched::GlobalEffectable::HPF_RES, ::Param::Unpatched::GlobalEffectable::HPF_FREQ},
+    {0xFFFFFFFF, 0xFFFFFFFF, ::Param::Unpatched::GlobalEffectable::SIDECHAIN_VOLUME, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
+     0xFFFFFFFF, 0xFFFFFFFF},
     {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, ::Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH, ::Param::Unpatched::GlobalEffectable::MOD_FX_RATE},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, ::Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
-    {::Param::Unpatched::GlobalEffectable::DELAY_RATE, 0xFFFFFFFF, 0xFFFFFFFF, ::Param::Unpatched::GlobalEffectable::DELAY_AMOUNT, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
+    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
+     ::Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH, ::Param::Unpatched::GlobalEffectable::MOD_FX_RATE},
+    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, ::Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT, 0xFFFFFFFF,
+     0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
+    {::Param::Unpatched::GlobalEffectable::DELAY_RATE, 0xFFFFFFFF, 0xFFFFFFFF,
+     ::Param::Unpatched::GlobalEffectable::DELAY_AMOUNT, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
     {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF}};
 
 //grid sized array to assign midi cc values to each pad on the grid
@@ -583,27 +593,27 @@ void AutomationInstrumentClipView::renderAutomationOverview(ModelStackWithTimeli
 
 		ModelStackWithAutoParam* modelStackWithParam = 0;
 
-		if ((instrument->type == InstrumentType::SYNTH || (instrument->type == InstrumentType::KIT && !instrumentClipView.getAffectEntire()))
-		    && ((patchedParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) || (unpatchedParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF))) {
+		if ((instrument->type == InstrumentType::SYNTH
+		     || (instrument->type == InstrumentType::KIT && !instrumentClipView.getAffectEntire()))
+		    && ((patchedParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF)
+		        || (unpatchedParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF))) {
 
 			if (patchedParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
 
-				modelStackWithParam =
-					getModelStackWithParam(modelStack, clip, patchedParamShortcutsForAutomation[xDisplay][yDisplay], PATCHED);
-
+				modelStackWithParam = getModelStackWithParam(
+				    modelStack, clip, patchedParamShortcutsForAutomation[xDisplay][yDisplay], PATCHED);
 			}
 
 			else if (unpatchedParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
 
-				modelStackWithParam =
-					getModelStackWithParam(modelStack, clip, unpatchedParamShortcutsForAutomation[xDisplay][yDisplay], UNPATCHED);
-
+				modelStackWithParam = getModelStackWithParam(
+				    modelStack, clip, unpatchedParamShortcutsForAutomation[xDisplay][yDisplay], UNPATCHED);
 			}
 		}
 
-	//	else if (instrument->type == InstrumentType::KIT && instrumentClipView.getAffectEntire() && globalEffectableParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
-	//
-	//	}
+		//	else if (instrument->type == InstrumentType::KIT && instrumentClipView.getAffectEntire() && globalEffectableParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
+		//
+		//	}
 
 		else if (instrument->type == InstrumentType::MIDI_OUT
 		         && midiCCShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
@@ -651,7 +661,8 @@ void AutomationInstrumentClipView::renderAutomationEditor(ModelStackWithTimeline
                                                           uint8_t occupancyMask[], int32_t renderWidth, int32_t xScroll,
                                                           uint32_t xZoom, int32_t yDisplay, bool drawUndefinedArea) {
 
-	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID, clip->lastSelectedParamType);
+	ModelStackWithAutoParam* modelStackWithParam =
+	    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID, clip->lastSelectedParamType);
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 
@@ -864,7 +875,8 @@ void AutomationInstrumentClipView::displayAutomation() {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
-	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID, clip->lastSelectedParamType);
+	ModelStackWithAutoParam* modelStackWithParam =
+	    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID, clip->lastSelectedParamType);
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 
@@ -1805,7 +1817,8 @@ void AutomationInstrumentClipView::shiftAutomationHorizontally(int32_t offset) {
 
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
-	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID, clip->lastSelectedParamType);
+	ModelStackWithAutoParam* modelStackWithParam =
+	    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID, clip->lastSelectedParamType);
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 
@@ -2308,7 +2321,8 @@ void AutomationInstrumentClipView::copyAutomation() {
 
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
-	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID, clip->lastSelectedParamType);
+	ModelStackWithAutoParam* modelStackWithParam =
+	    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID, clip->lastSelectedParamType);
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 
@@ -2351,7 +2365,8 @@ void AutomationInstrumentClipView::pasteAutomation() {
 
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
-	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID, clip->lastSelectedParamType);
+	ModelStackWithAutoParam* modelStackWithParam =
+	    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID, clip->lastSelectedParamType);
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 		Action* action = actionLogger.getNewAction(ACTION_AUTOMATION_PASTE, false);
@@ -2417,7 +2432,6 @@ void AutomationInstrumentClipView::selectEncoderAction(int8_t offset) {
 				clip->lastSelectedParamType = paramsForAutomation[clip->lastSelectedParamArrayPosition + offset][0];
 				clip->lastSelectedParamArrayPosition += offset;
 			}
-
 		}
 
 		else {
@@ -2435,17 +2449,19 @@ void AutomationInstrumentClipView::selectEncoderAction(int8_t offset) {
 				clip->lastSelectedParamArrayPosition = 0;
 			}
 			else {
-				clip->lastSelectedParamID = globalEffectableParamsForAutomation[clip->lastSelectedParamArrayPosition + offset];
+				clip->lastSelectedParamID =
+				    globalEffectableParamsForAutomation[clip->lastSelectedParamArrayPosition + offset];
 				clip->lastSelectedParamArrayPosition += offset;
 			}
-
 		}
 
 		for (int32_t x = 0; x < kDisplayWidth; x++) {
 			for (int32_t y = 0; y < kDisplayHeight; y++) {
 
-				if ((clip->lastSelectedParamType == PATCHED && patchedParamShortcutsForAutomation[x][y] == clip->lastSelectedParamID)
-						|| (clip->lastSelectedParamType == UNPATCHED && unpatchedParamShortcutsForAutomation[x][y] == clip->lastSelectedParamID)) {
+				if ((clip->lastSelectedParamType == PATCHED
+				     && patchedParamShortcutsForAutomation[x][y] == clip->lastSelectedParamID)
+				    || (clip->lastSelectedParamType == UNPATCHED
+				        && unpatchedParamShortcutsForAutomation[x][y] == clip->lastSelectedParamID)) {
 					clip->lastSelectedParamShortcutX = x;
 					clip->lastSelectedParamShortcutY = y;
 
@@ -2526,7 +2542,8 @@ void AutomationInstrumentClipView::initParameterSelection() {
 //get's the modelstack for the parameters that are being edited
 //the model stack differs for SYNTH's, KIT's, MIDI clip's
 ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(ModelStackWithTimelineCounter* modelStack,
-                                                                              InstrumentClip* clip, int32_t paramID, int32_t paramType) {
+                                                                              InstrumentClip* clip, int32_t paramID,
+                                                                              int32_t paramType) {
 
 	ModelStackWithAutoParam* modelStackWithParam = 0;
 	Instrument* instrument = (Instrument*)clip->output;
@@ -2595,7 +2612,7 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
 			}
 		}
 
-	/*	else {
+		/*	else {
 
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 			    modelStack->addOtherTwoThingsButNoNoteRow(instrument->toModControllable(), &clip->paramManager);
@@ -2754,8 +2771,10 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 	    && !(instrument->type == InstrumentType::KIT && !instrumentClipView.getAffectEntire()
 	         && !((Kit*)instrument)->selectedDrum)) { //this means you are selecting a parameter
 
-		if ((instrument->type == InstrumentType::SYNTH || (instrument->type == InstrumentType::KIT && !instrumentClipView.getAffectEntire()))
-		    && ((patchedParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) || (unpatchedParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF))) {
+		if ((instrument->type == InstrumentType::SYNTH
+		     || (instrument->type == InstrumentType::KIT && !instrumentClipView.getAffectEntire()))
+		    && ((patchedParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF)
+		        || (unpatchedParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF))) {
 
 			if (patchedParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
 				clip->lastSelectedParamType = PATCHED;
@@ -2768,7 +2787,6 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 				//if you are in a synth or a kit clip and the shortcut is valid, set current selected ParamID
 				clip->lastSelectedParamID = unpatchedParamShortcutsForAutomation[xDisplay][yDisplay];
 			}
-
 		}
 
 		else if (instrument->type == InstrumentType::MIDI_OUT
@@ -2791,14 +2809,13 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 		resetShortcutBlinking();
 	}
 
+	//	else if (instrument->type == InstrumentType::KIT && instrumentClipView.getAffectEntire() && (globalEffectableParamShortcutsForAutomation[x][y] != 0xFFFFFFFF)) {
 
-//	else if (instrument->type == InstrumentType::KIT && instrumentClipView.getAffectEntire() && (globalEffectableParamShortcutsForAutomation[x][y] != 0xFFFFFFFF)) {
+	//		clip->lastSelectedParamType = 2;
+	//		//if you are in a kit clip with affect entire enabled and the shortcut is valid, set current selected ParamID
+	//		clip->lastSelectedParamID = globalEffectableParamShortcutsForAutomation[xDisplay][yDisplay];
 
-//		clip->lastSelectedParamType = 2;
-//		//if you are in a kit clip with affect entire enabled and the shortcut is valid, set current selected ParamID
-//		clip->lastSelectedParamID = globalEffectableParamShortcutsForAutomation[xDisplay][yDisplay];
-
-//	}
+	//	}
 
 	else if (clip->lastSelectedParamID != 255) { //this means you are editing a parameter's value
 
@@ -3011,7 +3028,8 @@ void AutomationInstrumentClipView::displayParameterName(int32_t paramID) {
 	Instrument* instrument = (Instrument*)clip->output;
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, clip, paramID, clip->lastSelectedParamType);
+	ModelStackWithAutoParam* modelStackWithParam =
+	    getModelStackWithParam(modelStack, clip, paramID, clip->lastSelectedParamType);
 	bool isAutomated = false;
 
 	//check if Parameter is currently automated so that the automation status can be drawn on the screen with the Parameter Name
