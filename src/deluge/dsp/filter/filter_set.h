@@ -37,91 +37,11 @@ public:
 	                q31_t hpfResonance, bool doHPF, FilterMode hpfmode, q31_t filterGain, FilterRoute routing,
 	                bool adjustVolumeForHPFResonance = true, q31_t* overallOscAmplitude = NULL);
 
-	inline void renderLong(q31_t* startSample, q31_t* endSample, int32_t numSamples, int32_t sampleIncrememt = 1,
-	                       int32_t extraSaturation = 1) {
-		switch (routing_) {
-		case FilterRoute::HIGH_TO_LOW:
-			// Do HPF, if it's on
-			if (HPFOn) {
-				renderHPFLong(startSample, endSample, lpfMode, sampleIncrememt);
-			}
+	void renderLong(q31_t* startSample, q31_t* endSample, int32_t numSamples, int32_t sampleIncrememt = 1,
+	                int32_t extraSaturation = 1);
 
-			// Do LPF, if it's on
-			if (LPFOn) {
-				renderLPFLong(startSample, endSample, lpfMode, sampleIncrememt, extraSaturation, extraSaturation >> 1);
-			}
-			break;
-		case FilterRoute::LOW_TO_HIGH:
-			// Do LPF, if it's on
-			if (LPFOn) {
-				renderLPFLong(startSample, endSample, lpfMode, sampleIncrememt, extraSaturation, extraSaturation >> 1);
-			}
-			// Do HPF, if it's on
-			if (HPFOn) {
-				renderHPFLong(startSample, endSample, lpfMode, sampleIncrememt);
-			}
-			break;
-		case FilterRoute::PARALLEL:
-			int32_t length = endSample - startSample;
-			q31_t temp[length];
-			memcpy(temp, startSample, length * sizeof(q31_t));
-
-			if (HPFOn) {
-				renderHPFLong(temp, temp + length, lpfMode, sampleIncrememt);
-			}
-
-			// Do LPF, if it's on
-			if (LPFOn) {
-				renderLPFLong(startSample, endSample, lpfMode, sampleIncrememt);
-			}
-			for (int i = 0; i < length; i++) {
-				startSample[i] += temp[i];
-			}
-			break;
-		}
-	}
 	//expects to receive an interleaved stereo stream
-	inline void renderLongStereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation = 1) {
-		// Do HPF, if it's on
-		switch (routing_) {
-		case FilterRoute::HIGH_TO_LOW:
-			if (HPFOn) {
-				renderHPFLongStereo(startSample, endSample, extraSaturation);
-			}
-
-			// Do LPF, if it's on
-			if (LPFOn) {
-				renderLPFLongStereo(startSample, endSample, extraSaturation);
-			}
-
-			break;
-		case FilterRoute::LOW_TO_HIGH:
-			if (LPFOn) {
-				renderLPFLongStereo(startSample, endSample, extraSaturation);
-			}
-			if (HPFOn) {
-				renderHPFLongStereo(startSample, endSample, extraSaturation);
-			}
-			break;
-		case FilterRoute::PARALLEL:
-			int32_t length = endSample - startSample;
-			q31_t temp[length];
-			memcpy(temp, startSample, length * sizeof(q31_t));
-
-			if (HPFOn) {
-				renderHPFLongStereo(temp, temp + length, extraSaturation);
-			}
-
-			// Do LPF, if it's on
-			if (LPFOn) {
-				renderLPFLongStereo(startSample, endSample, extraSaturation);
-			}
-			for (int i = 0; i < length; i++) {
-				startSample[i] += temp[i];
-			}
-			break;
-		}
-	}
+	void renderLongStereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation = 1);
 
 	//used to check whether the filter is used at all
 	inline bool isLPFOn() { return LPFOn; }
