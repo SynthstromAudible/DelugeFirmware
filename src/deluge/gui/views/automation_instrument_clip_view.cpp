@@ -984,10 +984,10 @@ doOther:
 				int32_t transitioningToRow = sessionView.getClipPlaceOnScreen(clip);
 				memcpy(&PadLEDs::imageStore, PadLEDs::image, sizeof(PadLEDs::image));
 				memcpy(&PadLEDs::occupancyMaskStore, PadLEDs::occupancyMask, sizeof(PadLEDs::occupancyMask));
-				PadLEDs::numAnimatedRows = kDisplayHeight;
+				PadLEDs::numAnimatedRows = kDisplayHeight + 2;
 				for (int32_t y = 0; y < kDisplayHeight; y++) {
 					PadLEDs::animatedRowGoingTo[y] = transitioningToRow;
-					PadLEDs::animatedRowGoingFrom[y] = y;
+					PadLEDs::animatedRowGoingFrom[y] = y - 1;
 				}
 
 				PadLEDs::setupInstrumentClipCollapseAnimation(true);
@@ -1247,7 +1247,7 @@ passToOthers:
 		return result;
 	}
 
-	if (b != KEYBOARD) {
+	if (b != KEYBOARD && b != SESSION_VIEW && b != CLIP_VIEW) {
 		setDisplayParameterNameTimer();
 		uiNeedsRendering(this);
 	}
