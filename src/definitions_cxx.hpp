@@ -626,7 +626,7 @@ enum class FilterMode {
 constexpr FilterMode kLastLadder = FilterMode::TRANSISTOR_24DB_DRIVE;
 //Off is not an LPF mode but is used to reset filters
 constexpr int32_t kNumLPFModes = util::to_underlying(FilterMode::HPLADDER);
-
+constexpr int32_t kNumHPFModes = util::to_underlying(FilterMode::OFF) - kNumLPFModes;
 enum class FilterRoute {
 	HIGH_TO_LOW,
 	LOW_TO_HIGH,

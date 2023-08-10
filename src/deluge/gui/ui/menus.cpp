@@ -35,6 +35,7 @@
 #include "gui/menu_item/envelope/segment.h"
 #include "gui/menu_item/file_selector.h"
 #include "gui/menu_item/filter/hpf_freq.h"
+#include "gui/menu_item/filter/hpf_mode.h"
 #include "gui/menu_item/filter/lpf_freq.h"
 #include "gui/menu_item/filter/lpf_mode.h"
 #include "gui/menu_item/filter_route.h"
@@ -191,12 +192,14 @@ submenu::Filter lpfMenu{
 
 filter::HPFFreq hpfFreqMenu{"Frequency", "HPF frequency", ::Param::Local::HPF_FREQ};
 patched_param::IntegerNonFM hpfResMenu{"Resonance", "HPF resonance", ::Param::Local::HPF_RESONANCE};
+filter::HPFMode hpfModemenu{"MODE", "HPF mode"};
 
 submenu::Filter hpfMenu{
     "HPF",
     {
         &hpfFreqMenu,
         &hpfResMenu,
+        &hpfModemenu,
     },
 };
 
@@ -509,6 +512,7 @@ Submenu audioClipHPFMenu{
     {
         &audioClipHPFFreqMenu,
         &audioClipHPFResMenu,
+        &hpfModemenu,
     },
 };
 
@@ -897,7 +901,7 @@ MenuItem* paramShortcutsForSounds[][8] = {
     {&volumeMenu,             &masterTransposeMenu,    &vibratoMenu,                   &panMenu,                       &synthModeMenu,       &srrMenu,               &bitcrushMenu,            &clippingMenu         },
     {&portaMenu,              &polyphonyMenu,          &priorityMenu,                  &unisonDetuneMenu,              &numUnisonMenu,       nullptr,                nullptr,                  NULL                  },
     {&envReleaseMenu,         &envSustainMenu,         &envDecayMenu,                  &envAttackMenu,                 nullptr,              &lpfModeMenu,           &lpfResMenu,              &lpfFreqMenu          },
-    {&envReleaseMenu,         &envSustainMenu,         &envDecayMenu,                  &envAttackMenu,                 nullptr,              comingSoonMenu,         &hpfResMenu,              &hpfFreqMenu          },
+    {&envReleaseMenu,         &envSustainMenu,         &envDecayMenu,                  &envAttackMenu,                 nullptr,              &hpfModemenu,           &hpfResMenu,              &hpfFreqMenu          },
     {&compressorReleaseMenu,  &sidechainSyncMenu,      &compressorVolumeShortcutMenu,  &compressorAttackMenu,          &compressorShapeMenu, &sidechainSendMenu,     &bassMenu,                &bassFreqMenu         },
     {&arpRateMenu,            &arpSyncMenu,            &arpGateMenu,                   &arpOctavesMenu,                &arpModeMenu,         &drumNameMenu,          &trebleMenu,              &trebleFreqMenu       },
     {&lfo1RateMenu,           &lfo1SyncMenu,           &lfo1TypeMenu,                  &modFXTypeMenu,                 &modFXOffsetMenu,     &modFXFeedbackMenu,     &modFXDepthMenu,          &modFXRateMenu        },
