@@ -245,28 +245,25 @@ void Session::doLaunch(bool isFillLaunch) {
 		}
 
 		if (clip->soloingInSessionMode) {
-
 			// If it's not armed, or its arming is just to stop recording, then it's still gonna be soloing afterwards
 			if (clip->armState == ArmState::OFF || clip->getCurrentlyRecordingLinearly()) {
-yesSomeSoloingAfter:
 				anySoloingAfter = true;
-yesSomeActiveAfter:
 				anyClipsStillActiveAfter = true;
 			}
 		}
 		else {
 			if (clip->armState == ArmState::ON_TO_SOLO) {
-				goto yesSomeSoloingAfter;
+				anySoloingAfter = true;
+				anyClipsStillActiveAfter = true;
 			}
 			else if (clip->armState == ArmState::ON_NORMAL) {
 				if (!clip->activeIfNoSolo || clip->soloingInSessionMode || clip->getCurrentlyRecordingLinearly()) {
-					goto yesSomeActiveAfter;
+					anyClipsStillActiveAfter = true;
 				}
 			}
-
 			else { // Not armed
 				if (clip->soloingInSessionMode || clip->activeIfNoSolo) {
-					goto yesSomeActiveAfter;
+					anyClipsStillActiveAfter = true;
 				}
 			}
 		}
@@ -475,7 +472,6 @@ probablyBecomeActive:
 					output->alreadyGotItsNewClip = true;
 
 doNormalLaunch:
-
 					clip->soloingInSessionMode = wasArmedToStartSoloing;
 					if (!wasArmedToStartSoloing) {
 						clip->activeIfNoSolo = true;
