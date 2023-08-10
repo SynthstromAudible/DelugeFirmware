@@ -50,18 +50,17 @@ public:
 
 private:
 	q31_t noiseLastValue;
-	FilterMode lpfMode;
-	FilterMode lastLPFMode;
-	FilterMode hpfMode;
-	FilterMode lastHPFMode;
+	FilterMode lpfMode_;
+	FilterMode lastLPFMode_;
+	FilterMode hpfMode_;
+	FilterMode lastHPFMode_;
 	FilterRoute routing_;
 
-	void renderLPFLong(q31_t* startSample, q31_t* endSample, FilterMode lpfMode, int32_t sampleIncrement = 1,
-	                   int32_t extraSaturation = 0, int32_t extraSaturationDrive = 0);
+	void renderLPFLong(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement = 1, int32_t extraSaturation = 0,
+	                   int32_t extraSaturationDrive = 0);
 	void renderLPFLongStereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation = 0);
 	void renderHPFLongStereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation = 0);
-	void renderHPFLong(q31_t* startSample, q31_t* endSample, FilterMode lpfMode, int32_t sampleIncrement = 1,
-	                   int32_t extraSaturation = 0);
+	void renderHPFLong(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement = 1, int32_t extraSaturation = 0);
 	void renderLadderHPF(q31_t* outputSample, int32_t extraSaturation = 0);
 
 	SVFilter lpsvf;

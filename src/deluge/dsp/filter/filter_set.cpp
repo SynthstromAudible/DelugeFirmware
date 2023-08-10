@@ -33,10 +33,10 @@ FilterSet::FilterSet() {
 }
 q31_t tempRenderBuffer[SSI_TX_BUFFER_NUM_SAMPLES];
 
-void FilterSet::renderHPFLong(q31_t* startSample, q31_t* endSample, FilterMode lpfMode, int32_t sampleIncrement,
-                              int32_t extraSaturation) {
+void FilterSet::renderHPFLong(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement, int32_t extraSaturation) {
 	if (HPFOn) {
-		hpladder.filterMono(startSample, endSample, sampleIncrement, extraSaturation);
+		if (lpfMode_)
+			hpladder.filterMono(startSample, endSample, sampleIncrement, extraSaturation);
 	}
 }
 void FilterSet::renderHPFLongStereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation) {
@@ -45,10 +45,10 @@ void FilterSet::renderHPFLongStereo(q31_t* startSample, q31_t* endSample, int32_
 	}
 }
 
-void FilterSet::renderLPFLong(q31_t* startSample, q31_t* endSample, FilterMode lpfMode, int32_t sampleIncrement,
-                              int32_t extraSaturation, int32_t extraSaturationDrive) {
+void FilterSet::renderLPFLong(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement, int32_t extraSaturation,
+                              int32_t extraSaturationDrive) {
 	if (LPFOn) {
-		if (lpfMode == FilterMode::SVF) {
+		if (lpfMode_ == FilterMode::SVF) {
 			lpsvf.filterMono(startSample, endSample, sampleIncrement);
 		}
 		else {
@@ -59,7 +59,7 @@ void FilterSet::renderLPFLong(q31_t* startSample, q31_t* endSample, FilterMode l
 
 void FilterSet::renderLPFLongStereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation) {
 	if (LPFOn) {
-		if (lpfMode == FilterMode::SVF) {
+		if (lpfMode_ == FilterMode::SVF) {
 
 			lpsvf.filterStereo(startSample, endSample, extraSaturation);
 		}
@@ -140,45 +140,45 @@ int32_t FilterSet::setConfig(int32_t lpfFrequency, int32_t lpfResonance, bool do
                              int32_t* overallOscAmplitude) {
 	LPFOn = doLPF;
 	HPFOn = doHPF;
-	lpfMode = lpfmode;
-	hpfMode = hpfmode;
+	lpfMode_ = lpfmode;
+	hpfMode_ = hpfmode;
 	routing_ = routing;
 	hpfResonance =
 	    (hpfResonance >> 21) << 21; // Insanely, having changes happen in the small bytes too often causes rustling
 
 	if (LPFOn) {
 		if (lpfmode == FilterMode::SVF) {
-			if (lastLPFMode != FilterMode::SVF) {
+			if (lastLPFMode_ != FilterMode::SVF) {
 				lpsvf.reset();
 			}
 			filterGain = lpsvf.configure(lpfFrequency, lpfResonance, lpfmode, filterGain);
 		}
 		else {
-			if (lastLPFMode > kLastLadder) {
+			if (lastLPFMode_ > kLastLadder) {
 				lpladder.reset();
 			}
 			filterGain = lpladder.configure(lpfFrequency, lpfResonance, lpfmode, filterGain);
 		}
-		lastLPFMode = lpfMode;
+		lastLPFMode_ = lpfMode_;
 	}
 	else {
-		lastLPFMode = FilterMode::OFF;
+		lastLPFMode_ = FilterMode::OFF;
 	}
 	// This changes the overall amplitude so that, with resonance on 50%, the amplitude is the same as it was pre June 2017
 	filterGain = multiply_32x32_rshift32(filterGain, 1720000000) << 1;
 
 	// HPF
 	if (HPFOn) {
-		if (hpfMode == FilterMode::HPLADDER) {
-			filterGain = hpladder.configure(hpfFrequency, hpfResonance, hpfMode, filterGain);
-			if (lastHPFMode != hpfMode) {
+		if (hpfMode_ == FilterMode::HPLADDER) {
+			filterGain = hpladder.configure(hpfFrequency, hpfResonance, hpfMode_, filterGain);
+			if (lastHPFMode_ != hpfMode_) {
 				hpladder.reset();
 			}
 		}
-		lastHPFMode = hpfMode;
+		lastHPFMode_ = hpfMode_;
 	}
 	else {
-		lastHPFMode = FilterMode::OFF;
+		lastHPFMode_ = FilterMode::OFF;
 	}
 
 	return filterGain;
