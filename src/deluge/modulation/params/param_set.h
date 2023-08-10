@@ -98,6 +98,7 @@ private:
 class UnpatchedParamSet final : public ParamSet {
 public:
 	UnpatchedParamSet(ParamCollectionSummary* summary);
+	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength);
 	bool shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack);
 	bool doesParamIdAllowAutomation(ModelStackWithParamId const* modelStack);
 
@@ -108,6 +109,7 @@ private:
 class PatchedParamSet final : public ParamSet {
 public:
 	PatchedParamSet(ParamCollectionSummary* summary);
+	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength);
 	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
 	                                  bool automationChanged, bool automatedBefore, bool automatedNow);
 	int32_t paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack);
@@ -121,6 +123,7 @@ private:
 class ExpressionParamSet final : public ParamSet {
 public:
 	ExpressionParamSet(ParamCollectionSummary* summary, bool forDrum = false);
+	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength);
 	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
 	                                  bool automationChanged, bool automatedBefore, bool automatedNow);
 	bool mayParamInterpolate(int32_t paramId) { return false; }
