@@ -1101,7 +1101,7 @@ char const* filterRouteToString(FilterRoute route) {
 		return "L2H";
 
 	case FilterRoute::PARALLEL:
-		return "Paral";
+		return "PARA";
 
 	default:
 		return "H2L";
@@ -1112,7 +1112,7 @@ FilterRoute stringToFilterRoute(char const* string) {
 	if (!strcmp(string, "L2H")) {
 		return FilterRoute::LOW_TO_HIGH;
 	}
-	else if (!strcmp(string, "paral")) {
+	else if (!strcmp(string, "PARA")) {
 		return FilterRoute::PARALLEL;
 	}
 	else {
