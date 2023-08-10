@@ -1094,7 +1094,8 @@ doOther:
 	//when switching clip type, reset parameter selection and shortcut blinking
 	else if (b == MIDI) {
 		if (on) {
-			if (instrument->type != InstrumentType::MIDI_OUT) { //don't reset anything if you're already in a MIDI clip
+			//don't reset anything if you're already in a MIDI clip
+			if (instrument->type != InstrumentType::MIDI_OUT) {
 				initParameterSelection();
 				resetShortcutBlinking();
 			}
@@ -1145,8 +1146,9 @@ doOther:
 					displayZoomLevel();
 				}
 			}
+			// Whether or not we did the "multiply" action above, we need to be in this UI mode, e.g. for rotating individual NoteRow
 			enterUIMode(
-			    UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON); // Whether or not we did the "multiply" action above, we need to be in this UI mode, e.g. for rotating individual NoteRow
+			    UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON);
 		}
 
 		// Otherwise...
@@ -2192,7 +2194,7 @@ ActionResult AutomationInstrumentClipView::scrollVertical(int32_t scrollAmount, 
 		instrumentClipView.someAuditioningHasEnded(true);
 	}
 
-	uiNeedsRendering(this); // Might be in waveform view
+	uiNeedsRendering(this);
 	return ActionResult::DEALT_WITH;
 }
 
@@ -2331,16 +2333,22 @@ void AutomationInstrumentClipView::modEncoderButtonAction(uint8_t whichModEncode
 	if (Buttons::isButtonPressed(hid::button::LEARN)) {
 		if (on && instrument->type != InstrumentType::CV) {
 			if (Buttons::isShiftButtonPressed()) {
-				if (clip->lastSelectedParamID != kNoLastSelectedParamID) //paste within Automation Editor
+				//paste within Automation Editor
+				if (clip->lastSelectedParamID != kNoLastSelectedParamID) {
 					pasteAutomation();
-				else { //paste on Automation Overview
+				}
+				//paste on Automation Overview
+				else {
 					instrumentClipView.pasteAutomation(whichModEncoder);
 				}
 			}
 			else {
-				if (clip->lastSelectedParamID != kNoLastSelectedParamID) //copy within Automation Editor
+				//copy within Automation Editor
+				if (clip->lastSelectedParamID != kNoLastSelectedParamID) {
 					copyAutomation();
-				else { //copy on Automation Overview
+				}
+				//copy on Automation Overview
+				else {
 					instrumentClipView.copyAutomation(whichModEncoder);
 				}
 			}
