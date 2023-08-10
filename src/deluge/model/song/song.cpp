@@ -2972,6 +2972,12 @@ allDone:
 // Any audio routine calls that happen during the course of this function won't have access to either the old or new Instrument,
 // because neither will be in the master list when they happen
 void Song::replaceInstrument(Instrument* oldOutput, Instrument* newOutput, bool keepNoteRowsWithMIDIInput) {
+	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
+		if (thisOutput == newOutput) {
+			numericDriver.cancelPopup();
+			numericDriver.freezeWithError("i009");
+		}
+	}
 
 	// We don't detach the Instrument's activeClip here anymore. This happens in InstrumentClip::changeInstrument(), called below.
 	// If we changed it here, near-future calls to the audio routine could cause new voices to be sounded, with no later unassignment.

@@ -431,7 +431,7 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 
 						// Bigger sounds bad. Need to make smaller to match similarly resulting deduction which happens in the "normal" case
 						samplesTilHopEnd = minBeamWidth >> 2;
-						samplesTilHopEnd = std::max<int32_t>(samplesTilHopEnd, crossfadeLengthSamples);
+						samplesTilHopEnd = std::max<int64_t>(samplesTilHopEnd, crossfadeLengthSamples);
 
 						crossfadeIncrement = (uint32_t)(16777215 + crossfadeLengthSamples)
 						                     / (uint32_t)crossfadeLengthSamples; // Round up
@@ -578,8 +578,8 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 		samplesTilHopEnd -= crossfadeLengthSamples;
 
 		// Apply maxHopLength
-		samplesTilHopEnd = std::min<int32_t>(samplesTilHopEnd, maxHopLength);
-		crossfadeLengthSamples = std::min<uint32_t>(samplesTilHopEnd, crossfadeLengthSamples);
+		samplesTilHopEnd = std::min(samplesTilHopEnd, maxHopLength);
+		crossfadeLengthSamples = std::min<int32_t>(samplesTilHopEnd, crossfadeLengthSamples);
 
 		crossfadeIncrement = (uint32_t)16777216 / (uint32_t)crossfadeLengthSamples;
 		crossfadeProgress = 0;
@@ -601,8 +601,8 @@ skipPercStuff:
 	// the beginning play-point of the new play-head, but the point half-way through the crossfade later. Remember that!
 	if (playHeadStillActive[PLAY_HEAD_OLDER]) { // Added condition, Aug 2019. Surely this makes sense...
 		int32_t lengthToAverageEach = ((uint64_t)phaseIncrement * TimeStretch::Crossfade::kMovingAverageLength) >> 24;
-		lengthToAverageEach = std::clamp<int32_t>(
-		    lengthToAverageEach, 1, TimeStretch::Crossfade::kMovingAverageLength * 2); // Keep things sensible
+		lengthToAverageEach = std::clamp(lengthToAverageEach, 1_i32,
+		                                 TimeStretch::Crossfade::kMovingAverageLength * 2); // Keep things sensible
 
 		int32_t crossfadeLengthSamplesSource = ((uint64_t)crossfadeLengthSamples * phaseIncrement) >> 24;
 

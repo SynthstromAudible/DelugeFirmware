@@ -36,6 +36,7 @@
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include <cstring>
+#include <limits>
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
@@ -404,7 +405,8 @@ void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, 
 						int32_t newColour =
 						    rshift_round((int32_t)squareColours[colour] * progress, 16)
 						    + rshift_round((int32_t)clipMuteSquareColour[colour] * (65536 - progress), 16);
-						thisColour[colour] = std::clamp<int32_t>(newColour, 0, 255);
+						thisColour[colour] = std::clamp<int32_t>(newColour, std::numeric_limits<uint8_t>::min(),
+						                                         std::numeric_limits<uint8_t>::max());
 					}
 					squareColours = thisColour;
 				}
@@ -1173,7 +1175,8 @@ void renderZoomWithProgress(int32_t inImageTimesBiggerThanNative, uint32_t inIma
 				if (drawingAnything) {
 					for (int32_t colour = 0; colour < 3; colour++) {
 						int32_t result = rshift_round(outValue[colour], 16);
-						PadLEDs::image[yDisplay][xDisplay][colour] = std::min<int32_t>(255, result);
+						PadLEDs::image[yDisplay][xDisplay][colour] =
+						    std::min<int32_t>(std::numeric_limits<uint8_t>::max(), result);
 					}
 				}
 				else {

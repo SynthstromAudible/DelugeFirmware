@@ -1525,7 +1525,7 @@ Clip* SessionView::createNewInstrumentClip(int32_t yDisplay) {
 	uint32_t oneBar = currentSong->getBarLength();
 
 	// Default Clip length. Default to current zoom, minimum 1 bar
-	int32_t newClipLength = std::max<int32_t>(currentDisplayLength, oneBar);
+	int32_t newClipLength = std::max(currentDisplayLength, oneBar);
 
 	newClip->colourOffset = random(72);
 	newClip->loopLength = newClipLength;
@@ -2397,7 +2397,7 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 		return;
 	}
 
-	int32_t clipPlaceOnScreen = std::clamp<int32_t>(getClipPlaceOnScreen(clip), -1, kDisplayHeight);
+	int32_t clipPlaceOnScreen = std::clamp(getClipPlaceOnScreen(clip), -1_i32, kDisplayHeight);
 
 	currentSong->xScroll[NAVIGATION_CLIP] =
 	    getClipLocalScroll(clip, currentSong->xScroll[NAVIGATION_CLIP], currentSong->xZoom[NAVIGATION_CLIP]);

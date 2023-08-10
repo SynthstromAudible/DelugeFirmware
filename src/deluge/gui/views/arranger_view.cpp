@@ -3011,7 +3011,7 @@ uint32_t ArrangerView::getMaxLength() {
 	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
 
 		if (thisOutput->recordingInArrangement) {
-			maxEndPos = std::max<uint32_t>(maxEndPos, arrangement.getLivePos());
+			maxEndPos = std::max<int32_t>(maxEndPos, arrangement.getLivePos());
 		}
 
 		int32_t numElements = thisOutput->clipInstances.getNumElements();
