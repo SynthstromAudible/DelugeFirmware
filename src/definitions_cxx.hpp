@@ -621,7 +621,8 @@ enum class FilterMode {
 	TRANSISTOR_24DB_DRIVE, //filter logic relies on ladders being first and contiguous
 	SVF,
 	HPLADDER, //first HPF mode
-	OFF,      //Keep last as a sentinel. Signifies that the filter is not on, used for filter reset logic
+	HPSVF,
+	OFF, //Keep last as a sentinel. Signifies that the filter is not on, used for filter reset logic
 };
 constexpr FilterMode kLastLadder = FilterMode::TRANSISTOR_24DB_DRIVE;
 //Off is not an LPF mode but is used to reset filters

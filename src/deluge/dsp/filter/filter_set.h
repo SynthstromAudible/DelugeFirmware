@@ -66,7 +66,7 @@ private:
 	SVFilter lpsvf;
 	LpLadderFilter lpladder;
 	HpLadderFilter hpladder;
-
+	SVFilter hpsvf;
 	bool LPFOn;
 	bool HPFOn;
 };

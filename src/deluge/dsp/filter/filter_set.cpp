@@ -35,8 +35,12 @@ q31_t tempRenderBuffer[SSI_TX_BUFFER_NUM_SAMPLES];
 
 void FilterSet::renderHPFLong(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement, int32_t extraSaturation) {
 	if (HPFOn) {
-		if (lpfMode_)
+		if (hpfMode_ == FilterMode::HPLADDER) {
 			hpladder.filterMono(startSample, endSample, sampleIncrement, extraSaturation);
+		}
+		else if (hpfMode_ == FilterMode::HPSVF) {
+			hpsvf.filterMono(startSample, endSample, sampleIncrement, extraSaturation);
+		}
 	}
 }
 void FilterSet::renderHPFLongStereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation) {
@@ -74,14 +78,14 @@ void FilterSet::renderLong(q31_t* startSample, q31_t* endSample, int32_t numSamp
 	switch (routing_) {
 	case FilterRoute::HIGH_TO_LOW:
 
-		renderHPFLong(startSample, endSample, lpfMode, sampleIncrememt);
-		renderLPFLong(startSample, endSample, lpfMode, sampleIncrememt, extraSaturation, extraSaturation >> 1);
+		renderHPFLong(startSample, endSample, sampleIncrememt);
+		renderLPFLong(startSample, endSample, sampleIncrememt, extraSaturation, extraSaturation >> 1);
 
 		break;
 	case FilterRoute::LOW_TO_HIGH:
 
-		renderLPFLong(startSample, endSample, lpfMode, sampleIncrememt, extraSaturation, extraSaturation >> 1);
-		renderHPFLong(startSample, endSample, lpfMode, sampleIncrememt);
+		renderLPFLong(startSample, endSample, sampleIncrememt, extraSaturation, extraSaturation >> 1);
+		renderHPFLong(startSample, endSample, sampleIncrememt);
 
 		break;
 
@@ -91,8 +95,8 @@ void FilterSet::renderLong(q31_t* startSample, q31_t* endSample, int32_t numSamp
 		int32_t length = endSample - startSample;
 		memcpy(tempRenderBuffer, startSample, length * sizeof(q31_t));
 
-		renderHPFLong(tempRenderBuffer, tempRenderBuffer + length, lpfMode, sampleIncrememt);
-		renderLPFLong(startSample, endSample, lpfMode, sampleIncrememt);
+		renderHPFLong(tempRenderBuffer, tempRenderBuffer + length, sampleIncrememt);
+		renderLPFLong(startSample, endSample, sampleIncrememt);
 
 		for (int i = 0; i < length; i++) {
 			startSample[i] += tempRenderBuffer[i];
@@ -175,6 +179,12 @@ int32_t FilterSet::setConfig(int32_t lpfFrequency, int32_t lpfResonance, bool do
 				hpladder.reset();
 			}
 		}
+		else if (hpfMode_ == FilterMode::HPSVF) {
+			filterGain = hpsvf.configure(hpfFrequency, hpfResonance, hpfMode_, filterGain);
+			if (lastHPFMode_ != hpfMode_) {
+				hpsvf.reset();
+			}
+		}
 		lastHPFMode_ = hpfMode_;
 	}
 	else {
@@ -187,6 +197,7 @@ int32_t FilterSet::setConfig(int32_t lpfFrequency, int32_t lpfResonance, bool do
 void FilterSet::reset() {
 	hpladder.reset();
 	lpsvf.reset();
+	hpsvf.reset();
 	lpladder.reset();
 	noiseLastValue = 0;
 }

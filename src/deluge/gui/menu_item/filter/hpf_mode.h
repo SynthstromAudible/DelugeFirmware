@@ -26,9 +26,13 @@ namespace deluge::gui::menu_item::filter {
 class HPFMode final : public Selection<kNumHPFModes> {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->setValue<::FilterMode>(soundEditor.currentModControllable->hpfMode); }
-	void writeCurrentValue() override { soundEditor.currentModControllable->hpfMode = this->getValue<::FilterMode>(); }
-	static_vector<std::string, capacity()> getOptions() override { return {"HPLadder"}; }
+	void readCurrentValue() override {
+		this->setValue(util::to_underlying(soundEditor.currentModControllable->hpfMode) - kNumLPFModes);
+	}
+	void writeCurrentValue() override {
+		soundEditor.currentModControllable->hpfMode = static_cast<FilterMode>(this->getValue() + kNumLPFModes);
+	}
+	static_vector<std::string, capacity()> getOptions() override { return {"HPLadder", "HPSV"}; }
 	bool isRelevant(Sound* sound, int32_t whichThing) override {
 		return ((sound == nullptr) || sound->synthMode != ::SynthMode::FM);
 	}

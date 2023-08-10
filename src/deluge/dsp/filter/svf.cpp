@@ -49,6 +49,16 @@ q31_t SVFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMode lpf
 	//squared q is a better match for the ladders
 	//also the input scale needs to be sqrt(q) for the level compensation to work so it's a win win
 	q = multiply_32x32_rshift32_rounded(q, q) << 1;
+	if (lpfMode == FilterMode::SVF) {
+		c_low = ONE_Q31;
+		c_band = 0;
+		c_high = 0;
+	}
+	else if (lpfMode == FilterMode::HPSVF) {
+		c_low = 0;
+		c_band = 0;
+		c_high = ONE_Q31;
+	}
 	return filterGain;
 }
 
@@ -56,6 +66,8 @@ inline q31_t SVFilter::doSVF(int32_t input, SVFState& state) {
 	q31_t high = 0;
 	q31_t notch = 0;
 	q31_t lowi;
+	q31_t highi;
+	q31_t bandi;
 	q31_t low = state.low;
 	q31_t band = state.band;
 
@@ -71,6 +83,8 @@ inline q31_t SVFilter::doSVF(int32_t input, SVFState& state) {
 	band = getTanHUnknown(band, 3);
 
 	lowi = low;
+	highi = high;
+	bandi = band;
 	//double sample to increase the cutoff frequency
 	low = low + 2 * multiply_32x32_rshift32(band, fc);
 	high = input - low;
@@ -80,10 +94,15 @@ inline q31_t SVFilter::doSVF(int32_t input, SVFState& state) {
 	//saturate band feedback
 	band = getTanHUnknown(band, 3);
 	//notch = high + low;
+	q31_t result = multiply_32x32_rshift32_rounded(lowi + low, c_low);
+	result = multiply_accumulate_32x32_rshift32_rounded(result, highi + high, c_high);
+	result = multiply_accumulate_32x32_rshift32_rounded(result, bandi + band, c_band);
+	//result = multiply_accumulate_32x32_rshift32_rounded(0, notchi+notch, c_notch);
+	result = result << 1; //compensate for division by two on each multiply
 
-	//SVF_outs result = {(lowi) + (low), band, high, notch};
 	state.low = low;
 	state.band = band;
-	return lowi + low;
+
+	return result;
 }
 } // namespace deluge::dsp::filter

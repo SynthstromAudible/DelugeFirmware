@@ -36,13 +36,6 @@ public:
 	}
 
 private:
-	struct SVFOuts {
-		q31_t lpf;
-		q31_t bpf;
-		q31_t hpf;
-		q31_t notch;
-	};
-
 	struct SVFState {
 		q31_t low;
 		q31_t band;
@@ -52,5 +45,9 @@ private:
 	SVFState r;
 	q31_t q;
 	q31_t in;
+	q31_t c_low;
+	q31_t c_band;
+	q31_t c_notch;
+	q31_t c_high;
 };
 } // namespace deluge::dsp::filter
