@@ -99,10 +99,10 @@ InstrumentClip::InstrumentClip(Song* song) : Clip(CLIP_TYPE_INSTRUMENT) {
 
 	//initialize automation instrument clip view variables
 	onAutomationInstrumentClipView = false;
-	lastSelectedParamID = 255;
-	lastSelectedParamType = 255;
-	lastSelectedParamShortcutX = 255;
-	lastSelectedParamShortcutY = 255;
+	lastSelectedParamID = kNoLastSelectedParamID;
+	lastSelectedParamType = kNoLastSelectedParamType;
+	lastSelectedParamShortcutX = kNoLastSelectedParamShortcutX;
+	lastSelectedParamShortcutY = kNoLastSelectedParamShortcutY;
 	lastSelectedParamArrayPosition = 0;
 	lastSelectedInstrumentType = InstrumentType::NONE;
 	//end initialize of automation instrument clip view variables
@@ -2188,7 +2188,7 @@ void InstrumentClip::writeDataToFile(Song* song) {
 	if (onAutomationInstrumentClipView) {
 		storageManager.writeAttribute("onAutomationInstrumentClipView", (char*)"1");
 	}
-	if (lastSelectedParamID != 255) {
+	if (lastSelectedParamID != kNoLastSelectedParamID) {
 		storageManager.writeAttribute("lastSelectedParamID", lastSelectedParamID);
 	}
 	if (lastSelectedParamType != 255) {
@@ -3359,7 +3359,8 @@ void InstrumentClip::sendMIDIPGM() {
 }
 
 void InstrumentClip::clear(Action* action, ModelStackWithTimelineCounter* modelStack) {
-	Clip::clear(action, modelStack); //this clears automations when "affectEntire" is enabled
+	//this clears automations when "affectEntire" is enabled
+	Clip::clear(action, modelStack);
 
 	for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
 		NoteRow* thisNoteRow = noteRows.getElement(i);

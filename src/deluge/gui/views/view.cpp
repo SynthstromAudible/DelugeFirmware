@@ -955,11 +955,14 @@ void View::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 }
 
 void View::setKnobIndicatorLevels() {
-	if (!getRootUI()
-	    || (getCurrentUI() == &automationInstrumentClipView && //don't update knob indicator levels
-	        (((InstrumentClip*)currentSong->currentClip)->lastSelectedParamID
-	         != 255))) { //when you're in automation editor
-		return;          // What's this?
+	if (!getRootUI()) {
+		return; // What's this?
+	}
+
+	//don't update knob indicator levels when you're in automation editor
+	if (getCurrentUI() == &automationInstrumentClipView
+	    && (((InstrumentClip*)currentSong->currentClip)->lastSelectedParamID != kNoLastSelectedParamID)) {
+		return;
 	}
 
 	if (activeModControllableModelStack.modControllable) {
@@ -1057,17 +1060,16 @@ void View::setModLedStates() {
 	}
 	indicator_leds::setLedState(IndicatorLED::AFFECT_ENTIRE, affectEntire);
 
-	if (!itsTheSong) {
-
+	if (itsTheSong) {
+		indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, false);
+	}
+	else {
 		if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
 			indicator_leds::blinkLed(IndicatorLED::CLIP_VIEW);
 		}
 		else {
 			indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, true);
 		}
-	}
-	else {
-		indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, false);
 	}
 
 	// Sort out the session/arranger view LEDs

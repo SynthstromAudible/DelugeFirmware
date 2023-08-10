@@ -1693,19 +1693,22 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 			memset(PadLEDs::occupancyMaskStore[kDisplayHeight + 1], 0, kDisplayWidth + kSideBarWidth);
 		}
 
+		// If going to automationInstrumentClipView...
+		else if (((InstrumentClip*)clip)->onAutomationInstrumentClipView) {
+			instrumentClipView.recalculateColours();
+
+			automationInstrumentClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1],
+			                                            &PadLEDs::occupancyMaskStore[1], false);
+
+			instrumentClipView.fillOffScreenImageStores();
+		}
+
+		// Or if just regular old InstrumentClipView
 		else {
 			instrumentClipView.recalculateColours();
 
-			// If going to automationInstrumentClipView...
-			if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
-				automationInstrumentClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1],
-				                                            &PadLEDs::occupancyMaskStore[1], false);
-			}
-			// Or if just regular old InstrumentClipView
-			else {
-				instrumentClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
-				                                  false);
-			}
+			instrumentClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
+			                                  false);
 
 			instrumentClipView.fillOffScreenImageStores();
 		}

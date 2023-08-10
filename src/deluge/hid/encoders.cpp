@@ -152,9 +152,9 @@ checkResult:
 					                                   Buttons::isShiftButtonPressed());
 				}
 
+				//when tempo encoder is finished, make sure to display parameter name again
 				if (getCurrentUI() == &automationInstrumentClipView) {
-					automationInstrumentClipView
-					    .setDisplayParameterNameTimer(); //when tempo encoder is finished, make sure to display parameter name again
+					automationInstrumentClipView.setDisplayParameterNameTimer();
 				}
 
 				break;

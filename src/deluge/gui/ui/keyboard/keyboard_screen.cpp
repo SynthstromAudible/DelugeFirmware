@@ -373,7 +373,7 @@ ActionResult KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRou
 		    && !keyboardButtonUsed) { // Leave if key up and not used
 
 			instrumentClipView.recalculateColours();
-			if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+			if (getCurrentClip()->onAutomationInstrumentClipView) {
 				changeRootUI(&automationInstrumentClipView);
 			}
 			else {
@@ -413,12 +413,12 @@ ActionResult KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRou
 	//toggle UI to go back to after you exit keyboard mode between automation instrument clip view and regular instrument clip view
 	else if (b == CLIP_VIEW) {
 		if (on) {
-			if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
-				((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView = false;
+			if (getCurrentClip()->onAutomationInstrumentClipView) {
+				getCurrentClip()->onAutomationInstrumentClipView = false;
 				indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, true);
 			}
 			else {
-				((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView = true;
+				getCurrentClip()->onAutomationInstrumentClipView = true;
 				indicator_leds::blinkLed(IndicatorLED::CLIP_VIEW);
 			}
 		}
@@ -736,11 +736,8 @@ void KeyboardScreen::unscrolledPadAudition(int32_t velocity, int32_t note, bool 
 	// but this refactor needs to wait for another day.
 	// Until then we set the scroll to 0 during the auditioning
 	int32_t yScrollBackup = getCurrentClip()->yScroll;
-
 	getCurrentClip()->yScroll = trunc(note / 8) * 8;
-
 	instrumentClipView.auditionPadAction(velocity, note % 8, shiftButtonDown);
-
 	getCurrentClip()->yScroll = yScrollBackup;
 }
 

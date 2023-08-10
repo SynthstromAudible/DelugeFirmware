@@ -325,8 +325,7 @@ char const* getSourceDisplayNameForOLED(PatchSource s) {
 		return "MPE Y";
 
 	default:
-		__builtin_unreachable();
-		return NULL;
+		return "none";
 	}
 }
 
@@ -462,8 +461,7 @@ char const* getPatchedParamDisplayNameForOLED(int32_t p) {
 		return "Osc 2 feedback";
 
 	default:
-		__builtin_unreachable();
-		return NULL;
+		return "none";
 	}
 }
 
@@ -503,8 +501,7 @@ char const* getUnpatchedParamDisplayNameForOLED(int32_t p) {
 		return "Mod-FX offset";
 
 	default:
-		__builtin_unreachable();
-		return NULL;
+		return "none";
 	}
 }
 
@@ -550,8 +547,7 @@ char const* getGlobalEffectableParamDisplayNameForOLED(int32_t p) {
 		return "Mod-FX depth";
 
 	default:
-		__builtin_unreachable();
-		return NULL;
+		return "none";
 	}
 }
 #endif

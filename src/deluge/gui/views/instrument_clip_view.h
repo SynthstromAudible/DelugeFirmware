@@ -166,9 +166,10 @@ public:
 	int16_t copiedYNoteOfBottomRow;
 
 	CopiedParamAutomation copiedParamAutomation;
-	bool
-	    auditioningSilently; // Sometimes the user will want to hold an audition pad without actually sounding the note, by holding an encoder
-	bool fileBrowserShouldNotPreview; // Archaic leftover feature that users wouldn't let me get rid of
+	// Sometimes the user will want to hold an audition pad without actually sounding the note, by holding an encoder
+	bool auditioningSilently;
+	// Archaic leftover feature that users wouldn't let me get rid of
+	bool fileBrowserShouldNotPreview;
 
 	int16_t mpeValuesAtHighestPressure[MPE_RECORD_LENGTH_FOR_NOTE_EDITING][kNumExpressionDimensions];
 	int16_t mpeMostRecentPressure;
@@ -183,8 +184,8 @@ public:
 	uint8_t numEditPadPresses;
 	uint32_t timeLastEditPadPress;
 	uint32_t timeFirstEditPadPress;
-	uint32_t
-	    timeHorizontalKnobLastReleased; // Only to be looked at if shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress is true after they rotated a NoteRow and might now be wanting to instead edit its length after releasing the knob
+	// Only to be looked at if shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress is true after they rotated a NoteRow and might now be wanting to instead edit its length after releasing the knob
+	uint32_t timeHorizontalKnobLastReleased;
 	bool shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress;
 	bool shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress;
 	//made these public so they can be accessed by the automation clip view
@@ -192,8 +193,8 @@ public:
 private:
 	bool doneAnyNudgingSinceFirstEditPadPress;
 	bool offsettingNudgeNumberDisplay;
-	bool
-	    editedAnyPerNoteRowStuffSinceAuditioningBegan; // Because in this case we can assume that if they press a main pad while auditioning, they're not intending to do that shortcut into the SoundEditor!
+	// Because in this case we can assume that if they press a main pad while auditioning, they're not intending to do that shortcut into the SoundEditor!
+	bool editedAnyPerNoteRowStuffSinceAuditioningBegan;
 
 	uint8_t flashScaleModeLedErrorCount;
 
