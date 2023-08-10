@@ -115,7 +115,7 @@ void KeyboardLayoutIsomorphic::renderPads(uint8_t image[][kDisplayWidth + kSideB
 				getTailColour(image[y][x], noteColours[normalizedPadOffset]);
 			}
 
-			//@TODO: In a future revision it would be nice to add this to the API
+			//TODO: In a future revision it would be nice to add this to the API
 			// Dim note pad if a browser is open with the note highlighted
 			if (getCurrentUI() == &sampleBrowser || getCurrentUI() == &audioRecorder
 			    || (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem()->isRangeDependent())) {

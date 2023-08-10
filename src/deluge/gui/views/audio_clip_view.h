@@ -33,7 +33,6 @@ public:
 	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 	bool setupScroll(uint32_t oldScroll);
-	void transitionToSessionView();
 	void tellMatrixDriverWhichRowsContainSomethingZoomable();
 	bool supportsTriplets() { return false; }
 	ClipMinder* toClipMinder() { return this; }
