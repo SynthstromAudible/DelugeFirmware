@@ -2222,7 +2222,7 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 			instrumentClipView
 			    .fillOffScreenImageStores(); // Important that this is done after currentSong->xScroll is changed, above
 
-			PadLEDs::numAnimatedRows = kDisplayHeight;
+			PadLEDs::numAnimatedRows = kDisplayHeight + 2;
 			for (int32_t y = 0; y < PadLEDs::numAnimatedRows; y++) {
 				PadLEDs::animatedRowGoingTo[y] = clipPlaceOnScreen;
 				PadLEDs::animatedRowGoingFrom[y] = y - 1;
