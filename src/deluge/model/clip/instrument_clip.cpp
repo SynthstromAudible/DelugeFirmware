@@ -2190,17 +2190,9 @@ void InstrumentClip::writeDataToFile(Song* song) {
 	}
 	if (lastSelectedParamID != kNoLastSelectedParamID) {
 		storageManager.writeAttribute("lastSelectedParamID", lastSelectedParamID);
-	}
-	if (lastSelectedParamType != 255) {
 		storageManager.writeAttribute("lastSelectedParamType", lastSelectedParamType);
-	}
-	if (lastSelectedParamShortcutX != 255) {
 		storageManager.writeAttribute("lastSelectedParamShortcutX", lastSelectedParamShortcutX);
-	}
-	if (lastSelectedParamShortcutY != 255) {
 		storageManager.writeAttribute("lastSelectedParamShortcutY", lastSelectedParamShortcutY);
-	}
-	if (lastSelectedParamArrayPosition != 255) {
 		storageManager.writeAttribute("lastSelectedParamArrayPosition", lastSelectedParamArrayPosition);
 	}
 	if (wrapEditing) {
@@ -2449,6 +2441,10 @@ someError:
 
 		else if (!strcmp(tagName, "onAutomationInstrumentClipView")) {
 			onAutomationInstrumentClipView = storageManager.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "lastSelectedParamID")) {
+			lastSelectedParamID = storageManager.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "lastSelectedParamType")) {

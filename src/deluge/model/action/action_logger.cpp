@@ -633,9 +633,9 @@ currentClipSwitchedOver:
 	if (updateVisually) {
 
 		if (getCurrentUI() == &instrumentClipView) {
+			// If we're not animating away from this view (but something like scrolling sideways would be allowed)
 			if (whichAnimation != ANIMATION_CLIP_MINDER_TO_SESSION
-			    && whichAnimation
-			           != ANIMATION_CLIP_MINDER_TO_ARRANGEMENT) { // If we're not animating away from this view (but something like scrolling sideways would be allowed)
+			    && whichAnimation != ANIMATION_CLIP_MINDER_TO_ARRANGEMENT) {
 				instrumentClipView.recalculateColours();
 				if (!whichAnimation) {
 					uiNeedsRendering(&instrumentClipView);
@@ -643,9 +643,9 @@ currentClipSwitchedOver:
 			}
 		}
 		else if (getCurrentUI() == &automationInstrumentClipView) {
+			// If we're not animating away from this view (but something like scrolling sideways would be allowed)
 			if (whichAnimation != ANIMATION_CLIP_MINDER_TO_SESSION
-			    && whichAnimation
-			           != ANIMATION_CLIP_MINDER_TO_ARRANGEMENT) { // If we're not animating away from this view (but something like scrolling sideways would be allowed)
+			    && whichAnimation != ANIMATION_CLIP_MINDER_TO_ARRANGEMENT) {
 				instrumentClipView.recalculateColours();
 				if (!whichAnimation) {
 					uiNeedsRendering(&automationInstrumentClipView);
@@ -662,10 +662,9 @@ currentClipSwitchedOver:
 				uiNeedsRendering(&keyboardScreen, 0xFFFFFFFF, 0);
 			}
 		}
+		// Got to try this even if we're supposedly doing a horizontal scroll animation or something cos that may have failed if the Clip wasn't long enough before we did the action->revert() ...
 		else if (getCurrentUI() == &sessionView) {
-			uiNeedsRendering(
-			    &sessionView, 0xFFFFFFFF,
-			    0xFFFFFFFF); // Got to try this even if we're supposedly doing a horizontal scroll animation or something cos that may have failed if the Clip wasn't long enough before we did the action->revert() ...
+			uiNeedsRendering(&sessionView, 0xFFFFFFFF, 0xFFFFFFFF);
 		}
 		else if (getCurrentUI() == &arrangerView) {
 			arrangerView.repopulateOutputsOnScreen(!whichAnimation);
@@ -675,14 +674,14 @@ currentClipSwitchedOver:
 		// when the animation finishes - and also, if we just deleted the Clip which was the activeModControllableClip, well that'll temporarily be pointing to invalid stuff.
 		// Check the actual UI mode rather than the whichAnimation variable we've been using in this function, because under some circumstances that'll bypass the actual
 		// animation / UI-mode.
-		if (!isUIModeActive(UI_MODE_AUDIO_CLIP_COLLAPSING)
-		    && !isUIModeActive(
-		        UI_MODE_INSTRUMENT_CLIP_COLLAPSING)) { // We would also put the "explode" animation for transitioning *to* arranger here, but it just doesn't get used during reversion.
+		// We would also put the "explode" animation for transitioning *to* arranger here, but it just doesn't get used during reversion.
+		if (!isUIModeActive(UI_MODE_AUDIO_CLIP_COLLAPSING) && !isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING)) {
 			view.setKnobIndicatorLevels();
 			view.setModLedStates();
 		}
 
-		switch (whichAnimation) { // So long as we're not gonna animate to different UI...
+		// So long as we're not gonna animate to different UI...
+		switch (whichAnimation) {
 		case ANIMATION_CLIP_MINDER_TO_SESSION:
 		case ANIMATION_SESSION_TO_CLIP_MINDER:
 		case ANIMATION_CLIP_MINDER_TO_ARRANGEMENT:
