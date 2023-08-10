@@ -2747,7 +2747,7 @@ doReadBendRange:
 		if (!instrumentWasLoadedByReferenceFromClip) {
 			switch (output->type) {
 			case InstrumentType::MIDI_OUT:
-				((MIDIInstrument*)output)->channelSuffix = std::clamp<int32_t>(instrumentPresetSubSlot, -1, 25);
+				((MIDIInstrument*)output)->channelSuffix = std::clamp<int8_t>(instrumentPresetSubSlot, -1, 25);
 				[[fallthrough]];
 				// No break
 

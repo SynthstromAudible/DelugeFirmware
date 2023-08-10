@@ -243,12 +243,14 @@ public:
 	 */
 	static int32_t read(uint32_t timeout, std::function<int32_t(Response)> handler) {
 		uint16_t timeWaitBegan = *TCNT[TIMER_SYSTEM_FAST];
+		int32_t result = 1; // error with failure by default
 		while ((uint16_t)(*TCNT[TIMER_SYSTEM_FAST] - timeWaitBegan) < timeout) {
-			int32_t result = handler(PIC::read());
+			result = handler(PIC::read());
 			if (result != 0) {
 				return result;
 			}
 		}
+		return result;
 	}
 
 private:

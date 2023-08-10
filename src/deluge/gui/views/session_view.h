@@ -26,7 +26,15 @@ class InstrumentClip;
 class Clip;
 class ModelStack;
 
+enum SessionLayoutType : uint32_t {
+	SessionLayoutTypeRows,
+	SessionLayoutTypeGrid,
+	SessionLayoutTypeMaxElement // Keep as boundary
+};
+
 extern float getTransitionProgress();
+
+constexpr uint32_t kGridHeight = kDisplayHeight;
 
 // Clip Group colours
 extern const uint8_t numDefaultClipGroupColours;
@@ -45,13 +53,14 @@ public:
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
 	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
-	void removeClip(uint8_t yDisplay);
+	void removeClip(Clip* clip);
 	void redrawClipsOnScreen(bool doRender = true);
 	uint32_t getMaxZoom();
 	void cloneClip(uint8_t yDisplayFrom, uint8_t yDisplayTo);
 	bool renderRow(ModelStack* modelStack, uint8_t yDisplay, uint8_t thisImage[kDisplayWidth + kSideBarWidth][3],
 	               uint8_t thisOccupancyMask[kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
 	void graphicsRoutine();
+	void requestRendering(UI* ui, uint32_t whichMainRows = 0xFFFFFFFF, uint32_t whichSideRows = 0xFFFFFFFF);
 
 	int32_t getClipPlaceOnScreen(Clip* clip);
 	void drawStatusSquare(uint8_t yDisplay, uint8_t thisImage[][3]);
@@ -75,6 +84,7 @@ public:
 	void midiLearnFlash();
 
 	void transitionToViewForClip(Clip* clip = NULL);
+	void transitionToSessionView();
 	void finishedTransitioningHere();
 	void playbackEnded();
 	void clipNeedsReRendering(Clip* clip);
@@ -106,10 +116,80 @@ private:
 	void beginEditingSectionRepeatsNum();
 	Clip* createNewInstrumentClip(int32_t yDisplay);
 	void goToArrangementEditor();
-	void replaceInstrumentClipWithAudioClip();
-	void replaceAudioClipWithInstrumentClip(InstrumentType instrumentType);
+	void replaceInstrumentClipWithAudioClip(Clip* clip);
+	void replaceAudioClipWithInstrumentClip(Clip* clip, InstrumentType instrumentType);
 	void rowNeedsRenderingDependingOnSubMode(int32_t yDisplay);
 	void setCentralLEDStates();
+
+	// Members regarding rendering different layouts
+private:
+	Clip* getClipForLayout();
+	void selectLayout(int8_t offset);
+
+	bool sessionButtonActive = false;
+	bool sessionButtonUsed = false;
+
+	// Members for grid layout
+private:
+	bool gridRenderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	                       uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
+	bool gridRenderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
+
+	ActionResult gridHandlePads(int32_t x, int32_t y, int32_t on);
+
+	ActionResult gridHandleScroll(int32_t offsetX, int32_t offsetY);
+
+	void gridTransitionToSessionView();
+	void gridTransitionToViewForClip(Clip* clip);
+
+	bool clipButtonUsed = false;
+	bool gridPreventArm = false;
+	int32_t gridFirstPressedX = -1;
+	int32_t gridFirstPressedY = -1;
+	int32_t gridSecondPressedX = -1;
+	int32_t gridSecondPressedY = -1;
+
+	inline bool gridFirstPadActive() {
+		return (gridFirstPressedX != -1 && gridFirstPressedY != -1);
+	}
+
+	inline bool gridSecondPadInactive() {
+		return (gridSecondPressedX == -1 && gridSecondPressedY == -1);
+	}
+
+	inline void gridResetPresses(bool first = true, bool second = true) {
+		if (first) {
+			gridFirstPressedX = -1;
+			gridFirstPressedY = -1;
+		}
+		if (second) {
+			gridSecondPressedX = -1;
+			gridSecondPressedY = -1;
+		}
+	}
+
+	Clip* gridCloneClip(Clip* sourceClip);
+	Clip* gridCreateClipInTrack(Output* targetOutput);
+	bool gridCreateNewTrackForClip(InstrumentType type, InstrumentClip* clip, bool copyDrumsFromClip);
+	InstrumentClip* gridCreateClipWithNewTrack(InstrumentType type);
+	Clip* gridCreateClip(uint32_t targetSection, Output* targetOutput = nullptr, Clip* sourceClip = nullptr);
+	void gridClonePad(uint32_t sourceX, uint32_t sourceY, uint32_t targetX, uint32_t targetY);
+	void gridOpenPadClip(Clip* clip, uint32_t x, uint32_t y);
+
+	void gridStartSection(uint32_t section, bool instant);
+	void gridToggleClipPlay(Clip* clip, bool instant);
+
+	const uint32_t gridTrackCount();
+	uint32_t gridClipCountForTrack(Output* track);
+	uint32_t gridTrackIndexFromTrack(Output* track, uint32_t maxTrack);
+	Output* gridTrackFromIndex(uint32_t trackIndex, uint32_t maxTrack);
+	int32_t gridYFromSection(uint32_t section);
+	int32_t gridSectionFromY(uint32_t y);
+	int32_t gridXFromTrack(uint32_t trackIndex);
+	int32_t gridTrackIndexFromX(uint32_t x, uint32_t maxTrack);
+	Output* gridTrackFromX(uint32_t x, uint32_t maxTrack);
+	Clip* gridClipFromCoords(uint32_t x, uint32_t y);
 };
 
 extern SessionView sessionView;

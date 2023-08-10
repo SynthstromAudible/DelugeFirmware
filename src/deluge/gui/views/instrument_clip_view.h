@@ -122,7 +122,6 @@ public:
 	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 
-	void transitionToSessionView();
 	void playbackEnded();
 	void scrollFinished();
 	void clipNeedsReRendering(Clip* clip);

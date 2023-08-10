@@ -37,6 +37,7 @@
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include <cstring>
+#include <limits>
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
@@ -55,6 +56,7 @@ int8_t zoomMagnitude;
 int32_t zoomPinSquare[kDisplayHeight];
 bool transitionTakingPlaceOnRow[kDisplayHeight];
 int8_t explodeAnimationDirection;
+UI* explodeAnimationTargetUI = nullptr;
 
 namespace horizontal {
 uint8_t areaToScroll;
@@ -404,7 +406,8 @@ void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, 
 						int32_t newColour =
 						    rshift_round((int32_t)squareColours[colour] * progress, 16)
 						    + rshift_round((int32_t)clipMuteSquareColour[colour] * (65536 - progress), 16);
-						thisColour[colour] = std::clamp<int32_t>(newColour, 0, 255);
+						thisColour[colour] = std::clamp<int32_t>(newColour, std::numeric_limits<uint8_t>::min(),
+						                                         std::numeric_limits<uint8_t>::max());
 					}
 					squareColours = thisColour;
 				}
@@ -816,10 +819,19 @@ void timerRoutine() {
 					}
 				}
 				else {
-					changeRootUI(&arrangerView);
+					UI* nextUI = &arrangerView;
+					if (explodeAnimationTargetUI != nullptr) {
+						nextUI = explodeAnimationTargetUI;
+						explodeAnimationTargetUI = nullptr;
+					}
 
-					if (arrangerView.doingAutoScrollNow) {
+					changeRootUI(nextUI);
+
+					if (nextUI == &arrangerView && arrangerView.doingAutoScrollNow) {
 						goto stopFade; // If we suddenly just started doing an auto-scroll, there's no time to fade
+					}
+					else if (nextUI == &sessionView) {
+						sessionView.finishedTransitioningHere();
 					}
 				}
 
@@ -1182,7 +1194,8 @@ void renderZoomWithProgress(int32_t inImageTimesBiggerThanNative, uint32_t inIma
 				if (drawingAnything) {
 					for (int32_t colour = 0; colour < 3; colour++) {
 						int32_t result = rshift_round(outValue[colour], 16);
-						PadLEDs::image[yDisplay][xDisplay][colour] = std::min<int32_t>(255, result);
+						PadLEDs::image[yDisplay][xDisplay][colour] =
+						    std::min<int32_t>(std::numeric_limits<uint8_t>::max(), result);
 					}
 				}
 				else {
