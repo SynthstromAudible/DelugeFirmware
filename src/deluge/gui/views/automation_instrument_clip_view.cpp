@@ -1766,7 +1766,6 @@ doSilentAudition:
 
 			if (isKit) {
 				instrumentClipView.setSelectedDrum(drum);
-				indicator_leds::blinkLed(IndicatorLED::CLIP_VIEW);
 				uiNeedsRendering(this); // need to redraw automation grid squares cause selected drum may have changed
 				goto getOut;
 			}
