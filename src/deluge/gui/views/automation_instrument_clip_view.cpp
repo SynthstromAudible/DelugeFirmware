@@ -364,7 +364,7 @@ bool AutomationInstrumentClipView::opened() {
 
 	if (clip->lastSelectedParamID != 255) {
 		displayAutomation(); //update led indicator levels
-		displayParameterName(clip->lastSelectedParamID);
+		uiTimerManager.setTimer(TIMER_AUTOMATION_VIEW, 700);
 	}
 
 	resetShortcutBlinking();
@@ -3081,9 +3081,7 @@ void AutomationInstrumentClipView::setDisplayParameterNameTimer() {
 	if (clip->lastSelectedParamID
 	    != 255) { //after you displayed a pop up with the parameter value, redisplay the parameter name on the screen
 
-#if HAVE_OLED
-		uiTimerManager.setTimer(TIMER_OLED_AUTOMATION_VIEW, 700);
-#endif
+		uiTimerManager.setTimer(TIMER_AUTOMATION_VIEW, 700);
 	}
 }
 
