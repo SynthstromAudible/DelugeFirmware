@@ -1147,8 +1147,7 @@ doOther:
 				}
 			}
 			// Whether or not we did the "multiply" action above, we need to be in this UI mode, e.g. for rotating individual NoteRow
-			enterUIMode(
-			    UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON);
+			enterUIMode(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON);
 		}
 
 		// Otherwise...
