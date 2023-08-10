@@ -987,7 +987,7 @@ inline void ModControllableAudio::doEQ(bool doBass, bool doTreble, int32_t* inpu
 
 void ModControllableAudio::writeAttributesToFile() {
 	storageManager.writeAttribute("lpfMode", (char*)lpfTypeToString(lpfMode));
-	storageManager.writeAttribute("lpfMode", (char*)lpfTypeToString(hpfMode));
+	storageManager.writeAttribute("hpfMode", (char*)lpfTypeToString(hpfMode));
 	storageManager.writeAttribute("modFXType", (char*)fxTypeToString(modFXType));
 	storageManager.writeAttribute("filterRoute", (char*)filterRouteToString(filterRoute));
 	if (clippingAmount) {
@@ -1148,13 +1148,13 @@ int32_t ModControllableAudio::readTagFromFile(char const* tagName, ParamManagerF
 		lpfMode = stringToLPFType(storageManager.readTagOrAttributeValue());
 		storageManager.exitTag("lpfMode");
 	}
-	if (!strcmp(tagName, "hpfMode")) {
-		lpfMode = stringToLPFType(storageManager.readTagOrAttributeValue());
+	else if (!strcmp(tagName, "hpfMode")) {
+		hpfMode = stringToLPFType(storageManager.readTagOrAttributeValue());
 		storageManager.exitTag("hpfMode");
 	}
 	else if (!strcmp(tagName, "filterRoute")) {
 		filterRoute = stringToFilterRoute(storageManager.readTagOrAttributeValue());
-		storageManager.exitTag("sideChainSend");
+		storageManager.exitTag("filterRoute");
 	}
 
 	else if (!strcmp(tagName, "clippingAmount")) {
