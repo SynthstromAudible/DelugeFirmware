@@ -58,6 +58,8 @@ ModControllableAudio::ModControllableAudio() {
 	stutterer.sync = 7;
 	stutterer.status = STUTTERER_STATUS_OFF;
 
+	filterRoute = FilterRoute::HIGH_TO_LOW;
+
 	// Sample rate reduction
 	sampleRateReductionOnLastTime = false;
 

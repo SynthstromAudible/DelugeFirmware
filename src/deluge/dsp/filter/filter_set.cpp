@@ -31,6 +31,7 @@ FilterSet::FilterSet() {
 	lpladder = LpLadderFilter();
 	hpladder = HpLadderFilter();
 }
+q31_t tempRenderBuffer[SSI_TX_BUFFER_NUM_SAMPLES];
 
 void FilterSet::renderHPFLong(q31_t* startSample, q31_t* endSample, FilterMode lpfMode, int32_t sampleIncrement,
                               int32_t extraSaturation) {
@@ -48,15 +49,9 @@ void FilterSet::renderLPFLong(q31_t* startSample, q31_t* endSample, FilterMode l
                               int32_t extraSaturation, int32_t extraSaturationDrive) {
 	if (LPFOn) {
 		if (lpfMode == FilterMode::SVF) {
-			if (lastLPFMode != FilterMode::SVF) {
-				lpsvf.reset();
-			}
 			lpsvf.filterMono(startSample, endSample, sampleIncrement);
 		}
 		else {
-			if (lastLPFMode > kLastLadder) {
-				lpladder.reset();
-			}
 			lpladder.filterMono(startSample, endSample, sampleIncrement, extraSaturation);
 		}
 	}
@@ -78,21 +73,29 @@ void FilterSet::renderLong(q31_t* startSample, q31_t* endSample, int32_t numSamp
                            int32_t extraSaturation) {
 	switch (routing_) {
 	case FilterRoute::HIGH_TO_LOW:
+
 		renderHPFLong(startSample, endSample, lpfMode, sampleIncrememt);
 		renderLPFLong(startSample, endSample, lpfMode, sampleIncrememt, extraSaturation, extraSaturation >> 1);
+
 		break;
 	case FilterRoute::LOW_TO_HIGH:
+
 		renderLPFLong(startSample, endSample, lpfMode, sampleIncrememt, extraSaturation, extraSaturation >> 1);
 		renderHPFLong(startSample, endSample, lpfMode, sampleIncrememt);
+
 		break;
+
 	case FilterRoute::PARALLEL:
+		//render one filter in the temp buffer so we can add
+		//them together
 		int32_t length = endSample - startSample;
-		q31_t temp[length];
-		memcpy(temp, startSample, length * sizeof(q31_t));
-		renderHPFLong(temp, temp + length, lpfMode, sampleIncrememt);
+		memcpy(tempRenderBuffer, startSample, length * sizeof(q31_t));
+
+		renderHPFLong(tempRenderBuffer, tempRenderBuffer + length, lpfMode, sampleIncrememt);
 		renderLPFLong(startSample, endSample, lpfMode, sampleIncrememt);
+
 		for (int i = 0; i < length; i++) {
-			startSample[i] += temp[i];
+			startSample[i] += tempRenderBuffer[i];
 		}
 		break;
 	}
@@ -102,39 +105,30 @@ void FilterSet::renderLongStereo(q31_t* startSample, q31_t* endSample, int32_t e
 	// Do HPF, if it's on
 	switch (routing_) {
 	case FilterRoute::HIGH_TO_LOW:
-		if (HPFOn) {
-			renderHPFLongStereo(startSample, endSample, extraSaturation);
-		}
 
-		// Do LPF, if it's on
-		if (LPFOn) {
-			renderLPFLongStereo(startSample, endSample, extraSaturation);
-		}
+		renderHPFLongStereo(startSample, endSample, extraSaturation);
+
+		renderLPFLongStereo(startSample, endSample, extraSaturation);
 
 		break;
 	case FilterRoute::LOW_TO_HIGH:
-		if (LPFOn) {
-			renderLPFLongStereo(startSample, endSample, extraSaturation);
-		}
-		if (HPFOn) {
-			renderHPFLongStereo(startSample, endSample, extraSaturation);
-		}
+
+		renderLPFLongStereo(startSample, endSample, extraSaturation);
+
+		renderHPFLongStereo(startSample, endSample, extraSaturation);
+
 		break;
 	case FilterRoute::PARALLEL:
 		int32_t length = endSample - startSample;
-		q31_t temp[length];
-		memcpy(temp, startSample, length * sizeof(q31_t));
 
-		if (HPFOn) {
-			renderHPFLongStereo(temp, temp + length, extraSaturation);
-		}
+		memcpy(tempRenderBuffer, startSample, length * sizeof(q31_t));
 
-		// Do LPF, if it's on
-		if (LPFOn) {
-			renderLPFLongStereo(startSample, endSample, extraSaturation);
-		}
+		renderHPFLongStereo(tempRenderBuffer, tempRenderBuffer + length, extraSaturation);
+
+		renderLPFLongStereo(startSample, endSample, extraSaturation);
+
 		for (int i = 0; i < length; i++) {
-			startSample[i] += temp[i];
+			startSample[i] += tempRenderBuffer[i];
 		}
 		break;
 	}

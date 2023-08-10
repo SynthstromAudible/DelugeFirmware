@@ -34,10 +34,10 @@
 #include "gui/menu_item/drum_name.h"
 #include "gui/menu_item/envelope/segment.h"
 #include "gui/menu_item/file_selector.h"
-#include "gui/menu_item/filter/filter_route.h"
 #include "gui/menu_item/filter/hpf_freq.h"
 #include "gui/menu_item/filter/lpf_freq.h"
 #include "gui/menu_item/filter/lpf_mode.h"
+#include "gui/menu_item/filter_route.h"
 #include "gui/menu_item/firmware/version.h"
 #include "gui/menu_item/flash/status.h"
 #include "gui/menu_item/fx/clipping.h"
@@ -201,7 +201,7 @@ submenu::Filter hpfMenu{
 };
 
 //Filter Route Menu ----------------------------------------------------------------------------------------------
-filter::FilterRouting filterRoutingMenu{"ROUTE", "Filter Routing"};
+FilterRouting filterRoutingMenu{HAVE_OLED ? "Filter Route" : "ROUT"};
 
 // Envelope menu ----------------------------------------------------------------------------------------------------
 

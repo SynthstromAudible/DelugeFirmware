@@ -578,7 +578,7 @@ enum class SynthMode {
 	FM,
 	RINGMOD,
 };
-constexpr int kNumSynthModes = util::to_underlying(SynthMode::RINGMOD) + 1;
+constexpr int kNumSynthModes = util::to_underlying(::SynthMode::RINGMOD) + 1;
 
 enum class ModFXType {
 	NONE,
