@@ -100,7 +100,8 @@ private:
 	void armClipsAlongWithExistingLaunching(ArmState armState, uint8_t section,
 			Clip *clip);
 	void armClipsWithNothingToSyncTo(uint8_t section, Clip *clip);
-	void scheduleFillClips(Clip *clip);
+	void scheduleFillClip(Clip *clip);
+	void scheduleFillClips(uint8_t section);
 };
 
 extern Session session;
