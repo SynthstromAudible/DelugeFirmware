@@ -1164,10 +1164,10 @@ char const* lpfTypeToString(FilterMode lpfType) {
 
 	case FilterMode::TRANSISTOR_24DB_DRIVE:
 		return "24dBDrive";
-
 	case FilterMode::SVF:
 		return "SVF";
-
+	case FilterMode::HPLADDER:
+		return "HPLadder";
 	default:
 		return "24dB";
 	}
@@ -1182,6 +1182,9 @@ FilterMode stringToLPFType(char const* string) {
 	}
 	else if (!strcmp(string, "SVF")) {
 		return FilterMode::SVF;
+	}
+	else if (!strcmp(string, "HPLadder")) {
+		return FilterMode::HPLADDER;
 	}
 	else {
 		return FilterMode::TRANSISTOR_12DB;

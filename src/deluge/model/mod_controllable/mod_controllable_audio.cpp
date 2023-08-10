@@ -57,7 +57,8 @@ ModControllableAudio::ModControllableAudio() {
 	// Stutter
 	stutterer.sync = 7;
 	stutterer.status = STUTTERER_STATUS_OFF;
-
+	lpfMode = FilterMode::TRANSISTOR_24DB;
+	hpfMode = FilterMode::HPLADDER;
 	filterRoute = FilterRoute::HIGH_TO_LOW;
 
 	// Sample rate reduction
@@ -78,6 +79,7 @@ ModControllableAudio::~ModControllableAudio() {
 
 void ModControllableAudio::cloneFrom(ModControllableAudio* other) {
 	lpfMode = other->lpfMode;
+	hpfMode = other->hpfMode;
 	clippingAmount = other->clippingAmount;
 	modFXType = other->modFXType;
 	bassFreq = other->bassFreq; // Eventually, these shouldn't be variables like this
@@ -985,6 +987,7 @@ inline void ModControllableAudio::doEQ(bool doBass, bool doTreble, int32_t* inpu
 
 void ModControllableAudio::writeAttributesToFile() {
 	storageManager.writeAttribute("lpfMode", (char*)lpfTypeToString(lpfMode));
+	storageManager.writeAttribute("lpfMode", (char*)lpfTypeToString(hpfMode));
 	storageManager.writeAttribute("modFXType", (char*)fxTypeToString(modFXType));
 	storageManager.writeAttribute("filterRoute", (char*)filterRouteToString(filterRoute));
 	if (clippingAmount) {
@@ -1144,6 +1147,10 @@ int32_t ModControllableAudio::readTagFromFile(char const* tagName, ParamManagerF
 	if (!strcmp(tagName, "lpfMode")) {
 		lpfMode = stringToLPFType(storageManager.readTagOrAttributeValue());
 		storageManager.exitTag("lpfMode");
+	}
+	if (!strcmp(tagName, "hpfMode")) {
+		lpfMode = stringToLPFType(storageManager.readTagOrAttributeValue());
+		storageManager.exitTag("hpfMode");
 	}
 	else if (!strcmp(tagName, "filterRoute")) {
 		filterRoute = stringToFilterRoute(storageManager.readTagOrAttributeValue());
