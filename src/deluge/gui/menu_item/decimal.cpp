@@ -17,6 +17,7 @@
 
 #include <cmath>
 #include <cstring>
+#include <stdint.h>
 
 #include "decimal.h"
 #include "gui/ui/sound_editor.h"
@@ -114,12 +115,12 @@ void Decimal::scrollToGoodPos() {
 
 	// Negative numbers
 	if (this->getValue() < 0) {
-		soundEditor.numberScrollAmount = std::max<int8_t>(numDigits - 3, soundEditor.numberEditPos - 2);
+		soundEditor.numberScrollAmount = std::max<int32_t>(numDigits - 3, soundEditor.numberEditPos - 2);
 	}
 
 	// Positive numbers
 	else {
-		soundEditor.numberScrollAmount = std::max<int8_t>(numDigits - 4, soundEditor.numberEditPos - 3);
+		soundEditor.numberScrollAmount = std::max<int32_t>(numDigits - 4, soundEditor.numberEditPos - 3);
 	}
 
 	if (soundEditor.numberScrollAmount < 0) {
