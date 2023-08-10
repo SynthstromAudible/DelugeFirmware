@@ -1597,7 +1597,7 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 
 					// Make sure it doesn't eat into the next note
 					int32_t maxLength = noteRow->getDistanceToNextNote(noteStartPos, modelStackWithNoteRow);
-					newLength = std::min<int32_t>(newLength, maxLength);
+					newLength = std::min(newLength, maxLength);
 
 					areaStart = noteStartPos;
 					areaWidth = newLength;

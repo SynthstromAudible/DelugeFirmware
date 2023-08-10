@@ -21,6 +21,7 @@
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/sound_editor.h"
 #include "util/functions.h"
+#include <limits>
 
 namespace deluge::gui::ui::keyboard::layout {
 
@@ -121,7 +122,7 @@ void KeyboardLayoutIsomorphic::renderPads(uint8_t image[][kDisplayWidth + kSideB
 				if (soundEditor.isUntransposedNoteWithinRange(noteCode)) {
 					for (int32_t colour = 0; colour < 3; colour++) {
 						int32_t value = (int32_t)image[y][x][colour] + 35;
-						image[y][x][colour] = std::min<uint8_t>(value, 255);
+						image[y][x][colour] = std::min<int32_t>(value, std::numeric_limits<uint8_t>::max());
 					}
 				}
 			}

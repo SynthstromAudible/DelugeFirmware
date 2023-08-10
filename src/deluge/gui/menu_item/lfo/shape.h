@@ -17,6 +17,7 @@
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/selection.h"
+#include <string>
 
 namespace deluge::gui::menu_item::lfo {
 
