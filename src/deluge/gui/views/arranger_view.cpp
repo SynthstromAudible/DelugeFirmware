@@ -1696,20 +1696,16 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 		// If going to automationInstrumentClipView...
 		else if (((InstrumentClip*)clip)->onAutomationInstrumentClipView) {
 			instrumentClipView.recalculateColours();
-
 			automationInstrumentClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1],
 			                                            &PadLEDs::occupancyMaskStore[1], false);
-
 			instrumentClipView.fillOffScreenImageStores();
 		}
 
 		// Or if just regular old InstrumentClipView
 		else {
 			instrumentClipView.recalculateColours();
-
 			instrumentClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
 			                                  false);
-
 			instrumentClipView.fillOffScreenImageStores();
 		}
 	}
