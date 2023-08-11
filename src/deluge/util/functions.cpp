@@ -466,10 +466,6 @@ char const* getPatchedParamDisplayNameForOled(int32_t p) {
 
 	case Param::Local::CARRIER_1_FEEDBACK:
 		return "Carrier2 feed.";
-
-	default:
-		__builtin_unreachable();
-		return NULL;
 	}
 }
 #endif
