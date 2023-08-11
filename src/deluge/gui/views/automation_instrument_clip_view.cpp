@@ -368,6 +368,10 @@ bool AutomationInstrumentClipView::opened() {
 		uiTimerManager.setTimer(TIMER_AUTOMATION_VIEW, 700);
 	}
 
+	if (instrument->type == InstrumentType::CV) {
+		displayCVErrorMessage();
+	}
+
 	resetShortcutBlinking();
 
 	openedInBackground();
@@ -689,7 +693,7 @@ void AutomationInstrumentClipView::renderAutomationEditor(ModelStackWithTimeline
 		}
 
 		renderRow(modelStackWithParam, image, occupancyMask, true, effectiveLength, true, xScroll, xZoom, 0,
-		          renderWidth, false, yDisplay);
+		          renderWidth, false, yDisplay, modelStackWithParam->autoParam->isAutomated());
 
 		if (drawUndefinedArea == true) {
 
@@ -699,18 +703,14 @@ void AutomationInstrumentClipView::renderAutomationEditor(ModelStackWithTimeline
 	}
 }
 
-//this function started off as a copy of the renderRow function from the NoteRow class
-//replaced "notes" with "nodes"
-//it worked for the most part, but there's bugs
-//so I'm leaving it here in case I can get it working
-//instead of using the rest of the function, I inserted my other rendering code at the top which always works
+//this function started off as a copy of the renderRow function from the NoteRow class - I replaced "notes" with "nodes"
+//it worked for the most part, but there was bugs so I removed the buggy code and inserted my alternative rendering method
+//which always works. hoping to bring back the other code once I've worked out the bugs.
 void AutomationInstrumentClipView::renderRow(ModelStackWithAutoParam* modelStack, uint8_t* image,
                                              uint8_t occupancyMask[], bool overwriteExisting,
                                              uint32_t effectiveRowLength, bool allowNoteTails, int32_t xScroll,
                                              uint32_t xZoom, int32_t xStartNow, int32_t xEnd, bool drawRepeats,
-                                             int32_t yDisplay) {
-
-	//if (!modelStack->autoParam->nodes.getNumElements()) {
+                                             int32_t yDisplay, bool isAutomated) {
 
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 
@@ -722,125 +722,15 @@ void AutomationInstrumentClipView::renderRow(ModelStackWithAutoParam* modelStack
 		uint8_t* pixel = image + (xDisplay * 3);
 
 		if (knobPos != 0 && knobPos >= yDisplay * kParamValueIncrementForAutomationDisplay) {
-			memcpy(pixel, &rowColour[yDisplay], 3);
+			if (isAutomated) { //automated, render bright colour
+				memcpy(pixel, &rowColour[yDisplay], 3);
+			}
+			else { //not automated, render less bright tail colour
+				memcpy(pixel, &rowTailColour[yDisplay], 3);
+			}
 			occupancyMask[xDisplay] = 64;
 		}
 	}
-
-	return;
-	//}
-
-	//disabling the rest of this code for now as it's not working properly
-
-	/*
-	int32_t squareEndPos[kMaxImageStoreWidth];
-	int32_t searchTerms[kMaxImageStoreWidth];
-
-	int32_t whichRepeat = 0;
-
-	int32_t xEndNow;
-
-	do {
-		// Start by presuming we'll do all the squares now... though we may decide in a second to do a smaller number now, and come back for more batches
-		xEndNow = xEnd;
-
-		// For each square we might do now...
-		for (int32_t square = xStartNow; square < xEndNow; square++) {
-
-			// Work out its endPos...
-			int32_t thisSquareEndPos = getPosFromSquare(square + 1, xScroll, xZoom) - effectiveRowLength * whichRepeat;
-
-			// If we're drawing repeats and the square ends beyond end of Clip...
-			if (drawRepeats && thisSquareEndPos > effectiveRowLength) {
-
-				// If this is the first square we're doing now, we can take a shortcut to skip forward some repeats
-				if (square == xStartNow) {
-					int32_t numExtraRepeats = (uint32_t)(thisSquareEndPos - 1) / effectiveRowLength;
-					whichRepeat += numExtraRepeats;
-					thisSquareEndPos -= numExtraRepeats * effectiveRowLength;
-				}
-
-				// Otherwise, we'll come back in a moment to do the rest of the repeats - just record that we want to stop rendering before this square until then
-				else {
-					xEndNow = square;
-					break;
-				}
-			}
-
-			squareEndPos[square - xStartNow] = thisSquareEndPos;
-		}
-
-		memcpy(searchTerms, squareEndPos, sizeof(squareEndPos));
-
-		modelStack->autoParam->nodes.searchMultiple(searchTerms, xEndNow - xStartNow);
-
-		int32_t thisSquareStartPos = getPosFromSquare(xStartNow, xScroll, xZoom) - effectiveRowLength * whichRepeat;
-
-		//int32_t thisSquareEndPos = getPosFromSquare(xStartNow + 1, xScroll, xZoom) - effectiveRowLength * whichRepeat;
-
-		for (int32_t xDisplay = xStartNow; xDisplay < xEndNow; xDisplay++) {
-			if (xDisplay != xStartNow) {
-				thisSquareStartPos = squareEndPos[xDisplay - xStartNow - 1];
-				//thisSquareEndPos = squareEndPos[xDisplay - xStartNow];
-			}
-			int32_t i = searchTerms[xDisplay - xStartNow];
-
-			ParamNode* node = modelStack->autoParam->nodes.getElement(i - 1); // Subtracting 1 to do "LESS"
-
-			uint8_t* pixel = image + xDisplay * 3;
-
-			int32_t currentValue = modelStack->autoParam->getValueAtPos(thisSquareStartPos, modelStack);
-			int32_t knobPos = modelStack->paramCollection->paramValueToKnobPos(currentValue, modelStack);
-
-			knobPos = knobPos + kKnobPosOffset;
-
-			if (knobPos != 0 && knobPos >= yDisplay * kParamValueIncrementForAutomationDisplay) {
-
-				// If Node starts somewhere within square, draw the blur colour
-				if (node && node->pos > thisSquareStartPos) {
-
-					memcpy(pixel, &rowBlurColour[yDisplay], 3);
-					occupancyMask[xDisplay] = 64;
-				}
-
-				// Or if Node starts exactly on square...
-				else if (node && node->pos == thisSquareStartPos) {
-					memcpy(pixel, &rowColour[yDisplay], 3);
-					occupancyMask[xDisplay] = 64;
-				}
-
-				// Draw wrapped notes
-				//	else if (node && node->pos < thisSquareEndPos) {
-				//		memcpy(pixel, &rowTailColour[yDisplay], 3);
-				//		occupancyMask[xDisplay] = 64;
-				//	}
-
-				//Draw wrapped notes
-				else if (!drawRepeats || whichRepeat) {
-					bool wrapping = (i == 0); // Subtracting 1 to do "LESS"
-					                          //	if (wrapping) {
-					//		int32_t lastNodeIndex = modelStack->autoParam->nodes.getNumElements() - 1;
-					//		node = modelStack->autoParam->nodes.getElement(lastNodeIndex);
-					//	}
-					int32_t nodeEnd = effectiveRowLength - 1;
-					if (wrapping) {
-						nodeEnd -= effectiveRowLength;
-					}
-					if (nodeEnd > thisSquareStartPos && allowNoteTails) {
-						memcpy(pixel, &rowTailColour[yDisplay], 3);
-						occupancyMask[xDisplay] = 64;
-					}
-				}
-			}
-		}
-
-		xStartNow = xEndNow;
-		whichRepeat++;
-		// TODO: if we're gonna repeat, we probably don't need to do the multi search again...
-	} while (
-	    xStartNow
-	    != xEnd); // This will only do another repeat if we'd modified xEndNow, which can only happen if drawRepeats
-	*/
 }
 
 //easter egg lol. it is rendered when you press the CV clip button as you can't use automation view there
@@ -1114,6 +1004,7 @@ doOther:
 	else if (b == CV) {
 		initParameterSelection();
 		resetShortcutBlinking();
+		displayCVErrorMessage();
 
 		if (on) {
 			if (inCardRoutine) {
@@ -1353,6 +1244,11 @@ ActionResult AutomationInstrumentClipView::padAction(int32_t x, int32_t y, int32
 
 	InstrumentClip* clip = getCurrentClip();
 	Instrument* instrument = (Instrument*)clip->output;
+
+	if (instrument->type == InstrumentType::CV) {
+		displayCVErrorMessage();
+		return ActionResult::DEALT_WITH;
+	}
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -3115,6 +3011,10 @@ void AutomationInstrumentClipView::displayParameterValue(int32_t knobPos) {
 	numericDriver.displayPopup(buffer, 3);
 
 	setDisplayParameterNameTimer();
+}
+
+void AutomationInstrumentClipView::displayCVErrorMessage() {
+	numericDriver.displayPopup(HAVE_OLED ? "Can't Automate CV" : "CANT");
 }
 
 void AutomationInstrumentClipView::setDisplayParameterNameTimer() {
