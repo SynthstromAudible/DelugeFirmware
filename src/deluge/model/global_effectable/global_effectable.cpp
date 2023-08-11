@@ -200,9 +200,18 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 			return false;
 		}
 		else {
-			if (on && currentFilterType == FilterType::LPF) {
-				switchLPFMode();
-				return true;
+			if (on) {
+				if (currentFilterType == FilterType::LPF) {
+					switchLPFMode();
+					return true;
+				}
+				else if (currentFilterType == FilterType::HPF) {
+					switchHPFMode();
+					return true;
+				}
+				else {
+					return false;
+				}
 			}
 
 			else {
@@ -408,12 +417,13 @@ void GlobalEffectable::setupFilterSetConfig(int32_t* postFXVolume, ParamManager*
 	              || unpatchedParams->getValue(Param::Unpatched::GlobalEffectable::LPF_FREQ) < 2147483602);
 	bool doHPF = unpatchedParams->getValue(Param::Unpatched::GlobalEffectable::HPF_FREQ) != -2147483648;
 
-	*postFXVolume = filterSet.setConfig(lpfFrequency, lpfResonance, doLPF, lpfMode, hpfFrequency, hpfResonance, doHPF,
-	                                    FilterMode::HPLADDER, *postFXVolume, false, NULL);
+	//no morph for global effectable
+	*postFXVolume = filterSet.setConfig(lpfFrequency, lpfResonance, doLPF, lpfMode, 0, hpfFrequency, hpfResonance,
+	                                    doHPF, FilterMode::HPLADDER, 0, *postFXVolume, filterRoute, false, NULL);
 }
 
 void GlobalEffectable::processFilters(StereoSample* buffer, int32_t numSamples) {
-	filterSet.renderLongStereo(&buffer->l, &(buffer + numSamples)->l, 2);
+	filterSet.renderLongStereo(&buffer->l, &(buffer + numSamples)->l);
 }
 
 void GlobalEffectable::writeAttributesToFile(bool writeAutomation) {

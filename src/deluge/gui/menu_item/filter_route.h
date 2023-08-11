@@ -22,15 +22,17 @@
 #include "processing/sound/sound.h"
 #include "util/misc.h"
 
-namespace deluge::gui::menu_item::filter {
-class LPFMode final : public Selection<kNumLPFModes> {
+namespace deluge::gui::menu_item {
+class FilterRouting final : public Selection<kNumFilterRoutes> {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->setValue<::FilterMode>(soundEditor.currentModControllable->lpfMode); }
-	void writeCurrentValue() override { soundEditor.currentModControllable->lpfMode = this->getValue<::FilterMode>(); }
-	static_vector<std::string, capacity()> getOptions() override { return {"12dB", "24dB", "Drive", "SVF"}; }
+	void readCurrentValue() override { this->setValue<::FilterRoute>(soundEditor.currentModControllable->filterRoute); }
+	void writeCurrentValue() override {
+		soundEditor.currentModControllable->filterRoute = this->getValue<::FilterRoute>();
+	}
+	static_vector<std::string, capacity()> getOptions() override { return {"HPF2LPF", "LPF2HPF", "PARALLEL"}; }
 	bool isRelevant(Sound* sound, int32_t whichThing) override {
 		return ((sound == nullptr) || sound->synthMode != ::SynthMode::FM);
 	}
 };
-} // namespace deluge::gui::menu_item::filter
+} // namespace deluge::gui::menu_item
