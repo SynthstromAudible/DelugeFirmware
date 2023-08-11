@@ -34,13 +34,14 @@ char emptySpacesMemoryInternal[sizeof(EmptySpaceRecord) * 1024];
 
 extern uint32_t __heap_start;
 extern uint32_t __heap_end;
+extern uint32_t program_stack_start;
 
 GeneralMemoryAllocator::GeneralMemoryAllocator() {
 	lock = false;
 	regions[MEMORY_REGION_SDRAM].setup(emptySpacesMemory, sizeof(emptySpacesMemory), EXTERNAL_MEMORY_BEGIN,
 	                                   EXTERNAL_MEMORY_END);
 	regions[MEMORY_REGION_INTERNAL].setup(emptySpacesMemoryInternal, sizeof(emptySpacesMemoryInternal),
-	                                      (uint32_t)&__heap_start, kInternalMemoryEnd - 8192);
+	                                      (uint32_t)&__heap_start, (uint32_t)&program_stack_start);
 
 #if ALPHA_OR_BETA_VERSION
 	regions[MEMORY_REGION_SDRAM].name = "external";
