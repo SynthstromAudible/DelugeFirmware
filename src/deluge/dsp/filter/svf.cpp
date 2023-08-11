@@ -19,23 +19,23 @@
 #include "util/functions.h"
 #include <cstdint>
 namespace deluge::dsp::filter {
-void SVFilter::doFilter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrememt, int32_t extraSaturation) {
+void SVFilter::doFilter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrememt) {
 	q31_t* currentSample = startSample;
 	do {
 		q31_t outs = doSVF(*currentSample, l);
-		*currentSample = outs << 1;
+		*currentSample = outs;
 
 		currentSample += sampleIncrememt;
 	} while (currentSample < endSample);
 }
-void SVFilter::doFilterStereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation) {
+void SVFilter::doFilterStereo(q31_t* startSample, q31_t* endSample) {
 	q31_t* currentSample = startSample;
 	do {
 		q31_t outs = doSVF(*currentSample, l);
 
-		*currentSample = outs << 1;
+		*currentSample = outs;
 		q31_t outs2 = doSVF(*(currentSample + 1), r);
-		*(currentSample + 1) = outs2 << 1;
+		*(currentSample + 1) = outs2;
 		currentSample += 2;
 	} while (currentSample < endSample);
 }
@@ -98,7 +98,7 @@ inline q31_t SVFilter::doSVF(int32_t input, SVFState& state) {
 	result = multiply_accumulate_32x32_rshift32_rounded(result, highi + high, c_high);
 	result = multiply_accumulate_32x32_rshift32_rounded(result, bandi + band, c_band);
 	//result = multiply_accumulate_32x32_rshift32_rounded(0, notchi+notch, c_notch);
-	result = result << 1; //compensate for division by two on each multiply
+	result = 2 * result; //compensate for division by two on each multiply
 
 	state.low = low;
 	state.band = band;

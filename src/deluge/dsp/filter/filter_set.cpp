@@ -33,58 +33,56 @@ FilterSet::FilterSet() {
 }
 q31_t tempRenderBuffer[SSI_TX_BUFFER_NUM_SAMPLES];
 
-void FilterSet::renderHPFLong(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement, int32_t extraSaturation) {
+void FilterSet::renderHPFLong(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement) {
 	if (HPFOn) {
 		if (hpfMode_ == FilterMode::HPLADDER) {
-			hpladder.filterMono(startSample, endSample, sampleIncrement, extraSaturation);
+			hpladder.filterMono(startSample, endSample, sampleIncrement);
 		}
 		else if (hpfMode_ == FilterMode::HPSVF) {
-			hpsvf.filterMono(startSample, endSample, sampleIncrement, extraSaturation);
+			hpsvf.filterMono(startSample, endSample, sampleIncrement);
 		}
 	}
 }
-void FilterSet::renderHPFLongStereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation) {
+void FilterSet::renderHPFLongStereo(q31_t* startSample, q31_t* endSample) {
 	if (HPFOn) {
-		hpladder.filterStereo(startSample, endSample, extraSaturation);
+		hpladder.filterStereo(startSample, endSample);
 	}
 }
 
-void FilterSet::renderLPFLong(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement, int32_t extraSaturation,
-                              int32_t extraSaturationDrive) {
+void FilterSet::renderLPFLong(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement) {
 	if (LPFOn) {
 		if (lpfMode_ == FilterMode::SVF) {
 			lpsvf.filterMono(startSample, endSample, sampleIncrement);
 		}
 		else {
-			lpladder.filterMono(startSample, endSample, sampleIncrement, extraSaturation);
+			lpladder.filterMono(startSample, endSample, sampleIncrement);
 		}
 	}
 }
 
-void FilterSet::renderLPFLongStereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation) {
+void FilterSet::renderLPFLongStereo(q31_t* startSample, q31_t* endSample) {
 	if (LPFOn) {
 		if (lpfMode_ == FilterMode::SVF) {
 
-			lpsvf.filterStereo(startSample, endSample, extraSaturation);
+			lpsvf.filterStereo(startSample, endSample);
 		}
 		else {
 
-			lpladder.filterStereo(startSample, endSample, extraSaturation);
+			lpladder.filterStereo(startSample, endSample);
 		}
 	}
 }
-void FilterSet::renderLong(q31_t* startSample, q31_t* endSample, int32_t numSamples, int32_t sampleIncrememt,
-                           int32_t extraSaturation) {
+void FilterSet::renderLong(q31_t* startSample, q31_t* endSample, int32_t numSamples, int32_t sampleIncrememt) {
 	switch (routing_) {
 	case FilterRoute::HIGH_TO_LOW:
 
 		renderHPFLong(startSample, endSample, sampleIncrememt);
-		renderLPFLong(startSample, endSample, sampleIncrememt, extraSaturation, extraSaturation >> 1);
+		renderLPFLong(startSample, endSample, sampleIncrememt);
 
 		break;
 	case FilterRoute::LOW_TO_HIGH:
 
-		renderLPFLong(startSample, endSample, sampleIncrememt, extraSaturation, extraSaturation >> 1);
+		renderLPFLong(startSample, endSample, sampleIncrememt);
 		renderHPFLong(startSample, endSample, sampleIncrememt);
 
 		break;
@@ -105,21 +103,21 @@ void FilterSet::renderLong(q31_t* startSample, q31_t* endSample, int32_t numSamp
 	}
 }
 //expects to receive an interleaved stereo stream
-void FilterSet::renderLongStereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation) {
+void FilterSet::renderLongStereo(q31_t* startSample, q31_t* endSample) {
 	// Do HPF, if it's on
 	switch (routing_) {
 	case FilterRoute::HIGH_TO_LOW:
 
-		renderHPFLongStereo(startSample, endSample, extraSaturation);
+		renderHPFLongStereo(startSample, endSample);
 
-		renderLPFLongStereo(startSample, endSample, extraSaturation);
+		renderLPFLongStereo(startSample, endSample);
 
 		break;
 	case FilterRoute::LOW_TO_HIGH:
 
-		renderLPFLongStereo(startSample, endSample, extraSaturation);
+		renderLPFLongStereo(startSample, endSample);
 
-		renderHPFLongStereo(startSample, endSample, extraSaturation);
+		renderHPFLongStereo(startSample, endSample);
 
 		break;
 	case FilterRoute::PARALLEL:
@@ -127,9 +125,9 @@ void FilterSet::renderLongStereo(q31_t* startSample, q31_t* endSample, int32_t e
 
 		memcpy(tempRenderBuffer, startSample, length * sizeof(q31_t));
 
-		renderHPFLongStereo(tempRenderBuffer, tempRenderBuffer + length, extraSaturation);
+		renderHPFLongStereo(tempRenderBuffer, tempRenderBuffer + length);
 
-		renderLPFLongStereo(startSample, endSample, extraSaturation);
+		renderLPFLongStereo(startSample, endSample);
 
 		for (int i = 0; i < length; i++) {
 			startSample[i] += tempRenderBuffer[i];

@@ -28,8 +28,8 @@ public:
 	SVFilter() = default;
 	//returns a compensatory gain value
 	q31_t setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMode lpfMode, q31_t filterGain);
-	void doFilter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrememt, int32_t extraSaturation);
-	void doFilterStereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation);
+	void doFilter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrememt);
+	void doFilterStereo(q31_t* startSample, q31_t* endSample);
 	void resetFilter() {
 		l = (SVFState){0, 0};
 		r = (SVFState){0, 0};

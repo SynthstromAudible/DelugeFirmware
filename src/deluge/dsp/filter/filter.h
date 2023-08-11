@@ -51,8 +51,8 @@ public:
 	 * @param sampleIncrement increment between samples
 	 * @param extraSaturation extra saturation value
 	*/
-	void filterMono(q31_t* startSample, q31_t* endSample, int32_t sampleIncrememt = 1, int32_t extraSaturation = 1) {
-		static_cast<T*>(this)->doFilter(startSample, endSample, sampleIncrememt, extraSaturation);
+	void filterMono(q31_t* startSample, q31_t* endSample, int32_t sampleIncrememt = 11) {
+		static_cast<T*>(this)->doFilter(startSample, endSample, sampleIncrememt);
 	}
 	/**
 	 * Filter a buffer of interleaved stereo samples from startSample to endSample incrememnting by the increment
@@ -60,8 +60,8 @@ public:
 	 * @param endSample pointer to last sample
 	 * @param extraSaturation extra saturation value
 	*/
-	void filterStereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation = 1) {
-		static_cast<T*>(this)->doFilterStereo(startSample, endSample, extraSaturation);
+	void filterStereo(q31_t* startSample, q31_t* endSample) {
+		static_cast<T*>(this)->doFilterStereo(startSample, endSample);
 		;
 	}
 	/**

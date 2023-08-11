@@ -413,7 +413,7 @@ void GlobalEffectable::setupFilterSetConfig(int32_t* postFXVolume, ParamManager*
 }
 
 void GlobalEffectable::processFilters(StereoSample* buffer, int32_t numSamples) {
-	filterSet.renderLongStereo(&buffer->l, &(buffer + numSamples)->l, 2);
+	filterSet.renderLongStereo(&buffer->l, &(buffer + numSamples)->l);
 }
 
 void GlobalEffectable::writeAttributesToFile(bool writeAutomation) {
