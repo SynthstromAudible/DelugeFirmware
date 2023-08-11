@@ -1472,6 +1472,9 @@ void AutomationInstrumentClipView::auditionPadAction(int32_t velocity, int32_t y
 	// If Kit...
 	if (isKit) {
 
+		//if we're in a kit, and you press an audition pad
+		//check if it's a audition pad corresponding to the current selected drum
+		//if not, change the drum selection, refresh parameter selection and go back to automation overview
 		if (modelStackWithNoteRowOnCurrentClip->getNoteRowAllowNull()) {
 			drum = modelStackWithNoteRowOnCurrentClip->getNoteRow()->drum;
 			if (((Kit*)instrument)->selectedDrum != drum) {
@@ -1583,20 +1586,6 @@ void AutomationInstrumentClipView::auditionPadAction(int32_t velocity, int32_t y
 
 		// If note on...
 		if (velocity) {
-			//if we're in a kit, and you press an audition pad
-			//check if it's a audition pad corresponding to the current selected drum
-			//if not, change the drum selection, refresh parameter selection and go back to automation overview
-			if (isKit) {
-				if (modelStackWithNoteRowOnCurrentClip->getNoteRowAllowNull()) {
-					Drum* drum = modelStackWithNoteRowOnCurrentClip->getNoteRow()->drum;
-					if (((Kit*)instrument)->selectedDrum != drum) {
-						if (!instrumentClipView.getAffectEntire()) {
-							initParameterSelection();
-						}
-					}
-				}
-			}
-
 			int32_t velocityToSound = velocity;
 			if (velocityToSound == USE_DEFAULT_VELOCITY) {
 				velocityToSound = instrument->defaultVelocity;
