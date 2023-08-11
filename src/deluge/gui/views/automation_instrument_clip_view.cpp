@@ -2941,13 +2941,13 @@ void AutomationInstrumentClipView::displayParameterName(int32_t paramID) {
 #if HAVE_OLED
 
 		if (clip->lastSelectedParamKind == Param::Kind::PATCHED) {
-			strcpy(buffer, getPatchedParamDisplayNameForOLED(paramID));
+			strncpy(buffer, getPatchedParamDisplayNameForOLED(paramID), 29);
 		}
 		else if (clip->lastSelectedParamKind == Param::Kind::UNPATCHED) {
-			strcpy(buffer, getUnpatchedParamDisplayNameForOLED(paramID));
+			strncpy(buffer, getUnpatchedParamDisplayNameForOLED(paramID), 29);
 		}
 		else if (clip->lastSelectedParamKind == Param::Kind::GLOBAL_EFFECTABLE) {
-			strcpy(buffer, getGlobalEffectableParamDisplayNameForOLED(paramID));
+			strncpy(buffer, getGlobalEffectableParamDisplayNameForOLED(paramID), 29);
 		}
 
 		if (isAutomated) {
