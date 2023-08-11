@@ -100,7 +100,7 @@ InstrumentClip::InstrumentClip(Song* song) : Clip(CLIP_TYPE_INSTRUMENT) {
 	//initialize automation instrument clip view variables
 	onAutomationInstrumentClipView = false;
 	lastSelectedParamID = kNoLastSelectedParamID;
-	lastSelectedParamType = kNoLastSelectedParamType;
+	lastSelectedParamKind = Param::Kind::NONE;
 	lastSelectedParamShortcutX = kNoLastSelectedParamShortcutX;
 	lastSelectedParamShortcutY = kNoLastSelectedParamShortcutY;
 	lastSelectedParamArrayPosition = 0;
@@ -2190,10 +2190,11 @@ void InstrumentClip::writeDataToFile(Song* song) {
 	}
 	if (lastSelectedParamID != kNoLastSelectedParamID) {
 		storageManager.writeAttribute("lastSelectedParamID", lastSelectedParamID);
-		storageManager.writeAttribute("lastSelectedParamType", lastSelectedParamType);
+		storageManager.writeAttribute("lastSelectedParamKind", util::to_underlying(lastSelectedParamKind));
 		storageManager.writeAttribute("lastSelectedParamShortcutX", lastSelectedParamShortcutX);
 		storageManager.writeAttribute("lastSelectedParamShortcutY", lastSelectedParamShortcutY);
 		storageManager.writeAttribute("lastSelectedParamArrayPosition", lastSelectedParamArrayPosition);
+		storageManager.writeAttribute("lastSelectedInstrumentType", util::to_underlying(lastSelectedInstrumentType));
 	}
 	if (wrapEditing) {
 		storageManager.writeAttribute("crossScreenEditLevel", wrapEditLevel);
@@ -2447,8 +2448,8 @@ someError:
 			lastSelectedParamID = storageManager.readTagOrAttributeValueInt();
 		}
 
-		else if (!strcmp(tagName, "lastSelectedParamType")) {
-			lastSelectedParamType = storageManager.readTagOrAttributeValueInt();
+		else if (!strcmp(tagName, "lastSelectedParamKind")) {
+			lastSelectedParamKind = static_cast<Param::Kind>(storageManager.readTagOrAttributeValueInt());
 		}
 
 		else if (!strcmp(tagName, "lastSelectedParamShortcutX")) {
@@ -2461,6 +2462,10 @@ someError:
 
 		else if (!strcmp(tagName, "lastSelectedParamArrayPosition")) {
 			lastSelectedParamArrayPosition = storageManager.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "lastSelectedInstrumentType")) {
+			lastSelectedInstrumentType = static_cast<InstrumentType>(storageManager.readTagOrAttributeValueInt());
 		}
 
 		else if (!strcmp(tagName, "affectEntire")) {

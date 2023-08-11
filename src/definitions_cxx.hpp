@@ -362,7 +362,6 @@ constexpr PatchSource kFirstLocalSource = PatchSource::ENVELOPE_0;
 
 //Automation Instrument Clip View constants
 constexpr int32_t kNoLastSelectedParamID = 255;
-constexpr int32_t kNoLastSelectedParamType = 255;
 constexpr int32_t kNoLastSelectedParamShortcutX = 255;
 constexpr int32_t kNoLastSelectedParamShortcutY = 255;
 constexpr int32_t kNumNonGlobalEffectableParamsForAutomation = 51;
@@ -384,6 +383,15 @@ constexpr int32_t kParamValueIncrementForAutomationDisplay = 16;
 using ParamType = uint8_t;
 
 namespace Param {
+
+enum Kind : int32_t {
+	PATCHED,
+	UNPATCHED,
+	GLOBAL_EFFECTABLE,
+
+	NONE,
+};
+
 namespace Local {
 enum : ParamType {
 	// Local linear params begin

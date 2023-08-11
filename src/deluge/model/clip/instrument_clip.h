@@ -142,7 +142,7 @@ public:
 	                                     //(e.g. if you leave clip and want to come back where you left off)
 
 	int32_t lastSelectedParamID;   //last selected Parameter to be edited in Automation Instrument Clip View
-	int32_t lastSelectedParamType; //0 = patched, 1 = unpatched, 2 = global effectable, 3 = midi
+	Param::Kind lastSelectedParamKind; //0 = patched, 1 = unpatched, 2 = global effectable, 3 = none
 	int32_t lastSelectedParamShortcutX;
 	int32_t lastSelectedParamShortcutY;
 	int32_t lastSelectedParamArrayPosition;
