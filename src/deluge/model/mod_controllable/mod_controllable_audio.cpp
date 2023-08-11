@@ -57,6 +57,9 @@ ModControllableAudio::ModControllableAudio() {
 	// Stutter
 	stutterer.sync = 7;
 	stutterer.status = STUTTERER_STATUS_OFF;
+	lpfMode = FilterMode::TRANSISTOR_24DB;
+	hpfMode = FilterMode::HPLADDER;
+	filterRoute = FilterRoute::HIGH_TO_LOW;
 
 	// Sample rate reduction
 	sampleRateReductionOnLastTime = false;
@@ -76,10 +79,12 @@ ModControllableAudio::~ModControllableAudio() {
 
 void ModControllableAudio::cloneFrom(ModControllableAudio* other) {
 	lpfMode = other->lpfMode;
+	hpfMode = other->hpfMode;
 	clippingAmount = other->clippingAmount;
 	modFXType = other->modFXType;
 	bassFreq = other->bassFreq; // Eventually, these shouldn't be variables like this
 	trebleFreq = other->trebleFreq;
+	filterRoute = other->filterRoute;
 	compressor.cloneFrom(&other->compressor);
 	midiKnobArray.cloneFrom(&other->midiKnobArray); // Could fail if no RAM... not too big a concern
 	delay.cloneFrom(&other->delay);
@@ -982,7 +987,9 @@ inline void ModControllableAudio::doEQ(bool doBass, bool doTreble, int32_t* inpu
 
 void ModControllableAudio::writeAttributesToFile() {
 	storageManager.writeAttribute("lpfMode", (char*)lpfTypeToString(lpfMode));
+	storageManager.writeAttribute("hpfMode", (char*)lpfTypeToString(hpfMode));
 	storageManager.writeAttribute("modFXType", (char*)fxTypeToString(modFXType));
+	storageManager.writeAttribute("filterRoute", (char*)filterRouteToString(filterRoute));
 	if (clippingAmount) {
 		storageManager.writeAttribute("clippingAmount", clippingAmount);
 	}
@@ -1135,15 +1142,19 @@ bool ModControllableAudio::readParamTagFromFile(char const* tagName, ParamManage
 int32_t ModControllableAudio::readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager,
                                               int32_t readAutomationUpToPos, Song* song) {
 
-	// All of this is here for compatibility only for people (Lou and Ian) who saved songs with firmware in September 2016
-	//if (paramManager && ModControllableAudio::readParamTagFromFile(tagName, paramManager, readAutomation)) {}
-
 	int32_t p;
 
-	//else
 	if (!strcmp(tagName, "lpfMode")) {
 		lpfMode = stringToLPFType(storageManager.readTagOrAttributeValue());
 		storageManager.exitTag("lpfMode");
+	}
+	else if (!strcmp(tagName, "hpfMode")) {
+		hpfMode = stringToLPFType(storageManager.readTagOrAttributeValue());
+		storageManager.exitTag("hpfMode");
+	}
+	else if (!strcmp(tagName, "filterRoute")) {
+		filterRoute = stringToFilterRoute(storageManager.readTagOrAttributeValue());
+		storageManager.exitTag("filterRoute");
 	}
 
 	else if (!strcmp(tagName, "clippingAmount")) {
@@ -1761,6 +1772,22 @@ void ModControllableAudio::switchLPFMode() {
 		break;
 
 	case FilterMode::SVF:
+		displayText = "SVF";
+		break;
+	}
+	numericDriver.displayPopup(displayText);
+}
+void ModControllableAudio::switchHPFMode() {
+	//this works fine, the offset to the first hpf doesn't matter with the modulus
+	hpfMode = static_cast<FilterMode>((util::to_underlying(hpfMode) + 1) % kNumHPFModes + kNumLPFModes);
+
+	char const* displayText;
+	switch (hpfMode) {
+	case FilterMode::HPLADDER:
+		displayText = "Ladder";
+		break;
+
+	case FilterMode::HPSVF:
 		displayText = "SVF";
 		break;
 	}

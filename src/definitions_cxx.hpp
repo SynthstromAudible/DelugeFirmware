@@ -389,6 +389,8 @@ enum : ParamType {
 	HPF_RESONANCE,
 	ENV_0_SUSTAIN,
 	ENV_1_SUSTAIN,
+	LPF_MORPH,
+	HPF_MORPH,
 
 	// Local hybrid params begin
 	OSC_A_PHASE_WIDTH,
@@ -576,7 +578,7 @@ enum class SynthMode {
 	FM,
 	RINGMOD,
 };
-constexpr int kNumSynthModes = util::to_underlying(SynthMode::RINGMOD) + 1;
+constexpr int kNumSynthModes = util::to_underlying(::SynthMode::RINGMOD) + 1;
 
 enum class ModFXType {
 	NONE,
@@ -619,18 +621,20 @@ enum class FilterMode {
 	TRANSISTOR_24DB_DRIVE, //filter logic relies on ladders being first and contiguous
 	SVF,
 	HPLADDER, //first HPF mode
-	OFF,      //Keep last as a sentinel. Signifies that the filter is not on, used for filter reset logic
+	HPSVF,
+	OFF, //Keep last as a sentinel. Signifies that the filter is not on, used for filter reset logic
 };
 constexpr FilterMode kLastLadder = FilterMode::TRANSISTOR_24DB_DRIVE;
 //Off is not an LPF mode but is used to reset filters
 constexpr int32_t kNumLPFModes = util::to_underlying(FilterMode::HPLADDER);
-
-enum class HPFMode {
-	HPLADDER,
-	OFF, //Keep last as a sentinel. Signifies that the filter is not on, used for filter reset logic
+constexpr int32_t kNumHPFModes = util::to_underlying(FilterMode::OFF) - kNumLPFModes;
+enum class FilterRoute {
+	HIGH_TO_LOW,
+	LOW_TO_HIGH,
+	PARALLEL,
 };
-//Off is not an LPF mode but is used to reset filters
-constexpr int32_t kNumHPFModes = util::to_underlying(HPFMode::OFF);
+
+constexpr int32_t kNumFilterRoutes = util::to_underlying(FilterRoute::PARALLEL) + 1;
 
 constexpr int32_t kNumAllpassFiltersPhaser = 6;
 
