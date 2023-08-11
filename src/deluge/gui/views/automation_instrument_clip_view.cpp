@@ -1260,25 +1260,16 @@ ActionResult AutomationInstrumentClipView::padAction(int32_t x, int32_t y, int32
 
 		//if the user wants to change the parameter they are editing using Shift + Pad shortcut
 		if (velocity) {
-
 			if (Buttons::isShiftButtonPressed()) {
 
 				handleSinglePadPress(modelStack, clip, x, y, true);
 
 				return ActionResult::DEALT_WITH;
 			}
-			//regular automation step editing action
-			else {
-				goto doRegularEditPadActionProbably;
-			}
 		}
-
-		// Regular edit-pad action
-		else {
-doRegularEditPadActionProbably:
-			if (isUIModeWithinRange(editPadActionUIModes)) {
-				editPadAction(velocity, y, x, currentSong->xZoom[NAVIGATION_CLIP]);
-			}
+		//regular automation step editing action
+		if (isUIModeWithinRange(editPadActionUIModes)) {
+			editPadAction(velocity, y, x, currentSong->xZoom[NAVIGATION_CLIP]);
 		}
 	}
 
