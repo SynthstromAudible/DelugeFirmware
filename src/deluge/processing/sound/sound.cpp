@@ -3942,7 +3942,16 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 			return false;
 		}
 	}
-
+	// Switch HPF mode
+	else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(Param::Local::HPF_RESONANCE)) {
+		if (on) {
+			switchHPFMode();
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
 	// Cycle through reverb presets
 	else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(Param::Global::REVERB_AMOUNT)) {
 		if (on) {

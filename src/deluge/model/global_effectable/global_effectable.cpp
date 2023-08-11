@@ -200,9 +200,18 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 			return false;
 		}
 		else {
-			if (on && currentFilterType == FilterType::LPF) {
-				switchLPFMode();
-				return true;
+			if (on) {
+				if (currentFilterType == FilterType::LPF) {
+					switchLPFMode();
+					return true;
+				}
+				else if (currentFilterType == FilterType::HPF) {
+					switchHPFMode();
+					return true;
+				}
+				else {
+					return false;
+				}
 			}
 
 			else {

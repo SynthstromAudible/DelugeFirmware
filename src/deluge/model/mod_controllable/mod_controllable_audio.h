@@ -139,6 +139,7 @@ protected:
 	void switchDelaySyncType();
 	void switchDelaySyncLevel();
 	void switchLPFMode();
+	void switchHPFMode();
 	void clearModFXMemory();
 
 private:
