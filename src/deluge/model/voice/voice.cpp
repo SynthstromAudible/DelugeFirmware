@@ -927,10 +927,10 @@ skipAutoRelease : {}
 	// Checking if filters should run now happens within the filterset
 	filterGain = filterSet.setConfig(
 	    paramFinalValues[Param::Local::LPF_FREQ], paramFinalValues[Param::Local::LPF_RESONANCE], doLPF, sound->lpfMode,
-	    paramFinalValues[Param::Local::HPF_FREQ],
+	    paramFinalValues[Param::Local::LPF_MORPH], paramFinalValues[Param::Local::HPF_FREQ],
 	    (paramFinalValues[Param::Local::HPF_RESONANCE]), // >> storageManager.devVarA) << storageManager.devVarA,
-	    doHPF, FilterMode::HPLADDER,
-	    sound->volumeNeutralValueForUnison << 1); // Level adjustment for unison now happens *before* the filter!
+	    doHPF, sound->hpfMode, paramFinalValues[Param::Local::HPF_MORPH], sound->volumeNeutralValueForUnison << 1,
+	    sound->filterRoute); // Level adjustment for unison now happens *before* the filter!
 
 	SynthMode synthMode = sound->getSynthMode();
 
@@ -1248,7 +1248,7 @@ decidedWhichBufferRenderingInto:
 		if (unisonPartBecameInactive && areAllUnisonPartsInactive(modelStack)) {
 
 			// If no filters, we can just unassign
-			if (!filterSet.isHPFOn() && !filterSet.isLPFOn()) {
+			if (!filterSet.isOn()) {
 				unassignVoiceAfter = true;
 			}
 
