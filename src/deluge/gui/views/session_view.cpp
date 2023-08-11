@@ -2428,8 +2428,7 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 
 			automationInstrumentClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1],
 			                                            &PadLEDs::occupancyMaskStore[1], false);
-			automationInstrumentClipView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1],
-			                                           &PadLEDs::occupancyMaskStore[1]);
+			instrumentClipView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
 
 			// Important that this is done after currentSong->xScroll is changed, above
 			instrumentClipView.fillOffScreenImageStores();

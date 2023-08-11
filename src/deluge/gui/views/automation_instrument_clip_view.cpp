@@ -418,7 +418,8 @@ void AutomationInstrumentClipView::openedInBackground() {
 	if (renderingToStore) {
 		renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[kDisplayHeight], &PadLEDs::occupancyMaskStore[kDisplayHeight],
 		               true);
-		renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[kDisplayHeight], &PadLEDs::occupancyMaskStore[kDisplayHeight]);
+		instrumentClipView.renderSidebar(0xFFFFFFFF, &PadLEDs::imageStore[kDisplayHeight],
+		                                 &PadLEDs::occupancyMaskStore[kDisplayHeight]);
 	}
 	else {
 		uiNeedsRendering(this);
@@ -754,7 +755,9 @@ void AutomationInstrumentClipView::renderLove(uint8_t* image, uint8_t occupancyM
 bool AutomationInstrumentClipView::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
                                                  uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 
-	if (!image) {
+	return instrumentClipView.renderSidebar(whichRows, image, occupancyMask);
+
+	/*if (!image) {
 		return true;
 	}
 
@@ -766,7 +769,7 @@ bool AutomationInstrumentClipView::renderSidebar(uint32_t whichRows, uint8_t ima
 		}
 	}
 
-	return true;
+	return true;*/
 }
 
 //adjust the LED meters
@@ -1687,6 +1690,7 @@ doSilentAudition:
 		}
 
 		renderingNeededRegardlessOfUI(0, 1 << yDisplay);
+		uiNeedsRendering(this);
 	}
 
 getOut:
