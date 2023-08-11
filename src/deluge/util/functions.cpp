@@ -377,6 +377,9 @@ char const* getPatchedParamDisplayNameForOled(int32_t p) {
 	case Param::Local::LPF_FREQ:
 		return "LPF frequency";
 
+	case Param::Local::LPF_MORPH:
+		return "LPF morph";
+
 	case Param::Local::PITCH_ADJUST:
 		return "Pitch";
 
@@ -394,6 +397,9 @@ char const* getPatchedParamDisplayNameForOled(int32_t p) {
 
 	case Param::Local::HPF_FREQ:
 		return "HPF frequency";
+
+	case Param::Local::HPF_MORPH:
+		return "HPF morph";
 
 	case Param::Local::LFO_LOCAL_FREQ:
 		return "LFO2 rate";
