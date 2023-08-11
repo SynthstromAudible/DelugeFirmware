@@ -95,7 +95,7 @@ inline q31_t HpLadderFilter::doHPF(q31_t input, HPLadderState& state) {
 
 	// Only saturate / anti-alias if lots of resonance
 	if (hpfProcessedResonance > 900000000) { // 890551738
-		a = getTanHAntialiased(a, &hpfLastWorkingValue, 2);
+		a = getTanHAntialiased(a, &hpfLastWorkingValue, 1);
 	}
 	else {
 		hpfLastWorkingValue = (uint32_t)lshiftAndSaturate<2>(a) + 2147483648u;
