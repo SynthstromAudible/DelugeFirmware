@@ -604,7 +604,7 @@ void AutomationInstrumentClipView::renderAutomationOverview(ModelStackWithTimeli
 
 		uint8_t* pixel = image + (xDisplay * 3);
 
-		ModelStackWithAutoParam* modelStackWithParam = 0;
+		ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
 		if ((instrument->type == InstrumentType::SYNTH
 		     || (instrument->type == InstrumentType::KIT && !instrumentClipView.getAffectEntire()))
@@ -2585,7 +2585,7 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
                                                                               InstrumentClip* clip, int32_t paramID,
                                                                               Param::Kind paramKind) {
 
-	ModelStackWithAutoParam* modelStackWithParam = 0;
+	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 	Instrument* instrument = (Instrument*)clip->output;
 
 	if (instrument->type == InstrumentType::SYNTH) {
@@ -2594,7 +2594,7 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
 
 		if (modelStackWithThreeMainThings) {
 
-			ParamCollectionSummary* summary = 0;
+			ParamCollectionSummary* summary = nullptr;
 
 			if (paramKind == Param::Kind::PATCHED) {
 				summary = modelStackWithThreeMainThings->paramManager->getPatchedParamSetSummary();
@@ -2631,7 +2631,7 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
 
 						if (modelStackWithThreeMainThings) {
 
-							ParamCollectionSummary* summary = 0;
+							ParamCollectionSummary* summary = nullptr;
 
 							if (paramKind == Param::Kind::PATCHED) {
 								summary = modelStackWithThreeMainThings->paramManager->getPatchedParamSetSummary();
@@ -2659,7 +2659,7 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
 
 			if (modelStackWithThreeMainThings) {
 
-				ParamCollectionSummary* summary = 0;
+				ParamCollectionSummary* summary = nullptr;
 
 				summary = modelStackWithThreeMainThings->paramManager->getUnpatchedParamSetSummary();
 
