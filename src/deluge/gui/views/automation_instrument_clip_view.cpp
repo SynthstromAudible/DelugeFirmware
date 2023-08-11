@@ -1388,7 +1388,7 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 				}
 			}
 
-			if (firstPadX != 255 && firstPadY != 255) {
+			if (firstPadX != 255 && firstPadY != 255 && firstPadX != xDisplay) {
 				handleMultiPadPress(modelStack, clip, firstPadX, firstPadY, xDisplay, yDisplay);
 			}
 		}
@@ -3008,7 +3008,7 @@ void AutomationInstrumentClipView::displayParameterName(int32_t paramID) {
 		}
 
 		if (isAutomated) {
-			strcat(buffer, "\n(automated)");
+			strncat(buffer, "\n(automated)", 30);
 		}
 
 		OLED::popupText(buffer, true);
