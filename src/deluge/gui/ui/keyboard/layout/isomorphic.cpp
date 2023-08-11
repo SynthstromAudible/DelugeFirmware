@@ -31,7 +31,7 @@ void KeyboardLayoutIsomorphic::evaluatePads(PressedPad presses[kMaxNumKeyboardPa
 	currentNotesState = NotesState{}; // Erase active notes
 
 	for (int32_t idxPress = 0; idxPress < kMaxNumKeyboardPadPresses; ++idxPress) {
-		if (presses[idxPress].active) {
+		if (presses[idxPress].active && presses[idxPress].x < kDisplayWidth) {
 			currentNotesState.enableNote(noteFromCoords(presses[idxPress].x, presses[idxPress].y),
 			                             getDefaultVelocity());
 		}
