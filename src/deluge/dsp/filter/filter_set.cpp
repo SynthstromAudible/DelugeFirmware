@@ -136,8 +136,8 @@ void FilterSet::renderLongStereo(q31_t* startSample, q31_t* endSample) {
 	}
 }
 
-int32_t FilterSet::setConfig(int32_t lpfFrequency, int32_t lpfResonance, bool doLPF, FilterMode lpfmode,
-                             int32_t hpfFrequency, int32_t hpfResonance, bool doHPF, FilterMode hpfmode,
+int32_t FilterSet::setConfig(int32_t lpfFrequency, int32_t lpfResonance, bool doLPF, FilterMode lpfmode, q31_t lpfMorph,
+                             int32_t hpfFrequency, int32_t hpfResonance, bool doHPF, FilterMode hpfmode, q31_t hpfMorph,
                              int32_t filterGain, FilterRoute routing, bool adjustVolumeForHPFResonance,
                              int32_t* overallOscAmplitude) {
 	LPFOn = doLPF;
@@ -153,13 +153,13 @@ int32_t FilterSet::setConfig(int32_t lpfFrequency, int32_t lpfResonance, bool do
 			if (lastLPFMode_ != FilterMode::SVF) {
 				lpsvf.reset();
 			}
-			filterGain = lpsvf.configure(lpfFrequency, lpfResonance, lpfmode, filterGain);
+			filterGain = lpsvf.configure(lpfFrequency, lpfResonance, lpfmode, lpfMorph, filterGain);
 		}
 		else {
 			if (lastLPFMode_ > kLastLadder) {
 				lpladder.reset();
 			}
-			filterGain = lpladder.configure(lpfFrequency, lpfResonance, lpfmode, filterGain);
+			filterGain = lpladder.configure(lpfFrequency, lpfResonance, lpfmode, lpfMorph, filterGain);
 		}
 		lastLPFMode_ = lpfMode_;
 	}
@@ -172,13 +172,13 @@ int32_t FilterSet::setConfig(int32_t lpfFrequency, int32_t lpfResonance, bool do
 	// HPF
 	if (HPFOn) {
 		if (hpfMode_ == FilterMode::HPLADDER) {
-			filterGain = hpladder.configure(hpfFrequency, hpfResonance, hpfMode_, filterGain);
+			filterGain = hpladder.configure(hpfFrequency, hpfResonance, hpfmode, hpfMorph, filterGain);
 			if (lastHPFMode_ != hpfMode_) {
 				hpladder.reset();
 			}
 		}
 		else if (hpfMode_ == FilterMode::HPSVF) {
-			filterGain = hpsvf.configure(hpfFrequency, hpfResonance, hpfMode_, filterGain);
+			filterGain = hpsvf.configure(hpfFrequency, hpfResonance, hpfmode, hpfMorph, filterGain);
 			if (lastHPFMode_ != hpfMode_) {
 				hpsvf.reset();
 			}

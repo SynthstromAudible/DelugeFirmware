@@ -96,6 +96,8 @@ int32_t getParamNeutralValue(int32_t p) {
 
 	case Param::Local::LPF_RESONANCE:
 	case Param::Local::HPF_RESONANCE:
+	case Param::Local::LPF_MORPH:
+	case Param::Local::HPF_MORPH:
 		return 25 * 10737418; // Room to be quadrupled
 
 	case Param::Local::PAN:

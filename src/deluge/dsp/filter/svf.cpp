@@ -40,25 +40,20 @@ void SVFilter::doFilterStereo(q31_t* startSample, q31_t* endSample) {
 	} while (currentSample < endSample);
 }
 
-q31_t SVFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMode lpfMode, q31_t filterGain) {
-	curveFrequency(lpfFrequency);
+q31_t SVFilter::setConfig(q31_t freq, q31_t res, FilterMode lpfMode, q31_t lpfMorph, q31_t filterGain) {
+	curveFrequency(freq);
 	// raw resonance is 0 - 536870896 (2^28ish, don't know where it comes from)
 	// Multiply by 4 to bring it to the q31 0-1 range
-	q = (ONE_Q31 - 4 * (lpfResonance));
+	q = (ONE_Q31 - 4 * (res));
 	in = (q >> 1) + (ONE_Q31 >> 1);
 	//squared q is a better match for the ladders
 	//also the input scale needs to be sqrt(q) for the level compensation to work so it's a win win
 	q = multiply_32x32_rshift32_rounded(q, q) << 1;
-	if (lpfMode == FilterMode::SVF) {
-		c_low = ONE_Q31;
-		c_band = ONE_Q31 >> 1;
-		c_high = 0;
-	}
-	else if (lpfMode == FilterMode::HPSVF) {
-		c_low = 0;
-		c_band = ONE_Q31 >> 1;
-		c_high = ONE_Q31;
-	}
+
+	c_low = ONE_Q31 - lpfMorph;
+	c_band = ONE_Q31 >> 1;
+	c_high = lpfMorph;
+
 	return filterGain;
 }
 

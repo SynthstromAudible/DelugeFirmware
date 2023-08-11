@@ -389,14 +389,14 @@ enum : ParamType {
 	HPF_RESONANCE,
 	ENV_0_SUSTAIN,
 	ENV_1_SUSTAIN,
+	LPF_MORPH,
+	HPF_MORPH,
 
 	// Local hybrid params begin
 	OSC_A_PHASE_WIDTH,
 	OSC_B_PHASE_WIDTH,
 	OSC_A_WAVE_INDEX,
 	OSC_B_WAVE_INDEX,
-	LPF_MORPH,
-	HPF_MORPH,
 	PAN,
 
 	// Local exp params begin

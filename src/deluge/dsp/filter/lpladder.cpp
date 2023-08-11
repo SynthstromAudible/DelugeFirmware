@@ -54,8 +54,10 @@ const int16_t resonanceLimitTable[] = {
     17000, 17000, 17000, 17000, 17000, 17000, 17000, 17000,
 };
 
-q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMode lpfmode, q31_t filterGain) {
+q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMode lpfmode, q31_t lpfMorph,
+                                q31_t filterGain) {
 	lpfMode = lpfmode;
+	morph = lpfMorph;
 	// Hot transistor ladder - needs oversampling and stuff
 	if (lpfMode == FilterMode::TRANSISTOR_24DB_DRIVE) {
 
@@ -321,9 +323,9 @@ inline q31_t LpLadderFilter::do12dBLPFOnSample(q31_t input, LpLadderState& state
 	q31_t x = scaleInput(input, feedbacksSum);
 
 	// Only saturate if resonance is high enough. Surprisingly, saturation makes no audible difference until very near the point of feedback
-	if (processedResonance > 510000000) { // Re-check this?
-		x = getTanHUnknown(x, 1);         // Saturation
-	}
+	// if (processedResonance > 510000000) { // Re-check this?
+	// 	x = getTanHUnknown(x, 1);         // Saturation
+	// }
 
 	return state.lpfLPF3.doAPF(state.lpfLPF2.doFilter(state.lpfLPF1.doFilter(x, noisy_m), noisy_m), noisy_m) << 1;
 }
@@ -350,9 +352,9 @@ inline q31_t LpLadderFilter::do24dBLPFOnSample(q31_t input, LpLadderState& state
 
 	// Only saturate if resonance is high enough. Surprisingly, saturation makes no audible difference until very near the point of feedback
 
-	if (processedResonance > 900000000) {
-		x = getTanHUnknown(x, 1);
-	}
+	// if (processedResonance > 900000000) {
+	// 	x = getTanHUnknown(x, 1);
+	// }
 
 	return state.lpfLPF4.doFilter(
 	           state.lpfLPF3.doFilter(state.lpfLPF2.doFilter(state.lpfLPF1.doFilter(x, noisy_m), noisy_m), noisy_m),

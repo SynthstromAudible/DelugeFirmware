@@ -417,8 +417,9 @@ void GlobalEffectable::setupFilterSetConfig(int32_t* postFXVolume, ParamManager*
 	              || unpatchedParams->getValue(Param::Unpatched::GlobalEffectable::LPF_FREQ) < 2147483602);
 	bool doHPF = unpatchedParams->getValue(Param::Unpatched::GlobalEffectable::HPF_FREQ) != -2147483648;
 
-	*postFXVolume = filterSet.setConfig(lpfFrequency, lpfResonance, doLPF, lpfMode, hpfFrequency, hpfResonance, doHPF,
-	                                    FilterMode::HPLADDER, *postFXVolume, filterRoute, false, NULL);
+	//no morph for global effectable
+	*postFXVolume = filterSet.setConfig(lpfFrequency, lpfResonance, doLPF, lpfMode, 0, hpfFrequency, hpfResonance,
+	                                    doHPF, FilterMode::HPLADDER, 0, *postFXVolume, filterRoute, false, NULL);
 }
 
 void GlobalEffectable::processFilters(StereoSample* buffer, int32_t numSamples) {

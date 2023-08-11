@@ -28,7 +28,7 @@ class LpLadderFilter : public Filter<LpLadderFilter> {
 public:
 	LpLadderFilter() = default;
 	//returns a compensatory gain value
-	q31_t setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMode lpfMode, q31_t filterGain);
+	q31_t setConfig(q31_t hpfFrequency, q31_t hpfResonance, FilterMode lpfMode, q31_t lpfMorph, q31_t filterGain);
 	void doFilter(q31_t* outputSample, q31_t* endSample, int32_t sampleIncrememt);
 	void doFilterStereo(q31_t* startSample, q31_t* endSample);
 	void resetFilter() {
@@ -51,10 +51,23 @@ private:
 		}
 	};
 	inline q31_t scaleInput(q31_t input, q31_t feedbacksSum) {
-		return multiply_32x32_rshift32_rounded(
-		           (input - (multiply_32x32_rshift32_rounded(feedbacksSum, processedResonance) << 3)),
-		           divideByTotalMoveabilityAndProcessedResonance)
-		       << 2;
+		q31_t temp;
+		if (morph > 0 || processedResonance > 510000000) {
+			temp = multiply_32x32_rshift32_rounded(
+			           (input - (multiply_32x32_rshift32_rounded(feedbacksSum, processedResonance) << 3)),
+			           divideByTotalMoveabilityAndProcessedResonance)
+			       << 1;
+			q31_t extra = multiply_32x32_rshift32(temp, morph);
+			temp = getTanH<2>(add_saturation(temp, extra));
+		}
+		else {
+			temp = multiply_32x32_rshift32_rounded(
+			           (input - (multiply_32x32_rshift32_rounded(feedbacksSum, processedResonance) << 3)),
+			           divideByTotalMoveabilityAndProcessedResonance)
+			       << 2;
+		}
+
+		return temp;
 	}
 	inline q31_t do24dBLPFOnSample(q31_t input, LpLadderState& state);
 	inline q31_t do12dBLPFOnSample(q31_t input, LpLadderState& state);
@@ -75,6 +88,8 @@ private:
 
 	//moveability is tan(f)/(1+tan(f))
 	q31_t moveability;
+
+	q31_t morph;
 
 	// All feedbacks have 1 represented as 1073741824
 	q31_t lpf1Feedback;
