@@ -177,6 +177,7 @@ dev_var::GMenu devVarGMenu{HAVE_OLED ? "Dev Menu G" : "DEVG"};
 
 filter::LPFFreq lpfFreqMenu{"Frequency", "LPF frequency", ::Param::Local::LPF_FREQ};
 patched_param::IntegerNonFM lpfResMenu{"Resonance", "LPF resonance", ::Param::Local::LPF_RESONANCE};
+patched_param::IntegerNonFM lpfMorphMenu{"Morph", "LPF morph", ::Param::Local::LPF_MORPH};
 filter::LPFMode lpfModeMenu{"MODE", "LPF mode"};
 
 submenu::Filter lpfMenu{
@@ -185,6 +186,7 @@ submenu::Filter lpfMenu{
         &lpfFreqMenu,
         &lpfResMenu,
         &lpfModeMenu,
+        &lpfMorphMenu,
     },
 };
 
@@ -192,6 +194,7 @@ submenu::Filter lpfMenu{
 
 filter::HPFFreq hpfFreqMenu{"Frequency", "HPF frequency", ::Param::Local::HPF_FREQ};
 patched_param::IntegerNonFM hpfResMenu{"Resonance", "HPF resonance", ::Param::Local::HPF_RESONANCE};
+patched_param::IntegerNonFM hpfMorphMenu{"Morph", "HPF morph", ::Param::Local::HPF_MORPH};
 filter::HPFMode hpfModemenu{"MODE", "HPF mode"};
 
 submenu::Filter hpfMenu{
@@ -200,6 +203,7 @@ submenu::Filter hpfMenu{
         &hpfFreqMenu,
         &hpfResMenu,
         &hpfModemenu,
+        &hpfMorphMenu,
     },
 };
 
