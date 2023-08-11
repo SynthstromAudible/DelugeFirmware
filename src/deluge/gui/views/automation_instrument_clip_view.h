@@ -128,7 +128,8 @@ private:
 	                            uint32_t xZoom, int32_t yDisplay = 0, bool drawUndefinedArea = true);
 	void renderRow(ModelStackWithAutoParam* modelStack, uint8_t* image, uint8_t occupancyMask[], bool, uint32_t,
 	               bool allowNoteTails, int32_t xScroll, uint32_t xZoom, int32_t xStart = 0,
-	               int32_t xEnd = kDisplayWidth, bool drawRepeats = false, int32_t yDisplay = 0, bool isAutomated = false);
+	               int32_t xEnd = kDisplayWidth, bool drawRepeats = false, int32_t yDisplay = 0,
+	               bool isAutomated = false);
 	void renderLove(uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
 
 	//Enter/Exit Scale Mode
@@ -145,7 +146,8 @@ private:
 	//Automation Lanes Functions
 	void initParameterSelection();
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip,
-	                                                int32_t paramID = 0xFFFFFFFF, Param::Kind paramKind = Param::Kind::NONE);
+	                                                int32_t paramID = 0xFFFFFFFF,
+	                                                Param::Kind paramKind = Param::Kind::NONE);
 	void setParameterAutomationValue(ModelStackWithAutoParam* modelStack, int32_t knobPos, int32_t squareStart,
 	                                 int32_t xDisplay, int32_t effectiveLength);
 

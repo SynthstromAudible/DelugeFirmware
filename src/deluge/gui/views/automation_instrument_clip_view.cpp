@@ -108,75 +108,79 @@ static const uint32_t verticalScrollUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_
 
 //synth and kit rows FX - sorted in the order that Parameters are scrolled through on the display
 //const uint32_t nonGlobalEffectableParamsForAutomation[kNumNonGlobalEffectableParamsForAutomation][2] = {
-const std::array<std::pair<Param::Kind, ParamType>,kNumNonGlobalEffectableParamsForAutomation> nonGlobalEffectableParamsForAutomation {{
-    {Param::Kind::PATCHED, Param::Global::VOLUME_POST_FX}, //Master Volume, Pitch, Pan
-    {Param::Kind::PATCHED, Param::Local::PITCH_ADJUST},
-    {Param::Kind::PATCHED, Param::Local::PAN},
-    {Param::Kind::PATCHED, Param::Local::LPF_FREQ}, //LPF Cutoff, Resonance
-    {Param::Kind::PATCHED, Param::Local::LPF_RESONANCE},
-    {Param::Kind::PATCHED, Param::Local::HPF_FREQ}, //HPF Cutoff, Resonance
-    {Param::Kind::PATCHED, Param::Local::HPF_RESONANCE},
-    {Param::Kind::UNPATCHED, Param::Unpatched::BASS}, //Bass, Bass Freq
-    {Param::Kind::UNPATCHED, Param::Unpatched::BASS_FREQ},
-    {Param::Kind::UNPATCHED, Param::Unpatched::TREBLE}, //Treble, Treble Freq
-    {Param::Kind::UNPATCHED, Param::Unpatched::TREBLE_FREQ},
-    {Param::Kind::PATCHED, Param::Global::REVERB_AMOUNT}, //Reverb Amount
-    {Param::Kind::PATCHED, Param::Global::DELAY_RATE},    //Delay Rate, Amount
-    {Param::Kind::PATCHED, Param::Global::DELAY_FEEDBACK},
-    {Param::Kind::PATCHED, Param::Global::VOLUME_POST_REVERB_SEND}, //Sidechain Send, Shape
-    {Param::Kind::UNPATCHED, Param::Unpatched::COMPRESSOR_SHAPE},
-    {Param::Kind::UNPATCHED, Param::Unpatched::SAMPLE_RATE_REDUCTION}, //Decimation, Bitcrush
-    {Param::Kind::UNPATCHED, Param::Unpatched::BITCRUSHING},
-    {Param::Kind::PATCHED, Param::Local::OSC_A_VOLUME}, //OSC 1 Volume, Pitch, Phase Width, Carrier Feedback, Wave Index
-    {Param::Kind::PATCHED, Param::Local::OSC_A_PITCH_ADJUST},
-    {Param::Kind::PATCHED, Param::Local::OSC_A_PHASE_WIDTH},
-    {Param::Kind::PATCHED, Param::Local::CARRIER_0_FEEDBACK},
-    {Param::Kind::PATCHED, Param::Local::OSC_A_WAVE_INDEX}, //OSC 2 Volume, Pitch, Phase Width, Carrier Feedback, Wave Index
-    {Param::Kind::PATCHED, Param::Local::OSC_B_VOLUME},
-    {Param::Kind::PATCHED, Param::Local::OSC_B_PITCH_ADJUST},
-    {Param::Kind::PATCHED, Param::Local::OSC_B_PHASE_WIDTH},
-    {Param::Kind::PATCHED, Param::Local::CARRIER_1_FEEDBACK},
-    {Param::Kind::PATCHED, Param::Local::OSC_B_WAVE_INDEX},
-    {Param::Kind::PATCHED, Param::Local::MODULATOR_0_VOLUME}, //FM Mod 1 Volume, Pitch, Feedback
-    {Param::Kind::PATCHED, Param::Local::MODULATOR_0_PITCH_ADJUST},
-    {Param::Kind::PATCHED, Param::Local::MODULATOR_0_FEEDBACK},
-    {Param::Kind::PATCHED, Param::Local::MODULATOR_1_VOLUME}, //FM Mod 2 Volume, Pitch, Feedback
-    {Param::Kind::PATCHED, Param::Local::MODULATOR_1_PITCH_ADJUST},
-    {Param::Kind::PATCHED, Param::Local::MODULATOR_1_FEEDBACK},
-    {Param::Kind::PATCHED, Param::Local::ENV_0_ATTACK}, //Env 1 ADSR
-    {Param::Kind::PATCHED, Param::Local::ENV_0_DECAY},
-    {Param::Kind::PATCHED, Param::Local::ENV_0_SUSTAIN},
-    {Param::Kind::PATCHED, Param::Local::ENV_0_RELEASE},
-    {Param::Kind::PATCHED, Param::Local::ENV_1_ATTACK}, //Env 2 ADSR
-    {Param::Kind::PATCHED, Param::Local::ENV_1_DECAY},
-    {Param::Kind::PATCHED, Param::Local::ENV_1_SUSTAIN},
-    {Param::Kind::PATCHED, Param::Local::ENV_1_RELEASE},
-    {Param::Kind::PATCHED, Param::Global::LFO_FREQ},           //LFO 1 Freq
-    {Param::Kind::PATCHED, Param::Local::LFO_LOCAL_FREQ},      //LFO 2 Freq
-    {Param::Kind::UNPATCHED, Param::Unpatched::MOD_FX_OFFSET}, //Mod FX Offset, Feedback, Depth, Rate
-    {Param::Kind::UNPATCHED, Param::Unpatched::MOD_FX_FEEDBACK},
-    {Param::Kind::PATCHED, Param::Global::MOD_FX_DEPTH},
-    {Param::Kind::PATCHED, Param::Global::MOD_FX_RATE},
-    {Param::Kind::PATCHED, Param::Global::ARP_RATE}, //Arp Rate, Gate
-    {Param::Kind::UNPATCHED, Param::Unpatched::Sound::ARP_GATE},
-    {Param::Kind::PATCHED, Param::Local::NOISE_VOLUME}, //Noise
-}};
+const std::array<std::pair<Param::Kind, ParamType>, kNumNonGlobalEffectableParamsForAutomation>
+    nonGlobalEffectableParamsForAutomation{{
+        {Param::Kind::PATCHED, Param::Global::VOLUME_POST_FX}, //Master Volume, Pitch, Pan
+        {Param::Kind::PATCHED, Param::Local::PITCH_ADJUST},
+        {Param::Kind::PATCHED, Param::Local::PAN},
+        {Param::Kind::PATCHED, Param::Local::LPF_FREQ}, //LPF Cutoff, Resonance
+        {Param::Kind::PATCHED, Param::Local::LPF_RESONANCE},
+        {Param::Kind::PATCHED, Param::Local::HPF_FREQ}, //HPF Cutoff, Resonance
+        {Param::Kind::PATCHED, Param::Local::HPF_RESONANCE},
+        {Param::Kind::UNPATCHED, Param::Unpatched::BASS}, //Bass, Bass Freq
+        {Param::Kind::UNPATCHED, Param::Unpatched::BASS_FREQ},
+        {Param::Kind::UNPATCHED, Param::Unpatched::TREBLE}, //Treble, Treble Freq
+        {Param::Kind::UNPATCHED, Param::Unpatched::TREBLE_FREQ},
+        {Param::Kind::PATCHED, Param::Global::REVERB_AMOUNT}, //Reverb Amount
+        {Param::Kind::PATCHED, Param::Global::DELAY_RATE},    //Delay Rate, Amount
+        {Param::Kind::PATCHED, Param::Global::DELAY_FEEDBACK},
+        {Param::Kind::PATCHED, Param::Global::VOLUME_POST_REVERB_SEND}, //Sidechain Send, Shape
+        {Param::Kind::UNPATCHED, Param::Unpatched::COMPRESSOR_SHAPE},
+        {Param::Kind::UNPATCHED, Param::Unpatched::SAMPLE_RATE_REDUCTION}, //Decimation, Bitcrush
+        {Param::Kind::UNPATCHED, Param::Unpatched::BITCRUSHING},
+        {Param::Kind::PATCHED,
+         Param::Local::OSC_A_VOLUME}, //OSC 1 Volume, Pitch, Phase Width, Carrier Feedback, Wave Index
+        {Param::Kind::PATCHED, Param::Local::OSC_A_PITCH_ADJUST},
+        {Param::Kind::PATCHED, Param::Local::OSC_A_PHASE_WIDTH},
+        {Param::Kind::PATCHED, Param::Local::CARRIER_0_FEEDBACK},
+        {Param::Kind::PATCHED,
+         Param::Local::OSC_A_WAVE_INDEX}, //OSC 2 Volume, Pitch, Phase Width, Carrier Feedback, Wave Index
+        {Param::Kind::PATCHED, Param::Local::OSC_B_VOLUME},
+        {Param::Kind::PATCHED, Param::Local::OSC_B_PITCH_ADJUST},
+        {Param::Kind::PATCHED, Param::Local::OSC_B_PHASE_WIDTH},
+        {Param::Kind::PATCHED, Param::Local::CARRIER_1_FEEDBACK},
+        {Param::Kind::PATCHED, Param::Local::OSC_B_WAVE_INDEX},
+        {Param::Kind::PATCHED, Param::Local::MODULATOR_0_VOLUME}, //FM Mod 1 Volume, Pitch, Feedback
+        {Param::Kind::PATCHED, Param::Local::MODULATOR_0_PITCH_ADJUST},
+        {Param::Kind::PATCHED, Param::Local::MODULATOR_0_FEEDBACK},
+        {Param::Kind::PATCHED, Param::Local::MODULATOR_1_VOLUME}, //FM Mod 2 Volume, Pitch, Feedback
+        {Param::Kind::PATCHED, Param::Local::MODULATOR_1_PITCH_ADJUST},
+        {Param::Kind::PATCHED, Param::Local::MODULATOR_1_FEEDBACK},
+        {Param::Kind::PATCHED, Param::Local::ENV_0_ATTACK}, //Env 1 ADSR
+        {Param::Kind::PATCHED, Param::Local::ENV_0_DECAY},
+        {Param::Kind::PATCHED, Param::Local::ENV_0_SUSTAIN},
+        {Param::Kind::PATCHED, Param::Local::ENV_0_RELEASE},
+        {Param::Kind::PATCHED, Param::Local::ENV_1_ATTACK}, //Env 2 ADSR
+        {Param::Kind::PATCHED, Param::Local::ENV_1_DECAY},
+        {Param::Kind::PATCHED, Param::Local::ENV_1_SUSTAIN},
+        {Param::Kind::PATCHED, Param::Local::ENV_1_RELEASE},
+        {Param::Kind::PATCHED, Param::Global::LFO_FREQ},           //LFO 1 Freq
+        {Param::Kind::PATCHED, Param::Local::LFO_LOCAL_FREQ},      //LFO 2 Freq
+        {Param::Kind::UNPATCHED, Param::Unpatched::MOD_FX_OFFSET}, //Mod FX Offset, Feedback, Depth, Rate
+        {Param::Kind::UNPATCHED, Param::Unpatched::MOD_FX_FEEDBACK},
+        {Param::Kind::PATCHED, Param::Global::MOD_FX_DEPTH},
+        {Param::Kind::PATCHED, Param::Global::MOD_FX_RATE},
+        {Param::Kind::PATCHED, Param::Global::ARP_RATE}, //Arp Rate, Gate
+        {Param::Kind::UNPATCHED, Param::Unpatched::Sound::ARP_GATE},
+        {Param::Kind::PATCHED, Param::Local::NOISE_VOLUME}, //Noise
+    }};
 
 //kit affect entire FX - sorted in the order that Parameters are scrolled through on the display
-const std::array<std::pair<Param::Kind, ParamType>,kNumGlobalEffectableParamsForAutomation> globalEffectableParamsForAutomation {{
-    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::VOLUME}, //Master Volume, Pan
-    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::PAN},
-    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::LPF_FREQ}, //LPF Cutoff, Resonance
-    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::LPF_RES},
-    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::HPF_FREQ}, //HPF Cutoff, Resonance
-    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::HPF_RES},
-    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT}, //Reverb Amount
-    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::DELAY_RATE},         //Delay Rate, Amount
-    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::DELAY_AMOUNT},
-    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::SIDECHAIN_VOLUME}, //Sidechain Send
-    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH},     //Mod FX Depth, Rate
-    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::MOD_FX_RATE},
-}};
+const std::array<std::pair<Param::Kind, ParamType>, kNumGlobalEffectableParamsForAutomation>
+    globalEffectableParamsForAutomation{{
+        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::VOLUME}, //Master Volume, Pan
+        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::PAN},
+        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::LPF_FREQ}, //LPF Cutoff, Resonance
+        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::LPF_RES},
+        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::HPF_FREQ}, //HPF Cutoff, Resonance
+        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::HPF_RES},
+        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT}, //Reverb Amount
+        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::DELAY_RATE},         //Delay Rate, Amount
+        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::DELAY_AMOUNT},
+        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::SIDECHAIN_VOLUME}, //Sidechain Send
+        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH},     //Mod FX Depth, Rate
+        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::MOD_FX_RATE},
+    }};
 
 //grid sized arrays to assign automatable parameters to the grid
 
@@ -191,18 +195,18 @@ const uint32_t patchedParamShortcutsForAutomation[kDisplayWidth][kDisplayHeight]
      Param::Local::MODULATOR_0_FEEDBACK, 0xFFFFFFFF, 0xFFFFFFFF},
     {Param::Local::MODULATOR_1_VOLUME, Param::Local::MODULATOR_1_PITCH_ADJUST, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
      Param::Local::MODULATOR_1_FEEDBACK, 0xFFFFFFFF, 0xFFFFFFFF},
-    {Param::Global::VOLUME_POST_FX, 0xFFFFFFFF, Param::Local::PITCH_ADJUST, Param::Local::PAN, 0xFFFFFFFF,
-     0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
+    {Param::Global::VOLUME_POST_FX, 0xFFFFFFFF, Param::Local::PITCH_ADJUST, Param::Local::PAN, 0xFFFFFFFF, 0xFFFFFFFF,
+     0xFFFFFFFF, 0xFFFFFFFF},
     {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
-    {Param::Local::ENV_0_RELEASE, Param::Local::ENV_0_SUSTAIN, Param::Local::ENV_0_DECAY,
-     Param::Local::ENV_0_ATTACK, 0xFFFFFFFF, 0xFFFFFFFF, Param::Local::LPF_RESONANCE, Param::Local::LPF_FREQ},
-    {Param::Local::ENV_1_RELEASE, Param::Local::ENV_1_SUSTAIN, Param::Local::ENV_1_DECAY,
-     Param::Local::ENV_1_ATTACK, 0xFFFFFFFF, 0xFFFFFFFF, Param::Local::HPF_RESONANCE, Param::Local::HPF_FREQ},
+    {Param::Local::ENV_0_RELEASE, Param::Local::ENV_0_SUSTAIN, Param::Local::ENV_0_DECAY, Param::Local::ENV_0_ATTACK,
+     0xFFFFFFFF, 0xFFFFFFFF, Param::Local::LPF_RESONANCE, Param::Local::LPF_FREQ},
+    {Param::Local::ENV_1_RELEASE, Param::Local::ENV_1_SUSTAIN, Param::Local::ENV_1_DECAY, Param::Local::ENV_1_ATTACK,
+     0xFFFFFFFF, 0xFFFFFFFF, Param::Local::HPF_RESONANCE, Param::Local::HPF_FREQ},
     {0xFFFFFFFF, 0xFFFFFFFF, Param::Global::VOLUME_POST_REVERB_SEND, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
      0xFFFFFFFF},
     {Param::Global::ARP_RATE, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
-    {Param::Global::LFO_FREQ, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
-     Param::Global::MOD_FX_DEPTH, Param::Global::MOD_FX_RATE},
+    {Param::Global::LFO_FREQ, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, Param::Global::MOD_FX_DEPTH,
+     Param::Global::MOD_FX_RATE},
     {Param::Local::LFO_LOCAL_FREQ, 0xFFFFFFFF, 0xFFFFFFFF, Param::Global::REVERB_AMOUNT, 0xFFFFFFFF, 0xFFFFFFFF,
      0xFFFFFFFF, 0xFFFFFFFF},
     {Param::Global::DELAY_RATE, 0xFFFFFFFF, 0xFFFFFFFF, Param::Global::DELAY_FEEDBACK, 0xFFFFFFFF, 0xFFFFFFFF,
@@ -225,8 +229,8 @@ const uint32_t unpatchedParamShortcutsForAutomation[kDisplayWidth][kDisplayHeigh
      Param::Unpatched::BASS, Param::Unpatched::BASS_FREQ},
     {0xFFFFFFFF, 0xFFFFFFFF, Param::Unpatched::Sound::ARP_GATE, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
      Param::Unpatched::TREBLE, Param::Unpatched::TREBLE_FREQ},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, Param::Unpatched::MOD_FX_OFFSET,
-     Param::Unpatched::MOD_FX_FEEDBACK, 0xFFFFFFFF, 0xFFFFFFFF},
+    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, Param::Unpatched::MOD_FX_OFFSET, Param::Unpatched::MOD_FX_FEEDBACK,
+     0xFFFFFFFF, 0xFFFFFFFF},
     {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
     {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
     {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF}};
@@ -250,8 +254,8 @@ const uint32_t globalEffectableParamShortcutsForAutomation[kDisplayWidth][kDispl
     {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
     {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
      Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH, Param::Unpatched::GlobalEffectable::MOD_FX_RATE},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT, 0xFFFFFFFF,
-     0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
+    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT, 0xFFFFFFFF, 0xFFFFFFFF,
+     0xFFFFFFFF, 0xFFFFFFFF},
     {Param::Unpatched::GlobalEffectable::DELAY_RATE, 0xFFFFFFFF, 0xFFFFFFFF,
      Param::Unpatched::GlobalEffectable::DELAY_AMOUNT, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
     {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF}};
@@ -2429,7 +2433,8 @@ void AutomationInstrumentClipView::selectEncoderAction(int8_t offset) {
 		}
 
 		//if you're a synth or a kit (with affect entire off and a drum selected)
-		else if (instrument->type == InstrumentType::SYNTH || (instrument->type == InstrumentType::KIT && ((Kit*)instrument)->selectedDrum)) {
+		else if (instrument->type == InstrumentType::SYNTH
+		         || (instrument->type == InstrumentType::KIT && ((Kit*)instrument)->selectedDrum)) {
 
 			//if you haven't selected a parameter yet, start at the beginning of the list
 			if (clip->lastSelectedParamID == kNoLastSelectedParamID) {
@@ -2742,7 +2747,6 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 					clip->lastSelectedParamArrayPosition = idx;
 					break;
 				}
-
 			}
 		}
 
@@ -2761,7 +2765,6 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 					clip->lastSelectedParamArrayPosition = idx;
 					break;
 				}
-
 			}
 		}
 
