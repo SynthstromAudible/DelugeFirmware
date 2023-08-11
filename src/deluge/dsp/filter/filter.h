@@ -51,7 +51,7 @@ public:
 	 * @param sampleIncrement increment between samples
 	 * @param extraSaturation extra saturation value
 	*/
-	void filterMono(q31_t* startSample, q31_t* endSample, int32_t sampleIncrememt = 11) {
+	void filterMono(q31_t* startSample, q31_t* endSample, int32_t sampleIncrememt = 1) {
 		static_cast<T*>(this)->doFilter(startSample, endSample, sampleIncrememt);
 	}
 	/**
