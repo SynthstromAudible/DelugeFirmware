@@ -545,7 +545,7 @@ void KeyboardScreen::selectLayout(int8_t offset) {
 	// Ensure scale mode is as expected
 	if (getActiveInstrument()->type != InstrumentType::KIT) {
 		auto requiredScaleMode = layoutList[getCurrentClip()->keyboardState.currentLayout]->requiredScaleMode();
-		if (requiredScaleMode == RequiredScaleMode::Enabled) {
+		if (requiredScaleMode == RequiredScaleMode::Enabled && !getCurrentClip()->inScaleMode) {
 			getCurrentClip()->yScroll = instrumentClipView.setupForEnteringScaleMode(currentSong->rootNote);
 			setLedStates();
 		}

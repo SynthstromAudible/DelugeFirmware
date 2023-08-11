@@ -33,41 +33,15 @@ class FilterSet {
 public:
 	FilterSet();
 	void reset();
-	q31_t setConfig(q31_t lpfFrequency, q31_t lpfResonance, bool doLPF, FilterMode lpfmode, q31_t hpfFrequency,
-	                q31_t hpfResonance, bool doHPF, FilterMode hpfmode, q31_t filterGain,
-	                bool adjustVolumeForHPFResonance = true, q31_t* overallOscAmplitude = NULL);
+	q31_t setConfig(q31_t lpfFrequency, q31_t lpfResonance, bool doLPF, FilterMode lpfmode, q31_t lpfMorph,
+	                q31_t hpfFrequency, q31_t hpfResonance, bool doHPF, FilterMode hpfmode, q31_t hpfMorph,
+	                q31_t filterGain, FilterRoute routing, bool adjustVolumeForHPFResonance = true,
+	                q31_t* overallOscAmplitude = NULL);
 
-	inline void renderLong(q31_t* startSample, q31_t* endSample, int32_t numSamples, int32_t sampleIncrememt = 1,
-	                       int32_t extraSaturation = 1) {
+	void renderLong(q31_t* startSample, q31_t* endSample, int32_t numSamples, int32_t sampleIncrememt = 1);
 
-		// Do HPF, if it's on
-		if (HPFOn) {
-			renderHPFLong(startSample, endSample, lpfMode, sampleIncrememt);
-		}
-
-		// Do LPF, if it's on
-		if (LPFOn) {
-			renderLPFLong(startSample, endSample, lpfMode, sampleIncrememt, extraSaturation, extraSaturation >> 1);
-		}
-		else {
-			lastLPFMode = FilterMode::OFF;
-		}
-	}
 	//expects to receive an interleaved stereo stream
-	inline void renderLongStereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation = 1) {
-		// Do HPF, if it's on
-		if (HPFOn) {
-			renderHPFLongStereo(startSample, endSample, extraSaturation);
-		}
-
-		// Do LPF, if it's on
-		if (LPFOn) {
-			renderLPFLongStereo(startSample, endSample, extraSaturation);
-		}
-		else {
-			lastLPFMode = FilterMode::OFF;
-		}
-	}
+	void renderLongStereo(q31_t* startSample, q31_t* endSample);
 
 	//used to check whether the filter is used at all
 	inline bool isLPFOn() { return LPFOn; }
@@ -76,23 +50,22 @@ public:
 
 private:
 	q31_t noiseLastValue;
-	FilterMode lpfMode;
-	FilterMode lastLPFMode;
-	FilterMode hpfMode;
-	FilterMode lastHPFMode;
+	FilterMode lpfMode_;
+	FilterMode lastLPFMode_;
+	FilterMode hpfMode_;
+	FilterMode lastHPFMode_;
+	FilterRoute routing_;
 
-	void renderLPFLong(q31_t* startSample, q31_t* endSample, FilterMode lpfMode, int32_t sampleIncrement = 1,
-	                   int32_t extraSaturation = 0, int32_t extraSaturationDrive = 0);
-	void renderLPFLongStereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation = 0);
-	void renderHPFLongStereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation = 0);
-	void renderHPFLong(q31_t* startSample, q31_t* endSample, FilterMode lpfMode, int32_t sampleIncrement = 1,
-	                   int32_t extraSaturation = 0);
-	void renderLadderHPF(q31_t* outputSample, int32_t extraSaturation = 0);
+	void renderLPFLong(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement = 1);
+	void renderLPFLongStereo(q31_t* startSample, q31_t* endSample);
+	void renderHPFLongStereo(q31_t* startSample, q31_t* endSample);
+	void renderHPFLong(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement = 1);
+	void renderLadderHPF(q31_t* outputSample);
 
 	SVFilter lpsvf;
 	LpLadderFilter lpladder;
 	HpLadderFilter hpladder;
-
+	SVFilter hpsvf;
 	bool LPFOn;
 	bool HPFOn;
 };

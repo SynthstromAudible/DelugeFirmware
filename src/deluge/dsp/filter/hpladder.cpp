@@ -23,7 +23,8 @@
 #include <cstdint>
 namespace deluge::dsp::filter {
 
-q31_t HpLadderFilter::setConfig(q31_t hpfFrequency, q31_t hpfResonance, FilterMode lpfMode, q31_t filterGain) {
+q31_t HpLadderFilter::setConfig(q31_t hpfFrequency, q31_t hpfResonance, FilterMode lpfMode, q31_t lpfMorph,
+                                q31_t filterGain) {
 	int32_t extraFeedback = 1200000000;
 
 	curveFrequency(hpfFrequency);
@@ -67,24 +68,24 @@ q31_t HpLadderFilter::setConfig(q31_t hpfFrequency, q31_t hpfResonance, FilterMo
 
 	return filterGain;
 }
-void HpLadderFilter::doFilter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement, int32_t extraSaturation) {
+void HpLadderFilter::doFilter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement) {
 	q31_t* currentSample = startSample;
 	do {
-		*currentSample = doHPF(*currentSample, extraSaturation, l);
+		*currentSample = doHPF(*currentSample, l);
 		currentSample += sampleIncrement;
 	} while (currentSample < endSample);
 }
 //filter an interleaved stereo buffer
-void HpLadderFilter::doFilterStereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation) {
+void HpLadderFilter::doFilterStereo(q31_t* startSample, q31_t* endSample) {
 	q31_t* currentSample = startSample;
 	do {
-		*currentSample = doHPF(*currentSample, extraSaturation, l);
+		*currentSample = doHPF(*currentSample, l);
 		currentSample += 1;
-		*currentSample = doHPF(*currentSample, extraSaturation, r);
+		*currentSample = doHPF(*currentSample, r);
 		currentSample += 1;
 	} while (currentSample < endSample);
 }
-inline q31_t HpLadderFilter::doHPF(q31_t input, int32_t extraSaturation, HPLadderState& state) {
+inline q31_t HpLadderFilter::doHPF(q31_t input, HPLadderState& state) {
 
 	q31_t firstHPFOutput = input - state.hpfHPF1.doFilter(input, fc);
 
@@ -95,12 +96,12 @@ inline q31_t HpLadderFilter::doHPF(q31_t input, int32_t extraSaturation, HPLadde
 
 	// Only saturate / anti-alias if lots of resonance
 	if (hpfProcessedResonance > 900000000) { // 890551738
-		a = getTanHAntialiased(a, &hpfLastWorkingValue, 2 + extraSaturation);
+		a = getTanHAntialiased(a, &hpfLastWorkingValue, 1);
 	}
 	else {
 		hpfLastWorkingValue = (uint32_t)lshiftAndSaturate<2>(a) + 2147483648u;
 		if (hpfProcessedResonance > 750000000) { // 400551738
-			a = getTanHUnknown(a, 2 + extraSaturation);
+			a = getTanHUnknown(a, 2);
 		}
 	}
 

@@ -173,6 +173,8 @@ void Sound::initParams(ParamManager* paramManager) {
 	patchedParams->params[Param::Global::VOLUME_POST_REVERB_SEND].setCurrentValueBasicForSetup(0);
 	patchedParams->params[Param::Local::HPF_RESONANCE].setCurrentValueBasicForSetup(-2147483648);
 	patchedParams->params[Param::Local::HPF_FREQ].setCurrentValueBasicForSetup(-2147483648);
+	patchedParams->params[Param::Local::HPF_MORPH].setCurrentValueBasicForSetup(2147483648);
+	patchedParams->params[Param::Local::LPF_MORPH].setCurrentValueBasicForSetup(-2147483648);
 	patchedParams->params[Param::Local::PITCH_ADJUST].setCurrentValueBasicForSetup(0);
 	patchedParams->params[Param::Global::REVERB_AMOUNT].setCurrentValueBasicForSetup(-2147483648);
 	patchedParams->params[Param::Global::DELAY_RATE].setCurrentValueBasicForSetup(0);
@@ -1003,6 +1005,11 @@ int32_t Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* par
 				patchedParams->readParam(patchedParamsSummary, Param::Local::LPF_FREQ, readAutomationUpToPos);
 				storageManager.exitTag("frequency");
 			}
+			else if (!strcmp(tagName, "morph")) {
+				ENSURE_PARAM_MANAGER_EXISTS
+				patchedParams->readParam(patchedParamsSummary, Param::Local::LPF_MORPH, readAutomationUpToPos);
+				storageManager.exitTag("morph");
+			}
 			else if (!strcmp(tagName, "resonance")) {
 				ENSURE_PARAM_MANAGER_EXISTS
 				patchedParams->readParam(patchedParamsSummary, Param::Local::LPF_RESONANCE, readAutomationUpToPos);
@@ -1042,6 +1049,11 @@ int32_t Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* par
 				ENSURE_PARAM_MANAGER_EXISTS
 				patchedParams->readParam(patchedParamsSummary, Param::Local::HPF_RESONANCE, readAutomationUpToPos);
 				storageManager.exitTag("resonance");
+			}
+			else if (!strcmp(tagName, "morph")) {
+				ENSURE_PARAM_MANAGER_EXISTS
+				patchedParams->readParam(patchedParamsSummary, Param::Local::HPF_MORPH, readAutomationUpToPos);
+				storageManager.exitTag("morph");
 			}
 			else {
 				storageManager.exitTag(tagName);
@@ -3428,6 +3440,10 @@ bool Sound::readParamTagFromFile(char const* tagName, ParamManagerForTimeline* p
 		patchedParams->readParam(patchedParamsSummary, Param::Local::LPF_RESONANCE, readAutomationUpToPos);
 		storageManager.exitTag("lpfResonance");
 	}
+	else if (!strcmp(tagName, "lpfMorph")) {
+		patchedParams->readParam(patchedParamsSummary, Param::Local::LPF_MORPH, readAutomationUpToPos);
+		storageManager.exitTag("lpfMorph");
+	}
 	else if (!strcmp(tagName, "hpfFrequency")) {
 		patchedParams->readParam(patchedParamsSummary, Param::Local::HPF_FREQ, readAutomationUpToPos);
 		storageManager.exitTag("hpfFrequency");
@@ -3436,6 +3452,11 @@ bool Sound::readParamTagFromFile(char const* tagName, ParamManagerForTimeline* p
 		patchedParams->readParam(patchedParamsSummary, Param::Local::HPF_RESONANCE, readAutomationUpToPos);
 		storageManager.exitTag("hpfResonance");
 	}
+	else if (!strcmp(tagName, "hpfMorph")) {
+		patchedParams->readParam(patchedParamsSummary, Param::Local::HPF_MORPH, readAutomationUpToPos);
+		storageManager.exitTag("hpfMorph");
+	}
+
 	else if (!strcmp(tagName, "envelope1")) {
 		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "attack")) {
@@ -3590,9 +3611,11 @@ void Sound::writeParamsToFile(ParamManager* paramManager, bool writeAutomation) 
 	// Filters
 	patchedParams->writeParamAsAttribute("lpfFrequency", Param::Local::LPF_FREQ, writeAutomation);
 	patchedParams->writeParamAsAttribute("lpfResonance", Param::Local::LPF_RESONANCE, writeAutomation);
+	patchedParams->writeParamAsAttribute("lpfMorph", Param::Local::LPF_MORPH, writeAutomation);
 
 	patchedParams->writeParamAsAttribute("hpfFrequency", Param::Local::HPF_FREQ, writeAutomation);
 	patchedParams->writeParamAsAttribute("hpfResonance", Param::Local::HPF_RESONANCE, writeAutomation);
+	patchedParams->writeParamAsAttribute("hpfMorph", Param::Local::HPF_MORPH, writeAutomation);
 
 	patchedParams->writeParamAsAttribute("lfo1Rate", Param::Global::LFO_FREQ, writeAutomation);
 	patchedParams->writeParamAsAttribute("lfo2Rate", Param::Local::LFO_LOCAL_FREQ, writeAutomation);
@@ -3942,7 +3965,16 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 			return false;
 		}
 	}
-
+	// Switch HPF mode
+	else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(Param::Local::HPF_RESONANCE)) {
+		if (on) {
+			switchHPFMode();
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
 	// Cycle through reverb presets
 	else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(Param::Global::REVERB_AMOUNT)) {
 		if (on) {
@@ -4208,6 +4240,9 @@ char const* Sound::paramToString(uint8_t param) {
 
 	case Param::Local::LPF_FREQ:
 		return "lpfFrequency";
+
+	case Param::Local::HPF_MORPH:
+		return "HPFMorph";
 
 	case Param::Local::PITCH_ADJUST:
 		return "pitch";
