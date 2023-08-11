@@ -51,12 +51,12 @@ q31_t SVFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMode lpf
 	q = multiply_32x32_rshift32_rounded(q, q) << 1;
 	if (lpfMode == FilterMode::SVF) {
 		c_low = ONE_Q31;
-		c_band = 0;
+		c_band = ONE_Q31 >> 1;
 		c_high = 0;
 	}
 	else if (lpfMode == FilterMode::HPSVF) {
 		c_low = 0;
-		c_band = 0;
+		c_band = ONE_Q31 >> 1;
 		c_high = ONE_Q31;
 	}
 	return filterGain;
