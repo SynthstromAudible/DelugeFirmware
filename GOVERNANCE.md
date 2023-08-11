@@ -13,7 +13,7 @@ There is no official roamdap or project activities, instead all contirbutors are
 
 ## Release strategy
 
-There are nightly releases covering all changes of the day as well as stable `community` releases.
+There are `nightly` releases covering all changes of the day as well as stable `community` releases.
 
 `nightly` (beta) releases:
 * All incoming changes come from merging Pull requests from the community during the day.
@@ -21,8 +21,8 @@ There are nightly releases covering all changes of the day as well as stable `co
 
 `community` (stable) releases:
 * Community releases will be done in a three months cycle at the end of January, April, July and October
-* Two weeks before every release date there will be a window of two weeks where only bugfix pull requests can be accepted into `develop` while the project management team works on creating a new `community` release from the current `develop` branch. 
-* During this time users and developers can test the release candidate and make sure it is of high quality for the final release on GitHub Releases tagged as `community`.
+* Two weeks before every release date a special release candidate branch is created from the community branch at that time. This branch only merges bugfixes and no new features from the community branch. 
+* During the two weeks until release users and developers can test the release candidate and make sure it is of high quality for the final release on GitHub Releases tagged as `community`.
 
 ## What to expect and when to expect it
 
