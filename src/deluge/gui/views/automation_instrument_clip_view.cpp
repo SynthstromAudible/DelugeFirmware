@@ -1314,7 +1314,6 @@ ActionResult AutomationInstrumentClipView::padAction(int32_t x, int32_t y, int32
 
 	// Audition pad action
 	else {
-possiblyAuditionPad:
 		if (x == kDisplayWidth + 1) {
 
 			// "Learning" to this audition pad:
