@@ -2951,7 +2951,7 @@ void AutomationInstrumentClipView::displayParameterName(int32_t paramID) {
 		}
 
 		if (isAutomated) {
-			strncat(buffer, "\n(automated)", 30);
+			strncat(buffer, "\n(automated)", 29);
 		}
 
 		OLED::popupText(buffer, true);
