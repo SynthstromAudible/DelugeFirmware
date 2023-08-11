@@ -281,7 +281,10 @@ void InstrumentClipMinder::setLedStates() {
 	indicator_leds::setLedState(IndicatorLED::MIDI, getCurrentClip()->output->type == InstrumentType::MIDI_OUT);
 	indicator_leds::setLedState(IndicatorLED::CV, getCurrentClip()->output->type == InstrumentType::CV);
 
-	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, getCurrentClip()->wrapEditing);
+	//cross screen editing doesn't currently work in automation view, so don't light it up
+	if (getCurrentUI() != &automationInstrumentClipView) {
+		indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, getCurrentClip()->wrapEditing);
+	}
 	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, getCurrentClip()->isScaleModeClip());
 	indicator_leds::setLedState(IndicatorLED::BACK, false);
 

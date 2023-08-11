@@ -374,6 +374,10 @@ bool AutomationInstrumentClipView::opened() {
 		displayCVErrorMessage();
 	}
 
+	if (clip->wrapEditing) { //turn led off if it's on
+		indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
+	}
+
 	resetShortcutBlinking();
 
 	openedInBackground();
@@ -914,7 +918,7 @@ doOther:
 	}
 
 	// Wrap edit button
-	//no clue if this button does anything in the automation view...
+	//does not currently work, added to list of future release items
 	else if (b == CROSS_SCREEN_EDIT) {
 		if (on) {
 			if (currentUIMode == UI_MODE_NONE) {
@@ -922,18 +926,7 @@ doOther:
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 				}
 
-				if (clip->wrapEditing) {
-					clip->wrapEditing = false;
-				}
-				else {
-					clip->wrapEditLevel = currentSong->xZoom[NAVIGATION_CLIP] * kDisplayWidth;
-					// Ensure that there are actually multiple screens to edit across
-					if (clip->wrapEditLevel < clip->loopLength) {
-						clip->wrapEditing = true;
-					}
-				}
-
-				setLedStates();
+				numericDriver.displayPopup(HAVE_OLED ? "Coming Soon" : "SOON");
 			}
 		}
 	}
