@@ -1151,37 +1151,6 @@ void AutomationInstrumentClipView::enterScaleMode(uint8_t yDisplay) {
 
 	int32_t newScroll = instrumentClipView.setupForEnteringScaleMode(newRootNote, yDisplay);
 
-	// See which NoteRows need to animate
-	PadLEDs::numAnimatedRows = 0;
-	for (int32_t i = 0; i < clip->noteRows.getNumElements(); i++) {
-		NoteRow* thisNoteRow = clip->noteRows.getElement(i);
-		int32_t yVisualTo = clip->getYVisualFromYNote(thisNoteRow->y, currentSong);
-		int32_t yDisplayTo = yVisualTo - newScroll;
-		int32_t yDisplayFrom = thisNoteRow->y - clip->yScroll;
-
-		// If this NoteRow is going to end up on-screen or come from on-screen...
-		if ((yDisplayTo >= 0 && yDisplayTo < kDisplayHeight) || (yDisplayFrom >= 0 && yDisplayFrom < kDisplayHeight)) {
-
-			ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(thisNoteRow->y, thisNoteRow);
-
-			PadLEDs::animatedRowGoingTo[PadLEDs::numAnimatedRows] = yDisplayTo;
-			PadLEDs::animatedRowGoingFrom[PadLEDs::numAnimatedRows] = yDisplayFrom;
-			uint8_t mainColour[3];
-			uint8_t tailColour[3];
-			uint8_t blurColour[3];
-			clip->getMainColourFromY(thisNoteRow->y, thisNoteRow->getColourOffset(clip), mainColour);
-			getTailColour(tailColour, mainColour);
-			getBlurColour(blurColour, mainColour);
-
-			instrumentClipView.drawMuteSquare(thisNoteRow, PadLEDs::imageStore[PadLEDs::numAnimatedRows],
-			                                  PadLEDs::occupancyMaskStore[PadLEDs::numAnimatedRows]);
-			PadLEDs::numAnimatedRows++;
-			if (PadLEDs::numAnimatedRows >= kMaxNumAnimatedRows) {
-				break;
-			}
-		}
-	}
-
 	clip->yScroll = newScroll;
 
 	displayCurrentScaleName();
@@ -1198,36 +1167,6 @@ void AutomationInstrumentClipView::exitScaleMode() {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
-
-	// See which NoteRows need to animate
-	PadLEDs::numAnimatedRows = 0;
-	for (int32_t i = 0; i < clip->noteRows.getNumElements(); i++) {
-		NoteRow* thisNoteRow = clip->noteRows.getElement(i);
-		int32_t yDisplayTo = thisNoteRow->y - (clip->yScroll + scrollAdjust);
-		clip->inScaleMode = true;
-		int32_t yDisplayFrom = clip->getYVisualFromYNote(thisNoteRow->y, currentSong) - clip->yScroll;
-		clip->inScaleMode = false;
-
-		// If this NoteRow is going to end up on-screen or come from on-screen...
-		if ((yDisplayTo >= 0 && yDisplayTo < kDisplayHeight) || (yDisplayFrom >= 0 && yDisplayFrom < kDisplayHeight)) {
-			uint8_t mainColour[3];
-			uint8_t tailColour[3];
-			uint8_t blurColour[3];
-			clip->getMainColourFromY(thisNoteRow->y, thisNoteRow->getColourOffset(clip), mainColour);
-			getTailColour(tailColour, mainColour);
-			getBlurColour(blurColour, mainColour);
-
-			ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(thisNoteRow->y, thisNoteRow);
-
-			instrumentClipView.drawMuteSquare(thisNoteRow, PadLEDs::imageStore[PadLEDs::numAnimatedRows],
-			                                  PadLEDs::occupancyMaskStore[PadLEDs::numAnimatedRows]);
-
-			PadLEDs::numAnimatedRows++;
-			if (PadLEDs::numAnimatedRows >= kMaxNumAnimatedRows) {
-				break;
-			}
-		}
-	}
 
 	clip->yScroll += scrollAdjust;
 
@@ -2128,6 +2067,7 @@ void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int
 
 							int32_t newKnobPos = calculateKnobPosForModEncoderTurn(knobPos, offset);
 
+							//use default interpolation settings
 							automationInstrumentClipView.interpolationBefore = false;
 							automationInstrumentClipView.interpolationAfter = false;
 
@@ -2168,6 +2108,7 @@ void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int
 					int32_t newValue =
 					    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
 
+					//use default interpolation settings
 					automationInstrumentClipView.interpolationBefore = false;
 					automationInstrumentClipView.interpolationAfter = false;
 
@@ -2786,6 +2727,7 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 
 			if (squareStart < effectiveLength) {
 
+				//use default interpolation settings
 				automationInstrumentClipView.interpolationBefore = false;
 				automationInstrumentClipView.interpolationAfter = false;
 
@@ -2892,13 +2834,14 @@ void AutomationInstrumentClipView::handleMultiPadPress(ModelStackWithTimelineCou
 					int32_t newKnobPos =
 					    calculateKnobPosForMultiPadPress(x, firstPadX, firstPadValue, secondPadX, secondPadValue);
 					setParameterAutomationValue(modelStackWithParam, newKnobPos, squareStart, x, effectiveLength);
-
-					automationInstrumentClipView.interpolationBefore = false;
-					automationInstrumentClipView.interpolationAfter = false;
 				}
 			}
 		}
 	}
+
+	//reset interpolation settings to off
+	automationInstrumentClipView.interpolationBefore = false;
+	automationInstrumentClipView.interpolationAfter = false;
 
 	uiNeedsRendering(this);
 }
