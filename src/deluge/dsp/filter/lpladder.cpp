@@ -297,7 +297,7 @@ void LpLadderFilter::doFilterStereo(q31_t* startSample, q31_t* endSample) {
 		else {
 			q31_t* currentSample = startSample;
 			do {
-				q31_t outputSampleToKeep = doDriveLPFOnSample(*currentSample, l, 1);
+				q31_t outputSampleToKeep = doDriveLPFOnSample(*currentSample, l);
 				*currentSample = getTanHUnknown(outputSampleToKeep, 4);
 
 				currentSample += 1;
@@ -318,10 +318,7 @@ inline q31_t LpLadderFilter::do12dBLPFOnSample(q31_t input, LpLadderState& state
 
 	q31_t feedbacksSum = state.lpfLPF1.getFeedbackOutput(lpf1Feedback) + state.lpfLPF2.getFeedbackOutput(lpf2Feedback)
 	                     + state.lpfLPF3.getFeedbackOutput(divideBy1PlusTannedFrequency);
-	q31_t x = multiply_32x32_rshift32_rounded(
-	              (input - (multiply_32x32_rshift32_rounded(feedbacksSum, processedResonance) << 3)),
-	              divideByTotalMoveabilityAndProcessedResonance)
-	          << 2;
+	q31_t x = scaleInput(input, feedbacksSum);
 
 	// Only saturate if resonance is high enough. Surprisingly, saturation makes no audible difference until very near the point of feedback
 	if (processedResonance > 510000000) { // Re-check this?
@@ -349,10 +346,7 @@ inline q31_t LpLadderFilter::do24dBLPFOnSample(q31_t input, LpLadderState& state
 	// Primarily it stops us getting to full resonance. But even if we allow further resonance increase, the sound just doesn't quite compare.
 	// Lucky I discovered this by mistake
 
-	q31_t x = multiply_32x32_rshift32_rounded(
-	              (input - (multiply_32x32_rshift32_rounded(feedbacksSum, processedResonance) << 3)),
-	              divideByTotalMoveabilityAndProcessedResonance)
-	          << 2;
+	q31_t x = scaleInput(input, feedbacksSum);
 
 	// Only saturate if resonance is high enough. Surprisingly, saturation makes no audible difference until very near the point of feedback
 
@@ -388,10 +382,7 @@ inline q31_t LpLadderFilter::doDriveLPFOnSample(q31_t input, LpLadderState& stat
 	feedbacksSum = getTanHUnknown(feedbacksSum, 7);
 
 	// We don't saturate the input anymore, because that's the place where we'd get the most aliasing!
-	q31_t x = multiply_32x32_rshift32_rounded(
-	              (input - (multiply_32x32_rshift32_rounded(feedbacksSum, processedResonance) << 3)),
-	              divideByTotalMoveabilityAndProcessedResonance)
-	          << 2;
+	q31_t x = scaleInput(input, feedbacksSum);
 
 	q31_t a = state.lpfLPF1.doFilter(x, noisy_m);
 

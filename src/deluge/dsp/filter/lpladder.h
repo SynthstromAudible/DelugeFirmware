@@ -50,6 +50,12 @@ private:
 			lpfLPF4.reset();
 		}
 	};
+	inline q31_t scaleInput(q31_t input, q31_t feedbacksSum) {
+		return multiply_32x32_rshift32_rounded(
+		           (input - (multiply_32x32_rshift32_rounded(feedbacksSum, processedResonance) << 3)),
+		           divideByTotalMoveabilityAndProcessedResonance)
+		       << 2;
+	}
 	inline q31_t do24dBLPFOnSample(q31_t input, LpLadderState& state);
 	inline q31_t do12dBLPFOnSample(q31_t input, LpLadderState& state);
 	inline q31_t doDriveLPFOnSample(q31_t input, LpLadderState& state);
