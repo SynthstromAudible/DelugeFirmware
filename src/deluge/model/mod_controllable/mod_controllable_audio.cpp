@@ -1771,8 +1771,11 @@ void ModControllableAudio::switchLPFMode() {
 		displayText = "DRIVE LPF";
 		break;
 
-	case FilterMode::SVF:
-		displayText = "SVF";
+	case FilterMode::SVF_BAND:
+		displayText = "SV_BAND";
+		break;
+	case FilterMode::SVF_NOTCH:
+		displayText = "SV_NOTCH";
 		break;
 	}
 	numericDriver.displayPopup(displayText);
@@ -1787,8 +1790,11 @@ void ModControllableAudio::switchHPFMode() {
 		displayText = "Ladder";
 		break;
 
-	case FilterMode::HPSVF:
-		displayText = "SVF";
+	case FilterMode::SVF_BAND:
+		displayText = "SV_BAND";
+		break;
+	case FilterMode::SVF_NOTCH:
+		displayText = "SV_NOTCH";
 		break;
 	}
 	numericDriver.displayPopup(displayText);
