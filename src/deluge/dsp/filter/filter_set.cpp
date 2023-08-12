@@ -184,7 +184,8 @@ int32_t FilterSet::setConfig(int32_t lpfFrequency, int32_t lpfResonance, bool do
 		}
 		//otherwise it's an SVF ((lpfmode == FilterMode::SVF_BAND) || (lpfmode == FilterMode::SVF_NOTCH))
 		else {
-			filterGain = hpsvf.configure(hpfFrequency, hpfResonance, hpfmode, hpfMorph, filterGain);
+			//invert the morph for the HPF so it goes high-band/notch-low
+			filterGain = hpsvf.configure(hpfFrequency, hpfResonance, hpfmode, ((1 << 29) - 1) - hpfMorph, filterGain);
 			if (lastHPFMode_ != hpfMode_) {
 				hpsvf.reset();
 			}
