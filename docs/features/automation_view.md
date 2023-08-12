@@ -6,39 +6,44 @@ Automatable Parameters are broken down into two categories for Automation Instru
 
 1. Automatable Parameters for Synths, Kits with affect entire DISABLED, and Midi
 
->The 51 parameters that can be edited are:
+>The 54 parameters that can be edited are:
 >
-> - **Master** Volume, Pitch, Pan
-> - **LPF** Cutoff, Resonance
-> - **HPF** Cutoff, Resonance
-> - **EQ** Bass, Bass Freq, Treble, Treble Freq
+> - **Master** Level, Pitch, Pan
+> - **LPF** Frequency, Resonance, Morph
+> - **HPF** Frequency, Resonance, Morph
+> - **EQ** Bass, Bass Frequency, Treble, Treble Frequency
 > - **Reverb** Amount
 > - **Delay** Rate, Amount
-> - **Sidechain** Send, Shape
+> - **Sidechain** Level, Shape
 > - **Distortion** Decimation, Bitcrush
-> - **OSC 1** Volume, Pitch, Phase Width, Carrier Feedback, Wave Index
-> - **OSC 2** Volume, Pitch, Phase Width, Carrier Feedback, Wave Index
-> - **FM Mod 1** Volume, Pitch, Feedback
-> - **FM Mod 2** Volume, Pitch, Feedback
+> - **OSC 1** Level, Pitch, Phase Width, Carrier Feedback, Wave Position
+> - **OSC 2** Level, Pitch, Phase Width, Carrier Feedback, Wave Position
+> - **FM Mod 1** Level, Pitch, Feedback
+> - **FM Mod 2** Level, Pitch, Feedback
 > - **Env 1** Attack, Decay, Sustain, Release
 > - **Env 2** Attack, Decay, Sustain, Release
-> - **LFO 1** Frequency
-> - **LFO 2** Frequency
+> - **LFO 1** Rate
+> - **LFO 2** Rate
 > - **Mod FX** Offset, Feedback, Depth, Rate
 > - **Arp** Rate, Gate
-> - **Noise**
+> - **Noise** Level
+> - **Portamento**
 
 2. Automatable Parameters for Kits with affect entire ENABLED
 
->The 11 parameters that can be edited are:
+>The 24 parameters that can be edited are:
 >
-> - **Master** Volume, Pan
+> - **Master** Level, Pan, Pitch
 > - **LPF** Cutoff, Resonance
 > - **HPF** Cutoff, Resonance
+> - **EQ** Bass, Bass Frequency, Treble, Treble Frequency
 > - **Reverb** Amount
 > - **Delay** Rate, Amount
-> - **Sidechain** Send
-> - **Mod FX** Depth, Rate
+> - **Sidechain** Level, Shape
+> - **Distortion** Decimation, Bitcrush
+> - **Mod FX** Offset, Feedback, Depth, Rate
+> - **Arp** Gate
+> - **Portamento**
 
 It can be thought of as a layer sitting on top of the Instrument Clip View for Synths, Kits and Midi instrument clip types. This PR does not address automation for audio clips.
 
