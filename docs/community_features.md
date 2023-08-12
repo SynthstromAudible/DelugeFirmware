@@ -39,6 +39,10 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 
 ## New behaviors
 
+### All views (Arrange, Song, Clip)
+
+ - ([#211]) Fill Mode is a new iteration/probability setting for notes. The FILL setting is at the start of the probability range, before 5%. When notes are set FILL they will only play when fill mode is active. There are 2 ways to activate fill mode - set it as a Global MIDI Command and/or set it to override the front panel Sync Scaling button. For Global MIDI Commands go to SETTINGS > MIDI > CMD > FILL. To override the Sync Scaling button set SETTINGS > FEATURES > SYNC to FILL. The orignal Sync Scaling function is moved to SHIFT+SyncScaling.
+
 ### Song view
  - ([#251]) Add new grid session layout to "Song" mode. All functionality from (classic) row layout applies except for the following:
 	 - The data model of rows and grid mode are compatible, you can switch between them freely
@@ -50,7 +54,7 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 	 - By quickly clicking (and releasing) populated pads you can change the arm state
 		 - If "Shift" is held at the same time the clip will launch immediately
 		 - If "Record" is held at the same time you can change recording status
-		 - If horizontal encoder <> is held at the same time you can change solo state 
+		 - If horizontal encoder <> is held at the same time you can change solo state
 	 - By holding a populated pad you can see the track, change the parameters and convert it to other instruments similar to rows layout
 	 - Hold an existing pad and press on another pad in the same, other or empty row to copy clips. If possible the content will be converted to the target track type
 	 - To delete a clip hold the pad and press the "Save/Delete" button
@@ -159,6 +163,7 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#163]: https://github.com/SynthstromAudible/DelugeFirmware/pull/163
 [#178]: https://github.com/SynthstromAudible/DelugeFirmware/pull/178
 [#170]: https://github.com/SynthstromAudible/DelugeFirmware/pull/170
+[#211]: https://github.com/SynthstromAudible/DelugeFirmware/pull/211
 [#221]: https://github.com/SynthstromAudible/DelugeFirmware/pull/221
 [#234]: https://github.com/SynthstromAudible/DelugeFirmware/pull/234
 [#251]: https://github.com/SynthstromAudible/DelugeFirmware/pull/251
