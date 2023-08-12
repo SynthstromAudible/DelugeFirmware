@@ -318,7 +318,7 @@ Also, similar to the Keyboard screen which uses the variable "onKeyboardScreen" 
 
 # De-scoped Items (Future Release)
 
-- add pitch to kit affect entire
+- Add missing automatable parameters to kit affect entire
 - Interpolation bug from left to right that doesn't exist from right to left
 - Improving interpolation (I want to get more granular, do the calculation at the lowest possible node)
 - Adjust multi pad press so that it renders the second pad's value at the last possible node (within that pad)
