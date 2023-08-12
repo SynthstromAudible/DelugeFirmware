@@ -94,7 +94,7 @@ bool SampleMarkerEditor::opened() {
 	waveformBasicNavigator.sample = (Sample*)getCurrentSampleHolder()->audioFile;
 
 	if (!waveformBasicNavigator.sample) {
-		display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_NO_SAMPLE));
+		display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_SAMPLE));
 		return false;
 	}
 

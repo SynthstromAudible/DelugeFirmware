@@ -239,7 +239,7 @@ doEndMidiLearnPressSession:
 					if ((int32_t)(AudioEngine::audioSampleTimer - timeSaveButtonPressed) < kShortPressTime) {
 						if (currentSong->hasAnyPendingNextOverdubs()) {
 							display.displayPopup(
-							    deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CANT_SAVE_WHILE_OVERDUBS_PENDING));
+							    deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_SAVE_WHILE_OVERDUBS_PENDING));
 						}
 						else {
 							openUI(&saveSongUI);
@@ -311,7 +311,7 @@ doEndMidiLearnPressSession:
 
 			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
 cant:
-				display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_RECORDING_TO_ARRANGEMENT));
+				display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 				return ActionResult::DEALT_WITH;
 			}
 
@@ -405,7 +405,7 @@ possiblyRevert:
 		if (on && currentUIMode == UI_MODE_NONE) {
 
 			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-				display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_RECORDING_TO_ARRANGEMENT));
+				display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 				return ActionResult::DEALT_WITH;
 			}
 
@@ -928,7 +928,7 @@ void View::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 			if (modelStackWithParam && modelStackWithParam->autoParam) {
 				Action* action = actionLogger.getNewAction(ACTION_AUTOMATION_DELETE, false);
 				modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam);
-				display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_AUTOMATION_DELETED));
+				display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_AUTOMATION_DELETED));
 			}
 
 			return;
@@ -1418,7 +1418,7 @@ void View::navigateThroughAudioOutputsForAudioClip(int32_t offset, AudioClip* cl
 	currentSong->canOldOutputBeReplaced(clip, &availabilityRequirement);
 
 	if (availabilityRequirement == Availability::INSTRUMENT_UNUSED) {
-		display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CLIP_HAS_INSTANCES_IN_ARRANGER));
+		display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIP_HAS_INSTANCES_IN_ARRANGER));
 		return;
 	}
 
@@ -1490,7 +1490,7 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 				newChannel = (newChannel + offset) & (NUM_CV_CHANNELS - 1);
 
 				if (newChannel == oldNonAudioInstrument->channel) {
-					display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_NO_UNUSED_CHANNELS));
+					display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_UNUSED_CHANNELS));
 					return;
 				}
 
@@ -1550,7 +1550,7 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 				if (newChannel == oldChannel
 				    && newChannelSuffix == ((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix) {
 					oldNonAudioInstrument->channel = oldChannel; // Put it back
-					display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_NO_UNUSED_CHANNELS));
+					display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_UNUSED_CHANNELS));
 					return;
 				}
 

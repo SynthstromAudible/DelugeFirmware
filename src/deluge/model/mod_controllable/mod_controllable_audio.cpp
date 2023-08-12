@@ -1681,7 +1681,7 @@ void ModControllableAudio::switchDelayAnalog() {
 		break;
 
 	default:
-		displayText = deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_ANALOG_DELAY);
+		displayText = deluge::l10n::get(deluge::l10n::String::STRING_FOR_ANALOG_DELAY);
 		break;
 	}
 	display.displayPopup(displayText);

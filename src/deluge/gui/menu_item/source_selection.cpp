@@ -77,8 +77,8 @@ void SourceSelection::drawPixelsForOled() {
 
 // 7SEG only
 void SourceSelection::drawValue() {
-	l10n::Strings text;
-	using enum l10n::Strings;
+	l10n::String text;
+	using enum l10n::String;
 
 	switch (sourceMenuContents[this->getValue()]) {
 	case PatchSource::LFO_GLOBAL:

@@ -57,7 +57,7 @@ public:
 	}
 
 	static_vector<std::string, capacity()> getOptions() override {
-		using enum l10n::Strings;
+		using enum l10n::String;
 		auto gate_output_fmt_string = l10n::get(STRING_FOR_GATE_OUTPUT_N);
 		return {
 		    fmt::vformat(gate_output_fmt_string, fmt::make_format_args(1)),

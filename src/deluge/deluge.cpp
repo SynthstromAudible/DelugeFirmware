@@ -654,7 +654,7 @@ extern "C" int32_t deluge_main(void) {
 
 		case RESET_SETTINGS:
 			if (looksOk) {
-				display.consoleText(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_FACTORY_RESET));
+				display.consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_FACTORY_RESET));
 				FlashStorage::resetSettings();
 				FlashStorage::writeSettings();
 			}

@@ -38,12 +38,12 @@ namespace deluge::gui::context_menu {
 ClearSong clearSong{};
 
 char const* ClearSong::getTitle() {
-	using enum l10n::Strings;
+	using enum l10n::String;
 	return l10n::get(STRING_FOR_CLEAR_SONG_QMARK);
 }
 
 Sized<char const**> ClearSong::getOptions() {
-	using enum l10n::Strings;
+	using enum l10n::String;
 	if (display.type == DisplayType::OLED) {
 		static char const* options[] = {l10n::get(STRING_FOR_OK)};
 		return {options, 1};

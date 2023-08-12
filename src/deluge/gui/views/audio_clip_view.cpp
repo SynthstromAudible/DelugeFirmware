@@ -349,7 +349,7 @@ dontDeactivateMarker:
 			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, currentSong->currentClip);
 
 			getClip()->clear(action, modelStack);
-			display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_AUDIO_CLIP_CLEARED));
+			display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_AUDIO_CLIP_CLEARED));
 			endMarkerVisible = false;
 			uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
 			uiNeedsRendering(this, 0xFFFFFFFF, 0);

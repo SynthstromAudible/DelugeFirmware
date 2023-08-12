@@ -3,7 +3,7 @@
 #include "gui/l10n/strings.h"
 
 namespace deluge::l10n::built_in {
-using enum Strings;
+using enum String;
 constexpr Language english{
     "English",
     {

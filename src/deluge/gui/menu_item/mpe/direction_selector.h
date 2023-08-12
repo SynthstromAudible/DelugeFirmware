@@ -28,7 +28,7 @@ public:
 	using Selection::Selection;
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
 	static_vector<std::string, capacity()> getOptions() override {
-		using enum l10n::Strings;
+		using enum l10n::String;
 		return {
 		    l10n::get(STRING_FOR_IN),
 		    l10n::get(STRING_FOR_OUT),

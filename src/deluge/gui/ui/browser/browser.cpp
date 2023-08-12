@@ -1473,7 +1473,7 @@ ActionResult Browser::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 			if (currentFileItem) {
 				if (currentFileItem->isFolder) {
 					display.displayPopup(
-					    deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_FOLDERS_CANNOT_BE_DELETED_ON_THE_DELUGE));
+					    deluge::l10n::get(deluge::l10n::String::STRING_FOR_FOLDERS_CANNOT_BE_DELETED_ON_THE_DELUGE));
 					return ActionResult::DEALT_WITH;
 				}
 				if (inCardRoutine) {

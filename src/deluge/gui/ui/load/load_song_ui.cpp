@@ -321,7 +321,7 @@ gotErrorAfterCreatingSong:
 	bool success = storageManager.closeFile();
 
 	if (!success) {
-		display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_ERROR_LOADING_SONG));
+		display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_LOADING_SONG));
 		goto fail;
 	}
 
@@ -496,7 +496,7 @@ void LoadSongUI::scrollFinished() {
 }
 
 void LoadSongUI::exitActionWithError() {
-	display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_SD_CARD_ERROR));
+	display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_SD_CARD_ERROR));
 	exitAction();
 }
 
@@ -673,7 +673,7 @@ void LoadSongUI::exitAction() {
 
 	// If parts of the old song have been deleted, sorry, there's no way we can exit without loading a new song
 	if (deletedPartsOfOldSong) {
-		display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_UNLOADED_PARTS));
+		display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_UNLOADED_PARTS));
 		return;
 	}
 

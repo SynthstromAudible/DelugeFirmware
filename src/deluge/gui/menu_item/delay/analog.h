@@ -29,7 +29,7 @@ public:
 	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->delay.analog); }
 	void writeCurrentValue() override { soundEditor.currentModControllable->delay.analog = this->getValue(); }
 	static_vector<std::string, 2> getOptions() override {
-		using enum l10n::Strings;
+		using enum l10n::String;
 		return {l10n::get(STRING_FOR_DIGITAL), l10n::get(STRING_FOR_ANALOG)};
 	}
 };

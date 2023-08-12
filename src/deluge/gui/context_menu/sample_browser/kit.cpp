@@ -28,12 +28,12 @@ namespace deluge::gui::context_menu::sample_browser {
 Kit kit{};
 
 char const* Kit::getTitle() {
-	using enum l10n::Strings;
+	using enum l10n::String;
 	return l10n::get(STRING_FOR_SAMPLES);
 }
 
 Sized<char const**> Kit::getOptions() {
-	using enum l10n::Strings;
+	using enum l10n::String;
 	static char const* options[] = {
 	    l10n::get(STRING_FOR_LOAD_ALL), //<
 	    l10n::get(STRING_FOR_SLICE)     //<

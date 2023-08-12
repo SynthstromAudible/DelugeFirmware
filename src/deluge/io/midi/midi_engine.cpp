@@ -785,7 +785,7 @@ void MidiEngine::midiSysexReceived(MIDIDevice* device, uint8_t* data, int32_t le
 		} break;
 
 		case 1:
-			display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_HELLO_SYSEX));
+			display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_HELLO_SYSEX));
 			break;
 
 		case 2:

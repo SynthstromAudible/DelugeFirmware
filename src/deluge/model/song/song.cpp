@@ -4371,7 +4371,7 @@ Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset
 
 				if (newChannel == oldChannel) {
 cantDoIt:
-					display.displayPopup(l10n::get(l10n::Strings::STRING_FOR_NO_FREE_CHANNEL_SLOTS_AVAILABLE_IN_SONG));
+					display.displayPopup(l10n::get(l10n::String::STRING_FOR_NO_FREE_CHANNEL_SLOTS_AVAILABLE_IN_SONG));
 					return output;
 				}
 
@@ -4543,7 +4543,7 @@ Instrument* Song::changeInstrumentType(Instrument* oldInstrument, InstrumentType
 
 			// If we've searched all channels...
 			if (newSlot == oldSlot) {
-				display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_NO_AVAILABLE_CHANNELS));
+				display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_AVAILABLE_CHANNELS));
 				return NULL;
 			}
 		}
@@ -4851,7 +4851,7 @@ Instrument* Song::getNonAudioInstrumentToSwitchTo(InstrumentType newInstrumentTy
 
 		// If we've searched all channels...
 		if (newSlot == oldSlot) {
-			display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_NO_UNUSED_CHANNELS_AVAILABLE));
+			display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_UNUSED_CHANNELS_AVAILABLE));
 			return NULL;
 		}
 	}

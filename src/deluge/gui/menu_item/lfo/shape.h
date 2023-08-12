@@ -27,7 +27,7 @@ public:
 	using Selection::Selection;
 
 	static_vector<std::string, capacity()> getOptions() override {
-		using enum l10n::Strings;
+		using enum l10n::String;
 		return {
 		    l10n::get(STRING_FOR_SINE), l10n::get(STRING_FOR_TRIANGLE),        l10n::get(STRING_FOR_SQUARE),
 		    l10n::get(STRING_FOR_SAW),  l10n::get(STRING_FOR_SAMPLE_AND_HOLD), l10n::get(STRING_FOR_RANDOM_WALK),

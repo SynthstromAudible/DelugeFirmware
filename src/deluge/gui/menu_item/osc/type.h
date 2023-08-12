@@ -62,7 +62,7 @@ public:
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
 	static_vector<std::string, capacity()> getOptions() override {
-		using enum l10n::Strings;
+		using enum l10n::String;
 		static_vector<std::string, capacity()> options = {
 		    l10n::get(STRING_FOR_SINE),          //<
 		    l10n::get(STRING_FOR_TRIANGLE),      //<

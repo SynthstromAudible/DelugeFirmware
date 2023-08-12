@@ -566,7 +566,7 @@ doOther:
 
 			if (!clip->containsAnyNotes()) {
 				display.displayPopup(
-				    deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_AT_LEAST_ONE_ROW_NEEDS_TO_HAVE_NOTES));
+				    deluge::l10n::get(deluge::l10n::String::STRING_FOR_AT_LEAST_ONE_ROW_NEEDS_TO_HAVE_NOTES));
 			}
 			else {
 				char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -592,7 +592,7 @@ doOther:
 				uiNeedsRendering(this);
 
 				// Show popup to make it clear what just happened
-				display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_DELETED_UNUSED_ROWS));
+				display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DELETED_UNUSED_ROWS));
 			}
 		}
 	}
@@ -880,12 +880,12 @@ void InstrumentClipView::copyAutomation(int32_t whichModEncoder) {
 		modelStack->autoParam->copy(startPos, endPos, &copiedParamAutomation, isPatchCable, modelStack);
 
 		if (copiedParamAutomation.nodes) {
-			display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_AUTOMATION_COPIED));
+			display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_AUTOMATION_COPIED));
 			return;
 		}
 	}
 
-	display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_NO_AUTOMATION_TO_COPY));
+	display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_AUTOMATION_TO_COPY));
 }
 
 void InstrumentClipView::copyNotes() {
@@ -973,7 +973,7 @@ ramError:
 		}
 	}
 
-	display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_NOTES_COPIED));
+	display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NOTES_COPIED));
 }
 
 void InstrumentClipView::deleteCopiedNoteRows() {
@@ -987,7 +987,7 @@ void InstrumentClipView::deleteCopiedNoteRows() {
 
 void InstrumentClipView::pasteAutomation(int32_t whichModEncoder) {
 	if (!copiedParamAutomation.nodes) {
-		display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_NO_AUTOMATION_TO_PASTE));
+		display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_AUTOMATION_TO_PASTE));
 		return;
 	}
 
@@ -1009,7 +1009,7 @@ void InstrumentClipView::pasteAutomation(int32_t whichModEncoder) {
 	    view.activeModControllableModelStack.modControllable->getParamFromModEncoder(
 	        whichModEncoder, &view.activeModControllableModelStack, true);
 	if (!modelStackWithAutoParam || !modelStackWithAutoParam->autoParam) {
-		display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CANT_PASTE_AUTOMATION));
+		display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_PASTE_AUTOMATION));
 		return;
 	}
 
@@ -1028,7 +1028,7 @@ void InstrumentClipView::pasteAutomation(int32_t whichModEncoder) {
 	modelStackWithAutoParam->autoParam->paste(startPos, endPos, scaleFactor, modelStackWithAutoParam,
 	                                          &copiedParamAutomation, isPatchCable);
 
-	display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_AUTOMATION_PASTED));
+	display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_AUTOMATION_PASTED));
 	if (playbackHandler.isEitherClockActive()) {
 		currentPlaybackMode->reversionDone(); // Re-gets automation and stuff
 	}
@@ -1125,14 +1125,14 @@ ramError:
 getOut:
 	recalculateColours();
 	uiNeedsRendering(this);
-	display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_NOTES_PASTED));
+	display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NOTES_PASTED));
 }
 
 void InstrumentClipView::doubleClipLengthAction() {
 
 	// If too big...
 	if (currentSong->currentClip->loopLength > (kMaxSequenceLength >> 1)) {
-		display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_MAXIMUM_LENGTH_REACHED));
+		display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MAXIMUM_LENGTH_REACHED));
 		return;
 	}
 
@@ -1320,7 +1320,7 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 			}
 		}
 		if (numRandomized > 0) {
-			display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_RANDOMIZED));
+			display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RANDOMIZED));
 			return ActionResult::DEALT_WITH;
 		}
 	}
@@ -1997,10 +1997,10 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
 		char const* displayString;
 		if (velocityValue == 255) {
 			if (velocityChange >= 0) {
-				displayString = deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_VELOCITY_INCREASED);
+				displayString = deluge::l10n::get(deluge::l10n::String::STRING_FOR_VELOCITY_INCREASED);
 			}
 			else {
-				displayString = deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_VELOCITY_DECREASED);
+				displayString = deluge::l10n::get(deluge::l10n::String::STRING_FOR_VELOCITY_DECREASED);
 			}
 
 			// Don't bother trying to think of some smart way to update lastVelocityInteractedWith. It'll get updated when user releases last press.
@@ -4229,10 +4229,10 @@ void InstrumentClipView::quantizeNotes(int32_t offset, int32_t nudgeMode) {
 	if (!offset) {
 		quantizeAmount = 0;
 		if (nudgeMode == NUDGEMODE_QUANTIZE) {
-			display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_QUANTIZE));
+			display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_QUANTIZE));
 		}
 		else if (nudgeMode == NUDGEMODE_QUANTIZE_ALL) {
-			display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_QUANTIZE_ALL_ROW));
+			display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_QUANTIZE_ALL_ROW));
 		}
 		return;
 	}

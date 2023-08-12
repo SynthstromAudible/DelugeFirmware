@@ -22,7 +22,7 @@ public:
 	};
 
 	/** @brief Builder-style constructor for creating localization language maps (compile-time only) */
-	consteval Language(char const* name, std::initializer_list<std::pair<l10n::Strings, const char*>> stringmaps,
+	consteval Language(char const* name, std::initializer_list<std::pair<l10n::String, const char*>> stringmaps,
 	                   const Language* fallback = nullptr)
 	    : name_(name) {
 
@@ -40,11 +40,11 @@ public:
 		}
 	}
 
-	[[nodiscard]] constexpr map_type::value_type get(Strings entry) const {
+	[[nodiscard]] constexpr map_type::value_type get(String entry) const {
 		return map_.at(util::to_underlying(entry));
 	}
 
-	constexpr Language& add(Strings entry, map_type::value_type value) {
+	constexpr Language& add(String entry, map_type::value_type value) {
 		size_t idx = util::to_underlying(entry);
 		map_[idx] = value;
 		return *this;

@@ -31,8 +31,8 @@ void Toggle::drawValue() {
 	}
 	else {
 		display.setText(this->getValue() //<
-		                    ? l10n::get(l10n::Strings::STRING_FOR_ENABLED)
-		                    : l10n::get(l10n::Strings::STRING_FOR_DISABLED));
+		                    ? l10n::get(l10n::String::STRING_FOR_ENABLED)
+		                    : l10n::get(l10n::String::STRING_FOR_DISABLED));
 	}
 }
 
@@ -42,8 +42,8 @@ void Toggle::drawPixelsForOled() {
 	soundEditor.menuCurrentScroll = std::clamp<int32_t>(soundEditor.menuCurrentScroll, 0, 1);
 
 	char const* options[] = {
-	    l10n::get(l10n::Strings::STRING_FOR_DISABLED),
-	    l10n::get(l10n::Strings::STRING_FOR_ENABLED),
+	    l10n::get(l10n::String::STRING_FOR_DISABLED),
+	    l10n::get(l10n::String::STRING_FOR_ENABLED),
 	};
 	int32_t selectedOption = this->getValue() - soundEditor.menuCurrentScroll;
 

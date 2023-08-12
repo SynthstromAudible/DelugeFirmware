@@ -195,7 +195,7 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
 					forceResetPlayPos(currentSong);
 				}
 				else {
-					display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_FOLLOWING_EXTERNAL_CLOCK));
+					display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_FOLLOWING_EXTERNAL_CLOCK));
 				}
 			}
 		}
@@ -1811,7 +1811,7 @@ void PlaybackHandler::tempoEncoderAction(int8_t offset, bool encoderButtonPresse
 					numOutputClocksWaitingToBeSent--; // Send one less clock
 				}
 displayNudge:
-				display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_SYNC_NUDGED));
+				display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_SYNC_NUDGED));
 			}
 		}
 
@@ -2221,7 +2221,7 @@ void PlaybackHandler::grabTempoFromClip(Clip* clip) {
 
 	if (clip->type != CLIP_TYPE_AUDIO || clip->getCurrentlyRecordingLinearly()
 	    || !((AudioClip*)clip)->sampleHolder.audioFile) {
-		display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CANT_GRAB_TEMPO_FROM_CLIP));
+		display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_GRAB_TEMPO_FROM_CLIP));
 		return;
 	}
 
@@ -2937,12 +2937,12 @@ doCreateNextOverdub:
 				}
 				else {
 					display.displayPopup(
-					    deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_AUDIO_TRACK_HAS_NO_INPUT_CHANNEL));
+					    deluge::l10n::get(deluge::l10n::String::STRING_FOR_AUDIO_TRACK_HAS_NO_INPUT_CHANNEL));
 				}
 			}
 			else {
 				display.displayPopup(
-				    deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CREATE_OVERDUB_FROM_WHICH_CLIP));
+				    deluge::l10n::get(deluge::l10n::String::STRING_FOR_CREATE_OVERDUB_FROM_WHICH_CLIP));
 			}
 		}
 	}

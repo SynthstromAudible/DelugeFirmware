@@ -5,7 +5,7 @@
 
 namespace deluge::l10n {
 // Strings that can be localized
-enum class Strings : size_t {
+enum class String : size_t {
 	// Errors
 	STRING_FOR_ERROR_INSUFFICIENT_RAM,
 	STRING_FOR_ERROR_INSUFFICIENT_RAM_FOR_FOLDER_CONTENTS_SIZE,
@@ -394,6 +394,6 @@ enum class Strings : size_t {
 };
 
 // The maximum number of strings that can be localized
-constexpr size_t kNumStrings = static_cast<size_t>(Strings::STRINGS_LAST);
+constexpr size_t kNumStrings = static_cast<size_t>(String::STRINGS_LAST);
 
 } // namespace deluge::l10n

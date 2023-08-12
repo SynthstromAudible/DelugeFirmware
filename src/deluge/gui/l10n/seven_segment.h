@@ -3,7 +3,7 @@
 #include "gui/l10n/language.h"
 
 namespace deluge::l10n::built_in {
-using enum Strings;
+using enum String;
 constexpr Language seven_segment{
     "Seven Segment",
     {

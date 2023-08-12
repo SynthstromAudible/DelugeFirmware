@@ -29,7 +29,7 @@ public:
 	void readCurrentValue() override { this->setValue(midiEngine.midiTakeover); }
 	void writeCurrentValue() override { midiEngine.midiTakeover = this->getValue<MIDITakeoverMode>(); }
 	static_vector<std::string, capacity()> getOptions() override {
-		using enum l10n::Strings;
+		using enum l10n::String;
 		return {
 		    l10n::get(STRING_FOR_JUMP),
 		    l10n::get(STRING_FOR_PICK_UP),

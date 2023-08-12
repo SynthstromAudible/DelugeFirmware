@@ -50,7 +50,7 @@ public:
 	}
 
 	static_vector<std::string, capacity()> getOptions() override {
-		using enum l10n::Strings;
+		using enum l10n::String;
 
 		// // Just a test
 		// auto strings =                               //<

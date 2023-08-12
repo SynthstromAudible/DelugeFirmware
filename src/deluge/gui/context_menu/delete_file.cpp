@@ -32,7 +32,7 @@ namespace deluge::gui::context_menu {
 DeleteFile deleteFile{};
 
 char const* DeleteFile::getTitle() {
-	using enum l10n::Strings;
+	using enum l10n::String;
 	if (getUIUpOneLevel() == &context_menu::saveSongOrInstrument) {
 		return l10n::get(STRING_FOR_ARE_YOU_SURE_QMARK);
 	}
@@ -40,7 +40,7 @@ char const* DeleteFile::getTitle() {
 }
 
 Sized<char const**> DeleteFile::getOptions() {
-	using enum l10n::Strings;
+	using enum l10n::String;
 
 	if (display.type == DisplayType::OLED) {
 		static char const* options[] = {l10n::get(STRING_FOR_OK)};
@@ -58,7 +58,7 @@ Sized<char const**> DeleteFile::getOptions() {
 }
 
 bool DeleteFile::acceptCurrentOption() {
-	using enum l10n::Strings;
+	using enum l10n::String;
 
 	UI* ui = getUIUpOneLevel();
 	if (ui == &context_menu::saveSongOrInstrument) {

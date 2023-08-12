@@ -291,7 +291,7 @@ char const* sourceToString(PatchSource source) {
 }
 
 char const* getSourceDisplayNameForOLED(PatchSource s) {
-	using enum l10n::Strings;
+	using enum l10n::String;
 	auto lang = l10n::chosenLanguage;
 
 	switch (s) {
@@ -335,7 +335,7 @@ char const* getSourceDisplayNameForOLED(PatchSource s) {
 }
 
 char const* getPatchedParamDisplayNameForOled(int32_t p) {
-	using enum l10n::Strings;
+	using enum l10n::String;
 	auto lang = l10n::chosenLanguage;
 
 	// These can basically be 13 chars long, or 14 if the last one is a dot.

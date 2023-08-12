@@ -30,12 +30,12 @@ namespace deluge::gui::context_menu::sample_browser {
 Synth synth{};
 
 char const* Synth::getTitle() {
-	using enum l10n::Strings;
+	using enum l10n::String;
 	return l10n::get(STRING_FOR_LOAD_FILES);
 }
 
 Sized<char const**> Synth::getOptions() {
-	using enum l10n::Strings;
+	using enum l10n::String;
 	static char const* options[] = {
 	    l10n::get(STRING_FOR_MULTISAMPLES), //<
 	    l10n::get(STRING_FOR_BASIC),        //<

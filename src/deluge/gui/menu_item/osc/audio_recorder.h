@@ -50,7 +50,7 @@ public:
 
 		bool can = isRelevant(sound, whichThing);
 		if (!can) {
-			display.displayPopup(l10n::get(l10n::Strings::STRING_FOR_CANT_RECORD_AUDIO_FM_MODE));
+			display.displayPopup(l10n::get(l10n::String::STRING_FOR_CANT_RECORD_AUDIO_FM_MODE));
 			return MenuPermission::NO;
 		}
 

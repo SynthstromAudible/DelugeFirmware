@@ -147,7 +147,7 @@ ActionResult ClipView::horizontalEncoderAction(int32_t offset) {
 
 		// If tempoless recording, don't allow
 		if (!getCurrentClip()->currentlyScrollableAndZoomable()) {
-			display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CANT_EDIT_LENGTH));
+			display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_EDIT_LENGTH));
 			return ActionResult::DEALT_WITH;
 		}
 

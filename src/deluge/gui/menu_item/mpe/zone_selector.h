@@ -30,7 +30,7 @@ public:
 	void writeCurrentValue() override { whichZone = this->getValue(); }
 
 	static_vector<std::string, capacity()> getOptions() override {
-		using enum l10n::Strings;
+		using enum l10n::String;
 		return {
 		    l10n::get(STRING_FOR_LOWER_ZONE),
 		    l10n::get(STRING_FOR_UPPER_ZONE),

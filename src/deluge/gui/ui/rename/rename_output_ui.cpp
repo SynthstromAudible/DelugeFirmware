@@ -100,7 +100,7 @@ void RenameOutputUI::enterKeyPress() {
 	// If actually changing it...
 	if (!output->name.equalsCaseIrrespective(&enteredText)) {
 		if (currentSong->getAudioOutputFromName(&enteredText)) {
-			display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_DUPLICATE_NAMES));
+			display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DUPLICATE_NAMES));
 			return;
 		}
 	}

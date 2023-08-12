@@ -237,7 +237,7 @@ void AudioRecorder::process() {
 				recorder->recordingClippedRecently = false;
 
 				if (!display.hasPopup()) {
-					display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CLIPPING_OCCURRED));
+					display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIPPING_OCCURRED));
 				}
 			}
 		}

@@ -24,12 +24,12 @@ namespace deluge::gui::context_menu {
 OverwriteFile overwriteFile{};
 
 char const* OverwriteFile::getTitle() {
-	using enum l10n::Strings;
+	using enum l10n::String;
 	return l10n::get(STRING_FOR_OVERWRITE_QMARK);
 }
 
 Sized<char const**> OverwriteFile::getOptions() {
-	using enum l10n::Strings;
+	using enum l10n::String;
 	if (display.type == DisplayType::OLED) {
 		static char const* options[] = {l10n::get(STRING_FOR_OK)};
 		return {options, 1};

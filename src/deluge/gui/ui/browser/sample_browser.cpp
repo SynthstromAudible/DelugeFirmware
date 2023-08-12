@@ -292,7 +292,7 @@ ActionResult SampleBrowser::timerCallback() {
 			// AudioClip
 			if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
 				display.displayPopup(
-				    deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CANT_IMPORT_WHOLE_FOLDER_INTO_AUDIO_CLIP));
+				    deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_IMPORT_WHOLE_FOLDER_INTO_AUDIO_CLIP));
 			}
 
 			// Kit
@@ -304,7 +304,7 @@ ActionResult SampleBrowser::timerCallback() {
 				}
 				else {
 					display.displayPopup(deluge::l10n::get(
-					    deluge::l10n::Strings::STRING_FOR_CAN_ONLY_IMPORT_WHOLE_FOLDER_INTO_BRAND_NEW_KIT));
+					    deluge::l10n::String::STRING_FOR_CAN_ONLY_IMPORT_WHOLE_FOLDER_INTO_BRAND_NEW_KIT));
 				}
 			}
 
@@ -354,7 +354,7 @@ void SampleBrowser::enterKeyPress() {
 		// Don't allow user to go into TEMP clips folder
 		if (currentFileItem->filename.equalsCaseIrrespective("TEMP")
 		    && currentDir.equalsCaseIrrespective("SAMPLES/CLIPS")) {
-			display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_TEMP_FOLDER_CANT_BE_BROWSED));
+			display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_TEMP_FOLDER_CANT_BE_BROWSED));
 			return;
 		}
 
@@ -386,7 +386,7 @@ void SampleBrowser::enterKeyPress() {
 			}
 			else {
 				display.displayPopup(
-				    deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CAN_ONLY_USE_SLICER_FOR_BRAND_NEW_KIT));
+				    deluge::l10n::get(deluge::l10n::String::STRING_FOR_CAN_ONLY_USE_SLICER_FOR_BRAND_NEW_KIT));
 			}
 		}
 
@@ -431,7 +431,7 @@ ActionResult SampleBrowser::buttonAction(hid::Button b, bool on, bool inCardRout
 
 					if (!allFine) {
 						display.displayPopup(
-						    deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_AUDIO_FILE_IS_USED_IN_CURRENT_SONG));
+						    deluge::l10n::get(deluge::l10n::String::STRING_FOR_AUDIO_FILE_IS_USED_IN_CURRENT_SONG));
 					}
 					else {
 						goIntoDeleteFileContextMenu();
@@ -777,7 +777,7 @@ bool SampleBrowser::claimCurrentFile(int32_t mayDoPitchDetection, int32_t mayDoS
 
 	if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
 		if (currentSong->currentClip->getCurrentlyRecordingLinearly()) {
-			display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CLIP_IS_RECORDING));
+			display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIP_IS_RECORDING));
 			return false;
 		}
 	}
@@ -1804,7 +1804,7 @@ skipOctaveCorrection:
 
 	if (!numSamples) {
 		display.displayPopup(
-		    deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_ERROR_CREATING_MULTISAMPLED_INSTRUMENT));
+		    deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_CREATING_MULTISAMPLED_INSTRUMENT));
 		goto doReturnFalse;
 	}
 

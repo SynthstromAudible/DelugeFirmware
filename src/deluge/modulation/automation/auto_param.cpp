@@ -116,7 +116,7 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 					Action* action = actionLogger.getNewAction(ACTION_AUTOMATION_DELETE, false);
 					deleteAutomation(action, modelStack);
 					display.displayPopup(
-					    deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_PARAMETER_AUTOMATION_DELETED));
+					    deluge::l10n::get(deluge::l10n::String::STRING_FOR_PARAMETER_AUTOMATION_DELETED));
 				}
 				return;
 			}

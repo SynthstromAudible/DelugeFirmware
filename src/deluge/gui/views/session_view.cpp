@@ -262,13 +262,13 @@ ActionResult SessionView::buttonAction(hid::Button b, bool on, bool inCardRoutin
 
 			else if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
 				if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-					display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_RECORDING_TO_ARRANGEMENT));
+					display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 					return ActionResult::DEALT_WITH;
 				}
 
 				// Rows are not aligned in grid so we disabled this function, the code below also would need to be aligned
 				if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
-					display.displayPopup(l10n::get(l10n::Strings::STRING_FOR_IMPOSSIBLE_FROM_GRID));
+					display.displayPopup(l10n::get(l10n::String::STRING_FOR_IMPOSSIBLE_FROM_GRID));
 					return ActionResult::DEALT_WITH;
 				}
 
@@ -306,7 +306,7 @@ moveAfterClipInstance:
 				// Make sure it won't be extending beyond numerical limit
 				if (proposedStartPos > kMaxSequenceLength - clip->loopLength) {
 					display.displayPopup(
-					    deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CLIP_WOULD_BREACH_MAX_ARRANGEMENT_LENGTH));
+					    deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIP_WOULD_BREACH_MAX_ARRANGEMENT_LENGTH));
 					return ActionResult::DEALT_WITH;
 				}
 
@@ -402,7 +402,7 @@ moveAfterClipInstance:
 		if (on) {
 
 			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-				display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_RECORDING_TO_ARRANGEMENT));
+				display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 				performActionOnPadRelease = false;
 				return ActionResult::DEALT_WITH;
 			}
@@ -479,7 +479,7 @@ changeInstrumentType:
 			performActionOnPadRelease = false;
 
 			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-				display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_RECORDING_TO_ARRANGEMENT));
+				display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 				return ActionResult::DEALT_WITH;
 			}
 
@@ -687,7 +687,7 @@ holdingRecord:
 
 							if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
 								display.displayPopup(
-								    deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_RECORDING_TO_ARRANGEMENT));
+								    deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 								return ActionResult::DEALT_WITH;
 							}
 
@@ -731,7 +731,7 @@ holdingRecord:
 							}
 							else if (currentSong->anyClipsSoloing) {
 								display.displayPopup(deluge::l10n::get(
-								    deluge::l10n::Strings::STRING_FOR_CANT_CREATE_OVERDUB_WHILE_CLIPS_SOLOING));
+								    deluge::l10n::String::STRING_FOR_CANT_CREATE_OVERDUB_WHILE_CLIPS_SOLOING));
 							}
 						}
 					}
@@ -810,7 +810,7 @@ startHoldingDown:
 
 						if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
 							display.displayPopup(
-							    deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_RECORDING_TO_ARRANGEMENT));
+							    deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 							return ActionResult::DEALT_WITH;
 						}
 
@@ -874,7 +874,7 @@ midiLearnMelodicInstrumentAction:
 					// Not allowed if recording arrangement
 					if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
 						display.displayPopup(
-						    deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_RECORDING_TO_ARRANGEMENT));
+						    deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 						goto justEndClipPress;
 					}
 
@@ -1017,7 +1017,7 @@ void SessionView::sectionPadAction(uint8_t y, bool on) {
 
 				// Not allowed if recording arrangement
 				if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-					display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_RECORDING_TO_ARRANGEMENT));
+					display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 					return;
 				}
 
@@ -1181,7 +1181,7 @@ void SessionView::selectEncoderAction(int8_t offset) {
 		performActionOnPadRelease = false;
 
 		if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-			display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_RECORDING_TO_ARRANGEMENT));
+			display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 			return;
 		}
 
@@ -1328,7 +1328,7 @@ ActionResult SessionView::verticalScrollOneSquare(int32_t direction) {
 
 		// Not allowed if recording arrangement
 		if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-			display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_RECORDING_TO_ARRANGEMENT));
+			display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 			return ActionResult::DEALT_WITH;
 		}
 
@@ -1500,7 +1500,7 @@ int32_t setPresetOrNextUnlaunchedOne(InstrumentClip* clip, InstrumentType instru
 		    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(clip);
 		int32_t error = clip->changeInstrument(modelStack, newInstrument, NULL, InstrumentRemoval::NONE);
 		if (error != NO_ERROR) {
-			display.displayPopup(l10n::get(l10n::Strings::STRING_FOR_SWITCHING_TO_TRACK_FAILED));
+			display.displayPopup(l10n::get(l10n::String::STRING_FOR_SWITCHING_TO_TRACK_FAILED));
 		}
 
 		if (newInstrument->type == InstrumentType::KIT) {
@@ -1599,7 +1599,7 @@ void SessionView::replaceAudioClipWithInstrumentClip(Clip* clip, InstrumentType 
 
 	AudioClip* audioClip = (AudioClip*)clip;
 	if (audioClip->sampleHolder.audioFile || audioClip->getCurrentlyRecordingLinearly()) {
-		display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CLIP_NOT_EMPTY));
+		display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIP_NOT_EMPTY));
 		return;
 	}
 
@@ -1682,7 +1682,7 @@ void SessionView::replaceInstrumentClipWithAudioClip(Clip* clip) {
 
 	InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 	if (instrumentClip->containsAnyNotes() || instrumentClip->output->clipHasInstance(clip)) {
-		display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CLIP_NOT_EMPTY));
+		display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIP_NOT_EMPTY));
 		return;
 	}
 
@@ -1717,7 +1717,7 @@ void SessionView::removeClip(Clip* clip) {
 
 	// If last session Clip left, just don't allow. Easiest
 	if (currentSong->sessionClips.getNumElements() == 1) {
-		display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CANT_REMOVE_FINAL_CLIP));
+		display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_REMOVE_FINAL_CLIP));
 		return;
 	}
 
@@ -1900,7 +1900,7 @@ void SessionView::cloneClip(uint8_t yDisplayFrom, uint8_t yDisplayTo) {
 
 	// Just don't allow cloning of Clips which are linearly recording
 	if (clipToClone->getCurrentlyRecordingLinearly()) {
-		display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_RECORDING_IN_PROGRESS));
+		display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_IN_PROGRESS));
 		return;
 	}
 
@@ -3114,7 +3114,7 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 	if (sourceClip != nullptr) {
 		// Can't clone audio to other tracks
 		if (sourceClip->type == CLIP_TYPE_AUDIO || (targetOutput && targetOutput->type == InstrumentType::AUDIO)) {
-			display.displayPopup(l10n::get(l10n::Strings::STRING_FOR_CANT_CLONE_AUDIO_IN_OTHER_TRACK));
+			display.displayPopup(l10n::get(l10n::String::STRING_FOR_CANT_CLONE_AUDIO_IN_OTHER_TRACK));
 			return nullptr;
 		}
 
@@ -3172,7 +3172,7 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 			int32_t error = newInstrumentClip->changeInstrument(modelStack, (Instrument*)targetOutput, NULL,
 			                                                    InstrumentRemoval::NONE);
 			if (error != NO_ERROR) {
-				display.displayPopup(l10n::get(l10n::Strings::STRING_FOR_SWITCHING_TO_TRACK_FAILED));
+				display.displayPopup(l10n::get(l10n::String::STRING_FOR_SWITCHING_TO_TRACK_FAILED));
 			}
 
 			if (targetOutput->type == InstrumentType::KIT) {
@@ -3202,13 +3202,13 @@ void SessionView::gridClonePad(uint32_t sourceX, uint32_t sourceY, uint32_t targ
 
 	// Don't allow copying recording clips
 	if (sourceClip->getCurrentlyRecordingLinearly()) {
-		display.displayPopup(l10n::get(l10n::Strings::STRING_FOR_CANT_CLONE_AUDIO_IN_OTHER_TRACK));
+		display.displayPopup(l10n::get(l10n::String::STRING_FOR_CANT_CLONE_AUDIO_IN_OTHER_TRACK));
 		return;
 	}
 
 	Clip* targetClip = gridClipFromCoords(targetX, targetY);
 	if (targetClip != nullptr) {
-		display.displayPopup(l10n::get(l10n::Strings::STRING_FOR_TARGET_FULL));
+		display.displayPopup(l10n::get(l10n::String::STRING_FOR_TARGET_FULL));
 		return;
 	}
 

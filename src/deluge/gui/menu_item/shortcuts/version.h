@@ -26,7 +26,7 @@ public:
 	void readCurrentValue() override { this->setValue(soundEditor.shortcutsVersion); }
 	void writeCurrentValue() override { soundEditor.setShortcutsVersion(this->getValue()); }
 	static_vector<std::string, capacity()> getOptions() override {
-		using enum l10n::Strings;
+		using enum l10n::String;
 		return {
 		    l10n::get(STRING_FOR_SHORTCUTS_VERSION_1),
 		    l10n::get(STRING_FOR_SHORTCUTS_VERSION_3),

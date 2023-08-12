@@ -115,7 +115,7 @@ bool SaveInstrumentPresetUI::performSave(bool mayOverwrite) {
 		// We can't save into this slot if another Instrument in this Song already uses it
 		if (currentSong->getInstrumentFromPresetSlot(instrumentTypeToLoad, 0, 0, enteredText.get(), currentDir.get(),
 		                                             false)) {
-			display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_SAME_NAME));
+			display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_SAME_NAME));
 			display.removeWorkingAnimation();
 			return false;
 		}
@@ -176,7 +176,7 @@ fail:
 
 	// There's now no chance that we saved over a preset that's already in use in the song, because we didn't allow the user to select such a slot
 
-	display.consoleText(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_PRESET_SAVED));
+	display.consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PRESET_SAVED));
 	close();
 	return true;
 }

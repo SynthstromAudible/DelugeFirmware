@@ -31,12 +31,12 @@ namespace deluge::gui::context_menu {
 OverwriteBootloader overwriteBootloader{};
 
 char const* OverwriteBootloader::getTitle() {
-	using enum l10n::Strings;
+	using enum l10n::String;
 	return l10n::get(STRING_FOR_OVERWRITE_BOOTLOADER_TITLE);
 }
 
 Sized<char const**> OverwriteBootloader::getOptions() {
-	using enum l10n::Strings;
+	using enum l10n::String;
 	static char const* options[] = {l10n::get(STRING_FOR_ACCEPT_RISK)};
 	return {options, 1};
 }
@@ -44,7 +44,7 @@ Sized<char const**> OverwriteBootloader::getOptions() {
 constexpr size_t FLASH_WRITE_SIZE = 256; // Bigger doesn't seem to work...
 
 bool OverwriteBootloader::acceptCurrentOption() {
-	using enum l10n::Strings;
+	using enum l10n::String;
 
 	if (display.type != DisplayType::OLED) {
 		display.displayLoadingAnimation();

@@ -291,7 +291,7 @@ ActionResult SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutin
 		if (on) {
 			if (!currentUIMode) {
 				if (!getCurrentMenuItem()->allowsLearnMode()) {
-					display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_CANT_LEARN));
+					display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_LEARN));
 				}
 				else {
 					if (Buttons::isShiftButtonPressed()) {
@@ -713,7 +713,7 @@ doSetup:
 				if (item) {
 
 					if (item == comingSoonMenu) {
-						display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_UNIMPLEMENTED));
+						display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_UNIMPLEMENTED));
 						return ActionResult::DEALT_WITH;
 					}
 
@@ -985,7 +985,7 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 				else {
 					if (item == &sequenceDirectionMenu) {
 						display.displayPopup(
-						    deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_SELECT_A_ROW_OR_AFFECT_ENTIRE));
+						    deluge::l10n::get(deluge::l10n::String::STRING_FOR_SELECT_A_ROW_OR_AFFECT_ENTIRE));
 					}
 					return false;
 				}
@@ -1061,7 +1061,7 @@ doMIDIOrCV:
 	MenuPermission result = newItem->checkPermissionToBeginSession(newSound, sourceIndex, &newRange);
 
 	if (result == MenuPermission::NO) {
-		display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_PARAMETER_NOT_APPLICABLE));
+		display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
 		return false;
 	}
 	else if (result == MenuPermission::MUST_SELECT_RANGE) {

@@ -126,7 +126,7 @@ void AudioFileManager::cardReinserted() {
 
 		Debug::println("cluster size increased and we're in trouble");
 		cardDisabled = true;
-		display.displayPopup(deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_REBOOT_TO_USE_THIS_SD_CARD));
+		display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_REBOOT_TO_USE_THIS_SD_CARD));
 	}
 
 	// If cluster size decreased, we have to stop all current samples from ever sounding again. Pretty big trouble really...

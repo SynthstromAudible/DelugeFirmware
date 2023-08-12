@@ -27,12 +27,12 @@ namespace deluge::gui::context_menu {
 SaveSongOrInstrument saveSongOrInstrument{};
 
 char const* SaveSongOrInstrument::getTitle() {
-	using enum l10n::Strings;
+	using enum l10n::String;
 	return l10n::get(STRING_FOR_OPTIONS);
 }
 
 Sized<char const**> SaveSongOrInstrument::getOptions() {
-	using enum l10n::Strings;
+	using enum l10n::String;
 	static char const* options[] = {
 	    l10n::get(STRING_FOR_COLLECT_MEDIA), //<
 	    l10n::get(STRING_FOR_CREATE_FOLDER), //<

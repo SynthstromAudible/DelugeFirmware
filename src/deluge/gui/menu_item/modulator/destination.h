@@ -28,7 +28,7 @@ public:
 	void readCurrentValue() override { this->setValue(soundEditor.currentSound->modulator1ToModulator0); }
 	void writeCurrentValue() override { soundEditor.currentSound->modulator1ToModulator0 = this->getValue(); }
 	static_vector<std::string, capacity()> getOptions() override {
-		using enum l10n::Strings;
+		using enum l10n::String;
 		return {
 		    l10n::get(STRING_FOR_CARRIERS),
 		    fmt::vformat(l10n::get(STRING_FOR_MODULATOR_N), fmt::make_format_args(1)),

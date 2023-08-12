@@ -53,12 +53,12 @@ constexpr size_t kNumValues = 11;
 AudioInputSelector audioInputSelector{};
 
 char const* AudioInputSelector::getTitle() {
-	using enum l10n::Strings;
+	using enum l10n::String;
 	return l10n::get(STRING_FOR_AUDIO_SOURCE);
 }
 
 Sized<const char**> AudioInputSelector::getOptions() {
-	using enum l10n::Strings;
+	using enum l10n::String;
 	static const char* options[] = {
 	    l10n::get(STRING_FOR_DISABLED),
 	    l10n::get(STRING_FOR_LEFT_INPUT),

@@ -139,7 +139,7 @@ extern std::array<char const*, NUM_PRESET_SCALES + 2> presetScaleNames;
 #define NUM_PRESET_REVERBS 3
 const uint8_t presetReverbRoomSize[NUM_PRESET_REVERBS] = {16, 30, 44};
 const uint8_t presetReverbDampening[NUM_PRESET_REVERBS] = {29, 36, 45};
-extern deluge::l10n::Strings presetReverbNames[NUM_PRESET_REVERBS];
+extern deluge::l10n::String presetReverbNames[NUM_PRESET_REVERBS];
 
 extern const uint8_t defaultClipGroupColours[];
 

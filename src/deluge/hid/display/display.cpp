@@ -10,7 +10,7 @@ bool Display<DisplayType::OLED>::isLayerCurrentlyOnTop(NumericLayer* layer) {
 }
 
 char const* getErrorMessage(int error) {
-	using enum l10n::Strings;
+	using enum l10n::String;
 	switch (error) {
 	case ERROR_INSUFFICIENT_RAM:
 		return l10n::get(STRING_FOR_ERROR_INSUFFICIENT_RAM);

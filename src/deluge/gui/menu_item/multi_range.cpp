@@ -189,7 +189,7 @@ void MultiRange::selectEncoderAction(int32_t offset) {
 			}
 
 			if (currentRangeTop == currentRangeBottom) {
-				display.displayPopup(l10n::get(l10n::Strings::STRING_FOR_RANGE_CONTAINS_ONE_NOTE));
+				display.displayPopup(l10n::get(l10n::String::STRING_FOR_RANGE_CONTAINS_ONE_NOTE));
 				return;
 			}
 
@@ -287,7 +287,7 @@ void MultiRange::deletePress() {
 
 	// Want to delete the current range
 	if (oldNum <= 1) {
-		display.displayPopup(l10n::get(l10n::Strings::STRING_FOR_LAST_RANGE_CANT_DELETE));
+		display.displayPopup(l10n::get(l10n::String::STRING_FOR_LAST_RANGE_CANT_DELETE));
 		return;
 	}
 
@@ -323,7 +323,7 @@ void MultiRange::deletePress() {
 		}
 	}
 
-	display.displayPopup(l10n::get(l10n::Strings::STRING_FOR_RANGE_DELETED));
+	display.displayPopup(l10n::get(l10n::String::STRING_FOR_RANGE_DELETED));
 	soundEditor.possibleChangeToCurrentRangeDisplay();
 	if (display.type == DisplayType::OLED) {
 		renderUIsForOled();
@@ -337,7 +337,7 @@ void MultiRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRight
 
 	// Lower end
 	if (this->getValue() == 0) {
-		strcpy(buffer, l10n::get(l10n::Strings::STRING_FOR_BOTTOM));
+		strcpy(buffer, l10n::get(l10n::String::STRING_FOR_BOTTOM));
 		if (getLeftLength) {
 			*getLeftLength = display.type == DisplayType::OLED ? 6 : 3;
 		}

@@ -429,11 +429,11 @@ void MIDIDeviceUSBUpstream::writeToFlash(uint8_t* memory) {
 char const* MIDIDeviceUSBUpstream::getDisplayName() {
 	switch (portNumber) {
 	case 0:
-		return deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_UPSTREAM_USB_PORT_1);
+		return deluge::l10n::get(deluge::l10n::String::STRING_FOR_UPSTREAM_USB_PORT_1);
 	case 1:
-		return deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_UPSTREAM_USB_PORT_2);
+		return deluge::l10n::get(deluge::l10n::String::STRING_FOR_UPSTREAM_USB_PORT_2);
 	case 2:
-		return deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_UPSTREAM_USB_PORT_3_SYSEX);
+		return deluge::l10n::get(deluge::l10n::String::STRING_FOR_UPSTREAM_USB_PORT_3_SYSEX);
 	default:
 		return "";
 	}
@@ -449,7 +449,7 @@ void MIDIDeviceDINPorts::writeToFlash(uint8_t* memory) {
 }
 
 char const* MIDIDeviceDINPorts::getDisplayName() {
-	return deluge::l10n::get(deluge::l10n::Strings::STRING_FOR_DIN_PORTS);
+	return deluge::l10n::get(deluge::l10n::String::STRING_FOR_DIN_PORTS);
 }
 
 void MIDIDeviceDINPorts::sendMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2) {
