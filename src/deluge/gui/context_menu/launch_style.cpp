@@ -47,6 +47,8 @@ bool LaunchStyle::setupAndCheckAvailability() {
 	}
     currentUIMode = UI_MODE_NONE;
 
+    currentOption = static_cast<int32_t>(valueOption);
+
 #if HAVE_OLED
 	scrollPos = currentOption;
 #endif
