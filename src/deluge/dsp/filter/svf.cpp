@@ -42,6 +42,11 @@ void SVFilter::doFilterStereo(q31_t* startSample, q31_t* endSample) {
 
 q31_t SVFilter::setConfig(q31_t freq, q31_t res, FilterMode lpfMode, q31_t lpfMorph, q31_t filterGain) {
 	curveFrequency(freq);
+	//multiply by 1.25 to loosely correct for equivalency to ladders
+	//Caused by the actual svf cutoff being sin inverse of this fc
+	constexpr q31_t POINT_25 = ONE_Q31 * 0.25;
+	fc = fc + multiply_32x32_rshift32(fc, POINT_25);
+
 	band_mode = (lpfMode == FilterMode::SVF_BAND);
 	// raw resonance is 0 - 536870896 (2^28ish, don't know where it comes from)
 	// Multiply by 4 to bring it to the q31 0-1 range
