@@ -113,7 +113,7 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 
 #### Automation Instrument Clip View
  - ([#241]) Automation Instrument Clip View is a new view that complements the existing Instrument Clip View.
-	- It is accessed from within the Clip View by pressing the Clip button (which will blink to indicate you are in the Automation View.
+	- It is accessed from within the Clip View by pressing the Clip button (which will blink to indicate you are in the Automation View).
 	- You can edit Parameter Automation for Synth, Kit and Midi instrument clips on a per step basis at any zoom level.
 	- A community features sub-menu titled Automation was created to access a number of configurable settings for changes to existing behaviour.
 	- The three changes to existing behaviour included in this feature are: Clearing Clips, Nudging Notes and Shifting a Clip Horizontally.
