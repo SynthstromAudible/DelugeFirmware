@@ -1832,7 +1832,7 @@ displayNudge:
 
 	// Otherwise, adjust swing
 	else if (shiftButtonPressed) {
-		int32_t newSwingAmount = std::clamp<int32_t>(currentSong->swingAmount + offset, -49, 49);
+		int32_t newSwingAmount = std::clamp(currentSong->swingAmount + offset, -49, 49);
 
 		if (newSwingAmount != currentSong->swingAmount) {
 			actionLogger.recordSwingChange(currentSong->swingAmount, newSwingAmount);

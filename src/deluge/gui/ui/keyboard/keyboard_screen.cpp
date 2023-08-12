@@ -385,21 +385,7 @@ ActionResult KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRou
 			}
 		}
 
-		// Transition back to clip
-		currentUIMode = UI_MODE_INSTRUMENT_CLIP_COLLAPSING;
-		int32_t transitioningToRow = sessionView.getClipPlaceOnScreen(currentSong->currentClip);
-		memcpy(&PadLEDs::imageStore, PadLEDs::image, sizeof(PadLEDs::image));
-		memcpy(&PadLEDs::occupancyMaskStore, PadLEDs::occupancyMask, sizeof(PadLEDs::occupancyMask));
-		//memset(PadLEDs::occupancyMaskStore, 16, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth + kSideBarWidth));
-		PadLEDs::numAnimatedRows = kDisplayHeight;
-		for (int32_t y = 0; y < kDisplayHeight; y++) {
-			PadLEDs::animatedRowGoingTo[y] = transitioningToRow;
-			PadLEDs::animatedRowGoingFrom[y] = y;
-		}
-
-		PadLEDs::setupInstrumentClipCollapseAnimation(true);
-		PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
-		PadLEDs::renderClipExpandOrCollapse();
+		sessionView.transitionToSessionView();
 	}
 
 	// Kit button
@@ -537,7 +523,7 @@ void KeyboardScreen::selectLayout(int8_t offset) {
 	// Ensure scale mode is as expected
 	if (getActiveInstrument()->type != InstrumentType::KIT) {
 		auto requiredScaleMode = layoutList[getCurrentClip()->keyboardState.currentLayout]->requiredScaleMode();
-		if (requiredScaleMode == RequiredScaleMode::Enabled) {
+		if (requiredScaleMode == RequiredScaleMode::Enabled && !getCurrentClip()->inScaleMode) {
 			getCurrentClip()->yScroll = instrumentClipView.setupForEnteringScaleMode(currentSong->rootNote);
 			setLedStates();
 		}

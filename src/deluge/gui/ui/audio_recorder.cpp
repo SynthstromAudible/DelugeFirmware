@@ -211,7 +211,7 @@ void AudioRecorder::process() {
 #if HAVE_OLED
 		oledRoutine();
 #endif
-		uartFlushIfNotSending(UART_ITEM_PIC);
+		PIC::flush();
 
 		readButtonsAndPads();
 
