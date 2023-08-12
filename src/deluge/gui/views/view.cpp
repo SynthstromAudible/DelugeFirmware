@@ -21,6 +21,7 @@
 #include "extern.h"
 #include "gui/colour.h"
 #include "gui/context_menu/clear_song.h"
+#include "gui/context_menu/launch_style.h"
 #include "gui/menu_item/colour.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
@@ -71,7 +72,6 @@
 #include "storage/file_item.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
-#include "gui/context_menu/launch_style.h"
 
 #if HAVE_OLED
 #include "hid/display/oled.h"

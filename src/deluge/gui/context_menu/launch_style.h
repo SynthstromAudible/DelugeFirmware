@@ -20,7 +20,7 @@ public:
 	LaunchStyle() = default;
 	void selectEncoderAction(int8_t offset) override;
 	bool setupAndCheckAvailability();
-	bool canSeeViewUnderneath()  override { return true; }
+	bool canSeeViewUnderneath() override { return true; }
 
 	Clip* clip;
 

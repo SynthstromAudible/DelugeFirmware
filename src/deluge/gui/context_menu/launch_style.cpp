@@ -1,9 +1,9 @@
 #include "gui/context_menu/launch_style.h"
+#include "extern.h"
 #include "gui/ui/root_ui.h"
-#include "hid/matrix/matrix_driver.h"
 #include "hid/display/numeric_driver.h"
 #include "hid/led/indicator_leds.h"
-#include "extern.h"
+#include "hid/matrix/matrix_driver.h"
 #include "model/clip/clip.h"
 #include <cstddef>
 
@@ -35,7 +35,7 @@ Sized<char const**> LaunchStyle::getOptions() {
 bool LaunchStyle::setupAndCheckAvailability() {
 	Value valueOption = Value::DEFAULT;
 
-	switch(clip->launchStyle) {
+	switch (clip->launchStyle) {
 	case LAUNCH_STYLE_DEFAULT:
 		valueOption = Value::DEFAULT;
 		break;
@@ -45,16 +45,15 @@ bool LaunchStyle::setupAndCheckAvailability() {
 	default:
 		valueOption = Value::DEFAULT;
 	}
-    currentUIMode = UI_MODE_NONE;
+	currentUIMode = UI_MODE_NONE;
 
-    currentOption = static_cast<int32_t>(valueOption);
+	currentOption = static_cast<int32_t>(valueOption);
 
 #if HAVE_OLED
 	scrollPos = currentOption;
 #endif
 	return true;
 }
-
 
 void LaunchStyle::selectEncoderAction(int8_t offset) {
 	/* if (currentUIMode) return; */
@@ -63,7 +62,7 @@ void LaunchStyle::selectEncoderAction(int8_t offset) {
 
 	auto valueOption = static_cast<Value>(currentOption);
 
-	switch(valueOption) {
+	switch (valueOption) {
 	case Value::DEFAULT:
 		clip->launchStyle = LAUNCH_STYLE_DEFAULT;
 		break;

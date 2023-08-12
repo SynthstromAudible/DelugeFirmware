@@ -664,9 +664,6 @@ void Clip::writeDataToFile(Song* song) {
 	storageManager.writeOpeningTagEnd();
 
 	muteMIDICommand.writeNoteToFile("muteMidiCommand");
-
-
-
 }
 
 void Clip::readTagFromFile(char const* tagName, Song* song, int32_t* readAutomationUpToPos) {

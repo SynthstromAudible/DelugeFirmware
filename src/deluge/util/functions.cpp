@@ -26,9 +26,9 @@
 #include "hid/encoders.h"
 #include "io/debug/print.h"
 #include "model/action/action_logger.h"
+#include "model/clip/clip.h"
 #include "processing/sound/sound.h"
 #include <string.h>
-#include "model/clip/clip.h"
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
