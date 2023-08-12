@@ -569,7 +569,7 @@ char const* getGlobalEffectableParamDisplayNameForOLED(int32_t p) {
 	case Param::Unpatched::GlobalEffectable::HPF_RES:
 		return "HPF resonance";
 
-	//Reverb Amount
+		//Reverb Amount
 
 	case Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT:
 		return "Reverb amount";

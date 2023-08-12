@@ -114,10 +114,10 @@ const std::array<std::pair<Param::Kind, ParamType>, kNumNonKitAffectEntireParams
         {Param::Kind::PATCHED, Param::Local::PAN},
         {Param::Kind::PATCHED, Param::Local::LPF_FREQ}, //LPF Cutoff, Resonance, Morph
         {Param::Kind::PATCHED, Param::Local::LPF_RESONANCE},
-		{Param::Kind::PATCHED, Param::Local::LPF_MORPH},
+        {Param::Kind::PATCHED, Param::Local::LPF_MORPH},
         {Param::Kind::PATCHED, Param::Local::HPF_FREQ}, //HPF Cutoff, Resonance, Morph
         {Param::Kind::PATCHED, Param::Local::HPF_RESONANCE},
-		{Param::Kind::PATCHED, Param::Local::HPF_MORPH},
+        {Param::Kind::PATCHED, Param::Local::HPF_MORPH},
         {Param::Kind::UNPATCHED, Param::Unpatched::BASS}, //Bass, Bass Freq
         {Param::Kind::UNPATCHED, Param::Unpatched::BASS_FREQ},
         {Param::Kind::UNPATCHED, Param::Unpatched::TREBLE}, //Treble, Treble Freq
@@ -163,15 +163,15 @@ const std::array<std::pair<Param::Kind, ParamType>, kNumNonKitAffectEntireParams
         {Param::Kind::PATCHED, Param::Global::MOD_FX_RATE},
         {Param::Kind::PATCHED, Param::Global::ARP_RATE}, //Arp Rate, Gate
         {Param::Kind::UNPATCHED, Param::Unpatched::Sound::ARP_GATE},
-        {Param::Kind::PATCHED, Param::Local::NOISE_VOLUME}, //Noise
-		{Param::Kind::UNPATCHED, Param::Unpatched::Sound::PORTAMENTO}, //Portamento
+        {Param::Kind::PATCHED, Param::Local::NOISE_VOLUME},            //Noise
+        {Param::Kind::UNPATCHED, Param::Unpatched::Sound::PORTAMENTO}, //Portamento
     }};
 
 //kit affect entire FX - sorted in the order that Parameters are scrolled through on the display
 const std::array<std::pair<Param::Kind, ParamType>, kNumKitAffectEntireParamsForAutomation>
     kitAffectEntireParamsForAutomation{{
         {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::VOLUME}, //Master Volume, Pitch, Pan
-		{Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::PITCH_ADJUST},
+        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::PITCH_ADJUST},
         {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::PAN},
         {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::LPF_FREQ}, //LPF Cutoff, Resonance
         {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::LPF_RES},
@@ -192,8 +192,8 @@ const std::array<std::pair<Param::Kind, ParamType>, kNumKitAffectEntireParamsFor
         {Param::Kind::UNPATCHED, Param::Unpatched::MOD_FX_FEEDBACK},
         {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH},
         {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::MOD_FX_RATE},
-        {Param::Kind::UNPATCHED, Param::Unpatched::Sound::ARP_GATE}, //Arp Gate
-		{Param::Kind::UNPATCHED, Param::Unpatched::Sound::PORTAMENTO}, //Portamento
+        {Param::Kind::UNPATCHED, Param::Unpatched::Sound::ARP_GATE},   //Arp Gate
+        {Param::Kind::UNPATCHED, Param::Unpatched::Sound::PORTAMENTO}, //Portamento
     }};
 
 //grid sized arrays to assign automatable parameters to the grid
@@ -213,9 +213,9 @@ const uint32_t patchedParamShortcutsForAutomation[kDisplayWidth][kDisplayHeight]
      0xFFFFFFFF, 0xFFFFFFFF},
     {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
     {Param::Local::ENV_0_RELEASE, Param::Local::ENV_0_SUSTAIN, Param::Local::ENV_0_DECAY, Param::Local::ENV_0_ATTACK,
-    Param::Local::LPF_MORPH, 0xFFFFFFFF, Param::Local::LPF_RESONANCE, Param::Local::LPF_FREQ},
+     Param::Local::LPF_MORPH, 0xFFFFFFFF, Param::Local::LPF_RESONANCE, Param::Local::LPF_FREQ},
     {Param::Local::ENV_1_RELEASE, Param::Local::ENV_1_SUSTAIN, Param::Local::ENV_1_DECAY, Param::Local::ENV_1_ATTACK,
-    Param::Local::HPF_MORPH, 0xFFFFFFFF, Param::Local::HPF_RESONANCE, Param::Local::HPF_FREQ},
+     Param::Local::HPF_MORPH, 0xFFFFFFFF, Param::Local::HPF_RESONANCE, Param::Local::HPF_FREQ},
     {0xFFFFFFFF, 0xFFFFFFFF, Param::Global::VOLUME_POST_REVERB_SEND, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
      0xFFFFFFFF},
     {Param::Global::ARP_RATE, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
@@ -236,7 +236,8 @@ const uint32_t unpatchedParamShortcutsForAutomation[kDisplayWidth][kDisplayHeigh
     {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
     {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, Param::Unpatched::SAMPLE_RATE_REDUCTION,
      Param::Unpatched::BITCRUSHING, 0xFFFFFFFF},
-    {Param::Unpatched::Sound::PORTAMENTO, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
+    {Param::Unpatched::Sound::PORTAMENTO, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
+     0xFFFFFFFF},
     {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
     {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
     {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, Param::Unpatched::COMPRESSOR_SHAPE, 0xFFFFFFFF,
@@ -256,8 +257,8 @@ const uint32_t globalEffectableParamShortcutsForAutomation[kDisplayWidth][kDispl
     {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
     {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
     {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
-    {Param::Unpatched::GlobalEffectable::VOLUME, 0xFFFFFFFF, Param::Unpatched::GlobalEffectable::PITCH_ADJUST, Param::Unpatched::GlobalEffectable::PAN,
-     0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
+    {Param::Unpatched::GlobalEffectable::VOLUME, 0xFFFFFFFF, Param::Unpatched::GlobalEffectable::PITCH_ADJUST,
+     Param::Unpatched::GlobalEffectable::PAN, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
     {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
     {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
      Param::Unpatched::GlobalEffectable::LPF_RES, Param::Unpatched::GlobalEffectable::LPF_FREQ},
@@ -645,20 +646,18 @@ void AutomationInstrumentClipView::renderAutomationOverview(ModelStackWithTimeli
 
 		else if (instrument->type == InstrumentType::KIT && instrumentClipView.getAffectEntire()
 		         && ((unpatchedParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF)
-		        		 || (globalEffectableParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF))) {
+		             || (globalEffectableParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF))) {
 
 			if (unpatchedParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
 
 				modelStackWithParam = getModelStackWithParam(
 				    modelStack, clip, unpatchedParamShortcutsForAutomation[xDisplay][yDisplay], Param::Kind::UNPATCHED);
-
 			}
 
 			else if (globalEffectableParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
 
 				modelStackWithParam = getModelStackWithParam(
-					modelStack, clip, globalEffectableParamShortcutsForAutomation[xDisplay][yDisplay]);
-
+				    modelStack, clip, globalEffectableParamShortcutsForAutomation[xDisplay][yDisplay]);
 			}
 		}
 
@@ -2695,7 +2694,7 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 
 		else if (instrument->type == InstrumentType::KIT && instrumentClipView.getAffectEntire()
 		         && ((unpatchedParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF)
-		        		 || (globalEffectableParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF))) {
+		             || (globalEffectableParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF))) {
 
 			if (unpatchedParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
 				clip->lastSelectedParamKind = Param::Kind::UNPATCHED;
