@@ -88,9 +88,9 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 #### Instrument & Kit Clip View
  - ([#129]) Quantize & Humanize
 	- Press and hold a note in clip view and turn the tempo knob right or left to apply quantize or humanize respectively to that row.
-    - Press and hold a note and press and turn the tempo knob to apply quantize or humanize to all rows.
-    - The amount of quantization/humanization is shown in the display.
-    - This feature can be toggled in the [runtime features menu](#runtime-features).
+	- Press and hold a note and press and turn the tempo knob to apply quantize or humanize to all rows.
+	- The amount of quantization/humanization is shown in the display.
+	- This feature can be toggled in the [runtime features menu](#runtime-features).
 
 #### Audio Clip View
  - ([#141]) Holding the vertical encoder down while turning the horizontal encoder will shift the clip along the underlying audio file, similar to the same interface for instrument clips.
