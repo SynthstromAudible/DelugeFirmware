@@ -39,6 +39,9 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 ## New behaviors
 ### Song View
  - ([#163]) Pressing a clip row + shift & scroll vertically changes the selected row color. This is the same shortcut like before when setting the color in the clip view.
+ - ([#196]) Holding the status pad (mute pad) for a clip and pressing select brings up a clip type selection menu. The options are:
+    - Default (DEFA) - the default Deluge clip type.
+	- Fill (FILL) - Fill clip. It appears orange/cyan on the status pads, and when triggered it will schedule itself to start at such a time that it _finishes_ at the start of the next loop. If the fill clip is longer than the remaining time, it is triggered immediately at a point midway through. The loop length is set by the longest playing clip, or by the total length of a section times the repeat count set for that section. **Limitation**: a fill clip is still subject to the one clip per instrument behavior of the Deluge. Fill clips can steal an output from another fill, but they cannot steal from a non-fill. This can lead to some fills never starting since a default type clip has the needed instrument. This can be worked around by cloning the instrument to an independent copy.
 
 ### Instrument Keyboard View
  - ([#46]) Note offset between rows is now configurable by holding shift and using the horizontal encoder. This allows e.g. an isomorphic keyboard layout by setting the row offset to 12. The setting is saved per clip in the song file.
@@ -131,6 +134,7 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#163]: https://github.com/SynthstromAudible/DelugeFirmware/pull/163
 [#178]: https://github.com/SynthstromAudible/DelugeFirmware/pull/178
 [#170]: https://github.com/SynthstromAudible/DelugeFirmware/pull/170
+[#196]: https://github.com/SynthstromAudible/DelugeFirmware/pull/196
 [#221]: https://github.com/SynthstromAudible/DelugeFirmware/pull/221
 [#234]: https://github.com/SynthstromAudible/DelugeFirmware/pull/234
 [#282]: https://github.com/SynthstromAudible/DelugeFirmware/pull/282
