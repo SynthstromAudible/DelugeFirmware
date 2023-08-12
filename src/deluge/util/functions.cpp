@@ -336,75 +336,107 @@ char const* getPatchedParamDisplayNameForOLED(int32_t p) {
 	// These can basically be 13 chars long, or 14 if the last one is a dot.
 	switch (p) {
 
-	case Param::Local::OSC_A_VOLUME:
-		return "Osc1 level";
-
-	case Param::Local::OSC_B_VOLUME:
-		return "Osc2 level";
-
+	//Master Volume, Pitch, Pan
 	case Param::Local::VOLUME:
 		return "Level";
 
-	case Param::Local::NOISE_VOLUME:
-		return "Noise level";
-
-	case Param::Local::OSC_A_PHASE_WIDTH:
-		return "Osc1 PW";
-
-	case Param::Local::OSC_B_PHASE_WIDTH:
-		return "Osc2 PW";
-
-	case Param::Local::OSC_A_WAVE_INDEX:
-		return "Osc1 wave pos.";
-
-	case Param::Local::OSC_B_WAVE_INDEX:
-		return "Osc2 wave pos.";
-
-	case Param::Local::LPF_RESONANCE:
-		return "LPF resonance";
-
-	case Param::Local::HPF_RESONANCE:
-		return "HPF resonance";
+	case Param::Global::VOLUME_POST_FX:
+		return "Master level";
 
 	case Param::Local::PAN:
 		return "Master pan";
 
-	case Param::Local::MODULATOR_0_VOLUME:
-		return "FM mod1 level";
+	case Param::Local::PITCH_ADJUST:
+		return "Master pitch";
 
-	case Param::Local::MODULATOR_1_VOLUME:
-		return "FM mod2 level";
-
+	//LPF Cutoff, Resonance, Morph
 	case Param::Local::LPF_FREQ:
 		return "LPF frequency";
+
+	case Param::Local::LPF_RESONANCE:
+		return "LPF resonance";
 
 	case Param::Local::LPF_MORPH:
 		return "LPF morph";
 
-	case Param::Local::PITCH_ADJUST:
-		return "Master pitch";
-
-	case Param::Local::OSC_A_PITCH_ADJUST:
-		return "Osc1 pitch";
-
-	case Param::Local::OSC_B_PITCH_ADJUST:
-		return "Osc2 pitch";
-
-	case Param::Local::MODULATOR_0_PITCH_ADJUST:
-		return "FM mod1 pitch";
-
-	case Param::Local::MODULATOR_1_PITCH_ADJUST:
-		return "FM mod2 pitch";
-
+	//HPF Cutoff, Resonance, Morph
 	case Param::Local::HPF_FREQ:
 		return "HPF frequency";
 
 	case Param::Local::HPF_MORPH:
 		return "HPF morph";
 
-	case Param::Local::LFO_LOCAL_FREQ:
-		return "LFO2 rate";
+	case Param::Local::HPF_RESONANCE:
+		return "HPF resonance";
 
+	//Reverb Amount
+	case Param::Global::REVERB_AMOUNT:
+		return "Reverb amount";
+
+	//Delay Rate, Amount
+	case Param::Global::DELAY_RATE:
+		return "Delay rate";
+
+	case Param::Global::DELAY_FEEDBACK:
+		return "Delay amount";
+
+	//Sidechain Send
+	case Param::Global::VOLUME_POST_REVERB_SEND:
+		return "Sidechain level";
+
+	//OSC 1 Volume, Pitch, Phase Width, Carrier Feedback, Wave Index
+	case Param::Local::OSC_A_VOLUME:
+		return "Osc1 level";
+
+	case Param::Local::OSC_A_PITCH_ADJUST:
+		return "Osc1 pitch";
+
+	case Param::Local::OSC_A_PHASE_WIDTH:
+		return "Osc1 PW";
+
+	case Param::Local::CARRIER_0_FEEDBACK:
+		return "Osc1 feedback";
+
+	case Param::Local::OSC_A_WAVE_INDEX:
+		return "Osc1 wave pos.";
+
+	//OSC 2 Volume, Pitch, Phase Width, Carrier Feedback, Wave Index
+	case Param::Local::OSC_B_VOLUME:
+		return "Osc2 level";
+
+	case Param::Local::OSC_B_PITCH_ADJUST:
+		return "Osc2 pitch";
+
+	case Param::Local::OSC_B_PHASE_WIDTH:
+		return "Osc2 PW";
+
+	case Param::Local::CARRIER_1_FEEDBACK:
+		return "Osc2 feedback";
+
+	case Param::Local::OSC_B_WAVE_INDEX:
+		return "Osc2 wave pos.";
+
+	//FM Mod 1 Volume, Pitch, Feedback
+	case Param::Local::MODULATOR_0_VOLUME:
+		return "FM mod1 level";
+
+	case Param::Local::MODULATOR_0_PITCH_ADJUST:
+		return "FM mod1 pitch";
+
+	case Param::Local::MODULATOR_0_FEEDBACK:
+		return "FM mod1 feedback";
+
+	//FM Mod 2 Volume, Pitch, Feedback
+	case Param::Local::MODULATOR_1_VOLUME:
+		return "FM mod2 level";
+
+	case Param::Local::MODULATOR_1_PITCH_ADJUST:
+		return "FM mod2 pitch";
+
+	case Param::Local::MODULATOR_1_FEEDBACK:
+		return "FM mod2 feedback";
+
+	//Env 1 ADSR
 	case Param::Local::ENV_0_ATTACK:
 		return "Env1 attack";
 
@@ -417,6 +449,7 @@ char const* getPatchedParamDisplayNameForOLED(int32_t p) {
 	case Param::Local::ENV_0_RELEASE:
 		return "Env1 release";
 
+	//Env 2 ADSR
 	case Param::Local::ENV_1_ATTACK:
 		return "Env2 attack";
 
@@ -429,44 +462,28 @@ char const* getPatchedParamDisplayNameForOLED(int32_t p) {
 	case Param::Local::ENV_1_RELEASE:
 		return "Env2 release";
 
+	//LFO 1 Freq
 	case Param::Global::LFO_FREQ:
 		return "LFO1 rate";
 
-	case Param::Global::VOLUME_POST_FX:
-		return "Master level";
+	//LFO 2 Freq
+	case Param::Local::LFO_LOCAL_FREQ:
+		return "LFO2 rate";
 
-	case Param::Global::VOLUME_POST_REVERB_SEND:
-		return "Sidechain level";
-
-	case Param::Global::DELAY_RATE:
-		return "Delay rate";
-
-	case Param::Global::DELAY_FEEDBACK:
-		return "Delay amount";
-
-	case Param::Global::REVERB_AMOUNT:
-		return "Reverb amount";
+	//Mod FX Depth, Rate
+	case Param::Global::MOD_FX_DEPTH:
+		return "Mod-FX depth";
 
 	case Param::Global::MOD_FX_RATE:
 		return "Mod-FX rate";
 
-	case Param::Global::MOD_FX_DEPTH:
-		return "Mod-FX depth";
-
+	//Arp Rate
 	case Param::Global::ARP_RATE:
 		return "Arp. rate";
 
-	case Param::Local::MODULATOR_0_FEEDBACK:
-		return "FM mod1 feedback";
-
-	case Param::Local::MODULATOR_1_FEEDBACK:
-		return "FM mod2 feedback";
-
-	case Param::Local::CARRIER_0_FEEDBACK:
-		return "Osc 1 feedback";
-
-	case Param::Local::CARRIER_1_FEEDBACK:
-		return "Osc 2 feedback";
+	//Noise
+	case Param::Local::NOISE_VOLUME:
+		return "Noise level";
 
 	default:
 		return "none";
@@ -478,35 +495,45 @@ char const* getUnpatchedParamDisplayNameForOLED(int32_t p) {
 	// These can basically be 13 chars long, or 14 if the last one is a dot.
 	switch (p) {
 
+	//Bass, Bass Freq
 	case Param::Unpatched::BASS:
 		return "Bass";
 
 	case Param::Unpatched::BASS_FREQ:
 		return "Bass frequency";
 
+	//Treble, Treble Freq
 	case Param::Unpatched::TREBLE:
 		return "Treble";
 
 	case Param::Unpatched::TREBLE_FREQ:
 		return "Treble frequency";
 
+	//Sidechain Shape
 	case Param::Unpatched::COMPRESSOR_SHAPE:
 		return "Sidechain shape";
+
+	//Decimation, Bitcrush
+	case Param::Unpatched::SAMPLE_RATE_REDUCTION:
+		return "Decimation";
 
 	case Param::Unpatched::BITCRUSHING:
 		return "Bitcrush";
 
-	case Param::Unpatched::SAMPLE_RATE_REDUCTION:
-		return "Decimation";
-
-	case Param::Unpatched::Sound::ARP_GATE:
-		return "Arp. gate";
+	//Mod FX Offset, Feedback
+	case Param::Unpatched::MOD_FX_OFFSET:
+		return "Mod-FX offset";
 
 	case Param::Unpatched::MOD_FX_FEEDBACK:
 		return "Mod-FX feedback";
 
-	case Param::Unpatched::MOD_FX_OFFSET:
-		return "Mod-FX offset";
+	//Arp Gate
+	case Param::Unpatched::Sound::ARP_GATE:
+		return "Arp. gate";
+
+	//Portamento
+	case Param::Unpatched::Sound::PORTAMENTO:
+		return "Portamento";
 
 	default:
 		return "none";
@@ -518,41 +545,52 @@ char const* getGlobalEffectableParamDisplayNameForOLED(int32_t p) {
 	// These can basically be 13 chars long, or 14 if the last one is a dot.
 	switch (p) {
 
-	case Param::Unpatched::GlobalEffectable::LPF_RES:
-		return "LPF resonance";
+	//Master Volume, Pitch, Pan
+	case Param::Unpatched::GlobalEffectable::VOLUME:
+		return "Master level";
 
-	case Param::Unpatched::GlobalEffectable::HPF_RES:
-		return "HPF resonance";
+	case Param::Unpatched::GlobalEffectable::PITCH_ADJUST:
+		return "Master pitch";
 
 	case Param::Unpatched::GlobalEffectable::PAN:
 		return "Master pan";
 
+	//LPF Cutoff, Resonance
 	case Param::Unpatched::GlobalEffectable::LPF_FREQ:
 		return "LPF frequency";
 
+	case Param::Unpatched::GlobalEffectable::LPF_RES:
+		return "LPF resonance";
+
+	//HPF Cutoff, Resonance
 	case Param::Unpatched::GlobalEffectable::HPF_FREQ:
 		return "HPF frequency";
 
-	case Param::Unpatched::GlobalEffectable::VOLUME:
-		return "Master level";
+	case Param::Unpatched::GlobalEffectable::HPF_RES:
+		return "HPF resonance";
 
-	case Param::Unpatched::GlobalEffectable::SIDECHAIN_VOLUME:
-		return "Sidechain level";
+	//Reverb Amount
 
+	case Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT:
+		return "Reverb amount";
+
+	//Delay Rate, Amount
 	case Param::Unpatched::GlobalEffectable::DELAY_RATE:
 		return "Delay rate";
 
 	case Param::Unpatched::GlobalEffectable::DELAY_AMOUNT:
 		return "Delay amount";
 
-	case Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT:
-		return "Reverb amount";
+	//Sidechain Send
+	case Param::Unpatched::GlobalEffectable::SIDECHAIN_VOLUME:
+		return "Sidechain level";
+
+	//Mod FX Depth, Rate
+	case Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH:
+		return "Mod-FX depth";
 
 	case Param::Unpatched::GlobalEffectable::MOD_FX_RATE:
 		return "Mod-FX rate";
-
-	case Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH:
-		return "Mod-FX depth";
 
 	default:
 		return "none";
