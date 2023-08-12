@@ -50,10 +50,21 @@ q31_t SVFilter::setConfig(q31_t freq, q31_t res, FilterMode lpfMode, q31_t lpfMo
 	//also the input scale needs to be sqrt(q) for the level compensation to work so it's a win win
 	q = multiply_32x32_rshift32_rounded(q, q) << 1;
 
-	c_low = ONE_Q31 - lpfMorph;
-	c_band = ONE_Q31 >> 1;
-	c_high = lpfMorph;
-
+	//note - the if statements are to avoid overflow issues
+	//do not remove
+	constexpr q31_t ONE_HALF = ONE_Q31 >> 1;
+	if (lpfMorph > (ONE_HALF)) {
+		lpfMorph = 2 * (lpfMorph - (ONE_HALF));
+		c_low = 0;
+		c_band = ONE_Q31 - lpfMorph;
+		c_high = lpfMorph;
+	}
+	else {
+		lpfMorph = 2 * lpfMorph;
+		c_low = ONE_Q31 - lpfMorph;
+		c_band = lpfMorph;
+		c_high = 0;
+	}
 	return filterGain;
 }
 
