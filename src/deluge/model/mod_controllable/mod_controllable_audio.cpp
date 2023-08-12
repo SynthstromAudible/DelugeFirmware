@@ -1776,7 +1776,7 @@ void ModControllableAudio::switchLPFMode() {
 		displayText = "SVF";
 		break;
 	}
-	numericDriver.displayPopup(displayText);
+	display.displayPopup(displayText);
 }
 void ModControllableAudio::switchHPFMode() {
 	//this works fine, the offset to the first hpf doesn't matter with the modulus

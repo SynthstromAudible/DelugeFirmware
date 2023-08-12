@@ -1,5 +1,6 @@
 #pragma once
 #include "gui/l10n/language.h"
+#include "gui/l10n/strings.h"
 
 namespace deluge::l10n::built_in {
 using enum Strings;
@@ -56,12 +57,14 @@ constexpr Language english{
         {STRING_FOR_PARAM_LOCAL_MODULATOR_0_VOLUME, "FM mod1 level"},
         {STRING_FOR_PARAM_LOCAL_MODULATOR_1_VOLUME, "FM mod2 level"},
         {STRING_FOR_PARAM_LOCAL_LPF_FREQ, "LPF frequency"},
+		{STRING_FOR_PARAM_LOCAL_LPF_MORPH, "LPF morph"},
         {STRING_FOR_PARAM_LOCAL_PITCH_ADJUST, "Pitch"},
         {STRING_FOR_PARAM_LOCAL_OSC_A_PITCH_ADJUST, "Osc1 pitch"},
         {STRING_FOR_PARAM_LOCAL_OSC_B_PITCH_ADJUST, "Osc2 pitch"},
         {STRING_FOR_PARAM_LOCAL_MODULATOR_0_PITCH_ADJUST, "FM mod1 pitch"},
         {STRING_FOR_PARAM_LOCAL_MODULATOR_1_PITCH_ADJUST, "FM mod2 pitch"},
         {STRING_FOR_PARAM_LOCAL_HPF_FREQ, "HPF frequency"},
+		{STRING_FOR_PARAM_LOCAL_HPF_MORPH, "HPF morph"},
         {STRING_FOR_PARAM_LOCAL_LFO_LOCAL_FREQ, "LFO2 rate"},
         {STRING_FOR_PARAM_LOCAL_ENV_0_ATTACK, "Env1 attack"},
         {STRING_FOR_PARAM_LOCAL_ENV_0_DECAY, "Env1 decay"},
@@ -365,6 +368,7 @@ constexpr Language english{
         {STRING_FOR_NOISE_LEVEL, "Noise level"},
         {STRING_FOR_MASTER_TRANSPOSE, "Master transpose"},
         {STRING_FOR_SYNTH_MODE, "Synth mode"},
+		{STRING_FOR_FILTER_ROUTE, "Filter route"},
 
         {STRING_FOR_TRACK_STILL_HAS_CLIPS_IN_SESSION, "Track still has clips in session"},
         {STRING_FOR_DELETE_ALL_TRACKS_CLIPS_FIRST, "Delete all track's clips first"},
@@ -374,6 +378,11 @@ constexpr Language english{
 
         {STRING_FOR_CAN_ONLY_IMPORT_WHOLE_FOLDER_INTO_BRAND_NEW_KIT, "Can only import whole folder into brand-new kit"},
         {STRING_FOR_CANT_IMPORT_WHOLE_FOLDER_INTO_AUDIO_CLIP, "Can't import whole folder into audio clip"},
+
+		{STRING_FOR_IMPOSSIBLE_FROM_GRID, "Impossible from Grid"},
+		{STRING_FOR_SWITCHING_TO_TRACK_FAILED, "Switching to track failed"},
+		{STRING_FOR_CANT_CLONE_AUDIO_IN_OTHER_TRACK, "Can't clone audio in other track"},
+		{STRING_FOR_TARGET_FULL, "Target full"},
     },
 };
 } // namespace deluge::l10n::built_in

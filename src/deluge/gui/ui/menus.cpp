@@ -209,7 +209,7 @@ submenu::Filter hpfMenu{
 };
 
 //Filter Route Menu ----------------------------------------------------------------------------------------------
-FilterRouting filterRoutingMenu{HAVE_OLED ? "Filter Route" : "ROUT"};
+FilterRouting filterRoutingMenu{l10n::get(l10n::Strings::STRING_FOR_FILTER_ROUTE)};
 
 // Envelope menu ----------------------------------------------------------------------------------------------------
 

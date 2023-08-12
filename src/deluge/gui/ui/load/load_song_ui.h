@@ -54,6 +54,4 @@ private:
 };
 extern LoadSongUI loadSongUI;
 
-#if HAVE_OLED
 extern char loopsRemainingText[];
-#endif

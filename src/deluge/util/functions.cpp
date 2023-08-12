@@ -384,7 +384,7 @@ char const* getPatchedParamDisplayNameForOled(int32_t p) {
 		return l10n::get(STRING_FOR_PARAM_LOCAL_LPF_FREQ);
 
 	case Param::Local::LPF_MORPH:
-		return "LPF morph";
+		return l10n::get(STRING_FOR_PARAM_LOCAL_LPF_MORPH);
 
 	case Param::Local::PITCH_ADJUST:
 		return l10n::get(STRING_FOR_PARAM_LOCAL_PITCH_ADJUST);
@@ -405,7 +405,7 @@ char const* getPatchedParamDisplayNameForOled(int32_t p) {
 		return l10n::get(STRING_FOR_PARAM_LOCAL_HPF_FREQ);
 
 	case Param::Local::HPF_MORPH:
-		return "HPF morph";
+		return l10n::get(STRING_FOR_PARAM_LOCAL_HPF_MORPH);
 
 	case Param::Local::LFO_LOCAL_FREQ:
 		return l10n::get(STRING_FOR_PARAM_LOCAL_LFO_LOCAL_FREQ);

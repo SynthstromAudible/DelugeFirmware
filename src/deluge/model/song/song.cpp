@@ -2973,8 +2973,8 @@ allDone:
 void Song::replaceInstrument(Instrument* oldOutput, Instrument* newOutput, bool keepNoteRowsWithMIDIInput) {
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
 		if (thisOutput == newOutput) {
-			numericDriver.cancelPopup();
-			numericDriver.freezeWithError("i009");
+			display.cancelPopup();
+			display.freezeWithError("i009");
 		}
 	}
 
@@ -4371,7 +4371,7 @@ Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset
 
 				if (newChannel == oldChannel) {
 cantDoIt:
-					numericDriver.displayPopup(HAVE_OLED ? "No free channel slots available in song" : "CANT");
+					display.displayPopup(l10n::get(l10n::Strings::STRING_FOR_NO_FREE_CHANNEL_SLOTS_AVAILABLE_IN_SONG));
 					return output;
 				}
 
@@ -4424,9 +4424,9 @@ cantDoIt:
 		}
 
 		view.displayOutputName(oldNonAudioInstrument);
-#if HAVE_OLED
-		OLED::sendMainImage();
-#endif
+		if (display.type == DisplayType::OLED) {
+			OLED::sendMainImage();
+		}
 	}
 
 	// Or if we're on a Kit or Synth...
@@ -4435,13 +4435,13 @@ cantDoIt:
 		    loadInstrumentPresetUI.doPresetNavigation(offset, oldInstrument, Availability::INSTRUMENT_UNUSED, true);
 		if (results.error == NO_ERROR_BUT_GET_OUT) {
 removeWorkingAnimationAndGetOut:
-#if HAVE_OLED
-			OLED::removeWorkingAnimation();
-#endif
+			if (display.type == DisplayType::OLED) {
+				OLED::removeWorkingAnimation();
+			}
 			return output;
 		}
 		else if (results.error) {
-			numericDriver.displayError(results.error);
+			display.displayError(results.error);
 			goto removeWorkingAnimationAndGetOut;
 		}
 
@@ -4451,11 +4451,7 @@ removeWorkingAnimationAndGetOut:
 		currentSong->replaceInstrument(oldInstrument, newInstrument);
 
 		oldInstrument = newInstrument;
-#if HAVE_OLED
-		OLED::removeWorkingAnimation();
-#else
-		numericDriver.removeTopLayer();
-#endif
+		display.removeLoadingAnimation();
 	}
 
 	currentSong->instrumentSwapped(oldInstrument);

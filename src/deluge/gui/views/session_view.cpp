@@ -268,7 +268,7 @@ ActionResult SessionView::buttonAction(hid::Button b, bool on, bool inCardRoutin
 
 				// Rows are not aligned in grid so we disabled this function, the code below also would need to be aligned
 				if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
-					display.displayPopup(HAVE_OLED ? "Impossible from Grid" : "CANT");
+					display.displayPopup(l10n::get(l10n::Strings::STRING_FOR_IMPOSSIBLE_FROM_GRID));
 					return ActionResult::DEALT_WITH;
 				}
 
@@ -552,9 +552,9 @@ doActualSimpleChange:
 								    currentSong->changeInstrumentType(instrument, newInstrumentType);
 								if (newInstrument) {
 									view.displayOutputName(newInstrument);
-#if HAVE_OLED
-									OLED::sendMainImage();
-#endif
+									if (display.type == DisplayType::OLED) {
+										OLED::sendMainImage();
+									}
 									view.setActiveModControllableTimelineCounter(newInstrument->activeClip);
 								}
 							}
@@ -1102,9 +1102,9 @@ ActionResult SessionView::timerCallback() {
 				currentUIMode = UI_MODE_CLIP_PRESSED_IN_SONG_VIEW;
 				view.setActiveModControllableTimelineCounter(clip);
 				view.displayOutputName(clip->output, true, clip);
-#if HAVE_OLED
-				OLED::sendMainImage();
-#endif
+				if (display.type == DisplayType::OLED) {
+					OLED::sendMainImage();
+				}
 
 				gridPreventArm = true;
 			}
@@ -1500,7 +1500,7 @@ int32_t setPresetOrNextUnlaunchedOne(InstrumentClip* clip, InstrumentType instru
 		    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(clip);
 		int32_t error = clip->changeInstrument(modelStack, newInstrument, NULL, InstrumentRemoval::NONE);
 		if (error != NO_ERROR) {
-			numericDriver.displayPopup(HAVE_OLED ? "Switching to track failed" : "ESG1");
+			display.displayPopup(l10n::get(l10n::Strings::STRING_FOR_SWITCHING_TO_TRACK_FAILED));
 		}
 
 		if (newInstrument->type == InstrumentType::KIT) {
@@ -2866,12 +2866,12 @@ void SessionView::selectLayout(int8_t offset) {
 
 		// After change
 		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
-			numericDriver.displayPopup("Rows");
+			display.displayPopup("Rows");
 			selectedClipYDisplay = 255;
 			currentSong->songViewYScroll = (currentSong->sessionClips.getNumElements() - kDisplayHeight);
 		}
 		else if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
-			numericDriver.displayPopup("Grid");
+			display.displayPopup("Grid");
 			currentSong->songGridScrollX = 0;
 			currentSong->songGridScrollY = 0;
 		}
@@ -2989,7 +2989,7 @@ Clip* SessionView::gridCloneClip(Clip* sourceClip) {
 
 	int32_t error = sourceClip->clone(modelStack, false);
 	if (error) {
-		numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+		display.displayError(ERROR_INSUFFICIENT_RAM);
 		return nullptr;
 	}
 
@@ -3039,7 +3039,7 @@ bool SessionView::gridCreateNewTrackForClip(InstrumentType type, InstrumentClip*
 		int32_t error = setPresetOrNextUnlaunchedOne(clip, type, &instrumentAlreadyInSong, copyDrumsFromClip);
 		if (error || instrumentAlreadyInSong) {
 			if (error) {
-				numericDriver.displayError(error);
+				display.displayError(error);
 			}
 			return false;
 		}
@@ -3053,7 +3053,7 @@ bool SessionView::gridCreateNewTrackForClip(InstrumentType type, InstrumentClip*
 
 		auto error = clip->setNonAudioInstrument((Instrument*)(clip->output), currentSong);
 		if (error) {
-			numericDriver.displayError(error);
+			display.displayError(error);
 			return false;
 		}
 	}
@@ -3081,7 +3081,7 @@ InstrumentClip* SessionView::gridCreateClipWithNewTrack(InstrumentType type) {
 	// Allocate new clip
 	void* memory = GeneralMemoryAllocator::get().alloc(sizeof(InstrumentClip), NULL, false, true);
 	if (!memory) {
-		numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+		display.displayError(ERROR_INSUFFICIENT_RAM);
 		return nullptr;
 	}
 
@@ -3114,7 +3114,7 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 	if (sourceClip != nullptr) {
 		// Can't clone audio to other tracks
 		if (sourceClip->type == CLIP_TYPE_AUDIO || (targetOutput && targetOutput->type == InstrumentType::AUDIO)) {
-			numericDriver.displayPopup(HAVE_OLED ? "Can't clone audio in other track" : "CANT");
+			display.displayPopup(l10n::get(l10n::Strings::STRING_FOR_CANT_CLONE_AUDIO_IN_OTHER_TRACK));
 			return nullptr;
 		}
 
@@ -3153,7 +3153,7 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 	if (currentSong->sessionClips.insertClipAtIndex(newClip, 0) != NO_ERROR) {
 		newClip->~Clip();
 		GeneralMemoryAllocator::get().dealloc(newClip);
-		numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+		display.displayError(ERROR_INSUFFICIENT_RAM);
 		return nullptr;
 	}
 
@@ -3172,7 +3172,7 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 			int32_t error = newInstrumentClip->changeInstrument(modelStack, (Instrument*)targetOutput, NULL,
 			                                                    InstrumentRemoval::NONE);
 			if (error != NO_ERROR) {
-				numericDriver.displayPopup(HAVE_OLED ? "Switching to track failed" : "ESG1");
+				display.displayPopup(l10n::get(l10n::Strings::STRING_FOR_SWITCHING_TO_TRACK_FAILED));
 			}
 
 			if (targetOutput->type == InstrumentType::KIT) {
@@ -3202,13 +3202,13 @@ void SessionView::gridClonePad(uint32_t sourceX, uint32_t sourceY, uint32_t targ
 
 	// Don't allow copying recording clips
 	if (sourceClip->getCurrentlyRecordingLinearly()) {
-		numericDriver.displayPopup(HAVE_OLED ? "Recording in progress" : "CANT");
+		display.displayPopup(l10n::get(l10n::Strings::STRING_FOR_CANT_CLONE_AUDIO_IN_OTHER_TRACK));
 		return;
 	}
 
 	Clip* targetClip = gridClipFromCoords(targetX, targetY);
 	if (targetClip != nullptr) {
-		numericDriver.displayPopup(HAVE_OLED ? "Target full" : "CANT");
+		display.displayPopup(l10n::get(l10n::Strings::STRING_FOR_TARGET_FULL));
 		return;
 	}
 
@@ -3309,11 +3309,12 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 				}
 
 				exitUIMode(UI_MODE_HOLDING_SECTION_PAD);
-#if HAVE_OLED
-				OLED::removePopup();
-#else
-				redrawNumericDisplay();
-#endif
+				if (display.type == DisplayType::OLED) {
+					OLED::removePopup();
+				} else {
+					redrawNumericDisplay();
+				}
+
 				uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
 			}
 		}
