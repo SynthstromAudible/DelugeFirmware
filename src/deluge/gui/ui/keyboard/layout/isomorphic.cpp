@@ -21,6 +21,7 @@
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/sound_editor.h"
 #include "util/functions.h"
+#include <limits>
 
 namespace deluge::gui::ui::keyboard::layout {
 
@@ -30,7 +31,7 @@ void KeyboardLayoutIsomorphic::evaluatePads(PressedPad presses[kMaxNumKeyboardPa
 	currentNotesState = NotesState{}; // Erase active notes
 
 	for (int32_t idxPress = 0; idxPress < kMaxNumKeyboardPadPresses; ++idxPress) {
-		if (presses[idxPress].active) {
+		if (presses[idxPress].active && presses[idxPress].x < kDisplayWidth) {
 			currentNotesState.enableNote(noteFromCoords(presses[idxPress].x, presses[idxPress].y),
 			                             getDefaultVelocity());
 		}
@@ -113,14 +114,14 @@ void KeyboardLayoutIsomorphic::renderPads(uint8_t image[][kDisplayWidth + kSideB
 				getTailColour(image[y][x], noteColours[normalizedPadOffset]);
 			}
 
-			//@TODO: In a future revision it would be nice to add this to the API
+			//TODO: In a future revision it would be nice to add this to the API
 			// Dim note pad if a browser is open with the note highlighted
 			if (getCurrentUI() == &sampleBrowser || getCurrentUI() == &audioRecorder
 			    || (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem()->isRangeDependent())) {
 				if (soundEditor.isUntransposedNoteWithinRange(noteCode)) {
 					for (int32_t colour = 0; colour < 3; colour++) {
 						int32_t value = (int32_t)image[y][x][colour] + 35;
-						image[y][x][colour] = std::min<uint8_t>(value, 255);
+						image[y][x][colour] = std::min<int32_t>(value, std::numeric_limits<uint8_t>::max());
 					}
 				}
 			}

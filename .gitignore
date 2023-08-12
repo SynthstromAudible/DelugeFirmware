@@ -7,7 +7,6 @@
 /build*
 /e2-build*
 /dbt-build*
-/docs
 *.launch
 /toolchain/*
 compile_commands.json

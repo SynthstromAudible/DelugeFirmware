@@ -44,7 +44,7 @@
 #include <assert.h>
 
 /**
- * @TODO Move the definition of NE10_UNROLL_LEVEL to cmake configuration files.
+ * TODO: Move the definition of NE10_UNROLL_LEVEL to cmake configuration files.
  * Macro NE10_UNROLL_LEVEL controls algorithm of FFT funtions.
  * When NE10_UNROLL_LEVEL == 0, complex FFT performs radix-4 x2 per loop.
  * When NE10_UNROLL_LEVEL == 1, complex FFT performs radix-4 x4 per loop.

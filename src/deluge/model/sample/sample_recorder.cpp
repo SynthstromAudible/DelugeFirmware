@@ -17,6 +17,7 @@
 
 #include "model/sample/sample_recorder.h"
 #include "definitions_cxx.hpp"
+#include "drivers/pic/pic.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui_timer_manager.h"
@@ -78,7 +79,7 @@ void SampleRecorder::detachSample() {
 	// If we were holding onto the reasons for the first couple of Clusters, release them now
 	if (keepingReasonsForFirstClusters) {
 		int32_t numClustersToRemoveFor = std::min(kNumClustersLoadedAhead, sample->clusters.getNumElements());
-		numClustersToRemoveFor = std::min<int32_t>(numClustersToRemoveFor, firstUnwrittenClusterIndex);
+		numClustersToRemoveFor = std::min(numClustersToRemoveFor, firstUnwrittenClusterIndex);
 
 		for (int32_t l = 0; l < numClustersToRemoveFor; l++) {
 			Cluster* cluster = sample->clusters.getElement(l)->cluster;
@@ -1208,7 +1209,7 @@ int32_t SampleRecorder::alterFile(int32_t action, int32_t lshiftAmount, uint32_t
 
 			uiTimerManager.routine();
 
-			uartFlushIfNotSending(UART_ITEM_PIC);
+			PIC::flush();
 		}
 
 		count++;

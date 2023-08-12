@@ -374,7 +374,7 @@ noEmptySpace:
 // Returns new size
 uint32_t MemoryRegion::shortenRight(void* address, uint32_t newSize) {
 
-	newSize = std::max<uint32_t>(newSize, 4);
+	newSize = std::max(newSize, 4_u32);
 	newSize = (newSize + 3) & 0b11111111111111111111111111111100; // Round new size up to 4-byte boundary
 
 	uint32_t* __restrict__ header = (uint32_t*)((char*)address - 4);
@@ -417,7 +417,7 @@ uint32_t MemoryRegion::shortenLeft(void* address, uint32_t amountToShorten, uint
 	uint32_t* __restrict__ footer = (uint32_t*)((char*)address + oldAllocatedSize);
 	uint32_t newSize = oldAllocatedSize - amountToShorten;
 
-	newSize = std::max<uint32_t>(newSize, 4);
+	newSize = std::max(newSize, 4_u32);
 	newSize = (newSize + 3) & 0b11111111111111111111111111111100; // Round new size up to 4-byte boundary
 
 	uint32_t* __restrict__ lookLeft =

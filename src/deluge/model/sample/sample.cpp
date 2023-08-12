@@ -665,8 +665,9 @@ doLoading:
 
 	} while (numSamples);
 
-	percCacheZone->samplesAtStartWhichShouldBeReplaced = std::max<int32_t>(
-	    2048, (percCacheZone->endPos - percCacheZone->startPos) * playDirection); // 2048 is fairly arbitrary
+	percCacheZone->samplesAtStartWhichShouldBeReplaced =
+	    std::max<int32_t>(2048, // 2048 is fairly arbitrary
+	                      (percCacheZone->endPos - percCacheZone->startPos) * playDirection);
 
 	// If we connected up to another, later zone...
 	if (willHitNextElement) {
@@ -969,8 +970,8 @@ void Sample::percCacheClusterStolen(Cluster* cluster) {
 
 		if ((zoneLater->endPos - laterBorder) * playDirection > 0) {
 			zoneLater->samplesAtStartWhichShouldBeReplaced =
-			    std::max<int32_t>(0, zoneLater->samplesAtStartWhichShouldBeReplaced
-			                             - (laterBorder - zoneLater->startPos) * playDirection);
+			    std::max(0_i32, zoneLater->samplesAtStartWhichShouldBeReplaced
+			                        - (laterBorder - zoneLater->startPos) * playDirection);
 			zoneLater->startPos = laterBorder;
 		}
 		else {

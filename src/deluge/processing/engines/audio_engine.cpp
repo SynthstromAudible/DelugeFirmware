@@ -693,10 +693,8 @@ startAgain:
 	// 167763968 is 134217728 made a bit bigger so that default filter resonance doesn't reduce volume overall
 
 	if (currentSong) {
-		FilterSetConfig filterSetConfig;
-		currentSong->globalEffectable.setupFilterSetConfig(&filterSetConfig, &masterVolumeAdjustmentL,
-		                                                   &currentSong->paramManager);
-		currentSong->globalEffectable.processFilters(renderingBuffer, numSamples, &filterSetConfig);
+		currentSong->globalEffectable.setupFilterSetConfig(&masterVolumeAdjustmentL, &currentSong->paramManager);
+		currentSong->globalEffectable.processFilters(renderingBuffer, numSamples);
 		currentSong->globalEffectable.processSRRAndBitcrushing(renderingBuffer, numSamples, &masterVolumeAdjustmentL,
 		                                                       &currentSong->paramManager);
 
@@ -1150,6 +1148,15 @@ void getReverbParamsFromSong(Song* song) {
 	reverbCompressor.attack = song->reverbCompressorAttack;
 	reverbCompressor.release = song->reverbCompressorRelease;
 	reverbCompressor.syncLevel = song->reverbCompressorSync;
+}
+
+void getMasterCompressorParamsFromSong(Song* song) {
+	AudioEngine::mastercompressor.compressor.setAttack(song->masterCompressorAttack);
+	AudioEngine::mastercompressor.compressor.setRelease(song->masterCompressorRelease);
+	AudioEngine::mastercompressor.compressor.setThresh(song->masterCompressorThresh);
+	AudioEngine::mastercompressor.compressor.setRatio(song->masterCompressorRatio);
+	AudioEngine::mastercompressor.setMakeup(song->masterCompressorMakeup);
+	AudioEngine::mastercompressor.wet = song->masterCompressorWet;
 }
 
 Voice* solicitVoice(Sound* forSound) {

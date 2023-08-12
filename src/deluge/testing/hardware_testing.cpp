@@ -130,8 +130,8 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 	bool outputPluggedInL = readInput(LINE_OUT_DETECT_L.port, LINE_OUT_DETECT_L.pin);
 	bool outputPluggedInR = readInput(LINE_OUT_DETECT_R.port, LINE_OUT_DETECT_R.pin);
 	bool headphoneNow = readInput(HEADPHONE_DETECT.port, HEADPHONE_DETECT.pin);
-	bool micNow = !readInput(MIC.port, MIC.pin);
-	bool lineInNow = readInput(LINE_IN.port, LINE_IN.pin);
+	bool micNow = !readInput(MIC_DETECT.port, MIC_DETECT.pin);
+	bool lineInNow = readInput(LINE_IN_DETECT.port, LINE_IN_DETECT.pin);
 	bool gateInNow = readInput(ANALOG_CLOCK_IN.port, ANALOG_CLOCK_IN.pin);
 
 	bool inputStateNow = (outputPluggedInL == outputPluggedInR == headphoneNow == micNow == lineInNow == gateInNow);

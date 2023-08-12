@@ -515,7 +515,7 @@ void StorageManager::xmlReadDone() {
 		if (display.type == DisplayType::OLED) {
 			oledRoutine();
 		}
-		uartFlushIfNotSending(UART_ITEM_PIC);
+		PIC::flush();
 	}
 }
 
@@ -1106,7 +1106,7 @@ void StorageManager::write(char const* output) {
 			if (display.type == DisplayType::OLED) {
 				oledRoutine();
 			}
-			uartFlushIfNotSending(UART_ITEM_PIC);
+			PIC::flush();
 		}
 	}
 }

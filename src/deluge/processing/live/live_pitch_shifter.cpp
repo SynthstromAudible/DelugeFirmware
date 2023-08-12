@@ -660,7 +660,7 @@ startSearch:
 		}
 
 		{
-			int32_t searchSizeHere = std::min<int32_t>(searchSize, searchSizeBoundary);
+			int32_t searchSizeHere = std::min(searchSize, searchSizeBoundary);
 			endOffset = searchSizeHere * searchDirection;
 		}
 

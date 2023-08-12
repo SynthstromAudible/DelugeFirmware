@@ -535,12 +535,7 @@ otherOption:
 		}
 
 		else if (whichAnimation == ANIMATION_CLIP_MINDER_TO_SESSION) {
-			if (getCurrentUI() == &audioClipView) {
-				audioClipView.transitionToSessionView();
-			}
-			else {
-				instrumentClipView.transitionToSessionView();
-			}
+			sessionView.transitionToSessionView();
 		}
 
 		else if (whichAnimation == ANIMATION_SESSION_TO_CLIP_MINDER) {

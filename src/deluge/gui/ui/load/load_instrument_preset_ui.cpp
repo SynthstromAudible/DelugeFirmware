@@ -1248,8 +1248,8 @@ needToGrabLeftmostButHaveToReadFirst:
 	goto doReturn;
 }
 
-// Caller must call emptyFileItems() at some point after calling this function - unless an error is returned.
-// Caller must remove OLED working animation after calling this too.
+/// Caller must call emptyFileItems() at some point after calling this function - unless an error is returned
+/// Caller must remove OLED working animation after calling this too.
 PresetNavigationResult LoadInstrumentPresetUI::doPresetNavigation(int32_t offset, Instrument* oldInstrument,
                                                                   Availability availabilityRequirement, bool doBlink) {
 
@@ -1382,6 +1382,11 @@ searchFromOneEnd:
 
 doneMoving:
 	toReturn.fileItem = (FileItem*)fileItems.getElementAddress(i);
+
+	bool isAlreadyInSong = toReturn.fileItem->instrument && toReturn.fileItem->instrumentAlreadyInSong;
+	if (availabilityRequirement == Availability::INSTRUMENT_UNUSED && isAlreadyInSong) {
+		goto moveAgain;
+	}
 
 	toReturn.loadedFromFile = false;
 	bool isHibernating = toReturn.fileItem->instrument && !toReturn.fileItem->instrumentAlreadyInSong;

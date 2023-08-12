@@ -55,8 +55,6 @@
 #define TIMING_CAPTURE_ITEM_MIDI 0
 #define NUM_TIMING_CAPTURE_ITEMS 1
 
-#define UART_FULL_SPEED_PIC_PADS_HZ 200000 // 400000 glitches sometimes, especially if you zoom lots
-
 #define NUM_BUTTON_ROWS                4
 #define NUM_BUTTON_COLS                9
 #define NUM_LED_COLS                   9

@@ -27,8 +27,8 @@ namespace deluge::gui::menu_item::filter {
 class LPFMode final : public Selection<kNumLPFModes> {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->lpfMode); }
-	void writeCurrentValue() override { soundEditor.currentModControllable->lpfMode = this->getValue<::LPFMode>(); }
+	void readCurrentValue() override { this->setValue<::FilterMode>(soundEditor.currentModControllable->lpfMode); }
+	void writeCurrentValue() override { soundEditor.currentModControllable->lpfMode = this->getValue<::FilterMode>(); }
 	static_vector<std::string, capacity()> getOptions() override {
 		using enum l10n::Strings;
 		return {
@@ -39,7 +39,7 @@ public:
 		};
 	}
 	bool isRelevant(Sound* sound, int32_t whichThing) override {
-		return ((sound == nullptr) || sound->synthMode != SynthMode::FM);
+		return ((sound == nullptr) || sound->synthMode != ::SynthMode::FM);
 	}
 };
 } // namespace deluge::gui::menu_item::filter

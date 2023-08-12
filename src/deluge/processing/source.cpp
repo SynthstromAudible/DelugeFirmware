@@ -203,7 +203,7 @@ void Source::doneReadingFromFile(Sound* sound) {
 		oscType = OscType::SINE;
 	}
 	else if (synthMode == SynthMode::RINGMOD) {
-		oscType = std::min<OscType>(oscType, static_cast<OscType>(kLastRingmoddableOscType));
+		oscType = std::min(oscType, kLastRingmoddableOscType);
 	}
 
 	bool isActualSampleOscillator = (synthMode != SynthMode::FM && oscType == OscType::SAMPLE);

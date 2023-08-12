@@ -205,7 +205,7 @@ void AudioRecorder::process() {
 		if (display.type == DisplayType::OLED) {
 			oledRoutine();
 		}
-		uartFlushIfNotSending(UART_ITEM_PIC);
+		PIC::flush();
 
 		readButtonsAndPads();
 
