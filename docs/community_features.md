@@ -141,17 +141,17 @@ In the main menu of the deluge (Shift + Pressing selection knob) there is an ent
 	When On, changes the behaviour of the click action, from the default (PingPong and Type) to the alternative params (SyncType and SyncLevel).
 * Automation (AUTO)
 	* Interpolation
-		When On, Interpolation is on by default in the Automation Instrument Clip View.
-		Note: This is just a default setting and can be overriden in the Automation Instrument Clip View using the Select encoder button.
+		* When On, Interpolation is on by default in the Automation Instrument Clip View.
+		* Note: This is just a default setting and can be overriden in the Automation Instrument Clip View using the Select encoder button.
 	* Clear Clip
-		When On, clearing a clip in the regular Instrument Clip View will clear Notes and MPE, but not Automation.
-		When On, to clear Non-MPE Automation you will need to enter the Automation Instrument Clip View.
+		* When On, clearing a clip in the regular Instrument Clip View will clear Notes and MPE, but not Automation.
+		* When On, to clear Non-MPE Automation you will need to enter the Automation Instrument Clip View.
 	* Nudge Note
-		When On, nudging a note in the regular Instrument Clip View will nudge the Note and MPE, but not the Automation.
-		When On, to nudge Non-MPE Automation, you will need to either Shift or Manually Edit the automation in the Automation Instrument Clip View.
+		* When On, nudging a note in the regular Instrument Clip View will nudge the Note and MPE, but not the Automation.
+		* When On, to nudge Non-MPE Automation, you will need to either Shift or Manually Edit the automation in the Automation Instrument Clip View.
 	* Shift Note
-		When On, shifting notes horizontally in the regular Instrument Clip View will shift the Notes and MPE, but not the Automation.
-		When On, to shift Non-MPE Automation horizontally you will need to enter the Automation Instrument Clip View.
+		* When On, shifting notes horizontally in the regular Instrument Clip View will shift the Notes and MPE, but not the Automation.
+		* When On, to shift Non-MPE Automation horizontally you will need to enter the Automation Instrument Clip View.
 
 ## Compiletime settings
 
