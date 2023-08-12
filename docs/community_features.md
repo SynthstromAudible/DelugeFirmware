@@ -86,8 +86,8 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
  - ([#112]) All-new use for the "keyboard" button in kit clips, uses the main pad grid for MPC-style 16 level playing. Horizonatal encoder scrolls by one pad at a time, allowing positioning drums left to right, and vertical encoder jumps vertically by rows.
 
 #### Instrument & Kit Clip View
-  - ([#129]) Quantize & Humanize
-    - Press and hold a note in clip view and turn the tempo knob right or left to apply quantize or humanize respectively to that row.
+ - ([#129]) Quantize & Humanize
+	- Press and hold a note in clip view and turn the tempo knob right or left to apply quantize or humanize respectively to that row.
     - Press and hold a note and press and turn the tempo knob to apply quantize or humanize to all rows.
     - The amount of quantization/humanization is shown in the display.
     - This feature can be toggled in the [runtime features menu](#runtime-features).
@@ -114,7 +114,7 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 #### Automation Instrument Clip View
  - ([#241]) Automation Instrument Clip View is a new view that complements the existing Instrument Clip View.
 	- It is accessed from within the Clip View by pressing the Clip button (which will blink to indicate you are in the Automation View).
-	- You can edit Parameter Automation for Synth, Kit and Midi instrument clips on a per step basis at any zoom level.
+	- You can edit Non-MPE Parameter Automation for Synth, Kit and Midi instrument clips on a per step basis at any zoom level.
 	- A community features sub-menu titled Automation was created to access a number of configurable settings for changes to existing behaviour.
 	- The three changes to existing behaviour included in this feature are: Clearing Clips, Nudging Notes and Shifting a Clip Horizontally.
 	- More details on the other components of the Automation Instrument Clip View as well as a button shortcuts cheat sheet can be found in the Description of PR #241.
@@ -139,6 +139,19 @@ In the main menu of the deluge (Shift + Pressing selection knob) there is an ent
 	Enable or disables the Delete Unused Kit Rows shortcut (hold KIT then SHIFT+SAVE/DELETE).
 * Alternative Golden Knob Delay Params
 	When On, changes the behaviour of the click action, from the default (PingPong and Type) to the alternative params (SyncType and SyncLevel).
+* Automation (AUTO)
+	* Interpolation
+		When On, Interpolation is on by default in the Automation Instrument Clip View.
+		Note: This is just a default setting and can be overriden in the Automation Instrument Clip View using the Select encoder button.
+	* Clear Clip
+		When On, clearing a clip in the regular Instrument Clip View will clear Notes and MPE, but not Automation.
+		When On, to clear Non-MPE Automation you will need to enter the Automation Instrument Clip View.
+	* Nudge Note
+		When On, nudging a note in the regular Instrument Clip View will nudge the Note and MPE, but not the Automation.
+		When On, to nudge Non-MPE Automation, you will need to either Shift or Manually Edit the automation in the Automation Instrument Clip View.
+	* Shift Note
+		When On, shifting notes horizontally in the regular Instrument Clip View will shift the Notes and MPE, but not the Automation.
+		When On, to shift Non-MPE Automation horizontally you will need to enter the Automation Instrument Clip View.
 
 ## Compiletime settings
 
