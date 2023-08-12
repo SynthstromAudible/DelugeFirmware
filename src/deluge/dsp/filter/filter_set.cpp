@@ -155,7 +155,7 @@ int32_t FilterSet::setConfig(int32_t lpfFrequency, int32_t lpfResonance, bool do
 
 	if (LPFOn) {
 		if ((lpfMode_ == FilterMode::SVF_BAND) || (lpfMode_ == FilterMode::SVF_NOTCH)) {
-			if (lastLPFMode_ != lpfMode_) {
+			if (lastLPFMode_ <= kLastLadder) {
 				lpsvf.reset();
 			}
 			filterGain = lpsvf.configure(lpfFrequency, lpfResonance, lpfMode_, lpfMorph, filterGain);

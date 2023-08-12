@@ -42,6 +42,7 @@ void SVFilter::doFilterStereo(q31_t* startSample, q31_t* endSample) {
 
 q31_t SVFilter::setConfig(q31_t freq, q31_t res, FilterMode lpfMode, q31_t lpfMorph, q31_t filterGain) {
 	curveFrequency(freq);
+	band_mode = (lpfMode == FilterMode::SVF_BAND);
 	// raw resonance is 0 - 536870896 (2^28ish, don't know where it comes from)
 	// Multiply by 4 to bring it to the q31 0-1 range
 	q = (ONE_Q31 - 4 * (res));
@@ -53,17 +54,24 @@ q31_t SVFilter::setConfig(q31_t freq, q31_t res, FilterMode lpfMode, q31_t lpfMo
 	//note - the if statements are to avoid overflow issues
 	//do not remove
 	constexpr q31_t ONE_HALF = ONE_Q31 >> 1;
-	if (lpfMorph > (ONE_HALF)) {
-		lpfMorph = 2 * (lpfMorph - (ONE_HALF));
-		c_low = 0;
-		c_band = ONE_Q31 - lpfMorph;
-		c_high = lpfMorph;
+	if (band_mode) {
+		if (lpfMorph > (ONE_HALF)) {
+			lpfMorph = 2 * (lpfMorph - (ONE_HALF));
+			c_low = 0;
+			c_band = ONE_Q31 - lpfMorph;
+			c_high = lpfMorph;
+		}
+		else {
+			lpfMorph = 2 * lpfMorph;
+			c_low = ONE_Q31 - lpfMorph;
+			c_band = lpfMorph;
+			c_high = 0;
+		}
 	}
 	else {
-		lpfMorph = 2 * lpfMorph;
 		c_low = ONE_Q31 - lpfMorph;
-		c_band = lpfMorph;
-		c_high = 0;
+		c_high = lpfMorph;
+		c_band = 0;
 	}
 	return filterGain;
 }
@@ -97,14 +105,21 @@ inline q31_t SVFilter::doSVF(int32_t input, SVFState& state) {
 	high = high - 2 * multiply_32x32_rshift32(band, q);
 	band = 2 * multiply_32x32_rshift32(high, fc) + band;
 
+	//notch = high + low;
+	lowi = lowi + low;
+	highi = highi + low;
+	bandi = bandi + band;
+
+	q31_t result = multiply_32x32_rshift32_rounded(lowi, c_low);
+	result = multiply_accumulate_32x32_rshift32_rounded(result, highi, c_high);
+	if (band_mode) {
+		result = multiply_accumulate_32x32_rshift32_rounded(result, bandi, c_band);
+	}
+
 	//saturate band feedback
 	band = getTanHUnknown(band, 3);
-	//notch = high + low;
-	q31_t result = multiply_32x32_rshift32_rounded(lowi + low, c_low);
-	result = multiply_accumulate_32x32_rshift32_rounded(result, highi + high, c_high);
-	result = multiply_accumulate_32x32_rshift32_rounded(result, bandi + band, c_band);
 	//result = multiply_accumulate_32x32_rshift32_rounded(0, notchi+notch, c_notch);
-	result = 2 * result; //compensate for division by two on each multiply
+	result = 3 * result; //compensate for division by two on each multiply
 
 	state.low = low;
 	state.band = band;
