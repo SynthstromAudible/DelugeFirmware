@@ -80,7 +80,7 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 
 #### Kit Clip View
  - ([#122]) Pressing "AUDITION + RANDOM" on a drum kit row will load a random sample from the same folder as the currently enabled sample and load it as the sound for that row. Currently limited to 25 files for performance reasons. This feature can be toggled in the [runtime features menu](#runtime-features).
-  - ([#234]) While you can delete a kit row by holding a Note in a row and pressing SAVE/DELETE, the "Delete Unused Kit Rows" feature allows you to batch delete kit rows which does not contain any notes, freeing kits from unused sounds (which take some precious RAM). While inside a kit, hold "KIT" and press "Shift + SAVE/DELETE". A confirmation message will appear: "Deleted unused rows". This command is not executed if there are no notes at all in the kit. This feature can be toggled in the [runtime features menu](#runtime-features).
+ - ([#234]) While you can delete a kit row by holding a Note in a row and pressing SAVE/DELETE, the "Delete Unused Kit Rows" feature allows you to batch delete kit rows which does not contain any notes, freeing kits from unused sounds (which take some precious RAM). While inside a kit, hold "KIT" and press "Shift + SAVE/DELETE". A confirmation message will appear: "Deleted unused rows". This command is not executed if there are no notes at all in the kit. This feature can be toggled in the [runtime features menu](#runtime-features).
 
 #### Kit Keyboard View
  - ([#112]) All-new use for the "keyboard" button in kit clips, uses the main pad grid for MPC-style 16 level playing. Horizonatal encoder scrolls by one pad at a time, allowing positioning drums left to right, and vertical encoder jumps vertically by rows.
@@ -103,13 +103,21 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 
 	2. Pickup: The deluge will ignore changes to its internal Knob position/Parameter value until the Midi Knob/Fader's position is equal to the Deluge Knob position. After which the Midi Knob/Fader will move in sync with the Deluge.
 
-	3. Scale: The deluge will increase/decrease its internal Knob position/Parameter value relative to the change of the Midi Knob/Fader position and the amount of "runway" remaining on the Midi controller. Once the Midi controller reaches its maximum or minimum position, the Midi Knob/Fader will move in sync with the Deluge. The Deluge will value will always decrease/increase in the same direction as the Midi controller.
+	3. Scale: The deluge will increase/decrease its internal Knob position/Parameter value relative to the change of the Midi Knob/Fader position and the amount of "runway" remaining on the Midi controller. Once the Midi controller reaches its maximum or minimum position, the Midi Knob/Fader will move in sync with the Deluge. The Deluge value will always decrease/increase in the same direction as the Midi controller.
 
 #### Catch Notes
  - ([#221]) The normal behavior of the Deluge is to try to keep up with 'in progress' notes when instant switching between clips by playing them late. However this leads to glitches with drum clips and other percussive sounds. Changing this setting to OFF will prevent this behavior and *not* try to keep up with those notes, leading to smoother instant switching between clips.
 
 #### Alternative Delay Params for golden knobs
  - ([#282]) Ability to select, using a Community Features Menu, which parameters are controlled when you click the Delay-related golden knobs. The default (for upper and lower knobs) is PingPong On/Off and Type (Digital/Analog), and you can modify it so the knob clicks change the Sync Type (Even, Triplets, Even) and SyncLevel (Off, Whole, 2nd, 4th...) respectively.
+
+#### Automation Instrument Clip View
+ - ([#241]) Automation Instrument Clip View is a new view that complements the existing Instrument Clip View.
+	- It is accessed from within the Clip View by pressing the Clip button (which will blink to indicate you are in the Automation View.
+	- You can edit Parameter Automation for Synth, Kit and Midi instrument clips on a per step basis at any zoom level.
+	- A community features sub-menu titled Automation was created to access a number of configurable settings for changes to existing behaviour.
+	- The three changes to existing behaviour included in this feature are: Clearing Clips, Nudging Notes and Shifting a Clip Horizontally.
+	- More details on the other components of the Automation Instrument Clip View as well as a button shortcuts cheat sheet can be found in the Description of PR #241.
 
 <h1 id="runtime-features">Runtime settings aka Community Features Menu</h1>
 
@@ -131,7 +139,6 @@ In the main menu of the deluge (Shift + Pressing selection knob) there is an ent
 	Enable or disables the Delete Unused Kit Rows shortcut (hold KIT then SHIFT+SAVE/DELETE).
 * Alternative Golden Knob Delay Params
 	When On, changes the behaviour of the click action, from the default (PingPong and Type) to the alternative params (SyncType and SyncLevel).
-
 
 ## Compiletime settings
 
@@ -161,5 +168,6 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#170]: https://github.com/SynthstromAudible/DelugeFirmware/pull/170
 [#221]: https://github.com/SynthstromAudible/DelugeFirmware/pull/221
 [#234]: https://github.com/SynthstromAudible/DelugeFirmware/pull/234
+[#241]: https://github.com/SynthstromAudible/DelugeFirmware/pull/241
 [#251]: https://github.com/SynthstromAudible/DelugeFirmware/pull/251
 [#282]: https://github.com/SynthstromAudible/DelugeFirmware/pull/282
