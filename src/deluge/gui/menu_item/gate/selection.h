@@ -16,7 +16,7 @@
 */
 #pragma once
 #include "gui/menu_item/gate/mode.h"
-#include "gui/menu_item/selection/selection.h"
+#include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "mode.h"
 #include "off_time.h"
@@ -32,29 +32,29 @@ public:
 
 	void beginSession(MenuItem* navigatedBackwardFrom) override {
 		if (navigatedBackwardFrom == nullptr) {
-			this->value_ = 0;
+			this->setValue(0);
 		}
 		else {
-			this->value_ = soundEditor.currentSourceIndex;
+			this->setValue(soundEditor.currentSourceIndex);
 		}
 		menu_item::Selection<capacity()>::beginSession(navigatedBackwardFrom);
 	}
 
 	MenuItem* selectButtonPress() override {
-		if (this->value_ == NUM_GATE_CHANNELS) {
+		if (this->getValue() == NUM_GATE_CHANNELS) {
 			return &gateOffTimeMenu;
 		}
-		soundEditor.currentSourceIndex = this->value_;
+		soundEditor.currentSourceIndex = this->getValue();
 #if HAVE_OLED
-		gate::mode_title[8] = '1' + this->value_;
+		gate::mode_title[8] = '1' + this->getValue();
 #endif
 
 		// TODO: this needs to be a "UpdateOptions" method on gate::Mode
-		gateModeMenu.updateOptions(this->value_);
+		gateModeMenu.updateOptions(this->getValue());
 		return &gateModeMenu;
 	}
 
-	static_vector<string, capacity()> getOptions() override {
+	static_vector<std::string, capacity()> getOptions() override {
 #if HAVE_OLED
 
 		return {"Gate output 1", "Gate output 2", "Gate output 3", "Gate output 4", "Minimum off-time"};

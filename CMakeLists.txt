@@ -7,6 +7,9 @@ project(Deluge
     VERSION 1.0.0
 )
 
+include(ProcessorCount)
+ProcessorCount(HOST_NUM_CORES)
+
 # Check for IPO support
 include(CheckIPOSupported)
 check_ipo_supported(RESULT IPO_SUPPORTED OUTPUT error)
@@ -14,6 +17,7 @@ check_ipo_supported(RESULT IPO_SUPPORTED OUTPUT error)
 if(IPO_SUPPORTED)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION
         $<$<CONFIG:DEBUG>:OFF>
+        $<$<CONFIG:RELWITHDEBINFO>:ON>
         $<$<CONFIG:RELEASE>:ON>
     )
 endif()
@@ -167,13 +171,16 @@ add_compile_options(
     # Debug symbols
     $<$<CONFIG:DEBUG>:-g> # Include
     $<$<CONFIG:DEBUG>:-ggdb> # Include
+    $<$<CONFIG:RELWITHDEBINFO>:-g> # Include
     $<$<CONFIG:RELEASE>:-s> # Strip
 
     # Optimization level
     $<$<CONFIG:DEBUG>:-Og>
+    $<$<CONFIG:RELWITHDEBINFO>:-O2>
     $<$<CONFIG:RELEASE>:-O2>
 
     # Link time optimizations
+    $<$<CONFIG:RELWITHDEBINFO>:-flto>
     $<$<CONFIG:RELEASE>:-flto>
     -ffunction-sections
     -fdata-sections
@@ -233,6 +240,7 @@ target_compile_options(deluge INTERFACE
 
     # Stack usage
     $<$<CONFIG:DEBUG>:-Wstack-usage=100>
+    $<$<CONFIG:RELWITHDEBINFO>:-Wstack-usage=1000>
     $<$<CONFIG:RELEASE>:-Wstack-usage=1000>
 )
 
@@ -242,3 +250,43 @@ add_firmware(deluge7SEG deluge)
 # OLED Configuration
 add_firmware(delugeOLED deluge)
 target_compile_definitions(delugeOLED PUBLIC HAVE_OLED=1)
+
+# ##### Documentation generation #######
+# check if Doxygen is installed
+find_package(Doxygen
+    OPTIONAL_COMPONENTS dot mscgen dia
+)
+
+if(DOXYGEN_FOUND)
+    if(NOT ${DOXYGEN_HAVE_DOT})
+        message(
+            "Can't find GraphViz DOT tool for generating images."
+            "Make sure it's on your PATH or install GraphViz")
+    endif()
+
+    set(DOXYGEN_PROJECT_NAME "Deluge Firmware")
+    set(DOXYGEN_RECURSIVE YES)
+    set(DOXYGEN_EXAMPLE_RECURSIVE YES)
+
+    set(DOXYGEN_NUM_PROC_THREADS ${HOST_NUM_CORES})
+
+    # From doxygen-awesome
+    set(DOXYGEN_GENERATE_TREEVIEW YES)
+    set(DOXYGEN_DISABLE_INDEX NO)
+    set(DOXYGEN_FULL_SIDEBAR NO)
+    set(DOXYGEN_HTML_COLORSTYLE LIGHT)
+    set(DOXYGEN_HTML_EXTRA_STYLESHEET "${doxygen-awesome-css_SOURCE_DIR}/doxygen-awesome.css")
+
+    set(DOXYGEN_USE_MDFILE_AS_MAINPAGE README.md)
+
+    file(GLOB markdown_SOURCES *.md)
+
+    file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/assets
+        DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/html/)
+
+    doxygen_add_docs(doxygen ${markdown_SOURCES} docs src/deluge)
+else(DOXYGEN_FOUND)
+    message(WARNING
+        "Doxygen needs to be installed to generate documentation."
+        "Please install from https://github.com/doxygen/doxygen/releases")
+endif(DOXYGEN_FOUND)

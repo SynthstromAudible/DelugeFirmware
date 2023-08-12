@@ -194,14 +194,6 @@ constexpr int32_t kDisplayHeightMagnitude = 3;
 constexpr int32_t kDisplayWidth = 16;
 constexpr int32_t kDisplayWidthMagnitude = 4;
 
-enum PICMessage : uint8_t {
-	REFRESH_TIME = 19,
-	RESEND_BUTTON_STATES = 22,
-	NO_PRESSES_HAPPENING = 254,
-};
-
-constexpr int32_t kPadAndButtonMessagesEnd = 180;
-
 constexpr int32_t kNumBytesInColUpdateMessage = 49;
 constexpr int32_t kNumBytesInLongestMessage = 55;
 
@@ -222,12 +214,18 @@ constexpr Pin LINE_OUT_DETECT_R = {6, 4};
 constexpr Pin ANALOG_CLOCK_IN = {1, 14};
 constexpr Pin SPEAKER_ENABLE = {4, 1};
 constexpr Pin HEADPHONE_DETECT = {6, 5};
-constexpr Pin LINE_IN = {6, 6};
-constexpr Pin MIC = {7, 9};
+constexpr Pin LINE_IN_DETECT = {6, 6};
+constexpr Pin MIC_DETECT = {7, 9};
 constexpr Pin SYNCED_LED = {6, 7};
+constexpr Pin CODEC = {6, 12};
 
 constexpr Pin BATTERY_LED = {1, 1};
 constexpr int32_t SYS_VOLT_SENSE_PIN = 5;
+constexpr Pin VOLT_SENSE = {1, 8 + SYS_VOLT_SENSE_PIN};
+
+constexpr Pin SPI_CLK = {6, 0};
+constexpr Pin SPI_MOSI = {6, 2};
+constexpr Pin SPI_SSL = {6, 1};
 
 constexpr int32_t kSideBarWidth = 2;
 constexpr int32_t kMaxNumAnimatedRows = ((kDisplayHeight * 3) >> 1);
@@ -391,6 +389,8 @@ enum : ParamType {
 	HPF_RESONANCE,
 	ENV_0_SUSTAIN,
 	ENV_1_SUSTAIN,
+	LPF_MORPH,
+	HPF_MORPH,
 
 	// Local hybrid params begin
 	OSC_A_PHASE_WIDTH,
@@ -549,7 +549,7 @@ enum class LFOType {
 	RANDOM_WALK,
 };
 
-constexpr int32_t kNumLFOTypes = util::to_underlying(LFOType::RANDOM_WALK);
+constexpr int32_t kNumLFOTypes = util::to_underlying(LFOType::RANDOM_WALK) + 1;
 
 // SyncType values correspond to the index of the first option of the specific
 // type in the selection menu. There are 9 different levels for each type (see
@@ -578,7 +578,7 @@ enum class SynthMode {
 	FM,
 	RINGMOD,
 };
-constexpr int kNumSynthModes = util::to_underlying(SynthMode::RINGMOD) + 1;
+constexpr int kNumSynthModes = util::to_underlying(::SynthMode::RINGMOD) + 1;
 
 enum class ModFXType {
 	NONE,
@@ -609,18 +609,32 @@ enum class PolyphonyMode {
 constexpr auto kNumPolyphonyModes = util::to_underlying(PolyphonyMode::CHOKE) + 1;
 
 constexpr int32_t kNumericDisplayLength = 4;
+constexpr size_t kNumGoldKnobIndicatorLEDs = 4;
 
 constexpr int32_t kMaxNumSections = 12;
 
 constexpr int32_t kNumPhysicalModKnobs = 2;
 
-enum class LPFMode {
+enum class FilterMode {
 	TRANSISTOR_12DB,
 	TRANSISTOR_24DB,
-	TRANSISTOR_24DB_DRIVE,
+	TRANSISTOR_24DB_DRIVE, //filter logic relies on ladders being first and contiguous
 	SVF,
+	HPLADDER, //first HPF mode
+	HPSVF,
+	OFF, //Keep last as a sentinel. Signifies that the filter is not on, used for filter reset logic
 };
-constexpr int32_t kNumLPFModes = util::to_underlying(LPFMode::SVF) + 1;
+constexpr FilterMode kLastLadder = FilterMode::TRANSISTOR_24DB_DRIVE;
+//Off is not an LPF mode but is used to reset filters
+constexpr int32_t kNumLPFModes = util::to_underlying(FilterMode::HPLADDER);
+constexpr int32_t kNumHPFModes = util::to_underlying(FilterMode::OFF) - kNumLPFModes;
+enum class FilterRoute {
+	HIGH_TO_LOW,
+	LOW_TO_HIGH,
+	PARALLEL,
+};
+
+constexpr int32_t kNumFilterRoutes = util::to_underlying(FilterRoute::PARALLEL) + 1;
 
 constexpr int32_t kNumAllpassFiltersPhaser = 6;
 

@@ -6,8 +6,13 @@
     "[python]": {
         "editor.defaultFormatter": "ms-python.black-formatter"
     },
-    "python.formatting.provider": "none",
     "files.associations": {
-        "compare": "cpp"
+        "compare": "cpp",
+        "ranges": "cpp"
     },
+    "C_Cpp.errorSquiggles": "disabled",
+    "cSpell.words": [
+        "SDRAM",
+        "Synthstrom"
+    ],
 }

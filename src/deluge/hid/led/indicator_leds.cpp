@@ -17,7 +17,10 @@
 
 #include "hid/led/indicator_leds.h"
 #include "RZA1/uart/sio_char.h"
+#include "drivers/pic/pic.h"
 #include "gui/ui_timer_manager.h"
+#include <array>
+#include <cstdint>
 
 extern "C" {
 #include "RZA1/gpio/gpio.h"
@@ -45,7 +48,12 @@ void setLedState(LED led, bool newState, bool allowContinuedBlinking) {
 	uint8_t l = static_cast<int32_t>(led);
 	ledStates[l] = newState;
 
-	bufferPICUart(uartBase + l + (newState ? 36 : 0));
+	if (newState) {
+		PIC::setLEDOn(l);
+	}
+	else {
+		PIC::setLEDOff(l);
+	}
 }
 
 void blinkLed(LED led, uint8_t numBlinks, uint8_t blinkingType, bool initialState) {
@@ -168,14 +176,14 @@ void setKnobIndicatorLevel(uint8_t whichKnob, uint8_t level) {
 		}
 	}
 
-	bufferPICUart(20 + whichKnob);
-
 	int32_t numIndicatorLedsFullyOn = level >> 5;
 
 	int32_t brightness = (level & 31) << 3;
 	brightness = (brightness * brightness) >> 8; // Square it
 
-	for (int32_t i = 0; i < 4; i++) {
+	std::array<uint8_t, kNumGoldKnobIndicatorLEDs> indicator{};
+
+	for (size_t i = 0; i < kNumGoldKnobIndicatorLEDs; i++) {
 		int32_t brightnessOutputValue = 0;
 
 		if (i < numIndicatorLedsFullyOn) {
@@ -184,8 +192,10 @@ void setKnobIndicatorLevel(uint8_t whichKnob, uint8_t level) {
 		else if (i == numIndicatorLedsFullyOn) {
 			brightnessOutputValue = brightness;
 		}
-		bufferPICUart(brightnessOutputValue);
+
+		indicator.at(i) = brightnessOutputValue;
 	}
+	PIC::setGoldKnobIndicator(whichKnob, indicator);
 
 	knobIndicatorLevels[whichKnob] = level;
 }

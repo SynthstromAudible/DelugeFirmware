@@ -23,18 +23,18 @@ namespace deluge::gui::menu_item::modulator {
 
 class Transpose final : public source::Transpose, public FormattedTitle {
 public:
-	Transpose(const string& name, const string& title_format_str, int32_t newP)
+	Transpose(const std::string& name, const fmt::format_string<int32_t>& title_format_str, int32_t newP)
 	    : source::Transpose(name, newP), FormattedTitle(title_format_str) {}
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
 	void readCurrentValue() override {
-		this->value_ = (int32_t)soundEditor.currentSound->modulatorTranspose[soundEditor.currentSourceIndex] * 100
-		               + soundEditor.currentSound->modulatorCents[soundEditor.currentSourceIndex];
+		this->setValue((int32_t)soundEditor.currentSound->modulatorTranspose[soundEditor.currentSourceIndex] * 100
+		               + soundEditor.currentSound->modulatorCents[soundEditor.currentSourceIndex]);
 	}
 
 	void writeCurrentValue() override {
-		int32_t currentValue = this->value_ + 25600;
+		int32_t currentValue = this->getValue() + 25600;
 
 		int32_t semitones = (currentValue + 50) / 100;
 		int32_t cents = currentValue - semitones * 100;

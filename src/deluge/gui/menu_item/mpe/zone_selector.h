@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "gui/menu_item/selection/selection.h"
+#include "gui/menu_item/selection.h"
 
 namespace deluge::gui::menu_item::mpe {
 
@@ -25,10 +25,10 @@ class ZoneSelector final : public Selection<2> {
 public:
 	using Selection::Selection;
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
-	void readCurrentValue() override { this->value_ = whichZone; }
-	void writeCurrentValue() override { whichZone = this->value_; }
+	void readCurrentValue() override { this->setValue(whichZone); }
+	void writeCurrentValue() override { whichZone = this->getValue(); }
 
-	static_vector<string, capacity()> getOptions() override {
+	static_vector<std::string, capacity()> getOptions() override {
 		return {
 		    HAVE_OLED ? "Lower zone" : "LOWE", //<
 		    HAVE_OLED ? "Upper zone" : "UPPE"  //<

@@ -1,21 +1,18 @@
 name: Build
 
 on:
-  push:
-    branches:
-      - 'synthstrom-official'
-  pull_request:
-    branches:
-      - 'community'
-  merge_group:
-  workflow_dispatch:
-
-env:
-  FIRMWARE_RETENTION_DAYS: 5
+  workflow_call:
+    inputs:
+      firmware-retention-days:
+        required: true
+        type: number
+      build-type:
+        required: true
+        type: string
 
 jobs:
   build:
-    name: Build ${{ matrix.profile }}-${{ matrix.hardware }}
+    name: Build
     runs-on: ubuntu-latest
     steps:
       - name: check out repo
@@ -33,6 +30,7 @@ jobs:
             build \
             --verbose \
             --tag-metadata \
+            --type ${{ inputs.build-type }} \
             all
 
       - name: Publish built firmware (7seg-debug) (bin)
@@ -41,28 +39,28 @@ jobs:
           name: debug-7seg.bin
           path: build/Debug/deluge7SEG*.bin
           if-no-files-found: error
-          retention-days: ${{ env.FIRMWARE_RETENTION_DAYS }}
+          retention-days: ${{ inputs.firmware-retention-days }}
       - name: Publish built firmware (7seg-release) (bin)
         uses: actions/upload-artifact@v3
         with:
           name: release-7seg.bin
           path: build/Release/deluge7SEG*.bin
           if-no-files-found: error
-          retention-days: ${{ env.FIRMWARE_RETENTION_DAYS }}
+          retention-days: ${{ inputs.firmware-retention-days }}
       - name: Publish built firmware (oled-debug) (bin)
         uses: actions/upload-artifact@v3
         with:
           name: debug-oled.bin
           path: build/Debug/delugeOLED*.bin
           if-no-files-found: error
-          retention-days: ${{ env.FIRMWARE_RETENTION_DAYS }}
+          retention-days: ${{ inputs.firmware-retention-days }}
       - name: Publish built firmware (oled-release) (bin)
         uses: actions/upload-artifact@v3
         with:
           name: release-oled.bin
           path: build/Release/delugeOLED*.bin
           if-no-files-found: error
-          retention-days: ${{ env.FIRMWARE_RETENTION_DAYS }}
+          retention-days: ${{ inputs.firmware-retention-days }}
 
       - name: Publish built firmware (elf)
         uses: actions/upload-artifact@v3
@@ -70,4 +68,4 @@ jobs:
           name: all-elfs
           path: build/*/*.elf
           if-no-files-found: error
-          retention-days: ${{ env.FIRMWARE_RETENTION_DAYS }}
+          retention-days: ${{ inputs.firmware-retention-days }}

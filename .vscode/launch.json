@@ -71,6 +71,43 @@
       ]
     },
     {
+      "name": "Load/Run OLED RelWithDebInfo",
+      "type": "cppdbg",
+      "preLaunchTask": "Build OLED RelWithDebInfo",
+      "request": "launch",
+      "cwd": "${workspaceRoot}",
+      "program": "${workspaceRoot}/build/RelWithDebInfo/delugeOLED.elf",
+      "MIMode": "gdb",
+      "miDebuggerPath": "arm-none-eabi-gdb",
+      "windows": {
+        "miDebuggerPath": "${workspaceRoot}/toolchain/win32-x86_64/arm-none-eabi-gcc/bin/arm-none-eabi-gdb.exe"
+      },
+      "miDebuggerServerAddress": "localhost:3333",
+      "useExtendedRemote": true,
+      "targetArchitecture": "arm",
+      "svdPath": "${workspaceRoot}/contrib/rza1.svd",
+      "customLaunchSetupCommands": [
+        {
+          "text": "-gdb-set target-async on"
+        },
+        {
+          "text": "-target-select extended-remote localhost:3333"
+        },
+        {
+          "text": "cd ${workspaceRoot}"
+        },
+        {
+          "text": "monitor reset"
+        },
+        {
+          "text": "-file-exec-and-symbols build/RelWithDebInfo/delugeOLED.elf"
+        },
+        {
+          "text": "-target-download"
+        },
+      ]
+    },
+    {
       "name": "Load/Run 7SEG Debug",
       "type": "cppdbg",
       "preLaunchTask": "Build 7SEG Debug",

@@ -96,6 +96,8 @@ int32_t getParamNeutralValue(int32_t p) {
 
 	case Param::Local::LPF_RESONANCE:
 	case Param::Local::HPF_RESONANCE:
+	case Param::Local::LPF_MORPH:
+	case Param::Local::HPF_MORPH:
 		return 25 * 10737418; // Room to be quadrupled
 
 	case Param::Local::PAN:
@@ -377,6 +379,9 @@ char const* getPatchedParamDisplayNameForOled(int32_t p) {
 	case Param::Local::LPF_FREQ:
 		return "LPF frequency";
 
+	case Param::Local::LPF_MORPH:
+		return "LPF morph";
+
 	case Param::Local::PITCH_ADJUST:
 		return "Pitch";
 
@@ -394,6 +399,9 @@ char const* getPatchedParamDisplayNameForOled(int32_t p) {
 
 	case Param::Local::HPF_FREQ:
 		return "HPF frequency";
+
+	case Param::Local::HPF_MORPH:
+		return "HPF morph";
 
 	case Param::Local::LFO_LOCAL_FREQ:
 		return "LFO2 rate";
@@ -460,10 +468,6 @@ char const* getPatchedParamDisplayNameForOled(int32_t p) {
 
 	case Param::Local::CARRIER_1_FEEDBACK:
 		return "Carrier2 feed.";
-
-	default:
-		__builtin_unreachable();
-		return NULL;
 	}
 }
 #endif
@@ -1095,6 +1099,31 @@ FilterType stringToFilterType(char const* string) {
 	}
 }
 
+char const* filterRouteToString(FilterRoute route) {
+	switch (route) {
+	case FilterRoute::LOW_TO_HIGH:
+		return "L2H";
+
+	case FilterRoute::PARALLEL:
+		return "PARA";
+
+	default:
+		return "H2L";
+	}
+}
+
+FilterRoute stringToFilterRoute(char const* string) {
+	if (!strcmp(string, "L2H")) {
+		return FilterRoute::LOW_TO_HIGH;
+	}
+	else if (!strcmp(string, "PARA")) {
+		return FilterRoute::PARALLEL;
+	}
+	else {
+		return FilterRoute::HIGH_TO_LOW;
+	}
+}
+
 char const* arpModeToString(ArpMode mode) {
 	switch (mode) {
 	case ArpMode::UP:
@@ -1132,34 +1161,42 @@ ArpMode stringToArpMode(char const* string) {
 	}
 }
 
-char const* lpfTypeToString(LPFMode lpfType) {
+char const* lpfTypeToString(FilterMode lpfType) {
 	switch (lpfType) {
-	case LPFMode::TRANSISTOR_12DB:
+	case FilterMode::TRANSISTOR_12DB:
 		return "12dB";
 
-	case LPFMode::TRANSISTOR_24DB_DRIVE:
+	case FilterMode::TRANSISTOR_24DB_DRIVE:
 		return "24dBDrive";
-
-	case LPFMode::SVF:
+	case FilterMode::SVF:
 		return "SVF";
-
+	case FilterMode::HPLADDER:
+		return "HPLadder";
+	case FilterMode::HPSVF:
+		return "HPSV";
 	default:
 		return "24dB";
 	}
 }
 
-LPFMode stringToLPFType(char const* string) {
+FilterMode stringToLPFType(char const* string) {
 	if (!strcmp(string, "24dB")) {
-		return LPFMode::TRANSISTOR_24DB;
+		return FilterMode::TRANSISTOR_24DB;
 	}
 	else if (!strcmp(string, "24dBDrive")) {
-		return LPFMode::TRANSISTOR_24DB_DRIVE;
+		return FilterMode::TRANSISTOR_24DB_DRIVE;
 	}
 	else if (!strcmp(string, "SVF")) {
-		return LPFMode::SVF;
+		return FilterMode::SVF;
+	}
+	else if (!strcmp(string, "HPLadder")) {
+		return FilterMode::HPLADDER;
+	}
+	else if (!strcmp(string, "HPSV")) {
+		return FilterMode::HPSVF;
 	}
 	else {
-		return LPFMode::TRANSISTOR_12DB;
+		return FilterMode::TRANSISTOR_12DB;
 	}
 }
 

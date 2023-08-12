@@ -168,11 +168,14 @@ ModFXParam stringToModFXParam(char const* string);
 char const* filterTypeToString(FilterType fxType);
 FilterType stringToFilterType(char const* string);
 
+FilterRoute stringToFilterRoute(char const* string);
+char const* filterRouteToString(FilterRoute route);
+
 char const* arpModeToString(ArpMode mode);
 ArpMode stringToArpMode(char const* string);
 
-char const* lpfTypeToString(LPFMode lpfType);
-LPFMode stringToLPFType(char const* string);
+char const* lpfTypeToString(FilterMode lpfType);
+FilterMode stringToLPFType(char const* string);
 
 char const* inputChannelToString(AudioInputChannel inputChannel);
 AudioInputChannel stringToInputChannel(char const* string);

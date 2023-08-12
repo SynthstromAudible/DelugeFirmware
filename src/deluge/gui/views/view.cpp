@@ -1789,7 +1789,8 @@ void View::instrumentChanged(ModelStackWithTimelineCounter* modelStack, Instrume
 	    modelStack->getTimelineCounter()); // Do a redraw. Obviously the Clip is the same
 }
 
-void View::getClipMuteSquareColour(Clip* clip, uint8_t thisColour[]) {
+void View::getClipMuteSquareColour(Clip* clip, uint8_t thisColour[], bool overwriteStopped, uint8_t stoppedColour[],
+                                   bool allowMIDIFlash) {
 
 	if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING && clip && clip->armedForRecording) {
 		if (blinkOn) {
@@ -1830,7 +1831,7 @@ void View::getClipMuteSquareColour(Clip* clip, uint8_t thisColour[]) {
 	}
 
 	// If user assigning MIDI controls and this Clip has a command assigned, flash pink
-	if (midiLearnFlashOn && clip->muteMIDICommand.containsSomething()) {
+	if (allowMIDIFlash && midiLearnFlashOn && clip->muteMIDICommand.containsSomething()) {
 		thisColour[0] = midiCommandColour.r;
 		thisColour[1] = midiCommandColour.g;
 		thisColour[2] = midiCommandColour.b;
@@ -1853,7 +1854,14 @@ void View::getClipMuteSquareColour(Clip* clip, uint8_t thisColour[]) {
 
 		// If it's stopped, red.
 		if (!clip->activeIfNoSolo) {
-			menu_item::stoppedColourMenu.getRGB(thisColour);
+			if (overwriteStopped) {
+				thisColour[0] = stoppedColour[0];
+				thisColour[1] = stoppedColour[1];
+				thisColour[2] = stoppedColour[2];
+			}
+			else {
+				menu_item::stoppedColourMenu.getRGB(thisColour);
+			}
 		}
 
 		// Or, green.
@@ -1867,14 +1875,12 @@ void View::getClipMuteSquareColour(Clip* clip, uint8_t thisColour[]) {
 	}
 
 	// If user assigning MIDI controls and has this Clip selected, flash to half brightness
-	if (midiLearnFlashOn && learnedThing == &clip->muteMIDICommand) {
+	if (allowMIDIFlash && midiLearnFlashOn && learnedThing == &clip->muteMIDICommand) {
 		thisColour[0] >>= 1;
 		thisColour[1] >>= 1;
 		thisColour[2] >>= 1;
 	}
 }
-
-extern int8_t defaultAudioClipOverdubOutputCloning;
 
 ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfInSessionView) {
 

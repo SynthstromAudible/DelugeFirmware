@@ -35,8 +35,10 @@
 #include "gui/menu_item/envelope/segment.h"
 #include "gui/menu_item/file_selector.h"
 #include "gui/menu_item/filter/hpf_freq.h"
+#include "gui/menu_item/filter/hpf_mode.h"
 #include "gui/menu_item/filter/lpf_freq.h"
 #include "gui/menu_item/filter/lpf_mode.h"
+#include "gui/menu_item/filter_route.h"
 #include "gui/menu_item/firmware/version.h"
 #include "gui/menu_item/flash/status.h"
 #include "gui/menu_item/fx/clipping.h"
@@ -175,6 +177,7 @@ dev_var::GMenu devVarGMenu{HAVE_OLED ? "Dev Menu G" : "DEVG"};
 
 filter::LPFFreq lpfFreqMenu{"Frequency", "LPF frequency", ::Param::Local::LPF_FREQ};
 patched_param::IntegerNonFM lpfResMenu{"Resonance", "LPF resonance", ::Param::Local::LPF_RESONANCE};
+patched_param::IntegerNonFM lpfMorphMenu{"Morph", "LPF morph", ::Param::Local::LPF_MORPH};
 filter::LPFMode lpfModeMenu{"MODE", "LPF mode"};
 
 submenu::Filter lpfMenu{
@@ -183,6 +186,7 @@ submenu::Filter lpfMenu{
         &lpfFreqMenu,
         &lpfResMenu,
         &lpfModeMenu,
+        &lpfMorphMenu,
     },
 };
 
@@ -190,14 +194,21 @@ submenu::Filter lpfMenu{
 
 filter::HPFFreq hpfFreqMenu{"Frequency", "HPF frequency", ::Param::Local::HPF_FREQ};
 patched_param::IntegerNonFM hpfResMenu{"Resonance", "HPF resonance", ::Param::Local::HPF_RESONANCE};
+patched_param::IntegerNonFM hpfMorphMenu{"Morph", "HPF morph", ::Param::Local::HPF_MORPH};
+filter::HPFMode hpfModemenu{"MODE", "HPF mode"};
 
 submenu::Filter hpfMenu{
     "HPF",
     {
         &hpfFreqMenu,
         &hpfResMenu,
+        &hpfModemenu,
+        &hpfMorphMenu,
     },
 };
+
+//Filter Route Menu ----------------------------------------------------------------------------------------------
+FilterRouting filterRoutingMenu{HAVE_OLED ? "Filter Route" : "ROUT"};
 
 // Envelope menu ----------------------------------------------------------------------------------------------------
 
@@ -218,19 +229,19 @@ submenu::Envelope env1Menu{HAVE_OLED ? "Envelope 2" : "ENV2", envMenuItems, 1};
 // Osc menu -------------------------------------------------------------------------------------------------------
 
 osc::Type oscTypeMenu{"TYPE", "Osc{} type"};
-osc::source::WaveIndex sourceWaveIndexMenu{"Wave-index", "Osc{} wave-ind.", Param::Local::OSC_A_WAVE_INDEX};
-osc::source::Volume sourceVolumeMenu{HAVE_OLED ? "Level" : "VOLUME", "Osc{} level", Param::Local::OSC_A_VOLUME};
-osc::source::Feedback sourceFeedbackMenu{"FEEDBACK", "Carrier{} feed.", Param::Local::CARRIER_0_FEEDBACK};
+osc::source::WaveIndex sourceWaveIndexMenu{"Wave-index", "Osc{} wave-ind.", ::Param::Local::OSC_A_WAVE_INDEX};
+osc::source::Volume sourceVolumeMenu{HAVE_OLED ? "Level" : "VOLUME", "Osc{} level", ::Param::Local::OSC_A_VOLUME};
+osc::source::Feedback sourceFeedbackMenu{"FEEDBACK", "Carrier{} feed.", ::Param::Local::CARRIER_0_FEEDBACK};
 osc::AudioRecorder audioRecorderMenu{"Record audio"};
 sample::Reverse sampleReverseMenu{"REVERSE", "Samp{} reverse"};
 sample::Repeat sampleRepeatMenu{HAVE_OLED ? "Repeat mode" : "MODE", "Samp{} repeat"};
 sample::Start sampleStartMenu{"Start-point"};
 sample::End sampleEndMenu{"End-point"};
-sample::Transpose sourceTransposeMenu{"TRANSPOSE", "Osc{} transpose", Param::Local::OSC_A_PITCH_ADJUST};
+sample::Transpose sourceTransposeMenu{"TRANSPOSE", "Osc{} transpose", ::Param::Local::OSC_A_PITCH_ADJUST};
 sample::PitchSpeed samplePitchSpeedMenu{HAVE_OLED ? "Pitch/speed" : "PISP"};
 sample::TimeStretch timeStretchMenu{"SPEED", "Samp{} speed"};
 sample::Interpolation interpolationMenu{"INTERPOLATION", "Samp{} interp."};
-osc::PulseWidth pulseWidthMenu{"PULSE WIDTH", "Osc{} p. width", Param::Local::OSC_A_PHASE_WIDTH};
+osc::PulseWidth pulseWidthMenu{"PULSE WIDTH", "Osc{} p. width", ::Param::Local::OSC_A_PHASE_WIDTH};
 osc::Sync oscSyncMenu{HAVE_OLED ? "Oscillator sync" : "SYNC"};
 osc::RetriggerPhase oscPhaseMenu{"Retrigger phase", "Osc{} r. phase", false};
 
@@ -505,6 +516,7 @@ Submenu audioClipHPFMenu{
     {
         &audioClipHPFFreqMenu,
         &audioClipHPFResMenu,
+        &hpfModemenu,
     },
 };
 
@@ -825,29 +837,10 @@ patched_param::Pan panMenu{"PAN", ::Param::Local::PAN};
 menu_item::Submenu soundEditorRootMenu{
     "Sound",
     {
-        &source0Menu,
-        &source1Menu,
-        &modulator0Menu,
-        &modulator1Menu,
-        &noiseMenu,
-        &masterTransposeMenu,
-        &vibratoMenu,
-        &lpfMenu,
-        &hpfMenu,
-        &drumNameMenu,
-        &synthModeMenu,
-        &env0Menu,
-        &env1Menu,
-        &lfo0Menu,
-        &lfo1Menu,
-        &voiceMenu,
-        &fxMenu,
-        &compressorMenu,
-        &bendMenu,
-        &drumBendRangeMenu,
-        &volumeMenu,
-        &panMenu,
-        &sequenceDirectionMenu,
+        &source0Menu,    &source1Menu, &modulator0Menu,    &modulator1Menu,    &noiseMenu,    &masterTransposeMenu,
+        &vibratoMenu,    &lpfMenu,     &hpfMenu,           &filterRoutingMenu, &drumNameMenu, &synthModeMenu,
+        &env0Menu,       &env1Menu,    &lfo0Menu,          &lfo1Menu,          &voiceMenu,    &fxMenu,
+        &compressorMenu, &bendMenu,    &drumBendRangeMenu, &volumeMenu,        &panMenu,      &sequenceDirectionMenu,
     },
 };
 
@@ -913,8 +906,8 @@ MenuItem* paramShortcutsForSounds[][8] = {
     {&modulatorVolume,        &modulatorTransposeMenu, comingSoonMenu,                 comingSoonMenu,                 &modulatorPhaseMenu,  &modulatorFeedbackMenu, &modulatorDestMenu,       NULL                  },
     {&volumeMenu,             &masterTransposeMenu,    &vibratoMenu,                   &panMenu,                       &synthModeMenu,       &srrMenu,               &bitcrushMenu,            &clippingMenu         },
     {&portaMenu,              &polyphonyMenu,          &priorityMenu,                  &unisonDetuneMenu,              &numUnisonMenu,       nullptr,                nullptr,                  NULL                  },
-    {&envReleaseMenu,         &envSustainMenu,         &envDecayMenu,                  &envAttackMenu,                 nullptr,              &lpfModeMenu,           &lpfResMenu,              &lpfFreqMenu          },
-    {&envReleaseMenu,         &envSustainMenu,         &envDecayMenu,                  &envAttackMenu,                 nullptr,              comingSoonMenu,         &hpfResMenu,              &hpfFreqMenu          },
+    {&envReleaseMenu,         &envSustainMenu,         &envDecayMenu,                  &envAttackMenu,                 &lpfMorphMenu,        &lpfModeMenu,           &lpfResMenu,              &lpfFreqMenu          },
+    {&envReleaseMenu,         &envSustainMenu,         &envDecayMenu,                  &envAttackMenu,                 &hpfMorphMenu,        &hpfModemenu,           &hpfResMenu,              &hpfFreqMenu          },
     {&compressorReleaseMenu,  &sidechainSyncMenu,      &compressorVolumeShortcutMenu,  &compressorAttackMenu,          &compressorShapeMenu, &sidechainSendMenu,     &bassMenu,                &bassFreqMenu         },
     {&arpRateMenu,            &arpSyncMenu,            &arpGateMenu,                   &arpOctavesMenu,                &arpModeMenu,         &drumNameMenu,          &trebleMenu,              &trebleFreqMenu       },
     {&lfo1RateMenu,           &lfo1SyncMenu,           &lfo1TypeMenu,                  &modFXTypeMenu,                 &modFXOffsetMenu,     &modFXFeedbackMenu,     &modFXDepthMenu,          &modFXRateMenu        },

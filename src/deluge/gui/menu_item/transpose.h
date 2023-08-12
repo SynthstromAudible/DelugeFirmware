@@ -23,9 +23,9 @@ namespace deluge::gui::menu_item {
 
 class Transpose : public Decimal, public PatchedParam {
 public:
-	Transpose(const string& newName, int32_t newP = 0) : Decimal(newName), PatchedParam(newP) {}
+	Transpose(const std::string& newName, int32_t newP = 0) : Decimal(newName), PatchedParam(newP) {}
 
-	Transpose(const string& newName, const string& title, int32_t newP = 0)
+	Transpose(const std::string& newName, const std::string& title, int32_t newP = 0)
 	    : Decimal(newName, title), PatchedParam(newP) {}
 
 	MenuItem* selectButtonPress() final { return PatchedParam::selectButtonPress(); }
@@ -37,7 +37,7 @@ public:
 
 #if !HAVE_OLED
 	void drawValue() override {
-		numericDriver.setTextAsNumber(this->value_, shouldDrawDotOnName());
+		numericDriver.setTextAsNumber(this->getValue(), shouldDrawDotOnName());
 	}
 #endif
 

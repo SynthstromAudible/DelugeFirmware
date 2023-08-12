@@ -17,6 +17,7 @@
 
 #include <cmath>
 #include <cstring>
+#include <stdint.h>
 
 #include "decimal.h"
 #include "gui/ui/sound_editor.h"
@@ -59,21 +60,21 @@ void Decimal::drawValue() {
 
 void Decimal::selectEncoderAction(int32_t offset) {
 
-	this->value_ += offset * soundEditor.numberEditSize;
+	this->setValue(this->getValue() + offset * soundEditor.numberEditSize);
 
 	// If turned down
 	if (offset < 0) {
 		int32_t minValue = getMinValue();
-		if (this->value_ < minValue) {
-			this->value_ = minValue;
+		if (this->getValue() < minValue) {
+			this->setValue(minValue);
 		}
 	}
 
 	// If turned up
 	else {
 		int32_t maxValue = getMaxValue();
-		if (this->value_ > maxValue) {
-			this->value_ = maxValue;
+		if (this->getValue() > maxValue) {
+			this->setValue(maxValue);
 		}
 	}
 
@@ -110,16 +111,16 @@ void Decimal::horizontalEncoderAction(int32_t offset) {
 }
 
 void Decimal::scrollToGoodPos() {
-	int32_t numDigits = getNumDecimalDigits(std::abs(this->value_));
+	int32_t numDigits = getNumDecimalDigits(std::abs(this->getValue()));
 
 	// Negative numbers
-	if (this->value_ < 0) {
-		soundEditor.numberScrollAmount = std::max<int8_t>(numDigits - 3, soundEditor.numberEditPos - 2);
+	if (this->getValue() < 0) {
+		soundEditor.numberScrollAmount = std::max<int32_t>(numDigits - 3, soundEditor.numberEditPos - 2);
 	}
 
 	// Positive numbers
 	else {
-		soundEditor.numberScrollAmount = std::max<int8_t>(numDigits - 4, soundEditor.numberEditPos - 3);
+		soundEditor.numberScrollAmount = std::max<int32_t>(numDigits - 4, soundEditor.numberEditPos - 3);
 	}
 
 	if (soundEditor.numberScrollAmount < 0) {
@@ -138,7 +139,7 @@ void Decimal::scrollToGoodPos() {
 void Decimal::drawPixelsForOled() {
 	int32_t numDecimalPlaces = getNumDecimalPlaces();
 	char buffer[13];
-	intToString(this->value_, buffer, numDecimalPlaces + 1);
+	intToString(this->getValue(), buffer, numDecimalPlaces + 1);
 	int32_t length = strlen(buffer);
 
 	int32_t editingChar = length - soundEditor.numberEditPos;
@@ -169,7 +170,7 @@ void Decimal::drawActualValue(bool justDidHorizontalScroll) {
 	char buffer[12];
 	int32_t minNumDigits = getNumDecimalPlaces() + 1;
 	minNumDigits = std::max<int32_t>(minNumDigits, soundEditor.numberEditPos + 1);
-	intToString(this->value_, buffer, minNumDigits);
+	intToString(this->getValue(), buffer, minNumDigits);
 	int32_t stringLength = strlen(buffer);
 
 	char* outputText = buffer + std::max(stringLength - 4 - soundEditor.numberScrollAmount, 0_i32);

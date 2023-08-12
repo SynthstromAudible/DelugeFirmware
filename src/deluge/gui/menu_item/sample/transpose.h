@@ -23,7 +23,7 @@
 namespace deluge::gui::menu_item::sample {
 class Transpose final : public source::Transpose, public FormattedTitle {
 public:
-	Transpose(const string& name, const string& title_format_str, int32_t newP)
+	Transpose(const std::string& name, const fmt::format_string<int32_t>& title_format_str, int32_t newP)
 	    : source::Transpose(name, newP), FormattedTitle(title_format_str) {}
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
@@ -40,11 +40,11 @@ public:
 			transpose = soundEditor.currentSource->transpose;
 			cents = soundEditor.currentSource->cents;
 		}
-		this->value_ = transpose * 100 + cents;
+		this->setValue(transpose * 100 + cents);
 	}
 
 	void writeCurrentValue() override {
-		int32_t currentValue = this->value_ + 25600;
+		int32_t currentValue = this->getValue() + 25600;
 
 		int32_t semitones = (currentValue + 50) / 100;
 		int32_t cents = currentValue - semitones * 100;

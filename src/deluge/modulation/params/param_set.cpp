@@ -34,8 +34,8 @@
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 
-ParamSet::ParamSet(int32_t newObjectSize, ParamCollectionSummary* summary) : ParamCollection(newObjectSize, summary) {
-	topUintToRepParams = 1;
+ParamSet::ParamSet(int32_t newObjectSize, ParamCollectionSummary* summary)
+    : ParamCollection(newObjectSize, summary), numParams_(0), params(nullptr), topUintToRepParams(1) {
 }
 
 void ParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
@@ -360,6 +360,17 @@ void ParamSet::notifyPingpongOccurred(ModelStackWithParamCollection* modelStack)
 // UnpatchedParamSet --------------------------------------------------------------------------------------------
 
 UnpatchedParamSet::UnpatchedParamSet(ParamCollectionSummary* summary) : ParamSet(sizeof(UnpatchedParamSet), summary) {
+	params = params_.data();
+	numParams_ = static_cast<int32_t>(params_.size());
+	topUintToRepParams = (numParams_ - 1) >> 5;
+}
+
+void UnpatchedParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
+	params = params_.data();
+	numParams_ = static_cast<int32_t>(params_.size());
+	topUintToRepParams = (numParams_ - 1) >> 5;
+
+	ParamSet::beenCloned(copyAutomation, reverseDirectionWithLength);
 }
 
 bool UnpatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) {
@@ -384,7 +395,17 @@ bool UnpatchedParamSet::doesParamIdAllowAutomation(ModelStackWithParamId const* 
 // PatchedParamSet --------------------------------------------------------------------------------------------
 
 PatchedParamSet::PatchedParamSet(ParamCollectionSummary* summary) : ParamSet(sizeof(PatchedParamSet), summary) {
-	topUintToRepParams = (kNumParams - 1) >> 5;
+	params = params_.data();
+	numParams_ = static_cast<int32_t>(params_.size());
+	topUintToRepParams = (numParams_ - 1) >> 5;
+}
+
+void PatchedParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
+	params = params_.data();
+	numParams_ = static_cast<int32_t>(params_.size());
+	topUintToRepParams = (numParams_ - 1) >> 5;
+
+	ParamSet::beenCloned(copyAutomation, reverseDirectionWithLength);
 }
 
 void PatchedParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
@@ -482,10 +503,21 @@ bool PatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId const
 
 ExpressionParamSet::ExpressionParamSet(ParamCollectionSummary* summary, bool forDrum)
     : ParamSet(sizeof(ExpressionParamSet), summary) {
+	params = params_.data();
+	numParams_ = static_cast<int32_t>(params_.size());
+	topUintToRepParams = (numParams_ - 1) >> 5;
 	bendRanges[BEND_RANGE_MAIN] = FlashStorage::defaultBendRange[BEND_RANGE_MAIN];
 
 	bendRanges[BEND_RANGE_FINGER_LEVEL] =
 	    forDrum ? bendRanges[BEND_RANGE_MAIN] : FlashStorage::defaultBendRange[BEND_RANGE_FINGER_LEVEL];
+}
+
+void ExpressionParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
+	params = params_.data();
+	numParams_ = static_cast<int32_t>(params_.size());
+	topUintToRepParams = (numParams_ - 1) >> 5;
+
+	ParamSet::beenCloned(copyAutomation, reverseDirectionWithLength);
 }
 
 void ExpressionParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,

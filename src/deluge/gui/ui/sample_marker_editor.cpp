@@ -685,7 +685,7 @@ ActionResult SampleMarkerEditor::timerCallback() {
 	renderForOneCol(x, PadLEDs::image, cols);
 
 	PadLEDs::sortLedsForCol(x);
-	uartFlushIfNotSending(UART_ITEM_PIC_PADS);
+	PIC::flush();
 
 	uiTimerManager.setTimer(TIMER_UI_SPECIFIC, kSampleMarkerBlinkTime);
 

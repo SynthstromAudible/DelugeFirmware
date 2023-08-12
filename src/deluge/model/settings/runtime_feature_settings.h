@@ -19,7 +19,7 @@
 
 #include "util/container/array/resizeable_array.h"
 #include "util/container/static_vector.hpp"
-#include "util/string.h"
+
 #include <cstdint>
 
 namespace deluge::gui::menu_item::runtime_feature {
@@ -49,14 +49,14 @@ enum RuntimeFeatureSettingType : uint32_t {
 
 /// Definition for selectable options
 struct RuntimeFeatureSettingOption {
-	deluge::string displayName;
+	std::string displayName;
 	uint32_t value; // Value to be defined as typed Enum above
 };
 
 /// Every setting keeps its metadata and value in here
 struct RuntimeFeatureSetting {
-	deluge::string displayName;
-	deluge::string xmlName;
+	std::string displayName;
+	std::string xmlName;
 	uint32_t value;
 
 	// Limited to safe memory
