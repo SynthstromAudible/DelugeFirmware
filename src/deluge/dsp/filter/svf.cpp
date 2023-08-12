@@ -107,7 +107,7 @@ inline q31_t SVFilter::doSVF(int32_t input, SVFState& state) {
 
 	//notch = high + low;
 	lowi = lowi + low;
-	highi = highi + low;
+	highi = highi + high;
 	bandi = bandi + band;
 
 	q31_t result = multiply_32x32_rshift32_rounded(lowi, c_low);
