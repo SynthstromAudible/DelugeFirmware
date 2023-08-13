@@ -1497,6 +1497,10 @@ skipUnisonPart : {}
 	if (!renderingDirectlyIntoSoundBuffer) {
 		if (didStereoTempBuffer) {
 			int32_t* const oscBufferEnd = oscBuffer + (numSamples << 1);
+			//fold
+			if (paramFinalValues[Param::Local::FOLD] > 0) {
+				dsp::foldBuffer(oscBuffer, oscBufferEnd, paramFinalValues[Param::Local::FOLD]);
+			}
 			// Filters
 			filterSet.renderLongStereo(oscBuffer, oscBufferEnd);
 
