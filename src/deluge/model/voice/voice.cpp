@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "dsp/filter/filter_set.h"
 #include "dsp/timestretch/time_stretcher.h"
+#include "dsp/util.h"
 #include "gui/waveform/waveform_renderer.h"
 #include "io/debug/print.h"
 #include "memory/general_memory_allocator.h"
@@ -1573,11 +1574,15 @@ skipUnisonPart : {}
 			*/
 
 			int32_t* const oscBufferEnd = oscBuffer + numSamples;
+			//wavefolding pre filter
+			if (paramFinalValues[Param::Local::FOLD] > 0) {
+				dsp::foldBuffer(oscBuffer, oscBufferEnd, paramFinalValues[Param::Local::FOLD]);
+			}
+
 			filterSet.renderLong(oscBuffer, oscBufferEnd, numSamples);
 
 			// No clipping
 			if (!sound->clippingAmount) {
-
 				int32_t const* __restrict__ oscBufferPos = oscBuffer; // For traversal
 				int32_t* __restrict__ outputSample = soundBuffer;
 				int32_t overallOscAmplitudeNow = overallOscAmplitudeLastTime;
@@ -1608,7 +1613,6 @@ skipUnisonPart : {}
 
 			// Yes clipping
 			else {
-
 				int32_t const* __restrict__ oscBufferPos = oscBuffer; // For traversal
 				int32_t* __restrict__ outputSample = soundBuffer;
 				int32_t overallOscAmplitudeNow = overallOscAmplitudeLastTime;
@@ -2620,7 +2624,9 @@ void renderPDWave(const int16_t* table, const int16_t* secondTable, int32_t numB
 void getTableNumber(uint32_t phaseIncrementForCalculations, int32_t* tableNumber, int32_t* tableSize) {
 
 	if (phaseIncrementForCalculations <= 1247086) {
-		{ *tableNumber = 0; }
+		{
+			*tableNumber = 0;
+		}
 		*tableSize = 13;
 	}
 	else if (phaseIncrementForCalculations <= 2494173) {
