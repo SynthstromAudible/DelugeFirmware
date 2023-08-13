@@ -41,7 +41,7 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 
 ### All views (Arrange, Song, Clip)
 
- - ([#211]) Fill Mode is a new iteration/probability setting for notes. The FILL setting is at the start of the probability range, before 5%. When notes are set FILL they will only play when fill mode is active. There are 2 ways to activate fill mode - set it as a Global MIDI Command and/or set it to override the front panel Sync Scaling button. For Global MIDI Commands go to SETTINGS > MIDI > CMD > FILL. To override the Sync Scaling button set SETTINGS > FEATURES > SYNC to FILL. The orignal Sync Scaling function is moved to SHIFT+SyncScaling.
+ - ([#211]) Fill Mode is a new iteration/probability setting for notes. The FILL setting is at the start of the probability range, before 5%. Notes set to FILL are only played when fill mode is active. There are two ways to activate fill mode - set it as a Global MIDI Command and/or set it to override the front panel Sync Scaling button. For Global MIDI Commands go to SETTINGS > MIDI > CMD > FILL. To override the Sync Scaling button set SETTINGS > FEATURES > SYNC to FILL. The orignal Sync Scaling function is moved to SHIFT+SyncScaling.
 
 ### Song view
  - ([#251]) Add new grid session layout to "Song" mode. All functionality from (classic) row layout applies except for the following:
