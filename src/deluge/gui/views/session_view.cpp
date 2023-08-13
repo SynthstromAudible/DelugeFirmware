@@ -2946,7 +2946,6 @@ bool SessionView::gridRenderMainPads(uint32_t whichRows, uint8_t image[][kDispla
 			continue; // Should never happen but theoretically global output list can diverge from clip pointers
 		}
 
-		uint8_t occupiedColor[3] = {20, 20, 20};
 		auto x = gridXFromTrack(trackIndex);
 		auto y = gridYFromSection(clip->section);
 
@@ -2955,7 +2954,7 @@ bool SessionView::gridRenderMainPads(uint32_t whichRows, uint8_t image[][kDispla
 			occupancyMask[y][x] = 64;
 			auto* ptrClipColour = image[y][x];
 
-			view.getClipMuteSquareColour(clip, ptrClipColour, true, occupiedColor, !shiftPressed);
+			view.getClipMuteSquareColour(clip, ptrClipColour, true, !shiftPressed);
 
 			// If we should MIDI learn flash and shift is pressed (different learn layer)
 			if (view.midiLearnFlashOn && shiftPressed && clip->output != nullptr) {
