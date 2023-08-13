@@ -1690,10 +1690,6 @@ void Session::scheduleFillClip(Clip* clip) {
 	if (clip->launchStyle == LAUNCH_STYLE_FILL) {
 		if (launchEventAtSwungTickCount > 0) {
 
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
-			ModelStackWithTimelineCounter* modelStack =
-			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
-			if (numRepeatsTilLaunch) {}
 			int64_t fillStartTime = launchEventAtSwungTickCount - clip->getMaxLength()
 			                        + (numRepeatsTilLaunch - 1) * currentArmedLaunchLengthForOneRepeat;
 			// Work out if a 'launchEvent' is already scheduled,
@@ -1710,6 +1706,9 @@ void Session::scheduleFillClip(Clip* clip) {
 					}
 				}
 
+				char modelStackMemory[MODEL_STACK_MAX_SIZE];
+					ModelStackWithTimelineCounter* modelStack =
+			    		setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
 				uint32_t pos;
 				pos = clip->getMaxLength() - (launchEventAtSwungTickCount - playbackHandler.getActualSwungTickCount());
 
@@ -1738,14 +1737,8 @@ void Session::scheduleFillClip(Clip* clip) {
 				clip->armState = ArmState::ON_NORMAL;
 			}
 			else {
-				/* Schedule start time if not immediate launch */
-				/*if (launchEventAtSwungTickCount
-						> playbackHandler.getActualSwungTickCount()
-								+ clip->getMaxLength()) {*/
-
 				scheduleFillEvent(clip, fillStartTime);
 				armClipLowLevel(clip, ArmState::ON_NORMAL, false);
-				//}
 			}
 		}
 	}
