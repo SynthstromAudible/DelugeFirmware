@@ -29,13 +29,13 @@ public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue<::FilterMode>(soundEditor.currentModControllable->lpfMode); }
 	void writeCurrentValue() override { soundEditor.currentModControllable->lpfMode = this->getValue<::FilterMode>(); }
-	static_vector<std::string, capacity()> getOptions() override {
+	static_vector<std::string_view, capacity()> getOptions() override {
 		using enum l10n::String;
 		return {
 		    "12dB",
 		    "24dB",
-		    l10n::get(STRING_FOR_DRIVE),
-		    l10n::get(STRING_FOR_SVF),
+		    l10n::getView(STRING_FOR_DRIVE),
+		    l10n::getView(STRING_FOR_SVF),
 		};
 	}
 	bool isRelevant(Sound* sound, int32_t whichThing) override {

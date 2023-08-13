@@ -33,7 +33,7 @@ public:
 		view.setKnobIndicatorLevels();
 	}
 
-	static_vector<std::string, capacity()> getOptions() override { return {"Subtractive", "FM", "Ringmod"}; }
+	static_vector<std::string_view, capacity()> getOptions() override { return {"Subtractive", "FM", "Ringmod"}; }
 
 	bool isRelevant(Sound* sound, int32_t whichThing) override {
 		return (sound->sources[0].oscType <= kLastRingmoddableOscType

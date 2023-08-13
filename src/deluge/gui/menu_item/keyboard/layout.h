@@ -28,7 +28,7 @@ public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(FlashStorage::keyboardLayout); }
 	void writeCurrentValue() override { FlashStorage::keyboardLayout = this->getValue<KeyboardLayout>(); }
-	static_vector<std::string, capacity()> getOptions() override {
+	static_vector<std::string_view, capacity()> getOptions() override {
 		return {
 		    "QWERTY",
 		    "AZERTY",

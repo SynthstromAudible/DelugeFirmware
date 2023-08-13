@@ -56,9 +56,9 @@ public:
 		return &gateModeMenu;
 	}
 
-	static_vector<std::string, capacity()> getOptions() override {
+	static_vector<std::string_view, capacity()> getOptions() override {
 		using enum l10n::String;
-		auto gate_output_fmt_string = l10n::get(STRING_FOR_GATE_OUTPUT_N);
+		auto gate_output_fmt_string = l10n::getView(STRING_FOR_GATE_OUTPUT_N);
 		return {
 		    fmt::vformat(gate_output_fmt_string, fmt::make_format_args(1)),
 		    fmt::vformat(gate_output_fmt_string, fmt::make_format_args(2)),

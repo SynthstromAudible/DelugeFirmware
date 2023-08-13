@@ -25,11 +25,11 @@ public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(soundEditor.shortcutsVersion); }
 	void writeCurrentValue() override { soundEditor.setShortcutsVersion(this->getValue()); }
-	static_vector<std::string, capacity()> getOptions() override {
+	static_vector<std::string_view, capacity()> getOptions() override {
 		using enum l10n::String;
 		return {
-		    l10n::get(STRING_FOR_SHORTCUTS_VERSION_1),
-		    l10n::get(STRING_FOR_SHORTCUTS_VERSION_3),
+		    l10n::getView(STRING_FOR_SHORTCUTS_VERSION_1),
+		    l10n::getView(STRING_FOR_SHORTCUTS_VERSION_3),
 		};
 	}
 };

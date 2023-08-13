@@ -60,14 +60,14 @@ public:
 			bool arpNow = (current_value != ArpMode::OFF); // Uh.... this does nothing...
 		}
 	}
-	static_vector<std::string, capacity()> getOptions() override {
+	static_vector<std::string_view, capacity()> getOptions() override {
 		using enum l10n::String;
 		return {
-		    l10n::get(STRING_FOR_DISABLED), //<
-		    l10n::get(STRING_FOR_UP),       //<
-		    l10n::get(STRING_FOR_DOWN),     //<
-		    l10n::get(STRING_FOR_BOTH),     //<
-		    l10n::get(STRING_FOR_RANDOM),   //<
+		    l10n::getView(STRING_FOR_DISABLED), //<
+		    l10n::getView(STRING_FOR_UP),       //<
+		    l10n::getView(STRING_FOR_DOWN),     //<
+		    l10n::getView(STRING_FOR_BOTH),     //<
+		    l10n::getView(STRING_FOR_RANDOM),   //<
 		};
 	}
 };

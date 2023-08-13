@@ -32,12 +32,12 @@ public:
 		}
 		PadLEDs::flashCursor = this->getValue();
 	}
-	static_vector<std::string, capacity()> getOptions() override {
+	static_vector<std::string_view, capacity()> getOptions() override {
 		using enum l10n::String;
 		return {
-		    l10n::get(STRING_FOR_FAST),
-		    l10n::get(STRING_FOR_DISABLED),
-		    l10n::get(STRING_FOR_SLOW),
+		    l10n::getView(STRING_FOR_FAST),
+		    l10n::getView(STRING_FOR_DISABLED),
+		    l10n::getView(STRING_FOR_SLOW),
 		};
 	}
 };

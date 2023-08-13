@@ -31,7 +31,7 @@ class Selection : public Enumeration<n> {
 public:
 	using Enumeration<n>::Enumeration;
 
-	virtual static_vector<std::string, n> getOptions() = 0;
+	virtual static_vector<std::string_view, n> getOptions() = 0;
 
 	void drawValue() override;
 
@@ -47,7 +47,7 @@ void Selection<n>::drawValue() {
 	}
 	else {
 		const auto options = getOptions();
-		display.setText(options[this->getValue()].c_str());
+		display.setText(options[this->getValue()].data());
 	}
 }
 

@@ -27,11 +27,11 @@ class DirectionSelector final : public Selection<2> {
 public:
 	using Selection::Selection;
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
-	static_vector<std::string, capacity()> getOptions() override {
+	static_vector<std::string_view, capacity()> getOptions() override {
 		using enum l10n::String;
 		return {
-		    l10n::get(STRING_FOR_IN),
-		    l10n::get(STRING_FOR_OUT),
+		    l10n::getView(STRING_FOR_IN),
+		    l10n::getView(STRING_FOR_OUT),
 		};
 	}
 	void readCurrentValue() override { this->setValue(whichDirection); }

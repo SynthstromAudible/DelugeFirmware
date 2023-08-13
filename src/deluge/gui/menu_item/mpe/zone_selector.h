@@ -29,11 +29,11 @@ public:
 	void readCurrentValue() override { this->setValue(whichZone); }
 	void writeCurrentValue() override { whichZone = this->getValue(); }
 
-	static_vector<std::string, capacity()> getOptions() override {
+	static_vector<std::string_view, capacity()> getOptions() override {
 		using enum l10n::String;
 		return {
-		    l10n::get(STRING_FOR_LOWER_ZONE),
-		    l10n::get(STRING_FOR_UPPER_ZONE),
+		    l10n::getView(STRING_FOR_LOWER_ZONE),
+		    l10n::getView(STRING_FOR_UPPER_ZONE),
 		};
 	}
 

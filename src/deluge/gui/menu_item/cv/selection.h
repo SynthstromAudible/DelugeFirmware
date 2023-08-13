@@ -49,7 +49,7 @@ public:
 		return &cvSubmenu;
 	}
 
-	static_vector<std::string, capacity()> getOptions() override {
+	static_vector<std::string_view, capacity()> getOptions() override {
 		using enum l10n::String;
 
 		// // Just a test
@@ -63,8 +63,8 @@ public:
 		// return {strings.begin(), strings.begin() + capacity()};
 
 		return {
-		    fmt::vformat(l10n::get(STRING_FOR_CV_OUTPUT_N), fmt::make_format_args(1)),
-		    fmt::vformat(l10n::get(STRING_FOR_CV_OUTPUT_N), fmt::make_format_args(2)),
+		    fmt::vformat(l10n::getView(STRING_FOR_CV_OUTPUT_N), fmt::make_format_args(1)),
+		    fmt::vformat(l10n::getView(STRING_FOR_CV_OUTPUT_N), fmt::make_format_args(2)),
 		};
 	}
 };

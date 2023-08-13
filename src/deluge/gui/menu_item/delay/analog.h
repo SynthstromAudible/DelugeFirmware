@@ -28,9 +28,9 @@ public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->delay.analog); }
 	void writeCurrentValue() override { soundEditor.currentModControllable->delay.analog = this->getValue(); }
-	static_vector<std::string, 2> getOptions() override {
+	static_vector<std::string_view, 2> getOptions() override {
 		using enum l10n::String;
-		return {l10n::get(STRING_FOR_DIGITAL), l10n::get(STRING_FOR_ANALOG)};
+		return {l10n::getView(STRING_FOR_DIGITAL), l10n::getView(STRING_FOR_ANALOG)};
 	}
 };
 

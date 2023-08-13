@@ -84,7 +84,7 @@ public:
 		// We need to re-render all rows, because this will have changed whether Note tails are displayed. Probably just one row, but we don't know which
 		uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
 	}
-	static_vector<std::string, capacity()> getOptions() override { return {"CUT", "ONCE", "LOOP", "STRETCH"}; }
+	static_vector<std::string_view, capacity()> getOptions() override { return {"CUT", "ONCE", "LOOP", "STRETCH"}; }
 };
 
 } // namespace deluge::gui::menu_item::sample

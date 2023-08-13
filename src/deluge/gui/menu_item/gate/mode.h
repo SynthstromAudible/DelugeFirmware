@@ -27,26 +27,26 @@ namespace deluge::gui::menu_item::gate {
 
 class Mode final : public Selection<3>, public FormattedTitle {
 
-	static_vector<std::string, capacity()> options_ = {
-	    l10n::get(l10n::String::STRING_FOR_V_TRIGGER),
-	    l10n::get(l10n::String::STRING_FOR_S_TRIGGER),
+	static_vector<std::string_view, capacity()> options_ = {
+	    l10n::getView(l10n::String::STRING_FOR_V_TRIGGER),
+	    l10n::getView(l10n::String::STRING_FOR_S_TRIGGER),
 	};
 
 public:
 	Mode() : Selection(), FormattedTitle(l10n::String::STRING_FOR_GATE_MODE_TITLE) {}
 	void readCurrentValue() override { this->setValue(cvEngine.gateChannels[soundEditor.currentSourceIndex].mode); }
 	void writeCurrentValue() override { cvEngine.setGateType(soundEditor.currentSourceIndex, this->getValue<GateType>()); }
-	static_vector<std::string, capacity()> getOptions() override { return options_; }
+	static_vector<std::string_view, capacity()> getOptions() override { return options_; }
 
 	void updateOptions(int32_t value) {
 		using enum l10n::String;
 		switch (value) {
 		case WHICH_GATE_OUTPUT_IS_CLOCK:
-			options_[2] = l10n::get(STRING_FOR_CLOCK);
+			options_[2] = l10n::getView(STRING_FOR_CLOCK);
 			break;
 
 		case WHICH_GATE_OUTPUT_IS_RUN:
-			options_[2] = l10n::get(STRING_FOR_RUN_SIGNAL);
+			options_[2] = l10n::getView(STRING_FOR_RUN_SIGNAL);
 			break;
 
 		default:

@@ -37,7 +37,7 @@ public:
 		soundEditor.currentSampleControls->interpolationMode = this->getValue<InterpolationMode>();
 	}
 
-	static_vector<std::string, capacity()> getOptions() override { return {"Linear", "Sinc"}; }
+	static_vector<std::string_view, capacity()> getOptions() override { return {"Linear", "Sinc"}; }
 
 	bool isRelevant(Sound* sound, int32_t whichThing) override {
 		if (sound == nullptr) {

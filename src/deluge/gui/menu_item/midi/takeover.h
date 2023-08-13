@@ -28,12 +28,12 @@ public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(midiEngine.midiTakeover); }
 	void writeCurrentValue() override { midiEngine.midiTakeover = this->getValue<MIDITakeoverMode>(); }
-	static_vector<std::string, capacity()> getOptions() override {
+	static_vector<std::string_view, capacity()> getOptions() override {
 		using enum l10n::String;
 		return {
-		    l10n::get(STRING_FOR_JUMP),
-		    l10n::get(STRING_FOR_PICK_UP),
-		    l10n::get(STRING_FOR_SCALE),
+		    l10n::getView(STRING_FOR_JUMP),
+		    l10n::getView(STRING_FOR_PICK_UP),
+		    l10n::getView(STRING_FOR_SCALE),
 		};
 	}
 };

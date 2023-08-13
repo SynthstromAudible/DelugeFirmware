@@ -27,11 +27,11 @@ public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(soundEditor.currentSound->modulator1ToModulator0); }
 	void writeCurrentValue() override { soundEditor.currentSound->modulator1ToModulator0 = this->getValue(); }
-	static_vector<std::string, capacity()> getOptions() override {
+	static_vector<std::string_view, capacity()> getOptions() override {
 		using enum l10n::String;
 		return {
-		    l10n::get(STRING_FOR_CARRIERS),
-		    fmt::vformat(l10n::get(STRING_FOR_MODULATOR_N), fmt::make_format_args(1)),
+		    l10n::getView(STRING_FOR_CARRIERS),
+		    fmt::vformat(l10n::getView(STRING_FOR_MODULATOR_N), fmt::make_format_args(1)),
 		};
 	}
 	bool isRelevant(Sound* sound, int32_t whichThing) override {

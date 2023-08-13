@@ -61,20 +61,20 @@ public:
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
-	static_vector<std::string, capacity()> getOptions() override {
+	static_vector<std::string_view, capacity()> getOptions() override {
 		using enum l10n::String;
-		static_vector<std::string, capacity()> options = {
-		    l10n::get(STRING_FOR_SINE),          //<
-		    l10n::get(STRING_FOR_TRIANGLE),      //<
-		    l10n::get(STRING_FOR_SQUARE),        //<
-		    l10n::get(STRING_FOR_ANALOG_SQUARE), //<
-		    l10n::get(STRING_FOR_SAW),           //<
-		    l10n::get(STRING_FOR_ANALOG_SAW),    //<
-		    l10n::get(STRING_FOR_WAVETABLE),     //<
-		    l10n::get(STRING_FOR_SAMPLE),        //<
-		    l10n::get(STRING_FOR_INPUT_LEFT),    //<
-		    l10n::get(STRING_FOR_INPUT_RIGHT),   //<
-		    l10n::get(STRING_FOR_INPUT_STEREO),  //<
+		static_vector<std::string_view, capacity()> options = {
+		    l10n::getView(STRING_FOR_SINE),          //<
+		    l10n::getView(STRING_FOR_TRIANGLE),      //<
+		    l10n::getView(STRING_FOR_SQUARE),        //<
+		    l10n::getView(STRING_FOR_ANALOG_SQUARE), //<
+		    l10n::getView(STRING_FOR_SAW),           //<
+		    l10n::getView(STRING_FOR_ANALOG_SAW),    //<
+		    l10n::getView(STRING_FOR_WAVETABLE),     //<
+		    l10n::getView(STRING_FOR_SAMPLE),        //<
+		    l10n::getView(STRING_FOR_INPUT_LEFT),    //<
+		    l10n::getView(STRING_FOR_INPUT_RIGHT),   //<
+		    l10n::getView(STRING_FOR_INPUT_STEREO),  //<
 		};
 		options[8] = ((AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn)) //<
 		                 ? l10n::get(STRING_FOR_INPUT_LEFT)

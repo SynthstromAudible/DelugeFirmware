@@ -27,6 +27,6 @@ public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(*soundEditor.currentPriority); }
 	void writeCurrentValue() override { *soundEditor.currentPriority = this->getValue<VoicePriority>(); }
-	static_vector<std::string, capacity()> getOptions() override { return {"LOW", "MEDIUM", "HIGH"}; }
+	static_vector<std::string_view, capacity()> getOptions() override { return {"LOW", "MEDIUM", "HIGH"}; }
 };
 } // namespace deluge::gui::menu_item::voice
