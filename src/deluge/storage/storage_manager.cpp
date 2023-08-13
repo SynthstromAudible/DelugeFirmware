@@ -515,7 +515,7 @@ void StorageManager::xmlReadDone() {
 #if HAVE_OLED
 		oledRoutine();
 #endif
-		uartFlushIfNotSending(UART_ITEM_PIC);
+		PIC::flush();
 	}
 }
 
@@ -1106,7 +1106,7 @@ void StorageManager::write(char const* output) {
 #if HAVE_OLED
 			oledRoutine();
 #endif
-			uartFlushIfNotSending(UART_ITEM_PIC);
+			PIC::flush();
 		}
 	}
 }

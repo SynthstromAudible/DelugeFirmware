@@ -1829,6 +1829,7 @@ bool ArrangerView::transitionToArrangementEditor() {
 		PadLEDs::clearSideBar();
 	}
 
+	PadLEDs::explodeAnimationTargetUI = this;
 	uiTimerManager.setTimer(TIMER_MATRIX_DRIVER, 35);
 
 	doingAutoScrollNow = false; // May get changed back at new scroll pos soon
@@ -2348,142 +2349,22 @@ void ArrangerView::selectEncoderAction(int8_t offset) {
 }
 
 void ArrangerView::navigateThroughPresets(int32_t offset) {
-
-	Output* output = outputsOnScreen[yPressedEffective]; // Essentially, we know there is one.
+	Output* output = outputsOnScreen[yPressedEffective];
 	if (output->type == InstrumentType::AUDIO) {
 		return;
 	}
 
-	actionLogger.deleteAllLogs();
+	endAudition(output);
 
-	Instrument* oldInstrument = (Instrument*)output;
+	output = currentSong->navigateThroughPresetsForInstrument(output, offset);
 
-	InstrumentType instrumentType = oldInstrument->type;
+	outputsOnScreen[yPressedEffective] = output;
 
-	currentSong->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E063", "H063");
+	view.setActiveModControllableTimelineCounter(output->activeClip);
 
-	// If we're in MIDI or CV mode, easy - just change the channel
-	if (instrumentType == InstrumentType::MIDI_OUT || instrumentType == InstrumentType::CV) {
+	AudioEngine::routineWithClusterLoading();
 
-		NonAudioInstrument* oldNonAudioInstrument = (NonAudioInstrument*)oldInstrument;
-
-		int32_t oldChannel = oldNonAudioInstrument->channel;
-		int32_t newChannel = oldNonAudioInstrument->channel;
-
-		int32_t oldChannelSuffix, newChannelSuffix;
-		if (instrumentType == InstrumentType::MIDI_OUT) {
-			oldChannelSuffix = ((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix;
-			newChannelSuffix = ((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix;
-		}
-
-		// CV
-		if (instrumentType == InstrumentType::CV) {
-			do {
-				newChannel = (newChannel + offset) & (NUM_CV_CHANNELS - 1);
-
-				if (newChannel == oldChannel) {
-cantDoIt:
-					numericDriver.displayPopup(HAVE_OLED ? "No free channel slots available in song" : "CANT");
-					return;
-				}
-
-			} while (currentSong->getInstrumentFromPresetSlot(instrumentType, newChannel, -1, NULL, NULL, false));
-		}
-
-		// Or MIDI
-		else {
-
-			oldNonAudioInstrument->channel = -1; // Get it out of the way
-
-			do {
-				newChannelSuffix += offset;
-
-				// Turned left
-				if (offset == -1) {
-					if (newChannelSuffix < -1) {
-						newChannel = (newChannel + offset) & 15;
-						newChannelSuffix = currentSong->getMaxMIDIChannelSuffix(newChannel);
-					}
-				}
-
-				// Turned right
-				else {
-					if (newChannelSuffix >= 26 || newChannelSuffix > currentSong->getMaxMIDIChannelSuffix(newChannel)) {
-						newChannel = (newChannel + offset) & 15;
-						newChannelSuffix = -1;
-					}
-				}
-
-				if (newChannel == oldChannel && newChannelSuffix == oldChannelSuffix) {
-					oldNonAudioInstrument->channel = oldChannel; // Put it back
-					goto cantDoIt;
-				}
-
-			} while (currentSong->getInstrumentFromPresetSlot(instrumentType, newChannel, newChannelSuffix, NULL, NULL,
-			                                                  false));
-
-			oldNonAudioInstrument->channel = oldChannel; // Put it back, before switching notes off etc
-		}
-
-		endAudition(oldNonAudioInstrument);
-		if (oldNonAudioInstrument->activeClip && (playbackHandler.playbackState & PLAYBACK_CLOCK_EITHER_ACTIVE)) {
-			oldNonAudioInstrument->activeClip->expectNoFurtherTicks(currentSong);
-		}
-
-		// Because these are just MIDI / CV instruments and we're changing them for all Clips, we can just change the existing Instrument object!
-		oldNonAudioInstrument->channel = newChannel;
-		if (instrumentType == InstrumentType::MIDI_OUT) {
-			((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix = newChannelSuffix;
-		}
-
-		view.displayOutputName(oldNonAudioInstrument);
-#if HAVE_OLED
-		OLED::sendMainImage();
-#endif
-	}
-
-	// Or if we're on a Kit or Synth...
-	else {
-
-		PresetNavigationResult results =
-		    loadInstrumentPresetUI.doPresetNavigation(offset, oldInstrument, Availability::INSTRUMENT_UNUSED, true);
-		if (results.error == NO_ERROR_BUT_GET_OUT) {
-removeWorkingAnimationAndGetOut:
-#if HAVE_OLED
-			OLED::removeWorkingAnimation();
-#endif
-			return;
-		}
-		else if (results.error) {
-			numericDriver.displayError(results.error);
-			goto removeWorkingAnimationAndGetOut;
-		}
-
-		Instrument* newInstrument = results.fileItem->instrument;
-		Browser::emptyFileItems();
-
-		endAudition(oldInstrument);
-
-		currentSong->replaceInstrument(oldInstrument, newInstrument);
-
-		oldInstrument = newInstrument;
-		outputsOnScreen[yPressedEffective] = newInstrument;
-#if HAVE_OLED
-		OLED::removeWorkingAnimation();
-#else
-		numericDriver.removeTopLayer();
-#endif
-	}
-
-	currentSong->instrumentSwapped(oldInstrument);
-
-	currentSong->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E064", "H064");
-
-	view.setActiveModControllableTimelineCounter(oldInstrument->activeClip);
-
-	AudioEngine::routineWithClusterLoading(); // -----------------------------------
-
-	beginAudition(oldInstrument);
+	beginAudition(output);
 }
 
 void ArrangerView::changeInstrumentType(InstrumentType newInstrumentType) {
@@ -3130,7 +3011,7 @@ uint32_t ArrangerView::getMaxLength() {
 	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
 
 		if (thisOutput->recordingInArrangement) {
-			maxEndPos = std::max<uint32_t>(maxEndPos, arrangement.getLivePos());
+			maxEndPos = std::max<int32_t>(maxEndPos, arrangement.getLivePos());
 		}
 
 		int32_t numElements = thisOutput->clipInstances.getNumElements();

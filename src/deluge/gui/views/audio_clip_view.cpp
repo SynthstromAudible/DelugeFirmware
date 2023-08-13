@@ -273,23 +273,6 @@ void AudioClipView::needsRenderingDependingOnSubMode() {
 	}
 }
 
-void AudioClipView::transitionToSessionView() {
-
-	if (!getClip() || !getClip()->sampleHolder.audioFile) { // !getClip() probably couldn't happen, but just in case...
-		memcpy(PadLEDs::imageStore, PadLEDs::image, sizeof(PadLEDs::image));
-		sessionView.finishedTransitioningHere();
-	}
-	else {
-		currentUIMode = UI_MODE_AUDIO_CLIP_COLLAPSING;
-		waveformRenderer.collapseAnimationToWhichRow = sessionView.getClipPlaceOnScreen(currentSong->currentClip);
-
-		PadLEDs::setupAudioClipCollapseOrExplodeAnimation(getClip());
-
-		PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
-		PadLEDs::renderAudioClipExpandOrCollapse();
-	}
-}
-
 ActionResult AudioClipView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
@@ -313,7 +296,7 @@ ActionResult AudioClipView::buttonAction(hid::Button b, bool on, bool inCardRout
 			}
 			else {
 doOther:
-				transitionToSessionView();
+				sessionView.transitionToSessionView();
 			}
 		}
 	}

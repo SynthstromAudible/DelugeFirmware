@@ -36,6 +36,12 @@ def argparser() -> argparse.ArgumentParser:
         action="store_true",
     )
     parser.add_argument(
+        "-t",
+        "--type",
+        help="The type of metadata tag (only applicable with -m, see `dbt configure -h` for options)",
+    )
+
+    parser.add_argument(
         "-m",
         "--tag-metadata",
         help="Tag the build with a metadata suffix",
@@ -46,7 +52,7 @@ def argparser() -> argparse.ArgumentParser:
         default="all",
         const="all",
         nargs="?",
-        choices=["7seg", "oled", "all", "clean"],
+        choices=["7seg", "oled", "all", "clean", "doxygen"],
     )
     parser.add_argument(
         "config",
@@ -66,8 +72,11 @@ def main() -> int:
     os.chdir(util.get_git_root())
 
     if args.tag_metadata:
+        configure_args = []
+        if args.type:
+            configure_args += ['-t', args.type]
         # configure with tagging
-        result = importlib.import_module("task-configure").main(["-m"] + unknown_args)
+        result = importlib.import_module("task-configure").main(["-m"] + configure_args + unknown_args)
         if result != 0:
             return result
 

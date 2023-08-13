@@ -25,6 +25,7 @@ class ClipMinder;
 class MIDIDevice;
 
 extern uint32_t currentUIMode;
+extern bool pendingUIRenderingLock;
 
 // Exclusive UI modes - only one of these can be active at a time.
 #define UI_MODE_NONE 0

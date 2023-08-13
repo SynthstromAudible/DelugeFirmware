@@ -29,7 +29,7 @@ void KeyboardLayoutVelocityDrums::evaluatePads(PressedPad presses[kMaxNumKeyboar
 	currentNotesState = NotesState{}; // Erase active notes
 
 	for (int32_t idxPress = 0; idxPress < kMaxNumKeyboardPadPresses; ++idxPress) {
-		if (presses[idxPress].active) {
+		if (presses[idxPress].active && presses[idxPress].x < kDisplayWidth) {
 			uint8_t note = noteFromCoords(presses[idxPress].x, presses[idxPress].y);
 			uint8_t velocity = (intensityFromCoords(presses[idxPress].x, presses[idxPress].y) >> 1);
 			currentNotesState.enableNote(note, velocity);

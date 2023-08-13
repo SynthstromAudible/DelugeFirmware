@@ -2695,7 +2695,7 @@ doReadBendRange:
 		if (!instrumentWasLoadedByReferenceFromClip) {
 			switch (output->type) {
 			case InstrumentType::MIDI_OUT:
-				((MIDIInstrument*)output)->channelSuffix = std::clamp<int32_t>(instrumentPresetSubSlot, -1, 25);
+				((MIDIInstrument*)output)->channelSuffix = std::clamp<int8_t>(instrumentPresetSubSlot, -1, 25);
 				[[fallthrough]];
 				// No break
 
@@ -4272,7 +4272,7 @@ doNormal: // Wrap it back to the start.
 	    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow()->addParamCollection(mpeParams, mpeParamsSummary);
 
 	for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
-		AutoParam* param = (m == 0 ? &mpeParams->params[m] : &mpeParams->fakeParams[m - 1]);
+		AutoParam* param = &mpeParams->params[m];
 		ModelStackWithAutoParam* modelStackWithAutoParam = modelStackWithParamCollection->addAutoParam(m, param);
 
 		Action* action = actionLogger.getNewAction(ACTION_RECORD, true);
