@@ -40,7 +40,7 @@ protected:
 	bool mayEditRangeEdge(RangeEdit whichEdge) override;
 
 	// OLED ONLY
-	[[nodiscard]] std::string_view getTitle() const override { return "Note range"; };
+	[[nodiscard]] std::string_view getTitle() const override { return l10n::getView(l10n::String::STRING_FOR_NOTE_RANGE); };
 	void drawPixelsForOled() override;
 };
 

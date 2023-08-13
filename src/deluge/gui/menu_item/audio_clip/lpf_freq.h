@@ -26,7 +26,7 @@ public:
 	// 7Seg ONLY
 	void drawValue() override {
 		if (this->getValue() == 50) {
-			display.setText("OFF");
+			display.setText(l10n::get(l10n::String::STRING_FOR_DISABLED));
 		}
 		else {
 			UnpatchedParam::drawValue();

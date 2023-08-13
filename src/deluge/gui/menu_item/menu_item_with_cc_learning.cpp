@@ -31,7 +31,7 @@ void MenuItemWithCCLearning::unlearnAction() {
 		bool success = soundEditor.currentModControllable->unlearnKnobs(paramDescriptor, currentSong);
 
 		if (success) {
-			display.displayPopup("UNLEARNED");
+			display.displayPopup(l10n::get(l10n::String::STRING_FOR_UNLEARNED));
 			view.setKnobIndicatorLevels();
 			soundEditor.markInstrumentAsEdited();
 		}
@@ -46,7 +46,7 @@ void MenuItemWithCCLearning::learnKnob(MIDIDevice* fromDevice, int32_t whichKnob
 	                                                             midiChannel, currentSong);
 
 	if (success) {
-		display.displayPopup("LEARNED");
+		display.displayPopup(l10n::get(l10n::String::STRING_FOR_LEARNED));
 		view.setKnobIndicatorLevels();
 		soundEditor.markInstrumentAsEdited();
 	}

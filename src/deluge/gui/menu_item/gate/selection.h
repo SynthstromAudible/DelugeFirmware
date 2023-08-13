@@ -64,7 +64,7 @@ public:
 		    fmt::vformat(gate_output_fmt_string, fmt::make_format_args(2)),
 		    fmt::vformat(gate_output_fmt_string, fmt::make_format_args(3)),
 		    fmt::vformat(gate_output_fmt_string, fmt::make_format_args(4)),
-		    l10n::get(STRING_FOR_MINIMUM_OFF_TIME),
+		    l10n::getView(STRING_FOR_MINIMUM_OFF_TIME),
 		};
 	}
 };

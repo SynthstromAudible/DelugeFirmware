@@ -228,7 +228,7 @@ void MultiRange::selectEncoderAction(int32_t offset) {
 
 			this->setValue(newI);
 			if (display.type == DisplayType::OLED) {
-				OLED::consoleText("Range inserted");
+				OLED::consoleText(l10n::get(l10n::String::STRING_FOR_RANGE_INSERTED));
 				if (soundEditor.menuCurrentScroll > this->getValue()) {
 					soundEditor.menuCurrentScroll = this->getValue();
 				}
@@ -238,7 +238,7 @@ void MultiRange::selectEncoderAction(int32_t offset) {
 			}
 			else {
 
-				display.displayPopup("INSERT");
+				display.displayPopup(l10n::get(l10n::String::STRING_FOR_INSERT));
 			}
 		}
 

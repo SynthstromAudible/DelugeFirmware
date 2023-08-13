@@ -35,7 +35,7 @@ public:
 
 	void drawValue() override {
 		if (this->getValue() < 0) {
-			display.setText("AUTO");
+			display.setText(l10n::get(l10n::String::STRING_FOR_AUTO));
 		}
 		else {
 			Integer::drawValue();

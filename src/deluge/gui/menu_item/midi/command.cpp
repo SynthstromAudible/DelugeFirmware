@@ -39,11 +39,11 @@ void Command::drawPixelsForOled() {
 	LearnedMIDI* command = &midiEngine.globalMIDICommands[util::to_underlying(commandNumber)];
 	int32_t yPixel = 20;
 	if (!command->containsSomething()) {
-		OLED::drawString("Command unassigned", 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
+		OLED::drawString(l10n::get(l10n::String::STRING_FOR_COMMAND_UNASSIGNED), 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
 		                 kTextSizeYUpdated);
 	}
 	else {
-		char const* deviceString = "Any MIDI device";
+		char const* deviceString = l10n::get(l10n::String::STRING_FOR_ANY_MIDI_DEVICE);
 		if (command->device) {
 			deviceString = command->device->getDisplayName();
 		}
@@ -56,13 +56,13 @@ void Command::drawPixelsForOled() {
 
 		char const* channelText;
 		if (command->channelOrZone == MIDI_CHANNEL_MPE_LOWER_ZONE) {
-			channelText = "MPE lower zone";
+			channelText = l10n::get(l10n::String::STRING_FOR_MPE_LOWER_ZONE);
 		}
 		else if (command->channelOrZone == MIDI_CHANNEL_MPE_UPPER_ZONE) {
-			channelText = "MPE upper zone";
+			channelText = l10n::get(l10n::String::STRING_FOR_MPE_UPPER_ZONE);
 		}
 		else {
-			channelText = "Channel";
+			channelText = l10n::get(l10n::String::STRING_FOR_CHANNEL);
 			char buffer[12];
 			int32_t channelmod = (command->channelOrZone >= IS_A_CC) * IS_A_CC;
 			intToString(command->channelOrZone + 1 - channelmod, buffer, 1);
@@ -92,10 +92,10 @@ void Command::drawPixelsForOled() {
 void Command::drawValue() const {
 	char const* output = nullptr;
 	if (!midiEngine.globalMIDICommands[util::to_underlying(commandNumber)].containsSomething()) {
-		output = "NONE";
+		output = l10n::get(l10n::String::STRING_FOR_NONE);
 	}
 	else {
-		output = "SET";
+		output = l10n::get(l10n::String::STRING_FOR_SET);
 	}
 	display.setText(output);
 }
@@ -121,7 +121,7 @@ void Command::unlearnAction() {
 		}
 	}
 	else {
-		display.displayPopup("UNLEARNED");
+		display.displayPopup(l10n::get(l10n::String::STRING_FOR_UNLEARNED));
 	}
 }
 
@@ -138,7 +138,7 @@ bool Command::learnNoteOn(MIDIDevice* device, int32_t channel, int32_t noteCode)
 		}
 	}
 	else {
-		display.displayPopup("LEARNED");
+		display.displayPopup(l10n::get(l10n::String::STRING_FOR_LEARNED));
 	}
 	return true;
 }

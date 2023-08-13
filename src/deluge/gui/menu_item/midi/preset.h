@@ -35,7 +35,7 @@ public:
 		char buffer[12];
 		char const* text;
 		if (this->getValue() == 128) {
-			text = "NONE";
+			text = l10n::get(l10n::String::STRING_FOR_NONE);
 		}
 		else {
 			intToString(this->getValue() + 1, buffer, 1);
@@ -47,7 +47,7 @@ public:
 
 	void drawValue() override {
 		if (this->getValue() == 128) {
-			display.setText("NONE");
+			display.setText(l10n::get(l10n::String::STRING_FOR_NONE));
 		}
 		else {
 			display.setTextAsNumber(this->getValue() + 1);

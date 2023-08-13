@@ -54,7 +54,7 @@ public:
 
 	/// As viewed in a menu list. For OLED, up to 20 chars.
 	const deluge::l10n::String name;
-	[[nodiscard]] virtual std::string_view getName() const { return deluge::l10n::get(name); }
+	[[nodiscard]] virtual std::string_view getName() const { return deluge::l10n::getView(name); }
 
 	virtual void horizontalEncoderAction(int32_t offset) {}
 	virtual void selectEncoderAction(int32_t offset) {}
@@ -91,7 +91,7 @@ public:
 	///
 	/// The returned pointer must live long enough for us to draw the title, which for practical purposes means "the
 	/// lifetime of this menu item"
-	[[nodiscard]] virtual std::string_view getTitle() const { return deluge::l10n::get(name); }
+	[[nodiscard]] virtual std::string_view getTitle() const { return deluge::l10n::getView(name); }
 
 	// OLED ONLY
 	virtual void renderOLED();

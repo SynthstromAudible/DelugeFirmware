@@ -25,7 +25,7 @@ namespace deluge::gui::menu_item {
 
 void SyncLevel::drawValue() {
 	if (this->getValue() == 0) {
-		display.setText("OFF");
+		display.setText(l10n::get(l10n::String::STRING_FOR_DISABLED));
 	}
 	else {
 		char* buffer = shortStringBuffer;

@@ -77,8 +77,8 @@ public:
 		    l10n::getView(STRING_FOR_INPUT_STEREO),  //<
 		};
 		options[8] = ((AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn)) //<
-		                 ? l10n::get(STRING_FOR_INPUT_LEFT)
-		                 : l10n::get(STRING_FOR_INPUT);
+		                 ? l10n::getView(STRING_FOR_INPUT_LEFT)
+		                 : l10n::getView(STRING_FOR_INPUT);
 
 		if (soundEditor.currentSound->getSynthMode() == SynthMode::RINGMOD) {
 			return {options.begin(), options.begin() + kNumOscTypesRingModdable};

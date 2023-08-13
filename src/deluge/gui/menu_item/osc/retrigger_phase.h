@@ -58,7 +58,7 @@ public:
 
 	void drawValue() override {
 		if (this->getValue() < 0) {
-			display.setText("OFF", false, 255, true);
+			display.setText(l10n::get(l10n::String::STRING_FOR_DISABLED), false, 255, true);
 		}
 		else {
 			Decimal::drawValue();
@@ -67,7 +67,7 @@ public:
 
 	void drawPixelsForOled() override {
 		if (this->getValue() < 0) {
-			OLED::drawStringCentred("OFF", 20, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextHugeSpacingX,
+			OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_DISABLED), 20, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextHugeSpacingX,
 			                        kTextHugeSizeY);
 		}
 		else {

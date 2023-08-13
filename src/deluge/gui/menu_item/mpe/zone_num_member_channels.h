@@ -32,7 +32,7 @@ public:
 	void writeCurrentValue() override;
 	//char nameChars[16];
 
-	[[nodiscard]] std::string_view getTitle() const override { return "Num member ch."; }
+	[[nodiscard]] std::string_view getTitle() const override { return l10n::getView(l10n::String::STRING_FOR_NUM_MEMBER_CH_MENU_TITLE); }
 
 private:
 	[[nodiscard]] MIDIPort* getPort() const;

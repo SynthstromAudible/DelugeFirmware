@@ -48,7 +48,7 @@ void Integer::drawValue() {
 
 void IntegerWithOff::drawValue() {
 	if (this->getValue() == 0) {
-		display.setText("OFF");
+		display.setText(l10n::get(l10n::String::STRING_FOR_DISABLED));
 	}
 	else {
 		Integer::drawValue();

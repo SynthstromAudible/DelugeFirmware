@@ -56,10 +56,10 @@ public:
 	}
 
 	static_vector<std::string_view, capacity()> getOptions() override {
-		static_vector<std::string_view, capacity()> options = {"Auto", "Polyphonic", "Monophonic", "Legato"};
+		static_vector<std::string_view, capacity()> options = {l10n::getView(l10n::String::STRING_FOR_AUTO), l10n::getView(l10n::String::STRING_FOR_POLYPHONIC), l10n::getView(l10n::String::STRING_FOR_MONOPHONIC), l10n::getView(l10n::String::STRING_FOR_LEGATO)};
 
 		if (soundEditor.editingKit()) {
-			options.push_back("Choke");
+			options.push_back(l10n::getView(l10n::String::STRING_FOR_CHOKE));
 		}
 		return options;
 	}

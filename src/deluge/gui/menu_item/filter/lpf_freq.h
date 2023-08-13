@@ -29,7 +29,7 @@ public:
 		if (this->getValue() == 50
 		    && !soundEditor.currentParamManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(
 		        ::Param::Local::LPF_FREQ)) {
-			display.setText("Off");
+			display.setText(l10n::get(l10n::String::STRING_FOR_DISABLED));
 		}
 		else {
 			patched_param::IntegerNonFM::drawValue();

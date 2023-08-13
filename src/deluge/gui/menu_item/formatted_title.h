@@ -10,7 +10,7 @@ class FormattedTitle {
 public:
 	FormattedTitle(l10n::String format_str) : format_str_(format_str) {}
 
-	void format(int32_t arg) { title_ = fmt::vformat(l10n::get(format_str_), fmt::make_format_args(arg)); }
+	void format(int32_t arg) { title_ = fmt::vformat(l10n::getView(format_str_), fmt::make_format_args(arg)); }
 
 	[[nodiscard]] std::string_view title() const { return title_; }
 
