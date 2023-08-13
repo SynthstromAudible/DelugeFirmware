@@ -26,7 +26,7 @@
 namespace deluge::gui::menu_item::sample {
 class Interpolation final : public Selection<kNumInterpolationModes>, public FormattedTitle {
 public:
-	Interpolation(const std::string& name, const fmt::format_string<int32_t>& title_format_str)
+	Interpolation(l10n::String name, l10n::String title_format_str)
 	    : Selection(name), FormattedTitle(title_format_str) {}
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }

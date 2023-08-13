@@ -37,6 +37,6 @@ public:
 
 // Template deduction guide, will not be required with P2582@C++23
 template <size_t n>
-Modulator(const std::string&, MenuItem* const (&)[n], int32_t) -> Modulator<n>;
+Modulator(l10n::String, MenuItem* const (&)[n], int32_t) -> Modulator<n>;
 
 } // namespace deluge::gui::menu_item::submenu

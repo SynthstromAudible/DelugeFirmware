@@ -44,7 +44,7 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement> subMenuEntries{
     &menuPatchCableResolution, &menuCatchNotes,         &menuDeleteUnusedKitRows, &menuAltGoldenKnobDelayParams,
 };
 
-Settings::Settings(char const* name, char const* title)
+Settings::Settings(l10n::String name, l10n::String title)
     : menu_item::Submenu<RuntimeFeatureSettingType::MaxElement>(name, title, subMenuEntries) {
 }
 

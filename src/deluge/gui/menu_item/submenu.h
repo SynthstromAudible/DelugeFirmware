@@ -37,11 +37,11 @@ namespace deluge::gui::menu_item {
 template <size_t n>
 class Submenu : public MenuItem {
 public:
-	Submenu(const std::string& newName, MenuItem* const (&newItems)[n])
+	Submenu(l10n::String newName, MenuItem* const (&newItems)[n])
 	    : MenuItem(newName), items{to_static_vector(newItems)} {}
-	Submenu(const std::string& newName, const std::string& title, MenuItem* const (&newItems)[n])
+	Submenu(l10n::String newName, l10n::String title, MenuItem* const (&newItems)[n])
 	    : MenuItem(newName, title), items{to_static_vector(newItems)} {}
-	Submenu(const std::string& newName, const std::string& title, std::array<MenuItem*, n> newItems)
+	Submenu(l10n::String newName, l10n::String title, std::array<MenuItem*, n> newItems)
 	    : MenuItem(newName, title), items{newItems.begin(), newItems.end()} {}
 
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;

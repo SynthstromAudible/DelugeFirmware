@@ -4,6 +4,7 @@
 #include "dsp/reverb/freeverb/revmodel.hpp"
 #include "extern.h"
 #include "gui/context_menu/overwrite_bootloader.h"
+#include "gui/l10n/strings.h"
 #include "gui/menu_item/menu_item.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
@@ -1025,12 +1026,12 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 
 			if (clip->type == CLIP_TYPE_INSTRUMENT) {
 				if (currentSong->currentClip->output->type == InstrumentType::MIDI_OUT) {
-					soundEditorRootMenuMIDIOrCV.title = "MIDI inst.";
+					soundEditorRootMenuMIDIOrCV.title = l10n::String::STRING_FOR_MIDI_INST_MENU_TITLE;
 doMIDIOrCV:
 					newItem = &soundEditorRootMenuMIDIOrCV;
 				}
 				else if (currentSong->currentClip->output->type == InstrumentType::CV) {
-					soundEditorRootMenuMIDIOrCV.title = "CV instrument";
+					soundEditorRootMenuMIDIOrCV.title = l10n::String::STRING_FOR_CV_INSTRUMENT;
 					goto doMIDIOrCV;
 				}
 				else {

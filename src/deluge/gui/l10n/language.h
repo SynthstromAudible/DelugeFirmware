@@ -15,7 +15,7 @@ extern Language const* chosenLanguage;
 
 class Language {
 public:
-	using map_type = std::array<char const*, kNumStrings>;
+	using map_type = std::array<std::string_view, kNumStrings>;
 
 	Language(std::string name, Language const* fallback = languages[0]) : name_(std::move(name)) {
 		std::copy(fallback->map_.cbegin(), fallback->map_.cend(), this->map_.begin());
@@ -27,7 +27,7 @@ public:
 	    : name_(name) {
 
 		if (fallback != nullptr) { // copy the string pointers from the fallback
-			                       //std::copy(fallback->map_.cbegin(), fallback->map_.cend(), this->map_.begin());
+			std::copy(fallback->map_.cbegin(), fallback->map_.cend(), this->map_.begin());
 		}
 		else { // If we have no languages yet...
 			   // default all values to empty string
@@ -50,7 +50,7 @@ public:
 		return *this;
 	}
 
-	constexpr const std::string& name() { return name_; }
+	constexpr std::string_view name() { return name_; }
 
 private:
 	std::string name_;

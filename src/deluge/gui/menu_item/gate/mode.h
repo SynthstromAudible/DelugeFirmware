@@ -33,8 +33,7 @@ class Mode final : public Selection<3>, public FormattedTitle {
 	};
 
 public:
-	//Mode() : Selection(), FormattedTitle(l10n::String::STRING_FOR_GATE_MODE_TITLE) {}
-	Mode() : Selection(), FormattedTitle("Gate out{} mode") {}
+	Mode() : Selection(), FormattedTitle(l10n::String::STRING_FOR_GATE_MODE_TITLE) {}
 	void readCurrentValue() override { this->setValue(cvEngine.gateChannels[soundEditor.currentSourceIndex].mode); }
 	void writeCurrentValue() override { cvEngine.setGateType(soundEditor.currentSourceIndex, this->getValue<GateType>()); }
 	static_vector<std::string, capacity()> getOptions() override { return options_; }

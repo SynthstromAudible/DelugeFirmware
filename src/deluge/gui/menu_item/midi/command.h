@@ -26,7 +26,7 @@ namespace deluge::gui::menu_item::midi {
 
 class Command final : public MenuItem {
 public:
-	Command(const std::string& newName, GlobalMIDICommand newCommandNumber = GlobalMIDICommand::PLAYBACK_RESTART)
+	Command(l10n::String newName, GlobalMIDICommand newCommandNumber = GlobalMIDICommand::PLAYBACK_RESTART)
 	    : MenuItem(newName), commandNumber(newCommandNumber) {}
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
 	void drawValue() const;

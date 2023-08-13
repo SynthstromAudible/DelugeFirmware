@@ -25,7 +25,7 @@ namespace deluge::gui::menu_item::runtime_feature {
 
 class Settings final : public Submenu<RuntimeFeatureSettingType::MaxElement> {
 public:
-	Settings(char const* name, char const* title);
+	Settings(l10n::String name, l10n::String title);
 
 private:
 };

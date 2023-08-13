@@ -23,9 +23,9 @@ namespace deluge::gui::menu_item {
 
 class Transpose : public Decimal, public PatchedParam {
 public:
-	Transpose(const std::string& newName, int32_t newP = 0) : Decimal(newName), PatchedParam(newP) {}
+	Transpose(l10n::String newName, int32_t newP = 0) : Decimal(newName), PatchedParam(newP) {}
 
-	Transpose(const std::string& newName, const std::string& title, int32_t newP = 0)
+	Transpose(l10n::String newName, l10n::String title, int32_t newP = 0)
 	    : Decimal(newName, title), PatchedParam(newP) {}
 
 	MenuItem* selectButtonPress() final { return PatchedParam::selectButtonPress(); }

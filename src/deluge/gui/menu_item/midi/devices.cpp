@@ -22,6 +22,7 @@
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
 #include <array>
+#include <string_view>
 
 extern deluge::gui::menu_item::Submenu<2> midiDeviceMenu;
 
@@ -132,10 +133,6 @@ void Devices::drawValue() {
 }
 
 MenuItem* Devices::selectButtonPress() {
-	if (display.type == DisplayType::OLED) {
-		// A bit ugly, but saves us extending a class.
-		midiDeviceMenu.title = soundEditor.currentMIDIDevice->getDisplayName();
-	}
 	return &midiDeviceMenu;
 }
 

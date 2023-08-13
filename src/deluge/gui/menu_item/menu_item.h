@@ -18,9 +18,11 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/l10n/strings.h"
 #include "hid/display/display.h"
 #include "util/container/static_vector.hpp"
 #include "util/sized.h"
+#include "gui/l10n/l10n.h"
 
 #include <cstdint>
 
@@ -36,8 +38,9 @@ class MIDIDevice;
 
 class MenuItem {
 public:
-	MenuItem(const std::string& newName = "", const std::string& newTitle = "") : name(newName), title(newTitle) {
-		if (newTitle.empty()) {
+	MenuItem(): name(deluge::l10n::String::EMPTY_STRING), title(deluge::l10n::String::EMPTY_STRING) {}
+	MenuItem(deluge::l10n::String newName, deluge::l10n::String newTitle = deluge::l10n::String::EMPTY_STRING) : name(newName), title(newTitle) {
+		if (newTitle == deluge::l10n::String::EMPTY_STRING) {
 			title = newName;
 		}
 	}
@@ -50,8 +53,8 @@ public:
 	virtual ~MenuItem() = default;
 
 	/// As viewed in a menu list. For OLED, up to 20 chars.
-	std::string name;
-	[[nodiscard]] virtual std::string_view getName() const { return name; }
+	const deluge::l10n::String name;
+	[[nodiscard]] virtual std::string_view getName() const { return deluge::l10n::get(name); }
 
 	virtual void horizontalEncoderAction(int32_t offset) {}
 	virtual void selectEncoderAction(int32_t offset) {}
@@ -82,13 +85,13 @@ public:
 	virtual bool usesAffectEntire() { return false; }
 
 	/// Can get overridden by getTitle(). Actual max num chars for OLED display is 14.
-	std::string title;
+	deluge::l10n::String title;
 
 	/// Get the title to be used when rendering on OLED. If not overriden, defaults to returning `title`.
 	///
 	/// The returned pointer must live long enough for us to draw the title, which for practical purposes means "the
 	/// lifetime of this menu item"
-	[[nodiscard]] virtual std::string_view getTitle() const { return title; }
+	[[nodiscard]] virtual std::string_view getTitle() const { return deluge::l10n::get(name); }
 
 	// OLED ONLY
 	virtual void renderOLED();

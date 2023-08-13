@@ -17,6 +17,7 @@
 #pragma once
 #include "fmt/core.h"
 #include "gui/l10n/l10n.h"
+#include "gui/menu_item/cv/submenu.h"
 #include "gui/menu_item/selection.h"
 #include "gui/menu_item/submenu.h"
 #include "gui/ui/sound_editor.h"
@@ -25,7 +26,7 @@
 #include <ranges>
 
 extern void setCvNumberForTitle(int32_t m);
-extern deluge::gui::menu_item::Submenu<2> cvSubmenu;
+extern deluge::gui::menu_item::cv::Submenu cvSubmenu;
 
 namespace deluge::gui::menu_item::cv {
 class Selection final : public menu_item::Selection<2> {
@@ -44,7 +45,6 @@ public:
 
 	MenuItem* selectButtonPress() override {
 		soundEditor.currentSourceIndex = this->getValue();
-		cvSubmenu.title = getOptions().at(this->getValue());
 		setCvNumberForTitle(this->getValue());
 		return &cvSubmenu;
 	}

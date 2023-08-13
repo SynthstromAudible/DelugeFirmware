@@ -21,8 +21,8 @@
 namespace deluge::gui::menu_item::patched_param {
 class Integer : public PatchedParam, public menu_item::IntegerContinuous {
 public:
-	Integer(const std::string& newName, int32_t newP = 0) : PatchedParam(newP), IntegerContinuous(newName) {}
-	Integer(const std::string& newName, const std::string& title, int32_t newP = 0)
+	Integer(l10n::String newName, int32_t newP = 0) : PatchedParam(newP), IntegerContinuous(newName) {}
+	Integer(l10n::String newName, l10n::String title, int32_t newP = 0)
 	    : PatchedParam(newP), IntegerContinuous(newName, title) {}
 	// 7SEG Only
 	void drawValue() override { display.setTextAsNumber(this->getValue(), shouldDrawDotOnName()); }
