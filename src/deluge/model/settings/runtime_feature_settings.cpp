@@ -61,18 +61,18 @@ static void SetupOnOffSetting(RuntimeFeatureSetting& setting, const std::string&
 
 static void SetupSyncScalingActionSetting(RuntimeFeatureSetting& setting, char const* const displayName,
                                           char const* const xmlName, RuntimeFeatureStateSyncScalingAction def) {
-    setting.displayName = displayName;
-    setting.xmlName = xmlName;
-    setting.value = static_cast<uint32_t>(def);
+	setting.displayName = displayName;
+	setting.xmlName = xmlName;
+	setting.value = static_cast<uint32_t>(def);
 
-    setting.options = {{
-                           .displayName = "SCAL",
-                           .value = RuntimeFeatureStateSyncScalingAction::SyncScaling,
-                       },
-                       {
-                           .displayName = "FILL",
-                           .value = RuntimeFeatureStateSyncScalingAction::Fill,
-                       }};
+	setting.options = {{
+	                       .displayName = "SCAL",
+	                       .value = RuntimeFeatureStateSyncScalingAction::SyncScaling,
+	                   },
+	                   {
+	                       .displayName = "FILL",
+	                       .value = RuntimeFeatureStateSyncScalingAction::Fill,
+	                   }};
 }
 
 void RuntimeFeatureSettings::init() {
