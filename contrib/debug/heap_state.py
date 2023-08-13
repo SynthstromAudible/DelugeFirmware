@@ -1,5 +1,4 @@
 import itertools
-import struct
 
 try:
     # We attempt to import GDB, and if it fails fall back to an emulation mode
@@ -24,8 +23,9 @@ try:
     TY_MemoryRegion = gdb.lookup_type("MemoryRegion")
     TY_GeneralMemoryAllocator = gdb.lookup_type("GeneralMemoryAllocator")
 
-    GMA_START_OFFSET = gdb.parse_and_eval("generalMemoryAllocator").address
+    GMA_START_OFFSET = gdb.parse_and_eval("generalMemoryAllocator").address.cast(TY_UINT32)
 except ModuleNotFoundError as e:
+    gdb = None
 
     class Field:
         """Emulates a gdb.Field"""
@@ -205,6 +205,13 @@ except ModuleNotFoundError as e:
     GMA_START_OFFSET = 0x2003001C
 
 
+def bytes_as_uint32(b):
+    assert len(b) == 4
+    if isinstance(b, memoryview):
+        b = b.tobytes()
+    return (b[3] << 24) | (b[2] << 16) | (b[1] << 8) | b[0]
+
+
 def iter_chunks(i, n):
     while chunk := list(itertools.islice(i, n)):
         yield chunk
@@ -240,7 +247,8 @@ def find_field(ty, name):
 
 def parse_empty_region(inferior, offset):
     memory = inferior.read_memory(offset, TY_EmptySpaceRecord.sizeof)
-    (length, address) = struct.unpack("II", memory)
+    length = bytes_as_uint32(memory[0:4])
+    address = bytes_as_uint32(memory[4:8])
     print(f"EmptyRegion{{ addr:{address:08x}, len:{length:08x} }}")
 
 
@@ -251,14 +259,10 @@ def walk_linked_list_from_node(inferior, offset, end):
     while offset != end:
         try:
             memory = inferior.read_memory(offset, TY_BidirectionalLinkedListNode.sizeof)
-            (offset,) = struct.unpack(
-                "I", inferior.read_memory(offset + next_offset, 4)
-            )
-            (list_addr,) = struct.unpack(
-                "I", inferior.read_memory(offset + list_offset, 4)
-            )
+            offset = bytes_as_uint32(inferior.read_memory(offset + next_offset, 4))
+            list_addr = bytes_as_uint32(inferior.read_memory(offset + list_offset, 4))
             print(f"Stealable node at: {offset:08x} for list {list_addr:08x}")
-            print_bytes(offset, memory)
+            # print_bytes(offset, memory)
         except ValueError:
             print("WARNING: possibly corrupt list, exiting earlier")
             return
@@ -268,12 +272,12 @@ def parse_cache_manager(inferior, offset):
     memory = inferior.read_memory(offset, TY_CacheManager.sizeof)
     # 10 is NUM_STEALABLE_QUEUES
     for i in range(10):
-        print('---- Stealables for stealable queue', i)
+        print("---- Stealables for stealable queue", i)
         ll_offset = offset + TY_BidirectionalLinkedList.sizeof * i
         first_offset = find_field(TY_BidirectionalLinkedList, "first").bitpos // 8
         end_offset = find_field(TY_BidirectionalLinkedList, "endNode").bitpos // 8
 
-        (first,) = struct.unpack("I", inferior.read_memory(ll_offset + first_offset, 4))
+        first = bytes_as_uint32(inferior.read_memory(ll_offset + first_offset, 4))
         walk_linked_list_from_node(inferior, first, ll_offset + end_offset)
 
 
@@ -285,24 +289,23 @@ def parse_memory_region(inferior, offset, mem_region_idx):
 
     num_elements_offset = find_field(TY_ResizeableArray, "numElements").bitpos // 8
     memory_offset = find_field(TY_ResizeableArray, "memory").bitpos // 8
+    memory_start_offset = find_field(TY_ResizeableArray, "memoryStart").bitpos // 8
     element_size_offset = find_field(TY_ResizeableArray, "elementSize").bitpos // 8
     words_in_key_offset = (
         find_field(TY_OrderedResizeableArrayWithMultiWordKey, "numWordsInKey").bitpos
         // 8
     )
 
-    (memory_val,) = struct.unpack(
-        "I", inferior.read_memory(empty_offset + memory_offset, 4)
+    memory_val = bytes_as_uint32(inferior.read_memory(empty_offset + memory_offset, 4))
+    memory_start = bytes_as_uint32(inferior.read_memory(empty_offset + memory_start_offset, 4))
+    num_elements = bytes_as_uint32(inferior.read_memory(empty_offset + num_elements_offset, 4))
+    element_size = bytes_as_uint32(
+        inferior.read_memory(empty_offset + element_size_offset, 4)
     )
-    (num_elements,) = struct.unpack(
-        "I", inferior.read_memory(offset + num_elements_offset, 4)
+    words_in_key = bytes_as_uint32(
+        inferior.read_memory(empty_offset + words_in_key_offset, 4)
     )
-    (element_size,) = struct.unpack(
-        "I", inferior.read_memory(empty_offset + element_size_offset, 4)
-    )
-    (words_in_key,) = struct.unpack(
-        "I", inferior.read_memory(empty_offset + words_in_key_offset, 4)
-    )
+    memory = inferior.read_memory(empty_offset, TY_OrderedResizeableArrayWithMultiWordKey.sizeof)
 
     MEM_REGION_NAMES = [
         "EXTERNAL",
@@ -311,12 +314,15 @@ def parse_memory_region(inferior, offset, mem_region_idx):
     mem_region_name = MEM_REGION_NAMES[mem_region_idx]
 
     print(
-        f"== Memory Region {mem_region_name}: {memory_val:08x}, {num_elements} {words_in_key:08x}"
+        f"== Memory Region {mem_region_name}: empty region list: {memory_val:08x}, count={num_elements}"
     )
+    if words_in_key != 2:
+        print('Unexpected words_in_key', words_in_key, 'exiting early')
+        return
 
     print("--- Empty regions:")
     for i in range(num_elements):
-        parse_empty_region(inferior, memory_val + i * TY_EmptySpaceRecord.sizeof)
+        parse_empty_region(inferior, memory_val + (i + memory_start) * TY_EmptySpaceRecord.sizeof)
 
     print("--- Stealable regions:")
     parse_cache_manager(inferior, cache_manager_offset)
@@ -351,5 +357,5 @@ def main():
     parse_gma(inf)
 
 
-if __name__ == "__main__":
+if __name__ == "__main__" and gdb is None:
     main()
