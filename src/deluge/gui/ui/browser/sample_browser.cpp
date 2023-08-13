@@ -90,7 +90,7 @@ SampleBrowser::SampleBrowser() {
 	fileIcon = OLED::waveIcon;
 	title = "Audio files";
 
-	if (display.type != DisplayType::OLED) {
+	if (display->type() != DisplayType::OLED) {
 		shouldWrapFolderContents = false;
 	}
 	qwertyAlwaysVisible = false;
@@ -114,7 +114,7 @@ bool SampleBrowser::opened() {
 
 	currentlyShowingSamplePreview = false;
 
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		fileIndexSelected = 0;
 	}
 
@@ -125,8 +125,8 @@ bool SampleBrowser::opened() {
 	int32_t error = storageManager.initSD();
 	if (error) {
 sdError:
-		display.displayError(error);
-		display.setNextTransitionDirection(0); // Cancel the transition that we'll now not be doing
+		display->displayError(error);
+		display->setNextTransitionDirection(0); // Cancel the transition that we'll now not be doing
 		return false;
 	}
 
@@ -253,7 +253,7 @@ void SampleBrowser::currentFileChanged(int32_t movementDirection) {
 }
 
 void SampleBrowser::exitAndNeverDeleteDrum() {
-	display.setNextTransitionDirection(-1);
+	display->setNextTransitionDirection(-1);
 	close();
 }
 
@@ -261,7 +261,7 @@ void SampleBrowser::exitAndNeverDeleteDrum() {
 void SampleBrowser::exitAction() {
 	UI* redrawUI = NULL;
 
-	display.setNextTransitionDirection(-1);
+	display->setNextTransitionDirection(-1);
 	if (!isUIOpen(&soundEditor)) {
 		// If no file was selected, the user wanted to get out of creating this Drum.
 		if (soundEditor.editingKit()
@@ -291,7 +291,7 @@ ActionResult SampleBrowser::timerCallback() {
 
 			// AudioClip
 			if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
-				display.displayPopup(
+				display->displayPopup(
 				    deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_IMPORT_WHOLE_FOLDER_INTO_AUDIO_CLIP));
 			}
 
@@ -303,7 +303,7 @@ ActionResult SampleBrowser::timerCallback() {
 					goto considerContextMenu;
 				}
 				else {
-					display.displayPopup(deluge::l10n::get(
+					display->displayPopup(deluge::l10n::get(
 					    deluge::l10n::String::STRING_FOR_CAN_ONLY_IMPORT_WHOLE_FOLDER_INTO_BRAND_NEW_KIT));
 				}
 			}
@@ -316,7 +316,7 @@ considerContextMenu:
 				bool available = contextMenu->setupAndCheckAvailability();
 
 				if (available) { // Not sure if this can currently fail.
-					display.setNextTransitionDirection(1);
+					display->setNextTransitionDirection(1);
 					openUI(contextMenu);
 				}
 				else {
@@ -336,12 +336,12 @@ void SampleBrowser::enterKeyPress() {
 	FileItem* currentFileItem = getCurrentFileItem();
 
 	if (!currentFileItem) {
-		if (display.type == DisplayType::OLED) {
-			display.displayError(ERROR_FILE_NOT_FOUND);
+		if (display->type() == DisplayType::OLED) {
+			display->displayError(ERROR_FILE_NOT_FOUND);
 		}
 		else {
 			// Make it say "NONE" on numeric Deluge, for consistency with old times.
-			display.displayError(ERROR_NO_FURTHER_FILES_THIS_DIRECTION);
+			display->displayError(ERROR_NO_FURTHER_FILES_THIS_DIRECTION);
 		}
 		return;
 	}
@@ -354,7 +354,7 @@ void SampleBrowser::enterKeyPress() {
 		// Don't allow user to go into TEMP clips folder
 		if (currentFileItem->filename.equalsCaseIrrespective("TEMP")
 		    && currentDir.equalsCaseIrrespective("SAMPLES/CLIPS")) {
-			display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_TEMP_FOLDER_CANT_BE_BROWSED));
+			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_TEMP_FOLDER_CANT_BE_BROWSED));
 			return;
 		}
 
@@ -365,7 +365,7 @@ void SampleBrowser::enterKeyPress() {
 		int32_t error = goIntoFolder(filenameChars);
 
 		if (error) {
-			display.displayError(error);
+			display->displayError(error);
 			close(); // Don't use goBackToSoundEditor() because that would do a left-scroll
 			return;
 		}
@@ -381,11 +381,11 @@ void SampleBrowser::enterKeyPress() {
 
 			// Can only do this for Kit Clips, and for source 0, not 1, AND there has to be only one drum present, which is assigned to the first NoteRow
 			if (currentSong->currentClip->type == CLIP_TYPE_INSTRUMENT && canImportWholeKit()) {
-				display.displayPopup("SLICER");
+				display->displayPopup("SLICER");
 				openUI(&slicer);
 			}
 			else {
-				display.displayPopup(
+				display->displayPopup(
 				    deluge::l10n::get(deluge::l10n::String::STRING_FOR_CAN_ONLY_USE_SLICER_FOR_BRAND_NEW_KIT));
 			}
 		}
@@ -403,8 +403,8 @@ ActionResult SampleBrowser::backButtonAction() {
 	return Browser::backButtonAction();
 }
 
-ActionResult SampleBrowser::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
-	using namespace hid::button;
+ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	using namespace deluge::hid::button;
 
 	// Save button, to delete audio file
 	if (b == SAVE && Buttons::isShiftButtonPressed()) {
@@ -423,14 +423,14 @@ ActionResult SampleBrowser::buttonAction(hid::Button b, bool on, bool inCardRout
 					String filePath;
 					int32_t error = getCurrentFilePath(&filePath);
 					if (error) {
-						display.displayError(error);
+						display->displayError(error);
 						return ActionResult::DEALT_WITH;
 					}
 
 					bool allFine = audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(filePath.get());
 
 					if (!allFine) {
-						display.displayPopup(
+						display->displayPopup(
 						    deluge::l10n::get(deluge::l10n::String::STRING_FOR_AUDIO_FILE_IS_USED_IN_CURRENT_SONG));
 					}
 					else {
@@ -545,7 +545,7 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 		String filePath;
 		int32_t error = getCurrentFilePath(&filePath);
 		if (error) {
-			display.displayError(error);
+			display->displayError(error);
 			return;
 		}
 
@@ -656,7 +656,7 @@ void SampleBrowser::scrollFinished() {
 
 void SampleBrowser::displayCurrentFilename() {
 	if (fileIndexSelected == -1) {
-		display.setText("----");
+		display->setText("----");
 	}
 
 	else {}
@@ -771,18 +771,18 @@ int32_t SampleBrowser::claimAudioFileForAudioClip() {
 	return error;
 }
 
-// This displays any (rare) specific errors generated, then spits out just a boolean success.
+// This display-> any (rare) specific errors generated, then spits out just a boolean success.
 // For the "may" arguments, 0 means no; 1 means auto; 2 means do definitely as the user has specifically requested it.
 bool SampleBrowser::claimCurrentFile(int32_t mayDoPitchDetection, int32_t mayDoSingleCycle, int32_t mayDoWaveTable) {
 
 	if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
 		if (currentSong->currentClip->getCurrentlyRecordingLinearly()) {
-			display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIP_IS_RECORDING));
+			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIP_IS_RECORDING));
 			return false;
 		}
 	}
 
-	display.displayLoadingAnimationText("Working");
+	display->displayLoadingAnimationText("Working");
 
 	int32_t error;
 
@@ -792,8 +792,8 @@ bool SampleBrowser::claimCurrentFile(int32_t mayDoPitchDetection, int32_t mayDoS
 		error = claimAudioFileForAudioClip();
 		if (error) {
 removeLoadingAnimationAndGetOut:
-			display.removeLoadingAnimation();
-			display.displayError(error);
+			display->removeLoadingAnimation();
+			display->displayError(error);
 			return false;
 		}
 
@@ -842,7 +842,7 @@ doLoadAsWaveTable:
 			if (soundEditor.currentSource->ranges.getNumElements() > 1
 					&& soundEditor.currentSource->oscType == OscType::SAMPLE) {
 #if ALPHA_OR_BETA_VERSION
-				if (mayDoWaveTable == 2) display.freezeWithError("E425");
+				if (mayDoWaveTable == 2) display->freezeWithError("E425");
 #endif
 				goto doLoadAsSample;
 			}
@@ -904,7 +904,7 @@ doLoadAsSample:
 			if (soundEditor.currentSource->ranges.getNumElements() > 1
 					&& soundEditor.currentSource->oscType == OscType::WAVETABLE) {
 #if ALPHA_OR_BETA_VERSION
-				if (!mayDoWaveTable) display.freezeWithError("E426");
+				if (!mayDoWaveTable) display->freezeWithError("E426");
 #endif
 				goto doLoadAsWaveTable;
 			}
@@ -1062,7 +1062,7 @@ doLoadAsSample:
 
 	exitAndNeverDeleteDrum();
 	uiNeedsRendering(&audioClipView);
-	display.removeWorkingAnimation();
+	display->removeWorkingAnimation();
 	return true;
 }
 
@@ -1183,7 +1183,7 @@ bool SampleBrowser::loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamp
 	if (currentFileItem->isFolder) {
 		error = getCurrentFilePath(&dirToLoad);
 		if (error) {
-			display.displayError(error);
+			display->displayError(error);
 			return false;
 		}
 	}
@@ -1194,7 +1194,7 @@ bool SampleBrowser::loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamp
 
 	FRESULT result = f_opendir(&staticDIR, dirToLoad.get());
 	if (result != FR_OK) {
-		display.displayError(ERROR_SD_CARD);
+		display->displayError(ERROR_SD_CARD);
 		return false;
 	}
 
@@ -1218,7 +1218,7 @@ removeReasonsFromSamplesAndGetOut:
 					thisSample->partOfFolderBeingLoaded = false;
 #if ALPHA_OR_BETA_VERSION
 					if (thisSample->numReasonsToBeLoaded <= 0) {
-						display.freezeWithError("E213"); // I put this here to try and catch an E004 Luc got
+						display->freezeWithError("E213"); // I put this here to try and catch an E004 Luc got
 					}
 #endif
 					thisSample->removeReason("E392"); // Remove that temporary reason we added
@@ -1226,7 +1226,7 @@ removeReasonsFromSamplesAndGetOut:
 			}
 		}
 
-		display.displayError(error);
+		display->displayError(error);
 		return false;
 	}
 
@@ -1613,7 +1613,7 @@ bool SampleBrowser::importFolderAsMultisamples() {
 
 	AudioEngine::stopAnyPreviewing();
 
-	display.displayLoadingAnimationText("Working");
+	display->displayLoadingAnimationText("Working");
 
 	int32_t numSamples;
 	bool doingSingleCycle;
@@ -1622,7 +1622,7 @@ bool SampleBrowser::importFolderAsMultisamples() {
 	bool success = loadAllSamplesInFolder(true, &numSamples, &sortArea, &doingSingleCycle);
 	if (!success) {
 doReturnFalse:
-		display.removeWorkingAnimation();
+		display->removeWorkingAnimation();
 		return false;
 	}
 
@@ -1649,12 +1649,12 @@ doReturnFalse:
 				Sample* thisSample = sortArea[s];
 #if ALPHA_OR_BETA_VERSION
 				if (thisSample->numReasonsToBeLoaded <= 0) {
-					display.freezeWithError("E215"); // I put this here to try and catch an E004 Luc got
+					display->freezeWithError("E215"); // I put this here to try and catch an E004 Luc got
 				}
 #endif
 				thisSample->removeReason("E393"); // Remove that temporary reason we added above
 			}
-			display.displayError(ERROR_INSUFFICIENT_RAM);
+			display->displayError(ERROR_INSUFFICIENT_RAM);
 			goto doReturnFalse;
 		}
 	}
@@ -1765,7 +1765,7 @@ skipOctaveCorrection:
 		else {
 #if ALPHA_OR_BETA_VERSION
 			if (soundEditor.currentSource->ranges.elementSize != sizeof(MultisampleRange)) {
-				display.freezeWithError("E431");
+				display->freezeWithError("E431");
 			}
 #endif
 			range = (MultisampleRange*)soundEditor.currentSource->ranges.insertMultiRange(
@@ -1792,7 +1792,7 @@ skipOctaveCorrection:
 		}
 
 		if (ALPHA_OR_BETA_VERSION && thisSample->numReasonsToBeLoaded <= 0) {
-			display.freezeWithError("E216"); // I put this here to try and catch an E004 Luc got
+			display->freezeWithError("E216"); // I put this here to try and catch an E004 Luc got
 		}
 		thisSample->removeReason("E394"); // Remove that temporary reason we added above
 
@@ -1803,7 +1803,7 @@ skipOctaveCorrection:
 	numSamples = rangeIndex;
 
 	if (!numSamples) {
-		display.displayPopup(
+		display->displayPopup(
 		    deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_CREATING_MULTISAMPLED_INSTRUMENT));
 		goto doReturnFalse;
 	}
@@ -1840,7 +1840,7 @@ skipOctaveCorrection:
 	exitAndNeverDeleteDrum();
 	((Instrument*)currentSong->currentClip->output)->beenEdited();
 
-	display.removeWorkingAnimation();
+	display->removeWorkingAnimation();
 	return true;
 }
 
@@ -1848,7 +1848,7 @@ bool SampleBrowser::importFolderAsKit() {
 
 	AudioEngine::stopAnyPreviewing();
 
-	display.displayLoadingAnimationText("Working");
+	display->displayLoadingAnimationText("Working");
 
 	int32_t numSamples;
 	Sample** sortArea;
@@ -1858,7 +1858,7 @@ bool SampleBrowser::importFolderAsKit() {
 
 	if (!success) {
 doReturnFalse:
-		display.removeWorkingAnimation();
+		display->removeWorkingAnimation();
 		return false;
 	}
 
@@ -1886,7 +1886,7 @@ doReturnFalse:
 				if (!range) {
 getOut:
 					f_closedir(&staticDIR);
-					display.displayError(ERROR_INSUFFICIENT_RAM);
+					display->displayError(ERROR_INSUFFICIENT_RAM);
 					goto doReturnFalse;
 				}
 
@@ -1980,7 +1980,7 @@ skipNameStuff:
 
 #if ALPHA_OR_BETA_VERSION
 			if (thisSample->numReasonsToBeLoaded <= 0) {
-				display.freezeWithError("E217"); // I put this here to try and catch an E004 Luc got
+				display->freezeWithError("E217"); // I put this here to try and catch an E004 Luc got
 			}
 #endif
 			thisSample->removeReason("E395");
@@ -1999,7 +1999,7 @@ skipNameStuff:
 
 	exitAndNeverDeleteDrum();
 	uiNeedsRendering(&instrumentClipView);
-	display.removeWorkingAnimation();
+	display->removeWorkingAnimation();
 	return true;
 }
 
@@ -2045,7 +2045,7 @@ doNormal:
 		// TODO: I don't think we want this anymore...
 		/*
 		else {
-			if (scrollingText && display.isLayerCurrentlyOnTop(scrollingText)) {
+			if (scrollingText && display->isLayerCurrentlyOnTop(scrollingText)) {
 				uiTimerManager.unsetTimer(TIMER_DISPLAY);
 				scrollingText->currentPos += offset;
 
@@ -2054,7 +2054,7 @@ doNormal:
 				if (scrollingText->currentPos < 0) scrollingText->currentPos = 0;
 				if (scrollingText->currentPos > maxScroll) scrollingText->currentPos = maxScroll;
 
-				display.render();
+				display->render();
 			}
 		}
 		*/
@@ -2069,7 +2069,7 @@ doNormal:
 
 ActionResult SampleBrowser::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	if (getRootUI() == &instrumentClipView) {
-		if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::button::X_ENC)) {
+		if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
 			return ActionResult::DEALT_WITH;
 		}
 		return instrumentClipView.verticalEncoderAction(offset, inCardRoutine);

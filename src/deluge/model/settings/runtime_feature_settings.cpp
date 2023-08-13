@@ -107,7 +107,7 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 			// Read name
 			currentTag = storageManager.readNextTagOrAttributeName();
 			if (strcmp(currentTag, TAG_RUNTIME_FEATURE_SETTING_ATTR_NAME) != 0) {
-				display.displayPopup("Community file err");
+				display->displayPopup("Community file err");
 				break;
 			}
 			storageManager.readTagOrAttributeValueString(&currentName);
@@ -116,7 +116,7 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 			// Read value
 			currentTag = storageManager.readNextTagOrAttributeName();
 			if (strcmp(currentTag, TAG_RUNTIME_FEATURE_SETTING_ATTR_VALUE) != 0) {
-				display.displayPopup("Community file err");
+				display->displayPopup("Community file err");
 				break;
 			}
 			currentValue = storageManager.readTagOrAttributeValueInt();

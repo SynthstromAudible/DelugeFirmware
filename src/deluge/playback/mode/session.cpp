@@ -608,7 +608,7 @@ void Session::cancelAllLaunchScheduling() {
 void Session::launchSchedulingMightNeedCancelling() {
 	if (!preLoadedSong && !areAnyClipsArmed()) {
 		cancelAllLaunchScheduling();
-		if (display.type == DisplayType::OLED) {
+		if (display->type() == DisplayType::OLED) {
 			if (getCurrentUI() == &loadSongUI) {
 				loadSongUI.displayLoopsRemainingPopup(); // Wait, could this happen?
 			}
@@ -1072,7 +1072,7 @@ void Session::armingChanged() {
 	if (getRootUI() == &sessionView) {
 		uiNeedsRendering(&sessionView, 0, 0xFFFFFFFF); // Only need the mute pads
 		if (getCurrentUI()->canSeeViewUnderneath()) {
-			if (display.type == DisplayType::OLED) {
+			if (display->type() == DisplayType::OLED) {
 				if (!isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)
 				    && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
 					renderUIsForOled();
@@ -1649,7 +1649,7 @@ int32_t Session::getCurrentSection() {
 		}
 		else {
 			if (ALPHA_OR_BETA_VERSION && clip->section > kMaxNumSections) {
-				display.freezeWithError("E243");
+				display->freezeWithError("E243");
 			}
 			anyUnlaunchedLoopablesInSection[clip->section] = true;
 		}
@@ -1957,7 +1957,7 @@ traverseClips:
 		// Or if repeats do remain, just go onto the next one
 		else {
 			launchEventAtSwungTickCount = playbackHandler.lastSwungTickActioned + currentArmedLaunchLengthForOneRepeat;
-			if (display.type == DisplayType::OLED) {
+			if (display->type() == DisplayType::OLED) {
 				if (getCurrentUI() == &loadSongUI) {
 					loadSongUI.displayLoopsRemainingPopup();
 				}

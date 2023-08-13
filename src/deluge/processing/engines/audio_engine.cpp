@@ -1117,7 +1117,7 @@ void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySo
 	int32_t error = range->sampleHolder.loadFile(false, true, true, CLUSTER_LOAD_IMMEDIATELY, filePointer);
 
 	if (error) {
-		display.displayError(error); // Rare, shouldn't cause later problems.
+		display->displayError(error); // Rare, shouldn't cause later problems.
 	}
 
 	if (shouldActuallySound) {
@@ -1200,7 +1200,7 @@ doCull:
 
 	int32_t i = activeVoices.insertAtKeyMultiWord(keyWords);
 	if (i == -1) {
-		// if (ALPHA_OR_BETA_VERSION) display.freezeWithError("E193"); // No, having run out of RAM here isn't a reason to not continue.
+		// if (ALPHA_OR_BETA_VERSION) display->freezeWithError("E193"); // No, having run out of RAM here isn't a reason to not continue.
 		disposeOfVoice(newVoice);
 		return NULL;
 	}
@@ -1333,7 +1333,7 @@ void doRecorderCardRoutines() {
 
 		int32_t error = recorder->cardRoutine();
 		if (error) {
-			display.displayError(error);
+			display->displayError(error);
 		}
 
 		// If, while in the card routine, a new Recorder was added, then our linked list traversal state thing will be out of wack, so let's just get out and
@@ -1356,8 +1356,8 @@ void doRecorderCardRoutines() {
 		}
 	}
 
-	if (ALPHA_OR_BETA_VERSION && ENABLE_CLIP_CUTTING_DIAGNOSTICS && count >= 10 && !display.hasPopup()) {
-		display.displayPopup("MORE");
+	if (ALPHA_OR_BETA_VERSION && ENABLE_CLIP_CUTTING_DIAGNOSTICS && count >= 10 && !display->hasPopup()) {
+		display->displayPopup("MORE");
 	}
 }
 
@@ -1437,7 +1437,7 @@ void discardRecorder(SampleRecorder* recorder) {
 
 		count++;
 		if (ALPHA_OR_BETA_VERSION && !*prevPointer) {
-			display.freezeWithError("E264");
+			display->freezeWithError("E264");
 		}
 		if (*prevPointer == recorder) {
 			*prevPointer = recorder->next;

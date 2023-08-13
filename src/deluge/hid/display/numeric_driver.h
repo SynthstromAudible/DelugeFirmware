@@ -19,11 +19,12 @@
 
 #include "definitions_cxx.hpp"
 #include "hid/display/numeric_layer/numeric_layer_basic_text.h"
+#include <array>
 #include <string>
 
 class NumericLayerScrollingText;
 
-class NumericDriver {
+class NumericDriver : Display {
 public:
 	NumericDriver();
 
@@ -48,7 +49,7 @@ public:
 	void render();
 	void displayLoadingAnimation(bool delayed = false, bool transparent = false);
 	bool isLayerCurrentlyOnTop(NumericLayer* layer);
-	uint8_t lastDisplay[kNumericDisplayLength];
+	std::array<uint8_t, kNumericDisplayLength> lastDisplay;
 
 	bool hasPopup() { return this->popupActive; }
 

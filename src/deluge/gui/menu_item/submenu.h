@@ -78,14 +78,14 @@ void Submenu<n>::beginSession(MenuItem* navigatedBackwardFrom) {
 			current_item_ = items.begin();
 		}
 	}
-	if (display.type != DisplayType::OLED) {
+	if (display->type() != DisplayType::OLED) {
 		updateDisplay();
 	}
 }
 
 template <size_t n>
 void Submenu<n>::updateDisplay() {
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		renderUIsForOled();
 	}
 	else {
@@ -134,7 +134,7 @@ void Submenu<n>::selectEncoderAction(int32_t offset) {
 		if (offset >= 0) {
 			thisSubmenuItem++;
 			if (thisSubmenuItem == items.end()) {
-				if (display.type == DisplayType::OLED) {
+				if (display->type() == DisplayType::OLED) {
 					return;
 				}
 				else {
@@ -144,7 +144,7 @@ void Submenu<n>::selectEncoderAction(int32_t offset) {
 		}
 		else {
 			if (thisSubmenuItem == items.begin()) {
-				if (display.type == DisplayType::OLED) {
+				if (display->type() == DisplayType::OLED) {
 					return;
 				}
 				else {
@@ -159,7 +159,7 @@ void Submenu<n>::selectEncoderAction(int32_t offset) {
 
 	current_item_ = thisSubmenuItem;
 
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		soundEditor.menuCurrentScroll += offset;
 		if (soundEditor.menuCurrentScroll < 0) {
 			soundEditor.menuCurrentScroll = 0;

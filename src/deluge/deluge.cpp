@@ -299,12 +299,12 @@ bool readButtonsAndPads() {
 
 			Debug::println("");
 			Debug::println("undoing");
-			Buttons::buttonAction(hid::button::BACK, true, sdRoutineLock);
+			Buttons::buttonAction(deluge::hid::button::BACK, true, sdRoutineLock);
 		}
 		else {
 			Debug::println("");
 			Debug::println("beginning playback");
-			Buttons::buttonAction(hid::button::PLAY, true, sdRoutineLock);
+			Buttons::buttonAction(deluge::hid::button::PLAY, true, sdRoutineLock);
 		}
 
 		int32_t random = getRandom255();
@@ -331,7 +331,7 @@ bool readButtonsAndPads() {
 				 */
 			}
 			else {
-				auto b = hid::Button(value);
+				auto b = deluge::hid::Button(value);
 				result = Buttons::buttonAction(b, thisPadPressIsOn, sdRoutineLock);
 			}
 
@@ -354,7 +354,7 @@ bool readButtonsAndPads() {
 				Buttons::noPressesHappening(sdRoutineLock);
 			}
 		}
-		else if (util::to_underlying(value) == oledWaitingForMessage && display.type == DisplayType::OLED) {
+		else if (util::to_underlying(value) == oledWaitingForMessage && display->type() == DisplayType::OLED) {
 			uiTimerManager.setTimer(TIMER_OLED_LOW_LEVEL, 3);
 		}
 	}
@@ -363,8 +363,8 @@ bool readButtonsAndPads() {
 
 	if (playbackHandler.currentlyPlaying) {
 		if (getCurrentUI()->isViewScreen()) {
-			Buttons::buttonAction(hid::button::LOAD, true);
-			Buttons::buttonAction(hid::button::LOAD, false);
+			Buttons::buttonAction(deluge::hid::button::LOAD, true);
+			Buttons::buttonAction(deluge::hid::button::LOAD, false);
 			alreadyDoneScroll = false;
 		}
 		else if (getCurrentUI() == &loadSongUI && currentUIMode == noSubMode) {
@@ -373,8 +373,8 @@ bool readButtonsAndPads() {
 				alreadyDoneScroll = true;
 			}
 			else {
-				Buttons::buttonAction(hid::button::LOAD, true);
-				Buttons::buttonAction(hid::button::LOAD, false);
+				Buttons::buttonAction(deluge::hid::button::LOAD, true);
+				Buttons::buttonAction(deluge::hid::button::LOAD, false);
 			}
 		}
 	}
@@ -387,7 +387,7 @@ bool readButtonsAndPads() {
 		preLoadedSong = NULL;
 
 		if (random0 < 64 && getCurrentUI() == &instrumentClipView) {
-			Buttons::buttonAction(hid::button::song, true);
+			Buttons::buttonAction(deluge::hid::button::song, true);
 		}
 
 		else if (random0 < 120)
@@ -448,7 +448,7 @@ void setUIForLoadedSong(Song* song) {
 	setRootUILowLevel(newUI);
 
 	getCurrentUI()->opened();
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		renderUIsForOled();
 	}
 }
@@ -485,7 +485,7 @@ extern "C" int32_t deluge_main(void) {
 
 	// Give the PIC some startup instructions
 
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		PIC::enableOLED();
 	}
 
@@ -540,14 +540,14 @@ extern "C" int32_t deluge_main(void) {
 	// SPI for CV
 	R_RSPI_Create(
 	    SPI_CHANNEL_CV,
-	    display.type == DisplayType::OLED
+	    display->type() == DisplayType::OLED
 	        ? 10000000 // Higher than this would probably work... but let's stick to the OLED datasheet's spec of 100ns (10MHz).
 	        : 30000000,
 	    0, 32);
 	R_RSPI_Start(SPI_CHANNEL_CV);
 	setPinMux(SPI_CLK.port, SPI_CLK.pin, 3);   // CLK
 	setPinMux(SPI_MOSI.port, SPI_MOSI.pin, 3); // MOSI
-	if (display.type != DisplayType::OLED) {
+	if (display->type() != DisplayType::OLED) {
 		setPinMux(SPI_SSL.port, SPI_SSL.pin, 3); // SSL
 	}
 	else {
@@ -590,7 +590,7 @@ extern "C" int32_t deluge_main(void) {
 	audioFileManager.init();
 
 	// Set up OLED now
-	if (display.type != DisplayType::SevenSegment) {
+	if (display->type() != DisplayType::SevenSegment) {
 		//delayMS(10);
 
 		// Set up 8-bit
@@ -654,7 +654,7 @@ extern "C" int32_t deluge_main(void) {
 
 		case RESET_SETTINGS:
 			if (looksOk) {
-				display.consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_FACTORY_RESET));
+				display->consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_FACTORY_RESET));
 				FlashStorage::resetSettings();
 				FlashStorage::writeSettings();
 			}
@@ -734,7 +734,7 @@ extern "C" int32_t deluge_main(void) {
 
 	while (true) {
 
-		display.setTextAsNumber(count);
+		display->setTextAsNumber(count);
 
 		int32_t fileNumber = (uint32_t)getNoise() % 10000;
 		int32_t fileSize = (uint32_t)getNoise() % 1000000;
@@ -745,7 +745,7 @@ extern "C" int32_t deluge_main(void) {
 
 		result = f_open(&fil, fileName, FA_CREATE_ALWAYS | FA_WRITE);
 		if (result) {
-			display.setText("AAAA");
+			display->setText("AAAA");
 			while (1) {}
 		}
 
@@ -756,7 +756,7 @@ extern "C" int32_t deluge_main(void) {
 			result = f_write(&fil, &miscStringBuffer, 256, &bytesWritten);
 
 			if (bytesWritten != 256) {
-				display.setText("BBBB");
+				display->setText("BBBB");
 				while (1) {}
 			}
 
@@ -781,7 +781,7 @@ extern "C" int32_t deluge_main(void) {
 		uiTimerManager.routine();
 
 		// Flush stuff - we just have to do this, regularly
-		if (display.type == DisplayType::OLED) {
+		if (display->type() == DisplayType::OLED) {
 			oledRoutine();
 		}
 		PIC::flush();
@@ -844,7 +844,7 @@ extern "C" void routineForSD(void) {
 
 	uiTimerManager.routine();
 
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		oledRoutine();
 	}
 	PIC::flush();
@@ -869,11 +869,11 @@ extern "C" void loadAnyEnqueuedClustersRoutine() {
 }
 
 extern "C" void setNumeric(char* text) {
-	display.setText(text);
+	display->setText(text);
 }
 
 extern "C" void setNumericNumber(int32_t number) {
-	display.setTextAsNumber(number);
+	display->setTextAsNumber(number);
 }
 
 extern "C" void routineWithClusterLoading() {
@@ -955,7 +955,7 @@ void redrawSpamDisplay() {
 		break;
 	}
 
-	display.setText(thingName, false, spamStates[currentSpamThing] ? 3 : 255);
+	display->setText(thingName, false, spamStates[currentSpamThing] ? 3 : 255);
 }
 
 void spamMode() {

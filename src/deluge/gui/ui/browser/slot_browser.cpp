@@ -72,7 +72,7 @@ ActionResult SlotBrowser::horizontalEncoderAction(int32_t offset) {
 	if (!isNoUIModeActive()) {
 		return ActionResult::DEALT_WITH;
 	}
-	if (display.type != DisplayType::OLED) {
+	if (display->type() != DisplayType::OLED) {
 		FileItem* currentFileItem = getCurrentFileItem();
 		if (currentFileItem) {
 			// See if it's numeric. Here, filename has already had prefix removed if it's numeric.
@@ -96,7 +96,7 @@ ActionResult SlotBrowser::horizontalEncoderAction(int32_t offset) {
 	}
 	{
 nonNumeric:
-		if (display.type == DisplayType::OLED) { // Maintain consistency with before - don't do this on numeric
+		if (display->type() == DisplayType::OLED) { // Maintain consistency with before - don't do this on numeric
 			qwertyVisible = true;
 		}
 		return Browser::horizontalEncoderAction(offset);
@@ -105,7 +105,7 @@ nonNumeric:
 
 void SlotBrowser::processBackspace() {
 	Browser::processBackspace();
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		if (fileIndexSelected == -1) {
 			predictExtendedText();
 		}
@@ -178,7 +178,7 @@ void SlotBrowser::convertToPrefixFormatIfPossible() {
 
 int32_t SlotBrowser::getCurrentFilenameWithoutExtension(String* filenameWithoutExtension) {
 	int32_t error;
-	if (display.type != DisplayType::OLED) {
+	if (display->type() != DisplayType::OLED) {
 		// If numeric...
 		Slot slot = getSlot(enteredText.get());
 		if (slot.slot != -1) {

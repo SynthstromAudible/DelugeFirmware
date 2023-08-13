@@ -105,7 +105,7 @@ void changeRootUI(UI* newUI) {
 	PadLEDs::reassessGreyout();
 	newUI->opened(); // These all can't fail, I guess.
 
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		renderUIsForOled();
 	}
 }
@@ -119,7 +119,7 @@ void setRootUILowLevel(UI* newUI) {
 
 bool changeUISideways(UI* newUI) {
 	bool success = changeUIAtLevel(newUI, numUIsOpen - 1);
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		renderUIsForOled();
 	}
 	return success;
@@ -187,7 +187,7 @@ void closeUI(UI* uiToClose) {
 	uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
 	PadLEDs::reassessGreyout();
 	newUI->focusRegained();
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		renderUIsForOled();
 	}
 
@@ -231,7 +231,7 @@ bool openUI(UI* newUI) {
 		oldUI
 		    ->focusRegained(); // Or maybe we should instead let the caller deal with this failure, and call this if they wish?
 	}
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		renderUIsForOled();
 	}
 	return success;

@@ -670,7 +670,7 @@ currentClipSwitchedOver:
 
 	// If there was an actual error in the reversion itself...
 	if (error) {
-		display.displayError(error);
+		display->displayError(error);
 
 		deleteAllLogs();
 	}
@@ -742,7 +742,7 @@ displayUndoMessage:
 #ifdef undoLedX
 		indicator_leds::indicateAlertOnLed(undoLedX, undoLedY);
 #else
-		display.consoleText("Undo");
+		display->consoleText("Undo");
 #endif
 	}
 }
@@ -753,7 +753,7 @@ void ActionLogger::redo() {
 #ifdef redoLedX
 		indicator_leds::indicateAlertOnLed(redoLedX, redoLedY);
 #else
-		display.consoleText("Redo");
+		display->consoleText("Redo");
 #endif
 	}
 }

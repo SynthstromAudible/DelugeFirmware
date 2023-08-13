@@ -30,7 +30,7 @@ extern "C" {
 namespace deluge::gui::menu_item::midi {
 
 void Command::beginSession(MenuItem* navigatedBackwardFrom) {
-	if (display.type != DisplayType::OLED) {
+	if (display->type() != DisplayType::OLED) {
 		drawValue();
 	}
 }
@@ -97,12 +97,12 @@ void Command::drawValue() const {
 	else {
 		output = l10n::get(l10n::String::STRING_FOR_SET);
 	}
-	display.setText(output);
+	display->setText(output);
 }
 
 void Command::selectEncoderAction(int32_t offset) {
 	midiEngine.globalMIDICommands[util::to_underlying(commandNumber)].clear();
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		renderUIsForOled();
 	}
 	else {
@@ -113,7 +113,7 @@ void Command::selectEncoderAction(int32_t offset) {
 void Command::unlearnAction() {
 	midiEngine.globalMIDICommands[util::to_underlying(commandNumber)].clear();
 	if (soundEditor.getCurrentMenuItem() == this) {
-		if (display.type == DisplayType::OLED) {
+		if (display->type() == DisplayType::OLED) {
 			renderUIsForOled();
 		}
 		else {
@@ -121,7 +121,7 @@ void Command::unlearnAction() {
 		}
 	}
 	else {
-		display.displayPopup(l10n::get(l10n::String::STRING_FOR_UNLEARNED));
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_UNLEARNED));
 	}
 }
 
@@ -130,7 +130,7 @@ bool Command::learnNoteOn(MIDIDevice* device, int32_t channel, int32_t noteCode)
 	midiEngine.globalMIDICommands[util::to_underlying(commandNumber)].channelOrZone = channel;
 	midiEngine.globalMIDICommands[util::to_underlying(commandNumber)].noteOrCC = noteCode;
 	if (soundEditor.getCurrentMenuItem() == this) {
-		if (display.type == DisplayType::OLED) {
+		if (display->type() == DisplayType::OLED) {
 			renderUIsForOled();
 		}
 		else {
@@ -138,7 +138,7 @@ bool Command::learnNoteOn(MIDIDevice* device, int32_t channel, int32_t noteCode)
 		}
 	}
 	else {
-		display.displayPopup(l10n::get(l10n::String::STRING_FOR_LEARNED));
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_LEARNED));
 	}
 	return true;
 }

@@ -286,7 +286,7 @@ int32_t MIDIParamCollection::knobPosToParamValue(int32_t knobPos, ModelStackWith
 		valueForDisplay = 127;
 	}
 	intToString(valueForDisplay, buffer);
-	display.displayPopup(buffer, 3, true);
+	display->displayPopup(buffer, 3, true);
 
 	return ParamCollection::knobPosToParamValue(knobPos, modelStack);
 }

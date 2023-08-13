@@ -128,7 +128,7 @@ checkResult:
 				break;
 
 			case ENCODER_SCROLL_Y:
-				if (Buttons::isShiftButtonPressed() && Buttons::isButtonPressed(hid::button::LEARN)) {
+				if (Buttons::isShiftButtonPressed() && Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
 					PadLEDs::changeDimmerInterval(limitedDetentPos);
 				}
 				else {
@@ -142,19 +142,19 @@ checkResult:
 				    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::Quantize)
 				           == RuntimeFeatureStateToggle::On) {
 					instrumentClipView.tempoEncoderAction(limitedDetentPos,
-					                                      Buttons::isButtonPressed(hid::button::TEMPO_ENC),
+					                                      Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC),
 					                                      Buttons::isShiftButtonPressed());
 				}
 				else {
 					playbackHandler.tempoEncoderAction(limitedDetentPos,
-					                                   Buttons::isButtonPressed(hid::button::TEMPO_ENC),
+					                                   Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC),
 					                                   Buttons::isShiftButtonPressed());
 				}
 
 				break;
 
 			case ENCODER_SELECT:
-				if (Buttons::isButtonPressed(hid::button::CLIP_VIEW)) {
+				if (Buttons::isButtonPressed(deluge::hid::button::CLIP_VIEW)) {
 					PadLEDs::changeRefreshTime(limitedDetentPos);
 				}
 				else {

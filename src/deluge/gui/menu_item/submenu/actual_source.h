@@ -42,7 +42,7 @@ public:
 			char buffer[5];
 			strcpy(buffer, "CAR");
 			intToString(this->thingIndex + 1, buffer + 3);
-			display.setText(buffer);
+			display->setText(buffer);
 		}
 		else {
 			SubmenuReferringToOneThing<n>::drawName();

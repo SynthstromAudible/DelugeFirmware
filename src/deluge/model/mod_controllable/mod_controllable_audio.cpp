@@ -1343,7 +1343,7 @@ ModelStackWithThreeMainThings* ModControllableAudio::addNoteRowIndexAndStuff(Mod
 		InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
 #if ALPHA_OR_BETA_VERSION
 		if (noteRowIndex >= clip->noteRows.getNumElements()) {
-			display.freezeWithError("E406");
+			display->freezeWithError("E406");
 		}
 #endif
 		noteRow = clip->noteRows.getElement(noteRowIndex);
@@ -1668,7 +1668,7 @@ void ModControllableAudio::switchDelayPingPong() {
 		displayText = "Ping-pong delay";
 		break;
 	}
-	display.displayPopup(displayText);
+	display->displayPopup(displayText);
 }
 
 void ModControllableAudio::switchDelayAnalog() {
@@ -1684,7 +1684,7 @@ void ModControllableAudio::switchDelayAnalog() {
 		displayText = deluge::l10n::get(deluge::l10n::String::STRING_FOR_ANALOG_DELAY);
 		break;
 	}
-	display.displayPopup(displayText);
+	display->displayPopup(displayText);
 }
 
 void ModControllableAudio::switchDelaySyncType() {
@@ -1714,7 +1714,7 @@ void ModControllableAudio::switchDelaySyncType() {
 		displayText = "Even";
 		break;
 	}
-	display.displayPopup(displayText);
+	display->displayPopup(displayText);
 }
 
 void ModControllableAudio::switchDelaySyncLevel() {
@@ -1752,7 +1752,7 @@ void ModControllableAudio::switchDelaySyncLevel() {
 		displayText = "1-bar";
 		break;
 	}
-	display.displayPopup(displayText);
+	display->displayPopup(displayText);
 }
 
 void ModControllableAudio::switchLPFMode() {
@@ -1776,7 +1776,7 @@ void ModControllableAudio::switchLPFMode() {
 		displayText = "SVF";
 		break;
 	}
-	display.displayPopup(displayText);
+	display->displayPopup(displayText);
 }
 void ModControllableAudio::switchHPFMode() {
 	//this works fine, the offset to the first hpf doesn't matter with the modulus
@@ -1792,7 +1792,7 @@ void ModControllableAudio::switchHPFMode() {
 		displayText = "SVF";
 		break;
 	}
-	display.displayPopup(displayText);
+	display->displayPopup(displayText);
 }
 
 // This can get called either for hibernation, or because drum now has no active noteRow

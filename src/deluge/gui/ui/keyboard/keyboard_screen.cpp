@@ -217,7 +217,8 @@ void KeyboardScreen::updateActiveNotes() {
 		enterUIMode(UI_MODE_AUDITIONING);
 
 		// Begin resampling - yup this is even allowed if we're in the card routine!
-		if (Buttons::isButtonPressed(hid::button::RECORD) && audioRecorder.recordingSource == AudioInputChannel::NONE) {
+		if (Buttons::isButtonPressed(deluge::hid::button::RECORD)
+		    && audioRecorder.recordingSource == AudioInputChannel::NONE) {
 			audioRecorder.beginOutputRecording();
 			Buttons::recordButtonPressUsedUp = true;
 		}
@@ -295,7 +296,7 @@ void KeyboardScreen::updateActiveNotes() {
 	if (lastNotesState.count != 0 && currentNotesState.count == 0) {
 		exitUIMode(UI_MODE_AUDITIONING);
 
-		if (display.type == DisplayType::OLED) {
+		if (display->type() == DisplayType::OLED) {
 			OLED::removePopup();
 		}
 		else {
@@ -304,8 +305,8 @@ void KeyboardScreen::updateActiveNotes() {
 	}
 }
 
-ActionResult KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
-	using namespace hid::button;
+ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	using namespace deluge::hid::button;
 
 	if (inCardRoutine) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -518,7 +519,7 @@ void KeyboardScreen::selectLayout(int8_t offset) {
 
 	getCurrentClip()->keyboardState.currentLayout = (KeyboardLayoutType)nextLayout;
 	if (getCurrentClip()->keyboardState.currentLayout != lastLayout) {
-		display.displayPopup(layoutList[getCurrentClip()->keyboardState.currentLayout]->name());
+		display->displayPopup(layoutList[getCurrentClip()->keyboardState.currentLayout]->name());
 	}
 
 	// Ensure scale mode is as expected
@@ -556,12 +557,12 @@ void KeyboardScreen::selectEncoderAction(int8_t offset) {
 
 		char noteName[3] = {0};
 		noteName[0] = noteCodeToNoteLetter[newRootNote];
-		if (display.type == DisplayType::OLED) {
+		if (display->type() == DisplayType::OLED) {
 			if (noteCodeIsSharp[newRootNote]) {
 				noteName[1] = '#';
 			}
 		}
-		display.displayPopup(noteName, 3, false, (noteCodeIsSharp[newRootNote] ? 0 : 255));
+		display->displayPopup(noteName, 3, false, (noteCodeIsSharp[newRootNote] ? 0 : 255));
 		layoutList[getCurrentClip()->keyboardState.currentLayout]->handleHorizontalEncoder(0, false);
 		layoutList[getCurrentClip()->keyboardState.currentLayout]->precalculate();
 		requestRendering();
@@ -581,7 +582,7 @@ void KeyboardScreen::exitAuditionMode() {
 	updateActiveNotes();
 
 	exitUIMode(UI_MODE_AUDITIONING);
-	if (display.type != DisplayType::OLED) {
+	if (display->type() != DisplayType::OLED) {
 		redrawNumericDisplay();
 	}
 }

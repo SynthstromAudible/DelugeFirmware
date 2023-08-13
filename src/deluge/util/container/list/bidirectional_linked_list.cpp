@@ -71,7 +71,7 @@ BidirectionalLinkedListNode* BidirectionalLinkedList::getNext(BidirectionalLinke
 void BidirectionalLinkedList::test() {
 
 	if (first == NULL) {
-		display.freezeWithError("E005");
+		display->freezeWithError("E005");
 	}
 
 	int32_t count = 0;
@@ -80,7 +80,7 @@ void BidirectionalLinkedList::test() {
 	BidirectionalLinkedListNode** prevPointer = &first;
 	while (true) {
 		if (thisNode->prevPointer != prevPointer) {
-			display.freezeWithError("E006");
+			display->freezeWithError("E006");
 		}
 
 		if (thisNode == &endNode) {
@@ -89,14 +89,14 @@ void BidirectionalLinkedList::test() {
 
 		// Check the node references its list correctly
 		if (thisNode->list != this) {
-			display.freezeWithError("E007");
+			display->freezeWithError("E007");
 		}
 
 		count++;
 
 		// Check we're not spiralling around forever
 		if (count > 2048) {
-			display.freezeWithError("E008");
+			display->freezeWithError("E008");
 		}
 
 		prevPointer = &thisNode->next;
@@ -136,7 +136,7 @@ void BidirectionalLinkedListNode::insertOtherNodeBefore(BidirectionalLinkedListN
 	if constexpr (ALPHA_OR_BETA_VERSION || kCurrentFirmwareVersion <= FIRMWARE_4P0P0) {
 		// If we're not already in a list, that means we also don't have a valid prevPointer, so everything's about to break. This happened!
 		if (!list) {
-			display.freezeWithError("E443");
+			display->freezeWithError("E443");
 		}
 	}
 	otherNode->list = list;
@@ -152,7 +152,7 @@ void BidirectionalLinkedListNode::insertOtherNodeBefore(BidirectionalLinkedListN
 bool BidirectionalLinkedListNode::isLast() {
 	if constexpr (ALPHA_OR_BETA_VERSION || kCurrentFirmwareVersion <= FIRMWARE_4P0P0) {
 		if (!list) {
-			display.freezeWithError("E444");
+			display->freezeWithError("E444");
 		}
 	}
 	return (next == &list->endNode);

@@ -32,7 +32,7 @@ public:
 	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->modFXType); }
 	void writeCurrentValue() override {
 		if (!soundEditor.currentModControllable->setModFXType(this->getValue<ModFXType>())) {
-			display.displayError(ERROR_INSUFFICIENT_RAM);
+			display->displayError(ERROR_INSUFFICIENT_RAM);
 		}
 	}
 

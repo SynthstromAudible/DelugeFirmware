@@ -268,7 +268,7 @@ void OrderedResizeableArray::testSequentiality(char const* errorCode) {
 	for (int32_t i = 0; i < getNumElements(); i++) {
 		int32_t key = getKeyAtIndex(i);
 		if (key <= lastKey) {
-			display.freezeWithError(errorCode);
+			display->freezeWithError(errorCode);
 		}
 
 		lastKey = key;
@@ -310,7 +310,7 @@ void OrderedResizeableArrayWith32bitKey::testSearchMultiple() {
 		for (int32_t t = 0; t < TEST_SEARCH_MULTIPLE_NUM_SEARCH_TERMS; t++) {
 			while (getKeyAtIndex(i) < searchPos[t]) {
 				if (i >= resultingIndexes[t]) {
-					//display.freezeWithError("FAIL");
+					//display->freezeWithError("FAIL");
 					Debug::println("fail");
 					goto thatsDone;
 				}

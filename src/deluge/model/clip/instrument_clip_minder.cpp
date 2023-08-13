@@ -85,7 +85,7 @@ void InstrumentClipMinder::selectEncoderAction(int32_t offset) {
 
 			int32_t newCC;
 
-			if (!Buttons::isButtonPressed(hid::button::SELECT_ENC)) {
+			if (!Buttons::isButtonPressed(deluge::hid::button::SELECT_ENC)) {
 				newCC = instrument->changeControlNumberForModKnob(offset, editingMIDICCForWhichModKnob,
 				                                                  instrument->modKnobMode);
 				view.setKnobIndicatorLevels();
@@ -94,7 +94,7 @@ void InstrumentClipMinder::selectEncoderAction(int32_t offset) {
 				newCC = instrument->moveAutomationToDifferentCC(offset, editingMIDICCForWhichModKnob,
 				                                                instrument->modKnobMode, modelStackWithThreeMainThings);
 				if (newCC == -1) {
-					display.displayPopup(
+					display->displayPopup(
 					    deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_FURTHER_UNUSED_MIDI_PARAMS));
 					return;
 				}
@@ -111,7 +111,7 @@ void InstrumentClipMinder::selectEncoderAction(int32_t offset) {
 }
 
 void InstrumentClipMinder::redrawNumericDisplay() {
-	if (display.type != DisplayType::OLED) {
+	if (display->type() != DisplayType::OLED) {
 		if (getCurrentUI()->toClipMinder()) { // Seems a redundant check now? Maybe? Or not?
 			view.displayOutputName(getCurrentClip()->output, false);
 		}
@@ -124,7 +124,7 @@ void InstrumentClipMinder::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 
 void InstrumentClipMinder::drawMIDIControlNumber(int32_t controlNumber, bool automationExists) {
 
-	char buffer[display.type == DisplayType::OLED ? 30 : 5];
+	char buffer[display->type() == DisplayType::OLED ? 30 : 5];
 	bool finish = false;
 	if (controlNumber == CC_NUMBER_NONE) {
 		strcpy(buffer, deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_PARAM));
@@ -138,7 +138,7 @@ void InstrumentClipMinder::drawMIDIControlNumber(int32_t controlNumber, bool aut
 	else {
 		buffer[0] = 'C';
 		buffer[1] = 'C';
-		if (display.type == DisplayType::OLED) {
+		if (display->type() == DisplayType::OLED) {
 			buffer[2] = ' ';
 			intToString(controlNumber, &buffer[3]);
 		}
@@ -148,14 +148,14 @@ void InstrumentClipMinder::drawMIDIControlNumber(int32_t controlNumber, bool aut
 		}
 	}
 
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		if (automationExists) {
 			strcat(buffer, "\n(automated)");
 		}
-		display.popupText(buffer);
+		display->popupText(buffer);
 	}
 	else {
-		display.setText(buffer, true, automationExists ? 3 : 255, true);
+		display->setText(buffer, true, automationExists ? 3 : 255, true);
 	}
 }
 
@@ -171,7 +171,7 @@ void InstrumentClipMinder::createNewInstrument(InstrumentType newInstrumentType)
 	error = Browser::currentDir.set(getInstrumentFolder(newInstrumentType));
 	if (error) {
 gotError:
-		display.displayError(error);
+		display->displayError(error);
 		return;
 	}
 
@@ -181,7 +181,7 @@ gotError:
 	}
 
 	if (newName.isEmpty()) {
-		display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_FURTHER_UNUSED_INSTRUMENT_NUMBERS));
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_FURTHER_UNUSED_INSTRUMENT_NUMBERS));
 		return;
 	}
 
@@ -208,10 +208,10 @@ gotError:
 	getCurrentClip()->backupPresetSlot();
 
 	if (newInstrumentType == InstrumentType::KIT) {
-		display.consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NEW_KIT_CREATED));
+		display->consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NEW_KIT_CREATED));
 	}
 	else {
-		display.consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NEW_SYNTH_CREATED));
+		display->consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NEW_SYNTH_CREATED));
 	}
 
 	if (newInstrumentType == InstrumentType::SYNTH) {
@@ -263,7 +263,7 @@ gotError:
 
 	newInstrument->name.set(&newName);
 
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		renderUIsForOled();
 	}
 	else {
@@ -295,13 +295,13 @@ void InstrumentClipMinder::opened() {
 void InstrumentClipMinder::focusRegained() {
 	view.focusRegained();
 	view.setActiveModControllableTimelineCounter(getCurrentClip());
-	if (display.type != DisplayType::OLED) {
+	if (display->type() != DisplayType::OLED) {
 		redrawNumericDisplay();
 	}
 }
 
-ActionResult InstrumentClipMinder::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
-	using namespace hid::button;
+ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	using namespace deluge::hid::button;
 
 	if (inCardRoutine) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -383,7 +383,7 @@ yesLoadInstrument:
 			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, currentSong->currentClip);
 
 			getCurrentClip()->clear(action, modelStack);
-			display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIP_CLEARED));
+			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIP_CLEARED));
 			if (getCurrentUI() == &instrumentClipView) {
 				uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
 			}
@@ -452,7 +452,7 @@ void InstrumentClipMinder::drawActualNoteCode(int16_t noteCode) {
 	char noteName[5];
 	noteName[0] = noteCodeToNoteLetter[noteCodeWithinOctave];
 	char* writePos = &noteName[1];
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		if (noteCodeIsSharp[noteCodeWithinOctave]) {
 			*writePos = '#';
 			writePos++;
@@ -460,19 +460,19 @@ void InstrumentClipMinder::drawActualNoteCode(int16_t noteCode) {
 	}
 	intToString(octave, writePos, 1);
 
-	if (display.type == DisplayType::OLED) {
-		display.popupTextTemporary(noteName);
+	if (display->type() == DisplayType::OLED) {
+		display->popupTextTemporary(noteName);
 	}
 	else {
 		uint8_t drawDot = noteCodeIsSharp[noteCodeWithinOctave] ? 0 : 255;
-		display.setText(noteName, false, drawDot, true);
+		display->setText(noteName, false, drawDot, true);
 	}
 }
 
 void InstrumentClipMinder::cycleThroughScales() {
 	int32_t newScale = currentSong->cycleThroughScales();
 	if (newScale >= NUM_PRESET_SCALES) {
-		display.displayPopup(
+		display->displayPopup(
 		    deluge::l10n::get(deluge::l10n::String::STRING_FOR_CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES_IN_USE));
 	}
 	else {
@@ -482,10 +482,10 @@ void InstrumentClipMinder::cycleThroughScales() {
 
 void InstrumentClipMinder::displayScaleName(int32_t scale) {
 	if (scale >= NUM_PRESET_SCALES) {
-		display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_OTHER_SCALE));
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_OTHER_SCALE));
 	}
 	else {
-		display.displayPopup(presetScaleNames[scale]);
+		display->displayPopup(presetScaleNames[scale]);
 	}
 }
 

@@ -50,7 +50,7 @@ public:
 
 	void drawValue() override {
 		if (this->getValue() == 0) {
-			display.setText("HZPV", false, 255, true);
+			display->setText("HZPV", false, 255, true);
 		}
 		else {
 			Decimal::drawValue();

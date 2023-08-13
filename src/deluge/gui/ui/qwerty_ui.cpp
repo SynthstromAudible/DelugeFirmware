@@ -145,10 +145,10 @@ void QwertyUI::displayText(bool blinkImmediately) {
 
 	bool encodedEditPosAndAHalf;
 	int32_t encodedEditPos =
-	    display.getEncodedPosFromLeft(enteredTextEditPos, enteredText.get(), &encodedEditPosAndAHalf);
+	    display->getEncodedPosFromLeft(enteredTextEditPos, enteredText.get(), &encodedEditPosAndAHalf);
 
 	bool encodedEndPosAndAHalf;
-	int32_t encodedEndPos = display.getEncodedPosFromLeft(totalTextLength, enteredText.get(), &encodedEndPosAndAHalf);
+	int32_t encodedEndPos = display->getEncodedPosFromLeft(totalTextLength, enteredText.get(), &encodedEndPosAndAHalf);
 
 	int32_t scrollPos = encodedEditPos - (kNumericDisplayLength >> 1) + encodedEditPosAndAHalf;
 	int32_t maxScrollPos = encodedEndPos - kNumericDisplayLength;
@@ -165,7 +165,7 @@ void QwertyUI::displayText(bool blinkImmediately) {
 	memset(encodedAddition, 0, kNumericDisplayLength);
 	if (totalTextLength == enteredTextEditPos || enteredText.get()[enteredTextEditPos] == ' ') {
 		if (ALPHA_OR_BETA_VERSION && (editPosOnscreen < 0 || editPosOnscreen >= kNumericDisplayLength)) {
-			display.freezeWithError("E292");
+			display->freezeWithError("E292");
 		}
 		encodedAddition[editPosOnscreen] = 0x08;
 		encodedEditPosAndAHalf =
@@ -188,7 +188,7 @@ void QwertyUI::displayText(bool blinkImmediately) {
 	indicator_leds::ledBlinkTimeout(0, true, !blinkImmediately);
 
 	// Set the text, replacing the bottom layer - cos in some cases, we want this to slip under an existing loading animation layer
-	display.setText(enteredText.get(), false, 255, true, blinkMask, false, false, scrollPos, encodedAddition, false);
+	display->setText(enteredText.get(), false, 255, true, blinkMask, false, false, scrollPos, encodedAddition, false);
 }
 
 const char keyboardChars[][5][11] = {{
@@ -363,7 +363,7 @@ ActionResult QwertyUI::padAction(int32_t x, int32_t y, int32_t on) {
 						int32_t error = enteredText.concatenateAtPos(stringToConcat, enteredTextEditPos);
 
 						if (error) {
-							display.displayError(error);
+							display->displayError(error);
 							return ActionResult::DEALT_WITH;
 						}
 
@@ -429,7 +429,7 @@ doDisplayText:
 ActionResult QwertyUI::timerCallback() {
 	if (currentUIMode == UI_MODE_HOLDING_BACKSPACE) {
 		processBackspace();
-		uiTimerManager.setTimer(TIMER_UI_SPECIFIC, display.type == DisplayType::OLED ? 80 : 125);
+		uiTimerManager.setTimer(TIMER_UI_SPECIFIC, display->type() == DisplayType::OLED ? 80 : 125);
 	}
 
 	return ActionResult::DEALT_WITH;

@@ -1,12 +1,19 @@
 #include "display.h"
 #include "gui/l10n/l10n.h"
+#include "hid/display/numeric_driver.h"
 
-using namespace deluge;
+// #ifdef HAVE_OLED
+// deluge::hid::display::OLED oled{};
+// deluge::hid::Display* display = &oled;
+// #else
+// deluge::hid::display::SevenSegment sevenSeg{};
+// deluge::hid::Display* display = &sevenSeg;
+// #endif
+deluge::hid::Display* display = nullptr;
+namespace deluge::hid::display {
 
-DisplayActual display;
-
-bool Display<DisplayType::OLED>::isLayerCurrentlyOnTop(NumericLayer* layer) {
-	return (!hasPopup() && layer == topLayer);
+bool OLED::isLayerCurrentlyOnTop(NumericLayer* layer) {
+	return (!this->hasPopup() && layer == topLayer);
 }
 
 char const* getErrorMessage(int error) {
@@ -81,7 +88,7 @@ char const* getErrorMessage(int error) {
 	}
 }
 
-void Display<DisplayType::OLED>::displayError(int error) {
+void OLED::displayError(int error) {
 	char const* message = nullptr;
 	switch (error) {
 	case NO_ERROR:
@@ -94,7 +101,7 @@ void Display<DisplayType::OLED>::displayError(int error) {
 	displayPopup(message);
 }
 
-void Display<DisplayType::SevenSegment>::displayError(int error) {
+void SevenSegment::displayError(int error) {
 	char const* message = nullptr;
 	switch (error) {
 	case NO_ERROR:
@@ -104,23 +111,25 @@ void Display<DisplayType::SevenSegment>::displayError(int error) {
 		message = getErrorMessage(error);
 		break;
 	}
-	displayPopup(message);
+	NumericDriver::displayPopup(message);
 }
+
+} // namespace deluge::hid::display
 
 extern "C" void freezeWithError(char const* error) {
 	if (ALPHA_OR_BETA_VERSION) {
-		display.freezeWithError(error);
+		display->freezeWithError(error);
 	}
 }
 
 extern "C" void displayPopup(char const* text) {
-	display.displayPopup(text);
+	display->displayPopup(text);
 }
 
 extern uint8_t usbInitializationPeriodComplete;
 
 extern "C" void consoleTextIfAllBootedUp(char const* text) {
 	if (usbInitializationPeriodComplete != 0u) {
-		display.consoleText(text);
+		display->consoleText(text);
 	}
 }

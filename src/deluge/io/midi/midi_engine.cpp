@@ -785,7 +785,7 @@ void MidiEngine::midiSysexReceived(MIDIDevice* device, uint8_t* data, int32_t le
 		} break;
 
 		case 1:
-			display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_HELLO_SYSEX));
+			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_HELLO_SYSEX));
 			break;
 
 		case 2:
@@ -991,7 +991,7 @@ void MidiEngine::midiMessageReceived(MIDIDevice* fromDevice, uint8_t statusType,
 				                                    &shouldDoMidiThruNow);
 #if MISSING_MESSAGE_CHECK
 				if (lastWasNoteOn == (bool)(statusType & 1))
-					display.freezeWithError("MISSED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+					display->freezeWithError("MISSED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
 				lastWasNoteOn = statusType & 1;
 #endif
 				break;

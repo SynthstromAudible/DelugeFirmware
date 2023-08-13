@@ -30,7 +30,7 @@ char const* OverwriteFile::getTitle() {
 
 Sized<char const**> OverwriteFile::getOptions() {
 	using enum l10n::String;
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		static char const* options[] = {l10n::get(STRING_FOR_OK)};
 		return {options, 1};
 	}

@@ -39,7 +39,7 @@ SaveUI::SaveUI() {
 bool SaveUI::opened() {
 	int32_t error = beginSlotSession(true, true);
 	if (error) {
-		display.displayError(error);
+		display->displayError(error);
 		return false;
 	}
 
@@ -58,7 +58,7 @@ void SaveUI::focusRegained() {
 void SaveUI::displayText(bool blinkImmediately) {
 
 	if (enteredText.isEmpty() && !currentFolderIsEmpty) {
-		display.setTextAsSlot(currentSlot, currentSubSlot, currentFileExists, true, numberEditPos);
+		display->setTextAsSlot(currentSlot, currentSubSlot, currentFileExists, true, numberEditPos);
 		indicator_leds::ledBlinkTimeout(0, true, !blinkImmediately);
 	}
 
@@ -78,7 +78,7 @@ void SaveUI::enterKeyPress() {
 		int32_t error = goIntoFolder(currentFileItem->filename.get());
 
 		if (error) {
-			display.displayError(error);
+			display->displayError(error);
 			close(); // Don't use goBackToSoundEditor() because that would do a left-scroll
 			return;
 		}
@@ -90,7 +90,7 @@ void SaveUI::enterKeyPress() {
 		SlotBrowser::enterKeyPress();
 		bool dealtWith = performSave(false);
 
-		if (display.type != DisplayType::OLED) {
+		if (display->type() != DisplayType::OLED) {
 			if (!dealtWith) {
 				displayText(false);
 			}
@@ -98,8 +98,8 @@ void SaveUI::enterKeyPress() {
 	}
 }
 
-ActionResult SaveUI::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
-	using namespace hid::button;
+ActionResult SaveUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	using namespace deluge::hid::button;
 
 	FileItem* currentFileItem = getCurrentFileItem();
 
@@ -126,7 +126,7 @@ ActionResult SaveUI::timerCallback() {
 
 		if (available) {
 			currentUIMode = UI_MODE_NONE;
-			display.setNextTransitionDirection(1);
+			display->setNextTransitionDirection(1);
 			openUI(&gui::context_menu::saveSongOrInstrument);
 		}
 		else {

@@ -23,7 +23,7 @@
 class LoadSongUI final : public LoadUI {
 public:
 	LoadSongUI();
-	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 	ActionResult timerCallback();
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
 	void graphicsRoutine() {}

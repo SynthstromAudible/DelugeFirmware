@@ -52,7 +52,7 @@ bool SaveSongOrInstrument::acceptCurrentOption() {
 		int32_t error = browser->createFolder();
 
 		if (error) {
-			display.displayError(error);
+			display->displayError(error);
 			return false;
 		}
 		close();
@@ -62,7 +62,7 @@ bool SaveSongOrInstrument::acceptCurrentOption() {
 		bool available = context_menu::deleteFile.setupAndCheckAvailability();
 
 		if (available) { // It always will be - but we gotta check.
-			display.setNextTransitionDirection(1);
+			display->setNextTransitionDirection(1);
 			openUI(&context_menu::deleteFile); // Might fail
 		}
 		return available;

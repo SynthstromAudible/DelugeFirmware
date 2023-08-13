@@ -35,7 +35,7 @@ public:
 	uint8_t getPatchedParamIndex() final { return PatchedParam::getPatchedParamIndex(); }
 	uint8_t shouldDrawDotOnName() final { return PatchedParam::shouldDrawDotOnName(); }
 
-	void drawValue() override { display.setTextAsNumber(this->getValue(), shouldDrawDotOnName()); }
+	void drawValue() override { display->setTextAsNumber(this->getValue(), shouldDrawDotOnName()); }
 
 	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) final {
 		return PatchedParam::shouldBlinkPatchingSourceShortcut(s, colour);

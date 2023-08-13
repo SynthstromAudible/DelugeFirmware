@@ -42,7 +42,7 @@ char const* DeleteFile::getTitle() {
 Sized<char const**> DeleteFile::getOptions() {
 	using enum l10n::String;
 
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		static char const* options[] = {l10n::get(STRING_FOR_OK)};
 		return {options, 1};
 	}
@@ -70,7 +70,7 @@ bool DeleteFile::acceptCurrentOption() {
 	String filePath;
 	int32_t error = browser->getCurrentFilePath(&filePath);
 	if (error) {
-		display.displayError(error);
+		display->displayError(error);
 		return false;
 	}
 
@@ -78,11 +78,11 @@ bool DeleteFile::acceptCurrentOption() {
 
 	// If didn't work
 	if (result != FR_OK) {
-		display.displayPopup(l10n::get(STRING_FOR_ERROR_DELETING_FILE));
+		display->displayPopup(l10n::get(STRING_FOR_ERROR_DELETING_FILE));
 		// But we'll still go back to the Browser
 	}
 	else {
-		display.displayPopup(l10n::get(STRING_FOR_FILE_DELETED));
+		display->displayPopup(l10n::get(STRING_FOR_FILE_DELETED));
 		browser->currentFileDeleted();
 	}
 

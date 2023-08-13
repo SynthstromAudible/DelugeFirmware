@@ -26,7 +26,7 @@ protected:
 template <size_t n>
 void Enumeration<n>::beginSession(MenuItem* navigatedBackwardFrom) {
 	Value::beginSession(navigatedBackwardFrom);
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		soundEditor.menuCurrentScroll = 0;
 	}
 	else {
@@ -39,7 +39,7 @@ void Enumeration<n>::selectEncoderAction(int32_t offset) {
 	this->setValue(this->getValue() + offset);
 	int32_t numOptions = size();
 
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		if (this->getValue() >= numOptions) {
 			this->setValue(numOptions - 1);
 		}
@@ -61,11 +61,11 @@ void Enumeration<n>::selectEncoderAction(int32_t offset) {
 
 template <size_t n>
 void Enumeration<n>::drawValue() {
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		renderUIsForOled();
 	}
 	else {
-		display.setTextAsNumber(this->getValue());
+		display->setTextAsNumber(this->getValue());
 	}
 }
 

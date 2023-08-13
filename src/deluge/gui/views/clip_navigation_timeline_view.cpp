@@ -45,7 +45,7 @@ void ClipNavigationTimelineView::horizontalScrollForLinearRecording(int32_t newX
 			currentSong->xScroll[NAVIGATION_CLIP] = newXScroll;
 			uiNeedsRendering(this, 0xFFFFFFFF, 0);
 		}
-		if (!display.hasPopup()) {
+		if (!display->hasPopup()) {
 			displayScrollPos();
 		}
 	}

@@ -35,5 +35,5 @@ void MenuItem::renderOLED() {
 }
 
 void MenuItem::drawName() {
-	display.setText(getName(), false, shouldDrawDotOnName());
+	display->setText(getName(), false, shouldDrawDotOnName());
 }

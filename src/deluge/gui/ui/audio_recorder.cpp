@@ -96,7 +96,7 @@ bool AudioRecorder::opened() {
 		int32_t error = newName.set("REC");
 		if (error) {
 gotError:
-			display.displayError(error);
+			display->displayError(error);
 			return false;
 		}
 
@@ -125,9 +125,9 @@ gotError:
 		indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
 		indicator_leds::blinkLed(IndicatorLED::BACK);
 		indicator_leds::blinkLed(IndicatorLED::RECORD, 255, 1);
-		if (display.type != DisplayType::OLED) {
-			display.setNextTransitionDirection(0);
-			display.setText("REC", false, 255, true);
+		if (display->type() != DisplayType::OLED) {
+			display->setNextTransitionDirection(0);
+			display->setText("REC", false, 255, true);
 		}
 	}
 
@@ -146,12 +146,12 @@ bool AudioRecorder::setupRecordingToFile(AudioInputChannel newMode, int32_t newN
                                          AudioRecordingFolder folderID) {
 
 	if (ALPHA_OR_BETA_VERSION && recordingSource > AudioInputChannel::NONE) {
-		display.freezeWithError("E242");
+		display->freezeWithError("E242");
 	}
 
 	recorder = AudioEngine::getNewRecorder(newNumChannels, folderID, newMode, kInternalButtonPressLatency);
 	if (!recorder) {
-		display.displayError(ERROR_INSUFFICIENT_RAM);
+		display->displayError(ERROR_INSUFFICIENT_RAM);
 		return false;
 	}
 
@@ -181,7 +181,7 @@ void AudioRecorder::endRecordingSoon(int32_t buttonLatency) {
 
 	// Make sure we don't call the same thing multiple times - I think there's a few scenarios where this could happen
 	if (recorder && recorder->status == RECORDER_STATUS_CAPTURING_DATA) {
-		display.displayLoadingAnimationText("Working");
+		display->displayLoadingAnimationText("Working");
 		recorder->endSyncedRecording(buttonLatency);
 	}
 }
@@ -202,7 +202,7 @@ void AudioRecorder::process() {
 
 		uiTimerManager.routine();
 
-		if (display.type == DisplayType::OLED) {
+		if (display->type() == DisplayType::OLED) {
 			oledRoutine();
 		}
 		PIC::flush();
@@ -236,8 +236,8 @@ void AudioRecorder::process() {
 			if (recorder->recordingClippedRecently) {
 				recorder->recordingClippedRecently = false;
 
-				if (!display.hasPopup()) {
-					display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIPPING_OCCURRED));
+				if (!display->hasPopup()) {
+					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIPPING_OCCURRED));
 				}
 			}
 		}
@@ -252,11 +252,11 @@ void AudioRecorder::finishRecording() {
 
 	recorder = NULL;
 	recordingSource = AudioInputChannel::NONE;
-	display.removeLoadingAnimation();
+	display->removeLoadingAnimation();
 }
 
-ActionResult AudioRecorder::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
-	using namespace hid::button;
+ActionResult AudioRecorder::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	using namespace deluge::hid::button;
 
 	if (!on) {
 		return ActionResult::NOT_DEALT_WITH;

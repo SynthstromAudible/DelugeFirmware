@@ -357,7 +357,7 @@ void Arrangement::resetPlayPos(int32_t newPos, bool doingComplete, int32_t butto
 
 				int32_t error = output->possiblyBeginArrangementRecording(currentSong, newPos);
 				if (error) {
-					display.displayError(error);
+					display->displayError(error);
 				}
 			}
 		}
@@ -530,7 +530,7 @@ int32_t Arrangement::getLivePos(uint32_t* timeRemainder) {
 
 void Arrangement::stopOutputRecordingAtLoopEnd() {
 	playbackHandler.stopOutputRecordingAtLoopEnd = true;
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		renderUIsForOled();
 	}
 	else {

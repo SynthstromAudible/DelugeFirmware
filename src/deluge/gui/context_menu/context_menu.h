@@ -33,7 +33,7 @@ public:
 
 	void focusRegained() override;
 	void selectEncoderAction(int8_t offset) override;
-	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine) final;
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) final;
 	void drawCurrentOption();
 	virtual bool isCurrentOptionAvailable() { return true; }
 	virtual bool acceptCurrentOption() { return false; } // If returns false, will cause UI to exit
@@ -44,7 +44,7 @@ public:
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 	bool setupAndCheckAvailability();
 
-	virtual hid::Button getAcceptButton() { return hid::button::SELECT_ENC; }
+	virtual deluge::hid::Button getAcceptButton() { return deluge::hid::button::SELECT_ENC; }
 
 	int32_t currentOption = 0; // Don't make static. We'll have multiple nested ContextMenus open at the same time
 
@@ -60,7 +60,7 @@ public:
 	~ContextMenuForSaving() override = default;
 
 	void focusRegained() final;
-	hid::Button getAcceptButton() final { return hid::button::SAVE; }
+	deluge::hid::Button getAcceptButton() final { return deluge::hid::button::SAVE; }
 };
 
 class ContextMenuForLoading : public ContextMenu {
@@ -69,6 +69,6 @@ public:
 	~ContextMenuForLoading() override = default;
 
 	void focusRegained() override;
-	hid::Button getAcceptButton() final { return hid::button::LOAD; }
+	deluge::hid::Button getAcceptButton() final { return deluge::hid::button::LOAD; }
 };
 } // namespace deluge::gui

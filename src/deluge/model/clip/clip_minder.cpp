@@ -21,6 +21,6 @@
 #include "model/clip/clip.h"
 #include "model/song/song.h"
 
-ActionResult ClipMinder::buttonAction(hid::Button b, bool on) {
+ActionResult ClipMinder::buttonAction(deluge::hid::Button b, bool on) {
 	return ActionResult::NOT_DEALT_WITH;
 }

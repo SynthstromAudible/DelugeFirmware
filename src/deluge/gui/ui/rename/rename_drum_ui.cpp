@@ -61,8 +61,8 @@ SoundDrum* RenameDrumUI::getDrum() {
 	return (SoundDrum*)soundEditor.currentSound;
 }
 
-ActionResult RenameDrumUI::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
-	using namespace hid::button;
+ActionResult RenameDrumUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	using namespace deluge::hid::button;
 
 	// Back button
 	if (b == BACK) {
@@ -100,7 +100,7 @@ void RenameDrumUI::enterKeyPress() {
 	// If actually changing it...
 	if (!getDrum()->name.equalsCaseIrrespective(&enteredText)) {
 		if (((Kit*)currentSong->currentClip->output)->getDrumFromName(enteredText.get())) {
-			display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DUPLICATE_NAMES));
+			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DUPLICATE_NAMES));
 			return;
 		}
 	}
@@ -110,7 +110,7 @@ void RenameDrumUI::enterKeyPress() {
 }
 
 void RenameDrumUI::exitUI() {
-	display.setNextTransitionDirection(-1);
+	display->setNextTransitionDirection(-1);
 	close();
 }
 
@@ -140,7 +140,7 @@ ActionResult RenameDrumUI::padAction(int32_t x, int32_t y, int32_t on) {
 }
 
 ActionResult RenameDrumUI::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
-	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::button::X_ENC)) {
+	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
 		return ActionResult::DEALT_WITH;
 	}
 	return instrumentClipView.verticalEncoderAction(offset, inCardRoutine);

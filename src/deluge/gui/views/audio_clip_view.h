@@ -37,7 +37,7 @@ public:
 	bool supportsTriplets() { return false; }
 	ClipMinder* toClipMinder() { return this; }
 
-	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
 
 	void graphicsRoutine();

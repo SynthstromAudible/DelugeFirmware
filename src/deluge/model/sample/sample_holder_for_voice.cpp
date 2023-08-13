@@ -67,7 +67,7 @@ void SampleHolderForVoice::claimClusterReasons(bool reversed, int32_t clusterLoa
 
 #if ALPHA_OR_BETA_VERSION
 	if (!audioFile) {
-		display.freezeWithError("i030"); // Trying to narrow down E368 that Kevin F got
+		display->freezeWithError("i030"); // Trying to narrow down E368 that Kevin F got
 	}
 #endif
 

@@ -50,7 +50,7 @@ bool ContextMenu::opened() {
 */
 
 void ContextMenu::focusRegained() {
-	if (display.type != DisplayType::OLED) {
+	if (display->type() != DisplayType::OLED) {
 		drawCurrentOption();
 	}
 }
@@ -108,7 +108,7 @@ void ContextMenu::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 void ContextMenu::selectEncoderAction(int8_t offset) {
 	const auto [_options, numOptions] = getOptions();
 
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		bool wasOnScrollPos = (currentOption == scrollPos);
 		int32_t oldCurrentOption = currentOption;
 		do {
@@ -147,8 +147,8 @@ void ContextMenu::selectEncoderAction(int8_t offset) {
 	}
 }
 
-ActionResult ContextMenu::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
-	using namespace hid::button;
+ActionResult ContextMenu::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	using namespace deluge::hid::button;
 
 	if (b == BACK) {
 		if (on && !currentUIMode) {
@@ -156,7 +156,7 @@ ActionResult ContextMenu::buttonAction(hid::Button b, bool on, bool inCardRoutin
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 getOut:
-			display.setNextTransitionDirection(-1);
+			display->setNextTransitionDirection(-1);
 			close();
 		}
 	}
@@ -187,9 +187,9 @@ probablyAcceptCurrentOption:
 
 void ContextMenu::drawCurrentOption() {
 	const auto [options, _size] = getOptions();
-	if (display.type != DisplayType::OLED) {
+	if (display->type() != DisplayType::OLED) {
 		indicator_leds::ledBlinkTimeout(0, true);
-		display.setText(options[currentOption], false, 255, true);
+		display->setText(options[currentOption], false, 255, true);
 	}
 }
 
@@ -198,7 +198,7 @@ ActionResult ContextMenu::padAction(int32_t x, int32_t y, int32_t on) {
 		if (sdRoutineLock) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
-		display.setNextTransitionDirection(-1);
+		display->setNextTransitionDirection(-1);
 		close();
 	}
 

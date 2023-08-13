@@ -2,92 +2,128 @@
 #include "definitions.h"
 #include "hid/display/numeric_driver.h"
 #include "hid/display/oled.h"
+#include <array>
 
+// This is distinct from the display _interface_ which is the actual communication system
 enum class DisplayType { OLED, SevenSegment };
 
-template <DisplayType display_type>
-class Display {};
+namespace deluge::hid {
 
-template <>
-class Display<DisplayType::OLED> {
+class Display {
 public:
-	constexpr static DisplayType type = DisplayType::OLED;
-	constexpr static size_t kNumBrowserAndMenuLines = 3;
+	virtual ~Display() = default;
 
-	void setText(std::string_view newText, bool alignRight = false, uint8_t drawDot = 255, bool doBlink = false,
-	             uint8_t* newBlinkMask = NULL, bool blinkImmediately = false, bool shouldBlinkFast = false,
-	             int scrollPos = 0, uint8_t* blinkAddition = NULL, bool justReplaceBottomLayer = false) {}
+	constexpr virtual DisplayType type() = 0;
+	constexpr virtual size_t getNumBrowserAndMenuLines() = 0;
 
-	void displayPopup(char const* newText, int8_t numFlashes = 3, bool = false, uint8_t = 255, int = 1) {
-		OLED::popupText(newText, !numFlashes);
-	}
+	virtual void setText(std::string_view newText, bool alignRight = false, uint8_t drawDot = 255, bool doBlink = false,
+	                     uint8_t* newBlinkMask = NULL, bool blinkImmediately = false, bool shouldBlinkFast = false,
+	                     int scrollPos = 0, uint8_t* blinkAddition = NULL, bool justReplaceBottomLayer = false) = 0;
 
-	void popupText(char const* text) { OLED::popupText(text, true); }
-	void popupTextTemporary(char const* text) { OLED::popupText(text, false); }
+	virtual void displayPopup(char const* newText, int8_t numFlashes = 3, bool = false, uint8_t = 255, int = 1) = 0;
 
-	void setNextTransitionDirection(int8_t thisDirection) {}
+	virtual void popupText(char const* text) = 0;
+	virtual void popupTextTemporary(char const* text) = 0;
 
-	void cancelPopup() { OLED::removePopup(); }
-	void freezeWithError(char const* text) { OLED::freezeWithError(text); }
-	bool isLayerCurrentlyOnTop(NumericLayer* layer);
-	void displayError(int error);
+	virtual void setNextTransitionDirection(int8_t thisDirection) = 0;
 
-	void removeWorkingAnimation() { OLED::removeWorkingAnimation(); }
+	virtual void cancelPopup() = 0;
+	virtual void freezeWithError(char const* text) = 0;
+	virtual bool isLayerCurrentlyOnTop(NumericLayer* layer) = 0;
+	virtual void displayError(int error) = 0;
+
+	virtual void removeWorkingAnimation() = 0;
 
 	// Loading animations
-	void displayLoadingAnimation() {}
-	void displayLoadingAnimationText(char const* text, bool delayed = false, bool transparent = false) {
-		OLED::displayWorkingAnimation(text);
-	}
-	void removeLoadingAnimation() { OLED::removeWorkingAnimation(); }
+	virtual void displayLoadingAnimation() = 0;
+	virtual void displayLoadingAnimationText(char const* text, bool delayed = false, bool transparent = false) = 0;
+	virtual void removeLoadingAnimation() = 0;
 
-	bool hasPopup() { return OLED::isPopupPresent(); }
+	virtual bool hasPopup() = 0;
 
-	void consoleText(char const* text) { OLED::consoleText(text); }
+	virtual void consoleText(char const* text) = 0;
 
-	void timerRoutine() { OLED::timerRoutine(); }
+	virtual void timerRoutine() = 0;
 
-	// DUMMIES
-	// These should only ever get called by code that works with the 7SEG
-	void setTextAsNumber(int16_t number, uint8_t drawDot = 255, bool doBlink = false) {}
-	int getEncodedPosFromLeft(int textPos, char const* text, bool* andAHalf) { return 0; }
-	void setTextAsSlot(int16_t currentSlot, int8_t currentSubSlot, bool currentSlotExists, bool doBlink = false,
-	                   int blinkPos = -1, bool blinkImmediately = false) {}
-	NumericLayerScrollingText* setScrollingText(char const* newText, int startAtPos = 0, int initialDelay = 600) {
+	virtual void setTextAsNumber(int16_t number, uint8_t drawDot = 255, bool doBlink = false) {}
+	virtual int getEncodedPosFromLeft(int textPos, char const* text, bool* andAHalf) { return 0; }
+	virtual void setTextAsSlot(int16_t currentSlot, int8_t currentSubSlot, bool currentSlotExists, bool doBlink = false,
+	                           int blinkPos = -1, bool blinkImmediately = false) {}
+	virtual NumericLayerScrollingText* setScrollingText(char const* newText, int startAtPos = 0,
+	                                                    int initialDelay = 600) {
 		return nullptr;
 	}
 
-	NumericLayer* topLayer = nullptr;
-	uint8_t lastDisplay[kNumericDisplayLength]; // to match NumericDriver
+	virtual std::array<uint8_t, kNumericDisplayLength> getLast() { return {0}; }; // to match NumericDriver
 };
 
-template <>
-class Display<DisplayType::SevenSegment> : public NumericDriver {
+namespace display {
+class OLED : public Display {
 public:
-	constexpr static DisplayType type = DisplayType::SevenSegment;
-	constexpr static size_t kNumBrowserAndMenuLines = 1;
+	constexpr DisplayType type() override { return DisplayType::OLED; }
 
-	void consoleText(char const* text) { this->displayPopup(text); }
-	void popupText(char const* text) { this->displayPopup(text); }
-	void popupTextTemporary(char const* text) { this->displayPopup(text); }
+	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
 
-	void removeWorkingAnimation() {}
+	void setText(std::string_view newText, bool alignRight = false, uint8_t drawDot = 255, bool doBlink = false,
+	             uint8_t* newBlinkMask = NULL, bool blinkImmediately = false, bool shouldBlinkFast = false,
+	             int scrollPos = 0, uint8_t* blinkAddition = NULL, bool justReplaceBottomLayer = false) override {}
+
+	void displayPopup(char const* newText, int8_t numFlashes = 3, bool = false, uint8_t = 255, int = 1) override {
+		::OLED::popupText(newText, !numFlashes);
+	}
+
+	void popupText(char const* text) override { ::OLED::popupText(text, true); }
+	void popupTextTemporary(char const* text) override { ::OLED::popupText(text, false); }
+
+	void setNextTransitionDirection(int8_t thisDirection) override {}
+
+	void cancelPopup() override { ::OLED::removePopup(); }
+	void freezeWithError(char const* text) override { ::OLED::freezeWithError(text); }
+	bool isLayerCurrentlyOnTop(NumericLayer* layer) override;
+	void displayError(int error) override;
+
+	void removeWorkingAnimation() override { ::OLED::removeWorkingAnimation(); }
 
 	// Loading animations
-	void displayLoadingAnimationText(char const* text, bool delayed = false, bool transparent = false) {
-		NumericDriver::displayLoadingAnimation(delayed, transparent);
+	void displayLoadingAnimation() override {}
+	void displayLoadingAnimationText(char const* text, bool delayed = false, bool transparent = false) override {
+		::OLED::displayWorkingAnimation(text);
 	}
-	void removeLoadingAnimation() { NumericDriver::removeTopLayer(); }
+	void removeLoadingAnimation() override { ::OLED::removeWorkingAnimation(); }
 
-	void displayError(int error);
+	bool hasPopup() override { return ::OLED::isPopupPresent(); }
+
+	void consoleText(char const* text) override { ::OLED::consoleText(text); }
+
+	void timerRoutine() override { ::OLED::timerRoutine(); }
+
+	NumericLayer* topLayer = nullptr;
 };
 
-#ifdef HAVE_OLED
-using DisplayActual = Display<DisplayType::OLED>;
-#else
-using DisplayActual = Display<DisplayType::SevenSegment>;
-#endif
+class SevenSegment : public Display, public NumericDriver {
+public:
+	constexpr DisplayType type() override { return DisplayType::SevenSegment; }
 
-extern DisplayActual display;
+	constexpr size_t getNumBrowserAndMenuLines() override { return 1; }
+
+	void consoleText(char const* text) override { NumericDriver::displayPopup(text); }
+	void popupText(char const* text) override { NumericDriver::displayPopup(text); }
+	void popupTextTemporary(char const* text) override { NumericDriver::displayPopup(text); }
+
+	void removeWorkingAnimation() override {}
+
+	// Loading animations
+	void displayLoadingAnimationText(char const* text, bool delayed = false, bool transparent = false) override {
+		NumericDriver::displayLoadingAnimation(delayed, transparent);
+	}
+	void removeLoadingAnimation() override { NumericDriver::removeTopLayer(); }
+
+	void displayError(int error) override;
+	std::array<uint8_t, kNumericDisplayLength> getLast() override { return lastDisplay; } // to match NumericDriver
+};
+} // namespace display
+} // namespace deluge::hid
+
+extern deluge::hid::Display* display;
 
 extern "C" void consoleTextIfAllBootedUp(char const* text);

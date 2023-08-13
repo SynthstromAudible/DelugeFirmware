@@ -35,6 +35,6 @@ public:
 		                        18, 20);
 	}
 
-	void drawValue() override { display.setTextAsNumber(96 << this->getValue()); }
+	void drawValue() override { display->setTextAsNumber(96 << this->getValue()); }
 };
 } // namespace deluge::gui::menu_item::defaults

@@ -49,9 +49,9 @@ void KeyboardLayoutInKey::handleHorizontalEncoder(int32_t offset, bool shiftEnab
 		state.rowInterval = std::clamp(state.rowInterval, kMinInKeyRowInterval, kMaxInKeyRowInterval);
 
 		char buffer[13] = "Row step:   ";
-		int32_t offset = (display.type == DisplayType::OLED ? 10 : 0);
+		int32_t offset = (display->type() == DisplayType::OLED ? 10 : 0);
 		intToString(state.rowInterval, buffer + offset, 1);
-		display.displayPopup(buffer);
+		display->displayPopup(buffer);
 
 		offset = 0; // Reset offset variable for processing scroll calculation without actually shifting
 	}

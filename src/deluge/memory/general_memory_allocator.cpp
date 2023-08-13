@@ -65,7 +65,7 @@ void GeneralMemoryAllocator::checkStack(char const* caller) {
 		Debug::println(caller);
 
 		if (distance < 200) {
-			display.freezeWithError("E338");
+			display->freezeWithError("E338");
 			Debug::println("COLLISION");
 		}
 	}

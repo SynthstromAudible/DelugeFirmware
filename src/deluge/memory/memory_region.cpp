@@ -58,7 +58,7 @@ void MemoryRegion::sanityCheck() {
 	}
 
 	if (count > 1) {
-		display.freezeWithError("BBBB");
+		display->freezeWithError("BBBB");
 		Debug::println("multiple 0xc0080bc!!!!");
 	}
 	else if (count == 1) {
@@ -74,16 +74,16 @@ void MemoryRegion::verifyMemoryNotFree(void* address, uint32_t spaceSize) {
 		EmptySpaceRecord* emptySpaceRecord = (EmptySpaceRecord*)emptySpaces.getElementAddress(i);
 		if (emptySpaceRecord->address == (uint32_t)address) {
 			Debug::println("Exact address free!");
-			display.freezeWithError("dddffffd");
+			display->freezeWithError("dddffffd");
 		}
 		else if (emptySpaceRecord->address <= (uint32_t)address
 		         && (emptySpaceRecord->address + emptySpaceRecord->length > (uint32_t)address)) {
-			display.freezeWithError("dddd");
+			display->freezeWithError("dddd");
 			Debug::println("free mem overlap on left!");
 		}
 		else if ((uint32_t)address <= (uint32_t)emptySpaceRecord->address
 		         && ((uint32_t)address + spaceSize > emptySpaceRecord->address)) {
-			display.freezeWithError("eeee");
+			display->freezeWithError("eeee");
 			Debug::println("free mem overlap on right!");
 		}
 	}

@@ -1093,7 +1093,7 @@ int32_t NoteRow::editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareW
 	}
 #if ALPHA_OR_BETA_VERSION
 	else if (numToDelete < 0) { // If we overshot somehow
-		display.freezeWithError("E329");
+		display->freezeWithError("E329");
 	}
 #endif
 
@@ -2058,7 +2058,7 @@ void NoteRow::attemptLateStartOfNextNoteToPlay(ModelStackWithNoteRow* modelStack
 
 	if (timeAgo < 0) { // Gregory J got this. And Vinz
 #if ALPHA_OR_BETA_VERSION
-		display.displayPopup("E336"); // Popup only
+		display->displayPopup("E336"); // Popup only
 #endif
 		timeAgo = 0; // Just don't crash
 	}
@@ -3190,7 +3190,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 
 						// If there also was no RAM...
 						if (!paramManager.containsAnyMainParamCollections()) {
-							display.freezeWithError("E101");
+							display->freezeWithError("E101");
 						}
 					}
 
@@ -3198,13 +3198,13 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 					else {
 						int32_t error = paramManager.setupWithPatching();
 						if (error) {
-							display.freezeWithError("E010"); // If there also was no RAM, we're really in trouble.
+							display->freezeWithError("E010"); // If there also was no RAM, we're really in trouble.
 						}
 						Sound::initParams(&paramManager);
 
 						// This is at least not ideal, so we'd better tell the user
 						if (ALPHA_OR_BETA_VERSION) {
-							display.displayPopup("E073");
+							display->displayPopup("E073");
 						}
 					}
 				}

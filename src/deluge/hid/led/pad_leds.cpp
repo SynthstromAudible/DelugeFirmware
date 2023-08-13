@@ -437,7 +437,7 @@ void setupAudioClipCollapseOrExplodeAnimation(AudioClip* clip) {
 	Sample* sample = (Sample*)clip->sampleHolder.audioFile;
 
 	if (ALPHA_OR_BETA_VERSION && !sample) {
-		display.freezeWithError("E311");
+		display->freezeWithError("E311");
 	}
 
 	sampleMaxPeakFromZero = sample->getMaxPeakFromZero();
@@ -711,7 +711,7 @@ void changeRefreshTime(int32_t offset) {
 	setRefreshTime(newTime);
 	char buffer[12];
 	intToString(refreshTime, buffer);
-	display.displayPopup(buffer);
+	display->displayPopup(buffer);
 }
 
 void changeDimmerInterval(int32_t offset) {
@@ -721,7 +721,7 @@ void changeDimmerInterval(int32_t offset) {
 		setDimmerInterval(newInterval);
 	}
 
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		char text[20];
 		strcpy(text, "Brightness: ");
 		char* pos = strchr(text, 0);

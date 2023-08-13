@@ -102,7 +102,7 @@ void ArrangerView::moveClipToSession() {
 
 	// Empty ClipInstance - can't do
 	if (!clip) {
-		display.displayPopup(
+		display->displayPopup(
 		    deluge::l10n::get(deluge::l10n::String::STRING_FOR_EMPTY_CLIP_INSTANCES_CANT_BE_MOVED_TO_THE_SESSION));
 	}
 
@@ -130,7 +130,7 @@ void ArrangerView::moveClipToSession() {
 			clip->section = currentSong->getLowestSectionWithNoSessionClipForOutput(output);
 			int32_t error = currentSong->sessionClips.insertClipAtIndex(clip, intendedIndex);
 			if (error) {
-				display.displayError(error);
+				display->displayError(error);
 				return;
 			}
 			actionLogger.deleteAllLogs();
@@ -158,8 +158,8 @@ void ArrangerView::goToSongView() {
 	changeRootUI(&sessionView);
 }
 
-ActionResult ArrangerView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
-	using namespace hid::button;
+ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	using namespace deluge::hid::button;
 
 	InstrumentType newInstrumentType;
 
@@ -265,7 +265,7 @@ doChangeInstrumentType:
 			else {
 
 				// If load button held, go into LoadInstrumentPresetUI
-				if (Buttons::isButtonPressed(hid::button::LOAD)) {
+				if (Buttons::isButtonPressed(deluge::hid::button::LOAD)) {
 
 					// Can't do that for MIDI or CV tracks though
 					if (newInstrumentType == InstrumentType::MIDI_OUT || newInstrumentType == InstrumentType::CV) {
@@ -338,19 +338,19 @@ void ArrangerView::deleteOutput() {
 	char const* errorMessage;
 
 	if (currentSong->getNumOutputs() <= 1) {
-		display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_DELETE_FINAL_CLIP));
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_DELETE_FINAL_CLIP));
 		return;
 	}
 
 	for (int32_t i = 0; i < output->clipInstances.getNumElements(); i++) {
 		if (output->clipInstances.getElement(i)->clip) {
-			display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DELETE_ALL_TRACKS_CLIPS_FIRST));
+			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DELETE_ALL_TRACKS_CLIPS_FIRST));
 			return;
 		}
 	}
 
 	if (currentSong->getSessionClipWithOutput(output)) {
-		display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_TRACK_STILL_HAS_CLIPS_IN_SESSION));
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_TRACK_STILL_HAS_CLIPS_IN_SESSION));
 		return;
 	}
 
@@ -365,7 +365,7 @@ void ArrangerView::deleteOutput() {
 
 void ArrangerView::clearArrangement() {
 
-	display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_ARRANGEMENT_CLEARED));
+	display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_ARRANGEMENT_CLEARED));
 
 	if (arrangement.hasPlaybackActive()) {
 		playbackHandler.endPlayback();
@@ -427,7 +427,7 @@ void ArrangerView::focusRegained() {
 
 	repopulateOutputsOnScreen(false);
 
-	if (display.type != DisplayType::OLED) {
+	if (display->type() != DisplayType::OLED) {
 		sessionView.redrawNumericDisplay();
 	}
 	if (currentUIMode != UI_MODE_HOLDING_ARRANGEMENT_ROW) {
@@ -646,7 +646,7 @@ void ArrangerView::beginAudition(Output* output) {
 			if (noteRow) {
 				drum = noteRow->drum;
 				if (drum && drum->type == DrumType::SOUND && !noteRow->paramManager.containsAnyMainParamCollections()) {
-					display.freezeWithError("E324"); // Vinz got this! I may have since fixed.
+					display->freezeWithError("E324"); // Vinz got this! I may have since fixed.
 				}
 			}
 			else {
@@ -714,7 +714,7 @@ void ArrangerView::changeOutputToInstrument(InstrumentType newInstrumentType) {
 	}
 
 	if (currentSong->getClipWithOutput(oldOutput)) {
-		display.displayPopup(deluge::l10n::get(
+		display->displayPopup(deluge::l10n::get(
 		    deluge::l10n::String::STRING_FOR_AUDIO_TRACKS_WITH_CLIPS_CANT_BE_TURNED_INTO_AN_INSTRUMENT));
 		return;
 	}
@@ -733,7 +733,7 @@ void ArrangerView::changeOutputToInstrument(InstrumentType newInstrumentType) {
 	outputsOnScreen[yPressedEffective] = newInstrument;
 
 	view.displayOutputName(newInstrument);
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		OLED::sendMainImage();
 	}
 
@@ -749,7 +749,7 @@ Instrument* ArrangerView::createNewInstrument(InstrumentType newInstrumentType, 
 	result.error = Browser::currentDir.set(getInstrumentFolder(newInstrumentType));
 	if (result.error) {
 displayError:
-		display.displayError(result.error);
+		display->displayError(result.error);
 		return NULL;
 	}
 
@@ -847,7 +847,7 @@ doNewPress:
 			currentUIMode = UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION;
 
 			view.displayOutputName(output);
-			if (display.type == DisplayType::OLED) {
+			if (display->type() == DisplayType::OLED) {
 				OLED::sendMainImage();
 			}
 
@@ -877,7 +877,7 @@ void ArrangerView::auditionEnded() {
 	setNoSubMode();
 	setLedStates();
 
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		renderUIsForOled();
 	}
 	else {
@@ -910,7 +910,7 @@ ActionResult ArrangerView::padAction(int32_t x, int32_t y, int32_t velocity) {
 				}
 				else if (output->type == InstrumentType::KIT) {
 					if (velocity) {
-						display.displayPopup(deluge::l10n::get(
+						display->displayPopup(deluge::l10n::get(
 						    deluge::l10n::String::STRING_FOR_MIDI_MUST_BE_LEARNED_TO_KIT_ITEMS_INDIVIDUALLY));
 					}
 				}
@@ -1015,7 +1015,7 @@ doUnsolo:
 
 			case UI_MODE_NONE:
 				// If the user was just quick and is actually holding the record button but the submode just hasn't changed yet...
-				if (velocity && Buttons::isButtonPressed(hid::button::RECORD)) {
+				if (velocity && Buttons::isButtonPressed(deluge::hid::button::RECORD)) {
 					output->armedForRecording = !output->armedForRecording;
 					timerCallback();                 // Get into UI_MODE_VIEWING_RECORD_ARMING
 					return ActionResult::DEALT_WITH; // No need to draw anything
@@ -1155,7 +1155,7 @@ void ArrangerView::editPadAction(int32_t x, int32_t y, bool on) {
 
 					int32_t error = arrangement.doUniqueCloneOnClipInstance(clipInstance, clipInstance->length, true);
 					if (error) {
-						display.displayError(error);
+						display->displayError(error);
 					}
 					else {
 						uiNeedsRendering(this, 1 << y, 0);
@@ -1174,7 +1174,7 @@ void ArrangerView::editPadAction(int32_t x, int32_t y, bool on) {
 			int32_t squareEnd = getPosFromSquare(x + 1, xScroll);
 
 			if (squareStart >= squareEnd) {
-				display.freezeWithError("E210");
+				display->freezeWithError("E210");
 			}
 
 			// No previous press
@@ -1240,7 +1240,7 @@ makeNewInstance:
 						int32_t j = output->clipInstances.search(squareStart, GREATER_OR_EQUAL);
 						ClipInstance* nextClipInstance = output->clipInstances.getElement(j);
 						if (nextClipInstance && nextClipInstance->pos == squareStart) {
-							display.freezeWithError("E233"); // Yes, this happened to someone. Including me!!
+							display->freezeWithError("E233"); // Yes, this happened to someone. Including me!!
 						}
 					}
 
@@ -1294,14 +1294,14 @@ getItFromSection:
 						ClipInstance* nextInstance = output->clipInstances.getElement(pressedClipInstanceIndex + 1);
 						if (nextInstance) {
 							if (nextInstance->pos == squareStart) {
-								display.freezeWithError("E232");
+								display->freezeWithError("E232");
 							}
 						}
 					}
 
 					clipInstance = output->clipInstances.getElement(pressedClipInstanceIndex);
 					if (!clipInstance) {
-						display.displayError(ERROR_INSUFFICIENT_RAM);
+						display->displayError(ERROR_INSUFFICIENT_RAM);
 						return;
 					}
 
@@ -1315,21 +1315,21 @@ getItFromSection:
 					}
 
 					if (clipInstance->length < 1) {
-						display.freezeWithError("E049");
+						display->freezeWithError("E049");
 					}
 
 					ClipInstance* nextInstance = output->clipInstances.getElement(pressedClipInstanceIndex + 1);
 					if (nextInstance) {
 
 						if (nextInstance->pos == squareStart) {
-							display.freezeWithError("E209");
+							display->freezeWithError("E209");
 						}
 
 						int32_t maxLength = nextInstance->pos - squareStart;
 						if (clipInstance->length > maxLength) {
 							clipInstance->length = maxLength;
 							if (clipInstance->length < 1) {
-								display.freezeWithError("E048");
+								display->freezeWithError("E048");
 							}
 						}
 					}
@@ -1337,7 +1337,7 @@ getItFromSection:
 					if (clipInstance->length > kMaxSequenceLength - clipInstance->pos) {
 						clipInstance->length = kMaxSequenceLength - clipInstance->pos;
 						if (clipInstance->length < 1) {
-							display.freezeWithError("E045");
+							display->freezeWithError("E045");
 						}
 					}
 
@@ -1506,7 +1506,7 @@ justGetOut:
 
 								void* memory = GeneralMemoryAllocator::get().alloc(size, NULL, false, true);
 								if (!memory) {
-									display.displayError(ERROR_INSUFFICIENT_RAM);
+									display->displayError(ERROR_INSUFFICIENT_RAM);
 									goto justGetOut;
 								}
 
@@ -1537,7 +1537,7 @@ justGetOut:
 								}
 
 								if (error) {
-									display.displayError(error);
+									display->displayError(error);
 									newClip->~Clip();
 									GeneralMemoryAllocator::get().dealloc(memory);
 									goto justGetOut;
@@ -2239,7 +2239,7 @@ ActionResult ArrangerView::timerCallback() {
 		break;
 
 	case UI_MODE_NONE:
-		if (Buttons::isButtonPressed(hid::button::RECORD)) {
+		if (Buttons::isButtonPressed(deluge::hid::button::RECORD)) {
 			currentUIMode = UI_MODE_VIEWING_RECORD_ARMING;
 			PadLEDs::reassessGreyout(false);
 		case UI_MODE_VIEWING_RECORD_ARMING:
@@ -2335,7 +2335,7 @@ void ArrangerView::selectEncoderAction(int8_t offset) {
 			else { // Arrangement playback
 				if (offset == -1 && playbackHandler.stopOutputRecordingAtLoopEnd) {
 					playbackHandler.stopOutputRecordingAtLoopEnd = false;
-					if (display.type == DisplayType::OLED) {
+					if (display->type() == DisplayType::OLED) {
 						renderUIsForOled();
 					}
 					else {
@@ -2391,7 +2391,7 @@ void ArrangerView::changeInstrumentType(InstrumentType newInstrumentType) {
 	indicator_leds::setLedState(IndicatorLED::MIDI, false);
 	indicator_leds::setLedState(IndicatorLED::CV, false);
 	view.displayOutputName(newInstrument);
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		OLED::sendMainImage();
 	}
 	view.setActiveModControllableTimelineCounter(newInstrument->activeClip);
@@ -2408,7 +2408,7 @@ void ArrangerView::changeOutputToAudio() {
 
 	if (oldOutput->clipInstances.getNumElements()) {
 cant:
-		display.displayPopup(deluge::l10n::get(
+		display->displayPopup(deluge::l10n::get(
 		    deluge::l10n::String::STRING_FOR_INSTRUMENTS_WITH_CLIPS_CANT_BE_TURNED_INTO_AUDIO_TRACKS));
 		return;
 	}
@@ -2438,12 +2438,12 @@ cant:
 	if (instrumentClip) {
 		int32_t clipIndex = currentSong->sessionClips.getIndexForClip(instrumentClip);
 		if (ALPHA_OR_BETA_VERSION && clipIndex == -1) {
-			display.freezeWithError("E266");
+			display->freezeWithError("E266");
 		}
 		newClip = currentSong->replaceInstrumentClipWithAudioClip(instrumentClip, clipIndex);
 
 		if (!newClip) {
-			display.displayError(ERROR_INSUFFICIENT_RAM);
+			display->displayError(ERROR_INSUFFICIENT_RAM);
 			return;
 		}
 
@@ -2457,7 +2457,7 @@ cant:
 		// Suss output
 		newOutput = currentSong->createNewAudioOutput(oldOutput);
 		if (!newOutput) {
-			display.displayError(ERROR_INSUFFICIENT_RAM);
+			display->displayError(ERROR_INSUFFICIENT_RAM);
 			return;
 		}
 
@@ -2474,7 +2474,7 @@ cant:
 	indicator_leds::setLedState(IndicatorLED::MIDI, false);
 	indicator_leds::setLedState(IndicatorLED::CV, false);
 	view.displayOutputName(newOutput);
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		OLED::sendMainImage();
 	}
 	view.setActiveModControllableTimelineCounter(newClip);
@@ -2825,7 +2825,7 @@ static const uint32_t verticalEncoderUIModes[] = {UI_MODE_HOLDING_ARRANGEMENT_RO
 
 ActionResult ArrangerView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 
-	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::button::Y_ENC)) {
+	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
 		return ActionResult::DEALT_WITH;
 	}
 
@@ -3098,7 +3098,7 @@ void ArrangerView::playbackEnded() {
 	}
 
 	if (getCurrentUI() == &arrangerView) { // Why do we need to check this?
-		if (display.type == DisplayType::OLED) {
+		if (display->type() == DisplayType::OLED) {
 			renderUIsForOled();
 		}
 		else {

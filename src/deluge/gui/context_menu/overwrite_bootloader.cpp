@@ -46,14 +46,14 @@ constexpr size_t FLASH_WRITE_SIZE = 256; // Bigger doesn't seem to work...
 bool OverwriteBootloader::acceptCurrentOption() {
 	using enum l10n::String;
 
-	if (display.type != DisplayType::OLED) {
-		display.displayLoadingAnimation();
+	if (display->type() != DisplayType::OLED) {
+		display->displayLoadingAnimation();
 	}
 
 	int32_t error = storageManager.initSD();
 	if (error) {
 gotError:
-		display.displayError(error);
+		display->displayError(error);
 		return false;
 	}
 
@@ -87,7 +87,7 @@ gotFresultError:
 		if (dotPos != 0 && !strcasecmp(dotPos, ".BIN")) {
 
 			// We found our .bin file!
-			//displayPrompt("Found file");
+			//display->rompt("Found file");
 
 			uint32_t fileSize = fno.fsize;
 
@@ -95,13 +95,13 @@ gotFresultError:
 
 			// But make sure it's not too big
 			if (fileSize > 0x80000 - 0x1000) {
-				display.displayPopup(l10n::get(STRING_FOR_ERROR_BOOTLOADER_TOO_BIG));
+				display->displayPopup(l10n::get(STRING_FOR_ERROR_BOOTLOADER_TOO_BIG));
 				return false;
 			}
 
 			// Or to small
 			if (fileSize < 1024) {
-				display.displayPopup(l10n::get(STRING_FOR_ERROR_BOOTLOADER_TOO_SMALL));
+				display->displayPopup(l10n::get(STRING_FOR_ERROR_BOOTLOADER_TOO_SMALL));
 				return false;
 			}
 
@@ -144,16 +144,16 @@ gotFresultErrorAfterAllocating:
 
 			if (false) {
 gotFlashError:
-				display.removeWorkingAnimation();
-				if (display.type == DisplayType::OLED) {
+				display->removeWorkingAnimation();
+				if (display->type() == DisplayType::OLED) {
 					workingMessage = "Flash error. Trying again. Don't switch off";
 				}
 				else {
-					display.displayPopup("RETR");
+					display->displayPopup("RETR");
 				}
 			}
 
-			if (display.type == DisplayType::OLED) {
+			if (display->type() == DisplayType::OLED) {
 				OLED::displayWorkingAnimation(workingMessage);
 			}
 
@@ -195,14 +195,14 @@ gotFlashError:
 
 			GeneralMemoryAllocator::get().dealloc(buffer);
 
-			display.removeWorkingAnimation();
-			display.consoleText(l10n::get(STRING_FOR_BOOTLOADER_UPDATED));
+			display->removeWorkingAnimation();
+			display->consoleText(l10n::get(STRING_FOR_BOOTLOADER_UPDATED));
 
 			return false; // We do want to exit this context menu.
 		}
 	}
 
-	display.displayPopup(l10n::get(STRING_FOR_ERROR_BOOTLOADER_FILE_NOT_FOUND));
+	display->displayPopup(l10n::get(STRING_FOR_ERROR_BOOTLOADER_FILE_NOT_FOUND));
 	return false;
 }
 } // namespace deluge::gui::context_menu

@@ -44,7 +44,7 @@ char const* ClearSong::getTitle() {
 
 Sized<char const**> ClearSong::getOptions() {
 	using enum l10n::String;
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		static char const* options[] = {l10n::get(STRING_FOR_OK)};
 		return {options, 1};
 	}
@@ -114,7 +114,7 @@ bool ClearSong::acceptCurrentOption() {
 	setUIForLoadedSong(currentSong);
 	currentUIMode = UI_MODE_NONE;
 
-	display.removeWorkingAnimation();
+	display->removeWorkingAnimation();
 
 	return true;
 }

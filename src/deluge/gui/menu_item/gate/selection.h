@@ -48,7 +48,7 @@ public:
 		}
 		soundEditor.currentSourceIndex = this->getValue();
 
-		if (display.type == DisplayType::OLED) {
+		if (display->type() == DisplayType::OLED) {
 			gateModeMenu.format(this->getValue());
 		}
 

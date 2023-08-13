@@ -90,7 +90,7 @@ void QuickSorter::sort(int32_t numElements) {
 	for (int32_t i = 1; i < numElements; i++) {
 		int32_t keyHere = getKey(i);
 		if (keyHere < lastKey) {
-			display.freezeWithError("SORT");
+			display->freezeWithError("SORT");
 		}
 		lastKey = keyHere;
 	}

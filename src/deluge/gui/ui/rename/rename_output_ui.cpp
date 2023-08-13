@@ -33,7 +33,7 @@ RenameOutputUI::RenameOutputUI() {
 }
 
 bool RenameOutputUI::opened() {
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		if (output->type == InstrumentType::AUDIO) {
 			title = "Rename track";
 		}
@@ -61,8 +61,8 @@ bool RenameOutputUI::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
 	return true;
 }
 
-ActionResult RenameOutputUI::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
-	using namespace hid::button;
+ActionResult RenameOutputUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	using namespace deluge::hid::button;
 
 	// Back button
 	if (b == BACK) {
@@ -100,7 +100,7 @@ void RenameOutputUI::enterKeyPress() {
 	// If actually changing it...
 	if (!output->name.equalsCaseIrrespective(&enteredText)) {
 		if (currentSong->getAudioOutputFromName(&enteredText)) {
-			display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DUPLICATE_NAMES));
+			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DUPLICATE_NAMES));
 			return;
 		}
 	}
@@ -110,7 +110,7 @@ void RenameOutputUI::enterKeyPress() {
 }
 
 void RenameOutputUI::exitUI() {
-	display.setNextTransitionDirection(-1);
+	display->setNextTransitionDirection(-1);
 	close();
 }
 
@@ -133,7 +133,7 @@ ActionResult RenameOutputUI::padAction(int32_t x, int32_t y, int32_t on) {
 }
 
 ActionResult RenameOutputUI::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
-	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::button::X_ENC)) {
+	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
 		return ActionResult::DEALT_WITH;
 	}
 	return arrangerView.verticalEncoderAction(offset, inCardRoutine);

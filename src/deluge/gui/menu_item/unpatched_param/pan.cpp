@@ -39,7 +39,7 @@ void Pan::drawValue() {    // TODO: should really combine this with the "patched
 	else if (this->getValue() > 0) {
 		strcat(buffer, "R");
 	}
-	display.setText(buffer, true, drawDot);
+	display->setText(buffer, true, drawDot);
 }
 
 int32_t Pan::getFinalValue() {

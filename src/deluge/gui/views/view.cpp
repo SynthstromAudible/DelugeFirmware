@@ -117,8 +117,8 @@ void View::setTripletsLedState() {
 
 extern GlobalMIDICommand pendingGlobalMIDICommandNumClustersWritten;
 
-ActionResult View::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
-	using namespace hid::button;
+ActionResult View::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	using namespace deluge::hid::button;
 
 	GlobalMIDICommand newGlobalMidiCommand;
 
@@ -216,8 +216,9 @@ doEndMidiLearnPressSession:
 	// Save button
 	else if (b == SAVE) {
 
-		if (!Buttons::isButtonPressed(hid::button::SYNTH) && !Buttons::isButtonPressed(hid::button::KIT)
-		    && !Buttons::isButtonPressed(hid::button::MIDI) && !Buttons::isButtonPressed(hid::button::CV)) {
+		if (!Buttons::isButtonPressed(deluge::hid::button::SYNTH) && !Buttons::isButtonPressed(deluge::hid::button::KIT)
+		    && !Buttons::isButtonPressed(deluge::hid::button::MIDI)
+		    && !Buttons::isButtonPressed(deluge::hid::button::CV)) {
 			// Press down
 			if (on) {
 				if (currentUIMode == UI_MODE_NONE && !Buttons::isShiftButtonPressed()) {
@@ -238,7 +239,7 @@ doEndMidiLearnPressSession:
 
 					if ((int32_t)(AudioEngine::audioSampleTimer - timeSaveButtonPressed) < kShortPressTime) {
 						if (currentSong->hasAnyPendingNextOverdubs()) {
-							display.displayPopup(
+							display->displayPopup(
 							    deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_SAVE_WHILE_OVERDUBS_PENDING));
 						}
 						else {
@@ -256,8 +257,9 @@ doEndMidiLearnPressSession:
 	// Load button
 	else if (b == LOAD) {
 
-		if (!Buttons::isButtonPressed(hid::button::SYNTH) && !Buttons::isButtonPressed(hid::button::KIT)
-		    && !Buttons::isButtonPressed(hid::button::MIDI) && !Buttons::isButtonPressed(hid::button::CV)) {
+		if (!Buttons::isButtonPressed(deluge::hid::button::SYNTH) && !Buttons::isButtonPressed(deluge::hid::button::KIT)
+		    && !Buttons::isButtonPressed(deluge::hid::button::MIDI)
+		    && !Buttons::isButtonPressed(deluge::hid::button::CV)) {
 			// Press down
 			if (on) {
 				if (currentUIMode == UI_MODE_NONE) {
@@ -311,7 +313,7 @@ doEndMidiLearnPressSession:
 
 			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
 cant:
-				display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
+				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 				return ActionResult::DEALT_WITH;
 			}
 
@@ -405,7 +407,7 @@ possiblyRevert:
 		if (on && currentUIMode == UI_MODE_NONE) {
 
 			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-				display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
+				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 				return ActionResult::DEALT_WITH;
 			}
 
@@ -413,7 +415,7 @@ possiblyRevert:
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
-			display.setNextTransitionDirection(1);
+			display->setNextTransitionDirection(1);
 			soundEditor.setup();
 			openUI(&soundEditor);
 		}
@@ -908,10 +910,10 @@ void View::instrumentBeenEdited() {
 void View::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 
 	// If the learn button is pressed, user is trying to copy or paste, and the fact that we've ended up here means they can't
-	if (Buttons::isButtonPressed(hid::button::LEARN)) {
-		if (display.type != DisplayType::OLED) {
+	if (Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
+		if (display->type() != DisplayType::OLED) {
 			if (on) {
-				display.displayPopup("CANT");
+				display->displayPopup("CANT");
 			}
 		}
 		return;
@@ -928,7 +930,7 @@ void View::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 			if (modelStackWithParam && modelStackWithParam->autoParam) {
 				Action* action = actionLogger.getNewAction(ACTION_AUTOMATION_DELETE, false);
 				modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam);
-				display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_AUTOMATION_DELETED));
+				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_AUTOMATION_DELETED));
 			}
 
 			return;
@@ -1194,7 +1196,7 @@ void View::cycleThroughReverbPresets() {
 	AudioEngine::reverb.setroomsize((float)presetReverbRoomSize[newPreset] / 50);
 	AudioEngine::reverb.setdamp((float)presetReverbDampening[newPreset] / 50);
 
-	display.displayPopup(deluge::l10n::get(presetReverbNames[newPreset]));
+	display->displayPopup(deluge::l10n::get(presetReverbNames[newPreset]));
 }
 
 // If OLED, must make sure OLED::sendMainImage() gets called after this.
@@ -1268,7 +1270,7 @@ void View::drawOutputNameFromDetails(InstrumentType instrumentType, int32_t chan
 		setLedState(LED::CROSS_SCREEN_EDIT, (clip && clip->wrapEditing));
 	}
 
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		OLED::clearMainImage();
 		char const* outputTypeText;
 		switch (instrumentType) {
@@ -1304,7 +1306,7 @@ void View::drawOutputNameFromDetails(InstrumentType instrumentType, int32_t chan
 	char const* nameToDraw = nullptr;
 
 	if (name && name[0]) {
-		if (display.type == DisplayType::OLED) {
+		if (display->type() == DisplayType::OLED) {
 			nameToDraw = name;
 oledDrawString:
 #if OLED_MAIN_HEIGHT_PIXELS == 64
@@ -1331,8 +1333,8 @@ oledDrawString:
 		}
 		else {
 			bool andAHalf;
-			if (display.getEncodedPosFromLeft(99999, name, &andAHalf) > kNumericDisplayLength) { // doBlink &&
-				display.setScrollingText(name, 0, kInitialFlashTime + kFlashTime);
+			if (display->getEncodedPosFromLeft(99999, name, &andAHalf) > kNumericDisplayLength) { // doBlink &&
+				display->setScrollingText(name, 0, kInitialFlashTime + kFlashTime);
 			}
 			else {
 				// If numeric-looking, we might want to align right.
@@ -1365,12 +1367,12 @@ yesAlignRight:
 					}
 				}
 
-				display.setText(name, alignRight, dotPos, doBlink);
+				display->setText(name, alignRight, dotPos, doBlink);
 			}
 		}
 	}
 	else if (instrumentType == InstrumentType::MIDI_OUT) {
-		if (display.type == DisplayType::OLED) {
+		if (display->type() == DisplayType::OLED) {
 			if (channel < 16) {
 				slotToString(channel + 1, channelSuffix, buffer, 1);
 				goto oledOutputBuffer;
@@ -1382,23 +1384,23 @@ yesAlignRight:
 		}
 		else {
 			if (channel < 16) {
-				display.setTextAsSlot(channel + 1, channelSuffix, false, doBlink);
+				display->setTextAsSlot(channel + 1, channelSuffix, false, doBlink);
 			}
 			else {
 				char const* text = (channel == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "Lower" : "Upper";
-				display.setText(text, false, 255, doBlink);
+				display->setText(text, false, 255, doBlink);
 			}
 		}
 	}
 	else if (instrumentType == InstrumentType::CV) {
-		if (display.type == DisplayType::OLED) {
+		if (display->type() == DisplayType::OLED) {
 			intToString(channel + 1, buffer);
 oledOutputBuffer:
 			nameToDraw = buffer;
 			goto oledDrawString;
 		}
 		else {
-			display.setTextAsNumber(channel + 1, 255, doBlink);
+			display->setTextAsNumber(channel + 1, 255, doBlink);
 		}
 	}
 }
@@ -1418,7 +1420,7 @@ void View::navigateThroughAudioOutputsForAudioClip(int32_t offset, AudioClip* cl
 	currentSong->canOldOutputBeReplaced(clip, &availabilityRequirement);
 
 	if (availabilityRequirement == Availability::INSTRUMENT_UNUSED) {
-		display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIP_HAS_INSTANCES_IN_ARRANGER));
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIP_HAS_INSTANCES_IN_ARRANGER));
 		return;
 	}
 
@@ -1437,7 +1439,7 @@ void View::navigateThroughAudioOutputsForAudioClip(int32_t offset, AudioClip* cl
 	}
 
 	displayOutputName(newOutput, doBlink);
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		OLED::sendMainImage();
 	}
 
@@ -1490,7 +1492,7 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 				newChannel = (newChannel + offset) & (NUM_CV_CHANNELS - 1);
 
 				if (newChannel == oldNonAudioInstrument->channel) {
-					display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_UNUSED_CHANNELS));
+					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_UNUSED_CHANNELS));
 					return;
 				}
 
@@ -1550,7 +1552,7 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 				if (newChannel == oldChannel
 				    && newChannelSuffix == ((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix) {
 					oldNonAudioInstrument->channel = oldChannel; // Put it back
-					display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_UNUSED_CHANNELS));
+					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_UNUSED_CHANNELS));
 					return;
 				}
 
@@ -1615,7 +1617,7 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 				newInstrument =
 				    storageManager.createNewNonAudioInstrument(instrumentType, newChannel, newChannelSuffix);
 				if (!newInstrument) {
-					display.displayError(ERROR_INSUFFICIENT_RAM);
+					display->displayError(ERROR_INSUFFICIENT_RAM);
 					return;
 				}
 
@@ -1645,7 +1647,7 @@ gotAnInstrument:
 		}
 
 		displayOutputName(newInstrument, doBlink);
-		if (display.type == DisplayType::OLED) {
+		if (display->type() == DisplayType::OLED) {
 			OLED::sendMainImage();
 		}
 	}
@@ -1657,11 +1659,11 @@ gotAnInstrument:
 		    loadInstrumentPresetUI.doPresetNavigation(offset, oldInstrument, availabilityRequirement, false);
 		if (results.error == NO_ERROR_BUT_GET_OUT) {
 getOut:
-			display.removeWorkingAnimation();
+			display->removeWorkingAnimation();
 			return;
 		}
 		else if (results.error) {
-			display.displayError(results.error);
+			display->displayError(results.error);
 			goto getOut;
 		}
 
@@ -1682,14 +1684,14 @@ getOut:
 						        kit, soundDrum)) { // If no ParamManager with a NoteRow somewhere...
 
 							if (results.loadedFromFile) {
-								display.freezeWithError("E103");
+								display->freezeWithError("E103");
 							}
 							else if (instrumentAlreadyInSong) {
-								display.freezeWithError("E104");
+								display->freezeWithError("E104");
 							}
 							else {
 								// Sven got - very rare! This means Kit was hibernating, I guess.
-								display.freezeWithError("E105");
+								display->freezeWithError("E105");
 							}
 						}
 					}
@@ -1736,7 +1738,7 @@ getOut:
 			uiNeedsRendering(&instrumentClipView);
 		}
 
-		display.removeLoadingAnimation();
+		display->removeLoadingAnimation();
 	}
 
 	instrumentChanged(modelStack, newInstrument);
@@ -1764,7 +1766,7 @@ bool View::changeInstrumentType(InstrumentType newInstrumentType, ModelStackWith
 
 	setActiveModControllableTimelineCounter(clip); // Do a redraw. Obviously the Clip is the same
 	displayOutputName(newInstrument, doBlink);
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		OLED::sendMainImage();
 	}
 
@@ -1909,7 +1911,7 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 
 	case UI_MODE_NONE:
 		// If the user was just quick and is actually holding the record button but the submode just hasn't changed yet...
-		if (on && Buttons::isButtonPressed(hid::button::RECORD)) {
+		if (on && Buttons::isButtonPressed(deluge::hid::button::RECORD)) {
 			clip->armedForRecording = !clip->armedForRecording;
 			sessionView
 			    .timerCallback(); // Get into UI_MODE_VIEWING_RECORD_ARMING. TODO: this needs doing properly - what if we're in a Clip view?

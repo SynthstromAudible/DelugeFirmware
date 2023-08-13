@@ -91,7 +91,7 @@ bool LoadInstrumentPresetUI::opened() {
 	int32_t error = beginSlotSession(); // Requires currentDir to be set. (Not anymore?)
 	if (error) {
 gotError:
-		display.displayError(error);
+		display->displayError(error);
 		return false;
 	}
 
@@ -121,7 +121,7 @@ int32_t LoadInstrumentPresetUI::setupForInstrumentType() {
 		indicator_leds::blinkLed(IndicatorLED::KIT);
 	}
 
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		fileIcon = (instrumentTypeToLoad == InstrumentType::SYNTH) ? OLED::synthIcon : OLED::kitIcon;
 		title = (instrumentTypeToLoad == InstrumentType::SYNTH) ? "Load synth" : "Load kit";
 	}
@@ -197,7 +197,7 @@ useDefaultFolder:
 		renderingNeededRegardlessOfUI(0, 0xFFFFFFFF);
 	}
 
-	if (display.type != DisplayType::OLED) {
+	if (display->type() != DisplayType::OLED) {
 		displayText(false);
 	}
 	return NO_ERROR;
@@ -231,7 +231,7 @@ void LoadInstrumentPresetUI::enterKeyPress() {
 		int32_t error = goIntoFolder(currentFileItem->filename.get());
 
 		if (error) {
-			display.displayError(error);
+			display->displayError(error);
 			close(); // Don't use goBackToSoundEditor() because that would do a left-scroll
 			return;
 		}
@@ -242,7 +242,7 @@ void LoadInstrumentPresetUI::enterKeyPress() {
 		if (currentInstrumentLoadError) {
 			currentInstrumentLoadError = performLoad();
 			if (currentInstrumentLoadError) {
-				display.displayError(currentInstrumentLoadError);
+				display->displayError(currentInstrumentLoadError);
 				return;
 			}
 		}
@@ -261,8 +261,8 @@ void LoadInstrumentPresetUI::enterKeyPress() {
 	}
 }
 
-ActionResult LoadInstrumentPresetUI::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
-	using namespace hid::button;
+ActionResult LoadInstrumentPresetUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	using namespace deluge::hid::button;
 
 	InstrumentType newInstrumentType;
 
@@ -335,20 +335,20 @@ ActionResult LoadInstrumentPresetUI::timerCallback() {
 		String filePath;
 		int32_t error = getCurrentFilePath(&filePath);
 		if (error != 0) {
-			display.displayError(error);
+			display->displayError(error);
 			return ActionResult::DEALT_WITH;
 		}
 
 		bool fileExists = storageManager.fileExists(filePath.get(), &currentFileItem->filePointer);
 		if (!fileExists) {
-			display.displayError(ERROR_FILE_NOT_FOUND);
+			display->displayError(ERROR_FILE_NOT_FOUND);
 			return ActionResult::DEALT_WITH;
 		}
 
 		bool available = gui::context_menu::loadInstrumentPreset.setupAndCheckAvailability();
 
 		if (available) {
-			display.setNextTransitionDirection(1);
+			display->setNextTransitionDirection(1);
 			convertToPrefixFormatIfPossible();
 			openUI(&gui::context_menu::loadInstrumentPreset);
 		}
@@ -393,14 +393,14 @@ void LoadInstrumentPresetUI::changeInstrumentType(InstrumentType newInstrumentTy
 			// If going back to a view where the new selection won't immediately be displayed, gotta give some confirmation
 			if (!getRootUI()->toClipMinder()) {
 				char const* message;
-				if (display.type == DisplayType::OLED) {
+				if (display->type() == DisplayType::OLED) {
 					message = ((newInstrumentType == InstrumentType::MIDI_OUT) ? "Instrument switched to MIDI channel"
 					                                                           : "Instrument switched to CV channel");
 				}
 				else {
 					message = "DONE";
 				}
-				display.displayPopup(message);
+				display->displayPopup(message);
 			}
 
 			close();
@@ -418,7 +418,7 @@ void LoadInstrumentPresetUI::changeInstrumentType(InstrumentType newInstrumentTy
 			return;
 		}
 
-		if (display.type == DisplayType::OLED) {
+		if (display->type() == DisplayType::OLED) {
 			renderUIsForOled();
 		}
 		performLoad();
@@ -601,7 +601,7 @@ bool LoadInstrumentPresetUI::findUnusedSlotVariation(String* oldName, String* ne
 	char const* oldNameChars = oldName->get();
 	int32_t oldNameLength = strlen(oldNameChars);
 
-	if (display.type != DisplayType::OLED) {
+	if (display->type() != DisplayType::OLED) {
 		int32_t subSlot = -1;
 		// For numbered slots
 		if (oldNameLength == 3) {
@@ -765,7 +765,7 @@ int32_t LoadInstrumentPresetUI::performLoad(bool doClone) {
 
 	FileItem* currentFileItem = getCurrentFileItem();
 	if (!currentFileItem) {
-		return display.type == DisplayType::OLED
+		return display->type() == DisplayType::OLED
 		           ? ERROR_FILE_NOT_FOUND
 		           : ERROR_NO_FURTHER_FILES_THIS_DIRECTION; // Make it say "NONE" on numeric Deluge, for consistency with old times.
 	}
@@ -851,10 +851,10 @@ giveUsedError:
 			newInstrument->editedByUser = true;
 		}
 	}
-	display.displayLoadingAnimationText("Loading", false, true);
+	display->displayLoadingAnimationText("Loading", false, true);
 	int32_t error = newInstrument->loadAllAudioFiles(true);
 
-	display.removeLoadingAnimation();
+	display->removeLoadingAnimation();
 
 	// If error, most likely because user interrupted sample loading process...
 	if (error) {
@@ -931,7 +931,7 @@ giveUsedError:
 	}
 
 	instrumentToReplace = newInstrument;
-	display.removeWorkingAnimation();
+	display->removeWorkingAnimation();
 
 	return NO_ERROR;
 }
@@ -951,7 +951,7 @@ ActionResult LoadInstrumentPresetUI::padAction(int32_t x, int32_t y, int32_t on)
 		}
 		if (currentInstrumentLoadError) {
 			if (on) {
-				display.displayError(currentInstrumentLoadError);
+				display->displayError(currentInstrumentLoadError);
 			}
 		}
 		else {
@@ -979,7 +979,7 @@ potentiallyExit:
 
 ActionResult LoadInstrumentPresetUI::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	if (showingAuditionPads()) {
-		if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::button::X_ENC)) {
+		if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
 			return ActionResult::DEALT_WITH;
 		}
 
@@ -1406,7 +1406,7 @@ doneMoving:
 		view.drawOutputNameFromDetails(instrumentType, 0, 0, newName.get(), false, doBlink);
 	}
 
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		OLED::sendMainImage(); // Sorta cheating - bypassing the UI layered renderer.
 	}
 
@@ -1443,7 +1443,7 @@ doPendingPresetNavigation:
 
 	//view.displayOutputName(toReturn.fileItem->instrument);
 
-	display.displayLoadingAnimationText("Loading", false, true);
+	display->displayLoadingAnimationText("Loading", false, true);
 	int32_t oldUIMode = currentUIMode;
 	currentUIMode = UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED;
 	toReturn.fileItem->instrument->loadAllAudioFiles(true);

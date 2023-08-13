@@ -49,10 +49,10 @@ void SampleCache::clusterStolen(int32_t clusterIndex) {
 
 #if ALPHA_OR_BETA_VERSION
 	if (clusterIndex < 0) {
-		display.freezeWithError("E296");
+		display->freezeWithError("E296");
 	}
 	else if (clusterIndex >= numClusters) {
-		display.freezeWithError("E297");
+		display->freezeWithError("E297");
 	}
 #endif
 
@@ -71,16 +71,16 @@ void SampleCache::clusterStolen(int32_t clusterIndex) {
 
 #if ALPHA_OR_BETA_VERSION
 	if (writeBytePos < 0) {
-		display.freezeWithError("E298");
+		display->freezeWithError("E298");
 	}
 	else if (writeBytePos >= waveformLengthBytes) {
-		display.freezeWithError("E299");
+		display->freezeWithError("E299");
 	}
 
 	int32_t numExistentClusters = getNumExistentClusters(writeBytePos);
 
 	if (numExistentClusters != clusterIndex) {
-		display.freezeWithError("E295");
+		display->freezeWithError("E295");
 	}
 	clusters[clusterIndex] =
 	    NULL; // No need to remove this first Cluster from a queue or anything - that's already all done by the thing that's stealing it
@@ -92,7 +92,7 @@ void SampleCache::unlinkClusters(int32_t startAtIndex, bool beingDestructed) {
 	int32_t numExistentClusters = getNumExistentClusters(writeBytePos);
 	for (int32_t i = startAtIndex; i < numExistentClusters; i++) {
 		if (ALPHA_OR_BETA_VERSION && !clusters[i]) {
-			display.freezeWithError("E167");
+			display->freezeWithError("E167");
 		}
 
 		audioFileManager.deallocateCluster(clusters[i]);
@@ -108,15 +108,15 @@ void SampleCache::setWriteBytePos(int32_t newWriteBytePos) {
 
 #if ALPHA_OR_BETA_VERSION
 	if (newWriteBytePos < 0) {
-		display.freezeWithError("E300");
+		display->freezeWithError("E300");
 	}
 	if (newWriteBytePos > waveformLengthBytes) {
-		display.freezeWithError("E301");
+		display->freezeWithError("E301");
 	}
 
 	uint32_t bytesPerSample = sample->numChannels * kCacheByteDepth;
 	if (newWriteBytePos != (uint32_t)newWriteBytePos / bytesPerSample * bytesPerSample) {
-		display.freezeWithError("E302");
+		display->freezeWithError("E302");
 	}
 #endif
 
@@ -129,7 +129,7 @@ void SampleCache::setWriteBytePos(int32_t newWriteBytePos) {
 	writeBytePos = newWriteBytePos;
 
 	if (ALPHA_OR_BETA_VERSION && getNumExistentClusters(writeBytePos) != newNumExistentClusters) {
-		display.freezeWithError("E294");
+		display->freezeWithError("E294");
 	}
 }
 
@@ -140,10 +140,10 @@ bool SampleCache::setupNewCluster(int32_t clusterIndex) {
 
 #if ALPHA_OR_BETA_VERSION
 	if (clusterIndex >= numClusters) {
-		display.freezeWithError("E126");
+		display->freezeWithError("E126");
 	}
 	if (clusterIndex > getNumExistentClusters(writeBytePos)) {
-		display.freezeWithError("E293");
+		display->freezeWithError("E293");
 	}
 #endif
 
@@ -217,10 +217,10 @@ int32_t SampleCache::getNumExistentClusters(int32_t thisWriteBytePos) {
 
 #if ALPHA_OR_BETA_VERSION
 	if (numExistentClusters < 0) {
-		display.freezeWithError("E303");
+		display->freezeWithError("E303");
 	}
 	if (numExistentClusters > numClusters) {
-		display.freezeWithError("E304");
+		display->freezeWithError("E304");
 	}
 #endif
 

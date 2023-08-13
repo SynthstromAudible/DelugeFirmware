@@ -45,7 +45,7 @@ bool LoadInstrumentPreset::acceptCurrentOption() {
 	default: // Clone
 		error = loadInstrumentPresetUI.performLoad(true);
 		if (error) {
-			display.displayError(error);
+			display->displayError(error);
 			return true;
 		}
 		loadInstrumentPresetUI.close();

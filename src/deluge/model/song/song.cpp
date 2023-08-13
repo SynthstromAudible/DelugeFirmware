@@ -331,7 +331,7 @@ couldntLoad:
 			if (!newInstrument) {
 				result.error = ERROR_INSUFFICIENT_RAM;
 reallyScrewed:
-				display.displayError(result.error);
+				display->displayError(result.error);
 				while (1) {}
 			}
 
@@ -349,7 +349,7 @@ gotError2:
 			}
 
 			((SoundInstrument*)newInstrument)->setupAsDefaultSynth(&newParamManager);
-			display.displayError(result.error); // E.g. show the CARD error.
+			display->displayError(result.error); // E.g. show the CARD error.
 		}
 
 		newInstrument->loadAllAudioFiles(true);
@@ -1794,7 +1794,7 @@ traverseClips:
 
 				if (lookingForIndex >= clips->getNumElements()) {
 #if ALPHA_OR_BETA_VERSION
-					display.displayPopup("E248");
+					display->displayPopup("E248");
 #endif
 skipInstance:
 					thisOutput->clipInstances.deleteAtIndex(i);
@@ -1807,7 +1807,7 @@ skipInstance:
 				// If Instrument mismatch somehow...
 				if (thisInstance->clip->output != thisOutput) {
 #if ALPHA_OR_BETA_VERSION
-					display.displayPopup("E451"); // Changed from E041 - was a duplicate.
+					display->displayPopup("E451"); // Changed from E041 - was a duplicate.
 #endif
 					goto skipInstance;
 				}
@@ -1816,7 +1816,7 @@ skipInstance:
 				if (isArrangementClip && thisInstance->clip->gotInstanceYet) {
 
 #if ALPHA_OR_BETA_VERSION
-					display.displayPopup("E042");
+					display->displayPopup("E042");
 #endif
 					goto skipInstance;
 				}
@@ -1852,7 +1852,7 @@ skipInstance:
 
 		if (!clip->gotInstanceYet) {
 #if ALPHA_OR_BETA_VERSION
-			display.displayPopup("E043");
+			display->displayPopup("E043");
 #endif
 			if (currentClip == clip) {
 				currentClip = NULL;
@@ -2759,7 +2759,7 @@ void Song::deleteClipObject(Clip* clip, bool songBeingDestroyedToo, InstrumentRe
 #if ALPHA_OR_BETA_VERSION
 	if (clip->type == CLIP_TYPE_AUDIO) {
 		if (((AudioClip*)clip)->recorder) {
-			display.freezeWithError("i001"); // Trying to diversify Qui's E278
+			display->freezeWithError("i001"); // Trying to diversify Qui's E278
 		}
 	}
 #endif
@@ -2973,8 +2973,8 @@ allDone:
 void Song::replaceInstrument(Instrument* oldOutput, Instrument* newOutput, bool keepNoteRowsWithMIDIInput) {
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
 		if (thisOutput == newOutput) {
-			display.cancelPopup();
-			display.freezeWithError("i009");
+			display->cancelPopup();
+			display->freezeWithError("i009");
 		}
 	}
 
@@ -3567,15 +3567,15 @@ void Song::deleteBackedUpParamManagersForClip(Clip* clip) {
 		if (i >= 1) {
 
 			if (backedUp->modControllable < lastModControllable) {
-				display.freezeWithError("E053");
+				display->freezeWithError("E053");
 			}
 
 			else if (backedUp->modControllable == lastModControllable) {
 				if (backedUp->clip < lastClip) {
-					display.freezeWithError("E054");
+					display->freezeWithError("E054");
 				}
 				else if (backedUp->clip == lastClip) {
-					display.freezeWithError("E055");
+					display->freezeWithError("E055");
 				}
 			}
 		}
@@ -3885,7 +3885,7 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 				if (!getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)output->toModControllable(),
 				                                               NULL)) {
 #if ALPHA_OR_BETA_VERSION
-					display.displayPopup("E044");
+					display->displayPopup("E044");
 #endif
 					deleteOutputThatIsInMainList(
 					    output,
@@ -3907,7 +3907,7 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 					if (!getBackedUpParamManagerPreferablyWithClip(soundDrum, NULL)) { // If no backedUpParamManager...
 						if (!findParamManagerForDrum(kit,
 						                             soundDrum)) { // If no ParamManager with a NoteRow somewhere...
-							display.freezeWithError("E102");
+							display->freezeWithError("E102");
 						}
 					}
 				}
@@ -4085,7 +4085,7 @@ void Song::ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* error
 		else {
 			if (!getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)thisOutput->toModControllable(),
 			                                               NULL)) {
-				display.freezeWithError(errorMessageNormal);
+				display->freezeWithError(errorMessageNormal);
 			}
 		}
 	}
@@ -4101,14 +4101,14 @@ void Song::ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* error
 
 		// If has Clip, it shouldn't!
 		if (getClipWithOutput(thisInstrument)) {
-			display.freezeWithError(
+			display->freezeWithError(
 			    "E056"); // gtridr got, V4.0.0-beta2. Before I fixed memory corruption issues, so hopefully could just be that.
 		}
 
 		else {
 			if (!getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)thisInstrument->toModControllable(),
 			                                               NULL)) {
-				display.freezeWithError(errorMessageHibernating);
+				display->freezeWithError(errorMessageHibernating);
 			}
 		}
 	}
@@ -4371,7 +4371,7 @@ Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset
 
 				if (newChannel == oldChannel) {
 cantDoIt:
-					display.displayPopup(l10n::get(l10n::String::STRING_FOR_NO_FREE_CHANNEL_SLOTS_AVAILABLE_IN_SONG));
+					display->displayPopup(l10n::get(l10n::String::STRING_FOR_NO_FREE_CHANNEL_SLOTS_AVAILABLE_IN_SONG));
 					return output;
 				}
 
@@ -4424,7 +4424,7 @@ cantDoIt:
 		}
 
 		view.displayOutputName(oldNonAudioInstrument);
-		if (display.type == DisplayType::OLED) {
+		if (display->type() == DisplayType::OLED) {
 			OLED::sendMainImage();
 		}
 	}
@@ -4435,13 +4435,13 @@ cantDoIt:
 		    loadInstrumentPresetUI.doPresetNavigation(offset, oldInstrument, Availability::INSTRUMENT_UNUSED, true);
 		if (results.error == NO_ERROR_BUT_GET_OUT) {
 removeWorkingAnimationAndGetOut:
-			if (display.type == DisplayType::OLED) {
+			if (display->type() == DisplayType::OLED) {
 				OLED::removeWorkingAnimation();
 			}
 			return output;
 		}
 		else if (results.error) {
-			display.displayError(results.error);
+			display->displayError(results.error);
 			goto removeWorkingAnimationAndGetOut;
 		}
 
@@ -4451,7 +4451,7 @@ removeWorkingAnimationAndGetOut:
 		currentSong->replaceInstrument(oldInstrument, newInstrument);
 
 		oldInstrument = newInstrument;
-		display.removeLoadingAnimation();
+		display->removeLoadingAnimation();
 	}
 
 	currentSong->instrumentSwapped(oldInstrument);
@@ -4543,7 +4543,7 @@ Instrument* Song::changeInstrumentType(Instrument* oldInstrument, InstrumentType
 
 			// If we've searched all channels...
 			if (newSlot == oldSlot) {
-				display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_AVAILABLE_CHANNELS));
+				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_AVAILABLE_CHANNELS));
 				return NULL;
 			}
 		}
@@ -4556,7 +4556,7 @@ Instrument* Song::changeInstrumentType(Instrument* oldInstrument, InstrumentType
 		}
 		newInstrument = storageManager.createNewNonAudioInstrument(newInstrumentType, newSlot, newSubSlot);
 		if (!newInstrument) {
-			display.displayError(ERROR_INSUFFICIENT_RAM);
+			display->displayError(ERROR_INSUFFICIENT_RAM);
 			return NULL;
 		}
 
@@ -4569,7 +4569,7 @@ gotAnInstrument : {}
 		result.error = Browser::currentDir.set(getInstrumentFolder(newInstrumentType));
 		if (result.error) {
 displayError:
-			display.displayError(result.error);
+			display->displayError(result.error);
 			return NULL;
 		}
 
@@ -4600,19 +4600,19 @@ displayError:
 			removeInstrumentFromHibernationList(newInstrument);
 		}
 
-		display.displayLoadingAnimationText("Loading");
+		display->displayLoadingAnimationText("Loading");
 
 		newInstrument->loadAllAudioFiles(true);
 
-		display.removeWorkingAnimation();
+		display->removeWorkingAnimation();
 	}
 
 #if ALPHA_OR_BETA_VERSION
-	display.setText("A002");
+	display->setText("A002");
 #endif
 	replaceInstrument(oldInstrument, newInstrument);
 #if ALPHA_OR_BETA_VERSION
-	if (display.type != DisplayType::OLED) {
+	if (display->type() != DisplayType::OLED) {
 		view.displayOutputName(newInstrument);
 	}
 #endif
@@ -4851,7 +4851,7 @@ Instrument* Song::getNonAudioInstrumentToSwitchTo(InstrumentType newInstrumentTy
 
 		// If we've searched all channels...
 		if (newSlot == oldSlot) {
-			display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_UNUSED_CHANNELS_AVAILABLE));
+			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_UNUSED_CHANNELS_AVAILABLE));
 			return NULL;
 		}
 	}
@@ -4869,7 +4869,7 @@ Instrument* Song::getNonAudioInstrumentToSwitchTo(InstrumentType newInstrumentTy
 		}
 		newInstrument = storageManager.createNewNonAudioInstrument(newInstrumentType, newSlot, newSubSlot);
 		if (!newInstrument) {
-			display.displayError(ERROR_INSUFFICIENT_RAM);
+			display->displayError(ERROR_INSUFFICIENT_RAM);
 			return NULL;
 		}
 	}

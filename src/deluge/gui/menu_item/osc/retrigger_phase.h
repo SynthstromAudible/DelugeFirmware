@@ -57,7 +57,7 @@ public:
 
 	void drawValue() override {
 		if (this->getValue() < 0) {
-			display.setText(l10n::get(l10n::String::STRING_FOR_DISABLED), false, 255, true);
+			display->setText(l10n::get(l10n::String::STRING_FOR_DISABLED), false, 255, true);
 		}
 		else {
 			Decimal::drawValue();

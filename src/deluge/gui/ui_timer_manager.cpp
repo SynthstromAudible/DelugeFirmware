@@ -89,11 +89,11 @@ void UITimerManager::routine() {
 					break;
 
 				case TIMER_DISPLAY:
-					if (display.type == DisplayType::OLED) {
+					if (display->type() == DisplayType::OLED) {
 						OLED::timerRoutine();
 					}
 					else {
-						display.timerRoutine();
+						display->timerRoutine();
 					}
 
 					break;
@@ -143,19 +143,19 @@ void UITimerManager::routine() {
 					break;
 
 				case TIMER_OLED_LOW_LEVEL:
-					if (display.type == DisplayType::OLED) {
+					if (display->type() == DisplayType::OLED) {
 						oledLowLevelTimerCallback();
 					}
 					break;
 
 				case TIMER_OLED_CONSOLE:
-					if (display.type == DisplayType::OLED) {
+					if (display->type() == DisplayType::OLED) {
 						OLED::consoleTimerEvent();
 					}
 					break;
 
 				case TIMER_OLED_SCROLLING_AND_BLINKING:
-					if (display.type == DisplayType::OLED) {
+					if (display->type() == DisplayType::OLED) {
 						OLED::scrollingAndBlinkingTimerEvent();
 					}
 					break;

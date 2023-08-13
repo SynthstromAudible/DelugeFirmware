@@ -39,7 +39,7 @@ public:
 		else if (this->getValue() > 0) {
 			strcat(buffer, "R");
 		}
-		display.setText(buffer, true);
+		display->setText(buffer, true);
 	}
 
 	void writeCurrentValue() override { AudioEngine::reverbPan = ((int32_t)this->getValue() * 33554432); }

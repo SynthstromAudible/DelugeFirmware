@@ -32,12 +32,12 @@ struct SliceItem {
 
 class Slicer final : public UI {
 public:
-	Slicer() { oledShowsUIUnderneath = display.type == DisplayType::OLED; }
+	Slicer() { oledShowsUIUnderneath = display->type() == DisplayType::OLED; }
 
 	void focusRegained();
 	bool canSeeViewUnderneath() { return false; }
 	void selectEncoderAction(int8_t offset);
-	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
 
 	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],

@@ -44,7 +44,7 @@ extern "C" {
 #if SAMPLE_DO_LOCKS
 #define LOCK_ENTRY                                                                                                     \
 	if (lock) {                                                                                                        \
-		display.freezeWithError("i024");                                                                               \
+		display->freezeWithError("i024");                                                                              \
 	}                                                                                                                  \
 	lock = true;
 #define LOCK_EXIT lock = false;
@@ -134,7 +134,7 @@ void Sample::deletePercCache(bool beingDestructed) {
 
 					// If any of them still has a "reason", well, it shouldn't
 					if (ALPHA_OR_BETA_VERSION && percCacheClusters[reversed][c]->numReasonsToBeLoaded) {
-						display.freezeWithError("E137");
+						display->freezeWithError("E137");
 					}
 
 					audioFileManager.deallocateCluster(percCacheClusters[reversed][c]);
@@ -382,7 +382,7 @@ doReturnNoError:
 				percClusterIndexStart = (uint32_t)startPosSamples
 				                        >> (audioFileManager.clusterSizeMagnitude + kPercBufferReductionMagnitude);
 				if (ALPHA_OR_BETA_VERSION && percClusterIndexStart >= numPercCacheClusters) {
-					display.freezeWithError("E138");
+					display->freezeWithError("E138");
 				}
 				Cluster* clusterHere = percCacheClusters[reversed][percClusterIndexStart];
 #if ALPHA_OR_BETA_VERSION
@@ -393,7 +393,7 @@ doReturnNoError:
 					    & ((1 << audioFileManager.clusterSizeMagnitude + kPercBufferReductionMagnitude) - 1)) {
 						// If Cluster has been stolen, the zones should have been updated, so we shouldn't be here
 						Debug::println(startPosSamples);
-						display.freezeWithError("E139");
+						display->freezeWithError("E139");
 					}
 				}
 #endif
@@ -418,10 +418,10 @@ doReturnNoError:
 					if (percClusterIndexEnd != percClusterIndexStart) {
 #if ALPHA_OR_BETA_VERSION
 						if (percClusterIndexEnd >= numPercCacheClusters) {
-							display.freezeWithError("E140");
+							display->freezeWithError("E140");
 						}
 						if (!percCacheClusters[reversed][percClusterIndexEnd]) {
-							display.freezeWithError(
+							display->freezeWithError(
 							    "E141"); // If Cluster has been stolen, the zones should have been updated, so we shouldn't be here
 						}
 #endif
@@ -527,7 +527,7 @@ doLoading:
 			int32_t percClusterIndex =
 			    startPosSamples >> (audioFileManager.clusterSizeMagnitude + kPercBufferReductionMagnitude);
 			if (ALPHA_OR_BETA_VERSION && percClusterIndex >= numPercCacheClusters) {
-				display.freezeWithError("E136");
+				display->freezeWithError("E136");
 			}
 			if (!percCacheClusters[reversed][percClusterIndex]) {
 				//Debug::println("allocating perc cache Cluster!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
@@ -724,7 +724,7 @@ bool Sample::getAveragesForCrossfade(int32_t* totals, int32_t startBytePos, int3
 
 	// This can happen. Not 100% sure if it should, but we'll return false just below in this case anyway, so I think it's ok
 	if (ALPHA_OR_BETA_VERSION && startBytePos < (int32_t)audioDataStartPosBytes) {
-		display.freezeWithError("E283");
+		display->freezeWithError("E283");
 	}
 
 	int32_t startSamplePos = (uint32_t)(startBytePos - audioDataStartPosBytes) / (uint8_t)bytesPerSample;
@@ -764,7 +764,7 @@ bool Sample::getAveragesForCrossfade(int32_t* totals, int32_t startBytePos, int3
 
 		if (ALPHA_OR_BETA_VERSION
 		    && (readByte < audioDataStartPosBytes - 1 || readByte >= audioDataStartPosBytes + audioDataLengthBytes)) {
-			display.freezeWithError("FFFF");
+			display->freezeWithError("FFFF");
 		}
 
 		do {
@@ -772,14 +772,14 @@ bool Sample::getAveragesForCrossfade(int32_t* totals, int32_t startBytePos, int3
 			if (ALPHA_OR_BETA_VERSION
 			    && (readByte < audioDataStartPosBytes - 1
 			        || readByte >= audioDataStartPosBytes + audioDataLengthBytes)) {
-				display.freezeWithError("E432"); // Was "GGGG". Sven may have gotten.
+				display->freezeWithError("E432"); // Was "GGGG". Sven may have gotten.
 			}
 
 			int32_t whichCluster = readByte >> audioFileManager.clusterSizeMagnitude;
 			if (ALPHA_OR_BETA_VERSION
 			    && (whichCluster < getFirstClusterIndexWithAudioData()
 			        || whichCluster >= getFirstClusterIndexWithNoAudioData())) {
-				display.freezeWithError("EEEE");
+				display->freezeWithError("EEEE");
 			}
 
 			Cluster* cluster = clusters.getElement(whichCluster)->cluster;
@@ -814,7 +814,7 @@ bool Sample::getAveragesForCrossfade(int32_t* totals, int32_t startBytePos, int3
 			readByte += numSamplesThisRead * bytesPerSample * playDirection;
 			numSamplesLeftThisAverage -= numSamplesThisRead;
 			if (ALPHA_OR_BETA_VERSION && numSamplesLeftThisAverage < 0) {
-				display.freezeWithError("DDDD");
+				display->freezeWithError("DDDD");
 			}
 		} while (numSamplesLeftThisAverage);
 	}
@@ -852,7 +852,7 @@ uint8_t* Sample::prepareToReadPercCache(int32_t pixellatedPos, int32_t playDirec
 	else {
 		int32_t ourCluster = pixellatedPos >> audioFileManager.clusterSizeMagnitude;
 		if (ALPHA_OR_BETA_VERSION && !percCacheClusters[reversed][ourCluster]) {
-			display.freezeWithError("E142");
+			display->freezeWithError("E142");
 		}
 
 		int32_t earliestCluster = *earliestPixellatedPos >> audioFileManager.clusterSizeMagnitude;
@@ -889,19 +889,19 @@ void Sample::percCacheClusterStolen(Cluster* cluster) {
 
 #if ALPHA_OR_BETA_VERSION
 	if (cluster->type != ClusterType::PERC_CACHE_FORWARDS && cluster->type != ClusterType::PERC_CACHE_REVERSED) {
-		display.freezeWithError("E149");
+		display->freezeWithError("E149");
 	}
 	if (!percCacheClusters[reversed]) {
-		display.freezeWithError("E134");
+		display->freezeWithError("E134");
 	}
 	if (cluster->clusterIndex >= numPercCacheClusters) {
-		display.freezeWithError("E135");
+		display->freezeWithError("E135");
 	}
 	if (!percCacheClusters[reversed][cluster->clusterIndex]) {
-		display.freezeWithError("i034"); // Trying to track down Steven G's E133 (Feb 2021).
+		display->freezeWithError("i034"); // Trying to track down Steven G's E133 (Feb 2021).
 	}
 	if (percCacheClusters[reversed][cluster->clusterIndex]->numReasonsToBeLoaded) {
-		display.freezeWithError("i035"); // Trying to track down Steven G's E133 (Feb 2021).
+		display->freezeWithError("i035"); // Trying to track down Steven G's E133 (Feb 2021).
 	}
 #endif
 
@@ -1743,11 +1743,11 @@ void Sample::numReasonsDecreasedToZero(char const* errorCode) {
 
 			if (cluster->clusterIndex != c) {
 				// Leo got! Aug 2020. Suspect some sort of memory corruption... And then Michael got, Feb 2021
-				display.freezeWithError(errorCode);
+				display->freezeWithError(errorCode);
 			}
 
 			if (cluster->numReasonsToBeLoaded < 0) {
-				display.freezeWithError("E076");
+				display->freezeWithError("E076");
 			}
 
 			numClusterReasons += cluster->numReasonsToBeLoaded;
@@ -1783,7 +1783,7 @@ void Sample::numReasonsDecreasedToZero(char const* errorCode) {
 		}
 		Debug::println("/reason dump---");
 
-		display.freezeWithError(
+		display->freezeWithError(
 		    "E078"); // LegsMechanical got, V4.0.0-beta2. https://forums.synthstrom.com/discussion/4106/v4-0-beta2-e078-crash-when-recording-audio-clip
 	}
 }

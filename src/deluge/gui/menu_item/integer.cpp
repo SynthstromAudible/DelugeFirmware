@@ -43,12 +43,12 @@ void Integer::selectEncoderAction(int32_t offset) {
 }
 
 void Integer::drawValue() {
-	display.setTextAsNumber(this->getValue());
+	display->setTextAsNumber(this->getValue());
 }
 
 void IntegerWithOff::drawValue() {
 	if (this->getValue() == 0) {
-		display.setText(l10n::get(l10n::String::STRING_FOR_DISABLED));
+		display->setText(l10n::get(l10n::String::STRING_FOR_DISABLED));
 	}
 	else {
 		Integer::drawValue();

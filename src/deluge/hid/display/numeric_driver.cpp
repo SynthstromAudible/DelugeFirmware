@@ -535,8 +535,7 @@ void NumericDriver::render() {
 
 	std::array<uint8_t, kNumericDisplayLength> segments;
 	layer->render(segments.data());
-
-	memcpy(lastDisplay, segments.data(), kNumericDisplayLength);
+	lastDisplay = segments;
 
 	PIC::update7SEG(segments);
 }

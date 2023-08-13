@@ -25,12 +25,12 @@ namespace deluge::gui::menu_item {
 
 void SyncLevel::drawValue() {
 	if (this->getValue() == 0) {
-		display.setText(l10n::get(l10n::String::STRING_FOR_DISABLED));
+		display->setText(l10n::get(l10n::String::STRING_FOR_DISABLED));
 	}
 	else {
 		char* buffer = shortStringBuffer;
 		getNoteLengthName(buffer);
-		display.setScrollingText(buffer, 0);
+		display->setScrollingText(buffer, 0);
 	}
 }
 
@@ -54,7 +54,7 @@ void SyncLevel::getNoteLengthName(char* buffer) {
 			strcat(buffer, type);
 		}
 		else {
-			if (display.type == DisplayType::OLED) {
+			if (display->type() == DisplayType::OLED) {
 				char* suffix = strstr(buffer, "-notes"); // OLED replace `-notes` with type,
 				strcpy(suffix, type);                    //      eg. `2nd-notes` -> `2nd-trplts`
 			}

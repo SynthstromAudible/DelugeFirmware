@@ -67,7 +67,7 @@ AudioClip::AudioClip() : Clip(CLIP_TYPE_AUDIO) {
 
 AudioClip::~AudioClip() {
 	if (recorder) {
-		display.freezeWithError("E278");
+		display->freezeWithError("E278");
 	}
 
 	// Sirhc actually got this in a V3.0.5 RC! No idea how. Also Qui got around V3.1.3.
@@ -224,7 +224,7 @@ Clip* AudioClip::cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStackOldC
 	void* clipMemory = GeneralMemoryAllocator::get().alloc(sizeof(AudioClip), NULL, false, true);
 	if (!clipMemory) {
 ramError:
-		display.displayError(ERROR_INSUFFICIENT_RAM);
+		display->displayError(ERROR_INSUFFICIENT_RAM);
 		return NULL;
 	}
 
@@ -246,7 +246,7 @@ ramError:
 
 #if ALPHA_OR_BETA_VERSION
 	if (!newClip->paramManager.summaries[0].paramCollection) {
-		display.freezeWithError("E421"); // Trying to diversify Leo's E410
+		display->freezeWithError("E421"); // Trying to diversify Leo's E410
 	}
 #endif
 
@@ -387,7 +387,7 @@ void AudioClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, bool m
 
 #if ALPHA_OR_BETA_VERSION
 	if (!playbackHandler.isEitherClockActive() || !modelStack->song->isClipActive(this)) {
-		display.freezeWithError("E430");
+		display->freezeWithError("E430");
 	}
 #endif
 
@@ -416,7 +416,7 @@ void AudioClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, bool m
 	int32_t sequenceSyncStartedNumTicksAgo = currentInternalTickCount - sequenceSyncStartedAtTickTrivialValue;
 	if (sequenceSyncStartedNumTicksAgo < 0) { // Shouldn't happen
 		if (ALPHA_OR_BETA_VERSION) {
-			display.freezeWithError("nofg"); // Ron got, Nov 2021. Wait no, he didn't have playback on!
+			display->freezeWithError("nofg"); // Ron got, Nov 2021. Wait no, he didn't have playback on!
 		}
 		sequenceSyncStartedNumTicksAgo = 0; // The show must go on
 	}
@@ -1113,7 +1113,7 @@ int32_t AudioClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 void AudioClip::loadSample(bool mayActuallyReadFile) {
 	int32_t error = sampleHolder.loadFile(sampleControls.reversed, false, mayActuallyReadFile);
 	if (error) {
-		display.displayError(error);
+		display->displayError(error);
 	}
 }
 

@@ -42,12 +42,12 @@ public:
 
 template <size_t n>
 void Selection<n>::drawValue() {
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		renderUIsForOled();
 	}
 	else {
 		const auto options = getOptions();
-		display.setText(options[this->getValue()].data());
+		display->setText(options[this->getValue()].data());
 	}
 }
 

@@ -2150,7 +2150,7 @@ void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutD
 	*thisChar = noteCodeToNoteLetter[noteCodeWithinOctave];
 	thisChar++;
 	if (noteCodeIsSharp[noteCodeWithinOctave]) {
-		*thisChar = display.type == DisplayType::OLED ? '#' : '.';
+		*thisChar = display->type() == DisplayType::OLED ? '#' : '.';
 		thisChar++;
 	}
 	intToString(octave, thisChar, 1);
@@ -2325,7 +2325,7 @@ bool shouldAbortLoading() {
 
 // Must supply a char[5] buffer. Or char[30] for OLED.
 void getNoteLengthNameFromMagnitude(char* text, int32_t magnitude, bool clarifyPerColumn) {
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		if (magnitude < 0) {
 			uint32_t division = (uint32_t)1 << (0 - magnitude);
 			intToString(division, text);

@@ -179,7 +179,7 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 				anythingProbablyPressed = true;
 			}
 		}
-		else if (value == oledWaitingForMessage && display.type == DisplayType::OLED) {
+		else if (value == oledWaitingForMessage && display->type() == DisplayType::OLED) {
 			//delayUS(2500); // TODO: fix
 			if (value == 248) {
 				oledSelectingComplete();
@@ -222,7 +222,7 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 		indicator_leds::setKnobIndicatorLevel(1, encoderTestPos);
 	}
 
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		oledRoutine();
 	}
 	uartFlushIfNotSending(UART_ITEM_PIC);
@@ -237,7 +237,7 @@ void ramTestLED(bool stuffAlreadySetUp) {
 	cvEngine.sendVoltageOut(0, 65520);
 	cvEngine.sendVoltageOut(1, 65520);
 
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		OLED::clearMainImage();
 		OLED::invertArea(0, OLED_MAIN_WIDTH_PIXELS, OLED_MAIN_TOPMOST_PIXEL, OLED_MAIN_HEIGHT_PIXELS - 1,
 		                 OLED::oledMainImage);
@@ -394,7 +394,7 @@ int32_t autoPilotY;
 uint32_t timeNextAutoPilotAction = 0;
 
 void autoPilotStuff() {
-	using namespace hid::button;
+	using namespace deluge::hid::button;
 
 	if (!playbackHandler.recording)
 		return;

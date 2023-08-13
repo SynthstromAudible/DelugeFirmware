@@ -35,7 +35,7 @@ public:
 	void createNewInstrument(InstrumentType newInstrumentType);
 	void setLedStates();
 	void focusRegained();
-	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 	void calculateDefaultRootNote();
 	void drawActualNoteCode(int16_t noteCode);
 	void cycleThroughScales();

@@ -373,7 +373,7 @@ Clip* AudioOutput::createNewClipForArrangementRecording(ModelStack* modelStack) 
 
 #if ALPHA_OR_BETA_VERSION
 	if (!newClip->paramManager.summaries[0].paramCollection) {
-		display.freezeWithError("E422"); // Trying to diversify Leo's E410
+		display->freezeWithError("E422"); // Trying to diversify Leo's E410
 	}
 #endif
 

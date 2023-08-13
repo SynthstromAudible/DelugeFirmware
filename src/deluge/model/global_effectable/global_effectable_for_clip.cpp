@@ -233,10 +233,10 @@ bool GlobalEffectableForClip::modEncoderButtonAction(uint8_t whichModEncoder, bo
 					compressor.syncLevel = SYNC_LEVEL_32ND;
 				}
 				if (compressor.syncLevel == SYNC_LEVEL_32ND) {
-					display.displayPopup("SLOW");
+					display->displayPopup("SLOW");
 				}
 				else {
-					display.displayPopup("FAST");
+					display->displayPopup("FAST");
 				}
 				return true;
 			}

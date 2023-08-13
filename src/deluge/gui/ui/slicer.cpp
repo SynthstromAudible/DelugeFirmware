@@ -68,7 +68,7 @@ void Slicer::focusRegained() {
 		manualSlicePoints[i].transpose = 0;
 	}
 
-	if (display.type != DisplayType::OLED) {
+	if (display->type() != DisplayType::OLED) {
 		redraw();
 	}
 }
@@ -99,7 +99,7 @@ void Slicer::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 }
 
 void Slicer::redraw() {
-	display.setTextAsNumber(slicerMode == SLICER_MODE_REGION ? numClips : numManualSlice, 255, true);
+	display->setTextAsNumber(slicerMode == SLICER_MODE_REGION ? numClips : numManualSlice, 255, true);
 }
 
 bool Slicer::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
@@ -241,7 +241,7 @@ ActionResult Slicer::horizontalEncoderAction(int32_t offset) {
 			newPos = waveformBasicNavigator.sample->lengthInSamples;
 		manualSlicePoints[currentSlice].startPos = newPos;
 
-		if (display.type == DisplayType::OLED) {
+		if (display->type() == DisplayType::OLED) {
 			char buffer[24];
 			strcpy(buffer, "Start: ");
 			intToString(manualSlicePoints[currentSlice].startPos, buffer + strlen(buffer));
@@ -251,7 +251,7 @@ ActionResult Slicer::horizontalEncoderAction(int32_t offset) {
 			char buffer[12];
 			strcpy(buffer, "");
 			intToString(manualSlicePoints[currentSlice].startPos / 1000, buffer + strlen(buffer));
-			display.displayPopup(buffer, 0, true);
+			display->displayPopup(buffer, 0, true);
 		}
 		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 	}
@@ -266,7 +266,7 @@ ActionResult Slicer::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 			manualSlicePoints[currentSlice].transpose = 24;
 		if (manualSlicePoints[currentSlice].transpose < -24)
 			manualSlicePoints[currentSlice].transpose = -24;
-		if (display.type == DisplayType::OLED) {
+		if (display->type() == DisplayType::OLED) {
 			char buffer[24];
 			strcpy(buffer, "Transpose: ");
 			intToString(manualSlicePoints[currentSlice].transpose, buffer + strlen(buffer));
@@ -276,7 +276,7 @@ ActionResult Slicer::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 			char buffer[12];
 			strcpy(buffer, "");
 			intToString(manualSlicePoints[currentSlice].transpose, buffer + strlen(buffer));
-			display.displayPopup(buffer, 0, true);
+			display->displayPopup(buffer, 0, true);
 		}
 	}
 	return ActionResult::DEALT_WITH;
@@ -307,7 +307,7 @@ void Slicer::selectEncoderAction(int8_t offset) {
 		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 	}
 
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		renderUIsForOled();
 	}
 	else {
@@ -315,8 +315,8 @@ void Slicer::selectEncoderAction(int8_t offset) {
 	}
 }
 
-ActionResult Slicer::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
-	using namespace hid::button;
+ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	using namespace deluge::hid::button;
 
 	if (currentUIMode != UI_MODE_NONE || !on) {
 		return ActionResult::NOT_DEALT_WITH;
@@ -328,7 +328,7 @@ ActionResult Slicer::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		slicerMode %= 2;
 		if (slicerMode == SLICER_MODE_MANUAL)
 			AudioEngine::stopAnyPreviewing();
-		if (display.type == DisplayType::OLED) {
+		if (display->type() == DisplayType::OLED) {
 			renderUIsForOled();
 		}
 		else {
@@ -342,7 +342,7 @@ ActionResult Slicer::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 	//pop up Transpose value
 	if (b == Y_ENC && on && slicerMode == SLICER_MODE_MANUAL && currentSlice < numManualSlice) {
-		if (display.type == DisplayType::OLED) {
+		if (display->type() == DisplayType::OLED) {
 			char buffer[24];
 			strcpy(buffer, "Transpose: ");
 			intToString(manualSlicePoints[currentSlice].transpose, buffer + strlen(buffer));
@@ -352,7 +352,7 @@ ActionResult Slicer::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 			char buffer[12];
 			strcpy(buffer, "");
 			intToString(manualSlicePoints[currentSlice].transpose, buffer + strlen(buffer));
-			display.displayPopup(buffer, 0, true);
+			display->displayPopup(buffer, 0, true);
 		}
 		return ActionResult::DEALT_WITH;
 	}
@@ -381,7 +381,7 @@ ActionResult Slicer::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 			}
 
 			uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
-			if (display.type == DisplayType::OLED) {
+			if (display->type() == DisplayType::OLED) {
 				renderUIsForOled();
 			}
 			else {
@@ -436,7 +436,7 @@ ActionResult Slicer::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 			range->sampleHolder.transpose = 0;
 		}
 
-		display.setNextTransitionDirection(-1);
+		display->setNextTransitionDirection(-1);
 		close();
 	}
 	else {
@@ -512,7 +512,7 @@ ActionResult Slicer::padAction(int32_t x, int32_t y, int32_t on) {
 			}
 
 			if (closePopup) {
-				display.cancelPopup();
+				display->cancelPopup();
 			}
 		}
 		else { // do slice
@@ -557,7 +557,7 @@ ActionResult Slicer::padAction(int32_t x, int32_t y, int32_t on) {
 					manualSlicePoints[numManualSlice].transpose = 0;
 
 					numManualSlice++;
-					display.cancelPopup();
+					display->cancelPopup();
 
 					SliceItem tmp;
 					for (int32_t i = 0; i < (numManualSlice - 1); i++) {
@@ -573,7 +573,7 @@ ActionResult Slicer::padAction(int32_t x, int32_t y, int32_t on) {
 			}
 		}
 
-		if (display.type == DisplayType::OLED) {
+		if (display->type() == DisplayType::OLED) {
 			renderUIsForOled();
 		}
 		else {
@@ -599,7 +599,7 @@ void Slicer::doSlice() {
 	int32_t error = sampleBrowser.claimAudioFileForInstrument();
 	if (error) {
 getOut:
-		display.displayError(error);
+		display->displayError(error);
 		return;
 	}
 
@@ -656,7 +656,7 @@ getOut:
 
 #if 1 || ALPHA_OR_BETA_VERSION
 		if (!firstRange->sampleHolder.audioFile) {
-			display.freezeWithError("i032"); // Trying to narrow down E368 that Kevin F got
+			display->freezeWithError("i032"); // Trying to narrow down E368 that Kevin F got
 		}
 #endif
 
@@ -744,7 +744,7 @@ ramError2:
 	// New NoteRows have probably been created, whose colours haven't been grabbed yet.
 	instrumentClipView.recalculateColours();
 
-	display.setNextTransitionDirection(-1);
+	display->setNextTransitionDirection(-1);
 	sampleBrowser.exitAndNeverDeleteDrum();
 	uiNeedsRendering(&instrumentClipView);
 }

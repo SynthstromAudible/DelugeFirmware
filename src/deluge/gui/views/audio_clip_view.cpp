@@ -83,7 +83,7 @@ void AudioClipView::focusRegained() {
 	view.focusRegained();
 	view.setActiveModControllableTimelineCounter(currentSong->currentClip);
 
-	if (display.type != DisplayType::OLED) {
+	if (display->type() != DisplayType::OLED) {
 		view.displayOutputName(currentSong->currentClip->output, false);
 	}
 #ifdef currentClipStatusButtonX
@@ -272,8 +272,8 @@ void AudioClipView::needsRenderingDependingOnSubMode() {
 	}
 }
 
-ActionResult AudioClipView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
-	using namespace hid::button;
+ActionResult AudioClipView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	using namespace deluge::hid::button;
 
 	ActionResult result;
 
@@ -349,7 +349,7 @@ dontDeactivateMarker:
 			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, currentSong->currentClip);
 
 			getClip()->clear(action, modelStack);
-			display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_AUDIO_CLIP_CLEARED));
+			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_AUDIO_CLIP_CLEARED));
 			endMarkerVisible = false;
 			uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
 			uiNeedsRendering(this, 0xFFFFFFFF, 0);
@@ -384,7 +384,7 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 	// Edit pad action...
 	if (x < kDisplayWidth) {
 
-		if (Buttons::isButtonPressed(hid::button::TEMPO_ENC)) {
+		if (Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC)) {
 			if (on) {
 				playbackHandler.grabTempoFromClip(getClip());
 			}
@@ -597,7 +597,7 @@ void AudioClipView::selectEncoderAction(int8_t offset) {
 }
 
 ActionResult AudioClipView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
-	if (!currentUIMode && Buttons::isShiftButtonPressed() && !Buttons::isButtonPressed(hid::button::Y_ENC)) {
+	if (!currentUIMode && Buttons::isShiftButtonPressed() && !Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
 		if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
 		}

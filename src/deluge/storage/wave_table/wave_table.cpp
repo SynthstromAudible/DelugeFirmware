@@ -671,7 +671,7 @@ transformBandToTimeDomain:
 			if (!fftCFGThisBand) {
 #if ALPHA_OR_BETA_VERSION
 				if (!b) {
-					display.freezeWithError("E390");
+					display->freezeWithError("E390");
 				}
 #endif
 				band->~WaveTableBand();
@@ -1082,7 +1082,7 @@ startRenderingACycle:
 			    numIncrementsWeCanDoNow
 			    + 1; // +1 because we can only have to increment *between* the samples we're rendering. If can only do 1 increment, we can still render 2 samples.
 			if (ALPHA_OR_BETA_VERSION && numSamplesThisCycle > numSamplesLeftToDo) {
-				display.freezeWithError("E386");
+				display->freezeWithError("E386");
 			}
 		}
 
@@ -1165,7 +1165,7 @@ void WaveTable::numReasonsDecreasedToZero(char const* errorCode) {
 		if (band->data) {
 #if ALPHA_OR_BETA_VERSION
 			if (band->data->list) {
-				display.freezeWithError("E388");
+				display->freezeWithError("E388");
 			}
 #endif
 			GeneralMemoryAllocator::get().putStealableInQueue(band->data, STEALABLE_QUEUE_NO_SONG_WAVETABLE_BAND_DATA);

@@ -67,7 +67,7 @@ int32_t FileItem::getFilenameWithoutExtension(String* filenameWithoutExtension) 
 }
 
 int32_t FileItem::getDisplayNameWithoutExtension(String* displayNameWithoutExtension) {
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		return getFilenameWithoutExtension(displayNameWithoutExtension);
 	}
 

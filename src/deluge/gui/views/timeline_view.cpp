@@ -62,8 +62,8 @@ bool TimelineView::calculateZoomPinSquares(uint32_t oldScroll, uint32_t newScrol
 	return true;
 }
 
-ActionResult TimelineView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
-	using namespace hid::button;
+ActionResult TimelineView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	using namespace deluge::hid::button;
 
 	// Horizontal encoder button
 	if (b == X_ENC) {
@@ -79,7 +79,7 @@ ActionResult TimelineView::buttonAction(hid::Button b, bool on, bool inCardRouti
 		else {
 
 			if (isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
-				display.cancelPopup();
+				display->cancelPopup();
 				exitUIMode(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON);
 			}
 		}
@@ -124,7 +124,7 @@ void TimelineView::displayZoomLevel(bool justPopup) {
 	char text[30];
 	currentSong->getNoteLengthName(text, currentSong->xZoom[getNavSysId()], true);
 
-	display.displayPopup(text, justPopup ? 3 : 0, true);
+	display->displayPopup(text, justPopup ? 3 : 0, true);
 }
 
 bool horizontalEncoderActionLock = false;
@@ -238,7 +238,7 @@ void TimelineView::displayNumberOfBarsAndBeats(uint32_t number, uint32_t quantiz
 		whichSubBeat++;
 	}
 
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		char text[15];
 		intToString(whichBar, text);
 		char* pos = strchr(text, 0);
@@ -247,7 +247,7 @@ void TimelineView::displayNumberOfBarsAndBeats(uint32_t number, uint32_t quantiz
 		pos = strchr(pos, 0);
 		*(pos++) = ':';
 		intToString(whichSubBeat, pos);
-		display.popupTextTemporary(text);
+		display->popupTextTemporary(text);
 	}
 	else {
 		char text[5];
@@ -288,7 +288,7 @@ putBeatCountOnFarRight:
 			}
 		}
 
-		display.displayPopup(text, 3, false, dotMask);
+		display->displayPopup(text, 3, false, dotMask);
 	}
 }
 

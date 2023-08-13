@@ -94,7 +94,7 @@ bool SampleMarkerEditor::opened() {
 	waveformBasicNavigator.sample = (Sample*)getCurrentSampleHolder()->audioFile;
 
 	if (!waveformBasicNavigator.sample) {
-		display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_SAMPLE));
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_SAMPLE));
 		return false;
 	}
 
@@ -104,7 +104,7 @@ bool SampleMarkerEditor::opened() {
 
 	uiNeedsRendering(this, 0xFFFFFFFF, 0);
 
-	if (display.type != DisplayType::OLED) {
+	if (display->type() != DisplayType::OLED) {
 		displayText();
 	}
 
@@ -286,7 +286,7 @@ void SampleMarkerEditor::selectEncoderAction(int8_t offset) {
 	blinkInvisible = false;
 
 	uiNeedsRendering(this, 0xFFFFFFFF, 0);
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		renderUIsForOled();
 	}
 	else {
@@ -562,7 +562,7 @@ doWriteValue:
 
 doRender:
 			uiNeedsRendering(this, 0xFFFFFFFF, 0);
-			if (display.type == DisplayType::OLED) {
+			if (display->type() == DisplayType::OLED) {
 				renderUIsForOled();
 			}
 			else {
@@ -583,8 +583,8 @@ doRender:
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult SampleMarkerEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
-	using namespace hid::button;
+ActionResult SampleMarkerEditor::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	using namespace deluge::hid::button;
 
 	// Back button
 	if (b == BACK) {
@@ -617,7 +617,7 @@ ActionResult SampleMarkerEditor::buttonAction(hid::Button b, bool on, bool inCar
 }
 
 void SampleMarkerEditor::exitUI() {
-	display.setNextTransitionDirection(-1);
+	display->setNextTransitionDirection(-1);
 	close();
 }
 
@@ -695,7 +695,7 @@ ActionResult SampleMarkerEditor::timerCallback() {
 }
 
 ActionResult SampleMarkerEditor::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
-	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::button::X_ENC)
+	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::X_ENC)
 	    || currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
 		return ActionResult::DEALT_WITH;
 	}
@@ -1042,7 +1042,7 @@ void SampleMarkerEditor::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 printSeconds:
 		int32_t numDecimalPlaces;
 
-		// Maybe we just want to display millisecond resolution (that's S with 3 decimal places)...
+		// Maybe we just want to display->millisecond resolution (that's S with 3 decimal places)...
 		if (hours || minutes || hundredmilliseconds >= 100000) {
 			hundredmilliseconds /= 100;
 			numDecimalPlaces = 3;
@@ -1113,7 +1113,7 @@ void SampleMarkerEditor::displayText() {
 	char buffer[5];
 	intToString(number, buffer, numDecimals + 1);
 
-	display.setText(buffer, true, drawDot);
+	display->setText(buffer, true, drawDot);
 }
 
 bool SampleMarkerEditor::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],

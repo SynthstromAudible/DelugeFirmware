@@ -69,7 +69,7 @@ bool LoadSongUI::opened() {
 	int32_t error = beginSlotSession(false, true);
 	if (error) {
 gotError:
-		display.displayError(error);
+		display->displayError(error);
 		// Oh no, we're unable to read a file representing the first song. Get out quick!
 		currentUIMode = UI_MODE_NONE;
 		uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
@@ -126,7 +126,7 @@ gotError:
 	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
 
 	if (ALPHA_OR_BETA_VERSION && currentUIMode == UI_MODE_WAITING_FOR_NEXT_FILE_TO_LOAD) {
-		display.freezeWithError("E188");
+		display->freezeWithError("E188");
 	}
 
 	return true;
@@ -150,7 +150,7 @@ void LoadSongUI::enterKeyPress() {
 		int32_t error = goIntoFolder(currentFileItem->filename.get());
 
 		if (error) {
-			display.displayError(error);
+			display->displayError(error);
 			close(); // Don't use goBackToSoundEditor() because that would do a left-scroll
 			return;
 		}
@@ -163,22 +163,22 @@ void LoadSongUI::enterKeyPress() {
 }
 
 void LoadSongUI::displayArmedPopup() {
-	display.removeWorkingAnimation();
-	display.popupText("Song will begin...");
+	display->removeWorkingAnimation();
+	display->popupText("Song will begin...");
 }
 
 char loopsRemainingText[] = "Loops remaining: xxxxxxxxxxx";
 
 void LoadSongUI::displayLoopsRemainingPopup() {
 	if (currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED) {
-		display.removeWorkingAnimation();
+		display->removeWorkingAnimation();
 		intToString(session.numRepeatsTilLaunch, &loopsRemainingText[17]);
-		display.popupText(loopsRemainingText);
+		display->popupText(loopsRemainingText);
 	}
 }
 
-ActionResult LoadSongUI::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
-	using namespace hid::button;
+ActionResult LoadSongUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	using namespace deluge::hid::button;
 
 	// Load button or select encoder press. Unlike most (all?) other children of Browser, we override this and don't just call mainButtonAction(),
 	// because unlike all the others, we need to action the load immediately on down-press rather than waiting for press-release, because of that special
@@ -204,7 +204,7 @@ ActionResult LoadSongUI::buttonAction(hid::Button b, bool on, bool inCardRoutine
 				}
 				else {
 					currentUIMode = UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED;
-					if (display.type == DisplayType::OLED) {
+					if (display->type() == DisplayType::OLED) {
 						displayArmedPopup();
 					}
 					else {
@@ -228,8 +228,8 @@ void LoadSongUI::performLoad() {
 	FileItem* currentFileItem = getCurrentFileItem();
 
 	if (!currentFileItem) {
-		display.displayError(
-		    display.type == DisplayType::OLED
+		display->displayError(
+		    display->type() == DisplayType::OLED
 		        ? ERROR_FILE_NOT_FOUND
 		        : ERROR_NO_FURTHER_FILES_THIS_DIRECTION); // Make it say "NONE" on numeric Deluge, for consistency with old times.
 		return;
@@ -243,7 +243,7 @@ void LoadSongUI::performLoad() {
 
 	int32_t error = storageManager.openXMLFile(&currentFileItem->filePointer, "song");
 	if (error) {
-		display.displayError(error);
+		display->displayError(error);
 		return;
 	}
 
@@ -251,7 +251,7 @@ void LoadSongUI::performLoad() {
 	indicator_leds::setLedState(IndicatorLED::LOAD, false);
 	indicator_leds::setLedState(IndicatorLED::BACK, false);
 
-	display.displayLoadingAnimationText("Loading");
+	display->displayLoadingAnimationText("Loading");
 	nullifyUIs();
 
 	deletedPartsOfOldSong = true;
@@ -267,7 +267,7 @@ void LoadSongUI::performLoad() {
 		AudioEngine::logAction("a");
 		AudioEngine::songSwapAboutToHappen();
 		AudioEngine::logAction("b");
-		playbackHandler.songSwapShouldPreserveTempo = Buttons::isButtonPressed(hid::button::TEMPO_ENC);
+		playbackHandler.songSwapShouldPreserveTempo = Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC);
 	}
 
 	void* songMemory = GeneralMemoryAllocator::get().alloc(sizeof(Song), NULL, false, true);
@@ -276,7 +276,7 @@ ramError:
 		error = ERROR_INSUFFICIENT_RAM;
 
 someError:
-		display.displayError(error);
+		display->displayError(error);
 		storageManager.closeFile();
 fail:
 		// If we already deleted the old song, make a new blank one. This will take us back to InstrumentClipView.
@@ -291,7 +291,7 @@ fail:
 			displayText(false);
 		}
 		currentUIMode = UI_MODE_NONE;
-		display.removeWorkingAnimation();
+		display->removeWorkingAnimation();
 		return;
 	}
 
@@ -321,7 +321,7 @@ gotErrorAfterCreatingSong:
 	bool success = storageManager.closeFile();
 
 	if (!success) {
-		display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_LOADING_SONG));
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_LOADING_SONG));
 		goto fail;
 	}
 
@@ -367,7 +367,7 @@ gotErrorAfterCreatingSong:
 	if (playbackHandler.isEitherClockActive()) {
 
 		// If load button was already released while that loading was happening, arm for song-swap now
-		if (!Buttons::isButtonPressed(hid::button::LOAD)) {
+		if (!Buttons::isButtonPressed(deluge::hid::button::LOAD)) {
 			bool result = session.armForSongSwap();
 
 			// If arming couldn't really be done, e.g. because current song had no Clips currently playing, swap has already occurred
@@ -376,7 +376,7 @@ gotErrorAfterCreatingSong:
 			}
 
 			currentUIMode = UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED;
-			if (display.type == DisplayType::OLED) {
+			if (display->type() == DisplayType::OLED) {
 				displayArmedPopup();
 			}
 			else {
@@ -386,12 +386,12 @@ gotErrorAfterCreatingSong:
 
 		// Otherwise, set up so that the song-swap will be armed as soon as the user releases the load button
 		else {
-			display.removeWorkingAnimation();
-			if (display.type == DisplayType::OLED) {
-				display.popupText("Loading complete");
+			display->removeWorkingAnimation();
+			if (display->type() == DisplayType::OLED) {
+				display->popupText("Loading complete");
 			}
 			else {
-				display.setText("DONE", false, 255, true, NULL, false, true);
+				display->setText("DONE", false, 255, true, NULL, false, true);
 			}
 			currentUIMode = UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_UNARMED;
 		}
@@ -414,7 +414,7 @@ gotErrorAfterCreatingSong:
 	}
 
 swapDone:
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		OLED::displayWorkingAnimation("Loading"); // To override our popup if we did one. (Still necessary?)
 	}
 	// Ok, the swap's been done, the first tick of the new song has been done, and there are potentially loads of samples wanting some data loaded. So do that immediately
@@ -441,7 +441,7 @@ swapDone:
 	setUIForLoadedSong(currentSong);
 	currentUIMode = UI_MODE_NONE;
 
-	display.removeWorkingAnimation();
+	display->removeWorkingAnimation();
 }
 
 ActionResult LoadSongUI::timerCallback() {
@@ -496,7 +496,7 @@ void LoadSongUI::scrollFinished() {
 }
 
 void LoadSongUI::exitActionWithError() {
-	display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_SD_CARD_ERROR));
+	display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_SD_CARD_ERROR));
 	exitAction();
 }
 
@@ -604,7 +604,7 @@ void LoadSongUI::selectEncoderAction(int8_t offset) {
 		else if (session.numRepeatsTilLaunch > 9999) {
 			session.numRepeatsTilLaunch = 9999;
 		}
-		if (display.type == DisplayType::OLED) {
+		if (display->type() == DisplayType::OLED) {
 			//renderUIsForOled();
 			displayLoopsRemainingPopup();
 		}
@@ -658,7 +658,7 @@ goAgain:
 }
 
 ActionResult LoadSongUI::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
-	if (!currentUIMode && !Buttons::isButtonPressed(hid::button::Y_ENC) && !Buttons::isShiftButtonPressed()
+	if (!currentUIMode && !Buttons::isButtonPressed(deluge::hid::button::Y_ENC) && !Buttons::isShiftButtonPressed()
 	    && offset < 0) {
 		if (inCardRoutine) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -673,7 +673,7 @@ void LoadSongUI::exitAction() {
 
 	// If parts of the old song have been deleted, sorry, there's no way we can exit without loading a new song
 	if (deletedPartsOfOldSong) {
-		display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_UNLOADED_PARTS));
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_UNLOADED_PARTS));
 		return;
 	}
 
@@ -706,7 +706,7 @@ void LoadSongUI::drawSongPreview(bool toStore) {
 	int32_t error = storageManager.openXMLFile(&currentFileItem->filePointer, "song", "", true);
 	if (error) {
 		if (error) {
-			display.displayError(error);
+			display->displayError(error);
 			return;
 		}
 	}

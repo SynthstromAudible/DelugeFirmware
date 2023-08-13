@@ -72,7 +72,7 @@ doReturnFalse:
 		error = searchFilename.concatenate(".XML");
 		if (error) {
 gotError:
-			display.displayError(error);
+			display->displayError(error);
 			goto doReturnFalse;
 		}
 	}
@@ -112,22 +112,22 @@ void SaveSongUI::focusRegained() {
 bool SaveSongUI::performSave(bool mayOverwrite) {
 
 	if (ALPHA_OR_BETA_VERSION && currentlyAccessingCard) {
-		display.freezeWithError("E316");
+		display->freezeWithError("E316");
 	}
 
 	if (currentSong->hasAnyPendingNextOverdubs()) {
-		display.displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_OVERDUBS_PENDING));
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_OVERDUBS_PENDING));
 		return false;
 	}
 
-	display.displayLoadingAnimationText("Saving");
+	display->displayLoadingAnimationText("Saving");
 
 	String filePath;
 	int32_t error = getCurrentFilePath(&filePath);
 	if (error) {
 gotError:
-		display.removeLoadingAnimation();
-		display.displayError(error);
+		display->removeLoadingAnimation();
+		display->displayError(error);
 		return false;
 	}
 
@@ -139,8 +139,8 @@ gotError:
 		bool available = context_menu::overwriteFile.setupAndCheckAvailability();
 
 		if (available) { // Always true.
-			display.removeWorkingAnimation();
-			display.setNextTransitionDirection(1);
+			display->removeWorkingAnimation();
+			display->setNextTransitionDirection(1);
 			openUI(&context_menu::overwriteFile);
 			return true;
 		}
@@ -455,7 +455,7 @@ cardError:
 		}
 	}
 
-	display.removeWorkingAnimation();
+	display->removeWorkingAnimation();
 	char const* message = anyErrorMovingTempFiles
 	                          ? (deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_MOVING_TEMP_FILES))
 	                          : (deluge::l10n::get(deluge::l10n::String::STRING_FOR_SONG_SAVED));

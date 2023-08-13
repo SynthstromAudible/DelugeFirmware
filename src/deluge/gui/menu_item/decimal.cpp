@@ -48,7 +48,7 @@ void Decimal::beginSession(MenuItem* navigatedBackwardFrom) {
 }
 
 void Decimal::drawValue() {
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		renderUIsForOled();
 	}
 	else {
@@ -98,7 +98,7 @@ void Decimal::horizontalEncoderAction(int32_t offset) {
 		}
 	}
 
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		movingCursor = true;
 		renderUIsForOled();
 		movingCursor = false;
@@ -188,12 +188,12 @@ void Decimal::drawActualValue(bool justDidHorizontalScroll) {
 	memset(&blinkMask, 255, kNumericDisplayLength);
 	blinkMask[3 + soundEditor.numberScrollAmount - soundEditor.numberEditPos] = 0b10000000;
 
-	display.setText(outputText,
-	                true,   // alignRight
-	                dotPos, // drawDot
-	                true,   // doBlink
-	                blinkMask,
-	                false); // blinkImmediately
+	display->setText(outputText,
+	                 true,   // alignRight
+	                 dotPos, // drawDot
+	                 true,   // doBlink
+	                 blinkMask,
+	                 false); // blinkImmediately
 }
 
 } // namespace deluge::gui::menu_item

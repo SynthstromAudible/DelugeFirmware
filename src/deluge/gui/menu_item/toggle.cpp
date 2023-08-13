@@ -9,7 +9,7 @@ namespace deluge::gui::menu_item {
 
 void Toggle::beginSession(MenuItem* navigatedBackwardFrom) {
 	Value::beginSession(navigatedBackwardFrom);
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		soundEditor.menuCurrentScroll = 0;
 	}
 	else {
@@ -26,13 +26,13 @@ void Toggle::selectEncoderAction(int32_t offset) {
 }
 
 void Toggle::drawValue() {
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		renderUIsForOled();
 	}
 	else {
-		display.setText(this->getValue() //<
-		                    ? l10n::get(l10n::String::STRING_FOR_ENABLED)
-		                    : l10n::get(l10n::String::STRING_FOR_DISABLED));
+		display->setText(this->getValue() //<
+		                     ? l10n::get(l10n::String::STRING_FOR_ENABLED)
+		                     : l10n::get(l10n::String::STRING_FOR_DISABLED));
 	}
 }
 

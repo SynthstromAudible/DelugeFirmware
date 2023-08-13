@@ -55,7 +55,7 @@ void CVEngine::init() {
 	SPI::send(1, 0);
 	IO::setOutputState(6, 13, 1);
 */
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		enqueueCVMessage(SPI_CHANNEL_CV, 0b00000101000000100000000000000000); // LIN = 1
 	}
 	else {
@@ -70,7 +70,7 @@ void CVEngine::init() {
 	SPI::send(1, 0);
 	IO::setOutputState(6, 13, 1);
 	*/
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		enqueueCVMessage(SPI_CHANNEL_CV, 0b00000101000000000000000000000000); // LIN = 0
 	}
 	else {
@@ -181,7 +181,7 @@ void CVEngine::sendNote(bool on, uint8_t channel, int16_t note) {
 void CVEngine::sendVoltageOut(uint8_t channel, uint16_t voltage) {
 	uint32_t output = (uint32_t)(0b00110000 | (1 << channel)) << 24;
 	output |= (uint32_t)voltage << 8;
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		enqueueCVMessage(channel, output);
 	}
 	else {

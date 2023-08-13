@@ -138,7 +138,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 					displayText = "STEREO CHORUS";
 					break;
 				}
-				display.displayPopup(displayText);
+				display->displayPopup(displayText);
 				ensureModFXParamIsValid();
 				return true;
 			}
@@ -166,7 +166,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 					displayText = "OFFSET";
 					break;
 				}
-				display.displayPopup(displayText);
+				display->displayPopup(displayText);
 			}
 
 			return false;
@@ -194,7 +194,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 					displayText = "EQ";
 					break;
 				}
-				display.displayPopup(displayText);
+				display->displayPopup(displayText);
 			}
 
 			return false;

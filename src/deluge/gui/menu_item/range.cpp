@@ -31,7 +31,7 @@ void Range::beginSession(MenuItem* navigatedBackwardFrom) {
 
 	soundEditor.editingRangeEdge = RangeEdit::OFF;
 
-	if (display.type != DisplayType::OLED) {
+	if (display->type() != DisplayType::OLED) {
 		drawValue(0, false);
 	}
 }
@@ -48,7 +48,7 @@ void Range::horizontalEncoderAction(int32_t offset) {
 		if (soundEditor.editingRangeEdge == RangeEdit::LEFT) {
 switchOff:
 			soundEditor.editingRangeEdge = RangeEdit::OFF;
-			if (display.type == DisplayType::OLED) {
+			if (display->type() == DisplayType::OLED) {
 				goto justDrawValueForEditingRange;
 			}
 			else {
@@ -62,7 +62,7 @@ switchOff:
 			if (mayEditRangeEdge(RangeEdit::LEFT)) {
 				soundEditor.editingRangeEdge = RangeEdit::LEFT;
 justDrawValueForEditingRange:
-				if (display.type == DisplayType::OLED) {
+				if (display->type() == DisplayType::OLED) {
 					renderUIsForOled();
 				}
 				else {
@@ -111,7 +111,7 @@ bool Range::cancelEditingIfItsOn() {
 }
 
 void Range::drawValue(int32_t startPos, bool renderSidebarToo) {
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 
 		renderUIsForOled();
 	}
@@ -120,16 +120,16 @@ void Range::drawValue(int32_t startPos, bool renderSidebarToo) {
 		getText(buffer);
 
 		if (strlen(buffer) <= kNumericDisplayLength) {
-			display.setText(buffer, true);
+			display->setText(buffer, true);
 		}
 		else {
-			display.setScrollingText(buffer, startPos);
+			display->setScrollingText(buffer, startPos);
 		}
 	}
 }
 
 void Range::drawValueForEditingRange(bool blinkImmediately) {
-	if (display.type == DisplayType::OLED) {
+	if (display->type() == DisplayType::OLED) {
 		renderUIsForOled();
 		return;
 	}
@@ -165,7 +165,7 @@ void Range::drawValueForEditingRange(bool blinkImmediately) {
 	// Sorta hackish, to reset timing of blinking LED and always show text "on" initially on edit value
 	indicator_leds::blinkLed(IndicatorLED::BACK, 255, 0, !blinkImmediately);
 
-	display.setText(buffer, alignRight, 255, true, blinkMask);
+	display->setText(buffer, alignRight, 255, true, blinkMask);
 
 	soundEditor.possibleChangeToCurrentRangeDisplay();
 }

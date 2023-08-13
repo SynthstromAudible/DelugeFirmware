@@ -247,7 +247,7 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 	// Trying to track down Steven's E133 - percCacheClusterNearby pointing to things with no reasons left
 	for (int32_t l = 0; l < 2; l++) {
 		if (percCacheClustersNearby[l] && !percCacheClustersNearby[l]->numReasonsToBeLoaded) {
-			display.freezeWithError("i036");
+			display->freezeWithError("i036");
 		}
 	}
 #endif
@@ -621,7 +621,7 @@ skipPercStuff:
 
 		int32_t newHeadTotals[TimeStretch::Crossfade::kNumMovingAverages];
 		if (ALPHA_OR_BETA_VERSION && newHeadBytePos < (int32_t)sample->audioDataStartPosBytes) {
-			display.freezeWithError("E285");
+			display->freezeWithError("E285");
 		}
 		success = sample->getAveragesForCrossfade(newHeadTotals, newHeadBytePos, crossfadeLengthSamplesSource,
 		                                          playDirection, lengthToAverageEach);
@@ -1146,7 +1146,7 @@ void TimeStretcher::setupCrossfadeFromCache(SampleCache* cache, int32_t cacheByt
 
 	Cluster* cacheCluster = cache->getCluster(cachedClusterIndex);
 	if (ALPHA_OR_BETA_VERSION && !cacheCluster) { // If it got stolen - but we should have already detected this above
-		display.freezeWithError("E178");
+		display->freezeWithError("E178");
 	}
 	int32_t* __restrict__ readPos = (int32_t*)&cacheCluster->data[bytePosWithinCluster - 4 + kCacheByteDepth];
 
@@ -1190,7 +1190,7 @@ void TimeStretcher::setupCrossfadeFromCache(SampleCache* cache, int32_t cacheByt
 	}
 
 	if (ALPHA_OR_BETA_VERSION && numSamplesThisCacheRead <= 0) {
-		display.freezeWithError("E179");
+		display->freezeWithError("E179");
 	}
 
 	for (int32_t i = 0; i < numSamplesThisCacheRead; i++) {
