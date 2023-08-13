@@ -655,7 +655,7 @@ void AutomationInstrumentClipView::renderAutomationOverview(ModelStackWithTimeli
 				if (instrument->type == InstrumentType::MIDI_OUT
 				    && midiCCShortcutsForAutomation[xDisplay][yDisplay] <= 119) {
 
-					//formula I came up with to rended pad colours from green to red across 119 Midi CC pads
+					//formula I came up with to render pad colours from green to red across 119 Midi CC pads
 					pixel[0] = 2 + (midiCCShortcutsForAutomation[xDisplay][yDisplay] * ((51 << 20) / 119)) >> 20;
 					pixel[1] = 53 - ((midiCCShortcutsForAutomation[xDisplay][yDisplay] * ((51 << 20) / 119)) >> 20);
 					pixel[2] = 2;
