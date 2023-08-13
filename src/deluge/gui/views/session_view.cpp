@@ -553,7 +553,7 @@ doActualSimpleChange:
 								if (newInstrument) {
 									view.displayOutputName(newInstrument);
 									if (display->type() == DisplayType::OLED) {
-										OLED::sendMainImage();
+										deluge::hid::display::OLED::sendMainImage();
 									}
 									view.setActiveModControllableTimelineCounter(newInstrument->activeClip);
 								}
@@ -768,7 +768,7 @@ startHoldingDown:
 							view.setActiveModControllableTimelineCounter(clip);
 							view.displayOutputName(clip->output, true, clip);
 							if (display->type() == DisplayType::OLED) {
-								OLED::sendMainImage();
+								deluge::hid::display::OLED::sendMainImage();
 							}
 						}
 					}
@@ -1073,7 +1073,7 @@ void SessionView::sectionPadAction(uint8_t y, bool on) {
 			}
 			exitUIMode(UI_MODE_HOLDING_SECTION_PAD);
 			if (display->type() == DisplayType::OLED) {
-				OLED::removePopup();
+				deluge::hid::display::OLED::removePopup();
 			}
 			else {
 				redrawNumericDisplay();
@@ -1103,7 +1103,7 @@ ActionResult SessionView::timerCallback() {
 				view.setActiveModControllableTimelineCounter(clip);
 				view.displayOutputName(clip->output, true, clip);
 				if (display->type() == DisplayType::OLED) {
-					OLED::sendMainImage();
+					deluge::hid::display::OLED::sendMainImage();
 				}
 
 				gridPreventArm = true;
@@ -1467,7 +1467,7 @@ int32_t setPresetOrNextUnlaunchedOne(InstrumentClip* clip, InstrumentType instru
 	}
 
 	if (display->type() == DisplayType::OLED) {
-		OLED::displayWorkingAnimation("Loading");
+		deluge::hid::display::OLED::displayWorkingAnimation("Loading");
 	}
 	else {
 		display->displayLoadingAnimation();
@@ -1669,7 +1669,7 @@ gotErrorDontDisplay:
 	view.displayOutputName(newClip->output, true, newClip);
 
 	if (display->type() == DisplayType::OLED) {
-		OLED::sendMainImage();
+		deluge::hid::display::OLED::sendMainImage();
 	}
 }
 
@@ -1699,7 +1699,7 @@ void SessionView::replaceInstrumentClipWithAudioClip(Clip* clip) {
 	view.displayOutputName(newClip->output, true, newClip);
 
 	if (display->type() == DisplayType::OLED) {
-		OLED::sendMainImage();
+		deluge::hid::display::OLED::sendMainImage();
 	}
 	// If Clip was in keyboard view, need to redraw that
 	requestRendering(this, 1 << selectedClipYDisplay, 1 << selectedClipYDisplay);
@@ -1787,13 +1787,13 @@ void SessionView::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 			if (session.launchEventAtSwungTickCount) {
 yesDoIt:
 				intToString(session.numRepeatsTilLaunch, &loopsRemainingText[17]);
-				OLED::drawPermanentPopupLookingText(loopsRemainingText);
+				deluge::hid::display::OLED::drawPermanentPopupLookingText(loopsRemainingText);
 			}
 		}
 
 		else { // Arrangement playback
 			if (playbackHandler.stopOutputRecordingAtLoopEnd) {
-				OLED::drawPermanentPopupLookingText("Resampling will end...");
+				deluge::hid::display::OLED::drawPermanentPopupLookingText("Resampling will end...");
 			}
 		}
 	}
@@ -2775,57 +2775,62 @@ void SessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 				int32_t paddingLeft = 4 + 3;
 				int32_t paddingTop = OLED_MAIN_TOPMOST_PIXEL + 2;
 
-				OLED::setupPopup(OLED_MAIN_WIDTH_PIXELS - 2, OLED_MAIN_VISIBLE_HEIGHT - 2);
+				deluge::hid::display::OLED::setupPopup(OLED_MAIN_WIDTH_PIXELS - 2, OLED_MAIN_VISIBLE_HEIGHT - 2);
 				char buffer[18];
 				strcpy(buffer, "MASTER COMP");
-				OLED::drawStringCentred(buffer, paddingTop + kTextSpacingY * 0 - 1, OLED::oledMainPopupImage[0],
-				                        OLED_MAIN_WIDTH_PIXELS - 2, kTextSpacingX + 1, kTextSpacingY);
-				OLED::drawStringCentred(buffer, paddingTop + kTextSpacingY * 0 - 1, OLED::oledMainPopupImage[0],
-				                        OLED_MAIN_WIDTH_PIXELS - 2, kTextSpacingX + 1, kTextSpacingY,
-				                        (OLED_MAIN_WIDTH_PIXELS >> 1) + 1);
+				deluge::hid::display::OLED::drawStringCentred(
+				    buffer, paddingTop + kTextSpacingY * 0 - 1, deluge::hid::display::OLED::oledMainPopupImage[0],
+				    OLED_MAIN_WIDTH_PIXELS - 2, kTextSpacingX + 1, kTextSpacingY);
+				deluge::hid::display::OLED::drawStringCentred(
+				    buffer, paddingTop + kTextSpacingY * 0 - 1, deluge::hid::display::OLED::oledMainPopupImage[0],
+				    OLED_MAIN_WIDTH_PIXELS - 2, kTextSpacingX + 1, kTextSpacingY, (OLED_MAIN_WIDTH_PIXELS >> 1) + 1);
 				strcpy(buffer, "THR       GAI");
-				OLED::drawString(buffer, paddingLeft, paddingTop + kTextSpacingY * 1, OLED::oledMainPopupImage[0],
-				                 OLED_MAIN_WIDTH_PIXELS - 2, kTextSpacingX, kTextSpacingY);
+				deluge::hid::display::OLED::drawString(buffer, paddingLeft, paddingTop + kTextSpacingY * 1,
+				                                       deluge::hid::display::OLED::oledMainPopupImage[0],
+				                                       OLED_MAIN_WIDTH_PIXELS - 2, kTextSpacingX, kTextSpacingY);
 				strcpy(buffer, "ATK       REL");
-				OLED::drawString(buffer, paddingLeft, paddingTop + kTextSpacingY * 2, OLED::oledMainPopupImage[0],
-				                 OLED_MAIN_WIDTH_PIXELS - 2, kTextSpacingX, kTextSpacingY);
+				deluge::hid::display::OLED::drawString(buffer, paddingLeft, paddingTop + kTextSpacingY * 2,
+				                                       deluge::hid::display::OLED::oledMainPopupImage[0],
+				                                       OLED_MAIN_WIDTH_PIXELS - 2, kTextSpacingX, kTextSpacingY);
 				strcpy(buffer, "RAT       MIX");
-				OLED::drawString(buffer, paddingLeft, paddingTop + kTextSpacingY * 3, OLED::oledMainPopupImage[0],
-				                 OLED_MAIN_WIDTH_PIXELS - 2, kTextSpacingX, kTextSpacingY);
+				deluge::hid::display::OLED::drawString(buffer, paddingLeft, paddingTop + kTextSpacingY * 3,
+				                                       deluge::hid::display::OLED::oledMainPopupImage[0],
+				                                       OLED_MAIN_WIDTH_PIXELS - 2, kTextSpacingX, kTextSpacingY);
 
 				floatToString(thresh, buffer, 1, 1);
 				if (abs(thresh) < 0.01)
 					strcpy(buffer, "OFF");
-				OLED::drawStringAlignRight(buffer, paddingTop + kTextSpacingY * 1, OLED::oledMainPopupImage[0],
-				                           OLED_MAIN_WIDTH_PIXELS - 2, kTextSpacingX, kTextSpacingY,
-				                           paddingLeft + kTextSpacingX * 9);
+				deluge::hid::display::OLED::drawStringAlignRight(
+				    buffer, paddingTop + kTextSpacingY * 1, deluge::hid::display::OLED::oledMainPopupImage[0],
+				    OLED_MAIN_WIDTH_PIXELS - 2, kTextSpacingX, kTextSpacingY, paddingLeft + kTextSpacingX * 9);
 				floatToString(makeup, buffer, 1, 1);
-				OLED::drawStringAlignRight(buffer, paddingTop + kTextSpacingY * 1, OLED::oledMainPopupImage[0],
-				                           OLED_MAIN_WIDTH_PIXELS - 2, kTextSpacingX, kTextSpacingY,
-				                           paddingLeft + kTextSpacingX * 19);
+				deluge::hid::display::OLED::drawStringAlignRight(
+				    buffer, paddingTop + kTextSpacingY * 1, deluge::hid::display::OLED::oledMainPopupImage[0],
+				    OLED_MAIN_WIDTH_PIXELS - 2, kTextSpacingX, kTextSpacingY, paddingLeft + kTextSpacingX * 19);
 				floatToString(atk, buffer, 1, 1);
-				OLED::drawStringAlignRight(buffer, paddingTop + kTextSpacingY * 2, OLED::oledMainPopupImage[0],
-				                           OLED_MAIN_WIDTH_PIXELS - 2, kTextSpacingX, kTextSpacingY,
-				                           paddingLeft + kTextSpacingX * 9);
+				deluge::hid::display::OLED::drawStringAlignRight(
+				    buffer, paddingTop + kTextSpacingY * 2, deluge::hid::display::OLED::oledMainPopupImage[0],
+				    OLED_MAIN_WIDTH_PIXELS - 2, kTextSpacingX, kTextSpacingY, paddingLeft + kTextSpacingX * 9);
 				intToString(int32_t(rel), buffer);
-				OLED::drawStringAlignRight(buffer, paddingTop + kTextSpacingY * 2, OLED::oledMainPopupImage[0],
-				                           OLED_MAIN_WIDTH_PIXELS - 2, kTextSpacingX, kTextSpacingY,
-				                           paddingLeft + kTextSpacingX * 19);
+				deluge::hid::display::OLED::drawStringAlignRight(
+				    buffer, paddingTop + kTextSpacingY * 2, deluge::hid::display::OLED::oledMainPopupImage[0],
+				    OLED_MAIN_WIDTH_PIXELS - 2, kTextSpacingX, kTextSpacingY, paddingLeft + kTextSpacingX * 19);
 				floatToString(ratio, buffer, 1, 1);
-				OLED::drawStringAlignRight(buffer, paddingTop + kTextSpacingY * 3, OLED::oledMainPopupImage[0],
-				                           OLED_MAIN_WIDTH_PIXELS - 2, kTextSpacingX, kTextSpacingY,
-				                           paddingLeft + kTextSpacingX * 9);
+				deluge::hid::display::OLED::drawStringAlignRight(
+				    buffer, paddingTop + kTextSpacingY * 3, deluge::hid::display::OLED::oledMainPopupImage[0],
+				    OLED_MAIN_WIDTH_PIXELS - 2, kTextSpacingX, kTextSpacingY, paddingLeft + kTextSpacingX * 9);
 				intToString(int32_t(wet * 100), buffer);
 				strcpy(buffer + strlen(buffer), "%");
-				OLED::drawStringAlignRight(buffer, paddingTop + kTextSpacingY * 3, OLED::oledMainPopupImage[0],
-				                           OLED_MAIN_WIDTH_PIXELS - 2, kTextSpacingX, kTextSpacingY,
-				                           paddingLeft + kTextSpacingX * 19);
+				deluge::hid::display::OLED::drawStringAlignRight(
+				    buffer, paddingTop + kTextSpacingY * 3, deluge::hid::display::OLED::oledMainPopupImage[0],
+				    OLED_MAIN_WIDTH_PIXELS - 2, kTextSpacingX, kTextSpacingY, paddingLeft + kTextSpacingX * 19);
 
-				OLED::invertArea((kTextSpacingX * 10) * (masterCompEditMode % 2) + paddingLeft, kTextSpacingX * 9,
-				                 kTextSpacingY * (int32_t)(masterCompEditMode / 2 + 1) + paddingTop,
-				                 kTextSpacingY * (int32_t)(masterCompEditMode / 2 + 2) + paddingTop,
-				                 OLED::oledMainPopupImage);
-				OLED::sendMainImage();
+				deluge::hid::display::OLED::invertArea(
+				    (kTextSpacingX * 10) * (masterCompEditMode % 2) + paddingLeft, kTextSpacingX * 9,
+				    kTextSpacingY * (int32_t)(masterCompEditMode / 2 + 1) + paddingTop,
+				    kTextSpacingY * (int32_t)(masterCompEditMode / 2 + 2) + paddingTop,
+				    deluge::hid::display::OLED::oledMainPopupImage);
+				deluge::hid::display::OLED::sendMainImage();
 				uiTimerManager.setTimer(TIMER_DISPLAY, 1500);
 			}
 		}
@@ -3310,7 +3315,7 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 
 				exitUIMode(UI_MODE_HOLDING_SECTION_PAD);
 				if (display->type() == DisplayType::OLED) {
-					OLED::removePopup();
+					deluge::hid::display::OLED::removePopup();
 				}
 				else {
 					redrawNumericDisplay();

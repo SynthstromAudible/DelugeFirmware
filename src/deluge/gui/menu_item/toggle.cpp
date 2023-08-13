@@ -52,13 +52,15 @@ void Toggle::drawPixelsForOled() {
 	for (int32_t o = 0; o < 2; o++) {
 		int32_t yPixel = o * kTextSpacingY + baseY;
 
-		OLED::drawString(options[o], kTextSpacingX, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
-		                 kTextSpacingX, kTextSpacingY);
+		deluge::hid::display::OLED::drawString(options[o], kTextSpacingX, yPixel,
+		                                       deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
+		                                       kTextSpacingX, kTextSpacingY);
 
 		if (o == selectedOption) {
-			OLED::invertArea(0, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8, &OLED::oledMainImage[0]);
-			OLED::setupSideScroller(0, options[o], kTextSpacingX, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8,
-			                        kTextSpacingX, kTextSpacingY, true);
+			deluge::hid::display::OLED::invertArea(0, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8,
+			                                       &deluge::hid::display::OLED::oledMainImage[0]);
+			deluge::hid::display::OLED::setupSideScroller(0, options[o], kTextSpacingX, OLED_MAIN_WIDTH_PIXELS, yPixel,
+			                                              yPixel + 8, kTextSpacingX, kTextSpacingY, true);
 		}
 	}
 }

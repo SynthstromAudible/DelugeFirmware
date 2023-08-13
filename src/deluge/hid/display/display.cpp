@@ -12,10 +12,6 @@
 deluge::hid::Display* display = nullptr;
 namespace deluge::hid::display {
 
-bool OLED::isLayerCurrentlyOnTop(NumericLayer* layer) {
-	return (!this->hasPopup() && layer == topLayer);
-}
-
 std::string_view getErrorMessage(int32_t error) {
 	using enum l10n::String;
 	switch (error) {
@@ -87,21 +83,6 @@ std::string_view getErrorMessage(int32_t error) {
 		return l10n::getView(STRING_FOR_ERROR_GENERIC);
 	}
 }
-
-void OLED::displayError(int32_t error) {
-	char const* message = nullptr;
-	switch (error) {
-	case NO_ERROR:
-	case ERROR_ABORTED_BY_USER:
-		return;
-	default:
-		message = getErrorMessage(error).data();
-		break;
-	}
-	displayPopup(message);
-}
-
-
 
 } // namespace deluge::hid::display
 

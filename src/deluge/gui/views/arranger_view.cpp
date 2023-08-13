@@ -734,7 +734,7 @@ void ArrangerView::changeOutputToInstrument(InstrumentType newInstrumentType) {
 
 	view.displayOutputName(newInstrument);
 	if (display->type() == DisplayType::OLED) {
-		OLED::sendMainImage();
+		deluge::hid::display::OLED::sendMainImage();
 	}
 
 	view.setActiveModControllableTimelineCounter(NULL);
@@ -848,7 +848,7 @@ doNewPress:
 
 			view.displayOutputName(output);
 			if (display->type() == DisplayType::OLED) {
-				OLED::sendMainImage();
+				deluge::hid::display::OLED::sendMainImage();
 			}
 
 			beginAudition(output);
@@ -2392,7 +2392,7 @@ void ArrangerView::changeInstrumentType(InstrumentType newInstrumentType) {
 	indicator_leds::setLedState(IndicatorLED::CV, false);
 	view.displayOutputName(newInstrument);
 	if (display->type() == DisplayType::OLED) {
-		OLED::sendMainImage();
+		deluge::hid::display::OLED::sendMainImage();
 	}
 	view.setActiveModControllableTimelineCounter(newInstrument->activeClip);
 
@@ -2475,7 +2475,7 @@ cant:
 	indicator_leds::setLedState(IndicatorLED::CV, false);
 	view.displayOutputName(newOutput);
 	if (display->type() == DisplayType::OLED) {
-		OLED::sendMainImage();
+		deluge::hid::display::OLED::sendMainImage();
 	}
 	view.setActiveModControllableTimelineCounter(newClip);
 }

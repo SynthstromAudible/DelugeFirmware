@@ -16,8 +16,8 @@
  */
 
 #include "gui/ui/rename/rename_ui.h"
-
 #include "hid/display/display.h"
+#include "hid/display/oled.h"
 
 RenameUI::RenameUI() {
 	scrollPosHorizontal = 0;
@@ -39,18 +39,19 @@ void RenameUI::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	int32_t windowMinY = (OLED_MAIN_HEIGHT_PIXELS - windowHeight) >> 1;
 	int32_t windowMaxY = OLED_MAIN_HEIGHT_PIXELS - windowMinY;
 
-	OLED::clearAreaExact(windowMinX + 1, windowMinY + 1, windowMaxX - 1, windowMaxY - 1, image);
+	deluge::hid::display::OLED::clearAreaExact(windowMinX + 1, windowMinY + 1, windowMaxX - 1, windowMaxY - 1, image);
 
-	OLED::drawRectangle(windowMinX, windowMinY, windowMaxX, windowMaxY, image);
+	deluge::hid::display::OLED::drawRectangle(windowMinX, windowMinY, windowMaxX, windowMaxY, image);
 
-	OLED::drawStringCentred(title, windowMinY + 6, image[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+	deluge::hid::display::OLED::drawStringCentred(title, windowMinY + 6, image[0], OLED_MAIN_WIDTH_PIXELS,
+	                                              kTextSpacingX, kTextSpacingY);
 
 	int32_t maxNumChars = 12;
 	int32_t charsWidthPixels = maxNumChars * kTextSpacingX;
 	int32_t charsStartPixel = (OLED_MAIN_WIDTH_PIXELS - charsWidthPixels) >> 1;
 	int32_t boxStartPixel = charsStartPixel - 3;
 
-	OLED::drawRectangle(boxStartPixel, 24, OLED_MAIN_WIDTH_PIXELS - boxStartPixel, 38, &image[0]);
+	deluge::hid::display::OLED::drawRectangle(boxStartPixel, 24, OLED_MAIN_WIDTH_PIXELS - boxStartPixel, 38, &image[0]);
 
 	drawTextForOLEDEditing(charsStartPixel, OLED_MAIN_WIDTH_PIXELS - charsStartPixel + 1, 27, maxNumChars, &image[0]);
 }

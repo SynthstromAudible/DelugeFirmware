@@ -40,8 +40,9 @@ public:
 			intToString(this->getValue() + 1, buffer, 1);
 			text = buffer;
 		}
-		OLED::drawStringCentred(text, yPixel + OLED_MAIN_TOPMOST_PIXEL, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
-		                        textWidth, textHeight);
+		deluge::hid::display::OLED::drawStringCentred(text, yPixel + OLED_MAIN_TOPMOST_PIXEL,
+		                                              deluge::hid::display::OLED::oledMainImage[0],
+		                                              OLED_MAIN_WIDTH_PIXELS, textWidth, textHeight);
 	}
 
 	void drawValue() override {

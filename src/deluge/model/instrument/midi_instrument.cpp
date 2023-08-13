@@ -21,6 +21,7 @@
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "hid/matrix/matrix_driver.h"
 #include "io/midi/midi_engine.h"
 #include "model/action/action_logger.h"
@@ -85,7 +86,7 @@ bool MIDIInstrument::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 		if (currentUIMode == UI_MODE_SELECTING_MIDI_CC) {
 			currentUIMode = UI_MODE_NONE;
 			if (display->type() == DisplayType::OLED) {
-				OLED::removePopup();
+				deluge::hid::display::OLED::removePopup();
 			}
 			else {
 				InstrumentClipMinder::redrawNumericDisplay();
@@ -111,7 +112,7 @@ void MIDIInstrument::modButtonAction(uint8_t whichModButton, bool on, ParamManag
 	if (currentUIMode == UI_MODE_SELECTING_MIDI_CC) {
 		currentUIMode = UI_MODE_NONE;
 		if (display->type() == DisplayType::OLED) {
-			OLED::removePopup();
+			deluge::hid::display::OLED::removePopup();
 		}
 		else {
 			InstrumentClipMinder::redrawNumericDisplay();

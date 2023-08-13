@@ -21,6 +21,7 @@
 #include "gui/ui/root_ui.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/matrix/matrix_driver.h"
@@ -238,10 +239,10 @@ void ramTestLED(bool stuffAlreadySetUp) {
 	cvEngine.sendVoltageOut(1, 65520);
 
 	if (display->type() == DisplayType::OLED) {
-		OLED::clearMainImage();
-		OLED::invertArea(0, OLED_MAIN_WIDTH_PIXELS, OLED_MAIN_TOPMOST_PIXEL, OLED_MAIN_HEIGHT_PIXELS - 1,
-		                 OLED::oledMainImage);
-		OLED::sendMainImage();
+		deluge::hid::display::OLED::clearMainImage();
+		deluge::hid::display::OLED::invertArea(0, OLED_MAIN_WIDTH_PIXELS, OLED_MAIN_TOPMOST_PIXEL,
+		                                       OLED_MAIN_HEIGHT_PIXELS - 1, deluge::hid::display::OLED::oledMainImage);
+		deluge::hid::display::OLED::sendMainImage();
 	}
 
 	midiEngine.midiThru = true;

@@ -39,18 +39,19 @@ void Command::drawPixelsForOled() {
 	LearnedMIDI* command = &midiEngine.globalMIDICommands[util::to_underlying(commandNumber)];
 	int32_t yPixel = 20;
 	if (!command->containsSomething()) {
-		OLED::drawString(l10n::get(l10n::String::STRING_FOR_COMMAND_UNASSIGNED), 0, yPixel, OLED::oledMainImage[0],
-		                 OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSizeYUpdated);
+		deluge::hid::display::OLED::drawString(l10n::get(l10n::String::STRING_FOR_COMMAND_UNASSIGNED), 0, yPixel,
+		                                       deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
+		                                       kTextSpacingX, kTextSizeYUpdated);
 	}
 	else {
 		char const* deviceString = l10n::get(l10n::String::STRING_FOR_ANY_MIDI_DEVICE);
 		if (command->device) {
 			deviceString = command->device->getDisplayName();
 		}
-		OLED::drawString(deviceString, 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
-		                 kTextSizeYUpdated);
-		OLED::setupSideScroller(0, deviceString, kTextSpacingX, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8,
-		                        kTextSpacingX, kTextSpacingY, false);
+		deluge::hid::display::OLED::drawString(deviceString, 0, yPixel, deluge::hid::display::OLED::oledMainImage[0],
+		                                       OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSizeYUpdated);
+		deluge::hid::display::OLED::setupSideScroller(0, deviceString, kTextSpacingX, OLED_MAIN_WIDTH_PIXELS, yPixel,
+		                                              yPixel + 8, kTextSpacingX, kTextSpacingY, false);
 
 		yPixel += kTextSpacingY;
 
@@ -66,26 +67,28 @@ void Command::drawPixelsForOled() {
 			char buffer[12];
 			int32_t channelmod = (command->channelOrZone >= IS_A_CC) * IS_A_CC;
 			intToString(command->channelOrZone + 1 - channelmod, buffer, 1);
-			OLED::drawString(buffer, kTextSpacingX * 8, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
-			                 kTextSpacingX, kTextSizeYUpdated);
+			deluge::hid::display::OLED::drawString(buffer, kTextSpacingX * 8, yPixel,
+			                                       deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
+			                                       kTextSpacingX, kTextSizeYUpdated);
 		}
-		OLED::drawString(channelText, 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
-		                 kTextSizeYUpdated);
+		deluge::hid::display::OLED::drawString(channelText, 0, yPixel, deluge::hid::display::OLED::oledMainImage[0],
+		                                       OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSizeYUpdated);
 
 		yPixel += kTextSpacingY;
 		if (command->channelOrZone < IS_A_CC) {
-			OLED::drawString("Note", 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
-			                 kTextSizeYUpdated);
+			deluge::hid::display::OLED::drawString("Note", 0, yPixel, deluge::hid::display::OLED::oledMainImage[0],
+			                                       OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSizeYUpdated);
 		}
 		else {
-			OLED::drawString("CC", 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
-			                 kTextSizeYUpdated);
+			deluge::hid::display::OLED::drawString("CC", 0, yPixel, deluge::hid::display::OLED::oledMainImage[0],
+			                                       OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSizeYUpdated);
 		}
 
 		char buffer[12];
 		intToString(command->noteOrCC, buffer, 1);
-		OLED::drawString(buffer, kTextSpacingX * 5, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
-		                 kTextSpacingX, kTextSizeYUpdated);
+		deluge::hid::display::OLED::drawString(buffer, kTextSpacingX * 5, yPixel,
+		                                       deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
+		                                       kTextSpacingX, kTextSizeYUpdated);
 	}
 }
 

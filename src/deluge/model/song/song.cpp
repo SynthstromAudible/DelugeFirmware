@@ -4425,7 +4425,7 @@ cantDoIt:
 
 		view.displayOutputName(oldNonAudioInstrument);
 		if (display->type() == DisplayType::OLED) {
-			OLED::sendMainImage();
+			deluge::hid::display::OLED::sendMainImage();
 		}
 	}
 
@@ -4436,7 +4436,9 @@ cantDoIt:
 		if (results.error == NO_ERROR_BUT_GET_OUT) {
 removeWorkingAnimationAndGetOut:
 			if (display->type() == DisplayType::OLED) {
-				OLED::removeWorkingAnimation();
+				auto oled = static_cast<deluge::hid::display::OLED*>(display);
+				oled->consoleTimerEvent();
+				oled->removeWorkingAnimation();
 			}
 			return output;
 		}

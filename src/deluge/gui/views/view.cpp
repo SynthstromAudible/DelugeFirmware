@@ -1199,7 +1199,7 @@ void View::cycleThroughReverbPresets() {
 	display->displayPopup(deluge::l10n::get(presetReverbNames[newPreset]));
 }
 
-// If OLED, must make sure OLED::sendMainImage() gets called after this.
+// If OLED, must make sure deluge::hid::display::OLED::sendMainImage() gets called after this.
 void View::displayOutputName(Output* output, bool doBlink, Clip* clip) {
 
 	int32_t channel, channelSuffix;
@@ -1221,7 +1221,7 @@ void View::displayOutputName(Output* output, bool doBlink, Clip* clip) {
 	drawOutputNameFromDetails(output->type, channel, channelSuffix, output->name.get(), editedByUser, doBlink, clip);
 }
 
-// If OLED, must make sure OLED::sendMainImage() gets called after this.
+// If OLED, must make sure deluge::hid::display::OLED::sendMainImage() gets called after this.
 void View::drawOutputNameFromDetails(InstrumentType instrumentType, int32_t channel, int32_t channelSuffix,
                                      char const* name, bool editedByUser, bool doBlink, Clip* clip) {
 	if (doBlink) {
@@ -1271,7 +1271,7 @@ void View::drawOutputNameFromDetails(InstrumentType instrumentType, int32_t chan
 	}
 
 	if (display->type() == DisplayType::OLED) {
-		OLED::clearMainImage();
+		deluge::hid::display::OLED::clearMainImage();
 		char const* outputTypeText;
 		switch (instrumentType) {
 		case InstrumentType::SYNTH:
@@ -1298,8 +1298,9 @@ void View::drawOutputNameFromDetails(InstrumentType instrumentType, int32_t chan
 #else
 		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
 #endif
-		OLED::drawStringCentred(outputTypeText, yPos, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
-		                        kTextSpacingY);
+		deluge::hid::display::OLED::drawStringCentred(outputTypeText, yPos,
+		                                              deluge::hid::display::OLED::oledMainImage[0],
+		                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 	}
 
 	char buffer[12];
@@ -1321,14 +1322,16 @@ oledDrawString:
 			int32_t textLength = strlen(name);
 			int32_t stringLengthPixels = textLength * textSpacingX;
 			if (stringLengthPixels <= OLED_MAIN_WIDTH_PIXELS) {
-				OLED::drawStringCentred(nameToDraw, yPos, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, textSpacingX,
-				                        textSpacingY);
+				deluge::hid::display::OLED::drawStringCentred(nameToDraw, yPos,
+				                                              deluge::hid::display::OLED::oledMainImage[0],
+				                                              OLED_MAIN_WIDTH_PIXELS, textSpacingX, textSpacingY);
 			}
 			else {
-				OLED::drawString(nameToDraw, 0, yPos, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, textSpacingX,
-				                 textSpacingY);
-				OLED::setupSideScroller(0, name, 0, OLED_MAIN_WIDTH_PIXELS, yPos, yPos + textSpacingY, textSpacingX,
-				                        textSpacingY, false);
+				deluge::hid::display::OLED::drawString(nameToDraw, 0, yPos,
+				                                       deluge::hid::display::OLED::oledMainImage[0],
+				                                       OLED_MAIN_WIDTH_PIXELS, textSpacingX, textSpacingY);
+				deluge::hid::display::OLED::setupSideScroller(0, name, 0, OLED_MAIN_WIDTH_PIXELS, yPos,
+				                                              yPos + textSpacingY, textSpacingX, textSpacingY, false);
 			}
 		}
 		else {
@@ -1440,7 +1443,7 @@ void View::navigateThroughAudioOutputsForAudioClip(int32_t offset, AudioClip* cl
 
 	displayOutputName(newOutput, doBlink);
 	if (display->type() == DisplayType::OLED) {
-		OLED::sendMainImage();
+		deluge::hid::display::OLED::sendMainImage();
 	}
 
 	setActiveModControllableTimelineCounter(clip); // Necessary? Does ParamManager get moved over too?
@@ -1648,7 +1651,7 @@ gotAnInstrument:
 
 		displayOutputName(newInstrument, doBlink);
 		if (display->type() == DisplayType::OLED) {
-			OLED::sendMainImage();
+			deluge::hid::display::OLED::sendMainImage();
 		}
 	}
 
@@ -1767,7 +1770,7 @@ bool View::changeInstrumentType(InstrumentType newInstrumentType, ModelStackWith
 	setActiveModControllableTimelineCounter(clip); // Do a redraw. Obviously the Clip is the same
 	displayOutputName(newInstrument, doBlink);
 	if (display->type() == DisplayType::OLED) {
-		OLED::sendMainImage();
+		deluge::hid::display::OLED::sendMainImage();
 	}
 
 	return true;

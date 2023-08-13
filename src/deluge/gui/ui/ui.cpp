@@ -257,14 +257,14 @@ void renderUIsForOled() {
 		u--;
 	}
 
-	OLED::clearMainImage();
+	deluge::hid::display::OLED::clearMainImage();
 
 	for (; u < numUIsOpen; u++) {
-		OLED::stopScrollingAnimation();
-		uiNavigationHierarchy[u]->renderOLED(OLED::oledMainImage);
+		deluge::hid::display::OLED::stopScrollingAnimation();
+		uiNavigationHierarchy[u]->renderOLED(deluge::hid::display::OLED::oledMainImage);
 	}
 
-	OLED::sendMainImage();
+	deluge::hid::display::OLED::sendMainImage();
 }
 
 uint32_t whichMainRowsNeedRendering = 0;

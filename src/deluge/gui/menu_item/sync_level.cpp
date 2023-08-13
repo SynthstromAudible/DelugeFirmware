@@ -72,8 +72,9 @@ void SyncLevel::drawPixelsForOled() {
 		text = buffer;
 		getNoteLengthName(buffer);
 	}
-	OLED::drawStringCentred(text, 20 + OLED_MAIN_TOPMOST_PIXEL, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
-	                        kTextBigSpacingX, kTextBigSizeY);
+	deluge::hid::display::OLED::drawStringCentred(text, 20 + OLED_MAIN_TOPMOST_PIXEL,
+	                                              deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
+	                                              kTextBigSpacingX, kTextBigSizeY);
 }
 
 SyncType SyncLevel::menuOptionToSyncType(int32_t option) {

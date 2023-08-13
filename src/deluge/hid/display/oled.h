@@ -19,76 +19,112 @@
 
 #ifdef __cplusplus
 #include "definitions_cxx.hpp"
+#include "display.h"
 #include <string>
 
-namespace OLED {
+namespace deluge::hid::display {
+class OLED : public Display {
+public:
+	static void drawOnePixel(int32_t x, int32_t y);
+	static void clearMainImage();
+	static void clearAreaExact(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY,
+	                           uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
 
-void drawOnePixel(int32_t x, int32_t y);
-void clearMainImage();
-void clearAreaExact(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
+	static void drawRectangle(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY,
+	                          uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
+	static void drawVerticalLine(int32_t pixelX, int32_t startY, int32_t endY, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
+	static void drawHorizontalLine(int32_t pixelY, int32_t startX, int32_t endX,
+	                               uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
+	static void drawString(std::string_view, int32_t pixelX, int32_t pixelY, uint8_t* image, int32_t imageWidth,
+	                       int32_t textWidth, int32_t textHeight, int32_t scrollPos = 0,
+	                       int32_t endX = OLED_MAIN_WIDTH_PIXELS);
+	static void drawStringFixedLength(char const* string, int32_t length, int32_t pixelX, int32_t pixelY,
+	                                  uint8_t* image, int32_t imageWidth, int32_t textWidth, int32_t textHeight);
+	static void drawStringCentred(char const* string, int32_t pixelY, uint8_t* image, int32_t imageWidth,
+	                              int32_t textWidth, int32_t textHeight,
+	                              int32_t centrePos = (OLED_MAIN_WIDTH_PIXELS >> 1));
+	static void drawStringCentredShrinkIfNecessary(char const* string, int32_t pixelY, uint8_t* image,
+	                                               int32_t imageWidth, int32_t textWidth, int32_t textHeight);
+	static void drawStringAlignRight(char const* string, int32_t pixelY, uint8_t* image, int32_t imageWidth,
+	                                 int32_t textWidth, int32_t textHeight, int32_t rightPos = OLED_MAIN_WIDTH_PIXELS);
+	static void drawChar(uint8_t theChar, int32_t pixelX, int32_t pixelY, uint8_t* image, int32_t imageWidth,
+	                     int32_t textWidth, int32_t textHeight, int32_t scrollPos = 0,
+	                     int32_t endX = OLED_MAIN_WIDTH_PIXELS);
+	static void drawGraphicMultiLine(uint8_t const* graphic, int32_t startX, int32_t startY, int32_t width,
+	                                 uint8_t* image, int32_t height = 8, int32_t numBytesTall = 1);
+	static void drawScreenTitle(std::string_view text);
 
-void drawRectangle(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
-void drawVerticalLine(int32_t pixelX, int32_t startY, int32_t endY, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
-void drawHorizontalLine(int32_t pixelY, int32_t startX, int32_t endX, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
-void drawString(std::string_view, int32_t pixelX, int32_t pixelY, uint8_t* image, int32_t imageWidth, int32_t textWidth,
-                int32_t textHeight, int32_t scrollPos = 0, int32_t endX = OLED_MAIN_WIDTH_PIXELS);
-void drawStringFixedLength(char const* string, int32_t length, int32_t pixelX, int32_t pixelY, uint8_t* image,
-                           int32_t imageWidth, int32_t textWidth, int32_t textHeight);
-void drawStringCentred(char const* string, int32_t pixelY, uint8_t* image, int32_t imageWidth, int32_t textWidth,
-                       int32_t textHeight, int32_t centrePos = (OLED_MAIN_WIDTH_PIXELS >> 1));
-void drawStringCentredShrinkIfNecessary(char const* string, int32_t pixelY, uint8_t* image, int32_t imageWidth,
-                                        int32_t textWidth, int32_t textHeight);
-void drawStringAlignRight(char const* string, int32_t pixelY, uint8_t* image, int32_t imageWidth, int32_t textWidth,
-                          int32_t textHeight, int32_t rightPos = OLED_MAIN_WIDTH_PIXELS);
-void drawChar(uint8_t theChar, int32_t pixelX, int32_t pixelY, uint8_t* image, int32_t imageWidth, int32_t textWidth,
-              int32_t textHeight, int32_t scrollPos = 0, int32_t endX = OLED_MAIN_WIDTH_PIXELS);
-void drawGraphicMultiLine(uint8_t const* graphic, int32_t startX, int32_t startY, int32_t width, uint8_t* image,
-                          int32_t height = 8, int32_t numBytesTall = 1);
-void drawScreenTitle(std::string_view text);
+	static void setupBlink(int32_t minX, int32_t width, int32_t minY, int32_t maxY, bool shouldBlinkImmediately);
+	static void stopBlink();
 
-void setupBlink(int32_t minX, int32_t width, int32_t minY, int32_t maxY, bool shouldBlinkImmediately);
-void stopBlink();
+	static void invertArea(int32_t xMin, int32_t width, int32_t startY, int32_t endY,
+	                       uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
 
-void invertArea(int32_t xMin, int32_t width, int32_t startY, int32_t endY, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
+	static void sendMainImage();
 
-void sendMainImage();
+	static void setupPopup(int32_t width, int32_t height);
+	static void removePopup();
+	static void popupText(char const* text, bool persistent = false);
+	static bool isPopupPresent();
 
-void setupPopup(int32_t width, int32_t height);
-void removePopup();
-void popupText(char const* text, bool persistent = false);
-bool isPopupPresent();
+	static void displayWorkingAnimation(char const* word);
 
-void displayWorkingAnimation(char const* word);
-void removeWorkingAnimation();
+	static int32_t setupConsole(int32_t height);
+	static void drawConsoleTopLine();
 
-void timerRoutine();
+	static void stopScrollingAnimation();
+	static void setupSideScroller(int32_t index, char const* text, int32_t startX, int32_t endX, int32_t startY,
+	                              int32_t endY, int32_t textSpacingX, int32_t textSizeY, bool doHilight);
+	static void drawPermanentPopupLookingText(char const* text);
 
-void setupConsole(int32_t width, int32_t height);
-void consoleText(char const* text);
+	void consoleTimerEvent();
+	static void scrollingAndBlinkingTimerEvent();
 
-void stopScrollingAnimation();
-void setupSideScroller(int32_t index, char const* text, int32_t startX, int32_t endX, int32_t startY, int32_t endY,
-                       int32_t textSpacingX, int32_t textSizeY, bool doHilight);
-void drawPermanentPopupLookingText(char const* text);
+	static uint8_t oledMainImage[OLED_MAIN_HEIGHT_PIXELS >> 3][OLED_MAIN_WIDTH_PIXELS];
+	static uint8_t oledMainPopupImage[OLED_MAIN_HEIGHT_PIXELS >> 3][OLED_MAIN_WIDTH_PIXELS];
+	static uint8_t oledMainConsoleImage[kConsoleImageNumRows][OLED_MAIN_WIDTH_PIXELS];
 
-void freezeWithError(char const* text);
-void consoleTimerEvent();
-void scrollingAndBlinkingTimerEvent();
+	// pointer to one of the three above (the one currently displayed)
+	static uint8_t (*oledCurrentImage)[OLED_MAIN_WIDTH_PIXELS];
 
-extern uint8_t oledMainImage[OLED_MAIN_HEIGHT_PIXELS >> 3][OLED_MAIN_WIDTH_PIXELS];
-extern uint8_t oledMainPopupImage[OLED_MAIN_HEIGHT_PIXELS >> 3][OLED_MAIN_WIDTH_PIXELS];
-extern uint8_t oledMainConsoleImage[kConsoleImageNumRows][OLED_MAIN_WIDTH_PIXELS];
+	static const uint8_t folderIcon[];
+	static const uint8_t waveIcon[];
+	static const uint8_t songIcon[];
+	static const uint8_t synthIcon[];
+	static const uint8_t kitIcon[];
+	static const uint8_t downArrowIcon[];
+	static const uint8_t rightArrowIcon[];
 
-// pointer to one of the three above (the one currently displayed)
-extern uint8_t (*oledCurrentImage)[OLED_MAIN_WIDTH_PIXELS];
+	void removeWorkingAnimation() override;
+	void timerRoutine() override;
+	void consoleText(char const* text) override;
+	void freezeWithError(char const* text) override;
 
-extern const uint8_t folderIcon[];
-extern const uint8_t waveIcon[];
-extern const uint8_t songIcon[];
-extern const uint8_t synthIcon[];
-extern const uint8_t kitIcon[];
-extern const uint8_t downArrowIcon[];
-extern const uint8_t rightArrowIcon[];
+	//************************ Display Interface stuff ***************************/
 
-} // namespace OLED
+	constexpr DisplayType type() override { return DisplayType::OLED; }
+
+	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
+
+	void displayPopup(char const* newText, int8_t numFlashes = 3, bool = false, uint8_t = 255, int32_t = 1) override {
+		popupText(newText, !numFlashes);
+	}
+
+	void popupText(char const* text) override { popupText(text, true); }
+	void popupTextTemporary(char const* text) override { popupText(text, false); }
+
+	void cancelPopup() override { removePopup(); }
+	bool isLayerCurrentlyOnTop(NumericLayer* layer) override { return (!this->hasPopup()); }
+	void displayError(int32_t error) override;
+
+	// Loading animations
+	void displayLoadingAnimationText(char const* text, bool delayed = false, bool transparent = false) override {
+		displayWorkingAnimation(text);
+	}
+	void removeLoadingAnimation() override { removeWorkingAnimation(); }
+
+	bool hasPopup() override { return isPopupPresent(); }
+};
+
+} // namespace deluge::hid::display
 #endif

@@ -20,6 +20,7 @@
 #include "extern.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
@@ -119,8 +120,8 @@ void QwertyUI::drawTextForOLEDEditing(int32_t xPixel, int32_t xPixelMax, int32_t
 	maxXScroll = std::max(maxXScroll, 0_i32);
 	scrollPosHorizontal = std::min(scrollPosHorizontal, maxXScroll);
 
-	OLED::drawString(&displayName[scrollPosHorizontal], xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
-	                 kTextSpacingY);
+	deluge::hid::display::OLED::drawString(&displayName[scrollPosHorizontal], xPixel, yPixel, image[0],
+	                                       OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 
 	int32_t hilightStartX = xPixel + kTextSpacingX * (enteredTextEditPos - scrollPosHorizontal);
 	//int32_t hilightEndX = xPixel + TEXT_SIZE_X * (displayStringLength - scrollPosHorizontal);
@@ -131,11 +132,11 @@ void QwertyUI::drawTextForOLEDEditing(int32_t xPixel, int32_t xPixelMax, int32_t
 		if (getCurrentUI() == this) {
 			int32_t cursorStartX = xPixel + (displayStringLength - scrollPosHorizontal) * kTextSpacingX;
 			int32_t textBottomY = yPixel + kTextSpacingY;
-			OLED::setupBlink(cursorStartX, kTextSpacingX, textBottomY - 4, textBottomY - 2, true);
+			deluge::hid::display::OLED::setupBlink(cursorStartX, kTextSpacingX, textBottomY - 4, textBottomY - 2, true);
 		}
 	}
 	else {
-		OLED::invertArea(hilightStartX, hilightWidth, yPixel, yPixel + kTextSpacingY - 1, image);
+		deluge::hid::display::OLED::invertArea(hilightStartX, hilightWidth, yPixel, yPixel + kTextSpacingY - 1, image);
 	}
 }
 

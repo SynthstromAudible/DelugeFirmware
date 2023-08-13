@@ -23,6 +23,7 @@
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "model/clip/instrument_clip.h"
@@ -70,7 +71,8 @@ tryDefaultDir:
 	}
 
 	if (display->type() == DisplayType::OLED) {
-		fileIcon = (instrumentTypeToLoad == InstrumentType::SYNTH) ? OLED::synthIcon : OLED::kitIcon;
+		fileIcon = (instrumentTypeToLoad == InstrumentType::SYNTH) ? deluge::hid::display::OLED::synthIcon
+		                                                           : deluge::hid::display::OLED::kitIcon;
 		title = (instrumentTypeToLoad == InstrumentType::SYNTH) ? "Save synth" : "Save kit";
 	}
 
@@ -155,7 +157,7 @@ fail:
 	}
 
 	if (display->type() == DisplayType::OLED) {
-		OLED::displayWorkingAnimation("Saving");
+		deluge::hid::display::OLED::displayWorkingAnimation("Saving");
 	}
 
 	instrumentToSave->writeToFile(currentSong->currentClip, currentSong);

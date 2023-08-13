@@ -297,7 +297,7 @@ void KeyboardScreen::updateActiveNotes() {
 		exitUIMode(UI_MODE_AUDITIONING);
 
 		if (display->type() == DisplayType::OLED) {
-			OLED::removePopup();
+			deluge::hid::display::OLED::removePopup();
 		}
 		else {
 			redrawNumericDisplay();

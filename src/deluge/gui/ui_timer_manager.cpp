@@ -90,7 +90,8 @@ void UITimerManager::routine() {
 
 				case TIMER_DISPLAY:
 					if (display->type() == DisplayType::OLED) {
-						OLED::timerRoutine();
+						auto* oled = static_cast<deluge::hid::display::OLED*>(display);
+						oled->timerRoutine();
 					}
 					else {
 						display->timerRoutine();
@@ -150,13 +151,14 @@ void UITimerManager::routine() {
 
 				case TIMER_OLED_CONSOLE:
 					if (display->type() == DisplayType::OLED) {
-						OLED::consoleTimerEvent();
+						auto* oled = static_cast<deluge::hid::display::OLED*>(display);
+						oled->consoleTimerEvent();
 					}
 					break;
 
 				case TIMER_OLED_SCROLLING_AND_BLINKING:
 					if (display->type() == DisplayType::OLED) {
-						OLED::scrollingAndBlinkingTimerEvent();
+						deluge::hid::display::OLED::scrollingAndBlinkingTimerEvent();
 					}
 					break;
 				}

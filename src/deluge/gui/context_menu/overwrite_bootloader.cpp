@@ -18,6 +18,7 @@
 #include "gui/context_menu/overwrite_bootloader.h"
 #include "gui/l10n/l10n.h"
 #include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "memory/general_memory_allocator.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
@@ -154,7 +155,7 @@ gotFlashError:
 			}
 
 			if (display->type() == DisplayType::OLED) {
-				OLED::displayWorkingAnimation(workingMessage);
+				hid::display::OLED::displayWorkingAnimation(workingMessage);
 			}
 
 			uint32_t eraseAddress = startFlashAddress;

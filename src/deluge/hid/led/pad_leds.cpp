@@ -729,7 +729,7 @@ void changeDimmerInterval(int32_t offset) {
 		pos = strchr(text, 0);
 		*(pos++) = '%';
 		*pos = 0;
-		OLED::popupText(text);
+		deluge::hid::display::OLED::popupText(text, false);
 	}
 }
 

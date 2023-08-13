@@ -56,7 +56,6 @@ public:
 
 	bool hasPopup() override { return this->popupActive; }
 
-
 	// Migrated from display::SevenSegment
 	constexpr DisplayType type() override { return DisplayType::SEVEN_SEG; }
 
@@ -89,6 +88,5 @@ private:
 	void transitionToNewLayer(NumericLayer* newLayer);
 	void setTextVeryBasicA1(char const* text);
 	std::array<uint8_t, kNumericDisplayLength> lastDisplay_ = {0};
-
 };
-}
+} // namespace deluge::hid::display

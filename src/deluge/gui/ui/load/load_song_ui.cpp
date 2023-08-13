@@ -24,6 +24,7 @@
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
@@ -415,7 +416,8 @@ gotErrorAfterCreatingSong:
 
 swapDone:
 	if (display->type() == DisplayType::OLED) {
-		OLED::displayWorkingAnimation("Loading"); // To override our popup if we did one. (Still necessary?)
+		deluge::hid::display::OLED::displayWorkingAnimation(
+		    "Loading"); // To override our popup if we did one. (Still necessary?)
 	}
 	// Ok, the swap's been done, the first tick of the new song has been done, and there are potentially loads of samples wanting some data loaded. So do that immediately
 	audioFileManager.loadAnyEnqueuedClusters(99999);

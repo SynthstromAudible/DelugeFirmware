@@ -24,6 +24,7 @@
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "hid/encoders.h"
 #include "hid/matrix/matrix_driver.h"
 #include "io/debug/print.h"
@@ -64,7 +65,7 @@ char const* allowedFileExtensionsXML[] = {"XML", NULL};
 
 Browser::Browser() {
 	if (display->type() == DisplayType::OLED) {
-		fileIcon = OLED::songIcon;
+		fileIcon = deluge::hid::display::OLED::songIcon;
 	}
 	else {
 		scrollingText = NULL;
@@ -1274,7 +1275,7 @@ void Browser::currentFileDeleted() {
 int32_t textStartX = 14;
 
 void Browser::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
-	OLED::drawScreenTitle(title);
+	deluge::hid::display::OLED::drawScreenTitle(title);
 
 	int32_t yPixel = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
 	yPixel += OLED_MAIN_TOPMOST_PIXEL;
@@ -1309,8 +1310,9 @@ void Browser::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 			}
 drawAFile:
 			// Draw graphic
-			uint8_t const* graphic = isFolder ? OLED::folderIcon : fileIcon;
-			OLED::drawGraphicMultiLine(graphic, 1, yPixel + 0, 8, OLED::oledMainImage[0]);
+			uint8_t const* graphic = isFolder ? deluge::hid::display::OLED::folderIcon : fileIcon;
+			deluge::hid::display::OLED::drawGraphicMultiLine(graphic, 1, yPixel + 0, 8,
+			                                                 deluge::hid::display::OLED::oledMainImage[0]);
 
 			// Draw filename
 			char finalChar = isFolder ? 0 : '.';
@@ -1324,16 +1326,18 @@ searchForChar:
 			int32_t displayStringLength = (uint32_t)finalCharAddress - (uint32_t)displayName;
 
 			if (isSelectedIndex) {
-				drawTextForOLEDEditing(textStartX, OLED_MAIN_WIDTH_PIXELS, yPixel, maxChars, OLED::oledMainImage);
+				drawTextForOLEDEditing(textStartX, OLED_MAIN_WIDTH_PIXELS, yPixel, maxChars,
+				                       deluge::hid::display::OLED::oledMainImage);
 				if (!enteredTextEditPos) {
-					OLED::setupSideScroller(0, enteredText.get(), textStartX, OLED_MAIN_WIDTH_PIXELS, yPixel,
-					                        yPixel + 8, kTextSpacingX, kTextSpacingY, true);
+					deluge::hid::display::OLED::setupSideScroller(0, enteredText.get(), textStartX,
+					                                              OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8,
+					                                              kTextSpacingX, kTextSpacingY, true);
 				}
 			}
 			else {
-				OLED::drawStringFixedLength(displayName, displayStringLength, textStartX, yPixel,
-				                            OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
-				                            kTextSpacingY);
+				deluge::hid::display::OLED::drawStringFixedLength(displayName, displayStringLength, textStartX, yPixel,
+				                                                  deluge::hid::display::OLED::oledMainImage[0],
+				                                                  OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 			}
 
 			yPixel += kTextSpacingY;

@@ -26,8 +26,8 @@ public:
 	using MenuItem::MenuItem;
 
 	void drawPixelsForOled() {
-		OLED::drawStringCentredShrinkIfNecessary(kFirmwareVersionString, 22, OLED::oledMainImage[0],
-		                                         OLED_MAIN_WIDTH_PIXELS, 18, 20);
+		deluge::hid::display::OLED::drawStringCentredShrinkIfNecessary(
+		    kFirmwareVersionString, 22, deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, 18, 20);
 	}
 
 	void beginSession(MenuItem* navigatedBackwardFrom) override { drawValue(); }

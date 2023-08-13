@@ -3096,7 +3096,7 @@ void InstrumentClipView::auditionPadAction(int32_t velocity, int32_t yDisplay, b
 						}
 					}
 					if (display->type() == DisplayType::OLED) {
-						OLED::removePopup();
+						deluge::hid::display::OLED::removePopup();
 					}
 					else {
 						redrawNumericDisplay();
@@ -3439,7 +3439,7 @@ void InstrumentClipView::someAuditioningHasEnded(bool recalculateLastAuditionedN
 		auditioningSilently = false;
 
 		if (display->type() == DisplayType::OLED) {
-			OLED::removePopup();
+			deluge::hid::display::OLED::removePopup();
 		}
 		else {
 			redrawNumericDisplay();
@@ -4265,7 +4265,7 @@ void InstrumentClipView::quantizeNotes(int32_t offset, int32_t nudgeMode) {
 		}
 		intToString(abs(quantizeAmount * 10), buffer + strlen(buffer));
 		strcpy(buffer + strlen(buffer), "%");
-		OLED::popupText(buffer);
+		deluge::hid::display::OLED::popupText(buffer, false);
 	}
 	else {
 		char buffer[5];

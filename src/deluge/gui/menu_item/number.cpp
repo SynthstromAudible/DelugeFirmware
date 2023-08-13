@@ -35,9 +35,9 @@ void Number::drawBar(int32_t yTop, int32_t marginL, int32_t marginR) {
 	int32_t endLineHalfHeight = 8;
 
 	/*
-	OLED::drawHorizontalLine(y, leftMost, rightMost, OLED::oledMainImage);
-	OLED::drawVerticalLine(leftMost, y, y + endLineHalfHeight, OLED::oledMainImage);
-	OLED::drawVerticalLine(rightMost, y, y + endLineHalfHeight, OLED::oledMainImage);
+	deluge::hid::display::OLED::drawHorizontalLine(y, leftMost, rightMost, deluge::hid::display::OLED::oledMainImage);
+	deluge::hid::display::OLED::drawVerticalLine(leftMost, y, y + endLineHalfHeight, deluge::hid::display::OLED::oledMainImage);
+	deluge::hid::display::OLED::drawVerticalLine(rightMost, y, y + endLineHalfHeight, deluge::hid::display::OLED::oledMainImage);
 */
 	int32_t minValue = getMinValue();
 	int32_t maxValue = getMaxValue();
@@ -51,13 +51,16 @@ void Number::drawBar(int32_t yTop, int32_t marginL, int32_t marginR) {
 
 	if (posHorizontal <= zeroPosHorizontal) {
 		int32_t xMin = leftMost + posHorizontal;
-		OLED::invertArea(xMin, zeroPosHorizontal - posHorizontal + 1, yTop, yTop + height, OLED::oledMainImage);
+		deluge::hid::display::OLED::invertArea(xMin, zeroPosHorizontal - posHorizontal + 1, yTop, yTop + height,
+		                                       deluge::hid::display::OLED::oledMainImage);
 	}
 	else {
 		int32_t xMin = leftMost + zeroPosHorizontal;
-		OLED::invertArea(xMin, posHorizontal - zeroPosHorizontal, yTop, yTop + height, OLED::oledMainImage);
+		deluge::hid::display::OLED::invertArea(xMin, posHorizontal - zeroPosHorizontal, yTop, yTop + height,
+		                                       deluge::hid::display::OLED::oledMainImage);
 	}
-	OLED::drawRectangle(leftMost, yTop, rightMost, yTop + height, OLED::oledMainImage);
+	deluge::hid::display::OLED::drawRectangle(leftMost, yTop, rightMost, yTop + height,
+	                                          deluge::hid::display::OLED::oledMainImage);
 }
 
 } // namespace deluge::gui::menu_item

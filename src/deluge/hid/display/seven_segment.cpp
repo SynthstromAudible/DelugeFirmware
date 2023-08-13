@@ -96,8 +96,8 @@ void SevenSegment::removeTopLayer() {
 }
 
 void SevenSegment::setText(std::string_view newText, bool alignRight, uint8_t drawDot, bool doBlink,
-                            uint8_t* newBlinkMask, bool blinkImmediately, bool shouldBlinkFast, int32_t scrollPos,
-                            uint8_t* encodedAddition, bool justReplaceBottomLayer) {
+                           uint8_t* newBlinkMask, bool blinkImmediately, bool shouldBlinkFast, int32_t scrollPos,
+                           uint8_t* encodedAddition, bool justReplaceBottomLayer) {
 	void* layerSpace = GeneralMemoryAllocator::get().alloc(sizeof(NumericLayerBasicText));
 	if (!layerSpace) {
 		return;
@@ -145,7 +145,7 @@ void SevenSegment::setText(std::string_view newText, bool alignRight, uint8_t dr
 }
 
 NumericLayerScrollingText* SevenSegment::setScrollingText(char const* newText, int32_t startAtTextPos,
-                                                           int32_t initialDelay) {
+                                                          int32_t initialDelay) {
 	void* layerSpace = GeneralMemoryAllocator::get().alloc(sizeof(NumericLayerScrollingText));
 	if (!layerSpace) {
 		return NULL;
@@ -260,7 +260,7 @@ int32_t SevenSegment::getEncodedPosFromLeft(int32_t textPos, char const* text, b
 // Returns encoded length
 // scrollPos may only be set when aligning left
 int32_t SevenSegment::encodeText(std::string_view newText, uint8_t* destination, bool alignRight, uint8_t drawDot,
-                                  bool limitToDisplayLength, int32_t scrollPos) {
+                                 bool limitToDisplayLength, int32_t scrollPos) {
 
 	int32_t writePos;
 	int32_t readPos;
@@ -442,7 +442,7 @@ void SevenSegment::setTextAsNumber(int16_t number, uint8_t drawDot, bool doBlink
 }
 
 void SevenSegment::setTextAsSlot(int16_t currentSlot, int8_t currentSubSlot, bool currentSlotExists, bool doBlink,
-                                  int32_t blinkPos, bool blinkImmediately) {
+                                 int32_t blinkPos, bool blinkImmediately) {
 	char text[12];
 
 	//int32_t minNumDigits = std::max(1, blinkPos + 1);
@@ -468,7 +468,7 @@ void SevenSegment::setNextTransitionDirection(int8_t thisDirection) {
 }
 
 void SevenSegment::displayPopup(char const* newText, int8_t numFlashes, bool alignRight, uint8_t drawDot,
-                                 int32_t blinkSpeed) {
+                                int32_t blinkSpeed) {
 	encodeText(newText, popup.segments, alignRight, drawDot);
 	memset(&popup.blinkedSegments, 0, kNumericDisplayLength);
 	if (numFlashes == 0) {
@@ -593,4 +593,4 @@ void SevenSegment::displayError(int32_t error) {
 	}
 	SevenSegment::displayPopup(message);
 }
-}
+} // namespace deluge::hid::display

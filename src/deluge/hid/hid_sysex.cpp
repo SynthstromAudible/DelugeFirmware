@@ -43,13 +43,15 @@ void HIDSysex::sendOLEDData(MIDIDevice* device, bool rle) {
 
 		int32_t packed;
 		if (rle) {
-			packed = pack_8to7_rle(reply + 6, max_packed_size, OLED::oledCurrentImage[0], data_size);
+			packed =
+			    pack_8to7_rle(reply + 6, max_packed_size, deluge::hid::display::OLED::oledCurrentImage[0], data_size);
 		}
 		else {
-			packed = pack_8bit_to_7bit(reply + 6, max_packed_size, OLED::oledCurrentImage[0], data_size);
+			packed = pack_8bit_to_7bit(reply + 6, max_packed_size, deluge::hid::display::OLED::oledCurrentImage[0],
+			                           data_size);
 		}
 		if (packed < 0) {
-			OLED::popupText("eror: fail");
+			deluge::hid::display::OLED::popupText("eror: fail", false);
 		}
 		reply[6 + packed] = 0xf7; // end of transmission
 		device->sendSysex(reply, packed + 7);

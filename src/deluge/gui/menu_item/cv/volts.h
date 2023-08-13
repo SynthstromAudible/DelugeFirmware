@@ -40,8 +40,8 @@ public:
 	}
 	void drawPixelsForOled() override {
 		if (this->getValue() == 0) {
-			OLED::drawStringCentred("Hz/V", 20, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextHugeSpacingX,
-			                        kTextHugeSizeY);
+			deluge::hid::display::OLED::drawStringCentred("Hz/V", 20, deluge::hid::display::OLED::oledMainImage[0],
+			                                              OLED_MAIN_WIDTH_PIXELS, kTextHugeSpacingX, kTextHugeSizeY);
 		}
 		else {
 			Decimal::drawPixelsForOled();

@@ -27,6 +27,7 @@
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
@@ -122,7 +123,8 @@ int32_t LoadInstrumentPresetUI::setupForInstrumentType() {
 	}
 
 	if (display->type() == DisplayType::OLED) {
-		fileIcon = (instrumentTypeToLoad == InstrumentType::SYNTH) ? OLED::synthIcon : OLED::kitIcon;
+		fileIcon = (instrumentTypeToLoad == InstrumentType::SYNTH) ? deluge::hid::display::OLED::synthIcon
+		                                                           : deluge::hid::display::OLED::kitIcon;
 		title = (instrumentTypeToLoad == InstrumentType::SYNTH) ? "Load synth" : "Load kit";
 	}
 
@@ -1407,7 +1409,7 @@ doneMoving:
 	}
 
 	if (display->type() == DisplayType::OLED) {
-		OLED::sendMainImage(); // Sorta cheating - bypassing the UI layered renderer.
+		deluge::hid::display::OLED::sendMainImage(); // Sorta cheating - bypassing the UI layered renderer.
 	}
 
 	if (Encoders::encoders[ENCODER_SELECT].detentPos) {

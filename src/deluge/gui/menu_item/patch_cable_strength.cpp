@@ -66,36 +66,45 @@ void PatchCableStrength::renderOLED() {
 
 	int32_t yPixel = yTop;
 
-	OLED::drawString(getSourceDisplayNameForOLED(s), 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
-	                 kTextSpacingX, kTextSizeYUpdated);
+	deluge::hid::display::OLED::drawString(getSourceDisplayNameForOLED(s), 0, yPixel,
+	                                       deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
+	                                       kTextSpacingX, kTextSizeYUpdated);
 	yPixel += ySpacing;
 
 	if (!destinationDescriptor.isJustAParam()) {
-		//OLED::drawGraphicMultiLine(OLED::downArrowIcon, 0, yPixel, 8, OLED::oledMainImage[0]);
+		//deluge::hid::display::OLED::drawGraphicMultiLine(deluge::hid::display::OLED::downArrowIcon, 0, yPixel, 8, deluge::hid::display::OLED::oledMainImage[0]);
 		int32_t horizontalLineY = yPixel + (ySpacing << 1);
-		OLED::drawVerticalLine(4, yPixel + 1, horizontalLineY, OLED::oledMainImage);
+		deluge::hid::display::OLED::drawVerticalLine(4, yPixel + 1, horizontalLineY,
+		                                             deluge::hid::display::OLED::oledMainImage);
 		int32_t rightArrowX = 3 + kTextSpacingX;
-		OLED::drawHorizontalLine(horizontalLineY, 4, kTextSpacingX * 2 + 4, OLED::oledMainImage);
-		OLED::drawGraphicMultiLine(OLED::rightArrowIcon, rightArrowX, horizontalLineY - 2, 3, OLED::oledMainImage[0]);
+		deluge::hid::display::OLED::drawHorizontalLine(horizontalLineY, 4, kTextSpacingX * 2 + 4,
+		                                               deluge::hid::display::OLED::oledMainImage);
+		deluge::hid::display::OLED::drawGraphicMultiLine(deluge::hid::display::OLED::rightArrowIcon, rightArrowX,
+		                                                 horizontalLineY - 2, 3,
+		                                                 deluge::hid::display::OLED::oledMainImage[0]);
 
 		yPixel += ySpacing - 1;
 
 		PatchSource s2 = destinationDescriptor.getTopLevelSource();
-		OLED::drawString(getSourceDisplayNameForOLED(s2), kTextSpacingX * 2, yPixel - 3, OLED::oledMainImage[0],
-		                 OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSizeYUpdated);
+		deluge::hid::display::OLED::drawString(getSourceDisplayNameForOLED(s2), kTextSpacingX * 2, yPixel - 3,
+		                                       deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
+		                                       kTextSpacingX, kTextSizeYUpdated);
 		yPixel += ySpacing;
 
-		OLED::drawVerticalLine(kTextSpacingX * 2 + 4, yPixel - 2, yPixel + 2, OLED::oledMainImage);
+		deluge::hid::display::OLED::drawVerticalLine(kTextSpacingX * 2 + 4, yPixel - 2, yPixel + 2,
+		                                             deluge::hid::display::OLED::oledMainImage);
 	}
 
-	OLED::drawGraphicMultiLine(OLED::downArrowIcon, destinationDescriptor.isJustAParam() ? 2 : (kTextSpacingX * 2 + 2),
-	                           yPixel, 5, OLED::oledMainImage[0]);
+	deluge::hid::display::OLED::drawGraphicMultiLine(deluge::hid::display::OLED::downArrowIcon,
+	                                                 destinationDescriptor.isJustAParam() ? 2 : (kTextSpacingX * 2 + 2),
+	                                                 yPixel, 5, deluge::hid::display::OLED::oledMainImage[0]);
 	yPixel += ySpacing;
 
 	int32_t p = destinationDescriptor.getJustTheParam();
 
-	OLED::drawString(getPatchedParamDisplayNameForOled(p), 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
-	                 kTextSpacingX, kTextSizeYUpdated);
+	deluge::hid::display::OLED::drawString(getPatchedParamDisplayNameForOled(p), 0, yPixel,
+	                                       deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
+	                                       kTextSpacingX, kTextSizeYUpdated);
 
 	if (soundEditor.numberEditPos != getDefaultEditPos()) {
 		preferBarDrawing = false;
@@ -105,8 +114,9 @@ void PatchCableStrength::renderOLED() {
 	if (preferBarDrawing) {
 		int32_t rounded = (this->getValue() + 50 * (this->getValue() > 0 ? 1 : -1)) / 100;
 		intToString(rounded, buffer, 1);
-		OLED::drawStringAlignRight(buffer, extraY + OLED_MAIN_TOPMOST_PIXEL + 4 + destinationDescriptor.isJustAParam(),
-		                           OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, 18, 20);
+		deluge::hid::display::OLED::drawStringAlignRight(
+		    buffer, extraY + OLED_MAIN_TOPMOST_PIXEL + 4 + destinationDescriptor.isJustAParam(),
+		    deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, 18, 20);
 
 		int32_t marginL = destinationDescriptor.isJustAParam() ? 0 : 80;
 		int32_t yBar = destinationDescriptor.isJustAParam() ? 36 : 37;
@@ -117,15 +127,18 @@ void PatchCableStrength::renderOLED() {
 		const int32_t digitHeight = kTextBigSizeY;
 		intToString(this->getValue(), buffer, 3);
 		int32_t textPixelY = extraY + OLED_MAIN_TOPMOST_PIXEL + 10 + destinationDescriptor.isJustAParam();
-		OLED::drawStringAlignRight(buffer, textPixelY, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, digitWidth,
-		                           digitHeight);
+		deluge::hid::display::OLED::drawStringAlignRight(buffer, textPixelY,
+		                                                 deluge::hid::display::OLED::oledMainImage[0],
+		                                                 OLED_MAIN_WIDTH_PIXELS, digitWidth, digitHeight);
 
 		int32_t ourDigitStartX = OLED_MAIN_WIDTH_PIXELS - (soundEditor.numberEditPos + 1) * digitWidth;
-		OLED::setupBlink(ourDigitStartX, digitWidth, 40, 44, movingCursor);
-		OLED::drawVerticalLine(OLED_MAIN_WIDTH_PIXELS - 2 * digitWidth, textPixelY + digitHeight + 1,
-		                       textPixelY + digitHeight + 3, OLED::oledMainImage);
-		OLED::drawVerticalLine(OLED_MAIN_WIDTH_PIXELS - 2 * digitWidth - 1, textPixelY + digitHeight + 1,
-		                       textPixelY + digitHeight + 3, OLED::oledMainImage);
+		deluge::hid::display::OLED::setupBlink(ourDigitStartX, digitWidth, 40, 44, movingCursor);
+		deluge::hid::display::OLED::drawVerticalLine(OLED_MAIN_WIDTH_PIXELS - 2 * digitWidth,
+		                                             textPixelY + digitHeight + 1, textPixelY + digitHeight + 3,
+		                                             deluge::hid::display::OLED::oledMainImage);
+		deluge::hid::display::OLED::drawVerticalLine(OLED_MAIN_WIDTH_PIXELS - 2 * digitWidth - 1,
+		                                             textPixelY + digitHeight + 1, textPixelY + digitHeight + 3,
+		                                             deluge::hid::display::OLED::oledMainImage);
 	}
 }
 

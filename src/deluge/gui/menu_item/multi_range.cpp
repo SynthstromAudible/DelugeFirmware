@@ -228,7 +228,7 @@ void MultiRange::selectEncoderAction(int32_t offset) {
 
 			this->setValue(newI);
 			if (display->type() == DisplayType::OLED) {
-				OLED::consoleText(l10n::get(l10n::String::STRING_FOR_RANGE_INSERTED));
+				display->consoleText(l10n::get(l10n::String::STRING_FOR_RANGE_INSERTED));
 				if (soundEditor.menuCurrentScroll > this->getValue()) {
 					soundEditor.menuCurrentScroll = this->getValue();
 				}
@@ -460,7 +460,8 @@ void MultiRange::drawPixelsForOled() {
 		int32_t baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
 		baseY += OLED_MAIN_TOPMOST_PIXEL;
 		baseY += (this->getValue() - soundEditor.menuCurrentScroll) * kTextSpacingY;
-		OLED::invertArea(hilightStartX, hilightWidth, baseY, baseY + kTextSpacingY, OLED::oledMainImage);
+		deluge::hid::display::OLED::invertArea(hilightStartX, hilightWidth, baseY, baseY + kTextSpacingY,
+		                                       deluge::hid::display::OLED::oledMainImage);
 	}
 }
 } // namespace deluge::gui::menu_item

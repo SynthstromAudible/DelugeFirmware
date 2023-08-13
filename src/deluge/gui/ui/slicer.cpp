@@ -87,15 +87,17 @@ void Slicer::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	windowMinY += 2;
 	int32_t windowMaxY = windowMinY + windowHeight;
 
-	OLED::clearAreaExact(windowMinX + 1, windowMinY + 1, windowMaxX - 1, windowMaxY - 1, image);
+	deluge::hid::display::OLED::clearAreaExact(windowMinX + 1, windowMinY + 1, windowMaxX - 1, windowMaxY - 1, image);
 
-	OLED::drawRectangle(windowMinX, windowMinY, windowMaxX, windowMaxY, image);
-	OLED::drawHorizontalLine(windowMinY + 15, 26, OLED_MAIN_WIDTH_PIXELS - 22, &image[0]);
-	OLED::drawString("Num. slices", 30, windowMinY + 6, image[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+	deluge::hid::display::OLED::drawRectangle(windowMinX, windowMinY, windowMaxX, windowMaxY, image);
+	deluge::hid::display::OLED::drawHorizontalLine(windowMinY + 15, 26, OLED_MAIN_WIDTH_PIXELS - 22, &image[0]);
+	deluge::hid::display::OLED::drawString("Num. slices", 30, windowMinY + 6, image[0], OLED_MAIN_WIDTH_PIXELS,
+	                                       kTextSpacingX, kTextSpacingY);
 	char buffer[12];
 	intToString(slicerMode == SLICER_MODE_REGION ? numClips : numManualSlice, buffer);
-	OLED::drawStringCentred(buffer, windowMinY + 18, image[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY,
-	                        (OLED_MAIN_WIDTH_PIXELS >> 1) + horizontalShift);
+	deluge::hid::display::OLED::drawStringCentred(buffer, windowMinY + 18, image[0], OLED_MAIN_WIDTH_PIXELS,
+	                                              kTextSpacingX, kTextSpacingY,
+	                                              (OLED_MAIN_WIDTH_PIXELS >> 1) + horizontalShift);
 }
 
 void Slicer::redraw() {
@@ -245,7 +247,7 @@ ActionResult Slicer::horizontalEncoderAction(int32_t offset) {
 			char buffer[24];
 			strcpy(buffer, "Start: ");
 			intToString(manualSlicePoints[currentSlice].startPos, buffer + strlen(buffer));
-			OLED::popupText(buffer);
+			deluge::hid::display::OLED::popupText(buffer, false);
 		}
 		else {
 			char buffer[12];
@@ -270,7 +272,7 @@ ActionResult Slicer::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 			char buffer[24];
 			strcpy(buffer, "Transpose: ");
 			intToString(manualSlicePoints[currentSlice].transpose, buffer + strlen(buffer));
-			OLED::popupText(buffer);
+			deluge::hid::display::OLED::popupText(buffer, false);
 		}
 		else {
 			char buffer[12];
@@ -346,7 +348,7 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 			char buffer[24];
 			strcpy(buffer, "Transpose: ");
 			intToString(manualSlicePoints[currentSlice].transpose, buffer + strlen(buffer));
-			OLED::popupText(buffer);
+			deluge::hid::display::OLED::popupText(buffer, false);
 		}
 		else {
 			char buffer[12];
