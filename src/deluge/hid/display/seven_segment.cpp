@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "hid/display/numeric_driver.h"
+#include "hid/display/seven_segment.h"
 #include "definitions_cxx.hpp"
 #include "drivers/pic/pic.h"
 #include "gui/ui_timer_manager.h"
@@ -31,12 +31,14 @@
 #include <cstdint>
 #include <cstring>
 #include <new>
+#include <string_view>
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
 #include "util/cfunctions.h"
 }
 
+namespace deluge::hid::display {
 uint8_t numberSegments[10] = {0x7E, 0x30, 0x6D, 0x79, 0x33, 0x5B, 0x5F, 0x70, 0x7F, 0x7B};
 
 uint8_t letterSegments[26] = {0x77, 0x1F, 0x4E, 0x3D, 0x4F,
@@ -55,13 +57,7 @@ uint8_t letterSegments[26] = {0x77, 0x1F, 0x4E, 0x3D, 0x4F,
                               0x0F, //T
                               0x3E, 0x27, 0x5C, 0x49, 0x3B, 0x6D};
 
-NumericDriver::NumericDriver() {
-	popupActive = false;
-	topLayer = NULL;
-	nextTransitionDirection = 0;
-}
-
-void NumericDriver::setTopLayer(NumericLayer* newTopLayer) {
+void SevenSegment::setTopLayer(NumericLayer* newTopLayer) {
 	newTopLayer->next = topLayer;
 	topLayer = newTopLayer;
 
@@ -72,7 +68,7 @@ void NumericDriver::setTopLayer(NumericLayer* newTopLayer) {
 	}
 }
 
-void NumericDriver::deleteAllLayers() {
+void SevenSegment::deleteAllLayers() {
 	while (topLayer) {
 		NumericLayer* toDelete = topLayer;
 		topLayer = topLayer->next;
@@ -81,7 +77,7 @@ void NumericDriver::deleteAllLayers() {
 	}
 }
 
-void NumericDriver::removeTopLayer() {
+void SevenSegment::removeTopLayer() {
 	if (!topLayer || !topLayer->next) {
 		return;
 	}
@@ -99,7 +95,7 @@ void NumericDriver::removeTopLayer() {
 	}
 }
 
-void NumericDriver::setText(std::string_view newText, bool alignRight, uint8_t drawDot, bool doBlink,
+void SevenSegment::setText(std::string_view newText, bool alignRight, uint8_t drawDot, bool doBlink,
                             uint8_t* newBlinkMask, bool blinkImmediately, bool shouldBlinkFast, int32_t scrollPos,
                             uint8_t* encodedAddition, bool justReplaceBottomLayer) {
 	void* layerSpace = GeneralMemoryAllocator::get().alloc(sizeof(NumericLayerBasicText));
@@ -148,7 +144,7 @@ void NumericDriver::setText(std::string_view newText, bool alignRight, uint8_t d
 	}
 }
 
-NumericLayerScrollingText* NumericDriver::setScrollingText(char const* newText, int32_t startAtTextPos,
+NumericLayerScrollingText* SevenSegment::setScrollingText(char const* newText, int32_t startAtTextPos,
                                                            int32_t initialDelay) {
 	void* layerSpace = GeneralMemoryAllocator::get().alloc(sizeof(NumericLayerScrollingText));
 	if (!layerSpace) {
@@ -172,7 +168,7 @@ NumericLayerScrollingText* NumericDriver::setScrollingText(char const* newText, 
 	return newLayer;
 }
 
-void NumericDriver::replaceBottomLayer(NumericLayer* newLayer) {
+void SevenSegment::replaceBottomLayer(NumericLayer* newLayer) {
 	NumericLayer** prevPointer = &topLayer;
 	while ((*prevPointer)->next) {
 		prevPointer = &(*prevPointer)->next;
@@ -191,7 +187,7 @@ void NumericDriver::replaceBottomLayer(NumericLayer* newLayer) {
 	render();
 }
 
-void NumericDriver::transitionToNewLayer(NumericLayer* newLayer) {
+void SevenSegment::transitionToNewLayer(NumericLayer* newLayer) {
 
 	NumericLayerScrollTransition* scrollTransition = NULL;
 
@@ -225,7 +221,7 @@ void NumericDriver::transitionToNewLayer(NumericLayer* newLayer) {
 }
 
 // Automatically stops at end of string
-int32_t NumericDriver::getEncodedPosFromLeft(int32_t textPos, char const* text, bool* andAHalf) {
+int32_t SevenSegment::getEncodedPosFromLeft(int32_t textPos, char const* text, bool* andAHalf) {
 
 	int32_t encodedPos = 0;
 	bool lastSegmentHasDot =
@@ -263,7 +259,7 @@ int32_t NumericDriver::getEncodedPosFromLeft(int32_t textPos, char const* text, 
 
 // Returns encoded length
 // scrollPos may only be set when aligning left
-int32_t NumericDriver::encodeText(std::string_view newText, uint8_t* destination, bool alignRight, uint8_t drawDot,
+int32_t SevenSegment::encodeText(std::string_view newText, uint8_t* destination, bool alignRight, uint8_t drawDot,
                                   bool limitToDisplayLength, int32_t scrollPos) {
 
 	int32_t writePos;
@@ -438,14 +434,14 @@ int32_t NumericDriver::encodeText(std::string_view newText, uint8_t* destination
 	return writePos;
 }
 
-void NumericDriver::setTextAsNumber(int16_t number, uint8_t drawDot, bool doBlink) {
+void SevenSegment::setTextAsNumber(int16_t number, uint8_t drawDot, bool doBlink) {
 	char text[12];
 	intToString(number, text, 1);
 
 	setText(text, true, drawDot, doBlink);
 }
 
-void NumericDriver::setTextAsSlot(int16_t currentSlot, int8_t currentSubSlot, bool currentSlotExists, bool doBlink,
+void SevenSegment::setTextAsSlot(int16_t currentSlot, int8_t currentSubSlot, bool currentSlotExists, bool doBlink,
                                   int32_t blinkPos, bool blinkImmediately) {
 	char text[12];
 
@@ -467,11 +463,11 @@ void NumericDriver::setTextAsSlot(int16_t currentSlot, int8_t currentSubSlot, bo
 	setText(text, (blinkPos == -1), currentSlotExists ? 3 : 255, doBlink, blinkMask, blinkImmediately);
 }
 
-void NumericDriver::setNextTransitionDirection(int8_t thisDirection) {
+void SevenSegment::setNextTransitionDirection(int8_t thisDirection) {
 	nextTransitionDirection = thisDirection;
 }
 
-void NumericDriver::displayPopup(char const* newText, int8_t numFlashes, bool alignRight, uint8_t drawDot,
+void SevenSegment::displayPopup(char const* newText, int8_t numFlashes, bool alignRight, uint8_t drawDot,
                                  int32_t blinkSpeed) {
 	encodeText(newText, popup.segments, alignRight, drawDot);
 	memset(&popup.blinkedSegments, 0, kNumericDisplayLength);
@@ -490,7 +486,7 @@ void NumericDriver::displayPopup(char const* newText, int8_t numFlashes, bool al
 	render();
 }
 
-void NumericDriver::cancelPopup() {
+void SevenSegment::cancelPopup() {
 	if (popupActive) {
 		uiTimerManager.unsetTimer(TIMER_DISPLAY);
 		popupActive = false;
@@ -499,7 +495,7 @@ void NumericDriver::cancelPopup() {
 	}
 }
 
-void NumericDriver::timerRoutine() {
+void SevenSegment::timerRoutine() {
 	NumericLayer* layer;
 	if (popupActive) {
 		layer = &popup;
@@ -523,7 +519,7 @@ void NumericDriver::timerRoutine() {
 	}
 }
 
-void NumericDriver::render() {
+void SevenSegment::render() {
 
 	NumericLayer* layer;
 	if (popupActive) {
@@ -535,13 +531,13 @@ void NumericDriver::render() {
 
 	std::array<uint8_t, kNumericDisplayLength> segments;
 	layer->render(segments.data());
-	lastDisplay = segments;
+	lastDisplay_ = segments;
 
 	PIC::update7SEG(segments);
 }
 
 // Call this to make the loading animation happen
-void NumericDriver::displayLoadingAnimation(bool delayed, bool transparent) {
+void SevenSegment::displayLoadingAnimation(bool delayed, bool transparent) {
 	void* layerSpace = GeneralMemoryAllocator::get().alloc(sizeof(NumericLayerLoadingAnimation));
 	if (!layerSpace) {
 		return;
@@ -553,7 +549,7 @@ void NumericDriver::displayLoadingAnimation(bool delayed, bool transparent) {
 	setTopLayer(loadingAnimation);
 }
 
-void NumericDriver::setTextVeryBasicA1(char const* text) {
+void SevenSegment::setTextVeryBasicA1(char const* text) {
 	std::array<uint8_t, kNumericDisplayLength> segments;
 	encodeText(text, segments.data(), false, 255, true, 0);
 	PIC::update7SEG(segments);
@@ -562,7 +558,7 @@ void NumericDriver::setTextVeryBasicA1(char const* text) {
 // Highest error code used, main branch: E451
 // Highest error code used, fix branch: i041
 
-void NumericDriver::freezeWithError(char const* text) {
+void SevenSegment::freezeWithError(char const* text) {
 	setTextVeryBasicA1(text);
 
 	while (1) {
@@ -579,78 +575,22 @@ void NumericDriver::freezeWithError(char const* text) {
 	setTextVeryBasicA1("OK");
 }
 
-bool NumericDriver::isLayerCurrentlyOnTop(NumericLayer* layer) {
+bool SevenSegment::isLayerCurrentlyOnTop(NumericLayer* layer) {
 	return (!popupActive && layer == topLayer);
 }
 
-void NumericDriver::displayError(int32_t error) {
+extern std::string_view getErrorMessage(int32_t error);
 
-	char const* message;
-
+void SevenSegment::displayError(int32_t error) {
+	char const* message = nullptr;
 	switch (error) {
 	case NO_ERROR:
 	case ERROR_ABORTED_BY_USER:
 		return;
-
-	case ERROR_INSUFFICIENT_RAM_FOR_FOLDER_CONTENTS_SIZE:
-	case ERROR_INSUFFICIENT_RAM:
-		message = "RAM";
-		break;
-	case ERROR_SD_CARD:
-	case ERROR_SD_CARD_NOT_PRESENT:
-	case ERROR_SD_CARD_NO_FILESYSTEM:
-		message = "CARD";
-		break;
-	case ERROR_FILE_CORRUPTED:
-		message = "CORRUPTED";
-		break;
-	case ERROR_FILE_NOT_FOUND:
-	case ERROR_FILE_UNREADABLE:
-		message = "FILE";
-		break;
-	case ERROR_FILE_UNSUPPORTED:
-		message = "UNSUPPORTED";
-		break;
-	case ERROR_FILE_FIRMWARE_VERSION_TOO_NEW:
-		message = "FIRMWARE";
-		break;
-	case ERROR_FOLDER_DOESNT_EXIST:
-		message = "FOLDER";
-		break;
-	case ERROR_BUG:
-		message = "BUG";
-		break;
-	case ERROR_WRITE_FAIL:
-		message = "FAIL";
-		break;
-	case ERROR_FILE_TOO_BIG:
-		message = "BIG";
-		break;
-	case ERROR_PRESET_IN_USE:
-		message = "USED";
-		break;
-	case ERROR_NO_FURTHER_PRESETS:
-	case ERROR_NO_FURTHER_FILES_THIS_DIRECTION:
-		message = "NONE";
-		break;
-	case ERROR_MAX_FILE_SIZE_REACHED:
-		message = "4GB";
-		break;
-	case ERROR_SD_CARD_FULL:
-		message = "FULL";
-		break;
-	case ERROR_FILE_NOT_LOADABLE_AS_WAVETABLE:
-		message = "CANT";
-		break;
-	case ERROR_FILE_NOT_LOADABLE_AS_WAVETABLE_BECAUSE_STEREO:
-		message = "STEREO";
-		break;
-	case ERROR_WRITE_PROTECTED:
-		message = "WRITE-PROTECTED";
-		break;
 	default:
-		message = "ERROR";
+		message = getErrorMessage(error).data();
+		break;
 	}
-
-	displayPopup(message);
+	SevenSegment::displayPopup(message);
+}
 }

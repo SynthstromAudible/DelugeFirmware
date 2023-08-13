@@ -1,11 +1,13 @@
 #pragma once
 #include "definitions.h"
-#include "hid/display/numeric_driver.h"
 #include "hid/display/oled.h"
 #include <array>
 
+class NumericLayer;
+class NumericLayerScrollingText;
+
 // This is distinct from the display _interface_ which is the actual communication system
-enum class DisplayType { OLED, SevenSegment };
+enum class DisplayType { OLED, SEVEN_SEG };
 
 namespace deluge::hid {
 
@@ -18,9 +20,9 @@ public:
 
 	virtual void setText(std::string_view newText, bool alignRight = false, uint8_t drawDot = 255, bool doBlink = false,
 	                     uint8_t* newBlinkMask = NULL, bool blinkImmediately = false, bool shouldBlinkFast = false,
-	                     int scrollPos = 0, uint8_t* blinkAddition = NULL, bool justReplaceBottomLayer = false) = 0;
+	                     int32_t scrollPos = 0, uint8_t* blinkAddition = NULL, bool justReplaceBottomLayer = false) = 0;
 
-	virtual void displayPopup(char const* newText, int8_t numFlashes = 3, bool = false, uint8_t = 255, int = 1) = 0;
+	virtual void displayPopup(char const* newText, int8_t numFlashes = 3, bool = false, uint8_t = 255, int32_t = 1) = 0;
 
 	virtual void popupText(char const* text) = 0;
 	virtual void popupTextTemporary(char const* text) = 0;
@@ -30,7 +32,7 @@ public:
 	virtual void cancelPopup() = 0;
 	virtual void freezeWithError(char const* text) = 0;
 	virtual bool isLayerCurrentlyOnTop(NumericLayer* layer) = 0;
-	virtual void displayError(int error) = 0;
+	virtual void displayError(int32_t error) = 0;
 
 	virtual void removeWorkingAnimation() = 0;
 
@@ -46,15 +48,15 @@ public:
 	virtual void timerRoutine() = 0;
 
 	virtual void setTextAsNumber(int16_t number, uint8_t drawDot = 255, bool doBlink = false) {}
-	virtual int getEncodedPosFromLeft(int textPos, char const* text, bool* andAHalf) { return 0; }
+	virtual int32_t getEncodedPosFromLeft(int32_t textPos, char const* text, bool* andAHalf) { return 0; }
 	virtual void setTextAsSlot(int16_t currentSlot, int8_t currentSubSlot, bool currentSlotExists, bool doBlink = false,
-	                           int blinkPos = -1, bool blinkImmediately = false) {}
-	virtual NumericLayerScrollingText* setScrollingText(char const* newText, int startAtPos = 0,
-	                                                    int initialDelay = 600) {
+	                           int32_t blinkPos = -1, bool blinkImmediately = false) {}
+	virtual NumericLayerScrollingText* setScrollingText(char const* newText, int32_t startAtPos = 0,
+	                                                    int32_t initialDelay = 600) {
 		return nullptr;
 	}
 
-	virtual std::array<uint8_t, kNumericDisplayLength> getLast() { return {0}; }; // to match NumericDriver
+	virtual std::array<uint8_t, kNumericDisplayLength> getLast() { return {0}; }; // to match SevenSegment
 };
 
 namespace display {
@@ -66,9 +68,9 @@ public:
 
 	void setText(std::string_view newText, bool alignRight = false, uint8_t drawDot = 255, bool doBlink = false,
 	             uint8_t* newBlinkMask = NULL, bool blinkImmediately = false, bool shouldBlinkFast = false,
-	             int scrollPos = 0, uint8_t* blinkAddition = NULL, bool justReplaceBottomLayer = false) override {}
+	             int32_t scrollPos = 0, uint8_t* blinkAddition = NULL, bool justReplaceBottomLayer = false) override {}
 
-	void displayPopup(char const* newText, int8_t numFlashes = 3, bool = false, uint8_t = 255, int = 1) override {
+	void displayPopup(char const* newText, int8_t numFlashes = 3, bool = false, uint8_t = 255, int32_t = 1) override {
 		::OLED::popupText(newText, !numFlashes);
 	}
 
@@ -80,7 +82,7 @@ public:
 	void cancelPopup() override { ::OLED::removePopup(); }
 	void freezeWithError(char const* text) override { ::OLED::freezeWithError(text); }
 	bool isLayerCurrentlyOnTop(NumericLayer* layer) override;
-	void displayError(int error) override;
+	void displayError(int32_t error) override;
 
 	void removeWorkingAnimation() override { ::OLED::removeWorkingAnimation(); }
 
@@ -100,27 +102,6 @@ public:
 	NumericLayer* topLayer = nullptr;
 };
 
-class SevenSegment : public Display, public NumericDriver {
-public:
-	constexpr DisplayType type() override { return DisplayType::SevenSegment; }
-
-	constexpr size_t getNumBrowserAndMenuLines() override { return 1; }
-
-	void consoleText(char const* text) override { NumericDriver::displayPopup(text); }
-	void popupText(char const* text) override { NumericDriver::displayPopup(text); }
-	void popupTextTemporary(char const* text) override { NumericDriver::displayPopup(text); }
-
-	void removeWorkingAnimation() override {}
-
-	// Loading animations
-	void displayLoadingAnimationText(char const* text, bool delayed = false, bool transparent = false) override {
-		NumericDriver::displayLoadingAnimation(delayed, transparent);
-	}
-	void removeLoadingAnimation() override { NumericDriver::removeTopLayer(); }
-
-	void displayError(int error) override;
-	std::array<uint8_t, kNumericDisplayLength> getLast() override { return lastDisplay; } // to match NumericDriver
-};
 } // namespace display
 } // namespace deluge::hid
 

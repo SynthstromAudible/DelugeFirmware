@@ -1,7 +1,6 @@
 #include "toggle.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/numeric_driver.h"
 #include "hid/display/oled.h"
 #include <algorithm>
 

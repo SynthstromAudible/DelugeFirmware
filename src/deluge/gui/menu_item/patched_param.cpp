@@ -22,7 +22,6 @@
 #include "gui/menu_item/source_selection/regular.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/buttons.h"
-#include "hid/display/numeric_driver.h"
 #include "hid/matrix/matrix_driver.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"

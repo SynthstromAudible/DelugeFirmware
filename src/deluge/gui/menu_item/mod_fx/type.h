@@ -19,7 +19,6 @@
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/numeric_driver.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "util/misc.h"
 

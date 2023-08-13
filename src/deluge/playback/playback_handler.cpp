@@ -2086,7 +2086,7 @@ float PlaybackHandler::calculateBPM(float timePerInternalTick) {
 }
 
 void PlaybackHandler::displayTempoBPM(float tempoBPM) {
-	if (display->type() != DisplayType::SevenSegment) {
+	if (display->type() != DisplayType::SEVEN_SEG) {
 		char buffer[27];
 		strcpy(buffer, "Tempo: ");
 		if (currentSong->timePerTimerTickBig <= ((uint64_t)kMinTimePerTimerTick << 32)) {

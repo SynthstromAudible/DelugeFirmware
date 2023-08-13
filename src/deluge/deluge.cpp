@@ -590,7 +590,7 @@ extern "C" int32_t deluge_main(void) {
 	audioFileManager.init();
 
 	// Set up OLED now
-	if (display->type() != DisplayType::SevenSegment) {
+	if (display->type() != DisplayType::SEVEN_SEG) {
 		//delayMS(10);
 
 		// Set up 8-bit
