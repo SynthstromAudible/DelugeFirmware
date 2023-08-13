@@ -26,8 +26,7 @@
 namespace deluge::gui::menu_item::sample {
 class Reverse final : public Toggle, public FormattedTitle {
 public:
-	Reverse(l10n::String name, l10n::String title_format_str)
-	    : Toggle(name), FormattedTitle(title_format_str) {}
+	Reverse(l10n::String name, l10n::String title_format_str) : Toggle(name), FormattedTitle(title_format_str) {}
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 

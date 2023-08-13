@@ -24,8 +24,7 @@ namespace deluge::gui::menu_item::submenu {
 template <size_t n>
 class Compressor final : public Submenu<n> {
 public:
-	Compressor(l10n::String newName, l10n::String title, MenuItem* const (&newItems)[n],
-	           bool newForReverbCompressor)
+	Compressor(l10n::String newName, l10n::String title, MenuItem* const (&newItems)[n], bool newForReverbCompressor)
 	    : Submenu<n>(newName, title, newItems), forReverbCompressor(newForReverbCompressor) {}
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override {
 		soundEditor.currentCompressor =

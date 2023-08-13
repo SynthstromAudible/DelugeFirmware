@@ -27,8 +27,7 @@
 namespace deluge::gui::menu_item::sample {
 class TimeStretch final : public Integer, public FormattedTitle {
 public:
-	TimeStretch(l10n::String name, l10n::String title_format_str)
-	    : Integer(name), FormattedTitle(title_format_str) {}
+	TimeStretch(l10n::String name, l10n::String title_format_str) : Integer(name), FormattedTitle(title_format_str) {}
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 

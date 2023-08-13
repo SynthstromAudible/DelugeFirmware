@@ -24,8 +24,7 @@
 namespace deluge::gui::menu_item::osc {
 class RetriggerPhase final : public Decimal, public FormattedTitle {
 public:
-	RetriggerPhase(l10n::String newName, l10n::String title_format_str,
-	               bool newForModulator = false)
+	RetriggerPhase(l10n::String newName, l10n::String title_format_str, bool newForModulator = false)
 	    : Decimal(newName), FormattedTitle(title_format_str), forModulator(newForModulator) {}
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
@@ -67,8 +66,8 @@ public:
 
 	void drawPixelsForOled() override {
 		if (this->getValue() < 0) {
-			OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_DISABLED), 20, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextHugeSpacingX,
-			                        kTextHugeSizeY);
+			OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_DISABLED), 20, OLED::oledMainImage[0],
+			                        OLED_MAIN_WIDTH_PIXELS, kTextHugeSpacingX, kTextHugeSizeY);
 		}
 		else {
 			Decimal::drawPixelsForOled();

@@ -24,8 +24,7 @@
 namespace deluge::gui::menu_item::cv {
 class Volts final : public Decimal, public FormattedTitle {
 public:
-	Volts(l10n::String name, l10n::String title_format_str)
-	    : Decimal(name), FormattedTitle(title_format_str) {}
+	Volts(l10n::String name, l10n::String title_format_str) : Decimal(name), FormattedTitle(title_format_str) {}
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 

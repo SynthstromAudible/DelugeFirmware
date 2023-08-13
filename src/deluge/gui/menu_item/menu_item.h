@@ -18,11 +18,11 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "hid/display/display.h"
 #include "util/container/static_vector.hpp"
 #include "util/sized.h"
-#include "gui/l10n/l10n.h"
 
 #include <cstdint>
 
@@ -38,8 +38,9 @@ class MIDIDevice;
 
 class MenuItem {
 public:
-	MenuItem(): name(deluge::l10n::String::EMPTY_STRING), title(deluge::l10n::String::EMPTY_STRING) {}
-	MenuItem(deluge::l10n::String newName, deluge::l10n::String newTitle = deluge::l10n::String::EMPTY_STRING) : name(newName), title(newTitle) {
+	MenuItem() : name(deluge::l10n::String::EMPTY_STRING), title(deluge::l10n::String::EMPTY_STRING) {}
+	MenuItem(deluge::l10n::String newName, deluge::l10n::String newTitle = deluge::l10n::String::EMPTY_STRING)
+	    : name(newName), title(newTitle) {
 		if (newTitle == deluge::l10n::String::EMPTY_STRING) {
 			title = newName;
 		}

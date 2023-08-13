@@ -69,7 +69,9 @@ public:
 	}
 
 	static_vector<std::string_view, capacity()> getOptions() override {
-		static_vector<std::string_view, capacity()> sequenceDirectionOptions = {l10n::getView(l10n::String::STRING_FOR_FORWARD), l10n::getView(l10n::String::STRING_FOR_REVERSED), l10n::getView(l10n::String::STRING_FOR_PING_PONG)};
+		static_vector<std::string_view, capacity()> sequenceDirectionOptions = {
+		    l10n::getView(l10n::String::STRING_FOR_FORWARD), l10n::getView(l10n::String::STRING_FOR_REVERSED),
+		    l10n::getView(l10n::String::STRING_FOR_PING_PONG)};
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);

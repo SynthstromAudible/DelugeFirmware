@@ -39,8 +39,8 @@ void Command::drawPixelsForOled() {
 	LearnedMIDI* command = &midiEngine.globalMIDICommands[util::to_underlying(commandNumber)];
 	int32_t yPixel = 20;
 	if (!command->containsSomething()) {
-		OLED::drawString(l10n::get(l10n::String::STRING_FOR_COMMAND_UNASSIGNED), 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
-		                 kTextSizeYUpdated);
+		OLED::drawString(l10n::get(l10n::String::STRING_FOR_COMMAND_UNASSIGNED), 0, yPixel, OLED::oledMainImage[0],
+		                 OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSizeYUpdated);
 	}
 	else {
 		char const* deviceString = l10n::get(l10n::String::STRING_FOR_ANY_MIDI_DEVICE);

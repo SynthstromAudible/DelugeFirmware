@@ -3311,7 +3311,8 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 				exitUIMode(UI_MODE_HOLDING_SECTION_PAD);
 				if (display.type == DisplayType::OLED) {
 					OLED::removePopup();
-				} else {
+				}
+				else {
 					redrawNumericDisplay();
 				}
 

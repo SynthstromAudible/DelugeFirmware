@@ -38,7 +38,10 @@ public:
 	void writeCurrentValue() override { whichDirection = this->getValue(); }
 	MenuItem* selectButtonPress() override;
 	uint8_t whichDirection;
-	[[nodiscard]] std::string_view getTitle() const override { return whichDirection ? l10n::getView(l10n::String::STRING_FOR_MPE_OUTPUT) : l10n::getView(l10n::String::STRING_FOR_MPE_INPUT); }
+	[[nodiscard]] std::string_view getTitle() const override {
+		return whichDirection ? l10n::getView(l10n::String::STRING_FOR_MPE_OUTPUT)
+		                      : l10n::getView(l10n::String::STRING_FOR_MPE_INPUT);
+	}
 };
 
 extern DirectionSelector directionSelectorMenu;

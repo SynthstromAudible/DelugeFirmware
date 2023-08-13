@@ -40,9 +40,7 @@ public:
 		}
 	}
 
-	[[nodiscard]] constexpr map_type::value_type get(String entry) const {
-		return map_.at(util::to_underlying(entry));
-	}
+	[[nodiscard]] constexpr map_type::value_type get(String entry) const { return map_.at(util::to_underlying(entry)); }
 
 	constexpr Language& add(String entry, map_type::value_type value) {
 		size_t idx = util::to_underlying(entry);

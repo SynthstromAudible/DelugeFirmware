@@ -29,8 +29,7 @@
 namespace deluge::gui::menu_item::osc {
 class Type final : public Selection<kNumOscTypes>, public FormattedTitle {
 public:
-	Type(l10n::String name, l10n::String title_format_str)
-	    : Selection(name), FormattedTitle(title_format_str){};
+	Type(l10n::String name, l10n::String title_format_str) : Selection(name), FormattedTitle(title_format_str){};
 	void beginSession(MenuItem* navigatedBackwardFrom) override { Selection::beginSession(navigatedBackwardFrom); }
 
 	void readCurrentValue() override { this->setValue(soundEditor.currentSource->oscType); }

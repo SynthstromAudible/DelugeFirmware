@@ -150,13 +150,9 @@ private:
 	int32_t gridSecondPressedX = -1;
 	int32_t gridSecondPressedY = -1;
 
-	inline bool gridFirstPadActive() {
-		return (gridFirstPressedX != -1 && gridFirstPressedY != -1);
-	}
+	inline bool gridFirstPadActive() { return (gridFirstPressedX != -1 && gridFirstPressedY != -1); }
 
-	inline bool gridSecondPadInactive() {
-		return (gridSecondPressedX == -1 && gridSecondPressedY == -1);
-	}
+	inline bool gridSecondPadInactive() { return (gridSecondPressedX == -1 && gridSecondPressedY == -1); }
 
 	inline void gridResetPresses(bool first = true, bool second = true) {
 		if (first) {
