@@ -144,7 +144,7 @@ The Automation Editor **will:**
 - display on the screen what parameter you are currently editing and its automation status (for 7seg it will only display on the screen for Midi clips)
 - enable you to use either of the Mod Encoders (gold knobs) to quickly change the parameter value of the parameter in focus. The knobs automatically map to the selected parameter and you can use either knob (eliminating the guess work about which knob to turn).
 - enable you to quickly change parameters in focus for editing by turning select or using shift + shortcut pad
-- enable you to view the current parameter value setting for the 41 parameters that are currently automatable.
+- enable you to view the current parameter value setting for the parameters that are currently automatable.
 - illuminate each pad row according to the current value within the range of 0-127. E.g. bottom pad = 0-16, then 17-32, 33-48, 49-64, 65-80, 81-96, 97-112, 113-127) 
 - edit new or existing parameter automations on a per step basis, at any zoom level across the entire timeline. Each row in a step column corresponds to a range of values in the parameter value range (0-127) (see above). If you press the bottom row, the value will be set to 0. if you press the top row, the value will be set to 127. Pressing the rows in between increments/decrements the value by 18 (e.g. 0, 18, 36, 54, 72, 90, 108, 127). 
 
@@ -323,7 +323,6 @@ Also, similar to the Keyboard screen which uses the variable "onKeyboardScreen" 
 
 # De-scoped Items (Future Release)
 
-- Add missing automatable parameters to kit affect entire
 - Interpolation bug from left to right that doesn't exist from right to left
 - Improving interpolation (I want to get more granular, do the calculation at the lowest possible node)
 - Adjust multi pad press so that it renders the second pad's value at the last possible node (within that pad)
