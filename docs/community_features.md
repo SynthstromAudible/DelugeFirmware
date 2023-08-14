@@ -50,7 +50,7 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 	 - By quickly clicking (and releasing) populated pads you can change the arm state
 		 - If "Shift" is held at the same time the clip will launch immediately
 		 - If "Record" is held at the same time you can change recording status
-		 - If horizontal encoder <> is held at the same time you can change solo state 
+		 - If horizontal encoder <> is held at the same time you can change solo state
 	 - By holding a populated pad you can see the track, change the parameters and convert it to other instruments similar to rows layout
 	 - Hold an existing pad and press on another pad in the same, other or empty row to copy clips. If possible the content will be converted to the target track type
 	 - To delete a clip hold the pad and press the "Save/Delete" button
@@ -94,6 +94,9 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 
 #### Audio Clip View
  - ([#141]) Holding the vertical encoder down while turning the horizontal encoder will shift the clip along the underlying audio file, similar to the same interface for instrument clips.
+
+#### Sample Waveform View
+ - ([#293]) When a sample has loop start and loop end points set, holding down loop start and tapping loop end will lock the loop points together. Moving one will move the other, keeping them the same distance apart. Use the same process to unlock the loop points. Use SHIFT+TURN<> to double or half the loop length.
 
 #### Takeover Mode
 
@@ -184,3 +187,4 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#241]: https://github.com/SynthstromAudible/DelugeFirmware/pull/241
 [#251]: https://github.com/SynthstromAudible/DelugeFirmware/pull/251
 [#282]: https://github.com/SynthstromAudible/DelugeFirmware/pull/282
+[#293]: https://github.com/SynthstromAudible/DelugeFirmware/pull/293
