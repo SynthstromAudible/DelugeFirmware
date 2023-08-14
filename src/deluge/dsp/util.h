@@ -33,8 +33,9 @@ inline q31_t fold(q31_t input, q31_t level) {
 	//to keep the knob range consistent fold starts from 0 and
 	//increases, decreasing would lead to a large deadspace until
 	//suddenly clipping occured
+	//note 9db loss
 	q31_t extra = 0;
-	q31_t max = level >> 7;
+	q31_t max = level >> 8;
 	if (input > max) {
 		extra = input - max;
 	}
