@@ -35,7 +35,7 @@ char emptySpacesMemoryInternal[sizeof(EmptySpaceRecord) * 1024];
 extern uint32_t __heap_start;
 extern uint32_t __heap_end;
 extern uint32_t program_stack_start;
-
+extern uint32_t program_stack_end;
 GeneralMemoryAllocator::GeneralMemoryAllocator() {
 	lock = false;
 	regions[MEMORY_REGION_SDRAM].setup(emptySpacesMemory, sizeof(emptySpacesMemory), EXTERNAL_MEMORY_BEGIN,
@@ -56,10 +56,11 @@ void GeneralMemoryAllocator::checkStack(char const* caller) {
 
 	char a;
 
-	int32_t distance = (int32_t)&a - (kInternalMemoryEnd - kProgramStackMaxSize);
+	int32_t distance = (int32_t)&a - (uint32_t)&program_stack_start;
 	if (distance < closestDistance) {
 		closestDistance = distance;
-
+		Debug::print((uint32_t)&program_stack_end - (int32_t)&a);
+		Debug::println(" bytes in stack");
 		Debug::print(distance);
 		Debug::print(" free bytes in stack at ");
 		Debug::println(caller);
