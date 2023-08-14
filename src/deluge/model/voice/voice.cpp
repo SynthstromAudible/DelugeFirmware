@@ -1055,13 +1055,13 @@ skipAutoRelease : {}
 	    || filterSet.isHPFOn() || filterSet.isLPFOn()
 	    || (paramFinalValues[Param::Local::NOISE_VOLUME] != 0
 	        && synthMode != SynthMode::FM) // Not essential, but makes life easier
-	    || paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(Param::Local::PAN)) {
+	    || paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(Param::Local::PAN)
+	    || (paramFinalValues[Param::Local::FOLD] != NEGATIVE_ONE_Q31)) {
 		renderingDirectlyIntoSoundBuffer = false;
 	}
 
 	// Otherwise, we need to think about whether we're rendering the same number of channels as the Sound
 	else {
-
 		if (synthMode == SynthMode::SUBTRACTIVE) {
 
 			for (int32_t s = 0; s < kNumSources; s++) {
@@ -1169,7 +1169,6 @@ decidedWhichBufferRenderingInto:
 
 	// Normal mode: subtractive / samples. We do each source first, for all unison
 	if (synthMode == SynthMode::SUBTRACTIVE) {
-
 		bool unisonPartBecameInactive = false;
 
 		uint32_t oscSyncPhaseIncrement[kMaxNumVoicesUnison];
@@ -1264,7 +1263,6 @@ decidedWhichBufferRenderingInto:
 
 	// Otherwise (FM and ringmod) we go through each unison first, and for each one we render both sources together
 	else {
-
 		if (stereoUnison) {
 			// oscBuffer is always a stereo temp buffer
 			didStereoTempBuffer = true;
