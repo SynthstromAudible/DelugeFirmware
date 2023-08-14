@@ -68,7 +68,7 @@ void setupConsole(int32_t width, int32_t height);
 void consoleText(char const* text);
 
 void stopScrollingAnimation();
-void setupSideScroller(int32_t index, char const* text, int32_t startX, int32_t endX, int32_t startY, int32_t endY,
+void setupSideScroller(int32_t index, std::string_view text, int32_t startX, int32_t endX, int32_t startY, int32_t endY,
                        int32_t textSpacingX, int32_t textSizeY, bool doHilight);
 void drawPermanentPopupLookingText(char const* text);
 
