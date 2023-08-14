@@ -467,7 +467,7 @@ char const* getPatchedParamDisplayNameForOLED(int32_t p) {
 		return "Osc 1 feedback";
 
 	case Param::Local::CARRIER_1_FEEDBACK:
-    return "Osc 2 feedback";
+		return "Osc 2 feedback";
 
 	case Param::Local::FOLD:
 		return "WaveFold";
