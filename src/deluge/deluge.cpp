@@ -475,6 +475,29 @@ void setupBlankSong() {
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 }
 
+void setupOLED() {
+	//delayMS(10);
+
+	// Set up 8-bit
+	RSPI0.SPDCR = 0x20u;               // 8-bit
+	RSPI0.SPCMD0 = 0b0000011100000010; // 8-bit
+	RSPI0.SPBFCR.BYTE = 0b01100000;    //0b00100000;
+
+	PIC::setDCLow();
+	PIC::enableOLED();
+	PIC::selectOLED();
+	PIC::flush();
+
+	delayMS(5);
+
+	oledMainInit();
+
+	//delayMS(5);
+
+	PIC::deselectOLED();
+	PIC::flush();
+}
+
 extern "C" void usb_pstd_pcd_task(void);
 extern "C" void usb_cstd_usb_task(void);
 
@@ -483,10 +506,12 @@ extern "C" volatile uint32_t usbLock;
 extern "C" void usb_main_host(void);
 
 extern "C" int32_t deluge_main(void) {
+	// Piggyback off of bootloader DMA setup.
+	uint32_t oledSPIDMAConfig = (0b1101000 | (OLED_SPI_DMA_CHANNEL & 7));
+	bool have_oled = ((DMACn(OLED_SPI_DMA_CHANNEL).CHCFG_n & oledSPIDMAConfig) == oledSPIDMAConfig);
 
 	// Give the PIC some startup instructions
-
-	if (display->type() == DisplayType::OLED) {
+	if (have_oled) {
 		PIC::enableOLED();
 	}
 
@@ -538,10 +563,6 @@ extern "C" int32_t deluge_main(void) {
 	setPinAsInput(LINE_OUT_DETECT_L.port, LINE_OUT_DETECT_L.pin);
 	setPinAsInput(LINE_OUT_DETECT_R.port, LINE_OUT_DETECT_R.pin);
 
-	// Piggyback off of bootloader DMA setup.
-	uint32_t oledSPIDMAConfig = (0b1101000 | (OLED_SPI_DMA_CHANNEL & 7));
-	bool have_oled = ((DMACn(OLED_SPI_DMA_CHANNEL).CHCFG_n & oledSPIDMAConfig) == oledSPIDMAConfig);
-
 	// SPI for CV
 	R_RSPI_Create(
 	    SPI_CHANNEL_CV,
@@ -567,6 +588,15 @@ extern "C" int32_t deluge_main(void) {
 
 	// Setup audio output on SSI0
 	ssiInit(0, 1);
+
+	// Set up OLED now
+	if (have_oled) {
+		setupOLED();
+		display = new deluge::hid::display::OLED;
+	}
+	else {
+		display = new deluge::hid::display::SevenSegment;
+	}
 
 #if RECORD_TEST_MODE == 1
 	makeTestRecording();
@@ -594,34 +624,6 @@ extern "C" int32_t deluge_main(void) {
 #endif
 
 	audioFileManager.init();
-
-	// Set up OLED now
-	if (have_oled) {
-		//delayMS(10);
-
-		// Set up 8-bit
-		RSPI0.SPDCR = 0x20u;               // 8-bit
-		RSPI0.SPCMD0 = 0b0000011100000010; // 8-bit
-		RSPI0.SPBFCR.BYTE = 0b01100000;    //0b00100000;
-
-		PIC::setDCLow();
-		PIC::enableOLED();
-		PIC::selectOLED();
-		PIC::flush();
-
-		delayMS(5);
-
-		oledMainInit();
-
-		//delayMS(5);
-
-		PIC::deselectOLED();
-		PIC::flush();
-		display = new deluge::hid::display::OLED;
-	}
-	else {
-		display = new deluge::hid::display::SevenSegment;
-	}
 
 	// Setup SPIBSC. Crucial that this only be done now once everything else is running, because I've injected graphics and audio routines into the SPIBSC wait routines, so that
 	// has to be running
