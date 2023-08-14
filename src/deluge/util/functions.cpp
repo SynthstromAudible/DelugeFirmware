@@ -328,12 +328,11 @@ char const* getSourceDisplayNameForOLED(PatchSource s) {
 		return "MPE Y";
 
 	default:
-		__builtin_unreachable();
-		return NULL;
+		return "none";
 	}
 }
 
-char const* getPatchedParamDisplayNameForOled(int32_t p) {
+char const* getPatchedParamDisplayNameForOLED(int32_t p) {
 
 	// These can basically be 13 chars long, or 14 if the last one is a dot.
 	switch (p) {
@@ -369,7 +368,7 @@ char const* getPatchedParamDisplayNameForOled(int32_t p) {
 		return "HPF resonance";
 
 	case Param::Local::PAN:
-		return "Pan";
+		return "Master pan";
 
 	case Param::Local::MODULATOR_0_VOLUME:
 		return "FM mod1 level";
@@ -384,7 +383,7 @@ char const* getPatchedParamDisplayNameForOled(int32_t p) {
 		return "LPF morph";
 
 	case Param::Local::PITCH_ADJUST:
-		return "Pitch";
+		return "Master pitch";
 
 	case Param::Local::OSC_A_PITCH_ADJUST:
 		return "Osc1 pitch";
@@ -435,10 +434,10 @@ char const* getPatchedParamDisplayNameForOled(int32_t p) {
 		return "LFO1 rate";
 
 	case Param::Global::VOLUME_POST_FX:
-		return "Level";
+		return "Master level";
 
 	case Param::Global::VOLUME_POST_REVERB_SEND:
-		return "Level";
+		return "Sidechain level";
 
 	case Param::Global::DELAY_RATE:
 		return "Delay rate";
@@ -459,19 +458,108 @@ char const* getPatchedParamDisplayNameForOled(int32_t p) {
 		return "Arp. rate";
 
 	case Param::Local::MODULATOR_0_FEEDBACK:
-		return "Mod1 feedback";
+		return "FM mod1 feedback";
 
 	case Param::Local::MODULATOR_1_FEEDBACK:
-		return "Mod2 feedback";
+		return "FM mod2 feedback";
 
 	case Param::Local::CARRIER_0_FEEDBACK:
-		return "Carrier1 feed.";
+		return "Osc 1 feedback";
 
 	case Param::Local::CARRIER_1_FEEDBACK:
-		return "Carrier2 feed.";
+    return "Osc 2 feedback";
 
 	case Param::Local::FOLD:
 		return "WaveFold";
+
+	default:
+		return "none";
+	}
+}
+
+char const* getUnpatchedParamDisplayNameForOLED(int32_t p) {
+
+	// These can basically be 13 chars long, or 14 if the last one is a dot.
+	switch (p) {
+
+	case Param::Unpatched::BASS:
+		return "Bass";
+
+	case Param::Unpatched::BASS_FREQ:
+		return "Bass frequency";
+
+	case Param::Unpatched::TREBLE:
+		return "Treble";
+
+	case Param::Unpatched::TREBLE_FREQ:
+		return "Treble frequency";
+
+	case Param::Unpatched::COMPRESSOR_SHAPE:
+		return "Sidechain shape";
+
+	case Param::Unpatched::BITCRUSHING:
+		return "Bitcrush";
+
+	case Param::Unpatched::SAMPLE_RATE_REDUCTION:
+		return "Decimation";
+
+	case Param::Unpatched::Sound::ARP_GATE:
+		return "Arp. gate";
+
+	case Param::Unpatched::MOD_FX_FEEDBACK:
+		return "Mod-FX feedback";
+
+	case Param::Unpatched::MOD_FX_OFFSET:
+		return "Mod-FX offset";
+
+	default:
+		return "none";
+	}
+}
+
+char const* getGlobalEffectableParamDisplayNameForOLED(int32_t p) {
+
+	// These can basically be 13 chars long, or 14 if the last one is a dot.
+	switch (p) {
+
+	case Param::Unpatched::GlobalEffectable::LPF_RES:
+		return "LPF resonance";
+
+	case Param::Unpatched::GlobalEffectable::HPF_RES:
+		return "HPF resonance";
+
+	case Param::Unpatched::GlobalEffectable::PAN:
+		return "Master pan";
+
+	case Param::Unpatched::GlobalEffectable::LPF_FREQ:
+		return "LPF frequency";
+
+	case Param::Unpatched::GlobalEffectable::HPF_FREQ:
+		return "HPF frequency";
+
+	case Param::Unpatched::GlobalEffectable::VOLUME:
+		return "Master level";
+
+	case Param::Unpatched::GlobalEffectable::SIDECHAIN_VOLUME:
+		return "Sidechain level";
+
+	case Param::Unpatched::GlobalEffectable::DELAY_RATE:
+		return "Delay rate";
+
+	case Param::Unpatched::GlobalEffectable::DELAY_AMOUNT:
+		return "Delay amount";
+
+	case Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT:
+		return "Reverb amount";
+
+	case Param::Unpatched::GlobalEffectable::MOD_FX_RATE:
+		return "Mod-FX rate";
+
+	case Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH:
+		return "Mod-FX depth";
+
+	default:
+		return "none";
 	}
 }
 #endif

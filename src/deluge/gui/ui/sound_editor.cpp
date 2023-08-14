@@ -13,6 +13,7 @@
 #include "gui/ui/save/save_instrument_preset_ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/audio_clip_view.h"
+#include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
@@ -151,7 +152,7 @@ bool SoundEditor::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
 	if (getRootUI() == &keyboardScreen) {
 		return false;
 	}
-	else if (getRootUI() == &instrumentClipView) {
+	else if (getRootUI() == &automationInstrumentClipView || getRootUI() == &instrumentClipView) {
 		*cols = 0xFFFFFFFE;
 	}
 	else {
@@ -323,7 +324,8 @@ ActionResult SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutin
 	}
 
 	// Affect-entire button
-	else if (b == AFFECT_ENTIRE && getRootUI() == &instrumentClipView) {
+	else if (b == AFFECT_ENTIRE
+	         && (getRootUI() == &instrumentClipView || getRootUI() == &automationInstrumentClipView)) {
 		if (getCurrentMenuItem()->usesAffectEntire() && editingKit()) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -354,10 +356,23 @@ ActionResult SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutin
 			}
 
 			if (getRootUI() == &keyboardScreen) {
-				swapOutRootUILowLevel(&instrumentClipView);
-				instrumentClipView.openedInBackground();
+
+				if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+					swapOutRootUILowLevel(&automationInstrumentClipView);
+					automationInstrumentClipView.openedInBackground();
+				}
+
+				else {
+					swapOutRootUILowLevel(&instrumentClipView);
+					instrumentClipView.openedInBackground();
+				}
 			}
 			else if (getRootUI() == &instrumentClipView) {
+				swapOutRootUILowLevel(&keyboardScreen);
+				keyboardScreen.openedInBackground();
+			}
+
+			else if (getRootUI() == &automationInstrumentClipView) {
 				swapOutRootUILowLevel(&keyboardScreen);
 				keyboardScreen.openedInBackground();
 			}
@@ -561,6 +576,7 @@ shortcutsPicked:
 
 void SoundEditor::possibleChangeToCurrentRangeDisplay() {
 	uiNeedsRendering(&instrumentClipView, 0, 0xFFFFFFFF);
+	uiNeedsRendering(&automationInstrumentClipView, 0, 0xFFFFFFFF);
 	uiNeedsRendering(&keyboardScreen, 0xFFFFFFFF, 0);
 }
 
@@ -870,6 +886,13 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 		}
 	}
 
+	else if (getRootUI() == &automationInstrumentClipView) {
+		if (x == kDisplayWidth + 1) {
+			automationInstrumentClipView.padAction(x, y, on);
+			return ActionResult::DEALT_WITH;
+		}
+	}
+
 	// Otherwise...
 	if (currentUIMode == UI_MODE_NONE && on) {
 
@@ -889,6 +912,10 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 		// Otherwise, exit.
 		else {
 			exitCompletely();
+
+			if (getRootUI() == &automationInstrumentClipView) {
+				automationInstrumentClipView.setDisplayParameterNameTimer();
+			}
 		}
 	}
 
@@ -1054,7 +1081,13 @@ doMIDIOrCV:
 			}
 		}
 		else {
-			newItem = &settingsRootMenu;
+			if (getCurrentUI() == &automationInstrumentClipView) {
+				numericDriver.cancelPopup();
+				newItem = &deluge::gui::menu_item::runtime_feature::subMenuAutomation;
+			}
+			else {
+				newItem = &settingsRootMenu;
+			}
 		}
 	}
 

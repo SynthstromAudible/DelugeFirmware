@@ -77,7 +77,10 @@ void Selection<n>::drawPixelsForOled() {
 
 	const int32_t selectedOption = this->getValue() - soundEditor.menuCurrentScroll;
 
-	auto options = getOptions();
+	deluge::static_vector<std::string_view, n> options;
+	for (auto const& option : getOptions()) {
+		options.push_back(option);
+	}
 	MenuItem::drawItemsForOled(options, selectedOption, soundEditor.menuCurrentScroll);
 }
 #endif

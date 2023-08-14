@@ -24,6 +24,7 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
+#include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -370,8 +371,15 @@ ActionResult KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRou
 		keyboardButtonActive = on;
 		if (currentUIMode == UI_MODE_NONE && !keyboardButtonActive
 		    && !keyboardButtonUsed) { // Leave if key up and not used
+
 			instrumentClipView.recalculateColours();
-			changeRootUI(&instrumentClipView);
+			if (getCurrentClip()->onAutomationInstrumentClipView) {
+				changeRootUI(&automationInstrumentClipView);
+			}
+			else {
+				changeRootUI(&instrumentClipView);
+			}
+
 			keyboardButtonUsed = false;
 		}
 	}
@@ -386,6 +394,20 @@ ActionResult KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRou
 		}
 
 		sessionView.transitionToSessionView();
+	}
+
+	//toggle UI to go back to after you exit keyboard mode between automation instrument clip view and regular instrument clip view
+	else if (b == CLIP_VIEW) {
+		if (on) {
+			if (getCurrentClip()->onAutomationInstrumentClipView) {
+				getCurrentClip()->onAutomationInstrumentClipView = false;
+				indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, true);
+			}
+			else {
+				getCurrentClip()->onAutomationInstrumentClipView = true;
+				indicator_leds::blinkLed(IndicatorLED::CLIP_VIEW);
+			}
+		}
 	}
 
 	// Kit button
