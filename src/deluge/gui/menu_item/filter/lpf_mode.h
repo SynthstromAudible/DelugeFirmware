@@ -28,7 +28,7 @@ public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue<::FilterMode>(soundEditor.currentModControllable->lpfMode); }
 	void writeCurrentValue() override { soundEditor.currentModControllable->lpfMode = this->getValue<::FilterMode>(); }
-	static_vector<std::string, capacity()> getOptions() override {
+	static_vector<std::string_view, capacity()> getOptions() override {
 		return {"12dB", "24dB", "Drive", "SV_Band", "SV_Notch"};
 	}
 	bool isRelevant(Sound* sound, int32_t whichThing) override {

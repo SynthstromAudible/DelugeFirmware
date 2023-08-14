@@ -43,12 +43,13 @@ private:
 	inline q31_t doSVF(q31_t input, SVFState& state);
 	SVFState l;
 	SVFState r;
-	bool band_mode;
+
 	q31_t q;
 	q31_t in;
 	q31_t c_low;
 	q31_t c_band;
 	q31_t c_notch;
 	q31_t c_high;
+	bool band_mode;
 };
 } // namespace deluge::dsp::filter

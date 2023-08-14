@@ -123,8 +123,9 @@ inline q31_t SVFilter::doSVF(int32_t input, SVFState& state) {
 
 	//saturate band feedback
 	band = getTanHUnknown(band, 3);
-	//result = multiply_accumulate_32x32_rshift32_rounded(0, notchi+notch, c_notch);
-	result = 3 * result; //compensate for division by two on each multiply
+	//compensate for division by two on each multiply
+	//then multiply by 1.5 to match ladders
+	result = 3 * result;
 
 	state.low = low;
 	state.band = band;
