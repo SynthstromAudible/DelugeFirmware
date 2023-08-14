@@ -575,28 +575,22 @@ extern "C" int32_t deluge_main(void) {
 	setPinMux(SPI_MOSI.port, SPI_MOSI.pin, 3); // MOSI
 
 	if (have_oled) {
-		setPinMux(SPI_SSL.port, SPI_SSL.pin, 3); // SSL
-	}
-	else {
 		// If OLED sharing SPI channel, have to manually control SSL pin.
 		setOutputState(SPI_SSL.port, SPI_SSL.pin, true);
 		setPinAsOutput(SPI_SSL.port, SPI_SSL.pin);
 
 		setupSPIInterrupts();
 		oledDMAInit();
+		setupOLED(); // Set up OLED now
+		display = new deluge::hid::display::OLED;
+	}
+	else {
+		setPinMux(SPI_SSL.port, SPI_SSL.pin, 3); // SSL
+		display = new deluge::hid::display::SevenSegment;
 	}
 
 	// Setup audio output on SSI0
 	ssiInit(0, 1);
-
-	// Set up OLED now
-	if (have_oled) {
-		setupOLED();
-		display = new deluge::hid::display::OLED;
-	}
-	else {
-		display = new deluge::hid::display::SevenSegment;
-	}
 
 #if RECORD_TEST_MODE == 1
 	makeTestRecording();
