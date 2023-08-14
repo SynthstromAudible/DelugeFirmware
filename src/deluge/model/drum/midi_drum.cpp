@@ -16,6 +16,7 @@
  */
 
 #include "model/drum/midi_drum.h"
+#include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "io/midi/midi_engine.h"
 #include "storage/storage_manager.h"
@@ -115,7 +116,8 @@ int8_t MIDIDrum::modEncoderAction(ModelStackWithThreeMainThings* modelStack, int
 
 	NonAudioDrum::modEncoderAction(modelStack, offset, whichModEncoder);
 
-	if (getCurrentUI() == &instrumentClipView && currentUIMode == UI_MODE_AUDITIONING) {
+	if ((getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationInstrumentClipView)
+	    && currentUIMode == UI_MODE_AUDITIONING) {
 		if (whichModEncoder == 1) {
 			modChange(modelStack, offset, &noteEncoderCurrentOffset, &note, 128);
 		}
