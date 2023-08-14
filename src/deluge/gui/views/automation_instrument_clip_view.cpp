@@ -650,8 +650,8 @@ void AutomationInstrumentClipView::renderAutomationOverview(ModelStackWithTimeli
 
 			if (unpatchedParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
 
-				modelStackWithParam = getModelStackWithParam(
-				    modelStack, clip, unpatchedParamShortcutsForAutomation[xDisplay][yDisplay]);
+				modelStackWithParam =
+				    getModelStackWithParam(modelStack, clip, unpatchedParamShortcutsForAutomation[xDisplay][yDisplay]);
 			}
 
 			else if (globalEffectableParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
