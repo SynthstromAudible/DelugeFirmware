@@ -34,15 +34,15 @@ inline q31_t fold(q31_t input, q31_t level) {
 	//increases, decreasing would lead to a large deadspace until
 	//suddenly clipping occured
 	q31_t extra = 0;
-	q31_t max = level >> 8;
+	q31_t max = level >> 7;
 	if (input > max) {
-		extra = 2 * input - max;
+		extra = input - max;
 	}
 	else if (input < -max) {
-		extra = 2 * input + max;
+		extra = input + max;
 	}
 	//this avoids inverting the wave
-	return extra - input;
+	return 2 * extra - input;
 }
 /**
  * foldBuffer folds a whole buffer. Works for stereo too
