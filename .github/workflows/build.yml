@@ -37,20 +37,20 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: debug-7seg.bin
-          path: build/Debug/deluge.bin
+          path: build/Debug/deluge*.bin
           if-no-files-found: error
           retention-days: ${{ inputs.firmware-retention-days }}
       - name: Publish built firmware (release) (bin)
         uses: actions/upload-artifact@v3
         with:
           name: release-7seg.bin
-          path: build/Release/deluge.bin
+          path: build/Release/deluge*.bin
           if-no-files-found: error
           retention-days: ${{ inputs.firmware-retention-days }}
       - name: Publish built firmware (elf)
         uses: actions/upload-artifact@v3
         with:
           name: all-elfs
-          path: build/*/deluge.elf
+          path: build/*/deluge*.elf
           if-no-files-found: error
           retention-days: ${{ inputs.firmware-retention-days }}
