@@ -36,14 +36,14 @@ jobs:
       - name: Publish built firmware (debug-bin)
         uses: actions/upload-artifact@v3
         with:
-          name: debug-7seg.bin
+          name: debug.bin
           path: build/Debug/deluge*.bin
           if-no-files-found: error
           retention-days: ${{ inputs.firmware-retention-days }}
       - name: Publish built firmware (release-bin)
         uses: actions/upload-artifact@v3
         with:
-          name: release-7seg.bin
+          name: release.bin
           path: build/Release/deluge*.bin
           if-no-files-found: error
           retention-days: ${{ inputs.firmware-retention-days }}
