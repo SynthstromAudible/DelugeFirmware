@@ -70,15 +70,9 @@ DBT must always be run from the *root directory* of the repository. The remainde
 
 ### DBT Build Targets
 
-These live under the `dbt build` subcommand. The general format is `dbt build {target} {configuration}`, with both target and configuration being optional (building all targets and configurations by default).
+These live under the `dbt build` subcommand. The general format is `dbt build {configuration}`, with configuration being optional (building both debug and release by default).
 
 Built files output to subdirectories named after the configuration (e.g. `build/Release`).
-
-#### Build targets:
-
-* `all` - build all supported targets (7seg, oled)
-* `oled` - build only for OLED.
-* `7seg` - build only for 7SEG.
 
 #### Build configurations:
 

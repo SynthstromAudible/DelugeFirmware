@@ -33,14 +33,14 @@ jobs:
             --type ${{ inputs.build-type }} \
             all
 
-      - name: Publish built firmware (debug) (bin)
+      - name: Publish built firmware (debug-bin)
         uses: actions/upload-artifact@v3
         with:
           name: debug-7seg.bin
           path: build/Debug/deluge*.bin
           if-no-files-found: error
           retention-days: ${{ inputs.firmware-retention-days }}
-      - name: Publish built firmware (release) (bin)
+      - name: Publish built firmware (release-bin)
         uses: actions/upload-artifact@v3
         with:
           name: release-7seg.bin
