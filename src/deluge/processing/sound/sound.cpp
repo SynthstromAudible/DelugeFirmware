@@ -2112,10 +2112,10 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 		bool doLPF = (thisHasFilters
 		              && (lpfMode == FilterMode::TRANSISTOR_24DB_DRIVE
 		                  || paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(Param::Local::LPF_FREQ)
-		                  || (lpfFreq < 2147483602) || (lpfMorph > 0)));
+		                  || (lpfFreq < 2147483602) || (lpfMorph > -2147483648)));
 		bool doHPF = (thisHasFilters
 		              && (paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(Param::Local::HPF_FREQ)
-		                  || (hpfFreq != -2147483648) || (hpfMorph > 0)));
+		                  || (hpfFreq != -2147483648) || (hpfMorph > -2147483648)));
 		// Each voice will potentially alter the "sources changed" flags, so store a backup to restore between each voice
 		/*
 		bool backedUpSourcesChanged[FIRST_UNCHANGEABLE_SOURCE - Local::FIRST_SOURCE];
