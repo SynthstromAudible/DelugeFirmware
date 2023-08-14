@@ -32,7 +32,7 @@ public:
 	void writeCurrentValue() override {
 		soundEditor.currentModControllable->hpfMode = static_cast<FilterMode>(this->getValue() + kFirstHPFMode);
 	}
-	static_vector<std::string_view, capacity()> getOptions() override { return {"SV_Band", "SV_Notch", "HPLadder"}; }
+	static_vector<std::string, capacity()> getOptions() override { return {"SV_Band", "SV_Notch", "HPLadder"}; }
 	bool isRelevant(Sound* sound, int32_t whichThing) override {
 		return ((sound == nullptr) || sound->synthMode != ::SynthMode::FM);
 	}
