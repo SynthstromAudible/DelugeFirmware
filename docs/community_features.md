@@ -137,10 +137,6 @@ In the main menu of the deluge (Shift + Pressing selection knob) there is an ent
 
 This list includes all preprocessor switches that can alter firmware behaviour at compile time and thus require a different firmware
 
-* HAVE_OLED
-
-    Currently determines if the built firmware is intended for OLED or 7SEG hardware
-
 * FEATURE_...
 
     Description of said feature, first new feature please replace this

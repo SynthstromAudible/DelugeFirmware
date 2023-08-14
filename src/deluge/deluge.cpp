@@ -53,6 +53,7 @@
 #include "gui/waveform/waveform_renderer.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
+#include "hid/display/seven_segment.h"
 #include "hid/encoder.h"
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
@@ -537,23 +538,28 @@ extern "C" int32_t deluge_main(void) {
 	setPinAsInput(LINE_OUT_DETECT_L.port, LINE_OUT_DETECT_L.pin);
 	setPinAsInput(LINE_OUT_DETECT_R.port, LINE_OUT_DETECT_R.pin);
 
+	// Piggyback off of bootloader DMA setup.
+    uint32_t oledSPIDMAConfig = (0b1101000 | (OLED_SPI_DMA_CHANNEL & 7));
+    bool have_oled = ((DMACn(OLED_SPI_DMA_CHANNEL).CHCFG_n & oledSPIDMAConfig) == oledSPIDMAConfig);
+
 	// SPI for CV
 	R_RSPI_Create(
 	    SPI_CHANNEL_CV,
-	    display->type() == DisplayType::OLED
+	    have_oled
 	        ? 10000000 // Higher than this would probably work... but let's stick to the OLED datasheet's spec of 100ns (10MHz).
 	        : 30000000,
 	    0, 32);
 	R_RSPI_Start(SPI_CHANNEL_CV);
 	setPinMux(SPI_CLK.port, SPI_CLK.pin, 3);   // CLK
 	setPinMux(SPI_MOSI.port, SPI_MOSI.pin, 3); // MOSI
-	if (display->type() != DisplayType::OLED) {
+
+	if (have_oled) {
 		setPinMux(SPI_SSL.port, SPI_SSL.pin, 3); // SSL
 	}
 	else {
 		// If OLED sharing SPI channel, have to manually control SSL pin.
-		setOutputState(6, 1, true);
-		setPinAsOutput(6, 1);
+		setOutputState(SPI_SSL.port, SPI_SSL.pin, true);
+		setPinAsOutput(SPI_SSL.port, SPI_SSL.pin);
 
 		setupSPIInterrupts();
 		oledDMAInit();
@@ -590,7 +596,7 @@ extern "C" int32_t deluge_main(void) {
 	audioFileManager.init();
 
 	// Set up OLED now
-	if (display->type() != DisplayType::SEVEN_SEG) {
+	if (have_oled) {
 		//delayMS(10);
 
 		// Set up 8-bit
@@ -611,7 +617,12 @@ extern "C" int32_t deluge_main(void) {
 
 		PIC::deselectOLED();
 		PIC::flush();
+		display = new deluge::hid::display::OLED;
+	} else {
+		display = new deluge::hid::display::SevenSegment;
 	}
+
+
 
 	// Setup SPIBSC. Crucial that this only be done now once everything else is running, because I've injected graphics and audio routines into the SPIBSC wait routines, so that
 	// has to be running

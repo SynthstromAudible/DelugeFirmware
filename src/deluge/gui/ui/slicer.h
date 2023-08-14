@@ -32,7 +32,7 @@ struct SliceItem {
 
 class Slicer final : public UI {
 public:
-	Slicer() { oledShowsUIUnderneath = display->type() == DisplayType::OLED; }
+	Slicer() { oledShowsUIUnderneath = true; }
 
 	void focusRegained();
 	bool canSeeViewUnderneath() { return false; }

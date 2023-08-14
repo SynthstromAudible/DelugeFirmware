@@ -632,7 +632,7 @@ void OLED::removePopup() {
 	sendMainImage();
 }
 
-bool isPopupPresent() {
+bool OLED::isPopupPresent() {
 	return oledPopupWidth;
 }
 
@@ -1196,7 +1196,7 @@ checkTimeTilTimeout:
 	sendMainImage();
 }
 
-void OLED::OLED::freezeWithError(char const* text) {
+void OLED::freezeWithError(char const* text) {
 	OLED::clearMainImage();
 	int32_t yPixel = OLED_MAIN_TOPMOST_PIXEL;
 	OLED::drawString("Error:", 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,

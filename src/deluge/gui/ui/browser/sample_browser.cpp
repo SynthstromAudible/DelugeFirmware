@@ -86,13 +86,9 @@ SampleBrowser sampleBrowser{};
 char const* allowedFileExtensionsAudio[] = {"WAV", "AIFF", "AIF", NULL};
 
 SampleBrowser::SampleBrowser() {
-
 	fileIcon = deluge::hid::display::OLED::waveIcon;
 	title = "Audio files";
-
-	if (display->type() != DisplayType::OLED) {
-		shouldWrapFolderContents = false;
-	}
+	shouldWrapFolderContents = false;
 	qwertyAlwaysVisible = false;
 	shouldInterpretNoteNamesForThisBrowser = true;
 }

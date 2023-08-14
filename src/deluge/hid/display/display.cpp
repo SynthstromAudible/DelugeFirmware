@@ -2,13 +2,7 @@
 #include "gui/l10n/l10n.h"
 #include "hid/display/seven_segment.h"
 
-// #ifdef HAVE_OLED
-// deluge::hid::display::OLED oled{};
-// deluge::hid::Display* display = &oled;
-// #else
-// deluge::hid::display::SevenSegment sevenSeg{};
-// deluge::hid::Display* display = &sevenSeg;
-// #endif
+
 deluge::hid::Display* display = nullptr;
 namespace deluge::hid::display {
 

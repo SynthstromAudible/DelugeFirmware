@@ -64,13 +64,9 @@ NumericLayerScrollingText* Browser::scrollingText;
 char const* allowedFileExtensionsXML[] = {"XML", NULL};
 
 Browser::Browser() {
-	if (display->type() == DisplayType::OLED) {
-		fileIcon = deluge::hid::display::OLED::songIcon;
-	}
-	else {
-		scrollingText = NULL;
-		shouldWrapFolderContents = true;
-	}
+	fileIcon = deluge::hid::display::OLED::songIcon;
+	scrollingText = NULL;
+	shouldWrapFolderContents = true;
 
 	mayDefaultToBrandNewNameOnEntry = false;
 	qwertyAlwaysVisible = true;
