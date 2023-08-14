@@ -360,6 +360,19 @@ constexpr int32_t kNumPatchSources = static_cast<int32_t>(kLastPatchSource);
 constexpr PatchSource kFirstLocalSource = PatchSource::ENVELOPE_0;
 //constexpr PatchSource kFirstUnchangeableSource = PatchSource::VELOCITY;
 
+//Automation Instrument Clip View constants
+constexpr int32_t kNoLastSelectedParamID = 255;
+constexpr int32_t kNoLastSelectedParamShortcutX = 255;
+constexpr int32_t kNoLastSelectedParamShortcutY = 255;
+constexpr int32_t kNumNonGlobalEffectableParamsForAutomation = 51;
+constexpr int32_t kNumGlobalEffectableParamsForAutomation = 12;
+constexpr int32_t kLastMidiCCForAutomation = 121;
+constexpr int32_t kKnobPosOffset = 64;
+constexpr int32_t kMaxKnobPos = 127;
+constexpr int32_t kParamValueIncrementForAutomationSinglePadPress = 18;
+constexpr int32_t kParamValueIncrementForAutomationDisplay = 16;
+//
+
 // Linear params have different sources multiplied together, then multiplied by the neutral value
 // -- and "volume" ones get squared at the end
 
@@ -370,6 +383,15 @@ constexpr PatchSource kFirstLocalSource = PatchSource::ENVELOPE_0;
 using ParamType = uint8_t;
 
 namespace Param {
+
+enum Kind : int32_t {
+	PATCHED,
+	UNPATCHED,
+	GLOBAL_EFFECTABLE,
+
+	NONE,
+};
+
 namespace Local {
 enum : ParamType {
 	// Local linear params begin

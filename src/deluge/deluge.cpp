@@ -46,6 +46,7 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
+#include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -428,6 +429,9 @@ void setUIForLoadedSong(Song* song) {
 		if (song->currentClip->type == CLIP_TYPE_INSTRUMENT) {
 			if (((InstrumentClip*)song->currentClip)->onKeyboardScreen) {
 				newUI = &keyboardScreen;
+			}
+			else if (((InstrumentClip*)song->currentClip)->onAutomationInstrumentClipView) {
+				newUI = &automationInstrumentClipView;
 			}
 			else {
 				newUI = &instrumentClipView;
