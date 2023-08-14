@@ -696,11 +696,12 @@ void setGreyoutAmount(float newAmount) {
 	greyProportion = newAmount * 6500000;
 }
 
-int32_t refreshTime;
+int32_t refreshTime = 23;
 int32_t dimmerInterval = 0;
 
 void setRefreshTime(int32_t newTime) {
 	PIC::setRefreshTime(newTime);
+	refreshTime = newTime;
 }
 
 void changeRefreshTime(int32_t offset) {
