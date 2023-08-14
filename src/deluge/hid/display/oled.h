@@ -17,6 +17,9 @@
 
 #pragma once
 
+#include "gui/l10n/english.h"
+#include "gui/l10n/language.h"
+#include "gui/l10n/seven_segment.h"
 #ifdef __cplusplus
 #include "definitions_cxx.hpp"
 #include "display.h"
@@ -25,6 +28,12 @@
 namespace deluge::hid::display {
 class OLED : public Display {
 public:
+	OLED () {
+		if (l10n::chosenLanguage == nullptr || l10n::chosenLanguage == &l10n::built_in::seven_segment) {
+			l10n::chosenLanguage = &l10n::built_in::english;
+		}
+	}
+
 	static void drawOnePixel(int32_t x, int32_t y);
 	static void clearMainImage();
 	static void clearAreaExact(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY,
