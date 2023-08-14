@@ -539,8 +539,8 @@ extern "C" int32_t deluge_main(void) {
 	setPinAsInput(LINE_OUT_DETECT_R.port, LINE_OUT_DETECT_R.pin);
 
 	// Piggyback off of bootloader DMA setup.
-    uint32_t oledSPIDMAConfig = (0b1101000 | (OLED_SPI_DMA_CHANNEL & 7));
-    bool have_oled = ((DMACn(OLED_SPI_DMA_CHANNEL).CHCFG_n & oledSPIDMAConfig) == oledSPIDMAConfig);
+	uint32_t oledSPIDMAConfig = (0b1101000 | (OLED_SPI_DMA_CHANNEL & 7));
+	bool have_oled = ((DMACn(OLED_SPI_DMA_CHANNEL).CHCFG_n & oledSPIDMAConfig) == oledSPIDMAConfig);
 
 	// SPI for CV
 	R_RSPI_Create(
@@ -618,11 +618,10 @@ extern "C" int32_t deluge_main(void) {
 		PIC::deselectOLED();
 		PIC::flush();
 		display = new deluge::hid::display::OLED;
-	} else {
+	}
+	else {
 		display = new deluge::hid::display::SevenSegment;
 	}
-
-
 
 	// Setup SPIBSC. Crucial that this only be done now once everything else is running, because I've injected graphics and audio routines into the SPIBSC wait routines, so that
 	// has to be running

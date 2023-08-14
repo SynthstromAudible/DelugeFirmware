@@ -17,6 +17,7 @@ extern Language const* chosenLanguage;
 
 class Language {
 	using entry_type = std::pair<l10n::String, std::string_view>;
+
 public:
 	using map_type = std::array<std::optional<std::string_view>, kNumStrings>;
 
@@ -51,6 +52,6 @@ public:
 private:
 	std::string name_;
 	map_type map_{};
-	const Language *fallback_ = nullptr;
+	const Language* fallback_ = nullptr;
 };
 } // namespace deluge::l10n

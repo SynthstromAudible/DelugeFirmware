@@ -2,7 +2,6 @@
 #include "gui/l10n/l10n.h"
 #include "hid/display/seven_segment.h"
 
-
 deluge::hid::Display* display = nullptr;
 namespace deluge::hid::display {
 
