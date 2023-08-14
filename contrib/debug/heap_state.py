@@ -3,6 +3,20 @@ import itertools
 try:
     # We attempt to import GDB, and if it fails fall back to an emulation mode
     import gdb
+    import re
+
+    _SPACE_MATCHER = re.compile(r'0x([0-9a-fA-F]+) - 0x([0-9a-fA-F]+) is \.(.+)$')
+    HEAP_START = None
+    HEAP_END = None
+
+    for line in gdb.execute('info files', to_string=True).split('\n'):
+        m = _SPACE_MATCHER.search(line)
+        if m is not None:
+            (start, end, name) = m.groups()
+            if name == 'data':
+                HEAP_START = int(end, 16)
+            elif name == 'program_stack':
+                HEAP_END = int(start, 16)
 
     arch = gdb.selected_inferior().architecture()
     TY_INT32 = arch.integer_type(32, True)
@@ -23,7 +37,7 @@ try:
     TY_MemoryRegion = gdb.lookup_type("MemoryRegion")
     TY_GeneralMemoryAllocator = gdb.lookup_type("GeneralMemoryAllocator")
 
-    GMA_START_OFFSET = gdb.parse_and_eval("generalMemoryAllocator").address.cast(TY_UINT32)
+    GMA_START_OFFSET = gdb.parse_and_eval("GeneralMemoryAllocator::get()::generalMemoryAllocator").address.cast(TY_UINT32)
 except ModuleNotFoundError as e:
     gdb = None
 
@@ -202,6 +216,8 @@ except ModuleNotFoundError as e:
         ],
     )
 
+    HEAP_START = None
+    HEAP_END = None
     GMA_START_OFFSET = 0x2003001C
 
 
@@ -328,6 +344,39 @@ def parse_memory_region(inferior, offset, mem_region_idx):
     parse_cache_manager(inferior, cache_manager_offset)
 
 
+def parse_heap(inferior, start, end):
+    SPACE_HEADER_EMPTY = 0
+    SPACE_HEADER_STEALABLE = 0x40000000
+    SPACE_HEADER_ALLOCATED = 0x80000000
+    SPACE_HEADER_BITS = SPACE_HEADER_STEALABLE | SPACE_HEADER_ALLOCATED
+
+    block_start = start
+    while block_start < end:
+        block_header = bytes_as_uint32(inferior.read_memory(block_start, 4))
+        length = block_header & ~SPACE_HEADER_BITS
+        if length == 0:
+            print(f'{block_start:08x} - {block_start+4:08x} Zero-length block')
+            block_start += 4
+        else:
+            block_footer = bytes_as_uint32(inferior.read_memory(block_start + length + 4, 4))
+            footer_length = block_footer & ~SPACE_HEADER_BITS
+            if footer_length != length:
+                print(f'{block_start:08x} - Possibly corrupt block {block_header:08x} {block_footer:08x}')
+            else:
+                block_mode = block_header & SPACE_HEADER_BITS
+                mode_string = ''
+                if block_mode == SPACE_HEADER_EMPTY:
+                    mode_string = 'EMPTY'
+                elif block_mode == SPACE_HEADER_STEALABLE:
+                    mode_string = 'STEALABLE'
+                elif block_mode == SPACE_HEADER_ALLOCATED:
+                    mode_string = 'ALLOCATED'
+                else:
+                    mode_string = 'STEALABLE|ALLOCATED'
+                print(f'{block_start+4:08x} - {block_start+length+4:08x} {length:8x} {mode_string}')
+
+            block_start += length + 8
+
 def parse_gma(inferior):
     # iterate over both memory regions
     regions_offset = find_field(TY_GeneralMemoryAllocator, "regions").bitpos // 8
@@ -336,6 +385,13 @@ def parse_gma(inferior):
             inferior, GMA_START_OFFSET + regions_offset + TY_MemoryRegion.sizeof * i, i
         )
 
+    if HEAP_START is not None:
+        print('** External heap blocks:')
+        parse_heap(inferior, 0x0C000000, 0x10000000)
+        print('** Internal Heap blocks:')
+        parse_heap(inferior, HEAP_START, HEAP_END)
+    else:
+        print('WARNING: no HEAP_START provided, not parsing')
 
 def parse_args():
     import argparse
@@ -355,7 +411,6 @@ def main():
         inf = FakeInferior(inf.read(), 0x20020000)
 
     parse_gma(inf)
-
 
 if __name__ == "__main__" and gdb is None:
     main()
