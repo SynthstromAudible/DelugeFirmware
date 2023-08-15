@@ -1580,7 +1580,7 @@ skipUnisonPart : {}
 			if (paramFinalValues[Param::Local::FOLD] > 0) {
 				q31_t foldAmount = paramFinalValues[Param::Local::FOLD];
 
-				dsp::foldBuffer(oscBuffer, oscBufferEnd, foldAmount);
+				dsp::foldBufferPolyApproximation(oscBuffer, oscBufferEnd, foldAmount);
 			}
 
 			filterSet.renderLong(oscBuffer, oscBufferEnd, numSamples);
@@ -2628,9 +2628,7 @@ void renderPDWave(const int16_t* table, const int16_t* secondTable, int32_t numB
 void getTableNumber(uint32_t phaseIncrementForCalculations, int32_t* tableNumber, int32_t* tableSize) {
 
 	if (phaseIncrementForCalculations <= 1247086) {
-		{
-			*tableNumber = 0;
-		}
+		{ *tableNumber = 0; }
 		*tableSize = 13;
 	}
 	else if (phaseIncrementForCalculations <= 2494173) {
