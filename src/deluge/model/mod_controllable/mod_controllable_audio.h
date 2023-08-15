@@ -36,6 +36,8 @@ struct Stutterer {
 	uint8_t status;
 	uint8_t sync;
 	int32_t sizeLeftUntilRecordFinished;
+	int32_t valueBeforeStuttering;
+	int32_t lastQuantizedKnobDiff;
 };
 
 class Knob;

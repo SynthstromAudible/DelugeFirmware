@@ -16,6 +16,7 @@
  */
 
 #include "modulation/params/param_set.h"
+#include "deluge/model/settings/runtime_feature_settings.h"
 #include "gui/views/view.h"
 #include "io/midi/midi_engine.h"
 #include "model/action/action_logger.h"
@@ -376,6 +377,9 @@ void UnpatchedParamSet::beenCloned(bool copyAutomation, int32_t reverseDirection
 bool UnpatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) {
 	switch (modelStack->paramId) {
 	case Param::Unpatched::STUTTER_RATE:
+		return runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate)
+		           == RuntimeFeatureStateToggle::Off
+		       || isUIModeActive(UI_MODE_STUTTERING);
 	case Param::Unpatched::BASS:
 	case Param::Unpatched::TREBLE:
 	case Param::Unpatched::GlobalEffectable::DELAY_RATE:

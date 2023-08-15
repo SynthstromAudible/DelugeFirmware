@@ -17,6 +17,7 @@
 
 #include "gui/views/view.h"
 #include "definitions_cxx.hpp"
+#include "deluge/model/settings/runtime_feature_settings.h"
 #include "dsp/reverb/freeverb/revmodel.hpp"
 #include "extern.h"
 #include "gui/colour.h"
@@ -28,6 +29,7 @@
 #include "gui/ui/root_ui.h"
 #include "gui/ui/save/save_song_ui.h"
 #include "gui/ui/sound_editor.h"
+#include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_instrument_clip_view.h"
@@ -1003,7 +1005,30 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 		    modelStackWithParam->modControllable->getKnobPosForNonExistentParam(whichModEncoder, modelStackWithParam);
 	}
 
-	indicator_leds::setKnobIndicatorLevel(whichModEncoder, knobPos + 64);
+	// Quantized Stutter FX
+	if (modelStackWithParam->paramId == Param::Unpatched::STUTTER_RATE
+	    && (runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate)
+	        == RuntimeFeatureStateToggle::On)
+	    && !isUIModeActive(UI_MODE_STUTTERING)) {
+		if (knobPos < -39) { // 4ths stutter: no leds turned on
+			indicator_leds::setKnobIndicatorLevel(whichModEncoder, 0);
+		}
+		else if (knobPos < -14) { // 8ths stutter: 1 led turned on
+			indicator_leds::setKnobIndicatorLevel(whichModEncoder, 32);
+		}
+		else if (knobPos < 14) { // 16ths stutter: 2 leds turned on
+			indicator_leds::setKnobIndicatorLevel(whichModEncoder, 64);
+		}
+		else if (knobPos < 39) { // 32nds stutter: 3 leds turned on
+			indicator_leds::setKnobIndicatorLevel(whichModEncoder, 96);
+		}
+		else { // 64ths stutter: all 4 leds turned on
+			indicator_leds::setKnobIndicatorLevel(whichModEncoder, 128);
+		}
+	}
+	else {
+		indicator_leds::setKnobIndicatorLevel(whichModEncoder, knobPos + 64);
+	}
 }
 
 static const uint32_t modButtonUIModes[] = {UI_MODE_AUDITIONING,
