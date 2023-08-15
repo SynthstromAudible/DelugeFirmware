@@ -71,7 +71,7 @@ jobs:
           retention-days: ${{ inputs.firmware-retention-days }}
 
       - name: Deploy nightly to releases
-        if: inputs.build-type == "nightly"
+        if: inputs.build-type == 'nightly'
         uses: WebFreak001/deploy-nightly@v2.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # automatically provided by github actions
