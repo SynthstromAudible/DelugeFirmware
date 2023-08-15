@@ -69,3 +69,16 @@ jobs:
           path: build/*/*.elf
           if-no-files-found: error
           retention-days: ${{ inputs.firmware-retention-days }}
+
+      - name: Deploy nightly to releases
+        if: inputs.build-type == "nightly"
+        uses: WebFreak001/deploy-nightly@v2.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # automatically provided by github actions
+        with:
+          upload_url: https://uploads.github.com/repos/PaulFreund/DelugeFirmware/releases/116465059/assets{?name,label} # find out this value by opening https://api.github.com/repos/<owner>/<repo>/releases in your browser and copy the full "upload_url" value including the {?name,label} part
+          release_id: 116465059 # same as above (id can just be taken out the upload_url, it's used to find old releases)
+          asset_path: ./release-oled.bin # path to archive to upload
+          asset_name: oled-release-nightly-$$.zip # name to upload the release as, use $$ to insert date (YYYYMMDD) and 6 letter commit hash
+          asset_content_type: application/x-binary # required by GitHub API
+          max_releases: 30 # optional, if there are more releases than this matching the asset_name, the oldest ones are going to be deleted
