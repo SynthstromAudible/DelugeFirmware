@@ -78,8 +78,8 @@ uint32_t totalMallocTime = 0;
 int32_t numMallocTimes = 0;
 #endif
 
-extern "C" void* delugeAlloc(unsigned int requiredSize) {
-	return GeneralMemoryAllocator::get().alloc(requiredSize, NULL, false, true);
+extern "C" void* delugeAlloc(unsigned int requiredSize, bool mayUseOnChipRam) {
+	return GeneralMemoryAllocator::get().alloc(requiredSize, NULL, false, mayUseOnChipRam);
 }
 
 // Watch the heck out - in the older V3.1 branch, this had one less argument - makeStealable was missing - so in code from there, thingNotToStealFrom could be interpreted as makeStealable!
