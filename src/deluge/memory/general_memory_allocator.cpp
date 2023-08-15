@@ -38,6 +38,7 @@ extern uint32_t program_stack_start;
 extern uint32_t program_stack_end;
 GeneralMemoryAllocator::GeneralMemoryAllocator() {
 	lock = false;
+
 	regions[MEMORY_REGION_SDRAM].setup(emptySpacesMemory, sizeof(emptySpacesMemory), EXTERNAL_MEMORY_BEGIN,
 	                                   EXTERNAL_MEMORY_END);
 	regions[MEMORY_REGION_INTERNAL].setup(emptySpacesMemoryInternal, sizeof(emptySpacesMemoryInternal),
@@ -140,7 +141,15 @@ uint32_t GeneralMemoryAllocator::getAllocatedSize(void* address) {
 }
 
 int32_t GeneralMemoryAllocator::getRegion(void* address) {
-	return ((uint32_t)address >= (uint32_t)INTERNAL_MEMORY_BEGIN) ? MEMORY_REGION_INTERNAL : MEMORY_REGION_SDRAM;
+	if ((uint32_t)address >= (uint32_t)INTERNAL_MEMORY_BEGIN) {
+		return MEMORY_REGION_INTERNAL;
+	}
+	else if (((uint32_t)address <= EXTERNAL_MEMORY_BEGIN) || (uint32_t)address >= EXTERNAL_MEMORY_END) {
+		numericDriver.freezeWithError("e999");
+		return -1;
+	}
+	return MEMORY_REGION_SDRAM;
+	//return ((uint32_t)address >= (uint32_t)INTERNAL_MEMORY_BEGIN) ? MEMORY_REGION_INTERNAL : MEMORY_REGION_SDRAM;
 }
 
 // Returns new size
