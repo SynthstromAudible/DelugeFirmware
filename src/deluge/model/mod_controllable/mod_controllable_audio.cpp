@@ -923,8 +923,9 @@ int32_t ModControllableAudio::getStutterRate(ParamManager* paramManager) {
 	int32_t knobPos = 0;
 	if (paramValue >= (int32_t)(0x80000000 - (1 << 24))) {
 		knobPos = 64;
+	} else {
+		knobPos = (paramValue + (1 << 24)) >> 25;
 	}
-	knobPos = (paramValue + (1 << 24)) >> 25;
 	// Add diff "lastQuantizedKnobDiff" (this value will be set if Quantized Stutter is On, zero if not so this will be a no-op)
 	knobPos = knobPos + stutterer.lastQuantizedKnobDiff;
 	// Convert back to value range
@@ -1652,8 +1653,9 @@ void ModControllableAudio::beginStutter(ParamManagerForTimeline* paramManager) {
 		int32_t knobPos = 0;
 		if (paramValue >= (int32_t)(0x80000000 - (1 << 24))) {
 			knobPos = 64;
+		} else {
+			knobPos = (paramValue + (1 << 24)) >> 25;
 		}
-		knobPos = (paramValue + (1 << 24)) >> 25;
 		if (knobPos < -39) {
 			knobPos = -16; // 4ths
 		}
