@@ -27,22 +27,24 @@ extern deluge::gui::menu_item::Submenu<2> midiDeviceMenu;
 
 namespace deluge::gui::menu_item::midi {
 
-static const int32_t lowestDeviceNum = -3;
+static constexpr int32_t lowestDeviceNum = -3;
 
 void Devices::beginSession(MenuItem* navigatedBackwardFrom) {
-	// TODO: this should _not_ be using value_ as a scratch var, I don't know why it did this with soundEditor.currentValue either
+	bool found = false;
 	if (navigatedBackwardFrom != nullptr) {
-		for (this->setValue(lowestDeviceNum); this->getValue() < MIDIDeviceManager::hostedMIDIDevices.getNumElements();
-		     this->setValue(this->getValue() + 1)) {
-			if (getDevice(this->getValue()) == soundEditor.currentMIDIDevice) {
-				goto decidedDevice;
+		for (int32_t idx = lowestDeviceNum; idx < MIDIDeviceManager::hostedMIDIDevices.getNumElements(); idx++) {
+			if (getDevice(idx) == soundEditor.currentMIDIDevice) {
+				found = true;
+				this->setValue(idx);
+				break;
 			}
 		}
 	}
 
-	this->setValue(lowestDeviceNum); // Start on "DIN". That's the only one that'll always be there.
+	if (!found) {
+		this->setValue(lowestDeviceNum); // Start on "DIN". That's the only one that'll always be there.
+	}
 
-decidedDevice:
 	soundEditor.currentMIDIDevice = getDevice(this->getValue());
 #if HAVE_OLED
 	soundEditor.menuCurrentScroll = this->getValue();
@@ -149,7 +151,7 @@ void Devices::drawPixelsForOled() {
 	while (row < kOLEDMenuNumOptionsVisible && device_idx < MIDIDeviceManager::hostedMIDIDevices.getNumElements()) {
 		MIDIDevice* device = getDevice(device_idx);
 		if (device->connectionFlags != 0u) {
-			itemNames[row] = device->getDisplayName();
+			itemNames.push_back(device->getDisplayName());
 			if (device_idx == this->getValue()) {
 				selectedRow = static_cast<int32_t>(row);
 			}
@@ -158,7 +160,7 @@ void Devices::drawPixelsForOled() {
 		device_idx++;
 	}
 
-	drawItemsForOled(itemNames, selectedRow, soundEditor.menuCurrentScroll);
+	drawItemsForOled(itemNames, selectedRow);
 }
 
 #endif
