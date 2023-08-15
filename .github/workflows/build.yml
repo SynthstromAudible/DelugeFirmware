@@ -70,20 +70,12 @@ jobs:
           if-no-files-found: error
           retention-days: ${{ inputs.firmware-retention-days }}
 
-      - name: Deploy OLED nightly to releases
+      - name: Create nightlies archive
         if: inputs.build-type == 'nightly'
-        uses: WebFreak001/deploy-nightly@v2.0.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # automatically provided by github actions
-        with:
-          upload_url: https://uploads.github.com/repos/PaulFreund/DelugeFirmware/releases/116465059/assets{?name,label} # find out this value by opening https://api.github.com/repos/<owner>/<repo>/releases in your browser and copy the full "upload_url" value including the {?name,label} part
-          release_id: 116465059 # same as above (id can just be taken out the upload_url, it's used to find old releases)
-          asset_path: build/Release/delugeOLED*.bin # path to archive to upload
-          asset_name: oled-release-nightly-$$.bin # name to upload the release as, use $$ to insert date (YYYYMMDD) and 6 letter commit hash
-          asset_content_type: application/x-binary # required by GitHub API
-          max_releases: 30 # optional, if there are more releases than this matching the asset_name, the oldest ones are going to be deleted
+        run: |
+          zip nightly.zip build/Release/delugeOLED*.bin build/Release/deluge7SEG*.bin
 
-      - name: Deploy 7SEG nightly to releases
+      - name: Deploy nightly zip to releases
         if: inputs.build-type == 'nightly'
         uses: WebFreak001/deploy-nightly@v2.0.0
         env:
@@ -91,7 +83,7 @@ jobs:
         with:
           upload_url: https://uploads.github.com/repos/PaulFreund/DelugeFirmware/releases/116465059/assets{?name,label} # find out this value by opening https://api.github.com/repos/<owner>/<repo>/releases in your browser and copy the full "upload_url" value including the {?name,label} part
           release_id: 116465059 # same as above (id can just be taken out the upload_url, it's used to find old releases)
-          asset_path: build/Release/deluge7SEG*.bin # path to archive to upload
-          asset_name: 7seg-release-nightly-$$.bin # name to upload the release as, use $$ to insert date (YYYYMMDD) and 6 letter commit hash
-          asset_content_type: application/x-binary # required by GitHub API
+          asset_path: nightly.zip # path to archive to upload
+          asset_name: deluge-community-nightly-$$.bin # name to upload the release as, use $$ to insert date (YYYYMMDD) and 6 letter commit hash
+          asset_content_type: application/zip # required by GitHub API
           max_releases: 30 # optional, if there are more releases than this matching the asset_name, the oldest ones are going to be deleted
