@@ -44,7 +44,10 @@ void MemoryRegion::setup(void* emptySpacesMemory, int32_t emptySpacesMemorySize,
 	EmptySpaceRecord* firstRecord = (EmptySpaceRecord*)emptySpaces.getElementAddress(0);
 	firstRecord->length = memorySizeWithoutHeaders;
 	firstRecord->address = regionBegin + 8;
+//reset to zero in case we loaded via debugger
+#if IN_HARDWARE_DEBUG == 1
 	memset((void*)firstRecord->address, 0, firstRecord->length);
+#endif
 }
 
 bool seenYet = false;
