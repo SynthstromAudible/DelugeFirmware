@@ -21,8 +21,8 @@
 
 namespace deluge::gui::ui::keyboard::layout {
 
-constexpr int kMinNornsRowInterval = 1;
-constexpr int kMaxNornsRowInterval = 16;
+constexpr int32_t kMinNornsRowInterval = 1;
+constexpr int32_t kMaxNornsRowInterval = 16;
 
 class KeyboardLayoutNorns : public KeyboardLayout {
 public:
@@ -30,8 +30,8 @@ public:
 	virtual ~KeyboardLayoutNorns() {}
 
 	virtual void evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]);
-	virtual void handleVerticalEncoder(int offset);
-	virtual void handleHorizontalEncoder(int offset, bool shiftEnabled);
+	virtual void handleVerticalEncoder(int32_t offset);
+	virtual void handleHorizontalEncoder(int32_t offset, bool shiftEnabled);
 	virtual void precalculate();
 
 	virtual void renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]);
@@ -41,7 +41,7 @@ public:
 	virtual bool supportsKit() { return false; }
 
 private:
-	inline uint8_t noteFromCoords(int x, int y) { return x + y * kDisplayWidth; }
+	inline uint8_t noteFromCoords(int32_t x, int32_t y) { return x + y * kDisplayWidth; }
 };
 
-}; // namespace keyboard::layout
+}; // namespace deluge::gui::ui::keyboard::layout

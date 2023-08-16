@@ -32,7 +32,7 @@ void KeyboardLayoutNorns::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPres
 
 	currentNotesState = NotesState{}; // Erase active notes
 
-	for (int idxPress = 0; idxPress < kMaxNumKeyboardPadPresses; ++idxPress) {
+	for (int32_t idxPress = 0; idxPress < kMaxNumKeyboardPadPresses; ++idxPress) {
 		if (presses[idxPress].active) {
 			currentNotesState.enableNote(noteFromCoords(presses[idxPress].x, presses[idxPress].y),
 			                             getDefaultVelocity());
@@ -40,10 +40,10 @@ void KeyboardLayoutNorns::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPres
 	}
 }
 
-void KeyboardLayoutNorns::handleVerticalEncoder(int offset) {
+void KeyboardLayoutNorns::handleVerticalEncoder(int32_t offset) {
 }
 
-void KeyboardLayoutNorns::handleHorizontalEncoder(int offset, bool shiftEnabled) {
+void KeyboardLayoutNorns::handleHorizontalEncoder(int32_t offset, bool shiftEnabled) {
 }
 
 void KeyboardLayoutNorns::precalculate() {
@@ -51,9 +51,9 @@ void KeyboardLayoutNorns::precalculate() {
 
 void KeyboardLayoutNorns::renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) {
 	// Iterate over grid image
-	for (int y = 0; y < kDisplayHeight; ++y) {
-		for (int x = 0; x < kDisplayWidth; x++) {
-			int note = noteFromCoords(x, y);
+	for (int32_t y = 0; y < kDisplayHeight; ++y) {
+		for (int32_t x = 0; x < kDisplayWidth; x++) {
+			int32_t note = noteFromCoords(x, y);
 			uint8_t white[3] = {0xFF, 0xFF, 0xFF};
 
 			// If highlighting notes is active, do it
@@ -64,4 +64,4 @@ void KeyboardLayoutNorns::renderPads(uint8_t image[][kDisplayWidth + kSideBarWid
 	}
 }
 
-} // namespace keyboard::layout
+} // namespace deluge::gui::ui::keyboard::layout
