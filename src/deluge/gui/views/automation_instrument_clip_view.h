@@ -145,6 +145,7 @@ private:
 
 	//Automation Lanes Functions
 	void initParameterSelection();
+	void initPadSelection();
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip,
 	                                                int32_t paramID = 0xFFFFFFFF,
 	                                                Param::Kind paramKind = Param::Kind::NONE);
@@ -159,7 +160,7 @@ private:
 	int32_t calculateKnobPosForSinglePadPress(int32_t yDisplay);
 
 	void handleMultiPadPress(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, int32_t firstPadX,
-	                         int32_t firstPadY, int32_t secondPadX, int32_t secondPadY);
+	                         int32_t firstPadY, int32_t secondPadX, int32_t secondPadY, bool modEncoderAction = false);
 
 	int32_t calculateKnobPosForModEncoderTurn(int32_t knobPos, int32_t offset);
 	bool isOnParameterGridMenuView();
@@ -170,9 +171,11 @@ private:
 	bool encoderAction;
 	bool shortcutBlinking;
 
-	int32_t multiPadPressEnded;
-	int32_t multiPadPressLeftX;
-	int32_t multiPadPressRightX;
+	bool padSelectionOn;
+	bool multiPadPressSelected;
+	bool renderCursor;
+	int32_t leftPadSelectedX;
+	int32_t rightPadSelectedX;
 };
 
 extern AutomationInstrumentClipView automationInstrumentClipView;
