@@ -506,9 +506,6 @@ extern "C" int32_t deluge_main(void) {
 	PIC::setUARTSpeed();
 	PIC::flush();
 
-	// Setup SDRAM. Have to do this before setting up AudioEngine
-	userdef_bsc_cs2_init(0); // 64MB, hardcoded
-
 	functionsInit();
 
 #if AUTOMATED_TESTER_ENABLED
