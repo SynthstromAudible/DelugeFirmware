@@ -64,6 +64,7 @@ public:
 	// move data from ring buffer to dataSendingNow, assuming it is free
 	bool consumeSendData();
 	bool hasBufferedSendData();
+	int sendBufferSpace();
 #else
 //warning - accessed as a C struct from usb driver
 struct ConnectedUSBMIDIDevice {
