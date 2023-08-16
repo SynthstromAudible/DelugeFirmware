@@ -144,14 +144,14 @@ void resetprg(void) {
 
 	__enable_irq();
 	__enable_fiq();
-       // Setup SDRAM. Have to do this before we init global objects
-       userdef_bsc_cs2_init(0); // 64MB, hardcoded
+	// Setup SDRAM. Have to do this before we init global objects
+	userdef_bsc_cs2_init(0); // 64MB, hardcoded
 #if !defined(NDEBUG)
-const uint32_t SDRAM_SIZE = EXTERNAL_MEMORY_END - EXTERNAL_MEMORY_BEGIN;
-       uint16_t *sdram = (uint16_t*)EXTERNAL_MEMORY_BEGIN;
-       for (size_t i = 0; i < SDRAM_SIZE; i++) {
-               sdram[i] = 0x0000;
-       }
+	const uint32_t SDRAM_SIZE = EXTERNAL_MEMORY_END - EXTERNAL_MEMORY_BEGIN;
+	uint16_t* sdram = (uint16_t*)EXTERNAL_MEMORY_BEGIN;
+	for (size_t i = 0; i < SDRAM_SIZE; i++) {
+		sdram[i] = 0x0000;
+	}
 #endif
 
 	__libc_init_array();
