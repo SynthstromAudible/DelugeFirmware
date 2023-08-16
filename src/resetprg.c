@@ -59,6 +59,8 @@
 #include "RZA1/uart/sio_char.h"
 #include "definitions.h"
 #include "deluge/deluge.h"
+#include "RZA1/bsc/bsc_userdef.h" //sdram init
+#include <string.h> //memset
 
 #if defined(__thumb2__) || (defined(__thumb__) && defined(__ARM_ARCH_6M__))
 #define THUMB_V7_V6M
@@ -148,10 +150,7 @@ void resetprg(void) {
 	userdef_bsc_cs2_init(0); // 64MB, hardcoded
 #if !defined(NDEBUG)
 	const uint32_t SDRAM_SIZE = EXTERNAL_MEMORY_END - EXTERNAL_MEMORY_BEGIN;
-	uint16_t* sdram = (uint16_t*)EXTERNAL_MEMORY_BEGIN;
-	for (size_t i = 0; i < SDRAM_SIZE; i++) {
-		sdram[i] = 0x0000;
-	}
+	memset((void*) EXTERNAL_MEMORY_BEGIN,0, SDRAM_SIZE );
 #endif
 
 	__libc_init_array();

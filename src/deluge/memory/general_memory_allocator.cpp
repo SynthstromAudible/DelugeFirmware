@@ -145,11 +145,10 @@ int32_t GeneralMemoryAllocator::getRegion(void* address) {
 		return MEMORY_REGION_INTERNAL;
 	}
 	else if (((uint32_t)address <= EXTERNAL_MEMORY_BEGIN) || (uint32_t)address >= EXTERNAL_MEMORY_END) {
-		numericDriver.freezeWithError("e999");
+		numericDriver.freezeWithError("M999");
 		return -1;
 	}
 	return MEMORY_REGION_SDRAM;
-	//return ((uint32_t)address >= (uint32_t)INTERNAL_MEMORY_BEGIN) ? MEMORY_REGION_INTERNAL : MEMORY_REGION_SDRAM;
 }
 
 // Returns new size
