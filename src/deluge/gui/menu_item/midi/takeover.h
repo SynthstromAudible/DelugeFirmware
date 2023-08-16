@@ -21,16 +21,12 @@
 #include "io/midi/midi_engine.h"
 #include "util/misc.h"
 
-namespace menu_item::midi {
-class Takeover final : public Selection {
+namespace deluge::gui::menu_item::midi {
+class Takeover final : public Selection<kNumMIDITakeoverModes> {
 public:
 	using Selection::Selection;
-	void readCurrentValue() { soundEditor.currentValue = util::to_underlying(midiEngine.midiTakeover); }
-	void writeCurrentValue() { midiEngine.midiTakeover = static_cast<MIDITakeoverMode>(soundEditor.currentValue); }
-	char const** getOptions() {
-		static char const* options[] = {"Jump", "Pickup", "Scale", NULL};
-		return options;
-	}
-	int getNumOptions() { return kNumMIDITakeoverModes; }
+	void readCurrentValue() override { this->setValue(midiEngine.midiTakeover); }
+	void writeCurrentValue() override { midiEngine.midiTakeover = this->getValue<MIDITakeoverMode>(); }
+	static_vector<std::string, capacity()> getOptions() override { return {"Jump", "Pickup", "Scale"}; }
 };
-} // namespace menu_item::midi
+} // namespace deluge::gui::menu_item::midi

@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
+#include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -47,7 +48,7 @@ extern void batteryLEDBlink();
 UITimerManager::UITimerManager() {
 	timeNextEvent = 2147483647;
 
-	for (int i = 0; i < NUM_TIMERS; i++) {
+	for (int32_t i = 0; i < NUM_TIMERS; i++) {
 		timers[i].active = false;
 	}
 }
@@ -59,7 +60,7 @@ void UITimerManager::routine() {
 		return;
 	}
 
-	for (int i = 0; i < NUM_TIMERS; i++) {
+	for (int32_t i = 0; i < NUM_TIMERS; i++) {
 		if (timers[i].active) {
 
 			int32_t timeTil = (uint32_t)(timers[i].triggerTime - AudioEngine::audioSampleTimer);
@@ -78,7 +79,7 @@ void UITimerManager::routine() {
 					break;
 
 				case TIMER_DEFAULT_ROOT_NOTE:
-					if (getCurrentUI() == &instrumentClipView) {
+					if (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationInstrumentClipView) {
 						instrumentClipView.flashDefaultRootNote();
 					}
 					else if (getCurrentUI() == &keyboardScreen) {
@@ -126,7 +127,16 @@ void UITimerManager::routine() {
 				}
 
 				case TIMER_DISPLAY_AUTOMATION:
-					view.displayAutomation();
+					if (getCurrentUI() == &automationInstrumentClipView
+					    && (((InstrumentClip*)currentSong->currentClip)->lastSelectedParamID
+					        != kNoLastSelectedParamID)) {
+
+						automationInstrumentClipView.displayAutomation();
+					}
+
+					else {
+						view.displayAutomation();
+					}
 					break;
 
 				case TIMER_READ_INPUTS:
@@ -142,6 +152,17 @@ void UITimerManager::routine() {
 						getCurrentUI()->graphicsRoutine();
 					}
 					setTimer(TIMER_GRAPHICS_ROUTINE, 15);
+					break;
+
+				case TIMER_AUTOMATION_VIEW: //timer to redisplay the parameter name on the screen in automation view
+					if (getCurrentUI() == &automationInstrumentClipView
+					    && (((InstrumentClip*)currentSong->currentClip)->lastSelectedParamID
+					        != kNoLastSelectedParamID)) {
+
+						automationInstrumentClipView.displayParameterName(
+						    ((InstrumentClip*)currentSong->currentClip)->lastSelectedParamID);
+						unsetTimer(TIMER_AUTOMATION_VIEW);
+					}
 					break;
 
 #if HAVE_OLED
@@ -165,11 +186,11 @@ void UITimerManager::routine() {
 	workOutNextEventTime();
 }
 
-void UITimerManager::setTimer(int i, int ms) {
+void UITimerManager::setTimer(int32_t i, int32_t ms) {
 	setTimerSamples(i, ms * 44);
 }
 
-void UITimerManager::setTimerSamples(int i, int samples) {
+void UITimerManager::setTimerSamples(int32_t i, int32_t samples) {
 	timers[i].triggerTime = AudioEngine::audioSampleTimer + samples;
 	timers[i].active = true;
 
@@ -179,17 +200,17 @@ void UITimerManager::setTimerSamples(int i, int samples) {
 	}
 }
 
-void UITimerManager::setTimerByOtherTimer(int i, int j) {
+void UITimerManager::setTimerByOtherTimer(int32_t i, int32_t j) {
 	timers[i].triggerTime = timers[j].triggerTime;
 	timers[i].active = true;
 }
 
-void UITimerManager::unsetTimer(int i) {
+void UITimerManager::unsetTimer(int32_t i) {
 	timers[i].active = false;
 	workOutNextEventTime();
 }
 
-bool UITimerManager::isTimerSet(int i) {
+bool UITimerManager::isTimerSet(int32_t i) {
 	return timers[i].active;
 }
 
@@ -197,7 +218,7 @@ void UITimerManager::workOutNextEventTime() {
 
 	int32_t timeTilNextEvent = 2147483647;
 
-	for (int i = 0; i < NUM_TIMERS; i++) {
+	for (int32_t i = 0; i < NUM_TIMERS; i++) {
 		if (timers[i].active) {
 			int32_t timeTil = timers[i].triggerTime - AudioEngine::audioSampleTimer;
 			if (timeTil < timeTilNextEvent) {

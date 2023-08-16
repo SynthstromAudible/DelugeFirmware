@@ -17,10 +17,10 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
 #include "definitions_cxx.hpp"
 #include "hid/button.h"
 #include "model/model_stack.h"
+#include <cstdint>
 
 class InstrumentClip;
 class NoteRow;
@@ -42,7 +42,7 @@ class MIDIDevice;
 class LearnedMIDI;
 class Kit;
 
-// A view is where the user can interact with the pads - song view, Clip view, and keyboard view.
+// A view is where the user can interact with the pads - song view, Clip view, automation view and keyboard view.
 // (Is that still a good description? This class is a bit of a mishmash of poorly organised code, sorry.)
 
 class View {
@@ -57,14 +57,14 @@ public:
 	void clipStatusMidiLearnPadPressed(bool on, Clip* whichLoopable);
 	void noteRowMuteMidiLearnPadPressed(bool on, NoteRow* whichNoteRow);
 	void endMidiLearnPressSession(MidiLearn newThingPressed = MidiLearn::NONE);
-	void noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int channel, int note, int velocity);
-	void ccReceivedForMIDILearn(MIDIDevice* fromDevice, int channel, int cc, int value);
+	void noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channel, int32_t note, int32_t velocity);
+	void ccReceivedForMIDILearn(MIDIDevice* fromDevice, int32_t channel, int32_t cc, int32_t value);
 	void drumMidiLearnPadPressed(bool on, Drum* drum, Kit* kit);
 	void melodicInstrumentMidiLearnPadPressed(bool on, MelodicInstrument* instrument);
 	void sectionMidiLearnPadPressed(bool on, uint8_t section);
 	void midiLearnFlash();
 	void setModLedStates();
-	void modEncoderAction(int whichModEncoder, int offset);
+	void modEncoderAction(int32_t whichModEncoder, int32_t offset);
 	void modEncoderButtonAction(uint8_t whichModEncoder, bool on);
 	void modButtonAction(uint8_t whichButton, bool on);
 	void setKnobIndicatorLevels();
@@ -72,21 +72,22 @@ public:
 	void setActiveModControllableTimelineCounter(TimelineCounter* playPositionCounter);
 	void setActiveModControllableWithoutTimelineCounter(ModControllable* modControllable, ParamManager* paramManager);
 	void cycleThroughReverbPresets();
-	void setModRegion(uint32_t pos = 0xFFFFFFFF, uint32_t length = 0, int noteRowId = 0);
+	void setModRegion(uint32_t pos = 0xFFFFFFFF, uint32_t length = 0, int32_t noteRowId = 0);
 	void notifyParamAutomationOccurred(ParamManager* paramManager, bool updateModLevels = true);
 	void displayAutomation();
 	void displayOutputName(Output* output, bool doBlink = true, Clip* clip = NULL);
 	void instrumentChanged(ModelStackWithTimelineCounter* modelStack, Instrument* newInstrument);
-	void navigateThroughPresetsForInstrumentClip(int offset, ModelStackWithTimelineCounter* modelStack,
+	void navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWithTimelineCounter* modelStack,
 	                                             bool doBlink = false);
-	void navigateThroughAudioOutputsForAudioClip(int offset, AudioClip* clip, bool doBlink = false);
+	void navigateThroughAudioOutputsForAudioClip(int32_t offset, AudioClip* clip, bool doBlink = false);
 	bool changeInstrumentType(InstrumentType newInstrumentType, ModelStackWithTimelineCounter* modelStack,
 	                          bool doBlink = false);
-	void drawOutputNameFromDetails(InstrumentType instrumentType, int slot, int subSlot, char const* name,
+	void drawOutputNameFromDetails(InstrumentType instrumentType, int32_t slot, int32_t subSlot, char const* name,
 	                               bool editedByUser, bool doBlink, Clip* clip = NULL);
 	void endMIDILearn();
-	void getClipMuteSquareColour(Clip* clip, uint8_t thisColour[]);
-	ActionResult clipStatusPadAction(Clip* clip, bool on, int yDisplayIfInSessionView = -1);
+	void getClipMuteSquareColour(Clip* clip, uint8_t thisColour[], bool overwriteStopped = false,
+	                             uint8_t stoppedColour[] = {0}, bool allowMIDIFlash = true);
+	ActionResult clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfInSessionView = -1);
 	void flashPlayEnable();
 	void flashPlayDisable();
 
@@ -114,7 +115,7 @@ public:
 
 	uint32_t timeSaveButtonPressed;
 
-	int modNoteRowId;
+	int32_t modNoteRowId;
 	uint32_t modPos;
 	// 0 if not currently editing a region / step / holding a note. If you're gonna refer to this, you absolutely have
 	// to first check that the TimelineCounter you're thinking of setting some automation on

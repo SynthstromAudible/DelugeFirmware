@@ -39,7 +39,7 @@
 #endif
 
 extern "C" {
-#include "ff.h"
+#include "fatfs/ff.h"
 }
 
 using namespace deluge;
@@ -69,7 +69,7 @@ doReturnFalse:
 		return false;
 	}
 
-	int error;
+	int32_t error;
 
 	String searchFilename;
 	searchFilename.set(&currentSong->name);
@@ -92,8 +92,6 @@ gotError:
 
 	// TODO: create folder if doesn't exist.
 
-	enteredTextEditPos = 0; //enteredText.getLength();
-
 	indicator_leds::setLedState(IndicatorLED::SYNTH, false);
 	indicator_leds::setLedState(IndicatorLED::KIT, false);
 	indicator_leds::setLedState(IndicatorLED::MIDI, false);
@@ -105,6 +103,9 @@ gotError:
 	indicator_leds::blinkLed(IndicatorLED::SESSION_VIEW);
 
 	focusRegained();
+	//do this after focus regained, otherwise the first scroll starts
+	//from the beginning instead of showing the incremented number
+	enteredTextEditPos = 0; //enteredText.getLength();
 	return true;
 }
 
@@ -131,7 +132,7 @@ bool SaveSongUI::performSave(bool mayOverwrite) {
 #endif
 
 	String filePath;
-	int error = getCurrentFilePath(&filePath);
+	int32_t error = getCurrentFilePath(&filePath);
 	if (error) {
 gotError:
 #if HAVE_OLED
@@ -185,12 +186,12 @@ gotError:
 	if (error) {
 		goto gotError;
 	}
-	int dirPathLengthNew = newSongAlternatePath.getLength();
+	int32_t dirPathLengthNew = newSongAlternatePath.getLength();
 
 	bool anyErrorMovingTempFiles = false;
 
 	// Go through each AudioFile we have a record of in RAM.
-	for (int i = 0; i < audioFileManager.audioFiles.getNumElements(); i++) {
+	for (int32_t i = 0; i < audioFileManager.audioFiles.getNumElements(); i++) {
 		AudioFile* audioFile = (AudioFile*)audioFileManager.audioFiles.getElement(i);
 
 		// If this AudioFile is used in this Song...
@@ -275,9 +276,9 @@ gotError:
 					    || !memcasecmp(normalFilePath, "SAMPLES/RESAMPLE/REC", 20)
 					    || !memcasecmp(normalFilePath, "SAMPLES/CLIPS/REC", 17)) {
 						char const* slashAddr = strrchr(normalFilePath, '/');
-						int slashPos = (uint32_t)slashAddr - (uint32_t)normalFilePath;
+						int32_t slashPos = (uint32_t)slashAddr - (uint32_t)normalFilePath;
 
-						int fileNamePos = slashPos + 1;
+						int32_t fileNamePos = slashPos + 1;
 
 						if (audioFile->filePath.getLength() - fileNamePos == 12
 						    && !strcasecmp(normalFilePath + fileNamePos + 8, ".WAV")) {
@@ -293,8 +294,8 @@ gotError:
 
 							seedRandom();
 
-							for (int i = 1; i < 6; i++) {
-								int rand = random(35);
+							for (int32_t i = 1; i < 6; i++) {
+								int32_t rand = random(35);
 								if (rand < 10) {
 									buffer[i] = '0' + rand;
 								}
@@ -405,7 +406,7 @@ fail3:
 	// If we're overwriting an existing file, we'll write to a temp file first. Find one that doesn't already exist
 	if (fileAlreadyExisted) {
 
-		int tempFileNumber = 0;
+		int32_t tempFileNumber = 0;
 
 		while (true) {
 			error = filePathDuringWrite.set("SONGS/TEMP");

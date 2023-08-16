@@ -50,7 +50,7 @@ extern "C" {
 // some external macro definitions to be exposed to the users
 /////////////////////////////////////////////////////////
 
-void* delugeAlloc(int requiredSize);
+void* delugeAlloc(unsigned int requiredSize);
 void delugeDealloc(void* address);
 
 #define NE10_MALLOC delugeAlloc

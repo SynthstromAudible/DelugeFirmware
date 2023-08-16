@@ -20,7 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "dsp/filter/filter_set.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
-
+using namespace deluge;
 class GlobalEffectable : public ModControllableAudio {
 public:
 	GlobalEffectable();
@@ -30,19 +30,19 @@ public:
 	static void initParamsForAudioClip(ParamManagerForTimeline* paramManager);
 	void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager);
 	bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack);
-	ModelStackWithAutoParam* getParamFromModEncoder(int whichModEncoder, ModelStackWithThreeMainThings* modelStack,
+	ModelStackWithAutoParam* getParamFromModEncoder(int32_t whichModEncoder, ModelStackWithThreeMainThings* modelStack,
 	                                                bool allowCreation = true);
-	void setupFilterSetConfig(FilterSetConfig* filterSetConfig, int32_t* postFXVolume, ParamManager* paramManager);
-	void processFilters(StereoSample* buffer, int numSamples, FilterSetConfig* filterSetConfig);
+	void setupFilterSetConfig(int32_t* postFXVolume, ParamManager* paramManager);
+	void processFilters(StereoSample* buffer, int32_t numSamples);
 	void compensateVolumeForResonance(ParamManagerForTimeline* paramManager);
-	void processFXForGlobalEffectable(StereoSample* inputBuffer, int numSamples, int32_t* postFXVolume,
+	void processFXForGlobalEffectable(StereoSample* inputBuffer, int32_t numSamples, int32_t* postFXVolume,
 	                                  ParamManager* paramManager, DelayWorkingState* delayWorkingState,
-	                                  int analogDelaySaturationAmount);
+	                                  int32_t analogDelaySaturationAmount);
 
 	void writeAttributesToFile(bool writeToFile);
 	void writeTagsToFile(ParamManager* paramManager, bool writeToFile);
-	int readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos,
-	                    Song* song);
+	int32_t readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos,
+	                        Song* song);
 	static void writeParamAttributesToFile(ParamManager* paramManager, bool writeAutomation,
 	                                       int32_t* valuesForOverride = NULL);
 	static void writeParamTagsToFile(ParamManager* paramManager, bool writeAutomation,
@@ -51,16 +51,16 @@ public:
 	static bool readParamTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager,
 	                                 int32_t readAutomationUpToPos);
 	char const* paramToString(uint8_t param);
-	int stringToParam(char const* string);
+	int32_t stringToParam(char const* string);
 	void setupDelayWorkingState(DelayWorkingState* delayWorkingState, ParamManager* paramManager,
 	                            bool shouldLimitDelayFeedback = false);
 
-	FilterSet filterSets[2];
+	dsp::filter::FilterSet filterSet;
 	ModFXParam currentModFXParam;
 	FilterType currentFilterType;
 
 protected:
-	virtual int getParameterFromKnob(int whichModEncoder);
+	virtual int32_t getParameterFromKnob(int32_t whichModEncoder);
 	ModFXType getActiveModFXType(ParamManager* paramManager);
 
 private:

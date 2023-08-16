@@ -20,21 +20,17 @@
 #include "hid/led/pad_leds.h"
 #include "storage/flash_storage.h"
 
-namespace menu_item::flash {
-class Status final : public Selection {
+namespace deluge::gui::menu_item::flash {
+class Status final : public Selection<3> {
 public:
 	using Selection::Selection;
-	void readCurrentValue() { soundEditor.currentValue = PadLEDs::flashCursor; }
-	void writeCurrentValue() {
+	void readCurrentValue() override { this->setValue(PadLEDs::flashCursor); }
+	void writeCurrentValue() override {
 		if (PadLEDs::flashCursor == FLASH_CURSOR_SLOW) {
 			PadLEDs::clearTickSquares();
 		}
-		PadLEDs::flashCursor = soundEditor.currentValue;
+		PadLEDs::flashCursor = this->getValue();
 	}
-	char const** getOptions() {
-		static char const* options[] = {"Fast", "Off", "Slow", NULL};
-		return options;
-	}
-	int getNumOptions() { return 3; }
+	static_vector<std::string, capacity()> getOptions() override { return {"Fast", "Off", "Slow"}; }
 };
-} // namespace menu_item::flash
+} // namespace deluge::gui::menu_item::flash

@@ -18,15 +18,19 @@
 #pragma once
 #include "gui/menu_item/selection.h"
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
-class Colour final : public Selection {
+class Colour final : public Selection<9> {
 public:
-	Colour(char const* newName = NULL) : Selection(newName) {}
-	void readCurrentValue();
-	void writeCurrentValue();
-	char const** getOptions();
-	int getNumOptions();
+	using Selection::Selection;
+	void readCurrentValue() override { this->setValue(value); }
+	void writeCurrentValue() override {
+		value = this->getValue();
+		renderingNeededRegardlessOfUI();
+	};
+	static_vector<std::string, capacity()> getOptions() override {
+		return {"RED", "GREEN", "BLUE", "YELLOW", "CYAN", "PURPLE", "AMBER", "WHITE", "PINK"};
+	}
 	void getRGB(uint8_t rgb[3]);
 	uint8_t value;
 };
@@ -36,4 +40,4 @@ extern Colour stoppedColourMenu;
 extern Colour mutedColourMenu;
 extern Colour soloColourMenu;
 
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

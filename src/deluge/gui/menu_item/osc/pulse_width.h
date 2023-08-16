@@ -16,23 +16,28 @@
 */
 #pragma once
 #include "definitions_cxx.hpp"
+#include "gui/menu_item/formatted_title.h"
 #include "gui/menu_item/source/patched_param.h"
 #include "modulation/params/param_set.h"
 #include "processing/sound/sound.h"
 
-namespace menu_item::osc {
-class PulseWidth final : public menu_item::source::PatchedParam {
+namespace deluge::gui::menu_item::osc {
+class PulseWidth final : public menu_item::source::PatchedParam, public FormattedTitle {
 public:
-	using menu_item::source::PatchedParam::PatchedParam;
+	PulseWidth(const std::string& name, const fmt::format_string<int32_t>& title_format_str, int32_t newP)
+	    : source::PatchedParam(name, newP), FormattedTitle(title_format_str) {}
 
-	int32_t getFinalValue() { return (uint32_t)soundEditor.currentValue * (85899345 >> 1); }
+	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
-	void readCurrentValue() {
-		soundEditor.currentValue =
-		    ((int64_t)soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP()) * 100 + 2147483648) >> 32;
+	int32_t getFinalValue() override { return (uint32_t)this->getValue() * (85899345 >> 1); }
+
+	void readCurrentValue() override {
+		this->setValue(
+		    ((int64_t)soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP()) * 100 + 2147483648)
+		    >> 32);
 	}
 
-	bool isRelevant(Sound* sound, int whichThing) {
+	bool isRelevant(Sound* sound, int32_t whichThing) override {
 		if (sound->getSynthMode() == SynthMode::FM) {
 			return false;
 		}
@@ -42,4 +47,4 @@ public:
 	}
 };
 
-} // namespace menu_item::osc
+} // namespace deluge::gui::menu_item::osc

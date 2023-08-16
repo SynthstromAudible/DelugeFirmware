@@ -16,6 +16,8 @@
  */
 
 #include "hid/display/numeric_driver.h"
+#include "definitions_cxx.hpp"
+#include "drivers/pic/pic.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/numeric_layer/numeric_layer_basic_text.h"
 #include "hid/display/numeric_layer/numeric_layer_loading_animation.h"
@@ -26,8 +28,9 @@
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "util/functions.h"
+#include <cstdint>
+#include <cstring>
 #include <new>
-#include <string.h>
 #if HAVE_OLED
 #include "hid/display/oled.h"
 #endif
@@ -80,7 +83,7 @@ void NumericDriver::deleteAllLayers() {
 		NumericLayer* toDelete = topLayer;
 		topLayer = topLayer->next;
 		toDelete->~NumericLayer();
-		generalMemoryAllocator.dealloc(toDelete);
+		GeneralMemoryAllocator::get().dealloc(toDelete);
 	}
 }
 
@@ -93,7 +96,7 @@ void NumericDriver::removeTopLayer() {
 	topLayer = topLayer->next;
 
 	toDelete->~NumericLayer();
-	generalMemoryAllocator.dealloc(toDelete);
+	GeneralMemoryAllocator::get().dealloc(toDelete);
 
 	if (!popupActive) {
 		uiTimerManager.unsetTimer(TIMER_DISPLAY);
@@ -103,11 +106,11 @@ void NumericDriver::removeTopLayer() {
 }
 #endif
 
-void NumericDriver::setText(char const* newText, bool alignRight, uint8_t drawDot, bool doBlink, uint8_t* newBlinkMask,
-                            bool blinkImmediately, bool shouldBlinkFast, int scrollPos, uint8_t* encodedAddition,
-                            bool justReplaceBottomLayer) {
+void NumericDriver::setText(std::string_view newText, bool alignRight, uint8_t drawDot, bool doBlink,
+                            uint8_t* newBlinkMask, bool blinkImmediately, bool shouldBlinkFast, int32_t scrollPos,
+                            uint8_t* encodedAddition, bool justReplaceBottomLayer) {
 #if !HAVE_OLED
-	void* layerSpace = generalMemoryAllocator.alloc(sizeof(NumericLayerBasicText));
+	void* layerSpace = GeneralMemoryAllocator::get().alloc(sizeof(NumericLayerBasicText));
 	if (!layerSpace) {
 		return;
 	}
@@ -116,7 +119,7 @@ void NumericDriver::setText(char const* newText, bool alignRight, uint8_t drawDo
 	encodeText(newText, newLayer->segments, alignRight, drawDot, true, scrollPos);
 
 	if (encodedAddition) {
-		for (int i = 0; i < kNumericDisplayLength; i++) {
+		for (int32_t i = 0; i < kNumericDisplayLength; i++) {
 			newLayer->segments[i] |= encodedAddition[i];
 		}
 	}
@@ -129,7 +132,7 @@ void NumericDriver::setText(char const* newText, bool alignRight, uint8_t drawDo
 	}
 	else {
 		if (newBlinkMask) {
-			for (int i = 0; i < kNumericDisplayLength; i++) {
+			for (int32_t i = 0; i < kNumericDisplayLength; i++) {
 				newLayer->blinkedSegments[i] = newLayer->segments[i] & newBlinkMask[i];
 			}
 		}
@@ -155,8 +158,9 @@ void NumericDriver::setText(char const* newText, bool alignRight, uint8_t drawDo
 }
 
 #if !HAVE_OLED
-NumericLayerScrollingText* NumericDriver::setScrollingText(char const* newText, int startAtTextPos, int initialDelay) {
-	void* layerSpace = generalMemoryAllocator.alloc(sizeof(NumericLayerScrollingText));
+NumericLayerScrollingText* NumericDriver::setScrollingText(char const* newText, int32_t startAtTextPos,
+                                                           int32_t initialDelay) {
+	void* layerSpace = GeneralMemoryAllocator::get().alloc(sizeof(NumericLayerScrollingText));
 	if (!layerSpace) {
 		return NULL;
 	}
@@ -165,10 +169,10 @@ NumericLayerScrollingText* NumericDriver::setScrollingText(char const* newText, 
 	newLayer->length = encodeText(newText, newLayer->text, false, 255, false);
 
 	bool andAHalf;
-	int startAtEncodedPos = getEncodedPosFromLeft(startAtTextPos, newText, &andAHalf);
+	int32_t startAtEncodedPos = getEncodedPosFromLeft(startAtTextPos, newText, &andAHalf);
 
-	startAtEncodedPos = getMin(startAtEncodedPos, (int)newLayer->length - 4);
-	startAtEncodedPos = getMax(startAtEncodedPos, 0);
+	startAtEncodedPos = std::min(startAtEncodedPos, (int32_t)newLayer->length - 4);
+	startAtEncodedPos = std::max(startAtEncodedPos, 0_i32);
 
 	newLayer->currentPos = startAtEncodedPos;
 	newLayer->initialDelay = initialDelay;
@@ -187,7 +191,7 @@ void NumericDriver::replaceBottomLayer(NumericLayer* newLayer) {
 	NumericLayer* toDelete = *prevPointer;
 	*prevPointer = newLayer;
 	toDelete->~NumericLayer();
-	generalMemoryAllocator.dealloc(toDelete);
+	GeneralMemoryAllocator::get().dealloc(toDelete);
 
 	if (!popupActive && topLayer == newLayer) {
 		uiTimerManager.unsetTimer(TIMER_DISPLAY);
@@ -204,7 +208,7 @@ void NumericDriver::transitionToNewLayer(NumericLayer* newLayer) {
 	// If transition...
 	if (!popupActive && nextTransitionDirection != 0 && topLayer != NULL) {
 
-		void* layerSpace = generalMemoryAllocator.alloc(sizeof(NumericLayerScrollTransition));
+		void* layerSpace = GeneralMemoryAllocator::get().alloc(sizeof(NumericLayerScrollTransition));
 
 		if (layerSpace) {
 			scrollTransition = new (layerSpace) NumericLayerScrollTransition();
@@ -231,14 +235,14 @@ void NumericDriver::transitionToNewLayer(NumericLayer* newLayer) {
 }
 
 // Automatically stops at end of string
-int NumericDriver::getEncodedPosFromLeft(int textPos, char const* text, bool* andAHalf) {
+int32_t NumericDriver::getEncodedPosFromLeft(int32_t textPos, char const* text, bool* andAHalf) {
 
-	int encodedPos = 0;
+	int32_t encodedPos = 0;
 	bool lastSegmentHasDot =
 	    true; // Pretend this initially, cos the segment before the first one doesn't exist, obviously
 	*andAHalf = false;
 
-	for (int i = 0; true; i++) {
+	for (int32_t i = 0; true; i++) {
 		char thisChar = *text;
 		if (!thisChar) {
 			break; // Stop at end of string
@@ -269,11 +273,11 @@ int NumericDriver::getEncodedPosFromLeft(int textPos, char const* text, bool* an
 
 // Returns encoded length
 // scrollPos may only be set when aligning left
-int NumericDriver::encodeText(char const* newText, uint8_t* destination, bool alignRight, uint8_t drawDot,
-                              bool limitToDisplayLength, int scrollPos) {
+int32_t NumericDriver::encodeText(std::string_view newText, uint8_t* destination, bool alignRight, uint8_t drawDot,
+                                  bool limitToDisplayLength, int32_t scrollPos) {
 
-	int writePos;
-	int readPos;
+	int32_t writePos;
+	int32_t readPos;
 
 	if (!alignRight) {
 		readPos = 0;
@@ -281,7 +285,7 @@ int NumericDriver::encodeText(char const* newText, uint8_t* destination, bool al
 	}
 	else {
 		writePos = kNumericDisplayLength - 1;
-		readPos = strlen(newText) - 1;
+		readPos = newText.length() - 1;
 	}
 
 	bool carryingDot = false;
@@ -289,7 +293,7 @@ int NumericDriver::encodeText(char const* newText, uint8_t* destination, bool al
 
 	while (true) {
 		unsigned char thisChar = newText[readPos];
-		uint8_t* segments = &destination[getMax(writePos, 0)];
+		uint8_t* segments = &destination[std::max(writePos, 0_i32)];
 
 		// First, check if it's a dot, which we might want to add to a previous position
 		bool isDot = (thisChar == '.' || thisChar == '#' || thisChar == ',');
@@ -434,7 +438,7 @@ int NumericDriver::encodeText(char const* newText, uint8_t* destination, bool al
 			destination[drawDot] |= 128;
 		}
 		else if ((drawDot & 0b11110000) == 0b10000000) {
-			for (int i = 0; i < kNumericDisplayLength; i++) {
+			for (int32_t i = 0; i < kNumericDisplayLength; i++) {
 				if ((drawDot >> (kNumericDisplayLength - 1 - i)) & 1) {
 					destination[i] |= 128;
 				}
@@ -452,11 +456,11 @@ void NumericDriver::setTextAsNumber(int16_t number, uint8_t drawDot, bool doBlin
 }
 
 void NumericDriver::setTextAsSlot(int16_t currentSlot, int8_t currentSubSlot, bool currentSlotExists, bool doBlink,
-                                  int blinkPos, bool blinkImmediately) {
+                                  int32_t blinkPos, bool blinkImmediately) {
 	char text[12];
 
-	//int minNumDigits = getMax(1, blinkPos + 1);
-	int minNumDigits = (blinkPos == -1) ? -1 : 3;
+	//int32_t minNumDigits = std::max(1, blinkPos + 1);
+	int32_t minNumDigits = (blinkPos == -1) ? -1 : 3;
 
 	slotToString(currentSlot, currentSubSlot, text, minNumDigits);
 
@@ -479,7 +483,7 @@ void NumericDriver::setNextTransitionDirection(int8_t thisDirection) {
 }
 
 void NumericDriver::displayPopup(char const* newText, int8_t numFlashes, bool alignRight, uint8_t drawDot,
-                                 int blinkSpeed) {
+                                 int32_t blinkSpeed) {
 
 #if HAVE_OLED
 	OLED::popupText(newText, !numFlashes);
@@ -550,19 +554,17 @@ void NumericDriver::render() {
 		layer = topLayer;
 	}
 
-	uint8_t segments[kNumericDisplayLength];
-	layer->render(segments);
+	std::array<uint8_t, kNumericDisplayLength> segments;
+	layer->render(segments.data());
 
-	memcpy(lastDisplay, segments, kNumericDisplayLength);
-	bufferPICUart(224);
-	for (int whichChar = 0; whichChar < kNumericDisplayLength; whichChar++) {
-		bufferPICUart(segments[whichChar]);
-	}
+	memcpy(lastDisplay, segments.data(), kNumericDisplayLength);
+
+	PIC::update7SEG(segments);
 }
 
 // Call this to make the loading animation happen
 void NumericDriver::displayLoadingAnimation(bool delayed, bool transparent) {
-	void* layerSpace = generalMemoryAllocator.alloc(sizeof(NumericLayerLoadingAnimation));
+	void* layerSpace = GeneralMemoryAllocator::get().alloc(sizeof(NumericLayerLoadingAnimation));
 	if (!layerSpace) {
 		return;
 	}
@@ -574,13 +576,9 @@ void NumericDriver::displayLoadingAnimation(bool delayed, bool transparent) {
 }
 
 void NumericDriver::setTextVeryBasicA1(char const* text) {
-
-	uint8_t segments[kNumericDisplayLength];
-	encodeText(text, segments, false, 255, true, 0);
-	bufferPICUart(224);
-	for (int whichChar = 0; whichChar < kNumericDisplayLength; whichChar++) {
-		bufferPICUart(segments[whichChar]);
-	}
+	std::array<uint8_t, kNumericDisplayLength> segments;
+	encodeText(text, segments.data(), false, 255, true, 0);
+	PIC::update7SEG(segments);
 }
 #endif
 
@@ -595,7 +593,7 @@ void NumericDriver::freezeWithError(char const* text) {
 	setTextVeryBasicA1(text);
 
 	while (1) {
-		uartFlushIfNotSending(UART_ITEM_PIC);
+		PIC::flush();
 		uartFlushIfNotSending(UART_ITEM_MIDI);
 
 		uint8_t value;
@@ -633,7 +631,7 @@ bool NumericDriver::isLayerCurrentlyOnTop(NumericLayer* layer) {
 }
 #endif
 
-void NumericDriver::displayError(int error) {
+void NumericDriver::displayError(int32_t error) {
 
 	char const* message;
 

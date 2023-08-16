@@ -43,7 +43,7 @@ int32_t paramRanges[kNumParams];
 int32_t paramNeutralValues[kNumParams];
 
 // This is just the range of the user-defined "preset" value, it doesn't apply to the outcome of patch cables
-int32_t getParamRange(int p) {
+int32_t getParamRange(int32_t p) {
 	switch (p) {
 	case Param::Local::ENV_0_ATTACK:
 	case Param::Local::ENV_1_ATTACK:
@@ -69,7 +69,7 @@ int32_t getParamRange(int p) {
 	}
 }
 
-int32_t getParamNeutralValue(int p) {
+int32_t getParamNeutralValue(int32_t p) {
 	switch (p) {
 	case Param::Local::OSC_A_VOLUME:
 	case Param::Local::OSC_B_VOLUME:
@@ -96,6 +96,8 @@ int32_t getParamNeutralValue(int p) {
 
 	case Param::Local::LPF_RESONANCE:
 	case Param::Local::HPF_RESONANCE:
+	case Param::Local::LPF_MORPH:
+	case Param::Local::HPF_MORPH:
 		return 25 * 10737418; // Room to be quadrupled
 
 	case Param::Local::PAN:
@@ -145,11 +147,11 @@ int32_t getParamNeutralValue(int p) {
 
 void functionsInit() {
 
-	for (int p = 0; p < kNumParams; p++) {
+	for (int32_t p = 0; p < kNumParams; p++) {
 		paramRanges[p] = getParamRange(p);
 	}
 
-	for (int p = 0; p < kNumParams; p++) {
+	for (int32_t p = 0; p < kNumParams; p++) {
 		paramNeutralValues[p] = getParamNeutralValue(p);
 	}
 }
@@ -213,7 +215,7 @@ int32_t getFinalParameterValueExp(int32_t paramNeutralValue, int32_t patchedValu
 	return getExp(paramNeutralValue, patchedValue);
 }
 
-int32_t getFinalParameterValueExpWithDumbEnvelopeHack(int32_t paramNeutralValue, int32_t patchedValue, int p) {
+int32_t getFinalParameterValueExpWithDumbEnvelopeHack(int32_t paramNeutralValue, int32_t patchedValue, int32_t p) {
 	// TODO: this is horribly hard-coded, but works for now
 	if (p >= Param::Local::ENV_0_DECAY && p <= Param::Local::ENV_1_RELEASE) {
 		return multiply_32x32_rshift32(paramNeutralValue, lookupReleaseRate(patchedValue));
@@ -225,7 +227,7 @@ int32_t getFinalParameterValueExpWithDumbEnvelopeHack(int32_t paramNeutralValue,
 	return getFinalParameterValueExp(paramNeutralValue, patchedValue);
 }
 
-void addAudio(StereoSample* inputBuffer, StereoSample* outputBuffer, int numSamples) {
+void addAudio(StereoSample* inputBuffer, StereoSample* outputBuffer, int32_t numSamples) {
 	StereoSample* inputSample = inputBuffer;
 	StereoSample* outputSample = outputBuffer;
 
@@ -325,12 +327,11 @@ char const* getSourceDisplayNameForOLED(PatchSource s) {
 		return "MPE Y";
 
 	default:
-		__builtin_unreachable();
-		return NULL;
+		return "none";
 	}
 }
 
-char const* getPatchedParamDisplayNameForOled(int p) {
+char const* getPatchedParamDisplayNameForOLED(int32_t p) {
 
 	// These can basically be 13 chars long, or 14 if the last one is a dot.
 	switch (p) {
@@ -366,7 +367,7 @@ char const* getPatchedParamDisplayNameForOled(int p) {
 		return "HPF resonance";
 
 	case Param::Local::PAN:
-		return "Pan";
+		return "Master pan";
 
 	case Param::Local::MODULATOR_0_VOLUME:
 		return "FM mod1 level";
@@ -377,8 +378,11 @@ char const* getPatchedParamDisplayNameForOled(int p) {
 	case Param::Local::LPF_FREQ:
 		return "LPF frequency";
 
+	case Param::Local::LPF_MORPH:
+		return "LPF morph";
+
 	case Param::Local::PITCH_ADJUST:
-		return "Pitch";
+		return "Master pitch";
 
 	case Param::Local::OSC_A_PITCH_ADJUST:
 		return "Osc1 pitch";
@@ -394,6 +398,9 @@ char const* getPatchedParamDisplayNameForOled(int p) {
 
 	case Param::Local::HPF_FREQ:
 		return "HPF frequency";
+
+	case Param::Local::HPF_MORPH:
+		return "HPF morph";
 
 	case Param::Local::LFO_LOCAL_FREQ:
 		return "LFO2 rate";
@@ -426,10 +433,10 @@ char const* getPatchedParamDisplayNameForOled(int p) {
 		return "LFO1 rate";
 
 	case Param::Global::VOLUME_POST_FX:
-		return "Level";
+		return "Master level";
 
 	case Param::Global::VOLUME_POST_REVERB_SEND:
-		return "Level";
+		return "Sidechain level";
 
 	case Param::Global::DELAY_RATE:
 		return "Delay rate";
@@ -450,26 +457,111 @@ char const* getPatchedParamDisplayNameForOled(int p) {
 		return "Arp. rate";
 
 	case Param::Local::MODULATOR_0_FEEDBACK:
-		return "Mod1 feedback";
+		return "FM mod1 feedback";
 
 	case Param::Local::MODULATOR_1_FEEDBACK:
-		return "Mod2 feedback";
+		return "FM mod2 feedback";
 
 	case Param::Local::CARRIER_0_FEEDBACK:
-		return "Carrier1 feed.";
+		return "Osc 1 feedback";
 
 	case Param::Local::CARRIER_1_FEEDBACK:
-		return "Carrier2 feed.";
+		return "Osc 2 feedback";
 
 	default:
-		__builtin_unreachable();
-		return NULL;
+		return "none";
+	}
+}
+
+char const* getUnpatchedParamDisplayNameForOLED(int32_t p) {
+
+	// These can basically be 13 chars long, or 14 if the last one is a dot.
+	switch (p) {
+
+	case Param::Unpatched::BASS:
+		return "Bass";
+
+	case Param::Unpatched::BASS_FREQ:
+		return "Bass frequency";
+
+	case Param::Unpatched::TREBLE:
+		return "Treble";
+
+	case Param::Unpatched::TREBLE_FREQ:
+		return "Treble frequency";
+
+	case Param::Unpatched::COMPRESSOR_SHAPE:
+		return "Sidechain shape";
+
+	case Param::Unpatched::BITCRUSHING:
+		return "Bitcrush";
+
+	case Param::Unpatched::SAMPLE_RATE_REDUCTION:
+		return "Decimation";
+
+	case Param::Unpatched::Sound::ARP_GATE:
+		return "Arp. gate";
+
+	case Param::Unpatched::MOD_FX_FEEDBACK:
+		return "Mod-FX feedback";
+
+	case Param::Unpatched::MOD_FX_OFFSET:
+		return "Mod-FX offset";
+
+	default:
+		return "none";
+	}
+}
+
+char const* getGlobalEffectableParamDisplayNameForOLED(int32_t p) {
+
+	// These can basically be 13 chars long, or 14 if the last one is a dot.
+	switch (p) {
+
+	case Param::Unpatched::GlobalEffectable::LPF_RES:
+		return "LPF resonance";
+
+	case Param::Unpatched::GlobalEffectable::HPF_RES:
+		return "HPF resonance";
+
+	case Param::Unpatched::GlobalEffectable::PAN:
+		return "Master pan";
+
+	case Param::Unpatched::GlobalEffectable::LPF_FREQ:
+		return "LPF frequency";
+
+	case Param::Unpatched::GlobalEffectable::HPF_FREQ:
+		return "HPF frequency";
+
+	case Param::Unpatched::GlobalEffectable::VOLUME:
+		return "Master level";
+
+	case Param::Unpatched::GlobalEffectable::SIDECHAIN_VOLUME:
+		return "Sidechain level";
+
+	case Param::Unpatched::GlobalEffectable::DELAY_RATE:
+		return "Delay rate";
+
+	case Param::Unpatched::GlobalEffectable::DELAY_AMOUNT:
+		return "Delay amount";
+
+	case Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT:
+		return "Reverb amount";
+
+	case Param::Unpatched::GlobalEffectable::MOD_FX_RATE:
+		return "Mod-FX rate";
+
+	case Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH:
+		return "Mod-FX depth";
+
+	default:
+		return "none";
 	}
 }
 #endif
 
 PatchSource stringToSource(char const* string) {
-	for (int s = 0; s < kNumPatchSources; s++) {
+	for (int32_t s = 0; s < kNumPatchSources; s++) {
 		auto patchSource = static_cast<PatchSource>(s);
 		if (!strcmp(string, sourceToString(patchSource))) {
 			return patchSource;
@@ -478,7 +570,7 @@ PatchSource stringToSource(char const* string) {
 	return PatchSource::NONE;
 }
 
-bool paramNeedsLPF(int p, bool fromAutomation) {
+bool paramNeedsLPF(int32_t p, bool fromAutomation) {
 	switch (p) {
 
 	// For many params, particularly volumes, we do want the param LPF if the user adjusted it,
@@ -530,9 +622,9 @@ char hexCharToHalfByte(unsigned char hexChar) {
 	}
 }
 
-void intToHex(uint32_t number, char* output, int numChars) {
+void intToHex(uint32_t number, char* output, int32_t numChars) {
 	output[numChars] = 0;
-	for (int i = numChars - 1; i >= 0; i--) {
+	for (int32_t i = numChars - 1; i >= 0; i--) {
 		output[i] = halfByteToHexChar(number & 15);
 		number >>= 4;
 	}
@@ -549,7 +641,7 @@ uint32_t hexToInt(char const* string) {
 }
 
 // length must be >0
-uint32_t hexToIntFixedLength(char const* __restrict__ hexChars, int length) {
+uint32_t hexToIntFixedLength(char const* __restrict__ hexChars, int32_t length) {
 	uint32_t output = 0;
 	char const* const endChar = hexChars + length;
 	do {
@@ -575,7 +667,7 @@ int32_t shiftVolumeByDB(int32_t oldValue, float offset) {
 
 		uint32_t newValuePositive;
 
-		int howFarUpInterval = oldValuePositive & 268435455;
+		int32_t howFarUpInterval = oldValuePositive & 268435455;
 		float howFarUpIntervalFloat = howFarUpInterval / 268435456;
 
 doInterval:
@@ -615,12 +707,12 @@ doInterval:
 	}
 }
 
-int32_t interpolateTable(uint32_t input, int numBitsInInput, const uint16_t* table, int numBitsInTableSize) {
-	int whichValue = input >> (numBitsInInput - numBitsInTableSize);
-	int value1 = table[whichValue];
-	int value2 = table[whichValue + 1];
+int32_t interpolateTable(uint32_t input, int32_t numBitsInInput, const uint16_t* table, int32_t numBitsInTableSize) {
+	int32_t whichValue = input >> (numBitsInInput - numBitsInTableSize);
+	int32_t value1 = table[whichValue];
+	int32_t value2 = table[whichValue + 1];
 
-	int rshiftAmount = numBitsInInput - 15 - numBitsInTableSize;
+	int32_t rshiftAmount = numBitsInInput - 15 - numBitsInTableSize;
 	uint32_t rshifted;
 	if (rshiftAmount >= 0) {
 		rshifted = input >> rshiftAmount;
@@ -629,17 +721,17 @@ int32_t interpolateTable(uint32_t input, int numBitsInInput, const uint16_t* tab
 		rshifted = input << (-rshiftAmount);
 	}
 
-	int strength2 = rshifted & 32767;
-	int strength1 = 32768 - strength2;
+	int32_t strength2 = rshifted & 32767;
+	int32_t strength1 = 32768 - strength2;
 	return value1 * strength1 + value2 * strength2;
 }
 
-uint32_t interpolateTableInverse(int32_t tableValueBig, int numBitsInLookupOutput, const uint16_t* table,
-                                 int numBitsInTableSize) {
-	int tableValue = tableValueBig >> 15;
-	int tableSize = 1 << numBitsInTableSize;
+uint32_t interpolateTableInverse(int32_t tableValueBig, int32_t numBitsInLookupOutput, const uint16_t* table,
+                                 int32_t numBitsInTableSize) {
+	int32_t tableValue = tableValueBig >> 15;
+	int32_t tableSize = 1 << numBitsInTableSize;
 
-	int tableDirection = (table[0] < table[tableSize]) ? 1 : -1;
+	int32_t tableDirection = (table[0] < table[tableSize]) ? 1 : -1;
 
 	// Check we're not off either end of the table
 	if ((tableValue - table[0]) * tableDirection <= 0) {
@@ -649,12 +741,12 @@ uint32_t interpolateTableInverse(int32_t tableValueBig, int numBitsInLookupOutpu
 		return (1 << numBitsInLookupOutput) - 1;
 	}
 
-	int rangeStart = 0;
-	int rangeEnd = tableSize;
+	int32_t rangeStart = 0;
+	int32_t rangeEnd = tableSize;
 
 	while (rangeStart + 1 < rangeEnd) {
 
-		int examinePos = (rangeStart + rangeEnd) >> 1;
+		int32_t examinePos = (rangeStart + rangeEnd) >> 1;
 		if ((tableValue - table[examinePos]) * tableDirection >= 0) {
 			rangeStart = examinePos;
 		}
@@ -698,8 +790,8 @@ int32_t quickLog(uint32_t input) {
 	return (magnitude << 25) + (inputLSBs & ~((uint32_t)1 << 26));
 }
 
-bool memIsNumericChars(char const* mem, int size) {
-	for (int i = 0; i < size; i++) {
+bool memIsNumericChars(char const* mem, int32_t size) {
+	for (int32_t i = 0; i < size; i++) {
 		if (*mem < 48 || *mem >= 58) {
 			return false;
 		}
@@ -1095,6 +1187,31 @@ FilterType stringToFilterType(char const* string) {
 	}
 }
 
+char const* filterRouteToString(FilterRoute route) {
+	switch (route) {
+	case FilterRoute::LOW_TO_HIGH:
+		return "L2H";
+
+	case FilterRoute::PARALLEL:
+		return "PARA";
+
+	default:
+		return "H2L";
+	}
+}
+
+FilterRoute stringToFilterRoute(char const* string) {
+	if (!strcmp(string, "L2H")) {
+		return FilterRoute::LOW_TO_HIGH;
+	}
+	else if (!strcmp(string, "PARA")) {
+		return FilterRoute::PARALLEL;
+	}
+	else {
+		return FilterRoute::HIGH_TO_LOW;
+	}
+}
+
 char const* arpModeToString(ArpMode mode) {
 	switch (mode) {
 	case ArpMode::UP:
@@ -1132,34 +1249,42 @@ ArpMode stringToArpMode(char const* string) {
 	}
 }
 
-char const* lpfTypeToString(LPFMode lpfType) {
+char const* lpfTypeToString(FilterMode lpfType) {
 	switch (lpfType) {
-	case LPFMode::TRANSISTOR_12DB:
+	case FilterMode::TRANSISTOR_12DB:
 		return "12dB";
 
-	case LPFMode::TRANSISTOR_24DB_DRIVE:
+	case FilterMode::TRANSISTOR_24DB_DRIVE:
 		return "24dBDrive";
-
-	case LPFMode::SVF:
+	case FilterMode::SVF:
 		return "SVF";
-
+	case FilterMode::HPLADDER:
+		return "HPLadder";
+	case FilterMode::HPSVF:
+		return "HPSV";
 	default:
 		return "24dB";
 	}
 }
 
-LPFMode stringToLPFType(char const* string) {
+FilterMode stringToLPFType(char const* string) {
 	if (!strcmp(string, "24dB")) {
-		return LPFMode::TRANSISTOR_24DB;
+		return FilterMode::TRANSISTOR_24DB;
 	}
 	else if (!strcmp(string, "24dBDrive")) {
-		return LPFMode::TRANSISTOR_24DB_DRIVE;
+		return FilterMode::TRANSISTOR_24DB_DRIVE;
 	}
 	else if (!strcmp(string, "SVF")) {
-		return LPFMode::SVF;
+		return FilterMode::SVF;
+	}
+	else if (!strcmp(string, "HPLadder")) {
+		return FilterMode::HPLADDER;
+	}
+	else if (!strcmp(string, "HPSV")) {
+		return FilterMode::HPSVF;
 	}
 	else {
-		return LPFMode::TRANSISTOR_12DB;
+		return FilterMode::TRANSISTOR_12DB;
 	}
 }
 
@@ -1333,10 +1458,10 @@ int32_t getParamFromUserValue(uint8_t p, int8_t userValue) {
 	}
 }
 
-int getLookupIndexFromValue(int32_t value, const int32_t* table, int maxIndex) {
-	int i;
+int32_t getLookupIndexFromValue(int32_t value, const int32_t* table, int32_t maxIndex) {
+	int32_t i;
 	uint32_t bestDistance = 0xFFFFFFFF;
-	int closestIndex;
+	int32_t closestIndex;
 	for (i = 0; i <= maxIndex; i++) { // No need to actually test the max value itself
 		int64_t thisDistance = (int64_t)value - (int64_t)table[i];
 		if (thisDistance < 0) {
@@ -1350,11 +1475,11 @@ int getLookupIndexFromValue(int32_t value, const int32_t* table, int maxIndex) {
 	return closestIndex;
 }
 
-uint32_t rshift_round(uint32_t value, unsigned int rshift) {
+uint32_t rshift_round(uint32_t value, uint32_t rshift) {
 	return (value + (1 << (rshift - 1))) >> rshift; // I never was quite 100% sure of this...
 }
 
-int32_t rshift_round_signed(int32_t value, unsigned int rshift) {
+int32_t rshift_round_signed(int32_t value, uint32_t rshift) {
 	return (value + (1 << (rshift - 1))) >> rshift; // I never was quite 100% sure of this...
 }
 
@@ -1371,14 +1496,14 @@ int32_t instantTan(int32_t input) {
 int32_t combineHitStrengths(int32_t strength1, int32_t strength2) {
 	// Ideally, we'd do pythagoras on these. But to save computation time, we'll just go half way between the biggest one and the sum
 	uint32_t sum = (uint32_t)strength1 + (uint32_t)strength2;
-	sum = getMin(sum, (uint32_t)2147483647);
-	int32_t maxOne = getMax(strength1, strength2);
+	sum = std::min(sum, (uint32_t)2147483647);
+	int32_t maxOne = std::max(strength1, strength2);
 	return (maxOne >> 1) + (sum >> 1);
 }
 
 uint32_t z = 362436069, w = 521288629, jcong = 380116160;
 
-int random(int upperLimit) {
+int32_t random(int32_t upperLimit) {
 	return (uint16_t)(CONG >> 16) % (upperLimit + 1);
 }
 
@@ -1389,7 +1514,7 @@ bool shouldDoPanning(int32_t panAmount, int32_t* amplitudeL, int32_t* amplitudeR
 		return false;
 	}
 
-	int32_t panOffset = getMax((int32_t)-1073741824, (int32_t)(getMin((int32_t)1073741824, (int32_t)panAmount)));
+	int32_t panOffset = std::max((int32_t)-1073741824, (int32_t)(std::min((int32_t)1073741824, (int32_t)panAmount)));
 	*amplitudeR = (panAmount >= 0) ? 1073741823 : (1073741824 + panOffset);
 	*amplitudeL = (panAmount <= 0) ? 1073741823 : (1073741824 - panOffset);
 	return true;
@@ -1398,18 +1523,18 @@ bool shouldDoPanning(int32_t panAmount, int32_t* amplitudeL, int32_t* amplitudeR
 void hueToRGB(int32_t hue, unsigned char* rgb) {
 	hue = (uint16_t)(hue + 1920) % 192;
 
-	for (int c = 0; c < 3; c++) {
-		int channelDarkness;
+	for (int32_t c = 0; c < 3; c++) {
+		int32_t channelDarkness;
 		if (c == 0) {
 			if (hue < 64) {
 				channelDarkness = hue;
 			}
 			else {
-				channelDarkness = getMin(64, std::abs(192 - hue));
+				channelDarkness = std::min<int32_t>(64, std::abs(192 - hue));
 			}
 		}
 		else {
-			channelDarkness = getMin(64, std::abs(c * 64 - hue));
+			channelDarkness = std::min<int32_t>(64, std::abs(c * 64 - hue));
 		}
 
 		if (channelDarkness < 64) {
@@ -1426,18 +1551,18 @@ void hueToRGB(int32_t hue, unsigned char* rgb) {
 void hueToRGBPastel(int32_t hue, unsigned char* rgb) {
 	hue = (uint16_t)(hue + 1920) % 192;
 
-	for (int c = 0; c < 3; c++) {
-		int channelDarkness;
+	for (int32_t c = 0; c < 3; c++) {
+		int32_t channelDarkness;
 		if (c == 0) {
 			if (hue < 64) {
 				channelDarkness = hue;
 			}
 			else {
-				channelDarkness = getMin(64, std::abs(192 - hue));
+				channelDarkness = std::min<int32_t>(64, std::abs(192 - hue));
 			}
 		}
 		else {
-			channelDarkness = getMin(64, std::abs(c * 64 - hue));
+			channelDarkness = std::min<int32_t>(64, std::abs(c * 64 - hue));
 		}
 
 		if (channelDarkness < 64) {
@@ -1567,24 +1692,24 @@ const int16_t lanczosKernel[257] = {
 
 #define LANCZOS_A 4
 
-int32_t doLanczos(int32_t* data, int32_t pos, uint32_t posWithinPos, int memoryNumElements) {
+int32_t doLanczos(int32_t* data, int32_t pos, uint32_t posWithinPos, int32_t memoryNumElements) {
 
 	int32_t strengthL[LANCZOS_A];
 	int32_t strengthR[LANCZOS_A];
 
-	for (int i = 0; i < LANCZOS_A; i++) {
+	for (int32_t i = 0; i < LANCZOS_A; i++) {
 		strengthL[i] = interpolateTableSigned(16777216 * i + posWithinPos, 26, lanczosKernel, 8);
 		strengthR[i] = interpolateTableSigned(16777216 * (i + 1) - posWithinPos, 26, lanczosKernel, 8);
 	}
 
-	int howManyLeft = getMin((int32_t)LANCZOS_A, (int32_t)(pos + 1));
-	int howManyRight = getMin((int32_t)LANCZOS_A, (int32_t)(memoryNumElements - pos));
+	int32_t howManyLeft = std::min((int32_t)LANCZOS_A, (int32_t)(pos + 1));
+	int32_t howManyRight = std::min((int32_t)LANCZOS_A, (int32_t)(memoryNumElements - pos));
 
 	int32_t value = 0;
-	for (int i = 0; i < howManyLeft; i++) {
+	for (int32_t i = 0; i < howManyLeft; i++) {
 		value += multiply_32x32_rshift32_rounded(strengthL[i], data[pos - i]);
 	}
-	for (int i = 0; i < howManyRight; i++) {
+	for (int32_t i = 0; i < howManyRight; i++) {
 		value += multiply_32x32_rshift32_rounded(strengthR[i], data[pos + 1 + i]);
 	}
 
@@ -1593,22 +1718,22 @@ int32_t doLanczos(int32_t* data, int32_t pos, uint32_t posWithinPos, int memoryN
 	return value;
 }
 
-int32_t doLanczosCircular(int32_t* data, int32_t pos, uint32_t posWithinPos, int memoryNumElements) {
+int32_t doLanczosCircular(int32_t* data, int32_t pos, uint32_t posWithinPos, int32_t memoryNumElements) {
 
 	int32_t strengthL[LANCZOS_A];
 	int32_t strengthR[LANCZOS_A];
 
-	for (int i = 0; i < LANCZOS_A; i++) {
+	for (int32_t i = 0; i < LANCZOS_A; i++) {
 		strengthL[i] = interpolateTableSigned(16777216 * i + posWithinPos, 26, lanczosKernel, 8);
 		strengthR[i] = interpolateTableSigned(16777216 * (i + 1) - posWithinPos, 26, lanczosKernel, 8);
 	}
 
 	int32_t value = 0;
-	for (int i = 0; i < LANCZOS_A; i++) {
+	for (int32_t i = 0; i < LANCZOS_A; i++) {
 		value += multiply_32x32_rshift32_rounded(strengthL[i],
 		                                         data[(pos - i + memoryNumElements) & (memoryNumElements - 1)]);
 	}
-	for (int i = 0; i < LANCZOS_A; i++) {
+	for (int32_t i = 0; i < LANCZOS_A; i++) {
 		value += multiply_32x32_rshift32_rounded(strengthR[i], data[(pos + 1 + i) & (memoryNumElements - 1)]);
 	}
 
@@ -1618,8 +1743,8 @@ int32_t doLanczosCircular(int32_t* data, int32_t pos, uint32_t posWithinPos, int
 }
 
 struct ComparativeNoteNumber {
-	int noteNumber;
-	int stringLength;
+	int32_t noteNumber;
+	int32_t stringLength;
 };
 
 // Returns 100000 if the string is not a note name.
@@ -1664,7 +1789,7 @@ ComparativeNoteNumber getComparativeNoteNumberFromChars(char const* string, char
 		return toReturn;
 	}
 
-	int number = *string - '0';
+	int32_t number = *string - '0';
 	string++;
 
 	while (true) {
@@ -1693,9 +1818,9 @@ bool octaveStartsFromA; // You must set this if setting shouldInterpretNoteNames
 
 // Returns positive if first > second
 // Returns negative if first < second
-int strcmpspecial(char const* first, char const* second) {
+int32_t strcmpspecial(char const* first, char const* second) {
 
-	int resultIfGetToEndOfBothStrings = 0;
+	int32_t resultIfGetToEndOfBothStrings = 0;
 
 	while (true) {
 		bool firstIsFinished = (*first == 0);
@@ -1706,7 +1831,7 @@ int strcmpspecial(char const* first, char const* second) {
 		}
 
 		if (firstIsFinished || secondIsFinished) { // If just one is finished
-			return (int)*first - (int)*second;
+			return (int32_t)*first - (int32_t)*second;
 		}
 
 		bool firstIsNumber = (*first >= '0' && *first <= '9');
@@ -1736,13 +1861,14 @@ int strcmpspecial(char const* first, char const* second) {
 
 					// If we're still here, one is a leading zero and the other isn't.
 					resultIfGetToEndOfBothStrings =
-					    (int)firstChar - (int)secondChar; // Will still end up as zero when that needs to happen.
+					    (int32_t)firstChar
+					    - (int32_t)secondChar; // Will still end up as zero when that needs to happen.
 					break;
 				}
 			}
 
-			int firstNumber = *first - '0';
-			int secondNumber = *second - '0';
+			int32_t firstNumber = *first - '0';
+			int32_t secondNumber = *second - '0';
 			first++;
 			second++;
 
@@ -1758,7 +1884,7 @@ int strcmpspecial(char const* first, char const* second) {
 				second++;
 			}
 
-			int difference = firstNumber - secondNumber;
+			int32_t difference = firstNumber - secondNumber;
 			if (difference) {
 				return difference;
 			}
@@ -1831,7 +1957,7 @@ doNormal:
 						return 1;
 					}
 
-					return (int)firstChar - (int)secondChar;
+					return (int32_t)firstChar - (int32_t)secondChar;
 				}
 			}
 		}
@@ -1850,8 +1976,8 @@ bool charCaseEqual(char firstChar, char secondChar) {
 	return (firstChar == secondChar);
 }
 
-int memcasecmp(char const* first, char const* second, int size) {
-	for (int i = 0; i < size; i++) {
+int32_t memcasecmp(char const* first, char const* second, int32_t size) {
+	for (int32_t i = 0; i < size; i++) {
 		char firstChar = *first;
 		char secondChar = *second;
 
@@ -1877,7 +2003,7 @@ int memcasecmp(char const* first, char const* second, int size) {
 	return 0;
 }
 
-int stringToFirmwareVersion(char const* firmwareVersionString) {
+int32_t stringToFirmwareVersion(char const* firmwareVersionString) {
 	if (!strcmp(firmwareVersionString, "1.2.0")) {
 		return FIRMWARE_1P2P0;
 	}
@@ -2097,14 +2223,14 @@ int stringToFirmwareVersion(char const* firmwareVersionString) {
 	}
 }
 
-int howMuchMoreMagnitude(unsigned int to, unsigned int from) {
+int32_t howMuchMoreMagnitude(uint32_t to, uint32_t from) {
 	return getMagnitudeOld(to) - getMagnitudeOld(from);
 }
 
-void noteCodeToString(int noteCode, char* buffer, int* getLengthWithoutDot) {
+void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutDot) {
 	char* thisChar = buffer;
-	int octave = (noteCode) / 12 - 2;
-	int noteCodeWithinOctave = (uint16_t)(noteCode + 120) % (uint8_t)12;
+	int32_t octave = (noteCode) / 12 - 2;
+	int32_t noteCodeWithinOctave = (uint16_t)(noteCode + 120) % (uint8_t)12;
 
 	*thisChar = noteCodeToNoteLetter[noteCodeWithinOctave];
 	thisChar++;
@@ -2130,7 +2256,7 @@ void seedRandom() {
 
 double ConvertFromIeeeExtended(unsigned char* bytes /* LCN */) {
 	double f;
-	int expon;
+	int32_t expon;
 	unsigned long hiMant, loMant;
 
 	expon = ((bytes[0] & 0x7F) << 8) | (bytes[1] & 0xFF);
@@ -2171,12 +2297,12 @@ int32_t divide_round_negative(int32_t dividend, int32_t divisor) {
 	}
 }
 
-int getWhichKernel(int32_t phaseIncrement) {
+int32_t getWhichKernel(int32_t phaseIncrement) {
 	if (phaseIncrement < 17268826) {
 		return 0; // That allows us to go half a semitone up
 	}
 	else {
-		int whichKernel = 1;
+		int32_t whichKernel = 1;
 		while (phaseIncrement >= 32599202) { // 11.5 semitones up
 			phaseIncrement >>= 1;
 			whichKernel += 2;
@@ -2193,11 +2319,11 @@ int getWhichKernel(int32_t phaseIncrement) {
 	}
 }
 
-void dissectIterationDependence(int probability, int* getDivisor, int* getWhichIterationWithinDivisor) {
-	int value = (probability & 127) - kNumProbabilityValues - 1;
-	int whichRepeat;
+void dissectIterationDependence(int32_t probability, int32_t* getDivisor, int32_t* getWhichIterationWithinDivisor) {
+	int32_t value = (probability & 127) - kNumProbabilityValues - 1;
+	int32_t whichRepeat;
 
-	int tryingWhichDivisor;
+	int32_t tryingWhichDivisor;
 
 	for (tryingWhichDivisor = 2; tryingWhichDivisor <= 8; tryingWhichDivisor++) {
 		if (value < tryingWhichDivisor) {
@@ -2211,16 +2337,16 @@ void dissectIterationDependence(int probability, int* getDivisor, int* getWhichI
 	*getDivisor = tryingWhichDivisor;
 }
 
-int encodeIterationDependence(int divisor, int iterationWithinDivisor) {
-	int value = iterationWithinDivisor;
-	for (int i = 2; i < divisor; i++) {
+int32_t encodeIterationDependence(int32_t divisor, int32_t iterationWithinDivisor) {
+	int32_t value = iterationWithinDivisor;
+	for (int32_t i = 2; i < divisor; i++) {
 		value += i;
 	}
 	return value + 1 + kNumProbabilityValues;
 }
 
-int getHowManyCharsAreTheSame(char const* a, char const* b) {
-	int count = 0;
+int32_t getHowManyCharsAreTheSame(char const* a, char const* b) {
+	int32_t count = 0;
 	while (true) {
 		char charA = *a;
 		if (!charA) {
@@ -2248,12 +2374,12 @@ int getHowManyCharsAreTheSame(char const* a, char const* b) {
 }
 
 void greyColourOut(const uint8_t* input, uint8_t* output, int32_t greyProportion) {
-	int totalColour;
-	totalColour = (int)input[0] + input[1] + input[2]; // max 765
+	int32_t totalColour;
+	totalColour = (int32_t)input[0] + input[1] + input[2]; // max 765
 
-	for (int colour = 0; colour < 3; colour++) {
+	for (int32_t colour = 0; colour < 3; colour++) {
 
-		int colourValue = input[colour];
+		int32_t colourValue = input[colour];
 
 		colourValue = rshift_round((uint32_t)colourValue * (uint32_t)(8421504 - greyProportion)
 		                               + ((int32_t)totalColour * (greyProportion >> 5)),
@@ -2267,7 +2393,7 @@ void greyColourOut(const uint8_t* input, uint8_t* output, int32_t greyProportion
 }
 
 void dimColour(uint8_t colour[3]) {
-	for (int c = 0; c < 3; c++) {
+	for (int32_t c = 0; c < 3; c++) {
 		if (colour[c] >= 64) {
 			colour[c] = 50;
 		}
@@ -2351,7 +2477,7 @@ char const* getFileNameFromEndOfPath(char const* filePathChars) {
 	return slashPos ? (slashPos + 1) : filePathChars;
 }
 
-bool doesFilenameFitPrefixFormat(char const* fileName, char const* filePrefix, int prefixLength) {
+bool doesFilenameFitPrefixFormat(char const* fileName, char const* filePrefix, int32_t prefixLength) {
 
 	if (memcasecmp(fileName, filePrefix, prefixLength)) {
 		return false;
@@ -2362,7 +2488,7 @@ bool doesFilenameFitPrefixFormat(char const* fileName, char const* filePrefix, i
 		return false;
 	}
 
-	int dotPos = (uint32_t)dotAddress - (uint32_t)fileName;
+	int32_t dotPos = (uint32_t)dotAddress - (uint32_t)fileName;
 	if (dotPos < prefixLength + 3) {
 		return false;
 	}
@@ -2374,7 +2500,7 @@ bool doesFilenameFitPrefixFormat(char const* fileName, char const* filePrefix, i
 	return true;
 }
 
-int fresultToDelugeErrorCode(FRESULT result) {
+int32_t fresultToDelugeErrorCode(FRESULT result) {
 	switch (result) {
 	case FR_OK:
 		return NO_ERROR;

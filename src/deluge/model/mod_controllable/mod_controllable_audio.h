@@ -49,15 +49,15 @@ public:
 	virtual ~ModControllableAudio();
 	virtual void cloneFrom(ModControllableAudio* other);
 
-	void processStutter(StereoSample* buffer, int numSamples, ParamManager* paramManager);
-	void processReverbSendAndVolume(StereoSample* buffer, int numSamples, int32_t* reverbBuffer, int32_t postFXVolume,
-	                                int32_t postReverbVolume, int32_t reverbSendAmount, int32_t pan = 0,
-	                                bool doAmplitudeIncrement = false, int32_t amplitudeIncrement = 0);
+	void processStutter(StereoSample* buffer, int32_t numSamples, ParamManager* paramManager);
+	void processReverbSendAndVolume(StereoSample* buffer, int32_t numSamples, int32_t* reverbBuffer,
+	                                int32_t postFXVolume, int32_t postReverbVolume, int32_t reverbSendAmount,
+	                                int32_t pan = 0, bool doAmplitudeIncrement = false, int32_t amplitudeIncrement = 0);
 	void writeAttributesToFile();
 	void writeTagsToFile();
-	int readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos,
-	                    Song* song);
-	void processSRRAndBitcrushing(StereoSample* buffer, int numSamples, int32_t* postFXVolume,
+	int32_t readTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos,
+	                        Song* song);
+	void processSRRAndBitcrushing(StereoSample* buffer, int32_t numSamples, int32_t* postFXVolume,
 	                              ParamManager* paramManager);
 	static void writeParamAttributesToFile(ParamManager* paramManager, bool writeAutomation,
 	                                       int32_t* valuesForOverride = NULL);
@@ -70,22 +70,22 @@ public:
 	void endStutter(ParamManagerForTimeline* paramManager);
 	virtual bool setModFXType(ModFXType newType);
 	bool offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
-	                                    ModelStackWithTimelineCounter* modelStack, int noteRowIndex = -1);
+	                                    ModelStackWithTimelineCounter* modelStack, int32_t noteRowIndex = -1);
 	bool offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
-	                                           ModelStackWithTimelineCounter* modelStack, int noteRowIndex = -1);
+	                                           ModelStackWithTimelineCounter* modelStack, int32_t noteRowIndex = -1);
 	virtual bool learnKnob(MIDIDevice* fromDevice, ParamDescriptor paramDescriptor, uint8_t whichKnob,
 	                       uint8_t modKnobMode, uint8_t midiChannel, Song* song);
 	bool unlearnKnobs(ParamDescriptor paramDescriptor, Song* song);
 	virtual void ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Song* song) {} // Song may be NULL
 	virtual char const* paramToString(uint8_t param);
-	virtual int stringToParam(char const* string);
+	virtual int32_t stringToParam(char const* string);
 	bool isBitcrushingEnabled(ParamManager* paramManager);
 	bool isSRREnabled(ParamManager* paramManager);
 	bool hasBassAdjusted(ParamManager* paramManager);
 	bool hasTrebleAdjusted(ParamManager* paramManager);
 	ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob* knob, ModelStackWithThreeMainThings* modelStack);
 	ActionResult buttonAction(hid::Button b, bool on, ModelStackWithThreeMainThings* modelStack);
-	ModelStackWithAutoParam* getParamFromModEncoder(int whichModEncoder, ModelStackWithThreeMainThings* modelStack,
+	ModelStackWithAutoParam* getParamFromModEncoder(int32_t whichModEncoder, ModelStackWithThreeMainThings* modelStack,
 	                                                bool allowCreation);
 
 	// Phaser
@@ -106,7 +106,9 @@ public:
 
 	bool sampleRateReductionOnLastTime;
 	uint8_t clippingAmount; // Song probably doesn't currently use this?
-	LPFMode lpfMode;
+	FilterMode lpfMode;
+	FilterMode hpfMode;
+	FilterRoute filterRoute;
 
 	// Mod FX
 	ModFXType modFXType;
@@ -127,18 +129,22 @@ public:
 	MidiKnobArray midiKnobArray;
 
 protected:
-	void processFX(StereoSample* buffer, int numSamples, ModFXType modFXType, int32_t modFXRate, int32_t modFXDepth,
+	void processFX(StereoSample* buffer, int32_t numSamples, ModFXType modFXType, int32_t modFXRate, int32_t modFXDepth,
 	               DelayWorkingState* delayWorkingState, int32_t* postFXVolume, ParamManager* paramManager,
-	               int analogDelaySaturationAmount);
+	               int32_t analogDelaySaturationAmount);
 	int32_t getStutterRate(ParamManager* paramManager);
 	void beginStutter(ParamManagerForTimeline* paramManager);
 	void switchDelayPingPong();
 	void switchDelayAnalog();
+	void switchDelaySyncType();
+	void switchDelaySyncLevel();
 	void switchLPFMode();
+	void switchHPFMode();
 	void clearModFXMemory();
 
 private:
 	void initializeSecondaryDelayBuffer(int32_t newNativeRate, bool makeNativeRatePreciseRelativeToOtherBuffer);
 	void doEQ(bool doBass, bool doTreble, int32_t* inputL, int32_t* inputR, int32_t bassAmount, int32_t trebleAmount);
-	ModelStackWithThreeMainThings* addNoteRowIndexAndStuff(ModelStackWithTimelineCounter* modelStack, int noteRowIndex);
+	ModelStackWithThreeMainThings* addNoteRowIndexAndStuff(ModelStackWithTimelineCounter* modelStack,
+	                                                       int32_t noteRowIndex);
 };

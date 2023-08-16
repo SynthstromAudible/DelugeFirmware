@@ -56,8 +56,8 @@ void MatrixDriver::noPressesHappening(bool inCardRoutine) {
 
 	// Correct any misunderstandings
 
-	for (int x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
-		for (int y = 0; y < kDisplayHeight; y++) {
+	for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
+		for (int32_t y = 0; y < kDisplayHeight; y++) {
 			if (padStates[x][y]) {
 				padAction(x, y, false);
 			}
@@ -65,7 +65,7 @@ void MatrixDriver::noPressesHappening(bool inCardRoutine) {
 	}
 }
 
-ActionResult MatrixDriver::padAction(int x, int y, int velocity) {
+ActionResult MatrixDriver::padAction(int32_t x, int32_t y, int32_t velocity) {
 	padStates[x][y] = velocity;
 	ActionResult result = getCurrentUI()->padAction(x, y, velocity);
 	if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
@@ -75,13 +75,13 @@ ActionResult MatrixDriver::padAction(int x, int y, int velocity) {
 	return ActionResult::DEALT_WITH;
 }
 
-bool MatrixDriver::isPadPressed(int x, int y) {
+bool MatrixDriver::isPadPressed(int32_t x, int32_t y) {
 	return padStates[x][y];
 }
 
 bool MatrixDriver::isUserDoingBootloaderOverwriteAction() {
-	for (int x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
-		for (int y = 0; y < kDisplayHeight; y++) {
+	for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
+		for (int32_t y = 0; y < kDisplayHeight; y++) {
 			bool shouldBePressed = (x == 0 && y == 7) || (x == 1 && y == 6) || (x == 2 && y == 5);
 			if (padStates[x][y] != shouldBePressed) {
 				return false;

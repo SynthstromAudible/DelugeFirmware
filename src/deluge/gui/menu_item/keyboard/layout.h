@@ -21,27 +21,14 @@
 #include "storage/flash_storage.h"
 #include "util/misc.h"
 
-namespace menu_item::keyboard {
-class Layout final : public Selection {
+namespace deluge::gui::menu_item::keyboard {
+class Layout final : public Selection<kNumKeyboardLayouts> {
 public:
 	using Selection::Selection;
-	void readCurrentValue() { soundEditor.currentValue = util::to_underlying(FlashStorage::keyboardLayout); }
-	void writeCurrentValue() { FlashStorage::keyboardLayout = static_cast<KeyboardLayout>(soundEditor.currentValue); }
-	char const** getOptions() {
-		static char const* options[] = {
-			"QWERTY",
-			"AZERTY",
-#if HAVE_OLED
-			"QWERTZ",
-			NULL
-#else
-			"QRTZ"
-#endif
-		};
-		return options;
-	}
-	int getNumOptions() {
-		return kNumKeyboardLayouts;
+	void readCurrentValue() override { this->setValue(FlashStorage::keyboardLayout); }
+	void writeCurrentValue() override { FlashStorage::keyboardLayout = this->getValue<KeyboardLayout>(); }
+	static_vector<std::string, capacity()> getOptions() override {
+		return {"QWERTY", "AZERTY", HAVE_OLED ? "QWERTZ" : "QRTZ"};
 	}
 };
-} // namespace menu_item::keyboard
+} // namespace deluge::gui::menu_item::keyboard

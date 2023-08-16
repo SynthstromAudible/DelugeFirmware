@@ -23,6 +23,7 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
+#include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
@@ -41,6 +42,7 @@
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/model_stack.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
@@ -76,7 +78,7 @@ inline InstrumentClip* getCurrentClip() {
 InstrumentClipMinder::InstrumentClipMinder() {
 }
 
-void InstrumentClipMinder::selectEncoderAction(int offset) {
+void InstrumentClipMinder::selectEncoderAction(int32_t offset) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
@@ -86,7 +88,7 @@ void InstrumentClipMinder::selectEncoderAction(int offset) {
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 			    modelStack->addOtherTwoThingsButNoNoteRow(instrument, &getCurrentClip()->paramManager);
 
-			int newCC;
+			int32_t newCC;
 
 			if (!Buttons::isButtonPressed(hid::button::SELECT_ENC)) {
 				newCC = instrument->changeControlNumberForModKnob(offset, editingMIDICCForWhichModKnob,
@@ -127,7 +129,7 @@ void InstrumentClipMinder::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 }
 #endif
 
-void InstrumentClipMinder::drawMIDIControlNumber(int controlNumber, bool automationExists) {
+void InstrumentClipMinder::drawMIDIControlNumber(int32_t controlNumber, bool automationExists) {
 
 	char buffer[HAVE_OLED ? 30 : 5];
 	if (controlNumber == CC_NUMBER_NONE) {
@@ -155,12 +157,13 @@ void InstrumentClipMinder::drawMIDIControlNumber(int controlNumber, bool automat
 		char* numberStartPos = (controlNumber < 100) ? (buffer + 2) : (buffer + 1);
 		intToString(controlNumber, numberStartPos);
 	}
-	numericDriver.setText(buffer, true, automationExists ? 3 : 255, true);
+
+	numericDriver.setText(buffer, true, automationExists ? 3 : 255, false);
 #endif
 }
 
 void InstrumentClipMinder::createNewInstrument(InstrumentType newInstrumentType) {
-	int error;
+	int32_t error;
 
 	InstrumentType oldInstrumentType = getCurrentClip()->output->type;
 
@@ -197,7 +200,7 @@ gotError:
 	if (error) {
 		void* toDealloc = dynamic_cast<void*>(newInstrument);
 		newInstrument->~Instrument();
-		generalMemoryAllocator.dealloc(toDealloc);
+		GeneralMemoryAllocator::get().dealloc(toDealloc);
 		goto gotError;
 	}
 
@@ -233,9 +236,9 @@ gotError:
 
 	// Or if just adding new Instrument
 	else {
-		int error = getCurrentClip()->changeInstrument(modelStack, newInstrument, &newParamManager,
-		                                               InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL,
-		                                               false); // There'll be no samples cos it's new and blank
+		int32_t error = getCurrentClip()->changeInstrument(modelStack, newInstrument, &newParamManager,
+		                                                   InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL,
+		                                                   false); // There'll be no samples cos it's new and blank
 		// TODO: deal with errors
 
 		currentSong->addOutput(newInstrument);
@@ -278,7 +281,10 @@ void InstrumentClipMinder::setLedStates() {
 	indicator_leds::setLedState(IndicatorLED::MIDI, getCurrentClip()->output->type == InstrumentType::MIDI_OUT);
 	indicator_leds::setLedState(IndicatorLED::CV, getCurrentClip()->output->type == InstrumentType::CV);
 
-	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, getCurrentClip()->wrapEditing);
+	//cross screen editing doesn't currently work in automation view, so don't light it up
+	if (getCurrentUI() != &automationInstrumentClipView) {
+		indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, getCurrentClip()->wrapEditing);
+	}
 	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, getCurrentClip()->isScaleModeClip());
 	indicator_leds::setLedState(IndicatorLED::BACK, false);
 
@@ -384,9 +390,33 @@ yesLoadInstrument:
 			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, currentSong->currentClip);
 
 			getCurrentClip()->clear(action, modelStack);
-			numericDriver.displayPopup(HAVE_OLED ? "Clip cleared" : "CLEAR");
-			if (getCurrentUI() == &instrumentClipView) {
-				uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+
+			//New community feature as part of Automation Clip View Implementation
+			//If this is enabled, then when you are in a regular Instrument Clip View (Synth, Kit, MIDI, CV), clearing a clip
+			//will only clear the Notes (automations remain intact).
+			//If this is enabled, if you want to clear automations, you will enter Automation Clip View and clear the clip there.
+			//If this is enabled, the message displayed on the OLED screen is adjusted to reflect the nature of what is being cleared
+
+			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationClearClip)
+			    == RuntimeFeatureStateToggle::On) {
+				if (getCurrentUI() == &automationInstrumentClipView) {
+					numericDriver.displayPopup(HAVE_OLED ? "Automation cleared" : "CLEAR");
+					uiNeedsRendering(&automationInstrumentClipView, 0xFFFFFFFF, 0);
+				}
+				else if (getCurrentUI() == &instrumentClipView) {
+					numericDriver.displayPopup(HAVE_OLED ? "Notes cleared" : "CLEAR");
+					uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+				}
+			}
+			else {
+				if (getCurrentUI() == &instrumentClipView) {
+					numericDriver.displayPopup(HAVE_OLED ? "Clip cleared" : "CLEAR");
+					uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+				}
+				else if (getCurrentUI() == &automationInstrumentClipView) {
+					numericDriver.displayPopup(HAVE_OLED ? "Clip cleared" : "CLEAR");
+					uiNeedsRendering(&automationInstrumentClipView, 0xFFFFFFFF, 0);
+				}
 			}
 		}
 	}
@@ -447,8 +477,8 @@ void InstrumentClipMinder::calculateDefaultRootNote() {
 }
 
 void InstrumentClipMinder::drawActualNoteCode(int16_t noteCode) {
-	int octave = (noteCode) / 12 - 2;
-	int noteCodeWithinOctave = (uint16_t)(noteCode + 120) % (uint8_t)12;
+	int32_t octave = (noteCode) / 12 - 2;
+	int32_t noteCodeWithinOctave = (uint16_t)(noteCode + 120) % (uint8_t)12;
 
 	char noteName[5];
 	noteName[0] = noteCodeToNoteLetter[noteCodeWithinOctave];
@@ -470,7 +500,7 @@ void InstrumentClipMinder::drawActualNoteCode(int16_t noteCode) {
 }
 
 void InstrumentClipMinder::cycleThroughScales() {
-	int newScale = currentSong->cycleThroughScales();
+	int32_t newScale = currentSong->cycleThroughScales();
 	if (newScale >= NUM_PRESET_SCALES) {
 		numericDriver.displayPopup(HAVE_OLED ? "Custom scale with more than 7 notes in use" : "CANT");
 	}
@@ -479,7 +509,7 @@ void InstrumentClipMinder::cycleThroughScales() {
 	}
 }
 
-void InstrumentClipMinder::displayScaleName(int scale) {
+void InstrumentClipMinder::displayScaleName(int32_t scale) {
 	if (scale >= NUM_PRESET_SCALES) {
 		numericDriver.displayPopup(HAVE_OLED ? "Other scale" : "OTHER");
 	}

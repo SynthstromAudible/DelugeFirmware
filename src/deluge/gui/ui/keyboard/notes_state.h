@@ -17,12 +17,13 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include <cstdint>
-#include <string.h>
+#include <cstring>
 
 constexpr uint8_t kMaxNumActiveNotes = 10;
 
-namespace keyboard {
+namespace deluge::gui::ui::keyboard {
 
 struct PressedPad {
 	uint8_t x;
@@ -67,4 +68,4 @@ struct NotesState {
 	}
 };
 
-}; // namespace keyboard
+}; // namespace deluge::gui::ui::keyboard

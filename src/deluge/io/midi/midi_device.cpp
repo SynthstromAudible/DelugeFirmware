@@ -46,15 +46,15 @@ void MIDIDevice::writeReferenceToFile(char const* tagName) {
 	storageManager.closeTag();
 }
 
-void MIDIDevice::dataEntryMessageReceived(ModelStack* modelStack, int channel, int msb) {
+void MIDIDevice::dataEntryMessageReceived(ModelStack* modelStack, int32_t channel, int32_t msb) {
 
 	// If it's pitch bend range...
 	if (!inputChannels[channel].rpnMSB && !inputChannels[channel].rpnLSB) {
 
-		int whichBendRange = BEND_RANGE_MAIN; // Default
+		int32_t whichBendRange = BEND_RANGE_MAIN; // Default
 
-		int channelOrZone = ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
-		int zone = channelOrZone - MIDI_CHANNEL_MPE_LOWER_ZONE;
+		int32_t channelOrZone = ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
+		int32_t zone = channelOrZone - MIDI_CHANNEL_MPE_LOWER_ZONE;
 		if (zone >= 0) { // If it *is* MPE-related...
 
 			// If it's on the "main" channel
@@ -82,7 +82,7 @@ setMPEBendRange:
 	// Or if it's an MCM (MPE Configuration Message) to set up an MPE zone...
 	else if (!inputChannels[channel].rpnMSB && inputChannels[channel].rpnLSB == 6) {
 		if (msb < 16) {
-			int zone;
+			int32_t zone;
 
 			// Lower zone
 			if (channel == 0) {
@@ -98,8 +98,8 @@ resetBendRanges
 					mpeZoneBendRanges[zone][BEND_RANGE_FINGER_LEVEL] = 48;
 
 					// Inform the Song about the changed bend ranges
-					int channelOrZone = zone + MIDI_CHANNEL_MPE_LOWER_ZONE;
-					for (int r = 0; r < 2; r++) {
+					int32_t channelOrZone = zone + MIDI_CHANNEL_MPE_LOWER_ZONE;
+					for (int32_t r = 0; r < 2; r++) {
 						modelStack->song->midiDeviceBendRangeUpdatedViaMessage(modelStack, this, channelOrZone, r,
 						                                                       mpeZoneBendRanges[zone][r]);
 					}
@@ -127,7 +127,7 @@ resetBendRanges
 	}
 }
 
-bool MIDIDevice::wantsToOutputMIDIOnChannel(int channel, int filter) {
+bool MIDIDevice::wantsToOutputMIDIOnChannel(int32_t channel, int32_t filter) {
 	switch (filter) {
 	case MIDI_CHANNEL_MPE_LOWER_ZONE:
 		return (ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].mpeLowerZoneLastMemberChannel != 0);
@@ -143,7 +143,7 @@ bool MIDIDevice::wantsToOutputMIDIOnChannel(int channel, int filter) {
 	}
 }
 
-void MIDIDevice::sendRPN(int channel, int rpnMSB, int rpnLSB, int valueMSB) {
+void MIDIDevice::sendRPN(int32_t channel, int32_t rpnMSB, int32_t rpnLSB, int32_t valueMSB) {
 
 	// Set the RPN number
 	sendCC(channel, 0x64, rpnLSB);
@@ -213,7 +213,7 @@ void MIDIDevice::writeToFile(char const* tagName) {
 	storageManager.writeClosingTag(tagName);
 }
 
-int MIDIPort::channelToZone(int inputChannel) {
+int32_t MIDIPort::channelToZone(int32_t inputChannel) {
 	if (mpeLowerZoneLastMemberChannel && mpeLowerZoneLastMemberChannel >= inputChannel) {
 		return MIDI_CHANNEL_MPE_LOWER_ZONE;
 	}
@@ -247,7 +247,7 @@ void MIDIPort::moveLowerZoneOutOfWayOfUpperZone() {
 
 void MIDIPort::writeToFile(char const* tagName) {
 
-	int numUpperMemberChannels = 15 - mpeUpperZoneLastMemberChannel;
+	int32_t numUpperMemberChannels = 15 - mpeUpperZoneLastMemberChannel;
 
 	if (numUpperMemberChannels || mpeLowerZoneLastMemberChannel) {
 		storageManager.writeOpeningTag(tagName);
@@ -277,7 +277,7 @@ void MIDIPort::readFromFile(MIDIDevice* deviceToSendMCMsOn) {
 				if (!strcmp(tagName, "numMemberChannels")) {
 
 					if (!mpeLowerZoneLastMemberChannel) { // If value was already set, then leave it - the user or an MCM might have changed it since the file was last read.
-						int newMPELowerZoneLastMemberChannel = storageManager.readTagOrAttributeValueInt();
+						int32_t newMPELowerZoneLastMemberChannel = storageManager.readTagOrAttributeValueInt();
 						if (newMPELowerZoneLastMemberChannel >= 0 && newMPELowerZoneLastMemberChannel < 16) {
 							mpeLowerZoneLastMemberChannel = newMPELowerZoneLastMemberChannel;
 							moveLowerZoneOutOfWayOfUpperZone(); // Move self out of way of other - just in case user or MCM has set other and that's the important one they want now.
@@ -299,7 +299,7 @@ void MIDIPort::readFromFile(MIDIDevice* deviceToSendMCMsOn) {
 
 					if (mpeUpperZoneLastMemberChannel
 					    == 15) { // If value was already set, then leave it - the user or an MCM might have changed it since the file was last read.
-						int numUpperMemberChannels = storageManager.readTagOrAttributeValueInt();
+						int32_t numUpperMemberChannels = storageManager.readTagOrAttributeValueInt();
 						if (numUpperMemberChannels >= 0 && numUpperMemberChannels < 16) {
 							mpeUpperZoneLastMemberChannel = 15 - numUpperMemberChannels;
 							moveUpperZoneOutOfWayOfLowerZone(); // Move self out of way of other - just in case user or MCM has set other and that's the important one they want now.
@@ -322,7 +322,7 @@ bool MIDIPort::worthWritingToFile() {
 	return (mpeLowerZoneLastMemberChannel || mpeUpperZoneLastMemberChannel != 15);
 }
 
-void MIDIDeviceUSB::connectedNow(int midiDeviceNum) {
+void MIDIDeviceUSB::connectedNow(int32_t midiDeviceNum) {
 	connectionFlags |= (1 << midiDeviceNum);
 	needsToSendMCMs = 2;
 }
@@ -341,11 +341,11 @@ void MIDIDeviceUSB::sendMessage(uint8_t statusType, uint8_t channel, uint8_t dat
 		return;
 	}
 
-	int ip = 0;
+	int32_t ip = 0;
 
 	uint32_t fullMessage = setupUSBMessage(statusType, channel, data1, data2);
 
-	for (int d = 0; d < MAX_NUM_USB_MIDI_DEVICES; d++) {
+	for (int32_t d = 0; d < MAX_NUM_USB_MIDI_DEVICES; d++) {
 		if (connectionFlags & (1 << d)) {
 			ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][d];
 			connectedDevice->bufferMessage(fullMessage);
@@ -353,17 +353,17 @@ void MIDIDeviceUSB::sendMessage(uint8_t statusType, uint8_t channel, uint8_t dat
 	}
 }
 
-void MIDIDeviceUSB::sendSysex(uint8_t* data, int len) {
+void MIDIDeviceUSB::sendSysex(uint8_t* data, int32_t len) {
 	if (len < 3 || data[0] != 0xf0 || data[len - 1] != 0xf7) {
 		return;
 	}
 
-	int ip = 0;
+	int32_t ip = 0;
 	ConnectedUSBMIDIDevice* connectedDevice = NULL;
 
 	// find the connected device for this specific device. Note that virtual
 	// port number is specified as part of the message, implemented below.
-	for (int d = 0; d < MAX_NUM_USB_MIDI_DEVICES; d++) {
+	for (int32_t d = 0; d < MAX_NUM_USB_MIDI_DEVICES; d++) {
 		if (connectionFlags & (1 << d)) {
 			connectedDevice = &connectedUSBMIDIDevices[ip][d];
 			break;
@@ -374,9 +374,9 @@ void MIDIDeviceUSB::sendSysex(uint8_t* data, int len) {
 		return;
 	}
 
-	int pos = 0;
+	int32_t pos = 0;
 	while (pos < len) {
-		int status, byte0 = 0, byte1 = 0, byte2 = 0;
+		int32_t status, byte0 = 0, byte1 = 0, byte2 = 0;
 		byte0 = data[pos];
 		if (len - pos > 3) {
 			status = 0x4; // sysex start or continue
@@ -455,13 +455,13 @@ void MIDIDeviceDINPorts::sendMessage(uint8_t statusType, uint8_t channel, uint8_
 	midiEngine.sendSerialMidi(statusType, channel, data1, data2);
 }
 
-void MIDIDeviceDINPorts::sendSysex(uint8_t* data, int len) {
+void MIDIDeviceDINPorts::sendSysex(uint8_t* data, int32_t len) {
 	if (len < 3 || data[0] != 0xf0 || data[len - 1] != 0xf7) {
 		return;
 	}
 
 	// NB: beware of MIDI_TX_BUFFER_SIZE
-	for (int i = 0; i < len; i++) {
+	for (int32_t i = 0; i < len; i++) {
 		bufferMIDIUart(data[i]);
 	}
 }

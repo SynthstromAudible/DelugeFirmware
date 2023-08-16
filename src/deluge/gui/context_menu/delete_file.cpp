@@ -31,7 +31,7 @@ namespace deluge::gui::context_menu {
 DeleteFile deleteFile{};
 
 char const* DeleteFile::getTitle() {
-	static char* title;
+	static char const* title;
 	if (getUIUpOneLevel() == &context_menu::saveSongOrInstrument) {
 		title = "Are you sure?";
 	}
@@ -68,7 +68,7 @@ bool DeleteFile::acceptCurrentOption() {
 	Browser* browser = (Browser*)ui;
 
 	String filePath;
-	int error = browser->getCurrentFilePath(&filePath);
+	int32_t error = browser->getCurrentFilePath(&filePath);
 	if (error) {
 		numericDriver.displayError(error);
 		return false;

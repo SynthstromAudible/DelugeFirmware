@@ -20,6 +20,7 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
+#include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -73,10 +74,10 @@ void ActionLogger::deleteLastAction() {
 
 	toDelete->prepareForDestruction(BEFORE, currentSong);
 	toDelete->~Action();
-	generalMemoryAllocator.dealloc(toDelete);
+	GeneralMemoryAllocator::get().dealloc(toDelete);
 }
 
-Action* ActionLogger::getNewAction(int newActionType, int addToExistingIfPossible) {
+Action* ActionLogger::getNewAction(int32_t newActionType, int32_t addToExistingIfPossible) {
 
 	deleteLog(AFTER);
 
@@ -126,7 +127,7 @@ Action* ActionLogger::getNewAction(int newActionType, int addToExistingIfPossibl
 		}
 
 		// And make a new one
-		void* actionMemory = generalMemoryAllocator.alloc(sizeof(Action), NULL, true);
+		void* actionMemory = GeneralMemoryAllocator::get().alloc(sizeof(Action), NULL, true);
 
 		if (!actionMemory) {
 			Debug::println("no ram to create new Action");
@@ -134,25 +135,26 @@ Action* ActionLogger::getNewAction(int newActionType, int addToExistingIfPossibl
 		}
 
 		// Store states of every Clip in existence
-		int numClips = currentSong->sessionClips.getNumElements() + currentSong->arrangementOnlyClips.getNumElements();
+		int32_t numClips =
+		    currentSong->sessionClips.getNumElements() + currentSong->arrangementOnlyClips.getNumElements();
 
 		ActionClipState* clipStates =
-		    (ActionClipState*)generalMemoryAllocator.alloc(numClips * sizeof(ActionClipState), NULL, true);
+		    (ActionClipState*)GeneralMemoryAllocator::get().alloc(numClips * sizeof(ActionClipState), NULL, true);
 
 		if (!clipStates) {
-			generalMemoryAllocator.dealloc(actionMemory);
+			GeneralMemoryAllocator::get().dealloc(actionMemory);
 			return NULL;
 		}
 
 		newAction = new (actionMemory) Action(newActionType);
 		newAction->clipStates = clipStates;
 
-		int i = 0;
+		int32_t i = 0;
 
 		// For each Clip in session and arranger
 		ClipArray* clipArray = &currentSong->sessionClips;
 traverseClips:
-		for (int c = 0; c < clipArray->getNumElements(); c++) {
+		for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
 			Clip* clip = clipArray->getClipAtIndex(c);
 
 			newAction->clipStates[i].grabFromClip(clip);
@@ -203,18 +205,18 @@ void ActionLogger::updateAction(Action* newAction) {
 		if (newAction->numClipStates
 		    != currentSong->sessionClips.getNumElements() + currentSong->arrangementOnlyClips.getNumElements()) {
 			newAction->numClipStates = 0;
-			generalMemoryAllocator.dealloc(newAction->clipStates);
+			GeneralMemoryAllocator::get().dealloc(newAction->clipStates);
 			newAction->clipStates = NULL;
 			Debug::println("discarded clip states");
 		}
 
 		else {
-			int i = 0;
+			int32_t i = 0;
 
 			// For each Clip in session and arranger
 			ClipArray* clipArray = &currentSong->sessionClips;
 traverseClips2:
-			for (int c = 0; c < clipArray->getNumElements(); c++) {
+			for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
 				Clip* clip = clipArray->getClipAtIndex(c);
 
 				if (clip->type == CLIP_TYPE_INSTRUMENT) {
@@ -241,7 +243,7 @@ traverseClips2:
 	memcpy(newAction->modeNotes[AFTER], currentSong->modeNotes, sizeof(currentSong->modeNotes));
 }
 
-void ActionLogger::recordUnautomatedParamChange(ModelStackWithAutoParam const* modelStack, int actionType) {
+void ActionLogger::recordUnautomatedParamChange(ModelStackWithAutoParam const* modelStack, int32_t actionType) {
 
 	Action* action = getNewAction(actionType, true);
 	if (!action) {
@@ -264,7 +266,7 @@ void ActionLogger::recordSwingChange(int8_t swingBefore, int8_t swingAfter) {
 		consequence->swing[AFTER] = swingAfter;
 	}
 	else {
-		void* consMemory = generalMemoryAllocator.alloc(sizeof(ConsequenceSwingChange));
+		void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceSwingChange));
 
 		if (consMemory) {
 			ConsequenceSwingChange* newConsequence = new (consMemory) ConsequenceSwingChange(swingBefore, swingAfter);
@@ -287,7 +289,7 @@ void ActionLogger::recordTempoChange(uint64_t timePerBigBefore, uint64_t timePer
 	}
 	else {
 
-		void* consMemory = generalMemoryAllocator.alloc(sizeof(ConsequenceTempoChange));
+		void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceTempoChange));
 
 		if (consMemory) {
 			ConsequenceTempoChange* newConsequence =
@@ -337,13 +339,15 @@ bool ActionLogger::revert(TimeType time, bool updateVisually, bool doNavigation)
 #define ANIMATION_ARRANGEMENT_TO_CLIP_MINDER 9
 #define ANIMATION_SESSION_TO_ARRANGEMENT 10
 #define ANIMATION_ARRANGEMENT_TO_SESSION 11
+#define ANIMATION_ENTER_AUTOMATION_VIEW 12
+#define ANIMATION_EXIT_AUTOMATION_VIEW 13
 
 // doNavigation and updateVisually are only false when doing one of those undo-Clip-resize things as part of another Clip resize
 void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavigation, TimeType time) {
 
 	currentSong->deletePendingOverdubs();
 
-	int whichAnimation = ANIMATION_NONE;
+	int32_t whichAnimation = ANIMATION_NONE;
 	uint32_t songZoomBeforeTransition = currentSong->xZoom[NAVIGATION_CLIP];
 	uint32_t arrangerZoomBeforeTransition = currentSong->xZoom[NAVIGATION_ARRANGEMENT];
 
@@ -399,6 +403,14 @@ void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavi
 				whichAnimation = ANIMATION_EXIT_KEYBOARD_VIEW;
 			}
 
+			// Then entering or exiting automation view
+			else if (action->view == &automationInstrumentClipView && getCurrentUI() != &automationInstrumentClipView) {
+				whichAnimation = ANIMATION_ENTER_AUTOMATION_VIEW;
+			}
+			else if (action->view != &automationInstrumentClipView && getCurrentUI() == &automationInstrumentClipView) {
+				whichAnimation = ANIMATION_EXIT_AUTOMATION_VIEW;
+			}
+
 			// Or if we've changed Clip but ended up back in the same view...
 			else if (getCurrentUI()->toClipMinder() && currentSong->currentClip != action->currentClip) {
 				whichAnimation = ANIMATION_CHANGE_CLIP;
@@ -437,16 +449,16 @@ void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavi
 
 		// Restore states of each Clip
 		if (action->numClipStates) {
-			int totalNumClips =
+			int32_t totalNumClips =
 			    currentSong->sessionClips.getNumElements() + currentSong->arrangementOnlyClips.getNumElements();
 			if (action->numClipStates == totalNumClips) {
 
-				int i = 0;
+				int32_t i = 0;
 
 				// For each Clip in session and arranger
 				ClipArray* clipArray = &currentSong->sessionClips;
 traverseClips:
-				for (int c = 0; c < clipArray->getNumElements(); c++) {
+				for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
 					Clip* clip = clipArray->getClipAtIndex(c);
 
 					//clip->modKnobMode = action->clipStates[i].modKnobMode;
@@ -535,12 +547,7 @@ otherOption:
 		}
 
 		else if (whichAnimation == ANIMATION_CLIP_MINDER_TO_SESSION) {
-			if (getCurrentUI() == &audioClipView) {
-				audioClipView.transitionToSessionView();
-			}
-			else {
-				instrumentClipView.transitionToSessionView();
-			}
+			sessionView.transitionToSessionView();
 		}
 
 		else if (whichAnimation == ANIMATION_SESSION_TO_CLIP_MINDER) {
@@ -561,7 +568,7 @@ currentClipSwitchedOver:
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
-	int error = action->revert(time, modelStack);
+	int32_t error = action->revert(time, modelStack);
 
 	// Some "animations", we prefer to do after we've reverted the action
 	if (whichAnimation == ANIMATION_ENTER_KEYBOARD_VIEW) {
@@ -569,6 +576,20 @@ currentClipSwitchedOver:
 	}
 
 	else if (whichAnimation == ANIMATION_EXIT_KEYBOARD_VIEW) {
+
+		if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+			changeRootUI(&automationInstrumentClipView);
+		}
+		else {
+			changeRootUI(&instrumentClipView);
+		}
+	}
+
+	else if (whichAnimation == ANIMATION_ENTER_AUTOMATION_VIEW) {
+		changeRootUI(&automationInstrumentClipView);
+	}
+
+	else if (whichAnimation == ANIMATION_EXIT_AUTOMATION_VIEW) {
 		changeRootUI(&instrumentClipView);
 	}
 
@@ -593,6 +614,9 @@ currentClipSwitchedOver:
 		else if (((InstrumentClip*)currentSong->currentClip)->onKeyboardScreen) {
 			changeRootUI(&keyboardScreen);
 		}
+		else if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+			changeRootUI(&automationInstrumentClipView);
+		}
 		else {
 			changeRootUI(&instrumentClipView);
 		}
@@ -609,12 +633,22 @@ currentClipSwitchedOver:
 	if (updateVisually) {
 
 		if (getCurrentUI() == &instrumentClipView) {
+			// If we're not animating away from this view (but something like scrolling sideways would be allowed)
 			if (whichAnimation != ANIMATION_CLIP_MINDER_TO_SESSION
-			    && whichAnimation
-			           != ANIMATION_CLIP_MINDER_TO_ARRANGEMENT) { // If we're not animating away from this view (but something like scrolling sideways would be allowed)
+			    && whichAnimation != ANIMATION_CLIP_MINDER_TO_ARRANGEMENT) {
 				instrumentClipView.recalculateColours();
 				if (!whichAnimation) {
 					uiNeedsRendering(&instrumentClipView);
+				}
+			}
+		}
+		else if (getCurrentUI() == &automationInstrumentClipView) {
+			// If we're not animating away from this view (but something like scrolling sideways would be allowed)
+			if (whichAnimation != ANIMATION_CLIP_MINDER_TO_SESSION
+			    && whichAnimation != ANIMATION_CLIP_MINDER_TO_ARRANGEMENT) {
+				instrumentClipView.recalculateColours();
+				if (!whichAnimation) {
+					uiNeedsRendering(&automationInstrumentClipView);
 				}
 			}
 		}
@@ -628,10 +662,9 @@ currentClipSwitchedOver:
 				uiNeedsRendering(&keyboardScreen, 0xFFFFFFFF, 0);
 			}
 		}
+		// Got to try this even if we're supposedly doing a horizontal scroll animation or something cos that may have failed if the Clip wasn't long enough before we did the action->revert() ...
 		else if (getCurrentUI() == &sessionView) {
-			uiNeedsRendering(
-			    &sessionView, 0xFFFFFFFF,
-			    0xFFFFFFFF); // Got to try this even if we're supposedly doing a horizontal scroll animation or something cos that may have failed if the Clip wasn't long enough before we did the action->revert() ...
+			uiNeedsRendering(&sessionView, 0xFFFFFFFF, 0xFFFFFFFF);
 		}
 		else if (getCurrentUI() == &arrangerView) {
 			arrangerView.repopulateOutputsOnScreen(!whichAnimation);
@@ -641,14 +674,14 @@ currentClipSwitchedOver:
 		// when the animation finishes - and also, if we just deleted the Clip which was the activeModControllableClip, well that'll temporarily be pointing to invalid stuff.
 		// Check the actual UI mode rather than the whichAnimation variable we've been using in this function, because under some circumstances that'll bypass the actual
 		// animation / UI-mode.
-		if (!isUIModeActive(UI_MODE_AUDIO_CLIP_COLLAPSING)
-		    && !isUIModeActive(
-		        UI_MODE_INSTRUMENT_CLIP_COLLAPSING)) { // We would also put the "explode" animation for transitioning *to* arranger here, but it just doesn't get used during reversion.
+		// We would also put the "explode" animation for transitioning *to* arranger here, but it just doesn't get used during reversion.
+		if (!isUIModeActive(UI_MODE_AUDIO_CLIP_COLLAPSING) && !isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING)) {
 			view.setKnobIndicatorLevels();
 			view.setModLedStates();
 		}
 
-		switch (whichAnimation) { // So long as we're not gonna animate to different UI...
+		// So long as we're not gonna animate to different UI...
+		switch (whichAnimation) {
 		case ANIMATION_CLIP_MINDER_TO_SESSION:
 		case ANIMATION_SESSION_TO_CLIP_MINDER:
 		case ANIMATION_CLIP_MINDER_TO_ARRANGEMENT:
@@ -681,13 +714,13 @@ currentClipSwitchedOver:
 	}
 }
 
-void ActionLogger::closeAction(int actionType) {
+void ActionLogger::closeAction(int32_t actionType) {
 	if (firstAction[BEFORE] && firstAction[BEFORE]->type == actionType) {
 		firstAction[BEFORE]->openForAdditions = false;
 	}
 }
 
-void ActionLogger::closeActionUnlessCreatedJustNow(int actionType) {
+void ActionLogger::closeActionUnlessCreatedJustNow(int32_t actionType) {
 	if (firstAction[BEFORE] && firstAction[BEFORE]->type == actionType
 	    && firstAction[BEFORE]->creationTime != AudioEngine::audioSampleTimer) {
 		firstAction[BEFORE]->openForAdditions = false;
@@ -699,7 +732,7 @@ void ActionLogger::deleteAllLogs() {
 	deleteLog(AFTER);
 }
 
-void ActionLogger::deleteLog(int time) {
+void ActionLogger::deleteLog(int32_t time) {
 	while (firstAction[time]) {
 		Action* toDelete = firstAction[time];
 
@@ -707,7 +740,7 @@ void ActionLogger::deleteLog(int time) {
 
 		toDelete->prepareForDestruction(time, currentSong);
 		toDelete->~Action();
-		generalMemoryAllocator.dealloc(toDelete);
+		GeneralMemoryAllocator::get().dealloc(toDelete);
 	}
 }
 
@@ -800,7 +833,7 @@ bool ActionLogger::undoJustOneConsequencePerNoteRow(ModelStack* modelStack) {
 	if (firstConsequence) { // Should always be true
 
 		// Work out if multiple Consequences per NoteRow (see big comment above)
-		int firstNoteRowId = ((ConsequenceNoteArrayChange*)firstConsequence)->noteRowId;
+		int32_t firstNoteRowId = ((ConsequenceNoteArrayChange*)firstConsequence)->noteRowId;
 
 		Consequence* thisConsequence = firstConsequence->next;
 		while (thisConsequence) {
@@ -823,7 +856,7 @@ gotMultipleConsequencesPerNoteRow:
 
 				firstConsequence->prepareForDestruction(BEFORE, modelStack->song);
 				firstConsequence->~Consequence();
-				generalMemoryAllocator.dealloc(firstConsequence);
+				GeneralMemoryAllocator::get().dealloc(firstConsequence);
 				firstConsequence = firstAction[BEFORE]->firstConsequence;
 			} while (thisConsequence->type != Consequence::NOTE_ARRAY_CHANGE
 			         || ((ConsequenceNoteArrayChange*)firstConsequence)->noteRowId != firstNoteRowId);

@@ -31,10 +31,10 @@ ConsequenceClipInstanceExistence::ConsequenceClipInstanceExistence(Output* newOu
 	type = newType;
 }
 
-int ConsequenceClipInstanceExistence::revert(TimeType time, ModelStack* modelStack) {
+int32_t ConsequenceClipInstanceExistence::revert(TimeType time, ModelStack* modelStack) {
 
 	if (time == util::to_underlying(type)) { // (Re-)delete
-		int i = output->clipInstances.search(pos, GREATER_OR_EQUAL);
+		int32_t i = output->clipInstances.search(pos, GREATER_OR_EQUAL);
 		if (i < 0 || i >= output->clipInstances.getNumElements()) {
 			return ERROR_BUG;
 		}
@@ -42,7 +42,7 @@ int ConsequenceClipInstanceExistence::revert(TimeType time, ModelStack* modelSta
 	}
 
 	else { // (Re-)create
-		int i = output->clipInstances.insertAtKey(pos);
+		int32_t i = output->clipInstances.insertAtKey(pos);
 		ClipInstance* clipInstance = output->clipInstances.getElement(i);
 		if (!clipInstance) {
 			return ERROR_INSUFFICIENT_RAM;

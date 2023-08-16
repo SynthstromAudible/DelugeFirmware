@@ -17,20 +17,18 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
 #include "definitions_cxx.hpp"
+#include <cstdint>
 
 constexpr size_t numLedBlinkers = 4;
 
 namespace indicator_leds {
 
-constexpr uint8_t uartBase = (DELUGE_MODEL >= DELUGE_MODEL_144_PAD) ? 152 : 120;
-
 constexpr uint8_t fromCartesian(Cartesian c) {
 	return c.x + c.y * NUM_LED_COLS;
 }
 
-constexpr uint8_t fromXY(int x, int y) {
+constexpr uint8_t fromXY(int32_t x, int32_t y) {
 	return x + y * NUM_LED_COLS;
 }
 
@@ -86,13 +84,13 @@ void ledBlinkTimeout(uint8_t blinkingType, bool forceRestart = false, bool reset
 void indicateAlertOnLed(LED led);
 void setKnobIndicatorLevel(uint8_t whichKnob, uint8_t level);
 void clearKnobIndicatorLevels();
-void blinkKnobIndicator(int whichKnob);
-void stopBlinkingKnobIndicator(int whichKnob);
+void blinkKnobIndicator(int32_t whichKnob);
+void stopBlinkingKnobIndicator(int32_t whichKnob);
 void blinkKnobIndicatorLevelTimeout();
 uint8_t getLedBlinkerIndex(LED led);
 void stopLedBlinking(LED led, bool resetState = false);
 bool updateBlinkingLedStates(uint8_t blinkingType);
-bool isKnobIndicatorBlinking(int whichKnob);
+bool isKnobIndicatorBlinking(int32_t whichKnob);
 
 } // namespace indicator_leds
 

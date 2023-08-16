@@ -106,14 +106,14 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayW
 		return true;
 	}
 
-	int endSquareDisplay = divide_round_negative(
+	int32_t endSquareDisplay = divide_round_negative(
 	    getClip()->loopLength - currentSong->xScroll[NAVIGATION_CLIP] - 1,
 	    currentSong->xZoom[NAVIGATION_CLIP]); // Rounds it well down, so we get the "final square" kinda...
 
 	// If no Sample, just clear display
 	if (!getSample()) {
 
-		for (int y = 0; y < kDisplayHeight; y++) {
+		for (int32_t y = 0; y < kDisplayHeight; y++) {
 			memset(image[y], 0, kDisplayWidth * 3);
 		}
 	}
@@ -132,11 +132,11 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayW
 		uint8_t rgb[3];
 		getClip()->getColour(rgb);
 
-		int visibleWaveformXEnd = endSquareDisplay + 1;
+		int32_t visibleWaveformXEnd = endSquareDisplay + 1;
 		if (endMarkerVisible && blinkOn) {
 			visibleWaveformXEnd--;
 		}
-		int xEnd = getMin(kDisplayWidth, visibleWaveformXEnd);
+		int32_t xEnd = std::min(kDisplayWidth, visibleWaveformXEnd);
 
 		bool success =
 		    waveformRenderer.renderFullScreen(getSample(), xScrollSamples, xZoomSamples, image, &getClip()->renderData,
@@ -151,7 +151,7 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayW
 
 	if (drawUndefinedArea) {
 
-		for (int y = 0; y < kDisplayHeight; y++) {
+		for (int32_t y = 0; y < kDisplayHeight; y++) {
 
 			if (endSquareDisplay < kDisplayWidth) {
 
@@ -163,7 +163,7 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayW
 					}
 				}
 
-				int xDisplay = endSquareDisplay + 1;
+				int32_t xDisplay = endSquareDisplay + 1;
 
 				if (xDisplay >= kDisplayWidth) {
 					continue;
@@ -199,7 +199,7 @@ bool AudioClipView::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWi
 		return true;
 	}
 
-	for (int y = 0; y < kDisplayHeight; y++) {
+	for (int32_t y = 0; y < kDisplayHeight; y++) {
 		memset(image[y][kDisplayWidth], 0, kSideBarWidth * 3);
 	}
 
@@ -215,7 +215,7 @@ void AudioClipView::graphicsRoutine() {
 		return;
 	}
 
-	int newTickSquare;
+	int32_t newTickSquare;
 
 	if (!playbackHandler.playbackState || !currentSong->isClipActive(currentSong->currentClip)
 	    || currentUIMode == UI_MODE_EXPLODE_ANIMATION || playbackHandler.ticksLeftInCountIn) {
@@ -273,23 +273,6 @@ void AudioClipView::needsRenderingDependingOnSubMode() {
 	}
 }
 
-void AudioClipView::transitionToSessionView() {
-
-	if (!getClip() || !getClip()->sampleHolder.audioFile) { // !getClip() probably couldn't happen, but just in case...
-		memcpy(PadLEDs::imageStore, PadLEDs::image, sizeof(PadLEDs::image));
-		sessionView.finishedTransitioningHere();
-	}
-	else {
-		currentUIMode = UI_MODE_AUDIO_CLIP_COLLAPSING;
-		waveformRenderer.collapseAnimationToWhichRow = sessionView.getClipPlaceOnScreen(currentSong->currentClip);
-
-		PadLEDs::setupAudioClipCollapseOrExplodeAnimation(getClip());
-
-		PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
-		PadLEDs::renderAudioClipExpandOrCollapse();
-	}
-}
-
 ActionResult AudioClipView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 	using namespace hid::button;
 
@@ -313,7 +296,7 @@ ActionResult AudioClipView::buttonAction(hid::Button b, bool on, bool inCardRout
 			}
 			else {
 doOther:
-				transitionToSessionView();
+				sessionView.transitionToSessionView();
 			}
 		}
 	}
@@ -397,7 +380,7 @@ deactivateMarkerIfNecessary:
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult AudioClipView::padAction(int x, int y, int on) {
+ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 
 	// Edit pad action...
 	if (x < kDisplayWidth) {
@@ -431,7 +414,7 @@ ActionResult AudioClipView::padAction(int x, int y, int on) {
 
 				AudioClip* clip = getClip();
 
-				int endSquareDisplay = divide_round_negative(
+				int32_t endSquareDisplay = divide_round_negative(
 				    clip->loopLength - currentSong->xScroll[NAVIGATION_CLIP] - 1,
 				    currentSong->xZoom[NAVIGATION_CLIP]); // Rounds it well down, so we get the "final square" kinda...
 
@@ -453,10 +436,10 @@ ActionResult AudioClipView::padAction(int x, int y, int on) {
 						Sample* sample = getSample();
 						if (sample) {
 
-							int oldLength = clip->loopLength;
+							int32_t oldLength = clip->loopLength;
 
 							// Ok, move the marker!
-							int newLength =
+							int32_t newLength =
 							    (x + 1) * currentSong->xZoom[NAVIGATION_CLIP] + currentSong->xScroll[NAVIGATION_CLIP];
 
 							uint64_t oldLengthSamples = clip->sampleHolder.getDurationInSamples(true);
@@ -536,7 +519,7 @@ setTheEndPos:
 								valueToChange = &clip->sampleHolder.endPos;
 							}
 
-							int actionType =
+							int32_t actionType =
 							    (newLength < oldLength) ? ACTION_CLIP_LENGTH_DECREASE : ACTION_CLIP_LENGTH_INCREASE;
 
 							// Change sample end-pos value. Must do this before calling setClipLength(), which will end up reading this value.
@@ -614,7 +597,7 @@ void AudioClipView::selectEncoderAction(int8_t offset) {
 	view.navigateThroughAudioOutputsForAudioClip(offset, getClip());
 }
 
-ActionResult AudioClipView::verticalEncoderAction(int offset, bool inCardRoutine) {
+ActionResult AudioClipView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	if (!currentUIMode && Buttons::isShiftButtonPressed() && !Buttons::isButtonPressed(hid::button::Y_ENC)) {
 		if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
@@ -649,8 +632,8 @@ uint32_t AudioClipView::getMaxLength() {
 	}
 }
 
-unsigned int AudioClipView::getMaxZoom() {
-	int maxZoom = currentSong->currentClip->getMaxZoom();
+uint32_t AudioClipView::getMaxZoom() {
+	int32_t maxZoom = currentSong->currentClip->getMaxZoom();
 	if (endMarkerVisible && maxZoom < 1073741824) {
 		maxZoom <<= 1;
 	}

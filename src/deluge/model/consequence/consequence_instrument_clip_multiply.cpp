@@ -24,7 +24,7 @@ ConsequenceInstrumentClipMultiply::ConsequenceInstrumentClipMultiply() {
 	// TODO Auto-generated constructor stub
 }
 
-int ConsequenceInstrumentClipMultiply::revert(TimeType time, ModelStack* modelStack) {
+int32_t ConsequenceInstrumentClipMultiply::revert(TimeType time, ModelStack* modelStack) {
 	InstrumentClip* clip = (InstrumentClip*)modelStack->song->currentClip;
 	if (time == BEFORE) {
 		modelStack->song->setClipLength(clip, clip->loopLength >> 1, NULL);

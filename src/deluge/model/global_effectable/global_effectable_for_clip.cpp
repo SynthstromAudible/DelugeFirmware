@@ -17,7 +17,6 @@
 
 #include "model/global_effectable/global_effectable_for_clip.h"
 #include "definitions_cxx.hpp"
-#include "dsp/filter/filter_set_config.h"
 #include "gui/views/view.h"
 #include "hid/display/numeric_driver.h"
 #include "hid/matrix/matrix_driver.h"
@@ -51,10 +50,10 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 
 // Beware - unlike usual, modelStack might have a NULL timelineCounter.
 void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelStack, ParamManager* paramManagerForClip,
-                                           StereoSample* outputBuffer, int numSamples, int32_t* reverbBuffer,
+                                           StereoSample* outputBuffer, int32_t numSamples, int32_t* reverbBuffer,
                                            int32_t reverbAmountAdjust, int32_t sideChainHitPending,
                                            bool shouldLimitDelayFeedback, bool isClipActive,
-                                           InstrumentType instrumentType, int analogDelaySaturationAmount) {
+                                           InstrumentType instrumentType, int32_t analogDelaySaturationAmount) {
 
 	UnpatchedParamSet* unpatchedParams = paramManagerForClip->getUnpatchedParamSet();
 
@@ -83,8 +82,7 @@ void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelS
 	DelayWorkingState delayWorkingState;
 	setupDelayWorkingState(&delayWorkingState, paramManagerForClip, shouldLimitDelayFeedback);
 
-	FilterSetConfig filterSetConfig;
-	setupFilterSetConfig(&filterSetConfig, &volumePostFX, paramManagerForClip);
+	setupFilterSetConfig(&volumePostFX, paramManagerForClip);
 
 	int32_t reverbSendAmount = getFinalParameterValueVolume(
 	    reverbAmountAdjust,
@@ -114,11 +112,10 @@ void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelS
 	static StereoSample globalEffectableBuffer[SSI_TX_BUFFER_NUM_SAMPLES] __attribute__((aligned(CACHE_LINE_SIZE)));
 
 	bool canRenderDirectlyIntoSongBuffer =
-	    !isKit() && !filterSetConfig.doLPF && !filterSetConfig.doHPF && !delayWorkingState.doDelay
-	    && (!pan || !AudioEngine::renderInStereo) && !clippingAmount && !hasBassAdjusted(paramManagerForClip)
-	    && !hasTrebleAdjusted(paramManagerForClip) && !reverbSendAmount && !isBitcrushingEnabled(paramManagerForClip)
-	    && !isSRREnabled(paramManagerForClip) && getActiveModFXType(paramManagerForClip) == ModFXType::NONE
-	    && stutterer.status == STUTTERER_STATUS_OFF;
+	    !isKit() && !filterSet.isOn() && !delayWorkingState.doDelay && (!pan || !AudioEngine::renderInStereo)
+	    && !clippingAmount && !hasBassAdjusted(paramManagerForClip) && !hasTrebleAdjusted(paramManagerForClip)
+	    && !reverbSendAmount && !isBitcrushingEnabled(paramManagerForClip) && !isSRREnabled(paramManagerForClip)
+	    && getActiveModFXType(paramManagerForClip) == ModFXType::NONE && stutterer.status == STUTTERER_STATUS_OFF;
 
 	if (canRenderDirectlyIntoSongBuffer) {
 
@@ -171,7 +168,7 @@ doNormal:
 		}
 
 		// Render filters
-		processFilters(globalEffectableBuffer, numSamples, &filterSetConfig);
+		processFilters(globalEffectableBuffer, numSamples);
 
 		// Render FX
 		processSRRAndBitcrushing(globalEffectableBuffer, numSamples, &volumePostFX, paramManagerForClip);
@@ -209,9 +206,9 @@ int32_t GlobalEffectableForClip::getSidechainVolumeAmountAsPatchCableDepth(Param
 	return (sidechainVolumeParam >> 2) + 536870912;
 }
 
-int GlobalEffectableForClip::getParameterFromKnob(int whichModEncoder) {
+int32_t GlobalEffectableForClip::getParameterFromKnob(int32_t whichModEncoder) {
 
-	int modKnobMode = *getModKnobMode();
+	int32_t modKnobMode = *getModKnobMode();
 
 	if (modKnobMode == 4 && whichModEncoder) {
 		return Param::Unpatched::GlobalEffectable::SIDECHAIN_VOLUME;

@@ -25,6 +25,7 @@ class ClipMinder;
 class MIDIDevice;
 
 extern uint32_t currentUIMode;
+extern bool pendingUIRenderingLock;
 
 // Exclusive UI modes - only one of these can be active at a time.
 #define UI_MODE_NONE 0
@@ -82,14 +83,14 @@ class UI {
 public:
 	UI();
 
-	virtual ActionResult padAction(int x, int y, int velocity) { return ActionResult::DEALT_WITH; }
+	virtual ActionResult padAction(int32_t x, int32_t y, int32_t velocity) { return ActionResult::DEALT_WITH; }
 	virtual ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		return ActionResult::NOT_DEALT_WITH;
 	}
-	virtual ActionResult horizontalEncoderAction(int offset) { return ActionResult::DEALT_WITH; }
-	virtual ActionResult verticalEncoderAction(int offset, bool inCardRoutine) { return ActionResult::DEALT_WITH; }
+	virtual ActionResult horizontalEncoderAction(int32_t offset) { return ActionResult::DEALT_WITH; }
+	virtual ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) { return ActionResult::DEALT_WITH; }
 	virtual void selectEncoderAction(int8_t offset) {}
-	virtual void modEncoderAction(int whichModEncoder, int offset);
+	virtual void modEncoderAction(int32_t whichModEncoder, int32_t offset);
 	virtual void modButtonAction(uint8_t whichButton, bool on);
 	virtual void modEncoderButtonAction(uint8_t whichModEncoder, bool on);
 
@@ -104,7 +105,7 @@ public:
 	virtual bool canSeeViewUnderneath() { return false; }
 	virtual ClipMinder* toClipMinder() { return NULL; }
 	virtual void scrollFinished() {}
-	virtual bool noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int channel, int note, int velocity) {
+	virtual bool noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channel, int32_t note, int32_t velocity) {
 		return false;
 	} // Returns whether it was used, I think?
 
@@ -136,7 +137,7 @@ public:
 // UIs
 UI* getCurrentUI();
 RootUI* getRootUI();
-UI* getUIUpOneLevel(int numLevelsUp);
+UI* getUIUpOneLevel(int32_t numLevelsUp);
 static UI* getUIUpOneLevel() {
 	return getUIUpOneLevel(1);
 }
@@ -144,7 +145,7 @@ void closeUI(UI* ui);
 bool openUI(UI* newUI);
 void changeRootUI(UI* newUI);
 bool changeUISideways(UI* newUI);
-bool changeUIAtLevel(UI* newUI, int level);
+bool changeUIAtLevel(UI* newUI, int32_t level);
 bool isUIOpen(UI* ui);
 void setRootUILowLevel(UI* newUI);
 void swapOutRootUILowLevel(UI* newUI);

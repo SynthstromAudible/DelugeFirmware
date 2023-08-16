@@ -21,19 +21,13 @@
 #include "processing/engines/audio_engine.h"
 #include "util/misc.h"
 
-namespace menu_item::monitor {
-class Mode final : public Selection {
+namespace deluge::gui::menu_item::monitor {
+class Mode final : public Selection<kNumInputMonitoringModes> {
 public:
 	using Selection::Selection;
 
-	void readCurrentValue() { soundEditor.currentValue = util::to_underlying(AudioEngine::inputMonitoringMode); }
-	void writeCurrentValue() {
-		AudioEngine::inputMonitoringMode = static_cast<InputMonitoringMode>(soundEditor.currentValue);
-	}
-	char const** getOptions() {
-		static char const* options[] = {"Conditional", "On", "Off", NULL};
-		return options;
-	}
-	int getNumOptions() { return kNumInputMonitoringModes; }
+	void readCurrentValue() override { this->setValue(AudioEngine::inputMonitoringMode); }
+	void writeCurrentValue() override { AudioEngine::inputMonitoringMode = this->getValue<InputMonitoringMode>(); }
+	static_vector<std::string, capacity()> getOptions() override { return {"Conditional", "On", "Off"}; }
 };
-} // namespace menu_item::monitor
+} // namespace deluge::gui::menu_item::monitor

@@ -22,21 +22,15 @@
 #include "processing/sound/sound.h"
 #include "util/misc.h"
 
-namespace menu_item::filter {
-class LPFMode final : public Selection {
+namespace deluge::gui::menu_item::filter {
+class LPFMode final : public Selection<kNumLPFModes> {
 public:
-	LPFMode(char const* newName = NULL) : Selection(newName) {}
-	void readCurrentValue() {
-		soundEditor.currentValue = util::to_underlying(soundEditor.currentModControllable->lpfMode);
+	using Selection::Selection;
+	void readCurrentValue() override { this->setValue<::FilterMode>(soundEditor.currentModControllable->lpfMode); }
+	void writeCurrentValue() override { soundEditor.currentModControllable->lpfMode = this->getValue<::FilterMode>(); }
+	static_vector<std::string, capacity()> getOptions() override { return {"12dB", "24dB", "Drive", "SVF"}; }
+	bool isRelevant(Sound* sound, int32_t whichThing) override {
+		return ((sound == nullptr) || sound->synthMode != ::SynthMode::FM);
 	}
-	void writeCurrentValue() {
-		soundEditor.currentModControllable->lpfMode = static_cast<::LPFMode>(soundEditor.currentValue);
-	}
-	char const** getOptions() {
-		static char const* options[] = {"12dB", "24dB", "Drive", "SVF", NULL};
-		return options;
-	}
-	int getNumOptions() { return kNumLPFModes; }
-	bool isRelevant(Sound* sound, int whichThing) { return (!sound || sound->synthMode != SynthMode::FM); }
 };
-} // namespace menu_item::filter
+} // namespace deluge::gui::menu_item::filter

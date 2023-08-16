@@ -17,25 +17,72 @@
 
 #pragma once
 
-#include "value.h"
+#include "gui/menu_item/enumeration.h"
+#include "gui/menu_item/menu_item.h"
+#include "util/container/static_vector.hpp"
+#include "util/sized.h"
 
-namespace menu_item {
+#include "gui/ui/sound_editor.h"
+#include "hid/display/numeric_driver.h"
+#include "hid/display/oled.h"
 
-class Selection : public Value {
+extern "C" {
+#if HAVE_OLED
+#include "RZA1/oled/oled_low_level.h"
+#endif
+}
+
+namespace deluge::gui::menu_item {
+template <size_t n>
+class Selection : public Enumeration<n> {
 public:
-	Selection(char const* newName = NULL);
-	void beginSession(MenuItem* navigatedBackwardFrom);
-	void selectEncoderAction(int offset);
+	using Enumeration<n>::Enumeration;
 
-	char const** basicOptions;
+	virtual static_vector<std::string, n> getOptions() = 0;
 
-protected:
-	virtual char const** getOptions();
-	virtual int getNumOptions();
-	virtual void drawValue();
+	void drawValue() override;
 
 #if HAVE_OLED
-	void drawPixelsForOled();
+	void drawPixelsForOled() override;
 #endif
+	size_t size() override {
+		return this->getOptions().size();
+	}
+	constexpr static size_t capacity() {
+		return n;
+	}
 };
-} // namespace menu_item
+
+template <size_t n>
+void Selection<n>::drawValue() {
+#if HAVE_OLED
+	renderUIsForOled();
+#else
+	const auto options = getOptions();
+	numericDriver.setText(options[this->getValue()].c_str());
+#endif
+}
+
+#if HAVE_OLED
+
+template <size_t n>
+void Selection<n>::drawPixelsForOled() {
+	// Move scroll
+	if (soundEditor.menuCurrentScroll > this->getValue()) {
+		soundEditor.menuCurrentScroll = this->getValue();
+	}
+	else if (soundEditor.menuCurrentScroll < this->getValue() - kOLEDMenuNumOptionsVisible + 1) {
+		soundEditor.menuCurrentScroll = this->getValue() - kOLEDMenuNumOptionsVisible + 1;
+	}
+
+	const int32_t selectedOption = this->getValue() - soundEditor.menuCurrentScroll;
+
+	deluge::static_vector<std::string_view, n> options;
+	for (auto const& option : getOptions()) {
+		options.push_back(option);
+	}
+	MenuItem::drawItemsForOled(options, selectedOption, soundEditor.menuCurrentScroll);
+}
+#endif
+
+} // namespace deluge::gui::menu_item

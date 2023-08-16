@@ -16,9 +16,15 @@
 */
 
 #include "setting.h"
+#include "gui/menu_item/runtime_feature/setting.h"
 #include "gui/ui/sound_editor.h"
 #include "model/settings/runtime_feature_settings.h"
-namespace menu_item::runtime_feature {
+#include "util/container/static_vector.hpp"
+#include <algorithm>
+#include <iterator>
+#include <ranges>
+
+namespace deluge::gui::menu_item::runtime_feature {
 
 Setting::Setting(RuntimeFeatureSettingType ty) : currentSettingIndex(static_cast<uint32_t>(ty)) {
 }
@@ -27,50 +33,33 @@ void Setting::readCurrentValue() {
 	for (uint32_t idx = 0; idx < RUNTIME_FEATURE_SETTING_MAX_OPTIONS; ++idx) {
 		if (runtimeFeatureSettings.settings[currentSettingIndex].options[idx].value
 		    == runtimeFeatureSettings.settings[currentSettingIndex].value) {
-			soundEditor.currentValue = idx;
+			this->setValue(idx);
 			return;
 		}
 	}
 
-	soundEditor.currentValue = 0;
+	this->setValue(0);
 }
 
 void Setting::writeCurrentValue() {
 	runtimeFeatureSettings.settings[currentSettingIndex].value =
-	    runtimeFeatureSettings.settings[currentSettingIndex].options[soundEditor.currentValue].value;
+	    runtimeFeatureSettings.settings[currentSettingIndex].options[this->getValue()].value;
 }
 
-char const** Setting::getOptions() {
-	static char const* options[RUNTIME_FEATURE_SETTING_MAX_OPTIONS] = {0};
-	uint32_t optionCount = 0;
-	for (uint32_t idx = 0; idx < RUNTIME_FEATURE_SETTING_MAX_OPTIONS; ++idx) {
-		if (runtimeFeatureSettings.settings[currentSettingIndex].options[idx].displayName != NULL) {
-			options[optionCount++] = runtimeFeatureSettings.settings[currentSettingIndex].options[idx].displayName;
-		}
-		else {
-			options[optionCount] = NULL;
-			break;
-		}
+static_vector<std::string, RUNTIME_FEATURE_SETTING_MAX_OPTIONS> Setting::getOptions() {
+	static_vector<std::string, capacity()> options;
+	for (const RuntimeFeatureSettingOption& option : runtimeFeatureSettings.settings[currentSettingIndex].options) {
+		options.push_back(option.displayName);
 	}
-	return (char const**)&options;
+	return options;
 }
 
-int Setting::getNumOptions() {
-	for (uint32_t idx = 0; idx < RUNTIME_FEATURE_SETTING_MAX_OPTIONS; ++idx) {
-		if (runtimeFeatureSettings.settings[currentSettingIndex].options[idx].displayName == NULL) {
-			return idx;
-		}
-	}
-
-	return 0;
-}
-
-char const* Setting::getName() {
+std::string_view Setting::getName() const {
 	return runtimeFeatureSettings.settings[currentSettingIndex].displayName;
 }
 
-char const* Setting::getTitle() {
+std::string_view Setting::getTitle() const {
 	return runtimeFeatureSettings.settings[currentSettingIndex].displayName;
 }
 
-} // namespace menu_item::runtime_feature
+} // namespace deluge::gui::menu_item::runtime_feature

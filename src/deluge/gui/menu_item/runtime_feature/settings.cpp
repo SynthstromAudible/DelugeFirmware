@@ -20,16 +20,15 @@
 
 #include "gui/ui/sound_editor.h"
 #include "hid/display/numeric_driver.h"
-#include "model/settings/runtime_feature_settings.h"
 
 #include <algorithm>
 #include <array>
 #include <cstdio>
 #include <iterator>
 
-extern menu_item::runtime_feature::Setting runtimeFeatureSettingMenuItem;
+extern deluge::gui::menu_item::runtime_feature::Setting runtimeFeatureSettingMenuItem;
 
-namespace menu_item::runtime_feature {
+namespace deluge::gui::menu_item::runtime_feature {
 
 // Generic menu item instances
 Setting menuDrumRandomizer(RuntimeFeatureSettingType::DrumRandomizer);
@@ -39,24 +38,32 @@ Setting menuQuantize(RuntimeFeatureSettingType::Quantize);
 Setting menuPatchCableResolution(RuntimeFeatureSettingType::PatchCableResolution);
 Setting menuCatchNotes(RuntimeFeatureSettingType::CatchNotes);
 Setting menuDeleteUnusedKitRows(RuntimeFeatureSettingType::DeleteUnusedKitRows);
+Setting menuAltGoldenKnobDelayParams(RuntimeFeatureSettingType::AltGoldenKnobDelayParams);
+Setting menuAutomationInterpolate(RuntimeFeatureSettingType::AutomationInterpolate);
+Setting menuAutomationClearClip(RuntimeFeatureSettingType::AutomationClearClip);
+Setting menuAutomationNudgeNote(RuntimeFeatureSettingType::AutomationNudgeNote);
+Setting menuAutomationShiftClip(RuntimeFeatureSettingType::AutomationShiftClip);
 Setting menuHighlightIncomingNotes(RuntimeFeatureSettingType::HighlightIncomingNotes);
 Setting menuDisplayNornsLayout(RuntimeFeatureSettingType::DisplayNornsLayout);
 
-std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement + 1> subMenuEntries{
-    &menuDrumRandomizer,
-    &menuMasterCompressorFx,
-    &menuFineTempo,
-    &menuQuantize,
-    &menuPatchCableResolution,
-    &menuCatchNotes,
-    &menuDeleteUnusedKitRows,
-    &menuHighlightIncomingNotes,
-    &menuDisplayNornsLayout,
-
-    nullptr,
+Submenu subMenuAutomation{
+    HAVE_OLED ? "AUTOMATION" : "AUTO",
+    {
+        &menuAutomationInterpolate,
+        &menuAutomationClearClip,
+        &menuAutomationNudgeNote,
+        &menuAutomationShiftClip,
+    },
 };
 
-Settings::Settings(char const* name) : menu_item::Submenu(name, &subMenuEntries[0]) {
+std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettings> subMenuEntries{
+    &menuDrumRandomizer,       &menuMasterCompressorFx, &menuFineTempo,           &menuQuantize,
+    &menuPatchCableResolution, &menuCatchNotes,         &menuDeleteUnusedKitRows, &menuAltGoldenKnobDelayParams,
+    &subMenuAutomation, &menuHighlightIncomingNotes, &menuDisplayNornsLayout
+};
+
+Settings::Settings(char const* name, char const* title)
+    : menu_item::Submenu<subMenuEntries.size()>(name, title, subMenuEntries) {
 }
 
-} // namespace menu_item::runtime_feature
+} // namespace deluge::gui::menu_item::runtime_feature

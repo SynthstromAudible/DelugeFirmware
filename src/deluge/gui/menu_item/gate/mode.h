@@ -21,30 +21,48 @@
 #include "processing/engines/cv_engine.h"
 #include "util/misc.h"
 
-namespace menu_item::gate {
+namespace deluge::gui::menu_item::gate {
+
+static std::string mode_title = HAVE_OLED ? "Gate outX mode" : "";
+
+class Mode final : public Selection<3> {
 #if HAVE_OLED
-// Why'd I put two NULLs? (Rohan)
-// Gets updated in gate::Selection lol (Kate)
-static char const* mode_options[] = {"V-trig", "S-trig", NULL, NULL};
+	static_vector<std::string, capacity()> options_ = {"V-trig", "S-trig"};
 #else
-static char const* mode_options[] = {"VTRI", "STRI", NULL, NULL};
+	static_vector<std::string, capacity()> options_ = {"VTRI", "STRI"};
 #endif
 
-#if HAVE_OLED
-static char mode_title[] = "Gate outX mode";
-#else
-static char* mode_title = nullptr;
-#endif
-
-class Mode final : public Selection {
 public:
-	Mode() : Selection(mode_title) { basicOptions = mode_options; }
-	void readCurrentValue() {
-		soundEditor.currentValue = util::to_underlying(cvEngine.gateChannels[soundEditor.currentSourceIndex].mode);
+	Mode() : Selection(mode_title) {
 	}
-	void writeCurrentValue() {
-		cvEngine.setGateType(soundEditor.currentSourceIndex, static_cast<GateType>(soundEditor.currentValue));
+	void readCurrentValue() override {
+		this->setValue(cvEngine.gateChannels[soundEditor.currentSourceIndex].mode);
+	}
+	void writeCurrentValue() override {
+		cvEngine.setGateType(soundEditor.currentSourceIndex, this->getValue<GateType>());
+	}
+	static_vector<std::string, capacity()> getOptions() override {
+		return options_;
+	}
+
+	void updateOptions(int32_t value) {
+		switch (value) {
+		case WHICH_GATE_OUTPUT_IS_CLOCK:
+			options_[2] = "Clock";
+			break;
+
+		case WHICH_GATE_OUTPUT_IS_RUN:
+			options_[2] = HAVE_OLED ? "\"Run\" signal" : "Run";
+			break;
+
+		default:
+			// Remove the extra entry if it's present
+			if (options_.size() > 2) {
+				options_.pop_back();
+			}
+			break;
+		}
 	}
 };
 
-} // namespace menu_item::gate
+} // namespace deluge::gui::menu_item::gate

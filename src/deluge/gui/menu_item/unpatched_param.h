@@ -22,23 +22,25 @@
 
 class ModelStackWithAutoParam;
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
 class UnpatchedParam : public Param, public IntegerContinuous, public MenuItemWithCCLearning {
 public:
-	UnpatchedParam();
-	UnpatchedParam(char const* newName, int newP) : Param(newP), IntegerContinuous(newName) {}
+	UnpatchedParam(const std::string& newName, const std::string& title, int32_t newP)
+	    : Param(newP), IntegerContinuous(newName, title) {}
 
-	void readCurrentValue();
-	void writeCurrentValue();
+	UnpatchedParam(const std::string& newName, int32_t newP) : Param(newP), IntegerContinuous(newName) {}
+
+	void readCurrentValue() override;
+	void writeCurrentValue() override;
 	ParamDescriptor getLearningThing() final;
-	int getMaxValue() const { return Param::getMaxValue(); }
-	int getMinValue() const { return Param::getMinValue(); }
+	[[nodiscard]] int32_t getMaxValue() const override { return Param::getMaxValue(); }
+	[[nodiscard]] int32_t getMinValue() const override { return Param::getMinValue(); }
 	MenuItem* selectButtonPress() final { return Param::selectButtonPress(); }
 
 	void unlearnAction() final { MenuItemWithCCLearning::unlearnAction(); }
 	bool allowsLearnMode() final { return MenuItemWithCCLearning::allowsLearnMode(); }
-	void learnKnob(MIDIDevice* fromDevice, int whichKnob, int modKnobMode, int midiChannel) final {
+	void learnKnob(MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) final {
 		MenuItemWithCCLearning::learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel);
 	};
 
@@ -49,4 +51,4 @@ protected:
 	virtual int32_t getFinalValue();
 };
 
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

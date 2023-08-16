@@ -24,8 +24,8 @@ class Cluster;
 class SampleReader final : public AudioFileReader {
 public:
 	SampleReader();
-	int readBytesPassedErrorChecking(char* outputBuffer, int num);
-	int readNewCluster();
+	int32_t readBytesPassedErrorChecking(char* outputBuffer, int32_t num);
+	int32_t readNewCluster();
 
 	Cluster* currentCluster;
 };

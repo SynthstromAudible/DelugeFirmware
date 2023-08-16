@@ -28,7 +28,7 @@ void ClipNavigationTimelineView::focusRegained() {
 	xScrollBeforeFollowingAutoExtendingLinearRecording = -1;
 }
 
-ActionResult ClipNavigationTimelineView::horizontalEncoderAction(int offset) {
+ActionResult ClipNavigationTimelineView::horizontalEncoderAction(int32_t offset) {
 
 	xScrollBeforeFollowingAutoExtendingLinearRecording = -1;
 	return TimelineView::horizontalEncoderAction(offset); // Let parent to scrolling / zooming

@@ -19,13 +19,13 @@
 #include "gui/ui/sound_editor.h"
 #include "modulation/patch/patch_cable_set.h"
 
-namespace menu_item::filter {
+namespace deluge::gui::menu_item::filter {
 class LPFFreq final : public patched_param::IntegerNonFM {
 public:
-	LPFFreq(char const* newName = 0, int newP = 0) : patched_param::IntegerNonFM(newName, newP) {}
+	using patched_param::IntegerNonFM::IntegerNonFM;
 #if !HAVE_OLED
-	void drawValue() {
-		if (soundEditor.currentValue == 50
+	void drawValue() override {
+		if (this->getValue() == 50
 		    && !soundEditor.currentParamManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(
 		        ::Param::Local::LPF_FREQ)) {
 			numericDriver.setText("Off");
@@ -36,4 +36,4 @@ public:
 	}
 #endif
 };
-} // namespace menu_item::filter
+} // namespace deluge::gui::menu_item::filter

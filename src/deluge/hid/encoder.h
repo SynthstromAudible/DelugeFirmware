@@ -18,7 +18,7 @@
 #pragma once
 
 #define encMinBacktrackTime (20 * 44) // In milliseconds/44
-#include "RZA1/system/r_typedefs.h"
+#include <cstdint>
 
 class Encoder {
 public:
@@ -26,8 +26,8 @@ public:
 	void read();
 	void setPins(uint8_t pinA1New, uint8_t pinA2New, uint8_t pinB1New, uint8_t pinB2New);
 	void setNonDetentMode();
-	void interrupt(int which);
-	int getLimitedDetentPosAndReset();
+	void interrupt(int32_t which);
+	int32_t getLimitedDetentPosAndReset();
 	int8_t encPos;    // Keeps track of knob's position relative to centre of closest detent
 	int8_t detentPos; // Number of full detents offset since functions last dealt with
 private:

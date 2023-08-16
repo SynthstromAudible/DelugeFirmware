@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
 #include "definitions_cxx.hpp"
+#include <cstdint>
 
 #define COL_STATUS_INVESTIGATED 1
 #define COL_STATUS_INVESTIGATED_BUT_BEYOND_WAVEFORM 2

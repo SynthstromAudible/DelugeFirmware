@@ -22,32 +22,35 @@
 #include "string.h"
 #include "util/cfunctions.h"
 
-extern void setOscillatorNumberForTitles(int);
+extern void setOscillatorNumberForTitles(int32_t);
 
-namespace menu_item::submenu {
-
-class ActualSource final : public SubmenuReferringToOneThing {
+namespace deluge::gui::menu_item::submenu {
+template <size_t n>
+class ActualSource final : public SubmenuReferringToOneThing<n> {
 public:
-	ActualSource(char const* newName = 0, MenuItem** newItems = 0, int newSourceIndex = 0)
-	    : SubmenuReferringToOneThing(newName, newItems, newSourceIndex) {}
+	using SubmenuReferringToOneThing<n>::SubmenuReferringToOneThing;
 #if HAVE_OLED
 	void beginSession(MenuItem* navigatedBackwardFrom) {
-		setOscillatorNumberForTitles(thingIndex);
-		SubmenuReferringToOneThing::beginSession(navigatedBackwardFrom);
+		setOscillatorNumberForTitles(this->thingIndex);
+		SubmenuReferringToOneThing<n>::beginSession(navigatedBackwardFrom);
 	}
 #else
-	void drawName() {
+	void drawName() override {
 		if (soundEditor.currentSound->getSynthMode() == SynthMode::FM) {
 			char buffer[5];
 			strcpy(buffer, "CAR");
-			intToString(thingIndex + 1, buffer + 3);
+			intToString(this->thingIndex + 1, buffer + 3);
 			numericDriver.setText(buffer);
 		}
 		else {
-			SubmenuReferringToOneThing::drawName();
+			SubmenuReferringToOneThing<n>::drawName();
 		}
 	}
 #endif
 };
 
-} // namespace menu_item::submenu
+// Template deduction guide, will not be required with P2582@C++23
+template <size_t n>
+ActualSource(const std::string&, MenuItem* const (&)[n], int32_t) -> ActualSource<n>;
+
+} // namespace deluge::gui::menu_item::submenu

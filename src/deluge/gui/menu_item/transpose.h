@@ -17,19 +17,30 @@
 #pragma once
 #include "decimal.h"
 #include "definitions_cxx.hpp"
-#include "patched_param.h"
+#include "gui/menu_item/patched_param.h"
 
-namespace menu_item {
+namespace deluge::gui::menu_item {
 
 class Transpose : public Decimal, public PatchedParam {
 public:
-	Transpose(char const* newName = NULL, int newP = 0) : PatchedParam(newP), Decimal(newName) {}
+	Transpose(const std::string& newName, int32_t newP = 0) : Decimal(newName), PatchedParam(newP) {}
+
+	Transpose(const std::string& newName, const std::string& title, int32_t newP = 0)
+	    : Decimal(newName, title), PatchedParam(newP) {}
+
 	MenuItem* selectButtonPress() final { return PatchedParam::selectButtonPress(); }
-	virtual int getMinValue() const final { return -9600; }
-	virtual int getMaxValue() const final { return 9600; }
-	virtual int getNumDecimalPlaces() const final { return 2; }
+	[[nodiscard]] int32_t getMinValue() const final { return -9600; }
+	[[nodiscard]] int32_t getMaxValue() const final { return 9600; }
+	[[nodiscard]] int32_t getNumDecimalPlaces() const final { return 2; }
 	uint8_t getPatchedParamIndex() final { return PatchedParam::getPatchedParamIndex(); }
 	uint8_t shouldDrawDotOnName() final { return PatchedParam::shouldDrawDotOnName(); }
+
+#if !HAVE_OLED
+	void drawValue() override {
+		numericDriver.setTextAsNumber(this->getValue(), shouldDrawDotOnName());
+	}
+#endif
+
 	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) final {
 		return PatchedParam::shouldBlinkPatchingSourceShortcut(s, colour);
 	}
@@ -37,11 +48,15 @@ public:
 		return PatchedParam::patchingSourceShortcutPress(s, previousPressStillActive);
 	}
 
-	void unlearnAction() final { MenuItemWithCCLearning::unlearnAction(); }
-	bool allowsLearnMode() final { return MenuItemWithCCLearning::allowsLearnMode(); }
-	void learnKnob(::MIDIDevice* fromDevice, int whichKnob, int modKnobMode, int midiChannel) final {
+	void unlearnAction() final {
+		MenuItemWithCCLearning::unlearnAction();
+	}
+	bool allowsLearnMode() final {
+		return MenuItemWithCCLearning::allowsLearnMode();
+	}
+	void learnKnob(::MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) final {
 		MenuItemWithCCLearning::learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel);
 	};
 };
 
-} // namespace menu_item
+} // namespace deluge::gui::menu_item

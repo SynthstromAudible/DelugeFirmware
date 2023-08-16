@@ -93,7 +93,7 @@ bool AudioRecorder::opened() {
 		SoundDrum* drum = (SoundDrum*)soundEditor.currentSound;
 		String newName;
 
-		int error = newName.set("REC");
+		int32_t error = newName.set("REC");
 		if (error) {
 gotError:
 			numericDriver.displayError(error);
@@ -111,7 +111,7 @@ gotError:
 	PadLEDs::clearTickSquares(true);
 
 	bool inStereo = (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn);
-	int newNumChannels = inStereo ? 2 : 1;
+	int32_t newNumChannels = inStereo ? 2 : 1;
 	bool success = setupRecordingToFile(inStereo ? AudioInputChannel::STEREO : AudioInputChannel::LEFT, newNumChannels,
 	                                    AudioRecordingFolder::RECORD);
 	if (success) {
@@ -144,7 +144,8 @@ void AudioRecorder::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 }
 #endif
 
-bool AudioRecorder::setupRecordingToFile(AudioInputChannel newMode, int newNumChannels, AudioRecordingFolder folderID) {
+bool AudioRecorder::setupRecordingToFile(AudioInputChannel newMode, int32_t newNumChannels,
+                                         AudioRecordingFolder folderID) {
 
 	if (ALPHA_OR_BETA_VERSION && recordingSource > AudioInputChannel::NONE) {
 		numericDriver.freezeWithError("E242");
@@ -178,7 +179,7 @@ bool AudioRecorder::beginOutputRecording() {
 	return success;
 }
 
-void AudioRecorder::endRecordingSoon(int buttonLatency) {
+void AudioRecorder::endRecordingSoon(int32_t buttonLatency) {
 
 	// Make sure we don't call the same thing multiple times - I think there's a few scenarios where this could happen
 	if (recorder && recorder->status == RECORDER_STATUS_CAPTURING_DATA) {
@@ -210,7 +211,7 @@ void AudioRecorder::process() {
 #if HAVE_OLED
 		oledRoutine();
 #endif
-		uartFlushIfNotSending(UART_ITEM_PIC);
+		PIC::flush();
 
 		readButtonsAndPads();
 

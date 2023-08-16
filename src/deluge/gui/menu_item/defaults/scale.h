@@ -18,15 +18,17 @@
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "storage/flash_storage.h"
+#include "util/container/static_vector.hpp"
 #include "util/lookuptables/lookuptables.h"
 
-namespace menu_item::defaults {
-class Scale final : public Selection {
+namespace deluge::gui::menu_item::defaults {
+class Scale final : public Selection<NUM_PRESET_SCALES + 2> {
 public:
 	using Selection::Selection;
-	void readCurrentValue() { soundEditor.currentValue = FlashStorage::defaultScale; }
-	void writeCurrentValue() { FlashStorage::defaultScale = soundEditor.currentValue; }
-	int getNumOptions() { return NUM_PRESET_SCALES + 2; }
-	char const** getOptions() { return presetScaleNames; }
+	void readCurrentValue() override { this->setValue(FlashStorage::defaultScale); }
+	void writeCurrentValue() override { FlashStorage::defaultScale = this->getValue(); }
+	static_vector<std::string, capacity()> getOptions() override {
+		return {presetScaleNames.begin(), presetScaleNames.begin() + capacity()};
+	}
 };
-} // namespace menu_item::defaults
+} // namespace deluge::gui::menu_item::defaults

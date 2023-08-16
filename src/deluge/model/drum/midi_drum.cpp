@@ -16,6 +16,7 @@
  */
 
 #include "model/drum/midi_drum.h"
+#include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "io/midi/midi_engine.h"
 #include "storage/storage_manager.h"
@@ -32,13 +33,13 @@ MIDIDrum::MIDIDrum() : NonAudioDrum(DrumType::MIDI) {
 }
 
 void MIDIDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, Kit* kit, int16_t const* mpeValues,
-                      int fromMIDIChannel, uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate) {
+                      int32_t fromMIDIChannel, uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate) {
 	lastVelocity = velocity;
 	midiEngine.sendNote(true, note, velocity, channel, kMIDIOutputFilterNoMPE);
 	state = true;
 }
 
-void MIDIDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int velocity) {
+void MIDIDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity) {
 	midiEngine.sendNote(false, note, velocity, channel, kMIDIOutputFilterNoMPE);
 	state = false;
 }
@@ -65,7 +66,7 @@ void MIDIDrum::writeToFile(bool savingSong, ParamManager* paramManager) {
 	}
 }
 
-int MIDIDrum::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
+int32_t MIDIDrum::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 	char const* tagName;
 
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
@@ -84,7 +85,7 @@ int MIDIDrum::readFromFile(Song* song, Clip* clip, int32_t readAutomationUpToPos
 
 void MIDIDrum::getName(char* buffer) {
 
-	int channelToDisplay = channel + 1;
+	int32_t channelToDisplay = channel + 1;
 
 	if (channelToDisplay < 10 && note < 100) {
 		strcpy(buffer, " ");
@@ -115,7 +116,8 @@ int8_t MIDIDrum::modEncoderAction(ModelStackWithThreeMainThings* modelStack, int
 
 	NonAudioDrum::modEncoderAction(modelStack, offset, whichModEncoder);
 
-	if (getCurrentUI() == &instrumentClipView && currentUIMode == UI_MODE_AUDITIONING) {
+	if ((getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationInstrumentClipView)
+	    && currentUIMode == UI_MODE_AUDITIONING) {
 		if (whichModEncoder == 1) {
 			modChange(modelStack, offset, &noteEncoderCurrentOffset, &note, 128);
 		}
@@ -124,17 +126,17 @@ int8_t MIDIDrum::modEncoderAction(ModelStackWithThreeMainThings* modelStack, int
 	return -64;
 }
 
-void MIDIDrum::expressionEvent(int newValue, int whichExpressionDimension) {
+void MIDIDrum::expressionEvent(int32_t newValue, int32_t whichExpressionDimension) {
 
 	// Aftertouch only
 	if (whichExpressionDimension == 2) {
-		int value7 = newValue >> 24;
+		int32_t value7 = newValue >> 24;
 		midiEngine.sendPolyphonicAftertouch(channel, value7, note, kMIDIOutputFilterNoMPE);
 	}
 }
 
-void MIDIDrum::polyphonicExpressionEventOnChannelOrNote(int newValue, int whichExpressionDimension,
-                                                        int channelOrNoteNumber,
+void MIDIDrum::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t whichExpressionDimension,
+                                                        int32_t channelOrNoteNumber,
                                                         MIDICharacteristic whichCharacteristic) {
 	// Because this is a Drum, we disregard the noteCode (which is what channelOrNoteNumber always is in our case - but yeah, that's all irrelevant.
 	expressionEvent(newValue, whichExpressionDimension);

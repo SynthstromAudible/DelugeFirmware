@@ -20,18 +20,18 @@
 #include "gui/ui/sound_editor.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 
-namespace menu_item::delay {
+namespace deluge::gui::menu_item::delay {
 class Sync final : public SyncLevel {
 public:
 	using SyncLevel::SyncLevel;
 
-	void readCurrentValue() {
-		soundEditor.currentValue = syncTypeAndLevelToMenuOption(soundEditor.currentModControllable->delay.syncType,
-		                                                        soundEditor.currentModControllable->delay.syncLevel);
+	void readCurrentValue() override {
+		this->setValue(syncTypeAndLevelToMenuOption(soundEditor.currentModControllable->delay.syncType,
+		                                            soundEditor.currentModControllable->delay.syncLevel));
 	}
-	void writeCurrentValue() {
-		soundEditor.currentModControllable->delay.syncType = menuOptionToSyncType(soundEditor.currentValue);
-		soundEditor.currentModControllable->delay.syncLevel = menuOptionToSyncLevel(soundEditor.currentValue);
+	void writeCurrentValue() override {
+		soundEditor.currentModControllable->delay.syncType = menuOptionToSyncType(this->getValue());
+		soundEditor.currentModControllable->delay.syncLevel = menuOptionToSyncLevel(this->getValue());
 	}
 };
-} // namespace menu_item::delay
+} // namespace deluge::gui::menu_item::delay

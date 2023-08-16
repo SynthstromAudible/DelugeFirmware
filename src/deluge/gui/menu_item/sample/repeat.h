@@ -16,6 +16,8 @@
 */
 #pragma once
 #include "definitions_cxx.hpp"
+#include "gui/menu_item/formatted_title.h"
+#include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/instrument_clip_view.h"
 #include "model/clip/clip.h"
@@ -23,30 +25,34 @@
 #include "model/drum/kit.h"
 #include "model/song/song.h"
 #include "processing/sound/sound_drum.h"
-#include "selection.h"
 #include "util/misc.h"
 
-namespace menu_item::sample {
+namespace deluge::gui::menu_item::sample {
 
-class Repeat final : public Selection {
+class Repeat final : public Selection<kNumRepeatModes>, public FormattedTitle {
 public:
-	Repeat(char const* newName = NULL) : Selection(newName) {}
-	bool usesAffectEntire() { return true; }
-	void readCurrentValue() { soundEditor.currentValue = util::to_underlying(soundEditor.currentSource->repeatMode); }
-	void writeCurrentValue() {
+	Repeat(const std::string& name, const fmt::format_string<int32_t>& title_format_str)
+	    : Selection(name), FormattedTitle(title_format_str) {}
+
+	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
+
+	bool usesAffectEntire() override { return true; }
+	void readCurrentValue() override { this->setValue(soundEditor.currentSource->repeatMode); }
+	void writeCurrentValue() override {
+		auto current_value = this->getValue<SampleRepeatMode>();
 
 		// If affect-entire button held, do whole kit
 		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKit()) {
 
-			Kit* kit = (Kit*)currentSong->currentClip->output;
+			Kit* kit = static_cast<Kit*>(currentSong->currentClip->output);
 
-			for (Drum* thisDrum = kit->firstDrum; thisDrum; thisDrum = thisDrum->next) {
+			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
-					SoundDrum* soundDrum = (SoundDrum*)thisDrum;
+					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
 					Source* source = &soundDrum->sources[soundEditor.currentSourceIndex];
 
 					// Automatically switch pitch/speed independence on / off if stretch-to-note-length mode is selected
-					if (static_cast<SampleRepeatMode>(soundEditor.currentValue) == SampleRepeatMode::STRETCH) {
+					if (current_value == SampleRepeatMode::STRETCH) {
 						soundDrum->unassignAllVoices();
 						source->sampleControls.pitchAndSpeedAreIndependent = true;
 					}
@@ -55,7 +61,7 @@ public:
 						soundEditor.currentSource->sampleControls.pitchAndSpeedAreIndependent = false;
 					}
 
-					source->repeatMode = static_cast<SampleRepeatMode>(soundEditor.currentValue);
+					source->repeatMode = current_value;
 				}
 			}
 		}
@@ -63,7 +69,7 @@ public:
 		// Or, the normal case of just one sound
 		else {
 			// Automatically switch pitch/speed independence on / off if stretch-to-note-length mode is selected
-			if (static_cast<SampleRepeatMode>(soundEditor.currentValue) == SampleRepeatMode::STRETCH) {
+			if (static_cast<SampleRepeatMode>(current_value) == SampleRepeatMode::STRETCH) {
 				soundEditor.currentSound->unassignAllVoices();
 				soundEditor.currentSource->sampleControls.pitchAndSpeedAreIndependent = true;
 			}
@@ -72,17 +78,13 @@ public:
 				soundEditor.currentSource->sampleControls.pitchAndSpeedAreIndependent = false;
 			}
 
-			soundEditor.currentSource->repeatMode = static_cast<SampleRepeatMode>(soundEditor.currentValue);
+			soundEditor.currentSource->repeatMode = current_value;
 		}
 
 		// We need to re-render all rows, because this will have changed whether Note tails are displayed. Probably just one row, but we don't know which
 		uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
 	}
-	char const** getOptions() {
-		static char const* options[] = {"CUT", "ONCE", "LOOP", "STRETCH", NULL};
-		return options;
-	}
-	int getNumOptions() { return kNumRepeatModes; }
+	static_vector<std::string, capacity()> getOptions() override { return {"CUT", "ONCE", "LOOP", "STRETCH"}; }
 };
 
-} // namespace menu_item::sample
+} // namespace deluge::gui::menu_item::sample

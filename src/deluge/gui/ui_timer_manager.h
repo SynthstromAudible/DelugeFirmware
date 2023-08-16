@@ -34,15 +34,16 @@
 #define TIMER_READ_INPUTS 12
 #define TIMER_BATT_LED_BLINK 13
 #define TIMER_GRAPHICS_ROUTINE 14
+#define TIMER_AUTOMATION_VIEW 15
 
 #if HAVE_OLED
-#define TIMER_OLED_LOW_LEVEL 15
-#define TIMER_OLED_CONSOLE 16
-#define TIMER_OLED_SCROLLING_AND_BLINKING 17
-#define NUM_TIMERS 18
+#define TIMER_OLED_LOW_LEVEL 16
+#define TIMER_OLED_CONSOLE 17
+#define TIMER_OLED_SCROLLING_AND_BLINKING 18
+#define NUM_TIMERS 19
 
 #else
-#define NUM_TIMERS 15
+#define NUM_TIMERS 16
 #endif
 
 struct Timer {
@@ -55,12 +56,12 @@ public:
 	UITimerManager();
 
 	void routine();
-	void setTimer(int i, int ms);
-	void setTimerSamples(int i, int samples);
-	void unsetTimer(int i);
+	void setTimer(int32_t i, int32_t ms);
+	void setTimerSamples(int32_t i, int32_t samples);
+	void unsetTimer(int32_t i);
 
-	bool isTimerSet(int i);
-	void setTimerByOtherTimer(int i, int j);
+	bool isTimerSet(int32_t i);
+	void setTimerByOtherTimer(int32_t i, int32_t j);
 
 	Timer timers[NUM_TIMERS];
 

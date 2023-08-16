@@ -20,41 +20,41 @@
 #if HAVE_OLED
 #ifdef __cplusplus
 #include "definitions_cxx.hpp"
+#include <string>
 
 namespace OLED {
 
-void mainPutText(char const* text);
-void drawOnePixel(int x, int y);
+void drawOnePixel(int32_t x, int32_t y);
 void clearMainImage();
-void clearAreaExact(int minX, int minY, int maxX, int maxY, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
+void clearAreaExact(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
 
-void drawRectangle(int minX, int minY, int maxX, int maxY, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
-void drawVerticalLine(int pixelX, int startY, int endY, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
-void drawHorizontalLine(int pixelY, int startX, int endX, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
-void drawString(char const* string, int pixelX, int pixelY, uint8_t* image, int imageWidth, int textWidth,
-                int textHeight, int scrollPos = 0, int endX = OLED_MAIN_WIDTH_PIXELS);
-void drawStringFixedLength(char const* string, int length, int pixelX, int pixelY, uint8_t* image, int imageWidth,
-                           int textWidth, int textHeight);
-void drawStringCentred(char const* string, int pixelY, uint8_t* image, int imageWidth, int textWidth, int textHeight,
-                       int centrePos = (OLED_MAIN_WIDTH_PIXELS >> 1));
-void drawStringCentredShrinkIfNecessary(char const* string, int pixelY, uint8_t* image, int imageWidth, int textWidth,
-                                        int textHeight);
-void drawStringAlignRight(char const* string, int pixelY, uint8_t* image, int imageWidth, int textWidth, int textHeight,
-                          int rightPos = OLED_MAIN_WIDTH_PIXELS);
-void drawChar(uint8_t theChar, int pixelX, int pixelY, uint8_t* image, int imageWidth, int textWidth, int textHeight,
-              int scrollPos = 0, int endX = OLED_MAIN_WIDTH_PIXELS);
-void drawGraphicMultiLine(uint8_t const* graphic, int startX, int startY, int width, uint8_t* image, int height = 8,
-                          int numBytesTall = 1);
-void drawScreenTitle(char const* title);
+void drawRectangle(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
+void drawVerticalLine(int32_t pixelX, int32_t startY, int32_t endY, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
+void drawHorizontalLine(int32_t pixelY, int32_t startX, int32_t endX, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
+void drawString(std::string_view, int32_t pixelX, int32_t pixelY, uint8_t* image, int32_t imageWidth, int32_t textWidth,
+                int32_t textHeight, int32_t scrollPos = 0, int32_t endX = OLED_MAIN_WIDTH_PIXELS);
+void drawStringFixedLength(char const* string, int32_t length, int32_t pixelX, int32_t pixelY, uint8_t* image,
+                           int32_t imageWidth, int32_t textWidth, int32_t textHeight);
+void drawStringCentred(char const* string, int32_t pixelY, uint8_t* image, int32_t imageWidth, int32_t textWidth,
+                       int32_t textHeight, int32_t centrePos = (OLED_MAIN_WIDTH_PIXELS >> 1));
+void drawStringCentredShrinkIfNecessary(char const* string, int32_t pixelY, uint8_t* image, int32_t imageWidth,
+                                        int32_t textWidth, int32_t textHeight);
+void drawStringAlignRight(char const* string, int32_t pixelY, uint8_t* image, int32_t imageWidth, int32_t textWidth,
+                          int32_t textHeight, int32_t rightPos = OLED_MAIN_WIDTH_PIXELS);
+void drawChar(uint8_t theChar, int32_t pixelX, int32_t pixelY, uint8_t* image, int32_t imageWidth, int32_t textWidth,
+              int32_t textHeight, int32_t scrollPos = 0, int32_t endX = OLED_MAIN_WIDTH_PIXELS);
+void drawGraphicMultiLine(uint8_t const* graphic, int32_t startX, int32_t startY, int32_t width, uint8_t* image,
+                          int32_t height = 8, int32_t numBytesTall = 1);
+void drawScreenTitle(std::string_view text);
 
-void setupBlink(int minX, int width, int minY, int maxY, bool shouldBlinkImmediately);
+void setupBlink(int32_t minX, int32_t width, int32_t minY, int32_t maxY, bool shouldBlinkImmediately);
 void stopBlink();
 
-void invertArea(int xMin, int width, int startY, int endY, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
+void invertArea(int32_t xMin, int32_t width, int32_t startY, int32_t endY, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
 
 void sendMainImage();
 
-void setupPopup(int width, int height);
+void setupPopup(int32_t width, int32_t height);
 void removePopup();
 void popupText(char const* text, bool persistent = false);
 bool isPopupPresent();
@@ -64,12 +64,12 @@ void removeWorkingAnimation();
 
 void timerRoutine();
 
-void setupConsole(int width, int height);
+void setupConsole(int32_t width, int32_t height);
 void consoleText(char const* text);
 
 void stopScrollingAnimation();
-void setupSideScroller(int index, char const* text, int startX, int endX, int startY, int endY, int textSpacingX,
-                       int textSizeY, bool doHilight);
+void setupSideScroller(int32_t index, std::string_view text, int32_t startX, int32_t endX, int32_t startY, int32_t endY,
+                       int32_t textSpacingX, int32_t textSizeY, bool doHilight);
 void drawPermanentPopupLookingText(char const* text);
 
 void freezeWithError(char const* text);

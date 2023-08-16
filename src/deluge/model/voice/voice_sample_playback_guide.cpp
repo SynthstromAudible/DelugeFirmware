@@ -31,8 +31,8 @@ void VoiceSamplePlaybackGuide::setupPlaybackBounds(bool reversed) {
 
 	SamplePlaybackGuide::setupPlaybackBounds(reversed);
 
-	int loopStartPlaybackAtSample = 0;
-	int loopEndPlaybackAtSample = 0;
+	int32_t loopStartPlaybackAtSample = 0;
+	int32_t loopEndPlaybackAtSample = 0;
 
 	// Loop points are only obeyed if not in STRETCH mode
 	if (!sequenceSyncLengthTicks) {
@@ -56,7 +56,7 @@ void VoiceSamplePlaybackGuide::setupPlaybackBounds(bool reversed) {
 	loopEndPlaybackAtByte = 0;
 
 	Sample* sample = (Sample*)audioFileHolder->audioFile;
-	int bytesPerSample = sample->numChannels * sample->byteDepth;
+	int32_t bytesPerSample = sample->numChannels * sample->byteDepth;
 
 	if (loopStartPlaybackAtSample) {
 		loopStartPlaybackAtByte = sample->audioDataStartPosBytes + loopStartPlaybackAtSample * bytesPerSample;

@@ -25,7 +25,7 @@ class ParamNodeVector : public OrderedResizeableArrayWith32bitKey {
 public:
 	ParamNodeVector();
 
-	ParamNode* getElement(int index);
+	ParamNode* getElement(int32_t index);
 	ParamNode* getFirst();
 	ParamNode* getLast();
 };

@@ -17,10 +17,10 @@
 
 #pragma once
 
-#include "RZA1/system/r_typedefs.h"
 #include "gui/views/clip_view.h"
 #include "hid/button.h"
 #include "model/clip/clip_minder.h"
+#include <cstdint>
 
 class AudioClipView final : public ClipView, public ClipMinder {
 public:
@@ -33,13 +33,12 @@ public:
 	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 	bool setupScroll(uint32_t oldScroll);
-	void transitionToSessionView();
 	void tellMatrixDriverWhichRowsContainSomethingZoomable();
 	bool supportsTriplets() { return false; }
 	ClipMinder* toClipMinder() { return this; }
 
 	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
-	ActionResult padAction(int x, int y, int velocity);
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
 
 	void graphicsRoutine();
 	void playbackEnded();
@@ -47,10 +46,10 @@ public:
 	void clipNeedsReRendering(Clip* clip);
 	void sampleNeedsReRendering(Sample* sample);
 	void selectEncoderAction(int8_t offset);
-	ActionResult verticalEncoderAction(int offset, bool inCardRoutine);
+	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
 	ActionResult timerCallback();
 	uint32_t getMaxLength();
-	unsigned int getMaxZoom();
+	uint32_t getMaxZoom();
 
 #if HAVE_OLED
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
@@ -58,7 +57,7 @@ public:
 
 private:
 	void needsRenderingDependingOnSubMode();
-	int lastTickSquare;
+	int32_t lastTickSquare;
 	bool mustRedrawTickSquares;
 	bool endMarkerVisible;
 	bool blinkOn;

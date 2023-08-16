@@ -16,28 +16,31 @@
 */
 #pragma once
 #include "definitions_cxx.hpp"
+#include "gui/menu_item/formatted_title.h"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "model/sample/sample_controls.h"
 #include "processing/sound/sound.h"
 #include "util/misc.h"
 
-namespace menu_item::sample {
-class Interpolation final : public Selection {
+namespace deluge::gui::menu_item::sample {
+class Interpolation final : public Selection<kNumInterpolationModes>, public FormattedTitle {
 public:
-	Interpolation(char const* newName = NULL) : Selection(newName) {}
-	void readCurrentValue() {
-		soundEditor.currentValue = util::to_underlying(soundEditor.currentSampleControls->interpolationMode);
+	Interpolation(const std::string& name, const fmt::format_string<int32_t>& title_format_str)
+	    : Selection(name), FormattedTitle(title_format_str) {}
+
+	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
+
+	void readCurrentValue() override { this->setValue(soundEditor.currentSampleControls->interpolationMode); }
+
+	void writeCurrentValue() override {
+		soundEditor.currentSampleControls->interpolationMode = this->getValue<InterpolationMode>();
 	}
-	void writeCurrentValue() {
-		soundEditor.currentSampleControls->interpolationMode = static_cast<InterpolationMode>(soundEditor.currentValue);
-	}
-	char const** getOptions() {
-		static char const* options[] = {"Linear", "Sinc", NULL};
-		return options;
-	}
-	bool isRelevant(Sound* sound, int whichThing) {
-		if (!sound) {
+
+	static_vector<std::string, capacity()> getOptions() override { return {"Linear", "Sinc"}; }
+
+	bool isRelevant(Sound* sound, int32_t whichThing) override {
+		if (sound == nullptr) {
 			return true;
 		}
 		Source* source = &sound->sources[whichThing];
@@ -47,4 +50,4 @@ public:
 		            || source->oscType == OscType::INPUT_STEREO));
 	}
 };
-} // namespace menu_item::sample
+} // namespace deluge::gui::menu_item::sample
