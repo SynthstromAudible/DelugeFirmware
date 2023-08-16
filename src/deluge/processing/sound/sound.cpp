@@ -171,10 +171,10 @@ void Sound::initParams(ParamManager* paramManager) {
 	patchedParams->params[Param::Global::VOLUME_POST_FX].setCurrentValueBasicForSetup(
 	    getParamFromUserValue(Param::Global::VOLUME_POST_FX, 40));
 	patchedParams->params[Param::Global::VOLUME_POST_REVERB_SEND].setCurrentValueBasicForSetup(0);
+	patchedParams->params[Param::Local::FOLD].setCurrentValueBasicForSetup(-2147483648);
 	patchedParams->params[Param::Local::HPF_RESONANCE].setCurrentValueBasicForSetup(-2147483648);
 	patchedParams->params[Param::Local::HPF_FREQ].setCurrentValueBasicForSetup(-2147483648);
 	patchedParams->params[Param::Local::HPF_MORPH].setCurrentValueBasicForSetup(2147483648);
-	patchedParams->params[Param::Local::FOLD].setCurrentValueBasicForSetup(-2147483648);
 	patchedParams->params[Param::Local::LPF_MORPH].setCurrentValueBasicForSetup(-2147483648);
 	patchedParams->params[Param::Local::PITCH_ADJUST].setCurrentValueBasicForSetup(0);
 	patchedParams->params[Param::Global::REVERB_AMOUNT].setCurrentValueBasicForSetup(-2147483648);
