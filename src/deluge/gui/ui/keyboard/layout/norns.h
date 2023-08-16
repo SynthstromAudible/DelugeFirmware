@@ -19,7 +19,7 @@
 
 #include "gui/ui/keyboard/layout.h"
 
-namespace keyboard::layout {
+namespace deluge::gui::ui::keyboard::layout {
 
 constexpr int kMinNornsRowInterval = 1;
 constexpr int kMaxNornsRowInterval = 16;
@@ -36,7 +36,7 @@ public:
 
 	virtual void renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]);
 
-	virtual char* name() { return "Norns"; }
+	virtual char const* name() { return "Norns"; }
 	virtual bool supportsInstrument() { return true; }
 	virtual bool supportsKit() { return false; }
 

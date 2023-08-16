@@ -57,10 +57,17 @@ Submenu subMenuAutomation{
 };
 
 std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettings> subMenuEntries{
-    &menuDrumRandomizer,       &menuMasterCompressorFx, &menuFineTempo,           &menuQuantize,
-    &menuPatchCableResolution, &menuCatchNotes,         &menuDeleteUnusedKitRows, &menuAltGoldenKnobDelayParams,
-    &subMenuAutomation, &menuHighlightIncomingNotes, &menuDisplayNornsLayout
-};
+    &menuDrumRandomizer,
+    &menuMasterCompressorFx,
+    &menuFineTempo,
+    &menuQuantize,
+    &menuPatchCableResolution,
+    &menuCatchNotes,
+    &menuDeleteUnusedKitRows,
+    &menuAltGoldenKnobDelayParams,
+    &subMenuAutomation,
+    &menuHighlightIncomingNotes,
+    &menuDisplayNornsLayout};
 
 Settings::Settings(char const* name, char const* title)
     : menu_item::Submenu<subMenuEntries.size()>(name, title, subMenuEntries) {

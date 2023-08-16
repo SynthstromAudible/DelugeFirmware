@@ -114,8 +114,8 @@ void KeyboardLayoutIsomorphic::renderPads(uint8_t image[][kDisplayWidth + kSideB
 			// If highlighting notes is active, do it
 			else if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::HighlightIncomingNotes)
 			             == RuntimeFeatureStateToggle::On
-			         && getHighlightedNotes()[note] != 0) {
-				colorCopy(image[y][x], noteColours[normalizedPadOffset], getHighlightedNotes()[note], 1);
+			         && getHighlightedNotes()[noteCode] != 0) {
+				colorCopy(image[y][x], noteColours[normalizedPadOffset], getHighlightedNotes()[noteCode], 1);
 			}
 
 			// Or, if this note is just within the current scale, show it dim
@@ -135,7 +135,7 @@ void KeyboardLayoutIsomorphic::renderPads(uint8_t image[][kDisplayWidth + kSideB
 				}
 			}
 
-			++note;
+			++noteCode;
 			++normalizedPadOffset;
 			noteWithinOctave = (noteWithinOctave + 1) % kOctaveSize;
 		}

@@ -25,7 +25,7 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "util/functions.h"
 
-namespace keyboard::layout {
+namespace deluge::gui::ui::keyboard::layout {
 
 void KeyboardLayoutNorns::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
 	uint8_t noteIdx = 0;

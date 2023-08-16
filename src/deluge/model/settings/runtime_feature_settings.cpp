@@ -103,7 +103,6 @@ void RuntimeFeatureSettings::init() {
 	// DisplayNornsLayout
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DisplayNornsLayout], "Display Norns layout",
 	                  "displayNornsLayout", RuntimeFeatureStateToggle::Off);
-
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {

@@ -39,10 +39,6 @@ inline Instrument* currentInstrument() {
 	return (Instrument*)currentSong->currentClip->output;
 }
 
-struct PressedPad : Cartesian {
-	bool active;
-};
-
 enum class RequiredScaleMode : uint8_t {
 	Undefined = 0,
 	Disabled = 1,

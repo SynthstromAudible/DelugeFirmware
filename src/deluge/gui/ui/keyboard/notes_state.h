@@ -25,9 +25,7 @@ constexpr uint8_t kMaxNumActiveNotes = 10;
 
 namespace deluge::gui::ui::keyboard {
 
-struct PressedPad {
-	uint8_t x;
-	uint8_t y;
+struct PressedPad : Cartesian {
 	bool active;
 };
 
