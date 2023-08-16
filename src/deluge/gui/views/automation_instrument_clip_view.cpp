@@ -1107,8 +1107,7 @@ doOther:
 			}
 			else {
 				interpolation = RuntimeFeatureStateToggle::Off;
-				interpolationBefore = false;
-				interpolationAfter = false;
+				initInterpolation();
 
 				numericDriver.displayPopup(HAVE_OLED ? "Interpolation Off" : "OFF");
 			}
@@ -2140,8 +2139,7 @@ void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int
 					int32_t newKnobPos = calculateKnobPosForModEncoderTurn(knobPos, offset);
 
 					//use default interpolation settings
-					automationInstrumentClipView.interpolationBefore = false;
-					automationInstrumentClipView.interpolationAfter = false;
+					initInterpolation();
 
 					setParameterAutomationValue(modelStackWithParam, newKnobPos, squareStart,
 						xDisplay, effectiveLength);
@@ -2181,8 +2179,7 @@ void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int
 					    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
 
 					//use default interpolation settings
-					automationInstrumentClipView.interpolationBefore = false;
-					automationInstrumentClipView.interpolationAfter = false;
+					initInterpolation();
 
 					modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam,
 					                                                          view.modPos, view.modLength);
@@ -2597,6 +2594,13 @@ void AutomationInstrumentClipView::initPadSelection() {
 
 }
 
+void AutomationInstrumentClipView::initInterpolation() {
+
+	automationInstrumentClipView.interpolationBefore = false;
+	automationInstrumentClipView.interpolationAfter = false;
+
+}
+
 //get's the modelstack for the parameters that are being edited
 //the model stack differs for SYNTH's, KIT's, MIDI clip's
 ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(ModelStackWithTimelineCounter* modelStack,
@@ -2854,8 +2858,7 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 			if (squareStart < effectiveLength) {
 
 				//use default interpolation settings
-				automationInstrumentClipView.interpolationBefore = false;
-				automationInstrumentClipView.interpolationAfter = false;
+				initInterpolation();
 
 				int32_t newKnobPos = calculateKnobPosForSinglePadPress(yDisplay);
 				setParameterAutomationValue(modelStackWithParam, newKnobPos, squareStart, xDisplay, effectiveLength);
@@ -2904,6 +2907,7 @@ void AutomationInstrumentClipView::handleMultiPadPress(ModelStackWithTimelineCou
 			int32_t firstPadValue = 0;
 			int32_t secondPadValue = 0;
 
+			//if we're updating the long press values via mod encoder action, then get current values of pads pressed and re-interpolate
 			if (modEncoderAction) {
 
 				firstPadValue = getParameterKnobPos(modelStackWithParam, getPosFromSquare(firstPadX)) + kKnobPosOffset;
@@ -2911,6 +2915,7 @@ void AutomationInstrumentClipView::handleMultiPadPress(ModelStackWithTimelineCou
 
 			}
 
+			//otherwise if it's a regular long press, calculate values from the y position of the pads pressed
 			else {
 
 				firstPadValue = calculateKnobPosForSinglePadPress(firstPadY) + kKnobPosOffset;
@@ -2935,15 +2940,14 @@ void AutomationInstrumentClipView::handleMultiPadPress(ModelStackWithTimelineCou
 			float secondPadValueFloat = static_cast<float> (secondPadValue);
 			float secondPadXFloat = static_cast<float> (secondPadX);
 
-			automationInstrumentClipView.interpolationBefore = false;
-			automationInstrumentClipView.interpolationAfter = false;
-
 			int32_t inc = firstPadX > secondPadX ? -1 : 1;
 			int32_t loopLength = firstPadX > secondPadX ? (firstPadX - secondPadX) : (secondPadX - firstPadX);
 
 			for (int32_t x = 0; x <= loopLength; x++) {
 
-				/*if (automationInstrumentClipView.interpolation) {
+				int32_t loopXDisplay = firstPadX + (x * inc);
+
+				if (automationInstrumentClipView.interpolation) {
 
 					//these bool's are used in auto param when the homogenizeregion function is called
 					//it enables interpolation which causes the values to be smooth'd at the node level
@@ -2951,23 +2955,19 @@ void AutomationInstrumentClipView::handleMultiPadPress(ModelStackWithTimelineCou
 					automationInstrumentClipView.interpolationAfter = true;
 
 					//for the first pad, disable interpolation before
-					if (x == firstPadX) {
+					if (loopXDisplay == leftPadSelectedX) {
 						automationInstrumentClipView.interpolationBefore = false;
 					}
 					//for the second pad, disable interpolation after
-					else if (x == secondPadX) {
+					else if (loopXDisplay == rightPadSelectedX) {
 						automationInstrumentClipView.interpolationAfter = false;
 					}
 				}
 				//if interpolation flag is off, disable these flags as well so homogenize region is reset to default
 				else {
-					automationInstrumentClipView.interpolationBefore = false;
-					automationInstrumentClipView.interpolationAfter = false;
-				}*/
+					initInterpolation();
+				}
 
-				int32_t loopXDisplay = firstPadX + (x * inc);
-
-				uint32_t squareStart = getPosFromSquare(loopXDisplay);
 				int32_t newKnobPos = 0;
 
 				if (loopXDisplay == firstPadX) {
@@ -2984,13 +2984,13 @@ void AutomationInstrumentClipView::handleMultiPadPress(ModelStackWithTimelineCou
 					newKnobPos = static_cast<int32_t> (newKnobPosFloat);
 				}
 
+				uint32_t squareStart = getPosFromSquare(loopXDisplay);
 				setParameterAutomationValue(modelStackWithParam, newKnobPos - kKnobPosOffset, squareStart, loopXDisplay, effectiveLength, false);
 
 			}
 
 			//reset interpolation settings to off
-			automationInstrumentClipView.interpolationBefore = false;
-			automationInstrumentClipView.interpolationAfter = false;
+			initInterpolation();
 
 			//render the multi pad press
 			uiNeedsRendering(this);

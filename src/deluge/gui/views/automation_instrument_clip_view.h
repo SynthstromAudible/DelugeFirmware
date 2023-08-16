@@ -146,6 +146,7 @@ private:
 	//Automation Lanes Functions
 	void initParameterSelection();
 	void initPadSelection();
+	void initInterpolation();
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip,
 	                                                int32_t paramID = 0xFFFFFFFF,
 	                                                Param::Kind paramKind = Param::Kind::NONE);
