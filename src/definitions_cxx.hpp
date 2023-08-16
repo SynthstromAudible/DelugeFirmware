@@ -368,7 +368,7 @@ constexpr int32_t kNumNonGlobalEffectableParamsForAutomation = 51;
 constexpr int32_t kNumGlobalEffectableParamsForAutomation = 12;
 constexpr int32_t kLastMidiCCForAutomation = 121;
 constexpr int32_t kKnobPosOffset = 64;
-constexpr int32_t kMaxKnobPos = 127;
+constexpr int32_t kMaxKnobPos = 128;
 constexpr int32_t kParamValueIncrementForAutomationSinglePadPress = 18;
 constexpr int32_t kParamValueIncrementForAutomationDisplay = 16;
 //

@@ -148,8 +148,11 @@ private:
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip,
 	                                                int32_t paramID = 0xFFFFFFFF,
 	                                                Param::Kind paramKind = Param::Kind::NONE);
+
+	int32_t getParameterKnobPos(ModelStackWithAutoParam* modelStack, uint32_t pos);
+
 	void setParameterAutomationValue(ModelStackWithAutoParam* modelStack, int32_t knobPos, int32_t squareStart,
-	                                 int32_t xDisplay, int32_t effectiveLength);
+	                                 int32_t xDisplay, int32_t effectiveLength, bool displayValue = true);
 
 	void handleSinglePadPress(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, int32_t xDisplay,
 	                          int32_t yDisplay, bool shortcutPress = false);
@@ -157,8 +160,6 @@ private:
 
 	void handleMultiPadPress(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, int32_t firstPadX,
 	                         int32_t firstPadY, int32_t secondPadX, int32_t secondPadY);
-	int32_t calculateKnobPosForMultiPadPress(int32_t xDisplay, int32_t firstPadX, int32_t firstPadValue,
-	                                         int32_t secondPadX, int32_t secondPadValue);
 
 	int32_t calculateKnobPosForModEncoderTurn(int32_t knobPos, int32_t offset);
 	bool isOnParameterGridMenuView();
@@ -168,6 +169,10 @@ private:
 
 	bool encoderAction;
 	bool shortcutBlinking;
+
+	int32_t multiPadPressEnded;
+	int32_t multiPadPressLeftX;
+	int32_t multiPadPressRightX;
 };
 
 extern AutomationInstrumentClipView automationInstrumentClipView;

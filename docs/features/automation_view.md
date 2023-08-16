@@ -139,9 +139,9 @@ The Automation Editor **will:**
 - display on the screen what parameter you are currently editing and its automation status (for 7seg it will only display on the screen for Midi clips)
 - enable you to use either of the Mod Encoders (gold knobs) to quickly change the parameter value of the parameter in focus. The knobs automatically map to the selected parameter and you can use either knob (eliminating the guess work about which knob to turn).
 - enable you to quickly change parameters in focus for editing by turning select or using shift + shortcut pad
-- enable you to view the current parameter value setting for the 41 parameters that are currently automatable.
-- illuminate each pad row according to the current value within the range of 0-127. E.g. bottom pad = 0-16, then 17-32, 33-48, 49-64, 65-80, 81-96, 97-112, 113-127) 
-- edit new or existing parameter automations on a per step basis, at any zoom level across the entire timeline. Each row in a step column corresponds to a range of values in the parameter value range (0-127) (see above). If you press the bottom row, the value will be set to 0. if you press the top row, the value will be set to 127. Pressing the rows in between increments/decrements the value by 18 (e.g. 0, 18, 36, 54, 72, 90, 108, 127). 
+- enable you to view the current parameter value setting for the parameters that are currently automatable.
+- illuminate each pad row according to the current value within the range of 0-128. E.g. bottom pad = 0-16, then 17-32, 33-48, 49-64, 65-80, 81-96, 97-112, 113-128) 
+- edit new or existing parameter automations on a per step basis, at any zoom level across the entire timeline. Each row in a step column corresponds to a range of values in the parameter value range (0-128) (see above). If you press the bottom row, the value will be set to 0. if you press the top row, the value will be set to 128. Pressing the rows in between increments/decrements the value by 18 (e.g. 0, 18, 36, 54, 72, 90, 108, 128). 
 
 > **Note 1:** as with the current instrument clip view, if you enter/modify automations at a lower zoom level (e.g. between steps), the higher zoom level will let you know you've done so by blurring the pad colour at the higher zoom level).
 
@@ -151,7 +151,7 @@ The Automation Editor **will:**
 
 - enable you to enter long multi-step automations by pressing and holding one pad and then pressing a second pad
 
-> **Note 1:** to enter long multi-step automations across multiple grid pages you will need to zoom out as both pads pressed must be visible on the grid). Values in between steps are linearly calculated based on the value corresponding to the pads pressed. For example: you could program a sweep up from value 0 to value 127 by pressing and holding on pad 0,0 and then pressing on pad 15,8).
+> **Note 1:** to enter long multi-step automations across multiple grid pages you will need to zoom out as both pads pressed must be visible on the grid). Values in between steps are linearly calculated based on the value corresponding to the pads pressed. For example: you could program a sweep up from value 0 to value 128 by pressing and holding on pad 0,0 and then pressing on pad 15,8).
 
 > **Note 2:** with interpolation turned off, the values between pads will sound like they are changing in a step fashion.  to smooth out these values, turn interpolation on before entering your long multi-step automation. By playing with the interpolating setting you could create hybrid parameter changes that sound smooth and stepped.
 
@@ -159,7 +159,7 @@ The Automation Editor **will:**
 
 - enable you to fine tune the parameter automation values set by pressing and holding on a pad (or multiple pads) in a grid column and turning either of the Mod Encoders (Gold Knobs) (the value will increase/decrease relative to the current parameter value corresponding to the pad(s) you are holding). 
 
-> **Note 1:** the existing master FX section is disabled in the automation editor and can only be accessed if you go back to the Automation Overview, Instrument Clip View, or open the keyboard screen. When you turn either of Mod Encoders (Gold Knobs) it will display the parameter value between 0 and 127 on the screen of the current parameter being edited (not the parameter selected in the master FX section). Pressing on the Mod Encoders (Gold Knobs) still works and allows you to adjust different settings (such as reverb room size, LPF type, delay type, sidechain speed, etc.)
+> **Note 1:** the existing master FX section is disabled in the automation editor and can only be accessed if you go back to the Automation Overview, Instrument Clip View, or open the keyboard screen. When you turn either of Mod Encoders (Gold Knobs) it will display the parameter value between 0 and 128 on the screen of the current parameter being edited (not the parameter selected in the master FX section). Pressing on the Mod Encoders (Gold Knobs) still works and allows you to adjust different settings (such as reverb room size, LPF type, delay type, sidechain speed, etc.)
 
 > **Note 2:** If the parameter selected in the master fx section matches the parameter that is currently being edited, then the parameter led value indicators will increase/decrease as you turn the Mod Encoders (Gold Knobs) or adjust the parameter on the grid. 
 
@@ -290,9 +290,9 @@ In the Automation Instrument Clip View, functionality is provided to shift autom
 
 5. Switch to Automation Instrument Clip View
 
-6. Enter the Automation Editor for a Parameter, e.g. LPF Cutoff is a good one
+6. Enter the Automation Editor for a Parameter, e.g. LPF Frequency is a good one
 
-7. Now start drumming on the LPF Cutoff Automation Lanes and see how much fun you can have adjusting automation with all your fingers at once
+7. Now start drumming on the LPF Frequency Automation Lanes and see how much fun you can have adjusting automation with all your fingers at once
 
 ## Editing Automations with your left hand and playing the piano roll with your right hand
 
@@ -318,8 +318,6 @@ Also, similar to the Keyboard screen which uses the variable "onKeyboardScreen" 
 
 # De-scoped Items (Future Release)
 
-- Add missing automatable parameters to kit affect entire
-- Interpolation bug from left to right that doesn't exist from right to left
 - Improving interpolation (I want to get more granular, do the calculation at the lowest possible node)
 - Adjust multi pad press so that it renders the second pad's value at the last possible node (within that pad)
 - How can you refine the values that the multi pad press uses? (e.g. refine first pad value with gold knob, connect it to the second pad's refined value)
