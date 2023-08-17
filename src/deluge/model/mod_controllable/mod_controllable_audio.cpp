@@ -1772,24 +1772,29 @@ void ModControllableAudio::switchLPFMode() {
 		displayText = "DRIVE LPF";
 		break;
 
-	case FilterMode::SVF:
-		displayText = "SVF";
+	case FilterMode::SVF_BAND:
+		displayText = "SV_BAND";
+		break;
+	case FilterMode::SVF_NOTCH:
+		displayText = "SV_NOTCH";
 		break;
 	}
 	display->displayPopup(displayText);
 }
 void ModControllableAudio::switchHPFMode() {
 	//this works fine, the offset to the first hpf doesn't matter with the modulus
-	hpfMode = static_cast<FilterMode>((util::to_underlying(hpfMode) + 1) % kNumHPFModes + kNumLPFModes);
+	hpfMode = static_cast<FilterMode>((util::to_underlying(hpfMode) + 1) % kNumHPFModes + kFirstHPFMode);
 
 	char const* displayText;
 	switch (hpfMode) {
 	case FilterMode::HPLADDER:
 		displayText = "Ladder";
 		break;
-
-	case FilterMode::HPSVF:
-		displayText = "SVF";
+	case FilterMode::SVF_BAND:
+		displayText = "SV_BAND";
+		break;
+	case FilterMode::SVF_NOTCH:
+		displayText = "SV_NOTCH";
 		break;
 	}
 	display->displayPopup(displayText);

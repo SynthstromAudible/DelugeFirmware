@@ -21,6 +21,8 @@
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/arranger_view.h"
+#include "gui/views/automation_instrument_clip_view.h"
+#include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
@@ -41,6 +43,7 @@
 #include "model/model_stack.h"
 #include "model/note/note.h"
 #include "model/note/note_row.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
@@ -90,6 +93,16 @@ InstrumentClip::InstrumentClip(Song* song) : Clip(CLIP_TYPE_INSTRUMENT) {
 	inScaleMode = (FlashStorage::defaultScale != PRESET_SCALE_NONE);
 	onKeyboardScreen = false;
 
+	//initialize automation instrument clip view variables
+	onAutomationInstrumentClipView = false;
+	lastSelectedParamID = kNoLastSelectedParamID;
+	lastSelectedParamKind = Param::Kind::NONE;
+	lastSelectedParamShortcutX = kNoLastSelectedParamShortcutX;
+	lastSelectedParamShortcutY = kNoLastSelectedParamShortcutY;
+	lastSelectedParamArrayPosition = 0;
+	lastSelectedInstrumentType = InstrumentType::NONE;
+	//end initialize of automation instrument clip view variables
+
 	if (song) {
 		int32_t yNote = ((uint16_t)(song->rootNote + 120) % 12) + 60;
 		if (yNote > 66) {
@@ -133,6 +146,7 @@ void InstrumentClip::copyBasicsFrom(Clip* otherClip) {
 	midiPGM = otherInstrumentClip->midiPGM;
 
 	onKeyboardScreen = otherInstrumentClip->onKeyboardScreen;
+	onAutomationInstrumentClipView = otherInstrumentClip->onAutomationInstrumentClipView;
 	inScaleMode = otherInstrumentClip->inScaleMode;
 	wrapEditing = otherInstrumentClip->wrapEditing;
 	wrapEditLevel = otherInstrumentClip->wrapEditLevel;
@@ -2167,6 +2181,17 @@ void InstrumentClip::writeDataToFile(Song* song) {
 	if (onKeyboardScreen) {
 		storageManager.writeAttribute("onKeyboardScreen", (char*)"1");
 	}
+	if (onAutomationInstrumentClipView) {
+		storageManager.writeAttribute("onAutomationInstrumentClipView", (char*)"1");
+	}
+	if (lastSelectedParamID != kNoLastSelectedParamID) {
+		storageManager.writeAttribute("lastSelectedParamID", lastSelectedParamID);
+		storageManager.writeAttribute("lastSelectedParamKind", util::to_underlying(lastSelectedParamKind));
+		storageManager.writeAttribute("lastSelectedParamShortcutX", lastSelectedParamShortcutX);
+		storageManager.writeAttribute("lastSelectedParamShortcutY", lastSelectedParamShortcutY);
+		storageManager.writeAttribute("lastSelectedParamArrayPosition", lastSelectedParamArrayPosition);
+		storageManager.writeAttribute("lastSelectedInstrumentType", util::to_underlying(lastSelectedInstrumentType));
+	}
 	if (wrapEditing) {
 		storageManager.writeAttribute("crossScreenEditLevel", wrapEditLevel);
 	}
@@ -2409,6 +2434,34 @@ someError:
 
 		else if (!strcmp(tagName, "onKeyboardScreen")) {
 			onKeyboardScreen = storageManager.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "onAutomationInstrumentClipView")) {
+			onAutomationInstrumentClipView = storageManager.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "lastSelectedParamID")) {
+			lastSelectedParamID = storageManager.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "lastSelectedParamKind")) {
+			lastSelectedParamKind = static_cast<Param::Kind>(storageManager.readTagOrAttributeValueInt());
+		}
+
+		else if (!strcmp(tagName, "lastSelectedParamShortcutX")) {
+			lastSelectedParamShortcutX = storageManager.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "lastSelectedParamShortcutY")) {
+			lastSelectedParamShortcutY = storageManager.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "lastSelectedParamArrayPosition")) {
+			lastSelectedParamArrayPosition = storageManager.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "lastSelectedInstrumentType")) {
+			lastSelectedInstrumentType = static_cast<InstrumentType>(storageManager.readTagOrAttributeValueInt());
 		}
 
 		else if (!strcmp(tagName, "affectEntire")) {
@@ -3212,9 +3265,45 @@ NoteRow* InstrumentClip::getNoteRowFromId(int32_t id) {
 
 bool InstrumentClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int32_t amount) {
 
+	//New community feature as part of Automation Clip View Implementation
+	//If this is enabled, then when you are in a regular Instrument Clip View (Synth, Kit, MIDI, CV), shifting a clip
+	//will only shift the Notes and MPE data (NON MPE automations remain intact).
+
+	//If this is enabled, if you want to shift NON MPE automations, you will enter Automation Clip View and shift the clip there.
+
+	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+	    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
+
 	if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
-		paramManager.shiftHorizontally(
-		    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager), amount, loopLength);
+		ParamCollectionSummary* summary = paramManager.summaries;
+
+		int32_t i = 0;
+
+		while (summary->paramCollection) {
+
+			ModelStackWithParamCollection* modelStackWithParamCollection =
+			    modelStackWithThreeMainThings->addParamCollection(summary->paramCollection, summary);
+
+			// Special case for MPE only - not even "mono" / Clip-level expression.
+			if (i == paramManager.getExpressionParamSetOffset()) {
+				if (getCurrentUI()
+				    != &automationInstrumentClipView) { //don't shift MPE if you're in the automation view
+					((ExpressionParamSet*)summary->paramCollection)
+					    ->shiftHorizontally(modelStackWithParamCollection, amount, loopLength);
+				}
+			}
+
+			//Normal case
+			else {
+				//this never gets called from Automation View because in the Automation View we shift specific parameters not all parameters
+				if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationShiftClip)
+				    == RuntimeFeatureStateToggle::Off) {
+					summary->paramCollection->shiftHorizontally(modelStackWithParamCollection, amount, loopLength);
+				}
+			}
+			summary++;
+			i++;
+		}
 	}
 
 	for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
@@ -3267,6 +3356,7 @@ void InstrumentClip::sendMIDIPGM() {
 }
 
 void InstrumentClip::clear(Action* action, ModelStackWithTimelineCounter* modelStack) {
+	//this clears automations when "affectEntire" is enabled
 	Clip::clear(action, modelStack);
 
 	for (int32_t i = 0; i < noteRows.getNumElements(); i++) {

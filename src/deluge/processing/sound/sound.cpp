@@ -172,9 +172,10 @@ void Sound::initParams(ParamManager* paramManager) {
 	patchedParams->params[Param::Global::VOLUME_POST_FX].setCurrentValueBasicForSetup(
 	    getParamFromUserValue(Param::Global::VOLUME_POST_FX, 40));
 	patchedParams->params[Param::Global::VOLUME_POST_REVERB_SEND].setCurrentValueBasicForSetup(0);
+	patchedParams->params[Param::Local::FOLD].setCurrentValueBasicForSetup(-2147483648);
 	patchedParams->params[Param::Local::HPF_RESONANCE].setCurrentValueBasicForSetup(-2147483648);
 	patchedParams->params[Param::Local::HPF_FREQ].setCurrentValueBasicForSetup(-2147483648);
-	patchedParams->params[Param::Local::HPF_MORPH].setCurrentValueBasicForSetup(2147483648);
+	patchedParams->params[Param::Local::HPF_MORPH].setCurrentValueBasicForSetup(-2147483648);
 	patchedParams->params[Param::Local::LPF_MORPH].setCurrentValueBasicForSetup(-2147483648);
 	patchedParams->params[Param::Local::PITCH_ADJUST].setCurrentValueBasicForSetup(0);
 	patchedParams->params[Param::Global::REVERB_AMOUNT].setCurrentValueBasicForSetup(-2147483648);
@@ -1150,6 +1151,11 @@ int32_t Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* par
 		Sound::readParamsFromFile(paramManager, readAutomationUpToPos);
 		storageManager.exitTag("defaultParams");
 	}
+	else if (!strcmp(tagName, "waveFold")) {
+		ENSURE_PARAM_MANAGER_EXISTS
+		patchedParams->readParam(patchedParamsSummary, Param::Local::FOLD, readAutomationUpToPos);
+		storageManager.exitTag("waveFold");
+	}
 
 	else {
 		int32_t result = ModControllableAudio::readTagFromFile(tagName, paramManager, readAutomationUpToPos, song);
@@ -2106,14 +2112,17 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 
 		// Setup filters
 		bool thisHasFilters = hasFilters();
+		q31_t lpfMorph = getSmoothedPatchedParamValue(Param::Local::LPF_MORPH, paramManager);
+		q31_t lpfFreq = getSmoothedPatchedParamValue(Param::Local::LPF_FREQ, paramManager);
+		q31_t hpfMorph = getSmoothedPatchedParamValue(Param::Local::HPF_MORPH, paramManager);
+		q31_t hpfFreq = getSmoothedPatchedParamValue(Param::Local::HPF_FREQ, paramManager);
 		bool doLPF = (thisHasFilters
 		              && (lpfMode == FilterMode::TRANSISTOR_24DB_DRIVE
 		                  || paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(Param::Local::LPF_FREQ)
-		                  || getSmoothedPatchedParamValue(Param::Local::LPF_FREQ, paramManager) < 2147483602));
+		                  || (lpfFreq < 2147483602) || (lpfMorph > -2147483648)));
 		bool doHPF = (thisHasFilters
 		              && (paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(Param::Local::HPF_FREQ)
-		                  || getSmoothedPatchedParamValue(Param::Local::HPF_FREQ, paramManager) != -2147483648));
-
+		                  || (hpfFreq != -2147483648) || (hpfMorph > -2147483648)));
 		// Each voice will potentially alter the "sources changed" flags, so store a backup to restore between each voice
 		/*
 		bool backedUpSourcesChanged[FIRST_UNCHANGEABLE_SOURCE - Local::FIRST_SOURCE];
@@ -3457,6 +3466,10 @@ bool Sound::readParamTagFromFile(char const* tagName, ParamManagerForTimeline* p
 		patchedParams->readParam(patchedParamsSummary, Param::Local::HPF_MORPH, readAutomationUpToPos);
 		storageManager.exitTag("hpfMorph");
 	}
+	else if (!strcmp(tagName, "waveFold")) {
+		patchedParams->readParam(patchedParamsSummary, Param::Local::FOLD, readAutomationUpToPos);
+		storageManager.exitTag("waveFold");
+	}
 
 	else if (!strcmp(tagName, "envelope1")) {
 		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
@@ -3608,7 +3621,7 @@ void Sound::writeParamsToFile(ParamManager* paramManager, bool writeAutomation) 
 
 	patchedParams->writeParamAsAttribute("volume", Param::Global::VOLUME_POST_FX, writeAutomation);
 	patchedParams->writeParamAsAttribute("pan", Param::Local::PAN, writeAutomation);
-
+	patchedParams->writeParamAsAttribute("waveFold", Param::Local::FOLD, writeAutomation);
 	// Filters
 	patchedParams->writeParamAsAttribute("lpfFrequency", Param::Local::LPF_FREQ, writeAutomation);
 	patchedParams->writeParamAsAttribute("lpfResonance", Param::Local::LPF_RESONANCE, writeAutomation);
@@ -4328,6 +4341,9 @@ char const* Sound::paramToString(uint8_t param) {
 
 	case Param::Local::CARRIER_1_FEEDBACK:
 		return "carrier2Feedback";
+
+	case Param::Local::FOLD:
+		return "waveFold";
 
 		// Unpatched params just for Sounds
 

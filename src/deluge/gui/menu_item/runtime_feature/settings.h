@@ -23,13 +23,14 @@
 
 namespace deluge::gui::menu_item::runtime_feature {
 
-class Settings final : public Submenu<RuntimeFeatureSettingType::MaxElement> {
+/// Some runtime feature settings are squirrled away in submenus.
+constexpr size_t kNonTopLevelSettings = 3;
+
+class Settings final : public Submenu<RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettings> {
 public:
 	Settings(l10n::String name, l10n::String title);
 
 private:
 };
-
-extern Settings runtimeFeatureSettingsMenu;
 
 } // namespace deluge::gui::menu_item::runtime_feature

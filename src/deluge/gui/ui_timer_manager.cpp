@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
+#include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -74,7 +75,7 @@ void UITimerManager::routine() {
 					break;
 
 				case TIMER_DEFAULT_ROOT_NOTE:
-					if (getCurrentUI() == &instrumentClipView) {
+					if (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationInstrumentClipView) {
 						instrumentClipView.flashDefaultRootNote();
 					}
 					else if (getCurrentUI() == &keyboardScreen) {
@@ -125,7 +126,16 @@ void UITimerManager::routine() {
 				}
 
 				case TIMER_DISPLAY_AUTOMATION:
-					view.displayAutomation();
+					if (getCurrentUI() == &automationInstrumentClipView
+					    && (((InstrumentClip*)currentSong->currentClip)->lastSelectedParamID
+					        != kNoLastSelectedParamID)) {
+
+						automationInstrumentClipView.displayAutomation();
+					}
+
+					else {
+						view.displayAutomation();
+					}
 					break;
 
 				case TIMER_READ_INPUTS:
@@ -141,6 +151,17 @@ void UITimerManager::routine() {
 						getCurrentUI()->graphicsRoutine();
 					}
 					setTimer(TIMER_GRAPHICS_ROUTINE, 15);
+					break;
+
+				case TIMER_AUTOMATION_VIEW: //timer to redisplay the parameter name on the screen in automation view
+					if (getCurrentUI() == &automationInstrumentClipView
+					    && (((InstrumentClip*)currentSong->currentClip)->lastSelectedParamID
+					        != kNoLastSelectedParamID)) {
+
+						automationInstrumentClipView.displayParameterName(
+						    ((InstrumentClip*)currentSong->currentClip)->lastSelectedParamID);
+						unsetTimer(TIMER_AUTOMATION_VIEW);
+					}
 					break;
 
 				case TIMER_OLED_LOW_LEVEL:

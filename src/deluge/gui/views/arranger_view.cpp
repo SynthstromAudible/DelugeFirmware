@@ -16,20 +16,6 @@
 */
 
 #include "gui/views/arranger_view.h"
-#include "gui/views/instrument_clip_view.h"
-#include "gui/views/session_view.h"
-#include "model/clip/clip_instance.h"
-#include "model/clip/instrument_clip.h"
-#include "model/clip/instrument_clip_minder.h"
-#include "model/consequence/consequence_clip_existence.h"
-#include "model/consequence/consequence_clip_instance_change.h"
-#include "modulation/params/param_manager.h"
-#include "processing/engines/audio_engine.h"
-#include "processing/sound/sound_drum.h"
-#include "storage/audio/audio_file_manager.h"
-#include "util/d_string.h"
-#include <cstdint>
-
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/colour.h"
@@ -41,6 +27,9 @@
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/audio_clip_view.h"
+#include "gui/views/automation_instrument_clip_view.h"
+#include "gui/views/instrument_clip_view.h"
+#include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "gui/waveform/waveform_renderer.h"
 #include "hid/buttons.h"
@@ -55,7 +44,12 @@
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
+#include "model/clip/clip_instance.h"
+#include "model/clip/instrument_clip.h"
+#include "model/clip/instrument_clip_minder.h"
 #include "model/consequence/consequence_arranger_params_time_inserted.h"
+#include "model/consequence/consequence_clip_existence.h"
+#include "model/consequence/consequence_clip_instance_change.h"
 #include "model/drum/drum.h"
 #include "model/drum/kit.h"
 #include "model/instrument/instrument.h"
@@ -64,13 +58,19 @@
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
+#include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
 #include "processing/audio_output.h"
+#include "processing/engines/audio_engine.h"
+#include "processing/sound/sound_drum.h"
+#include "storage/audio/audio_file_manager.h"
 #include "storage/file_item.h"
 #include "storage/storage_manager.h"
+#include "util/d_string.h"
 #include "util/functions.h"
+#include <cstdint>
 #include <new>
 
 extern "C" {
@@ -1691,6 +1691,14 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 			memset(PadLEDs::occupancyMaskStore[kDisplayHeight + 1], 0, kDisplayWidth + kSideBarWidth);
 		}
 
+		// If going to automationInstrumentClipView...
+		else if (((InstrumentClip*)clip)->onAutomationInstrumentClipView) {
+			instrumentClipView.recalculateColours();
+			automationInstrumentClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1],
+			                                            &PadLEDs::occupancyMaskStore[1], false);
+			instrumentClipView.fillOffScreenImageStores();
+		}
+
 		// Or if just regular old InstrumentClipView
 		else {
 			instrumentClipView.recalculateColours();
@@ -1760,7 +1768,7 @@ bool ArrangerView::transitionToArrangementEditor() {
 
 	memcpy(PadLEDs::imageStore[1], PadLEDs::image, (kDisplayWidth + kSideBarWidth) * kDisplayHeight * 3);
 	memcpy(PadLEDs::occupancyMaskStore[1], PadLEDs::occupancyMask, (kDisplayWidth + kSideBarWidth) * kDisplayHeight);
-	if (getCurrentUI() == &instrumentClipView) {
+	if (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationInstrumentClipView) {
 		instrumentClipView.fillOffScreenImageStores();
 	}
 
@@ -1823,7 +1831,7 @@ bool ArrangerView::transitionToArrangementEditor() {
 	PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
 	PadLEDs::explodeAnimationDirection = -1;
 
-	if (getCurrentUI() == &instrumentClipView) {
+	if (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationInstrumentClipView) {
 		PadLEDs::clearSideBar();
 	}
 

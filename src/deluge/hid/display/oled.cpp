@@ -970,18 +970,18 @@ struct SideScroller {
 
 SideScroller sideScrollers[NUM_SIDE_SCROLLERS];
 
-void OLED::setupSideScroller(int32_t index, char const* text, int32_t startX, int32_t endX, int32_t startY,
+void OLED::setupSideScroller(int32_t index, std::string_view text, int32_t startX, int32_t endX, int32_t startY,
                              int32_t endY, int32_t textSpacingX, int32_t textSizeY, bool doHilight) {
 
 	SideScroller* scroller = &sideScrollers[index];
-	scroller->textLength = strlen(text);
+	scroller->textLength = text.size();
 	scroller->stringLengthPixels = scroller->textLength * textSpacingX;
 	scroller->boxLengthPixels = endX - startX;
 	if (scroller->stringLengthPixels <= scroller->boxLengthPixels) {
 		return;
 	}
 
-	scroller->text = text;
+	scroller->text = text.data();
 	scroller->pos = 0;
 	scroller->startX = startX;
 	scroller->endX = endX;

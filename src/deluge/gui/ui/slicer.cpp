@@ -492,7 +492,7 @@ void Slicer::preview(int64_t startPoint, int64_t endPoint, int32_t transpose, in
 		modelStackWithAutoParam->autoParam->setCurrentValueWithNoReversionOrRecording(
 		    modelStackWithAutoParam, getParamFromUserValue(Param::Local::ENV_0_ATTACK, 1));
 	}
-	instrumentClipView.sendAuditionNote(on, 0);
+	instrumentClipView.sendAuditionNote(on, 0, 64, 0);
 }
 
 ActionResult Slicer::padAction(int32_t x, int32_t y, int32_t on) {

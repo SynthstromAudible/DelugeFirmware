@@ -30,3 +30,8 @@ if(ENABLE_RTT)
     )
     target_link_libraries(deluge PUBLIC RTT)
 endif(ENABLE_RTT)
+
+if(ENABLE_SYSEX_LOAD)
+  message(STATUS "Sysex firmware loading enabled for deluge")
+    target_compile_definitions(deluge INTERFACE ENABLE_SYSEX_LOAD=1)
+endif(ENABLE_SYSEX_LOAD)

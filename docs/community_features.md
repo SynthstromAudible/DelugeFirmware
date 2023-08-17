@@ -37,6 +37,9 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 #### Filters
  - ([#103]) adds a new filter in the low-pass slot, a state-variable filter. This filter has significantly less distortion than the ladder filters, think sequential vs. moog. Cutoff and resonance ranges are subject to change with further testing.
 
+#### Unison stereo spread
+-- ([#223]) The unison parts can be spread accross the stereo field. Press SELECT in the unison NUMBER menu to access the new unison spread parameter.
+
 ## New behaviors
 
 ### Song view
@@ -50,7 +53,7 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 	 - By quickly clicking (and releasing) populated pads you can change the arm state
 		 - If "Shift" is held at the same time the clip will launch immediately
 		 - If "Record" is held at the same time you can change recording status
-		 - If horizontal encoder <> is held at the same time you can change solo state 
+		 - If horizontal encoder <> is held at the same time you can change solo state
 	 - By holding a populated pad you can see the track, change the parameters and convert it to other instruments similar to rows layout
 	 - Hold an existing pad and press on another pad in the same, other or empty row to copy clips. If possible the content will be converted to the target track type
 	 - To delete a clip hold the pad and press the "Save/Delete" button
@@ -80,20 +83,26 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 
 #### Kit Clip View
  - ([#122]) Pressing "AUDITION + RANDOM" on a drum kit row will load a random sample from the same folder as the currently enabled sample and load it as the sound for that row. Currently limited to 25 files for performance reasons. This feature can be toggled in the [runtime features menu](#runtime-features).
-  - ([#234]) While you can delete a kit row by holding a Note in a row and pressing SAVE/DELETE, the "Delete Unused Kit Rows" feature allows you to batch delete kit rows which does not contain any notes, freeing kits from unused sounds (which take some precious RAM). While inside a kit, hold "KIT" and press "Shift + SAVE/DELETE". A confirmation message will appear: "Deleted unused rows". This command is not executed if there are no notes at all in the kit. This feature can be toggled in the [runtime features menu](#runtime-features).
+ - ([#234]) While you can delete a kit row by holding a Note in a row and pressing SAVE/DELETE, the "Delete Unused Kit Rows" feature allows you to batch delete kit rows which does not contain any notes, freeing kits from unused sounds (which take some precious RAM). While inside a kit, hold "KIT" and press "Shift + SAVE/DELETE". A confirmation message will appear: "Deleted unused rows". This command is not executed if there are no notes at all in the kit. This feature can be toggled in the [runtime features menu](#runtime-features).
 
 #### Kit Keyboard View
  - ([#112]) All-new use for the "keyboard" button in kit clips, uses the main pad grid for MPC-style 16 level playing. Horizonatal encoder scrolls by one pad at a time, allowing positioning drums left to right, and vertical encoder jumps vertically by rows.
 
 #### Instrument & Kit Clip View
-  - ([#129]) Quantize & Humanize
-    - Press and hold a note in clip view and turn the tempo knob right or left to apply quantize or humanize respectively to that row.
-    - Press and hold a note and press and turn the tempo knob to apply quantize or humanize to all rows.
-    - The amount of quantization/humanization is shown in the display.
-    - This feature can be toggled in the [runtime features menu](#runtime-features).
+ - ([#129]) Quantize & Humanize
+	- Press and hold a note in clip view and turn the tempo knob right or left to apply quantize or humanize respectively to that row.
+	- Press and hold a note and press and turn the tempo knob to apply quantize or humanize to all rows.
+	- The amount of quantization/humanization is shown in the display.
+	- This feature can be toggled in the [runtime features menu](#runtime-features).
 
 #### Audio Clip View
  - ([#141]) Holding the vertical encoder down while turning the horizontal encoder will shift the clip along the underlying audio file, similar to the same interface for instrument clips.
+
+#### Sample Waveform View
+ - ([#293]) When a sample has loop start and loop end points set, holding down loop start and tapping loop end will lock the loop points together. Moving one will move the other, keeping them the same distance apart. Use the same process to unlock the loop points. Use SHIFT+TURN<> to double or half the loop length.
+
+#### Sound Editor
+  - ([#157]) Add a "Mod Matrix" entry to the sound editor menu which shows a list of all currently active modulations.
 
 #### Takeover Mode
 
@@ -103,13 +112,23 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 
 	2. Pickup: The deluge will ignore changes to its internal Knob position/Parameter value until the Midi Knob/Fader's position is equal to the Deluge Knob position. After which the Midi Knob/Fader will move in sync with the Deluge.
 
-	3. Scale: The deluge will increase/decrease its internal Knob position/Parameter value relative to the change of the Midi Knob/Fader position and the amount of "runway" remaining on the Midi controller. Once the Midi controller reaches its maximum or minimum position, the Midi Knob/Fader will move in sync with the Deluge. The Deluge will value will always decrease/increase in the same direction as the Midi controller.
+	3. Scale: The deluge will increase/decrease its internal Knob position/Parameter value relative to the change of the Midi Knob/Fader position and the amount of "runway" remaining on the Midi controller. Once the Midi controller reaches its maximum or minimum position, the Midi Knob/Fader will move in sync with the Deluge. The Deluge value will always decrease/increase in the same direction as the Midi controller.
 
 #### Catch Notes
  - ([#221]) The normal behavior of the Deluge is to try to keep up with 'in progress' notes when instant switching between clips by playing them late. However this leads to glitches with drum clips and other percussive sounds. Changing this setting to OFF will prevent this behavior and *not* try to keep up with those notes, leading to smoother instant switching between clips.
 
 #### Alternative Delay Params for golden knobs
  - ([#282]) Ability to select, using a Community Features Menu, which parameters are controlled when you click the Delay-related golden knobs. The default (for upper and lower knobs) is PingPong On/Off and Type (Digital/Analog), and you can modify it so the knob clicks change the Sync Type (Even, Triplets, Even) and SyncLevel (Off, Whole, 2nd, 4th...) respectively.
+
+#### Automation Instrument Clip View
+ - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Automation View Documentation]
+ - ([#241]) Automation Instrument Clip View is a new view that complements the existing Instrument Clip View.
+	- It is accessed from within the Clip View by pressing the Clip button (which will blink to indicate you are in the Automation View).
+	- You can edit Non-MPE Parameter Automation for Synth, Kit and Midi instrument clips on a per step basis at any zoom level.
+	- A community features sub-menu titled Automation was created to access a number of configurable settings for changes to existing behaviour.
+	- The three changes to existing behaviour included in this feature are: Clearing Clips, Nudging Notes and Shifting a Clip Horizontally.
+ - Follow-up PR's: 
+	- ([#347]) Add new automatable parameters
 
 <h1 id="runtime-features">Runtime settings aka Community Features Menu</h1>
 
@@ -131,11 +150,35 @@ In the main menu of the deluge (Shift + Pressing selection knob) there is an ent
 	Enable or disables the Delete Unused Kit Rows shortcut (hold KIT then SHIFT+SAVE/DELETE).
 * Alternative Golden Knob Delay Params
 	When On, changes the behaviour of the click action, from the default (PingPong and Type) to the alternative params (SyncType and SyncLevel).
+* Automation (AUTO)
+	* Interpolation
+		* When On, Interpolation is on by default in the Automation Instrument Clip View.
+		* Note: This is just a default setting and can be overriden in the Automation Instrument Clip View using the Select encoder button.
+	* Clear Clip
+		* When On, clearing a clip in the regular Instrument Clip View will clear Notes and MPE, but not Automation.
+		* When On, to clear Non-MPE Automation you will need to enter the Automation Instrument Clip View.
+	* Nudge Note
+		* When On, nudging a note in the regular Instrument Clip View will nudge the Note and MPE, but not the Automation.
+		* When On, to nudge Non-MPE Automation, you will need to either Shift or Manually Edit the automation in the Automation Instrument Clip View.
+	* Shift Note
+		* When On, shifting notes horizontally in the regular Instrument Clip View will shift the Notes and MPE, but not the Automation.
+		* When On, to shift Non-MPE Automation horizontally you will need to enter the Automation Instrument Clip View.
 
+### Sysex Handling
+
+Support for sending and receiving large sysex messages has been added. Initially, this has been used for development centric features.
+
+- ([#192] and [#174]) Send the contents of the screen to a computer. This allows 7SEG behavior to be evaluated on OLED hardware and vice versa
+- ([#215]) Forward debug messages. This can be used as an alternative to RTT for print-style debugging.
+- ([#295]) Load firmware over USB. As this could be a security risk, it must be enabled in community feature settings
 
 ## Compiletime settings
 
 This list includes all preprocessor switches that can alter firmware behaviour at compile time and thus require a different firmware
+
+* ENABLE_SYSEX_LOAD
+
+    Allow loading firmware over sysex as described above
 
 * FEATURE_...
 
@@ -157,5 +200,9 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#170]: https://github.com/SynthstromAudible/DelugeFirmware/pull/170
 [#221]: https://github.com/SynthstromAudible/DelugeFirmware/pull/221
 [#234]: https://github.com/SynthstromAudible/DelugeFirmware/pull/234
+[#241]: https://github.com/SynthstromAudible/DelugeFirmware/pull/241
 [#251]: https://github.com/SynthstromAudible/DelugeFirmware/pull/251
 [#282]: https://github.com/SynthstromAudible/DelugeFirmware/pull/282
+[#293]: https://github.com/SynthstromAudible/DelugeFirmware/pull/293
+[#347]: https://github.com/SynthstromAudible/DelugeFirmware/pull/347
+[Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/automation_view.md

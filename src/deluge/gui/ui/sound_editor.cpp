@@ -14,6 +14,7 @@
 #include "gui/ui/save/save_instrument_preset_ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/audio_clip_view.h"
+#include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
@@ -148,7 +149,7 @@ bool SoundEditor::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
 	if (getRootUI() == &keyboardScreen) {
 		return false;
 	}
-	else if (getRootUI() == &instrumentClipView) {
+	else if (getRootUI() == &automationInstrumentClipView || getRootUI() == &instrumentClipView) {
 		*cols = 0xFFFFFFFE;
 	}
 	else {
@@ -320,7 +321,8 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 	}
 
 	// Affect-entire button
-	else if (b == AFFECT_ENTIRE && getRootUI() == &instrumentClipView) {
+	else if (b == AFFECT_ENTIRE
+	         && (getRootUI() == &instrumentClipView || getRootUI() == &automationInstrumentClipView)) {
 		if (getCurrentMenuItem()->usesAffectEntire() && editingKit()) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -351,10 +353,23 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 			}
 
 			if (getRootUI() == &keyboardScreen) {
-				swapOutRootUILowLevel(&instrumentClipView);
-				instrumentClipView.openedInBackground();
+
+				if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+					swapOutRootUILowLevel(&automationInstrumentClipView);
+					automationInstrumentClipView.openedInBackground();
+				}
+
+				else {
+					swapOutRootUILowLevel(&instrumentClipView);
+					instrumentClipView.openedInBackground();
+				}
 			}
 			else if (getRootUI() == &instrumentClipView) {
+				swapOutRootUILowLevel(&keyboardScreen);
+				keyboardScreen.openedInBackground();
+			}
+
+			else if (getRootUI() == &automationInstrumentClipView) {
 				swapOutRootUILowLevel(&keyboardScreen);
 				keyboardScreen.openedInBackground();
 			}
@@ -405,6 +420,37 @@ void SoundEditor::exitCompletely() {
 	display->setNextTransitionDirection(-1);
 	close();
 	possibleChangeToCurrentRangeDisplay();
+
+	// a bit ad-hoc but the current memory allocator
+	// is not happy with these strings being around
+	patchCablesMenu.options.clear();
+}
+
+bool SoundEditor::findPatchedParam(int32_t paramLookingFor, int32_t* xout, int32_t* yout) {
+	for (int32_t x = 0; x < 15; x++) {
+		for (int32_t y = 0; y < kDisplayHeight; y++) {
+			if (paramShortcutsForSounds[x][y] && paramShortcutsForSounds[x][y] != comingSoonMenu
+			    && ((MenuItem*)paramShortcutsForSounds[x][y])->getPatchedParamIndex() == paramLookingFor) {
+
+				*xout = x;
+				*yout = y;
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+void SoundEditor::updateSourceBlinks(MenuItem* currentItem) {
+	for (int32_t x = 0; x < 2; x++) {
+		for (int32_t y = 0; y < kDisplayHeight; y++) {
+			PatchSource source = modSourceShortcuts[x][y];
+			if (source < kLastPatchSource) {
+				sourceShortcutBlinkFrequencies[x][y] =
+				    currentItem->shouldBlinkPatchingSourceShortcut(source, &sourceShortcutBlinkColours[x][y]);
+			}
+		}
+	}
 }
 
 bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
@@ -495,19 +541,9 @@ doSetupBlinkingForAudioClip:
 
 				int32_t paramLookingFor = currentItem->getIndexOfPatchedParamToBlink();
 				if (paramLookingFor != 255) {
-					for (int32_t x = 0; x < 15; x++) {
-						for (int32_t y = 0; y < kDisplayHeight; y++) {
-							if (paramShortcutsForSounds[x][y] && paramShortcutsForSounds[x][y] != comingSoonMenu
-							    && ((MenuItem*)paramShortcutsForSounds[x][y])->getPatchedParamIndex()
-							           == paramLookingFor) {
-
-								if (currentParamShorcutX != 255 && (x & 1) && currentSourceIndex == 0) {
-									goto stopThat;
-								}
-
-								setupShortcutBlink(x, y, 3);
-							}
-						}
+					int32_t x, y;
+					if (findPatchedParam(paramLookingFor, &x, &y)) {
+						setupShortcutBlink(x, y, 3);
 					}
 				}
 			}
@@ -515,15 +551,7 @@ doSetupBlinkingForAudioClip:
 stopThat : {}
 
 			if (currentParamShorcutX != 255) {
-				for (int32_t x = 0; x < 2; x++) {
-					for (int32_t y = 0; y < kDisplayHeight; y++) {
-						PatchSource source = modSourceShortcuts[x][y];
-						if (source < kLastPatchSource) {
-							sourceShortcutBlinkFrequencies[x][y] = currentItem->shouldBlinkPatchingSourceShortcut(
-							    source, &sourceShortcutBlinkColours[x][y]);
-						}
-					}
-				}
+				updateSourceBlinks(currentItem);
 			}
 		}
 
@@ -554,6 +582,7 @@ shortcutsPicked:
 
 void SoundEditor::possibleChangeToCurrentRangeDisplay() {
 	uiNeedsRendering(&instrumentClipView, 0, 0xFFFFFFFF);
+	uiNeedsRendering(&automationInstrumentClipView, 0, 0xFFFFFFFF);
 	uiNeedsRendering(&keyboardScreen, 0xFFFFFFFF, 0);
 }
 
@@ -653,6 +682,11 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 	if (currentModControllable) {
 		view.setKnobIndicatorLevels(); // Is this really necessary every time?
 	}
+}
+
+// TIMER_UI_SPECIFIC is only set by a menu item
+ActionResult SoundEditor::timerCallback() {
+	return getCurrentMenuItem()->timerCallback();
 }
 
 void SoundEditor::markInstrumentAsEdited() {
@@ -863,6 +897,13 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 		}
 	}
 
+	else if (getRootUI() == &automationInstrumentClipView) {
+		if (x == kDisplayWidth + 1) {
+			automationInstrumentClipView.padAction(x, y, on);
+			return ActionResult::DEALT_WITH;
+		}
+	}
+
 	// Otherwise...
 	if (currentUIMode == UI_MODE_NONE && on) {
 
@@ -882,6 +923,10 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 		// Otherwise, exit.
 		else {
 			exitCompletely();
+
+			if (getRootUI() == &automationInstrumentClipView) {
+				automationInstrumentClipView.setDisplayParameterNameTimer();
+			}
 		}
 	}
 
@@ -1044,7 +1089,13 @@ doMIDIOrCV:
 			}
 		}
 		else {
-			newItem = &settingsRootMenu;
+			if (getCurrentUI() == &automationInstrumentClipView) {
+				numericDriver.cancelPopup();
+				newItem = &deluge::gui::menu_item::runtime_feature::subMenuAutomation;
+			}
+			else {
+				newItem = &settingsRootMenu;
+			}
 		}
 	}
 

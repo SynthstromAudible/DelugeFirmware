@@ -42,7 +42,7 @@ class MIDIDevice;
 class LearnedMIDI;
 class Kit;
 
-// A view is where the user can interact with the pads - song view, Clip view, and keyboard view.
+// A view is where the user can interact with the pads - song view, Clip view, automation view and keyboard view.
 // (Is that still a good description? This class is a bit of a mishmash of poorly organised code, sorry.)
 
 class View {

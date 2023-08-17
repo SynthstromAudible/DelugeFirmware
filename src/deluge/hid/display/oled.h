@@ -82,7 +82,7 @@ public:
 	static void drawConsoleTopLine();
 
 	static void stopScrollingAnimation();
-	static void setupSideScroller(int32_t index, char const* text, int32_t startX, int32_t endX, int32_t startY,
+	static void setupSideScroller(int32_t index, std::string_view text, int32_t startX, int32_t endX, int32_t startY,
 	                              int32_t endY, int32_t textSpacingX, int32_t textSizeY, bool doHilight);
 	static void drawPermanentPopupLookingText(char const* text);
 

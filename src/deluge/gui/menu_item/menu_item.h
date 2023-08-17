@@ -86,6 +86,8 @@ public:
 	virtual bool isRangeDependent() { return false; }
 	virtual bool usesAffectEntire() { return false; }
 
+	virtual ActionResult timerCallback() { return ActionResult::DEALT_WITH; }
+
 	/// Can get overridden by getTitle(). Actual max num chars for OLED display is 14.
 	deluge::l10n::String title;
 
@@ -101,7 +103,7 @@ public:
 	void drawItemsForOled(char const** options, int32_t selectedOption);
 
 	template <size_t n>
-	static void drawItemsForOled(deluge::static_vector<std::string_view, n>& options, int32_t selectedOption,
+	static void drawItemsForOled(deluge::static_vector<std::string_view_view, n>& options, int32_t selectedOption,
 	                             int32_t offset = 0);
 	/// Get the title to be used when rendering on OLED. If not overriden, defaults to returning `title`.
 	virtual void drawName();
@@ -109,7 +111,7 @@ public:
 
 // A couple of our child classes call this - that's all
 template <size_t n>
-void MenuItem::drawItemsForOled(deluge::static_vector<std::string_view, n>& options, const int32_t selectedOption,
+void MenuItem::drawItemsForOled(deluge::static_vector<std::string_view_view, n>& options, const int32_t selectedOption,
                                 const int32_t offset) {
 	int32_t baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
 	baseY += OLED_MAIN_TOPMOST_PIXEL;
@@ -118,14 +120,14 @@ void MenuItem::drawItemsForOled(deluge::static_vector<std::string_view, n>& opti
 	for (int32_t o = 0; o < OLED_HEIGHT_CHARS - 1 && o < options.size() - offset; o++) {
 		int32_t yPixel = o * kTextSpacingY + baseY;
 
-		deluge::hid::display::OLED::drawString(options[o + offset].data(), kTextSpacingX, yPixel,
+		deluge::hid::display::OLED::drawString(options[o + offset], kTextSpacingX, yPixel,
 		                                       deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
 		                                       kTextSpacingX, kTextSpacingY);
 
 		if (o == selectedOption) {
 			deluge::hid::display::OLED::invertArea(0, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8,
 			                                       &deluge::hid::display::OLED::oledMainImage[0]);
-			deluge::hid::display::OLED::setupSideScroller(0, options[o + offset].data(), kTextSpacingX,
+			deluge::hid::display::OLED::setupSideScroller(0, options[o + offset], kTextSpacingX,
 			                                              OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8, kTextSpacingX,
 			                                              kTextSpacingY, true);
 		}

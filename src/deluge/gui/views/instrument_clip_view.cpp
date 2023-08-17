@@ -32,6 +32,7 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
+#include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/timeline_view.h"
 #include "gui/views/view.h"
@@ -125,17 +126,6 @@ bool InstrumentClipView::opened() {
 	return true;
 }
 
-// Initializes some stuff to begin a new editing session
-void InstrumentClipView::focusRegained() {
-	ClipView::focusRegained();
-
-	auditioningSilently = false; // Necessary?
-
-	InstrumentClipMinder::focusRegained();
-
-	setLedStates();
-}
-
 void InstrumentClipView::openedInBackground() {
 	bool renderingToStore = (currentUIMode == UI_MODE_ANIMATION_FADE);
 
@@ -153,6 +143,18 @@ void InstrumentClipView::openedInBackground() {
 		uiNeedsRendering(this);
 	}
 	getCurrentClip()->onKeyboardScreen = false;
+	getCurrentClip()->onAutomationInstrumentClipView = false;
+}
+
+// Initializes some stuff to begin a new editing session
+void InstrumentClipView::focusRegained() {
+	ClipView::focusRegained();
+
+	auditioningSilently = false; // Necessary?
+
+	InstrumentClipMinder::focusRegained();
+
+	setLedStates();
 }
 
 void InstrumentClipView::setLedStates() {
@@ -241,6 +243,17 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 doOther:
 				sessionView.transitionToSessionView();
 			}
+		}
+	}
+
+	// Clip view button
+	else if (b == CLIP_VIEW) {
+		if (on && currentUIMode == UI_MODE_NONE) {
+			if (inCardRoutine) {
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
+
+			changeRootUI(&automationInstrumentClipView);
 		}
 	}
 

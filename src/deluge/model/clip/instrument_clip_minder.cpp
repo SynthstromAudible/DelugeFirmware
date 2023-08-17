@@ -24,6 +24,7 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
+#include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
@@ -42,6 +43,7 @@
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/model_stack.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
@@ -155,7 +157,7 @@ void InstrumentClipMinder::drawMIDIControlNumber(int32_t controlNumber, bool aut
 		display->popupText(buffer);
 	}
 	else {
-		display->setText(buffer, true, automationExists ? 3 : 255, true);
+		display->setText(buffer, true, automationExists ? 3 : 255, false);
 	}
 }
 
@@ -277,7 +279,10 @@ void InstrumentClipMinder::setLedStates() {
 	indicator_leds::setLedState(IndicatorLED::MIDI, getCurrentClip()->output->type == InstrumentType::MIDI_OUT);
 	indicator_leds::setLedState(IndicatorLED::CV, getCurrentClip()->output->type == InstrumentType::CV);
 
-	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, getCurrentClip()->wrapEditing);
+	//cross screen editing doesn't currently work in automation view, so don't light it up
+	if (getCurrentUI() != &automationInstrumentClipView) {
+		indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, getCurrentClip()->wrapEditing);
+	}
 	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, getCurrentClip()->isScaleModeClip());
 	indicator_leds::setLedState(IndicatorLED::BACK, false);
 
@@ -383,9 +388,33 @@ yesLoadInstrument:
 			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, currentSong->currentClip);
 
 			getCurrentClip()->clear(action, modelStack);
-			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIP_CLEARED));
-			if (getCurrentUI() == &instrumentClipView) {
-				uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+
+			//New community feature as part of Automation Clip View Implementation
+			//If this is enabled, then when you are in a regular Instrument Clip View (Synth, Kit, MIDI, CV), clearing a clip
+			//will only clear the Notes (automations remain intact).
+			//If this is enabled, if you want to clear automations, you will enter Automation Clip View and clear the clip there.
+			//If this is enabled, the message displayed on the OLED screen is adjusted to reflect the nature of what is being cleared
+
+			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationClearClip)
+			    == RuntimeFeatureStateToggle::On) {
+				if (getCurrentUI() == &automationInstrumentClipView) {
+					numericDriver.displayPopup(HAVE_OLED ? "Automation cleared" : "CLEAR");
+					uiNeedsRendering(&automationInstrumentClipView, 0xFFFFFFFF, 0);
+				}
+				else if (getCurrentUI() == &instrumentClipView) {
+					numericDriver.displayPopup(HAVE_OLED ? "Notes cleared" : "CLEAR");
+					uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+				}
+			}
+			else {
+				if (getCurrentUI() == &instrumentClipView) {
+					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIP_CLEARED));
+					uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+				}
+				else if (getCurrentUI() == &automationInstrumentClipView) {
+					numericDriver.displayPopup(HAVE_OLED ? "Clip cleared" : "CLEAR");
+					uiNeedsRendering(&automationInstrumentClipView, 0xFFFFFFFF, 0);
+				}
 			}
 		}
 	}

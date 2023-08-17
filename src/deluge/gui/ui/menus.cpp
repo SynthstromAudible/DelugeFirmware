@@ -97,6 +97,7 @@
 #include "gui/menu_item/patch_cable_strength/fixed.h"
 #include "gui/menu_item/patch_cable_strength/range.h"
 #include "gui/menu_item/patch_cable_strength/regular.h"
+#include "gui/menu_item/patch_cables.h"
 #include "gui/menu_item/patched_param.h"
 #include "gui/menu_item/patched_param/integer.h"
 #include "gui/menu_item/patched_param/integer_non_fm.h"
@@ -464,7 +465,7 @@ Submenu reverbMenu{
 fx::Clipping clippingMenu{STRING_FOR_SATURATION};
 UnpatchedParam srrMenu{STRING_FOR_DECIMATION, ::Param::Unpatched::SAMPLE_RATE_REDUCTION};
 UnpatchedParam bitcrushMenu{STRING_FOR_BITCRUSH, ::Param::Unpatched::BITCRUSHING};
-
+patched_param::Integer foldMenu{"Fold", "Fold", ::Param::Local::FOLD};
 Submenu fxMenu{
     STRING_FOR_FX,
     {
@@ -475,6 +476,7 @@ Submenu fxMenu{
         &clippingMenu,
         &srrMenu,
         &bitcrushMenu,
+        &foldMenu,
     },
 };
 
@@ -853,13 +855,36 @@ bend_range::PerFinger drumBendRangeMenu{STRING_FOR_BEND_RANGE}; // The single op
 patched_param::Integer volumeMenu{STRING_FOR_VOLUME_LEVEL, STRING_FOR_MASTER_LEVEL, ::Param::Global::VOLUME_POST_FX};
 patched_param::Pan panMenu{STRING_FOR_PAN, ::Param::Local::PAN};
 
+PatchCables patchCablesMenu{"mod matrix"};
+
 menu_item::Submenu soundEditorRootMenu{
     STRING_FOR_SOUND,
     {
-        &source0Menu,    &source1Menu, &modulator0Menu,    &modulator1Menu,    &noiseMenu,    &masterTransposeMenu,
-        &vibratoMenu,    &lpfMenu,     &hpfMenu,           &filterRoutingMenu, &drumNameMenu, &synthModeMenu,
-        &env0Menu,       &env1Menu,    &lfo0Menu,          &lfo1Menu,          &voiceMenu,    &fxMenu,
-        &compressorMenu, &bendMenu,    &drumBendRangeMenu, &volumeMenu,        &panMenu,      &sequenceDirectionMenu,
+        &source0Menu,
+        &source1Menu,
+        &modulator0Menu,
+        &modulator1Menu,
+        &noiseMenu,
+        &masterTransposeMenu,
+        &vibratoMenu,
+        &lpfMenu,
+        &hpfMenu,
+        &filterRoutingMenu,
+        &drumNameMenu,
+        &synthModeMenu,
+        &env0Menu,
+        &env1Menu,
+        &lfo0Menu,
+        &lfo1Menu,
+        &voiceMenu,
+        &fxMenu,
+        &compressorMenu,
+        &bendMenu,
+        &drumBendRangeMenu,
+        &volumeMenu,
+        &panMenu,
+        &patchCablesMenu,
+        &sequenceDirectionMenu,
     },
 };
 
@@ -924,7 +949,7 @@ MenuItem* paramShortcutsForSounds[][8] = {
     {&modulatorVolume,        &modulatorTransposeMenu, comingSoonMenu,                 comingSoonMenu,                 &modulatorPhaseMenu,  &modulatorFeedbackMenu, comingSoonMenu,           &sequenceDirectionMenu},
     {&modulatorVolume,        &modulatorTransposeMenu, comingSoonMenu,                 comingSoonMenu,                 &modulatorPhaseMenu,  &modulatorFeedbackMenu, &modulatorDestMenu,       NULL                  },
     {&volumeMenu,             &masterTransposeMenu,    &vibratoMenu,                   &panMenu,                       &synthModeMenu,       &srrMenu,               &bitcrushMenu,            &clippingMenu         },
-    {&portaMenu,              &polyphonyMenu,          &priorityMenu,                  &unisonDetuneMenu,              &numUnisonMenu,       nullptr,                nullptr,                  NULL                  },
+    {&portaMenu,              &polyphonyMenu,          &priorityMenu,                  &unisonDetuneMenu,              &numUnisonMenu,       nullptr,                nullptr,                  &foldMenu             },
     {&envReleaseMenu,         &envSustainMenu,         &envDecayMenu,                  &envAttackMenu,                 &lpfMorphMenu,        &lpfModeMenu,           &lpfResMenu,              &lpfFreqMenu          },
     {&envReleaseMenu,         &envSustainMenu,         &envDecayMenu,                  &envAttackMenu,                 &hpfMorphMenu,        &hpfModemenu,           &hpfResMenu,              &hpfFreqMenu          },
     {&compressorReleaseMenu,  &sidechainSyncMenu,      &compressorVolumeShortcutMenu,  &compressorAttackMenu,          &compressorShapeMenu, &sidechainSendMenu,     &bassMenu,                &bassFreqMenu         },
@@ -942,7 +967,7 @@ MenuItem* paramShortcutsForAudioClips[][8] = {
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  NULL                               },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  NULL                               },
     {&audioClipLevelMenu,     &audioClipTransposeMenu, nullptr,                        &audioClipPanMenu,              nullptr,              &srrMenu,               &bitcrushMenu,            &clippingMenu                      },
-    {nullptr,                 nullptr,                 &priorityMenu,                  nullptr,                        nullptr,              nullptr,                nullptr,                  NULL                               },
+    {nullptr,                 nullptr,                 &priorityMenu,                  nullptr,                        nullptr,              nullptr,                nullptr,                  &foldMenu                          },
     {nullptr,                 nullptr,                 nullptr,                        &audioClipAttackMenu,           nullptr,              &lpfModeMenu,           &audioClipLPFResMenu,     &audioClipLPFFreqMenu              },
     {nullptr,                 nullptr,                 nullptr,                        &audioClipAttackMenu,           nullptr,              comingSoonMenu,         &audioClipHPFResMenu,     &audioClipHPFFreqMenu              },
     {&compressorReleaseMenu,  &sidechainSyncMenu,      &audioClipCompressorVolumeMenu, &compressorAttackMenu,          &compressorShapeMenu, nullptr,                &bassMenu,                &bassFreqMenu                      },
