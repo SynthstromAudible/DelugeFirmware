@@ -32,7 +32,7 @@ public:
 		return {
 		    "QWERTY",
 		    "AZERTY",
-		    display->type() == DisplayType::OLED ? "QWERTZ" : "QRTZ",
+		    display->haveOLED() ? "QWERTZ" : "QRTZ",
 		};
 	}
 };

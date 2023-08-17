@@ -49,7 +49,7 @@ void KeyboardLayoutVelocityDrums::handleHorizontalEncoder(int32_t offset, bool s
 		state.edgeSize = std::clamp(state.edgeSize, kMinDrumPadEdgeSize, kMaxDrumPadEdgeSize);
 
 		char buffer[13] = "Pad size:   ";
-		auto offset = (display->type() == DisplayType::OLED ? 10 : 0);
+		auto offset = (display->haveOLED() ? 10 : 0);
 		intToString(state.edgeSize, buffer + offset, 1);
 		display->displayPopup(buffer);
 

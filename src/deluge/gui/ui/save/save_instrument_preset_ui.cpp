@@ -70,7 +70,7 @@ tryDefaultDir:
 		currentDir.set(defaultDir);
 	}
 
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		fileIcon = (instrumentTypeToLoad == InstrumentType::SYNTH) ? deluge::hid::display::OLED::synthIcon
 		                                                           : deluge::hid::display::OLED::kitIcon;
 		title = (instrumentTypeToLoad == InstrumentType::SYNTH) ? "Save synth" : "Save kit";
@@ -104,7 +104,7 @@ gotError:
 }
 
 bool SaveInstrumentPresetUI::performSave(bool mayOverwrite) {
-	if (display->type() != DisplayType::OLED) {
+	if (display->have7SEG()) {
 		display->displayLoadingAnimation();
 	}
 	Instrument* instrumentToSave = (Instrument*)currentSong->currentClip->output;
@@ -156,7 +156,7 @@ fail:
 		goto fail;
 	}
 
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		deluge::hid::display::OLED::displayWorkingAnimation("Saving");
 	}
 

@@ -110,7 +110,7 @@ bool SampleBrowser::opened() {
 
 	currentlyShowingSamplePreview = false;
 
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		fileIndexSelected = 0;
 	}
 
@@ -332,7 +332,7 @@ void SampleBrowser::enterKeyPress() {
 	FileItem* currentFileItem = getCurrentFileItem();
 
 	if (!currentFileItem) {
-		if (display->type() == DisplayType::OLED) {
+		if (display->haveOLED()) {
 			display->displayError(ERROR_FILE_NOT_FOUND);
 		}
 		else {

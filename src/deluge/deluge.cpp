@@ -357,7 +357,7 @@ bool readButtonsAndPads() {
 				Buttons::noPressesHappening(sdRoutineLock);
 			}
 		}
-		else if (util::to_underlying(value) == oledWaitingForMessage && display->type() == DisplayType::OLED) {
+		else if (util::to_underlying(value) == oledWaitingForMessage && display->haveOLED()) {
 			uiTimerManager.setTimer(TIMER_OLED_LOW_LEVEL, 3);
 		}
 	}
@@ -454,7 +454,7 @@ void setUIForLoadedSong(Song* song) {
 	setRootUILowLevel(newUI);
 
 	getCurrentUI()->opened();
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		renderUIsForOled();
 	}
 }
@@ -791,7 +791,7 @@ extern "C" int32_t deluge_main(void) {
 		uiTimerManager.routine();
 
 		// Flush stuff - we just have to do this, regularly
-		if (display->type() == DisplayType::OLED) {
+		if (display->haveOLED()) {
 			oledRoutine();
 		}
 		PIC::flush();
@@ -854,7 +854,7 @@ extern "C" void routineForSD(void) {
 
 	uiTimerManager.routine();
 
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		oledRoutine();
 	}
 	PIC::flush();

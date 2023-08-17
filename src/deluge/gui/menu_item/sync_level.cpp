@@ -54,7 +54,7 @@ void SyncLevel::getNoteLengthName(char* buffer) {
 			strcat(buffer, type);
 		}
 		else {
-			if (display->type() == DisplayType::OLED) {
+			if (display->haveOLED()) {
 				char* suffix = strstr(buffer, "-notes"); // OLED replace `-notes` with type,
 				strcpy(suffix, type);                    //      eg. `2nd-notes` -> `2nd-trplts`
 			}

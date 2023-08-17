@@ -68,7 +68,7 @@ void Slicer::focusRegained() {
 		manualSlicePoints[i].transpose = 0;
 	}
 
-	if (display->type() != DisplayType::OLED) {
+	if (display->have7SEG()) {
 		redraw();
 	}
 }
@@ -243,7 +243,7 @@ ActionResult Slicer::horizontalEncoderAction(int32_t offset) {
 			newPos = waveformBasicNavigator.sample->lengthInSamples;
 		manualSlicePoints[currentSlice].startPos = newPos;
 
-		if (display->type() == DisplayType::OLED) {
+		if (display->haveOLED()) {
 			char buffer[24];
 			strcpy(buffer, "Start: ");
 			intToString(manualSlicePoints[currentSlice].startPos, buffer + strlen(buffer));
@@ -268,7 +268,7 @@ ActionResult Slicer::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 			manualSlicePoints[currentSlice].transpose = 24;
 		if (manualSlicePoints[currentSlice].transpose < -24)
 			manualSlicePoints[currentSlice].transpose = -24;
-		if (display->type() == DisplayType::OLED) {
+		if (display->haveOLED()) {
 			char buffer[24];
 			strcpy(buffer, "Transpose: ");
 			intToString(manualSlicePoints[currentSlice].transpose, buffer + strlen(buffer));
@@ -309,7 +309,7 @@ void Slicer::selectEncoderAction(int8_t offset) {
 		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 	}
 
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		renderUIsForOled();
 	}
 	else {
@@ -330,7 +330,7 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 		slicerMode %= 2;
 		if (slicerMode == SLICER_MODE_MANUAL)
 			AudioEngine::stopAnyPreviewing();
-		if (display->type() == DisplayType::OLED) {
+		if (display->haveOLED()) {
 			renderUIsForOled();
 		}
 		else {
@@ -344,7 +344,7 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 
 	//pop up Transpose value
 	if (b == Y_ENC && on && slicerMode == SLICER_MODE_MANUAL && currentSlice < numManualSlice) {
-		if (display->type() == DisplayType::OLED) {
+		if (display->haveOLED()) {
 			char buffer[24];
 			strcpy(buffer, "Transpose: ");
 			intToString(manualSlicePoints[currentSlice].transpose, buffer + strlen(buffer));
@@ -383,7 +383,7 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 			}
 
 			uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
-			if (display->type() == DisplayType::OLED) {
+			if (display->haveOLED()) {
 				renderUIsForOled();
 			}
 			else {
@@ -575,7 +575,7 @@ ActionResult Slicer::padAction(int32_t x, int32_t y, int32_t on) {
 			}
 		}
 
-		if (display->type() == DisplayType::OLED) {
+		if (display->haveOLED()) {
 			renderUIsForOled();
 		}
 		else {

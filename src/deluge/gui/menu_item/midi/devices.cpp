@@ -47,7 +47,7 @@ void Devices::beginSession(MenuItem* navigatedBackwardFrom) {
 	}
 
 	soundEditor.currentMIDIDevice = getDevice(this->getValue());
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		soundEditor.menuCurrentScroll = this->getValue();
 	}
 	else {
@@ -60,13 +60,13 @@ void Devices::selectEncoderAction(int32_t offset) {
 		int32_t newValue = this->getValue() + offset;
 
 		if (newValue >= MIDIDeviceManager::hostedMIDIDevices.getNumElements()) {
-			if (display->type() == DisplayType::OLED) {
+			if (display->haveOLED()) {
 				return;
 			}
 			newValue = lowestDeviceNum;
 		}
 		else if (newValue < lowestDeviceNum) {
-			if (display->type() == DisplayType::OLED) {
+			if (display->haveOLED()) {
 				return;
 			}
 			newValue = MIDIDeviceManager::hostedMIDIDevices.getNumElements() - 1;
@@ -79,7 +79,7 @@ void Devices::selectEncoderAction(int32_t offset) {
 	} while (!soundEditor.currentMIDIDevice->connectionFlags);
 	// Don't show devices which aren't connected. Sometimes we won't even have a name to display for them.
 
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		if (this->getValue() < soundEditor.menuCurrentScroll) {
 			soundEditor.menuCurrentScroll = this->getValue();
 		}
@@ -125,7 +125,7 @@ MIDIDevice* Devices::getDevice(int32_t deviceIndex) {
 }
 
 void Devices::drawValue() {
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		renderUIsForOled();
 	}
 	else {

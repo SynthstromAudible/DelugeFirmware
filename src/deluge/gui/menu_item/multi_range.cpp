@@ -54,7 +54,7 @@ void MultiRange::beginSession(MenuItem* navigatedBackwardFrom) {
 	soundEditor.currentSource->getOrCreateFirstRange(); // TODO: deal with error
 	soundEditor.setCurrentMultiRange(this->getValue());
 
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		soundEditor.menuCurrentScroll = this->getValue() - 1;
 		if (soundEditor.menuCurrentScroll > this->getValue() - kOLEDMenuNumOptionsVisible + 1) {
 			soundEditor.menuCurrentScroll = this->getValue() - kOLEDMenuNumOptionsVisible + 1;
@@ -152,7 +152,7 @@ void MultiRange::selectEncoderAction(int32_t offset) {
 			}
 		}
 
-		if (display->type() == DisplayType::OLED) {
+		if (display->haveOLED()) {
 			renderUIsForOled();
 		}
 		else {
@@ -221,13 +221,13 @@ void MultiRange::selectEncoderAction(int32_t offset) {
 			else {
 				newRange->topNote = midPoint;
 				// And can leave old range alone
-				if (display->type() == DisplayType::OLED) {
+				if (display->haveOLED()) {
 					soundEditor.menuCurrentScroll++; // Won't go past end of list, cos list just grew.
 				}
 			}
 
 			this->setValue(newI);
-			if (display->type() == DisplayType::OLED) {
+			if (display->haveOLED()) {
 				display->consoleText(l10n::get(l10n::String::STRING_FOR_RANGE_INSERTED));
 				if (soundEditor.menuCurrentScroll > this->getValue()) {
 					soundEditor.menuCurrentScroll = this->getValue();
@@ -253,7 +253,7 @@ void MultiRange::selectEncoderAction(int32_t offset) {
 			this->setValue(newValue);
 			soundEditor.currentSource->defaultRangeI = this->getValue();
 
-			if (display->type() == DisplayType::OLED) {
+			if (display->haveOLED()) {
 				if (soundEditor.menuCurrentScroll > this->getValue()) {
 					soundEditor.menuCurrentScroll = this->getValue();
 				}
@@ -265,7 +265,7 @@ void MultiRange::selectEncoderAction(int32_t offset) {
 
 		soundEditor.setCurrentMultiRange(this->getValue());
 		soundEditor.possibleChangeToCurrentRangeDisplay();
-		if (display->type() == DisplayType::OLED) {
+		if (display->haveOLED()) {
 			renderUIsForOled();
 		}
 		else {
@@ -307,7 +307,7 @@ void MultiRange::deletePress() {
 
 		this->setValue(this->getValue() - 1);
 		soundEditor.setCurrentMultiRange(this->getValue());
-		if (display->type() == DisplayType::OLED) {
+		if (display->haveOLED()) {
 			if (soundEditor.menuCurrentScroll > this->getValue()) {
 				soundEditor.menuCurrentScroll = this->getValue();
 			}
@@ -325,7 +325,7 @@ void MultiRange::deletePress() {
 
 	display->displayPopup(l10n::get(l10n::String::STRING_FOR_RANGE_DELETED));
 	soundEditor.possibleChangeToCurrentRangeDisplay();
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		renderUIsForOled();
 	}
 	else {
@@ -339,7 +339,7 @@ void MultiRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRight
 	if (this->getValue() == 0) {
 		strcpy(buffer, l10n::get(l10n::String::STRING_FOR_BOTTOM));
 		if (getLeftLength) {
-			*getLeftLength = display->type() == DisplayType::OLED ? 6 : 3;
+			*getLeftLength = display->haveOLED() ? 6 : 3;
 		}
 	}
 	else {
@@ -349,7 +349,7 @@ void MultiRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRight
 
 	char* bufferPos = buffer + strlen(buffer);
 
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		while (bufferPos < &buffer[7]) {
 			*bufferPos = ' ';
 			bufferPos++;
@@ -359,7 +359,7 @@ void MultiRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRight
 	// Upper end
 	if (this->getValue() == soundEditor.currentSource->ranges.getNumElements() - 1) {
 		*(bufferPos++) = '-';
-		if (display->type() == DisplayType::OLED) {
+		if (display->haveOLED()) {
 			*(bufferPos++) = ' ';
 		}
 		*(bufferPos++) = 't';
@@ -395,7 +395,7 @@ void MultiRange::noteOnToChangeRange(int32_t noteCode) {
 			this->setValue(newI);
 			soundEditor.setCurrentMultiRange(this->getValue());
 			soundEditor.possibleChangeToCurrentRangeDisplay();
-			if (display->type() == DisplayType::OLED) {
+			if (display->haveOLED()) {
 				if (soundEditor.menuCurrentScroll > this->getValue()) {
 					soundEditor.menuCurrentScroll = this->getValue();
 				}

@@ -83,7 +83,7 @@ void AudioClipView::focusRegained() {
 	view.focusRegained();
 	view.setActiveModControllableTimelineCounter(currentSong->currentClip);
 
-	if (display->type() != DisplayType::OLED) {
+	if (display->have7SEG()) {
 		view.displayOutputName(currentSong->currentClip->output, false);
 	}
 #ifdef currentClipStatusButtonX

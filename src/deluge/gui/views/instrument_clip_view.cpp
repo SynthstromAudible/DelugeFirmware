@@ -347,7 +347,7 @@ doOther:
 			}
 
 			currentUIMode = UI_MODE_NONE;
-			if (display->type() != DisplayType::OLED) {
+			if (display->have7SEG()) {
 				InstrumentClipMinder::redrawNumericDisplay();
 			}
 			uiNeedsRendering(this, 0, 1 << yDisplayOfNewNoteRow);
@@ -1174,7 +1174,7 @@ void InstrumentClipView::doubleClipLengthAction() {
 
 	displayZoomLevel();
 
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		display->consoleText("Clip multiplied");
 	}
 }
@@ -1929,7 +1929,7 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
 	int32_t velocityValue = 0;
 
 	Action* action;
-	if (display->type() == DisplayType::OLED || display->hasPopup()) {
+	if (display->haveOLED() || display->hasPopup()) {
 		action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
 		if (!action) {
 			return; // Necessary why?
@@ -2019,7 +2019,7 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
 			// Don't bother trying to think of some smart way to update lastVelocityInteractedWith. It'll get updated when user releases last press.
 		}
 		else {
-			if (display->type() == DisplayType::OLED) {
+			if (display->haveOLED()) {
 				strcpy(buffer, "Velocity: ");
 				intToString(velocityValue, buffer + strlen(buffer));
 			}
@@ -2031,7 +2031,7 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
 			displayString = buffer;
 			((Instrument*)currentSong->currentClip->output)->defaultVelocity = velocityValue;
 		}
-		if (display->type() == DisplayType::OLED) {
+		if (display->haveOLED()) {
 			display->popupTextTemporary(displayString);
 		}
 		else {
@@ -2227,10 +2227,10 @@ multiplePresses:
 	}
 
 	if (probabilityValue != -1) {
-		char buffer[display->type() == DisplayType::OLED ? 29 : 5];
+		char buffer[display->haveOLED() ? 29 : 5];
 		char* displayString;
 		if (probabilityValue <= kNumProbabilityValues) {
-			if (display->type() == DisplayType::OLED) {
+			if (display->haveOLED()) {
 				strcpy(buffer, "Probability: ");
 				intToString(probabilityValue * 5, buffer + strlen(buffer));
 				strcat(buffer, "%");
@@ -2252,25 +2252,25 @@ multiplePresses:
 
 			int32_t charPos = 0;
 
-			if (display->type() == DisplayType::OLED) {
+			if (display->haveOLED()) {
 				strcpy(buffer, "Iteration dependence: ");
 				charPos = strlen(buffer);
 			}
 
 			buffer[charPos++] = '1' + iterationWithinDivisor;
-			if (display->type() == DisplayType::OLED) {
+			if (display->haveOLED()) {
 				buffer[charPos++] = ' ';
 			}
 			buffer[charPos++] = 'o';
 			buffer[charPos++] = 'f';
-			if (display->type() == DisplayType::OLED) {
+			if (display->haveOLED()) {
 				buffer[charPos++] = ' ';
 			}
 			buffer[charPos++] = '0' + divisor;
 			buffer[charPos++] = 0;
 		}
 
-		if (display->type() == DisplayType::OLED) {
+		if (display->haveOLED()) {
 			display->popupTextTemporary(displayString);
 		}
 		else {
@@ -3108,7 +3108,7 @@ void InstrumentClipView::auditionPadAction(int32_t velocity, int32_t yDisplay, b
 							AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 						}
 					}
-					if (display->type() == DisplayType::OLED) {
+					if (display->haveOLED()) {
 						deluge::hid::display::OLED::removePopup();
 					}
 					else {
@@ -3451,7 +3451,7 @@ void InstrumentClipView::someAuditioningHasEnded(bool recalculateLastAuditionedN
 		exitUIMode(UI_MODE_AUDITIONING);
 		auditioningSilently = false;
 
-		if (display->type() == DisplayType::OLED) {
+		if (display->haveOLED()) {
 			deluge::hid::display::OLED::removePopup();
 		}
 		else {
@@ -3478,7 +3478,7 @@ void InstrumentClipView::drawDrumName(Drum* drum, bool justPopUp) {
 
 	char const* newText;
 
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		char buffer[30];
 
 		if (!drum) {
@@ -4268,7 +4268,7 @@ void InstrumentClipView::quantizeNotes(int32_t offset, int32_t nudgeMode) {
 		quantizeAmount = -10;
 	}
 
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		char buffer[24];
 		if (nudgeMode == NUDGEMODE_QUANTIZE) {
 			strcpy(buffer, (quantizeAmount >= 0) ? "Quantize " : "Humanize ");
@@ -4499,7 +4499,7 @@ void InstrumentClipView::editNoteRepeat(int32_t offset) {
 		currentClip->expectEvent();
 	}
 
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		char buffer[20];
 		strcpy(buffer, "Note repeats: ");
 		intToString(newNumNotes, buffer + strlen(buffer));
@@ -4728,7 +4728,7 @@ doCompareNote:
 	}
 
 	// Now, decide what message to display ---------------------------------------------------
-	char buffer[display->type() == DisplayType::OLED ? 24 : 5];
+	char buffer[display->haveOLED() ? 24 : 5];
 	char const* message;
 	bool alignRight = false;
 
@@ -4740,7 +4740,7 @@ doCompareNote:
 		if (!didAnySuccessfulNudging) {
 			return; // Don't want to see these "multiple pads moved" messages if in fact none were moved
 		}
-		if (display->type() == DisplayType::OLED) {
+		if (display->haveOLED()) {
 			message = (offset >= 0) ? "Nudged notes right" : "Nudged notes left";
 		}
 		else {
@@ -4776,7 +4776,7 @@ doCompareNote:
 			}
 		}
 
-		if (display->type() == DisplayType::OLED) {
+		if (display->haveOLED()) {
 			strcpy(buffer, "Note nudge: ");
 			intToString(resultingTotalOffset, buffer + strlen(buffer));
 			message = buffer;
@@ -4796,7 +4796,7 @@ doCompareNote:
 		}
 	}
 
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		display->popupTextTemporary(message);
 	}
 	else {
@@ -5282,7 +5282,7 @@ noteRowChanged:
 	}
 displayNewNumNotes:
 	// Tell the user about it in text
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		char buffer[34];
 		strcpy(buffer, "Events: ");
 		char* pos = strchr(buffer, 0);
@@ -5363,7 +5363,7 @@ addConsequenceToAction:
 	}
 
 displayMessage:
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		char const* message = (offset == 1) ? "Rotated right" : "Rotated left";
 		display->popupTextTemporary(message);
 	}
@@ -5496,7 +5496,7 @@ tryScrollingLeft:
 		didScroll = scrollLeftIfTooFarRight(newLength);
 	}
 
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		char buffer[19];
 		strcpy(buffer, "Steps: ");
 		intToString(newNumSteps, buffer + strlen(buffer));

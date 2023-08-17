@@ -136,7 +136,7 @@ void SessionView::focusRegained() {
 	view.setActiveModControllableTimelineCounter(currentSong);
 
 	selectedClipYDisplay = 255;
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		setCentralLEDStates();
 	}
 	else {
@@ -167,7 +167,7 @@ ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCa
 			masterCompEditMode++;
 			masterCompEditMode = masterCompEditMode % 6; //toggle master compressor setting
 
-			if (display->type() == DisplayType::OLED) {
+			if (display->haveOLED()) {
 				modEncoderAction(1, 0);
 			}
 			else {
@@ -457,7 +457,7 @@ moveAfterClipInstance:
 						session.cancelAllArming();
 						session.cancelAllLaunchScheduling();
 						session.lastSectionArmed = 255;
-						if (display->type() == DisplayType::OLED) {
+						if (display->haveOLED()) {
 							renderUIsForOled();
 						}
 						else {
@@ -553,7 +553,7 @@ doActualSimpleChange:
 								    currentSong->changeInstrumentType(instrument, newInstrumentType);
 								if (newInstrument) {
 									view.displayOutputName(newInstrument);
-									if (display->type() == DisplayType::OLED) {
+									if (display->haveOLED()) {
 										deluge::hid::display::OLED::sendMainImage();
 									}
 									view.setActiveModControllableTimelineCounter(newInstrument->activeClip);
@@ -637,7 +637,7 @@ ActionResult SessionView::padAction(int32_t xDisplay, int32_t yDisplay, int32_t 
 				masterCompEditMode = 5; //MIX
 			}
 
-			if (display->type() == DisplayType::OLED) {
+			if (display->haveOLED()) {
 				modEncoderAction(1, 0);
 			}
 			else {
@@ -768,7 +768,7 @@ startHoldingDown:
 							selectedClipTimePressed = AudioEngine::audioSampleTimer;
 							view.setActiveModControllableTimelineCounter(clip);
 							view.displayOutputName(clip->output, true, clip);
-							if (display->type() == DisplayType::OLED) {
+							if (display->haveOLED()) {
 								deluge::hid::display::OLED::sendMainImage();
 							}
 						}
@@ -991,7 +991,7 @@ justEndClipPress:
 void SessionView::clipPressEnded() {
 	currentUIMode = UI_MODE_NONE;
 	view.setActiveModControllableTimelineCounter(currentSong);
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		renderUIsForOled();
 		setCentralLEDStates();
 	}
@@ -1073,7 +1073,7 @@ void SessionView::sectionPadAction(uint8_t y, bool on) {
 				session.armSection(sectionPressed, kInternalButtonPressLatency);
 			}
 			exitUIMode(UI_MODE_HOLDING_SECTION_PAD);
-			if (display->type() == DisplayType::OLED) {
+			if (display->haveOLED()) {
 				deluge::hid::display::OLED::removePopup();
 			}
 			else {
@@ -1103,7 +1103,7 @@ ActionResult SessionView::timerCallback() {
 				currentUIMode = UI_MODE_CLIP_PRESSED_IN_SONG_VIEW;
 				view.setActiveModControllableTimelineCounter(clip);
 				view.displayOutputName(clip->output, true, clip);
-				if (display->type() == DisplayType::OLED) {
+				if (display->haveOLED()) {
 					deluge::hid::display::OLED::sendMainImage();
 				}
 
@@ -1128,7 +1128,7 @@ ActionResult SessionView::timerCallback() {
 void SessionView::drawSectionRepeatNumber() {
 	int32_t number = currentSong->sections[sectionPressed].numRepetitions;
 	char const* outputText;
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		char buffer[21];
 		if (number == -1) {
 			outputText = "Launch non-\nexclusively"; // Need line break cos line splitter doesn't deal with hyphens.
@@ -1245,7 +1245,7 @@ void SessionView::editNumRepeatsTilLaunch(int32_t offset) {
 		session.numRepeatsTilLaunch = 9999;
 	}
 	else {
-		if (display->type() == DisplayType::OLED) {
+		if (display->haveOLED()) {
 			renderUIsForOled();
 		}
 		else {
@@ -1467,7 +1467,7 @@ int32_t setPresetOrNextUnlaunchedOne(InstrumentClip* clip, InstrumentType instru
 		currentSong->removeInstrumentFromHibernationList(newInstrument);
 	}
 
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		deluge::hid::display::OLED::displayWorkingAnimation("Loading");
 	}
 	else {
@@ -1669,7 +1669,7 @@ gotErrorDontDisplay:
 	view.setActiveModControllableTimelineCounter(newClip);
 	view.displayOutputName(newClip->output, true, newClip);
 
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		deluge::hid::display::OLED::sendMainImage();
 	}
 }
@@ -1699,7 +1699,7 @@ void SessionView::replaceInstrumentClipWithAudioClip(Clip* clip) {
 	view.setActiveModControllableTimelineCounter(newClip);
 	view.displayOutputName(newClip->output, true, newClip);
 
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		deluge::hid::display::OLED::sendMainImage();
 	}
 	// If Clip was in keyboard view, need to redraw that
@@ -2702,7 +2702,7 @@ void SessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 				if (thresh < -69)
 					thresh = -69;
 				AudioEngine::mastercompressor.compressor.setThresh(thresh);
-				if (display->type() != DisplayType::OLED) {
+				if (display->have7SEG()) {
 					char buffer[6];
 					strcpy(buffer, "");
 					floatToString(thresh, buffer + strlen(buffer), 1, 1);
@@ -2719,7 +2719,7 @@ void SessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 				if (makeup > 20)
 					makeup = 20;
 				AudioEngine::mastercompressor.setMakeup(makeup);
-				if (display->type() != DisplayType::OLED) {
+				if (display->have7SEG()) {
 					char buffer[6];
 					strcpy(buffer, "");
 					floatToString(makeup, buffer + strlen(buffer), 1, 1);
@@ -2734,7 +2734,7 @@ void SessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 				if (atk >= 30.0)
 					atk = 30.0;
 				AudioEngine::mastercompressor.compressor.setAttack(atk);
-				if (display->type() != DisplayType::OLED) {
+				if (display->have7SEG()) {
 					char buffer[5];
 					strcpy(buffer, "");
 					floatToString(atk, buffer + strlen(buffer), 1, 1);
@@ -2749,7 +2749,7 @@ void SessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 				if (rel >= 1200.0)
 					rel = 1200.0;
 				AudioEngine::mastercompressor.compressor.setRelease(rel);
-				if (display->type() != DisplayType::OLED) {
+				if (display->have7SEG()) {
 					char buffer[6];
 					strcpy(buffer, "");
 					intToString(int32_t(rel), buffer + strlen(buffer));
@@ -2764,7 +2764,7 @@ void SessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 				if (ratio >= 10.0)
 					ratio = 10.0;
 				AudioEngine::mastercompressor.compressor.setRatio(1.0 / ratio);
-				if (display->type() != DisplayType::OLED) {
+				if (display->have7SEG()) {
 					char buffer[5];
 					strcpy(buffer, "");
 					floatToString(ratio, buffer + strlen(buffer), 1, 1);
@@ -2779,7 +2779,7 @@ void SessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 				if (wet >= 1.0)
 					wet = 1.0;
 				AudioEngine::mastercompressor.wet = wet;
-				if (display->type() != DisplayType::OLED) {
+				if (display->have7SEG()) {
 					char buffer[6];
 					strcpy(buffer, "");
 					intToString(int32_t(wet * 100), buffer + strlen(buffer));
@@ -2787,7 +2787,7 @@ void SessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 				}
 			}
 
-			if (display->type() == DisplayType::OLED) { //Master Compressor OLED UI
+			if (display->haveOLED()) { //Master Compressor OLED UI
 				double thresh = AudioEngine::mastercompressor.compressor.getThresh();
 				double makeup = AudioEngine::mastercompressor.getMakeup();
 				double atk = AudioEngine::mastercompressor.compressor.getAttack();
@@ -3336,7 +3336,7 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 				}
 
 				exitUIMode(UI_MODE_HOLDING_SECTION_PAD);
-				if (display->type() == DisplayType::OLED) {
+				if (display->haveOLED()) {
 					deluge::hid::display::OLED::removePopup();
 				}
 				else {

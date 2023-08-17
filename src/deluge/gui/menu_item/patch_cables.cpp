@@ -27,7 +27,7 @@ void PatchCables::beginSession(MenuItem* navigatedBackwardFrom) {
 		}
 	}
 
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		scrollPos = std::max((int32_t)0, currentValue - 1);
 	}
 
@@ -36,7 +36,7 @@ void PatchCables::beginSession(MenuItem* navigatedBackwardFrom) {
 }
 
 void PatchCables::readValueAgain() {
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		renderUIsForOled();
 	}
 	else {
@@ -112,7 +112,7 @@ void PatchCables::selectEncoderAction(int32_t offset) {
 
 	PatchCableSet* set = soundEditor.currentParamManager->getPatchCableSet();
 
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		if (newValue >= set->numPatchCables || newValue < 0) {
 			return;
 		}
@@ -128,7 +128,7 @@ void PatchCables::selectEncoderAction(int32_t offset) {
 
 	currentValue = newValue;
 
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		if (currentValue < scrollPos) {
 			scrollPos = currentValue;
 		}
@@ -142,7 +142,7 @@ void PatchCables::selectEncoderAction(int32_t offset) {
 
 void PatchCables::blinkShortcutsSoon() {
 	// some throttling so menu scrolling doesn't become a lightning storm of flashes
-	uiTimerManager.setTimer(TIMER_UI_SPECIFIC, display->type() == DisplayType::OLED ? 500 : 200);
+	uiTimerManager.setTimer(TIMER_UI_SPECIFIC, display->haveOLED() ? 500 : 200);
 	uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
 }
 

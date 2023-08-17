@@ -4425,7 +4425,7 @@ cantDoIt:
 		}
 
 		view.displayOutputName(oldNonAudioInstrument);
-		if (display->type() == DisplayType::OLED) {
+		if (display->haveOLED()) {
 			deluge::hid::display::OLED::sendMainImage();
 		}
 	}
@@ -4436,7 +4436,7 @@ cantDoIt:
 		    loadInstrumentPresetUI.doPresetNavigation(offset, oldInstrument, Availability::INSTRUMENT_UNUSED, true);
 		if (results.error == NO_ERROR_BUT_GET_OUT) {
 removeWorkingAnimationAndGetOut:
-			if (display->type() == DisplayType::OLED) {
+			if (display->haveOLED()) {
 				auto oled = static_cast<deluge::hid::display::OLED*>(display);
 				oled->consoleTimerEvent();
 				oled->removeWorkingAnimation();
@@ -4615,7 +4615,7 @@ displayError:
 #endif
 	replaceInstrument(oldInstrument, newInstrument);
 #if ALPHA_OR_BETA_VERSION
-	if (display->type() != DisplayType::OLED) {
+	if (display->have7SEG()) {
 		view.displayOutputName(newInstrument);
 	}
 #endif

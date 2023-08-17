@@ -8,7 +8,7 @@ namespace deluge::gui::menu_item {
 
 void Toggle::beginSession(MenuItem* navigatedBackwardFrom) {
 	Value::beginSession(navigatedBackwardFrom);
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		soundEditor.menuCurrentScroll = 0;
 	}
 	else {
@@ -25,7 +25,7 @@ void Toggle::selectEncoderAction(int32_t offset) {
 }
 
 void Toggle::drawValue() {
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		renderUIsForOled();
 	}
 	else {

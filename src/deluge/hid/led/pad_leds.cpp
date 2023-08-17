@@ -723,7 +723,7 @@ void changeDimmerInterval(int32_t offset) {
 		setDimmerInterval(newInterval);
 	}
 
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		char text[20];
 		strcpy(text, "Brightness: ");
 		char* pos = strchr(text, 0);

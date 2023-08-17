@@ -29,7 +29,7 @@ namespace deluge::gui::menu_item {
 
 void IntegerRange::beginSession(MenuItem* navigatedBackwardFrom) {
 	Range::beginSession(navigatedBackwardFrom);
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		if (lower != upper) {
 			soundEditor.editingRangeEdge = RangeEdit::LEFT;
 		}

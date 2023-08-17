@@ -47,7 +47,7 @@ constexpr size_t FLASH_WRITE_SIZE = 256; // Bigger doesn't seem to work...
 bool OverwriteBootloader::acceptCurrentOption() {
 	using enum l10n::String;
 
-	if (display->type() != DisplayType::OLED) {
+	if (display->have7SEG()) {
 		display->displayLoadingAnimation();
 	}
 
@@ -146,7 +146,7 @@ gotFresultErrorAfterAllocating:
 			if (false) {
 gotFlashError:
 				display->removeWorkingAnimation();
-				if (display->type() == DisplayType::OLED) {
+				if (display->haveOLED()) {
 					workingMessage = "Flash error. Trying again. Don't switch off";
 				}
 				else {
@@ -154,7 +154,7 @@ gotFlashError:
 				}
 			}
 
-			if (display->type() == DisplayType::OLED) {
+			if (display->haveOLED()) {
 				hid::display::OLED::displayWorkingAnimation(workingMessage);
 			}
 

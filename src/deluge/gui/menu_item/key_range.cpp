@@ -107,8 +107,8 @@ void KeyRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRightLe
 	int32_t leftLength = 1;
 
 	if (noteCodeIsSharp[lower]) {
-		*(buffer++) = (display->type() == DisplayType::OLED) ? '#' : '.';
-		if (display->type() == DisplayType::OLED) {
+		*(buffer++) = (display->haveOLED()) ? '#' : '.';
+		if (display->haveOLED()) {
 			leftLength++;
 		}
 	}
@@ -130,8 +130,8 @@ void KeyRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRightLe
 	*(buffer++) = noteCodeToNoteLetter[upper];
 	int32_t rightLength = 1;
 	if (noteCodeIsSharp[upper]) {
-		*(buffer++) = (display->type() == DisplayType::OLED) ? '#' : '.';
-		if (display->type() == DisplayType::OLED) {
+		*(buffer++) = (display->haveOLED()) ? '#' : '.';
+		if (display->haveOLED()) {
 			rightLength++;
 		}
 	}

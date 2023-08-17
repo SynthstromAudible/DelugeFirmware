@@ -157,13 +157,13 @@ void SourceSelection::beginSession(MenuItem* navigatedBackwardFrom) {
 			}
 
 			this->setValue(this->getValue() + 1);
-			if (display->type() == DisplayType::OLED) {
+			if (display->haveOLED()) {
 				scrollPos = this->getValue();
 			}
 
 			if (this->getValue() >= kNumPatchSources) {
 				this->setValue(firstAllowedIndex);
-				if (display->type() == DisplayType::OLED) {
+				if (display->haveOLED()) {
 					scrollPos = this->getValue();
 				}
 				s = sourceMenuContents[this->getValue()];
@@ -172,13 +172,13 @@ void SourceSelection::beginSession(MenuItem* navigatedBackwardFrom) {
 		}
 	}
 
-	if (display->type() != DisplayType::OLED) {
+	if (display->have7SEG()) {
 		drawValue();
 	}
 }
 
 void SourceSelection::readValueAgain() {
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		renderUIsForOled();
 	}
 	else {
@@ -192,7 +192,7 @@ void SourceSelection::selectEncoderAction(int32_t offset) {
 	do {
 		newValue += offset;
 
-		if (display->type() == DisplayType::OLED) {
+		if (display->haveOLED()) {
 			if (newValue >= kNumPatchSources || newValue < 0) {
 				return;
 			}
@@ -210,7 +210,7 @@ void SourceSelection::selectEncoderAction(int32_t offset) {
 
 	this->setValue(newValue);
 
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		if (this->getValue() < scrollPos) {
 			scrollPos = this->getValue();
 		}

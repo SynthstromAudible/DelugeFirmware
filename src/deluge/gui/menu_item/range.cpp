@@ -31,7 +31,7 @@ void Range::beginSession(MenuItem* navigatedBackwardFrom) {
 
 	soundEditor.editingRangeEdge = RangeEdit::OFF;
 
-	if (display->type() != DisplayType::OLED) {
+	if (display->have7SEG()) {
 		drawValue(0, false);
 	}
 }
@@ -48,7 +48,7 @@ void Range::horizontalEncoderAction(int32_t offset) {
 		if (soundEditor.editingRangeEdge == RangeEdit::LEFT) {
 switchOff:
 			soundEditor.editingRangeEdge = RangeEdit::OFF;
-			if (display->type() == DisplayType::OLED) {
+			if (display->haveOLED()) {
 				goto justDrawValueForEditingRange;
 			}
 			else {
@@ -62,7 +62,7 @@ switchOff:
 			if (mayEditRangeEdge(RangeEdit::LEFT)) {
 				soundEditor.editingRangeEdge = RangeEdit::LEFT;
 justDrawValueForEditingRange:
-				if (display->type() == DisplayType::OLED) {
+				if (display->haveOLED()) {
 					renderUIsForOled();
 				}
 				else {
@@ -111,7 +111,7 @@ bool Range::cancelEditingIfItsOn() {
 }
 
 void Range::drawValue(int32_t startPos, bool renderSidebarToo) {
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 
 		renderUIsForOled();
 	}
@@ -129,7 +129,7 @@ void Range::drawValue(int32_t startPos, bool renderSidebarToo) {
 }
 
 void Range::drawValueForEditingRange(bool blinkImmediately) {
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		renderUIsForOled();
 		return;
 	}

@@ -512,7 +512,7 @@ void StorageManager::xmlReadDone() {
 
 		uiTimerManager.routine();
 
-		if (display->type() == DisplayType::OLED) {
+		if (display->haveOLED()) {
 			oledRoutine();
 		}
 		PIC::flush();
@@ -1103,7 +1103,7 @@ void StorageManager::write(char const* output) {
 
 			uiTimerManager.routine();
 
-			if (display->type() == DisplayType::OLED) {
+			if (display->haveOLED()) {
 				oledRoutine();
 			}
 			PIC::flush();

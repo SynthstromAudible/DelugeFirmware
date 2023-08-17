@@ -430,7 +430,7 @@ doDisplayText:
 ActionResult QwertyUI::timerCallback() {
 	if (currentUIMode == UI_MODE_HOLDING_BACKSPACE) {
 		processBackspace();
-		uiTimerManager.setTimer(TIMER_UI_SPECIFIC, display->type() == DisplayType::OLED ? 80 : 125);
+		uiTimerManager.setTimer(TIMER_UI_SPECIFIC, display->haveOLED() ? 80 : 125);
 	}
 
 	return ActionResult::DEALT_WITH;

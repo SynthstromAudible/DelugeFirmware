@@ -125,7 +125,7 @@ gotError:
 		indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
 		indicator_leds::blinkLed(IndicatorLED::BACK);
 		indicator_leds::blinkLed(IndicatorLED::RECORD, 255, 1);
-		if (display->type() != DisplayType::OLED) {
+		if (display->have7SEG()) {
 			display->setNextTransitionDirection(0);
 			display->setText("REC", false, 255, true);
 		}
@@ -203,7 +203,7 @@ void AudioRecorder::process() {
 
 		uiTimerManager.routine();
 
-		if (display->type() == DisplayType::OLED) {
+		if (display->haveOLED()) {
 			oledRoutine();
 		}
 		PIC::flush();

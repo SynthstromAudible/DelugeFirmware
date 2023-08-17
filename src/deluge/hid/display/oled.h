@@ -133,6 +133,8 @@ public:
 	void removeLoadingAnimation() override { removeWorkingAnimation(); }
 
 	bool hasPopup() override { return isPopupPresent(); }
+
+	bool haveOLED() override { return true; }
 };
 
 } // namespace deluge::hid::display

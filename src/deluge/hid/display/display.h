@@ -58,6 +58,9 @@ public:
 	}
 
 	virtual std::array<uint8_t, kNumericDisplayLength> getLast() { return {0}; }; // to match SevenSegment
+
+	virtual bool haveOLED() { return false; }
+	virtual bool have7SEG() { return false; }
 };
 
 } // namespace deluge::hid

@@ -90,7 +90,7 @@ void UITimerManager::routine() {
 					break;
 
 				case TIMER_DISPLAY:
-					if (display->type() == DisplayType::OLED) {
+					if (display->haveOLED()) {
 						auto* oled = static_cast<deluge::hid::display::OLED*>(display);
 						oled->timerRoutine();
 					}
@@ -165,20 +165,20 @@ void UITimerManager::routine() {
 					break;
 
 				case TIMER_OLED_LOW_LEVEL:
-					if (display->type() == DisplayType::OLED) {
+					if (display->haveOLED()) {
 						oledLowLevelTimerCallback();
 					}
 					break;
 
 				case TIMER_OLED_CONSOLE:
-					if (display->type() == DisplayType::OLED) {
+					if (display->haveOLED()) {
 						auto* oled = static_cast<deluge::hid::display::OLED*>(display);
 						oled->consoleTimerEvent();
 					}
 					break;
 
 				case TIMER_OLED_SCROLLING_AND_BLINKING:
-					if (display->type() == DisplayType::OLED) {
+					if (display->haveOLED()) {
 						deluge::hid::display::OLED::scrollingAndBlinkingTimerEvent();
 					}
 					break;

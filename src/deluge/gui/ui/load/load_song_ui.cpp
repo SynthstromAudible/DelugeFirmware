@@ -205,7 +205,7 @@ ActionResult LoadSongUI::buttonAction(deluge::hid::Button b, bool on, bool inCar
 				}
 				else {
 					currentUIMode = UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED;
-					if (display->type() == DisplayType::OLED) {
+					if (display->haveOLED()) {
 						displayArmedPopup();
 					}
 					else {
@@ -230,7 +230,7 @@ void LoadSongUI::performLoad() {
 
 	if (!currentFileItem) {
 		display->displayError(
-		    display->type() == DisplayType::OLED
+		    display->haveOLED()
 		        ? ERROR_FILE_NOT_FOUND
 		        : ERROR_NO_FURTHER_FILES_THIS_DIRECTION); // Make it say "NONE" on numeric Deluge, for consistency with old times.
 		return;
@@ -377,7 +377,7 @@ gotErrorAfterCreatingSong:
 			}
 
 			currentUIMode = UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED;
-			if (display->type() == DisplayType::OLED) {
+			if (display->haveOLED()) {
 				displayArmedPopup();
 			}
 			else {
@@ -388,7 +388,7 @@ gotErrorAfterCreatingSong:
 		// Otherwise, set up so that the song-swap will be armed as soon as the user releases the load button
 		else {
 			display->removeWorkingAnimation();
-			if (display->type() == DisplayType::OLED) {
+			if (display->haveOLED()) {
 				display->popupText("Loading complete");
 			}
 			else {
@@ -415,7 +415,7 @@ gotErrorAfterCreatingSong:
 	}
 
 swapDone:
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		deluge::hid::display::OLED::displayWorkingAnimation(
 		    "Loading"); // To override our popup if we did one. (Still necessary?)
 	}
@@ -606,7 +606,7 @@ void LoadSongUI::selectEncoderAction(int8_t offset) {
 		else if (session.numRepeatsTilLaunch > 9999) {
 			session.numRepeatsTilLaunch = 9999;
 		}
-		if (display->type() == DisplayType::OLED) {
+		if (display->haveOLED()) {
 			//renderUIsForOled();
 			displayLoopsRemainingPopup();
 		}

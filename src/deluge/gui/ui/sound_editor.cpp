@@ -465,7 +465,7 @@ bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 		return false;
 	}
 
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		renderUIsForOled();
 	}
 
@@ -752,7 +752,7 @@ doSetup:
 						return ActionResult::DEALT_WITH;
 					}
 
-					if (display->type() == DisplayType::OLED) {
+					if (display->haveOLED()) {
 						switch (x) {
 						case 0 ... 3:
 							setOscillatorNumberForTitles(x & 1);

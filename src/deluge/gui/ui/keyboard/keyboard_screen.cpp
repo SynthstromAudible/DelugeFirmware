@@ -297,7 +297,7 @@ void KeyboardScreen::updateActiveNotes() {
 	if (lastNotesState.count != 0 && currentNotesState.count == 0) {
 		exitUIMode(UI_MODE_AUDITIONING);
 
-		if (display->type() == DisplayType::OLED) {
+		if (display->haveOLED()) {
 			deluge::hid::display::OLED::removePopup();
 		}
 		else {
@@ -579,7 +579,7 @@ void KeyboardScreen::selectEncoderAction(int8_t offset) {
 
 		char noteName[3] = {0};
 		noteName[0] = noteCodeToNoteLetter[newRootNote];
-		if (display->type() == DisplayType::OLED) {
+		if (display->haveOLED()) {
 			if (noteCodeIsSharp[newRootNote]) {
 				noteName[1] = '#';
 			}
@@ -604,7 +604,7 @@ void KeyboardScreen::exitAuditionMode() {
 	updateActiveNotes();
 
 	exitUIMode(UI_MODE_AUDITIONING);
-	if (display->type() != DisplayType::OLED) {
+	if (display->have7SEG()) {
 		redrawNumericDisplay();
 	}
 }

@@ -49,7 +49,7 @@ void Decimal::beginSession(MenuItem* navigatedBackwardFrom) {
 }
 
 void Decimal::drawValue() {
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		renderUIsForOled();
 	}
 	else {
@@ -99,7 +99,7 @@ void Decimal::horizontalEncoderAction(int32_t offset) {
 		}
 	}
 
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		movingCursor = true;
 		renderUIsForOled();
 		movingCursor = false;

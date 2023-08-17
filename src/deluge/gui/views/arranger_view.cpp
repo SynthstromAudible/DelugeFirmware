@@ -427,7 +427,7 @@ void ArrangerView::focusRegained() {
 
 	repopulateOutputsOnScreen(false);
 
-	if (display->type() != DisplayType::OLED) {
+	if (display->have7SEG()) {
 		sessionView.redrawNumericDisplay();
 	}
 	if (currentUIMode != UI_MODE_HOLDING_ARRANGEMENT_ROW) {
@@ -733,7 +733,7 @@ void ArrangerView::changeOutputToInstrument(InstrumentType newInstrumentType) {
 	outputsOnScreen[yPressedEffective] = newInstrument;
 
 	view.displayOutputName(newInstrument);
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		deluge::hid::display::OLED::sendMainImage();
 	}
 
@@ -847,7 +847,7 @@ doNewPress:
 			currentUIMode = UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION;
 
 			view.displayOutputName(output);
-			if (display->type() == DisplayType::OLED) {
+			if (display->haveOLED()) {
 				deluge::hid::display::OLED::sendMainImage();
 			}
 
@@ -877,7 +877,7 @@ void ArrangerView::auditionEnded() {
 	setNoSubMode();
 	setLedStates();
 
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		renderUIsForOled();
 	}
 	else {
@@ -2343,7 +2343,7 @@ void ArrangerView::selectEncoderAction(int8_t offset) {
 			else { // Arrangement playback
 				if (offset == -1 && playbackHandler.stopOutputRecordingAtLoopEnd) {
 					playbackHandler.stopOutputRecordingAtLoopEnd = false;
-					if (display->type() == DisplayType::OLED) {
+					if (display->haveOLED()) {
 						renderUIsForOled();
 					}
 					else {
@@ -2399,7 +2399,7 @@ void ArrangerView::changeInstrumentType(InstrumentType newInstrumentType) {
 	indicator_leds::setLedState(IndicatorLED::MIDI, false);
 	indicator_leds::setLedState(IndicatorLED::CV, false);
 	view.displayOutputName(newInstrument);
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		deluge::hid::display::OLED::sendMainImage();
 	}
 	view.setActiveModControllableTimelineCounter(newInstrument->activeClip);
@@ -2482,7 +2482,7 @@ cant:
 	indicator_leds::setLedState(IndicatorLED::MIDI, false);
 	indicator_leds::setLedState(IndicatorLED::CV, false);
 	view.displayOutputName(newOutput);
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		deluge::hid::display::OLED::sendMainImage();
 	}
 	view.setActiveModControllableTimelineCounter(newClip);
@@ -3106,7 +3106,7 @@ void ArrangerView::playbackEnded() {
 	}
 
 	if (getCurrentUI() == &arrangerView) { // Why do we need to check this?
-		if (display->type() == DisplayType::OLED) {
+		if (display->haveOLED()) {
 			renderUIsForOled();
 		}
 		else {

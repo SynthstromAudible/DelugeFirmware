@@ -122,7 +122,7 @@ int32_t LoadInstrumentPresetUI::setupForInstrumentType() {
 		indicator_leds::blinkLed(IndicatorLED::KIT);
 	}
 
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		fileIcon = (instrumentTypeToLoad == InstrumentType::SYNTH) ? deluge::hid::display::OLED::synthIcon
 		                                                           : deluge::hid::display::OLED::kitIcon;
 		title = (instrumentTypeToLoad == InstrumentType::SYNTH) ? "Load synth" : "Load kit";
@@ -199,7 +199,7 @@ useDefaultFolder:
 		renderingNeededRegardlessOfUI(0, 0xFFFFFFFF);
 	}
 
-	if (display->type() != DisplayType::OLED) {
+	if (display->have7SEG()) {
 		displayText(false);
 	}
 	return NO_ERROR;
@@ -395,7 +395,7 @@ void LoadInstrumentPresetUI::changeInstrumentType(InstrumentType newInstrumentTy
 			// If going back to a view where the new selection won't immediately be displayed, gotta give some confirmation
 			if (!getRootUI()->toClipMinder()) {
 				char const* message;
-				if (display->type() == DisplayType::OLED) {
+				if (display->haveOLED()) {
 					message = ((newInstrumentType == InstrumentType::MIDI_OUT) ? "Instrument switched to MIDI channel"
 					                                                           : "Instrument switched to CV channel");
 				}
@@ -420,7 +420,7 @@ void LoadInstrumentPresetUI::changeInstrumentType(InstrumentType newInstrumentTy
 			return;
 		}
 
-		if (display->type() == DisplayType::OLED) {
+		if (display->haveOLED()) {
 			renderUIsForOled();
 		}
 		performLoad();
@@ -603,7 +603,7 @@ bool LoadInstrumentPresetUI::findUnusedSlotVariation(String* oldName, String* ne
 	char const* oldNameChars = oldName->get();
 	int32_t oldNameLength = strlen(oldNameChars);
 
-	if (display->type() != DisplayType::OLED) {
+	if (display->have7SEG()) {
 		int32_t subSlot = -1;
 		// For numbered slots
 		if (oldNameLength == 3) {
@@ -767,7 +767,7 @@ int32_t LoadInstrumentPresetUI::performLoad(bool doClone) {
 
 	FileItem* currentFileItem = getCurrentFileItem();
 	if (!currentFileItem) {
-		return display->type() == DisplayType::OLED
+		return display->haveOLED()
 		           ? ERROR_FILE_NOT_FOUND
 		           : ERROR_NO_FURTHER_FILES_THIS_DIRECTION; // Make it say "NONE" on numeric Deluge, for consistency with old times.
 	}
@@ -1408,7 +1408,7 @@ doneMoving:
 		view.drawOutputNameFromDetails(instrumentType, 0, 0, newName.get(), false, doBlink);
 	}
 
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		deluge::hid::display::OLED::sendMainImage(); // Sorta cheating - bypassing the UI layered renderer.
 	}
 

@@ -51,7 +51,7 @@ bool ContextMenu::opened() {
 */
 
 void ContextMenu::focusRegained() {
-	if (display->type() != DisplayType::OLED) {
+	if (display->have7SEG()) {
 		drawCurrentOption();
 	}
 }
@@ -112,7 +112,7 @@ void ContextMenu::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 void ContextMenu::selectEncoderAction(int8_t offset) {
 	const auto [_options, numOptions] = getOptions();
 
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		bool wasOnScrollPos = (currentOption == scrollPos);
 		int32_t oldCurrentOption = currentOption;
 		do {
@@ -191,7 +191,7 @@ probablyAcceptCurrentOption:
 
 void ContextMenu::drawCurrentOption() {
 	const auto [options, _size] = getOptions();
-	if (display->type() != DisplayType::OLED) {
+	if (display->have7SEG()) {
 		indicator_leds::ledBlinkTimeout(0, true);
 		display->setText(options[currentOption], false, 255, true);
 	}

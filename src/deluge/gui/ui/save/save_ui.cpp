@@ -90,7 +90,7 @@ void SaveUI::enterKeyPress() {
 		SlotBrowser::enterKeyPress();
 		bool dealtWith = performSave(false);
 
-		if (display->type() != DisplayType::OLED) {
+		if (display->have7SEG()) {
 			if (!dealtWith) {
 				displayText(false);
 			}

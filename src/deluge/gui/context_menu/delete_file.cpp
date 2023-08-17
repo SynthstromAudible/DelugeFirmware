@@ -42,7 +42,7 @@ char const* DeleteFile::getTitle() {
 Sized<char const**> DeleteFile::getOptions() {
 	using enum l10n::String;
 
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		static char const* options[] = {l10n::get(STRING_FOR_OK)};
 		return {options, 1};
 	}

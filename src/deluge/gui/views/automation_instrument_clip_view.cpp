@@ -2504,7 +2504,7 @@ void AutomationInstrumentClipView::initParameterSelection() {
 	//if we're going back to the Automation Overview, set the display to show Midi Channel again (7seg only)
 	if (instrument->type == InstrumentType::MIDI_OUT) {
 
-		if (display->type() != DisplayType::OLED) {
+		if (display->have7SEG()) {
 			if (((MIDIInstrument*)instrument)->channel < 16) {
 				display->setTextAsSlot(((MIDIInstrument*)instrument)->channel + 1,
 				                       ((MIDIInstrument*)instrument)->channelSuffix, false, false);
@@ -2969,7 +2969,7 @@ void AutomationInstrumentClipView::displayParameterName(int32_t paramID) {
 		char buffer[30];
 
 		//drawing Parameter Names on 7SEG isn't legible and not done currently, so won't do it here either
-		if (display->type() == DisplayType::OLED) {
+		if (display->haveOLED()) {
 
 			if (clip->lastSelectedParamKind == Param::Kind::PATCHED) {
 				strncpy(buffer, getPatchedParamDisplayNameForOLED(paramID), 29);

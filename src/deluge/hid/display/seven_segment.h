@@ -89,5 +89,7 @@ private:
 	void transitionToNewLayer(NumericLayer* newLayer);
 	void setTextVeryBasicA1(char const* text);
 	std::array<uint8_t, kNumericDisplayLength> lastDisplay_ = {0};
+
+	bool have7SEG() override { return true; }
 };
 } // namespace deluge::hid::display

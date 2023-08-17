@@ -32,7 +32,7 @@ void HIDSysex::requestOLEDDisplay(MIDIDevice* device, uint8_t* data, int32_t len
 
 void HIDSysex::sendOLEDData(MIDIDevice* device, bool rle) {
 	// TODO: in the long run, this should not depend on having a physical OLED screen
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		const int32_t data_size = 768;
 		const int32_t max_packed_size = 922;
 
@@ -59,7 +59,7 @@ void HIDSysex::sendOLEDData(MIDIDevice* device, bool rle) {
 }
 
 void HIDSysex::request7SegDisplay(MIDIDevice* device, uint8_t* data, int32_t len) {
-	if (display->type() != DisplayType::OLED) {
+	if (display->have7SEG()) {
 		if (data[4] == 0) {
 			// aschually 8 segments if you count the dot
 			auto data = display->getLast();

@@ -238,7 +238,7 @@ void TimelineView::displayNumberOfBarsAndBeats(uint32_t number, uint32_t quantiz
 		whichSubBeat++;
 	}
 
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		char text[15];
 		intToString(whichBar, text);
 		char* pos = strchr(text, 0);

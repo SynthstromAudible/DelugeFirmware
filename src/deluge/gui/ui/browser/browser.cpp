@@ -80,7 +80,7 @@ bool Browser::opened() {
 	arrivedAtFileByTyping = false;
 	allowedFileExtensions = allowedFileExtensionsXML;
 	allowFoldersSharingNameWithFile = false;
-	if (display->type() != DisplayType::OLED) {
+	if (display->have7SEG()) {
 		numberEditPos = -1;
 	}
 
@@ -261,7 +261,7 @@ int32_t Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFo
 
 	int32_t filePrefixLength;
 
-	if (display->type() != DisplayType::OLED) {
+	if (display->have7SEG()) {
 		if (filePrefixHere) {
 			filePrefixLength = strlen(filePrefixHere);
 		}
@@ -316,7 +316,7 @@ extensionNotSupported:
 		thisItem->filePointer = thisFilePointer;
 
 		char const* storedFilenameChars = thisItem->filename.get();
-		if (display->type() != DisplayType::OLED) {
+		if (display->have7SEG()) {
 			if (filePrefixHere) {
 				if (memcasecmp(storedFilenameChars, filePrefixHere, filePrefixLength)) {
 					goto nonNumericFile;
@@ -547,7 +547,7 @@ gotErrorAfterAllocating:
 	}
 
 	enteredTextEditPos = 0;
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		scrollPosHorizontal = 0;
 	}
 
@@ -626,7 +626,7 @@ useFoundFile:
 
 			char nameBuffer[20];
 			char* nameBufferPos = nameBuffer;
-			if (display->type() == DisplayType::OLED) {
+			if (display->haveOLED()) {
 				*(nameBufferPos++) = 'S';
 				*(nameBufferPos++) = 'O';
 				*(nameBufferPos++) = 'N';
@@ -712,7 +712,7 @@ noNumberYet:
 					goto tryAgain;
 				}
 				numberStartPos = endSearchString.getLength() + 1;
-				error = endSearchString.concatenate(display->type() == DisplayType::OLED ? " :" : "_:");
+				error = endSearchString.concatenate(display->haveOLED() ? " :" : "_:");
 				if (error) {
 					goto gotErrorAfterAllocating; // See above comment.
 				}
@@ -790,7 +790,7 @@ useNonExistentFileName:     // Normally this will get skipped over - if we found
 everythingFinalized:
 	folderContentsReady(direction);
 
-	if (display->type() != DisplayType::OLED) {
+	if (display->have7SEG()) {
 		displayText();
 	}
 	return NO_ERROR;
@@ -800,7 +800,7 @@ everythingFinalized:
 int32_t Browser::getUnusedSlot(InstrumentType instrumentType, String* newName, char const* thingName) {
 
 	int32_t error = 0;
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		char filenameToStartAt[6]; // thingName is max 4 chars.
 		strcpy(filenameToStartAt, thingName);
 		strcat(filenameToStartAt, ":");
@@ -822,7 +822,7 @@ doReturn:
 
 	sortFileItems();
 
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		int32_t freeSlotNumber = 1;
 		int32_t minNumDigits = 1;
 		if (fileItems.getNumElements()) {
@@ -923,7 +923,7 @@ void Browser::selectEncoderAction(int8_t offset) {
 	}
 	else {
 		// If user is holding shift, skip past any subslots. And on numeric Deluge, user may have chosen one digit to "edit".
-		if (display->type() == DisplayType::OLED) {
+		if (display->haveOLED()) {
 			// TODO: deal with deleted FileItems here...
 			int32_t numberEditPosNow = numberEditPos;
 			if (Buttons::isShiftButtonPressed() && numberEditPosNow == -1) {
@@ -1030,7 +1030,7 @@ gotErrorAfterAllocating:
 			newFileIndex = fileItems.search(enteredText.get()) + offset;
 		}
 
-		else if (!shouldWrapFolderContents && display->type() != DisplayType::OLED) {
+		else if (!shouldWrapFolderContents && display->have7SEG()) {
 			return;
 		}
 
@@ -1063,7 +1063,7 @@ searchFromOneEnd:
 			goto tryReadingItems;
 		}
 
-		else if (!shouldWrapFolderContents && display->type() != DisplayType::OLED) {
+		else if (!shouldWrapFolderContents && display->have7SEG()) {
 			return;
 		}
 
@@ -1094,7 +1094,7 @@ searchFromOneEnd:
 	}
 
 	enteredTextEditPos = 0;
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		scrollPosHorizontal = 0;
 	}
 	else {
@@ -1228,8 +1228,7 @@ notFound:
 	fileIndexSelected = i;
 
 	// Move scroll only if found item is completely offscreen.
-	if (display->type() != DisplayType::OLED || scrollPosVertical > i
-	    || scrollPosVertical < i - (OLED_HEIGHT_CHARS - 1) + 1) {
+	if (display->have7SEG() || scrollPosVertical > i || scrollPosVertical < i - (OLED_HEIGHT_CHARS - 1) + 1) {
 		scrollPosVertical = i;
 	}
 
@@ -1405,7 +1404,7 @@ doReturn:
 }
 
 void Browser::displayText(bool blinkImmediately) {
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		renderUIsForOled();
 	}
 	else {
@@ -1597,7 +1596,7 @@ int32_t Browser::goIntoFolder(char const* folderName) {
 
 	display->setNextTransitionDirection(1);
 	error = arrivedInNewFolder(1);
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		if (!error) {
 			renderUIsForOled();
 		}
@@ -1627,7 +1626,7 @@ int32_t Browser::goUpOneDirectoryLevel() {
 
 	display->setNextTransitionDirection(-1);
 	error = arrivedInNewFolder(-1, enteredText.get());
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		if (!error) {
 			renderUIsForOled();
 		}

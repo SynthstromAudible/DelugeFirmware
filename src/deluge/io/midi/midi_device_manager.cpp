@@ -220,7 +220,7 @@ extern "C" void hostedDeviceConfigured(int32_t ip, int32_t midiDeviceNum) {
 	device->connectedNow(midiDeviceNum);
 	recountSmallestMPEZones(); // Must be called after setting device->connectionFlags
 
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		String text;
 		text.set(&device->name);
 		int32_t error = text.concatenate(" attached");

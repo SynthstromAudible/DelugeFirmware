@@ -107,7 +107,7 @@ bool SampleMarkerEditor::opened() {
 
 	uiNeedsRendering(this, 0xFFFFFFFF, 0);
 
-	if (display->type() != DisplayType::OLED) {
+	if (display->have7SEG()) {
 		displayText();
 	}
 
@@ -307,7 +307,7 @@ void SampleMarkerEditor::selectEncoderAction(int8_t offset) {
 	blinkInvisible = false;
 
 	uiNeedsRendering(this, 0xFFFFFFFF, 0);
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		renderUIsForOled();
 	}
 	else {
@@ -598,7 +598,7 @@ doWriteValue:
 
 doRender:
 			uiNeedsRendering(this, 0xFFFFFFFF, 0);
-			if (display->type() == DisplayType::OLED) {
+			if (display->haveOLED()) {
 				renderUIsForOled();
 			}
 			else {

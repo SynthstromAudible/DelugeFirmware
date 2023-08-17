@@ -178,7 +178,7 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
 			if (currentPlaybackMode == &session && getCurrentUI() == &arrangerView) {
 				arrangementPosToStartAtOnSwitch = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
 				session.armForSwitchToArrangement();
-				if (display->type() == DisplayType::OLED) {
+				if (display->haveOLED()) {
 					renderUIsForOled();
 				}
 				else {
@@ -1764,7 +1764,7 @@ void PlaybackHandler::resyncMIDIClockOutTicksToInternalTicks() {
 }
 
 void PlaybackHandler::displaySwingAmount() {
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		char buffer[19];
 		strcpy(buffer, "Swing: ");
 		if (currentSong->swingAmount == 0) {
@@ -2637,7 +2637,7 @@ void PlaybackHandler::switchToArrangement() {
 	arrangement.setupPlayback();
 	arrangement.resetPlayPos(arrangementPosToStartAtOnSwitch);
 	arrangerView.reassessWhetherDoingAutoScroll();
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		if (!isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)
 		    && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
 			renderUIsForOled();

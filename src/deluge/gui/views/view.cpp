@@ -913,7 +913,7 @@ void View::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 
 	// If the learn button is pressed, user is trying to copy or paste, and the fact that we've ended up here means they can't
 	if (Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
-		if (display->type() != DisplayType::OLED) {
+		if (display->have7SEG()) {
 			if (on) {
 				display->displayPopup("CANT");
 			}
@@ -1289,7 +1289,7 @@ void View::drawOutputNameFromDetails(InstrumentType instrumentType, int32_t chan
 		setLedState(LED::CROSS_SCREEN_EDIT, (clip && clip->wrapEditing));
 	}
 
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		deluge::hid::display::OLED::clearMainImage();
 		char const* outputTypeText;
 		switch (instrumentType) {
@@ -1326,7 +1326,7 @@ void View::drawOutputNameFromDetails(InstrumentType instrumentType, int32_t chan
 	char const* nameToDraw = nullptr;
 
 	if (name && name[0]) {
-		if (display->type() == DisplayType::OLED) {
+		if (display->haveOLED()) {
 			nameToDraw = name;
 oledDrawString:
 #if OLED_MAIN_HEIGHT_PIXELS == 64
@@ -1394,7 +1394,7 @@ yesAlignRight:
 		}
 	}
 	else if (instrumentType == InstrumentType::MIDI_OUT) {
-		if (display->type() == DisplayType::OLED) {
+		if (display->haveOLED()) {
 			if (channel < 16) {
 				slotToString(channel + 1, channelSuffix, buffer, 1);
 				goto oledOutputBuffer;
@@ -1415,7 +1415,7 @@ yesAlignRight:
 		}
 	}
 	else if (instrumentType == InstrumentType::CV) {
-		if (display->type() == DisplayType::OLED) {
+		if (display->haveOLED()) {
 			intToString(channel + 1, buffer);
 oledOutputBuffer:
 			nameToDraw = buffer;
@@ -1461,7 +1461,7 @@ void View::navigateThroughAudioOutputsForAudioClip(int32_t offset, AudioClip* cl
 	}
 
 	displayOutputName(newOutput, doBlink);
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		deluge::hid::display::OLED::sendMainImage();
 	}
 
@@ -1669,7 +1669,7 @@ gotAnInstrument:
 		}
 
 		displayOutputName(newInstrument, doBlink);
-		if (display->type() == DisplayType::OLED) {
+		if (display->haveOLED()) {
 			deluge::hid::display::OLED::sendMainImage();
 		}
 	}
@@ -1795,7 +1795,7 @@ bool View::changeInstrumentType(InstrumentType newInstrumentType, ModelStackWith
 
 	setActiveModControllableTimelineCounter(clip); // Do a redraw. Obviously the Clip is the same
 	displayOutputName(newInstrument, doBlink);
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		deluge::hid::display::OLED::sendMainImage();
 	}
 

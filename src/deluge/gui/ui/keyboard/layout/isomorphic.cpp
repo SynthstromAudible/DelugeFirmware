@@ -50,7 +50,7 @@ void KeyboardLayoutIsomorphic::handleHorizontalEncoder(int32_t offset, bool shif
 		state.rowInterval = std::clamp(state.rowInterval, kMinIsomorphicRowInterval, kMaxIsomorphicRowInterval);
 
 		char buffer[13] = "Row step:   ";
-		auto offset = (display->type() == DisplayType::OLED ? 10 : 0);
+		auto offset = (display->haveOLED() ? 10 : 0);
 		intToString(state.rowInterval, buffer + offset, 1);
 		display->displayPopup(buffer);
 

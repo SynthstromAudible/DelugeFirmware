@@ -42,7 +42,7 @@ public:
 
 template <size_t n>
 void Selection<n>::drawValue() {
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		renderUIsForOled();
 	}
 	else {

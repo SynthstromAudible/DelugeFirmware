@@ -33,7 +33,7 @@ RenameOutputUI::RenameOutputUI() {
 }
 
 bool RenameOutputUI::opened() {
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		if (output->type == InstrumentType::AUDIO) {
 			title = "Rename track";
 		}

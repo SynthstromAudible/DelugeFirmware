@@ -113,7 +113,7 @@ void InstrumentClipMinder::selectEncoderAction(int32_t offset) {
 }
 
 void InstrumentClipMinder::redrawNumericDisplay() {
-	if (display->type() != DisplayType::OLED) {
+	if (display->have7SEG()) {
 		if (getCurrentUI()->toClipMinder()) { // Seems a redundant check now? Maybe? Or not?
 			view.displayOutputName(getCurrentClip()->output, false);
 		}
@@ -126,7 +126,7 @@ void InstrumentClipMinder::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 
 void InstrumentClipMinder::drawMIDIControlNumber(int32_t controlNumber, bool automationExists) {
 
-	char buffer[display->type() == DisplayType::OLED ? 30 : 5];
+	char buffer[display->haveOLED() ? 30 : 5];
 	bool finish = false;
 	if (controlNumber == CC_NUMBER_NONE) {
 		strcpy(buffer, deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_PARAM));
@@ -140,7 +140,7 @@ void InstrumentClipMinder::drawMIDIControlNumber(int32_t controlNumber, bool aut
 	else {
 		buffer[0] = 'C';
 		buffer[1] = 'C';
-		if (display->type() == DisplayType::OLED) {
+		if (display->haveOLED()) {
 			buffer[2] = ' ';
 			intToString(controlNumber, &buffer[3]);
 		}
@@ -150,7 +150,7 @@ void InstrumentClipMinder::drawMIDIControlNumber(int32_t controlNumber, bool aut
 		}
 	}
 
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		if (automationExists) {
 			strcat(buffer, "\n(automated)");
 		}
@@ -265,7 +265,7 @@ gotError:
 
 	newInstrument->name.set(&newName);
 
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		renderUIsForOled();
 	}
 	else {
@@ -300,7 +300,7 @@ void InstrumentClipMinder::opened() {
 void InstrumentClipMinder::focusRegained() {
 	view.focusRegained();
 	view.setActiveModControllableTimelineCounter(getCurrentClip());
-	if (display->type() != DisplayType::OLED) {
+	if (display->have7SEG()) {
 		redrawNumericDisplay();
 	}
 }
@@ -481,7 +481,7 @@ void InstrumentClipMinder::drawActualNoteCode(int16_t noteCode) {
 	char noteName[5];
 	noteName[0] = noteCodeToNoteLetter[noteCodeWithinOctave];
 	char* writePos = &noteName[1];
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		if (noteCodeIsSharp[noteCodeWithinOctave]) {
 			*writePos = '#';
 			writePos++;
@@ -489,7 +489,7 @@ void InstrumentClipMinder::drawActualNoteCode(int16_t noteCode) {
 	}
 	intToString(octave, writePos, 1);
 
-	if (display->type() == DisplayType::OLED) {
+	if (display->haveOLED()) {
 		display->popupTextTemporary(noteName);
 	}
 	else {
