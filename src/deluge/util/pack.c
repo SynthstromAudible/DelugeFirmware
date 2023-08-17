@@ -1,5 +1,5 @@
 #include "pack.h"
-#include <cstring>
+#include <string.h>
 
 // This is the same packing format as used by Sequential synthesizers
 // See the "Packed Data Format" section of any DSI or sequential manual.
@@ -14,7 +14,7 @@ int32_t pack_8bit_to_7bit(uint8_t* dst, int32_t dst_size, uint8_t* src, int32_t 
 	for (int32_t i = 0; i < packets; i++) {
 		int32_t ipos = 7 * i;
 		int32_t opos = 8 * i;
-		memset(dst + opos, 0, 8);
+		dst[opos] = 0;
 		for (int32_t j = 0; j < 7; j++) {
 			// incomplete packet
 			if (!(ipos + j < src_len))
@@ -41,7 +41,6 @@ int32_t unpack_7bit_to_8bit(uint8_t* dst, int32_t dst_size, uint8_t* src, int32_
 	for (int32_t i = 0; i < packets; i++) {
 		int32_t ipos = 8 * i;
 		int32_t opos = 7 * i;
-		memset(dst + opos, 0, 7);
 		for (int32_t j = 0; j < 7; j++) {
 			if (!(j + 1 + ipos < src_len))
 				break;
@@ -51,7 +50,7 @@ int32_t unpack_7bit_to_8bit(uint8_t* dst, int32_t dst_size, uint8_t* src, int32_
 			}
 		}
 	}
-	return 8 * packets;
+	return 8 * packets - missing;
 }
 
 const int32_t MAX_DENSE_SIZE = 5;
@@ -208,4 +207,46 @@ int32_t unpack_7to8_rle(uint8_t* dst, int32_t dst_size, uint8_t* src, int32_t sr
 		}
 	}
 	return d;
+}
+
+// derived from png reference implementation (MIT license)
+
+// Table of CRCs of all 8-bit messages.
+static uint32_t crc_table[256];
+
+/* Make the table for a fast CRC. */
+void init_crc_table(void) {
+	uint32_t c;
+	int n, k;
+
+	for (n = 0; n < 256; n++) {
+		c = (uint32_t)n;
+		for (k = 0; k < 8; k++) {
+			if (c & 1)
+				c = 0xedb88320L ^ (c >> 1);
+			else
+				c = c >> 1;
+		}
+		crc_table[n] = c;
+	}
+}
+
+// Update a running CRC with the bytes buf[0..len-1]--the CRC
+// should be initialized to all 1's, and the transmitted value
+// is the 1's complement of the final running CRC (see the
+// crc() routine below).
+
+static uint32_t update_crc(uint32_t crc, uint8_t* buf, int len) {
+	uint32_t c = crc;
+	int n;
+
+	for (n = 0; n < len; n++) {
+		c = crc_table[(c ^ buf[n]) & 0xff] ^ (c >> 8);
+	}
+	return c;
+}
+
+// Return the CRC of the bytes buf[0..len-1].
+uint32_t get_crc(uint8_t* buf, int len) {
+	return update_crc(0xffffffffL, buf, len) ^ 0xffffffffL;
 }

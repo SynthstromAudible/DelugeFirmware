@@ -16,6 +16,7 @@
 */
 
 #include "settings.h"
+#include "devSysexSetting.h"
 #include "setting.h"
 
 #include "gui/ui/sound_editor.h"
@@ -45,6 +46,7 @@ Setting menuAutomationNudgeNote(RuntimeFeatureSettingType::AutomationNudgeNote);
 Setting menuAutomationShiftClip(RuntimeFeatureSettingType::AutomationShiftClip);
 Setting menuHighlightIncomingNotes(RuntimeFeatureSettingType::HighlightIncomingNotes);
 Setting menuDisplayNornsLayout(RuntimeFeatureSettingType::DisplayNornsLayout);
+DevSysexSetting menuDevSysexAllowed(RuntimeFeatureSettingType::DevSysexAllowed);
 
 Submenu subMenuAutomation{
     HAVE_OLED ? "AUTOMATION" : "AUTO",
@@ -66,6 +68,7 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettin
     &menuDeleteUnusedKitRows,
     &menuAltGoldenKnobDelayParams,
     &subMenuAutomation,
+    &menuDevSysexAllowed,
     &menuHighlightIncomingNotes,
     &menuDisplayNornsLayout};
 

@@ -206,6 +206,7 @@ add_link_options(
 
 # RTT Debug options
 option(ENABLE_RTT "Enable RTT output" ON)
+option(ENABLE_SYSEX_LOAD "Enable loading firmware over midi sysex" OFF)
 
 # Colored output
 option(FORCE_COLORED_OUTPUT "Always produce ANSI-colored output (GNU/Clang only)." ON)

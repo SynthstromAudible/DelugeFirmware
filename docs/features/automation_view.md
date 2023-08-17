@@ -6,39 +6,44 @@ Automatable Parameters are broken down into two categories for Automation Instru
 
 1. Automatable Parameters for Synths, Kits with affect entire DISABLED, and Midi
 
->The 51 parameters that can be edited are:
+>The 54 parameters that can be edited are:
 >
-> - **Master** Volume, Pitch, Pan
-> - **LPF** Cutoff, Resonance
-> - **HPF** Cutoff, Resonance
-> - **EQ** Bass, Bass Freq, Treble, Treble Freq
+> - **Master** Level, Pitch, Pan
+> - **LPF** Frequency, Resonance, Morph
+> - **HPF** Frequency, Resonance, Morph
+> - **EQ** Bass, Bass Frequency, Treble, Treble Frequency
 > - **Reverb** Amount
 > - **Delay** Rate, Amount
-> - **Sidechain** Send, Shape
-> - **Distortion** Decimation, Bitcrush
-> - **OSC 1** Volume, Pitch, Phase Width, Carrier Feedback, Wave Index
-> - **OSC 2** Volume, Pitch, Phase Width, Carrier Feedback, Wave Index
-> - **FM Mod 1** Volume, Pitch, Feedback
-> - **FM Mod 2** Volume, Pitch, Feedback
+> - **Sidechain** Level, Shape
+> - **Distortion** Decimation, Bitcrush, Wavefolder
+> - **OSC 1** Level, Pitch, Phase Width, Carrier Feedback, Wave Position
+> - **OSC 2** Level, Pitch, Phase Width, Carrier Feedback, Wave Position
+> - **FM Mod 1** Level, Pitch, Feedback
+> - **FM Mod 2** Level, Pitch, Feedback
 > - **Env 1** Attack, Decay, Sustain, Release
 > - **Env 2** Attack, Decay, Sustain, Release
-> - **LFO 1** Frequency
-> - **LFO 2** Frequency
+> - **LFO 1** Rate
+> - **LFO 2** Rate
 > - **Mod FX** Offset, Feedback, Depth, Rate
 > - **Arp** Rate, Gate
-> - **Noise**
+> - **Noise** Level
+> - **Portamento**
 
 2. Automatable Parameters for Kits with affect entire ENABLED
 
->The 11 parameters that can be edited are:
+>The 24 parameters that can be edited are:
 >
-> - **Master** Volume, Pan
+> - **Master** Level, Pan, Pitch
 > - **LPF** Cutoff, Resonance
 > - **HPF** Cutoff, Resonance
+> - **EQ** Bass, Bass Frequency, Treble, Treble Frequency
 > - **Reverb** Amount
 > - **Delay** Rate, Amount
-> - **Sidechain** Send
-> - **Mod FX** Depth, Rate
+> - **Sidechain** Level, Shape
+> - **Distortion** Decimation, Bitcrush
+> - **Mod FX** Offset, Feedback, Depth, Rate
+> - **Arp** Gate
+> - **Portamento**
 
 It can be thought of as a layer sitting on top of the Instrument Clip View for Synths, Kits and Midi instrument clip types. This PR does not address automation for audio clips.
 
@@ -139,7 +144,7 @@ The Automation Editor **will:**
 - display on the screen what parameter you are currently editing and its automation status (for 7seg it will only display on the screen for Midi clips)
 - enable you to use either of the Mod Encoders (gold knobs) to quickly change the parameter value of the parameter in focus. The knobs automatically map to the selected parameter and you can use either knob (eliminating the guess work about which knob to turn).
 - enable you to quickly change parameters in focus for editing by turning select or using shift + shortcut pad
-- enable you to view the current parameter value setting for the 41 parameters that are currently automatable.
+- enable you to view the current parameter value setting for the parameters that are currently automatable.
 - illuminate each pad row according to the current value within the range of 0-127. E.g. bottom pad = 0-16, then 17-32, 33-48, 49-64, 65-80, 81-96, 97-112, 113-127) 
 - edit new or existing parameter automations on a per step basis, at any zoom level across the entire timeline. Each row in a step column corresponds to a range of values in the parameter value range (0-127) (see above). If you press the bottom row, the value will be set to 0. if you press the top row, the value will be set to 127. Pressing the rows in between increments/decrements the value by 18 (e.g. 0, 18, 36, 54, 72, 90, 108, 127). 
 
@@ -318,7 +323,6 @@ Also, similar to the Keyboard screen which uses the variable "onKeyboardScreen" 
 
 # De-scoped Items (Future Release)
 
-- Add missing automatable parameters to kit affect entire
 - Interpolation bug from left to right that doesn't exist from right to left
 - Improving interpolation (I want to get more granular, do the calculation at the lowest possible node)
 - Adjust multi pad press so that it renders the second pad's value at the last possible node (within that pad)

@@ -81,11 +81,8 @@ private:
 
 	void midiSysexReceived(MIDIDevice* device, uint8_t* data, int32_t len);
 	int32_t getPotentialNumConnectedUSBMIDIDevices(int32_t ip);
-
-	void debugSysexReceived(MIDIDevice* device, uint8_t* data, int32_t len);
 };
 
-void midiDebugPrint(MIDIDevice* device, const char* msg, bool nl);
 uint32_t setupUSBMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2);
 
 extern MidiEngine midiEngine;
