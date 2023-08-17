@@ -753,6 +753,12 @@ void MemoryRegion::dealloc(void* address) {
 	uint32_t* __restrict__ header = (uint32_t*)((uint32_t)address - 4);
 	uint32_t spaceSize = (*header & SPACE_SIZE_MASK);
 
+#if ALPHA_OR_BETA_VERSION
+	if ((*header & SPACE_TYPE_MASK) == SPACE_HEADER_EMPTY) {
+		numericDriver.freezeWithError("M000");
+	}
+#endif
+
 	markSpaceAsEmpty((uint32_t)address, spaceSize);
 
 	/*
