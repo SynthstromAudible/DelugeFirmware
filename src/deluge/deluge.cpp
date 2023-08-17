@@ -83,6 +83,7 @@
 #include "testing/hardware_testing.h"
 #include "util/container/hashtable/open_addressing_hash_table.h"
 #include "util/misc.h"
+#include "util/pack.h"
 #include <new>
 #include <stdlib.h>
 #include <string.h>
@@ -580,6 +581,8 @@ extern "C" int32_t deluge_main(void) {
 #ifdef TEST_GENERAL_MEMORY_ALLOCATION
 	GeneralMemoryAllocator::get().test();
 #endif
+
+	init_crc_table();
 
 	// Setup for gate output
 	cvEngine.init();

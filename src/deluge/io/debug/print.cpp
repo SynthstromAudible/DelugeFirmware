@@ -16,6 +16,7 @@
  */
 
 #include "io/debug/print.h"
+#include "io/debug/sysex.h"
 #include "io/midi/midi_engine.h"
 #include "util/functions.h"
 #include <math.h>
@@ -31,7 +32,7 @@ MIDIDevice* midiDebugDevice = nullptr;
 void println(char const* output) {
 #if ENABLE_TEXT_OUTPUT
 	if (midiDebugDevice) {
-		midiDebugPrint(midiDebugDevice, output, true);
+		sysexDebugPrint(midiDebugDevice, output, true);
 	}
 	else {
 		uartPrintln(output);
@@ -50,7 +51,7 @@ void println(int32_t number) {
 void print(char const* output) {
 #if ENABLE_TEXT_OUTPUT
 	if (midiDebugDevice) {
-		midiDebugPrint(midiDebugDevice, output, false);
+		sysexDebugPrint(midiDebugDevice, output, false);
 	}
 	else {
 		uartPrint(output);
