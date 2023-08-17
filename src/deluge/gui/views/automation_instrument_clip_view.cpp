@@ -127,8 +127,9 @@ const std::array<std::pair<Param::Kind, ParamType>, kNumNonKitAffectEntireParams
         {Param::Kind::PATCHED, Param::Global::DELAY_FEEDBACK},
         {Param::Kind::PATCHED, Param::Global::VOLUME_POST_REVERB_SEND}, //Sidechain Send, Shape
         {Param::Kind::UNPATCHED, Param::Unpatched::COMPRESSOR_SHAPE},
-        {Param::Kind::UNPATCHED, Param::Unpatched::SAMPLE_RATE_REDUCTION}, //Decimation, Bitcrush
+        {Param::Kind::UNPATCHED, Param::Unpatched::SAMPLE_RATE_REDUCTION}, //Decimation, Bitcrush, Wavefolder
         {Param::Kind::UNPATCHED, Param::Unpatched::BITCRUSHING},
+		{Param::Kind::PATCHED, Param::Local::FOLD},
         {Param::Kind::PATCHED,
          Param::Local::OSC_A_VOLUME}, //OSC 1 Volume, Pitch, Phase Width, Carrier Feedback, Wave Index
         {Param::Kind::PATCHED, Param::Local::OSC_A_PITCH_ADJUST},
@@ -211,7 +212,7 @@ const uint32_t patchedParamShortcutsForAutomation[kDisplayWidth][kDisplayHeight]
      Param::Local::MODULATOR_1_FEEDBACK, 0xFFFFFFFF, 0xFFFFFFFF},
     {Param::Global::VOLUME_POST_FX, 0xFFFFFFFF, Param::Local::PITCH_ADJUST, Param::Local::PAN, 0xFFFFFFFF, 0xFFFFFFFF,
      0xFFFFFFFF, 0xFFFFFFFF},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
+    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, Param::Local::FOLD},
     {Param::Local::ENV_0_RELEASE, Param::Local::ENV_0_SUSTAIN, Param::Local::ENV_0_DECAY, Param::Local::ENV_0_ATTACK,
      Param::Local::LPF_MORPH, 0xFFFFFFFF, Param::Local::LPF_RESONANCE, Param::Local::LPF_FREQ},
     {Param::Local::ENV_1_RELEASE, Param::Local::ENV_1_SUSTAIN, Param::Local::ENV_1_DECAY, Param::Local::ENV_1_ATTACK,

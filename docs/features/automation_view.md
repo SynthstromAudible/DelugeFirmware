@@ -15,7 +15,7 @@ Automatable Parameters are broken down into two categories for Automation Instru
 > - **Reverb** Amount
 > - **Delay** Rate, Amount
 > - **Sidechain** Level, Shape
-> - **Distortion** Decimation, Bitcrush
+> - **Distortion** Decimation, Bitcrush, Wavefolder
 > - **OSC 1** Level, Pitch, Phase Width, Carrier Feedback, Wave Position
 > - **OSC 2** Level, Pitch, Phase Width, Carrier Feedback, Wave Position
 > - **FM Mod 1** Level, Pitch, Feedback

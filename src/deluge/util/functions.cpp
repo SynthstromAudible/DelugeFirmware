@@ -385,6 +385,10 @@ char const* getPatchedParamDisplayNameForOLED(int32_t p) {
 	case Param::Global::VOLUME_POST_REVERB_SEND:
 		return "Sidechain level";
 
+	//Wavefolder
+	case Param::Local::FOLD:
+		return "Wavefolder";
+
 	//OSC 1 Volume, Pitch, Phase Width, Carrier Feedback, Wave Index
 	case Param::Local::OSC_A_VOLUME:
 		return "Osc1 level";
@@ -485,9 +489,6 @@ char const* getPatchedParamDisplayNameForOLED(int32_t p) {
 	//Noise
 	case Param::Local::NOISE_VOLUME:
 		return "Noise level";
-
-	case Param::Local::FOLD:
-		return "WaveFold";
 
 	default:
 		return "none";
