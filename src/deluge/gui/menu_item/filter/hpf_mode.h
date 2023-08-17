@@ -27,12 +27,12 @@ class HPFMode final : public Selection<kNumHPFModes> {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override {
-		this->setValue(util::to_underlying(soundEditor.currentModControllable->hpfMode) - kNumLPFModes);
+		this->setValue(util::to_underlying(soundEditor.currentModControllable->hpfMode) - kFirstHPFMode);
 	}
 	void writeCurrentValue() override {
-		soundEditor.currentModControllable->hpfMode = static_cast<FilterMode>(this->getValue() + kNumLPFModes);
+		soundEditor.currentModControllable->hpfMode = static_cast<FilterMode>(this->getValue() + kFirstHPFMode);
 	}
-	static_vector<std::string, capacity()> getOptions() override { return {"HPLadder", "HPSV"}; }
+	static_vector<std::string, capacity()> getOptions() override { return {"SV_Band", "SV_Notch", "HPLadder"}; }
 	bool isRelevant(Sound* sound, int32_t whichThing) override {
 		return ((sound == nullptr) || sound->synthMode != ::SynthMode::FM);
 	}

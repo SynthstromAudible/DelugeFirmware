@@ -37,6 +37,9 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 #### Filters
  - ([#103]) adds a new filter in the low-pass slot, a state-variable filter. This filter has significantly less distortion than the ladder filters, think sequential vs. moog. Cutoff and resonance ranges are subject to change with further testing.
 
+#### Unison stereo spread
+-- ([#223]) The unison parts can be spread accross the stereo field. Press SELECT in the unison NUMBER menu to access the new unison spread parameter.
+
 ## New behaviors
 
 ### Song view
@@ -156,6 +159,14 @@ In the main menu of the deluge (Shift + Pressing selection knob) there is an ent
 		* When On, shifting notes horizontally in the regular Instrument Clip View will shift the Notes and MPE, but not the Automation.
 		* When On, to shift Non-MPE Automation horizontally you will need to enter the Automation Instrument Clip View.
 
+### Sysex Handling
+
+Support for sending and receiving large sysex messages has been added. Initially, this has been used for development centric features.
+
+- ([#192] and [#174]) Send the contents of the screen to a computer. This allows 7SEG behavior to be evaluated on OLED hardware and vice versa
+- ([#215]) Forward debug messages. This can be used as an alternative to RTT for print-style debugging.
+- ([#295]) Load firmware over USB. As this could be a security risk, it must be enabled in community feature settings
+
 ## Compiletime settings
 
 This list includes all preprocessor switches that can alter firmware behaviour at compile time and thus require a different firmware
@@ -163,6 +174,10 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 * HAVE_OLED
 
     Currently determines if the built firmware is intended for OLED or 7SEG hardware
+
+* ENABLE_SYSEX_LOAD
+
+    Allow loading firmware over sysex as described above
 
 * FEATURE_...
 

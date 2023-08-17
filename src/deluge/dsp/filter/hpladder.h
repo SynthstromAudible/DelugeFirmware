@@ -68,7 +68,7 @@ private:
 
 	q31_t alteredHpfMomentumMultiplier;
 	q31_t thisHpfResonance;
-
+	q31_t morph_;
 	HPLadderState l;
 	HPLadderState r;
 };
