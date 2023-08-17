@@ -98,6 +98,7 @@ int32_t getParamNeutralValue(int32_t p) {
 	case Param::Local::HPF_RESONANCE:
 	case Param::Local::LPF_MORPH:
 	case Param::Local::HPF_MORPH:
+	case Param::Local::FOLD:
 		return 25 * 10737418; // Room to be quadrupled
 
 	case Param::Local::PAN:
@@ -467,6 +468,9 @@ char const* getPatchedParamDisplayNameForOLED(int32_t p) {
 
 	case Param::Local::CARRIER_1_FEEDBACK:
 		return "Osc 2 feedback";
+
+	case Param::Local::FOLD:
+		return "WaveFold";
 
 	default:
 		return "none";
@@ -1256,12 +1260,12 @@ char const* lpfTypeToString(FilterMode lpfType) {
 
 	case FilterMode::TRANSISTOR_24DB_DRIVE:
 		return "24dBDrive";
-	case FilterMode::SVF:
-		return "SVF";
+	case FilterMode::SVF_BAND:
+		return "SVF_Band";
 	case FilterMode::HPLADDER:
 		return "HPLadder";
-	case FilterMode::HPSVF:
-		return "HPSV";
+	case FilterMode::SVF_NOTCH:
+		return "SVF_Notch";
 	default:
 		return "24dB";
 	}
@@ -1274,14 +1278,18 @@ FilterMode stringToLPFType(char const* string) {
 	else if (!strcmp(string, "24dBDrive")) {
 		return FilterMode::TRANSISTOR_24DB_DRIVE;
 	}
+	else if (!strcmp(string, "SVF_Band")) {
+		return FilterMode::SVF_BAND;
+	}
 	else if (!strcmp(string, "SVF")) {
-		return FilterMode::SVF;
+		//for compatibility with community pre release
+		return FilterMode::SVF_BAND;
 	}
 	else if (!strcmp(string, "HPLadder")) {
 		return FilterMode::HPLADDER;
 	}
-	else if (!strcmp(string, "HPSV")) {
-		return FilterMode::HPSVF;
+	else if (!strcmp(string, "SVF_Notch")) {
+		return FilterMode::SVF_NOTCH;
 	}
 	else {
 		return FilterMode::TRANSISTOR_12DB;

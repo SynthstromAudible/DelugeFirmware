@@ -38,20 +38,25 @@ void FilterSet::renderHPFLong(q31_t* startSample, q31_t* endSample, int32_t samp
 		if (hpfMode_ == FilterMode::HPLADDER) {
 			hpladder.filterMono(startSample, endSample, sampleIncrement);
 		}
-		else if (hpfMode_ == FilterMode::HPSVF) {
+		else if ((hpfMode_ == FilterMode::SVF_BAND) || (hpfMode_ == FilterMode::SVF_NOTCH)) {
 			hpsvf.filterMono(startSample, endSample, sampleIncrement);
 		}
 	}
 }
 void FilterSet::renderHPFLongStereo(q31_t* startSample, q31_t* endSample) {
 	if (HPFOn) {
-		hpladder.filterStereo(startSample, endSample);
+		if (hpfMode_ == FilterMode::HPLADDER) {
+			hpladder.filterStereo(startSample, endSample);
+		}
+		else if ((hpfMode_ == FilterMode::SVF_BAND) || (hpfMode_ == FilterMode::SVF_NOTCH)) {
+			hpsvf.filterStereo(startSample, endSample);
+		}
 	}
 }
 
 void FilterSet::renderLPFLong(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement) {
 	if (LPFOn) {
-		if (lpfMode_ == FilterMode::SVF) {
+		if ((lpfMode_ == FilterMode::SVF_BAND) || (lpfMode_ == FilterMode::SVF_NOTCH)) {
 			lpsvf.filterMono(startSample, endSample, sampleIncrement);
 		}
 		else {
@@ -62,7 +67,7 @@ void FilterSet::renderLPFLong(q31_t* startSample, q31_t* endSample, int32_t samp
 
 void FilterSet::renderLPFLongStereo(q31_t* startSample, q31_t* endSample) {
 	if (LPFOn) {
-		if (lpfMode_ == FilterMode::SVF) {
+		if ((lpfMode_ == FilterMode::SVF_BAND) || (lpfMode_ == FilterMode::SVF_NOTCH)) {
 
 			lpsvf.filterStereo(startSample, endSample);
 		}
@@ -149,17 +154,17 @@ int32_t FilterSet::setConfig(int32_t lpfFrequency, int32_t lpfResonance, bool do
 	    (hpfResonance >> 21) << 21; // Insanely, having changes happen in the small bytes too often causes rustling
 
 	if (LPFOn) {
-		if (lpfmode == FilterMode::SVF) {
-			if (lastLPFMode_ != FilterMode::SVF) {
+		if ((lpfMode_ == FilterMode::SVF_BAND) || (lpfMode_ == FilterMode::SVF_NOTCH)) {
+			if (lastLPFMode_ <= kLastLadder) {
 				lpsvf.reset();
 			}
-			filterGain = lpsvf.configure(lpfFrequency, lpfResonance, lpfmode, lpfMorph, filterGain);
+			filterGain = lpsvf.configure(lpfFrequency, lpfResonance, lpfMode_, lpfMorph, filterGain);
 		}
 		else {
 			if (lastLPFMode_ > kLastLadder) {
 				lpladder.reset();
 			}
-			filterGain = lpladder.configure(lpfFrequency, lpfResonance, lpfmode, lpfMorph, filterGain);
+			filterGain = lpladder.configure(lpfFrequency, lpfResonance, lpfMode_, lpfMorph, filterGain);
 		}
 		lastLPFMode_ = lpfMode_;
 	}
@@ -177,8 +182,10 @@ int32_t FilterSet::setConfig(int32_t lpfFrequency, int32_t lpfResonance, bool do
 				hpladder.reset();
 			}
 		}
-		else if (hpfMode_ == FilterMode::HPSVF) {
-			filterGain = hpsvf.configure(hpfFrequency, hpfResonance, hpfmode, hpfMorph, filterGain);
+		//otherwise it's an SVF ((lpfmode == FilterMode::SVF_BAND) || (lpfmode == FilterMode::SVF_NOTCH))
+		else {
+			//invert the morph for the HPF so it goes high-band/notch-low
+			filterGain = hpsvf.configure(hpfFrequency, hpfResonance, hpfmode, ((1 << 29) - 1) - hpfMorph, filterGain);
 			if (lastHPFMode_ != hpfMode_) {
 				hpsvf.reset();
 			}

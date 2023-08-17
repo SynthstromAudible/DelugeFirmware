@@ -401,6 +401,7 @@ enum : ParamType {
 	NOISE_VOLUME,
 	MODULATOR_0_VOLUME,
 	MODULATOR_1_VOLUME,
+	FOLD,
 
 	// Local non-volume params begin
 	MODULATOR_0_FEEDBACK,
@@ -641,15 +642,16 @@ enum class FilterMode {
 	TRANSISTOR_12DB,
 	TRANSISTOR_24DB,
 	TRANSISTOR_24DB_DRIVE, //filter logic relies on ladders being first and contiguous
-	SVF,
-	HPLADDER, //first HPF mode
-	HPSVF,
+	SVF_BAND,              //first HPF mode
+	SVF_NOTCH,             //last LPF mode
+	HPLADDER,
 	OFF, //Keep last as a sentinel. Signifies that the filter is not on, used for filter reset logic
 };
 constexpr FilterMode kLastLadder = FilterMode::TRANSISTOR_24DB_DRIVE;
 //Off is not an LPF mode but is used to reset filters
-constexpr int32_t kNumLPFModes = util::to_underlying(FilterMode::HPLADDER);
-constexpr int32_t kNumHPFModes = util::to_underlying(FilterMode::OFF) - kNumLPFModes;
+constexpr int32_t kNumLPFModes = util::to_underlying(FilterMode::SVF_NOTCH) + 1;
+constexpr int32_t kFirstHPFMode = util::to_underlying(FilterMode::SVF_BAND);
+constexpr int32_t kNumHPFModes = util::to_underlying(FilterMode::OFF) - kFirstHPFMode;
 enum class FilterRoute {
 	HIGH_TO_LOW,
 	LOW_TO_HIGH,
