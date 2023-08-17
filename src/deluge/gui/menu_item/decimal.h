@@ -34,7 +34,6 @@ protected:
 	[[nodiscard]] virtual int32_t getNumDecimalPlaces() const = 0;
 	[[nodiscard]] virtual int32_t getDefaultEditPos() const { return 2; }
 
-
 	void drawPixelsForOled();
 
 	// 7Seg Only

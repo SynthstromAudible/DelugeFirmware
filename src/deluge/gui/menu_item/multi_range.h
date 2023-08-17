@@ -39,7 +39,6 @@ protected:
 	             bool mayShowJustOne = true) override;
 	bool mayEditRangeEdge(RangeEdit whichEdge) override;
 
-
 	[[nodiscard]] std::string_view getTitle() const override {
 		return l10n::getView(l10n::String::STRING_FOR_NOTE_RANGE);
 	};

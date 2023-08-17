@@ -54,7 +54,6 @@ public:
 	int32_t slicerMode;
 	SliceItem manualSlicePoints[MAX_MANUAL_SLICES];
 
-
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
 
 	int16_t numClips;

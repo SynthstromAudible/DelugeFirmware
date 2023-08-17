@@ -16,6 +16,7 @@
 */
 
 #include "devSysexSetting.h"
+#include "gui/l10n/strings.h"
 #include "gui/menu_item/runtime_feature/setting.h"
 #include "gui/ui/sound_editor.h"
 #include "model/settings/runtime_feature_settings.h"
@@ -53,11 +54,12 @@ void DevSysexSetting::writeCurrentValue() {
 	}
 }
 
-static_vector<std::string, 2> DevSysexSetting::getOptions() {
-	static_vector<std::string, capacity()> options;
-	options.push_back("Off");
-	options.push_back(fmt::vformat("on ({:8x})", fmt::make_format_args(onValue)));
-	return options;
+static_vector<std::string_view, 2> DevSysexSetting::getOptions() {
+	static std::string on_val = fmt::vformat("on ({:8x})", fmt::make_format_args(onValue));
+	return {
+	    l10n::get(l10n::String::STRING_FOR_OFF),
+	    on_val,
+	};
 }
 
 std::string_view DevSysexSetting::getName() const {

@@ -37,7 +37,6 @@ public:
 	bool learnNoteOn(MIDIDevice* device, int32_t channel, int32_t noteCode) override;
 	void learnCC(MIDIDevice* device, int32_t channel, int32_t ccNumber, int32_t value) override;
 
-
 	void drawPixelsForOled();
 
 	GlobalMIDICommand commandNumber;

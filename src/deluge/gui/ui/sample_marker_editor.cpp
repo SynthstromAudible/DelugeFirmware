@@ -454,12 +454,12 @@ ensureNotPastSampleLength:
 							int loopStart = getCurrentMultisampleRange()->sampleHolder.loopStartPos;
 							int loopEnd = getCurrentMultisampleRange()->sampleHolder.loopEndPos;
 							loopLength = loopEnd - loopStart;
-							numericDriver.displayPopup("LOCK");
+							display->displayPopup("LOCK");
 						}
 						else {
 							loopLocked = false;
 							loopLength = 0;
-							numericDriver.displayPopup("FREE");
+							display->displayPopup("FREE");
 						}
 						return ActionResult::DEALT_WITH;
 					}
@@ -668,20 +668,20 @@ ActionResult SampleMarkerEditor::horizontalEncoderAction(int32_t offset) {
 
 			if (loopEnd + loopLength < end) {
 				loopLength = loopLength * 2;
-				numericDriver.displayPopup(HAVE_OLED ? "Loop doubled" : "DOUB");
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_LOOP_DOUBLED));
 			}
 			else {
-				numericDriver.displayPopup(HAVE_OLED ? "Loop too long" : "CANT");
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_LOOP_TOO_LONG));
 				return ActionResult::DEALT_WITH;
 			}
 		}
 		else { // turn anti-clockwise
 			if (loopLength > 2) {
 				loopLength = loopLength / 2;
-				numericDriver.displayPopup(HAVE_OLED ? "Loop halved" : "HALF");
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_LOOP_HALVED));
 			}
 			else {
-				numericDriver.displayPopup(HAVE_OLED ? "Loop too short" : "CANT");
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_LOOP_TOO_SHORT));
 				return ActionResult::DEALT_WITH;
 			}
 		}

@@ -128,7 +128,6 @@ public:
 
 	void close();
 
-
 	virtual void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) = 0;
 	bool oledShowsUIUnderneath;
 };
@@ -158,7 +157,6 @@ void renderingNeededRegardlessOfUI(uint32_t whichMainRows = 0xFFFFFFFF, uint32_t
 void clearPendingUIRendering();
 
 void doAnyPendingUIRendering();
-
 
 void renderUIsForOled();
 

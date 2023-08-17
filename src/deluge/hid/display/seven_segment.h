@@ -30,9 +30,7 @@ namespace deluge::hid::display {
 
 class SevenSegment : public Display {
 public:
-	SevenSegment() {
-		l10n::chosenLanguage = &l10n::built_in::seven_segment;
-	}
+	SevenSegment() { l10n::chosenLanguage = &l10n::built_in::seven_segment; }
 
 	void setText(std::string_view newText, bool alignRight = false, uint8_t drawDot = 255, bool doBlink = false,
 	             uint8_t* newBlinkMask = NULL, bool blinkImmediately = false, bool shouldBlinkFast = false,

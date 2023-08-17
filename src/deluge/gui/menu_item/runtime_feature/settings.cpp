@@ -46,7 +46,7 @@ Setting menuAutomationShiftClip(RuntimeFeatureSettingType::AutomationShiftClip);
 DevSysexSetting menuDevSysexAllowed(RuntimeFeatureSettingType::DevSysexAllowed);
 
 Submenu subMenuAutomation{
-    HAVE_OLED ? "AUTOMATION" : "AUTO",
+    l10n::String::STRING_FOR_AUTOMATION,
     {
         &menuAutomationInterpolate,
         &menuAutomationClearClip,

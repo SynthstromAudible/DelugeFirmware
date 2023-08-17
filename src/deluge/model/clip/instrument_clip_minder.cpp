@@ -398,11 +398,11 @@ yesLoadInstrument:
 			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationClearClip)
 			    == RuntimeFeatureStateToggle::On) {
 				if (getCurrentUI() == &automationInstrumentClipView) {
-					numericDriver.displayPopup(HAVE_OLED ? "Automation cleared" : "CLEAR");
+					display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_CLEARED));
 					uiNeedsRendering(&automationInstrumentClipView, 0xFFFFFFFF, 0);
 				}
 				else if (getCurrentUI() == &instrumentClipView) {
-					numericDriver.displayPopup(HAVE_OLED ? "Notes cleared" : "CLEAR");
+					display->displayPopup(l10n::get(l10n::String::STRING_FOR_NOTES_CLEARED));
 					uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
 				}
 			}
@@ -412,7 +412,7 @@ yesLoadInstrument:
 					uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
 				}
 				else if (getCurrentUI() == &automationInstrumentClipView) {
-					numericDriver.displayPopup(HAVE_OLED ? "Clip cleared" : "CLEAR");
+					display->displayPopup(l10n::get(l10n::String::STRING_FOR_CLIP_CLEARED));
 					uiNeedsRendering(&automationInstrumentClipView, 0xFFFFFFFF, 0);
 				}
 			}

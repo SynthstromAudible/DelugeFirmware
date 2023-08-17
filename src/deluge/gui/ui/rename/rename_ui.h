@@ -23,7 +23,6 @@ class RenameUI : public QwertyUI {
 public:
 	RenameUI();
 
-
 	void displayText(bool blinkImmediately = false);
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
 };

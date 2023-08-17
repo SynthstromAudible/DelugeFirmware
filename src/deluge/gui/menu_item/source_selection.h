@@ -32,7 +32,6 @@ public:
 	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) final;
 	void readValueAgain() final;
 
-
 	void drawPixelsForOled();
 	static int32_t selectedRowOnScreen;
 	int32_t scrollPos; // Each instance needs to store this separately

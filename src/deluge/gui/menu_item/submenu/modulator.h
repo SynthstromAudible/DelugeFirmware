@@ -26,7 +26,6 @@ class Modulator final : public SubmenuReferringToOneThing<n> {
 public:
 	using SubmenuReferringToOneThing<n>::SubmenuReferringToOneThing;
 
-
 	void beginSession(MenuItem* navigatedBackwardFrom) {
 		setModulatorNumberForTitles(this->thingIndex);
 		SubmenuReferringToOneThing<n>::beginSession(navigatedBackwardFrom);

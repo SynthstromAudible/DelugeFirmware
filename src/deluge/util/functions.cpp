@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "fatfs/ff.h"
 #include "gui/l10n/l10n.h"
+#include "gui/l10n/strings.h"
 #include "gui/ui/qwerty_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/view.h"
@@ -343,269 +344,269 @@ char const* getPatchedParamDisplayNameForOLED(int32_t p) {
 
 	//Master Volume, Pitch, Pan
 	case Param::Local::VOLUME:
-		return "Level";
+		return l10n::get(STRING_FOR_PARAM_LOCAL_VOLUME);
 
 	case Param::Global::VOLUME_POST_FX:
-		return "Master level";
+		return l10n::get(STRING_FOR_PARAM_GLOBAL_VOLUME_POST_FX);
 
 	case Param::Local::PAN:
-		return "Master pan";
+		return l10n::get(STRING_FOR_PARAM_LOCAL_PAN);
 
 	case Param::Local::PITCH_ADJUST:
-		return "Master pitch";
+		return l10n::get(STRING_FOR_PARAM_LOCAL_PITCH_ADJUST);
 
 	//LPF Cutoff, Resonance, Morph
 	case Param::Local::LPF_FREQ:
-		return "LPF frequency";
+		return l10n::get(STRING_FOR_PARAM_LOCAL_LPF_FREQ);
 
 	case Param::Local::LPF_RESONANCE:
-		return "LPF resonance";
+		return l10n::get(STRING_FOR_PARAM_LOCAL_LPF_RESONANCE);
 
 	case Param::Local::LPF_MORPH:
-		return "LPF morph";
+		return l10n::get(STRING_FOR_PARAM_LOCAL_LPF_MORPH);
 
 	//HPF Cutoff, Resonance, Morph
 	case Param::Local::HPF_FREQ:
-		return "HPF frequency";
+		return l10n::get(STRING_FOR_PARAM_LOCAL_HPF_FREQ);
 
 	case Param::Local::HPF_MORPH:
-		return "HPF morph";
+		return l10n::get(STRING_FOR_PARAM_LOCAL_HPF_MORPH);
 
 	case Param::Local::HPF_RESONANCE:
-		return "HPF resonance";
+		return l10n::get(STRING_FOR_PARAM_LOCAL_HPF_RESONANCE);
 
 	//Reverb Amount
 	case Param::Global::REVERB_AMOUNT:
-		return "Reverb amount";
+		return l10n::get(STRING_FOR_PARAM_GLOBAL_REVERB_AMOUNT);
 
 	//Delay Rate, Amount
 	case Param::Global::DELAY_RATE:
-		return "Delay rate";
+		return l10n::get(STRING_FOR_PARAM_GLOBAL_DELAY_RATE);
 
 	case Param::Global::DELAY_FEEDBACK:
-		return "Delay amount";
+		return l10n::get(STRING_FOR_PARAM_GLOBAL_DELAY_FEEDBACK);
 
 	//Sidechain Send
 	case Param::Global::VOLUME_POST_REVERB_SEND:
-		return "Sidechain level";
+		return l10n::get(STRING_FOR_PARAM_GLOBAL_VOLUME_POST_REVERB_SEND);
 
 	//Wavefolder
 	case Param::Local::FOLD:
-		return "Wavefolder";
+		return l10n::get(STRING_FOR_WAVEFOLDER);
 
 	//OSC 1 Volume, Pitch, Phase Width, Carrier Feedback, Wave Index
 	case Param::Local::OSC_A_VOLUME:
 		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_A_VOLUME);
 
 	case Param::Local::OSC_A_PITCH_ADJUST:
-		return "Osc1 pitch";
+		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_A_PITCH_ADJUST);
 
 	case Param::Local::OSC_A_PHASE_WIDTH:
-		return "Osc1 PW";
+		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_A_PHASE_WIDTH);
 
 	case Param::Local::CARRIER_0_FEEDBACK:
-		return "Osc1 feedback";
+		return l10n::get(STRING_FOR_PARAM_LOCAL_CARRIER_0_FEEDBACK);
 
 	case Param::Local::OSC_A_WAVE_INDEX:
-		return "Osc1 wave pos.";
+		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_A_WAVE_INDEX);
 
 	//OSC 2 Volume, Pitch, Phase Width, Carrier Feedback, Wave Inde
 	case Param::Local::OSC_B_VOLUME:
 		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_B_VOLUME);
 
 	case Param::Local::OSC_B_PITCH_ADJUST:
-		return "Osc2 pitch";
+		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_B_PITCH_ADJUST);
 
 	case Param::Local::OSC_B_PHASE_WIDTH:
-		return "Osc2 PW";
+		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_B_PHASE_WIDTH);
 
 	case Param::Local::CARRIER_1_FEEDBACK:
-		return "Osc2 feedback";
+		return l10n::get(STRING_FOR_PARAM_LOCAL_CARRIER_1_FEEDBACK);
 
 	case Param::Local::OSC_B_WAVE_INDEX:
-		return "Osc2 wave pos.";
+		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_B_WAVE_INDEX);
 
 	//FM Mod 1 Volume, Pitch, Feedback
 	case Param::Local::MODULATOR_0_VOLUME:
-		return "FM mod1 level";
+		return l10n::get(STRING_FOR_PARAM_LOCAL_MODULATOR_0_VOLUME);
 
 	case Param::Local::MODULATOR_0_PITCH_ADJUST:
-		return "FM mod1 pitch";
+		return l10n::get(STRING_FOR_PARAM_LOCAL_MODULATOR_0_PITCH_ADJUST);
 
 	case Param::Local::MODULATOR_0_FEEDBACK:
-		return "FM mod1 feedback";
+		return l10n::get(STRING_FOR_PARAM_LOCAL_MODULATOR_0_FEEDBACK);
 
 	//FM Mod 2 Volume, Pitch, Feedback
 	case Param::Local::MODULATOR_1_VOLUME:
-		return "FM mod2 level";
+		return l10n::get(STRING_FOR_PARAM_LOCAL_MODULATOR_1_VOLUME);
 
 	case Param::Local::MODULATOR_1_PITCH_ADJUST:
-		return "FM mod2 pitch";
+		return l10n::get(STRING_FOR_PARAM_LOCAL_MODULATOR_1_PITCH_ADJUST);
 
 	case Param::Local::MODULATOR_1_FEEDBACK:
-		return "FM mod2 feedback";
+		return l10n::get(STRING_FOR_PARAM_LOCAL_MODULATOR_1_FEEDBACK);
 
 	//Env 1 ADSR
 	case Param::Local::ENV_0_ATTACK:
-		return "Env1 attack";
+		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_0_ATTACK);
 
 	case Param::Local::ENV_0_DECAY:
-		return "Env1 decay";
+		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_0_DECAY);
 
 	case Param::Local::ENV_0_SUSTAIN:
-		return "Env1 sustain";
+		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_0_SUSTAIN);
 
 	case Param::Local::ENV_0_RELEASE:
-		return "Env1 release";
+		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_0_RELEASE);
 
 	//Env 2 ADSR
 	case Param::Local::ENV_1_ATTACK:
-		return "Env2 attack";
+		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_1_ATTACK);
 
 	case Param::Local::ENV_1_DECAY:
-		return "Env2 decay";
+		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_1_DECAY);
 
 	case Param::Local::ENV_1_SUSTAIN:
-		return "Env2 sustain";
+		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_1_SUSTAIN);
 
 	case Param::Local::ENV_1_RELEASE:
-		return "Env2 release";
+		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_1_RELEASE);
 
 	//LFO 1 Freq
 	case Param::Global::LFO_FREQ:
-		return "LFO1 rate";
+		return l10n::get(STRING_FOR_PARAM_GLOBAL_LFO_FREQ);
 
 	//LFO 2 Freq
 	case Param::Local::LFO_LOCAL_FREQ:
-		return "LFO2 rate";
+		return l10n::get(STRING_FOR_PARAM_LOCAL_LFO_LOCAL_FREQ);
 
 	//Mod FX Depth, Rate
 	case Param::Global::MOD_FX_DEPTH:
-		return "Mod-FX depth";
+		return l10n::get(STRING_FOR_PARAM_GLOBAL_MOD_FX_DEPTH);
 
 	case Param::Global::MOD_FX_RATE:
-		return "Mod-FX rate";
+		return l10n::get(STRING_FOR_PARAM_GLOBAL_MOD_FX_RATE);
 
 	//Arp Rate
 	case Param::Global::ARP_RATE:
-		return "Arp. rate";
+		return l10n::get(STRING_FOR_PARAM_GLOBAL_ARP_RATE);
 
 	//Noise
 	case Param::Local::NOISE_VOLUME:
-		return "Noise level";
+		return l10n::get(STRING_FOR_PARAM_LOCAL_NOISE_VOLUME);
 
 	default:
-		return "none";
+		return l10n::get(STRING_FOR_NONE);
 	}
 }
 
 char const* getUnpatchedParamDisplayNameForOLED(int32_t p) {
+	using enum l10n::String;
 
 	// These can basically be 13 chars long, or 14 if the last one is a dot.
 	switch (p) {
 
 	//Bass, Bass Freq
 	case Param::Unpatched::BASS:
-		return "Bass";
+		return l10n::get(STRING_FOR_BASS);
 
 	case Param::Unpatched::BASS_FREQ:
-		return "Bass frequency";
+		return l10n::get(STRING_FOR_BASS_FREQUENCY);
 
 	//Treble, Treble Freq
 	case Param::Unpatched::TREBLE:
-		return "Treble";
+		return l10n::get(STRING_FOR_TREBLE);
 
 	case Param::Unpatched::TREBLE_FREQ:
-		return "Treble frequency";
+		return l10n::get(STRING_FOR_TREBLE_FREQUENCY);
 
 	//Sidechain Shape
 	case Param::Unpatched::COMPRESSOR_SHAPE:
-		return "Sidechain shape";
+		return l10n::get(STRING_FOR_SIDECHAIN_SHAPE);
 
 	//Decimation, Bitcrush
 	case Param::Unpatched::SAMPLE_RATE_REDUCTION:
-		return "Decimation";
+		return l10n::get(STRING_FOR_DECIMATION);
 
 	case Param::Unpatched::BITCRUSHING:
-		return "Bitcrush";
+		return l10n::get(STRING_FOR_BITCRUSH);
 
 	//Mod FX Offset, Feedback
 	case Param::Unpatched::MOD_FX_OFFSET:
-		return "Mod-FX offset";
+		return l10n::get(STRING_FOR_MODFX_OFFSET);
 
 	case Param::Unpatched::MOD_FX_FEEDBACK:
-		return "Mod-FX feedback";
+		return l10n::get(STRING_FOR_MODFX_FEEDBACK);
 
 	//Arp Gate
 	case Param::Unpatched::Sound::ARP_GATE:
-		return "Arp. gate";
+		return l10n::get(STRING_FOR_ARP_GATE_MENU_TITLE);
 
 	//Portamento
 	case Param::Unpatched::Sound::PORTAMENTO:
-		return "Portamento";
+		return l10n::get(STRING_FOR_PORTAMENTO);
 
 	default:
-		return "none";
+		return l10n::get(STRING_FOR_NONE);
 	}
 }
 
 char const* getGlobalEffectableParamDisplayNameForOLED(int32_t p) {
+	using enum l10n::String;
 
 	// These can basically be 13 chars long, or 14 if the last one is a dot.
 	switch (p) {
 
 	//Master Volume, Pitch, Pan
 	case Param::Unpatched::GlobalEffectable::VOLUME:
-		return "Master level";
+		return l10n::get(STRING_FOR_MASTER_LEVEL);
 
 	case Param::Unpatched::GlobalEffectable::PITCH_ADJUST:
-		return "Master pitch";
+		return l10n::get(STRING_FOR_MASTER_PITCH);
 
 	case Param::Unpatched::GlobalEffectable::PAN:
-		return "Master pan";
+		return l10n::get(STRING_FOR_MASTER_PAN);
 
 	//LPF Cutoff, Resonance
 	case Param::Unpatched::GlobalEffectable::LPF_FREQ:
-		return "LPF frequency";
+		return l10n::get(STRING_FOR_LPF_FREQUENCY);
 
 	case Param::Unpatched::GlobalEffectable::LPF_RES:
-		return "LPF resonance";
+		return l10n::get(STRING_FOR_LPF_RESONANCE);
 
 	//HPF Cutoff, Resonance
 	case Param::Unpatched::GlobalEffectable::HPF_FREQ:
-		return "HPF frequency";
+		return l10n::get(STRING_FOR_HPF_FREQUENCY);
 
 	case Param::Unpatched::GlobalEffectable::HPF_RES:
-		return "HPF resonance";
+		return l10n::get(STRING_FOR_HPF_RESONANCE);
 
-		//Reverb Amount
-
+	//Reverb Amount
 	case Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT:
-		return "Reverb amount";
+		return l10n::get(STRING_FOR_REVERB_AMOUNT);
 
 	//Delay Rate, Amount
 	case Param::Unpatched::GlobalEffectable::DELAY_RATE:
-		return "Delay rate";
+		return l10n::get(STRING_FOR_DELAY_RATE);
 
 	case Param::Unpatched::GlobalEffectable::DELAY_AMOUNT:
-		return "Delay amount";
+		return l10n::get(STRING_FOR_DELAY_AMOUNT);
 
 	//Sidechain Send
 	case Param::Unpatched::GlobalEffectable::SIDECHAIN_VOLUME:
-		return "Sidechain level";
+		return l10n::get(STRING_FOR_SIDECHAIN_LEVEL);
 
 	//Mod FX Depth, Rate
 	case Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH:
-		return "Mod-FX depth";
+		return l10n::get(STRING_FOR_MODFX_DEPTH);
 
 	case Param::Unpatched::GlobalEffectable::MOD_FX_RATE:
-		return "Mod-FX rate";
+		return l10n::get(STRING_FOR_MODFX_RATE);
 
 	default:
-		return "none";
+		return l10n::get(STRING_FOR_NONE);
 	}
 }
-#endif
 
 PatchSource stringToSource(char const* string) {
 	for (int32_t s = 0; s < kNumPatchSources; s++) {
@@ -666,141 +667,132 @@ char const* patchedParamToStringShort(int32_t p) {
 		return "Osc1 level";
 
 	case Param::Local::OSC_B_VOLUME:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_B_VOLUME);
+		return "Osc2 level";
 
 	case Param::Local::VOLUME:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_VOLUME);
+		return "Level";
 
 	case Param::Local::NOISE_VOLUME:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_NOISE_VOLUME);
+		return "Noise";
 
 	case Param::Local::OSC_A_PHASE_WIDTH:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_A_PHASE_WIDTH);
+		return "Osc1 PW";
 
 	case Param::Local::OSC_B_PHASE_WIDTH:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_B_PHASE_WIDTH);
+		return "Osc2 PW";
 
 	case Param::Local::OSC_A_WAVE_INDEX:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_A_WAVE_INDEX);
+		return "Osc1 wave";
 
 	case Param::Local::OSC_B_WAVE_INDEX:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_B_WAVE_INDEX);
+		return "Osc2 wave";
 
 	case Param::Local::LPF_RESONANCE:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_LPF_RESONANCE);
+		return "LPF reso";
 
 	case Param::Local::HPF_RESONANCE:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_HPF_RESONANCE);
+		return "HPF reso";
 
 	case Param::Local::PAN:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_PAN);
+		return "Pan";
 
 	case Param::Local::MODULATOR_0_VOLUME:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_MODULATOR_0_VOLUME);
+		return "Mod1 level";
 
 	case Param::Local::MODULATOR_1_VOLUME:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_MODULATOR_1_VOLUME);
+		return "Mod2 level";
 
 	case Param::Local::LPF_FREQ:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_LPF_FREQ);
-
-	case Param::Local::LPF_MORPH:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_LPF_MORPH);
+		return "LPf freq";
 
 	case Param::Local::PITCH_ADJUST:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_PITCH_ADJUST);
+		return "Pitch";
 
 	case Param::Local::OSC_A_PITCH_ADJUST:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_A_PITCH_ADJUST);
+		return "Osc1 pitch";
 
 	case Param::Local::OSC_B_PITCH_ADJUST:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_B_PITCH_ADJUST);
+		return "Osc2 pitch";
 
 	case Param::Local::MODULATOR_0_PITCH_ADJUST:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_MODULATOR_0_PITCH_ADJUST);
+		return "Mod1 pitch";
 
 	case Param::Local::MODULATOR_1_PITCH_ADJUST:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_MODULATOR_1_PITCH_ADJUST);
+		return "Mod1 pitch";
 
 	case Param::Local::HPF_FREQ:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_HPF_FREQ);
-
-	case Param::Local::HPF_MORPH:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_HPF_MORPH);
+		return "HPF freq";
 
 	case Param::Local::LFO_LOCAL_FREQ:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_LFO_LOCAL_FREQ);
+		return "LFO2 rate";
 
 	case Param::Local::ENV_0_ATTACK:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_0_ATTACK);
+		return "Env1attack";
 
 	case Param::Local::ENV_0_DECAY:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_0_DECAY);
+		return "Env1 decay";
 
 	case Param::Local::ENV_0_SUSTAIN:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_0_SUSTAIN);
+		return "Env1 sus";
 
 	case Param::Local::ENV_0_RELEASE:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_0_RELEASE);
+		return "Env1 rel";
 
 	case Param::Local::ENV_1_ATTACK:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_1_ATTACK);
+		return "Env2attack";
 
 	case Param::Local::ENV_1_DECAY:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_1_DECAY);
+		return "Env2 decay";
 
 	case Param::Local::ENV_1_SUSTAIN:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_1_SUSTAIN);
+		return "Env2 sus";
 
 	case Param::Local::ENV_1_RELEASE:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_1_RELEASE);
+		return "Env2 rel";
 
 	case Param::Global::LFO_FREQ:
-		return l10n::get(STRING_FOR_PARAM_GLOBAL_LFO_FREQ);
+		return "LFO1 rate";
 
 	case Param::Global::VOLUME_POST_FX:
-		return l10n::get(STRING_FOR_PARAM_GLOBAL_VOLUME_POST_FX);
-
 	case Param::Global::VOLUME_POST_REVERB_SEND:
-		return l10n::get(STRING_FOR_PARAM_GLOBAL_VOLUME_POST_REVERB_SEND);
+		return "Level";
 
 	case Param::Global::DELAY_RATE:
-		return l10n::get(STRING_FOR_PARAM_GLOBAL_DELAY_RATE);
+		return "Delay rate";
 
 	case Param::Global::DELAY_FEEDBACK:
-		return l10n::get(STRING_FOR_PARAM_GLOBAL_DELAY_FEEDBACK);
+		return "Delay feed";
 
 	case Param::Global::REVERB_AMOUNT:
-		return l10n::get(STRING_FOR_PARAM_GLOBAL_REVERB_AMOUNT);
+		return "Reverb amt";
 
 	case Param::Global::MOD_FX_RATE:
-		return l10n::get(STRING_FOR_PARAM_GLOBAL_MOD_FX_RATE);
+		return "ModFX rate";
 
 	case Param::Global::MOD_FX_DEPTH:
-		return l10n::get(STRING_FOR_PARAM_GLOBAL_MOD_FX_DEPTH);
+		return "ModFXdepth";
 
 	case Param::Global::ARP_RATE:
-		return l10n::get(STRING_FOR_PARAM_GLOBAL_ARP_RATE);
+		return "Arp. rate";
 
 	case Param::Local::MODULATOR_0_FEEDBACK:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_MODULATOR_0_FEEDBACK);
+		return "Mod1 feed";
 
 	case Param::Local::MODULATOR_1_FEEDBACK:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_MODULATOR_1_FEEDBACK);
+		return "Mod2 feed";
 
 	case Param::Local::CARRIER_0_FEEDBACK:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_CARRIER_0_FEEDBACK);
+		return "Osc1 feed";
 
 	case Param::Local::CARRIER_1_FEEDBACK:
-		return l10n::get(STRING_FOR_PARAM_LOCAL_CARRIER_1_FEEDBACK);
-	}
-}
+		return "Osc2 feed";
 
 	default:
 		__builtin_unreachable();
 		return NULL;
 	}
 }
+
 bool paramNeedsLPF(int32_t p, bool fromAutomation) {
 	switch (p) {
 

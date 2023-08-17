@@ -87,7 +87,6 @@ public:
 	bool opened();
 	void cullSomeFileItems();
 
-
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
 
 	static String currentDir;
@@ -129,7 +128,6 @@ protected:
 	static bool arrivedAtFileByTyping;
 	static bool allowFoldersSharingNameWithFile;
 	static char const** allowedFileExtensions;
-
 
 	const uint8_t* fileIcon;
 

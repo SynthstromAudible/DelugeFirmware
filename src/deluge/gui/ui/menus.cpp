@@ -465,7 +465,7 @@ Submenu reverbMenu{
 fx::Clipping clippingMenu{STRING_FOR_SATURATION};
 UnpatchedParam srrMenu{STRING_FOR_DECIMATION, ::Param::Unpatched::SAMPLE_RATE_REDUCTION};
 UnpatchedParam bitcrushMenu{STRING_FOR_BITCRUSH, ::Param::Unpatched::BITCRUSHING};
-patched_param::Integer foldMenu{"Fold", "Fold", ::Param::Local::FOLD};
+patched_param::Integer foldMenu{STRING_FOR_WAVEFOLD, STRING_FOR_WAVEFOLD, ::Param::Local::FOLD};
 Submenu fxMenu{
     STRING_FOR_FX,
     {
@@ -855,7 +855,7 @@ bend_range::PerFinger drumBendRangeMenu{STRING_FOR_BEND_RANGE}; // The single op
 patched_param::Integer volumeMenu{STRING_FOR_VOLUME_LEVEL, STRING_FOR_MASTER_LEVEL, ::Param::Global::VOLUME_POST_FX};
 patched_param::Pan panMenu{STRING_FOR_PAN, ::Param::Local::PAN};
 
-PatchCables patchCablesMenu{"mod matrix"};
+PatchCables patchCablesMenu{STRING_FOR_MOD_MATRIX};
 
 menu_item::Submenu soundEditorRootMenu{
     STRING_FOR_SOUND,

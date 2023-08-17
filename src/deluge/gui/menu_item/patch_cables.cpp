@@ -1,6 +1,7 @@
 #include "patch_cables.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
+#include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/patch/patch_cable_set.h"
@@ -26,20 +27,21 @@ void PatchCables::beginSession(MenuItem* navigatedBackwardFrom) {
 		}
 	}
 
-#if HAVE_OLED
-	scrollPos = std::max((int32_t)0, currentValue - 1);
-#endif
+	if (display->type() == DisplayType::OLED) {
+		scrollPos = std::max((int32_t)0, currentValue - 1);
+	}
 
 	renderOptions();
 	readValueAgain();
 }
 
 void PatchCables::readValueAgain() {
-#if HAVE_OLED
-	renderUIsForOled();
-#else
-	drawValue();
-#endif
+	if (display->type() == DisplayType::OLED) {
+		renderUIsForOled();
+	}
+	else {
+		drawValue();
+	}
 	blinkShortcutsSoon();
 }
 
@@ -91,60 +93,56 @@ void PatchCables::renderOptions() {
 	}
 }
 
-#if HAVE_OLED
 void PatchCables::drawPixelsForOled() {
 	drawItemsForOled(options, currentValue - scrollPos, scrollPos);
 }
 
-#else
-
 void PatchCables::drawValue() {
 	PatchCableSet* set = soundEditor.currentParamManager->getPatchCableSet();
 	if (set->numPatchCables == 0) {
-		numericDriver.setText("none", false, false);
+		display->setText("none", false, false);
 		return;
 	}
 
-	numericDriver.setScrollingText(options[currentValue].begin());
+	display->setScrollingText(options[currentValue].begin());
 }
-
-#endif
 
 void PatchCables::selectEncoderAction(int32_t offset) {
 	int32_t newValue = currentValue + offset;
 
 	PatchCableSet* set = soundEditor.currentParamManager->getPatchCableSet();
 
-#if HAVE_OLED
-	if (newValue >= set->numPatchCables || newValue < 0) {
-		return;
+	if (display->type() == DisplayType::OLED) {
+		if (newValue >= set->numPatchCables || newValue < 0) {
+			return;
+		}
 	}
-#else
-	if (newValue >= set->numPatchCables) {
-		newValue -= set->numPatchCables;
+	else {
+		if (newValue >= set->numPatchCables) {
+			newValue -= set->numPatchCables;
+		}
+		else if (newValue < 0) {
+			newValue += set->numPatchCables;
+		}
 	}
-	else if (newValue < 0) {
-		newValue += set->numPatchCables;
-	}
-#endif
 
 	currentValue = newValue;
 
-#if HAVE_OLED
-	if (currentValue < scrollPos) {
-		scrollPos = currentValue;
+	if (display->type() == DisplayType::OLED) {
+		if (currentValue < scrollPos) {
+			scrollPos = currentValue;
+		}
+		else if (currentValue >= scrollPos + kOLEDMenuNumOptionsVisible) {
+			scrollPos++;
+		}
 	}
-	else if (currentValue >= scrollPos + kOLEDMenuNumOptionsVisible) {
-		scrollPos++;
-	}
-#endif
 
 	readValueAgain(); // redraw
 }
 
 void PatchCables::blinkShortcutsSoon() {
 	// some throttling so menu scrolling doesn't become a lightning storm of flashes
-	uiTimerManager.setTimer(TIMER_UI_SPECIFIC, HAVE_OLED ? 500 : 200);
+	uiTimerManager.setTimer(TIMER_UI_SPECIFIC, display->type() == DisplayType::OLED ? 500 : 200);
 	uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
 }
 

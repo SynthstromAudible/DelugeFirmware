@@ -97,13 +97,12 @@ public:
 	/// lifetime of this menu item"
 	[[nodiscard]] virtual std::string_view getTitle() const { return deluge::l10n::getView(name); }
 
-
 	virtual void renderOLED();
 	virtual void drawPixelsForOled() {}
 	void drawItemsForOled(char const** options, int32_t selectedOption);
 
 	template <size_t n>
-	static void drawItemsForOled(deluge::static_vector<std::string_view_view, n>& options, int32_t selectedOption,
+	static void drawItemsForOled(deluge::static_vector<std::string_view, n>& options, int32_t selectedOption,
 	                             int32_t offset = 0);
 	/// Get the title to be used when rendering on OLED. If not overriden, defaults to returning `title`.
 	virtual void drawName();
@@ -111,7 +110,7 @@ public:
 
 // A couple of our child classes call this - that's all
 template <size_t n>
-void MenuItem::drawItemsForOled(deluge::static_vector<std::string_view_view, n>& options, const int32_t selectedOption,
+void MenuItem::drawItemsForOled(deluge::static_vector<std::string_view, n>& options, const int32_t selectedOption,
                                 const int32_t offset) {
 	int32_t baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
 	baseY += OLED_MAIN_TOPMOST_PIXEL;
@@ -127,9 +126,8 @@ void MenuItem::drawItemsForOled(deluge::static_vector<std::string_view_view, n>&
 		if (o == selectedOption) {
 			deluge::hid::display::OLED::invertArea(0, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8,
 			                                       &deluge::hid::display::OLED::oledMainImage[0]);
-			deluge::hid::display::OLED::setupSideScroller(0, options[o + offset], kTextSpacingX,
-			                                              OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8, kTextSpacingX,
-			                                              kTextSpacingY, true);
+			deluge::hid::display::OLED::setupSideScroller(0, options[o + offset], kTextSpacingX, OLED_MAIN_WIDTH_PIXELS,
+			                                              yPixel, yPixel + 8, kTextSpacingX, kTextSpacingY, true);
 		}
 	}
 }

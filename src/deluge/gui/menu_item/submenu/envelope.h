@@ -25,7 +25,6 @@ class Envelope final : public SubmenuReferringToOneThing<n> {
 public:
 	using SubmenuReferringToOneThing<n>::SubmenuReferringToOneThing;
 
-
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) {
 		SubmenuReferringToOneThing<n>::beginSession(navigatedBackwardFrom);
 		setEnvelopeNumberForTitles(this->thingIndex);

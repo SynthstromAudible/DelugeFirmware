@@ -28,7 +28,7 @@
 namespace deluge::hid::display {
 class OLED : public Display {
 public:
-	OLED () {
+	OLED() {
 		if (l10n::chosenLanguage == nullptr || l10n::chosenLanguage == &l10n::built_in::seven_segment) {
 			l10n::chosenLanguage = &l10n::built_in::english;
 		}

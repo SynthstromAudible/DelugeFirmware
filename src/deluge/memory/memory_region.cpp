@@ -100,7 +100,7 @@ static EmptySpaceRecord* recordToMergeWith;
 // spaceSize can even be 0 or less if you know it's going to get merged.
 inline void MemoryRegion::markSpaceAsEmpty(uint32_t address, uint32_t spaceSize, bool mayLookLeft, bool mayLookRight) {
 	if ((address <= start) || address >= end) {
-		numericDriver.freezeWithError("M998");
+		display->freezeWithError("M998");
 		return;
 	}
 	int32_t biggerRecordSearchFromIndex = 0;
@@ -759,7 +759,7 @@ void MemoryRegion::dealloc(void* address) {
 
 #if ALPHA_OR_BETA_VERSION
 	if ((*header & SPACE_TYPE_MASK) == SPACE_HEADER_EMPTY) {
-		numericDriver.freezeWithError("M000");
+		display->freezeWithError("M000");
 	}
 #endif
 

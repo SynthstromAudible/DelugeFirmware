@@ -1,6 +1,7 @@
 #pragma once
 #include "gui/l10n/english.h"
 #include "gui/l10n/language.h"
+#include "gui/l10n/strings.h"
 
 namespace deluge::l10n::built_in {
 using enum String;
@@ -324,6 +325,28 @@ constexpr Language seven_segment{
         {STRING_FOR_SWITCHING_TO_TRACK_FAILED, "ESG1"},
         {STRING_FOR_CANT_CLONE_AUDIO_IN_OTHER_TRACK, "CANT"},
         {STRING_FOR_TARGET_FULL, "FULL"},
+
+        {STRING_FOR_WAVEFOLD, "FOLD"},
+
+        {STRING_FOR_AUTOMATION, "AUTO"},
+        {STRING_FOR_LOOP_TOO_SHORT, "CANT"},
+        {STRING_FOR_LOOP_HALVED, "HALF"},
+        {STRING_FOR_LOOP_TOO_LONG, "CANT"},
+        {STRING_FOR_LOOP_DOUBLED, "DOUB"},
+        {STRING_FOR_CANT_AUTOMATE_CV, "CANT"},
+        {STRING_FOR_SHIFT_RIGHT, "RIGHT"},
+        {STRING_FOR_SHIFT_LEFT, "LEFT"},
+        {STRING_FOR_INTERPOLATION_DISABLED, "OFF"},
+        {STRING_FOR_INTERPOLATION_ENABLED, "ON"},
+        {STRING_FOR_COMING_SOON, "SOON"},
+        {STRING_FOR_MOD_MATRIX, "MMTX"},
+
+        {STRING_FOR_CHECKSUM_FAIL, "CRC FAIL"},
+        {STRING_FOR_WRONG_SIZE, "SIZE FAIL"},
+        {STRING_FOR_CLIP_CLEARED, "CLEAR"},
+        {STRING_FOR_NOTES_CLEARED, "CLEAR"},
+        {STRING_FOR_AUTOMATION_CLEARED, "CLEAR"},
+
     },
     &built_in::english,
 };
