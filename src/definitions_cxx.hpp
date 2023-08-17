@@ -401,6 +401,7 @@ enum : ParamType {
 	NOISE_VOLUME,
 	MODULATOR_0_VOLUME,
 	MODULATOR_1_VOLUME,
+	FOLD,
 
 	// Local non-volume params begin
 	MODULATOR_0_FEEDBACK,
