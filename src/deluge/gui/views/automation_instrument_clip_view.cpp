@@ -129,7 +129,7 @@ const std::array<std::pair<Param::Kind, ParamType>, kNumNonKitAffectEntireParams
         {Param::Kind::UNPATCHED, Param::Unpatched::COMPRESSOR_SHAPE},
         {Param::Kind::UNPATCHED, Param::Unpatched::SAMPLE_RATE_REDUCTION}, //Decimation, Bitcrush, Wavefolder
         {Param::Kind::UNPATCHED, Param::Unpatched::BITCRUSHING},
-		{Param::Kind::PATCHED, Param::Local::FOLD},
+        {Param::Kind::PATCHED, Param::Local::FOLD},
         {Param::Kind::PATCHED,
          Param::Local::OSC_A_VOLUME}, //OSC 1 Volume, Pitch, Phase Width, Carrier Feedback, Wave Index
         {Param::Kind::PATCHED, Param::Local::OSC_A_PITCH_ADJUST},
