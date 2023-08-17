@@ -37,8 +37,8 @@ struct NeighbouringMemoryGrabAttemptResult {
 #define SPACE_HEADER_STEALABLE 0x40000000
 #define SPACE_HEADER_ALLOCATED 0x80000000
 
-#define SPACE_TYPE_MASK 0xC0000000
-#define SPACE_SIZE_MASK 0x3FFFFFFF
+#define SPACE_TYPE_MASK 0xC0000000u
+#define SPACE_SIZE_MASK 0x3FFFFFFFu
 
 class MemoryRegion {
 public:
@@ -54,7 +54,6 @@ public:
 	void dealloc(void* address);
 	void verifyMemoryNotFree(void* address, uint32_t spaceSize);
 
-	OrderedResizeableArrayWithMultiWordKey emptySpaces;
 	int32_t numAllocations;
 
 	CacheManager& cache_manager() { return cache_manager_; }
@@ -64,6 +63,7 @@ public:
 #endif
 
 private:
+	OrderedResizeableArrayWithMultiWordKey emptySpaces;
 	friend class CacheManager;
 	CacheManager cache_manager_;
 
@@ -74,4 +74,6 @@ private:
 	                                uint32_t markWithTraversalNo = 0, bool originalSpaceNeedsStealing = false);
 	void writeTempHeadersBeforeASteal(uint32_t newStartAddress, uint32_t newSize);
 	void sanityCheck();
+	uint32_t start;
+	uint32_t end;
 };
