@@ -427,6 +427,37 @@ void SoundEditor::exitCompletely() {
 	numericDriver.setNextTransitionDirection(-1);
 	close();
 	possibleChangeToCurrentRangeDisplay();
+
+	// a bit ad-hoc but the current memory allocator
+	// is not happy with these strings being around
+	patchCablesMenu.options.clear();
+}
+
+bool SoundEditor::findPatchedParam(int32_t paramLookingFor, int32_t* xout, int32_t* yout) {
+	for (int32_t x = 0; x < 15; x++) {
+		for (int32_t y = 0; y < kDisplayHeight; y++) {
+			if (paramShortcutsForSounds[x][y] && paramShortcutsForSounds[x][y] != comingSoonMenu
+			    && ((MenuItem*)paramShortcutsForSounds[x][y])->getPatchedParamIndex() == paramLookingFor) {
+
+				*xout = x;
+				*yout = y;
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+void SoundEditor::updateSourceBlinks(MenuItem* currentItem) {
+	for (int32_t x = 0; x < 2; x++) {
+		for (int32_t y = 0; y < kDisplayHeight; y++) {
+			PatchSource source = modSourceShortcuts[x][y];
+			if (source < kLastPatchSource) {
+				sourceShortcutBlinkFrequencies[x][y] =
+				    currentItem->shouldBlinkPatchingSourceShortcut(source, &sourceShortcutBlinkColours[x][y]);
+			}
+		}
+	}
 }
 
 bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
@@ -517,19 +548,9 @@ doSetupBlinkingForAudioClip:
 
 				int32_t paramLookingFor = currentItem->getIndexOfPatchedParamToBlink();
 				if (paramLookingFor != 255) {
-					for (int32_t x = 0; x < 15; x++) {
-						for (int32_t y = 0; y < kDisplayHeight; y++) {
-							if (paramShortcutsForSounds[x][y] && paramShortcutsForSounds[x][y] != comingSoonMenu
-							    && ((MenuItem*)paramShortcutsForSounds[x][y])->getPatchedParamIndex()
-							           == paramLookingFor) {
-
-								if (currentParamShorcutX != 255 && (x & 1) && currentSourceIndex == 0) {
-									goto stopThat;
-								}
-
-								setupShortcutBlink(x, y, 3);
-							}
-						}
+					int32_t x, y;
+					if (findPatchedParam(paramLookingFor, &x, &y)) {
+						setupShortcutBlink(x, y, 3);
 					}
 				}
 			}
@@ -537,15 +558,7 @@ doSetupBlinkingForAudioClip:
 stopThat : {}
 
 			if (currentParamShorcutX != 255) {
-				for (int32_t x = 0; x < 2; x++) {
-					for (int32_t y = 0; y < kDisplayHeight; y++) {
-						PatchSource source = modSourceShortcuts[x][y];
-						if (source < kLastPatchSource) {
-							sourceShortcutBlinkFrequencies[x][y] = currentItem->shouldBlinkPatchingSourceShortcut(
-							    source, &sourceShortcutBlinkColours[x][y]);
-						}
-					}
-				}
+				updateSourceBlinks(currentItem);
 			}
 		}
 
@@ -676,6 +689,11 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 	if (currentModControllable) {
 		view.setKnobIndicatorLevels(); // Is this really necessary every time?
 	}
+}
+
+// TIMER_UI_SPECIFIC is only set by a menu item
+ActionResult SoundEditor::timerCallback() {
+	return getCurrentMenuItem()->timerCallback();
 }
 
 void SoundEditor::markInstrumentAsEdited() {

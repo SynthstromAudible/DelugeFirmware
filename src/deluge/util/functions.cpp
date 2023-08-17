@@ -574,6 +574,180 @@ PatchSource stringToSource(char const* string) {
 	return PatchSource::NONE;
 }
 
+// all should be four chars, to fit a fixed column layout
+char const* sourceToStringShort(PatchSource source) {
+	switch (source) {
+	case PatchSource::LFO_GLOBAL:
+		return "lfo1";
+
+	case PatchSource::LFO_LOCAL:
+		return "lfo2";
+
+	case PatchSource::ENVELOPE_0:
+		return "env1";
+
+	case PatchSource::ENVELOPE_1:
+		return "env2";
+
+	case PatchSource::VELOCITY:
+		return "velo";
+
+	case PatchSource::NOTE:
+		return "note";
+
+	case PatchSource::COMPRESSOR:
+		return "comp";
+
+	case PatchSource::RANDOM:
+		return "rand";
+
+	case PatchSource::AFTERTOUCH:
+		return "pres";
+
+	case PatchSource::X:
+		return "mpeX";
+
+	case PatchSource::Y:
+		return "mpeY";
+
+	default:
+		return "----";
+	}
+}
+
+// all should be max 10 chars, to fit a fixed column layout
+char const* patchedParamToStringShort(int32_t p) {
+	switch (p) {
+
+	case Param::Local::OSC_A_VOLUME:
+		return "Osc1 level";
+
+	case Param::Local::OSC_B_VOLUME:
+		return "Osc2 level";
+
+	case Param::Local::VOLUME:
+		return "Level";
+
+	case Param::Local::NOISE_VOLUME:
+		return "Noise";
+
+	case Param::Local::OSC_A_PHASE_WIDTH:
+		return "Osc1 PW";
+
+	case Param::Local::OSC_B_PHASE_WIDTH:
+		return "Osc2 PW";
+
+	case Param::Local::OSC_A_WAVE_INDEX:
+		return "Osc1 wave";
+
+	case Param::Local::OSC_B_WAVE_INDEX:
+		return "Osc2 wave";
+
+	case Param::Local::LPF_RESONANCE:
+		return "LPF reso";
+
+	case Param::Local::HPF_RESONANCE:
+		return "HPF reso";
+
+	case Param::Local::PAN:
+		return "Pan";
+
+	case Param::Local::MODULATOR_0_VOLUME:
+		return "Mod1 level";
+
+	case Param::Local::MODULATOR_1_VOLUME:
+		return "Mod2 level";
+
+	case Param::Local::LPF_FREQ:
+		return "LPf freq";
+
+	case Param::Local::PITCH_ADJUST:
+		return "Pitch";
+
+	case Param::Local::OSC_A_PITCH_ADJUST:
+		return "Osc1 pitch";
+
+	case Param::Local::OSC_B_PITCH_ADJUST:
+		return "Osc2 pitch";
+
+	case Param::Local::MODULATOR_0_PITCH_ADJUST:
+		return "Mod1 pitch";
+
+	case Param::Local::MODULATOR_1_PITCH_ADJUST:
+		return "Mod1 pitch";
+
+	case Param::Local::HPF_FREQ:
+		return "HPF freq";
+
+	case Param::Local::LFO_LOCAL_FREQ:
+		return "LFO2 rate";
+
+	case Param::Local::ENV_0_ATTACK:
+		return "Env1attack";
+
+	case Param::Local::ENV_0_DECAY:
+		return "Env1 decay";
+
+	case Param::Local::ENV_0_SUSTAIN:
+		return "Env1 sus";
+
+	case Param::Local::ENV_0_RELEASE:
+		return "Env1 rel";
+
+	case Param::Local::ENV_1_ATTACK:
+		return "Env2attack";
+
+	case Param::Local::ENV_1_DECAY:
+		return "Env2 decay";
+
+	case Param::Local::ENV_1_SUSTAIN:
+		return "Env2 sus";
+
+	case Param::Local::ENV_1_RELEASE:
+		return "Env2 rel";
+
+	case Param::Global::LFO_FREQ:
+		return "LFO1 rate";
+
+	case Param::Global::VOLUME_POST_FX:
+	case Param::Global::VOLUME_POST_REVERB_SEND:
+		return "Level";
+
+	case Param::Global::DELAY_RATE:
+		return "Delay rate";
+
+	case Param::Global::DELAY_FEEDBACK:
+		return "Delay feed";
+
+	case Param::Global::REVERB_AMOUNT:
+		return "Reverb amt";
+
+	case Param::Global::MOD_FX_RATE:
+		return "ModFX rate";
+
+	case Param::Global::MOD_FX_DEPTH:
+		return "ModFXdepth";
+
+	case Param::Global::ARP_RATE:
+		return "Arp. rate";
+
+	case Param::Local::MODULATOR_0_FEEDBACK:
+		return "Mod1 feed";
+
+	case Param::Local::MODULATOR_1_FEEDBACK:
+		return "Mod2 feed";
+
+	case Param::Local::CARRIER_0_FEEDBACK:
+		return "Osc1 feed";
+
+	case Param::Local::CARRIER_1_FEEDBACK:
+		return "Osc2 feed";
+
+	default:
+		__builtin_unreachable();
+		return NULL;
+	}
+}
 bool paramNeedsLPF(int32_t p, bool fromAutomation) {
 	switch (p) {
 
