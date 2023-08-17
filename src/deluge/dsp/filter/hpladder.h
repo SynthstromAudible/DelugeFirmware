@@ -28,9 +28,9 @@ class HpLadderFilter : public Filter<HpLadderFilter> {
 public:
 	HpLadderFilter() = default;
 	//returns a compensatory gain value
-	q31_t setConfig(q31_t hpfFrequency, q31_t hpfResonance, FilterMode lpfMode, q31_t filterGain);
-	void doFilter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrememt, int32_t extraSaturation);
-	void doFilterStereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation);
+	q31_t setConfig(q31_t hpfFrequency, q31_t hpfResonance, FilterMode lpfMode, q31_t lpfMorph, q31_t filterGain);
+	void doFilter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrememt);
+	void doFilterStereo(q31_t* startSample, q31_t* endSample);
 	void resetFilter() {
 		l.reset();
 		r.reset();
@@ -48,7 +48,7 @@ private:
 			hpfHPF3.reset();
 		}
 	};
-	inline q31_t doHPF(q31_t input, int32_t saturationLevel, HPLadderState& state);
+	inline q31_t doHPF(q31_t input, HPLadderState& state);
 
 	//config
 	uint32_t hpfLastWorkingValue;
@@ -68,7 +68,7 @@ private:
 
 	q31_t alteredHpfMomentumMultiplier;
 	q31_t thisHpfResonance;
-
+	q31_t morph_;
 	HPLadderState l;
 	HPLadderState r;
 };

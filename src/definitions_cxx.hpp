@@ -360,6 +360,19 @@ constexpr int32_t kNumPatchSources = static_cast<int32_t>(kLastPatchSource);
 constexpr PatchSource kFirstLocalSource = PatchSource::ENVELOPE_0;
 //constexpr PatchSource kFirstUnchangeableSource = PatchSource::VELOCITY;
 
+//Automation Instrument Clip View constants
+constexpr int32_t kNoLastSelectedParamID = 255;
+constexpr int32_t kNoLastSelectedParamShortcutX = 255;
+constexpr int32_t kNoLastSelectedParamShortcutY = 255;
+constexpr int32_t kNumNonKitAffectEntireParamsForAutomation = 55;
+constexpr int32_t kNumKitAffectEntireParamsForAutomation = 24;
+constexpr int32_t kLastMidiCCForAutomation = 121;
+constexpr int32_t kKnobPosOffset = 64;
+constexpr int32_t kMaxKnobPos = 127;
+constexpr int32_t kParamValueIncrementForAutomationSinglePadPress = 18;
+constexpr int32_t kParamValueIncrementForAutomationDisplay = 16;
+//
+
 // Linear params have different sources multiplied together, then multiplied by the neutral value
 // -- and "volume" ones get squared at the end
 
@@ -370,6 +383,15 @@ constexpr PatchSource kFirstLocalSource = PatchSource::ENVELOPE_0;
 using ParamType = uint8_t;
 
 namespace Param {
+
+enum Kind : int32_t {
+	PATCHED,
+	UNPATCHED,
+	GLOBAL_EFFECTABLE,
+
+	NONE,
+};
+
 namespace Local {
 enum : ParamType {
 	// Local linear params begin
@@ -379,6 +401,7 @@ enum : ParamType {
 	NOISE_VOLUME,
 	MODULATOR_0_VOLUME,
 	MODULATOR_1_VOLUME,
+	FOLD,
 
 	// Local non-volume params begin
 	MODULATOR_0_FEEDBACK,
@@ -389,6 +412,8 @@ enum : ParamType {
 	HPF_RESONANCE,
 	ENV_0_SUSTAIN,
 	ENV_1_SUSTAIN,
+	LPF_MORPH,
+	HPF_MORPH,
 
 	// Local hybrid params begin
 	OSC_A_PHASE_WIDTH,
@@ -576,7 +601,7 @@ enum class SynthMode {
 	FM,
 	RINGMOD,
 };
-constexpr int kNumSynthModes = util::to_underlying(SynthMode::RINGMOD) + 1;
+constexpr int kNumSynthModes = util::to_underlying(::SynthMode::RINGMOD) + 1;
 
 enum class ModFXType {
 	NONE,
@@ -617,20 +642,23 @@ enum class FilterMode {
 	TRANSISTOR_12DB,
 	TRANSISTOR_24DB,
 	TRANSISTOR_24DB_DRIVE, //filter logic relies on ladders being first and contiguous
-	SVF,
-	HPLADDER, //first HPF mode
-	OFF,      //Keep last as a sentinel. Signifies that the filter is not on, used for filter reset logic
-};
-constexpr FilterMode kLastLadder = FilterMode::TRANSISTOR_24DB_DRIVE;
-//Off is not an LPF mode but is used to reset filters
-constexpr int32_t kNumLPFModes = util::to_underlying(FilterMode::HPLADDER);
-
-enum class HPFMode {
+	SVF_BAND,              //first HPF mode
+	SVF_NOTCH,             //last LPF mode
 	HPLADDER,
 	OFF, //Keep last as a sentinel. Signifies that the filter is not on, used for filter reset logic
 };
+constexpr FilterMode kLastLadder = FilterMode::TRANSISTOR_24DB_DRIVE;
 //Off is not an LPF mode but is used to reset filters
-constexpr int32_t kNumHPFModes = util::to_underlying(HPFMode::OFF);
+constexpr int32_t kNumLPFModes = util::to_underlying(FilterMode::SVF_NOTCH) + 1;
+constexpr int32_t kFirstHPFMode = util::to_underlying(FilterMode::SVF_BAND);
+constexpr int32_t kNumHPFModes = util::to_underlying(FilterMode::OFF) - kFirstHPFMode;
+enum class FilterRoute {
+	HIGH_TO_LOW,
+	LOW_TO_HIGH,
+	PARALLEL,
+};
+
+constexpr int32_t kNumFilterRoutes = util::to_underlying(FilterRoute::PARALLEL) + 1;
 
 constexpr int32_t kNumAllpassFiltersPhaser = 6;
 
@@ -938,9 +966,6 @@ enum class LoopType {
 	LOW_LEVEL,
 	TIMESTRETCHER_LEVEL_IF_ACTIVE, // Will cause low-level looping if no time-stretching;
 };
-
-constexpr int32_t kInternalMemoryEnd = 0x20300000;
-constexpr int32_t kProgramStackMaxSize = 8192;
 
 enum StealableQueue {
 	STEALABLE_QUEUE_NO_SONG_SAMPLE_DATA,

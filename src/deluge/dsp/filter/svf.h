@@ -27,22 +27,15 @@ class SVFilter : public Filter<SVFilter> {
 public:
 	SVFilter() = default;
 	//returns a compensatory gain value
-	q31_t setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMode lpfMode, q31_t filterGain);
-	void doFilter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrememt, int32_t extraSaturation);
-	void doFilterStereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation);
+	q31_t setConfig(q31_t hpfFrequency, q31_t hpfResonance, FilterMode lpfMode, q31_t lpfMorph, q31_t filterGain);
+	void doFilter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrememt);
+	void doFilterStereo(q31_t* startSample, q31_t* endSample);
 	void resetFilter() {
 		l = (SVFState){0, 0};
 		r = (SVFState){0, 0};
 	}
 
 private:
-	struct SVFOuts {
-		q31_t lpf;
-		q31_t bpf;
-		q31_t hpf;
-		q31_t notch;
-	};
-
 	struct SVFState {
 		q31_t low;
 		q31_t band;
@@ -50,7 +43,13 @@ private:
 	inline q31_t doSVF(q31_t input, SVFState& state);
 	SVFState l;
 	SVFState r;
+
 	q31_t q;
 	q31_t in;
+	q31_t c_low;
+	q31_t c_band;
+	q31_t c_notch;
+	q31_t c_high;
+	bool band_mode;
 };
 } // namespace deluge::dsp::filter

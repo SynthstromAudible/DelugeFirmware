@@ -20,6 +20,7 @@
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "modulation/params/param_collection.h"
@@ -551,8 +552,13 @@ void ParamManagerForTimeline::nudgeAutomationHorizontallyAtPos(int32_t pos, int3
 
 		// Normal case
 		else {
-			summary->paramCollection->nudgeNonInterpolatingNodesAtPos(pos, offset, lengthBeforeLoop, action,
-			                                                          modelStackWithParamCollection);
+
+			//if this community feature is on, regular (non MPE) automation will not be nudged when you nudge a note
+			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationNudgeNote)
+			    == RuntimeFeatureStateToggle::Off) {
+				summary->paramCollection->nudgeNonInterpolatingNodesAtPos(pos, offset, lengthBeforeLoop, action,
+				                                                          modelStackWithParamCollection);
+			}
 		}
 		summary++;
 		i++;

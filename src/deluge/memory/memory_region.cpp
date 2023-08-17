@@ -31,7 +31,8 @@ MemoryRegion::MemoryRegion() : emptySpaces(sizeof(EmptySpaceRecord)) {
 void MemoryRegion::setup(void* emptySpacesMemory, int32_t emptySpacesMemorySize, uint32_t regionBegin,
                          uint32_t regionEnd) {
 	emptySpaces.setStaticMemory(emptySpacesMemory, emptySpacesMemorySize);
-
+	start = regionBegin;
+	end = regionEnd;
 	uint32_t memorySizeWithoutHeaders = regionEnd - regionBegin - 16;
 
 	*(uint32_t*)regionBegin = SPACE_HEADER_ALLOCATED;
@@ -98,7 +99,10 @@ static EmptySpaceRecord* recordToMergeWith;
 // Specify the address and size of the actual memory region not including its headers, which this function will write and don't have to contain valid data yet.
 // spaceSize can even be 0 or less if you know it's going to get merged.
 inline void MemoryRegion::markSpaceAsEmpty(uint32_t address, uint32_t spaceSize, bool mayLookLeft, bool mayLookRight) {
-
+	if ((address <= start) || address >= end) {
+		numericDriver.freezeWithError("M998");
+		return;
+	}
 	int32_t biggerRecordSearchFromIndex = 0;
 	int32_t insertRangeBegin;
 
@@ -752,6 +756,12 @@ void MemoryRegion::dealloc(void* address) {
 
 	uint32_t* __restrict__ header = (uint32_t*)((uint32_t)address - 4);
 	uint32_t spaceSize = (*header & SPACE_SIZE_MASK);
+
+#if ALPHA_OR_BETA_VERSION
+	if ((*header & SPACE_TYPE_MASK) == SPACE_HEADER_EMPTY) {
+		numericDriver.freezeWithError("M000");
+	}
+#endif
 
 	markSpaceAsEmpty((uint32_t)address, spaceSize);
 

@@ -41,8 +41,9 @@ class Filter {
 public:
 	Filter() = default;
 	//returns a gain compensation value
-	q31_t configure(q31_t frequency, q31_t resonance, FilterMode lpfMode, q31_t filterGain) {
-		return static_cast<T*>(this)->setConfig(frequency, resonance, lpfMode, filterGain);
+	q31_t configure(q31_t frequency, q31_t resonance, FilterMode lpfMode, q31_t lpfMorph, q31_t filterGain) {
+		//lpfmorph comes in q28 but we want q31
+		return static_cast<T*>(this)->setConfig(frequency, resonance, lpfMode, 4 * lpfMorph, filterGain);
 	}
 	/**
 	 * Filter a buffer of mono samples from startSample to endSample incrememnting by the increment
@@ -51,8 +52,8 @@ public:
 	 * @param sampleIncrement increment between samples
 	 * @param extraSaturation extra saturation value
 	*/
-	void filterMono(q31_t* startSample, q31_t* endSample, int32_t sampleIncrememt = 1, int32_t extraSaturation = 1) {
-		static_cast<T*>(this)->doFilter(startSample, endSample, sampleIncrememt, extraSaturation);
+	void filterMono(q31_t* startSample, q31_t* endSample, int32_t sampleIncrememt = 1) {
+		static_cast<T*>(this)->doFilter(startSample, endSample, sampleIncrememt);
 	}
 	/**
 	 * Filter a buffer of interleaved stereo samples from startSample to endSample incrememnting by the increment
@@ -60,8 +61,8 @@ public:
 	 * @param endSample pointer to last sample
 	 * @param extraSaturation extra saturation value
 	*/
-	void filterStereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation = 1) {
-		static_cast<T*>(this)->doFilterStereo(startSample, endSample, extraSaturation);
+	void filterStereo(q31_t* startSample, q31_t* endSample) {
+		static_cast<T*>(this)->doFilterStereo(startSample, endSample);
 		;
 	}
 	/**

@@ -22,6 +22,7 @@
 #include "hid/display/numeric_driver.h"
 #include "hid/hid_sysex.h"
 #include "io/debug/print.h"
+#include "io/debug/sysex.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
 #include "model/song/song.h"
@@ -724,48 +725,6 @@ void MidiEngine::checkIncomingUsbSysex(uint8_t const* msg, int32_t ip, int32_t d
 	}
 }
 
-void MidiEngine::debugSysexReceived(MIDIDevice* device, uint8_t* data, int32_t len) {
-	if (len < 6) {
-		return;
-	}
-
-	// first three bytes are already used, next is command
-	switch (data[3]) {
-	case 0:
-		if (data[4] == 1) {
-			Debug::midiDebugDevice = device;
-		}
-		else if (data[4] == 0) {
-			Debug::midiDebugDevice = nullptr;
-		}
-		break;
-	}
-}
-
-void midiDebugPrint(MIDIDevice* device, const char* msg, bool nl) {
-	if (!msg) {
-		return; // Do not do that
-	}
-	// data[4]: reserved, could serve as a message identifier to filter messages per category
-	uint8_t reply_hdr[5] = {0xf0, 0x7d, 0x03, 0x40, 0x00};
-	uint8_t* reply = midiEngine.sysex_fmt_buffer;
-	memcpy(reply, reply_hdr, 5);
-	size_t len = strlen(msg);
-	len = std::min(len, sizeof(midiEngine.sysex_fmt_buffer) - 7);
-	memcpy(reply + 5, msg, len);
-	for (int32_t i = 0; i < len; i++) {
-		reply[5 + i] &= 0x7F; // only ascii debug messages
-	}
-	if (nl) {
-		reply[5 + len] = '\n';
-		len++;
-	}
-
-	reply[5 + len] = 0xf7;
-
-	device->sendSysex(reply, len + 6);
-}
-
 void MidiEngine::midiSysexReceived(MIDIDevice* device, uint8_t* data, int32_t len) {
 	if (len < 4) {
 		return;
@@ -794,7 +753,7 @@ void MidiEngine::midiSysexReceived(MIDIDevice* device, uint8_t* data, int32_t le
 		case 3:
 			// debug namespace: for sysex calls useful for debugging purposes
 			// and/or might require a debug build to function.
-			debugSysexReceived(device, data, len);
+			Debug::sysexReceived(device, data, len);
 			break;
 
 		case 0x7f: // PONG, reserved

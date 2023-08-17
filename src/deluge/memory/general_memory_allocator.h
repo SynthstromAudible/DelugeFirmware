@@ -91,6 +91,6 @@ private:
 };
 
 extern "C" {
-void* delugeAlloc(unsigned int requiredSize);
+void* delugeAlloc(unsigned int requiredSize, bool mayUseOnChipRam = true);
 void delugeDealloc(void* address);
 }

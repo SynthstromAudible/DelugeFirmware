@@ -23,9 +23,10 @@
 #include <cstdint>
 namespace deluge::dsp::filter {
 
-q31_t HpLadderFilter::setConfig(q31_t hpfFrequency, q31_t hpfResonance, FilterMode lpfMode, q31_t filterGain) {
+q31_t HpLadderFilter::setConfig(q31_t hpfFrequency, q31_t hpfResonance, FilterMode lpfMode, q31_t lpfMorph,
+                                q31_t filterGain) {
 	int32_t extraFeedback = 1200000000;
-
+	morph_ = lpfMorph;
 	curveFrequency(hpfFrequency);
 
 	int32_t resonanceUpperLimit = 536870911;
@@ -67,26 +68,30 @@ q31_t HpLadderFilter::setConfig(q31_t hpfFrequency, q31_t hpfResonance, FilterMo
 
 	return filterGain;
 }
-void HpLadderFilter::doFilter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement, int32_t extraSaturation) {
+void HpLadderFilter::doFilter(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement) {
 	q31_t* currentSample = startSample;
 	do {
-		*currentSample = doHPF(*currentSample, extraSaturation, l);
+		*currentSample = doHPF(*currentSample, l);
 		currentSample += sampleIncrement;
 	} while (currentSample < endSample);
 }
 //filter an interleaved stereo buffer
-void HpLadderFilter::doFilterStereo(q31_t* startSample, q31_t* endSample, int32_t extraSaturation) {
+void HpLadderFilter::doFilterStereo(q31_t* startSample, q31_t* endSample) {
 	q31_t* currentSample = startSample;
 	do {
-		*currentSample = doHPF(*currentSample, extraSaturation, l);
+		*currentSample = doHPF(*currentSample, l);
 		currentSample += 1;
-		*currentSample = doHPF(*currentSample, extraSaturation, r);
+		*currentSample = doHPF(*currentSample, r);
 		currentSample += 1;
 	} while (currentSample < endSample);
 }
-inline q31_t HpLadderFilter::doHPF(q31_t input, int32_t extraSaturation, HPLadderState& state) {
+inline q31_t HpLadderFilter::doHPF(q31_t input, HPLadderState& state) {
+	//inputs are only 16 bit so this is pretty small
+	//this limit was found experimentally as about the lowest fc can get without sounding broken
+	q31_t constexpr lower_limit = -(ONE_Q31 >> 8);
+	q31_t temp_fc = std::max(multiply_accumulate_32x32_rshift32_rounded(fc, input << 4, morph_), lower_limit);
 
-	q31_t firstHPFOutput = input - state.hpfHPF1.doFilter(input, fc);
+	q31_t firstHPFOutput = input - state.hpfHPF1.doFilter(input, temp_fc);
 
 	q31_t feedbacksValue =
 	    state.hpfHPF3.getFeedbackOutput(hpfHPF3Feedback) + state.hpfLPF1.getFeedbackOutput(hpfLPF1Feedback);
@@ -95,16 +100,16 @@ inline q31_t HpLadderFilter::doHPF(q31_t input, int32_t extraSaturation, HPLadde
 
 	// Only saturate / anti-alias if lots of resonance
 	if (hpfProcessedResonance > 900000000) { // 890551738
-		a = getTanHAntialiased(a, &hpfLastWorkingValue, 2 + extraSaturation);
+		a = getTanHAntialiased(a, &hpfLastWorkingValue, 1);
 	}
 	else {
 		hpfLastWorkingValue = (uint32_t)lshiftAndSaturate<2>(a) + 2147483648u;
 		if (hpfProcessedResonance > 750000000) { // 400551738
-			a = getTanHUnknown(a, 2 + extraSaturation);
+			a = getTanHUnknown(a, 2);
 		}
 	}
 
-	state.hpfLPF1.doFilter(a - state.hpfHPF3.doFilter(a, fc), fc);
+	state.hpfLPF1.doFilter(a - state.hpfHPF3.doFilter(a, temp_fc), temp_fc);
 
 	a = multiply_32x32_rshift32_rounded(a, hpfDivideByProcessedResonance) << (8 - 1); // Normalization
 

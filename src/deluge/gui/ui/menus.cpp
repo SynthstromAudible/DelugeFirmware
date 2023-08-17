@@ -35,8 +35,10 @@
 #include "gui/menu_item/envelope/segment.h"
 #include "gui/menu_item/file_selector.h"
 #include "gui/menu_item/filter/hpf_freq.h"
+#include "gui/menu_item/filter/hpf_mode.h"
 #include "gui/menu_item/filter/lpf_freq.h"
 #include "gui/menu_item/filter/lpf_mode.h"
+#include "gui/menu_item/filter_route.h"
 #include "gui/menu_item/firmware/version.h"
 #include "gui/menu_item/flash/status.h"
 #include "gui/menu_item/fx/clipping.h"
@@ -91,6 +93,7 @@
 #include "gui/menu_item/patch_cable_strength/fixed.h"
 #include "gui/menu_item/patch_cable_strength/range.h"
 #include "gui/menu_item/patch_cable_strength/regular.h"
+#include "gui/menu_item/patch_cables.h"
 #include "gui/menu_item/patched_param.h"
 #include "gui/menu_item/patched_param/integer.h"
 #include "gui/menu_item/patched_param/integer_non_fm.h"
@@ -175,6 +178,7 @@ dev_var::GMenu devVarGMenu{HAVE_OLED ? "Dev Menu G" : "DEVG"};
 
 filter::LPFFreq lpfFreqMenu{"Frequency", "LPF frequency", ::Param::Local::LPF_FREQ};
 patched_param::IntegerNonFM lpfResMenu{"Resonance", "LPF resonance", ::Param::Local::LPF_RESONANCE};
+patched_param::IntegerNonFM lpfMorphMenu{"Morph", "LPF morph", ::Param::Local::LPF_MORPH};
 filter::LPFMode lpfModeMenu{"MODE", "LPF mode"};
 
 submenu::Filter lpfMenu{
@@ -183,6 +187,7 @@ submenu::Filter lpfMenu{
         &lpfFreqMenu,
         &lpfResMenu,
         &lpfModeMenu,
+        &lpfMorphMenu,
     },
 };
 
@@ -190,14 +195,21 @@ submenu::Filter lpfMenu{
 
 filter::HPFFreq hpfFreqMenu{"Frequency", "HPF frequency", ::Param::Local::HPF_FREQ};
 patched_param::IntegerNonFM hpfResMenu{"Resonance", "HPF resonance", ::Param::Local::HPF_RESONANCE};
+patched_param::IntegerNonFM hpfMorphMenu{"Morph", "HPF morph", ::Param::Local::HPF_MORPH};
+filter::HPFMode hpfModemenu{"MODE", "HPF mode"};
 
 submenu::Filter hpfMenu{
     "HPF",
     {
         &hpfFreqMenu,
         &hpfResMenu,
+        &hpfModemenu,
+        &hpfMorphMenu,
     },
 };
+
+//Filter Route Menu ----------------------------------------------------------------------------------------------
+FilterRouting filterRoutingMenu{HAVE_OLED ? "Filter Route" : "ROUT"};
 
 // Envelope menu ----------------------------------------------------------------------------------------------------
 
@@ -441,7 +453,7 @@ Submenu reverbMenu{
 fx::Clipping clippingMenu{"SATURATION"};
 UnpatchedParam srrMenu{"DECIMATION", ::Param::Unpatched::SAMPLE_RATE_REDUCTION};
 UnpatchedParam bitcrushMenu{HAVE_OLED ? "Bitcrush" : "CRUSH", ::Param::Unpatched::BITCRUSHING};
-
+patched_param::Integer foldMenu{"Fold", "Fold", ::Param::Local::FOLD};
 Submenu fxMenu{
     "FX",
     {
@@ -452,6 +464,7 @@ Submenu fxMenu{
         &clippingMenu,
         &srrMenu,
         &bitcrushMenu,
+        &foldMenu,
     },
 };
 
@@ -505,6 +518,7 @@ Submenu audioClipHPFMenu{
     {
         &audioClipHPFFreqMenu,
         &audioClipHPFResMenu,
+        &hpfModemenu,
     },
 };
 
@@ -820,6 +834,8 @@ bend_range::PerFinger drumBendRangeMenu{"Bend range"}; // The single option avai
 patched_param::Integer volumeMenu{HAVE_OLED ? "Level" : "VOLUME", "Master level", ::Param::Global::VOLUME_POST_FX};
 patched_param::Pan panMenu{"PAN", ::Param::Local::PAN};
 
+PatchCables patchCablesMenu{"mod matrix"};
+
 menu_item::Submenu soundEditorRootMenu{
     "Sound",
     {
@@ -832,6 +848,7 @@ menu_item::Submenu soundEditorRootMenu{
         &vibratoMenu,
         &lpfMenu,
         &hpfMenu,
+        &filterRoutingMenu,
         &drumNameMenu,
         &synthModeMenu,
         &env0Menu,
@@ -845,6 +862,7 @@ menu_item::Submenu soundEditorRootMenu{
         &drumBendRangeMenu,
         &volumeMenu,
         &panMenu,
+        &patchCablesMenu,
         &sequenceDirectionMenu,
     },
 };
@@ -910,9 +928,9 @@ MenuItem* paramShortcutsForSounds[][8] = {
     {&modulatorVolume,        &modulatorTransposeMenu, comingSoonMenu,                 comingSoonMenu,                 &modulatorPhaseMenu,  &modulatorFeedbackMenu, comingSoonMenu,           &sequenceDirectionMenu},
     {&modulatorVolume,        &modulatorTransposeMenu, comingSoonMenu,                 comingSoonMenu,                 &modulatorPhaseMenu,  &modulatorFeedbackMenu, &modulatorDestMenu,       NULL                  },
     {&volumeMenu,             &masterTransposeMenu,    &vibratoMenu,                   &panMenu,                       &synthModeMenu,       &srrMenu,               &bitcrushMenu,            &clippingMenu         },
-    {&portaMenu,              &polyphonyMenu,          &priorityMenu,                  &unisonDetuneMenu,              &numUnisonMenu,       nullptr,                nullptr,                  NULL                  },
-    {&envReleaseMenu,         &envSustainMenu,         &envDecayMenu,                  &envAttackMenu,                 nullptr,              &lpfModeMenu,           &lpfResMenu,              &lpfFreqMenu          },
-    {&envReleaseMenu,         &envSustainMenu,         &envDecayMenu,                  &envAttackMenu,                 nullptr,              comingSoonMenu,         &hpfResMenu,              &hpfFreqMenu          },
+    {&portaMenu,              &polyphonyMenu,          &priorityMenu,                  &unisonDetuneMenu,              &numUnisonMenu,       nullptr,                nullptr,                  &foldMenu             },
+    {&envReleaseMenu,         &envSustainMenu,         &envDecayMenu,                  &envAttackMenu,                 &lpfMorphMenu,        &lpfModeMenu,           &lpfResMenu,              &lpfFreqMenu          },
+    {&envReleaseMenu,         &envSustainMenu,         &envDecayMenu,                  &envAttackMenu,                 &hpfMorphMenu,        &hpfModemenu,           &hpfResMenu,              &hpfFreqMenu          },
     {&compressorReleaseMenu,  &sidechainSyncMenu,      &compressorVolumeShortcutMenu,  &compressorAttackMenu,          &compressorShapeMenu, &sidechainSendMenu,     &bassMenu,                &bassFreqMenu         },
     {&arpRateMenu,            &arpSyncMenu,            &arpGateMenu,                   &arpOctavesMenu,                &arpModeMenu,         &drumNameMenu,          &trebleMenu,              &trebleFreqMenu       },
     {&lfo1RateMenu,           &lfo1SyncMenu,           &lfo1TypeMenu,                  &modFXTypeMenu,                 &modFXOffsetMenu,     &modFXFeedbackMenu,     &modFXDepthMenu,          &modFXRateMenu        },
@@ -928,7 +946,7 @@ MenuItem* paramShortcutsForAudioClips[][8] = {
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  NULL                               },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  NULL                               },
     {&audioClipLevelMenu,     &audioClipTransposeMenu, nullptr,                        &audioClipPanMenu,              nullptr,              &srrMenu,               &bitcrushMenu,            &clippingMenu                      },
-    {nullptr,                 nullptr,                 &priorityMenu,                  nullptr,                        nullptr,              nullptr,                nullptr,                  NULL                               },
+    {nullptr,                 nullptr,                 &priorityMenu,                  nullptr,                        nullptr,              nullptr,                nullptr,                  &foldMenu                          },
     {nullptr,                 nullptr,                 nullptr,                        &audioClipAttackMenu,           nullptr,              &lpfModeMenu,           &audioClipLPFResMenu,     &audioClipLPFFreqMenu              },
     {nullptr,                 nullptr,                 nullptr,                        &audioClipAttackMenu,           nullptr,              comingSoonMenu,         &audioClipHPFResMenu,     &audioClipHPFFreqMenu              },
     {&compressorReleaseMenu,  &sidechainSyncMenu,      &audioClipCompressorVolumeMenu, &compressorAttackMenu,          &compressorShapeMenu, nullptr,                &bassMenu,                &bassFreqMenu                      },

@@ -168,6 +168,9 @@ ModFXParam stringToModFXParam(char const* string);
 char const* filterTypeToString(FilterType fxType);
 FilterType stringToFilterType(char const* string);
 
+FilterRoute stringToFilterRoute(char const* string);
+char const* filterRouteToString(FilterRoute route);
+
 char const* arpModeToString(ArpMode mode);
 ArpMode stringToArpMode(char const* string);
 
@@ -214,11 +217,17 @@ void addAudio(StereoSample* inputBuffer, StereoSample* outputBuffer, int32_t num
 
 #if HAVE_OLED
 char const* getSourceDisplayNameForOLED(PatchSource s);
-char const* getPatchedParamDisplayNameForOled(int32_t p);
+char const* getPatchedParamDisplayNameForOLED(int32_t p);
+char const* getUnpatchedParamDisplayNameForOLED(int32_t p);
+char const* getGlobalEffectableParamDisplayNameForOLED(int32_t p);
 #endif
 
 char const* sourceToString(PatchSource source);
 PatchSource stringToSource(char const* string);
+char const* sourceToStringShort(PatchSource source);
+
+char const* patchedParamToStringShort(int32_t p);
+
 bool paramNeedsLPF(int32_t p, bool fromAutomation);
 int32_t shiftVolumeByDB(int32_t oldValue, float offset);
 int32_t quickLog(uint32_t input);
