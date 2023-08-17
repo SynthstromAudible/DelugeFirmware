@@ -84,6 +84,8 @@ public:
 	virtual bool isRangeDependent() { return false; }
 	virtual bool usesAffectEntire() { return false; }
 
+	virtual ActionResult timerCallback() { return ActionResult::DEALT_WITH; }
+
 	/// Can get overridden by getTitle(). Actual max num chars for OLED display is 14.
 	std::string title;
 

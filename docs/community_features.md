@@ -101,6 +101,9 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 #### Sample Waveform View
  - ([#293]) When a sample has loop start and loop end points set, holding down loop start and tapping loop end will lock the loop points together. Moving one will move the other, keeping them the same distance apart. Use the same process to unlock the loop points. Use SHIFT+TURN<> to double or half the loop length.
 
+#### Sound Editor
+  - ([#157]) Add a "Mod Matrix" entry to the sound editor menu which shows a list of all currently active modulations.
+
 #### Takeover Mode
 
  - ([#170]) The Takeover menu consists of three modes that can be selected from:
