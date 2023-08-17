@@ -98,6 +98,7 @@ int32_t getParamNeutralValue(int32_t p) {
 	case Param::Local::HPF_RESONANCE:
 	case Param::Local::LPF_MORPH:
 	case Param::Local::HPF_MORPH:
+	case Param::Local::FOLD:
 		return 25 * 10737418; // Room to be quadrupled
 
 	case Param::Local::PAN:
@@ -467,6 +468,9 @@ char const* getPatchedParamDisplayNameForOLED(int32_t p) {
 
 	case Param::Local::CARRIER_1_FEEDBACK:
 		return "Osc 2 feedback";
+
+	case Param::Local::FOLD:
+		return "WaveFold";
 
 	default:
 		return "none";
