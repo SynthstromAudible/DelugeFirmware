@@ -51,21 +51,10 @@ public:
 
 	static_vector<std::string_view, capacity()> getOptions() override {
 		using enum l10n::String;
+		static auto cv1 = fmt::vformat(l10n::getView(STRING_FOR_CV_OUTPUT_N), fmt::make_format_args(1));
+		static auto cv2 = fmt::vformat(l10n::getView(STRING_FOR_CV_OUTPUT_N), fmt::make_format_args(2));
 
-		// // Just a test
-		// auto strings =                               //<
-		//     std::views::iota(1_u32, capacity())      //<
-		//     | std::views::transform([](size_t idx) { //<
-		// 	      return fmt::vformat(l10n::get(STRING_FOR_CV_OUTPUT_N), fmt::make_format_args(idx));
-		//       })
-		//     | std::views::common;
-
-		// return {strings.begin(), strings.begin() + capacity()};
-
-		return {
-		    fmt::vformat(l10n::getView(STRING_FOR_CV_OUTPUT_N), fmt::make_format_args(1)),
-		    fmt::vformat(l10n::getView(STRING_FOR_CV_OUTPUT_N), fmt::make_format_args(2)),
-		};
+		return {cv1, cv2};
 	}
 };
 } // namespace deluge::gui::menu_item::cv

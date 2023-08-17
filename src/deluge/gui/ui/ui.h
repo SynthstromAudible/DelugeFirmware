@@ -128,7 +128,7 @@ public:
 
 	void close();
 
-	// OLED ONLY
+
 	virtual void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) = 0;
 	bool oledShowsUIUnderneath;
 };
@@ -159,7 +159,7 @@ void clearPendingUIRendering();
 
 void doAnyPendingUIRendering();
 
-// OLED Only
+
 void renderUIsForOled();
 
 // UI modes

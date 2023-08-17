@@ -87,7 +87,7 @@ public:
 	bool opened();
 	void cullSomeFileItems();
 
-	// OLED Only
+
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
 
 	static String currentDir;
@@ -130,7 +130,7 @@ protected:
 	static bool allowFoldersSharingNameWithFile;
 	static char const** allowedFileExtensions;
 
-	// OLED Only
+
 	const uint8_t* fileIcon;
 
 	// 7Seg Only

@@ -215,7 +215,7 @@ int32_t getFinalParameterValueExpWithDumbEnvelopeHack(int32_t paramNeutralValue,
 
 void addAudio(StereoSample* inputBuffer, StereoSample* outputBuffer, int32_t numSamples);
 
-// OLED only
+
 char const* getSourceDisplayNameForOLED(PatchSource s);
 char const* getPatchedParamDisplayNameForOled(int32_t p);
 

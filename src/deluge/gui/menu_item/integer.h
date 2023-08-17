@@ -27,7 +27,7 @@ public:
 	void selectEncoderAction(int32_t offset) override;
 
 protected:
-	// OLED Only
+
 	void drawPixelsForOled();
 	virtual void drawInteger(int32_t textWidth, int32_t textHeight, int32_t yPixel);
 
@@ -48,7 +48,7 @@ public:
 	using Integer::Integer;
 
 protected:
-	// OLED Only
+
 	void drawPixelsForOled();
 };
 

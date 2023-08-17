@@ -130,7 +130,7 @@ public:
 	AudioFileHolder* getCurrentAudioFileHolder();
 	void mpeZonesPotentiallyUpdated();
 
-	// OLED ONLY
+
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
 
 private:

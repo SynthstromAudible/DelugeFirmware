@@ -95,7 +95,7 @@ public:
 	/// lifetime of this menu item"
 	[[nodiscard]] virtual std::string_view getTitle() const { return deluge::l10n::getView(name); }
 
-	// OLED ONLY
+
 	virtual void renderOLED();
 	virtual void drawPixelsForOled() {}
 	void drawItemsForOled(char const** options, int32_t selectedOption);

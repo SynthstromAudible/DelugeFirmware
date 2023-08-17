@@ -93,7 +93,7 @@ public:
 	void modEncoderAction(int32_t whichModEncoder, int32_t offset);
 	ActionResult verticalScrollOneSquare(int32_t direction);
 
-	// OLED only
+
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
 
 	// 7SEG only

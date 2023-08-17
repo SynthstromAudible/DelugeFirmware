@@ -51,7 +51,7 @@ public:
 	uint32_t getMaxLength();
 	uint32_t getMaxZoom();
 
-	// OLED ONLY
+
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
 
 private:

@@ -29,9 +29,10 @@ public:
 	void writeCurrentValue() override { soundEditor.currentSound->modulator1ToModulator0 = this->getValue(); }
 	static_vector<std::string_view, capacity()> getOptions() override {
 		using enum l10n::String;
+		static auto mod1 = fmt::vformat(l10n::getView(STRING_FOR_MODULATOR_N), fmt::make_format_args(1));
 		return {
 		    l10n::getView(STRING_FOR_CARRIERS),
-		    fmt::vformat(l10n::getView(STRING_FOR_MODULATOR_N), fmt::make_format_args(1)),
+		    mod1,
 		};
 	}
 	bool isRelevant(Sound* sound, int32_t whichThing) override {

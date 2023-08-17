@@ -26,7 +26,7 @@ class Modulator final : public SubmenuReferringToOneThing<n> {
 public:
 	using SubmenuReferringToOneThing<n>::SubmenuReferringToOneThing;
 
-	// OLED Only
+
 	void beginSession(MenuItem* navigatedBackwardFrom) {
 		setModulatorNumberForTitles(this->thingIndex);
 		SubmenuReferringToOneThing<n>::beginSession(navigatedBackwardFrom);

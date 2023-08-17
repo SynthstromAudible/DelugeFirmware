@@ -80,7 +80,7 @@ public:
 	ActionResult verticalScrollOneSquare(int32_t direction);
 	ActionResult horizontalScrollOneSquare(int32_t direction);
 
-	// OLED ONLY
+
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
 
 	Output* outputsOnScreen[kDisplayHeight];
