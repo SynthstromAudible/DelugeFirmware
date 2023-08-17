@@ -101,6 +101,9 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 #### Sample Waveform View
  - ([#293]) When a sample has loop start and loop end points set, holding down loop start and tapping loop end will lock the loop points together. Moving one will move the other, keeping them the same distance apart. Use the same process to unlock the loop points. Use SHIFT+TURN<> to double or half the loop length.
 
+#### Sound Editor
+  - ([#157]) Add a "Mod Matrix" entry to the sound editor menu which shows a list of all currently active modulations.
+
 #### Takeover Mode
 
  - ([#170]) The Takeover menu consists of three modes that can be selected from:
@@ -118,12 +121,14 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
  - ([#282]) Ability to select, using a Community Features Menu, which parameters are controlled when you click the Delay-related golden knobs. The default (for upper and lower knobs) is PingPong On/Off and Type (Digital/Analog), and you can modify it so the knob clicks change the Sync Type (Even, Triplets, Even) and SyncLevel (Off, Whole, 2nd, 4th...) respectively.
 
 #### Automation Instrument Clip View
- - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: docs\features\automation_view.md
+ - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Automation View Documentation]
  - ([#241]) Automation Instrument Clip View is a new view that complements the existing Instrument Clip View.
 	- It is accessed from within the Clip View by pressing the Clip button (which will blink to indicate you are in the Automation View).
 	- You can edit Non-MPE Parameter Automation for Synth, Kit and Midi instrument clips on a per step basis at any zoom level.
 	- A community features sub-menu titled Automation was created to access a number of configurable settings for changes to existing behaviour.
 	- The three changes to existing behaviour included in this feature are: Clearing Clips, Nudging Notes and Shifting a Clip Horizontally.
+ - Follow-up PR's: 
+	- ([#347]) Add new automatable parameters
 
 <h1 id="runtime-features">Runtime settings aka Community Features Menu</h1>
 
@@ -203,3 +208,5 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#251]: https://github.com/SynthstromAudible/DelugeFirmware/pull/251
 [#282]: https://github.com/SynthstromAudible/DelugeFirmware/pull/282
 [#293]: https://github.com/SynthstromAudible/DelugeFirmware/pull/293
+[#347]: https://github.com/SynthstromAudible/DelugeFirmware/pull/347
+[Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/automation_view.md

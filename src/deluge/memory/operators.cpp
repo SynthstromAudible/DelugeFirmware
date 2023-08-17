@@ -2,7 +2,8 @@
 #include <new>
 
 void* operator new(std::size_t n) noexcept(false) {
-	return delugeAlloc(n);
+	//allocate on external RAM
+	return delugeAlloc(n, false);
 }
 
 void operator delete(void* p) {
