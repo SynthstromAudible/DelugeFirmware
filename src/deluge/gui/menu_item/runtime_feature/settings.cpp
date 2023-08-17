@@ -16,6 +16,7 @@
 */
 
 #include "settings.h"
+#include "devSysexSetting.h"
 #include "setting.h"
 
 #include "gui/ui/sound_editor.h"
@@ -43,6 +44,7 @@ Setting menuAutomationInterpolate(RuntimeFeatureSettingType::AutomationInterpola
 Setting menuAutomationClearClip(RuntimeFeatureSettingType::AutomationClearClip);
 Setting menuAutomationNudgeNote(RuntimeFeatureSettingType::AutomationNudgeNote);
 Setting menuAutomationShiftClip(RuntimeFeatureSettingType::AutomationShiftClip);
+DevSysexSetting menuDevSysexAllowed(RuntimeFeatureSettingType::DevSysexAllowed);
 
 Submenu subMenuAutomation{
     HAVE_OLED ? "AUTOMATION" : "AUTO",
@@ -57,7 +59,7 @@ Submenu subMenuAutomation{
 std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettings> subMenuEntries{
     &menuDrumRandomizer,       &menuMasterCompressorFx, &menuFineTempo,           &menuQuantize,
     &menuPatchCableResolution, &menuCatchNotes,         &menuDeleteUnusedKitRows, &menuAltGoldenKnobDelayParams,
-    &subMenuAutomation,
+    &subMenuAutomation,        &menuDevSysexAllowed,
 };
 
 Settings::Settings(char const* name, char const* title)

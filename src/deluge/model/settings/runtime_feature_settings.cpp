@@ -97,6 +97,9 @@ void RuntimeFeatureSettings::init() {
 	// ShiftNoteAutomation
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationShiftClip], "Shift Note", "AutomationShiftClip",
 	                  RuntimeFeatureStateToggle::On);
+	// devSysexAllowed
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DevSysexAllowed], "Allow Insecure Develop Sysex Messages",
+	                  "devSysexAllowed", RuntimeFeatureStateToggle::Off);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {

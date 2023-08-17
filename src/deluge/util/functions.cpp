@@ -1294,12 +1294,12 @@ char const* lpfTypeToString(FilterMode lpfType) {
 
 	case FilterMode::TRANSISTOR_24DB_DRIVE:
 		return "24dBDrive";
-	case FilterMode::SVF:
-		return "SVF";
+	case FilterMode::SVF_BAND:
+		return "SVF_Band";
 	case FilterMode::HPLADDER:
 		return "HPLadder";
-	case FilterMode::HPSVF:
-		return "HPSV";
+	case FilterMode::SVF_NOTCH:
+		return "SVF_Notch";
 	default:
 		return "24dB";
 	}
@@ -1312,14 +1312,18 @@ FilterMode stringToLPFType(char const* string) {
 	else if (!strcmp(string, "24dBDrive")) {
 		return FilterMode::TRANSISTOR_24DB_DRIVE;
 	}
+	else if (!strcmp(string, "SVF_Band")) {
+		return FilterMode::SVF_BAND;
+	}
 	else if (!strcmp(string, "SVF")) {
-		return FilterMode::SVF;
+		//for compatibility with community pre release
+		return FilterMode::SVF_BAND;
 	}
 	else if (!strcmp(string, "HPLadder")) {
 		return FilterMode::HPLADDER;
 	}
-	else if (!strcmp(string, "HPSV")) {
-		return FilterMode::HPSVF;
+	else if (!strcmp(string, "SVF_Notch")) {
+		return FilterMode::SVF_NOTCH;
 	}
 	else {
 		return FilterMode::TRANSISTOR_12DB;

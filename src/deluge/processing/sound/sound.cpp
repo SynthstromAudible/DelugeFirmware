@@ -173,7 +173,7 @@ void Sound::initParams(ParamManager* paramManager) {
 	patchedParams->params[Param::Global::VOLUME_POST_REVERB_SEND].setCurrentValueBasicForSetup(0);
 	patchedParams->params[Param::Local::HPF_RESONANCE].setCurrentValueBasicForSetup(-2147483648);
 	patchedParams->params[Param::Local::HPF_FREQ].setCurrentValueBasicForSetup(-2147483648);
-	patchedParams->params[Param::Local::HPF_MORPH].setCurrentValueBasicForSetup(2147483648);
+	patchedParams->params[Param::Local::HPF_MORPH].setCurrentValueBasicForSetup(-2147483648);
 	patchedParams->params[Param::Local::LPF_MORPH].setCurrentValueBasicForSetup(-2147483648);
 	patchedParams->params[Param::Local::PITCH_ADJUST].setCurrentValueBasicForSetup(0);
 	patchedParams->params[Param::Global::REVERB_AMOUNT].setCurrentValueBasicForSetup(-2147483648);
@@ -2105,14 +2105,17 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 
 		// Setup filters
 		bool thisHasFilters = hasFilters();
+		q31_t lpfMorph = getSmoothedPatchedParamValue(Param::Local::LPF_MORPH, paramManager);
+		q31_t lpfFreq = getSmoothedPatchedParamValue(Param::Local::LPF_FREQ, paramManager);
+		q31_t hpfMorph = getSmoothedPatchedParamValue(Param::Local::HPF_MORPH, paramManager);
+		q31_t hpfFreq = getSmoothedPatchedParamValue(Param::Local::HPF_FREQ, paramManager);
 		bool doLPF = (thisHasFilters
 		              && (lpfMode == FilterMode::TRANSISTOR_24DB_DRIVE
 		                  || paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(Param::Local::LPF_FREQ)
-		                  || getSmoothedPatchedParamValue(Param::Local::LPF_FREQ, paramManager) < 2147483602));
+		                  || (lpfFreq < 2147483602) || (lpfMorph > -2147483648)));
 		bool doHPF = (thisHasFilters
 		              && (paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(Param::Local::HPF_FREQ)
-		                  || getSmoothedPatchedParamValue(Param::Local::HPF_FREQ, paramManager) != -2147483648));
-
+		                  || (hpfFreq != -2147483648) || (hpfMorph > -2147483648)));
 		// Each voice will potentially alter the "sources changed" flags, so store a backup to restore between each voice
 		/*
 		bool backedUpSourcesChanged[FIRST_UNCHANGEABLE_SOURCE - Local::FIRST_SOURCE];
