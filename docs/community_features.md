@@ -124,6 +124,8 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 	- You can edit Non-MPE Parameter Automation for Synth, Kit and Midi instrument clips on a per step basis at any zoom level.
 	- A community features sub-menu titled Automation was created to access a number of configurable settings for changes to existing behaviour.
 	- The three changes to existing behaviour included in this feature are: Clearing Clips, Nudging Notes and Shifting a Clip Horizontally.
+ - Follow-up PR's: 
+	- [#347] Add new automatable parameters
 
 <h1 id="runtime-features">Runtime settings aka Community Features Menu</h1>
 
@@ -203,3 +205,4 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#251]: https://github.com/SynthstromAudible/DelugeFirmware/pull/251
 [#282]: https://github.com/SynthstromAudible/DelugeFirmware/pull/282
 [#293]: https://github.com/SynthstromAudible/DelugeFirmware/pull/293
+[#347]: https://github.com/SynthstromAudible/DelugeFirmware/pull/347
