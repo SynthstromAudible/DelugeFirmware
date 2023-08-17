@@ -592,7 +592,7 @@ uint16_t usb_hmidi_pipe_info(usb_utr_t* ptr, uint8_t* table, uint16_t speed, uin
 
                     // If still here, we didn't find a pipe
                     uartPrintln("no free pipe");
-                    consoleTextIfAllBootedUp(l10n_get(STRING_FOR_MAXIMUM_NUMBER_OF_USB_DEVICES_ALREADY_HOSTED));
+                    consoleTextIfAllBootedUp(l10n_get(STRING_FOR_USB_DEVICES_MAX));
                     goto moveOnToNextDescriptor;
 
 pickedReceivePipe:

@@ -2832,7 +2832,7 @@ static void usb_hhub_new_connect(usb_utr_t* ptr, uint16_t hubaddr, uint16_t port
     else
     {
         USB_PRINTF0("### device count over !\n");
-        consoleTextIfAllBootedUp(l10n_get(STRING_FOR_MAXIMUM_NUMBER_OF_USB_DEVICES_ALREADY_HOSTED));
+        consoleTextIfAllBootedUp(l10n_get(STRING_FOR_USB_DEVICES_MAX));
     }
 } /* End of function usb_hhub_new_connect() */
 

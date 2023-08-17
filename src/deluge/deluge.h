@@ -45,7 +45,7 @@ extern void setTimeUSBInitializationEnds(int32_t timeFromNow);
 // The following is for use by RZA1, based on gui/l10n/strings.h
 // THIS MUST MATCH THE VALUES OF THESE ENTRIES IN deluge::l10n::String
 enum l10n_string {
-	STRING_FOR_MAXIMUM_NUMBER_OF_USB_DEVICES_ALREADY_HOSTED = 253,
+	STRING_FOR_USB_DEVICES_MAX = 256,
 	STRING_FOR_USB_DEVICE_DETACHED,
 	STRING_FOR_USB_HUB_ATTACHED,
 	STRING_FOR_USB_DEVICE_NOT_RECOGNIZED,
