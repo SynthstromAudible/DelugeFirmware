@@ -86,7 +86,7 @@ void RuntimeFeatureSettings::init() {
 	                  "Alternative Golden Knob Delay Params", "altGoldenKnobDelayParams",
 	                  RuntimeFeatureStateToggle::Off);
 	// QuantizedStutterRate
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::QuantizedStutterRate], "Quantized Stutter Rate",
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::QuantizedStutterRate], "Stutter Rate Quantize",
 	                  "quantizedStutterRate", RuntimeFeatureStateToggle::Off);
 	// InterpolateAutomation
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationInterpolate], "Interpolation",
