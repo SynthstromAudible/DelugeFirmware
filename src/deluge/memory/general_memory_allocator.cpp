@@ -35,9 +35,10 @@ char emptySpacesMemoryInternal[sizeof(EmptySpaceRecord) * 1024];
 extern uint32_t __heap_start;
 extern uint32_t __heap_end;
 extern uint32_t program_stack_start;
-
+extern uint32_t program_stack_end;
 GeneralMemoryAllocator::GeneralMemoryAllocator() {
 	lock = false;
+
 	regions[MEMORY_REGION_SDRAM].setup(emptySpacesMemory, sizeof(emptySpacesMemory), EXTERNAL_MEMORY_BEGIN,
 	                                   EXTERNAL_MEMORY_END);
 	regions[MEMORY_REGION_INTERNAL].setup(emptySpacesMemoryInternal, sizeof(emptySpacesMemoryInternal),
@@ -56,10 +57,11 @@ void GeneralMemoryAllocator::checkStack(char const* caller) {
 
 	char a;
 
-	int32_t distance = (int32_t)&a - (kInternalMemoryEnd - kProgramStackMaxSize);
+	int32_t distance = (int32_t)&a - (uint32_t)&program_stack_start;
 	if (distance < closestDistance) {
 		closestDistance = distance;
-
+		Debug::print((uint32_t)&program_stack_end - (int32_t)&a);
+		Debug::println(" bytes in stack");
 		Debug::print(distance);
 		Debug::print(" free bytes in stack at ");
 		Debug::println(caller);
@@ -77,8 +79,8 @@ uint32_t totalMallocTime = 0;
 int32_t numMallocTimes = 0;
 #endif
 
-extern "C" void* delugeAlloc(unsigned int requiredSize) {
-	return GeneralMemoryAllocator::get().alloc(requiredSize, NULL, false, true);
+extern "C" void* delugeAlloc(unsigned int requiredSize, bool mayUseOnChipRam) {
+	return GeneralMemoryAllocator::get().alloc(requiredSize, NULL, false, mayUseOnChipRam);
 }
 
 // Watch the heck out - in the older V3.1 branch, this had one less argument - makeStealable was missing - so in code from there, thingNotToStealFrom could be interpreted as makeStealable!
@@ -139,7 +141,14 @@ uint32_t GeneralMemoryAllocator::getAllocatedSize(void* address) {
 }
 
 int32_t GeneralMemoryAllocator::getRegion(void* address) {
-	return ((uint32_t)address >= (uint32_t)INTERNAL_MEMORY_BEGIN) ? MEMORY_REGION_INTERNAL : MEMORY_REGION_SDRAM;
+	if ((uint32_t)address >= (uint32_t)INTERNAL_MEMORY_BEGIN) {
+		return MEMORY_REGION_INTERNAL;
+	}
+	else if (((uint32_t)address <= EXTERNAL_MEMORY_BEGIN) || (uint32_t)address >= EXTERNAL_MEMORY_END) {
+		numericDriver.freezeWithError("M999");
+		return -1;
+	}
+	return MEMORY_REGION_SDRAM;
 }
 
 // Returns new size

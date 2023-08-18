@@ -3042,7 +3042,8 @@ traverseClips:
 			// TODO: deal with errors!
 
 			if (newOutput->type == InstrumentType::KIT) {
-				instrumentClip->onKeyboardScreen = false;
+				instrumentClip->onKeyboardScreen =
+				    false; //this code is called when you switch between clip types (e.g. synth to kit)
 			}
 		}
 

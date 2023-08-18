@@ -98,6 +98,7 @@ int32_t getParamNeutralValue(int32_t p) {
 	case Param::Local::HPF_RESONANCE:
 	case Param::Local::LPF_MORPH:
 	case Param::Local::HPF_MORPH:
+	case Param::Local::FOLD:
 		return 25 * 10737418; // Room to be quadrupled
 
 	case Param::Local::PAN:
@@ -327,85 +328,120 @@ char const* getSourceDisplayNameForOLED(PatchSource s) {
 		return "MPE Y";
 
 	default:
-		__builtin_unreachable();
-		return NULL;
+		return "none";
 	}
 }
 
-char const* getPatchedParamDisplayNameForOled(int32_t p) {
+char const* getPatchedParamDisplayNameForOLED(int32_t p) {
 
 	// These can basically be 13 chars long, or 14 if the last one is a dot.
 	switch (p) {
 
-	case Param::Local::OSC_A_VOLUME:
-		return "Osc1 level";
-
-	case Param::Local::OSC_B_VOLUME:
-		return "Osc2 level";
-
+	//Master Volume, Pitch, Pan
 	case Param::Local::VOLUME:
 		return "Level";
 
-	case Param::Local::NOISE_VOLUME:
-		return "Noise level";
+	case Param::Global::VOLUME_POST_FX:
+		return "Master level";
 
-	case Param::Local::OSC_A_PHASE_WIDTH:
-		return "Osc1 PW";
+	case Param::Local::PAN:
+		return "Master pan";
 
-	case Param::Local::OSC_B_PHASE_WIDTH:
-		return "Osc2 PW";
+	case Param::Local::PITCH_ADJUST:
+		return "Master pitch";
 
-	case Param::Local::OSC_A_WAVE_INDEX:
-		return "Osc1 wave pos.";
-
-	case Param::Local::OSC_B_WAVE_INDEX:
-		return "Osc2 wave pos.";
+	//LPF Cutoff, Resonance, Morph
+	case Param::Local::LPF_FREQ:
+		return "LPF frequency";
 
 	case Param::Local::LPF_RESONANCE:
 		return "LPF resonance";
 
-	case Param::Local::HPF_RESONANCE:
-		return "HPF resonance";
-
-	case Param::Local::PAN:
-		return "Pan";
-
-	case Param::Local::MODULATOR_0_VOLUME:
-		return "FM mod1 level";
-
-	case Param::Local::MODULATOR_1_VOLUME:
-		return "FM mod2 level";
-
-	case Param::Local::LPF_FREQ:
-		return "LPF frequency";
-
 	case Param::Local::LPF_MORPH:
 		return "LPF morph";
 
-	case Param::Local::PITCH_ADJUST:
-		return "Pitch";
-
-	case Param::Local::OSC_A_PITCH_ADJUST:
-		return "Osc1 pitch";
-
-	case Param::Local::OSC_B_PITCH_ADJUST:
-		return "Osc2 pitch";
-
-	case Param::Local::MODULATOR_0_PITCH_ADJUST:
-		return "FM mod1 pitch";
-
-	case Param::Local::MODULATOR_1_PITCH_ADJUST:
-		return "FM mod2 pitch";
-
+	//HPF Cutoff, Resonance, Morph
 	case Param::Local::HPF_FREQ:
 		return "HPF frequency";
 
 	case Param::Local::HPF_MORPH:
 		return "HPF morph";
 
-	case Param::Local::LFO_LOCAL_FREQ:
-		return "LFO2 rate";
+	case Param::Local::HPF_RESONANCE:
+		return "HPF resonance";
 
+	//Reverb Amount
+	case Param::Global::REVERB_AMOUNT:
+		return "Reverb amount";
+
+	//Delay Rate, Amount
+	case Param::Global::DELAY_RATE:
+		return "Delay rate";
+
+	case Param::Global::DELAY_FEEDBACK:
+		return "Delay amount";
+
+	//Sidechain Send
+	case Param::Global::VOLUME_POST_REVERB_SEND:
+		return "Sidechain level";
+
+	//Wavefolder
+	case Param::Local::FOLD:
+		return "Wavefolder";
+
+	//OSC 1 Volume, Pitch, Phase Width, Carrier Feedback, Wave Index
+	case Param::Local::OSC_A_VOLUME:
+		return "Osc1 level";
+
+	case Param::Local::OSC_A_PITCH_ADJUST:
+		return "Osc1 pitch";
+
+	case Param::Local::OSC_A_PHASE_WIDTH:
+		return "Osc1 PW";
+
+	case Param::Local::CARRIER_0_FEEDBACK:
+		return "Osc1 feedback";
+
+	case Param::Local::OSC_A_WAVE_INDEX:
+		return "Osc1 wave pos.";
+
+	//OSC 2 Volume, Pitch, Phase Width, Carrier Feedback, Wave Index
+	case Param::Local::OSC_B_VOLUME:
+		return "Osc2 level";
+
+	case Param::Local::OSC_B_PITCH_ADJUST:
+		return "Osc2 pitch";
+
+	case Param::Local::OSC_B_PHASE_WIDTH:
+		return "Osc2 PW";
+
+	case Param::Local::CARRIER_1_FEEDBACK:
+		return "Osc2 feedback";
+
+	case Param::Local::OSC_B_WAVE_INDEX:
+		return "Osc2 wave pos.";
+
+	//FM Mod 1 Volume, Pitch, Feedback
+	case Param::Local::MODULATOR_0_VOLUME:
+		return "FM mod1 level";
+
+	case Param::Local::MODULATOR_0_PITCH_ADJUST:
+		return "FM mod1 pitch";
+
+	case Param::Local::MODULATOR_0_FEEDBACK:
+		return "FM mod1 feedback";
+
+	//FM Mod 2 Volume, Pitch, Feedback
+	case Param::Local::MODULATOR_1_VOLUME:
+		return "FM mod2 level";
+
+	case Param::Local::MODULATOR_1_PITCH_ADJUST:
+		return "FM mod2 pitch";
+
+	case Param::Local::MODULATOR_1_FEEDBACK:
+		return "FM mod2 feedback";
+
+	//Env 1 ADSR
 	case Param::Local::ENV_0_ATTACK:
 		return "Env1 attack";
 
@@ -418,6 +454,7 @@ char const* getPatchedParamDisplayNameForOled(int32_t p) {
 	case Param::Local::ENV_0_RELEASE:
 		return "Env1 release";
 
+	//Env 2 ADSR
 	case Param::Local::ENV_1_ATTACK:
 		return "Env2 attack";
 
@@ -430,44 +467,138 @@ char const* getPatchedParamDisplayNameForOled(int32_t p) {
 	case Param::Local::ENV_1_RELEASE:
 		return "Env2 release";
 
+	//LFO 1 Freq
 	case Param::Global::LFO_FREQ:
 		return "LFO1 rate";
 
-	case Param::Global::VOLUME_POST_FX:
-		return "Level";
+	//LFO 2 Freq
+	case Param::Local::LFO_LOCAL_FREQ:
+		return "LFO2 rate";
 
-	case Param::Global::VOLUME_POST_REVERB_SEND:
-		return "Level";
-
-	case Param::Global::DELAY_RATE:
-		return "Delay rate";
-
-	case Param::Global::DELAY_FEEDBACK:
-		return "Delay amount";
-
-	case Param::Global::REVERB_AMOUNT:
-		return "Reverb amount";
+	//Mod FX Depth, Rate
+	case Param::Global::MOD_FX_DEPTH:
+		return "Mod-FX depth";
 
 	case Param::Global::MOD_FX_RATE:
 		return "Mod-FX rate";
 
-	case Param::Global::MOD_FX_DEPTH:
-		return "Mod-FX depth";
-
+	//Arp Rate
 	case Param::Global::ARP_RATE:
 		return "Arp. rate";
 
-	case Param::Local::MODULATOR_0_FEEDBACK:
-		return "Mod1 feedback";
+	//Noise
+	case Param::Local::NOISE_VOLUME:
+		return "Noise level";
 
-	case Param::Local::MODULATOR_1_FEEDBACK:
-		return "Mod2 feedback";
+	default:
+		return "none";
+	}
+}
 
-	case Param::Local::CARRIER_0_FEEDBACK:
-		return "Carrier1 feed.";
+char const* getUnpatchedParamDisplayNameForOLED(int32_t p) {
 
-	case Param::Local::CARRIER_1_FEEDBACK:
-		return "Carrier2 feed.";
+	// These can basically be 13 chars long, or 14 if the last one is a dot.
+	switch (p) {
+
+	//Bass, Bass Freq
+	case Param::Unpatched::BASS:
+		return "Bass";
+
+	case Param::Unpatched::BASS_FREQ:
+		return "Bass frequency";
+
+	//Treble, Treble Freq
+	case Param::Unpatched::TREBLE:
+		return "Treble";
+
+	case Param::Unpatched::TREBLE_FREQ:
+		return "Treble frequency";
+
+	//Sidechain Shape
+	case Param::Unpatched::COMPRESSOR_SHAPE:
+		return "Sidechain shape";
+
+	//Decimation, Bitcrush
+	case Param::Unpatched::SAMPLE_RATE_REDUCTION:
+		return "Decimation";
+
+	case Param::Unpatched::BITCRUSHING:
+		return "Bitcrush";
+
+	//Mod FX Offset, Feedback
+	case Param::Unpatched::MOD_FX_OFFSET:
+		return "Mod-FX offset";
+
+	case Param::Unpatched::MOD_FX_FEEDBACK:
+		return "Mod-FX feedback";
+
+	//Arp Gate
+	case Param::Unpatched::Sound::ARP_GATE:
+		return "Arp. gate";
+
+	//Portamento
+	case Param::Unpatched::Sound::PORTAMENTO:
+		return "Portamento";
+
+	default:
+		return "none";
+	}
+}
+
+char const* getGlobalEffectableParamDisplayNameForOLED(int32_t p) {
+
+	// These can basically be 13 chars long, or 14 if the last one is a dot.
+	switch (p) {
+
+	//Master Volume, Pitch, Pan
+	case Param::Unpatched::GlobalEffectable::VOLUME:
+		return "Master level";
+
+	case Param::Unpatched::GlobalEffectable::PITCH_ADJUST:
+		return "Master pitch";
+
+	case Param::Unpatched::GlobalEffectable::PAN:
+		return "Master pan";
+
+	//LPF Cutoff, Resonance
+	case Param::Unpatched::GlobalEffectable::LPF_FREQ:
+		return "LPF frequency";
+
+	case Param::Unpatched::GlobalEffectable::LPF_RES:
+		return "LPF resonance";
+
+	//HPF Cutoff, Resonance
+	case Param::Unpatched::GlobalEffectable::HPF_FREQ:
+		return "HPF frequency";
+
+	case Param::Unpatched::GlobalEffectable::HPF_RES:
+		return "HPF resonance";
+
+		//Reverb Amount
+
+	case Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT:
+		return "Reverb amount";
+
+	//Delay Rate, Amount
+	case Param::Unpatched::GlobalEffectable::DELAY_RATE:
+		return "Delay rate";
+
+	case Param::Unpatched::GlobalEffectable::DELAY_AMOUNT:
+		return "Delay amount";
+
+	//Sidechain Send
+	case Param::Unpatched::GlobalEffectable::SIDECHAIN_VOLUME:
+		return "Sidechain level";
+
+	//Mod FX Depth, Rate
+	case Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH:
+		return "Mod-FX depth";
+
+	case Param::Unpatched::GlobalEffectable::MOD_FX_RATE:
+		return "Mod-FX rate";
+
+	default:
+		return "none";
 	}
 }
 #endif
@@ -482,6 +613,180 @@ PatchSource stringToSource(char const* string) {
 	return PatchSource::NONE;
 }
 
+// all should be four chars, to fit a fixed column layout
+char const* sourceToStringShort(PatchSource source) {
+	switch (source) {
+	case PatchSource::LFO_GLOBAL:
+		return "lfo1";
+
+	case PatchSource::LFO_LOCAL:
+		return "lfo2";
+
+	case PatchSource::ENVELOPE_0:
+		return "env1";
+
+	case PatchSource::ENVELOPE_1:
+		return "env2";
+
+	case PatchSource::VELOCITY:
+		return "velo";
+
+	case PatchSource::NOTE:
+		return "note";
+
+	case PatchSource::COMPRESSOR:
+		return "comp";
+
+	case PatchSource::RANDOM:
+		return "rand";
+
+	case PatchSource::AFTERTOUCH:
+		return "pres";
+
+	case PatchSource::X:
+		return "mpeX";
+
+	case PatchSource::Y:
+		return "mpeY";
+
+	default:
+		return "----";
+	}
+}
+
+// all should be max 10 chars, to fit a fixed column layout
+char const* patchedParamToStringShort(int32_t p) {
+	switch (p) {
+
+	case Param::Local::OSC_A_VOLUME:
+		return "Osc1 level";
+
+	case Param::Local::OSC_B_VOLUME:
+		return "Osc2 level";
+
+	case Param::Local::VOLUME:
+		return "Level";
+
+	case Param::Local::NOISE_VOLUME:
+		return "Noise";
+
+	case Param::Local::OSC_A_PHASE_WIDTH:
+		return "Osc1 PW";
+
+	case Param::Local::OSC_B_PHASE_WIDTH:
+		return "Osc2 PW";
+
+	case Param::Local::OSC_A_WAVE_INDEX:
+		return "Osc1 wave";
+
+	case Param::Local::OSC_B_WAVE_INDEX:
+		return "Osc2 wave";
+
+	case Param::Local::LPF_RESONANCE:
+		return "LPF reso";
+
+	case Param::Local::HPF_RESONANCE:
+		return "HPF reso";
+
+	case Param::Local::PAN:
+		return "Pan";
+
+	case Param::Local::MODULATOR_0_VOLUME:
+		return "Mod1 level";
+
+	case Param::Local::MODULATOR_1_VOLUME:
+		return "Mod2 level";
+
+	case Param::Local::LPF_FREQ:
+		return "LPf freq";
+
+	case Param::Local::PITCH_ADJUST:
+		return "Pitch";
+
+	case Param::Local::OSC_A_PITCH_ADJUST:
+		return "Osc1 pitch";
+
+	case Param::Local::OSC_B_PITCH_ADJUST:
+		return "Osc2 pitch";
+
+	case Param::Local::MODULATOR_0_PITCH_ADJUST:
+		return "Mod1 pitch";
+
+	case Param::Local::MODULATOR_1_PITCH_ADJUST:
+		return "Mod1 pitch";
+
+	case Param::Local::HPF_FREQ:
+		return "HPF freq";
+
+	case Param::Local::LFO_LOCAL_FREQ:
+		return "LFO2 rate";
+
+	case Param::Local::ENV_0_ATTACK:
+		return "Env1attack";
+
+	case Param::Local::ENV_0_DECAY:
+		return "Env1 decay";
+
+	case Param::Local::ENV_0_SUSTAIN:
+		return "Env1 sus";
+
+	case Param::Local::ENV_0_RELEASE:
+		return "Env1 rel";
+
+	case Param::Local::ENV_1_ATTACK:
+		return "Env2attack";
+
+	case Param::Local::ENV_1_DECAY:
+		return "Env2 decay";
+
+	case Param::Local::ENV_1_SUSTAIN:
+		return "Env2 sus";
+
+	case Param::Local::ENV_1_RELEASE:
+		return "Env2 rel";
+
+	case Param::Global::LFO_FREQ:
+		return "LFO1 rate";
+
+	case Param::Global::VOLUME_POST_FX:
+	case Param::Global::VOLUME_POST_REVERB_SEND:
+		return "Level";
+
+	case Param::Global::DELAY_RATE:
+		return "Delay rate";
+
+	case Param::Global::DELAY_FEEDBACK:
+		return "Delay feed";
+
+	case Param::Global::REVERB_AMOUNT:
+		return "Reverb amt";
+
+	case Param::Global::MOD_FX_RATE:
+		return "ModFX rate";
+
+	case Param::Global::MOD_FX_DEPTH:
+		return "ModFXdepth";
+
+	case Param::Global::ARP_RATE:
+		return "Arp. rate";
+
+	case Param::Local::MODULATOR_0_FEEDBACK:
+		return "Mod1 feed";
+
+	case Param::Local::MODULATOR_1_FEEDBACK:
+		return "Mod2 feed";
+
+	case Param::Local::CARRIER_0_FEEDBACK:
+		return "Osc1 feed";
+
+	case Param::Local::CARRIER_1_FEEDBACK:
+		return "Osc2 feed";
+
+	default:
+		__builtin_unreachable();
+		return NULL;
+	}
+}
 bool paramNeedsLPF(int32_t p, bool fromAutomation) {
 	switch (p) {
 
@@ -1168,12 +1473,12 @@ char const* lpfTypeToString(FilterMode lpfType) {
 
 	case FilterMode::TRANSISTOR_24DB_DRIVE:
 		return "24dBDrive";
-	case FilterMode::SVF:
-		return "SVF";
+	case FilterMode::SVF_BAND:
+		return "SVF_Band";
 	case FilterMode::HPLADDER:
 		return "HPLadder";
-	case FilterMode::HPSVF:
-		return "HPSV";
+	case FilterMode::SVF_NOTCH:
+		return "SVF_Notch";
 	default:
 		return "24dB";
 	}
@@ -1186,14 +1491,18 @@ FilterMode stringToLPFType(char const* string) {
 	else if (!strcmp(string, "24dBDrive")) {
 		return FilterMode::TRANSISTOR_24DB_DRIVE;
 	}
+	else if (!strcmp(string, "SVF_Band")) {
+		return FilterMode::SVF_BAND;
+	}
 	else if (!strcmp(string, "SVF")) {
-		return FilterMode::SVF;
+		//for compatibility with community pre release
+		return FilterMode::SVF_BAND;
 	}
 	else if (!strcmp(string, "HPLadder")) {
 		return FilterMode::HPLADDER;
 	}
-	else if (!strcmp(string, "HPSV")) {
-		return FilterMode::HPSVF;
+	else if (!strcmp(string, "SVF_Notch")) {
+		return FilterMode::SVF_NOTCH;
 	}
 	else {
 		return FilterMode::TRANSISTOR_12DB;

@@ -35,7 +35,7 @@
 
 #ifndef NE10_MACROS_H
 #define NE10_MACROS_H
-
+#include <stdbool.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -50,10 +50,10 @@ extern "C" {
 // some external macro definitions to be exposed to the users
 /////////////////////////////////////////////////////////
 
-void* delugeAlloc(unsigned int requiredSize);
+void* delugeAlloc(unsigned int requiredSize, bool mayUseOnChipRam);
 void delugeDealloc(void* address);
 
-#define NE10_MALLOC delugeAlloc
+#define NE10_MALLOC(p) delugeAlloc(p, true)
 #define NE10_FREE(p) \
     do { \
     	delugeDealloc(p); \

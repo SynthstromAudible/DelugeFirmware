@@ -26,7 +26,7 @@ namespace deluge::dsp::filter {
 q31_t HpLadderFilter::setConfig(q31_t hpfFrequency, q31_t hpfResonance, FilterMode lpfMode, q31_t lpfMorph,
                                 q31_t filterGain) {
 	int32_t extraFeedback = 1200000000;
-
+	morph_ = lpfMorph;
 	curveFrequency(hpfFrequency);
 
 	int32_t resonanceUpperLimit = 536870911;
@@ -86,8 +86,12 @@ void HpLadderFilter::doFilterStereo(q31_t* startSample, q31_t* endSample) {
 	} while (currentSample < endSample);
 }
 inline q31_t HpLadderFilter::doHPF(q31_t input, HPLadderState& state) {
+	//inputs are only 16 bit so this is pretty small
+	//this limit was found experimentally as about the lowest fc can get without sounding broken
+	q31_t constexpr lower_limit = -(ONE_Q31 >> 8);
+	q31_t temp_fc = std::max(multiply_accumulate_32x32_rshift32_rounded(fc, input << 4, morph_), lower_limit);
 
-	q31_t firstHPFOutput = input - state.hpfHPF1.doFilter(input, fc);
+	q31_t firstHPFOutput = input - state.hpfHPF1.doFilter(input, temp_fc);
 
 	q31_t feedbacksValue =
 	    state.hpfHPF3.getFeedbackOutput(hpfHPF3Feedback) + state.hpfLPF1.getFeedbackOutput(hpfLPF1Feedback);
@@ -105,7 +109,7 @@ inline q31_t HpLadderFilter::doHPF(q31_t input, HPLadderState& state) {
 		}
 	}
 
-	state.hpfLPF1.doFilter(a - state.hpfHPF3.doFilter(a, fc), fc);
+	state.hpfLPF1.doFilter(a - state.hpfHPF3.doFilter(a, temp_fc), temp_fc);
 
 	a = multiply_32x32_rshift32_rounded(a, hpfDivideByProcessedResonance) << (8 - 1); // Normalization
 

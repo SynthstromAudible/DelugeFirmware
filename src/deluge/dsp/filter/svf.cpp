@@ -42,6 +42,12 @@ void SVFilter::doFilterStereo(q31_t* startSample, q31_t* endSample) {
 
 q31_t SVFilter::setConfig(q31_t freq, q31_t res, FilterMode lpfMode, q31_t lpfMorph, q31_t filterGain) {
 	curveFrequency(freq);
+	//multiply by 1.25 to loosely correct for equivalency to ladders
+	//Caused by the actual svf cutoff being sin inverse of this fc
+	constexpr q31_t POINT_25 = ONE_Q31 * 0.25;
+	fc = fc + multiply_32x32_rshift32(fc, POINT_25);
+
+	band_mode = (lpfMode == FilterMode::SVF_BAND);
 	// raw resonance is 0 - 536870896 (2^28ish, don't know where it comes from)
 	// Multiply by 4 to bring it to the q31 0-1 range
 	q = (ONE_Q31 - 4 * (res));
@@ -50,10 +56,28 @@ q31_t SVFilter::setConfig(q31_t freq, q31_t res, FilterMode lpfMode, q31_t lpfMo
 	//also the input scale needs to be sqrt(q) for the level compensation to work so it's a win win
 	q = multiply_32x32_rshift32_rounded(q, q) << 1;
 
-	c_low = ONE_Q31 - lpfMorph;
-	c_band = ONE_Q31 >> 1;
-	c_high = lpfMorph;
-
+	//note - the if statements are to avoid overflow issues
+	//do not remove
+	constexpr q31_t ONE_HALF = ONE_Q31 >> 1;
+	if (band_mode) {
+		if (lpfMorph > (ONE_HALF)) {
+			lpfMorph = 2 * (lpfMorph - (ONE_HALF));
+			c_low = 0;
+			c_band = ONE_Q31 - lpfMorph;
+			c_high = lpfMorph;
+		}
+		else {
+			lpfMorph = 2 * lpfMorph;
+			c_low = ONE_Q31 - lpfMorph;
+			c_band = lpfMorph;
+			c_high = 0;
+		}
+	}
+	else {
+		c_low = ONE_Q31 - lpfMorph;
+		c_high = lpfMorph;
+		c_band = 0;
+	}
 	return filterGain;
 }
 
@@ -86,14 +110,22 @@ inline q31_t SVFilter::doSVF(int32_t input, SVFState& state) {
 	high = high - 2 * multiply_32x32_rshift32(band, q);
 	band = 2 * multiply_32x32_rshift32(high, fc) + band;
 
+	//notch = high + low;
+	lowi = lowi + low;
+	highi = highi + high;
+	bandi = bandi + band;
+
+	q31_t result = multiply_32x32_rshift32_rounded(lowi, c_low);
+	result = multiply_accumulate_32x32_rshift32_rounded(result, highi, c_high);
+	if (band_mode) {
+		result = multiply_accumulate_32x32_rshift32_rounded(result, bandi, c_band);
+	}
+
 	//saturate band feedback
 	band = getTanHUnknown(band, 3);
-	//notch = high + low;
-	q31_t result = multiply_32x32_rshift32_rounded(lowi + low, c_low);
-	result = multiply_accumulate_32x32_rshift32_rounded(result, highi + high, c_high);
-	result = multiply_accumulate_32x32_rshift32_rounded(result, bandi + band, c_band);
-	//result = multiply_accumulate_32x32_rshift32_rounded(0, notchi+notch, c_notch);
-	result = 2 * result; //compensate for division by two on each multiply
+	//compensate for division by two on each multiply
+	//then multiply by 1.5 to match ladders
+	result = 3 * result;
 
 	state.low = low;
 	state.band = band;

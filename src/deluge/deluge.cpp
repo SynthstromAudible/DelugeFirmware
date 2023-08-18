@@ -46,6 +46,7 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
+#include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -82,6 +83,7 @@
 #include "testing/hardware_testing.h"
 #include "util/container/hashtable/open_addressing_hash_table.h"
 #include "util/misc.h"
+#include "util/pack.h"
 #include <new>
 #include <stdlib.h>
 #include <string.h>
@@ -429,6 +431,9 @@ void setUIForLoadedSong(Song* song) {
 			if (((InstrumentClip*)song->currentClip)->onKeyboardScreen) {
 				newUI = &keyboardScreen;
 			}
+			else if (((InstrumentClip*)song->currentClip)->onAutomationInstrumentClipView) {
+				newUI = &automationInstrumentClipView;
+			}
 			else {
 				newUI = &instrumentClipView;
 			}
@@ -502,9 +507,6 @@ extern "C" int32_t deluge_main(void) {
 	PIC::setUARTSpeed();
 	PIC::flush();
 
-	// Setup SDRAM. Have to do this before setting up AudioEngine
-	userdef_bsc_cs2_init(0); // 64MB, hardcoded
-
 	functionsInit();
 
 #if AUTOMATED_TESTER_ENABLED
@@ -576,6 +578,8 @@ extern "C" int32_t deluge_main(void) {
 #ifdef TEST_GENERAL_MEMORY_ALLOCATION
 	GeneralMemoryAllocator::get().test();
 #endif
+
+	init_crc_table();
 
 	// Setup for gate output
 	cvEngine.init();

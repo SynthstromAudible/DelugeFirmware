@@ -18,6 +18,7 @@
 #include "hid/encoders.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/ui.h"
+#include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/buttons.h"
 #include "hid/led/pad_leds.h"
@@ -149,6 +150,11 @@ checkResult:
 					playbackHandler.tempoEncoderAction(limitedDetentPos,
 					                                   Buttons::isButtonPressed(hid::button::TEMPO_ENC),
 					                                   Buttons::isShiftButtonPressed());
+				}
+
+				//when tempo encoder is finished, make sure to display parameter name again
+				if (getCurrentUI() == &automationInstrumentClipView) {
+					automationInstrumentClipView.setDisplayParameterNameTimer();
 				}
 
 				break;

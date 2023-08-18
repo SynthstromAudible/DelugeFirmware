@@ -30,6 +30,7 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
+#include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "hid/buttons.h"
@@ -830,6 +831,7 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 		}
 
 		{
+
 			ModelStackWithAutoParam* modelStackWithParam =
 			    activeModControllableModelStack.modControllable->getParamFromModEncoder(
 			        whichModEncoder, &activeModControllableModelStack);
@@ -963,6 +965,12 @@ void View::setKnobIndicatorLevels() {
 		return; // What's this?
 	}
 
+	//don't update knob indicator levels when you're in automation editor
+	if (getCurrentUI() == &automationInstrumentClipView
+	    && (((InstrumentClip*)currentSong->currentClip)->lastSelectedParamID != kNoLastSelectedParamID)) {
+		return;
+	}
+
 	if (activeModControllableModelStack.modControllable) {
 		for (int32_t whichModEncoder = 0; whichModEncoder < NUM_LEVEL_INDICATORS; whichModEncoder++) {
 			if (!indicator_leds::isKnobIndicatorBlinking(whichModEncoder)) {
@@ -1048,7 +1056,8 @@ void View::setModLedStates() {
 
 	bool affectEntire = getRootUI() && getRootUI()->getAffectEntire();
 	if (!itsTheSong) {
-		if (getRootUI() != &instrumentClipView && getRootUI() != &keyboardScreen) {
+		if (getRootUI() != &instrumentClipView && getRootUI() != &automationInstrumentClipView
+		    && getRootUI() != &keyboardScreen) {
 			affectEntire = true;
 		}
 		else {
@@ -1057,7 +1066,17 @@ void View::setModLedStates() {
 	}
 	indicator_leds::setLedState(IndicatorLED::AFFECT_ENTIRE, affectEntire);
 
-	indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, !itsTheSong);
+	if (itsTheSong) {
+		indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, false);
+	}
+	else {
+		if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+			indicator_leds::blinkLed(IndicatorLED::CLIP_VIEW);
+		}
+		else {
+			indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, true);
+		}
+	}
 
 	// Sort out the session/arranger view LEDs
 	if (itsTheSong) {
@@ -1737,10 +1756,17 @@ getOut:
 			((Kit*)newInstrument)->selectedDrum = NULL;
 		}
 
-		if (getCurrentUI() == &instrumentClipView) {
+		if (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationInstrumentClipView) {
 			AudioEngine::routineWithClusterLoading(); // -----------------------------------
 			instrumentClipView.recalculateColours();
+		}
+
+		if (getCurrentUI() == &instrumentClipView) {
 			uiNeedsRendering(&instrumentClipView);
+		}
+
+		else if (getCurrentUI() == &automationInstrumentClipView) {
+			uiNeedsRendering(&automationInstrumentClipView);
 		}
 
 #if HAVE_OLED

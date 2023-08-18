@@ -17,6 +17,7 @@
 
 #include "modulation/automation/auto_param.h"
 #include "definitions_cxx.hpp"
+#include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/numeric_driver.h"
@@ -27,6 +28,7 @@
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/automation/copied_param_automation.h"
 #include "modulation/params/param_collection.h"
@@ -958,7 +960,17 @@ void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
 		nodes.testSequentiality("E441");
 #endif
 
-		firstI = homogenizeRegion(modelStack, pos, length, value, false, false, effectiveLength, false);
+		//automation interpolation
+		//when this feature is enabled, interpolation is enforced on manual automation editing in the automation instrument clip view
+
+		if (getCurrentUI() == &automationInstrumentClipView) {
+			firstI = homogenizeRegion(modelStack, pos, length, value, automationInstrumentClipView.interpolationBefore,
+			                          automationInstrumentClipView.interpolationAfter, effectiveLength, false);
+		}
+		else {
+			firstI = homogenizeRegion(modelStack, pos, length, value, false, false, effectiveLength, false);
+		}
+
 		if (firstI == -1) {
 			return;
 		}

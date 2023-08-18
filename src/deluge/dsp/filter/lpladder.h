@@ -56,9 +56,9 @@ private:
 			temp = multiply_32x32_rshift32_rounded(
 			           (input - (multiply_32x32_rshift32_rounded(feedbacksSum, processedResonance) << 3)),
 			           divideByTotalMoveabilityAndProcessedResonance)
-			       << 1;
-			q31_t extra = multiply_32x32_rshift32(temp, morph);
-			temp = getTanH<2>(add_saturation(temp, extra));
+			       << 2;
+			q31_t extra = 2 * multiply_32x32_rshift32(input, morph);
+			temp = getTanHUnknown(temp + extra, 2);
 		}
 		else {
 			temp = multiply_32x32_rshift32_rounded(
