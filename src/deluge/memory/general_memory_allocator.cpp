@@ -31,7 +31,7 @@
 
 char emptySpacesMemory[sizeof(EmptySpaceRecord) * 512];
 char emptySpacesMemoryInternal[sizeof(EmptySpaceRecord) * 1024];
-
+char emptySpacesMemoryGeneral[sizeof(EmptySpaceRecord) * 256];
 extern uint32_t __heap_start;
 extern uint32_t __heap_end;
 extern uint32_t program_stack_start;
@@ -40,13 +40,17 @@ GeneralMemoryAllocator::GeneralMemoryAllocator() {
 	lock = false;
 
 	regions[MEMORY_REGION_SDRAM].setup(emptySpacesMemory, sizeof(emptySpacesMemory), EXTERNAL_MEMORY_BEGIN,
-	                                   EXTERNAL_MEMORY_END);
+	                                   EXTERNAL_MEMORY_END - RESERVED_GENERAL_ALLOCATOR);
+	//this region implements new. Arguably we don't need the GMA at all for it
+	regions[MEMORY_REGION_GENERAL].setup(emptySpacesMemoryGeneral, sizeof(emptySpacesMemoryGeneral),
+	                                     EXTERNAL_MEMORY_END - RESERVED_GENERAL_ALLOCATOR, EXTERNAL_MEMORY_END);
 	regions[MEMORY_REGION_INTERNAL].setup(emptySpacesMemoryInternal, sizeof(emptySpacesMemoryInternal),
 	                                      (uint32_t)&__heap_start, (uint32_t)&program_stack_start);
 
 #if ALPHA_OR_BETA_VERSION
 	regions[MEMORY_REGION_SDRAM].name = "external";
 	regions[MEMORY_REGION_INTERNAL].name = "internal";
+	regions[MEMORY_REGION_GENERAL].name = "general";
 #endif
 }
 
@@ -78,9 +82,30 @@ void GeneralMemoryAllocator::checkStack(char const* caller) {
 uint32_t totalMallocTime = 0;
 int32_t numMallocTimes = 0;
 #endif
-
+//	void* alloc(uint32_t requiredSize, uint32_t* getAllocatedSize, bool makeStealable, void* thingNotToStealFrom, bool getBiggestAllocationPossible);
 extern "C" void* delugeAlloc(unsigned int requiredSize, bool mayUseOnChipRam) {
-	return GeneralMemoryAllocator::get().alloc(requiredSize, NULL, false, mayUseOnChipRam);
+	return GeneralMemoryAllocator::get().allocGeneral(requiredSize);
+}
+extern "C" void delugeDealloc(void* address) {
+	GeneralMemoryAllocator::get().deallocGeneral(address);
+}
+void* GeneralMemoryAllocator::allocGeneral(uint32_t requiredSize) {
+
+	if (lock) {
+		return NULL; // Prevent any weird loops in freeSomeStealableMemory(), which mostly would only be bad cos they could extend the stack an unspecified amount
+	}
+
+	lock = true;
+	void* address = regions[MEMORY_REGION_GENERAL].alloc(requiredSize, NULL, false, NULL, false);
+	lock = false;
+	if (!address) {
+		//numericDriver.freezeWithError("M998");
+		return nullptr;
+	}
+	return address;
+}
+void GeneralMemoryAllocator::deallocGeneral(void* address) {
+	return regions[MEMORY_REGION_GENERAL].dealloc(address);
 }
 
 // Watch the heck out - in the older V3.1 branch, this had one less argument - makeStealable was missing - so in code from there, thingNotToStealFrom could be interpreted as makeStealable!
@@ -181,10 +206,6 @@ void GeneralMemoryAllocator::extend(void* address, uint32_t minAmountToExtend, u
 
 uint32_t GeneralMemoryAllocator::extendRightAsMuchAsEasilyPossible(void* address) {
 	return regions[getRegion(address)].extendRightAsMuchAsEasilyPossible(address);
-}
-
-extern "C" void delugeDealloc(void* address) {
-	GeneralMemoryAllocator::get().dealloc(address);
 }
 
 void GeneralMemoryAllocator::dealloc(void* address) {
