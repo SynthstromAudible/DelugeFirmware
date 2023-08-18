@@ -351,10 +351,23 @@ bool Sound::setModFXType(ModFXType newType) {
 			}
 		}
 	}
+	else if (newType == ModFXType::GRAIN) {
+		if (!modFXGrainBuffer) {
+			modFXGrainBuffer = (StereoSample*)GeneralMemoryAllocator::get().alloc(
+			    kModFXGrainBufferSize * sizeof(StereoSample), NULL, false, true);
+			if (!modFXGrainBuffer) {
+				return false;
+			}
+		}
+	}
 	else {
 		if (modFXBuffer) {
 			GeneralMemoryAllocator::get().dealloc(modFXBuffer);
 			modFXBuffer = NULL;
+		}
+		if (modFXGrainBuffer) {
+			GeneralMemoryAllocator::get().dealloc(modFXGrainBuffer);
+			modFXGrainBuffer = NULL;
 		}
 	}
 
@@ -1874,6 +1887,8 @@ doCutModFXTail:
 					        ? (20 * 44)
 					        : (90
 					           * 441); // 20 and 900 mS respectively. Lots is required for feeding-back flanger or phaser
+					if (modFXType == ModFXType::GRAIN)
+						waitSamples = 350 * 441;
 					startSkippingRenderingAtTime = AudioEngine::audioSampleTimer + waitSamples;
 				}
 

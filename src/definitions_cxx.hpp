@@ -297,6 +297,9 @@ constexpr int32_t kModFXBufferSize = 512;
 constexpr int32_t kModFXBufferIndexMask = (kModFXBufferSize - 1);
 constexpr int32_t kModFXMaxDelay = ((kModFXBufferSize - 1) << 16);
 
+constexpr int32_t kModFXGrainBufferSize = 65536;
+constexpr int32_t kModFXGrainBufferIndexMask = (kModFXGrainBufferSize - 1);
+
 constexpr int32_t kFlangerMinTime = (3 << 16);
 constexpr int32_t kFlangerAmplitude = (kModFXMaxDelay - kFlangerMinTime);
 constexpr int32_t kFlangerOffset = ((kModFXMaxDelay + kFlangerMinTime) >> 1);
@@ -609,9 +612,10 @@ enum class ModFXType {
 	CHORUS,
 	PHASER,
 	CHORUS_STEREO,
+	GRAIN,
 };
 
-constexpr int32_t kNumModFXTypes = util::to_underlying(ModFXType::CHORUS_STEREO) + 1;
+constexpr int32_t kNumModFXTypes = util::to_underlying(ModFXType::GRAIN) + 1;
 
 constexpr int32_t SAMPLE_MAX_TRANSPOSE = 24;
 constexpr int32_t SAMPLE_MIN_TRANSPOSE = (-96);

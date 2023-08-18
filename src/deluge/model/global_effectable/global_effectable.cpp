@@ -137,6 +137,9 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 				case ModFXType::CHORUS_STEREO:
 					displayText = "STEREO CHORUS";
 					break;
+				case ModFXType::GRAIN:
+					displayText = "GRAIN";
+					break;
 				}
 				numericDriver.displayPopup(displayText);
 				ensureModFXParamIsValid();
@@ -379,7 +382,8 @@ void GlobalEffectable::ensureModFXParamIsValid() {
 			}
 		}
 		else if (currentModFXParam == ModFXParam::OFFSET) {
-			if (modFXType != ModFXType::CHORUS && modFXType != ModFXType::CHORUS_STEREO) {
+			if (modFXType != ModFXType::CHORUS && modFXType != ModFXType::CHORUS_STEREO
+			    && modFXType != ModFXType::GRAIN) {
 				goto ohNo;
 			}
 		}
@@ -763,10 +767,28 @@ void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, i
 			}
 		}
 	}
+	else if (modFXTypeNow == ModFXType::GRAIN) {
+		if (!modFXGrainBuffer) {
+			modFXGrainBuffer = (StereoSample*)GeneralMemoryAllocator::get().alloc(
+			    kModFXGrainBufferSize * sizeof(StereoSample), NULL, false, true);
+			if (!modFXGrainBuffer) {
+				modFXTypeNow = ModFXType::NONE;
+			}
+			for (int i = 0; i < 8; i++) {
+				grains[i].length = 0;
+			}
+			grainInitialized = false;
+			modFXGrainBufferWriteIndex = 0;
+		}
+	}
 	else {
 		if (modFXBuffer) {
 			GeneralMemoryAllocator::get().dealloc(modFXBuffer);
 			modFXBuffer = NULL;
+		}
+		if (modFXGrainBuffer) {
+			GeneralMemoryAllocator::get().dealloc(modFXGrainBuffer);
+			modFXGrainBuffer = NULL;
 		}
 	}
 
