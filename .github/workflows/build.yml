@@ -58,7 +58,7 @@ jobs:
       - name: Create nightlies archive
         if: inputs.build-type == 'nightly'
         run: |
-          zip -j ./nightly.zip build/Release/delugeOLED*.bin build/Release/deluge7SEG*.bin
+          zip -j ./nightly.zip build/Release/deluge*.bin
       - name: Deploy nightly zip to releases
         if: inputs.build-type == 'nightly'
         uses: WebFreak001/deploy-nightly@v2.0.0
