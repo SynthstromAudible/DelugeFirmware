@@ -745,8 +745,9 @@ enum class GlobalMIDICommand {
 	UNDO,
 	REDO,
 	FILL,
+	LAST, // Keep as boundary
 };
-constexpr auto kNumGlobalMIDICommands = util::to_underlying(GlobalMIDICommand::FILL) + 1;
+constexpr auto kNumGlobalMIDICommands = util::to_underlying(GlobalMIDICommand::LAST) + 1;
 
 enum class MIDITakeoverMode : uint8_t {
 	JUMP,
