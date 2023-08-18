@@ -760,7 +760,7 @@ void AutomationInstrumentClipView::renderRow(ModelStackWithAutoParam* modelStack
 		uint32_t squareStart = getPosFromSquare(xDisplay);
 		uint32_t squareWidth = instrumentClipView.getSquareWidth(xDisplay, effectiveRowLength);
 		if (squareWidth != 3) {
-			squareStart = squareStart + (squareWidth/2);
+			squareStart = squareStart + (squareWidth / 2);
 		}
 
 		int32_t knobPos = getParameterKnobPos(modelStack, squareStart) + kKnobPosOffset;
@@ -1386,7 +1386,8 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 				rightPadSelectedY = firstPadX > xDisplay ? firstPadY : yDisplay;
 
 				if (!padSelectionOn) {
-					handleMultiPadPress(modelStack, clip, leftPadSelectedX, leftPadSelectedY, rightPadSelectedX, rightPadSelectedY);
+					handleMultiPadPress(modelStack, clip, leftPadSelectedX, leftPadSelectedY, rightPadSelectedX,
+					                    rightPadSelectedY);
 				}
 				else {
 					uiNeedsRendering(this);
@@ -2171,7 +2172,7 @@ void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int
 				uint32_t squareStart = 0;
 
 				if (multiPadPressSelected && (whichModEncoder == 1)) {
-					
+
 					int32_t squareRightEdge = getPosFromSquare(xDisplay + 1);
 					squareStart = std::min(effectiveLength, squareRightEdge) - 3;
 				}
@@ -2189,7 +2190,7 @@ void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int
 					initInterpolation();
 
 					setParameterAutomationValue(modelStackWithParam, newKnobPos, squareStart, xDisplay,
-												effectiveLength);
+					                            effectiveLength);
 
 					if (multiPadPressSelected) {
 
@@ -2198,7 +2199,6 @@ void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int
 						indicator_leds::setKnobIndicatorLevel(whichModEncoder, newKnobPos + kKnobPosOffset);
 
 						return;
-						
 					}
 				}
 			}
@@ -2991,8 +2991,7 @@ void AutomationInstrumentClipView::handleMultiPadPress(ModelStackWithTimelineCou
 				int32_t squareRightEdge = getPosFromSquare(secondPadX + 1);
 				uint32_t squareStart = std::min(effectiveLength, squareRightEdge) - 3;
 
-				secondPadValue =
-				    getParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
+				secondPadValue = getParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
 			}
 
 			//otherwise if it's a regular long press, calculate values from the y position of the pads pressed
@@ -3011,14 +3010,16 @@ void AutomationInstrumentClipView::handleMultiPadPress(ModelStackWithTimelineCou
 			int32_t squareRightEdge = getPosFromSquare(secondPadX + 1);
 			int32_t clearLength = std::min(effectiveLength, squareRightEdge) - getPosFromSquare(firstPadX);
 
-			modelStackWithParam->autoParam->deleteNodesWithinRegion(modelStackWithParam, getPosFromSquare(firstPadX), clearLength);
+			modelStackWithParam->autoParam->deleteNodesWithinRegion(modelStackWithParam, getPosFromSquare(firstPadX),
+			                                                        clearLength);
 
 			//reset interpolation settings to default
 			initInterpolation();
 
 			//set value for beginning pad press
 			uint32_t squareStart = getPosFromSquare(firstPadX);
-			int32_t newValue = modelStackWithParam->paramCollection->knobPosToParamValue(firstPadValue - kKnobPosOffset, modelStackWithParam);
+			int32_t newValue = modelStackWithParam->paramCollection->knobPosToParamValue(firstPadValue - kKnobPosOffset,
+			                                                                             modelStackWithParam);
 			modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, squareStart, 3);
 			modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, squareStart, 3);
 
@@ -3026,7 +3027,8 @@ void AutomationInstrumentClipView::handleMultiPadPress(ModelStackWithTimelineCou
 
 			//set value for ending pad press
 			squareStart = std::min(effectiveLength, squareRightEdge - 3);
-			newValue = modelStackWithParam->paramCollection->knobPosToParamValue(secondPadValue - kKnobPosOffset, modelStackWithParam);
+			newValue = modelStackWithParam->paramCollection->knobPosToParamValue(secondPadValue - kKnobPosOffset,
+			                                                                     modelStackWithParam);
 			modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, squareStart, 3);
 			modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, squareStart, 3);
 
@@ -3052,15 +3054,14 @@ void AutomationInstrumentClipView::handleMultiPadPress(ModelStackWithTimelineCou
 				else {
 					squareStart = getPosFromSquare(x);
 					squareWidth = instrumentClipView.getSquareWidth(x, effectiveLength);
-
 				}
 
 				//linear interpolation formula to calculate the value of the pads
 				//f(x) = A + (x - Ax) * ((B - A) / (Bx - Ax))
 				float newKnobPosFloat = std::round(
 				    firstPadValueFloat
-				    + (((squareStart - firstPadXFloat)/3)
-				       * ((secondPadValueFloat - firstPadValueFloat) / ((secondPadXFloat - firstPadXFloat)/3))));
+				    + (((squareStart - firstPadXFloat) / 3)
+				       * ((secondPadValueFloat - firstPadValueFloat) / ((secondPadXFloat - firstPadXFloat) / 3))));
 
 				newKnobPos = static_cast<int32_t>(newKnobPosFloat);
 				newKnobPos = newKnobPos - kKnobPosOffset;
@@ -3071,8 +3072,10 @@ void AutomationInstrumentClipView::handleMultiPadPress(ModelStackWithTimelineCou
 				}
 
 				newValue = modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
-				modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, squareStart, squareWidth);
-				modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, squareStart, squareWidth);
+				modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, squareStart,
+				                                                          squareWidth);
+				modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, squareStart,
+				                                                          squareWidth);
 
 				modelStackWithParam->getTimelineCounter()->instrumentBeenEdited();
 			}
