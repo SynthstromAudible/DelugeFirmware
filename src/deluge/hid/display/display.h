@@ -6,16 +6,12 @@
 class NumericLayer;
 class NumericLayerScrollingText;
 
-// This is distinct from the display _interface_ which is the actual communication system
-enum class DisplayType { OLED, SEVEN_SEG };
-
 namespace deluge::hid {
 
 class Display {
 public:
 	virtual ~Display() = default;
 
-	constexpr virtual DisplayType type() = 0;
 	constexpr virtual size_t getNumBrowserAndMenuLines() = 0;
 
 	virtual void setText(std::string_view newText, bool alignRight = false, uint8_t drawDot = 255, bool doBlink = false,

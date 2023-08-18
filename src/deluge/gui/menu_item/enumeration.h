@@ -19,7 +19,7 @@ public:
 	virtual size_t size() { return n; };
 
 protected:
-	virtual void drawPixelsForOled() = 0;
+	virtual void drawPixelsForOled() override = 0;
 	void drawValue() override;
 };
 

@@ -35,9 +35,7 @@ class Mode final : public Selection<3>, public FormattedTitle {
 
 public:
 	Mode() : Selection(), FormattedTitle(l10n::String::STRING_FOR_GATE_MODE_TITLE) {}
-	[[nodiscard]] std::string_view getTitle() const override {
-		return FormattedTitle::title();
-	}
+	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
 	void readCurrentValue() override { this->setValue(cvEngine.gateChannels[soundEditor.currentSourceIndex].mode); }
 	void writeCurrentValue() override {

@@ -57,9 +57,6 @@ public:
 
 	bool hasPopup() override { return this->popupActive; }
 
-	// Migrated from display::SevenSegment
-	constexpr DisplayType type() override { return DisplayType::SEVEN_SEG; }
-
 	constexpr size_t getNumBrowserAndMenuLines() override { return 1; }
 
 	void consoleText(char const* text) override { SevenSegment::displayPopup(text); }
@@ -73,6 +70,8 @@ public:
 		SevenSegment::displayLoadingAnimation(delayed, transparent);
 	}
 	void removeLoadingAnimation() override { SevenSegment::removeTopLayer(); }
+
+	bool have7SEG() override { return true; }
 
 private:
 	NumericLayerBasicText popup;
@@ -89,7 +88,5 @@ private:
 	void transitionToNewLayer(NumericLayer* newLayer);
 	void setTextVeryBasicA1(char const* text);
 	std::array<uint8_t, kNumericDisplayLength> lastDisplay_ = {0};
-
-	bool have7SEG() override { return true; }
 };
 } // namespace deluge::hid::display

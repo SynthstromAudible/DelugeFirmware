@@ -111,8 +111,6 @@ public:
 
 	//************************ Display Interface stuff ***************************/
 
-	constexpr DisplayType type() override { return DisplayType::OLED; }
-
 	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
 
 	void displayPopup(char const* newText, int8_t numFlashes = 3, bool = false, uint8_t = 255, int32_t = 1) override {
