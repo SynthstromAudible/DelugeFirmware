@@ -32,7 +32,8 @@ void MemoryRegion::setup(void* emptySpacesMemory, int32_t emptySpacesMemorySize,
                          uint32_t regionEnd) {
 	emptySpaces.setStaticMemory(emptySpacesMemory, emptySpacesMemorySize);
 	start = regionBegin;
-	end = regionEnd;
+	//this is actually the location of the footer but that's better anyway
+	end = regionEnd - 8;
 	uint32_t memorySizeWithoutHeaders = regionEnd - regionBegin - 16;
 
 	*(uint32_t*)regionBegin = SPACE_HEADER_ALLOCATED;
@@ -100,7 +101,7 @@ static EmptySpaceRecord* recordToMergeWith;
 // spaceSize can even be 0 or less if you know it's going to get merged.
 inline void MemoryRegion::markSpaceAsEmpty(uint32_t address, uint32_t spaceSize, bool mayLookLeft, bool mayLookRight) {
 	if ((address <= start) || address >= end) {
-		numericDriver.freezeWithError("M998");
+		//numericDriver.freezeWithError("M998");
 		return;
 	}
 	int32_t biggerRecordSearchFromIndex = 0;
