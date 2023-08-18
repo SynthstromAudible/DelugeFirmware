@@ -115,7 +115,7 @@ clearAndAllocateNew:
 	}
 
 	{
-		void* newMemory = GeneralMemoryAllocator::get().alloc(newLength + 1 + 4, NULL, false, false);
+		void* newMemory = GeneralMemoryAllocator::get().allocGeneral(newLength + 1 + 4);
 		if (!newMemory) {
 			return ERROR_INSUFFICIENT_RAM;
 		}
@@ -157,7 +157,7 @@ int32_t String::shorten(int32_t newLength) {
 
 		// If reasons, we have to do a clone
 		if (oldNumReasons > 1) {
-			void* newMemory = GeneralMemoryAllocator::get().alloc(newLength + 1 + 4, NULL, false, false);
+			void* newMemory = GeneralMemoryAllocator::get().allocGeneral(newLength + 1 + 4);
 			if (!newMemory) {
 				return ERROR_INSUFFICIENT_RAM;
 			}
@@ -240,7 +240,7 @@ int32_t String::concatenateAtPos(char const* newChars, int32_t pos, int32_t newC
 		// Otherwise, gotta allocate brand new memory
 		else {
 allocateNewMemory:
-			void* newMemory = GeneralMemoryAllocator::get().alloc(requiredSize, NULL, false, false);
+			void* newMemory = GeneralMemoryAllocator::get().allocGeneral(requiredSize);
 			if (!newMemory) {
 				return ERROR_INSUFFICIENT_RAM;
 			}
@@ -284,7 +284,7 @@ int32_t String::setChar(char newChar, int32_t pos) {
 		int32_t length = getLength();
 
 		int32_t requiredSize = length + 4 + 1;
-		void* newMemory = GeneralMemoryAllocator::get().alloc(requiredSize, NULL, false, false);
+		void* newMemory = GeneralMemoryAllocator::get().allocGeneral(requiredSize);
 		if (!newMemory) {
 			return ERROR_INSUFFICIENT_RAM;
 		}
