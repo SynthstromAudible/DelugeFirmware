@@ -84,10 +84,10 @@ int32_t numMallocTimes = 0;
 #endif
 //	void* alloc(uint32_t requiredSize, uint32_t* getAllocatedSize, bool makeStealable, void* thingNotToStealFrom, bool getBiggestAllocationPossible);
 extern "C" void* delugeAlloc(unsigned int requiredSize, bool mayUseOnChipRam) {
-	return GeneralMemoryAllocator::get().allocNonAudio(requiredSize);
+	return GeneralMemoryAllocator::get().alloc(requiredSize, nullptr, false, mayUseOnChipRam);
 }
 extern "C" void delugeDealloc(void* address) {
-	GeneralMemoryAllocator::get().deallocNonAudio(address);
+	GeneralMemoryAllocator::get().dealloc(address);
 }
 void* GeneralMemoryAllocator::allocNonAudio(uint32_t requiredSize) {
 
