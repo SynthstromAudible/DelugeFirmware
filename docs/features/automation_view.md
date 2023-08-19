@@ -351,6 +351,7 @@ Also, similar to the Keyboard screen which uses the variable "onKeyboardScreen" 
 
 # De-scoped Items (Future Release)
 
+- Fix Parameter Name pop-up when loading/saving in the Automation Editor. Explore displaying a menu instead of a pop-up.
 - Automation for Audio Clips
 - Key Frames + Parameter value for each frame
 - Automation Shapes
