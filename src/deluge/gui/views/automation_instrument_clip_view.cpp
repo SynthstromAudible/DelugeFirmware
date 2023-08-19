@@ -359,7 +359,6 @@ AutomationInstrumentClipView::AutomationInstrumentClipView() {
 	shortcutBlinking = false;
 	//used to enter pad selection mode
 	padSelectionOn = false;
-	renderCursor = false;
 	multiPadPressSelected = false;
 	leftPadSelectedX = kNoLastSelectedPad;
 	leftPadSelectedY = kNoLastSelectedPad;
@@ -698,12 +697,12 @@ void AutomationInstrumentClipView::renderAutomationOverview(ModelStackWithTimeli
 					pixel[2] = 2;
 				}
 
-				//if we're not in a midi clip, highlight the automatable pads dimly white (...more like grey)
+				//if we're not in a midi clip, highlight the automatable pads dimly grey
 				else {
 
-					pixel[0] = 10;
-					pixel[1] = 10;
-					pixel[2] = 10;
+					pixel[0] = kUndefinedGreyShade;
+					pixel[1] = kUndefinedGreyShade;
+					pixel[2] = kUndefinedGreyShade;
 				}
 			}
 
@@ -777,8 +776,16 @@ void AutomationInstrumentClipView::renderRow(ModelStackWithAutoParam* modelStack
 			occupancyMask[xDisplay] = 64;
 		}
 
-		if (renderCursor && padSelectionOn && ((xDisplay == leftPadSelectedX) || (xDisplay == rightPadSelectedX))) {
-			memcpy(pixel, &rowBlurColour[yDisplay], 3);
+		if (padSelectionOn && ((xDisplay == leftPadSelectedX) || (xDisplay == rightPadSelectedX))) {
+
+			if (knobPos > (yDisplay * kParamValueIncrementForAutomationDisplay)) {
+				memcpy(pixel, &rowBlurColour[yDisplay], 3);
+			}
+			else {
+				pixel[0] = kUndefinedGreyShade;
+				pixel[1] = kUndefinedGreyShade;
+				pixel[2] = kUndefinedGreyShade;
+			}
 			occupancyMask[xDisplay] = 64;
 		}
 	}
@@ -2137,7 +2144,6 @@ void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int
 				//if not multi pad press, but in pad selection mode, then just adjust the single selected pad
 				else if (padSelectionOn) {
 					xDisplay = leftPadSelectedX;
-					renderCursor = false;
 				}
 
 				//otherwise if not in pad selection mode, adjust the value of the pad currently being held
@@ -2315,7 +2321,6 @@ void AutomationInstrumentClipView::modEncoderButtonAction(uint8_t whichModEncode
 				numericDriver.displayPopup(HAVE_OLED ? "Pad Selection On" : "ON");
 
 				padSelectionOn = true;
-				renderCursor = true;
 				multiPadPressSelected = false;
 
 				//display only left cursor initially
@@ -2635,7 +2640,6 @@ void AutomationInstrumentClipView::initParameterSelection() {
 void AutomationInstrumentClipView::initPadSelection() {
 
 	padSelectionOn = false;
-	renderCursor = false;
 	multiPadPressSelected = false;
 	leftPadSelectedX = kNoLastSelectedPad;
 	rightPadSelectedX = kNoLastSelectedPad;
@@ -3203,11 +3207,6 @@ void AutomationInstrumentClipView::displayParameterName(int32_t paramID) {
 	ModelStackWithAutoParam* modelStackWithParam =
 	    getModelStackWithParam(modelStack, clip, paramID, clip->lastSelectedParamKind);
 	bool isAutomated = false;
-
-	if (padSelectionOn && !multiPadPressSelected && !renderCursor) {
-		renderCursor = true;
-		uiNeedsRendering(this);
-	}
 
 	//check if Parameter is currently automated so that the automation status can be drawn on the screen with the Parameter Name
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
