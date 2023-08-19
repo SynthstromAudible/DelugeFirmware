@@ -148,11 +148,7 @@ The Automation Editor **will:**
 - illuminate each pad row according to the current value within the range of 0-128. E.g. bottom pad = 0-16, then 17-32, 33-48, 49-64, 65-80, 81-96, 97-112, 113-128) 
 - edit new or existing parameter automations on a per step basis, at any zoom level across the entire timeline. Each row in a step column corresponds to a range of values in the parameter value range (0-128) (see above). If you press the bottom row, the value will be set to 0. if you press the top row, the value will be set to 128. Pressing the rows in between increments/decrements the value by 18 (e.g. 0, 18, 36, 54, 72, 90, 108, 128). 
 
-> **Note 1:** as with the current instrument clip view, if you enter/modify automations at a lower zoom level (e.g. between steps), the higher zoom level will let you know you've done so by blurring the pad colour at the higher zoom level).
-
-> **Note 2:** automation tails will be drawn based on the automation nodes created (eg tails are drawn between nodes). A node corresponds to a position in the sequencer timeline. Nodes for automation are created when you edit a parameter value at a specific step.
-
-![image](https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/56d76e68-12d8-4b2a-9100-aca615c63269)
+![image](https://github.com/seangoodvibes/DelugeFirmware/assets/138174805/8cc7befa-9071-4bd3-ac3c-15049f69b250)
 
 - enable you to enter long multi-step automations by pressing and holding one pad and then pressing a second pad
 
@@ -164,11 +160,43 @@ The Automation Editor **will:**
 
 - enable you to fine tune the parameter automation values set by pressing and holding on a pad (or multiple pads) in a grid column and turning either of the Mod Encoders (Gold Knobs) (the value will increase/decrease relative to the current parameter value corresponding to the pad(s) you are holding). 
 
-> **Note 1:** the existing master FX section is disabled in the automation editor and can only be accessed if you go back to the Automation Overview, Instrument Clip View, or open the keyboard screen. When you turn either of Mod Encoders (Gold Knobs) it will display the parameter value between 0 and 128 on the screen of the current parameter being edited (not the parameter selected in the master FX section). Pressing on the Mod Encoders (Gold Knobs) still works and allows you to adjust different settings (such as reverb room size, LPF type, delay type, sidechain speed, etc.)
+> **Note 1:** you can also fine tune your long multi-step automations with the Mod Encoders (Gold Knobs).
+>
+> You have the ability to fine tune a long press's start and end values which automatically adjusts the interpolation between those values (without needing to enter the pad selection mode). 
+> 
+> Simply enter a long press and while continuing to hold the first pad in the long press, turn the gold knobs to adjust the start and end values of the long press.
+> 
+> When refining a long presses start/end values, each gold knob is used separately to adjust the start/end position values. 
+> 
+> The bottom left gold knob is used to adjust the start value. 
+> 
+> The top right gold knob is used to adjust the end value.
+> 
+> In a long press, you will also note that the LED indicators change to show the current value of the start and end position. Once you've let go of the long press, the LED indicators reset back to the parameters overall current value.
 
-> **Note 2:** If the parameter selected in the master fx section matches the parameter that is currently being edited, then the parameter led value indicators will increase/decrease as you turn the Mod Encoders (Gold Knobs) or adjust the parameter on the grid. 
+> **Note 2:** the existing master FX section is disabled in the automation editor and can only be accessed if you go back to the Automation Overview, Instrument Clip View, or open the keyboard screen. When you turn either of Mod Encoders (Gold Knobs) it will display the parameter value between 0 and 128 on the screen of the current parameter being edited (not the parameter selected in the master FX section).
 
 > **Note 3:** If the parameter selected is not currently automated, turning the Mod Encoders (Gold Knobs) will increase the value of every step in the automation grid in unison (e.g. same value for all steps).
+
+- you can also fine tune automation values by entering **Pad Selection Mode**. You enter this mode by pressing on either of the Mod Encoders.
+
+![image](https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/6c82484d-0fbc-482a-9cb5-e434f39e042b)
+
+> Pad selection mode is accessed by pressing on either of the mod encoder buttons
+> 
+> In pad selection mode, you cannot edit the automation grid by pressing on the pads. 
+> 
+> With a single or multi pad (long) press you select the pad(s) to edit. 
+> 
+> A cursor is displayed on the grid to identify the single or multiple pads you've selected. Seeing the cursor means you are in pad selection mode.
+> 
+> Once you've made your pad selection, you can use the gold knobs to tweak the value of the singular pad or the value of the start/end pads in a long press.
+> 
+> When one pad is selected, one cursor is displayed on the grid and both led indicators show the value for that pad (cursor position).
+> 
+> When two pads are selected, two cursors are displayed on the grid and the lower led indicator shows the value of the left pad (left cursor), and the upper led indicator shows the value of the right pad (right cursor).
+> 
+> With this mode you can also press on each pad to see its current value without changing its value.
 
 - enable you to lay down longer automations with interpolation 
 
@@ -323,8 +351,6 @@ Also, similar to the Keyboard screen which uses the variable "onKeyboardScreen" 
 
 # De-scoped Items (Future Release)
 
-- Improving interpolation (I want to get more granular, do the calculation at the lowest possible node)
-- Adjust multi pad press so that it renders the second pad's value at the last possible node (within that pad)
 - Automation for Audio Clips
 - Key Frames + Parameter value for each frame
 - Automation Shapes
@@ -349,4 +375,5 @@ These are the main button shortcuts/combos that will be used in the Automation I
 
 ## Automation Editor
 
-![image](https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/7da4e6f2-b8f0-4a07-9b06-6ad47b0419c2)
+![image](https://github.com/seangoodvibes/DelugeFirmware/assets/138174805/7c80679a-199e-482f-bfcd-7cb9bc48c623)
+
