@@ -2773,30 +2773,31 @@ int32_t AutomationInstrumentClipView::getParameterKnobPos(ModelStackWithAutoPara
 //this function is based off the code in AutoParam::getValueAtPos, it was tweaked to just return interpolation status
 //of the left node or right node (depending on the reversed parameter which is used to indicate what node in what direction
 //we are looking for (e.g. we want status of left node, or right node, relative to the current pos we are looking at
-bool AutomationInstrumentClipView::getNodeInterpolation(ModelStackWithAutoParam* modelStack, int32_t pos, bool reversed) {
+bool AutomationInstrumentClipView::getNodeInterpolation(ModelStackWithAutoParam* modelStack, int32_t pos,
+                                                        bool reversed) {
 
-		if (!modelStack->autoParam->nodes.getNumElements()) {
-			return false;
-		}
+	if (!modelStack->autoParam->nodes.getNumElements()) {
+		return false;
+	}
 
-		int32_t rightI = modelStack->autoParam->nodes.search(pos + (int32_t)!reversed, GREATER_OR_EQUAL);
-		if (rightI >= modelStack->autoParam->nodes.getNumElements()) {
-			rightI = 0;
-		}
-		ParamNode* rightNode = modelStack->autoParam->nodes.getElement(rightI);
+	int32_t rightI = modelStack->autoParam->nodes.search(pos + (int32_t)!reversed, GREATER_OR_EQUAL);
+	if (rightI >= modelStack->autoParam->nodes.getNumElements()) {
+		rightI = 0;
+	}
+	ParamNode* rightNode = modelStack->autoParam->nodes.getElement(rightI);
 
-		int32_t leftI = rightI - 1;
-		if (leftI < 0) {
-			leftI += modelStack->autoParam->nodes.getNumElements();
-		}
-		ParamNode* leftNode = modelStack->autoParam->nodes.getElement(leftI);
+	int32_t leftI = rightI - 1;
+	if (leftI < 0) {
+		leftI += modelStack->autoParam->nodes.getNumElements();
+	}
+	ParamNode* leftNode = modelStack->autoParam->nodes.getElement(leftI);
 
-		if (reversed) {
-			return leftNode->interpolated;
-		}
-		else {
-			return rightNode->interpolated;
-		}
+	if (reversed) {
+		return leftNode->interpolated;
+	}
+	else {
+		return rightNode->interpolated;
+	}
 }
 
 //this function writes the new values calculated by the handleSinglePadPress and handleMultiPadPress functions
@@ -2826,7 +2827,8 @@ void AutomationInstrumentClipView::setParameterAutomationValue(ModelStackWithAut
 	//create a node to the left with the current interpolation status
 	if ((squareStart - kParamNodeWidth) >= 0) {
 		int32_t currentValue = modelStack->autoParam->getValuePossiblyAtPos(squareStart - kParamNodeWidth, modelStack);
-		modelStack->autoParam->setValuePossiblyForRegion(currentValue, modelStack, squareStart - kParamNodeWidth, kParamNodeWidth);
+		modelStack->autoParam->setValuePossiblyForRegion(currentValue, modelStack, squareStart - kParamNodeWidth,
+		                                                 kParamNodeWidth);
 	}
 
 	//create a node to the right with the current interpolation status
@@ -3081,11 +3083,13 @@ void AutomationInstrumentClipView::handleMultiPadPress(ModelStackWithTimelineCou
 			//set value for beginning pad press at the very first node position within that pad
 
 			uint32_t squareStart = getPosFromSquare(firstPadX);
-			setParameterAutomationValue(modelStackWithParam, firstPadValue - kKnobPosOffset, squareStart, firstPadX, effectiveLength, false);
+			setParameterAutomationValue(modelStackWithParam, firstPadValue - kKnobPosOffset, squareStart, firstPadX,
+			                            effectiveLength, false);
 
 			//set value for ending pad press at the very last node position within that pad
 			squareStart = std::min(effectiveLength, squareRightEdge - kParamNodeWidth);
-			setParameterAutomationValue(modelStackWithParam, secondPadValue - kKnobPosOffset, squareStart, secondPadX, effectiveLength, false);
+			setParameterAutomationValue(modelStackWithParam, secondPadValue - kKnobPosOffset, squareStart, secondPadX,
+			                            effectiveLength, false);
 
 			//loop from first pad to last pad, setting values for nodes in between
 			//these values will serve as "key frames" for the interpolation to flow through
@@ -3116,10 +3120,10 @@ void AutomationInstrumentClipView::handleMultiPadPress(ModelStackWithTimelineCou
 
 				//linear interpolation formula to calculate the value of the pads
 				//f(x) = A + (x - Ax) * ((B - A) / (Bx - Ax))
-				float newKnobPosFloat = std::round(
-				    firstPadValueFloat
-				    + (((squareStart - firstPadXFloat) / kParamNodeWidth)
-				       * ((secondPadValueFloat - firstPadValueFloat) / ((secondPadXFloat - firstPadXFloat) / kParamNodeWidth))));
+				float newKnobPosFloat = std::round(firstPadValueFloat
+				                                   + (((squareStart - firstPadXFloat) / kParamNodeWidth)
+				                                      * ((secondPadValueFloat - firstPadValueFloat)
+				                                         / ((secondPadXFloat - firstPadXFloat) / kParamNodeWidth))));
 
 				newKnobPos = static_cast<int32_t>(newKnobPosFloat);
 				newKnobPos = newKnobPos - kKnobPosOffset;
@@ -3131,7 +3135,8 @@ void AutomationInstrumentClipView::handleMultiPadPress(ModelStackWithTimelineCou
 				}
 
 				//set value for pads in between
-				int32_t newValue = modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
+				int32_t newValue =
+				    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
 				modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, squareStart,
 				                                                          squareWidth);
 				modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, squareStart,
