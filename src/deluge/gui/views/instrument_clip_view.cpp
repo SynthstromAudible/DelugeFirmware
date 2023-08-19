@@ -1225,6 +1225,9 @@ void InstrumentClipView::selectEncoderAction(int8_t offset) {
 			cutAuditionedNotesToOne();
 			offsetNoteCodeAction(offset);
 		}
+		else {
+			setRowProbability(offset);
+		}
 	}
 
 	// Or set / create a new Drum
@@ -1240,7 +1243,6 @@ void InstrumentClipView::selectEncoderAction(int8_t offset) {
 	else if (currentUIMode == UI_MODE_NOTES_PRESSED) {
 		adjustProbability(offset);
 	}
-
 	// Or, normal option - trying to change Instrument presets
 	else {
 		InstrumentClipMinder::selectEncoderAction(offset);
@@ -2871,6 +2873,76 @@ uint8_t InstrumentClipView::getNumNoteRowsAuditioning() {
 
 uint8_t InstrumentClipView::oneNoteAuditioning() {
 	return (currentUIMode == UI_MODE_AUDITIONING && getNumNoteRowsAuditioning() == 1);
+}
+
+void InstrumentClipView::setRowProbability(int32_t offset) {
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+
+	ModelStackWithNoteRow* modelStackWithNoteRow = getOrCreateNoteRowForYDisplay(modelStack, lastAuditionedYDisplay);
+
+	NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
+
+	// If we're in Kit mode, the NoteRow will exist, or else we wouldn't be auditioning it. But if in other mode, we need to do this
+	if (!noteRow) {
+		return; // Get out if NoteRow doesn't exist and can't be created
+	}
+	Action* action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
+	if (!action) {
+		return;
+	}
+
+	action->recordNoteArrayChangeIfNotAlreadySnapshotted((InstrumentClip*)modelStack->getTimelineCounter(),
+	                                                     modelStackWithNoteRow->noteRowId, &noteRow->notes,
+	                                                     false); // Snapshot for undoability. Don't steal data.
+
+	uint8_t probabilityValue = noteRow->probabilityValue;
+	bool prevBase = false;
+	// Incrementing
+	if (offset == 1) {
+		if (probabilityValue < kNumProbabilityValues) {
+			probabilityValue++;
+		}
+	}
+	// Decrementing
+	else {
+		if (probabilityValue > 1) {
+
+			probabilityValue--;
+		}
+	}
+
+	noteRow->probabilityValue = probabilityValue;
+
+	uint32_t numNotes = noteRow->notes.getNumElements();
+	for (int i = 0; i < numNotes; i++) {
+		Note* note = noteRow->notes.getElement(i);
+		note->setProbability(probabilityValue);
+	}
+	if (probabilityValue != -1) {
+#if HAVE_OLED
+		char buffer[29];
+#else
+		char buffer[5];
+#endif
+		char* displayString;
+		if (probabilityValue <= kNumProbabilityValues) {
+#if HAVE_OLED
+			strcpy(buffer, "Probability: ");
+			intToString(probabilityValue * 5, buffer + strlen(buffer));
+			strcat(buffer, "%");
+#else
+			intToString(probabilityValue * 5, buffer);
+#endif
+			displayString = buffer;
+		}
+
+#if HAVE_OLED
+		OLED::popupText(displayString);
+#else
+		numericDriver.displayPopup(displayString, 0, true, prevBase ? 3 : 255);
+#endif
+	}
 }
 
 void InstrumentClipView::offsetNoteCodeAction(int32_t newOffset) {

@@ -172,6 +172,12 @@ Support for sending and receiving large sysex messages has been added. Initially
 - ([#215]) Forward debug messages. This can be used as an alternative to RTT for print-style debugging.
 - ([#295]) Load firmware over USB. As this could be a security risk, it must be enabled in community feature settings
 
+### Set probability by row
+
+Extends the probability system to set a row at a time. Hold an audition pad and turn select to change the whole rows probability.
+This is particularly useful in combination with the euclidean sequencing to get a semi random pattern going
+
+
 ## Compiletime settings
 
 This list includes all preprocessor switches that can alter firmware behaviour at compile time and thus require a different firmware
