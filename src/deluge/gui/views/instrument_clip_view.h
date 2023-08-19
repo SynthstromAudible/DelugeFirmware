@@ -215,6 +215,8 @@ private:
 	void enterDrumCreator(ModelStackWithNoteRow* modelStack, bool doRecording = false);
 
 	void adjustProbability(int32_t offset);
+	void setRowProbability(int32_t offset);
+	void displayProbability(uint8_t probability, bool prevBase);
 	void copyNotes();
 	void pasteNotes();
 	void deleteCopiedNoteRows();
