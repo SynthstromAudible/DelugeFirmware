@@ -371,6 +371,7 @@ constexpr int32_t kKnobPosOffset = 64;
 constexpr int32_t kMaxKnobPos = 128;
 constexpr int32_t kParamValueIncrementForAutomationSinglePadPress = 18;
 constexpr int32_t kParamValueIncrementForAutomationDisplay = 16;
+constexpr int32_t kParamNodeWidth = 3;
 //
 
 // Linear params have different sources multiplied together, then multiplied by the neutral value
