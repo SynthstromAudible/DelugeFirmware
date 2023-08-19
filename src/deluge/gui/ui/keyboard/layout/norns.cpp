@@ -15,8 +15,6 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#pragma once
-
 #include "gui/ui/keyboard/layout/norns.h"
 #include "definitions.h"
 #include "gui/ui/audio_recorder.h"

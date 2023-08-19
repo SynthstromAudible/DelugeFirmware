@@ -70,7 +70,8 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettin
     &subMenuAutomation,
     &menuDevSysexAllowed,
     &menuHighlightIncomingNotes,
-    &menuDisplayNornsLayout};
+    &menuDisplayNornsLayout,
+};
 
 Settings::Settings(char const* name, char const* title)
     : menu_item::Submenu<subMenuEntries.size()>(name, title, subMenuEntries) {
