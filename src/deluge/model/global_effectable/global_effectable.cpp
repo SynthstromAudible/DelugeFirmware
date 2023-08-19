@@ -766,6 +766,10 @@ void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, i
 				memset(modFXBuffer, 0, kModFXBufferSize * sizeof(StereoSample));
 			}
 		}
+		if (modFXGrainBuffer) {
+			GeneralMemoryAllocator::get().dealloc(modFXGrainBuffer);
+			modFXGrainBuffer = NULL;
+		}
 	}
 	else if (modFXTypeNow == ModFXType::GRAIN) {
 		if (!modFXGrainBuffer) {
@@ -779,6 +783,10 @@ void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, i
 			}
 			grainInitialized = false;
 			modFXGrainBufferWriteIndex = 0;
+		}
+		if (modFXBuffer) {
+			GeneralMemoryAllocator::get().dealloc(modFXBuffer);
+			modFXBuffer = NULL;
 		}
 	}
 	else {

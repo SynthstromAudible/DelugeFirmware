@@ -350,6 +350,10 @@ bool Sound::setModFXType(ModFXType newType) {
 				return false;
 			}
 		}
+		if (modFXGrainBuffer) {
+			GeneralMemoryAllocator::get().dealloc(modFXGrainBuffer);
+			modFXGrainBuffer = NULL;
+		}
 	}
 	else if (newType == ModFXType::GRAIN) {
 		if (!modFXGrainBuffer) {
@@ -358,6 +362,10 @@ bool Sound::setModFXType(ModFXType newType) {
 			if (!modFXGrainBuffer) {
 				return false;
 			}
+		}
+		if (modFXBuffer) {
+			GeneralMemoryAllocator::get().dealloc(modFXBuffer);
+			modFXBuffer = NULL;
 		}
 	}
 	else {

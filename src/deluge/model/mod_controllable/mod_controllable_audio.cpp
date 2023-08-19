@@ -62,7 +62,6 @@ ModControllableAudio::ModControllableAudio() {
 	grainDryVol = 2147483647;
 	grainPitchType = 0;
 	grainLastTickCountIsZero = true;
-	grainLastDetune = 1;
 	grainInitialized = false;
 
 	// EQ
@@ -198,35 +197,33 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 			if (!grainInitialized && modFXGrainBufferWriteIndex >= 65536) {
 				grainInitialized = true;
 			}
-			*postFXVolume = multiply_32x32_rshift32(*postFXVolume, 1518500250) << 1; // Divide by sqrt(2)
+			*postFXVolume = multiply_32x32_rshift32(*postFXVolume, ONE_OVER_SQRT2_Q31) << 1; // Divide by sqrt(2)
 			// Shift
 			grainShift = 44 * 300; //(kSampleRate / 1000) * 300;
 			// Size
 			grainSize = 44 * ((((unpatchedParams->getValue(Param::Unpatched::MOD_FX_OFFSET) >> 1) + 1073741824) >> 21));
-			grainSize = std::max<int32_t>(440, std::min<int32_t>(35280, grainSize)); //10ms - 800ms
+			grainSize = std::clamp<int32_t>(grainSize, 440, 35280); //10ms - 800ms
 			// Rate
-			int32_t grainRateRaw =
-			    std::max<int32_t>(0, (std::min<int32_t>(256, ((quickLog(modFXRate) - 364249088) >> 21))));
+			int32_t grainRateRaw = std::clamp<int32_t>((quickLog(modFXRate) - 364249088) >> 21, 0, 256);
 			grainRate = ((360 * grainRateRaw >> 8) * grainRateRaw >> 8); //0 - 180hz
 			grainRate = std::max<int32_t>(1, grainRate);
 			grainRate = (kSampleRate << 1) / grainRate;
 			// Preset 0=default
 			grainPitchType = (int8_t)(multiply_32x32_rshift32_rounded(
-			    unpatchedParams->getValue(Param::Unpatched::MOD_FX_FEEDBACK), 5));
-			grainPitchType = std::max<int8_t>(-2, (std::min<int8_t>(2, grainPitchType)));
+			    unpatchedParams->getValue(Param::Unpatched::MOD_FX_FEEDBACK), 5)); //Select 5 presets -2 to 2
+			grainPitchType = std::clamp<int8_t>(grainPitchType, -2, 2);
 			// Temposync
 			if (grainPitchType == 2) {
 				int tempoBPM = (int32_t)(playbackHandler.calculateBPM(currentSong->getTimePerTimerTickFloat()) + 0.5);
-				grainRate = std::max<int32_t>(0, (std::min<int32_t>(256, 256 - grainRateRaw))) << 4; //4096msec
-				grainRate = 44 * grainRate;                              //(kSampleRate*grainRate)/1000;
-				int32_t baseNoteSamples = (kSampleRate * 60 / tempoBPM); //4th
+				grainRate = std::clamp<int32_t>(256 - grainRateRaw, 0, 256) << 4; //4096msec
+				grainRate = 44 * grainRate;                                       //(kSampleRate*grainRate)/1000;
+				int32_t baseNoteSamples = (kSampleRate * 60 / tempoBPM);          //4th
 				if (grainRate < baseNoteSamples) {
 					baseNoteSamples = baseNoteSamples >> 2; //16th
 				}
-				grainRate = std::max<int32_t>(
-				    baseNoteSamples, std::min<int32_t>(baseNoteSamples << 2,
-				                                       (grainRate / baseNoteSamples) * baseNoteSamples)); //Quantize
-				if (grainRate < 2205) {                                                                   //50ms = 20hz
+				grainRate = std::clamp<int32_t>((grainRate / baseNoteSamples) * baseNoteSamples, baseNoteSamples,
+				                                baseNoteSamples << 2);            //Quantize
+				if (grainRate < 2205) {                                           //50ms = 20hz
 					grainSize = std::min<int32_t>(grainSize, grainRate << 3) - 1; //16 layers=<<4, 8layers = <<3
 				}
 				bool currentTickCountIsZero = (playbackHandler.getCurrentInternalTickCount() == 0);
@@ -245,8 +242,8 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 			    (multiply_32x32_rshift32_rounded(multiply_32x32_rshift32_rounded(grainVol, grainVol), grainVol) << 2)
 			    + 2147483648; //Cubic
 			grainVol = std::max<int32_t>(0, std::min<int32_t>(2147483647, grainVol));
-			grainDryVol =
-			    std::max<int32_t>(0, (int32_t)(std::min<int64_t>(2147483647, (int64_t)((2147483648 - grainVol) << 3))));
+			grainDryVol = (int32_t)std::clamp<int64_t>(((int64_t)(2147483648 - grainVol) << 3), 0, 2147483647);
+			grainFeedbackVol = grainVol >> 3;
 		}
 
 		StereoSample* currentSample = buffer;
@@ -291,26 +288,27 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 							    & kModFXGrainBufferIndexMask;
 							grains[i].counter = 0;
 							grains[i].rev = (getRandom255() < 76);
-							if (grainPitchType == -2) {
-								grains[i].pitch = (getRandom255() < 76) ? 2048 : 1024; //unison + octave + detune
+
+							int32_t pitchRand = getRandom255();
+							switch (grainPitchType) {
+							case -2:
+								grains[i].pitch = (pitchRand < 76) ? 2048 : 1024; //unison + octave + reverse
 								grains[i].rev = 1;
-								grainLastDetune = !grainLastDetune;
-								grains[i].pitch +=
-								    grainLastDetune ? (8 * grains[i].pitch) >> 10 : (-8 * grains[i].pitch) >> 10;
-							}
-							else if (grainPitchType == -1) {
-								grains[i].pitch = (getRandom255() < 76) ? 512 : 1024; //unison + octave lower
-							}
-							else if (grainPitchType == 0) {
-								grains[i].pitch = (getRandom255() < 76) ? 2048 : 1024; //unison + octave (default)
-							}
-							else if (grainPitchType == 1) {
-								grains[i].pitch = (getRandom255() < 76) ? 1534 : 2048; //5th + octave
-							}
-							else if (grainPitchType == 2) { // temopo sync
-								grains[i].pitch = (getRandom255() < 25)    ? 512
-								                  : (getRandom255() < 153) ? 2048
-								                                           : 1024; // unison + octave + octave lower
+								break;
+							case -1:
+								grains[i].pitch = (pitchRand < 76) ? 512 : 1024; //unison + octave lower
+								break;
+							case 0:
+								grains[i].pitch = (pitchRand < 76) ? 2048 : 1024; //unison + octave (default)
+								break;
+							case 1:
+								grains[i].pitch = (pitchRand < 76) ? 1534 : 2048; //5th + octave
+								break;
+							case 2:
+								grains[i].pitch = (pitchRand < 25)    ? 512
+								                  : (pitchRand < 153) ? 2048
+								                                      : 1024; // unison + octave + octave lower
+								break;
 							}
 							if (grains[i].rev) {
 								grains[i].startPoint =
@@ -369,10 +367,12 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 									}
 								}
 							}
-							grains[i].volScale = (2147483647 / (grains[i].length >> 1));
-							grains[i].volScaleMax = grains[i].volScale * (grains[i].length >> 1);
-							shouldDoPanning((getRandom255() - 128) << 23, &grains[i].panVolL,
-							                &grains[i].panVolR); //Pan Law 0
+							if (grains[i].length > 0) {
+								grains[i].volScale = (2147483647 / (grains[i].length >> 1));
+								grains[i].volScaleMax = grains[i].volScale * (grains[i].length >> 1);
+								shouldDoPanning((getRandom255() - 128) << 23, &grains[i].panVolL,
+								                &grains[i].panVolR); //Pan Law 0
+							}
 							break;
 						}
 					}
@@ -394,27 +394,25 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 						int32_t pos =
 						    (grains[i].startPoint + delta + kModFXGrainBufferSize) & kModFXGrainBufferIndexMask;
 
-						grains_l = add_saturation(
-						    (multiply_32x32_rshift32(multiply_32x32_rshift32(modFXGrainBuffer[pos].l, vol) << 1,
-						                             grains[i].panVolL))
-						        << 2,
-						    grains_l);
-						grains_r = add_saturation(
-						    (multiply_32x32_rshift32(multiply_32x32_rshift32(modFXGrainBuffer[pos].r, vol) << 1,
-						                             grains[i].panVolR))
-						        << 2,
-						    grains_r);
+						grains_l = multiply_accumulate_32x32_rshift32_rounded(
+						    grains_l, multiply_32x32_rshift32(modFXGrainBuffer[pos].l, vol) << 0, grains[i].panVolL);
+						grains_r = multiply_accumulate_32x32_rshift32_rounded(
+						    grains_r, multiply_32x32_rshift32(modFXGrainBuffer[pos].r, vol) << 0, grains[i].panVolR);
+
 						grains[i].counter++;
 						if (grains[i].counter >= grains[i].length) {
 							grains[i].length = 0;
 						}
 					}
 				}
-				//Feedback
+
+				grains_l <<= 3;
+				grains_r <<= 3;
+				//Feedback (Below grainFeedbackVol means "grainVol >> 4")
 				modFXGrainBuffer[writeIndex].l =
-				    add_saturation(currentSample->l, (multiply_32x32_rshift32(grains_l, grainFeedbackVol) << 1));
+				    multiply_accumulate_32x32_rshift32_rounded(currentSample->l, grains_l, grainFeedbackVol);
 				modFXGrainBuffer[writeIndex].r =
-				    add_saturation(currentSample->r, (multiply_32x32_rshift32(grains_r, grainFeedbackVol) << 1));
+				    multiply_accumulate_32x32_rshift32_rounded(currentSample->r, grains_r, grainFeedbackVol);
 				//WET and DRY Vol
 				currentSample->l = add_saturation(multiply_32x32_rshift32(currentSample->l, grainDryVol) << 1,
 				                                  multiply_32x32_rshift32(grains_l, grainVol) << 1);

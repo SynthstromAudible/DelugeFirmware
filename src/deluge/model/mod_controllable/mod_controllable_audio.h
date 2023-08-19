@@ -140,7 +140,6 @@ public:
 	int32_t grainDryVol;
 	int8_t grainPitchType;
 	bool grainLastTickCountIsZero;
-	bool grainLastDetune;
 	bool grainInitialized;
 
 	Stutterer stutterer;
