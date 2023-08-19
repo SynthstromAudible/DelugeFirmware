@@ -180,7 +180,7 @@ The Automation Editor **will:**
 
 - you can also fine tune automation values by entering **Pad Selection Mode**. You enter this mode by pressing on either of the Mod Encoders.
 
-![image](https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/6c82484d-0fbc-482a-9cb5-e434f39e042b)
+![image](https://github.com/seangoodvibes/DelugeFirmware/assets/138174805/1e4b3653-c1a1-4d21-bfa0-826df378b063)
 
 > Pad selection mode is accessed by pressing on either of the mod encoder buttons
 > 
