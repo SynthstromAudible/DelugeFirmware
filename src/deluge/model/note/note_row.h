@@ -110,7 +110,6 @@ public:
 	DrumName* firstOldDrumName;
 	NoteVector notes;
 	//value for whole row
-	uint8_t velocity;
 	uint8_t probabilityValue;
 	// These are deprecated, and only used during loading for compatibility with old song files
 	LearnedMIDI muteMIDICommand;

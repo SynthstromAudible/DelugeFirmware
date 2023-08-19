@@ -2240,57 +2240,7 @@ multiplePresses:
 	}
 
 	if (probabilityValue != -1) {
-#if HAVE_OLED
-		char buffer[29];
-#else
-		char buffer[5];
-#endif
-		char* displayString;
-		if (probabilityValue <= kNumProbabilityValues) {
-#if HAVE_OLED
-			strcpy(buffer, "Probability: ");
-			intToString(probabilityValue * 5, buffer + strlen(buffer));
-			strcat(buffer, "%");
-			if (prevBase) {
-				strcat(buffer, " latching");
-			}
-#else
-			intToString(probabilityValue * 5, buffer);
-#endif
-			displayString = buffer;
-		}
-
-		// Iteration dependence
-		else {
-
-			int32_t divisor, iterationWithinDivisor;
-			dissectIterationDependence(probabilityValue, &divisor, &iterationWithinDivisor);
-
-			int32_t charPos = 0;
-
-#if HAVE_OLED
-			strcpy(buffer, "Iteration dependence: ");
-			charPos = strlen(buffer);
-#endif
-
-			buffer[charPos++] = '1' + iterationWithinDivisor;
-#if HAVE_OLED
-			buffer[charPos++] = ' ';
-#endif
-			buffer[charPos++] = 'o';
-			buffer[charPos++] = 'f';
-#if HAVE_OLED
-			buffer[charPos++] = ' ';
-#endif
-			buffer[charPos++] = '0' + divisor;
-			buffer[charPos++] = 0;
-		}
-
-#if HAVE_OLED
-		OLED::popupText(displayString);
-#else
-		numericDriver.displayPopup(displayString, 0, true, prevBase ? 3 : 255);
-#endif
+		displayProbability(probabilityValue, prevBase);
 	}
 }
 
@@ -2898,19 +2848,8 @@ void InstrumentClipView::setRowProbability(int32_t offset) {
 
 	uint8_t probabilityValue = noteRow->probabilityValue;
 	bool prevBase = false;
-	// Incrementing
-	if (offset == 1) {
-		if (probabilityValue < kNumProbabilityValues) {
-			probabilityValue++;
-		}
-	}
-	// Decrementing
-	else {
-		if (probabilityValue > 1) {
-
-			probabilityValue--;
-		}
-	}
+	// Covers the probabilities and iterations
+	probabilityValue = std::clamp<int32_t>((int32_t)probabilityValue + offset, (int32_t)1, kNumProbabilityValues + 35);
 
 	noteRow->probabilityValue = probabilityValue;
 
@@ -2919,30 +2858,61 @@ void InstrumentClipView::setRowProbability(int32_t offset) {
 		Note* note = noteRow->notes.getElement(i);
 		note->setProbability(probabilityValue);
 	}
-	if (probabilityValue != -1) {
+	displayProbability(probabilityValue, false);
+}
+
+void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) {
 #if HAVE_OLED
-		char buffer[29];
+	char buffer[29];
 #else
-		char buffer[5];
+	char buffer[5];
 #endif
-		char* displayString;
-		if (probabilityValue <= kNumProbabilityValues) {
+	char* displayString;
+	if (probability <= kNumProbabilityValues) {
 #if HAVE_OLED
-			strcpy(buffer, "Probability: ");
-			intToString(probabilityValue * 5, buffer + strlen(buffer));
-			strcat(buffer, "%");
-#else
-			intToString(probabilityValue * 5, buffer);
-#endif
-			displayString = buffer;
+		strcpy(buffer, "Probability: ");
+		intToString(probability * 5, buffer + strlen(buffer));
+		strcat(buffer, "%");
+		if (prevBase) {
+			strcat(buffer, " latching");
 		}
+#else
+		intToString(probability * 5, buffer);
+#endif
+		displayString = buffer;
+	}
+
+	// Iteration dependence
+	else {
+
+		int32_t divisor, iterationWithinDivisor;
+		dissectIterationDependence(probability, &divisor, &iterationWithinDivisor);
+
+		int32_t charPos = 0;
 
 #if HAVE_OLED
-		OLED::popupText(displayString);
-#else
-		numericDriver.displayPopup(displayString, 0, true, prevBase ? 3 : 255);
+		strcpy(buffer, "Iteration dependence: ");
+		charPos = strlen(buffer);
 #endif
+
+		buffer[charPos++] = '1' + iterationWithinDivisor;
+#if HAVE_OLED
+		buffer[charPos++] = ' ';
+#endif
+		buffer[charPos++] = 'o';
+		buffer[charPos++] = 'f';
+#if HAVE_OLED
+		buffer[charPos++] = ' ';
+#endif
+		buffer[charPos++] = '0' + divisor;
+		buffer[charPos++] = 0;
 	}
+
+#if HAVE_OLED
+	OLED::popupText(displayString);
+#else
+	numericDriver.displayPopup(displayString, 0, true, prevBase ? 3 : 255);
+#endif
 }
 
 void InstrumentClipView::offsetNoteCodeAction(int32_t newOffset) {
