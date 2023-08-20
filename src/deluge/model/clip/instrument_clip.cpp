@@ -102,8 +102,8 @@ InstrumentClip::InstrumentClip(Song* song) : Clip(CLIP_TYPE_INSTRUMENT) {
 	onAutomationInstrumentClipView = false;
 	lastSelectedParamID = kNoLastSelectedParamID;
 	lastSelectedParamKind = Param::Kind::NONE;
-	lastSelectedParamShortcutX = kNoLastSelectedParamShortcutX;
-	lastSelectedParamShortcutY = kNoLastSelectedParamShortcutY;
+	lastSelectedParamShortcutX = kNoLastSelectedParamShortcut;
+	lastSelectedParamShortcutY = kNoLastSelectedParamShortcut;
 	lastSelectedParamArrayPosition = 0;
 	lastSelectedInstrumentType = InstrumentType::NONE;
 	//end initialize of automation instrument clip view variables

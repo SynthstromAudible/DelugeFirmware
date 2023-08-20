@@ -362,15 +362,16 @@ constexpr PatchSource kFirstLocalSource = PatchSource::ENVELOPE_0;
 
 //Automation Instrument Clip View constants
 constexpr int32_t kNoLastSelectedParamID = 255;
-constexpr int32_t kNoLastSelectedParamShortcutX = 255;
-constexpr int32_t kNoLastSelectedParamShortcutY = 255;
+constexpr int32_t kNoLastSelectedParamShortcut = 255;
+constexpr int32_t kNoLastSelectedPad = 255;
 constexpr int32_t kNumNonKitAffectEntireParamsForAutomation = 55;
 constexpr int32_t kNumKitAffectEntireParamsForAutomation = 24;
 constexpr int32_t kLastMidiCCForAutomation = 121;
 constexpr int32_t kKnobPosOffset = 64;
-constexpr int32_t kMaxKnobPos = 127;
+constexpr int32_t kMaxKnobPos = 128;
 constexpr int32_t kParamValueIncrementForAutomationSinglePadPress = 18;
 constexpr int32_t kParamValueIncrementForAutomationDisplay = 16;
+constexpr int32_t kParamNodeWidth = 3;
 //
 
 // Linear params have different sources multiplied together, then multiplied by the neutral value
