@@ -25,6 +25,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
+#include "hid/buttons.h"
 #include "hid/display/numeric_driver.h"
 #include "io/debug/print.h"
 #include "io/midi/midi_device.h"
@@ -820,6 +821,11 @@ skipDoingSumTo100:
 			// If it's a 100%, which usually will be the case...
 			if (pendingNoteOnList.pendingNoteOns[i].probability == kNumProbabilityValues) {
 				conditionPassed = true;
+			}
+
+			// else check if it's a FILL note and only play if SYNC_SCALING is pressed
+			else if (pendingNoteOnList.pendingNoteOns[i].probability == kFillProbabilityValue) {
+				conditionPassed = currentSong->fillModeActive;
 			}
 
 			// Otherwise...

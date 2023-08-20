@@ -44,9 +44,10 @@ Setting menuAutomationInterpolate(RuntimeFeatureSettingType::AutomationInterpola
 Setting menuAutomationClearClip(RuntimeFeatureSettingType::AutomationClearClip);
 Setting menuAutomationNudgeNote(RuntimeFeatureSettingType::AutomationNudgeNote);
 Setting menuAutomationShiftClip(RuntimeFeatureSettingType::AutomationShiftClip);
+Setting menuSyncScalingAction(RuntimeFeatureSettingType::SyncScalingAction);
+DevSysexSetting menuDevSysexAllowed(RuntimeFeatureSettingType::DevSysexAllowed);
 Setting menuHighlightIncomingNotes(RuntimeFeatureSettingType::HighlightIncomingNotes);
 Setting menuDisplayNornsLayout(RuntimeFeatureSettingType::DisplayNornsLayout);
-DevSysexSetting menuDevSysexAllowed(RuntimeFeatureSettingType::DevSysexAllowed);
 
 Submenu subMenuAutomation{
     HAVE_OLED ? "AUTOMATION" : "AUTO",
@@ -59,17 +60,9 @@ Submenu subMenuAutomation{
 };
 
 std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettings> subMenuEntries{
-    &menuDrumRandomizer,
-    &menuMasterCompressorFx,
-    &menuFineTempo,
-    &menuQuantize,
-    &menuPatchCableResolution,
-    &menuCatchNotes,
-    &menuDeleteUnusedKitRows,
-    &menuAltGoldenKnobDelayParams,
-    &subMenuAutomation,
-    &menuDevSysexAllowed,
-    &menuHighlightIncomingNotes,
+    &menuDrumRandomizer,       &menuMasterCompressorFx, &menuFineTempo,           &menuQuantize,
+    &menuPatchCableResolution, &menuCatchNotes,         &menuDeleteUnusedKitRows, &menuAltGoldenKnobDelayParams,
+    &subMenuAutomation,        &menuDevSysexAllowed,    &menuSyncScalingAction,   &menuHighlightIncomingNotes,
     &menuDisplayNornsLayout,
 };
 

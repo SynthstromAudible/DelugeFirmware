@@ -239,6 +239,7 @@ private:
 	bool startIgnoringMidiClockInputIfNecessary();
 	uint32_t setTempoFromAudioClipLength(uint64_t loopLengthSamples, Action* action);
 	bool tryGlobalMIDICommands(MIDIDevice* device, int32_t channel, int32_t note);
+	bool tryGlobalMIDICommandsOff(MIDIDevice* device, int32_t channel, int32_t note);
 	void decideOnCurrentPlaybackMode();
 	float getCurrentInternalTickFloatFollowingExternalClock();
 	void scheduleTriggerClockOutTickParamsKnown(uint32_t analogOutTicksPer, uint64_t fractionLastTimerTick,
