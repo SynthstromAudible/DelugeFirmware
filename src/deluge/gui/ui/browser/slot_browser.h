@@ -25,18 +25,17 @@ class SlotBrowser : public Browser {
 public:
 	SlotBrowser();
 
-#if !HAVE_OLED
+	// 7SEG ONLY
 	void focusRegained();
 	ActionResult horizontalEncoderAction(int32_t offset);
-#endif
+
 	int32_t getCurrentFilePath(String* path);
 
 protected:
 	int32_t beginSlotSession(bool shouldDrawKeys = true, bool allowIfNoFolder = false);
 	void processBackspace();
 	//bool predictExtendedText();
-	virtual void predictExtendedTextFromMemory() {
-	}
+	virtual void predictExtendedTextFromMemory() {}
 	void convertToPrefixFormatIfPossible();
 	void enterKeyPress();
 	int32_t getCurrentFilenameWithoutExtension(String* filename);

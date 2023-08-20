@@ -42,6 +42,10 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 
 ## New behaviors
 
+### All views (Arrange, Song, Clip)
+
+ - ([#211]) Fill Mode is a new iteration/probability setting for notes. The FILL setting is at the start of the probability range, before 5%. Notes set to FILL are only played when fill mode is active. There are two ways to activate fill mode - set it as a Global MIDI Command and/or set it to override the front panel Sync Scaling button. For Global MIDI Commands go to SETTINGS > MIDI > CMD > FILL. To override the Sync Scaling button set SETTINGS > FEATURES > SYNC to FILL. The orignal Sync Scaling function is moved to SHIFT+SyncScaling.
+
 ### Song view
  - ([#251]) Add new grid session layout to "Song" mode. All functionality from (classic) row layout applies except for the following:
 	 - The data model of rows and grid mode are compatible, you can switch between them freely
@@ -80,6 +84,9 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 	 - A new in-key only layout that removes out of scale buttons
 	 - New way to change scale in keyboard mode: Hold scale and press selection knob
 	 - New way to change scale root note in keyboard mode: Hold scale and turn selection knob
+ - ([#250]) Added two new Community features entries
+	 - "Highlight incoming notes" makes In-Key and Isometric layout display incoming MIDI notes with their velocity
+	 - "Display Norns layout" renders all incoming notes consecutively as white pads with velocity as brightness
 
 #### Kit Clip View
  - ([#122]) Pressing "AUDITION + RANDOM" on a drum kit row will load a random sample from the same folder as the currently enabled sample and load it as the sound for that row. Currently limited to 25 files for performance reasons. This feature can be toggled in the [runtime features menu](#runtime-features).
@@ -128,7 +135,8 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 	- A community features sub-menu titled Automation was created to access a number of configurable settings for changes to existing behaviour.
 	- The three changes to existing behaviour included in this feature are: Clearing Clips, Nudging Notes and Shifting a Clip Horizontally.
  - Follow-up PR's: 
-	- ([#347]) Add new automatable parameters
+	- ([#347]) Added new automatable parameters
+ 	- ([#360]) Fixed interpolation bugs, added fine tuning for long presses, and added pad selection mode
 
 <h1 id="runtime-features">Runtime settings aka Community Features Menu</h1>
 
@@ -172,13 +180,15 @@ Support for sending and receiving large sysex messages has been added. Initially
 - ([#215]) Forward debug messages. This can be used as an alternative to RTT for print-style debugging.
 - ([#295]) Load firmware over USB. As this could be a security risk, it must be enabled in community feature settings
 
+### Set probability by row
+
+Extends the probability system to set a row at a time. Hold an audition pad and turn select to change the whole rows probability.
+This is particularly useful in combination with the euclidean sequencing to get a semi random pattern going
+
+
 ## Compiletime settings
 
 This list includes all preprocessor switches that can alter firmware behaviour at compile time and thus require a different firmware
-
-* HAVE_OLED
-
-    Currently determines if the built firmware is intended for OLED or 7SEG hardware
 
 * ENABLE_SYSEX_LOAD
 
@@ -202,11 +212,14 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#163]: https://github.com/SynthstromAudible/DelugeFirmware/pull/163
 [#178]: https://github.com/SynthstromAudible/DelugeFirmware/pull/178
 [#170]: https://github.com/SynthstromAudible/DelugeFirmware/pull/170
+[#211]: https://github.com/SynthstromAudible/DelugeFirmware/pull/211
 [#221]: https://github.com/SynthstromAudible/DelugeFirmware/pull/221
 [#234]: https://github.com/SynthstromAudible/DelugeFirmware/pull/234
 [#241]: https://github.com/SynthstromAudible/DelugeFirmware/pull/241
+[#250]: https://github.com/SynthstromAudible/DelugeFirmware/pull/250
 [#251]: https://github.com/SynthstromAudible/DelugeFirmware/pull/251
 [#282]: https://github.com/SynthstromAudible/DelugeFirmware/pull/282
 [#293]: https://github.com/SynthstromAudible/DelugeFirmware/pull/293
 [#347]: https://github.com/SynthstromAudible/DelugeFirmware/pull/347
+[#360]: https://github.com/SynthstromAudible/DelugeFirmware/pull/360
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/automation_view.md

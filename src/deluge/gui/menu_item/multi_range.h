@@ -39,12 +39,10 @@ protected:
 	             bool mayShowJustOne = true) override;
 	bool mayEditRangeEdge(RangeEdit whichEdge) override;
 
-#if HAVE_OLED
 	[[nodiscard]] std::string_view getTitle() const override {
-		return "Note range";
+		return l10n::getView(l10n::String::STRING_FOR_NOTE_RANGE);
 	};
 	void drawPixelsForOled() override;
-#endif
 };
 
 extern MultiRange multiRangeMenu;

@@ -297,6 +297,9 @@ constexpr int32_t kModFXBufferSize = 512;
 constexpr int32_t kModFXBufferIndexMask = (kModFXBufferSize - 1);
 constexpr int32_t kModFXMaxDelay = ((kModFXBufferSize - 1) << 16);
 
+constexpr int32_t kModFXGrainBufferSize = 65536;
+constexpr int32_t kModFXGrainBufferIndexMask = (kModFXGrainBufferSize - 1);
+
 constexpr int32_t kFlangerMinTime = (3 << 16);
 constexpr int32_t kFlangerAmplitude = (kModFXMaxDelay - kFlangerMinTime);
 constexpr int32_t kFlangerOffset = ((kModFXMaxDelay + kFlangerMinTime) >> 1);
@@ -362,15 +365,16 @@ constexpr PatchSource kFirstLocalSource = PatchSource::ENVELOPE_0;
 
 //Automation Instrument Clip View constants
 constexpr int32_t kNoLastSelectedParamID = 255;
-constexpr int32_t kNoLastSelectedParamShortcutX = 255;
-constexpr int32_t kNoLastSelectedParamShortcutY = 255;
+constexpr int32_t kNoLastSelectedParamShortcut = 255;
+constexpr int32_t kNoLastSelectedPad = 255;
 constexpr int32_t kNumNonKitAffectEntireParamsForAutomation = 55;
 constexpr int32_t kNumKitAffectEntireParamsForAutomation = 24;
 constexpr int32_t kLastMidiCCForAutomation = 121;
 constexpr int32_t kKnobPosOffset = 64;
-constexpr int32_t kMaxKnobPos = 127;
+constexpr int32_t kMaxKnobPos = 128;
 constexpr int32_t kParamValueIncrementForAutomationSinglePadPress = 18;
 constexpr int32_t kParamValueIncrementForAutomationDisplay = 16;
+constexpr int32_t kParamNodeWidth = 3;
 //
 
 // Linear params have different sources multiplied together, then multiplied by the neutral value
@@ -609,9 +613,10 @@ enum class ModFXType {
 	CHORUS,
 	PHASER,
 	CHORUS_STEREO,
+	GRAIN,
 };
 
-constexpr int32_t kNumModFXTypes = util::to_underlying(ModFXType::CHORUS_STEREO) + 1;
+constexpr int32_t kNumModFXTypes = util::to_underlying(ModFXType::GRAIN) + 1;
 
 constexpr int32_t SAMPLE_MAX_TRANSPOSE = 24;
 constexpr int32_t SAMPLE_MIN_TRANSPOSE = (-96);
@@ -744,8 +749,10 @@ enum class GlobalMIDICommand {
 	LOOP_CONTINUOUS_LAYERING,
 	UNDO,
 	REDO,
+	FILL,
+	LAST, // Keep as boundary
 };
-constexpr auto kNumGlobalMIDICommands = util::to_underlying(GlobalMIDICommand::REDO) + 1;
+constexpr auto kNumGlobalMIDICommands = util::to_underlying(GlobalMIDICommand::LAST) + 1;
 
 enum class MIDITakeoverMode : uint8_t {
 	JUMP,
@@ -783,6 +790,8 @@ enum class ArmState {
 };
 
 constexpr int32_t kNumProbabilityValues = 20;
+constexpr int32_t kNumIterationValues = 35; // 1of2 to 8of8
+constexpr int32_t kFillProbabilityValue = 0;
 constexpr int32_t kDefaultLiftValue = 64;
 
 enum Navigation {
@@ -1061,12 +1070,6 @@ enum class IndependentNoteRowLengthIncrease {
 constexpr int32_t DIR_FileSize = 28 /* File size (DWORD) */;
 
 constexpr int32_t kMaxNumUnsignedIntegerstoRepAllParams = 2;
-
-#if HAVE_OLED
-constexpr int32_t kNumBrowserAndMenuLines = 3;
-#else
-constexpr int32_t kNumBrowserAndMenuLines = 1;
-#endif
 
 constexpr int32_t kDefaultCalculateRootNote = std::numeric_limits<int32_t>::max();
 

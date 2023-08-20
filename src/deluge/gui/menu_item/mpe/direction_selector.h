@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "gui/l10n/l10n.h"
 #include "gui/menu_item/selection.h"
 #include "zone_selector.h"
 
@@ -26,16 +27,21 @@ class DirectionSelector final : public Selection<2> {
 public:
 	using Selection::Selection;
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
-	static_vector<std::string, capacity()> getOptions() override { return {"In", "Out"}; }
+	static_vector<std::string_view, capacity()> getOptions() override {
+		using enum l10n::String;
+		return {
+		    l10n::getView(STRING_FOR_IN),
+		    l10n::getView(STRING_FOR_OUT),
+		};
+	}
 	void readCurrentValue() override { this->setValue(whichDirection); }
 	void writeCurrentValue() override { whichDirection = this->getValue(); }
 	MenuItem* selectButtonPress() override;
 	uint8_t whichDirection;
-#if HAVE_OLED
 	[[nodiscard]] std::string_view getTitle() const override {
-		return whichDirection ? "MPE output" : "MPE input";
+		return whichDirection ? l10n::getView(l10n::String::STRING_FOR_MPE_OUTPUT)
+		                      : l10n::getView(l10n::String::STRING_FOR_MPE_INPUT);
 	}
-#endif
 };
 
 extern DirectionSelector directionSelectorMenu;

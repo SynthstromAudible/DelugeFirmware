@@ -30,7 +30,9 @@ public:
 	void writeCurrentValue() override {
 		soundEditor.currentModControllable->filterRoute = this->getValue<::FilterRoute>();
 	}
-	static_vector<std::string, capacity()> getOptions() override { return {"HPF2LPF", "LPF2HPF", "PARALLEL"}; }
+	static_vector<std::string_view, capacity()> getOptions() override {
+		return {"HPF2LPF", "LPF2HPF", l10n::getView(l10n::String::STRING_FOR_PARALLEL)};
+	}
 	bool isRelevant(Sound* sound, int32_t whichThing) override {
 		return ((sound == nullptr) || sound->synthMode != ::SynthMode::FM);
 	}

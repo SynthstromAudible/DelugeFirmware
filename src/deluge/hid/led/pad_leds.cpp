@@ -29,7 +29,7 @@
 #include "gui/views/view.h"
 #include "gui/waveform/waveform_render_data.h"
 #include "gui/waveform/waveform_renderer.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
@@ -438,7 +438,7 @@ void setupAudioClipCollapseOrExplodeAnimation(AudioClip* clip) {
 	Sample* sample = (Sample*)clip->sampleHolder.audioFile;
 
 	if (ALPHA_OR_BETA_VERSION && !sample) {
-		numericDriver.freezeWithError("E311");
+		display->freezeWithError("E311");
 	}
 
 	sampleMaxPeakFromZero = sample->getMaxPeakFromZero();
@@ -713,7 +713,7 @@ void changeRefreshTime(int32_t offset) {
 	setRefreshTime(newTime);
 	char buffer[12];
 	intToString(refreshTime, buffer);
-	numericDriver.displayPopup(buffer);
+	display->displayPopup(buffer);
 }
 
 void changeDimmerInterval(int32_t offset) {
@@ -723,16 +723,16 @@ void changeDimmerInterval(int32_t offset) {
 		setDimmerInterval(newInterval);
 	}
 
-#if HAVE_OLED
-	char text[20];
-	strcpy(text, "Brightness: ");
-	char* pos = strchr(text, 0);
-	intToString((25 - dimmerInterval) << 2, pos);
-	pos = strchr(text, 0);
-	*(pos++) = '%';
-	*pos = 0;
-	OLED::popupText(text);
-#endif
+	if (display->haveOLED()) {
+		char text[20];
+		strcpy(text, "Brightness: ");
+		char* pos = strchr(text, 0);
+		intToString((25 - dimmerInterval) << 2, pos);
+		pos = strchr(text, 0);
+		*(pos++) = '%';
+		*pos = 0;
+		deluge::hid::display::OLED::popupText(text, false);
+	}
 }
 
 void setDimmerInterval(int32_t newInterval) {

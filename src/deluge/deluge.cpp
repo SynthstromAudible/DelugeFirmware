@@ -53,8 +53,8 @@
 #include "gui/waveform/waveform_basic_navigator.h"
 #include "gui/waveform/waveform_renderer.h"
 #include "hid/buttons.h"
-#include "hid/display/numeric_driver.h"
-#include "hid/display/oled.h"
+#include "hid/display/display.h"
+#include "hid/display/seven_segment.h"
 #include "hid/encoder.h"
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
@@ -302,12 +302,12 @@ bool readButtonsAndPads() {
 
 			Debug::println("");
 			Debug::println("undoing");
-			Buttons::buttonAction(hid::button::BACK, true, sdRoutineLock);
+			Buttons::buttonAction(deluge::hid::button::BACK, true, sdRoutineLock);
 		}
 		else {
 			Debug::println("");
 			Debug::println("beginning playback");
-			Buttons::buttonAction(hid::button::PLAY, true, sdRoutineLock);
+			Buttons::buttonAction(deluge::hid::button::PLAY, true, sdRoutineLock);
 		}
 
 		int32_t random = getRandom255();
@@ -334,7 +334,7 @@ bool readButtonsAndPads() {
 				 */
 			}
 			else {
-				auto b = hid::Button(value);
+				auto b = deluge::hid::Button(value);
 				result = Buttons::buttonAction(b, thisPadPressIsOn, sdRoutineLock);
 			}
 
@@ -357,19 +357,17 @@ bool readButtonsAndPads() {
 				Buttons::noPressesHappening(sdRoutineLock);
 			}
 		}
-#if HAVE_OLED
-		else if (util::to_underlying(value) == oledWaitingForMessage) {
+		else if (util::to_underlying(value) == oledWaitingForMessage && display->haveOLED()) {
 			uiTimerManager.setTimer(TIMER_OLED_LOW_LEVEL, 3);
 		}
-#endif
 	}
 
 #if SD_TEST_MODE_ENABLED_LOAD_SONGS
 
 	if (playbackHandler.currentlyPlaying) {
 		if (getCurrentUI()->isViewScreen()) {
-			Buttons::buttonAction(hid::button::LOAD, true);
-			Buttons::buttonAction(hid::button::LOAD, false);
+			Buttons::buttonAction(deluge::hid::button::LOAD, true);
+			Buttons::buttonAction(deluge::hid::button::LOAD, false);
 			alreadyDoneScroll = false;
 		}
 		else if (getCurrentUI() == &loadSongUI && currentUIMode == noSubMode) {
@@ -378,8 +376,8 @@ bool readButtonsAndPads() {
 				alreadyDoneScroll = true;
 			}
 			else {
-				Buttons::buttonAction(hid::button::LOAD, true);
-				Buttons::buttonAction(hid::button::LOAD, false);
+				Buttons::buttonAction(deluge::hid::button::LOAD, true);
+				Buttons::buttonAction(deluge::hid::button::LOAD, false);
 			}
 		}
 	}
@@ -392,7 +390,7 @@ bool readButtonsAndPads() {
 		preLoadedSong = NULL;
 
 		if (random0 < 64 && getCurrentUI() == &instrumentClipView) {
-			Buttons::buttonAction(hid::button::song, true);
+			Buttons::buttonAction(deluge::hid::button::song, true);
 		}
 
 		else if (random0 < 120)
@@ -456,9 +454,9 @@ void setUIForLoadedSong(Song* song) {
 	setRootUILowLevel(newUI);
 
 	getCurrentUI()->opened();
-#if HAVE_OLED
-	renderUIsForOled();
-#endif
+	if (display->haveOLED()) {
+		renderUIsForOled();
+	}
 }
 
 void setupBlankSong() {
@@ -482,6 +480,29 @@ void setupBlankSong() {
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 }
 
+void setupOLED() {
+	//delayMS(10);
+
+	// Set up 8-bit
+	RSPI0.SPDCR = 0x20u;               // 8-bit
+	RSPI0.SPCMD0 = 0b0000011100000010; // 8-bit
+	RSPI0.SPBFCR.BYTE = 0b01100000;    //0b00100000;
+
+	PIC::setDCLow();
+	PIC::enableOLED();
+	PIC::selectOLED();
+	PIC::flush();
+
+	delayMS(5);
+
+	oledMainInit();
+
+	//delayMS(5);
+
+	PIC::deselectOLED();
+	PIC::flush();
+}
+
 extern "C" void usb_pstd_pcd_task(void);
 extern "C" void usb_cstd_usb_task(void);
 
@@ -490,12 +511,14 @@ extern "C" volatile uint32_t usbLock;
 extern "C" void usb_main_host(void);
 
 extern "C" int32_t deluge_main(void) {
+	// Piggyback off of bootloader DMA setup.
+	uint32_t oledSPIDMAConfig = (0b1101000 | (OLED_SPI_DMA_CHANNEL & 7));
+	bool have_oled = ((DMACn(OLED_SPI_DMA_CHANNEL).CHCFG_n & oledSPIDMAConfig) == oledSPIDMAConfig);
 
 	// Give the PIC some startup instructions
-
-#if HAVE_OLED
-	PIC::enableOLED();
-#endif
+	if (have_oled) {
+		PIC::enableOLED();
+	}
 
 	PIC::setDebounce(20); // Set debounce time (mS) to...
 
@@ -545,26 +568,28 @@ extern "C" int32_t deluge_main(void) {
 	// SPI for CV
 	R_RSPI_Create(
 	    SPI_CHANNEL_CV,
-#if HAVE_OLED
-	    10000000, // Higher than this would probably work... but let's stick to the OLED datasheet's spec of 100ns (10MHz).
-#else
-	    30000000,
-#endif
+	    have_oled
+	        ? 10000000 // Higher than this would probably work... but let's stick to the OLED datasheet's spec of 100ns (10MHz).
+	        : 30000000,
 	    0, 32);
 	R_RSPI_Start(SPI_CHANNEL_CV);
 	setPinMux(SPI_CLK.port, SPI_CLK.pin, 3);   // CLK
 	setPinMux(SPI_MOSI.port, SPI_MOSI.pin, 3); // MOSI
-#if !HAVE_OLED
-	setPinMux(SPI_SSL.port, SPI_SSL.pin, 3); // SSL
-#else
-	// If OLED sharing SPI channel, have to manually control SSL pin.
-	setOutputState(6, 1, true);
-	setPinAsOutput(6, 1);
 
-	setupSPIInterrupts();
-	oledDMAInit();
+	if (have_oled) {
+		// If OLED sharing SPI channel, have to manually control SSL pin.
+		setOutputState(SPI_SSL.port, SPI_SSL.pin, true);
+		setPinAsOutput(SPI_SSL.port, SPI_SSL.pin);
 
-#endif
+		setupSPIInterrupts();
+		oledDMAInit();
+		setupOLED(); // Set up OLED now
+		display = new deluge::hid::display::OLED;
+	}
+	else {
+		setPinMux(SPI_SSL.port, SPI_SSL.pin, 3); // SSL
+		display = new deluge::hid::display::SevenSegment;
+	}
 
 	// Setup audio output on SSI0
 	ssiInit(0, 1);
@@ -597,31 +622,6 @@ extern "C" int32_t deluge_main(void) {
 #endif
 
 	audioFileManager.init();
-
-	// Set up OLED now
-#if HAVE_OLED
-
-	//delayMS(10);
-
-	// Set up 8-bit
-	RSPI0.SPDCR = 0x20u;               // 8-bit
-	RSPI0.SPCMD0 = 0b0000011100000010; // 8-bit
-	RSPI0.SPBFCR.BYTE = 0b01100000;    //0b00100000;
-
-	PIC::setDCLow();
-	PIC::enableOLED();
-	PIC::selectOLED();
-	PIC::flush();
-
-	delayMS(5);
-
-	oledMainInit();
-
-	//delayMS(5);
-
-	PIC::deselectOLED();
-	PIC::flush();
-#endif
 
 	// Setup SPIBSC. Crucial that this only be done now once everything else is running, because I've injected graphics and audio routines into the SPIBSC wait routines, so that
 	// has to be running
@@ -664,11 +664,7 @@ extern "C" int32_t deluge_main(void) {
 
 		case RESET_SETTINGS:
 			if (looksOk) {
-#if HAVE_OLED
-				OLED::consoleText("Factory reset");
-#else
-				numericDriver.displayPopup("RESET");
-#endif
+				display->consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_FACTORY_RESET));
 				FlashStorage::resetSettings();
 				FlashStorage::writeSettings();
 			}
@@ -748,7 +744,7 @@ extern "C" int32_t deluge_main(void) {
 
 	while (true) {
 
-		numericDriver.setTextAsNumber(count);
+		display->setTextAsNumber(count);
 
 		int32_t fileNumber = (uint32_t)getNoise() % 10000;
 		int32_t fileSize = (uint32_t)getNoise() % 1000000;
@@ -759,7 +755,7 @@ extern "C" int32_t deluge_main(void) {
 
 		result = f_open(&fil, fileName, FA_CREATE_ALWAYS | FA_WRITE);
 		if (result) {
-			numericDriver.setText("AAAA");
+			display->setText("AAAA");
 			while (1) {}
 		}
 
@@ -770,7 +766,7 @@ extern "C" int32_t deluge_main(void) {
 			result = f_write(&fil, &miscStringBuffer, 256, &bytesWritten);
 
 			if (bytesWritten != 256) {
-				numericDriver.setText("BBBB");
+				display->setText("BBBB");
 				while (1) {}
 			}
 
@@ -795,9 +791,9 @@ extern "C" int32_t deluge_main(void) {
 		uiTimerManager.routine();
 
 		// Flush stuff - we just have to do this, regularly
-#if HAVE_OLED
-		oledRoutine();
-#endif
+		if (display->haveOLED()) {
+			oledRoutine();
+		}
 		PIC::flush();
 
 		AudioEngine::routineWithClusterLoading(true); // -----------------------------------
@@ -858,9 +854,9 @@ extern "C" void routineForSD(void) {
 
 	uiTimerManager.routine();
 
-#if HAVE_OLED
-	oledRoutine();
-#endif
+	if (display->haveOLED()) {
+		oledRoutine();
+	}
 	PIC::flush();
 
 	Encoders::readEncoders();
@@ -882,15 +878,13 @@ extern "C" void loadAnyEnqueuedClustersRoutine() {
 	audioFileManager.loadAnyEnqueuedClusters();
 }
 
-#if !HAVE_OLED
 extern "C" void setNumeric(char* text) {
-	numericDriver.setText(text);
+	display->setText(text);
 }
 
 extern "C" void setNumericNumber(int32_t number) {
-	numericDriver.setTextAsNumber(number);
+	display->setTextAsNumber(number);
 }
-#endif
 
 extern "C" void routineWithClusterLoading() {
 	AudioEngine::routineWithClusterLoading(false);
@@ -971,7 +965,7 @@ void redrawSpamDisplay() {
 		break;
 	}
 
-	numericDriver.setText(thingName, false, spamStates[currentSpamThing] ? 3 : 255);
+	display->setText(thingName, false, spamStates[currentSpamThing] ? 3 : 255);
 }
 
 void spamMode() {

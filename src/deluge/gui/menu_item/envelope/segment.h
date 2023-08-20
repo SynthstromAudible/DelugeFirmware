@@ -22,7 +22,7 @@
 namespace deluge::gui::menu_item::envelope {
 class Segment : public source::PatchedParam, public FormattedTitle {
 public:
-	Segment(const std::string& name, const fmt::format_string<int32_t>& title_format_str, int32_t newP)
+	Segment(l10n::String name, l10n::String title_format_str, int32_t newP)
 	    : PatchedParam(name, newP), FormattedTitle(title_format_str) {}
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }

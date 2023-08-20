@@ -12,8 +12,6 @@ public:
 	void selectEncoderAction(int32_t offset) override;
 
 	virtual void drawValue();
-#if HAVE_OLED
 	void drawPixelsForOled();
-#endif
 };
 } // namespace deluge::gui::menu_item

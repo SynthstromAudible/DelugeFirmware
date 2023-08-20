@@ -21,16 +21,11 @@ namespace deluge::gui::menu_item::patched_param {
 class Pan : public Integer {
 public:
 	using Integer::Integer;
-#if !HAVE_OLED
 	void drawValue() override;
-#endif
+
 protected:
-	[[nodiscard]] int32_t getMaxValue() const override {
-		return 32;
-	}
-	[[nodiscard]] int32_t getMinValue() const override {
-		return -32;
-	}
+	[[nodiscard]] int32_t getMaxValue() const override { return 32; }
+	[[nodiscard]] int32_t getMinValue() const override { return -32; }
 	int32_t getFinalValue() override;
 	void readCurrentValue() override;
 };

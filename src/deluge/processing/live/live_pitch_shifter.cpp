@@ -18,13 +18,14 @@
 #include "processing/live/live_pitch_shifter.h"
 #include "definitions_cxx.hpp"
 #include "dsp/timestretch/time_stretcher.h"
+#include "hid/display/display.h"
 #include "io/debug/print.h"
 #include "memory/general_memory_allocator.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/live/live_input_buffer.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
-#include <stdlib.h>
+#include <cstdlib>
 
 //#define MEASURE_HOP_END_PERFORMANCE 1
 
@@ -76,7 +77,7 @@ void LivePitchShifter::render(int32_t* __restrict__ outputBuffer, int32_t numSam
 
 	LiveInputBuffer* liveInputBuffer = AudioEngine::getOrCreateLiveInputBuffer(inputType, false);
 	if (ALPHA_OR_BETA_VERSION && !liveInputBuffer) {
-		numericDriver.freezeWithError("E165");
+		display->freezeWithError("E165");
 	}
 
 	liveInputBuffer->giveInput(numSamplesThisFunctionCall, AudioEngine::audioSampleTimer, inputType);
@@ -370,7 +371,7 @@ void LivePitchShifter::hopEnd(int32_t phaseIncrement, LiveInputBuffer* liveInput
 	//Debug::println(numRawSamplesProcessedAtNowTime);
 	if (crossfadeProgress < 16777216) {
 		Debug::println("last crossfade not finished");
-		//if (ALPHA_OR_BETA_VERSION) numericDriver.freezeWithError("FADE");
+		//if (ALPHA_OR_BETA_VERSION) display->freezeWithError("FADE");
 	}
 	//Debug::println(phaseIncrement);
 

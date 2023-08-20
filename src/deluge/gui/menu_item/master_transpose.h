@@ -44,27 +44,16 @@ public:
 	MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive = false) override {
 		return PatchedParam::patchingSourceShortcutPress(s, previousPressStillActive);
 	}
-#if !HAVE_OLED
-	void drawValue() override {
-		numericDriver.setTextAsNumber(this->getValue(), shouldDrawDotOnName());
-	}
-#endif
 
-	void unlearnAction() override {
-		MenuItemWithCCLearning::unlearnAction();
-	}
-	bool allowsLearnMode() override {
-		return MenuItemWithCCLearning::allowsLearnMode();
-	}
+	void drawValue() override { display->setTextAsNumber(this->getValue(), shouldDrawDotOnName()); }
+
+	void unlearnAction() override { MenuItemWithCCLearning::unlearnAction(); }
+	bool allowsLearnMode() override { return MenuItemWithCCLearning::allowsLearnMode(); }
 	void learnKnob(MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) override {
 		MenuItemWithCCLearning::learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel);
 	};
 
-	[[nodiscard]] int32_t getMinValue() const override {
-		return -96;
-	}
-	[[nodiscard]] int32_t getMaxValue() const override {
-		return 96;
-	}
+	[[nodiscard]] int32_t getMinValue() const override { return -96; }
+	[[nodiscard]] int32_t getMaxValue() const override { return 96; }
 };
 } // namespace deluge::gui::menu_item

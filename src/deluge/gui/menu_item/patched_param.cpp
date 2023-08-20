@@ -22,7 +22,6 @@
 #include "gui/menu_item/source_selection/regular.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/buttons.h"
-#include "hid/display/numeric_driver.h"
 #include "hid/matrix/matrix_driver.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
@@ -44,21 +43,9 @@ MenuItem* PatchedParam::selectButtonPress() {
 	if (Buttons::isShiftButtonPressed()) {
 		return Param::selectButtonPress();
 	}
-	else {
-#if 0 && HAVE_OLED
-		return NULL;
-#else
-		soundEditor.patchingParamSelected = this->getP();
-		return &source_selection::regularMenu;
-#endif
-	}
+	soundEditor.patchingParamSelected = this->getP();
+	return &source_selection::regularMenu;
 }
-
-// #if !HAVE_OLED
-// void PatchedParam::drawValue() {
-// 	numericDriver.setTextAsNumber(soundEditor.currentValue, shouldDrawDotOnName());
-// }
-// #endif
 
 uint8_t PatchedParam::shouldDrawDotOnName() {
 	ParamDescriptor paramDescriptor{};

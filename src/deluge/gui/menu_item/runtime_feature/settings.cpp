@@ -20,8 +20,7 @@
 #include "setting.h"
 
 #include "gui/ui/sound_editor.h"
-#include "hid/display/numeric_driver.h"
-
+#include "hid/display/display.h"
 #include <algorithm>
 #include <array>
 #include <cstdio>
@@ -44,10 +43,13 @@ Setting menuAutomationInterpolate(RuntimeFeatureSettingType::AutomationInterpola
 Setting menuAutomationClearClip(RuntimeFeatureSettingType::AutomationClearClip);
 Setting menuAutomationNudgeNote(RuntimeFeatureSettingType::AutomationNudgeNote);
 Setting menuAutomationShiftClip(RuntimeFeatureSettingType::AutomationShiftClip);
+Setting menuSyncScalingAction(RuntimeFeatureSettingType::SyncScalingAction);
 DevSysexSetting menuDevSysexAllowed(RuntimeFeatureSettingType::DevSysexAllowed);
+Setting menuHighlightIncomingNotes(RuntimeFeatureSettingType::HighlightIncomingNotes);
+Setting menuDisplayNornsLayout(RuntimeFeatureSettingType::DisplayNornsLayout);
 
 Submenu subMenuAutomation{
-    HAVE_OLED ? "AUTOMATION" : "AUTO",
+    l10n::String::STRING_FOR_AUTOMATION,
     {
         &menuAutomationInterpolate,
         &menuAutomationClearClip,
@@ -59,10 +61,11 @@ Submenu subMenuAutomation{
 std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettings> subMenuEntries{
     &menuDrumRandomizer,       &menuMasterCompressorFx, &menuFineTempo,           &menuQuantize,
     &menuPatchCableResolution, &menuCatchNotes,         &menuDeleteUnusedKitRows, &menuAltGoldenKnobDelayParams,
-    &subMenuAutomation,        &menuDevSysexAllowed,
+    &subMenuAutomation,        &menuDevSysexAllowed,    &menuSyncScalingAction,   &menuHighlightIncomingNotes,
+    &menuDisplayNornsLayout,
 };
 
-Settings::Settings(char const* name, char const* title)
+Settings::Settings(l10n::String name, l10n::String title)
     : menu_item::Submenu<subMenuEntries.size()>(name, title, subMenuEntries) {
 }
 

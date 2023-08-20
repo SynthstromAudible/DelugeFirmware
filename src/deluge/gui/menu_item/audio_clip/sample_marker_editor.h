@@ -23,7 +23,7 @@ namespace deluge::gui::menu_item::audio_clip {
 
 class SampleMarkerEditor final : public MenuItem {
 public:
-	SampleMarkerEditor(char const* newName = nullptr, MarkerType newWhichMarker = MarkerType::START)
+	SampleMarkerEditor(l10n::String newName, MarkerType newWhichMarker = MarkerType::START)
 	    : MenuItem(newName), whichMarker(newWhichMarker) {}
 
 	virtual MenuPermission checkPermissionToBeginSession(Sound* sound, int32_t whichThing, MultiRange** currentRange);

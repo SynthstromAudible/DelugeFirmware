@@ -18,14 +18,13 @@
 #include "gui/menu_item/decimal.h"
 #include "gui/menu_item/formatted_title.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/oled.h"
+#include "hid/display/display.h"
 #include "processing/engines/cv_engine.h"
 
 namespace deluge::gui::menu_item::cv {
 class Volts final : public Decimal, public FormattedTitle {
 public:
-	Volts(const std::string& name, const fmt::format_string<int32_t>& title_format_str)
-	    : Decimal(name), FormattedTitle(title_format_str) {}
+	Volts(l10n::String name, l10n::String title_format_str) : Decimal(name), FormattedTitle(title_format_str) {}
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
@@ -39,26 +38,25 @@ public:
 	void writeCurrentValue() override {
 		cvEngine.setCVVoltsPerOctave(soundEditor.currentSourceIndex, this->getValue());
 	}
-#if HAVE_OLED
 	void drawPixelsForOled() override {
 		if (this->getValue() == 0) {
-			OLED::drawStringCentred("Hz/V", 20, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextHugeSpacingX,
-			                        kTextHugeSizeY);
+			deluge::hid::display::OLED::drawStringCentred("Hz/V", 20, deluge::hid::display::OLED::oledMainImage[0],
+			                                              OLED_MAIN_WIDTH_PIXELS, kTextHugeSpacingX, kTextHugeSizeY);
 		}
 		else {
 			Decimal::drawPixelsForOled();
 		}
 	}
-#else
+
 	void drawValue() override {
 		if (this->getValue() == 0) {
-			numericDriver.setText("HZPV", false, 255, true);
+			display->setText("HZPV", false, 255, true);
 		}
 		else {
 			Decimal::drawValue();
 		}
 	}
-#endif
+
 	void horizontalEncoderAction(int32_t offset) override {
 		if (this->getValue() != 0) {
 			Decimal::horizontalEncoderAction(offset);

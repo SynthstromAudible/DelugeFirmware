@@ -47,7 +47,7 @@ public:
 	bool opened();
 	void focusRegained();
 
-	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
 	ActionResult horizontalEncoderAction(int32_t offset);
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
@@ -93,11 +93,10 @@ public:
 	void modEncoderAction(int32_t whichModEncoder, int32_t offset);
 	ActionResult verticalScrollOneSquare(int32_t direction);
 
-#if HAVE_OLED
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
-#else
+
+	// 7SEG only
 	void redrawNumericDisplay();
-#endif
 
 	uint32_t selectedClipTimePressed;
 	uint8_t selectedClipYDisplay;      // Where the clip is on screen
@@ -150,13 +149,9 @@ private:
 	int32_t gridSecondPressedX = -1;
 	int32_t gridSecondPressedY = -1;
 
-	inline bool gridFirstPadActive() {
-		return (gridFirstPressedX != -1 && gridFirstPressedY != -1);
-	}
+	inline bool gridFirstPadActive() { return (gridFirstPressedX != -1 && gridFirstPressedY != -1); }
 
-	inline bool gridSecondPadInactive() {
-		return (gridSecondPressedX == -1 && gridSecondPressedY == -1);
-	}
+	inline bool gridSecondPadInactive() { return (gridSecondPressedX == -1 && gridSecondPressedY == -1); }
 
 	inline void gridResetPresses(bool first = true, bool second = true) {
 		if (first) {

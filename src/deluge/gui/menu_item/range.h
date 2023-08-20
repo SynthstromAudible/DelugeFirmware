@@ -43,8 +43,7 @@ protected:
 	void drawValue(int32_t startPos, bool renderSidebarToo = true);
 	void drawValueForEditingRange(bool blinkImmediately);
 
-#if HAVE_OLED
+	//OLED ONLY
 	void drawPixelsForOled();
-#endif
 };
 } // namespace deluge::gui::menu_item

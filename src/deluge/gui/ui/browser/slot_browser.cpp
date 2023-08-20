@@ -16,7 +16,7 @@
  */
 
 #include "gui/ui/browser/slot_browser.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "io/debug/print.h"
@@ -63,7 +63,6 @@ int32_t SlotBrowser::beginSlotSession(bool shouldDrawKeys, bool allowIfNoFolder)
 	return NO_ERROR;
 }
 
-#if !HAVE_OLED
 void SlotBrowser::focusRegained() {
 	displayText(false);
 }
@@ -73,50 +72,48 @@ ActionResult SlotBrowser::horizontalEncoderAction(int32_t offset) {
 	if (!isNoUIModeActive()) {
 		return ActionResult::DEALT_WITH;
 	}
-#if !HAVE_OLED
-	FileItem* currentFileItem = getCurrentFileItem();
-	if (currentFileItem) {
-		// See if it's numeric. Here, filename has already had prefix removed if it's numeric.
+	if (display->have7SEG()) {
+		FileItem* currentFileItem = getCurrentFileItem();
+		if (currentFileItem) {
+			// See if it's numeric. Here, filename has already had prefix removed if it's numeric.
 
-		Slot thisSlot = getSlot(enteredText.get());
-		if (thisSlot.slot < 0) {
-			goto nonNumeric;
-		}
+			Slot thisSlot = getSlot(enteredText.get());
+			if (thisSlot.slot < 0) {
+				goto nonNumeric;
+			}
 
-		numberEditPos -= offset;
-		if (numberEditPos > 2) {
-			numberEditPos = 2;
-		}
-		else if (numberEditPos < -1) {
-			numberEditPos = -1;
-		}
+			numberEditPos -= offset;
+			if (numberEditPos > 2) {
+				numberEditPos = 2;
+			}
+			else if (numberEditPos < -1) {
+				numberEditPos = -1;
+			}
 
-		displayText(numberEditPos >= 0);
-		return ActionResult::DEALT_WITH;
+			displayText(numberEditPos >= 0);
+			return ActionResult::DEALT_WITH;
+		}
 	}
-
-	else
-#endif
 	{
 nonNumeric:
-#if HAVE_OLED // Maintain consistency with before - don't do this on numeric.
-		qwertyVisible = true;
-#endif
+		if (display->haveOLED()) { // Maintain consistency with before - don't do this on numeric
+			qwertyVisible = true;
+		}
 		return Browser::horizontalEncoderAction(offset);
 	}
 }
-#endif
 
 void SlotBrowser::processBackspace() {
 	Browser::processBackspace();
-#if HAVE_OLED
-	if (fileIndexSelected == -1) {
-		predictExtendedText();
+	if (display->haveOLED()) {
+		if (fileIndexSelected == -1) {
+			predictExtendedText();
+		}
 	}
-#else
-	//currentFileExists = false;
-	currentFileHasSuffixFormatNameImplied = false;
-#endif
+	else {
+		//currentFileExists = false;
+		currentFileHasSuffixFormatNameImplied = false;
+	}
 }
 
 void SlotBrowser::enterKeyPress() {
@@ -181,31 +178,33 @@ void SlotBrowser::convertToPrefixFormatIfPossible() {
 
 int32_t SlotBrowser::getCurrentFilenameWithoutExtension(String* filenameWithoutExtension) {
 	int32_t error;
-#if !HAVE_OLED
-	// If numeric...
-	Slot slot = getSlot(enteredText.get());
-	if (slot.slot != -1) {
-		error = filenameWithoutExtension->set(filePrefix);
-		if (error) {
-			return error;
-		}
-		error = filenameWithoutExtension->concatenateInt(slot.slot, 3);
-		if (error) {
-			return error;
-		}
-		if (slot.subSlot != -1) {
-			char buffer[2];
-			buffer[0] = 'A' + slot.subSlot;
-			buffer[1] = 0;
-			error = filenameWithoutExtension->concatenate(buffer);
+	if (display->have7SEG()) {
+		// If numeric...
+		Slot slot = getSlot(enteredText.get());
+		if (slot.slot != -1) {
+			error = filenameWithoutExtension->set(filePrefix);
 			if (error) {
 				return error;
 			}
+			error = filenameWithoutExtension->concatenateInt(slot.slot, 3);
+			if (error) {
+				return error;
+			}
+			if (slot.subSlot != -1) {
+				char buffer[2];
+				buffer[0] = 'A' + slot.subSlot;
+				buffer[1] = 0;
+				error = filenameWithoutExtension->concatenate(buffer);
+				if (error) {
+					return error;
+				}
+			}
+		}
+		else {
+			filenameWithoutExtension->set(&enteredText);
 		}
 	}
-	else
-#endif
-	{
+	else {
 		filenameWithoutExtension->set(&enteredText);
 	}
 

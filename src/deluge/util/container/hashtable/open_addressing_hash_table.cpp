@@ -17,7 +17,7 @@
 
 #include "util/container/hashtable/open_addressing_hash_table.h"
 #include "definitions_cxx.hpp"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "io/debug/print.h"
 #include "memory/general_memory_allocator.h"
 #include "util/functions.h"
@@ -88,7 +88,7 @@ void* OpenAddressingHashTable::insert(uint32_t key, bool* onlyIfNotAlreadyPresen
 
 #if ALPHA_OR_BETA_VERSION
 	if (doesKeyIndicateEmptyBucket(key)) {
-		numericDriver.freezeWithError("E330");
+		display->freezeWithError("E330");
 	}
 #endif
 
@@ -197,7 +197,7 @@ void* OpenAddressingHashTable::lookup(uint32_t key) {
 
 #if ALPHA_OR_BETA_VERSION
 	if (doesKeyIndicateEmptyBucket(key)) {
-		numericDriver.freezeWithError("E331");
+		display->freezeWithError("E331");
 	}
 #endif
 
@@ -238,7 +238,7 @@ bool OpenAddressingHashTable::remove(uint32_t key) {
 
 #if ALPHA_OR_BETA_VERSION
 	if (doesKeyIndicateEmptyBucket(key)) {
-		numericDriver.freezeWithError("E332");
+		display->freezeWithError("E332");
 	}
 #endif
 
