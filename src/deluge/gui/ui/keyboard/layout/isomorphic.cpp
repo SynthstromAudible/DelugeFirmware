@@ -20,6 +20,7 @@
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/sound_editor.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "util/functions.h"
 #include <limits>
 
@@ -110,6 +111,13 @@ void KeyboardLayoutIsomorphic::renderPads(uint8_t image[][kDisplayWidth + kSideB
 			if (octaveActiveNotes[noteWithinOctave] || noteWithinOctave == 0) {
 				memcpy(image[y][x], noteColours[normalizedPadOffset], 3);
 			}
+			// If highlighting notes is active, do it
+			else if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::HighlightIncomingNotes)
+			             == RuntimeFeatureStateToggle::On
+			         && getHighlightedNotes()[noteCode] != 0) {
+				colorCopy(image[y][x], noteColours[normalizedPadOffset], getHighlightedNotes()[noteCode], 1);
+			}
+
 			// Or, if this note is just within the current scale, show it dim
 			else if (octaveScaleNotes[noteWithinOctave]) {
 				getTailColour(image[y][x], noteColours[normalizedPadOffset]);
