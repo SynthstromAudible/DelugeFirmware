@@ -712,6 +712,7 @@ midi::Command undoMidiCommand{STRING_FOR_UNDO, GlobalMIDICommand::UNDO};
 midi::Command redoMidiCommand{STRING_FOR_REDO, GlobalMIDICommand::REDO};
 midi::Command loopMidiCommand{STRING_FOR_LOOP, GlobalMIDICommand::LOOP};
 midi::Command loopContinuousLayeringMidiCommand{STRING_FOR_LAYERING_LOOP, GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING};
+midi::Command fillMidiCommand{STRING_FOR_FILL, GlobalMIDICommand::FILL};
 
 Submenu midiCommandsMenu{
     STRING_FOR_COMMANDS,
@@ -725,6 +726,7 @@ Submenu midiCommandsMenu{
         &redoMidiCommand,
         &loopMidiCommand,
         &loopContinuousLayeringMidiCommand,
+        &fillMidiCommand,
     },
 };
 

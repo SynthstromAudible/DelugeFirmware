@@ -1223,6 +1223,9 @@ void InstrumentClipView::selectEncoderAction(int8_t offset) {
 			cutAuditionedNotesToOne();
 			offsetNoteCodeAction(offset);
 		}
+		else {
+			setRowProbability(offset);
+		}
 	}
 
 	// Or set / create a new Drum
@@ -1238,7 +1241,6 @@ void InstrumentClipView::selectEncoderAction(int8_t offset) {
 	else if (currentUIMode == UI_MODE_NOTES_PRESSED) {
 		adjustProbability(offset);
 	}
-
 	// Or, normal option - trying to change Instrument presets
 	else {
 		InstrumentClipMinder::selectEncoderAction(offset);
@@ -2076,7 +2078,7 @@ void InstrumentClipView::adjustProbability(int32_t offset) {
 
 					// Incrementing
 					if (offset == 1) {
-						if (probabilityValue < kNumProbabilityValues + 35) {
+						if (probabilityValue < kNumProbabilityValues + kNumIterationValues) {
 							if (prevBase) {
 								probabilityValue++;
 								prevBase = false;
@@ -2098,7 +2100,8 @@ void InstrumentClipView::adjustProbability(int32_t offset) {
 
 					// Decrementing
 					else {
-						if (probabilityValue > 1 || prevBase) {
+						// Allow going down to probability 0 for FILL notes
+						if (probabilityValue > 0 || prevBase) {
 							if (prevBase) {
 								prevBase = false;
 							}
@@ -2172,7 +2175,7 @@ multiplePresses:
 		// Decide the probability, based on the existing probability of the leftmost note
 		probabilityValue = editPadPresses[leftMostIndex].intendedProbability & 127;
 		probabilityValue += offset;
-		probabilityValue = std::clamp<int32_t>(probabilityValue, 1, kNumProbabilityValues + 35);
+		probabilityValue = std::clamp<int32_t>(probabilityValue, 1, kNumProbabilityValues + kNumIterationValues);
 
 		Action* action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
 		if (!action) {
@@ -2227,55 +2230,7 @@ multiplePresses:
 	}
 
 	if (probabilityValue != -1) {
-		char buffer[display->haveOLED() ? 29 : 5];
-		char* displayString;
-		if (probabilityValue <= kNumProbabilityValues) {
-			if (display->haveOLED()) {
-				strcpy(buffer, "Probability: ");
-				intToString(probabilityValue * 5, buffer + strlen(buffer));
-				strcat(buffer, "%");
-				if (prevBase) {
-					strcat(buffer, " latching");
-				}
-			}
-			else {
-				intToString(probabilityValue * 5, buffer);
-			}
-			displayString = buffer;
-		}
-
-		// Iteration dependence
-		else {
-
-			int32_t divisor, iterationWithinDivisor;
-			dissectIterationDependence(probabilityValue, &divisor, &iterationWithinDivisor);
-
-			int32_t charPos = 0;
-
-			if (display->haveOLED()) {
-				strcpy(buffer, "Iteration dependence: ");
-				charPos = strlen(buffer);
-			}
-
-			buffer[charPos++] = '1' + iterationWithinDivisor;
-			if (display->haveOLED()) {
-				buffer[charPos++] = ' ';
-			}
-			buffer[charPos++] = 'o';
-			buffer[charPos++] = 'f';
-			if (display->haveOLED()) {
-				buffer[charPos++] = ' ';
-			}
-			buffer[charPos++] = '0' + divisor;
-			buffer[charPos++] = 0;
-		}
-
-		if (display->haveOLED()) {
-			display->popupTextTemporary(displayString);
-		}
-		else {
-			display->displayPopup(displayString, 0, true, prevBase ? 3 : 255);
-		}
+		displayProbability(probabilityValue, prevBase);
 	}
 }
 
@@ -2858,6 +2813,94 @@ uint8_t InstrumentClipView::getNumNoteRowsAuditioning() {
 
 uint8_t InstrumentClipView::oneNoteAuditioning() {
 	return (currentUIMode == UI_MODE_AUDITIONING && getNumNoteRowsAuditioning() == 1);
+}
+
+void InstrumentClipView::setRowProbability(int32_t offset) {
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+
+	ModelStackWithNoteRow* modelStackWithNoteRow = getOrCreateNoteRowForYDisplay(modelStack, lastAuditionedYDisplay);
+
+	NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
+
+	// If we're in Kit mode, the NoteRow will exist, or else we wouldn't be auditioning it. But if in other mode, we need to do this
+	if (!noteRow) {
+		return; // Get out if NoteRow doesn't exist and can't be created
+	}
+	Action* action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
+	if (!action) {
+		return;
+	}
+
+	action->recordNoteArrayChangeIfNotAlreadySnapshotted((InstrumentClip*)modelStack->getTimelineCounter(),
+	                                                     modelStackWithNoteRow->noteRowId, &noteRow->notes,
+	                                                     false); // Snapshot for undoability. Don't steal data.
+
+	uint8_t probabilityValue = noteRow->probabilityValue;
+	bool prevBase = false;
+	// Covers the probabilities and iterations
+	probabilityValue = std::clamp<int32_t>((int32_t)probabilityValue + offset, (int32_t)1, kNumProbabilityValues + 35);
+
+	noteRow->probabilityValue = probabilityValue;
+
+	uint32_t numNotes = noteRow->notes.getNumElements();
+	for (int i = 0; i < numNotes; i++) {
+		Note* note = noteRow->notes.getElement(i);
+		note->setProbability(probabilityValue);
+	}
+	displayProbability(probabilityValue, false);
+}
+
+void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) {
+	char buffer[(display->haveOLED()) ? 29 : 5];
+	char* displayString;
+	if (probability <= kNumProbabilityValues) {
+		if (display->haveOLED()) {
+			strcpy(buffer, "Probability: ");
+			intToString(probability * 5, buffer + strlen(buffer));
+			strcat(buffer, "%");
+			if (prevBase) {
+				strcat(buffer, " latching");
+			}
+		}
+		if (display->have7SEG()) {
+			intToString(probability * 5, buffer);
+		}
+		displayString = buffer;
+	}
+
+	// Iteration dependence
+	else {
+
+		int32_t divisor, iterationWithinDivisor;
+		dissectIterationDependence(probability, &divisor, &iterationWithinDivisor);
+
+		int32_t charPos = 0;
+
+		if (display->haveOLED()) {
+			strcpy(buffer, "Iteration dependence: ");
+			charPos = strlen(buffer);
+		}
+
+		buffer[charPos++] = '1' + iterationWithinDivisor;
+		if (display->haveOLED()) {
+			buffer[charPos++] = ' ';
+		}
+		buffer[charPos++] = 'o';
+		buffer[charPos++] = 'f';
+		if (display->haveOLED()) {
+			buffer[charPos++] = ' ';
+		}
+		buffer[charPos++] = '0' + divisor;
+		buffer[charPos++] = 0;
+	}
+
+	if (display->haveOLED()) {
+		display->popupText(displayString);
+	}
+	if (display->have7SEG()) {
+		display->displayPopup(displayString, 0, true, prevBase ? 3 : 255);
+	}
 }
 
 void InstrumentClipView::offsetNoteCodeAction(int32_t newOffset) {

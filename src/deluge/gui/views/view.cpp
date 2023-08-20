@@ -58,6 +58,7 @@
 #include "model/instrument/midi_instrument.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "model/timeline_counter.h"
 #include "modulation/automation/auto_param.h"
@@ -308,9 +309,14 @@ doEndMidiLearnPressSession:
 		}
 	}
 
-	// Sync-scaling button
+	// Sync-scaling button - can be repurposed as Fill Mode in community settings
 	else if (b == SYNC_SCALING) {
-		if (on && currentUIMode == UI_MODE_NONE) {
+		if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction)
+		     == RuntimeFeatureStateSyncScalingAction::Fill)) {
+			currentSong->fillModeActive = on;
+			indicator_leds::setLedState(IndicatorLED::SYNC_SCALING, on);
+		}
+		else if (on && currentUIMode == UI_MODE_NONE) {
 
 			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
 cant:

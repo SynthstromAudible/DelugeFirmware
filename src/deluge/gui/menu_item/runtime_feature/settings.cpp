@@ -43,6 +43,7 @@ Setting menuAutomationInterpolate(RuntimeFeatureSettingType::AutomationInterpola
 Setting menuAutomationClearClip(RuntimeFeatureSettingType::AutomationClearClip);
 Setting menuAutomationNudgeNote(RuntimeFeatureSettingType::AutomationNudgeNote);
 Setting menuAutomationShiftClip(RuntimeFeatureSettingType::AutomationShiftClip);
+Setting menuSyncScalingAction(RuntimeFeatureSettingType::SyncScalingAction);
 DevSysexSetting menuDevSysexAllowed(RuntimeFeatureSettingType::DevSysexAllowed);
 
 Submenu subMenuAutomation{
@@ -58,7 +59,7 @@ Submenu subMenuAutomation{
 std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettings> subMenuEntries{
     &menuDrumRandomizer,       &menuMasterCompressorFx, &menuFineTempo,           &menuQuantize,
     &menuPatchCableResolution, &menuCatchNotes,         &menuDeleteUnusedKitRows, &menuAltGoldenKnobDelayParams,
-    &subMenuAutomation,        &menuDevSysexAllowed,
+    &subMenuAutomation,        &menuDevSysexAllowed,    &menuSyncScalingAction,
 };
 
 Settings::Settings(l10n::String name, l10n::String title)

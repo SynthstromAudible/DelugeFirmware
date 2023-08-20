@@ -43,6 +43,7 @@ public:
 		    l10n::getView(STRING_FOR_CHORUS),        //<
 		    l10n::getView(STRING_FOR_PHASER),        //<
 		    l10n::getView(STRING_FOR_STEREO_CHORUS), //<
+		    l10n ::getView(STRING_FOR_GRAIN),        //<
 		};
 	}
 };

@@ -347,6 +347,9 @@ constexpr Language seven_segment{
         {STRING_FOR_NOTES_CLEARED, "CLEAR"},
         {STRING_FOR_AUTOMATION_CLEARED, "CLEAR"},
 
+        {STRING_FOR_PAD_SELECTION_OFF, "OFF"},
+        {STRING_FOR_PAD_SELECTION_ON, "ON"},
+
     },
     &built_in::english,
 };

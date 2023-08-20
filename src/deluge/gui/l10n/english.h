@@ -656,6 +656,10 @@ constexpr Language english{
         {STRING_FOR_NOTES_CLEARED, "Notes cleared"},
         {STRING_FOR_AUTOMATION_CLEARED, "Automation cleared"},
 
+        {STRING_FOR_GRAIN, "Grain"},
+        {STRING_FOR_FILL, "Fill"},
+        {STRING_FOR_PAD_SELECTION_OFF, "Pad Selection Off"},
+        {STRING_FOR_PAD_SELECTION_ON, "Pad Selection On"},
     },
 };
 } // namespace deluge::l10n::built_in

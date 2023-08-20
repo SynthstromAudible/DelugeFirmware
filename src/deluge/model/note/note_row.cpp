@@ -63,7 +63,7 @@ NoteRow::NoteRow(int16_t newY) {
 	firstOldDrumName = NULL;
 	soundingStatus = STATUS_OFF;
 	skipNextNote = false;
-
+	probabilityValue = kNumProbabilityValues;
 	loopLengthIfIndependent = 0;
 	sequenceDirectionMode = SequenceDirection::OBEY_PARENT;
 }
@@ -2966,7 +2966,7 @@ useDefaultLift:
 				if (velocity == 0 || velocity > 127) {
 					velocity = 64;
 				}
-				if ((probability & 127) > (kNumProbabilityValues + 35) || (probability & 127) == 0
+				if ((probability & 127) > (kNumProbabilityValues + kNumIterationValues)
 				    || probability >= (kNumProbabilityValues | 128)) {
 					probability = kNumProbabilityValues;
 				}
