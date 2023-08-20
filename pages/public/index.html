@@ -35,15 +35,37 @@
             justify-content: center;
         }
 
+        .btn {
+            width: 70%;
+            max-width: 300px;
+            margin: 10px;
+            display: inline-block;
+            background-color: #efefef;
+            border-color: #efefef;
+            color: #222 !important;
+            text-decoration: none;
+            text-align: center !important;
+            padding: 9px 27px;
+            border-style: solid;
+            border-width: 3px;
+            transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+        }
+
         span,
         p,
         h1,
+        a:link,
+        a:visited,
         .btn {
             font-size: 1.1rem;
             line-height: 1.5rem;
             color: #ededed;
             font-family: 'Karla', 'Helvetica Neue', Helvetica, Arial, sans-serif;
             text-align: justify;
+        }
+
+        a {
+            text-decoration: underline;
         }
 
         h1 {
@@ -57,22 +79,6 @@
             margin: 10px;
             max-width: 600px;
             -webkit-font-smoothing: antialiased;
-        }
-
-        .btn {
-            width: 70%;
-            max-width: 300px;
-            margin: 10px;
-            display: inline-block;
-            background-color: #efefef;
-            border-color: #efefef;
-            color: #222;
-            text-decoration: none;
-            text-align: center;
-            padding: 9px 27px;
-            border-style: solid;
-            border-width: 3px;
-            transition: background-color 0.2s, border-color 0.2s, color 0.2s;
         }
     </style>
 </head>
@@ -88,7 +94,7 @@
     <div id="main">
         <p>
             Synthstrom Audible released the source code of the
-            Deluge firmware and started a community project inviting
+            Deluge firmware and started a community project <a target="_blank" href="https://synthstrom.com/open">inviting</a>
             everyone to participate in improving and extending the
             Deluge user experience.
         </p>
@@ -100,9 +106,11 @@
         </p>
         <p>
             While the project aims to never break compatibility or lose
-            any user data things can break during development so please
+            user data, things can break during development so please
             make sure you have a recent backup of your SD card before
-            using the provided firmware files.
+            using the provided firmware files. You can always go back to 
+            the <a target="_blank" href="https://synthstrom.com/product/deluge/#downloads">official firmware</a> but be aware that songs created with 
+            community might not be fully compatible with official firmware. 
         </p>
         <p>
             We hope you enjoy using the community firmware as much as
