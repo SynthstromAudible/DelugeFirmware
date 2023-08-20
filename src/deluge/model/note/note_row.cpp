@@ -63,7 +63,7 @@ NoteRow::NoteRow(int16_t newY) {
 	firstOldDrumName = NULL;
 	soundingStatus = STATUS_OFF;
 	skipNextNote = false;
-
+	probabilityValue = kNumProbabilityValues;
 	loopLengthIfIndependent = 0;
 	sequenceDirectionMode = SequenceDirection::OBEY_PARENT;
 }
