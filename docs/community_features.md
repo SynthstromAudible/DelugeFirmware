@@ -135,7 +135,8 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 	- A community features sub-menu titled Automation was created to access a number of configurable settings for changes to existing behaviour.
 	- The three changes to existing behaviour included in this feature are: Clearing Clips, Nudging Notes and Shifting a Clip Horizontally.
  - Follow-up PR's: 
-	- ([#347]) Add new automatable parameters
+	- ([#347]) Added new automatable parameters
+ 	- ([#360]) Fixed interpolation bugs, added fine tuning for long presses, and added pad selection mode
 
 <h1 id="runtime-features">Runtime settings aka Community Features Menu</h1>
 
@@ -220,4 +221,5 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#282]: https://github.com/SynthstromAudible/DelugeFirmware/pull/282
 [#293]: https://github.com/SynthstromAudible/DelugeFirmware/pull/293
 [#347]: https://github.com/SynthstromAudible/DelugeFirmware/pull/347
+[#360]: https://github.com/SynthstromAudible/DelugeFirmware/pull/360
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/automation_view.md
