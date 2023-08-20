@@ -50,6 +50,8 @@ enum RuntimeFeatureSettingType : uint32_t {
 	AutomationInterpolate,
 	DevSysexAllowed,
 	SyncScalingAction,
+	HighlightIncomingNotes,
+	DisplayNornsLayout,
 	MaxElement // Keep as boundary
 };
 
