@@ -119,6 +119,12 @@ void RuntimeFeatureSettings::init() {
 	// SyncScalingAction
 	SetupSyncScalingActionSetting(settings[RuntimeFeatureSettingType::SyncScalingAction], "Sync Scaling Action",
 	                              "syncScalingAction", RuntimeFeatureStateSyncScalingAction::SyncScaling);
+	// HighlightIncomingNotes
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::HighlightIncomingNotes], "Highlight incoming notes",
+	                  "highlightIncomingNotes", RuntimeFeatureStateToggle::Off);
+	// DisplayNornsLayout
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DisplayNornsLayout], "Display Norns layout",
+	                  "displayNornsLayout", RuntimeFeatureStateToggle::Off);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {

@@ -46,6 +46,8 @@ Setting menuAutomationNudgeNote(RuntimeFeatureSettingType::AutomationNudgeNote);
 Setting menuAutomationShiftClip(RuntimeFeatureSettingType::AutomationShiftClip);
 Setting menuSyncScalingAction(RuntimeFeatureSettingType::SyncScalingAction);
 DevSysexSetting menuDevSysexAllowed(RuntimeFeatureSettingType::DevSysexAllowed);
+Setting menuHighlightIncomingNotes(RuntimeFeatureSettingType::HighlightIncomingNotes);
+Setting menuDisplayNornsLayout(RuntimeFeatureSettingType::DisplayNornsLayout);
 
 Submenu subMenuAutomation{
     HAVE_OLED ? "AUTOMATION" : "AUTO",
@@ -60,7 +62,8 @@ Submenu subMenuAutomation{
 std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettings> subMenuEntries{
     &menuDrumRandomizer,       &menuMasterCompressorFx, &menuFineTempo,           &menuQuantize,
     &menuPatchCableResolution, &menuCatchNotes,         &menuDeleteUnusedKitRows, &menuAltGoldenKnobDelayParams,
-    &subMenuAutomation,        &menuDevSysexAllowed,    &menuSyncScalingAction,
+    &subMenuAutomation,        &menuDevSysexAllowed,    &menuSyncScalingAction,   &menuHighlightIncomingNotes,
+    &menuDisplayNornsLayout,
 };
 
 Settings::Settings(char const* name, char const* title)

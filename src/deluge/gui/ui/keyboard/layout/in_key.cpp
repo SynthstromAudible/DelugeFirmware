@@ -20,6 +20,7 @@
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/sound_editor.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "util/functions.h"
 
 namespace deluge::gui::ui::keyboard::layout {
@@ -83,12 +84,6 @@ void KeyboardLayoutInKey::precalculate() {
 	}
 }
 
-inline void colorCopy(uint8_t* dest, uint8_t* src, uint8_t intensity, uint8_t brightnessDivider) {
-	dest[0] = (uint8_t)((src[0] * intensity / 255) / brightnessDivider);
-	dest[1] = (uint8_t)((src[1] * intensity / 255) / brightnessDivider);
-	dest[2] = (uint8_t)((src[2] * intensity / 255) / brightnessDivider);
-}
-
 void KeyboardLayoutInKey::renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) {
 	// Precreate list of all active notes per octave
 	bool scaleActiveNotes[kOctaveSize] = {0};
@@ -110,11 +105,17 @@ void KeyboardLayoutInKey::renderPads(uint8_t image[][kDisplayWidth + kSideBarWid
 			if (noteWithinScale == 0 && scaleActiveNotes[noteWithinScale]) {
 				colorCopy(image[y][x], colourSource, 255, 1);
 			}
+			// If highlighting notes is active, do it
+			else if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::HighlightIncomingNotes)
+			             == RuntimeFeatureStateToggle::On
+			         && getHighlightedNotes()[note] != 0) {
+				colorCopy(image[y][x], colourSource, getHighlightedNotes()[note], 1);
+			}
 			// Full color but less brightness for inactive root note
 			else if (noteWithinScale == 0) {
 				colorCopy(image[y][x], colourSource, 255, 2);
 			}
-			// TOned down color but high brightness for active scale note
+			// Toned down color but high brightness for active scale note
 			else if (scaleActiveNotes[noteWithinScale]) {
 				colorCopy(image[y][x], colourSource, 127, 3);
 			}

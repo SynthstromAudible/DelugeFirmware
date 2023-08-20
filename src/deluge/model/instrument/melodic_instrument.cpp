@@ -18,6 +18,7 @@
 #include "model/instrument/melodic_instrument.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/root_ui.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
@@ -29,6 +30,7 @@
 #include "model/instrument/midi_instrument.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param_manager.h"
@@ -118,6 +120,13 @@ yupItsForUs:
 
 		// Note-on
 		if (on) {
+			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::HighlightIncomingNotes)
+			    == RuntimeFeatureStateToggle::On) {
+				if (instrumentClip == currentSong->currentClip) {
+					keyboardScreen.highlightedNotes[note] = velocity;
+					keyboardScreen.requestRendering();
+				}
+			}
 
 			// MPE stuff - if editing note, we need to record the initial values which might have been sent before this note-on.
 			instrumentClipView.reportMPEInitialValuesForNoteEditing(
@@ -224,7 +233,13 @@ justAuditionNote:
 
 		// Note-off
 		else {
-
+			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::HighlightIncomingNotes)
+			    == RuntimeFeatureStateToggle::On) {
+				if (instrumentClip == currentSong->currentClip) {
+					keyboardScreen.highlightedNotes[note] = 0;
+					keyboardScreen.requestRendering();
+				}
+			}
 			// NoteRow must already be auditioning
 			if (notesAuditioned.searchExact(note) != -1) {
 

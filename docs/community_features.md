@@ -84,6 +84,9 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 	 - A new in-key only layout that removes out of scale buttons
 	 - New way to change scale in keyboard mode: Hold scale and press selection knob
 	 - New way to change scale root note in keyboard mode: Hold scale and turn selection knob
+ - ([#250]) Added two new Community features entries
+	 - "Highlight incoming notes" makes In-Key and Isometric layout display incoming MIDI notes with their velocity
+	 - "Display Norns layout" renders all incoming notes consecutively as white pads with velocity as brightness
 
 #### Kit Clip View
  - ([#122]) Pressing "AUDITION + RANDOM" on a drum kit row will load a random sample from the same folder as the currently enabled sample and load it as the sound for that row. Currently limited to 25 files for performance reasons. This feature can be toggled in the [runtime features menu](#runtime-features).
@@ -216,6 +219,7 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#221]: https://github.com/SynthstromAudible/DelugeFirmware/pull/221
 [#234]: https://github.com/SynthstromAudible/DelugeFirmware/pull/234
 [#241]: https://github.com/SynthstromAudible/DelugeFirmware/pull/241
+[#250]: https://github.com/SynthstromAudible/DelugeFirmware/pull/250
 [#251]: https://github.com/SynthstromAudible/DelugeFirmware/pull/251
 [#282]: https://github.com/SynthstromAudible/DelugeFirmware/pull/282
 [#293]: https://github.com/SynthstromAudible/DelugeFirmware/pull/293
