@@ -32,7 +32,7 @@ ModelStackWithThreeMainThings* ModelStackWithTimelineCounter::addNoteRowAndExtra
 
 #if ALPHA_OR_BETA_VERSION
 	if (!newNoteRow->paramManager.containsAnyParamCollectionsIncludingExpression()) {
-		numericDriver.freezeWithError("E389");
+		display->freezeWithError("E389");
 	}
 #endif
 

@@ -38,13 +38,8 @@
 #include "RZA1/usb/userdef/r_usb_hmidi_config.h"
 #include "definitions.h"
 
+#include "deluge/deluge.h"
 #include "deluge/drivers/uart/uart.h"
-
-#if HAVE_OLED
-#include "deluge/hid/display/oled.h"
-#else
-#include "deluge/hid/display/numeric_driver.h"
-#endif
 
 /******************************************************************************
  Exported global variables
@@ -597,11 +592,7 @@ uint16_t usb_hmidi_pipe_info(usb_utr_t* ptr, uint8_t* table, uint16_t speed, uin
 
                     // If still here, we didn't find a pipe
                     uartPrintln("no free pipe");
-#if HAVE_OLED
-                    consoleTextIfAllBootedUp("Maximum number of USB devices already hosted");
-#else
-                    displayPopupIfAllBootedUp("FULL");
-#endif
+                    consoleTextIfAllBootedUp(l10n_get(STRING_FOR_USB_DEVICES_MAX));
                     goto moveOnToNextDescriptor;
 
 pickedReceivePipe:

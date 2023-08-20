@@ -84,7 +84,7 @@ public:
 	UI();
 
 	virtual ActionResult padAction(int32_t x, int32_t y, int32_t velocity) { return ActionResult::DEALT_WITH; }
-	virtual ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+	virtual ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 		return ActionResult::NOT_DEALT_WITH;
 	}
 	virtual ActionResult horizontalEncoderAction(int32_t offset) { return ActionResult::DEALT_WITH; }
@@ -128,10 +128,8 @@ public:
 
 	void close();
 
-#if HAVE_OLED
 	virtual void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) = 0;
 	bool oledShowsUIUnderneath;
-#endif
 };
 
 // UIs
@@ -160,9 +158,7 @@ void clearPendingUIRendering();
 
 void doAnyPendingUIRendering();
 
-#if HAVE_OLED
 void renderUIsForOled();
-#endif
 
 // UI modes
 bool isUIModeActive(uint32_t uiMode);

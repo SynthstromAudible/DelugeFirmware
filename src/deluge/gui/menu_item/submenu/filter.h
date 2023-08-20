@@ -28,6 +28,6 @@ public:
 
 // Template deduction guide, will not be required with P2582@C++23
 template <size_t n>
-Filter(const std::string&, MenuItem* const (&)[n]) -> Filter<n>;
+Filter(l10n::String, MenuItem* const (&)[n]) -> Filter<n>;
 
 } // namespace deluge::gui::menu_item::submenu

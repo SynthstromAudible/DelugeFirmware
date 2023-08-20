@@ -17,8 +17,7 @@
 #pragma once
 #include "gui/menu_item/enumeration.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/numeric_driver.h"
-#include "hid/display/oled.h"
+#include "hid/display/display.h"
 #include "storage/flash_storage.h"
 
 namespace deluge::gui::menu_item::defaults {
@@ -27,17 +26,15 @@ public:
 	using Enumeration::Enumeration;
 	void readCurrentValue() override { this->setValue(FlashStorage::defaultMagnitude); }
 	void writeCurrentValue() override { FlashStorage::defaultMagnitude = this->getValue(); }
-#if HAVE_OLED
+
 	void drawPixelsForOled() override {
 		char buffer[12];
 		intToString(96 << this->getValue(), buffer);
-		OLED::drawStringCentred(buffer, 20 + OLED_MAIN_TOPMOST_PIXEL, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
-		                        18, 20);
+		deluge::hid::display::OLED::drawStringCentred(buffer, 20 + OLED_MAIN_TOPMOST_PIXEL,
+		                                              deluge::hid::display::OLED::oledMainImage[0],
+		                                              OLED_MAIN_WIDTH_PIXELS, 18, 20);
 	}
-#else
-	void drawValue() override {
-		numericDriver.setTextAsNumber(96 << this->getValue());
-	}
-#endif
+
+	void drawValue() override { display->setTextAsNumber(96 << this->getValue()); }
 };
 } // namespace deluge::gui::menu_item::defaults

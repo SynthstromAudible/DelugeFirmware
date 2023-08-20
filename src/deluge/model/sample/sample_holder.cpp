@@ -17,7 +17,7 @@
 
 #include "model/sample/sample_holder.h"
 #include "gui/ui/browser/sample_browser.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "io/debug/print.h"
 #include "model/sample/sample.h"
 #include "storage/audio/audio_file_manager.h"
@@ -43,7 +43,7 @@ SampleHolder::~SampleHolder() {
 		unassignAllClusterReasons(true);
 #if ALPHA_OR_BETA_VERSION
 		if (audioFile->numReasonsToBeLoaded <= 0) {
-			numericDriver.freezeWithError("E219"); // I put this here to try and catch an E004 Luc got
+			display->freezeWithError("E219"); // I put this here to try and catch an E004 Luc got
 		}
 #endif
 		audioFile->removeReason("E396");
@@ -130,7 +130,7 @@ void SampleHolder::setAudioFile(AudioFile* newSample, bool reversed, bool manual
 
 #if 1 || ALPHA_OR_BETA_VERSION
 		if (!audioFile) {
-			numericDriver.freezeWithError("i031"); // Trying to narrow down E368 that Kevin F got
+			display->freezeWithError("i031"); // Trying to narrow down E368 that Kevin F got
 		}
 #endif
 
@@ -145,7 +145,7 @@ constexpr int32_t kMarkerSamplesBeforeToClaim = 150;
 void SampleHolder::claimClusterReasons(bool reversed, int32_t clusterLoadInstruction) {
 
 	if (ALPHA_OR_BETA_VERSION && !audioFile) {
-		numericDriver.freezeWithError("E368");
+		display->freezeWithError("E368");
 	}
 
 	//unassignAllReasons(); // This now happens as part of reassessPosForMarker(), called below

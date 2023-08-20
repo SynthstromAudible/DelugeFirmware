@@ -18,6 +18,7 @@
 #include "model/voice/voice_sample.h"
 #include "definitions_cxx.hpp"
 #include "dsp/timestretch/time_stretcher.h"
+#include "hid/display/display.h"
 #include "io/debug/print.h"
 #include "memory/general_memory_allocator.h"
 #include "model/sample/sample.h"
@@ -121,7 +122,7 @@ void VoiceSample::setupCacheLoopPoints(SamplePlaybackGuide* guide, Sample* sampl
 		if (ALPHA_OR_BETA_VERSION && cacheEndPointBytes > cache->waveformLengthBytes) {
 			Debug::println(cacheEndPointBytes);
 			Debug::println(cache->waveformLengthBytes);
-			numericDriver.freezeWithError("E128");
+			display->freezeWithError("E128");
 		}
 	}
 
@@ -181,18 +182,18 @@ int32_t VoiceSample::attemptLateSampleStart(SamplePlaybackGuide* voiceSource, Sa
 	}
 
 	if ((int64_t)(startAtByte - voiceSource->startPlaybackAtByte) * voiceSource->playDirection < 0) {
-		numericDriver.freezeWithError("E439"); // Chasing "E366".
+		display->freezeWithError("E439"); // Chasing "E366".
 	}
 
 	uint32_t startAtClusterIndex = startAtByte >> audioFileManager.clusterSizeMagnitude;
 	if (startAtClusterIndex >= sample->getFirstClusterIndexWithNoAudioData()) {
-		numericDriver.freezeWithError(
-		    "E366"); // This can occur if some overflowing happened on the previous check due to an
+		// This can occur if some overflowing happened on the previous check due to an
+		// insanely high rawSamplesSinceStart being supplied due to some other bug.
+		// This was a problem around V3.1.0 release, so currently keeping this check
+		// even outside of ALPHA_OR_BETA_VERSION.
+		// Sven got! 4.0.0-beta4.
+		display->freezeWithError("E366");
 	}
-	// insanely high rawSamplesSinceStart being supplied due to some other bug.
-	// This was a problem around V3.1.0 release, so currently keeping this check
-	// even outside of ALPHA_OR_BETA_VERSION.
-	// Sven got! 4.0.0-beta4.
 
 	int32_t finalClusterIndex = voiceSource->getFinalClusterIndex(sample, cache); // Think this is right...
 
@@ -630,10 +631,10 @@ readCachedWindow:
 
 			// If we're here, then timeStretchRatio should be 16777216, and phaseIncrement should *not*
 			if (ALPHA_OR_BETA_VERSION && timeStretchRatio != 16777216) {
-				numericDriver.freezeWithError("E240"); // This should have been caught and dealt with above
+				display->freezeWithError("E240"); // This should have been caught and dealt with above
 			}
 			if (ALPHA_OR_BETA_VERSION && phaseIncrement == 16777216) {
-				numericDriver.freezeWithError("E241"); // If this were the case, there'd be no reason to have a cache
+				display->freezeWithError("E241"); // If this were the case, there'd be no reason to have a cache
 			}
 
 			if (!stopReadingFromCache()) {
@@ -673,7 +674,7 @@ readCachedWindow:
 
 		// This shouldn't happen - it gets checked for up at the start
 		else if (ALPHA_OR_BETA_VERSION && bytesTilCacheEnd < 0) {
-			numericDriver.freezeWithError("E164");
+			display->freezeWithError("E164");
 		}
 
 		int32_t cachedClusterIndex = cacheBytePos >> audioFileManager.clusterSizeMagnitude;
@@ -682,7 +683,7 @@ readCachedWindow:
 		Cluster* cacheCluster = cache->getCluster(cachedClusterIndex);
 		if (ALPHA_OR_BETA_VERSION
 		    && !cacheCluster) { // If it got stolen - but we should have already detected this above
-			numericDriver.freezeWithError("E157");
+			display->freezeWithError("E157");
 		}
 		int32_t* __restrict__ readPos = (int32_t*)&cacheCluster->data[bytePosWithinCluster - 4 + kCacheByteDepth];
 
@@ -715,7 +716,7 @@ readCachedWindow:
 		}
 
 		if (ALPHA_OR_BETA_VERSION && numSamplesThisCacheRead <= 0) {
-			numericDriver.freezeWithError("E156");
+			display->freezeWithError("E156");
 		}
 
 		// Ok, now we know how many samples we can read from the cache right now. Do it.
@@ -895,8 +896,8 @@ uncachedPlayback:
 
 			Cluster* cacheCluster = cache->getCluster(cacheClusterIndex);
 			if (ALPHA_OR_BETA_VERSION && !cacheCluster) {
-				numericDriver.freezeWithError(
-				    "E166"); // Check that the Cluster hasn't been stolen - but this should have been detected right at the start
+				// Check that the Cluster hasn't been stolen - but this should have been detected right at the start
+				display->freezeWithError("E166");
 			}
 			cacheWritePos = &cacheCluster->data[bytePosWithinCluster];
 
@@ -924,7 +925,7 @@ uncachedPlayback:
 			}
 
 			if (ALPHA_OR_BETA_VERSION && numSamplesThisUncachedRead <= 0) {
-				numericDriver.freezeWithError("E155");
+				display->freezeWithError("E155");
 			}
 		}
 
@@ -991,7 +992,7 @@ assessLoopPointAgainTimestretched:
 
 #if ALPHA_OR_BETA_VERSION
 							if (count >= 1024) {
-								numericDriver.freezeWithError("E169");
+								display->freezeWithError("E169");
 							}
 							count++;
 #endif
@@ -1010,7 +1011,7 @@ assessLoopPointAgainTimestretched:
 						    (uint64_t)combinedIncrementingLeftToDoAbsolute / combinedIncrement;
 						if (ALPHA_OR_BETA_VERSION && combinedIncrementsLeft > numSamplesThisUncachedRead) {
 							Debug::println(combinedIncrementsLeft);
-							numericDriver.freezeWithError("E151");
+							display->freezeWithError("E151");
 						}
 						numSamplesThisUncachedRead = combinedIncrementsLeft;
 					}

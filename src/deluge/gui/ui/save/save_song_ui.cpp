@@ -19,10 +19,11 @@
 #include "extern.h"
 #include "gui/context_menu/overwrite_file.h"
 #include "gui/context_menu/save_song_or_instrument.h"
+#include "gui/l10n/l10n.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "io/debug/print.h"
@@ -33,10 +34,6 @@
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
 #include <string.h>
-
-#if HAVE_OLED
-#include "hid/display/oled.h"
-#endif
 
 extern "C" {
 #include "fatfs/ff.h"
@@ -51,9 +48,7 @@ SaveSongUI saveSongUI{};
 
 SaveSongUI::SaveSongUI() {
 	filePrefix = "SONG";
-#if HAVE_OLED
 	title = "Save song";
-#endif
 }
 
 bool SaveSongUI::opened() {
@@ -77,7 +72,7 @@ doReturnFalse:
 		error = searchFilename.concatenate(".XML");
 		if (error) {
 gotError:
-			numericDriver.displayError(error);
+			display->displayError(error);
 			goto doReturnFalse;
 		}
 	}
@@ -117,30 +112,22 @@ void SaveSongUI::focusRegained() {
 bool SaveSongUI::performSave(bool mayOverwrite) {
 
 	if (ALPHA_OR_BETA_VERSION && currentlyAccessingCard) {
-		numericDriver.freezeWithError("E316");
+		display->freezeWithError("E316");
 	}
 
 	if (currentSong->hasAnyPendingNextOverdubs()) {
-		numericDriver.displayPopup(HAVE_OLED ? "Can't save while overdubs pending" : "CANT");
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_OVERDUBS_PENDING));
 		return false;
 	}
 
-#if HAVE_OLED
-	OLED::displayWorkingAnimation("Saving");
-#else
-	numericDriver.displayLoadingAnimation();
-#endif
+	display->displayLoadingAnimationText("Saving");
 
 	String filePath;
 	int32_t error = getCurrentFilePath(&filePath);
 	if (error) {
 gotError:
-#if HAVE_OLED
-		OLED::removeWorkingAnimation();
-#else
-		numericDriver.removeTopLayer(); // Removes loading animation if it's still there
-#endif
-		numericDriver.displayError(error);
+		display->removeLoadingAnimation();
+		display->displayError(error);
 		return false;
 	}
 
@@ -152,10 +139,8 @@ gotError:
 		bool available = context_menu::overwriteFile.setupAndCheckAvailability();
 
 		if (available) { // Always true.
-#if HAVE_OLED
-			OLED::removeWorkingAnimation();
-#endif
-			numericDriver.setNextTransitionDirection(1);
+			display->removeWorkingAnimation();
+			display->setNextTransitionDirection(1);
 			openUI(&context_menu::overwriteFile);
 			return true;
 		}
@@ -470,15 +455,10 @@ cardError:
 		}
 	}
 
-#if HAVE_OLED
-	OLED::removeWorkingAnimation();
-	char const* message = anyErrorMovingTempFiles ? "Song saved, but error moving temp files" : "Song saved";
-	OLED::consoleText(message);
-#else
-	char const* message = anyErrorMovingTempFiles ? "TEMP" : "DONE";
-	numericDriver.displayPopup(message);
-#endif
-
+	display->removeWorkingAnimation();
+	char const* message = anyErrorMovingTempFiles
+	                          ? (deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_MOVING_TEMP_FILES))
+	                          : (deluge::l10n::get(deluge::l10n::String::STRING_FOR_SONG_SAVED));
 	// Update all of these
 	currentSong->name.set(&enteredText);
 	currentSong->dirPath.set(&currentDir);

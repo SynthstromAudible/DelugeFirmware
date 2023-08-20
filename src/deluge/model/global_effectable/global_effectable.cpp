@@ -19,7 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "hid/matrix/matrix_driver.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
@@ -141,7 +141,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 					displayText = "GRAIN";
 					break;
 				}
-				numericDriver.displayPopup(displayText);
+				display->displayPopup(displayText);
 				ensureModFXParamIsValid();
 				return true;
 			}
@@ -169,7 +169,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 					displayText = "OFFSET";
 					break;
 				}
-				numericDriver.displayPopup(displayText);
+				display->displayPopup(displayText);
 			}
 
 			return false;
@@ -197,7 +197,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 					displayText = "EQ";
 					break;
 				}
-				numericDriver.displayPopup(displayText);
+				display->displayPopup(displayText);
 			}
 
 			return false;

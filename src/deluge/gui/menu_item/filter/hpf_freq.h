@@ -24,17 +24,17 @@ namespace deluge::gui::menu_item::filter {
 class HPFFreq final : public patched_param::IntegerNonFM {
 public:
 	using patched_param::IntegerNonFM::IntegerNonFM;
-#if !HAVE_OLED
+
+	// 7Seg ONLY
 	void drawValue() override {
 		if (this->getValue() == 0
 		    && !soundEditor.currentParamManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(
 		        ::Param::Local::HPF_FREQ)) {
-			numericDriver.setText("OFF");
+			display->setText(l10n::get(l10n::String::STRING_FOR_DISABLED));
 		}
 		else {
 			patched_param::IntegerNonFM::drawValue();
 		}
 	}
-#endif
 };
 } // namespace deluge::gui::menu_item::filter

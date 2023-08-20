@@ -17,68 +17,76 @@
 
 #pragma once
 
-#ifdef __cplusplus
 #include "definitions_cxx.hpp"
+#include "gui/l10n/seven_segment.h"
+#include "hid/display/display.h"
 #include "hid/display/numeric_layer/numeric_layer_basic_text.h"
-
+#include <array>
 #include <string>
+
 class NumericLayerScrollingText;
 
-class NumericDriver {
+namespace deluge::hid::display {
+
+class SevenSegment : public Display {
 public:
-	NumericDriver();
+	SevenSegment() { l10n::chosenLanguage = &l10n::built_in::seven_segment; }
 
 	void setText(std::string_view newText, bool alignRight = false, uint8_t drawDot = 255, bool doBlink = false,
 	             uint8_t* newBlinkMask = NULL, bool blinkImmediately = false, bool shouldBlinkFast = false,
-	             int32_t scrollPos = 0, uint8_t* blinkAddition = NULL, bool justReplaceBottomLayer = false);
-	void setNextTransitionDirection(int8_t thisDirection);
+	             int32_t scrollPos = 0, uint8_t* blinkAddition = NULL, bool justReplaceBottomLayer = false) override;
+	void setNextTransitionDirection(int8_t thisDirection) override;
 	void displayPopup(char const* newText, int8_t numFlashes = 3, bool alignRight = false, uint8_t drawDot = 255,
-	                  int32_t blinkSpeed = 1);
-	void freezeWithError(char const* text);
-	void cancelPopup();
-	void displayError(int32_t error);
+	                  int32_t blinkSpeed = 1) override;
+	void freezeWithError(char const* text) override;
+	void cancelPopup() override;
+	void displayError(int32_t error) override;
 
-#if !HAVE_OLED
-	void setTextAsNumber(int16_t number, uint8_t drawDot = 255, bool doBlink = false);
+	void setTextAsNumber(int16_t number, uint8_t drawDot = 255, bool doBlink = false) override;
 	void setTextAsSlot(int16_t currentSlot, int8_t currentSubSlot, bool currentSlotExists, bool doBlink = false,
-	                   int32_t blinkPos = -1, bool blinkImmediately = false);
-	void timerRoutine();
+	                   int32_t blinkPos = -1, bool blinkImmediately = false) override;
+	void timerRoutine() override;
 	void removeTopLayer();
 	NumericLayerScrollingText* setScrollingText(char const* newText, int32_t startAtPos = 0,
 	                                            int32_t initialDelay = 600);
-	int32_t getEncodedPosFromLeft(int32_t textPos, char const* text, bool* andAHalf);
+	int32_t getEncodedPosFromLeft(int32_t textPos, char const* text, bool* andAHalf) override;
 	void render();
 	void displayLoadingAnimation(bool delayed = false, bool transparent = false);
 	bool isLayerCurrentlyOnTop(NumericLayer* layer);
-	uint8_t lastDisplay[kNumericDisplayLength];
-#endif
+	std::array<uint8_t, kNumericDisplayLength> getLast() override { return lastDisplay_; }
 
-	bool popupActive;
+	bool hasPopup() override { return this->popupActive; }
+
+	constexpr size_t getNumBrowserAndMenuLines() override { return 1; }
+
+	void consoleText(char const* text) override { SevenSegment::displayPopup(text); }
+	void popupText(char const* text) override { SevenSegment::displayPopup(text); }
+	void popupTextTemporary(char const* text) override { SevenSegment::displayPopup(text); }
+
+	void removeWorkingAnimation() override {}
+
+	// Loading animations
+	void displayLoadingAnimationText(char const* text, bool delayed = false, bool transparent = false) override {
+		SevenSegment::displayLoadingAnimation(delayed, transparent);
+	}
+	void removeLoadingAnimation() override { SevenSegment::removeTopLayer(); }
+
+	bool have7SEG() override { return true; }
 
 private:
-	NumericLayer* topLayer;
 	NumericLayerBasicText popup;
-	int8_t nextTransitionDirection;
+	NumericLayer* topLayer = nullptr;
+	int8_t nextTransitionDirection = 0;
+	bool popupActive = false;
 
 	void deleteAllLayers();
 
-#if !HAVE_OLED
 	int32_t encodeText(std::string_view newText, uint8_t* destination, bool alignRight, uint8_t drawDot = 255,
 	                   bool limitToDisplayLength = true, int32_t scrollPos = 0);
 	void replaceBottomLayer(NumericLayer* newLayer);
 	void setTopLayer(NumericLayer* newTopLayer);
 	void transitionToNewLayer(NumericLayer* newLayer);
 	void setTextVeryBasicA1(char const* text);
-#endif
+	std::array<uint8_t, kNumericDisplayLength> lastDisplay_ = {0};
 };
-
-extern NumericDriver numericDriver;
-
-extern "C" {
-#endif
-
-void displayPopupIfAllBootedUp(char const* text);
-
-#ifdef __cplusplus
-}
-#endif
+} // namespace deluge::hid::display

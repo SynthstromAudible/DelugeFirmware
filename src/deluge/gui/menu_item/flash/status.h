@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "gui/l10n/l10n.h"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/led/pad_leds.h"
@@ -31,6 +32,13 @@ public:
 		}
 		PadLEDs::flashCursor = this->getValue();
 	}
-	static_vector<std::string, capacity()> getOptions() override { return {"Fast", "Off", "Slow"}; }
+	static_vector<std::string_view, capacity()> getOptions() override {
+		using enum l10n::String;
+		return {
+		    l10n::getView(STRING_FOR_FAST),
+		    l10n::getView(STRING_FOR_DISABLED),
+		    l10n::getView(STRING_FOR_SLOW),
+		};
+	}
 };
 } // namespace deluge::gui::menu_item::flash

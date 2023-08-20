@@ -19,8 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/mpe/zone_num_member_channels.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/numeric_driver.h"
-#include "hid/display/oled.h"
+#include "hid/display/display.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
 #include "memory/general_memory_allocator.h"
@@ -151,7 +150,7 @@ MIDIDeviceUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16
 	int32_t error = hostedMIDIDevices.insertElement(device, i); // We made sure, above, that there's space
 #if ALPHA_OR_BETA_VERSION
 	if (error) {
-		numericDriver.freezeWithError("E405");
+		display->freezeWithError("E405");
 	}
 #endif
 
@@ -221,23 +220,24 @@ extern "C" void hostedDeviceConfigured(int32_t ip, int32_t midiDeviceNum) {
 	device->connectedNow(midiDeviceNum);
 	recountSmallestMPEZones(); // Must be called after setting device->connectionFlags
 
-#if HAVE_OLED
-	String text;
-	text.set(&device->name);
-	int32_t error = text.concatenate(" attached");
-	if (!error) {
-		consoleTextIfAllBootedUp(text.get());
+	if (display->haveOLED()) {
+		String text;
+		text.set(&device->name);
+		int32_t error = text.concatenate(" attached");
+		if (!error) {
+			consoleTextIfAllBootedUp(text.get());
+		}
 	}
-#else
-	displayPopupIfAllBootedUp("MIDI");
-#endif
+	else {
+		consoleTextIfAllBootedUp("MIDI");
+	}
 }
 
 extern "C" void hostedDeviceDetached(int32_t ip, int32_t midiDeviceNum) {
 
 #if ALPHA_OR_BETA_VERSION
 	if (midiDeviceNum == MAX_NUM_USB_MIDI_DEVICES) {
-		numericDriver.freezeWithError("E367");
+		display->freezeWithError("E367");
 	}
 #endif
 

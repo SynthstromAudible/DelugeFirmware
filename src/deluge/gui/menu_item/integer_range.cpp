@@ -18,6 +18,7 @@
 #include "integer_range.h"
 #include "gui/menu_item/range.h"
 #include "gui/ui/sound_editor.h"
+#include "hid/display/display.h"
 #include "util/functions.h"
 
 extern "C" {
@@ -28,11 +29,11 @@ namespace deluge::gui::menu_item {
 
 void IntegerRange::beginSession(MenuItem* navigatedBackwardFrom) {
 	Range::beginSession(navigatedBackwardFrom);
-#if HAVE_OLED
-	if (lower != upper) {
-		soundEditor.editingRangeEdge = RangeEdit::LEFT;
+	if (display->haveOLED()) {
+		if (lower != upper) {
+			soundEditor.editingRangeEdge = RangeEdit::LEFT;
+		}
 	}
-#endif
 }
 
 void IntegerRange::selectEncoderAction(int32_t offset) {

@@ -37,7 +37,7 @@
 #include "gui/views/timeline_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
@@ -84,10 +84,6 @@
 #include "util/functions.h"
 #include <new>
 #include <string.h>
-
-#if HAVE_OLED
-#include "hid/display/oled.h"
-#endif
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
@@ -967,7 +963,7 @@ doOther:
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 				}
 
-				numericDriver.displayPopup(HAVE_OLED ? "Coming Soon" : "SOON");
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_COMING_SOON));
 			}
 		}
 	}
@@ -1114,7 +1110,7 @@ doOther:
 				Action* action = actionLogger.getNewAction(ACTION_AUTOMATION_DELETE, false);
 				modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam);
 
-				numericDriver.displayPopup(HAVE_OLED ? "Automation deleted" : "DELETED");
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_DELETED));
 				setDisplayParameterNameTimer();
 			}
 		}
@@ -1129,13 +1125,13 @@ doOther:
 
 				interpolation = RuntimeFeatureStateToggle::On;
 
-				numericDriver.displayPopup(HAVE_OLED ? "Interpolation On" : "ON");
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_INTERPOLATION_ENABLED));
 			}
 			else {
 				interpolation = RuntimeFeatureStateToggle::Off;
 				initInterpolation();
 
-				numericDriver.displayPopup(HAVE_OLED ? "Interpolation Off" : "OFF");
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_INTERPOLATION_DISABLED));
 			}
 			setDisplayParameterNameTimer();
 		}
@@ -1165,7 +1161,7 @@ passToOthers:
 	}
 
 	if (on && (b == KEYBOARD || b == CLIP_VIEW || b == SESSION_VIEW)) {
-		numericDriver.cancelPopup();
+		display->cancelPopup();
 	}
 
 	if (on && (b != KEYBOARD && b != CLIP_VIEW && b != SESSION_VIEW)) {
@@ -1723,10 +1719,10 @@ ActionResult AutomationInstrumentClipView::horizontalEncoderAction(int32_t offse
 		shiftAutomationHorizontally(offset);
 
 		if (offset < 0) {
-			numericDriver.displayPopup(HAVE_OLED ? "Shift Left" : "LEFT");
+			display->displayPopup(l10n::get(l10n::String::STRING_FOR_SHIFT_LEFT));
 		}
 		else if (offset > 0) {
-			numericDriver.displayPopup(HAVE_OLED ? "Shift Right" : "RIGHT");
+			display->displayPopup(l10n::get(l10n::String::STRING_FOR_SHIFT_RIGHT));
 		}
 
 		if (offset != 0) {
@@ -1853,7 +1849,7 @@ ActionResult AutomationInstrumentClipView::verticalEncoderAction(int32_t offset,
 				if (clip->isScaleModeClip()) {
 					clip->yScroll += offset * (currentSong->numModeNotes - 12);
 				}
-				//numericDriver.displayPopup("OCTAVE");
+				//display->displayPopup("OCTAVE");
 			}
 
 			// Otherwise, transpose single semitone
@@ -1872,7 +1868,7 @@ ActionResult AutomationInstrumentClipView::verticalEncoderAction(int32_t offset,
 				else {
 					currentSong->transposeAllScaleModeClips(offset);
 				}
-				//numericDriver.displayPopup("SEMITONE");
+				//display->displayPopup("SEMITONE");
 			}
 		}
 	}
@@ -2302,7 +2298,7 @@ void AutomationInstrumentClipView::modEncoderButtonAction(uint8_t whichModEncode
 			Action* action = actionLogger.getNewAction(ACTION_AUTOMATION_DELETE, false);
 			modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam);
 
-			numericDriver.displayPopup(HAVE_OLED ? "Automation deleted" : "DELETED");
+			display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_DELETED));
 			setDisplayParameterNameTimer();
 		}
 	}
@@ -2312,13 +2308,13 @@ void AutomationInstrumentClipView::modEncoderButtonAction(uint8_t whichModEncode
 		if (on) {
 			if (padSelectionOn) {
 
-				numericDriver.displayPopup(HAVE_OLED ? "Pad Selection Off" : "OFF");
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PAD_SELECTION_OFF));
 
 				initPadSelection();
 				displayAutomation();
 			}
 			else {
-				numericDriver.displayPopup(HAVE_OLED ? "Pad Selection On" : "ON");
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PAD_SELECTION_ON));
 
 				padSelectionOn = true;
 				multiPadPressSelected = false;
@@ -2374,19 +2370,19 @@ void AutomationInstrumentClipView::copyAutomation() {
 		                                     modelStackWithParam);
 
 		if (copiedParamAutomation.nodes) {
-			numericDriver.displayPopup(HAVE_OLED ? "Automation copied" : "COPY");
+			display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_COPIED));
 			setDisplayParameterNameTimer();
 			return;
 		}
 	}
 
-	numericDriver.displayPopup(HAVE_OLED ? "No automation to copy" : "NONE");
+	display->displayPopup(l10n::get(l10n::String::STRING_FOR_NO_AUTOMATION_TO_COPY));
 	setDisplayParameterNameTimer();
 }
 
 void AutomationInstrumentClipView::pasteAutomation() {
 	if (!copiedParamAutomation.nodes) {
-		numericDriver.displayPopup(HAVE_OLED ? "No automation to paste" : "NONE");
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_NO_AUTOMATION_TO_PASTE));
 		setDisplayParameterNameTimer();
 		return;
 	}
@@ -2425,7 +2421,7 @@ void AutomationInstrumentClipView::pasteAutomation() {
 		modelStackWithParam->autoParam->paste(startPos, endPos, scaleFactor, modelStackWithParam,
 		                                      &copiedParamAutomation, isPatchCable);
 
-		numericDriver.displayPopup(HAVE_OLED ? "Automation pasted" : "PASTE");
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_PASTED));
 		setDisplayParameterNameTimer();
 
 		if (playbackHandler.isEitherClockActive()) {
@@ -2435,7 +2431,7 @@ void AutomationInstrumentClipView::pasteAutomation() {
 		return;
 	}
 
-	numericDriver.displayPopup(HAVE_OLED ? "Can't paste automation" : "CANT");
+	display->displayPopup(l10n::get(l10n::String::STRING_FOR_CANT_PASTE_AUTOMATION));
 	setDisplayParameterNameTimer();
 }
 
@@ -2618,22 +2614,22 @@ void AutomationInstrumentClipView::initParameterSelection() {
 	clip->lastSelectedParamShortcutY = kNoLastSelectedParamShortcut;
 	clip->lastSelectedParamArrayPosition = 0;
 
-	numericDriver.cancelPopup();
+	display->cancelPopup();
 
 	//if we're going back to the Automation Overview, set the display to show Midi Channel again (7seg only)
 	if (instrument->type == InstrumentType::MIDI_OUT) {
 
-#if !HAVE_OLED
-		if (((MIDIInstrument*)instrument)->channel < 16) {
-			numericDriver.setTextAsSlot(((MIDIInstrument*)instrument)->channel + 1,
-			                            ((MIDIInstrument*)instrument)->channelSuffix, false, false);
+		if (display->have7SEG()) {
+			if (((MIDIInstrument*)instrument)->channel < 16) {
+				display->setTextAsSlot(((MIDIInstrument*)instrument)->channel + 1,
+				                       ((MIDIInstrument*)instrument)->channelSuffix, false, false);
+			}
+			else {
+				char const* text =
+				    (((MIDIInstrument*)instrument)->channel == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "Lower" : "Upper";
+				display->setText(text, false, 255, false);
+			}
 		}
-		else {
-			char const* text =
-			    (((MIDIInstrument*)instrument)->channel == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "Lower" : "Upper";
-			numericDriver.setText(text, false, 255, false);
-		}
-#endif
 	}
 }
 
@@ -3220,25 +3216,24 @@ void AutomationInstrumentClipView::displayParameterName(int32_t paramID) {
 		char buffer[30];
 
 		//drawing Parameter Names on 7SEG isn't legible and not done currently, so won't do it here either
-#if HAVE_OLED
+		if (display->haveOLED()) {
 
-		if (clip->lastSelectedParamKind == Param::Kind::PATCHED) {
-			strncpy(buffer, getPatchedParamDisplayNameForOLED(paramID), 29);
-		}
-		else if (clip->lastSelectedParamKind == Param::Kind::UNPATCHED) {
-			strncpy(buffer, getUnpatchedParamDisplayNameForOLED(paramID), 29);
-		}
-		else if (clip->lastSelectedParamKind == Param::Kind::GLOBAL_EFFECTABLE) {
-			strncpy(buffer, getGlobalEffectableParamDisplayNameForOLED(paramID), 29);
-		}
+			if (clip->lastSelectedParamKind == Param::Kind::PATCHED) {
+				strncpy(buffer, getPatchedParamDisplayNameForOLED(paramID), 29);
+			}
+			else if (clip->lastSelectedParamKind == Param::Kind::UNPATCHED) {
+				strncpy(buffer, getUnpatchedParamDisplayNameForOLED(paramID), 29);
+			}
+			else if (clip->lastSelectedParamKind == Param::Kind::GLOBAL_EFFECTABLE) {
+				strncpy(buffer, getGlobalEffectableParamDisplayNameForOLED(paramID), 29);
+			}
 
-		if (isAutomated) {
-			strncat(buffer, "\n(automated)", 29);
+			if (isAutomated) {
+				strncat(buffer, "\n(automated)", 29);
+			}
+
+			display->popupText(buffer);
 		}
-
-		OLED::popupText(buffer, true);
-
-#endif
 	}
 
 	else if (instrument->type == InstrumentType::MIDI_OUT) {
@@ -3253,7 +3248,7 @@ void AutomationInstrumentClipView::displayParameterValue(int32_t knobPos) {
 	char buffer[5];
 
 	intToString(knobPos, buffer);
-	numericDriver.displayPopup(buffer, 3);
+	display->displayPopup(buffer, 3);
 
 	if (padSelectionOn && !multiPadPressSelected) {
 		indicator_leds::setKnobIndicatorLevel(0, knobPos);
@@ -3264,7 +3259,7 @@ void AutomationInstrumentClipView::displayParameterValue(int32_t knobPos) {
 }
 
 void AutomationInstrumentClipView::displayCVErrorMessage() {
-	numericDriver.displayPopup(HAVE_OLED ? "Can't Automate CV" : "CANT");
+	display->displayPopup(l10n::get(l10n::String::STRING_FOR_CANT_AUTOMATE_CV));
 }
 
 void AutomationInstrumentClipView::setDisplayParameterNameTimer() {

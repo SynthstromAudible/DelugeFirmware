@@ -1,14 +1,8 @@
 #pragma once
 #include "gui/menu_item/value.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "util/sized.h"
-
-extern "C" {
-#if HAVE_OLED
-#include "RZA1/oled/oled_low_level.h"
-#endif
-}
 
 namespace deluge::gui::menu_item {
 
@@ -25,22 +19,19 @@ public:
 	virtual size_t size() { return n; };
 
 protected:
-#if HAVE_OLED
-	virtual void drawValue();
-	virtual void drawPixelsForOled() = 0;
-#else
+	virtual void drawPixelsForOled() override = 0;
 	void drawValue() override;
-#endif
 };
 
 template <size_t n>
 void Enumeration<n>::beginSession(MenuItem* navigatedBackwardFrom) {
 	Value::beginSession(navigatedBackwardFrom);
-#if HAVE_OLED
-	soundEditor.menuCurrentScroll = 0;
-#else
-	drawValue();
-#endif
+	if (display->haveOLED()) {
+		soundEditor.menuCurrentScroll = 0;
+	}
+	else {
+		drawValue();
+	}
 }
 
 template <size_t n>
@@ -48,32 +39,34 @@ void Enumeration<n>::selectEncoderAction(int32_t offset) {
 	this->setValue(this->getValue() + offset);
 	int32_t numOptions = size();
 
-#if HAVE_OLED
-	if (this->getValue() >= numOptions) {
-		this->setValue(numOptions - 1);
+	if (display->haveOLED()) {
+		if (this->getValue() >= numOptions) {
+			this->setValue(numOptions - 1);
+		}
+		else if (this->getValue() < 0) {
+			this->setValue(0);
+		}
 	}
-	else if (this->getValue() < 0) {
-		this->setValue(0);
+	else {
+		if (this->getValue() >= numOptions) {
+			this->setValue(this->getValue() - numOptions);
+		}
+		else if (this->getValue() < 0) {
+			this->setValue(this->getValue() + numOptions);
+		}
 	}
-#else
-	if (this->getValue() >= numOptions) {
-		this->setValue(this->getValue() - numOptions);
-	}
-	else if (this->getValue() < 0) {
-		this->setValue(this->getValue() + numOptions);
-	}
-#endif
 
 	Value::selectEncoderAction(offset);
 }
 
 template <size_t n>
 void Enumeration<n>::drawValue() {
-#if HAVE_OLED
-	renderUIsForOled();
-#else
-	numericDriver.setTextAsNumber(this->getValue());
-#endif
+	if (display->haveOLED()) {
+		renderUIsForOled();
+	}
+	else {
+		display->setTextAsNumber(this->getValue());
+	}
 }
 
 } // namespace deluge::gui::menu_item
