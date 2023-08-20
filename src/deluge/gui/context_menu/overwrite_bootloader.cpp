@@ -16,7 +16,8 @@
 */
 
 #include "gui/context_menu/overwrite_bootloader.h"
-#include "hid/display/numeric_driver.h"
+#include "gui/l10n/l10n.h"
+#include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "memory/general_memory_allocator.h"
 #include "storage/storage_manager.h"
@@ -31,31 +32,29 @@ namespace deluge::gui::context_menu {
 OverwriteBootloader overwriteBootloader{};
 
 char const* OverwriteBootloader::getTitle() {
-	static char const* title = "Overwrite bootloader at own risk";
-	return title;
+	using enum l10n::String;
+	return l10n::get(STRING_FOR_OVERWRITE_BOOTLOADER_TITLE);
 }
 
 Sized<char const**> OverwriteBootloader::getOptions() {
-#if HAVE_OLED
-	static char const* options[] = {"Accept risk"};
-#else
-	static char const* options[] = {"Sure"};
-#endif
+	using enum l10n::String;
+	static char const* options[] = {l10n::get(STRING_FOR_ACCEPT_RISK)};
 	return {options, 1};
 }
 
 constexpr size_t FLASH_WRITE_SIZE = 256; // Bigger doesn't seem to work...
 
 bool OverwriteBootloader::acceptCurrentOption() {
+	using enum l10n::String;
 
-#if !HAVE_OLED
-	numericDriver.displayLoadingAnimation();
-#endif
+	if (display->have7SEG()) {
+		display->displayLoadingAnimation();
+	}
 
 	int32_t error = storageManager.initSD();
 	if (error) {
 gotError:
-		numericDriver.displayError(error);
+		display->displayError(error);
 		return false;
 	}
 
@@ -67,12 +66,6 @@ gotFresultError:
 	}
 
 	char const* errorMessage;
-
-	if (false) {
-longError:
-		numericDriver.displayPopup(errorMessage);
-		return false;
-	}
 
 	while (true) {
 
@@ -95,7 +88,7 @@ longError:
 		if (dotPos != 0 && !strcasecmp(dotPos, ".BIN")) {
 
 			// We found our .bin file!
-			//displayPrompt("Found file");
+			//display->rompt("Found file");
 
 			uint32_t fileSize = fno.fsize;
 
@@ -103,14 +96,14 @@ longError:
 
 			// But make sure it's not too big
 			if (fileSize > 0x80000 - 0x1000) {
-				errorMessage = HAVE_OLED ? "Bootloader file too large" : "BIG";
-				goto longError;
+				display->displayPopup(l10n::get(STRING_FOR_ERROR_BOOTLOADER_TOO_BIG));
+				return false;
 			}
 
 			// Or to small
 			if (fileSize < 1024) {
-				errorMessage = HAVE_OLED ? "Bootloader file too small" : "SMALL";
-				goto longError;
+				display->displayPopup(l10n::get(STRING_FOR_ERROR_BOOTLOADER_TOO_SMALL));
+				return false;
 			}
 
 			// Allocate RAM
@@ -152,17 +145,18 @@ gotFresultErrorAfterAllocating:
 
 			if (false) {
 gotFlashError:
-#if HAVE_OLED
-				OLED::removeWorkingAnimation();
-				workingMessage = "Flash error. Trying again. Don't switch off";
-#else
-				numericDriver.displayPopup("RETR");
-#endif
+				display->removeWorkingAnimation();
+				if (display->haveOLED()) {
+					workingMessage = "Flash error. Trying again. Don't switch off";
+				}
+				else {
+					display->displayPopup("RETR");
+				}
 			}
 
-#if HAVE_OLED
-			OLED::displayWorkingAnimation(workingMessage);
-#endif
+			if (display->haveOLED()) {
+				hid::display::OLED::displayWorkingAnimation(workingMessage);
+			}
 
 			uint32_t eraseAddress = startFlashAddress;
 			while (numFlashSectors-- && eraseAddress < 0x01000000) {
@@ -202,18 +196,14 @@ gotFlashError:
 
 			GeneralMemoryAllocator::get().dealloc(buffer);
 
-#if HAVE_OLED
-			OLED::removeWorkingAnimation();
-			OLED::consoleText("Bootloader updated");
-#else
-			numericDriver.displayPopup("DONE");
-#endif
+			display->removeWorkingAnimation();
+			display->consoleText(l10n::get(STRING_FOR_BOOTLOADER_UPDATED));
 
 			return false; // We do want to exit this context menu.
 		}
 	}
 
-	errorMessage = HAVE_OLED ? "No boot*.bin file found" : "FILE";
-	goto longError;
+	display->displayPopup(l10n::get(STRING_FOR_ERROR_BOOTLOADER_FILE_NOT_FOUND));
+	return false;
 }
 } // namespace deluge::gui::context_menu

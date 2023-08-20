@@ -68,14 +68,16 @@ public:
 		}
 	}
 
-	static_vector<std::string, capacity()> getOptions() override {
-		static_vector<std::string, capacity()> sequenceDirectionOptions = {"FORWARD", "REVERSED", "PING-PONG"};
+	static_vector<std::string_view, capacity()> getOptions() override {
+		static_vector<std::string_view, capacity()> sequenceDirectionOptions = {
+		    l10n::getView(l10n::String::STRING_FOR_FORWARD), l10n::getView(l10n::String::STRING_FOR_REVERSED),
+		    l10n::getView(l10n::String::STRING_FOR_PING_PONG)};
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		ModelStackWithNoteRow* modelStackWithNoteRow = getIndividualNoteRow(modelStack);
 		if (modelStackWithNoteRow->getNoteRowAllowNull() != nullptr) {
-			sequenceDirectionOptions.push_back("NONE");
+			sequenceDirectionOptions.push_back(l10n::getView(l10n::String::STRING_FOR_NONE));
 		}
 
 		return sequenceDirectionOptions;

@@ -27,7 +27,7 @@ extern "C" {
 }
 
 namespace deluge::gui::menu_item::patched_param {
-#if !HAVE_OLED
+// 7SEG only
 void Pan::drawValue() {
 	ParamDescriptor paramDescriptor;
 	paramDescriptor.setToHaveParamOnly(getP());
@@ -43,9 +43,8 @@ void Pan::drawValue() {
 	else if (this->getValue() > 0) {
 		strcat(buffer, "R");
 	}
-	numericDriver.setText(buffer, true, drawDot);
+	display->setText(buffer, true, drawDot);
 }
-#endif
 
 int32_t Pan::getFinalValue() {
 	if (this->getValue() == 32) {

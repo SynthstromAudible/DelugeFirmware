@@ -15,9 +15,11 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "fmt/core.h"
 #include "gui/menu_item/gate/mode.h"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
+#include "hid/display/display.h"
 #include "mode.h"
 #include "off_time.h"
 #include "util/container/static_vector.hpp"
@@ -45,22 +47,30 @@ public:
 			return &gateOffTimeMenu;
 		}
 		soundEditor.currentSourceIndex = this->getValue();
-#if HAVE_OLED
-		gate::mode_title[8] = '1' + this->getValue();
-#endif
 
-		// TODO: this needs to be a "UpdateOptions" method on gate::Mode
+		if (display->haveOLED()) {
+			gateModeMenu.format(this->getValue());
+		}
+
 		gateModeMenu.updateOptions(this->getValue());
 		return &gateModeMenu;
 	}
 
-	static_vector<std::string, capacity()> getOptions() override {
-#if HAVE_OLED
+	static_vector<std::string_view, capacity()> getOptions() override {
+		using enum l10n::String;
+		std::string_view gate_output_fmt_string = l10n::getView(STRING_FOR_GATE_OUTPUT_N);
+		static auto out1 = fmt::vformat(gate_output_fmt_string, fmt::make_format_args(1));
+		static auto out2 = fmt::vformat(gate_output_fmt_string, fmt::make_format_args(2));
+		static auto out3 = fmt::vformat(gate_output_fmt_string, fmt::make_format_args(3));
+		static auto out4 = fmt::vformat(gate_output_fmt_string, fmt::make_format_args(4));
 
-		return {"Gate output 1", "Gate output 2", "Gate output 3", "Gate output 4", "Minimum off-time"};
-#else
-		return {"Out1", "Out2", "Out3", "Out4", "OFFT"};
-#endif
+		return {
+		    out1,                                       //<
+		    out2,                                       //<
+		    out3,                                       //<
+		    out4,                                       //<
+		    l10n::getView(STRING_FOR_MINIMUM_OFF_TIME), //<
+		};
 	}
 };
 } // namespace deluge::gui::menu_item::gate

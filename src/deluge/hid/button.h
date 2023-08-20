@@ -3,7 +3,7 @@
 #include "definitions_cxx.hpp"
 #include <cstdint>
 
-namespace hid {
+namespace deluge::hid {
 
 namespace button {
 constexpr uint8_t fromCartesian(Cartesian c) {
@@ -56,4 +56,4 @@ Cartesian toXY(Button b);
 } // namespace button
 using Button = button::Button;
 
-} // namespace hid
+} // namespace deluge::hid

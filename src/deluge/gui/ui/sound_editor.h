@@ -69,7 +69,7 @@ public:
 	MIDIDevice* currentMIDIDevice;
 	deluge::gui::menu_item::RangeEdit editingRangeEdge;
 
-	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
 	void modEncoderAction(int32_t whichModEncoder, int32_t offset);
@@ -134,9 +134,7 @@ public:
 	AudioFileHolder* getCurrentAudioFileHolder();
 	void mpeZonesPotentiallyUpdated();
 
-#if HAVE_OLED
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
-#endif
 
 private:
 	bool beginScreen(MenuItem* oldMenuItem = NULL);

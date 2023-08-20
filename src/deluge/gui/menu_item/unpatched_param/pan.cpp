@@ -17,7 +17,6 @@
 #include "pan.h"
 
 #include "gui/ui/sound_editor.h"
-#include "hid/display/numeric_driver.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include <cmath>
@@ -39,7 +38,7 @@ void Pan::drawValue() {    // TODO: should really combine this with the "patched
 	else if (this->getValue() > 0) {
 		strcat(buffer, "R");
 	}
-	numericDriver.setText(buffer, true, drawDot);
+	display->setText(buffer, true, drawDot);
 }
 
 int32_t Pan::getFinalValue() {

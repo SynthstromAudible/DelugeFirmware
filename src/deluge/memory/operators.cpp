@@ -3,7 +3,7 @@
 
 void* operator new(std::size_t n) noexcept(false) {
 	//allocate on external RAM
-	return delugeAlloc(n, false);
+	return GeneralMemoryAllocator::get().allocNonAudio(n);
 }
 
 void operator delete(void* p) {

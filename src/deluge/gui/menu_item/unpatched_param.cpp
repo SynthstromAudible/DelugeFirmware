@@ -17,7 +17,7 @@
 
 #include "unpatched_param.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"

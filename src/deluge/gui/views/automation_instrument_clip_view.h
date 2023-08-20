@@ -64,14 +64,10 @@ public:
 	void displayParameterName(int32_t paramID);
 	void setDisplayParameterNameTimer();
 
-#if HAVE_OLED
-	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
-		InstrumentClipMinder::renderOLED(image);
-	}
-#endif
+	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) { InstrumentClipMinder::renderOLED(image); }
 
 	//button action
-	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 
 	//pad action
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
@@ -107,9 +103,7 @@ public:
 	void notifyPlaybackBegun();
 
 	//not sure how this is used
-	ClipMinder* toClipMinder() {
-		return this;
-	}
+	ClipMinder* toClipMinder() { return this; }
 
 	bool interpolation;
 	bool interpolationBefore;
@@ -145,20 +139,24 @@ private:
 
 	//Automation Lanes Functions
 	void initParameterSelection();
+	void initPadSelection();
+	void initInterpolation();
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip,
 	                                                int32_t paramID = 0xFFFFFFFF,
 	                                                Param::Kind paramKind = Param::Kind::NONE);
+
+	int32_t getParameterKnobPos(ModelStackWithAutoParam* modelStack, uint32_t pos);
+
+	bool getNodeInterpolation(ModelStackWithAutoParam* modelStack, int32_t pos, bool reversed);
 	void setParameterAutomationValue(ModelStackWithAutoParam* modelStack, int32_t knobPos, int32_t squareStart,
-	                                 int32_t xDisplay, int32_t effectiveLength);
+	                                 int32_t xDisplay, int32_t effectiveLength, bool displayValue = true);
 
 	void handleSinglePadPress(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, int32_t xDisplay,
 	                          int32_t yDisplay, bool shortcutPress = false);
 	int32_t calculateKnobPosForSinglePadPress(int32_t yDisplay);
 
 	void handleMultiPadPress(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, int32_t firstPadX,
-	                         int32_t firstPadY, int32_t secondPadX, int32_t secondPadY);
-	int32_t calculateKnobPosForMultiPadPress(int32_t xDisplay, int32_t firstPadX, int32_t firstPadValue,
-	                                         int32_t secondPadX, int32_t secondPadValue);
+	                         int32_t firstPadY, int32_t secondPadX, int32_t secondPadY, bool modEncoderAction = false);
 
 	int32_t calculateKnobPosForModEncoderTurn(int32_t knobPos, int32_t offset);
 	bool isOnParameterGridMenuView();
@@ -168,6 +166,13 @@ private:
 
 	bool encoderAction;
 	bool shortcutBlinking;
+
+	bool padSelectionOn;
+	bool multiPadPressSelected;
+	int32_t leftPadSelectedX;
+	int32_t leftPadSelectedY;
+	int32_t rightPadSelectedX;
+	int32_t rightPadSelectedY;
 };
 
 extern AutomationInstrumentClipView automationInstrumentClipView;

@@ -157,14 +157,14 @@ void Debug::loadCheckAndRun(uint8_t* data, int32_t len) {
 	}
 
 	if (load_codesize != fields[1]) {
-		numericDriver.displayPopup(HAVE_OLED ? "wrong size?" : "SIZ FAIL");
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_WRONG_SIZE));
 		return;
 	}
 
 	uint32_t checksum = get_crc(load_buf, load_codesize);
 
 	if (checksum != fields[2]) {
-		numericDriver.displayPopup(HAVE_OLED ? "checksum fail" : "CRC FAIL");
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_CHECKSUM_FAIL));
 		return;
 	}
 

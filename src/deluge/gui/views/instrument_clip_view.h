@@ -67,7 +67,7 @@ public:
 	InstrumentClipView();
 	bool opened();
 	void focusRegained();
-	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
 	uint8_t getEditPadPressXDisplayOnScreen(uint8_t yDisplay);
 	void editPadAction(bool state, uint8_t yDisplay, uint8_t xDisplay, uint32_t xZoom);
@@ -153,11 +153,7 @@ public:
 	void pasteAutomation(int32_t whichModEncoder);
 	//made these public so they can be accessed by the automation clip view
 
-#if HAVE_OLED
-	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
-		InstrumentClipMinder::renderOLED(image);
-	}
-#endif
+	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) { InstrumentClipMinder::renderOLED(image); }
 
 	CopiedNoteRow* firstCopiedNoteRow;
 	int32_t copiedScreenWidth;
@@ -215,6 +211,8 @@ private:
 	void enterDrumCreator(ModelStackWithNoteRow* modelStack, bool doRecording = false);
 
 	void adjustProbability(int32_t offset);
+	void setRowProbability(int32_t offset);
+	void displayProbability(uint8_t probability, bool prevBase);
 	void copyNotes();
 	void pasteNotes();
 	void deleteCopiedNoteRows();

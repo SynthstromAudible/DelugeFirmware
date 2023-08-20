@@ -53,7 +53,7 @@ int32_t ConsequenceAudioClipSetSample::revert(TimeType time, ModelStack* modelSt
 	else {
 		int32_t error = clip->sampleHolder.loadFile(false, false, true);
 		if (error) {
-			numericDriver.displayError(error); // Rare, shouldn't cause later problems.
+			display->displayError(error); // Rare, shouldn't cause later problems.
 		}
 
 		if (playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(clip)) {

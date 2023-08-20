@@ -4,6 +4,7 @@
 #include "dsp/reverb/freeverb/revmodel.hpp"
 #include "extern.h"
 #include "gui/context_menu/overwrite_bootloader.h"
+#include "gui/l10n/strings.h"
 #include "gui/menu_item/menu_item.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
@@ -17,7 +18,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
@@ -49,10 +50,6 @@
 #include "util/functions.h"
 #include <new>
 #include <string.h>
-
-#if HAVE_OLED
-#include "hid/display/oled.h"
-#endif
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
@@ -212,8 +209,8 @@ void SoundEditor::setLedStates() {
 	playbackHandler.setLedStates();
 }
 
-ActionResult SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
-	using namespace hid::button;
+ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	using namespace deluge::hid::button;
 
 	// Encoder button
 	if (b == SELECT_ENC) {
@@ -239,7 +236,7 @@ ActionResult SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutin
 
 							navigationDepth++;
 							menuItemNavigationRecord[navigationDepth] = newItem;
-							numericDriver.setNextTransitionDirection(1);
+							display->setNextTransitionDirection(1);
 							beginScreen();
 						}
 					}
@@ -296,7 +293,7 @@ ActionResult SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutin
 		if (on) {
 			if (!currentUIMode) {
 				if (!getCurrentMenuItem()->allowsLearnMode()) {
-					numericDriver.displayPopup(HAVE_OLED ? "Can't learn" : "CANT");
+					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_LEARN));
 				}
 				else {
 					if (Buttons::isShiftButtonPressed()) {
@@ -399,7 +396,7 @@ void SoundEditor::goUpOneLevel() {
 		navigationDepth--;
 	} while (getCurrentMenuItem()->checkPermissionToBeginSession(currentSound, currentSourceIndex, &currentMultiRange)
 	         == MenuPermission::NO);
-	numericDriver.setNextTransitionDirection(-1);
+	display->setNextTransitionDirection(-1);
 
 	MenuItem* oldItem = menuItemNavigationRecord[navigationDepth + 1];
 	if (oldItem == &menu_item::multiRangeMenu) {
@@ -412,19 +409,15 @@ void SoundEditor::goUpOneLevel() {
 void SoundEditor::exitCompletely() {
 	if (inSettingsMenu()) {
 		// First, save settings
-#if HAVE_OLED
-		OLED::displayWorkingAnimation("Saving settings");
-#else
-		numericDriver.displayLoadingAnimation();
-#endif
+
+		display->displayLoadingAnimationText("Saving settings");
+
 		FlashStorage::writeSettings();
 		MIDIDeviceManager::writeDevicesToFile();
 		runtimeFeatureSettings.writeSettingsToFile();
-#if HAVE_OLED
-		OLED::removeWorkingAnimation();
-#endif
+		display->removeWorkingAnimation();
 	}
-	numericDriver.setNextTransitionDirection(-1);
+	display->setNextTransitionDirection(-1);
 	close();
 	possibleChangeToCurrentRangeDisplay();
 
@@ -472,9 +465,9 @@ bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 		return false;
 	}
 
-#if HAVE_OLED
-	renderUIsForOled();
-#endif
+	if (display->haveOLED()) {
+		renderUIsForOled();
+	}
 
 	if (!inSettingsMenu() && currentItem != &sampleStartMenu && currentItem != &sampleEndMenu
 	    && currentItem != &audioClipSampleMarkerEditorMenuStart && currentItem != &audioClipSampleMarkerEditorMenuEnd
@@ -755,25 +748,25 @@ doSetup:
 				if (item) {
 
 					if (item == comingSoonMenu) {
-						numericDriver.displayPopup(HAVE_OLED ? "Feature not (yet?) implemented" : "SOON");
+						display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_UNIMPLEMENTED));
 						return ActionResult::DEALT_WITH;
 					}
 
-#if HAVE_OLED
-					switch (x) {
-					case 0 ... 3:
-						setOscillatorNumberForTitles(x & 1);
-						break;
+					if (display->haveOLED()) {
+						switch (x) {
+						case 0 ... 3:
+							setOscillatorNumberForTitles(x & 1);
+							break;
 
-					case 4 ... 5:
-						setModulatorNumberForTitles(x & 1);
-						break;
+						case 4 ... 5:
+							setModulatorNumberForTitles(x & 1);
+							break;
 
-					case 8 ... 9:
-						setEnvelopeNumberForTitles(x & 1);
-						break;
+						case 8 ... 9:
+							setEnvelopeNumberForTitles(x & 1);
+							break;
+						}
 					}
-#endif
 					int32_t thingIndex = x & 1;
 
 					bool setupSuccess = setup((currentSong->currentClip), item, thingIndex);
@@ -785,7 +778,7 @@ doSetup:
 					// If not in SoundEditor yet
 					if (getCurrentUI() != &soundEditor) {
 						if (getCurrentUI() == &sampleMarkerEditor) {
-							numericDriver.setNextTransitionDirection(0);
+							display->setNextTransitionDirection(0);
 							changeUIAtLevel(&soundEditor, 1);
 							renderingNeededRegardlessOfUI(); // Not sure if this is 100% needed... some of it is.
 						}
@@ -796,7 +789,7 @@ doSetup:
 
 					// Or if already in SoundEditor
 					else {
-						numericDriver.setNextTransitionDirection(0);
+						display->setNextTransitionDirection(0);
 						beginScreen();
 					}
 				}
@@ -807,7 +800,7 @@ doSetup:
 
 				PatchSource source = modSourceShortcuts[x - 14][y];
 				if (source == PatchSource::SOON) {
-					numericDriver.displayPopup("SOON");
+					display->displayPopup("SOON");
 				}
 
 				if (source >= kLastPatchSource) {
@@ -860,7 +853,7 @@ getOut:
 							navigationDepth = newNavigationDepth + 1;
 							menuItemNavigationRecord[navigationDepth] = newMenuItem;
 							if (!wentBack) {
-								numericDriver.setNextTransitionDirection(1);
+								display->setNextTransitionDirection(1);
 							}
 							beginScreen();
 						}
@@ -941,7 +934,7 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 }
 
 ActionResult SoundEditor::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
-	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::button::X_ENC)) {
+	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
 		return ActionResult::DEALT_WITH;
 	}
 	return getRootUI()->verticalEncoderAction(offset, inCardRoutine);
@@ -1037,7 +1030,8 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 				// Otherwise, do nothing
 				else {
 					if (item == &sequenceDirectionMenu) {
-						numericDriver.displayPopup(HAVE_OLED ? "Select a row or affect-entire" : "CANT");
+						display->displayPopup(
+						    deluge::l10n::get(deluge::l10n::String::STRING_FOR_SELECT_A_ROW_OR_AFFECT_ENTIRE));
 					}
 					return false;
 				}
@@ -1077,16 +1071,12 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 
 			if (clip->type == CLIP_TYPE_INSTRUMENT) {
 				if (currentSong->currentClip->output->type == InstrumentType::MIDI_OUT) {
-#if HAVE_OLED
-					soundEditorRootMenuMIDIOrCV.title = "MIDI inst.";
-#endif
+					soundEditorRootMenuMIDIOrCV.title = l10n::String::STRING_FOR_MIDI_INST_MENU_TITLE;
 doMIDIOrCV:
 					newItem = &soundEditorRootMenuMIDIOrCV;
 				}
 				else if (currentSong->currentClip->output->type == InstrumentType::CV) {
-#if HAVE_OLED
-					soundEditorRootMenuMIDIOrCV.title = "CV instrument";
-#endif
+					soundEditorRootMenuMIDIOrCV.title = l10n::String::STRING_FOR_CV_INSTRUMENT;
 					goto doMIDIOrCV;
 				}
 				else {
@@ -1100,7 +1090,7 @@ doMIDIOrCV:
 		}
 		else {
 			if (getCurrentUI() == &automationInstrumentClipView) {
-				numericDriver.cancelPopup();
+				display->cancelPopup();
 				newItem = &deluge::gui::menu_item::runtime_feature::subMenuAutomation;
 			}
 			else {
@@ -1123,7 +1113,7 @@ doMIDIOrCV:
 	MenuPermission result = newItem->checkPermissionToBeginSession(newSound, sourceIndex, &newRange);
 
 	if (result == MenuPermission::NO) {
-		numericDriver.displayPopup(HAVE_OLED ? "Parameter not applicable" : "CANT");
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
 		return false;
 	}
 	else if (result == MenuPermission::MUST_SELECT_RANGE) {
@@ -1166,7 +1156,7 @@ doMIDIOrCV:
 	shouldGoUpOneLevelOnBegin = false;
 	menuItemNavigationRecord[navigationDepth] = newItem;
 
-	numericDriver.setNextTransitionDirection(1);
+	display->setNextTransitionDirection(1);
 	return true;
 }
 
@@ -1197,7 +1187,7 @@ MenuPermission SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam(S
 
 	::MultiRange* firstRange = source->getOrCreateFirstRange();
 	if (!firstRange) {
-		numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+		display->displayError(ERROR_INSUFFICIENT_RAM);
 		return MenuPermission::NO;
 	}
 
@@ -1258,7 +1248,6 @@ void SoundEditor::mpeZonesPotentiallyUpdated() {
 	}
 }
 
-#if HAVE_OLED
 void SoundEditor::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 
 	// Sorry - extremely ugly hack here.
@@ -1272,7 +1261,6 @@ void SoundEditor::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 
 	currentMenuItem->renderOLED();
 }
-#endif
 
 /*
 char modelStackMemory[MODEL_STACK_MAX_SIZE];

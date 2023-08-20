@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "gui/ui/keyboard/layout.h"
+#include "gui/ui/keyboard/notes_state.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui/ui.h"
 #include "hid/button.h"
@@ -36,7 +36,7 @@ public:
 	KeyboardScreen();
 
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
-	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
 	ActionResult horizontalEncoderAction(int32_t offset);
 	void selectEncoderAction(int8_t offset);
@@ -49,6 +49,10 @@ public:
 	void flashDefaultRootNote();
 	void openedInBackground();
 	void exitAuditionMode();
+
+	uint8_t highlightedNotes[kHighestKeyboardNote] = {0};
+
+	inline void requestRendering() { uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF); }
 
 private:
 	bool opened();
@@ -64,21 +68,13 @@ private:
 
 	void unscrolledPadAudition(int32_t velocity, int32_t note, bool shiftButtonDown);
 
-#if HAVE_OLED
-	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
-		InstrumentClipMinder::renderOLED(image);
-	}
-#endif
+	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) { InstrumentClipMinder::renderOLED(image); }
 
 private:
 	void selectLayout(int8_t offset);
 	void enterScaleMode(int32_t selectedRootNote = kDefaultCalculateRootNote);
 	void exitScaleMode();
 	void drawNoteCode(int32_t noteCode);
-
-	inline void requestRendering() {
-		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
-	}
 
 	PressedPad pressedPads[kMaxNumKeyboardPadPresses];
 	NotesState lastNotesState;

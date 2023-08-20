@@ -41,7 +41,7 @@ public:
 	} // SessionView doesn't have this because it does this a different way. Sorry, confusing I know
 	bool isTimelineView() { return true; }
 
-	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	void displayZoomLevel(bool justPopup = false);
 	ActionResult horizontalEncoderAction(int32_t offset) override;
 	void displayScrollPos();

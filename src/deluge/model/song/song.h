@@ -168,6 +168,8 @@ public:
 
 	bool affectEntire;
 
+	bool fillModeActive;
+
 	SessionLayoutType sessionLayout = SessionLayoutType::SessionLayoutTypeRows;
 	int32_t songGridScrollX = 0;
 	int32_t songGridScrollY = 0;
