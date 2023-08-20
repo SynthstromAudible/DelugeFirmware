@@ -749,8 +749,10 @@ enum class GlobalMIDICommand {
 	LOOP_CONTINUOUS_LAYERING,
 	UNDO,
 	REDO,
+	FILL,
+	LAST, // Keep as boundary
 };
-constexpr auto kNumGlobalMIDICommands = util::to_underlying(GlobalMIDICommand::REDO) + 1;
+constexpr auto kNumGlobalMIDICommands = util::to_underlying(GlobalMIDICommand::LAST) + 1;
 
 enum class MIDITakeoverMode : uint8_t {
 	JUMP,
@@ -788,6 +790,8 @@ enum class ArmState {
 };
 
 constexpr int32_t kNumProbabilityValues = 20;
+constexpr int32_t kNumIterationValues = 35; // 1of2 to 8of8
+constexpr int32_t kFillProbabilityValue = 0;
 constexpr int32_t kDefaultLiftValue = 64;
 
 enum Navigation {

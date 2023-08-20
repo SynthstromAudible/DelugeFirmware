@@ -95,6 +95,8 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 
 	affectEntire = false;
 
+	fillModeActive = false;
+
 	modeNotes[0] = 0;
 	modeNotes[1] = 2;
 	modeNotes[2] = 4;
