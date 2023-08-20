@@ -2489,6 +2489,14 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, int32_t channel,
 				}
 				break;
 
+			case GlobalMIDICommand::FILL:
+				currentSong->fillModeActive = true;
+				if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction)
+				     == RuntimeFeatureStateSyncScalingAction::Fill)) {
+					indicator_leds::setLedState(IndicatorLED::SYNC_SCALING, true);
+				}
+				break;
+
 			//case GlobalMIDICommand::TAP:
 			default:
 				if (getCurrentUI() == getRootUI()) {
@@ -2501,6 +2509,24 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, int32_t channel,
 
 			foundAnything = true;
 		}
+	}
+
+	return foundAnything;
+}
+
+// Returns whether the message has been used up by a note-off command
+bool PlaybackHandler::tryGlobalMIDICommandsOff(MIDIDevice* device, int32_t channel, int32_t note) {
+
+	bool foundAnything = false;
+
+	// Check for FILL command at index [8]
+	if (midiEngine.globalMIDICommands[8].equalsNoteOrCC(device, channel, note)) {
+		currentSong->fillModeActive = false;
+		if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction)
+		     == RuntimeFeatureStateSyncScalingAction::Fill)) {
+			indicator_leds::setLedState(IndicatorLED::SYNC_SCALING, false);
+		}
+		foundAnything = true;
 	}
 
 	return foundAnything;
@@ -2540,9 +2566,12 @@ void PlaybackHandler::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32
 
 	bool foundAnything = false;
 
-	// Check global function commands
+	// Check global function commands - Off variant checks note off for momentary commands
 	if (on) {
 		foundAnything = tryGlobalMIDICommands(fromDevice, channel, note);
+	}
+	else {
+		foundAnything = tryGlobalMIDICommandsOff(fromDevice, channel, note);
 	}
 
 	// Go through all sections

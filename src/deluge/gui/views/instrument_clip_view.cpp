@@ -2089,7 +2089,7 @@ void InstrumentClipView::adjustProbability(int32_t offset) {
 
 					// Incrementing
 					if (offset == 1) {
-						if (probabilityValue < kNumProbabilityValues + 35) {
+						if (probabilityValue < kNumProbabilityValues + kNumIterationValues) {
 							if (prevBase) {
 								probabilityValue++;
 								prevBase = false;
@@ -2111,7 +2111,8 @@ void InstrumentClipView::adjustProbability(int32_t offset) {
 
 					// Decrementing
 					else {
-						if (probabilityValue > 1 || prevBase) {
+						// Allow going down to probability 0 for FILL notes
+						if (probabilityValue > 0 || prevBase) {
 							if (prevBase) {
 								prevBase = false;
 							}
@@ -2185,7 +2186,7 @@ multiplePresses:
 		// Decide the probability, based on the existing probability of the leftmost note
 		probabilityValue = editPadPresses[leftMostIndex].intendedProbability & 127;
 		probabilityValue += offset;
-		probabilityValue = std::clamp<int32_t>(probabilityValue, 1, kNumProbabilityValues + 35);
+		probabilityValue = std::clamp<int32_t>(probabilityValue, 1, kNumProbabilityValues + kNumIterationValues);
 
 		Action* action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
 		if (!action) {

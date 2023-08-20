@@ -36,7 +36,7 @@ public:
 	}
 
 	static_vector<std::string, capacity()> getOptions() override {
-		return {"OFF", "FLANGER", "CHORUS", "PHASER", "STEREO CHORUS"};
+		return {"OFF", "FLANGER", "CHORUS", "PHASER", "STEREO CHORUS", "GRAIN"};
 	}
 };
 } // namespace deluge::gui::menu_item::mod_fx
