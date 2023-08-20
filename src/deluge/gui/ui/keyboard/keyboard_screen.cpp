@@ -38,14 +38,17 @@
 #include "model/clip/clip_minder.h"
 #include "model/clip/instrument_clip.h"
 #include "model/note/note_row.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "playback/mode/playback_mode.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_instrument.h"
 #include <cstring>
 
+#include "gui/ui/keyboard/layout.h"
 #include "gui/ui/keyboard/layout/in_key.h"
 #include "gui/ui/keyboard/layout/isomorphic.h"
+#include "gui/ui/keyboard/layout/norns.h"
 #include "gui/ui/keyboard/layout/velocity_drums.h"
 
 deluge::gui::ui::keyboard::KeyboardScreen keyboardScreen{};
@@ -55,6 +58,7 @@ namespace deluge::gui::ui::keyboard {
 layout::KeyboardLayoutIsomorphic keyboardLayoutIsomorphic{};
 layout::KeyboardLayoutVelocityDrums keyboardLayoutVelocityDrums{};
 layout::KeyboardLayoutInKey keyboardLayoutInKey{};
+layout::KeyboardLayoutNorns keyboardLayoutNorns{};
 KeyboardLayout* layoutList[KeyboardLayoutType::MaxElement + 1] = {0};
 
 inline InstrumentClip* getCurrentClip() {
@@ -69,6 +73,7 @@ KeyboardScreen::KeyboardScreen() {
 	layoutList[KeyboardLayoutType::Isomorphic] = (KeyboardLayout*)&keyboardLayoutIsomorphic;
 	layoutList[KeyboardLayoutType::Drums] = (KeyboardLayout*)&keyboardLayoutVelocityDrums;
 	layoutList[KeyboardLayoutType::InKey] = (KeyboardLayout*)&keyboardLayoutInKey;
+	layoutList[KeyboardLayoutType::Norns] = (KeyboardLayout*)&keyboardLayoutNorns;
 
 	memset(&pressedPads, 0, sizeof(pressedPads));
 	currentNotesState = {0};
@@ -449,13 +454,12 @@ ActionResult KeyboardScreen::buttonAction(hid::Button b, bool on, bool inCardRou
 		selectLayout(0);
 	}
 
-	else if (b == SELECT_ENC) {
-		if (on && getCurrentClip()->inScaleMode && currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
-			exitScaleModeOnButtonRelease = false;
-			cycleThroughScales();
-			layoutList[getCurrentClip()->keyboardState.currentLayout]->precalculate();
-			requestRendering();
-		}
+	else if (b == SELECT_ENC && on && getCurrentClip()->inScaleMode
+	         && currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
+		exitScaleModeOnButtonRelease = false;
+		cycleThroughScales();
+		layoutList[getCurrentClip()->keyboardState.currentLayout]->precalculate();
+		requestRendering();
 	}
 
 	else {
@@ -521,7 +525,11 @@ void KeyboardScreen::selectLayout(int8_t offset) {
 			nextLayout = 0;
 		}
 
-		if (getActiveInstrument()->type == InstrumentType::KIT && layoutList[nextLayout]->supportsKit()) {
+		if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::DisplayNornsLayout) == RuntimeFeatureStateToggle::Off
+		    && nextLayout == KeyboardLayoutType::Norns) {
+			// Don't check the next conditions, this one is already lost
+		}
+		else if (getActiveInstrument()->type == InstrumentType::KIT && layoutList[nextLayout]->supportsKit()) {
 			break;
 		}
 		else if (getActiveInstrument()->type != InstrumentType::KIT && layoutList[nextLayout]->supportsInstrument()) {

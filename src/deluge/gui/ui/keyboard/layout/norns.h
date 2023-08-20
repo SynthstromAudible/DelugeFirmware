@@ -21,13 +21,13 @@
 
 namespace deluge::gui::ui::keyboard::layout {
 
-constexpr int32_t kMinDrumPadEdgeSize = 1;
-constexpr int32_t kMaxDrumPadEdgeSize = 8;
+constexpr int32_t kMinNornsRowInterval = 1;
+constexpr int32_t kMaxNornsRowInterval = 16;
 
-class KeyboardLayoutVelocityDrums : KeyboardLayout {
+class KeyboardLayoutNorns : public KeyboardLayout {
 public:
-	KeyboardLayoutVelocityDrums() {}
-	~KeyboardLayoutVelocityDrums() override {}
+	KeyboardLayoutNorns() {}
+	~KeyboardLayoutNorns() override {}
 
 	void evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) override;
 	void handleVerticalEncoder(int32_t offset) override;
@@ -36,30 +36,12 @@ public:
 
 	void renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) override;
 
-	char const* name() override { return "Drums"; }
-	bool supportsInstrument() override { return false; }
-	bool supportsKit() override { return true; }
+	char const* name() override { return "Norns"; }
+	bool supportsInstrument() override { return true; }
+	bool supportsKit() override { return false; }
 
 private:
-	inline uint8_t noteFromCoords(int32_t x, int32_t y) {
-		uint8_t edgeSize = (uint32_t)getState().drums.edgeSize;
-		uint8_t padsPerRow = kDisplayWidth / edgeSize;
-		return (x / edgeSize) + ((y / edgeSize) * padsPerRow) + getState().drums.scrollOffset;
-	}
-
-	inline uint8_t intensityFromCoords(int32_t x, int32_t y) {
-		uint8_t edgeSize = getState().drums.edgeSize;
-		uint8_t localX = (x % edgeSize);
-		uint8_t localY = (y % edgeSize);
-		uint8_t position = localX + (localY * edgeSize) + 1;
-
-		// We use two bytes to increase accuracy and shift it down to one byte later
-		uint32_t stepSize = 0xFFFF / (edgeSize * edgeSize);
-
-		return (position * stepSize) >> 8;
-	}
-
-	uint8_t noteColours[kDisplayHeight * kDisplayWidth][3];
+	inline uint8_t noteFromCoords(int32_t x, int32_t y) { return x + y * kDisplayWidth; }
 };
 
 }; // namespace deluge::gui::ui::keyboard::layout
