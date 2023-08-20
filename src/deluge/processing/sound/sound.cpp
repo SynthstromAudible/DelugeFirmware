@@ -17,11 +17,12 @@
 
 #include "processing/sound/sound.h"
 #include "definitions_cxx.hpp"
+#include "gui/l10n/l10n.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "io/debug/print.h"
@@ -907,7 +908,7 @@ int32_t Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* par
 		bool result = setModFXType(
 		    stringToFXType(storageManager.readTagOrAttributeValue())); // This might not work if not enough RAM
 		if (!result) {
-			numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+			display->displayError(ERROR_INSUFFICIENT_RAM);
 		}
 		storageManager.exitTag("modFXType");
 	}
@@ -919,7 +920,7 @@ int32_t Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* par
 				bool result = setModFXType(
 				    stringToFXType(storageManager.readTagOrAttributeValue())); // This might not work if not enough RAM
 				if (!result) {
-					numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+					display->displayError(ERROR_INSUFFICIENT_RAM);
 				}
 				storageManager.exitTag("type");
 			}
@@ -1547,8 +1548,8 @@ void Sound::allNotesOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBa
 
 #if ALPHA_OR_BETA_VERSION
 	if (!modelStack->paramManager) {
-		numericDriver.freezeWithError(
-		    "E403"); // Previously we were allowed to receive a NULL paramManager, then would just crudely do an unassignAllVoices(). But I'm pretty sure this doesn't exist anymore?
+		// Previously we were allowed to receive a NULL paramManager, then would just crudely do an unassignAllVoices(). But I'm pretty sure this doesn't exist anymore?
+		display->freezeWithError("E403");
 	}
 #endif
 
@@ -2360,11 +2361,11 @@ void Sound::unassignAllVoices() {
 	if (ALPHA_OR_BETA_VERSION) {
 		if (numVoicesAssigned > 0) {
 			// ronronsen got error! https://forums.synthstrom.com/discussion/4090/e203-by-changing-a-drum-kit#latest
-			numericDriver.freezeWithError("E070");
+			display->freezeWithError("E070");
 		}
 		else if (numVoicesAssigned < 0) {
 			// ronronsen got error! https://forums.synthstrom.com/discussion/4090/e203-by-changing-a-drum-kit#latest
-			numericDriver.freezeWithError("E071");
+			display->freezeWithError("E071");
 		}
 	}
 
@@ -2399,7 +2400,7 @@ void Sound::confirmNumVoices(char const* error) {
 		Uart::print(numVoicesAssigned);
 		Uart::print(", but actually ");
 		Uart::println(voiceCount);
-		numericDriver.freezeWithError(error);
+		display->freezeWithError(error);
 	}
 
 	int32_t reasonCountSources = 0;
@@ -2427,7 +2428,7 @@ void Sound::confirmNumVoices(char const* error) {
 			char buffer[5];
 			strcpy(buffer, error);
 			buffer[0] = 'F';
-			numericDriver.freezeWithError(buffer);
+			display->freezeWithError(buffer);
 		}
 	}
 	*/
@@ -4034,11 +4035,11 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 
 			if (compressor.syncLevel == (SyncLevel)(7 - insideWorldTickMagnitude)) {
 				compressor.syncLevel = (SyncLevel)(9 - insideWorldTickMagnitude);
-				numericDriver.displayPopup(HAVE_OLED ? "Fast sidechain compressor" : "FAST");
+				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_FAST_SIDECHAIN_COMPRESSOR));
 			}
 			else {
 				compressor.syncLevel = (SyncLevel)(7 - insideWorldTickMagnitude);
-				numericDriver.displayPopup(HAVE_OLED ? "Slow sidechain compressor" : "SLOW");
+				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_SLOW_SIDECHAIN_COMPRESSOR));
 			}
 			return true;
 		}
@@ -4057,7 +4058,7 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 				modKnobs[modKnobMode][1 - whichModEncoder].paramDescriptor.setToHaveParamOnly(
 				    Param::Local::HPF_RESONANCE);
 			}
-			numericDriver.displayPopup("HPF");
+			display->displayPopup("HPF");
 		}
 		return false;
 	}
@@ -4071,7 +4072,7 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 				modKnobs[modKnobMode][1 - whichModEncoder].paramDescriptor.setToHaveParamOnly(Param::Unpatched::START
 				                                                                              + Param::Unpatched::BASS);
 			}
-			numericDriver.displayPopup("EQ");
+			display->displayPopup("EQ");
 		}
 		return false;
 	}
@@ -4085,7 +4086,7 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 				modKnobs[modKnobMode][1 - whichModEncoder].paramDescriptor.setToHaveParamOnly(
 				    Param::Local::LPF_RESONANCE);
 			}
-			numericDriver.displayPopup("LPF");
+			display->displayPopup("LPF");
 		}
 		return false;
 	}
@@ -4132,7 +4133,7 @@ void Sound::wontBeRenderedForAWhile() {
 
 	// If it still thinks it's meant to be rendering, we did something wrong
 	if (ALPHA_OR_BETA_VERSION && !skippingRendering) {
-		numericDriver.freezeWithError("E322");
+		display->freezeWithError("E322");
 	}
 }
 

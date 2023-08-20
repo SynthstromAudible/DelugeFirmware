@@ -16,7 +16,7 @@
  */
 
 #include "storage/wave_table/wave_table_band_data.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/wave_table/wave_table.h"
 
@@ -35,7 +35,7 @@ bool WaveTableBandData::mayBeStolen(void* thingNotToStealFrom) {
 void WaveTableBandData::steal(char const* errorCode) {
 #if ALPHA_OR_BETA_VERSION
 	if (!waveTable || waveTable->numReasonsToBeLoaded) {
-		numericDriver.freezeWithError("E387");
+		display->freezeWithError("E387");
 	}
 #endif
 

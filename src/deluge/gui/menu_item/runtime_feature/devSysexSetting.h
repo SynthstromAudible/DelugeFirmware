@@ -28,7 +28,7 @@ public:
 
 	void readCurrentValue() override;
 	void writeCurrentValue() override;
-	static_vector<std::string, 2> getOptions() override;
+	static_vector<std::string_view, 2> getOptions() override;
 	[[nodiscard]] std::string_view getName() const override;
 	[[nodiscard]] std::string_view getTitle() const override;
 

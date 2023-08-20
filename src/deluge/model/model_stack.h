@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "modulation/params/param_manager.h"
 
 class Song;
@@ -145,8 +145,9 @@ public:
 
 	inline TimelineCounter* getTimelineCounter() const {
 #if ALPHA_OR_BETA_VERSION
-		if (!timelineCounter)
-			numericDriver.freezeWithError("E369");
+		if (!timelineCounter) {
+			display->freezeWithError("E369");
+		}
 #endif
 		return timelineCounter;
 	}
@@ -197,8 +198,9 @@ public:
 
 	inline NoteRow* getNoteRow() const {
 #if ALPHA_OR_BETA_VERSION
-		if (!noteRow)
-			numericDriver.freezeWithError("E379");
+		if (!noteRow) {
+			display->freezeWithError("E379");
+		}
 #endif
 		return noteRow;
 	}

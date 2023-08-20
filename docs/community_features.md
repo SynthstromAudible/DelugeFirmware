@@ -189,10 +189,6 @@ This is particularly useful in combination with the euclidean sequencing to get 
 
 This list includes all preprocessor switches that can alter firmware behaviour at compile time and thus require a different firmware
 
-* HAVE_OLED
-
-    Currently determines if the built firmware is intended for OLED or 7SEG hardware
-
 * ENABLE_SYSEX_LOAD
 
     Allow loading firmware over sysex as described above

@@ -23,7 +23,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "model/clip/clip_minder.h"
@@ -33,10 +33,6 @@
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "util/functions.h"
-
-#if HAVE_OLED
-#include "hid/display/oled.h"
-#endif
 
 extern "C" {
 #include "RZA1/oled/oled_low_level.h"
@@ -96,11 +92,14 @@ void UITimerManager::routine() {
 					break;
 
 				case TIMER_DISPLAY:
-#if HAVE_OLED
-					OLED::timerRoutine();
-#else
-					numericDriver.timerRoutine();
-#endif
+					if (display->haveOLED()) {
+						auto* oled = static_cast<deluge::hid::display::OLED*>(display);
+						oled->timerRoutine();
+					}
+					else {
+						display->timerRoutine();
+					}
+
 					break;
 
 				case TIMER_LED_BLINK:
@@ -167,19 +166,24 @@ void UITimerManager::routine() {
 					}
 					break;
 
-#if HAVE_OLED
 				case TIMER_OLED_LOW_LEVEL:
-					oledLowLevelTimerCallback();
+					if (display->haveOLED()) {
+						oledLowLevelTimerCallback();
+					}
 					break;
 
 				case TIMER_OLED_CONSOLE:
-					OLED::consoleTimerEvent();
+					if (display->haveOLED()) {
+						auto* oled = static_cast<deluge::hid::display::OLED*>(display);
+						oled->consoleTimerEvent();
+					}
 					break;
 
 				case TIMER_OLED_SCROLLING_AND_BLINKING:
-					OLED::scrollingAndBlinkingTimerEvent();
+					if (display->haveOLED()) {
+						deluge::hid::display::OLED::scrollingAndBlinkingTimerEvent();
+					}
 					break;
-#endif
 				}
 			}
 		}

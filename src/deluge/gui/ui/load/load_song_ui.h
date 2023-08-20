@@ -23,7 +23,7 @@
 class LoadSongUI final : public LoadUI {
 public:
 	LoadSongUI();
-	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 	ActionResult timerCallback();
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
 	void graphicsRoutine() {}
@@ -45,9 +45,7 @@ protected:
 
 private:
 	void drawSongPreview(bool toStore = true);
-#if HAVE_OLED
 	void displayArmedPopup();
-#endif
 
 	bool scrollingIntoSlot;
 	//int32_t findNextFile(int32_t offset);
@@ -56,6 +54,4 @@ private:
 };
 extern LoadSongUI loadSongUI;
 
-#if HAVE_OLED
 extern char loopsRemainingText[];
-#endif

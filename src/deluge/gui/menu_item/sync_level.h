@@ -33,9 +33,8 @@ public:
 protected:
 	void drawValue() final;
 	virtual void getNoteLengthName(char* buffer);
-#if HAVE_OLED
+
 	void drawPixelsForOled() override;
-#endif
 };
 
 } // namespace deluge::gui::menu_item

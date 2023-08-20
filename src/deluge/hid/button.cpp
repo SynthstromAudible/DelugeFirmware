@@ -1,7 +1,7 @@
 #include "button.h"
 #include "definitions_cxx.hpp"
 
-namespace hid {
+namespace deluge::hid {
 
 namespace button {
 
@@ -34,4 +34,4 @@ bool Button::operator==(Button const& other) {
 }
 */
 
-} // namespace hid
+} // namespace deluge::hid

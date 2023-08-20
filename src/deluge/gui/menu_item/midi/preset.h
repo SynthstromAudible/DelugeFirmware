@@ -17,8 +17,7 @@
 #pragma once
 #include "gui/menu_item/integer.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/numeric_driver.h"
-#include "hid/display/oled.h"
+#include "hid/display/display.h"
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/output.h"
@@ -31,30 +30,30 @@ public:
 
 	[[nodiscard]] int32_t getMaxValue() const override { return 128; } // Probably not needed cos we override below...
 
-#if HAVE_OLED
 	void drawInteger(int32_t textWidth, int32_t textHeight, int32_t yPixel) {
 		char buffer[12];
 		char const* text;
 		if (this->getValue() == 128) {
-			text = "NONE";
+			text = l10n::get(l10n::String::STRING_FOR_NONE);
 		}
 		else {
 			intToString(this->getValue() + 1, buffer, 1);
 			text = buffer;
 		}
-		OLED::drawStringCentred(text, yPixel + OLED_MAIN_TOPMOST_PIXEL, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
-		                        textWidth, textHeight);
+		deluge::hid::display::OLED::drawStringCentred(text, yPixel + OLED_MAIN_TOPMOST_PIXEL,
+		                                              deluge::hid::display::OLED::oledMainImage[0],
+		                                              OLED_MAIN_WIDTH_PIXELS, textWidth, textHeight);
 	}
-#else
+
 	void drawValue() override {
 		if (this->getValue() == 128) {
-			numericDriver.setText("NONE");
+			display->setText(l10n::get(l10n::String::STRING_FOR_NONE));
 		}
 		else {
-			numericDriver.setTextAsNumber(this->getValue() + 1);
+			display->setTextAsNumber(this->getValue() + 1);
 		}
 	}
-#endif
+
 	bool isRelevant(Sound* sound, int32_t whichThing) override {
 		return currentSong->currentClip->output->type == InstrumentType::MIDI_OUT;
 	}

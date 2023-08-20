@@ -17,9 +17,10 @@
 
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "definitions_cxx.hpp"
+#include "gui/l10n/l10n.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "io/debug/print.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
@@ -1558,7 +1559,7 @@ ModelStackWithThreeMainThings* ModControllableAudio::addNoteRowIndexAndStuff(Mod
 		InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
 #if ALPHA_OR_BETA_VERSION
 		if (noteRowIndex >= clip->noteRows.getNumElements()) {
-			numericDriver.freezeWithError("E406");
+			display->freezeWithError("E406");
 		}
 #endif
 		noteRow = clip->noteRows.getElement(noteRowIndex);
@@ -1883,7 +1884,7 @@ void ModControllableAudio::switchDelayPingPong() {
 		displayText = "Ping-pong delay";
 		break;
 	}
-	numericDriver.displayPopup(displayText);
+	display->displayPopup(displayText);
 }
 
 void ModControllableAudio::switchDelayAnalog() {
@@ -1896,10 +1897,10 @@ void ModControllableAudio::switchDelayAnalog() {
 		break;
 
 	default:
-		displayText = HAVE_OLED ? "Analog delay" : "ANA";
+		displayText = deluge::l10n::get(deluge::l10n::String::STRING_FOR_ANALOG_DELAY);
 		break;
 	}
-	numericDriver.displayPopup(displayText);
+	display->displayPopup(displayText);
 }
 
 void ModControllableAudio::switchDelaySyncType() {
@@ -1929,7 +1930,7 @@ void ModControllableAudio::switchDelaySyncType() {
 		displayText = "Even";
 		break;
 	}
-	numericDriver.displayPopup(displayText);
+	display->displayPopup(displayText);
 }
 
 void ModControllableAudio::switchDelaySyncLevel() {
@@ -1967,7 +1968,7 @@ void ModControllableAudio::switchDelaySyncLevel() {
 		displayText = "1-bar";
 		break;
 	}
-	numericDriver.displayPopup(displayText);
+	display->displayPopup(displayText);
 }
 
 void ModControllableAudio::switchLPFMode() {
@@ -1994,7 +1995,7 @@ void ModControllableAudio::switchLPFMode() {
 		displayText = "SV_NOTCH";
 		break;
 	}
-	numericDriver.displayPopup(displayText);
+	display->displayPopup(displayText);
 }
 void ModControllableAudio::switchHPFMode() {
 	//this works fine, the offset to the first hpf doesn't matter with the modulus
@@ -2012,7 +2013,7 @@ void ModControllableAudio::switchHPFMode() {
 		displayText = "SV_NOTCH";
 		break;
 	}
-	numericDriver.displayPopup(displayText);
+	display->displayPopup(displayText);
 }
 
 // This can get called either for hibernation, or because drum now has no active noteRow

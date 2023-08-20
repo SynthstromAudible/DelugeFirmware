@@ -37,7 +37,7 @@ public:
 	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
 	void selectEncoderAction(int8_t offset);
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
-	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
 	ActionResult horizontalEncoderAction(int32_t offset);
 	void graphicsRoutine();
@@ -47,11 +47,12 @@ public:
 	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3] = NULL,
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL);
 
-#if HAVE_OLED
+	// OLED
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
-#else
+
+	// 7SEG
 	void displayText();
-#endif
+
 	MarkerType markerType;
 
 	bool blinkInvisible;

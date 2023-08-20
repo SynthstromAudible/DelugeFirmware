@@ -23,6 +23,7 @@ env.AppendUnique(
         "-mthumb-interwork",
         "-mlittle-endian",
         "-fdiagnostics-parseable-fixits",
+        "-std=gnu++20"
     ],
     ASMPATH=[
         "src/NE10/common",

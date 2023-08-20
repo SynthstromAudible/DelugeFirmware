@@ -18,9 +18,10 @@
 #include "gui/views/clip_view.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
+#include "gui/l10n/l10n.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "hid/matrix/matrix_driver.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
@@ -52,8 +53,8 @@ void ClipView::focusRegained() {
 	ClipNavigationTimelineView::focusRegained();
 }
 
-ActionResult ClipView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
-	using namespace hid::button;
+ActionResult ClipView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	using namespace deluge::hid::button;
 
 	// Horizontal encoder button press-down - don't let it do its zoom level thing if zooming etc not currently accessible
 	if (b == X_ENC && on && !getCurrentClip()->currentlyScrollableAndZoomable()) {}
@@ -141,12 +142,12 @@ Action* ClipView::shortenClip(int32_t newLength) {
 ActionResult ClipView::horizontalEncoderAction(int32_t offset) {
 
 	// Shift button pressed - edit length
-	if (isNoUIModeActive() && !Buttons::isButtonPressed(hid::button::Y_ENC)
-	    && (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::button::CLIP_VIEW))) {
+	if (isNoUIModeActive() && !Buttons::isButtonPressed(deluge::hid::button::Y_ENC)
+	    && (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::CLIP_VIEW))) {
 
 		// If tempoless recording, don't allow
 		if (!getCurrentClip()->currentlyScrollableAndZoomable()) {
-			numericDriver.displayPopup(HAVE_OLED ? "Can't edit length" : "CANT");
+			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_EDIT_LENGTH));
 			return ActionResult::DEALT_WITH;
 		}
 
@@ -223,9 +224,9 @@ doReRender:
 	}
 
 	// Or, maybe shift everything horizontally
-	else if ((isNoUIModeActive() && Buttons::isButtonPressed(hid::button::Y_ENC))
+	else if ((isNoUIModeActive() && Buttons::isButtonPressed(deluge::hid::button::Y_ENC))
 	         || (isUIModeActiveExclusively(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)
-	             && Buttons::isButtonPressed(hid::button::CLIP_VIEW))) {
+	             && Buttons::isButtonPressed(deluge::hid::button::CLIP_VIEW))) {
 		if (sdRoutineLock)
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Just be safe - maybe not necessary
 		int32_t squareSize = getPosFromSquare(1) - getPosFromSquare(0);

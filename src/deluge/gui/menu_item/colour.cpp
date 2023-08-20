@@ -22,10 +22,10 @@
 
 namespace deluge::gui::menu_item {
 
-Colour activeColourMenu{"ACTIVE"};
-Colour stoppedColourMenu{"STOPPED"};
-Colour mutedColourMenu{"MUTED"};
-Colour soloColourMenu{"SOLOED"};
+Colour activeColourMenu{l10n::String::STRING_FOR_ACTIVE};
+Colour stoppedColourMenu{l10n::String::STRING_FOR_STOPPED};
+Colour mutedColourMenu{l10n::String::STRING_FOR_MUTED};
+Colour soloColourMenu{l10n::String::STRING_FOR_SOLOED};
 
 void Colour::getRGB(uint8_t rgb[3]) {
 	switch (value) {

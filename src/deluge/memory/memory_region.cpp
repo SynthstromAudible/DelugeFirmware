@@ -17,7 +17,7 @@
 
 #include "memory/memory_region.h"
 #include "drivers/mtu/mtu.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "io/debug/print.h"
 #include "memory/general_memory_allocator.h"
 #include "memory/stealable.h"
@@ -60,8 +60,8 @@ void MemoryRegion::sanityCheck() {
 	}
 
 	if (count > 1) {
+		display->freezeWithError("BBBB");
 		Debug::println("multiple 0xc0080bc!!!!");
-		numericDriver.freezeWithError("BBBB");
 	}
 	else if (count == 1) {
 		if (!seenYet) {
@@ -76,17 +76,17 @@ void MemoryRegion::verifyMemoryNotFree(void* address, uint32_t spaceSize) {
 		EmptySpaceRecord* emptySpaceRecord = (EmptySpaceRecord*)emptySpaces.getElementAddress(i);
 		if (emptySpaceRecord->address == (uint32_t)address) {
 			Debug::println("Exact address free!");
-			numericDriver.freezeWithError("dddffffd");
+			display->freezeWithError("dddffffd");
 		}
 		else if (emptySpaceRecord->address <= (uint32_t)address
 		         && (emptySpaceRecord->address + emptySpaceRecord->length > (uint32_t)address)) {
+			display->freezeWithError("dddd");
 			Debug::println("free mem overlap on left!");
-			numericDriver.freezeWithError("dddd");
 		}
 		else if ((uint32_t)address <= (uint32_t)emptySpaceRecord->address
 		         && ((uint32_t)address + spaceSize > emptySpaceRecord->address)) {
+			display->freezeWithError("eeee");
 			Debug::println("free mem overlap on right!");
-			numericDriver.freezeWithError("eeee");
 		}
 	}
 }
@@ -101,7 +101,7 @@ static EmptySpaceRecord* recordToMergeWith;
 // spaceSize can even be 0 or less if you know it's going to get merged.
 inline void MemoryRegion::markSpaceAsEmpty(uint32_t address, uint32_t spaceSize, bool mayLookLeft, bool mayLookRight) {
 	if ((address <= start) || address >= end) {
-		//numericDriver.freezeWithError("M998");
+		//display->freezeWithError("M998");
 		return;
 	}
 	int32_t biggerRecordSearchFromIndex = 0;
@@ -760,7 +760,7 @@ void MemoryRegion::dealloc(void* address) {
 
 #if ALPHA_OR_BETA_VERSION
 	if ((*header & SPACE_TYPE_MASK) == SPACE_HEADER_EMPTY) {
-		numericDriver.freezeWithError("M000");
+		display->freezeWithError("M000");
 	}
 #endif
 

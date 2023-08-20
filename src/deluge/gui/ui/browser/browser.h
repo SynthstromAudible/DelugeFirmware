@@ -69,7 +69,7 @@ public:
 
 	void close();
 	virtual int32_t getCurrentFilePath(String* path) = 0;
-	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 	void currentFileDeleted();
 	int32_t goIntoFolder(char const* folderName);
 	int32_t createFolder();
@@ -87,9 +87,7 @@ public:
 	bool opened();
 	void cullSomeFileItems();
 
-#if HAVE_OLED
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
-#endif
 
 	static String currentDir;
 	static CStringArray fileItems;
@@ -111,10 +109,8 @@ protected:
 	ActionResult mainButtonAction(bool on);
 	virtual void exitAction();
 	virtual ActionResult backButtonAction();
-	virtual void folderContentsReady(int32_t entryDirection) {
-	}
-	virtual void currentFileChanged(int32_t movementDirection) {
-	}
+	virtual void folderContentsReady(int32_t entryDirection) {}
+	virtual void currentFileChanged(int32_t movementDirection) {}
 	void displayText(bool blinkImmediately = false);
 	static Slot getSlot(char const* displayName);
 	int32_t readFileItemsFromFolderAndMemory(Song* song, InstrumentType instrumentType, char const* filePrefixHere,
@@ -133,13 +129,13 @@ protected:
 	static bool allowFoldersSharingNameWithFile;
 	static char const** allowedFileExtensions;
 
-#if HAVE_OLED
 	const uint8_t* fileIcon;
-#else
+
+	// 7Seg Only
 	static int8_t numberEditPos; // -1 is default
 	static NumericLayerScrollingText* scrollingText;
 	bool shouldWrapFolderContents; // As in, wrap around at the end.
-#endif
+
 	bool mayDefaultToBrandNewNameOnEntry;
 	bool qwertyAlwaysVisible;
 	//filePrefix is SONG/SYNT/SAMP etc., signifying the portion of the filesystem you're in
