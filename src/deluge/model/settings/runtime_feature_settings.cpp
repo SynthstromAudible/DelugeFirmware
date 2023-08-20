@@ -59,6 +59,22 @@ static void SetupOnOffSetting(RuntimeFeatureSetting& setting, const std::string&
 	};
 }
 
+static void SetupSyncScalingActionSetting(RuntimeFeatureSetting& setting, char const* const displayName,
+                                          char const* const xmlName, RuntimeFeatureStateSyncScalingAction def) {
+	setting.displayName = displayName;
+	setting.xmlName = xmlName;
+	setting.value = static_cast<uint32_t>(def);
+
+	setting.options = {{
+	                       .displayName = "SCAL",
+	                       .value = RuntimeFeatureStateSyncScalingAction::SyncScaling,
+	                   },
+	                   {
+	                       .displayName = "FILL",
+	                       .value = RuntimeFeatureStateSyncScalingAction::Fill,
+	                   }};
+}
+
 void RuntimeFeatureSettings::init() {
 	// Drum randomizer
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DrumRandomizer], "Drum Randomizer", "drumRandomizer",
@@ -100,6 +116,9 @@ void RuntimeFeatureSettings::init() {
 	// devSysexAllowed
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DevSysexAllowed], "Allow Insecure Develop Sysex Messages",
 	                  "devSysexAllowed", RuntimeFeatureStateToggle::Off);
+	// SyncScalingAction
+	SetupSyncScalingActionSetting(settings[RuntimeFeatureSettingType::SyncScalingAction], "Sync Scaling Action",
+	                              "syncScalingAction", RuntimeFeatureStateSyncScalingAction::SyncScaling);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {
