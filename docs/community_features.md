@@ -116,7 +116,7 @@ This mode affects how the deluge handles MIDI input for learned CC controls.
 
 #### 4.2.5 - Patchable Wavefolding Distortion
 
-- ([#349)) Adds a pre filter wavefolder, and the depth is patchable/automatable. The depth is accessible in both the menu and on the pad between saturation and LPF cutoff. The fold has no effect when set to 0 and removes itself from the signal path.
+- ([#349]) Adds a pre filter wavefolder, and the depth is patchable/automatable. The depth is accessible in both the menu and on the pad between saturation and LPF cutoff. The fold has no effect when set to 0 and removes itself from the signal path.
 	- Note that it has no effect on square waves, it's best with sines and triangles
 
 #### 4.2.6 - Grain FX
