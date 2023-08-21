@@ -296,7 +296,8 @@ gotMPEInput:
 
 	// In case Norns layout is active show
 	InstrumentClip* instrumentClip = (InstrumentClip*)activeClip;
-	if (instrumentClip->onKeyboardScreen && instrumentClip->keyboardState.currentLayout == deluge::gui::ui::keyboard::KeyboardLayoutType::Norns) {
+	if (instrumentClip->onKeyboardScreen
+	    && instrumentClip->keyboardState.currentLayout == deluge::gui::ui::keyboard::KeyboardLayoutType::Norns) {
 		highlightNoteValue = on ? velocity : 0;
 	}
 
