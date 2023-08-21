@@ -1460,6 +1460,61 @@ paramManagersMissing:
 	return NO_ERROR;
 }
 
+/**
+ * Special function to read a synth preset into a sound drum
+*/
+int32_t StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool mayReadSamplesFromFiles,
+                                        SoundDrum** getInstrument, FilePointer* filePointer, String* name,
+                                        String* dirPath) {
+	InstrumentType instrumentType = InstrumentType::SYNTH;
+
+	AudioEngine::logAction("loadSynthDrumFromFile");
+
+	int32_t error = openInstrumentFile(instrumentType, filePointer);
+	if (error) {
+		return error;
+	}
+
+	AudioEngine::logAction("loadInstrumentFromFile");
+	//This will return a sound drum so the cast is fine
+	SoundDrum* newInstrument = (SoundDrum*)createNewDrum(DrumType::SOUND);
+
+	if (!newInstrument) {
+		closeFile();
+		return ERROR_INSUFFICIENT_RAM;
+	}
+
+	error = newInstrument->readFromFile(song, clip, 0);
+
+	bool fileSuccess = closeFile();
+
+	// If that somehow didn't work...
+	if (error || !fileSuccess) {
+
+		if (!fileSuccess) {
+			error = ERROR_SD_CARD;
+		}
+
+deleteInstrumentAndGetOut:
+		void* toDealloc = dynamic_cast<void*>(newInstrument);
+		newInstrument->~SoundDrum();
+		GeneralMemoryAllocator::get().dealloc(toDealloc);
+
+		return error;
+	}
+	if (!currentSong->getBackedUpParamManagerPreferablyWithClip(newInstrument, NULL)) {
+		error = ERROR_FILE_CORRUPTED;
+		goto deleteInstrumentAndGetOut;
+	}
+
+	newInstrument->name.set(name);
+
+	newInstrument->loadAllAudioFiles(mayReadSamplesFromFiles); // Needs name, directory and slots set first, above.
+
+	*getInstrument = newInstrument;
+	return NO_ERROR;
+}
+
 // After calling this, you must make sure you set dirPath of Instrument.
 Instrument* StorageManager::createNewInstrument(InstrumentType newInstrumentType, ParamManager* paramManager) {
 

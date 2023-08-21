@@ -835,10 +835,16 @@ giveUsedError:
 				return ERROR_UNSPECIFIED;
 			}
 		}
-
-		int32_t error = storageManager.loadInstrumentFromFile(currentSong, instrumentClipToLoadFor,
-		                                                      instrumentTypeToLoad, false, &newInstrument,
-		                                                      &currentFileItem->filePointer, &enteredText, &currentDir);
+		int32_t error;
+		if (!loadingSynthToKitRow) {
+			error = storageManager.loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, instrumentTypeToLoad,
+			                                              false, &newInstrument, &currentFileItem->filePointer,
+			                                              &enteredText, &currentDir);
+		}
+		else {
+			error = storageManager.loadSynthToDrum(currentSong, instrumentClipToLoadFor, false, &soundDrumToReplace,
+			                                       &currentFileItem->filePointer, &enteredText, &currentDir);
+		}
 
 		if (error) {
 			return error;
