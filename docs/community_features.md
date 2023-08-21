@@ -76,7 +76,25 @@ Here is a list of features that have been added to the firmware as a list, group
 ### 4.2 - Clip View - General Features (Instrument and Audio)
 
 #### 4.2.1 - Filters
- - ([#103]) - **LPF:** adds a new filter in the low-pass slot, a state-variable filter. This filter has significantly less distortion than the ladder filters, think sequential vs. moog. Cutoff and resonance ranges are subject to change with further testing.
+ - ([#103]) Adds a new filter in the low-pass slot, a state-variable filter. This filter has significantly less distortion than the ladder filters, think sequential vs. moog. Cutoff and resonance ranges are subject to change with further testing.
+
+	- Follow-up PR's: ([#125] and [#212]) Various SVF fixes
+
+- ([#336]) Morphable and Driveable Parallel Filters
+	- Add an SVF option to the HPF slot, set for HPF mode by default. This can be modified through the menu, shortcuts, or clicking the lower knob while HPF is selected.
+
+	- Follow-up PR: ([#339]) SVF Notch Filter
+ 		- Adds an SVF notch mode (SV_Notch) alongside the SVF Band mode (SV_Band)
+		- Changes SVF morph in HP slot to go HP-band/notch-LP (HP by default)
+		- Tweaks default ladder saturation to match original firmware
+		- Applies ladder gain on input instead of feedback, avoiding interaction with resonance
+		- Tweaks SVF level to match ladder volumes
+		- Removes distinction between high and lowpass SVF enums so they can now be used in either slot
+adds HP ladder morph to filter FM
+
+	- Adds a 3rd filter paramater called morph, placed in the menu and on the pads under the db/oct on filters. Morph smoothly morphs the SVF through LP-BP-HP, and smoothly increases drive in the ladder filters. This param is modulatable and automatable
+
+	- Adds a setting to switch the filter order or run them in parallel. This setting is menu only and named ROUTE
 
 #### 4.2.2 - Stereo Chorus
 - ([#120]) New Steroe Chorus type added to Mod FX. The recommended settings are OFFSET=30, DEPTH=17, and RATE=15.
@@ -173,7 +191,7 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 
 ##### 4.4.1.2 - Keyboard API and General Improvements
 
- - ([#138])
+ - ([#138] and [#337])
   	 - Users can switch between layouts with "keyboard" button and select knob
 	 - Keyboard mode allows freely switch between all types (Synth, Kit, MIDI, CV) automatically getting the first compatible layout
 	 - Drum trigger edge sizes in Drums layout for kits can now be changed between 1 and 8 with shift + horizontal encoder
@@ -193,6 +211,7 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 
 #### 4.5.1 - Kit Keyboard View
  - ([#112]) All-new use for the "keyboard" button in kit clips, uses the main pad grid for MPC-style 16 level playing. Horizontal encoder scrolls by one pad at a time, allowing positioning drums left to right, and vertical encoder jumps vertically by rows.
+ - Follow-up PR: ([#317]) Fixed the issue where audition pads would remain illuminated after pressing pads 9 to 16 and then returning to the clip view.
 
 #### 4.5.2 - Drum Randomizer / Load Random Samples
 
@@ -279,6 +298,7 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#112]: https://github.com/SynthstromAudible/DelugeFirmware/pull/112
 [#120]: https://github.com/SynthstromAudible/DelugeFirmware/pull/120
 [#122]: https://github.com/SynthstromAudible/DelugeFirmware/pull/122
+[#125]: https://github.com/SynthstromAudible/DelugeFirmware/pull/125
 [#129]: https://github.com/SynthstromAudible/DelugeFirmware/pull/129
 [#141]: https://github.com/SynthstromAudible/DelugeFirmware/pull/141
 [#137]: https://github.com/SynthstromAudible/DelugeFirmware/pull/137
@@ -292,6 +312,7 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#200]: https://github.com/SynthstromAudible/DelugeFirmware/pull/200
 [#210]: https://github.com/SynthstromAudible/DelugeFirmware/pull/210
 [#211]: https://github.com/SynthstromAudible/DelugeFirmware/pull/211
+[#212]: https://github.com/SynthstromAudible/DelugeFirmware/pull/212
 [#215]: https://github.com/SynthstromAudible/DelugeFirmware/pull/215
 [#220]: https://github.com/SynthstromAudible/DelugeFirmware/pull/220
 [#221]: https://github.com/SynthstromAudible/DelugeFirmware/pull/221
@@ -303,6 +324,10 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#282]: https://github.com/SynthstromAudible/DelugeFirmware/pull/282
 [#293]: https://github.com/SynthstromAudible/DelugeFirmware/pull/293
 [#295]: https://github.com/SynthstromAudible/DelugeFirmware/pull/295
+[#317]: https://github.com/SynthstromAudible/DelugeFirmware/pull/317
+[#336]: https://github.com/SynthstromAudible/DelugeFirmware/pull/336
+[#337]: https://github.com/SynthstromAudible/DelugeFirmware/pull/337
+[#339]: https://github.com/SynthstromAudible/DelugeFirmware/pull/339
 [#347]: https://github.com/SynthstromAudible/DelugeFirmware/pull/347
 [#360]: https://github.com/SynthstromAudible/DelugeFirmware/pull/360
 [#363]: https://github.com/SynthstromAudible/DelugeFirmware/pull/363
