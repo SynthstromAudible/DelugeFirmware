@@ -2095,7 +2095,7 @@ void PlaybackHandler::displayTempoBPM(float tempoBPM) {
 		else {
 			floatToString(tempoBPM, &buffer[7], 0, 3);
 		}
-		display->popupText(buffer);
+		display->popupTextTemporary(buffer);
 	}
 	else {
 		if (tempoBPM >= 9999.5) {
