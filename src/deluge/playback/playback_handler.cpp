@@ -17,6 +17,7 @@
 
 #include "playback/playback_handler.h"
 #include "definitions_cxx.hpp"
+#include "gui/l10n/l10n.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/sound_editor.h"
@@ -26,8 +27,7 @@
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
-#include "hid/display/numeric_driver.h"
-#include "hid/display/oled.h"
+#include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
@@ -153,7 +153,7 @@ void PlaybackHandler::slowRoutine() {
 			if (ALPHA_OR_BETA_VERSION && pendingGlobalMIDICommandNumClustersWritten) {
 				char buffer[12];
 				intToString(pendingGlobalMIDICommandNumClustersWritten, buffer);
-				numericDriver.displayPopup(buffer);
+				display->displayPopup(buffer);
 			}
 		}
 
@@ -172,18 +172,19 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
 	else {
 
 		// If holding <> encoder down...
-		if (Buttons::isButtonPressed(hid::button::X_ENC)) {
+		if (Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
 
 			// If wanting to switch into arranger...
 			if (currentPlaybackMode == &session && getCurrentUI() == &arrangerView) {
 				arrangementPosToStartAtOnSwitch = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
 				session.armForSwitchToArrangement();
-#if HAVE_OLED
-				renderUIsForOled();
-#else
-				sessionView.redrawNumericDisplay();
-#endif
-				numericDriver.cancelPopup();
+				if (display->haveOLED()) {
+					renderUIsForOled();
+				}
+				else {
+					sessionView.redrawNumericDisplay();
+				}
+				display->cancelPopup();
 			}
 
 			// Otherwise, if internal clock, restart playback
@@ -194,7 +195,7 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
 					forceResetPlayPos(currentSong);
 				}
 				else {
-					numericDriver.displayPopup(HAVE_OLED ? "Following external clock" : "CANT");
+					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_FOLLOWING_EXTERNAL_CLOCK));
 				}
 			}
 		}
@@ -271,7 +272,7 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 
 	// Allow playback to start from current scroll if holding down <> knob
 	int32_t newPos = 0;
-	if (Buttons::isButtonPressed(hid::button::X_ENC)
+	if (Buttons::isButtonPressed(deluge::hid::button::X_ENC)
 	    || (getRootUI() == &arrangerView && recording == RECORDING_NORMAL)) {
 
 		int32_t navSys;
@@ -484,7 +485,7 @@ void PlaybackHandler::endPlayback() {
 
 	if (currentVisualCountForCountIn) {
 		currentVisualCountForCountIn = 0;
-		numericDriver.cancelPopup(); // In case the count-in was showing
+		display->cancelPopup(); // In case the count-in was showing
 	}
 
 	setLedStates();
@@ -735,7 +736,7 @@ void PlaybackHandler::actionSwungTick() {
 				}
 			}
 
-			numericDriver.cancelPopup();
+			display->cancelPopup();
 			currentVisualCountForCountIn = 0;
 			currentUIMode &= UI_MODE_AUDITIONING;
 
@@ -751,7 +752,7 @@ void PlaybackHandler::actionSwungTick() {
 				currentVisualCountForCountIn = newVisualCount;
 				char buffer[12];
 				intToString(newVisualCount, buffer);
-				numericDriver.displayPopup(buffer, 0, true, 255, 2);
+				display->displayPopup(buffer, 0, true, 255, 2);
 			}
 			swungTicksTilNextEvent = 2147483647;
 			goto doMetronome;
@@ -1045,8 +1046,8 @@ int64_t PlaybackHandler::getCurrentInternalTickCount(uint32_t* timeRemainder) {
 
 #if ALPHA_OR_BETA_VERSION
 	if (internalTickCount < 0) {
-		numericDriver.freezeWithError(
-		    "E429"); // Trying to narrow down "nofg" error, which Ron got most recently (Nov 2021). Wait no, he didn't have playback on!
+		// Trying to narrow down "nofg" error, which Ron got most recently (Nov 2021). Wait no, he didn't have playback on!
+		display->freezeWithError("E429");
 	}
 #endif
 
@@ -1094,7 +1095,7 @@ goAgain:
 
 		// Should now be impossible for them to be at the same time, since we should be looking at one in the future and one not
 		if (ALPHA_OR_BETA_VERSION && timeBetweenInputTicks <= 0) {
-			numericDriver.freezeWithError("E337");
+			display->freezeWithError("E337");
 		}
 
 		currentInputTick =
@@ -1246,11 +1247,7 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 
 	AudioEngine::bypassCulling = true;
 
-#if HAVE_OLED
-	OLED::displayWorkingAnimation("Loading");
-#else
-	numericDriver.displayLoadingAnimation(); // More loading might need to happen now, or still be happening
-#endif
+	display->displayLoadingAnimationText("Loading"); // More loading might need to happen now, or still be happening
 	currentUIMode = UI_MODE_LOADING_SONG_NEW_SONG_PLAYING;
 	AudioEngine::logAction("PlaybackHandler::doSongSwap end");
 }
@@ -1767,29 +1764,29 @@ void PlaybackHandler::resyncMIDIClockOutTicksToInternalTicks() {
 }
 
 void PlaybackHandler::displaySwingAmount() {
-#if HAVE_OLED
-	char buffer[19];
-	strcpy(buffer, "Swing: ");
-	if (currentSong->swingAmount == 0) {
-		strcpy(&buffer[7], "off");
+	if (display->haveOLED()) {
+		char buffer[19];
+		strcpy(buffer, "Swing: ");
+		if (currentSong->swingAmount == 0) {
+			strcpy(&buffer[7], "off");
+		}
+		else {
+			intToString(currentSong->swingAmount + 50, &buffer[7]);
+		}
+		display->popupTextTemporary(buffer);
 	}
 	else {
-		intToString(currentSong->swingAmount + 50, &buffer[7]);
+		char buffer[12];
+		char const* toDisplay;
+		if (currentSong->swingAmount == 0) {
+			toDisplay = "OFF";
+		}
+		else {
+			intToString(currentSong->swingAmount + 50, buffer);
+			toDisplay = buffer;
+		}
+		display->displayPopup(toDisplay);
 	}
-	OLED::popupText(buffer);
-
-#else
-	char buffer[12];
-	char const* toDisplay;
-	if (currentSong->swingAmount == 0) {
-		toDisplay = "OFF";
-	}
-	else {
-		intToString(currentSong->swingAmount + 50, buffer);
-		toDisplay = buffer;
-	}
-	numericDriver.displayPopup(toDisplay);
-#endif
 }
 
 void PlaybackHandler::tempoEncoderAction(int8_t offset, bool encoderButtonPressed, bool shiftButtonPressed) {
@@ -1801,7 +1798,7 @@ void PlaybackHandler::tempoEncoderAction(int8_t offset, bool encoderButtonPresse
 	offset = std::max((int8_t)-1, std::min((int8_t)1, offset));
 
 	// Nudging sync
-	if (Buttons::isButtonPressed(hid::button::X_ENC)) {
+	if (Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
 
 		// If Deluge is using internal clock
 		if (playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE) {
@@ -1814,7 +1811,7 @@ void PlaybackHandler::tempoEncoderAction(int8_t offset, bool encoderButtonPresse
 					numOutputClocksWaitingToBeSent--; // Send one less clock
 				}
 displayNudge:
-				numericDriver.displayPopup(HAVE_OLED ? "Sync nudged" : "NUDGE");
+				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_SYNC_NUDGED));
 			}
 		}
 
@@ -1842,7 +1839,7 @@ displayNudge:
 	}
 
 	// If MIDI learn button down, change clock out scale
-	else if (Buttons::isButtonPressed(hid::button::LEARN)) {
+	else if (Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
 
 		// If playing synced, double or halve our own playing speed relative to the outside world
 		if (playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE) {
@@ -1901,7 +1898,7 @@ displayNudge:
 				tempoKnobMode = 1;
 			}
 
-			if (Buttons::isButtonPressed(hid::button::TEMPO_ENC)) {
+			if (Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC)) {
 				if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::FineTempoKnob)
 				     == RuntimeFeatureStateToggle::On)) { //feature is on, tempo button push-turned
 					tempoKnobMode = 1;
@@ -2089,78 +2086,77 @@ float PlaybackHandler::calculateBPM(float timePerInternalTick) {
 }
 
 void PlaybackHandler::displayTempoBPM(float tempoBPM) {
-#if HAVE_OLED
-	char buffer[27];
-	strcpy(buffer, "Tempo: ");
-	if (currentSong->timePerTimerTickBig <= ((uint64_t)kMinTimePerTimerTick << 32)) {
-		strcpy(&buffer[7], "FAST");
-	}
-	else {
-		floatToString(tempoBPM, &buffer[7], 0, 3);
-	}
-	OLED::popupText(buffer);
-#else
-	if (tempoBPM >= 9999.5) {
-		numericDriver.displayPopup("FAST");
-		return;
-	}
-
-	int32_t divisor = 1;
-	int32_t dotMask = (1 << 7);
-
-	if (tempoBPM >= 999.95) {}
-	else if (tempoBPM >= 99.995) {
-		divisor = 10;
-		dotMask |= (1 << 1);
-	}
-	else if (tempoBPM >= 9.9995) {
-		divisor = 100;
-		dotMask |= (1 << 2);
-	}
-	else {
-		divisor = 1000;
-		dotMask |= (1 << 3);
-	}
-
-	int32_t roundedBigger = tempoBPM * divisor + 0.5; // This will now be a 4 digit number
-	double roundedSmallerAgain = (double)roundedBigger / divisor;
-
-	bool isPerfect = false;
-
-	if (roundedBigger != 0
-	    && !(
-	        playbackState
-	        & PLAYBACK_CLOCK_EXTERNAL_ACTIVE)) { // It might get supplied here as a 0, even if it's actually very slightly above that, but we don't want do display that as an integer
-
-		// Compare to current tempo to see if 100% accurate
-		double roundedSmallerHere = roundedSmallerAgain;
-		if (currentSong->insideWorldTickMagnitude > 0) {
-			roundedSmallerHere *= ((uint32_t)1 << (currentSong->insideWorldTickMagnitude));
+	if (display->haveOLED()) {
+		char buffer[27];
+		strcpy(buffer, "Tempo: ");
+		if (currentSong->timePerTimerTickBig <= ((uint64_t)kMinTimePerTimerTick << 32)) {
+			strcpy(&buffer[7], "FAST");
 		}
-		double newTempoSamples = (double)110250 / roundedSmallerHere;
-		if (currentSong->insideWorldTickMagnitude < 0) {
-			newTempoSamples *= ((uint32_t)1 << (-currentSong->insideWorldTickMagnitude));
+		else {
+			floatToString(tempoBPM, &buffer[7], 0, 3);
+		}
+		display->popupTextTemporary(buffer);
+	}
+	else {
+		if (tempoBPM >= 9999.5) {
+			display->displayPopup("FAST");
+			return;
 		}
 
-		uint64_t newTimePerTimerTickBig = newTempoSamples * 4294967296 + 0.5;
+		int32_t divisor = 1;
+		int32_t dotMask = (1 << 7);
 
-		isPerfect = (currentSong->timePerTimerTickBig == newTimePerTimerTickBig);
-	}
+		if (tempoBPM >= 999.95) {}
+		else if (tempoBPM >= 99.995) {
+			divisor = 10;
+			dotMask |= (1 << 1);
+		}
+		else if (tempoBPM >= 9.9995) {
+			divisor = 100;
+			dotMask |= (1 << 2);
+		}
+		else {
+			divisor = 1000;
+			dotMask |= (1 << 3);
+		}
 
-	int32_t roundedTempoBPM = roundedSmallerAgain + 0.5;
+		int32_t roundedBigger = tempoBPM * divisor + 0.5; // This will now be a 4 digit number
+		double roundedSmallerAgain = (double)roundedBigger / divisor;
 
-	// If perfect and integer...
-	if (isPerfect && roundedBigger == roundedTempoBPM * divisor) {
-		char buffer[12];
-		intToString(roundedTempoBPM, buffer);
-		numericDriver.displayPopup(buffer);
+		bool isPerfect = false;
+
+		// It might get supplied here as a 0, even if it's actually very slightly above that, but we don't want do display that as an integer
+		if (roundedBigger != 0 && !(playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE)) {
+
+			// Compare to current tempo to see if 100% accurate
+			double roundedSmallerHere = roundedSmallerAgain;
+			if (currentSong->insideWorldTickMagnitude > 0) {
+				roundedSmallerHere *= ((uint32_t)1 << (currentSong->insideWorldTickMagnitude));
+			}
+			double newTempoSamples = (double)110250 / roundedSmallerHere;
+			if (currentSong->insideWorldTickMagnitude < 0) {
+				newTempoSamples *= ((uint32_t)1 << (-currentSong->insideWorldTickMagnitude));
+			}
+
+			uint64_t newTimePerTimerTickBig = newTempoSamples * 4294967296 + 0.5;
+
+			isPerfect = (currentSong->timePerTimerTickBig == newTimePerTimerTickBig);
+		}
+
+		int32_t roundedTempoBPM = roundedSmallerAgain + 0.5;
+
+		// If perfect and integer...
+		if (isPerfect && roundedBigger == roundedTempoBPM * divisor) {
+			char buffer[12];
+			intToString(roundedTempoBPM, buffer);
+			display->displayPopup(buffer);
+		}
+		else {
+			char buffer[12];
+			intToString(roundedBigger, buffer, 4);
+			display->displayPopup(buffer, 3, false, dotMask);
+		}
 	}
-	else {
-		char buffer[12];
-		intToString(roundedBigger, buffer, 4);
-		numericDriver.displayPopup(buffer, 3, false, dotMask);
-	}
-#endif
 }
 
 void PlaybackHandler::setLedStates() {
@@ -2225,7 +2221,7 @@ void PlaybackHandler::grabTempoFromClip(Clip* clip) {
 
 	if (clip->type != CLIP_TYPE_AUDIO || clip->getCurrentlyRecordingLinearly()
 	    || !((AudioClip*)clip)->sampleHolder.audioFile) {
-		numericDriver.displayPopup(HAVE_OLED ? "Can't grab tempo from clip" : "CANT");
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_GRAB_TEMPO_FROM_CLIP));
 		return;
 	}
 
@@ -2489,6 +2485,14 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, int32_t channel,
 				}
 				break;
 
+			case GlobalMIDICommand::FILL:
+				currentSong->fillModeActive = true;
+				if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction)
+				     == RuntimeFeatureStateSyncScalingAction::Fill)) {
+					indicator_leds::setLedState(IndicatorLED::SYNC_SCALING, true);
+				}
+				break;
+
 			//case GlobalMIDICommand::TAP:
 			default:
 				if (getCurrentUI() == getRootUI()) {
@@ -2501,6 +2505,24 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, int32_t channel,
 
 			foundAnything = true;
 		}
+	}
+
+	return foundAnything;
+}
+
+// Returns whether the message has been used up by a note-off command
+bool PlaybackHandler::tryGlobalMIDICommandsOff(MIDIDevice* device, int32_t channel, int32_t note) {
+
+	bool foundAnything = false;
+
+	// Check for FILL command at index [8]
+	if (midiEngine.globalMIDICommands[8].equalsNoteOrCC(device, channel, note)) {
+		currentSong->fillModeActive = false;
+		if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction)
+		     == RuntimeFeatureStateSyncScalingAction::Fill)) {
+			indicator_leds::setLedState(IndicatorLED::SYNC_SCALING, false);
+		}
+		foundAnything = true;
 	}
 
 	return foundAnything;
@@ -2540,9 +2562,12 @@ void PlaybackHandler::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32
 
 	bool foundAnything = false;
 
-	// Check global function commands
+	// Check global function commands - Off variant checks note off for momentary commands
 	if (on) {
 		foundAnything = tryGlobalMIDICommands(fromDevice, channel, note);
+	}
+	else {
+		foundAnything = tryGlobalMIDICommandsOff(fromDevice, channel, note);
 	}
 
 	// Go through all sections
@@ -2641,14 +2666,15 @@ void PlaybackHandler::switchToArrangement() {
 	arrangement.setupPlayback();
 	arrangement.resetPlayPos(arrangementPosToStartAtOnSwitch);
 	arrangerView.reassessWhetherDoingAutoScroll();
-#if HAVE_OLED
-	if (!isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)
-	    && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
-		renderUIsForOled();
+	if (display->haveOLED()) {
+		if (!isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)
+		    && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
+			renderUIsForOled();
+		}
 	}
-#else
-	sessionView.redrawNumericDisplay();
-#endif
+	else {
+		sessionView.redrawNumericDisplay();
+	}
 
 	if (getCurrentUI() == &sessionView) {
 		PadLEDs::reassessGreyout();
@@ -2939,11 +2965,13 @@ doCreateNextOverdub:
 					}
 				}
 				else {
-					numericDriver.displayPopup(HAVE_OLED ? "Audio track has no input channel" : "CANT");
+					display->displayPopup(
+					    deluge::l10n::get(deluge::l10n::String::STRING_FOR_AUDIO_TRACK_HAS_NO_INPUT_CHANNEL));
 				}
 			}
 			else {
-				numericDriver.displayPopup(HAVE_OLED ? "Create overdub from which clip?" : "WHICH");
+				display->displayPopup(
+				    deluge::l10n::get(deluge::l10n::String::STRING_FOR_CREATE_OVERDUB_FROM_WHICH_CLIP));
 			}
 		}
 	}

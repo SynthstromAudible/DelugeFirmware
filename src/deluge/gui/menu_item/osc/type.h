@@ -29,16 +29,10 @@
 namespace deluge::gui::menu_item::osc {
 class Type final : public Selection<kNumOscTypes>, public FormattedTitle {
 public:
-	Type(const std::string& name, const fmt::format_string<int32_t>& title_format_str)
-	    : Selection(name), FormattedTitle(title_format_str){};
-#if HAVE_OLED
-	void beginSession(MenuItem* navigatedBackwardFrom) override {
-		Selection::beginSession(navigatedBackwardFrom);
-	}
-#endif
-	void readCurrentValue() override {
-		this->setValue(soundEditor.currentSource->oscType);
-	}
+	Type(l10n::String name, l10n::String title_format_str) : Selection(name), FormattedTitle(title_format_str){};
+	void beginSession(MenuItem* navigatedBackwardFrom) override { Selection::beginSession(navigatedBackwardFrom); }
+
+	void readCurrentValue() override { this->setValue(soundEditor.currentSource->oscType); }
 	void writeCurrentValue() override {
 
 		OscType oldValue = soundEditor.currentSource->oscType;
@@ -64,31 +58,26 @@ public:
 		}
 	}
 
-	[[nodiscard]] std::string_view getTitle() const override {
-		return FormattedTitle::title();
-	}
+	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
-	//char const** getOptions() { static char const* options[] = {"SINE", "TRIANGLE", "SQUARE", "SAW", "MMS1", "SUB1", "SAMPLE", "INL", "INR", "INLR", "SQ50", "SQ02", "SQ01", "SUB2", "SQ20", "SA50", "S101", "S303", "MMS2", "MMS3", "TABLE"}; return options; }
-	static_vector<std::string, capacity()> getOptions() override {
-		static_vector<std::string, capacity()> options = {
-		    "SINE",
-		    "TRIANGLE",
-		    "SQUARE",
-		    HAVE_OLED ? "Analog square" : "ASQUARE",
-		    "Saw",
-		    HAVE_OLED ? "Analog saw" : "ASAW",
-		    "Wavetable",
-		    "SAMPLE",
-		    HAVE_OLED ? "Input (left)" : "INL",
-		    HAVE_OLED ? "Input (right)" : "INR",
-		    HAVE_OLED ? "Input (stereo)" : "INLR",
+	static_vector<std::string_view, capacity()> getOptions() override {
+		using enum l10n::String;
+		static_vector<std::string_view, capacity()> options = {
+		    l10n::getView(STRING_FOR_SINE),          //<
+		    l10n::getView(STRING_FOR_TRIANGLE),      //<
+		    l10n::getView(STRING_FOR_SQUARE),        //<
+		    l10n::getView(STRING_FOR_ANALOG_SQUARE), //<
+		    l10n::getView(STRING_FOR_SAW),           //<
+		    l10n::getView(STRING_FOR_ANALOG_SAW),    //<
+		    l10n::getView(STRING_FOR_WAVETABLE),     //<
+		    l10n::getView(STRING_FOR_SAMPLE),        //<
+		    l10n::getView(STRING_FOR_INPUT_LEFT),    //<
+		    l10n::getView(STRING_FOR_INPUT_RIGHT),   //<
+		    l10n::getView(STRING_FOR_INPUT_STEREO),  //<
 		};
-#if HAVE_OLED
-		options[8] = ((AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn)) ? "Input (left)" : "Input";
-#else
-
-		options[8] = ((AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn)) ? "INL" : "IN";
-#endif
+		options[8] = ((AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn)) //<
+		                 ? l10n::getView(STRING_FOR_INPUT_LEFT)
+		                 : l10n::getView(STRING_FOR_INPUT);
 
 		if (soundEditor.currentSound->getSynthMode() == SynthMode::RINGMOD) {
 			return {options.begin(), options.begin() + kNumOscTypesRingModdable};
@@ -99,9 +88,7 @@ public:
 		return {options.begin(), options.begin() + kNumOscTypes - 2};
 	}
 
-	bool isRelevant(Sound* sound, int32_t whichThing) override {
-		return (sound->getSynthMode() != SynthMode::FM);
-	}
+	bool isRelevant(Sound* sound, int32_t whichThing) override { return (sound->getSynthMode() != SynthMode::FM); }
 };
 
 } // namespace deluge::gui::menu_item::osc

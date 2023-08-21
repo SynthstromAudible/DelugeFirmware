@@ -21,7 +21,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/timeline_view.h"
 #include "gui/views/view.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "io/debug/print.h"
 #include "io/midi/midi_device.h"
 #include "memory/general_memory_allocator.h"
@@ -63,7 +63,7 @@ NoteRow::NoteRow(int16_t newY) {
 	firstOldDrumName = NULL;
 	soundingStatus = STATUS_OFF;
 	skipNextNote = false;
-
+	probabilityValue = kNumProbabilityValues;
 	loopLengthIfIndependent = 0;
 	sequenceDirectionMode = SequenceDirection::OBEY_PARENT;
 }
@@ -1094,7 +1094,7 @@ int32_t NoteRow::editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareW
 	}
 #if ALPHA_OR_BETA_VERSION
 	else if (numToDelete < 0) { // If we overshot somehow
-		numericDriver.freezeWithError("E329");
+		display->freezeWithError("E329");
 	}
 #endif
 
@@ -2059,7 +2059,7 @@ void NoteRow::attemptLateStartOfNextNoteToPlay(ModelStackWithNoteRow* modelStack
 
 	if (timeAgo < 0) { // Gregory J got this. And Vinz
 #if ALPHA_OR_BETA_VERSION
-		numericDriver.displayPopup("E336"); // Popup only
+		display->displayPopup("E336"); // Popup only
 #endif
 		timeAgo = 0; // Just don't crash
 	}
@@ -2966,7 +2966,7 @@ useDefaultLift:
 				if (velocity == 0 || velocity > 127) {
 					velocity = 64;
 				}
-				if ((probability & 127) > (kNumProbabilityValues + 35) || (probability & 127) == 0
+				if ((probability & 127) > (kNumProbabilityValues + kNumIterationValues)
 				    || probability >= (kNumProbabilityValues | 128)) {
 					probability = kNumProbabilityValues;
 				}
@@ -3191,7 +3191,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 
 						// If there also was no RAM...
 						if (!paramManager.containsAnyMainParamCollections()) {
-							numericDriver.freezeWithError("E101");
+							display->freezeWithError("E101");
 						}
 					}
 
@@ -3199,13 +3199,13 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 					else {
 						int32_t error = paramManager.setupWithPatching();
 						if (error) {
-							numericDriver.freezeWithError("E010"); // If there also was no RAM, we're really in trouble.
+							display->freezeWithError("E010"); // If there also was no RAM, we're really in trouble.
 						}
 						Sound::initParams(&paramManager);
 
 						// This is at least not ideal, so we'd better tell the user
 						if (ALPHA_OR_BETA_VERSION) {
-							numericDriver.displayPopup("E073");
+							display->displayPopup("E073");
 						}
 					}
 				}

@@ -22,5 +22,5 @@
 
 class ClipMinder {
 public:
-	ActionResult buttonAction(hid::Button b, bool on);
+	ActionResult buttonAction(deluge::hid::Button b, bool on);
 };

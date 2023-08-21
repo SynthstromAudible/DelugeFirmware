@@ -33,11 +33,11 @@ bool recordButtonPressUsedUp;
 uint32_t timeRecordButtonPressed;
 bool buttonStates[NUM_BUTTON_COLS + 1][NUM_BUTTON_ROWS]; // The extra col is for "fake" buttons
 
-ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine) {
-	using namespace hid::button;
+ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	using namespace deluge::hid::button;
 
 	// Must happen up here before it's actioned, because if its action accesses SD card, we might multiple-enter this function, and don't want to then be setting this after that later action, erasing what it set
-	auto xy = hid::button::toXY(b);
+	auto xy = deluge::hid::button::toXY(b);
 	buttonStates[xy.x][xy.y] = on;
 
 #if ALLOW_SPAM_MODE
@@ -164,8 +164,8 @@ dealtWith:
 	return ActionResult::DEALT_WITH;
 }
 
-bool isButtonPressed(hid::Button b) {
-	auto xy = hid::button::toXY(b);
+bool isButtonPressed(deluge::hid::Button b) {
+	auto xy = deluge::hid::button::toXY(b);
 	return buttonStates[xy.x][xy.y];
 }
 
@@ -186,7 +186,7 @@ void noPressesHappening(bool inCardRoutine) {
 	for (int32_t x = 0; x < NUM_BUTTON_COLS; x++) {
 		for (int32_t y = 0; y < NUM_BUTTON_ROWS; y++) {
 			if (buttonStates[x][y]) {
-				buttonAction(hid::button::fromXY(x, y), false, inCardRoutine);
+				buttonAction(deluge::hid::button::fromXY(x, y), false, inCardRoutine);
 			}
 		}
 	}

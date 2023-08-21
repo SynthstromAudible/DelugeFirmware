@@ -28,6 +28,8 @@ Checks: >
   -cppcoreguidelines-avoid-magic-numbers,
   -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
   -readability-uppercase-literal-suffix,
+  -cppcoreguidelines-special-member-functions,
+  -cppcoreguidelines-pro-bounds-constant-array-index,
 WarningsAsErrors: false # should be true once we get there
 #HeaderFileExtensions:         ['h','hh','hpp','hxx'] # enable iff clang-tidy v17+
 #ImplementationFileExtensions: ['c','cc','cpp','cxx'] # enable iff clang-tidy v17+ (stops from touching .S assembly files)
@@ -56,4 +58,5 @@ CheckOptions:
   - { key: readability-identifier-naming.StructCase,          value: CamelCase  }
   - { key: readability-identifier-naming.FunctionCase,        value: camelBack  }
   - { key: readability-identifier-naming.VariableCase,        value: lower_case }
-  - { key: readability-identifier-naming.GlobalConstantCase,  value: UPPER_CASE }
+  - { key: readability-identifier-naming.GlobalConstantCase,  value: camelBack  }
+  - { key: readability-identifier-naming.MacroDefinitionCase, value: UPPER_CASE }

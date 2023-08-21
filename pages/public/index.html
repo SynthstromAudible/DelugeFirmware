@@ -1,0 +1,131 @@
+<html>
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Deluge Community Firmware</title>
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <style>
+        body {
+            background-color: #111;
+            margin: 0px;
+        }
+
+        #headerContainer {
+            background-image: url("https://synthstrom.com/wp-content/uploads/2022/09/screen13-scaled.jpg");
+            background-position: center;
+            background-size: cover;
+        }
+
+        #header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding-top: 50px;
+            padding-bottom: 50px;
+            width: 100%;
+            background-color: rgba(17, 17, 17, 0.5);
+        }
+
+        #main {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn {
+            width: 70%;
+            max-width: 300px;
+            margin: 10px;
+            display: inline-block;
+            background-color: #efefef;
+            border-color: #efefef;
+            color: #222 !important;
+            text-decoration: none;
+            text-align: center !important;
+            padding: 9px 27px;
+            border-style: solid;
+            border-width: 3px;
+            transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+        }
+
+        span,
+        p,
+        h1,
+        a:link,
+        a:visited,
+        .btn {
+            font-size: 1.1rem;
+            line-height: 1.5rem;
+            color: #ededed;
+            font-family: 'Karla', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            text-align: justify;
+        }
+
+        a {
+            text-decoration: underline;
+        }
+
+        h1 {
+            max-width: 100%;
+            font-size: 1.5rem;
+            font-weight: 600;
+            letter-spacing: -0.05em;
+        }
+
+        p {
+            margin: 10px;
+            max-width: 600px;
+            -webkit-font-smoothing: antialiased;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="headerContainer">
+        <div id="header">
+            <img src="https://synthstrom.com/wp-content/uploads/2017/05/logo-deluge.png"></img>
+            <h1>Community Firmware</h1>
+        </div>
+    </div>
+
+    <div id="main">
+        <p>
+            Synthstrom Audible <a target="_blank" href="https://synthstrom.com/open">released the source code</a> of the
+            Deluge firmware and started a <a target="_blank" href="https://github.com/SynthstromAudible/DelugeFirmware">Github community project</a> inviting
+            everyone to participate in improving and extending the
+            Deluge user experience.
+        </p>
+        <p>
+            The following are all important links to get started with using
+            and testing the current nightly firmware as well as participating in the
+            project through <a target="_blank" href="https://github.com/SynthstromAudible/DelugeFirmware/discussions">feedback, ideas, suggestions</a> and adding
+            to the source code. The nightly firmware captures the current state of development every day and might be broken but needs to be tested to find out.
+        </p>
+        <p>
+            While the project aims to never break compatibility or lose
+            user data, things can break during development so please
+            make sure you have a recent backup of your SD card before
+            using the provided firmware files. You can always go back to 
+            the <a target="_blank" href="https://synthstrom.com/product/deluge/#downloads">official firmware</a> but be aware that songs created with 
+            community firmware might not be fully compatible with official firmware. 
+        </p>
+        <p>
+            We hope you enjoy using the community firmware as much as
+            we enjoy working on it!
+        </p>
+
+        <a class="btn" target="_blank"
+            href="https://github.com/SynthstromAudible/DelugeFirmware/releases/download/nightly/deluge-nightly.zip">I
+            backed up my SD card &check;<br>download todays nightly build</a>
+        <a class="btn" target="_blank" href="https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/community_features.md">List of changes and new features</a>
+        <a class="btn" target="_blank" href="https://github.com/SynthstromAudible/DelugeFirmware/issues">Feedback and
+            issues</a>
+        <a class="btn" target="_blank" href="https://discord.com/channels/608916579421257728/1138924035657449482">Join
+            Discord testers channel</a>
+    </div>
+</body>
+
+</html>

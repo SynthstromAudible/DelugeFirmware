@@ -7,6 +7,7 @@
 #include "gui/menu_item/multi_range.h"
 #include "gui/menu_item/osc/source/wave_index.h"
 #include "gui/menu_item/osc/sync.h"
+#include "gui/menu_item/patch_cables.h"
 #include "gui/menu_item/patched_param/integer_non_fm.h"
 #include "gui/menu_item/runtime_feature/settings.h"
 #include "gui/menu_item/sample/end.h"
@@ -36,6 +37,8 @@ extern deluge::gui::menu_item::Submenu<12> settingsRootMenu;
 namespace deluge::gui::menu_item::runtime_feature {
 extern Submenu<4> subMenuAutomation;
 }
+
+extern deluge::gui::menu_item::PatchCables patchCablesMenu;
 
 extern MenuItem* midiOrCVParamShortcuts[8];
 extern MenuItem* paramShortcutsForSounds[15][8];

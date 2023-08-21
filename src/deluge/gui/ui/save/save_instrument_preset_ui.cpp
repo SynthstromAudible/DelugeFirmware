@@ -18,10 +18,11 @@
 #include "gui/ui/save/save_instrument_preset_ui.h"
 #include "definitions_cxx.hpp"
 #include "gui/context_menu/overwrite_file.h"
+#include "gui/l10n/l10n.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/matrix/matrix_driver.h"
@@ -69,17 +70,18 @@ tryDefaultDir:
 		currentDir.set(defaultDir);
 	}
 
-#if HAVE_OLED
-	fileIcon = (instrumentTypeToLoad == InstrumentType::SYNTH) ? OLED::synthIcon : OLED::kitIcon;
-	title = (instrumentTypeToLoad == InstrumentType::SYNTH) ? "Save synth" : "Save kit";
-#endif
+	if (display->haveOLED()) {
+		fileIcon = (instrumentTypeToLoad == InstrumentType::SYNTH) ? deluge::hid::display::OLED::synthIcon
+		                                                           : deluge::hid::display::OLED::kitIcon;
+		title = (instrumentTypeToLoad == InstrumentType::SYNTH) ? "Save synth" : "Save kit";
+	}
 
 	filePrefix = (instrumentTypeToLoad == InstrumentType::SYNTH) ? "SYNT" : "KIT";
 
 	int32_t error = arrivedInNewFolder(0, enteredText.get(), defaultDir);
 	if (error) {
 gotError:
-		numericDriver.displayError(error);
+		display->displayError(error);
 		goto doReturnFalse;
 	}
 
@@ -102,11 +104,9 @@ gotError:
 }
 
 bool SaveInstrumentPresetUI::performSave(bool mayOverwrite) {
-
-#if !HAVE_OLED
-	numericDriver.displayLoadingAnimation();
-#endif
-
+	if (display->have7SEG()) {
+		display->displayLoadingAnimation();
+	}
 	Instrument* instrumentToSave = (Instrument*)currentSong->currentClip->output;
 
 	bool isDifferentSlot = !enteredText.equalsCaseIrrespective(&instrumentToSave->name);
@@ -117,11 +117,8 @@ bool SaveInstrumentPresetUI::performSave(bool mayOverwrite) {
 		// We can't save into this slot if another Instrument in this Song already uses it
 		if (currentSong->getInstrumentFromPresetSlot(instrumentTypeToLoad, 0, 0, enteredText.get(), currentDir.get(),
 		                                             false)) {
-			numericDriver.displayPopup(HAVE_OLED ? "Another instrument in the song has the same name / number"
-			                                     : "CANT");
-#if HAVE_OLED
-			OLED::removeWorkingAnimation();
-#endif
+			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_SAME_NAME));
+			display->removeWorkingAnimation();
 			return false;
 		}
 
@@ -133,7 +130,7 @@ bool SaveInstrumentPresetUI::performSave(bool mayOverwrite) {
 	int32_t error = getCurrentFilePath(&filePath);
 	if (error) {
 fail:
-		numericDriver.displayError(error);
+		display->displayError(error);
 		return false;
 	}
 
@@ -145,7 +142,7 @@ fail:
 		bool available = gui::context_menu::overwriteFile.setupAndCheckAvailability();
 
 		if (available) { // Will always be true.
-			numericDriver.setNextTransitionDirection(1);
+			display->setNextTransitionDirection(1);
 			openUI(&gui::context_menu::overwriteFile);
 			return true;
 		}
@@ -159,9 +156,9 @@ fail:
 		goto fail;
 	}
 
-#if HAVE_OLED
-	OLED::displayWorkingAnimation("Saving");
-#endif
+	if (display->haveOLED()) {
+		deluge::hid::display::OLED::displayWorkingAnimation("Saving");
+	}
 
 	instrumentToSave->writeToFile(currentSong->currentClip, currentSong);
 
@@ -169,9 +166,7 @@ fail:
 
 	error =
 	    storageManager.closeFileAfterWriting(filePath.get(), "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", endString);
-#if HAVE_OLED
-	OLED::removeWorkingAnimation();
-#endif
+	display->removeWorkingAnimation();
 	if (error) {
 		goto fail;
 	}
@@ -183,11 +178,7 @@ fail:
 
 	// There's now no chance that we saved over a preset that's already in use in the song, because we didn't allow the user to select such a slot
 
-#if HAVE_OLED
-	OLED::consoleText("Preset saved");
-#else
-	numericDriver.displayPopup("DONE");
-#endif
+	display->consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PRESET_SAVED));
 	close();
 	return true;
 }
@@ -208,7 +199,7 @@ void SaveInstrumentPresetUI::selectEncoderAction(int8_t offset) {
 				&currentSlot, &currentSubSlot, &enteredText, &currentFileIsFolder,
 				previouslySavedSlot, &currentFileExists, numInstrumentSlots, getThingName(instrumentType), currentDir.get(), instrumentType, (Instrument*)currentSong->currentClip->output);
 		if (error) {
-			numericDriver.displayError(error);
+			display->displayError(error);
 			if (error != ERROR_FOLDER_DOESNT_EXIST) {
 				close();
 			}

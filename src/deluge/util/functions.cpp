@@ -18,11 +18,12 @@
 #include "util/functions.h"
 #include "definitions_cxx.hpp"
 #include "fatfs/ff.h"
+#include "gui/l10n/l10n.h"
+#include "gui/l10n/strings.h"
 #include "gui/ui/qwerty_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/view.h"
-#include "hid/display/numeric_driver.h"
-#include "hid/display/oled.h"
+#include "hid/display/display.h"
 #include "hid/encoders.h"
 #include "io/debug/print.h"
 #include "model/action/action_logger.h"
@@ -34,6 +35,7 @@ extern "C" {
 #include "drivers/mtu/mtu.h"
 }
 
+using namespace deluge;
 const uint8_t modButtonX[8] = {1, 1, 1, 1, 2, 2, 2, 2};
 const uint8_t modButtonY[8] = {0, 1, 2, 3, 0, 1, 2, 3};
 const uint8_t modLedX[8] = {1, 1, 1, 1, 2, 2, 2, 2};
@@ -98,6 +100,7 @@ int32_t getParamNeutralValue(int32_t p) {
 	case Param::Local::HPF_RESONANCE:
 	case Param::Local::LPF_MORPH:
 	case Param::Local::HPF_MORPH:
+	case Param::Local::FOLD:
 		return 25 * 10737418; // Room to be quadrupled
 
 	case Param::Local::PAN:
@@ -250,7 +253,6 @@ int32_t cableToExpParamShortcut(int32_t sourceValue) {
 }
 
 char const* sourceToString(PatchSource source) {
-
 	switch (source) {
 	case PatchSource::LFO_GLOBAL:
 		return "lfo1";
@@ -290,41 +292,43 @@ char const* sourceToString(PatchSource source) {
 	}
 }
 
-#if HAVE_OLED
 char const* getSourceDisplayNameForOLED(PatchSource s) {
+	using enum l10n::String;
+	auto lang = l10n::chosenLanguage;
+
 	switch (s) {
 	case PatchSource::LFO_GLOBAL:
-		return "LFO1";
+		return l10n::get(STRING_FOR_PATCH_SOURCE_LFO_GLOBAL);
 
 	case PatchSource::LFO_LOCAL:
-		return "LFO2";
+		return l10n::get(STRING_FOR_PATCH_SOURCE_LFO_LOCAL);
 
 	case PatchSource::ENVELOPE_0:
-		return "Envelope 1";
+		return l10n::get(STRING_FOR_PATCH_SOURCE_ENVELOPE_0);
 
 	case PatchSource::ENVELOPE_1:
-		return "Envelope 2";
+		return l10n::get(STRING_FOR_PATCH_SOURCE_ENVELOPE_1);
 
 	case PatchSource::VELOCITY:
-		return "Velocity";
+		return l10n::get(STRING_FOR_PATCH_SOURCE_VELOCITY);
 
 	case PatchSource::NOTE:
-		return "Note";
+		return l10n::get(STRING_FOR_PATCH_SOURCE_NOTE);
 
 	case PatchSource::COMPRESSOR:
-		return "Sidechain";
+		return l10n::get(STRING_FOR_PATCH_SOURCE_COMPRESSOR);
 
 	case PatchSource::RANDOM:
-		return "Random";
+		return l10n::get(STRING_FOR_PATCH_SOURCE_RANDOM);
 
 	case PatchSource::AFTERTOUCH:
-		return "Aftertouch";
+		return l10n::get(STRING_FOR_PATCH_SOURCE_AFTERTOUCH);
 
 	case PatchSource::X:
-		return "MPE X";
+		return l10n::get(STRING_FOR_PATCH_SOURCE_X);
 
 	case PatchSource::Y:
-		return "MPE Y";
+		return l10n::get(STRING_FOR_PATCH_SOURCE_Y);
 
 	default:
 		return "none";
@@ -332,8 +336,331 @@ char const* getSourceDisplayNameForOLED(PatchSource s) {
 }
 
 char const* getPatchedParamDisplayNameForOLED(int32_t p) {
+	using enum l10n::String;
+	auto lang = l10n::chosenLanguage;
 
 	// These can basically be 13 chars long, or 14 if the last one is a dot.
+	switch (p) {
+
+	//Master Volume, Pitch, Pan
+	case Param::Local::VOLUME:
+		return l10n::get(STRING_FOR_PARAM_LOCAL_VOLUME);
+
+	case Param::Global::VOLUME_POST_FX:
+		return l10n::get(STRING_FOR_PARAM_GLOBAL_VOLUME_POST_FX);
+
+	case Param::Local::PAN:
+		return l10n::get(STRING_FOR_PARAM_LOCAL_PAN);
+
+	case Param::Local::PITCH_ADJUST:
+		return l10n::get(STRING_FOR_PARAM_LOCAL_PITCH_ADJUST);
+
+	//LPF Cutoff, Resonance, Morph
+	case Param::Local::LPF_FREQ:
+		return l10n::get(STRING_FOR_PARAM_LOCAL_LPF_FREQ);
+
+	case Param::Local::LPF_RESONANCE:
+		return l10n::get(STRING_FOR_PARAM_LOCAL_LPF_RESONANCE);
+
+	case Param::Local::LPF_MORPH:
+		return l10n::get(STRING_FOR_PARAM_LOCAL_LPF_MORPH);
+
+	//HPF Cutoff, Resonance, Morph
+	case Param::Local::HPF_FREQ:
+		return l10n::get(STRING_FOR_PARAM_LOCAL_HPF_FREQ);
+
+	case Param::Local::HPF_MORPH:
+		return l10n::get(STRING_FOR_PARAM_LOCAL_HPF_MORPH);
+
+	case Param::Local::HPF_RESONANCE:
+		return l10n::get(STRING_FOR_PARAM_LOCAL_HPF_RESONANCE);
+
+	//Reverb Amount
+	case Param::Global::REVERB_AMOUNT:
+		return l10n::get(STRING_FOR_PARAM_GLOBAL_REVERB_AMOUNT);
+
+	//Delay Rate, Amount
+	case Param::Global::DELAY_RATE:
+		return l10n::get(STRING_FOR_PARAM_GLOBAL_DELAY_RATE);
+
+	case Param::Global::DELAY_FEEDBACK:
+		return l10n::get(STRING_FOR_PARAM_GLOBAL_DELAY_FEEDBACK);
+
+	//Sidechain Send
+	case Param::Global::VOLUME_POST_REVERB_SEND:
+		return l10n::get(STRING_FOR_PARAM_GLOBAL_VOLUME_POST_REVERB_SEND);
+
+	//Wavefolder
+	case Param::Local::FOLD:
+		return l10n::get(STRING_FOR_WAVEFOLDER);
+
+	//OSC 1 Volume, Pitch, Phase Width, Carrier Feedback, Wave Index
+	case Param::Local::OSC_A_VOLUME:
+		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_A_VOLUME);
+
+	case Param::Local::OSC_A_PITCH_ADJUST:
+		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_A_PITCH_ADJUST);
+
+	case Param::Local::OSC_A_PHASE_WIDTH:
+		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_A_PHASE_WIDTH);
+
+	case Param::Local::CARRIER_0_FEEDBACK:
+		return l10n::get(STRING_FOR_PARAM_LOCAL_CARRIER_0_FEEDBACK);
+
+	case Param::Local::OSC_A_WAVE_INDEX:
+		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_A_WAVE_INDEX);
+
+	//OSC 2 Volume, Pitch, Phase Width, Carrier Feedback, Wave Inde
+	case Param::Local::OSC_B_VOLUME:
+		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_B_VOLUME);
+
+	case Param::Local::OSC_B_PITCH_ADJUST:
+		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_B_PITCH_ADJUST);
+
+	case Param::Local::OSC_B_PHASE_WIDTH:
+		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_B_PHASE_WIDTH);
+
+	case Param::Local::CARRIER_1_FEEDBACK:
+		return l10n::get(STRING_FOR_PARAM_LOCAL_CARRIER_1_FEEDBACK);
+
+	case Param::Local::OSC_B_WAVE_INDEX:
+		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_B_WAVE_INDEX);
+
+	//FM Mod 1 Volume, Pitch, Feedback
+	case Param::Local::MODULATOR_0_VOLUME:
+		return l10n::get(STRING_FOR_PARAM_LOCAL_MODULATOR_0_VOLUME);
+
+	case Param::Local::MODULATOR_0_PITCH_ADJUST:
+		return l10n::get(STRING_FOR_PARAM_LOCAL_MODULATOR_0_PITCH_ADJUST);
+
+	case Param::Local::MODULATOR_0_FEEDBACK:
+		return l10n::get(STRING_FOR_PARAM_LOCAL_MODULATOR_0_FEEDBACK);
+
+	//FM Mod 2 Volume, Pitch, Feedback
+	case Param::Local::MODULATOR_1_VOLUME:
+		return l10n::get(STRING_FOR_PARAM_LOCAL_MODULATOR_1_VOLUME);
+
+	case Param::Local::MODULATOR_1_PITCH_ADJUST:
+		return l10n::get(STRING_FOR_PARAM_LOCAL_MODULATOR_1_PITCH_ADJUST);
+
+	case Param::Local::MODULATOR_1_FEEDBACK:
+		return l10n::get(STRING_FOR_PARAM_LOCAL_MODULATOR_1_FEEDBACK);
+
+	//Env 1 ADSR
+	case Param::Local::ENV_0_ATTACK:
+		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_0_ATTACK);
+
+	case Param::Local::ENV_0_DECAY:
+		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_0_DECAY);
+
+	case Param::Local::ENV_0_SUSTAIN:
+		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_0_SUSTAIN);
+
+	case Param::Local::ENV_0_RELEASE:
+		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_0_RELEASE);
+
+	//Env 2 ADSR
+	case Param::Local::ENV_1_ATTACK:
+		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_1_ATTACK);
+
+	case Param::Local::ENV_1_DECAY:
+		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_1_DECAY);
+
+	case Param::Local::ENV_1_SUSTAIN:
+		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_1_SUSTAIN);
+
+	case Param::Local::ENV_1_RELEASE:
+		return l10n::get(STRING_FOR_PARAM_LOCAL_ENV_1_RELEASE);
+
+	//LFO 1 Freq
+	case Param::Global::LFO_FREQ:
+		return l10n::get(STRING_FOR_PARAM_GLOBAL_LFO_FREQ);
+
+	//LFO 2 Freq
+	case Param::Local::LFO_LOCAL_FREQ:
+		return l10n::get(STRING_FOR_PARAM_LOCAL_LFO_LOCAL_FREQ);
+
+	//Mod FX Depth, Rate
+	case Param::Global::MOD_FX_DEPTH:
+		return l10n::get(STRING_FOR_PARAM_GLOBAL_MOD_FX_DEPTH);
+
+	case Param::Global::MOD_FX_RATE:
+		return l10n::get(STRING_FOR_PARAM_GLOBAL_MOD_FX_RATE);
+
+	//Arp Rate
+	case Param::Global::ARP_RATE:
+		return l10n::get(STRING_FOR_PARAM_GLOBAL_ARP_RATE);
+
+	//Noise
+	case Param::Local::NOISE_VOLUME:
+		return l10n::get(STRING_FOR_PARAM_LOCAL_NOISE_VOLUME);
+
+	default:
+		return l10n::get(STRING_FOR_NONE);
+	}
+}
+
+char const* getUnpatchedParamDisplayNameForOLED(int32_t p) {
+	using enum l10n::String;
+
+	// These can basically be 13 chars long, or 14 if the last one is a dot.
+	switch (p) {
+
+	//Bass, Bass Freq
+	case Param::Unpatched::BASS:
+		return l10n::get(STRING_FOR_BASS);
+
+	case Param::Unpatched::BASS_FREQ:
+		return l10n::get(STRING_FOR_BASS_FREQUENCY);
+
+	//Treble, Treble Freq
+	case Param::Unpatched::TREBLE:
+		return l10n::get(STRING_FOR_TREBLE);
+
+	case Param::Unpatched::TREBLE_FREQ:
+		return l10n::get(STRING_FOR_TREBLE_FREQUENCY);
+
+	//Sidechain Shape
+	case Param::Unpatched::COMPRESSOR_SHAPE:
+		return l10n::get(STRING_FOR_SIDECHAIN_SHAPE);
+
+	//Decimation, Bitcrush
+	case Param::Unpatched::SAMPLE_RATE_REDUCTION:
+		return l10n::get(STRING_FOR_DECIMATION);
+
+	case Param::Unpatched::BITCRUSHING:
+		return l10n::get(STRING_FOR_BITCRUSH);
+
+	//Mod FX Offset, Feedback
+	case Param::Unpatched::MOD_FX_OFFSET:
+		return l10n::get(STRING_FOR_MODFX_OFFSET);
+
+	case Param::Unpatched::MOD_FX_FEEDBACK:
+		return l10n::get(STRING_FOR_MODFX_FEEDBACK);
+
+	//Arp Gate
+	case Param::Unpatched::Sound::ARP_GATE:
+		return l10n::get(STRING_FOR_ARP_GATE_MENU_TITLE);
+
+	//Portamento
+	case Param::Unpatched::Sound::PORTAMENTO:
+		return l10n::get(STRING_FOR_PORTAMENTO);
+
+	default:
+		return l10n::get(STRING_FOR_NONE);
+	}
+}
+
+char const* getGlobalEffectableParamDisplayNameForOLED(int32_t p) {
+	using enum l10n::String;
+
+	// These can basically be 13 chars long, or 14 if the last one is a dot.
+	switch (p) {
+
+	//Master Volume, Pitch, Pan
+	case Param::Unpatched::GlobalEffectable::VOLUME:
+		return l10n::get(STRING_FOR_MASTER_LEVEL);
+
+	case Param::Unpatched::GlobalEffectable::PITCH_ADJUST:
+		return l10n::get(STRING_FOR_MASTER_PITCH);
+
+	case Param::Unpatched::GlobalEffectable::PAN:
+		return l10n::get(STRING_FOR_MASTER_PAN);
+
+	//LPF Cutoff, Resonance
+	case Param::Unpatched::GlobalEffectable::LPF_FREQ:
+		return l10n::get(STRING_FOR_LPF_FREQUENCY);
+
+	case Param::Unpatched::GlobalEffectable::LPF_RES:
+		return l10n::get(STRING_FOR_LPF_RESONANCE);
+
+	//HPF Cutoff, Resonance
+	case Param::Unpatched::GlobalEffectable::HPF_FREQ:
+		return l10n::get(STRING_FOR_HPF_FREQUENCY);
+
+	case Param::Unpatched::GlobalEffectable::HPF_RES:
+		return l10n::get(STRING_FOR_HPF_RESONANCE);
+
+	//Reverb Amount
+	case Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT:
+		return l10n::get(STRING_FOR_REVERB_AMOUNT);
+
+	//Delay Rate, Amount
+	case Param::Unpatched::GlobalEffectable::DELAY_RATE:
+		return l10n::get(STRING_FOR_DELAY_RATE);
+
+	case Param::Unpatched::GlobalEffectable::DELAY_AMOUNT:
+		return l10n::get(STRING_FOR_DELAY_AMOUNT);
+
+	//Sidechain Send
+	case Param::Unpatched::GlobalEffectable::SIDECHAIN_VOLUME:
+		return l10n::get(STRING_FOR_SIDECHAIN_LEVEL);
+
+	//Mod FX Depth, Rate
+	case Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH:
+		return l10n::get(STRING_FOR_MODFX_DEPTH);
+
+	case Param::Unpatched::GlobalEffectable::MOD_FX_RATE:
+		return l10n::get(STRING_FOR_MODFX_RATE);
+
+	default:
+		return l10n::get(STRING_FOR_NONE);
+	}
+}
+
+PatchSource stringToSource(char const* string) {
+	for (int32_t s = 0; s < kNumPatchSources; s++) {
+		auto patchSource = static_cast<PatchSource>(s);
+		if (!strcmp(string, sourceToString(patchSource))) {
+			return patchSource;
+		}
+	}
+	return PatchSource::NONE;
+}
+
+// all should be four chars, to fit a fixed column layout
+char const* sourceToStringShort(PatchSource source) {
+	switch (source) {
+	case PatchSource::LFO_GLOBAL:
+		return "lfo1";
+
+	case PatchSource::LFO_LOCAL:
+		return "lfo2";
+
+	case PatchSource::ENVELOPE_0:
+		return "env1";
+
+	case PatchSource::ENVELOPE_1:
+		return "env2";
+
+	case PatchSource::VELOCITY:
+		return "velo";
+
+	case PatchSource::NOTE:
+		return "note";
+
+	case PatchSource::COMPRESSOR:
+		return "comp";
+
+	case PatchSource::RANDOM:
+		return "rand";
+
+	case PatchSource::AFTERTOUCH:
+		return "pres";
+
+	case PatchSource::X:
+		return "mpeX";
+
+	case PatchSource::Y:
+		return "mpeY";
+
+	default:
+		return "----";
+	}
+}
+
+// all should be max 10 chars, to fit a fixed column layout
+char const* patchedParamToStringShort(int32_t p) {
 	switch (p) {
 
 	case Param::Local::OSC_A_VOLUME:
@@ -346,7 +673,7 @@ char const* getPatchedParamDisplayNameForOLED(int32_t p) {
 		return "Level";
 
 	case Param::Local::NOISE_VOLUME:
-		return "Noise level";
+		return "Noise";
 
 	case Param::Local::OSC_A_PHASE_WIDTH:
 		return "Osc1 PW";
@@ -355,34 +682,31 @@ char const* getPatchedParamDisplayNameForOLED(int32_t p) {
 		return "Osc2 PW";
 
 	case Param::Local::OSC_A_WAVE_INDEX:
-		return "Osc1 wave pos.";
+		return "Osc1 wave";
 
 	case Param::Local::OSC_B_WAVE_INDEX:
-		return "Osc2 wave pos.";
+		return "Osc2 wave";
 
 	case Param::Local::LPF_RESONANCE:
-		return "LPF resonance";
+		return "LPF reso";
 
 	case Param::Local::HPF_RESONANCE:
-		return "HPF resonance";
+		return "HPF reso";
 
 	case Param::Local::PAN:
-		return "Master pan";
+		return "Pan";
 
 	case Param::Local::MODULATOR_0_VOLUME:
-		return "FM mod1 level";
+		return "Mod1 level";
 
 	case Param::Local::MODULATOR_1_VOLUME:
-		return "FM mod2 level";
+		return "Mod2 level";
 
 	case Param::Local::LPF_FREQ:
-		return "LPF frequency";
-
-	case Param::Local::LPF_MORPH:
-		return "LPF morph";
+		return "LPf freq";
 
 	case Param::Local::PITCH_ADJUST:
-		return "Master pitch";
+		return "Pitch";
 
 	case Param::Local::OSC_A_PITCH_ADJUST:
 		return "Osc1 pitch";
@@ -391,183 +715,82 @@ char const* getPatchedParamDisplayNameForOLED(int32_t p) {
 		return "Osc2 pitch";
 
 	case Param::Local::MODULATOR_0_PITCH_ADJUST:
-		return "FM mod1 pitch";
+		return "Mod1 pitch";
 
 	case Param::Local::MODULATOR_1_PITCH_ADJUST:
-		return "FM mod2 pitch";
+		return "Mod1 pitch";
 
 	case Param::Local::HPF_FREQ:
-		return "HPF frequency";
-
-	case Param::Local::HPF_MORPH:
-		return "HPF morph";
+		return "HPF freq";
 
 	case Param::Local::LFO_LOCAL_FREQ:
 		return "LFO2 rate";
 
 	case Param::Local::ENV_0_ATTACK:
-		return "Env1 attack";
+		return "Env1attack";
 
 	case Param::Local::ENV_0_DECAY:
 		return "Env1 decay";
 
 	case Param::Local::ENV_0_SUSTAIN:
-		return "Env1 sustain";
+		return "Env1 sus";
 
 	case Param::Local::ENV_0_RELEASE:
-		return "Env1 release";
+		return "Env1 rel";
 
 	case Param::Local::ENV_1_ATTACK:
-		return "Env2 attack";
+		return "Env2attack";
 
 	case Param::Local::ENV_1_DECAY:
 		return "Env2 decay";
 
 	case Param::Local::ENV_1_SUSTAIN:
-		return "Env2 sustain";
+		return "Env2 sus";
 
 	case Param::Local::ENV_1_RELEASE:
-		return "Env2 release";
+		return "Env2 rel";
 
 	case Param::Global::LFO_FREQ:
 		return "LFO1 rate";
 
 	case Param::Global::VOLUME_POST_FX:
-		return "Master level";
-
 	case Param::Global::VOLUME_POST_REVERB_SEND:
-		return "Sidechain level";
+		return "Level";
 
 	case Param::Global::DELAY_RATE:
 		return "Delay rate";
 
 	case Param::Global::DELAY_FEEDBACK:
-		return "Delay amount";
+		return "Delay feed";
 
 	case Param::Global::REVERB_AMOUNT:
-		return "Reverb amount";
+		return "Reverb amt";
 
 	case Param::Global::MOD_FX_RATE:
-		return "Mod-FX rate";
+		return "ModFX rate";
 
 	case Param::Global::MOD_FX_DEPTH:
-		return "Mod-FX depth";
+		return "ModFXdepth";
 
 	case Param::Global::ARP_RATE:
 		return "Arp. rate";
 
 	case Param::Local::MODULATOR_0_FEEDBACK:
-		return "FM mod1 feedback";
+		return "Mod1 feed";
 
 	case Param::Local::MODULATOR_1_FEEDBACK:
-		return "FM mod2 feedback";
+		return "Mod2 feed";
 
 	case Param::Local::CARRIER_0_FEEDBACK:
-		return "Osc 1 feedback";
+		return "Osc1 feed";
 
 	case Param::Local::CARRIER_1_FEEDBACK:
-		return "Osc 2 feedback";
+		return "Osc2 feed";
 
 	default:
-		return "none";
+		__builtin_unreachable();
+		return NULL;
 	}
-}
-
-char const* getUnpatchedParamDisplayNameForOLED(int32_t p) {
-
-	// These can basically be 13 chars long, or 14 if the last one is a dot.
-	switch (p) {
-
-	case Param::Unpatched::BASS:
-		return "Bass";
-
-	case Param::Unpatched::BASS_FREQ:
-		return "Bass frequency";
-
-	case Param::Unpatched::TREBLE:
-		return "Treble";
-
-	case Param::Unpatched::TREBLE_FREQ:
-		return "Treble frequency";
-
-	case Param::Unpatched::COMPRESSOR_SHAPE:
-		return "Sidechain shape";
-
-	case Param::Unpatched::BITCRUSHING:
-		return "Bitcrush";
-
-	case Param::Unpatched::SAMPLE_RATE_REDUCTION:
-		return "Decimation";
-
-	case Param::Unpatched::Sound::ARP_GATE:
-		return "Arp. gate";
-
-	case Param::Unpatched::MOD_FX_FEEDBACK:
-		return "Mod-FX feedback";
-
-	case Param::Unpatched::MOD_FX_OFFSET:
-		return "Mod-FX offset";
-
-	default:
-		return "none";
-	}
-}
-
-char const* getGlobalEffectableParamDisplayNameForOLED(int32_t p) {
-
-	// These can basically be 13 chars long, or 14 if the last one is a dot.
-	switch (p) {
-
-	case Param::Unpatched::GlobalEffectable::LPF_RES:
-		return "LPF resonance";
-
-	case Param::Unpatched::GlobalEffectable::HPF_RES:
-		return "HPF resonance";
-
-	case Param::Unpatched::GlobalEffectable::PAN:
-		return "Master pan";
-
-	case Param::Unpatched::GlobalEffectable::LPF_FREQ:
-		return "LPF frequency";
-
-	case Param::Unpatched::GlobalEffectable::HPF_FREQ:
-		return "HPF frequency";
-
-	case Param::Unpatched::GlobalEffectable::VOLUME:
-		return "Master level";
-
-	case Param::Unpatched::GlobalEffectable::SIDECHAIN_VOLUME:
-		return "Sidechain level";
-
-	case Param::Unpatched::GlobalEffectable::DELAY_RATE:
-		return "Delay rate";
-
-	case Param::Unpatched::GlobalEffectable::DELAY_AMOUNT:
-		return "Delay amount";
-
-	case Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT:
-		return "Reverb amount";
-
-	case Param::Unpatched::GlobalEffectable::MOD_FX_RATE:
-		return "Mod-FX rate";
-
-	case Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH:
-		return "Mod-FX depth";
-
-	default:
-		return "none";
-	}
-}
-#endif
-
-PatchSource stringToSource(char const* string) {
-	for (int32_t s = 0; s < kNumPatchSources; s++) {
-		auto patchSource = static_cast<PatchSource>(s);
-		if (!strcmp(string, sourceToString(patchSource))) {
-			return patchSource;
-		}
-	}
-	return PatchSource::NONE;
 }
 
 bool paramNeedsLPF(int32_t p, bool fromAutomation) {
@@ -1110,6 +1333,8 @@ char const* fxTypeToString(ModFXType fxType) {
 
 	case ModFXType::CHORUS_STEREO:
 		return "StereoChorus";
+	case ModFXType::GRAIN:
+		return "grainFX";
 
 	case ModFXType::PHASER:
 		return "phaser";
@@ -1128,6 +1353,9 @@ ModFXType stringToFXType(char const* string) {
 	}
 	else if (!strcmp(string, "StereoChorus")) {
 		return ModFXType::CHORUS_STEREO;
+	}
+	else if (!strcmp(string, "grainFX")) {
+		return ModFXType::GRAIN;
 	}
 	else if (!strcmp(string, "phaser")) {
 		return ModFXType::PHASER;
@@ -1256,12 +1484,12 @@ char const* lpfTypeToString(FilterMode lpfType) {
 
 	case FilterMode::TRANSISTOR_24DB_DRIVE:
 		return "24dBDrive";
-	case FilterMode::SVF:
-		return "SVF";
+	case FilterMode::SVF_BAND:
+		return "SVF_Band";
 	case FilterMode::HPLADDER:
 		return "HPLadder";
-	case FilterMode::HPSVF:
-		return "HPSV";
+	case FilterMode::SVF_NOTCH:
+		return "SVF_Notch";
 	default:
 		return "24dB";
 	}
@@ -1274,14 +1502,18 @@ FilterMode stringToLPFType(char const* string) {
 	else if (!strcmp(string, "24dBDrive")) {
 		return FilterMode::TRANSISTOR_24DB_DRIVE;
 	}
+	else if (!strcmp(string, "SVF_Band")) {
+		return FilterMode::SVF_BAND;
+	}
 	else if (!strcmp(string, "SVF")) {
-		return FilterMode::SVF;
+		//for compatibility with community pre release
+		return FilterMode::SVF_BAND;
 	}
 	else if (!strcmp(string, "HPLadder")) {
 		return FilterMode::HPLADDER;
 	}
-	else if (!strcmp(string, "HPSV")) {
-		return FilterMode::HPSVF;
+	else if (!strcmp(string, "SVF_Notch")) {
+		return FilterMode::SVF_NOTCH;
 	}
 	else {
 		return FilterMode::TRANSISTOR_12DB;
@@ -2235,7 +2467,7 @@ void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutD
 	*thisChar = noteCodeToNoteLetter[noteCodeWithinOctave];
 	thisChar++;
 	if (noteCodeIsSharp[noteCodeWithinOctave]) {
-		*thisChar = HAVE_OLED ? '#' : '.';
+		*thisChar = display->haveOLED() ? '#' : '.';
 		thisChar++;
 	}
 	intToString(octave, thisChar, 1);
@@ -2410,66 +2642,67 @@ bool shouldAbortLoading() {
 
 // Must supply a char[5] buffer. Or char[30] for OLED.
 void getNoteLengthNameFromMagnitude(char* text, int32_t magnitude, bool clarifyPerColumn) {
-#if HAVE_OLED
-	if (magnitude < 0) {
-		uint32_t division = (uint32_t)1 << (0 - magnitude);
-		intToString(division, text);
-		char* writePos = strchr(text, 0);
-		char const* suffix = (*(writePos - 1) == '2') ? "nd" : "th";
-		strcpy(writePos, suffix);
-		strcpy(writePos + 2, "-notes");
-	}
-	else {
-		uint32_t numBars = (uint32_t)1 << magnitude;
-		intToString(numBars, text);
-		if (clarifyPerColumn) {
-			if (numBars == 1) {
-				strcat(text, " bar (per column)");
+	if (display->haveOLED()) {
+		if (magnitude < 0) {
+			uint32_t division = (uint32_t)1 << (0 - magnitude);
+			intToString(division, text);
+			char* writePos = strchr(text, 0);
+			char const* suffix = (*(writePos - 1) == '2') ? "nd" : "th";
+			strcpy(writePos, suffix);
+			strcpy(writePos + 2, "-notes");
+		}
+		else {
+			uint32_t numBars = (uint32_t)1 << magnitude;
+			intToString(numBars, text);
+			if (clarifyPerColumn) {
+				if (numBars == 1) {
+					strcat(text, " bar (per column)");
+				}
+				else {
+					strcat(text, " bars (per column)");
+				}
 			}
 			else {
-				strcat(text, " bars (per column)");
+				strcat(text, "-bar");
 			}
-		}
-		else {
-			strcat(text, "-bar");
-		}
-	}
-#else
-	if (magnitude < 0) {
-		uint32_t division = (uint32_t)1 << (0 - magnitude);
-		if (division <= 9999) {
-			intToString(division, text);
-			if (division == 2 || division == 32) {
-				strcat(text, "ND");
-			}
-			else if (division <= 99) {
-				strcat(text, "TH");
-			}
-			else if (division <= 999) {
-				strcat(text, "T");
-			}
-		}
-		else {
-			strcpy(text, "TINY");
 		}
 	}
 	else {
-		uint32_t numBars = (uint32_t)1 << magnitude;
-		if (numBars <= 9999) {
-			intToString(numBars, text);
-			uint8_t length = strlen(text);
-			if (length == 1) {
-				strcat(text, "BAR");
+		if (magnitude < 0) {
+			uint32_t division = (uint32_t)1 << (0 - magnitude);
+			if (division <= 9999) {
+				intToString(division, text);
+				if (division == 2 || division == 32) {
+					strcat(text, "ND");
+				}
+				else if (division <= 99) {
+					strcat(text, "TH");
+				}
+				else if (division <= 999) {
+					strcat(text, "T");
+				}
 			}
-			else if (length <= 3) {
-				strcat(text, "B");
+			else {
+				strcpy(text, "TINY");
 			}
 		}
 		else {
-			strcpy(text, "BIG");
+			uint32_t numBars = (uint32_t)1 << magnitude;
+			if (numBars <= 9999) {
+				intToString(numBars, text);
+				uint8_t length = strlen(text);
+				if (length == 1) {
+					strcat(text, "BAR");
+				}
+				else if (length <= 3) {
+					strcat(text, "B");
+				}
+			}
+			else {
+				strcpy(text, "BIG");
+			}
 		}
 	}
-#endif
 }
 
 char const* getFileNameFromEndOfPath(char const* filePathChars) {

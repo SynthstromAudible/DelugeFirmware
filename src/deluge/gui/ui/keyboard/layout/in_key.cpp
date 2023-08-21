@@ -20,6 +20,7 @@
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/sound_editor.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "util/functions.h"
 
 namespace deluge::gui::ui::keyboard::layout {
@@ -46,12 +47,12 @@ void KeyboardLayoutInKey::handleHorizontalEncoder(int32_t offset, bool shiftEnab
 
 	if (shiftEnabled) {
 		state.rowInterval += offset;
-		state.rowInterval = std::max(state.rowInterval, kMinInKeyRowInterval);
-		state.rowInterval = std::min(kMaxInKeyRowInterval, state.rowInterval);
+		state.rowInterval = std::clamp(state.rowInterval, kMinInKeyRowInterval, kMaxInKeyRowInterval);
 
 		char buffer[13] = "Row step:   ";
-		intToString(state.rowInterval, buffer + (HAVE_OLED ? 10 : 0), 1);
-		numericDriver.displayPopup(buffer);
+		int32_t offset = (display->haveOLED() ? 10 : 0);
+		intToString(state.rowInterval, buffer + offset, 1);
+		display->displayPopup(buffer);
 
 		offset = 0; // Reset offset variable for processing scroll calculation without actually shifting
 	}
@@ -62,8 +63,7 @@ void KeyboardLayoutInKey::handleHorizontalEncoder(int32_t offset, bool shiftEnab
 	    (padIndexFromNote(getHighestClipNote()) - ((kDisplayHeight - 1) * state.rowInterval + kDisplayWidth - 1));
 
 	// Make sure current value is in bounds
-	state.scrollOffset = std::max(lowestScrolledNote, state.scrollOffset);
-	state.scrollOffset = std::min(state.scrollOffset, highestScrolledNote);
+	state.scrollOffset = std::clamp(state.scrollOffset, lowestScrolledNote, highestScrolledNote);
 
 	// Offset if still in bounds (reject if the next row can not be shown completely)
 	int32_t newOffset = state.scrollOffset + offset;
@@ -81,12 +81,6 @@ void KeyboardLayoutInKey::precalculate() {
 	for (int32_t i = 0; i < (kDisplayHeight * state.rowInterval + kDisplayWidth); ++i) {
 		getNoteColour(noteFromPadIndex(state.scrollOffset + i), noteColours[i]);
 	}
-}
-
-inline void colorCopy(uint8_t* dest, uint8_t* src, uint8_t intensity, uint8_t brightnessDivider) {
-	dest[0] = (uint8_t)((src[0] * intensity / 255) / brightnessDivider);
-	dest[1] = (uint8_t)((src[1] * intensity / 255) / brightnessDivider);
-	dest[2] = (uint8_t)((src[2] * intensity / 255) / brightnessDivider);
 }
 
 void KeyboardLayoutInKey::renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) {
@@ -110,11 +104,17 @@ void KeyboardLayoutInKey::renderPads(uint8_t image[][kDisplayWidth + kSideBarWid
 			if (noteWithinScale == 0 && scaleActiveNotes[noteWithinScale]) {
 				colorCopy(image[y][x], colourSource, 255, 1);
 			}
+			// If highlighting notes is active, do it
+			else if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::HighlightIncomingNotes)
+			             == RuntimeFeatureStateToggle::On
+			         && getHighlightedNotes()[note] != 0) {
+				colorCopy(image[y][x], colourSource, getHighlightedNotes()[note], 1);
+			}
 			// Full color but less brightness for inactive root note
 			else if (noteWithinScale == 0) {
 				colorCopy(image[y][x], colourSource, 255, 2);
 			}
-			// TOned down color but high brightness for active scale note
+			// Toned down color but high brightness for active scale note
 			else if (scaleActiveNotes[noteWithinScale]) {
 				colorCopy(image[y][x], colourSource, 127, 3);
 			}

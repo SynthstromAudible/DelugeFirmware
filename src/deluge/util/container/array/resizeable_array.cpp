@@ -19,7 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "processing/engines/audio_engine.h"
 //#include <algorithm>
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "io/debug/print.h"
 #include "memory/general_memory_allocator.h"
 #include "util/functions.h"
@@ -32,13 +32,13 @@
 #define LOCK_EXIT exitLock();
 void ResizeableArray::freezeOnLock() {
 	if (lock) {
-		numericDriver.freezeWithError("i008");
+		display->freezeWithError("i008");
 	}
 	lock = true;
 }
 void ResizeableArray::exitLock() {
 	if (!lock) {
-		numericDriver.freezeWithError("i008");
+		display->freezeWithError("i008");
 	}
 	lock = false;
 }
@@ -895,7 +895,7 @@ void ResizeableArray::setStaticMemory(void* newMemory, int32_t newMemorySize) {
 int32_t ResizeableArray::insertAtIndex(int32_t i, int32_t numToInsert, void* thingNotToStealFrom) {
 
 	if (ALPHA_OR_BETA_VERSION && (i < 0 || i > numElements || numToInsert < 1)) {
-		numericDriver.freezeWithError("E280");
+		display->freezeWithError("E280");
 	}
 
 	LOCK_ENTRY
@@ -923,7 +923,7 @@ int32_t ResizeableArray::insertAtIndex(int32_t i, int32_t numToInsert, void* thi
 		}
 
 		if (ALPHA_OR_BETA_VERSION && allocatedMemorySize < newMemorySize * elementSize) {
-			numericDriver.freezeWithError("FFFF");
+			display->freezeWithError("FFFF");
 		}
 
 		setMemory(newMemory, allocatedMemorySize);

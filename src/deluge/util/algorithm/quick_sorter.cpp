@@ -20,7 +20,7 @@
  */
 
 #include "util/algorithm/quick_sorter.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include <string.h>
 
 QuickSorter::QuickSorter(int32_t newElementSize, int32_t keyNumBits, void* newMemory)
@@ -90,7 +90,7 @@ void QuickSorter::sort(int32_t numElements) {
 	for (int32_t i = 1; i < numElements; i++) {
 		int32_t keyHere = getKey(i);
 		if (keyHere < lastKey) {
-			numericDriver.freezeWithError("SORT");
+			display->freezeWithError("SORT");
 		}
 		lastKey = keyHere;
 	}

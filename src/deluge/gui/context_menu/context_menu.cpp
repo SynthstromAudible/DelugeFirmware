@@ -19,21 +19,12 @@
 
 #include "definitions_cxx.hpp"
 #include "extern.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
 #include "util/functions.h"
 
-#if HAVE_OLED
-#include "hid/display/oled.h"
-#endif
-
 namespace deluge::gui {
-
-ContextMenu::ContextMenu() {
-#if HAVE_OLED
-	oledShowsUIUnderneath = true;
-#endif
-}
 
 bool ContextMenu::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
 	*cols = 0xFFFFFFFF;
@@ -44,9 +35,7 @@ bool ContextMenu::setupAndCheckAvailability() {
 	const auto [_options, numOptions] = getOptions();
 	for (currentOption = 0; currentOption < numOptions; currentOption++) {
 		if (isCurrentOptionAvailable()) {
-#if HAVE_OLED
 			scrollPos = currentOption;
-#endif
 			return true;
 		}
 	}
@@ -62,12 +51,11 @@ bool ContextMenu::opened() {
 */
 
 void ContextMenu::focusRegained() {
-#if !HAVE_OLED
-	drawCurrentOption();
-#endif
+	if (display->have7SEG()) {
+		drawCurrentOption();
+	}
 }
 
-#if HAVE_OLED
 void ContextMenu::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	const auto [options, numOptions] = getOptions();
 
@@ -80,12 +68,12 @@ void ContextMenu::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	int32_t windowMinY = (OLED_MAIN_HEIGHT_PIXELS - windowHeight) >> 1;
 	int32_t windowMaxY = OLED_MAIN_HEIGHT_PIXELS - windowMinY;
 
-	OLED::clearAreaExact(windowMinX + 1, windowMinY + 1, windowMaxX - 1, windowMaxY - 1, image);
+	hid::display::OLED::clearAreaExact(windowMinX + 1, windowMinY + 1, windowMaxX - 1, windowMaxY - 1, image);
 
-	OLED::drawRectangle(windowMinX, windowMinY, windowMaxX, windowMaxY, image);
-	OLED::drawHorizontalLine(windowMinY + 15, 22, OLED_MAIN_WIDTH_PIXELS - 30, &image[0]);
-	OLED::drawString(this->getTitle(), 22, windowMinY + 6, image[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
-	                 kTextSpacingY);
+	hid::display::OLED::drawRectangle(windowMinX, windowMinY, windowMaxX, windowMaxY, image);
+	hid::display::OLED::drawHorizontalLine(windowMinY + 15, 22, OLED_MAIN_WIDTH_PIXELS - 30, &image[0]);
+	hid::display::OLED::drawString(this->getTitle(), 22, windowMinY + 6, image[0], OLED_MAIN_WIDTH_PIXELS,
+	                               kTextSpacingX, kTextSpacingY);
 
 	int32_t textPixelY = windowMinY + 18;
 	int32_t actualCurrentOption = currentOption;
@@ -102,12 +90,15 @@ void ContextMenu::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 		}
 
 		if (isCurrentOptionAvailable()) {
-			OLED::drawString(options[currentOption], 22, textPixelY, image[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
-			                 kTextSpacingY, 0, OLED_MAIN_WIDTH_PIXELS - 22);
+			deluge::hid::display::OLED::drawString(options[currentOption], 22, textPixelY, image[0],
+			                                       OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY, 0,
+			                                       OLED_MAIN_WIDTH_PIXELS - 22);
 			if (currentOption == actualCurrentOption) {
-				OLED::invertArea(22, OLED_MAIN_WIDTH_PIXELS - 44, textPixelY, textPixelY + 8, &image[0]);
-				OLED::setupSideScroller(0, options[currentOption], 22, OLED_MAIN_WIDTH_PIXELS - 22, textPixelY,
-				                        textPixelY + 8, kTextSpacingX, kTextSpacingY, true);
+				deluge::hid::display::OLED::invertArea(22, OLED_MAIN_WIDTH_PIXELS - 44, textPixelY, textPixelY + 8,
+				                                       &image[0]);
+				deluge::hid::display::OLED::setupSideScroller(0, options[currentOption], 22,
+				                                              OLED_MAIN_WIDTH_PIXELS - 22, textPixelY, textPixelY + 8,
+				                                              kTextSpacingX, kTextSpacingY, true);
 			}
 			textPixelY += kTextSpacingY;
 			i++;
@@ -117,52 +108,51 @@ void ContextMenu::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 
 	currentOption = actualCurrentOption;
 }
-#endif
 
 void ContextMenu::selectEncoderAction(int8_t offset) {
 	const auto [_options, numOptions] = getOptions();
 
-#if HAVE_OLED
-	bool wasOnScrollPos = (currentOption == scrollPos);
-	int32_t oldCurrentOption = currentOption;
-	do {
-		currentOption += offset;
-		if (currentOption >= numOptions || currentOption < 0) {
-			currentOption = oldCurrentOption;
-			return;
-		}
-	} while (!isCurrentOptionAvailable());
-
-	if (currentOption < scrollPos) {
-		scrollPos = currentOption;
-	}
-	else if (offset >= 0 && !wasOnScrollPos) {
-		scrollPos = oldCurrentOption;
-	}
-	renderUIsForOled();
-#else
-
-	do {
-		if (offset >= 0) {
-			currentOption++;
-			if (currentOption >= numOptions) {
-				currentOption -= numOptions;
+	if (display->haveOLED()) {
+		bool wasOnScrollPos = (currentOption == scrollPos);
+		int32_t oldCurrentOption = currentOption;
+		do {
+			currentOption += offset;
+			if (currentOption >= numOptions || currentOption < 0) {
+				currentOption = oldCurrentOption;
+				return;
 			}
-		}
-		else {
-			currentOption--;
-			if (currentOption < 0) {
-				currentOption += numOptions;
-			}
-		}
+		} while (!isCurrentOptionAvailable());
 
-	} while (!isCurrentOptionAvailable());
-	drawCurrentOption();
-#endif
+		if (currentOption < scrollPos) {
+			scrollPos = currentOption;
+		}
+		else if (offset >= 0 && !wasOnScrollPos) {
+			scrollPos = oldCurrentOption;
+		}
+		renderUIsForOled();
+	}
+	else {
+		do {
+			if (offset >= 0) {
+				currentOption++;
+				if (currentOption >= numOptions) {
+					currentOption -= numOptions;
+				}
+			}
+			else {
+				currentOption--;
+				if (currentOption < 0) {
+					currentOption += numOptions;
+				}
+			}
+
+		} while (!isCurrentOptionAvailable());
+		drawCurrentOption();
+	}
 }
 
-ActionResult ContextMenu::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
-	using namespace hid::button;
+ActionResult ContextMenu::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	using namespace deluge::hid::button;
 
 	if (b == BACK) {
 		if (on && !currentUIMode) {
@@ -170,7 +160,7 @@ ActionResult ContextMenu::buttonAction(hid::Button b, bool on, bool inCardRoutin
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 getOut:
-			numericDriver.setNextTransitionDirection(-1);
+			display->setNextTransitionDirection(-1);
 			close();
 		}
 	}
@@ -201,13 +191,10 @@ probablyAcceptCurrentOption:
 
 void ContextMenu::drawCurrentOption() {
 	const auto [options, _size] = getOptions();
-
-#if HAVE_OLED
-
-#else
-	indicator_leds::ledBlinkTimeout(0, true);
-	numericDriver.setText(options[currentOption], false, 255, true);
-#endif
+	if (display->have7SEG()) {
+		indicator_leds::ledBlinkTimeout(0, true);
+		display->setText(options[currentOption], false, 255, true);
+	}
 }
 
 ActionResult ContextMenu::padAction(int32_t x, int32_t y, int32_t on) {
@@ -215,7 +202,7 @@ ActionResult ContextMenu::padAction(int32_t x, int32_t y, int32_t on) {
 		if (sdRoutineLock) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
-		numericDriver.setNextTransitionDirection(-1);
+		display->setNextTransitionDirection(-1);
 		close();
 	}
 

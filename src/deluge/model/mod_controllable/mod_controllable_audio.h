@@ -40,6 +40,18 @@ struct Stutterer {
 	int32_t lastQuantizedKnobDiff;
 };
 
+struct Grain {
+	int32_t length;     //in samples 0=OFF
+	int32_t startPoint; //starttimepos in samples
+	int32_t counter;    //relative pos in samples
+	uint16_t pitch;     //1024=1.0
+	int32_t volScale;
+	int32_t volScaleMax;
+	bool rev;        //0=normal, 1 =reverse
+	int32_t panVolL; //0 - 1073741823
+	int32_t panVolR; //0 - 1073741823
+};
+
 class Knob;
 class MIDIDevice;
 class ModelStackWithTimelineCounter;
@@ -86,7 +98,7 @@ public:
 	bool hasBassAdjusted(ParamManager* paramManager);
 	bool hasTrebleAdjusted(ParamManager* paramManager);
 	ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob* knob, ModelStackWithThreeMainThings* modelStack);
-	ActionResult buttonAction(hid::Button b, bool on, ModelStackWithThreeMainThings* modelStack);
+	ActionResult buttonAction(deluge::hid::Button b, bool on, ModelStackWithThreeMainThings* modelStack);
 	ModelStackWithAutoParam* getParamFromModEncoder(int32_t whichModEncoder, ModelStackWithThreeMainThings* modelStack,
 	                                                bool allowCreation);
 
@@ -117,6 +129,20 @@ public:
 	StereoSample* modFXBuffer;
 	uint16_t modFXBufferWriteIndex;
 	LFO modFXLFO;
+
+	//Grain
+	StereoSample* modFXGrainBuffer;
+	uint32_t modFXGrainBufferWriteIndex;
+	int32_t grainSize;
+	int32_t grainRate;
+	int32_t grainShift;
+	Grain grains[8];
+	int32_t grainFeedbackVol;
+	int32_t grainVol;
+	int32_t grainDryVol;
+	int8_t grainPitchType;
+	bool grainLastTickCountIsZero;
+	bool grainInitialized;
 
 	Stutterer stutterer;
 

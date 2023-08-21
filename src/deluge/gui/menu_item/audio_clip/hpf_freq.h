@@ -22,15 +22,15 @@ namespace deluge::gui::menu_item::audio_clip {
 class HPFFreq final : public UnpatchedParam {
 public:
 	using UnpatchedParam::UnpatchedParam;
-#if !HAVE_OLED
+
+	// 7SEG ONLY
 	void drawValue() override {
 		if (this->getValue() == 0) {
-			numericDriver.setText("OFF");
+			display->setText(l10n::get(l10n::String::STRING_FOR_DISABLED));
 		}
 		else {
 			UnpatchedParam::drawValue();
 		}
 	}
-#endif
 };
 } // namespace deluge::gui::menu_item::audio_clip

@@ -15,6 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "fmt/core.h"
+#include "gui/l10n/l10n.h"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "processing/sound/sound.h"
@@ -25,8 +27,13 @@ public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(soundEditor.currentSound->modulator1ToModulator0); }
 	void writeCurrentValue() override { soundEditor.currentSound->modulator1ToModulator0 = this->getValue(); }
-	static_vector<std::string, capacity()> getOptions() override {
-		return {"Carriers", HAVE_OLED ? "Modulator 1" : "MOD1"};
+	static_vector<std::string_view, capacity()> getOptions() override {
+		using enum l10n::String;
+		static auto mod1 = fmt::vformat(l10n::getView(STRING_FOR_MODULATOR_N), fmt::make_format_args(1));
+		return {
+		    l10n::getView(STRING_FOR_CARRIERS),
+		    mod1,
+		};
 	}
 	bool isRelevant(Sound* sound, int32_t whichThing) override {
 		return (whichThing == 1 && sound->synthMode == SynthMode::FM);

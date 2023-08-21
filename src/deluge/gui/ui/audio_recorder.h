@@ -40,7 +40,7 @@ public:
 	bool opened();
 	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
 
-	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 	bool beginOutputRecording();
 	void process();
 	void slowRoutine();
@@ -52,9 +52,7 @@ public:
 
 	void endRecordingSoon(int32_t buttonLatency = 0);
 
-#if HAVE_OLED
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
-#endif
 
 private:
 	void finishRecording();

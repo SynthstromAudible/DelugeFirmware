@@ -26,7 +26,7 @@ class RenameDrumUI final : public RenameUI {
 public:
 	RenameDrumUI();
 	bool opened();
-	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
 	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);

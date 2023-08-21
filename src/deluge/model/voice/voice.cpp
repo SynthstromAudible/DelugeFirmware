@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "dsp/filter/filter_set.h"
 #include "dsp/timestretch/time_stretcher.h"
+#include "dsp/util.h"
 #include "gui/waveform/waveform_renderer.h"
 #include "io/debug/print.h"
 #include "memory/general_memory_allocator.h"
@@ -1054,13 +1055,13 @@ skipAutoRelease : {}
 	    || filterSet.isHPFOn() || filterSet.isLPFOn()
 	    || (paramFinalValues[Param::Local::NOISE_VOLUME] != 0
 	        && synthMode != SynthMode::FM) // Not essential, but makes life easier
-	    || paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(Param::Local::PAN)) {
+	    || paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(Param::Local::PAN)
+	    || (paramFinalValues[Param::Local::FOLD] != NEGATIVE_ONE_Q31)) {
 		renderingDirectlyIntoSoundBuffer = false;
 	}
 
 	// Otherwise, we need to think about whether we're rendering the same number of channels as the Sound
 	else {
-
 		if (synthMode == SynthMode::SUBTRACTIVE) {
 
 			for (int32_t s = 0; s < kNumSources; s++) {
@@ -1168,7 +1169,6 @@ decidedWhichBufferRenderingInto:
 
 	// Normal mode: subtractive / samples. We do each source first, for all unison
 	if (synthMode == SynthMode::SUBTRACTIVE) {
-
 		bool unisonPartBecameInactive = false;
 
 		uint32_t oscSyncPhaseIncrement[kMaxNumVoicesUnison];
@@ -1263,7 +1263,6 @@ decidedWhichBufferRenderingInto:
 
 	// Otherwise (FM and ringmod) we go through each unison first, and for each one we render both sources together
 	else {
-
 		if (stereoUnison) {
 			// oscBuffer is always a stereo temp buffer
 			didStereoTempBuffer = true;
@@ -1496,6 +1495,10 @@ skipUnisonPart : {}
 	if (!renderingDirectlyIntoSoundBuffer) {
 		if (didStereoTempBuffer) {
 			int32_t* const oscBufferEnd = oscBuffer + (numSamples << 1);
+			//fold
+			if (paramFinalValues[Param::Local::FOLD] > 0) {
+				dsp::foldBuffer(oscBuffer, oscBufferEnd, paramFinalValues[Param::Local::FOLD]);
+			}
 			// Filters
 			filterSet.renderLongStereo(oscBuffer, oscBufferEnd);
 
@@ -1573,11 +1576,17 @@ skipUnisonPart : {}
 			*/
 
 			int32_t* const oscBufferEnd = oscBuffer + numSamples;
+			//wavefolding pre filter
+			if (paramFinalValues[Param::Local::FOLD] > 0) {
+				q31_t foldAmount = paramFinalValues[Param::Local::FOLD];
+
+				dsp::foldBufferPolyApproximation(oscBuffer, oscBufferEnd, foldAmount);
+			}
+
 			filterSet.renderLong(oscBuffer, oscBufferEnd, numSamples);
 
 			// No clipping
 			if (!sound->clippingAmount) {
-
 				int32_t const* __restrict__ oscBufferPos = oscBuffer; // For traversal
 				int32_t* __restrict__ outputSample = soundBuffer;
 				int32_t overallOscAmplitudeNow = overallOscAmplitudeLastTime;
@@ -1608,7 +1617,6 @@ skipUnisonPart : {}
 
 			// Yes clipping
 			else {
-
 				int32_t const* __restrict__ oscBufferPos = oscBuffer; // For traversal
 				int32_t* __restrict__ outputSample = soundBuffer;
 				int32_t overallOscAmplitudeNow = overallOscAmplitudeLastTime;
@@ -2005,7 +2013,7 @@ void Voice::renderBasicSource(Sound* sound, ParamManagerForTimeline* paramManage
 instantUnassign:
 
 #ifdef TEST_SAMPLE_LOOP_POINTS
-			numericDriver.freezeWithError("YEP");
+			display->freezeWithError("YEP");
 #endif
 
 			*unisonPartBecameInactive = true;

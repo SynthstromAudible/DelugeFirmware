@@ -17,7 +17,6 @@
 #pragma once
 #include "gui/menu_item/submenu_referring_to_one_thing.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/numeric_driver.h"
 #include "processing/sound/sound.h"
 #include "string.h"
 #include "util/cfunctions.h"
@@ -29,28 +28,29 @@ template <size_t n>
 class ActualSource final : public SubmenuReferringToOneThing<n> {
 public:
 	using SubmenuReferringToOneThing<n>::SubmenuReferringToOneThing;
-#if HAVE_OLED
+
+	//OLED Only
 	void beginSession(MenuItem* navigatedBackwardFrom) {
 		setOscillatorNumberForTitles(this->thingIndex);
 		SubmenuReferringToOneThing<n>::beginSession(navigatedBackwardFrom);
 	}
-#else
+
+	// 7seg Only
 	void drawName() override {
 		if (soundEditor.currentSound->getSynthMode() == SynthMode::FM) {
 			char buffer[5];
 			strcpy(buffer, "CAR");
 			intToString(this->thingIndex + 1, buffer + 3);
-			numericDriver.setText(buffer);
+			display->setText(buffer);
 		}
 		else {
 			SubmenuReferringToOneThing<n>::drawName();
 		}
 	}
-#endif
 };
 
 // Template deduction guide, will not be required with P2582@C++23
 template <size_t n>
-ActualSource(const std::string&, MenuItem* const (&)[n], int32_t) -> ActualSource<n>;
+ActualSource(l10n::String, MenuItem* const (&)[n], int32_t) -> ActualSource<n>;
 
 } // namespace deluge::gui::menu_item::submenu
