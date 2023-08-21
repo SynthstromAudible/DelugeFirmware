@@ -120,7 +120,12 @@ This mode affects how the deluge handles MIDI input for learned CC controls.
 #### 4.2.5 - Waveform Loop Lock
  - ([#293]) When a sample has loop start and loop end points set, holding down loop start and tapping loop end will lock the loop points together. Moving one will move the other, keeping them the same distance apart. Use the same process to unlock the loop points. Use SHIFT+TURN<> to double or half the loop length.
 
-#### 4.2.6 - Grain FX
+#### 4.2.6 - Patchable Wavefolding Distortion
+
+- ([#349)) Adds a pre filter wavefolder, and the depth is patchable/automatable. The depth is accessible in both the menu and on the pad between saturation and LPF cutoff. The fold has no effect when set to 0 and removes itself from the signal path.
+	- Note that it has no effect on square waves, it's best with sines and triangles
+
+#### 4.2.7 - Grain FX
 
 - ([#363]) New Grain FX type added to Mod FX. This effect is somewhat resource-intensive, so please use only one instance per song.
 
@@ -330,6 +335,7 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#337]: https://github.com/SynthstromAudible/DelugeFirmware/pull/337
 [#339]: https://github.com/SynthstromAudible/DelugeFirmware/pull/339
 [#347]: https://github.com/SynthstromAudible/DelugeFirmware/pull/347
+[#349]: https://github.com/SynthstromAudible/DelugeFirmware/pull/349
 [#360]: https://github.com/SynthstromAudible/DelugeFirmware/pull/360
 [#363]: https://github.com/SynthstromAudible/DelugeFirmware/pull/363
 [#368]: https://github.com/SynthstromAudible/DelugeFirmware/pull/368
