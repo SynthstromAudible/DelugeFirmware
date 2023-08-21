@@ -153,7 +153,7 @@ LFO types added to the "LFO SHAPE" shortcut.
 #### 4.3.2 - New LFO Synchronization Modes
 Synchronization modes accessible through the "LFO SYNC" shortcut.
 
- - ([#32]) **Triplets:** Synchronizes the LFO to triplet (3/2) divisions.
+ - ([#32]) **Triplets:** Synchronizes the LFO to "triplet" (3/2) divisions.
  - ([#32]) **Dotted:** Synchronizes the LFO to "dotted" (2/3) divisions.
 
 #### 4.3.3 - Quantize & Humanize
