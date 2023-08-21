@@ -1101,7 +1101,6 @@ void View::setModLedStates() {
 			indicator_leds::blinkLed(IndicatorLED::CLIP_VIEW);
 		}
 		else {
-
 			indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, true);
 		}
 	}
