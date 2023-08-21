@@ -1,7 +1,7 @@
 # Community Features
 ## 1. Introduction
 
-Every time a Pull request improves the community firmware it shall note down it's achievements and usage in this document.
+Every time a Pull Request improves the community firmware it shall note down its achievements and usage in this document.
 
 ## 2. File Compatibility Warning
 In general, we try to maintain file compatibility with the official firmware. However, **files (including songs, presets, etc.) that use community features may not ever load correctly on the official firmware again**. Make sure to back up your SD card!
@@ -244,7 +244,7 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
  - ([#234]) While you can delete a kit row by holding a Note in a row and pressing "SAVE/DELETE", the "Delete Unused Kit Rows" feature allows you to batch delete kit rows which does not contain any notes, freeing kits from unused sounds (which take some precious RAM). While inside a Kit, hold "KIT" and press "SHIFT" + "SAVE/DELETE". A confirmation message will appear: "Deleted unused rows". This command is not executed if there are no notes at all in the kit.
 	- This feature can be turned ON/OFF in the Runtime Settings (Community Features) Menu (accessed by pressing "SHIFT" + "SELECT").
 
-### 4.7 Audio Clip View - General Features
+### 4.7 Audio Clip View - Features
 
 #### 4.7.1 - Shift Clip
 
@@ -267,7 +267,7 @@ In the main menu of the deluge (accessed by pressing "SHIFT" + the "SELECT" knob
 * Catch Notes (CATC)
 	* When On, "Catch Notes" behaviour is disabled.
 * Delete Unused Kit Rows (DELE)
-	* When On, the Delete Unused Kit Rows shortcut (hold KIT then SHIFT + SAVE/DELETE) is enabled.
+	* When On, the Delete Unused Kit Rows shortcut (hold "KIT" then "SHIFT" + "SAVE/DELETE") is enabled.
 * Alternative Golden Knob Delay Params
 	* When On, it changes the behaviour of the Mod Encoder button action from the default (PingPong and Type) to the alternative params (SyncType and SyncLevel).
 * Automation (AUTO)
@@ -286,7 +286,7 @@ In the main menu of the deluge (accessed by pressing "SHIFT" + the "SELECT" knob
   * Allow Insecure Develop Sysex Messages
   	* When On, the ability to load firmware over USB is enabled.
   * Sync Scaling Action
-  	* When set to Fill, it changes the behaviour of the SYNC-SCALING button is changed to activate fill mode. The original Sync Scaling button function is moved to SHIFT + SYNC-SCALING.
+  	* When set to Fill, it changes the behaviour of the "SYNC-SCALING" button is changed to activate "FILL" mode. The original Sync Scaling button function is moved to "SHIFT" + "SYNC-SCALING".
   * Highlight Incoming Notes
   	* When On, In-Key and Isometric Keyboard layouts display incoming MIDI notes with their velocity.
   * Display Norns Layout
