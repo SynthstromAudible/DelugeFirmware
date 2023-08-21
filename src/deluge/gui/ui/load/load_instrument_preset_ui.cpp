@@ -783,7 +783,7 @@ int32_t LoadInstrumentPresetUI::performLoad(bool doClone) {
 	if (currentFileItem->isFolder) {
 		return NO_ERROR;
 	}
-	if (currentFileItem->instrument == instrumentToReplace && !doClone && !loadingSynthToKitRow) {
+	if (currentFileItem->instrument == instrumentToReplace && !doClone) {
 		return NO_ERROR; // Happens if navigate over a folder's name (Instrument stays the same),
 	}
 	// then back onto that neighbouring Instrument - you'd incorrectly get a "USED" error without this line.
