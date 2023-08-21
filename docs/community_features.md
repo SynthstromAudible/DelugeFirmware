@@ -265,7 +265,7 @@ In the main menu of the deluge (accessed by pressing "SHIFT" + the "SELECT" knob
 * Mod. Depth Decimals (MOD.)
 	* When On, Modulation Resolution is increased.
 * Catch Notes (CATC)
-	* When On, "Catch Notes" behaviour is disabled.
+	* When Off, existing "Catch Notes" behaviour is disabled.
 * Delete Unused Kit Rows (DELE)
 	* When On, the Delete Unused Kit Rows shortcut (hold "KIT" then "SHIFT" + "SAVE/DELETE") is enabled.
 * Alternative Golden Knob Delay Params
