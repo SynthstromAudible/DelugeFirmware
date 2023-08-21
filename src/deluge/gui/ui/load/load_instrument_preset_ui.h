@@ -20,11 +20,13 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/load/load_ui.h"
 #include "hid/button.h"
+#include "model/drum/kit.h"
+#include "model/note/note_row.h"
+#include "processing/sound/sound_drum.h"
 
 class Instrument;
 class InstrumentClip;
 class Output;
-class SoundDrum;
 
 class LoadInstrumentPresetUI final : public LoadUI {
 public:
@@ -36,6 +38,7 @@ public:
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
 	void instrumentEdited(Instrument* instrument);
 	int32_t performLoad(bool doClone = false);
+	int32_t performLoadSynthToKit();
 	ActionResult timerCallback();
 	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
 	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3] = NULL,
@@ -56,8 +59,13 @@ public:
 
 	InstrumentClip* instrumentClipToLoadFor; // Can be NULL - if called from Arranger.
 	Instrument* instrumentToReplace; // The Instrument that's actually successfully loaded and assigned to the Clip.
+
+	//these are all necessary to setup a sound drum
 	bool loadingSynthToKitRow;
 	SoundDrum* soundDrumToReplace;
+	Kit* kitToLoadFor;
+	int32_t noteRowIndex;
+	NoteRow* noteRow;
 
 protected:
 	void enterKeyPress();

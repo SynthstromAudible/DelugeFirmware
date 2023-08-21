@@ -103,7 +103,7 @@ public:
 	                                   int32_t amplitudeAtStart, int32_t amplitudeAtEnd);
 
 	char const* getXMLTag() { return "kit"; }
-
+	int32_t readDrumFromFile(Song* song, Clip* clip, DrumType drumType, int32_t readAutomationUpToPos);
 	Drum* firstDrum;
 	Drum* selectedDrum;
 
@@ -113,7 +113,6 @@ protected:
 	bool isKit() { return true; }
 
 private:
-	int32_t readDrumFromFile(Song* song, Clip* clip, DrumType drumType, int32_t readAutomationUpToPos);
 	void writeDrumToFile(Drum* thisDrum, ParamManager* paramManagerForDrum, bool savingSong, int32_t* selectedDrumIndex,
 	                     int32_t* drumIndex, Song* song);
 

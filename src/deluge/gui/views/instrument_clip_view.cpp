@@ -804,34 +804,10 @@ someError:
 	if (drumType == DrumType::SOUND) {
 		loadInstrumentPresetUI.loadingSynthToKitRow = true;
 		loadInstrumentPresetUI.soundDrumToReplace = (SoundDrum*)newDrum;
-		loadInstrumentPresetUI.instrumentClipToLoadFor = getCurrentClip();
+		loadInstrumentPresetUI.kitToLoadFor = kit;
+		loadInstrumentPresetUI.noteRow = noteRow;
+		loadInstrumentPresetUI.noteRowIndex = noteRowIndex;
 		openUI(&loadInstrumentPresetUI);
-		// 		String newName;
-		// 		int32_t error = newName.set("U");
-		// 		if (error) {
-		// discardDrum:
-		// 			void* toDealloc = dynamic_cast<void*>(newDrum);
-		// 			newDrum->~Drum();
-		// 			GeneralMemoryAllocator::get().dealloc(toDealloc);
-		// 			goto someError;
-		// 		}
-
-		// 		error = kit->makeDrumNameUnique(&newName, 1);
-		// 		if (error) {
-		// 			goto discardDrum;
-		// 		}
-
-		// 		((SoundDrum*)newDrum)->name.set(&newName);
-
-		// 		error = paramManager.setupWithPatching();
-		// 		if (error) {
-		// 			goto discardDrum;
-		// 		}
-
-		// 		Sound::initParams(&paramManager);
-		// 		((SoundDrum*)newDrum)->setupAsBlankSynth(&paramManager);
-
-		// 		((SoundDrum*)newDrum)->modKnobs[6][0].paramDescriptor.setToHaveParamOnly(Param::Local::PITCH_ADJUST);
 	}
 
 	kit->addDrum(newDrum);

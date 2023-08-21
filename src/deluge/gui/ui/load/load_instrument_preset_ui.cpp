@@ -70,6 +70,9 @@ bool LoadInstrumentPresetUI::opened() {
 	initialInstrumentType = instrumentToReplace->type;
 	initialName.set(&instrumentToReplace->name);
 	initialDirPath.set(&instrumentToReplace->dirPath);
+	if (loadingSynthToKitRow) {
+		instrumentTypeToLoad = InstrumentType::SYNTH;
+	}
 
 	switch (instrumentToReplace->type) {
 	case InstrumentType::MIDI_OUT:
@@ -215,7 +218,12 @@ void LoadInstrumentPresetUI::currentFileChanged(int32_t movementDirection) {
 	//if (currentFileItem->instrument != instrumentToReplace) {
 
 	currentUIMode = UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED;
-	currentInstrumentLoadError = performLoad();
+	if (loadingSynthToKitRow) {
+		currentInstrumentLoadError = performLoadSynthToKit();
+	}
+	else {
+		currentInstrumentLoadError = performLoad();
+	}
 	currentUIMode = UI_MODE_NONE;
 	//}
 }
@@ -775,7 +783,7 @@ int32_t LoadInstrumentPresetUI::performLoad(bool doClone) {
 	if (currentFileItem->isFolder) {
 		return NO_ERROR;
 	}
-	if (currentFileItem->instrument == instrumentToReplace && !doClone) {
+	if (currentFileItem->instrument == instrumentToReplace && !doClone && !loadingSynthToKitRow) {
 		return NO_ERROR; // Happens if navigate over a folder's name (Instrument stays the same),
 	}
 	// then back onto that neighbouring Instrument - you'd incorrectly get a "USED" error without this line.
@@ -836,15 +844,10 @@ giveUsedError:
 			}
 		}
 		int32_t error;
-		if (!loadingSynthToKitRow) {
-			error = storageManager.loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, instrumentTypeToLoad,
-			                                              false, &newInstrument, &currentFileItem->filePointer,
-			                                              &enteredText, &currentDir);
-		}
-		else {
-			error = storageManager.loadSynthToDrum(currentSong, instrumentClipToLoadFor, false, &soundDrumToReplace,
-			                                       &currentFileItem->filePointer, &enteredText, &currentDir);
-		}
+
+		error = storageManager.loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, instrumentTypeToLoad, false,
+		                                              &newInstrument, &currentFileItem->filePointer, &enteredText,
+		                                              &currentDir);
 
 		if (error) {
 			return error;
@@ -944,6 +947,35 @@ giveUsedError:
 	return NO_ERROR;
 }
 
+int32_t LoadInstrumentPresetUI::performLoadSynthToKit() {
+	FileItem* currentFileItem = getCurrentFileItem();
+	ParamManager* parammanager;
+	if (!currentFileItem) {
+		return display->haveOLED()
+		           ? ERROR_FILE_NOT_FOUND
+		           : ERROR_NO_FURTHER_FILES_THIS_DIRECTION; // Make it say "NONE" on numeric Deluge, for consistency with old times.
+	}
+
+	if (currentFileItem->isFolder) {
+		return NO_ERROR;
+	}
+
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+
+	int32_t error = storageManager.loadSynthToDrum(currentSong, instrumentClipToLoadFor, false, &soundDrumToReplace,
+	                                               &currentFileItem->filePointer, &enteredText, &currentDir);
+	//kitToLoadFor->addDrum(soundDrumToReplace);
+	soundDrumToReplace->loadAllAudioFiles(true);
+	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowIndex, noteRow);
+	parammanager = currentSong->getBackedUpParamManagerPreferablyWithClip(soundDrumToReplace, instrumentClipToLoadFor);
+
+	noteRow->setDrum(soundDrumToReplace, kitToLoadFor, modelStackWithNoteRow, instrumentClipToLoadFor, parammanager);
+	kitToLoadFor->setupPatching(modelStack);
+	kitToLoadFor->beenEdited();
+
+	return error;
+}
 // Previously called "exitAndResetInstrumentToInitial()". Does just that.
 void LoadInstrumentPresetUI::exitAction() {
 	revertToInitialPreset();
