@@ -1137,20 +1137,11 @@ int32_t ModControllableAudio::getStutterRate(ParamManager* paramManager) {
 
 	// Quantized Stutter diff
 	// Convert to knobPos (range -64 to 64) for easy operation
-	int32_t knobPos = 0;
-	if (paramValue >= (int32_t)(0x80000000 - (1 << 24))) {
-		knobPos = 64;
-	}
-	else {
-		knobPos = (paramValue + (1 << 24)) >> 25;
-	}
+	int32_t knobPos = unpatchedParams->paramValueToKnobPos(paramValue, NULL);
 	// Add diff "lastQuantizedKnobDiff" (this value will be set if Quantized Stutter is On, zero if not so this will be a no-op)
 	knobPos = knobPos + stutterer.lastQuantizedKnobDiff;
 	// Convert back to value range
-	paramValue = 2147483647;
-	if (knobPos < 64) {
-		paramValue = knobPos << 25;
-	}
+	paramValue = unpatchedParams->knobPosToParamValue(knobPos, NULL);
 
 	int32_t rate =
 	    getFinalParameterValueExp(paramNeutralValues[Param::Global::DELAY_RATE], cableToExpParamShortcut(paramValue));
@@ -1868,13 +1859,7 @@ void ModControllableAudio::beginStutter(ParamManagerForTimeline* paramManager) {
 	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate) == RuntimeFeatureStateToggle::On) {
 		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 		int32_t paramValue = unpatchedParams->getValue(Param::Unpatched::STUTTER_RATE);
-		int32_t knobPos = 0;
-		if (paramValue >= (int32_t)(0x80000000 - (1 << 24))) {
-			knobPos = 64;
-		}
-		else {
-			knobPos = (paramValue + (1 << 24)) >> 25;
-		}
+		int32_t knobPos = unpatchedParams->paramValueToKnobPos(paramValue, NULL);
 		if (knobPos < -39) {
 			knobPos = -16; // 4ths
 		}
