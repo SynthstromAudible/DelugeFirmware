@@ -29,7 +29,20 @@ Here is a list of features that have been added to the firmware as a list, group
 
 ### 4.1 - Song View Features
 
-#### 4.1.1 - New Grid Layout
+#### 4.1.1 - Master Compressor
+- ([#137]) In the Song view, select Affect Entire and SIDECHAIN modulation button, and adjust the upper gold knob. Push the upper gold knob to switch to the next setting (Threshold (dB), Makeup Gain (dB), Attack (ms), Release (ms), Ratio, MIX). The LEDs next to the knob act as a gain reduction meter.
+
+- This compressor function can be turned on/off in the runtime feature setting.
+
+- Follow up PR's:
+	- ([#200]) Fixed master compressor. The masterVolumeAdjustment value is now considered in the process. With this change, threshold value are now displayed correctly. This modification affects songs that had saved master compressor settings.
+	- ([#220] Fixed a bug in the song view that, when the SIDECHAIN knob was turned while holding down a clip pad, the SIDECHAIN value and the Master compressor Threshold would change at the same time.
+
+#### 4.1.2 - Change Row Colour
+
+ - ([#163]) Pressing a clip row + shift & scroll vertically changes the selected row color. This is the same shortcut like before when setting the color in the clip view.
+
+#### 4.1.3 - New Grid Layout
 
  - ([#251]) Add new grid session layout to "Song" mode. All functionality from (classic) row layout applies except for the following:
 	 - The data model of rows and grid mode are compatible, you can switch between them freely
@@ -56,10 +69,6 @@ Here is a list of features that have been added to the firmware as a list, group
 		 - Copying clips to arranger
 		 - Copying audio clips between different tracks
 
-#### 4.1.2 - Change Row Colour
-
- - ([#163]) Pressing a clip row + shift & scroll vertically changes the selected row color. This is the same shortcut like before when setting the color in the clip view.
-
 #### 4.1.3 - Catch Notes
 
  - ([#221]) The normal behavior of the Deluge is to try to keep up with 'in progress' notes when instant switching between clips by playing them late. However this leads to glitches with drum clips and other percussive sounds. Changing this setting to OFF will prevent this behavior and *not* try to keep up with those notes, leading to smoother instant switching between clips.
@@ -68,6 +77,9 @@ Here is a list of features that have been added to the firmware as a list, group
 
 #### 4.2.1 - Filters
  - ([#103]) - **LPF:** adds a new filter in the low-pass slot, a state-variable filter. This filter has significantly less distortion than the ladder filters, think sequential vs. moog. Cutoff and resonance ranges are subject to change with further testing.
+
+#### 4.2.2 - Stereo Chorus
+- ([#120]) New Steroe Chorus type added to Mod FX. The recommended settings are OFFSET=30, DEPTH=17, and RATE=15.
 
 #### 4.2.2 - Mod Matrix
  - ([#157]) Add a "Mod Matrix" entry to the sound editor menu which shows a list of all currently active modulations.
@@ -90,6 +102,23 @@ This mode affects how the deluge handles MIDI input for learned CC controls.
 #### 4.2.5 - Sample Waveform View
  - ([#293]) When a sample has loop start and loop end points set, holding down loop start and tapping loop end will lock the loop points together. Moving one will move the other, keeping them the same distance apart. Use the same process to unlock the loop points. Use SHIFT+TURN<> to double or half the loop length.
 
+#### 4.2.6 - Grain FX
+
+- ([#363]) New Grain FX type added to Mod FX. This effect is somewhat resource-intensive, so please use only one instance per song.
+
+	- Parameters:
+		- Mod Depth: Controls Grain Volume / Dry Wet Mix
+		- Mod Offset: Adjusts Grain Size (10ms - 800ms)
+		- Mod Rate: Sets Grain Rate (0.5hz - 180hz)
+		- Mod Feedback: Selects Grain Type
+
+	- Grain Type (Presets):
+		- Preset 1: Unison and +1 Octave (Reverse)
+		- Preset 2: Unison and -1 Octave
+		- Preset 3: Unison and +1 Octave (Defalut)
+		- Preset 4: 5th and +1 Octave
+		- Preset 5: Unison and +1/-1 Octave (Tempo Sync)
+
 ### 4.3 - Instrument Clip View - General Features
 
 These features were added to the Instrument Clip View and affect Synth, Kit and Midi instrument clip types.
@@ -111,7 +140,7 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 	- Press and hold a note in clip view and turn the tempo knob right or left to apply quantize or humanize respectively to that row.
 	- Press and hold a note and press and turn the tempo knob to apply quantize or humanize to all rows.
 	- The amount of quantization/humanization is shown in the display.
-	- This feature can be toggled in the [runtime features menu](#runtime-features).
+	- This feature can be turned On/Off in the runtime feature setting. (Runtime Feature Setting is available in the Shift+Select knob menu.)
 
 #### 4.3.4 - Fill Mode
  - ([#211]) Fill Mode is a new iteration/probability setting for notes. The FILL setting is at the start of the probability range, before 5%. Notes set to FILL are only played when fill mode is active. There are two ways to activate fill mode - set it as a Global MIDI Command and/or set it to override the front panel Sync Scaling button. For Global MIDI Commands go to SETTINGS > MIDI > CMD > FILL. To override the Sync Scaling button set SETTINGS > FEATURES > SYNC to FILL. The orignal Sync Scaling function is moved to SHIFT+SyncScaling.
@@ -163,13 +192,21 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 ### 4.5 - Instrument Clip View - Kit Features
 
 #### 4.5.1 - Kit Keyboard View
- - ([#112]) All-new use for the "keyboard" button in kit clips, uses the main pad grid for MPC-style 16 level playing. Horizonatal encoder scrolls by one pad at a time, allowing positioning drums left to right, and vertical encoder jumps vertically by rows.
+ - ([#112]) All-new use for the "keyboard" button in kit clips, uses the main pad grid for MPC-style 16 level playing. Horizontal encoder scrolls by one pad at a time, allowing positioning drums left to right, and vertical encoder jumps vertically by rows.
 
-#### 4.5.2 - Load Random Samples
+#### 4.5.2 - Drum Randomizer / Load Random Samples
 
  - ([#122]) Pressing "AUDITION + RANDOM" on a drum kit row will load a random sample from the same folder as the currently enabled sample and load it as the sound for that row. Currently limited to 25 files for performance reasons. This feature can be toggled in the [runtime features menu](#runtime-features).
 
-#### 4.5.3 - Batch Delete Kit Rows
+#### 4.5.3 - Manual Slicing / Lazy Chop
+
+- ([#198]) In the Slicer view, press the Horizonal Encoder ◀︎▶︎ knob. When you press the green pad in the bottom left, it starts playing the first slice, and pressing an empty pad creates a new slice. Turning the Select knob to the left or pressing the Pad + DELETE button allows you to delete a slice.
+
+- Turning the Horizontal Encoder ◀︎▶︎ knob allows you to adjust the start point of the slice. Additionally, turning the ▼︎▲︎ knob transposes the slice.
+
+- Follow-up PR: ([#210]) Changed to stop audio preview (played by the sample browser) when entering manual slicer mode.
+
+#### 4.5.4 - Batch Delete Kit Rows
    
  - ([#234]) While you can delete a kit row by holding a Note in a row and pressing SAVE/DELETE, the "Delete Unused Kit Rows" feature allows you to batch delete kit rows which does not contain any notes, freeing kits from unused sounds (which take some precious RAM). While inside a kit, hold "KIT" and press "Shift + SAVE/DELETE". A confirmation message will appear: "Deleted unused rows". This command is not executed if there are no notes at all in the kit. This feature can be toggled in the [runtime features menu](#runtime-features).
 
@@ -217,7 +254,7 @@ In the main menu of the deluge (Shift + Pressing selection knob) there is an ent
 
 Support for sending and receiving large sysex messages has been added. Initially, this has been used for development centric features.
 
-- ([#192] and [#174]) Send the contents of the screen to a computer. This allows 7SEG behavior to be evaluated on OLED hardware and vice versa
+- ([#174] and [#192]) Send the contents of the screen to a computer. This allows 7SEG behavior to be evaluated on OLED hardware and vice versa
 - ([#215]) Forward debug messages. This can be used as an alternative to RTT for print-style debugging.
 - ([#295]) Load firmware over USB. As this could be a security risk, it must be enabled in community feature settings
 
@@ -240,14 +277,23 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#47]: https://github.com/SynthstromAudible/DelugeFirmware/pull/47
 [#103]: https://github.com/SynthstromAudible/DelugeFirmware/pull/103
 [#112]: https://github.com/SynthstromAudible/DelugeFirmware/pull/112
+[#120]: https://github.com/SynthstromAudible/DelugeFirmware/pull/120
 [#122]: https://github.com/SynthstromAudible/DelugeFirmware/pull/122
 [#129]: https://github.com/SynthstromAudible/DelugeFirmware/pull/129
 [#141]: https://github.com/SynthstromAudible/DelugeFirmware/pull/141
+[#137]: https://github.com/SynthstromAudible/DelugeFirmware/pull/137
 [#138]: https://github.com/SynthstromAudible/DelugeFirmware/pull/138
 [#163]: https://github.com/SynthstromAudible/DelugeFirmware/pull/163
 [#178]: https://github.com/SynthstromAudible/DelugeFirmware/pull/178
 [#170]: https://github.com/SynthstromAudible/DelugeFirmware/pull/170
+[#174]: https://github.com/SynthstromAudible/DelugeFirmware/pull/174
+[#192]: https://github.com/SynthstromAudible/DelugeFirmware/pull/192
+[#198]: https://github.com/SynthstromAudible/DelugeFirmware/pull/198
+[#200]: https://github.com/SynthstromAudible/DelugeFirmware/pull/200
+[#210]: https://github.com/SynthstromAudible/DelugeFirmware/pull/210
 [#211]: https://github.com/SynthstromAudible/DelugeFirmware/pull/211
+[#215]: https://github.com/SynthstromAudible/DelugeFirmware/pull/215
+[#220]: https://github.com/SynthstromAudible/DelugeFirmware/pull/220
 [#221]: https://github.com/SynthstromAudible/DelugeFirmware/pull/221
 [#223]: https://github.com/SynthstromAudible/DelugeFirmware/pull/223
 [#234]: https://github.com/SynthstromAudible/DelugeFirmware/pull/234
@@ -256,7 +302,9 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#251]: https://github.com/SynthstromAudible/DelugeFirmware/pull/251
 [#282]: https://github.com/SynthstromAudible/DelugeFirmware/pull/282
 [#293]: https://github.com/SynthstromAudible/DelugeFirmware/pull/293
+[#295]: https://github.com/SynthstromAudible/DelugeFirmware/pull/295
 [#347]: https://github.com/SynthstromAudible/DelugeFirmware/pull/347
 [#360]: https://github.com/SynthstromAudible/DelugeFirmware/pull/360
+[#363]: https://github.com/SynthstromAudible/DelugeFirmware/pull/363
 [#368]: https://github.com/SynthstromAudible/DelugeFirmware/pull/368
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/automation_view.md
