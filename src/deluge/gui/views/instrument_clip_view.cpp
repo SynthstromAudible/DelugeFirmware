@@ -2869,7 +2869,15 @@ void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) 
 	char buffer[5];
 #endif
 	char* displayString;
-	if (probability <= kNumProbabilityValues) {
+
+	// FILL mode
+	if (probability == kFillProbabilityValue) {
+		strcpy(buffer, "FILL");
+		displayString = buffer;
+	}
+
+	// Probability dependence
+	else if (probability <= kNumProbabilityValues) {
 #if HAVE_OLED
 		strcpy(buffer, "Probability: ");
 		intToString(probability * 5, buffer + strlen(buffer));
