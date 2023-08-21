@@ -12,16 +12,16 @@ Here is a list of general improvements that have been made, ordered from newest 
 
 #### 3.1 - Patch Cables
 
-- ([#17]) - Increase the resolution of "patch cables" between mod sources and destinations.
+- ([#17]) Increase the resolution of "patch cables" between mod sources and destinations.
 
 #### 3.2 - MPE
-- ([#29]) - Bugfix to respect MPE zones in kit rows. In the official firmware kit rows with midi learned to a channel would be triggered by an MPE zone which uses that channel. With this change they respect zones in the same way as synth and midi clips.
+- ([#29]) Bugfix to respect MPE zones in kit rows. In the official firmware kit rows with midi learned to a channel would be triggered by an MPE zone which uses that channel. With this change they respect zones in the same way as synth and midi clips.
 
 #### 3.3 - MIDI
-- ([#47]) - Extra MIDI ports on the USB interface for MPE. Port 2 shows in the midi device menu, and improves the usability of MPE-capable devices through the USB interface by allowing MPE zones to be sent to port 2 and non-MPE to be sent to port 1 (or vice versa). A third port is added for future use such as a desktop/mobile companion app, DAW control or Mackie HUI emulation.
+- ([#47]) Extra MIDI ports on the USB interface for MPE. Port 2 shows in the midi device menu, and improves the usability of MPE-capable devices through the USB interface by allowing MPE zones to be sent to port 2 and non-MPE to be sent to port 1 (or vice versa). A third port is added for future use such as a desktop/mobile companion app, DAW control or Mackie HUI emulation.
 
 #### 3.4 - Tempo
-- ([#178]) - New option (FINE TEMPO in the "community features" menu) to invert the push+turn behavior of the tempo knob. With this option enabled the tempo changes by 1 when unpushed and 4 when pushed (vs 4 unpushed and 1 pushed in the official firmware). This option defaults to OFF.
+- ([#178]) New option (FINE TEMPO in the "community features" menu) to invert the push+turn behavior of the tempo knob. With this option enabled the tempo changes by 1 when unpushed and 4 when pushed (vs 4 unpushed and 1 pushed in the official firmware). This option defaults to OFF.
 
 ## 4. New Features Added
 
@@ -144,14 +144,14 @@ These features were added to the Instrument Clip View and affect Synth, Kit and 
 #### 4.3.1 - New LFO Shapes
 LFO types added to the "LFO SHAPE" shortcut.
 
- - ([#32]) - **Random Walk:** Starts at zero and walks up or down by small increments when triggered.
- - ([#32]) - **Sample&Hold:** Picks a new random value every time it is triggered.
+ - ([#32]) **Random Walk:** Starts at zero and walks up or down by small increments when triggered.
+ - ([#32]) **Sample&Hold:** Picks a new random value every time it is triggered.
 
 #### 4.3.2 - New LFO Synchronization Modes
 Synchronization modes accessible through the "LFO SYNC" shortcut.
 
- - ([#32]) - **Triplets:** Synchronizes the LFO to triplet (3/2) divisions.
- - ([#32]) - **Dotted:** Synchronizes the LFO to "dotted" (2/3) divisions.
+ - ([#32]) **Triplets:** Synchronizes the LFO to triplet (3/2) divisions.
+ - ([#32]) **Dotted:** Synchronizes the LFO to "dotted" (2/3) divisions.
 
 #### 4.3.3 - Quantize & Humanize
  - ([#129])
@@ -164,7 +164,7 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
  - ([#211]) Fill Mode is a new iteration/probability setting for notes. The FILL setting is at the start of the probability range, before 5%. Notes set to FILL are only played when fill mode is active. There are two ways to activate fill mode - set it as a Global MIDI Command and/or set it to override the front panel Sync Scaling button. For Global MIDI Commands go to SETTINGS > MIDI > CMD > FILL. To override the Sync Scaling button set SETTINGS > FEATURES > SYNC to FILL. The orignal Sync Scaling function is moved to SHIFT+SyncScaling.
 
 #### 4.3.5 - Unison Stereo Spread
- - ([#223]) - **Unison: **The unison parts can be spread accross the stereo field. Press SELECT in the unison NUMBER menu to access the new unison spread parameter.
+ - ([#223]) The unison parts can be spread accross the stereo field. Press SELECT in the unison NUMBER menu to access the new unison spread parameter.
 
 #### 4.3.6 - Automation View
  - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Automation View Documentation]
