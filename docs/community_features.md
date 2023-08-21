@@ -144,6 +144,8 @@ This mode affects how the deluge handles MIDI input for learned CC controls.
 
 - ([#357]) Ability to set, using the Community Features Menu, the stutterer effect to be quantized to 4th, 8th, 16th, 32nd, and 64th rate when selecting it. Once you have pressed the Stutter knob, then the selected value will be the center value of the knob and you can go up and down with the golden knob and come back to the original rate by centering the knob (LEDs will flash indicating it).
 
+	- This feature can be turned ON/OFF in the Runtime Settings (Community Features) Menu (accessed by pressing "SHIFT" + "SELECT"). 
+
 ### 4.3 - Instrument Clip View - General Features
 
 These features were added to the Instrument Clip View and affect Synth, Kit and Midi instrument clip types.
@@ -274,6 +276,8 @@ In the main menu of the deluge (accessed by pressing "SHIFT" + the "SELECT" knob
 	* When On, the Delete Unused Kit Rows shortcut (hold "KIT" then "SHIFT" + "SAVE/DELETE") is enabled.
 * Alternative Golden Knob Delay Params
 	* When On, it changes the behaviour of the Mod Encoder button action from the default (PingPong and Type) to the alternative params (SyncType and SyncLevel).
+* Stutter Rate Quantize
+	* When On, the ability to set the stutterer effect to be quantized to 4th, 8th, 16th, 32nd, and 64th rate when selecting it is enabled.
 * Automation (AUTO)
 	* Interpolation
 		* When On, Interpolation is on by default in the Automation Instrument Clip View.
@@ -287,13 +291,13 @@ In the main menu of the deluge (accessed by pressing "SHIFT" + the "SELECT" knob
 	* Shift Note
 		* When On, shifting notes horizontally in the regular Instrument Clip View will shift the Notes and MPE, but not the Automation.
 		* When On, to shift Non-MPE Automation horizontally you will need to enter the Automation Instrument Clip View.
-  * Allow Insecure Develop Sysex Messages
+* Allow Insecure Develop Sysex Messages
   	* When On, the ability to load firmware over USB is enabled.
-  * Sync Scaling Action
+* Sync Scaling Action
   	* When set to Fill, it changes the behaviour of the "SYNC-SCALING" button is changed to activate "FILL" mode. The original Sync Scaling button function is moved to "SHIFT" + "SYNC-SCALING".
-  * Highlight Incoming Notes
+* Highlight Incoming Notes
   	* When On, In-Key and Isometric Keyboard layouts display incoming MIDI notes with their velocity.
-  * Display Norns Layout
+* Display Norns Layout
   	* When On, all incoming notes are rendered consecutively as white pads with velocity as brightness.
 
 ## 6. Sysex Handling
