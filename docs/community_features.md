@@ -1,52 +1,36 @@
 # Community Features
-## Introduction
+## 1. Introduction
 
 Every time a Pull request improves the community firmware it shall note down it's achievements and usage in this document.
 
-## File Compatibility Warning
+## 2. File Compatibility Warning
 In general, we try to maintain file compatibility with the official firmware. However, **files (including songs, presets, etc.) that use community features may not ever load correctly on the official firmware again**. Make sure to back up your SD card!
 
-## General improvements
+## 3. General Improvements
 
-Here is a list of general improvements that have been made ordered from newest to oldest:
+Here is a list of general improvements that have been made, ordered from newest to oldest:
 
-* PR [#17] - Increase the resolution of "patch cables" between mod sources and destinations.
-* PR [#29] - Bugfix to respect MPE zones in kit rows. In the official firmware kit rows with midi learned to a channel would be triggered by an MPE zone which uses that channel. With this change they respect zones in the same way as synth and midi clips.
-* PR [#47] - Extra MIDI ports on the USB interface for MPE. Port 2 shows in the midi device menu, and improves the usability of MPE-capable devices through the USB interface by allowing MPE zones to be sent to port 2 and non-MPE to be sent to port 1 (or vice versa). A third port is added for future use such as a desktop/mobile companion app, DAW control or Mackie HUI emulation.
-* PR [#178] - New option (FINE TEMPO in the "community features" menu) to invert the push+turn behavior of the tempo knob. With this option enabled the tempo changes by 1 when unpushed and 4 when pushed (vs 4 unpushed and 1 pushed in the official firmware). This option defaults to OFF.
+#### 3.1 - Patch Cables
 
+- ([#17]) - Increase the resolution of "patch cables" between mod sources and destinations.
 
-## Added features
+#### 3.2 - MPE
+- ([#29]) - Bugfix to respect MPE zones in kit rows. In the official firmware kit rows with midi learned to a channel would be triggered by an MPE zone which uses that channel. With this change they respect zones in the same way as synth and midi clips.
+
+#### 3.3 - MIDI
+- ([#47]) - Extra MIDI ports on the USB interface for MPE. Port 2 shows in the midi device menu, and improves the usability of MPE-capable devices through the USB interface by allowing MPE zones to be sent to port 2 and non-MPE to be sent to port 1 (or vice versa). A third port is added for future use such as a desktop/mobile companion app, DAW control or Mackie HUI emulation.
+
+#### 3.4 - Tempo
+- ([#178]) - New option (FINE TEMPO in the "community features" menu) to invert the push+turn behavior of the tempo knob. With this option enabled the tempo changes by 1 when unpushed and 4 when pushed (vs 4 unpushed and 1 pushed in the official firmware). This option defaults to OFF.
+
+## 4. New Features Added
 
 Here is a list of features that have been added to the firmware as a list, grouped by category:
 
-### Synthesizer features
+### 4.1 - Song View Features
 
-#### New LFO shapes
-LFO types added to the "LFO SHAPE" shortcut.
+#### 4.1.1 - New Grid Layout
 
- - ([#32]) Random Walk. Starts at zero and walks up or down by small increments when triggered.
- - ([#32]) Sample&Hold. Picks a new random value every time it is triggered.
-
-#### New LFO Synchronization Modes
-Synchronization modes accessible through the "LFO SYNC" shortcut.
-
- - ([#32]) Triplets. Synchronizes the LFO to triplet (3/2) divisions.
- - ([#32]) Dotted. Synchronizes the LFO to "dotted" (2/3) divisions.
-
-#### Filters
- - ([#103]) adds a new filter in the low-pass slot, a state-variable filter. This filter has significantly less distortion than the ladder filters, think sequential vs. moog. Cutoff and resonance ranges are subject to change with further testing.
-
-#### Unison stereo spread
--- ([#223]) The unison parts can be spread accross the stereo field. Press SELECT in the unison NUMBER menu to access the new unison spread parameter.
-
-## New behaviors
-
-### All views (Arrange, Song, Clip)
-
- - ([#211]) Fill Mode is a new iteration/probability setting for notes. The FILL setting is at the start of the probability range, before 5%. Notes set to FILL are only played when fill mode is active. There are two ways to activate fill mode - set it as a Global MIDI Command and/or set it to override the front panel Sync Scaling button. For Global MIDI Commands go to SETTINGS > MIDI > CMD > FILL. To override the Sync Scaling button set SETTINGS > FEATURES > SYNC to FILL. The orignal Sync Scaling function is moved to SHIFT+SyncScaling.
-
-### Song view
  - ([#251]) Add new grid session layout to "Song" mode. All functionality from (classic) row layout applies except for the following:
 	 - The data model of rows and grid mode are compatible, you can switch between them freely
 	 - In grid mode you will not be able to see multiple clips that are in the same section, only the first one. To make them visible move the clips to other sections
@@ -72,41 +56,92 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 		 - Copying clips to arranger
 		 - Copying audio clips between different tracks
 
-### Song View
+#### 4.1.2 - Change Row Colour
+
  - ([#163]) Pressing a clip row + shift & scroll vertically changes the selected row color. This is the same shortcut like before when setting the color in the clip view.
 
-#### Instrument Keyboard View
- - ([#46]) Note offset between rows is now configurable by holding shift and using the horizontal encoder. This allows e.g. an isomorphic keyboard layout by setting the row offset to 12. The setting is saved per clip in the song file.
- - ([#138]) Keyboard API and general improvements
-	 - Users can switch between layouts with "keyboard" button and select knob
-	 - Keyboard mode allows freely switch between all types (Synth, Kit, MIDI, CV) automatically getting the first compatible layout
-	 - Drum trigger edge sizes in Drums layout for kits can now be changed between 1 and 8 with shift + horizontal encoder
-	 - A new in-key only layout that removes out of scale buttons
-	 - New way to change scale in keyboard mode: Hold scale and press selection knob
-	 - New way to change scale root note in keyboard mode: Hold scale and turn selection knob
- - ([#250]) Added two new Community features entries
-	 - "Highlight incoming notes" makes In-Key and Isometric layout display incoming MIDI notes with their velocity
-	 - "Display Norns layout" renders all incoming notes consecutively as white pads with velocity as brightness
+### 4.2 - Clip View - General Features (Instrument and Audio)
 
-#### Kit Clip View
- - ([#122]) Pressing "AUDITION + RANDOM" on a drum kit row will load a random sample from the same folder as the currently enabled sample and load it as the sound for that row. Currently limited to 25 files for performance reasons. This feature can be toggled in the [runtime features menu](#runtime-features).
- - ([#234]) While you can delete a kit row by holding a Note in a row and pressing SAVE/DELETE, the "Delete Unused Kit Rows" feature allows you to batch delete kit rows which does not contain any notes, freeing kits from unused sounds (which take some precious RAM). While inside a kit, hold "KIT" and press "Shift + SAVE/DELETE". A confirmation message will appear: "Deleted unused rows". This command is not executed if there are no notes at all in the kit. This feature can be toggled in the [runtime features menu](#runtime-features).
+#### 4.2.1 - Filters
+ - ([#103]) - **LPF:** adds a new filter in the low-pass slot, a state-variable filter. This filter has significantly less distortion than the ladder filters, think sequential vs. moog. Cutoff and resonance ranges are subject to change with further testing.
 
-#### Kit Keyboard View
- - ([#112]) All-new use for the "keyboard" button in kit clips, uses the main pad grid for MPC-style 16 level playing. Horizonatal encoder scrolls by one pad at a time, allowing positioning drums left to right, and vertical encoder jumps vertically by rows.
+#### 4.2.2 - Sample Waveform View
+ - ([#293]) When a sample has loop start and loop end points set, holding down loop start and tapping loop end will lock the loop points together. Moving one will move the other, keeping them the same distance apart. Use the same process to unlock the loop points. Use SHIFT+TURN<> to double or half the loop length.
 
-#### Instrument & Kit Clip View
- - ([#129]) Quantize & Humanize
+### 4.3 - Instrument Clip View - General Features
+
+These features were added to the Instrument Clip View and affect Synth, Kit and Midi instrument clip types.
+
+#### 4.3.1 - New LFO Shapes
+LFO types added to the "LFO SHAPE" shortcut.
+
+ - ([#32]) - **Random Walk:** Starts at zero and walks up or down by small increments when triggered.
+ - ([#32]) - **Sample&Hold:** Picks a new random value every time it is triggered.
+
+#### 4.3.2 - New LFO Synchronization Modes
+Synchronization modes accessible through the "LFO SYNC" shortcut.
+
+ - ([#32]) - **Triplets:** Synchronizes the LFO to triplet (3/2) divisions.
+ - ([#32]) - **Dotted:** Synchronizes the LFO to "dotted" (2/3) divisions.
+
+#### 4.3.3 - Unison Stereo Spread
+ - ([#223]) - **Unison: **The unison parts can be spread accross the stereo field. Press SELECT in the unison NUMBER menu to access the new unison spread parameter.
+
+#### 4.3.4 - Fill Mode
+ - ([#211]) Fill Mode is a new iteration/probability setting for notes. The FILL setting is at the start of the probability range, before 5%. Notes set to FILL are only played when fill mode is active. There are two ways to activate fill mode - set it as a Global MIDI Command and/or set it to override the front panel Sync Scaling button. For Global MIDI Commands go to SETTINGS > MIDI > CMD > FILL. To override the Sync Scaling button set SETTINGS > FEATURES > SYNC to FILL. The orignal Sync Scaling function is moved to SHIFT+SyncScaling.
+
+#### 4.3.5 - Quantize & Humanize
+
+ - ([#129])
 	- Press and hold a note in clip view and turn the tempo knob right or left to apply quantize or humanize respectively to that row.
 	- Press and hold a note and press and turn the tempo knob to apply quantize or humanize to all rows.
 	- The amount of quantization/humanization is shown in the display.
 	- This feature can be toggled in the [runtime features menu](#runtime-features).
 
-#### Audio Clip View
+### 4.4 - Instrument Clip View - Synth/Midi Keyboard View
+
+#### 4.4.1 - Keyboard API and General Improvements
+
+ - ([#138])
+  	 - Users can switch between layouts with "keyboard" button and select knob
+	 - Keyboard mode allows freely switch between all types (Synth, Kit, MIDI, CV) automatically getting the first compatible layout
+	 - Drum trigger edge sizes in Drums layout for kits can now be changed between 1 and 8 with shift + horizontal encoder
+	 - A new in-key only layout that removes out of scale buttons
+	 - New way to change scale in keyboard mode: Hold scale and press selection knob
+	 - New way to change scale root note in keyboard mode: Hold scale and turn selection knob
+
+#### 4.4.2 - Note Offset
+
+ - ([#46]) Note offset between rows is now configurable by holding shift and using the horizontal encoder. This allows e.g. an isomorphic keyboard layout by setting the row offset to 12. The setting is saved per clip in the song file.
+
+#### 4.4.3 - Highlight Incoming Notes
+
+ - ([#250]) New community feature makes In-Key and Isometric layout display incoming MIDI notes with their velocity.
+
+#### 4.4.4 - Display Norns Layout
+
+ - ([#250]) New community feature renders all incoming notes consecutively as white pads with velocity as brightness.
+
+### 4.5 - Instrument Clip View - Kit Features
+
+#### 4.5.1 - Load Random Samples
+
+ - ([#122]) Pressing "AUDITION + RANDOM" on a drum kit row will load a random sample from the same folder as the currently enabled sample and load it as the sound for that row. Currently limited to 25 files for performance reasons. This feature can be toggled in the [runtime features menu](#runtime-features).
+
+#### 4.5.2 - Batch Delete Kit Rows
+   
+ - ([#234]) While you can delete a kit row by holding a Note in a row and pressing SAVE/DELETE, the "Delete Unused Kit Rows" feature allows you to batch delete kit rows which does not contain any notes, freeing kits from unused sounds (which take some precious RAM). While inside a kit, hold "KIT" and press "Shift + SAVE/DELETE". A confirmation message will appear: "Deleted unused rows". This command is not executed if there are no notes at all in the kit. This feature can be toggled in the [runtime features menu](#runtime-features).
+
+#### 4.5.3 - Kit Keyboard View
+ - ([#112]) All-new use for the "keyboard" button in kit clips, uses the main pad grid for MPC-style 16 level playing. Horizonatal encoder scrolls by one pad at a time, allowing positioning drums left to right, and vertical encoder jumps vertically by rows.
+
+### 4.6 Audio Clip View
+
+#### 4.6.1 - Shift Clip
+
  - ([#141]) Holding the vertical encoder down while turning the horizontal encoder will shift the clip along the underlying audio file, similar to the same interface for instrument clips.
 
-#### Sample Waveform View
- - ([#293]) When a sample has loop start and loop end points set, holding down loop start and tapping loop end will lock the loop points together. Moving one will move the other, keeping them the same distance apart. Use the same process to unlock the loop points. Use SHIFT+TURN<> to double or half the loop length.
+
 
 #### Sound Editor
   - ([#157]) Add a "Mod Matrix" entry to the sound editor menu which shows a list of all currently active modulations.
@@ -214,6 +249,7 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#170]: https://github.com/SynthstromAudible/DelugeFirmware/pull/170
 [#211]: https://github.com/SynthstromAudible/DelugeFirmware/pull/211
 [#221]: https://github.com/SynthstromAudible/DelugeFirmware/pull/221
+[#223]: https://github.com/SynthstromAudible/DelugeFirmware/pull/223
 [#234]: https://github.com/SynthstromAudible/DelugeFirmware/pull/234
 [#241]: https://github.com/SynthstromAudible/DelugeFirmware/pull/241
 [#250]: https://github.com/SynthstromAudible/DelugeFirmware/pull/250
