@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
+#include "gui/ui/keyboard/state_data.h"
 #include "gui/ui/root_ui.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
@@ -109,6 +110,9 @@ void MelodicInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelSt
 	int16_t const* mpeValues = zeroMPEValues;
 	int16_t const* mpeValuesOrNull = NULL;
 
+	// -1 means no change
+	int32_t highlightNoteValue = -1;
+
 	if (midiInput.channelOrZone == midiChannel) {
 yupItsForUs:
 		InstrumentClip* instrumentClip = (InstrumentClip*)activeClip;
@@ -121,11 +125,9 @@ yupItsForUs:
 		// Note-on
 		if (on) {
 			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::HighlightIncomingNotes)
-			    == RuntimeFeatureStateToggle::On) {
-				if (instrumentClip == currentSong->currentClip) {
-					keyboardScreen.highlightedNotes[note] = velocity;
-					keyboardScreen.requestRendering();
-				}
+			        == RuntimeFeatureStateToggle::On
+			    && instrumentClip == currentSong->currentClip) {
+				highlightNoteValue = velocity;
 			}
 
 			// MPE stuff - if editing note, we need to record the initial values which might have been sent before this note-on.
@@ -234,11 +236,9 @@ justAuditionNote:
 		// Note-off
 		else {
 			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::HighlightIncomingNotes)
-			    == RuntimeFeatureStateToggle::On) {
-				if (instrumentClip == currentSong->currentClip) {
-					keyboardScreen.highlightedNotes[note] = 0;
-					keyboardScreen.requestRendering();
-				}
+			        == RuntimeFeatureStateToggle::On
+			    && instrumentClip == currentSong->currentClip) {
+				highlightNoteValue = 0;
 			}
 			// NoteRow must already be auditioning
 			if (notesAuditioned.searchExact(note) != -1) {
@@ -292,6 +292,17 @@ gotMPEInput:
 		if (midiChannel >= fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeUpperZoneLastMemberChannel) {
 			goto gotMPEInput;
 		}
+	}
+
+	// In case Norns layout is active show
+	InstrumentClip* instrumentClip = (InstrumentClip*)activeClip;
+	if (instrumentClip->onKeyboardScreen && instrumentClip->keyboardState.currentLayout == deluge::gui::ui::keyboard::KeyboardLayoutType::Norns) {
+		highlightNoteValue = on ? velocity : 0;
+	}
+
+	if (highlightNoteValue != -1) {
+		keyboardScreen.highlightedNotes[note] = highlightNoteValue;
+		keyboardScreen.requestRendering();
 	}
 }
 
