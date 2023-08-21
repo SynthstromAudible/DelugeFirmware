@@ -69,7 +69,7 @@ Here is a list of features that have been added to the firmware as a list, group
 		 - Copying clips to arranger
 		 - Copying audio clips between different tracks
 
-#### 4.1.3 - Catch Notes
+#### 4.1.4 - Catch Notes
 
  - ([#221]) The normal behavior of the Deluge is to try to keep up with 'in progress' notes when instant switching between clips by playing them late. However this leads to glitches with drum clips and other percussive sounds. Changing this setting to OFF will prevent this behavior and *not* try to keep up with those notes, leading to smoother instant switching between clips.
 
@@ -99,9 +99,6 @@ adds HP ladder morph to filter FM
 #### 4.2.2 - Stereo Chorus
 - ([#120]) New Stereo Chorus type added to Mod FX. The recommended settings are OFFSET=30, DEPTH=17, and RATE=15.
 
-#### 4.2.2 - Mod Matrix
- - ([#157]) Add a "Mod Matrix" entry to the sound editor menu which shows a list of all currently active modulations.
-
 #### 4.2.3 - MIDI Takeover Mode
 
 This mode affects how the deluge handles MIDI input for learned CC controls.
@@ -117,15 +114,12 @@ This mode affects how the deluge handles MIDI input for learned CC controls.
 #### 4.2.4 - Alternative Delay Types for Mod Encoders (Golden Knobs)
  - ([#282]) Ability to select, using a Community Features Menu, which parameters are controlled when you click the Delay-related golden knobs. The default (for upper and lower knobs) is PingPong On/Off and Type (Digital/Analog), and you can modify it so the knob clicks change the Sync Type (Even, Triplets, Even) and Sync Level (Off, Whole, 2nd, 4th...) respectively.
 
-#### 4.2.5 - Waveform Loop Lock
- - ([#293]) When a sample has loop start and loop end points set, holding down loop start and tapping loop end will lock the loop points together. Moving one will move the other, keeping them the same distance apart. Use the same process to unlock the loop points. Use SHIFT+TURN<> to double or half the loop length.
-
-#### 4.2.6 - Patchable Wavefolding Distortion
+#### 4.2.5 - Patchable Wavefolding Distortion
 
 - ([#349)) Adds a pre filter wavefolder, and the depth is patchable/automatable. The depth is accessible in both the menu and on the pad between saturation and LPF cutoff. The fold has no effect when set to 0 and removes itself from the signal path.
 	- Note that it has no effect on square waves, it's best with sines and triangles
 
-#### 4.2.7 - Grain FX
+#### 4.2.6 - Grain FX
 
 - ([#363]) New Grain FX type added to Mod FX. This effect is somewhat resource-intensive, so please use only one instance per song.
 
@@ -168,10 +162,7 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 #### 4.3.4 - Fill Mode
  - ([#211]) Fill Mode is a new iteration/probability setting for notes. The FILL setting is at the start of the probability range, before 5%. Notes set to FILL are only played when fill mode is active. There are two ways to activate fill mode - set it as a Global MIDI Command and/or set it to override the front panel Sync Scaling button. For Global MIDI Commands go to SETTINGS > MIDI > CMD > FILL. To override the Sync Scaling button set SETTINGS > FEATURES > SYNC to FILL. The orignal Sync Scaling function is moved to SHIFT+SyncScaling.
 
-#### 4.3.5 - Unison Stereo Spread
- - ([#223]) The unison parts can be spread accross the stereo field. Press SELECT in the unison NUMBER menu to access the new unison spread parameter.
-
-#### 4.3.6 - Automation View
+#### 4.3.5 - Automation View
  - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Automation View Documentation]
  - ([#241]) Automation Instrument Clip View is a new view that complements the existing Instrument Clip View.
 	- It is accessed from within the Clip View by pressing the Clip button (which will blink to indicate you are in the Automation View).
@@ -182,7 +173,7 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 	- ([#347]) Added new automatable parameters
  	- ([#360]) Fixed interpolation bugs, added fine tuning for long presses, and added pad selection mode
 
-#### 4.3.7 - Set Probability By Row
+#### 4.3.6 - Set Probability By Row
 
 - ([#368]) Extends the probability system to set a row at a time. Hold an audition pad and turn select to change the whole rows probability. This is particularly useful in combination with the euclidean sequencing to get a semi random pattern going
 
@@ -212,17 +203,28 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 
  - ([#250]) New community feature renders all incoming notes consecutively as white pads with velocity as brightness.
 
-### 4.5 - Instrument Clip View - Kit Clip Features
+### 4.5 - Instrument Clip View - Synth/Kit Clip Features
 
-#### 4.5.1 - Keyboard View
+#### 4.5.1 - Mod Matrix
+ - ([#157]) Add a "Mod Matrix" entry to the sound editor menu which shows a list of all currently active modulations.
+
+#### 4.5.2 - Unison Stereo Spread
+ - ([#223]) The unison parts can be spread accross the stereo field. Press SELECT in the unison NUMBER menu to access the new unison spread parameter.
+
+#### 4.5.3 - Waveform Loop Lock
+ - ([#293]) When a sample has loop start and loop end points set, holding down loop start and tapping loop end will lock the loop points together. Moving one will move the other, keeping them the same distance apart. Use the same process to unlock the loop points. Use SHIFT+TURN<> to double or half the loop length.
+
+### 4.6 - Instrument Clip View - Kit Clip Features
+
+#### 4.6.1 - Keyboard View
  - ([#112]) All-new use for the "keyboard" button in kit clips, uses the main pad grid for MPC-style 16 level playing. Horizontal encoder scrolls by one pad at a time, allowing positioning drums left to right, and vertical encoder jumps vertically by rows.
  - Follow-up PR: ([#317]) Fixed the issue where audition pads would remain illuminated after pressing pads 9 to 16 and then returning to the clip view.
 
-#### 4.5.2 - Drum Randomizer / Load Random Samples
+#### 4.6.2 - Drum Randomizer / Load Random Samples
 
  - ([#122]) Pressing "AUDITION + RANDOM" on a drum kit row will load a random sample from the same folder as the currently enabled sample and load it as the sound for that row. Currently limited to 25 files for performance reasons. This feature can be toggled in the [runtime features menu](#runtime-features).
 
-#### 4.5.3 - Manual Slicing / Lazy Chop
+#### 4.6.3 - Manual Slicing / Lazy Chop
 
 - ([#198]) In the Slicer view, press the Horizonal Encoder ◀︎▶︎ knob. When you press the green pad in the bottom left, it starts playing the first slice, and pressing an empty pad creates a new slice. Turning the Select knob to the left or pressing the Pad + DELETE button allows you to delete a slice.
 
@@ -230,13 +232,13 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 
 - Follow-up PR: ([#210]) Changed to stop audio preview (played by the sample browser) when entering manual slicer mode.
 
-#### 4.5.4 - Batch Delete Kit Rows
+#### 4.6.4 - Batch Delete Kit Rows
    
  - ([#234]) While you can delete a kit row by holding a Note in a row and pressing SAVE/DELETE, the "Delete Unused Kit Rows" feature allows you to batch delete kit rows which does not contain any notes, freeing kits from unused sounds (which take some precious RAM). While inside a kit, hold "KIT" and press "Shift + SAVE/DELETE". A confirmation message will appear: "Deleted unused rows". This command is not executed if there are no notes at all in the kit. This feature can be toggled in the [runtime features menu](#runtime-features).
 
-### 4.6 Audio Clip View - General Features
+### 4.7 Audio Clip View - General Features
 
-#### 4.6.1 - Shift Clip
+#### 4.7.1 - Shift Clip
 
  - ([#141]) Holding the vertical encoder down while turning the horizontal encoder will shift the clip along the underlying audio file, similar to the same interface for instrument clips.
 
