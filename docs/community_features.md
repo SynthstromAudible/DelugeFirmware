@@ -32,11 +32,11 @@ Here is a list of features that have been added to the firmware as a list, group
 #### 4.1.1 - Master Compressor
 - ([#137]) In the Song view, select Affect Entire and SIDECHAIN modulation button, and adjust the upper gold knob. Push the upper gold knob to switch to the next setting (Threshold (dB), Makeup Gain (dB), Attack (ms), Release (ms), Ratio, MIX). The LEDs next to the knob act as a gain reduction meter.
 
-- This compressor function can be turned on/off in the runtime feature setting.
+	- This compressor function can be turned on/off in the runtime feature setting.
 
 - Follow up PR's:
 	- ([#200]) Fixed master compressor. The masterVolumeAdjustment value is now considered in the process. With this change, threshold value are now displayed correctly. This modification affects songs that had saved master compressor settings.
-	- ([#220] Fixed a bug in the song view that, when the SIDECHAIN knob was turned while holding down a clip pad, the SIDECHAIN value and the Master compressor Threshold would change at the same time.
+	- ([#220]) Fixed a bug in the song view that, when the SIDECHAIN knob was turned while holding down a clip pad, the SIDECHAIN value and the Master compressor Threshold would change at the same time.
 
 #### 4.1.2 - Change Row Colour
 
@@ -73,7 +73,7 @@ Here is a list of features that have been added to the firmware as a list, group
 
  - ([#221]) The normal behavior of the Deluge is to try to keep up with 'in progress' notes when instant switching between clips by playing them late. However this leads to glitches with drum clips and other percussive sounds. Changing this setting to OFF will prevent this behavior and *not* try to keep up with those notes, leading to smoother instant switching between clips.
 
-### 4.2 - Clip View - General Features (Instrument and Audio)
+### 4.2 - Clip View - General Features (Instrument and Audio Clips)
 
 #### 4.2.1 - Filters
  - ([#103]) Adds a new filter in the low-pass slot, a state-variable filter. This filter has significantly less distortion than the ladder filters, think sequential vs. moog. Cutoff and resonance ranges are subject to change with further testing.
@@ -97,7 +97,7 @@ adds HP ladder morph to filter FM
 	- Adds a setting to switch the filter order or run them in parallel. This setting is menu only and named ROUTE
 
 #### 4.2.2 - Stereo Chorus
-- ([#120]) New Steroe Chorus type added to Mod FX. The recommended settings are OFFSET=30, DEPTH=17, and RATE=15.
+- ([#120]) New Stereo Chorus type added to Mod FX. The recommended settings are OFFSET=30, DEPTH=17, and RATE=15.
 
 #### 4.2.2 - Mod Matrix
  - ([#157]) Add a "Mod Matrix" entry to the sound editor menu which shows a list of all currently active modulations.
@@ -108,16 +108,16 @@ This mode affects how the deluge handles MIDI input for learned CC controls.
 
  - ([#170]) A new takeover submenu was created in the MIDI settings menu which consists of three modes that can be selected from:
 
-	1. Jump: This is the default mode for the Deluge. As soon as a Midi Knob/Fader position is changed, the Deluge's internal Knob position/Parameter value jumps to the position of the Midi Knob/Fader.
+	**1. Jump:** This is the default mode for the Deluge. As soon as a Midi Knob/Fader position is changed, the Deluge's internal Knob position/Parameter value jumps to the position of the Midi Knob/Fader.
 
-	2. Pickup: The deluge will ignore changes to its internal Knob position/Parameter value until the Midi Knob/Fader's position is equal to the Deluge Knob position. After which the Midi Knob/Fader will move in sync with the Deluge.
+	**2. Pickup:** The deluge will ignore changes to its internal Knob position/Parameter value until the Midi Knob/Fader's position is equal to the Deluge Knob position. After which the Midi Knob/Fader will move in sync with the Deluge.
 
-	3. Scale: The deluge will increase/decrease its internal Knob position/Parameter value relative to the change of the Midi Knob/Fader position and the amount of "runway" remaining on the Midi controller. Once the Midi controller reaches its maximum or minimum position, the Midi Knob/Fader will move in sync with the Deluge. The Deluge value will always decrease/increase in the same direction as the Midi controller.
+	**3. Scale:** The deluge will increase/decrease its internal Knob position/Parameter value relative to the change of the Midi Knob/Fader position and the amount of "runway" remaining on the Midi controller. Once the Midi controller reaches its maximum or minimum position, the Midi Knob/Fader will move in sync with the Deluge. The Deluge value will always decrease/increase in the same direction as the Midi controller.
 
 #### 4.2.4 - Alternative Delay Types for Mod Encoders (Golden Knobs)
  - ([#282]) Ability to select, using a Community Features Menu, which parameters are controlled when you click the Delay-related golden knobs. The default (for upper and lower knobs) is PingPong On/Off and Type (Digital/Analog), and you can modify it so the knob clicks change the Sync Type (Even, Triplets, Even) and Sync Level (Off, Whole, 2nd, 4th...) respectively.
 
-#### 4.2.5 - Sample Waveform View
+#### 4.2.5 - Waveform Loop Lock
  - ([#293]) When a sample has loop start and loop end points set, holding down loop start and tapping loop end will lock the loop points together. Moving one will move the other, keeping them the same distance apart. Use the same process to unlock the loop points. Use SHIFT+TURN<> to double or half the loop length.
 
 #### 4.2.6 - Grain FX
@@ -125,17 +125,17 @@ This mode affects how the deluge handles MIDI input for learned CC controls.
 - ([#363]) New Grain FX type added to Mod FX. This effect is somewhat resource-intensive, so please use only one instance per song.
 
 	- Parameters:
-		- Mod Depth: Controls Grain Volume / Dry Wet Mix
-		- Mod Offset: Adjusts Grain Size (10ms - 800ms)
-		- Mod Rate: Sets Grain Rate (0.5hz - 180hz)
-		- Mod Feedback: Selects Grain Type
+		- **Mod Depth:** Controls Grain Volume / Dry Wet Mix
+		- **Mod Offset:** Adjusts Grain Size (10ms - 800ms)
+		- **Mod Rate:** Sets Grain Rate (0.5hz - 180hz)
+		- **Mod Feedback:** Selects Grain Type
 
 	- Grain Type (Presets):
-		- Preset 1: Unison and +1 Octave (Reverse)
-		- Preset 2: Unison and -1 Octave
-		- Preset 3: Unison and +1 Octave (Defalut)
-		- Preset 4: 5th and +1 Octave
-		- Preset 5: Unison and +1/-1 Octave (Tempo Sync)
+		- **Preset 1:** Unison and +1 Octave (Reverse)
+		- **Preset 2:** Unison and -1 Octave
+		- **Preset 3:** Unison and +1 Octave (Defalut)
+		- **Preset 4:** 5th and +1 Octave
+		- **Preset 5:** Unison and +1/-1 Octave (Tempo Sync)
 
 ### 4.3 - Instrument Clip View - General Features
 
@@ -181,7 +181,7 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 
 - ([#368]) Extends the probability system to set a row at a time. Hold an audition pad and turn select to change the whole rows probability. This is particularly useful in combination with the euclidean sequencing to get a semi random pattern going
 
-### 4.4 - Instrument Clip View - Synth/Midi Features
+### 4.4 - Instrument Clip View - Synth/Midi Clip Features
 
 #### 4.4.1 - Keyboard View
 
@@ -207,9 +207,9 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 
  - ([#250]) New community feature renders all incoming notes consecutively as white pads with velocity as brightness.
 
-### 4.5 - Instrument Clip View - Kit Features
+### 4.5 - Instrument Clip View - Kit Clip Features
 
-#### 4.5.1 - Kit Keyboard View
+#### 4.5.1 - Keyboard View
  - ([#112]) All-new use for the "keyboard" button in kit clips, uses the main pad grid for MPC-style 16 level playing. Horizontal encoder scrolls by one pad at a time, allowing positioning drums left to right, and vertical encoder jumps vertically by rows.
  - Follow-up PR: ([#317]) Fixed the issue where audition pads would remain illuminated after pressing pads 9 to 16 and then returning to the clip view.
 
