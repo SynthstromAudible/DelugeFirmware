@@ -967,6 +967,8 @@ int32_t LoadInstrumentPresetUI::performLoadSynthToKit() {
 	                                               &currentFileItem->filePointer, &enteredText, &currentDir);
 	//kitToLoadFor->addDrum(soundDrumToReplace);
 	soundDrumToReplace->loadAllAudioFiles(true);
+	//soundDrumToReplace->name.set(getCurrentFilenameWithoutExtension());
+	getCurrentFilenameWithoutExtension(&soundDrumToReplace->name);
 	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowIndex, noteRow);
 	parammanager = currentSong->getBackedUpParamManagerPreferablyWithClip(soundDrumToReplace, instrumentClipToLoadFor);
 
