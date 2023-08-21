@@ -42,7 +42,7 @@ class MIDIDevice;
 class LearnedMIDI;
 class Kit;
 
-// A view is where the user can interact with the pads - song view, Clip view, and keyboard view.
+// A view is where the user can interact with the pads - song view, Clip view, automation view and keyboard view.
 // (Is that still a good description? This class is a bit of a mishmash of poorly organised code, sorry.)
 
 class View {
@@ -50,7 +50,7 @@ public:
 	View();
 	void focusRegained();
 	void setTripletsLedState();
-	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 	void setTimeBaseScaleLedState();
 	void setLedStates();
 
@@ -85,7 +85,8 @@ public:
 	void drawOutputNameFromDetails(InstrumentType instrumentType, int32_t slot, int32_t subSlot, char const* name,
 	                               bool editedByUser, bool doBlink, Clip* clip = NULL);
 	void endMIDILearn();
-	void getClipMuteSquareColour(Clip* clip, uint8_t thisColour[]);
+	void getClipMuteSquareColour(Clip* clip, uint8_t thisColour[], bool overwriteStopped = false,
+	                             uint8_t stoppedColour[] = {0}, bool allowMIDIFlash = true);
 	ActionResult clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfInSessionView = -1);
 	void flashPlayEnable();
 	void flashPlayDisable();

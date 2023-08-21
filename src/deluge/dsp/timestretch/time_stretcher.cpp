@@ -17,6 +17,7 @@
 
 #include "dsp/timestretch/time_stretcher.h"
 #include "definitions_cxx.hpp"
+#include "hid/display/display.h"
 #include "io/debug/print.h"
 #include "memory/general_memory_allocator.h"
 #include "model/sample/sample.h"
@@ -246,7 +247,7 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 	// Trying to track down Steven's E133 - percCacheClusterNearby pointing to things with no reasons left
 	for (int32_t l = 0; l < 2; l++) {
 		if (percCacheClustersNearby[l] && !percCacheClustersNearby[l]->numReasonsToBeLoaded) {
-			numericDriver.freezeWithError("i036");
+			display->freezeWithError("i036");
 		}
 	}
 #endif
@@ -431,7 +432,7 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 
 						// Bigger sounds bad. Need to make smaller to match similarly resulting deduction which happens in the "normal" case
 						samplesTilHopEnd = minBeamWidth >> 2;
-						samplesTilHopEnd = std::max<int32_t>(samplesTilHopEnd, crossfadeLengthSamples);
+						samplesTilHopEnd = std::max<int64_t>(samplesTilHopEnd, crossfadeLengthSamples);
 
 						crossfadeIncrement = (uint32_t)(16777215 + crossfadeLengthSamples)
 						                     / (uint32_t)crossfadeLengthSamples; // Round up
@@ -578,8 +579,8 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 		samplesTilHopEnd -= crossfadeLengthSamples;
 
 		// Apply maxHopLength
-		samplesTilHopEnd = std::min<int32_t>(samplesTilHopEnd, maxHopLength);
-		crossfadeLengthSamples = std::min<uint32_t>(samplesTilHopEnd, crossfadeLengthSamples);
+		samplesTilHopEnd = std::min(samplesTilHopEnd, maxHopLength);
+		crossfadeLengthSamples = std::min<int32_t>(samplesTilHopEnd, crossfadeLengthSamples);
 
 		crossfadeIncrement = (uint32_t)16777216 / (uint32_t)crossfadeLengthSamples;
 		crossfadeProgress = 0;
@@ -601,8 +602,8 @@ skipPercStuff:
 	// the beginning play-point of the new play-head, but the point half-way through the crossfade later. Remember that!
 	if (playHeadStillActive[PLAY_HEAD_OLDER]) { // Added condition, Aug 2019. Surely this makes sense...
 		int32_t lengthToAverageEach = ((uint64_t)phaseIncrement * TimeStretch::Crossfade::kMovingAverageLength) >> 24;
-		lengthToAverageEach = std::clamp<int32_t>(
-		    lengthToAverageEach, 1, TimeStretch::Crossfade::kMovingAverageLength * 2); // Keep things sensible
+		lengthToAverageEach = std::clamp(lengthToAverageEach, 1_i32,
+		                                 TimeStretch::Crossfade::kMovingAverageLength * 2); // Keep things sensible
 
 		int32_t crossfadeLengthSamplesSource = ((uint64_t)crossfadeLengthSamples * phaseIncrement) >> 24;
 
@@ -620,7 +621,7 @@ skipPercStuff:
 
 		int32_t newHeadTotals[TimeStretch::Crossfade::kNumMovingAverages];
 		if (ALPHA_OR_BETA_VERSION && newHeadBytePos < (int32_t)sample->audioDataStartPosBytes) {
-			numericDriver.freezeWithError("E285");
+			display->freezeWithError("E285");
 		}
 		success = sample->getAveragesForCrossfade(newHeadTotals, newHeadBytePos, crossfadeLengthSamplesSource,
 		                                          playDirection, lengthToAverageEach);
@@ -1145,7 +1146,7 @@ void TimeStretcher::setupCrossfadeFromCache(SampleCache* cache, int32_t cacheByt
 
 	Cluster* cacheCluster = cache->getCluster(cachedClusterIndex);
 	if (ALPHA_OR_BETA_VERSION && !cacheCluster) { // If it got stolen - but we should have already detected this above
-		numericDriver.freezeWithError("E178");
+		display->freezeWithError("E178");
 	}
 	int32_t* __restrict__ readPos = (int32_t*)&cacheCluster->data[bytePosWithinCluster - 4 + kCacheByteDepth];
 
@@ -1189,7 +1190,7 @@ void TimeStretcher::setupCrossfadeFromCache(SampleCache* cache, int32_t cacheByt
 	}
 
 	if (ALPHA_OR_BETA_VERSION && numSamplesThisCacheRead <= 0) {
-		numericDriver.freezeWithError("E179");
+		display->freezeWithError("E179");
 	}
 
 	for (int32_t i = 0; i < numSamplesThisCacheRead; i++) {

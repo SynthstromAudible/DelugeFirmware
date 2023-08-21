@@ -19,7 +19,6 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/menu_item.h"
-#include "util/string.h"
 
 class MIDIDevice;
 
@@ -27,7 +26,7 @@ namespace deluge::gui::menu_item::midi {
 
 class Command final : public MenuItem {
 public:
-	Command(const string& newName, GlobalMIDICommand newCommandNumber = GlobalMIDICommand::PLAYBACK_RESTART)
+	Command(l10n::String newName, GlobalMIDICommand newCommandNumber = GlobalMIDICommand::PLAYBACK_RESTART)
 	    : MenuItem(newName), commandNumber(newCommandNumber) {}
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
 	void drawValue() const;
@@ -37,9 +36,8 @@ public:
 	void unlearnAction() override;
 	bool learnNoteOn(MIDIDevice* device, int32_t channel, int32_t noteCode) override;
 	void learnCC(MIDIDevice* device, int32_t channel, int32_t ccNumber, int32_t value) override;
-#if HAVE_OLED
+
 	void drawPixelsForOled();
-#endif
 
 	GlobalMIDICommand commandNumber;
 };

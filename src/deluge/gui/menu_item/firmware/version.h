@@ -15,10 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "gui/menu_item/selection/selection.h"
+#include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/numeric_driver.h"
-#include "hid/display/oled.h"
+#include "hid/display/display.h"
 #include <version.h>
 
 namespace deluge::gui::menu_item::firmware {
@@ -26,19 +25,13 @@ class Version final : public MenuItem {
 public:
 	using MenuItem::MenuItem;
 
-#if HAVE_OLED
 	void drawPixelsForOled() {
-		OLED::drawStringCentredShrinkIfNecessary(kFirmwareVersionString, 22, OLED::oledMainImage[0],
-		                                         OLED_MAIN_WIDTH_PIXELS, 18, 20);
-	}
-#else
-	void beginSession(MenuItem* navigatedBackwardFrom) override {
-		drawValue();
+		deluge::hid::display::OLED::drawStringCentredShrinkIfNecessary(
+		    kFirmwareVersionString, 22, deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, 18, 20);
 	}
 
-	void drawValue() {
-		numericDriver.setScrollingText(kFirmwareVersionString);
-	}
-#endif
+	void beginSession(MenuItem* navigatedBackwardFrom) override { drawValue(); }
+
+	void drawValue() { display->setScrollingText(kFirmwareVersionString); }
 };
 } // namespace deluge::gui::menu_item::firmware

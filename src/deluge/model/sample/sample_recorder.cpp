@@ -17,10 +17,11 @@
 
 #include "model/sample/sample_recorder.h"
 #include "definitions_cxx.hpp"
+#include "drivers/pic/pic.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui_timer_manager.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "io/debug/print.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/audio_clip.h"
@@ -78,14 +79,14 @@ void SampleRecorder::detachSample() {
 	// If we were holding onto the reasons for the first couple of Clusters, release them now
 	if (keepingReasonsForFirstClusters) {
 		int32_t numClustersToRemoveFor = std::min(kNumClustersLoadedAhead, sample->clusters.getNumElements());
-		numClustersToRemoveFor = std::min<int32_t>(numClustersToRemoveFor, firstUnwrittenClusterIndex);
+		numClustersToRemoveFor = std::min(numClustersToRemoveFor, firstUnwrittenClusterIndex);
 
 		for (int32_t l = 0; l < numClustersToRemoveFor; l++) {
 			Cluster* cluster = sample->clusters.getElement(l)->cluster;
 
 			// Some bug-hunting
 			if (!cluster->numReasonsHeldBySampleRecorder) {
-				numericDriver.freezeWithError("E345");
+				display->freezeWithError("E345");
 			}
 			cluster->numReasonsHeldBySampleRecorder--;
 
@@ -102,12 +103,12 @@ void SampleRecorder::detachSample() {
 		Cluster* cluster = sample->clusters.getElement(firstUnwrittenClusterIndex)->cluster;
 
 		if (!cluster) {
-			numericDriver.freezeWithError("E363");
+			display->freezeWithError("E363");
 		}
 
 		// Some bug-hunting
 		if (!cluster->numReasonsHeldBySampleRecorder) {
-			numericDriver.freezeWithError("E346");
+			display->freezeWithError("E346");
 		}
 		cluster->numReasonsHeldBySampleRecorder--;
 
@@ -155,7 +156,7 @@ gotError:
 
 	// Bug hunting - newly gotten Cluster
 	if (currentRecordCluster->numReasonsHeldBySampleRecorder) {
-		numericDriver.freezeWithError("E360");
+		display->freezeWithError("E360");
 	}
 	currentRecordCluster->numReasonsHeldBySampleRecorder++;
 
@@ -166,7 +167,7 @@ gotError:
 	sample->lengthInSamples = 0x8FFFFFFFFFFFFFFF;
 	sample->audioDataLengthBytes =
 	    0x8FFFFFFFFFFFFFFF; // If you ever change this value, update the check for it in SampleManager::loadCluster()
-	sample->sampleRate = 44100;
+	sample->sampleRate = kSampleRate;
 	sample->workOutBitMask();
 
 	currentRecordCluster->loaded =
@@ -329,7 +330,7 @@ aborted:
 			// It should be impossible that anyone else still holds a "reason" to this Sample, as we can only be "aborted"
 			// before AudioClip::finishLinearRecording() is called, and it's only then at the AudioClip becomes a "reason".
 			if (sample->numReasonsToBeLoaded) {
-				numericDriver.freezeWithError("E282");
+				display->freezeWithError("E282");
 			}
 #endif
 
@@ -501,7 +502,7 @@ int32_t SampleRecorder::writeOneCompletedCluster() {
 	// Trying to pin down E347 which Leo got, below
 	Cluster* cluster = sample->clusters.getElement(writingClusterIndex)->cluster;
 	if (!cluster->numReasonsHeldBySampleRecorder) {
-		numericDriver.freezeWithError("E374");
+		display->freezeWithError("E374");
 	}
 #endif
 
@@ -515,8 +516,8 @@ int32_t SampleRecorder::writeOneCompletedCluster() {
 
 		// Some bug-hunting
 		if (!cluster->numReasonsHeldBySampleRecorder) {
-			numericDriver.freezeWithError(
-			    "E347"); // Leo got!!! And Vinz, and keyman. May be solved now that fixed so detachSample() doesn't get called during card routine.
+			// Leo got!!! And Vinz, and keyman. May be solved now that fixed so detachSample() doesn't get called during card routine.
+			display->freezeWithError("E347");
 		}
 		cluster->numReasonsHeldBySampleRecorder--;
 
@@ -530,7 +531,7 @@ int32_t SampleRecorder::writeOneCompletedCluster() {
 int32_t SampleRecorder::finalizeRecordedFile() {
 
 	if (ALPHA_OR_BETA_VERSION && (status == RECORDER_STATUS_ABORTED || hadCardError)) {
-		numericDriver.freezeWithError("E273");
+		display->freezeWithError("E273");
 	}
 
 	Debug::println("finalizing");
@@ -574,7 +575,7 @@ int32_t SampleRecorder::finalizeRecordedFile() {
 
 			// Some bug-hunting
 			if (!currentRecordCluster->numReasonsHeldBySampleRecorder) {
-				numericDriver.freezeWithError("E348");
+				display->freezeWithError("E348");
 			}
 			currentRecordCluster->numReasonsHeldBySampleRecorder--;
 
@@ -676,11 +677,11 @@ int32_t SampleRecorder::finalizeRecordedFile() {
 
 				// Do a last-ditch check that the SD address doesn't look invalid
 				if (firstSampleCluster->sdAddress == 0) {
-					numericDriver.freezeWithError("E268");
+					display->freezeWithError("E268");
 				}
 				if ((firstSampleCluster->sdAddress - fileSystemStuff.fileSystem.database)
 				    & (fileSystemStuff.fileSystem.csize - 1)) {
-					numericDriver.freezeWithError("E269");
+					display->freezeWithError("E269");
 				}
 
 				audioDataLengthBytesAsWrittenToFile = sample->audioDataLengthBytes;
@@ -694,7 +695,7 @@ int32_t SampleRecorder::finalizeRecordedFile() {
 
 				// Some bug-hunting
 				if (!cluster->numReasonsHeldBySampleRecorder) {
-					numericDriver.freezeWithError("E349");
+					display->freezeWithError("E349");
 				}
 				cluster->numReasonsHeldBySampleRecorder--;
 
@@ -799,7 +800,7 @@ int32_t SampleRecorder::createNextCluster() {
 
 	// Bug hunting - newly gotten Cluster
 	if (currentRecordCluster->numReasonsHeldBySampleRecorder) {
-		numericDriver.freezeWithError("E362");
+		display->freezeWithError("E362");
 	}
 	currentRecordCluster->numReasonsHeldBySampleRecorder++;
 
@@ -834,7 +835,7 @@ void SampleRecorder::feedAudio(int32_t* __restrict__ inputAddress, int32_t numSa
 	do {
 		int32_t numSamplesThisCycle = numSamples;
 		if (ALPHA_OR_BETA_VERSION && numSamplesThisCycle <= 0) {
-			numericDriver.freezeWithError("cccc");
+			display->freezeWithError("cccc");
 		}
 
 		// If haven't actually started recording yet cos we're compensating for lag...
@@ -859,7 +860,7 @@ doFinishCapturing:
 				numSamplesThisCycle = std::min(numSamplesThisCycle, samplesLeft);
 			}
 			if (ALPHA_OR_BETA_VERSION && numSamplesThisCycle <= 0) {
-				numericDriver.freezeWithError("bbbb");
+				display->freezeWithError("bbbb");
 			}
 
 			int32_t bytesPerSample = recordingNumChannels * 3;
@@ -889,7 +890,7 @@ doFinishCapturing:
 			}
 
 			if (ALPHA_OR_BETA_VERSION && numSamplesThisCycle <= 0) {
-				numericDriver.freezeWithError("aaaa");
+				display->freezeWithError("aaaa");
 			}
 
 			int32_t* endInputNow = inputAddress + (numSamplesThisCycle << NUM_MONO_INPUT_CHANNELS_MAGNITUDE);
@@ -1030,19 +1031,19 @@ doFinishCapturing:
 void SampleRecorder::endSyncedRecording(int32_t buttonLatencyForTempolessRecording) {
 #if ALPHA_OR_BETA_VERSION
 	if (status == RECORDER_STATUS_CAPTURING_DATA_WAITING_TO_STOP) {
-		numericDriver.freezeWithError("E272");
+		display->freezeWithError("E272");
 	}
 	else if (status == RECORDER_STATUS_FINISHED_CAPTURING_BUT_STILL_WRITING) {
-		numericDriver.freezeWithError("E288");
+		display->freezeWithError("E288");
 	}
 	else if (status == RECORDER_STATUS_COMPLETE) {
-		numericDriver.freezeWithError("E289");
+		display->freezeWithError("E289");
 	}
 	else if (status == RECORDER_STATUS_ABORTED) {
-		numericDriver.freezeWithError("E290");
+		display->freezeWithError("E290");
 	}
 	else if (status == RECORDER_STATUS_AWAITING_DELETION) {
-		numericDriver.freezeWithError("E291");
+		display->freezeWithError("E291");
 	}
 #endif
 
@@ -1086,7 +1087,7 @@ void SampleRecorder::totalSampleLengthNowKnown(uint32_t totalLengthSamples, uint
 		Cluster* cluster =
 		    firstSampleCluster->cluster; // It should still be there, cos it hasn't been written to card yet
 		if (ALPHA_OR_BETA_VERSION && !cluster) {
-			numericDriver.freezeWithError("E274");
+			display->freezeWithError("E274");
 		}
 
 		audioDataLengthBytesAsWrittenToFile = sample->audioDataLengthBytes;
@@ -1137,7 +1138,7 @@ int32_t SampleRecorder::alterFile(int32_t action, int32_t lshiftAmount, uint32_t
 	int32_t numClustersBeforeAction =
 	    ((idealFileSizeBeforeAction - 1) >> audioFileManager.clusterSizeMagnitude) + 1; // Rounds up
 	if (ALPHA_OR_BETA_VERSION && numClustersBeforeAction > sample->clusters.getNumElements()) {
-		numericDriver.freezeWithError("E286");
+		display->freezeWithError("E286");
 	}
 
 	Cluster* nextReadCluster = NULL;
@@ -1149,7 +1150,7 @@ int32_t SampleRecorder::alterFile(int32_t action, int32_t lshiftAmount, uint32_t
 
 			// Some bug-hunting
 			if (!currentReadCluster->numReasonsHeldBySampleRecorder) {
-				numericDriver.freezeWithError("E350");
+				display->freezeWithError("E350");
 			}
 			currentReadCluster->numReasonsHeldBySampleRecorder--;
 
@@ -1181,7 +1182,7 @@ int32_t SampleRecorder::alterFile(int32_t action, int32_t lshiftAmount, uint32_t
 		memcpy(&currentWriteCluster->data[22], &data16, 2);
 
 		// Data rate
-		data32 = 44100 * 1 * 3;
+		data32 = kSampleRate * 1 * 3;
 		memcpy(&currentWriteCluster->data[28], &data32, 4);
 
 		// Data block size
@@ -1208,7 +1209,7 @@ int32_t SampleRecorder::alterFile(int32_t action, int32_t lshiftAmount, uint32_t
 
 			uiTimerManager.routine();
 
-			uartFlushIfNotSending(UART_ITEM_PIC);
+			PIC::flush();
 		}
 
 		count++;
@@ -1250,10 +1251,10 @@ int32_t SampleRecorder::alterFile(int32_t action, int32_t lshiftAmount, uint32_t
 
 			// Do a last-ditch check that the SD address doesn't look invalid
 			if (sdAddress == 0) {
-				numericDriver.freezeWithError("E268");
+				display->freezeWithError("E268");
 			}
 			if ((sdAddress - fileSystemStuff.fileSystem.database) & (fileSystemStuff.fileSystem.csize - 1)) {
-				numericDriver.freezeWithError("E275");
+				display->freezeWithError("E275");
 			}
 
 			// Write the Cluster we just finished processing to card
@@ -1273,7 +1274,7 @@ int32_t SampleRecorder::alterFile(int32_t action, int32_t lshiftAmount, uint32_t
 
 			// Some bug-hunting
 			if (!currentWriteCluster->numReasonsHeldBySampleRecorder) {
-				numericDriver.freezeWithError("E351");
+				display->freezeWithError("E351");
 			}
 			currentWriteCluster->numReasonsHeldBySampleRecorder--;
 
@@ -1287,7 +1288,7 @@ writeFailed:
 
 				// Some bug-hunting
 				if (!currentReadCluster->numReasonsHeldBySampleRecorder) {
-					numericDriver.freezeWithError("E352");
+					display->freezeWithError("E352");
 				}
 				currentReadCluster->numReasonsHeldBySampleRecorder--;
 
@@ -1296,7 +1297,7 @@ writeFailed:
 				if (nextReadCluster) {
 					// Some bug-hunting
 					if (!nextReadCluster->numReasonsHeldBySampleRecorder) {
-						numericDriver.freezeWithError("E353");
+						display->freezeWithError("E353");
 					}
 					nextReadCluster->numReasonsHeldBySampleRecorder--;
 
@@ -1346,7 +1347,7 @@ writeFailed:
 
 			// Some bug-hunting
 			if (!currentReadCluster->numReasonsHeldBySampleRecorder) {
-				numericDriver.freezeWithError("E354");
+				display->freezeWithError("E354");
 			}
 			currentReadCluster->numReasonsHeldBySampleRecorder--;
 
@@ -1365,7 +1366,7 @@ writeFailed:
 
 					// Some bug-hunting
 					if (!currentReadCluster->numReasonsHeldBySampleRecorder) {
-						numericDriver.freezeWithError("E355");
+						display->freezeWithError("E355");
 					}
 					currentReadCluster->numReasonsHeldBySampleRecorder--;
 
@@ -1373,7 +1374,7 @@ writeFailed:
 
 					// Some bug-hunting
 					if (!currentWriteCluster->numReasonsHeldBySampleRecorder) {
-						numericDriver.freezeWithError("E356");
+						display->freezeWithError("E356");
 					}
 					currentWriteCluster->numReasonsHeldBySampleRecorder--;
 
@@ -1397,7 +1398,7 @@ writeFailed:
 
 	// Some bug-hunting
 	if (!currentReadCluster->numReasonsHeldBySampleRecorder) {
-		numericDriver.freezeWithError("E357");
+		display->freezeWithError("E357");
 	}
 	currentReadCluster->numReasonsHeldBySampleRecorder--;
 
@@ -1415,24 +1416,24 @@ writeFailed:
 
 		uint32_t numSectorsToWrite = ((bytesToWriteFinalCluster - 1) >> 9) + 1;
 		if (numSectorsToWrite > (audioFileManager.clusterSize >> 9)) {
-			numericDriver.freezeWithError("E239");
+			display->freezeWithError("E239");
 		}
 
 		uint32_t sdAddress = sample->clusters.getElement(currentWriteClusterIndex)->sdAddress;
 
 		// Do a last-ditch check that the SD address doesn't look invalid
 		if (sdAddress == 0) {
-			numericDriver.freezeWithError("E268");
+			display->freezeWithError("E268");
 		}
 		if ((sdAddress - fileSystemStuff.fileSystem.database) & (fileSystemStuff.fileSystem.csize - 1)) {
-			numericDriver.freezeWithError("E276");
+			display->freezeWithError("E276");
 		}
 
 		DRESULT result = disk_write(0, (BYTE*)currentWriteCluster->data, sdAddress, numSectorsToWrite);
 
 		// Some bug-hunting
 		if (!currentWriteCluster->numReasonsHeldBySampleRecorder) {
-			numericDriver.freezeWithError("E358");
+			display->freezeWithError("E358");
 		}
 		currentWriteCluster->numReasonsHeldBySampleRecorder--;
 
@@ -1466,7 +1467,7 @@ writeFailed:
 
 		// Some bug-hunting
 		if (!currentWriteCluster->numReasonsHeldBySampleRecorder) {
-			numericDriver.freezeWithError("E359");
+			display->freezeWithError("E359");
 		}
 		currentWriteCluster->numReasonsHeldBySampleRecorder--;
 

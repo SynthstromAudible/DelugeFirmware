@@ -16,27 +16,35 @@
 */
 #pragma once
 #include "definitions_cxx.hpp"
-#include "gui/menu_item/selection/typed_selection.h"
+#include "gui/l10n/l10n.h"
+#include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/numeric_driver.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "util/misc.h"
 
 namespace deluge::gui::menu_item::mod_fx {
 
-class Type : public TypedSelection<ModFXType, kNumModFXTypes> {
+class Type : public Selection<kNumModFXTypes> {
 public:
-	using TypedSelection::TypedSelection;
+	using Selection::Selection;
 
-	void readCurrentValue() override { this->value_ = soundEditor.currentModControllable->modFXType; }
+	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->modFXType); }
 	void writeCurrentValue() override {
-		if (!soundEditor.currentModControllable->setModFXType(this->value_)) {
-			numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+		if (!soundEditor.currentModControllable->setModFXType(this->getValue<ModFXType>())) {
+			display->displayError(ERROR_INSUFFICIENT_RAM);
 		}
 	}
 
-	static_vector<string, capacity()> getOptions() override {
-		return {"OFF", "FLANGER", "CHORUS", "PHASER", "STEREO CHORUS"};
+	static_vector<std::string_view, capacity()> getOptions() override {
+		using enum l10n::String;
+		return {
+		    l10n::getView(STRING_FOR_DISABLED),      //<
+		    l10n::getView(STRING_FOR_FLANGER),       //<
+		    l10n::getView(STRING_FOR_CHORUS),        //<
+		    l10n::getView(STRING_FOR_PHASER),        //<
+		    l10n::getView(STRING_FOR_STEREO_CHORUS), //<
+		    l10n ::getView(STRING_FOR_GRAIN),        //<
+		};
 	}
 };
 } // namespace deluge::gui::menu_item::mod_fx

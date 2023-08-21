@@ -17,8 +17,9 @@
 
 #include "gui/context_menu/delete_file.h"
 #include "gui/context_menu/save_song_or_instrument.h"
+#include "gui/l10n/l10n.h"
 #include "gui/ui/browser/browser.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "hid/matrix/matrix_driver.h"
 #include "io/debug/print.h"
 
@@ -31,46 +32,45 @@ namespace deluge::gui::context_menu {
 DeleteFile deleteFile{};
 
 char const* DeleteFile::getTitle() {
-	static char* title;
+	using enum l10n::String;
 	if (getUIUpOneLevel() == &context_menu::saveSongOrInstrument) {
-		title = "Are you sure?";
+		return l10n::get(STRING_FOR_ARE_YOU_SURE_QMARK);
 	}
-	else {
-		title = "Delete?";
-	}
-	return title;
+	return l10n::get(STRING_FOR_DELETE_QMARK);
 }
 
 Sized<char const**> DeleteFile::getOptions() {
-#if HAVE_OLED
-	static char const* options[] = {"OK"};
-	return {options, 1};
-#else
-	static char const* options[] = {"DELETE"};
-	static char const* optionsSure[] = {"SURE"};
+	using enum l10n::String;
 
-	if (getUIUpOneLevel() == &context_menu::saveSongOrInstrument) {
-		return {optionsSure, 1};
-	}
-	else {
+	if (display->haveOLED()) {
+		static char const* options[] = {l10n::get(STRING_FOR_OK)};
 		return {options, 1};
 	}
-#endif
+	else {
+		if (getUIUpOneLevel() == &context_menu::saveSongOrInstrument) {
+			static char const* options[] = {l10n::get(STRING_FOR_SURE)};
+			return {options, 1};
+		}
+
+		static char const* options[] = {l10n::get(STRING_FOR_DELETE)};
+		return {options, 1};
+	}
 }
 
 bool DeleteFile::acceptCurrentOption() {
+	using enum l10n::String;
 
 	UI* ui = getUIUpOneLevel();
 	if (ui == &context_menu::saveSongOrInstrument) {
 		ui = getUIUpOneLevel(2);
 	}
 
-	Browser* browser = (Browser*)ui;
+	auto* browser = static_cast<Browser*>(ui);
 
 	String filePath;
 	int32_t error = browser->getCurrentFilePath(&filePath);
 	if (error) {
-		numericDriver.displayError(error);
+		display->displayError(error);
 		return false;
 	}
 
@@ -78,11 +78,11 @@ bool DeleteFile::acceptCurrentOption() {
 
 	// If didn't work
 	if (result != FR_OK) {
-		numericDriver.displayPopup(HAVE_OLED ? "Error deleting file" : "ERROR");
+		display->displayPopup(l10n::get(STRING_FOR_ERROR_DELETING_FILE));
 		// But we'll still go back to the Browser
 	}
 	else {
-		numericDriver.displayPopup(HAVE_OLED ? "File deleted" : "DONE");
+		display->displayPopup(l10n::get(STRING_FOR_FILE_DELETED));
 		browser->currentFileDeleted();
 	}
 

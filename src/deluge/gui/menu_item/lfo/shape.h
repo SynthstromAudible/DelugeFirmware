@@ -16,16 +16,26 @@
 */
 #pragma once
 #include "definitions_cxx.hpp"
-#include "gui/menu_item/selection/typed_selection.h"
+#include "gui/l10n/l10n.h"
+#include "gui/menu_item/selection.h"
+#include <string>
 
 namespace deluge::gui::menu_item::lfo {
 
-class Shape : public TypedSelection<LFOType, kNumLFOTypes> {
+class Shape : public Selection<kNumLFOTypes> {
 public:
-	using TypedSelection::TypedSelection;
+	using Selection::Selection;
 
-	static_vector<string, capacity()> getOptions() override {
-		return {"Sine", "Triangle", "Square", "Saw", "S&H", "Random Walk"};
+	static_vector<std::string_view, capacity()> getOptions() override {
+		using enum l10n::String;
+		return {
+		    l10n::getView(STRING_FOR_SINE),
+		    l10n::getView(STRING_FOR_TRIANGLE),
+		    l10n::getView(STRING_FOR_SQUARE),
+		    l10n::getView(STRING_FOR_SAW),
+		    l10n::getView(STRING_FOR_SAMPLE_AND_HOLD),
+		    l10n::getView(STRING_FOR_RANDOM_WALK),
+		};
 	}
 };
 

@@ -341,6 +341,7 @@ private:
 	// type work for these types).
 
 	// Kate's solution to deal with badly aligned members
+	// This will be fixed with the GMA rework
 	std::array<T, Capacity> data_{};
 
 public:
@@ -400,9 +401,17 @@ public:
 	/// Contract: the storage is not empty.
 	void pop_back() noexcept(std::is_nothrow_destructible_v<T>) {
 		SV_EXPECT(!empty() && "tried to pop_back from empty storage!");
-		auto ptr = end() - 1;
-		ptr->~T();
-		unsafe_set_size(size() - 1);
+
+		// TODO:
+		/// The below code commented out due to the change to std::array as a backing system for
+		/// data_. Once a more robust allocator with proper alignment guarantees is used,
+		/// we can switch back.
+
+		// auto ptr = end() - 1;
+		// ptr->~T();
+		// unsafe_set_size(size() - 1);
+
+		--size_;
 	}
 
 	/// (unsafe) Changes the container size to \p new_size.
@@ -421,22 +430,37 @@ public:
 	void unsafe_destroy(InputIt first, InputIt last) noexcept(std::is_nothrow_destructible_v<T>) {
 		SV_EXPECT(first >= data() && first <= end() && "first is out-of-bounds");
 		SV_EXPECT(last >= data() && last <= end() && "last is out-of-bounds");
-		for (; first != last; ++first) {
-			first->~T();
-		}
+		// for (; first != last; ++first) {
+		// 	first->~T();
+		// }
 	}
 
 	/// (unsafe) Destroys all elements of the storage.
 	///
 	/// \warning: The size of the storage is not changed.
-	void unsafe_destroy_all() noexcept(std::is_nothrow_destructible_v<T>) { unsafe_destroy(data(), end()); }
+	void unsafe_destroy_all() noexcept(std::is_nothrow_destructible_v<T>) {
+
+		// TODO:
+		/// The below code commented out due to the change to std::array as a backing system for
+		/// data_. Once a more robust allocator with proper alignment guarantees is used,
+		/// we can switch back.
+
+		//	unsafe_destroy(data(), end());
+	}
 
 	constexpr non_trivial() = default;
 	constexpr non_trivial(non_trivial const&) = default;
 	constexpr non_trivial& operator=(non_trivial const&) = default;
 	constexpr non_trivial(non_trivial&&) = default;
 	constexpr non_trivial& operator=(non_trivial&&) = default;
-	~non_trivial() noexcept(std::is_nothrow_destructible_v<T>) { unsafe_destroy_all(); }
+	~non_trivial() noexcept(std::is_nothrow_destructible_v<T>) {
+		// TODO:
+		/// The below code commented out due to the change to std::array as a backing system for
+		/// data_. Once a more robust allocator with proper alignment guarantees is used,
+		/// we can switch back.
+
+		//	 unsafe_destroy_all();
+	}
 
 	/// Constructor from initializer list.
 	///

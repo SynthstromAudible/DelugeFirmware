@@ -17,12 +17,8 @@
 
 #include "integer.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include <cstring>
-
-#if HAVE_OLED
-#include "hid/display/oled.h"
-#endif
 
 extern "C" {
 #include "util/cfunctions.h"
@@ -31,42 +27,40 @@ extern "C" {
 namespace deluge::gui::menu_item {
 
 void Integer::selectEncoderAction(int32_t offset) {
-	this->value_ += offset;
+	this->setValue(this->getValue() + offset);
 	int32_t maxValue = getMaxValue();
-	if (this->value_ > maxValue) {
-		this->value_ = maxValue;
+	if (this->getValue() > maxValue) {
+		this->setValue(maxValue);
 	}
 	else {
 		int32_t minValue = getMinValue();
-		if (this->value_ < minValue) {
-			this->value_ = minValue;
+		if (this->getValue() < minValue) {
+			this->setValue(minValue);
 		}
 	}
 
 	Number::selectEncoderAction(offset);
 }
 
-#if !HAVE_OLED
 void Integer::drawValue() {
-	numericDriver.setTextAsNumber(this->value_);
+	display->setTextAsNumber(this->getValue());
 }
 
 void IntegerWithOff::drawValue() {
-	if (this->value_ == 0) {
-		numericDriver.setText("OFF");
+	if (this->getValue() == 0) {
+		display->setText(l10n::get(l10n::String::STRING_FOR_DISABLED));
 	}
 	else {
 		Integer::drawValue();
 	}
 }
-#endif
 
-#if HAVE_OLED
 void Integer::drawInteger(int32_t textWidth, int32_t textHeight, int32_t yPixel) {
 	char buffer[12];
-	intToString(this->value_, buffer, 1);
-	OLED::drawStringCentred(buffer, yPixel + OLED_MAIN_TOPMOST_PIXEL, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
-	                        textWidth, textHeight);
+	intToString(this->getValue(), buffer, 1);
+	deluge::hid::display::OLED::drawStringCentred(buffer, yPixel + OLED_MAIN_TOPMOST_PIXEL,
+	                                              deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
+	                                              textWidth, textHeight);
 }
 
 void Integer::drawPixelsForOled() {
@@ -83,5 +77,4 @@ void IntegerContinuous::drawPixelsForOled() {
 
 	drawBar(35, 10);
 }
-#endif
 } // namespace deluge::gui::menu_item

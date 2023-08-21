@@ -18,6 +18,7 @@
 #include "gui/views/audio_clip_view.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
+#include "gui/l10n/l10n.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
@@ -26,7 +27,7 @@
 #include "gui/views/view.h"
 #include "gui/waveform/waveform_renderer.h"
 #include "hid/buttons.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
@@ -82,19 +83,17 @@ void AudioClipView::focusRegained() {
 	view.focusRegained();
 	view.setActiveModControllableTimelineCounter(currentSong->currentClip);
 
-#if !HAVE_OLED
-	view.displayOutputName(currentSong->currentClip->output, false);
-#endif
+	if (display->have7SEG()) {
+		view.displayOutputName(currentSong->currentClip->output, false);
+	}
 #ifdef currentClipStatusButtonX
 	view.drawCurrentClipPad(currentSong->currentClip);
 #endif
 }
 
-#if HAVE_OLED
 void AudioClipView::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	view.displayOutputName(currentSong->currentClip->output, false);
 }
-#endif
 
 bool AudioClipView::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
                                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
@@ -273,25 +272,8 @@ void AudioClipView::needsRenderingDependingOnSubMode() {
 	}
 }
 
-void AudioClipView::transitionToSessionView() {
-
-	if (!getClip() || !getClip()->sampleHolder.audioFile) { // !getClip() probably couldn't happen, but just in case...
-		memcpy(PadLEDs::imageStore, PadLEDs::image, sizeof(PadLEDs::image));
-		sessionView.finishedTransitioningHere();
-	}
-	else {
-		currentUIMode = UI_MODE_AUDIO_CLIP_COLLAPSING;
-		waveformRenderer.collapseAnimationToWhichRow = sessionView.getClipPlaceOnScreen(currentSong->currentClip);
-
-		PadLEDs::setupAudioClipCollapseOrExplodeAnimation(getClip());
-
-		PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
-		PadLEDs::renderAudioClipExpandOrCollapse();
-	}
-}
-
-ActionResult AudioClipView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
-	using namespace hid::button;
+ActionResult AudioClipView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	using namespace deluge::hid::button;
 
 	ActionResult result;
 
@@ -313,7 +295,7 @@ ActionResult AudioClipView::buttonAction(hid::Button b, bool on, bool inCardRout
 			}
 			else {
 doOther:
-				transitionToSessionView();
+				sessionView.transitionToSessionView();
 			}
 		}
 	}
@@ -367,7 +349,7 @@ dontDeactivateMarker:
 			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, currentSong->currentClip);
 
 			getClip()->clear(action, modelStack);
-			numericDriver.displayPopup(HAVE_OLED ? "Audio clip cleared" : "CLEAR");
+			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_AUDIO_CLIP_CLEARED));
 			endMarkerVisible = false;
 			uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
 			uiNeedsRendering(this, 0xFFFFFFFF, 0);
@@ -402,7 +384,7 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 	// Edit pad action...
 	if (x < kDisplayWidth) {
 
-		if (Buttons::isButtonPressed(hid::button::TEMPO_ENC)) {
+		if (Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC)) {
 			if (on) {
 				playbackHandler.grabTempoFromClip(getClip());
 			}
@@ -615,7 +597,7 @@ void AudioClipView::selectEncoderAction(int8_t offset) {
 }
 
 ActionResult AudioClipView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
-	if (!currentUIMode && Buttons::isShiftButtonPressed() && !Buttons::isButtonPressed(hid::button::Y_ENC)) {
+	if (!currentUIMode && Buttons::isShiftButtonPressed() && !Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
 		if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
 		}

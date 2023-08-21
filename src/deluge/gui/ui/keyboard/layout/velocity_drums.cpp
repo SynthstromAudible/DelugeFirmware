@@ -29,7 +29,7 @@ void KeyboardLayoutVelocityDrums::evaluatePads(PressedPad presses[kMaxNumKeyboar
 	currentNotesState = NotesState{}; // Erase active notes
 
 	for (int32_t idxPress = 0; idxPress < kMaxNumKeyboardPadPresses; ++idxPress) {
-		if (presses[idxPress].active) {
+		if (presses[idxPress].active && presses[idxPress].x < kDisplayWidth) {
 			uint8_t note = noteFromCoords(presses[idxPress].x, presses[idxPress].y);
 			uint8_t velocity = (intensityFromCoords(presses[idxPress].x, presses[idxPress].y) >> 1);
 			currentNotesState.enableNote(note, velocity);
@@ -46,12 +46,12 @@ void KeyboardLayoutVelocityDrums::handleHorizontalEncoder(int32_t offset, bool s
 
 	if (shiftEnabled) {
 		state.edgeSize += offset;
-		state.edgeSize = std::max(state.edgeSize, kMinDrumPadEdgeSize);
-		state.edgeSize = std::min(kMaxDrumPadEdgeSize, state.edgeSize);
+		state.edgeSize = std::clamp(state.edgeSize, kMinDrumPadEdgeSize, kMaxDrumPadEdgeSize);
 
 		char buffer[13] = "Pad size:   ";
-		intToString(state.edgeSize, buffer + (HAVE_OLED ? 10 : 0), 1);
-		numericDriver.displayPopup(buffer);
+		auto offset = (display->haveOLED() ? 10 : 0);
+		intToString(state.edgeSize, buffer + offset, 1);
+		display->displayPopup(buffer);
 
 		offset = 0; // Reset offset variable for processing scroll calculation without actually shifting
 	}

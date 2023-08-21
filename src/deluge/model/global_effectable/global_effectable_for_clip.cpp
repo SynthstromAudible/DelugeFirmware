@@ -17,9 +17,8 @@
 
 #include "model/global_effectable/global_effectable_for_clip.h"
 #include "definitions_cxx.hpp"
-#include "dsp/filter/filter_set_config.h"
 #include "gui/views/view.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "hid/matrix/matrix_driver.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
@@ -83,8 +82,7 @@ void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelS
 	DelayWorkingState delayWorkingState;
 	setupDelayWorkingState(&delayWorkingState, paramManagerForClip, shouldLimitDelayFeedback);
 
-	FilterSetConfig filterSetConfig;
-	setupFilterSetConfig(&filterSetConfig, &volumePostFX, paramManagerForClip);
+	setupFilterSetConfig(&volumePostFX, paramManagerForClip);
 
 	int32_t reverbSendAmount = getFinalParameterValueVolume(
 	    reverbAmountAdjust,
@@ -114,11 +112,10 @@ void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelS
 	static StereoSample globalEffectableBuffer[SSI_TX_BUFFER_NUM_SAMPLES] __attribute__((aligned(CACHE_LINE_SIZE)));
 
 	bool canRenderDirectlyIntoSongBuffer =
-	    !isKit() && !filterSetConfig.doLPF && !filterSetConfig.doHPF && !delayWorkingState.doDelay
-	    && (!pan || !AudioEngine::renderInStereo) && !clippingAmount && !hasBassAdjusted(paramManagerForClip)
-	    && !hasTrebleAdjusted(paramManagerForClip) && !reverbSendAmount && !isBitcrushingEnabled(paramManagerForClip)
-	    && !isSRREnabled(paramManagerForClip) && getActiveModFXType(paramManagerForClip) == ModFXType::NONE
-	    && stutterer.status == STUTTERER_STATUS_OFF;
+	    !isKit() && !filterSet.isOn() && !delayWorkingState.doDelay && (!pan || !AudioEngine::renderInStereo)
+	    && !clippingAmount && !hasBassAdjusted(paramManagerForClip) && !hasTrebleAdjusted(paramManagerForClip)
+	    && !reverbSendAmount && !isBitcrushingEnabled(paramManagerForClip) && !isSRREnabled(paramManagerForClip)
+	    && getActiveModFXType(paramManagerForClip) == ModFXType::NONE && stutterer.status == STUTTERER_STATUS_OFF;
 
 	if (canRenderDirectlyIntoSongBuffer) {
 
@@ -171,7 +168,7 @@ doNormal:
 		}
 
 		// Render filters
-		processFilters(globalEffectableBuffer, numSamples, &filterSetConfig);
+		processFilters(globalEffectableBuffer, numSamples);
 
 		// Render FX
 		processSRRAndBitcrushing(globalEffectableBuffer, numSamples, &volumePostFX, paramManagerForClip);
@@ -236,10 +233,10 @@ bool GlobalEffectableForClip::modEncoderButtonAction(uint8_t whichModEncoder, bo
 					compressor.syncLevel = SYNC_LEVEL_32ND;
 				}
 				if (compressor.syncLevel == SYNC_LEVEL_32ND) {
-					numericDriver.displayPopup("SLOW");
+					display->displayPopup("SLOW");
 				}
 				else {
-					numericDriver.displayPopup("FAST");
+					display->displayPopup("FAST");
 				}
 				return true;
 			}

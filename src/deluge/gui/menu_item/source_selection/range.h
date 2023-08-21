@@ -24,11 +24,7 @@ public:
 	ParamDescriptor getDestinationDescriptor() override;
 	MenuItem* selectButtonPress() override;
 	MenuItem* patchingSourceShortcutPress(PatchSource newS, bool previousPressStillActive) override;
-#if HAVE_OLED
-	const string& getTitle() const override {
-		return "Modulate depth";
-	};
-#endif
+	std::string_view getTitle() const override { return l10n::getView(l10n::String::STRING_FOR_MODULATE_DEPTH); };
 };
 extern Range rangeMenu;
 } // namespace deluge::gui::menu_item::source_selection

@@ -21,8 +21,9 @@
 
 #define MEMORY_REGION_SDRAM 0
 #define MEMORY_REGION_INTERNAL 1
-#define NUM_MEMORY_REGIONS 2
-
+#define MEMORY_REGION_NONAUDIO 2
+#define NUM_MEMORY_REGIONS 3
+constexpr uint32_t RESERVED_NONAUDIO_ALLOCATOR = 0x00100000;
 class Stealable;
 
 /*
@@ -62,6 +63,8 @@ public:
 	            bool mayUseOnChipRam = false, bool makeStealable = false, void* thingNotToStealFrom = NULL,
 	            bool getBiggestAllocationPossible = false);
 	void dealloc(void* address);
+	void* allocNonAudio(uint32_t requiredSize);
+	void deallocNonAudio(void* address);
 	uint32_t shortenRight(void* address, uint32_t newSize);
 	uint32_t shortenLeft(void* address, uint32_t amountToShorten, uint32_t numBytesToMoveRightIfSuccessful = 0);
 	void extend(void* address, uint32_t minAmountToExtend, uint32_t idealAmountToExtend,
@@ -91,6 +94,6 @@ private:
 };
 
 extern "C" {
-void* delugeAlloc(unsigned int requiredSize);
+void* delugeAlloc(unsigned int requiredSize, bool mayUseOnChipRam = true);
 void delugeDealloc(void* address);
 }

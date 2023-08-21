@@ -26,13 +26,13 @@
 namespace deluge::gui::menu_item::sample {
 class Reverse final : public Toggle, public FormattedTitle {
 public:
-	Reverse(const string& name, const string& title_format_str) : Toggle(name), FormattedTitle(title_format_str) {}
+	Reverse(l10n::String name, l10n::String title_format_str) : Toggle(name), FormattedTitle(title_format_str) {}
 
-	[[nodiscard]] const string& getTitle() const override { return FormattedTitle::title(); }
+	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
 	bool usesAffectEntire() override { return true; }
 
-	void readCurrentValue() override { this->value_ = soundEditor.currentSource->sampleControls.reversed; }
+	void readCurrentValue() override { this->setValue(soundEditor.currentSource->sampleControls.reversed); }
 
 	void writeCurrentValue() override {
 
@@ -47,7 +47,7 @@ public:
 					Source* source = &soundDrum->sources[soundEditor.currentSourceIndex];
 
 					soundDrum->unassignAllVoices();
-					source->setReversed(this->value_);
+					source->setReversed(this->getValue());
 				}
 			}
 		}
@@ -55,7 +55,7 @@ public:
 		// Or, the normal case of just one sound
 		else {
 			soundEditor.currentSound->unassignAllVoices();
-			soundEditor.currentSource->setReversed(this->value_);
+			soundEditor.currentSource->setReversed(this->getValue());
 		}
 	}
 };

@@ -27,9 +27,9 @@ namespace deluge::gui::menu_item {
 class MasterTranspose final : public Integer, public PatchedParam {
 public:
 	using Integer::Integer;
-	void readCurrentValue() override { this->value_ = soundEditor.currentSound->transpose; }
+	void readCurrentValue() override { this->setValue(soundEditor.currentSound->transpose); }
 	void writeCurrentValue() override {
-		soundEditor.currentSound->transpose = this->value_;
+		soundEditor.currentSound->transpose = this->getValue();
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithSoundFlags* modelStack = soundEditor.getCurrentModelStack(modelStackMemory)->addSoundFlags();
 		soundEditor.currentSound->recalculateAllVoicePhaseIncrements(modelStack);
@@ -44,27 +44,16 @@ public:
 	MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive = false) override {
 		return PatchedParam::patchingSourceShortcutPress(s, previousPressStillActive);
 	}
-#if !HAVE_OLED
-	void drawValue() override {
-		numericDriver.setTextAsNumber(this->value_, shouldDrawDotOnName());
-	}
-#endif
 
-	void unlearnAction() override {
-		MenuItemWithCCLearning::unlearnAction();
-	}
-	bool allowsLearnMode() override {
-		return MenuItemWithCCLearning::allowsLearnMode();
-	}
+	void drawValue() override { display->setTextAsNumber(this->getValue(), shouldDrawDotOnName()); }
+
+	void unlearnAction() override { MenuItemWithCCLearning::unlearnAction(); }
+	bool allowsLearnMode() override { return MenuItemWithCCLearning::allowsLearnMode(); }
 	void learnKnob(MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) override {
 		MenuItemWithCCLearning::learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel);
 	};
 
-	[[nodiscard]] int32_t getMinValue() const override {
-		return -96;
-	}
-	[[nodiscard]] int32_t getMaxValue() const override {
-		return 96;
-	}
+	[[nodiscard]] int32_t getMinValue() const override { return -96; }
+	[[nodiscard]] int32_t getMaxValue() const override { return 96; }
 };
 } // namespace deluge::gui::menu_item

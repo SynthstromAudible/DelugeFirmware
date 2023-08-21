@@ -16,42 +16,37 @@
 */
 
 #include "sync_level.h"
+#include "gui/l10n/l10n.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/numeric_driver.h"
-#include "hid/display/oled.h"
+#include "hid/display/display.h"
 #include "model/song/song.h"
 
 namespace deluge::gui::menu_item {
 
 void SyncLevel::drawValue() {
-	if (this->value_ == 0) {
-		numericDriver.setText("OFF");
+	if (this->getValue() == 0) {
+		display->setText(l10n::get(l10n::String::STRING_FOR_DISABLED));
 	}
 	else {
 		char* buffer = shortStringBuffer;
 		getNoteLengthName(buffer);
-
-#if HAVE_OLED
-		numericDriver.setText(buffer);
-#else
-		numericDriver.setScrollingText(buffer, 0);
-#endif
+		display->setScrollingText(buffer, 0);
 	}
 }
 
 void SyncLevel::getNoteLengthName(char* buffer) {
 	char type[7] = "";
-	if (this->value_ < SYNC_TYPE_TRIPLET) {
-		currentSong->getNoteLengthName(buffer, (uint32_t)3 << (SYNC_LEVEL_256TH - this->value_));
+	if (this->getValue() < SYNC_TYPE_TRIPLET) {
+		currentSong->getNoteLengthName(buffer, (uint32_t)3 << (SYNC_LEVEL_256TH - this->getValue()));
 	}
-	else if (this->value_ < SYNC_TYPE_DOTTED) {
+	else if (this->getValue() < SYNC_TYPE_DOTTED) {
 		currentSong->getNoteLengthName(buffer,
-		                               (uint32_t)3 << ((SYNC_TYPE_TRIPLET - 1) + SYNC_LEVEL_256TH - this->value_));
+		                               (uint32_t)3 << ((SYNC_TYPE_TRIPLET - 1) + SYNC_LEVEL_256TH - this->getValue()));
 		strcpy(type, "-tplts");
 	}
 	else {
 		currentSong->getNoteLengthName(buffer,
-		                               (uint32_t)3 << ((SYNC_TYPE_DOTTED - 1) + SYNC_LEVEL_256TH - this->value_));
+		                               (uint32_t)3 << ((SYNC_TYPE_DOTTED - 1) + SYNC_LEVEL_256TH - this->getValue()));
 		strcpy(type, "-dtted");
 	}
 	if (strlen(type) > 0) {
@@ -59,28 +54,28 @@ void SyncLevel::getNoteLengthName(char* buffer) {
 			strcat(buffer, type);
 		}
 		else {
-#if HAVE_OLED
-			char* suffix = strstr(buffer, "-notes"); // OLED replace `-notes` with type,
-			strcpy(suffix, type);                    //      eg. `2nd-notes` -> `2nd-trplts`
-#else
-			strcat(buffer, type); // 7SEG just append the type
-#endif
+			if (display->haveOLED()) {
+				char* suffix = strstr(buffer, "-notes"); // OLED replace `-notes` with type,
+				strcpy(suffix, type);                    //      eg. `2nd-notes` -> `2nd-trplts`
+			}
+			else {
+				strcat(buffer, type); // 7SEG just append the type
+			}
 		}
 	}
 }
 
-#if HAVE_OLED
 void SyncLevel::drawPixelsForOled() {
-	char const* text = "Off";
+	char const* text = l10n::get(l10n::String::STRING_FOR_DISABLED);
 	char buffer[30];
-	if (this->value_) {
+	if (this->getValue()) {
 		text = buffer;
 		getNoteLengthName(buffer);
 	}
-	OLED::drawStringCentred(text, 20 + OLED_MAIN_TOPMOST_PIXEL, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
-	                        kTextBigSpacingX, kTextBigSizeY);
+	deluge::hid::display::OLED::drawStringCentred(text, 20 + OLED_MAIN_TOPMOST_PIXEL,
+	                                              deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
+	                                              kTextBigSpacingX, kTextBigSizeY);
 }
-#endif
 
 SyncType SyncLevel::menuOptionToSyncType(int32_t option) {
 	if (option < SYNC_TYPE_TRIPLET) {

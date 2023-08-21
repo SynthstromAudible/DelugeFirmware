@@ -27,18 +27,18 @@ constexpr int32_t kMaxIsomorphicRowInterval = 16;
 class KeyboardLayoutIsomorphic : public KeyboardLayout {
 public:
 	KeyboardLayoutIsomorphic() {}
-	virtual ~KeyboardLayoutIsomorphic() {}
+	~KeyboardLayoutIsomorphic() override {}
 
-	virtual void evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]);
-	virtual void handleVerticalEncoder(int32_t offset);
-	virtual void handleHorizontalEncoder(int32_t offset, bool shiftEnabled);
-	virtual void precalculate();
+	void evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) override;
+	void handleVerticalEncoder(int32_t offset) override;
+	void handleHorizontalEncoder(int32_t offset, bool shiftEnabled) override;
+	void precalculate() override;
 
-	virtual void renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]);
+	void renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) override;
 
-	virtual char* name() { return "Isomorphic"; }
-	virtual bool supportsInstrument() { return true; }
-	virtual bool supportsKit() { return false; }
+	char const* name() override { return "Isomorphic"; }
+	bool supportsInstrument() override { return true; }
+	bool supportsKit() override { return false; }
 
 private:
 	inline uint8_t noteFromCoords(int32_t x, int32_t y) {

@@ -20,6 +20,6 @@
 namespace deluge::gui::menu_item::sample {
 class End final : public LoopPoint {
 public:
-	End(const string& newName) : LoopPoint(newName) { markerType = MarkerType::END; }
+	End(l10n::String newName) : LoopPoint(newName) { markerType = MarkerType::END; }
 };
 } // namespace deluge::gui::menu_item::sample

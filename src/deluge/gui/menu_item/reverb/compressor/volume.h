@@ -25,23 +25,22 @@ namespace deluge::gui::menu_item::reverb::compressor {
 class Volume final : public Integer {
 public:
 	using Integer::Integer;
-	void readCurrentValue() override { this->value_ = AudioEngine::reverbCompressorVolume / 21474836; }
+	void readCurrentValue() override { this->setValue(AudioEngine::reverbCompressorVolume / 21474836); }
 	void writeCurrentValue() override {
-		AudioEngine::reverbCompressorVolume = this->value_ * 21474836;
+		AudioEngine::reverbCompressorVolume = this->getValue() * 21474836;
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return 50; }
 	[[nodiscard]] int32_t getMinValue() const override { return -1; }
-#if !HAVE_OLED
+
 	void drawValue() override {
-		if (this->value_ < 0) {
-			numericDriver.setText("AUTO");
+		if (this->getValue() < 0) {
+			display->setText(l10n::get(l10n::String::STRING_FOR_AUTO));
 		}
 		else {
 			Integer::drawValue();
 		}
 	}
-#endif
 };
 
 } // namespace deluge::gui::menu_item::reverb::compressor

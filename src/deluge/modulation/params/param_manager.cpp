@@ -20,6 +20,7 @@
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "modulation/params/param_collection.h"
@@ -47,7 +48,7 @@ ParamManager::~ParamManager() {
 
 #if ALPHA_OR_BETA_VERSION
 ParamManagerForTimeline* ParamManager::toForTimeline() {
-	numericDriver.freezeWithError("E407");
+	display->freezeWithError("E407");
 	return NULL;
 }
 
@@ -112,7 +113,7 @@ ramError2:
 void ParamManager::stealParamCollectionsFrom(ParamManager* other, bool stealExpressionParams) {
 #if ALPHA_OR_BETA_VERSION
 	if (!other) {
-		numericDriver.freezeWithError("E413");
+		display->freezeWithError("E413");
 	}
 #endif
 
@@ -300,7 +301,7 @@ ExpressionParamSet* ParamManager::getOrCreateExpressionParamSet(bool forDrum) {
 ModelStackWithParamCollection* ParamManager::getPatchCableSet(ModelStackWithThreeMainThings const* modelStack) {
 #if ALPHA_OR_BETA_VERSION
 	if (!summaries[2].paramCollection) {
-		numericDriver.freezeWithError("E412");
+		display->freezeWithError("E412");
 	}
 #endif
 	return modelStack->addParamCollection(summaries[2].paramCollection, &summaries[2]);
@@ -315,7 +316,7 @@ ParamManagerForTimeline::ParamManagerForTimeline() {
 void ParamManagerForTimeline::ensureSomeParamCollections() {
 #if ALPHA_OR_BETA_VERSION
 	if (!summaries[0].paramCollection) {
-		numericDriver.freezeWithError("E408");
+		display->freezeWithError("E408");
 	}
 #endif
 }
@@ -551,8 +552,13 @@ void ParamManagerForTimeline::nudgeAutomationHorizontallyAtPos(int32_t pos, int3
 
 		// Normal case
 		else {
-			summary->paramCollection->nudgeNonInterpolatingNodesAtPos(pos, offset, lengthBeforeLoop, action,
-			                                                          modelStackWithParamCollection);
+
+			//if this community feature is on, regular (non MPE) automation will not be nudged when you nudge a note
+			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationNudgeNote)
+			    == RuntimeFeatureStateToggle::Off) {
+				summary->paramCollection->nudgeNonInterpolatingNodesAtPos(pos, offset, lengthBeforeLoop, action,
+				                                                          modelStackWithParamCollection);
+			}
 		}
 		summary++;
 		i++;

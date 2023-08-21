@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param_collection.h"
+#include <array>
 
 class Sound;
 class ParamManagerForTimeline;
@@ -34,7 +35,12 @@ class ModelStackWithParamCollection;
 // This differs from other inheriting classes of ParamCollection.
 
 class ParamSet : public ParamCollection {
+protected:
+	/// Number of parameters in the params array
+	int32_t numParams_;
+
 public:
+	AutoParam* params;
 	ParamSet(int32_t newObjectSize, ParamCollectionSummary* summary);
 
 	inline int32_t getValue(int32_t p) { return params[p].getCurrentValue(); }
@@ -76,16 +82,13 @@ public:
 	// For undoing / redoing
 	void remotelySwapParamState(AutoParamState* state, ModelStackWithParamId* modelStack) final;
 
-	virtual int32_t getNumParams() = 0;
+	int32_t getNumParams() { return numParams_; }
 
 	ModelStackWithAutoParam* getAutoParamFromId(ModelStackWithParamId* modelStack, bool allowCreation = true) final;
 	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
 	                                  bool automationChanged, bool automatedBefore, bool automatedNow);
 
 	uint8_t topUintToRepParams;
-
-	AutoParam params
-	    [1]; // Total hack - we declare this last, then the subclasses "extend" it by having extra unused space after it
 
 private:
 	void backUpParamToAction(int32_t p, Action* action, ModelStackWithParamCollection* modelStack);
@@ -95,30 +98,32 @@ private:
 class UnpatchedParamSet final : public ParamSet {
 public:
 	UnpatchedParamSet(ParamCollectionSummary* summary);
-	int32_t getNumParams() { return kMaxNumUnpatchedParams; }
+	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength);
 	bool shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack);
 	bool doesParamIdAllowAutomation(ModelStackWithParamId const* modelStack);
 
-	AutoParam fakeParams[kMaxNumUnpatchedParams - 1];
+private:
+	std::array<AutoParam, kMaxNumUnpatchedParams> params_;
 };
 
 class PatchedParamSet final : public ParamSet {
 public:
 	PatchedParamSet(ParamCollectionSummary* summary);
-	int32_t getNumParams() { return kNumParams; }
+	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength);
 	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
 	                                  bool automationChanged, bool automatedBefore, bool automatedNow);
 	int32_t paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack);
 	int32_t knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack);
 	bool shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack);
 
-	AutoParam fakeParams[kNumParams - 1];
+private:
+	std::array<AutoParam, kNumParams> params_;
 };
 
 class ExpressionParamSet final : public ParamSet {
 public:
 	ExpressionParamSet(ParamCollectionSummary* summary, bool forDrum = false);
-	int32_t getNumParams() { return kNumExpressionDimensions; }
+	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength);
 	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
 	                                  bool automationChanged, bool automatedBefore, bool automatedNow);
 	bool mayParamInterpolate(int32_t paramId) { return false; }
@@ -132,10 +137,11 @@ public:
 	void cancelAllOverriding();
 	void deleteAllAutomation(Action* action, ModelStackWithParamCollection* modelStack);
 
-	AutoParam fakeParams[kNumExpressionDimensions - 1];
-
 	// bendRanges being stored here in ExpressionParamSet still seems like the best option. I was thinking storing them in the ParamManager would make more sense, except for one thing
 	// - persistence when preset/Instrument changes. ExpressionParamSets do this unique thing where they normally aren't "stolen" or "backed up" - unless the last Clip is being deleted,
 	// in which case they do move to the backedUpParamManager. This is exactly the persistence we want for bendRanges too.
 	uint8_t bendRanges[2];
+
+private:
+	std::array<AutoParam, kNumExpressionDimensions> params_;
 };

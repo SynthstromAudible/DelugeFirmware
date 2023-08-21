@@ -17,10 +17,11 @@
 
 #include "model/clip/clip.h"
 #include "definitions_cxx.hpp"
+#include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/timeline_view.h"
 #include "gui/views/view.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "io/debug/print.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
@@ -30,6 +31,7 @@
 #include "model/consequence/consequence_output_existence.h"
 #include "model/model_stack.h"
 #include "model/output.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
 #include "playback/mode/playback_mode.h"
@@ -405,7 +407,7 @@ bool Clip::opportunityToBeginSessionLinearRecording(ModelStackWithTimelineCounte
 
 		int32_t error = beginLinearRecording(modelStack, buttonPressLatency);
 		if (error) {
-			numericDriver.displayError(error);
+			display->displayError(error);
 			return false;
 		}
 
@@ -545,7 +547,7 @@ int32_t Clip::undoDetachmentFromOutput(ModelStackWithTimelineCounter* modelStack
 
 	if (!success) {
 		if (ALPHA_OR_BETA_VERSION) {
-			numericDriver.freezeWithError("E245");
+			display->freezeWithError("E245");
 		}
 		return ERROR_BUG;
 	}
@@ -925,13 +927,13 @@ trimFoundParamManager:
 				int32_t error = paramManager.cloneParamCollectionsFrom(&otherClip->paramManager, false, true);
 
 				if (error) {
-					numericDriver.freezeWithError("E050");
+					display->freezeWithError("E050");
 					return error;
 				}
 			}
 			// Unless I've done something wrong, there *has* to be another Clip if the Output didn't have a backed-up ParamManager. But, just in case
 			else {
-				numericDriver.freezeWithError("E051");
+				display->freezeWithError("E051");
 				return ERROR_UNSPECIFIED;
 			}
 		}
@@ -941,10 +943,45 @@ trimFoundParamManager:
 }
 
 void Clip::clear(Action* action, ModelStackWithTimelineCounter* modelStack) {
+	//New community feature as part of Automation Clip View Implementation
+	//If this is enabled, then when you are in a regular Instrument Clip View (Synth, Kit, MIDI, CV), clearing a clip
+	//will only clear the Notes and MPE data (NON MPE automations remain intact).
+
+	//If this is enabled, if you want to clear NON MPE automations, you will enter Automation Clip View and clear the clip there.
+
+	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+	    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
+
 	if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
-		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-		    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
-		paramManager.deleteAllAutomation(action, modelStackWithThreeMainThings);
+		ParamCollectionSummary* summary = paramManager.summaries;
+
+		int32_t i = 0;
+
+		while (summary->paramCollection) {
+
+			ModelStackWithParamCollection* modelStackWithParamCollection =
+			    modelStackWithThreeMainThings->addParamCollection(summary->paramCollection, summary);
+
+			// Special case for MPE only - not even "mono" / Clip-level expression.
+			if (i == paramManager.getExpressionParamSetOffset()) {
+				if (getCurrentUI()
+				    != &automationInstrumentClipView) { //don't clear MPE if you're in the Automation View
+					((ExpressionParamSet*)summary->paramCollection)
+					    ->deleteAllAutomation(action, modelStackWithParamCollection);
+				}
+			}
+
+			//Normal case
+			else {
+				if (getCurrentUI() == &automationInstrumentClipView
+				    || runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationClearClip)
+				           == RuntimeFeatureStateToggle::Off) {
+					summary->paramCollection->deleteAllAutomation(action, modelStackWithParamCollection);
+				}
+			}
+			summary++;
+			i++;
+		}
 	}
 }
 

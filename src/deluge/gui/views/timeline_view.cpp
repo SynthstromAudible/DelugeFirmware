@@ -20,8 +20,7 @@
 #include "extern.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
-#include "hid/display/numeric_driver.h"
-#include "hid/display/oled.h"
+#include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
@@ -63,8 +62,8 @@ bool TimelineView::calculateZoomPinSquares(uint32_t oldScroll, uint32_t newScrol
 	return true;
 }
 
-ActionResult TimelineView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
-	using namespace hid::button;
+ActionResult TimelineView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	using namespace deluge::hid::button;
 
 	// Horizontal encoder button
 	if (b == X_ENC) {
@@ -80,7 +79,7 @@ ActionResult TimelineView::buttonAction(hid::Button b, bool on, bool inCardRouti
 		else {
 
 			if (isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
-				numericDriver.cancelPopup();
+				display->cancelPopup();
 				exitUIMode(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON);
 			}
 		}
@@ -125,11 +124,10 @@ void TimelineView::displayZoomLevel(bool justPopup) {
 	char text[30];
 	currentSong->getNoteLengthName(text, currentSong->xZoom[getNavSysId()], true);
 
-	numericDriver.displayPopup(text, justPopup ? 3 : 0, true);
+	display->displayPopup(text, justPopup ? 3 : 0, true);
 }
 
 bool horizontalEncoderActionLock = false;
-extern bool pendingUIRenderingLock;
 
 ActionResult TimelineView::horizontalEncoderAction(int32_t offset) {
 
@@ -240,57 +238,58 @@ void TimelineView::displayNumberOfBarsAndBeats(uint32_t number, uint32_t quantiz
 		whichSubBeat++;
 	}
 
-#if HAVE_OLED
-	char text[15];
-	intToString(whichBar, text);
-	char* pos = strchr(text, 0);
-	*(pos++) = ':';
-	intToString(whichBeat, pos);
-	pos = strchr(pos, 0);
-	*(pos++) = ':';
-	intToString(whichSubBeat, pos);
-	OLED::popupText(text);
-#else
-	char text[5];
-
-	uint8_t dotMask = 0b10000000;
-
-	if (whichBar >= 10000) {
-		strcpy(text, tooLongText);
+	if (display->haveOLED()) {
+		char text[15];
+		intToString(whichBar, text);
+		char* pos = strchr(text, 0);
+		*(pos++) = ':';
+		intToString(whichBeat, pos);
+		pos = strchr(pos, 0);
+		*(pos++) = ':';
+		intToString(whichSubBeat, pos);
+		display->popupTextTemporary(text);
 	}
 	else {
-		strcpy(text, "    ");
+		char text[5];
 
-		if (whichBar < 10) {
-			intToString(whichBar, &text[1]);
+		uint8_t dotMask = 0b10000000;
+
+		if (whichBar >= 10000) {
+			strcpy(text, tooLongText);
 		}
 		else {
-			intToString(whichBar, &text[0]);
-		}
+			strcpy(text, "    ");
 
-		if (whichBar < 100) {
-			dotMask |= 1 << 2;
-
-			if (quantization >= (oneBar >> 2)) {
-				text[2] = ' ';
-				goto putBeatCountOnFarRight;
+			if (whichBar < 10) {
+				intToString(whichBar, &text[1]);
+			}
+			else {
+				intToString(whichBar, &text[0]);
 			}
 
-			intToString(whichBeat, &text[2]);
-			dotMask |= 1 << 1;
+			if (whichBar < 100) {
+				dotMask |= 1 << 2;
 
-			intToString(whichSubBeat, &text[3]);
-		}
-		else if (whichBar < 1000) {
-			dotMask |= 1 << 1;
+				if (quantization >= (oneBar >> 2)) {
+					text[2] = ' ';
+					goto putBeatCountOnFarRight;
+				}
+
+				intToString(whichBeat, &text[2]);
+				dotMask |= 1 << 1;
+
+				intToString(whichSubBeat, &text[3]);
+			}
+			else if (whichBar < 1000) {
+				dotMask |= 1 << 1;
 
 putBeatCountOnFarRight:
-			intToString(whichBeat, &text[3]);
+				intToString(whichBeat, &text[3]);
+			}
 		}
-	}
 
-	numericDriver.displayPopup(text, 3, false, dotMask);
-#endif
+		display->displayPopup(text, 3, false, dotMask);
+	}
 }
 
 // Changes the actual xScroll.

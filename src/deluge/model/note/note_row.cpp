@@ -17,10 +17,11 @@
 
 #include "model/note/note_row.h"
 #include "definitions_cxx.hpp"
+#include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/timeline_view.h"
 #include "gui/views/view.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "io/debug/print.h"
 #include "io/midi/midi_device.h"
 #include "memory/general_memory_allocator.h"
@@ -62,7 +63,7 @@ NoteRow::NoteRow(int16_t newY) {
 	firstOldDrumName = NULL;
 	soundingStatus = STATUS_OFF;
 	skipNextNote = false;
-
+	probabilityValue = kNumProbabilityValues;
 	loopLengthIfIndependent = 0;
 	sequenceDirectionMode = SequenceDirection::OBEY_PARENT;
 }
@@ -1093,7 +1094,7 @@ int32_t NoteRow::editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareW
 	}
 #if ALPHA_OR_BETA_VERSION
 	else if (numToDelete < 0) { // If we overshot somehow
-		numericDriver.freezeWithError("E329");
+		display->freezeWithError("E329");
 	}
 #endif
 
@@ -2058,7 +2059,7 @@ void NoteRow::attemptLateStartOfNextNoteToPlay(ModelStackWithNoteRow* modelStack
 
 	if (timeAgo < 0) { // Gregory J got this. And Vinz
 #if ALPHA_OR_BETA_VERSION
-		numericDriver.displayPopup("E336"); // Popup only
+		display->displayPopup("E336"); // Popup only
 #endif
 		timeAgo = 0; // Just don't crash
 	}
@@ -2965,7 +2966,7 @@ useDefaultLift:
 				if (velocity == 0 || velocity > 127) {
 					velocity = 64;
 				}
-				if ((probability & 127) > (kNumProbabilityValues + 35) || (probability & 127) == 0
+				if ((probability & 127) > (kNumProbabilityValues + kNumIterationValues)
 				    || probability >= (kNumProbabilityValues | 128)) {
 					probability = kNumProbabilityValues;
 				}
@@ -3190,7 +3191,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 
 						// If there also was no RAM...
 						if (!paramManager.containsAnyMainParamCollections()) {
-							numericDriver.freezeWithError("E101");
+							display->freezeWithError("E101");
 						}
 					}
 
@@ -3198,13 +3199,13 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 					else {
 						int32_t error = paramManager.setupWithPatching();
 						if (error) {
-							numericDriver.freezeWithError("E010"); // If there also was no RAM, we're really in trouble.
+							display->freezeWithError("E010"); // If there also was no RAM, we're really in trouble.
 						}
 						Sound::initParams(&paramManager);
 
 						// This is at least not ideal, so we'd better tell the user
 						if (ALPHA_OR_BETA_VERSION) {
-							numericDriver.displayPopup("E073");
+							display->displayPopup("E073");
 						}
 					}
 				}
@@ -3360,33 +3361,115 @@ void NoteRow::shiftHorizontally(int32_t amount, ModelStackWithNoteRow* modelStac
 
 	int32_t effectiveLength = modelStack->getLoopLength();
 
+	//New community feature as part of Automation Clip View Implementation
+	//If this is enabled, then when you are in a regular Instrument Clip View (Synth, Kit, MIDI, CV), shifting a clip
+	//will only shift the Notes and MPE data (NON MPE automations remain intact).
+
+	//If this is enabled, if you want to shift NON MPE automations, you will enter Automation Clip View and shift the clip there.
+
+	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+	    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow();
+
 	if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
-		paramManager.shiftHorizontally(modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow(), amount,
-		                               effectiveLength);
+		ParamCollectionSummary* summary = paramManager.summaries;
+
+		int32_t i = 0;
+
+		while (summary->paramCollection) {
+
+			ModelStackWithParamCollection* modelStackWithParamCollection =
+			    modelStackWithThreeMainThings->addParamCollection(summary->paramCollection, summary);
+
+			// Special case for MPE only - not even "mono" / Clip-level expression.
+			if (i == paramManager.getExpressionParamSetOffset()) {
+				if (getCurrentUI()
+				    != &automationInstrumentClipView) { //don't shift MPE if you're in the automation view
+					((ExpressionParamSet*)summary->paramCollection)
+					    ->shiftHorizontally(modelStackWithParamCollection, amount, effectiveLength);
+				}
+			}
+
+			//Normal case
+			else {
+				//not called from automation view because in the automation view we shift specific parameters, not all parameters
+				if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationShiftClip)
+				    == RuntimeFeatureStateToggle::Off) {
+					summary->paramCollection->shiftHorizontally(modelStackWithParamCollection, amount, effectiveLength);
+				}
+			}
+			summary++;
+			i++;
+		}
 	}
 
-	notes.shiftHorizontal(amount, effectiveLength);
+	//New addition as part of Automation Clip View Implementation
+	//If you are in Automation Clip View, shifting a note row will not shift notes, only NON MPE automations.
+	if (getCurrentUI() != &automationInstrumentClipView) {
+
+		notes.shiftHorizontal(amount, effectiveLength);
+	}
 }
 
 void NoteRow::clear(Action* action, ModelStackWithNoteRow* modelStack) {
+	//New community feature as part of Automation Clip View Implementation
+	//If this is enabled, then when you are in a regular Instrument Clip View (Synth, Kit, MIDI, CV), clearing a clip
+	//will only clear the Notes and MPE data (NON MPE automations remain intact).
+
+	//If this is enabled, if you want to clear NON MPE automations, you will enter Automation Clip View and clear the clip there.
+
+	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+	    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow();
+
 	if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
-		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-		    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow();
-		paramManager.deleteAllAutomation(action, modelStackWithThreeMainThings);
-	}
+		ParamCollectionSummary* summary = paramManager.summaries;
 
-	stopCurrentlyPlayingNote(modelStack);
+		int32_t i = 0;
 
-	if (action) {
-		int32_t error = action->recordNoteArrayChangeIfNotAlreadySnapshotted(
-		    (InstrumentClip*)modelStack->getTimelineCounter(), modelStack->noteRowId, &notes, true); // Steal data
-		if (error) {
-			goto justEmpty;
+		while (summary->paramCollection) {
+
+			ModelStackWithParamCollection* modelStackWithParamCollection =
+			    modelStackWithThreeMainThings->addParamCollection(summary->paramCollection, summary);
+
+			// Special case for MPE only - not even "mono" / Clip-level expression.
+			if (i == paramManager.getExpressionParamSetOffset()) {
+				if (getCurrentUI()
+				    != &automationInstrumentClipView) { //don't clear MPE if you're in the automation view
+					((ExpressionParamSet*)summary->paramCollection)
+					    ->deleteAllAutomation(action, modelStackWithParamCollection);
+				}
+			}
+
+			//Normal case
+			else {
+				if (getCurrentUI() == &automationInstrumentClipView
+				    || runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationClearClip)
+				           == RuntimeFeatureStateToggle::Off) {
+
+					summary->paramCollection->deleteAllAutomation(action, modelStackWithParamCollection);
+				}
+			}
+			summary++;
+			i++;
 		}
 	}
-	else {
+
+	//New addition as part of Automation Clip View Implementation
+	//If you are in Automation Clip View, clearing a kit note row will not clear notes, only NON MPE automations.
+	if (getCurrentUI() != &automationInstrumentClipView) {
+
+		stopCurrentlyPlayingNote(modelStack);
+
+		if (action) {
+			int32_t error = action->recordNoteArrayChangeIfNotAlreadySnapshotted(
+			    (InstrumentClip*)modelStack->getTimelineCounter(), modelStack->noteRowId, &notes, true); // Steal data
+			if (error) {
+				goto justEmpty;
+			}
+		}
+		else {
 justEmpty:
-		notes.empty();
+			notes.empty();
+		}
 	}
 }
 

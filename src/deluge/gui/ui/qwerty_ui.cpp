@@ -19,7 +19,8 @@
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/ui_timer_manager.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
@@ -29,10 +30,6 @@
 #include "util/functions.h"
 #include "util/misc.h"
 #include <string.h>
-
-#if HAVE_OLED
-#include "hid/display/oled.h"
-#endif
 
 bool QwertyUI::predictionInterrupted;
 String QwertyUI::enteredText{};
@@ -102,7 +99,6 @@ void QwertyUI::drawKeys() {
 	}
 }
 
-#if HAVE_OLED
 void QwertyUI::drawTextForOLEDEditing(int32_t xPixel, int32_t xPixelMax, int32_t yPixel, int32_t maxNumChars,
                                       uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 
@@ -124,8 +120,8 @@ void QwertyUI::drawTextForOLEDEditing(int32_t xPixel, int32_t xPixelMax, int32_t
 	maxXScroll = std::max(maxXScroll, 0_i32);
 	scrollPosHorizontal = std::min(scrollPosHorizontal, maxXScroll);
 
-	OLED::drawString(&displayName[scrollPosHorizontal], xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
-	                 kTextSpacingY);
+	deluge::hid::display::OLED::drawString(&displayName[scrollPosHorizontal], xPixel, yPixel, image[0],
+	                                       OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 
 	int32_t hilightStartX = xPixel + kTextSpacingX * (enteredTextEditPos - scrollPosHorizontal);
 	//int32_t hilightEndX = xPixel + TEXT_SIZE_X * (displayStringLength - scrollPosHorizontal);
@@ -136,26 +132,24 @@ void QwertyUI::drawTextForOLEDEditing(int32_t xPixel, int32_t xPixelMax, int32_t
 		if (getCurrentUI() == this) {
 			int32_t cursorStartX = xPixel + (displayStringLength - scrollPosHorizontal) * kTextSpacingX;
 			int32_t textBottomY = yPixel + kTextSpacingY;
-			OLED::setupBlink(cursorStartX, kTextSpacingX, textBottomY - 4, textBottomY - 2, true);
+			deluge::hid::display::OLED::setupBlink(cursorStartX, kTextSpacingX, textBottomY - 4, textBottomY - 2, true);
 		}
 	}
 	else {
-		OLED::invertArea(hilightStartX, hilightWidth, yPixel, yPixel + kTextSpacingY - 1, image);
+		deluge::hid::display::OLED::invertArea(hilightStartX, hilightWidth, yPixel, yPixel + kTextSpacingY - 1, image);
 	}
 }
 
-#else
 void QwertyUI::displayText(bool blinkImmediately) {
 
 	int32_t totalTextLength = enteredText.getLength();
 
 	bool encodedEditPosAndAHalf;
 	int32_t encodedEditPos =
-	    numericDriver.getEncodedPosFromLeft(enteredTextEditPos, enteredText.get(), &encodedEditPosAndAHalf);
+	    display->getEncodedPosFromLeft(enteredTextEditPos, enteredText.get(), &encodedEditPosAndAHalf);
 
 	bool encodedEndPosAndAHalf;
-	int32_t encodedEndPos =
-	    numericDriver.getEncodedPosFromLeft(totalTextLength, enteredText.get(), &encodedEndPosAndAHalf);
+	int32_t encodedEndPos = display->getEncodedPosFromLeft(totalTextLength, enteredText.get(), &encodedEndPosAndAHalf);
 
 	int32_t scrollPos = encodedEditPos - (kNumericDisplayLength >> 1) + encodedEditPosAndAHalf;
 	int32_t maxScrollPos = encodedEndPos - kNumericDisplayLength;
@@ -172,7 +166,7 @@ void QwertyUI::displayText(bool blinkImmediately) {
 	memset(encodedAddition, 0, kNumericDisplayLength);
 	if (totalTextLength == enteredTextEditPos || enteredText.get()[enteredTextEditPos] == ' ') {
 		if (ALPHA_OR_BETA_VERSION && (editPosOnscreen < 0 || editPosOnscreen >= kNumericDisplayLength)) {
-			numericDriver.freezeWithError("E292");
+			display->freezeWithError("E292");
 		}
 		encodedAddition[editPosOnscreen] = 0x08;
 		encodedEditPosAndAHalf =
@@ -195,10 +189,8 @@ void QwertyUI::displayText(bool blinkImmediately) {
 	indicator_leds::ledBlinkTimeout(0, true, !blinkImmediately);
 
 	// Set the text, replacing the bottom layer - cos in some cases, we want this to slip under an existing loading animation layer
-	numericDriver.setText(enteredText.get(), false, 255, true, blinkMask, false, false, scrollPos, encodedAddition,
-	                      false);
+	display->setText(enteredText.get(), false, 255, true, blinkMask, false, false, scrollPos, encodedAddition, false);
 }
-#endif
 
 const char keyboardChars[][5][11] = {{
                                          {'1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-'},
@@ -372,7 +364,7 @@ ActionResult QwertyUI::padAction(int32_t x, int32_t y, int32_t on) {
 						int32_t error = enteredText.concatenateAtPos(stringToConcat, enteredTextEditPos);
 
 						if (error) {
-							numericDriver.displayError(error);
+							display->displayError(error);
 							return ActionResult::DEALT_WITH;
 						}
 
@@ -438,7 +430,7 @@ doDisplayText:
 ActionResult QwertyUI::timerCallback() {
 	if (currentUIMode == UI_MODE_HOLDING_BACKSPACE) {
 		processBackspace();
-		uiTimerManager.setTimer(TIMER_UI_SPECIFIC, HAVE_OLED ? 80 : 125);
+		uiTimerManager.setTimer(TIMER_UI_SPECIFIC, display->haveOLED() ? 80 : 125);
 	}
 
 	return ActionResult::DEALT_WITH;

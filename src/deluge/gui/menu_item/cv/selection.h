@@ -15,45 +15,46 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "gui/menu_item/selection/selection.h"
+#include "fmt/core.h"
+#include "gui/l10n/l10n.h"
+#include "gui/menu_item/cv/submenu.h"
+#include "gui/menu_item/selection.h"
 #include "gui/menu_item/submenu.h"
 #include "gui/ui/sound_editor.h"
 #include "transpose.h"
 #include "volts.h"
+#include <ranges>
 
 extern void setCvNumberForTitle(int32_t m);
-extern deluge::gui::menu_item::Submenu<2> cvSubmenu;
+extern deluge::gui::menu_item::cv::Submenu cvSubmenu;
 
 namespace deluge::gui::menu_item::cv {
 class Selection final : public menu_item::Selection<2> {
 public:
-	using menu_item::Selection<2>::Selection;
+	using menu_item::Selection<capacity()>::Selection;
 
 	void beginSession(MenuItem* navigatedBackwardFrom) override {
 		if (navigatedBackwardFrom == nullptr) {
-			this->value_ = 0;
+			this->setValue(0);
 		}
 		else {
-			this->value_ = soundEditor.currentSourceIndex;
+			this->setValue(soundEditor.currentSourceIndex);
 		}
 		menu_item::Selection<2>::beginSession(navigatedBackwardFrom);
 	}
 
 	MenuItem* selectButtonPress() override {
-		soundEditor.currentSourceIndex = this->value_;
-#if HAVE_OLED
-		cvSubmenu.title = getOptions().at(this->value_);
-		setCvNumberForTitle(this->value_);
-#endif
+		soundEditor.currentSourceIndex = this->getValue();
+		setCvNumberForTitle(this->getValue());
 		return &cvSubmenu;
 	}
 
-	static_vector<string, capacity()> getOptions() override {
-#if HAVE_OLED
-		return {"CV output 1", "CV output 2"};
-#else
-		return {"Out1", "Out2"};
-#endif
+	static_vector<std::string_view, capacity()> getOptions() override {
+		using enum l10n::String;
+		static auto cv1 = fmt::vformat(l10n::getView(STRING_FOR_CV_OUTPUT_N), fmt::make_format_args(1));
+		static auto cv2 = fmt::vformat(l10n::getView(STRING_FOR_CV_OUTPUT_N), fmt::make_format_args(2));
+
+		return {cv1, cv2};
 	}
 };
 } // namespace deluge::gui::menu_item::cv

@@ -22,10 +22,10 @@
 namespace deluge::gui::menu_item::osc::source {
 class Feedback final : public menu_item::source::PatchedParam, public FormattedTitle {
 public:
-	Feedback(const string& name, const string& title_format_str, int32_t newP)
+	Feedback(l10n::String name, l10n::String title_format_str, int32_t newP)
 	    : PatchedParam(name, newP), FormattedTitle(title_format_str) {}
 
-	[[nodiscard]] const string& getTitle() const override { return FormattedTitle::title(); }
+	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
 	bool isRelevant(Sound* sound, int32_t whichThing) override { return (sound->getSynthMode() == SynthMode::FM); }
 };

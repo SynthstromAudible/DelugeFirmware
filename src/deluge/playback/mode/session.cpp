@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/audio_recorder.h"
 #include "gui/views/arranger_view.h"
+#include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -41,7 +42,7 @@
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/views/audio_clip_view.h"
 #include "hid/buttons.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "model/clip/audio_clip.h"
 #include "model/model_stack.h"
 #include "playback/mode/arrangement.h"
@@ -608,16 +609,17 @@ void Session::cancelAllLaunchScheduling() {
 void Session::launchSchedulingMightNeedCancelling() {
 	if (!preLoadedSong && !areAnyClipsArmed()) {
 		cancelAllLaunchScheduling();
-#if HAVE_OLED
-		if (getCurrentUI() == &loadSongUI) {
-			loadSongUI.displayLoopsRemainingPopup(); // Wait, could this happen?
+		if (display->haveOLED()) {
+			if (getCurrentUI() == &loadSongUI) {
+				loadSongUI.displayLoopsRemainingPopup(); // Wait, could this happen?
+			}
+			else if (getRootUI() == &sessionView && !isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
+				renderUIsForOled();
+			}
 		}
-		else if (getRootUI() == &sessionView && !isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
-			renderUIsForOled();
+		else {
+			sessionView.redrawNumericDisplay();
 		}
-#else
-		sessionView.redrawNumericDisplay();
-#endif
 	}
 }
 
@@ -894,7 +896,12 @@ void Session::toggleClipStatus(Clip* clip, int32_t* clipIndex, bool doInstant, i
 
 							sessionView.clipNeedsReRendering(clip);
 							if (currentSong->currentClip) {
-								uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+								if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+									uiNeedsRendering(&automationInstrumentClipView, 0xFFFFFFFF, 0);
+								}
+								else {
+									uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+								}
 							}
 						}
 
@@ -1071,14 +1078,15 @@ void Session::armingChanged() {
 	if (getRootUI() == &sessionView) {
 		uiNeedsRendering(&sessionView, 0, 0xFFFFFFFF); // Only need the mute pads
 		if (getCurrentUI()->canSeeViewUnderneath()) {
-#if HAVE_OLED
-			if (!isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)
-			    && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
-				renderUIsForOled();
+			if (display->haveOLED()) {
+				if (!isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)
+				    && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
+					renderUIsForOled();
+				}
 			}
-#else
-			sessionView.redrawNumericDisplay();
-#endif
+			else {
+				sessionView.redrawNumericDisplay();
+			}
 probablyDoFlashPlayEnable:
 			if (hasPlaybackActive()) {
 				view.flashPlayEnable();
@@ -1647,7 +1655,7 @@ int32_t Session::getCurrentSection() {
 		}
 		else {
 			if (ALPHA_OR_BETA_VERSION && clip->section > kMaxNumSections) {
-				numericDriver.freezeWithError("E243");
+				display->freezeWithError("E243");
 			}
 			anyUnlaunchedLoopablesInSection[clip->section] = true;
 		}
@@ -1955,16 +1963,17 @@ traverseClips:
 		// Or if repeats do remain, just go onto the next one
 		else {
 			launchEventAtSwungTickCount = playbackHandler.lastSwungTickActioned + currentArmedLaunchLengthForOneRepeat;
-#if HAVE_OLED
-			if (getCurrentUI() == &loadSongUI) {
-				loadSongUI.displayLoopsRemainingPopup();
+			if (display->haveOLED()) {
+				if (getCurrentUI() == &loadSongUI) {
+					loadSongUI.displayLoopsRemainingPopup();
+				}
+				else if (getRootUI() == &sessionView && !isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
+					renderUIsForOled();
+				}
 			}
-			else if (getRootUI() == &sessionView && !isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
-				renderUIsForOled();
+			else {
+				sessionView.redrawNumericDisplay();
 			}
-#else
-			sessionView.redrawNumericDisplay();
-#endif
 		}
 	}
 

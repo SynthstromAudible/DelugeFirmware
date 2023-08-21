@@ -24,15 +24,11 @@ namespace deluge::gui::menu_item {
 class Number : public Value<int32_t> {
 public:
 	using Value::Value;
-#if HAVE_OLED
 	void drawBar(int32_t yTop, int32_t marginL, int32_t marginR = -1);
-#endif
 
 protected:
 	[[nodiscard]] virtual int32_t getMaxValue() const = 0;
-	[[nodiscard]] virtual int32_t getMinValue() const {
-		return 0;
-	}
+	[[nodiscard]] virtual int32_t getMinValue() const { return 0; }
 };
 
 } // namespace deluge::gui::menu_item

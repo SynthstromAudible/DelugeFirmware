@@ -1,22 +1,21 @@
 #pragma once
+#include "gui/l10n/l10n.h"
 #include <fmt/core.h>
 #include <utility>
 
-#include "util/string.h"
+namespace deluge::gui::menu_item {
 
 // Mixin for a formatted title
 class FormattedTitle {
 public:
-	FormattedTitle(deluge::string format_str) : format_str_(std::move(format_str)) {}
+	FormattedTitle(l10n::String format_str) : format_str_(format_str) {}
 
-	template <class... Args>
-	void format(Args&&... args) {
-		title_ = fmt::format(fmt::runtime(format_str_), args...);
-	}
+	void format(int32_t arg) { title_ = fmt::vformat(l10n::getView(format_str_), fmt::make_format_args(arg)); }
 
-	[[nodiscard]] const deluge::string& title() const { return title_; }
+	[[nodiscard]] std::string_view title() const { return title_; }
 
 private:
-	deluge::string format_str_;
-	deluge::string title_;
+	l10n::String format_str_;
+	std::string title_;
 };
+} // namespace deluge::gui::menu_item

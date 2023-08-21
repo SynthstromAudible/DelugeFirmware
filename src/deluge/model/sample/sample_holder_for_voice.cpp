@@ -16,7 +16,7 @@
  */
 
 #include "model/sample/sample_holder_for_voice.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "model/sample/sample.h"
 #include "processing/source.h"
 #include "storage/audio/audio_file_manager.h"
@@ -67,7 +67,7 @@ void SampleHolderForVoice::claimClusterReasons(bool reversed, int32_t clusterLoa
 
 #if ALPHA_OR_BETA_VERSION
 	if (!audioFile) {
-		numericDriver.freezeWithError("i030"); // Trying to narrow down E368 that Kevin F got
+		display->freezeWithError("i030"); // Trying to narrow down E368 that Kevin F got
 	}
 #endif
 
@@ -160,7 +160,7 @@ void SampleHolderForVoice::setTransposeAccordingToSamplePitch(bool minimizeOctav
 
 void SampleHolderForVoice::sampleBeenSet(bool reversed, bool manuallySelected) {
 
-	neutralPhaseIncrement = ((uint64_t)((Sample*)audioFile)->sampleRate << 24) / 44100;
+	neutralPhaseIncrement = ((uint64_t)((Sample*)audioFile)->sampleRate << 24) / kSampleRate;
 
 	uint32_t lengthInSamples = ((Sample*)audioFile)->lengthInSamples;
 

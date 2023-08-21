@@ -18,6 +18,7 @@
 #pragma once
 
 #include "gui/context_menu/context_menu.h"
+#include "gui/l10n/l10n.h"
 
 class AudioOutput;
 

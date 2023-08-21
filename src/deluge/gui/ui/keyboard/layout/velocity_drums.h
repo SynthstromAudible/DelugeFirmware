@@ -27,18 +27,18 @@ constexpr int32_t kMaxDrumPadEdgeSize = 8;
 class KeyboardLayoutVelocityDrums : KeyboardLayout {
 public:
 	KeyboardLayoutVelocityDrums() {}
-	virtual ~KeyboardLayoutVelocityDrums() {}
+	~KeyboardLayoutVelocityDrums() override {}
 
-	virtual void evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]);
-	virtual void handleVerticalEncoder(int32_t offset);
-	virtual void handleHorizontalEncoder(int32_t offset, bool shiftEnabled);
-	virtual void precalculate();
+	void evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) override;
+	void handleVerticalEncoder(int32_t offset) override;
+	void handleHorizontalEncoder(int32_t offset, bool shiftEnabled) override;
+	void precalculate() override;
 
-	virtual void renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]);
+	void renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) override;
 
-	virtual char* name() { return "Drums"; }
-	virtual bool supportsInstrument() { return false; }
-	virtual bool supportsKit() { return true; }
+	char const* name() override { return "Drums"; }
+	bool supportsInstrument() override { return false; }
+	bool supportsKit() override { return true; }
 
 private:
 	inline uint8_t noteFromCoords(int32_t x, int32_t y) {

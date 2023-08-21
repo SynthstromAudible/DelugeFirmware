@@ -17,7 +17,7 @@
 
 #include "unpatched_param.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
@@ -31,10 +31,10 @@ extern "C" {
 namespace deluge::gui::menu_item {
 
 void UnpatchedParam::readCurrentValue() {
-	this->value_ =
+	this->setValue(
 	    (((int64_t)soundEditor.currentParamManager->getUnpatchedParamSet()->getValue(getP()) + 2147483648) * 50
 	     + 2147483648)
-	    >> 32;
+	    >> 32);
 }
 
 ModelStackWithAutoParam* UnpatchedParam::getModelStack(void* memory) {
@@ -52,11 +52,11 @@ void UnpatchedParam::writeCurrentValue() {
 }
 
 int32_t UnpatchedParam::getFinalValue() {
-	if (this->value_ == 25) {
+	if (this->getValue() == 25) {
 		return 0;
 	}
 	else {
-		return (uint32_t)this->value_ * 85899345 - 2147483648;
+		return (uint32_t)this->getValue() * 85899345 - 2147483648;
 	}
 }
 

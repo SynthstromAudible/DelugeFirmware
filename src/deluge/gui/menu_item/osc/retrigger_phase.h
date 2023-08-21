@@ -18,16 +18,16 @@
 #include "gui/menu_item/decimal.h"
 #include "gui/menu_item/formatted_title.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/oled.h"
+#include "hid/display/display.h"
 #include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::osc {
 class RetriggerPhase final : public Decimal, public FormattedTitle {
 public:
-	RetriggerPhase(const string& newName, const deluge::string& title, bool newForModulator = false)
-	    : Decimal(newName), FormattedTitle(title), forModulator(newForModulator) {}
+	RetriggerPhase(l10n::String newName, l10n::String title_format_str, bool newForModulator = false)
+	    : Decimal(newName), FormattedTitle(title_format_str), forModulator(newForModulator) {}
 
-	[[nodiscard]] const string& getTitle() const override { return FormattedTitle::title(); }
+	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
 	[[nodiscard]] int32_t getMinValue() const override { return -soundEditor.numberEditSize; }
 	[[nodiscard]] int32_t getMaxValue() const override { return 360; }
@@ -37,46 +37,46 @@ public:
 	void readCurrentValue() override {
 		uint32_t value = *getValueAddress();
 		if (value == 0xFFFFFFFF) {
-			this->value_ = -soundEditor.numberEditSize;
+			this->setValue(-soundEditor.numberEditSize);
 		}
 		else {
-			this->value_ = value / 11930464;
+			this->setValue(value / 11930464);
 		}
 	}
 
 	void writeCurrentValue() override {
 		uint32_t value;
-		if (this->value_ < 0) {
+		if (this->getValue() < 0) {
 			value = 0xFFFFFFFF;
 		}
 		else {
-			value = this->value_ * 11930464;
+			value = this->getValue() * 11930464;
 		}
 		*getValueAddress() = value;
 	}
 
 	void drawValue() override {
-		if (this->value_ < 0) {
-			numericDriver.setText("OFF", false, 255, true);
+		if (this->getValue() < 0) {
+			display->setText(l10n::get(l10n::String::STRING_FOR_DISABLED), false, 255, true);
 		}
 		else {
 			Decimal::drawValue();
 		}
 	}
 
-#if HAVE_OLED
 	void drawPixelsForOled() override {
-		if (this->value_ < 0) {
-			OLED::drawStringCentred("OFF", 20, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextHugeSpacingX,
-			                        kTextHugeSizeY);
+		if (this->getValue() < 0) {
+			deluge::hid::display::OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_DISABLED), 20,
+			                                              deluge::hid::display::OLED::oledMainImage[0],
+			                                              OLED_MAIN_WIDTH_PIXELS, kTextHugeSpacingX, kTextHugeSizeY);
 		}
 		else {
 			Decimal::drawPixelsForOled();
 		}
 	}
-#endif
+
 	void horizontalEncoderAction(int32_t offset) override {
-		if (this->value_ >= 0) {
+		if (this->getValue() >= 0) {
 			Decimal::horizontalEncoderAction(offset);
 		}
 	}

@@ -19,8 +19,8 @@
 #include "arm_neon.h"
 #include "definitions_cxx.hpp"
 #include "dsp/filter/filter_set.h"
-#include "dsp/filter/filter_set_config.h"
 #include "dsp/timestretch/time_stretcher.h"
+#include "dsp/util.h"
 #include "gui/waveform/waveform_renderer.h"
 #include "io/debug/print.h"
 #include "memory/general_memory_allocator.h"
@@ -167,8 +167,7 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArp
 		overallOscAmplitudeLastTime = 0;
 		doneFirstRender = false;
 
-		filterSets[0].reset();
-		filterSets[1].reset();
+		filterSet.reset();
 
 		lastSaturationTanHWorkingValue[0] = 2147483648;
 		lastSaturationTanHWorkingValue[1] = 2147483648;
@@ -670,8 +669,8 @@ bool Voice::sampleZoneChanged(ModelStackWithVoice* modelStack, int32_t s, Marker
 
 // Returns false if became inactive and needs unassigning
 bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int32_t numSamples,
-                   bool soundRenderingInStereo, bool applyingPanAtVoiceLevel, uint32_t sourcesChanged,
-                   FilterSetConfig* filterSetConfig, int32_t externalPitchAdjust) {
+                   bool soundRenderingInStereo, bool applyingPanAtVoiceLevel, uint32_t sourcesChanged, bool doLPF,
+                   bool doHPF, int32_t externalPitchAdjust) {
 
 	GeneralMemoryAllocator::get().checkStack("Voice::render");
 
@@ -926,15 +925,13 @@ skipAutoRelease : {}
 	int32_t filterGain;
 
 	// Prepare the filters
-	if (sound->hasFilters()) {
-
-		filterGain = filterSetConfig->init(
-		    paramFinalValues[Param::Local::LPF_FREQ], paramFinalValues[Param::Local::LPF_RESONANCE],
-		    paramFinalValues[Param::Local::HPF_FREQ],
-		    (paramFinalValues[Param::Local::HPF_RESONANCE]), // >> storageManager.devVarA) << storageManager.devVarA,
-		    sound->lpfMode,
-		    sound->volumeNeutralValueForUnison << 1); // Level adjustment for unison now happens *before* the filter!
-	}
+	// Checking if filters should run now happens within the filterset
+	filterGain = filterSet.setConfig(
+	    paramFinalValues[Param::Local::LPF_FREQ], paramFinalValues[Param::Local::LPF_RESONANCE], doLPF, sound->lpfMode,
+	    paramFinalValues[Param::Local::LPF_MORPH], paramFinalValues[Param::Local::HPF_FREQ],
+	    (paramFinalValues[Param::Local::HPF_RESONANCE]), // >> storageManager.devVarA) << storageManager.devVarA,
+	    doHPF, sound->hpfMode, paramFinalValues[Param::Local::HPF_MORPH], sound->volumeNeutralValueForUnison << 1,
+	    sound->filterRoute); // Level adjustment for unison now happens *before* the filter!
 
 	SynthMode synthMode = sound->getSynthMode();
 
@@ -1055,16 +1052,16 @@ skipAutoRelease : {}
 	               RINGMOD // We could make this one work - but currently the ringmod rendering code doesn't really have
 	    // proper amplitude control - e.g. no increments - built in, so we rely on the normal final
 	    // buffer-copying bit for that
-	    || filterSetConfig->doHPF || filterSetConfig->doLPF
+	    || filterSet.isHPFOn() || filterSet.isLPFOn()
 	    || (paramFinalValues[Param::Local::NOISE_VOLUME] != 0
 	        && synthMode != SynthMode::FM) // Not essential, but makes life easier
-	    || paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(Param::Local::PAN)) {
+	    || paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(Param::Local::PAN)
+	    || (paramFinalValues[Param::Local::FOLD] != NEGATIVE_ONE_Q31)) {
 		renderingDirectlyIntoSoundBuffer = false;
 	}
 
 	// Otherwise, we need to think about whether we're rendering the same number of channels as the Sound
 	else {
-
 		if (synthMode == SynthMode::SUBTRACTIVE) {
 
 			for (int32_t s = 0; s < kNumSources; s++) {
@@ -1172,7 +1169,6 @@ decidedWhichBufferRenderingInto:
 
 	// Normal mode: subtractive / samples. We do each source first, for all unison
 	if (synthMode == SynthMode::SUBTRACTIVE) {
-
 		bool unisonPartBecameInactive = false;
 
 		uint32_t oscSyncPhaseIncrement[kMaxNumVoicesUnison];
@@ -1252,7 +1248,7 @@ decidedWhichBufferRenderingInto:
 		if (unisonPartBecameInactive && areAllUnisonPartsInactive(modelStack)) {
 
 			// If no filters, we can just unassign
-			if (!filterSetConfig->doHPF && !filterSetConfig->doLPF) {
+			if (!filterSet.isOn()) {
 				unassignVoiceAfter = true;
 			}
 
@@ -1267,7 +1263,6 @@ decidedWhichBufferRenderingInto:
 
 	// Otherwise (FM and ringmod) we go through each unison first, and for each one we render both sources together
 	else {
-
 		if (stereoUnison) {
 			// oscBuffer is always a stereo temp buffer
 			didStereoTempBuffer = true;
@@ -1500,10 +1495,12 @@ skipUnisonPart : {}
 	if (!renderingDirectlyIntoSoundBuffer) {
 		if (didStereoTempBuffer) {
 			int32_t* const oscBufferEnd = oscBuffer + (numSamples << 1);
-
+			//fold
+			if (paramFinalValues[Param::Local::FOLD] > 0) {
+				dsp::foldBuffer(oscBuffer, oscBufferEnd, paramFinalValues[Param::Local::FOLD]);
+			}
 			// Filters
-			filterSets[0].renderLong(oscBuffer, oscBufferEnd, filterSetConfig, sound->lpfMode, numSamples, 2);
-			filterSets[1].renderLong(oscBuffer + 1, oscBufferEnd, filterSetConfig, sound->lpfMode, numSamples, 2);
+			filterSet.renderLongStereo(oscBuffer, oscBufferEnd);
 
 			// No clipping
 			if (!sound->clippingAmount) {
@@ -1579,11 +1576,17 @@ skipUnisonPart : {}
 			*/
 
 			int32_t* const oscBufferEnd = oscBuffer + numSamples;
-			filterSets[0].renderLong(oscBuffer, oscBufferEnd, filterSetConfig, sound->lpfMode, numSamples);
+			//wavefolding pre filter
+			if (paramFinalValues[Param::Local::FOLD] > 0) {
+				q31_t foldAmount = paramFinalValues[Param::Local::FOLD];
+
+				dsp::foldBufferPolyApproximation(oscBuffer, oscBufferEnd, foldAmount);
+			}
+
+			filterSet.renderLong(oscBuffer, oscBufferEnd, numSamples);
 
 			// No clipping
 			if (!sound->clippingAmount) {
-
 				int32_t const* __restrict__ oscBufferPos = oscBuffer; // For traversal
 				int32_t* __restrict__ outputSample = soundBuffer;
 				int32_t overallOscAmplitudeNow = overallOscAmplitudeLastTime;
@@ -1614,7 +1617,6 @@ skipUnisonPart : {}
 
 			// Yes clipping
 			else {
-
 				int32_t const* __restrict__ oscBufferPos = oscBuffer; // For traversal
 				int32_t* __restrict__ outputSample = soundBuffer;
 				int32_t overallOscAmplitudeNow = overallOscAmplitudeLastTime;
@@ -2011,7 +2013,7 @@ void Voice::renderBasicSource(Sound* sound, ParamManagerForTimeline* paramManage
 instantUnassign:
 
 #ifdef TEST_SAMPLE_LOOP_POINTS
-			numericDriver.freezeWithError("YEP");
+			display->freezeWithError("YEP");
 #endif
 
 			*unisonPartBecameInactive = true;

@@ -27,19 +27,19 @@ constexpr int32_t kMaxInKeyRowInterval = 16;
 class KeyboardLayoutInKey : public KeyboardLayout {
 public:
 	KeyboardLayoutInKey() {}
-	virtual ~KeyboardLayoutInKey() {}
+	~KeyboardLayoutInKey() override {}
 
-	virtual void evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]);
-	virtual void handleVerticalEncoder(int32_t offset);
-	virtual void handleHorizontalEncoder(int32_t offset, bool shiftEnabled);
-	virtual void precalculate();
+	void evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) override;
+	void handleVerticalEncoder(int32_t offset) override;
+	void handleHorizontalEncoder(int32_t offset, bool shiftEnabled) override;
+	void precalculate() override;
 
-	virtual void renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]);
+	void renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) override;
 
-	virtual char* name() { return "In-Key"; }
-	virtual bool supportsInstrument() { return true; }
-	virtual bool supportsKit() { return false; }
-	virtual RequiredScaleMode requiredScaleMode() { return RequiredScaleMode::Enabled; }
+	char const* name() override { return "In-Key"; }
+	bool supportsInstrument() override { return true; }
+	bool supportsKit() override { return false; }
+	RequiredScaleMode requiredScaleMode() override { return RequiredScaleMode::Enabled; }
 
 private:
 	inline uint16_t noteFromCoords(int32_t x, int32_t y) { return noteFromPadIndex(padIndexFromCoords(x, y)); }
@@ -71,7 +71,7 @@ private:
 		}
 		int32_t octave = (((note + kOctaveSize) - rootNote) / kOctaveSize) - 1;
 		// Make sure we don't go into negative because our root note is lower than C-2
-		return std::max<uint16_t>(0, octave * scaleNoteCount + padScaleOffset);
+		return std::max<int32_t>(octave * scaleNoteCount + padScaleOffset, std::numeric_limits<uint16_t>::min());
 	}
 
 	// inline uint16_t padIndexFromNote(uint16_t note) {

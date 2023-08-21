@@ -15,33 +15,23 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "deluge.h"
+#include "NE10.h"
 #include "RZA1/system/iodefine.h"
 #include "definitions_cxx.hpp"
-#include "gui/context_menu/clear_song.h"
-#include "gui/context_menu/sample_browser/kit.h"
-#include "gui/context_menu/sample_browser/synth.h"
-#include "gui/ui/browser/sample_browser.h"
-#include "gui/views/arranger_view.h"
-#include "gui/views/instrument_clip_view.h"
-#include "hid/led/pad_leds.h"
-#include "model/clip/instrument_clip_minder.h"
-#include "modulation/params/param_manager.h"
-#include "processing/engines/audio_engine.h"
-#include "storage/audio/audio_file_manager.h"
-
-#include <new>
-#include <stdlib.h>
-
-#include "NE10.h"
-#include "deluge.h"
+#include "drivers/pic/pic.h"
 #include "dsp/stereo_sample.h"
 #include "gui/context_menu/audio_input_selector.h"
+#include "gui/context_menu/clear_song.h"
 #include "gui/context_menu/delete_file.h"
 #include "gui/context_menu/load_instrument_preset.h"
 #include "gui/context_menu/overwrite_bootloader.h"
 #include "gui/context_menu/overwrite_file.h"
+#include "gui/context_menu/sample_browser/kit.h"
+#include "gui/context_menu/sample_browser/synth.h"
 #include "gui/context_menu/save_song_or_instrument.h"
 #include "gui/ui/audio_recorder.h"
+#include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/load/load_song_ui.h"
@@ -54,17 +44,21 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
+#include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
+#include "gui/views/automation_instrument_clip_view.h"
+#include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "gui/waveform/waveform_basic_navigator.h"
 #include "gui/waveform/waveform_renderer.h"
 #include "hid/buttons.h"
-#include "hid/display/numeric_driver.h"
-#include "hid/display/oled.h"
+#include "hid/display/display.h"
+#include "hid/display/seven_segment.h"
 #include "hid/encoder.h"
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
+#include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "io/debug/print.h"
 #include "io/midi/midi_device_manager.h"
@@ -72,18 +66,26 @@
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
+#include "model/clip/instrument_clip_minder.h"
 #include "model/note/note.h"
 #include "model/output.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
+#include "modulation/params/param_manager.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
+#include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
+#include "storage/audio/audio_file_manager.h"
 #include "storage/file_item.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
 #include "testing/hardware_testing.h"
 #include "util/container/hashtable/open_addressing_hash_table.h"
+#include "util/misc.h"
+#include "util/pack.h"
+#include <new>
+#include <stdlib.h>
 #include <string.h>
 
 #if AUTOMATED_TESTER_ENABLED
@@ -149,17 +151,17 @@ void inputRoutine() {
 	disk_timerproc(UI_MS_PER_REFRESH);
 
 	// Check if mono output cable plugged in
-	bool outputPluggedInL = readInput(LINE_OUT_DETECT_L.port, LINE_OUT_DETECT_L.pin);
-	bool outputPluggedInR = readInput(LINE_OUT_DETECT_R.port, LINE_OUT_DETECT_R.pin);
+	bool outputPluggedInL = readInput(LINE_OUT_DETECT_L.port, LINE_OUT_DETECT_L.pin) != 0u;
+	bool outputPluggedInR = readInput(LINE_OUT_DETECT_R.port, LINE_OUT_DETECT_R.pin) != 0u;
 
-	bool headphoneNow = readInput(HEADPHONE_DETECT.port, HEADPHONE_DETECT.pin);
+	bool headphoneNow = readInput(HEADPHONE_DETECT.port, HEADPHONE_DETECT.pin) != 0u;
 	if (headphoneNow != AudioEngine::headphonesPluggedIn) {
 		Debug::print("headphone ");
 		Debug::println(headphoneNow);
 		AudioEngine::headphonesPluggedIn = headphoneNow;
 	}
 
-	bool micNow = !readInput(7, 9);
+	bool micNow = readInput(MIC_DETECT.port, MIC_DETECT.pin) == 0u;
 	if (micNow != AudioEngine::micPluggedIn) {
 		Debug::print("mic ");
 		Debug::println(micNow);
@@ -174,7 +176,7 @@ void inputRoutine() {
 	AudioEngine::renderInStereo =
 	    (AudioEngine::headphonesPluggedIn || outputPluggedInR || AudioEngine::isAnyInternalRecordingHappening());
 
-	bool lineInNow = readInput(6, 6);
+	bool lineInNow = readInput(LINE_IN_DETECT.port, LINE_IN_DETECT.pin) != 0u;
 	if (lineInNow != AudioEngine::lineInPluggedIn) {
 		Debug::print("line in ");
 		Debug::println(lineInNow);
@@ -190,9 +192,9 @@ void inputRoutine() {
 		int32_t voltageReading = numericReading * 3300;
 		int32_t distanceToGo = voltageReading - voltageReadingLastTime;
 		voltageReadingLastTime += distanceToGo >> 4;
-		batteryMV =
-		    (voltageReadingLastTime)
-		    >> 15; // We only >> by 15 so that we intentionally double the value, because the incoming voltage is halved by a resistive divider already
+
+		// We only >> by 15 so that we intentionally double the value, because the incoming voltage is halved by a resistive divider already
+		batteryMV = (voltageReadingLastTime) >> 15;
 		//Debug::print("batt mV: ");
 		//Debug::println(batteryMV);
 
@@ -242,7 +244,8 @@ extern uint8_t anythingInitiallyAttachedAsUSBHost;
 bool closedPeripheral = false;
 
 extern "C" {
-uint32_t timeUSBInitializationEnds = 44100;
+/// Wait for one second
+uint32_t timeUSBInitializationEnds = kSampleRate;
 uint8_t usbInitializationPeriodComplete = 0;
 
 void setTimeUSBInitializationEnds(int32_t timeFromNow) {
@@ -279,10 +282,8 @@ bool readButtonsAndPads() {
 		if (sdRoutineLock) {
 			return false;
 		}
-		else {
-			Debug::println("got to end of sd routine");
-			waitingForSDRoutineToEnd = false;
-		}
+		Debug::println("got to end of sd routine");
+		waitingForSDRoutineToEnd = false;
 	}
 
 #if SD_TEST_MODE_ENABLED_SAVE_SONGS
@@ -301,12 +302,12 @@ bool readButtonsAndPads() {
 
 			Debug::println("");
 			Debug::println("undoing");
-			Buttons::buttonAction(hid::button::BACK, true, sdRoutineLock);
+			Buttons::buttonAction(deluge::hid::button::BACK, true, sdRoutineLock);
 		}
 		else {
 			Debug::println("");
 			Debug::println("beginning playback");
-			Buttons::buttonAction(hid::button::PLAY, true, sdRoutineLock);
+			Buttons::buttonAction(deluge::hid::button::PLAY, true, sdRoutineLock);
 		}
 
 		int32_t random = getRandom255();
@@ -315,25 +316,25 @@ bool readButtonsAndPads() {
 	}
 #endif
 
-	PICMessage value{0};
+	PIC::Response value{0};
 	bool anything = uartGetChar(UART_ITEM_PIC, (char*)&value);
 	if (anything) {
 
-		if (value < kPadAndButtonMessagesEnd) {
+		if (value < PIC::kPadAndButtonMessagesEnd) {
 
 			int32_t thisPadPressIsOn = nextPadPressIsOn;
 			nextPadPressIsOn = USE_DEFAULT_VELOCITY;
 
 			ActionResult result;
-			if (Pad::isPad(value)) {
-				auto p = Pad(value);
+			if (Pad::isPad(util::to_underlying(value))) {
+				auto p = Pad(util::to_underlying(value));
 				result = matrixDriver.padAction(p.x, p.y, thisPadPressIsOn);
 				/* while this function takes an int32_t for velocity, 255 indicates to the downstream audition pad
 				 * function that it should use the default velocity for the instrument
 				 */
 			}
 			else {
-				auto b = hid::Button(value);
+				auto b = deluge::hid::Button(value);
 				result = Buttons::buttonAction(b, thisPadPressIsOn, sdRoutineLock);
 			}
 
@@ -345,30 +346,28 @@ bool readButtonsAndPads() {
 				return false;
 			}
 		}
-		else if (value == 252) {
+		else if (value == PIC::Response::NEXT_PAD_OFF) {
 			nextPadPressIsOn = false;
 		}
 
 		// "No presses happening" message
-		else if (value == PICMessage::NO_PRESSES_HAPPENING) {
+		else if (value == PIC::Response::NO_PRESSES_HAPPENING) {
 			if (!sdRoutineLock) {
 				matrixDriver.noPressesHappening(sdRoutineLock);
 				Buttons::noPressesHappening(sdRoutineLock);
 			}
 		}
-#if HAVE_OLED
-		else if (value == oledWaitingForMessage) {
+		else if (util::to_underlying(value) == oledWaitingForMessage && display->haveOLED()) {
 			uiTimerManager.setTimer(TIMER_OLED_LOW_LEVEL, 3);
 		}
-#endif
 	}
 
 #if SD_TEST_MODE_ENABLED_LOAD_SONGS
 
 	if (playbackHandler.currentlyPlaying) {
 		if (getCurrentUI()->isViewScreen()) {
-			Buttons::buttonAction(hid::button::LOAD, true);
-			Buttons::buttonAction(hid::button::LOAD, false);
+			Buttons::buttonAction(deluge::hid::button::LOAD, true);
+			Buttons::buttonAction(deluge::hid::button::LOAD, false);
 			alreadyDoneScroll = false;
 		}
 		else if (getCurrentUI() == &loadSongUI && currentUIMode == noSubMode) {
@@ -377,8 +376,8 @@ bool readButtonsAndPads() {
 				alreadyDoneScroll = true;
 			}
 			else {
-				Buttons::buttonAction(hid::button::LOAD, true);
-				Buttons::buttonAction(hid::button::LOAD, false);
+				Buttons::buttonAction(deluge::hid::button::LOAD, true);
+				Buttons::buttonAction(deluge::hid::button::LOAD, false);
 			}
 		}
 	}
@@ -391,7 +390,7 @@ bool readButtonsAndPads() {
 		preLoadedSong = NULL;
 
 		if (random0 < 64 && getCurrentUI() == &instrumentClipView) {
-			Buttons::buttonAction(hid::button::song, true);
+			Buttons::buttonAction(deluge::hid::button::song, true);
 		}
 
 		else if (random0 < 120)
@@ -430,6 +429,9 @@ void setUIForLoadedSong(Song* song) {
 			if (((InstrumentClip*)song->currentClip)->onKeyboardScreen) {
 				newUI = &keyboardScreen;
 			}
+			else if (((InstrumentClip*)song->currentClip)->onAutomationInstrumentClipView) {
+				newUI = &automationInstrumentClipView;
+			}
 			else {
 				newUI = &instrumentClipView;
 			}
@@ -452,9 +454,9 @@ void setUIForLoadedSong(Song* song) {
 	setRootUILowLevel(newUI);
 
 	getCurrentUI()->opened();
-#if HAVE_OLED
-	renderUIsForOled();
-#endif
+	if (display->haveOLED()) {
+		renderUIsForOled();
+	}
 }
 
 void setupBlankSong() {
@@ -472,9 +474,33 @@ void setupBlankSong() {
 	preLoadedSong = NULL;
 
 	AudioEngine::getReverbParamsFromSong(currentSong);
+	AudioEngine::getMasterCompressorParamsFromSong(currentSong);
 
 	setUIForLoadedSong(currentSong);
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
+}
+
+void setupOLED() {
+	//delayMS(10);
+
+	// Set up 8-bit
+	RSPI0.SPDCR = 0x20u;               // 8-bit
+	RSPI0.SPCMD0 = 0b0000011100000010; // 8-bit
+	RSPI0.SPBFCR.BYTE = 0b01100000;    //0b00100000;
+
+	PIC::setDCLow();
+	PIC::enableOLED();
+	PIC::selectOLED();
+	PIC::flush();
+
+	delayMS(5);
+
+	oledMainInit();
+
+	//delayMS(5);
+
+	PIC::deselectOLED();
+	PIC::flush();
 }
 
 extern "C" void usb_pstd_pcd_task(void);
@@ -485,45 +511,26 @@ extern "C" volatile uint32_t usbLock;
 extern "C" void usb_main_host(void);
 
 extern "C" int32_t deluge_main(void) {
+	// Piggyback off of bootloader DMA setup.
+	uint32_t oledSPIDMAConfig = (0b1101000 | (OLED_SPI_DMA_CHANNEL & 7));
+	bool have_oled = ((DMACn(OLED_SPI_DMA_CHANNEL).CHCFG_n & oledSPIDMAConfig) == oledSPIDMAConfig);
 
 	// Give the PIC some startup instructions
+	if (have_oled) {
+		PIC::enableOLED();
+	}
 
-#if HAVE_OLED
-	bufferPICUart(247); // Enable OLED
-#endif
-
-	bufferPICUart(18); // Set debounce time (mS) to...
-	bufferPICUart(20);
+	PIC::setDebounce(20); // Set debounce time (mS) to...
 
 	PadLEDs::setRefreshTime(23);
 
-	bufferPICUart(244); // Set min interrupt interval
-	bufferPICUart(8);
+	PIC::setMinInterruptInterval(8);
+	PIC::setFlashLength(6);
 
-	bufferPICUart(23); // Set flash length
-	bufferPICUart(6);
-
-	int32_t newSpeedNumber = 4000000.0f / UART_FULL_SPEED_PIC_PADS_HZ - 0.5f;
-	bufferPICUart(225);            // Set UART speed
-	bufferPICUart(newSpeedNumber); // Speed is 4MHz / (x + 1)
-	uartFlushIfNotSending(UART_ITEM_PIC_PADS);
-
-	// Setup SDRAM. Have to do this before setting up AudioEngine
-	userdef_bsc_cs2_init(0); // 64MB, hardcoded
+	PIC::setUARTSpeed();
+	PIC::flush();
 
 	functionsInit();
-
-	/*
-     * For reasons not exactly known, globally declared instances of classes (so, objects) will not get their
-     * constructors called automatically on boot-up as is supposed to happen in C++. This will immediately
-     * cause problems, as things don’t get initialized. And for classes with virtual functions (i.e. using
-     * polymorphism), their vtable won’t even be set, causing an instant crash as soon as any virtual function is called on them.
-	 *
-	 * This is why, right here in Deluge.cpp, every single globally declared object gets manually set up with a “new”
-	 * statement.
-	 *
-	 * See a more technical discussion of the problem here: https://stackoverflow.com/questions/32807964/c-gcc-file-scope-objects-constructors-arent-being-called?noredirect=1#comment53452782_32807964
-     */
 
 #if AUTOMATED_TESTER_ENABLED
 	AutomatedTester::init();
@@ -538,18 +545,18 @@ extern "C" int32_t deluge_main(void) {
 	setPinAsOutput(SYNCED_LED.port, SYNCED_LED.pin);    // Synced LED
 
 	// Codec control
-	setPinAsOutput(6, 12);
-	setOutputState(6, 12, 0); // Switch it off
+	setPinAsOutput(CODEC.port, CODEC.pin);
+	setOutputState(CODEC.port, CODEC.pin, 0); // Switch it off
 
 	// Speaker / amp control
 	setPinAsOutput(SPEAKER_ENABLE.port, SPEAKER_ENABLE.pin);
 	setOutputState(SPEAKER_ENABLE.port, SPEAKER_ENABLE.pin, 0); // Switch it off
 
 	setPinAsInput(HEADPHONE_DETECT.port, HEADPHONE_DETECT.pin); // Headphone detect
-	setPinAsInput(6, 6);                                        // Line in detect
-	setPinAsInput(7, 9);                                        // Mic detect
+	setPinAsInput(LINE_IN_DETECT.port, LINE_IN_DETECT.pin);     // Line in detect
+	setPinAsInput(MIC_DETECT.port, MIC_DETECT.pin);             // Mic detect
 
-	setPinMux(1, 8 + SYS_VOLT_SENSE_PIN, 1); // Analog input for voltage sense
+	setPinMux(VOLT_SENSE.port, VOLT_SENSE.pin, 1); // Analog input for voltage sense
 
 	// Trigger clock input
 	setPinMux(ANALOG_CLOCK_IN.port, ANALOG_CLOCK_IN.pin, 2);
@@ -561,32 +568,28 @@ extern "C" int32_t deluge_main(void) {
 	// SPI for CV
 	R_RSPI_Create(
 	    SPI_CHANNEL_CV,
-#if HAVE_OLED
-	    10000000, // Higher than this would probably work... but let's stick to the OLED datasheet's spec of 100ns (10MHz).
-#else
-	    30000000,
-#endif
+	    have_oled
+	        ? 10000000 // Higher than this would probably work... but let's stick to the OLED datasheet's spec of 100ns (10MHz).
+	        : 30000000,
 	    0, 32);
 	R_RSPI_Start(SPI_CHANNEL_CV);
-#if SPI_CHANNEL_CV == 1
-	setPinMux(6, 12, 3);
-	setPinMux(6, 14, 3);
-	setPinMux(6, 13, 3);
-#elif SPI_CHANNEL_CV == 0
-	setPinMux(6, 0, 3); // CLK
-	setPinMux(6, 2, 3); // MOSI
-#if !HAVE_OLED
-	setPinMux(6, 1, 3); // SSL
-#else
-	// If OLED sharing SPI channel, have to manually control SSL pin.
-	setOutputState(6, 1, true);
-	setPinAsOutput(6, 1);
+	setPinMux(SPI_CLK.port, SPI_CLK.pin, 3);   // CLK
+	setPinMux(SPI_MOSI.port, SPI_MOSI.pin, 3); // MOSI
 
-	setupSPIInterrupts();
-	oledDMAInit();
+	if (have_oled) {
+		// If OLED sharing SPI channel, have to manually control SSL pin.
+		setOutputState(SPI_SSL.port, SPI_SSL.pin, true);
+		setPinAsOutput(SPI_SSL.port, SPI_SSL.pin);
 
-#endif
-#endif
+		setupSPIInterrupts();
+		oledDMAInit();
+		setupOLED(); // Set up OLED now
+		display = new deluge::hid::display::OLED;
+	}
+	else {
+		setPinMux(SPI_SSL.port, SPI_SSL.pin, 3); // SSL
+		display = new deluge::hid::display::SevenSegment;
+	}
 
 	// Setup audio output on SSI0
 	ssiInit(0, 1);
@@ -601,14 +604,16 @@ extern "C" int32_t deluge_main(void) {
 	GeneralMemoryAllocator::get().test();
 #endif
 
+	init_crc_table();
+
 	// Setup for gate output
 	cvEngine.init();
 
 	// Wait for PIC Uart to flush out. Could this help Ron R with his Deluge sometimes not booting? (No probably wasn't that.) Otherwise didn't seem necessary.
-	while (!(DMACn(PIC_TX_DMA_CHANNEL).CHSTAT_n & (1 << 6))) {}
+	PIC::waitForFlush();
 
-	uartSetBaudRate(UART_CHANNEL_PIC, UART_FULL_SPEED_PIC_PADS_HZ);
-	setOutputState(6, 12, 1); // Enable codec
+	PIC::setupForPads();
+	setOutputState(CODEC.port, CODEC.pin, 1); // Enable codec
 
 	AudioEngine::init();
 
@@ -617,31 +622,6 @@ extern "C" int32_t deluge_main(void) {
 #endif
 
 	audioFileManager.init();
-
-	// Set up OLED now
-#if HAVE_OLED
-
-	//delayMS(10);
-
-	// Set up 8-bit
-	RSPI0.SPDCR = 0x20u;               // 8-bit
-	RSPI0.SPCMD0 = 0b0000011100000010; // 8-bit
-	RSPI0.SPBFCR.BYTE = 0b01100000;    //0b00100000;
-
-	bufferPICUart(250); // D/C low
-	bufferPICUart(247); // Enable OLED
-	bufferPICUart(248); // Select OLED
-	uartFlushIfNotSending(UART_ITEM_PIC);
-
-	delayMS(5);
-
-	oledMainInit();
-
-	//delayMS(5);
-
-	bufferPICUart(249); // Unselect OLED
-	uartFlushIfNotSending(UART_ITEM_PIC);
-#endif
 
 	// Setup SPIBSC. Crucial that this only be done now once everything else is running, because I've injected graphics and audio routines into the SPIBSC wait routines, so that
 	// has to be running
@@ -653,60 +633,56 @@ extern "C" int32_t deluge_main(void) {
 	setPinMux(4, 7, 2);
 	initSPIBSC(); // This will run the audio routine! Ideally, have external RAM set up by now.
 
-	bufferPICUart(245);                              // Request PIC firmware version
-	bufferPICUart(PICMessage::RESEND_BUTTON_STATES); // Tell PIC to re-send button states
-	uartFlushIfNotSending(UART_ITEM_PIC_INDICATORS);
+	PIC::requestFirmwareVersion(); // Request PIC firmware version
+	PIC::resendButtonStates();     // Tell PIC to re-send button states
+	PIC::flush();
 
 	// Check if the user is holding down the select knob to do a factory reset
-	uint16_t timeWaitBegan = *TCNT[TIMER_SYSTEM_FAST];
 	bool readingFirmwareVersion = false;
 	bool looksOk = true;
 
-	while ((uint16_t)(*TCNT[TIMER_SYSTEM_FAST] - timeWaitBegan)
-	       < 32768) { // Safety timer, in case we don't receive anything
-		uint8_t value;
-		if (!uartGetChar(UART_ITEM_PIC, (char*)&value)) {
-			continue;
-		}
-
+	PIC::read(0x8000, [&readingFirmwareVersion, &looksOk](auto response) {
 		if (readingFirmwareVersion) {
 			readingFirmwareVersion = false;
+			uint8_t value = util::to_underlying(response);
+
 			picFirmwareVersion = value & 127;
 			picSaysOLEDPresent = value & 128;
 			Debug::print("PIC firmware version reported: ");
 			Debug::println(value);
+			return 0; // continue
 		}
-		else {
-			if (value == 245) {
-				readingFirmwareVersion = true; // Message means "here comes the firmware version next".
+
+		using enum PIC::Response;
+		switch (response) {
+		case FIRMWARE_VERSION_NEXT:
+			readingFirmwareVersion = true;
+			return 0;
+
+		case UNKNOWN_BREAK:
+			return 1;
+
+		case RESET_SETTINGS:
+			if (looksOk) {
+				display->consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_FACTORY_RESET));
+				FlashStorage::resetSettings();
+				FlashStorage::writeSettings();
 			}
-			else if (value == 253) {
-				break;
+			return 0;
+
+		default:
+			if (response >= UNKNOWN_OLED_RELATED_COMMAND && response <= SET_DC_HIGH) {
+				// OLED D/C low ack
+				return 0;
 			}
-			else if (value == 175) {
-				if (looksOk) {
-					goto resetSettings;
-				}
-			}
-			else if (value >= 246 && value <= 251) {} // OLED D/C low ack
-			else { // If any hint of another button being held, don't do anything. (Unless we already did in which case, well it's probably ok.)
-				looksOk = false;
-			}
+			// If any hint of another button being held, don't do anything.
+			// (Unless we already did in which case, well it's probably ok.)
+			looksOk = false;
+			return 0;
 		}
-	}
+	});
 
 	FlashStorage::readSettings();
-
-	if (false) {
-resetSettings:
-#if HAVE_OLED
-		OLED::consoleText("Factory reset");
-#else
-		numericDriver.displayPopup("RESET");
-#endif
-		FlashStorage::resetSettings();
-		FlashStorage::writeSettings();
-	}
 
 	runtimeFeatureSettings.init();
 	runtimeFeatureSettings.readSettingsFromFile();
@@ -768,7 +744,7 @@ resetSettings:
 
 	while (true) {
 
-		numericDriver.setTextAsNumber(count);
+		display->setTextAsNumber(count);
 
 		int32_t fileNumber = (uint32_t)getNoise() % 10000;
 		int32_t fileSize = (uint32_t)getNoise() % 1000000;
@@ -779,7 +755,7 @@ resetSettings:
 
 		result = f_open(&fil, fileName, FA_CREATE_ALWAYS | FA_WRITE);
 		if (result) {
-			numericDriver.setText("AAAA");
+			display->setText("AAAA");
 			while (1) {}
 		}
 
@@ -790,7 +766,7 @@ resetSettings:
 			result = f_write(&fil, &miscStringBuffer, 256, &bytesWritten);
 
 			if (bytesWritten != 256) {
-				numericDriver.setText("BBBB");
+				display->setText("BBBB");
 				while (1) {}
 			}
 
@@ -815,10 +791,10 @@ resetSettings:
 		uiTimerManager.routine();
 
 		// Flush stuff - we just have to do this, regularly
-#if HAVE_OLED
-		oledRoutine();
-#endif
-		uartFlushIfNotSending(UART_ITEM_PIC);
+		if (display->haveOLED()) {
+			oledRoutine();
+		}
+		PIC::flush();
 
 		AudioEngine::routineWithClusterLoading(true); // -----------------------------------
 
@@ -840,8 +816,8 @@ resetSettings:
 
 		AudioEngine::routineWithClusterLoading(true); // -----------------------------------
 
-		audioFileManager
-		    .slowRoutine(); // Only actually needs calling a couple of times per second, but we can't put it in uiTimerManager cos that gets called in card routine
+		// Only actually needs calling a couple of times per second, but we can't put it in uiTimerManager cos that gets called in card routine
+		audioFileManager.slowRoutine();
 		AudioEngine::slowRoutine();
 
 		audioRecorder.slowRoutine();
@@ -878,10 +854,10 @@ extern "C" void routineForSD(void) {
 
 	uiTimerManager.routine();
 
-#if HAVE_OLED
-	oledRoutine();
-#endif
-	uartFlushIfNotSending(UART_ITEM_PIC);
+	if (display->haveOLED()) {
+		oledRoutine();
+	}
+	PIC::flush();
 
 	Encoders::readEncoders();
 	Encoders::interpretEncoders(true);
@@ -902,15 +878,13 @@ extern "C" void loadAnyEnqueuedClustersRoutine() {
 	audioFileManager.loadAnyEnqueuedClusters();
 }
 
-#if !HAVE_OLED
 extern "C" void setNumeric(char* text) {
-	numericDriver.setText(text);
+	display->setText(text);
 }
 
 extern "C" void setNumericNumber(int32_t number) {
-	numericDriver.setTextAsNumber(number);
+	display->setTextAsNumber(number);
 }
-#endif
 
 extern "C" void routineWithClusterLoading() {
 	AudioEngine::routineWithClusterLoading(false);
@@ -991,7 +965,7 @@ void redrawSpamDisplay() {
 		break;
 	}
 
-	numericDriver.setText(thingName, false, spamStates[currentSpamThing] ? 3 : 255);
+	display->setText(thingName, false, spamStates[currentSpamThing] ? 3 : 255);
 }
 
 void spamMode() {

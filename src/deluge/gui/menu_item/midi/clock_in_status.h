@@ -23,7 +23,7 @@ namespace deluge::gui::menu_item::midi {
 class ClockInStatus final : public Toggle {
 public:
 	using Toggle::Toggle;
-	void readCurrentValue() override { this->value_ = playbackHandler.midiInClockEnabled; }
-	void writeCurrentValue() override { playbackHandler.setMidiInClockEnabled(this->value_); }
+	void readCurrentValue() override { this->setValue(playbackHandler.midiInClockEnabled); }
+	void writeCurrentValue() override { playbackHandler.setMidiInClockEnabled(this->getValue()); }
 };
 } // namespace deluge::gui::menu_item::midi

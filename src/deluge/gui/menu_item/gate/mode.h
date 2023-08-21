@@ -16,50 +16,56 @@
 */
 #pragma once
 #include "definitions_cxx.hpp"
-#include "gui/menu_item/selection/typed_selection.h"
+#include "gui/l10n/l10n.h"
+#include "gui/menu_item/formatted_title.h"
+#include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "processing/engines/cv_engine.h"
 #include "util/misc.h"
+#include <string_view>
 
 namespace deluge::gui::menu_item::gate {
 
-static deluge::string mode_title = HAVE_OLED ? "Gate outX mode" : "";
+class Mode final : public Selection<3>, public FormattedTitle {
 
-class Mode final : public TypedSelection<GateType, 3> {
-#if HAVE_OLED
-	static_vector<string, capacity()> options_ = {"V-trig", "S-trig"};
-#else
-	static_vector<string, capacity()> options_ = {"VTRI", "STRI"};
-#endif
+	static_vector<l10n::String, capacity()> options_ = {
+	    l10n::String::STRING_FOR_V_TRIGGER,
+	    l10n::String::STRING_FOR_S_TRIGGER,
+	};
 
 public:
-	Mode() : TypedSelection(mode_title) {
-	}
-	void readCurrentValue() override {
-		this->value_ = cvEngine.gateChannels[soundEditor.currentSourceIndex].mode;
-	}
+	Mode() : Selection(), FormattedTitle(l10n::String::STRING_FOR_GATE_MODE_TITLE) {}
+	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
+
+	void readCurrentValue() override { this->setValue(cvEngine.gateChannels[soundEditor.currentSourceIndex].mode); }
 	void writeCurrentValue() override {
-		cvEngine.setGateType(soundEditor.currentSourceIndex, this->value_);
+		cvEngine.setGateType(soundEditor.currentSourceIndex, this->getValue<GateType>());
 	}
-	static_vector<string, capacity()> getOptions() override {
-		return options_;
+	static_vector<std::string_view, capacity()> getOptions() override {
+		static_vector<std::string_view, capacity()> output;
+		for (l10n::String str : options_) {
+			output.push_back(l10n::getView(str));
+		}
+		return output;
 	}
 
 	void updateOptions(int32_t value) {
+		using enum l10n::String;
+		// Remove the extra entry if it's present
+		if (options_.size() > 2) {
+			options_.pop_back();
+		}
+
 		switch (value) {
 		case WHICH_GATE_OUTPUT_IS_CLOCK:
-			options_[2] = "Clock";
+			options_.push_back(STRING_FOR_CLOCK);
 			break;
 
 		case WHICH_GATE_OUTPUT_IS_RUN:
-			options_[2] = HAVE_OLED ? "\"Run\" signal" : "Run";
+			options_.push_back(STRING_FOR_RUN_SIGNAL);
 			break;
 
 		default:
-			// Remove the extra entry if it's present
-			if (options_.size() > 2) {
-				options_.pop_back();
-			}
 			break;
 		}
 	}

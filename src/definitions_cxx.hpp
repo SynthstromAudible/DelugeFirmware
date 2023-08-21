@@ -194,14 +194,6 @@ constexpr int32_t kDisplayHeightMagnitude = 3;
 constexpr int32_t kDisplayWidth = 16;
 constexpr int32_t kDisplayWidthMagnitude = 4;
 
-enum PICMessage : uint8_t {
-	REFRESH_TIME = 19,
-	RESEND_BUTTON_STATES = 22,
-	NO_PRESSES_HAPPENING = 254,
-};
-
-constexpr int32_t kPadAndButtonMessagesEnd = 180;
-
 constexpr int32_t kNumBytesInColUpdateMessage = 49;
 constexpr int32_t kNumBytesInLongestMessage = 55;
 
@@ -222,12 +214,18 @@ constexpr Pin LINE_OUT_DETECT_R = {6, 4};
 constexpr Pin ANALOG_CLOCK_IN = {1, 14};
 constexpr Pin SPEAKER_ENABLE = {4, 1};
 constexpr Pin HEADPHONE_DETECT = {6, 5};
-constexpr Pin LINE_IN = {6, 6};
-constexpr Pin MIC = {7, 9};
+constexpr Pin LINE_IN_DETECT = {6, 6};
+constexpr Pin MIC_DETECT = {7, 9};
 constexpr Pin SYNCED_LED = {6, 7};
+constexpr Pin CODEC = {6, 12};
 
 constexpr Pin BATTERY_LED = {1, 1};
 constexpr int32_t SYS_VOLT_SENSE_PIN = 5;
+constexpr Pin VOLT_SENSE = {1, 8 + SYS_VOLT_SENSE_PIN};
+
+constexpr Pin SPI_CLK = {6, 0};
+constexpr Pin SPI_MOSI = {6, 2};
+constexpr Pin SPI_SSL = {6, 1};
 
 constexpr int32_t kSideBarWidth = 2;
 constexpr int32_t kMaxNumAnimatedRows = ((kDisplayHeight * 3) >> 1);
@@ -299,6 +297,9 @@ constexpr int32_t kModFXBufferSize = 512;
 constexpr int32_t kModFXBufferIndexMask = (kModFXBufferSize - 1);
 constexpr int32_t kModFXMaxDelay = ((kModFXBufferSize - 1) << 16);
 
+constexpr int32_t kModFXGrainBufferSize = 65536;
+constexpr int32_t kModFXGrainBufferIndexMask = (kModFXGrainBufferSize - 1);
+
 constexpr int32_t kFlangerMinTime = (3 << 16);
 constexpr int32_t kFlangerAmplitude = (kModFXMaxDelay - kFlangerMinTime);
 constexpr int32_t kFlangerOffset = ((kModFXMaxDelay + kFlangerMinTime) >> 1);
@@ -362,6 +363,20 @@ constexpr int32_t kNumPatchSources = static_cast<int32_t>(kLastPatchSource);
 constexpr PatchSource kFirstLocalSource = PatchSource::ENVELOPE_0;
 //constexpr PatchSource kFirstUnchangeableSource = PatchSource::VELOCITY;
 
+//Automation Instrument Clip View constants
+constexpr int32_t kNoLastSelectedParamID = 255;
+constexpr int32_t kNoLastSelectedParamShortcut = 255;
+constexpr int32_t kNoLastSelectedPad = 255;
+constexpr int32_t kNumNonKitAffectEntireParamsForAutomation = 55;
+constexpr int32_t kNumKitAffectEntireParamsForAutomation = 24;
+constexpr int32_t kLastMidiCCForAutomation = 121;
+constexpr int32_t kKnobPosOffset = 64;
+constexpr int32_t kMaxKnobPos = 128;
+constexpr int32_t kParamValueIncrementForAutomationSinglePadPress = 18;
+constexpr int32_t kParamValueIncrementForAutomationDisplay = 16;
+constexpr int32_t kParamNodeWidth = 3;
+//
+
 // Linear params have different sources multiplied together, then multiplied by the neutral value
 // -- and "volume" ones get squared at the end
 
@@ -372,6 +387,15 @@ constexpr PatchSource kFirstLocalSource = PatchSource::ENVELOPE_0;
 using ParamType = uint8_t;
 
 namespace Param {
+
+enum Kind : int32_t {
+	PATCHED,
+	UNPATCHED,
+	GLOBAL_EFFECTABLE,
+
+	NONE,
+};
+
 namespace Local {
 enum : ParamType {
 	// Local linear params begin
@@ -381,6 +405,7 @@ enum : ParamType {
 	NOISE_VOLUME,
 	MODULATOR_0_VOLUME,
 	MODULATOR_1_VOLUME,
+	FOLD,
 
 	// Local non-volume params begin
 	MODULATOR_0_FEEDBACK,
@@ -391,6 +416,8 @@ enum : ParamType {
 	HPF_RESONANCE,
 	ENV_0_SUSTAIN,
 	ENV_1_SUSTAIN,
+	LPF_MORPH,
+	HPF_MORPH,
 
 	// Local hybrid params begin
 	OSC_A_PHASE_WIDTH,
@@ -549,7 +576,7 @@ enum class LFOType {
 	RANDOM_WALK,
 };
 
-constexpr int32_t kNumLFOTypes = util::to_underlying(LFOType::RANDOM_WALK);
+constexpr int32_t kNumLFOTypes = util::to_underlying(LFOType::RANDOM_WALK) + 1;
 
 // SyncType values correspond to the index of the first option of the specific
 // type in the selection menu. There are 9 different levels for each type (see
@@ -578,7 +605,7 @@ enum class SynthMode {
 	FM,
 	RINGMOD,
 };
-constexpr int kNumSynthModes = util::to_underlying(SynthMode::RINGMOD) + 1;
+constexpr int kNumSynthModes = util::to_underlying(::SynthMode::RINGMOD) + 1;
 
 enum class ModFXType {
 	NONE,
@@ -586,9 +613,10 @@ enum class ModFXType {
 	CHORUS,
 	PHASER,
 	CHORUS_STEREO,
+	GRAIN,
 };
 
-constexpr int32_t kNumModFXTypes = util::to_underlying(ModFXType::CHORUS_STEREO) + 1;
+constexpr int32_t kNumModFXTypes = util::to_underlying(ModFXType::GRAIN) + 1;
 
 constexpr int32_t SAMPLE_MAX_TRANSPOSE = 24;
 constexpr int32_t SAMPLE_MIN_TRANSPOSE = (-96);
@@ -609,18 +637,33 @@ enum class PolyphonyMode {
 constexpr auto kNumPolyphonyModes = util::to_underlying(PolyphonyMode::CHOKE) + 1;
 
 constexpr int32_t kNumericDisplayLength = 4;
+constexpr size_t kNumGoldKnobIndicatorLEDs = 4;
 
 constexpr int32_t kMaxNumSections = 12;
 
 constexpr int32_t kNumPhysicalModKnobs = 2;
 
-enum class LPFMode {
+enum class FilterMode {
 	TRANSISTOR_12DB,
 	TRANSISTOR_24DB,
-	TRANSISTOR_24DB_DRIVE,
-	SVF,
+	TRANSISTOR_24DB_DRIVE, //filter logic relies on ladders being first and contiguous
+	SVF_BAND,              //first HPF mode
+	SVF_NOTCH,             //last LPF mode
+	HPLADDER,
+	OFF, //Keep last as a sentinel. Signifies that the filter is not on, used for filter reset logic
 };
-constexpr int32_t kNumLPFModes = util::to_underlying(LPFMode::SVF) + 1;
+constexpr FilterMode kLastLadder = FilterMode::TRANSISTOR_24DB_DRIVE;
+//Off is not an LPF mode but is used to reset filters
+constexpr int32_t kNumLPFModes = util::to_underlying(FilterMode::SVF_NOTCH) + 1;
+constexpr int32_t kFirstHPFMode = util::to_underlying(FilterMode::SVF_BAND);
+constexpr int32_t kNumHPFModes = util::to_underlying(FilterMode::OFF) - kFirstHPFMode;
+enum class FilterRoute {
+	HIGH_TO_LOW,
+	LOW_TO_HIGH,
+	PARALLEL,
+};
+
+constexpr int32_t kNumFilterRoutes = util::to_underlying(FilterRoute::PARALLEL) + 1;
 
 constexpr int32_t kNumAllpassFiltersPhaser = 6;
 
@@ -706,8 +749,10 @@ enum class GlobalMIDICommand {
 	LOOP_CONTINUOUS_LAYERING,
 	UNDO,
 	REDO,
+	FILL,
+	LAST, // Keep as boundary
 };
-constexpr auto kNumGlobalMIDICommands = util::to_underlying(GlobalMIDICommand::REDO) + 1;
+constexpr auto kNumGlobalMIDICommands = util::to_underlying(GlobalMIDICommand::LAST) + 1;
 
 enum class MIDITakeoverMode : uint8_t {
 	JUMP,
@@ -745,6 +790,8 @@ enum class ArmState {
 };
 
 constexpr int32_t kNumProbabilityValues = 20;
+constexpr int32_t kNumIterationValues = 35; // 1of2 to 8of8
+constexpr int32_t kFillProbabilityValue = 0;
 constexpr int32_t kDefaultLiftValue = 64;
 
 enum Navigation {
@@ -929,9 +976,6 @@ enum class LoopType {
 	TIMESTRETCHER_LEVEL_IF_ACTIVE, // Will cause low-level looping if no time-stretching;
 };
 
-constexpr int32_t kInternalMemoryEnd = 0x20300000;
-constexpr int32_t kProgramStackMaxSize = 8192;
-
 enum StealableQueue {
 	STEALABLE_QUEUE_NO_SONG_SAMPLE_DATA,
 	STEALABLE_QUEUE_NO_SONG_SAMPLE_DATA_CONVERTED, // E.g. from floating point file, or wrong endianness AIFF file.
@@ -1027,10 +1071,14 @@ constexpr int32_t DIR_FileSize = 28 /* File size (DWORD) */;
 
 constexpr int32_t kMaxNumUnsignedIntegerstoRepAllParams = 2;
 
-#if HAVE_OLED
-constexpr int32_t kNumBrowserAndMenuLines = 3;
-#else
-constexpr int32_t kNumBrowserAndMenuLines = 1;
-#endif
-
 constexpr int32_t kDefaultCalculateRootNote = std::numeric_limits<int32_t>::max();
+
+/// System sample rate, in samples per second. This is fixed in hardware because the Serial Sound Interface bit clock
+/// is generated by a crystal, and the RZ/A1L provides only a divider on this clock.
+/// See Figure 19.1 in the RZ/A1L TRM R01UH0437EJ0600 Rev.6.00 and the rest of section 19, Serial Sound Interface for
+/// more detail.
+constexpr uint32_t kSampleRate = 44100;
+
+/// Length of press that deliniates a "short" press. Set to half a second (in units of samples, to work with
+/// AudioEngine::audioSampleTimer)
+constexpr uint32_t kShortPressTime = kSampleRate / 2;

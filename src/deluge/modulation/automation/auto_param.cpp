@@ -17,9 +17,11 @@
 
 #include "modulation/automation/auto_param.h"
 #include "definitions_cxx.hpp"
+#include "gui/l10n/l10n.h"
+#include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "hid/matrix/matrix_driver.h"
 #include "io/debug/print.h"
 #include "memory/general_memory_allocator.h"
@@ -27,6 +29,7 @@
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/automation/copied_param_automation.h"
 #include "modulation/params/param_collection.h"
@@ -114,8 +117,8 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 				if (isAutomated()) {
 					Action* action = actionLogger.getNewAction(ACTION_AUTOMATION_DELETE, false);
 					deleteAutomation(action, modelStack);
-					numericDriver.displayPopup(HAVE_OLED ? "Parameter automation deleted"
-					                                     : "ExistenceChangeType::DELETE");
+					display->displayPopup(
+					    deluge::l10n::get(deluge::l10n::String::STRING_FOR_PARAMETER_AUTOMATION_DELETED));
 				}
 				return;
 			}
@@ -259,7 +262,7 @@ skipThat : {}
 			if (nodes.getNumElements()) {
 				ParamNode* rightmostNode = nodes.getElement(nodes.getNumElements() - 1);
 				if (rightmostNode->pos >= effectiveLength) {
-					numericDriver.freezeWithError("llll");
+					display->freezeWithError("llll");
 				}
 			}
 #endif
@@ -702,7 +705,7 @@ adjustNodeJustReached:
 		// we still contain automation, which I think we have to... Let's just verify that.
 #if ALPHA_OR_BETA_VERSION
 		if (!isAutomated()) {
-			numericDriver.freezeWithError("E372");
+			display->freezeWithError("E372");
 		}
 #endif
 		modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, false, true, true);
@@ -730,7 +733,7 @@ getOut:
 		ParamNode* rightmostNode = nodes.getElement(i);
 		if (rightmostNode->pos >= effectiveLength) {
 			nodes.deleteAtIndex(i);
-			//numericDriver.freezeWithError("jjjj"); // drbourbon got! And Quixotic7, on V4.0.0-beta8.
+			//display->freezeWithError("jjjj"); // drbourbon got! And Quixotic7, on V4.0.0-beta8.
 		}
 	}
 
@@ -958,7 +961,17 @@ void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
 		nodes.testSequentiality("E441");
 #endif
 
-		firstI = homogenizeRegion(modelStack, pos, length, value, false, false, effectiveLength, false);
+		//automation interpolation
+		//when this feature is enabled, interpolation is enforced on manual automation editing in the automation instrument clip view
+
+		if (getCurrentUI() == &automationInstrumentClipView) {
+			firstI = homogenizeRegion(modelStack, pos, length, value, automationInstrumentClipView.interpolationBefore,
+			                          automationInstrumentClipView.interpolationAfter, effectiveLength, false);
+		}
+		else {
+			firstI = homogenizeRegion(modelStack, pos, length, value, false, false, effectiveLength, false);
+		}
+
 		if (firstI == -1) {
 			return;
 		}
@@ -999,14 +1012,14 @@ int32_t AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, i
 #if ALPHA_OR_BETA_VERSION
 	// Chasing "E433" / "GGGG" error (probably now largely solved - except got E435, see below).
 	if (length <= 0) {
-		numericDriver.freezeWithError("E427");
+		display->freezeWithError("E427");
 	}
 	if (startPos < 0) {
-		numericDriver.freezeWithError("E437");
+		display->freezeWithError("E437");
 	}
 	// nodes.testSequentiality("E435"); // drbourbon got! March 2022. Now moved check to each caller.
 	if (nodes.getNumElements() && nodes.getFirst()->pos < 0) {
-		numericDriver.freezeWithError("E436");
+		display->freezeWithError("E436");
 	}
 	// Should probably also check that stuff doesn't exist too far right - but that's a bit more complicated.
 #endif
@@ -1024,7 +1037,7 @@ int32_t AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, i
 			length = maxLength;
 #if ALPHA_OR_BETA_VERSION
 			if (length <= 0) {
-				numericDriver.freezeWithError("E428"); // Chasing Leo's GGGG error (probably now solved).
+				display->freezeWithError("E428"); // Chasing Leo's GGGG error (probably now solved).
 			}
 #endif
 			interpolateRightNode = false;
@@ -1057,7 +1070,7 @@ int32_t AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, i
 	else {
 		if constexpr (ALPHA_OR_BETA_VERSION || kCurrentFirmwareVersion <= FIRMWARE_4P0P0) {
 			if (startPos < posAtWhichClipWillCut) {
-				numericDriver.freezeWithError("E445");
+				display->freezeWithError("E445");
 			}
 		}
 		edgePositions[REGION_EDGE_RIGHT] = startPos;
@@ -1069,7 +1082,7 @@ int32_t AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, i
 			length = edgePositions[REGION_EDGE_RIGHT] - edgePositions[REGION_EDGE_LEFT];
 			if constexpr (ALPHA_OR_BETA_VERSION) {
 				if (edgePositions[REGION_EDGE_LEFT] >= edgePositions[REGION_EDGE_RIGHT]) {
-					numericDriver.freezeWithError("HHHH");
+					display->freezeWithError("HHHH");
 				}
 			}
 
@@ -1204,7 +1217,7 @@ getValueNormalWay:
 	if (nodes.getNumElements()) {
 		ParamNode* rightmostNode = nodes.getElement(nodes.getNumElements() - 1);
 		if (rightmostNode->pos >= effectiveLength) {
-			numericDriver.freezeWithError("iiii");
+			display->freezeWithError("iiii");
 		}
 	}
 #endif
@@ -1224,24 +1237,24 @@ void AutoParam::homogenizeRegionTestSuccess(int32_t pos, int32_t regionEnd, int3
 		// Fine
 	}
 	else {
-		numericDriver.freezeWithError("E119");
+		display->freezeWithError("E119");
 	}
 
 	ParamNode* startNode = nodes.getElement(startI);
 	ParamNode* endNode = nodes.getElement(endI);
 
 	if (!startNode || !endNode) {
-		numericDriver.freezeWithError("E118");
+		display->freezeWithError("E118");
 	}
 
 	if (startNode->value != startValue) {
-		numericDriver.freezeWithError("E120");
+		display->freezeWithError("E120");
 	}
 	if (startNode->interpolated != interpolateStart) {
-		numericDriver.freezeWithError("E121");
+		display->freezeWithError("E121");
 	}
 	if (endNode->interpolated != interpolateEnd) {
-		numericDriver.freezeWithError("E122");
+		display->freezeWithError("E122");
 	}
 }
 
@@ -1701,7 +1714,7 @@ void AutoParam::trimToLength(uint32_t newLength, Action* action, ModelStackWithA
 	int32_t newNumNodes = nodes.search(newLength, GREATER_OR_EQUAL);
 
 	if (ALPHA_OR_BETA_VERSION && newNumNodes >= nodes.getNumElements()) {
-		numericDriver.freezeWithError("E315");
+		display->freezeWithError("E315");
 	}
 
 	// If still at least 2 nodes afterwards (1 is not allowed, actually wait it is now but let's keep this safe for now)...
@@ -2106,7 +2119,7 @@ void AutoParam::copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* co
 
 		if (!copiedParamAutomation->nodes) {
 			copiedParamAutomation->numNodes = 0;
-			numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+			display->displayError(ERROR_INSUFFICIENT_RAM);
 			return;
 		}
 
@@ -2552,7 +2565,7 @@ void AutoParam::nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int
 doWrap:
 				// There should never be just one node
 				if (ALPHA_OR_BETA_VERSION && nodes.getNumElements() == 1) {
-					numericDriver.freezeWithError("E335");
+					display->freezeWithError("E335");
 				}
 				int32_t ourValue = node->value; // Grab this before deleting stuff
 
@@ -2582,7 +2595,7 @@ doWrap:
 						int32_t error = nodes.insertAtIndex(
 						    nextNodeI); // This shouldn't be able to fail, cos we just deleted a node
 						if (ALPHA_OR_BETA_VERSION && error) {
-							numericDriver.freezeWithError("E333");
+							display->freezeWithError("E333");
 						}
 					}
 

@@ -19,18 +19,20 @@
 
 #include "util/container/array/resizeable_array.h"
 #include "util/container/static_vector.hpp"
-#include "util/string.h"
+
 #include <cstdint>
 
 namespace deluge::gui::menu_item::runtime_feature {
 class Setting;
 class Settings;
+class DevSysexSetting;
 } // namespace deluge::gui::menu_item::runtime_feature
 
 // State declarations
 enum RuntimeFeatureStateToggle : uint32_t { Off = 0, On = 1 };
 
 // Declare additional enums for specific multi state settings (e.g. like RuntimeFeatureStateTrackLaunchStyle)
+enum RuntimeFeatureStateSyncScalingAction : uint32_t { SyncScaling = 0, Fill = 1 };
 
 /// Every setting needs to be delcared in here
 enum RuntimeFeatureSettingType : uint32_t {
@@ -41,19 +43,29 @@ enum RuntimeFeatureSettingType : uint32_t {
 	PatchCableResolution,
 	CatchNotes,
 	DeleteUnusedKitRows,
+	AltGoldenKnobDelayParams,
+	QuantizedStutterRate,
+	AutomationClearClip,
+	AutomationNudgeNote,
+	AutomationShiftClip,
+	AutomationInterpolate,
+	DevSysexAllowed,
+	SyncScalingAction,
+	HighlightIncomingNotes,
+	DisplayNornsLayout,
 	MaxElement // Keep as boundary
 };
 
 /// Definition for selectable options
 struct RuntimeFeatureSettingOption {
-	deluge::string displayName;
+	std::string displayName;
 	uint32_t value; // Value to be defined as typed Enum above
 };
 
 /// Every setting keeps its metadata and value in here
 struct RuntimeFeatureSetting {
-	deluge::string displayName;
-	deluge::string xmlName;
+	std::string displayName;
+	std::string xmlName;
 	uint32_t value;
 
 	// Limited to safe memory
@@ -81,6 +93,7 @@ private:
 public:
 	friend class deluge::gui::menu_item::runtime_feature::Setting;
 	friend class deluge::gui::menu_item::runtime_feature::Settings;
+	friend class deluge::gui::menu_item::runtime_feature::DevSysexSetting;
 };
 
 /// Static instance for external access

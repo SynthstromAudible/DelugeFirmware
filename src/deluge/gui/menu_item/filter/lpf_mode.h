@@ -16,21 +16,31 @@
 */
 #pragma once
 #include "definitions_cxx.hpp"
-#include "gui/menu_item/selection/typed_selection.h"
+#include "gui/l10n/l10n.h"
+#include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "processing/sound/sound.h"
 #include "util/misc.h"
 
 namespace deluge::gui::menu_item::filter {
-class LPFMode final : public TypedSelection<::LPFMode, kNumLPFModes> {
+class LPFMode final : public Selection<kNumLPFModes> {
 public:
-	using TypedSelection::TypedSelection;
-	void readCurrentValue() override { this->value_ = soundEditor.currentModControllable->lpfMode; }
-	void writeCurrentValue() override { soundEditor.currentModControllable->lpfMode = this->value_; }
-	static_vector<string, capacity()> getOptions() override { return {"12dB", "24dB", "Drive", "SVF"}; }
+	using Selection::Selection;
+	void readCurrentValue() override { this->setValue<::FilterMode>(soundEditor.currentModControllable->lpfMode); }
+	void writeCurrentValue() override { soundEditor.currentModControllable->lpfMode = this->getValue<::FilterMode>(); }
+	static_vector<std::string_view, capacity()> getOptions() override {
+		using enum l10n::String;
+		return {
+		    "12dB",
+		    "24dB",
+		    l10n::getView(STRING_FOR_DRIVE),
+		    l10n::getView(STRING_FOR_SVF_BAND),
+		    l10n::getView(STRING_FOR_SVF_NOTCH),
+		};
+	}
 	bool isRelevant(Sound* sound, int32_t whichThing) override {
-		return ((sound == nullptr) || sound->synthMode != SynthMode::FM);
+		return ((sound == nullptr) || sound->synthMode != ::SynthMode::FM);
 	}
 };
 } // namespace deluge::gui::menu_item::filter

@@ -36,7 +36,7 @@ public:
 	}
 	bool canSeeViewUnderneath() final { return false; }
 	ActionResult timerCallback();
-	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 
 protected:
 	//void displayText(bool blinkImmediately) final;

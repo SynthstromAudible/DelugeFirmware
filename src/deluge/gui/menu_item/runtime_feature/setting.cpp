@@ -33,32 +33,32 @@ void Setting::readCurrentValue() {
 	for (uint32_t idx = 0; idx < RUNTIME_FEATURE_SETTING_MAX_OPTIONS; ++idx) {
 		if (runtimeFeatureSettings.settings[currentSettingIndex].options[idx].value
 		    == runtimeFeatureSettings.settings[currentSettingIndex].value) {
-			this->value_ = idx;
+			this->setValue(idx);
 			return;
 		}
 	}
 
-	this->value_ = 0;
+	this->setValue(0);
 }
 
 void Setting::writeCurrentValue() {
 	runtimeFeatureSettings.settings[currentSettingIndex].value =
-	    runtimeFeatureSettings.settings[currentSettingIndex].options[this->value_].value;
+	    runtimeFeatureSettings.settings[currentSettingIndex].options[this->getValue()].value;
 }
 
-static_vector<string, RUNTIME_FEATURE_SETTING_MAX_OPTIONS> Setting::getOptions() {
-	static_vector<string, capacity()> options;
+static_vector<std::string_view, RUNTIME_FEATURE_SETTING_MAX_OPTIONS> Setting::getOptions() {
+	static_vector<std::string_view, capacity()> options;
 	for (const RuntimeFeatureSettingOption& option : runtimeFeatureSettings.settings[currentSettingIndex].options) {
 		options.push_back(option.displayName);
 	}
 	return options;
 }
 
-const string& Setting::getName() const {
+std::string_view Setting::getName() const {
 	return runtimeFeatureSettings.settings[currentSettingIndex].displayName;
 }
 
-const string& Setting::getTitle() const {
+std::string_view Setting::getTitle() const {
 	return runtimeFeatureSettings.settings[currentSettingIndex].displayName;
 }
 

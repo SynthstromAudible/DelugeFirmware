@@ -17,7 +17,8 @@
 
 #pragma once
 
-#include "gui/menu_item/selection/selection.h"
+#include "gui/l10n/l10n.h"
+#include "gui/menu_item/selection.h"
 #include "zone_selector.h"
 
 namespace deluge::gui::menu_item::mpe {
@@ -26,16 +27,21 @@ class DirectionSelector final : public Selection<2> {
 public:
 	using Selection::Selection;
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
-	static_vector<string, capacity()> getOptions() override { return {"In", "Out"}; }
-	void readCurrentValue() override { this->value_ = whichDirection; }
-	void writeCurrentValue() override { whichDirection = this->value_; }
+	static_vector<std::string_view, capacity()> getOptions() override {
+		using enum l10n::String;
+		return {
+		    l10n::getView(STRING_FOR_IN),
+		    l10n::getView(STRING_FOR_OUT),
+		};
+	}
+	void readCurrentValue() override { this->setValue(whichDirection); }
+	void writeCurrentValue() override { whichDirection = this->getValue(); }
 	MenuItem* selectButtonPress() override;
 	uint8_t whichDirection;
-#if HAVE_OLED
-	[[nodiscard]] const string& getTitle() const override {
-		return whichDirection ? "MPE output" : "MPE input";
+	[[nodiscard]] std::string_view getTitle() const override {
+		return whichDirection ? l10n::getView(l10n::String::STRING_FOR_MPE_OUTPUT)
+		                      : l10n::getView(l10n::String::STRING_FOR_MPE_INPUT);
 	}
-#endif
 };
 
 extern DirectionSelector directionSelectorMenu;

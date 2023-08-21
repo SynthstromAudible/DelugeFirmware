@@ -17,52 +17,33 @@
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/patched_param.h"
-#include "util/string.h"
 
 namespace deluge::gui::menu_item::patched_param {
 class Integer : public PatchedParam, public menu_item::IntegerContinuous {
 public:
-	Integer(const string& newName, int32_t newP = 0) : PatchedParam(newP), IntegerContinuous(newName) {}
-	Integer(const string& newName, const deluge::string& title, int32_t newP = 0)
+	Integer(l10n::String newName, int32_t newP = 0) : PatchedParam(newP), IntegerContinuous(newName) {}
+	Integer(l10n::String newName, l10n::String title, int32_t newP = 0)
 	    : PatchedParam(newP), IntegerContinuous(newName, title) {}
-#if !HAVE_OLED
-	void drawValue() override {
-		numericDriver.setTextAsNumber(this->value_, shouldDrawDotOnName());
-	}
-#endif
-	ParamDescriptor getLearningThing() final {
-		return PatchedParam::getLearningThing();
-	}
-	[[nodiscard]] int32_t getMaxValue() const override {
-		return PatchedParam::getMaxValue();
-	}
-	[[nodiscard]] int32_t getMinValue() const override {
-		return PatchedParam::getMinValue();
-	}
+	// 7SEG Only
+	void drawValue() override { display->setTextAsNumber(this->getValue(), shouldDrawDotOnName()); }
+
+	ParamDescriptor getLearningThing() final { return PatchedParam::getLearningThing(); }
+	[[nodiscard]] int32_t getMaxValue() const override { return PatchedParam::getMaxValue(); }
+	[[nodiscard]] int32_t getMinValue() const override { return PatchedParam::getMinValue(); }
 	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) final {
 		return PatchedParam::shouldBlinkPatchingSourceShortcut(s, colour);
 	}
 
-	uint8_t shouldDrawDotOnName() final {
-		return PatchedParam::shouldDrawDotOnName();
-	}
-	MenuItem* selectButtonPress() final {
-		return PatchedParam::selectButtonPress();
-	}
+	uint8_t shouldDrawDotOnName() final { return PatchedParam::shouldDrawDotOnName(); }
+	MenuItem* selectButtonPress() final { return PatchedParam::selectButtonPress(); }
 
-	uint8_t getPatchedParamIndex() final {
-		return PatchedParam::getPatchedParamIndex();
-	}
+	uint8_t getPatchedParamIndex() final { return PatchedParam::getPatchedParamIndex(); }
 	MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive = false) final {
 		return PatchedParam::patchingSourceShortcutPress(s, previousPressStillActive);
 	}
 
-	void unlearnAction() final {
-		MenuItemWithCCLearning::unlearnAction();
-	}
-	bool allowsLearnMode() final {
-		return MenuItemWithCCLearning::allowsLearnMode();
-	}
+	void unlearnAction() final { MenuItemWithCCLearning::unlearnAction(); }
+	bool allowsLearnMode() final { return MenuItemWithCCLearning::allowsLearnMode(); }
 	void learnKnob(MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) final {
 		MenuItemWithCCLearning::learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel);
 	};

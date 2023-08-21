@@ -24,8 +24,6 @@ constexpr size_t numLedBlinkers = 4;
 
 namespace indicator_leds {
 
-constexpr uint8_t uartBase = (DELUGE_MODEL >= DELUGE_MODEL_144_PAD) ? 152 : 120;
-
 constexpr uint8_t fromCartesian(Cartesian c) {
 	return c.x + c.y * NUM_LED_COLS;
 }

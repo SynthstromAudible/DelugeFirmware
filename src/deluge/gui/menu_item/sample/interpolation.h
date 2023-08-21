@@ -17,25 +17,29 @@
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/formatted_title.h"
-#include "gui/menu_item/selection/typed_selection.h"
+#include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "model/sample/sample_controls.h"
 #include "processing/sound/sound.h"
 #include "util/misc.h"
 
 namespace deluge::gui::menu_item::sample {
-class Interpolation final : public TypedSelection<InterpolationMode, kNumInterpolationModes>, public FormattedTitle {
+class Interpolation final : public Selection<kNumInterpolationModes>, public FormattedTitle {
 public:
-	Interpolation(const string& name, const string& title_format_str)
-	    : TypedSelection(name), FormattedTitle(title_format_str) {}
+	Interpolation(l10n::String name, l10n::String title_format_str)
+	    : Selection(name), FormattedTitle(title_format_str) {}
 
-	[[nodiscard]] const string& getTitle() const override { return FormattedTitle::title(); }
+	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
-	void readCurrentValue() override { this->value_ = soundEditor.currentSampleControls->interpolationMode; }
+	void readCurrentValue() override { this->setValue(soundEditor.currentSampleControls->interpolationMode); }
 
-	void writeCurrentValue() override { soundEditor.currentSampleControls->interpolationMode = this->value_; }
+	void writeCurrentValue() override {
+		soundEditor.currentSampleControls->interpolationMode = this->getValue<InterpolationMode>();
+	}
 
-	static_vector<string, capacity()> getOptions() override { return {"Linear", "Sinc"}; }
+	static_vector<std::string_view, capacity()> getOptions() override {
+		return {l10n::getView(l10n::String::STRING_FOR_LINEAR), l10n::getView(l10n::String::STRING_FOR_SINC)};
+	}
 
 	bool isRelevant(Sound* sound, int32_t whichThing) override {
 		if (sound == nullptr) {

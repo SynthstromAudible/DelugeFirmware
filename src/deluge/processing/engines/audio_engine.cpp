@@ -28,7 +28,7 @@
 #include "gui/ui/slicer.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/view.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "io/debug/print.h"
 #include "io/midi/midi_engine.h"
 #include "memory/general_memory_allocator.h"
@@ -452,7 +452,7 @@ void routine() {
 
 	else if (numSamples < direnessThreshold - 10) {
 
-		if ((int32_t)(audioSampleTimer - timeDirenessChanged) >= (44100 >> 3)) { // Only if it's been long enough
+		if ((int32_t)(audioSampleTimer - timeDirenessChanged) >= (kSampleRate >> 3)) { // Only if it's been long enough
 			timeDirenessChanged = audioSampleTimer;
 			cpuDireness--;
 			if (cpuDireness < 0) {
@@ -626,8 +626,8 @@ startAgain:
 	int32_t reverbAmplitudeL;
 	int32_t reverbAmplitudeR;
 
-	bool reverbOn = ((uint32_t)(audioSampleTimer - timeThereWasLastSomeReverb)
-	                 < 44100 * 12); // Stop reverb after 12 seconds of inactivity
+	// Stop reverb after 12 seconds of inactivity
+	bool reverbOn = ((uint32_t)(audioSampleTimer - timeThereWasLastSomeReverb) < kSampleRate * 12);
 
 	if (reverbOn) {
 		// Patch that to reverb volume
@@ -693,10 +693,8 @@ startAgain:
 	// 167763968 is 134217728 made a bit bigger so that default filter resonance doesn't reduce volume overall
 
 	if (currentSong) {
-		FilterSetConfig filterSetConfig;
-		currentSong->globalEffectable.setupFilterSetConfig(&filterSetConfig, &masterVolumeAdjustmentL,
-		                                                   &currentSong->paramManager);
-		currentSong->globalEffectable.processFilters(renderingBuffer, numSamples, &filterSetConfig);
+		currentSong->globalEffectable.setupFilterSetConfig(&masterVolumeAdjustmentL, &currentSong->paramManager);
+		currentSong->globalEffectable.processFilters(renderingBuffer, numSamples);
 		currentSong->globalEffectable.processSRRAndBitcrushing(renderingBuffer, numSamples, &masterVolumeAdjustmentL,
 		                                                       &currentSong->paramManager);
 
@@ -820,8 +818,8 @@ startAgain:
 
 		R_INTC_Enable(INTC_ID_TGIA[TIMER_MIDI_GATE_OUTPUT]);
 
-		*TGRA[TIMER_MIDI_GATE_OUTPUT] = ((uint32_t)samplesTilMIDIOrGate * 766245)
-		                                >> 16; // Set delay time. This is samplesTilMIDIOrGate * 515616 / 44100.
+		// Set delay time. This is samplesTilMIDIOrGate * 515616 / kSampleRate.
+		*TGRA[TIMER_MIDI_GATE_OUTPUT] = ((uint32_t)samplesTilMIDIOrGate * 766245) >> 16;
 		enableTimer(TIMER_MIDI_GATE_OUTPUT);
 	}
 
@@ -1119,7 +1117,7 @@ void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySo
 	int32_t error = range->sampleHolder.loadFile(false, true, true, CLUSTER_LOAD_IMMEDIATELY, filePointer);
 
 	if (error) {
-		numericDriver.displayError(error); // Rare, shouldn't cause later problems.
+		display->displayError(error); // Rare, shouldn't cause later problems.
 	}
 
 	if (shouldActuallySound) {
@@ -1150,6 +1148,15 @@ void getReverbParamsFromSong(Song* song) {
 	reverbCompressor.attack = song->reverbCompressorAttack;
 	reverbCompressor.release = song->reverbCompressorRelease;
 	reverbCompressor.syncLevel = song->reverbCompressorSync;
+}
+
+void getMasterCompressorParamsFromSong(Song* song) {
+	AudioEngine::mastercompressor.compressor.setAttack(song->masterCompressorAttack);
+	AudioEngine::mastercompressor.compressor.setRelease(song->masterCompressorRelease);
+	AudioEngine::mastercompressor.compressor.setThresh(song->masterCompressorThresh);
+	AudioEngine::mastercompressor.compressor.setRatio(song->masterCompressorRatio);
+	AudioEngine::mastercompressor.setMakeup(song->masterCompressorMakeup);
+	AudioEngine::mastercompressor.wet = song->masterCompressorWet;
 }
 
 Voice* solicitVoice(Sound* forSound) {
@@ -1193,7 +1200,7 @@ doCull:
 
 	int32_t i = activeVoices.insertAtKeyMultiWord(keyWords);
 	if (i == -1) {
-		// if (ALPHA_OR_BETA_VERSION) numericDriver.freezeWithError("E193"); // No, having run out of RAM here isn't a reason to not continue.
+		// if (ALPHA_OR_BETA_VERSION) display->freezeWithError("E193"); // No, having run out of RAM here isn't a reason to not continue.
 		disposeOfVoice(newVoice);
 		return NULL;
 	}
@@ -1326,7 +1333,7 @@ void doRecorderCardRoutines() {
 
 		int32_t error = recorder->cardRoutine();
 		if (error) {
-			numericDriver.displayError(error);
+			display->displayError(error);
 		}
 
 		// If, while in the card routine, a new Recorder was added, then our linked list traversal state thing will be out of wack, so let's just get out and
@@ -1349,8 +1356,8 @@ void doRecorderCardRoutines() {
 		}
 	}
 
-	if (ALPHA_OR_BETA_VERSION && ENABLE_CLIP_CUTTING_DIAGNOSTICS && count >= 10 && !numericDriver.popupActive) {
-		numericDriver.displayPopup("MORE");
+	if (ALPHA_OR_BETA_VERSION && ENABLE_CLIP_CUTTING_DIAGNOSTICS && count >= 10 && !display->hasPopup()) {
+		display->displayPopup("MORE");
 	}
 }
 
@@ -1430,7 +1437,7 @@ void discardRecorder(SampleRecorder* recorder) {
 
 		count++;
 		if (ALPHA_OR_BETA_VERSION && !*prevPointer) {
-			numericDriver.freezeWithError("E264");
+			display->freezeWithError("E264");
 		}
 		if (*prevPointer == recorder) {
 			*prevPointer = recorder->next;

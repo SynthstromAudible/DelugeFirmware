@@ -24,16 +24,15 @@ template <size_t n>
 class Envelope final : public SubmenuReferringToOneThing<n> {
 public:
 	using SubmenuReferringToOneThing<n>::SubmenuReferringToOneThing;
-#if HAVE_OLED
+
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) {
 		SubmenuReferringToOneThing<n>::beginSession(navigatedBackwardFrom);
 		setEnvelopeNumberForTitles(this->thingIndex);
 	}
-#endif
 };
 
 // Template deduction guide, will not be required with P2582@C++23
 template <size_t n>
-Envelope(const string&, MenuItem* const (&)[n], int32_t) -> Envelope<n>;
+Envelope(l10n::String, MenuItem* const (&)[n], int32_t) -> Envelope<n>;
 
 } // namespace deluge::gui::menu_item::submenu

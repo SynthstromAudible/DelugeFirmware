@@ -19,11 +19,12 @@
 #include "definitions_cxx.hpp"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "hid/matrix/matrix_driver.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/model_stack.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_manager.h"
@@ -32,11 +33,12 @@
 #include "storage/storage_manager.h"
 #include "util/misc.h"
 #include <new>
+using namespace deluge;
 
 GlobalEffectable::GlobalEffectable() {
-	lpfMode = LPFMode::TRANSISTOR_24DB;
-	filterSets[0].reset();
-	filterSets[1].reset();
+	lpfMode = FilterMode::TRANSISTOR_24DB;
+	filterSet.reset();
+
 	modFXType = ModFXType::FLANGER;
 	currentModFXParam = ModFXParam::FEEDBACK;
 	currentFilterType = FilterType::LPF;
@@ -135,8 +137,11 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 				case ModFXType::CHORUS_STEREO:
 					displayText = "STEREO CHORUS";
 					break;
+				case ModFXType::GRAIN:
+					displayText = "GRAIN";
+					break;
 				}
-				numericDriver.displayPopup(displayText);
+				display->displayPopup(displayText);
 				ensureModFXParamIsValid();
 				return true;
 			}
@@ -164,7 +169,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 					displayText = "OFFSET";
 					break;
 				}
-				numericDriver.displayPopup(displayText);
+				display->displayPopup(displayText);
 			}
 
 			return false;
@@ -192,15 +197,24 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 					displayText = "EQ";
 					break;
 				}
-				numericDriver.displayPopup(displayText);
+				display->displayPopup(displayText);
 			}
 
 			return false;
 		}
 		else {
-			if (on && currentFilterType == FilterType::LPF) {
-				switchLPFMode();
-				return true;
+			if (on) {
+				if (currentFilterType == FilterType::LPF) {
+					switchLPFMode();
+					return true;
+				}
+				else if (currentFilterType == FilterType::HPF) {
+					switchHPFMode();
+					return true;
+				}
+				else {
+					return false;
+				}
 			}
 
 			else {
@@ -213,7 +227,13 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 	else if (modKnobMode == 3) {
 		if (whichModEncoder == 1) {
 			if (on) {
-				switchDelayPingPong();
+				if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AltGoldenKnobDelayParams)
+				    == RuntimeFeatureStateToggle::On) {
+					switchDelaySyncType();
+				}
+				else {
+					switchDelayPingPong();
+				}
 				return true;
 			}
 			else {
@@ -222,7 +242,13 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 		}
 		else {
 			if (on) {
-				switchDelayAnalog();
+				if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AltGoldenKnobDelayParams)
+				    == RuntimeFeatureStateToggle::On) {
+					switchDelaySyncLevel();
+				}
+				else {
+					switchDelayAnalog();
+				}
 				return true;
 			}
 			else {
@@ -356,7 +382,8 @@ void GlobalEffectable::ensureModFXParamIsValid() {
 			}
 		}
 		else if (currentModFXParam == ModFXParam::OFFSET) {
-			if (modFXType != ModFXType::CHORUS && modFXType != ModFXType::CHORUS_STEREO) {
+			if (modFXType != ModFXType::CHORUS && modFXType != ModFXType::CHORUS_STEREO
+			    && modFXType != ModFXType::GRAIN) {
 				goto ohNo;
 			}
 		}
@@ -372,8 +399,7 @@ ohNo:
 	}
 }
 
-void GlobalEffectable::setupFilterSetConfig(FilterSetConfig* filterSetConfig, int32_t* postFXVolume,
-                                            ParamManager* paramManager) {
+void GlobalEffectable::setupFilterSetConfig(int32_t* postFXVolume, ParamManager* paramManager) {
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
@@ -391,30 +417,17 @@ void GlobalEffectable::setupFilterSetConfig(FilterSetConfig* filterSetConfig, in
 	    paramNeutralValues[Param::Local::HPF_RESONANCE],
 	    cableToLinearParamShortcut(unpatchedParams->getValue(Param::Unpatched::GlobalEffectable::HPF_RES)));
 
-	filterSetConfig->doLPF = (lpfMode == LPFMode::TRANSISTOR_24DB_DRIVE || lpfMode == LPFMode::SVF
-	                          || unpatchedParams->getValue(Param::Unpatched::GlobalEffectable::LPF_FREQ) < 2147483602);
-	filterSetConfig->doHPF = unpatchedParams->getValue(Param::Unpatched::GlobalEffectable::HPF_FREQ) != -2147483648;
+	bool doLPF = (lpfMode == FilterMode::TRANSISTOR_24DB_DRIVE
+	              || unpatchedParams->getValue(Param::Unpatched::GlobalEffectable::LPF_FREQ) < 2147483602);
+	bool doHPF = unpatchedParams->getValue(Param::Unpatched::GlobalEffectable::HPF_FREQ) != -2147483648;
 
-	*postFXVolume = filterSetConfig->init(lpfFrequency, lpfResonance, hpfFrequency, hpfResonance, lpfMode,
-	                                      *postFXVolume, false, NULL);
+	//no morph for global effectable
+	*postFXVolume = filterSet.setConfig(lpfFrequency, lpfResonance, doLPF, lpfMode, 0, hpfFrequency, hpfResonance,
+	                                    doHPF, FilterMode::HPLADDER, 0, *postFXVolume, filterRoute, false, NULL);
 }
 
-void GlobalEffectable::processFilters(StereoSample* buffer, int32_t numSamples, FilterSetConfig* filterSetConfig) {
-
-	if (filterSetConfig->doHPF) {
-		StereoSample* thisSample = buffer;
-		StereoSample* bufferEnd = buffer + numSamples;
-
-		do {
-			filterSets[0].renderLadderHPF(&thisSample->l, &filterSetConfig->hpladderconfig, 2);
-			filterSets[1].renderLadderHPF(&thisSample->r, &filterSetConfig->hpladderconfig, 2);
-		} while (++thisSample != bufferEnd);
-	}
-
-	if (filterSetConfig->doLPF) {
-		filterSets[0].renderLPFLong(&buffer->l, &(buffer + numSamples)->l, filterSetConfig, lpfMode, 2, 2, 1);
-		filterSets[1].renderLPFLong(&buffer->r, &(buffer + numSamples)->r, filterSetConfig, lpfMode, 2, 2, 1);
-	}
+void GlobalEffectable::processFilters(StereoSample* buffer, int32_t numSamples) {
+	filterSet.renderLongStereo(&buffer->l, &(buffer + numSamples)->l);
 }
 
 void GlobalEffectable::writeAttributesToFile(bool writeAutomation) {
@@ -753,11 +766,37 @@ void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, i
 				memset(modFXBuffer, 0, kModFXBufferSize * sizeof(StereoSample));
 			}
 		}
+		if (modFXGrainBuffer) {
+			GeneralMemoryAllocator::get().dealloc(modFXGrainBuffer);
+			modFXGrainBuffer = NULL;
+		}
+	}
+	else if (modFXTypeNow == ModFXType::GRAIN) {
+		if (!modFXGrainBuffer) {
+			modFXGrainBuffer = (StereoSample*)GeneralMemoryAllocator::get().alloc(
+			    kModFXGrainBufferSize * sizeof(StereoSample), NULL, false, true);
+			if (!modFXGrainBuffer) {
+				modFXTypeNow = ModFXType::NONE;
+			}
+			for (int i = 0; i < 8; i++) {
+				grains[i].length = 0;
+			}
+			grainInitialized = false;
+			modFXGrainBufferWriteIndex = 0;
+		}
+		if (modFXBuffer) {
+			GeneralMemoryAllocator::get().dealloc(modFXBuffer);
+			modFXBuffer = NULL;
+		}
 	}
 	else {
 		if (modFXBuffer) {
 			GeneralMemoryAllocator::get().dealloc(modFXBuffer);
 			modFXBuffer = NULL;
+		}
+		if (modFXGrainBuffer) {
+			GeneralMemoryAllocator::get().dealloc(modFXGrainBuffer);
+			modFXGrainBuffer = NULL;
 		}
 	}
 

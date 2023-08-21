@@ -6,6 +6,14 @@ import sys
 import util
 import os
 
+# Map of build configuration names to the name CMake uses for them
+BUILD_CONFIGS = {
+    "release": "Release",
+    "debug": "Debug",
+    "relwithdebinfo": "RelWithDebInfo",
+    "all": "all",
+}
+
 
 def argparser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -29,38 +37,36 @@ def argparser() -> argparse.ArgumentParser:
         action="store_true",
     )
     parser.add_argument(
+        "-t",
+        "--type",
+        help="The type of metadata tag (only applicable with -m, see `dbt configure -h` for options)",
+    )
+
+    parser.add_argument(
         "-m",
         "--tag-metadata",
         help="Tag the build with a metadata suffix",
         action="store_true",
     )
     parser.add_argument(
-        "target",
-        default="all",
-        const="all",
-        nargs="?",
-        choices=["7seg", "oled", "all", "clean"],
-    )
-    parser.add_argument(
         "config",
         nargs="?",
-        choices=["release", "debug", "relwithdebinfo"],
+        choices=list(BUILD_CONFIGS.keys()),
     )
     return parser
 
 
 def main() -> int:
     (args, unknown_args) = argparser().parse_known_args()
-    if args.target in ["7seg", "oled"]:
-        target = "deluge" + args.target.upper()
-    else:
-        target = args.target
 
     os.chdir(util.get_git_root())
 
     if args.tag_metadata:
+        configure_args = []
+        if args.type:
+            configure_args += ['-t', args.type]
         # configure with tagging
-        result = importlib.import_module("task-configure").main(["-m"] + unknown_args)
+        result = importlib.import_module("task-configure").main(["-m"] + configure_args + unknown_args)
         if result != 0:
             return result
 
@@ -71,10 +77,11 @@ def main() -> int:
 
     build_args = []
     build_args += ["--build", "build"]
-    build_args += ["--target", target]
+    build_args += ["--target", "deluge"]
 
-    if args.config:
-        build_args += ["--config", f"{args.config.title()}"]
+    if args.config and args.config != 'all':
+        config = BUILD_CONFIGS[args.config]
+        build_args += ["--config", config]
 
     if args.verbose:
         build_args += ["--verbose"]

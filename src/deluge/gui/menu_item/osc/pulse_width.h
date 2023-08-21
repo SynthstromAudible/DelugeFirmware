@@ -24,17 +24,17 @@
 namespace deluge::gui::menu_item::osc {
 class PulseWidth final : public menu_item::source::PatchedParam, public FormattedTitle {
 public:
-	using menu_item::source::PatchedParam::PatchedParam;
-	PulseWidth(const string& name, const string& title_format_str, int32_t newP)
+	PulseWidth(l10n::String name, l10n::String title_format_str, int32_t newP)
 	    : source::PatchedParam(name, newP), FormattedTitle(title_format_str) {}
 
-	[[nodiscard]] const string& getTitle() const override { return FormattedTitle::title(); }
+	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
-	int32_t getFinalValue() override { return (uint32_t)this->value_ * (85899345 >> 1); }
+	int32_t getFinalValue() override { return (uint32_t)this->getValue() * (85899345 >> 1); }
 
 	void readCurrentValue() override {
-		this->value_ =
-		    ((int64_t)soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP()) * 100 + 2147483648) >> 32;
+		this->setValue(
+		    ((int64_t)soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP()) * 100 + 2147483648)
+		    >> 32);
 	}
 
 	bool isRelevant(Sound* sound, int32_t whichThing) override {

@@ -16,17 +16,25 @@
 */
 #pragma once
 #include "definitions_cxx.hpp"
-#include "gui/menu_item/selection/typed_selection.h"
+#include "gui/l10n/l10n.h"
+#include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "io/midi/midi_engine.h"
 #include "util/misc.h"
 
 namespace deluge::gui::menu_item::midi {
-class Takeover final : public TypedSelection<MIDITakeoverMode, kNumMIDITakeoverModes> {
+class Takeover final : public Selection<kNumMIDITakeoverModes> {
 public:
-	using TypedSelection::TypedSelection;
-	void readCurrentValue() override { this->value_ = midiEngine.midiTakeover; }
-	void writeCurrentValue() override { midiEngine.midiTakeover = this->value_; }
-	static_vector<string, capacity()> getOptions() override { return {"Jump", "Pickup", "Scale"}; }
+	using Selection::Selection;
+	void readCurrentValue() override { this->setValue(midiEngine.midiTakeover); }
+	void writeCurrentValue() override { midiEngine.midiTakeover = this->getValue<MIDITakeoverMode>(); }
+	static_vector<std::string_view, capacity()> getOptions() override {
+		using enum l10n::String;
+		return {
+		    l10n::getView(STRING_FOR_JUMP),
+		    l10n::getView(STRING_FOR_PICK_UP),
+		    l10n::getView(STRING_FOR_SCALE),
+		};
+	}
 };
 } // namespace deluge::gui::menu_item::midi

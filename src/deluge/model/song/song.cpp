@@ -17,54 +17,53 @@
 
 #include "model/song/song.h"
 #include "definitions_cxx.hpp"
-#include "gui/views/arranger_view.h"
-#include "gui/views/view.h"
-#include "hid/display/numeric_driver.h"
-#include "hid/matrix/matrix_driver.h"
-#include "model/action/action.h"
-#include "model/action/action_logger.h"
-#include "model/clip/clip_instance.h"
-#include "model/clip/instrument_clip.h"
-#include "model/clip/instrument_clip_minder.h"
-#include "model/consequence/consequence_clip_existence.h"
-#include "model/note/note_row.h"
-#include "modulation/params/param_manager.h"
-#include "processing/engines/audio_engine.h"
-#include "processing/sound/sound_drum.h"
-#include "processing/sound/sound_instrument.h"
-#include "storage/audio/audio_file_manager.h"
-#include "storage/storage_manager.h"
-#include "util/functions.h"
-//#include <algorithm>
 #include "dsp/master_compressor/master_compressor.h"
 #include "dsp/reverb/freeverb/revmodel.hpp"
+#include "gui/l10n/l10n.h"
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
+#include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/session_view.h"
-#include "hid/display/oled.h"
+#include "gui/views/view.h"
+#include "hid/display/display.h"
 #include "hid/led/pad_leds.h"
+#include "hid/matrix/matrix_driver.h"
 #include "io/debug/print.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "memory/general_memory_allocator.h"
+#include "model/action/action.h"
+#include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
+#include "model/clip/clip_instance.h"
+#include "model/clip/instrument_clip.h"
+#include "model/clip/instrument_clip_minder.h"
+#include "model/consequence/consequence_clip_existence.h"
 #include "model/drum/kit.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/model_stack.h"
+#include "model/note/note_row.h"
 #include "model/sample/sample_recorder.h"
 #include "model/settings/runtime_feature_settings.h"
+#include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
 #include "processing/audio_output.h"
+#include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
+#include "processing/sound/sound_drum.h"
+#include "processing/sound/sound_instrument.h"
+#include "storage/audio/audio_file_manager.h"
 #include "storage/file_item.h"
 #include "storage/flash_storage.h"
+#include "storage/storage_manager.h"
+#include "util/functions.h"
 #include <new>
 #include <string.h>
 
@@ -94,6 +93,8 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	tripletsOn = false;
 
 	affectEntire = false;
+
+	fillModeActive = false;
 
 	modeNotes[0] = 0;
 	modeNotes[1] = 2;
@@ -133,13 +134,13 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	reverbCompressorShape = -601295438;
 	reverbCompressorSync = SYNC_LEVEL_8TH;
 
-	AudioEngine::mastercompressor.compressor.setAttack(10.0);
-	AudioEngine::mastercompressor.compressor.setRelease(100.0);
-	AudioEngine::mastercompressor.compressor.setThresh(0.0);
-	AudioEngine::mastercompressor.compressor.setRatio(1.0 / 4.0);
-	AudioEngine::mastercompressor.setMakeup(0.0);
+	masterCompressorAttack = 10.0;
+	masterCompressorRelease = 100.0;
+	masterCompressorThresh = 0.0;
+	masterCompressorRatio = 1.0 / 4.0;
+	masterCompressorMakeup = 0.0;
+	masterCompressorWet = 1.0;
 	AudioEngine::mastercompressor.gr = 0.0;
-	AudioEngine::mastercompressor.wet = 1.0;
 
 	dirPath.set("SONGS");
 }
@@ -332,7 +333,7 @@ couldntLoad:
 			if (!newInstrument) {
 				result.error = ERROR_INSUFFICIENT_RAM;
 reallyScrewed:
-				numericDriver.displayError(result.error);
+				display->displayError(result.error);
 				while (1) {}
 			}
 
@@ -350,7 +351,7 @@ gotError2:
 			}
 
 			((SoundInstrument*)newInstrument)->setupAsDefaultSynth(&newParamManager);
-			numericDriver.displayError(result.error); // E.g. show the CARD error.
+			display->displayError(result.error); // E.g. show the CARD error.
 		}
 
 		newInstrument->loadAllAudioFiles(true);
@@ -1053,6 +1054,10 @@ weAreInArrangementEditorOrInClipInstance:
 	storageManager.writeAttribute("xScroll", xScroll[NAVIGATION_CLIP]);
 	storageManager.writeAttribute("xZoom", xZoom[NAVIGATION_CLIP]);
 	storageManager.writeAttribute("yScrollSongView", songViewYScroll);
+	storageManager.writeAttribute("songGridScrollX", songGridScrollX);
+	storageManager.writeAttribute("songGridScrollY", songGridScrollY);
+	storageManager.writeAttribute("sessionLayout", sessionLayout);
+
 	storageManager.writeAttribute("yScrollArrangementView", arrangementYScroll);
 	storageManager.writeAttribute("xScrollArrangementView", xScroll[NAVIGATION_ARRANGEMENT]);
 	storageManager.writeAttribute("xZoomArrangementView", xZoom[NAVIGATION_ARRANGEMENT]);
@@ -1373,8 +1378,22 @@ int32_t Song::readFromFile() {
 
 		default:
 unknownTag:
+			if (!strcmp(tagName, "sessionLayout")) {
+				sessionLayout = (SessionLayoutType)storageManager.readTagOrAttributeValueInt();
+				storageManager.exitTag("sessionLayout");
+			}
 
-			if (!strcmp(tagName, "xZoomArrangementView")) {
+			else if (!strcmp(tagName, "songGridScrollX")) {
+				songGridScrollX = storageManager.readTagOrAttributeValueInt();
+				storageManager.exitTag("songGridScrollX");
+			}
+
+			else if (!strcmp(tagName, "songGridScrollY")) {
+				songGridScrollY = storageManager.readTagOrAttributeValueInt();
+				storageManager.exitTag("songGridScrollY");
+			}
+
+			else if (!strcmp(tagName, "xZoomArrangementView")) {
 				xZoom[NAVIGATION_ARRANGEMENT] = storageManager.readTagOrAttributeValueInt();
 				storageManager.exitTag("xZoomArrangementView");
 			}
@@ -1457,32 +1476,27 @@ unknownTag:
 				AudioEngine::mastercompressor.gr = 0.0;
 				while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "attack")) { //ms
-						AudioEngine::mastercompressor.compressor.setAttack(
-						    (double)storageManager.readTagOrAttributeValueInt() / 100.0);
+						masterCompressorAttack = (double)storageManager.readTagOrAttributeValueInt() / 100.0;
 						storageManager.exitTag("attack");
 					}
 					else if (!strcmp(tagName, "release")) { //ms
-						AudioEngine::mastercompressor.compressor.setRelease(
-						    (double)storageManager.readTagOrAttributeValueInt() / 100.0);
+						masterCompressorRelease = (double)storageManager.readTagOrAttributeValueInt() / 100.0;
 						storageManager.exitTag("release");
 					}
 					else if (!strcmp(tagName, "thresh")) { //db
-						AudioEngine::mastercompressor.compressor.setThresh(
-						    (double)storageManager.readTagOrAttributeValueInt() / 100.0);
+						masterCompressorThresh = (double)storageManager.readTagOrAttributeValueInt() / 100.0;
 						storageManager.exitTag("thresh");
 					}
 					else if (!strcmp(tagName, "ratio")) { //r:1
-						AudioEngine::mastercompressor.compressor.setRatio(
-						    1.0 / ((double)storageManager.readTagOrAttributeValueInt() / 100.0));
+						masterCompressorRatio = 1.0 / ((double)storageManager.readTagOrAttributeValueInt() / 100.0);
 						storageManager.exitTag("ratio");
 					}
 					else if (!strcmp(tagName, "makeup")) { //db
-						AudioEngine::mastercompressor.setMakeup((double)storageManager.readTagOrAttributeValueInt()
-						                                        / 100.0);
+						masterCompressorMakeup = (double)storageManager.readTagOrAttributeValueInt() / 100.0;
 						storageManager.exitTag("makeup");
 					}
 					else if (!strcmp(tagName, "wet")) { //0.0-1.0
-						AudioEngine::mastercompressor.wet = (double)storageManager.readTagOrAttributeValueInt() / 100.0;
+						masterCompressorWet = (double)storageManager.readTagOrAttributeValueInt() / 100.0;
 						storageManager.exitTag("wet");
 					}
 					else {
@@ -1782,7 +1796,7 @@ traverseClips:
 
 				if (lookingForIndex >= clips->getNumElements()) {
 #if ALPHA_OR_BETA_VERSION
-					numericDriver.displayPopup("E248");
+					display->displayPopup("E248");
 #endif
 skipInstance:
 					thisOutput->clipInstances.deleteAtIndex(i);
@@ -1795,7 +1809,7 @@ skipInstance:
 				// If Instrument mismatch somehow...
 				if (thisInstance->clip->output != thisOutput) {
 #if ALPHA_OR_BETA_VERSION
-					numericDriver.displayPopup("E451"); // Changed from E041 - was a duplicate.
+					display->displayPopup("E451"); // Changed from E041 - was a duplicate.
 #endif
 					goto skipInstance;
 				}
@@ -1804,7 +1818,7 @@ skipInstance:
 				if (isArrangementClip && thisInstance->clip->gotInstanceYet) {
 
 #if ALPHA_OR_BETA_VERSION
-					numericDriver.displayPopup("E042");
+					display->displayPopup("E042");
 #endif
 					goto skipInstance;
 				}
@@ -1840,7 +1854,7 @@ skipInstance:
 
 		if (!clip->gotInstanceYet) {
 #if ALPHA_OR_BETA_VERSION
-			numericDriver.displayPopup("E043");
+			display->displayPopup("E043");
 #endif
 			if (currentClip == clip) {
 				currentClip = NULL;
@@ -2747,7 +2761,7 @@ void Song::deleteClipObject(Clip* clip, bool songBeingDestroyedToo, InstrumentRe
 #if ALPHA_OR_BETA_VERSION
 	if (clip->type == CLIP_TYPE_AUDIO) {
 		if (((AudioClip*)clip)->recorder) {
-			numericDriver.freezeWithError("i001"); // Trying to diversify Qui's E278
+			display->freezeWithError("i001"); // Trying to diversify Qui's E278
 		}
 	}
 #endif
@@ -2959,6 +2973,12 @@ allDone:
 // Any audio routine calls that happen during the course of this function won't have access to either the old or new Instrument,
 // because neither will be in the master list when they happen
 void Song::replaceInstrument(Instrument* oldOutput, Instrument* newOutput, bool keepNoteRowsWithMIDIInput) {
+	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
+		if (thisOutput == newOutput) {
+			display->cancelPopup();
+			display->freezeWithError("i009");
+		}
+	}
 
 	// We don't detach the Instrument's activeClip here anymore. This happens in InstrumentClip::changeInstrument(), called below.
 	// If we changed it here, near-future calls to the audio routine could cause new voices to be sounded, with no later unassignment.
@@ -3021,7 +3041,8 @@ traverseClips:
 			// TODO: deal with errors!
 
 			if (newOutput->type == InstrumentType::KIT) {
-				instrumentClip->onKeyboardScreen = false;
+				instrumentClip->onKeyboardScreen =
+				    false; //this code is called when you switch between clip types (e.g. synth to kit)
 			}
 		}
 
@@ -3549,15 +3570,15 @@ void Song::deleteBackedUpParamManagersForClip(Clip* clip) {
 		if (i >= 1) {
 
 			if (backedUp->modControllable < lastModControllable) {
-				numericDriver.freezeWithError("E053");
+				display->freezeWithError("E053");
 			}
 
 			else if (backedUp->modControllable == lastModControllable) {
 				if (backedUp->clip < lastClip) {
-					numericDriver.freezeWithError("E054");
+					display->freezeWithError("E054");
 				}
 				else if (backedUp->clip == lastClip) {
-					numericDriver.freezeWithError("E055");
+					display->freezeWithError("E055");
 				}
 			}
 		}
@@ -3867,7 +3888,7 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 				if (!getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)output->toModControllable(),
 				                                               NULL)) {
 #if ALPHA_OR_BETA_VERSION
-					numericDriver.displayPopup("E044");
+					display->displayPopup("E044");
 #endif
 					deleteOutputThatIsInMainList(
 					    output,
@@ -3889,7 +3910,7 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 					if (!getBackedUpParamManagerPreferablyWithClip(soundDrum, NULL)) { // If no backedUpParamManager...
 						if (!findParamManagerForDrum(kit,
 						                             soundDrum)) { // If no ParamManager with a NoteRow somewhere...
-							numericDriver.freezeWithError("E102");
+							display->freezeWithError("E102");
 						}
 					}
 				}
@@ -4067,7 +4088,7 @@ void Song::ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* error
 		else {
 			if (!getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)thisOutput->toModControllable(),
 			                                               NULL)) {
-				numericDriver.freezeWithError(errorMessageNormal);
+				display->freezeWithError(errorMessageNormal);
 			}
 		}
 	}
@@ -4083,14 +4104,14 @@ void Song::ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* error
 
 		// If has Clip, it shouldn't!
 		if (getClipWithOutput(thisInstrument)) {
-			numericDriver.freezeWithError(
+			display->freezeWithError(
 			    "E056"); // gtridr got, V4.0.0-beta2. Before I fixed memory corruption issues, so hopefully could just be that.
 		}
 
 		else {
 			if (!getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)thisInstrument->toModControllable(),
 			                                               NULL)) {
-				numericDriver.freezeWithError(errorMessageHibernating);
+				display->freezeWithError(errorMessageHibernating);
 			}
 		}
 	}
@@ -4319,6 +4340,132 @@ bool Song::canOldOutputBeReplaced(Clip* clip, Availability* availabilityRequirem
 	}
 }
 
+Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset) {
+	if (output->type == InstrumentType::AUDIO) {
+		return output;
+	}
+
+	actionLogger.deleteAllLogs();
+
+	Instrument* oldInstrument = (Instrument*)output;
+
+	InstrumentType instrumentType = oldInstrument->type;
+
+	currentSong->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E063", "H063");
+
+	// If we're in MIDI or CV mode, easy - just change the channel
+	if (instrumentType == InstrumentType::MIDI_OUT || instrumentType == InstrumentType::CV) {
+
+		NonAudioInstrument* oldNonAudioInstrument = (NonAudioInstrument*)oldInstrument;
+
+		int32_t oldChannel = oldNonAudioInstrument->channel;
+		int32_t newChannel = oldNonAudioInstrument->channel;
+
+		int32_t oldChannelSuffix, newChannelSuffix;
+		if (instrumentType == InstrumentType::MIDI_OUT) {
+			oldChannelSuffix = ((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix;
+			newChannelSuffix = ((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix;
+		}
+
+		// CV
+		if (instrumentType == InstrumentType::CV) {
+			do {
+				newChannel = (newChannel + offset) & (NUM_CV_CHANNELS - 1);
+
+				if (newChannel == oldChannel) {
+cantDoIt:
+					display->displayPopup(l10n::get(l10n::String::STRING_FOR_NO_FREE_CHANNEL_SLOTS_AVAILABLE_IN_SONG));
+					return output;
+				}
+
+			} while (currentSong->getInstrumentFromPresetSlot(instrumentType, newChannel, -1, NULL, NULL, false));
+		}
+
+		// Or MIDI
+		else {
+
+			oldNonAudioInstrument->channel = -1; // Get it out of the way
+
+			do {
+				newChannelSuffix += offset;
+
+				// Turned left
+				if (offset == -1) {
+					if (newChannelSuffix < -1) {
+						newChannel = (newChannel + offset) & 15;
+						newChannelSuffix = currentSong->getMaxMIDIChannelSuffix(newChannel);
+					}
+				}
+
+				// Turned right
+				else {
+					if (newChannelSuffix >= 26 || newChannelSuffix > currentSong->getMaxMIDIChannelSuffix(newChannel)) {
+						newChannel = (newChannel + offset) & 15;
+						newChannelSuffix = -1;
+					}
+				}
+
+				if (newChannel == oldChannel && newChannelSuffix == oldChannelSuffix) {
+					oldNonAudioInstrument->channel = oldChannel; // Put it back
+					goto cantDoIt;
+				}
+
+			} while (currentSong->getInstrumentFromPresetSlot(instrumentType, newChannel, newChannelSuffix, NULL, NULL,
+			                                                  false));
+
+			oldNonAudioInstrument->channel = oldChannel; // Put it back, before switching notes off etc
+		}
+
+		if (oldNonAudioInstrument->activeClip && (playbackHandler.playbackState & PLAYBACK_CLOCK_EITHER_ACTIVE)) {
+			oldNonAudioInstrument->activeClip->expectNoFurtherTicks(currentSong);
+		}
+
+		// Because these are just MIDI / CV instruments and we're changing them for all Clips, we can just change the existing Instrument object!
+		oldNonAudioInstrument->channel = newChannel;
+		if (instrumentType == InstrumentType::MIDI_OUT) {
+			((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix = newChannelSuffix;
+		}
+
+		view.displayOutputName(oldNonAudioInstrument);
+		if (display->haveOLED()) {
+			deluge::hid::display::OLED::sendMainImage();
+		}
+	}
+
+	// Or if we're on a Kit or Synth...
+	else {
+		PresetNavigationResult results =
+		    loadInstrumentPresetUI.doPresetNavigation(offset, oldInstrument, Availability::INSTRUMENT_UNUSED, true);
+		if (results.error == NO_ERROR_BUT_GET_OUT) {
+removeWorkingAnimationAndGetOut:
+			if (display->haveOLED()) {
+				auto oled = static_cast<deluge::hid::display::OLED*>(display);
+				oled->consoleTimerEvent();
+				oled->removeWorkingAnimation();
+			}
+			return output;
+		}
+		else if (results.error) {
+			display->displayError(results.error);
+			goto removeWorkingAnimationAndGetOut;
+		}
+
+		Instrument* newInstrument = results.fileItem->instrument;
+		Browser::emptyFileItems();
+
+		currentSong->replaceInstrument(oldInstrument, newInstrument);
+
+		oldInstrument = newInstrument;
+		display->removeLoadingAnimation();
+	}
+
+	currentSong->instrumentSwapped(oldInstrument);
+
+	currentSong->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E064", "H064");
+
+	return oldInstrument;
+}
+
 void Song::instrumentSwapped(Instrument* newInstrument) {
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -4401,7 +4548,7 @@ Instrument* Song::changeInstrumentType(Instrument* oldInstrument, InstrumentType
 
 			// If we've searched all channels...
 			if (newSlot == oldSlot) {
-				numericDriver.displayPopup(HAVE_OLED ? "No available channels" : "CANT");
+				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_AVAILABLE_CHANNELS));
 				return NULL;
 			}
 		}
@@ -4414,7 +4561,7 @@ Instrument* Song::changeInstrumentType(Instrument* oldInstrument, InstrumentType
 		}
 		newInstrument = storageManager.createNewNonAudioInstrument(newInstrumentType, newSlot, newSubSlot);
 		if (!newInstrument) {
-			numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+			display->displayError(ERROR_INSUFFICIENT_RAM);
 			return NULL;
 		}
 
@@ -4427,7 +4574,7 @@ gotAnInstrument : {}
 		result.error = Browser::currentDir.set(getInstrumentFolder(newInstrumentType));
 		if (result.error) {
 displayError:
-			numericDriver.displayError(result.error);
+			display->displayError(result.error);
 			return NULL;
 		}
 
@@ -4458,25 +4605,21 @@ displayError:
 			removeInstrumentFromHibernationList(newInstrument);
 		}
 
-#if HAVE_OLED
-		OLED::displayWorkingAnimation("Loading");
-#else
-		numericDriver.displayLoadingAnimation();
-#endif
+		display->displayLoadingAnimationText("Loading");
 
 		newInstrument->loadAllAudioFiles(true);
 
-#if HAVE_OLED
-		OLED::removeWorkingAnimation();
-#endif
+		display->removeWorkingAnimation();
 	}
 
 #if ALPHA_OR_BETA_VERSION
-	numericDriver.setText("A002");
+	display->setText("A002");
 #endif
 	replaceInstrument(oldInstrument, newInstrument);
-#if ALPHA_OR_BETA_VERSION && !HAVE_OLED
-	view.displayOutputName(newInstrument);
+#if ALPHA_OR_BETA_VERSION
+	if (display->have7SEG()) {
+		view.displayOutputName(newInstrument);
+	}
 #endif
 
 	instrumentSwapped(newInstrument);
@@ -4713,7 +4856,7 @@ Instrument* Song::getNonAudioInstrumentToSwitchTo(InstrumentType newInstrumentTy
 
 		// If we've searched all channels...
 		if (newSlot == oldSlot) {
-			numericDriver.displayPopup(HAVE_OLED ? "No unused channels available" : "CANT");
+			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_UNUSED_CHANNELS_AVAILABLE));
 			return NULL;
 		}
 	}
@@ -4731,7 +4874,7 @@ Instrument* Song::getNonAudioInstrumentToSwitchTo(InstrumentType newInstrumentTy
 		}
 		newInstrument = storageManager.createNewNonAudioInstrument(newInstrumentType, newSlot, newSubSlot);
 		if (!newInstrument) {
-			numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+			display->displayError(ERROR_INSUFFICIENT_RAM);
 			return NULL;
 		}
 	}

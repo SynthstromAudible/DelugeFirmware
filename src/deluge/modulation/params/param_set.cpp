@@ -16,6 +16,7 @@
  */
 
 #include "modulation/params/param_set.h"
+#include "deluge/model/settings/runtime_feature_settings.h"
 #include "gui/views/view.h"
 #include "io/midi/midi_engine.h"
 #include "model/action/action_logger.h"
@@ -34,8 +35,8 @@
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 
-ParamSet::ParamSet(int32_t newObjectSize, ParamCollectionSummary* summary) : ParamCollection(newObjectSize, summary) {
-	topUintToRepParams = 1;
+ParamSet::ParamSet(int32_t newObjectSize, ParamCollectionSummary* summary)
+    : ParamCollection(newObjectSize, summary), numParams_(0), params(nullptr), topUintToRepParams(1) {
 }
 
 void ParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
@@ -360,11 +361,25 @@ void ParamSet::notifyPingpongOccurred(ModelStackWithParamCollection* modelStack)
 // UnpatchedParamSet --------------------------------------------------------------------------------------------
 
 UnpatchedParamSet::UnpatchedParamSet(ParamCollectionSummary* summary) : ParamSet(sizeof(UnpatchedParamSet), summary) {
+	params = params_.data();
+	numParams_ = static_cast<int32_t>(params_.size());
+	topUintToRepParams = (numParams_ - 1) >> 5;
+}
+
+void UnpatchedParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
+	params = params_.data();
+	numParams_ = static_cast<int32_t>(params_.size());
+	topUintToRepParams = (numParams_ - 1) >> 5;
+
+	ParamSet::beenCloned(copyAutomation, reverseDirectionWithLength);
 }
 
 bool UnpatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) {
 	switch (modelStack->paramId) {
 	case Param::Unpatched::STUTTER_RATE:
+		return runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate)
+		           == RuntimeFeatureStateToggle::Off
+		       || isUIModeActive(UI_MODE_STUTTERING);
 	case Param::Unpatched::BASS:
 	case Param::Unpatched::TREBLE:
 	case Param::Unpatched::GlobalEffectable::DELAY_RATE:
@@ -384,7 +399,17 @@ bool UnpatchedParamSet::doesParamIdAllowAutomation(ModelStackWithParamId const* 
 // PatchedParamSet --------------------------------------------------------------------------------------------
 
 PatchedParamSet::PatchedParamSet(ParamCollectionSummary* summary) : ParamSet(sizeof(PatchedParamSet), summary) {
-	topUintToRepParams = (kNumParams - 1) >> 5;
+	params = params_.data();
+	numParams_ = static_cast<int32_t>(params_.size());
+	topUintToRepParams = (numParams_ - 1) >> 5;
+}
+
+void PatchedParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
+	params = params_.data();
+	numParams_ = static_cast<int32_t>(params_.size());
+	topUintToRepParams = (numParams_ - 1) >> 5;
+
+	ParamSet::beenCloned(copyAutomation, reverseDirectionWithLength);
 }
 
 void PatchedParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
@@ -438,8 +463,9 @@ void PatchedParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const
 }
 
 int32_t PatchedParamSet::paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) {
-	if (modelStack->paramId == Param::Local::OSC_A_PHASE_WIDTH
-	    || modelStack->paramId == Param::Local::OSC_B_PHASE_WIDTH) {
+	if (modelStack
+	    && (modelStack->paramId == Param::Local::OSC_A_PHASE_WIDTH
+	        || modelStack->paramId == Param::Local::OSC_B_PHASE_WIDTH)) {
 		return (paramValue >> 24) - 64;
 	}
 	else {
@@ -448,8 +474,9 @@ int32_t PatchedParamSet::paramValueToKnobPos(int32_t paramValue, ModelStackWithA
 }
 
 int32_t PatchedParamSet::knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) {
-	if (modelStack->paramId == Param::Local::OSC_A_PHASE_WIDTH
-	    || modelStack->paramId == Param::Local::OSC_B_PHASE_WIDTH) {
+	if (modelStack
+	    && (modelStack->paramId == Param::Local::OSC_A_PHASE_WIDTH
+	        || modelStack->paramId == Param::Local::OSC_B_PHASE_WIDTH)) {
 		int32_t paramValue = 2147483647;
 		if (knobPos < 64) {
 			paramValue = (knobPos + 64) << 24;
@@ -482,10 +509,21 @@ bool PatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId const
 
 ExpressionParamSet::ExpressionParamSet(ParamCollectionSummary* summary, bool forDrum)
     : ParamSet(sizeof(ExpressionParamSet), summary) {
+	params = params_.data();
+	numParams_ = static_cast<int32_t>(params_.size());
+	topUintToRepParams = (numParams_ - 1) >> 5;
 	bendRanges[BEND_RANGE_MAIN] = FlashStorage::defaultBendRange[BEND_RANGE_MAIN];
 
 	bendRanges[BEND_RANGE_FINGER_LEVEL] =
 	    forDrum ? bendRanges[BEND_RANGE_MAIN] : FlashStorage::defaultBendRange[BEND_RANGE_FINGER_LEVEL];
+}
+
+void ExpressionParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
+	params = params_.data();
+	numParams_ = static_cast<int32_t>(params_.size());
+	topUintToRepParams = (numParams_ - 1) >> 5;
+
+	ParamSet::beenCloned(copyAutomation, reverseDirectionWithLength);
 }
 
 void ExpressionParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
@@ -524,7 +562,7 @@ int32_t ExpressionParamSet::knobPosToParamValue(int32_t knobPos, ModelStackWithA
 		}
 	}
 	intToString(valueForDisplay, buffer);
-	numericDriver.displayPopup(buffer, 3, true);
+	display->displayPopup(buffer, 3, true);
 
 	// Everything but aftertouch gets handled by parent from here
 	if (modelStack->paramId != 2) {

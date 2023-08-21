@@ -20,6 +20,7 @@
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/root_ui.h"
 #include "hid/buttons.h"
+#include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
@@ -130,8 +131,8 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 	bool outputPluggedInL = readInput(LINE_OUT_DETECT_L.port, LINE_OUT_DETECT_L.pin);
 	bool outputPluggedInR = readInput(LINE_OUT_DETECT_R.port, LINE_OUT_DETECT_R.pin);
 	bool headphoneNow = readInput(HEADPHONE_DETECT.port, HEADPHONE_DETECT.pin);
-	bool micNow = !readInput(MIC.port, MIC.pin);
-	bool lineInNow = readInput(LINE_IN.port, LINE_IN.pin);
+	bool micNow = !readInput(MIC_DETECT.port, MIC_DETECT.pin);
+	bool lineInNow = readInput(LINE_IN_DETECT.port, LINE_IN_DETECT.pin);
 	bool gateInNow = readInput(ANALOG_CLOCK_IN.port, ANALOG_CLOCK_IN.pin);
 
 	bool inputStateNow = (outputPluggedInL == outputPluggedInR == headphoneNow == micNow == lineInNow == gateInNow);
@@ -179,8 +180,7 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 				anythingProbablyPressed = true;
 			}
 		}
-#if HAVE_OLED
-		else if (value == oledWaitingForMessage) {
+		else if (value == oledWaitingForMessage && display->haveOLED()) {
 			//delayUS(2500); // TODO: fix
 			if (value == 248) {
 				oledSelectingComplete();
@@ -189,7 +189,6 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 				oledDeselectionComplete();
 			}
 		}
-#endif
 	}
 
 	midiEngine.checkIncomingSerialMidi();
@@ -224,9 +223,9 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 		indicator_leds::setKnobIndicatorLevel(1, encoderTestPos);
 	}
 
-#if HAVE_OLED
-	oledRoutine();
-#endif
+	if (display->haveOLED()) {
+		oledRoutine();
+	}
 	uartFlushIfNotSending(UART_ITEM_PIC);
 	uartFlushIfNotSending(UART_ITEM_MIDI);
 }
@@ -239,12 +238,12 @@ void ramTestLED(bool stuffAlreadySetUp) {
 	cvEngine.sendVoltageOut(0, 65520);
 	cvEngine.sendVoltageOut(1, 65520);
 
-#if HAVE_OLED
-	OLED::clearMainImage();
-	OLED::invertArea(0, OLED_MAIN_WIDTH_PIXELS, OLED_MAIN_TOPMOST_PIXEL, OLED_MAIN_HEIGHT_PIXELS - 1,
-	                 OLED::oledMainImage);
-	OLED::sendMainImage();
-#endif
+	if (display->haveOLED()) {
+		deluge::hid::display::OLED::clearMainImage();
+		deluge::hid::display::OLED::invertArea(0, OLED_MAIN_WIDTH_PIXELS, OLED_MAIN_TOPMOST_PIXEL,
+		                                       OLED_MAIN_HEIGHT_PIXELS - 1, deluge::hid::display::OLED::oledMainImage);
+		deluge::hid::display::OLED::sendMainImage();
+	}
 
 	midiEngine.midiThru = true;
 
@@ -396,7 +395,7 @@ int32_t autoPilotY;
 uint32_t timeNextAutoPilotAction = 0;
 
 void autoPilotStuff() {
-	using namespace hid::button;
+	using namespace deluge::hid::button;
 
 	if (!playbackHandler.recording)
 		return;

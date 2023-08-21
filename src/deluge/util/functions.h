@@ -168,11 +168,14 @@ ModFXParam stringToModFXParam(char const* string);
 char const* filterTypeToString(FilterType fxType);
 FilterType stringToFilterType(char const* string);
 
+FilterRoute stringToFilterRoute(char const* string);
+char const* filterRouteToString(FilterRoute route);
+
 char const* arpModeToString(ArpMode mode);
 ArpMode stringToArpMode(char const* string);
 
-char const* lpfTypeToString(LPFMode lpfType);
-LPFMode stringToLPFType(char const* string);
+char const* lpfTypeToString(FilterMode lpfType);
+FilterMode stringToLPFType(char const* string);
 
 char const* inputChannelToString(AudioInputChannel inputChannel);
 AudioInputChannel stringToInputChannel(char const* string);
@@ -212,13 +215,17 @@ int32_t getFinalParameterValueExpWithDumbEnvelopeHack(int32_t paramNeutralValue,
 
 void addAudio(StereoSample* inputBuffer, StereoSample* outputBuffer, int32_t numSamples);
 
-#if HAVE_OLED
 char const* getSourceDisplayNameForOLED(PatchSource s);
-char const* getPatchedParamDisplayNameForOled(int32_t p);
-#endif
+char const* getPatchedParamDisplayNameForOLED(int32_t p);
+char const* getUnpatchedParamDisplayNameForOLED(int32_t p);
+char const* getGlobalEffectableParamDisplayNameForOLED(int32_t p);
 
 char const* sourceToString(PatchSource source);
 PatchSource stringToSource(char const* string);
+char const* sourceToStringShort(PatchSource source);
+
+char const* patchedParamToStringShort(int32_t p);
+
 bool paramNeedsLPF(int32_t p, bool fromAutomation);
 int32_t shiftVolumeByDB(int32_t oldValue, float offset);
 int32_t quickLog(uint32_t input);
@@ -457,6 +464,12 @@ inline void getBlurColour(uint8_t rgb[], uint8_t fromRgb[]) {
 	rgb[0] = ((uint32_t)fromRgb[0] * 5 + averageBrightness) >> 5;
 	rgb[1] = ((uint32_t)fromRgb[1] * 5 + averageBrightness) >> 5;
 	rgb[2] = ((uint32_t)fromRgb[2] * 1 + averageBrightness) >> 5;
+}
+
+inline void colorCopy(uint8_t* dest, uint8_t* src, uint8_t intensity, uint8_t brightnessDivider) {
+	dest[0] = (uint8_t)((src[0] * intensity / 255) / brightnessDivider);
+	dest[1] = (uint8_t)((src[1] * intensity / 255) / brightnessDivider);
+	dest[2] = (uint8_t)((src[2] * intensity / 255) / brightnessDivider);
 }
 
 inline int32_t increaseMagnitude(int32_t number, int32_t magnitude) {

@@ -7,6 +7,9 @@ project(Deluge
     VERSION 1.0.0
 )
 
+include(ProcessorCount)
+ProcessorCount(HOST_NUM_CORES)
+
 # Check for IPO support
 include(CheckIPOSupported)
 check_ipo_supported(RESULT IPO_SUPPORTED OUTPUT error)
@@ -14,6 +17,7 @@ check_ipo_supported(RESULT IPO_SUPPORTED OUTPUT error)
 if(IPO_SUPPORTED)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION
         $<$<CONFIG:DEBUG>:OFF>
+        $<$<CONFIG:RELWITHDEBINFO>:ON>
         $<$<CONFIG:RELEASE>:ON>
     )
 endif()
@@ -59,12 +63,14 @@ string(TIMESTAMP DATE_TODAY "%Y.%m.%d")
 set(BUILD_VERSION_STRING "${PROJECT_VERSION}${SEMVER_PRERELEASE_ID}-${GIT_COMMIT_SHORT}") # Used in firmware
 set(BUILD_VERSION_SUFFIX "-v${PROJECT_VERSION}${SEMVER_PRERELEASE_ID}+${DATE_TODAY}-${GIT_COMMIT_SHORT}") # Used for filename
 
+string(REPLACE "." "_" BUILD_VERSION_SUFFIX ${BUILD_VERSION_SUFFIX})
+
 if(NOT "${GIT_STATUS}" STREQUAL "")
     string(APPEND BUILD_VERSION_SUFFIX "-dirty")
     string(APPEND BUILD_VERSION_STRING "-dirty")
 endif()
 
-message(VERBOSE "semver: ${BUILD_VERSION_SUFFIX}")
+message(STATUS "Deluge version: v${BUILD_VERSION_STRING}")
 
 option(ENABLE_VERSIONED_OUTPUT "Tag the resulting output files with a semver label" OFF)
 
@@ -73,89 +79,6 @@ if(ENABLE_VERSIONED_OUTPUT)
 else()
     set(EXECUTABLE_VERSION_SUFFIX "")
 endif(ENABLE_VERSIONED_OUTPUT)
-
-# This function lets us add multiple firmware "configurations"
-# that each have their own set of flags from the same source
-# It is very much a hack and should be retired as soon as possible
-function(add_firmware EXECUTABLE BASE)
-    get_target_property(BASE_SOURCES ${BASE} INTERFACE_SOURCES)
-    get_target_property(BASE_INCLUDES ${BASE} INTERFACE_INCLUDE_DIRECTORIES)
-    get_target_property(BASE_LINKS ${BASE} INTERFACE_LINK_LIBRARIES)
-    get_target_property(BASE_DEFINITIONS ${BASE} INTERFACE_COMPILE_DEFINITIONS)
-    get_target_property(BASE_OPTIONS ${BASE} INTERFACE_COMPILE_OPTIONS)
-
-    add_executable(${EXECUTABLE})
-    target_sources(${EXECUTABLE} PRIVATE ${BASE_SOURCES})
-    target_include_directories(${EXECUTABLE} PRIVATE ${BASE_INCLUDES})
-    target_link_libraries(${EXECUTABLE} ${BASE_LINKS})
-
-    set_property(
-        TARGET ${EXECUTABLE}
-        APPEND PROPERTY
-            COMPILE_DEFINITIONS ${BASE_DEFINITIONS}
-    )
-
-    set_property(
-        TARGET ${EXECUTABLE}
-        APPEND PROPERTY
-            COMPILE_OPTIONS ${BASE_OPTIONS}
-    )
-
-    set_target_properties(${EXECUTABLE}
-        PROPERTIES
-            C_STANDARD 11
-            C_STANDARD_REQUIRED ON
-            CXX_STANDARD 20
-            CXX_STANDARD_REQUIRED ON
-            CXX_EXTENSIONS ON
-            SUFFIX "${EXECUTABLE_VERSION_SUFFIX}.elf"
-    )
-
-    set(BIN_FILE $<CONFIG>/${EXECUTABLE}${EXECUTABLE_VERSION_SUFFIX}.bin)
-    set(HEX_FILE $<CONFIG>/${EXECUTABLE}${EXECUTABLE_VERSION_SUFFIX}.hex)
-    set(MAP_FILE $<CONFIG>/${EXECUTABLE}${EXECUTABLE_VERSION_SUFFIX}.map)
-
-    # add link options to generate memory map
-    target_link_options(${EXECUTABLE} PUBLIC
-        LINKER:-Map=${MAP_FILE}
-        LINKER:--cref
-    )
-
-    # generate .bin firmware file
-    add_custom_command(TARGET ${EXECUTABLE}
-        POST_BUILD
-        COMMAND ${CMAKE_OBJCOPY} -O binary -S $<TARGET_FILE:${EXECUTABLE}> ${BIN_FILE}
-        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-        COMMENT "Objcopying ${EXECUTABLE} to firmware ${BIN_FILE}"
-        DEPENDS ${EXECUTABLE}
-        BYPRODUCTS ${BIN_FILE})
-
-    # generate .hex firmware file
-    add_custom_command(TARGET ${EXECUTABLE}
-        POST_BUILD
-        COMMAND ${CMAKE_OBJCOPY} -O ihex -S $<TARGET_FILE:${EXECUTABLE}> ${HEX_FILE}
-        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-        COMMENT "Objcopying ${EXECUTABLE} to firmware ${HEX_FILE}"
-        DEPENDS ${EXECUTABLE}
-        BYPRODUCTS ${HEX_FILE})
-
-    # Clean up artefacts
-    set_property(TARGET ${EXECUTABLE}
-        PROPERTY
-            ADDITIONAL_CLEAN_FILES ${BIN_FILE} ${MAP_FILE} ${HEX_FILE})
-
-    # find_program(PRETTYSIZE_CMD prettysize prettysize.py)
-
-    # if(NOT PRETTYSIZE_CMD STREQUAL "PRETTYSIZE_CMD-NOTFOUND")
-    # add_custom_command(
-    # TARGET ${EXECUTABLE} POST_BUILD
-    # COMMAND prettysize
-    # -l ${CMAKE_CURRENT_LIST_DIR}/linker_script_rz_a1l.ld
-    # -s ${CMAKE_SIZE} $<TARGET_FILE:${EXECUTABLE}>
-    # WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-    # COMMENT "Displaying usage graph for ${EXECUTABLE}")
-    # endif()
-endfunction(add_firmware)
 
 # Global compilation options
 add_compile_options(
@@ -167,13 +90,16 @@ add_compile_options(
     # Debug symbols
     $<$<CONFIG:DEBUG>:-g> # Include
     $<$<CONFIG:DEBUG>:-ggdb> # Include
+    $<$<CONFIG:RELWITHDEBINFO>:-g> # Include
     $<$<CONFIG:RELEASE>:-s> # Strip
 
     # Optimization level
     $<$<CONFIG:DEBUG>:-Og>
+    $<$<CONFIG:RELWITHDEBINFO>:-O2>
     $<$<CONFIG:RELEASE>:-O2>
 
     # Link time optimizations
+    $<$<CONFIG:RELWITHDEBINFO>:-flto>
     $<$<CONFIG:RELEASE>:-flto>
     -ffunction-sections
     -fdata-sections
@@ -199,6 +125,7 @@ add_link_options(
 
 # RTT Debug options
 option(ENABLE_RTT "Enable RTT output" ON)
+option(ENABLE_SYSEX_LOAD "Enable loading firmware over midi sysex" OFF)
 
 # Colored output
 option(FORCE_COLORED_OUTPUT "Always produce ANSI-colored output (GNU/Clang only)." ON)
@@ -207,20 +134,69 @@ if(FORCE_COLORED_OUTPUT)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         message(STATUS "Forcing colors for GCC")
         add_compile_options(-fdiagnostics-color=always)
+        add_link_options(-fdiagnostics-color=always)
     elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
         message(STATUS "Forcing colors for Clang")
         add_compile_options(-fcolor-diagnostics)
     endif()
 endif(FORCE_COLORED_OUTPUT)
 
+# ##### Documentation generation #######
+# check if Doxygen is installed
+find_package(Doxygen
+    OPTIONAL_COMPONENTS dot mscgen dia
+)
+
+if(DOXYGEN_FOUND)
+    if(NOT ${DOXYGEN_HAVE_DOT})
+        message(
+            "Can't find GraphViz DOT tool for generating images."
+            "Make sure it's on your PATH or install GraphViz")
+    endif()
+
+    set(DOXYGEN_PROJECT_NAME "Deluge Firmware")
+    set(DOXYGEN_RECURSIVE YES)
+    set(DOXYGEN_EXAMPLE_RECURSIVE YES)
+
+    set(DOXYGEN_NUM_PROC_THREADS ${HOST_NUM_CORES})
+
+    # From doxygen-awesome
+    set(DOXYGEN_GENERATE_TREEVIEW YES)
+    set(DOXYGEN_DISABLE_INDEX NO)
+    set(DOXYGEN_FULL_SIDEBAR NO)
+    set(DOXYGEN_HTML_COLORSTYLE LIGHT)
+    set(DOXYGEN_HTML_EXTRA_STYLESHEET "${doxygen-awesome-css_SOURCE_DIR}/doxygen-awesome.css")
+
+    set(DOXYGEN_USE_MDFILE_AS_MAINPAGE README.md)
+
+    file(GLOB markdown_SOURCES *.md)
+
+    file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/assets
+        DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/html/)
+
+    doxygen_add_docs(doxygen ${markdown_SOURCES} docs src/deluge)
+else(DOXYGEN_FOUND)
+    message(WARNING
+        "Doxygen needs to be installed to generate documentation."
+        "Please install from https://github.com/doxygen/doxygen/releases")
+endif(DOXYGEN_FOUND)
+
 # Add libraries
 add_subdirectory(lib)
+
+# Add the main executable target
+add_executable(deluge)
 
 # Add our sources
 add_subdirectory(src)
 
+# Link external libraries
+target_link_libraries(deluge PUBLIC
+    fmt::fmt
+)
+
 # Project-only compile options (warnings, etc.)
-target_compile_options(deluge INTERFACE
+target_compile_options(deluge PUBLIC
 
     # Warnings
     # $<$<CONFIG:DEBUG>:-Wextra> # TODO: Enable when ready
@@ -229,14 +205,66 @@ target_compile_options(deluge INTERFACE
     $<$<CONFIG:DEBUG>:-Wnull-dereference>
     $<$<CONFIG:DEBUG>:-Wno-psabi>
 
+    $<$<CONFIG:DEBUG>:-Werror=write-strings>
+
     # Stack usage
     $<$<CONFIG:DEBUG>:-Wstack-usage=100>
+    $<$<CONFIG:RELWITHDEBINFO>:-Wstack-usage=1000>
     $<$<CONFIG:RELEASE>:-Wstack-usage=1000>
 )
 
-# 7SEG configuration
-add_firmware(deluge7SEG deluge)
+set_target_properties(deluge
+    PROPERTIES
+        C_STANDARD 11
+        C_STANDARD_REQUIRED ON
+        CXX_STANDARD 20
+        CXX_STANDARD_REQUIRED ON
+        CXX_EXTENSIONS ON
+        SUFFIX "${EXECUTABLE_VERSION_SUFFIX}.elf"
+)
 
-# OLED Configuration
-add_firmware(delugeOLED deluge)
-target_compile_definitions(delugeOLED PUBLIC HAVE_OLED=1)
+set(BIN_FILE $<CONFIG>/deluge${EXECUTABLE_VERSION_SUFFIX}.bin)
+set(HEX_FILE $<CONFIG>/deluge${EXECUTABLE_VERSION_SUFFIX}.hex)
+set(MAP_FILE $<CONFIG>/deluge${EXECUTABLE_VERSION_SUFFIX}.map)
+
+# add link options to generate memory map
+target_link_options(deluge PUBLIC
+    LINKER:-Map=${MAP_FILE}
+    LINKER:--cref
+)
+
+# generate .bin firmware file
+add_custom_command(TARGET deluge
+    POST_BUILD
+        COMMAND ${CMAKE_OBJCOPY} -O binary -S $<TARGET_FILE:deluge> ${BIN_FILE}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+        COMMENT "Objcopying deluge to firmware ${BIN_FILE}"
+        DEPENDS deluge
+        BYPRODUCTS ${BIN_FILE})
+
+# generate .hex firmware file
+add_custom_command(TARGET deluge
+    POST_BUILD
+        COMMAND ${CMAKE_OBJCOPY} -O ihex -S $<TARGET_FILE:deluge> ${HEX_FILE}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+        COMMENT "Objcopying deluge to firmware ${HEX_FILE}"
+        DEPENDS deluge
+        BYPRODUCTS ${HEX_FILE})
+
+# Clean up artefacts
+set_target_properties(deluge
+    PROPERTIES
+        ADDITIONAL_CLEAN_FILES ${BIN_FILE} ${MAP_FILE} ${HEX_FILE}
+)
+
+# find_program(PRETTYSIZE_CMD prettysize prettysize.py)
+
+# if(NOT PRETTYSIZE_CMD STREQUAL "PRETTYSIZE_CMD-NOTFOUND")
+# add_custom_command(
+# TARGET deluge POST_BUILD
+# COMMAND prettysize
+# -l ${CMAKE_CURRENT_LIST_DIR}/linker_script_rz_a1l.ld
+# -s ${CMAKE_SIZE} $<TARGET_FILE:deluge>
+# WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+# COMMENT "Displaying usage graph for deluge")
+# endif()

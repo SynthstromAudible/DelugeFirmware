@@ -20,7 +20,9 @@
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/sound_editor.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "util/functions.h"
+#include <limits>
 
 namespace deluge::gui::ui::keyboard::layout {
 
@@ -30,7 +32,7 @@ void KeyboardLayoutIsomorphic::evaluatePads(PressedPad presses[kMaxNumKeyboardPa
 	currentNotesState = NotesState{}; // Erase active notes
 
 	for (int32_t idxPress = 0; idxPress < kMaxNumKeyboardPadPresses; ++idxPress) {
-		if (presses[idxPress].active) {
+		if (presses[idxPress].active && presses[idxPress].x < kDisplayWidth) {
 			currentNotesState.enableNote(noteFromCoords(presses[idxPress].x, presses[idxPress].y),
 			                             getDefaultVelocity());
 		}
@@ -46,12 +48,12 @@ void KeyboardLayoutIsomorphic::handleHorizontalEncoder(int32_t offset, bool shif
 
 	if (shiftEnabled) {
 		state.rowInterval += offset;
-		state.rowInterval = std::max(state.rowInterval, kMinIsomorphicRowInterval);
-		state.rowInterval = std::min(kMaxIsomorphicRowInterval, state.rowInterval);
+		state.rowInterval = std::clamp(state.rowInterval, kMinIsomorphicRowInterval, kMaxIsomorphicRowInterval);
 
 		char buffer[13] = "Row step:   ";
-		intToString(state.rowInterval, buffer + (HAVE_OLED ? 10 : 0), 1);
-		numericDriver.displayPopup(buffer);
+		auto offset = (display->haveOLED() ? 10 : 0);
+		intToString(state.rowInterval, buffer + offset, 1);
+		display->displayPopup(buffer);
 
 		offset = 0; // Reset offset variable for processing scroll calculation without actually shifting
 	}
@@ -61,8 +63,7 @@ void KeyboardLayoutIsomorphic::handleHorizontalEncoder(int32_t offset, bool shif
 	    (getHighestClipNote() - ((kDisplayHeight - 1) * state.rowInterval + kDisplayWidth - 1));
 
 	// Make sure current value is in bounds
-	state.scrollOffset = std::max(getLowestClipNote(), state.scrollOffset);
-	state.scrollOffset = std::min(state.scrollOffset, highestScrolledNote);
+	state.scrollOffset = std::clamp(state.scrollOffset, getLowestClipNote(), highestScrolledNote);
 
 	// Offset if still in bounds (reject if the next row can not be shown completely)
 	int32_t newOffset = state.scrollOffset + offset;
@@ -109,19 +110,26 @@ void KeyboardLayoutIsomorphic::renderPads(uint8_t image[][kDisplayWidth + kSideB
 			if (octaveActiveNotes[noteWithinOctave] || noteWithinOctave == 0) {
 				memcpy(image[y][x], noteColours[normalizedPadOffset], 3);
 			}
+			// If highlighting notes is active, do it
+			else if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::HighlightIncomingNotes)
+			             == RuntimeFeatureStateToggle::On
+			         && getHighlightedNotes()[noteCode] != 0) {
+				colorCopy(image[y][x], noteColours[normalizedPadOffset], getHighlightedNotes()[noteCode], 1);
+			}
+
 			// Or, if this note is just within the current scale, show it dim
 			else if (octaveScaleNotes[noteWithinOctave]) {
 				getTailColour(image[y][x], noteColours[normalizedPadOffset]);
 			}
 
-			//@TODO: In a future revision it would be nice to add this to the API
+			//TODO: In a future revision it would be nice to add this to the API
 			// Dim note pad if a browser is open with the note highlighted
 			if (getCurrentUI() == &sampleBrowser || getCurrentUI() == &audioRecorder
 			    || (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem()->isRangeDependent())) {
 				if (soundEditor.isUntransposedNoteWithinRange(noteCode)) {
 					for (int32_t colour = 0; colour < 3; colour++) {
 						int32_t value = (int32_t)image[y][x][colour] + 35;
-						image[y][x][colour] = std::min<uint8_t>(value, 255);
+						image[y][x][colour] = std::min<int32_t>(value, std::numeric_limits<uint8_t>::max());
 					}
 				}
 			}

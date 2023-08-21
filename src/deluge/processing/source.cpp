@@ -20,7 +20,7 @@
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/view.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "io/debug/print.h"
 #include "model/sample/sample.h"
 #include "processing/engines/audio_engine.h"
@@ -203,7 +203,7 @@ void Source::doneReadingFromFile(Sound* sound) {
 		oscType = OscType::SINE;
 	}
 	else if (synthMode == SynthMode::RINGMOD) {
-		oscType = std::min<OscType>(oscType, static_cast<OscType>(kLastRingmoddableOscType));
+		oscType = std::min(oscType, kLastRingmoddableOscType);
 	}
 
 	bool isActualSampleOscillator = (synthMode != SynthMode::FM && oscType == OscType::SAMPLE);

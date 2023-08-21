@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/ui.h"
 #include "menu_item.h"
+#include "util/misc.h"
 
 namespace deluge::gui::menu_item {
 template <typename T = int32_t>
@@ -31,22 +32,39 @@ public:
 	void readValueAgain() override;
 	bool selectEncoderActionEditsInstrument() final { return true; }
 
+	void setValue(T value) { value_ = value; }
+
+	template <util::enumeration E>
+	void setValue(E value) {
+		value_ = util::to_underlying(value);
+	}
+
+	T getValue() { return value_; }
+
+	template <util::enumeration E>
+	E getValue() {
+		return static_cast<E>(value_);
+	}
+
 protected:
 	virtual void readCurrentValue() {}
 	virtual void writeCurrentValue() {}
-#if !HAVE_OLED
+
+	// 7SEG ONLY
 	virtual void drawValue() = 0;
-#endif
+
+private:
 	T value_;
 };
 
 template <typename T>
 void Value<T>::beginSession(MenuItem* navigatedBackwardFrom) {
-#if HAVE_OLED
-	readCurrentValue();
-#else
-	readValueAgain();
-#endif
+	if (display->haveOLED()) {
+		readCurrentValue();
+	}
+	else {
+		readValueAgain();
+	}
 }
 
 template <typename T>
@@ -54,21 +72,23 @@ void Value<T>::selectEncoderAction(int32_t offset) {
 	writeCurrentValue();
 
 	// For MenuItems referring to an AutoParam (so UnpatchedParam and PatchedParam), ideally we wouldn't want to render the display here, because that'll happen soon anyway due to a setting of TIMER_DISPLAY_AUTOMATION.
-#if HAVE_OLED
-	renderUIsForOled();
-#else
-	drawValue(); // Probably not necessary either...
-#endif
+	if (display->haveOLED()) {
+		renderUIsForOled();
+	}
+	else {
+		drawValue(); // Probably not necessary either...
+	}
 }
 
 template <typename T>
 void Value<T>::readValueAgain() {
 	readCurrentValue();
-#if HAVE_OLED
-	renderUIsForOled();
-#else
-	drawValue();
-#endif
+	if (display->haveOLED()) {
+		renderUIsForOled();
+	}
+	else {
+		drawValue();
+	}
 }
 
 } // namespace deluge::gui::menu_item

@@ -16,18 +16,26 @@
 */
 #pragma once
 #include "definitions_cxx.hpp"
-#include "gui/menu_item/selection/typed_selection.h"
+#include "gui/l10n/l10n.h"
+#include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "processing/engines/audio_engine.h"
 #include "util/misc.h"
 
 namespace deluge::gui::menu_item::monitor {
-class Mode final : public TypedSelection<InputMonitoringMode, kNumInputMonitoringModes> {
+class Mode final : public Selection<kNumInputMonitoringModes> {
 public:
-	using TypedSelection::TypedSelection;
+	using Selection::Selection;
 
-	void readCurrentValue() override { this->value_ = AudioEngine::inputMonitoringMode; }
-	void writeCurrentValue() override { AudioEngine::inputMonitoringMode = this->value_; }
-	static_vector<string, capacity()> getOptions() override { return {"Conditional", "On", "Off"}; }
+	void readCurrentValue() override { this->setValue(AudioEngine::inputMonitoringMode); }
+	void writeCurrentValue() override { AudioEngine::inputMonitoringMode = this->getValue<InputMonitoringMode>(); }
+	static_vector<std::string_view, capacity()> getOptions() override {
+		using enum l10n::String;
+		return {
+		    l10n::getView(STRING_FOR_CONDITIONAL),
+		    l10n::getView(STRING_FOR_ENABLED),
+		    l10n::getView(STRING_FOR_DISABLED),
+		};
+	}
 };
 } // namespace deluge::gui::menu_item::monitor

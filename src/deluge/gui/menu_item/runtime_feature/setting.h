@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "gui/menu_item/selection/selection.h"
+#include "gui/menu_item/selection.h"
 #include "model/settings/runtime_feature_settings.h"
 
 namespace deluge::gui::menu_item::runtime_feature {
@@ -28,9 +28,9 @@ public:
 
 	void readCurrentValue() override;
 	void writeCurrentValue() override;
-	static_vector<string, RUNTIME_FEATURE_SETTING_MAX_OPTIONS> getOptions() override;
-	[[nodiscard]] const string& getName() const override;
-	[[nodiscard]] const string& getTitle() const override;
+	static_vector<std::string_view, RUNTIME_FEATURE_SETTING_MAX_OPTIONS> getOptions() override;
+	[[nodiscard]] std::string_view getName() const override;
+	[[nodiscard]] std::string_view getTitle() const override;
 
 private:
 	friend class Settings;

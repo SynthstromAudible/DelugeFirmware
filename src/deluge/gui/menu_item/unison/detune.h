@@ -24,12 +24,12 @@ namespace deluge::gui::menu_item::unison {
 class Detune final : public Integer {
 public:
 	using Integer::Integer;
-	void readCurrentValue() override { this->value_ = soundEditor.currentSound->unisonDetune; }
+	void readCurrentValue() override { this->setValue(soundEditor.currentSound->unisonDetune); }
 	void writeCurrentValue() override {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithSoundFlags* modelStack = soundEditor.getCurrentModelStack(modelStackMemory)->addSoundFlags();
 
-		soundEditor.currentSound->setUnisonDetune(this->value_, modelStack);
+		soundEditor.currentSound->setUnisonDetune(this->getValue(), modelStack);
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxUnisonDetune; }
 };
