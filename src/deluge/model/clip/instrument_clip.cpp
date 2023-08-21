@@ -26,7 +26,7 @@
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "io/debug/print.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
@@ -67,10 +67,6 @@
 #include "util/lookuptables/lookuptables.h"
 #include <math.h>
 #include <new>
-
-#if HAVE_OLED
-#include "hid/display/oled.h"
-#endif
 
 // Supplying song is optional, and basically only for the purpose of setting yScroll according to root note
 InstrumentClip::InstrumentClip(Song* song) : Clip(CLIP_TYPE_INSTRUMENT) {
@@ -1100,7 +1096,7 @@ ModelStackWithNoteRow* InstrumentClip::getOrCreateNoteRowForYNote(int32_t yNote,
 
 				thisNoteRow = getNoteRowForYNote(yNote); // Must re-get it
 				if (ALPHA_OR_BETA_VERSION && !thisNoteRow) {
-					numericDriver.freezeWithError("E -1");
+					display->freezeWithError("E -1");
 				}
 
 				thisNoteRow->notes.empty(); // Undo our "total hack", above
@@ -1497,7 +1493,7 @@ int32_t InstrumentClip::setNonAudioInstrument(Instrument* newInstrument, Song* s
 			int32_t error = paramManager.setupMIDI();
 			if (error) {
 				if (ALPHA_OR_BETA_VERSION) {
-					numericDriver.freezeWithError("E052");
+					display->freezeWithError("E052");
 				}
 				return error;
 			}
@@ -1611,7 +1607,7 @@ int32_t InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelSta
 	    newInstrument, modelStack->song, newParamManager,
 	    favourClipForCloningParamManager); // Tell it not to setup patching - this will happen back here in changeInstrumentPreset() after all Drums matched up
 	if (error) {
-		numericDriver.freezeWithError("E039");
+		display->freezeWithError("E039");
 		return error; // TODO: we'll need to get the old Instrument back...
 	}
 
@@ -2038,7 +2034,7 @@ int32_t InstrumentClip::undoUnassignmentOfAllNoteRowsFromDrums(ModelStackWithTim
 
 			if (!success) {
 				if (ALPHA_OR_BETA_VERSION) {
-					numericDriver.freezeWithError("E229");
+					display->freezeWithError("E229");
 				}
 				return ERROR_BUG;
 			}
@@ -2129,7 +2125,7 @@ int32_t InstrumentClip::undoDetachmentFromOutput(ModelStackWithTimelineCounter* 
 
 		if (!paramManager.containsAnyMainParamCollections()) {
 			if (ALPHA_OR_BETA_VERSION) {
-				numericDriver.freezeWithError("E230");
+				display->freezeWithError("E230");
 			}
 			return ERROR_BUG;
 		}
@@ -3073,7 +3069,7 @@ bool InstrumentClip::deleteSoundsWhichWontSound(Song* song) {
 
 					if (ALPHA_OR_BETA_VERSION && noteRow->drum->type == DrumType::SOUND
 					    && ((SoundDrum*)noteRow->drum)->hasAnyVoices()) {
-						numericDriver.freezeWithError("E176");
+						display->freezeWithError("E176");
 					}
 
 					Drum* drum = noteRow->drum;
@@ -3243,7 +3239,7 @@ int32_t InstrumentClip::getDistanceToNextNote(Note* givenNote, ModelStackWithNot
 int32_t InstrumentClip::getNoteRowId(NoteRow* noteRow, int32_t noteRowIndex) {
 #if ALPHA_OR_BETA_VERSION
 	if (!noteRow) {
-		numericDriver.freezeWithError("E380");
+		display->freezeWithError("E380");
 	}
 #endif
 	if (output->type == InstrumentType::KIT) {
@@ -3257,7 +3253,7 @@ int32_t InstrumentClip::getNoteRowId(NoteRow* noteRow, int32_t noteRowIndex) {
 NoteRow* InstrumentClip::getNoteRowFromId(int32_t id) {
 	if (output->type == InstrumentType::KIT) {
 		if (id < 0 || id >= noteRows.getNumElements()) {
-			numericDriver.freezeWithError("E177");
+			display->freezeWithError("E177");
 		}
 		return noteRows.getElement(id);
 	}
@@ -3590,7 +3586,7 @@ Instrument* InstrumentClip::changeInstrumentType(ModelStackWithTimelineCounter* 
 			result.error = Browser::currentDir.set(getInstrumentFolder(newInstrumentType));
 			if (result.error) {
 displayError:
-				numericDriver.displayError(result.error);
+				display->displayError(result.error);
 				return NULL;
 			}
 		}
@@ -3623,11 +3619,7 @@ displayError:
 			modelStack->song->removeInstrumentFromHibernationList(newInstrument);
 		}
 
-#if HAVE_OLED
-		OLED::displayWorkingAnimation("Loading");
-#else
-		numericDriver.displayLoadingAnimation();
-#endif
+		display->displayLoadingAnimationText("Loading");
 		newInstrument->loadAllAudioFiles(true);
 	}
 
@@ -3660,9 +3652,7 @@ displayError:
 	outputChanged(modelStack, newInstrument);
 	modelStack->song->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E062", "H062");
 
-#if HAVE_OLED
-	OLED::removeWorkingAnimation();
-#endif
+	display->removeWorkingAnimation();
 
 	return newInstrument;
 }
@@ -3814,7 +3804,7 @@ int32_t InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 
 						// If wasn't enough RAM, we're really in trouble
 						if (error) {
-							numericDriver.freezeWithError("E011");
+							display->freezeWithError("E011");
 haveNoDrum:
 							thisNoteRow->drum = NULL;
 						}
@@ -4050,7 +4040,7 @@ Clip* InstrumentClip::cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStac
 	void* clipMemory = GeneralMemoryAllocator::get().alloc(sizeof(InstrumentClip), NULL, false, true);
 	if (!clipMemory) {
 ramError:
-		numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+		display->displayError(ERROR_INSUFFICIENT_RAM);
 		return NULL;
 	}
 
@@ -4058,7 +4048,7 @@ ramError:
 
 	int32_t error = newParamManager.cloneParamCollectionsFrom(&paramManager, false, true);
 	if (error) {
-		numericDriver.displayError(error);
+		display->displayError(error);
 		return NULL;
 	}
 

@@ -36,7 +36,7 @@ public:
 	KeyboardScreen();
 
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
-	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
 	ActionResult horizontalEncoderAction(int32_t offset);
 	void selectEncoderAction(int8_t offset);
@@ -68,11 +68,7 @@ private:
 
 	void unscrolledPadAudition(int32_t velocity, int32_t note, bool shiftButtonDown);
 
-#if HAVE_OLED
-	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
-		InstrumentClipMinder::renderOLED(image);
-	}
-#endif
+	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) { InstrumentClipMinder::renderOLED(image); }
 
 private:
 	void selectLayout(int8_t offset);

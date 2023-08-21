@@ -18,6 +18,7 @@
 #include "gui/ui/sample_marker_editor.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
+#include "gui/l10n/l10n.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
@@ -25,8 +26,7 @@
 #include "gui/waveform/waveform_basic_navigator.h"
 #include "gui/waveform/waveform_renderer.h"
 #include "hid/buttons.h"
-#include "hid/display/numeric_driver.h"
-#include "hid/display/oled.h"
+#include "hid/display/display.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "model/clip/audio_clip.h"
@@ -97,7 +97,7 @@ bool SampleMarkerEditor::opened() {
 	waveformBasicNavigator.sample = (Sample*)getCurrentSampleHolder()->audioFile;
 
 	if (!waveformBasicNavigator.sample) {
-		numericDriver.displayPopup(HAVE_OLED ? "No sample" : "CANT");
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_SAMPLE));
 		return false;
 	}
 
@@ -107,9 +107,9 @@ bool SampleMarkerEditor::opened() {
 
 	uiNeedsRendering(this, 0xFFFFFFFF, 0);
 
-#if !HAVE_OLED
-	displayText();
-#endif
+	if (display->have7SEG()) {
+		displayText();
+	}
 
 	if (getRootUI() != &instrumentClipView) {
 		renderingNeededRegardlessOfUI(0, 0xFFFFFFFF);
@@ -307,11 +307,12 @@ void SampleMarkerEditor::selectEncoderAction(int8_t offset) {
 	blinkInvisible = false;
 
 	uiNeedsRendering(this, 0xFFFFFFFF, 0);
-#if HAVE_OLED
-	renderUIsForOled();
-#else
-	displayText();
-#endif
+	if (display->haveOLED()) {
+		renderUIsForOled();
+	}
+	else {
+		displayText();
+	}
 }
 
 ActionResult SampleMarkerEditor::padAction(int32_t x, int32_t y, int32_t on) {
@@ -453,12 +454,12 @@ ensureNotPastSampleLength:
 							int loopStart = getCurrentMultisampleRange()->sampleHolder.loopStartPos;
 							int loopEnd = getCurrentMultisampleRange()->sampleHolder.loopEndPos;
 							loopLength = loopEnd - loopStart;
-							numericDriver.displayPopup("LOCK");
+							display->displayPopup("LOCK");
 						}
 						else {
 							loopLocked = false;
 							loopLength = 0;
-							numericDriver.displayPopup("FREE");
+							display->displayPopup("FREE");
 						}
 						return ActionResult::DEALT_WITH;
 					}
@@ -597,11 +598,12 @@ doWriteValue:
 
 doRender:
 			uiNeedsRendering(this, 0xFFFFFFFF, 0);
-#if HAVE_OLED
-			renderUIsForOled();
-#else
-			displayText();
-#endif
+			if (display->haveOLED()) {
+				renderUIsForOled();
+			}
+			else {
+				displayText();
+			}
 		}
 
 		// Release press
@@ -617,8 +619,8 @@ doRender:
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult SampleMarkerEditor::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
-	using namespace hid::button;
+ActionResult SampleMarkerEditor::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	using namespace deluge::hid::button;
 
 	// Back button
 	if (b == BACK) {
@@ -651,7 +653,7 @@ ActionResult SampleMarkerEditor::buttonAction(hid::Button b, bool on, bool inCar
 }
 
 void SampleMarkerEditor::exitUI() {
-	numericDriver.setNextTransitionDirection(-1);
+	display->setNextTransitionDirection(-1);
 	close();
 }
 
@@ -666,20 +668,20 @@ ActionResult SampleMarkerEditor::horizontalEncoderAction(int32_t offset) {
 
 			if (loopEnd + loopLength < end) {
 				loopLength = loopLength * 2;
-				numericDriver.displayPopup(HAVE_OLED ? "Loop doubled" : "DOUB");
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_LOOP_DOUBLED));
 			}
 			else {
-				numericDriver.displayPopup(HAVE_OLED ? "Loop too long" : "CANT");
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_LOOP_TOO_LONG));
 				return ActionResult::DEALT_WITH;
 			}
 		}
 		else { // turn anti-clockwise
 			if (loopLength > 2) {
 				loopLength = loopLength / 2;
-				numericDriver.displayPopup(HAVE_OLED ? "Loop halved" : "HALF");
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_LOOP_HALVED));
 			}
 			else {
-				numericDriver.displayPopup(HAVE_OLED ? "Loop too short" : "CANT");
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_LOOP_TOO_SHORT));
 				return ActionResult::DEALT_WITH;
 			}
 		}
@@ -762,7 +764,7 @@ ActionResult SampleMarkerEditor::timerCallback() {
 }
 
 ActionResult SampleMarkerEditor::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
-	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::button::X_ENC)
+	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::X_ENC)
 	    || currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
 		return ActionResult::DEALT_WITH;
 	}
@@ -1033,7 +1035,6 @@ void SampleMarkerEditor::renderMarkersForOneCol(int32_t xDisplay,
 	}
 }
 
-#if HAVE_OLED
 void SampleMarkerEditor::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	MarkerColumn cols[kNumMarkerTypes];
 	getColsOnScreen(cols);
@@ -1062,7 +1063,7 @@ void SampleMarkerEditor::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 		__builtin_unreachable();
 	}
 
-	OLED::drawScreenTitle(markerTypeText);
+	deluge::hid::display::OLED::drawScreenTitle(markerTypeText);
 
 	int32_t smallTextSpacingX = kTextSpacingX;
 	int32_t smallTextSizeY = kTextSpacingY;
@@ -1084,22 +1085,23 @@ void SampleMarkerEditor::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 
 			char buffer[12];
 			intToString(hours, buffer);
-			OLED::drawString(buffer, xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, smallTextSpacingX,
-			                 smallTextSizeY);
+			deluge::hid::display::OLED::drawString(buffer, xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS,
+			                                       smallTextSpacingX, smallTextSizeY);
 			xPixel += strlen(buffer) * smallTextSpacingX;
 
-			OLED::drawChar('h', smallTextSpacingX, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, smallTextSpacingX,
-			               smallTextSizeY);
+			deluge::hid::display::OLED::drawChar('h', smallTextSpacingX, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS,
+			                                     smallTextSpacingX, smallTextSizeY);
 			xPixel += smallTextSpacingX * 2;
 		}
 
 		char buffer[12];
 		intToString(minutes, buffer);
-		OLED::drawString(buffer, xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, smallTextSpacingX, smallTextSizeY);
+		deluge::hid::display::OLED::drawString(buffer, xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS,
+		                                       smallTextSpacingX, smallTextSizeY);
 		xPixel += strlen(buffer) * smallTextSpacingX;
 
-		OLED::drawChar('m', smallTextSpacingX, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, smallTextSpacingX,
-		               smallTextSizeY);
+		deluge::hid::display::OLED::drawChar('m', smallTextSpacingX, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS,
+		                                     smallTextSpacingX, smallTextSizeY);
 		xPixel += smallTextSpacingX * 2;
 	}
 	else {
@@ -1110,7 +1112,7 @@ void SampleMarkerEditor::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 printSeconds:
 		int32_t numDecimalPlaces;
 
-		// Maybe we just want to display millisecond resolution (that's S with 3 decimal places)...
+		// Maybe we just want to display->millisecond resolution (that's S with 3 decimal places)...
 		if (hours || minutes || hundredmilliseconds >= 100000) {
 			hundredmilliseconds /= 100;
 			numDecimalPlaces = 3;
@@ -1127,17 +1129,19 @@ printSeconds:
 		memmove(&buffer[length - numDecimalPlaces + 1], &buffer[length - numDecimalPlaces], numDecimalPlaces + 1);
 		buffer[length - numDecimalPlaces] = '.';
 
-		OLED::drawString(buffer, xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, smallTextSpacingX, smallTextSizeY);
+		deluge::hid::display::OLED::drawString(buffer, xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS,
+		                                       smallTextSpacingX, smallTextSizeY);
 		xPixel += (length + 1) * smallTextSpacingX;
 
 		if (hours || minutes) {
-			OLED::drawChar('s', xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, smallTextSpacingX, smallTextSizeY);
+			deluge::hid::display::OLED::drawChar('s', xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS,
+			                                     smallTextSpacingX, smallTextSizeY);
 		}
 		else {
 			xPixel += smallTextSpacingX;
 			char const* secString = (numDecimalPlaces == 2) ? "msec" : "sec";
-			OLED::drawString(secString, xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, smallTextSpacingX,
-			                 smallTextSizeY);
+			deluge::hid::display::OLED::drawString(secString, xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS,
+			                                       smallTextSpacingX, smallTextSizeY);
 		}
 	}
 
@@ -1146,19 +1150,20 @@ printSeconds:
 	// Sample count
 	xPixel = 1;
 
-	OLED::drawChar('(', xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, smallTextSpacingX, smallTextSizeY);
+	deluge::hid::display::OLED::drawChar('(', xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, smallTextSpacingX,
+	                                     smallTextSizeY);
 	xPixel += smallTextSpacingX;
 
 	char buffer[12];
 	intToString(markerPosSamples, buffer);
-	OLED::drawString(buffer, xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, smallTextSpacingX, smallTextSizeY);
+	deluge::hid::display::OLED::drawString(buffer, xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, smallTextSpacingX,
+	                                       smallTextSizeY);
 	xPixel += smallTextSpacingX * (strlen(buffer) + 1);
 
-	OLED::drawString("smpl)", xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, smallTextSpacingX, smallTextSizeY);
+	deluge::hid::display::OLED::drawString("smpl)", xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, smallTextSpacingX,
+	                                       smallTextSizeY);
 	xPixel += smallTextSpacingX * 6;
 }
-
-#else
 
 void SampleMarkerEditor::displayText() {
 
@@ -1183,9 +1188,8 @@ void SampleMarkerEditor::displayText() {
 	char buffer[5];
 	intToString(number, buffer, numDecimals + 1);
 
-	numericDriver.setText(buffer, true, drawDot);
+	display->setText(buffer, true, drawDot);
 }
-#endif
 
 bool SampleMarkerEditor::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
                                         uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],

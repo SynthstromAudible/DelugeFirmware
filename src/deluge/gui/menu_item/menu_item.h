@@ -18,14 +18,14 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/l10n/l10n.h"
+#include "gui/l10n/strings.h"
+#include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "util/container/static_vector.hpp"
 #include "util/sized.h"
 
 #include <cstdint>
-
-#if HAVE_OLED
-#include "hid/display/oled.h"
-#endif
 
 enum class MenuPermission {
 	NO,
@@ -39,8 +39,10 @@ class MIDIDevice;
 
 class MenuItem {
 public:
-	MenuItem(const std::string& newName = "", const std::string& newTitle = "") : name(newName), title(newTitle) {
-		if (newTitle.empty()) {
+	MenuItem() : name(deluge::l10n::String::EMPTY_STRING), title(deluge::l10n::String::EMPTY_STRING) {}
+	MenuItem(deluge::l10n::String newName, deluge::l10n::String newTitle = deluge::l10n::String::EMPTY_STRING)
+	    : name(newName), title(newTitle) {
+		if (newTitle == deluge::l10n::String::EMPTY_STRING) {
 			title = newName;
 		}
 	}
@@ -53,8 +55,8 @@ public:
 	virtual ~MenuItem() = default;
 
 	/// As viewed in a menu list. For OLED, up to 20 chars.
-	std::string name;
-	[[nodiscard]] virtual std::string_view getName() const { return name; }
+	const deluge::l10n::String name;
+	[[nodiscard]] virtual std::string_view getName() const { return deluge::l10n::getView(name); }
 
 	virtual void horizontalEncoderAction(int32_t offset) {}
 	virtual void selectEncoderAction(int32_t offset) {}
@@ -87,29 +89,25 @@ public:
 	virtual ActionResult timerCallback() { return ActionResult::DEALT_WITH; }
 
 	/// Can get overridden by getTitle(). Actual max num chars for OLED display is 14.
-	std::string title;
+	deluge::l10n::String title;
 
 	/// Get the title to be used when rendering on OLED. If not overriden, defaults to returning `title`.
 	///
 	/// The returned pointer must live long enough for us to draw the title, which for practical purposes means "the
 	/// lifetime of this menu item"
-	[[nodiscard]] virtual std::string_view getTitle() const { return title; }
+	[[nodiscard]] virtual std::string_view getTitle() const { return deluge::l10n::getView(name); }
 
-#if HAVE_OLED
 	virtual void renderOLED();
-	virtual void drawPixelsForOled() {
-	}
+	virtual void drawPixelsForOled() {}
+	void drawItemsForOled(char const** options, int32_t selectedOption);
 
 	template <size_t n>
 	static void drawItemsForOled(deluge::static_vector<std::string_view, n>& options, int32_t selectedOption,
 	                             int32_t offset = 0);
-#else
 	/// Get the title to be used when rendering on OLED. If not overriden, defaults to returning `title`.
 	virtual void drawName();
-#endif
 };
 
-#if HAVE_OLED
 // A couple of our child classes call this - that's all
 template <size_t n>
 void MenuItem::drawItemsForOled(deluge::static_vector<std::string_view, n>& options, const int32_t selectedOption,
@@ -121,14 +119,15 @@ void MenuItem::drawItemsForOled(deluge::static_vector<std::string_view, n>& opti
 	for (int32_t o = 0; o < OLED_HEIGHT_CHARS - 1 && o < options.size() - offset; o++) {
 		int32_t yPixel = o * kTextSpacingY + baseY;
 
-		OLED::drawString(options[o + offset], kTextSpacingX, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
-		                 kTextSpacingX, kTextSpacingY);
+		deluge::hid::display::OLED::drawString(options[o + offset], kTextSpacingX, yPixel,
+		                                       deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
+		                                       kTextSpacingX, kTextSpacingY);
 
 		if (o == selectedOption) {
-			OLED::invertArea(0, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8, &OLED::oledMainImage[0]);
-			OLED::setupSideScroller(0, options[o + offset], kTextSpacingX, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8,
-			                        kTextSpacingX, kTextSpacingY, true);
+			deluge::hid::display::OLED::invertArea(0, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8,
+			                                       &deluge::hid::display::OLED::oledMainImage[0]);
+			deluge::hid::display::OLED::setupSideScroller(0, options[o + offset], kTextSpacingX, OLED_MAIN_WIDTH_PIXELS,
+			                                              yPixel, yPixel + 8, kTextSpacingX, kTextSpacingY, true);
 		}
 	}
 }
-#endif

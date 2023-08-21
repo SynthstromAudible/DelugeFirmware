@@ -20,8 +20,7 @@
 #include "setting.h"
 
 #include "gui/ui/sound_editor.h"
-#include "hid/display/numeric_driver.h"
-
+#include "hid/display/display.h"
 #include <algorithm>
 #include <array>
 #include <cstdio>
@@ -50,7 +49,7 @@ Setting menuHighlightIncomingNotes(RuntimeFeatureSettingType::HighlightIncomingN
 Setting menuDisplayNornsLayout(RuntimeFeatureSettingType::DisplayNornsLayout);
 
 Submenu subMenuAutomation{
-    HAVE_OLED ? "AUTOMATION" : "AUTO",
+    l10n::String::STRING_FOR_AUTOMATION,
     {
         &menuAutomationInterpolate,
         &menuAutomationClearClip,
@@ -66,7 +65,7 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettin
     &menuDisplayNornsLayout,
 };
 
-Settings::Settings(char const* name, char const* title)
+Settings::Settings(l10n::String name, l10n::String title)
     : menu_item::Submenu<subMenuEntries.size()>(name, title, subMenuEntries) {
 }
 

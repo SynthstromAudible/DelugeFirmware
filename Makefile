@@ -4,27 +4,13 @@ else
 		export DBT := ./dbt
 endif
 
-all: 7seg-debug oled-debug 7seg-release oled-release
+all: debug release
 
-release: 7seg-release oled-release
+debug:
+	$(DBT) build debug
 
-debug: 7seg-debug oled-debug
-
-7seg: 7seg-debug 7seg-release
-
-oled: oled-debug oled-release
-
-7seg-debug:
-	$(DBT) build 7seg debug
-
-oled-debug:
-	$(DBT) build oled debug
-
-7seg-release:
-	$(DBT) build 7seg release
-
-oled-release:
-	$(DBT) build oled release
+release:
+	$(DBT) build release
 
 clean:
 	$(DBT) clean

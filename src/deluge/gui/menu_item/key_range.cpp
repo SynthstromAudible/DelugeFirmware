@@ -18,6 +18,7 @@
 #include "key_range.h"
 #include "gui/menu_item/range.h"
 #include "gui/ui/sound_editor.h"
+#include "hid/display/display.h"
 #include "util/functions.h"
 
 namespace deluge::gui::menu_item {
@@ -106,10 +107,10 @@ void KeyRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRightLe
 	int32_t leftLength = 1;
 
 	if (noteCodeIsSharp[lower]) {
-		*(buffer++) = HAVE_OLED ? '#' : '.';
-#if HAVE_OLED
-		leftLength++;
-#endif
+		*(buffer++) = (display->haveOLED()) ? '#' : '.';
+		if (display->haveOLED()) {
+			leftLength++;
+		}
 	}
 
 	if (getLeftLength) {
@@ -129,10 +130,10 @@ void KeyRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRightLe
 	*(buffer++) = noteCodeToNoteLetter[upper];
 	int32_t rightLength = 1;
 	if (noteCodeIsSharp[upper]) {
-		*(buffer++) = HAVE_OLED ? '#' : '.';
-#if HAVE_OLED
-		rightLength++;
-#endif
+		*(buffer++) = (display->haveOLED()) ? '#' : '.';
+		if (display->haveOLED()) {
+			rightLength++;
+		}
 	}
 
 	*buffer = 0;

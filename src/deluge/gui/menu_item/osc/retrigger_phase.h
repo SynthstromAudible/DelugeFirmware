@@ -18,14 +18,13 @@
 #include "gui/menu_item/decimal.h"
 #include "gui/menu_item/formatted_title.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/oled.h"
+#include "hid/display/display.h"
 #include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::osc {
 class RetriggerPhase final : public Decimal, public FormattedTitle {
 public:
-	RetriggerPhase(const std::string& newName, const fmt::format_string<int32_t>& title_format_str,
-	               bool newForModulator = false)
+	RetriggerPhase(l10n::String newName, l10n::String title_format_str, bool newForModulator = false)
 	    : Decimal(newName), FormattedTitle(title_format_str), forModulator(newForModulator) {}
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
@@ -58,24 +57,24 @@ public:
 
 	void drawValue() override {
 		if (this->getValue() < 0) {
-			numericDriver.setText("OFF", false, 255, true);
+			display->setText(l10n::get(l10n::String::STRING_FOR_DISABLED), false, 255, true);
 		}
 		else {
 			Decimal::drawValue();
 		}
 	}
 
-#if HAVE_OLED
 	void drawPixelsForOled() override {
 		if (this->getValue() < 0) {
-			OLED::drawStringCentred("OFF", 20, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextHugeSpacingX,
-			                        kTextHugeSizeY);
+			deluge::hid::display::OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_DISABLED), 20,
+			                                              deluge::hid::display::OLED::oledMainImage[0],
+			                                              OLED_MAIN_WIDTH_PIXELS, kTextHugeSpacingX, kTextHugeSizeY);
 		}
 		else {
 			Decimal::drawPixelsForOled();
 		}
 	}
-#endif
+
 	void horizontalEncoderAction(int32_t offset) override {
 		if (this->getValue() >= 0) {
 			Decimal::horizontalEncoderAction(offset);

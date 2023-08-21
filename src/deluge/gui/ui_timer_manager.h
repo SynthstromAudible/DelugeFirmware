@@ -36,15 +36,10 @@
 #define TIMER_GRAPHICS_ROUTINE 14
 #define TIMER_AUTOMATION_VIEW 15
 
-#if HAVE_OLED
 #define TIMER_OLED_LOW_LEVEL 16
 #define TIMER_OLED_CONSOLE 17
 #define TIMER_OLED_SCROLLING_AND_BLINKING 18
 #define NUM_TIMERS 19
-
-#else
-#define NUM_TIMERS 16
-#endif
 
 struct Timer {
 	bool active;

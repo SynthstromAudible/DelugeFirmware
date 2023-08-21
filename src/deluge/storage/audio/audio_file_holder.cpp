@@ -18,7 +18,7 @@
 #include "storage/audio/audio_file_holder.h"
 #include "storage/audio/audio_file_manager.h"
 
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "storage/audio/audio_file.h"
 
 AudioFileHolder::AudioFileHolder() {
@@ -65,7 +65,7 @@ void AudioFileHolder::setAudioFile(AudioFile* newAudioFile, bool reversed, bool 
 		unassignAllClusterReasons();
 #if ALPHA_OR_BETA_VERSION
 		if (audioFile->numReasonsToBeLoaded <= 0) {
-			numericDriver.freezeWithError("E220"); // I put this here to try and catch an E004 Luc got
+			display->freezeWithError("E220"); // I put this here to try and catch an E004 Luc got
 		}
 #endif
 		audioFile->removeReason("E391");

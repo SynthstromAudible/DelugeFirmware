@@ -18,6 +18,7 @@
 // clang-format off
 
 #include "util/lookuptables/lookuptables.h"
+#include "gui/l10n/l10n.h"
 #include "util/functions.h"
 #include "definitions_cxx.hpp"
 
@@ -184,12 +185,11 @@ const int16_t tanHSmall[] = {
 
 std::array<char const*, 9> presetScaleNames = {"MAJOR", "MINOR", "DORIAN", "PHRYGIAN", "LYDIAN", "MIXOLYDIAN", "LOCRIAN", "RANDOM", "NONE"};
 
-#if HAVE_OLED
-const char* presetReverbNames[] = {"Small room reverb", "Medium room reverb", "Large room reverb", NULL};
-#else
-const char* presetReverbNames[] = {"SMALL", "MEDI", "LARG", NULL};
-#endif
-
+deluge::l10n::String presetReverbNames[] = {
+	deluge::l10n::String::STRING_FOR_SMALL_ROOM_REVERB, //<
+	deluge::l10n::String::STRING_FOR_MEDIUM_ROOM_REVERB, //<
+	deluge::l10n::String::STRING_FOR_LARGE_ROOM_REVERB, //<
+};
 
 const int16_t tanH2d[][129] = {
 	{-32767, -32766, -32764, -32762, -32760, -32758, -32756, -32754, -32751, -32748, -32745, -32742, -32738, -32734, -32729, -32724, -32719, -32713, -32706, -32699, -32691, -32682, -32672, -32661, -32650, -32636, -32622, -32606, -32588, -32569, -32547, -32523, -32497, -32468, -32436, -32400, -32360, -32317, -32268, -32215, -32156, -32091, -32019, -31940, -31852, -31756, -31650, -31533, -31405, -31265, -31111, -30943, -30760, -30561, -30345, -30110, -29857, -29585, -29293, -28980, -28647, -28293, -27918, -27524, -27110, -26677, -26226, -25759, -25277, -24780, -24271, -23751, -23222, -22686, -22143, -21596, -21047, -20495, -19943, -19392, -18843, -18297, -17755, -17217, -16685, -16158, -15637, -15123, -14616, -14117, -13624, -13140, -12663, -12193, -11732, -11278, -10832, -10394, -9963, -9540, -9125, -8716, -8315, -7921, -7535, -7154, -6781, -6414, -6054, -5700, -5352, -5010, -4674, -4344, -4019, -3700, -3387, -3078, -2775, -2477, -2183, -1895, -1611, -1332, -1057, -786, -520, -258, 0, },

@@ -16,7 +16,7 @@
 */
 
 #include "menu_item.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 
 using namespace deluge;
 
@@ -29,17 +29,11 @@ void MenuItem::learnCC(MIDIDevice* fromDevice, int32_t channel, int32_t ccNumber
 	learnKnob(fromDevice, ccNumber, 0, channel);
 }
 
-#if HAVE_OLED
-
 void MenuItem::renderOLED() {
-	OLED::drawScreenTitle(getTitle());
+	deluge::hid::display::OLED::drawScreenTitle(getTitle());
 	drawPixelsForOled();
 }
 
-#else
-
 void MenuItem::drawName() {
-	numericDriver.setText(getName(), false, shouldDrawDotOnName());
+	display->setText(getName(), false, shouldDrawDotOnName());
 }
-
-#endif

@@ -18,7 +18,7 @@
 #include "memory/general_memory_allocator.h"
 #include "definitions_cxx.hpp"
 #include "drivers/mtu/mtu.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "io/debug/print.h"
 #include "memory/stealable.h"
 #include "model/action/action_logger.h"
@@ -71,8 +71,8 @@ void GeneralMemoryAllocator::checkStack(char const* caller) {
 		Debug::println(caller);
 
 		if (distance < 200) {
+			display->freezeWithError("E338");
 			Debug::println("COLLISION");
-			numericDriver.freezeWithError("E338");
 		}
 	}
 #endif

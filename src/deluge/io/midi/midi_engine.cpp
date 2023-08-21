@@ -18,8 +18,9 @@
 #include "io/midi/midi_engine.h"
 #include "RZA1/mtu/mtu.h"
 #include "definitions_cxx.hpp"
+#include "gui/l10n/l10n.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "hid/hid_sysex.h"
 #include "io/debug/print.h"
 #include "io/debug/sysex.h"
@@ -743,7 +744,7 @@ void MidiEngine::midiSysexReceived(MIDIDevice* device, uint8_t* data, int32_t le
 		} break;
 
 		case 1:
-			numericDriver.displayPopup(HAVE_OLED ? "hello sysex" : "SYSX");
+			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_HELLO_SYSEX));
 			break;
 
 		case 2:
@@ -949,7 +950,7 @@ void MidiEngine::midiMessageReceived(MIDIDevice* fromDevice, uint8_t statusType,
 				                                    &shouldDoMidiThruNow);
 #if MISSING_MESSAGE_CHECK
 				if (lastWasNoteOn == (bool)(statusType & 1))
-					numericDriver.freezeWithError("MISSED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+					display->freezeWithError("MISSED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
 				lastWasNoteOn = statusType & 1;
 #endif
 				break;

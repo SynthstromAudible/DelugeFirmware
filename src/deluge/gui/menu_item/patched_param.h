@@ -31,9 +31,10 @@ public:
 	PatchedParam() = default;
 	PatchedParam(int32_t newP) : Param(newP) {}
 	MenuItem* selectButtonPress();
-#if !HAVE_OLED
+
+	// 7SEG Only
 	virtual void drawValue() = 0;
-#endif
+
 	ParamDescriptor getLearningThing() override;
 	virtual uint8_t getPatchedParamIndex();
 	virtual uint8_t shouldDrawDotOnName();
