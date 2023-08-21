@@ -47,6 +47,9 @@
       "windows": {
         "miDebuggerPath": "${workspaceRoot}/toolchain/win32-x86_64/arm-none-eabi-gcc/bin/arm-none-eabi-gdb.exe"
       },
+      "linux": {
+        "miDebuggerPath": "${workspaceRoot}/toolchain/linux-x86_64/arm-none-eabi-gcc/bin/arm-none-eabi-gdb"
+      },
       "miDebuggerServerAddress": "localhost:3333",
       "externalConsole": true,
       "useExtendedRemote": true,
@@ -64,6 +67,9 @@
       "miDebuggerPath": "arm-none-eabi-gdb",
       "windows": {
         "miDebuggerPath": "${workspaceRoot}/toolchain/win32-x86_64/arm-none-eabi-gcc/bin/arm-none-eabi-gdb.exe"
+      },
+      "linux": {
+        "miDebuggerPath": "${workspaceRoot}/toolchain/linux-x86_64/arm-none-eabi-gcc/bin/arm-none-eabi-gdb"
       },
       "miDebuggerServerAddress": "localhost:3333",
       "useExtendedRemote": true,
@@ -101,6 +107,9 @@
       "miDebuggerPath": "arm-none-eabi-gdb",
       "windows": {
         "miDebuggerPath": "${workspaceRoot}/toolchain/win32-x86_64/arm-none-eabi-gcc/bin/arm-none-eabi-gdb.exe"
+      },
+      "linux": {
+        "miDebuggerPath": "${workspaceRoot}/toolchain/linux-x86_64/arm-none-eabi-gcc/bin/arm-none-eabi-gdb"
       },
       "miDebuggerServerAddress": "localhost:3333",
       "useExtendedRemote": true,
