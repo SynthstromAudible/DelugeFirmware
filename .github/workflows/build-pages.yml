@@ -6,7 +6,7 @@ name: Deploy Pages site
 on:
   # Runs on pushes targeting the default branch
   push:
-    branches: ["release/1.0"]
+    branches: ["community"]
     paths:
       - 'pages/**'
 
@@ -37,8 +37,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-        with:
-          ref: 'release/1.0'
       - name: Setup Pages
         uses: actions/configure-pages@v3
       - name: Upload artifact
