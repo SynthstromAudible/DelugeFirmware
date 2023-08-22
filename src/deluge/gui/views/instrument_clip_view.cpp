@@ -454,6 +454,7 @@ doOther:
 				}
 			}
 			else if (currentUIMode == UI_MODE_ADDING_DRUM_NOTEROW || currentUIMode == UI_MODE_AUDITIONING) {
+				//hook to load synth preset
 				createDrumForAuditionedNoteRow(DrumType::SOUND);
 			}
 		}
@@ -791,6 +792,7 @@ someError:
 	}
 
 	Drum* newDrum = storageManager.createNewDrum(drumType);
+
 	if (!newDrum) {
 		goto ramError;
 	}
@@ -798,35 +800,14 @@ someError:
 	Kit* kit = (Kit*)currentSong->currentClip->output;
 
 	ParamManager paramManager;
-
+	//add sound loading code here
 	if (drumType == DrumType::SOUND) {
-
-		String newName;
-		int32_t error = newName.set("U");
-		if (error) {
-discardDrum:
-			void* toDealloc = dynamic_cast<void*>(newDrum);
-			newDrum->~Drum();
-			GeneralMemoryAllocator::get().dealloc(toDealloc);
-			goto someError;
-		}
-
-		error = kit->makeDrumNameUnique(&newName, 1);
-		if (error) {
-			goto discardDrum;
-		}
-
-		((SoundDrum*)newDrum)->name.set(&newName);
-
-		error = paramManager.setupWithPatching();
-		if (error) {
-			goto discardDrum;
-		}
-
-		Sound::initParams(&paramManager);
-		((SoundDrum*)newDrum)->setupAsBlankSynth(&paramManager);
-
-		((SoundDrum*)newDrum)->modKnobs[6][0].paramDescriptor.setToHaveParamOnly(Param::Local::PITCH_ADJUST);
+		loadInstrumentPresetUI.loadingSynthToKitRow = true;
+		loadInstrumentPresetUI.soundDrumToReplace = (SoundDrum*)newDrum;
+		loadInstrumentPresetUI.kitToLoadFor = kit;
+		loadInstrumentPresetUI.noteRow = noteRow;
+		loadInstrumentPresetUI.noteRowIndex = noteRowIndex;
+		openUI(&loadInstrumentPresetUI);
 	}
 
 	kit->addDrum(newDrum);

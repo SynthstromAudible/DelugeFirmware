@@ -44,6 +44,7 @@ class Drum;
 class String;
 class MIDIParamCollection;
 class ParamManager;
+class SoundDrum;
 
 class StorageManager {
 public:
@@ -96,6 +97,8 @@ public:
 	int32_t readMIDIParamFromFile(int32_t readAutomationUpToPos, MIDIParamCollection* midiParamCollection,
 	                              int8_t* getCC = NULL);
 	Drum* createNewDrum(DrumType drumType);
+	int32_t loadSynthToDrum(Song* song, InstrumentClip* clip, bool mayReadSamplesFromFiles, SoundDrum** getInstrument,
+	                        FilePointer* filePointer, String* name, String* dirPath);
 	void openFilePointer(FilePointer* fp);
 	int32_t tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware = false);
 	int32_t readTagOrAttributeValueInt();
