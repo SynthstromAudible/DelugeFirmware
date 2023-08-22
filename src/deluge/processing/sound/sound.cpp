@@ -17,11 +17,12 @@
 
 #include "processing/sound/sound.h"
 #include "definitions_cxx.hpp"
+#include "gui/l10n/l10n.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "io/debug/print.h"
@@ -171,9 +172,10 @@ void Sound::initParams(ParamManager* paramManager) {
 	patchedParams->params[Param::Global::VOLUME_POST_FX].setCurrentValueBasicForSetup(
 	    getParamFromUserValue(Param::Global::VOLUME_POST_FX, 40));
 	patchedParams->params[Param::Global::VOLUME_POST_REVERB_SEND].setCurrentValueBasicForSetup(0);
+	patchedParams->params[Param::Local::FOLD].setCurrentValueBasicForSetup(-2147483648);
 	patchedParams->params[Param::Local::HPF_RESONANCE].setCurrentValueBasicForSetup(-2147483648);
 	patchedParams->params[Param::Local::HPF_FREQ].setCurrentValueBasicForSetup(-2147483648);
-	patchedParams->params[Param::Local::HPF_MORPH].setCurrentValueBasicForSetup(2147483648);
+	patchedParams->params[Param::Local::HPF_MORPH].setCurrentValueBasicForSetup(-2147483648);
 	patchedParams->params[Param::Local::LPF_MORPH].setCurrentValueBasicForSetup(-2147483648);
 	patchedParams->params[Param::Local::PITCH_ADJUST].setCurrentValueBasicForSetup(0);
 	patchedParams->params[Param::Global::REVERB_AMOUNT].setCurrentValueBasicForSetup(-2147483648);
@@ -349,11 +351,32 @@ bool Sound::setModFXType(ModFXType newType) {
 				return false;
 			}
 		}
+		if (modFXGrainBuffer) {
+			GeneralMemoryAllocator::get().dealloc(modFXGrainBuffer);
+			modFXGrainBuffer = NULL;
+		}
+	}
+	else if (newType == ModFXType::GRAIN) {
+		if (!modFXGrainBuffer) {
+			modFXGrainBuffer = (StereoSample*)GeneralMemoryAllocator::get().alloc(
+			    kModFXGrainBufferSize * sizeof(StereoSample), NULL, false, true);
+			if (!modFXGrainBuffer) {
+				return false;
+			}
+		}
+		if (modFXBuffer) {
+			GeneralMemoryAllocator::get().dealloc(modFXBuffer);
+			modFXBuffer = NULL;
+		}
 	}
 	else {
 		if (modFXBuffer) {
 			GeneralMemoryAllocator::get().dealloc(modFXBuffer);
 			modFXBuffer = NULL;
+		}
+		if (modFXGrainBuffer) {
+			GeneralMemoryAllocator::get().dealloc(modFXGrainBuffer);
+			modFXGrainBuffer = NULL;
 		}
 	}
 
@@ -885,7 +908,7 @@ int32_t Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* par
 		bool result = setModFXType(
 		    stringToFXType(storageManager.readTagOrAttributeValue())); // This might not work if not enough RAM
 		if (!result) {
-			numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+			display->displayError(ERROR_INSUFFICIENT_RAM);
 		}
 		storageManager.exitTag("modFXType");
 	}
@@ -897,7 +920,7 @@ int32_t Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* par
 				bool result = setModFXType(
 				    stringToFXType(storageManager.readTagOrAttributeValue())); // This might not work if not enough RAM
 				if (!result) {
-					numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+					display->displayError(ERROR_INSUFFICIENT_RAM);
 				}
 				storageManager.exitTag("type");
 			}
@@ -1148,6 +1171,11 @@ int32_t Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* par
 		ENSURE_PARAM_MANAGER_EXISTS
 		Sound::readParamsFromFile(paramManager, readAutomationUpToPos);
 		storageManager.exitTag("defaultParams");
+	}
+	else if (!strcmp(tagName, "waveFold")) {
+		ENSURE_PARAM_MANAGER_EXISTS
+		patchedParams->readParam(patchedParamsSummary, Param::Local::FOLD, readAutomationUpToPos);
+		storageManager.exitTag("waveFold");
 	}
 
 	else {
@@ -1520,8 +1548,8 @@ void Sound::allNotesOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBa
 
 #if ALPHA_OR_BETA_VERSION
 	if (!modelStack->paramManager) {
-		numericDriver.freezeWithError(
-		    "E403"); // Previously we were allowed to receive a NULL paramManager, then would just crudely do an unassignAllVoices(). But I'm pretty sure this doesn't exist anymore?
+		// Previously we were allowed to receive a NULL paramManager, then would just crudely do an unassignAllVoices(). But I'm pretty sure this doesn't exist anymore?
+		display->freezeWithError("E403");
 	}
 #endif
 
@@ -1868,6 +1896,8 @@ doCutModFXTail:
 					        ? (20 * 44)
 					        : (90
 					           * 441); // 20 and 900 mS respectively. Lots is required for feeding-back flanger or phaser
+					if (modFXType == ModFXType::GRAIN)
+						waitSamples = 350 * 441;
 					startSkippingRenderingAtTime = AudioEngine::audioSampleTimer + waitSamples;
 				}
 
@@ -2105,14 +2135,17 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 
 		// Setup filters
 		bool thisHasFilters = hasFilters();
+		q31_t lpfMorph = getSmoothedPatchedParamValue(Param::Local::LPF_MORPH, paramManager);
+		q31_t lpfFreq = getSmoothedPatchedParamValue(Param::Local::LPF_FREQ, paramManager);
+		q31_t hpfMorph = getSmoothedPatchedParamValue(Param::Local::HPF_MORPH, paramManager);
+		q31_t hpfFreq = getSmoothedPatchedParamValue(Param::Local::HPF_FREQ, paramManager);
 		bool doLPF = (thisHasFilters
 		              && (lpfMode == FilterMode::TRANSISTOR_24DB_DRIVE
 		                  || paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(Param::Local::LPF_FREQ)
-		                  || getSmoothedPatchedParamValue(Param::Local::LPF_FREQ, paramManager) < 2147483602));
+		                  || (lpfFreq < 2147483602) || (lpfMorph > -2147483648)));
 		bool doHPF = (thisHasFilters
 		              && (paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(Param::Local::HPF_FREQ)
-		                  || getSmoothedPatchedParamValue(Param::Local::HPF_FREQ, paramManager) != -2147483648));
-
+		                  || (hpfFreq != -2147483648) || (hpfMorph > -2147483648)));
 		// Each voice will potentially alter the "sources changed" flags, so store a backup to restore between each voice
 		/*
 		bool backedUpSourcesChanged[FIRST_UNCHANGEABLE_SOURCE - Local::FIRST_SOURCE];
@@ -2328,11 +2361,11 @@ void Sound::unassignAllVoices() {
 	if (ALPHA_OR_BETA_VERSION) {
 		if (numVoicesAssigned > 0) {
 			// ronronsen got error! https://forums.synthstrom.com/discussion/4090/e203-by-changing-a-drum-kit#latest
-			numericDriver.freezeWithError("E070");
+			display->freezeWithError("E070");
 		}
 		else if (numVoicesAssigned < 0) {
 			// ronronsen got error! https://forums.synthstrom.com/discussion/4090/e203-by-changing-a-drum-kit#latest
-			numericDriver.freezeWithError("E071");
+			display->freezeWithError("E071");
 		}
 	}
 
@@ -2367,7 +2400,7 @@ void Sound::confirmNumVoices(char const* error) {
 		Uart::print(numVoicesAssigned);
 		Uart::print(", but actually ");
 		Uart::println(voiceCount);
-		numericDriver.freezeWithError(error);
+		display->freezeWithError(error);
 	}
 
 	int32_t reasonCountSources = 0;
@@ -2395,7 +2428,7 @@ void Sound::confirmNumVoices(char const* error) {
 			char buffer[5];
 			strcpy(buffer, error);
 			buffer[0] = 'F';
-			numericDriver.freezeWithError(buffer);
+			display->freezeWithError(buffer);
 		}
 	}
 	*/
@@ -3456,6 +3489,10 @@ bool Sound::readParamTagFromFile(char const* tagName, ParamManagerForTimeline* p
 		patchedParams->readParam(patchedParamsSummary, Param::Local::HPF_MORPH, readAutomationUpToPos);
 		storageManager.exitTag("hpfMorph");
 	}
+	else if (!strcmp(tagName, "waveFold")) {
+		patchedParams->readParam(patchedParamsSummary, Param::Local::FOLD, readAutomationUpToPos);
+		storageManager.exitTag("waveFold");
+	}
 
 	else if (!strcmp(tagName, "envelope1")) {
 		while (*(tagName = storageManager.readNextTagOrAttributeName())) {
@@ -3607,7 +3644,7 @@ void Sound::writeParamsToFile(ParamManager* paramManager, bool writeAutomation) 
 
 	patchedParams->writeParamAsAttribute("volume", Param::Global::VOLUME_POST_FX, writeAutomation);
 	patchedParams->writeParamAsAttribute("pan", Param::Local::PAN, writeAutomation);
-
+	patchedParams->writeParamAsAttribute("waveFold", Param::Local::FOLD, writeAutomation);
 	// Filters
 	patchedParams->writeParamAsAttribute("lpfFrequency", Param::Local::LPF_FREQ, writeAutomation);
 	patchedParams->writeParamAsAttribute("lpfResonance", Param::Local::LPF_RESONANCE, writeAutomation);
@@ -3998,11 +4035,11 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 
 			if (compressor.syncLevel == (SyncLevel)(7 - insideWorldTickMagnitude)) {
 				compressor.syncLevel = (SyncLevel)(9 - insideWorldTickMagnitude);
-				numericDriver.displayPopup(HAVE_OLED ? "Fast sidechain compressor" : "FAST");
+				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_FAST_SIDECHAIN_COMPRESSOR));
 			}
 			else {
 				compressor.syncLevel = (SyncLevel)(7 - insideWorldTickMagnitude);
-				numericDriver.displayPopup(HAVE_OLED ? "Slow sidechain compressor" : "SLOW");
+				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_SLOW_SIDECHAIN_COMPRESSOR));
 			}
 			return true;
 		}
@@ -4021,7 +4058,7 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 				modKnobs[modKnobMode][1 - whichModEncoder].paramDescriptor.setToHaveParamOnly(
 				    Param::Local::HPF_RESONANCE);
 			}
-			numericDriver.displayPopup("HPF");
+			display->displayPopup("HPF");
 		}
 		return false;
 	}
@@ -4035,7 +4072,7 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 				modKnobs[modKnobMode][1 - whichModEncoder].paramDescriptor.setToHaveParamOnly(Param::Unpatched::START
 				                                                                              + Param::Unpatched::BASS);
 			}
-			numericDriver.displayPopup("EQ");
+			display->displayPopup("EQ");
 		}
 		return false;
 	}
@@ -4049,7 +4086,7 @@ bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackW
 				modKnobs[modKnobMode][1 - whichModEncoder].paramDescriptor.setToHaveParamOnly(
 				    Param::Local::LPF_RESONANCE);
 			}
-			numericDriver.displayPopup("LPF");
+			display->displayPopup("LPF");
 		}
 		return false;
 	}
@@ -4096,7 +4133,7 @@ void Sound::wontBeRenderedForAWhile() {
 
 	// If it still thinks it's meant to be rendering, we did something wrong
 	if (ALPHA_OR_BETA_VERSION && !skippingRendering) {
-		numericDriver.freezeWithError("E322");
+		display->freezeWithError("E322");
 	}
 }
 
@@ -4327,6 +4364,9 @@ char const* Sound::paramToString(uint8_t param) {
 
 	case Param::Local::CARRIER_1_FEEDBACK:
 		return "carrier2Feedback";
+
+	case Param::Local::FOLD:
+		return "waveFold";
 
 		// Unpatched params just for Sounds
 

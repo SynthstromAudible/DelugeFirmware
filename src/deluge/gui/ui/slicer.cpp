@@ -24,7 +24,7 @@
 #include "gui/waveform/waveform_basic_navigator.h"
 #include "gui/waveform/waveform_renderer.h"
 #include "hid/buttons.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
@@ -54,12 +54,6 @@ extern "C" {
 
 Slicer slicer{};
 
-Slicer::Slicer() {
-#if HAVE_OLED
-	oledShowsUIUnderneath = true;
-#endif
-}
-
 void Slicer::focusRegained() {
 
 	actionLogger.deleteAllLogs();
@@ -74,12 +68,11 @@ void Slicer::focusRegained() {
 		manualSlicePoints[i].transpose = 0;
 	}
 
-#if !HAVE_OLED
-	redraw();
-#endif
+	if (display->have7SEG()) {
+		redraw();
+	}
 }
 
-#if HAVE_OLED
 void Slicer::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 
 	int32_t windowWidth = 100;
@@ -94,23 +87,22 @@ void Slicer::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	windowMinY += 2;
 	int32_t windowMaxY = windowMinY + windowHeight;
 
-	OLED::clearAreaExact(windowMinX + 1, windowMinY + 1, windowMaxX - 1, windowMaxY - 1, image);
+	deluge::hid::display::OLED::clearAreaExact(windowMinX + 1, windowMinY + 1, windowMaxX - 1, windowMaxY - 1, image);
 
-	OLED::drawRectangle(windowMinX, windowMinY, windowMaxX, windowMaxY, image);
-	OLED::drawHorizontalLine(windowMinY + 15, 26, OLED_MAIN_WIDTH_PIXELS - 22, &image[0]);
-	OLED::drawString("Num. slices", 30, windowMinY + 6, image[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+	deluge::hid::display::OLED::drawRectangle(windowMinX, windowMinY, windowMaxX, windowMaxY, image);
+	deluge::hid::display::OLED::drawHorizontalLine(windowMinY + 15, 26, OLED_MAIN_WIDTH_PIXELS - 22, &image[0]);
+	deluge::hid::display::OLED::drawString("Num. slices", 30, windowMinY + 6, image[0], OLED_MAIN_WIDTH_PIXELS,
+	                                       kTextSpacingX, kTextSpacingY);
 	char buffer[12];
 	intToString(slicerMode == SLICER_MODE_REGION ? numClips : numManualSlice, buffer);
-	OLED::drawStringCentred(buffer, windowMinY + 18, image[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY,
-	                        (OLED_MAIN_WIDTH_PIXELS >> 1) + horizontalShift);
+	deluge::hid::display::OLED::drawStringCentred(buffer, windowMinY + 18, image[0], OLED_MAIN_WIDTH_PIXELS,
+	                                              kTextSpacingX, kTextSpacingY,
+	                                              (OLED_MAIN_WIDTH_PIXELS >> 1) + horizontalShift);
 }
-
-#else
 
 void Slicer::redraw() {
-	numericDriver.setTextAsNumber(slicerMode == SLICER_MODE_REGION ? numClips : numManualSlice, 255, true);
+	display->setTextAsNumber(slicerMode == SLICER_MODE_REGION ? numClips : numManualSlice, 255, true);
 }
-#endif
 
 bool Slicer::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
                             uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
@@ -251,17 +243,18 @@ ActionResult Slicer::horizontalEncoderAction(int32_t offset) {
 			newPos = waveformBasicNavigator.sample->lengthInSamples;
 		manualSlicePoints[currentSlice].startPos = newPos;
 
-#if HAVE_OLED
-		char buffer[24];
-		strcpy(buffer, "Start: ");
-		intToString(manualSlicePoints[currentSlice].startPos, buffer + strlen(buffer));
-		OLED::popupText(buffer);
-#else
-		char buffer[12];
-		strcpy(buffer, "");
-		intToString(manualSlicePoints[currentSlice].startPos / 1000, buffer + strlen(buffer));
-		numericDriver.displayPopup(buffer, 0, true);
-#endif
+		if (display->haveOLED()) {
+			char buffer[24];
+			strcpy(buffer, "Start: ");
+			intToString(manualSlicePoints[currentSlice].startPos, buffer + strlen(buffer));
+			deluge::hid::display::OLED::popupText(buffer, false);
+		}
+		else {
+			char buffer[12];
+			strcpy(buffer, "");
+			intToString(manualSlicePoints[currentSlice].startPos / 1000, buffer + strlen(buffer));
+			display->displayPopup(buffer, 0, true);
+		}
 		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 	}
 	return ActionResult::DEALT_WITH;
@@ -275,17 +268,18 @@ ActionResult Slicer::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 			manualSlicePoints[currentSlice].transpose = 24;
 		if (manualSlicePoints[currentSlice].transpose < -24)
 			manualSlicePoints[currentSlice].transpose = -24;
-#if HAVE_OLED
-		char buffer[24];
-		strcpy(buffer, "Transpose: ");
-		intToString(manualSlicePoints[currentSlice].transpose, buffer + strlen(buffer));
-		OLED::popupText(buffer);
-#else
-		char buffer[12];
-		strcpy(buffer, "");
-		intToString(manualSlicePoints[currentSlice].transpose, buffer + strlen(buffer));
-		numericDriver.displayPopup(buffer, 0, true);
-#endif
+		if (display->haveOLED()) {
+			char buffer[24];
+			strcpy(buffer, "Transpose: ");
+			intToString(manualSlicePoints[currentSlice].transpose, buffer + strlen(buffer));
+			deluge::hid::display::OLED::popupText(buffer, false);
+		}
+		else {
+			char buffer[12];
+			strcpy(buffer, "");
+			intToString(manualSlicePoints[currentSlice].transpose, buffer + strlen(buffer));
+			display->displayPopup(buffer, 0, true);
+		}
 	}
 	return ActionResult::DEALT_WITH;
 }
@@ -314,15 +308,17 @@ void Slicer::selectEncoderAction(int8_t offset) {
 		}
 		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 	}
-#if HAVE_OLED
-	renderUIsForOled();
-#else
-	redraw();
-#endif
+
+	if (display->haveOLED()) {
+		renderUIsForOled();
+	}
+	else {
+		redraw();
+	}
 }
 
-ActionResult Slicer::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
-	using namespace hid::button;
+ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	using namespace deluge::hid::button;
 
 	if (currentUIMode != UI_MODE_NONE || !on) {
 		return ActionResult::NOT_DEALT_WITH;
@@ -334,11 +330,12 @@ ActionResult Slicer::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		slicerMode %= 2;
 		if (slicerMode == SLICER_MODE_MANUAL)
 			AudioEngine::stopAnyPreviewing();
-#if HAVE_OLED
-		renderUIsForOled();
-#else
-		redraw();
-#endif
+		if (display->haveOLED()) {
+			renderUIsForOled();
+		}
+		else {
+			redraw();
+		}
 
 		((Kit*)currentSong->currentClip->output)->firstDrum->unassignAllVoices(); //stop
 		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
@@ -347,17 +344,18 @@ ActionResult Slicer::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 
 	//pop up Transpose value
 	if (b == Y_ENC && on && slicerMode == SLICER_MODE_MANUAL && currentSlice < numManualSlice) {
-#if HAVE_OLED
-		char buffer[24];
-		strcpy(buffer, "Transpose: ");
-		intToString(manualSlicePoints[currentSlice].transpose, buffer + strlen(buffer));
-		OLED::popupText(buffer);
-#else
-		char buffer[12];
-		strcpy(buffer, "");
-		intToString(manualSlicePoints[currentSlice].transpose, buffer + strlen(buffer));
-		numericDriver.displayPopup(buffer, 0, true);
-#endif
+		if (display->haveOLED()) {
+			char buffer[24];
+			strcpy(buffer, "Transpose: ");
+			intToString(manualSlicePoints[currentSlice].transpose, buffer + strlen(buffer));
+			deluge::hid::display::OLED::popupText(buffer, false);
+		}
+		else {
+			char buffer[12];
+			strcpy(buffer, "");
+			intToString(manualSlicePoints[currentSlice].transpose, buffer + strlen(buffer));
+			display->displayPopup(buffer, 0, true);
+		}
 		return ActionResult::DEALT_WITH;
 	}
 
@@ -385,11 +383,12 @@ ActionResult Slicer::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 			}
 
 			uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
-#if HAVE_OLED
-			renderUIsForOled();
-#else
-			redraw();
-#endif
+			if (display->haveOLED()) {
+				renderUIsForOled();
+			}
+			else {
+				redraw();
+			}
 			return ActionResult::DEALT_WITH;
 		}
 	}
@@ -439,7 +438,7 @@ ActionResult Slicer::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 			range->sampleHolder.transpose = 0;
 		}
 
-		numericDriver.setNextTransitionDirection(-1);
+		display->setNextTransitionDirection(-1);
 		close();
 	}
 	else {
@@ -493,7 +492,7 @@ void Slicer::preview(int64_t startPoint, int64_t endPoint, int32_t transpose, in
 		modelStackWithAutoParam->autoParam->setCurrentValueWithNoReversionOrRecording(
 		    modelStackWithAutoParam, getParamFromUserValue(Param::Local::ENV_0_ATTACK, 1));
 	}
-	instrumentClipView.sendAuditionNote(on, 0);
+	instrumentClipView.sendAuditionNote(on, 0, 64, 0);
 }
 
 ActionResult Slicer::padAction(int32_t x, int32_t y, int32_t on) {
@@ -514,13 +513,9 @@ ActionResult Slicer::padAction(int32_t x, int32_t y, int32_t on) {
 				        manualSlicePoints[slicePadIndex].transpose, on);
 			}
 
-#if HAVE_OLED
-			if (closePopup)
-				OLED::removePopup();
-#else
-			if (closePopup)
-				numericDriver.cancelPopup();
-#endif
+			if (closePopup) {
+				display->cancelPopup();
+			}
 		}
 		else { // do slice
 
@@ -564,11 +559,7 @@ ActionResult Slicer::padAction(int32_t x, int32_t y, int32_t on) {
 					manualSlicePoints[numManualSlice].transpose = 0;
 
 					numManualSlice++;
-#if HAVE_OLED
-					OLED::removePopup();
-#else
-					numericDriver.cancelPopup();
-#endif
+					display->cancelPopup();
 
 					SliceItem tmp;
 					for (int32_t i = 0; i < (numManualSlice - 1); i++) {
@@ -584,11 +575,12 @@ ActionResult Slicer::padAction(int32_t x, int32_t y, int32_t on) {
 			}
 		}
 
-#if HAVE_OLED
-		renderUIsForOled();
-#else
-		redraw();
-#endif
+		if (display->haveOLED()) {
+			renderUIsForOled();
+		}
+		else {
+			redraw();
+		}
 		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 	}
 	else if (!on && x < kDisplayWidth && y < kDisplayHeight / 2 && slicerMode == SLICER_MODE_MANUAL) { // pad off
@@ -609,7 +601,7 @@ void Slicer::doSlice() {
 	int32_t error = sampleBrowser.claimAudioFileForInstrument();
 	if (error) {
 getOut:
-		numericDriver.displayError(error);
+		display->displayError(error);
 		return;
 	}
 
@@ -666,7 +658,7 @@ getOut:
 
 #if 1 || ALPHA_OR_BETA_VERSION
 		if (!firstRange->sampleHolder.audioFile) {
-			numericDriver.freezeWithError("i032"); // Trying to narrow down E368 that Kevin F got
+			display->freezeWithError("i032"); // Trying to narrow down E368 that Kevin F got
 		}
 #endif
 
@@ -754,7 +746,7 @@ ramError2:
 	// New NoteRows have probably been created, whose colours haven't been grabbed yet.
 	instrumentClipView.recalculateColours();
 
-	numericDriver.setNextTransitionDirection(-1);
+	display->setNextTransitionDirection(-1);
 	sampleBrowser.exitAndNeverDeleteDrum();
 	uiNeedsRendering(&instrumentClipView);
 }

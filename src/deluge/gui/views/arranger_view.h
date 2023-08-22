@@ -41,7 +41,7 @@ public:
 	bool opened();
 	void focusRegained();
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
-	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
 	void selectEncoderAction(int8_t offset);
 
@@ -79,9 +79,8 @@ public:
 	void setLedStates();
 	ActionResult verticalScrollOneSquare(int32_t direction);
 	ActionResult horizontalScrollOneSquare(int32_t direction);
-#if HAVE_OLED
+
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
-#endif
 
 	Output* outputsOnScreen[kDisplayHeight];
 	int8_t yPressedEffective;

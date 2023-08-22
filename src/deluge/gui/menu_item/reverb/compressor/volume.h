@@ -32,16 +32,15 @@ public:
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return 50; }
 	[[nodiscard]] int32_t getMinValue() const override { return -1; }
-#if !HAVE_OLED
+
 	void drawValue() override {
 		if (this->getValue() < 0) {
-			numericDriver.setText("AUTO");
+			display->setText(l10n::get(l10n::String::STRING_FOR_AUTO));
 		}
 		else {
 			Integer::drawValue();
 		}
 	}
-#endif
 };
 
 } // namespace deluge::gui::menu_item::reverb::compressor

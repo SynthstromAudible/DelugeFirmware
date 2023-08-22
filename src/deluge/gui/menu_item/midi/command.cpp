@@ -18,8 +18,7 @@
 #include "command.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/numeric_driver.h"
-#include "hid/display/oled.h"
+#include "hid/display/display.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
 #include "util/misc.h"
@@ -31,98 +30,101 @@ extern "C" {
 namespace deluge::gui::menu_item::midi {
 
 void Command::beginSession(MenuItem* navigatedBackwardFrom) {
-#if !HAVE_OLED
-	drawValue();
-#endif
+	if (display->have7SEG()) {
+		drawValue();
+	}
 }
 
-#if HAVE_OLED
 void Command::drawPixelsForOled() {
 	LearnedMIDI* command = &midiEngine.globalMIDICommands[util::to_underlying(commandNumber)];
 	int32_t yPixel = 20;
 	if (!command->containsSomething()) {
-		OLED::drawString("Command unassigned", 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
-		                 kTextSizeYUpdated);
+		deluge::hid::display::OLED::drawString(l10n::get(l10n::String::STRING_FOR_COMMAND_UNASSIGNED), 0, yPixel,
+		                                       deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
+		                                       kTextSpacingX, kTextSizeYUpdated);
 	}
 	else {
-		char const* deviceString = "Any MIDI device";
+		char const* deviceString = l10n::get(l10n::String::STRING_FOR_ANY_MIDI_DEVICE);
 		if (command->device) {
 			deviceString = command->device->getDisplayName();
 		}
-		OLED::drawString(deviceString, 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
-		                 kTextSizeYUpdated);
-		OLED::setupSideScroller(0, deviceString, kTextSpacingX, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8,
-		                        kTextSpacingX, kTextSpacingY, false);
+		deluge::hid::display::OLED::drawString(deviceString, 0, yPixel, deluge::hid::display::OLED::oledMainImage[0],
+		                                       OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSizeYUpdated);
+		deluge::hid::display::OLED::setupSideScroller(0, deviceString, kTextSpacingX, OLED_MAIN_WIDTH_PIXELS, yPixel,
+		                                              yPixel + 8, kTextSpacingX, kTextSpacingY, false);
 
 		yPixel += kTextSpacingY;
 
 		char const* channelText;
 		if (command->channelOrZone == MIDI_CHANNEL_MPE_LOWER_ZONE) {
-			channelText = "MPE lower zone";
+			channelText = l10n::get(l10n::String::STRING_FOR_MPE_LOWER_ZONE);
 		}
 		else if (command->channelOrZone == MIDI_CHANNEL_MPE_UPPER_ZONE) {
-			channelText = "MPE upper zone";
+			channelText = l10n::get(l10n::String::STRING_FOR_MPE_UPPER_ZONE);
 		}
 		else {
-			channelText = "Channel";
+			channelText = l10n::get(l10n::String::STRING_FOR_CHANNEL);
 			char buffer[12];
 			int32_t channelmod = (command->channelOrZone >= IS_A_CC) * IS_A_CC;
 			intToString(command->channelOrZone + 1 - channelmod, buffer, 1);
-			OLED::drawString(buffer, kTextSpacingX * 8, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
-			                 kTextSpacingX, kTextSizeYUpdated);
+			deluge::hid::display::OLED::drawString(buffer, kTextSpacingX * 8, yPixel,
+			                                       deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
+			                                       kTextSpacingX, kTextSizeYUpdated);
 		}
-		OLED::drawString(channelText, 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
-		                 kTextSizeYUpdated);
+		deluge::hid::display::OLED::drawString(channelText, 0, yPixel, deluge::hid::display::OLED::oledMainImage[0],
+		                                       OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSizeYUpdated);
 
 		yPixel += kTextSpacingY;
 		if (command->channelOrZone < IS_A_CC) {
-			OLED::drawString("Note", 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
-			                 kTextSizeYUpdated);
+			deluge::hid::display::OLED::drawString("Note", 0, yPixel, deluge::hid::display::OLED::oledMainImage[0],
+			                                       OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSizeYUpdated);
 		}
 		else {
-			OLED::drawString("CC", 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
-			                 kTextSizeYUpdated);
+			deluge::hid::display::OLED::drawString("CC", 0, yPixel, deluge::hid::display::OLED::oledMainImage[0],
+			                                       OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSizeYUpdated);
 		}
 
 		char buffer[12];
 		intToString(command->noteOrCC, buffer, 1);
-		OLED::drawString(buffer, kTextSpacingX * 5, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
-		                 kTextSpacingX, kTextSizeYUpdated);
+		deluge::hid::display::OLED::drawString(buffer, kTextSpacingX * 5, yPixel,
+		                                       deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
+		                                       kTextSpacingX, kTextSizeYUpdated);
 	}
 }
-#else
+
 void Command::drawValue() const {
 	char const* output = nullptr;
 	if (!midiEngine.globalMIDICommands[util::to_underlying(commandNumber)].containsSomething()) {
-		output = "NONE";
+		output = l10n::get(l10n::String::STRING_FOR_NONE);
 	}
 	else {
-		output = "SET";
+		output = l10n::get(l10n::String::STRING_FOR_SET);
 	}
-	numericDriver.setText(output);
+	display->setText(output);
 }
-#endif
 
 void Command::selectEncoderAction(int32_t offset) {
 	midiEngine.globalMIDICommands[util::to_underlying(commandNumber)].clear();
-#if HAVE_OLED
-	renderUIsForOled();
-#else
-	drawValue();
-#endif
+	if (display->haveOLED()) {
+		renderUIsForOled();
+	}
+	else {
+		drawValue();
+	}
 }
 
 void Command::unlearnAction() {
 	midiEngine.globalMIDICommands[util::to_underlying(commandNumber)].clear();
 	if (soundEditor.getCurrentMenuItem() == this) {
-#if HAVE_OLED
-		renderUIsForOled();
-#else
-		drawValue();
-#endif
+		if (display->haveOLED()) {
+			renderUIsForOled();
+		}
+		else {
+			drawValue();
+		}
 	}
 	else {
-		numericDriver.displayPopup("UNLEARNED");
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_UNLEARNED));
 	}
 }
 
@@ -131,14 +133,15 @@ bool Command::learnNoteOn(MIDIDevice* device, int32_t channel, int32_t noteCode)
 	midiEngine.globalMIDICommands[util::to_underlying(commandNumber)].channelOrZone = channel;
 	midiEngine.globalMIDICommands[util::to_underlying(commandNumber)].noteOrCC = noteCode;
 	if (soundEditor.getCurrentMenuItem() == this) {
-#if HAVE_OLED
-		renderUIsForOled();
-#else
-		drawValue();
-#endif
+		if (display->haveOLED()) {
+			renderUIsForOled();
+		}
+		else {
+			drawValue();
+		}
 	}
 	else {
-		numericDriver.displayPopup("LEARNED");
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_LEARNED));
 	}
 	return true;
 }

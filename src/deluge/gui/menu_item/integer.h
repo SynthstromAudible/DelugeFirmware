@@ -27,20 +27,19 @@ public:
 	void selectEncoderAction(int32_t offset) override;
 
 protected:
-#if HAVE_OLED
 	void drawPixelsForOled();
 	virtual void drawInteger(int32_t textWidth, int32_t textHeight, int32_t yPixel);
-#else
+
+	// 7Seg Only
 	void drawValue() override;
-#endif
 };
 
 class IntegerWithOff : public Integer {
 public:
 	using Integer::Integer;
-#if !HAVE_OLED
+
+	// 7Seg Only
 	void drawValue() override;
-#endif
 };
 
 class IntegerContinuous : public Integer {
@@ -48,9 +47,7 @@ public:
 	using Integer::Integer;
 
 protected:
-#if HAVE_OLED
 	void drawPixelsForOled();
-#endif
 };
 
 } // namespace deluge::gui::menu_item

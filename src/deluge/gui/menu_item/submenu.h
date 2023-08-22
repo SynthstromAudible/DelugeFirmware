@@ -20,7 +20,7 @@
 #include "definitions.h"
 #include "gui/menu_item/menu_item.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "menu_item.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/instrument.h"
@@ -32,22 +32,16 @@
 #include <array>
 #include <initializer_list>
 
-extern "C" {
-#if HAVE_OLED
-#include "RZA1/oled/oled_low_level.h"
-#endif
-}
-
 namespace deluge::gui::menu_item {
 
 template <size_t n>
 class Submenu : public MenuItem {
 public:
-	Submenu(const std::string& newName, MenuItem* const (&newItems)[n])
+	Submenu(l10n::String newName, MenuItem* const (&newItems)[n])
 	    : MenuItem(newName), items{to_static_vector(newItems)} {}
-	Submenu(const std::string& newName, const std::string& title, MenuItem* const (&newItems)[n])
+	Submenu(l10n::String newName, l10n::String title, MenuItem* const (&newItems)[n])
 	    : MenuItem(newName, title), items{to_static_vector(newItems)} {}
-	Submenu(const std::string& newName, const std::string& title, std::array<MenuItem*, n> newItems)
+	Submenu(l10n::String newName, l10n::String title, std::array<MenuItem*, n> newItems)
 	    : MenuItem(newName, title), items{newItems.begin(), newItems.end()} {}
 
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
@@ -59,9 +53,7 @@ public:
 	bool allowsLearnMode() final;
 	void learnKnob(MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) final;
 	bool learnNoteOn(MIDIDevice* fromDevice, int32_t channel, int32_t noteCode) final;
-#if HAVE_OLED
 	void drawPixelsForOled() override;
-#endif
 
 	deluge::static_vector<MenuItem*, n> items;
 	typename decltype(items)::iterator current_item_;
@@ -86,28 +78,27 @@ void Submenu<n>::beginSession(MenuItem* navigatedBackwardFrom) {
 			current_item_ = items.begin();
 		}
 	}
-#if !HAVE_OLED
-	updateDisplay();
-#endif
+	if (display->have7SEG()) {
+		updateDisplay();
+	}
 }
 
 template <size_t n>
 void Submenu<n>::updateDisplay() {
-#if HAVE_OLED
-	renderUIsForOled();
-#else
-	(*current_item_)->drawName();
-#endif
+	if (display->haveOLED()) {
+		renderUIsForOled();
+	}
+	else {
+		(*current_item_)->drawName();
+	}
 }
-
-#if HAVE_OLED
 
 template <size_t n>
 void Submenu<n>::drawPixelsForOled() {
 	int32_t selectedRow = soundEditor.menuCurrentScroll;
 
 	// This finds the next relevant submenu item
-	static_vector<std::string, kOLEDMenuNumOptionsVisible> nextItemNames = {};
+	static_vector<std::string_view, kOLEDMenuNumOptionsVisible> nextItemNames = {};
 	for (auto it = current_item_, idx = selectedRow; it != this->items.end() && idx < kOLEDMenuNumOptionsVisible;
 	     it++) {
 		if ((*it)->isRelevant(soundEditor.currentSound, soundEditor.currentSourceIndex)) {
@@ -116,7 +107,7 @@ void Submenu<n>::drawPixelsForOled() {
 		}
 	}
 
-	static_vector<std::string, kOLEDMenuNumOptionsVisible> prevItemNames = {};
+	static_vector<std::string_view, kOLEDMenuNumOptionsVisible> prevItemNames = {};
 	for (auto it = current_item_ - 1, idx = selectedRow - 1; it != this->items.begin() - 1 && idx >= 0; it--) {
 		if ((*it)->isRelevant(soundEditor.currentSound, soundEditor.currentSourceIndex)) {
 			prevItemNames.push_back((*it)->getName());
@@ -133,7 +124,6 @@ void Submenu<n>::drawPixelsForOled() {
 		drawItemsForOled(nextItemNames, selectedRow);
 	}
 }
-#endif
 
 template <size_t n>
 void Submenu<n>::selectEncoderAction(int32_t offset) {
@@ -144,20 +134,22 @@ void Submenu<n>::selectEncoderAction(int32_t offset) {
 		if (offset >= 0) {
 			thisSubmenuItem++;
 			if (thisSubmenuItem == items.end()) {
-#if HAVE_OLED
-				return;
-#else
-				thisSubmenuItem = items.begin();
-#endif
+				if (display->haveOLED()) {
+					return;
+				}
+				else {
+					thisSubmenuItem = items.begin();
+				}
 			}
 		}
 		else {
 			if (thisSubmenuItem == items.begin()) {
-#if HAVE_OLED
-				return;
-#else
-				thisSubmenuItem = &items.back();
-#endif
+				if (display->haveOLED()) {
+					return;
+				}
+				else {
+					thisSubmenuItem = &items.back();
+				}
 			}
 			else {
 				thisSubmenuItem--;
@@ -167,15 +159,15 @@ void Submenu<n>::selectEncoderAction(int32_t offset) {
 
 	current_item_ = thisSubmenuItem;
 
-#if HAVE_OLED
-	soundEditor.menuCurrentScroll += offset;
-	if (soundEditor.menuCurrentScroll < 0) {
-		soundEditor.menuCurrentScroll = 0;
+	if (display->haveOLED()) {
+		soundEditor.menuCurrentScroll += offset;
+		if (soundEditor.menuCurrentScroll < 0) {
+			soundEditor.menuCurrentScroll = 0;
+		}
+		else if (soundEditor.menuCurrentScroll > kOLEDMenuNumOptionsVisible - 1) {
+			soundEditor.menuCurrentScroll = kOLEDMenuNumOptionsVisible - 1;
+		}
 	}
-	else if (soundEditor.menuCurrentScroll > kOLEDMenuNumOptionsVisible - 1) {
-		soundEditor.menuCurrentScroll = kOLEDMenuNumOptionsVisible - 1;
-	}
-#endif
 
 	updateDisplay();
 }

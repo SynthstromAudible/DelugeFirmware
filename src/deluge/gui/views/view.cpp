@@ -17,11 +17,13 @@
 
 #include "gui/views/view.h"
 #include "definitions_cxx.hpp"
+#include "deluge/model/settings/runtime_feature_settings.h"
 #include "dsp/reverb/freeverb/revmodel.hpp"
 #include "extern.h"
 #include "gui/colour.h"
 #include "gui/context_menu/clear_song.h"
 #include "gui/context_menu/launch_style.h"
+#include "gui/l10n/l10n.h"
 #include "gui/menu_item/colour.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
@@ -29,12 +31,14 @@
 #include "gui/ui/root_ui.h"
 #include "gui/ui/save/save_song_ui.h"
 #include "gui/ui/sound_editor.h"
+#include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
+#include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "hid/buttons.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
@@ -57,6 +61,7 @@
 #include "model/instrument/midi_instrument.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "model/timeline_counter.h"
 #include "modulation/automation/auto_param.h"
@@ -72,10 +77,6 @@
 #include "storage/file_item.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
-
-#if HAVE_OLED
-#include "hid/display/oled.h"
-#endif
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
@@ -121,8 +122,8 @@ void View::setTripletsLedState() {
 
 extern GlobalMIDICommand pendingGlobalMIDICommandNumClustersWritten;
 
-ActionResult View::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
-	using namespace hid::button;
+ActionResult View::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	using namespace deluge::hid::button;
 
 	GlobalMIDICommand newGlobalMidiCommand;
 
@@ -220,8 +221,9 @@ doEndMidiLearnPressSession:
 	// Save button
 	else if (b == SAVE) {
 
-		if (!Buttons::isButtonPressed(hid::button::SYNTH) && !Buttons::isButtonPressed(hid::button::KIT)
-		    && !Buttons::isButtonPressed(hid::button::MIDI) && !Buttons::isButtonPressed(hid::button::CV)) {
+		if (!Buttons::isButtonPressed(deluge::hid::button::SYNTH) && !Buttons::isButtonPressed(deluge::hid::button::KIT)
+		    && !Buttons::isButtonPressed(deluge::hid::button::MIDI)
+		    && !Buttons::isButtonPressed(deluge::hid::button::CV)) {
 			// Press down
 			if (on) {
 				if (currentUIMode == UI_MODE_NONE && !Buttons::isShiftButtonPressed()) {
@@ -242,7 +244,8 @@ doEndMidiLearnPressSession:
 
 					if ((int32_t)(AudioEngine::audioSampleTimer - timeSaveButtonPressed) < kShortPressTime) {
 						if (currentSong->hasAnyPendingNextOverdubs()) {
-							numericDriver.displayPopup(HAVE_OLED ? "Can't save while overdubs pending" : "CANT");
+							display->displayPopup(
+							    deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_SAVE_WHILE_OVERDUBS_PENDING));
 						}
 						else {
 							openUI(&saveSongUI);
@@ -259,8 +262,9 @@ doEndMidiLearnPressSession:
 	// Load button
 	else if (b == LOAD) {
 
-		if (!Buttons::isButtonPressed(hid::button::SYNTH) && !Buttons::isButtonPressed(hid::button::KIT)
-		    && !Buttons::isButtonPressed(hid::button::MIDI) && !Buttons::isButtonPressed(hid::button::CV)) {
+		if (!Buttons::isButtonPressed(deluge::hid::button::SYNTH) && !Buttons::isButtonPressed(deluge::hid::button::KIT)
+		    && !Buttons::isButtonPressed(deluge::hid::button::MIDI)
+		    && !Buttons::isButtonPressed(deluge::hid::button::CV)) {
 			// Press down
 			if (on) {
 				if (currentUIMode == UI_MODE_NONE) {
@@ -308,13 +312,18 @@ doEndMidiLearnPressSession:
 		}
 	}
 
-	// Sync-scaling button
+	// Sync-scaling button - can be repurposed as Fill Mode in community settings
 	else if (b == SYNC_SCALING) {
-		if (on && currentUIMode == UI_MODE_NONE) {
+		if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction)
+		     == RuntimeFeatureStateSyncScalingAction::Fill)) {
+			currentSong->fillModeActive = on;
+			indicator_leds::setLedState(IndicatorLED::SYNC_SCALING, on);
+		}
+		else if (on && currentUIMode == UI_MODE_NONE) {
 
 			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
 cant:
-				numericDriver.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
+				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 				return ActionResult::DEALT_WITH;
 			}
 
@@ -408,7 +417,7 @@ possiblyRevert:
 		if (on && currentUIMode == UI_MODE_NONE) {
 
 			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-				numericDriver.displayPopup(HAVE_OLED ? "Recording to arrangement" : "CANT");
+				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 				return ActionResult::DEALT_WITH;
 			}
 
@@ -416,7 +425,7 @@ possiblyRevert:
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
-			numericDriver.setNextTransitionDirection(1);
+			display->setNextTransitionDirection(1);
 			soundEditor.setup();
 			openUI(&soundEditor);
 		}
@@ -825,6 +834,7 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 		}
 
 		{
+
 			ModelStackWithAutoParam* modelStackWithParam =
 			    activeModControllableModelStack.modControllable->getParamFromModEncoder(
 			        whichModEncoder, &activeModControllableModelStack);
@@ -911,12 +921,12 @@ void View::instrumentBeenEdited() {
 void View::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 
 	// If the learn button is pressed, user is trying to copy or paste, and the fact that we've ended up here means they can't
-	if (Buttons::isButtonPressed(hid::button::LEARN)) {
-#if !HAVE_OLED
-		if (on) {
-			numericDriver.displayPopup("CANT");
+	if (Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
+		if (display->have7SEG()) {
+			if (on) {
+				display->displayPopup("CANT");
+			}
 		}
-#endif
 		return;
 	}
 
@@ -931,7 +941,7 @@ void View::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 			if (modelStackWithParam && modelStackWithParam->autoParam) {
 				Action* action = actionLogger.getNewAction(ACTION_AUTOMATION_DELETE, false);
 				modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam);
-				numericDriver.displayPopup(HAVE_OLED ? "Automation deleted" : "DELETED");
+				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_AUTOMATION_DELETED));
 			}
 
 			return;
@@ -956,6 +966,12 @@ void View::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 void View::setKnobIndicatorLevels() {
 	if (!getRootUI()) {
 		return; // What's this?
+	}
+
+	//don't update knob indicator levels when you're in automation editor
+	if (getCurrentUI() == &automationInstrumentClipView
+	    && (((InstrumentClip*)currentSong->currentClip)->lastSelectedParamID != kNoLastSelectedParamID)) {
+		return;
 	}
 
 	if (activeModControllableModelStack.modControllable) {
@@ -996,7 +1012,30 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 		    modelStackWithParam->modControllable->getKnobPosForNonExistentParam(whichModEncoder, modelStackWithParam);
 	}
 
-	indicator_leds::setKnobIndicatorLevel(whichModEncoder, knobPos + 64);
+	// Quantized Stutter FX
+	if (modelStackWithParam->paramId == Param::Unpatched::STUTTER_RATE
+	    && (runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate)
+	        == RuntimeFeatureStateToggle::On)
+	    && !isUIModeActive(UI_MODE_STUTTERING)) {
+		if (knobPos < -39) { // 4ths stutter: no leds turned on
+			indicator_leds::setKnobIndicatorLevel(whichModEncoder, 0);
+		}
+		else if (knobPos < -14) { // 8ths stutter: 1 led turned on
+			indicator_leds::setKnobIndicatorLevel(whichModEncoder, 32);
+		}
+		else if (knobPos < 14) { // 16ths stutter: 2 leds turned on
+			indicator_leds::setKnobIndicatorLevel(whichModEncoder, 64);
+		}
+		else if (knobPos < 39) { // 32nds stutter: 3 leds turned on
+			indicator_leds::setKnobIndicatorLevel(whichModEncoder, 96);
+		}
+		else { // 64ths stutter: all 4 leds turned on
+			indicator_leds::setKnobIndicatorLevel(whichModEncoder, 128);
+		}
+	}
+	else {
+		indicator_leds::setKnobIndicatorLevel(whichModEncoder, knobPos + 64);
+	}
 }
 
 static const uint32_t modButtonUIModes[] = {UI_MODE_AUDITIONING,
@@ -1043,7 +1082,8 @@ void View::setModLedStates() {
 
 	bool affectEntire = getRootUI() && getRootUI()->getAffectEntire();
 	if (!itsTheSong) {
-		if (getRootUI() != &instrumentClipView && getRootUI() != &keyboardScreen) {
+		if (getRootUI() != &instrumentClipView && getRootUI() != &automationInstrumentClipView
+		    && getRootUI() != &keyboardScreen) {
 			affectEntire = true;
 		}
 		else {
@@ -1052,7 +1092,17 @@ void View::setModLedStates() {
 	}
 	indicator_leds::setLedState(IndicatorLED::AFFECT_ENTIRE, affectEntire);
 
-	indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, !itsTheSong);
+	if (itsTheSong) {
+		indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, false);
+	}
+	else {
+		if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+			indicator_leds::blinkLed(IndicatorLED::CLIP_VIEW);
+		}
+		else {
+			indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, true);
+		}
+	}
 
 	// Sort out the session/arranger view LEDs
 	if (itsTheSong) {
@@ -1197,10 +1247,10 @@ void View::cycleThroughReverbPresets() {
 	AudioEngine::reverb.setroomsize((float)presetReverbRoomSize[newPreset] / 50);
 	AudioEngine::reverb.setdamp((float)presetReverbDampening[newPreset] / 50);
 
-	numericDriver.displayPopup(presetReverbNames[newPreset]);
+	display->displayPopup(deluge::l10n::get(presetReverbNames[newPreset]));
 }
 
-// If HAVE_OLED, must make sure OLED::sendMainImage() gets called after this.
+// If OLED, must make sure deluge::hid::display::OLED::sendMainImage() gets called after this.
 void View::displayOutputName(Output* output, bool doBlink, Clip* clip) {
 
 	int32_t channel, channelSuffix;
@@ -1222,7 +1272,7 @@ void View::displayOutputName(Output* output, bool doBlink, Clip* clip) {
 	drawOutputNameFromDetails(output->type, channel, channelSuffix, output->name.get(), editedByUser, doBlink, clip);
 }
 
-// If HAVE_OLED, must make sure OLED::sendMainImage() gets called after this.
+// If OLED, must make sure deluge::hid::display::OLED::sendMainImage() gets called after this.
 void View::drawOutputNameFromDetails(InstrumentType instrumentType, int32_t channel, int32_t channelSuffix,
                                      char const* name, bool editedByUser, bool doBlink, Clip* clip) {
 	if (doBlink) {
@@ -1271,135 +1321,141 @@ void View::drawOutputNameFromDetails(InstrumentType instrumentType, int32_t chan
 		setLedState(LED::CROSS_SCREEN_EDIT, (clip && clip->wrapEditing));
 	}
 
-#if HAVE_OLED
-	OLED::clearMainImage();
-	char const* outputTypeText;
-	switch (instrumentType) {
-	case InstrumentType::SYNTH:
-		outputTypeText = "Synth";
-		break;
-	case InstrumentType::KIT:
-		outputTypeText = "Kit";
-		break;
-	case InstrumentType::MIDI_OUT:
-		outputTypeText = (channel < 16) ? "MIDI channel" : "MPE zone";
-		break;
-	case InstrumentType::CV:
-		outputTypeText = "CV / gate channel";
-		break;
-	case InstrumentType::AUDIO:
-		outputTypeText = "Audio track";
-		break;
-	default:
-		__builtin_unreachable();
-	}
+	if (display->haveOLED()) {
+		deluge::hid::display::OLED::clearMainImage();
+		char const* outputTypeText;
+		switch (instrumentType) {
+		case InstrumentType::SYNTH:
+			outputTypeText = "Synth";
+			break;
+		case InstrumentType::KIT:
+			outputTypeText = "Kit";
+			break;
+		case InstrumentType::MIDI_OUT:
+			outputTypeText = (channel < 16) ? "MIDI channel" : "MPE zone";
+			break;
+		case InstrumentType::CV:
+			outputTypeText = "CV / gate channel";
+			break;
+		case InstrumentType::AUDIO:
+			outputTypeText = "Audio track";
+			break;
+		default:
+			__builtin_unreachable();
+		}
 
 #if OLED_MAIN_HEIGHT_PIXELS == 64
-	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
+		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
 #else
-	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
+		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
 #endif
-	OLED::drawStringCentred(outputTypeText, yPos, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
-	                        kTextSpacingY);
+		deluge::hid::display::OLED::drawStringCentred(outputTypeText, yPos,
+		                                              deluge::hid::display::OLED::oledMainImage[0],
+		                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+	}
+
 	char buffer[12];
-	char const* nameToDraw;
-#endif
+	char const* nameToDraw = nullptr;
 
 	if (name && name[0]) {
-#if HAVE_OLED
-		nameToDraw = name;
+		if (display->haveOLED()) {
+			nameToDraw = name;
 oledDrawString:
 #if OLED_MAIN_HEIGHT_PIXELS == 64
-		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 32;
+			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 32;
 #else
-		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 21;
+			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 21;
 #endif
 
-		int32_t textSpacingX = kTextTitleSpacingX;
-		int32_t textSpacingY = kTextTitleSizeY;
+			int32_t textSpacingX = kTextTitleSpacingX;
+			int32_t textSpacingY = kTextTitleSizeY;
 
-		int32_t textLength = strlen(name);
-		int32_t stringLengthPixels = textLength * textSpacingX;
-		if (stringLengthPixels <= OLED_MAIN_WIDTH_PIXELS) {
-			OLED::drawStringCentred(nameToDraw, yPos, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, textSpacingX,
-			                        textSpacingY);
-		}
-		else {
-			OLED::drawString(nameToDraw, 0, yPos, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, textSpacingX,
-			                 textSpacingY);
-			OLED::setupSideScroller(0, name, 0, OLED_MAIN_WIDTH_PIXELS, yPos, yPos + textSpacingY, textSpacingX,
-			                        textSpacingY, false);
-		}
-
-#else
-		bool andAHalf;
-		if (numericDriver.getEncodedPosFromLeft(99999, name, &andAHalf) > kNumericDisplayLength) { // doBlink &&
-			numericDriver.setScrollingText(name, 0, kInitialFlashTime + kFlashTime);
-		}
-		else {
-			// If numeric-looking, we might want to align right.
-			bool alignRight = false;
-			uint8_t dotPos = 255;
-
-			char const* charPos = name;
-			if (*charPos == '0') { // If first digit is 0, then no more digits allowed.
-				charPos++;
+			int32_t textLength = strlen(name);
+			int32_t stringLengthPixels = textLength * textSpacingX;
+			if (stringLengthPixels <= OLED_MAIN_WIDTH_PIXELS) {
+				deluge::hid::display::OLED::drawStringCentred(nameToDraw, yPos,
+				                                              deluge::hid::display::OLED::oledMainImage[0],
+				                                              OLED_MAIN_WIDTH_PIXELS, textSpacingX, textSpacingY);
 			}
-			else { // Otherwise, up to 3 digits allowed.
-				while (*charPos >= '0' && *charPos <= '9' && charPos < (name + 3)) {
+			else {
+				deluge::hid::display::OLED::drawString(nameToDraw, 0, yPos,
+				                                       deluge::hid::display::OLED::oledMainImage[0],
+				                                       OLED_MAIN_WIDTH_PIXELS, textSpacingX, textSpacingY);
+				deluge::hid::display::OLED::setupSideScroller(0, name, 0, OLED_MAIN_WIDTH_PIXELS, yPos,
+				                                              yPos + textSpacingY, textSpacingX, textSpacingY, false);
+			}
+		}
+		else {
+			bool andAHalf;
+			if (display->getEncodedPosFromLeft(99999, name, &andAHalf) > kNumericDisplayLength) { // doBlink &&
+				display->setScrollingText(name, 0, kInitialFlashTime + kFlashTime);
+			}
+			else {
+				// If numeric-looking, we might want to align right.
+				bool alignRight = false;
+				uint8_t dotPos = 255;
+
+				char const* charPos = name;
+				if (*charPos == '0') { // If first digit is 0, then no more digits allowed.
 					charPos++;
 				}
-			}
-
-			if (charPos != name) { // We are required to have found at least 1 digit.
-				if (*charPos == 0) {
-yesAlignRight:
-					alignRight = true;
-					if (!editedByUser) {
-						dotPos = 3;
+				else { // Otherwise, up to 3 digits allowed.
+					while (*charPos >= '0' && *charPos <= '9' && charPos < (name + 3)) {
+						charPos++;
 					}
 				}
-				else if ((*charPos >= 'a' && *charPos <= 'z') || (*charPos >= 'A' && *charPos <= 'Z')) {
-					charPos++;
+
+				if (charPos != name) { // We are required to have found at least 1 digit.
 					if (*charPos == 0) {
-						goto yesAlignRight;
+yesAlignRight:
+						alignRight = true;
+						if (!editedByUser) {
+							dotPos = 3;
+						}
+					}
+					else if ((*charPos >= 'a' && *charPos <= 'z') || (*charPos >= 'A' && *charPos <= 'Z')) {
+						charPos++;
+						if (*charPos == 0) {
+							goto yesAlignRight;
+						}
 					}
 				}
-			}
 
-			numericDriver.setText(name, alignRight, dotPos, doBlink);
+				display->setText(name, alignRight, dotPos, doBlink);
+			}
 		}
-#endif
 	}
 	else if (instrumentType == InstrumentType::MIDI_OUT) {
-#if HAVE_OLED
-		if (channel < 16) {
-			slotToString(channel + 1, channelSuffix, buffer, 1);
-			goto oledOutputBuffer;
+		if (display->haveOLED()) {
+			if (channel < 16) {
+				slotToString(channel + 1, channelSuffix, buffer, 1);
+				goto oledOutputBuffer;
+			}
+			else {
+				nameToDraw = (channel == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "Lower" : "Upper";
+				goto oledDrawString;
+			}
 		}
 		else {
-			nameToDraw = (channel == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "Lower" : "Upper";
-			goto oledDrawString;
+			if (channel < 16) {
+				display->setTextAsSlot(channel + 1, channelSuffix, false, doBlink);
+			}
+			else {
+				char const* text = (channel == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "Lower" : "Upper";
+				display->setText(text, false, 255, doBlink);
+			}
 		}
-#else
-		if (channel < 16) {
-			numericDriver.setTextAsSlot(channel + 1, channelSuffix, false, doBlink);
-		}
-		else {
-			char const* text = (channel == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "Lower" : "Upper";
-			numericDriver.setText(text, false, 255, doBlink);
-		}
-#endif
 	}
 	else if (instrumentType == InstrumentType::CV) {
-#if HAVE_OLED
-		intToString(channel + 1, buffer);
+		if (display->haveOLED()) {
+			intToString(channel + 1, buffer);
 oledOutputBuffer:
-		nameToDraw = buffer;
-		goto oledDrawString;
-#else
-		numericDriver.setTextAsNumber(channel + 1, 255, doBlink);
-#endif
+			nameToDraw = buffer;
+			goto oledDrawString;
+		}
+		else {
+			display->setTextAsNumber(channel + 1, 255, doBlink);
+		}
 	}
 }
 
@@ -1418,7 +1474,7 @@ void View::navigateThroughAudioOutputsForAudioClip(int32_t offset, AudioClip* cl
 	currentSong->canOldOutputBeReplaced(clip, &availabilityRequirement);
 
 	if (availabilityRequirement == Availability::INSTRUMENT_UNUSED) {
-		numericDriver.displayPopup(HAVE_OLED ? "Clip has instances in arranger" : "CANT");
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIP_HAS_INSTANCES_IN_ARRANGER));
 		return;
 	}
 
@@ -1437,9 +1493,9 @@ void View::navigateThroughAudioOutputsForAudioClip(int32_t offset, AudioClip* cl
 	}
 
 	displayOutputName(newOutput, doBlink);
-#if HAVE_OLED
-	OLED::sendMainImage();
-#endif
+	if (display->haveOLED()) {
+		deluge::hid::display::OLED::sendMainImage();
+	}
 
 	setActiveModControllableTimelineCounter(clip); // Necessary? Does ParamManager get moved over too?
 }
@@ -1490,7 +1546,7 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 				newChannel = (newChannel + offset) & (NUM_CV_CHANNELS - 1);
 
 				if (newChannel == oldNonAudioInstrument->channel) {
-					numericDriver.displayPopup(HAVE_OLED ? "No unused channels" : "CANT");
+					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_UNUSED_CHANNELS));
 					return;
 				}
 
@@ -1550,7 +1606,7 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 				if (newChannel == oldChannel
 				    && newChannelSuffix == ((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix) {
 					oldNonAudioInstrument->channel = oldChannel; // Put it back
-					numericDriver.displayPopup(HAVE_OLED ? "No unused channels" : "CANT");
+					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_UNUSED_CHANNELS));
 					return;
 				}
 
@@ -1615,7 +1671,7 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 				newInstrument =
 				    storageManager.createNewNonAudioInstrument(instrumentType, newChannel, newChannelSuffix);
 				if (!newInstrument) {
-					numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+					display->displayError(ERROR_INSUFFICIENT_RAM);
 					return;
 				}
 
@@ -1645,9 +1701,9 @@ gotAnInstrument:
 		}
 
 		displayOutputName(newInstrument, doBlink);
-#if HAVE_OLED
-		OLED::sendMainImage();
-#endif
+		if (display->haveOLED()) {
+			deluge::hid::display::OLED::sendMainImage();
+		}
 	}
 
 	// Or if we're on a Kit or Synth...
@@ -1657,13 +1713,11 @@ gotAnInstrument:
 		    loadInstrumentPresetUI.doPresetNavigation(offset, oldInstrument, availabilityRequirement, false);
 		if (results.error == NO_ERROR_BUT_GET_OUT) {
 getOut:
-#if HAVE_OLED
-			OLED::removeWorkingAnimation();
-#endif
+			display->removeWorkingAnimation();
 			return;
 		}
 		else if (results.error) {
-			numericDriver.displayError(results.error);
+			display->displayError(results.error);
 			goto getOut;
 		}
 
@@ -1684,14 +1738,14 @@ getOut:
 						        kit, soundDrum)) { // If no ParamManager with a NoteRow somewhere...
 
 							if (results.loadedFromFile) {
-								numericDriver.freezeWithError("E103");
+								display->freezeWithError("E103");
 							}
 							else if (instrumentAlreadyInSong) {
-								numericDriver.freezeWithError("E104");
+								display->freezeWithError("E104");
 							}
 							else {
-								numericDriver.freezeWithError(
-								    "E105"); // Sven got - very rare! This means Kit was hibernating, I guess.
+								// Sven got - very rare! This means Kit was hibernating, I guess.
+								display->freezeWithError("E105");
 							}
 						}
 					}
@@ -1732,17 +1786,20 @@ getOut:
 			((Kit*)newInstrument)->selectedDrum = NULL;
 		}
 
-		if (getCurrentUI() == &instrumentClipView) {
+		if (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationInstrumentClipView) {
 			AudioEngine::routineWithClusterLoading(); // -----------------------------------
 			instrumentClipView.recalculateColours();
+		}
+
+		if (getCurrentUI() == &instrumentClipView) {
 			uiNeedsRendering(&instrumentClipView);
 		}
 
-#if HAVE_OLED
-		OLED::removeWorkingAnimation();
-#else
-		numericDriver.removeTopLayer();
-#endif
+		else if (getCurrentUI() == &automationInstrumentClipView) {
+			uiNeedsRendering(&automationInstrumentClipView);
+		}
+
+		display->removeLoadingAnimation();
 	}
 
 	instrumentChanged(modelStack, newInstrument);
@@ -1770,9 +1827,9 @@ bool View::changeInstrumentType(InstrumentType newInstrumentType, ModelStackWith
 
 	setActiveModControllableTimelineCounter(clip); // Do a redraw. Obviously the Clip is the same
 	displayOutputName(newInstrument, doBlink);
-#if HAVE_OLED
-	OLED::sendMainImage();
-#endif
+	if (display->haveOLED()) {
+		deluge::hid::display::OLED::sendMainImage();
+	}
 
 	return true;
 }
@@ -1936,7 +1993,7 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 
 	case UI_MODE_NONE:
 		// If the user was just quick and is actually holding the record button but the submode just hasn't changed yet...
-		if (on && Buttons::isButtonPressed(hid::button::RECORD)) {
+		if (on && Buttons::isButtonPressed(deluge::hid::button::RECORD)) {
 			clip->armedForRecording = !clip->armedForRecording;
 			sessionView
 			    .timerCallback(); // Get into UI_MODE_VIEWING_RECORD_ARMING. TODO: this needs doing properly - what if we're in a Clip view?

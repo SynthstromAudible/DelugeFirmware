@@ -21,7 +21,7 @@
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/buttons.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
@@ -39,7 +39,7 @@ SaveUI::SaveUI() {
 bool SaveUI::opened() {
 	int32_t error = beginSlotSession(true, true);
 	if (error) {
-		numericDriver.displayError(error);
+		display->displayError(error);
 		return false;
 	}
 
@@ -58,8 +58,8 @@ void SaveUI::focusRegained() {
 void SaveUI::displayText(bool blinkImmediately) {
 
 	if (enteredText.isEmpty() && !currentFolderIsEmpty) {
+		display->setTextAsSlot(currentSlot, currentSubSlot, currentFileExists, true, numberEditPos);
 		indicator_leds::ledBlinkTimeout(0, true, !blinkImmediately);
-		numericDriver.setTextAsSlot(currentSlot, currentSubSlot, currentFileExists, true, numberEditPos);
 	}
 
 	else {
@@ -78,7 +78,7 @@ void SaveUI::enterKeyPress() {
 		int32_t error = goIntoFolder(currentFileItem->filename.get());
 
 		if (error) {
-			numericDriver.displayError(error);
+			display->displayError(error);
 			close(); // Don't use goBackToSoundEditor() because that would do a left-scroll
 			return;
 		}
@@ -90,16 +90,16 @@ void SaveUI::enterKeyPress() {
 		SlotBrowser::enterKeyPress();
 		bool dealtWith = performSave(false);
 
-#if !HAVE_OLED
-		if (!dealtWith) {
-			displayText(false);
+		if (display->have7SEG()) {
+			if (!dealtWith) {
+				displayText(false);
+			}
 		}
-#endif
 	}
 }
 
-ActionResult SaveUI::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
-	using namespace hid::button;
+ActionResult SaveUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	using namespace deluge::hid::button;
 
 	FileItem* currentFileItem = getCurrentFileItem();
 
@@ -126,7 +126,7 @@ ActionResult SaveUI::timerCallback() {
 
 		if (available) {
 			currentUIMode = UI_MODE_NONE;
-			numericDriver.setNextTransitionDirection(1);
+			display->setNextTransitionDirection(1);
 			openUI(&gui::context_menu::saveSongOrInstrument);
 		}
 		else {

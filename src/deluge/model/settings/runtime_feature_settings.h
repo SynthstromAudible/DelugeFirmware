@@ -25,12 +25,14 @@
 namespace deluge::gui::menu_item::runtime_feature {
 class Setting;
 class Settings;
+class DevSysexSetting;
 } // namespace deluge::gui::menu_item::runtime_feature
 
 // State declarations
 enum RuntimeFeatureStateToggle : uint32_t { Off = 0, On = 1 };
 
 // Declare additional enums for specific multi state settings (e.g. like RuntimeFeatureStateTrackLaunchStyle)
+enum RuntimeFeatureStateSyncScalingAction : uint32_t { SyncScaling = 0, Fill = 1 };
 
 /// Every setting needs to be delcared in here
 enum RuntimeFeatureSettingType : uint32_t {
@@ -42,6 +44,15 @@ enum RuntimeFeatureSettingType : uint32_t {
 	CatchNotes,
 	DeleteUnusedKitRows,
 	AltGoldenKnobDelayParams,
+	QuantizedStutterRate,
+	AutomationClearClip,
+	AutomationNudgeNote,
+	AutomationShiftClip,
+	AutomationInterpolate,
+	DevSysexAllowed,
+	SyncScalingAction,
+	HighlightIncomingNotes,
+	DisplayNornsLayout,
 	MaxElement // Keep as boundary
 };
 
@@ -82,6 +93,7 @@ private:
 public:
 	friend class deluge::gui::menu_item::runtime_feature::Setting;
 	friend class deluge::gui::menu_item::runtime_feature::Settings;
+	friend class deluge::gui::menu_item::runtime_feature::DevSysexSetting;
 };
 
 /// Static instance for external access

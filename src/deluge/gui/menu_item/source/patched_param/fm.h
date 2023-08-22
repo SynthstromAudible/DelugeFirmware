@@ -22,7 +22,7 @@
 namespace deluge::gui::menu_item::source::patched_param {
 class FM final : public source::PatchedParam, public FormattedTitle {
 public:
-	FM(const std::string& name, const fmt::format_string<int32_t>& title_format_str, int32_t newP)
+	FM(l10n::String name, l10n::String title_format_str, int32_t newP)
 	    : source::PatchedParam(name, newP), FormattedTitle(title_format_str) {}
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }

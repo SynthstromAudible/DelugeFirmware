@@ -2,7 +2,43 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Attach 7SEG Debug",
+      "name": "Cortex-Debug J-Link",
+      "preLaunchTask": "Build Debug",
+      "type": "cortex-debug",
+      "request": "launch",
+      "cwd": "${workspaceRoot}",
+      "executable": "${workspaceRoot}/build/Debug/deluge.elf",
+      "servertype": "jlink",
+      "device": "R7S721020",
+      "interface": "swd",
+      "runToEntryPoint": "main",
+      "svdFile": "${workspaceRoot}/contrib/rza1.svd",
+      "rttConfig": {
+        "enabled": true,
+      },
+    },
+    {
+      "name": "Cortex-Debug OpenOCD",
+      "preLaunchTask": "Build Debug",
+      "type": "cortex-debug",
+      "request": "launch",
+      "cwd": "${workspaceRoot}",
+      "executable": "${workspaceRoot}/build/Debug/deluge.elf",
+      "serverpath": "${workspaceRoot}/toolchain/win32-x64/openocd/bin/openocd.exe",
+      "servertype": "openocd",
+      "configFiles": [
+        "/interface/cmsis-dap.cfg",
+        "${workspaceRoot}/contrib/renesas-rz-a1lu.cfg",
+      ],
+      "device": "R7S721020",
+      "runToEntryPoint": "main",
+      "svdFile": "${workspaceRoot}/contrib/rza1.svd",
+      "rttConfig": {
+        "enabled": true,
+      },
+    },
+    {
+      "name": "Attach Debug",
       "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceRoot}/build/debug/deluge7SEG.elf",
@@ -11,21 +47,8 @@
       "windows": {
         "miDebuggerPath": "${workspaceRoot}/toolchain/win32-x86_64/arm-none-eabi-gcc/bin/arm-none-eabi-gdb.exe"
       },
-      "miDebuggerServerAddress": "localhost:3333",
-      "externalConsole": true,
-      "useExtendedRemote": true,
-      "cwd": "${workspaceRoot}",
-      "svdPath": "${workspaceRoot}/contrib/rza1.svd",
-    },
-    {
-      "name": "Attach OLED Debug",
-      "type": "cppdbg",
-      "request": "launch",
-      "program": "${workspaceRoot}/build/debug/delugeOLED.elf",
-      "MIMode": "gdb",
-      "miDebuggerPath": "arm-none-eabi-gdb",
-      "windows": {
-        "miDebuggerPath": "${workspaceRoot}/toolchain/win32-x86_64/arm-none-eabi-gcc/bin/arm-none-eabi-gdb.exe"
+      "linux": {
+        "miDebuggerPath": "${workspaceRoot}/toolchain/linux-x86_64/arm-none-eabi-gcc/bin/arm-none-eabi-gdb"
       },
       "miDebuggerServerAddress": "localhost:3333",
       "externalConsole": true,
@@ -34,16 +57,19 @@
       "svdPath": "${workspaceRoot}/contrib/rza1.svd",
     },
     {
-      "name": "Load/Run OLED Debug",
+      "name": "Load/Run Debug",
       "type": "cppdbg",
-      "preLaunchTask": "Build OLED Debug",
+      "preLaunchTask": "Build Debug",
       "request": "launch",
       "cwd": "${workspaceRoot}",
-      "program": "${workspaceRoot}/build/debug/delugeOLED.elf",
+      "program": "${workspaceRoot}/build/debug/deluge.elf",
       "MIMode": "gdb",
       "miDebuggerPath": "arm-none-eabi-gdb",
       "windows": {
         "miDebuggerPath": "${workspaceRoot}/toolchain/win32-x86_64/arm-none-eabi-gcc/bin/arm-none-eabi-gdb.exe"
+      },
+      "linux": {
+        "miDebuggerPath": "${workspaceRoot}/toolchain/linux-x86_64/arm-none-eabi-gcc/bin/arm-none-eabi-gdb"
       },
       "miDebuggerServerAddress": "localhost:3333",
       "useExtendedRemote": true,
@@ -63,7 +89,7 @@
           "text": "monitor reset"
         },
         {
-          "text": "-file-exec-and-symbols build/debug/delugeOLED.elf"
+          "text": "-file-exec-and-symbols build/debug/deluge.elf"
         },
         {
           "text": "-target-download"
@@ -71,16 +97,19 @@
       ]
     },
     {
-      "name": "Load/Run OLED RelWithDebInfo",
+      "name": "Load/Run RelWithDebInfo",
       "type": "cppdbg",
-      "preLaunchTask": "Build OLED RelWithDebInfo",
+      "preLaunchTask": "Build RelWithDebInfo",
       "request": "launch",
       "cwd": "${workspaceRoot}",
-      "program": "${workspaceRoot}/build/RelWithDebInfo/delugeOLED.elf",
+      "program": "${workspaceRoot}/build/RelWithDebInfo/deluge.elf",
       "MIMode": "gdb",
       "miDebuggerPath": "arm-none-eabi-gdb",
       "windows": {
         "miDebuggerPath": "${workspaceRoot}/toolchain/win32-x86_64/arm-none-eabi-gcc/bin/arm-none-eabi-gdb.exe"
+      },
+      "linux": {
+        "miDebuggerPath": "${workspaceRoot}/toolchain/linux-x86_64/arm-none-eabi-gcc/bin/arm-none-eabi-gdb"
       },
       "miDebuggerServerAddress": "localhost:3333",
       "useExtendedRemote": true,
@@ -100,44 +129,7 @@
           "text": "monitor reset"
         },
         {
-          "text": "-file-exec-and-symbols build/RelWithDebInfo/delugeOLED.elf"
-        },
-        {
-          "text": "-target-download"
-        },
-      ]
-    },
-    {
-      "name": "Load/Run 7SEG Debug",
-      "type": "cppdbg",
-      "preLaunchTask": "Build 7SEG Debug",
-      "request": "launch",
-      "cwd": "${workspaceRoot}",
-      "program": "${workspaceRoot}/build/debug/deluge7SEG.elf",
-      "MIMode": "gdb",
-      "miDebuggerPath": "arm-none-eabi-gdb",
-      "windows": {
-        "miDebuggerPath": "${workspaceRoot}/toolchain/win32-x86_64/arm-none-eabi-gcc/bin/arm-none-eabi-gdb.exe"
-      },
-      "miDebuggerServerAddress": "localhost:3333",
-      "useExtendedRemote": true,
-      "targetArchitecture": "arm",
-      "svdPath": "${workspaceRoot}/contrib/rza1.svd",
-      "customLaunchSetupCommands": [
-        {
-          "text": "-gdb-set target-async on"
-        },
-        {
-          "text": "-target-select extended-remote localhost:3333"
-        },
-        {
-          "text": "cd ${workspaceRoot}"
-        },
-        {
-          "text": "monitor reset"
-        },
-        {
-          "text": "-file-exec-and-symbols build/debug/deluge7SEG.elf"
+          "text": "-file-exec-and-symbols build/RelWithDebInfo/deluge.elf"
         },
         {
           "text": "-target-download"
@@ -146,19 +138,7 @@
     },
     {
       // NOTE: Do not try `load`ing the program using this config
-      "name": "LLDB Attach OLED Debug",
-      "type": "lldb",
-      "request": "launch",
-      "targetCreateCommands": [
-        "target create ${workspaceFolder}/build/debug/delugeOLED.elf"
-      ],
-      "processCreateCommands": [
-        "gdb-remote localhost:3333"
-      ],
-    },
-    {
-      // NOTE: Do not try `load`ing the program using this config
-      "name": "LLDB Attach 7SEG Debug",
+      "name": "LLDB Attach Debug",
       "type": "lldb",
       "request": "launch",
       "targetCreateCommands": [

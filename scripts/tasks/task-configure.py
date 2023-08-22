@@ -44,7 +44,7 @@ def argparser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: Sequence[str] = sys.argv) -> int:
+def main(argv: Sequence[str] = None) -> int:
     (args, unknown_args) = argparser().parse_known_args(argv)
 
     project_root = util.get_git_root()
@@ -66,6 +66,9 @@ def main(argv: Sequence[str] = sys.argv) -> int:
         "-DCMAKE_DEFAULT_CONFIGS=Debug;Release",  # set the default (empty) configs
         "-DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE",  # export compile commands
     ]
+
+    # Append unknown arguments to CMake arglist
+    configure_args += unknown_args
 
     # add the metadata suffix (see project CMakeLists.txt)
     if args.tag_metadata:

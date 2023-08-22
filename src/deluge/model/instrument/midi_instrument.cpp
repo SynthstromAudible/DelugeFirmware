@@ -20,7 +20,8 @@
 #include "gui/ui/ui.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "hid/matrix/matrix_driver.h"
 #include "io/midi/midi_engine.h"
 #include "model/action/action_logger.h"
@@ -36,10 +37,6 @@
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 #include <string.h>
-
-#if HAVE_OLED
-#include "hid/display/oled.h"
-#endif
 
 extern "C" {
 #include "util/cfunctions.h"
@@ -88,11 +85,12 @@ bool MIDIInstrument::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 	else {
 		if (currentUIMode == UI_MODE_SELECTING_MIDI_CC) {
 			currentUIMode = UI_MODE_NONE;
-#if HAVE_OLED
-			OLED::removePopup();
-#else
-			InstrumentClipMinder::redrawNumericDisplay();
-#endif
+			if (display->haveOLED()) {
+				deluge::hid::display::OLED::removePopup();
+			}
+			else {
+				InstrumentClipMinder::redrawNumericDisplay();
+			}
 		}
 		return false;
 	}
@@ -113,11 +111,12 @@ void MIDIInstrument::modButtonAction(uint8_t whichModButton, bool on, ParamManag
 	// If we're leaving this mod function or anything else is happening, we want to be sure that stutter has stopped
 	if (currentUIMode == UI_MODE_SELECTING_MIDI_CC) {
 		currentUIMode = UI_MODE_NONE;
-#if HAVE_OLED
-		OLED::removePopup();
-#else
-		InstrumentClipMinder::redrawNumericDisplay();
-#endif
+		if (display->haveOLED()) {
+			deluge::hid::display::OLED::removePopup();
+		}
+		else {
+			InstrumentClipMinder::redrawNumericDisplay();
+		}
 	}
 }
 
@@ -439,10 +438,10 @@ int32_t MIDIInstrument::moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC
 	else {
 #if ALPHA_OR_BETA_VERSION
 		if (modelStackWithAutoParam->paramCollection != modelStack->paramManager->getExpressionParamSet()) {
-			numericDriver.freezeWithError("E415");
+			display->freezeWithError("E415");
 		}
 		if (modelStackWithAutoParam->paramId >= kNumExpressionDimensions) {
-			numericDriver.freezeWithError("E416");
+			display->freezeWithError("E416");
 		}
 #endif
 		((ExpressionParamSet*)modelStackWithAutoParam->paramCollection)

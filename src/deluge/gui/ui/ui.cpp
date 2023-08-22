@@ -20,7 +20,7 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
-#include "hid/display/oled.h"
+#include "hid/display/display.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "io/debug/print.h"
@@ -30,9 +30,7 @@ extern "C" {
 }
 
 UI::UI() {
-#if HAVE_OLED
 	oledShowsUIUnderneath = false;
-#endif
 }
 
 void UI::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
@@ -96,7 +94,7 @@ bool changeUIAtLevel(UI* newUI, int32_t level) {
 	return success;
 }
 
-// Called when we navigate between "root" UIs, like sessionView, instrumentClipView, etc.
+// Called when we navigate between "root" UIs, like sessionView, instrumentClipView, automationInstrumentClipView etc.
 void changeRootUI(UI* newUI) {
 	uiNavigationHierarchy[0] = newUI;
 	numUIsOpen = 1;
@@ -107,9 +105,9 @@ void changeRootUI(UI* newUI) {
 	PadLEDs::reassessGreyout();
 	newUI->opened(); // These all can't fail, I guess.
 
-#if HAVE_OLED
-	renderUIsForOled();
-#endif
+	if (display->haveOLED()) {
+		renderUIsForOled();
+	}
 }
 
 // Only called when setting up blank song, so don't worry about this
@@ -121,9 +119,9 @@ void setRootUILowLevel(UI* newUI) {
 
 bool changeUISideways(UI* newUI) {
 	bool success = changeUIAtLevel(newUI, numUIsOpen - 1);
-#if HAVE_OLED
-	renderUIsForOled();
-#endif
+	if (display->haveOLED()) {
+		renderUIsForOled();
+	}
 	return success;
 }
 
@@ -189,9 +187,9 @@ void closeUI(UI* uiToClose) {
 	uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
 	PadLEDs::reassessGreyout();
 	newUI->focusRegained();
-#if HAVE_OLED
-	renderUIsForOled();
-#endif
+	if (display->haveOLED()) {
+		renderUIsForOled();
+	}
 
 	bool redrawMainPadsOrig = redrawMainPads;
 	bool redrawSidebarOrig = redrawSidebar;
@@ -233,9 +231,9 @@ bool openUI(UI* newUI) {
 		oldUI
 		    ->focusRegained(); // Or maybe we should instead let the caller deal with this failure, and call this if they wish?
 	}
-#if HAVE_OLED
-	renderUIsForOled();
-#endif
+	if (display->haveOLED()) {
+		renderUIsForOled();
+	}
 	return success;
 }
 
@@ -253,23 +251,21 @@ void nullifyUIs() {
 	numUIsOpen = 0;
 }
 
-#if HAVE_OLED
 void renderUIsForOled() {
 	int32_t u = numUIsOpen - 1;
 	while (u && uiNavigationHierarchy[u]->oledShowsUIUnderneath) {
 		u--;
 	}
 
-	OLED::clearMainImage();
+	deluge::hid::display::OLED::clearMainImage();
 
 	for (; u < numUIsOpen; u++) {
-		OLED::stopScrollingAnimation();
-		uiNavigationHierarchy[u]->renderOLED(OLED::oledMainImage);
+		deluge::hid::display::OLED::stopScrollingAnimation();
+		uiNavigationHierarchy[u]->renderOLED(deluge::hid::display::OLED::oledMainImage);
 	}
 
-	OLED::sendMainImage();
+	deluge::hid::display::OLED::sendMainImage();
 }
-#endif
 
 uint32_t whichMainRowsNeedRendering = 0;
 uint32_t whichSideRowsNeedRendering = 0;

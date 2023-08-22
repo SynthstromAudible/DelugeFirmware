@@ -17,7 +17,7 @@
 
 #include "storage/audio/audio_file.h"
 #include "definitions_cxx.hpp"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "io/debug/print.h"
 #include "memory/general_memory_allocator.h"
 #include "model/sample/sample.h"
@@ -514,7 +514,7 @@ void AudioFile::removeReason(char const* errorCode) {
 
 	else if (numReasonsToBeLoaded < 0) {
 #if ALPHA_OR_BETA_VERSION
-		numericDriver.freezeWithError("E004"); // Luc got this! And Paolo. (Must have been years ago :D)
+		display->freezeWithError("E004"); // Luc got this! And Paolo. (Must have been years ago :D)
 #endif
 		numReasonsToBeLoaded = 0; // Save it from crashing
 	}
@@ -538,7 +538,7 @@ void AudioFile::steal(char const* errorCode) {
 	int32_t i = audioFileManager.audioFiles.searchForExactObject(this);
 	if (i < 0) {
 #if ALPHA_OR_BETA_VERSION
-		numericDriver.displayPopup(errorCode); // Jensg still getting.
+		display->displayPopup(errorCode); // Jensg still getting.
 #endif
 	}
 	else {

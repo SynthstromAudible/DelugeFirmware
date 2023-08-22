@@ -19,21 +19,20 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
+#include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "model/clip/clip_minder.h"
+#include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
+#include "model/song/song.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "util/functions.h"
-
-#if HAVE_OLED
-#include "hid/display/oled.h"
-#endif
 
 extern "C" {
 #include "RZA1/oled/oled_low_level.h"
@@ -78,7 +77,7 @@ void UITimerManager::routine() {
 					break;
 
 				case TIMER_DEFAULT_ROOT_NOTE:
-					if (getCurrentUI() == &instrumentClipView) {
+					if (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationInstrumentClipView) {
 						instrumentClipView.flashDefaultRootNote();
 					}
 					else if (getCurrentUI() == &keyboardScreen) {
@@ -93,11 +92,14 @@ void UITimerManager::routine() {
 					break;
 
 				case TIMER_DISPLAY:
-#if HAVE_OLED
-					OLED::timerRoutine();
-#else
-					numericDriver.timerRoutine();
-#endif
+					if (display->haveOLED()) {
+						auto* oled = static_cast<deluge::hid::display::OLED*>(display);
+						oled->timerRoutine();
+					}
+					else {
+						display->timerRoutine();
+					}
+
 					break;
 
 				case TIMER_LED_BLINK:
@@ -126,7 +128,16 @@ void UITimerManager::routine() {
 				}
 
 				case TIMER_DISPLAY_AUTOMATION:
-					view.displayAutomation();
+					if (getCurrentUI() == &automationInstrumentClipView
+					    && (((InstrumentClip*)currentSong->currentClip)->lastSelectedParamID
+					        != kNoLastSelectedParamID)) {
+
+						automationInstrumentClipView.displayAutomation();
+					}
+
+					else {
+						view.displayAutomation();
+					}
 					break;
 
 				case TIMER_READ_INPUTS:
@@ -144,19 +155,35 @@ void UITimerManager::routine() {
 					setTimer(TIMER_GRAPHICS_ROUTINE, 15);
 					break;
 
-#if HAVE_OLED
+				case TIMER_AUTOMATION_VIEW: //timer to redisplay the parameter name on the screen in automation view
+					if (getCurrentUI() == &automationInstrumentClipView
+					    && (((InstrumentClip*)currentSong->currentClip)->lastSelectedParamID
+					        != kNoLastSelectedParamID)) {
+
+						automationInstrumentClipView.displayParameterName(
+						    ((InstrumentClip*)currentSong->currentClip)->lastSelectedParamID);
+						unsetTimer(TIMER_AUTOMATION_VIEW);
+					}
+					break;
+
 				case TIMER_OLED_LOW_LEVEL:
-					oledLowLevelTimerCallback();
+					if (display->haveOLED()) {
+						oledLowLevelTimerCallback();
+					}
 					break;
 
 				case TIMER_OLED_CONSOLE:
-					OLED::consoleTimerEvent();
+					if (display->haveOLED()) {
+						auto* oled = static_cast<deluge::hid::display::OLED*>(display);
+						oled->consoleTimerEvent();
+					}
 					break;
 
 				case TIMER_OLED_SCROLLING_AND_BLINKING:
-					OLED::scrollingAndBlinkingTimerEvent();
+					if (display->haveOLED()) {
+						deluge::hid::display::OLED::scrollingAndBlinkingTimerEvent();
+					}
 					break;
-#endif
 				}
 			}
 		}

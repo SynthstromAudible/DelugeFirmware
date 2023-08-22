@@ -21,9 +21,12 @@
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/arranger_view.h"
+#include "gui/views/automation_instrument_clip_view.h"
+#include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/buttons.h"
+#include "hid/display/display.h"
 #include "io/debug/print.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
@@ -41,6 +44,7 @@
 #include "model/model_stack.h"
 #include "model/note/note.h"
 #include "model/note/note_row.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
@@ -63,10 +67,6 @@
 #include "util/lookuptables/lookuptables.h"
 #include <math.h>
 #include <new>
-
-#if HAVE_OLED
-#include "hid/display/oled.h"
-#endif
 
 // Supplying song is optional, and basically only for the purpose of setting yScroll according to root note
 InstrumentClip::InstrumentClip(Song* song) : Clip(CLIP_TYPE_INSTRUMENT) {
@@ -93,6 +93,16 @@ InstrumentClip::InstrumentClip(Song* song) : Clip(CLIP_TYPE_INSTRUMENT) {
 
 	inScaleMode = (FlashStorage::defaultScale != PRESET_SCALE_NONE);
 	onKeyboardScreen = false;
+
+	//initialize automation instrument clip view variables
+	onAutomationInstrumentClipView = false;
+	lastSelectedParamID = kNoLastSelectedParamID;
+	lastSelectedParamKind = Param::Kind::NONE;
+	lastSelectedParamShortcutX = kNoLastSelectedParamShortcut;
+	lastSelectedParamShortcutY = kNoLastSelectedParamShortcut;
+	lastSelectedParamArrayPosition = 0;
+	lastSelectedInstrumentType = InstrumentType::NONE;
+	//end initialize of automation instrument clip view variables
 
 	if (song) {
 		int32_t yNote = ((uint16_t)(song->rootNote + 120) % 12) + 60;
@@ -137,6 +147,7 @@ void InstrumentClip::copyBasicsFrom(Clip* otherClip) {
 	midiPGM = otherInstrumentClip->midiPGM;
 
 	onKeyboardScreen = otherInstrumentClip->onKeyboardScreen;
+	onAutomationInstrumentClipView = otherInstrumentClip->onAutomationInstrumentClipView;
 	inScaleMode = otherInstrumentClip->inScaleMode;
 	wrapEditing = otherInstrumentClip->wrapEditing;
 	wrapEditLevel = otherInstrumentClip->wrapEditLevel;
@@ -808,6 +819,11 @@ skipDoingSumTo100:
 				conditionPassed = true;
 			}
 
+			// else check if it's a FILL note and only play if SYNC_SCALING is pressed
+			else if (pendingNoteOnList.pendingNoteOns[i].probability == kFillProbabilityValue) {
+				conditionPassed = currentSong->fillModeActive;
+			}
+
 			// Otherwise...
 			else {
 				int32_t probability = pendingNoteOnList.pendingNoteOns[i].probability & 127;
@@ -1080,7 +1096,7 @@ ModelStackWithNoteRow* InstrumentClip::getOrCreateNoteRowForYNote(int32_t yNote,
 
 				thisNoteRow = getNoteRowForYNote(yNote); // Must re-get it
 				if (ALPHA_OR_BETA_VERSION && !thisNoteRow) {
-					numericDriver.freezeWithError("E -1");
+					display->freezeWithError("E -1");
 				}
 
 				thisNoteRow->notes.empty(); // Undo our "total hack", above
@@ -1477,7 +1493,7 @@ int32_t InstrumentClip::setNonAudioInstrument(Instrument* newInstrument, Song* s
 			int32_t error = paramManager.setupMIDI();
 			if (error) {
 				if (ALPHA_OR_BETA_VERSION) {
-					numericDriver.freezeWithError("E052");
+					display->freezeWithError("E052");
 				}
 				return error;
 			}
@@ -1591,7 +1607,7 @@ int32_t InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelSta
 	    newInstrument, modelStack->song, newParamManager,
 	    favourClipForCloningParamManager); // Tell it not to setup patching - this will happen back here in changeInstrumentPreset() after all Drums matched up
 	if (error) {
-		numericDriver.freezeWithError("E039");
+		display->freezeWithError("E039");
 		return error; // TODO: we'll need to get the old Instrument back...
 	}
 
@@ -2018,7 +2034,7 @@ int32_t InstrumentClip::undoUnassignmentOfAllNoteRowsFromDrums(ModelStackWithTim
 
 			if (!success) {
 				if (ALPHA_OR_BETA_VERSION) {
-					numericDriver.freezeWithError("E229");
+					display->freezeWithError("E229");
 				}
 				return ERROR_BUG;
 			}
@@ -2109,7 +2125,7 @@ int32_t InstrumentClip::undoDetachmentFromOutput(ModelStackWithTimelineCounter* 
 
 		if (!paramManager.containsAnyMainParamCollections()) {
 			if (ALPHA_OR_BETA_VERSION) {
-				numericDriver.freezeWithError("E230");
+				display->freezeWithError("E230");
 			}
 			return ERROR_BUG;
 		}
@@ -2170,6 +2186,17 @@ void InstrumentClip::writeDataToFile(Song* song) {
 
 	if (onKeyboardScreen) {
 		storageManager.writeAttribute("onKeyboardScreen", (char*)"1");
+	}
+	if (onAutomationInstrumentClipView) {
+		storageManager.writeAttribute("onAutomationInstrumentClipView", (char*)"1");
+	}
+	if (lastSelectedParamID != kNoLastSelectedParamID) {
+		storageManager.writeAttribute("lastSelectedParamID", lastSelectedParamID);
+		storageManager.writeAttribute("lastSelectedParamKind", util::to_underlying(lastSelectedParamKind));
+		storageManager.writeAttribute("lastSelectedParamShortcutX", lastSelectedParamShortcutX);
+		storageManager.writeAttribute("lastSelectedParamShortcutY", lastSelectedParamShortcutY);
+		storageManager.writeAttribute("lastSelectedParamArrayPosition", lastSelectedParamArrayPosition);
+		storageManager.writeAttribute("lastSelectedInstrumentType", util::to_underlying(lastSelectedInstrumentType));
 	}
 	if (wrapEditing) {
 		storageManager.writeAttribute("crossScreenEditLevel", wrapEditLevel);
@@ -2413,6 +2440,34 @@ someError:
 
 		else if (!strcmp(tagName, "onKeyboardScreen")) {
 			onKeyboardScreen = storageManager.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "onAutomationInstrumentClipView")) {
+			onAutomationInstrumentClipView = storageManager.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "lastSelectedParamID")) {
+			lastSelectedParamID = storageManager.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "lastSelectedParamKind")) {
+			lastSelectedParamKind = static_cast<Param::Kind>(storageManager.readTagOrAttributeValueInt());
+		}
+
+		else if (!strcmp(tagName, "lastSelectedParamShortcutX")) {
+			lastSelectedParamShortcutX = storageManager.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "lastSelectedParamShortcutY")) {
+			lastSelectedParamShortcutY = storageManager.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "lastSelectedParamArrayPosition")) {
+			lastSelectedParamArrayPosition = storageManager.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "lastSelectedInstrumentType")) {
+			lastSelectedInstrumentType = static_cast<InstrumentType>(storageManager.readTagOrAttributeValueInt());
 		}
 
 		else if (!strcmp(tagName, "affectEntire")) {
@@ -3014,7 +3069,7 @@ bool InstrumentClip::deleteSoundsWhichWontSound(Song* song) {
 
 					if (ALPHA_OR_BETA_VERSION && noteRow->drum->type == DrumType::SOUND
 					    && ((SoundDrum*)noteRow->drum)->hasAnyVoices()) {
-						numericDriver.freezeWithError("E176");
+						display->freezeWithError("E176");
 					}
 
 					Drum* drum = noteRow->drum;
@@ -3184,7 +3239,7 @@ int32_t InstrumentClip::getDistanceToNextNote(Note* givenNote, ModelStackWithNot
 int32_t InstrumentClip::getNoteRowId(NoteRow* noteRow, int32_t noteRowIndex) {
 #if ALPHA_OR_BETA_VERSION
 	if (!noteRow) {
-		numericDriver.freezeWithError("E380");
+		display->freezeWithError("E380");
 	}
 #endif
 	if (output->type == InstrumentType::KIT) {
@@ -3198,7 +3253,7 @@ int32_t InstrumentClip::getNoteRowId(NoteRow* noteRow, int32_t noteRowIndex) {
 NoteRow* InstrumentClip::getNoteRowFromId(int32_t id) {
 	if (output->type == InstrumentType::KIT) {
 		if (id < 0 || id >= noteRows.getNumElements()) {
-			numericDriver.freezeWithError("E177");
+			display->freezeWithError("E177");
 		}
 		return noteRows.getElement(id);
 	}
@@ -3216,9 +3271,45 @@ NoteRow* InstrumentClip::getNoteRowFromId(int32_t id) {
 
 bool InstrumentClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int32_t amount) {
 
+	//New community feature as part of Automation Clip View Implementation
+	//If this is enabled, then when you are in a regular Instrument Clip View (Synth, Kit, MIDI, CV), shifting a clip
+	//will only shift the Notes and MPE data (NON MPE automations remain intact).
+
+	//If this is enabled, if you want to shift NON MPE automations, you will enter Automation Clip View and shift the clip there.
+
+	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+	    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
+
 	if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
-		paramManager.shiftHorizontally(
-		    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager), amount, loopLength);
+		ParamCollectionSummary* summary = paramManager.summaries;
+
+		int32_t i = 0;
+
+		while (summary->paramCollection) {
+
+			ModelStackWithParamCollection* modelStackWithParamCollection =
+			    modelStackWithThreeMainThings->addParamCollection(summary->paramCollection, summary);
+
+			// Special case for MPE only - not even "mono" / Clip-level expression.
+			if (i == paramManager.getExpressionParamSetOffset()) {
+				if (getCurrentUI()
+				    != &automationInstrumentClipView) { //don't shift MPE if you're in the automation view
+					((ExpressionParamSet*)summary->paramCollection)
+					    ->shiftHorizontally(modelStackWithParamCollection, amount, loopLength);
+				}
+			}
+
+			//Normal case
+			else {
+				//this never gets called from Automation View because in the Automation View we shift specific parameters not all parameters
+				if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationShiftClip)
+				    == RuntimeFeatureStateToggle::Off) {
+					summary->paramCollection->shiftHorizontally(modelStackWithParamCollection, amount, loopLength);
+				}
+			}
+			summary++;
+			i++;
+		}
 	}
 
 	for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
@@ -3271,6 +3362,7 @@ void InstrumentClip::sendMIDIPGM() {
 }
 
 void InstrumentClip::clear(Action* action, ModelStackWithTimelineCounter* modelStack) {
+	//this clears automations when "affectEntire" is enabled
 	Clip::clear(action, modelStack);
 
 	for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
@@ -3494,7 +3586,7 @@ Instrument* InstrumentClip::changeInstrumentType(ModelStackWithTimelineCounter* 
 			result.error = Browser::currentDir.set(getInstrumentFolder(newInstrumentType));
 			if (result.error) {
 displayError:
-				numericDriver.displayError(result.error);
+				display->displayError(result.error);
 				return NULL;
 			}
 		}
@@ -3527,11 +3619,7 @@ displayError:
 			modelStack->song->removeInstrumentFromHibernationList(newInstrument);
 		}
 
-#if HAVE_OLED
-		OLED::displayWorkingAnimation("Loading");
-#else
-		numericDriver.displayLoadingAnimation();
-#endif
+		display->displayLoadingAnimationText("Loading");
 		newInstrument->loadAllAudioFiles(true);
 	}
 
@@ -3564,9 +3652,7 @@ displayError:
 	outputChanged(modelStack, newInstrument);
 	modelStack->song->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E062", "H062");
 
-#if HAVE_OLED
-	OLED::removeWorkingAnimation();
-#endif
+	display->removeWorkingAnimation();
 
 	return newInstrument;
 }
@@ -3718,7 +3804,7 @@ int32_t InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 
 						// If wasn't enough RAM, we're really in trouble
 						if (error) {
-							numericDriver.freezeWithError("E011");
+							display->freezeWithError("E011");
 haveNoDrum:
 							thisNoteRow->drum = NULL;
 						}
@@ -3954,7 +4040,7 @@ Clip* InstrumentClip::cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStac
 	void* clipMemory = GeneralMemoryAllocator::get().alloc(sizeof(InstrumentClip), NULL, false, true);
 	if (!clipMemory) {
 ramError:
-		numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+		display->displayError(ERROR_INSUFFICIENT_RAM);
 		return NULL;
 	}
 
@@ -3962,7 +4048,7 @@ ramError:
 
 	int32_t error = newParamManager.cloneParamCollectionsFrom(&paramManager, false, true);
 	if (error) {
-		numericDriver.displayError(error);
+		display->displayError(error);
 		return NULL;
 	}
 

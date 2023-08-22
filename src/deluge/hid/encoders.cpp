@@ -18,6 +18,7 @@
 #include "hid/encoders.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/ui.h"
+#include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/buttons.h"
 #include "hid/led/pad_leds.h"
@@ -128,7 +129,7 @@ checkResult:
 				break;
 
 			case ENCODER_SCROLL_Y:
-				if (Buttons::isShiftButtonPressed() && Buttons::isButtonPressed(hid::button::LEARN)) {
+				if (Buttons::isShiftButtonPressed() && Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
 					PadLEDs::changeDimmerInterval(limitedDetentPos);
 				}
 				else {
@@ -142,19 +143,24 @@ checkResult:
 				    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::Quantize)
 				           == RuntimeFeatureStateToggle::On) {
 					instrumentClipView.tempoEncoderAction(limitedDetentPos,
-					                                      Buttons::isButtonPressed(hid::button::TEMPO_ENC),
+					                                      Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC),
 					                                      Buttons::isShiftButtonPressed());
 				}
 				else {
 					playbackHandler.tempoEncoderAction(limitedDetentPos,
-					                                   Buttons::isButtonPressed(hid::button::TEMPO_ENC),
+					                                   Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC),
 					                                   Buttons::isShiftButtonPressed());
+				}
+
+				//when tempo encoder is finished, make sure to display parameter name again
+				if (getCurrentUI() == &automationInstrumentClipView) {
+					automationInstrumentClipView.setDisplayParameterNameTimer();
 				}
 
 				break;
 
 			case ENCODER_SELECT:
-				if (Buttons::isButtonPressed(hid::button::CLIP_VIEW)) {
+				if (Buttons::isButtonPressed(deluge::hid::button::CLIP_VIEW)) {
 					PadLEDs::changeRefreshTime(limitedDetentPos);
 				}
 				else {

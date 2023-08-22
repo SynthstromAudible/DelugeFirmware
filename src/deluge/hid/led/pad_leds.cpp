@@ -23,12 +23,13 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
+#include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "gui/waveform/waveform_render_data.h"
 #include "gui/waveform/waveform_renderer.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
@@ -437,7 +438,7 @@ void setupAudioClipCollapseOrExplodeAnimation(AudioClip* clip) {
 	Sample* sample = (Sample*)clip->sampleHolder.audioFile;
 
 	if (ALPHA_OR_BETA_VERSION && !sample) {
-		numericDriver.freezeWithError("E311");
+		display->freezeWithError("E311");
 	}
 
 	sampleMaxPeakFromZero = sample->getMaxPeakFromZero();
@@ -696,11 +697,12 @@ void setGreyoutAmount(float newAmount) {
 	greyProportion = newAmount * 6500000;
 }
 
-int32_t refreshTime;
+int32_t refreshTime = 23;
 int32_t dimmerInterval = 0;
 
 void setRefreshTime(int32_t newTime) {
 	PIC::setRefreshTime(newTime);
+	refreshTime = newTime;
 }
 
 void changeRefreshTime(int32_t offset) {
@@ -711,7 +713,7 @@ void changeRefreshTime(int32_t offset) {
 	setRefreshTime(newTime);
 	char buffer[12];
 	intToString(refreshTime, buffer);
-	numericDriver.displayPopup(buffer);
+	display->displayPopup(buffer);
 }
 
 void changeDimmerInterval(int32_t offset) {
@@ -721,16 +723,16 @@ void changeDimmerInterval(int32_t offset) {
 		setDimmerInterval(newInterval);
 	}
 
-#if HAVE_OLED
-	char text[20];
-	strcpy(text, "Brightness: ");
-	char* pos = strchr(text, 0);
-	intToString((25 - dimmerInterval) << 2, pos);
-	pos = strchr(text, 0);
-	*(pos++) = '%';
-	*pos = 0;
-	OLED::popupText(text);
-#endif
+	if (display->haveOLED()) {
+		char text[20];
+		strcpy(text, "Brightness: ");
+		char* pos = strchr(text, 0);
+		intToString((25 - dimmerInterval) << 2, pos);
+		pos = strchr(text, 0);
+		*(pos++) = '%';
+		*pos = 0;
+		deluge::hid::display::OLED::popupText(text, false);
+	}
 }
 
 void setDimmerInterval(int32_t newInterval) {
@@ -805,7 +807,12 @@ void timerRoutine() {
 				currentUIMode = UI_MODE_ANIMATION_FADE;
 				if (explodeAnimationDirection == 1) {
 					if (currentSong->currentClip->type == CLIP_TYPE_INSTRUMENT) {
-						changeRootUI(&instrumentClipView); // We want to fade the sidebar in
+						if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+							changeRootUI(&automationInstrumentClipView); // We want to fade the sidebar in
+						}
+						else {
+							changeRootUI(&instrumentClipView); // We want to fade the sidebar in
+						}
 					}
 					else {
 						changeRootUI(&audioClipView);
@@ -988,6 +995,14 @@ void renderClipExpandOrCollapse() {
 			if (((InstrumentClip*)currentSong->currentClip)->onKeyboardScreen) {
 				changeRootUI(&keyboardScreen);
 			}
+			else if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+				changeRootUI(&automationInstrumentClipView);
+				// If we need to zoom in horizontally because the Clip's too short...
+				bool anyZoomingDone = instrumentClipView.zoomToMax(true);
+				if (anyZoomingDone) {
+					uiNeedsRendering(&automationInstrumentClipView, 0, 0xFFFFFFFF);
+				}
+			}
 			else {
 				changeRootUI(&instrumentClipView);
 				// If we need to zoom in horizontally because the Clip's too short...
@@ -1020,7 +1035,12 @@ void renderNoteRowExpandOrCollapse() {
 	int32_t progress = getTransitionProgress();
 	if (progress >= 65536) {
 		currentUIMode = UI_MODE_NONE;
-		uiNeedsRendering(&instrumentClipView);
+		if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+			uiNeedsRendering(&automationInstrumentClipView);
+		}
+		else {
+			uiNeedsRendering(&instrumentClipView);
+		}
 		return;
 	}
 

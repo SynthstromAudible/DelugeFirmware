@@ -17,16 +17,18 @@
 
 #include "model/clip/instrument_clip_minder.h"
 #include "definitions_cxx.hpp"
+#include "gui/l10n/l10n.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
+#include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
 #include "io/debug/print.h"
 #include "io/midi/midi_engine.h"
@@ -41,6 +43,7 @@
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/model_stack.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
@@ -54,10 +57,6 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/storage_manager.h"
 #include <string.h>
-
-#if HAVE_OLED
-#include "hid/display/oled.h"
-#endif
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
@@ -88,7 +87,7 @@ void InstrumentClipMinder::selectEncoderAction(int32_t offset) {
 
 			int32_t newCC;
 
-			if (!Buttons::isButtonPressed(hid::button::SELECT_ENC)) {
+			if (!Buttons::isButtonPressed(deluge::hid::button::SELECT_ENC)) {
 				newCC = instrument->changeControlNumberForModKnob(offset, editingMIDICCForWhichModKnob,
 				                                                  instrument->modKnobMode);
 				view.setKnobIndicatorLevels();
@@ -97,7 +96,8 @@ void InstrumentClipMinder::selectEncoderAction(int32_t offset) {
 				newCC = instrument->moveAutomationToDifferentCC(offset, editingMIDICCForWhichModKnob,
 				                                                instrument->modKnobMode, modelStackWithThreeMainThings);
 				if (newCC == -1) {
-					numericDriver.displayPopup(HAVE_OLED ? "No further unused MIDI params" : "FULL");
+					display->displayPopup(
+					    deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_FURTHER_UNUSED_MIDI_PARAMS));
 					return;
 				}
 			}
@@ -113,50 +113,52 @@ void InstrumentClipMinder::selectEncoderAction(int32_t offset) {
 }
 
 void InstrumentClipMinder::redrawNumericDisplay() {
-#if HAVE_OLED
-#else
-	if (getCurrentUI()->toClipMinder()) { // Seems a redundant check now? Maybe? Or not?
-		view.displayOutputName(getCurrentClip()->output, false);
+	if (display->have7SEG()) {
+		if (getCurrentUI()->toClipMinder()) { // Seems a redundant check now? Maybe? Or not?
+			view.displayOutputName(getCurrentClip()->output, false);
+		}
 	}
-#endif
 }
 
-#if HAVE_OLED
 void InstrumentClipMinder::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	view.displayOutputName(getCurrentClip()->output, false);
 }
-#endif
 
 void InstrumentClipMinder::drawMIDIControlNumber(int32_t controlNumber, bool automationExists) {
 
-	char buffer[HAVE_OLED ? 30 : 5];
+	char buffer[display->haveOLED() ? 30 : 5];
+	bool finish = false;
 	if (controlNumber == CC_NUMBER_NONE) {
-		strcpy(buffer, HAVE_OLED ? "No param" : "NONE");
+		strcpy(buffer, deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_PARAM));
 	}
 	else if (controlNumber == CC_NUMBER_PITCH_BEND) {
-		strcpy(buffer, HAVE_OLED ? "Pitch bend" : "BEND");
+		strcpy(buffer, deluge::l10n::get(deluge::l10n::String::STRING_FOR_PITCH_BEND));
 	}
 	else if (controlNumber == CC_NUMBER_AFTERTOUCH) {
-		strcpy(buffer, HAVE_OLED ? "Channel pressure" : "AFTE");
+		strcpy(buffer, deluge::l10n::get(deluge::l10n::String::STRING_FOR_CHANNEL_PRESSURE));
 	}
 	else {
 		buffer[0] = 'C';
 		buffer[1] = 'C';
-#if HAVE_OLED
-		buffer[2] = ' ';
-		intToString(controlNumber, &buffer[3]);
+		if (display->haveOLED()) {
+			buffer[2] = ' ';
+			intToString(controlNumber, &buffer[3]);
+		}
+		else {
+			char* numberStartPos = (controlNumber < 100) ? (buffer + 2) : (buffer + 1);
+			intToString(controlNumber, numberStartPos);
+		}
 	}
-	if (automationExists) {
-		strcat(buffer, "\n(automated)");
-	}
-	OLED::popupText(buffer, true);
 
-#else
-		char* numberStartPos = (controlNumber < 100) ? (buffer + 2) : (buffer + 1);
-		intToString(controlNumber, numberStartPos);
+	if (display->haveOLED()) {
+		if (automationExists) {
+			strcat(buffer, "\n(automated)");
+		}
+		display->popupText(buffer);
 	}
-	numericDriver.setText(buffer, true, automationExists ? 3 : 255, true);
-#endif
+	else {
+		display->setText(buffer, true, automationExists ? 3 : 255, false);
+	}
 }
 
 void InstrumentClipMinder::createNewInstrument(InstrumentType newInstrumentType) {
@@ -171,7 +173,7 @@ void InstrumentClipMinder::createNewInstrument(InstrumentType newInstrumentType)
 	error = Browser::currentDir.set(getInstrumentFolder(newInstrumentType));
 	if (error) {
 gotError:
-		numericDriver.displayError(error);
+		display->displayError(error);
 		return;
 	}
 
@@ -181,7 +183,7 @@ gotError:
 	}
 
 	if (newName.isEmpty()) {
-		numericDriver.displayPopup(HAVE_OLED ? "No further unused instrument numbers" : "FULL");
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_FURTHER_UNUSED_INSTRUMENT_NUMBERS));
 		return;
 	}
 
@@ -207,13 +209,12 @@ gotError:
 
 	getCurrentClip()->backupPresetSlot();
 
-#if HAVE_OLED
-	char const* message = (newInstrumentType == InstrumentType::KIT) ? "New kit created" : "New synth created";
-	OLED::consoleText(message);
-#else
-	char const* message = "NEW";
-	numericDriver.displayPopup(message);
-#endif
+	if (newInstrumentType == InstrumentType::KIT) {
+		display->consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NEW_KIT_CREATED));
+	}
+	else {
+		display->consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NEW_SYNTH_CREATED));
+	}
 
 	if (newInstrumentType == InstrumentType::SYNTH) {
 		((SoundInstrument*)newInstrument)->setupAsBlankSynth(&newParamManager);
@@ -245,7 +246,6 @@ gotError:
 	newInstrument->existsOnCard = false;
 
 	if (newInstrumentType == InstrumentType::KIT) {
-
 		// If we weren't a Kit already...
 		if (oldInstrumentType != InstrumentType::KIT) {
 			getCurrentClip()->yScroll = 0;
@@ -265,11 +265,12 @@ gotError:
 
 	newInstrument->name.set(&newName);
 
-#if HAVE_OLED
-	renderUIsForOled();
-#else
-	redrawNumericDisplay();
-#endif
+	if (display->haveOLED()) {
+		renderUIsForOled();
+	}
+	else {
+		redrawNumericDisplay();
+	}
 }
 
 void InstrumentClipMinder::setLedStates() {
@@ -278,7 +279,10 @@ void InstrumentClipMinder::setLedStates() {
 	indicator_leds::setLedState(IndicatorLED::MIDI, getCurrentClip()->output->type == InstrumentType::MIDI_OUT);
 	indicator_leds::setLedState(IndicatorLED::CV, getCurrentClip()->output->type == InstrumentType::CV);
 
-	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, getCurrentClip()->wrapEditing);
+	//cross screen editing doesn't currently work in automation view, so don't light it up
+	if (getCurrentUI() != &automationInstrumentClipView) {
+		indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, getCurrentClip()->wrapEditing);
+	}
 	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, getCurrentClip()->isScaleModeClip());
 	indicator_leds::setLedState(IndicatorLED::BACK, false);
 
@@ -296,13 +300,13 @@ void InstrumentClipMinder::opened() {
 void InstrumentClipMinder::focusRegained() {
 	view.focusRegained();
 	view.setActiveModControllableTimelineCounter(getCurrentClip());
-#if !HAVE_OLED
-	redrawNumericDisplay();
-#endif
+	if (display->have7SEG()) {
+		redrawNumericDisplay();
+	}
 }
 
-ActionResult InstrumentClipMinder::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
-	using namespace hid::button;
+ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	using namespace deluge::hid::button;
 
 	if (inCardRoutine) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -384,9 +388,33 @@ yesLoadInstrument:
 			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, currentSong->currentClip);
 
 			getCurrentClip()->clear(action, modelStack);
-			numericDriver.displayPopup(HAVE_OLED ? "Clip cleared" : "CLEAR");
-			if (getCurrentUI() == &instrumentClipView) {
-				uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+
+			//New community feature as part of Automation Clip View Implementation
+			//If this is enabled, then when you are in a regular Instrument Clip View (Synth, Kit, MIDI, CV), clearing a clip
+			//will only clear the Notes (automations remain intact).
+			//If this is enabled, if you want to clear automations, you will enter Automation Clip View and clear the clip there.
+			//If this is enabled, the message displayed on the OLED screen is adjusted to reflect the nature of what is being cleared
+
+			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationClearClip)
+			    == RuntimeFeatureStateToggle::On) {
+				if (getCurrentUI() == &automationInstrumentClipView) {
+					display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_CLEARED));
+					uiNeedsRendering(&automationInstrumentClipView, 0xFFFFFFFF, 0);
+				}
+				else if (getCurrentUI() == &instrumentClipView) {
+					display->displayPopup(l10n::get(l10n::String::STRING_FOR_NOTES_CLEARED));
+					uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+				}
+			}
+			else {
+				if (getCurrentUI() == &instrumentClipView) {
+					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIP_CLEARED));
+					uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+				}
+				else if (getCurrentUI() == &automationInstrumentClipView) {
+					display->displayPopup(l10n::get(l10n::String::STRING_FOR_CLIP_CLEARED));
+					uiNeedsRendering(&automationInstrumentClipView, 0xFFFFFFFF, 0);
+				}
 			}
 		}
 	}
@@ -453,26 +481,28 @@ void InstrumentClipMinder::drawActualNoteCode(int16_t noteCode) {
 	char noteName[5];
 	noteName[0] = noteCodeToNoteLetter[noteCodeWithinOctave];
 	char* writePos = &noteName[1];
-#if HAVE_OLED
-	if (noteCodeIsSharp[noteCodeWithinOctave]) {
-		*writePos = '#';
-		writePos++;
+	if (display->haveOLED()) {
+		if (noteCodeIsSharp[noteCodeWithinOctave]) {
+			*writePos = '#';
+			writePos++;
+		}
 	}
-#endif
 	intToString(octave, writePos, 1);
 
-#if HAVE_OLED
-	OLED::popupText(noteName, true);
-#else
-	uint8_t drawDot = noteCodeIsSharp[noteCodeWithinOctave] ? 0 : 255;
-	numericDriver.setText(noteName, false, drawDot, true);
-#endif
+	if (display->haveOLED()) {
+		display->popupTextTemporary(noteName);
+	}
+	else {
+		uint8_t drawDot = noteCodeIsSharp[noteCodeWithinOctave] ? 0 : 255;
+		display->setText(noteName, false, drawDot, true);
+	}
 }
 
 void InstrumentClipMinder::cycleThroughScales() {
 	int32_t newScale = currentSong->cycleThroughScales();
 	if (newScale >= NUM_PRESET_SCALES) {
-		numericDriver.displayPopup(HAVE_OLED ? "Custom scale with more than 7 notes in use" : "CANT");
+		display->displayPopup(
+		    deluge::l10n::get(deluge::l10n::String::STRING_FOR_CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES_IN_USE));
 	}
 	else {
 		displayScaleName(newScale);
@@ -481,10 +511,10 @@ void InstrumentClipMinder::cycleThroughScales() {
 
 void InstrumentClipMinder::displayScaleName(int32_t scale) {
 	if (scale >= NUM_PRESET_SCALES) {
-		numericDriver.displayPopup(HAVE_OLED ? "Other scale" : "OTHER");
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_OTHER_SCALE));
 	}
 	else {
-		numericDriver.displayPopup(presetScaleNames[scale]);
+		display->displayPopup(presetScaleNames[scale]);
 	}
 }
 

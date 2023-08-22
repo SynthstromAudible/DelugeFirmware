@@ -26,7 +26,7 @@ class InstrumentClip;
 class Output;
 class ModelStack;
 
-// This class performs operations on an InstrumentClip that are common to both the InstrumentClipView and KeyboardView.
+// This class performs operations on an InstrumentClip that are common to both the InstrumentClipView, AutomationInstrumentClipView and KeyboardView.
 
 class InstrumentClipMinder : public ClipMinder {
 public:
@@ -35,7 +35,7 @@ public:
 	void createNewInstrument(InstrumentType newInstrumentType);
 	void setLedStates();
 	void focusRegained();
-	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 	void calculateDefaultRootNote();
 	void drawActualNoteCode(int16_t noteCode);
 	void cycleThroughScales();
@@ -47,9 +47,7 @@ public:
 	void changeInstrumentType(InstrumentType newInstrumentType);
 	void opened();
 
-#if HAVE_OLED
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
-#endif
 
 	static int16_t
 	    defaultRootNote; // Stores the calculated "default" root note between the user pressing the scale-mode button and releasing it

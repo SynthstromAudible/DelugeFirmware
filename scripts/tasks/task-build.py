@@ -11,6 +11,7 @@ BUILD_CONFIGS = {
     "release": "Release",
     "debug": "Debug",
     "relwithdebinfo": "RelWithDebInfo",
+    "all": "all",
 }
 
 
@@ -48,13 +49,6 @@ def argparser() -> argparse.ArgumentParser:
         action="store_true",
     )
     parser.add_argument(
-        "target",
-        default="all",
-        const="all",
-        nargs="?",
-        choices=["7seg", "oled", "all", "clean", "doxygen"],
-    )
-    parser.add_argument(
         "config",
         nargs="?",
         choices=list(BUILD_CONFIGS.keys()),
@@ -64,10 +58,6 @@ def argparser() -> argparse.ArgumentParser:
 
 def main() -> int:
     (args, unknown_args) = argparser().parse_known_args()
-    if args.target in ["7seg", "oled"]:
-        target = "deluge" + args.target.upper()
-    else:
-        target = args.target
 
     os.chdir(util.get_git_root())
 
@@ -87,9 +77,9 @@ def main() -> int:
 
     build_args = []
     build_args += ["--build", "build"]
-    build_args += ["--target", target]
+    build_args += ["--target", "deluge"]
 
-    if args.config:
+    if args.config and args.config != 'all':
         config = BUILD_CONFIGS[args.config]
         build_args += ["--config", config]
 

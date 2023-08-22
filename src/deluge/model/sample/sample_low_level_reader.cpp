@@ -20,7 +20,7 @@
 
 #include "model/sample/sample_low_level_reader.h"
 #include "dsp/timestretch/time_stretcher.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "io/debug/print.h"
 #include "model/sample/sample.h"
 #include "model/voice/voice.h"
@@ -76,7 +76,7 @@ void SampleLowLevelReader::setupForPlayPosMovedIntoNewCluster(SamplePlaybackGuid
 
 #if ALPHA_OR_BETA_VERSION
 	if (!clusters[0]) {
-		numericDriver.freezeWithError("i022");
+		display->freezeWithError("i022");
 	}
 #endif
 
@@ -146,7 +146,7 @@ void SampleLowLevelReader::setupReassessmentLocation(SamplePlaybackGuide* guide,
 
 #if ALPHA_OR_BETA_VERSION
 	if (!clusters[0]) {
-		numericDriver.freezeWithError("i021");
+		display->freezeWithError("i021");
 	}
 #endif
 
@@ -195,7 +195,7 @@ void SampleLowLevelReader::setupReassessmentLocation(SamplePlaybackGuide* guide,
 			if ((endPosWithinCurrentCluster + currentClusterIndex * audioFileManager.clusterSize
 			     - sample->audioDataStartPosBytes)
 			    % bytesPerSample) {
-				numericDriver.freezeWithError("E163");
+				display->freezeWithError("E163");
 			}
 #endif
 			reassessmentLocation = clusters[0]->data + endPosWithinCurrentCluster;
@@ -339,7 +339,7 @@ bool SampleLowLevelReader::moveOnToNextCluster(SamplePlaybackGuide* guide, Sampl
 
 #if ALPHA_OR_BETA_VERSION
 	if (!clusters[0]) {
-		numericDriver.freezeWithError("i019");
+		display->freezeWithError("i019");
 	}
 #endif
 
@@ -450,8 +450,8 @@ bool SampleLowLevelReader::changeClusterIfNecessary(SamplePlaybackGuide* guide, 
 #if ALPHA_OR_BETA_VERSION
 		count++;
 		if (count >= 1024) {
-			numericDriver.freezeWithError(
-			    "E227"); // This happened one time! When stopping AudioClips from playing back, after recording and mucking around with SD card reaching full
+			// This happened one time! When stopping AudioClips from playing back, after recording and mucking around with SD card reaching full
+			display->freezeWithError("E227");
 		}
 #endif
 	}
@@ -566,7 +566,7 @@ bool SampleLowLevelReader::considerUpcomingWindow(SamplePlaybackGuide* guide, Sa
                                                   int32_t priorityRating) {
 
 	if (ALPHA_OR_BETA_VERSION && phaseIncrement < 0) {
-		numericDriver.freezeWithError("E228");
+		display->freezeWithError("E228");
 	}
 
 	int32_t bytesPerSample = sample->numChannels * sample->byteDepth;
@@ -595,7 +595,7 @@ bool SampleLowLevelReader::considerUpcomingWindow(SamplePlaybackGuide* guide, Sa
 				int32_t bytesLeftWhichMayBeRead =
 				    (int32_t)((uint32_t)reassessmentLocation - (uint32_t)currentPlayPos) * guide->playDirection;
 				if (bytesLeftWhichMayBeRead < 0) {
-					numericDriver.freezeWithError("E222");
+					display->freezeWithError("E222");
 				}
 			}
 		}
@@ -610,7 +610,7 @@ bool SampleLowLevelReader::considerUpcomingWindow(SamplePlaybackGuide* guide, Sa
 					int32_t bytesLeftWhichMayBeRead =
 					    (int32_t)((uint32_t)reassessmentLocation - (uint32_t)currentPlayPos) * guide->playDirection;
 					if (bytesLeftWhichMayBeRead < 0) {
-						numericDriver.freezeWithError("E305");
+						display->freezeWithError("E305");
 					}
 				}
 
@@ -630,7 +630,7 @@ bool SampleLowLevelReader::considerUpcomingWindow(SamplePlaybackGuide* guide, Sa
 					int32_t bytesLeftWhichMayBeRead =
 					    (int32_t)((uint32_t)reassessmentLocation - (uint32_t)currentPlayPos) * guide->playDirection;
 					if (bytesLeftWhichMayBeRead < 0) {
-						numericDriver.freezeWithError("E306");
+						display->freezeWithError("E306");
 					}
 				}
 			}
@@ -642,7 +642,7 @@ bool SampleLowLevelReader::considerUpcomingWindow(SamplePlaybackGuide* guide, Sa
 					int32_t bytesLeftWhichMayBeRead =
 					    (int32_t)((uint32_t)reassessmentLocation - (uint32_t)currentPlayPos) * guide->playDirection;
 					if (bytesLeftWhichMayBeRead < 0) {
-						numericDriver.freezeWithError("E308");
+						display->freezeWithError("E308");
 					}
 				}
 
@@ -675,7 +675,7 @@ bool SampleLowLevelReader::considerUpcomingWindow(SamplePlaybackGuide* guide, Sa
 					int32_t bytesLeftWhichMayBeRead =
 					    (int32_t)((uint32_t)reassessmentLocation - (uint32_t)currentPlayPos) * guide->playDirection;
 					if (bytesLeftWhichMayBeRead < 0) {
-						numericDriver.freezeWithError("E221");
+						display->freezeWithError("E221");
 					}
 				}
 			}
@@ -723,13 +723,13 @@ doZeroes:
 
 					if (ALPHA_OR_BETA_VERSION) {
 						if (!clusters[0]) {
-							numericDriver.freezeWithError("E225");
+							display->freezeWithError("E225");
 						}
 
 						int32_t bytesLeftWhichMayBeRead =
 						    (int32_t)((uint32_t)reassessmentLocation - (uint32_t)currentPlayPos) * guide->playDirection;
 						if (bytesLeftWhichMayBeRead <= 0) {
-							numericDriver.freezeWithError("E226");
+							display->freezeWithError("E226");
 						}
 					}
 
@@ -744,7 +744,7 @@ doZeroes:
 						int32_t bytesLeftWhichMayBeRead =
 						    (int32_t)((uint32_t)reassessmentLocation - (uint32_t)currentPlayPos) * guide->playDirection;
 						if (bytesLeftWhichMayBeRead < 0) {
-							numericDriver.freezeWithError("E185");
+							display->freezeWithError("E185");
 						}
 					}
 				}
@@ -759,7 +759,7 @@ doZeroes:
 				int32_t bytesLeftWhichMayBeRead =
 				    (int32_t)((uint32_t)reassessmentLocation - (uint32_t)currentPlayPos) * guide->playDirection;
 				if (bytesLeftWhichMayBeRead < 0) {
-					numericDriver.freezeWithError("E223");
+					display->freezeWithError("E223");
 				}
 			}
 		}
@@ -789,7 +789,7 @@ doZeroes:
 				int32_t bytesLeftWhichMayBeRead =
 				    (int32_t)((uint32_t)reassessmentLocation - (uint32_t)currentPlayPos) * guide->playDirection;
 				if (ALPHA_OR_BETA_VERSION && bytesLeftWhichMayBeRead < 0) {
-					numericDriver.freezeWithError("E148");
+					display->freezeWithError("E148");
 				}
 
 				int32_t bytesWeWantToRead = samplesWeWantToReadThisWindow * bytesPerSample;
@@ -810,10 +810,10 @@ doZeroes:
 				// This really really should never happen.
 				if (ALPHA_OR_BETA_VERSION && phaseIncrementingLeftWhichMayBeDone < 0) {
 					if (!clusters[0]) {
-						numericDriver.freezeWithError("E143");
+						display->freezeWithError("E143");
 					}
 					else {
-						numericDriver.freezeWithError("E000");
+						display->freezeWithError("E000");
 					}
 				}
 
@@ -853,7 +853,7 @@ doZeroes:
 		    (int32_t)((uint32_t)reassessmentLocation - (uint32_t)currentPlayPos) * guide->playDirection;
 
 		if (ALPHA_OR_BETA_VERSION && bytesLeftWhichMayBeRead <= 0) {
-			numericDriver.freezeWithError("E001");
+			display->freezeWithError("E001");
 		}
 
 		// If there are actually less bytes remaining than we ideally wanted for this window...
@@ -863,8 +863,7 @@ doZeroes:
 			if (ALPHA_OR_BETA_VERSION && *numSamples <= 0) {
 				Debug::print("bytesLeftWhichMayBeRead: ");
 				Debug::println(bytesLeftWhichMayBeRead);
-				numericDriver.freezeWithError(
-				    "E147"); // Crazily, Michael B got in Nov 2022, when "closing" a recorded loop.
+				display->freezeWithError("E147"); // Crazily, Michael B got in Nov 2022, when "closing" a recorded loop.
 			}
 		}
 	}

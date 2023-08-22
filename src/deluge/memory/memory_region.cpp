@@ -17,7 +17,7 @@
 
 #include "memory/memory_region.h"
 #include "drivers/mtu/mtu.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "io/debug/print.h"
 #include "memory/general_memory_allocator.h"
 #include "memory/stealable.h"
@@ -31,7 +31,9 @@ MemoryRegion::MemoryRegion() : emptySpaces(sizeof(EmptySpaceRecord)) {
 void MemoryRegion::setup(void* emptySpacesMemory, int32_t emptySpacesMemorySize, uint32_t regionBegin,
                          uint32_t regionEnd) {
 	emptySpaces.setStaticMemory(emptySpacesMemory, emptySpacesMemorySize);
-
+	start = regionBegin;
+	//this is actually the location of the footer but that's better anyway
+	end = regionEnd - 8;
 	uint32_t memorySizeWithoutHeaders = regionEnd - regionBegin - 16;
 
 	*(uint32_t*)regionBegin = SPACE_HEADER_ALLOCATED;
@@ -58,8 +60,8 @@ void MemoryRegion::sanityCheck() {
 	}
 
 	if (count > 1) {
+		display->freezeWithError("BBBB");
 		Debug::println("multiple 0xc0080bc!!!!");
-		numericDriver.freezeWithError("BBBB");
 	}
 	else if (count == 1) {
 		if (!seenYet) {
@@ -74,17 +76,17 @@ void MemoryRegion::verifyMemoryNotFree(void* address, uint32_t spaceSize) {
 		EmptySpaceRecord* emptySpaceRecord = (EmptySpaceRecord*)emptySpaces.getElementAddress(i);
 		if (emptySpaceRecord->address == (uint32_t)address) {
 			Debug::println("Exact address free!");
-			numericDriver.freezeWithError("dddffffd");
+			display->freezeWithError("dddffffd");
 		}
 		else if (emptySpaceRecord->address <= (uint32_t)address
 		         && (emptySpaceRecord->address + emptySpaceRecord->length > (uint32_t)address)) {
+			display->freezeWithError("dddd");
 			Debug::println("free mem overlap on left!");
-			numericDriver.freezeWithError("dddd");
 		}
 		else if ((uint32_t)address <= (uint32_t)emptySpaceRecord->address
 		         && ((uint32_t)address + spaceSize > emptySpaceRecord->address)) {
+			display->freezeWithError("eeee");
 			Debug::println("free mem overlap on right!");
-			numericDriver.freezeWithError("eeee");
 		}
 	}
 }
@@ -98,7 +100,10 @@ static EmptySpaceRecord* recordToMergeWith;
 // Specify the address and size of the actual memory region not including its headers, which this function will write and don't have to contain valid data yet.
 // spaceSize can even be 0 or less if you know it's going to get merged.
 inline void MemoryRegion::markSpaceAsEmpty(uint32_t address, uint32_t spaceSize, bool mayLookLeft, bool mayLookRight) {
-
+	if ((address <= start) || address >= end) {
+		//display->freezeWithError("M998");
+		return;
+	}
 	int32_t biggerRecordSearchFromIndex = 0;
 	int32_t insertRangeBegin;
 
@@ -752,6 +757,12 @@ void MemoryRegion::dealloc(void* address) {
 
 	uint32_t* __restrict__ header = (uint32_t*)((uint32_t)address - 4);
 	uint32_t spaceSize = (*header & SPACE_SIZE_MASK);
+
+#if ALPHA_OR_BETA_VERSION
+	if ((*header & SPACE_TYPE_MASK) == SPACE_HEADER_EMPTY) {
+		display->freezeWithError("M000");
+	}
+#endif
 
 	markSpaceAsEmpty((uint32_t)address, spaceSize);
 

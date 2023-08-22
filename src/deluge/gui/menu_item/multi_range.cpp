@@ -16,13 +16,13 @@
 */
 
 #include "multi_range.h"
+#include "gui/l10n/l10n.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
-#include "hid/display/numeric_driver.h"
-#include "hid/display/oled.h"
+#include "hid/display/display.h"
 #include "hid/matrix/matrix_driver.h"
 #include "io/debug/print.h"
 #include "processing/engines/audio_engine.h"
@@ -54,22 +54,22 @@ void MultiRange::beginSession(MenuItem* navigatedBackwardFrom) {
 	soundEditor.currentSource->getOrCreateFirstRange(); // TODO: deal with error
 	soundEditor.setCurrentMultiRange(this->getValue());
 
-#if HAVE_OLED
-	soundEditor.menuCurrentScroll = this->getValue() - 1;
-	if (soundEditor.menuCurrentScroll > this->getValue() - kOLEDMenuNumOptionsVisible + 1) {
-		soundEditor.menuCurrentScroll = this->getValue() - kOLEDMenuNumOptionsVisible + 1;
+	if (display->haveOLED()) {
+		soundEditor.menuCurrentScroll = this->getValue() - 1;
+		if (soundEditor.menuCurrentScroll > this->getValue() - kOLEDMenuNumOptionsVisible + 1) {
+			soundEditor.menuCurrentScroll = this->getValue() - kOLEDMenuNumOptionsVisible + 1;
+		}
+		if (soundEditor.menuCurrentScroll < 0) {
+			soundEditor.menuCurrentScroll = 0;
+		}
 	}
-	if (soundEditor.menuCurrentScroll < 0) {
-		soundEditor.menuCurrentScroll = 0;
-	}
-#endif
 
 	Range::beginSession(navigatedBackwardFrom);
 }
 
 void MultiRange::selectEncoderAction(int32_t offset) {
 
-	if (numericDriver.popupActive) {
+	if (display->hasPopup()) {
 		return;
 	}
 
@@ -152,11 +152,12 @@ void MultiRange::selectEncoderAction(int32_t offset) {
 			}
 		}
 
-#if HAVE_OLED
-		renderUIsForOled();
-#else
-		drawValueForEditingRange(false);
-#endif
+		if (display->haveOLED()) {
+			renderUIsForOled();
+		}
+		else {
+			drawValueForEditingRange(false);
+		}
 	}
 
 	// Or, normal mode
@@ -188,7 +189,7 @@ void MultiRange::selectEncoderAction(int32_t offset) {
 			}
 
 			if (currentRangeTop == currentRangeBottom) {
-				numericDriver.displayPopup(HAVE_OLED ? "Range contains only 1 note" : "CANT");
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_RANGE_CONTAINS_ONE_NOTE));
 				return;
 			}
 
@@ -205,7 +206,7 @@ void MultiRange::selectEncoderAction(int32_t offset) {
 			::MultiRange* newRange = soundEditor.currentSource->ranges.insertMultiRange(newI);
 			AudioEngine::audioRoutineLocked = false;
 			if (!newRange) {
-				numericDriver.displayError(ERROR_INSUFFICIENT_RAM);
+				display->displayError(ERROR_INSUFFICIENT_RAM);
 				return;
 			}
 
@@ -220,23 +221,25 @@ void MultiRange::selectEncoderAction(int32_t offset) {
 			else {
 				newRange->topNote = midPoint;
 				// And can leave old range alone
-#if HAVE_OLED
-				soundEditor.menuCurrentScroll++; // Won't go past end of list, cos list just grew.
-#endif
+				if (display->haveOLED()) {
+					soundEditor.menuCurrentScroll++; // Won't go past end of list, cos list just grew.
+				}
 			}
 
 			this->setValue(newI);
-#if HAVE_OLED
-			OLED::consoleText("Range inserted");
-			if (soundEditor.menuCurrentScroll > this->getValue()) {
-				soundEditor.menuCurrentScroll = this->getValue();
+			if (display->haveOLED()) {
+				display->consoleText(l10n::get(l10n::String::STRING_FOR_RANGE_INSERTED));
+				if (soundEditor.menuCurrentScroll > this->getValue()) {
+					soundEditor.menuCurrentScroll = this->getValue();
+				}
+				else if (soundEditor.menuCurrentScroll < this->getValue() - kOLEDMenuNumOptionsVisible + 1) {
+					soundEditor.menuCurrentScroll = this->getValue() - kOLEDMenuNumOptionsVisible + 1;
+				}
 			}
-			else if (soundEditor.menuCurrentScroll < this->getValue() - kOLEDMenuNumOptionsVisible + 1) {
-				soundEditor.menuCurrentScroll = this->getValue() - kOLEDMenuNumOptionsVisible + 1;
+			else {
+
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_INSERT));
 			}
-#else
-			numericDriver.displayPopup("INSERT");
-#endif
 		}
 
 		// Or the normal thing of just flicking through existing ranges
@@ -250,23 +253,24 @@ void MultiRange::selectEncoderAction(int32_t offset) {
 			this->setValue(newValue);
 			soundEditor.currentSource->defaultRangeI = this->getValue();
 
-#if HAVE_OLED
-			if (soundEditor.menuCurrentScroll > this->getValue()) {
-				soundEditor.menuCurrentScroll = this->getValue();
+			if (display->haveOLED()) {
+				if (soundEditor.menuCurrentScroll > this->getValue()) {
+					soundEditor.menuCurrentScroll = this->getValue();
+				}
+				else if (soundEditor.menuCurrentScroll < this->getValue() - kOLEDMenuNumOptionsVisible + 1) {
+					soundEditor.menuCurrentScroll = this->getValue() - kOLEDMenuNumOptionsVisible + 1;
+				}
 			}
-			else if (soundEditor.menuCurrentScroll < this->getValue() - kOLEDMenuNumOptionsVisible + 1) {
-				soundEditor.menuCurrentScroll = this->getValue() - kOLEDMenuNumOptionsVisible + 1;
-			}
-#endif
 		}
 
 		soundEditor.setCurrentMultiRange(this->getValue());
 		soundEditor.possibleChangeToCurrentRangeDisplay();
-#if HAVE_OLED
-		renderUIsForOled();
-#else
-		drawValue();
-#endif
+		if (display->haveOLED()) {
+			renderUIsForOled();
+		}
+		else {
+			drawValue();
+		}
 	}
 }
 
@@ -275,7 +279,7 @@ void MultiRange::deletePress() {
 	if (soundEditor.editingRangeEdge != RangeEdit::OFF) {
 		return;
 	}
-	if (numericDriver.popupActive) {
+	if (display->hasPopup()) {
 		return;
 	}
 
@@ -283,7 +287,7 @@ void MultiRange::deletePress() {
 
 	// Want to delete the current range
 	if (oldNum <= 1) {
-		numericDriver.displayPopup(HAVE_OLED ? "Only 1 range - can't delete" : "CANT");
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_LAST_RANGE_CANT_DELETE));
 		return;
 	}
 
@@ -303,11 +307,11 @@ void MultiRange::deletePress() {
 
 		this->setValue(this->getValue() - 1);
 		soundEditor.setCurrentMultiRange(this->getValue());
-#if HAVE_OLED
-		if (soundEditor.menuCurrentScroll > this->getValue()) {
-			soundEditor.menuCurrentScroll = this->getValue();
+		if (display->haveOLED()) {
+			if (soundEditor.menuCurrentScroll > this->getValue()) {
+				soundEditor.menuCurrentScroll = this->getValue();
+			}
 		}
-#endif
 		// If top one...
 		if (this->getValue() == oldNum - 2) {
 			soundEditor.currentMultiRange->topNote = 32767;
@@ -319,22 +323,23 @@ void MultiRange::deletePress() {
 		}
 	}
 
-	numericDriver.displayPopup(HAVE_OLED ? "Range deleted" : "DELETE");
+	display->displayPopup(l10n::get(l10n::String::STRING_FOR_RANGE_DELETED));
 	soundEditor.possibleChangeToCurrentRangeDisplay();
-#if HAVE_OLED
-	renderUIsForOled();
-#else
-	drawValue();
-#endif
+	if (display->haveOLED()) {
+		renderUIsForOled();
+	}
+	else {
+		drawValue();
+	}
 }
 
 void MultiRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRightLength, bool mayShowJustOne) {
 
 	// Lower end
 	if (this->getValue() == 0) {
-		strcpy(buffer, HAVE_OLED ? "Bottom" : "BOT");
+		strcpy(buffer, l10n::get(l10n::String::STRING_FOR_BOTTOM));
 		if (getLeftLength) {
-			*getLeftLength = HAVE_OLED ? 6 : 3;
+			*getLeftLength = display->haveOLED() ? 6 : 3;
 		}
 	}
 	else {
@@ -344,19 +349,19 @@ void MultiRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRight
 
 	char* bufferPos = buffer + strlen(buffer);
 
-#if HAVE_OLED
-	while (bufferPos < &buffer[7]) {
-		*bufferPos = ' ';
-		bufferPos++;
+	if (display->haveOLED()) {
+		while (bufferPos < &buffer[7]) {
+			*bufferPos = ' ';
+			bufferPos++;
+		}
 	}
-#endif
 
 	// Upper end
 	if (this->getValue() == soundEditor.currentSource->ranges.getNumElements() - 1) {
 		*(bufferPos++) = '-';
-#if HAVE_OLED
-		*(bufferPos++) = ' ';
-#endif
+		if (display->haveOLED()) {
+			*(bufferPos++) = ' ';
+		}
 		*(bufferPos++) = 't';
 		*(bufferPos++) = 'o';
 		*(bufferPos++) = 'p';
@@ -390,18 +395,19 @@ void MultiRange::noteOnToChangeRange(int32_t noteCode) {
 			this->setValue(newI);
 			soundEditor.setCurrentMultiRange(this->getValue());
 			soundEditor.possibleChangeToCurrentRangeDisplay();
-#if HAVE_OLED
-			if (soundEditor.menuCurrentScroll > this->getValue()) {
-				soundEditor.menuCurrentScroll = this->getValue();
-			}
-			else if (soundEditor.menuCurrentScroll < this->getValue() - kOLEDMenuNumOptionsVisible + 1) {
-				soundEditor.menuCurrentScroll = this->getValue() - kOLEDMenuNumOptionsVisible + 1;
-			}
+			if (display->haveOLED()) {
+				if (soundEditor.menuCurrentScroll > this->getValue()) {
+					soundEditor.menuCurrentScroll = this->getValue();
+				}
+				else if (soundEditor.menuCurrentScroll < this->getValue() - kOLEDMenuNumOptionsVisible + 1) {
+					soundEditor.menuCurrentScroll = this->getValue() - kOLEDMenuNumOptionsVisible + 1;
+				}
 
-			renderUIsForOled();
-#else
-			drawValue();
-#endif
+				renderUIsForOled();
+			}
+			else {
+				drawValue();
+			}
 		}
 	}
 }
@@ -413,9 +419,8 @@ bool MultiRange::mayEditRangeEdge(RangeEdit whichEdge) {
 	return (this->getValue() != soundEditor.currentSource->ranges.getNumElements() - 1);
 }
 
-#if HAVE_OLED
 void MultiRange::drawPixelsForOled() {
-	static_vector<std::string, kOLEDMenuNumOptionsVisible> itemNames{};
+	static_vector<std::string_view, kOLEDMenuNumOptionsVisible> itemNames{};
 	char nameBuffers[kOLEDMenuNumOptionsVisible][20];
 	int32_t actualCurrentRange = this->getValue();
 
@@ -455,8 +460,8 @@ void MultiRange::drawPixelsForOled() {
 		int32_t baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
 		baseY += OLED_MAIN_TOPMOST_PIXEL;
 		baseY += (this->getValue() - soundEditor.menuCurrentScroll) * kTextSpacingY;
-		OLED::invertArea(hilightStartX, hilightWidth, baseY, baseY + kTextSpacingY, OLED::oledMainImage);
+		deluge::hid::display::OLED::invertArea(hilightStartX, hilightWidth, baseY, baseY + kTextSpacingY,
+		                                       deluge::hid::display::OLED::oledMainImage);
 	}
 }
-#endif
 } // namespace deluge::gui::menu_item

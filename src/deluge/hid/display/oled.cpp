@@ -15,18 +15,17 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "definitions_cxx.hpp"
-
-#if HAVE_OLED
-
+#include "oled.h"
 #include "RZA1/mtu/mtu.h"
+#include "definitions_cxx.hpp"
 #include "drivers/dmac/dmac.h"
 #include "drivers/pic/pic.h"
 #include "gui/ui_timer_manager.h"
-#include "hid/display/oled.h"
+#include "hid/display/display.h"
 #include "processing/engines/audio_engine.h"
 #include "util/d_string.h"
 #include <string.h>
+#include <string_view>
 
 extern "C" {
 #include "RZA1/oled/oled_low_level.h"
@@ -40,42 +39,43 @@ extern void v7_dma_flush_range(uint32_t start, uint32_t end);
 
 extern uint8_t usbInitializationPeriodComplete;
 
-namespace OLED {
+namespace deluge::hid::display {
 
-uint8_t oledMainImage[OLED_MAIN_HEIGHT_PIXELS >> 3][OLED_MAIN_WIDTH_PIXELS];
-uint8_t oledMainConsoleImage[kConsoleImageNumRows][OLED_MAIN_WIDTH_PIXELS];
-uint8_t oledMainPopupImage[OLED_MAIN_HEIGHT_PIXELS >> 3][OLED_MAIN_WIDTH_PIXELS];
+uint8_t OLED::oledMainImage[OLED_MAIN_HEIGHT_PIXELS >> 3][OLED_MAIN_WIDTH_PIXELS];
+uint8_t OLED::oledMainConsoleImage[kConsoleImageNumRows][OLED_MAIN_WIDTH_PIXELS];
+uint8_t OLED::oledMainPopupImage[OLED_MAIN_HEIGHT_PIXELS >> 3][OLED_MAIN_WIDTH_PIXELS];
 
-uint8_t (*oledCurrentImage)[OLED_MAIN_WIDTH_PIXELS] = oledMainImage;
+uint8_t (*OLED::oledCurrentImage)[OLED_MAIN_WIDTH_PIXELS] = oledMainImage;
 
 int32_t workingAnimationCount;
 char const* workingAnimationText; // NULL means animation not active
 
 int32_t sideScrollerDirection; // 0 means none active
 
-const uint8_t folderIcon[] = {
+const uint8_t OLED::folderIcon[] = {
     0b11111100, 0b10000100, 0b10000110, 0b10000101, 0b10000011, 0b10000001, 0b10000001, 0b11111110,
 };
 
-const uint8_t waveIcon[] = {
+const uint8_t OLED::waveIcon[] = {
     0b00010000, 0b11111110, 0b00111000, 0b00010000, 0b00111000, 0b01111100, 0b00111000, 0b00010000,
 };
 
-const uint8_t songIcon[] = {
+const uint8_t OLED::songIcon[] = {
     0, 0b01100000, 0b11110000, 0b11110000, 0b01111110, 0b00000110, 0b00000110, 0b00000011, 0b00000011,
 };
 
-const uint8_t synthIcon[] = {0b11111110, 0b11100000, 0b00000000, 0b11111110, 0b00000000, 0b11100000, 0b11111110, 0};
+const uint8_t OLED::synthIcon[] = {0b11111110, 0b11100000, 0b00000000, 0b11111110,
+                                   0b00000000, 0b11100000, 0b11111110, 0};
 
-const uint8_t kitIcon[] = {
+const uint8_t OLED::kitIcon[] = {
     0b00111100, 0b01001010, 0b11110001, 0b10010001, 0b10010001, 0b11110001, 0b01001010, 0b00111100,
 };
 
-const uint8_t downArrowIcon[] = {
+const uint8_t OLED::downArrowIcon[] = {
     0b00010000, 0b00100000, 0b01111111, 0b00100000, 0b00010000,
 };
 
-const uint8_t rightArrowIcon[] = {
+const uint8_t OLED::rightArrowIcon[] = {
     0b00010101,
     0b00001110,
     0b00000100,
@@ -85,7 +85,7 @@ const uint8_t rightArrowIcon[] = {
 uint16_t renderStartTime;
 #endif
 
-void clearMainImage() {
+void OLED::clearMainImage() {
 #if ENABLE_TEXT_OUTPUT
 	renderStartTime = *TCNT[TIMER_SYSTEM_FAST];
 #endif
@@ -98,7 +98,8 @@ void clearMainImage() {
 }
 
 // Clears area *inclusive* of maxX, but not maxY? Stupid.
-void clearAreaExact(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
+void OLED::clearAreaExact(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY,
+                          uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	int32_t firstRow = minY >> 3;
 	int32_t lastRow = maxY >> 3;
 
@@ -173,7 +174,8 @@ void moveAreaUpCrude(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY, int
 
 // Caller must ensure area doesn't go beyond edge of canvas.
 // Inverts area inclusive of endY, I think...
-void invertArea(int32_t xMin, int32_t width, int32_t startY, int32_t endY, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
+void OLED::invertArea(int32_t xMin, int32_t width, int32_t startY, int32_t endY,
+                      uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	int32_t firstRowY = startY >> 3;
 	int32_t lastRowY = endY >> 3;
 
@@ -199,8 +201,8 @@ void invertArea(int32_t xMin, int32_t width, int32_t startY, int32_t endY, uint8
 	}
 }
 
-void drawGraphicMultiLine(uint8_t const* graphic, int32_t startX, int32_t startY, int32_t width, uint8_t* image,
-                          int32_t height, int32_t numBytesTall) {
+void OLED::drawGraphicMultiLine(uint8_t const* graphic, int32_t startX, int32_t startY, int32_t width, uint8_t* image,
+                                int32_t height, int32_t numBytesTall) {
 	int32_t rowOnDisplay = startY >> 3;
 	int32_t yOffset = startY & 7;
 	int32_t rowOnGraphic = 0;
@@ -262,7 +264,8 @@ void drawGraphicMultiLine(uint8_t const* graphic, int32_t startX, int32_t startY
 	}
 }
 
-void drawRectangle(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
+void OLED::drawRectangle(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY,
+                         uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	drawVerticalLine(minX, minY, maxY, image);
 	drawVerticalLine(maxX, minY, maxY, image);
 
@@ -270,7 +273,7 @@ void drawRectangle(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY, uint8
 	drawHorizontalLine(maxY, minX + 1, maxX - 1, image);
 }
 
-void drawVerticalLine(int32_t pixelX, int32_t startY, int32_t endY, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
+void OLED::drawVerticalLine(int32_t pixelX, int32_t startY, int32_t endY, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	int32_t firstRowY = startY >> 3;
 	int32_t lastRowY = endY >> 3;
 
@@ -303,7 +306,7 @@ drawSolid:
 	}
 }
 
-void drawHorizontalLine(int32_t pixelY, int32_t startX, int32_t endX, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
+void OLED::drawHorizontalLine(int32_t pixelY, int32_t startX, int32_t endX, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	uint8_t mask = 1 << (pixelY & 7);
 
 	uint8_t* __restrict__ currentPos = &image[pixelY >> 3][startX];
@@ -314,8 +317,8 @@ void drawHorizontalLine(int32_t pixelY, int32_t startX, int32_t endX, uint8_t im
 	} while (currentPos <= lastPos);
 }
 
-void drawString(std::string_view string, int32_t pixelX, int32_t pixelY, uint8_t* image, int32_t imageWidth,
-                int32_t textWidth, int32_t textHeight, int32_t scrollPos, int32_t endX) {
+void OLED::drawString(std::string_view string, int32_t pixelX, int32_t pixelY, uint8_t* image, int32_t imageWidth,
+                      int32_t textWidth, int32_t textHeight, int32_t scrollPos, int32_t endX) {
 	if (scrollPos) {
 		int32_t numCharsToChopOff = (uint16_t)scrollPos / (uint8_t)textWidth;
 		if (numCharsToChopOff) {
@@ -337,8 +340,8 @@ void drawString(std::string_view string, int32_t pixelX, int32_t pixelY, uint8_t
 	}
 }
 
-void drawStringFixedLength(char const* string, int32_t length, int32_t pixelX, int32_t pixelY, uint8_t* image,
-                           int32_t imageWidth, int32_t textWidth, int32_t textHeight) {
+void OLED::drawStringFixedLength(char const* string, int32_t length, int32_t pixelX, int32_t pixelY, uint8_t* image,
+                                 int32_t imageWidth, int32_t textWidth, int32_t textHeight) {
 	char const* const stopAt = string + length;
 	while (string < stopAt) {
 		drawChar(*string, pixelX, pixelY, image, imageWidth, textWidth, textHeight);
@@ -350,22 +353,22 @@ void drawStringFixedLength(char const* string, int32_t length, int32_t pixelX, i
 	}
 }
 
-void drawStringCentred(char const* string, int32_t pixelY, uint8_t* image, int32_t imageWidth, int32_t textWidth,
-                       int32_t textHeight, int32_t centrePos) {
+void OLED::drawStringCentred(char const* string, int32_t pixelY, uint8_t* image, int32_t imageWidth, int32_t textWidth,
+                             int32_t textHeight, int32_t centrePos) {
 	int32_t length = strlen(string);
 	int32_t pixelX = centrePos - ((textWidth * length) >> 1);
 	drawStringFixedLength(string, length, pixelX, pixelY, image, imageWidth, textWidth, textHeight);
 }
 
-void drawStringAlignRight(char const* string, int32_t pixelY, uint8_t* image, int32_t imageWidth, int32_t textWidth,
-                          int32_t textHeight, int32_t rightPos) {
+void OLED::drawStringAlignRight(char const* string, int32_t pixelY, uint8_t* image, int32_t imageWidth,
+                                int32_t textWidth, int32_t textHeight, int32_t rightPos) {
 	int32_t length = strlen(string);
 	int32_t pixelX = rightPos - (textWidth * length);
 	drawStringFixedLength(string, length, pixelX, pixelY, image, imageWidth, textWidth, textHeight);
 }
 
-void drawStringCentredShrinkIfNecessary(char const* string, int32_t pixelY, uint8_t* image, int32_t imageWidth,
-                                        int32_t textWidth, int32_t textHeight) {
+void OLED::drawStringCentredShrinkIfNecessary(char const* string, int32_t pixelY, uint8_t* image, int32_t imageWidth,
+                                              int32_t textWidth, int32_t textHeight) {
 	int32_t length = strlen(string);
 	int32_t maxTextWidth = (uint8_t)OLED_MAIN_WIDTH_PIXELS / (uint32_t)length;
 	if (textWidth > maxTextWidth) {
@@ -395,8 +398,8 @@ void drawStringCentredShrinkIfNecessary(char const* string, int32_t pixelY, uint
 
 #define DO_CHARACTER_SCALING 0
 
-void drawChar(uint8_t theChar, int32_t pixelX, int32_t pixelY, uint8_t* image, int32_t imageWidth, int32_t spacingX,
-              int32_t textHeight, int32_t scrollPos, int32_t endX) {
+void OLED::drawChar(uint8_t theChar, int32_t pixelX, int32_t pixelY, uint8_t* image, int32_t imageWidth,
+                    int32_t spacingX, int32_t textHeight, int32_t scrollPos, int32_t endX) {
 
 	if (theChar > '~') {
 		return;
@@ -474,7 +477,7 @@ void drawChar(uint8_t theChar, int32_t pixelX, int32_t pixelY, uint8_t* image, i
 	                     textHeight, bytesPerCol);
 }
 
-void drawScreenTitle(std::string_view title) {
+void OLED::drawScreenTitle(std::string_view title) {
 	int32_t extraY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 0 : 1;
 
 	int32_t startY = extraY + OLED_MAIN_TOPMOST_PIXEL;
@@ -493,7 +496,7 @@ int32_t popupMaxX;
 int32_t popupMinY;
 int32_t popupMaxY;
 
-void setupPopup(int32_t width, int32_t height) {
+void OLED::setupPopup(int32_t width, int32_t height) {
 	if (height > OLED_MAIN_HEIGHT_PIXELS) {
 		height = OLED_MAIN_HEIGHT_PIXELS;
 	}
@@ -540,13 +543,13 @@ struct ConsoleItem {
 ConsoleItem consoleItems[MAX_NUM_CONSOLE_ITEMS];
 int32_t numConsoleItems = 0;
 
-void drawConsoleTopLine() {
+void OLED::drawConsoleTopLine() {
 	drawHorizontalLine(consoleItems[numConsoleItems - 1].minY - 1, consoleMinX + 1, consoleMaxX - 1,
 	                   oledMainConsoleImage);
 }
 
 // Returns y position (minY)
-int32_t setupConsole(int32_t height) {
+int32_t OLED::setupConsole(int32_t height) {
 	consoleMinX = 4;
 	consoleMaxX = OLED_MAIN_WIDTH_PIXELS - consoleMinX;
 
@@ -591,7 +594,7 @@ int32_t setupConsole(int32_t height) {
 			moveAreaUpCrude(
 			    consoleMinX, consoleItems[numConsoleItems].minY - 1, consoleMaxX, consoleItems[1].maxY + howMuchTooLow,
 			    howMuchTooLow,
-			    oledMainConsoleImage); // numConsoleItems hasn't been updated yet - there's actually one more
+			    OLED::oledMainConsoleImage); // numConsoleItems hasn't been updated yet - there's actually one more
 		}
 	}
 
@@ -620,7 +623,7 @@ int32_t setupConsole(int32_t height) {
 	return consoleItems[0].minY;
 }
 
-void removePopup() {
+void OLED::removePopup() {
 	//if (!oledPopupWidth) return;
 
 	oledPopupWidth = 0;
@@ -629,7 +632,7 @@ void removePopup() {
 	sendMainImage();
 }
 
-bool isPopupPresent() {
+bool OLED::isPopupPresent() {
 	return oledPopupWidth;
 }
 
@@ -684,7 +687,7 @@ void copyBackgroundAroundForeground(uint8_t backgroundImage[][OLED_MAIN_WIDTH_PI
 	}
 }
 
-void sendMainImage() {
+void OLED::sendMainImage() {
 
 	oledCurrentImage = oledMainImage;
 
@@ -786,7 +789,7 @@ lookAtNextSpace:
 	}
 }
 
-void drawPermanentPopupLookingText(char const* text) {
+void OLED::drawPermanentPopupLookingText(char const* text) {
 	TextLineBreakdown textLineBreakdown;
 	textLineBreakdown.maxCharsPerLine = 19;
 
@@ -818,7 +821,7 @@ void drawPermanentPopupLookingText(char const* text) {
 	}
 }
 
-void popupText(char const* text, bool persistent) {
+void OLED::popupText(char const* text, bool persistent) {
 
 	TextLineBreakdown textLineBreakdown;
 	textLineBreakdown.maxCharsPerLine = 19;
@@ -870,32 +873,24 @@ void updateWorkingAnimation() {
 	}
 
 	error = textNow.concatenate(buffer);
-	popupText(textNow.get(), true);
+	OLED::popupText(textNow.get(), true);
 }
 
-void displayWorkingAnimation(char const* word) {
+void OLED::displayWorkingAnimation(char const* word) {
 	workingAnimationText = word;
 	workingAnimationCount = 0;
 	updateWorkingAnimation();
 }
 
-void removeWorkingAnimation() {
+void OLED::removeWorkingAnimation() {
 	if (workingAnimationText) {
 		removePopup();
 	}
 }
 
-extern "C" {
-void consoleTextIfAllBootedUp(char const* text) {
-	if (usbInitializationPeriodComplete) {
-		consoleText(text);
-	}
-}
-}
-
 #define CONSOLE_ANIMATION_FRAME_TIME_SAMPLES (6 * 44) // 6
 
-void consoleText(char const* text) {
+void OLED::consoleText(char const* text) {
 	TextLineBreakdown textLineBreakdown;
 	textLineBreakdown.maxCharsPerLine = 19;
 
@@ -931,12 +926,12 @@ union {
 } blinkArea;
 
 void performBlink() {
-	invertArea(blinkArea.minX, blinkArea.width, blinkArea.minY, blinkArea.maxY, oledMainImage);
-	sendMainImage();
+	OLED::invertArea(blinkArea.minX, blinkArea.width, blinkArea.minY, blinkArea.maxY, OLED::oledMainImage);
+	OLED::sendMainImage();
 	uiTimerManager.setTimer(TIMER_OLED_SCROLLING_AND_BLINKING, kFlashTime);
 }
 
-void setupBlink(int32_t minX, int32_t width, int32_t minY, int32_t maxY, bool shouldBlinkImmediately) {
+void OLED::setupBlink(int32_t minX, int32_t width, int32_t minY, int32_t maxY, bool shouldBlinkImmediately) {
 	blinkArea.minX = minX;
 	blinkArea.width = width;
 	blinkArea.minY = minY;
@@ -948,7 +943,7 @@ void setupBlink(int32_t minX, int32_t width, int32_t minY, int32_t maxY, bool sh
 	// Caller must do a sendMainImage() at some point after calling this.
 }
 
-void stopBlink() {
+void OLED::stopBlink() {
 	if (blinkArea.u32) {
 		blinkArea.u32 = 0;
 		uiTimerManager.unsetTimer(TIMER_OLED_SCROLLING_AND_BLINKING);
@@ -975,18 +970,18 @@ struct SideScroller {
 
 SideScroller sideScrollers[NUM_SIDE_SCROLLERS];
 
-void setupSideScroller(int32_t index, char const* text, int32_t startX, int32_t endX, int32_t startY, int32_t endY,
-                       int32_t textSpacingX, int32_t textSizeY, bool doHilight) {
+void OLED::setupSideScroller(int32_t index, std::string_view text, int32_t startX, int32_t endX, int32_t startY,
+                             int32_t endY, int32_t textSpacingX, int32_t textSizeY, bool doHilight) {
 
 	SideScroller* scroller = &sideScrollers[index];
-	scroller->textLength = strlen(text);
+	scroller->textLength = text.size();
 	scroller->stringLengthPixels = scroller->textLength * textSpacingX;
 	scroller->boxLengthPixels = endX - startX;
 	if (scroller->stringLengthPixels <= scroller->boxLengthPixels) {
 		return;
 	}
 
-	scroller->text = text;
+	scroller->text = text.data();
 	scroller->pos = 0;
 	scroller->startX = startX;
 	scroller->endX = endX;
@@ -1001,7 +996,7 @@ void setupSideScroller(int32_t index, char const* text, int32_t startX, int32_t 
 	uiTimerManager.setTimer(TIMER_OLED_SCROLLING_AND_BLINKING, 400);
 }
 
-void stopScrollingAnimation() {
+void OLED::stopScrollingAnimation() {
 	if (sideScrollerDirection) {
 		sideScrollerDirection = 0;
 		for (int32_t s = 0; s < NUM_SIDE_SCROLLERS; s++) {
@@ -1012,7 +1007,7 @@ void stopScrollingAnimation() {
 	}
 }
 
-void timerRoutine() {
+void OLED::timerRoutine() {
 
 	if (workingAnimationText) {
 		workingAnimationCount = (workingAnimationCount + 1) & 3;
@@ -1024,7 +1019,7 @@ void timerRoutine() {
 	}
 }
 
-void scrollingAndBlinkingTimerEvent() {
+void OLED::scrollingAndBlinkingTimerEvent() {
 
 	if (blinkArea.u32) {
 		performBlink();
@@ -1083,7 +1078,7 @@ void scrollingAndBlinkingTimerEvent() {
 	uiTimerManager.setTimer(TIMER_OLED_SCROLLING_AND_BLINKING, timeInterval);
 }
 
-void consoleTimerEvent() {
+void OLED::consoleTimerEvent() {
 	// If console active
 	if (!numConsoleItems) {
 		return;
@@ -1201,7 +1196,7 @@ checkTimeTilTimeout:
 	sendMainImage();
 }
 
-void freezeWithError(char const* text) {
+void OLED::freezeWithError(char const* text) {
 	OLED::clearMainImage();
 	int32_t yPixel = OLED_MAIN_TOPMOST_PIXEL;
 	OLED::drawString("Error:", 0, yPixel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
@@ -1288,9 +1283,22 @@ void freezeWithError(char const* text) {
 	spiTransferQueueCurrentlySending = false;
 
 	clearMainImage();
-	popupText("Operation resumed. Save to new file then reboot.");
+	OLED::popupText("Operation resumed. Save to new file then reboot.", false);
 }
 
-} // namespace OLED
+extern std::string_view getErrorMessage(int32_t);
 
-#endif
+void OLED::displayError(int32_t error) {
+	char const* message = nullptr;
+	switch (error) {
+	case NO_ERROR:
+	case ERROR_ABORTED_BY_USER:
+		return;
+	default:
+		message = getErrorMessage(error).data();
+		break;
+	}
+	displayPopup(message);
+}
+
+} // namespace deluge::hid::display

@@ -17,8 +17,9 @@
 
 #include "modulation/midi/midi_param_collection.h"
 #include "definitions_cxx.hpp"
+#include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/view.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "io/midi/midi_engine.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
@@ -279,14 +280,17 @@ bool MIDIParamCollection::mayParamInterpolate(int32_t paramId) {
 
 int32_t MIDIParamCollection::knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) {
 
-	char buffer[5];
-	int32_t valueForDisplay = knobPos;
-	valueForDisplay += 64;
-	if (valueForDisplay == 128) {
-		valueForDisplay = 127;
+	if (getCurrentUI()
+	    != &automationInstrumentClipView) { //let the automation instrument clip view handle the drawing of midi cc value
+		char buffer[5];
+		int32_t valueForDisplay = knobPos;
+		valueForDisplay += 64;
+		if (valueForDisplay == 128) {
+			valueForDisplay = 127;
+		}
+		intToString(valueForDisplay, buffer);
+		display->displayPopup(buffer, 3, true);
 	}
-	intToString(valueForDisplay, buffer);
-	numericDriver.displayPopup(buffer, 3, true);
 
 	return ParamCollection::knobPosToParamValue(knobPos, modelStack);
 }

@@ -297,6 +297,9 @@ constexpr int32_t kModFXBufferSize = 512;
 constexpr int32_t kModFXBufferIndexMask = (kModFXBufferSize - 1);
 constexpr int32_t kModFXMaxDelay = ((kModFXBufferSize - 1) << 16);
 
+constexpr int32_t kModFXGrainBufferSize = 65536;
+constexpr int32_t kModFXGrainBufferIndexMask = (kModFXGrainBufferSize - 1);
+
 constexpr int32_t kFlangerMinTime = (3 << 16);
 constexpr int32_t kFlangerAmplitude = (kModFXMaxDelay - kFlangerMinTime);
 constexpr int32_t kFlangerOffset = ((kModFXMaxDelay + kFlangerMinTime) >> 1);
@@ -360,6 +363,20 @@ constexpr int32_t kNumPatchSources = static_cast<int32_t>(kLastPatchSource);
 constexpr PatchSource kFirstLocalSource = PatchSource::ENVELOPE_0;
 //constexpr PatchSource kFirstUnchangeableSource = PatchSource::VELOCITY;
 
+//Automation Instrument Clip View constants
+constexpr int32_t kNoLastSelectedParamID = 255;
+constexpr int32_t kNoLastSelectedParamShortcut = 255;
+constexpr int32_t kNoLastSelectedPad = 255;
+constexpr int32_t kNumNonKitAffectEntireParamsForAutomation = 55;
+constexpr int32_t kNumKitAffectEntireParamsForAutomation = 24;
+constexpr int32_t kLastMidiCCForAutomation = 121;
+constexpr int32_t kKnobPosOffset = 64;
+constexpr int32_t kMaxKnobPos = 128;
+constexpr int32_t kParamValueIncrementForAutomationSinglePadPress = 18;
+constexpr int32_t kParamValueIncrementForAutomationDisplay = 16;
+constexpr int32_t kParamNodeWidth = 3;
+//
+
 // Linear params have different sources multiplied together, then multiplied by the neutral value
 // -- and "volume" ones get squared at the end
 
@@ -370,6 +387,15 @@ constexpr PatchSource kFirstLocalSource = PatchSource::ENVELOPE_0;
 using ParamType = uint8_t;
 
 namespace Param {
+
+enum Kind : int32_t {
+	PATCHED,
+	UNPATCHED,
+	GLOBAL_EFFECTABLE,
+
+	NONE,
+};
+
 namespace Local {
 enum : ParamType {
 	// Local linear params begin
@@ -379,6 +405,7 @@ enum : ParamType {
 	NOISE_VOLUME,
 	MODULATOR_0_VOLUME,
 	MODULATOR_1_VOLUME,
+	FOLD,
 
 	// Local non-volume params begin
 	MODULATOR_0_FEEDBACK,
@@ -586,9 +613,10 @@ enum class ModFXType {
 	CHORUS,
 	PHASER,
 	CHORUS_STEREO,
+	GRAIN,
 };
 
-constexpr int32_t kNumModFXTypes = util::to_underlying(ModFXType::CHORUS_STEREO) + 1;
+constexpr int32_t kNumModFXTypes = util::to_underlying(ModFXType::GRAIN) + 1;
 
 constexpr int32_t SAMPLE_MAX_TRANSPOSE = 24;
 constexpr int32_t SAMPLE_MIN_TRANSPOSE = (-96);
@@ -619,15 +647,16 @@ enum class FilterMode {
 	TRANSISTOR_12DB,
 	TRANSISTOR_24DB,
 	TRANSISTOR_24DB_DRIVE, //filter logic relies on ladders being first and contiguous
-	SVF,
-	HPLADDER, //first HPF mode
-	HPSVF,
+	SVF_BAND,              //first HPF mode
+	SVF_NOTCH,             //last LPF mode
+	HPLADDER,
 	OFF, //Keep last as a sentinel. Signifies that the filter is not on, used for filter reset logic
 };
 constexpr FilterMode kLastLadder = FilterMode::TRANSISTOR_24DB_DRIVE;
 //Off is not an LPF mode but is used to reset filters
-constexpr int32_t kNumLPFModes = util::to_underlying(FilterMode::HPLADDER);
-constexpr int32_t kNumHPFModes = util::to_underlying(FilterMode::OFF) - kNumLPFModes;
+constexpr int32_t kNumLPFModes = util::to_underlying(FilterMode::SVF_NOTCH) + 1;
+constexpr int32_t kFirstHPFMode = util::to_underlying(FilterMode::SVF_BAND);
+constexpr int32_t kNumHPFModes = util::to_underlying(FilterMode::OFF) - kFirstHPFMode;
 enum class FilterRoute {
 	HIGH_TO_LOW,
 	LOW_TO_HIGH,
@@ -720,8 +749,10 @@ enum class GlobalMIDICommand {
 	LOOP_CONTINUOUS_LAYERING,
 	UNDO,
 	REDO,
+	FILL,
+	LAST, // Keep as boundary
 };
-constexpr auto kNumGlobalMIDICommands = util::to_underlying(GlobalMIDICommand::REDO) + 1;
+constexpr auto kNumGlobalMIDICommands = util::to_underlying(GlobalMIDICommand::LAST) + 1;
 
 enum class MIDITakeoverMode : uint8_t {
 	JUMP,
@@ -759,6 +790,8 @@ enum class ArmState {
 };
 
 constexpr int32_t kNumProbabilityValues = 20;
+constexpr int32_t kNumIterationValues = 35; // 1of2 to 8of8
+constexpr int32_t kFillProbabilityValue = 0;
 constexpr int32_t kDefaultLiftValue = 64;
 
 enum Navigation {
@@ -943,9 +976,6 @@ enum class LoopType {
 	TIMESTRETCHER_LEVEL_IF_ACTIVE, // Will cause low-level looping if no time-stretching;
 };
 
-constexpr int32_t kInternalMemoryEnd = 0x20300000;
-constexpr int32_t kProgramStackMaxSize = 8192;
-
 enum StealableQueue {
 	STEALABLE_QUEUE_NO_SONG_SAMPLE_DATA,
 	STEALABLE_QUEUE_NO_SONG_SAMPLE_DATA_CONVERTED, // E.g. from floating point file, or wrong endianness AIFF file.
@@ -1040,12 +1070,6 @@ enum class IndependentNoteRowLengthIncrease {
 constexpr int32_t DIR_FileSize = 28 /* File size (DWORD) */;
 
 constexpr int32_t kMaxNumUnsignedIntegerstoRepAllParams = 2;
-
-#if HAVE_OLED
-constexpr int32_t kNumBrowserAndMenuLines = 3;
-#else
-constexpr int32_t kNumBrowserAndMenuLines = 1;
-#endif
 
 constexpr int32_t kDefaultCalculateRootNote = std::numeric_limits<int32_t>::max();
 

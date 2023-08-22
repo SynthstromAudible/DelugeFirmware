@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/keyboard/notes_state.h"
 #include "gui/ui/keyboard/state_data.h"
 #include "hid/button.h"
@@ -38,10 +39,6 @@ inline Instrument* currentInstrument() {
 	return (Instrument*)currentSong->currentClip->output;
 }
 
-struct PressedPad : Cartesian {
-	bool active;
-};
-
 enum class RequiredScaleMode : uint8_t {
 	Undefined = 0,
 	Disabled = 1,
@@ -50,6 +47,7 @@ enum class RequiredScaleMode : uint8_t {
 
 constexpr uint8_t kModesArraySize = kOctaveSize;
 typedef uint8_t ModesArray[kModesArraySize];
+typedef uint8_t NoteHighlightIntensity[kHighestKeyboardNote];
 
 class KeyboardLayout {
 public:
@@ -123,6 +121,8 @@ protected:
 
 		currentClip()->getMainColourFromY(note, colourOffset, rgb);
 	}
+
+	inline NoteHighlightIntensity& getHighlightedNotes() { return keyboardScreen.highlightedNotes; }
 
 	inline KeyboardState& getState() { return currentClip()->keyboardState; }
 

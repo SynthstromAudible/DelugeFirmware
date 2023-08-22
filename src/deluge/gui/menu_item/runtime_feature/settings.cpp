@@ -16,11 +16,11 @@
 */
 
 #include "settings.h"
+#include "devSysexSetting.h"
 #include "setting.h"
 
 #include "gui/ui/sound_editor.h"
-#include "hid/display/numeric_driver.h"
-
+#include "hid/display/display.h"
 #include <algorithm>
 #include <array>
 #include <cstdio>
@@ -39,14 +39,35 @@ Setting menuPatchCableResolution(RuntimeFeatureSettingType::PatchCableResolution
 Setting menuCatchNotes(RuntimeFeatureSettingType::CatchNotes);
 Setting menuDeleteUnusedKitRows(RuntimeFeatureSettingType::DeleteUnusedKitRows);
 Setting menuAltGoldenKnobDelayParams(RuntimeFeatureSettingType::AltGoldenKnobDelayParams);
+Setting menuQuantizedStutterRate(RuntimeFeatureSettingType::QuantizedStutterRate);
+Setting menuAutomationInterpolate(RuntimeFeatureSettingType::AutomationInterpolate);
+Setting menuAutomationClearClip(RuntimeFeatureSettingType::AutomationClearClip);
+Setting menuAutomationNudgeNote(RuntimeFeatureSettingType::AutomationNudgeNote);
+Setting menuAutomationShiftClip(RuntimeFeatureSettingType::AutomationShiftClip);
+Setting menuSyncScalingAction(RuntimeFeatureSettingType::SyncScalingAction);
+DevSysexSetting menuDevSysexAllowed(RuntimeFeatureSettingType::DevSysexAllowed);
+Setting menuHighlightIncomingNotes(RuntimeFeatureSettingType::HighlightIncomingNotes);
+Setting menuDisplayNornsLayout(RuntimeFeatureSettingType::DisplayNornsLayout);
 
-std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement> subMenuEntries{
-    &menuDrumRandomizer,       &menuMasterCompressorFx, &menuFineTempo,           &menuQuantize,
-    &menuPatchCableResolution, &menuCatchNotes,         &menuDeleteUnusedKitRows, &menuAltGoldenKnobDelayParams,
+Submenu subMenuAutomation{
+    l10n::String::STRING_FOR_AUTOMATION,
+    {
+        &menuAutomationInterpolate,
+        &menuAutomationClearClip,
+        &menuAutomationNudgeNote,
+        &menuAutomationShiftClip,
+    },
 };
 
-Settings::Settings(char const* name, char const* title)
-    : menu_item::Submenu<RuntimeFeatureSettingType::MaxElement>(name, title, subMenuEntries) {
+std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettings> subMenuEntries{
+    &menuDrumRandomizer,         &menuMasterCompressorFx, &menuFineTempo,           &menuQuantize,
+    &menuPatchCableResolution,   &menuCatchNotes,         &menuDeleteUnusedKitRows, &menuAltGoldenKnobDelayParams,
+    &menuQuantizedStutterRate,   &subMenuAutomation,      &menuDevSysexAllowed,     &menuSyncScalingAction,
+    &menuHighlightIncomingNotes, &menuDisplayNornsLayout,
+};
+
+Settings::Settings(l10n::String name, l10n::String title)
+    : menu_item::Submenu<subMenuEntries.size()>(name, title, subMenuEntries) {
 }
 
 } // namespace deluge::gui::menu_item::runtime_feature
