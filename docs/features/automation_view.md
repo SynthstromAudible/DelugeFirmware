@@ -197,6 +197,8 @@ The Automation Editor **will:**
 > When two pads are selected, two cursors are displayed on the grid and the lower led indicator shows the value of the left pad (left cursor), and the upper led indicator shows the value of the right pad (right cursor).
 > 
 > With this mode you can also press on each pad to see its current value without changing its value.
+>
+> Note: if you entered a long press in pad selection mode and wish to switch back to a single press, you can do so by entering a long press on a single column (press one and hold one pad and then press another pad above or below it).
 
 - enable you to lay down longer automations with interpolation 
 
