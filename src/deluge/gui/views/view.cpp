@@ -1095,9 +1095,8 @@ void View::setModLedStates() {
 		indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, false);
 	}
 	else {
-		if ((getRootUI() == &automationInstrumentClipView)
-		    || (getRootUI() == &keyboardScreen
-		        && ((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView)) {
+		if ((currentSong->currentClip->output->type != InstrumentType::AUDIO) 
+			&& (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView)) {
 			indicator_leds::blinkLed(IndicatorLED::CLIP_VIEW);
 		}
 		else {
