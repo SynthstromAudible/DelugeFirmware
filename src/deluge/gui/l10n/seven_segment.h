@@ -67,6 +67,10 @@ constexpr Language seven_segment{
         {STRING_FOR_MIX_PRE_FX, "MIX"},
         {STRING_FOR_MIX_POST_FX, "OUTP"},
 
+        // gui/context_menu/launch_style.cpp
+        {STRING_FOR_DEFAULT_LAUNCH, "DEFA"},
+        {STRING_FOR_FILL_LAUNCH, "FILL"},
+
         // gui/context_menu/sample_browser/kit.cpp
         {STRING_FOR_LOAD_ALL, "ALL"},
         {STRING_FOR_SLICE, "SLICE"},

@@ -1,7 +1,9 @@
+
+
 #include "gui/context_menu/launch_style.h"
 #include "extern.h"
+#include "gui/l10n/l10n.h"
 #include "gui/ui/root_ui.h"
-#include "hid/display/numeric_driver.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "model/clip/clip.h"
@@ -17,18 +19,17 @@ constexpr size_t kNumValues = 2;
 
 LaunchStyle launchStyle{};
 
-#if HAVE_OLED
-char const* optionsls[] = {"Default", "Fill"};
-#else
-char const* optionsls[] = {"DEFA", "FILL"};
-#endif
-
 char const* LaunchStyle::getTitle() {
 	static char const* title = "Launch Style";
 	return title;
 }
 
 Sized<char const**> LaunchStyle::getOptions() {
+	using enum l10n::String;
+	static const char* optionsls[] = {
+	    l10n::get(STRING_FOR_DEFAULT_LAUNCH),
+	    l10n::get(STRING_FOR_FILL_LAUNCH),
+	};
 	return {optionsls, kNumValues};
 }
 
