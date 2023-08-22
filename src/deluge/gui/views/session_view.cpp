@@ -529,7 +529,7 @@ changeInstrumentType:
 							break;
 						}
 						}
-
+						loadInstrumentPresetUI.loadingSynthToKitRow = false;
 						openUI(&loadInstrumentPresetUI);
 					}
 
