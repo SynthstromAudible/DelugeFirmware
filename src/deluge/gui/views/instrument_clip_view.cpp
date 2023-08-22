@@ -2820,7 +2820,7 @@ void InstrumentClipView::setRowProbability(int32_t offset) {
 	uint8_t probabilityValue = noteRow->probabilityValue;
 	bool prevBase = false;
 	// Covers the probabilities and iterations
-	probabilityValue = std::clamp<int32_t>((int32_t)probabilityValue + offset, (int32_t)1, kNumProbabilityValues + 35);
+	probabilityValue = std::clamp<int32_t>((int32_t)probabilityValue + offset, (int32_t)0, kNumProbabilityValues + 35);
 
 	noteRow->probabilityValue = probabilityValue;
 
