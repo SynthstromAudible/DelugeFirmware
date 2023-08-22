@@ -72,6 +72,7 @@ bool LoadInstrumentPresetUI::opened() {
 	initialDirPath.set(&instrumentToReplace->dirPath);
 	if (loadingSynthToKitRow) {
 		instrumentTypeToLoad = InstrumentType::SYNTH;
+		initialDirPath.set("SYNTHS");
 	}
 
 	switch (instrumentToReplace->type) {

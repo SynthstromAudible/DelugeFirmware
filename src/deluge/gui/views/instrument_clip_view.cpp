@@ -802,6 +802,7 @@ someError:
 	ParamManager paramManager;
 	//add sound loading code here
 	if (drumType == DrumType::SOUND) {
+		Browser::instrumentTypeToLoad = InstrumentType::SYNTH;
 		loadInstrumentPresetUI.loadingSynthToKitRow = true;
 		loadInstrumentPresetUI.soundDrumToReplace = (SoundDrum*)newDrum;
 		loadInstrumentPresetUI.kitToLoadFor = kit;
