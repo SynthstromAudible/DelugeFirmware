@@ -342,6 +342,7 @@ yesSaveInstrument:
 yesLoadInstrument:
 			loadInstrumentPresetUI.instrumentToReplace = (Instrument*)getCurrentClip()->output;
 			loadInstrumentPresetUI.instrumentClipToLoadFor = getCurrentClip();
+			loadInstrumentPresetUI.loadingSynthToKitRow = false;
 			openUI(&loadInstrumentPresetUI);
 		}
 
