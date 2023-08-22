@@ -65,11 +65,11 @@ static void SetupSyncScalingActionSetting(RuntimeFeatureSetting& setting, char c
 	setting.value = static_cast<uint32_t>(def);
 
 	setting.options = {{
-	                       .displayName = HAVE_OLED ? "Sync Scaling" : "SCAL",
+	                       .displayName = display->haveOLED() ? "Sync Scaling" : "SCAL",
 	                       .value = RuntimeFeatureStateSyncScalingAction::SyncScaling,
 	                   },
 	                   {
-	                       .displayName = HAVE_OLED ? "Fill mode" : "FILL",
+	                       .displayName = display->haveOLED() ? "Fill mode" : "FILL",
 	                       .value = RuntimeFeatureStateSyncScalingAction::Fill,
 	                   }};
 }
