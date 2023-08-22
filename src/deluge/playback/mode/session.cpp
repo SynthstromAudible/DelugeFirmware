@@ -205,7 +205,12 @@ bool Session::giveClipOpportunityToBeginLinearRecording(Clip* clip, int32_t clip
  *                              - becoming active or inactive due to some other clip soloing
  *                              - finishing recording
  *                          - Fill clips that are still active and are armed to stop.
- *                       After a regular launch, no clips should be armed.
+ *                       After a regular launch, no regular clips should be armed.
+ * 						 Fill clips can remain armed across such a launch, since if
+ * 	                     the section repeat count is > 1, or a single clip has had its
+ *                       repeat count incread with the select knob, the fill waits until
+ *                       the last repeat, whereas doLaunch is called at the end of every
+ *                       repeat.
  * 	                    
  * 	                     A fill launch starts fill clips at the correct time, such
  *                       that they _finish_ at the next launch event. A fill launch
