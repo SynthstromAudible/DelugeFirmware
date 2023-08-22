@@ -140,6 +140,10 @@ This mode affects how the deluge handles MIDI input for learned CC controls.
 		- **Preset 4:** 5th and +1 Octave
 		- **Preset 5:** Unison and +1/-1 Octave (Tempo Sync)
 
+#### 4.2.7 - Quantized Stutter
+
+- ([#357]) Ability to set, using the Community Features Menu, the stutterer effect to be quantized to 4th, 8th, 16th, 32nd, and 64th rate when selecting it. Once you have pressed the Stutter knob, then the selected value will be the center value of the knob and you can go up and down with the golden knob and come back to the original rate by centering the knob (LEDs will flash indicating it).
+
 ### 4.3 - Instrument Clip View - General Features
 
 These features were added to the Instrument Clip View and affect Synth, Kit and Midi instrument clip types.
@@ -354,6 +358,7 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#339]: https://github.com/SynthstromAudible/DelugeFirmware/pull/339
 [#347]: https://github.com/SynthstromAudible/DelugeFirmware/pull/347
 [#349]: https://github.com/SynthstromAudible/DelugeFirmware/pull/349
+[#357]: https://github.com/SynthstromAudible/DelugeFirmware/pull/357
 [#360]: https://github.com/SynthstromAudible/DelugeFirmware/pull/360
 [#363]: https://github.com/SynthstromAudible/DelugeFirmware/pull/363
 [#368]: https://github.com/SynthstromAudible/DelugeFirmware/pull/368

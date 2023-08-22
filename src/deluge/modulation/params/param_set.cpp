@@ -16,6 +16,7 @@
  */
 
 #include "modulation/params/param_set.h"
+#include "deluge/model/settings/runtime_feature_settings.h"
 #include "gui/views/view.h"
 #include "io/midi/midi_engine.h"
 #include "model/action/action_logger.h"
@@ -376,6 +377,9 @@ void UnpatchedParamSet::beenCloned(bool copyAutomation, int32_t reverseDirection
 bool UnpatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) {
 	switch (modelStack->paramId) {
 	case Param::Unpatched::STUTTER_RATE:
+		return runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate)
+		           == RuntimeFeatureStateToggle::Off
+		       || isUIModeActive(UI_MODE_STUTTERING);
 	case Param::Unpatched::BASS:
 	case Param::Unpatched::TREBLE:
 	case Param::Unpatched::GlobalEffectable::DELAY_RATE:
@@ -459,8 +463,9 @@ void PatchedParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const
 }
 
 int32_t PatchedParamSet::paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) {
-	if (modelStack->paramId == Param::Local::OSC_A_PHASE_WIDTH
-	    || modelStack->paramId == Param::Local::OSC_B_PHASE_WIDTH) {
+	if (modelStack
+	    && (modelStack->paramId == Param::Local::OSC_A_PHASE_WIDTH
+	        || modelStack->paramId == Param::Local::OSC_B_PHASE_WIDTH)) {
 		return (paramValue >> 24) - 64;
 	}
 	else {
@@ -469,8 +474,9 @@ int32_t PatchedParamSet::paramValueToKnobPos(int32_t paramValue, ModelStackWithA
 }
 
 int32_t PatchedParamSet::knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) {
-	if (modelStack->paramId == Param::Local::OSC_A_PHASE_WIDTH
-	    || modelStack->paramId == Param::Local::OSC_B_PHASE_WIDTH) {
+	if (modelStack
+	    && (modelStack->paramId == Param::Local::OSC_A_PHASE_WIDTH
+	        || modelStack->paramId == Param::Local::OSC_B_PHASE_WIDTH)) {
 		int32_t paramValue = 2147483647;
 		if (knobPos < 64) {
 			paramValue = (knobPos + 64) << 24;
