@@ -1841,8 +1841,7 @@ void View::instrumentChanged(ModelStackWithTimelineCounter* modelStack, Instrume
 	    modelStack->getTimelineCounter()); // Do a redraw. Obviously the Clip is the same
 }
 
-void View::getClipMuteSquareColour(Clip* clip, uint8_t thisColour[], bool dimInactivePads,
-                                   bool allowMIDIFlash) {
+void View::getClipMuteSquareColour(Clip* clip, uint8_t thisColour[], bool dimInactivePads, bool allowMIDIFlash) {
 
 	if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING && clip && clip->armedForRecording) {
 		if (blinkOn) {
@@ -1927,7 +1926,8 @@ void View::getClipMuteSquareColour(Clip* clip, uint8_t thisColour[], bool dimIna
 					thisColour[0] = 10;
 					thisColour[1] = 7;
 					thisColour[2] = 3;
-				} else {
+				}
+				else {
 					thisColour[0] = 255;
 					thisColour[1] = 64;
 					thisColour[2] = 0;

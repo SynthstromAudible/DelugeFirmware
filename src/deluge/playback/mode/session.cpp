@@ -1720,8 +1720,8 @@ void Session::scheduleFillClip(Clip* clip) {
 				}
 
 				char modelStackMemory[MODEL_STACK_MAX_SIZE];
-					ModelStackWithTimelineCounter* modelStack =
-			    		setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
+				ModelStackWithTimelineCounter* modelStack =
+				    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
 				uint32_t pos;
 				pos = clip->getMaxLength() - (launchEventAtSwungTickCount - playbackHandler.getActualSwungTickCount());
 
