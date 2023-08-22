@@ -15,8 +15,14 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     steps:
-      - name: check out repo
+      - name: normal check out repo
+        if: inputs.build-type != 'nightly'
         uses: actions/checkout@v3
+      - name: nightly check out repo
+        if: inputs.build-type == 'nightly'
+        uses: actions/checkout@v3
+        with:
+          ref: 'release/1.0'
       - name: Fetch container image
         run: |
           docker pull ghcr.io/litui/dbt-toolchain:v$(cat toolchain/REQUIRED_VERSION)
