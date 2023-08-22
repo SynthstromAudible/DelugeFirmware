@@ -366,4 +366,4 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#360]: https://github.com/SynthstromAudible/DelugeFirmware/pull/360
 [#363]: https://github.com/SynthstromAudible/DelugeFirmware/pull/363
 [#368]: https://github.com/SynthstromAudible/DelugeFirmware/pull/368
-[Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/automation_view.md
+[Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
