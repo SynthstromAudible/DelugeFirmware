@@ -54,7 +54,7 @@ public:
 	ActionResult timerCallback();
 	bool claimCurrentFile(int32_t mayDoPitchDetection = 1, int32_t mayDoSingleCycle = 1,
 	                      int32_t mayDoWaveTable = 1); // 0 means no. 1 means auto. 2 means yes definitely
-	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
 	void exitAndNeverDeleteDrum();
 

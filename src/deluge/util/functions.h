@@ -17,13 +17,16 @@
 
 #pragma once
 
+#include "const_functions.h"
 #include "definitions_cxx.hpp"
 #include "fatfs/ff.h"
+#include "gui/colour/colour.h"
 #include "util/fixedpoint.h"
 #include "util/lookuptables/lookuptables.h"
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <stdint.h>
 extern "C" {
 #include "util/cfunctions.h"
 }
@@ -198,8 +201,6 @@ char const* getFileNameFromEndOfPath(char const* filePathChars);
 int32_t lookupReleaseRate(int32_t input);
 int32_t getParamFromUserValue(uint8_t p, int8_t userValue);
 int32_t getLookupIndexFromValue(int32_t value, const int32_t* table, int32_t maxIndex);
-uint32_t rshift_round(uint32_t value, uint32_t rshift);
-int32_t rshift_round_signed(int32_t value, uint32_t rshift);
 int32_t instantTan(int32_t input);
 
 int32_t combineHitStrengths(int32_t strength1, int32_t strength2);
@@ -407,8 +408,6 @@ extern bool octaveStartsFromA;
 
 int32_t random(int32_t upperLimit);
 bool shouldDoPanning(int32_t panAmount, int32_t* amplitudeL, int32_t* amplitudeR);
-void hueToRGB(int32_t hue, unsigned char* rgb);
-void hueToRGBPastel(int32_t hue, unsigned char* rgb);
 
 uint32_t getLFOInitialPhaseForNegativeExtreme(LFOType waveType);
 uint32_t getLFOInitialPhaseForZero(LFOType waveType);
@@ -422,8 +421,8 @@ int32_t stringToFirmwareVersion(char const* firmwareVersionString);
 
 // intensity is out of 65536 now
 // occupancyMask is out of 64 now
-inline void drawSquare(uint8_t squareColour[], int32_t intensity, uint8_t square[], uint8_t* occupancyMask,
-                       int32_t occupancyFromWhichColourCame) {
+inline RGB drawSquare(const RGB& squareColour, int32_t intensity, const RGB& square, uint8_t* occupancyMask,
+                      int32_t occupancyFromWhichColourCame) {
 
 	int32_t modifiedIntensity = intensity; //(intensity * occupancyFromWhichColourCame) >> 6; // Out of 65536
 
@@ -434,58 +433,30 @@ inline void drawSquare(uint8_t squareColour[], int32_t intensity, uint8_t square
 	int32_t maxOldOccupancy = (65536 - modifiedIntensity) >> 10;
 
 	// If the square has more colour in it than it's allowed to retain, then plan to reduce it
-	if (*occupancyMask > maxOldOccupancy)
+	if (*occupancyMask > maxOldOccupancy) {
 		colourRemainingAmount = (maxOldOccupancy << 16) / *occupancyMask; // out of 65536
+	}
 
 	// Add the new colour, reducing the old if that's what we're doing
 	int32_t newOccupancyMaskValue =
 	    rshift_round(*occupancyMask * colourRemainingAmount, 16) + rshift_round(modifiedIntensity, 10);
 	*occupancyMask = std::min<int32_t>(64, newOccupancyMaskValue);
 
-	for (int32_t colour = 0; colour < 3; colour++) {
-		int32_t newColourValue = rshift_round((int32_t)square[colour] * colourRemainingAmount, 16)
-		                         + rshift_round((int32_t)squareColour[colour] * modifiedIntensity, 16);
-		square[colour] = std::min<int32_t>(255, newColourValue);
-	}
-}
-
-inline void drawSolidSquare(uint8_t squareColour[], uint8_t square[], uint8_t* occupancyMask) {
-	memcpy(square, squareColour, 3);
-	*occupancyMask = 64;
-}
-
-inline void getTailColour(uint8_t rgb[], uint8_t fromRgb[]) {
-	uint32_t averageBrightness = ((uint32_t)fromRgb[0] + fromRgb[1] + fromRgb[2]);
-	rgb[0] = (((int32_t)fromRgb[0] * 21 + averageBrightness) * 157) >> 14;
-	rgb[1] = (((int32_t)fromRgb[1] * 21 + averageBrightness) * 157) >> 14;
-	rgb[2] = (((int32_t)fromRgb[2] * 21 + averageBrightness) * 157) >> 14;
-}
-
-inline void getBlurColour(uint8_t rgb[], uint8_t fromRgb[]) {
-	uint32_t averageBrightness = (uint32_t)fromRgb[0] * 5 + fromRgb[1] * 9 + fromRgb[2] * 9;
-	rgb[0] = ((uint32_t)fromRgb[0] * 5 + averageBrightness) >> 5;
-	rgb[1] = ((uint32_t)fromRgb[1] * 5 + averageBrightness) >> 5;
-	rgb[2] = ((uint32_t)fromRgb[2] * 1 + averageBrightness) >> 5;
-}
-
-inline void colorCopy(uint8_t* dest, uint8_t* src, uint8_t intensity, uint8_t brightnessDivider) {
-	dest[0] = (uint8_t)((src[0] * intensity / 255) / brightnessDivider);
-	dest[1] = (uint8_t)((src[1] * intensity / 255) / brightnessDivider);
-	dest[2] = (uint8_t)((src[2] * intensity / 255) / brightnessDivider);
+	return RGB::blend2(square, squareColour, colourRemainingAmount, modifiedIntensity);
 }
 
 inline int32_t increaseMagnitude(int32_t number, int32_t magnitude) {
-	if (magnitude >= 0)
+	if (magnitude >= 0) {
 		return number << magnitude;
-	else
-		return number >> (-magnitude);
+	}
+	return number >> (-magnitude);
 }
 
 inline int32_t increaseMagnitudeAndSaturate(int32_t number, int32_t magnitude) {
-	if (magnitude > 0)
+	if (magnitude > 0) {
 		return lshiftAndSaturateUnknown(number, magnitude);
-	else
-		return number >> (-magnitude);
+	}
+	return number >> (-magnitude);
 }
 
 int32_t howMuchMoreMagnitude(uint32_t to, uint32_t from);
@@ -529,7 +500,6 @@ int32_t getWhichKernel(int32_t phaseIncrement);
 
 int32_t memcasecmp(char const* first, char const* second, int32_t size);
 int32_t getHowManyCharsAreTheSame(char const* a, char const* b);
-void greyColourOut(const uint8_t* input, uint8_t* output, int32_t greyProportion);
 void dimColour(uint8_t colour[3]);
 bool charCaseEqual(char firstChar, char secondChar);
 bool shouldAbortLoading();

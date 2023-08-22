@@ -70,7 +70,7 @@ void uartSetBaudRate(uint8_t scifID, uint32_t baudRate);
 
 void Userdef_SCIF_UART_Init(uint8_t channel, uint8_t mode, uint16_t cks, uint32_t baudRate);
 
-extern char picTxBuffer[];
+extern uint8_t picTxBuffer[];
 extern char midiTxBuffer[];
 
 // These are not thread safe! Do not call in ISRs.

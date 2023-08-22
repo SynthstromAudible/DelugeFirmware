@@ -22,21 +22,35 @@ namespace deluge::gui::menu_item {
 
 class Colour final : public Selection<9> {
 public:
+	enum Option : uint8_t {
+		RED,
+		GREEN,
+		BLUE,
+		YELLOW,
+		CYAN,
+		MAGENTA,
+		AMBER,
+		WHITE,
+		PINK,
+	};
+
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(value); }
 	void writeCurrentValue() override {
-		value = this->getValue();
+		value = static_cast<Option>(this->getValue());
 		renderingNeededRegardlessOfUI();
 	};
 	static_vector<std::string_view, capacity()> getOptions() override {
-		return {l10n::getView(l10n::String::STRING_FOR_RED),   l10n::getView(l10n::String::STRING_FOR_GREEN),
-		        l10n::getView(l10n::String::STRING_FOR_BLUE),  l10n::getView(l10n::String::STRING_FOR_YELLOW),
-		        l10n::getView(l10n::String::STRING_FOR_CYAN),  l10n::getView(l10n::String::STRING_FOR_MAGENTA),
-		        l10n::getView(l10n::String::STRING_FOR_AMBER), l10n::getView(l10n::String::STRING_FOR_WHITE),
-		        l10n::getView(l10n::String::STRING_FOR_PINK)};
+		return {
+		    l10n::getView(l10n::String::STRING_FOR_RED),   l10n::getView(l10n::String::STRING_FOR_GREEN),
+		    l10n::getView(l10n::String::STRING_FOR_BLUE),  l10n::getView(l10n::String::STRING_FOR_YELLOW),
+		    l10n::getView(l10n::String::STRING_FOR_CYAN),  l10n::getView(l10n::String::STRING_FOR_MAGENTA),
+		    l10n::getView(l10n::String::STRING_FOR_AMBER), l10n::getView(l10n::String::STRING_FOR_WHITE),
+		    l10n::getView(l10n::String::STRING_FOR_PINK),
+		};
 	}
-	void getRGB(uint8_t rgb[3]);
-	uint8_t value;
+	[[nodiscard]] RGB getRGB() const;
+	Option value;
 };
 
 extern Colour activeColourMenu;

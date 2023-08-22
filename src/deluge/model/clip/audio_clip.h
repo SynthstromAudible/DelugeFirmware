@@ -43,7 +43,7 @@ public:
 	                      bool keepNoteRowsWithMIDIInput = true, bool shouldGrabMidiCommands = false,
 	                      bool shouldBackUpExpressionParamsToo = true);
 	bool renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, TimelineView* editorScreen, int32_t xScroll,
-	                       uint32_t xZoom, uint8_t* image, uint8_t occupancyMask[], bool addUndefinedArea,
+	                       uint32_t xZoom, RGB* image, uint8_t occupancyMask[], bool addUndefinedArea,
 	                       int32_t noteRowIndexStart = 0, int32_t noteRowIndexEnd = 2147483647, int32_t xStart = 0,
 	                       int32_t xEnd = kDisplayWidth, bool allowBlur = true, bool drawRepeats = false);
 	int32_t claimOutput(ModelStackWithTimelineCounter* modelStack);
@@ -63,7 +63,7 @@ public:
 	int32_t changeOutput(ModelStackWithTimelineCounter* modelStack, Output* newOutput);
 	int32_t setOutput(ModelStackWithTimelineCounter* modelStack, Output* newOutput,
 	                  AudioClip* favourClipForCloningParamManager = NULL);
-	void getColour(uint8_t rgb[]);
+	RGB getColour();
 	bool currentlyScrollableAndZoomable();
 	void getScrollAndZoomInSamples(int32_t xScroll, int32_t xZoom, int64_t* xScrollSamples, int64_t* xZoomSamples);
 	void clear(Action* action, ModelStackWithTimelineCounter* modelStack);

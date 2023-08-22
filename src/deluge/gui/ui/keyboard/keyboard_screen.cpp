@@ -569,7 +569,7 @@ void KeyboardScreen::selectLayout(int8_t offset) {
 	// Ensure scroll values are calculated in bounds
 	layoutList[getCurrentClip()->keyboardState.currentLayout]->handleHorizontalEncoder(0, false);
 
-	// Precalculate because changing instruments can change pad colors
+	// Precalculate because changing instruments can change pad colours
 	layoutList[getCurrentClip()->keyboardState.currentLayout]->precalculate();
 	requestRendering();
 }
@@ -641,7 +641,7 @@ void KeyboardScreen::openedInBackground() {
 	requestRendering(); // This one originally also included sidebar, the other ones didn't
 }
 
-bool KeyboardScreen::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+bool KeyboardScreen::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                     uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
 	if (!image) {
 		return true;
@@ -657,7 +657,7 @@ bool KeyboardScreen::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplay
 	return true;
 }
 
-bool KeyboardScreen::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+bool KeyboardScreen::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	if (!image) {
 		return true;

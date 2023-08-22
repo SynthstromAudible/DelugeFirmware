@@ -56,9 +56,9 @@ public:
 	void graphicsRoutine();
 
 	//rendering
-	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
-	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 	void displayAutomation();
 	void displayParameterName(int32_t paramID);
@@ -111,20 +111,19 @@ public:
 
 private:
 	//Automation View Render Functions
-	void performActualRender(uint32_t whichRows, uint8_t* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
+	void performActualRender(uint32_t whichRows, RGB* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
 	                         int32_t xScroll, uint32_t xZoom, int32_t renderWidth, int32_t imageWidth,
 	                         bool drawUndefinedArea = true);
 	void renderAutomationOverview(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip,
-	                              Instrument* instrument, uint8_t* image, uint8_t occupancyMask[],
-	                              int32_t yDisplay = 0);
+	                              Instrument* instrument, RGB* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
 	void renderAutomationEditor(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, Instrument* instrument,
-	                            uint8_t* image, uint8_t occupancyMask[], int32_t renderWidth, int32_t xScroll,
+	                            RGB* image, uint8_t occupancyMask[], int32_t renderWidth, int32_t xScroll,
 	                            uint32_t xZoom, int32_t yDisplay = 0, bool drawUndefinedArea = true);
-	void renderRow(ModelStackWithAutoParam* modelStack, uint8_t* image, uint8_t occupancyMask[], bool, uint32_t,
+	void renderRow(ModelStackWithAutoParam* modelStack, RGB* image, uint8_t occupancyMask[], bool, uint32_t,
 	               bool allowNoteTails, int32_t xScroll, uint32_t xZoom, int32_t xStart = 0,
 	               int32_t xEnd = kDisplayWidth, bool drawRepeats = false, int32_t yDisplay = 0,
 	               bool isAutomated = false);
-	void renderLove(uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
+	void renderLove(RGB* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
 
 	//Enter/Exit Scale Mode
 	void enterScaleMode(uint8_t yDisplay = 255);
