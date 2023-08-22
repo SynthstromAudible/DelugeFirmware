@@ -6,7 +6,7 @@
 			"label": "Build Debug",
 			"command": "./dbt",
 			"windows": {
-				"command": "./dbt.cmd"
+				"command": "./dbt.cmd",
 			},
 			"args": [
 				"build",
@@ -26,7 +26,7 @@
 			"label": "Build Release",
 			"command": "./dbt",
 			"windows": {
-				"command": "./dbt.cmd"
+				"command": "./dbt.cmd",
 			},
 			"args": [
 				"build",
@@ -34,7 +34,7 @@
 			],
 			"group": {
 				"kind": "build",
-				"isDefault": true
+				"isDefault": false
 			},
 			"problemMatcher": {
 				"base": "$gcc",
@@ -46,7 +46,7 @@
 			"label": "Build RelWithDebInfo",
 			"command": "./dbt",
 			"windows": {
-				"command": "./dbt.cmd"
+				"command": "./dbt.cmd",
 			},
 			"args": [
 				"build",
@@ -67,11 +67,11 @@
 			"problemMatcher": [],
 			"command": "./dbt",
 			"windows": {
-				"command": "./dbt.cmd"
+				"command": "./dbt.cmd",
 			},
 			"args": [
 				"debug",
-				"-j"
+				"-j",
 			]
 		},
 		{
@@ -80,10 +80,10 @@
 			"problemMatcher": [],
 			"command": "./dbt",
 			"windows": {
-				"command": "./dbt.cmd"
+				"command": "./dbt.cmd",
 			},
 			"args": [
-				"debug"
+				"debug",
 			]
 		},
 		{
@@ -92,7 +92,7 @@
 			"problemMatcher": [],
 			"command": "./dbt",
 			"args": [
-				"format"
+				"format",
 			]
 		}
 	]
