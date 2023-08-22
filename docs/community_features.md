@@ -14,7 +14,7 @@ Here is a list of general improvements that have been made ordered from newest t
 * PR [#29] - Bugfix to respect MPE zones in kit rows. In the official firmware kit rows with midi learned to a channel would be triggered by an MPE zone which uses that channel. With this change they respect zones in the same way as synth and midi clips.
 * PR [#47] - Extra MIDI ports on the USB interface for MPE. Port 2 shows in the midi device menu, and improves the usability of MPE-capable devices through the USB interface by allowing MPE zones to be sent to port 2 and non-MPE to be sent to port 1 (or vice versa). A third port is added for future use such as a desktop/mobile companion app, DAW control or Mackie HUI emulation.
 * PR [#178] - New option (FINE TEMPO in the "community features" menu) to invert the push+turn behavior of the tempo knob. With this option enabled the tempo changes by 1 when unpushed and 4 when pushed (vs 4 unpushed and 1 pushed in the official firmware). This option defaults to OFF.
-
+* PR [#395] - Load synth presets into kit rows by holding the audition pad and pressing synth. Saving kit rows to synth presets is not yet implemented.
 
 ## Added features
 
