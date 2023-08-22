@@ -13,6 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
+          ref: 'release/1.0'
           fetch-depth: 0 # Required to count the commits
       - name: Get new commits
         id: count-commits
