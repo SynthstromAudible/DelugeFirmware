@@ -28,6 +28,9 @@
 #define OVERDUB_NORMAL 0
 #define OVERDUB_CONTINUOUS_LAYERING 1
 
+#define LAUNCH_STYLE_DEFAULT 0
+#define LAUNCH_STYLE_FILL 1
+
 class Song;
 class ParamManagerForTimeline;
 class Output;
@@ -177,6 +180,9 @@ public:
 	int32_t repeatCount;
 
 	uint32_t indexForSaving; // For use only while saving song
+
+	uint8_t launchStyle;
+	int64_t fillEventAtTickCount;
 
 protected:
 	virtual void
