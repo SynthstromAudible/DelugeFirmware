@@ -387,15 +387,6 @@ bool AutomationInstrumentClipView::opened() {
 		clip->lastSelectedInstrumentType = instrument->type;
 	}
 
-	if (clip->lastSelectedParamID != kNoLastSelectedParamID) {
-		displayAutomation(); //update led indicator levels
-		uiTimerManager.setTimer(TIMER_AUTOMATION_VIEW, 700);
-	}
-
-	if (instrument->type == InstrumentType::CV) {
-		displayCVErrorMessage();
-	}
-
 	if (clip->wrapEditing) { //turn led off if it's on
 		indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
 	}
@@ -413,6 +404,18 @@ bool AutomationInstrumentClipView::opened() {
 
 // Initializes some stuff to begin a new editing session
 void AutomationInstrumentClipView::focusRegained() {
+
+	InstrumentClip* clip = getCurrentClip();
+	Instrument* instrument = (Instrument*)clip->output;
+
+	if (clip->lastSelectedParamID != kNoLastSelectedParamID) {
+		displayParameterName(clip->lastSelectedParamID);
+		displayAutomation(); //update led indicator levels
+	}
+
+	if (instrument->type == InstrumentType::CV) {
+		displayCVErrorMessage();
+	}
 
 	ClipView::focusRegained();
 
@@ -1155,7 +1158,13 @@ passToOthers:
 
 		result = ClipView::buttonAction(b, on, inCardRoutine);
 
-		setDisplayParameterNameTimer();
+		if (on && (b == SAVE || b == LOAD)) {
+			display->cancelPopup();
+		}
+
+		if (on && (b != SAVE && b != LOAD)) {
+			setDisplayParameterNameTimer();
+		}
 
 		return result;
 	}
@@ -2586,7 +2595,6 @@ void AutomationInstrumentClipView::tempoEncoderAction(int8_t offset, bool encode
                                                       bool shiftButtonPressed) {
 
 	playbackHandler.tempoEncoderAction(offset, encoderButtonPressed, shiftButtonPressed);
-	setDisplayParameterNameTimer();
 }
 
 //called by melodic_instrument.cpp or kit.cpp
