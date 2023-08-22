@@ -1375,7 +1375,16 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 				}
 			}
 
-			if (firstPadX != 255 && firstPadY != 255 && firstPadX != xDisplay) {
+			if (padSelectionOn && firstPadX != 255 && firstPadX == xDisplay) {
+				leftPadSelectedX = firstPadX;
+				leftPadSelectedY = kNoLastSelectedPad;;
+				rightPadSelectedX = kNoLastSelectedPad;
+				rightPadSelectedY = kNoLastSelectedPad;
+
+				multiPadPressSelected = false;
+				uiNeedsRendering(this);
+			}
+			else if (firstPadX != 255 && firstPadY != 255 && firstPadX != xDisplay) {
 				multiPadPressSelected = true;
 
 				//the long press logic calculates and renders the interpolation as if the press was entered in a forward fashion
