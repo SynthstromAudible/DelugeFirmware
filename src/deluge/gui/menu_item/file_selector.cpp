@@ -22,7 +22,6 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/view.h"
-#include "hid/display/numeric_driver.h"
 #include "model/clip/clip.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
@@ -30,7 +29,7 @@
 
 namespace deluge::gui::menu_item {
 
-FileSelector fileSelectorMenu{"File browser"};
+FileSelector fileSelectorMenu{l10n::String::STRING_FOR_FILE_BROWSER};
 
 void FileSelector::beginSession(MenuItem* navigatedBackwardFrom) {
 	soundEditor.shouldGoUpOneLevelOnBegin = true;

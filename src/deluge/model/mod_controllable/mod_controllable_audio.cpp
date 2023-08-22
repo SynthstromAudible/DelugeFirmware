@@ -17,9 +17,11 @@
 
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "definitions_cxx.hpp"
+#include "deluge/model/settings/runtime_feature_settings.h"
+#include "gui/l10n/l10n.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "io/debug/print.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
@@ -1026,6 +1028,7 @@ void ModControllableAudio::processStutter(StereoSample* buffer, int32_t numSampl
 	StereoSample* thisSample = buffer;
 
 	DelayBufferSetup delayBufferSetup;
+
 	int32_t rate = getStutterRate(paramManager);
 
 	stutterer.buffer.setupForRender(rate, &delayBufferSetup);
@@ -1130,9 +1133,18 @@ void ModControllableAudio::processStutter(StereoSample* buffer, int32_t numSampl
 
 int32_t ModControllableAudio::getStutterRate(ParamManager* paramManager) {
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
+	int32_t paramValue = unpatchedParams->getValue(Param::Unpatched::STUTTER_RATE);
+
+	// Quantized Stutter diff
+	// Convert to knobPos (range -64 to 64) for easy operation
+	int32_t knobPos = unpatchedParams->paramValueToKnobPos(paramValue, NULL);
+	// Add diff "lastQuantizedKnobDiff" (this value will be set if Quantized Stutter is On, zero if not so this will be a no-op)
+	knobPos = knobPos + stutterer.lastQuantizedKnobDiff;
+	// Convert back to value range
+	paramValue = unpatchedParams->knobPosToParamValue(knobPos, NULL);
+
 	int32_t rate =
-	    getFinalParameterValueExp(paramNeutralValues[Param::Global::DELAY_RATE],
-	                              cableToExpParamShortcut(unpatchedParams->getValue(Param::Unpatched::STUTTER_RATE)));
+	    getFinalParameterValueExp(paramNeutralValues[Param::Global::DELAY_RATE], cableToExpParamShortcut(paramValue));
 
 	if (stutterer.sync != 0) {
 		rate = multiply_32x32_rshift32(rate, playbackHandler.getTimePerInternalTickInverse());
@@ -1558,7 +1570,7 @@ ModelStackWithThreeMainThings* ModControllableAudio::addNoteRowIndexAndStuff(Mod
 		InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
 #if ALPHA_OR_BETA_VERSION
 		if (noteRowIndex >= clip->noteRows.getNumElements()) {
-			numericDriver.freezeWithError("E406");
+			display->freezeWithError("E406");
 		}
 #endif
 		noteRow = clip->noteRows.getElement(noteRowIndex);
@@ -1843,6 +1855,36 @@ void ModControllableAudio::beginStutter(ParamManagerForTimeline* paramManager) {
 		return;
 	}
 
+	// Quantized Stutter FX
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate) == RuntimeFeatureStateToggle::On) {
+		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
+		int32_t paramValue = unpatchedParams->getValue(Param::Unpatched::STUTTER_RATE);
+		int32_t knobPos = unpatchedParams->paramValueToKnobPos(paramValue, NULL);
+		if (knobPos < -39) {
+			knobPos = -16; // 4ths
+		}
+		else if (knobPos < -14) {
+			knobPos = -8; // 8ths
+		}
+		else if (knobPos < 14) {
+			knobPos = 0; // 16ths
+		}
+		else if (knobPos < 39) {
+			knobPos = 8; // 32nds
+		}
+		else {
+			knobPos = 16; // 64ths
+		}
+		// Save current values for later recovering them
+		stutterer.valueBeforeStuttering = paramValue;
+		stutterer.lastQuantizedKnobDiff = knobPos;
+
+		// When stuttering, we center the value at 0, so the center is the reference for the stutter rate that we selected just before pressing the knob
+		// and we use the lastQuantizedKnobDiff value to calculate the relative (real) value
+		unpatchedParams->params[Param::Unpatched::STUTTER_RATE].setCurrentValueBasicForSetup(0);
+		view.notifyParamAutomationOccurred(paramManager);
+	}
+
 	// You'd think I should apply "false" here, to make it not add extra space to the buffer, but somehow this seems to sound as good if not better (in terms of ticking / crackling)...
 	bool error = stutterer.buffer.init(getStutterRate(paramManager), 0, true);
 	if (error == NO_ERROR) {
@@ -1862,12 +1904,25 @@ void ModControllableAudio::endStutter(ParamManagerForTimeline* paramManager) {
 
 		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-		// Normally we shouldn't call this directly, but it's ok because automation isn't allowed for stutter anyway
-		if (unpatchedParams->getValue(Param::Unpatched::STUTTER_RATE) < 0) {
-			unpatchedParams->params[Param::Unpatched::STUTTER_RATE].setCurrentValueBasicForSetup(0);
+		if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate)
+		    == RuntimeFeatureStateToggle::On) {
+			// Quantized Stutter FX (set back the value it had just before stuttering so orange LEDs are redrawn)
+			unpatchedParams->params[Param::Unpatched::STUTTER_RATE].setCurrentValueBasicForSetup(
+			    stutterer.valueBeforeStuttering);
 			view.notifyParamAutomationOccurred(paramManager);
 		}
+		else {
+			// Regular Stutter FX (if below middle value, reset it back to middle)
+			// Normally we shouldn't call this directly, but it's ok because automation isn't allowed for stutter anyway
+			if (unpatchedParams->getValue(Param::Unpatched::STUTTER_RATE) < 0) {
+				unpatchedParams->params[Param::Unpatched::STUTTER_RATE].setCurrentValueBasicForSetup(0);
+				view.notifyParamAutomationOccurred(paramManager);
+			}
+		}
 	}
+	// Reset temporary and diff values for Quantized stutter
+	stutterer.lastQuantizedKnobDiff = 0;
+	stutterer.valueBeforeStuttering = 0;
 }
 
 void ModControllableAudio::switchDelayPingPong() {
@@ -1883,7 +1938,7 @@ void ModControllableAudio::switchDelayPingPong() {
 		displayText = "Ping-pong delay";
 		break;
 	}
-	numericDriver.displayPopup(displayText);
+	display->displayPopup(displayText);
 }
 
 void ModControllableAudio::switchDelayAnalog() {
@@ -1896,10 +1951,10 @@ void ModControllableAudio::switchDelayAnalog() {
 		break;
 
 	default:
-		displayText = HAVE_OLED ? "Analog delay" : "ANA";
+		displayText = deluge::l10n::get(deluge::l10n::String::STRING_FOR_ANALOG_DELAY);
 		break;
 	}
-	numericDriver.displayPopup(displayText);
+	display->displayPopup(displayText);
 }
 
 void ModControllableAudio::switchDelaySyncType() {
@@ -1929,7 +1984,7 @@ void ModControllableAudio::switchDelaySyncType() {
 		displayText = "Even";
 		break;
 	}
-	numericDriver.displayPopup(displayText);
+	display->displayPopup(displayText);
 }
 
 void ModControllableAudio::switchDelaySyncLevel() {
@@ -1967,7 +2022,7 @@ void ModControllableAudio::switchDelaySyncLevel() {
 		displayText = "1-bar";
 		break;
 	}
-	numericDriver.displayPopup(displayText);
+	display->displayPopup(displayText);
 }
 
 void ModControllableAudio::switchLPFMode() {
@@ -1994,7 +2049,7 @@ void ModControllableAudio::switchLPFMode() {
 		displayText = "SV_NOTCH";
 		break;
 	}
-	numericDriver.displayPopup(displayText);
+	display->displayPopup(displayText);
 }
 void ModControllableAudio::switchHPFMode() {
 	//this works fine, the offset to the first hpf doesn't matter with the modulus
@@ -2012,7 +2067,7 @@ void ModControllableAudio::switchHPFMode() {
 		displayText = "SV_NOTCH";
 		break;
 	}
-	numericDriver.displayPopup(displayText);
+	display->displayPopup(displayText);
 }
 
 // This can get called either for hibernation, or because drum now has no active noteRow

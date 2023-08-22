@@ -24,8 +24,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
-#include "hid/display/numeric_driver.h"
-#include "hid/display/oled.h"
+#include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
 #include "io/debug/print.h"
 #include "memory/general_memory_allocator.h"
@@ -708,7 +707,7 @@ currentClipSwitchedOver:
 
 	// If there was an actual error in the reversion itself...
 	if (error) {
-		numericDriver.displayError(error);
+		display->displayError(error);
 
 		deleteAllLogs();
 	}
@@ -779,10 +778,8 @@ void ActionLogger::undo() {
 displayUndoMessage:
 #ifdef undoLedX
 		indicator_leds::indicateAlertOnLed(undoLedX, undoLedY);
-#elif HAVE_OLED
-		OLED::consoleText("Undo");
 #else
-		numericDriver.displayPopup("UNDO");
+		display->consoleText("Undo");
 #endif
 	}
 }
@@ -792,10 +789,8 @@ void ActionLogger::redo() {
 	if (revert(AFTER)) {
 #ifdef redoLedX
 		indicator_leds::indicateAlertOnLed(redoLedX, redoLedY);
-#elif HAVE_OLED
-		OLED::consoleText("Redo");
 #else
-		numericDriver.displayPopup("REDO");
+		display->consoleText("Redo");
 #endif
 	}
 }

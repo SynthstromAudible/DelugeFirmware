@@ -26,7 +26,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
@@ -92,7 +92,7 @@ bool LoadInstrumentPresetUI::opened() {
 	int32_t error = beginSlotSession(); // Requires currentDir to be set. (Not anymore?)
 	if (error) {
 gotError:
-		numericDriver.displayError(error);
+		display->displayError(error);
 		return false;
 	}
 
@@ -108,7 +108,7 @@ gotError:
 	return true;
 }
 
-// If HAVE_OLED, then you should make sure renderUIsForOLED() gets called after this.
+// If OLED, then you should make sure renderUIsForOLED() gets called after this.
 int32_t LoadInstrumentPresetUI::setupForInstrumentType() {
 	indicator_leds::setLedState(IndicatorLED::SYNTH, false);
 	indicator_leds::setLedState(IndicatorLED::KIT, false);
@@ -122,10 +122,11 @@ int32_t LoadInstrumentPresetUI::setupForInstrumentType() {
 		indicator_leds::blinkLed(IndicatorLED::KIT);
 	}
 
-#if HAVE_OLED
-	fileIcon = (instrumentTypeToLoad == InstrumentType::SYNTH) ? OLED::synthIcon : OLED::kitIcon;
-	title = (instrumentTypeToLoad == InstrumentType::SYNTH) ? "Load synth" : "Load kit";
-#endif
+	if (display->haveOLED()) {
+		fileIcon = (instrumentTypeToLoad == InstrumentType::SYNTH) ? deluge::hid::display::OLED::synthIcon
+		                                                           : deluge::hid::display::OLED::kitIcon;
+		title = (instrumentTypeToLoad == InstrumentType::SYNTH) ? "Load synth" : "Load kit";
+	}
 
 	filePrefix = (instrumentTypeToLoad == InstrumentType::SYNTH) ? "SYNT" : "KIT";
 
@@ -198,9 +199,9 @@ useDefaultFolder:
 		renderingNeededRegardlessOfUI(0, 0xFFFFFFFF);
 	}
 
-#if !HAVE_OLED
-	displayText(false);
-#endif
+	if (display->have7SEG()) {
+		displayText(false);
+	}
 	return NO_ERROR;
 }
 
@@ -232,7 +233,7 @@ void LoadInstrumentPresetUI::enterKeyPress() {
 		int32_t error = goIntoFolder(currentFileItem->filename.get());
 
 		if (error) {
-			numericDriver.displayError(error);
+			display->displayError(error);
 			close(); // Don't use goBackToSoundEditor() because that would do a left-scroll
 			return;
 		}
@@ -243,7 +244,7 @@ void LoadInstrumentPresetUI::enterKeyPress() {
 		if (currentInstrumentLoadError) {
 			currentInstrumentLoadError = performLoad();
 			if (currentInstrumentLoadError) {
-				numericDriver.displayError(currentInstrumentLoadError);
+				display->displayError(currentInstrumentLoadError);
 				return;
 			}
 		}
@@ -262,8 +263,8 @@ void LoadInstrumentPresetUI::enterKeyPress() {
 	}
 }
 
-ActionResult LoadInstrumentPresetUI::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
-	using namespace hid::button;
+ActionResult LoadInstrumentPresetUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	using namespace deluge::hid::button;
 
 	InstrumentType newInstrumentType;
 
@@ -336,20 +337,20 @@ ActionResult LoadInstrumentPresetUI::timerCallback() {
 		String filePath;
 		int32_t error = getCurrentFilePath(&filePath);
 		if (error != 0) {
-			numericDriver.displayError(error);
+			display->displayError(error);
 			return ActionResult::DEALT_WITH;
 		}
 
 		bool fileExists = storageManager.fileExists(filePath.get(), &currentFileItem->filePointer);
 		if (!fileExists) {
-			numericDriver.displayError(ERROR_FILE_NOT_FOUND);
+			display->displayError(ERROR_FILE_NOT_FOUND);
 			return ActionResult::DEALT_WITH;
 		}
 
 		bool available = gui::context_menu::loadInstrumentPreset.setupAndCheckAvailability();
 
 		if (available) {
-			numericDriver.setNextTransitionDirection(1);
+			display->setNextTransitionDirection(1);
 			convertToPrefixFormatIfPossible();
 			openUI(&gui::context_menu::loadInstrumentPreset);
 		}
@@ -393,14 +394,15 @@ void LoadInstrumentPresetUI::changeInstrumentType(InstrumentType newInstrumentTy
 
 			// If going back to a view where the new selection won't immediately be displayed, gotta give some confirmation
 			if (!getRootUI()->toClipMinder()) {
-#if HAVE_OLED
-				char const* message = (newInstrumentType == InstrumentType::MIDI_OUT)
-				                          ? "Instrument switched to MIDI channel"
-				                          : "Instrument switched to CV channel";
-#else
-				char const* message = "DONE";
-#endif
-				numericDriver.displayPopup(message);
+				char const* message;
+				if (display->haveOLED()) {
+					message = ((newInstrumentType == InstrumentType::MIDI_OUT) ? "Instrument switched to MIDI channel"
+					                                                           : "Instrument switched to CV channel");
+				}
+				else {
+					message = "DONE";
+				}
+				display->displayPopup(message);
 			}
 
 			close();
@@ -418,9 +420,9 @@ void LoadInstrumentPresetUI::changeInstrumentType(InstrumentType newInstrumentTy
 			return;
 		}
 
-#if HAVE_OLED
-		renderUIsForOled();
-#endif
+		if (display->haveOLED()) {
+			renderUIsForOled();
+		}
 		performLoad();
 	}
 }
@@ -601,60 +603,32 @@ bool LoadInstrumentPresetUI::findUnusedSlotVariation(String* oldName, String* ne
 	char const* oldNameChars = oldName->get();
 	int32_t oldNameLength = strlen(oldNameChars);
 
-#if !HAVE_OLED
-	int32_t subSlot = -1;
-	// For numbered slots
-	if (oldNameLength == 3) {
+	if (display->have7SEG()) {
+		int32_t subSlot = -1;
+		// For numbered slots
+		if (oldNameLength == 3) {
 doSlotNumber:
-		char buffer[5];
-		buffer[0] = oldNameChars[0];
-		buffer[1] = oldNameChars[1];
-		buffer[2] = oldNameChars[2];
-		buffer[3] = 0;
-		buffer[4] = 0;
-		int32_t slotNumber = stringToUIntOrError(buffer);
-		if (slotNumber < 0) {
-			goto nonNumeric;
-		}
-
-		while (true) {
-			// Try next subSlot up
-			subSlot++;
-
-			// If reached end of alphabet/subslots, try next number up.
-			if (subSlot >= 26) {
-				goto tryWholeNewSlotNumbers;
+			char buffer[5];
+			buffer[0] = oldNameChars[0];
+			buffer[1] = oldNameChars[1];
+			buffer[2] = oldNameChars[2];
+			buffer[3] = 0;
+			buffer[4] = 0;
+			int32_t slotNumber = stringToUIntOrError(buffer);
+			if (slotNumber < 0) {
+				goto nonNumeric;
 			}
 
-			buffer[3] = 'A' + subSlot;
-
-			int32_t i = fileItems.search(buffer);
-			if (i >= fileItems.getNumElements()) {
-				break;
-			}
-
-			FileItem* fileItem = (FileItem*)fileItems.getElementAddress(i);
-			char const* fileItemNameChars = fileItem->filename.get();
-			if (!memcasecmp(buffer, fileItemNameChars, 4)) {
-				if (fileItemNameChars[4] == 0) {
-					continue;
-				}
-				if (fileItemNameChars[4] == '.' && fileItem->filenameIncludesExtension) {
-					continue;
-				}
-			}
-			break;
-		}
-
-		if (false) {
-tryWholeNewSlotNumbers:
 			while (true) {
-				slotNumber++;
-				if (slotNumber >= kNumSongSlots) {
-					newName->set(oldName);
-					return false;
+				// Try next subSlot up
+				subSlot++;
+
+				// If reached end of alphabet/subslots, try next number up.
+				if (subSlot >= 26) {
+					goto tryWholeNewSlotNumbers;
 				}
-				intToString(slotNumber, buffer, 3);
+
+				buffer[3] = 'A' + subSlot;
 
 				int32_t i = fileItems.search(buffer);
 				if (i >= fileItems.getNumElements()) {
@@ -673,28 +647,59 @@ tryWholeNewSlotNumbers:
 				}
 				break;
 			}
+
+			if (false) {
+tryWholeNewSlotNumbers:
+				while (true) {
+					slotNumber++;
+					if (slotNumber >= kNumSongSlots) {
+						newName->set(oldName);
+						return false;
+					}
+					intToString(slotNumber, buffer, 3);
+
+					int32_t i = fileItems.search(buffer);
+					if (i >= fileItems.getNumElements()) {
+						break;
+					}
+
+					FileItem* fileItem = (FileItem*)fileItems.getElementAddress(i);
+					char const* fileItemNameChars = fileItem->filename.get();
+					if (!memcasecmp(buffer, fileItemNameChars, 4)) {
+						if (fileItemNameChars[4] == 0) {
+							continue;
+						}
+						if (fileItemNameChars[4] == '.' && fileItem->filenameIncludesExtension) {
+							continue;
+						}
+					}
+					break;
+				}
+			}
+
+			newName->set(buffer);
+		}
+		else if (oldNameLength == 4) {
+			char subSlotChar = oldNameChars[3];
+			if (subSlotChar >= 'a' && subSlotChar <= 'z') {
+				subSlot = subSlotChar - 'a';
+			}
+			else if (subSlotChar >= 'A' && subSlotChar <= 'Z') {
+				subSlot = subSlotChar - 'A';
+			}
+			else {
+				goto nonNumeric;
+			}
+
+			goto doSlotNumber;
 		}
 
-		newName->set(buffer);
-	}
-	else if (oldNameLength == 4) {
-		char subSlotChar = oldNameChars[3];
-		if (subSlotChar >= 'a' && subSlotChar <= 'z') {
-			subSlot = subSlotChar - 'a';
-		}
-		else if (subSlotChar >= 'A' && subSlotChar <= 'Z') {
-			subSlot = subSlotChar - 'A';
-		}
+		// Or, for named slots
 		else {
 			goto nonNumeric;
 		}
-
-		goto doSlotNumber;
 	}
 
-	// Or, for named slots
-	else
-#endif
 	{
 nonNumeric:
 		int32_t oldNumber = 1;
@@ -762,7 +767,7 @@ int32_t LoadInstrumentPresetUI::performLoad(bool doClone) {
 
 	FileItem* currentFileItem = getCurrentFileItem();
 	if (!currentFileItem) {
-		return HAVE_OLED
+		return display->haveOLED()
 		           ? ERROR_FILE_NOT_FOUND
 		           : ERROR_NO_FURTHER_FILES_THIS_DIRECTION; // Make it say "NONE" on numeric Deluge, for consistency with old times.
 	}
@@ -848,18 +853,10 @@ giveUsedError:
 			newInstrument->editedByUser = true;
 		}
 	}
-#if HAVE_OLED
-	OLED::displayWorkingAnimation("Loading");
-#else
-	numericDriver.displayLoadingAnimation(false, true);
-#endif
+	display->displayLoadingAnimationText("Loading", false, true);
 	int32_t error = newInstrument->loadAllAudioFiles(true);
 
-#if HAVE_OLED
-	OLED::removeWorkingAnimation();
-#else
-	numericDriver.removeTopLayer();
-#endif
+	display->removeLoadingAnimation();
 
 	// If error, most likely because user interrupted sample loading process...
 	if (error) {
@@ -936,9 +933,7 @@ giveUsedError:
 	}
 
 	instrumentToReplace = newInstrument;
-#if HAVE_OLED
-	OLED::removeWorkingAnimation();
-#endif
+	display->removeWorkingAnimation();
 
 	return NO_ERROR;
 }
@@ -958,7 +953,7 @@ ActionResult LoadInstrumentPresetUI::padAction(int32_t x, int32_t y, int32_t on)
 		}
 		if (currentInstrumentLoadError) {
 			if (on) {
-				numericDriver.displayError(currentInstrumentLoadError);
+				display->displayError(currentInstrumentLoadError);
 			}
 		}
 		else {
@@ -986,7 +981,7 @@ potentiallyExit:
 
 ActionResult LoadInstrumentPresetUI::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	if (showingAuditionPads()) {
-		if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::button::X_ENC)) {
+		if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
 			return ActionResult::DEALT_WITH;
 		}
 
@@ -1413,9 +1408,9 @@ doneMoving:
 		view.drawOutputNameFromDetails(instrumentType, 0, 0, newName.get(), false, doBlink);
 	}
 
-#if HAVE_OLED
-	OLED::sendMainImage(); // Sorta cheating - bypassing the UI layered renderer.
-#endif
+	if (display->haveOLED()) {
+		deluge::hid::display::OLED::sendMainImage(); // Sorta cheating - bypassing the UI layered renderer.
+	}
 
 	if (Encoders::encoders[ENCODER_SELECT].detentPos) {
 		Debug::println("go again 1 --------------------------");
@@ -1450,11 +1445,7 @@ doPendingPresetNavigation:
 
 	//view.displayOutputName(toReturn.fileItem->instrument);
 
-#if HAVE_OLED
-	OLED::displayWorkingAnimation("Loading");
-#else
-	numericDriver.displayLoadingAnimation(false, true);
-#endif
+	display->displayLoadingAnimationText("Loading", false, true);
 	int32_t oldUIMode = currentUIMode;
 	currentUIMode = UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED;
 	toReturn.fileItem->instrument->loadAllAudioFiles(true);

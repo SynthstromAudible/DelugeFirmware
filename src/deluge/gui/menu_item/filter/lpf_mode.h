@@ -16,6 +16,7 @@
 */
 #pragma once
 #include "definitions_cxx.hpp"
+#include "gui/l10n/l10n.h"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
@@ -28,8 +29,15 @@ public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue<::FilterMode>(soundEditor.currentModControllable->lpfMode); }
 	void writeCurrentValue() override { soundEditor.currentModControllable->lpfMode = this->getValue<::FilterMode>(); }
-	static_vector<std::string, capacity()> getOptions() override {
-		return {"12dB", "24dB", "Drive", "SV_Band", "SV_Notch"};
+	static_vector<std::string_view, capacity()> getOptions() override {
+		using enum l10n::String;
+		return {
+		    "12dB",
+		    "24dB",
+		    l10n::getView(STRING_FOR_DRIVE),
+		    l10n::getView(STRING_FOR_SVF_BAND),
+		    l10n::getView(STRING_FOR_SVF_NOTCH),
+		};
 	}
 	bool isRelevant(Sound* sound, int32_t whichThing) override {
 		return ((sound == nullptr) || sound->synthMode != ::SynthMode::FM);

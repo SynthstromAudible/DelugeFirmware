@@ -64,14 +64,10 @@ public:
 	void displayParameterName(int32_t paramID);
 	void setDisplayParameterNameTimer();
 
-#if HAVE_OLED
-	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
-		InstrumentClipMinder::renderOLED(image);
-	}
-#endif
+	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) { InstrumentClipMinder::renderOLED(image); }
 
 	//button action
-	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 
 	//pad action
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
@@ -107,9 +103,7 @@ public:
 	void notifyPlaybackBegun();
 
 	//not sure how this is used
-	ClipMinder* toClipMinder() {
-		return this;
-	}
+	ClipMinder* toClipMinder() { return this; }
 
 	bool interpolation;
 	bool interpolationBefore;

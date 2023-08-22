@@ -16,7 +16,7 @@
 */
 
 #include "model/consequence/consequence_note_row_horizontal_shift.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
@@ -42,7 +42,7 @@ int32_t ConsequenceNoteRowHorizontalShift::revert(TimeType time, ModelStack* mod
 
 	if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
 #if ALPHA_OR_BETA_VERSION
-		numericDriver.freezeWithError("E377");
+		display->freezeWithError("E377");
 #endif
 		return ERROR_BUG;
 	}

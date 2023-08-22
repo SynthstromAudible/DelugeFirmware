@@ -50,7 +50,7 @@ public:
 	View();
 	void focusRegained();
 	void setTripletsLedState();
-	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 	void setTimeBaseScaleLedState();
 	void setLedStates();
 

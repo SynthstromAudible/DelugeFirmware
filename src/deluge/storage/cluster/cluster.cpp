@@ -16,7 +16,7 @@
 */
 
 #include "storage/cluster/cluster.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "io/debug/print.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_cache.h"
@@ -183,14 +183,14 @@ void Cluster::steal(char const* errorCode) {
 
 	case ClusterType::Sample:
 		if (ALPHA_OR_BETA_VERSION && !sample) {
-			numericDriver.freezeWithError("E181");
+			display->freezeWithError("E181");
 		}
 		sample->clusters.getElement(clusterIndex)->cluster = NULL;
 		break;
 
 	case ClusterType::SAMPLE_CACHE:
 		if (ALPHA_OR_BETA_VERSION && !sampleCache) {
-			numericDriver.freezeWithError("E183");
+			display->freezeWithError("E183");
 		}
 		sampleCache->clusterStolen(clusterIndex);
 
@@ -205,7 +205,7 @@ void Cluster::steal(char const* errorCode) {
 	case ClusterType::PERC_CACHE_FORWARDS:
 	case ClusterType::PERC_CACHE_REVERSED:
 		if (ALPHA_OR_BETA_VERSION && !sample) {
-			numericDriver.freezeWithError("E184");
+			display->freezeWithError("E184");
 		}
 		sample->percCacheClusterStolen(this);
 		break;

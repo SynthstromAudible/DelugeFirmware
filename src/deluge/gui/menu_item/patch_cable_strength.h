@@ -36,16 +36,12 @@ public:
 	virtual PatchSource getS() = 0;
 	uint8_t getIndexOfPatchedParamToBlink() final;
 	MenuItem* selectButtonPress() override;
-#if HAVE_OLED
-	void renderOLED();
-#endif
 
-	void unlearnAction() final {
-		MenuItemWithCCLearning::unlearnAction();
-	}
-	bool allowsLearnMode() final {
-		return MenuItemWithCCLearning::allowsLearnMode();
-	}
+	//OLED Only
+	void renderOLED();
+
+	void unlearnAction() final { MenuItemWithCCLearning::unlearnAction(); }
+	bool allowsLearnMode() final { return MenuItemWithCCLearning::allowsLearnMode(); }
 	void learnKnob(MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) final {
 		MenuItemWithCCLearning::learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel);
 	};

@@ -32,7 +32,7 @@ public:
 	int32_t getLengthChopAmount(int32_t square);
 	int32_t getLengthExtendAmount(int32_t square);
 	void focusRegained();
-	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 
 protected:
 	int32_t getTickSquare();

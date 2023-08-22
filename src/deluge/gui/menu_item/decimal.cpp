@@ -21,7 +21,7 @@
 
 #include "decimal.h"
 #include "gui/ui/sound_editor.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/matrix/matrix_driver.h"
@@ -45,17 +45,16 @@ void Decimal::beginSession(MenuItem* navigatedBackwardFrom) {
 
 	readCurrentValue();
 	scrollToGoodPos();
-#if 1 || HAVE_OLED
 	drawValue();
-#endif
 }
 
 void Decimal::drawValue() {
-#if HAVE_OLED
-	renderUIsForOled();
-#else
-	drawActualValue();
-#endif
+	if (display->haveOLED()) {
+		renderUIsForOled();
+	}
+	else {
+		drawActualValue();
+	}
 }
 
 void Decimal::selectEncoderAction(int32_t offset) {
@@ -100,14 +99,15 @@ void Decimal::horizontalEncoderAction(int32_t offset) {
 		}
 	}
 
-#if HAVE_OLED
-	movingCursor = true;
-	renderUIsForOled();
-	movingCursor = false;
-#else
-	scrollToGoodPos();
-	drawActualValue(true);
-#endif
+	if (display->haveOLED()) {
+		movingCursor = true;
+		renderUIsForOled();
+		movingCursor = false;
+	}
+	else {
+		scrollToGoodPos();
+		drawActualValue(true);
+	}
 }
 
 void Decimal::scrollToGoodPos() {
@@ -135,7 +135,6 @@ void Decimal::scrollToGoodPos() {
 	}
 }
 
-#if HAVE_OLED
 void Decimal::drawPixelsForOled() {
 	int32_t numDecimalPlaces = getNumDecimalPlaces();
 	char buffer[13];
@@ -158,14 +157,13 @@ void Decimal::drawPixelsForOled() {
 	int32_t stringWidth = digitWidth * length;
 	int32_t stringStartX = (OLED_MAIN_WIDTH_PIXELS - stringWidth) >> 1;
 
-	OLED::drawString(buffer, stringStartX, 20, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, digitWidth,
-	                 kTextHugeSizeY);
+	hid::display::OLED::drawString(buffer, stringStartX, 20, deluge::hid::display::OLED::oledMainImage[0],
+	                               OLED_MAIN_WIDTH_PIXELS, digitWidth, kTextHugeSizeY);
 
 	int32_t ourDigitStartX = stringStartX + editingChar * digitWidth;
-	OLED::setupBlink(ourDigitStartX, digitWidth, 40, 44, movingCursor);
+	hid::display::OLED::setupBlink(ourDigitStartX, digitWidth, 40, 44, movingCursor);
 }
 
-#else
 void Decimal::drawActualValue(bool justDidHorizontalScroll) {
 	char buffer[12];
 	int32_t minNumDigits = getNumDecimalPlaces() + 1;
@@ -191,13 +189,12 @@ void Decimal::drawActualValue(bool justDidHorizontalScroll) {
 	memset(&blinkMask, 255, kNumericDisplayLength);
 	blinkMask[3 + soundEditor.numberScrollAmount - soundEditor.numberEditPos] = 0b10000000;
 
-	numericDriver.setText(outputText,
-	                      true,   // alignRight
-	                      dotPos, // drawDot
-	                      true,   // doBlink
-	                      blinkMask,
-	                      false); // blinkImmediately
+	display->setText(outputText,
+	                 true,   // alignRight
+	                 dotPos, // drawDot
+	                 true,   // doBlink
+	                 blinkMask,
+	                 false); // blinkImmediately
 }
-#endif
 
 } // namespace deluge::gui::menu_item

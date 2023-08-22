@@ -18,9 +18,10 @@
 #include "gui/ui/rename/rename_output_ui.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
+#include "gui/l10n/l10n.h"
 #include "gui/views/arranger_view.h"
 #include "hid/buttons.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "model/output.h"
@@ -32,14 +33,14 @@ RenameOutputUI::RenameOutputUI() {
 }
 
 bool RenameOutputUI::opened() {
-#if HAVE_OLED
-	if (output->type == InstrumentType::AUDIO) {
-		title = "Rename track";
+	if (display->haveOLED()) {
+		if (output->type == InstrumentType::AUDIO) {
+			title = "Rename track";
+		}
+		else {
+			title = "Rename instrument";
+		}
 	}
-	else {
-		title = "Rename instrument";
-	}
-#endif
 	bool success = QwertyUI::opened();
 	if (!success) {
 		return false;
@@ -60,8 +61,8 @@ bool RenameOutputUI::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
 	return true;
 }
 
-ActionResult RenameOutputUI::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
-	using namespace hid::button;
+ActionResult RenameOutputUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	using namespace deluge::hid::button;
 
 	// Back button
 	if (b == BACK) {
@@ -99,7 +100,7 @@ void RenameOutputUI::enterKeyPress() {
 	// If actually changing it...
 	if (!output->name.equalsCaseIrrespective(&enteredText)) {
 		if (currentSong->getAudioOutputFromName(&enteredText)) {
-			numericDriver.displayPopup(HAVE_OLED ? "Duplicate names" : "DUPLICATE");
+			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DUPLICATE_NAMES));
 			return;
 		}
 	}
@@ -109,7 +110,7 @@ void RenameOutputUI::enterKeyPress() {
 }
 
 void RenameOutputUI::exitUI() {
-	numericDriver.setNextTransitionDirection(-1);
+	display->setNextTransitionDirection(-1);
 	close();
 }
 
@@ -132,7 +133,7 @@ ActionResult RenameOutputUI::padAction(int32_t x, int32_t y, int32_t on) {
 }
 
 ActionResult RenameOutputUI::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
-	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(hid::button::X_ENC)) {
+	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
 		return ActionResult::DEALT_WITH;
 	}
 	return arrangerView.verticalEncoderAction(offset, inCardRoutine);

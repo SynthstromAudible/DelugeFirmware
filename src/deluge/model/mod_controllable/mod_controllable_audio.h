@@ -36,6 +36,8 @@ struct Stutterer {
 	uint8_t status;
 	uint8_t sync;
 	int32_t sizeLeftUntilRecordFinished;
+	int32_t valueBeforeStuttering;
+	int32_t lastQuantizedKnobDiff;
 };
 
 struct Grain {
@@ -96,7 +98,7 @@ public:
 	bool hasBassAdjusted(ParamManager* paramManager);
 	bool hasTrebleAdjusted(ParamManager* paramManager);
 	ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob* knob, ModelStackWithThreeMainThings* modelStack);
-	ActionResult buttonAction(hid::Button b, bool on, ModelStackWithThreeMainThings* modelStack);
+	ActionResult buttonAction(deluge::hid::Button b, bool on, ModelStackWithThreeMainThings* modelStack);
 	ModelStackWithAutoParam* getParamFromModEncoder(int32_t whichModEncoder, ModelStackWithThreeMainThings* modelStack,
 	                                                bool allowCreation);
 

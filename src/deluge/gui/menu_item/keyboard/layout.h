@@ -18,6 +18,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
+#include "hid/display/display.h"
 #include "storage/flash_storage.h"
 #include "util/misc.h"
 
@@ -27,8 +28,12 @@ public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(FlashStorage::keyboardLayout); }
 	void writeCurrentValue() override { FlashStorage::keyboardLayout = this->getValue<KeyboardLayout>(); }
-	static_vector<std::string, capacity()> getOptions() override {
-		return {"QWERTY", "AZERTY", HAVE_OLED ? "QWERTZ" : "QRTZ"};
+	static_vector<std::string_view, capacity()> getOptions() override {
+		return {
+		    "QWERTY",
+		    "AZERTY",
+		    display->haveOLED() ? "QWERTZ" : "QRTZ",
+		};
 	}
 };
 } // namespace deluge::gui::menu_item::keyboard

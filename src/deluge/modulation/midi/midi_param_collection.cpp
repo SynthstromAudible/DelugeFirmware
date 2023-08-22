@@ -19,7 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/view.h"
-#include "hid/display/numeric_driver.h"
+#include "hid/display/display.h"
 #include "io/midi/midi_engine.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
@@ -289,7 +289,7 @@ int32_t MIDIParamCollection::knobPosToParamValue(int32_t knobPos, ModelStackWith
 			valueForDisplay = 127;
 		}
 		intToString(valueForDisplay, buffer);
-		numericDriver.displayPopup(buffer, 3, true);
+		display->displayPopup(buffer, 3, true);
 	}
 
 	return ParamCollection::knobPosToParamValue(knobPos, modelStack);

@@ -16,13 +16,12 @@
  */
 
 #include "runtime_feature_settings.h"
+#include "hid/display/display.h"
+#include "storage/storage_manager.h"
 #include "util/d_string.h"
 #include <cstdio>
 #include <cstring>
 #include <new>
-
-#include "hid/display/numeric_driver.h"
-#include "storage/storage_manager.h"
 
 #define RUNTIME_FEATURE_SETTINGS_FILE "CommunityFeatures.XML"
 #define TAG_RUNTIME_FEATURE_SETTINGS "runtimeFeatureSettings"
@@ -101,6 +100,9 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AltGoldenKnobDelayParams],
 	                  "Alternative Golden Knob Delay Params", "altGoldenKnobDelayParams",
 	                  RuntimeFeatureStateToggle::Off);
+	// QuantizedStutterRate
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::QuantizedStutterRate], "Stutter Rate Quantize",
+	                  "quantizedStutterRate", RuntimeFeatureStateToggle::Off);
 	// InterpolateAutomation
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationInterpolate], "Interpolation",
 	                  "automationInterpolate", RuntimeFeatureStateToggle::On);
@@ -119,6 +121,12 @@ void RuntimeFeatureSettings::init() {
 	// SyncScalingAction
 	SetupSyncScalingActionSetting(settings[RuntimeFeatureSettingType::SyncScalingAction], "Sync Scaling Action",
 	                              "syncScalingAction", RuntimeFeatureStateSyncScalingAction::SyncScaling);
+	// HighlightIncomingNotes
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::HighlightIncomingNotes], "Highlight incoming notes",
+	                  "highlightIncomingNotes", RuntimeFeatureStateToggle::Off);
+	// DisplayNornsLayout
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DisplayNornsLayout], "Display Norns layout",
+	                  "displayNornsLayout", RuntimeFeatureStateToggle::Off);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {
@@ -141,7 +149,7 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 			// Read name
 			currentTag = storageManager.readNextTagOrAttributeName();
 			if (strcmp(currentTag, TAG_RUNTIME_FEATURE_SETTING_ATTR_NAME) != 0) {
-				numericDriver.displayPopup("Community file err");
+				display->displayPopup("Community file err");
 				break;
 			}
 			storageManager.readTagOrAttributeValueString(&currentName);
@@ -150,7 +158,7 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 			// Read value
 			currentTag = storageManager.readNextTagOrAttributeName();
 			if (strcmp(currentTag, TAG_RUNTIME_FEATURE_SETTING_ATTR_VALUE) != 0) {
-				numericDriver.displayPopup("Community file err");
+				display->displayPopup("Community file err");
 				break;
 			}
 			currentValue = storageManager.readTagOrAttributeValueInt();

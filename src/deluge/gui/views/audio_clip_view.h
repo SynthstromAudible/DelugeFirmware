@@ -37,7 +37,7 @@ public:
 	bool supportsTriplets() { return false; }
 	ClipMinder* toClipMinder() { return this; }
 
-	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine);
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
 
 	void graphicsRoutine();
@@ -51,9 +51,7 @@ public:
 	uint32_t getMaxLength();
 	uint32_t getMaxZoom();
 
-#if HAVE_OLED
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
-#endif
 
 private:
 	void needsRenderingDependingOnSubMode();
