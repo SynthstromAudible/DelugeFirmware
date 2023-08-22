@@ -1489,10 +1489,6 @@ int32_t StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool m
 			return error;
 		}
 	}
-	if (!currentSong->getBackedUpParamManagerPreferablyWithClip(*getInstrument, clip)) {
-		error = ERROR_FILE_CORRUPTED;
-		return error;
-	}
 	//*getInstrument = newInstrument;
 	return error;
 }

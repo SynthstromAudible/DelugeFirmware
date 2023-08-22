@@ -949,7 +949,7 @@ giveUsedError:
 
 int32_t LoadInstrumentPresetUI::performLoadSynthToKit() {
 	FileItem* currentFileItem = getCurrentFileItem();
-	ParamManager* parammanager;
+
 	if (!currentFileItem) {
 		return display->haveOLED()
 		           ? ERROR_FILE_NOT_FOUND
@@ -966,16 +966,25 @@ int32_t LoadInstrumentPresetUI::performLoadSynthToKit() {
 	int32_t error = storageManager.loadSynthToDrum(currentSong, instrumentClipToLoadFor, false, &soundDrumToReplace,
 	                                               &currentFileItem->filePointer, &enteredText, &currentDir);
 	//kitToLoadFor->addDrum(soundDrumToReplace);
+	display->displayLoadingAnimationText("Loading", false, true);
 	soundDrumToReplace->loadAllAudioFiles(true);
+
 	//soundDrumToReplace->name.set(getCurrentFilenameWithoutExtension());
 	getCurrentFilenameWithoutExtension(&soundDrumToReplace->name);
 	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowIndex, noteRow);
-	parammanager = currentSong->getBackedUpParamManagerPreferablyWithClip(soundDrumToReplace, instrumentClipToLoadFor);
+	ParamManager* paramManager =
+	    currentSong->getBackedUpParamManagerPreferablyWithClip(soundDrumToReplace, instrumentClipToLoadFor);
+	if (paramManager) {
+		noteRow->setDrum(soundDrumToReplace, kitToLoadFor, modelStackWithNoteRow, instrumentClipToLoadFor,
+		                 paramManager);
+		kitToLoadFor->setupPatching(modelStack);
+		kitToLoadFor->beenEdited();
+	}
+	else {
+		error = ErrorType::ERROR_FILE_CORRUPTED;
+	}
 
-	noteRow->setDrum(soundDrumToReplace, kitToLoadFor, modelStackWithNoteRow, instrumentClipToLoadFor, parammanager);
-	kitToLoadFor->setupPatching(modelStack);
-	kitToLoadFor->beenEdited();
-
+	display->removeLoadingAnimation();
 	return error;
 }
 // Previously called "exitAndResetInstrumentToInitial()". Does just that.
