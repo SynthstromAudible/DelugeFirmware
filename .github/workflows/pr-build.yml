@@ -7,6 +7,7 @@ on:
   pull_request:
     branches:
       - 'community'
+      - 'release/**'
   merge_group:
   workflow_dispatch:
 
