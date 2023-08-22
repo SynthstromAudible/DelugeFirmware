@@ -21,6 +21,7 @@
 #include "extern.h"
 #include "gui/colour.h"
 #include "gui/context_menu/audio_input_selector.h"
+#include "gui/context_menu/launch_style.h"
 #include "gui/menu_item/colour.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
@@ -71,6 +72,7 @@ extern "C" {
 }
 
 using namespace deluge;
+using namespace gui;
 
 SessionView sessionView{};
 
@@ -438,6 +440,12 @@ moveAfterClipInstance:
 					drawSectionRepeatNumber();
 				}
 			}
+			else if (currentUIMode == UI_MODE_HOLDING_STATUS_PAD) {
+				//Clip* clip = getClipOnScreen(selectedClipYDisplay);
+				//contextMenuLaunchStyle.clip = clip;
+				context_menu::launchStyle.setupAndCheckAvailability();
+				openUI(&context_menu::launchStyle);
+			}
 			else if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
 				actionLogger.deleteAllLogs();
 				performActionOnPadRelease = false;
@@ -529,7 +537,7 @@ changeInstrumentType:
 							break;
 						}
 						}
-
+						loadInstrumentPresetUI.loadingSynthToKitRow = false;
 						openUI(&loadInstrumentPresetUI);
 					}
 
@@ -2968,7 +2976,6 @@ bool SessionView::gridRenderMainPads(uint32_t whichRows, uint8_t image[][kDispla
 			continue; // Should never happen but theoretically global output list can diverge from clip pointers
 		}
 
-		uint8_t occupiedColor[3] = {20, 20, 20};
 		auto x = gridXFromTrack(trackIndex);
 		auto y = gridYFromSection(clip->section);
 
@@ -2977,7 +2984,7 @@ bool SessionView::gridRenderMainPads(uint32_t whichRows, uint8_t image[][kDispla
 			occupancyMask[y][x] = 64;
 			auto* ptrClipColour = image[y][x];
 
-			view.getClipMuteSquareColour(clip, ptrClipColour, true, occupiedColor, !shiftPressed);
+			view.getClipMuteSquareColour(clip, ptrClipColour, true, !shiftPressed);
 
 			// If we should MIDI learn flash and shift is pressed (different learn layer)
 			if (view.midiLearnFlashOn && shiftPressed && clip->output != nullptr) {
