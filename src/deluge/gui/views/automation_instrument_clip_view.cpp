@@ -1375,16 +1375,7 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 				}
 			}
 
-			if (padSelectionOn && firstPadX != 255 && firstPadX == xDisplay) {
-				leftPadSelectedX = firstPadX;
-				leftPadSelectedY = kNoLastSelectedPad;;
-				rightPadSelectedX = kNoLastSelectedPad;
-				rightPadSelectedY = kNoLastSelectedPad;
-
-				multiPadPressSelected = false;
-				uiNeedsRendering(this);
-			}
-			else if (firstPadX != 255 && firstPadY != 255 && firstPadX != xDisplay) {
+			if (firstPadX != 255 && firstPadY != 255 && firstPadX != xDisplay) {
 				multiPadPressSelected = true;
 
 				//the long press logic calculates and renders the interpolation as if the press was entered in a forward fashion
@@ -1476,9 +1467,22 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 		}
 
 		//exit multi pad press once you've let go of the first pad in the long press
-		if (!padSelectionOn && (currentUIMode != UI_MODE_NOTES_PRESSED)) {
+		if ((clip->lastSelectedParamID != kNoLastSelectedParamID) && !padSelectionOn && multiPadPressSelected
+		    && (currentUIMode != UI_MODE_NOTES_PRESSED)) {
 			initPadSelection();
 			displayAutomation();
+		}
+		else if ((clip->lastSelectedParamID != kNoLastSelectedParamID) && padSelectionOn && multiPadPressSelected
+		    && (currentUIMode != UI_MODE_NOTES_PRESSED)
+		    && (AudioEngine::audioSampleTimer - instrumentClipView.timeLastEditPadPress < kShortPressTime)) {
+
+			leftPadSelectedX = xDisplay;
+			leftPadSelectedY = kNoLastSelectedPad;
+			rightPadSelectedX = kNoLastSelectedPad;
+			rightPadSelectedY = kNoLastSelectedPad;
+
+			multiPadPressSelected = false;
+			uiNeedsRendering(this);
 		}
 	}
 }

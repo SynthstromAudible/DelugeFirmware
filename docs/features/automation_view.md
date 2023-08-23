@@ -198,7 +198,9 @@ The Automation Editor **will:**
 > 
 > With this mode you can also press on each pad to see its current value without changing its value.
 >
-> Note: if you entered a long press in pad selection mode and wish to switch back to a single press, you can do so by entering a long press on a single column (press and hold one pad and then press another pad above or below it).
+> ** Note 1:** if you've entered a long press and wish to see the value of each pad in the long press, you will need to press and hold the pad.
+>
+> ** Note 2:** if you've entered a long press and wish to switch back to a single press, you can do by quickly pressing a pad in any column (e.g. don't hold it).
 
 - enable you to lay down longer automations with interpolation 
 
