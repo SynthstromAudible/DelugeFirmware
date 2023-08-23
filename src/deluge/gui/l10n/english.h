@@ -122,6 +122,10 @@ constexpr Language english{
         {STRING_FOR_MIX_PRE_FX, "Deluge mix (pre fx)"},
         {STRING_FOR_MIX_POST_FX, "Deluge output (post fx)"},
 
+        // gui/context_menu/launch_style.cpp
+        {STRING_FOR_DEFAULT_LAUNCH, "Default Clip"},
+        {STRING_FOR_FILL_LAUNCH, "Fill Clip"},
+
         // gui/context_menu/sample_browser/kit.cpp
         {STRING_FOR_LOAD_ALL, "Load all"},
         {STRING_FOR_SLICE, "Slice"},

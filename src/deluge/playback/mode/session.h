@@ -30,8 +30,9 @@ public:
 
 	void armAllClipsToStop(int32_t afterNumRepeats);
 	void armNextSection(int32_t oldSection, int32_t numRepetitions = -1);
-	void doLaunch();
+	void doLaunch(bool isFillLaunch);
 	void scheduleLaunchTiming(int64_t atTickCount, int32_t numRepeatsUntil, int32_t armedLaunchLengthForOneRepeat);
+	void scheduleFillEvent(Clip* clip, int64_t atTickCount);
 	void cancelAllLaunchScheduling();
 	void launchSchedulingMightNeedCancelling();
 	void reSyncClipToSongTicks(Clip* clip);
@@ -96,6 +97,10 @@ private:
 	void armClipToStopAction(Clip* clip);
 	void cancelArmingForClip(Clip* clip, int32_t* clipIndex);
 	void armSectionWhenNeitherClockActive(ModelStack* modelStack, int32_t section, bool stopAllOtherClips);
+	void armClipsAlongWithExistingLaunching(ArmState armState, uint8_t section, Clip* clip);
+	void armClipsWithNothingToSyncTo(uint8_t section, Clip* clip);
+	void scheduleFillClip(Clip* clip);
+	void scheduleFillClips(uint8_t section);
 };
 
 extern Session session;
