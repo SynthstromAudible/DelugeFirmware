@@ -17,6 +17,8 @@ A clear and concise description of what you expected to happen.
 - [ ] Built from community
 - [ ] Built from release/1.0
 
+_Firmware Version in the file name or display:_ '....'
+
 **(Optional) Additional Information**
 
 _Screenshots / Videos_
@@ -25,7 +27,7 @@ Add screenshots and/or videos to help explain your problem.
 
 _Steps to Reproduce the Issue_
 
-1. Go to '...'
+1. Go to '....'
 2. Click on '....'
 3. Scroll down to '....'
 4. See error
