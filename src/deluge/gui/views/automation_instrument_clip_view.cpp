@@ -1455,6 +1455,22 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 			if (instrumentClipView.editPadPresses[i].isActive
 			    && instrumentClipView.editPadPresses[i].yDisplay == yDisplay
 			    && instrumentClipView.editPadPresses[i].xDisplay == xDisplay) {
+
+				//switch from long press selection to short press selection in pad selection mode
+				if ((clip->lastSelectedParamID != kNoLastSelectedParamID) && padSelectionOn && multiPadPressSelected
+				    && (leftPadSelectedX != xDisplay) && (rightPadSelectedX != xDisplay)
+				    && (AudioEngine::audioSampleTimer - instrumentClipView.timeLastEditPadPress < kShortPressTime)) {
+
+					multiPadPressSelected = false;
+
+					leftPadSelectedX = xDisplay;
+					leftPadSelectedY = kNoLastSelectedPad;
+					rightPadSelectedX = kNoLastSelectedPad;
+					rightPadSelectedY = kNoLastSelectedPad;
+
+					uiNeedsRendering(this);
+				}
+
 				break;
 			}
 		}
@@ -1471,18 +1487,6 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 		    && (currentUIMode != UI_MODE_NOTES_PRESSED)) {
 			initPadSelection();
 			displayAutomation();
-		}
-		else if ((clip->lastSelectedParamID != kNoLastSelectedParamID) && padSelectionOn && multiPadPressSelected
-		    && (currentUIMode != UI_MODE_NOTES_PRESSED)
-		    && (AudioEngine::audioSampleTimer - instrumentClipView.timeLastEditPadPress < kShortPressTime)) {
-
-			leftPadSelectedX = xDisplay;
-			leftPadSelectedY = kNoLastSelectedPad;
-			rightPadSelectedX = kNoLastSelectedPad;
-			rightPadSelectedY = kNoLastSelectedPad;
-
-			multiPadPressSelected = false;
-			uiNeedsRendering(this);
 		}
 	}
 }
