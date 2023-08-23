@@ -66,7 +66,7 @@ public:
 
 	void drawPixelsForOled() override {
 		if (this->getValue() < 0) {
-			deluge::hid::display::OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_DISABLED), 20,
+			deluge::hid::display::OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_OFF), 20,
 			                                              deluge::hid::display::OLED::oledMainImage[0],
 			                                              OLED_MAIN_WIDTH_PIXELS, kTextHugeSpacingX, kTextHugeSizeY);
 		}
