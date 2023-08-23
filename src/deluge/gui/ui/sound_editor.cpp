@@ -923,10 +923,6 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 		// Otherwise, exit.
 		else {
 			exitCompletely();
-
-			if (getRootUI() == &automationInstrumentClipView) {
-				automationInstrumentClipView.setDisplayParameterNameTimer();
-			}
 		}
 	}
 

@@ -27,6 +27,7 @@
 #include "hid/encoders.h"
 #include "io/debug/print.h"
 #include "model/action/action_logger.h"
+#include "model/clip/clip.h"
 #include "processing/sound/sound.h"
 #include <string.h>
 
@@ -1601,6 +1602,29 @@ SequenceDirection stringToSequenceDirectionMode(char const* string) {
 	}
 	else {
 		return SequenceDirection::FORWARD;
+	}
+}
+
+char const* launchStyleToString(int launchStyle) {
+	switch (launchStyle) {
+	case LAUNCH_STYLE_DEFAULT:
+		return "default";
+
+	case LAUNCH_STYLE_FILL:
+		return "fill";
+
+	default:
+		__builtin_unreachable();
+		return "";
+	}
+}
+
+int stringToLaunchStyle(char const* string) {
+	if (!strcmp(string, "fill")) {
+		return LAUNCH_STYLE_FILL;
+	}
+	else {
+		return LAUNCH_STYLE_DEFAULT;
 	}
 }
 

@@ -284,6 +284,7 @@ doChangeInstrumentType:
 					Browser::instrumentTypeToLoad = newInstrumentType;
 					loadInstrumentPresetUI.instrumentToReplace = (Instrument*)output;
 					loadInstrumentPresetUI.instrumentClipToLoadFor = NULL;
+					loadInstrumentPresetUI.loadingSynthToKitRow = false;
 					openUI(&loadInstrumentPresetUI);
 				}
 

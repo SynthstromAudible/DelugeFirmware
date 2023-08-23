@@ -454,6 +454,7 @@ doOther:
 				}
 			}
 			else if (currentUIMode == UI_MODE_ADDING_DRUM_NOTEROW || currentUIMode == UI_MODE_AUDITIONING) {
+				//hook to load synth preset
 				createDrumForAuditionedNoteRow(DrumType::SOUND);
 			}
 		}
@@ -791,6 +792,7 @@ someError:
 	}
 
 	Drum* newDrum = storageManager.createNewDrum(drumType);
+
 	if (!newDrum) {
 		goto ramError;
 	}
@@ -798,35 +800,16 @@ someError:
 	Kit* kit = (Kit*)currentSong->currentClip->output;
 
 	ParamManager paramManager;
-
+	//add sound loading code here
 	if (drumType == DrumType::SOUND) {
-
-		String newName;
-		int32_t error = newName.set("U");
-		if (error) {
-discardDrum:
-			void* toDealloc = dynamic_cast<void*>(newDrum);
-			newDrum->~Drum();
-			GeneralMemoryAllocator::get().dealloc(toDealloc);
-			goto someError;
-		}
-
-		error = kit->makeDrumNameUnique(&newName, 1);
-		if (error) {
-			goto discardDrum;
-		}
-
-		((SoundDrum*)newDrum)->name.set(&newName);
-
-		error = paramManager.setupWithPatching();
-		if (error) {
-			goto discardDrum;
-		}
-
-		Sound::initParams(&paramManager);
-		((SoundDrum*)newDrum)->setupAsBlankSynth(&paramManager);
-
-		((SoundDrum*)newDrum)->modKnobs[6][0].paramDescriptor.setToHaveParamOnly(Param::Local::PITCH_ADJUST);
+		Browser::instrumentTypeToLoad = InstrumentType::SYNTH;
+		loadInstrumentPresetUI.loadingSynthToKitRow = true;
+		loadInstrumentPresetUI.instrumentClipToLoadFor = nullptr;
+		loadInstrumentPresetUI.soundDrumToReplace = (SoundDrum*)newDrum;
+		loadInstrumentPresetUI.kitToLoadFor = kit;
+		loadInstrumentPresetUI.noteRow = noteRow;
+		loadInstrumentPresetUI.noteRowIndex = noteRowIndex;
+		openUI(&loadInstrumentPresetUI);
 	}
 
 	kit->addDrum(newDrum);
@@ -2839,7 +2822,7 @@ void InstrumentClipView::setRowProbability(int32_t offset) {
 	uint8_t probabilityValue = noteRow->probabilityValue;
 	bool prevBase = false;
 	// Covers the probabilities and iterations
-	probabilityValue = std::clamp<int32_t>((int32_t)probabilityValue + offset, (int32_t)1, kNumProbabilityValues + 35);
+	probabilityValue = std::clamp<int32_t>((int32_t)probabilityValue + offset, (int32_t)0, kNumProbabilityValues + 35);
 
 	noteRow->probabilityValue = probabilityValue;
 

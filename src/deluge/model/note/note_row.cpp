@@ -3128,7 +3128,7 @@ void NoteRow::setDrumToNull(ModelStackWithTimelineCounter const* modelStack) {
 
 // If NULL or a gate drum, no need to supply a Kit
 // song not required if setting to NULL
-// Can handle NULL newParamManager. In fact, only one caller sends an actual one.
+// Can handle NULL newParamManager.
 void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack,
                       InstrumentClip* favourClipForCloningParamManager, ParamManager* newParamManager) {
 
@@ -3143,7 +3143,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 	drum = (SoundDrum*)
 	    newDrum; // Better set this temporarily for this call. See comment above for why we can't set it permanently yet
 
-	if (newParamManager) { // Only one caller actually sends this.
+	if (newParamManager) {
 		paramManager.stealParamCollectionsFrom(
 		    newParamManager); // Don't bother stealing expression/MPE params - newParamManager is actually literally brand new in the one case that it gets supplied.
 		if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
