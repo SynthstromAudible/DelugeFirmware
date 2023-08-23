@@ -1,103 +1,18 @@
-# TODO
-* Add patreon here
-
-# Foreword
-If you are a Deluge owner and want to use the community firmware on it please visit https://synthstromaudible.github.io/DelugeFirmware/ for all relevant details.
+# Dear Deluge owners
+If you want to start using the community firmware please visit https://synthstromaudible.github.io/DelugeFirmware/ for all relevant details.
 
 # About
-The Synthstrom Audible Deluge Firmware runs on the Deluge portable sequencer, synthesizer and sampler, produced by Synthstrom Audible Limited.
+The [Deluge](https://synthstrom.com/product/deluge/) from [Synthstrom Audible](https://synthstrom.com/) is a portable sequencer, synthesizer and sampler. Synthstrom Audible decided to [open source](https://synthstrom.com/open/) the firmware application that runs on the Deluge to allow the community to customize and extend the capabilities of the device. 
 
-The Deluge Firmware’s codebase is written mostly in C++, with some low-level functions in C, and even the occasional line of assembly. The program is “bare-metal” - it runs without any higher level operating system.
+The hardware is built around a Renesas RZ/A1L processor with an Arm® Cortex®-A9 core running at 400MHz and 3MB of on-chip SRAM. Connected to that is a 64MB SDRAM chip, a PIC for button handling and either a 7-Segment array or an OLED screen. The application is written in C and C++ and some occasional assembly in bare metal style without an operating system.
 
-The firmware runs on the Synthstrom Audible Deluge’s Renesas RZ/A1L processor, an Arm® Cortex®-A9 core running at 400MHz with 3MB of on-chip SRAM. The Deluge also includes a 64MB SDRAM chip. The firmware is built using a GNU ARM Embedded GCC toolchain.
-
-### Kudos
-
-Kudos to [Flipper Devices](https://github.com/flipperdevices/) for the GPL v3 build tool FBT from which Deluge Build Tool (DBT) heavily borrows both code and inspiration.
-
-## Obtaining the Source Code
-
-[Git](https://git-scm.com/) is the official tool used to manage the community repository. All the following instructions will assume you have it installed in your operating system and on the path, as it's necessary to both obtain the source code and to submit changes back to GitHub. The build tools also require Git as part of their versioning logic so working from a zip of the source code will not be sufficient.
-
-If you only plan on building the codebase, you can open up your terminal/shell of choice, change to the directory on your system where you'd like the repository to live, and type:
-
-```bash
-git clone https://github.com/SynthstromAudible/DelugeFirmware.git
-```
-
-If you foresee yourself being an active contributor, consider making a fork of the repo by clicking the "Fork" button at the top of the project's [GitHub page](https://github.com/SynthstromAudible/DelugeFirmware), and then click the "<> Code" button on your local fork for details on what URL to clone.
-
-### Storage Requirements
-
-These vary slightly by operating system and architecture but the following should give you an idea of how much space you'll need:
-
-* Git Repository: **~83 MB** (as of July 3, 2023)
-* Toolchain + Archive: **~1.3 GB** (DBT-Toolchain v10)
-* Built objects and images: **~150 MB** (as of July 3, 2023)
-
-So a little over **1.5GB total**. Expect that this size will only grow over time.
-
-## Building the Codebase in DBT
-
-The official way to manage your toolchain and build the Deluge Firmware is using the included **Deluge Build Tool** (**DBT**). DBT is a comprehensive commandline suite written primarily in Python and CMake. DBT has no unusual outside dependencies and runs using standalone tools it fetches on its own through shell scripts. It should behave nicely on a freshly installed OS.
-
-DBT runs and builds on:
-* **Windows** - x86_64 only
-    * *No need for WSL, cygwin, or mingw to be installed, and no weird things on the path. It's just cmd and powershell scripts to get started.*
-* **MacOS (Darwin)** - 64 bit Intel x86_64 and arm64 (M1 & M2 native)
-    * *`bash` will need to be on the path, even if it's not your shell of choice.*
-* **Linux** - Intel x86_64 and arm64
-    * *Linux depends on the presence of libxcrypt libraries, as directed in the kernel documentation (on Arch in particular, you may need to install the `libxcrypt-compat` package). `bash` will need to be on the path.*
-
-To run DBT, simply open up a command prompt or your terminal/shell in your operating system of choice, change directory to the git repository you cloned earlier, and type the following variation of the command, depending on your operating system:
-
-* Windows: `dbt`, `dbt.cmd`, or `.\dbt.cmd`
-* MacOS (Darwin): `./dbt`
-* Linux: `./dbt`
-
-The first time you run DBT, it will check for the toolchain in the `toolchain` folder and if it's missing it will start the process of downloading and installing. Nothing will be installed or extracted outside of the repository directory so there is no worry of your system becoming polluted with dependencies. The toolchain includes:
-
-* xPack GNU ARM Embedded GCC (v12.2.1)
-* xPack OpenOCD (v0.12.0)
-* xPack Clang (v14.0.6) (only `clang-format` and `clang-tidy`)
-* xPack CMake (v3.23.5)
-* xPack Ninja (v1.11.1)
-* Standalone Python (v3.11.3)
-    * SSL/TLS Certificates (certifi)
-    * Multiple additional Python libraries from a frequently changing list
-
-Ignore any warnings about certificates Python may express prior to installation of its certificates package.
-
-Once installed, DBT should let you know you can request help with `--help` and then you're good to go.
-
-DBT must always be run from the *root directory* of the repository. The remainder of the instructions will use the MacOS and Linux approach to calling DBT but substitute your own as needed.
-
-### DBT Build Targets
-
-These live under the `dbt build` subcommand. The general format is `dbt build {configuration}`, with configuration being optional (building both debug and release by default).
-
-Built files output to subdirectories named after the configuration (e.g. `build/Release`).
-
-#### Build configurations:
-
-* `debug` - build selected target with debugging support (including debugging symbols and different optimizations) 
-* `release` - build selected target with optimizations for release.
-
-#### Build arguments: 
-
-* `-S` or `--no-status` - this disables the `ninja` status line while building. Output from compilation commands (such as warnings and errors) will still be printed.
-* `-v` or `--verbose` - this prints greater level of detail to the console (i.e. exactly the compiler/linker commands called)
-* `-c` or `--clean-first` - clean before building 
-
-#### CMake custom arguments
-
-Any additional arguments to CMake may be transparently passed via `dbt build`. Primarily this means `-j <jobs>` for limiting or defining the amount of parallelization. Most other relevant options are exposed via `dbt build`.
+# Important links
+* For acquiring and using the firmware visit the [Github Page](https://synthstromaudible.github.io/DelugeFirmware)
+* To contribute to the project with code, reporting bugs, giving suggestions and feedback read the [Contributing.md](CONTRIBUTING.md)
+* To learn about the toolchain, application and start working on the code continue with the dev docs [getting_started.md](docs/dev/getting_started.md)
+* Please also visit the [Synthstrom Forum](https://forums.synthstrom.com/) and the community [Discord](https://discord.gg/BnRcyFSgaT) to interact with other users and the developers
+* Yo can donate to the project using the [Synthstrom Patreon](https://www.patreon.com/Synthstrom)
 
 
-Additional detail on working with DBT will be coming soon.
-
----
 
 
-# Direct firmware uploading and debugging
-See: https://docs.google.com/document/d/1PkECgg0sxoVPng5CTdvRIZcY1CBBPHS8oVVhZIzTVn8/edit?usp=sharing
