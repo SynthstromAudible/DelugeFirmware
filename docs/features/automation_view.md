@@ -198,9 +198,9 @@ The Automation Editor **will:**
 > 
 > With this mode you can also press on each pad to see its current value without changing its value.
 >
-> ** Note 1:** if you've entered a long press and wish to see the value of each pad in the long press, you will need to press and hold the pad.
+> **Note 1:** if you've entered a long press and wish to see the value of each column in the long press, you will need to press and hold any pad in the column you wish to query.
 >
-> ** Note 2:** if you've entered a long press and wish to switch back to a single press, you can do by quickly pressing a pad in any column (e.g. don't hold it).
+> **Note 2:** if you've entered a long press and wish to switch back to a single press, you can do so by quickly pressing a pad in any column (e.g. don't hold it).
 
 - enable you to lay down longer automations with interpolation 
 
