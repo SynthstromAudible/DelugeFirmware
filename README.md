@@ -12,7 +12,3 @@ The hardware is built around a Renesas RZ/A1L processor with an Arm® Cortex®-A
 * To learn about the toolchain, application and start working on the code continue with [docs/dev/getting_started.md](docs/dev/getting_started.md)
 * Please also visit the [Synthstrom Forum](https://forums.synthstrom.com/) and the community [Discord](https://discord.gg/BnRcyFSgaT) to interact with other users and the developers
 * Yo can donate to the project using the [Synthstrom Patreon](https://www.patreon.com/Synthstrom)
-
-
-
-

@@ -77,10 +77,11 @@ Built files output to subdirectories named after the configuration (e.g. `build/
 Any additional arguments to CMake may be transparently passed via `dbt build`. Primarily this means `-j <jobs>` for limiting or defining the amount of parallelization. Most other relevant options are exposed via `dbt build`.
 
 
-Additional detail on working with DBT will be coming soon.
+# Futher reading
 
----
+There are a lot more resources that help you getting started in the repository [Wiki](https://github.com/SynthstromAudible/DelugeFirmware/wiki) including but not limited to:
 
-
-# Direct firmware uploading and debugging
-See: https://docs.google.com/document/d/1PkECgg0sxoVPng5CTdvRIZcY1CBBPHS8oVVhZIzTVn8/edit?usp=sharing
+* [Firmware uploading and debugging](https://github.com/SynthstromAudible/DelugeFirmware/wiki/Uploading,-debugging,-and-RAM,-flash-operation-explanation)
+* [Codebase Introduction](https://github.com/SynthstromAudible/DelugeFirmware/wiki/Codebase-introduction)
+* [Hardware modification guide](https://github.com/SynthstromAudible/DelugeFirmware/wiki/Hardware-modification-guide)
+* [FAQ](https://github.com/SynthstromAudible/DelugeFirmware/wiki/FAQ)
