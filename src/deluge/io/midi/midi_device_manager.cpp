@@ -565,9 +565,16 @@ void ConnectedUSBMIDIDevice::bufferMessage(uint32_t fullMessage) {
 }
 
 bool ConnectedUSBMIDIDevice::hasBufferedSendData() {
-	// must me the same unsigned type as ringBufWriteIdx/ringBufReadIdx
+	// must be the same unsigned type as ringBufWriteIdx/ringBufReadIdx
 	uint32_t queued = ringBufWriteIdx - ringBufReadIdx;
 	return queued > 0;
+}
+
+int ConnectedUSBMIDIDevice::sendBufferSpace() {
+	// must be the same unsigned type as ringBufWriteIdx/ringBufReadIdx
+	uint32_t queued = ringBufWriteIdx - ringBufReadIdx;
+	// each 4-byte MIDI-USB message contains 3 bytes of serial MIDI data
+	return (MIDI_SEND_BUFFER_LEN_RING - queued) * 3;
 }
 
 // This tries to read data from the ring buffer, and
