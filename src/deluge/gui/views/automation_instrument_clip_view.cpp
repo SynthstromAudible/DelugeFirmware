@@ -356,6 +356,7 @@ AutomationInstrumentClipView::AutomationInstrumentClipView() {
 	//used to enter pad selection mode
 	padSelectionOn = false;
 	multiPadPressSelected = false;
+	multiPadPressActive = false;
 	leftPadSelectedX = kNoLastSelectedPad;
 	leftPadSelectedY = kNoLastSelectedPad;
 	rightPadSelectedX = kNoLastSelectedPad;
@@ -1377,6 +1378,7 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 
 			if (firstPadX != 255 && firstPadY != 255 && firstPadX != xDisplay) {
 				multiPadPressSelected = true;
+				multiPadPressActive = true;
 
 				//the long press logic calculates and renders the interpolation as if the press was entered in a forward fashion
 				//(where the first pad is to the left of the second pad). if the user happens to enter a long press backwards
@@ -1458,17 +1460,23 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 
 				//switch from long press selection to short press selection in pad selection mode
 				if ((clip->lastSelectedParamID != kNoLastSelectedParamID) && padSelectionOn && multiPadPressSelected
-				    && (leftPadSelectedX != xDisplay) && (rightPadSelectedX != xDisplay)
+					&& (currentUIMode != UI_MODE_NOTES_PRESSED)
 				    && (AudioEngine::audioSampleTimer - instrumentClipView.timeLastEditPadPress < kShortPressTime)) {
 
-					multiPadPressSelected = false;
+					if (multiPadPressActive && (leftPadSelectedX == xDisplay || rightPadSelectedX == xDisplay)) {
+						multiPadPressActive = false;
+					}
+					else if (!multiPadPressActive) {
 
-					leftPadSelectedX = xDisplay;
-					leftPadSelectedY = kNoLastSelectedPad;
-					rightPadSelectedX = kNoLastSelectedPad;
-					rightPadSelectedY = kNoLastSelectedPad;
+						multiPadPressSelected = false;
 
-					uiNeedsRendering(this);
+						leftPadSelectedX = xDisplay;
+						leftPadSelectedY = kNoLastSelectedPad;
+						rightPadSelectedX = kNoLastSelectedPad;
+						rightPadSelectedY = kNoLastSelectedPad;
+
+						uiNeedsRendering(this);
+					}
 				}
 
 				break;
