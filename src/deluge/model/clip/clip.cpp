@@ -59,6 +59,8 @@ Clip::Clip(int32_t newType) : type(newType) {
 	overdubNature = OVERDUB_NORMAL;
 	originalLength = 0;
 	armedForRecording = true;
+	launchStyle = LAUNCH_STYLE_DEFAULT;
+	fillEventAtTickCount = 0;
 
 #if HAVE_SEQUENCE_STEP_CONTROL
 	sequenceDirectionMode = SequenceDirection::FORWARD;
@@ -79,6 +81,7 @@ void Clip::cloneFrom(Clip* otherClip) {
 	lastProcessedPos = otherClip->lastProcessedPos;
 	repeatCount = otherClip->repeatCount;
 	armedForRecording = otherClip->armedForRecording;
+	launchStyle = otherClip->launchStyle;
 }
 
 void Clip::copyBasicsFrom(Clip* otherClip) {
@@ -86,6 +89,7 @@ void Clip::copyBasicsFrom(Clip* otherClip) {
 	colourOffset = otherClip->colourOffset;
 	//modKnobMode = otherClip->modKnobMode;
 	section = otherClip->section;
+	launchStyle = otherClip->launchStyle;
 }
 
 void Clip::setupForRecordingAsAutoOverdub(Clip* existingClip, Song* song, int32_t newOverdubNature) {
@@ -656,7 +660,9 @@ void Clip::writeDataToFile(Song* song) {
 	if (song->getSyncScalingClip() == this) {
 		storageManager.writeAttribute("isSyncScaleClip", "1");
 	}
-
+	if (launchStyle != LAUNCH_STYLE_DEFAULT) {
+		storageManager.writeAttribute("launchStyle", launchStyleToString(launchStyle));
+	}
 	storageManager.writeOpeningTagEnd();
 
 	muteMIDICommand.writeNoteToFile("muteMidiCommand");
@@ -727,6 +733,10 @@ void Clip::readTagFromFile(char const* tagName, Song* song, int32_t* readAutomat
 
 	else if (!strcmp(tagName, "sequenceDirection")) {
 		sequenceDirectionMode = stringToSequenceDirectionMode(storageManager.readTagOrAttributeValue());
+	}
+
+	else if (!strcmp(tagName, "launchStyle")) {
+		launchStyle = stringToLaunchStyle(storageManager.readTagOrAttributeValue());
 	}
 
 	/*

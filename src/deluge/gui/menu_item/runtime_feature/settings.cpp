@@ -39,6 +39,7 @@ Setting menuPatchCableResolution(RuntimeFeatureSettingType::PatchCableResolution
 Setting menuCatchNotes(RuntimeFeatureSettingType::CatchNotes);
 Setting menuDeleteUnusedKitRows(RuntimeFeatureSettingType::DeleteUnusedKitRows);
 Setting menuAltGoldenKnobDelayParams(RuntimeFeatureSettingType::AltGoldenKnobDelayParams);
+Setting menuQuantizedStutterRate(RuntimeFeatureSettingType::QuantizedStutterRate);
 Setting menuAutomationInterpolate(RuntimeFeatureSettingType::AutomationInterpolate);
 Setting menuAutomationClearClip(RuntimeFeatureSettingType::AutomationClearClip);
 Setting menuAutomationNudgeNote(RuntimeFeatureSettingType::AutomationNudgeNote);
@@ -59,10 +60,10 @@ Submenu subMenuAutomation{
 };
 
 std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettings> subMenuEntries{
-    &menuDrumRandomizer,       &menuMasterCompressorFx, &menuFineTempo,           &menuQuantize,
-    &menuPatchCableResolution, &menuCatchNotes,         &menuDeleteUnusedKitRows, &menuAltGoldenKnobDelayParams,
-    &subMenuAutomation,        &menuDevSysexAllowed,    &menuSyncScalingAction,   &menuHighlightIncomingNotes,
-    &menuDisplayNornsLayout,
+    &menuDrumRandomizer,         &menuMasterCompressorFx, &menuFineTempo,           &menuQuantize,
+    &menuPatchCableResolution,   &menuCatchNotes,         &menuDeleteUnusedKitRows, &menuAltGoldenKnobDelayParams,
+    &menuQuantizedStutterRate,   &subMenuAutomation,      &menuDevSysexAllowed,     &menuSyncScalingAction,
+    &menuHighlightIncomingNotes, &menuDisplayNornsLayout,
 };
 
 Settings::Settings(l10n::String name, l10n::String title)
