@@ -1427,8 +1427,6 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 				}
 			}
 			if (i < kEditPadPressBufferSize) {
-				handleSinglePadPress(modelStack, clip, xDisplay, yDisplay);
-
 				instrumentClipView.shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress = false;
 
 				// If this is the first press, record the time
@@ -1443,6 +1441,8 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 				instrumentClipView.numEditPadPresses++;
 				instrumentClipView.numEditPadPressesPerNoteRowOnScreen[yDisplay]++;
 				enterUIMode(UI_MODE_NOTES_PRESSED);
+
+				handleSinglePadPress(modelStack, clip, xDisplay, yDisplay);
 			}
 		}
 	}
@@ -1470,6 +1470,10 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 		if (!padSelectionOn && (currentUIMode != UI_MODE_NOTES_PRESSED)) {
 			initPadSelection();
 			displayAutomation();
+		}
+
+		if (currentUIMode != UI_MODE_NOTES_PRESSED) {
+			setDisplayParameterNameTimer();
 		}
 	}
 }
@@ -3256,14 +3260,23 @@ void AutomationInstrumentClipView::displayParameterValue(int32_t knobPos) {
 	char buffer[5];
 
 	intToString(knobPos, buffer);
-	display->displayPopup(buffer, 3);
+	if (currentUIMode == UI_MODE_NOTES_PRESSED) {
+		if (display->haveOLED()) {
+			display->popupText(buffer);
+		}
+		else {
+			display->setText(buffer, false, 255, false);
+		}
+	}
+	else {
+		display->displayPopup(buffer, 3);
+		setDisplayParameterNameTimer();
+	}
 
 	if (padSelectionOn && !multiPadPressSelected) {
 		indicator_leds::setKnobIndicatorLevel(0, knobPos);
 		indicator_leds::setKnobIndicatorLevel(1, knobPos);
 	}
-
-	setDisplayParameterNameTimer();
 }
 
 void AutomationInstrumentClipView::displayCVErrorMessage() {
