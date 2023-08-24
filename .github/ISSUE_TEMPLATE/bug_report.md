@@ -1,3 +1,12 @@
+---
+name: Report a problem
+about: Create a report to help us improve
+title: ''
+labels:
+assignees: ''
+
+---
+
 **Describe the Issue**
 - A clear and concise description of what the bug is.
 - The feature the bug relates to (if applicable) (refer to the PR# or Feature # from Community_Features.md if possible (e.g. 4.3.5 - Automation View)).
