@@ -1478,8 +1478,8 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 		}
 		//switch from long press selection to short press selection in pad selection mode
 		else if ((clip->lastSelectedParamID != kNoLastSelectedParamID) && padSelectionOn && multiPadPressSelected
-			&& !multiPadPressActive
-			&& ((AudioEngine::audioSampleTimer - instrumentClipView.timeLastEditPadPress) < kShortPressTime)) {
+		         && !multiPadPressActive
+		         && ((AudioEngine::audioSampleTimer - instrumentClipView.timeLastEditPadPress) < kShortPressTime)) {
 
 			multiPadPressSelected = false;
 
