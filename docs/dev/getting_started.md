@@ -1,3 +1,5 @@
+# Getting Started with Deluge Development
+
 ## Obtaining the Source Code
 
 [Git](https://git-scm.com/) is the official tool used to manage the community repository. All the following instructions will assume you have it installed in your operating system and on the path, as it's necessary to both obtain the source code and to submit changes back to GitHub. The build tools also require Git as part of their versioning logic so working from a zip of the source code will not be sufficient.
@@ -77,7 +79,7 @@ Built files output to subdirectories named after the configuration (e.g. `build/
 Any additional arguments to CMake may be transparently passed via `dbt build`. Primarily this means `-j <jobs>` for limiting or defining the amount of parallelization. Most other relevant options are exposed via `dbt build`.
 
 
-# Futher reading
+## Futher reading
 
 There are a lot more resources that help you getting started in the repository [Wiki](https://github.com/SynthstromAudible/DelugeFirmware/wiki) including but not limited to:
 
