@@ -1,6 +1,6 @@
 ---
 name: Report a problem
-about: Create a report to help us improve
+about: Please tell us if something did not work as expected, for feature suggestions please visit the Discussions tab
 title: ''
 labels:
 assignees: ''
