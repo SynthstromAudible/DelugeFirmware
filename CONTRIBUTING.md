@@ -109,6 +109,6 @@ Please follow the following steps for every pull request to ensure every contrib
     * For more information about governance and handling of decisional matters please take a look at the [Governance](GOVERNANCE.md) document.
 
 In addition to this workflow it is not a requirement but would be nice if developers could help the maintenance of the project by:
-* Do houskeeping of the Pull request including processing community feedback.
+* Doing housekeeping of the Pull request including processing community feedback.
 * Tagging the pull request appropriately where possible.
-* Trying to keep some sense of ownership over the touched areas of the codebase and support in case of problems, questions or future developments.
+* Trying to keep some sense of ownership over the touched areas of the codebase and provide support in case of problems, questions or future developments.
