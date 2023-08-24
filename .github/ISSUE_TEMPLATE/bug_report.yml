@@ -1,0 +1,55 @@
+name: Report a problem
+description: Please tell us if something did not work as expected, for feature suggestions please visit the Discussions tab
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report the problem you are having!
+  - type: textarea
+    id: problem_description
+    attributes:
+      label: "Please describe the problem:"
+    validations:
+      required: true
+  - type: textarea
+    id: expected_behavior
+    attributes:
+      label: What is the expected behavior?
+    validations:
+      required: true
+  - type: input
+    id: pr
+    attributes:
+      label: Is there a relevant Pull request?
+    validations:
+      required: false
+  - type: checkboxes
+    id: hardware_types
+    attributes:
+      label: What hardware did you reproduce it with?
+      options:
+        - label: OLED
+        - label: 7SEG
+  - type: checkboxes
+    id: build_types
+    attributes:
+      label: What firmware did you reproduce it with?
+      options:
+        - label: "nightly"
+        - label: "community"
+        - label: "Built from community"
+        - label: "Built from release/1.0"
+  - type: input
+    id: firmware_name
+    attributes:
+      label: "What is the firmware name:"
+      description: "You can use the version displayed in the firmware menu, the binary file name or the commit hash from GitHub"
+    validations:
+      required: false
+  - type: textarea
+    id: steps_to_reproduce
+    attributes:
+      label: "If possible provide the steps to reproduce the issue and upload additional media:"
+      description: "For example: 1. Turned on, 2. Clicked play, 3. Crash occured. You can drag and drop image and video files to the input box"
+    validations:
+      required: false
