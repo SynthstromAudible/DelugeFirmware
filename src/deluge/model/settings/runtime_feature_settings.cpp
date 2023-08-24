@@ -123,7 +123,7 @@ void RuntimeFeatureSettings::init() {
 	                              "syncScalingAction", RuntimeFeatureStateSyncScalingAction::SyncScaling);
 	// HighlightIncomingNotes
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::HighlightIncomingNotes], "Highlight incoming notes",
-	                  "highlightIncomingNotes", RuntimeFeatureStateToggle::Off);
+	                  "highlightIncomingNotes", RuntimeFeatureStateToggle::On);
 	// DisplayNornsLayout
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DisplayNornsLayout], "Display Norns layout",
 	                  "displayNornsLayout", RuntimeFeatureStateToggle::Off);
