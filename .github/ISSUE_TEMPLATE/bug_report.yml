@@ -23,27 +23,34 @@ body:
       label: Is there a relevant Pull request?
     validations:
       required: false
-  - type: checkboxes
-    id: hardware_types
+  - type: dropdown
+    id: hardware_type
     attributes:
       label: What hardware did you reproduce it with?
+      multiple: true
       options:
-        - label: OLED
-        - label: 7SEG
-  - type: checkboxes
-    id: build_types
+        - OLED
+        - 7SEG
+    validations:
+      required: true
+  - type: dropdown
+    id: build_type
     attributes:
       label: What firmware did you reproduce it with?
+      multiple: true
       options:
-        - label: "nightly"
-        - label: "community"
-        - label: "Built from community"
-        - label: "Built from release/1.0"
+        - nightly
+        - community
+        - Built from community
+        - Built from release/1.0
+        - other
+    validations:
+      required: true
   - type: input
     id: firmware_name
     attributes:
       label: "What is the firmware name:"
-      description: "You can use the version displayed in the firmware menu, the binary file name or the commit hash from GitHub"
+      description: "Please use the version displayed in the firmware menu, alternatively the binary file name or the commit hash from GitHub"
     validations:
       required: false
   - type: textarea
