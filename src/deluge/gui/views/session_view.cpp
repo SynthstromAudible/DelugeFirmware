@@ -3432,7 +3432,7 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 		// Release
 		else {
 			// End stuttering on any key up for safety
-			if (isUIModeActive(UI_MODE_STUTTERING)) {
+			if (isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) && isUIModeActive(UI_MODE_STUTTERING)) {
 				((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
 				    ->endStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
 			}
