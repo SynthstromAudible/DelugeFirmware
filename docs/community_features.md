@@ -27,6 +27,7 @@ Here is a list of general improvements that have been made, ordered from newest 
 #### 3.5 - Kits
 - ([#395]) Load synth presets into kit rows by holding the audition pad and pressing synth. Saving kit rows to synth presets is not yet implemented.
 
+
 ## 4. New Features Added
 
 Here is a list of features that have been added to the firmware as a list, grouped by category:
@@ -154,6 +155,7 @@ This mode affects how the deluge handles MIDI input for learned CC controls.
 		- **Preset 3:** Unison and +1 Octave (Defalut)
 		- **Preset 4:** 5th and +1 Octave
 		- **Preset 5:** Unison and +1/-1 Octave (Tempo Sync)
+
 
 ### 4.3 - Instrument Clip View - General Features
 
