@@ -57,7 +57,7 @@ The following requirements must be fulfilled for a Pull request to be mergable t
 
 * The contribution must be meaningful to the project. There must be a clear and articulate link between the change and an improvement for the developers, users or overall community.
 * The Pull request must have a clear scope outlined in the description, please don't commit changes unrelated to the scope.
-* Refactoring files changed for or related to the Pull request are encouraged. This includes improving code structure and file organisation.
+* Refactorings files changed for or related to the Pull request are encouraged. This includes improving code structure and file organisation.
 * The description of the Pull request must also contain information on what functional areas have been touched and should be tested, ideally including a small test manual
 * Appropriate branch name, if possible following standard conventions like git flow (e.g. feature/shiny_new_feature_name).
 * No small Pull requests exclusively fixing single insignificant typos in code comments, one-off formatting mistakes or whitespace. Aggregate Pull requests fixing bigger areas can be accepted.
@@ -70,28 +70,28 @@ The following requirements must be fulfilled for a Pull request to be mergable t
 * All changes to the firmware have to be tested on a best effort basis to make sure they work as expected and don't break any existing functionality before submitting as ready to merge. This does not apply to Draft Pull requests.
 * All changes need to be compatible with all available hardware variants, this currently includes OLED and 7-Segment.
 * All changes need to be compatible with the currently official toolchain as described in the [Readme](README.md).
-* Acceptance of the continuous integration (CI) system is also required. It will automatically build open pull requests and check for compilation, formatting and in the future possibly unit testing.
+* Acceptance of the CI system is also required. It will automatically build open pull requests and check for compilation, formatting and in the future possibly unit testing
 
 ### Application specific
 
-* Pull requests that change how users can interact with the device or massively alter system performance (> 3% permanent cycle load) require either:
-    * A runtime configuration setting that allows users to enable or disable the feature/change in behavior. See documentation on adding optional feature settings (Pull request #56).
-    * Or if a runtime setting is not possible, a preprocessor switch that allows creating firmware without the change.
+* Pull requests that change how users can interact with the device or massively alter system performance (> 3% permanent cycle load) require either.
+    * A runtime configuration setting that allows to enable or disable the feature/change in behavior, see documentation on adding optional feature settings (Pull request #56).
+    * Or if a runtime setting is not possible a preprocessor switch that allows creating firmware without the change.
 * Changes that massively increase image size (> 5% of total memory) also require a preprocessor switch starting with "FEATURE_" so they can be enabled or disabled.
-* If the Pull request requires changes in structure of user files (e.g. project/synth or other xml files) or flash configuration:
+* If the Pull request requires changes in structure of user files (e.g. project/synth or other xml files) or flash configuration.
     * It must ensure that files or flash configuration created with the official firmware or previous community releases stay compatible or are automatically upgraded (upward compatibility).
     * If possible files and flash configuration created with the changes of the Pull request can be used with older firmwares not having the change (downward compatibility). Older firmwares must not break if a newer configuration was stored on the device.
-* If the Pull request changes end user behavoir or introduces new features, a new entry in the [CommunityFeatures.md](Documentation/community_features.md) file needs to be created in the preexisting style describing the feature and its options as a small manual to users. This includes all runtime and compile time flags which shall be named in respective sections.
+* If the Pull request changes end user behavoir or introduces new features a new entry in the [CommunityFeatures.md](Documentation/community_features.md) file needs to be created in the preexisting style describing the feature and it's options as a small manual to users. This includes all runtime and compile time flags which shall be named in respective sections.
 
 ### UI Changes
 
-Changes to the existing UI should follow the following process:
+Changes to the existing UI should follow the following process
 
 * Ensure they meet the guidelines set out in [UX Principles](Documentation/ux_principles.md)
 * Place the change in the community feature menu for one beta cycle
 * Following a full beta cycle and user feedback, open a poll on the feature
 * At the end of the beta cycle there will be a community meeting on Discord to discuss changes
-* Given maintainer approval and positive feedback, the feature can be moved from the community menu to the default UI
+* Given maintainer approval and positive feedback, the feature can be moved from the community menu to the default Ui
 
 
 ## Workflow
@@ -100,7 +100,7 @@ Please follow the following steps for every pull request to ensure every contrib
 
 1. Create a [Draft Pull request](https://github.blog/2019-02-14-introducing-draft-pull-requests/) including a description on what will be changed and what impact you expect. The title can start with "[Draft] " during development.
 2. Work on the Pull request
-3. Before a Pull request can be considered ready, all upstream changes from the `develop` branch need to be merged into it. It is the duty of everyone to help make merging into `develop` as painless as possible so please try to align if you see that your Pull requests works in a similar area as another one.
+3. Before a Pull request can be considered ready all upstream changes from the `develop` branch need to be merged into it. It is the duty of everyone to help make merging into `develop` as painless as possible so please try to align if you see that your Pull requests works in a similar area as another one.
 4. Once the Pull request is ready, fulfills all requirements outlined above and is up to date with the `develop` branch it can be converted from Draft and marked as ready for review.
 5. Having multiple reviews for every Pull request would be nice. Reviews from community members not mentioned in the [CODEOWNERS](CODEOWNERS) file should be taken serious and used as an important source of feedback but have no decisional power on what gets merged into the `develop` branch.
 5. At least one member of the [CODEOWNERS](CODEOWNERS) file needs to review every pull request while also considering community reviews in their decision.
