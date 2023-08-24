@@ -24,7 +24,7 @@ Please use the [Discussions](https://github.com/SynthstromAudible/DelugeFirmware
 
 * Please search first if there is already a (draft) [Pull request](https://github.com/SynthstromAudible/DelugeFirmware/pulls) or existing Discussion item related to your idea and start your discussion from there if possible.
 * Reading, voting and commenting on discussion items and Pull requests will help a lot to improve the direction of the project.
-* Please don't use the repository [issue](https://github.com/SynthstromAudible/DelugeFirmware/issues) tracker only for bug reports.
+* Please use the repository [issue](https://github.com/SynthstromAudible/DelugeFirmware/issues) tracker for problem reporting.
 * For further inspiration and discussion there is also the [Deluge Suggestions area](https://forums.synthstrom.com/categories/deluge-suggestions) and [Open Source area](https://forums.synthstrom.com/categories/open-source-) on the [Synthstrom Forum](https://forums.synthstrom.com).
 * For more in-depth technical discussion you are welcome to join the #dev-chat channel in the [Deluge User Discord](https://discord.com/invite/gWaJEh6pPP).
 
