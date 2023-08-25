@@ -1359,7 +1359,6 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 		// If this is a automation-length-edit press...
 		//needed for Automation
 		if (clip->lastSelectedParamID != kNoLastSelectedParamID && instrumentClipView.numEditPadPresses == 1) {
-		    //&& ((int32_t)(instrumentClipView.timeLastEditPadPress + 80 * 44 - AudioEngine::audioSampleTimer) < 0)) {
 
 			int32_t firstPadX = 255;
 			int32_t firstPadY = 255;
