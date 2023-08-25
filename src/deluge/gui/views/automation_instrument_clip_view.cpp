@@ -1489,11 +1489,11 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 
 			uiNeedsRendering(this);
 		}
-    
+
 		if (currentUIMode != UI_MODE_NOTES_PRESSED) {
 			lastPadSelectedKnobPos = kNoLastSelectedPad;
 			setDisplayParameterNameTimer();
-		}      
+		}
 	}
 }
 
