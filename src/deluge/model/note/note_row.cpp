@@ -511,6 +511,15 @@ addNewNote:
 
 	return NO_ERROR;
 }
+int32_t NoteRow::getDefaultProbability(ModelStackWithNoteRow* ModelStack) {
+
+	if (ModelStack->song->fillModeActive) {
+		return 0;
+	}
+	else {
+		return probabilityValue;
+	}
+}
 
 // This gets called after we've scrolled and attempted to drag notes. And for recording.
 // If you supply an Action, it'll add an individual ConsequenceNoteExistenceChange. Or, you can supply NULL and do something else yourself.
