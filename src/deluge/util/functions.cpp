@@ -1477,7 +1477,7 @@ ArpMode stringToArpMode(char const* string) {
 		return ArpMode::OFF;
 	}
 }
-
+//converts lpf/hpf mode to string for saving
 char const* lpfTypeToString(FilterMode lpfType) {
 	switch (lpfType) {
 	case FilterMode::TRANSISTOR_12DB:

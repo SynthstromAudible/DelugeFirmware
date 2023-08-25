@@ -114,7 +114,11 @@ constexpr Language seven_segment{
 
         // gui/menu_item/filter/lpf_mode.h
         {STRING_FOR_DRIVE, "Drive"},
-
+        {STRING_FOR_SVF_BAND, "SV_B"},
+        {STRING_FOR_SVF_NOTCH, "SV_N"},
+        {STRING_FOR_HPLADDER, "HP_L"},
+        {STRING_FOR_12DB_LADDER, "LA12"},
+        {STRING_FOR_24DB_LADDER, "LA24"},
         // gui/menu_item/flash/status.h
         {STRING_FOR_FAST, "FAST"},
         {STRING_FOR_SLOW, "SLOW"},

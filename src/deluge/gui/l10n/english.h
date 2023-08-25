@@ -169,7 +169,11 @@ constexpr Language english{
 
         // gui/menu_item/filter/lpf_mode.h
         {STRING_FOR_DRIVE, "Drive"},
-
+        {STRING_FOR_SVF_BAND, "SVF Bandpass"},
+        {STRING_FOR_SVF_NOTCH, "SVF Notch"},
+        {STRING_FOR_HPLADDER, "HP Ladder"},
+        {STRING_FOR_12DB_LADDER, "12dB Ladder"},
+        {STRING_FOR_24DB_LADDER, "24dB Ladder"},
         // gui/menu_item/flash/status.h
         {STRING_FOR_FAST, "Fast"},
         {STRING_FOR_SLOW, "Slow"},
@@ -638,8 +642,7 @@ constexpr Language english{
         {STRING_FOR_MASTER_PITCH, "Master pitch"},
         {STRING_FOR_MASTER_PAN, "Master pan"},
         {STRING_FOR_SIDECHAIN_LEVEL, "Sidechain level"},
-        {STRING_FOR_SVF_BAND, "SVF Bandpass"},
-        {STRING_FOR_SVF_NOTCH, "SVF Notch"},
+
         {STRING_FOR_AUTOMATION, "AUTOMATION"},
         {STRING_FOR_LOOP_TOO_SHORT, "Loop too short"},
         {STRING_FOR_LOOP_HALVED, "Loop halved"},
