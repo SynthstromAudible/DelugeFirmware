@@ -1431,8 +1431,6 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 			if (i < kEditPadPressBufferSize) {
 				multiPadPressActive = false;
 
-				handleSinglePadPress(modelStack, clip, xDisplay, yDisplay);
-
 				instrumentClipView.shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress = false;
 
 				// If this is the first press, record the time
@@ -1447,6 +1445,8 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 				instrumentClipView.numEditPadPresses++;
 				instrumentClipView.numEditPadPressesPerNoteRowOnScreen[yDisplay]++;
 				enterUIMode(UI_MODE_NOTES_PRESSED);
+
+				handleSinglePadPress(modelStack, clip, xDisplay, yDisplay);
 			}
 		}
 	}
@@ -1487,6 +1487,10 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 			rightPadSelectedX = kNoLastSelectedPad;
 
 			uiNeedsRendering(this);
+		}
+
+		if (currentUIMode != UI_MODE_NOTES_PRESSED) {
+			setDisplayParameterNameTimer();
 		}
 	}
 }
@@ -3223,6 +3227,10 @@ bool AutomationInstrumentClipView::isOnParameterGridMenuView() {
 //displays patched param names or midi cc names
 void AutomationInstrumentClipView::displayParameterName(int32_t paramID) {
 
+	if (currentUIMode == UI_MODE_NOTES_PRESSED) {
+		return;
+	}
+
 	InstrumentClip* clip = getCurrentClip();
 	Instrument* instrument = (Instrument*)clip->output;
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -3261,6 +3269,9 @@ void AutomationInstrumentClipView::displayParameterName(int32_t paramID) {
 
 			display->popupText(buffer);
 		}
+		else {
+			redrawNumericDisplay();
+		}
 	}
 
 	else if (instrument->type == InstrumentType::MIDI_OUT) {
@@ -3275,14 +3286,23 @@ void AutomationInstrumentClipView::displayParameterValue(int32_t knobPos) {
 	char buffer[5];
 
 	intToString(knobPos, buffer);
-	display->displayPopup(buffer, 3);
+	if (currentUIMode == UI_MODE_NOTES_PRESSED) {
+		if (display->haveOLED()) {
+			display->popupText(buffer);
+		}
+		else {
+			display->setText(buffer, false, 255, false);
+		}
+	}
+	else {
+		display->displayPopup(buffer);
+		setDisplayParameterNameTimer();
+	}
 
 	if (padSelectionOn && !multiPadPressSelected) {
 		indicator_leds::setKnobIndicatorLevel(0, knobPos);
 		indicator_leds::setKnobIndicatorLevel(1, knobPos);
 	}
-
-	setDisplayParameterNameTimer();
 }
 
 void AutomationInstrumentClipView::displayCVErrorMessage() {
