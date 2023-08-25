@@ -59,8 +59,8 @@ constexpr Language english{
         //Master Level, Pitch, Pan
         {STRING_FOR_PARAM_LOCAL_VOLUME, "Level"},
         {STRING_FOR_PARAM_GLOBAL_VOLUME_POST_FX, "Master Level"},
-        {STRING_FOR_PARAM_LOCAL_PAN, "Master Pan"},
         {STRING_FOR_PARAM_LOCAL_PITCH_ADJUST, "Master Pitch"},
+        {STRING_FOR_PARAM_LOCAL_PAN, "Master Pan"},
 
         //LPF Frequency, Resonance, Morph
         {STRING_FOR_PARAM_LOCAL_LPF_FREQ, "LPF frequency"},
