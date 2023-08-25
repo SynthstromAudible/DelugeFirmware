@@ -223,7 +223,8 @@ addNewNote:
 
 		newNote->setVelocity(((Instrument*)((Clip*)modelStack->getTimelineCounter())->output)->defaultVelocity);
 		newNote->setLift(kDefaultLiftValue);
-		newNote->setProbability(kNumProbabilityValues);
+
+		newNote->setProbability(getDefaultProbability(modelStack));
 
 		if (i + 1 < notes.getNumElements()) {
 			newNote->setLength(std::min(desiredNoteLength, notes.getElement(i + 1)->pos - newNote->pos));
@@ -441,7 +442,7 @@ addNewNote:
 			destNote->pos = posThisScreen;
 			destNote->setVelocity(velocity);
 			destNote->setLift(kDefaultLiftValue);
-			destNote->setProbability(kNumProbabilityValues);
+			destNote->setProbability(getDefaultProbability(modelStack));
 
 			int32_t newLength;
 
@@ -638,7 +639,7 @@ int32_t NoteRow::attemptNoteAddReversed(ModelStackWithNoteRow* modelStack, int32
 	newNote->setLength(1);
 	newNote->setVelocity(velocity);
 	newNote->setLift(kDefaultLiftValue);
-	newNote->setProbability(kNumProbabilityValues);
+	newNote->setProbability(getDefaultProbability(modelStack));
 
 	((InstrumentClip*)modelStack->getTimelineCounter())->expectEvent();
 
