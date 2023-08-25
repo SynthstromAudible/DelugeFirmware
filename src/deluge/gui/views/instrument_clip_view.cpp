@@ -2822,7 +2822,8 @@ void InstrumentClipView::setRowProbability(int32_t offset) {
 	uint8_t probabilityValue = noteRow->probabilityValue;
 	bool prevBase = false;
 	// Covers the probabilities and iterations
-	probabilityValue = std::clamp<int32_t>((int32_t)probabilityValue + offset, (int32_t)0, kNumProbabilityValues + 35);
+	probabilityValue = std::clamp<int32_t>((int32_t)probabilityValue + offset, (int32_t)0,
+	                                       kNumProbabilityValues + kNumIterationValues);
 
 	noteRow->probabilityValue = probabilityValue;
 
@@ -2837,7 +2838,15 @@ void InstrumentClipView::setRowProbability(int32_t offset) {
 void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) {
 	char buffer[(display->haveOLED()) ? 29 : 5];
 	char* displayString;
-	if (probability <= kNumProbabilityValues) {
+
+	// FILL mode
+	if (probability == kFillProbabilityValue) {
+		strcpy(buffer, "FILL");
+		displayString = buffer;
+	}
+
+	// Probability dependence
+	else if (probability <= kNumProbabilityValues) {
 		if (display->haveOLED()) {
 			strcpy(buffer, "Probability: ");
 			intToString(probability * 5, buffer + strlen(buffer));
