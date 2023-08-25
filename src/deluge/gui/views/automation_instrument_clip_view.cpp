@@ -97,7 +97,7 @@ const uint32_t auditionPadActionUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDI
 
 const uint32_t editPadActionUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, 0};
 
-const uint32_t mutePadActionUIModes[] = {UI_MODE_AUDITIONING, 0};
+const uint32_t mutePadActionUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, 0};
 
 static const uint32_t verticalScrollUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN,
                                                  0};
