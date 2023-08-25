@@ -24,6 +24,7 @@
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
+#include "hid/hid_sysex.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "model/clip/clip_minder.h"
@@ -183,6 +184,10 @@ void UITimerManager::routine() {
 					if (display->haveOLED()) {
 						deluge::hid::display::OLED::scrollingAndBlinkingTimerEvent();
 					}
+					break;
+
+				case TIMER_SYSEX_DISPLAY:
+					HIDSysex::sendDisplayIfChanged();
 					break;
 				}
 			}

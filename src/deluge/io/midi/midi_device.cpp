@@ -354,6 +354,26 @@ void MIDIDeviceUSB::sendMessage(uint8_t statusType, uint8_t channel, uint8_t dat
 	}
 }
 
+int32_t MIDIDeviceUSB::sendBufferSpace() {
+	int32_t ip = 0;
+	ConnectedUSBMIDIDevice* connectedDevice = NULL;
+
+	// find the connected device for this specific device. Note that virtual
+	// port number is specified as part of the message, implemented below.
+	for (int32_t d = 0; d < MAX_NUM_USB_MIDI_DEVICES; d++) {
+		if (connectionFlags & (1 << d)) {
+			connectedDevice = &connectedUSBMIDIDevices[ip][d];
+			break;
+		}
+	}
+
+	if (!connectedDevice) {
+		return 0;
+	}
+
+	return connectedDevice->sendBufferSpace();
+}
+
 void MIDIDeviceUSB::sendSysex(uint8_t* data, int32_t len) {
 	if (len < 3 || data[0] != 0xf0 || data[len - 1] != 0xf7) {
 		return;
@@ -454,6 +474,10 @@ char const* MIDIDeviceDINPorts::getDisplayName() {
 
 void MIDIDeviceDINPorts::sendMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2) {
 	midiEngine.sendSerialMidi(statusType, channel, data1, data2);
+}
+
+int32_t MIDIDeviceDINPorts::sendBufferSpace() {
+	return uartGetTxBufferSpace(UART_ITEM_MIDI);
 }
 
 void MIDIDeviceDINPorts::sendSysex(uint8_t* data, int32_t len) {

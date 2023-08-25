@@ -25,8 +25,8 @@ Here is a list of general improvements that have been made, ordered from newest 
 	- This feature can be turned ON/OFF in the Runtime Settings (Community Features) Menu (accessed by pressing "SHIFT" + "SELECT"). 
 
 #### 3.5 - Kits
-- ([#395]) Load synth presets into kit rows by holding the audition pad and pressing synth. Saving kit rows to synth presets is not yet implemented.
 
+- ([#395]) Load synth presets into kit rows by holding the audition pad and pressing synth. Saving kit rows to synth presets is not yet implemented.
 
 ## 4. New Features Added
 
@@ -156,6 +156,8 @@ This mode affects how the deluge handles MIDI input for learned CC controls.
 		- **Preset 4:** 5th and +1 Octave
 		- **Preset 5:** Unison and +1/-1 Octave (Tempo Sync)
 
+
+	- This feature can be turned ON/OFF in the Runtime Settings (Community Features) Menu (accessed by pressing "SHIFT" + "SELECT"). 
 
 ### 4.3 - Instrument Clip View - General Features
 
@@ -379,4 +381,5 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#363]: https://github.com/SynthstromAudible/DelugeFirmware/pull/363
 [#368]: https://github.com/SynthstromAudible/DelugeFirmware/pull/368
 [#395]: https://github.com/SynthstromAudible/DelugeFirmware/pull/395
+
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
