@@ -173,7 +173,6 @@ enum class String : size_t {
 
 	// gui/menu_item/filter/lpf_mode.h
 	STRING_FOR_DRIVE,
-	STRING_FOR_SVF,
 
 	// gui/menu_item/flash/status.h
 	STRING_FOR_FAST,
