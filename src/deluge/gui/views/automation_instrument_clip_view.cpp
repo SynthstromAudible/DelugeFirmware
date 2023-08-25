@@ -361,6 +361,7 @@ AutomationInstrumentClipView::AutomationInstrumentClipView() {
 	leftPadSelectedY = kNoLastSelectedPad;
 	rightPadSelectedX = kNoLastSelectedPad;
 	rightPadSelectedY = kNoLastSelectedPad;
+	lastPadSelectedKnobPos = kNoLastSelectedPad;
 }
 
 inline InstrumentClip* getCurrentClip() {
@@ -1494,6 +1495,7 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 		}
 
 		if (currentUIMode != UI_MODE_NOTES_PRESSED) {
+			lastPadSelectedKnobPos = kNoLastSelectedPad;
 			setDisplayParameterNameTimer();
 		}
 	}
@@ -2648,6 +2650,7 @@ void AutomationInstrumentClipView::selectEncoderAction(int8_t offset) {
 
 flashShortcut:
 
+	lastPadSelectedKnobPos = kNoLastSelectedPad;
 	displayParameterName(clip->lastSelectedParamID);
 	displayAutomation();
 	resetShortcutBlinking();
@@ -2712,6 +2715,7 @@ void AutomationInstrumentClipView::initPadSelection() {
 	multiPadPressActive = false;
 	leftPadSelectedX = kNoLastSelectedPad;
 	rightPadSelectedX = kNoLastSelectedPad;
+	lastPadSelectedKnobPos = kNoLastSelectedPad;
 }
 
 void AutomationInstrumentClipView::initInterpolation() {
@@ -3283,7 +3287,10 @@ bool AutomationInstrumentClipView::isOnParameterGridMenuView() {
 //displays patched param names or midi cc names
 void AutomationInstrumentClipView::displayParameterName(int32_t paramID) {
 
-	if (currentUIMode == UI_MODE_NOTES_PRESSED) {
+	if ((currentUIMode == UI_MODE_NOTES_PRESSED) && (lastPadSelectedKnobPos != kNoLastSelectedPad)) {
+
+		displayParameterValue(lastPadSelectedKnobPos);
+
 		return;
 	}
 
@@ -3338,6 +3345,8 @@ void AutomationInstrumentClipView::displayParameterName(int32_t paramID) {
 
 //display parameter value when it is changed
 void AutomationInstrumentClipView::displayParameterValue(int32_t knobPos) {
+
+	lastPadSelectedKnobPos = knobPos;
 
 	char buffer[5];
 
