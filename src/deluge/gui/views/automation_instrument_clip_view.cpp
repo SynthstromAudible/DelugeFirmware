@@ -1376,6 +1376,8 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 			}
 
 			if (firstPadX != 255 && firstPadY != 255 && firstPadX != xDisplay) {
+				recordSinglePadPress(xDisplay, yDisplay);	
+				
 				multiPadPressSelected = true;
 
 				//the long press logic calculates and renders the interpolation as if the press was entered in a forward fashion
@@ -1418,31 +1420,8 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 
 		// Or, if this is a regular create-or-select press...
 		else {
-			instrumentClipView.timeLastEditPadPress = AudioEngine::audioSampleTimer;
-			// Find an empty space in the press buffer, if there is one
-			int32_t i;
-			for (i = 0; i < kEditPadPressBufferSize; i++) {
-				if (!instrumentClipView.editPadPresses[i].isActive) {
-					break;
-				}
-			}
-			if (i < kEditPadPressBufferSize) {
+			if (recordSinglePadPress(xDisplay, yDisplay)) {
 				handleSinglePadPress(modelStack, clip, xDisplay, yDisplay);
-
-				instrumentClipView.shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress = false;
-
-				// If this is the first press, record the time
-				if (instrumentClipView.numEditPadPresses == 0) {
-					instrumentClipView.timeFirstEditPadPress = AudioEngine::audioSampleTimer;
-					instrumentClipView.shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress = false;
-				}
-
-				instrumentClipView.editPadPresses[i].isActive = true;
-				instrumentClipView.editPadPresses[i].yDisplay = yDisplay;
-				instrumentClipView.editPadPresses[i].xDisplay = xDisplay;
-				instrumentClipView.numEditPadPresses++;
-				instrumentClipView.numEditPadPressesPerNoteRowOnScreen[yDisplay]++;
-				enterUIMode(UI_MODE_NOTES_PRESSED);
 			}
 		}
 	}
@@ -1472,6 +1451,37 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 			displayAutomation();
 		}
 	}
+}
+
+bool AutomationInstrumentClipView::recordSinglePadPress(int32_t xDisplay, int32_t yDisplay) {
+
+	instrumentClipView.timeLastEditPadPress = AudioEngine::audioSampleTimer;
+	// Find an empty space in the press buffer, if there is one
+	int32_t i;
+	for (i = 0; i < kEditPadPressBufferSize; i++) {
+		if (!instrumentClipView.editPadPresses[i].isActive) {
+			break;
+		}
+	}
+	if (i < kEditPadPressBufferSize) {
+		instrumentClipView.shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress = false;
+
+		// If this is the first press, record the time
+		if (instrumentClipView.numEditPadPresses == 0) {
+			instrumentClipView.timeFirstEditPadPress = AudioEngine::audioSampleTimer;
+			instrumentClipView.shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress = false;
+		}
+
+		instrumentClipView.editPadPresses[i].isActive = true;
+		instrumentClipView.editPadPresses[i].yDisplay = yDisplay;
+		instrumentClipView.editPadPresses[i].xDisplay = xDisplay;
+		instrumentClipView.numEditPadPresses++;
+		instrumentClipView.numEditPadPressesPerNoteRowOnScreen[yDisplay]++;
+		enterUIMode(UI_MODE_NOTES_PRESSED);
+
+		return true;
+	}
+	return false;
 }
 
 //audition pad action
