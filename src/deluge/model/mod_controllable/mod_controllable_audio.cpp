@@ -2030,23 +2030,24 @@ void ModControllableAudio::switchLPFMode() {
 
 	char const* displayText;
 	switch (lpfMode) {
+		using enum deluge::l10n::String;
 	case FilterMode::TRANSISTOR_12DB:
-		displayText = "12DB LPF";
+		displayText = l10n::get(STRING_FOR_12DB_LADDER);
 		break;
 
 	case FilterMode::TRANSISTOR_24DB:
-		displayText = "24DB LPF";
+		displayText = l10n::get(STRING_FOR_24DB_LADDER);
 		break;
 
 	case FilterMode::TRANSISTOR_24DB_DRIVE:
-		displayText = "DRIVE LPF";
+		displayText = l10n::get(STRING_FOR_DRIVE);
 		break;
 
 	case FilterMode::SVF_BAND:
-		displayText = "SV_BAND";
+		displayText = l10n::get(STRING_FOR_SVF_BAND);
 		break;
 	case FilterMode::SVF_NOTCH:
-		displayText = "SV_NOTCH";
+		displayText = l10n::get(STRING_FOR_SVF_NOTCH);
 		break;
 	}
 	display->displayPopup(displayText);
@@ -2057,14 +2058,15 @@ void ModControllableAudio::switchHPFMode() {
 
 	char const* displayText;
 	switch (hpfMode) {
+		using enum deluge::l10n::String;
 	case FilterMode::HPLADDER:
-		displayText = "Ladder";
+		displayText = l10n::get(STRING_FOR_HPLADDER);
 		break;
 	case FilterMode::SVF_BAND:
-		displayText = "SV_BAND";
+		displayText = l10n::get(STRING_FOR_SVF_BAND);
 		break;
 	case FilterMode::SVF_NOTCH:
-		displayText = "SV_NOTCH";
+		displayText = l10n::get(STRING_FOR_SVF_NOTCH);
 		break;
 	}
 	display->displayPopup(displayText);
