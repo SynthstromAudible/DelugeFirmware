@@ -108,6 +108,8 @@ public:
 	uint8_t sectionPressed;
 	uint8_t masterCompEditMode;
 
+	Clip* getClipForLayout();
+
 private:
 	void sectionPadAction(uint8_t y, bool on);
 	void clipPressEnded();
@@ -122,7 +124,6 @@ private:
 
 	// Members regarding rendering different layouts
 private:
-	Clip* getClipForLayout();
 	void selectLayout(int8_t offset);
 
 	bool sessionButtonActive = false;

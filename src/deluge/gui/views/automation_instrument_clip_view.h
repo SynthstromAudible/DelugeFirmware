@@ -169,6 +169,7 @@ private:
 
 	bool padSelectionOn;
 	bool multiPadPressSelected;
+	bool multiPadPressActive;
 	int32_t leftPadSelectedX;
 	int32_t leftPadSelectedY;
 	int32_t rightPadSelectedX;
