@@ -1358,8 +1358,8 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 		}
 		// If this is a automation-length-edit press...
 		//needed for Automation
-		if (clip->lastSelectedParamID != kNoLastSelectedParamID && instrumentClipView.numEditPadPresses == 1
-		    && ((int32_t)(instrumentClipView.timeLastEditPadPress + 80 * 44 - AudioEngine::audioSampleTimer) < 0)) {
+		if (clip->lastSelectedParamID != kNoLastSelectedParamID && instrumentClipView.numEditPadPresses == 1) {
+		    //&& ((int32_t)(instrumentClipView.timeLastEditPadPress + 80 * 44 - AudioEngine::audioSampleTimer) < 0)) {
 
 			int32_t firstPadX = 255;
 			int32_t firstPadY = 255;
@@ -1422,7 +1422,10 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 
 		// Or, if this is a regular create-or-select press...
 		else {
-			if (recordSinglePadPress(xDisplay, yDisplay)) {
+			if (currentUIMode != UI_MODE_NOTES_PRESSED) {
+				multiPadPressActive = false;
+			}
+			if (recordSinglePadPress(xDisplay, yDisplay)) {	
 				handleSinglePadPress(modelStack, clip, xDisplay, yDisplay);
 			}
 		}
@@ -1455,7 +1458,7 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 		}
 		//switch from long press selection to short press selection in pad selection mode
 		else if ((clip->lastSelectedParamID != kNoLastSelectedParamID) && padSelectionOn && multiPadPressSelected
-		         && !multiPadPressActive
+		         && !multiPadPressActive && (currentUIMode != UI_MODE_NOTES_PRESSED)
 		         && ((AudioEngine::audioSampleTimer - instrumentClipView.timeLastEditPadPress) < kShortPressTime)) {
 
 			multiPadPressSelected = false;
