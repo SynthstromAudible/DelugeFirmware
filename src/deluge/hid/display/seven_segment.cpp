@@ -23,6 +23,7 @@
 #include "hid/display/numeric_layer/numeric_layer_loading_animation.h"
 #include "hid/display/numeric_layer/numeric_layer_scroll_transition.h"
 #include "hid/display/numeric_layer/numeric_layer_scrolling_text.h"
+#include "hid/hid_sysex.h"
 #include "hid/led/indicator_leds.h"
 #include "io/debug/print.h"
 #include "memory/general_memory_allocator.h"
@@ -534,6 +535,7 @@ void SevenSegment::render() {
 	lastDisplay_ = segments;
 
 	PIC::update7SEG(segments);
+	HIDSysex::sendDisplayIfChanged();
 }
 
 // Call this to make the loading animation happen
