@@ -22,6 +22,8 @@
 #include "drivers/pic/pic.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
+#include "hid/display/oled.h"
+#include "hid/hid_sysex.h"
 #include "processing/engines/audio_engine.h"
 #include "util/d_string.h"
 #include <string.h>
@@ -41,9 +43,12 @@ extern uint8_t usbInitializationPeriodComplete;
 
 namespace deluge::hid::display {
 
-uint8_t OLED::oledMainImage[OLED_MAIN_HEIGHT_PIXELS >> 3][OLED_MAIN_WIDTH_PIXELS];
-uint8_t OLED::oledMainConsoleImage[kConsoleImageNumRows][OLED_MAIN_WIDTH_PIXELS];
-uint8_t OLED::oledMainPopupImage[OLED_MAIN_HEIGHT_PIXELS >> 3][OLED_MAIN_WIDTH_PIXELS];
+uint8_t OLED::oledMainImage[OLED_MAIN_HEIGHT_PIXELS >> 3][OLED_MAIN_WIDTH_PIXELS]
+    __attribute__((aligned(alignof(int32_t))));
+uint8_t OLED::oledMainConsoleImage[kConsoleImageNumRows][OLED_MAIN_WIDTH_PIXELS]
+    __attribute__((aligned(alignof(int32_t))));
+uint8_t OLED::oledMainPopupImage[OLED_MAIN_HEIGHT_PIXELS >> 3][OLED_MAIN_WIDTH_PIXELS]
+    __attribute__((aligned(alignof(int32_t))));
 
 uint8_t (*OLED::oledCurrentImage)[OLED_MAIN_WIDTH_PIXELS] = oledMainImage;
 
@@ -710,6 +715,7 @@ void OLED::sendMainImage() {
 #endif
 
 	enqueueSPITransfer(0, oledCurrentImage[0]);
+	HIDSysex::sendDisplayIfChanged();
 }
 
 #define TEXT_MAX_NUM_LINES 8
