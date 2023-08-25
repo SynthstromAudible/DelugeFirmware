@@ -1376,8 +1376,8 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 			}
 
 			if (firstPadX != 255 && firstPadY != 255 && firstPadX != xDisplay) {
-				recordSinglePadPress(xDisplay, yDisplay);	
-				
+				recordSinglePadPress(xDisplay, yDisplay);
+
 				multiPadPressSelected = true;
 				multiPadPressActive = true;
 
@@ -1424,7 +1424,7 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 			if (currentUIMode != UI_MODE_NOTES_PRESSED) {
 				multiPadPressActive = false;
 			}
-			if (recordSinglePadPress(xDisplay, yDisplay)) {	
+			if (recordSinglePadPress(xDisplay, yDisplay)) {
 				handleSinglePadPress(modelStack, clip, xDisplay, yDisplay);
 			}
 		}
