@@ -3212,7 +3212,7 @@ bool AutomationInstrumentClipView::isOnParameterGridMenuView() {
 //displays patched param names or midi cc names
 void AutomationInstrumentClipView::displayParameterName(int32_t paramID) {
 
-	if ((currentUIMode == UI_MODE_NOTES_PRESSED) && (lastPadSelectedKnobPos != kNoLastSelectedPad)) {
+	if (isUIModeActive(UI_MODE_NOTES_PRESSED) && (lastPadSelectedKnobPos != kNoLastSelectedPad)) {
 
 		displayParameterValue(lastPadSelectedKnobPos);
 
@@ -3276,7 +3276,7 @@ void AutomationInstrumentClipView::displayParameterValue(int32_t knobPos) {
 	char buffer[5];
 
 	intToString(knobPos, buffer);
-	if (currentUIMode == UI_MODE_NOTES_PRESSED) {
+	if (isUIModeActive(UI_MODE_NOTES_PRESSED)) {
 		if (display->haveOLED()) {
 			display->popupText(buffer);
 		}
