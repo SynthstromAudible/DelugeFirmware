@@ -3208,6 +3208,10 @@ bool AutomationInstrumentClipView::isOnParameterGridMenuView() {
 //displays patched param names or midi cc names
 void AutomationInstrumentClipView::displayParameterName(int32_t paramID) {
 
+	if (currentUIMode == UI_MODE_NOTES_PRESSED) {
+		return;
+	}
+
 	InstrumentClip* clip = getCurrentClip();
 	Instrument* instrument = (Instrument*)clip->output;
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -3246,6 +3250,9 @@ void AutomationInstrumentClipView::displayParameterName(int32_t paramID) {
 
 			display->popupText(buffer);
 		}
+		else {
+			redrawNumericDisplay();
+		}
 	}
 
 	else if (instrument->type == InstrumentType::MIDI_OUT) {
@@ -3269,7 +3276,7 @@ void AutomationInstrumentClipView::displayParameterValue(int32_t knobPos) {
 		}
 	}
 	else {
-		display->displayPopup(buffer, 3);
+		display->displayPopup(buffer);
 		setDisplayParameterNameTimer();
 	}
 
