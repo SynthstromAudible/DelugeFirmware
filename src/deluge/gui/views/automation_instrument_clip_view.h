@@ -173,6 +173,7 @@ private:
 	int32_t leftPadSelectedY;
 	int32_t rightPadSelectedX;
 	int32_t rightPadSelectedY;
+	int32_t lastPadSelectedKnobPos;
 };
 
 extern AutomationInstrumentClipView automationInstrumentClipView;
