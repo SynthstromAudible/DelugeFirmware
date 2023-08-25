@@ -1445,7 +1445,7 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 			instrumentClipView.checkIfAllEditPadPressesEnded();
 		}
 
-		//exit multi pad press once you've let go of the first pad in the long press
+		//exit multi pad press once you've let go of the last held pad in the long press
 		if (!padSelectionOn && (currentUIMode != UI_MODE_NOTES_PRESSED)) {
 			initPadSelection();
 			displayAutomation();
