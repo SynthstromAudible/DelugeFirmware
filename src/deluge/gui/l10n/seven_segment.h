@@ -45,6 +45,153 @@ constexpr Language seven_segment{
         {STRING_FOR_PATCH_SOURCE_X, "X"},
         {STRING_FOR_PATCH_SOURCE_Y, "Y"},
 
+		/*
+		 * Start Parameter Strings
+		 */
+
+		/*
+		 * Where used:
+		 * - automation_instrument_clip_view.cpp
+		 */
+
+        // Patched Params (originally from functions.cpp)
+
+		//Master Level, Pitch, Pan
+        {STRING_FOR_PARAM_LOCAL_VOLUME, "Level"},
+		{STRING_FOR_PARAM_GLOBAL_VOLUME_POST_FX, "Master Level"},
+		{STRING_FOR_PARAM_LOCAL_PAN, "Master Pan"},
+		{STRING_FOR_PARAM_LOCAL_PITCH_ADJUST, "Master Pitch"},
+
+		//LPF Frequency, Resonance, Morph
+		{STRING_FOR_PARAM_LOCAL_LPF_FREQ, "LPF frequency"},
+		{STRING_FOR_PARAM_LOCAL_LPF_RESONANCE, "LPF resonance"},
+		{STRING_FOR_PARAM_LOCAL_LPF_MORPH, "LPF morph"},
+
+		//HPF Frequency, Resonance, Morph
+        {STRING_FOR_PARAM_LOCAL_HPF_FREQ, "HPF frequency"},
+		{STRING_FOR_PARAM_LOCAL_HPF_RESONANCE, "HPF resonance"},
+        {STRING_FOR_PARAM_LOCAL_HPF_MORPH, "HPF morph"},
+
+		//Reverb Amount
+		{STRING_FOR_PARAM_GLOBAL_REVERB_AMOUNT, "Reverb amount"},
+
+		//Delay Rate, Amount
+        {STRING_FOR_PARAM_GLOBAL_DELAY_RATE, "Delay rate"},
+        {STRING_FOR_PARAM_GLOBAL_DELAY_FEEDBACK, "Delay amount"},
+
+		//Sidechain Level
+		{STRING_FOR_PARAM_GLOBAL_VOLUME_POST_REVERB_SEND, "Sidechain Level"},
+
+		//Wavefolder
+        {STRING_FOR_WAVEFOLDER, "Wavefolder"},
+
+		//OSC 1 Level, Pitch, Phase Width, Carrier Feedback, Wave Position
+        {STRING_FOR_PARAM_LOCAL_OSC_A_VOLUME, "Osc1 level"},
+		{STRING_FOR_PARAM_LOCAL_OSC_A_PITCH_ADJUST, "Osc1 pitch"},
+		{STRING_FOR_PARAM_LOCAL_OSC_A_PHASE_WIDTH, "Osc1 PW"},
+		{STRING_FOR_PARAM_LOCAL_CARRIER_0_FEEDBACK, "Osc1 feedback"},
+		{STRING_FOR_PARAM_LOCAL_OSC_A_WAVE_INDEX, "Osc1 wave pos."},
+
+		//OSC 2 Level, Pitch, Phase Width, Carrier Feedback, Wave Position
+		{STRING_FOR_PARAM_LOCAL_OSC_B_VOLUME, "Osc2 level"},
+		{STRING_FOR_PARAM_LOCAL_OSC_B_PITCH_ADJUST, "Osc2 pitch"},
+		{STRING_FOR_PARAM_LOCAL_OSC_B_PHASE_WIDTH, "Osc2 PW"},
+		{STRING_FOR_PARAM_LOCAL_CARRIER_1_FEEDBACK, "Osc2 feedback"},
+		{STRING_FOR_PARAM_LOCAL_OSC_B_WAVE_INDEX, "Osc2 wave pos."},
+
+		//FM Mod 1 Level, Pitch, Feedback
+		{STRING_FOR_PARAM_LOCAL_MODULATOR_0_VOLUME, "FM mod1 level"},
+		{STRING_FOR_PARAM_LOCAL_MODULATOR_0_PITCH_ADJUST, "FM mod1 pitch"},
+		{STRING_FOR_PARAM_LOCAL_MODULATOR_0_FEEDBACK, "FM mod1 feedback"},
+
+		//FM Mod 2 Level, Pitch, Feedback
+		{STRING_FOR_PARAM_LOCAL_MODULATOR_1_VOLUME, "FM mod2 level"},
+		{STRING_FOR_PARAM_LOCAL_MODULATOR_1_PITCH_ADJUST, "FM mod2 pitch"},
+		{STRING_FOR_PARAM_LOCAL_MODULATOR_1_FEEDBACK, "FM mod2 feedback"},
+
+		//Env 1 ADSR
+        {STRING_FOR_PARAM_LOCAL_ENV_0_ATTACK, "Env1 attack"},
+        {STRING_FOR_PARAM_LOCAL_ENV_0_DECAY, "Env1 decay"},
+        {STRING_FOR_PARAM_LOCAL_ENV_0_SUSTAIN, "Env1 sustain"},
+        {STRING_FOR_PARAM_LOCAL_ENV_0_RELEASE, "Env1 release"},
+
+		//Env 2 ADSR
+        {STRING_FOR_PARAM_LOCAL_ENV_1_ATTACK, "Env2 attack"},
+        {STRING_FOR_PARAM_LOCAL_ENV_1_DECAY, "Env2 decay"},
+        {STRING_FOR_PARAM_LOCAL_ENV_1_SUSTAIN, "Env2 sustain"},
+        {STRING_FOR_PARAM_LOCAL_ENV_1_RELEASE, "Env2 release"},
+
+		//LFO 1 Rate
+        {STRING_FOR_PARAM_GLOBAL_LFO_FREQ, "LFO1 rate"},
+
+		//LFO 2 Rate
+        {STRING_FOR_PARAM_LOCAL_LFO_LOCAL_FREQ, "LFO2 rate"},
+
+		//Mod FX Depth, Rate
+        {STRING_FOR_PARAM_GLOBAL_MOD_FX_DEPTH, "Mod-FX depth"},
+        {STRING_FOR_PARAM_GLOBAL_MOD_FX_RATE, "Mod-FX rate"},
+
+		//Arp Rate
+        {STRING_FOR_PARAM_GLOBAL_ARP_RATE, "Arp. rate"},
+
+		//Noise
+        {STRING_FOR_PARAM_LOCAL_NOISE_VOLUME, "Noise level"},
+
+
+		// Unpatched Params (originally from functions.cpp)
+
+		//Master Level, Pitch, Pan
+        {STRING_FOR_MASTER_LEVEL, "Master level"},
+		{STRING_FOR_MASTER_PITCH, "Master pitch"},
+        {STRING_FOR_MASTER_PAN, "Master pan"},
+
+		//LPF Frequency, Resonance
+        {STRING_FOR_LPF_FREQUENCY, "LPF frequency"},
+        {STRING_FOR_LPF_RESONANCE, "LPF resonance"},
+
+		//HPF Frequency, Resonance
+        {STRING_FOR_HPF_FREQUENCY, "HPF frequency"},
+        {STRING_FOR_HPF_RESONANCE, "HPF resonance"},
+
+		//Bass, Bass Freq
+        {STRING_FOR_BASS, "BASS"},
+        {STRING_FOR_BASS_FREQUENCY, "Bass frequency"},
+
+		//Treble, Treble Freq
+        {STRING_FOR_TREBLE, "TREBLE"},
+        {STRING_FOR_TREBLE_FREQUENCY, "Treble frequency"},
+
+		//Reverb Amount
+        {STRING_FOR_REVERB_AMOUNT, "Reverb amount"},
+
+		//Delay Rate, Amount
+        {STRING_FOR_DELAY_RATE, "Delay rate"},
+        {STRING_FOR_DELAY_AMOUNT, "Delay amount"},
+
+		//Sidechain Level, Shape
+        {STRING_FOR_SIDECHAIN_LEVEL, "Sidechain level"},
+        {STRING_FOR_SIDECHAIN_SHAPE, "Sidechain shape"},
+
+		//Decimation, Bitcrush
+        {STRING_FOR_DECIMATION, "DECIMATION"},
+        {STRING_FOR_BITCRUSH, "Bitcrush"},
+
+		//Mod FX Offset, Feedback, Depth, Rate
+        {STRING_FOR_MODFX_OFFSET, "MOD-FX offset"},
+        {STRING_FOR_MODFX_FEEDBACK, "MOD-FX feedback"},
+        {STRING_FOR_MODFX_DEPTH, "MOD-FX depth"},
+        {STRING_FOR_MODFX_RATE, "MOD-FX rate"},
+
+		//Arp Gate
+        {STRING_FOR_ARP_GATE_MENU_TITLE, "Arp. gate"},
+
+		//Portamento
+        {STRING_FOR_PORTAMENTO, "PORTAMENTO"},
+
+		/*
+		 * End Parameter Strings
+		 */
+
         // General
         {STRING_FOR_DISABLED, "OFF"},
         {STRING_FOR_ENABLED, "ON"},
