@@ -92,8 +92,12 @@ extern "C" {
 
 using namespace deluge::gui;
 
-const uint32_t auditionPadActionUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, UI_MODE_HORIZONTAL_SCROLL, UI_MODE_RECORD_COUNT_IN,
-                                             UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON, 0};
+const uint32_t auditionPadActionUIModes[] = {UI_MODE_NOTES_PRESSED,
+                                             UI_MODE_AUDITIONING,
+                                             UI_MODE_HORIZONTAL_SCROLL,
+                                             UI_MODE_RECORD_COUNT_IN,
+                                             UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON,
+                                             0};
 
 const uint32_t editPadActionUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, 0};
 
@@ -1423,14 +1427,14 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 					indicator_leds::setKnobIndicatorLevel(1, knobPos);
 
 					if (modelStackWithParam->getTimelineCounter()
-						== view.activeModControllableModelStack.getTimelineCounterAllowNull()) {	
+					    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 
 						if (leftPadSelectedX == xDisplay) {
 							squareStart = getPosFromSquare(leftPadSelectedX);
 						}
 
 						view.activeModControllableModelStack.paramManager->toForTimeline()->grabValuesFromPos(
-						squareStart, &view.activeModControllableModelStack);
+						    squareStart, &view.activeModControllableModelStack);
 					}
 
 					//display pad value of second pad pressed
@@ -2230,10 +2234,10 @@ void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int
 						indicator_leds::setKnobIndicatorLevel(whichModEncoder, newKnobPos + kKnobPosOffset);
 
 						if (modelStackWithParam->getTimelineCounter()
-							== view.activeModControllableModelStack.getTimelineCounterAllowNull()) {	
+						    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 
 							view.activeModControllableModelStack.paramManager->toForTimeline()->grabValuesFromPos(
-							squareStart, &view.activeModControllableModelStack);
+							    squareStart, &view.activeModControllableModelStack);
 						}
 
 						return;
@@ -3014,11 +3018,10 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 			if (modelStackWithParam && modelStackWithParam->autoParam) {
 
 				if (modelStackWithParam->getTimelineCounter()
-				    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {	
+				    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 
 					view.activeModControllableModelStack.paramManager->toForTimeline()->grabValuesFromPos(
-		    		squareStart, &view.activeModControllableModelStack);
-
+					    squareStart, &view.activeModControllableModelStack);
 				}
 			}
 
