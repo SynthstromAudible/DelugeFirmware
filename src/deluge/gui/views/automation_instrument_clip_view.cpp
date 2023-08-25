@@ -1405,12 +1405,36 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 					    getParameterKnobPos(modelStackWithParam, getPosFromSquare(leftPadSelectedX)) + kKnobPosOffset;
 					indicator_leds::setKnobIndicatorLevel(0, knobPos);
 
-					knobPos =
-					    getParameterKnobPos(modelStackWithParam, getPosFromSquare(rightPadSelectedX)) + kKnobPosOffset;
+					int32_t effectiveLength;
+
+					if (instrument->type == InstrumentType::KIT && !instrumentClipView.getAffectEntire()) {
+						ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowForSelectedDrum(modelStack);
+
+						effectiveLength = modelStackWithNoteRow->getLoopLength();
+					}
+					else {
+						//this will differ for a kit when in note row mode
+						effectiveLength = clip->loopLength;
+					}
+
+					int32_t squareRightEdge = getPosFromSquare(rightPadSelectedX + 1);
+					uint32_t squareStart = std::min(effectiveLength, squareRightEdge) - kParamNodeWidth;
+					knobPos = getParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
 					indicator_leds::setKnobIndicatorLevel(1, knobPos);
 
+					if (modelStackWithParam->getTimelineCounter()
+						== view.activeModControllableModelStack.getTimelineCounterAllowNull()) {	
+
+						if (leftPadSelectedX == xDisplay) {
+							squareStart = getPosFromSquare(leftPadSelectedX);
+						}
+
+						view.activeModControllableModelStack.paramManager->toForTimeline()->grabValuesFromPos(
+						squareStart, &view.activeModControllableModelStack);
+					}
+
 					//display pad value of second pad pressed
-					knobPos = getParameterKnobPos(modelStackWithParam, getPosFromSquare(xDisplay)) + kKnobPosOffset;
+					knobPos = getParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
 					displayParameterValue(knobPos);
 				}
 			}
@@ -2205,6 +2229,13 @@ void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int
 
 						indicator_leds::setKnobIndicatorLevel(whichModEncoder, newKnobPos + kKnobPosOffset);
 
+						if (modelStackWithParam->getTimelineCounter()
+							== view.activeModControllableModelStack.getTimelineCounterAllowNull()) {	
+
+							view.activeModControllableModelStack.paramManager->toForTimeline()->grabValuesFromPos(
+							squareStart, &view.activeModControllableModelStack);
+						}
+
 						return;
 					}
 				}
@@ -2969,13 +3000,27 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 			}
 
 			uint32_t squareStart = getPosFromSquare(xDisplay);
-			uint32_t squareWidth = instrumentClipView.getSquareWidth(xDisplay, effectiveLength);
-			if (squareWidth != 3) {
-				squareStart = squareStart + (squareWidth / 2);
+
+			if (!multiPadPressSelected) {
+				uint32_t squareWidth = instrumentClipView.getSquareWidth(xDisplay, effectiveLength);
+				if (squareWidth != 3) {
+					squareStart = squareStart + (squareWidth / 2);
+				}
 			}
 
 			int32_t knobPos = getParameterKnobPos(modelStackWithParam, squareStart);
 			displayParameterValue(knobPos + kKnobPosOffset);
+
+			if (modelStackWithParam && modelStackWithParam->autoParam) {
+
+				if (modelStackWithParam->getTimelineCounter()
+				    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {	
+
+					view.activeModControllableModelStack.paramManager->toForTimeline()->grabValuesFromPos(
+		    		squareStart, &view.activeModControllableModelStack);
+
+				}
+			}
 
 			if (!multiPadPressSelected) {
 				leftPadSelectedX = xDisplay;
