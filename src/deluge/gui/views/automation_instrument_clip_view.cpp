@@ -3261,7 +3261,7 @@ void AutomationInstrumentClipView::displayParameterName(int32_t paramID) {
 			display->popupText(buffer);
 		}
 		else {
-			display->setText(buffer, true, isAutomated ? 3 : 255, false);
+			display->setScrollingText(buffer);
 		}
 	}
 
