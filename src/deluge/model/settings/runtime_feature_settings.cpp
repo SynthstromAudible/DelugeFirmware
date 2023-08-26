@@ -89,9 +89,9 @@ void RuntimeFeatureSettings::init() {
 	                  RuntimeFeatureStateToggle::On);
 	// PatchCableResolution
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::PatchCableResolution], "Mod. depth decimals",
-	                  "ModDepthDecimals", RuntimeFeatureStateToggle::On);
+	                  "modDepthDecimals", RuntimeFeatureStateToggle::On);
 	// CatchNotes
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::CatchNotes], "CatchNotes", "catchNotes",
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::CatchNotes], "Catch Notes", "catchNotes",
 	                  RuntimeFeatureStateToggle::On);
 	// DeleteUnusedKitRows
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DeleteUnusedKitRows], "Delete Unused Kit Rows",
