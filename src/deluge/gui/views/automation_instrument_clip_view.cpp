@@ -3083,7 +3083,6 @@ void AutomationInstrumentClipView::handleMultiPadPress(ModelStackWithTimelineCou
 
 			//clear existing nodes from long press range
 			int32_t squareRightEdge = getPosFromSquare(secondPadX + 1);
-			//int32_t clearLength = std::min(effectiveLength, squareRightEdge) - getPosFromSquare(firstPadX);
 
 			//reset interpolation settings to default
 			initInterpolation();
