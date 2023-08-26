@@ -468,6 +468,39 @@ inline void getBlurColour(uint8_t rgb[], uint8_t fromRgb[]) {
 	rgb[2] = ((uint32_t)fromRgb[2] * 1 + averageBrightness) >> 5;
 }
 
+// clang-format off
+
+constexpr uint32_t IMat[4][4] = {{ONE_Q15, 0, 0, 0},
+							{0, ONE_Q15, 0, 0},
+							{0, 0, ONE_Q15, 0},
+							{0, 0, 0, ONE_Q15}};
+
+constexpr float c = cos(1.0f);
+constexpr float s = sin(1.0f);
+constexpr uint32_t RMat[4][4] = {{(uint32_t)(c*ONE_Q15), 		 			 0, (uint32_t)(s*ONE_Q15), 		 0},
+							 	 {(uint32_t)(s*ONE_Q15), (uint32_t)(c*ONE_Q15), 					0, 		 0},
+							 	 {		  			  0, (uint32_t)(s*ONE_Q15), (uint32_t)(c*ONE_Q15), 		 0},
+							 	 {		  			  0, 		 			 0, 					0, ONE_Q15}};
+
+// clang-format on
+
+inline void xformrgb(uint8_t rgb[], uint8_t fromRgb[], const uint32_t mat[4][4]) {
+
+	uint8_t r = fromRgb[0];
+	uint8_t g = fromRgb[1];
+	uint8_t b = fromRgb[2];
+
+	rgb[0] = (uint8_t)((r * mat[0][0] + g * mat[1][0] + b * mat[2][0] + mat[3][0]) >> 16);
+	rgb[1] = (uint8_t)((r * mat[0][1] + g * mat[1][1] + b * mat[2][1] + mat[3][1]) >> 16);
+	rgb[2] = (uint8_t)((r * mat[0][2] + g * mat[1][2] + b * mat[2][2] + mat[3][2]) >> 16);
+}
+/**
+ * This rotates the colour in fromRgb by 1 radian and places it in rgb
+ * This is useful to generate a complementary colour with the same brightness
+*/
+inline void rotateColour(uint8_t rgb[], uint8_t fromRgb[]) {
+	xformrgb(rgb, fromRgb, RMat);
+}
 inline void colorCopy(uint8_t* dest, uint8_t* src, uint8_t intensity, uint8_t brightnessDivider) {
 	dest[0] = (uint8_t)((src[0] * intensity / 255) / brightnessDivider);
 	dest[1] = (uint8_t)((src[1] * intensity / 255) / brightnessDivider);
