@@ -2990,7 +2990,7 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 		    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID, clip->lastSelectedParamKind);
 
 		if (padSelectionOn) {
-			//display pad's middle value
+			//display pad's value
 
 			int32_t effectiveLength;
 
@@ -3003,9 +3003,22 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 				effectiveLength = clip->loopLength;
 			}
 
-			uint32_t squareStart = getPosFromSquare(xDisplay);
+			uint32_t squareStart = 0;
 
-			if (!multiPadPressSelected) {
+			//if a long press is selected and you're checking value of start or end pad
+			//display value at very first or very last node
+			if (multiPadPressSelected && ((leftPadSelectedX == xDisplay) || (rightPadSelectedX == xDisplay))) {
+				if (leftPadSelectedX == xDisplay) {
+					squareStart = getPosFromSquare(xDisplay);
+				}
+				else {
+					int32_t squareRightEdge = getPosFromSquare(rightPadSelectedX + 1);
+					squareStart = std::min(effectiveLength, squareRightEdge) - kParamNodeWidth;
+				}
+			}
+			//display pad's middle value
+			else {
+				squareStart = getPosFromSquare(xDisplay);
 				uint32_t squareWidth = instrumentClipView.getSquareWidth(xDisplay, effectiveLength);
 				if (squareWidth != 3) {
 					squareStart = squareStart + (squareWidth / 2);
