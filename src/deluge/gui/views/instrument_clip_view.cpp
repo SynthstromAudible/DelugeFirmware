@@ -2068,7 +2068,7 @@ void InstrumentClipView::adjustProbability(int32_t offset) {
 							}
 							else {
 								// See if there's a prev-base
-								if (probabilityValue < kNumProbabilityValues
+								if (probabilityValue > 0 && probabilityValue < kNumProbabilityValues
 								    && getCurrentClip()->doesProbabilityExist(
 								        editPadPresses[i].intendedPos, probabilityValue,
 								        kNumProbabilityValues - probabilityValue)) {
@@ -2090,7 +2090,7 @@ void InstrumentClipView::adjustProbability(int32_t offset) {
 							}
 							else {
 								probabilityValue--;
-								prevBase = (probabilityValue < kNumProbabilityValues
+								prevBase = (probabilityValue > 0 && probabilityValue < kNumProbabilityValues
 								            && getCurrentClip()->doesProbabilityExist(
 								                editPadPresses[i].intendedPos, probabilityValue,
 								                kNumProbabilityValues - probabilityValue));
@@ -2158,7 +2158,7 @@ multiplePresses:
 		// Decide the probability, based on the existing probability of the leftmost note
 		probabilityValue = editPadPresses[leftMostIndex].intendedProbability & 127;
 		probabilityValue += offset;
-		probabilityValue = std::clamp<int32_t>(probabilityValue, 1, kNumProbabilityValues + kNumIterationValues);
+		probabilityValue = std::clamp<int32_t>(probabilityValue, 0, kNumProbabilityValues + kNumIterationValues);
 
 		Action* action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
 		if (!action) {
@@ -2201,7 +2201,8 @@ multiplePresses:
 				// Or, just 1 note in square
 				else {
 					// And if not one of the leftmost notes, make it a prev-base one - if we're doing actual percentage probabilities
-					if (probabilityValue < kNumProbabilityValues && editPadPresses[i].intendedPos != leftMostPos) {
+					if (probabilityValue > 0 && probabilityValue < kNumProbabilityValues
+					    && editPadPresses[i].intendedPos != leftMostPos) {
 						editPadPresses[i].intendedProbability |= 128;
 					}
 					noteRow->changeNotesAcrossAllScreens(editPadPresses[i].intendedPos, modelStackWithNoteRow, action,
@@ -5265,7 +5266,7 @@ justDisplayOldNumNotes:
 						Note* note = newNotes.getElement(n);
 						note->pos = (uint32_t)(n * numStepsAvailable) / (uint32_t)newNumNotes * squareWidth;
 						note->length = squareWidth;
-						note->probability = kNumProbabilityValues;
+						note->probability = noteRow->getDefaultProbability(modelStack);
 						note->velocity = ((Instrument*)clip->output)->defaultVelocity;
 						note->lift = kDefaultLiftValue;
 					}
