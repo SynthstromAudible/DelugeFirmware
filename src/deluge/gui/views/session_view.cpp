@@ -2406,15 +2406,15 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 
 	currentSong->currentClip = clip;
 
-	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
-		gridTransitionToViewForClip(clip);
-		return;
-	}
-
 	int32_t clipPlaceOnScreen = std::clamp(getClipPlaceOnScreen(clip), -1_i32, kDisplayHeight);
 
 	currentSong->xScroll[NAVIGATION_CLIP] =
 	    getClipLocalScroll(clip, currentSong->xScroll[NAVIGATION_CLIP], currentSong->xZoom[NAVIGATION_CLIP]);
+
+	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+		gridTransitionToViewForClip(clip);
+		return;
+	}
 
 	PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
 
