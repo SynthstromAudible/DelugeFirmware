@@ -1428,14 +1428,14 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 
 					if (!currentSong->isClipActive(clip)) {
 						if (modelStackWithParam->getTimelineCounter()
-							== view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+						    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 
 							if (leftPadSelectedX == xDisplay) {
 								squareStart = getPosFromSquare(leftPadSelectedX);
 							}
 
 							view.activeModControllableModelStack.paramManager->toForTimeline()->grabValuesFromPos(
-								squareStart, &view.activeModControllableModelStack);
+							    squareStart, &view.activeModControllableModelStack);
 						}
 					}
 
@@ -2237,10 +2237,10 @@ void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int
 
 						if (!currentSong->isClipActive(clip)) {
 							if (modelStackWithParam->getTimelineCounter()
-								== view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+							    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 
 								view.activeModControllableModelStack.paramManager->toForTimeline()->grabValuesFromPos(
-									squareStart, &view.activeModControllableModelStack);
+								    squareStart, &view.activeModControllableModelStack);
 							}
 						}
 
@@ -3036,10 +3036,10 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 
 				if (!currentSong->isClipActive(clip)) {
 					if (modelStackWithParam->getTimelineCounter()
-						== view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+					    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 
 						view.activeModControllableModelStack.paramManager->toForTimeline()->grabValuesFromPos(
-							squareStart, &view.activeModControllableModelStack);
+						    squareStart, &view.activeModControllableModelStack);
 					}
 				}
 			}
