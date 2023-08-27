@@ -1426,7 +1426,7 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 					knobPos = getParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
 					indicator_leds::setKnobIndicatorLevel(1, knobPos);
 
-					if (!currentSong->isClipActive(clip)) {
+					if (!playbackHandler.isEitherClockActive()) {
 						if (modelStackWithParam->getTimelineCounter()
 						    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 
@@ -2235,7 +2235,7 @@ void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int
 
 						indicator_leds::setKnobIndicatorLevel(whichModEncoder, newKnobPos + kKnobPosOffset);
 
-						if (!currentSong->isClipActive(clip)) {
+						if (!playbackHandler.isEitherClockActive()) {
 							if (modelStackWithParam->getTimelineCounter()
 							    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 
@@ -3034,7 +3034,7 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 
 			if (modelStackWithParam && modelStackWithParam->autoParam) {
 
-				if (!currentSong->isClipActive(clip)) {
+				if (!playbackHandler.isEitherClockActive()) {
 					if (modelStackWithParam->getTimelineCounter()
 					    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 
