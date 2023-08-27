@@ -2863,7 +2863,8 @@ void AutomationInstrumentClipView::setParameterAutomationValue(ModelStackWithAut
 	int32_t squareNodeRightStart = squareStart + kParamNodeWidth;
 	if (squareNodeRightStart < effectiveLength) {
 		int32_t currentValue = modelStack->autoParam->getValuePossiblyAtPos(squareNodeRightStart, modelStack);
-		modelStack->autoParam->setValuePossiblyForRegion(currentValue, modelStack, squareNodeRightStart, kParamNodeWidth);
+		modelStack->autoParam->setValuePossiblyForRegion(currentValue, modelStack, squareNodeRightStart,
+		                                                 kParamNodeWidth);
 	}
 
 	//reset interpolation to false for the single pad we're changing (so that the nodes around it don't also change)
