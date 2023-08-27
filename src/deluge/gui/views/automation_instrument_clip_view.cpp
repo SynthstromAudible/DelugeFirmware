@@ -2852,17 +2852,19 @@ void AutomationInstrumentClipView::setParameterAutomationValue(ModelStackWithAut
 	interpolationAfter = getNodeInterpolation(modelStack, squareStart, false);
 
 	//create a node to the left with the current interpolation status
-	if ((squareStart - kParamNodeWidth) >= 0) {
-		int32_t currentValue = modelStack->autoParam->getValuePossiblyAtPos(squareStart - kParamNodeWidth, modelStack);
-		modelStack->autoParam->setValuePossiblyForRegion(currentValue, modelStack, squareStart - kParamNodeWidth,
+	int32_t squareNodeLeftStart = squareStart - kParamNodeWidth;
+	if (squareNodeLeftStart >= 0) {
+		int32_t currentValue = modelStack->autoParam->getValuePossiblyAtPos(squareNodeLeftStart, modelStack);
+		modelStack->autoParam->setValuePossiblyForRegion(currentValue, modelStack, squareNodeLeftStart,
 		                                                 kParamNodeWidth);
 	}
 
 	//create a node to the right with the current interpolation status
-	int32_t squareRightEdge = squareStart + squareWidth;
-	if (squareRightEdge < effectiveLength) {
-		int32_t currentValue = modelStack->autoParam->getValuePossiblyAtPos(squareRightEdge, modelStack);
-		modelStack->autoParam->setValuePossiblyForRegion(currentValue, modelStack, squareRightEdge, kParamNodeWidth);
+	int32_t squareNodeRightStart = squareStart + kParamNodeWidth;
+	if (squareNodeRightStart < effectiveLength) {
+		int32_t currentValue = modelStack->autoParam->getValuePossiblyAtPos(squareNodeRightStart, modelStack);
+		modelStack->autoParam->setValuePossiblyForRegion(currentValue, modelStack, squareNodeRightStart,
+		                                                 kParamNodeWidth);
 	}
 
 	//reset interpolation to false for the single pad we're changing (so that the nodes around it don't also change)
@@ -3114,7 +3116,7 @@ void AutomationInstrumentClipView::handleMultiPadPress(ModelStackWithTimelineCou
 			                            effectiveLength, false);
 
 			//set value for ending pad press at the very last node position within that pad
-			squareStart = std::min(effectiveLength, squareRightEdge - kParamNodeWidth);
+			squareStart = std::min(effectiveLength, squareRightEdge) - kParamNodeWidth;
 			setParameterAutomationValue(modelStackWithParam, secondPadValue - kKnobPosOffset, squareStart, secondPadX,
 			                            effectiveLength, false);
 
