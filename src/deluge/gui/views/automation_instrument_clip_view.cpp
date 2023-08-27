@@ -1426,15 +1426,17 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 					knobPos = getParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
 					indicator_leds::setKnobIndicatorLevel(1, knobPos);
 
-					if (modelStackWithParam->getTimelineCounter()
-					    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+					if (!currentSong->isClipActive(clip)) {
+						if (modelStackWithParam->getTimelineCounter()
+							== view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 
-						if (leftPadSelectedX == xDisplay) {
-							squareStart = getPosFromSquare(leftPadSelectedX);
+							if (leftPadSelectedX == xDisplay) {
+								squareStart = getPosFromSquare(leftPadSelectedX);
+							}
+
+							view.activeModControllableModelStack.paramManager->toForTimeline()->grabValuesFromPos(
+								squareStart, &view.activeModControllableModelStack);
 						}
-
-						view.activeModControllableModelStack.paramManager->toForTimeline()->grabValuesFromPos(
-						    squareStart, &view.activeModControllableModelStack);
 					}
 
 					//display pad value of second pad pressed
@@ -2233,11 +2235,13 @@ void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int
 
 						indicator_leds::setKnobIndicatorLevel(whichModEncoder, newKnobPos + kKnobPosOffset);
 
-						if (modelStackWithParam->getTimelineCounter()
-						    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+						if (!currentSong->isClipActive(clip)) {
+							if (modelStackWithParam->getTimelineCounter()
+								== view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 
-							view.activeModControllableModelStack.paramManager->toForTimeline()->grabValuesFromPos(
-							    squareStart, &view.activeModControllableModelStack);
+								view.activeModControllableModelStack.paramManager->toForTimeline()->grabValuesFromPos(
+									squareStart, &view.activeModControllableModelStack);
+							}
 						}
 
 						return;
@@ -3030,11 +3034,13 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 
 			if (modelStackWithParam && modelStackWithParam->autoParam) {
 
-				if (modelStackWithParam->getTimelineCounter()
-				    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+				if (!currentSong->isClipActive(clip)) {
+					if (modelStackWithParam->getTimelineCounter()
+						== view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 
-					view.activeModControllableModelStack.paramManager->toForTimeline()->grabValuesFromPos(
-					    squareStart, &view.activeModControllableModelStack);
+						view.activeModControllableModelStack.paramManager->toForTimeline()->grabValuesFromPos(
+							squareStart, &view.activeModControllableModelStack);
+					}
 				}
 			}
 
