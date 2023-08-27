@@ -2150,7 +2150,7 @@ void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 	//if user holding a node down, we'll adjust the value of the selected parameter being automated
-	if ((currentUIMode == UI_MODE_NOTES_PRESSED) || padSelectionOn) {
+	if (isUIModeActive(UI_MODE_NOTES_PRESSED) || padSelectionOn) {
 
 		if (clip->lastSelectedParamID != kNoLastSelectedParamID
 		    && ((instrumentClipView.numEditPadPresses > 0
