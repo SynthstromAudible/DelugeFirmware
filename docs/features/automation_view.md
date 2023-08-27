@@ -33,9 +33,9 @@ Automatable Parameters are broken down into two categories for Automation Instru
 
 >The 24 parameters that can be edited are:
 >
-> - **Master** Level, Pan, Pitch
-> - **LPF** Cutoff, Resonance
-> - **HPF** Cutoff, Resonance
+> - **Master** Level, Pitch, Pan
+> - **LPF** Frequency, Resonance
+> - **HPF** Frequency, Resonance
 > - **EQ** Bass, Bass Frequency, Treble, Treble Frequency
 > - **Reverb** Amount
 > - **Delay** Rate, Amount

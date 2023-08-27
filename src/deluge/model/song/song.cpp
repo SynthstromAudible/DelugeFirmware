@@ -4314,7 +4314,8 @@ void Song::setParamsInAutomationMode(bool newState) {
 
 bool Song::canOldOutputBeReplaced(Clip* clip, Availability* availabilityRequirement) {
 	// If Clip has an "instance" within its Output in arranger, then we can only change the entire Output to a different Output
-	if (clip->output->clipHasInstance(clip)) {
+	// Same if grid layout is active in session mode since the clips would jump around otherwise
+	if (clip->output->clipHasInstance(clip) || currentSong->sessionLayout == SessionLayoutTypeGrid) {
 		if (availabilityRequirement) {
 			*availabilityRequirement = Availability::INSTRUMENT_UNUSED;
 		}
