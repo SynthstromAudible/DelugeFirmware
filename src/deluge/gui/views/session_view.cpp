@@ -3489,6 +3489,8 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 
 ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {
 	gridResetPresses();
+	gridPreventArm = false;
+	clipPressEnded();
 
 	// Fix the range
 	currentSong->songGridScrollY =

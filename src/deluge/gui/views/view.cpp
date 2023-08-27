@@ -255,7 +255,7 @@ doEndMidiLearnPressSession:
 						indicator_leds::setLedState(IndicatorLED::SAVE, false);
 					}
 				}
-				else if(currentUIMode == UI_MODE_NONE) {
+				else if (currentUIMode == UI_MODE_NONE) {
 					indicator_leds::setLedState(IndicatorLED::SAVE, false);
 				}
 			}
@@ -311,7 +311,7 @@ doEndMidiLearnPressSession:
 						indicator_leds::setLedState(IndicatorLED::LOAD, false);
 					}
 				}
-				else if(currentUIMode == UI_MODE_NONE) {
+				else if (currentUIMode == UI_MODE_NONE) {
 					indicator_leds::setLedState(IndicatorLED::LOAD, false);
 				}
 			}
