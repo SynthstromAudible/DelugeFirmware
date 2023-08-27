@@ -47,7 +47,7 @@ Everybody is invited to contribute to this repository as further outlined below:
 * Contributions can be anything that improves the project while fulfilling the requirements outlined below.
 * As an inspiration here is a small and incomplete list of improvement areas: documentation, commenting complex code mechanics, refactoring (make code easier to read/improve clarity/make execution more efficient/improve maintainability/ease modification/improve structure), feature improvements, new features, easier accessibility, toolchain improvements, unit tests and many, many more.
 * For information on the decision making process for accepting Pull requests please see below and also see the [Governance](GOVERNANCE.md) documentation.
-
+* To keep the list manageable all Pull requests without author activity for longer than two weeks will be labelled "stale" and will be closed after another week. The author is welcome to submit a new PR for the same work at any time.
 
 ## Requirements
 
