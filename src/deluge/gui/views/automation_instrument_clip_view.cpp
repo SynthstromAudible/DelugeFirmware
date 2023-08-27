@@ -3242,24 +3242,26 @@ void AutomationInstrumentClipView::displayParameterName(int32_t paramID) {
 
 		char buffer[30];
 
+		if (clip->lastSelectedParamKind == Param::Kind::PATCHED) {
+			strncpy(buffer, getPatchedParamDisplayName(paramID), 29);
+		}
+		else if (clip->lastSelectedParamKind == Param::Kind::UNPATCHED) {
+			strncpy(buffer, getUnpatchedParamDisplayName(paramID), 29);
+		}
+		else if (clip->lastSelectedParamKind == Param::Kind::GLOBAL_EFFECTABLE) {
+			strncpy(buffer, getGlobalEffectableParamDisplayName(paramID), 29);
+		}
+
 		//drawing Parameter Names on 7SEG isn't legible and not done currently, so won't do it here either
 		if (display->haveOLED()) {
-
-			if (clip->lastSelectedParamKind == Param::Kind::PATCHED) {
-				strncpy(buffer, getPatchedParamDisplayNameForOLED(paramID), 29);
-			}
-			else if (clip->lastSelectedParamKind == Param::Kind::UNPATCHED) {
-				strncpy(buffer, getUnpatchedParamDisplayNameForOLED(paramID), 29);
-			}
-			else if (clip->lastSelectedParamKind == Param::Kind::GLOBAL_EFFECTABLE) {
-				strncpy(buffer, getGlobalEffectableParamDisplayNameForOLED(paramID), 29);
-			}
-
 			if (isAutomated) {
 				strncat(buffer, "\n(automated)", 29);
 			}
 
 			display->popupText(buffer);
+		}
+		else {
+			display->setScrollingText(buffer);
 		}
 	}
 
