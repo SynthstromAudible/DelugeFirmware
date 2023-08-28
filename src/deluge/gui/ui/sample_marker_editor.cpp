@@ -50,6 +50,8 @@ extern "C" {
 #include "util/cfunctions.h"
 }
 
+using namespace deluge::gui;
+
 const uint8_t zeroes[] = {0, 0, 0, 0, 0, 0, 0, 0};
 
 int loopLength = 0;

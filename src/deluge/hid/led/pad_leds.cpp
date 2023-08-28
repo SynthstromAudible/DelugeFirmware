@@ -227,14 +227,14 @@ void clearAllPadsWithoutSending() {
 
 void clearMainPadsWithoutSending() {
 	for (auto& y : image) {
-		std::fill(&y[0], &y[kDisplayWidth], colours::black);
+		std::fill(&y[0], &y[kDisplayWidth], gui::colours::black);
 	}
 }
 
 void clearSideBar() {
 	for (auto& y : image) {
-		y[kDisplayWidth] = colours::black;
-		y[kDisplayWidth + 1] = colours::black;
+		y[kDisplayWidth] = gui::colours::black;
+		y[kDisplayWidth + 1] = gui::colours::black;
 	}
 
 	sendOutSidebarColours();
@@ -261,8 +261,8 @@ void sortLedsForCol(int32_t x) {
 
 const RGB flashColours[3] = {
     {130, 120, 130},
-    colours::muted, // Not used anymore
-    colours::red,
+    gui::colours::muted, // Not used anymore
+    gui::colours::red,
 };
 
 RGB prepareColour(int32_t x, int32_t y, RGB colourSource) {
@@ -305,7 +305,7 @@ void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, 
 
 	if (!(isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING) || isUIModeActive(UI_MODE_INSTRUMENT_CLIP_EXPANDING))) {
 		for (int32_t row = 0; row < kDisplayHeight; row++) {
-			image[row][kDisplayWidth] = colours::enabled;
+			image[row][kDisplayWidth] = gui::colours::enabled;
 			occupancyMask[row][kDisplayWidth] = 64;
 		}
 	}
@@ -368,7 +368,7 @@ void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, 
 			// Or if it's greyed out cos of triplets...
 			if (!instrumentClipView.isSquareDefined(col, currentSong->xScroll[NAVIGATION_CLIP])) {
 				for (int32_t yDisplay = greyBottom; yDisplay < greyTop; yDisplay++) {
-					PadLEDs::image[yDisplay][col] = colours::grey;
+					PadLEDs::image[yDisplay][col] = gui::colours::grey;
 				}
 				continue;
 			}
@@ -473,7 +473,7 @@ void renderAudioClipCollapseAnimation(int32_t progress) {
 		for (int32_t yDisplay = greyBottom; yDisplay < greyTop; yDisplay++) {
 			for (auto* it = &PadLEDs::image[yDisplay][xEnd];
 			     it != &PadLEDs::image[yDisplay][xEnd] + (kDisplayWidth - xEnd); it++) {
-				*it = colours::grey;
+				*it = gui::colours::grey;
 			}
 		}
 	}
@@ -1193,7 +1193,7 @@ void renderZoomWithProgress(int32_t inImageTimesBiggerThanNative, uint32_t inIma
 					}
 				}
 				else {
-					PadLEDs::image[yDisplay][xDisplay] = colours::black;
+					PadLEDs::image[yDisplay][xDisplay] = gui::colours::black;
 				}
 			}
 		}

@@ -51,6 +51,8 @@ extern "C" {
 extern uint8_t currentlyAccessingCard;
 }
 
+using namespace deluge::gui;
+
 AudioClipView audioClipView{};
 
 AudioClipView::AudioClipView() {

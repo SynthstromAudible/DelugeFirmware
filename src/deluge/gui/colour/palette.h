@@ -1,7 +1,7 @@
 #pragma once
 #include "rgb.h"
 
-namespace colours {
+namespace deluge::gui::colours {
 using Colour = RGB;
 
 // Standard palette, with some modifications for the deluge (see _full)
@@ -10,7 +10,6 @@ constexpr Colour grey = RGB::monochrome(7);
 constexpr Colour white_full = RGB::monochrome(255);
 constexpr Colour white = white_full.dim();
 constexpr Colour red = RGB(255, 0, 0);
-constexpr Colour red_alt = RGB(255, 1, 0);
 constexpr Colour red_dull = RGB(60, 15, 15);
 constexpr Colour red_orange = RGB(255, 64, 0);
 constexpr Colour orange = RGB(255, 128, 0);
@@ -95,4 +94,4 @@ constexpr Colour white = RGB(255, 255, 255);
 
 } // namespace wad
 
-} // namespace colours
+} // namespace deluge::gui::colours

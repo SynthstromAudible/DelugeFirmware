@@ -57,6 +57,8 @@ void routineForSD(void);
 }
 extern void setupBlankSong();
 
+using namespace deluge::gui;
+
 LoadSongUI::LoadSongUI() {
 	qwertyAlwaysVisible = false;
 	filePrefix = "SONG";

@@ -53,6 +53,8 @@ extern "C" {
 #include "util/cfunctions.h"
 }
 
+using namespace deluge::gui;
+
 Slicer slicer{};
 
 void Slicer::focusRegained() {

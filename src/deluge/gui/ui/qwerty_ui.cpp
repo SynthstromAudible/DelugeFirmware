@@ -32,6 +32,8 @@
 #include "util/misc.h"
 #include <string.h>
 
+using namespace deluge::gui;
+
 bool QwertyUI::predictionInterrupted;
 String QwertyUI::enteredText{};
 //entered text edit position is the first difference from

@@ -614,7 +614,7 @@ bool Clip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, Timeline
                              int32_t noteRowIndexStart, int32_t noteRowIndexEnd, int32_t xStart, int32_t xEnd,
                              bool allowBlur, bool drawRepeats) {
 
-	std::fill(&image[xStart], &image[xStart] + (xEnd - xStart), colours::black);
+	std::fill(&image[xStart], &image[xStart] + (xEnd - xStart), gui::colours::black);
 	if (occupancyMask) {
 		memset(&occupancyMask[xStart], 0, (xEnd - xStart));
 	}
