@@ -106,7 +106,7 @@ constexpr Language seven_segment{
         {STRING_FOR_RANDOM, "RANDOM"},
 
         // gui/menu_item/cv/selection.h
-        {STRING_FOR_CV_OUTPUT_N, "OUT{}"},
+        {STRING_FOR_CV_OUTPUT_N, "OUT*"},
 
         // gui/menu_item/delay/analog.h
         {STRING_FOR_DIGITAL, "DIGI"},
@@ -131,7 +131,7 @@ constexpr Language seven_segment{
 
         // gui/menu_item/gate/selection.h
         {STRING_FOR_GATE_MODE_TITLE, ""},
-        {STRING_FOR_GATE_OUTPUT_N, "OUT{}"},
+        {STRING_FOR_GATE_OUTPUT_N, "OUT*"},
         {STRING_FOR_MINIMUM_OFF_TIME, "OFFT"},
 
         // gui/menu_item/lfo/shape.h
@@ -155,7 +155,7 @@ constexpr Language seven_segment{
 
         // gui/menu_item/modulator/destination.h
         {STRING_FOR_CARRIERS, "CARRIERS"},
-        {STRING_FOR_MODULATOR_N, "Mod{}"},
+        {STRING_FOR_MODULATOR_N, "Mod*"},
 
         // gui/menu_item/monitor/mode.h
         {STRING_FOR_CONDITIONAL, "COND"},
