@@ -12,7 +12,6 @@
 #include "source_selection/regular.h"
 #include "util/container/static_vector.hpp"
 #include "util/functions.h"
-#include <fmt/core.h>
 
 namespace deluge::gui::menu_item {
 
@@ -78,12 +77,10 @@ void PatchCables::renderOptions() {
 
 		int32_t param_value = cable->param.getCurrentValue();
 		int32_t level = ((int64_t)param_value * 5000 + (1 << 29)) >> 30;
-		if (level >= 100 || level <= -100) {
-			fmt::vformat_to_n(buf + off + 5, 5, "{:4}", fmt::make_format_args(level / 100));
-		}
-		else {
-			fmt::vformat_to_n(buf + off + 5, 5, "{:4}", fmt::make_format_args((float)level / 100));
-		}
+		char buffer[12];
+
+		floatToString((float)level / 100, buf + off + 5, 2, 2);
+		//fmt::vformat_to_n(buf + off + 5, 5, "{:4}", fmt::make_format_args();
 
 		buf[off + 9] = ' ';
 		strncpy(buf + off + 10, dest_name, item_max_len - 10 - off);

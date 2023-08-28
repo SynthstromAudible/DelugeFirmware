@@ -65,6 +65,17 @@ void intToString(int32_t number, char* __restrict__ buffer, int32_t minNumDigits
 		number = divided;
 	}
 }
+/**
+ * Warning: not a good function. Replaces {} with a 2 digit int
+*/
+
+void asterixToInt(int32_t number, char* __restrict__ buffer) {
+	while (number>9) {
+		number /= 10;
+	}
+	char* writePos = strchr(buffer, '*');
+	intToString(number, writePos,1);
+}
 
 void floatToString(float number, char* __restrict__ buffer, int32_t minNumDecimalPlaces, int32_t maxNumDecimalPlaces) {
 
