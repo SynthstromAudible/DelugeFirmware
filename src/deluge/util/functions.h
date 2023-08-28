@@ -24,6 +24,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <string>
 extern "C" {
 #include "util/cfunctions.h"
 }
@@ -141,7 +142,11 @@ static constexpr uint32_t charsToIntegerConstant(char a, char b, char c, char d)
 static constexpr uint16_t charsToIntegerConstant(char a, char b) {
 	return (static_cast<uint16_t>(a)) | (static_cast<uint16_t>(b) << 8);
 }
-
+static std::string asterixToInt(std::string_view strv, int32_t i) {
+	std::string str = std::string(strv);
+	std::replace(str.begin(), str.end(), '*', (char)('0' + i));
+	return str;
+}
 int32_t stringToInt(char const* string);
 int32_t stringToUIntOrError(char const* mem);
 int32_t memToUIntOrError(char const* mem, char const* const memEnd);

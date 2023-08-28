@@ -264,6 +264,8 @@ constexpr Language english{
 
         // gui/menu_item/cv/selection.h
         {STRING_FOR_CV_OUTPUT_N, "CV output *"},
+        {STRING_FOR_CV_OUTPUT_1, "CV output 1"},
+        {STRING_FOR_CV_OUTPUT_2, "CV output 2"},
 
         // gui/menu_item/delay/analog.h
         {STRING_FOR_DIGITAL, "Digital"},
@@ -286,7 +288,10 @@ constexpr Language english{
 
         // gui/menu_item/gate/selection.h
         {STRING_FOR_GATE_MODE_TITLE, "Gate out* mode"},
-        {STRING_FOR_GATE_OUTPUT_N, "Gate output *"},
+        {STRING_FOR_GATE_OUTPUT_1, "Gate output 1"},
+        {STRING_FOR_GATE_OUTPUT_2, "Gate output 2"},
+        {STRING_FOR_GATE_OUTPUT_3, "Gate output 3"},
+        {STRING_FOR_GATE_OUTPUT_4, "Gate output 4"},
         {STRING_FOR_MINIMUM_OFF_TIME, "Minimum off-time"},
 
         // gui/menu_item/lfo/shape.h
@@ -310,7 +315,8 @@ constexpr Language english{
 
         // gui/menu_item/modulator/destination.h
         {STRING_FOR_CARRIERS, "Carriers"},
-        {STRING_FOR_MODULATOR_N, "Modulator *"},
+        {STRING_FOR_MODULATOR_1, "Modulator 1"},
+        {STRING_FOR_MODULATOR_2, "Modulator 2"},
 
         // gui/menu_item/monitor/mode.h
         {STRING_FOR_CONDITIONAL, "Conditional"},
