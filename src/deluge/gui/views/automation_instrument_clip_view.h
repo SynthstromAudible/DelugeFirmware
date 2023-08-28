@@ -61,6 +61,7 @@ public:
 	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 	void displayAutomation();
+	void renderOLED(int32_t knobPos = kNoKnobPos);
 	void displayParameterName(int32_t paramID);
 	void setDisplayParameterNameTimer();
 
@@ -105,6 +106,8 @@ public:
 	//not sure how this is used
 	ClipMinder* toClipMinder() { return this; }
 
+	bool isOnAutomationOverview();
+	
 	bool interpolation;
 	bool interpolationBefore;
 	bool interpolationAfter;
@@ -160,7 +163,6 @@ private:
 	                         int32_t firstPadY, int32_t secondPadX, int32_t secondPadY, bool modEncoderAction = false);
 
 	int32_t calculateKnobPosForModEncoderTurn(int32_t knobPos, int32_t offset);
-	bool isOnParameterGridMenuView();
 	void displayParameterValue(int32_t knobPos);
 	void displayCVErrorMessage();
 	void resetShortcutBlinking();

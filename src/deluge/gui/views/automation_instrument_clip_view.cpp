@@ -819,6 +819,120 @@ bool AutomationInstrumentClipView::renderSidebar(uint32_t whichRows, uint8_t ima
 	return instrumentClipView.renderSidebar(whichRows, image, occupancyMask);
 }
 
+void AutomationInstrumentClipView::renderOLED(int32_t knobPos) {
+
+	deluge::hid::display::OLED::clearMainImage();
+
+	InstrumentClip* clip = getCurrentClip();
+	Instrument* instrument = (Instrument*)clip->output;
+
+	if ((clip->lastSelectedParamID == kNoLastSelectedParamID) || (instrument->type == InstrumentType::CV)) {
+
+	#if OLED_MAIN_HEIGHT_PIXELS == 64
+			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 24;
+	#else
+			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 15;
+	#endif
+
+		if (instrument->type != InstrumentType::CV) {
+			char const* outputTypeText;
+			outputTypeText = "Automation Overview";
+			deluge::hid::display::OLED::drawStringCentred(outputTypeText, yPos,
+															  deluge::hid::display::OLED::oledMainImage[0],
+															  OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+		}
+		else {
+			deluge::hid::display::OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_CANT_AUTOMATE_CV), yPos,
+															  deluge::hid::display::OLED::oledMainImage[0],
+															  OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+		}
+	}
+	else {
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+		ModelStackWithAutoParam* modelStackWithParam =
+			getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID, clip->lastSelectedParamKind);
+		bool isAutomated = false;
+
+		//check if Parameter is currently automated so that the automation status can be drawn on the screen with the Parameter Name
+		if (modelStackWithParam && modelStackWithParam->autoParam) {
+			if (modelStackWithParam->autoParam->isAutomated()) {
+				isAutomated = true;
+			}
+		}
+
+		char buffer[30];
+
+		if (instrument->type == InstrumentType::SYNTH || instrument->type == InstrumentType::KIT) {
+
+			if (clip->lastSelectedParamKind == Param::Kind::PATCHED) {
+				strncpy(buffer, getPatchedParamDisplayName(clip->lastSelectedParamID), 29);
+			}
+			else if (clip->lastSelectedParamKind == Param::Kind::UNPATCHED) {
+				strncpy(buffer, getUnpatchedParamDisplayName(clip->lastSelectedParamID), 29);
+			}
+			else if (clip->lastSelectedParamKind == Param::Kind::GLOBAL_EFFECTABLE) {
+				strncpy(buffer, getGlobalEffectableParamDisplayName(clip->lastSelectedParamID), 29);
+			}
+		}
+		else if (instrument->type == InstrumentType::MIDI_OUT) {
+
+			if (clip->lastSelectedParamID == CC_NUMBER_NONE) {
+				strcpy(buffer, deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_PARAM));
+			}
+			else if (clip->lastSelectedParamID == CC_NUMBER_PITCH_BEND) {
+				strcpy(buffer, deluge::l10n::get(deluge::l10n::String::STRING_FOR_PITCH_BEND));
+			}
+			else if (clip->lastSelectedParamID == CC_NUMBER_AFTERTOUCH) {
+				strcpy(buffer, deluge::l10n::get(deluge::l10n::String::STRING_FOR_CHANNEL_PRESSURE));
+			}
+			else {
+				buffer[0] = 'C';
+				buffer[1] = 'C';
+				buffer[2] = ' ';
+				intToString(clip->lastSelectedParamID, &buffer[3]);
+			}
+		}
+
+		if (instrument->type != InstrumentType::CV) {
+
+		#if OLED_MAIN_HEIGHT_PIXELS == 64
+				int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
+		#else
+				int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
+		#endif
+				deluge::hid::display::OLED::drawStringCentred(buffer, yPos,
+															  deluge::hid::display::OLED::oledMainImage[0],
+															  OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+
+			yPos = yPos + 12;
+
+			char const* outputTypeText;
+
+			if (isAutomated) {
+				outputTypeText = "(Automated)";
+			}
+			else {
+				outputTypeText = "(Not Automated)";
+			}
+
+			deluge::hid::display::OLED::drawStringCentred(outputTypeText, yPos,
+														  deluge::hid::display::OLED::oledMainImage[0],
+														  OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+
+			yPos = yPos + 12;
+
+			char buffer2[5];
+			intToString(knobPos, buffer2);
+			deluge::hid::display::OLED::drawStringCentred(buffer2, yPos,
+															  deluge::hid::display::OLED::oledMainImage[0],
+															  OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+		}
+	}
+
+	deluge::hid::display::OLED::sendMainImage();
+}
+
 //adjust the LED meters
 void AutomationInstrumentClipView::displayAutomation() {
 
@@ -840,6 +954,8 @@ void AutomationInstrumentClipView::displayAutomation() {
 				    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 
 					int32_t knobPos = getParameterKnobPos(modelStackWithParam, view.modPos);
+
+					renderOLED(knobPos + kKnobPosOffset);
 
 					indicator_leds::setKnobIndicatorLevel(0, knobPos + kKnobPosOffset);
 					indicator_leds::setKnobIndicatorLevel(1, knobPos + kKnobPosOffset);
@@ -1067,7 +1183,7 @@ doOther:
 
 		// If user wants to "multiple" Clip contents
 		if (on && Buttons::isShiftButtonPressed() && !isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)
-		    && !isOnParameterGridMenuView()) {
+		    && !isOnAutomationOverview()) {
 			if (isNoUIModeActive()) {
 				if (inCardRoutine) {
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -1236,16 +1352,16 @@ ActionResult AutomationInstrumentClipView::padAction(int32_t x, int32_t y, int32
 	InstrumentClip* clip = getCurrentClip();
 	Instrument* instrument = (Instrument*)clip->output;
 
-	if (instrument->type == InstrumentType::CV) {
-		displayCVErrorMessage();
-		return ActionResult::DEALT_WITH;
-	}
-
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 	// Edit pad action...
 	if (x < kDisplayWidth) {
+		if (instrument->type == InstrumentType::CV) {
+			displayCVErrorMessage();
+			return ActionResult::DEALT_WITH;
+		}
+
 		if (sdRoutineLock) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
@@ -1803,7 +1919,7 @@ ActionResult AutomationInstrumentClipView::horizontalEncoderAction(int32_t offse
 	}
 
 	//else if showing the Parameter selection grid menu, disable this action
-	else if (isOnParameterGridMenuView()) {
+	else if (isOnAutomationOverview()) {
 		return ActionResult::DEALT_WITH;
 	}
 
@@ -2696,20 +2812,14 @@ void AutomationInstrumentClipView::initParameterSelection() {
 
 	display->cancelPopup();
 
-	//if we're going back to the Automation Overview, set the display to show Midi Channel again (7seg only)
-	if (instrument->type == InstrumentType::MIDI_OUT) {
-
-		if (display->have7SEG()) {
-			if (((MIDIInstrument*)instrument)->channel < 16) {
-				display->setTextAsSlot(((MIDIInstrument*)instrument)->channel + 1,
-				                       ((MIDIInstrument*)instrument)->channelSuffix, false, false);
-			}
-			else {
-				char const* text =
-				    (((MIDIInstrument*)instrument)->channel == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "Lower" : "Upper";
-				display->setText(text, false, 255, false);
-			}
-		}
+	//if we're going back to the Automation Overview, set the display to show "Automation Overview"
+	if (display->haveOLED()) {
+		renderOLED();
+	}
+	else {
+		char const* outputTypeText;
+		outputTypeText = "Automation Overview";
+		display->setScrollingText(outputTypeText);
 	}
 }
 
@@ -3294,7 +3404,7 @@ int32_t AutomationInstrumentClipView::calculateKnobPosForModEncoderTurn(int32_t 
 
 //used to disable certain actions on the automation overview screen
 //e.g. doubling clip length, editing clip length
-bool AutomationInstrumentClipView::isOnParameterGridMenuView() {
+bool AutomationInstrumentClipView::isOnAutomationOverview() {
 
 	InstrumentClip* clip = getCurrentClip();
 
@@ -3314,51 +3424,43 @@ void AutomationInstrumentClipView::displayParameterName(int32_t paramID) {
 		return;
 	}
 
-	InstrumentClip* clip = getCurrentClip();
-	Instrument* instrument = (Instrument*)clip->output;
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-	ModelStackWithAutoParam* modelStackWithParam =
-	    getModelStackWithParam(modelStack, clip, paramID, clip->lastSelectedParamKind);
-	bool isAutomated = false;
+	if (!display->haveOLED()) {
+		InstrumentClip* clip = getCurrentClip();
+		Instrument* instrument = (Instrument*)clip->output;
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+		ModelStackWithAutoParam* modelStackWithParam =
+			getModelStackWithParam(modelStack, clip, paramID, clip->lastSelectedParamKind);
+		bool isAutomated = false;
 
-	//check if Parameter is currently automated so that the automation status can be drawn on the screen with the Parameter Name
-	if (modelStackWithParam && modelStackWithParam->autoParam) {
-		if (modelStackWithParam->autoParam->isAutomated()) {
-			isAutomated = true;
-		}
-	}
-
-	if (instrument->type == InstrumentType::SYNTH || instrument->type == InstrumentType::KIT) {
-
-		char buffer[30];
-
-		if (clip->lastSelectedParamKind == Param::Kind::PATCHED) {
-			strncpy(buffer, getPatchedParamDisplayName(paramID), 29);
-		}
-		else if (clip->lastSelectedParamKind == Param::Kind::UNPATCHED) {
-			strncpy(buffer, getUnpatchedParamDisplayName(paramID), 29);
-		}
-		else if (clip->lastSelectedParamKind == Param::Kind::GLOBAL_EFFECTABLE) {
-			strncpy(buffer, getGlobalEffectableParamDisplayName(paramID), 29);
+		//check if Parameter is currently automated so that the automation status can be drawn on the screen with the Parameter Name
+		if (modelStackWithParam && modelStackWithParam->autoParam) {
+			if (modelStackWithParam->autoParam->isAutomated()) {
+				isAutomated = true;
+			}
 		}
 
-		//drawing Parameter Names on 7SEG isn't legible and not done currently, so won't do it here either
-		if (display->haveOLED()) {
-			if (isAutomated) {
-				strncat(buffer, "\n(automated)", 29);
+		if (instrument->type == InstrumentType::SYNTH || instrument->type == InstrumentType::KIT) {
+
+			char buffer[30];
+
+			if (clip->lastSelectedParamKind == Param::Kind::PATCHED) {
+				strncpy(buffer, getPatchedParamDisplayName(paramID), 29);
+			}
+			else if (clip->lastSelectedParamKind == Param::Kind::UNPATCHED) {
+				strncpy(buffer, getUnpatchedParamDisplayName(paramID), 29);
+			}
+			else if (clip->lastSelectedParamKind == Param::Kind::GLOBAL_EFFECTABLE) {
+				strncpy(buffer, getGlobalEffectableParamDisplayName(paramID), 29);
 			}
 
-			display->popupText(buffer);
-		}
-		else {
 			display->setScrollingText(buffer);
 		}
-	}
 
-	else if (instrument->type == InstrumentType::MIDI_OUT) {
+		else if (instrument->type == InstrumentType::MIDI_OUT) {
 
-		InstrumentClipMinder::drawMIDIControlNumber(paramID, isAutomated);
+			InstrumentClipMinder::drawMIDIControlNumber(paramID, isAutomated);
+		}
 	}
 }
 
@@ -3367,20 +3469,21 @@ void AutomationInstrumentClipView::displayParameterValue(int32_t knobPos) {
 
 	lastPadSelectedKnobPos = knobPos;
 
-	char buffer[5];
-
-	intToString(knobPos, buffer);
-	if (isUIModeActive(UI_MODE_NOTES_PRESSED)) {
-		if (display->haveOLED()) {
-			display->popupText(buffer);
-		}
-		else {
-			display->setText(buffer, false, 255, false);
-		}
+	if (display->haveOLED()) {
+		renderOLED(knobPos);
 	}
 	else {
-		display->displayPopup(buffer);
-		setDisplayParameterNameTimer();
+		char buffer[5];
+
+		intToString(knobPos, buffer);
+
+		if (isUIModeActive(UI_MODE_NOTES_PRESSED)) {
+			display->setText(buffer, false, 255, false);
+		}
+		else {
+			display->displayPopup(buffer);
+			setDisplayParameterNameTimer();
+		}
 	}
 
 	if (padSelectionOn && !multiPadPressSelected) {
@@ -3390,18 +3493,22 @@ void AutomationInstrumentClipView::displayParameterValue(int32_t knobPos) {
 }
 
 void AutomationInstrumentClipView::displayCVErrorMessage() {
-	display->displayPopup(l10n::get(l10n::String::STRING_FOR_CANT_AUTOMATE_CV));
+	if (display->have7SEG()) {
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_CANT_AUTOMATE_CV));
+	}
 }
 
 void AutomationInstrumentClipView::setDisplayParameterNameTimer() {
 
-	InstrumentClip* clip = getCurrentClip();
-	Instrument* instrument = (Instrument*)clip->output;
+	if (display->have7SEG()) {
+		InstrumentClip* clip = getCurrentClip();
+		Instrument* instrument = (Instrument*)clip->output;
 
-	//after you displayed a pop up with the parameter value, redisplay the parameter name on the screen
-	if (clip->lastSelectedParamID != kNoLastSelectedParamID) {
+		//after you displayed a pop up with the parameter value, redisplay the parameter name on the screen
+		if (clip->lastSelectedParamID != kNoLastSelectedParamID) {
 
-		uiTimerManager.setTimer(TIMER_AUTOMATION_VIEW, 700);
+			uiTimerManager.setTimer(TIMER_AUTOMATION_VIEW, 700);
+		}
 	}
 }
 
