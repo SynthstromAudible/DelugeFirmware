@@ -92,12 +92,16 @@ extern "C" {
 
 using namespace deluge::gui;
 
-const uint32_t auditionPadActionUIModes[] = {UI_MODE_AUDITIONING, UI_MODE_HORIZONTAL_SCROLL, UI_MODE_RECORD_COUNT_IN,
-                                             UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON, 0};
+const uint32_t auditionPadActionUIModes[] = {UI_MODE_NOTES_PRESSED,
+                                             UI_MODE_AUDITIONING,
+                                             UI_MODE_HORIZONTAL_SCROLL,
+                                             UI_MODE_RECORD_COUNT_IN,
+                                             UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON,
+                                             0};
 
 const uint32_t editPadActionUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, 0};
 
-const uint32_t mutePadActionUIModes[] = {UI_MODE_AUDITIONING, 0};
+const uint32_t mutePadActionUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, 0};
 
 static const uint32_t verticalScrollUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN,
                                                  0};
@@ -1408,12 +1412,38 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 					    getParameterKnobPos(modelStackWithParam, getPosFromSquare(leftPadSelectedX)) + kKnobPosOffset;
 					indicator_leds::setKnobIndicatorLevel(0, knobPos);
 
-					knobPos =
-					    getParameterKnobPos(modelStackWithParam, getPosFromSquare(rightPadSelectedX)) + kKnobPosOffset;
+					int32_t effectiveLength;
+
+					if (instrument->type == InstrumentType::KIT && !instrumentClipView.getAffectEntire()) {
+						ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowForSelectedDrum(modelStack);
+
+						effectiveLength = modelStackWithNoteRow->getLoopLength();
+					}
+					else {
+						//this will differ for a kit when in note row mode
+						effectiveLength = clip->loopLength;
+					}
+
+					int32_t squareRightEdge = getPosFromSquare(rightPadSelectedX + 1);
+					uint32_t squareStart = std::min(effectiveLength, squareRightEdge) - kParamNodeWidth;
+					knobPos = getParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
 					indicator_leds::setKnobIndicatorLevel(1, knobPos);
 
+					if (!playbackHandler.isEitherClockActive()) {
+						if (modelStackWithParam->getTimelineCounter()
+						    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+
+							if (leftPadSelectedX == xDisplay) {
+								squareStart = getPosFromSquare(leftPadSelectedX);
+							}
+
+							view.activeModControllableModelStack.paramManager->toForTimeline()->grabValuesFromPos(
+							    squareStart, &view.activeModControllableModelStack);
+						}
+					}
+
 					//display pad value of second pad pressed
-					knobPos = getParameterKnobPos(modelStackWithParam, getPosFromSquare(xDisplay)) + kKnobPosOffset;
+					knobPos = getParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
 					displayParameterValue(knobPos);
 				}
 			}
@@ -2145,7 +2175,7 @@ void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 	//if user holding a node down, we'll adjust the value of the selected parameter being automated
-	if ((currentUIMode == UI_MODE_NOTES_PRESSED) || padSelectionOn) {
+	if (isUIModeActive(UI_MODE_NOTES_PRESSED) || padSelectionOn) {
 
 		if (clip->lastSelectedParamID != kNoLastSelectedParamID
 		    && ((instrumentClipView.numEditPadPresses > 0
@@ -2229,6 +2259,15 @@ void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int
 						handleMultiPadPress(modelStack, clip, leftPadSelectedX, 0, rightPadSelectedX, 0, true);
 
 						indicator_leds::setKnobIndicatorLevel(whichModEncoder, newKnobPos + kKnobPosOffset);
+
+						if (!playbackHandler.isEitherClockActive()) {
+							if (modelStackWithParam->getTimelineCounter()
+							    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+
+								view.activeModControllableModelStack.paramManager->toForTimeline()->grabValuesFromPos(
+								    squareStart, &view.activeModControllableModelStack);
+							}
+						}
 
 						return;
 					}
@@ -2984,7 +3023,7 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 		    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID, clip->lastSelectedParamKind);
 
 		if (padSelectionOn) {
-			//display pad's middle value
+			//display pad's value
 
 			int32_t effectiveLength;
 
@@ -2997,14 +3036,42 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 				effectiveLength = clip->loopLength;
 			}
 
-			uint32_t squareStart = getPosFromSquare(xDisplay);
-			uint32_t squareWidth = instrumentClipView.getSquareWidth(xDisplay, effectiveLength);
-			if (squareWidth != 3) {
-				squareStart = squareStart + (squareWidth / 2);
+			uint32_t squareStart = 0;
+
+			//if a long press is selected and you're checking value of start or end pad
+			//display value at very first or very last node
+			if (multiPadPressSelected && ((leftPadSelectedX == xDisplay) || (rightPadSelectedX == xDisplay))) {
+				if (leftPadSelectedX == xDisplay) {
+					squareStart = getPosFromSquare(xDisplay);
+				}
+				else {
+					int32_t squareRightEdge = getPosFromSquare(rightPadSelectedX + 1);
+					squareStart = std::min(effectiveLength, squareRightEdge) - kParamNodeWidth;
+				}
+			}
+			//display pad's middle value
+			else {
+				squareStart = getPosFromSquare(xDisplay);
+				uint32_t squareWidth = instrumentClipView.getSquareWidth(xDisplay, effectiveLength);
+				if (squareWidth != 3) {
+					squareStart = squareStart + (squareWidth / 2);
+				}
 			}
 
 			int32_t knobPos = getParameterKnobPos(modelStackWithParam, squareStart);
 			displayParameterValue(knobPos + kKnobPosOffset);
+
+			if (modelStackWithParam && modelStackWithParam->autoParam) {
+
+				if (!playbackHandler.isEitherClockActive()) {
+					if (modelStackWithParam->getTimelineCounter()
+					    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+
+						view.activeModControllableModelStack.paramManager->toForTimeline()->grabValuesFromPos(
+						    squareStart, &view.activeModControllableModelStack);
+					}
+				}
+			}
 
 			if (!multiPadPressSelected) {
 				leftPadSelectedX = xDisplay;
