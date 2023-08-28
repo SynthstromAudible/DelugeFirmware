@@ -1712,21 +1712,16 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 
 						//Here is where we check if the Knob/Fader on the Midi Controller is out of sync with the Deluge Knob Position
 
-						//First we check if the Midi Knob/Fader is sending a Value that is less the current Deluge Knob Position
-						//If less, check by how much its less. If the difference is greater than 1, ignore the CC value change (or scale it if value scaling is on)
-						if (midiKnobPos == (knobPos - 1)) {
-							newKnobPos = knobPos - 1;
-						}
+						//First we check if the Midi Knob/Fader is sending a Value that is greater than or less than the current Deluge Knob Position by a max difference of +/- 3
+						//If the difference is greater than 3, ignore the CC value change (or scale it if value scaling is on)
+						int32_t midiKnobMinPos = knobPos - kMIDITakeoverKnobSyncThreshold;
+						int32_t midiKnobMaxPos = knobPos + kMIDITakeoverKnobSyncThreshold;
 
-						//Next we check if the Midi Knob/Fader is sending a Value that is greater than the current Deluge Knob Position
-						//If greater, check by how much its greater. If the difference is greater than 1, ignore the CC value change (or scale it if value scaling is on)
-						else if (midiKnobPos == (knobPos + 1)) {
-							newKnobPos = knobPos + 1;
+						if ((midiKnobMinPos <= midiKnobPos) && (midiKnobPos <= midiKnobMaxPos)) {
+							newKnobPos = knobPos + (midiKnobPos - knobPos);
 						}
-
 						else {
-
-							//if the first two conditions fail and pickup mode is enabled, then the Deluge Knob Position (and therefore the Parameter Value with it) remains unchanged
+							//if the above conditions fail and pickup mode is enabled, then the Deluge Knob Position (and therefore the Parameter Value with it) remains unchanged
 							if (midiEngine.midiTakeover == MIDITakeoverMode::PICKUP) { //Midi Pickup Mode On
 								newKnobPos = knobPos;
 							}
