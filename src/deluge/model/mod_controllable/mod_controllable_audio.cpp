@@ -1712,8 +1712,8 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 
 						//Here is where we check if the Knob/Fader on the Midi Controller is out of sync with the Deluge Knob Position
 
-						//First we check if the Midi Knob/Fader is sending a Value that is greater than or less than the current Deluge Knob Position by a max difference of +/- 3
-						//If the difference is greater than 3, ignore the CC value change (or scale it if value scaling is on)
+						//First we check if the Midi Knob/Fader is sending a Value that is greater than or less than the current Deluge Knob Position by a max difference of +/- kMIDITakeoverKnobSyncThreshold
+						//If the difference is greater than kMIDITakeoverKnobSyncThreshold, ignore the CC value change (or scale it if value scaling is on)
 						int32_t midiKnobMinPos = knobPos - kMIDITakeoverKnobSyncThreshold;
 						int32_t midiKnobMaxPos = knobPos + kMIDITakeoverKnobSyncThreshold;
 
