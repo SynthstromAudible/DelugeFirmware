@@ -1123,6 +1123,11 @@ void View::setModLedStates() {
 				}
 			}
 		}
+		else if (getRootUI() == &keyboardScreen) {
+			if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+				goto setBlinkLED;
+			}
+		}
 		else if (getRootUI() == &automationInstrumentClipView) {
 			goto setBlinkLED;
 		}
@@ -1356,6 +1361,15 @@ void View::drawOutputNameFromDetails(InstrumentType instrumentType, int32_t chan
 
 	if (display->haveOLED()) {
 		deluge::hid::display::OLED::clearMainImage();
+		if (getCurrentUI() == &automationInstrumentClipView) {
+			if (!automationInstrumentClipView.isOnAutomationOverview()) {
+				automationInstrumentClipView.displayAutomation();
+			}
+			else {
+				automationInstrumentClipView.renderOLED();
+			}
+			return;
+		}
 		char const* outputTypeText;
 		switch (instrumentType) {
 		case InstrumentType::SYNTH:
