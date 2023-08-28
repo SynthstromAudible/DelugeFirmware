@@ -365,6 +365,7 @@ AutomationInstrumentClipView::AutomationInstrumentClipView() {
 	leftPadSelectedY = kNoLastSelectedPad;
 	rightPadSelectedX = kNoLastSelectedPad;
 	rightPadSelectedY = kNoLastSelectedPad;
+	lastPadSelectedKnobPos = kNoLastSelectedPad;
 }
 
 inline InstrumentClip* getCurrentClip() {
@@ -1494,6 +1495,11 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 			rightPadSelectedX = kNoLastSelectedPad;
 
 			uiNeedsRendering(this);
+		}
+
+		if (currentUIMode != UI_MODE_NOTES_PRESSED) {
+			lastPadSelectedKnobPos = kNoLastSelectedPad;
+			setDisplayParameterNameTimer();
 		}
 	}
 }
@@ -2649,6 +2655,7 @@ void AutomationInstrumentClipView::selectEncoderAction(int8_t offset) {
 
 flashShortcut:
 
+	lastPadSelectedKnobPos = kNoLastSelectedPad;
 	displayParameterName(clip->lastSelectedParamID);
 	displayAutomation();
 	resetShortcutBlinking();
@@ -2713,6 +2720,7 @@ void AutomationInstrumentClipView::initPadSelection() {
 	multiPadPressActive = false;
 	leftPadSelectedX = kNoLastSelectedPad;
 	rightPadSelectedX = kNoLastSelectedPad;
+	lastPadSelectedKnobPos = kNoLastSelectedPad;
 }
 
 void AutomationInstrumentClipView::initInterpolation() {
@@ -3299,6 +3307,13 @@ bool AutomationInstrumentClipView::isOnParameterGridMenuView() {
 //displays patched param names or midi cc names
 void AutomationInstrumentClipView::displayParameterName(int32_t paramID) {
 
+	if (isUIModeActive(UI_MODE_NOTES_PRESSED) && (lastPadSelectedKnobPos != kNoLastSelectedPad)) {
+
+		displayParameterValue(lastPadSelectedKnobPos);
+
+		return;
+	}
+
 	InstrumentClip* clip = getCurrentClip();
 	Instrument* instrument = (Instrument*)clip->output;
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -3350,17 +3365,28 @@ void AutomationInstrumentClipView::displayParameterName(int32_t paramID) {
 //display parameter value when it is changed
 void AutomationInstrumentClipView::displayParameterValue(int32_t knobPos) {
 
+	lastPadSelectedKnobPos = knobPos;
+
 	char buffer[5];
 
 	intToString(knobPos, buffer);
-	display->displayPopup(buffer, 3);
+	if (isUIModeActive(UI_MODE_NOTES_PRESSED)) {
+		if (display->haveOLED()) {
+			display->popupText(buffer);
+		}
+		else {
+			display->setText(buffer, false, 255, false);
+		}
+	}
+	else {
+		display->displayPopup(buffer);
+		setDisplayParameterNameTimer();
+	}
 
 	if (padSelectionOn && !multiPadPressSelected) {
 		indicator_leds::setKnobIndicatorLevel(0, knobPos);
 		indicator_leds::setKnobIndicatorLevel(1, knobPos);
 	}
-
-	setDisplayParameterNameTimer();
 }
 
 void AutomationInstrumentClipView::displayCVErrorMessage() {

@@ -3487,11 +3487,15 @@ void InstrumentClipView::someAuditioningHasEnded(bool recalculateLastAuditionedN
 		exitUIMode(UI_MODE_AUDITIONING);
 		auditioningSilently = false;
 
-		if (display->haveOLED()) {
-			deluge::hid::display::OLED::removePopup();
-		}
-		else {
-			redrawNumericDisplay();
+		//check that you're not in automation instrument clip view and holding an automation pad down
+		//if not, clear popup's / re-draw screen
+		if (!((getCurrentUI() == &automationInstrumentClipView) && isUIModeActive(UI_MODE_NOTES_PRESSED))) {
+			if (display->haveOLED()) {
+				deluge::hid::display::OLED::removePopup();
+			}
+			else {
+				redrawNumericDisplay();
+			}
 		}
 	}
 }
