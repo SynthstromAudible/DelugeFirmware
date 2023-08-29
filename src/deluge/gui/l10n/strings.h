@@ -166,14 +166,19 @@ enum class String : size_t {
 
 	// gui/menu_item/cv/selection.h
 	STRING_FOR_CV_OUTPUT_N,
-
+	STRING_FOR_CV_OUTPUT_1,
+	STRING_FOR_CV_OUTPUT_2,
 	// gui/menu_item/delay/analog.h
 	STRING_FOR_DIGITAL,
 	STRING_FOR_ANALOG,
 
 	// gui/menu_item/filter/lpf_mode.h
 	STRING_FOR_DRIVE,
-	STRING_FOR_SVF,
+	STRING_FOR_HPLADDER,
+	STRING_FOR_12DB_LADDER,
+	STRING_FOR_24DB_LADDER,
+	STRING_FOR_SVF_BAND,
+	STRING_FOR_SVF_NOTCH,
 
 	// gui/menu_item/flash/status.h
 	STRING_FOR_FAST,
@@ -187,7 +192,10 @@ enum class String : size_t {
 
 	// gui/menu_item/gate/selection.h
 	STRING_FOR_GATE_MODE_TITLE,
-	STRING_FOR_GATE_OUTPUT_N,
+	STRING_FOR_GATE_OUTPUT_1,
+	STRING_FOR_GATE_OUTPUT_2,
+	STRING_FOR_GATE_OUTPUT_3,
+	STRING_FOR_GATE_OUTPUT_4,
 	STRING_FOR_MINIMUM_OFF_TIME,
 
 	// gui/menu_item/lfo/shape.h
@@ -211,7 +219,8 @@ enum class String : size_t {
 
 	// gui/menu_item/modulator/destination.h
 	STRING_FOR_CARRIERS,
-	STRING_FOR_MODULATOR_N,
+	STRING_FOR_MODULATOR_1,
+	STRING_FOR_MODULATOR_2,
 
 	// gui/menu_item/monitor/mode.h
 	STRING_FOR_CONDITIONAL,
@@ -646,9 +655,6 @@ enum class String : size_t {
 	STRING_FOR_MASTER_PITCH,
 	STRING_FOR_MASTER_PAN,
 	STRING_FOR_SIDECHAIN_LEVEL,
-
-	STRING_FOR_SVF_BAND,
-	STRING_FOR_SVF_NOTCH,
 
 	STRING_FOR_AUTOMATION,
 	STRING_FOR_LOOP_TOO_SHORT,

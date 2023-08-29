@@ -33,9 +33,9 @@ Automatable Parameters are broken down into two categories for Automation Instru
 
 >The 24 parameters that can be edited are:
 >
-> - **Master** Level, Pan, Pitch
-> - **LPF** Cutoff, Resonance
-> - **HPF** Cutoff, Resonance
+> - **Master** Level, Pitch, Pan
+> - **LPF** Frequency, Resonance
+> - **HPF** Frequency, Resonance
 > - **EQ** Bass, Bass Frequency, Treble, Treble Frequency
 > - **Reverb** Amount
 > - **Delay** Rate, Amount
@@ -197,6 +197,10 @@ The Automation Editor **will:**
 > When two pads are selected, two cursors are displayed on the grid and the lower led indicator shows the value of the left pad (left cursor), and the upper led indicator shows the value of the right pad (right cursor).
 > 
 > With this mode you can also press on each pad to see its current value without changing its value.
+>
+> **Note 1:** if you've entered a long press and wish to see the value of each column in the long press, you will need to press and hold any pad in the column you wish to query.
+>
+> **Note 2:** if you've entered a long press and wish to switch back to a single press, you can do so by quickly pressing a pad in any column (e.g. don't hold it).
 
 - enable you to lay down longer automations with interpolation 
 

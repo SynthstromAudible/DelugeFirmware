@@ -155,8 +155,8 @@ void SessionView::focusRegained() {
 ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx)
-	    == RuntimeFeatureStateToggle::On) { //master compressor
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx) == RuntimeFeatureStateToggle::On
+	    && currentUIMode == UI_MODE_NONE) { //master compressor
 		int32_t modKnobMode = -1;
 		if (view.activeModControllableModelStack.modControllable) {
 			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
@@ -615,8 +615,8 @@ ActionResult SessionView::padAction(int32_t xDisplay, int32_t yDisplay, int32_t 
 		return gridHandlePads(xDisplay, yDisplay, on);
 	}
 
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx)
-	    == RuntimeFeatureStateToggle::On) { //master compressor
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx) == RuntimeFeatureStateToggle::On
+	    && currentUIMode == UI_MODE_NONE) { //master compressor
 		int32_t modKnobMode = -1;
 		if (view.activeModControllableModelStack.modControllable) {
 			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
@@ -1953,15 +1953,15 @@ ramError:
 }
 
 void SessionView::graphicsRoutine() {
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx) == RuntimeFeatureStateToggle::On) {
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx) == RuntimeFeatureStateToggle::On
+	    && currentUIMode == UI_MODE_NONE) {
 		int32_t modKnobMode = -1;
 		if (view.activeModControllableModelStack.modControllable) {
 			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
 			if (modKnobModePointer)
 				modKnobMode = *modKnobModePointer;
 		}
-		if (modKnobMode == 4 && abs(AudioEngine::mastercompressor.compressor.getThresh()) > 0.001
-		    && currentUIMode != UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) { //upper
+		if (modKnobMode == 4 && abs(AudioEngine::mastercompressor.compressor.getThresh()) > 0.001) { //upper
 			double gr = AudioEngine::mastercompressor.gr;
 			if (gr >= 0)
 				gr = 0;
@@ -2406,15 +2406,15 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 
 	currentSong->currentClip = clip;
 
-	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
-		gridTransitionToViewForClip(clip);
-		return;
-	}
-
 	int32_t clipPlaceOnScreen = std::clamp(getClipPlaceOnScreen(clip), -1_i32, kDisplayHeight);
 
 	currentSong->xScroll[NAVIGATION_CLIP] =
 	    getClipLocalScroll(clip, currentSong->xScroll[NAVIGATION_CLIP], currentSong->xZoom[NAVIGATION_CLIP]);
+
+	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+		gridTransitionToViewForClip(clip);
+		return;
+	}
 
 	PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
 
@@ -2693,7 +2693,7 @@ void SessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	performActionOnPadRelease = false;
 
 	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx) == RuntimeFeatureStateToggle::On
-	    && currentUIMode != UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
+	    && currentUIMode == UI_MODE_NONE) {
 		int32_t modKnobMode = -1;
 		if (view.activeModControllableModelStack.modControllable) {
 			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
@@ -2865,8 +2865,9 @@ void SessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 			}
 		}
 	}
-
-	ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
+	if (getCurrentUI() == this) { //This routine may also be called from the Arranger view
+		ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
+	}
 }
 
 Clip* SessionView::getClipForLayout() {
@@ -3432,7 +3433,7 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 		// Release
 		else {
 			// End stuttering on any key up for safety
-			if (isUIModeActive(UI_MODE_STUTTERING)) {
+			if (isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) && isUIModeActive(UI_MODE_STUTTERING)) {
 				((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
 				    ->endStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
 			}
@@ -3489,10 +3490,12 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 
 ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {
 	gridResetPresses();
+	gridPreventArm = false;
+	clipPressEnded();
 
 	// Fix the range
 	currentSong->songGridScrollY =
-	    std::clamp<int32_t>(currentSong->songGridScrollY + offsetY, 0, kMaxNumSections - kGridHeight);
+	    std::clamp<int32_t>(currentSong->songGridScrollY - offsetY, 0, kMaxNumSections - kGridHeight);
 	currentSong->songGridScrollX = std::clamp<int32_t>(currentSong->songGridScrollX + offsetX, 0,
 	                                                   std::max<int32_t>(0, (gridTrackCount() - kDisplayWidth) + 1));
 
