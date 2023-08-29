@@ -760,6 +760,7 @@ enum class MIDITakeoverMode : uint8_t {
 	SCALE,
 };
 constexpr auto kNumMIDITakeoverModes = util::to_underlying(MIDITakeoverMode::SCALE) + 1;
+constexpr int32_t kMIDITakeoverKnobSyncThreshold = 5;
 
 constexpr int32_t kNumClustersLoadedAhead = 2;
 
