@@ -317,6 +317,8 @@ doEndMidiLearnPressSession:
 		if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction)
 		     == RuntimeFeatureStateSyncScalingAction::Fill)) {
 			currentSong->fillModeActive = on;
+			//we peek fill notes when fill is held so need to re render rows
+			uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
 			indicator_leds::setLedState(IndicatorLED::SYNC_SCALING, on);
 		}
 		else if (on && currentUIMode == UI_MODE_NONE) {

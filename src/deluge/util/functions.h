@@ -471,9 +471,9 @@ inline void getBlurColour(uint8_t rgb[], uint8_t fromRgb[]) {
 // clang-format off
 
 constexpr uint32_t IMat[4][4] = {{ONE_Q15, 0, 0, 0},
-							{0, ONE_Q15, 0, 0},
-							{0, 0, ONE_Q15, 0},
-							{0, 0, 0, ONE_Q15}};
+								{0, ONE_Q15, 0, 0},
+								{0, 0, ONE_Q15, 0},
+								{0, 0, 0, ONE_Q15}};
 
 constexpr float c = cos(1.0f);
 constexpr float s = sin(1.0f);

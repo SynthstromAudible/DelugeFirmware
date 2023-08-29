@@ -1644,9 +1644,11 @@ void NoteRow::renderRow(TimelineView* editorScreen, uint8_t rowColour[], uint8_t
 					}
 				}
 			}
-			if (drewNote && note->probability == 0) {
-				//invert colours for fill note
-				rotateColour(pixel, pixel);
+			if (drewNote && note->probability == 0 && currentSong->fillModeActive) {
+				//make em blue
+				pixel[0] = 0;
+				pixel[1] = 0;
+				pixel[2] = 255;
 			}
 		}
 
