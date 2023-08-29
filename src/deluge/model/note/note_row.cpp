@@ -514,7 +514,7 @@ addNewNote:
 }
 int32_t NoteRow::getDefaultProbability(ModelStackWithNoteRow* ModelStack) {
 
-	if (ModelStack->song->fillModeActive) {
+	if (ModelStack->song->isFillModeActive()) {
 		return 0;
 	}
 	else {
@@ -1644,7 +1644,7 @@ void NoteRow::renderRow(TimelineView* editorScreen, uint8_t rowColour[], uint8_t
 					}
 				}
 			}
-			if (drewNote && note->probability == 0 && currentSong->fillModeActive) {
+			if (drewNote && note->probability == 0 && currentSong->isFillModeActive()) {
 				//make em blue
 				pixel[0] = 0;
 				pixel[1] = 0;
