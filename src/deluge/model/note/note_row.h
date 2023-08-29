@@ -122,7 +122,7 @@ public:
 
 	bool
 	    skipNextNote; // To be used if we recorded a note which was quantized forwards, and we have to remember not to play it
-	int32_t getDefaultProbability(ModelStackWithNoteRow* ModelStack);
+
 	int32_t attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, int32_t probability,
 	                       ModelStackWithNoteRow* modelStack, Action* action);
 	int32_t attemptNoteAddReversed(ModelStackWithNoteRow* modelStack, int32_t pos, int32_t velocity,

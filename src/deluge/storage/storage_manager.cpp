@@ -1467,7 +1467,6 @@ int32_t StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool m
                                         SoundDrum** getInstrument, FilePointer* filePointer, String* name,
                                         String* dirPath) {
 	InstrumentType instrumentType = InstrumentType::SYNTH;
-	SoundDrum* newDrum = (SoundDrum*)createNewDrum(DrumType::SOUND);
 
 	AudioEngine::logAction("loadSynthDrumFromFile");
 
@@ -1478,7 +1477,7 @@ int32_t StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool m
 
 	AudioEngine::logAction("loadInstrumentFromFile");
 
-	error = newDrum->readFromFile(song, clip, 0);
+	error = (*getInstrument)->readFromFile(song, clip, 0);
 
 	bool fileSuccess = closeFile();
 
@@ -1490,7 +1489,7 @@ int32_t StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool m
 			return error;
 		}
 	}
-	*getInstrument = newDrum;
+	//*getInstrument = newInstrument;
 	return error;
 }
 

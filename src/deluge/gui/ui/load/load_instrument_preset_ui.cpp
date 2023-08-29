@@ -960,13 +960,9 @@ int32_t LoadInstrumentPresetUI::performLoadSynthToKit() {
 	if (currentFileItem->isFolder) {
 		return NO_ERROR;
 	}
+
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowIndex, noteRow);
-	//make sure the drum isn't currently in use
-	noteRow->stopCurrentlyPlayingNote(modelStackWithNoteRow);
-	kitToLoadFor->drumsWithRenderingActive.deleteAtKey((int32_t)(Drum*)soundDrumToReplace);
-	kitToLoadFor->removeDrum(soundDrumToReplace);
 
 	int32_t error = storageManager.loadSynthToDrum(currentSong, instrumentClipToLoadFor, false, &soundDrumToReplace,
 	                                               &currentFileItem->filePointer, &enteredText, &currentDir);
@@ -976,11 +972,10 @@ int32_t LoadInstrumentPresetUI::performLoadSynthToKit() {
 
 	//soundDrumToReplace->name.set(getCurrentFilenameWithoutExtension());
 	getCurrentFilenameWithoutExtension(&soundDrumToReplace->name);
-
+	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowIndex, noteRow);
 	ParamManager* paramManager =
 	    currentSong->getBackedUpParamManagerPreferablyWithClip(soundDrumToReplace, instrumentClipToLoadFor);
 	if (paramManager) {
-		kitToLoadFor->addDrum(soundDrumToReplace);
 		noteRow->setDrum(soundDrumToReplace, kitToLoadFor, modelStackWithNoteRow, instrumentClipToLoadFor,
 		                 paramManager);
 		kitToLoadFor->setupPatching(modelStack);
