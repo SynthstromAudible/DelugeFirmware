@@ -11,7 +11,7 @@ public:
 
 	void format(int32_t arg) {
 		title_ = l10n::get(format_str_);
-		std::replace(title_.begin(), title_.end(), '*', (char)('0' + arg));
+		asterixToInt(title_.data(), arg);
 	}
 
 	[[nodiscard]] std::string_view title() const { return title_; }
