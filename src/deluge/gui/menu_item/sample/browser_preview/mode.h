@@ -26,8 +26,11 @@ public:
 	void readCurrentValue() override { this->setValue(FlashStorage::sampleBrowserPreviewMode); }
 	void writeCurrentValue() override { FlashStorage::sampleBrowserPreviewMode = this->getValue(); }
 	static_vector<std::string_view, 3> getOptions() override {
-		return {l10n::getView(l10n::String::STRING_FOR_DISABLED), l10n::getView(l10n::String::STRING_FOR_CONDITIONAL),
-		        l10n::getView(l10n::String::STRING_FOR_ON)};
+		return {
+		    l10n::getView(l10n::String::STRING_FOR_DISABLED),
+		    l10n::getView(l10n::String::STRING_FOR_CONDITIONAL),
+		    l10n::getView(l10n::String::STRING_FOR_ENABLED),
+		};
 	}
 };
 } // namespace deluge::gui::menu_item::sample::browser_preview
