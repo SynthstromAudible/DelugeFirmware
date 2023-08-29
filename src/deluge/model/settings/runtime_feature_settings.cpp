@@ -127,6 +127,14 @@ void RuntimeFeatureSettings::init() {
 	// DisplayNornsLayout
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DisplayNornsLayout], "Display Norns layout",
 	                  "displayNornsLayout", RuntimeFeatureStateToggle::Off);
+
+	// ShiftIsSticky
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ShiftIsSticky], "Sticky Shift", "stickyShift",
+	                  RuntimeFeatureStateToggle::Off);
+
+	// LightShiftLed
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::LightShiftLed], "Light Shift", "lightShift",
+	                  RuntimeFeatureStateToggle::Off);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {
