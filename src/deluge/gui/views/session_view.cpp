@@ -155,8 +155,8 @@ void SessionView::focusRegained() {
 ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx) == RuntimeFeatureStateToggle::On
-	    && currentUIMode == UI_MODE_NONE) { //master compressor
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx)
+	    == RuntimeFeatureStateToggle::On) { //master compressor
 		int32_t modKnobMode = -1;
 		if (view.activeModControllableModelStack.modControllable) {
 			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
@@ -615,8 +615,8 @@ ActionResult SessionView::padAction(int32_t xDisplay, int32_t yDisplay, int32_t 
 		return gridHandlePads(xDisplay, yDisplay, on);
 	}
 
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx) == RuntimeFeatureStateToggle::On
-	    && currentUIMode == UI_MODE_NONE) { //master compressor
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx)
+	    == RuntimeFeatureStateToggle::On) { //master compressor
 		int32_t modKnobMode = -1;
 		if (view.activeModControllableModelStack.modControllable) {
 			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
@@ -1953,15 +1953,15 @@ ramError:
 }
 
 void SessionView::graphicsRoutine() {
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx) == RuntimeFeatureStateToggle::On
-	    && currentUIMode == UI_MODE_NONE) {
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx) == RuntimeFeatureStateToggle::On) {
 		int32_t modKnobMode = -1;
 		if (view.activeModControllableModelStack.modControllable) {
 			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
 			if (modKnobModePointer)
 				modKnobMode = *modKnobModePointer;
 		}
-		if (modKnobMode == 4 && abs(AudioEngine::mastercompressor.compressor.getThresh()) > 0.001) { //upper
+		if (modKnobMode == 4 && abs(AudioEngine::mastercompressor.compressor.getThresh()) > 0.001
+		    && currentUIMode != UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) { //upper
 			double gr = AudioEngine::mastercompressor.gr;
 			if (gr >= 0)
 				gr = 0;
@@ -2693,7 +2693,7 @@ void SessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	performActionOnPadRelease = false;
 
 	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx) == RuntimeFeatureStateToggle::On
-	    && currentUIMode == UI_MODE_NONE) {
+	    && currentUIMode != UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
 		int32_t modKnobMode = -1;
 		if (view.activeModControllableModelStack.modControllable) {
 			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
@@ -2865,9 +2865,8 @@ void SessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 			}
 		}
 	}
-	if (getCurrentUI() == this) { //This routine may also be called from the Arranger view
-		ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
-	}
+
+	ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
 }
 
 Clip* SessionView::getClipForLayout() {
