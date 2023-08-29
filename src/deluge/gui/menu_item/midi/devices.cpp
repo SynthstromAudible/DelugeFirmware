@@ -16,6 +16,7 @@
 */
 
 #include "devices.h"
+#include "device.h"
 #include "gui/menu_item/submenu.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
@@ -24,7 +25,7 @@
 #include <array>
 #include <string_view>
 
-extern deluge::gui::menu_item::Submenu<2> midiDeviceMenu;
+extern deluge::gui::menu_item::midi::Device midiDeviceMenu;
 
 namespace deluge::gui::menu_item::midi {
 
