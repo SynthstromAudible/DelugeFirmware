@@ -2187,7 +2187,8 @@ multiplePresses:
 					while (note && note->pos - editPadPresses[i].intendedPos < editPadPresses[i].intendedLength) {
 
 						// And if not one of the leftmost notes, make it a prev-base one - if we're doing actual percentage probabilities
-						if (probabilityValue > 0 && probabilityValue < kNumProbabilityValues && note->pos != leftMostPos) {
+						if (probabilityValue > 0 && probabilityValue < kNumProbabilityValues
+						    && note->pos != leftMostPos) {
 							editPadPresses[i].intendedProbability |= 128; // This isn't perfect...
 						}
 						noteRow->changeNotesAcrossAllScreens(note->pos, modelStackWithNoteRow, action,
