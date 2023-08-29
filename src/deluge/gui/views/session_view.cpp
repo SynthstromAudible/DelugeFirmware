@@ -2406,15 +2406,15 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 
 	currentSong->currentClip = clip;
 
-	int32_t clipPlaceOnScreen = std::clamp(getClipPlaceOnScreen(clip), -1_i32, kDisplayHeight);
-
-	currentSong->xScroll[NAVIGATION_CLIP] =
-	    getClipLocalScroll(clip, currentSong->xScroll[NAVIGATION_CLIP], currentSong->xZoom[NAVIGATION_CLIP]);
-
 	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 		gridTransitionToViewForClip(clip);
 		return;
 	}
+
+	int32_t clipPlaceOnScreen = std::clamp(getClipPlaceOnScreen(clip), -1_i32, kDisplayHeight);
+
+	currentSong->xScroll[NAVIGATION_CLIP] =
+	    getClipLocalScroll(clip, currentSong->xScroll[NAVIGATION_CLIP], currentSong->xZoom[NAVIGATION_CLIP]);
 
 	PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
 
@@ -3433,7 +3433,7 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 		// Release
 		else {
 			// End stuttering on any key up for safety
-			if (isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) && isUIModeActive(UI_MODE_STUTTERING)) {
+			if (isUIModeActive(UI_MODE_STUTTERING)) {
 				((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
 				    ->endStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
 			}
@@ -3490,12 +3490,10 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 
 ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {
 	gridResetPresses();
-	gridPreventArm = false;
-	clipPressEnded();
 
 	// Fix the range
 	currentSong->songGridScrollY =
-	    std::clamp<int32_t>(currentSong->songGridScrollY - offsetY, 0, kMaxNumSections - kGridHeight);
+	    std::clamp<int32_t>(currentSong->songGridScrollY + offsetY, 0, kMaxNumSections - kGridHeight);
 	currentSong->songGridScrollX = std::clamp<int32_t>(currentSong->songGridScrollX + offsetX, 0,
 	                                                   std::max<int32_t>(0, (gridTrackCount() - kDisplayWidth) + 1));
 

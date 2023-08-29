@@ -1712,16 +1712,21 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 
 						//Here is where we check if the Knob/Fader on the Midi Controller is out of sync with the Deluge Knob Position
 
-						//First we check if the Midi Knob/Fader is sending a Value that is greater than or less than the current Deluge Knob Position by a max difference of +/- kMIDITakeoverKnobSyncThreshold
-						//If the difference is greater than kMIDITakeoverKnobSyncThreshold, ignore the CC value change (or scale it if value scaling is on)
-						int32_t midiKnobMinPos = knobPos - kMIDITakeoverKnobSyncThreshold;
-						int32_t midiKnobMaxPos = knobPos + kMIDITakeoverKnobSyncThreshold;
-
-						if ((midiKnobMinPos <= midiKnobPos) && (midiKnobPos <= midiKnobMaxPos)) {
-							newKnobPos = knobPos + (midiKnobPos - knobPos);
+						//First we check if the Midi Knob/Fader is sending a Value that is less the current Deluge Knob Position
+						//If less, check by how much its less. If the difference is greater than 1, ignore the CC value change (or scale it if value scaling is on)
+						if (midiKnobPos == (knobPos - 1)) {
+							newKnobPos = knobPos - 1;
 						}
+
+						//Next we check if the Midi Knob/Fader is sending a Value that is greater than the current Deluge Knob Position
+						//If greater, check by how much its greater. If the difference is greater than 1, ignore the CC value change (or scale it if value scaling is on)
+						else if (midiKnobPos == (knobPos + 1)) {
+							newKnobPos = knobPos + 1;
+						}
+
 						else {
-							//if the above conditions fail and pickup mode is enabled, then the Deluge Knob Position (and therefore the Parameter Value with it) remains unchanged
+
+							//if the first two conditions fail and pickup mode is enabled, then the Deluge Knob Position (and therefore the Parameter Value with it) remains unchanged
 							if (midiEngine.midiTakeover == MIDITakeoverMode::PICKUP) { //Midi Pickup Mode On
 								newKnobPos = knobPos;
 							}
@@ -2025,24 +2030,23 @@ void ModControllableAudio::switchLPFMode() {
 
 	char const* displayText;
 	switch (lpfMode) {
-		using enum deluge::l10n::String;
 	case FilterMode::TRANSISTOR_12DB:
-		displayText = l10n::get(STRING_FOR_12DB_LADDER);
+		displayText = "12DB LPF";
 		break;
 
 	case FilterMode::TRANSISTOR_24DB:
-		displayText = l10n::get(STRING_FOR_24DB_LADDER);
+		displayText = "24DB LPF";
 		break;
 
 	case FilterMode::TRANSISTOR_24DB_DRIVE:
-		displayText = l10n::get(STRING_FOR_DRIVE);
+		displayText = "DRIVE LPF";
 		break;
 
 	case FilterMode::SVF_BAND:
-		displayText = l10n::get(STRING_FOR_SVF_BAND);
+		displayText = "SV_BAND";
 		break;
 	case FilterMode::SVF_NOTCH:
-		displayText = l10n::get(STRING_FOR_SVF_NOTCH);
+		displayText = "SV_NOTCH";
 		break;
 	}
 	display->displayPopup(displayText);
@@ -2053,15 +2057,14 @@ void ModControllableAudio::switchHPFMode() {
 
 	char const* displayText;
 	switch (hpfMode) {
-		using enum deluge::l10n::String;
 	case FilterMode::HPLADDER:
-		displayText = l10n::get(STRING_FOR_HPLADDER);
+		displayText = "Ladder";
 		break;
 	case FilterMode::SVF_BAND:
-		displayText = l10n::get(STRING_FOR_SVF_BAND);
+		displayText = "SV_BAND";
 		break;
 	case FilterMode::SVF_NOTCH:
-		displayText = l10n::get(STRING_FOR_SVF_NOTCH);
+		displayText = "SV_NOTCH";
 		break;
 	}
 	display->displayPopup(displayText);

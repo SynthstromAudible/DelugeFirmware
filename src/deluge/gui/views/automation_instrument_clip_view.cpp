@@ -92,16 +92,12 @@ extern "C" {
 
 using namespace deluge::gui;
 
-const uint32_t auditionPadActionUIModes[] = {UI_MODE_NOTES_PRESSED,
-                                             UI_MODE_AUDITIONING,
-                                             UI_MODE_HORIZONTAL_SCROLL,
-                                             UI_MODE_RECORD_COUNT_IN,
-                                             UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON,
-                                             0};
+const uint32_t auditionPadActionUIModes[] = {UI_MODE_AUDITIONING, UI_MODE_HORIZONTAL_SCROLL, UI_MODE_RECORD_COUNT_IN,
+                                             UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON, 0};
 
 const uint32_t editPadActionUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, 0};
 
-const uint32_t mutePadActionUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, 0};
+const uint32_t mutePadActionUIModes[] = {UI_MODE_AUDITIONING, 0};
 
 static const uint32_t verticalScrollUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN,
                                                  0};
@@ -365,7 +361,6 @@ AutomationInstrumentClipView::AutomationInstrumentClipView() {
 	leftPadSelectedY = kNoLastSelectedPad;
 	rightPadSelectedX = kNoLastSelectedPad;
 	rightPadSelectedY = kNoLastSelectedPad;
-	lastPadSelectedKnobPos = kNoLastSelectedPad;
 }
 
 inline InstrumentClip* getCurrentClip() {
@@ -1363,7 +1358,8 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 		}
 		// If this is a automation-length-edit press...
 		//needed for Automation
-		if (clip->lastSelectedParamID != kNoLastSelectedParamID && instrumentClipView.numEditPadPresses == 1) {
+		if (clip->lastSelectedParamID != kNoLastSelectedParamID && instrumentClipView.numEditPadPresses == 1
+		    && ((int32_t)(instrumentClipView.timeLastEditPadPress + 80 * 44 - AudioEngine::audioSampleTimer) < 0)) {
 
 			int32_t firstPadX = 255;
 			int32_t firstPadY = 255;
@@ -1381,8 +1377,6 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 			}
 
 			if (firstPadX != 255 && firstPadY != 255 && firstPadX != xDisplay) {
-				recordSinglePadPress(xDisplay, yDisplay);
-
 				multiPadPressSelected = true;
 				multiPadPressActive = true;
 
@@ -1413,38 +1407,12 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 					    getParameterKnobPos(modelStackWithParam, getPosFromSquare(leftPadSelectedX)) + kKnobPosOffset;
 					indicator_leds::setKnobIndicatorLevel(0, knobPos);
 
-					int32_t effectiveLength;
-
-					if (instrument->type == InstrumentType::KIT && !instrumentClipView.getAffectEntire()) {
-						ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowForSelectedDrum(modelStack);
-
-						effectiveLength = modelStackWithNoteRow->getLoopLength();
-					}
-					else {
-						//this will differ for a kit when in note row mode
-						effectiveLength = clip->loopLength;
-					}
-
-					int32_t squareRightEdge = getPosFromSquare(rightPadSelectedX + 1);
-					uint32_t squareStart = std::min(effectiveLength, squareRightEdge) - kParamNodeWidth;
-					knobPos = getParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
+					knobPos =
+					    getParameterKnobPos(modelStackWithParam, getPosFromSquare(rightPadSelectedX)) + kKnobPosOffset;
 					indicator_leds::setKnobIndicatorLevel(1, knobPos);
 
-					if (!playbackHandler.isEitherClockActive()) {
-						if (modelStackWithParam->getTimelineCounter()
-						    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
-
-							if (leftPadSelectedX == xDisplay) {
-								squareStart = getPosFromSquare(leftPadSelectedX);
-							}
-
-							view.activeModControllableModelStack.paramManager->toForTimeline()->grabValuesFromPos(
-							    squareStart, &view.activeModControllableModelStack);
-						}
-					}
-
 					//display pad value of second pad pressed
-					knobPos = getParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
+					knobPos = getParameterKnobPos(modelStackWithParam, getPosFromSquare(xDisplay)) + kKnobPosOffset;
 					displayParameterValue(knobPos);
 				}
 			}
@@ -1452,9 +1420,33 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 
 		// Or, if this is a regular create-or-select press...
 		else {
-			if (recordSinglePadPress(xDisplay, yDisplay)) {
+			instrumentClipView.timeLastEditPadPress = AudioEngine::audioSampleTimer;
+			// Find an empty space in the press buffer, if there is one
+			int32_t i;
+			for (i = 0; i < kEditPadPressBufferSize; i++) {
+				if (!instrumentClipView.editPadPresses[i].isActive) {
+					break;
+				}
+			}
+			if (i < kEditPadPressBufferSize) {
 				multiPadPressActive = false;
+
 				handleSinglePadPress(modelStack, clip, xDisplay, yDisplay);
+
+				instrumentClipView.shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress = false;
+
+				// If this is the first press, record the time
+				if (instrumentClipView.numEditPadPresses == 0) {
+					instrumentClipView.timeFirstEditPadPress = AudioEngine::audioSampleTimer;
+					instrumentClipView.shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress = false;
+				}
+
+				instrumentClipView.editPadPresses[i].isActive = true;
+				instrumentClipView.editPadPresses[i].yDisplay = yDisplay;
+				instrumentClipView.editPadPresses[i].xDisplay = xDisplay;
+				instrumentClipView.numEditPadPresses++;
+				instrumentClipView.numEditPadPressesPerNoteRowOnScreen[yDisplay]++;
+				enterUIMode(UI_MODE_NOTES_PRESSED);
 			}
 		}
 	}
@@ -1486,7 +1478,7 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 		}
 		//switch from long press selection to short press selection in pad selection mode
 		else if ((clip->lastSelectedParamID != kNoLastSelectedParamID) && padSelectionOn && multiPadPressSelected
-		         && !multiPadPressActive && (currentUIMode != UI_MODE_NOTES_PRESSED)
+		         && !multiPadPressActive
 		         && ((AudioEngine::audioSampleTimer - instrumentClipView.timeLastEditPadPress) < kShortPressTime)) {
 
 			multiPadPressSelected = false;
@@ -1496,43 +1488,7 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 
 			uiNeedsRendering(this);
 		}
-
-		if (currentUIMode != UI_MODE_NOTES_PRESSED) {
-			lastPadSelectedKnobPos = kNoLastSelectedPad;
-			setDisplayParameterNameTimer();
-		}
 	}
-}
-
-bool AutomationInstrumentClipView::recordSinglePadPress(int32_t xDisplay, int32_t yDisplay) {
-
-	instrumentClipView.timeLastEditPadPress = AudioEngine::audioSampleTimer;
-	// Find an empty space in the press buffer, if there is one
-	int32_t i;
-	for (i = 0; i < kEditPadPressBufferSize; i++) {
-		if (!instrumentClipView.editPadPresses[i].isActive) {
-			break;
-		}
-	}
-	if (i < kEditPadPressBufferSize) {
-		instrumentClipView.shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress = false;
-
-		// If this is the first press, record the time
-		if (instrumentClipView.numEditPadPresses == 0) {
-			instrumentClipView.timeFirstEditPadPress = AudioEngine::audioSampleTimer;
-			instrumentClipView.shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress = false;
-		}
-
-		instrumentClipView.editPadPresses[i].isActive = true;
-		instrumentClipView.editPadPresses[i].yDisplay = yDisplay;
-		instrumentClipView.editPadPresses[i].xDisplay = xDisplay;
-		instrumentClipView.numEditPadPresses++;
-		instrumentClipView.numEditPadPressesPerNoteRowOnScreen[yDisplay]++;
-		enterUIMode(UI_MODE_NOTES_PRESSED);
-
-		return true;
-	}
-	return false;
 }
 
 //audition pad action
@@ -2181,7 +2137,7 @@ void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 	//if user holding a node down, we'll adjust the value of the selected parameter being automated
-	if (isUIModeActive(UI_MODE_NOTES_PRESSED) || padSelectionOn) {
+	if ((currentUIMode == UI_MODE_NOTES_PRESSED) || padSelectionOn) {
 
 		if (clip->lastSelectedParamID != kNoLastSelectedParamID
 		    && ((instrumentClipView.numEditPadPresses > 0
@@ -2265,15 +2221,6 @@ void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int
 						handleMultiPadPress(modelStack, clip, leftPadSelectedX, 0, rightPadSelectedX, 0, true);
 
 						indicator_leds::setKnobIndicatorLevel(whichModEncoder, newKnobPos + kKnobPosOffset);
-
-						if (!playbackHandler.isEitherClockActive()) {
-							if (modelStackWithParam->getTimelineCounter()
-							    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
-
-								view.activeModControllableModelStack.paramManager->toForTimeline()->grabValuesFromPos(
-								    squareStart, &view.activeModControllableModelStack);
-							}
-						}
 
 						return;
 					}
@@ -2655,7 +2602,6 @@ void AutomationInstrumentClipView::selectEncoderAction(int8_t offset) {
 
 flashShortcut:
 
-	lastPadSelectedKnobPos = kNoLastSelectedPad;
 	displayParameterName(clip->lastSelectedParamID);
 	displayAutomation();
 	resetShortcutBlinking();
@@ -2720,7 +2666,6 @@ void AutomationInstrumentClipView::initPadSelection() {
 	multiPadPressActive = false;
 	leftPadSelectedX = kNoLastSelectedPad;
 	rightPadSelectedX = kNoLastSelectedPad;
-	lastPadSelectedKnobPos = kNoLastSelectedPad;
 }
 
 void AutomationInstrumentClipView::initInterpolation() {
@@ -2907,19 +2852,17 @@ void AutomationInstrumentClipView::setParameterAutomationValue(ModelStackWithAut
 	interpolationAfter = getNodeInterpolation(modelStack, squareStart, false);
 
 	//create a node to the left with the current interpolation status
-	int32_t squareNodeLeftStart = squareStart - kParamNodeWidth;
-	if (squareNodeLeftStart >= 0) {
-		int32_t currentValue = modelStack->autoParam->getValuePossiblyAtPos(squareNodeLeftStart, modelStack);
-		modelStack->autoParam->setValuePossiblyForRegion(currentValue, modelStack, squareNodeLeftStart,
+	if ((squareStart - kParamNodeWidth) >= 0) {
+		int32_t currentValue = modelStack->autoParam->getValuePossiblyAtPos(squareStart - kParamNodeWidth, modelStack);
+		modelStack->autoParam->setValuePossiblyForRegion(currentValue, modelStack, squareStart - kParamNodeWidth,
 		                                                 kParamNodeWidth);
 	}
 
 	//create a node to the right with the current interpolation status
-	int32_t squareNodeRightStart = squareStart + kParamNodeWidth;
-	if (squareNodeRightStart < effectiveLength) {
-		int32_t currentValue = modelStack->autoParam->getValuePossiblyAtPos(squareNodeRightStart, modelStack);
-		modelStack->autoParam->setValuePossiblyForRegion(currentValue, modelStack, squareNodeRightStart,
-		                                                 kParamNodeWidth);
+	int32_t squareRightEdge = squareStart + squareWidth;
+	if (squareRightEdge < effectiveLength) {
+		int32_t currentValue = modelStack->autoParam->getValuePossiblyAtPos(squareRightEdge, modelStack);
+		modelStack->autoParam->setValuePossiblyForRegion(currentValue, modelStack, squareRightEdge, kParamNodeWidth);
 	}
 
 	//reset interpolation to false for the single pad we're changing (so that the nodes around it don't also change)
@@ -3031,7 +2974,7 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 		    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID, clip->lastSelectedParamKind);
 
 		if (padSelectionOn) {
-			//display pad's value
+			//display pad's middle value
 
 			int32_t effectiveLength;
 
@@ -3044,42 +2987,14 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 				effectiveLength = clip->loopLength;
 			}
 
-			uint32_t squareStart = 0;
-
-			//if a long press is selected and you're checking value of start or end pad
-			//display value at very first or very last node
-			if (multiPadPressSelected && ((leftPadSelectedX == xDisplay) || (rightPadSelectedX == xDisplay))) {
-				if (leftPadSelectedX == xDisplay) {
-					squareStart = getPosFromSquare(xDisplay);
-				}
-				else {
-					int32_t squareRightEdge = getPosFromSquare(rightPadSelectedX + 1);
-					squareStart = std::min(effectiveLength, squareRightEdge) - kParamNodeWidth;
-				}
-			}
-			//display pad's middle value
-			else {
-				squareStart = getPosFromSquare(xDisplay);
-				uint32_t squareWidth = instrumentClipView.getSquareWidth(xDisplay, effectiveLength);
-				if (squareWidth != 3) {
-					squareStart = squareStart + (squareWidth / 2);
-				}
+			uint32_t squareStart = getPosFromSquare(xDisplay);
+			uint32_t squareWidth = instrumentClipView.getSquareWidth(xDisplay, effectiveLength);
+			if (squareWidth != 3) {
+				squareStart = squareStart + (squareWidth / 2);
 			}
 
 			int32_t knobPos = getParameterKnobPos(modelStackWithParam, squareStart);
 			displayParameterValue(knobPos + kKnobPosOffset);
-
-			if (modelStackWithParam && modelStackWithParam->autoParam) {
-
-				if (!playbackHandler.isEitherClockActive()) {
-					if (modelStackWithParam->getTimelineCounter()
-					    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
-
-						view.activeModControllableModelStack.paramManager->toForTimeline()->grabValuesFromPos(
-						    squareStart, &view.activeModControllableModelStack);
-					}
-				}
-			}
 
 			if (!multiPadPressSelected) {
 				leftPadSelectedX = xDisplay;
@@ -3187,6 +3102,7 @@ void AutomationInstrumentClipView::handleMultiPadPress(ModelStackWithTimelineCou
 
 			//clear existing nodes from long press range
 			int32_t squareRightEdge = getPosFromSquare(secondPadX + 1);
+			//int32_t clearLength = std::min(effectiveLength, squareRightEdge) - getPosFromSquare(firstPadX);
 
 			//reset interpolation settings to default
 			initInterpolation();
@@ -3198,7 +3114,7 @@ void AutomationInstrumentClipView::handleMultiPadPress(ModelStackWithTimelineCou
 			                            effectiveLength, false);
 
 			//set value for ending pad press at the very last node position within that pad
-			squareStart = std::min(effectiveLength, squareRightEdge) - kParamNodeWidth;
+			squareStart = std::min(effectiveLength, squareRightEdge - kParamNodeWidth);
 			setParameterAutomationValue(modelStackWithParam, secondPadValue - kKnobPosOffset, squareStart, secondPadX,
 			                            effectiveLength, false);
 
@@ -3307,13 +3223,6 @@ bool AutomationInstrumentClipView::isOnParameterGridMenuView() {
 //displays patched param names or midi cc names
 void AutomationInstrumentClipView::displayParameterName(int32_t paramID) {
 
-	if (isUIModeActive(UI_MODE_NOTES_PRESSED) && (lastPadSelectedKnobPos != kNoLastSelectedPad)) {
-
-		displayParameterValue(lastPadSelectedKnobPos);
-
-		return;
-	}
-
 	InstrumentClip* clip = getCurrentClip();
 	Instrument* instrument = (Instrument*)clip->output;
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -3333,26 +3242,24 @@ void AutomationInstrumentClipView::displayParameterName(int32_t paramID) {
 
 		char buffer[30];
 
-		if (clip->lastSelectedParamKind == Param::Kind::PATCHED) {
-			strncpy(buffer, getPatchedParamDisplayName(paramID), 29);
-		}
-		else if (clip->lastSelectedParamKind == Param::Kind::UNPATCHED) {
-			strncpy(buffer, getUnpatchedParamDisplayName(paramID), 29);
-		}
-		else if (clip->lastSelectedParamKind == Param::Kind::GLOBAL_EFFECTABLE) {
-			strncpy(buffer, getGlobalEffectableParamDisplayName(paramID), 29);
-		}
-
 		//drawing Parameter Names on 7SEG isn't legible and not done currently, so won't do it here either
 		if (display->haveOLED()) {
+
+			if (clip->lastSelectedParamKind == Param::Kind::PATCHED) {
+				strncpy(buffer, getPatchedParamDisplayNameForOLED(paramID), 29);
+			}
+			else if (clip->lastSelectedParamKind == Param::Kind::UNPATCHED) {
+				strncpy(buffer, getUnpatchedParamDisplayNameForOLED(paramID), 29);
+			}
+			else if (clip->lastSelectedParamKind == Param::Kind::GLOBAL_EFFECTABLE) {
+				strncpy(buffer, getGlobalEffectableParamDisplayNameForOLED(paramID), 29);
+			}
+
 			if (isAutomated) {
 				strncat(buffer, "\n(automated)", 29);
 			}
 
 			display->popupText(buffer);
-		}
-		else {
-			display->setScrollingText(buffer);
 		}
 	}
 
@@ -3365,28 +3272,17 @@ void AutomationInstrumentClipView::displayParameterName(int32_t paramID) {
 //display parameter value when it is changed
 void AutomationInstrumentClipView::displayParameterValue(int32_t knobPos) {
 
-	lastPadSelectedKnobPos = knobPos;
-
 	char buffer[5];
 
 	intToString(knobPos, buffer);
-	if (isUIModeActive(UI_MODE_NOTES_PRESSED)) {
-		if (display->haveOLED()) {
-			display->popupText(buffer);
-		}
-		else {
-			display->setText(buffer, false, 255, false);
-		}
-	}
-	else {
-		display->displayPopup(buffer);
-		setDisplayParameterNameTimer();
-	}
+	display->displayPopup(buffer, 3);
 
 	if (padSelectionOn && !multiPadPressSelected) {
 		indicator_leds::setKnobIndicatorLevel(0, knobPos);
 		indicator_leds::setKnobIndicatorLevel(1, knobPos);
 	}
+
+	setDisplayParameterNameTimer();
 }
 
 void AutomationInstrumentClipView::displayCVErrorMessage() {

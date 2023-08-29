@@ -32,8 +32,10 @@ public:
 	static_vector<std::string_view, capacity()> getOptions() override {
 		using enum l10n::String;
 		return {
-		    l10n::getView(STRING_FOR_12DB_LADDER), l10n::getView(STRING_FOR_24DB_LADDER),
-		    l10n::getView(STRING_FOR_DRIVE),       l10n::getView(STRING_FOR_SVF_BAND),
+		    "12dB",
+		    "24dB",
+		    l10n::getView(STRING_FOR_DRIVE),
+		    l10n::getView(STRING_FOR_SVF_BAND),
 		    l10n::getView(STRING_FOR_SVF_NOTCH),
 		};
 	}

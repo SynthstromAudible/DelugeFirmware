@@ -102,7 +102,7 @@ void PatchCableStrength::renderOLED() {
 
 	int32_t p = destinationDescriptor.getJustTheParam();
 
-	deluge::hid::display::OLED::drawString(getPatchedParamDisplayName(p), 0, yPixel,
+	deluge::hid::display::OLED::drawString(getPatchedParamDisplayNameForOLED(p), 0, yPixel,
 	                                       deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
 	                                       kTextSpacingX, kTextSizeYUpdated);
 
