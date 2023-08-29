@@ -66,7 +66,7 @@ void SyncLevel::getNoteLengthName(char* buffer) {
 }
 
 void SyncLevel::drawPixelsForOled() {
-	char const* text = l10n::get(l10n::String::STRING_FOR_OFF);
+	char const* text = l10n::get(l10n::String::STRING_FOR_DISABLED);
 	char buffer[30];
 	if (this->getValue()) {
 		text = buffer;

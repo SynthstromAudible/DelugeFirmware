@@ -1096,40 +1096,14 @@ void View::setModLedStates() {
 		indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, false);
 	}
 	else {
-		if (getRootUI() == &sessionView) {
-			Clip* clip = sessionView.getClipForLayout();
-
-			if (clip) {
-				if ((clip->output->type != InstrumentType::AUDIO)
-				    && (((InstrumentClip*)clip)->onAutomationInstrumentClipView)) {
-					goto setBlinkLED;
-				}
-			}
+		if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+			indicator_leds::blinkLed(IndicatorLED::CLIP_VIEW);
 		}
-		else if (getRootUI() == &arrangerView) {
-			Output* output = arrangerView.outputsOnScreen[arrangerView.yPressedEffective];
-
-			if (output) {
-				if ((output->type != InstrumentType::AUDIO)
-				    && (((InstrumentClip*)currentSong->getClipWithOutput(output))->onAutomationInstrumentClipView)) {
-					goto setBlinkLED;
-				}
-			}
+		else {
+			indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, true);
 		}
-		else if (getRootUI() == &automationInstrumentClipView) {
-			goto setBlinkLED;
-		}
-
-		indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, true);
-		goto setNextLED;
-
-setBlinkLED:
-
-		indicator_leds::blinkLed(IndicatorLED::CLIP_VIEW);
-		goto setNextLED;
 	}
 
-setNextLED:
 	// Sort out the session/arranger view LEDs
 	if (itsTheSong) {
 		if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
