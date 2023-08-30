@@ -29,7 +29,7 @@ public:
 	/// Green channel
 	channel_type g = 0;
 
-	// Blue channel
+	/// Blue channel
 	channel_type b = 0;
 
 	/**
@@ -61,7 +61,7 @@ public:
 	 *
 	 * @return RGB The derived colour
 	 */
-	[[nodiscard]] RGB forTail() const {
+	[[nodiscard]] constexpr RGB forTail() const {
 		uint32_t averageBrightness = ((uint32_t)r + g + b);
 		return transform([averageBrightness](channel_type channel) { //<
 			return (((int32_t)channel * 21 + averageBrightness) * 157) >> 14;
@@ -73,7 +73,7 @@ public:
 	 *
 	 * @return RGB The derived colour
 	 */
-	[[nodiscard]] RGB forBlur() const {
+	[[nodiscard]] constexpr RGB forBlur() const {
 		uint32_t averageBrightness = (uint32_t)r * 5 + g * 9 + b * 9;
 		return transform([averageBrightness](channel_type channel) { //<
 			return ((uint32_t)channel * 5 + averageBrightness) >> 5;
@@ -87,8 +87,8 @@ public:
 	 * @param colourB The second colour
 	 * @return RGB A composite average of the channel values of the component colours
 	 */
-	static RGB average(const RGB& colourA, const RGB& colourB) {
-		return RGB::transform2(colourA, colourB, [](channel_type channelA, channel_type channelB) -> channel_type {
+	static constexpr RGB average(RGB colourA, RGB colourB) {
+		return RGB::transform2(colourA, colourB, [](channel_type channelA, channel_type channelB) {
 			auto average = (static_cast<uint32_t>(channelA) + static_cast<uint32_t>(channelB)) / 2;
 			return std::clamp<uint32_t>(average, 0, channel_max);
 		});
@@ -101,11 +101,7 @@ public:
 	 * @return RGB The dimmed colour
 	 */
 	[[nodiscard]] constexpr RGB dim(uint8_t level = 1) const {
-		return RGB{
-		    channel_type(r >> level),
-		    channel_type(g >> level),
-		    channel_type(b >> level),
-		};
+		return transform([level](auto channel) { return channel >> level; });
 	}
 
 	/**
@@ -117,8 +113,10 @@ public:
 	 *
 	 * @return RGB the dulled colour
 	 */
-	[[nodiscard]] RGB dull() const {
-		return transform([](channel_type channel) -> channel_type { return std::clamp<channel_type>(channel, 5, 50); });
+	[[nodiscard]] constexpr RGB dull() const {
+		return transform([](channel_type channel) { //<
+			return std::clamp<channel_type>(channel, 5, 50);
+		});
 	}
 
 	/**
@@ -127,13 +125,12 @@ public:
 	 * @param proportion The amount to grey out
 	 * @return RGB The resulting colour
 	 */
-	[[nodiscard]] RGB greyOut(int32_t proportion) const {
+	[[nodiscard]] constexpr RGB greyOut(int32_t proportion) const {
 		uint32_t totalRGB = (uint32_t)r + g + b; // max 765
+		uint32_t multiplicand = (uint32_t)(0x808080 - proportion) + (totalRGB * (proportion >> 5));
 
-		return transform([totalRGB, proportion](channel_type channel) -> uint8_t {
-			uint32_t newRGB = rshift_round(
-			    (uint32_t)channel * (uint32_t)(0x808080 - proportion) + (totalRGB * (proportion >> 5)), 23);
-			return std::clamp<uint32_t>(newRGB, 0, channel_max);
+		return transform([multiplicand](channel_type channel) -> channel_type {
+			return std::clamp<uint32_t>(rshift_round((uint32_t)channel * multiplicand, 23), 0, channel_max);
 		});
 	}
 
@@ -145,8 +142,8 @@ public:
 	 * @param index The blend amount. You can think of this as a slider from one RGB to the other
 	 * @return RGB The new blended colour
 	 */
-	static RGB blend(const RGB& sourceA, const RGB& sourceB, uint16_t index) {
-		return transform2(sourceA, sourceB, [index](auto channelA, auto channelB) { //<
+	static constexpr RGB blend(RGB sourceA, RGB sourceB, uint16_t index) {
+		return transform2(sourceA, sourceB, [index](channel_type channelA, channel_type channelB) { //<
 			return blendChannel(channelA, channelB, index);
 		});
 	}
@@ -160,8 +157,8 @@ public:
 	 * @param indexB The blend amount for sourceB
 	 * @return RGB The new blended colour
 	 */
-	static RGB blend2(const RGB& sourceA, const RGB& sourceB, uint16_t indexA, uint16_t indexB) {
-		return transform2(sourceA, sourceB, [indexA, indexB](auto channelA, auto channelB) {
+	static constexpr RGB blend2(RGB sourceA, RGB sourceB, uint16_t indexA, uint16_t indexB) {
+		return transform2(sourceA, sourceB, [indexA, indexB](channel_type channelA, channel_type channelB) {
 			return blendChannel2(channelA, channelB, indexA, indexB);
 		});
 	}
@@ -180,6 +177,8 @@ public:
 			return g;
 		case 2:
 			return b;
+		default:
+			__builtin_unreachable(); // TODO: should be std::unreachable() with C++23
 		}
 	}
 
@@ -211,36 +210,36 @@ public:
 	/**
 	 * @brief Create a new colour by transforming each channel of a colour
 	 *
+	 * @tparam UnaryOp The function type (should be equivalent to std::function<channel_type(channel_type)>)
 	 * @param transformFn The function to apply to each channel, taking a channel_type value and returning a channel_type value
 	 * @return RGB The new colour
 	 */
-	RGB transform(const std::function<channel_type(channel_type)>& transformFn) const {
-		return RGB{transformFn(r), transformFn(g), transformFn(b)};
-	}
+	template <typename UnaryOp> // std::function<channel_type(channel_type)>
+	requires std::convertible_to<UnaryOp, std::function<channel_type(channel_type)>>
+	constexpr RGB transform(UnaryOp transformFn) const { return RGB(transformFn(r), transformFn(g), transformFn(b)); }
 
 	/**
 	 * @brief Create a new colour by transforming the channels of two colours
 	 *
+	 * @tparam BinaryOp The function type (should be equivalent to std::function<channel_type(channel_type, channel_type)>)
 	 * @param colourA The first colour
 	 * @param colourB The second colour
 	 * @param transformFn The transformer function, taking two channel_type values and returning a channel_type value
 	 * @return RGB The new colour
 	 */
-	static RGB transform2(const RGB& colourA, const RGB& colourB,
-	                      const std::function<channel_type(channel_type, channel_type)>& transformFn) {
-		return RGB{
-		    transformFn(colourA.r, colourB.r),
-		    transformFn(colourA.g, colourB.g),
-		    transformFn(colourA.b, colourB.b),
-		};
+	template <typename BinaryOp>
+	requires std::convertible_to<BinaryOp, std::function<channel_type(channel_type, channel_type)>>
+	static constexpr RGB transform2(RGB colourA, RGB colourB, BinaryOp transformFn) {
+		return RGB(transformFn(colourA.r, colourB.r), transformFn(colourA.g, colourB.g),
+		           transformFn(colourA.b, colourB.b));
 	}
 
 	/**
 	 * @brief Adjust a colour by altering its intensity and brightness
 	 * @return RGB The new colour
 	 */
-	[[nodiscard]] RGB adjust(uint8_t intensity, uint8_t brightnessDivider) const {
-		return transform([intensity, brightnessDivider](uint8_t channel) { //<
+	[[nodiscard]] constexpr RGB adjust(uint8_t intensity, uint8_t brightnessDivider) const {
+		return transform([intensity, brightnessDivider](channel_type channel) { //<
 			return ((channel * intensity / 255) / brightnessDivider);
 		});
 	}
@@ -250,7 +249,7 @@ private:
 	* @brief Blend a channel in equal proportions
 	* @return The blended channel value
 	*/
-	static channel_type blendChannel(uint32_t channelA, uint32_t channelB, uint16_t index) {
+	static constexpr channel_type blendChannel(uint32_t channelA, uint32_t channelB, uint16_t index) {
 		return blendChannel2(channelA, channelB, index, (std::numeric_limits<uint16_t>::max() - index + 1));
 	}
 
@@ -258,7 +257,8 @@ private:
 	* @brief Blend two channels in differing proportions
 	* @return The blended channel value
 	*/
-	static channel_type blendChannel2(uint32_t channelA, uint32_t channelB, uint16_t indexA, uint16_t indexB) {
+	static constexpr channel_type blendChannel2(uint32_t channelA, uint32_t channelB, uint16_t indexA,
+	                                            uint16_t indexB) {
 		uint32_t newRGB = rshift_round(channelA * indexA, 16) + rshift_round(channelB * indexB, 16);
 		return std::clamp<uint32_t>(newRGB, 0, channel_max);
 	}
