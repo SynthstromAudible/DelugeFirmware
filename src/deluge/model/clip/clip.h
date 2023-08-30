@@ -180,6 +180,7 @@ public:
 
 	uint8_t launchStyle;
 	int64_t fillEventAtTickCount;
+	bool overdubsShouldCloneOutput;
 
 protected:
 	virtual void

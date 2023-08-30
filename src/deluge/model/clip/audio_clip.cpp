@@ -255,7 +255,7 @@ ramError:
 
 bool AudioClip::cloneOutput(ModelStackWithTimelineCounter* modelStack, OverDubType overdubNature) {
 	//don't clone for loop commands in red mode
-	if (!(overdubsShouldCloneOutput || overdubNature == OverDubType::ContinuousLayering)) {
+	if (!overdubsShouldCloneOutput) {
 		return false;
 	}
 
