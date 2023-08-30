@@ -105,7 +105,6 @@ public:
 
 	bool doingLateStart;
 	bool maySetupCache;
-	bool overdubsShouldCloneOutput;
 
 protected:
 	bool cloneOutput(ModelStackWithTimelineCounter* modelStack, OverDubType overdubNature);

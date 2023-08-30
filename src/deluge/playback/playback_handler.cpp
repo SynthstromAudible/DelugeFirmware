@@ -2956,7 +2956,11 @@ doCreateNextOverdub:
 
 					// Or if that Clip was armed to record linearly...
 					else {
-						clipToCreateOverdubFrom->overdubNature = overdubNature;
+						//ensure that audio clips will clone outputs to layer continuously
+						if (overdubNature == OverDubType::ContinuousLayering) {
+							clipToCreateOverdubFrom->overdubsShouldCloneOutput = true;
+						}
+
 						if (!recording) {
 							recording = RECORDING_NORMAL;
 							setLedStates();
