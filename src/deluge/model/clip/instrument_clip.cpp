@@ -4033,7 +4033,7 @@ void InstrumentClip::finishLinearRecording(ModelStackWithTimelineCounter* modelS
 	}
 }
 
-Clip* InstrumentClip::cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStack, int32_t newOverdubNature) {
+Clip* InstrumentClip::cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStack, OverDubType newOverdubNature) {
 
 	// Allocate memory for Clip
 	void* clipMemory = GeneralMemoryAllocator::get().alloc(sizeof(InstrumentClip), NULL, false, true);
@@ -4078,7 +4078,7 @@ ramError:
 	return newInstrumentClip;
 }
 
-bool InstrumentClip::cloneOutput(ModelStackWithTimelineCounter* modelStack) {
+bool InstrumentClip::cloneOutput(ModelStackWithTimelineCounter* modelStack, OverDubType overdubNature) {
 	return false;
 }
 

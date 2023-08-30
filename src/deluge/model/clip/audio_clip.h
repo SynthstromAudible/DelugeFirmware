@@ -56,7 +56,7 @@ public:
 	void quantizeLengthForArrangementRecording(ModelStackWithTimelineCounter* modelStack, int32_t lengthSoFar,
 	                                           uint32_t timeRemainder, int32_t suggestedLength,
 	                                           int32_t alternativeLongerLength);
-	Clip* cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStack, int32_t newOverdubNature);
+	Clip* cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStack, OverDubType newOverdubNature);
 	int64_t getSamplesFromTicks(int32_t ticks);
 	void unassignVoiceSample();
 	void resumePlayback(ModelStackWithTimelineCounter* modelStack, bool mayMakeSound = true);
@@ -108,7 +108,7 @@ public:
 	bool overdubsShouldCloneOutput;
 
 protected:
-	bool cloneOutput(ModelStackWithTimelineCounter* modelStack);
+	bool cloneOutput(ModelStackWithTimelineCounter* modelStack, OverDubType overdubNature);
 
 private:
 	void detachAudioClipFromOutput(Song* song, bool shouldRetainLinksToOutput, bool shouldTakeParamManagerWith = false);

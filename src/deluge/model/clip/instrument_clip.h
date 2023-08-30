@@ -226,7 +226,7 @@ public:
 	void finishLinearRecording(ModelStackWithTimelineCounter* modelStack, Clip* nextPendingLoop,
 	                           int32_t buttonLatencyForTempolessRecord);
 	int32_t beginLinearRecording(ModelStackWithTimelineCounter* modelStack, int32_t buttonPressLatency);
-	Clip* cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStack, int32_t newOverdubNature);
+	Clip* cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStack, OverDubType newOverdubNature);
 	bool isAbandonedOverdub();
 	void quantizeLengthForArrangementRecording(ModelStackWithTimelineCounter* modelStack, int32_t lengthSoFar,
 	                                           uint32_t timeRemainder, int32_t suggestedLength,
@@ -248,7 +248,7 @@ public:
 protected:
 	void posReachedEnd(ModelStackWithTimelineCounter* modelStack);
 	bool wantsToBeginLinearRecording(Song* song);
-	bool cloneOutput(ModelStackWithTimelineCounter* modelStack);
+	bool cloneOutput(ModelStackWithTimelineCounter* modelStack, OverDubType overdubnature);
 	void pingpongOccurred(ModelStackWithTimelineCounter* modelStack);
 
 private:

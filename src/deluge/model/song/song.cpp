@@ -5067,7 +5067,7 @@ Clip* Song::getClipWithOutputAboutToBeginLinearRecording(Output* output) {
 	return NULL;
 }
 
-Clip* Song::createPendingNextOverdubBelowClip(Clip* clip, int32_t clipIndex, int32_t newOverdubNature) {
+Clip* Song::createPendingNextOverdubBelowClip(Clip* clip, int32_t clipIndex, OverDubType newOverdubNature) {
 
 	// No automatic overdubs are allowed during soloing, cos that's just too complicated
 	if (anyClipsSoloing) {

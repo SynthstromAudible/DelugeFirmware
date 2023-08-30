@@ -2467,9 +2467,9 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, int32_t channel,
 				if (actionLogger.allowedToDoReversion()
 				    || currentUIMode
 				           == UI_MODE_RECORD_COUNT_IN) { // Not quite sure if this describes exactly what we want but it'll do...
-					int32_t overdubNature = (static_cast<GlobalMIDICommand>(c) == GlobalMIDICommand::LOOP)
-					                            ? OVERDUB_NORMAL
-					                            : OVERDUB_CONTINUOUS_LAYERING;
+					OverDubType overdubNature = (static_cast<GlobalMIDICommand>(c) == GlobalMIDICommand::LOOP)
+					                                ? OverDubType::Normal
+					                                : OverDubType::ContinuousLayering;
 					loopCommand(overdubNature);
 				}
 				break;
@@ -2846,8 +2846,7 @@ int32_t PlaybackHandler::getArrangementRecordPosAtLastActionedSwungTick() {
 }
 
 // Warning - this might get called during card routine!
-void PlaybackHandler::loopCommand(int32_t overdubNature) {
-
+void PlaybackHandler::loopCommand(OverDubType overdubNature) {
 	bool anyGotArmedToStop;
 	bool mustEndTempolessRecordingAfter = false;
 
@@ -2883,7 +2882,7 @@ probablyExitRecordMode:
 		mustEndTempolessRecordingAfter = true;
 
 		// And if LAYERING command, make an overdub too
-		if (overdubNature == OVERDUB_CONTINUOUS_LAYERING) {
+		if (overdubNature == OverDubType::ContinuousLayering) {
 			goto doCreateNextOverdub;
 		}
 	}
@@ -2913,7 +2912,7 @@ probablyExitRecordMode:
 		}
 
 		// Or if none were recording, or if it was the LAYERING command, then create a new overdub (potentially in addition to having armed the old one to stop
-		if (!anyGotArmedToStop || overdubNature == OVERDUB_CONTINUOUS_LAYERING) {
+		if (!anyGotArmedToStop || overdubNature == OverDubType::ContinuousLayering) {
 
 doCreateNextOverdub:
 
@@ -2957,7 +2956,7 @@ doCreateNextOverdub:
 
 					// Or if that Clip was armed to record linearly...
 					else {
-
+						clipToCreateOverdubFrom->overdubNature = overdubNature;
 						if (!recording) {
 							recording = RECORDING_NORMAL;
 							setLedStates();
@@ -2983,7 +2982,7 @@ doCreateNextOverdub:
 	}
 
 	if (mustEndTempolessRecordingAfter) {
-		bool shouldExitRecordMode = (overdubNature != OVERDUB_CONTINUOUS_LAYERING);
+		bool shouldExitRecordMode = (overdubNature != OverDubType::ContinuousLayering);
 		finishTempolessRecording(true, kMIDIKeyInputLatency, shouldExitRecordMode);
 	}
 }
