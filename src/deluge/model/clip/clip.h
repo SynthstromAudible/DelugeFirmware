@@ -191,5 +191,6 @@ protected:
 	    OverDubType overdubNature = OverDubType::Normal) = 0; // Returns whether a new Output was in fact created
 	int32_t solicitParamManager(Song* song, ParamManager* newParamManager = NULL,
 	                            Clip* favourClipForCloningParamManager = NULL);
-	virtual void pingpongOccurred(ModelStackWithTimelineCounter* modelStack) {}
+	virtual void pingpongOccurred(ModelStackWithTimelineCounter* modelStack) {
+	}
 };
