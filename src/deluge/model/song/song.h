@@ -296,7 +296,7 @@ public:
 	                           bool createConsequencesForOtherLinearlyRecordingClips = false);
 	Clip* getPendingOverdubWithOutput(Output* output);
 	Clip* getClipWithOutputAboutToBeginLinearRecording(Output* output);
-	Clip* createPendingNextOverdubBelowClip(Clip* clip, int32_t clipIndex, int32_t newOverdubNature);
+	Clip* createPendingNextOverdubBelowClip(Clip* clip, int32_t clipIndex, OverDubType newOverdubNature);
 	bool hasAnyPendingNextOverdubs();
 	Output* getNextAudioOutput(int32_t offset, Output* oldOutput, Availability availabilityRequirement);
 	void deleteOutput(Output* output);

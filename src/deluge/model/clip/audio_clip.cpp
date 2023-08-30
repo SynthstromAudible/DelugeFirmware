@@ -218,7 +218,7 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 	recorder = NULL;
 }
 
-Clip* AudioClip::cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStackOldClip, int32_t newOverdubNature) {
+Clip* AudioClip::cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStackOldClip, OverDubType newOverdubNature) {
 
 	// Allocate memory for audio clip
 	void* clipMemory = GeneralMemoryAllocator::get().alloc(sizeof(AudioClip), NULL, false, true);
@@ -253,8 +253,9 @@ ramError:
 	return newClip;
 }
 
-bool AudioClip::cloneOutput(ModelStackWithTimelineCounter* modelStack) {
-	if (!overdubsShouldCloneOutput) {
+bool AudioClip::cloneOutput(ModelStackWithTimelineCounter* modelStack, OverDubType overdubNature) {
+	//don't clone for loop commands in red mode
+	if (!(overdubsShouldCloneOutput || overdubNature == OverDubType::ContinuousLayering)) {
 		return false;
 	}
 
