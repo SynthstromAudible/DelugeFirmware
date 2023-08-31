@@ -191,6 +191,10 @@ void SoundEditor::focusRegained() {
 	setLedStates();
 }
 
+void SoundEditor::displayOrLanguageChanged() {
+	getCurrentMenuItem()->readValueAgain();
+}
+
 void SoundEditor::setLedStates() {
 	indicator_leds::setLedState(IndicatorLED::SAVE, false); // In case we came from the save-Instrument UI
 

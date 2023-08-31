@@ -157,6 +157,10 @@ void InstrumentClipView::focusRegained() {
 	setLedStates();
 }
 
+void InstrumentClipView::displayOrLanguageChanged() {
+	InstrumentClipMinder::displayOrLanguageChanged();
+}
+
 void InstrumentClipView::setLedStates() {
 	indicator_leds::setLedState(IndicatorLED::KEYBOARD, false);
 	InstrumentClipMinder::setLedStates();
