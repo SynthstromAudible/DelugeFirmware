@@ -828,30 +828,30 @@ void AutomationInstrumentClipView::renderOLED(int32_t knobPos) {
 
 	if ((clip->lastSelectedParamID == kNoLastSelectedParamID) || (instrument->type == InstrumentType::CV)) {
 
-	#if OLED_MAIN_HEIGHT_PIXELS == 64
-			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 24;
-	#else
-			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 15;
-	#endif
+#if OLED_MAIN_HEIGHT_PIXELS == 64
+		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 24;
+#else
+		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 15;
+#endif
 
 		if (instrument->type != InstrumentType::CV) {
 			char const* outputTypeText;
 			outputTypeText = "Automation Overview";
 			deluge::hid::display::OLED::drawStringCentred(outputTypeText, yPos,
-															  deluge::hid::display::OLED::oledMainImage[0],
-															  OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+			                                              deluge::hid::display::OLED::oledMainImage[0],
+			                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 		}
 		else {
 			deluge::hid::display::OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_CANT_AUTOMATE_CV), yPos,
-															  deluge::hid::display::OLED::oledMainImage[0],
-															  OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+			                                              deluge::hid::display::OLED::oledMainImage[0],
+			                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 		}
 	}
 	else {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		ModelStackWithAutoParam* modelStackWithParam =
-			getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID, clip->lastSelectedParamKind);
+		    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID, clip->lastSelectedParamKind);
 		bool isAutomated = false;
 
 		//check if Parameter is currently automated so that the automation status can be drawn on the screen with the Parameter Name
@@ -896,14 +896,13 @@ void AutomationInstrumentClipView::renderOLED(int32_t knobPos) {
 
 		if (instrument->type != InstrumentType::CV) {
 
-		#if OLED_MAIN_HEIGHT_PIXELS == 64
-				int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
-		#else
-				int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
-		#endif
-				deluge::hid::display::OLED::drawStringCentred(buffer, yPos,
-															  deluge::hid::display::OLED::oledMainImage[0],
-															  OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+#if OLED_MAIN_HEIGHT_PIXELS == 64
+			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
+#else
+			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
+#endif
+			deluge::hid::display::OLED::drawStringCentred(buffer, yPos, deluge::hid::display::OLED::oledMainImage[0],
+			                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 
 			yPos = yPos + 12;
 
@@ -917,16 +916,15 @@ void AutomationInstrumentClipView::renderOLED(int32_t knobPos) {
 			}
 
 			deluge::hid::display::OLED::drawStringCentred(outputTypeText, yPos,
-														  deluge::hid::display::OLED::oledMainImage[0],
-														  OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+			                                              deluge::hid::display::OLED::oledMainImage[0],
+			                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 
 			yPos = yPos + 12;
 
 			char buffer2[5];
 			intToString(knobPos, buffer2);
-			deluge::hid::display::OLED::drawStringCentred(buffer2, yPos,
-															  deluge::hid::display::OLED::oledMainImage[0],
-															  OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+			deluge::hid::display::OLED::drawStringCentred(buffer2, yPos, deluge::hid::display::OLED::oledMainImage[0],
+			                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 		}
 	}
 
@@ -3430,7 +3428,7 @@ void AutomationInstrumentClipView::displayParameterName(int32_t paramID) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		ModelStackWithAutoParam* modelStackWithParam =
-			getModelStackWithParam(modelStack, clip, paramID, clip->lastSelectedParamKind);
+		    getModelStackWithParam(modelStack, clip, paramID, clip->lastSelectedParamKind);
 		bool isAutomated = false;
 
 		//check if Parameter is currently automated so that the automation status can be drawn on the screen with the Parameter Name

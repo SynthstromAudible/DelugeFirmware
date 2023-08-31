@@ -159,11 +159,11 @@ void UITimerManager::routine() {
 				case TIMER_AUTOMATION_VIEW: //timer to redisplay the parameter name on the screen in automation view
 					if (display->have7SEG()) {
 						if (getCurrentUI() == &automationInstrumentClipView
-							&& (((InstrumentClip*)currentSong->currentClip)->lastSelectedParamID
-								!= kNoLastSelectedParamID)) {
+						    && (((InstrumentClip*)currentSong->currentClip)->lastSelectedParamID
+						        != kNoLastSelectedParamID)) {
 
 							automationInstrumentClipView.displayParameterName(
-								((InstrumentClip*)currentSong->currentClip)->lastSelectedParamID);
+							    ((InstrumentClip*)currentSong->currentClip)->lastSelectedParamID);
 							unsetTimer(TIMER_AUTOMATION_VIEW);
 						}
 					}

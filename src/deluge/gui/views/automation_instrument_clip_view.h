@@ -107,7 +107,7 @@ public:
 	ClipMinder* toClipMinder() { return this; }
 
 	bool isOnAutomationOverview();
-	
+
 	bool interpolation;
 	bool interpolationBefore;
 	bool interpolationAfter;
