@@ -1359,16 +1359,16 @@ void View::drawOutputNameFromDetails(InstrumentType instrumentType, int32_t chan
 	}
 
 	if (display->haveOLED()) {
-		deluge::hid::display::OLED::clearMainImage();
 		if (getCurrentUI() == &automationInstrumentClipView) {
 			if (!automationInstrumentClipView.isOnAutomationOverview()) {
 				automationInstrumentClipView.displayAutomation();
 			}
 			else {
-				automationInstrumentClipView.renderOLED();
+				automationInstrumentClipView.renderDisplay();
 			}
 			return;
 		}
+		deluge::hid::display::OLED::clearMainImage();
 		char const* outputTypeText;
 		switch (instrumentType) {
 		case InstrumentType::SYNTH:
@@ -1398,6 +1398,17 @@ void View::drawOutputNameFromDetails(InstrumentType instrumentType, int32_t chan
 		deluge::hid::display::OLED::drawStringCentred(outputTypeText, yPos,
 		                                              deluge::hid::display::OLED::oledMainImage[0],
 		                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+	}
+	else {
+		if (getCurrentUI() == &automationInstrumentClipView) {
+			if (!automationInstrumentClipView.isOnAutomationOverview()) {
+				automationInstrumentClipView.displayAutomation();
+			}
+			else {
+				automationInstrumentClipView.renderDisplay();
+			}
+			return;
+		}
 	}
 
 	char buffer[12];
