@@ -97,7 +97,7 @@ add_compile_options(
     $<$<CONFIG:DEBUG>:-Og>
     $<$<CONFIG:RELWITHDEBINFO>:-O2>
     $<$<CONFIG:RELEASE>:-O2>
-
+    -fno-inline-functions
     # Link time optimizations
     $<$<CONFIG:RELWITHDEBINFO>:-flto>
     $<$<CONFIG:RELEASE>:-flto>

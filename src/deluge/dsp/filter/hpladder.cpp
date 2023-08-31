@@ -85,7 +85,7 @@ void HpLadderFilter::doFilterStereo(q31_t* startSample, q31_t* endSample) {
 		currentSample += 1;
 	} while (currentSample < endSample);
 }
-inline q31_t HpLadderFilter::doHPF(q31_t input, HPLadderState& state) {
+[[gcc::always_inline]] inline q31_t HpLadderFilter::doHPF(q31_t input, HPLadderState& state) {
 	//inputs are only 16 bit so this is pretty small
 	//this limit was found experimentally as about the lowest fc can get without sounding broken
 	q31_t constexpr lower_limit = -(ONE_Q31 >> 8);
