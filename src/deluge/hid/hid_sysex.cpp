@@ -1,4 +1,5 @@
 #include "hid/hid_sysex.h"
+#include "gui/l10n/l10n.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/oled.h"
 #include "hid/display/seven_segment.h"
@@ -64,6 +65,7 @@ void HIDSysex::requestOLEDDisplay(MIDIDevice* device, uint8_t* data, int32_t len
 			display = new deluge::hid::display::SevenSegment;
 		}
 		else {
+			deluge::l10n::chosenLanguage = nullptr;
 			display = new deluge::hid::display::OLED;
 		}
 	}
