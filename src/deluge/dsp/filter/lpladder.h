@@ -69,9 +69,9 @@ private:
 
 		return temp;
 	}
-	inline q31_t do24dBLPFOnSample(q31_t input, LpLadderState& state);
-	inline q31_t do12dBLPFOnSample(q31_t input, LpLadderState& state);
-	inline q31_t doDriveLPFOnSample(q31_t input, LpLadderState& state);
+	inline q31_t __attribute__((always_inline)) do24dBLPFOnSample(q31_t input, LpLadderState& state);
+	inline q31_t __attribute__((always_inline)) do12dBLPFOnSample(q31_t input, LpLadderState& state);
+	inline q31_t __attribute__((always_inline)) doDriveLPFOnSample(q31_t input, LpLadderState& state);
 	inline void renderLPLadder(q31_t* startSample, q31_t* endSample, FilterMode lpfMode, int32_t sampleIncrement);
 
 	//all ladders are in this class to share the basic components
