@@ -36,5 +36,6 @@ private:
 	friend class Settings;
 	uint32_t currentSettingIndex;
 	int32_t onValue;
+	char on_val[14];
 };
 } // namespace deluge::gui::menu_item::runtime_feature

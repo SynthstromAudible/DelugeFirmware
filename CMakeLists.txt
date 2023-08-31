@@ -191,9 +191,9 @@ add_executable(deluge)
 add_subdirectory(src)
 
 # Link external libraries
-target_link_libraries(deluge PUBLIC
-    fmt::fmt
-)
+# target_link_libraries(deluge PUBLIC
+
+# )
 
 # Project-only compile options (warnings, etc.)
 target_compile_options(deluge PUBLIC
