@@ -81,7 +81,7 @@ q31_t SVFilter::setConfig(q31_t freq, q31_t res, FilterMode lpfMode, q31_t lpfMo
 	return filterGain;
 }
 
-inline q31_t SVFilter::doSVF(int32_t input, SVFState& state) {
+[[gcc::always_inline]] inline q31_t SVFilter::doSVF(int32_t input, SVFState& state) {
 	q31_t high = 0;
 	q31_t notch = 0;
 	q31_t lowi;

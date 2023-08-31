@@ -40,7 +40,7 @@ private:
 		q31_t low;
 		q31_t band;
 	};
-	inline q31_t doSVF(q31_t input, SVFState& state);
+	[[gcc::always_inline]] inline q31_t doSVF(q31_t input, SVFState& state);
 	SVFState l;
 	SVFState r;
 
