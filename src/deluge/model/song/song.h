@@ -168,8 +168,6 @@ public:
 
 	bool affectEntire;
 
-	bool fillModeActive;
-
 	SessionLayoutType sessionLayout = SessionLayoutType::SessionLayoutTypeRows;
 	int32_t songGridScrollX = 0;
 	int32_t songGridScrollY = 0;
@@ -201,7 +199,8 @@ public:
 	uint32_t getInputTickScale();
 	Clip* getSyncScalingClip();
 	void setInputTickScaleClip(Clip* clip);
-
+	inline bool isFillModeActive() { return fillModeActive; }
+	void changeFillMode(bool on);
 	void setClipLength(Clip* clip, uint32_t newLength, Action* action, bool mayReSyncClip = true);
 	void doubleClipLength(InstrumentClip* clip, Action* action = NULL);
 	Clip* getClipWithOutput(Output* output, bool mustBeActive = false, Clip* excludeClip = NULL);
@@ -335,6 +334,7 @@ public:
 	double masterCompressorWet;
 
 private:
+	bool fillModeActive;
 	void inputTickScalePotentiallyJustChanged(uint32_t oldScale);
 	int32_t readClipsFromFile(ClipArray* clipArray);
 	void addInstrumentToHibernationList(Instrument* instrument);

@@ -21,6 +21,7 @@
 typedef int32_t q31_t;
 
 #define ONE_Q31 2147483647
+#define ONE_Q15 65536
 #define NEGATIVE_ONE_Q31 -2147483648
 #define ONE_OVER_SQRT2_Q31 1518500250
 // This multiplies two numbers in signed Q31 fixed point and truncates the result

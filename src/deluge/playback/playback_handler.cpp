@@ -2486,11 +2486,7 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, int32_t channel,
 				break;
 
 			case GlobalMIDICommand::FILL:
-				currentSong->fillModeActive = true;
-				if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction)
-				     == RuntimeFeatureStateSyncScalingAction::Fill)) {
-					indicator_leds::setLedState(IndicatorLED::SYNC_SCALING, true);
-				}
+				currentSong->changeFillMode(true);
 				break;
 
 			//case GlobalMIDICommand::TAP:
@@ -2517,11 +2513,7 @@ bool PlaybackHandler::tryGlobalMIDICommandsOff(MIDIDevice* device, int32_t chann
 
 	// Check for FILL command at index [8]
 	if (midiEngine.globalMIDICommands[8].equalsNoteOrCC(device, channel, note)) {
-		currentSong->fillModeActive = false;
-		if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction)
-		     == RuntimeFeatureStateSyncScalingAction::Fill)) {
-			indicator_leds::setLedState(IndicatorLED::SYNC_SCALING, false);
-		}
+		currentSong->changeFillMode(false);
 		foundAnything = true;
 	}
 
