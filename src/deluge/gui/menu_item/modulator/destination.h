@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "fmt/core.h"
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
@@ -28,7 +29,7 @@ public:
 	void writeCurrentValue() override { soundEditor.currentSound->modulator1ToModulator0 = this->getValue(); }
 	static_vector<std::string_view, capacity()> getOptions() override {
 		using enum l10n::String;
-		static auto mod1 = l10n::getView(STRING_FOR_MODULATOR_1);
+		static auto mod1 = fmt::vformat(l10n::getView(STRING_FOR_MODULATOR_N), fmt::make_format_args(1));
 		return {
 		    l10n::getView(STRING_FOR_CARRIERS),
 		    mod1,

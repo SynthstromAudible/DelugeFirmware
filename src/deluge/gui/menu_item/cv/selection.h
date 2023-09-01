@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "fmt/core.h"
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/cv/submenu.h"
 #include "gui/menu_item/selection.h"
@@ -50,8 +51,8 @@ public:
 
 	static_vector<std::string_view, capacity()> getOptions() override {
 		using enum l10n::String;
-		static auto cv1 = l10n::getView(STRING_FOR_CV_OUTPUT_1);
-		static auto cv2 = l10n::getView(STRING_FOR_CV_OUTPUT_2);
+		static auto cv1 = fmt::vformat(l10n::getView(STRING_FOR_CV_OUTPUT_N), fmt::make_format_args(1));
+		static auto cv2 = fmt::vformat(l10n::getView(STRING_FOR_CV_OUTPUT_N), fmt::make_format_args(2));
 
 		return {cv1, cv2};
 	}
