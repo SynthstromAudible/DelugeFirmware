@@ -414,7 +414,7 @@ void AutomationInstrumentClipView::focusRegained() {
 	InstrumentClip* clip = getCurrentClip();
 	Instrument* instrument = (Instrument*)clip->output;
 
-	if (clip->lastSelectedParamID != kNoLastSelectedParamID) {
+	if (!isOnAutomationOverview()) {
 		displayParameterName(clip->lastSelectedParamID);
 		displayAutomation(); //update led indicator levels
 	}
@@ -609,7 +609,7 @@ void AutomationInstrumentClipView::performActualRender(uint32_t whichRows, uint8
 		         && !((Kit*)instrument)->selectedDrum)) {
 
 			//if parameter has been selected, show Automation Editor
-			if (clip->lastSelectedParamID != kNoLastSelectedParamID) {
+			if (!isOnAutomationOverview()) {
 
 				renderAutomationEditor(modelStack, clip, instrument, image + (yDisplay * imageWidth * 3),
 				                       occupancyMaskOfRow, renderWidth, xScroll, xZoom, yDisplay, drawUndefinedArea);
@@ -827,7 +827,7 @@ void AutomationInstrumentClipView::renderDisplay(int32_t knobPos) {
 	if (display->haveOLED()) {
 		deluge::hid::display::OLED::clearMainImage();
 
-		if ((clip->lastSelectedParamID == kNoLastSelectedParamID) || (instrument->type == InstrumentType::CV)) {
+		if (isOnAutomationOverview() || (instrument->type == InstrumentType::CV)) {
 
 	#if OLED_MAIN_HEIGHT_PIXELS == 64
 			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 24;
@@ -930,7 +930,7 @@ void AutomationInstrumentClipView::renderDisplay(int32_t knobPos) {
 	}
 	else {
 
-		if ((clip->lastSelectedParamID == kNoLastSelectedParamID) || (instrument->type == InstrumentType::CV)) {
+		if (isOnAutomationOverview() || (instrument->type == InstrumentType::CV)) {
 			if (instrument->type != InstrumentType::CV) {
 				display->setText(l10n::get(l10n::String::STRING_FOR_AUTOMATION));
 			}
@@ -1005,11 +1005,11 @@ void AutomationInstrumentClipView::renderDisplay(int32_t knobPos) {
 //adjust the LED meters
 void AutomationInstrumentClipView::displayAutomation() {
 
-	if (!multiPadPressSelected) {
+	//if (!multiPadPressSelected) {
 
 		InstrumentClip* clip = getCurrentClip();
 
-		if (clip->lastSelectedParamID != kNoLastSelectedParamID) {
+		if (!isOnAutomationOverview()) {
 
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -1024,6 +1024,7 @@ void AutomationInstrumentClipView::displayAutomation() {
 
 					int32_t knobPos = getParameterKnobPos(modelStackWithParam, view.modPos);
 
+					//only on OLED will the value update on the screen when playing back automation
 					if (display->haveOLED()) {
 						renderDisplay(knobPos + kKnobPosOffset);
 					}
@@ -1033,7 +1034,7 @@ void AutomationInstrumentClipView::displayAutomation() {
 				}
 			}
 		}
-	}
+	//}
 }
 
 //button action
@@ -1290,10 +1291,10 @@ doOther:
 
 	else if (b == BACK && currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
 		//only allow clearing of a clip if you're in the automation overview
-		if (on && clip->lastSelectedParamID == kNoLastSelectedParamID) {
+		if (on && isOnAutomationOverview()) {
 			goto passToOthers;
 		}
-		else if (on && clip->lastSelectedParamID != kNoLastSelectedParamID) {
+		else if (on && !isOnAutomationOverview()) {
 			//delete automation of current parameter selected
 
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -1550,7 +1551,7 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 		}
 		// If this is a automation-length-edit press...
 		//needed for Automation
-		if (clip->lastSelectedParamID != kNoLastSelectedParamID && instrumentClipView.numEditPadPresses == 1) {
+		if (!isOnAutomationOverview() && instrumentClipView.numEditPadPresses == 1) {
 
 			int32_t firstPadX = 255;
 			int32_t firstPadY = 255;
@@ -1666,13 +1667,13 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 		}
 
 		//outside pad selection mode, exit multi pad press once you've let go of the first pad in the long press
-		if ((clip->lastSelectedParamID != kNoLastSelectedParamID) && !padSelectionOn && multiPadPressSelected
+		if (!isOnAutomationOverview() && !padSelectionOn && multiPadPressSelected
 		    && (currentUIMode != UI_MODE_NOTES_PRESSED)) {
 			initPadSelection();
 			displayAutomation();
 		}
 		//switch from long press selection to short press selection in pad selection mode
-		else if ((clip->lastSelectedParamID != kNoLastSelectedParamID) && padSelectionOn && multiPadPressSelected
+		else if (!isOnAutomationOverview() && padSelectionOn && multiPadPressSelected
 		         && !multiPadPressActive && (currentUIMode != UI_MODE_NOTES_PRESSED)
 		         && ((AudioEngine::audioSampleTimer - instrumentClipView.timeLastEditPadPress) < kShortPressTime)) {
 
@@ -1964,7 +1965,7 @@ ActionResult AutomationInstrumentClipView::horizontalEncoderAction(int32_t offse
 
 	encoderAction = true;
 
-	if (clip->lastSelectedParamID != kNoLastSelectedParamID
+	if (!isOnAutomationOverview()
 	    && ((isNoUIModeActive() && Buttons::isButtonPressed(hid::button::Y_ENC))
 	        || (isUIModeActiveExclusively(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)
 	            && Buttons::isButtonPressed(hid::button::CLIP_VIEW))
@@ -2371,7 +2372,7 @@ void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int
 	//if user holding a node down, we'll adjust the value of the selected parameter being automated
 	if (isUIModeActive(UI_MODE_NOTES_PRESSED) || padSelectionOn) {
 
-		if (clip->lastSelectedParamID != kNoLastSelectedParamID
+		if (!isOnAutomationOverview()
 		    && ((instrumentClipView.numEditPadPresses > 0
 		         && ((int32_t)(instrumentClipView.timeLastEditPadPress + 80 * 44 - AudioEngine::audioSampleTimer) < 0))
 		        || padSelectionOn)) {
@@ -2476,7 +2477,7 @@ void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int
 
 	else { //if playback is enabled and you are recording, you will be able to record in live automations for the selected parameter
 
-		if (clip->lastSelectedParamID != kNoLastSelectedParamID) {
+		if (!isOnAutomationOverview()) {
 
 			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
@@ -2534,7 +2535,7 @@ void AutomationInstrumentClipView::modEncoderButtonAction(uint8_t whichModEncode
 		if (on && instrument->type != InstrumentType::CV) {
 			if (Buttons::isShiftButtonPressed()) {
 				//paste within Automation Editor
-				if (clip->lastSelectedParamID != kNoLastSelectedParamID) {
+				if (!isOnAutomationOverview()) {
 					pasteAutomation();
 				}
 				//paste on Automation Overview
@@ -2544,7 +2545,7 @@ void AutomationInstrumentClipView::modEncoderButtonAction(uint8_t whichModEncode
 			}
 			else {
 				//copy within Automation Editor
-				if (clip->lastSelectedParamID != kNoLastSelectedParamID) {
+				if (!isOnAutomationOverview()) {
 					copyAutomation();
 				}
 				//copy on Automation Overview
@@ -2556,7 +2557,7 @@ void AutomationInstrumentClipView::modEncoderButtonAction(uint8_t whichModEncode
 	}
 
 	//delete automation of current parameter selected
-	else if (Buttons::isShiftButtonPressed() && clip->lastSelectedParamID != kNoLastSelectedParamID) {
+	else if (Buttons::isShiftButtonPressed() && !isOnAutomationOverview()) {
 
 		ModelStackWithAutoParam* modelStackWithParam =
 		    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID, clip->lastSelectedParamKind);
@@ -2571,7 +2572,7 @@ void AutomationInstrumentClipView::modEncoderButtonAction(uint8_t whichModEncode
 	}
 
 	//de-select multi pad press
-	else if (clip->lastSelectedParamID != kNoLastSelectedParamID) {
+	else if (!isOnAutomationOverview()) {
 		if (on) {
 			if (padSelectionOn) {
 
@@ -2719,7 +2720,7 @@ void AutomationInstrumentClipView::selectEncoderAction(int8_t offset) {
 		if (instrument->type == InstrumentType::KIT && instrumentClipView.getAffectEntire()) {
 
 			//if you haven't selected a parameter yet, start at the beginning of the list
-			if (clip->lastSelectedParamID == kNoLastSelectedParamID) {
+			if (isOnAutomationOverview()) {
 				auto idx = 0;
 				auto [kind, id] = kitAffectEntireParamsForAutomation[idx];
 				clip->lastSelectedParamID = id;
@@ -2757,7 +2758,7 @@ void AutomationInstrumentClipView::selectEncoderAction(int8_t offset) {
 		         || (instrument->type == InstrumentType::KIT && ((Kit*)instrument)->selectedDrum)) {
 
 			//if you haven't selected a parameter yet, start at the beginning of the list
-			if (clip->lastSelectedParamID == kNoLastSelectedParamID) {
+			if (isOnAutomationOverview()) {
 				auto idx = 0;
 				auto [kind, id] = nonKitAffectEntireParamsForAutomation[idx];
 				clip->lastSelectedParamID = id;
@@ -2811,7 +2812,7 @@ void AutomationInstrumentClipView::selectEncoderAction(int8_t offset) {
 
 	else if (instrument->type == InstrumentType::MIDI_OUT) {
 
-		if (clip->lastSelectedParamID == kNoLastSelectedParamID) {
+		if (isOnAutomationOverview()) {
 			clip->lastSelectedParamID = 0;
 		}
 		else if ((clip->lastSelectedParamID + offset) < 0) {
@@ -2886,14 +2887,6 @@ void AutomationInstrumentClipView::initParameterSelection() {
 
 	//if we're going back to the Automation Overview, set the display to show "Automation Overview"
 	renderDisplay();
-	/*if (display->haveOLED()) {
-		renderOLED();
-	}
-	else {
-		char const* outputTypeText;
-		outputTypeText = "Automation Overview";
-		display->setScrollingText(outputTypeText);
-	}*/
 }
 
 void AutomationInstrumentClipView::initPadSelection() {
@@ -3127,7 +3120,7 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 
 	Instrument* instrument = (Instrument*)clip->output;
 
-	if ((shortcutPress || clip->lastSelectedParamID == kNoLastSelectedParamID)
+	if ((shortcutPress || isOnAutomationOverview())
 	    && (!(instrument->type == InstrumentType::KIT && !instrumentClipView.getAffectEntire()
 	          && !((Kit*)instrument)->selectedDrum)
 	        || (instrument->type == InstrumentType::KIT
@@ -3208,7 +3201,7 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 		resetShortcutBlinking();
 	}
 
-	else if (clip->lastSelectedParamID != kNoLastSelectedParamID) { //this means you are editing a parameter's value
+	else if (!isOnAutomationOverview()) { //this means you are editing a parameter's value
 
 		ModelStackWithAutoParam* modelStackWithParam =
 		    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID, clip->lastSelectedParamKind);
@@ -3581,7 +3574,7 @@ void AutomationInstrumentClipView::setDisplayParameterNameTimer() {
 		Instrument* instrument = (Instrument*)clip->output;
 
 		//after you displayed a pop up with the parameter value, redisplay the parameter name on the screen
-		if (clip->lastSelectedParamID != kNoLastSelectedParamID) {
+		if (!isOnAutomationOverview()) {
 
 			uiTimerManager.setTimer(TIMER_AUTOMATION_VIEW, 700);
 		}
