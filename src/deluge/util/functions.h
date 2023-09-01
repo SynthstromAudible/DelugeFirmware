@@ -141,6 +141,18 @@ static constexpr uint32_t charsToIntegerConstant(char a, char b, char c, char d)
 static constexpr uint16_t charsToIntegerConstant(char a, char b) {
 	return (static_cast<uint16_t>(a)) | (static_cast<uint16_t>(b) << 8);
 }
+/**
+ * replace asterix with a digit
+ * Only works for single digits
+*/
+static void asterixToInt(char* str, int32_t i) {
+	while (*str != 0) {
+		if (*str == '*') {
+			*str = (char)('0' + i);
+		}
+		str++;
+	}
+}
 
 int32_t stringToInt(char const* string);
 int32_t stringToUIntOrError(char const* mem);
