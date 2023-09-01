@@ -60,10 +60,8 @@ public:
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
 	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
-	void displayAutomation();
 	void renderDisplay(int32_t knobPos = kNoKnobPos);
-	void displayParameterName();
-	void setDisplayParameterNameTimer();
+	void displayAutomation();
 
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) { InstrumentClipMinder::renderOLED(image); }
 
@@ -164,7 +162,6 @@ private:
 	                         int32_t firstPadY, int32_t secondPadX, int32_t secondPadY, bool modEncoderAction = false);
 
 	int32_t calculateKnobPosForModEncoderTurn(int32_t knobPos, int32_t offset);
-	void displayParameterValue(int32_t knobPos);
 	void displayCVErrorMessage();
 	void resetShortcutBlinking();
 

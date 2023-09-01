@@ -155,17 +155,6 @@ void UITimerManager::routine() {
 					setTimer(TIMER_GRAPHICS_ROUTINE, 15);
 					break;
 
-				case TIMER_AUTOMATION_VIEW: //timer to redisplay the parameter name on the screen in automation view
-					if (display->have7SEG()) {
-						if ((getCurrentUI() == &automationInstrumentClipView)
-						    && !automationInstrumentClipView.isOnAutomationOverview()) {
-
-							automationInstrumentClipView.displayParameterName();
-							unsetTimer(TIMER_AUTOMATION_VIEW);
-						}
-					}
-					break;
-
 				case TIMER_OLED_LOW_LEVEL:
 					if (display->haveOLED()) {
 						oledLowLevelTimerCallback();

@@ -411,18 +411,6 @@ bool AutomationInstrumentClipView::opened() {
 // Initializes some stuff to begin a new editing session
 void AutomationInstrumentClipView::focusRegained() {
 
-	InstrumentClip* clip = getCurrentClip();
-	Instrument* instrument = (Instrument*)clip->output;
-
-	if (!isOnAutomationOverview()) {
-		//displayParameterName();
-		displayAutomation(); //update led indicator levels
-	}
-
-	if (instrument->type == InstrumentType::CV) {
-		displayCVErrorMessage();
-	}
-
 	ClipView::focusRegained();
 
 	instrumentClipView.auditioningSilently = false; // Necessary?
@@ -819,22 +807,24 @@ bool AutomationInstrumentClipView::renderSidebar(uint32_t whichRows, uint8_t ima
 	return instrumentClipView.renderSidebar(whichRows, image, occupancyMask);
 }
 
-void AutomationInstrumentClipView::renderDisplay(int32_t knobPos) {
-
+void AutomationInstrumentClipView::renderDisplay(int32_t knobPos) {	
 	InstrumentClip* clip = getCurrentClip();
 	Instrument* instrument = (Instrument*)clip->output;
 
+	//OLED Display
 	if (display->haveOLED()) {
 		deluge::hid::display::OLED::clearMainImage();
 
 		if (isOnAutomationOverview() || (instrument->type == InstrumentType::CV)) {
 
+			//align string to vertically to the centre of the display
 	#if OLED_MAIN_HEIGHT_PIXELS == 64
 			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 24;
 	#else
 			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 15;
 	#endif
 
+			//display Automation Overview or Can't Automate CV
 			if (instrument->type != InstrumentType::CV) {
 				char const* outputTypeText;
 				outputTypeText = "Automation Overview";
@@ -849,6 +839,7 @@ void AutomationInstrumentClipView::renderDisplay(int32_t knobPos) {
 			}
 		}
 		else if (instrument->type != InstrumentType::CV) {
+			//display parameter name
 			char parameterName[30];
 			getParameterName(parameterName);
 
@@ -860,6 +851,7 @@ void AutomationInstrumentClipView::renderDisplay(int32_t knobPos) {
 			deluge::hid::display::OLED::drawStringCentred(parameterName, yPos, deluge::hid::display::OLED::oledMainImage[0],
 															OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 
+			//display automation status
 			yPos = yPos + 12;
 
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -883,6 +875,7 @@ void AutomationInstrumentClipView::renderDisplay(int32_t knobPos) {
 														deluge::hid::display::OLED::oledMainImage[0],
 														OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 
+			//display parameter value
 			yPos = yPos + 12;
 
 			char buffer[5];
@@ -893,8 +886,9 @@ void AutomationInstrumentClipView::renderDisplay(int32_t knobPos) {
 
 		deluge::hid::display::OLED::sendMainImage();
 	}
-	else {
-		
+	//7SEG Display
+	else {		
+		//display AUTO or CANT
 		if (isOnAutomationOverview() || (instrument->type == InstrumentType::CV)) {
 			if (instrument->type != InstrumentType::CV) {
 				display->setText(l10n::get(l10n::String::STRING_FOR_AUTOMATION));
@@ -904,6 +898,21 @@ void AutomationInstrumentClipView::renderDisplay(int32_t knobPos) {
 			}
 		}
 		else if (instrument->type != InstrumentType::CV) {
+			/* check if you're holding a pad
+			* if yes, store pad press knob position in lastPadSelectedKnobPos
+			* so that it can be used next time as the knob position if returning here
+			* to display parameter value after another popup has been cancelled (e.g. audition pad)
+			*/
+			if (isUIModeActive(UI_MODE_NOTES_PRESSED)) {
+				if (knobPos != kNoKnobPos) {
+					lastPadSelectedKnobPos = knobPos;
+				}
+				else if (lastPadSelectedKnobPos != kNoLastSelectedPad) {
+					knobPos = lastPadSelectedKnobPos;
+				}
+			}
+
+			//display parameter value if knobPos is provided
 			if (knobPos != kNoKnobPos) {
 				char buffer[5];
 
@@ -914,9 +923,9 @@ void AutomationInstrumentClipView::renderDisplay(int32_t knobPos) {
 				}
 				else {
 					display->displayPopup(buffer);
-					//setDisplayParameterNameTimer();
 				}
 			}
+			//display parameter name
 			else {
 				char parameterName[30];
 				getParameterName(parameterName);
@@ -932,7 +941,6 @@ void AutomationInstrumentClipView::getParameterName(char* parameterName) {
 	Instrument* instrument = (Instrument*)clip->output;
 
 	if (instrument->type == InstrumentType::SYNTH || instrument->type == InstrumentType::KIT) {
-
 		if (clip->lastSelectedParamKind == Param::Kind::PATCHED) {
 			strncpy(parameterName, getPatchedParamDisplayName(clip->lastSelectedParamID), 29);
 		}
@@ -944,7 +952,6 @@ void AutomationInstrumentClipView::getParameterName(char* parameterName) {
 		}
 	}
 	else if (instrument->type == InstrumentType::MIDI_OUT) {
-
 		if (clip->lastSelectedParamID == CC_NUMBER_NONE) {
 			strcpy(parameterName, deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_PARAM));
 		}
@@ -957,8 +964,21 @@ void AutomationInstrumentClipView::getParameterName(char* parameterName) {
 		else {
 			parameterName[0] = 'C';
 			parameterName[1] = 'C';
-			parameterName[2] = ' ';
-			intToString(clip->lastSelectedParamID, &parameterName[3]);
+			if (display->haveOLED()) {
+				parameterName[2] = ' ';
+				intToString(clip->lastSelectedParamID, &parameterName[3]);
+			}
+			else {
+				char* numberStartPos;
+				if (clip->lastSelectedParamID < 10) {
+					parameterName[2] = ' ';
+					numberStartPos = parameterName + 3;
+				}
+				else {
+					numberStartPos = (clip->lastSelectedParamID < 100) ? (parameterName + 2) : (parameterName + 1);
+				}
+				intToString(clip->lastSelectedParamID, numberStartPos);
+			}
 		}
 	}
 }
@@ -988,6 +1008,9 @@ void AutomationInstrumentClipView::displayAutomation() {
 					//only on OLED will the value update on the screen when playing back automation
 					if (display->haveOLED()) {
 						renderDisplay(knobPos + kKnobPosOffset);
+					}
+					else {
+						renderDisplay();
 					}
 
 					indicator_leds::setKnobIndicatorLevel(0, knobPos + kKnobPosOffset);
@@ -1269,7 +1292,6 @@ doOther:
 				modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam);
 
 				display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_DELETED));
-				//setDisplayParameterNameTimer();
 			}
 		}
 	}
@@ -1291,7 +1313,6 @@ doOther:
 
 				display->displayPopup(l10n::get(l10n::String::STRING_FOR_INTERPOLATION_DISABLED));
 			}
-			//setDisplayParameterNameTimer();
 		}
 	}
 
@@ -1317,10 +1338,6 @@ passToOthers:
 			display->cancelPopup();
 		}
 
-	//	if (on && (b != SAVE && b != LOAD)) {
-	//		setDisplayParameterNameTimer();
-	//	}
-
 		return result;
 	}
 
@@ -1329,7 +1346,6 @@ passToOthers:
 	}
 
 	if (on && (b != KEYBOARD && b != CLIP_VIEW && b != SESSION_VIEW)) {
-		//setDisplayParameterNameTimer();
 		uiNeedsRendering(this);
 	}
 
@@ -1359,7 +1375,6 @@ void AutomationInstrumentClipView::enterScaleMode(uint8_t yDisplay) {
 
 	// And tidy up
 	setLedStates();
-	//setDisplayParameterNameTimer();
 }
 
 //simplified version of the InstrumentClipView::enterScaleMode function. No need to render any animation.
@@ -1485,7 +1500,6 @@ ActionResult AutomationInstrumentClipView::padAction(int32_t x, int32_t y, int32
 				}
 				auditionPadAction(velocity, y, Buttons::isShiftButtonPressed());
 			}
-			//setDisplayParameterNameTimer();
 		}
 	}
 
@@ -1594,7 +1608,9 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 
 					//display pad value of second pad pressed
 					knobPos = getParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
-					displayParameterValue(knobPos);
+					//lastPadSelectedKnobPos = knobPos;
+					renderDisplay(knobPos);
+					//displayParameterValue(knobPos);
 				}
 			}
 		}
@@ -1631,7 +1647,6 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 		if (!isOnAutomationOverview() && !padSelectionOn && multiPadPressSelected
 		    && (currentUIMode != UI_MODE_NOTES_PRESSED)) {
 			initPadSelection();
-			displayAutomation();
 		}
 		//switch from long press selection to short press selection in pad selection mode
 		else if (!isOnAutomationOverview() && padSelectionOn && multiPadPressSelected
@@ -1645,10 +1660,12 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 
 			uiNeedsRendering(this);
 		}
-
-		if (currentUIMode != UI_MODE_NOTES_PRESSED) {
+		
+		if (!isOnAutomationOverview() && (currentUIMode != UI_MODE_NOTES_PRESSED)) {
 			lastPadSelectedKnobPos = kNoLastSelectedPad;
-			setDisplayParameterNameTimer();
+			if (!playbackHandler.isEitherClockActive()) {
+				displayAutomation();
+			}
 		}
 	}
 }
@@ -1894,9 +1911,12 @@ doSilentAudition:
 					instrumentClipView.sendAuditionNote(false, yDisplay, 64, 0);
 				}
 			}
+			display->cancelPopup();
 			instrumentClipView.someAuditioningHasEnded(true);
 			actionLogger.closeAction(ACTION_NOTEROW_ROTATE);
-			//setDisplayParameterNameTimer();
+			if (display->have7SEG()) {
+				renderDisplay();
+			}
 		}
 
 		renderingNeededRegardlessOfUI(0, 1 << yDisplay);
@@ -1945,10 +1965,6 @@ ActionResult AutomationInstrumentClipView::horizontalEncoderAction(int32_t offse
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_SHIFT_RIGHT));
 		}
 
-	//	if (offset != 0) {
-	//		setDisplayParameterNameTimer();
-	//	}
-
 		return ActionResult::DEALT_WITH;
 	}
 
@@ -1989,7 +2005,6 @@ wantToEditNoteRowLength:
 	else {
 		ActionResult result = ClipView::horizontalEncoderAction(offset);
 		uiNeedsRendering(this);
-		//setDisplayParameterNameTimer();
 		return result;
 	}
 }
@@ -2427,6 +2442,10 @@ void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int
 
 						return;
 					}
+					else if (padSelectionOn) {
+						indicator_leds::setKnobIndicatorLevel(0, newKnobPos + kKnobPosOffset);
+						indicator_leds::setKnobIndicatorLevel(1, newKnobPos + kKnobPosOffset);
+					}
 				}
 			}
 		}
@@ -2465,9 +2484,13 @@ void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int
 
 					modelStack->getTimelineCounter()->instrumentBeenEdited();
 
-					displayParameterValue(newKnobPos + kKnobPosOffset);
-					indicator_leds::setKnobIndicatorLevel(0, newKnobPos + kKnobPosOffset);
-					indicator_leds::setKnobIndicatorLevel(1, newKnobPos + kKnobPosOffset);
+					//if (!playbackHandler.isEitherClockActive()) {
+					//	displayAutomation();
+					//}
+					//displayParameterValue(newKnobPos + kKnobPosOffset);
+					renderDisplay(newKnobPos + kKnobPosOffset);
+					//indicator_leds::setKnobIndicatorLevel(0, newKnobPos + kKnobPosOffset);
+					//indicator_leds::setKnobIndicatorLevel(1, newKnobPos + kKnobPosOffset);
 				}
 			}
 		}
@@ -2528,7 +2551,6 @@ void AutomationInstrumentClipView::modEncoderButtonAction(uint8_t whichModEncode
 			modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam);
 
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_DELETED));
-			//setDisplayParameterNameTimer();
 		}
 	}
 
@@ -2540,7 +2562,9 @@ void AutomationInstrumentClipView::modEncoderButtonAction(uint8_t whichModEncode
 				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PAD_SELECTION_OFF));
 
 				initPadSelection();
-				displayAutomation();
+				if (!playbackHandler.isEitherClockActive()) {
+					displayAutomation();
+				}
 			}
 			else {
 				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PAD_SELECTION_ON));
@@ -2552,6 +2576,22 @@ void AutomationInstrumentClipView::modEncoderButtonAction(uint8_t whichModEncode
 				//display only left cursor initially
 				leftPadSelectedX = 0;
 				rightPadSelectedX = kNoLastSelectedPad;
+
+				if (!playbackHandler.isEitherClockActive()) {
+					ModelStackWithAutoParam* modelStackWithParam =
+						getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID, clip->lastSelectedParamKind);
+					if (modelStackWithParam && modelStackWithParam->autoParam) {
+
+						if (modelStackWithParam->getTimelineCounter()
+							== view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+
+							view.activeModControllableModelStack.paramManager->toForTimeline()->grabValuesFromPos(
+								getPosFromSquare(leftPadSelectedX), &view.activeModControllableModelStack);
+
+							displayAutomation();	
+						}
+					}
+				}
 			}
 		}
 	}
@@ -2560,14 +2600,12 @@ void AutomationInstrumentClipView::modEncoderButtonAction(uint8_t whichModEncode
 	}
 
 	uiNeedsRendering(this);
-	//setDisplayParameterNameTimer();
 	return;
 
 followOnAction: //it will come here when you are on the automation overview iscreen
 
 	view.modEncoderButtonAction(whichModEncoder, on);
 	uiNeedsRendering(this);
-	//setDisplayParameterNameTimer();
 }
 
 void AutomationInstrumentClipView::copyAutomation() {
@@ -2604,19 +2642,16 @@ void AutomationInstrumentClipView::copyAutomation() {
 
 		if (copiedParamAutomation.nodes) {
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_COPIED));
-			//setDisplayParameterNameTimer();
 			return;
 		}
 	}
 
 	display->displayPopup(l10n::get(l10n::String::STRING_FOR_NO_AUTOMATION_TO_COPY));
-	//setDisplayParameterNameTimer();
 }
 
 void AutomationInstrumentClipView::pasteAutomation() {
 	if (!copiedParamAutomation.nodes) {
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_NO_AUTOMATION_TO_PASTE));
-		//setDisplayParameterNameTimer();
 		return;
 	}
 
@@ -2655,18 +2690,18 @@ void AutomationInstrumentClipView::pasteAutomation() {
 		                                      &copiedParamAutomation, isPatchCable);
 
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_PASTED));
-		//setDisplayParameterNameTimer();
-		displayAutomation();
 
 		if (playbackHandler.isEitherClockActive()) {
 			currentPlaybackMode->reversionDone(); // Re-gets automation and stuff
+		}
+		else {
+			displayAutomation();
 		}
 
 		return;
 	}
 
 	display->displayPopup(l10n::get(l10n::String::STRING_FOR_CANT_PASTE_AUTOMATION));
-	//setDisplayParameterNameTimer();
 }
 
 //select encoder action
@@ -2810,8 +2845,9 @@ void AutomationInstrumentClipView::selectEncoderAction(int8_t offset) {
 flashShortcut:
 
 	lastPadSelectedKnobPos = kNoLastSelectedPad;
-	//displayParameterName();
-	displayAutomation();
+	if (!playbackHandler.isEitherClockActive()) {
+		displayAutomation();
+	}
 	resetShortcutBlinking();
 	uiNeedsRendering(this);
 }
@@ -2848,13 +2884,14 @@ void AutomationInstrumentClipView::initParameterSelection() {
 	clip->lastSelectedParamShortcutY = kNoLastSelectedParamShortcut;
 	clip->lastSelectedParamArrayPosition = 0;
 
-	display->cancelPopup();
-
 	//if we're going back to the Automation Overview, set the display to show "Automation Overview"
+	//and update the knob indicator levels to match the master FX button selected
+	display->cancelPopup();
 	renderDisplay();
 	view.setKnobIndicatorLevels();
 }
 
+//exit pad selection mode, reset pad press statuses
 void AutomationInstrumentClipView::initPadSelection() {
 
 	padSelectionOn = false;
@@ -3076,7 +3113,8 @@ void AutomationInstrumentClipView::setParameterAutomationValue(ModelStackWithAut
 
 	//in a multi pad press, no need to display all the values calculated
 	if (displayValue) {
-		displayParameterValue(knobPos + kKnobPosOffset);
+		renderDisplay(knobPos + kKnobPosOffset);
+		//displayParameterValue(knobPos + kKnobPosOffset);
 	}
 }
 
@@ -3162,8 +3200,9 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 		clip->lastSelectedParamShortcutX = xDisplay;
 		clip->lastSelectedParamShortcutY = yDisplay;
 
-		//displayParameterName();
-		displayAutomation();
+		if (!playbackHandler.isEitherClockActive()) {
+			displayAutomation();
+		}
 		resetShortcutBlinking();
 	}
 
@@ -3208,17 +3247,17 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 				}
 			}
 
-			int32_t knobPos = getParameterKnobPos(modelStackWithParam, squareStart);
-			displayParameterValue(knobPos + kKnobPosOffset);
+			int32_t knobPos = getParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
+			renderDisplay(knobPos);
+			//displayParameterValue(knobPos);
 
-			if (modelStackWithParam && modelStackWithParam->autoParam) {
-
-				if (!playbackHandler.isEitherClockActive()) {
+			if (!playbackHandler.isEitherClockActive()) {
+				if (modelStackWithParam && modelStackWithParam->autoParam) {
 					if (modelStackWithParam->getTimelineCounter()
-					    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+						== view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 
 						view.activeModControllableModelStack.paramManager->toForTimeline()->grabValuesFromPos(
-						    squareStart, &view.activeModControllableModelStack);
+							squareStart, &view.activeModControllableModelStack);
 					}
 				}
 			}
@@ -3446,50 +3485,22 @@ bool AutomationInstrumentClipView::isOnAutomationOverview() {
 	return false;
 }
 
-//displays patched param names or midi cc names
-void AutomationInstrumentClipView::displayParameterName() {
-
-	if (display->have7SEG()) {
-		if (isUIModeActive(UI_MODE_NOTES_PRESSED) && (lastPadSelectedKnobPos != kNoLastSelectedPad)) {
-
-			displayParameterValue(lastPadSelectedKnobPos);
-
-			return;
-		}
-	}
-
-	renderDisplay();
-}
-
 //display parameter value when it is changed
-void AutomationInstrumentClipView::displayParameterValue(int32_t knobPos) {
+//void AutomationInstrumentClipView::displayParameterValue(int32_t knobPos) {
 
-	lastPadSelectedKnobPos = knobPos;
+	//lastPadSelectedKnobPos = knobPos;
 
-	renderDisplay(knobPos);
+//	renderDisplay(knobPos);
 
-	if (padSelectionOn && !multiPadPressSelected) {
-		indicator_leds::setKnobIndicatorLevel(0, knobPos);
-		indicator_leds::setKnobIndicatorLevel(1, knobPos);
-	}
-}
+//	if (padSelectionOn && !multiPadPressSelected) {
+//		indicator_leds::setKnobIndicatorLevel(0, knobPos);
+//		indicator_leds::setKnobIndicatorLevel(1, knobPos);
+//	}
+//}
 
 void AutomationInstrumentClipView::displayCVErrorMessage() {
 	if (display->have7SEG()) {
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_CANT_AUTOMATE_CV));
-	}
-}
-
-void AutomationInstrumentClipView::setDisplayParameterNameTimer() {
-
-	if (display->have7SEG()) {
-		InstrumentClip* clip = getCurrentClip();
-		Instrument* instrument = (Instrument*)clip->output;
-
-		//after you displayed a pop up with the parameter value, redisplay the parameter name on the screen
-		if (!isOnAutomationOverview()) {
-			uiTimerManager.setTimer(TIMER_AUTOMATION_VIEW, 700);
-		}
 	}
 }
 
