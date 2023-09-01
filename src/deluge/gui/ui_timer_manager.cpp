@@ -129,8 +129,8 @@ void UITimerManager::routine() {
 				}
 
 				case TIMER_DISPLAY_AUTOMATION:
-					if (getCurrentUI() == &automationInstrumentClipView
-					    && (!automationInstrumentClipView.isOnAutomationOverview()) {
+					if ((getCurrentUI() == &automationInstrumentClipView)
+					    && !automationInstrumentClipView.isOnAutomationOverview()) {
 
 						automationInstrumentClipView.displayAutomation();
 					}
@@ -157,11 +157,10 @@ void UITimerManager::routine() {
 
 				case TIMER_AUTOMATION_VIEW: //timer to redisplay the parameter name on the screen in automation view
 					if (display->have7SEG()) {
-						if (getCurrentUI() == &automationInstrumentClipView
-						    && (!automationInstrumentClipView.isOnAutomationOverview()) {
+						if ((getCurrentUI() == &automationInstrumentClipView)
+						    && !automationInstrumentClipView.isOnAutomationOverview()) {
 
-							automationInstrumentClipView.displayParameterName(
-								((InstrumentClip*)currentSong->currentClip)->lastSelectedParamID);
+							automationInstrumentClipView.displayParameterName();
 							unsetTimer(TIMER_AUTOMATION_VIEW);
 						}
 					}

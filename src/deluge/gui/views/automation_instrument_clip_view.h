@@ -62,7 +62,7 @@ public:
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 	void displayAutomation();
 	void renderDisplay(int32_t knobPos = kNoKnobPos);
-	void displayParameterName(int32_t paramID);
+	void displayParameterName();
 	void setDisplayParameterNameTimer();
 
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) { InstrumentClipMinder::renderOLED(image); }
@@ -148,6 +148,7 @@ private:
 	                                                int32_t paramID = 0xFFFFFFFF,
 	                                                Param::Kind paramKind = Param::Kind::NONE);
 
+	void getParameterName(char* parameterName, int32_t paramID);
 	int32_t getParameterKnobPos(ModelStackWithAutoParam* modelStack, uint32_t pos);
 
 	bool getNodeInterpolation(ModelStackWithAutoParam* modelStack, int32_t pos, bool reversed);
