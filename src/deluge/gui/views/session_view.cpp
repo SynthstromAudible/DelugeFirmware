@@ -3148,10 +3148,10 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 	// From source
 	if (sourceClip != nullptr) {
 		// Can't convert between audio and non audio tracks
-		if(targetOutput) {
+		if (targetOutput) {
 			bool sourceIsAudio = (sourceClip->output->type == InstrumentType::AUDIO);
 			bool targetIsAudio = (targetOutput->type == InstrumentType::AUDIO);
-			if(sourceIsAudio != targetIsAudio) {
+			if (sourceIsAudio != targetIsAudio) {
 				display->displayPopup(l10n::get(l10n::String::STRING_FOR_CANT_CONVERT_TYPE));
 				return nullptr;
 			}
@@ -3199,7 +3199,7 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 	// If we copied from source and the clip should go in another track we need to move it after putting it in the session
 	// Remember this assumes a non Audio clip
 	if (sourceClip != nullptr) {
-		if(sourceClip->type == CLIP_TYPE_INSTRUMENT) {
+		if (sourceClip->type == CLIP_TYPE_INSTRUMENT) {
 			InstrumentClip* newInstrumentClip = (InstrumentClip*)newClip;
 			// Create a new track for the clip
 			if (targetOutput == nullptr) {
@@ -3210,7 +3210,7 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 			// Different instrument, switch the cloned clip to it
 			else if (targetOutput != sourceClip->output) {
 				int32_t error = newInstrumentClip->changeInstrument(modelStack, (Instrument*)targetOutput, NULL,
-																	InstrumentRemoval::NONE);
+				                                                    InstrumentRemoval::NONE);
 				if (error != NO_ERROR) {
 					display->displayPopup(l10n::get(l10n::String::STRING_FOR_SWITCHING_TO_TRACK_FAILED));
 				}
@@ -3221,7 +3221,7 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 			}
 		}
 
-		else if(sourceClip->type == CLIP_TYPE_AUDIO) {
+		else if (sourceClip->type == CLIP_TYPE_AUDIO) {
 			AudioClip* newAudioClip = (AudioClip*)newClip;
 
 			if (targetOutput == nullptr) {
@@ -3234,7 +3234,7 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 				}
 			}
 
-			if(targetOutput && targetOutput != sourceClip->output) {
+			if (targetOutput && targetOutput != sourceClip->output) {
 				newAudioClip->setOutput(modelStack, targetOutput);
 			}
 		}
@@ -3390,8 +3390,8 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 			if (Buttons::isButtonPressed(deluge::hid::button::SHIFT)) {
 				Output* output = gridTrackFromX(x, gridTrackCount());
 				if (output
-					&& (output->type == InstrumentType::SYNTH || output->type == InstrumentType::MIDI_OUT
-						|| output->type == InstrumentType::CV)) {
+				    && (output->type == InstrumentType::SYNTH || output->type == InstrumentType::MIDI_OUT
+				        || output->type == InstrumentType::CV)) {
 					view.melodicInstrumentMidiLearnPadPressed(on, (MelodicInstrument*)output);
 				}
 			}
