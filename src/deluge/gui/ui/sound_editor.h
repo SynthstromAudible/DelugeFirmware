@@ -54,6 +54,7 @@ public:
 	SoundEditor();
 	bool opened();
 	void focusRegained();
+	void displayOrLanguageChanged() final;
 	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
 	Sound* currentSound;
 	ModControllableAudio* currentModControllable;
