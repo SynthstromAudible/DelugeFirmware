@@ -148,7 +148,7 @@ private:
 	                                                int32_t paramID = 0xFFFFFFFF,
 	                                                Param::Kind paramKind = Param::Kind::NONE);
 
-	void getParameterName(char* parameterName, int32_t paramID);
+	void getParameterName(char* parameterName);
 	int32_t getParameterKnobPos(ModelStackWithAutoParam* modelStack, uint32_t pos);
 
 	bool getNodeInterpolation(ModelStackWithAutoParam* modelStack, int32_t pos, bool reversed);
