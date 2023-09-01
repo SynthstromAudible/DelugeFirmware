@@ -495,6 +495,7 @@ constexpr Language english{
         {STRING_FOR_IMPOSSIBLE_FROM_GRID, "Impossible from Grid"},
         {STRING_FOR_SWITCHING_TO_TRACK_FAILED, "Switching to track failed"},
         {STRING_FOR_CANT_CLONE_AUDIO_IN_OTHER_TRACK, "Can't clone audio in other track"},
+        {STRING_FOR_CANT_CONVERT_TYPE, "Can't convert audio/non-audio"},
         {STRING_FOR_TARGET_FULL, "Target full"},
 
         // Auto-extracted from menus.cpp

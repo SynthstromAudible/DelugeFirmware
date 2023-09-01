@@ -3147,10 +3147,14 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 
 	// From source
 	if (sourceClip != nullptr) {
-		// Can't clone audio to other tracks
-		if (sourceClip->type == CLIP_TYPE_AUDIO || (targetOutput && targetOutput->type == InstrumentType::AUDIO)) {
-			display->displayPopup(l10n::get(l10n::String::STRING_FOR_CANT_CLONE_AUDIO_IN_OTHER_TRACK));
-			return nullptr;
+		// Can't convert between audio and non audio tracks
+		if (targetOutput) {
+			bool sourceIsAudio = (sourceClip->output->type == InstrumentType::AUDIO);
+			bool targetIsAudio = (targetOutput->type == InstrumentType::AUDIO);
+			if (sourceIsAudio != targetIsAudio) {
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_CANT_CONVERT_TYPE));
+				return nullptr;
+			}
 		}
 
 		// First we make an identical copy
@@ -3195,23 +3199,43 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 	// If we copied from source and the clip should go in another track we need to move it after putting it in the session
 	// Remember this assumes a non Audio clip
 	if (sourceClip != nullptr) {
-		InstrumentClip* newInstrumentClip = (InstrumentClip*)newClip;
-		// Create a new track for the clip
-		if (targetOutput == nullptr) {
-			gridCreateNewTrackForClip(sourceClip->output->type, newInstrumentClip, false);
-			targetOutput = newInstrumentClip->output;
-		}
-
-		// Different instrument, switch the cloned clip to it
-		else if (targetOutput != sourceClip->output) {
-			int32_t error = newInstrumentClip->changeInstrument(modelStack, (Instrument*)targetOutput, NULL,
-			                                                    InstrumentRemoval::NONE);
-			if (error != NO_ERROR) {
-				display->displayPopup(l10n::get(l10n::String::STRING_FOR_SWITCHING_TO_TRACK_FAILED));
+		if (sourceClip->type == CLIP_TYPE_INSTRUMENT) {
+			InstrumentClip* newInstrumentClip = (InstrumentClip*)newClip;
+			// Create a new track for the clip
+			if (targetOutput == nullptr) {
+				gridCreateNewTrackForClip(sourceClip->output->type, newInstrumentClip, false);
+				targetOutput = newInstrumentClip->output;
 			}
 
-			if (targetOutput->type == InstrumentType::KIT) {
-				newInstrumentClip->yScroll = 0;
+			// Different instrument, switch the cloned clip to it
+			else if (targetOutput != sourceClip->output) {
+				int32_t error = newInstrumentClip->changeInstrument(modelStack, (Instrument*)targetOutput, NULL,
+				                                                    InstrumentRemoval::NONE);
+				if (error != NO_ERROR) {
+					display->displayPopup(l10n::get(l10n::String::STRING_FOR_SWITCHING_TO_TRACK_FAILED));
+				}
+
+				if (targetOutput->type == InstrumentType::KIT) {
+					newInstrumentClip->yScroll = 0;
+				}
+			}
+		}
+
+		else if (sourceClip->type == CLIP_TYPE_AUDIO) {
+			AudioClip* newAudioClip = (AudioClip*)newClip;
+
+			if (targetOutput == nullptr) {
+				AudioOutput* newOutput = currentSong->createNewAudioOutput();
+				if (!newOutput) {
+					display->displayPopup(l10n::get(l10n::String::STRING_FOR_SWITCHING_TO_TRACK_FAILED));
+				}
+				else {
+					targetOutput = newOutput;
+				}
+			}
+
+			if (targetOutput && targetOutput != sourceClip->output) {
+				newAudioClip->setOutput(modelStack, targetOutput);
 			}
 		}
 	}
@@ -3358,30 +3382,28 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 
 	// Main pads
 	else {
+		Clip* clip = gridClipFromCoords(x, y);
+
 		// Learn MIDI for tracks
-		if (currentUIMode == UI_MODE_MIDI_LEARN) {
-			Clip* clip = gridClipFromCoords(x, y);
-			if (clip != nullptr) {
-				// Shift + Learn + Holding pad = Learn MIDI channel
-				if (Buttons::isButtonPressed(deluge::hid::button::SHIFT)) {
-					Output* output = gridTrackFromX(x, gridTrackCount());
-					if (output
-					    && (output->type == InstrumentType::SYNTH || output->type == InstrumentType::MIDI_OUT
-					        || output->type == InstrumentType::CV)) {
-						view.melodicInstrumentMidiLearnPadPressed(on, (MelodicInstrument*)output);
-					}
+		if (currentUIMode == UI_MODE_MIDI_LEARN && clip != nullptr && clip->type != CLIP_TYPE_AUDIO) {
+			// Shift + Learn + Holding pad = Learn MIDI channel
+			if (Buttons::isButtonPressed(deluge::hid::button::SHIFT)) {
+				Output* output = gridTrackFromX(x, gridTrackCount());
+				if (output
+				    && (output->type == InstrumentType::SYNTH || output->type == InstrumentType::MIDI_OUT
+				        || output->type == InstrumentType::CV)) {
+					view.melodicInstrumentMidiLearnPadPressed(on, (MelodicInstrument*)output);
 				}
-				// Learn + Clicking pad = Learn arm by MIDI
-				else {
-					view.clipStatusMidiLearnPadPressed(on, clip);
-				}
+			}
+			// Learn + Clicking pad = Learn arm by MIDI
+			else {
+				view.clipStatusMidiLearnPadPressed(on, clip);
 			}
 		}
 
 		else if (on) {
 			// Only do this if no pad is pressed yet
 			if (gridFirstPressedX == -1 && gridFirstPressedY == -1) {
-				Clip* clip = gridClipFromCoords(x, y);
 
 				// Immediate arming, immediate consumption, don't save the pad press
 				if (clip && Buttons::isButtonPressed(deluge::hid::button::SHIFT)) {
@@ -3440,7 +3462,6 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 
 			// First finger up
 			if (gridFirstPressedX == x && gridFirstPressedY == y) {
-				Clip* clip = gridClipFromCoords(x, y);
 				if (clip != nullptr && !Buttons::isButtonPressed(deluge::hid::button::SHIFT)) {
 
 					// Handle cases normally in View::clipStatusPadAction

@@ -32,6 +32,6 @@ if(ENABLE_RTT)
 endif(ENABLE_RTT)
 
 if(ENABLE_SYSEX_LOAD)
-  message(STATUS "Sysex firmware loading enabled for deluge")
-    target_compile_definitions(deluge INTERFACE ENABLE_SYSEX_LOAD=1)
+    message(STATUS "Sysex firmware loading enabled for deluge")
+    target_compile_definitions(deluge PUBLIC ENABLE_SYSEX_LOAD=1)
 endif(ENABLE_SYSEX_LOAD)

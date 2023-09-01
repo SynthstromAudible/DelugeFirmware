@@ -29,6 +29,7 @@ public:
 
 	void cloneFrom(ArpeggiatorSettings* other) {
 		numOctaves = other->numOctaves;
+		syncType = other->syncType;
 		syncLevel = other->syncLevel;
 		mode = other->mode;
 	}
