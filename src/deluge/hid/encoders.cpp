@@ -153,9 +153,9 @@ checkResult:
 				}
 
 				//when tempo encoder is finished, make sure to display parameter name again
-				if (getCurrentUI() == &automationInstrumentClipView) {
-					automationInstrumentClipView.setDisplayParameterNameTimer();
-				}
+			//	if (getCurrentUI() == &automationInstrumentClipView) {
+			//		automationInstrumentClipView.setDisplayParameterNameTimer();
+			//	}
 
 				break;
 
