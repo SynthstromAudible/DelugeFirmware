@@ -31,7 +31,7 @@ extern deluge::gui::menu_item::firmware::Version firmwareVersionMenu;
 extern deluge::gui::menu_item::sequence::Direction sequenceDirectionMenu;
 extern deluge::gui::menu_item::Submenu<6> soundEditorRootMenuMIDIOrCV;
 extern deluge::gui::menu_item::Submenu<10> soundEditorRootMenuAudioClip;
-extern deluge::gui::menu_item::Submenu<25> soundEditorRootMenu;
+extern deluge::gui::menu_item::Submenu<23> soundEditorRootMenu;
 extern deluge::gui::menu_item::Submenu<12> settingsRootMenu;
 
 namespace deluge::gui::menu_item::runtime_feature {

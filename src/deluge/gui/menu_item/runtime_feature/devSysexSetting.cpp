@@ -23,13 +23,13 @@
 #include "util/container/static_vector.hpp"
 #include "util/functions.h"
 #include <algorithm>
+#include <fmt/core.h>
 #include <iterator>
 #include <ranges>
 
 namespace deluge::gui::menu_item::runtime_feature {
 
-DevSysexSetting::DevSysexSetting(RuntimeFeatureSettingType ty)
-    : currentSettingIndex(static_cast<uint32_t>(ty)), on_val("on - ********") {
+DevSysexSetting::DevSysexSetting(RuntimeFeatureSettingType ty) : currentSettingIndex(static_cast<uint32_t>(ty)) {
 }
 
 void DevSysexSetting::readCurrentValue() {
@@ -55,7 +55,7 @@ void DevSysexSetting::writeCurrentValue() {
 }
 
 static_vector<std::string_view, 2> DevSysexSetting::getOptions() {
-	intToHex(onValue, &on_val[5]);
+	static std::string on_val = fmt::vformat("on ({:8x})", fmt::make_format_args(onValue));
 	return {
 	    l10n::get(l10n::String::STRING_FOR_OFF),
 	    on_val,
