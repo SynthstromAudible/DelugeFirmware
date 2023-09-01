@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "fmt/core.h"
 #include "gui/menu_item/gate/mode.h"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
@@ -57,10 +58,11 @@ public:
 
 	static_vector<std::string_view, capacity()> getOptions() override {
 		using enum l10n::String;
-		static auto out1 = l10n::getView(STRING_FOR_GATE_OUTPUT_1);
-		static auto out2 = l10n::getView(STRING_FOR_GATE_OUTPUT_2);
-		static auto out3 = l10n::getView(STRING_FOR_GATE_OUTPUT_3);
-		static auto out4 = l10n::getView(STRING_FOR_GATE_OUTPUT_4);
+		std::string_view gate_output_fmt_string = l10n::getView(STRING_FOR_GATE_OUTPUT_N);
+		static auto out1 = fmt::vformat(gate_output_fmt_string, fmt::make_format_args(1));
+		static auto out2 = fmt::vformat(gate_output_fmt_string, fmt::make_format_args(2));
+		static auto out3 = fmt::vformat(gate_output_fmt_string, fmt::make_format_args(3));
+		static auto out4 = fmt::vformat(gate_output_fmt_string, fmt::make_format_args(4));
 
 		return {
 		    out1,                                       //<
