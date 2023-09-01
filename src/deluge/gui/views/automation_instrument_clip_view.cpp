@@ -415,7 +415,7 @@ void AutomationInstrumentClipView::focusRegained() {
 	Instrument* instrument = (Instrument*)clip->output;
 
 	if (!isOnAutomationOverview()) {
-		displayParameterName(clip->lastSelectedParamID);
+		displayParameterName();
 		displayAutomation(); //update led indicator levels
 	}
 
@@ -863,37 +863,7 @@ void AutomationInstrumentClipView::renderDisplay(int32_t knobPos) {
 			}
 
 			char buffer[30];
-
-			if (instrument->type == InstrumentType::SYNTH || instrument->type == InstrumentType::KIT) {
-
-				if (clip->lastSelectedParamKind == Param::Kind::PATCHED) {
-					strncpy(buffer, getPatchedParamDisplayName(clip->lastSelectedParamID), 29);
-				}
-				else if (clip->lastSelectedParamKind == Param::Kind::UNPATCHED) {
-					strncpy(buffer, getUnpatchedParamDisplayName(clip->lastSelectedParamID), 29);
-				}
-				else if (clip->lastSelectedParamKind == Param::Kind::GLOBAL_EFFECTABLE) {
-					strncpy(buffer, getGlobalEffectableParamDisplayName(clip->lastSelectedParamID), 29);
-				}
-			}
-			else if (instrument->type == InstrumentType::MIDI_OUT) {
-
-				if (clip->lastSelectedParamID == CC_NUMBER_NONE) {
-					strcpy(buffer, deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_PARAM));
-				}
-				else if (clip->lastSelectedParamID == CC_NUMBER_PITCH_BEND) {
-					strcpy(buffer, deluge::l10n::get(deluge::l10n::String::STRING_FOR_PITCH_BEND));
-				}
-				else if (clip->lastSelectedParamID == CC_NUMBER_AFTERTOUCH) {
-					strcpy(buffer, deluge::l10n::get(deluge::l10n::String::STRING_FOR_CHANNEL_PRESSURE));
-				}
-				else {
-					buffer[0] = 'C';
-					buffer[1] = 'C';
-					buffer[2] = ' ';
-					intToString(clip->lastSelectedParamID, &buffer[3]);
-				}
-			}
+			getParameterName(buffer, clip->lastSelectedParamID);
 
 	#if OLED_MAIN_HEIGHT_PIXELS == 64
 			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
@@ -953,51 +923,47 @@ void AutomationInstrumentClipView::renderDisplay(int32_t knobPos) {
 				}
 			}
 			else {
-				char modelStackMemory[MODEL_STACK_MAX_SIZE];
-				ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-				ModelStackWithAutoParam* modelStackWithParam =
-					getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID, clip->lastSelectedParamKind);
-				bool isAutomated = false;
-
-				//check if Parameter is currently automated so that the automation status can be drawn on the screen with the Parameter Name
-				if (modelStackWithParam && modelStackWithParam->autoParam) {
-					if (modelStackWithParam->autoParam->isAutomated()) {
-						isAutomated = true;
-					}
-				}
-				
 				char buffer[30];
-
-				if (instrument->type == InstrumentType::SYNTH || instrument->type == InstrumentType::KIT) {
-					if (clip->lastSelectedParamKind == Param::Kind::PATCHED) {
-						strncpy(buffer, getPatchedParamDisplayName(clip->lastSelectedParamID), 29);
-					}
-					else if (clip->lastSelectedParamKind == Param::Kind::UNPATCHED) {
-						strncpy(buffer, getUnpatchedParamDisplayName(clip->lastSelectedParamID), 29);
-					}
-					else if (clip->lastSelectedParamKind == Param::Kind::GLOBAL_EFFECTABLE) {
-						strncpy(buffer, getGlobalEffectableParamDisplayName(clip->lastSelectedParamID), 29);
-					}
-				}
-				else if (instrument->type == InstrumentType::MIDI_OUT) {
-					if (clip->lastSelectedParamID == CC_NUMBER_NONE) {
-						strcpy(buffer, deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_PARAM));
-					}
-					else if (clip->lastSelectedParamID == CC_NUMBER_PITCH_BEND) {
-						strcpy(buffer, deluge::l10n::get(deluge::l10n::String::STRING_FOR_PITCH_BEND));
-					}
-					else if (clip->lastSelectedParamID == CC_NUMBER_AFTERTOUCH) {
-						strcpy(buffer, deluge::l10n::get(deluge::l10n::String::STRING_FOR_CHANNEL_PRESSURE));
-					}
-					else {
-						buffer[0] = 'C';
-						buffer[1] = 'C';
-						buffer[2] = ' ';
-						intToString(clip->lastSelectedParamID, &buffer[3]);
-					}		
-				}
+				getParameterName(buffer, clip->lastSelectedParamID);
 				display->setScrollingText(buffer);
 			}	
+		}
+	}
+}
+
+void AutomationInstrumentClipView::getParameterName(char* parameterName, int32_t paramID) {
+
+	InstrumentClip* clip = getCurrentClip();
+	Instrument* instrument = (Instrument*)clip->output;
+
+	if (instrument->type == InstrumentType::SYNTH || instrument->type == InstrumentType::KIT) {
+
+		if (clip->lastSelectedParamKind == Param::Kind::PATCHED) {
+			strncpy(parameterName, getPatchedParamDisplayName(clip->lastSelectedParamID), 29);
+		}
+		else if (clip->lastSelectedParamKind == Param::Kind::UNPATCHED) {
+			strncpy(parameterName, getUnpatchedParamDisplayName(clip->lastSelectedParamID), 29);
+		}
+		else if (clip->lastSelectedParamKind == Param::Kind::GLOBAL_EFFECTABLE) {
+			strncpy(parameterName, getGlobalEffectableParamDisplayName(clip->lastSelectedParamID), 29);
+		}
+	}
+	else if (instrument->type == InstrumentType::MIDI_OUT) {
+
+		if (clip->lastSelectedParamID == CC_NUMBER_NONE) {
+			strcpy(parameterName, deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_PARAM));
+		}
+		else if (clip->lastSelectedParamID == CC_NUMBER_PITCH_BEND) {
+			strcpy(parameterName, deluge::l10n::get(deluge::l10n::String::STRING_FOR_PITCH_BEND));
+		}
+		else if (clip->lastSelectedParamID == CC_NUMBER_AFTERTOUCH) {
+			strcpy(parameterName, deluge::l10n::get(deluge::l10n::String::STRING_FOR_CHANNEL_PRESSURE));
+		}
+		else {
+			parameterName[0] = 'C';
+			parameterName[1] = 'C';
+			parameterName[2] = ' ';
+			intToString(clip->lastSelectedParamID, &parameterName[3]);
 		}
 	}
 }
@@ -2845,7 +2811,7 @@ void AutomationInstrumentClipView::selectEncoderAction(int8_t offset) {
 flashShortcut:
 
 	lastPadSelectedKnobPos = kNoLastSelectedPad;
-	displayParameterName(clip->lastSelectedParamID);
+	displayParameterName();
 	displayAutomation();
 	resetShortcutBlinking();
 	uiNeedsRendering(this);
@@ -3196,7 +3162,7 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 		clip->lastSelectedParamShortcutX = xDisplay;
 		clip->lastSelectedParamShortcutY = yDisplay;
 
-		displayParameterName(clip->lastSelectedParamID);
+		displayParameterName();
 		displayAutomation();
 		resetShortcutBlinking();
 	}
@@ -3481,55 +3447,18 @@ bool AutomationInstrumentClipView::isOnAutomationOverview() {
 }
 
 //displays patched param names or midi cc names
-void AutomationInstrumentClipView::displayParameterName(int32_t paramID) {
+void AutomationInstrumentClipView::displayParameterName() {
 
-	if (isUIModeActive(UI_MODE_NOTES_PRESSED) && (lastPadSelectedKnobPos != kNoLastSelectedPad)) {
+	if (display->have7SEG()) {
+		if (isUIModeActive(UI_MODE_NOTES_PRESSED) && (lastPadSelectedKnobPos != kNoLastSelectedPad)) {
 
-		displayParameterValue(lastPadSelectedKnobPos);
+			displayParameterValue(lastPadSelectedKnobPos);
 
-		return;
+			return;
+		}
 	}
 
 	renderDisplay();
-
-	/*if (!display->haveOLED()) {
-		InstrumentClip* clip = getCurrentClip();
-		Instrument* instrument = (Instrument*)clip->output;
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-		ModelStackWithAutoParam* modelStackWithParam =
-		    getModelStackWithParam(modelStack, clip, paramID, clip->lastSelectedParamKind);
-		bool isAutomated = false;
-
-		//check if Parameter is currently automated so that the automation status can be drawn on the screen with the Parameter Name
-		if (modelStackWithParam && modelStackWithParam->autoParam) {
-			if (modelStackWithParam->autoParam->isAutomated()) {
-				isAutomated = true;
-			}
-		}
-
-		if (instrument->type == InstrumentType::SYNTH || instrument->type == InstrumentType::KIT) {
-
-			char buffer[30];
-
-			if (clip->lastSelectedParamKind == Param::Kind::PATCHED) {
-				strncpy(buffer, getPatchedParamDisplayName(paramID), 29);
-			}
-			else if (clip->lastSelectedParamKind == Param::Kind::UNPATCHED) {
-				strncpy(buffer, getUnpatchedParamDisplayName(paramID), 29);
-			}
-			else if (clip->lastSelectedParamKind == Param::Kind::GLOBAL_EFFECTABLE) {
-				strncpy(buffer, getGlobalEffectableParamDisplayName(paramID), 29);
-			}
-
-			display->setScrollingText(buffer);
-		}
-
-		else if (instrument->type == InstrumentType::MIDI_OUT) {
-
-			InstrumentClipMinder::drawMIDIControlNumber(paramID, isAutomated);
-		}
-	}*/
 }
 
 //display parameter value when it is changed
@@ -3538,22 +3467,6 @@ void AutomationInstrumentClipView::displayParameterValue(int32_t knobPos) {
 	lastPadSelectedKnobPos = knobPos;
 
 	renderDisplay(knobPos);
-	/*if (display->haveOLED()) {
-		renderOLED(knobPos);
-	}
-	else {
-		char buffer[5];
-
-		intToString(knobPos, buffer);
-
-		if (isUIModeActive(UI_MODE_NOTES_PRESSED)) {
-			display->setText(buffer, false, 255, false);
-		}
-		else {
-			display->displayPopup(buffer);
-			setDisplayParameterNameTimer();
-		}
-	}*/
 
 	if (padSelectionOn && !multiPadPressSelected) {
 		indicator_leds::setKnobIndicatorLevel(0, knobPos);
@@ -3575,7 +3488,6 @@ void AutomationInstrumentClipView::setDisplayParameterNameTimer() {
 
 		//after you displayed a pop up with the parameter value, redisplay the parameter name on the screen
 		if (!isOnAutomationOverview()) {
-
 			uiTimerManager.setTimer(TIMER_AUTOMATION_VIEW, 700);
 		}
 	}
