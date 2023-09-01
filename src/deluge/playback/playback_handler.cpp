@@ -2486,11 +2486,7 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, int32_t channel,
 				break;
 
 			case GlobalMIDICommand::FILL:
-				currentSong->fillModeActive = true;
-				if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction)
-				     == RuntimeFeatureStateSyncScalingAction::Fill)) {
-					indicator_leds::setLedState(IndicatorLED::SYNC_SCALING, true);
-				}
+				currentSong->changeFillMode(true);
 				break;
 
 			//case GlobalMIDICommand::TAP:
@@ -2517,11 +2513,7 @@ bool PlaybackHandler::tryGlobalMIDICommandsOff(MIDIDevice* device, int32_t chann
 
 	// Check for FILL command at index [8]
 	if (midiEngine.globalMIDICommands[8].equalsNoteOrCC(device, channel, note)) {
-		currentSong->fillModeActive = false;
-		if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction)
-		     == RuntimeFeatureStateSyncScalingAction::Fill)) {
-			indicator_leds::setLedState(IndicatorLED::SYNC_SCALING, false);
-		}
+		currentSong->changeFillMode(false);
 		foundAnything = true;
 	}
 
@@ -2773,9 +2765,15 @@ void PlaybackHandler::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, ui
 			}
 		}
 
-		if (value) {
-			int32_t channelOrZone = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
+		int32_t channelOrZone = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
+
+		if (value > 0) {
 			if (tryGlobalMIDICommands(fromDevice, channelOrZone + IS_A_CC, ccNumber)) {
+				return;
+			}
+		}
+		else {
+			if (tryGlobalMIDICommandsOff(fromDevice, channelOrZone + IS_A_CC, ccNumber)) {
 				return;
 			}
 		}

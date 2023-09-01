@@ -22,6 +22,7 @@
 #include "extern.h"
 #include "gui/colour.h"
 #include "gui/context_menu/clear_song.h"
+#include "gui/context_menu/launch_style.h"
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/colour.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
@@ -254,6 +255,9 @@ doEndMidiLearnPressSession:
 						indicator_leds::setLedState(IndicatorLED::SAVE, false);
 					}
 				}
+				else if (currentUIMode == UI_MODE_NONE) {
+					indicator_leds::setLedState(IndicatorLED::SAVE, false);
+				}
 			}
 		}
 	}
@@ -307,6 +311,9 @@ doEndMidiLearnPressSession:
 						indicator_leds::setLedState(IndicatorLED::LOAD, false);
 					}
 				}
+				else if (currentUIMode == UI_MODE_NONE) {
+					indicator_leds::setLedState(IndicatorLED::LOAD, false);
+				}
 			}
 		}
 	}
@@ -315,8 +322,7 @@ doEndMidiLearnPressSession:
 	else if (b == SYNC_SCALING) {
 		if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction)
 		     == RuntimeFeatureStateSyncScalingAction::Fill)) {
-			currentSong->fillModeActive = on;
-			indicator_leds::setLedState(IndicatorLED::SYNC_SCALING, on);
+			currentSong->changeFillMode(on);
 		}
 		else if (on && currentUIMode == UI_MODE_NONE) {
 
@@ -1095,14 +1101,40 @@ void View::setModLedStates() {
 		indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, false);
 	}
 	else {
-		if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
-			indicator_leds::blinkLed(IndicatorLED::CLIP_VIEW);
+		if (getRootUI() == &sessionView) {
+			Clip* clip = sessionView.getClipForLayout();
+
+			if (clip) {
+				if ((clip->output->type != InstrumentType::AUDIO)
+				    && (((InstrumentClip*)clip)->onAutomationInstrumentClipView)) {
+					goto setBlinkLED;
+				}
+			}
 		}
-		else {
-			indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, true);
+		else if (getRootUI() == &arrangerView) {
+			Output* output = arrangerView.outputsOnScreen[arrangerView.yPressedEffective];
+
+			if (output) {
+				if ((output->type != InstrumentType::AUDIO)
+				    && (((InstrumentClip*)currentSong->getClipWithOutput(output))->onAutomationInstrumentClipView)) {
+					goto setBlinkLED;
+				}
+			}
 		}
+		else if (getRootUI() == &automationInstrumentClipView) {
+			goto setBlinkLED;
+		}
+
+		indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, true);
+		goto setNextLED;
+
+setBlinkLED:
+
+		indicator_leds::blinkLed(IndicatorLED::CLIP_VIEW);
+		goto setNextLED;
 	}
 
+setNextLED:
 	// Sort out the session/arranger view LEDs
 	if (itsTheSong) {
 		if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
@@ -1840,8 +1872,7 @@ void View::instrumentChanged(ModelStackWithTimelineCounter* modelStack, Instrume
 	    modelStack->getTimelineCounter()); // Do a redraw. Obviously the Clip is the same
 }
 
-void View::getClipMuteSquareColour(Clip* clip, uint8_t thisColour[], bool overwriteStopped, uint8_t stoppedColour[],
-                                   bool allowMIDIFlash) {
+void View::getClipMuteSquareColour(Clip* clip, uint8_t thisColour[], bool dimInactivePads, bool allowMIDIFlash) {
 
 	if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING && clip && clip->armedForRecording) {
 		if (blinkOn) {
@@ -1860,7 +1891,6 @@ void View::getClipMuteSquareColour(Clip* clip, uint8_t thisColour[], bool overwr
 					thisColour[2] = 0;
 				}
 			}
-
 			// Dull colour, cos can't actually begin linear recording despite being armed
 			else {
 				if (shouldGoPurple) {
@@ -1902,22 +1932,45 @@ void View::getClipMuteSquareColour(Clip* clip, uint8_t thisColour[], bool overwr
 
 	// Or if not soloing...
 	else {
-
-		// If it's stopped, red.
-		if (!clip->activeIfNoSolo) {
-			if (overwriteStopped) {
-				thisColour[0] = stoppedColour[0];
-				thisColour[1] = stoppedColour[1];
-				thisColour[2] = stoppedColour[2];
+		if (clip->launchStyle == LAUNCH_STYLE_DEFAULT) {
+			// If it's stopped, red.
+			if (!clip->activeIfNoSolo) {
+				if (dimInactivePads) {
+					thisColour[0] = 20;
+					thisColour[1] = 20;
+					thisColour[2] = 20;
+				}
+				else {
+					menu_item::stoppedColourMenu.getRGB(thisColour);
+				}
 			}
+
+			// Or, green.
 			else {
-				menu_item::stoppedColourMenu.getRGB(thisColour);
+				menu_item::activeColourMenu.getRGB(thisColour);
 			}
 		}
-
-		// Or, green.
 		else {
-			menu_item::activeColourMenu.getRGB(thisColour);
+			// If it's stopped, orange.
+			if (!clip->activeIfNoSolo) {
+				if (dimInactivePads) {
+					thisColour[0] = 10;
+					thisColour[1] = 7;
+					thisColour[2] = 3;
+				}
+				else {
+					thisColour[0] = 255;
+					thisColour[1] = 64;
+					thisColour[2] = 0;
+				}
+			}
+
+			// Or, cyan.
+			else {
+				thisColour[0] = 0;
+				thisColour[1] = 255;
+				thisColour[2] = 255;
+			}
 		}
 
 		if (currentSong->getAnyClipsSoloing()) {
@@ -1980,9 +2033,15 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 		// No break
 	case UI_MODE_CLIP_PRESSED_IN_SONG_VIEW:
 	case UI_MODE_STUTTERING:
+	case UI_MODE_HOLDING_STATUS_PAD:
 		if (on) {
+			enterUIMode(UI_MODE_HOLDING_STATUS_PAD);
+			context_menu::launchStyle.clip = clip;
 			sessionView.performActionOnPadRelease = false; // Even though there's a chance we're not in session view
 			session.toggleClipStatus(clip, NULL, Buttons::isShiftButtonPressed(), kInternalButtonPressLatency);
+		}
+		else {
+			exitUIMode(UI_MODE_HOLDING_STATUS_PAD);
 		}
 		break;
 

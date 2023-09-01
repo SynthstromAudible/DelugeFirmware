@@ -67,6 +67,10 @@ constexpr Language seven_segment{
         {STRING_FOR_MIX_PRE_FX, "MIX"},
         {STRING_FOR_MIX_POST_FX, "OUTP"},
 
+        // gui/context_menu/launch_style.cpp
+        {STRING_FOR_DEFAULT_LAUNCH, "DEFA"},
+        {STRING_FOR_FILL_LAUNCH, "FILL"},
+
         // gui/context_menu/sample_browser/kit.cpp
         {STRING_FOR_LOAD_ALL, "ALL"},
         {STRING_FOR_SLICE, "SLICE"},
@@ -102,7 +106,9 @@ constexpr Language seven_segment{
         {STRING_FOR_RANDOM, "RANDOM"},
 
         // gui/menu_item/cv/selection.h
-        {STRING_FOR_CV_OUTPUT_N, "OUT{}"},
+        {STRING_FOR_CV_OUTPUT_N, "OUT*"},
+        {STRING_FOR_CV_OUTPUT_1, "OUT1"},
+        {STRING_FOR_CV_OUTPUT_2, "OUT2"},
 
         // gui/menu_item/delay/analog.h
         {STRING_FOR_DIGITAL, "DIGI"},
@@ -110,8 +116,11 @@ constexpr Language seven_segment{
 
         // gui/menu_item/filter/lpf_mode.h
         {STRING_FOR_DRIVE, "Drive"},
-        {STRING_FOR_SVF, "SVF"},
-
+        {STRING_FOR_SVF_BAND, "SV_B"},
+        {STRING_FOR_SVF_NOTCH, "SV_N"},
+        {STRING_FOR_HPLADDER, "HP_L"},
+        {STRING_FOR_12DB_LADDER, "LA12"},
+        {STRING_FOR_24DB_LADDER, "LA24"},
         // gui/menu_item/flash/status.h
         {STRING_FOR_FAST, "FAST"},
         {STRING_FOR_SLOW, "SLOW"},
@@ -124,7 +133,10 @@ constexpr Language seven_segment{
 
         // gui/menu_item/gate/selection.h
         {STRING_FOR_GATE_MODE_TITLE, ""},
-        {STRING_FOR_GATE_OUTPUT_N, "OUT{}"},
+        {STRING_FOR_GATE_OUTPUT_1, "OUT1"},
+        {STRING_FOR_GATE_OUTPUT_2, "OUT2"},
+        {STRING_FOR_GATE_OUTPUT_3, "OUT3"},
+        {STRING_FOR_GATE_OUTPUT_4, "OUT4"},
         {STRING_FOR_MINIMUM_OFF_TIME, "OFFT"},
 
         // gui/menu_item/lfo/shape.h
@@ -148,7 +160,8 @@ constexpr Language seven_segment{
 
         // gui/menu_item/modulator/destination.h
         {STRING_FOR_CARRIERS, "CARRIERS"},
-        {STRING_FOR_MODULATOR_N, "Mod{}"},
+        {STRING_FOR_MODULATOR_1, "Mod1"},
+        {STRING_FOR_MODULATOR_2, "Mod2"},
 
         // gui/menu_item/monitor/mode.h
         {STRING_FOR_CONDITIONAL, "COND"},

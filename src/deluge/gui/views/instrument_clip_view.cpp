@@ -454,6 +454,7 @@ doOther:
 				}
 			}
 			else if (currentUIMode == UI_MODE_ADDING_DRUM_NOTEROW || currentUIMode == UI_MODE_AUDITIONING) {
+				//hook to load synth preset
 				createDrumForAuditionedNoteRow(DrumType::SOUND);
 			}
 		}
@@ -791,6 +792,7 @@ someError:
 	}
 
 	Drum* newDrum = storageManager.createNewDrum(drumType);
+
 	if (!newDrum) {
 		goto ramError;
 	}
@@ -798,35 +800,16 @@ someError:
 	Kit* kit = (Kit*)currentSong->currentClip->output;
 
 	ParamManager paramManager;
-
+	//add sound loading code here
 	if (drumType == DrumType::SOUND) {
-
-		String newName;
-		int32_t error = newName.set("U");
-		if (error) {
-discardDrum:
-			void* toDealloc = dynamic_cast<void*>(newDrum);
-			newDrum->~Drum();
-			GeneralMemoryAllocator::get().dealloc(toDealloc);
-			goto someError;
-		}
-
-		error = kit->makeDrumNameUnique(&newName, 1);
-		if (error) {
-			goto discardDrum;
-		}
-
-		((SoundDrum*)newDrum)->name.set(&newName);
-
-		error = paramManager.setupWithPatching();
-		if (error) {
-			goto discardDrum;
-		}
-
-		Sound::initParams(&paramManager);
-		((SoundDrum*)newDrum)->setupAsBlankSynth(&paramManager);
-
-		((SoundDrum*)newDrum)->modKnobs[6][0].paramDescriptor.setToHaveParamOnly(Param::Local::PITCH_ADJUST);
+		Browser::instrumentTypeToLoad = InstrumentType::SYNTH;
+		loadInstrumentPresetUI.loadingSynthToKitRow = true;
+		loadInstrumentPresetUI.instrumentClipToLoadFor = nullptr;
+		loadInstrumentPresetUI.soundDrumToReplace = (SoundDrum*)newDrum;
+		loadInstrumentPresetUI.kitToLoadFor = kit;
+		loadInstrumentPresetUI.noteRow = noteRow;
+		loadInstrumentPresetUI.noteRowIndex = noteRowIndex;
+		openUI(&loadInstrumentPresetUI);
 	}
 
 	kit->addDrum(newDrum);
@@ -2085,7 +2068,7 @@ void InstrumentClipView::adjustProbability(int32_t offset) {
 							}
 							else {
 								// See if there's a prev-base
-								if (probabilityValue < kNumProbabilityValues
+								if (probabilityValue > 0 && probabilityValue < kNumProbabilityValues
 								    && getCurrentClip()->doesProbabilityExist(
 								        editPadPresses[i].intendedPos, probabilityValue,
 								        kNumProbabilityValues - probabilityValue)) {
@@ -2107,7 +2090,7 @@ void InstrumentClipView::adjustProbability(int32_t offset) {
 							}
 							else {
 								probabilityValue--;
-								prevBase = (probabilityValue < kNumProbabilityValues
+								prevBase = (probabilityValue > 0 && probabilityValue < kNumProbabilityValues
 								            && getCurrentClip()->doesProbabilityExist(
 								                editPadPresses[i].intendedPos, probabilityValue,
 								                kNumProbabilityValues - probabilityValue));
@@ -2175,7 +2158,7 @@ multiplePresses:
 		// Decide the probability, based on the existing probability of the leftmost note
 		probabilityValue = editPadPresses[leftMostIndex].intendedProbability & 127;
 		probabilityValue += offset;
-		probabilityValue = std::clamp<int32_t>(probabilityValue, 1, kNumProbabilityValues + kNumIterationValues);
+		probabilityValue = std::clamp<int32_t>(probabilityValue, 0, kNumProbabilityValues + kNumIterationValues);
 
 		Action* action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
 		if (!action) {
@@ -2204,7 +2187,8 @@ multiplePresses:
 					while (note && note->pos - editPadPresses[i].intendedPos < editPadPresses[i].intendedLength) {
 
 						// And if not one of the leftmost notes, make it a prev-base one - if we're doing actual percentage probabilities
-						if (probabilityValue < kNumProbabilityValues && note->pos != leftMostPos) {
+						if (probabilityValue > 0 && probabilityValue < kNumProbabilityValues
+						    && note->pos != leftMostPos) {
 							editPadPresses[i].intendedProbability |= 128; // This isn't perfect...
 						}
 						noteRow->changeNotesAcrossAllScreens(note->pos, modelStackWithNoteRow, action,
@@ -2218,7 +2202,8 @@ multiplePresses:
 				// Or, just 1 note in square
 				else {
 					// And if not one of the leftmost notes, make it a prev-base one - if we're doing actual percentage probabilities
-					if (probabilityValue < kNumProbabilityValues && editPadPresses[i].intendedPos != leftMostPos) {
+					if (probabilityValue > 0 && probabilityValue < kNumProbabilityValues
+					    && editPadPresses[i].intendedPos != leftMostPos) {
 						editPadPresses[i].intendedProbability |= 128;
 					}
 					noteRow->changeNotesAcrossAllScreens(editPadPresses[i].intendedPos, modelStackWithNoteRow, action,
@@ -2839,7 +2824,8 @@ void InstrumentClipView::setRowProbability(int32_t offset) {
 	uint8_t probabilityValue = noteRow->probabilityValue;
 	bool prevBase = false;
 	// Covers the probabilities and iterations
-	probabilityValue = std::clamp<int32_t>((int32_t)probabilityValue + offset, (int32_t)0, kNumProbabilityValues + 35);
+	probabilityValue = std::clamp<int32_t>((int32_t)probabilityValue + offset, (int32_t)0,
+	                                       kNumProbabilityValues + kNumIterationValues);
 
 	noteRow->probabilityValue = probabilityValue;
 
@@ -2854,7 +2840,15 @@ void InstrumentClipView::setRowProbability(int32_t offset) {
 void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) {
 	char buffer[(display->haveOLED()) ? 29 : 5];
 	char* displayString;
-	if (probability <= kNumProbabilityValues) {
+
+	// FILL mode
+	if (probability == kFillProbabilityValue) {
+		strcpy(buffer, "FILL");
+		displayString = buffer;
+	}
+
+	// Probability dependence
+	else if (probability <= kNumProbabilityValues) {
 		if (display->haveOLED()) {
 			strcpy(buffer, "Probability: ");
 			intToString(probability * 5, buffer + strlen(buffer));
@@ -3494,11 +3488,15 @@ void InstrumentClipView::someAuditioningHasEnded(bool recalculateLastAuditionedN
 		exitUIMode(UI_MODE_AUDITIONING);
 		auditioningSilently = false;
 
-		if (display->haveOLED()) {
-			deluge::hid::display::OLED::removePopup();
-		}
-		else {
-			redrawNumericDisplay();
+		//check that you're not in automation instrument clip view and holding an automation pad down
+		//if not, clear popup's / re-draw screen
+		if (!((getCurrentUI() == &automationInstrumentClipView) && isUIModeActive(UI_MODE_NOTES_PRESSED))) {
+			if (display->haveOLED()) {
+				deluge::hid::display::OLED::removePopup();
+			}
+			else {
+				redrawNumericDisplay();
+			}
 		}
 	}
 }
@@ -5273,7 +5271,7 @@ justDisplayOldNumNotes:
 						Note* note = newNotes.getElement(n);
 						note->pos = (uint32_t)(n * numStepsAvailable) / (uint32_t)newNumNotes * squareWidth;
 						note->length = squareWidth;
-						note->probability = kNumProbabilityValues;
+						note->probability = noteRow->getDefaultProbability(modelStack);
 						note->velocity = ((Instrument*)clip->output)->defaultVelocity;
 						note->lift = kDefaultLiftValue;
 					}

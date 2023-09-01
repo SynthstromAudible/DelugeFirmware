@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+- name: 💬 Github Discussions
+  url: https://github.com/SynthstromAudible/DelugeFirmware/discussions
+  about: Feature requests, ideas and more can be created in the Discussions tab 
+- name: 💬 Discord Community
+  url: https://discord.gg/BnRcyFSgaT
+  about: Join our Discord server for direct interaction with the community! 

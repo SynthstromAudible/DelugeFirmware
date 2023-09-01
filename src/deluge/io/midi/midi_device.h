@@ -100,6 +100,8 @@ public:
 	// data should be a complete message with data[0] = 0xf0, data[len-1] = 0xf7
 	virtual void sendSysex(uint8_t* data, int32_t len) = 0;
 
+	virtual int32_t sendBufferSpace() = 0;
+
 	void sendRPN(int32_t channel, int32_t rpnMSB, int32_t rpnLSB, int32_t valueMSB);
 
 	inline bool hasDefaultVelocityToLevelSet() { return defaultVelocityToLevel; }
@@ -143,6 +145,7 @@ public:
 	}
 	void sendMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2);
 	void sendSysex(uint8_t* data, int32_t len) override;
+	int32_t sendBufferSpace() override;
 	void connectedNow(int32_t midiDeviceNum);
 	void sendMCMsNowIfNeeded();
 	uint8_t needsToSendMCMs;
@@ -180,4 +183,5 @@ public:
 	char const* getDisplayName();
 	void sendMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2);
 	void sendSysex(uint8_t* data, int32_t len) override;
+	int32_t sendBufferSpace() override;
 };

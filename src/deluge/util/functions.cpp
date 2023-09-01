@@ -27,6 +27,7 @@
 #include "hid/encoders.h"
 #include "io/debug/print.h"
 #include "model/action/action_logger.h"
+#include "model/clip/clip.h"
 #include "processing/sound/sound.h"
 #include <string.h>
 
@@ -335,14 +336,14 @@ char const* getSourceDisplayNameForOLED(PatchSource s) {
 	}
 }
 
-char const* getPatchedParamDisplayNameForOLED(int32_t p) {
+char const* getPatchedParamDisplayName(int32_t p) {
 	using enum l10n::String;
 	auto lang = l10n::chosenLanguage;
 
 	// These can basically be 13 chars long, or 14 if the last one is a dot.
 	switch (p) {
 
-	//Master Volume, Pitch, Pan
+	//Master Level, Pitch, Pan
 	case Param::Local::VOLUME:
 		return l10n::get(STRING_FOR_PARAM_LOCAL_VOLUME);
 
@@ -355,7 +356,7 @@ char const* getPatchedParamDisplayNameForOLED(int32_t p) {
 	case Param::Local::PITCH_ADJUST:
 		return l10n::get(STRING_FOR_PARAM_LOCAL_PITCH_ADJUST);
 
-	//LPF Cutoff, Resonance, Morph
+	//LPF Frequency, Resonance, Morph
 	case Param::Local::LPF_FREQ:
 		return l10n::get(STRING_FOR_PARAM_LOCAL_LPF_FREQ);
 
@@ -365,7 +366,7 @@ char const* getPatchedParamDisplayNameForOLED(int32_t p) {
 	case Param::Local::LPF_MORPH:
 		return l10n::get(STRING_FOR_PARAM_LOCAL_LPF_MORPH);
 
-	//HPF Cutoff, Resonance, Morph
+	//HPF Frequency, Resonance, Morph
 	case Param::Local::HPF_FREQ:
 		return l10n::get(STRING_FOR_PARAM_LOCAL_HPF_FREQ);
 
@@ -386,7 +387,7 @@ char const* getPatchedParamDisplayNameForOLED(int32_t p) {
 	case Param::Global::DELAY_FEEDBACK:
 		return l10n::get(STRING_FOR_PARAM_GLOBAL_DELAY_FEEDBACK);
 
-	//Sidechain Send
+	//Sidechain Level
 	case Param::Global::VOLUME_POST_REVERB_SEND:
 		return l10n::get(STRING_FOR_PARAM_GLOBAL_VOLUME_POST_REVERB_SEND);
 
@@ -394,7 +395,7 @@ char const* getPatchedParamDisplayNameForOLED(int32_t p) {
 	case Param::Local::FOLD:
 		return l10n::get(STRING_FOR_WAVEFOLDER);
 
-	//OSC 1 Volume, Pitch, Phase Width, Carrier Feedback, Wave Index
+	//OSC 1 Level, Pitch, Phase Width, Carrier Feedback, Wave Index
 	case Param::Local::OSC_A_VOLUME:
 		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_A_VOLUME);
 
@@ -410,7 +411,7 @@ char const* getPatchedParamDisplayNameForOLED(int32_t p) {
 	case Param::Local::OSC_A_WAVE_INDEX:
 		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_A_WAVE_INDEX);
 
-	//OSC 2 Volume, Pitch, Phase Width, Carrier Feedback, Wave Inde
+	//OSC 2 Volume, Pitch, Phase Width, Carrier Feedback, Wave Index
 	case Param::Local::OSC_B_VOLUME:
 		return l10n::get(STRING_FOR_PARAM_LOCAL_OSC_B_VOLUME);
 
@@ -500,7 +501,7 @@ char const* getPatchedParamDisplayNameForOLED(int32_t p) {
 	}
 }
 
-char const* getUnpatchedParamDisplayNameForOLED(int32_t p) {
+char const* getUnpatchedParamDisplayName(int32_t p) {
 	using enum l10n::String;
 
 	// These can basically be 13 chars long, or 14 if the last one is a dot.
@@ -551,7 +552,7 @@ char const* getUnpatchedParamDisplayNameForOLED(int32_t p) {
 	}
 }
 
-char const* getGlobalEffectableParamDisplayNameForOLED(int32_t p) {
+char const* getGlobalEffectableParamDisplayName(int32_t p) {
 	using enum l10n::String;
 
 	// These can basically be 13 chars long, or 14 if the last one is a dot.
@@ -1476,7 +1477,7 @@ ArpMode stringToArpMode(char const* string) {
 		return ArpMode::OFF;
 	}
 }
-
+//converts lpf/hpf mode to string for saving
 char const* lpfTypeToString(FilterMode lpfType) {
 	switch (lpfType) {
 	case FilterMode::TRANSISTOR_12DB:
@@ -1601,6 +1602,29 @@ SequenceDirection stringToSequenceDirectionMode(char const* string) {
 	}
 	else {
 		return SequenceDirection::FORWARD;
+	}
+}
+
+char const* launchStyleToString(int launchStyle) {
+	switch (launchStyle) {
+	case LAUNCH_STYLE_DEFAULT:
+		return "default";
+
+	case LAUNCH_STYLE_FILL:
+		return "fill";
+
+	default:
+		__builtin_unreachable();
+		return "";
+	}
+}
+
+int stringToLaunchStyle(char const* string) {
+	if (!strcmp(string, "fill")) {
+		return LAUNCH_STYLE_FILL;
+	}
+	else {
+		return LAUNCH_STYLE_DEFAULT;
 	}
 }
 

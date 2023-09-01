@@ -24,6 +24,10 @@ Here is a list of general improvements that have been made, ordered from newest 
 - ([#178]) New option (FINE TEMPO in the Runtime Settings (Community Features) menu) to invert the push+turn behavior of the "TEMPO" knob. With this option enabled the tempo changes by 1 when unpushed and 4 when pushed (vs 4 unpushed and 1 pushed in the official firmware). This option defaults to OFF.
 	- This feature can be turned ON/OFF in the Runtime Settings (Community Features) Menu (accessed by pressing "SHIFT" + "SELECT"). 
 
+#### 3.5 - Kits
+
+- ([#395]) Load synth presets into kit rows by holding the audition pad and pressing synth. Saving kit rows to synth presets is not yet implemented.
+
 ## 4. New Features Added
 
 Here is a list of features that have been added to the firmware as a list, grouped by category:
@@ -43,7 +47,19 @@ Here is a list of features that have been added to the firmware as a list, group
 
  - ([#163]) Pressing a "CLIP" row + "SHIFT" & Turning Vertical Encoder ▼︎▲︎ changes the selected row color. This is the same shortcut like before when setting the color in the clip view.
 
-#### 4.1.3 - New Grid Layout
+#### 4.1.3 - Fill Clips
+
+ - ([#196]) Holding the status pad (mute pad) for a clip and pressing select brings up a clip type selection menu. The options are:
+    - Default (DEFA) - the default Deluge clip type.
+	- Fill (FILL) - Fill clip. It appears orange/cyan on the status pads, and when triggered it will schedule itself to start at such a time that it _finishes_ at the start of the next loop. If the fill clip is longer than the remaining time, it is triggered immediately at a point midway through. The loop length is set by the longest playing clip, or by the total length of a section times the repeat count set for that section. **Limitation**: a fill clip is still subject to the one clip per instrument behavior of the Deluge. Fill clips can steal an output from another fill, but they cannot steal from a non-fill. This can lead to some fills never starting since a default type clip has the needed instrument. This can be worked around by cloning the instrument to an independent copy.
+
+
+#### 4.1.4 - Catch Notes
+
+ - ([#221]) The normal behavior of the Deluge is to try to keep up with 'in progress' notes when instant switching between clips by playing them late. However this leads to glitches with drum clips and other percussive sounds. Changing this setting to OFF will prevent this behavior and *not* try to keep up with those notes, leading to smoother instant switching between clips.
+	- This feature can be turned ON/OFF in the Runtime Settings (Community Features) Menu (accessed by pressing "SHIFT" + "SELECT"). 
+
+#### 4.1.5 - New Grid Layout
 
  - ([#251]) Add new grid session layout to "SONG" mode. All functionality from (classic) row layout applies except for the following:
 	 - The data model of rows and grid mode are compatible, you can switch between them freely
@@ -69,12 +85,6 @@ Here is a list of features that have been added to the firmware as a list, group
 	 	 - Overdub recording
 		 - Copying clips to arranger
 		 - Copying audio clips between different tracks
-
-#### 4.1.4 - Catch Notes
-
- - ([#221]) The normal behavior of the Deluge is to try to keep up with 'in progress' notes when instant switching between clips by playing them late. However this leads to glitches with drum clips and other percussive sounds. Changing this setting to OFF will prevent this behavior and *not* try to keep up with those notes, leading to smoother instant switching between clips.
-	- This feature can be turned ON/OFF in the Runtime Settings (Community Features) Menu (accessed by pressing "SHIFT" + "SELECT"). 
-
 ### 4.2 - Clip View - General Features (Instrument and Audio Clips)
 
 #### 4.2.1 - Filters
@@ -123,7 +133,13 @@ This mode affects how the deluge handles MIDI input for learned CC controls.
 - ([#349]) Adds a pre filter wavefolder, and the depth is patchable/automatable. The depth is accessible in both the menu and on the pad between saturation and LPF cutoff. The fold has no effect when set to 0 and removes itself from the signal path.
 	- Note that it has no effect on square waves, it's best with sines and triangles
 
-#### 4.2.6 - Grain FX
+#### 4.2.6 - Quantized Stutter
+
+- ([#357]) Ability to set, using the Community Features Menu, the stutterer effect to be quantized to 4th, 8th, 16th, 32nd, and 64th rate when selecting it. Once you have pressed the Stutter knob, then the selected value will be the center value of the knob and you can go up and down with the golden knob and come back to the original rate by centering the knob (LEDs will flash indicating it).
+
+	- This feature can be turned ON/OFF in the Runtime Settings (Community Features) Menu (accessed by pressing "SHIFT" + "SELECT"). 
+
+#### 4.2.7 - Grain FX
 
 - ([#363]) New Grain FX type added to Mod FX. This effect is somewhat resource-intensive, so please use only one instance per song.
 
@@ -140,9 +156,8 @@ This mode affects how the deluge handles MIDI input for learned CC controls.
 		- **Preset 4:** 5th and +1 Octave
 		- **Preset 5:** Unison and +1/-1 Octave (Tempo Sync)
 
-#### 4.2.7 - Quantized Stutter
 
-- ([#357]) Ability to set, using the Community Features Menu, the stutterer effect to be quantized to 4th, 8th, 16th, 32nd, and 64th rate when selecting it. Once you have pressed the Stutter knob, then the selected value will be the center value of the knob and you can go up and down with the golden knob and come back to the original rate by centering the knob (LEDs will flash indicating it).
+	- This feature can be turned ON/OFF in the Runtime Settings (Community Features) Menu (accessed by pressing "SHIFT" + "SELECT"). 
 
 ### 4.3 - Instrument Clip View - General Features
 
@@ -274,6 +289,8 @@ In the main menu of the deluge (accessed by pressing "SHIFT" + the "SELECT" knob
 	* When On, the Delete Unused Kit Rows shortcut (hold "KIT" then "SHIFT" + "SAVE/DELETE") is enabled.
 * Alternative Golden Knob Delay Params
 	* When On, it changes the behaviour of the Mod Encoder button action from the default (PingPong and Type) to the alternative params (SyncType and SyncLevel).
+* Stutter Rate Quantize
+	* When On, the ability to set the stutterer effect to be quantized to 4th, 8th, 16th, 32nd, and 64th rate when selecting it is enabled.
 * Automation (AUTO)
 	* Interpolation
 		* When On, Interpolation is on by default in the Automation Instrument Clip View.
@@ -287,13 +304,13 @@ In the main menu of the deluge (accessed by pressing "SHIFT" + the "SELECT" knob
 	* Shift Note
 		* When On, shifting notes horizontally in the regular Instrument Clip View will shift the Notes and MPE, but not the Automation.
 		* When On, to shift Non-MPE Automation horizontally you will need to enter the Automation Instrument Clip View.
-  * Allow Insecure Develop Sysex Messages
+* Allow Insecure Develop Sysex Messages
   	* When On, the ability to load firmware over USB is enabled.
-  * Sync Scaling Action
+* Sync Scaling Action
   	* When set to Fill, it changes the behaviour of the "SYNC-SCALING" button is changed to activate "FILL" mode. The original Sync Scaling button function is moved to "SHIFT" + "SYNC-SCALING".
-  * Highlight Incoming Notes
+* Highlight Incoming Notes
   	* When On, In-Key and Isometric Keyboard layouts display incoming MIDI notes with their velocity.
-  * Display Norns Layout
+* Display Norns Layout
   	* When On, all incoming notes are rendered consecutively as white pads with velocity as brightness.
 
 ## 6. Sysex Handling
@@ -336,6 +353,7 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#170]: https://github.com/SynthstromAudible/DelugeFirmware/pull/170
 [#174]: https://github.com/SynthstromAudible/DelugeFirmware/pull/174
 [#192]: https://github.com/SynthstromAudible/DelugeFirmware/pull/192
+[#196]: https://github.com/SynthstromAudible/DelugeFirmware/pull/196
 [#198]: https://github.com/SynthstromAudible/DelugeFirmware/pull/198
 [#200]: https://github.com/SynthstromAudible/DelugeFirmware/pull/200
 [#210]: https://github.com/SynthstromAudible/DelugeFirmware/pull/210
@@ -362,4 +380,6 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#360]: https://github.com/SynthstromAudible/DelugeFirmware/pull/360
 [#363]: https://github.com/SynthstromAudible/DelugeFirmware/pull/363
 [#368]: https://github.com/SynthstromAudible/DelugeFirmware/pull/368
-[Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/automation_view.md
+[#395]: https://github.com/SynthstromAudible/DelugeFirmware/pull/395
+
+[Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md

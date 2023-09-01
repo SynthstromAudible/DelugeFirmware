@@ -1460,6 +1460,40 @@ paramManagersMissing:
 	return NO_ERROR;
 }
 
+/**
+ * Special function to read a synth preset into a sound drum
+*/
+int32_t StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool mayReadSamplesFromFiles,
+                                        SoundDrum** getInstrument, FilePointer* filePointer, String* name,
+                                        String* dirPath) {
+	InstrumentType instrumentType = InstrumentType::SYNTH;
+	SoundDrum* newDrum = (SoundDrum*)createNewDrum(DrumType::SOUND);
+
+	AudioEngine::logAction("loadSynthDrumFromFile");
+
+	int32_t error = openInstrumentFile(instrumentType, filePointer);
+	if (error) {
+		return error;
+	}
+
+	AudioEngine::logAction("loadInstrumentFromFile");
+
+	error = newDrum->readFromFile(song, clip, 0);
+
+	bool fileSuccess = closeFile();
+
+	// If that somehow didn't work...
+	if (error || !fileSuccess) {
+
+		if (!fileSuccess) {
+			error = ERROR_SD_CARD;
+			return error;
+		}
+	}
+	*getInstrument = newDrum;
+	return error;
+}
+
 // After calling this, you must make sure you set dirPath of Instrument.
 Instrument* StorageManager::createNewInstrument(InstrumentType newInstrumentType, ParamManager* paramManager) {
 

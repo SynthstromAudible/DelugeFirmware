@@ -97,7 +97,7 @@ add_compile_options(
     $<$<CONFIG:DEBUG>:-Og>
     $<$<CONFIG:RELWITHDEBINFO>:-O2>
     $<$<CONFIG:RELEASE>:-O2>
-
+    -fno-inline-functions
     # Link time optimizations
     $<$<CONFIG:RELWITHDEBINFO>:-flto>
     $<$<CONFIG:RELEASE>:-flto>
@@ -191,9 +191,9 @@ add_executable(deluge)
 add_subdirectory(src)
 
 # Link external libraries
-target_link_libraries(deluge PUBLIC
-    fmt::fmt
-)
+# target_link_libraries(deluge PUBLIC
+
+# )
 
 # Project-only compile options (warnings, etc.)
 target_compile_options(deluge PUBLIC

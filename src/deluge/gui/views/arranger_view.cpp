@@ -17,6 +17,7 @@
 
 #include "gui/views/arranger_view.h"
 #include "definitions_cxx.hpp"
+#include "dsp/master_compressor/master_compressor.h"
 #include "extern.h"
 #include "gui/colour.h"
 #include "gui/context_menu/audio_input_selector.h"
@@ -57,6 +58,7 @@
 #include "model/instrument/midi_instrument.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
@@ -162,6 +164,20 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 	using namespace deluge::hid::button;
 
 	InstrumentType newInstrumentType;
+
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx) == RuntimeFeatureStateToggle::On
+	    && currentUIMode == UI_MODE_NONE) { //master compressor
+		int32_t modKnobMode = -1;
+		if (view.activeModControllableModelStack.modControllable) {
+			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
+			if (modKnobModePointer)
+				modKnobMode = *modKnobModePointer;
+		}
+		if (modKnobMode == 4 && b == MOD_ENCODER_1 && on) {
+			sessionView.buttonAction(b, on, inCardRoutine);
+			return ActionResult::DEALT_WITH;
+		}
+	}
 
 	// Song button
 	if (b == SESSION_VIEW) {
@@ -284,6 +300,7 @@ doChangeInstrumentType:
 					Browser::instrumentTypeToLoad = newInstrumentType;
 					loadInstrumentPresetUI.instrumentToReplace = (Instrument*)output;
 					loadInstrumentPresetUI.instrumentClipToLoadFor = NULL;
+					loadInstrumentPresetUI.loadingSynthToKitRow = false;
 					openUI(&loadInstrumentPresetUI);
 				}
 
@@ -891,6 +908,20 @@ ActionResult ArrangerView::padAction(int32_t x, int32_t y, int32_t velocity) {
 
 	if (sdRoutineLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	}
+
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx) == RuntimeFeatureStateToggle::On
+	    && currentUIMode == UI_MODE_NONE) { //master compressor
+		int32_t modKnobMode = -1;
+		if (view.activeModControllableModelStack.modControllable) {
+			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
+			if (modKnobModePointer)
+				modKnobMode = *modKnobModePointer;
+		}
+		if (modKnobMode == 4 && Buttons::isShiftButtonPressed() && x == 10 && y < 6 && velocity) {
+			sessionView.padAction(x, y, velocity);
+			return ActionResult::DEALT_WITH;
+		}
 	}
 
 	Output* output = outputsOnScreen[y];
@@ -2355,6 +2386,22 @@ void ArrangerView::selectEncoderAction(int8_t offset) {
 	}
 }
 
+void ArrangerView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx) == RuntimeFeatureStateToggle::On
+	    && currentUIMode == UI_MODE_NONE) {
+		int32_t modKnobMode = -1;
+		if (view.activeModControllableModelStack.modControllable) {
+			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
+			if (modKnobModePointer)
+				modKnobMode = *modKnobModePointer;
+		}
+		if (modKnobMode == 4 && whichModEncoder == 1) { //upper encoder
+			sessionView.modEncoderAction(whichModEncoder, offset);
+		}
+	}
+	TimelineView::modEncoderAction(whichModEncoder, offset);
+}
+
 void ArrangerView::navigateThroughPresets(int32_t offset) {
 	Output* output = outputsOnScreen[yPressedEffective];
 	if (output->type == InstrumentType::AUDIO) {
@@ -2859,6 +2906,26 @@ static const uint32_t autoScrollUIModes[] = {UI_MODE_HOLDING_HORIZONTAL_ENCODER_
                                              UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION, UI_MODE_HORIZONTAL_ZOOM, 0};
 
 void ArrangerView::graphicsRoutine() {
+
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx) == RuntimeFeatureStateToggle::On
+	    && currentUIMode == UI_MODE_NONE) {
+		int32_t modKnobMode = -1;
+		if (view.activeModControllableModelStack.modControllable) {
+			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
+			if (modKnobModePointer)
+				modKnobMode = *modKnobModePointer;
+		}
+
+		if (modKnobMode == 4 && abs(AudioEngine::mastercompressor.compressor.getThresh()) > 0.001) { //upper
+			double gr = AudioEngine::mastercompressor.gr;
+			if (gr >= 0)
+				gr = 0;
+			if (gr <= -12)
+				gr = -12.0;
+			gr = abs(gr);
+			indicator_leds::setKnobIndicatorLevel(1, int32_t(gr / 12.0 * 128)); //Gain Reduction LED
+		}
+	}
 
 	if (PadLEDs::flashCursor != FLASH_CURSOR_OFF) {
 
