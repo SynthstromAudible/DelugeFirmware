@@ -976,7 +976,7 @@ void View::setKnobIndicatorLevels() {
 
 	//don't update knob indicator levels when you're in automation editor
 	if (getCurrentUI() == &automationInstrumentClipView
-	    && (((InstrumentClip*)currentSong->currentClip)->lastSelectedParamID != kNoLastSelectedParamID)) {
+	    && (!automationInstrumentClipView.isOnAutomationOverview()) {
 		return;
 	}
 
