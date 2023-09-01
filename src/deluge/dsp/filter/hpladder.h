@@ -48,7 +48,7 @@ private:
 			hpfHPF3.reset();
 		}
 	};
-	[[gcc::always_inline]] inline q31_t doHPF(q31_t input, HPLadderState& state);
+	[[gnu::always_inline]] inline q31_t doHPF(q31_t input, HPLadderState& state);
 
 	//config
 	uint32_t hpfLastWorkingValue;
