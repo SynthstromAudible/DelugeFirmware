@@ -88,6 +88,11 @@ int32_t FileItem::getDisplayNameWithoutExtension(String* displayNameWithoutExten
 				}
 			}
 		}
+		return NO_ERROR;
 	}
-	return NO_ERROR;
+	/*
+Warning - not having a return is functional. Whatever is passing through
+is required to reset the display after auditioning. Further debugging required,
+returning 0, 1, filename.get() or (displayName != filename.get()) all cause bugs
+*/
 }
