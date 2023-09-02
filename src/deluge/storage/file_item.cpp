@@ -88,6 +88,6 @@ int32_t FileItem::getDisplayNameWithoutExtension(String* displayNameWithoutExten
 				}
 			}
 		}
-		return NO_ERROR;
 	}
+	return NO_ERROR;
 }
