@@ -362,6 +362,11 @@ bool readButtonsAndPads() {
 		}
 	}
 
+	if (!sdRoutineLock && Buttons::shiftHasChanged()
+	    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::LightShiftLed) == RuntimeFeatureStateToggle::On) {
+		indicator_leds::setLedState(indicator_leds::LED::SHIFT, Buttons::isShiftButtonPressed());
+	}
+
 #if SD_TEST_MODE_ENABLED_LOAD_SONGS
 
 	if (playbackHandler.currentlyPlaying) {
