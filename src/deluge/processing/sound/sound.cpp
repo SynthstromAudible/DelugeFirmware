@@ -60,6 +60,9 @@
 extern "C" {
 #include "RZA1/mtu/mtu.h"
 }
+#pragma GCC diagnostic push
+//This is supported by GCC and other compilers should error (not warn), so turn off for this file
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 
 const PatchableInfo patchableInfoForSound = {
     (int32_t)(offsetof(Sound, paramFinalValues) - offsetof(Sound, patcher) - (Param::Global::FIRST * sizeof(int32_t))),
@@ -4456,3 +4459,4 @@ for (int32_t v = startV; v < endV; v++) {
 
 for (int32_t s = 0; s < NUM_SOURCES; s++) {
 */
+#pragma GCC diagnostic pop
