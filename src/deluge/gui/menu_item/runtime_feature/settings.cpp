@@ -18,6 +18,7 @@
 #include "settings.h"
 #include "devSysexSetting.h"
 #include "setting.h"
+#include "shift_is_sticky.h"
 
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
@@ -48,6 +49,8 @@ Setting menuSyncScalingAction(RuntimeFeatureSettingType::SyncScalingAction);
 DevSysexSetting menuDevSysexAllowed(RuntimeFeatureSettingType::DevSysexAllowed);
 Setting menuHighlightIncomingNotes(RuntimeFeatureSettingType::HighlightIncomingNotes);
 Setting menuDisplayNornsLayout(RuntimeFeatureSettingType::DisplayNornsLayout);
+ShiftIsSticky menuShiftIsSticky{};
+Setting menuLightShiftLed(RuntimeFeatureSettingType::LightShiftLed);
 
 Submenu subMenuAutomation{
     l10n::String::STRING_FOR_COMMUNITY_FEATURE_AUTOMATION,
@@ -63,7 +66,7 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettin
     &menuDrumRandomizer,         &menuMasterCompressorFx, &menuFineTempo,           &menuQuantize,
     &menuPatchCableResolution,   &menuCatchNotes,         &menuDeleteUnusedKitRows, &menuAltGoldenKnobDelayParams,
     &menuQuantizedStutterRate,   &subMenuAutomation,      &menuDevSysexAllowed,     &menuSyncScalingAction,
-    &menuHighlightIncomingNotes, &menuDisplayNornsLayout,
+    &menuHighlightIncomingNotes, &menuDisplayNornsLayout, &menuShiftIsSticky,       &menuLightShiftLed,
 };
 
 Settings::Settings(l10n::String name, l10n::String title)
