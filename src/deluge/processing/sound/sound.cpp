@@ -3030,6 +3030,12 @@ void Sound::compensateVolumeForResonance(ModelStackWithThreeMainThings* modelSta
 }
 
 // paramManager only required for old old song files
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstack-usage="
+/**
+ * Reads the parameters from the storageManager's current file into paramManager
+ * stack usage would be unbounded if file contained infinite tags
+*/
 int32_t Sound::readSourceFromFile(int32_t s, ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos) {
 
 	Source* source = &sources[s];
@@ -3275,6 +3281,7 @@ gotError:
 
 	return NO_ERROR;
 }
+#pragma GCC diagnostic pop
 
 void Sound::writeSourceToFile(int32_t s, char const* tagName) {
 
