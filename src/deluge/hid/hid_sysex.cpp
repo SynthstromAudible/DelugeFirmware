@@ -104,7 +104,7 @@ void HIDSysex::sendOLEDData(MIDIDevice* device, bool rle) {
 		const int32_t data_size = 768;
 		const int32_t max_packed_size = 922;
 
-		uint8_t reply_hdr[5] = {0xf0, 0x7d, 0x02, 0x40, rle ? 0x01 : 0x00};
+		uint8_t reply_hdr[5] = {0xf0, 0x7d, 0x02, 0x40, rle ? 0x01_u8 : 0x00_u8};
 		uint8_t* reply = midiEngine.sysex_fmt_buffer;
 		memcpy(reply, reply_hdr, 5);
 		reply[5] = 0; // nominally 32*data[5] is start pos for a delta
