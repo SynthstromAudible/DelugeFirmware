@@ -248,7 +248,7 @@ public:
 protected:
 	void posReachedEnd(ModelStackWithTimelineCounter* modelStack);
 	bool wantsToBeginLinearRecording(Song* song);
-	bool cloneOutput(ModelStackWithTimelineCounter* modelStack, OverDubType overdubnature);
+	bool cloneOutput(ModelStackWithTimelineCounter* modelStack);
 	void pingpongOccurred(ModelStackWithTimelineCounter* modelStack);
 
 private:

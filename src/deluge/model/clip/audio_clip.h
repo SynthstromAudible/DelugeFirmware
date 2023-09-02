@@ -107,7 +107,7 @@ public:
 	bool maySetupCache;
 
 protected:
-	bool cloneOutput(ModelStackWithTimelineCounter* modelStack, OverDubType overdubNature);
+	bool cloneOutput(ModelStackWithTimelineCounter* modelStack);
 
 private:
 	void detachAudioClipFromOutput(Song* song, bool shouldRetainLinksToOutput, bool shouldTakeParamManagerWith = false);

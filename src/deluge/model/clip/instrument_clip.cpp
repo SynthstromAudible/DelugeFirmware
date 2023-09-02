@@ -4078,7 +4078,7 @@ ramError:
 	return newInstrumentClip;
 }
 
-bool InstrumentClip::cloneOutput(ModelStackWithTimelineCounter* modelStack, OverDubType overdubNature) {
+bool InstrumentClip::cloneOutput(ModelStackWithTimelineCounter* modelStack) {
 	return false;
 }
 

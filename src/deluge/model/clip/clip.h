@@ -186,11 +186,9 @@ protected:
 	virtual void
 	posReachedEnd(ModelStackWithTimelineCounter*
 	                  modelStack); // May change the TimelineCounter in the modelStack if new Clip got created
-	virtual bool cloneOutput(
-	    ModelStackWithTimelineCounter* modelStack,
-	    OverDubType overdubNature = OverDubType::Normal) = 0; // Returns whether a new Output was in fact created
+	virtual bool
+	cloneOutput(ModelStackWithTimelineCounter* modelStack) = 0; // Returns whether a new Output was in fact created
 	int32_t solicitParamManager(Song* song, ParamManager* newParamManager = NULL,
 	                            Clip* favourClipForCloningParamManager = NULL);
-	virtual void pingpongOccurred(ModelStackWithTimelineCounter* modelStack) {
-	}
+	virtual void pingpongOccurred(ModelStackWithTimelineCounter* modelStack) {}
 };

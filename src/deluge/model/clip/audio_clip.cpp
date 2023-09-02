@@ -253,7 +253,7 @@ ramError:
 	return newClip;
 }
 
-bool AudioClip::cloneOutput(ModelStackWithTimelineCounter* modelStack, OverDubType overdubNature) {
+bool AudioClip::cloneOutput(ModelStackWithTimelineCounter* modelStack) {
 	//don't clone for loop commands in red mode
 	if (!overdubsShouldCloneOutput) {
 		return false;
