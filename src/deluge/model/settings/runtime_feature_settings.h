@@ -53,6 +53,8 @@ enum RuntimeFeatureSettingType : uint32_t {
 	SyncScalingAction,
 	HighlightIncomingNotes,
 	DisplayNornsLayout,
+	ShiftIsSticky,
+	LightShiftLed,
 	MaxElement // Keep as boundary
 };
 
@@ -79,6 +81,13 @@ public:
 
 	// Traded type safety for option values for code simplicity and size, use enum from above to compare
 	inline uint32_t get(RuntimeFeatureSettingType type) { return settings[type].value; };
+
+	/**
+	 * Set a runtime feature setting.
+	 *
+	 * Make sure when you use this the settings are eventually written back to the SDCard!
+	 */
+	inline void set(RuntimeFeatureSettingType type, uint32_t value) { settings[type].value = value; }
 
 	void init();
 	void readSettingsFromFile();
