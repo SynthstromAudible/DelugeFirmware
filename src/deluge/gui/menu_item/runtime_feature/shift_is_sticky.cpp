@@ -1,6 +1,4 @@
 /*
- * Copyright © 2021-2023 Synthstrom Audible Limited
- *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
  * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
@@ -15,25 +13,28 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#pragma once
-
-#include "gui/menu_item/selection.h"
+#include "shift_is_sticky.h"
+#include "hid/buttons.h"
 #include "model/settings/runtime_feature_settings.h"
 
+#include <cstdint>
+
 namespace deluge::gui::menu_item::runtime_feature {
-class Settings;
-class Setting : public Selection<RUNTIME_FEATURE_SETTING_MAX_OPTIONS> {
-public:
-	explicit Setting(RuntimeFeatureSettingType ty);
 
-	void readCurrentValue() override;
-	void writeCurrentValue() override;
-	static_vector<std::string_view, RUNTIME_FEATURE_SETTING_MAX_OPTIONS> getOptions() override;
-	[[nodiscard]] std::string_view getName() const override;
-	[[nodiscard]] std::string_view getTitle() const override;
+void ShiftIsSticky::writeCurrentValue() {
+	Setting::writeCurrentValue();
 
-private:
-	friend class Settings;
-	uint32_t currentSettingIndex;
-};
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShiftIsSticky) == RuntimeFeatureStateToggle::Off) {
+		Buttons::clearShiftSticky();
+	}
+	else {
+		// Enable shift LED lighting when sticky keys gets enabled, so people can actually tell that their shift key is
+		// down. People can still turn it off later if they want, but I think this is a good default.
+		//
+		// We can safely poke another setting here because exiting this menu is going to save the runtime feature
+		// settings anyway.
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::LightShiftLed, RuntimeFeatureStateToggle::On);
+	}
+}
+
 } // namespace deluge::gui::menu_item::runtime_feature
