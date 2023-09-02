@@ -138,8 +138,8 @@ void HIDSysex::send7SegData(MIDIDevice* device) {
 		auto data = display->getLast();
 		const int32_t packed_data_size = 5;
 		uint8_t reply[11] = {0xf0, 0x7d, 0x02, 0x41, 0x00};
-		pack_8bit_to_7bit(reply + 6, packed_data_size, data.data(), data.size());
-		reply[6 + packed_data_size] = 0xf7; // end of transmission
+		pack_8bit_to_7bit(reply + 5, packed_data_size, data.data(), data.size());
+		reply[5 + packed_data_size] = 0xf7; // end of transmission
 		device->sendSysex(reply, packed_data_size + 7);
 	}
 }
