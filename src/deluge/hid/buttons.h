@@ -29,5 +29,16 @@ bool isShiftButtonPressed();
 bool isNewOrShiftButtonPressed();
 void noPressesHappening(bool inCardRoutine);
 
+/**
+ * Notify the button management code that the shift button should no longer be considered sticky. We need an explicit
+ * notification so we can clear the buttons.cpp:shiftIsHeld to avoid shift getting permanantly stuck.
+ */
+void clearShiftSticky();
+/**
+ * Determine if the shift button has changed since the last time someone asked.
+ * This implicitly clears the "shiftHasChangedSinceLastCheck" flag, so only the main loop should call this function.
+ */
+bool shiftHasChanged();
+
 extern bool recordButtonPressUsedUp;
 } // namespace Buttons

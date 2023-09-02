@@ -22,6 +22,7 @@
 #include "gui/ui/ui.h"
 #include "gui/views/view.h"
 #include "model/mod_controllable/mod_controllable.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "playback/mode/playback_mode.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
@@ -31,6 +32,31 @@ namespace Buttons {
 
 bool recordButtonPressUsedUp;
 uint32_t timeRecordButtonPressed;
+/**
+ * AudioEngine::audioSampleTimer value at which the shift button was pressed. Used to distinguish between short and
+ * long shift presses, for sticky keys.
+ */
+uint32_t timeShiftButtonPressed;
+
+/**
+ * Whether or not the shift button is currently depressed (either physically or because a sticky shift has occured)
+ */
+bool shiftCurrentlyPressed = false;
+/**
+ * Whether shift should be left on during the release
+ */
+bool shiftCurrentlyStuck = false;
+/**
+ * Flag that's used to manage shift illumination. We can't directly write to the PIC in the button routines because we
+ * might be in the card routine, this flag lets the main loop handle illuminating the button when required.
+ */
+bool shiftHasChangedSinceLastCheck;
+/**
+ * Flag that represents whether another button was pressed while shift was held, and therefore we should ignore the
+ * release of the shift for the purposes of enabling sticky keys.
+ */
+bool considerShiftReleaseForSticky;
+
 bool buttonStates[NUM_BUTTON_COLS + 1][NUM_BUTTON_ROWS]; // The extra col is for "fake" buttons
 
 ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
@@ -46,6 +72,12 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 		return;
 	}
 #endif
+
+	// If the user presses a different button while holding shift, don't consider the shift press for the purposes of
+	// enabling sticky keys.
+	if (on) {
+		considerShiftReleaseForSticky = false;
+	}
 
 	ActionResult result;
 
@@ -99,7 +131,48 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 			recordButtonPressUsedUp = true;
 		}
 	}
+	// Shift button
+	else if (b == SHIFT) {
+		if (on) {
+			timeShiftButtonPressed = AudioEngine::audioSampleTimer;
 
+			// Shift should always be active when the button is physically pressed.
+			shiftCurrentlyPressed = true;
+			// The next release has a chance of activating sticky keys
+			considerShiftReleaseForSticky = true;
+			// Shift has changed, make sure we notify.
+			shiftHasChangedSinceLastCheck = true;
+		}
+		else {
+			uint32_t releaseTime = AudioEngine::audioSampleTimer;
+			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShiftIsSticky) == RuntimeFeatureStateToggle::On) {
+				uint32_t delta = releaseTime - timeShiftButtonPressed;
+				if (delta > std::numeric_limits<uint32_t>::max() / 2) {
+					// the audio sample timer has overflowed, the actual delta is time from the button down being
+					// recorded -> overflow point + 0 -> current time.
+					//
+					// This logic technically breaks if the counter overflows more than once between shift down and up
+					// but that would require the user to hold down shift for 2**32 / 44100 = 97391 seconds or about
+					// 1.13 days. I think it's OK if we don't handle that.
+					delta = std::numeric_limits<uint32_t>::max() - timeShiftButtonPressed;
+					delta += releaseTime;
+				}
+				// We got a short press, maybe enable sticky keys
+				if (delta < kShortPressTime) {
+					// unstick shift if another button was pressed while shift was held, or we were already stuck and
+					// this short press is to get us unstuck.
+					shiftCurrentlyStuck = considerShiftReleaseForSticky && !shiftCurrentlyStuck;
+				}
+			}
+
+			// As long as shift isn't currently stuck (i.e. we just had a short press that enabled sticky keys), clear
+			// the shift pressed flag on release.
+			if (!shiftCurrentlyStuck) {
+				shiftCurrentlyPressed = false;
+				shiftHasChangedSinceLastCheck = true;
+			}
+		}
+	}
 	// Record button
 	else if (b == RECORD) {
 		// Press on
@@ -158,7 +231,6 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	else if (b == MOD_ENCODER_1) {
 		getCurrentUI()->modEncoderButtonAction(1, on);
 	}
-
 dealtWith:
 
 	return ActionResult::DEALT_WITH;
@@ -170,7 +242,19 @@ bool isButtonPressed(deluge::hid::Button b) {
 }
 
 bool isShiftButtonPressed() {
-	return buttonStates[shiftButtonCoord.x][shiftButtonCoord.y];
+	return shiftCurrentlyPressed;
+}
+
+void clearShiftSticky() {
+	shiftCurrentlyStuck = false;
+	shiftCurrentlyPressed = false;
+	shiftHasChangedSinceLastCheck = true;
+}
+
+bool shiftHasChanged() {
+	bool toReturn = shiftHasChangedSinceLastCheck;
+	shiftHasChangedSinceLastCheck = false;
+	return toReturn;
 }
 
 bool isNewOrShiftButtonPressed() {
