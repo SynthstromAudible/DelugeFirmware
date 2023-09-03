@@ -36,6 +36,9 @@ extern "C" {
 
 extern uint8_t anyUSBSendingStillHappening[];
 }
+#pragma GCC diagnostic push
+//This is supported by GCC and other compilers should error (not warn), so turn off for this file
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 
 ConnectedUSBMIDIDevice connectedUSBMIDIDevices[USB_NUM_USBIP][MAX_NUM_USB_MIDI_DEVICES];
 
@@ -619,3 +622,4 @@ void ConnectedUSBMIDIDevice::setup() {
 
 	}
  */
+#pragma GCC diagnostic pop
