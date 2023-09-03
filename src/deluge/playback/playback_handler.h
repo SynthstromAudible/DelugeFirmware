@@ -183,7 +183,7 @@ public:
 	void midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru);
 	void aftertouchReceived(MIDIDevice* fromDevice, int32_t channel, int32_t value, int32_t noteCode,
 	                        bool* doingMidiThru); // noteCode -1 means channel-wide
-	void loopCommand(int32_t overdubNature);
+	void loopCommand(OverDubType overdubNature);
 	void grabTempoFromClip(Clip* clip);
 	int32_t getTimeLeftInCountIn();
 

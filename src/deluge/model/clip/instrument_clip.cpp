@@ -820,7 +820,7 @@ skipDoingSumTo100:
 
 			// else check if it's a FILL note and only play if SYNC_SCALING is pressed
 			else if (pendingNoteOnList.pendingNoteOns[i].probability == kFillProbabilityValue) {
-				conditionPassed = currentSong->fillModeActive;
+				conditionPassed = currentSong->isFillModeActive();
 			}
 
 			// Otherwise...
@@ -4033,7 +4033,7 @@ void InstrumentClip::finishLinearRecording(ModelStackWithTimelineCounter* modelS
 	}
 }
 
-Clip* InstrumentClip::cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStack, int32_t newOverdubNature) {
+Clip* InstrumentClip::cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStack, OverDubType newOverdubNature) {
 
 	// Allocate memory for Clip
 	void* clipMemory = GeneralMemoryAllocator::get().alloc(sizeof(InstrumentClip), NULL, false, true);

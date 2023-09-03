@@ -2467,9 +2467,9 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, int32_t channel,
 				if (actionLogger.allowedToDoReversion()
 				    || currentUIMode
 				           == UI_MODE_RECORD_COUNT_IN) { // Not quite sure if this describes exactly what we want but it'll do...
-					int32_t overdubNature = (static_cast<GlobalMIDICommand>(c) == GlobalMIDICommand::LOOP)
-					                            ? OVERDUB_NORMAL
-					                            : OVERDUB_CONTINUOUS_LAYERING;
+					OverDubType overdubNature = (static_cast<GlobalMIDICommand>(c) == GlobalMIDICommand::LOOP)
+					                                ? OverDubType::Normal
+					                                : OverDubType::ContinuousLayering;
 					loopCommand(overdubNature);
 				}
 				break;
@@ -2486,11 +2486,7 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, int32_t channel,
 				break;
 
 			case GlobalMIDICommand::FILL:
-				currentSong->fillModeActive = true;
-				if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction)
-				     == RuntimeFeatureStateSyncScalingAction::Fill)) {
-					indicator_leds::setLedState(IndicatorLED::SYNC_SCALING, true);
-				}
+				currentSong->changeFillMode(true);
 				break;
 
 			//case GlobalMIDICommand::TAP:
@@ -2517,11 +2513,7 @@ bool PlaybackHandler::tryGlobalMIDICommandsOff(MIDIDevice* device, int32_t chann
 
 	// Check for FILL command at index [8]
 	if (midiEngine.globalMIDICommands[8].equalsNoteOrCC(device, channel, note)) {
-		currentSong->fillModeActive = false;
-		if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction)
-		     == RuntimeFeatureStateSyncScalingAction::Fill)) {
-			indicator_leds::setLedState(IndicatorLED::SYNC_SCALING, false);
-		}
+		currentSong->changeFillMode(false);
 		foundAnything = true;
 	}
 
@@ -2846,8 +2838,7 @@ int32_t PlaybackHandler::getArrangementRecordPosAtLastActionedSwungTick() {
 }
 
 // Warning - this might get called during card routine!
-void PlaybackHandler::loopCommand(int32_t overdubNature) {
-
+void PlaybackHandler::loopCommand(OverDubType overdubNature) {
 	bool anyGotArmedToStop;
 	bool mustEndTempolessRecordingAfter = false;
 
@@ -2883,7 +2874,7 @@ probablyExitRecordMode:
 		mustEndTempolessRecordingAfter = true;
 
 		// And if LAYERING command, make an overdub too
-		if (overdubNature == OVERDUB_CONTINUOUS_LAYERING) {
+		if (overdubNature == OverDubType::ContinuousLayering) {
 			goto doCreateNextOverdub;
 		}
 	}
@@ -2913,7 +2904,7 @@ probablyExitRecordMode:
 		}
 
 		// Or if none were recording, or if it was the LAYERING command, then create a new overdub (potentially in addition to having armed the old one to stop
-		if (!anyGotArmedToStop || overdubNature == OVERDUB_CONTINUOUS_LAYERING) {
+		if (!anyGotArmedToStop || overdubNature == OverDubType::ContinuousLayering) {
 
 doCreateNextOverdub:
 
@@ -2957,6 +2948,10 @@ doCreateNextOverdub:
 
 					// Or if that Clip was armed to record linearly...
 					else {
+						//ensure that audio clips will clone outputs to layer continuously
+						if (overdubNature == OverDubType::ContinuousLayering) {
+							clipToCreateOverdubFrom->overdubsShouldCloneOutput = true;
+						}
 
 						if (!recording) {
 							recording = RECORDING_NORMAL;
@@ -2983,7 +2978,7 @@ doCreateNextOverdub:
 	}
 
 	if (mustEndTempolessRecordingAfter) {
-		bool shouldExitRecordMode = (overdubNature != OVERDUB_CONTINUOUS_LAYERING);
+		bool shouldExitRecordMode = (overdubNature != OverDubType::ContinuousLayering);
 		finishTempolessRecording(true, kMIDIKeyInputLatency, shouldExitRecordMode);
 	}
 }

@@ -106,7 +106,9 @@ constexpr Language seven_segment{
         {STRING_FOR_RANDOM, "RANDOM"},
 
         // gui/menu_item/cv/selection.h
-        {STRING_FOR_CV_OUTPUT_N, "OUT{}"},
+        {STRING_FOR_CV_OUTPUT_N, "OUT*"},
+        {STRING_FOR_CV_OUTPUT_1, "OUT1"},
+        {STRING_FOR_CV_OUTPUT_2, "OUT2"},
 
         // gui/menu_item/delay/analog.h
         {STRING_FOR_DIGITAL, "DIGI"},
@@ -131,7 +133,10 @@ constexpr Language seven_segment{
 
         // gui/menu_item/gate/selection.h
         {STRING_FOR_GATE_MODE_TITLE, ""},
-        {STRING_FOR_GATE_OUTPUT_N, "OUT{}"},
+        {STRING_FOR_GATE_OUTPUT_1, "OUT1"},
+        {STRING_FOR_GATE_OUTPUT_2, "OUT2"},
+        {STRING_FOR_GATE_OUTPUT_3, "OUT3"},
+        {STRING_FOR_GATE_OUTPUT_4, "OUT4"},
         {STRING_FOR_MINIMUM_OFF_TIME, "OFFT"},
 
         // gui/menu_item/lfo/shape.h
@@ -155,7 +160,8 @@ constexpr Language seven_segment{
 
         // gui/menu_item/modulator/destination.h
         {STRING_FOR_CARRIERS, "CARRIERS"},
-        {STRING_FOR_MODULATOR_N, "Mod{}"},
+        {STRING_FOR_MODULATOR_1, "Mod1"},
+        {STRING_FOR_MODULATOR_2, "Mod2"},
 
         // gui/menu_item/monitor/mode.h
         {STRING_FOR_CONDITIONAL, "COND"},
@@ -331,6 +337,7 @@ constexpr Language seven_segment{
         {STRING_FOR_IMPOSSIBLE_FROM_GRID, "CANT"},
         {STRING_FOR_SWITCHING_TO_TRACK_FAILED, "ESG1"},
         {STRING_FOR_CANT_CLONE_AUDIO_IN_OTHER_TRACK, "CANT"},
+        {STRING_FOR_CANT_CONVERT_TYPE, "CANT"},
         {STRING_FOR_TARGET_FULL, "FULL"},
 
         {STRING_FOR_WAVEFOLD, "FOLD"},

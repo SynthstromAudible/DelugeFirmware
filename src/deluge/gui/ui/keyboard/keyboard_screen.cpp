@@ -632,6 +632,10 @@ void KeyboardScreen::focusRegained() {
 	selectLayout(0); // Make sure we get a valid layout from the loaded file
 }
 
+void KeyboardScreen::displayOrLanguageChanged() {
+	InstrumentClipMinder::displayOrLanguageChanged();
+}
+
 void KeyboardScreen::openedInBackground() {
 	getCurrentClip()->onKeyboardScreen = true;
 
