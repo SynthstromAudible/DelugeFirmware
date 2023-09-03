@@ -620,6 +620,16 @@ bool Song::modeContainsYNoteWithinOctave(uint8_t yNoteWithinOctave) {
 	return false;
 }
 
+uint8_t Song::getYNoteIndexInMode(int32_t yNote) {
+	uint8_t yNoteWithinOctave = (uint8_t)(yNote - rootNote + 132) % 12;
+	for (uint8_t i = 0; i < numModeNotes; i++) {
+		if (modeNotes[i] == yNoteWithinOctave) {
+			return i;
+		}
+	}
+	return 255;
+}
+
 // Flattens or sharpens a given note-within-octave in the current scale
 void Song::changeMusicalMode(uint8_t yVisualWithinOctave, int8_t change) {
 
@@ -2603,6 +2613,16 @@ int32_t Song::cycleThroughScales() {
 		newScale = 0;
 	}
 
+	setCurrentPresetScale(newScale);
+	return newScale;
+}
+
+void Song::setCurrentPresetScale(int32_t newScale) {
+
+	if (numModeNotes != 7) {
+		return;
+	}
+
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
@@ -2667,8 +2687,6 @@ traverseClips2:
 	for (int32_t n = 1; n < 7; n++) {
 		modeNotes[n] = presetScaleNotes[newScale][n];
 	}
-
-	return newScale;
 }
 
 // Returns 255 if none

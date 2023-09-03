@@ -90,6 +90,7 @@ public:
 	void grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForEverything(MIDIDevice* device);
 	int32_t cycleThroughScales();
 	int32_t getCurrentPresetScale();
+	void setCurrentPresetScale(int32_t newScale);
 	void setTempoFromNumSamples(double newTempoSamples, bool shouldLogAction);
 	void setupDefault();
 	void setBPM(float tempoBPM, bool shouldLogAction);
@@ -208,6 +209,7 @@ public:
 	void writeToFile();
 	void loadAllSamples(bool mayActuallyReadFiles = true);
 	bool modeContainsYNoteWithinOctave(uint8_t yNoteWithinOctave);
+	uint8_t getYNoteIndexInMode(int32_t yNote);
 	void renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* reverbBuffer,
 	                 int32_t sideChainHitPending);
 	bool isYNoteAllowed(int32_t yNote, bool inKeyMode);

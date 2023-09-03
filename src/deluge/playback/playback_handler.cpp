@@ -34,6 +34,7 @@
 #include "io/debug/print.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
+#include "io/midi/midi_transpose.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
@@ -2446,7 +2447,19 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, int32_t channel,
 	bool foundAnything = false;
 
 	for (int32_t c = 0; c < kNumGlobalMIDICommands; c++) {
-		if (midiEngine.globalMIDICommands[c].equalsNoteOrCC(device, channel, note)) {
+
+		if (midiEngine.globalMIDICommands[c].equalsChannelOrZone(device, channel) &&
+			static_cast<GlobalMIDICommand>(c) == GlobalMIDICommand::TRANSPOSE) {
+			foundAnything = true;
+			midiTranspose.doTranspose(device, channel, note);
+		}
+		/*else if (midiEngine.globalMIDICommands[c].equalsNoteOrCC(device, channel, note)
+			&& static_cast<GlobalMIDICommand>(c) == GlobalMIDICommand::SCALE) {
+
+		}*/
+
+
+		else if (midiEngine.globalMIDICommands[c].equalsNoteOrCC(device, channel, note)) {
 			switch (static_cast<GlobalMIDICommand>(c)) {
 			case GlobalMIDICommand::PLAYBACK_RESTART:
 				if (recording != RECORDING_ARRANGEMENT) {
@@ -2488,7 +2501,6 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, int32_t channel,
 			case GlobalMIDICommand::FILL:
 				currentSong->changeFillMode(true);
 				break;
-
 			//case GlobalMIDICommand::TAP:
 			default:
 				if (getCurrentUI() == getRootUI()) {
