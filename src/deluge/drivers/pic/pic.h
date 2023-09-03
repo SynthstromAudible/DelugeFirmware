@@ -294,8 +294,9 @@ private:
 	 * @brief Send a byte. This was originally bufferPICUart()
 	 */
 	inline static void send(uint8_t msg) {
-		intptr_t writePos = uartItems[UART_ITEM_PIC].txBufferWritePos + UNCACHED_MIRROR_OFFSET;
-		picTxBuffer[writePos] = msg;
+		intptr_t writePos = uartItems[UART_ITEM_PIC].txBufferWritePos;
+		volatile char* uncached_tx_buf = (volatile char*)(picTxBuffer + UNCACHED_MIRROR_OFFSET);
+		uncached_tx_buf[writePos] = msg;
 		uartItems[UART_ITEM_PIC].txBufferWritePos += 1;
 		uartItems[UART_ITEM_PIC].txBufferWritePos &= (PIC_TX_BUFFER_SIZE - 1);
 	}
