@@ -322,8 +322,7 @@ doEndMidiLearnPressSession:
 	else if (b == SYNC_SCALING) {
 		if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction)
 		     == RuntimeFeatureStateSyncScalingAction::Fill)) {
-			currentSong->fillModeActive = on;
-			indicator_leds::setLedState(IndicatorLED::SYNC_SCALING, on);
+			currentSong->changeFillMode(on);
 		}
 		else if (on && currentUIMode == UI_MODE_NONE) {
 

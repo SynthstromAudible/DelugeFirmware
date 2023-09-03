@@ -166,7 +166,8 @@ enum class String : size_t {
 
 	// gui/menu_item/cv/selection.h
 	STRING_FOR_CV_OUTPUT_N,
-
+	STRING_FOR_CV_OUTPUT_1,
+	STRING_FOR_CV_OUTPUT_2,
 	// gui/menu_item/delay/analog.h
 	STRING_FOR_DIGITAL,
 	STRING_FOR_ANALOG,
@@ -191,7 +192,10 @@ enum class String : size_t {
 
 	// gui/menu_item/gate/selection.h
 	STRING_FOR_GATE_MODE_TITLE,
-	STRING_FOR_GATE_OUTPUT_N,
+	STRING_FOR_GATE_OUTPUT_1,
+	STRING_FOR_GATE_OUTPUT_2,
+	STRING_FOR_GATE_OUTPUT_3,
+	STRING_FOR_GATE_OUTPUT_4,
 	STRING_FOR_MINIMUM_OFF_TIME,
 
 	// gui/menu_item/lfo/shape.h
@@ -215,7 +219,8 @@ enum class String : size_t {
 
 	// gui/menu_item/modulator/destination.h
 	STRING_FOR_CARRIERS,
-	STRING_FOR_MODULATOR_N,
+	STRING_FOR_MODULATOR_1,
+	STRING_FOR_MODULATOR_2,
 
 	// gui/menu_item/monitor/mode.h
 	STRING_FOR_CONDITIONAL,
@@ -398,6 +403,7 @@ enum class String : size_t {
 	STRING_FOR_IMPOSSIBLE_FROM_GRID,
 	STRING_FOR_SWITCHING_TO_TRACK_FAILED,
 	STRING_FOR_CANT_CLONE_AUDIO_IN_OTHER_TRACK,
+	STRING_FOR_CANT_CONVERT_TYPE,
 	STRING_FOR_TARGET_FULL,
 
 	// Auto-extracted from menus.cpp
