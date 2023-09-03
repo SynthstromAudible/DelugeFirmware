@@ -273,6 +273,15 @@ gotError:
 	}
 }
 
+void InstrumentClipMinder::displayOrLanguageChanged() {
+	if (display->haveOLED()) {
+		renderUIsForOled();
+	}
+	else {
+		redrawNumericDisplay();
+	}
+}
+
 void InstrumentClipMinder::setLedStates() {
 	indicator_leds::setLedState(IndicatorLED::SYNTH, getCurrentClip()->output->type == InstrumentType::SYNTH);
 	indicator_leds::setLedState(IndicatorLED::KIT, getCurrentClip()->output->type == InstrumentType::KIT);
