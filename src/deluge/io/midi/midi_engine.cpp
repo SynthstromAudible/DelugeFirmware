@@ -979,6 +979,10 @@ void MidiEngine::midiMessageReceived(MIDIDevice* fromDevice, uint8_t statusType,
 						fromDevice->dataEntryMessageReceived(modelStack, channel, data2);
 						break;
 					}
+					default: {
+						fromDevice->inputChannels[channel].rpnLSB = 0;
+						fromDevice->inputChannels[channel].rpnMSB = 0;
+					}
 					}
 
 					playbackHandler.midiCCReceived(fromDevice, channel, data1, data2, &shouldDoMidiThruNow);
