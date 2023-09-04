@@ -19,7 +19,6 @@
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
-#include "gui/ui/keyboard/state_data.h"
 #include "gui/ui/root_ui.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
@@ -296,7 +295,7 @@ gotMPEInput:
 
 	// In case Norns layout is active show
 	InstrumentClip* instrumentClip = (InstrumentClip*)activeClip;
-	if (instrumentClip->keyboardState.currentLayout == deluge::gui::ui::keyboard::KeyboardLayoutType::Norns
+	if (instrumentClip->keyboardState.currentLayout == KeyboardLayoutType::KeyboardLayoutTypeNorns
 	    && instrumentClip->onKeyboardScreen && instrumentClip->output
 	    && instrumentClip->output->type == InstrumentType::MIDI_OUT
 	    && ((MIDIInstrument*)instrumentClip->output)->channel == midiChannel) {

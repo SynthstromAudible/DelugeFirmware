@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "gui/views/session_view.h"
+#include "storage/flash_storage.h"
 #include "io/midi/learned_midi.h"
 #include "model/clip/clip_array.h"
 #include "model/global_effectable/global_effectable_for_song.h"
@@ -168,7 +168,7 @@ public:
 
 	bool affectEntire;
 
-	SessionLayoutType sessionLayout = SessionLayoutType::SessionLayoutTypeRows;
+	SessionLayoutType sessionLayout = FlashStorage::defaultSessionLayout;
 	int32_t songGridScrollX = 0;
 	int32_t songGridScrollY = 0;
 	int32_t songViewYScroll;
