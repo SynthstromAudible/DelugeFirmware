@@ -3150,9 +3150,10 @@ void NoteRow::setDrumToNull(ModelStackWithTimelineCounter const* modelStack) {
 // song not required if setting to NULL
 // Can handle NULL newParamManager.
 void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack,
-                      InstrumentClip* favourClipForCloningParamManager, ParamManager* newParamManager) {
+                      InstrumentClip* favourClipForCloningParamManager, ParamManager* newParamManager,
+                      bool backupOldParamManager) {
 
-	if (paramManager.containsAnyMainParamCollections()) {
+	if (backupOldParamManager && paramManager.containsAnyMainParamCollections()) {
 		modelStack->song->backUpParamManager(
 		    (SoundDrum*)drum, (Clip*)modelStack->getTimelineCounter(), &paramManager,
 		    false); // Don't steal expression params - we'll keep them here with this NoteRow.
@@ -3164,8 +3165,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 	    newDrum; // Better set this temporarily for this call. See comment above for why we can't set it permanently yet
 
 	if (newParamManager) {
-		paramManager.stealParamCollectionsFrom(
-		    newParamManager); // Don't bother stealing expression/MPE params - newParamManager is actually literally brand new in the one case that it gets supplied.
+		paramManager.stealParamCollectionsFrom(newParamManager, true);
 		if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
 			trimParamManager(modelStack);
 		}
