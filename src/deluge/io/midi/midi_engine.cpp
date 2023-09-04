@@ -980,8 +980,8 @@ void MidiEngine::midiMessageReceived(MIDIDevice* fromDevice, uint8_t statusType,
 						break;
 					}
 					default: {
-						fromDevice->inputChannels[channel].rpnLSB = 0;
-						fromDevice->inputChannels[channel].rpnMSB = 0;
+						fromDevice->inputChannels[channel].rpnLSB = 0x7F;
+						fromDevice->inputChannels[channel].rpnMSB = 0x7F;
 					}
 					}
 
