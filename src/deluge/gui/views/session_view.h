@@ -26,12 +26,6 @@ class InstrumentClip;
 class Clip;
 class ModelStack;
 
-enum SessionLayoutType : uint32_t {
-	SessionLayoutTypeRows,
-	SessionLayoutTypeGrid,
-	SessionLayoutTypeMaxElement // Keep as boundary
-};
-
 extern float getTransitionProgress();
 
 constexpr uint32_t kGridHeight = kDisplayHeight;

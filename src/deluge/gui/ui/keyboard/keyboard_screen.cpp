@@ -59,7 +59,7 @@ layout::KeyboardLayoutIsomorphic keyboardLayoutIsomorphic{};
 layout::KeyboardLayoutVelocityDrums keyboardLayoutVelocityDrums{};
 layout::KeyboardLayoutInKey keyboardLayoutInKey{};
 layout::KeyboardLayoutNorns keyboardLayoutNorns{};
-KeyboardLayout* layoutList[KeyboardLayoutType::MaxElement + 1] = {0};
+KeyboardLayout* layoutList[KeyboardLayoutType::KeyboardLayoutTypeMaxElement + 1] = {0};
 
 inline InstrumentClip* getCurrentClip() {
 	return (InstrumentClip*)currentSong->currentClip;
@@ -70,10 +70,10 @@ Instrument* getActiveInstrument() {
 }
 
 KeyboardScreen::KeyboardScreen() {
-	layoutList[KeyboardLayoutType::Isomorphic] = (KeyboardLayout*)&keyboardLayoutIsomorphic;
-	layoutList[KeyboardLayoutType::Drums] = (KeyboardLayout*)&keyboardLayoutVelocityDrums;
-	layoutList[KeyboardLayoutType::InKey] = (KeyboardLayout*)&keyboardLayoutInKey;
-	layoutList[KeyboardLayoutType::Norns] = (KeyboardLayout*)&keyboardLayoutNorns;
+	layoutList[KeyboardLayoutType::KeyboardLayoutTypeIsomorphic] = (KeyboardLayout*)&keyboardLayoutIsomorphic;
+	layoutList[KeyboardLayoutType::KeyboardLayoutTypeDrums] = (KeyboardLayout*)&keyboardLayoutVelocityDrums;
+	layoutList[KeyboardLayoutType::KeyboardLayoutTypeInKey] = (KeyboardLayout*)&keyboardLayoutInKey;
+	layoutList[KeyboardLayoutType::KeyboardLayoutTypeNorns] = (KeyboardLayout*)&keyboardLayoutNorns;
 
 	memset(&pressedPads, 0, sizeof(pressedPads));
 	currentNotesState = {0};
@@ -519,16 +519,16 @@ void KeyboardScreen::selectLayout(int8_t offset) {
 	int32_t nextLayout = getCurrentClip()->keyboardState.currentLayout + offset;
 
 	uint32_t searchCount = 0;
-	while (searchCount < KeyboardLayoutType::MaxElement) {
+	while (searchCount < KeyboardLayoutType::KeyboardLayoutTypeMaxElement) {
 		if (nextLayout < 0) {
-			nextLayout = KeyboardLayoutType::MaxElement - 1;
+			nextLayout = KeyboardLayoutType::KeyboardLayoutTypeMaxElement - 1;
 		}
-		if (nextLayout >= KeyboardLayoutType::MaxElement) {
+		if (nextLayout >= KeyboardLayoutType::KeyboardLayoutTypeMaxElement) {
 			nextLayout = 0;
 		}
 
 		if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::DisplayNornsLayout) == RuntimeFeatureStateToggle::Off
-		    && nextLayout == KeyboardLayoutType::Norns) {
+		    && nextLayout == KeyboardLayoutType::KeyboardLayoutTypeNorns) {
 			// Don't check the next conditions, this one is already lost
 		}
 		else if (getActiveInstrument()->type == InstrumentType::KIT && layoutList[nextLayout]->supportsKit()) {
@@ -543,7 +543,7 @@ void KeyboardScreen::selectLayout(int8_t offset) {
 		++searchCount;
 	}
 
-	if (searchCount >= KeyboardLayoutType::MaxElement) {
+	if (searchCount >= KeyboardLayoutType::KeyboardLayoutTypeMaxElement) {
 		nextLayout = 0;
 	}
 
