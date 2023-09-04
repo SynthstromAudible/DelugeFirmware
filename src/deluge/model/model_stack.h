@@ -152,9 +152,13 @@ public:
 		return timelineCounter;
 	}
 
-	inline TimelineCounter* getTimelineCounterAllowNull() const { return timelineCounter; }
+	inline TimelineCounter* getTimelineCounterAllowNull() const {
+		return timelineCounter;
+	}
 
-	inline void setTimelineCounter(TimelineCounter* newTimelineCounter) { timelineCounter = newTimelineCounter; }
+	inline void setTimelineCounter(TimelineCounter* newTimelineCounter) {
+		timelineCounter = newTimelineCounter;
+	}
 
 protected:
 	TimelineCounter* timelineCounter; // Allowed to be NULL
@@ -201,9 +205,13 @@ public:
 		return noteRow;
 	}
 
-	inline NoteRow* getNoteRowAllowNull() const { return noteRow; }
+	inline NoteRow* getNoteRowAllowNull() const {
+		return noteRow;
+	}
 
-	inline void setNoteRow(NoteRow* newNoteRow) { noteRow = newNoteRow; }
+	inline void setNoteRow(NoteRow* newNoteRow) {
+		noteRow = newNoteRow;
+	}
 
 	ModelStackWithThreeMainThings* addOtherTwoThings(ModControllable* newModControllable,
 	                                                 ParamManager* newParamManager) const;
