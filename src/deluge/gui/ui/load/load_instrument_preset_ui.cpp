@@ -66,10 +66,12 @@ bool LoadInstrumentPresetUI::opened() {
 	if (getRootUI() == &keyboardScreen) {
 		PadLEDs::skipGreyoutFade();
 	}
+	if (instrumentToReplace) {
+		initialInstrumentType = instrumentToReplace->type;
+		initialName.set(&instrumentToReplace->name);
+		initialDirPath.set(&instrumentToReplace->dirPath);
+	}
 
-	initialInstrumentType = instrumentToReplace->type;
-	initialName.set(&instrumentToReplace->name);
-	initialDirPath.set(&instrumentToReplace->dirPath);
 	if (loadingSynthToKitRow) {
 		instrumentTypeToLoad = InstrumentType::SYNTH;
 		initialDirPath.set("SYNTHS");

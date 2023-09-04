@@ -17,6 +17,7 @@
 
 #include "util/d_string.h"
 #include "definitions_cxx.hpp"
+#include "hid/display/display.h"
 #include "memory/general_memory_allocator.h"
 #include "util/functions.h"
 #include <string.h>
@@ -133,6 +134,13 @@ doCopy:
 void String::set(String* otherString) {
 	clear();
 	stringMemory = otherString->stringMemory;
+
+#if ALPHA_OR_BETA_VERSION
+	if (stringMemory && !GeneralMemoryAllocator::get().getAllocatedSize(stringMemory)) {
+		//string set to non allocated address
+		display->freezeWithError("S001");
+	}
+#endif
 	beenCloned();
 }
 
