@@ -362,6 +362,11 @@ void MelodicInstrument::offerReceivedCC(ModelStackWithTimelineCounter* modelStac
 	if (midiInput.equalsDevice(fromDevice)) {
 
 		if (midiInput.channelOrZone == channel) {
+			//map non MPE mod wheel to y expression
+			if (ccNumber == 1) {
+				int32_t value32 = (value - 64) << 25;
+				processParamFromInputMIDIChannel(74, value32, modelStackWithTimelineCounter);
+			}
 forMasterChannel:
 			// If it's a MIDI Clip...
 			if (type == InstrumentType::MIDI_OUT) {
@@ -374,9 +379,11 @@ forMasterChannel:
 			// Still send the cc even if the Output is muted. MidiInstruments will check for and block this themselves
 			ccReceivedFromInputMIDIChannel(ccNumber, value, modelStackWithTimelineCounter);
 		}
-		else if (midiInput.channelOrZone == MIDI_CHANNEL_MPE_LOWER_ZONE) {
-			if (channel <= fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeLowerZoneLastMemberChannel) {
-				if (channel == 0) {
+		else {
+			uint8_t corz = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
+			if (midiInput.channelOrZone == corz) {
+				bool master = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isMasterChannel(channel);
+				if (master) {
 mpeMasterChannel:
 					if (ccNumber == 74) {
 						int32_t value32 = (value - 64) << 25;
@@ -390,14 +397,6 @@ mpeY:
 					polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, value32, 1, channel,
 					                                          MIDICharacteristic::CHANNEL);
 				}
-			}
-		}
-		else if (midiInput.channelOrZone == MIDI_CHANNEL_MPE_UPPER_ZONE) {
-			if (channel >= fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeUpperZoneLastMemberChannel) {
-				if (channel == 15) {
-					goto mpeMasterChannel;
-				}
-				goto mpeY;
 			}
 		}
 	}
