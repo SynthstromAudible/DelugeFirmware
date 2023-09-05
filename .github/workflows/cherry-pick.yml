@@ -6,6 +6,12 @@ on:
       - community
     types: ["closed"]
 
+permissions:
+  issues: read
+  pull-requests: write
+  contents: write
+
+
 jobs:
   cherry_pick_release_v1_0:
     runs-on: ubuntu-latest
