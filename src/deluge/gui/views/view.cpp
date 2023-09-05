@@ -1359,16 +1359,18 @@ void View::drawOutputNameFromDetails(InstrumentType instrumentType, int32_t chan
 		setLedState(LED::CROSS_SCREEN_EDIT, (clip && clip->wrapEditing));
 	}
 
-	if (display->haveOLED()) {
-		if (getCurrentUI() == &automationInstrumentClipView) {
-			if (!automationInstrumentClipView.isOnAutomationOverview()) {
-				automationInstrumentClipView.displayAutomation();
-			}
-			else {
-				automationInstrumentClipView.renderDisplay();
-			}
-			return;
+	//hook to render display for OLED and 7SEG when in Automation Instrument Clip View
+	if (getCurrentUI() == &automationInstrumentClipView) {
+		if (!automationInstrumentClipView.isOnAutomationOverview()) {
+			automationInstrumentClipView.displayAutomation();
 		}
+		else {
+			automationInstrumentClipView.renderDisplay();
+		}
+		return;
+	}
+
+	if (display->haveOLED()) {
 		deluge::hid::display::OLED::clearMainImage();
 		char const* outputTypeText;
 		switch (instrumentType) {
@@ -1399,17 +1401,6 @@ void View::drawOutputNameFromDetails(InstrumentType instrumentType, int32_t chan
 		deluge::hid::display::OLED::drawStringCentred(outputTypeText, yPos,
 		                                              deluge::hid::display::OLED::oledMainImage[0],
 		                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
-	}
-	else {
-		if (getCurrentUI() == &automationInstrumentClipView) {
-			if (!automationInstrumentClipView.isOnAutomationOverview()) {
-				automationInstrumentClipView.displayAutomation();
-			}
-			else {
-				automationInstrumentClipView.renderDisplay();
-			}
-			return;
-		}
 	}
 
 	char buffer[12];
