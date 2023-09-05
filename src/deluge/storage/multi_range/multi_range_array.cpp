@@ -21,9 +21,14 @@
 #include "storage/multi_range/multisample_range.h"
 #include <new>
 
+#pragma GCC diagnostic push
+//This is supported by GCC and other compilers should error (not warn), so turn off for this
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+
 MultiRangeArray::MultiRangeArray()
     : OrderedResizeableArray(sizeof(MultisampleRange), 16, __builtin_offsetof(MultiRange, topNote), 0, 0) {
 }
+#pragma GCC diagnostic pop
 
 // This function could sorta be done without...
 MultiRange* MultiRangeArray::getElement(int32_t i) {
