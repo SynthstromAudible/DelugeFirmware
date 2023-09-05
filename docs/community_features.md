@@ -218,7 +218,7 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 	 - A new in-key only layout that removes out of scale buttons
 	 - New way to change scale in keyboard mode: Hold "SCALE" and press "SELECT" knob
 	 - New way to change scale root note in keyboard mode: Hold "SCALE" and turn "SELECT" knob
-	 - A new menu to select the default Layout has been added in Shift+Selection Encoder -> Defaults -> UI -> Song -> Layout
+	 - A new menu to select the default Layout has been added in Shift+Selection Encoder -> Defaults -> UI -> Keyboard -> Layout
 
 ##### 4.4.1.3 - Highlight Incoming Notes
 
