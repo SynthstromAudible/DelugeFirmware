@@ -1009,7 +1009,8 @@ void AutomationInstrumentClipView::displayAutomation() {
 					if (display->haveOLED()) {
 						renderDisplay(knobPos + kKnobPosOffset);
 					}
-					else {
+					//on 7SEG only re-render what's on the display if playback is disabled
+					else if (!playbackHandler.isEitherClockActive()) {
 						renderDisplay();
 					}
 
