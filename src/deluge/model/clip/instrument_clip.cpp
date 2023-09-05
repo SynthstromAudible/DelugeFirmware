@@ -2403,8 +2403,7 @@ someError:
 		}
 
 		else if (!strcmp(tagName, "keyboardLayout")) {
-			keyboardState.currentLayout =
-			    (KeyboardLayoutType)storageManager.readTagOrAttributeValueInt();
+			keyboardState.currentLayout = (KeyboardLayoutType)storageManager.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "yScrollKeyboard")) {

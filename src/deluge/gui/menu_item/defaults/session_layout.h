@@ -15,9 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
-#include "definitions_cxx.hpp"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
@@ -31,10 +31,8 @@ public:
 	void readCurrentValue() override { this->setValue(FlashStorage::defaultSessionLayout); }
 	void writeCurrentValue() override { FlashStorage::defaultSessionLayout = this->getValue<SessionLayoutType>(); }
 	static_vector<std::string_view, capacity()> getOptions() override {
-		return {
-		    l10n::getView(l10n::String::STRING_FOR_DEFAULT_UI_SONG_LAYOUT_ROWS),
-		    l10n::getView(l10n::String::STRING_FOR_DEFAULT_UI_SONG_LAYOUT_GRID)
-		};
+		return {l10n::getView(l10n::String::STRING_FOR_DEFAULT_UI_SONG_LAYOUT_ROWS),
+		        l10n::getView(l10n::String::STRING_FOR_DEFAULT_UI_SONG_LAYOUT_GRID)};
 	}
 };
-} // namespace deluge::gui::menu_item::keyboard
+} // namespace deluge::gui::menu_item::defaults
