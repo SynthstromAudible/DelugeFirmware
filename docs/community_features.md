@@ -85,6 +85,7 @@ Here is a list of features that have been added to the firmware as a list, group
 	 	 - Overdub recording
 		 - Copying clips to arranger
 		 - Copying audio clips between different tracks
+	 - A new menu to select the default Layout has been added in Shift+Selection Encoder -> Defaults -> UI -> Song -> Layout
 ### 4.2 - Clip View - General Features (Instrument and Audio Clips)
 
 #### 4.2.1 - Filters
@@ -217,6 +218,7 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 	 - A new in-key only layout that removes out of scale buttons
 	 - New way to change scale in keyboard mode: Hold "SCALE" and press "SELECT" knob
 	 - New way to change scale root note in keyboard mode: Hold "SCALE" and turn "SELECT" knob
+	 - A new menu to select the default Layout has been added in Shift+Selection Encoder -> Defaults -> UI -> Song -> Layout
 
 ##### 4.4.1.3 - Highlight Incoming Notes
 
