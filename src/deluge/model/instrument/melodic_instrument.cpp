@@ -107,13 +107,18 @@ void MelodicInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelSt
 		return;
 	}
 
+	int32_t corz = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(midiChannel);
+
 	int16_t const* mpeValues = zeroMPEValues;
 	int16_t const* mpeValuesOrNull = NULL;
+	if (corz >= MIDI_CHANNEL_MPE_LOWER_ZONE) {
+		mpeValues = mpeValuesOrNull = fromDevice->defaultInputMPEValuesPerMIDIChannel[midiChannel];
+	}
 
 	// -1 means no change
 	int32_t highlightNoteValue = -1;
 
-	if (midiInput.channelOrZone == midiChannel) {
+	if (midiInput.channelOrZone == corz) {
 yupItsForUs:
 		InstrumentClip* instrumentClip = (InstrumentClip*)activeClip;
 
@@ -277,20 +282,6 @@ justAuditionNote:
 			// if MIDI thru was on and they're releasing the note while still holding learn to learn that input to a MIDIInstrument (with external synth attached)
 			endAuditioningForNote(modelStack->toWithSong(), // Safe, cos we won't reference this again
 			                      note, velocity);
-		}
-	}
-	//Handles MPE inputs for melodic instruments - duplicate of MPE check in playback
-	//handler, however playback handler does not pass on MPE info
-	else if (midiInput.channelOrZone == MIDI_CHANNEL_MPE_LOWER_ZONE) {
-		if (midiChannel <= fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeLowerZoneLastMemberChannel) {
-gotMPEInput:
-			mpeValues = mpeValuesOrNull = fromDevice->defaultInputMPEValuesPerMIDIChannel[midiChannel];
-			goto yupItsForUs;
-		}
-	}
-	else if (midiInput.channelOrZone == MIDI_CHANNEL_MPE_UPPER_ZONE) {
-		if (midiChannel >= fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeUpperZoneLastMemberChannel) {
-			goto gotMPEInput;
 		}
 	}
 
