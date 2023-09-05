@@ -364,10 +364,7 @@ constexpr PatchSource kFirstLocalSource = PatchSource::ENVELOPE_0;
 //constexpr PatchSource kFirstUnchangeableSource = PatchSource::VELOCITY;
 
 //Automation Instrument Clip View constants
-constexpr int32_t kNoLastSelectedParamID = 255;
-constexpr int32_t kNoLastSelectedParamShortcut = 255;
-constexpr int32_t kNoLastSelectedPad = 255;
-constexpr int32_t kNoKnobPos = 255;
+constexpr int32_t kNoSelection = 255;
 constexpr int32_t kNumNonKitAffectEntireParamsForAutomation = 55;
 constexpr int32_t kNumKitAffectEntireParamsForAutomation = 24;
 constexpr int32_t kLastMidiCCForAutomation = 121;
