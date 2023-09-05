@@ -97,7 +97,7 @@ add_compile_options(
     $<$<CONFIG:DEBUG>:-Og>
     $<$<CONFIG:RELWITHDEBINFO>:-O2>
     $<$<CONFIG:RELEASE>:-O2>
-
+    -fno-inline-functions
     # Link time optimizations
     $<$<CONFIG:RELWITHDEBINFO>:-flto>
     $<$<CONFIG:RELEASE>:-flto>
@@ -207,10 +207,15 @@ target_compile_options(deluge PUBLIC
 
     $<$<CONFIG:DEBUG>:-Werror=write-strings>
 
+    # Offsetof for non standard types is supported in GCC, 
+    # if another compiler does not support it they are obligated to error
+
     # Stack usage
-    $<$<CONFIG:DEBUG>:-Wstack-usage=100>
-    $<$<CONFIG:RELWITHDEBINFO>:-Wstack-usage=1000>
-    $<$<CONFIG:RELEASE>:-Wstack-usage=1000>
+    # tracked for diagnostic usage. We have a 32k stack so it's not that important
+    # primarily concerned with unbounded stack use
+    $<$<CONFIG:DEBUG>:-Wstack-usage=2000>
+    $<$<CONFIG:RELWITHDEBINFO>:-Wstack-usage=2000>
+    $<$<CONFIG:RELEASE>:-Wstack-usage=2000>
 )
 
 set_target_properties(deluge

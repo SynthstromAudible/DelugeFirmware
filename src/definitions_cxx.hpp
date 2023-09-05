@@ -736,6 +736,7 @@ enum class PatchCableAcceptance {
 	ALLOWED,
 	YET_TO_BE_DETERMINED,
 };
+enum class OverDubType { Normal, ContinuousLayering };
 
 enum class GlobalMIDICommand {
 	NONE = -1,

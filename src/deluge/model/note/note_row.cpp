@@ -514,7 +514,7 @@ addNewNote:
 }
 int32_t NoteRow::getDefaultProbability(ModelStackWithNoteRow* ModelStack) {
 
-	if (ModelStack->song->fillModeActive) {
+	if (ModelStack->song->isFillModeActive()) {
 		return 0;
 	}
 	else {
@@ -1596,13 +1596,14 @@ void NoteRow::renderRow(TimelineView* editorScreen, uint8_t rowColour[], uint8_t
 				squareStartPos = squareEndPos[xDisplay - xStartNow - 1];
 			}
 			int32_t i = searchTerms[xDisplay - xStartNow];
-
+			bool drewNote = false;
 			Note* note = notes.getElement(i - 1); // Subtracting 1 to do "LESS"
 
 			uint8_t* pixel = image + xDisplay * 3;
 
 			// If Note starts somewhere within square, draw the blur colour
 			if (note && note->pos > squareStartPos) {
+				drewNote = true;
 				pixel[0] = rowBlurColour[0];
 				pixel[1] = rowBlurColour[1];
 				pixel[2] = rowBlurColour[2];
@@ -1613,6 +1614,7 @@ void NoteRow::renderRow(TimelineView* editorScreen, uint8_t rowColour[], uint8_t
 
 			// Or if Note starts exactly on square...
 			else if (note && note->pos == squareStartPos) {
+				drewNote = true;
 				pixel[0] = rowColour[0];
 				pixel[1] = rowColour[1];
 				pixel[2] = rowColour[2];
@@ -1623,6 +1625,7 @@ void NoteRow::renderRow(TimelineView* editorScreen, uint8_t rowColour[], uint8_t
 
 			// Draw wrapped notes
 			else if (!drawRepeats || whichRepeat) {
+
 				bool wrapping = (i == 0); // Subtracting 1 to do "LESS"
 				if (wrapping) {
 					note = notes.getLast();
@@ -1632,6 +1635,7 @@ void NoteRow::renderRow(TimelineView* editorScreen, uint8_t rowColour[], uint8_t
 					noteEnd -= effectiveRowLength;
 				}
 				if (noteEnd > squareStartPos && allowNoteTails) {
+					drewNote = true;
 					pixel[0] = rowTailColour[0];
 					pixel[1] = rowTailColour[1];
 					pixel[2] = rowTailColour[2];
@@ -1639,6 +1643,12 @@ void NoteRow::renderRow(TimelineView* editorScreen, uint8_t rowColour[], uint8_t
 						occupancyMask[xDisplay] = 64;
 					}
 				}
+			}
+			if (drewNote && note->probability == 0 && currentSong->isFillModeActive()) {
+				//make em blue
+				pixel[0] = 0;
+				pixel[1] = 0;
+				pixel[2] = 255;
 			}
 		}
 

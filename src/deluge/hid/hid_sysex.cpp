@@ -1,4 +1,6 @@
 #include "hid/hid_sysex.h"
+#include "gui/l10n/l10n.h"
+#include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/oled.h"
 #include "hid/display/seven_segment.h"
@@ -64,7 +66,13 @@ void HIDSysex::requestOLEDDisplay(MIDIDevice* device, uint8_t* data, int32_t len
 			display = new deluge::hid::display::SevenSegment;
 		}
 		else {
+			deluge::l10n::chosenLanguage = nullptr;
 			display = new deluge::hid::display::OLED;
+			oledDeltaForce = true;
+		}
+		UI* ui = getCurrentUI();
+		if (ui) {
+			ui->displayOrLanguageChanged();
 		}
 	}
 }
@@ -96,7 +104,7 @@ void HIDSysex::sendOLEDData(MIDIDevice* device, bool rle) {
 		const int32_t data_size = 768;
 		const int32_t max_packed_size = 922;
 
-		uint8_t reply_hdr[5] = {0xf0, 0x7d, 0x02, 0x40, rle ? 0x01 : 0x00};
+		uint8_t reply_hdr[5] = {0xf0, 0x7d, 0x02, 0x40, rle ? 0x01_u8 : 0x00_u8};
 		uint8_t* reply = midiEngine.sysex_fmt_buffer;
 		memcpy(reply, reply_hdr, 5);
 		reply[5] = 0; // nominally 32*data[5] is start pos for a delta
@@ -130,8 +138,8 @@ void HIDSysex::send7SegData(MIDIDevice* device) {
 		auto data = display->getLast();
 		const int32_t packed_data_size = 5;
 		uint8_t reply[11] = {0xf0, 0x7d, 0x02, 0x41, 0x00};
-		pack_8bit_to_7bit(reply + 6, packed_data_size, data.data(), data.size());
-		reply[6 + packed_data_size] = 0xf7; // end of transmission
+		pack_8bit_to_7bit(reply + 5, packed_data_size, data.data(), data.size());
+		reply[5 + packed_data_size] = 0xf7; // end of transmission
 		device->sendSysex(reply, packed_data_size + 7);
 	}
 }
