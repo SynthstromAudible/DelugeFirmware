@@ -361,11 +361,11 @@ AutomationInstrumentClipView::AutomationInstrumentClipView() {
 	padSelectionOn = false;
 	multiPadPressSelected = false;
 	multiPadPressActive = false;
-	leftPadSelectedX = kNoLastSelectedPad;
-	leftPadSelectedY = kNoLastSelectedPad;
-	rightPadSelectedX = kNoLastSelectedPad;
-	rightPadSelectedY = kNoLastSelectedPad;
-	lastPadSelectedKnobPos = kNoLastSelectedPad;
+	leftPadSelectedX = kNoSelection;
+	leftPadSelectedY = kNoSelection;
+	rightPadSelectedX = kNoSelection;
+	rightPadSelectedY = kNoSelection;
+	lastPadSelectedKnobPos = kNoSelection;
 }
 
 inline InstrumentClip* getCurrentClip() {
@@ -551,7 +551,7 @@ bool AutomationInstrumentClipView::renderMainPads(uint32_t whichRows, uint8_t im
 
 	if (encoderAction == false) {
 		//if a Param has been selected for editing, blink its shortcut pad
-		if (clip->lastSelectedParamShortcutX != kNoLastSelectedParamShortcut) {
+		if (clip->lastSelectedParamShortcutX != kNoSelection) {
 			if (shortcutBlinking == false) {
 				memset(soundEditor.sourceShortcutBlinkFrequencies, 255,
 				       sizeof(soundEditor.sourceShortcutBlinkFrequencies));
@@ -904,16 +904,16 @@ void AutomationInstrumentClipView::renderDisplay(int32_t knobPos) {
 			* to display parameter value after another popup has been cancelled (e.g. audition pad)
 			*/
 			if (isUIModeActive(UI_MODE_NOTES_PRESSED)) {
-				if (knobPos != kNoKnobPos) {
+				if (knobPos != kNoSelection) {
 					lastPadSelectedKnobPos = knobPos;
 				}
-				else if (lastPadSelectedKnobPos != kNoLastSelectedPad) {
+				else if (lastPadSelectedKnobPos != kNoSelection) {
 					knobPos = lastPadSelectedKnobPos;
 				}
 			}
 
 			//display parameter value if knobPos is provided
-			if (knobPos != kNoKnobPos) {
+			if (knobPos != kNoSelection) {
 				char buffer[5];
 
 				intToString(knobPos, buffer);
@@ -1656,13 +1656,13 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 			multiPadPressSelected = false;
 
 			leftPadSelectedX = xDisplay;
-			rightPadSelectedX = kNoLastSelectedPad;
+			rightPadSelectedX = kNoSelection;
 
 			uiNeedsRendering(this);
 		}
 		
 		if (!isOnAutomationOverview() && (currentUIMode != UI_MODE_NOTES_PRESSED)) {
-			lastPadSelectedKnobPos = kNoLastSelectedPad;
+			lastPadSelectedKnobPos = kNoSelection;
 			if (!playbackHandler.isEitherClockActive()) {
 				displayAutomation();
 			}
@@ -1937,7 +1937,7 @@ ActionResult AutomationInstrumentClipView::horizontalEncoderAction(int32_t offse
 
 	//exit multi pad press selection but keep single pad press selection (if it's selected)
 	multiPadPressSelected = false;
-	rightPadSelectedX = kNoLastSelectedPad;
+	rightPadSelectedX = kNoSelection;
 
 	InstrumentClip* clip = getCurrentClip();
 
@@ -2575,7 +2575,7 @@ void AutomationInstrumentClipView::modEncoderButtonAction(uint8_t whichModEncode
 
 				//display only left cursor initially
 				leftPadSelectedX = 0;
-				rightPadSelectedX = kNoLastSelectedPad;
+				rightPadSelectedX = kNoSelection;
 
 				if (!playbackHandler.isEitherClockActive()) {
 					ModelStackWithAutoParam* modelStackWithParam =
@@ -2844,7 +2844,7 @@ void AutomationInstrumentClipView::selectEncoderAction(int8_t offset) {
 
 flashShortcut:
 
-	lastPadSelectedKnobPos = kNoLastSelectedPad;
+	lastPadSelectedKnobPos = kNoSelection;
 	if (!playbackHandler.isEitherClockActive()) {
 		displayAutomation();
 	}
@@ -2878,10 +2878,10 @@ void AutomationInstrumentClipView::initParameterSelection() {
 
 	initPadSelection();
 
-	clip->lastSelectedParamID = kNoLastSelectedParamID;
+	clip->lastSelectedParamID = kNoSelection;
 	clip->lastSelectedParamKind = Param::Kind::NONE;
-	clip->lastSelectedParamShortcutX = kNoLastSelectedParamShortcut;
-	clip->lastSelectedParamShortcutY = kNoLastSelectedParamShortcut;
+	clip->lastSelectedParamShortcutX = kNoSelection;
+	clip->lastSelectedParamShortcutY = kNoSelection;
 	clip->lastSelectedParamArrayPosition = 0;
 
 	//if we're going back to the Automation Overview, set the display to show "Automation Overview"
@@ -2897,9 +2897,9 @@ void AutomationInstrumentClipView::initPadSelection() {
 	padSelectionOn = false;
 	multiPadPressSelected = false;
 	multiPadPressActive = false;
-	leftPadSelectedX = kNoLastSelectedPad;
-	rightPadSelectedX = kNoLastSelectedPad;
-	lastPadSelectedKnobPos = kNoLastSelectedPad;
+	leftPadSelectedX = kNoSelection;
+	rightPadSelectedX = kNoSelection;
+	lastPadSelectedKnobPos = kNoSelection;
 }
 
 void AutomationInstrumentClipView::initInterpolation() {
@@ -3479,7 +3479,7 @@ bool AutomationInstrumentClipView::isOnAutomationOverview() {
 
 	InstrumentClip* clip = getCurrentClip();
 
-	if (clip->lastSelectedParamID == kNoLastSelectedParamID) {
+	if (clip->lastSelectedParamID == kNoSelection) {
 		return true;
 	}
 	return false;
