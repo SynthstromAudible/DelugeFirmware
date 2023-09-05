@@ -712,8 +712,8 @@ holdingRecord:
 								session.toggleClipStatus(sourceClip, &clipIndex, false, kInternalButtonPressLatency);
 							}
 
-							int32_t newOverdubNature =
-							    (xDisplay < kDisplayWidth) ? OVERDUB_NORMAL : OVERDUB_CONTINUOUS_LAYERING;
+							OverDubType newOverdubNature =
+							    (xDisplay < kDisplayWidth) ? OverDubType::Normal : OverDubType::ContinuousLayering;
 							Clip* overdub =
 							    currentSong->createPendingNextOverdubBelowClip(sourceClip, clipIndex, newOverdubNature);
 							if (overdub) {

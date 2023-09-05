@@ -101,7 +101,7 @@ static EmptySpaceRecord* recordToMergeWith;
 // spaceSize can even be 0 or less if you know it's going to get merged.
 inline void MemoryRegion::markSpaceAsEmpty(uint32_t address, uint32_t spaceSize, bool mayLookLeft, bool mayLookRight) {
 	if ((address <= start) || address >= end) {
-		//display->freezeWithError("M998");
+		display->freezeWithError("M998");
 		return;
 	}
 	int32_t biggerRecordSearchFromIndex = 0;
@@ -373,6 +373,12 @@ noEmptySpace:
 	numAllocations++;
 #endif
 
+#if ALPHA_OR_BETA_VERSION
+	if (allocatedAddress < start || allocatedAddress > end) {
+		//trying to allocate outside our region
+		display->freezeWithError("M002");
+	}
+#endif
 	return (void*)allocatedAddress;
 }
 
@@ -759,7 +765,12 @@ void MemoryRegion::dealloc(void* address) {
 	uint32_t spaceSize = (*header & SPACE_SIZE_MASK);
 
 #if ALPHA_OR_BETA_VERSION
+	if ((uint32_t)address < start || (uint32_t)address > end) {
+		//deallocating outside our region
+		display->freezeWithError("M001");
+	}
 	if ((*header & SPACE_TYPE_MASK) == SPACE_HEADER_EMPTY) {
+		//double free
 		display->freezeWithError("M000");
 	}
 #endif
