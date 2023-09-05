@@ -27,11 +27,11 @@
 #include "gui/menu_item/cv/volts.h"
 #include "gui/menu_item/decimal.h"
 #include "gui/menu_item/defaults/bend_range.h"
+#include "gui/menu_item/defaults/keyboard_layout.h"
 #include "gui/menu_item/defaults/magnitude.h"
 #include "gui/menu_item/defaults/scale.h"
-#include "gui/menu_item/defaults/velocity.h"
 #include "gui/menu_item/defaults/session_layout.h"
-#include "gui/menu_item/defaults/keyboard_layout.h"
+#include "gui/menu_item/defaults/velocity.h"
 #include "gui/menu_item/delay/analog.h"
 #include "gui/menu_item/delay/ping_pong.h"
 #include "gui/menu_item/delay/sync.h"
@@ -815,25 +815,18 @@ defaults::KeyboardLayout defaultKeyboardLayoutMenu{STRING_FOR_DEFAULT_UI_LAYOUT,
 
 Submenu defaultUIKeyboard{
     STRING_FOR_DEFAULT_UI_KEYBOARD,
-    {
-		&defaultKeyboardLayoutMenu
-    },
+    {&defaultKeyboardLayoutMenu},
 };
 
 defaults::SessionLayout defaultSessionLayoutMenu{STRING_FOR_DEFAULT_UI_LAYOUT, STRING_FOR_DEFAULT_UI_LAYOUT};
 Submenu defaultUISession{
     STRING_FOR_DEFAULT_UI_SONG,
-    {
-		&defaultSessionLayoutMenu
-    },
+    {&defaultSessionLayoutMenu},
 };
 
 Submenu defaultUI{
     STRING_FOR_DEFAULT_UI,
-    {
-        &defaultUISession,
-		&defaultUIKeyboard
-    },
+    {&defaultUISession, &defaultUIKeyboard},
 };
 
 IntegerRange defaultTempoMenu{STRING_FOR_TEMPO, STRING_FOR_DEFAULT_TEMPO, 60, 240};
@@ -848,7 +841,7 @@ Submenu defaultsSubmenu{
     STRING_FOR_DEFAULTS,
     {
         &defaultUI,
-		&defaultTempoMenu,
+        &defaultTempoMenu,
         &defaultSwingMenu,
         &defaultKeyMenu,
         &defaultScaleMenu,

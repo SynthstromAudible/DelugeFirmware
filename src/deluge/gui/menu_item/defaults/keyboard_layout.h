@@ -15,9 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
-#include "definitions_cxx.hpp"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
@@ -37,4 +37,4 @@ public:
 		};
 	}
 };
-} // namespace deluge::gui::menu_item::keyboard
+} // namespace deluge::gui::menu_item::defaults
