@@ -47,7 +47,7 @@ Everybody is invited to contribute to this repository as further outlined below:
 * Contributions can be anything that improves the project while fulfilling the requirements outlined below.
 * As an inspiration here is a small and incomplete list of improvement areas: documentation, commenting complex code mechanics, refactoring (make code easier to read/improve clarity/make execution more efficient/improve maintainability/ease modification/improve structure), feature improvements, new features, easier accessibility, toolchain improvements, unit tests and many, many more.
 * For information on the decision making process for accepting Pull requests please see below and also see the [Governance](GOVERNANCE.md) documentation.
-
+* To keep the list manageable all Pull requests without author activity for longer than two weeks will be labelled "stale" and will be closed after another week. The author is welcome to submit a new PR for the same work at any time.
 
 ## Requirements
 
@@ -65,11 +65,11 @@ The following requirements must be fulfilled for a Pull request to be mergable t
 
 ### Code specific
 
-* All project files, especially source files need to have a compatible license with the project. See [LICENSE](LICENSE).
+* All project files, especially source files need to have a compatible license with the project. See [LICENSE](../LICENSE).
 * There is no written standard on formatting and coding guidelines yet so the current requirement is to make your code look and feel like the rest of the repository and respect the styling decisions taken therein (for example brace position). Clang format checking has been defined in the `.clang-format` file. It is checked in the GitHub Actions to enforce some guidelines. To check for compliance currently Clang 14 should be used since other versions have different behavior.
 * All changes to the firmware have to be tested on a best effort basis to make sure they work as expected and don't break any existing functionality before submitting as ready to merge. This does not apply to Draft Pull requests.
 * All changes need to be compatible with all available hardware variants, this currently includes OLED and 7-Segment.
-* All changes need to be compatible with the currently official toolchain as described in the [Readme](README.md).
+* All changes need to be compatible with the currently official toolchain as described in the [Readme](../README.md).
 * Acceptance of the continuous integration (CI) system is also required. It will automatically build open pull requests and check for compilation, formatting and in the future possibly unit testing.
 
 ### Application specific
@@ -81,13 +81,13 @@ The following requirements must be fulfilled for a Pull request to be mergable t
 * If the Pull request requires changes in structure of user files (e.g. project/synth or other xml files) or flash configuration:
     * It must ensure that files or flash configuration created with the official firmware or previous community releases stay compatible or are automatically upgraded (upward compatibility).
     * If possible files and flash configuration created with the changes of the Pull request can be used with older firmwares not having the change (downward compatibility). Older firmwares must not break if a newer configuration was stored on the device.
-* If the Pull request changes end user behavoir or introduces new features, a new entry in the [CommunityFeatures.md](Documentation/community_features.md) file needs to be created in the preexisting style describing the feature and its options as a small manual to users. This includes all runtime and compile time flags which shall be named in respective sections.
+* If the Pull request changes end user behavoir or introduces new features, a new entry in the [CommunityFeatures.md](community_features.md) file needs to be created in the preexisting style describing the feature and its options as a small manual to users. This includes all runtime and compile time flags which shall be named in respective sections.
 
 ### UI Changes
 
 Changes to the existing UI should follow the following process:
 
-* Ensure they meet the guidelines set out in [UX Principles](Documentation/ux_principles.md)
+* Ensure they meet the guidelines set out in [UX Principles](ux_principles.md)
 * Place the change in the community feature menu for one beta cycle
 * Following a full beta cycle and user feedback, open a poll on the feature
 * At the end of the beta cycle there will be a community meeting on Discord to discuss changes
@@ -102,8 +102,8 @@ Please follow the following steps for every pull request to ensure every contrib
 2. Work on the Pull request
 3. Before a Pull request can be considered ready, all upstream changes from the `develop` branch need to be merged into it. It is the duty of everyone to help make merging into `develop` as painless as possible so please try to align if you see that your Pull requests works in a similar area as another one.
 4. Once the Pull request is ready, fulfills all requirements outlined above, and is up to date with the `develop` branch, it can be converted from Draft and marked as ready for review.
-5. Having multiple reviews for every Pull request would be nice. Reviews from community members not mentioned in the [CODEOWNERS](CODEOWNERS) file should be taken seriously and used as an important source of feedback, but have no decisional power on what gets merged into the `develop` branch.
-6. At least one member of the [CODEOWNERS](CODEOWNERS) file needs to review every pull request while also considering community reviews in their decision.
+5. Having multiple reviews for every Pull request would be nice. Reviews from community members not mentioned in the [CODEOWNERS](../CODEOWNERS) file should be taken seriously and used as an important source of feedback, but have no decisional power on what gets merged into the `develop` branch.
+6. At least one member of the [CODEOWNERS](../CODEOWNERS) file needs to review every pull request while also considering community reviews in their decision.
     * CODEOWNERS can decline merging a Pull request if it does not fulfill the requirements outlined above. They need to give clear feedback on which requirements have not been met and also provide an opportunity to improve the Pull request to meet the requirements within reasonable boundaries (e.g. there are limits on how much work can be expected from a CODEOWNER for a specific Pull request).
     * If one or more CODEOWNERS are sure the requirements have been met, they will merge the change into the `develop` branch.
     * For more information about governance and handling of decisional matters please take a look at the [Governance](GOVERNANCE.md) document.
