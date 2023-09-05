@@ -426,23 +426,14 @@ forMasterChannel:
 			// Only if a "channel pressure" message (which with MPE of course refers to ideally just one key).
 			// Non-MPE "polyphonic key pressure" messages are not allowed in MPE currently.
 			if (noteCode == -1) {
-				if (midiInput.channelOrZone == MIDI_CHANNEL_MPE_LOWER_ZONE) {
-					if (channel <= fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeLowerZoneLastMemberChannel) {
-						if (channel == 0) {
-							goto forMasterChannel;
-						}
-processPolyphonicZ:
-						polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, valueBig, 2, channel,
-						                                          MIDICharacteristic::CHANNEL);
+				uint8_t corz = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
+				if (midiInput.channelOrZone == corz) {
+					bool master = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isMasterChannel(channel);
+					if (master) {
+						goto forMasterChannel;
 					}
-				}
-				else if (midiInput.channelOrZone == MIDI_CHANNEL_MPE_UPPER_ZONE) {
-					if (channel >= fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeUpperZoneLastMemberChannel) {
-						if (channel == 15) {
-							goto forMasterChannel;
-						}
-						goto processPolyphonicZ;
-					}
+					polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, valueBig, 2, channel,
+					                                          MIDICharacteristic::CHANNEL);
 				}
 			}
 		}
