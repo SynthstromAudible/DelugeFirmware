@@ -320,27 +320,19 @@ forMasterChannel:
 			int32_t newValue = (int32_t)(((uint32_t)data1 | ((uint32_t)data2 << 7)) - 8192) << 18; // Was 16... why?
 			processParamFromInputMIDIChannel(CC_NUMBER_PITCH_BEND, newValue, modelStackWithTimelineCounter);
 		}
-
-		else if (midiInput.channelOrZone == MIDI_CHANNEL_MPE_LOWER_ZONE) {
-			if (channel <= fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeLowerZoneLastMemberChannel) {
-				if (channel == 0) {
+		else {
+			uint8_t corz = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
+			if (midiInput.channelOrZone == corz) {
+				bool master = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isMasterChannel(channel);
+				if (master) {
 					goto forMasterChannel;
 				}
-mpeX:
 				int16_t value16 = (((uint32_t)data1 | ((uint32_t)data2 << 7)) - 8192) << 2;
 				int32_t value32 =
 				    (int32_t)value16
 				    << 16; // Unlike for whole-Instrument pitch bend, this per-note kind is a modulation *source*, not the "preset" value for the parameter!
 				polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, value32, 0, channel,
 				                                          MIDICharacteristic::CHANNEL);
-			}
-		}
-		else if (midiInput.channelOrZone == MIDI_CHANNEL_MPE_UPPER_ZONE) {
-			if (channel >= fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeUpperZoneLastMemberChannel) {
-				if (channel == 15) {
-					goto forMasterChannel;
-				}
-				goto mpeX;
 			}
 		}
 	}
