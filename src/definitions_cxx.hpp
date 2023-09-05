@@ -1086,8 +1086,8 @@ constexpr uint32_t kShortPressTime = kSampleRate / 2;
 
 enum KeyboardLayoutType : uint8_t {
 	KeyboardLayoutTypeIsomorphic,
-	KeyboardLayoutTypeDrums,
 	KeyboardLayoutTypeInKey,
+	KeyboardLayoutTypeDrums,
 	KeyboardLayoutTypeNorns,
 	KeyboardLayoutTypeMaxElement // Keep as boundary
 };
