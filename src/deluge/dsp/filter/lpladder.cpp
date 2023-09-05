@@ -311,7 +311,7 @@ void LpLadderFilter::doFilterStereo(q31_t* startSample, q31_t* endSample) {
 		}
 	}
 }
-inline q31_t LpLadderFilter::do12dBLPFOnSample(q31_t input, LpLadderState& state) {
+[[gnu::always_inline]] inline q31_t LpLadderFilter::do12dBLPFOnSample(q31_t input, LpLadderState& state) {
 	// For drive filter, apply some heavily lowpassed noise to the filter frequency, to add analog-ness
 	q31_t noise = getNoise() >> 2; //storageManager.devVarA;// 2;
 	q31_t distanceToGo = noise - state.noiseLastValue;
@@ -329,8 +329,7 @@ inline q31_t LpLadderFilter::do12dBLPFOnSample(q31_t input, LpLadderState& state
 
 	return state.lpfLPF3.doAPF(state.lpfLPF2.doFilter(state.lpfLPF1.doFilter(x, noisy_m), noisy_m), noisy_m) << 1;
 }
-
-inline q31_t LpLadderFilter::do24dBLPFOnSample(q31_t input, LpLadderState& state) {
+[[gnu::always_inline]] inline q31_t LpLadderFilter::do24dBLPFOnSample(q31_t input, LpLadderState& state) {
 
 	// For drive filter, apply some heavily lowpassed noise to the filter frequency, to add analog-ness
 	q31_t noise = getNoise() >> 2; //storageManager.devVarA;// 2;
@@ -362,7 +361,7 @@ inline q31_t LpLadderFilter::do24dBLPFOnSample(q31_t input, LpLadderState& state
 	       << 1;
 }
 
-inline q31_t LpLadderFilter::doDriveLPFOnSample(q31_t input, LpLadderState& state) {
+[[gnu::always_inline]] inline q31_t LpLadderFilter::doDriveLPFOnSample(q31_t input, LpLadderState& state) {
 
 	// For drive filter, apply some heavily lowpassed noise to the filter frequency, to add analog-ness
 	q31_t noise = getNoise() >> 2; //storageManager.devVarA;// 2;

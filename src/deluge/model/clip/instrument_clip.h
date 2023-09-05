@@ -226,7 +226,7 @@ public:
 	void finishLinearRecording(ModelStackWithTimelineCounter* modelStack, Clip* nextPendingLoop,
 	                           int32_t buttonLatencyForTempolessRecord);
 	int32_t beginLinearRecording(ModelStackWithTimelineCounter* modelStack, int32_t buttonPressLatency);
-	Clip* cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStack, int32_t newOverdubNature);
+	Clip* cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStack, OverDubType newOverdubNature);
 	bool isAbandonedOverdub();
 	void quantizeLengthForArrangementRecording(ModelStackWithTimelineCounter* modelStack, int32_t lengthSoFar,
 	                                           uint32_t timeRemainder, int32_t suggestedLength,

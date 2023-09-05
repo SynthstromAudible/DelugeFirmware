@@ -56,7 +56,7 @@ Clip::Clip(int32_t newType) : type(newType) {
 	isPendingOverdub = false;
 	isUnfinishedAutoOverdub = false;
 	colourOffset = -60;
-	overdubNature = OVERDUB_NORMAL;
+	overdubNature = OverDubType::Normal;
 	originalLength = 0;
 	armedForRecording = true;
 	launchStyle = LAUNCH_STYLE_DEFAULT;
@@ -92,12 +92,12 @@ void Clip::copyBasicsFrom(Clip* otherClip) {
 	launchStyle = otherClip->launchStyle;
 }
 
-void Clip::setupForRecordingAsAutoOverdub(Clip* existingClip, Song* song, int32_t newOverdubNature) {
+void Clip::setupForRecordingAsAutoOverdub(Clip* existingClip, Song* song, OverDubType newOverdubNature) {
 	copyBasicsFrom(existingClip);
 
 	uint32_t newLength = existingClip->loopLength;
 
-	if (newOverdubNature != OVERDUB_CONTINUOUS_LAYERING) {
+	if (newOverdubNature != OverDubType::ContinuousLayering) {
 		uint32_t currentScreenLength = currentSong->xZoom[NAVIGATION_CLIP] << kDisplayWidthMagnitude;
 
 		// If new length is a multiple of screen length, just use screen length

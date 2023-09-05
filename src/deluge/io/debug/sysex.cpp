@@ -16,6 +16,7 @@
  */
 
 #include "io/debug/sysex.h"
+#include "gui/l10n/l10n.h"
 #include "hid/display/oled.h"
 #include "io/debug/print.h"
 #include "io/midi/midi_device.h"
@@ -157,14 +158,14 @@ void Debug::loadCheckAndRun(uint8_t* data, int32_t len) {
 	}
 
 	if (load_codesize != fields[1]) {
-		display->displayPopup(l10n::get(l10n::String::STRING_FOR_WRONG_SIZE));
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_WRONG_SIZE));
 		return;
 	}
 
 	uint32_t checksum = get_crc(load_buf, load_codesize);
 
 	if (checksum != fields[2]) {
-		display->displayPopup(l10n::get(l10n::String::STRING_FOR_CHECKSUM_FAIL));
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CHECKSUM_FAIL));
 		return;
 	}
 

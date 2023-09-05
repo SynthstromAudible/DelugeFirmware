@@ -19,6 +19,10 @@
 #include "hid/display/display.h"
 #include "storage/audio/audio_file.h"
 
+#pragma GCC diagnostic push
+//This is supported by GCC and other compilers should error (not warn), so turn off for this file
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+
 AudioFileVector::AudioFileVector() : NamedThingVector(__builtin_offsetof(AudioFile, filePath)) {
 }
 
@@ -56,3 +60,4 @@ int32_t AudioFileVector::searchForExactObject(AudioFile* audioFile) {
 gotIt:
 	return i;
 }
+#pragma GCC diagnostic pop

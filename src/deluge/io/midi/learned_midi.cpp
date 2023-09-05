@@ -128,14 +128,9 @@ bool LearnedMIDI::equalsChannelAllowMPE(MIDIDevice* newDevice, int32_t newChanne
 	if (!device) {
 		return false; // Could we actually be set to MPE but have no device? Maybe if loaded from weird song file?
 	}
-	if (newChannel <= newDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeLowerZoneLastMemberChannel) {
-		return (channelOrZone == MIDI_CHANNEL_MPE_LOWER_ZONE);
-	}
-	else if (newChannel >= newDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeUpperZoneLastMemberChannel) {
-		return (channelOrZone == MIDI_CHANNEL_MPE_UPPER_ZONE);
-	}
+	int32_t newCorZ = newDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(newChannel);
 
-	return (channelOrZone == newChannel);
+	return (channelOrZone == newCorZ);
 }
 
 bool LearnedMIDI::equalsChannelAllowMPEMasterChannels(MIDIDevice* newDevice, int32_t newChannel) {
