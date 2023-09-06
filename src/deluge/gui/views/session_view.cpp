@@ -979,6 +979,12 @@ justEndClipPress:
 }
 
 void SessionView::clipPressEnded() {
+	// End stuttering since this can also end selection
+	if (isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) && isUIModeActive(UI_MODE_STUTTERING)) {
+		((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
+		    ->endStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
+	}
+
 	currentUIMode = UI_MODE_NONE;
 	view.setActiveModControllableTimelineCounter(currentSong);
 	if (display->haveOLED()) {
@@ -3267,27 +3273,6 @@ void SessionView::gridClonePad(uint32_t sourceX, uint32_t sourceY, uint32_t targ
 	gridCreateClip(gridSectionFromY(targetY), gridTrackFromX(targetX, gridTrackCount()), sourceClip);
 }
 
-/// Clip is supplied because lookup is expensive
-void SessionView::gridOpenPadClip(Clip* clip, uint32_t x, uint32_t y) {
-
-	uint32_t trackCount = gridTrackCount();
-	auto trackIndex = gridTrackIndexFromX(x, trackCount);
-
-	// Create clip if it does not exist
-	if (clip == nullptr && (x + currentSong->songGridScrollX) <= trackCount) {
-		Output* track = gridTrackFromX(x, trackCount);
-		clip = gridCreateClip(gridSectionFromY(y), track, nullptr);
-		// Immediately start playing it for new tracks
-		if (clip != nullptr && track == nullptr) {
-			gridToggleClipPlay(clip, true);
-		}
-	}
-
-	if (clip != nullptr) {
-		transitionToViewForClip(clip);
-	}
-}
-
 void SessionView::gridStartSection(uint32_t section, bool instant) {
 	if (instant) {
 		currentSong->turnSoloingIntoJustPlaying(currentSong->sections[section].numRepetitions != -1);
@@ -3323,7 +3308,8 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 
 	// Right sidebar column - action modes
 	if (x > kDisplayWidth) {
-		gridResetPresses(); //@TODO: Should this rather be clipPressEnded?
+		clipPressEnded();
+
 		if (on) {
 			gridActiveModeUsed = false;
 			switch (y) {
@@ -3423,11 +3409,20 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 			gridFirstPressedX = x;
 			gridFirstPressedY = y;
 
-			// Immediately open for empty slots
+			// Create new track on empty slots
 			if (clip == nullptr) {
-				gridOpenPadClip(clip, x, y);
-				gridResetPresses();
-				return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
+				uint32_t trackCount = gridTrackCount();
+				auto trackIndex = gridTrackIndexFromX(x, trackCount);
+
+				// Create clip if it does not exist
+				if ((x + currentSong->songGridScrollX) <= trackCount) {
+					Output* track = gridTrackFromX(x, trackCount);
+					clip = gridCreateClip(gridSectionFromY(y), track, nullptr);
+					// Immediately start playing it for new tracks
+					if (clip != nullptr && track == nullptr) {
+						gridToggleClipPlay(clip, true);
+					}
+				}
 			}
 
 			// Open audio source selector for audio rows
@@ -3449,11 +3444,6 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 					deluge::hid::display::OLED::sendMainImage();
 				}
 			}
-
-			// // Set timer for displaying clip info if not arming (otherwise the animation is broken)
-			// if (currentUIMode != UI_MODE_VIEWING_RECORD_ARMING) {
-			// 	uiTimerManager.setTimer(TIMER_UI_SPECIFIC, 300);
-			// }
 		}
 		// Remember the second press down if empty
 		else if (gridSecondPressedX == -1 || gridSecondPressedY == -1) {
@@ -3464,15 +3454,9 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 	}
 	// Release
 	else {
-		// End stuttering on any key up for safety
-		if (isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) && isUIModeActive(UI_MODE_STUTTERING)) {
-			((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
-			    ->endStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
-		}
-
 		// First finger up
 		if (gridFirstPressedX == x && gridFirstPressedY == y) {
-			// Open or create and open clip if no other pad was previously pressed, timer has not run out and clip is pressed
+			// Open clip if no other pad was previously pressed, timer has not run out and clip is pressed
 			if (isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) && performActionOnPadRelease
 			    && AudioEngine::audioSampleTimer - selectedClipTimePressed < kShortPressTime) {
 
@@ -3481,7 +3465,9 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 				}
 				else {
-					gridOpenPadClip(clip, x, y);
+					if (clip != nullptr) {
+						transitionToViewForClip(clip);
+					}
 					return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 				}
 			}
@@ -3550,9 +3536,6 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 		else if (currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
 			session.soloClipAction(clip, kInternalButtonPressLatency);
 			// Make sure we can mute additional pads after this and don't loose UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON
-			requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
-			//@TODO: Why does this not call flashPlayEnable?
-			return ActionResult::DEALT_WITH;
 		}
 	}
 	// Immediate arming, immediate consumption
