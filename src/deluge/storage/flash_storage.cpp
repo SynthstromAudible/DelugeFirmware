@@ -139,6 +139,8 @@ SyncLevel defaultDelaySyncLevel;
 bool defaultDelayPingPong;
 bool defaultDelayAnalog;
 
+uint8_t defaultReverbRoomPreset;
+
 void resetSettings() {
 
 	cvEngine.setCVVoltsPerOctave(0, 100);
@@ -207,6 +209,7 @@ void resetSettings() {
 	defaultDelaySyncLevel = SYNC_LEVEL_32ND;
 	defaultDelayPingPong = true;
 	defaultDelayAnalog = false;
+	defaultReverbRoomPreset = 1; // default to Medium Room preset
 }
 
 void readSettings() {
@@ -398,13 +401,15 @@ void readSettings() {
 
 	defaultDelaySyncType = static_cast<SyncType>(buffer[119]);
 	defaultDelaySyncLevel = static_cast<SyncLevel>(buffer[120]);
+	defaultDelayAnalog = static_cast<uint8_t>(buffer[122]);
 	if (previouslySavedByFirmwareVersion < FIRMWARE_5P0P0) {
 		defaultDelayPingPong = true;
+		defaultReverbRoomPreset = 1; // default to Medium Room preset
 	}
 	else {
 		defaultDelayPingPong = static_cast<bool>(buffer[121]);
+		defaultReverbRoomPreset = static_cast<uint8_t>(buffer[123]);
 	}
-	defaultDelayAnalog = static_cast<bool>(buffer[122]);
 }
 
 void writeSettings() {
@@ -511,6 +516,7 @@ void writeSettings() {
 	buffer[120] = util::to_underlying(defaultDelaySyncLevel);
 	buffer[121] = defaultDelayPingPong;
 	buffer[122] = defaultDelayAnalog;
+	buffer[123] = defaultReverbRoomPreset;
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer, 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,

@@ -31,6 +31,7 @@
 #include "gui/menu_item/defaults/delay_ping_pong.h"
 #include "gui/menu_item/defaults/delay_sync.h"
 #include "gui/menu_item/defaults/magnitude.h"
+#include "gui/menu_item/defaults/reverb_room_preset.h"
 #include "gui/menu_item/defaults/scale.h"
 #include "gui/menu_item/defaults/velocity.h"
 #include "gui/menu_item/delay/analog.h"
@@ -817,16 +818,24 @@ defaults::DelayPingPong defaultDelayPingPongMenu{STRING_FOR_PINGPONG, STRING_FOR
 defaults::DelayAnalog defaultDelayAnalogMenu{STRING_FOR_TYPE, STRING_FOR_DELAY_TYPE};
 defaults::DelaySync defaultDelaySyncMenu{STRING_FOR_SYNC, STRING_FOR_DELAY_SYNC};
 
+defaults::ReverbRoomPreset defaultReverbRoomPresetMenu{STRING_FOR_ROOM_SIZE, STRING_FOR_ROOM_SIZE};
+
 Submenu defaultFXDelay{
     STRING_FOR_DELAY,
     STRING_FOR_DELAY,
     {&defaultDelayPingPongMenu, &defaultDelayAnalogMenu, &defaultDelaySyncMenu},
 };
 
+Submenu defaultFXReverb{
+    STRING_FOR_REVERB,
+    STRING_FOR_REVERB,
+    {&defaultReverbRoomPresetMenu},
+};
+
 Submenu defaultFX{
     STRING_FOR_FX,
     STRING_FOR_FX,
-    {&defaultFXDelay},
+    {&defaultFXDelay, &defaultFXReverb},
 };
 
 IntegerRange defaultTempoMenu{STRING_FOR_TEMPO, STRING_FOR_DEFAULT_TEMPO, 60, 240};

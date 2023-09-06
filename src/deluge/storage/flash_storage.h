@@ -40,6 +40,7 @@ extern SyncType defaultDelaySyncType;
 extern SyncLevel defaultDelaySyncLevel;
 extern bool defaultDelayPingPong;
 extern bool defaultDelayAnalog;
+extern uint8_t defaultReverbRoomPreset;
 
 void readSettings();
 void writeSettings();

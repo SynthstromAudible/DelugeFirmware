@@ -1272,7 +1272,7 @@ void View::cycleThroughReverbPresets() {
 
 	int32_t newPreset = currentPreset + 1;
 	if (newPreset >= NUM_PRESET_REVERBS) {
-		newPreset = 0;
+		newPreset = 1; // if out-of-bounds, default to Medium Room preset
 	}
 
 	AudioEngine::reverb.setroomsize((float)presetReverbRoomSize[newPreset] / 50);
