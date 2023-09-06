@@ -32,6 +32,12 @@ enum SessionLayoutType : uint32_t {
 	SessionLayoutTypeMaxElement // Keep as boundary
 };
 
+enum SessionGridMode : uint8_t {
+	SessionGridModeEdit,
+	SessionGridModeLaunch,
+	SessionGridModeMaxElement // Keep as boundary
+};
+
 extern float getTransitionProgress();
 
 constexpr uint32_t kGridHeight = kDisplayHeight;
@@ -137,14 +143,18 @@ private:
 	                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
 
 	ActionResult gridHandlePads(int32_t x, int32_t y, int32_t on);
+	ActionResult gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, Clip* clip);
+	ActionResult gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on, Clip* clip);
 
 	ActionResult gridHandleScroll(int32_t offsetX, int32_t offsetY);
 
 	void gridTransitionToSessionView();
 	void gridTransitionToViewForClip(Clip* clip);
 
-	bool clipButtonUsed = false;
-	bool gridPreventArm = false;
+	SessionGridMode gridModeSelected = SessionGridModeEdit;
+	SessionGridMode gridModeActive = SessionGridModeEdit;
+	bool gridActiveModeUsed = false;
+
 	int32_t gridFirstPressedX = -1;
 	int32_t gridFirstPressedY = -1;
 	int32_t gridSecondPressedX = -1;
