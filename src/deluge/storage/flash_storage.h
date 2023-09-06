@@ -37,6 +37,9 @@ extern int8_t defaultMagnitude;
 extern bool settingsBeenRead;
 extern uint8_t defaultBendRange[2];
 
+extern SessionLayoutType defaultSessionLayout;
+extern KeyboardLayoutType defaultKeyboardLayout;
+
 void readSettings();
 void writeSettings();
 void resetSettings();
