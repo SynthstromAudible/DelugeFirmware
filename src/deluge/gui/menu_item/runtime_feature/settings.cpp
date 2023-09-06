@@ -50,7 +50,7 @@ Setting menuHighlightIncomingNotes(RuntimeFeatureSettingType::HighlightIncomingN
 Setting menuDisplayNornsLayout(RuntimeFeatureSettingType::DisplayNornsLayout);
 
 Submenu subMenuAutomation{
-    l10n::String::STRING_FOR_AUTOMATION,
+    l10n::String::STRING_FOR_COMMUNITY_FEATURE_AUTOMATION,
     {
         &menuAutomationInterpolate,
         &menuAutomationClearClip,
