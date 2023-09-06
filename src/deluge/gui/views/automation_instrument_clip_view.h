@@ -151,7 +151,8 @@ private:
 
 	bool getNodeInterpolation(ModelStackWithAutoParam* modelStack, int32_t pos, bool reversed);
 	void setParameterAutomationValue(ModelStackWithAutoParam* modelStack, int32_t knobPos, int32_t squareStart,
-	                                 int32_t xDisplay, int32_t effectiveLength, bool displayValue = true);
+	                                 int32_t xDisplay, int32_t effectiveLength);
+	void setKnobIndicatorLevels(int32_t knobPos);
 
 	bool recordSinglePadPress(int32_t xDisplay, int32_t yDisplay);
 	void handleSinglePadPress(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, int32_t xDisplay,
