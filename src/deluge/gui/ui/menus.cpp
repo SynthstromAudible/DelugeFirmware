@@ -810,17 +810,17 @@ Submenu triggerClockMenu{
 };
 
 // Defaults menu
-defaults::DelaySync defaultDelaySyncMenu{STRING_FOR_DEFAULT_FX_DELAY_SYNC, STRING_FOR_DEFAULT_FX_DELAY_SYNC};
+defaults::DelaySync defaultDelaySyncMenu{STRING_FOR_SYNC, STRING_FOR_SYNC};
 
 Submenu defaultFXDelay{
-    STRING_FOR_DEFAULT_FX_DELAY,
-    STRING_FOR_DEFAULT_FX_DELAY,
+    STRING_FOR_DELAY,
+    STRING_FOR_DELAY,
     {&defaultDelaySyncMenu},
 };
 
 Submenu defaultFX{
-    STRING_FOR_DEFAULT_FX,
-    STRING_FOR_DEFAULT_FX,
+    STRING_FOR_FX,
+    STRING_FOR_FX,
     {&defaultFXDelay},
 };
 
