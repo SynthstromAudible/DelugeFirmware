@@ -2927,15 +2927,14 @@ bool SessionView::gridRenderSidebar(uint32_t whichRows, uint8_t image[][kDisplay
 		bool modeActive = false;
 		uint8_t modeColour[3] = {0};
 		switch (y) {
-		case 0: {
-			modeActive = (gridModeActive == SessionGridModeEdit);
-			modeColour[2] = 255; // Blue
-			break;
-		}
-
-		case 1: {
+		case 7: {
 			modeActive = (gridModeActive == SessionGridModeLaunch);
 			modeColour[1] = 255; // Green
+			break;
+		}
+		case 6: {
+			modeActive = (gridModeActive == SessionGridModeEdit);
+			modeColour[2] = 255; // Blue
 			break;
 		}
 
@@ -3328,12 +3327,12 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 		if (on) {
 			gridActiveModeUsed = false;
 			switch (y) {
-			case 0: {
-				gridModeActive = SessionGridModeEdit;
+			case 7: {
+				gridModeActive = SessionGridModeLaunch;
 				break;
 			}
-			case 1: {
-				gridModeActive = SessionGridModeLaunch;
+			case 6: {
+				gridModeActive = SessionGridModeEdit;
 				break;
 			}
 			}
