@@ -19,7 +19,6 @@
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
-#include "gui/ui/keyboard/state_data.h"
 #include "gui/ui/root_ui.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
@@ -107,13 +106,18 @@ void MelodicInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelSt
 		return;
 	}
 
+	int32_t corz = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(midiChannel);
+
 	int16_t const* mpeValues = zeroMPEValues;
 	int16_t const* mpeValuesOrNull = NULL;
+	if (corz >= MIDI_CHANNEL_MPE_LOWER_ZONE) {
+		mpeValues = mpeValuesOrNull = fromDevice->defaultInputMPEValuesPerMIDIChannel[midiChannel];
+	}
 
 	// -1 means no change
 	int32_t highlightNoteValue = -1;
 
-	if (midiInput.channelOrZone == midiChannel) {
+	if (midiInput.channelOrZone == corz) {
 yupItsForUs:
 		InstrumentClip* instrumentClip = (InstrumentClip*)activeClip;
 
@@ -279,24 +283,10 @@ justAuditionNote:
 			                      note, velocity);
 		}
 	}
-	//Handles MPE inputs for melodic instruments - duplicate of MPE check in playback
-	//handler, however playback handler does not pass on MPE info
-	else if (midiInput.channelOrZone == MIDI_CHANNEL_MPE_LOWER_ZONE) {
-		if (midiChannel <= fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeLowerZoneLastMemberChannel) {
-gotMPEInput:
-			mpeValues = mpeValuesOrNull = fromDevice->defaultInputMPEValuesPerMIDIChannel[midiChannel];
-			goto yupItsForUs;
-		}
-	}
-	else if (midiInput.channelOrZone == MIDI_CHANNEL_MPE_UPPER_ZONE) {
-		if (midiChannel >= fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeUpperZoneLastMemberChannel) {
-			goto gotMPEInput;
-		}
-	}
 
 	// In case Norns layout is active show
 	InstrumentClip* instrumentClip = (InstrumentClip*)activeClip;
-	if (instrumentClip->keyboardState.currentLayout == deluge::gui::ui::keyboard::KeyboardLayoutType::Norns
+	if (instrumentClip->keyboardState.currentLayout == KeyboardLayoutType::KeyboardLayoutTypeNorns
 	    && instrumentClip->onKeyboardScreen && instrumentClip->output
 	    && instrumentClip->output->type == InstrumentType::MIDI_OUT
 	    && ((MIDIInstrument*)instrumentClip->output)->channel == midiChannel) {
@@ -329,27 +319,19 @@ forMasterChannel:
 			int32_t newValue = (int32_t)(((uint32_t)data1 | ((uint32_t)data2 << 7)) - 8192) << 18; // Was 16... why?
 			processParamFromInputMIDIChannel(CC_NUMBER_PITCH_BEND, newValue, modelStackWithTimelineCounter);
 		}
-
-		else if (midiInput.channelOrZone == MIDI_CHANNEL_MPE_LOWER_ZONE) {
-			if (channel <= fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeLowerZoneLastMemberChannel) {
-				if (channel == 0) {
+		else {
+			uint8_t corz = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
+			if (midiInput.channelOrZone == corz) {
+				bool master = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isMasterChannel(channel);
+				if (master) {
 					goto forMasterChannel;
 				}
-mpeX:
 				int16_t value16 = (((uint32_t)data1 | ((uint32_t)data2 << 7)) - 8192) << 2;
 				int32_t value32 =
 				    (int32_t)value16
 				    << 16; // Unlike for whole-Instrument pitch bend, this per-note kind is a modulation *source*, not the "preset" value for the parameter!
 				polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, value32, 0, channel,
 				                                          MIDICharacteristic::CHANNEL);
-			}
-		}
-		else if (midiInput.channelOrZone == MIDI_CHANNEL_MPE_UPPER_ZONE) {
-			if (channel >= fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeUpperZoneLastMemberChannel) {
-				if (channel == 15) {
-					goto forMasterChannel;
-				}
-				goto mpeX;
 			}
 		}
 	}
@@ -362,6 +344,11 @@ void MelodicInstrument::offerReceivedCC(ModelStackWithTimelineCounter* modelStac
 	if (midiInput.equalsDevice(fromDevice)) {
 
 		if (midiInput.channelOrZone == channel) {
+			//map non MPE mod wheel to y expression
+			if (ccNumber == 1) {
+				int32_t value32 = (value - 64) << 25;
+				processParamFromInputMIDIChannel(74, value32, modelStackWithTimelineCounter);
+			}
 forMasterChannel:
 			// If it's a MIDI Clip...
 			if (type == InstrumentType::MIDI_OUT) {
@@ -374,9 +361,11 @@ forMasterChannel:
 			// Still send the cc even if the Output is muted. MidiInstruments will check for and block this themselves
 			ccReceivedFromInputMIDIChannel(ccNumber, value, modelStackWithTimelineCounter);
 		}
-		else if (midiInput.channelOrZone == MIDI_CHANNEL_MPE_LOWER_ZONE) {
-			if (channel <= fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeLowerZoneLastMemberChannel) {
-				if (channel == 0) {
+		else {
+			uint8_t corz = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
+			if (midiInput.channelOrZone == corz) {
+				bool master = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isMasterChannel(channel);
+				if (master) {
 mpeMasterChannel:
 					if (ccNumber == 74) {
 						int32_t value32 = (value - 64) << 25;
@@ -390,14 +379,6 @@ mpeY:
 					polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, value32, 1, channel,
 					                                          MIDICharacteristic::CHANNEL);
 				}
-			}
-		}
-		else if (midiInput.channelOrZone == MIDI_CHANNEL_MPE_UPPER_ZONE) {
-			if (channel >= fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeUpperZoneLastMemberChannel) {
-				if (channel == 15) {
-					goto mpeMasterChannel;
-				}
-				goto mpeY;
 			}
 		}
 	}
@@ -444,23 +425,14 @@ forMasterChannel:
 			// Only if a "channel pressure" message (which with MPE of course refers to ideally just one key).
 			// Non-MPE "polyphonic key pressure" messages are not allowed in MPE currently.
 			if (noteCode == -1) {
-				if (midiInput.channelOrZone == MIDI_CHANNEL_MPE_LOWER_ZONE) {
-					if (channel <= fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeLowerZoneLastMemberChannel) {
-						if (channel == 0) {
-							goto forMasterChannel;
-						}
-processPolyphonicZ:
-						polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, valueBig, 2, channel,
-						                                          MIDICharacteristic::CHANNEL);
+				uint8_t corz = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
+				if (midiInput.channelOrZone == corz) {
+					bool master = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isMasterChannel(channel);
+					if (master) {
+						goto forMasterChannel;
 					}
-				}
-				else if (midiInput.channelOrZone == MIDI_CHANNEL_MPE_UPPER_ZONE) {
-					if (channel >= fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeUpperZoneLastMemberChannel) {
-						if (channel == 15) {
-							goto forMasterChannel;
-						}
-						goto processPolyphonicZ;
-					}
+					polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, valueBig, 2, channel,
+					                                          MIDICharacteristic::CHANNEL);
 				}
 			}
 		}

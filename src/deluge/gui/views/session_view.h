@@ -26,12 +26,6 @@ class InstrumentClip;
 class Clip;
 class ModelStack;
 
-enum SessionLayoutType : uint32_t {
-	SessionLayoutTypeRows,
-	SessionLayoutTypeGrid,
-	SessionLayoutTypeMaxElement // Keep as boundary
-};
-
 enum SessionGridMode : uint8_t {
 	SessionGridModeEdit,
 	SessionGridModeLaunch,

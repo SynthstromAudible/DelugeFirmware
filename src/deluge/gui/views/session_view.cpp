@@ -2892,11 +2892,11 @@ void SessionView::selectLayout(int8_t offset) {
 bool SessionView::gridRenderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
                                     uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 
+	// Section column
 	uint32_t sectionColumnIndex = kDisplayWidth;
 	for (int32_t y = (kGridHeight - 1); y >= 0; --y) {
 		occupancyMask[y][sectionColumnIndex] = 64;
 
-		// Section column
 		auto section = gridSectionFromY(y);
 		auto* ptrSectionColour = image[y][sectionColumnIndex];
 
