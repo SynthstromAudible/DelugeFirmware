@@ -48,7 +48,7 @@ public:
 	void readFromFile(MIDIDevice* deviceToSendMCMsOn);
 	void moveUpperZoneOutOfWayOfLowerZone();
 	void moveLowerZoneOutOfWayOfUpperZone();
-
+	bool isMasterChannel(int32_t inputChannel);
 	inline bool isChannelPartOfAnMPEZone(int32_t channel) {
 		return (channel >= 1 && channel <= 14
 		        && (mpeLowerZoneLastMemberChannel >= channel || mpeUpperZoneLastMemberChannel <= channel));
