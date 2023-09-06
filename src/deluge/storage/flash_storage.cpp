@@ -141,6 +141,9 @@ bool defaultDelayAnalog;
 
 uint8_t defaultReverbRoomPreset;
 
+SessionLayoutType defaultSessionLayout;
+KeyboardLayoutType defaultKeyboardLayout;
+
 void resetSettings() {
 
 	cvEngine.setCVVoltsPerOctave(0, 100);
@@ -210,6 +213,9 @@ void resetSettings() {
 	defaultDelayPingPong = true;
 	defaultDelayAnalog = false;
 	defaultReverbRoomPreset = 1; // default to Medium Room preset
+
+	defaultSessionLayout = SessionLayoutType::SessionLayoutTypeRows;
+	defaultKeyboardLayout = KeyboardLayoutType::KeyboardLayoutTypeIsomorphic;
 }
 
 void readSettings() {
@@ -399,9 +405,12 @@ void readSettings() {
 	midiEngine.midiTakeover = static_cast<MIDITakeoverMode>(buffer[113]);
 	// 114 and 115, 116 used further up
 
+	defaultSessionLayout = static_cast<SessionLayoutType>(buffer[117]);
+	defaultKeyboardLayout = static_cast<KeyboardLayoutType>(buffer[118]);
+
 	defaultDelaySyncType = static_cast<SyncType>(buffer[119]);
 	defaultDelaySyncLevel = static_cast<SyncLevel>(buffer[120]);
-	defaultDelayAnalog = static_cast<uint8_t>(buffer[122]);
+	defaultDelayAnalog = static_cast<bool>(buffer[122]);
 	if (previouslySavedByFirmwareVersion != FIRMWARE_COMMUNITY) {
 		defaultDelayPingPong = true;
 		defaultReverbRoomPreset = 1; // default to Medium Room preset
@@ -511,6 +520,9 @@ void writeSettings() {
 
 	buffer[113] = util::to_underlying(midiEngine.midiTakeover);
 	// 114 and 115, 116 used further up
+
+	buffer[117] = util::to_underlying(defaultSessionLayout);
+	buffer[118] = util::to_underlying(defaultKeyboardLayout);
 
 	buffer[119] = util::to_underlying(defaultDelaySyncType);
 	buffer[120] = util::to_underlying(defaultDelaySyncLevel);
