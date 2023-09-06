@@ -1585,6 +1585,11 @@ void SessionView::replaceAudioClipWithInstrumentClip(Clip* clip, InstrumentType 
 		return;
 	}
 
+	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid && currentSong->getClipWithOutput(clip->output, false, clip)) {
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_AUDIO_TRACKS_WITH_CLIPS_CANT_BE_TURNED_INTO_AN_INSTRUMENT));
+		return;
+	}
+
 	AudioClip* audioClip = (AudioClip*)clip;
 	if (audioClip->sampleHolder.audioFile || audioClip->getCurrentlyRecordingLinearly()) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIP_NOT_EMPTY));
@@ -1665,6 +1670,11 @@ void SessionView::replaceInstrumentClipWithAudioClip(Clip* clip) {
 	int32_t clipIndex = currentSong->sessionClips.getIndexForClip(clip);
 
 	if (!clip || clip->type != CLIP_TYPE_INSTRUMENT) {
+		return;
+	}
+
+	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid && currentSong->getClipWithOutput(clip->output, false, clip)) {
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_INSTRUMENTS_WITH_CLIPS_CANT_BE_TURNED_INTO_AUDIO_TRACKS));
 		return;
 	}
 
