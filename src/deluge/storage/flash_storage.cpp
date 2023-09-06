@@ -398,7 +398,11 @@ void readSettings() {
 
 	defaultDelaySyncType = static_cast<SyncType>(buffer[119]);
 	defaultDelaySyncLevel = static_cast<SyncLevel>(buffer[120]);
-	defaultDelayPingPong = static_cast<bool>(buffer[121]);
+	if (previouslySavedByFirmwareVersion < FIRMWARE_5P0P0) {
+		defaultDelayPingPong = true;
+	} else {
+		defaultDelayPingPong = static_cast<bool>(buffer[121]);
+	}
 	defaultDelayAnalog = static_cast<bool>(buffer[122]);
 }
 
@@ -504,6 +508,8 @@ void writeSettings() {
 
 	buffer[119] = util::to_underlying(defaultDelaySyncType);
 	buffer[120] = util::to_underlying(defaultDelaySyncLevel);
+	buffer[121] = defaultDelayPingPong;
+	buffer[122] = defaultDelayAnalog;
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer, 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,

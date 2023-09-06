@@ -142,9 +142,10 @@ enum FirmwareVersion : uint8_t {
 	FIRMWARE_4P1P4_ALPHA = 68,
 	FIRMWARE_4P1P4_BETA = 69,
 	FIRMWARE_4P1P4 = 70,
+	FIRMWARE_5P0P0 = 71,
 	FIRMWARE_TOO_NEW = 255,
 };
-constexpr FirmwareVersion kCurrentFirmwareVersion = FIRMWARE_4P1P4_ALPHA;
+constexpr FirmwareVersion kCurrentFirmwareVersion = FIRMWARE_5P0P0;
 
 constexpr uint8_t kOctaveSize = 12;
 
