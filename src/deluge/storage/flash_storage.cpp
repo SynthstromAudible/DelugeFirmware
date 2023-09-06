@@ -400,7 +400,8 @@ void readSettings() {
 	defaultDelaySyncLevel = static_cast<SyncLevel>(buffer[120]);
 	if (previouslySavedByFirmwareVersion < FIRMWARE_5P0P0) {
 		defaultDelayPingPong = true;
-	} else {
+	}
+	else {
 		defaultDelayPingPong = static_cast<bool>(buffer[121]);
 	}
 	defaultDelayAnalog = static_cast<bool>(buffer[122]);
