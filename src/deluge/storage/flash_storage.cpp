@@ -402,7 +402,7 @@ void readSettings() {
 	defaultDelaySyncType = static_cast<SyncType>(buffer[119]);
 	defaultDelaySyncLevel = static_cast<SyncLevel>(buffer[120]);
 	defaultDelayAnalog = static_cast<uint8_t>(buffer[122]);
-	if (previouslySavedByFirmwareVersion < FIRMWARE_5P0P0) {
+	if (previouslySavedByFirmwareVersion != FIRMWARE_COMMUNITY) {
 		defaultDelayPingPong = true;
 		defaultReverbRoomPreset = 1; // default to Medium Room preset
 	}
