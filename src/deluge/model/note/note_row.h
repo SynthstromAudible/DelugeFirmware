@@ -87,7 +87,8 @@ public:
 	void readFromFlash(InstrumentClip* parentClip);
 	uint32_t getNumNotes();
 	void setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack,
-	             InstrumentClip* favourClipForCloningParamManager = NULL, ParamManager* paramManager = NULL);
+	             InstrumentClip* favourClipForCloningParamManager = NULL, ParamManager* paramManager = NULL,
+	             bool backupOldParamManager = true);
 
 	int32_t getDistanceToNextNote(int32_t pos, ModelStackWithNoteRow const* modelStack, bool reversed = false);
 

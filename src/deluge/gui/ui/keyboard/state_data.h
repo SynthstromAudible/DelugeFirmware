@@ -17,16 +17,9 @@
 
 #pragma once
 #include "definitions_cxx.hpp"
+#include "storage/flash_storage.h"
 
 namespace deluge::gui::ui::keyboard {
-
-enum KeyboardLayoutType : uint32_t {
-	Isomorphic,
-	Drums,
-	InKey,
-	Norns,
-	MaxElement // Keep as boundary
-};
 
 constexpr int32_t kDefaultIsometricRowInterval = 5;
 struct KeyboardStateIsomorphic {
@@ -48,7 +41,7 @@ struct KeyboardStateInKey {
 
 /// Please note that saving and restoring currently needs to be added manually in instrument_clip.cpp and all layouts share one struct for storage
 struct KeyboardState {
-	KeyboardLayoutType currentLayout = KeyboardLayoutType::Isomorphic;
+	KeyboardLayoutType currentLayout = FlashStorage::defaultKeyboardLayout;
 
 	KeyboardStateIsomorphic isomorphic;
 	KeyboardStateDrums drums;
