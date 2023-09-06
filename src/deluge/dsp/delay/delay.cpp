@@ -32,23 +32,21 @@ Delay::Delay() {
 	repeatsUntilAbandon = 0;
 	prevFeedback = 0;
 
-	// I'm so sorry, this is incredibly ugly, but in order to decide the default sync level, we have to look at the current song, or even better the one being preloaded.
-	Song* song = preLoadedSong;
-	if (!song) {
-		song = currentSong;
-	}
-	if (song) {
-		syncLevel = (SyncLevel)(8 - (song->insideWorldTickMagnitude + song->insideWorldTickMagnitudeOffsetFromBPM));
+	// SyncLevel is not dependant any more on tick magnitude, now it is decided by the user
+	syncLevel = FlashStorage::defaultDelaySyncLevel;
+	if (syncLevel == SYNC_LEVEL_NONE) {
+		// If Sync is Off, reset type to Even (equivalent to zero)
+		syncType = SYNC_TYPE_EVEN;
 	}
 	else {
-		syncLevel = (SyncLevel)(8 - FlashStorage::defaultMagnitude);
+		syncType = FlashStorage::defaultDelaySyncType;
 	}
-	syncType = SYNC_TYPE_EVEN;
 }
 
 void Delay::cloneFrom(Delay* other) {
 	pingPong = other->pingPong;
 	analog = other->analog;
+	syncType = other->syncType;
 	syncLevel = other->syncLevel;
 }
 

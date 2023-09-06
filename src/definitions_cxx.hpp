@@ -581,13 +581,14 @@ constexpr int32_t kNumLFOTypes = util::to_underlying(LFOType::RANDOM_WALK) + 1;
 // SyncType values correspond to the index of the first option of the specific
 // type in the selection menu. There are 9 different levels for each type (see
 // also SyncLevel)
-enum SyncType {
+enum SyncType : uint8_t {
 	SYNC_TYPE_EVEN = 0,
 	SYNC_TYPE_TRIPLET = 10,
 	SYNC_TYPE_DOTTED = 19,
 };
+constexpr int32_t kNumSyncTypes = 3;
 
-enum SyncLevel {
+enum SyncLevel : uint8_t {
 	SYNC_LEVEL_NONE = 0,
 	SYNC_LEVEL_WHOLE = 1,
 	SYNC_LEVEL_2ND = 2,
@@ -599,6 +600,7 @@ enum SyncLevel {
 	SYNC_LEVEL_128TH = 8,
 	SYNC_LEVEL_256TH = 9,
 };
+constexpr int32_t kNumSyncLevels = 10;
 
 enum class SynthMode {
 	SUBTRACTIVE,

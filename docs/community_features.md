@@ -159,6 +159,14 @@ This mode affects how the deluge handles MIDI input for learned CC controls.
 
 	- This feature can be turned ON/OFF in the Runtime Settings (Community Features) Menu (accessed by pressing "SHIFT" + "SELECT"). 
 
+#### 4.2.8 - New Defaults menu for FX (right now only Delay Rate)
+
+- ([#999]) A new menu to select the default Delay Sync Type and Rate has been added in Shift+Selection Encoder -> Defaults -> FX -> Delay
+
+	- The values you select there for delay parameters will be used for the Global FX, the affect-all kits' FX and to every new Synth sound or Kit row sound.
+	- This new menu will help with quick-starting songs when you usually work with some specific delay rate.
+	- This Default FX menu can be extended in the future with other effects and their respective settings (adding more delay params, adding reverb params, etc).
+
 ### 4.3 - Instrument Clip View - General Features
 
 These features were added to the Instrument Clip View and affect Synth, Kit and Midi instrument clip types.

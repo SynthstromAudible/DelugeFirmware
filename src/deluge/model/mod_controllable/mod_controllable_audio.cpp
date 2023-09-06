@@ -1926,11 +1926,11 @@ void ModControllableAudio::switchDelayPingPong() {
 	char const* displayText;
 	switch (delay.pingPong) {
 	case 0:
-		displayText = "Normal delay";
+		displayText = deluge::l10n::get(deluge::l10n::String::STRING_FOR_NORMAL_DELAY);
 		break;
 
 	default:
-		displayText = "Ping-pong delay";
+		displayText = deluge::l10n::get(deluge::l10n::String::STRING_FOR_PINGPONG_DELAY);
 		break;
 	}
 	display->displayPopup(displayText);
@@ -1942,7 +1942,7 @@ void ModControllableAudio::switchDelayAnalog() {
 	char const* displayText;
 	switch (delay.analog) {
 	case 0:
-		displayText = "Digital delay";
+		displayText = deluge::l10n::get(deluge::l10n::String::STRING_FOR_DIGITAL_DELAY);
 		break;
 
 	default:
@@ -1969,14 +1969,14 @@ void ModControllableAudio::switchDelaySyncType() {
 	char const* displayText;
 	switch (delay.syncType) {
 	case SYNC_TYPE_TRIPLET:
-		displayText = "Triplet";
+		displayText = deluge::l10n::get(deluge::l10n::String::STRING_FOR_SYNC_TYPE_TRIPLET);
 		break;
 	case SYNC_TYPE_DOTTED:
-		displayText = "Dotted";
+		displayText = deluge::l10n::get(deluge::l10n::String::STRING_FOR_SYNC_TYPE_DOTTED);
 		break;
 
 	default: //SYNC_TYPE_EVEN
-		displayText = "Even";
+		displayText = deluge::l10n::get(deluge::l10n::String::STRING_FOR_SYNC_TYPE_EVEN);
 		break;
 	}
 	display->displayPopup(displayText);
@@ -1989,32 +1989,32 @@ void ModControllableAudio::switchDelaySyncLevel() {
 	char const* displayText;
 	switch (delay.syncLevel) {
 	case SYNC_LEVEL_2ND:
-		displayText = "2nd";
+		displayText = deluge::l10n::get(deluge::l10n::String::STRING_FOR_SYNC_LEVEL_2ND);
 		break;
 	case SYNC_LEVEL_4TH:
-		displayText = "4th";
+		displayText = deluge::l10n::get(deluge::l10n::String::STRING_FOR_SYNC_LEVEL_4TH);
 		break;
 	case SYNC_LEVEL_8TH:
-		displayText = "8th";
+		displayText = deluge::l10n::get(deluge::l10n::String::STRING_FOR_SYNC_LEVEL_8TH);
 		break;
 	case SYNC_LEVEL_16TH:
-		displayText = "16th";
+		displayText = deluge::l10n::get(deluge::l10n::String::STRING_FOR_SYNC_LEVEL_16TH);
 		break;
 	case SYNC_LEVEL_32ND:
-		displayText = "32nd";
+		displayText = deluge::l10n::get(deluge::l10n::String::STRING_FOR_SYNC_LEVEL_32ND);
 		break;
 	case SYNC_LEVEL_64TH:
-		displayText = "64th";
+		displayText = deluge::l10n::get(deluge::l10n::String::STRING_FOR_SYNC_LEVEL_64TH);
 		break;
 	case SYNC_LEVEL_128TH:
-		displayText = "128th";
+		displayText = deluge::l10n::get(deluge::l10n::String::STRING_FOR_SYNC_LEVEL_128TH);
 		break;
 	case SYNC_LEVEL_256TH:
-		displayText = "256th";
+		displayText = deluge::l10n::get(deluge::l10n::String::STRING_FOR_SYNC_LEVEL_256TH);
 		break;
 
 	default: //SYNC_LEVEL_WHOLE
-		displayText = "1-bar";
+		displayText = deluge::l10n::get(deluge::l10n::String::STRING_FOR_SYNC_LEVEL_WHOLE);
 		break;
 	}
 	display->displayPopup(displayText);

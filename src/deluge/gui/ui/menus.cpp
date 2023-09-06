@@ -27,6 +27,8 @@
 #include "gui/menu_item/cv/volts.h"
 #include "gui/menu_item/decimal.h"
 #include "gui/menu_item/defaults/bend_range.h"
+#include "gui/menu_item/defaults/delay_sync_level.h"
+#include "gui/menu_item/defaults/delay_sync_type.h"
 #include "gui/menu_item/defaults/magnitude.h"
 #include "gui/menu_item/defaults/scale.h"
 #include "gui/menu_item/defaults/velocity.h"
@@ -809,6 +811,29 @@ Submenu triggerClockMenu{
 };
 
 // Defaults menu
+defaults::DelaySyncType defaultDelaySyncTypeMenu{STRING_FOR_DEFAULT_FX_DELAY_SYNC_TYPE,
+                                                 STRING_FOR_DEFAULT_FX_DELAY_SYNC_TYPE};
+defaults::DelaySyncLevel defaultDelaySyncLevelMenu{STRING_FOR_DEFAULT_FX_DELAY_SYNC_LEVEL,
+                                                   STRING_FOR_DEFAULT_FX_DELAY_SYNC_LEVEL};
+
+Submenu defaultFXDelaySync{
+    STRING_FOR_DEFAULT_FX_DELAY_SYNC,
+    STRING_FOR_DEFAULT_FX_DELAY_SYNC,
+    {&defaultDelaySyncTypeMenu, &defaultDelaySyncLevelMenu},
+};
+
+Submenu defaultFXDelay{
+    STRING_FOR_DEFAULT_FX_DELAY,
+    STRING_FOR_DEFAULT_FX_DELAY,
+    {&defaultFXDelaySync},
+};
+
+Submenu defaultFX{
+    STRING_FOR_DEFAULT_FX,
+    STRING_FOR_DEFAULT_FX,
+    {&defaultFXDelay},
+};
+
 IntegerRange defaultTempoMenu{STRING_FOR_TEMPO, STRING_FOR_DEFAULT_TEMPO, 60, 240};
 IntegerRange defaultSwingMenu{STRING_FOR_SWING, STRING_FOR_DEFAULT_SWING, 1, 99};
 KeyRange defaultKeyMenu{STRING_FOR_KEY, STRING_FOR_DEFAULT_KEY};
@@ -820,6 +845,7 @@ defaults::BendRange defaultBendRangeMenu{STRING_FOR_BEND_RANGE, STRING_FOR_DEFAU
 Submenu defaultsSubmenu{
     STRING_FOR_DEFAULTS,
     {
+        &defaultFX,
         &defaultTempoMenu,
         &defaultSwingMenu,
         &defaultKeyMenu,

@@ -113,6 +113,10 @@ namespace FlashStorage {
 114: GlobalMIDICommand::FILL channel + 1
 115: GlobalMIDICommand::FILL noteCode + 1
 116: GlobalMIDICommand::FILL product / vendor ids
+117:
+118:
+119: Delay Sync Type
+120: Delay Sync Level
 */
 
 uint8_t defaultScale;
@@ -129,6 +133,9 @@ uint8_t ramSize;       // Deprecated
 uint8_t defaultBendRange[2] = {
     2,
     48}; // The 48 isn't editable. And the 2 actually should only apply to non-MPE MIDI, because it's editable, whereas for MPE it's meant to always stay at 2.
+
+SyncType defaultDelaySyncType;
+SyncLevel defaultDelaySyncLevel;
 
 void resetSettings() {
 
@@ -193,6 +200,9 @@ void resetSettings() {
 	MIDIDeviceManager::differentiatingInputsByDevice = false;
 
 	defaultBendRange[BEND_RANGE_MAIN] = 2;
+
+	defaultDelaySyncType = SYNC_TYPE_EVEN;
+	defaultDelaySyncLevel = SYNC_LEVEL_16TH;
 }
 
 void readSettings() {
@@ -380,6 +390,10 @@ void readSettings() {
 		}
 	}
 	midiEngine.midiTakeover = static_cast<MIDITakeoverMode>(buffer[113]);
+	// 114 and 115, 116 used further up
+
+	defaultDelaySyncType = static_cast<SyncType>(buffer[119]);
+	defaultDelaySyncLevel = static_cast<SyncLevel>(buffer[120]);
 }
 
 void writeSettings() {
@@ -480,6 +494,10 @@ void writeSettings() {
 	buffer[112] = defaultBendRange[BEND_RANGE_MAIN];
 
 	buffer[113] = util::to_underlying(midiEngine.midiTakeover);
+	// 114 and 115, 116 used further up
+
+	buffer[119] = util::to_underlying(defaultDelaySyncType);
+	buffer[120] = util::to_underlying(defaultDelaySyncLevel);
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer, 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,

@@ -36,6 +36,8 @@ extern uint8_t defaultVelocity;
 extern int8_t defaultMagnitude;
 extern bool settingsBeenRead;
 extern uint8_t defaultBendRange[2];
+extern SyncType defaultDelaySyncType;
+extern SyncLevel defaultDelaySyncLevel;
 
 void readSettings();
 void writeSettings();
