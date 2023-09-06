@@ -15,7 +15,9 @@ Here is a list of general improvements that have been made, ordered from newest 
 - ([#17]) Increase the resolution of "patch cables" between mod sources and destinations.
 
 #### 3.2 - MPE
-- ([#29]) Bugfix to respect MPE zones in kit rows. In the official firmware kit rows with midi learned to a channel would be triggered by an MPE zone which uses that channel. With this change they respect zones in the same way as synth and midi clips.
+- ([#29]) Bugfix to respect MPE zones in kit rows. In the official firmware kit rows with midi learned to a channel would be triggered by an MPE zone which uses that channel. With this change they respect zones in the same way as synth and midi clips. ([#512]) adds further fixes related to channels 0 and 15 always getting received as MPE.
+
+-([#512]) Change handling of MPE expression when collapsed to a single midi channel. Previously y axis would still be sent as CC74 on single midi channels. This changes it to send CC1 instead, allowing for controllable behaviour on more non-MPE synths. Future work will make a menu to set this per device. 
 
 #### 3.3 - MIDI
 - ([#47]) Extra MIDI ports on the USB interface for MPE. Port 2 shows in the midi device menu, and improves the usability of MPE-capable devices through the USB interface by allowing MPE zones to be sent to port 2 and non-MPE to be sent to port 1 (or vice versa). A third port is added for future use such as a desktop/mobile companion app, DAW control or Mackie HUI emulation.
@@ -32,6 +34,9 @@ Here is a list of general improvements that have been made, ordered from newest 
 
 - ([#118]) Sticky Shift - When enabled, tapping shift will lock shift on unless another button is also pressed during the short press duration.
 - ([#118]) Shift LED feedback can now be toggled manually.
+
+#### 3.7 - Mod Wheel
+- ([#512]) Incoming mod wheel on non-MPE synths now maps to y axis
 
 ## 4. New Features Added
 
@@ -391,5 +396,5 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#363]: https://github.com/SynthstromAudible/DelugeFirmware/pull/363
 [#368]: https://github.com/SynthstromAudible/DelugeFirmware/pull/368
 [#395]: https://github.com/SynthstromAudible/DelugeFirmware/pull/395
-
+[#512]: https://github.com/SynthstromAudible/DelugeFirmware/pull/512
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
