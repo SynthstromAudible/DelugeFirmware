@@ -19,30 +19,23 @@
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "gui/menu_item/selection.h"
+#include "gui/menu_item/sync_level.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
 #include "storage/flash_storage.h"
 #include "util/misc.h"
 
 namespace deluge::gui::menu_item::defaults {
-class DelaySyncLevel final : public Selection<kNumSyncLevels> {
+class DelaySync final : public SyncLevel {
 public:
-	using Selection::Selection;
-	void readCurrentValue() override { this->setValue(FlashStorage::defaultDelaySyncLevel); }
-	void writeCurrentValue() override { FlashStorage::defaultDelaySyncLevel = this->getValue<::SyncLevel>(); }
-	static_vector<std::string_view, capacity()> getOptions() override {
-		return {
-		    l10n::getView(l10n::String::STRING_FOR_NONE),
-		    l10n::getView(l10n::String::STRING_FOR_SYNC_LEVEL_WHOLE),
-		    l10n::getView(l10n::String::STRING_FOR_SYNC_LEVEL_2ND),
-		    l10n::getView(l10n::String::STRING_FOR_SYNC_LEVEL_4TH),
-		    l10n::getView(l10n::String::STRING_FOR_SYNC_LEVEL_8TH),
-		    l10n::getView(l10n::String::STRING_FOR_SYNC_LEVEL_16TH),
-		    l10n::getView(l10n::String::STRING_FOR_SYNC_LEVEL_32ND),
-		    l10n::getView(l10n::String::STRING_FOR_SYNC_LEVEL_64TH),
-		    l10n::getView(l10n::String::STRING_FOR_SYNC_LEVEL_128TH),
-		    l10n::getView(l10n::String::STRING_FOR_SYNC_LEVEL_256TH),
-		};
+	using SyncLevel::SyncLevel;
+	void readCurrentValue() override {
+		this->setValue(
+		    syncTypeAndLevelToMenuOption(FlashStorage::defaultDelaySyncType, FlashStorage::defaultDelaySyncLevel));
+	}
+	void writeCurrentValue() override {
+		FlashStorage::defaultDelaySyncType = menuOptionToSyncType(this->getValue());
+		FlashStorage::defaultDelaySyncLevel = menuOptionToSyncLevel(this->getValue());
 	}
 };
 } // namespace deluge::gui::menu_item::defaults

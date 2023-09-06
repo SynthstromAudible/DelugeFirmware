@@ -501,8 +501,6 @@ constexpr Language english{
         {STRING_FOR_DEFAULT_FX, "FX"},
         {STRING_FOR_DEFAULT_FX_DELAY, "Delay"},
         {STRING_FOR_DEFAULT_FX_DELAY_SYNC, "Sync"},
-        {STRING_FOR_DEFAULT_FX_DELAY_SYNC_TYPE, "Type"},
-        {STRING_FOR_DEFAULT_FX_DELAY_SYNC_LEVEL, "Rate"},
 
         {STRING_FOR_TRACK_STILL_HAS_CLIPS_IN_SESSION, "Track still has clips in session"},
         {STRING_FOR_DELETE_ALL_TRACKS_CLIPS_FIRST, "Delete all track's clips first"},

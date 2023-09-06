@@ -27,8 +27,7 @@
 #include "gui/menu_item/cv/volts.h"
 #include "gui/menu_item/decimal.h"
 #include "gui/menu_item/defaults/bend_range.h"
-#include "gui/menu_item/defaults/delay_sync_level.h"
-#include "gui/menu_item/defaults/delay_sync_type.h"
+#include "gui/menu_item/defaults/delay_sync.h"
 #include "gui/menu_item/defaults/magnitude.h"
 #include "gui/menu_item/defaults/scale.h"
 #include "gui/menu_item/defaults/velocity.h"
@@ -811,21 +810,12 @@ Submenu triggerClockMenu{
 };
 
 // Defaults menu
-defaults::DelaySyncType defaultDelaySyncTypeMenu{STRING_FOR_DEFAULT_FX_DELAY_SYNC_TYPE,
-                                                 STRING_FOR_DEFAULT_FX_DELAY_SYNC_TYPE};
-defaults::DelaySyncLevel defaultDelaySyncLevelMenu{STRING_FOR_DEFAULT_FX_DELAY_SYNC_LEVEL,
-                                                   STRING_FOR_DEFAULT_FX_DELAY_SYNC_LEVEL};
-
-Submenu defaultFXDelaySync{
-    STRING_FOR_DEFAULT_FX_DELAY_SYNC,
-    STRING_FOR_DEFAULT_FX_DELAY_SYNC,
-    {&defaultDelaySyncTypeMenu, &defaultDelaySyncLevelMenu},
-};
+defaults::DelaySync defaultDelaySyncMenu{STRING_FOR_DEFAULT_FX_DELAY_SYNC, STRING_FOR_DEFAULT_FX_DELAY_SYNC};
 
 Submenu defaultFXDelay{
     STRING_FOR_DEFAULT_FX_DELAY,
     STRING_FOR_DEFAULT_FX_DELAY,
-    {&defaultFXDelaySync},
+    {&defaultDelaySyncMenu},
 };
 
 Submenu defaultFX{
