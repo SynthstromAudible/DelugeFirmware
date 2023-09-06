@@ -27,6 +27,8 @@
 #include "gui/menu_item/cv/volts.h"
 #include "gui/menu_item/decimal.h"
 #include "gui/menu_item/defaults/bend_range.h"
+#include "gui/menu_item/defaults/delay_ping_pong.h"
+#include "gui/menu_item/defaults/delay_analog.h"
 #include "gui/menu_item/defaults/delay_sync.h"
 #include "gui/menu_item/defaults/magnitude.h"
 #include "gui/menu_item/defaults/scale.h"
@@ -810,12 +812,15 @@ Submenu triggerClockMenu{
 };
 
 // Defaults menu
-defaults::DelaySync defaultDelaySyncMenu{STRING_FOR_SYNC, STRING_FOR_SYNC};
+
+defaults::DelayPingPong defaultDelayPingPongMenu{STRING_FOR_PINGPONG, STRING_FOR_DELAY_PINGPONG};
+defaults::DelayAnalog defaultDelayAnalogMenu{STRING_FOR_TYPE, STRING_FOR_DELAY_TYPE};
+defaults::DelaySync defaultDelaySyncMenu{STRING_FOR_SYNC, STRING_FOR_DELAY_SYNC};
 
 Submenu defaultFXDelay{
     STRING_FOR_DELAY,
     STRING_FOR_DELAY,
-    {&defaultDelaySyncMenu},
+    {&defaultDelayPingPongMenu, &defaultDelayAnalogMenu, &defaultDelaySyncMenu},
 };
 
 Submenu defaultFX{

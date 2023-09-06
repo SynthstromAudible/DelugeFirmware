@@ -136,6 +136,8 @@ uint8_t defaultBendRange[2] = {
 
 SyncType defaultDelaySyncType;
 SyncLevel defaultDelaySyncLevel;
+bool defaultDelayPingPong;
+bool defaultDelayAnalog;
 
 void resetSettings() {
 
@@ -202,7 +204,9 @@ void resetSettings() {
 	defaultBendRange[BEND_RANGE_MAIN] = 2;
 
 	defaultDelaySyncType = SYNC_TYPE_EVEN;
-	defaultDelaySyncLevel = SYNC_LEVEL_16TH;
+	defaultDelaySyncLevel = SYNC_LEVEL_32ND;
+	defaultDelayPingPong = true;
+	defaultDelayAnalog = false;
 }
 
 void readSettings() {
@@ -394,6 +398,8 @@ void readSettings() {
 
 	defaultDelaySyncType = static_cast<SyncType>(buffer[119]);
 	defaultDelaySyncLevel = static_cast<SyncLevel>(buffer[120]);
+	defaultDelayPingPong = static_cast<bool>(buffer[121]);
+	defaultDelayAnalog = static_cast<bool>(buffer[122]);
 }
 
 void writeSettings() {

@@ -27,8 +27,8 @@
 #include "util/functions.h"
 
 Delay::Delay() {
-	pingPong = true;
-	analog = false;
+	pingPong = FlashStorage::defaultDelayPingPong;
+	analog = FlashStorage::defaultDelayAnalog;
 	repeatsUntilAbandon = 0;
 	prevFeedback = 0;
 

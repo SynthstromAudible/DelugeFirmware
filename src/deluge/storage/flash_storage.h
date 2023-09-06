@@ -38,6 +38,8 @@ extern bool settingsBeenRead;
 extern uint8_t defaultBendRange[2];
 extern SyncType defaultDelaySyncType;
 extern SyncLevel defaultDelaySyncLevel;
+extern bool defaultDelayPingPong;
+extern bool defaultDelayAnalog;
 
 void readSettings();
 void writeSettings();
