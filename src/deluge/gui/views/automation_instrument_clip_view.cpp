@@ -985,23 +985,22 @@ void AutomationInstrumentClipView::getParameterName(char* parameterName) {
 
 //adjust the LED meters
 void AutomationInstrumentClipView::displayAutomation() {
+	if (!isOnAutomationOverview()) {
 
-	if (!multiPadPressSelected) {
+		if (!padSelectionOn && !isUIModeActive(UI_MODE_NOTES_PRESSED)) {
 
-		InstrumentClip* clip = getCurrentClip();
-
-		if (!isOnAutomationOverview()) {
+			InstrumentClip* clip = getCurrentClip();
 
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 			ModelStackWithAutoParam* modelStackWithParam =
-			    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID, clip->lastSelectedParamKind);
+				getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID, clip->lastSelectedParamKind);
 
 			if (modelStackWithParam && modelStackWithParam->autoParam) {
 
 				if (modelStackWithParam->getTimelineCounter()
-				    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+					== view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 
 					int32_t knobPos = getParameterKnobPos(modelStackWithParam, view.modPos);
 
@@ -1014,8 +1013,7 @@ void AutomationInstrumentClipView::displayAutomation() {
 						renderDisplay();
 					}
 
-					indicator_leds::setKnobIndicatorLevel(0, knobPos + kKnobPosOffset);
-					indicator_leds::setKnobIndicatorLevel(1, knobPos + kKnobPosOffset);
+					setKnobIndicatorLevels(knobPos + kKnobPosOffset);
 				}
 			}
 		}
@@ -2444,8 +2442,7 @@ void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int
 						return;
 					}
 					else if (padSelectionOn) {
-						indicator_leds::setKnobIndicatorLevel(0, newKnobPos + kKnobPosOffset);
-						indicator_leds::setKnobIndicatorLevel(1, newKnobPos + kKnobPosOffset);
+						setKnobIndicatorLevels(newKnobPos + kKnobPosOffset);
 					}
 				}
 			}
@@ -2489,7 +2486,10 @@ void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int
 					//	displayAutomation();
 					//}
 					//displayParameterValue(newKnobPos + kKnobPosOffset);
-					renderDisplay(newKnobPos + kKnobPosOffset);
+					if (!playbackHandler.isEitherClockActive()) {
+						renderDisplay(newKnobPos + kKnobPosOffset);
+						setKnobIndicatorLevels(newKnobPos + kKnobPosOffset);
+					}
 					//indicator_leds::setKnobIndicatorLevel(0, newKnobPos + kKnobPosOffset);
 					//indicator_leds::setKnobIndicatorLevel(1, newKnobPos + kKnobPosOffset);
 				}
@@ -3065,7 +3065,7 @@ bool AutomationInstrumentClipView::getNodeInterpolation(ModelStackWithAutoParam*
 //this function writes the new values calculated by the handleSinglePadPress and handleMultiPadPress functions
 void AutomationInstrumentClipView::setParameterAutomationValue(ModelStackWithAutoParam* modelStack, int32_t knobPos,
                                                                int32_t squareStart, int32_t xDisplay,
-                                                               int32_t effectiveLength, bool displayValue) {
+                                                               int32_t effectiveLength) {
 
 	int32_t newValue = modelStack->paramCollection->knobPosToParamValue(knobPos, modelStack);
 
@@ -3113,10 +3113,18 @@ void AutomationInstrumentClipView::setParameterAutomationValue(ModelStackWithAut
 	modelStack->getTimelineCounter()->instrumentBeenEdited();
 
 	//in a multi pad press, no need to display all the values calculated
-	if (displayValue) {
+	if (!multiPadPressSelected) {
 		renderDisplay(knobPos + kKnobPosOffset);
+		setKnobIndicatorLevels(knobPos + kKnobPosOffset);
 		//displayParameterValue(knobPos + kKnobPosOffset);
 	}
+}
+
+void AutomationInstrumentClipView::setKnobIndicatorLevels(int32_t knobPos) {
+
+	indicator_leds::setKnobIndicatorLevel(0, knobPos);
+	indicator_leds::setKnobIndicatorLevel(1, knobPos);
+
 }
 
 //takes care of setting the automation value for the single pad that was pressed
@@ -3250,6 +3258,7 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 
 			int32_t knobPos = getParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
 			renderDisplay(knobPos);
+			setKnobIndicatorLevels(knobPos);
 			//displayParameterValue(knobPos);
 
 			if (!playbackHandler.isEitherClockActive()) {
@@ -3377,12 +3386,12 @@ void AutomationInstrumentClipView::handleMultiPadPress(ModelStackWithTimelineCou
 
 			uint32_t squareStart = getPosFromSquare(firstPadX);
 			setParameterAutomationValue(modelStackWithParam, firstPadValue - kKnobPosOffset, squareStart, firstPadX,
-			                            effectiveLength, false);
+			                            effectiveLength);
 
 			//set value for ending pad press at the very last node position within that pad
 			squareStart = std::min(effectiveLength, squareRightEdge) - kParamNodeWidth;
 			setParameterAutomationValue(modelStackWithParam, secondPadValue - kKnobPosOffset, squareStart, secondPadX,
-			                            effectiveLength, false);
+			                            effectiveLength);
 
 			//loop from first pad to last pad, setting values for nodes in between
 			//these values will serve as "key frames" for the interpolation to flow through
