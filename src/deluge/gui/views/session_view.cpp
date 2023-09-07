@@ -3524,6 +3524,14 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 }
 
 ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on, Clip* clip) {
+	if (on && playbackHandler.playbackState && currentPlaybackMode == &arrangement) {
+		if (currentUIMode == UI_MODE_NONE) {
+			playbackHandler.switchToSession();
+		}
+
+		return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
+	}
+
 	// Left sidebar column (sections)
 	if (x == kDisplayWidth) {
 		// Get pressed section
@@ -3561,14 +3569,8 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 		return ActionResult::DEALT_WITH;
 	}
 
-	if (playbackHandler.playbackState && currentPlaybackMode == &arrangement) {
-		if (currentUIMode == UI_MODE_NONE) {
-			playbackHandler.switchToSession();
-		}
-	}
-
 	// Normal arming, handle cases normally in View::clipStatusPadAction
-	else if (!Buttons::isButtonPressed(deluge::hid::button::SHIFT)) {
+	if (!Buttons::isButtonPressed(deluge::hid::button::SHIFT)) {
 		if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING) {
 			// Here I removed the overdubbing settings
 			clip->armedForRecording = !clip->armedForRecording;
