@@ -3414,13 +3414,15 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 	}
 
 	// Learn MIDI for tracks
-	if (currentUIMode == UI_MODE_MIDI_LEARN && clip != nullptr && clip->type != CLIP_TYPE_AUDIO) {
-		// Learn + Holding pad = Learn MIDI channel
-		Output* output = gridTrackFromX(x, gridTrackCount());
-		if (output
-		    && (output->type == InstrumentType::SYNTH || output->type == InstrumentType::MIDI_OUT
-		        || output->type == InstrumentType::CV)) {
-			view.melodicInstrumentMidiLearnPadPressed(on, (MelodicInstrument*)output);
+	if (currentUIMode == UI_MODE_MIDI_LEARN) {
+		if(clip != nullptr && clip->type != CLIP_TYPE_AUDIO) {
+			// Learn + Holding pad = Learn MIDI channel
+			Output* output = gridTrackFromX(x, gridTrackCount());
+			if (output
+				&& (output->type == InstrumentType::SYNTH || output->type == InstrumentType::MIDI_OUT
+					|| output->type == InstrumentType::CV)) {
+				view.melodicInstrumentMidiLearnPadPressed(on, (MelodicInstrument*)output);
+			}
 		}
 
 		return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
@@ -3536,7 +3538,7 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 	}
 
 	// Learn MIDI ARM
-	if (currentUIMode == UI_MODE_MIDI_LEARN && clip->type != CLIP_TYPE_AUDIO) {
+	if (currentUIMode == UI_MODE_MIDI_LEARN) {
 		view.clipStatusMidiLearnPadPressed(on, clip);
 		return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 	}
