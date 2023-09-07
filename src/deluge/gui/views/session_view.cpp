@@ -3068,6 +3068,10 @@ Clip* SessionView::gridCreateClipInTrack(Output* targetOutput) {
 		}
 	}
 
+	if (sourceClip == nullptr && targetOutput->activeClip != nullptr) {
+		sourceClip = targetOutput->activeClip;
+	}
+
 	if (sourceClip == nullptr) {
 		return nullptr;
 	}
