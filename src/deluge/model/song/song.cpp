@@ -130,7 +130,7 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	// Setup reverb temp variables
 	uint8_t preset = FlashStorage::defaultReverbRoomPreset;
 	if (preset >= NUM_PRESET_REVERBS) {
-		preset = 1; // if out-of-bounds, default to Medium Room preset
+		preset = 0;
 	}
 	reverbRoomSize = (float)presetReverbRoomSize[preset] / 50;
 	reverbDamp = (float)presetReverbDampening[preset] / 50;
