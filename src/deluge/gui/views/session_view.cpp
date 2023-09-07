@@ -3557,8 +3557,14 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 		return ActionResult::DEALT_WITH;
 	}
 
+	if (playbackHandler.playbackState && currentPlaybackMode == &arrangement) {
+		if (currentUIMode == UI_MODE_NONE) {
+			playbackHandler.switchToSession();
+		}
+	}
+
 	// Normal arming, handle cases normally in View::clipStatusPadAction
-	if (!Buttons::isButtonPressed(deluge::hid::button::SHIFT)) {
+	else if (!Buttons::isButtonPressed(deluge::hid::button::SHIFT)) {
 		if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING) {
 			// Here I removed the overdubbing settings
 			clip->armedForRecording = !clip->armedForRecording;
