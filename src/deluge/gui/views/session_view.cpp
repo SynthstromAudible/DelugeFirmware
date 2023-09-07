@@ -2892,6 +2892,7 @@ Clip* SessionView::getClipForLayout() {
 
 void SessionView::selectLayout(int8_t offset) {
 	gridResetPresses();
+	gridModeActive = gridModeSelected;
 
 	// Layout change
 	if (offset != 0) {
