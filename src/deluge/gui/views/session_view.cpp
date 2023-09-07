@@ -3454,6 +3454,10 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 				}
 			}
 
+			if (clip == nullptr) {
+				return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
+			}
+
 			// Open audio source selector for audio rows
 			if (currentUIMode == UI_MODE_MIDI_LEARN && clip->type == CLIP_TYPE_AUDIO) {
 				view.endMIDILearn();
