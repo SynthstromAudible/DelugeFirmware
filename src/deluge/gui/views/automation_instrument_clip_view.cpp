@@ -716,16 +716,7 @@ void AutomationInstrumentClipView::renderAutomationEditor(ModelStackWithTimeline
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 
-		int32_t effectiveLength;
-
-		if (instrument->type == InstrumentType::KIT && !instrumentClipView.getAffectEntire()) {
-			ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowForSelectedDrum(modelStack);
-
-			effectiveLength = modelStackWithNoteRow->getLoopLength();
-		}
-		else {
-			effectiveLength = clip->loopLength;
-		}
+		int32_t effectiveLength = getEffectiveLength(modelStack);
 
 		renderRow(modelStackWithParam, image, occupancyMask, true, effectiveLength, true, xScroll, xZoom, 0,
 		          renderWidth, false, yDisplay, modelStackWithParam->autoParam->isAutomated());
@@ -1594,17 +1585,7 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 					    getParameterKnobPos(modelStackWithParam, getPosFromSquare(leftPadSelectedX)) + kKnobPosOffset;
 					indicator_leds::setKnobIndicatorLevel(0, knobPosLeft);
 
-					int32_t effectiveLength;
-
-					if (instrument->type == InstrumentType::KIT && !instrumentClipView.getAffectEntire()) {
-						ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowForSelectedDrum(modelStack);
-
-						effectiveLength = modelStackWithNoteRow->getLoopLength();
-					}
-					else {
-						//this will differ for a kit when in note row mode
-						effectiveLength = clip->loopLength;
-					}
+					int32_t effectiveLength = getEffectiveLength(modelStack);
 
 					int32_t squareRightEdge = getPosFromSquare(rightPadSelectedX + 1);
 					uint32_t squareStart = std::min(effectiveLength, squareRightEdge) - kParamNodeWidth;
@@ -1689,6 +1670,25 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 			if (!playbackHandler.isEitherClockActive()) {
 				if (!multiPadPressSelected) {
 					displayAutomation(padSelectionOn);
+				}
+				else if (display->haveOLED()) {
+					ModelStackWithAutoParam* modelStackWithParam =
+						getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID, clip->lastSelectedParamKind);
+
+					if (modelStackWithParam && modelStackWithParam->autoParam) {
+						int32_t effectiveLength = getEffectiveLength(modelStack);
+
+						int32_t knobPosLeft =
+							getParameterKnobPos(modelStackWithParam, getPosFromSquare(leftPadSelectedX)) + kKnobPosOffset;
+						indicator_leds::setKnobIndicatorLevel(0, knobPosLeft);
+
+						int32_t squareRightEdge = getPosFromSquare(rightPadSelectedX + 1);
+						uint32_t squareStart = std::min(effectiveLength, squareRightEdge) - kParamNodeWidth;
+						int32_t knobPosRight = getParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
+						indicator_leds::setKnobIndicatorLevel(1, knobPosRight);
+
+						renderDisplay(knobPosLeft, knobPosRight);	
+					}			
 				}
 			}
 		}
@@ -2054,17 +2054,7 @@ void AutomationInstrumentClipView::shiftAutomationHorizontally(int32_t offset) {
 
 			uint32_t squareStart = getPosFromSquare(xDisplay);
 
-			int32_t effectiveLength;
-
-			if (instrument->type == InstrumentType::KIT && !instrumentClipView.getAffectEntire()) {
-				ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowForSelectedDrum(modelStack);
-
-				effectiveLength = modelStackWithNoteRow->getLoopLength();
-			}
-			else {
-				//this will differ for a kit when in note row mode
-				effectiveLength = clip->loopLength;
-			}
+			int32_t effectiveLength = getEffectiveLength(modelStack);
 
 			if (squareStart < effectiveLength) {
 				modelStackWithParam->autoParam->shiftHorizontally(offset, effectiveLength);
@@ -2413,16 +2403,7 @@ void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int
 					}
 				}
 
-				int32_t effectiveLength = 0;
-
-				if (instrument->type == InstrumentType::KIT && !instrumentClipView.getAffectEntire()) {
-					ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowForSelectedDrum(modelStack);
-
-					effectiveLength = modelStackWithNoteRow->getLoopLength();
-				}
-				else {
-					effectiveLength = clip->loopLength;
-				}
+				int32_t effectiveLength = getEffectiveLength(modelStack);
 
 				uint32_t squareStart = 0;
 
@@ -3059,6 +3040,28 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
 	return modelStackWithParam;
 }
 
+//calculates the length of the clip or the length of the kit row
+//if you're in a synth clip, kit clip with affect entire enabled or midi clip it returns clip length
+//if you're in a kit clip with affect entire disabled and a row selected, it returns kit row length
+int32_t AutomationInstrumentClipView::getEffectiveLength(ModelStackWithTimelineCounter* modelStack) {
+	InstrumentClip* clip = getCurrentClip();
+	Instrument* instrument = (Instrument*)clip->output;
+
+	int32_t effectiveLength = 0;
+
+	if (instrument->type == InstrumentType::KIT && !instrumentClipView.getAffectEntire()) {
+		ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowForSelectedDrum(modelStack);
+
+		effectiveLength = modelStackWithNoteRow->getLoopLength();
+	}
+	else {
+		//this will differ for a kit when in note row mode
+		effectiveLength = clip->loopLength;
+	}
+
+	return effectiveLength;
+}
+
 //this function obtains a parameters value and converts it to a knobPos
 //the knobPos is used for rendering the current parameter values in the automation editor
 //it's also used for obtaining the start and end position values for a multi pad press
@@ -3263,16 +3266,7 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 		if (padSelectionOn) {
 			//display pad's value
 
-			int32_t effectiveLength;
-
-			if (instrument->type == InstrumentType::KIT && !instrumentClipView.getAffectEntire()) {
-				ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowForSelectedDrum(modelStack);
-
-				effectiveLength = modelStackWithNoteRow->getLoopLength();
-			}
-			else {
-				effectiveLength = clip->loopLength;
-			}
+			int32_t effectiveLength = getEffectiveLength(modelStack);
 
 			uint32_t squareStart = 0;
 
@@ -3321,16 +3315,7 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 
 			uint32_t squareStart = getPosFromSquare(xDisplay);
 
-			int32_t effectiveLength;
-
-			if (instrument->type == InstrumentType::KIT && !instrumentClipView.getAffectEntire()) {
-				ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowForSelectedDrum(modelStack);
-
-				effectiveLength = modelStackWithNoteRow->getLoopLength();
-			}
-			else {
-				effectiveLength = clip->loopLength;
-			}
+			int32_t effectiveLength = getEffectiveLength(modelStack);
 
 			if (squareStart < effectiveLength) {
 
@@ -3380,16 +3365,7 @@ void AutomationInstrumentClipView::handleMultiPadPress(ModelStackWithTimelineCou
 
 		if (modelStackWithParam && modelStackWithParam->autoParam) {
 
-			int32_t effectiveLength = 0;
-
-			if (instrument->type == InstrumentType::KIT && !instrumentClipView.getAffectEntire()) {
-				ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowForSelectedDrum(modelStack);
-
-				effectiveLength = modelStackWithNoteRow->getLoopLength();
-			}
-			else {
-				effectiveLength = clip->loopLength;
-			}
+			int32_t effectiveLength = getEffectiveLength(modelStack);
 
 			int32_t firstPadValue = 0;
 			int32_t secondPadValue = 0;
