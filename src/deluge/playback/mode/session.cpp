@@ -1162,7 +1162,7 @@ void Session::armSectionWhenNeitherClockActive(ModelStack* modelStack, int32_t s
 // Updates LEDs after arming changed
 void Session::armingChanged() {
 	if (getRootUI() == &sessionView) {
-		if(currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 			uiNeedsRendering(&sessionView, 0xFFFFFFFF, 0xFFFFFFFF);
 		}
 		else {
