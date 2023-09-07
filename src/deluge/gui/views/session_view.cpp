@@ -995,6 +995,10 @@ void SessionView::clipPressEnded() {
 		}
 	}
 
+	if (currentUIMode == UI_MODE_EXPLODE_ANIMATION) {
+		return;
+	}
+
 	currentUIMode = UI_MODE_NONE;
 	view.setActiveModControllableTimelineCounter(currentSong);
 	if (display->haveOLED()) {
@@ -3415,12 +3419,12 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 
 	// Learn MIDI for tracks
 	if (currentUIMode == UI_MODE_MIDI_LEARN) {
-		if(clip != nullptr && clip->type != CLIP_TYPE_AUDIO) {
+		if (clip != nullptr && clip->type != CLIP_TYPE_AUDIO) {
 			// Learn + Holding pad = Learn MIDI channel
 			Output* output = gridTrackFromX(x, gridTrackCount());
 			if (output
-				&& (output->type == InstrumentType::SYNTH || output->type == InstrumentType::MIDI_OUT
-					|| output->type == InstrumentType::CV)) {
+			    && (output->type == InstrumentType::SYNTH || output->type == InstrumentType::MIDI_OUT
+			        || output->type == InstrumentType::CV)) {
 				view.melodicInstrumentMidiLearnPadPressed(on, (MelodicInstrument*)output);
 			}
 		}
