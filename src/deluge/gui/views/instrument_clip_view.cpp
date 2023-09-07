@@ -2161,58 +2161,63 @@ multiplePresses:
 
 		// Decide the probability, based on the existing probability of the leftmost note
 		probabilityValue = editPadPresses[leftMostIndex].intendedProbability & 127;
-		probabilityValue += offset;
-		probabilityValue = std::clamp<int32_t>(probabilityValue, 0, kNumProbabilityValues + kNumIterationValues);
 
-		Action* action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
-		if (!action) {
-			return;
-		}
+		// If editing, continue edit
+		if (display->hasPopup()) {
+			Action* action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
+			if (!action) {
+				return;
+			}
 
-		// Set the probability of the other presses, and update all probabilities with the actual notes
-		for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
-			if (editPadPresses[i].isActive) {
+			// Add the offset to the probability
+			probabilityValue += offset;
+			probabilityValue = std::clamp<int32_t>(probabilityValue, 0, kNumProbabilityValues + kNumIterationValues);
 
-				// Update probability
-				editPadPresses[i].intendedProbability = probabilityValue;
+			// Set the probability of the other presses, and update all probabilities with the actual notes
+			for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
+				if (editPadPresses[i].isActive) {
 
-				int32_t noteRowIndex;
-				NoteRow* noteRow =
-				    getCurrentClip()->getNoteRowOnScreen(editPadPresses[i].yDisplay, currentSong, &noteRowIndex);
-				int32_t noteRowId = getCurrentClip()->getNoteRowId(noteRow, noteRowIndex);
+					// Update probability
+					editPadPresses[i].intendedProbability = probabilityValue;
 
-				ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, noteRow);
+					int32_t noteRowIndex;
+					NoteRow* noteRow =
+					    getCurrentClip()->getNoteRowOnScreen(editPadPresses[i].yDisplay, currentSong, &noteRowIndex);
+					int32_t noteRowId = getCurrentClip()->getNoteRowId(noteRow, noteRowIndex);
 
-				// "blurred square" with multiple notes
-				if (editPadPresses[i].isBlurredSquare) {
+					ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, noteRow);
 
-					int32_t noteI = noteRow->notes.search(editPadPresses[i].intendedPos, GREATER_OR_EQUAL);
-					Note* note = noteRow->notes.getElement(noteI);
-					while (note && note->pos - editPadPresses[i].intendedPos < editPadPresses[i].intendedLength) {
+					// "blurred square" with multiple notes
+					if (editPadPresses[i].isBlurredSquare) {
 
+						int32_t noteI = noteRow->notes.search(editPadPresses[i].intendedPos, GREATER_OR_EQUAL);
+						Note* note = noteRow->notes.getElement(noteI);
+						while (note && note->pos - editPadPresses[i].intendedPos < editPadPresses[i].intendedLength) {
+
+							// And if not one of the leftmost notes, make it a prev-base one - if we're doing actual percentage probabilities
+							if (probabilityValue > 0 && probabilityValue < kNumProbabilityValues
+							    && note->pos != leftMostPos) {
+								editPadPresses[i].intendedProbability |= 128; // This isn't perfect...
+							}
+							noteRow->changeNotesAcrossAllScreens(note->pos, modelStackWithNoteRow, action,
+							                                     CORRESPONDING_NOTES_SET_PROBABILITY,
+							                                     editPadPresses[i].intendedProbability);
+
+							noteI++;
+							note = noteRow->notes.getElement(noteI);
+						}
+					}
+					// Or, just 1 note in square
+					else {
 						// And if not one of the leftmost notes, make it a prev-base one - if we're doing actual percentage probabilities
 						if (probabilityValue > 0 && probabilityValue < kNumProbabilityValues
-						    && note->pos != leftMostPos) {
-							editPadPresses[i].intendedProbability |= 128; // This isn't perfect...
+						    && editPadPresses[i].intendedPos != leftMostPos) {
+							editPadPresses[i].intendedProbability |= 128;
 						}
-						noteRow->changeNotesAcrossAllScreens(note->pos, modelStackWithNoteRow, action,
-						                                     CORRESPONDING_NOTES_SET_PROBABILITY,
+						noteRow->changeNotesAcrossAllScreens(editPadPresses[i].intendedPos, modelStackWithNoteRow,
+						                                     action, CORRESPONDING_NOTES_SET_PROBABILITY,
 						                                     editPadPresses[i].intendedProbability);
-
-						noteI++;
-						note = noteRow->notes.getElement(noteI);
 					}
-				}
-				// Or, just 1 note in square
-				else {
-					// And if not one of the leftmost notes, make it a prev-base one - if we're doing actual percentage probabilities
-					if (probabilityValue > 0 && probabilityValue < kNumProbabilityValues
-					    && editPadPresses[i].intendedPos != leftMostPos) {
-						editPadPresses[i].intendedProbability |= 128;
-					}
-					noteRow->changeNotesAcrossAllScreens(editPadPresses[i].intendedPos, modelStackWithNoteRow, action,
-					                                     CORRESPONDING_NOTES_SET_PROBABILITY,
-					                                     editPadPresses[i].intendedProbability);
 				}
 			}
 		}
@@ -2816,27 +2821,32 @@ void InstrumentClipView::setRowProbability(int32_t offset) {
 	if (!noteRow) {
 		return; // Get out if NoteRow doesn't exist and can't be created
 	}
-	Action* action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
-	if (!action) {
-		return;
-	}
-
-	action->recordNoteArrayChangeIfNotAlreadySnapshotted((InstrumentClip*)modelStack->getTimelineCounter(),
-	                                                     modelStackWithNoteRow->noteRowId, &noteRow->notes,
-	                                                     false); // Snapshot for undoability. Don't steal data.
 
 	uint8_t probabilityValue = noteRow->probabilityValue;
-	bool prevBase = false;
-	// Covers the probabilities and iterations
-	probabilityValue = std::clamp<int32_t>((int32_t)probabilityValue + offset, (int32_t)0,
-	                                       kNumProbabilityValues + kNumIterationValues);
 
-	noteRow->probabilityValue = probabilityValue;
+	// If editing, continue edit
+	if (display->hasPopup()) {
+		Action* action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
+		if (!action) {
+			return;
+		}
 
-	uint32_t numNotes = noteRow->notes.getNumElements();
-	for (int i = 0; i < numNotes; i++) {
-		Note* note = noteRow->notes.getElement(i);
-		note->setProbability(probabilityValue);
+		action->recordNoteArrayChangeIfNotAlreadySnapshotted((InstrumentClip*)modelStack->getTimelineCounter(),
+		                                                     modelStackWithNoteRow->noteRowId, &noteRow->notes,
+		                                                     false); // Snapshot for undoability. Don't steal data.
+
+		bool prevBase = false;
+		// Covers the probabilities and iterations
+		probabilityValue = std::clamp<int32_t>((int32_t)probabilityValue + offset, (int32_t)0,
+		                                       kNumProbabilityValues + kNumIterationValues);
+
+		noteRow->probabilityValue = probabilityValue;
+
+		uint32_t numNotes = noteRow->notes.getNumElements();
+		for (int i = 0; i < numNotes; i++) {
+			Note* note = noteRow->notes.getElement(i);
+			note->setProbability(probabilityValue);
+		}
 	}
 	displayProbability(probabilityValue, false);
 }
