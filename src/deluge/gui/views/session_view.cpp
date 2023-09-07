@@ -985,6 +985,16 @@ void SessionView::clipPressEnded() {
 		    ->endStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
 	}
 
+	if (isUIModeActive(UI_MODE_HOLDING_SECTION_PAD)) {
+		exitUIMode(UI_MODE_HOLDING_SECTION_PAD);
+		if (display->haveOLED()) {
+			deluge::hid::display::OLED::removePopup();
+		}
+		else {
+			redrawNumericDisplay();
+		}
+	}
+
 	currentUIMode = UI_MODE_NONE;
 	view.setActiveModControllableTimelineCounter(currentSong);
 	if (display->haveOLED()) {
@@ -2923,7 +2933,7 @@ bool SessionView::gridRenderSidebar(uint32_t whichRows, uint8_t image[][kDisplay
 		hueToRGB(defaultClipGroupColours[gridSectionFromY(y)], ptrSectionColour);
 		colorCopy(ptrSectionColour, ptrSectionColour, 255, 2);
 
-		if (view.midiLearnFlashOn && !Buttons::isButtonPressed(deluge::hid::button::SHIFT)) {
+		if (view.midiLearnFlashOn && gridModeActive == SessionGridModeLaunch) {
 			// MIDI colour if necessary
 			if (currentSong->sections[section].launchMIDICommand.containsSomething()) {
 				ptrSectionColour[0] = midiCommandColour.r;
@@ -2978,7 +2988,6 @@ bool SessionView::gridRenderMainPads(uint32_t whichRows, uint8_t image[][kDispla
 
 	// Iterate over all clips and render them where they are
 	auto trackCount = gridTrackCount();
-	bool shiftPressed = Buttons::isButtonPressed(deluge::hid::button::SHIFT);
 
 	PadLEDs::renderingLock = true;
 
@@ -2998,10 +3007,10 @@ bool SessionView::gridRenderMainPads(uint32_t whichRows, uint8_t image[][kDispla
 			occupancyMask[y][x] = 64;
 			auto* ptrClipColour = image[y][x];
 
-			view.getClipMuteSquareColour(clip, ptrClipColour, true, !shiftPressed);
+			view.getClipMuteSquareColour(clip, ptrClipColour, true, gridModeActive == SessionGridModeLaunch);
 
 			// If we should MIDI learn flash and shift is pressed (different learn layer)
-			if (view.midiLearnFlashOn && shiftPressed && clip->output != nullptr) {
+			if (view.midiLearnFlashOn && gridModeActive == SessionGridModeEdit && clip->output != nullptr) {
 				// If user assigning MIDI controls and this Clip has a command assigned, flash pink
 				InstrumentType type = clip->output->type;
 				bool canLearn =
@@ -3406,7 +3415,7 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 
 	// Learn MIDI for tracks
 	if (currentUIMode == UI_MODE_MIDI_LEARN && clip != nullptr && clip->type != CLIP_TYPE_AUDIO) {
-		// Shift + Learn + Holding pad = Learn MIDI channel
+		// Learn + Holding pad = Learn MIDI channel
 		Output* output = gridTrackFromX(x, gridTrackCount());
 		if (output
 		    && (output->type == InstrumentType::SYNTH || output->type == InstrumentType::MIDI_OUT
@@ -3522,7 +3531,7 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 		return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 	}
 
-	if (!on || clip == nullptr) {
+	if (clip == nullptr) {
 		return ActionResult::DEALT_WITH;
 	}
 
@@ -3530,6 +3539,11 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 	if (currentUIMode == UI_MODE_MIDI_LEARN && clip->type != CLIP_TYPE_AUDIO) {
 		view.clipStatusMidiLearnPadPressed(on, clip);
 		return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
+	}
+
+	// From here all actions only happen on press
+	if (!on) {
+		return ActionResult::DEALT_WITH;
 	}
 
 	// Normal arming, handle cases normally in View::clipStatusPadAction
