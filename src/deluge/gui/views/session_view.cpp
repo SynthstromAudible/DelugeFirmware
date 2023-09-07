@@ -3334,6 +3334,10 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 
+	if(currentUIMode == UI_MODE_EXPLODE_ANIMATION) {
+		return ActionResult::DEALT_WITH;
+	}
+
 	// Right sidebar column - action modes
 	if (x > kDisplayWidth) {
 		clipPressEnded();
