@@ -145,6 +145,7 @@ private:
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip,
 	                                                int32_t paramID = 0xFFFFFFFF,
 	                                                Param::Kind paramKind = Param::Kind::NONE);
+	int32_t getEffectiveLength(ModelStackWithTimelineCounter* modelStack);
 
 	void getParameterName(char* parameterName);
 	int32_t getParameterKnobPos(ModelStackWithAutoParam* modelStack, uint32_t pos);
