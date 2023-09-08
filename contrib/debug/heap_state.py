@@ -1,3 +1,7 @@
+# Usage from GDB:
+#   source ./contrib/debug/heap_state.py
+#   python
+#
 import itertools
 
 try:
@@ -5,17 +9,17 @@ try:
     import gdb
     import re
 
-    _SPACE_MATCHER = re.compile(r'0x([0-9a-fA-F]+) - 0x([0-9a-fA-F]+) is \.(.+)$')
+    _SPACE_MATCHER = re.compile(r"0x([0-9a-fA-F]+) - 0x([0-9a-fA-F]+) is \.(.+)$")
     HEAP_START = None
     HEAP_END = None
 
-    for line in gdb.execute('info files', to_string=True).split('\n'):
+    for line in gdb.execute("info files", to_string=True).split("\n"):
         m = _SPACE_MATCHER.search(line)
         if m is not None:
             (start, end, name) = m.groups()
-            if name == 'data':
+            if name == "data":
                 HEAP_START = int(end, 16)
-            elif name == 'program_stack':
+            elif name == "program_stack":
                 HEAP_END = int(start, 16)
 
     arch = gdb.selected_inferior().architecture()
@@ -37,7 +41,24 @@ try:
     TY_MemoryRegion = gdb.lookup_type("MemoryRegion")
     TY_GeneralMemoryAllocator = gdb.lookup_type("GeneralMemoryAllocator")
 
-    GMA_START_OFFSET = gdb.parse_and_eval("GeneralMemoryAllocator::get()::generalMemoryAllocator").address.cast(TY_UINT32)
+    # depending on optimization the GMA singleton can be a global function
+    # or inlined variable, in which case it will not get found by lookup
+    try:
+        GMA_START_OFFSET = gdb.lookup_global_symbol(
+            "GeneralMemoryAllocator::get()::generalMemoryAllocator"
+        ).address.cast(TY_UINT32)
+    except:
+        print("falling back to string parsing")
+        GMA_START_OFFSET = int(
+            gdb.execute(
+                "info var ^GeneralMemoryAllocator::get()::generalMemoryAllocator$",
+                to_string=True,
+            )
+            .split("\n")[3]
+            .split()[0],
+            16,
+        )
+
 except ModuleNotFoundError as e:
     gdb = None
 
@@ -313,19 +334,26 @@ def parse_memory_region(inferior, offset, mem_region_idx):
     )
 
     memory_val = bytes_as_uint32(inferior.read_memory(empty_offset + memory_offset, 4))
-    memory_start = bytes_as_uint32(inferior.read_memory(empty_offset + memory_start_offset, 4))
-    num_elements = bytes_as_uint32(inferior.read_memory(empty_offset + num_elements_offset, 4))
+    memory_start = bytes_as_uint32(
+        inferior.read_memory(empty_offset + memory_start_offset, 4)
+    )
+    num_elements = bytes_as_uint32(
+        inferior.read_memory(empty_offset + num_elements_offset, 4)
+    )
     element_size = bytes_as_uint32(
         inferior.read_memory(empty_offset + element_size_offset, 4)
     )
     words_in_key = bytes_as_uint32(
         inferior.read_memory(empty_offset + words_in_key_offset, 4)
     )
-    memory = inferior.read_memory(empty_offset, TY_OrderedResizeableArrayWithMultiWordKey.sizeof)
+    memory = inferior.read_memory(
+        empty_offset, TY_OrderedResizeableArrayWithMultiWordKey.sizeof
+    )
 
     MEM_REGION_NAMES = [
         "EXTERNAL",
         "INTERNAL",
+        "NONAUDIO",
     ]
     mem_region_name = MEM_REGION_NAMES[mem_region_idx]
 
@@ -333,12 +361,14 @@ def parse_memory_region(inferior, offset, mem_region_idx):
         f"== Memory Region {mem_region_name}: empty region list: {memory_val:08x}, count={num_elements}"
     )
     if words_in_key != 2:
-        print('Unexpected words_in_key', words_in_key, 'exiting early')
+        print("Unexpected words_in_key", words_in_key, "exiting early")
         return
 
     print("--- Empty regions:")
     for i in range(num_elements):
-        parse_empty_region(inferior, memory_val + (i + memory_start) * TY_EmptySpaceRecord.sizeof)
+        parse_empty_region(
+            inferior, memory_val + (i + memory_start) * TY_EmptySpaceRecord.sizeof
+        )
 
     print("--- Stealable regions:")
     parse_cache_manager(inferior, cache_manager_offset)
@@ -355,43 +385,65 @@ def parse_heap(inferior, start, end):
         block_header = bytes_as_uint32(inferior.read_memory(block_start, 4))
         length = block_header & ~SPACE_HEADER_BITS
         if length == 0:
-            print(f'{block_start:08x} - {block_start+4:08x} Zero-length block')
+            print(f"{block_start:08x} - {block_start+4:08x} Zero-length block")
             block_start += 4
         else:
-            block_footer = bytes_as_uint32(inferior.read_memory(block_start + length + 4, 4))
+            block_footer = bytes_as_uint32(
+                inferior.read_memory(block_start + length + 4, 4)
+            )
             footer_length = block_footer & ~SPACE_HEADER_BITS
             if footer_length != length:
-                print(f'{block_start:08x} - Possibly corrupt block {block_header:08x} {block_footer:08x}')
+                print(
+                    f"{block_start:08x} - Possibly corrupt block {block_header:08x} {block_footer:08x}"
+                )
             else:
                 block_mode = block_header & SPACE_HEADER_BITS
-                mode_string = ''
+                mode_string = ""
                 if block_mode == SPACE_HEADER_EMPTY:
-                    mode_string = 'EMPTY'
+                    mode_string = "EMPTY"
                 elif block_mode == SPACE_HEADER_STEALABLE:
-                    mode_string = 'STEALABLE'
+                    mode_string = "STEALABLE"
                 elif block_mode == SPACE_HEADER_ALLOCATED:
-                    mode_string = 'ALLOCATED'
+                    mode_string = "ALLOCATED"
                 else:
-                    mode_string = 'STEALABLE|ALLOCATED'
-                print(f'{block_start+4:08x} - {block_start+length+4:08x} {length:8x} {mode_string}')
+                    mode_string = "STEALABLE|ALLOCATED"
+                print(
+                    f"{block_start+4:08x} - {block_start+length+4:08x} {length:8x} {mode_string}"
+                )
 
             block_start += length + 8
 
-def parse_gma(inferior):
+
+def parse_gma(inferior=gdb.inferiors()[0]):
     # iterate over both memory regions
     regions_offset = find_field(TY_GeneralMemoryAllocator, "regions").bitpos // 8
-    for i in range(2):
+    for i in range(3):
         parse_memory_region(
             inferior, GMA_START_OFFSET + regions_offset + TY_MemoryRegion.sizeof * i, i
         )
 
     if HEAP_START is not None:
-        print('** External heap blocks:')
-        parse_heap(inferior, 0x0C000000, 0x10000000)
-        print('** Internal Heap blocks:')
+        EXTERNAL_MEMORY_START = 0x0C000000
+        EXTERNAL_MEMORY_END = 0x10000000
+        RESERVED_NONAUDIO_ALLOCATOR = 0x00100000
+
+        print("** External heap blocks:")
+        parse_heap(
+            inferior,
+            EXTERNAL_MEMORY_START,
+            EXTERNAL_MEMORY_END - RESERVED_NONAUDIO_ALLOCATOR,
+        )
+        print("** Nonaudio heap blocks:")
+        parse_heap(
+            inferior,
+            EXTERNAL_MEMORY_END - RESERVED_NONAUDIO_ALLOCATOR,
+            EXTERNAL_MEMORY_END,
+        )
+        print("** Internal Heap blocks:")
         parse_heap(inferior, HEAP_START, HEAP_END)
     else:
-        print('WARNING: no HEAP_START provided, not parsing')
+        print("WARNING: no HEAP_START provided, not parsing")
+
 
 def parse_args():
     import argparse
@@ -411,6 +463,7 @@ def main():
         inf = FakeInferior(inf.read(), 0x20020000)
 
     parse_gma(inf)
+
 
 if __name__ == "__main__" and gdb is None:
     main()
