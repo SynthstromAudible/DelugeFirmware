@@ -2,6 +2,8 @@
 #include "midi_device.h"
 #include "hid/display/display.h"
 #include "model/song/song.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
+#include "gui/views/instrument_clip_view.h"
 
 uint8_t scaleMap[7] = {0,5,1,2,3,4,6};
 uint8_t invScaleMap[7] = {0,2,3,4,5,1,6};
@@ -20,14 +22,15 @@ void MIDITranspose::doTranspose(MIDIDevice* newDevice, int32_t newChannel, int32
 
 	uint8_t indexInMode = currentSong->getYNoteIndexInMode(newNoteOrCC);
 
-	currentSong->transposeAllScaleModeClips(offset);
-
 	uint8_t currentMode = currentSong->getCurrentPresetScale();
-	if (currentMode < 7) {
+	if (indexInMode < 7 && currentMode < 7) {
+		currentSong->transposeAllScaleModeClips(offset);
 		currentMode = scaleMap[currentMode];
 		currentMode += indexInMode;
-		currentMode = invScaleMap[currentMode] % 7;
+		currentMode = invScaleMap[currentMode%7];
 		currentSong->setCurrentPresetScale(currentMode);
+		uiNeedsRendering(&keyboardScreen, 0xFFFFFFFF, 0);
+		uiNeedsRendering(&instrumentClipView);
 	}
 
 }
