@@ -2825,7 +2825,7 @@ void InstrumentClipView::setRowProbability(int32_t offset) {
 	uint8_t probabilityValue = noteRow->probabilityValue;
 
 	// If editing, continue edit
-	if (display->hasPopup()) {
+	if (isEditingRowProbability) {
 		Action* action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
 		if (!action) {
 			return;
@@ -2848,6 +2848,7 @@ void InstrumentClipView::setRowProbability(int32_t offset) {
 			note->setProbability(probabilityValue);
 		}
 	}
+	isEditingRowProbability = true;
 	displayProbability(probabilityValue, false);
 }
 
@@ -3358,6 +3359,7 @@ void InstrumentClipView::cancelAllAuditioning() {
 		memset(auditionPadIsPressed, 0, sizeof(auditionPadIsPressed));
 		reassessAllAuditionStatus();
 		exitUIMode(UI_MODE_AUDITIONING);
+		isEditingRowProbability = false;
 		uiNeedsRendering(this, 0, 0xFFFFFFFF);
 	}
 }
@@ -3500,6 +3502,7 @@ void InstrumentClipView::someAuditioningHasEnded(bool recalculateLastAuditionedN
 	// Or, if all auditioning now finished...
 	if (i == kDisplayHeight) {
 		exitUIMode(UI_MODE_AUDITIONING);
+		isEditingRowProbability = false;
 		auditioningSilently = false;
 
 		//check that you're not in automation instrument clip view and holding an automation pad down
