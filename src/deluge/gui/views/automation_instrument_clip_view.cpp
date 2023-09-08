@@ -898,7 +898,7 @@ void AutomationInstrumentClipView::renderDisplay(int32_t knobPosLeft, int32_t kn
 	}
 	//7SEG Display
 	else {
-		//display AUTO or CANT
+		//display OVERVIEW or CANT
 		if (isOnAutomationOverview() || (instrument->type == InstrumentType::CV)) {
 			if (instrument->type != InstrumentType::CV) {
 				display->setScrollingText(l10n::get(l10n::String::STRING_FOR_AUTOMATION_OVERVIEW));
@@ -1668,28 +1668,26 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 
 		if (!isOnAutomationOverview() && (currentUIMode != UI_MODE_NOTES_PRESSED)) {
 			lastPadSelectedKnobPos = kNoSelection;
-			if (!playbackHandler.isEitherClockActive()) {
-				if (!multiPadPressSelected) {
-					displayAutomation(padSelectionOn);
-				}
-				else if (display->haveOLED()) {
-					ModelStackWithAutoParam* modelStackWithParam =
-						getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID, clip->lastSelectedParamKind);
+			if (!multiPadPressSelected) {
+				displayAutomation(padSelectionOn);
+			}
+			else if (display->haveOLED()) {
+				ModelStackWithAutoParam* modelStackWithParam =
+					getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID, clip->lastSelectedParamKind);
 
-					if (modelStackWithParam && modelStackWithParam->autoParam) {
-						int32_t effectiveLength = getEffectiveLength(modelStack);
+				if (modelStackWithParam && modelStackWithParam->autoParam) {
+					int32_t effectiveLength = getEffectiveLength(modelStack);
 
-						int32_t knobPosLeft =
-							getParameterKnobPos(modelStackWithParam, getPosFromSquare(leftPadSelectedX)) + kKnobPosOffset;
-						indicator_leds::setKnobIndicatorLevel(0, knobPosLeft);
+					int32_t knobPosLeft =
+						getParameterKnobPos(modelStackWithParam, getPosFromSquare(leftPadSelectedX)) + kKnobPosOffset;
+					indicator_leds::setKnobIndicatorLevel(0, knobPosLeft);
 
-						int32_t squareRightEdge = getPosFromSquare(rightPadSelectedX + 1);
-						uint32_t squareStart = std::min(effectiveLength, squareRightEdge) - kParamNodeWidth;
-						int32_t knobPosRight = getParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
-						indicator_leds::setKnobIndicatorLevel(1, knobPosRight);
+					int32_t squareRightEdge = getPosFromSquare(rightPadSelectedX + 1);
+					uint32_t squareStart = std::min(effectiveLength, squareRightEdge) - kParamNodeWidth;
+					int32_t knobPosRight = getParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
+					indicator_leds::setKnobIndicatorLevel(1, knobPosRight);
 
-						renderDisplay(knobPosLeft, knobPosRight);
-					}
+					renderDisplay(knobPosLeft, knobPosRight);
 				}
 			}
 		}
