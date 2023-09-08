@@ -3428,13 +3428,22 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 
 	// Learn MIDI for tracks
 	if (currentUIMode == UI_MODE_MIDI_LEARN) {
-		if (clip != nullptr && clip->type != CLIP_TYPE_AUDIO) {
-			// Learn + Holding pad = Learn MIDI channel
-			Output* output = gridTrackFromX(x, gridTrackCount());
-			if (output
-			    && (output->type == InstrumentType::SYNTH || output->type == InstrumentType::MIDI_OUT
-			        || output->type == InstrumentType::CV)) {
-				view.melodicInstrumentMidiLearnPadPressed(on, (MelodicInstrument*)output);
+		if (clip != nullptr) {
+			if (clip->type != CLIP_TYPE_AUDIO) {
+				// Learn + Holding pad = Learn MIDI channel
+				Output* output = gridTrackFromX(x, gridTrackCount());
+				if (output
+				    && (output->type == InstrumentType::SYNTH || output->type == InstrumentType::MIDI_OUT
+				        || output->type == InstrumentType::CV)) {
+					view.melodicInstrumentMidiLearnPadPressed(on, (MelodicInstrument*)output);
+				}
+			}
+			else {
+				view.endMIDILearn();
+				gui::context_menu::audioInputSelector.audioOutput = (AudioOutput*)clip->output;
+				gui::context_menu::audioInputSelector.setupAndCheckAvailability();
+				openUI(&gui::context_menu::audioInputSelector);
+				return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 			}
 		}
 
@@ -3467,24 +3476,14 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 				return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 			}
 
-			// Open audio source selector for audio rows
-			if (currentUIMode == UI_MODE_MIDI_LEARN && clip->type == CLIP_TYPE_AUDIO) {
-				view.endMIDILearn();
-				gui::context_menu::audioInputSelector.audioOutput = (AudioOutput*)clip->output;
-				gui::context_menu::audioInputSelector.setupAndCheckAvailability();
-				openUI(&gui::context_menu::audioInputSelector);
-				return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
-			}
-			// Allow clip control
-			else {
-				currentUIMode = UI_MODE_CLIP_PRESSED_IN_SONG_VIEW;
-				performActionOnPadRelease = true;
-				selectedClipTimePressed = AudioEngine::audioSampleTimer;
-				view.setActiveModControllableTimelineCounter(clip);
-				view.displayOutputName(clip->output, true, clip);
-				if (display->haveOLED()) {
-					deluge::hid::display::OLED::sendMainImage();
-				}
+			// Allow clip control (selection)
+			currentUIMode = UI_MODE_CLIP_PRESSED_IN_SONG_VIEW;
+			performActionOnPadRelease = true;
+			selectedClipTimePressed = AudioEngine::audioSampleTimer;
+			view.setActiveModControllableTimelineCounter(clip);
+			view.displayOutputName(clip->output, true, clip);
+			if (display->haveOLED()) {
+				deluge::hid::display::OLED::sendMainImage();
 			}
 		}
 		// Remember the second press down if empty
