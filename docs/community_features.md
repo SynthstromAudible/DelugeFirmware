@@ -287,9 +287,9 @@ In the main menu of the deluge (accessed by pressing "SHIFT" + the "SELECT" knob
 
 * Drum Randomizer (DRUM)
 	* When On, the "AUDITION + RANDOM" shortcut is enabled.
-* Master Compressor (MAST)
+* Master Compressor (COMP)
 	* When On, the Master Compressor is enabled.
-* Fine Tempo Knob (FINE)
+* Fine Tempo Knob (TEMP)
 	* When On, the Fine Tempo change option is enabled.
 * Quantize (QUAN)
 	* When On, the Note Quantize shortcut is enabled.
@@ -297,32 +297,32 @@ In the main menu of the deluge (accessed by pressing "SHIFT" + the "SELECT" knob
 	* When On, Modulation Resolution is increased.
 * Catch Notes (CATC)
 	* When Off, existing "Catch Notes" behaviour is disabled.
-* Delete Unused Kit Rows (DELE)
+* Delete Unused Kit Rows (UNUS)
 	* When On, the Delete Unused Kit Rows shortcut (hold "KIT" then "SHIFT" + "SAVE/DELETE") is enabled.
-* Alternative Golden Knob Delay Params
+* Alternative Golden Knob Delay Params (DELA)
 	* When On, it changes the behaviour of the Mod Encoder button action from the default (PingPong and Type) to the alternative params (SyncType and SyncLevel).
-* Stutter Rate Quantize
+* Stutter Rate Quantize (STUT)
 	* When On, the ability to set the stutterer effect to be quantized to 4th, 8th, 16th, 32nd, and 64th rate when selecting it is enabled.
 * Automation (AUTO)
-	* Interpolation
+	* Interpolation (INTE)
 		* When On, Interpolation is on by default in the Automation Instrument Clip View.
 		* Note: This is just a default setting and can be overriden in the Automation Instrument Clip View using the Select encoder button.
-	* Clear Clip
+	* Clear Clip (CLEA)
 		* When On, clearing a clip in the regular Instrument Clip View will clear Notes and MPE, but not Automation.
 		* When On, to clear Non-MPE Automation you will need to enter the Automation Instrument Clip View.
-	* Nudge Note
+	* Nudge Note (NUDG)
 		* When On, nudging a note in the regular Instrument Clip View will nudge the Note and MPE, but not the Automation.
 		* When On, to nudge Non-MPE Automation, you will need to either Shift or Manually Edit the automation in the Automation Instrument Clip View.
-	* Shift Note
+	* Shift Note (SHIF)
 		* When On, shifting notes horizontally in the regular Instrument Clip View will shift the Notes and MPE, but not the Automation.
 		* When On, to shift Non-MPE Automation horizontally you will need to enter the Automation Instrument Clip View.
-* Allow Insecure Develop Sysex Messages
+* Allow Insecure Develop Sysex Messages (SYX)
   	* When On, the ability to load firmware over USB is enabled.
-* Sync Scaling Action
+* Sync Scaling Action (SCAL)
   	* When set to Fill, it changes the behaviour of the "SYNC-SCALING" button is changed to activate "FILL" mode. The original Sync Scaling button function is moved to "SHIFT" + "SYNC-SCALING".
-* Highlight Incoming Notes
+* Highlight Incoming Notes (HIGH)
   	* When On, In-Key and Isometric Keyboard layouts display incoming MIDI notes with their velocity.
-* Display Norns Layout
+* Display Norns Layout (NORN)
   	* When On, all incoming notes are rendered consecutively as white pads with velocity as brightness.
 
 ## 6. Sysex Handling
