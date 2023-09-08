@@ -1107,8 +1107,12 @@ ActionResult SessionView::timerCallback() {
 
 	case UI_MODE_NONE:
 		if (Buttons::isButtonPressed(deluge::hid::button::RECORD)) {
-			enterUIMode(UI_MODE_VIEWING_RECORD_ARMING);
-			PadLEDs::reassessGreyout(false);
+			if (currentSong->sessionLayout != SessionLayoutType::SessionLayoutTypeGrid
+			    || (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid
+			        && gridModeActive == SessionGridModeLaunch)) {
+				enterUIMode(UI_MODE_VIEWING_RECORD_ARMING);
+				PadLEDs::reassessGreyout(false);
+			}
 		case UI_MODE_VIEWING_RECORD_ARMING:
 			requestRendering(this, 0, 0xFFFFFFFF);
 			view.blinkOn = !view.blinkOn;
@@ -3606,6 +3610,10 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 }
 
 ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {
+	if (isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
+		display->cancelPopup();
+	}
+
 	gridResetPresses();
 	clipPressEnded();
 
