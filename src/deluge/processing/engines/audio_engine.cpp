@@ -125,6 +125,7 @@ int32_t cpuDireness = 0;
 uint32_t timeDirenessChanged;
 uint32_t timeThereWasLastSomeReverb = 0x8FFFFFFF;
 int32_t numSamplesLastTime;
+int32_t smoothedSamples;
 uint32_t nextVoiceState = 1;
 bool renderInStereo = true;
 bool bypassCulling = false;
@@ -274,7 +275,11 @@ Voice* cullVoice(bool saveVoice, bool justDoFastRelease) {
 				}
 
 #if ALPHA_OR_BETA_VERSION
-				Debug::print("soft-culled 1 voice. voices now: ");
+				Debug::print("soft-culled 1 voice.  numSamples: ");
+				Debug::print(smoothedSamples);
+
+				Debug::print(". voices left: ");
+
 				Debug::println(getNumVoices());
 #endif
 			}
@@ -397,13 +402,14 @@ void routine() {
 
 	numSamplesLastTime = numSamples;
 
+	smoothedSamples = (smoothedSamples + numSamples >> 1 + numSamplesLastTime >> 1) >> 1;
 	// Consider direness and culling - before increasing the number of samples
 	int32_t numSamplesLimit = 40; //storageManager.devVarC;
 	int32_t direnessThreshold = numSamplesLimit - 17;
 
-	if (numSamples >= direnessThreshold) { // 20
+	if (smoothedSamples >= direnessThreshold) { // 20
 
-		int32_t newDireness = numSamples - (direnessThreshold - 1);
+		int32_t newDireness = smoothedSamples - (direnessThreshold - 1);
 		if (newDireness > 14) {
 			newDireness = 14;
 		}
@@ -414,10 +420,10 @@ void routine() {
 		}
 
 		if (!bypassCulling) {
-			int32_t numSamplesOverLimit = numSamples - numSamplesLimit;
+			int32_t numSamplesOverLimit = smoothedSamples - numSamplesLimit;
 
 			// If it's real dire, do a proper immediate cull
-			if (numSamplesOverLimit >= 0) {
+			if (numSamplesOverLimit >= 10) {
 
 				int32_t numToCull = (numSamplesOverLimit >> 3) + 1;
 
@@ -442,7 +448,7 @@ void routine() {
 			}
 		}
 		else {
-			int32_t numSamplesOverLimit = numSamples - numSamplesLimit;
+			int32_t numSamplesOverLimit = smoothedSamples - numSamplesLimit;
 			if (numSamplesOverLimit >= 0) {
 				Debug::print("Won't cull, but numSamples is ");
 				Debug::println(numSamples);
@@ -450,7 +456,7 @@ void routine() {
 		}
 	}
 
-	else if (numSamples < direnessThreshold - 10) {
+	else if (smoothedSamples < direnessThreshold - 10) {
 
 		if ((int32_t)(audioSampleTimer - timeDirenessChanged) >= (kSampleRate >> 3)) { // Only if it's been long enough
 			timeDirenessChanged = audioSampleTimer;
