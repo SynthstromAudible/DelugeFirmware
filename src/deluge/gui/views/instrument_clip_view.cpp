@@ -2169,7 +2169,6 @@ multiplePresses:
 				return;
 			}
 
-			// Add the offset to the probability
 			probabilityValue += offset;
 			probabilityValue = std::clamp<int32_t>(probabilityValue, 0, kNumProbabilityValues + kNumIterationValues);
 
