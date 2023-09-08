@@ -231,7 +231,7 @@ uint32_t vtableAddress;
 
 class StealableTest : public Stealable {
 public:
-	void steal() {
+	void steal(char const* errorCode) {
 		//Stealable::steal();
 		testAllocations[testIndex] = 0;
 		GeneralMemoryAllocator::get().regions[MEMORY_REGION_SDRAM].numAllocations--;
@@ -391,8 +391,8 @@ void GeneralMemoryAllocator::test() {
 	Debug::println("GeneralMemoryAllocator::test()");
 
 	// Corrupt the crap out of these two so we know they can take it!
-	sampleManager.clusterSize = 0;
-	sampleManager.clusterSizeMagnitude = 0;
+	audioFileManager.clusterSize = 0;
+	audioFileManager.clusterSizeMagnitude = 0;
 
 	memset(testAllocations, 0, sizeof(testAllocations));
 
@@ -534,8 +534,8 @@ void GeneralMemoryAllocator::test() {
 						StealableTest* stealable = new (testAllocations[i]) StealableTest();
 						stealable->testIndex = i;
 
-						regions[getRegion(stealable)].stealableClusterQueues[0].addToEnd(stealable);
-
+						//regions[getRegion(stealable)].stealableClusterQueues[0].addToEnd(stealable);
+						putStealableInQueue(stealable, 0);
 						vtableAddress = *(uint32_t*)testAllocations[i];
 					}
 					else {
