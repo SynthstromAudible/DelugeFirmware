@@ -61,9 +61,9 @@ public:
 #if ALPHA_OR_BETA_VERSION
 	char const* name; // For debugging messages only.
 #endif
+	OrderedResizeableArrayWithMultiWordKey emptySpaces;
 
 private:
-	OrderedResizeableArrayWithMultiWordKey emptySpaces;
 	friend class CacheManager;
 	CacheManager cache_manager_;
 
