@@ -728,17 +728,10 @@ constexpr Language english{
 
         {STRING_FOR_SVF_BAND, "SVF Bandpass"},
         {STRING_FOR_SVF_NOTCH, "SVF Notch"},
-        {STRING_FOR_AUTOMATION, "AUTOMATION"},
         {STRING_FOR_LOOP_TOO_SHORT, "Loop too short"},
         {STRING_FOR_LOOP_HALVED, "Loop halved"},
         {STRING_FOR_LOOP_TOO_LONG, "Loop too long"},
         {STRING_FOR_LOOP_DOUBLED, "Loop doubled"},
-        {STRING_FOR_CANT_AUTOMATE_CV, "Can't Automate CV"},
-        {STRING_FOR_SHIFT_RIGHT, "Shift Right"},
-        {STRING_FOR_SHIFT_LEFT, "Shift Left"},
-        {STRING_FOR_INTERPOLATION_DISABLED, "Interpolation Off"},
-        {STRING_FOR_INTERPOLATION_ENABLED, "Interpolation On"},
-        {STRING_FOR_COMING_SOON, "Coming Soon"},
         {STRING_FOR_WAVEFOLD, "Wavefold"},
         {STRING_FOR_MOD_MATRIX, "Mod matrix"},
 
@@ -749,6 +742,21 @@ constexpr Language english{
 
         {STRING_FOR_GRAIN, "Grain"},
         {STRING_FOR_FILL, "Fill"},
+
+        /* Strings Specifically for Automation Instrument Clip View
+        * automation_instrument_clip_view.cpp
+        */
+
+        {STRING_FOR_AUTOMATION, "AUTOMATION"},
+        {STRING_FOR_AUTOMATION_OVERVIEW, "Automation Overview"},
+        {STRING_FOR_AUTOMATION_OFF, "(Not Automated)"},
+        {STRING_FOR_AUTOMATION_ON, "(Automated)"},
+        {STRING_FOR_COMING_SOON, "Coming Soon"},
+        {STRING_FOR_CANT_AUTOMATE_CV, "Can't Automate CV"},
+        {STRING_FOR_SHIFT_LEFT, "Shift Left"},
+        {STRING_FOR_SHIFT_RIGHT, "Shift Right"},
+        {STRING_FOR_INTERPOLATION_DISABLED, "Interpolation Off"},
+        {STRING_FOR_INTERPOLATION_ENABLED, "Interpolation On"},
         {STRING_FOR_PAD_SELECTION_OFF, "Pad Selection Off"},
         {STRING_FOR_PAD_SELECTION_ON, "Pad Selection On"},
     },

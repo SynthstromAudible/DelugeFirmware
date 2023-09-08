@@ -798,6 +798,7 @@ bool AutomationInstrumentClipView::renderSidebar(uint32_t whichRows, uint8_t ima
 	return instrumentClipView.renderSidebar(whichRows, image, occupancyMask);
 }
 
+//render's what is displayed on OLED or 7SEG screens when in Automation View
 void AutomationInstrumentClipView::renderDisplay(int32_t knobPosLeft, int32_t knobPosRight) {	
 	InstrumentClip* clip = getCurrentClip();
 	Instrument* instrument = (Instrument*)clip->output;
@@ -818,8 +819,7 @@ void AutomationInstrumentClipView::renderDisplay(int32_t knobPosLeft, int32_t kn
 			//display Automation Overview or Can't Automate CV
 			if (instrument->type != InstrumentType::CV) {
 				char const* outputTypeText;
-				outputTypeText = "Automation Overview";
-				deluge::hid::display::OLED::drawStringCentred(outputTypeText, yPos,
+				deluge::hid::display::OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_AUTOMATION_OVERVIEW), yPos,
 															deluge::hid::display::OLED::oledMainImage[0],
 															OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 			}
@@ -855,10 +855,10 @@ void AutomationInstrumentClipView::renderDisplay(int32_t knobPosLeft, int32_t kn
 			//check if Parameter is currently automated so that the automation status can be drawn on the screen with the Parameter Name
 			if (modelStackWithParam && modelStackWithParam->autoParam) {
 				if (modelStackWithParam->autoParam->isAutomated()) {
-					isAutomated = "(Automated)";
+					isAutomated = l10n::get(l10n::String::STRING_FOR_AUTOMATION_ON);
 				}
 				else {
-					isAutomated = "(Not Automated)";
+					isAutomated = l10n::get(l10n::String::STRING_FOR_AUTOMATION_OFF);
 				}
 			}
 
@@ -901,7 +901,7 @@ void AutomationInstrumentClipView::renderDisplay(int32_t knobPosLeft, int32_t kn
 		//display AUTO or CANT
 		if (isOnAutomationOverview() || (instrument->type == InstrumentType::CV)) {
 			if (instrument->type != InstrumentType::CV) {
-				display->setText(l10n::get(l10n::String::STRING_FOR_AUTOMATION));
+				display->setScrollingText(l10n::get(l10n::String::STRING_FOR_AUTOMATION_OVERVIEW));
 			}
 			else {
 				display->setText(l10n::get(l10n::String::STRING_FOR_CANT_AUTOMATE_CV));
@@ -945,6 +945,7 @@ void AutomationInstrumentClipView::renderDisplay(int32_t knobPosLeft, int32_t kn
 	}
 }
 
+//get's the name of the Parameter being edited so it can be displayed on the screen
 void AutomationInstrumentClipView::getParameterName(char* parameterName) {
 
 	InstrumentClip* clip = getCurrentClip();
