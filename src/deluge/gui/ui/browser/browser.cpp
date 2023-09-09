@@ -1474,7 +1474,7 @@ ActionResult Browser::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		}
 	} else if (b == X_ENC) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			int32_t nextIndexSelected = floor((random() * fileItems.getNumElements()) - 1);
+			int32_t nextIndexSelected = random() % (fileItems.getNumElements() - 1);
 			int32_t offset = nextIndexSelected - fileIndexSelected;
 			selectEncoderAction(offset);
 		}
