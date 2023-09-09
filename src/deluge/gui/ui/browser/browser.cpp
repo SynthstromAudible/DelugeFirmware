@@ -1472,13 +1472,59 @@ ActionResult Browser::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		if (on && !currentUIMode) {
 			return backButtonAction();
 		}
+	} else if (b == X_ENC) {
+		if (on && currentUIMode == UI_MODE_NONE) {
+			fileIndexSelected = floor((random() * fileItems.getNumElements()) - 1);
+
+
+	if (scrollPosVertical > fileIndexSelected) {
+		scrollPosVertical = fileIndexSelected;
 	}
-	else {
+	else if (scrollPosVertical < fileIndexSelected - NUM_FILES_ON_SCREEN + 1) {
+		scrollPosVertical = fileIndexSelected - NUM_FILES_ON_SCREEN + 1;
+	}
+
+	enteredTextEditPos = 0;
+#if HAVE_OLED
+	scrollPosHorizontal = 0;
+#else
+	char const* oldCharAddress = enteredText.get();
+	char const* newCharAddress = getCurrentFileItem()->displayName; // Will have file extension, so beware...
+	while (true) {
+		char oldChar = *oldCharAddress;
+		char newChar = *newCharAddress;
+
+		if (oldChar >= 'A' && oldChar <= 'Z') {
+			oldChar += 32;
+		}
+		if (newChar >= 'A' && newChar <= 'Z') {
+			newChar += 32;
+		}
+
+		if (oldChar != newChar) {
+			break;
+		}
+		oldCharAddress++;
+		newCharAddress++;
+		enteredTextEditPos++;
+	}
+#endif
+
+	error = setEnteredTextFromCurrentFilename();
+	if (error) {
+		numericDriver.displayError(error);
+		return;
+	}
+			displayText();
+			currentFileChanged(0);
+		}
+	} else {
 		return ActionResult::NOT_DEALT_WITH;
 	}
 
 	return ActionResult::DEALT_WITH;
 }
+
 
 ActionResult Browser::mainButtonAction(bool on) {
 	// Press down
