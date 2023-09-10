@@ -76,26 +76,19 @@ Here is a list of features that have been added to the firmware as a list, group
 	 - In grid mode you will not be able to see multiple clips that are in the same section, only the first one. To make them visible move the clips to other sections
 	 - The colored coloumn on the right are all available sections, the columns are automatically filled with the tracks in the same order as in arrangement mode
 	 - In session mode hold "SONG" and turn "SELECT" encoder to switch between row layout and grid layout
-	 - Existing clips (dimly white or green) can be opened by holding "CLIP" button and clicking on them
-	 - New clips can be created by holding "CLIP" button and clicking on an empty pad. If the column was empty a new track is created
-	 - By quickly clicking (and releasing) populated pads you can change the arm state
-		 - If "SHIFT" is held at the same time the clip will launch immediately
-		 - If "RECORD" is held at the same time you can change recording status
-		 - If "HORIZONTAL ENCODER" ◀︎▶︎ is held at the same time you can change solo state
-	 - By holding a populated pad you can see the track, change the parameters and convert it to other instruments similar to rows layout
-	 - Hold an existing pad and press on another pad in the same, other or empty row to copy clips. If possible the content will be converted to the target track type
-	 - To delete a clip hold the pad and press the "SAVE/DELETE" button
-	 - To arm a whole row click on the section color to the right
-	 - To immediately switch to a whole row hold "SHIFT" and click on the section color
-	 - To MIDI learn:
-		 - Arming a section hold "LEARN/INPUT" and hold the section pad
-		 - Arming a clip hold "LEARN/INPUT" and hold the clip pad
-		 - Note input to a track hold "SHIFT" + "LEARN/INPUT" and hold the pad of any populated clip for that track
-	 - Compared to rows layout the following is not supported
-	 	 - Overdub recording
-		 - Copying clips to arranger
-		 - Copying audio clips between different tracks
+	 - Compared to rows layout overdub recording and copying clips to arranger is currently not supported
 	 - A new menu to select the default Layout has been added in Shift+Selection Encoder -> Defaults -> UI -> Song -> Layout
+	 - There are different interaction modes that change how the grid behaves
+		- The mode can be changed by clicking on one of the colored pads in the Audition/Section column on the right
+		- To permanently switch the mode click on a pad and release, to temporarily switch hold the mode pad and use the grid, the mode will snap back to the current permanent one
+		- Green mode
+		    - All main pads behave the same as the Mute/Launch pads in rows layout (arm/immediate launch/mute/record/MIDI learn arm)
+			- Section pads (left sidebar column) behave the same as in rows layout, in addition Shift+Section will immediate launch all clips in that row
+		- Blue mode
+			- All main pads behave the same as the main pads in rows layout (open/select/create/delete/MIDI learn)
+			- While holding a clip it can be copied to other empty slots by clicking on them, apart from audio/instrument conversion clips are automatically moved to that instrument/track and converted (e.g. Synth to MIDI target)
+			- Section pads (left sidebar column) will allow changing repeat count while held
+
 ### 4.2 - Clip View - General Features (Instrument and Audio Clips)
 
 #### 4.2.1 - Filters

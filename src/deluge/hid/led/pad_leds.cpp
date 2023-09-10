@@ -812,6 +812,10 @@ void timerRoutine() {
 						}
 						else {
 							changeRootUI(&instrumentClipView); // We want to fade the sidebar in
+							bool anyZoomingDone = instrumentClipView.zoomToMax(true);
+							if (anyZoomingDone) {
+								uiNeedsRendering(&instrumentClipView, 0, 0xFFFFFFFF);
+							}
 						}
 					}
 					else {
