@@ -86,7 +86,7 @@ public:
 	                               bool editedByUser, bool doBlink, Clip* clip = NULL);
 	void endMIDILearn();
 	void getClipMuteSquareColour(Clip* clip, uint8_t thisColour[], bool dimInactivePads = false,
-	                             bool allowMIDIFlash = true);
+	                             bool allowMIDIFlash = true, uint8_t dimmedColour[] = nullptr);
 	ActionResult clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfInSessionView = -1);
 	void flashPlayEnable();
 	void flashPlayDisable();

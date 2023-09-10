@@ -56,6 +56,7 @@ public:
 	bool inValidState;
 	bool wasCreatedForAutoOverdub;
 	bool armedForRecording;
+	int16_t colour;
 
 	uint8_t modKnobMode;
 

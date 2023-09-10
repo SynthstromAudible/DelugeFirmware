@@ -3000,6 +3000,26 @@ bool SessionView::gridRenderMainPads(uint32_t whichRows, uint8_t image[][kDispla
 
 	PadLEDs::renderingLock = true;
 
+	uint32_t idx = 0;
+	Output* currentTrack = currentSong->firstOutput;
+	uint32_t reverseIndex = 0;
+	while (currentTrack != nullptr) {
+		if (currentTrack->activeClip != nullptr) {
+			auto columnX = gridXFromTrack(((trackCount - 1) - idx));
+			uint8_t columnColor[3];
+			if(currentTrack->colour == 0) {
+				currentTrack->colour = random(255) + 1;
+			}
+			hueToRGB(currentTrack->colour, &columnColor[0]);
+			for (uint8_t y = 0; y < kDisplayHeight; ++y) {
+				colorCopy(image[y][columnX], &columnColor[0], 255, 12);
+			}
+
+			++idx;
+		}
+		currentTrack = currentTrack->next;
+	}
+
 	for (int32_t idxClip = 0; idxClip < currentSong->sessionClips.getNumElements(); ++idxClip) {
 		Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
 		auto trackIndex = gridTrackIndexFromTrack(clip->output, trackCount);
@@ -3016,7 +3036,11 @@ bool SessionView::gridRenderMainPads(uint32_t whichRows, uint8_t image[][kDispla
 			occupancyMask[y][x] = 64;
 			auto* ptrClipColour = image[y][x];
 
-			view.getClipMuteSquareColour(clip, ptrClipColour, true, gridModeActive == SessionGridModeLaunch);
+			uint8_t populatedColour[3];
+			hueToRGB(clip->output->colour, &populatedColour[0]);
+			colorCopy(&populatedColour[0], &populatedColour[0], 255, 4);
+			view.getClipMuteSquareColour(clip, ptrClipColour, true, gridModeActive == SessionGridModeLaunch,
+			                             populatedColour);
 
 			// If we should MIDI learn flash and shift is pressed (different learn layer)
 			if (view.midiLearnFlashOn && gridModeActive == SessionGridModeEdit && clip->output != nullptr) {
@@ -3612,6 +3636,20 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {
 	if (isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
 		display->cancelPopup();
+	}
+
+	if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW && offsetY != 0) {
+		auto track = gridTrackFromX(gridFirstPressedX, gridTrackCount());
+		if (track != nullptr) {
+			track->colour += offsetY;
+			// Use 0 as uninitialized
+			if (track->colour == 0) {
+				track->colour += offsetY;
+			}
+			requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
+		}
+
+		return ActionResult::DEALT_WITH;
 	}
 
 	gridResetPresses();
