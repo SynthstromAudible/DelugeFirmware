@@ -77,7 +77,7 @@ Here is a list of features that have been added to the firmware as a list, group
 	 - The colored coloumn on the right are all available sections, the columns are automatically filled with the tracks in the same order as in arrangement mode
 	 - In session mode hold "SONG" and turn "SELECT" encoder to switch between row layout and grid layout
 	 - Compared to rows layout overdub recording and copying clips to arranger is currently not supported
-	 - Every track (column) has a random generated color that can be changed in edit mode
+	 - Every track (column) has a random generated color that can be changed in edit mode (see below)
 	 - Launched clips are full color, unlaunched dimmed and during soloing all non soloed clips are greyed out
 	 - A new menu to select the default Layout has been added in Shift+Selection Encoder -> Defaults -> UI -> Song -> Layout
 	 - There are different interaction modes that change how the grid behaves
