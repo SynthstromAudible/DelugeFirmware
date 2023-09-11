@@ -184,8 +184,11 @@ justInsertRecord:
 		EmptySpaceRecord newRecord;
 		newRecord.length = spaceSize;
 		newRecord.address = address;
-
-		int32_t i = emptySpaces.insertAtKeyMultiWord((uint32_t*)&newRecord, insertRangeBegin);
+		int32_t i = emptySpaces.searchMultiWordExact((uint32_t*)&newRecord);
+		if (i != -1) {
+			display->freezeWithError("M123");
+		}
+		i = emptySpaces.insertAtKeyMultiWord((uint32_t*)&newRecord, insertRangeBegin);
 #if ALPHA_OR_BETA_VERSION
 		if (i
 		    == -1) { // Array might have gotten full. This has to be coped with. Perhaps in a perfect world we should opt to throw away the smallest empty space to make space for this one if this one is bigger?
@@ -240,6 +243,7 @@ goingToReplaceOldRecord:
 	uint32_t headerData = SPACE_HEADER_EMPTY | spaceSize;
 	*header = headerData;
 	*footer = headerData;
+	emptySpaces.testSequentiality("M005");
 }
 
 // If getBiggestAllocationPossible is true, this will treat requiredSize as a minimum, and otherwise get as much empty RAM as possible. But, it won't "steal" any more than it has to go get that minimum size.
