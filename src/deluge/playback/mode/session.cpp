@@ -1310,7 +1310,7 @@ void Session::userWantsToArmClipsToStartOrSolo(uint8_t section, Clip* clip, bool
 		}
 
 		// If section was empty, use longest clip waitForClip length instead
-		if(longestStartingClipLength == 0) {
+		if (longestStartingClipLength == 0) {
 			longestStartingClipLength = waitForClip->loopLength;
 		}
 	}
