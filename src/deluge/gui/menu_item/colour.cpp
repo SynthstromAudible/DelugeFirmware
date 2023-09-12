@@ -56,6 +56,9 @@ RGB Colour::getRGB() const {
 
 	case PINK: // Pink
 		return colours::pink;
+
+	default:
+		__builtin_unreachable(); // TODO: should be std::unreachable() with C++23
 	}
 }
 } // namespace deluge::gui::menu_item

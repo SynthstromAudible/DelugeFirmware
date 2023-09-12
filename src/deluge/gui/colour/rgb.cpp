@@ -3,7 +3,7 @@
 
 RGB RGB::fromHue(int32_t hue) {
 	RGB rgb{};
-	hue = (uint16_t)(hue + 1920) % 192;
+	hue = (uint16_t)hue % 192;
 
 	for (int32_t c = 0; c < rgb.size(); c++) {
 		int32_t channelDarkness;
@@ -35,7 +35,7 @@ constexpr int32_t kMaxPastel = 230;
 
 RGB RGB::fromHuePastel(int32_t hue) {
 	RGB rgb{};
-	hue = (uint16_t)(hue + 1920) % 192;
+	hue = (uint16_t)hue % 192;
 
 	for (int32_t c = 0; c < rgb.size(); c++) {
 		int32_t channelDarkness;

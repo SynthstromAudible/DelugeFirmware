@@ -1632,19 +1632,14 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 				}
 				if (noteEnd > squareStartPos && allowNoteTails) {
 					drewNote = true;
-					pixel[0] = rowTailColour[0];
-					pixel[1] = rowTailColour[1];
-					pixel[2] = rowTailColour[2];
+					pixel = rowTailColour;
 					if (occupancyMask) {
 						occupancyMask[xDisplay] = 64;
 					}
 				}
 			}
 			if (drewNote && note->probability == 0 && currentSong->isFillModeActive()) {
-				//make em blue
-				pixel[0] = 0;
-				pixel[1] = 0;
-				pixel[2] = 255;
+				pixel = deluge::gui::colours::blue; //make em blue
 			}
 		}
 
