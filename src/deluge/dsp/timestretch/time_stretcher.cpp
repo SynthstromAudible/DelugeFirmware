@@ -262,8 +262,8 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 	AudioEngine::numHopsEndedThisRoutineCall++;
 
 	numTimesMissedHop = 0;
-
-	//AudioEngine::bypassCulling = true; // This is kinda dangerous, but I think it should kinda be ok...
+	AudioEngine::logAction("bypassing culling in timestretcher");
+	AudioEngine::bypassCulling = true; // This is kinda dangerous, but I think it should kinda be ok...
 
 #if MEASURE_HOP_END_PERFORMANCE
 	uint16_t startTime = MTU2.TCNT_0;

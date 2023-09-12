@@ -144,6 +144,7 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, uint32_t* getAllocate
 			*/
 			return address;
 		}
+		AudioEngine::logAction("internal allocation failed");
 	}
 
 #if TEST_GENERAL_MEMORY_ALLOCATION

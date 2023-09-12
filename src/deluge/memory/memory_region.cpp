@@ -584,6 +584,7 @@ tryNotStealingFirst:
 					}
 					stealable = (Stealable*)(void*)spaceHereAddress;
 					if (!stealable->mayBeStolen(thingNotToStealFrom)) {
+						AudioEngine::logAction("found a stealable with a reason");
 						break;
 					}
 					if (!actuallyGrabbing && markWithTraversalNo) {
@@ -645,7 +646,9 @@ tryNotStealingFirst:
 
 					// Whether or not actually grabbing, if that was Stealable space we just found, go back and try looking at more, further memory - first prioritizing
 					// unused empty space, in case we just stumbled on more
-					if (spaceType != SPACE_HEADER_EMPTY) {
+					//No - if we're not grabbing this can cause us to exit early without stealing all intermediate memory
+					if (tryingStealingYet) {
+						AudioEngine::logAction("found some space and looking for more");
 						goto tryNotStealingFirst;
 					}
 				}
