@@ -95,6 +95,7 @@ public:
 	static CStringArray fileItems;
 	static int32_t numFileItemsDeletedAtStart;
 	static int32_t numFileItemsDeletedAtEnd;
+	static int32_t validFileItemsCount;
 	static char const* firstFileItemRemaining;
 	static char const* lastFileItemRemaining;
 

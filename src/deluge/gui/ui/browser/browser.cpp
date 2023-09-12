@@ -46,6 +46,7 @@ CStringArray Browser::fileItems{sizeof(FileItem)};
 int32_t Browser::scrollPosVertical;
 int32_t Browser::fileIndexSelected;
 int32_t Browser::numCharsInPrefix;
+int32_t Browser::validFileItemsCount;
 bool Browser::arrivedAtFileByTyping;
 int32_t Browser::numFileItemsDeletedAtStart;
 int32_t Browser::numFileItemsDeletedAtEnd;
@@ -268,6 +269,7 @@ int32_t Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFo
 		filePrefixLength = strlen(filePrefixHere);
 	}
 #endif
+	int32_t count = 0;
 
 	while (true) {
 		AudioEngine::logAction("while loop");
@@ -318,6 +320,7 @@ extensionNotSupported:
 		thisItem->filePointer = thisFilePointer;
 
 		char const* storedFilenameChars = thisItem->filename.get();
+		count = count + 1;
 #if !HAVE_OLED
 		if (filePrefixHere) {
 			if (memcasecmp(storedFilenameChars, filePrefixHere, filePrefixLength)) {
@@ -356,6 +359,9 @@ nonNumericFile:
 			thisItem->displayName = storedFilenameChars;
 		}
 	}
+	validFileItemsCount = count;
+
+
 
 	f_closedir(&staticDIR);
 
@@ -1472,11 +1478,24 @@ ActionResult Browser::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
 		if (on && !currentUIMode) {
 			return backButtonAction();
 		}
-	} else if (b == X_ENC) {
+	} else if (b == Y_ENC) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			int32_t nextIndexSelected = random() % (fileItems.getNumElements() - 1);
-			int32_t offset = nextIndexSelected - fileIndexSelected;
-			selectEncoderAction(offset);
+			int32_t numItems = fileItems.getNumElements();
+
+			int32_t jumpCount = validFileItemsCount > 30 ? 30 : validFileItemsCount;
+
+			int32_t nextFileIndexSelected = random() % (jumpCount - 1);
+			int32_t offset = nextFileIndexSelected - fileIndexSelected;
+			fileIndexSelected = nextFileIndexSelected;
+			while (offset != 0) {
+				if (offset < 0) {
+					offset += 1;
+					selectEncoderAction(-1);
+				} else {
+					offset -= 1;
+					selectEncoderAction(1);
+				}
+			}
 		}
 	} else {
 		return ActionResult::NOT_DEALT_WITH;

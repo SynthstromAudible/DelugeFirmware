@@ -18,6 +18,7 @@
 #include "integer.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/numeric_driver.h"
+#include "hid/buttons.h"
 #include <cstring>
 
 #if HAVE_OLED
@@ -29,6 +30,28 @@ extern "C" {
 }
 
 namespace deluge::gui::menu_item {
+
+void Integer::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+	if (b == hid::button::Y_ENC) {
+		if (on) {
+			int32_t newValue = rand() % (getMaxValue() - getMinValue() + 1) + getMinValue();
+			int32_t derivedOffset = newValue - this->getValue();
+			this->setValue(newValue);
+			Number::selectEncoderAction(derivedOffset);
+		}
+	}
+
+	// handle revert to value when beginSession was called NON-WORKING {
+	if (b == hid::button::X_ENC) {
+		if (on) {
+			int32_t derivedOffset = this->getOriginalValue() - this->getValue();
+			this->resetToOriginalValue();
+			Number::selectEncoderAction(derivedOffset);
+		}
+	}
+	// }
+
+}
 
 void Integer::selectEncoderAction(int32_t offset) {
 	this->setValue(this->getValue() + offset);

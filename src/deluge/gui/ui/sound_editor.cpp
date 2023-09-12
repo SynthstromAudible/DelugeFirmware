@@ -367,7 +367,19 @@ ActionResult SoundEditor::buttonAction(hid::Button b, bool on, bool inCardRoutin
 			indicator_leds::setLedState(IndicatorLED::KEYBOARD, getRootUI() == &keyboardScreen);
 		}
 	}
-
+	else if (b == Y_ENC) {
+			if (inCardRoutine) {
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
+			numericDriver.displayPopup(HAVE_OLED ? "Randomizing" : "RND");
+			getCurrentMenuItem()->buttonAction(b, on, inCardRoutine);
+	} else if (b == X_ENC) {
+			if (inCardRoutine) {
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
+			numericDriver.displayPopup(HAVE_OLED ? "Original Value" : "RND");
+			getCurrentMenuItem()->buttonAction(b, on, inCardRoutine);
+	}
 	else {
 		return ActionResult::NOT_DEALT_WITH;
 	}

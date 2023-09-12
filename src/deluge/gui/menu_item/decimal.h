@@ -28,6 +28,7 @@ public:
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
 	void selectEncoderAction(int32_t offset) final;
 	void horizontalEncoderAction(int32_t offset) override;
+	void buttonAction(hid::Button b, bool on, bool inCardRoutine) override;
 
 protected:
 	virtual void drawValue();

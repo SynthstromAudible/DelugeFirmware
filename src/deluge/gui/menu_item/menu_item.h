@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "util/container/static_vector.hpp"
 #include "util/sized.h"
+#include "hid/buttons.h"
 
 #include <cstdint>
 
@@ -58,6 +59,7 @@ public:
 
 	virtual void horizontalEncoderAction(int32_t offset) {}
 	virtual void selectEncoderAction(int32_t offset) {}
+	virtual void buttonAction(hid::Button b, bool on, bool inCardRoutine) {}
 	virtual void beginSession(MenuItem* navigatedBackwardFrom = nullptr){};
 	virtual bool isRelevant(Sound* sound, int32_t whichThing) { return true; }
 	virtual MenuItem* selectButtonPress() { return nullptr; }

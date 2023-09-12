@@ -40,6 +40,7 @@ public:
 	}
 
 	T getValue() { return value_; }
+	T getOriginalValue() { return originalValue_;}
 
 	template <util::enumeration E>
 	E getValue() {
@@ -55,10 +56,23 @@ protected:
 
 private:
 	T value_;
+	T originalValue_;
 };
 
 template <typename T>
 void Value<T>::beginSession(MenuItem* navigatedBackwardFrom) {
+#if HAVE_OLED
+	readCurrentValue();
+#else
+	readValueAgain();
+#endif
+	originalValue_ = value_;
+
+}
+
+template <typename T>
+void Value<T>::resetToOriginalValue() {
+	setValue(originalValue_);
 #if HAVE_OLED
 	readCurrentValue();
 #else

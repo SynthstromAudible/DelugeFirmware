@@ -25,6 +25,7 @@ class Integer : public Number {
 public:
 	using Number::Number;
 	void selectEncoderAction(int32_t offset) override;
+	void buttonAction(hid::Button b, bool on, bool inCardRoutine) override;
 
 protected:
 #if HAVE_OLED

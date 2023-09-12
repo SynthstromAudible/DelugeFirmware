@@ -21,6 +21,7 @@
 
 #include "decimal.h"
 #include "gui/ui/sound_editor.h"
+#include "hid/buttons.h"
 #include "hid/display/numeric_driver.h"
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
@@ -56,6 +57,20 @@ void Decimal::drawValue() {
 #else
 	drawActualValue();
 #endif
+}
+
+void Decimal::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+	if (b == hid::button::Y_ENC) {
+		numericDriver.displayPopup("Soon");
+		if (on && false) {
+			int32_t maxValue = getMaxValue() > 100 ? 100 : getMaxValue();
+			int32_t newValue = rand() * (maxValue - getMinValue() + 1) + getMinValue();
+			int32_t derivedOffset = newValue - this->getValue();
+			this->setValue(newValue);
+			scrollToGoodPos();
+			Number::selectEncoderAction(derivedOffset);
+		}
+	}
 }
 
 void Decimal::selectEncoderAction(int32_t offset) {

@@ -21,6 +21,7 @@ public:
 	using Value::Value;
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
 	void selectEncoderAction(int32_t offset) override;
+	void buttonAction(hid::Button b, bool on, bool inCardRoutine) override;
 
 	virtual size_t size() { return n; };
 
@@ -41,6 +42,18 @@ void Enumeration<n>::beginSession(MenuItem* navigatedBackwardFrom) {
 #else
 	drawValue();
 #endif
+}
+
+template <size_t n>
+void Enumeration<n>::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+	if (b == hid::button::Y_ENC) {
+		if (on) {
+			int32_t numOptions = size();
+			int32_t randomOption = (random() % numOptions - 1);
+			int32_t derivedOffset = randomOption - this->getValue();
+			selectEncoderAction(derivedOffset);
+		}
+	}
 }
 
 template <size_t n>
