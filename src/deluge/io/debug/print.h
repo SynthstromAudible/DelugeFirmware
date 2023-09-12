@@ -22,12 +22,25 @@
 class MIDIDevice;
 
 namespace Debug {
+void init();
 void print(char const* output);
 void println(char const* output);
 void println(int32_t number);
 void printlnfloat(float number);
 void printfloat(float number);
 void print(int32_t number);
+void ResetClock();
+
+class RoutineTimer
+{
+public:
+	RoutineTimer(const char* label);
+	void split(const char* splitLabel);
+	void stop();
+private:
+	uint32_t	startTime;
+	const char*	m_label;
+};
 
 extern MIDIDevice* midiDebugDevice;
 } // namespace Debug
