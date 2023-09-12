@@ -716,12 +716,11 @@ void AutomationInstrumentClipView::renderAutomationEditor(ModelStackWithTimeline
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 
-		int32_t effectiveLength = getEffectiveLength(modelStack);
-
-		renderRow(modelStackWithParam, image, occupancyMask, true, effectiveLength, true, xScroll, xZoom, 0,
-		          renderWidth, false, yDisplay, modelStackWithParam->autoParam->isAutomated());
+		renderRow(modelStack, modelStackWithParam, image, occupancyMask, yDisplay, modelStackWithParam->autoParam->isAutomated());
 
 		if (drawUndefinedArea == true) {
+
+			int32_t effectiveLength = getEffectiveLength(modelStack);
 
 			clip->drawUndefinedArea(xScroll, xZoom, effectiveLength, image, occupancyMask, renderWidth, this,
 			                        currentSong->tripletsOn);
@@ -732,21 +731,14 @@ void AutomationInstrumentClipView::renderAutomationEditor(ModelStackWithTimeline
 //this function started off as a copy of the renderRow function from the NoteRow class - I replaced "notes" with "nodes"
 //it worked for the most part, but there was bugs so I removed the buggy code and inserted my alternative rendering method
 //which always works. hoping to bring back the other code once I've worked out the bugs.
-void AutomationInstrumentClipView::renderRow(ModelStackWithAutoParam* modelStack, uint8_t* image,
-                                             uint8_t occupancyMask[], bool overwriteExisting,
-                                             uint32_t effectiveRowLength, bool allowNoteTails, int32_t xScroll,
-                                             uint32_t xZoom, int32_t xStartNow, int32_t xEnd, bool drawRepeats,
-                                             int32_t yDisplay, bool isAutomated) {
+void AutomationInstrumentClipView::renderRow(ModelStackWithTimelineCounter* modelStack, 
+											 ModelStackWithAutoParam* modelStackWithParam, uint8_t* image,
+                                             uint8_t occupancyMask[], int32_t yDisplay, bool isAutomated) {
 
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 
-		uint32_t squareStart = getPosFromSquare(xDisplay);
-		uint32_t squareWidth = instrumentClipView.getSquareWidth(xDisplay, effectiveRowLength);
-		if (squareWidth != 3) {
-			squareStart = squareStart + (squareWidth / 2);
-		}
-
-		int32_t knobPos = getParameterKnobPos(modelStack, squareStart) + kKnobPosOffset;
+		uint32_t squareStart = getMiddlePosFromSquare(modelStack, xDisplay);
+		int32_t knobPos = getParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
 
 		uint8_t* pixel = image + (xDisplay * 3);
 
@@ -1617,7 +1609,6 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 					else {
 						renderDisplay(knobPos);
 					}
-					//displayParameterValue(knobPos);
 				}
 			}
 		}
@@ -2504,16 +2495,10 @@ void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int
 
 					modelStack->getTimelineCounter()->instrumentBeenEdited();
 
-					//if (!playbackHandler.isEitherClockActive()) {
-					//	displayAutomation();
-					//}
-					//displayParameterValue(newKnobPos + kKnobPosOffset);
 					if (!playbackHandler.isEitherClockActive()) {
 						renderDisplay(newKnobPos + kKnobPosOffset);
 						setKnobIndicatorLevels(newKnobPos + kKnobPosOffset);
 					}
-					//indicator_leds::setKnobIndicatorLevel(0, newKnobPos + kKnobPosOffset);
-					//indicator_leds::setKnobIndicatorLevel(1, newKnobPos + kKnobPosOffset);
 				}
 			}
 		}
@@ -2579,7 +2564,7 @@ void AutomationInstrumentClipView::modEncoderButtonAction(uint8_t whichModEncode
 		}
 	}
 
-	//de-select multi pad press
+	//enter/exit pad selection mode
 	else if (!isOnAutomationOverview()) {
 		if (on) {
 			if (padSelectionOn) {
@@ -2606,14 +2591,18 @@ void AutomationInstrumentClipView::modEncoderButtonAction(uint8_t whichModEncode
 					ModelStackWithAutoParam* modelStackWithParam =
 						getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID, clip->lastSelectedParamKind);
 					if (modelStackWithParam && modelStackWithParam->autoParam) {
-
 						if (modelStackWithParam->getTimelineCounter()
 							== view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 
-							view.activeModControllableModelStack.paramManager->toForTimeline()->grabValuesFromPos(
-								getPosFromSquare(leftPadSelectedX), &view.activeModControllableModelStack);
+							uint32_t squareStart = getMiddlePosFromSquare(modelStack, leftPadSelectedX);
 
-							displayAutomation(padSelectionOn);	
+							view.activeModControllableModelStack.paramManager->toForTimeline()->grabValuesFromPos(
+								squareStart, &view.activeModControllableModelStack);
+
+							int32_t knobPos = getParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
+							
+							renderDisplay(knobPos);
+							setKnobIndicatorLevels(knobPos);
 						}
 					}
 				}
@@ -2720,11 +2709,24 @@ void AutomationInstrumentClipView::pasteAutomation() {
 			currentPlaybackMode->reversionDone(); // Re-gets automation and stuff
 		}
 		else {
-			if (multiPadPressSelected) {
-				renderDisplayForMultiPadPress(modelStack, clip);
+			if (padSelectionOn) {
+				if (multiPadPressSelected) {
+					renderDisplayForMultiPadPress(modelStack, clip);
+				}
+				else {
+					uint32_t squareStart = getMiddlePosFromSquare(modelStack, leftPadSelectedX);
+
+					view.activeModControllableModelStack.paramManager->toForTimeline()->grabValuesFromPos(
+						squareStart, &view.activeModControllableModelStack);
+
+					int32_t knobPos = getParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
+					
+					renderDisplay(knobPos);
+					setKnobIndicatorLevels(knobPos);
+				}
 			}
 			else {
-				displayAutomation(padSelectionOn);
+				displayAutomation();
 			}
 		}
 
@@ -3070,6 +3072,20 @@ int32_t AutomationInstrumentClipView::getEffectiveLength(ModelStackWithTimelineC
 	return effectiveLength;
 }
 
+//when pressing on a single pad, you want to display the value of the middle node within that square
+//as that is the most accurate value that represents that square
+uint32_t AutomationInstrumentClipView::getMiddlePosFromSquare(ModelStackWithTimelineCounter* modelStack, int32_t xDisplay) {
+	int32_t effectiveLength = getEffectiveLength(modelStack);
+	
+	uint32_t squareStart = getPosFromSquare(xDisplay);
+	uint32_t squareWidth = instrumentClipView.getSquareWidth(xDisplay, effectiveLength);
+	if (squareWidth != 3) {
+		squareStart = squareStart + (squareWidth / 2);
+	}
+
+	return squareStart;
+}
+
 //this function obtains a parameters value and converts it to a knobPos
 //the knobPos is used for rendering the current parameter values in the automation editor
 //it's also used for obtaining the start and end position values for a multi pad press
@@ -3167,10 +3183,12 @@ void AutomationInstrumentClipView::setParameterAutomationValue(ModelStackWithAut
 	if (!multiPadPressSelected) {
 		renderDisplay(knobPos + kKnobPosOffset);
 		setKnobIndicatorLevels(knobPos + kKnobPosOffset);
-		//displayParameterValue(knobPos + kKnobPosOffset);
 	}
 }
 
+//sets both knob indicators to the same value when pressing single pad,
+//deleting automation, or displaying current parameter value
+//multi pad presses don't use this function
 void AutomationInstrumentClipView::setKnobIndicatorLevels(int32_t knobPos) {
 
 	indicator_leds::setKnobIndicatorLevel(0, knobPos);
@@ -3273,9 +3291,6 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 
 		if (padSelectionOn) {
 			//display pad's value
-
-			int32_t effectiveLength = getEffectiveLength(modelStack);
-
 			uint32_t squareStart = 0;
 
 			//if a long press is selected and you're checking value of start or end pad
@@ -3285,23 +3300,19 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 					squareStart = getPosFromSquare(xDisplay);
 				}
 				else {
+					int32_t effectiveLength = getEffectiveLength(modelStack);
 					int32_t squareRightEdge = getPosFromSquare(rightPadSelectedX + 1);
 					squareStart = std::min(effectiveLength, squareRightEdge) - kParamNodeWidth;
 				}
 			}
 			//display pad's middle value
 			else {
-				squareStart = getPosFromSquare(xDisplay);
-				uint32_t squareWidth = instrumentClipView.getSquareWidth(xDisplay, effectiveLength);
-				if (squareWidth != 3) {
-					squareStart = squareStart + (squareWidth / 2);
-				}
+				squareStart = getMiddlePosFromSquare(modelStack, xDisplay);
 			}
 
 			int32_t knobPos = getParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
 			renderDisplay(knobPos);
 			setKnobIndicatorLevels(knobPos);
-			//displayParameterValue(knobPos);
 
 			if (!playbackHandler.isEitherClockActive()) {
 				if (modelStackWithParam && modelStackWithParam->autoParam) {
@@ -3544,19 +3555,6 @@ bool AutomationInstrumentClipView::isOnAutomationOverview() {
 	}
 	return false;
 }
-
-//display parameter value when it is changed
-//void AutomationInstrumentClipView::displayParameterValue(int32_t knobPos) {
-
-	//lastPadSelectedKnobPos = knobPos;
-
-//	renderDisplay(knobPos);
-
-//	if (padSelectionOn && !multiPadPressSelected) {
-//		indicator_leds::setKnobIndicatorLevel(0, knobPos);
-//		indicator_leds::setKnobIndicatorLevel(1, knobPos);
-//	}
-//}
 
 void AutomationInstrumentClipView::displayCVErrorMessage() {
 	if (display->have7SEG()) {
