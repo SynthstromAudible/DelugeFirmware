@@ -88,7 +88,8 @@ public:
 	void readFromFlash(InstrumentClip* parentClip);
 	uint32_t getNumNotes();
 	void setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack,
-	             InstrumentClip* favourClipForCloningParamManager = NULL, ParamManager* paramManager = NULL);
+	             InstrumentClip* favourClipForCloningParamManager = NULL, ParamManager* paramManager = NULL,
+	             bool backupOldParamManager = true);
 
 	int32_t getDistanceToNextNote(int32_t pos, ModelStackWithNoteRow const* modelStack, bool reversed = false);
 
@@ -123,7 +124,7 @@ public:
 
 	bool
 	    skipNextNote; // To be used if we recorded a note which was quantized forwards, and we have to remember not to play it
-
+	int32_t getDefaultProbability(ModelStackWithNoteRow* ModelStack);
 	int32_t attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, int32_t probability,
 	                       ModelStackWithNoteRow* modelStack, Action* action);
 	int32_t attemptNoteAddReversed(ModelStackWithNoteRow* modelStack, int32_t pos, int32_t velocity,

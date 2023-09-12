@@ -24,9 +24,11 @@
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
+#include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
+#include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "io/debug/print.h"
@@ -843,6 +845,16 @@ void Song::inputTickScalePotentiallyJustChanged(uint32_t oldScale) {
 
 // This is a little bit of an ugly hack - normally this is true, but we'll briefly set it to false while doing that "revert" that we do when (re)lengthening a Clip
 bool allowResyncingDuringClipLengthChange = true;
+
+void Song::changeFillMode(bool on) {
+	fillModeActive = on;
+	//we peek fill notes when fill is held so need to re render rows
+	uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+	if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction)
+	     == RuntimeFeatureStateSyncScalingAction::Fill)) {
+		indicator_leds::setLedState(IndicatorLED::SYNC_SCALING, on);
+	}
+}
 
 // If action is NULL, that means this is being called as part of an undo, so don't do any extra stuff.
 // Currently mayReSyncClip is only set to false in a call that happens when we've just finished recording that Clip.
@@ -4314,7 +4326,8 @@ void Song::setParamsInAutomationMode(bool newState) {
 
 bool Song::canOldOutputBeReplaced(Clip* clip, Availability* availabilityRequirement) {
 	// If Clip has an "instance" within its Output in arranger, then we can only change the entire Output to a different Output
-	if (clip->output->clipHasInstance(clip)) {
+	// Same if grid layout is active in session mode since the clips would jump around otherwise
+	if (clip->output->clipHasInstance(clip) || currentSong->sessionLayout == SessionLayoutTypeGrid) {
 		if (availabilityRequirement) {
 			*availabilityRequirement = Availability::INSTRUMENT_UNUSED;
 		}
@@ -5066,7 +5079,7 @@ Clip* Song::getClipWithOutputAboutToBeginLinearRecording(Output* output) {
 	return NULL;
 }
 
-Clip* Song::createPendingNextOverdubBelowClip(Clip* clip, int32_t clipIndex, int32_t newOverdubNature) {
+Clip* Song::createPendingNextOverdubBelowClip(Clip* clip, int32_t clipIndex, OverDubType newOverdubNature) {
 
 	// No automatic overdubs are allowed during soloing, cos that's just too complicated
 	if (anyClipsSoloing) {

@@ -32,7 +32,7 @@ constexpr Language english{
         {STRING_FOR_ERROR_WRITE_PROTECTED, "Card is write-protected"},
         {STRING_FOR_ERROR_GENERIC, "You've encountered an unspecified error. Please report this bug."},
 
-        // Params (originally from functions.cpp)
+        // Patch sources
         {STRING_FOR_PATCH_SOURCE_LFO_GLOBAL, "LFO1"},
         {STRING_FOR_PATCH_SOURCE_LFO_LOCAL, "LFO2"},
         {STRING_FOR_PATCH_SOURCE_ENVELOPE_0, "Envelope 1"},
@@ -44,50 +44,152 @@ constexpr Language english{
         {STRING_FOR_PATCH_SOURCE_AFTERTOUCH, "Aftertouch"},
         {STRING_FOR_PATCH_SOURCE_X, "MPE X"},
         {STRING_FOR_PATCH_SOURCE_Y, "MPE Y"},
-        {STRING_FOR_PARAM_LOCAL_OSC_A_VOLUME, "Osc1 level"},
-        {STRING_FOR_PARAM_LOCAL_OSC_B_VOLUME, "Osc2 level"},
+
+        /*
+		 * Start Parameter Strings
+		 */
+
+        /*
+		 * Where used:
+		 * - automation_instrument_clip_view.cpp
+		 */
+
+        // Patched Params (originally from functions.cpp)
+
+        //Master Level, Pitch, Pan
         {STRING_FOR_PARAM_LOCAL_VOLUME, "Level"},
-        {STRING_FOR_PARAM_LOCAL_NOISE_VOLUME, "Noise level"},
-        {STRING_FOR_PARAM_LOCAL_OSC_A_PHASE_WIDTH, "Osc1 PW"},
-        {STRING_FOR_PARAM_LOCAL_OSC_B_PHASE_WIDTH, "Osc2 PW"},
-        {STRING_FOR_PARAM_LOCAL_OSC_A_WAVE_INDEX, "Osc1 wave pos."},
-        {STRING_FOR_PARAM_LOCAL_OSC_B_WAVE_INDEX, "Osc2 wave pos."},
-        {STRING_FOR_PARAM_LOCAL_LPF_RESONANCE, "LPF resonance"},
-        {STRING_FOR_PARAM_LOCAL_HPF_RESONANCE, "HPF resonance"},
-        {STRING_FOR_PARAM_LOCAL_PAN, "Pan"},
-        {STRING_FOR_PARAM_LOCAL_MODULATOR_0_VOLUME, "FM mod1 level"},
-        {STRING_FOR_PARAM_LOCAL_MODULATOR_1_VOLUME, "FM mod2 level"},
+        {STRING_FOR_PARAM_GLOBAL_VOLUME_POST_FX, "Master Level"},
+        {STRING_FOR_PARAM_LOCAL_PITCH_ADJUST, "Master Pitch"},
+        {STRING_FOR_PARAM_LOCAL_PAN, "Master Pan"},
+
+        //LPF Frequency, Resonance, Morph
         {STRING_FOR_PARAM_LOCAL_LPF_FREQ, "LPF frequency"},
+        {STRING_FOR_PARAM_LOCAL_LPF_RESONANCE, "LPF resonance"},
         {STRING_FOR_PARAM_LOCAL_LPF_MORPH, "LPF morph"},
-        {STRING_FOR_PARAM_LOCAL_PITCH_ADJUST, "Pitch"},
-        {STRING_FOR_PARAM_LOCAL_OSC_A_PITCH_ADJUST, "Osc1 pitch"},
-        {STRING_FOR_PARAM_LOCAL_OSC_B_PITCH_ADJUST, "Osc2 pitch"},
-        {STRING_FOR_PARAM_LOCAL_MODULATOR_0_PITCH_ADJUST, "FM mod1 pitch"},
-        {STRING_FOR_PARAM_LOCAL_MODULATOR_1_PITCH_ADJUST, "FM mod2 pitch"},
+
+        //HPF Frequency, Resonance, Morph
         {STRING_FOR_PARAM_LOCAL_HPF_FREQ, "HPF frequency"},
+        {STRING_FOR_PARAM_LOCAL_HPF_RESONANCE, "HPF resonance"},
         {STRING_FOR_PARAM_LOCAL_HPF_MORPH, "HPF morph"},
-        {STRING_FOR_PARAM_LOCAL_LFO_LOCAL_FREQ, "LFO2 rate"},
+
+        //Reverb Amount
+        {STRING_FOR_PARAM_GLOBAL_REVERB_AMOUNT, "Reverb amount"},
+
+        //Delay Rate, Amount
+        {STRING_FOR_PARAM_GLOBAL_DELAY_RATE, "Delay rate"},
+        {STRING_FOR_PARAM_GLOBAL_DELAY_FEEDBACK, "Delay amount"},
+
+        //Sidechain Level
+        {STRING_FOR_PARAM_GLOBAL_VOLUME_POST_REVERB_SEND, "Sidechain Level"},
+
+        //Wavefolder
+        {STRING_FOR_WAVEFOLDER, "Wavefolder"},
+
+        //OSC 1 Level, Pitch, Phase Width, Carrier Feedback, Wave Position
+        {STRING_FOR_PARAM_LOCAL_OSC_A_VOLUME, "Osc1 level"},
+        {STRING_FOR_PARAM_LOCAL_OSC_A_PITCH_ADJUST, "Osc1 pitch"},
+        {STRING_FOR_PARAM_LOCAL_OSC_A_PHASE_WIDTH, "Osc1 phase width"},
+        {STRING_FOR_PARAM_LOCAL_CARRIER_0_FEEDBACK, "Osc1 feedback"},
+        {STRING_FOR_PARAM_LOCAL_OSC_A_WAVE_INDEX, "Osc1 wave position"},
+
+        //OSC 2 Level, Pitch, Phase Width, Carrier Feedback, Wave Position
+        {STRING_FOR_PARAM_LOCAL_OSC_B_VOLUME, "Osc2 level"},
+        {STRING_FOR_PARAM_LOCAL_OSC_B_PITCH_ADJUST, "Osc2 pitch"},
+        {STRING_FOR_PARAM_LOCAL_OSC_B_PHASE_WIDTH, "Osc2 phase width"},
+        {STRING_FOR_PARAM_LOCAL_CARRIER_1_FEEDBACK, "Osc2 feedback"},
+        {STRING_FOR_PARAM_LOCAL_OSC_B_WAVE_INDEX, "Osc2 wave position"},
+
+        //FM Mod 1 Level, Pitch, Feedback
+        {STRING_FOR_PARAM_LOCAL_MODULATOR_0_VOLUME, "FM mod1 level"},
+        {STRING_FOR_PARAM_LOCAL_MODULATOR_0_PITCH_ADJUST, "FM mod1 pitch"},
+        {STRING_FOR_PARAM_LOCAL_MODULATOR_0_FEEDBACK, "FM mod1 feedback"},
+
+        //FM Mod 2 Level, Pitch, Feedback
+        {STRING_FOR_PARAM_LOCAL_MODULATOR_1_VOLUME, "FM mod2 level"},
+        {STRING_FOR_PARAM_LOCAL_MODULATOR_1_PITCH_ADJUST, "FM mod2 pitch"},
+        {STRING_FOR_PARAM_LOCAL_MODULATOR_1_FEEDBACK, "FM mod2 feedback"},
+
+        //Env 1 ADSR
         {STRING_FOR_PARAM_LOCAL_ENV_0_ATTACK, "Env1 attack"},
         {STRING_FOR_PARAM_LOCAL_ENV_0_DECAY, "Env1 decay"},
         {STRING_FOR_PARAM_LOCAL_ENV_0_SUSTAIN, "Env1 sustain"},
         {STRING_FOR_PARAM_LOCAL_ENV_0_RELEASE, "Env1 release"},
+
+        //Env 2 ADSR
         {STRING_FOR_PARAM_LOCAL_ENV_1_ATTACK, "Env2 attack"},
         {STRING_FOR_PARAM_LOCAL_ENV_1_DECAY, "Env2 decay"},
         {STRING_FOR_PARAM_LOCAL_ENV_1_SUSTAIN, "Env2 sustain"},
         {STRING_FOR_PARAM_LOCAL_ENV_1_RELEASE, "Env2 release"},
+
+        //LFO 1 Rate
         {STRING_FOR_PARAM_GLOBAL_LFO_FREQ, "LFO1 rate"},
-        {STRING_FOR_PARAM_GLOBAL_VOLUME_POST_FX, "Level"},
-        {STRING_FOR_PARAM_GLOBAL_VOLUME_POST_REVERB_SEND, "Level"},
-        {STRING_FOR_PARAM_GLOBAL_DELAY_RATE, "Delay rate"},
-        {STRING_FOR_PARAM_GLOBAL_DELAY_FEEDBACK, "Delay amount"},
-        {STRING_FOR_PARAM_GLOBAL_REVERB_AMOUNT, "Reverb amount"},
-        {STRING_FOR_PARAM_GLOBAL_MOD_FX_RATE, "Mod-FX rate"},
+
+        //LFO 2 Rate
+        {STRING_FOR_PARAM_LOCAL_LFO_LOCAL_FREQ, "LFO2 rate"},
+
+        //Mod FX Depth, Rate
         {STRING_FOR_PARAM_GLOBAL_MOD_FX_DEPTH, "Mod-FX depth"},
+        {STRING_FOR_PARAM_GLOBAL_MOD_FX_RATE, "Mod-FX rate"},
+
+        //Arp Rate
         {STRING_FOR_PARAM_GLOBAL_ARP_RATE, "Arp. rate"},
-        {STRING_FOR_PARAM_LOCAL_MODULATOR_0_FEEDBACK, "Mod1 feedback"},
-        {STRING_FOR_PARAM_LOCAL_MODULATOR_1_FEEDBACK, "Mod2 feedback"},
-        {STRING_FOR_PARAM_LOCAL_CARRIER_0_FEEDBACK, "Carrier1 feed."},
-        {STRING_FOR_PARAM_LOCAL_CARRIER_1_FEEDBACK, "Carrier2 feed."},
+
+        //Noise
+        {STRING_FOR_PARAM_LOCAL_NOISE_VOLUME, "Noise level"},
+
+        // Unpatched Params (originally from functions.cpp)
+
+        //Master Level, Pitch, Pan
+        {STRING_FOR_MASTER_LEVEL, "Master level"},
+        {STRING_FOR_MASTER_PITCH, "Master pitch"},
+        {STRING_FOR_MASTER_PAN, "Master pan"},
+
+        //LPF Frequency, Resonance
+        {STRING_FOR_LPF_FREQUENCY, "LPF frequency"},
+        {STRING_FOR_LPF_RESONANCE, "LPF resonance"},
+
+        //HPF Frequency, Resonance
+        {STRING_FOR_HPF_FREQUENCY, "HPF frequency"},
+        {STRING_FOR_HPF_RESONANCE, "HPF resonance"},
+
+        //Bass, Bass Freq
+        {STRING_FOR_BASS, "BASS"},
+        {STRING_FOR_BASS_FREQUENCY, "Bass frequency"},
+
+        //Treble, Treble Freq
+        {STRING_FOR_TREBLE, "TREBLE"},
+        {STRING_FOR_TREBLE_FREQUENCY, "Treble frequency"},
+
+        //Reverb Amount
+        {STRING_FOR_REVERB_AMOUNT, "Reverb amount"},
+
+        //Delay Rate, Amount
+        {STRING_FOR_DELAY_RATE, "Delay rate"},
+        {STRING_FOR_DELAY_AMOUNT, "Delay amount"},
+
+        //Sidechain Level, Shape
+        {STRING_FOR_SIDECHAIN_LEVEL, "Sidechain level"},
+        {STRING_FOR_SIDECHAIN_SHAPE, "Sidechain shape"},
+
+        //Decimation, Bitcrush
+        {STRING_FOR_DECIMATION, "DECIMATION"},
+        {STRING_FOR_BITCRUSH, "Bitcrush"},
+
+        //Mod FX Offset, Feedback, Depth, Rate
+        {STRING_FOR_MODFX_OFFSET, "MOD-FX offset"},
+        {STRING_FOR_MODFX_FEEDBACK, "MOD-FX feedback"},
+        {STRING_FOR_MODFX_DEPTH, "MOD-FX depth"},
+        {STRING_FOR_MODFX_RATE, "MOD-FX rate"},
+
+        //Arp Gate
+        {STRING_FOR_ARP_GATE_MENU_TITLE, "Arp. gate"},
+
+        //Portamento
+        {STRING_FOR_PORTAMENTO, "PORTAMENTO"},
+
+        /*
+		 * End Parameter Strings
+		 */
 
         // General
         {STRING_FOR_DISABLED, "Disabled"},
@@ -161,7 +263,9 @@ constexpr Language english{
         {STRING_FOR_RANDOM, "Random"},
 
         // gui/menu_item/cv/selection.h
-        {STRING_FOR_CV_OUTPUT_N, "CV output {}"},
+        {STRING_FOR_CV_OUTPUT_N, "CV output *"},
+        {STRING_FOR_CV_OUTPUT_1, "CV output 1"},
+        {STRING_FOR_CV_OUTPUT_2, "CV output 2"},
 
         // gui/menu_item/delay/analog.h
         {STRING_FOR_DIGITAL, "Digital"},
@@ -169,8 +273,11 @@ constexpr Language english{
 
         // gui/menu_item/filter/lpf_mode.h
         {STRING_FOR_DRIVE, "Drive"},
-        {STRING_FOR_SVF, "State-Variable Filter"},
-
+        {STRING_FOR_SVF_BAND, "SVF Bandpass"},
+        {STRING_FOR_SVF_NOTCH, "SVF Notch"},
+        {STRING_FOR_HPLADDER, "HP Ladder"},
+        {STRING_FOR_12DB_LADDER, "12dB Ladder"},
+        {STRING_FOR_24DB_LADDER, "24dB Ladder"},
         // gui/menu_item/flash/status.h
         {STRING_FOR_FAST, "Fast"},
         {STRING_FOR_SLOW, "Slow"},
@@ -180,8 +287,11 @@ constexpr Language english{
         {STRING_FOR_RUN_SIGNAL, "Run signal"},
 
         // gui/menu_item/gate/selection.h
-        {STRING_FOR_GATE_MODE_TITLE, "Gate out{} mode"},
-        {STRING_FOR_GATE_OUTPUT_N, "Gate output {}"},
+        {STRING_FOR_GATE_MODE_TITLE, "Gate out* mode"},
+        {STRING_FOR_GATE_OUTPUT_1, "Gate output 1"},
+        {STRING_FOR_GATE_OUTPUT_2, "Gate output 2"},
+        {STRING_FOR_GATE_OUTPUT_3, "Gate output 3"},
+        {STRING_FOR_GATE_OUTPUT_4, "Gate output 4"},
         {STRING_FOR_MINIMUM_OFF_TIME, "Minimum off-time"},
 
         // gui/menu_item/lfo/shape.h
@@ -205,7 +315,8 @@ constexpr Language english{
 
         // gui/menu_item/modulator/destination.h
         {STRING_FOR_CARRIERS, "Carriers"},
-        {STRING_FOR_MODULATOR_N, "Modulator {}"},
+        {STRING_FOR_MODULATOR_1, "Modulator 1"},
+        {STRING_FOR_MODULATOR_2, "Modulator 2"},
 
         // gui/menu_item/monitor/mode.h
         {STRING_FOR_CONDITIONAL, "Conditional"},
@@ -343,12 +454,9 @@ constexpr Language english{
         {STRING_FOR_NUMBER_OF_OCTAVES, "Number of octaves"},
         {STRING_FOR_SHAPE, "SHAPE"},
         {STRING_FOR_MOD_FX, "Mod-fx"},
-        {STRING_FOR_BASS_FREQUENCY, "Bass frequency"},
-        {STRING_FOR_TREBLE_FREQUENCY, "Treble frequency"},
         {STRING_FOR_POLY_FINGER_MPE, "Poly / finger / MPE"},
         {STRING_FOR_REVERB_SIDECHAIN, "Reverb sidechain"},
         {STRING_FOR_ROOM_SIZE, "Room size"},
-        {STRING_FOR_BITCRUSH, "Bitcrush"},
         {STRING_FOR_SUB_BANK, "Sub-bank"},
         {STRING_FOR_PLAY_DIRECTION, "Play direction"},
         {STRING_FOR_SWING_INTERVAL, "Swing interval"},
@@ -359,12 +467,20 @@ constexpr Language english{
         {STRING_FOR_SAMPLE_PREVIEW, "Sample preview"},
         {STRING_FOR_PLAY_CURSOR, "Play-cursor"},
         {STRING_FOR_FIRMWARE_VERSION, "Firmware version"},
-        {STRING_FOR_COMMUNITY_FTS, "Community fts."},
+        {STRING_FOR_COMMUNITY_FTS, "Community features"},
         {STRING_FOR_MIDI_THRU, "MIDI-thru"},
         {STRING_FOR_TAKEOVER, "TAKEOVER"},
         {STRING_FOR_RECORD, "Record"},
         {STRING_FOR_COMMANDS, "Commands"},
         {STRING_FOR_OUTPUT, "Output"},
+        {STRING_FOR_DEFAULT_UI, "UI"},
+        {STRING_FOR_DEFAULT_UI_LAYOUT, "Layout"},
+        {STRING_FOR_DEFAULT_UI_KEYBOARD, "Keyboard"},
+        {STRING_FOR_DEFAULT_UI_KEYBOARD_LAYOUT_ISOMORPHIC, "Isomorphic"},
+        {STRING_FOR_DEFAULT_UI_KEYBOARD_LAYOUT_INKEY, "In-Key"},
+        {STRING_FOR_DEFAULT_UI_SONG, "Song"},
+        {STRING_FOR_DEFAULT_UI_SONG_LAYOUT_ROWS, "Rows"},
+        {STRING_FOR_DEFAULT_UI_SONG_LAYOUT_GRID, "Grid"},
         {STRING_FOR_INPUT, "Input"},
         {STRING_FOR_TEMPO_MAGNITUDE_MATCHING, "Tempo magnitude matching"},
         {STRING_FOR_TRIGGER_CLOCK, "Trigger clock"},
@@ -374,6 +490,25 @@ constexpr Language english{
         {STRING_FOR_MASTER_TRANSPOSE, "Master transpose"},
         {STRING_FOR_SYNTH_MODE, "Synth mode"},
         {STRING_FOR_FILTER_ROUTE, "Filter route"},
+
+        {STRING_FOR_COMMUNITY_FEATURE_DRUM_RANDOMIZER, "Drum Randomizer"},
+        {STRING_FOR_COMMUNITY_FEATURE_MASTER_COMPRESSOR, "Master Compressor"},
+        {STRING_FOR_COMMUNITY_FEATURE_QUANTIZE, "Quantize"},
+        {STRING_FOR_COMMUNITY_FEATURE_FINE_TEMPO_KNOB, "Fine Tempo Knob"},
+        {STRING_FOR_COMMUNITY_FEATURE_MOD_DEPTH_DECIMALS, "Mod. Depth Decimals"},
+        {STRING_FOR_COMMUNITY_FEATURE_CATCH_NOTES, "Catch Notes"},
+        {STRING_FOR_COMMUNITY_FEATURE_DELETE_UNUSED_KIT_ROWS, "Delete Unused Kit Rows"},
+        {STRING_FOR_COMMUNITY_FEATURE_ALT_DELAY_PARAMS, "Alternative Golden Knob Delay Params"},
+        {STRING_FOR_COMMUNITY_FEATURE_QUANTIZED_STUTTER, "Stutter Rate Quantize"},
+        {STRING_FOR_COMMUNITY_FEATURE_AUTOMATION, "Automation"},
+        {STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_INTERPOLATION, "Interpolation"},
+        {STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_CLEAR_CLIP, "Clear Clip"},
+        {STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_NUDGE_NOTE, "Nudge Note"},
+        {STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_SHIFT_CLIP, "Shift Note"},
+        {STRING_FOR_COMMUNITY_FEATURE_DEV_SYSEX, "Allow Insecure Develop Sysex Messages"},
+        {STRING_FOR_COMMUNITY_FEATURE_SYNC_SCALING_ACTION, "Sync Scaling Action"},
+        {STRING_FOR_COMMUNITY_FEATURE_HIGHLIGHT_INCOMING_NOTES, "Highlight Incoming Notes"},
+        {STRING_FOR_COMMUNITY_FEATURE_NORNS_LAYOUT, "Display Norns Layout"},
 
         {STRING_FOR_TRACK_STILL_HAS_CLIPS_IN_SESSION, "Track still has clips in session"},
         {STRING_FOR_DELETE_ALL_TRACKS_CLIPS_FIRST, "Delete all track's clips first"},
@@ -387,6 +522,7 @@ constexpr Language english{
         {STRING_FOR_IMPOSSIBLE_FROM_GRID, "Impossible from Grid"},
         {STRING_FOR_SWITCHING_TO_TRACK_FAILED, "Switching to track failed"},
         {STRING_FOR_CANT_CLONE_AUDIO_IN_OTHER_TRACK, "Can't clone audio in other track"},
+        {STRING_FOR_CANT_CONVERT_TYPE, "Can't convert audio/non-audio"},
         {STRING_FOR_TARGET_FULL, "Target full"},
 
         // Auto-extracted from menus.cpp
@@ -408,7 +544,6 @@ constexpr Language english{
         {STRING_FOR_MODE, "MODE"},
         {STRING_FOR_ARPEGGIATOR, "ARPEGGIATOR"},
         {STRING_FOR_POLYPHONY, "POLYPHONY"},
-        {STRING_FOR_PORTAMENTO, "PORTAMENTO"},
         {STRING_FOR_PRIORITY, "PRIORITY"},
         {STRING_FOR_VOICE, "VOICE"},
         {STRING_FOR_DESTINATION, "Destination"},
@@ -421,14 +556,8 @@ constexpr Language english{
         {STRING_FOR_LFO2_RATE, "LFO2 rate"},
         {STRING_FOR_LFO2, "LFO2"},
         {STRING_FOR_MODFX_TYPE, "MOD-FX type"},
-        {STRING_FOR_MODFX_RATE, "MOD-FX rate"},
         {STRING_FOR_FEEDBACK, "FEEDBACK"},
-        {STRING_FOR_MODFX_FEEDBACK, "MOD-FX feedback"},
-        {STRING_FOR_MODFX_DEPTH, "MOD-FX depth"},
         {STRING_FOR_OFFSET, "OFFSET"},
-        {STRING_FOR_MODFX_OFFSET, "MOD-FX offset"},
-        {STRING_FOR_BASS, "BASS"},
-        {STRING_FOR_TREBLE, "TREBLE"},
         {STRING_FOR_EQ, "EQ"},
         {STRING_FOR_PINGPONG, "Pingpong"},
         {STRING_FOR_DELAY_PINGPONG, "Delay pingpong"},
@@ -444,32 +573,24 @@ constexpr Language english{
         {STRING_FOR_REVERB_WIDTH, "Reverb width"},
         {STRING_FOR_REVERB_PAN, "Reverb pan"},
         {STRING_FOR_SATURATION, "SATURATION"},
-        {STRING_FOR_DECIMATION, "DECIMATION"},
         {STRING_FOR_BANK, "BANK"},
         {STRING_FOR_MIDI_BANK, "MIDI bank"},
         {STRING_FOR_MIDI_SUB_BANK, "MIDI sub-bank"},
         {STRING_FOR_PGM, "PGM"},
         {STRING_FOR_REVERSE, "REVERSE"},
         {STRING_FOR_WAVEFORM, "WAVEFORM"},
-        {STRING_FOR_LPF_FREQUENCY, "LPF frequency"},
         {STRING_FOR_RESONANCE, "Resonance"},
-        {STRING_FOR_LPF_RESONANCE, "LPF resonance"},
         {STRING_FOR_LPF, "LPF"},
         {STRING_FOR_FREQUENCY, "Frequency"},
-        {STRING_FOR_HPF_FREQUENCY, "HPF frequency"},
-        {STRING_FOR_HPF_RESONANCE, "HPF resonance"},
         {STRING_FOR_HPF, "HPF"},
         {STRING_FOR_TYPE, "TYPE"},
         {STRING_FOR_MOD_FX_TYPE, "MOD FX type"},
         {STRING_FOR_MOD_FX_RATE, "MOD FX rate"},
         {STRING_FOR_DEPTH, "DEPTH"},
         {STRING_FOR_MOD_FX_DEPTH, "MOD FX depth"},
-        {STRING_FOR_DELAY_AMOUNT, "Delay amount"},
         {STRING_FOR_RATE, "RATE"},
-        {STRING_FOR_DELAY_RATE, "Delay rate"},
         {STRING_FOR_DELAY, "DELAY"},
         {STRING_FOR_AMOUNT, "AMOUNT"},
-        {STRING_FOR_REVERB_AMOUNT, "Reverb amount"},
         {STRING_FOR_REVERB, "REVERB"},
         {STRING_FOR_VOLUME_DUCKING, "Volume ducking"},
         {STRING_FOR_SIDECHAIN_COMPRESSOR, "Sidechain compressor"},
@@ -523,42 +644,40 @@ constexpr Language english{
         {STRING_FOR_VIBRATO, "VIBRATO"},
         {STRING_FOR_NAME, "NAME"},
         {STRING_FOR_BEND_RANGE, "Bend range"},
-        {STRING_FOR_MASTER_LEVEL, "Master level"},
         {STRING_FOR_PAN, "PAN"},
         {STRING_FOR_SOUND, "Sound"},
         {STRING_FOR_AUDIO_CLIP, "Audio clip"},
         {STRING_FOR_SETTINGS, "Settings"},
-        {STRING_FOR_ENV_ATTACK_MENU_TITLE, "Env{} attack"},
-        {STRING_FOR_ENV_DECAY_MENU_TITLE, "Env{} decay"},
-        {STRING_FOR_ENV_SUSTAIN_MENU_TITLE, "Env{} sustain"},
-        {STRING_FOR_ENV_RELEASE_MENU_TITLE, "Env{} release"},
-        {STRING_FOR_OSC_TYPE_MENU_TITLE, "Osc{} type"},
-        {STRING_FOR_OSC_WAVE_IND_MENU_TITLE, "Osc{} wave-ind."},
-        {STRING_FOR_OSC_LEVEL_MENU_TITLE, "Osc{} level"},
-        {STRING_FOR_CARRIER_FEED_MENU_TITLE, "Carrier{} feed."},
-        {STRING_FOR_SAMP_REVERSE_MENU_TITLE, "Samp{} reverse"},
-        {STRING_FOR_SAMP_REPEAT_MENU_TITLE, "Samp{} repeat"},
-        {STRING_FOR_OSC_TRANSPOSE_MENU_TITLE, "Osc{} transpose"},
-        {STRING_FOR_SAMP_SPEED_MENU_TITLE, "Samp{} speed"},
-        {STRING_FOR_SAMP_INTERP_MENU_TITLE, "Samp{} interp."},
-        {STRING_FOR_OSC_P_WIDTH_MENU_TITLE, "Osc{} p. width"},
-        {STRING_FOR_OSC_R_PHASE_MENU_TITLE, "Osc{} r. phase"},
+        {STRING_FOR_ENV_ATTACK_MENU_TITLE, "Env* attack"},
+        {STRING_FOR_ENV_DECAY_MENU_TITLE, "Env* decay"},
+        {STRING_FOR_ENV_SUSTAIN_MENU_TITLE, "Env* sustain"},
+        {STRING_FOR_ENV_RELEASE_MENU_TITLE, "Env* release"},
+        {STRING_FOR_OSC_TYPE_MENU_TITLE, "Osc* type"},
+        {STRING_FOR_OSC_WAVE_IND_MENU_TITLE, "Osc* wave-ind."},
+        {STRING_FOR_OSC_LEVEL_MENU_TITLE, "Osc* level"},
+        {STRING_FOR_CARRIER_FEED_MENU_TITLE, "Carrier* feed."},
+        {STRING_FOR_SAMP_REVERSE_MENU_TITLE, "Samp* reverse"},
+        {STRING_FOR_SAMP_REPEAT_MENU_TITLE, "Samp* repeat"},
+        {STRING_FOR_OSC_TRANSPOSE_MENU_TITLE, "Osc* transpose"},
+        {STRING_FOR_SAMP_SPEED_MENU_TITLE, "Samp* speed"},
+        {STRING_FOR_SAMP_INTERP_MENU_TITLE, "Samp* interp."},
+        {STRING_FOR_OSC_P_WIDTH_MENU_TITLE, "Osc* p. width"},
+        {STRING_FOR_OSC_R_PHASE_MENU_TITLE, "Osc* r. phase"},
         {STRING_FOR_ARP_MODE_MENU_TITLE, "Arp. mode"},
         {STRING_FOR_ARP_SYNC_MENU_TITLE, "Arp. sync"},
         {STRING_FOR_ARP_OCTAVES_MENU_TITLE, "Arp. octaves"},
-        {STRING_FOR_ARP_GATE_MENU_TITLE, "Arp. gate"},
         {STRING_FOR_ARP_RATE_MENU_TITLE, "Arp. rate"},
-        {STRING_FOR_FM_MOD_TRAN_MENU_TITLE, "FM Mod{} tran."},
-        {STRING_FOR_FM_MOD_LEVEL_MENU_TITLE, "FM Mod{} level"},
-        {STRING_FOR_FM_MOD_FBACK_MENU_TITLE, "FM Mod{} f.back"},
+        {STRING_FOR_FM_MOD_TRAN_MENU_TITLE, "FM Mod* tran."},
+        {STRING_FOR_FM_MOD_LEVEL_MENU_TITLE, "FM Mod* level"},
+        {STRING_FOR_FM_MOD_FBACK_MENU_TITLE, "FM Mod* f.back"},
         {STRING_FOR_FM_MOD2_DEST_MENU_TITLE, "FM Mod2 dest."},
-        {STRING_FOR_FM_MOD_RETRIG_MENU_TITLE, "FM Mod{} retrig"},
+        {STRING_FOR_FM_MOD_RETRIG_MENU_TITLE, "FM Mod* retrig"},
         {STRING_FOR_SIDECH_ATTACK_MENU_TITLE, "Sidech. attack"},
         {STRING_FOR_SIDECH_SHAPE_MENU_TITLE, "Sidech. shape"},
         {STRING_FOR_REVERB_SIDECH_MENU_TITLE, "Reverb sidech."},
         {STRING_FOR_MIDI_PGM_NUMB_MENU_TITLE, "MIDI PGM numb."},
-        {STRING_FOR_CV_V_PER_OCTAVE_MENU_TITLE, "CV{} V/octave"},
-        {STRING_FOR_CV_TRANSPOSE_MENU_TITLE, "CV{} transpose"},
+        {STRING_FOR_CV_V_PER_OCTAVE_MENU_TITLE, "CV* V/octave"},
+        {STRING_FOR_CV_TRANSPOSE_MENU_TITLE, "CV* transpose"},
         {STRING_FOR_SHORTCUTS_VER_MENU_TITLE, "Shortcuts ver."},
         {STRING_FOR_FIRMWARE_VER_MENU_TITLE, "Firmware ver."},
         {STRING_FOR_COMMUNITY_FTS_MENU_TITLE, "Community fts."},
@@ -633,12 +752,7 @@ constexpr Language english{
         {STRING_FOR_LEARNED, "LEARNED"},
         {STRING_FOR_RANGE_INSERTED, "Range inserted"},
         {STRING_FOR_INSERT, "INSERT"},
-        {STRING_FOR_SIDECHAIN_SHAPE, "Sidechain shape"},
-        {STRING_FOR_WAVEFOLDER, "Wavefolder"},
 
-        {STRING_FOR_MASTER_PITCH, "Master pitch"},
-        {STRING_FOR_MASTER_PAN, "Master pan"},
-        {STRING_FOR_SIDECHAIN_LEVEL, "Sidechain level"},
         {STRING_FOR_SVF_BAND, "SVF Bandpass"},
         {STRING_FOR_SVF_NOTCH, "SVF Notch"},
         {STRING_FOR_AUTOMATION, "AUTOMATION"},

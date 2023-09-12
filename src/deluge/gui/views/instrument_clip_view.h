@@ -67,6 +67,7 @@ public:
 	InstrumentClipView();
 	bool opened();
 	void focusRegained();
+	void displayOrLanguageChanged() final;
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
 	uint8_t getEditPadPressXDisplayOnScreen(uint8_t yDisplay);

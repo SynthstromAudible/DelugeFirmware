@@ -26,9 +26,6 @@
 #define CLIP_TYPE_INSTRUMENT 0
 #define CLIP_TYPE_AUDIO 1
 
-#define OVERDUB_NORMAL 0
-#define OVERDUB_CONTINUOUS_LAYERING 1
-
 #define LAUNCH_STYLE_DEFAULT 0
 #define LAUNCH_STYLE_FILL 1
 
@@ -108,7 +105,7 @@ public:
 	                       int32_t imageWidth, TimelineView* editorScreen, bool tripletsOnHere);
 	bool opportunityToBeginSessionLinearRecording(ModelStackWithTimelineCounter* modelStack, bool* newOutputCreated,
 	                                              int32_t buttonPressLatency);
-	virtual Clip* cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStack, int32_t newOverdubNature) = 0;
+	virtual Clip* cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStack, OverDubType newOverdubNature) = 0;
 	virtual bool getCurrentlyRecordingLinearly() = 0;
 	virtual bool currentlyScrollableAndZoomable() = 0;
 	virtual void clear(Action* action, ModelStackWithTimelineCounter* modelStack);
@@ -120,7 +117,7 @@ public:
 	void readTagFromFile(char const* tagName, Song* song, int32_t* readAutomationUpToPos);
 
 	virtual void copyBasicsFrom(Clip* otherClip);
-	void setupForRecordingAsAutoOverdub(Clip* existingClip, Song* song, int32_t newOverdubNature);
+	void setupForRecordingAsAutoOverdub(Clip* existingClip, Song* song, OverDubType newOverdubNature);
 	void outputChanged(ModelStackWithTimelineCounter* modelStack, Output* newOutput);
 	virtual bool isAbandonedOverdub() = 0;
 	virtual bool wantsToBeginLinearRecording(Song* song);
@@ -161,7 +158,7 @@ public:
 	bool isUnfinishedAutoOverdub;
 	bool armedForRecording;
 	bool wasWantingToDoLinearRecordingBeforeCountIn; // Only valid during a count-in
-	uint8_t overdubNature;
+	OverDubType overdubNature;
 
 	LearnedMIDI muteMIDICommand;
 
@@ -184,6 +181,7 @@ public:
 
 	uint8_t launchStyle;
 	int64_t fillEventAtTickCount;
+	bool overdubsShouldCloneOutput;
 
 protected:
 	virtual void

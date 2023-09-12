@@ -144,6 +144,18 @@ static constexpr uint32_t charsToIntegerConstant(char a, char b, char c, char d)
 static constexpr uint16_t charsToIntegerConstant(char a, char b) {
 	return (static_cast<uint16_t>(a)) | (static_cast<uint16_t>(b) << 8);
 }
+/**
+ * replace asterix with a digit
+ * Only works for single digits
+*/
+static void asterixToInt(char* str, int32_t i) {
+	while (*str != 0) {
+		if (*str == '*') {
+			*str = (char)('0' + i);
+		}
+		str++;
+	}
+}
 
 int32_t stringToInt(char const* string);
 int32_t stringToUIntOrError(char const* mem);
@@ -219,9 +231,9 @@ int32_t getFinalParameterValueExpWithDumbEnvelopeHack(int32_t paramNeutralValue,
 void addAudio(StereoSample* inputBuffer, StereoSample* outputBuffer, int32_t numSamples);
 
 char const* getSourceDisplayNameForOLED(PatchSource s);
-char const* getPatchedParamDisplayNameForOLED(int32_t p);
-char const* getUnpatchedParamDisplayNameForOLED(int32_t p);
-char const* getGlobalEffectableParamDisplayNameForOLED(int32_t p);
+char const* getPatchedParamDisplayName(int32_t p);
+char const* getUnpatchedParamDisplayName(int32_t p);
+char const* getGlobalEffectableParamDisplayName(int32_t p);
 
 char const* sourceToString(PatchSource source);
 PatchSource stringToSource(char const* string);

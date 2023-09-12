@@ -17,28 +17,24 @@
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
+#include "gui/l10n/strings.h"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
-#include "model/mod_controllable/mod_controllable_audio.h"
-#include "processing/sound/sound.h"
+#include "hid/display/display.h"
+#include "storage/flash_storage.h"
 #include "util/misc.h"
 
-namespace deluge::gui::menu_item::filter {
-class LPFMode final : public Selection<kNumLPFModes> {
+namespace deluge::gui::menu_item::defaults {
+class KeyboardLayout final : public Selection<2> {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->setValue<::FilterMode>(soundEditor.currentModControllable->lpfMode); }
-	void writeCurrentValue() override { soundEditor.currentModControllable->lpfMode = this->getValue<::FilterMode>(); }
+	void readCurrentValue() override { this->setValue(FlashStorage::defaultKeyboardLayout); }
+	void writeCurrentValue() override { FlashStorage::defaultKeyboardLayout = this->getValue<KeyboardLayoutType>(); }
 	static_vector<std::string_view, capacity()> getOptions() override {
-		using enum l10n::String;
 		return {
-		    l10n::getView(STRING_FOR_12DB_LADDER), l10n::getView(STRING_FOR_24DB_LADDER),
-		    l10n::getView(STRING_FOR_DRIVE),       l10n::getView(STRING_FOR_SVF_BAND),
-		    l10n::getView(STRING_FOR_SVF_NOTCH),
+		    l10n::getView(l10n::String::STRING_FOR_DEFAULT_UI_KEYBOARD_LAYOUT_ISOMORPHIC),
+		    l10n::getView(l10n::String::STRING_FOR_DEFAULT_UI_KEYBOARD_LAYOUT_INKEY),
 		};
 	}
-	bool isRelevant(Sound* sound, int32_t whichThing) override {
-		return ((sound == nullptr) || sound->synthMode != ::SynthMode::FM);
-	}
 };
-} // namespace deluge::gui::menu_item::filter
+} // namespace deluge::gui::menu_item::defaults

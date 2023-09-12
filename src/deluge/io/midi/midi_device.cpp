@@ -224,6 +224,16 @@ int32_t MIDIPort::channelToZone(int32_t inputChannel) {
 	return inputChannel;
 }
 
+bool MIDIPort::isMasterChannel(int32_t inputChannel) {
+	if (mpeLowerZoneLastMemberChannel && inputChannel == 0) {
+		return true;
+	}
+	if (mpeUpperZoneLastMemberChannel < 15 && inputChannel == 15) {
+		return true;
+	}
+	return false;
+}
+
 void MIDIPort::moveUpperZoneOutOfWayOfLowerZone() {
 	if (mpeLowerZoneLastMemberChannel >= 14) {
 		mpeUpperZoneLastMemberChannel = 15;

@@ -738,6 +738,7 @@ enum class PatchCableAcceptance {
 	ALLOWED,
 	YET_TO_BE_DETERMINED,
 };
+enum class OverDubType { Normal, ContinuousLayering };
 
 enum class GlobalMIDICommand {
 	NONE = -1,
@@ -760,6 +761,7 @@ enum class MIDITakeoverMode : uint8_t {
 	SCALE,
 };
 constexpr auto kNumMIDITakeoverModes = util::to_underlying(MIDITakeoverMode::SCALE) + 1;
+constexpr int32_t kMIDITakeoverKnobSyncThreshold = 5;
 
 constexpr int32_t kNumClustersLoadedAhead = 2;
 
@@ -1080,3 +1082,17 @@ constexpr uint32_t kSampleRate = 44100;
 /// Length of press that deliniates a "short" press. Set to half a second (in units of samples, to work with
 /// AudioEngine::audioSampleTimer)
 constexpr uint32_t kShortPressTime = kSampleRate / 2;
+
+enum KeyboardLayoutType : uint8_t {
+	KeyboardLayoutTypeIsomorphic,
+	KeyboardLayoutTypeInKey,
+	KeyboardLayoutTypeDrums,
+	KeyboardLayoutTypeNorns,
+	KeyboardLayoutTypeMaxElement // Keep as boundary
+};
+
+enum SessionLayoutType : uint8_t {
+	SessionLayoutTypeRows,
+	SessionLayoutTypeGrid,
+	SessionLayoutTypeMaxElement // Keep as boundary
+};

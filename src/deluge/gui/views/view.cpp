@@ -180,9 +180,7 @@ doEndMidiLearnPressSession:
 			}
 		}
 		else {
-			if (currentUIMode == UI_MODE_MIDI_LEARN) {
-				endMIDILearn();
-			}
+			endMIDILearn();
 		}
 	}
 
@@ -255,6 +253,9 @@ doEndMidiLearnPressSession:
 						indicator_leds::setLedState(IndicatorLED::SAVE, false);
 					}
 				}
+				else if (currentUIMode == UI_MODE_NONE) {
+					indicator_leds::setLedState(IndicatorLED::SAVE, false);
+				}
 			}
 		}
 	}
@@ -308,6 +309,9 @@ doEndMidiLearnPressSession:
 						indicator_leds::setLedState(IndicatorLED::LOAD, false);
 					}
 				}
+				else if (currentUIMode == UI_MODE_NONE) {
+					indicator_leds::setLedState(IndicatorLED::LOAD, false);
+				}
 			}
 		}
 	}
@@ -316,8 +320,7 @@ doEndMidiLearnPressSession:
 	else if (b == SYNC_SCALING) {
 		if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction)
 		     == RuntimeFeatureStateSyncScalingAction::Fill)) {
-			currentSong->fillModeActive = on;
-			indicator_leds::setLedState(IndicatorLED::SYNC_SCALING, on);
+			currentSong->changeFillMode(on);
 		}
 		else if (on && currentUIMode == UI_MODE_NONE) {
 
@@ -448,7 +451,11 @@ void View::endMIDILearn() {
 	if (getRootUI()) {
 		getRootUI()->midiLearnFlash();
 	}
-	currentUIMode = UI_MODE_NONE;
+
+	if (currentUIMode == UI_MODE_MIDI_LEARN) {
+		currentUIMode = UI_MODE_NONE;
+	}
+
 	playbackHandler.setLedStates();
 	indicator_leds::setLedState(IndicatorLED::LEARN, false);
 }

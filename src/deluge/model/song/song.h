@@ -18,12 +18,12 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "gui/views/session_view.h"
 #include "io/midi/learned_midi.h"
 #include "model/clip/clip_array.h"
 #include "model/global_effectable/global_effectable_for_song.h"
 #include "model/timeline_counter.h"
 #include "modulation/params/param_manager.h"
+#include "storage/flash_storage.h"
 #include "util/container/array/ordered_resizeable_array_with_multi_word_key.h"
 #include "util/d_string.h"
 
@@ -168,9 +168,7 @@ public:
 
 	bool affectEntire;
 
-	bool fillModeActive;
-
-	SessionLayoutType sessionLayout = SessionLayoutType::SessionLayoutTypeRows;
+	SessionLayoutType sessionLayout = FlashStorage::defaultSessionLayout;
 	int32_t songGridScrollX = 0;
 	int32_t songGridScrollY = 0;
 	int32_t songViewYScroll;
@@ -201,7 +199,8 @@ public:
 	uint32_t getInputTickScale();
 	Clip* getSyncScalingClip();
 	void setInputTickScaleClip(Clip* clip);
-
+	inline bool isFillModeActive() { return fillModeActive; }
+	void changeFillMode(bool on);
 	void setClipLength(Clip* clip, uint32_t newLength, Action* action, bool mayReSyncClip = true);
 	void doubleClipLength(InstrumentClip* clip, Action* action = NULL);
 	Clip* getClipWithOutput(Output* output, bool mustBeActive = false, Clip* excludeClip = NULL);
@@ -296,7 +295,7 @@ public:
 	                           bool createConsequencesForOtherLinearlyRecordingClips = false);
 	Clip* getPendingOverdubWithOutput(Output* output);
 	Clip* getClipWithOutputAboutToBeginLinearRecording(Output* output);
-	Clip* createPendingNextOverdubBelowClip(Clip* clip, int32_t clipIndex, int32_t newOverdubNature);
+	Clip* createPendingNextOverdubBelowClip(Clip* clip, int32_t clipIndex, OverDubType newOverdubNature);
 	bool hasAnyPendingNextOverdubs();
 	Output* getNextAudioOutput(int32_t offset, Output* oldOutput, Availability availabilityRequirement);
 	void deleteOutput(Output* output);
@@ -335,6 +334,7 @@ public:
 	double masterCompressorWet;
 
 private:
+	bool fillModeActive;
 	void inputTickScalePotentiallyJustChanged(uint32_t oldScale);
 	int32_t readClipsFromFile(ClipArray* clipArray);
 	void addInstrumentToHibernationList(Instrument* instrument);

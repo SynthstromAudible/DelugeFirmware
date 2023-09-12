@@ -1,7 +1,9 @@
 #pragma once
 #include "util/const_functions.h"
+#include "util/fixedpoint.h"
 #include "util/misc.h"
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <functional>
 #include <limits>
@@ -216,7 +218,9 @@ public:
 	 */
 	template <typename UnaryOp> // std::function<channel_type(channel_type)>
 	requires std::convertible_to<UnaryOp, std::function<channel_type(channel_type)>>
-	constexpr RGB transform(UnaryOp transformFn) const { return RGB(transformFn(r), transformFn(g), transformFn(b)); }
+	[[nodiscard]] constexpr RGB transform(UnaryOp transformFn) const {
+		return RGB(transformFn(r), transformFn(g), transformFn(b));
+	}
 
 	/**
 	 * @brief Create a new colour by transforming the channels of two colours
@@ -244,7 +248,36 @@ public:
 		});
 	}
 
+	/**
+	 * This rotates the colour in fromRgb by 1 radian and places it in rgb
+	 * This is useful to generate a complementary colour with the same brightness
+	 */
+	constexpr RGB rotate() { return xform(RMat); }
+
 private:
+	static constexpr uint32_t IMat[4][4] = {
+	    {ONE_Q15, 0, 0, 0},
+	    {0, ONE_Q15, 0, 0},
+	    {0, 0, ONE_Q15, 0},
+	    {0, 0, 0, ONE_Q15},
+	};
+	static constexpr float c = std::cos(1.0f);
+	static constexpr float s = std::sin(1.0f);
+	static constexpr uint32_t RMat[4][4] = {
+	    {(uint32_t)(c * ONE_Q15), 0, (uint32_t)(s* ONE_Q15), 0},
+	    {(uint32_t)(s * ONE_Q15), (uint32_t)(c* ONE_Q15), 0, 0},
+	    {0, (uint32_t)(s* ONE_Q15), (uint32_t)(c* ONE_Q15), 0},
+	    {0, 0, 0, ONE_Q15},
+	};
+
+	constexpr RGB xform(const uint32_t mat[4][4]) {
+		return {
+		    (uint8_t)((r * mat[0][0] + g * mat[1][0] + b * mat[2][0] + mat[3][0]) >> 16),
+		    (uint8_t)((r * mat[0][1] + g * mat[1][1] + b * mat[2][1] + mat[3][1]) >> 16),
+		    (uint8_t)((r * mat[0][2] + g * mat[1][2] + b * mat[2][2] + mat[3][2]) >> 16),
+		};
+	}
+
 	/**
 	* @brief Blend a channel in equal proportions
 	* @return The blended channel value

@@ -223,7 +223,8 @@ addNewNote:
 
 		newNote->setVelocity(((Instrument*)((Clip*)modelStack->getTimelineCounter())->output)->defaultVelocity);
 		newNote->setLift(kDefaultLiftValue);
-		newNote->setProbability(kNumProbabilityValues);
+
+		newNote->setProbability(getDefaultProbability(modelStack));
 
 		if (i + 1 < notes.getNumElements()) {
 			newNote->setLength(std::min(desiredNoteLength, notes.getElement(i + 1)->pos - newNote->pos));
@@ -441,7 +442,7 @@ addNewNote:
 			destNote->pos = posThisScreen;
 			destNote->setVelocity(velocity);
 			destNote->setLift(kDefaultLiftValue);
-			destNote->setProbability(kNumProbabilityValues);
+			destNote->setProbability(getDefaultProbability(modelStack));
 
 			int32_t newLength;
 
@@ -510,6 +511,15 @@ addNewNote:
 	((InstrumentClip*)modelStack->getTimelineCounter())->expectEvent();
 
 	return NO_ERROR;
+}
+int32_t NoteRow::getDefaultProbability(ModelStackWithNoteRow* ModelStack) {
+
+	if (ModelStack->song->isFillModeActive()) {
+		return 0;
+	}
+	else {
+		return probabilityValue;
+	}
 }
 
 // This gets called after we've scrolled and attempted to drag notes. And for recording.
@@ -629,7 +639,7 @@ int32_t NoteRow::attemptNoteAddReversed(ModelStackWithNoteRow* modelStack, int32
 	newNote->setLength(1);
 	newNote->setVelocity(velocity);
 	newNote->setLift(kDefaultLiftValue);
-	newNote->setProbability(kNumProbabilityValues);
+	newNote->setProbability(getDefaultProbability(modelStack));
 
 	((InstrumentClip*)modelStack->getTimelineCounter())->expectEvent();
 
@@ -1586,13 +1596,14 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 				squareStartPos = squareEndPos[xDisplay - xStartNow - 1];
 			}
 			int32_t i = searchTerms[xDisplay - xStartNow];
-
+			bool drewNote = false;
 			Note* note = notes.getElement(i - 1); // Subtracting 1 to do "LESS"
 
 			RGB& pixel = image[xDisplay];
 
 			// If Note starts somewhere within square, draw the blur colour
 			if (note && note->pos > squareStartPos) {
+				drewNote = true;
 				pixel = rowBlurColour;
 				if (occupancyMask) {
 					occupancyMask[xDisplay] = 64;
@@ -1601,6 +1612,7 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 
 			// Or if Note starts exactly on square...
 			else if (note && note->pos == squareStartPos) {
+				drewNote = true;
 				pixel = rowColour;
 				if (occupancyMask) {
 					occupancyMask[xDisplay] = 64;
@@ -1609,6 +1621,7 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 
 			// Draw wrapped notes
 			else if (!drawRepeats || whichRepeat) {
+
 				bool wrapping = (i == 0); // Subtracting 1 to do "LESS"
 				if (wrapping) {
 					note = notes.getLast();
@@ -1618,6 +1631,7 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 					noteEnd -= effectiveRowLength;
 				}
 				if (noteEnd > squareStartPos && allowNoteTails) {
+					drewNote = true;
 					pixel[0] = rowTailColour[0];
 					pixel[1] = rowTailColour[1];
 					pixel[2] = rowTailColour[2];
@@ -1625,6 +1639,12 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 						occupancyMask[xDisplay] = 64;
 					}
 				}
+			}
+			if (drewNote && note->probability == 0 && currentSong->isFillModeActive()) {
+				//make em blue
+				pixel[0] = 0;
+				pixel[1] = 0;
+				pixel[2] = 255;
 			}
 		}
 
@@ -3126,9 +3146,10 @@ void NoteRow::setDrumToNull(ModelStackWithTimelineCounter const* modelStack) {
 // song not required if setting to NULL
 // Can handle NULL newParamManager.
 void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack,
-                      InstrumentClip* favourClipForCloningParamManager, ParamManager* newParamManager) {
+                      InstrumentClip* favourClipForCloningParamManager, ParamManager* newParamManager,
+                      bool backupOldParamManager) {
 
-	if (paramManager.containsAnyMainParamCollections()) {
+	if (backupOldParamManager && paramManager.containsAnyMainParamCollections()) {
 		modelStack->song->backUpParamManager(
 		    (SoundDrum*)drum, (Clip*)modelStack->getTimelineCounter(), &paramManager,
 		    false); // Don't steal expression params - we'll keep them here with this NoteRow.
@@ -3140,8 +3161,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 	    newDrum; // Better set this temporarily for this call. See comment above for why we can't set it permanently yet
 
 	if (newParamManager) {
-		paramManager.stealParamCollectionsFrom(
-		    newParamManager); // Don't bother stealing expression/MPE params - newParamManager is actually literally brand new in the one case that it gets supplied.
+		paramManager.stealParamCollectionsFrom(newParamManager, true);
 		if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
 			trimParamManager(modelStack);
 		}

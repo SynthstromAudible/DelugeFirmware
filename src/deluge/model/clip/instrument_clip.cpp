@@ -476,8 +476,8 @@ int32_t InstrumentClip::beginLinearRecording(ModelStackWithTimelineCounter* mode
 					}
 
 					ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowIndex, noteRow);
-
-					noteRow->attemptNoteAdd(0, 1, velocity, kNumProbabilityValues, modelStackWithNoteRow, action);
+					int32_t probability = noteRow->getDefaultProbability(modelStackWithNoteRow);
+					noteRow->attemptNoteAdd(0, 1, velocity, probability, modelStackWithNoteRow, action);
 					if (!thisDrum->earlyNoteStillActive) {
 						Debug::println("skipping next note");
 						noteRow->skipNextNote = true;
@@ -501,9 +501,8 @@ int32_t InstrumentClip::beginLinearRecording(ModelStackWithTimelineCounter* mode
 				    getOrCreateNoteRowForYNote(basicNote->note, modelStack, action, &scaleAltered);
 				NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 				if (noteRow) {
-
-					noteRow->attemptNoteAdd(0, 1, basicNote->velocity, kNumProbabilityValues, modelStackWithNoteRow,
-					                        action);
+					int32_t probability = noteRow->getDefaultProbability(modelStackWithNoteRow);
+					noteRow->attemptNoteAdd(0, 1, basicNote->velocity, probability, modelStackWithNoteRow, action);
 					if (!basicNote->stillActive) {
 						noteRow->skipNextNote = true;
 					}
@@ -821,7 +820,7 @@ skipDoingSumTo100:
 
 			// else check if it's a FILL note and only play if SYNC_SCALING is pressed
 			else if (pendingNoteOnList.pendingNoteOns[i].probability == kFillProbabilityValue) {
-				conditionPassed = currentSong->fillModeActive;
+				conditionPassed = currentSong->isFillModeActive();
 			}
 
 			// Otherwise...
@@ -2394,9 +2393,7 @@ someError:
 		}
 
 		else if (!strcmp(tagName, "keyboardLayout")) {
-			// TODO: Unscope this once namespacing is complete
-			keyboardState.currentLayout =
-			    (deluge::gui::ui::keyboard::KeyboardLayoutType)storageManager.readTagOrAttributeValueInt();
+			keyboardState.currentLayout = (KeyboardLayoutType)storageManager.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "yScrollKeyboard")) {
@@ -4024,7 +4021,7 @@ void InstrumentClip::finishLinearRecording(ModelStackWithTimelineCounter* modelS
 	}
 }
 
-Clip* InstrumentClip::cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStack, int32_t newOverdubNature) {
+Clip* InstrumentClip::cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStack, OverDubType newOverdubNature) {
 
 	// Allocate memory for Clip
 	void* clipMemory = GeneralMemoryAllocator::get().alloc(sizeof(InstrumentClip), NULL, false, true);
@@ -4313,7 +4310,8 @@ doNormal: // Wrap it back to the start.
 	}
 
 	else {
-		distanceToNextNote = noteRow->attemptNoteAdd(quantizedPos, 1, velocity, kNumProbabilityValues, modelStack,
+		int32_t probability = noteRow->getDefaultProbability(modelStack);
+		distanceToNextNote = noteRow->attemptNoteAdd(quantizedPos, 1, velocity, probability, modelStack,
 		                                             NULL); // Don't supply Action, cos we've done our own thing, above
 	}
 

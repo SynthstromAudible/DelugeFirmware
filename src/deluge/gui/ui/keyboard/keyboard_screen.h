@@ -57,6 +57,7 @@ public:
 private:
 	bool opened();
 	void focusRegained();
+	void displayOrLanguageChanged() final;
 
 	void evaluateActiveNotes();
 	void updateActiveNotes();

@@ -103,7 +103,10 @@ public:
 		focusRegained();
 		return true;
 	}
+
 	virtual void focusRegained() {}
+	// the `display` and/or `chosenLanguage` object changed. redraw accordingly.
+	virtual void displayOrLanguageChanged() {}
 	virtual bool canSeeViewUnderneath() { return false; }
 	virtual ClipMinder* toClipMinder() { return NULL; }
 	virtual void scrollFinished() {}

@@ -166,13 +166,14 @@ bool Session::giveClipOpportunityToBeginLinearRecording(Clip* clip, int32_t clip
 			uiNeedsRendering(getCurrentUI());
 		}
 
-		if (clip->overdubNature != OVERDUB_NORMAL && playbackHandler.isEitherClockActive()) {
+		if (clip->overdubNature != OverDubType::Normal && playbackHandler.isEitherClockActive()) {
 			armClipToStopAction(clip);
 
 			// Create new clip if we're continuous-layering
-			if (clip->getCurrentlyRecordingLinearly() && clip->overdubNature == OVERDUB_CONTINUOUS_LAYERING) {
-				currentSong->createPendingNextOverdubBelowClip(clip, clipIndex,
-				                                               OVERDUB_CONTINUOUS_LAYERING); // Make it spawn more too
+			if (clip->getCurrentlyRecordingLinearly() && clip->overdubNature == OverDubType::ContinuousLayering) {
+				currentSong->createPendingNextOverdubBelowClip(
+				    clip, clipIndex,
+				    OverDubType::ContinuousLayering); // Make it spawn more too
 			}
 		}
 	}
@@ -194,10 +195,10 @@ bool Session::giveClipOpportunityToBeginLinearRecording(Clip* clip, int32_t clip
 
 /**
  * doLaunch
- * 
+ *
  * Launches / stops clips at a 'launch event'. This occurs at the end of the current loop in song mode,
  * and additionally to launch fill clips.
- * 
+ *
  * @param isFillLaunch - A non-fill launch acts on the arm states of all clips:
  * 	                        - Regular clips that are:
  * 								- stopping or starting
@@ -211,13 +212,13 @@ bool Session::giveClipOpportunityToBeginLinearRecording(Clip* clip, int32_t clip
  *                       repeat count incread with the select knob, the fill waits until
  *                       the last repeat, whereas doLaunch is called at the end of every
  *                       repeat.
- * 	                    
+ *
  * 	                     A fill launch starts fill clips at the correct time, such
  *                       that they _finish_ at the next launch event. A fill launch
  *                       should leave non-fill clips unaffected. Fills that launch
  *                       may override other fills if they need the same synth/kit/audio
  *                       output, but must not override a non-fill.
- * 
+ *
 */
 void Session::doLaunch(bool isFillLaunch) {
 
@@ -245,7 +246,7 @@ void Session::doLaunch(bool isFillLaunch) {
 		if (isFillLaunch
 		    && (clip->fillEventAtTickCount <= 0
 		        || playbackHandler.lastSwungTickActioned < clip->fillEventAtTickCount)) {
-			/* This clip needs no action, since it is not a fill clip, 
+			/* This clip needs no action, since it is not a fill clip,
 			   or it is but it's not time to start it, or it's not armed at all. */
 			continue;
 		}
@@ -1161,7 +1162,13 @@ void Session::armSectionWhenNeitherClockActive(ModelStack* modelStack, int32_t s
 // Updates LEDs after arming changed
 void Session::armingChanged() {
 	if (getRootUI() == &sessionView) {
-		uiNeedsRendering(&sessionView, 0, 0xFFFFFFFF); // Only need the mute pads
+		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+			uiNeedsRendering(&sessionView, 0xFFFFFFFF, 0xFFFFFFFF);
+		}
+		else {
+			uiNeedsRendering(&sessionView, 0, 0xFFFFFFFF); // Only need the mute pads
+		}
+
 		if (getCurrentUI()->canSeeViewUnderneath()) {
 			if (display->haveOLED()) {
 				if (!isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)
@@ -1694,9 +1701,9 @@ setPosAndStuff:
  *                    usual song mode loop. If there is less time until
  *                    then than the clip is long, start right now mid way
  *                    through. Otherwise schedule for the correct time.
- * 
+ *
  * @param section - the section number to launch fill clips for.
- * 
+ *
 */
 void Session::scheduleFillClip(Clip* clip) {
 
@@ -1761,9 +1768,9 @@ void Session::scheduleFillClip(Clip* clip) {
  * scheduleFillClips - schedules all fill clips in a section. If
  *                     a non-fill clip is already playing on the same output
  *                     that we want to use, we prevent the fill from starting.
- * 
+ *
  * @param section - the section number to launch fill clips for.
- * 
+ *
 */
 void Session::scheduleFillClips(uint8_t section) {
 	for (int32_t c = 0; c < currentSong->sessionClips.getNumElements(); c++) {

@@ -106,7 +106,9 @@ constexpr Language seven_segment{
         {STRING_FOR_RANDOM, "RANDOM"},
 
         // gui/menu_item/cv/selection.h
-        {STRING_FOR_CV_OUTPUT_N, "OUT{}"},
+        {STRING_FOR_CV_OUTPUT_N, "OUT*"},
+        {STRING_FOR_CV_OUTPUT_1, "OUT1"},
+        {STRING_FOR_CV_OUTPUT_2, "OUT2"},
 
         // gui/menu_item/delay/analog.h
         {STRING_FOR_DIGITAL, "DIGI"},
@@ -114,8 +116,11 @@ constexpr Language seven_segment{
 
         // gui/menu_item/filter/lpf_mode.h
         {STRING_FOR_DRIVE, "Drive"},
-        {STRING_FOR_SVF, "SVF"},
-
+        {STRING_FOR_SVF_BAND, "SV_B"},
+        {STRING_FOR_SVF_NOTCH, "SV_N"},
+        {STRING_FOR_HPLADDER, "HP_L"},
+        {STRING_FOR_12DB_LADDER, "LA12"},
+        {STRING_FOR_24DB_LADDER, "LA24"},
         // gui/menu_item/flash/status.h
         {STRING_FOR_FAST, "FAST"},
         {STRING_FOR_SLOW, "SLOW"},
@@ -128,7 +133,10 @@ constexpr Language seven_segment{
 
         // gui/menu_item/gate/selection.h
         {STRING_FOR_GATE_MODE_TITLE, ""},
-        {STRING_FOR_GATE_OUTPUT_N, "OUT{}"},
+        {STRING_FOR_GATE_OUTPUT_1, "OUT1"},
+        {STRING_FOR_GATE_OUTPUT_2, "OUT2"},
+        {STRING_FOR_GATE_OUTPUT_3, "OUT3"},
+        {STRING_FOR_GATE_OUTPUT_4, "OUT4"},
         {STRING_FOR_MINIMUM_OFF_TIME, "OFFT"},
 
         // gui/menu_item/lfo/shape.h
@@ -152,7 +160,8 @@ constexpr Language seven_segment{
 
         // gui/menu_item/modulator/destination.h
         {STRING_FOR_CARRIERS, "CARRIERS"},
-        {STRING_FOR_MODULATOR_N, "Mod{}"},
+        {STRING_FOR_MODULATOR_1, "Mod1"},
+        {STRING_FOR_MODULATOR_2, "Mod2"},
 
         // gui/menu_item/monitor/mode.h
         {STRING_FOR_CONDITIONAL, "COND"},
@@ -306,6 +315,14 @@ constexpr Language seven_segment{
         {STRING_FOR_RECORD, "REC"},
         {STRING_FOR_COMMANDS, "CMD"},
         {STRING_FOR_OUTPUT, "OUT"},
+        {STRING_FOR_DEFAULT_UI, "UI"},
+        {STRING_FOR_DEFAULT_UI_LAYOUT, "LAYT"},
+        {STRING_FOR_DEFAULT_UI_KEYBOARD, "KBD"},
+        {STRING_FOR_DEFAULT_UI_KEYBOARD_LAYOUT_ISOMORPHIC, "ISO"},
+        {STRING_FOR_DEFAULT_UI_KEYBOARD_LAYOUT_INKEY, "INKY"},
+        {STRING_FOR_DEFAULT_UI_SONG, "SONG"},
+        {STRING_FOR_DEFAULT_UI_SONG_LAYOUT_ROWS, "ROWS"},
+        {STRING_FOR_DEFAULT_UI_SONG_LAYOUT_GRID, "GRID"},
         {STRING_FOR_INPUT, "IN"},
         {STRING_FOR_TEMPO_MAGNITUDE_MATCHING, "MAGN"},
         {STRING_FOR_TRIGGER_CLOCK, "TCLOCK"},
@@ -315,6 +332,25 @@ constexpr Language seven_segment{
         {STRING_FOR_MASTER_TRANSPOSE, "TRANSPOSE"},
         {STRING_FOR_SYNTH_MODE, "MODE"},
         {STRING_FOR_FILTER_ROUTE, "ROUT"},
+
+        {STRING_FOR_COMMUNITY_FEATURE_DRUM_RANDOMIZER, "DRUM"},
+        {STRING_FOR_COMMUNITY_FEATURE_MASTER_COMPRESSOR, "COMP"},
+        {STRING_FOR_COMMUNITY_FEATURE_QUANTIZE, "QUAN"},
+        {STRING_FOR_COMMUNITY_FEATURE_FINE_TEMPO_KNOB, "TEMP"},
+        {STRING_FOR_COMMUNITY_FEATURE_MOD_DEPTH_DECIMALS, "MOD."},
+        {STRING_FOR_COMMUNITY_FEATURE_CATCH_NOTES, "CATC"},
+        {STRING_FOR_COMMUNITY_FEATURE_DELETE_UNUSED_KIT_ROWS, "UNUS"},
+        {STRING_FOR_COMMUNITY_FEATURE_ALT_DELAY_PARAMS, "DELA"},
+        {STRING_FOR_COMMUNITY_FEATURE_QUANTIZED_STUTTER, "STUT"},
+        {STRING_FOR_COMMUNITY_FEATURE_AUTOMATION, "AUTO"},
+        {STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_INTERPOLATION, "INTE"},
+        {STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_CLEAR_CLIP, "CLEA"},
+        {STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_NUDGE_NOTE, "NUDG"},
+        {STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_SHIFT_CLIP, "SHIF"},
+        {STRING_FOR_COMMUNITY_FEATURE_DEV_SYSEX, "SYSX"},
+        {STRING_FOR_COMMUNITY_FEATURE_SYNC_SCALING_ACTION, "SCAL"},
+        {STRING_FOR_COMMUNITY_FEATURE_HIGHLIGHT_INCOMING_NOTES, "HIGH"},
+        {STRING_FOR_COMMUNITY_FEATURE_NORNS_LAYOUT, "NORN"},
 
         {STRING_FOR_TRACK_STILL_HAS_CLIPS_IN_SESSION, "CANT"},
         {STRING_FOR_DELETE_ALL_TRACKS_CLIPS_FIRST, "CANT"},
@@ -328,6 +364,7 @@ constexpr Language seven_segment{
         {STRING_FOR_IMPOSSIBLE_FROM_GRID, "CANT"},
         {STRING_FOR_SWITCHING_TO_TRACK_FAILED, "ESG1"},
         {STRING_FOR_CANT_CLONE_AUDIO_IN_OTHER_TRACK, "CANT"},
+        {STRING_FOR_CANT_CONVERT_TYPE, "CANT"},
         {STRING_FOR_TARGET_FULL, "FULL"},
 
         {STRING_FOR_WAVEFOLD, "FOLD"},

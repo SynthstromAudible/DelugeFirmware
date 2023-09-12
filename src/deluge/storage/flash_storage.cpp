@@ -130,6 +130,9 @@ uint8_t defaultBendRange[2] = {
     2,
     48}; // The 48 isn't editable. And the 2 actually should only apply to non-MPE MIDI, because it's editable, whereas for MPE it's meant to always stay at 2.
 
+SessionLayoutType defaultSessionLayout;
+KeyboardLayoutType defaultKeyboardLayout;
+
 void resetSettings() {
 
 	cvEngine.setCVVoltsPerOctave(0, 100);
@@ -193,6 +196,9 @@ void resetSettings() {
 	MIDIDeviceManager::differentiatingInputsByDevice = false;
 
 	defaultBendRange[BEND_RANGE_MAIN] = 2;
+
+	defaultSessionLayout = SessionLayoutType::SessionLayoutTypeRows;
+	defaultKeyboardLayout = KeyboardLayoutType::KeyboardLayoutTypeIsomorphic;
 }
 
 void readSettings() {
@@ -380,6 +386,10 @@ void readSettings() {
 		}
 	}
 	midiEngine.midiTakeover = static_cast<MIDITakeoverMode>(buffer[113]);
+	// 114 and 115, 116 used further up
+
+	defaultSessionLayout = static_cast<SessionLayoutType>(buffer[117]);
+	defaultKeyboardLayout = static_cast<KeyboardLayoutType>(buffer[118]);
 }
 
 void writeSettings() {
@@ -480,6 +490,10 @@ void writeSettings() {
 	buffer[112] = defaultBendRange[BEND_RANGE_MAIN];
 
 	buffer[113] = util::to_underlying(midiEngine.midiTakeover);
+	// 114 and 115, 116 used further up
+
+	buffer[117] = util::to_underlying(defaultSessionLayout);
+	buffer[118] = util::to_underlying(defaultKeyboardLayout);
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer, 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,

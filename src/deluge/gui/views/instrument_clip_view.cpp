@@ -159,6 +159,10 @@ void InstrumentClipView::focusRegained() {
 	setLedStates();
 }
 
+void InstrumentClipView::displayOrLanguageChanged() {
+	InstrumentClipMinder::displayOrLanguageChanged();
+}
+
 void InstrumentClipView::setLedStates() {
 	indicator_leds::setLedState(IndicatorLED::KEYBOARD, false);
 	InstrumentClipMinder::setLedStates();
@@ -2070,7 +2074,7 @@ void InstrumentClipView::adjustProbability(int32_t offset) {
 							}
 							else {
 								// See if there's a prev-base
-								if (probabilityValue < kNumProbabilityValues
+								if (probabilityValue > 0 && probabilityValue < kNumProbabilityValues
 								    && getCurrentClip()->doesProbabilityExist(
 								        editPadPresses[i].intendedPos, probabilityValue,
 								        kNumProbabilityValues - probabilityValue)) {
@@ -2092,7 +2096,7 @@ void InstrumentClipView::adjustProbability(int32_t offset) {
 							}
 							else {
 								probabilityValue--;
-								prevBase = (probabilityValue < kNumProbabilityValues
+								prevBase = (probabilityValue > 0 && probabilityValue < kNumProbabilityValues
 								            && getCurrentClip()->doesProbabilityExist(
 								                editPadPresses[i].intendedPos, probabilityValue,
 								                kNumProbabilityValues - probabilityValue));
@@ -2160,7 +2164,7 @@ multiplePresses:
 		// Decide the probability, based on the existing probability of the leftmost note
 		probabilityValue = editPadPresses[leftMostIndex].intendedProbability & 127;
 		probabilityValue += offset;
-		probabilityValue = std::clamp<int32_t>(probabilityValue, 1, kNumProbabilityValues + kNumIterationValues);
+		probabilityValue = std::clamp<int32_t>(probabilityValue, 0, kNumProbabilityValues + kNumIterationValues);
 
 		Action* action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
 		if (!action) {
@@ -2189,7 +2193,8 @@ multiplePresses:
 					while (note && note->pos - editPadPresses[i].intendedPos < editPadPresses[i].intendedLength) {
 
 						// And if not one of the leftmost notes, make it a prev-base one - if we're doing actual percentage probabilities
-						if (probabilityValue < kNumProbabilityValues && note->pos != leftMostPos) {
+						if (probabilityValue > 0 && probabilityValue < kNumProbabilityValues
+						    && note->pos != leftMostPos) {
 							editPadPresses[i].intendedProbability |= 128; // This isn't perfect...
 						}
 						noteRow->changeNotesAcrossAllScreens(note->pos, modelStackWithNoteRow, action,
@@ -2203,7 +2208,8 @@ multiplePresses:
 				// Or, just 1 note in square
 				else {
 					// And if not one of the leftmost notes, make it a prev-base one - if we're doing actual percentage probabilities
-					if (probabilityValue < kNumProbabilityValues && editPadPresses[i].intendedPos != leftMostPos) {
+					if (probabilityValue > 0 && probabilityValue < kNumProbabilityValues
+					    && editPadPresses[i].intendedPos != leftMostPos) {
 						editPadPresses[i].intendedProbability |= 128;
 					}
 					noteRow->changeNotesAcrossAllScreens(editPadPresses[i].intendedPos, modelStackWithNoteRow, action,
@@ -3488,11 +3494,15 @@ void InstrumentClipView::someAuditioningHasEnded(bool recalculateLastAuditionedN
 		exitUIMode(UI_MODE_AUDITIONING);
 		auditioningSilently = false;
 
-		if (display->haveOLED()) {
-			deluge::hid::display::OLED::removePopup();
-		}
-		else {
-			redrawNumericDisplay();
+		//check that you're not in automation instrument clip view and holding an automation pad down
+		//if not, clear popup's / re-draw screen
+		if (!((getCurrentUI() == &automationInstrumentClipView) && isUIModeActive(UI_MODE_NOTES_PRESSED))) {
+			if (display->haveOLED()) {
+				deluge::hid::display::OLED::removePopup();
+			}
+			else {
+				redrawNumericDisplay();
+			}
 		}
 	}
 }
@@ -5253,7 +5263,7 @@ justDisplayOldNumNotes:
 						Note* note = newNotes.getElement(n);
 						note->pos = (uint32_t)(n * numStepsAvailable) / (uint32_t)newNumNotes * squareWidth;
 						note->length = squareWidth;
-						note->probability = kNumProbabilityValues;
+						note->probability = noteRow->getDefaultProbability(modelStack);
 						note->velocity = ((Instrument*)clip->output)->defaultVelocity;
 						note->lift = kDefaultLiftValue;
 					}
