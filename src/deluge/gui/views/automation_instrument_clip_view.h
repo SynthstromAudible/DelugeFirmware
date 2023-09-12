@@ -153,6 +153,7 @@ private:
 	void setParameterAutomationValue(ModelStackWithAutoParam* modelStack, int32_t knobPos, int32_t squareStart,
 	                                 int32_t xDisplay, int32_t effectiveLength);
 	void setKnobIndicatorLevels(int32_t knobPos);
+	void updateModPosition(ModelStackWithAutoParam* modelStack, uint32_t squareStart);
 
 	bool recordSinglePadPress(int32_t xDisplay, int32_t yDisplay);
 	void handleSinglePadPress(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, int32_t xDisplay,
@@ -161,7 +162,7 @@ private:
 
 	void handleMultiPadPress(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, int32_t firstPadX,
 	                         int32_t firstPadY, int32_t secondPadX, int32_t secondPadY, bool modEncoderAction = false);
-	void renderDisplayForMultiPadPress(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, bool updateDisplay = true);
+	void renderDisplayForMultiPadPress(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, int32_t xDisplay = kNoSelection);
 
 	int32_t calculateKnobPosForModEncoderTurn(int32_t knobPos, int32_t offset);
 	void displayCVErrorMessage();

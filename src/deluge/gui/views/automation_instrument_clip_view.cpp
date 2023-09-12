@@ -1571,45 +1571,8 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 				}
 
 				//set led indicators to left / right pad selection values
-				ModelStackWithAutoParam* modelStackWithParam =
-				    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID, clip->lastSelectedParamKind);
-
-				if (modelStackWithParam && modelStackWithParam->autoParam) {
-
-					int32_t knobPosLeft =
-					    getParameterKnobPos(modelStackWithParam, getPosFromSquare(leftPadSelectedX)) + kKnobPosOffset;
-					indicator_leds::setKnobIndicatorLevel(0, knobPosLeft);
-
-					int32_t effectiveLength = getEffectiveLength(modelStack);
-
-					int32_t squareRightEdge = getPosFromSquare(rightPadSelectedX + 1);
-					uint32_t squareStart = std::min(effectiveLength, squareRightEdge) - kParamNodeWidth;
-					int32_t knobPosRight = getParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
-					indicator_leds::setKnobIndicatorLevel(1, knobPosRight);
-
-					if (!playbackHandler.isEitherClockActive()) {
-						if (modelStackWithParam->getTimelineCounter()
-						    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
-
-							if (leftPadSelectedX == xDisplay) {
-								squareStart = getPosFromSquare(leftPadSelectedX);
-							}
-
-							view.activeModControllableModelStack.paramManager->toForTimeline()->grabValuesFromPos(
-							    squareStart, &view.activeModControllableModelStack);
-						}
-					}
-
-					//display pad value of second pad pressed
-					int32_t knobPos = getParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
-					lastPadSelectedKnobPos = knobPos;
-					if (display->haveOLED()) {
-						renderDisplay(knobPosLeft, knobPosRight);
-					}
-					else {
-						renderDisplay(knobPos);
-					}
-				}
+				//and update display
+				renderDisplayForMultiPadPress(modelStack, clip, xDisplay);
 			}
 		}
 
@@ -1664,24 +1627,8 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 			if (!multiPadPressSelected) {
 				displayAutomation(padSelectionOn);
 			}
-			else if (display->haveOLED()) {
-				ModelStackWithAutoParam* modelStackWithParam =
-					getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID, clip->lastSelectedParamKind);
-
-				if (modelStackWithParam && modelStackWithParam->autoParam) {
-					int32_t knobPosLeft =
-						getParameterKnobPos(modelStackWithParam, getPosFromSquare(leftPadSelectedX)) + kKnobPosOffset;
-					indicator_leds::setKnobIndicatorLevel(0, knobPosLeft);
-
-					int32_t effectiveLength = getEffectiveLength(modelStack);
-
-					int32_t squareRightEdge = getPosFromSquare(rightPadSelectedX + 1);
-					uint32_t squareStart = std::min(effectiveLength, squareRightEdge) - kParamNodeWidth;
-					int32_t knobPosRight = getParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
-					indicator_leds::setKnobIndicatorLevel(1, knobPosRight);
-
-					renderDisplay(knobPosLeft, knobPosRight);
-				}
+			else {
+				renderDisplayForMultiPadPress(modelStack, clip, xDisplay);
 			}
 		}
 	}
@@ -2427,36 +2374,21 @@ void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int
 
 						handleMultiPadPress(modelStack, clip, leftPadSelectedX, 0, rightPadSelectedX, 0, true);
 
-						indicator_leds::setKnobIndicatorLevel(whichModEncoder, newKnobPos + kKnobPosOffset);
+						renderDisplayForMultiPadPress(modelStack, clip, xDisplay);
 
-						if (!playbackHandler.isEitherClockActive()) {
-							if (modelStackWithParam->getTimelineCounter()
-							    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
-
-								view.activeModControllableModelStack.paramManager->toForTimeline()->grabValuesFromPos(
-								    squareStart, &view.activeModControllableModelStack);
-							}
-						}
-
-						if (display->haveOLED()) {
-							int32_t knobPosLeft =
-								getParameterKnobPos(modelStackWithParam, getPosFromSquare(leftPadSelectedX)) + kKnobPosOffset;
-
-							int32_t squareRightEdge = getPosFromSquare(rightPadSelectedX + 1);
-							uint32_t squareStart = std::min(effectiveLength, squareRightEdge) - kParamNodeWidth;
-							int32_t knobPosRight = getParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
-
-							renderDisplay(knobPosLeft, knobPosRight);
+					/*	if (display->haveOLED()) {
+							renderDisplayForMultiPadPress(modelStack, clip);
 						}
 						else {
 							renderDisplay(newKnobPos + kKnobPosOffset);
-						}
+							indicator_leds::setKnobIndicatorLevel(whichModEncoder, newKnobPos + kKnobPosOffset);
+						}*/
 
 						return;
 					}
-					else if (padSelectionOn) {
-						setKnobIndicatorLevels(newKnobPos + kKnobPosOffset);
-					}
+					//else if (padSelectionOn) {
+					//	setKnobIndicatorLevels(newKnobPos + kKnobPosOffset);
+					//}
 				}
 			}
 		}
@@ -2587,25 +2519,12 @@ void AutomationInstrumentClipView::modEncoderButtonAction(uint8_t whichModEncode
 				leftPadSelectedX = 0;
 				rightPadSelectedX = kNoSelection;
 
-				if (!playbackHandler.isEitherClockActive()) {
-					ModelStackWithAutoParam* modelStackWithParam =
-						getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID, clip->lastSelectedParamKind);
-					if (modelStackWithParam && modelStackWithParam->autoParam) {
-						if (modelStackWithParam->getTimelineCounter()
-							== view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+				ModelStackWithAutoParam* modelStackWithParam =
+					getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID, clip->lastSelectedParamKind);
 
-							uint32_t squareStart = getMiddlePosFromSquare(modelStack, leftPadSelectedX);
+				uint32_t squareStart = getMiddlePosFromSquare(modelStack, leftPadSelectedX);
 
-							view.activeModControllableModelStack.paramManager->toForTimeline()->grabValuesFromPos(
-								squareStart, &view.activeModControllableModelStack);
-
-							int32_t knobPos = getParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
-
-							renderDisplay(knobPos);
-							setKnobIndicatorLevels(knobPos);
-						}
-					}
-				}
+				updateModPosition(modelStackWithParam, squareStart);
 			}
 		}
 	}
@@ -2716,13 +2635,7 @@ void AutomationInstrumentClipView::pasteAutomation() {
 				else {
 					uint32_t squareStart = getMiddlePosFromSquare(modelStack, leftPadSelectedX);
 
-					view.activeModControllableModelStack.paramManager->toForTimeline()->grabValuesFromPos(
-						squareStart, &view.activeModControllableModelStack);
-
-					int32_t knobPos = getParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
-
-					renderDisplay(knobPos);
-					setKnobIndicatorLevels(knobPos);
+					updateModPosition(modelStackWithParam, squareStart);
 				}
 			}
 			else {
@@ -3196,6 +3109,30 @@ void AutomationInstrumentClipView::setKnobIndicatorLevels(int32_t knobPos) {
 
 }
 
+//updates the position that the active mod controllable stack is pointing to
+//this sets the current value for the active parameter so that it can be auditioned
+void AutomationInstrumentClipView::updateModPosition(ModelStackWithAutoParam* modelStack, uint32_t squareStart) {
+
+	if (!playbackHandler.isEitherClockActive() || padSelectionOn) {
+		if (modelStack && modelStack->autoParam) {
+			if (modelStack->getTimelineCounter()
+				== view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+
+				view.activeModControllableModelStack.paramManager->toForTimeline()->grabValuesFromPos(
+					squareStart, &view.activeModControllableModelStack);
+
+				if (!multiPadPressSelected) {
+					int32_t knobPos = getParameterKnobPos(modelStack, squareStart) + kKnobPosOffset;
+
+					renderDisplay(knobPos);
+					setKnobIndicatorLevels(knobPos);
+				}
+			}
+		}
+	}
+
+}
+
 //takes care of setting the automation value for the single pad that was pressed
 void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip,
                                                         int32_t xDisplay, int32_t yDisplay, bool shortcutPress) {
@@ -3310,20 +3247,7 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 				squareStart = getMiddlePosFromSquare(modelStack, xDisplay);
 			}
 
-			int32_t knobPos = getParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
-			renderDisplay(knobPos);
-			setKnobIndicatorLevels(knobPos);
-
-			if (!playbackHandler.isEitherClockActive()) {
-				if (modelStackWithParam && modelStackWithParam->autoParam) {
-					if (modelStackWithParam->getTimelineCounter()
-						== view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
-
-						view.activeModControllableModelStack.paramManager->toForTimeline()->grabValuesFromPos(
-							squareStart, &view.activeModControllableModelStack);
-					}
-				}
-			}
+			updateModPosition(modelStackWithParam, squareStart);
 
 			if (!multiPadPressSelected) {
 				leftPadSelectedX = xDisplay;
@@ -3491,7 +3415,7 @@ void AutomationInstrumentClipView::handleMultiPadPress(ModelStackWithTimelineCou
 	}
 }
 
-void AutomationInstrumentClipView::renderDisplayForMultiPadPress(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, bool updateDisplay) {
+void AutomationInstrumentClipView::renderDisplayForMultiPadPress(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, int32_t xDisplay) {
 	if (modelStack) {
 
 		ModelStackWithAutoParam* modelStackWithParam =
@@ -3501,18 +3425,37 @@ void AutomationInstrumentClipView::renderDisplayForMultiPadPress(ModelStackWithT
 
 			int32_t knobPosLeft =
 				getParameterKnobPos(modelStackWithParam, getPosFromSquare(leftPadSelectedX)) + kKnobPosOffset;
-			indicator_leds::setKnobIndicatorLevel(0, knobPosLeft);
 
 			int32_t effectiveLength = getEffectiveLength(modelStack);
 
 			int32_t squareRightEdge = getPosFromSquare(rightPadSelectedX + 1);
 			uint32_t squareStart = std::min(effectiveLength, squareRightEdge) - kParamNodeWidth;
 			int32_t knobPosRight = getParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
-			indicator_leds::setKnobIndicatorLevel(1, knobPosRight);
 
-			if (updateDisplay) {
+			if (xDisplay != kNoSelection) {
+				if (leftPadSelectedX == xDisplay) {
+					squareStart = getPosFromSquare(leftPadSelectedX);
+					lastPadSelectedKnobPos = knobPosLeft;
+				}
+				else {
+					lastPadSelectedKnobPos = knobPosRight;
+				}
+			}
+
+			if (display->haveOLED()) {
 				renderDisplay(knobPosLeft, knobPosRight);
 			}
+			//display pad value of second pad pressed
+			else {
+				renderDisplay();
+			}
+
+			//update LED indicators
+			indicator_leds::setKnobIndicatorLevel(0, knobPosLeft);
+			indicator_leds::setKnobIndicatorLevel(1, knobPosRight);
+
+			//update position of mod controllable stack
+			updateModPosition(modelStackWithParam, squareStart);
 		}
 	}
 }
