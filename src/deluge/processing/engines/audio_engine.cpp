@@ -400,9 +400,15 @@ void routine() {
 	int32_t unadjustedNumSamplesBeforeLappingPlayHead = numSamples;
 #else
 
+	if (smoothedSamples < numSamples) {
+		smoothedSamples = (smoothedSamples + numSamples) >> 1;
+	}
+	else {
+		smoothedSamples = numSamples;
+	}
+
 	numSamplesLastTime = numSamples;
 
-	smoothedSamples = (smoothedSamples + numSamples >> 1 + numSamplesLastTime >> 1) >> 1;
 	// Consider direness and culling - before increasing the number of samples
 	int32_t numSamplesLimit = 40; //storageManager.devVarC;
 	int32_t direnessThreshold = numSamplesLimit - 17;
@@ -474,7 +480,7 @@ void routine() {
 
 	// Double the number of samples we're going to do - within some constraints
 	int32_t sampleThreshold = 6; // If too low, it'll lead to bigger audio windows and stuff
-	int32_t maxAdjustedNumSamples = SSI_TX_BUFFER_NUM_SAMPLES >> 1;
+	constexpr int32_t maxAdjustedNumSamples = 0.66 * SSI_TX_BUFFER_NUM_SAMPLES;
 
 	int32_t unadjustedNumSamplesBeforeLappingPlayHead = numSamples;
 
