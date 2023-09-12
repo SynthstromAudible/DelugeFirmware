@@ -38,7 +38,7 @@ public:
 	void split(const char* splitLabel);
 	void stop();
 private:
-	uint32_t	startTime;
+	uint32_t startTime;
 	const char*	m_label;
 };
 

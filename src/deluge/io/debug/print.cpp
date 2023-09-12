@@ -29,9 +29,9 @@ namespace Debug {
 
 constexpr uint32_t kNumSamplesBetweenReports = 44100;
 
-bool	 initFlag = false;
-bool	 prependDeltaT = true;
-bool	 lastWasNewline = false;
+bool initFlag = false;
+bool prependDeltaT = true;
+bool lastWasNewline = false;
 
 [[gnu::always_inline]] inline void ResetClock() {
 	// Reset the PMU so we can read out a time later.
@@ -46,31 +46,27 @@ bool	 lastWasNewline = false;
 }
 
 // https://johnnylee-sde.github.io/Fast-unsigned-integer-to-hex-string/
-uint32_t lutHexString(uint64_t num, char *s)
-{
-	static const char digits[513] =
-		"000102030405060708090A0B0C0D0E0F"
-		"101112131415161718191A1B1C1D1E1F"
-		"202122232425262728292A2B2C2D2E2F"
-		"303132333435363738393A3B3C3D3E3F"
-		"404142434445464748494A4B4C4D4E4F"
-		"505152535455565758595A5B5C5D5E5F"
-		"606162636465666768696A6B6C6D6E6F"
-		"707172737475767778797A7B7C7D7E7F"
-		"808182838485868788898A8B8C8D8E8F"
-		"909192939495969798999A9B9C9D9E9F"
-		"A0A1A2A3A4A5A6A7A8A9AAABACADAEAF"
-		"B0B1B2B3B4B5B6B7B8B9BABBBCBDBEBF"
-		"C0C1C2C3C4C5C6C7C8C9CACBCCCDCECF"
-		"D0D1D2D3D4D5D6D7D8D9DADBDCDDDEDF"
-		"E0E1E2E3E4E5E6E7E8E9EAEBECEDEEEF"
-		"F0F1F2F3F4F5F6F7F8F9FAFBFCFDFEFF";
+uint32_t lutHexString(uint64_t num, char *s) {
+	                                "101112131415161718191A1B1C1D1E1F"
+	                                "202122232425262728292A2B2C2D2E2F"
+	                                "303132333435363738393A3B3C3D3E3F"
+	                                "404142434445464748494A4B4C4D4E4F"
+	                                "505152535455565758595A5B5C5D5E5F"
+	                                "606162636465666768696A6B6C6D6E6F"
+	                                "707172737475767778797A7B7C7D7E7F"
+	                                "808182838485868788898A8B8C8D8E8F"
+	                                "909192939495969798999A9B9C9D9E9F"
+	                                "A0A1A2A3A4A5A6A7A8A9AAABACADAEAF"
+	                                "B0B1B2B3B4B5B6B7B8B9BABBBCBDBEBF"
+	                                "C0C1C2C3C4C5C6C7C8C9CACBCCCDCECF"
+	                                "D0D1D2D3D4D5D6D7D8D9DADBDCDDDEDF"
+	                                "E0E1E2E3E4E5E6E7E8E9EAEBECEDEEEF"
+	                                "F0F1F2F3F4F5F6F7F8F9FAFBFCFDFEFF";
 
-	uint32_t x =(uint32_t) num;
+	uint32_t x =(uint32_t)num;
 	int i = 3;
-	char *lut = (char *)digits;
-	while (i >= 0)
-	{
+	char *lut = (char*)digits;
+	while (i >= 0) {
 		int pos = (x & 0xFF) * 2;
 		char ch = lut[pos];
 		s[i * 2] = ch;
@@ -104,21 +100,22 @@ void init() {
 }
 
 [[gnu::always_inline]] inline uint32_t sampleCycleCounter() {
-		uint32_t cycles = 0;
-		asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(cycles) :);
-		return cycles;
+ uint32_t cycles = 0;
+ asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(cycles) :);
+ return cycles;
 }
 
 
 MIDIDevice* midiDebugDevice = nullptr;
 
 
-void prependTimeStamp(bool isNewLine)
-{
+void prependTimeStamp(bool isNewLine) {
 #if ENABLE_TEXT_OUTPUT
-	if (!prependDeltaT) return;
+	if (!prependDeltaT)
+      return;
 	if (lastWasNewline) {
-		if (!initFlag) Debug::init();
+		if (!initFlag)
+		  Debug::init();
 		char buffer[32];
 		//intToString(Debug::sampleCycleCounter(), buffer);
 		lutHexString(Debug::sampleCycleCounter(), buffer);
@@ -126,8 +123,8 @@ void prependTimeStamp(bool isNewLine)
 		buffer[9] = 0;
 		if (midiDebugDevice) {
 			sysexDebugPrint(midiDebugDevice, buffer, false);
-		} else
-		{
+		}
+		else {
 			uartPrint(buffer);
 		}
 	}
@@ -176,9 +173,7 @@ void print(int32_t number) {
 }
 
 
-RoutineTimer::RoutineTimer(const char* label) :
-	startTime(0),
-	m_label(label) {
+RoutineTimer::RoutineTimer(const char* label) : startTime(0), m_label(label) {
 #if ENABLE_TEXT_OUTPUT
 	asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(startTime) :);
 #endif
@@ -207,7 +202,6 @@ void RoutineTimer::split(const char* splitLabel) {
 #endif
 }
 
-
 void RoutineTimer::stop() {
 #if ENABLE_TEXT_OUTPUT
 	uint32_t endTime = 0;
@@ -228,6 +222,4 @@ void RoutineTimer::stop() {
 #endif
 }
 
-
 } // namespace Debug
-
