@@ -180,7 +180,9 @@ doEndMidiLearnPressSession:
 			}
 		}
 		else {
-			endMIDILearn();
+			if (currentUIMode == UI_MODE_MIDI_LEARN) {
+				endMIDILearn();
+			}
 		}
 	}
 
@@ -451,11 +453,7 @@ void View::endMIDILearn() {
 	if (getRootUI()) {
 		getRootUI()->midiLearnFlash();
 	}
-
-	if (currentUIMode == UI_MODE_MIDI_LEARN) {
-		currentUIMode = UI_MODE_NONE;
-	}
-
+	currentUIMode = UI_MODE_NONE;
 	playbackHandler.setLedStates();
 	indicator_leds::setLedState(IndicatorLED::LEARN, false);
 }

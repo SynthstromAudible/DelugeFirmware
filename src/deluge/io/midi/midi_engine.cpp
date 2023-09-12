@@ -979,10 +979,6 @@ void MidiEngine::midiMessageReceived(MIDIDevice* fromDevice, uint8_t statusType,
 						fromDevice->dataEntryMessageReceived(modelStack, channel, data2);
 						break;
 					}
-					default: { //not an rpn - let's reset the msb/lsb
-						fromDevice->inputChannels[channel].rpnLSB = 0x7F;
-						fromDevice->inputChannels[channel].rpnMSB = 0x7F;
-					}
 					}
 
 					playbackHandler.midiCCReceived(fromDevice, channel, data1, data2, &shouldDoMidiThruNow);

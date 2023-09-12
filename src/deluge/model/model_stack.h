@@ -382,9 +382,6 @@ ModelStackWithNoteRow::addModControllable(ModControllable* newModControllable) c
 	return toReturn;
 }
 
-/**
- * adds a modcontrollable and a param manager
-*/
 inline ModelStackWithThreeMainThings* ModelStackWithNoteRow::addOtherTwoThings(ModControllable* newModControllable,
                                                                                ParamManager* newParamManager) const {
 	ModelStackWithThreeMainThings* toReturn = (ModelStackWithThreeMainThings*)this;

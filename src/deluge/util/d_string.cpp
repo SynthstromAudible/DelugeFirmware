@@ -17,7 +17,6 @@
 
 #include "util/d_string.h"
 #include "definitions_cxx.hpp"
-#include "hid/display/display.h"
 #include "memory/general_memory_allocator.h"
 #include "util/functions.h"
 #include <string.h>
@@ -132,24 +131,8 @@ doCopy:
 
 // This one can't fail!
 void String::set(String* otherString) {
-	char* sm = otherString->stringMemory;
-#if ALPHA_OR_BETA_VERSION
-	//if the other string has memory and it's not in the non audio region
-	if (sm) {
-		if (!(EXTERNAL_MEMORY_END - RESERVED_NONAUDIO_ALLOCATOR < (uint32_t)sm && (uint32_t)sm < EXTERNAL_MEMORY_END)) {
-			display->freezeWithError("S001");
-			return;
-		}
-		//or if it doesn't have an allocation
-		else if (!GeneralMemoryAllocator::get().getAllocatedSize(sm)) {
-			display->freezeWithError("S002");
-			return;
-		}
-	}
-#endif
 	clear();
-	stringMemory = sm;
-
+	stringMemory = otherString->stringMemory;
 	beenCloned();
 }
 

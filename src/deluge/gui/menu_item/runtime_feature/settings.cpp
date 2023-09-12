@@ -53,7 +53,7 @@ ShiftIsSticky menuShiftIsSticky{};
 Setting menuLightShiftLed(RuntimeFeatureSettingType::LightShiftLed);
 
 Submenu subMenuAutomation{
-    l10n::String::STRING_FOR_COMMUNITY_FEATURE_AUTOMATION,
+    l10n::String::STRING_FOR_AUTOMATION,
     {
         &menuAutomationInterpolate,
         &menuAutomationClearClip,

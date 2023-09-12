@@ -26,10 +26,10 @@ class InstrumentClip;
 class Clip;
 class ModelStack;
 
-enum SessionGridMode : uint8_t {
-	SessionGridModeEdit,
-	SessionGridModeLaunch,
-	SessionGridModeMaxElement // Keep as boundary
+enum SessionLayoutType : uint32_t {
+	SessionLayoutTypeRows,
+	SessionLayoutTypeGrid,
+	SessionLayoutTypeMaxElement // Keep as boundary
 };
 
 extern float getTransitionProgress();
@@ -137,18 +137,14 @@ private:
 	                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
 
 	ActionResult gridHandlePads(int32_t x, int32_t y, int32_t on);
-	ActionResult gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, Clip* clip);
-	ActionResult gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on, Clip* clip);
 
 	ActionResult gridHandleScroll(int32_t offsetX, int32_t offsetY);
 
 	void gridTransitionToSessionView();
 	void gridTransitionToViewForClip(Clip* clip);
 
-	SessionGridMode gridModeSelected = SessionGridModeEdit;
-	SessionGridMode gridModeActive = SessionGridModeEdit;
-	bool gridActiveModeUsed = false;
-
+	bool clipButtonUsed = false;
+	bool gridPreventArm = false;
 	int32_t gridFirstPressedX = -1;
 	int32_t gridFirstPressedY = -1;
 	int32_t gridSecondPressedX = -1;
@@ -175,6 +171,7 @@ private:
 	InstrumentClip* gridCreateClipWithNewTrack(InstrumentType type);
 	Clip* gridCreateClip(uint32_t targetSection, Output* targetOutput = nullptr, Clip* sourceClip = nullptr);
 	void gridClonePad(uint32_t sourceX, uint32_t sourceY, uint32_t targetX, uint32_t targetY);
+	void gridOpenPadClip(Clip* clip, uint32_t x, uint32_t y);
 
 	void gridStartSection(uint32_t section, bool instant);
 	void gridToggleClipPlay(Clip* clip, bool instant);

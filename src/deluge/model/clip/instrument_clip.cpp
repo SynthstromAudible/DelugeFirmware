@@ -2403,7 +2403,9 @@ someError:
 		}
 
 		else if (!strcmp(tagName, "keyboardLayout")) {
-			keyboardState.currentLayout = (KeyboardLayoutType)storageManager.readTagOrAttributeValueInt();
+			// TODO: Unscope this once namespacing is complete
+			keyboardState.currentLayout =
+			    (deluge::gui::ui::keyboard::KeyboardLayoutType)storageManager.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "yScrollKeyboard")) {

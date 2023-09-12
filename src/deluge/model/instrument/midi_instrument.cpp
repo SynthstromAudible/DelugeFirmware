@@ -226,8 +226,7 @@ void MIDIInstrument::monophonicExpressionEvent(int32_t newValue, int32_t whichEx
 	}
 
 	case 1:
-		//send CC1 for monophonic expression - monophonic synths won't do anything useful with CC74
-		midiEngine.sendCC(masterChannel, 1, (newValue >> 25) + 64, channel);
+		midiEngine.sendCC(masterChannel, 74, (newValue >> 25) + 64, channel);
 		break;
 
 	case 2:

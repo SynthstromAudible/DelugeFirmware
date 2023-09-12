@@ -1468,9 +1468,6 @@ int32_t StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool m
                                         String* dirPath) {
 	InstrumentType instrumentType = InstrumentType::SYNTH;
 	SoundDrum* newDrum = (SoundDrum*)createNewDrum(DrumType::SOUND);
-	if (!newDrum) {
-		return ERROR_INSUFFICIENT_RAM;
-	}
 
 	AudioEngine::logAction("loadSynthDrumFromFile");
 
