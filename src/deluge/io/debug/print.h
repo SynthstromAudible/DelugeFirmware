@@ -31,15 +31,15 @@ void printfloat(float number);
 void print(int32_t number);
 void ResetClock();
 
-class RoutineTimer
-{
+class RoutineTimer {
 public:
 	RoutineTimer(const char* label);
 	void split(const char* splitLabel);
 	void stop();
+
 private:
 	uint32_t startTime;
-	const char*	m_label;
+	const char* m_label;
 };
 
 extern MIDIDevice* midiDebugDevice;
