@@ -1302,6 +1302,8 @@ doOther:
 				modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam);
 
 				display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_DELETED));
+
+				displayAutomation(padSelectionOn);
 			}
 		}
 	}
@@ -1676,11 +1678,11 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 					getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID, clip->lastSelectedParamKind);
 
 				if (modelStackWithParam && modelStackWithParam->autoParam) {
-					int32_t effectiveLength = getEffectiveLength(modelStack);
-
 					int32_t knobPosLeft =
 						getParameterKnobPos(modelStackWithParam, getPosFromSquare(leftPadSelectedX)) + kKnobPosOffset;
 					indicator_leds::setKnobIndicatorLevel(0, knobPosLeft);
+
+					int32_t effectiveLength = getEffectiveLength(modelStack);
 
 					int32_t squareRightEdge = getPosFromSquare(rightPadSelectedX + 1);
 					uint32_t squareStart = std::min(effectiveLength, squareRightEdge) - kParamNodeWidth;
@@ -2572,6 +2574,8 @@ void AutomationInstrumentClipView::modEncoderButtonAction(uint8_t whichModEncode
 			modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam);
 
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_DELETED));
+
+			displayAutomation(padSelectionOn);
 		}
 	}
 
@@ -2716,7 +2720,12 @@ void AutomationInstrumentClipView::pasteAutomation() {
 			currentPlaybackMode->reversionDone(); // Re-gets automation and stuff
 		}
 		else {
-			displayAutomation();
+			if (multiPadPressSelected) {
+				renderDisplayForMultiPadPress(modelStack, clip);
+			}
+			else {
+				displayAutomation(padSelectionOn);
+			}
 		}
 
 		return;
@@ -2867,7 +2876,7 @@ flashShortcut:
 
 	lastPadSelectedKnobPos = kNoSelection;
 	if (!playbackHandler.isEitherClockActive()) {
-		displayAutomation();
+		displayAutomation(padSelectionOn);
 	}
 	resetShortcutBlinking();
 	uiNeedsRendering(this);
@@ -3467,6 +3476,32 @@ void AutomationInstrumentClipView::handleMultiPadPress(ModelStackWithTimelineCou
 
 			//render the multi pad press
 			uiNeedsRendering(this);
+		}
+	}
+}
+
+void AutomationInstrumentClipView::renderDisplayForMultiPadPress(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, bool updateDisplay) {
+	if (modelStack) {
+
+		ModelStackWithAutoParam* modelStackWithParam =
+		    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID, clip->lastSelectedParamKind);
+
+		if (modelStackWithParam && modelStackWithParam->autoParam) {
+
+			int32_t knobPosLeft =
+				getParameterKnobPos(modelStackWithParam, getPosFromSquare(leftPadSelectedX)) + kKnobPosOffset;
+			indicator_leds::setKnobIndicatorLevel(0, knobPosLeft);
+
+			int32_t effectiveLength = getEffectiveLength(modelStack);
+
+			int32_t squareRightEdge = getPosFromSquare(rightPadSelectedX + 1);
+			uint32_t squareStart = std::min(effectiveLength, squareRightEdge) - kParamNodeWidth;
+			int32_t knobPosRight = getParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
+			indicator_leds::setKnobIndicatorLevel(1, knobPosRight);
+
+			if (updateDisplay) {
+				renderDisplay(knobPosLeft, knobPosRight);	
+			}
 		}
 	}
 }
