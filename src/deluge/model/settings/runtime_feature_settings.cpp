@@ -16,6 +16,7 @@
  */
 
 #include "runtime_feature_settings.h"
+#include "gui/l10n/l10n.h"
 #include "hid/display/display.h"
 #include "storage/storage_manager.h"
 #include "util/d_string.h"
@@ -76,56 +77,73 @@ static void SetupSyncScalingActionSetting(RuntimeFeatureSetting& setting, char c
 
 void RuntimeFeatureSettings::init() {
 	// Drum randomizer
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DrumRandomizer], "Drum Randomizer", "drumRandomizer",
-	                  RuntimeFeatureStateToggle::On);
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DrumRandomizer],
+	                  deluge::l10n::get(deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_DRUM_RANDOMIZER),
+	                  "drumRandomizer", RuntimeFeatureStateToggle::On);
 	// Master compressor
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::MasterCompressorFx], "Master Compressor", "masterCompressor",
-	                  RuntimeFeatureStateToggle::On);
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::MasterCompressorFx],
+	                  deluge::l10n::get(deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_MASTER_COMPRESSOR),
+	                  "masterCompressor", RuntimeFeatureStateToggle::On);
 	// Quantize
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::Quantize], "Quantize", "quantize",
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::Quantize],
+	                  deluge::l10n::get(deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_QUANTIZE), "quantize",
 	                  RuntimeFeatureStateToggle::On);
 	// FineTempoKnob
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::FineTempoKnob], "Fine Tempo Knob", "fineTempoknob",
-	                  RuntimeFeatureStateToggle::On);
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::FineTempoKnob],
+	                  deluge::l10n::get(deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_FINE_TEMPO_KNOB),
+	                  "fineTempoKnob", RuntimeFeatureStateToggle::On);
 	// PatchCableResolution
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::PatchCableResolution], "Mod. depth decimals",
-	                  "ModDepthDecimals", RuntimeFeatureStateToggle::On);
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::PatchCableResolution],
+	                  deluge::l10n::get(deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_MOD_DEPTH_DECIMALS),
+	                  "modDepthDecimals", RuntimeFeatureStateToggle::On);
 	// CatchNotes
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::CatchNotes], "CatchNotes", "catchNotes",
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::CatchNotes],
+	                  deluge::l10n::get(deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_CATCH_NOTES), "catchNotes",
 	                  RuntimeFeatureStateToggle::On);
 	// DeleteUnusedKitRows
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DeleteUnusedKitRows], "Delete Unused Kit Rows",
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DeleteUnusedKitRows],
+	                  deluge::l10n::get(deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_DELETE_UNUSED_KIT_ROWS),
 	                  "deleteUnusedKitRows", RuntimeFeatureStateToggle::On);
 	// AltGoldenKnobDelayParams
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AltGoldenKnobDelayParams],
-	                  "Alternative Golden Knob Delay Params", "altGoldenKnobDelayParams",
-	                  RuntimeFeatureStateToggle::Off);
+	                  deluge::l10n::get(deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_ALT_DELAY_PARAMS),
+	                  "altGoldenKnobDelayParams", RuntimeFeatureStateToggle::Off);
 	// QuantizedStutterRate
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::QuantizedStutterRate], "Stutter Rate Quantize",
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::QuantizedStutterRate],
+	                  deluge::l10n::get(deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_QUANTIZED_STUTTER),
 	                  "quantizedStutterRate", RuntimeFeatureStateToggle::Off);
 	// InterpolateAutomation
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationInterpolate], "Interpolation",
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationInterpolate],
+	                  deluge::l10n::get(deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_INTERPOLATION),
 	                  "automationInterpolate", RuntimeFeatureStateToggle::On);
 	// ClearClipAutomation
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationClearClip], "Clear Clip", "automationClearClip",
-	                  RuntimeFeatureStateToggle::On);
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationClearClip],
+	                  deluge::l10n::get(deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_CLEAR_CLIP),
+	                  "automationClearClip", RuntimeFeatureStateToggle::On);
 	// NudgeNoteAutomation
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationNudgeNote], "Nudge Note", "automationNudgeNote",
-	                  RuntimeFeatureStateToggle::On);
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationNudgeNote],
+	                  deluge::l10n::get(deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_NUDGE_NOTE),
+	                  "automationNudgeNote", RuntimeFeatureStateToggle::On);
 	// ShiftNoteAutomation
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationShiftClip], "Shift Note", "AutomationShiftClip",
-	                  RuntimeFeatureStateToggle::On);
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationShiftClip],
+	                  deluge::l10n::get(deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_SHIFT_CLIP),
+	                  "automationShiftClip", RuntimeFeatureStateToggle::On);
 	// devSysexAllowed
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DevSysexAllowed], "Allow Insecure Develop Sysex Messages",
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DevSysexAllowed],
+	                  deluge::l10n::get(deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_DEV_SYSEX),
 	                  "devSysexAllowed", RuntimeFeatureStateToggle::Off);
 	// SyncScalingAction
-	SetupSyncScalingActionSetting(settings[RuntimeFeatureSettingType::SyncScalingAction], "Sync Scaling Action",
-	                              "syncScalingAction", RuntimeFeatureStateSyncScalingAction::SyncScaling);
+	SetupSyncScalingActionSetting(
+	    settings[RuntimeFeatureSettingType::SyncScalingAction],
+	    deluge::l10n::get(deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_SYNC_SCALING_ACTION), "syncScalingAction",
+	    RuntimeFeatureStateSyncScalingAction::SyncScaling);
 	// HighlightIncomingNotes
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::HighlightIncomingNotes], "Highlight incoming notes",
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::HighlightIncomingNotes],
+	                  deluge::l10n::get(deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_HIGHLIGHT_INCOMING_NOTES),
 	                  "highlightIncomingNotes", RuntimeFeatureStateToggle::On);
 	// DisplayNornsLayout
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DisplayNornsLayout], "Display Norns layout",
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DisplayNornsLayout],
+	                  deluge::l10n::get(deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_NORNS_LAYOUT),
 	                  "displayNornsLayout", RuntimeFeatureStateToggle::Off);
 
 	// ShiftIsSticky

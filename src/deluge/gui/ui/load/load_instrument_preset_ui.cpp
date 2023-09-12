@@ -66,12 +66,15 @@ bool LoadInstrumentPresetUI::opened() {
 	if (getRootUI() == &keyboardScreen) {
 		PadLEDs::skipGreyoutFade();
 	}
+	if (instrumentToReplace) {
+		initialInstrumentType = instrumentToReplace->type;
+		initialName.set(&instrumentToReplace->name);
+		initialDirPath.set(&instrumentToReplace->dirPath);
+	}
 
-	initialInstrumentType = instrumentToReplace->type;
-	initialName.set(&instrumentToReplace->name);
-	initialDirPath.set(&instrumentToReplace->dirPath);
 	if (loadingSynthToKitRow) {
-		instrumentTypeToLoad = InstrumentType::SYNTH;
+		initialInstrumentType = instrumentTypeToLoad = InstrumentType::SYNTH;
+		initialName.set(&soundDrumToReplace->name);
 		initialDirPath.set("SYNTHS");
 	}
 
@@ -970,6 +973,9 @@ int32_t LoadInstrumentPresetUI::performLoadSynthToKit() {
 
 	int32_t error = storageManager.loadSynthToDrum(currentSong, instrumentClipToLoadFor, false, &soundDrumToReplace,
 	                                               &currentFileItem->filePointer, &enteredText, &currentDir);
+	if (error) {
+		return error;
+	}
 	//kitToLoadFor->addDrum(soundDrumToReplace);
 	display->displayLoadingAnimationText("Loading", false, true);
 	soundDrumToReplace->loadAllAudioFiles(true);
@@ -981,9 +987,9 @@ int32_t LoadInstrumentPresetUI::performLoadSynthToKit() {
 	    currentSong->getBackedUpParamManagerPreferablyWithClip(soundDrumToReplace, instrumentClipToLoadFor);
 	if (paramManager) {
 		kitToLoadFor->addDrum(soundDrumToReplace);
-		noteRow->setDrum(soundDrumToReplace, kitToLoadFor, modelStackWithNoteRow, instrumentClipToLoadFor,
-		                 paramManager);
-		kitToLoadFor->setupPatching(modelStack);
+		//don't back up the param manager since we can't use the backup anyway
+		noteRow->setDrum(soundDrumToReplace, kitToLoadFor, modelStackWithNoteRow, instrumentClipToLoadFor, paramManager,
+		                 false);
 		kitToLoadFor->beenEdited();
 	}
 	else {
