@@ -127,12 +127,13 @@ public:
 	 * @param proportion The amount to grey out
 	 * @return RGB The resulting colour
 	 */
-	[[nodiscard]] constexpr RGB greyOut(int32_t proportion) const {
+	[[nodiscard]] constexpr RGB greyOut(int32_t proportion) {
 		uint32_t totalRGB = (uint32_t)r + g + b; // max 765
-		uint32_t multiplicand = (uint32_t)(0x808080 - proportion) + (totalRGB * (proportion >> 5));
 
-		return transform([multiplicand](channel_type channel) -> channel_type {
-			return std::clamp<uint32_t>(rshift_round((uint32_t)channel * multiplicand, 23), 0, channel_max);
+		return transform([proportion, totalRGB](channel_type channel) {
+			auto val = rshift_round(
+			    (uint32_t)channel * (uint32_t)(0x808080 - proportion) + ((int32_t)totalRGB * (proportion >> 5)), 23);
+			return std::clamp<uint32_t>(val, 0, channel_max);
 		});
 	}
 

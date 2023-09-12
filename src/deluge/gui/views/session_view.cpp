@@ -3004,7 +3004,8 @@ bool SessionView::gridRenderMainPads(uint32_t whichRows, RGB image[][kDisplayWid
 			occupancyMask[y][x] = 64;
 			RGB& ptrClipColour = image[y][x];
 
-			ptrClipColour = view.getClipMuteSquareColour(clip, ptrClipColour, true, gridModeActive == SessionGridModeLaunch);
+			ptrClipColour =
+			    view.getClipMuteSquareColour(clip, ptrClipColour, true, gridModeActive == SessionGridModeLaunch);
 
 			// If we should MIDI learn flash and shift is pressed (different learn layer)
 			if (view.midiLearnFlashOn && gridModeActive == SessionGridModeEdit && clip->output != nullptr) {

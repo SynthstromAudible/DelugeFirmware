@@ -352,10 +352,8 @@ void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, 
 		}
 
 		for (int32_t yDisplay = greyBottom; yDisplay < greyTop; yDisplay++) {
-			RGB* it_begin = &PadLEDs::image[yDisplay][xEnd];
-			for (RGB* it = it_begin; it != it_begin + (kDisplayWidth - xEnd); it++) {
-				*it = RGB::monochrome(7);
-			}
+			auto* begin = &image[yDisplay][xEnd];
+			std::fill(begin, begin + (kDisplayWidth - xEnd), deluge::gui::colours::grey);
 		}
 	}
 
@@ -472,10 +470,8 @@ void renderAudioClipCollapseAnimation(int32_t progress) {
 		}
 
 		for (int32_t yDisplay = greyBottom; yDisplay < greyTop; yDisplay++) {
-			for (auto* it = &PadLEDs::image[yDisplay][xEnd];
-			     it != &PadLEDs::image[yDisplay][xEnd] + (kDisplayWidth - xEnd); it++) {
-				*it = gui::colours::grey;
-			}
+			auto* begin = &PadLEDs::image[yDisplay][xEnd];
+			std::fill(begin, begin + (kDisplayWidth - xEnd), gui::colours::grey);
 		}
 	}
 

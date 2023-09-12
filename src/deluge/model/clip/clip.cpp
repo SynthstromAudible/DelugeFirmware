@@ -845,7 +845,7 @@ void Clip::drawUndefinedArea(int32_t xScroll, uint32_t xZoom, int32_t lengthToDi
 	}
 
 	if (greyStart < imageWidth) {
-		std::fill(rowImage + greyStart, rowImage + greyStart + (imageWidth - greyStart), RGB::monochrome(7));
+		std::fill(rowImage + greyStart, rowImage + greyStart + (imageWidth - greyStart), deluge::gui::colours::grey);
 		if (occupancyMask) {
 			memset(occupancyMask + greyStart, 64, imageWidth - greyStart);
 		}
@@ -854,7 +854,7 @@ void Clip::drawUndefinedArea(int32_t xScroll, uint32_t xZoom, int32_t lengthToDi
 	if (tripletsOnHere && timelineView->supportsTriplets()) {
 		for (int32_t xDisplay = 0; xDisplay < imageWidth; xDisplay++) {
 			if (!timelineView->isSquareDefined(xDisplay, xScroll, xZoom)) {
-				rowImage[xDisplay] = RGB::monochrome(7);
+				rowImage[xDisplay] = deluge::gui::colours::grey;
 
 				if (occupancyMask) {
 					occupancyMask[xDisplay] = 64;
