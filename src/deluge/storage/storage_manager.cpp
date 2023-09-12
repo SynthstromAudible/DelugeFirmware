@@ -78,7 +78,7 @@ struct FileSystemStuff fileSystemStuff;
 StorageManager::StorageManager() {
 	fileClusterBuffer = NULL;
 
-	devVarA = 100;
+	devVarA = 150;
 	devVarB = 8;
 	devVarC = 100;
 	devVarD = 60;

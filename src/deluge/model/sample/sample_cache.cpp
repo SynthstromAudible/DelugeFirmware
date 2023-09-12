@@ -163,6 +163,8 @@ bool SampleCache::setupNewCluster(int32_t clusterIndex) {
 void SampleCache::prioritizeNotStealingCluster(int32_t clusterIndex) {
 
 	if (GeneralMemoryAllocator::get().getRegion(clusters[clusterIndex]) != MEMORY_REGION_SDRAM) {
+		//clusters not in external
+		display->freezeWithError("C002");
 		return; // Sorta just have to do this
 	}
 
@@ -170,7 +172,11 @@ void SampleCache::prioritizeNotStealingCluster(int32_t clusterIndex) {
 	// but in reverse order so that the later-in-sample of those cache Clusters will be stolen first
 
 	// Remember, cache clusters never have "reasons", so we can assume these are already in one of the stealableClusterQueues, ready to be "stolen".
-
+#if ALPHA_OR_BETA_VERSION
+	if (clusters[clusterIndex]->numReasonsToBeLoaded != 0) {
+		display->freezeWithError("C003"); //let's just check to make sure
+	}
+#endif
 	// First Cluster
 	if (clusterIndex == 0) {
 		const auto q = STEALABLE_QUEUE_CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE;
@@ -186,6 +192,8 @@ void SampleCache::prioritizeNotStealingCluster(int32_t clusterIndex) {
 	else {
 
 		if (GeneralMemoryAllocator::get().getRegion(clusters[clusterIndex - 1]) != MEMORY_REGION_SDRAM) {
+			//clusters not in external
+			display->freezeWithError("C001");
 			return; // Sorta just have to do this
 		}
 

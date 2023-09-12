@@ -1639,6 +1639,7 @@ int32_t InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelSta
 	// Can safely call audio routine again now
 	AudioEngine::audioRoutineLocked = false;
 	AudioEngine::bypassCulling = true;
+	AudioEngine::logAction("bypassing culling in change instrument");
 	AudioEngine::routineWithClusterLoading(); // -----------------------------------
 
 	// If now a Kit, match NoteRows back up to Drums

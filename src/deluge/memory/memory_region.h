@@ -72,6 +72,7 @@ private:
 	attemptToGrabNeighbouringMemory(void* originalSpaceAddress, int32_t originalSpaceSize, int32_t minAmountToExtend,
 	                                int32_t idealAmountToExtend, void* thingNotToStealFrom,
 	                                uint32_t markWithTraversalNo = 0, bool originalSpaceNeedsStealing = false);
+
 	void writeTempHeadersBeforeASteal(uint32_t newStartAddress, uint32_t newSize);
 	void sanityCheck();
 	uint32_t start;

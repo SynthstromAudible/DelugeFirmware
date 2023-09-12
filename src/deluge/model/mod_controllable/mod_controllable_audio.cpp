@@ -196,6 +196,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 			*postFXVolume = multiply_32x32_rshift32(*postFXVolume, 1518500250) << 1; // Divide by sqrt(2)
 		}
 		else if (modFXType == ModFXType::GRAIN) {
+			AudioEngine::logAction("grain start");
 			if (!grainInitialized && modFXGrainBufferWriteIndex >= 65536) {
 				grainInitialized = true;
 			}
@@ -468,6 +469,9 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 				modFXBufferWriteIndex = (modFXBufferWriteIndex + 1) & kModFXBufferIndexMask;
 			}
 		} while (++currentSample != bufferEnd);
+		if (modFXType == ModFXType::GRAIN) {
+			AudioEngine::logAction("grain end");
+		}
 	}
 
 	// EQ -------------------------------------------------------------------------------------
