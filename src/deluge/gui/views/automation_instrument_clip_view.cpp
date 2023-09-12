@@ -716,7 +716,8 @@ void AutomationInstrumentClipView::renderAutomationEditor(ModelStackWithTimeline
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 
-		renderRow(modelStack, modelStackWithParam, image, occupancyMask, yDisplay, modelStackWithParam->autoParam->isAutomated());
+		renderRow(modelStack, modelStackWithParam, image, occupancyMask, yDisplay,
+		          modelStackWithParam->autoParam->isAutomated());
 
 		if (drawUndefinedArea == true) {
 
@@ -732,7 +733,7 @@ void AutomationInstrumentClipView::renderAutomationEditor(ModelStackWithTimeline
 //it worked for the most part, but there was bugs so I removed the buggy code and inserted my alternative rendering method
 //which always works. hoping to bring back the other code once I've worked out the bugs.
 void AutomationInstrumentClipView::renderRow(ModelStackWithTimelineCounter* modelStack,
-											 ModelStackWithAutoParam* modelStackWithParam, uint8_t* image,
+                                             ModelStackWithAutoParam* modelStackWithParam, uint8_t* image,
                                              uint8_t occupancyMask[], int32_t yDisplay, bool isAutomated) {
 
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
@@ -802,23 +803,23 @@ void AutomationInstrumentClipView::renderDisplay(int32_t knobPosLeft, int32_t kn
 		if (isOnAutomationOverview() || (instrument->type == InstrumentType::CV)) {
 
 			//align string to vertically to the centre of the display
-	#if OLED_MAIN_HEIGHT_PIXELS == 64
+#if OLED_MAIN_HEIGHT_PIXELS == 64
 			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 24;
-	#else
+#else
 			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 15;
-	#endif
+#endif
 
 			//display Automation Overview or Can't Automate CV
 			if (instrument->type != InstrumentType::CV) {
 				char const* outputTypeText;
-				deluge::hid::display::OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_AUTOMATION_OVERVIEW), yPos,
-															deluge::hid::display::OLED::oledMainImage[0],
-															OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+				deluge::hid::display::OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_AUTOMATION_OVERVIEW),
+				                                              yPos, deluge::hid::display::OLED::oledMainImage[0],
+				                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 			}
 			else {
-				deluge::hid::display::OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_CANT_AUTOMATE_CV), yPos,
-															deluge::hid::display::OLED::oledMainImage[0],
-															OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+				deluge::hid::display::OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_CANT_AUTOMATE_CV),
+				                                              yPos, deluge::hid::display::OLED::oledMainImage[0],
+				                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 			}
 		}
 		else if (instrument->type != InstrumentType::CV) {
@@ -826,13 +827,14 @@ void AutomationInstrumentClipView::renderDisplay(int32_t knobPosLeft, int32_t kn
 			char parameterName[30];
 			getParameterName(parameterName);
 
-	#if OLED_MAIN_HEIGHT_PIXELS == 64
+#if OLED_MAIN_HEIGHT_PIXELS == 64
 			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
-	#else
+#else
 			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
-	#endif
-			deluge::hid::display::OLED::drawStringCentred(parameterName, yPos, deluge::hid::display::OLED::oledMainImage[0],
-															OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+#endif
+			deluge::hid::display::OLED::drawStringCentred(parameterName, yPos,
+			                                              deluge::hid::display::OLED::oledMainImage[0],
+			                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 
 			//display automation status
 			yPos = yPos + 12;
@@ -840,7 +842,7 @@ void AutomationInstrumentClipView::renderDisplay(int32_t knobPosLeft, int32_t kn
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 			ModelStackWithAutoParam* modelStackWithParam =
-				getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID, clip->lastSelectedParamKind);
+			    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID, clip->lastSelectedParamKind);
 
 			char const* isAutomated;
 
@@ -855,8 +857,8 @@ void AutomationInstrumentClipView::renderDisplay(int32_t knobPosLeft, int32_t kn
 			}
 
 			deluge::hid::display::OLED::drawStringCentred(isAutomated, yPos,
-														deluge::hid::display::OLED::oledMainImage[0],
-														OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+			                                              deluge::hid::display::OLED::oledMainImage[0],
+			                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 
 			//display parameter value
 			yPos = yPos + 12;
@@ -867,22 +869,25 @@ void AutomationInstrumentClipView::renderDisplay(int32_t knobPosLeft, int32_t kn
 				bufferLeft[1] = ':';
 				bufferLeft[2] = ' ';
 				intToString(knobPosLeft, &bufferLeft[3]);
-				deluge::hid::display::OLED::drawString(bufferLeft, 0, yPos, deluge::hid::display::OLED::oledMainImage[0],
-													OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+				deluge::hid::display::OLED::drawString(bufferLeft, 0, yPos,
+				                                       deluge::hid::display::OLED::oledMainImage[0],
+				                                       OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 
 				char bufferRight[10];
 				bufferRight[0] = 'R';
 				bufferRight[1] = ':';
 				bufferRight[2] = ' ';
 				intToString(knobPosRight, &bufferRight[3]);
-				deluge::hid::display::OLED::drawStringAlignRight(bufferRight, yPos, deluge::hid::display::OLED::oledMainImage[0],
-																OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+				deluge::hid::display::OLED::drawStringAlignRight(bufferRight, yPos,
+				                                                 deluge::hid::display::OLED::oledMainImage[0],
+				                                                 OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 			}
 			else {
 				char buffer[5];
 				intToString(knobPosLeft, buffer);
-				deluge::hid::display::OLED::drawStringCentred(buffer, yPos, deluge::hid::display::OLED::oledMainImage[0],
-															OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+				deluge::hid::display::OLED::drawStringCentred(buffer, yPos,
+				                                              deluge::hid::display::OLED::oledMainImage[0],
+				                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 			}
 		}
 
@@ -990,7 +995,7 @@ void AutomationInstrumentClipView::getParameterName(char* parameterName) {
 void AutomationInstrumentClipView::displayAutomation(bool padSelected) {
 	if (!isOnAutomationOverview()) {
 
-		if ((!padSelectionOn && !isUIModeActive(UI_MODE_NOTES_PRESSED)) || padSelected)  {
+		if ((!padSelectionOn && !isUIModeActive(UI_MODE_NOTES_PRESSED)) || padSelected) {
 
 			InstrumentClip* clip = getCurrentClip();
 
@@ -998,12 +1003,12 @@ void AutomationInstrumentClipView::displayAutomation(bool padSelected) {
 			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 			ModelStackWithAutoParam* modelStackWithParam =
-				getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID, clip->lastSelectedParamKind);
+			    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID, clip->lastSelectedParamKind);
 
 			if (modelStackWithParam && modelStackWithParam->autoParam) {
 
 				if (modelStackWithParam->getTimelineCounter()
-					== view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+				    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 
 					int32_t knobPos = getParameterKnobPos(modelStackWithParam, view.modPos);
 
@@ -1610,8 +1615,8 @@ void AutomationInstrumentClipView::editPadAction(bool state, uint8_t yDisplay, u
 			initPadSelection();
 		}
 		//switch from long press selection to short press selection in pad selection mode
-		else if (!isOnAutomationOverview() && padSelectionOn && multiPadPressSelected
-		         && !multiPadPressActive && (currentUIMode != UI_MODE_NOTES_PRESSED)
+		else if (!isOnAutomationOverview() && padSelectionOn && multiPadPressSelected && !multiPadPressActive
+		         && (currentUIMode != UI_MODE_NOTES_PRESSED)
 		         && ((AudioEngine::audioSampleTimer - instrumentClipView.timeLastEditPadPress) < kShortPressTime)) {
 
 			multiPadPressSelected = false;
@@ -2376,7 +2381,7 @@ void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int
 
 						renderDisplayForMultiPadPress(modelStack, clip, xDisplay);
 
-					/*	if (display->haveOLED()) {
+						/*	if (display->haveOLED()) {
 							renderDisplayForMultiPadPress(modelStack, clip);
 						}
 						else {
@@ -2520,7 +2525,7 @@ void AutomationInstrumentClipView::modEncoderButtonAction(uint8_t whichModEncode
 				rightPadSelectedX = kNoSelection;
 
 				ModelStackWithAutoParam* modelStackWithParam =
-					getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID, clip->lastSelectedParamKind);
+				    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID, clip->lastSelectedParamKind);
 
 				uint32_t squareStart = getMiddlePosFromSquare(modelStack, leftPadSelectedX);
 
@@ -2987,7 +2992,8 @@ int32_t AutomationInstrumentClipView::getEffectiveLength(ModelStackWithTimelineC
 
 //when pressing on a single pad, you want to display the value of the middle node within that square
 //as that is the most accurate value that represents that square
-uint32_t AutomationInstrumentClipView::getMiddlePosFromSquare(ModelStackWithTimelineCounter* modelStack, int32_t xDisplay) {
+uint32_t AutomationInstrumentClipView::getMiddlePosFromSquare(ModelStackWithTimelineCounter* modelStack,
+                                                              int32_t xDisplay) {
 	int32_t effectiveLength = getEffectiveLength(modelStack);
 
 	uint32_t squareStart = getPosFromSquare(xDisplay);
@@ -3106,7 +3112,6 @@ void AutomationInstrumentClipView::setKnobIndicatorLevels(int32_t knobPos) {
 
 	indicator_leds::setKnobIndicatorLevel(0, knobPos);
 	indicator_leds::setKnobIndicatorLevel(1, knobPos);
-
 }
 
 //updates the position that the active mod controllable stack is pointing to
@@ -3116,10 +3121,10 @@ void AutomationInstrumentClipView::updateModPosition(ModelStackWithAutoParam* mo
 	if (!playbackHandler.isEitherClockActive() || padSelectionOn) {
 		if (modelStack && modelStack->autoParam) {
 			if (modelStack->getTimelineCounter()
-				== view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+			    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 
 				view.activeModControllableModelStack.paramManager->toForTimeline()->grabValuesFromPos(
-					squareStart, &view.activeModControllableModelStack);
+				    squareStart, &view.activeModControllableModelStack);
 
 				if (!multiPadPressSelected) {
 					int32_t knobPos = getParameterKnobPos(modelStack, squareStart) + kKnobPosOffset;
@@ -3130,7 +3135,6 @@ void AutomationInstrumentClipView::updateModPosition(ModelStackWithAutoParam* mo
 			}
 		}
 	}
-
 }
 
 //takes care of setting the automation value for the single pad that was pressed
@@ -3415,7 +3419,8 @@ void AutomationInstrumentClipView::handleMultiPadPress(ModelStackWithTimelineCou
 	}
 }
 
-void AutomationInstrumentClipView::renderDisplayForMultiPadPress(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, int32_t xDisplay) {
+void AutomationInstrumentClipView::renderDisplayForMultiPadPress(ModelStackWithTimelineCounter* modelStack,
+                                                                 InstrumentClip* clip, int32_t xDisplay) {
 	if (modelStack) {
 
 		ModelStackWithAutoParam* modelStackWithParam =
@@ -3424,7 +3429,7 @@ void AutomationInstrumentClipView::renderDisplayForMultiPadPress(ModelStackWithT
 		if (modelStackWithParam && modelStackWithParam->autoParam) {
 
 			int32_t knobPosLeft =
-				getParameterKnobPos(modelStackWithParam, getPosFromSquare(leftPadSelectedX)) + kKnobPosOffset;
+			    getParameterKnobPos(modelStackWithParam, getPosFromSquare(leftPadSelectedX)) + kKnobPosOffset;
 
 			int32_t effectiveLength = getEffectiveLength(modelStack);
 

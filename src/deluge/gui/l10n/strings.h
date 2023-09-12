@@ -689,7 +689,7 @@ enum class String : size_t {
 	STRING_FOR_GRAIN,
 	STRING_FOR_FILL,
 
-    /* Strings Specifically for Automation Instrument Clip View
+	/* Strings Specifically for Automation Instrument Clip View
     * automation_instrument_clip_view.cpp
     */
 
@@ -703,7 +703,7 @@ enum class String : size_t {
 	STRING_FOR_SHIFT_RIGHT,
 	STRING_FOR_INTERPOLATION_DISABLED,
 	STRING_FOR_INTERPOLATION_ENABLED,
-   	STRING_FOR_PAD_SELECTION_OFF,
+	STRING_FOR_PAD_SELECTION_OFF,
 	STRING_FOR_PAD_SELECTION_ON,
 
 	STRING_LAST
