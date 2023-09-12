@@ -401,13 +401,14 @@ void routine() {
 #else
 
 	if (smoothedSamples < numSamples) {
-		smoothedSamples = (smoothedSamples + numSamples) >> 1;
+		smoothedSamples = (numSamplesLastTime + numSamples) >> 1;
 	}
 	else {
 		smoothedSamples = numSamples;
 	}
-
-	numSamplesLastTime = numSamples;
+	if (!bypassCulling) {
+		numSamplesLastTime = numSamples;
+	}
 
 	// Consider direness and culling - before increasing the number of samples
 	int32_t numSamplesLimit = 40; //storageManager.devVarC;
