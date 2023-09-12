@@ -352,8 +352,9 @@ void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, 
 		}
 
 		for (int32_t yDisplay = greyBottom; yDisplay < greyTop; yDisplay++) {
-			for (auto* it = &PadLEDs::image[yDisplay][xEnd]; it != it + (kDisplayWidth - xEnd); it++) {
-				*it = {7, 7, 7};
+			RGB* it_begin = &PadLEDs::image[yDisplay][xEnd];
+			for (RGB* it = it_begin; it != it_begin + (kDisplayWidth - xEnd); it++) {
+				*it = RGB::monochrome(7);
 			}
 		}
 	}
