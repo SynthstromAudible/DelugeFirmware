@@ -121,8 +121,8 @@ private:
 	void renderAutomationEditor(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, Instrument* instrument,
 	                            uint8_t* image, uint8_t occupancyMask[], int32_t renderWidth, int32_t xScroll,
 	                            uint32_t xZoom, int32_t yDisplay = 0, bool drawUndefinedArea = true);
-	void renderRow(ModelStackWithTimelineCounter* modelStack, ModelStackWithAutoParam* modelStackWithParam, uint8_t* image, 
-								uint8_t occupancyMask[], int32_t yDisplay = 0, bool isAutomated = false);
+	void renderRow(ModelStackWithTimelineCounter* modelStack, ModelStackWithAutoParam* modelStackWithParam,
+	               uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay = 0, bool isAutomated = false);
 	void renderLove(uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
 
 	//Enter/Exit Scale Mode
@@ -162,7 +162,8 @@ private:
 
 	void handleMultiPadPress(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, int32_t firstPadX,
 	                         int32_t firstPadY, int32_t secondPadX, int32_t secondPadY, bool modEncoderAction = false);
-	void renderDisplayForMultiPadPress(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, int32_t xDisplay = kNoSelection);
+	void renderDisplayForMultiPadPress(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip,
+	                                   int32_t xDisplay = kNoSelection);
 
 	int32_t calculateKnobPosForModEncoderTurn(int32_t knobPos, int32_t offset);
 	void displayCVErrorMessage();

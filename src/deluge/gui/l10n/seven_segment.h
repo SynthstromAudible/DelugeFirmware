@@ -354,7 +354,7 @@ constexpr Language seven_segment{
         {STRING_FOR_NOTES_CLEARED, "CLEAR"},
         {STRING_FOR_AUTOMATION_CLEARED, "CLEAR"},
 
-       /* Strings Specifically for Automation Instrument Clip View
+        /* Strings Specifically for Automation Instrument Clip View
         * automation_instrument_clip_view.cpp
         */
         {STRING_FOR_AUTOMATION, "AUTO"},

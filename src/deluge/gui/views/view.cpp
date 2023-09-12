@@ -974,8 +974,7 @@ void View::setKnobIndicatorLevels() {
 	}
 
 	//don't update knob indicator levels when you're in automation editor
-	if ((getCurrentUI() == &automationInstrumentClipView)
-	    && !automationInstrumentClipView.isOnAutomationOverview()) {
+	if ((getCurrentUI() == &automationInstrumentClipView) && !automationInstrumentClipView.isOnAutomationOverview()) {
 		return;
 	}
 
