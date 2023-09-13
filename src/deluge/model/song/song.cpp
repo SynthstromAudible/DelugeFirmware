@@ -5180,6 +5180,8 @@ Clip* Song::replaceInstrumentClipWithAudioClip(Clip* oldClip, int32_t clipIndex)
 		return NULL;
 	}
 
+	newOutput->colour = oldClip->output->colour;
+
 	// Create the audio clip and ParamManager
 	AudioClip* newClip = new (clipMemory) AudioClip();
 

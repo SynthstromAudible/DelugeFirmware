@@ -1676,6 +1676,8 @@ gotErrorDontDisplay:
 		newClip->output->setActiveClip(modelStackWithTimelineCounter);
 	}
 
+	newClip->output->colour = clip->output->colour;
+
 	currentSong->swapClips(newClip, clip, clipIndex);
 
 	view.setActiveModControllableTimelineCounter(newClip);
