@@ -3077,6 +3077,9 @@ traverseClips:
 	// Copy default velocity
 	newOutput->defaultVelocity = oldOutput->defaultVelocity;
 
+	newOutput->colour = oldOutput->colour;
+	oldOutput->colour = 0;
+
 	newOutput->mutedInArrangementMode = oldOutput->mutedInArrangementMode;
 	oldOutput->mutedInArrangementMode = false;
 
@@ -4809,6 +4812,9 @@ void Song::replaceOutputLowLevel(Output* newOutput, Output* oldOutput) {
 
 	// Migrate all ClipInstances from oldInstrument to newInstrument
 	newOutput->clipInstances.swapStateWith(&oldOutput->clipInstances);
+
+	newOutput->colour = oldOutput->colour;
+	oldOutput->colour = 0;
 
 	newOutput->mutedInArrangementMode = oldOutput->mutedInArrangementMode;
 	oldOutput->mutedInArrangementMode = false;
