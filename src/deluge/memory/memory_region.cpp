@@ -483,6 +483,7 @@ uint32_t MemoryRegion::extendRightAsMuchAsEasilyPossible(void* address) {
 
 	uint32_t* __restrict__ header = (uint32_t*)(static_cast<char*>(address) - 4);
 	uint32_t spaceSize = (*header & SPACE_SIZE_MASK);
+	uint32_t currentSpaceType = *header & SPACE_TYPE_MASK;
 
 	uint32_t* __restrict__ lookRight = (uint32_t*)((uint32_t)address + spaceSize + 4);
 
@@ -513,7 +514,7 @@ uint32_t MemoryRegion::extendRightAsMuchAsEasilyPossible(void* address) {
 	{
 		spaceSize += emptySpaceHereSizeWithoutHeaders + 8;
 
-		uint32_t newHeaderData = spaceSize | SPACE_HEADER_ALLOCATED;
+		uint32_t newHeaderData = spaceSize | currentSpaceType;
 
 		// Write header
 		*header = newHeaderData;
@@ -693,6 +694,7 @@ void MemoryRegion::extend(void* address, uint32_t minAmountToExtend, uint32_t id
 
 	uint32_t* header = (uint32_t*)((char*)address - 4);
 	uint32_t oldAllocatedSize = (*header & SPACE_SIZE_MASK);
+	uint32_t oldHeader = (*header & SPACE_TYPE_MASK);
 
 	NeighbouringMemoryGrabAttemptResult grabResult = attemptToGrabNeighbouringMemory(
 	    address, oldAllocatedSize, minAmountToExtend, idealAmountToExtend, thingNotToStealFrom);
@@ -746,7 +748,7 @@ void MemoryRegion::extend(void* address, uint32_t minAmountToExtend, uint32_t id
 	*getAmountExtendedRight = grabResult.amountsExtended[0];
 
 	uint32_t newSize = oldAllocatedSize + grabResult.amountsExtended[0] + grabResult.amountsExtended[1];
-	uint32_t newHeaderData = newSize | SPACE_HEADER_ALLOCATED;
+	uint32_t newHeaderData = newSize | oldHeader;
 
 	// Write header
 	uint32_t* __restrict__ newHeader = (uint32_t*)(grabResult.address - 4);
