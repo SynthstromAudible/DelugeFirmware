@@ -20,17 +20,19 @@
 #include "submenu.h"
 
 namespace deluge::gui::menu_item {
-template <size_t n>
-class SubmenuReferringToOneThing : public Submenu<n> {
+class SubmenuReferringToOneThing : public Submenu {
 public:
-	SubmenuReferringToOneThing(l10n::String newName, MenuItem* const (&newItems)[n], int32_t newThingIndex)
-	    : Submenu<n>(newName, newItems), thingIndex(newThingIndex) {}
+	SubmenuReferringToOneThing(l10n::String newName, std::initializer_list<MenuItem*> newItems, int32_t newThingIndex)
+	    : Submenu(newName, newItems), thingIndex(newThingIndex) {}
+
+	SubmenuReferringToOneThing(l10n::String newName, std::span<MenuItem*> newItems, int32_t newThingIndex)
+	    : Submenu(newName, newItems), thingIndex(newThingIndex) {}
 
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override {
 		soundEditor.currentSourceIndex = thingIndex;
 		soundEditor.currentSource = &soundEditor.currentSound->sources[thingIndex];
 		soundEditor.currentSampleControls = &soundEditor.currentSource->sampleControls;
-		Submenu<n>::beginSession(navigatedBackwardFrom);
+		Submenu::beginSession(navigatedBackwardFrom);
 	}
 
 	uint8_t thingIndex;

@@ -21,12 +21,12 @@
 #include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::modulator {
-class Destination final : public Selection<2> {
+class Destination final : public Selection {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(soundEditor.currentSound->modulator1ToModulator0); }
 	void writeCurrentValue() override { soundEditor.currentSound->modulator1ToModulator0 = this->getValue(); }
-	static_vector<std::string_view, capacity()> getOptions() override {
+	std::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
 		static auto mod1 = l10n::getView(STRING_FOR_MODULATOR_1);
 		return {

@@ -23,12 +23,12 @@
 #include "util/misc.h"
 
 namespace deluge::gui::menu_item::keyboard {
-class Layout final : public Selection<kNumKeyboardLayouts> {
+class Layout final : public Selection {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(FlashStorage::keyboardLayout); }
 	void writeCurrentValue() override { FlashStorage::keyboardLayout = this->getValue<KeyboardLayout>(); }
-	static_vector<std::string_view, capacity()> getOptions() override {
+	std::vector<std::string_view> getOptions() override {
 		return {
 		    "QWERTY",
 		    "AZERTY",

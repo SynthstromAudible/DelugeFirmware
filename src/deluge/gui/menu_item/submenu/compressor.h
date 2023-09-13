@@ -21,21 +21,17 @@
 #include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::submenu {
-template <size_t n>
-class Compressor final : public Submenu<n> {
+class Compressor final : public Submenu {
 public:
-	Compressor(l10n::String newName, l10n::String title, MenuItem* const (&newItems)[n], bool newForReverbCompressor)
-	    : Submenu<n>(newName, title, newItems), forReverbCompressor(newForReverbCompressor) {}
+	Compressor(l10n::String newName, l10n::String title, std::initializer_list<MenuItem*> newItems, bool newForReverbCompressor)
+	    : Submenu(newName, title, newItems), forReverbCompressor(newForReverbCompressor) {}
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override {
 		soundEditor.currentCompressor =
 		    forReverbCompressor ? &AudioEngine::reverbCompressor : &soundEditor.currentSound->compressor;
-		Submenu<n>::beginSession(navigatedBackwardFrom);
+		Submenu::beginSession(navigatedBackwardFrom);
 	}
 
 	bool forReverbCompressor;
 };
-// Template deduction guide, will not be required with P2582@C++23
-template <size_t n>
-Compressor(l10n::String, MenuItem* const (&)[n]) -> Compressor<n>;
 
 } // namespace deluge::gui::menu_item::submenu

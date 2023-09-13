@@ -20,7 +20,7 @@
 
 namespace deluge::gui::menu_item {
 
-class Colour final : public Selection<9> {
+class Colour final : public Selection {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(value); }
@@ -28,12 +28,14 @@ public:
 		value = this->getValue();
 		renderingNeededRegardlessOfUI();
 	};
-	static_vector<std::string_view, capacity()> getOptions() override {
-		return {l10n::getView(l10n::String::STRING_FOR_RED),   l10n::getView(l10n::String::STRING_FOR_GREEN),
-		        l10n::getView(l10n::String::STRING_FOR_BLUE),  l10n::getView(l10n::String::STRING_FOR_YELLOW),
-		        l10n::getView(l10n::String::STRING_FOR_CYAN),  l10n::getView(l10n::String::STRING_FOR_MAGENTA),
-		        l10n::getView(l10n::String::STRING_FOR_AMBER), l10n::getView(l10n::String::STRING_FOR_WHITE),
-		        l10n::getView(l10n::String::STRING_FOR_PINK)};
+	std::vector<std::string_view> getOptions() override {
+		return {
+		    l10n::getView(l10n::String::STRING_FOR_RED),   l10n::getView(l10n::String::STRING_FOR_GREEN),
+		    l10n::getView(l10n::String::STRING_FOR_BLUE),  l10n::getView(l10n::String::STRING_FOR_YELLOW),
+		    l10n::getView(l10n::String::STRING_FOR_CYAN),  l10n::getView(l10n::String::STRING_FOR_MAGENTA),
+		    l10n::getView(l10n::String::STRING_FOR_AMBER), l10n::getView(l10n::String::STRING_FOR_WHITE),
+		    l10n::getView(l10n::String::STRING_FOR_PINK),
+		};
 	}
 	void getRGB(uint8_t rgb[3]);
 	uint8_t value;

@@ -31,17 +31,19 @@
 #include "util/container/static_vector.hpp"
 #include <array>
 #include <initializer_list>
+#include <span>
 
 namespace deluge::gui::menu_item {
 
-template <size_t n>
 class Submenu : public MenuItem {
 public:
-	Submenu(l10n::String newName, MenuItem* const (&newItems)[n])
-	    : MenuItem(newName), items{to_static_vector(newItems)} {}
-	Submenu(l10n::String newName, l10n::String title, MenuItem* const (&newItems)[n])
-	    : MenuItem(newName, title), items{to_static_vector(newItems)} {}
-	Submenu(l10n::String newName, l10n::String title, std::array<MenuItem*, n> newItems)
+	Submenu(l10n::String newName, std::initializer_list<MenuItem*> newItems) : MenuItem(newName), items{newItems} {}
+	Submenu(l10n::String newName, std::span<MenuItem*> newItems)
+	    : MenuItem(newName), items{newItems.begin(), newItems.end()} {}
+	Submenu(l10n::String newName, l10n::String title, std::initializer_list<MenuItem*> newItems)
+	    : MenuItem(newName, title), items{newItems} {}
+
+	Submenu(l10n::String newName, l10n::String title, std::span<MenuItem*> newItems)
 	    : MenuItem(newName, title), items{newItems.begin(), newItems.end()} {}
 
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
@@ -55,156 +57,9 @@ public:
 	bool learnNoteOn(MIDIDevice* fromDevice, int32_t channel, int32_t noteCode) final;
 	void drawPixelsForOled() override;
 
-	deluge::static_vector<MenuItem*, n> items;
+	std::vector<MenuItem*> items;
 	typename decltype(items)::iterator current_item_;
 };
 
-template <size_t n>
-void Submenu<n>::beginSession(MenuItem* navigatedBackwardFrom) {
-	current_item_ = items.begin();
-	soundEditor.menuCurrentScroll = 0;
-	soundEditor.currentMultiRange = nullptr;
-	if (navigatedBackwardFrom != nullptr) {
-		for (; *current_item_ != navigatedBackwardFrom; current_item_++) {
-			if (current_item_ == items.end()) { // If desired item not found
-				current_item_ = items.begin();
-				break;
-			}
-		}
-	}
-	while (!(*current_item_)->isRelevant(soundEditor.currentSound, soundEditor.currentSourceIndex)) {
-		current_item_++;
-		if (current_item_ == items.end()) { // Not sure we need this since we don't wrap submenu items?
-			current_item_ = items.begin();
-		}
-	}
-	if (display->have7SEG()) {
-		updateDisplay();
-	}
-}
-
-template <size_t n>
-void Submenu<n>::updateDisplay() {
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	else {
-		(*current_item_)->drawName();
-	}
-}
-
-template <size_t n>
-void Submenu<n>::drawPixelsForOled() {
-	int32_t selectedRow = soundEditor.menuCurrentScroll;
-
-	// This finds the next relevant submenu item
-	static_vector<std::string_view, kOLEDMenuNumOptionsVisible> nextItemNames = {};
-	for (auto it = current_item_, idx = selectedRow; it != this->items.end() && idx < kOLEDMenuNumOptionsVisible;
-	     it++) {
-		if ((*it)->isRelevant(soundEditor.currentSound, soundEditor.currentSourceIndex)) {
-			nextItemNames.push_back((*it)->getName());
-			idx++;
-		}
-	}
-
-	static_vector<std::string_view, kOLEDMenuNumOptionsVisible> prevItemNames = {};
-	for (auto it = current_item_ - 1, idx = selectedRow - 1; it != this->items.begin() - 1 && idx >= 0; it--) {
-		if ((*it)->isRelevant(soundEditor.currentSound, soundEditor.currentSourceIndex)) {
-			prevItemNames.push_back((*it)->getName());
-			idx--;
-		}
-	}
-	std::reverse(prevItemNames.begin(), prevItemNames.end());
-
-	if (!prevItemNames.empty()) {
-		prevItemNames.insert(prevItemNames.end(), nextItemNames.begin(), nextItemNames.end());
-		drawItemsForOled(prevItemNames, selectedRow);
-	}
-	else {
-		drawItemsForOled(nextItemNames, selectedRow);
-	}
-}
-
-template <size_t n>
-void Submenu<n>::selectEncoderAction(int32_t offset) {
-
-	auto thisSubmenuItem = current_item_;
-
-	do {
-		if (offset >= 0) {
-			thisSubmenuItem++;
-			if (thisSubmenuItem == items.end()) {
-				if (display->haveOLED()) {
-					return;
-				}
-				else {
-					thisSubmenuItem = items.begin();
-				}
-			}
-		}
-		else {
-			if (thisSubmenuItem == items.begin()) {
-				if (display->haveOLED()) {
-					return;
-				}
-				else {
-					thisSubmenuItem = &items.back();
-				}
-			}
-			else {
-				thisSubmenuItem--;
-			}
-		}
-	} while (!(*thisSubmenuItem)->isRelevant(soundEditor.currentSound, soundEditor.currentSourceIndex));
-
-	current_item_ = thisSubmenuItem;
-
-	if (display->haveOLED()) {
-		soundEditor.menuCurrentScroll += offset;
-		if (soundEditor.menuCurrentScroll < 0) {
-			soundEditor.menuCurrentScroll = 0;
-		}
-		else if (soundEditor.menuCurrentScroll > kOLEDMenuNumOptionsVisible - 1) {
-			soundEditor.menuCurrentScroll = kOLEDMenuNumOptionsVisible - 1;
-		}
-	}
-
-	updateDisplay();
-}
-
-template <size_t n>
-MenuItem* Submenu<n>::selectButtonPress() {
-	return *current_item_;
-}
-
-template <size_t n>
-void Submenu<n>::unlearnAction() {
-	if (soundEditor.getCurrentMenuItem() == this) {
-		(*current_item_)->unlearnAction();
-	}
-}
-
-template <size_t n>
-bool Submenu<n>::allowsLearnMode() {
-	if (soundEditor.getCurrentMenuItem() == this) {
-		return (*current_item_)->allowsLearnMode();
-	}
-	return false;
-}
-
-template <size_t n>
-void Submenu<n>::learnKnob(MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) {
-	if (soundEditor.getCurrentMenuItem() == this) {
-		(*current_item_)->learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel);
-	}
-}
-
-template <size_t n>
-bool Submenu<n>::learnNoteOn(MIDIDevice* fromDevice, int32_t channel, int32_t noteCode) {
-	if (soundEditor.getCurrentMenuItem() == this) {
-		return (*current_item_)->learnNoteOn(fromDevice, channel, noteCode);
-	}
-	return false;
-}
 
 } // namespace deluge::gui::menu_item

@@ -19,15 +19,11 @@
 #include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::submenu {
-template <size_t n>
-class Filter final : public Submenu<n> {
+class Filter final : public Submenu {
 public:
-	using Submenu<n>::Submenu;
+	using Submenu::Submenu;
 	bool isRelevant(Sound* sound, int32_t whichThing) override { return (sound->synthMode != SynthMode::FM); }
 };
 
-// Template deduction guide, will not be required with P2582@C++23
-template <size_t n>
-Filter(l10n::String, MenuItem* const (&)[n]) -> Filter<n>;
 
 } // namespace deluge::gui::menu_item::submenu

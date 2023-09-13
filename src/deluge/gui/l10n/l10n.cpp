@@ -4,8 +4,6 @@
 #include "gui/l10n/strings.h"
 
 namespace deluge::l10n {
-
-static_vector<Language const*, kMaxNumLanguages> languages = {&built_in::english};
 Language const* chosenLanguage = nullptr;
 
 } // namespace deluge::l10n

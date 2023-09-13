@@ -1,6 +1,5 @@
 #pragma once
 #include "gui/l10n/strings.h"
-#include "util/container/static_vector.hpp"
 #include "util/misc.h"
 #include <array>
 #include <optional>
@@ -12,7 +11,6 @@ namespace deluge::l10n {
 
 class Language;
 constexpr size_t kMaxNumLanguages = 4;
-extern static_vector<Language const*, kMaxNumLanguages> languages;
 extern Language const* chosenLanguage;
 
 class Language {
@@ -21,7 +19,7 @@ class Language {
 public:
 	using map_type = std::array<std::optional<std::string_view>, kNumStrings>;
 
-	Language(std::string name, Language const* fallback = languages[0]) : name_(std::move(name)) {
+	Language(std::string name, Language const* fallback = nullptr) : name_(std::move(name)) {
 		std::copy(fallback->map_.cbegin(), fallback->map_.cend(), this->map_.begin());
 	};
 

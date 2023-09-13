@@ -26,9 +26,9 @@
 
 namespace deluge::gui::menu_item::gate {
 
-class Mode final : public Selection<3>, public FormattedTitle {
+class Mode final : public Selection, public FormattedTitle {
 
-	static_vector<l10n::String, capacity()> options_ = {
+	std::vector<l10n::String> options_ = {
 	    l10n::String::STRING_FOR_V_TRIGGER,
 	    l10n::String::STRING_FOR_S_TRIGGER,
 	};
@@ -41,8 +41,8 @@ public:
 	void writeCurrentValue() override {
 		cvEngine.setGateType(soundEditor.currentSourceIndex, this->getValue<GateType>());
 	}
-	static_vector<std::string_view, capacity()> getOptions() override {
-		static_vector<std::string_view, capacity()> output;
+	std::vector<std::string_view> getOptions() override {
+		std::vector<std::string_view> output;
 		for (l10n::String str : options_) {
 			output.push_back(l10n::getView(str));
 		}
