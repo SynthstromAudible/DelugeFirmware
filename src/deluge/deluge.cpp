@@ -605,7 +605,7 @@ extern "C" int32_t deluge_main(void) {
 
 	Encoders::init();
 
-#ifdef TEST_GENERAL_MEMORY_ALLOCATION
+#if TEST_GENERAL_MEMORY_ALLOCATION
 	GeneralMemoryAllocator::get().test();
 #endif
 
