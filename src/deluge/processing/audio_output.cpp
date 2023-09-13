@@ -82,8 +82,8 @@ void AudioOutput::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* m
                                                 int32_t reverbAmountAdjust, int32_t sideChainHitPending,
                                                 bool shouldLimitDelayFeedback, bool isClipActive, int32_t pitchAdjust,
                                                 int32_t amplitudeAtStart, int32_t amplitudeAtEnd) {
-
-	if (activeClip) {
+	//audio outputs can have an activeClip while being muted
+	if (isClipActive) {
 		AudioClip* activeAudioClip = (AudioClip*)activeClip;
 		if (activeAudioClip->voiceSample) {
 
