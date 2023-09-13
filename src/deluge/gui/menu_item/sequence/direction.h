@@ -26,7 +26,7 @@
 #include "util/misc.h"
 
 namespace deluge::gui::menu_item::sequence {
-class Direction final : public Selection<kNumSequenceDirections + 1> {
+class Direction final : public Selection {
 public:
 	using Selection::Selection;
 
@@ -68,10 +68,12 @@ public:
 		}
 	}
 
-	static_vector<std::string_view, capacity()> getOptions() override {
-		static_vector<std::string_view, capacity()> sequenceDirectionOptions = {
-		    l10n::getView(l10n::String::STRING_FOR_FORWARD), l10n::getView(l10n::String::STRING_FOR_REVERSED),
-		    l10n::getView(l10n::String::STRING_FOR_PING_PONG)};
+	std::vector<std::string_view> getOptions() override {
+		std::vector<std::string_view> sequenceDirectionOptions = {
+		    l10n::getView(l10n::String::STRING_FOR_FORWARD),
+		    l10n::getView(l10n::String::STRING_FOR_REVERSED),
+		    l10n::getView(l10n::String::STRING_FOR_PING_PONG),
+		};
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);

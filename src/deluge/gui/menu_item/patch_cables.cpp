@@ -10,7 +10,6 @@
 #include "processing/sound/sound.h"
 #include "source_selection/range.h"
 #include "source_selection/regular.h"
-#include "util/container/static_vector.hpp"
 #include "util/functions.h"
 
 namespace deluge::gui::menu_item {

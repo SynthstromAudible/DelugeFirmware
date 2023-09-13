@@ -22,13 +22,13 @@
 
 namespace deluge::gui::menu_item::runtime_feature {
 class Settings;
-class DevSysexSetting final : public Selection<2> {
+class DevSysexSetting final : public Selection {
 public:
 	explicit DevSysexSetting(RuntimeFeatureSettingType ty);
 
 	void readCurrentValue() override;
 	void writeCurrentValue() override;
-	static_vector<std::string_view, 2> getOptions() override;
+	std::vector<std::string_view> getOptions() override;
 	[[nodiscard]] std::string_view getName() const override;
 	[[nodiscard]] std::string_view getTitle() const override;
 

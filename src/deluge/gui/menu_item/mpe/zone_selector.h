@@ -22,14 +22,14 @@
 
 namespace deluge::gui::menu_item::mpe {
 
-class ZoneSelector final : public Selection<2> {
+class ZoneSelector final : public Selection {
 public:
 	using Selection::Selection;
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
 	void readCurrentValue() override { this->setValue(whichZone); }
 	void writeCurrentValue() override { whichZone = this->getValue(); }
 
-	static_vector<std::string_view, capacity()> getOptions() override {
+	std::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
 		return {
 		    l10n::getView(STRING_FOR_LOWER_ZONE),

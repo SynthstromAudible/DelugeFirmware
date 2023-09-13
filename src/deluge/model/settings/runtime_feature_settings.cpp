@@ -193,7 +193,7 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 
 			bool found = false;
 			for (auto& setting : settings) {
-				if (strcmp(setting.xmlName.c_str(), currentName.get()) == 0) {
+				if (strcmp(setting.xmlName.data(), currentName.get()) == 0) {
 					found = true;
 					setting.value = currentValue;
 				}
@@ -234,7 +234,7 @@ void RuntimeFeatureSettings::writeSettingsToFile() {
 
 	for (auto& setting : settings) {
 		storageManager.writeOpeningTagBeginning(TAG_RUNTIME_FEATURE_SETTING);
-		storageManager.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_NAME, setting.xmlName.c_str(), false);
+		storageManager.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_NAME, setting.xmlName.data(), false);
 		storageManager.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_VALUE, setting.value, false);
 		storageManager.writeOpeningTagEnd(false);
 		storageManager.writeClosingTag(TAG_RUNTIME_FEATURE_SETTING, false);
@@ -244,7 +244,7 @@ void RuntimeFeatureSettings::writeSettingsToFile() {
 	for (uint32_t idxUnknownSetting = 0; idxUnknownSetting < unknownSettings.getNumElements(); idxUnknownSetting++) {
 		UnknownSetting* unknownSetting = (UnknownSetting*)unknownSettings.getElementAddress(idxUnknownSetting);
 		storageManager.writeOpeningTagBeginning(TAG_RUNTIME_FEATURE_SETTING);
-		storageManager.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_NAME, unknownSetting->name.c_str(), false);
+		storageManager.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_NAME, unknownSetting->name.data(), false);
 		storageManager.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_VALUE, unknownSetting->value, false);
 		storageManager.writeOpeningTagEnd(false);
 		storageManager.writeClosingTag(TAG_RUNTIME_FEATURE_SETTING, false);

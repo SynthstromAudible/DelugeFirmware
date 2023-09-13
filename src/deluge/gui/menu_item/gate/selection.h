@@ -21,15 +21,14 @@
 #include "hid/display/display.h"
 #include "mode.h"
 #include "off_time.h"
-#include "util/container/static_vector.hpp"
 
 extern deluge::gui::menu_item::gate::OffTime gateOffTimeMenu;
 extern deluge::gui::menu_item::gate::Mode gateModeMenu;
 namespace deluge::gui::menu_item::gate {
 
-class Selection final : public menu_item::Selection<5> {
+class Selection final : public menu_item::Selection {
 public:
-	using menu_item::Selection<capacity()>::Selection;
+	using menu_item::Selection::Selection;
 
 	void beginSession(MenuItem* navigatedBackwardFrom) override {
 		if (navigatedBackwardFrom == nullptr) {
@@ -38,7 +37,7 @@ public:
 		else {
 			this->setValue(soundEditor.currentSourceIndex);
 		}
-		menu_item::Selection<capacity()>::beginSession(navigatedBackwardFrom);
+		menu_item::Selection::beginSession(navigatedBackwardFrom);
 	}
 
 	MenuItem* selectButtonPress() override {
@@ -55,7 +54,7 @@ public:
 		return &gateModeMenu;
 	}
 
-	static_vector<std::string_view, capacity()> getOptions() override {
+	std::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
 		static auto out1 = l10n::getView(STRING_FOR_GATE_OUTPUT_1);
 		static auto out2 = l10n::getView(STRING_FOR_GATE_OUTPUT_2);

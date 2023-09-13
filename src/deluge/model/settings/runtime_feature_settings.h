@@ -18,9 +18,11 @@
 #pragma once
 
 #include "util/container/array/resizeable_array.h"
-#include "util/container/static_vector.hpp"
 
+#include <array>
 #include <cstdint>
+#include <string_view>
+#include <vector>
 
 namespace deluge::gui::menu_item::runtime_feature {
 class Setting;
@@ -60,18 +62,18 @@ enum RuntimeFeatureSettingType : uint32_t {
 
 /// Definition for selectable options
 struct RuntimeFeatureSettingOption {
-	std::string displayName;
+	std::string_view displayName;
 	uint32_t value; // Value to be defined as typed Enum above
 };
 
 /// Every setting keeps its metadata and value in here
 struct RuntimeFeatureSetting {
-	std::string displayName;
-	std::string xmlName;
+	std::string_view displayName;
+	std::string_view xmlName;
 	uint32_t value;
 
 	// Limited to safe memory
-	deluge::static_vector<RuntimeFeatureSettingOption, RUNTIME_FEATURE_SETTING_MAX_OPTIONS> options;
+	std::vector<RuntimeFeatureSettingOption> options;
 };
 
 /// Encapsulating class
