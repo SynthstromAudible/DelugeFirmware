@@ -48,6 +48,13 @@ bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlay
 				return false;
 			}
 		}
+		else {
+			//if we're restarting a voice we need to clear it's reasons,
+			//otherwise we'll increase now but only reduce by one at note off
+			//not quite thread safe - if the sample is shorter than 64k
+			//an allocation before setupClustersForInitialPlay could steal it
+			voiceSample->beenUnassigned();
+		}
 		voiceSample->noteOn(guide, samplesLate, voice->getPriorityRating());
 		if (samplesLate) {
 			return true; // We're finished in this case
