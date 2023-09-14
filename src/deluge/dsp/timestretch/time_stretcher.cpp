@@ -976,9 +976,17 @@ optForDirectReading:
 	return true;
 }
 
+/**
+ * Unassign the remainder of the sample clusters and set the time back to the beginning
+ * Note - not perfectly thread safe for samples which are less than 64k in size. An allocation
+ * between unassigning reasons and setupClustersForPlayFromByte can lead to an
+ * incorrect steal and then re allocation as the sample may briefly have 0 reasons
+*/
 bool TimeStretcher::setupNewPlayHead(Sample* sample, VoiceSample* voiceSample, SamplePlaybackGuide* guide,
                                      int32_t newHeadBytePos, int32_t additionalOscPos, int32_t priorityRating,
                                      LoopType loopingType) {
+	//clear the current reasons since setting up the clusters will add new ones
+	voiceSample->unassignAllReasons();
 	bool success = voiceSample->setupClustersForPlayFromByte(guide, sample, newHeadBytePos, priorityRating);
 	if (!success) {
 		return false;
