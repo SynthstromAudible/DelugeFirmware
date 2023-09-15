@@ -49,6 +49,7 @@
 #include "util/misc.h"
 #include <arm_neon.h>
 #include <new>
+#include <stdint.h>
 #include <string.h>
 
 extern "C" {
@@ -2462,7 +2463,7 @@ void renderCrudeSawWaveWithAmplitude(int32_t* __restrict__ thisSample, int32_t c
 	}
 	uint32x4_t phaseIncrementVector = vdupq_n_u32(phaseIncrementNow << 2);
 
-	SETUP_FOR_APPLYING_AMPLITUDE_WITH_VECTORS();
+	setupForApplyingAmplitudeWithVectors();
 
 	bufferEnd -= 4;
 
@@ -3122,8 +3123,10 @@ doSaw:
 					if (doOscSync) {
 						int32_t* bufferStartThisSync = applyAmplitude ? oscSyncRenderingBuffer : bufferStart;
 						int32_t numSamplesThisOscSyncSession = numSamples;
-						RENDER_OSC_SYNC(STORE_VECTOR_WAVE_FOR_ONE_SYNC, waveRenderingFunctionPulse, 0,
-						                startRenderingASyncForPulseWave);
+						renderOscSync(
+						    STORE_VECTOR_WAVE_FOR_ONE_SYNC(waveRenderingFunctionPulse), []() {}, phase, phaseIncrement,
+						    resetterPhase, resetterPhaseIncrement, resetterDivideByPhaseIncrement, retriggerPhase,
+						    numSamplesThisOscSyncSession, bufferStartThisSync);
 						phase <<= 1;
 						goto doNeedToApplyAmplitude;
 					}
@@ -3156,8 +3159,11 @@ callRenderWave:
 		if (doOscSync) {
 			int32_t* bufferStartThisSync = applyAmplitude ? oscSyncRenderingBuffer : bufferStart;
 			int32_t numSamplesThisOscSyncSession = numSamples;
-			RENDER_OSC_SYNC(STORE_VECTOR_WAVE_FOR_ONE_SYNC, waveRenderingFunctionGeneral, 0,
-			                startRenderingASyncForWave);
+
+			renderOscSync(
+			    STORE_VECTOR_WAVE_FOR_ONE_SYNC(waveRenderingFunctionGeneral), []() {}, phase, phaseIncrement,
+			    resetterPhase, resetterPhaseIncrement, resetterDivideByPhaseIncrement, retriggerPhase,
+			    numSamplesThisOscSyncSession, bufferStartThisSync);
 			goto doNeedToApplyAmplitude;
 		}
 		else {
@@ -3174,7 +3180,7 @@ doNeedToApplyAmplitude:
 		int32_t* __restrict__ outputBufferPos = bufferStart;
 		int32_t const* const bufferEnd = outputBufferPos + numSamples;
 		auto [amplitudeVector, amplitudeIncrementVector] =
-		    SETUP_FOR_APPLYING_AMPLITUDE_WITH_VECTORS(amplitude, amplitudeIncrement);
+		    setupForApplyingAmplitudeWithVectors(amplitude, amplitudeIncrement);
 
 		int32_t* __restrict__ inputBuferPos = oscSyncRenderingBuffer;
 
