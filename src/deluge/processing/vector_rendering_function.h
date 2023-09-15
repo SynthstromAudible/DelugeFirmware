@@ -21,9 +21,9 @@
 
 // Hard-coded "for-loop" for the below function.
 template <int i>
-inline uint32x4_t waveRenderingFunctionGeneralForLoop(const uint32x4_t readValue, uint16x4_t& strength2,
-                                                      uint32_t& phaseTemp, int32_t phaseIncrement, const int16_t* table,
-                                                      int32_t tableSizeMagnitude) {
+inline __attribute__((always_inline)) void
+waveRenderingFunctionGeneralForLoop(uint32x4_t& readValue, uint16x4_t& strength2, uint32_t& phaseTemp,
+                                    int32_t phaseIncrement, const int16_t* table, int32_t tableSizeMagnitude) {
 	phaseTemp += phaseIncrement;
 	uint32_t rshifted = phaseTemp >> (32 - 16 - tableSizeMagnitude);
 	strength2 = vset_lane_u16(rshifted, strength2, i);
@@ -31,24 +31,21 @@ inline uint32x4_t waveRenderingFunctionGeneralForLoop(const uint32x4_t readValue
 	uint32_t whichValue = phaseTemp >> (32 - tableSizeMagnitude);
 	auto* readAddress = reinterpret_cast<uint32_t*>((uint32_t)table + (whichValue << 1));
 
-	return vld1q_lane_u32(readAddress, readValue, i);
+	readValue = vld1q_lane_u32(readAddress, readValue, i);
 }
 
 // Renders 4 wave values (a "vector") together in one go.
-inline int32x4_t waveRenderingFunctionGeneral(uint32_t& phaseTemp, int32_t phaseIncrement, uint32_t _phaseToAdd, const int16_t* table,
-                                              int32_t tableSizeMagnitude) {
-	uint32x4_t readValue;
-	uint16x4_t strength2;
+inline __attribute__((always_inline)) int32x4_t //<
+waveRenderingFunctionGeneral(uint32_t& phaseTemp, int32_t phaseIncrement, uint32_t _phaseToAdd, const int16_t* table,
+                             int32_t tableSizeMagnitude) {
+	uint32x4_t readValue{0};
+	uint16x4_t strength2{0};
 
 	/* Need to use a macro rather than a for loop here, otherwise won't compile with less than O2. */
-	readValue = waveRenderingFunctionGeneralForLoop<0>(readValue, strength2, phaseTemp, phaseIncrement, table,
-	                                                   tableSizeMagnitude);
-	readValue = waveRenderingFunctionGeneralForLoop<1>(readValue, strength2, phaseTemp, phaseIncrement, table,
-	                                                   tableSizeMagnitude);
-	readValue = waveRenderingFunctionGeneralForLoop<2>(readValue, strength2, phaseTemp, phaseIncrement, table,
-	                                                   tableSizeMagnitude);
-	readValue = waveRenderingFunctionGeneralForLoop<3>(readValue, strength2, phaseTemp, phaseIncrement, table,
-	                                                   tableSizeMagnitude);
+	waveRenderingFunctionGeneralForLoop<0>(readValue, strength2, phaseTemp, phaseIncrement, table, tableSizeMagnitude);
+	waveRenderingFunctionGeneralForLoop<1>(readValue, strength2, phaseTemp, phaseIncrement, table, tableSizeMagnitude);
+	waveRenderingFunctionGeneralForLoop<2>(readValue, strength2, phaseTemp, phaseIncrement, table, tableSizeMagnitude);
+	waveRenderingFunctionGeneralForLoop<3>(readValue, strength2, phaseTemp, phaseIncrement, table, tableSizeMagnitude);
 
 	strength2 = vshr_n_u16(strength2, 1);
 	int16x4_t value1 = vreinterpret_s16_u16(vmovn_u32(readValue));
@@ -67,9 +64,9 @@ struct SimdShiftRead {
 };
 
 template <int i>
-inline void waveRenderingFunctionPulseForLoopFragment(SimdShiftRead& shift_read, const uint32_t phase,
-                                                               int32_t rshiftAmount, const int16_t* table,
-                                                               int32_t tableSizeMagnitude) {
+inline __attribute__((always_inline)) void //<
+waveRenderingFunctionPulseForLoopFragment(SimdShiftRead& shift_read, const uint32_t phase, int32_t rshiftAmount,
+                                          const int16_t* table, int32_t tableSizeMagnitude) {
 	shift_read.rshifted = vset_lane_s16(phase >> rshiftAmount, shift_read.rshifted, i);
 
 	uint32_t whichValue = phase >> (32 - tableSizeMagnitude);
@@ -79,9 +76,10 @@ inline void waveRenderingFunctionPulseForLoopFragment(SimdShiftRead& shift_read,
 
 // Hard-coded "for-loop" for the below function.
 template <int i>
-inline void waveRenderingFunctionPulseForLoop(SimdShiftRead& a, SimdShiftRead& b, uint32_t& phaseTemp,
-                                              int32_t phaseIncrement, uint32_t phaseToAdd, int32_t rshiftAmount,
-                                              const int16_t* table, int32_t tableSizeMagnitude) {
+inline __attribute__((always_inline)) void //<
+waveRenderingFunctionPulseForLoop(SimdShiftRead& a, SimdShiftRead& b, uint32_t& phaseTemp, int32_t phaseIncrement,
+                                  uint32_t phaseToAdd, int32_t rshiftAmount, const int16_t* table,
+                                  int32_t tableSizeMagnitude) {
 	// A
 	phaseTemp += phaseIncrement;
 	waveRenderingFunctionPulseForLoopFragment<i>(a, phaseTemp, rshiftAmount, table, tableSizeMagnitude);
@@ -92,8 +90,9 @@ inline void waveRenderingFunctionPulseForLoop(SimdShiftRead& a, SimdShiftRead& b
 }
 
 // Renders 4 wave values (a "vector") together in one go - special case for pulse waves with variable width.
-inline int32x4_t waveRenderingFunctionPulse(uint32_t& phaseTemp, int32_t phaseIncrement, uint32_t phaseToAdd,
-                                            const int16_t* table, int32_t tableSizeMagnitude) {
+inline __attribute__((always_inline)) int32x4_t //<
+waveRenderingFunctionPulse(uint32_t& phaseTemp, int32_t phaseIncrement, uint32_t phaseToAdd, const int16_t* table,
+                           int32_t tableSizeMagnitude) {
 
 	SimdShiftRead a{};
 	SimdShiftRead b{};

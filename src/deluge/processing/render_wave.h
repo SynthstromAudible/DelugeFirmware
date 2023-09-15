@@ -21,12 +21,12 @@
 #include <arm_neon.h>
 #include <cstdint>
 
-inline void renderOscSync(auto storageFunctionName, auto extraInstructionsForCrossoverSampleRedo,
-                          // Params
-                          uint32_t phase, uint32_t phaseIncrement, uint32_t& resetterPhase,
-                          uint32_t resetterPhaseIncrement, uint32_t resetterDivideByPhaseIncrement,
-                          uint32_t retriggerPhase, int32_t numSamplesThisOscSyncSession,
-                          int32_t*& bufferStartThisSync) {
+inline __attribute__((always_inline)) void //<
+renderOscSync(auto storageFunctionName, auto extraInstructionsForCrossoverSampleRedo,
+              // Params
+              uint32_t phase, uint32_t phaseIncrement, uint32_t& resetterPhase, uint32_t resetterPhaseIncrement,
+              uint32_t resetterDivideByPhaseIncrement, uint32_t retriggerPhase, int32_t numSamplesThisOscSyncSession,
+              int32_t*& bufferStartThisSync) {
 
 	bool renderedASyncFromItsStartYet = false;
 	int32_t crossoverSampleBeforeSync;
@@ -98,12 +98,14 @@ startRenderingASync:
 	}
 
 template <int i>
-inline void setupAmplitudeVector(int32x4_t& amplitudeVector, int32_t& amplitude, int32_t amplitudeIncrement) {
+inline __attribute__((always_inline)) void //<
+setupAmplitudeVector(int32x4_t& amplitudeVector, int32_t& amplitude, int32_t amplitudeIncrement) {
 	amplitude += amplitudeIncrement;
 	amplitudeVector = vsetq_lane_s32(amplitude >> 1, amplitudeVector, i);
 }
 
-inline auto setupForApplyingAmplitudeWithVectors(int32_t& amplitude, int32_t amplitudeIncrement) {
+inline __attribute__((always_inline)) auto //<
+setupForApplyingAmplitudeWithVectors(int32_t& amplitude, int32_t amplitudeIncrement) {
 	struct result {
 		int32x4_t amplitudeVector;
 		int32x4_t amplitudeIncrementVector;
