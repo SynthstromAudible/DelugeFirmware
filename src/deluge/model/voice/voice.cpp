@@ -47,6 +47,7 @@
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
 #include "util/misc.h"
+#include <arm_neon.h>
 #include <new>
 #include <string.h>
 
@@ -3119,7 +3120,6 @@ doSaw:
 					if (doOscSync) {
 						int32_t* bufferStartThisSync = applyAmplitude ? oscSyncRenderingBuffer : bufferStart;
 						int32_t numSamplesThisOscSyncSession = numSamples;
-						int16x4_t const32767 = vdup_n_s16(32767); // The pulse rendering function needs this.
 						RENDER_OSC_SYNC(STORE_VECTOR_WAVE_FOR_ONE_SYNC, waveRenderingFunctionPulse, 0,
 						                startRenderingASyncForPulseWave);
 						phase <<= 1;
@@ -3170,7 +3170,7 @@ doNeedToApplyAmplitude:
 	if (applyAmplitude) {
 		int32_t* __restrict__ outputBufferPos = bufferStart;
 		int32_t const* const bufferEnd = outputBufferPos + numSamples;
-		SETUP_FOR_APPLYING_AMPLITUDE_WITH_VECTORS();
+		auto [amplitudeVector, amplitudeIncrementVector] = SETUP_FOR_APPLYING_AMPLITUDE_WITH_VECTORS(amplitude, amplitudeIncrement);
 
 		int32_t* __restrict__ inputBuferPos = oscSyncRenderingBuffer;
 

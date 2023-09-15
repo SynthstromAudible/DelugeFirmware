@@ -16,12 +16,8 @@
  */
 
 #include "processing/vector_rendering_function.h"
-
-#define setupAmplitudeVector(i)                                                                                        \
-	{                                                                                                                  \
-		amplitude += amplitudeIncrement;                                                                               \
-		amplitudeVector = vsetq_lane_s32(amplitude >> 1, amplitudeVector, i);                                          \
-	}
+#include <arm_neon.h>
+#include <cstdint>
 
 #define RENDER_OSC_SYNC(storageFunctionName, valueFunctionName, extraInstructionsForCrossoverSampleRedo,                                                \
                         startRenderingASyncLabel)                                                                                                       \
@@ -103,17 +99,32 @@ startRenderingASyncLabel:                                                       
 #define STORE_VECTOR_WAVE_FOR_ONE_SYNC(vectorValueFunctionName)                                                        \
 	{                                                                                                                  \
 		do {                                                                                                           \
-			int32x4_t valueVector;                                                                                     \
-			vectorValueFunctionName();                                                                                 \
+			int32x4_t valueVector =                                                                                    \
+			    vectorValueFunctionName(phaseTemp, phaseIncrement, phaseToAdd, table, tableSizeMagnitude);             \
 			vst1q_s32(writePos, valueVector);                                                                          \
 			writePos += 4;                                                                                             \
 		} while (writePos < bufferEndThisSyncRender);                                                                  \
 	}
 
-#define SETUP_FOR_APPLYING_AMPLITUDE_WITH_VECTORS()                                                                    \
-	int32x4_t amplitudeVector;                                                                                         \
-	setupAmplitudeVector(0) setupAmplitudeVector(1) setupAmplitudeVector(2) setupAmplitudeVector(3)                    \
-	    int32x4_t amplitudeIncrementVector = vdupq_n_s32(amplitudeIncrement << 1);
+template <int i>
+inline void setupAmplitudeVector(int32x4_t& amplitudeVector, int32_t& amplitude, int32_t amplitudeIncrement) {
+	amplitude += amplitudeIncrement;
+	amplitudeVector = vsetq_lane_s32(amplitude >> 1, amplitudeVector, i);
+}
+
+inline auto SETUP_FOR_APPLYING_AMPLITUDE_WITH_VECTORS(int32_t& amplitude, int32_t amplitudeIncrement) {
+	struct result {
+		int32x4_t amplitudeVector;
+		int32x4_t amplitudeIncrementVector;
+	};
+	result r;
+	setupAmplitudeVector<0>(r.amplitudeVector, amplitude, amplitudeIncrement);
+	setupAmplitudeVector<1>(r.amplitudeVector, amplitude, amplitudeIncrement);
+	setupAmplitudeVector<2>(r.amplitudeVector, amplitude, amplitudeIncrement);
+	setupAmplitudeVector<3>(r.amplitudeVector, amplitude, amplitudeIncrement);
+	r.amplitudeIncrementVector = vdupq_n_s32(amplitudeIncrement << 1);
+	return r;
+}
 
 /* Before calling, you must:
 	amplitude <<= 1;
@@ -126,15 +137,15 @@ startRenderingASyncLabel:                                                       
 	    int32_t* __restrict__ outputBuffer, int32_t* bufferEnd, uint32_t phaseIncrement, uint32_t phase,               \
 	    bool applyAmplitude, uint32_t phaseToAdd, int32_t amplitudeIncrement) {                                        \
                                                                                                                        \
-		int16x4_t const32767 = vdup_n_s16(32767);                                                                      \
 		int32_t* __restrict__ outputBufferPos = outputBuffer;                                                          \
-		SETUP_FOR_APPLYING_AMPLITUDE_WITH_VECTORS();                                                                   \
+		auto [amplitudeVector, amplitudeIncrementVector] =                                                             \
+		    SETUP_FOR_APPLYING_AMPLITUDE_WITH_VECTORS(amplitude, amplitudeIncrement);                                  \
 		uint32_t phaseTemp = phase;                                                                                    \
                                                                                                                        \
 		do {                                                                                                           \
-			int32x4_t valueVector;                                                                                     \
                                                                                                                        \
-			vectorValueFunctionName();                                                                                 \
+			int32x4_t valueVector =                                                                                    \
+			    vectorValueFunctionName(phaseTemp, phaseIncrement, phaseToAdd, table, tableSizeMagnitude);             \
                                                                                                                        \
 			if (applyAmplitude) {                                                                                      \
 				int32x4_t existingDataInBuffer = vld1q_s32(outputBufferPos);                                           \
