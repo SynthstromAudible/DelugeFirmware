@@ -130,12 +130,12 @@ inline auto SETUP_FOR_APPLYING_AMPLITUDE_WITH_VECTORS(int32_t& amplitude, int32_
 	amplitude <<= 1;
 	amplitudeIncrement <<= 1;
 */
-#define CREATE_WAVE_RENDER_FUNCTION_INSTANCE(thisFunctionInstanceName, vectorValueFunctionName)                        \
-                                                                                                                       \
+#define CREATE_WAVE_RENDER_FUNCTION_INSTANCE(thisFunctionInstanceName)                                                 \
+	template <typename FuncType>                                                                                       \
 	__attribute__((optimize("unroll-loops"))) void thisFunctionInstanceName(                                           \
-	    const int16_t* __restrict__ table, int32_t tableSizeMagnitude, int32_t amplitude,                              \
-	    int32_t* __restrict__ outputBuffer, int32_t* bufferEnd, uint32_t phaseIncrement, uint32_t phase,               \
-	    bool applyAmplitude, uint32_t phaseToAdd, int32_t amplitudeIncrement) {                                        \
+	    FuncType vectorValueFunction, const int16_t* __restrict__ table, int32_t tableSizeMagnitude,                   \
+	    int32_t amplitude, int32_t* __restrict__ outputBuffer, int32_t* bufferEnd, uint32_t phaseIncrement,            \
+	    uint32_t phase, bool applyAmplitude, uint32_t phaseToAdd, int32_t amplitudeIncrement) {                        \
                                                                                                                        \
 		int32_t* __restrict__ outputBufferPos = outputBuffer;                                                          \
 		auto [amplitudeVector, amplitudeIncrementVector] =                                                             \
@@ -145,7 +145,7 @@ inline auto SETUP_FOR_APPLYING_AMPLITUDE_WITH_VECTORS(int32_t& amplitude, int32_
 		do {                                                                                                           \
                                                                                                                        \
 			int32x4_t valueVector =                                                                                    \
-			    vectorValueFunctionName(phaseTemp, phaseIncrement, phaseToAdd, table, tableSizeMagnitude);             \
+			    vectorValueFunction(phaseTemp, phaseIncrement, phaseToAdd, table, tableSizeMagnitude);                 \
                                                                                                                        \
 			if (applyAmplitude) {                                                                                      \
 				int32x4_t existingDataInBuffer = vld1q_s32(outputBufferPos);                                           \

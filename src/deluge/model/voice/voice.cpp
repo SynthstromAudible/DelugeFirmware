@@ -2446,8 +2446,8 @@ dontUseCache : {}
 	}
 }
 
-CREATE_WAVE_RENDER_FUNCTION_INSTANCE(renderWave, waveRenderingFunctionGeneral);
-CREATE_WAVE_RENDER_FUNCTION_INSTANCE(renderPulseWave, waveRenderingFunctionPulse);
+CREATE_WAVE_RENDER_FUNCTION_INSTANCE(renderWave);
+CREATE_WAVE_RENDER_FUNCTION_INSTANCE(renderPulseWave);
 
 // Experiment. It goes basically exactly the same speed as the non-vector one.
 /*
@@ -2633,7 +2633,9 @@ void renderPDWave(const int16_t* table, const int16_t* secondTable, int32_t numB
 void getTableNumber(uint32_t phaseIncrementForCalculations, int32_t* tableNumber, int32_t* tableSize) {
 
 	if (phaseIncrementForCalculations <= 1247086) {
-		{ *tableNumber = 0; }
+		{
+			*tableNumber = 0;
+		}
 		*tableSize = 13;
 	}
 	else if (phaseIncrementForCalculations <= 2494173) {
@@ -3126,8 +3128,9 @@ doSaw:
 						goto doNeedToApplyAmplitude;
 					}
 					else {
-						renderPulseWave(table, tableSizeMagnitude, amplitude, bufferStart, bufferEnd, phaseIncrement,
-						                phase, applyAmplitude, phaseToAdd, amplitudeIncrement);
+						renderPulseWave(waveRenderingFunctionPulse, table, tableSizeMagnitude, amplitude, bufferStart,
+						                bufferEnd, phaseIncrement, phase, applyAmplitude, phaseToAdd,
+						                amplitudeIncrement);
 						return;
 					}
 				}
@@ -3158,8 +3161,8 @@ callRenderWave:
 			goto doNeedToApplyAmplitude;
 		}
 		else {
-			renderWave(table, tableSizeMagnitude, amplitude, bufferStart, bufferEnd, phaseIncrement, phase,
-			           applyAmplitude, phaseToAdd, amplitudeIncrement);
+			renderWave(waveRenderingFunctionGeneral, table, tableSizeMagnitude, amplitude, bufferStart, bufferEnd,
+			           phaseIncrement, phase, applyAmplitude, phaseToAdd, amplitudeIncrement);
 			return;
 		}
 	}
@@ -3170,7 +3173,8 @@ doNeedToApplyAmplitude:
 	if (applyAmplitude) {
 		int32_t* __restrict__ outputBufferPos = bufferStart;
 		int32_t const* const bufferEnd = outputBufferPos + numSamples;
-		auto [amplitudeVector, amplitudeIncrementVector] = SETUP_FOR_APPLYING_AMPLITUDE_WITH_VECTORS(amplitude, amplitudeIncrement);
+		auto [amplitudeVector, amplitudeIncrementVector] =
+		    SETUP_FOR_APPLYING_AMPLITUDE_WITH_VECTORS(amplitude, amplitudeIncrement);
 
 		int32_t* __restrict__ inputBuferPos = oscSyncRenderingBuffer;
 
