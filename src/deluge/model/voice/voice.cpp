@@ -3179,8 +3179,11 @@ doNeedToApplyAmplitude:
 	if (applyAmplitude) {
 		int32_t* __restrict__ outputBufferPos = bufferStart;
 		int32_t const* const bufferEnd = outputBufferPos + numSamples;
-		auto [amplitudeVector, amplitudeIncrementVector] =
-		    setupForApplyingAmplitudeWithVectors(amplitude, amplitudeIncrement);
+
+		int32x4_t amplitudeVector;
+		int32x4_t amplitudeIncrementVector;
+
+		setupForApplyingAmplitudeWithVectors(amplitudeVector, amplitudeIncrementVector, amplitude, amplitudeIncrement);
 
 		int32_t* __restrict__ inputBuferPos = oscSyncRenderingBuffer;
 
