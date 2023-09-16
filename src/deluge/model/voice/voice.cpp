@@ -16,7 +16,6 @@
  */
 
 #include "model/voice/voice.h"
-#include "arm_neon.h"
 #include "definitions_cxx.hpp"
 #include "dsp/filter/filter_set.h"
 #include "dsp/timestretch/time_stretcher.h"
@@ -48,9 +47,10 @@
 #include "util/lookuptables/lookuptables.h"
 #include "util/misc.h"
 #include <arm_neon.h>
+#include <cstdint>
+#include <cstring>
 #include <new>
 #include <stdint.h>
-#include <string.h>
 
 extern "C" {
 #include "RZA1/mtu/mtu.h"
@@ -1740,22 +1740,23 @@ inline int32x4_t getSineVector(uint32_t* thisPhase, uint32_t phaseIncrement) {
 	return vqdmlal_s16(enlargedValue1, strength2, diffValue);
 }
 
+template <int i>
+[[gnu::always_inline]] static inline void fmVectorLoopComponent(uint32x4_t& readValue, uint32x4_t& finalPhase) {
+	uint32_t readOffsetNow = (vgetq_lane_u32(finalPhase, i) >> (32 - SINE_TABLE_SIZE_MAGNITUDE)) << 2;
+	auto* thisReadAddress = reinterpret_cast<uint32_t*>((uint32_t)sineWaveDiff + readOffsetNow);
+	readValue = vld1q_lane_u32(thisReadAddress, readValue, i);
+}
+
 inline int32x4_t doFMVector(uint32x4_t phaseVector, uint32x4_t phaseShift) {
 
 	uint32x4_t finalPhase = vaddq_u32(phaseVector, vshlq_n_u32(phaseShift, 8));
 
 	uint32x4_t readValue;
-#define fmVectorLoopComponent(i)                                                                                       \
-	{                                                                                                                  \
-		uint32_t readOffsetNow = (vgetq_lane_u32(finalPhase, i) >> (32 - SINE_TABLE_SIZE_MAGNITUDE)) << 2;             \
-		uint32_t* thisReadAddress = (uint32_t*)((uint32_t)sineWaveDiff + readOffsetNow);                               \
-		readValue = vld1q_lane_u32(thisReadAddress, readValue, i);                                                     \
-	}
 
-	fmVectorLoopComponent(0);
-	fmVectorLoopComponent(1);
-	fmVectorLoopComponent(2);
-	fmVectorLoopComponent(3);
+	fmVectorLoopComponent<0>(readValue, finalPhase);
+	fmVectorLoopComponent<1>(readValue, finalPhase);
+	fmVectorLoopComponent<2>(readValue, finalPhase);
+	fmVectorLoopComponent<3>(readValue, finalPhase);
 
 	int16x4_t strength2 =
 	    vreinterpret_s16_u16(vshr_n_u16(vshrn_n_u32(finalPhase, (32 - 16 - SINE_TABLE_SIZE_MAGNITUDE)), 1));
@@ -1773,7 +1774,7 @@ void Voice::renderSineWaveWithFeedback(int32_t* bufferStart, int32_t numSamples,
 	uint32_t phaseNow = *phase;
 	*phase += phaseIncrement * numSamples;
 
-	if (feedbackAmount) {
+	if (feedbackAmount != 0) {
 		int32_t amplitudeNow = amplitude;
 		int32_t* thisSample = bufferStart;
 		int32_t feedbackValue = *lastFeedbackValue;
@@ -1802,7 +1803,7 @@ void Voice::renderSineWaveWithFeedback(int32_t* bufferStart, int32_t numSamples,
 		int32_t* thisSample = bufferStart;
 		int32_t* bufferEnd = bufferStart + numSamples;
 
-		if (amplitudeIncrement) {
+		if (amplitudeIncrement != 0) {
 			do {
 				int32x4_t sineValueVector = getSineVector(&phaseNow, phaseIncrement);
 
@@ -1854,7 +1855,7 @@ void Voice::renderFMWithFeedback(int32_t* bufferStart, int32_t numSamples, int32
 	uint32_t phaseNow = *phase;
 	*phase += phaseIncrement * numSamples;
 
-	if (feedbackAmount) {
+	if (feedbackAmount != 0) {
 		int32_t amplitudeNow = amplitude;
 		int32_t* thisSample = bufferStart;
 		int32_t* bufferEnd = bufferStart + numSamples;
@@ -1895,7 +1896,7 @@ void Voice::renderFMWithFeedbackAdd(int32_t* bufferStart, int32_t numSamples, in
 	uint32_t phaseNow = *phase;
 	*phase += phaseIncrement * numSamples;
 
-	if (feedbackAmount) {
+	if (feedbackAmount != 0) {
 		int32_t amplitudeNow = amplitude;
 		int32_t* thisSample = bufferStart;
 		int32_t* fmSample = fmBuffer;
@@ -1933,7 +1934,7 @@ void Voice::renderFMWithFeedbackAdd(int32_t* bufferStart, int32_t numSamples, in
 
 		uint32x4_t phaseIncrementVector = vdupq_n_u32(phaseIncrement << 2);
 
-		if (amplitudeIncrement) {
+		if (amplitudeIncrement != 0) {
 			while (true) {
 				uint32x4_t phaseShift = vld1q_u32(fmSample);
 				int32x4_t sineValueVector = doFMVector(phaseVector, phaseShift);
@@ -2631,82 +2632,80 @@ void renderPDWave(const int16_t* table, const int16_t* secondTable, int32_t numB
 	} while (++thisSample != bufferEnd);
 }
 
-void getTableNumber(uint32_t phaseIncrementForCalculations, int32_t* tableNumber, int32_t* tableSize) {
+void getTableNumber(uint32_t phaseIncrementForCalculations, int32_t& tableNumber, int32_t& tableSize) {
 
 	if (phaseIncrementForCalculations <= 1247086) {
-		{
-			*tableNumber = 0;
-		}
-		*tableSize = 13;
+		tableNumber = 0;
+		tableSize = 13;
 	}
 	else if (phaseIncrementForCalculations <= 2494173) {
 		if (phaseIncrementForCalculations <= 1764571) {
-			*tableNumber = 1;
+			tableNumber = 1;
 		}
 		else {
-			*tableNumber = 2;
+			tableNumber = 2;
 		}
-		*tableSize = 12;
+		tableSize = 12;
 	}
 	else if (phaseIncrementForCalculations <= 113025455) {
 		if (phaseIncrementForCalculations <= 3526245) {
-			*tableNumber = 3;
+			tableNumber = 3;
 		}
 		else if (phaseIncrementForCalculations <= 4982560) {
-			*tableNumber = 4;
+			tableNumber = 4;
 		}
 		else if (phaseIncrementForCalculations <= 7040929) {
-			*tableNumber = 5;
+			tableNumber = 5;
 		}
 		else if (phaseIncrementForCalculations <= 9988296) {
-			*tableNumber = 6;
+			tableNumber = 6;
 		}
 		else if (phaseIncrementForCalculations <= 14035840) {
-			*tableNumber = 7;
+			tableNumber = 7;
 		}
 		else if (phaseIncrementForCalculations <= 19701684) {
-			*tableNumber = 8;
+			tableNumber = 8;
 		}
 		else if (phaseIncrementForCalculations <= 28256363) {
-			*tableNumber = 9;
+			tableNumber = 9;
 		}
 		else if (phaseIncrementForCalculations <= 40518559) {
-			*tableNumber = 10;
+			tableNumber = 10;
 		}
 		else if (phaseIncrementForCalculations <= 55063683) {
-			*tableNumber = 11;
+			tableNumber = 11;
 		}
 		else if (phaseIncrementForCalculations <= 79536431) {
-			*tableNumber = 12;
+			tableNumber = 12;
 		}
 		else {
-			*tableNumber = 13;
+			tableNumber = 13;
 		}
-		*tableSize = 11;
+		tableSize = 11;
 	}
 	else if (phaseIncrementForCalculations <= 429496729) {
 		if (phaseIncrementForCalculations <= 165191049) {
-			*tableNumber = 14;
+			tableNumber = 14;
 		}
 		else if (phaseIncrementForCalculations <= 238609294) {
-			*tableNumber = 15;
+			tableNumber = 15;
 		}
 		else if (phaseIncrementForCalculations <= 306783378) {
-			*tableNumber = 16;
+			tableNumber = 16;
 		}
 		else {
-			*tableNumber = 17;
+			tableNumber = 17;
 		}
-		*tableSize = 10;
+		tableSize = 10;
 	}
 	else {
 		if (phaseIncrementForCalculations <= 715827882) {
-			*tableNumber = 18;
+			tableNumber = 18;
 		}
 		else {
-			*tableNumber = 19;
+			tableNumber = 19;
 		}
-		*tableSize = 9;
+		tableSize = 9;
 	}
 }
 
@@ -2762,13 +2761,12 @@ Voice::renderOsc(int32_t s, OscType type, int32_t amplitude, int32_t* bufferStar
 			doPulseWave = (pulseWidth != 0);
 			pulseWidth += 2147483648u;
 			if (doPulseWave) {
-				phaseIncrementForCalculations =
-				    phaseIncrement
-				    * 0.6; // Mildly band limit the square waves before they get ringmodded to create the pulse wave. *0.5 would be no band limiting
+				// Mildly band limit the square waves before they get ringmodded to create the pulse wave. *0.5 would be no band limiting
+				phaseIncrementForCalculations = phaseIncrement * 0.6;
 			}
 		}
 
-		getTableNumber(phaseIncrementForCalculations, &tableNumber, &tableSizeMagnitude);
+		getTableNumber(phaseIncrementForCalculations, tableNumber, tableSizeMagnitude);
 		// TODO: that should really take into account the phaseIncrement (pitch) after it's potentially been altered for non-square PW below.
 
 		if (type == OscType::ANALOG_SAW_2) {
@@ -2818,9 +2816,8 @@ Voice::renderOsc(int32_t s, OscType type, int32_t amplitude, int32_t* bufferStar
 
 				int32_t resetterPhaseToMultiply = resetterPhase >> 1;
 				if ((uint32_t)(resetterPhase) >= (uint32_t) - (resetterPhaseIncrement >> 1)) {
-					resetterPhaseToMultiply -=
-					    ((uint32_t)1
-					     << 31); // Count the last little bit of the cycle as actually a negative-number bit of the next one.
+					// Count the last little bit of the cycle as actually a negative-number bit of the next one.
+					resetterPhaseToMultiply -= ((uint32_t)1 << 31);
 				}
 
 				phase = (uint32_t)multiply_32x32_rshift32_rounded((pulseWidthAbsolute >> 1) + 1073741824,
@@ -2840,10 +2837,9 @@ Voice::renderOsc(int32_t s, OscType type, int32_t amplitude, int32_t* bufferStar
 	if (doOscSync) {
 doOscSyncSetup:
 
-		resetterDivideByPhaseIncrement = // You should >> 47 if multiplying by this.
-		    (uint32_t)2147483648u
-		    / (uint16_t)((resetterPhaseIncrement + 65535)
-		                 >> 16); // Round resetterPhaseIncrement up first, so resetterDivideByPhaseIncrement gets a tiny bit smaller, so things multiplied by it don't get a bit too big and overflow.
+		// You should >> 47 if multiplying by this.
+		// Round resetterPhaseIncrement up first, so resetterDivideByPhaseIncrement gets a tiny bit smaller, so things multiplied by it don't get a bit too big and overflow.
+		resetterDivideByPhaseIncrement = (uint32_t)2147483648u / (uint16_t)((resetterPhaseIncrement + 65535) >> 16);
 	}
 
 skipPastOscSyncStuff:

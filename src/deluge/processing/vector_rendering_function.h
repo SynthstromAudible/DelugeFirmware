@@ -21,7 +21,7 @@
 
 // Hard-coded "for-loop" for the below function.
 template <int i>
-static inline __attribute__((always_inline)) void
+[[gnu::always_inline]] static inline void
 waveRenderingFunctionGeneralForLoop(uint32x4_t& readValue, uint16x4_t& strength2, uint32_t& phaseTemp,
                                     int32_t phaseIncrement, const int16_t* table, int32_t tableSizeMagnitude) {
 	phaseTemp += phaseIncrement;
@@ -35,9 +35,9 @@ waveRenderingFunctionGeneralForLoop(uint32x4_t& readValue, uint16x4_t& strength2
 }
 
 // Renders 4 wave values (a "vector") together in one go.
-static inline __attribute__((always_inline)) void //<
-waveRenderingFunctionGeneral(int32x4_t& valueVector, uint32_t& phaseTemp, int32_t phaseIncrement, uint32_t _phaseToAdd, const int16_t* table,
-                             int32_t tableSizeMagnitude) {
+[[gnu::always_inline]] static inline void //<
+waveRenderingFunctionGeneral(int32x4_t& valueVector, uint32_t& phaseTemp, int32_t phaseIncrement, uint32_t _phaseToAdd,
+                             const int16_t* table, int32_t tableSizeMagnitude) {
 	uint32x4_t readValue;
 	uint16x4_t strength2;
 
@@ -58,7 +58,7 @@ waveRenderingFunctionGeneral(int32x4_t& valueVector, uint32_t& phaseTemp, int32_
 }
 
 template <int i>
-static inline __attribute__((always_inline)) void //<
+[[gnu::always_inline]] static inline void //<
 waveRenderingFunctionPulseForLoopFragment(int16x4_t& rshifted, uint32x4_t& readValue, const uint32_t phase,
                                           int32_t rshiftAmount, const int16_t* table, int32_t tableSizeMagnitude) {
 	rshifted = vset_lane_s16(phase >> rshiftAmount, rshifted, i);
@@ -70,7 +70,7 @@ waveRenderingFunctionPulseForLoopFragment(int16x4_t& rshifted, uint32x4_t& readV
 
 // Hard-coded "for-loop" for the below function.
 template <int i>
-static inline __attribute__((always_inline)) void //<
+[[gnu::always_inline]] static inline void //<
 waveRenderingFunctionPulseForLoop(int16x4_t& rshiftedA, uint32x4_t& readValueA, int16x4_t& rshiftedB,
                                   uint32x4_t& readValueB, uint32_t& phaseTemp, int32_t phaseIncrement,
                                   uint32_t phaseToAdd, int32_t rshiftAmount, const int16_t* table,
@@ -87,7 +87,7 @@ waveRenderingFunctionPulseForLoop(int16x4_t& rshiftedA, uint32x4_t& readValueA, 
 }
 
 // Renders 4 wave values (a "vector") together in one go - special case for pulse waves with variable width.
-static inline __attribute__((always_inline)) void //<
+[[gnu::always_inline]] static inline void //<
 waveRenderingFunctionPulse(int32x4_t& valueVector, uint32_t& phaseTemp, int32_t phaseIncrement, uint32_t phaseToAdd,
                            const int16_t* table, int32_t tableSizeMagnitude) {
 

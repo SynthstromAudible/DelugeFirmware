@@ -21,7 +21,7 @@
 #include <arm_neon.h>
 #include <cstdint>
 
-static inline __attribute__((always_inline)) void //<
+[[gnu::always_inline]] static inline void //<
 renderOscSync(auto storageFunctionName, auto extraInstructionsForCrossoverSampleRedo,
               // Params
               uint32_t phase, uint32_t phaseIncrement, uint32_t& resetterPhase, uint32_t resetterPhaseIncrement,
@@ -98,13 +98,13 @@ startRenderingASync:
 	}
 
 template <int i>
-static inline __attribute__((always_inline)) void //<
+[[gnu::always_inline]] static inline void //<
 setupAmplitudeVector(int32x4_t& amplitudeVector, int32_t& amplitude, int32_t amplitudeIncrement) {
 	amplitude += amplitudeIncrement;
 	amplitudeVector = vsetq_lane_s32(amplitude >> 1, amplitudeVector, i);
 }
 
-static inline __attribute__((always_inline)) auto //<
+[[gnu::always_inline]] static inline auto //<
 setupForApplyingAmplitudeWithVectors(int32x4_t& amplitudeVector, int32x4_t& amplitudeIncrementVector,
                                      int32_t& amplitude, int32_t amplitudeIncrement) {
 	setupAmplitudeVector<0>(amplitudeVector, amplitude, amplitudeIncrement);
