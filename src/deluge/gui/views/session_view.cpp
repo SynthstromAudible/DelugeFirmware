@@ -3117,7 +3117,7 @@ void SessionView::gridRenderClipColor(Clip* clip, uint8_t resultColour[]) {
 	}
 
 	// If clip is not active or grayed out - dim it
-	else if (!clip->activeIfNoSolo || greyout) {
+	else if (!clip->activeIfNoSolo) {
 		colorCopy(resultColour, resultColour, 255,
 		          8); // I was not able to get more contrast without scrolling through colors feeling steppy
 	}
