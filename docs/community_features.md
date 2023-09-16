@@ -320,6 +320,10 @@ In the main menu of the deluge (accessed by pressing "SHIFT" + the "SELECT" knob
   	* When On, In-Key and Isometric Keyboard layouts display incoming MIDI notes with their velocity.
 * Display Norns Layout (NORN)
   	* When On, all incoming notes are rendered consecutively as white pads with velocity as brightness.
+* Sticky Shift
+  	* When On, tapping shift briefly will enable sticky keys while a long press will keep it on. Enabling this setting will automatically enable "Light Shift" as well.
+* Light Shift
+  	* When On, the Deluge will illuminate the shift button when shift is active. Mostly useful in conjunction with sticky shift.
 
 ## 6. Sysex Handling
 
@@ -348,18 +352,19 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#47]: https://github.com/SynthstromAudible/DelugeFirmware/pull/47
 [#103]: https://github.com/SynthstromAudible/DelugeFirmware/pull/103
 [#112]: https://github.com/SynthstromAudible/DelugeFirmware/pull/112
+[#118]: https://github.com/SynthstromAudible/DelugeFirmware/pull/118
 [#120]: https://github.com/SynthstromAudible/DelugeFirmware/pull/120
 [#122]: https://github.com/SynthstromAudible/DelugeFirmware/pull/122
 [#125]: https://github.com/SynthstromAudible/DelugeFirmware/pull/125
 [#129]: https://github.com/SynthstromAudible/DelugeFirmware/pull/129
-[#141]: https://github.com/SynthstromAudible/DelugeFirmware/pull/141
 [#137]: https://github.com/SynthstromAudible/DelugeFirmware/pull/137
 [#138]: https://github.com/SynthstromAudible/DelugeFirmware/pull/138
+[#141]: https://github.com/SynthstromAudible/DelugeFirmware/pull/141
 [#157]: https://github.com/SynthstromAudible/DelugeFirmware/pull/157
 [#163]: https://github.com/SynthstromAudible/DelugeFirmware/pull/163
-[#178]: https://github.com/SynthstromAudible/DelugeFirmware/pull/178
 [#170]: https://github.com/SynthstromAudible/DelugeFirmware/pull/170
 [#174]: https://github.com/SynthstromAudible/DelugeFirmware/pull/174
+[#178]: https://github.com/SynthstromAudible/DelugeFirmware/pull/178
 [#192]: https://github.com/SynthstromAudible/DelugeFirmware/pull/192
 [#196]: https://github.com/SynthstromAudible/DelugeFirmware/pull/196
 [#198]: https://github.com/SynthstromAudible/DelugeFirmware/pull/198

@@ -978,7 +978,7 @@ int32_t LoadInstrumentPresetUI::performLoadSynthToKit() {
 	}
 	//kitToLoadFor->addDrum(soundDrumToReplace);
 	display->displayLoadingAnimationText("Loading", false, true);
-	soundDrumToReplace->loadAllAudioFiles(true);
+	soundDrumToReplace->loadAllSamples(true);
 
 	//soundDrumToReplace->name.set(getCurrentFilenameWithoutExtension());
 	getCurrentFilenameWithoutExtension(&soundDrumToReplace->name);

@@ -61,9 +61,9 @@ public:
 #if ALPHA_OR_BETA_VERSION
 	char const* name; // For debugging messages only.
 #endif
+	OrderedResizeableArrayWithMultiWordKey emptySpaces;
 
 private:
-	OrderedResizeableArrayWithMultiWordKey emptySpaces;
 	friend class CacheManager;
 	CacheManager cache_manager_;
 
@@ -72,6 +72,7 @@ private:
 	attemptToGrabNeighbouringMemory(void* originalSpaceAddress, int32_t originalSpaceSize, int32_t minAmountToExtend,
 	                                int32_t idealAmountToExtend, void* thingNotToStealFrom,
 	                                uint32_t markWithTraversalNo = 0, bool originalSpaceNeedsStealing = false);
+
 	void writeTempHeadersBeforeASteal(uint32_t newStartAddress, uint32_t newSize);
 	void sanityCheck();
 	uint32_t start;

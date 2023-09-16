@@ -145,6 +145,14 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DisplayNornsLayout],
 	                  deluge::l10n::get(deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_NORNS_LAYOUT),
 	                  "displayNornsLayout", RuntimeFeatureStateToggle::Off);
+
+	// ShiftIsSticky
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ShiftIsSticky], "Sticky Shift", "stickyShift",
+	                  RuntimeFeatureStateToggle::Off);
+
+	// LightShiftLed
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::LightShiftLed], "Light Shift", "lightShift",
+	                  RuntimeFeatureStateToggle::Off);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {

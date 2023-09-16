@@ -184,7 +184,11 @@ justInsertRecord:
 		EmptySpaceRecord newRecord;
 		newRecord.length = spaceSize;
 		newRecord.address = address;
-		int32_t i = emptySpaces.insertAtKeyMultiWord((uint32_t*)&newRecord, insertRangeBegin);
+		int32_t i = emptySpaces.searchMultiWordExact((uint32_t*)&newRecord);
+		if (i != -1) {
+			display->freezeWithError("M123");
+		}
+		i = emptySpaces.insertAtKeyMultiWord((uint32_t*)&newRecord, insertRangeBegin);
 #if ALPHA_OR_BETA_VERSION
 		if (i
 		    == -1) { // Array might have gotten full. This has to be coped with. Perhaps in a perfect world we should opt to throw away the smallest empty space to make space for this one if this one is bigger?
@@ -239,6 +243,7 @@ goingToReplaceOldRecord:
 	uint32_t headerData = SPACE_HEADER_EMPTY | spaceSize;
 	*header = headerData;
 	*footer = headerData;
+	emptySpaces.testSequentiality("M005");
 }
 
 // If getBiggestAllocationPossible is true, this will treat requiredSize as a minimum, and otherwise get as much empty RAM as possible. But, it won't "steal" any more than it has to go get that minimum size.
@@ -478,6 +483,7 @@ uint32_t MemoryRegion::extendRightAsMuchAsEasilyPossible(void* address) {
 
 	uint32_t* __restrict__ header = (uint32_t*)(static_cast<char*>(address) - 4);
 	uint32_t spaceSize = (*header & SPACE_SIZE_MASK);
+	uint32_t currentSpaceType = *header & SPACE_TYPE_MASK;
 
 	uint32_t* __restrict__ lookRight = (uint32_t*)((uint32_t)address + spaceSize + 4);
 
@@ -508,7 +514,7 @@ uint32_t MemoryRegion::extendRightAsMuchAsEasilyPossible(void* address) {
 	{
 		spaceSize += emptySpaceHereSizeWithoutHeaders + 8;
 
-		uint32_t newHeaderData = spaceSize | SPACE_HEADER_ALLOCATED;
+		uint32_t newHeaderData = spaceSize | currentSpaceType;
 
 		// Write header
 		*header = newHeaderData;
@@ -578,6 +584,7 @@ tryNotStealingFirst:
 					}
 					stealable = (Stealable*)(void*)spaceHereAddress;
 					if (!stealable->mayBeStolen(thingNotToStealFrom)) {
+						AudioEngine::logAction("found a stealable with a reason");
 						break;
 					}
 					if (!actuallyGrabbing && markWithTraversalNo) {
@@ -639,7 +646,9 @@ tryNotStealingFirst:
 
 					// Whether or not actually grabbing, if that was Stealable space we just found, go back and try looking at more, further memory - first prioritizing
 					// unused empty space, in case we just stumbled on more
-					if (spaceType != SPACE_HEADER_EMPTY) {
+					//No - if we're not grabbing this can cause us to exit early without stealing all intermediate memory
+					if (tryingStealingYet) {
+						AudioEngine::logAction("found some space and looking for more");
 						goto tryNotStealingFirst;
 					}
 				}
@@ -688,6 +697,7 @@ void MemoryRegion::extend(void* address, uint32_t minAmountToExtend, uint32_t id
 
 	uint32_t* header = (uint32_t*)((char*)address - 4);
 	uint32_t oldAllocatedSize = (*header & SPACE_SIZE_MASK);
+	uint32_t oldHeader = (*header & SPACE_TYPE_MASK);
 
 	NeighbouringMemoryGrabAttemptResult grabResult = attemptToGrabNeighbouringMemory(
 	    address, oldAllocatedSize, minAmountToExtend, idealAmountToExtend, thingNotToStealFrom);
@@ -741,7 +751,7 @@ void MemoryRegion::extend(void* address, uint32_t minAmountToExtend, uint32_t id
 	*getAmountExtendedRight = grabResult.amountsExtended[0];
 
 	uint32_t newSize = oldAllocatedSize + grabResult.amountsExtended[0] + grabResult.amountsExtended[1];
-	uint32_t newHeaderData = newSize | SPACE_HEADER_ALLOCATED;
+	uint32_t newHeaderData = newSize | oldHeader;
 
 	// Write header
 	uint32_t* __restrict__ newHeader = (uint32_t*)(grabResult.address - 4);
