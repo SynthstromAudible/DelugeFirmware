@@ -1328,7 +1328,7 @@ void vertical::renderScroll() {
 	for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
 		colours[x] = prepareColour(x, endSquare, Colour::fromArray(image[endSquare][x]));
 	}
-	PIC::doVerticalScroll(scrollDirection <= 0, colours);
+	PIC::doVerticalScroll(scrollDirection > 0, colours);
 	PIC::flush();
 }
 
