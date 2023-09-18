@@ -171,13 +171,13 @@ void print(int32_t number) {
 #endif
 }
 
-RoutineTimer::RoutineTimer(const char* label) : startTime(0), m_label(label) {
+RTimer::RTimer(const char* label) : startTime(0), m_label(label) {
 #if ENABLE_TEXT_OUTPUT
 	asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(startTime) :);
 #endif
 }
 
-void RoutineTimer::split(const char* splitLabel) {
+void RTimer::split(const char* splitLabel) {
 #if ENABLE_TEXT_OUTPUT
 	uint32_t endTime = 0;
 	asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(endTime) :);
@@ -200,7 +200,7 @@ void RoutineTimer::split(const char* splitLabel) {
 #endif
 }
 
-void RoutineTimer::stop() {
+void RTimer::stop() {
 #if ENABLE_TEXT_OUTPUT
 	uint32_t endTime = 0;
 	asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(endTime) :);

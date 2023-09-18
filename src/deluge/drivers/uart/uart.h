@@ -32,7 +32,7 @@
  * and set HAVE_RTT to 0. Though this configuration hasn’t been tested for a while...
  */
 #ifndef ENABLE_TEXT_OUTPUT
-#define ENABLE_TEXT_OUTPUT 0
+#define ENABLE_TEXT_OUTPUT 1
 #endif
 
 struct UartItem { // Exactly 8 bytes, so can align nicely to cache line

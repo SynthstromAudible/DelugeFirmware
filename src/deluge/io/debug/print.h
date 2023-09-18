@@ -31,9 +31,9 @@ void printfloat(float number);
 void print(int32_t number);
 void ResetClock();
 
-class RoutineTimer {
+class RTimer {
 public:
-	RoutineTimer(const char* label);
+	RTimer(const char* label);
 	void split(const char* splitLabel);
 	void stop();
 

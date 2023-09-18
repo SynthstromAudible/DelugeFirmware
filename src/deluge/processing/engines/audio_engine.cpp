@@ -74,7 +74,7 @@ extern bool inSpamMode;
 extern bool anythingProbablyPressed;
 extern int32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
 
-//#define REPORT_CPU_USAGE 1
+#define REPORT_CPU_USAGE 1
 
 #define NUM_SAMPLES_FOR_CPU_USAGE_REPORT 32
 
@@ -249,7 +249,7 @@ Voice* cullVoice(bool saveVoice, bool justDoFastRelease) {
 
 	uint32_t bestRating = 0;
 	Voice* bestVoice = NULL;
-
+	Debug::println("cull");
 	for (int32_t v = 0; v < activeVoices.getNumElements(); v++) {
 		Voice* thisVoice = activeVoices.getVoice(v);
 
@@ -335,7 +335,6 @@ extern uint16_t g_usb_usbmode;
 void routine() {
 
 	logAction("AudioDriver::routine");
-
 	if (audioRoutineLocked) {
 		logAction("AudioDriver::routine locked");
 		return; // Prevents this from being called again from inside any e.g. memory allocation routines that get called from within this!
