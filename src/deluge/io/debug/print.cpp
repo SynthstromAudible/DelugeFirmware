@@ -178,11 +178,9 @@ RTimer::RTimer(const char* label) : startTime(0), m_label(label), stopped(false)
 
 // If stop() or split() hasn't happend yet, stop now.
 // Note that the ctor call may be optimized & could occur before block exit.
-RTimer::~RTimer()
-{
+RTimer::~RTimer() {
 #if ENABLE_TEXT_OUTPUT
-	if(!stopped)
-	{
+	if (!stopped) {
 		stop();
 	}
 #endif
