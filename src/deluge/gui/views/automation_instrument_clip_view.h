@@ -153,7 +153,7 @@ private:
 	void setParameterAutomationValue(ModelStackWithAutoParam* modelStack, int32_t knobPos, int32_t squareStart,
 	                                 int32_t xDisplay, int32_t effectiveLength);
 	void setKnobIndicatorLevels(int32_t knobPos);
-	void updateModPosition(ModelStackWithAutoParam* modelStack, uint32_t squareStart);
+	void updateModPosition(ModelStackWithAutoParam* modelStack, uint32_t squareStart, bool doRender = true);
 
 	bool recordSinglePadPress(int32_t xDisplay, int32_t yDisplay);
 	void handleSinglePadPress(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, int32_t xDisplay,

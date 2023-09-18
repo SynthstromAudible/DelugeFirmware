@@ -898,7 +898,7 @@ void AutomationInstrumentClipView::renderDisplay(int32_t knobPosLeft, int32_t kn
 		//display OVERVIEW or CANT
 		if (isOnAutomationOverview() || (instrument->type == InstrumentType::CV)) {
 			if (instrument->type != InstrumentType::CV) {
-				display->setScrollingText(l10n::get(l10n::String::STRING_FOR_AUTOMATION_OVERVIEW));
+				display->setScrollingText(l10n::get(l10n::String::STRING_FOR_AUTOMATION));
 			}
 			else {
 				display->setText(l10n::get(l10n::String::STRING_FOR_CANT_AUTOMATE_CV));
@@ -3116,7 +3116,7 @@ void AutomationInstrumentClipView::setKnobIndicatorLevels(int32_t knobPos) {
 
 //updates the position that the active mod controllable stack is pointing to
 //this sets the current value for the active parameter so that it can be auditioned
-void AutomationInstrumentClipView::updateModPosition(ModelStackWithAutoParam* modelStack, uint32_t squareStart) {
+void AutomationInstrumentClipView::updateModPosition(ModelStackWithAutoParam* modelStack, uint32_t squareStart, bool doRender) {
 
 	if (!playbackHandler.isEitherClockActive() || padSelectionOn) {
 		if (modelStack && modelStack->autoParam) {
@@ -3126,7 +3126,7 @@ void AutomationInstrumentClipView::updateModPosition(ModelStackWithAutoParam* mo
 				view.activeModControllableModelStack.paramManager->toForTimeline()->grabValuesFromPos(
 				    squareStart, &view.activeModControllableModelStack);
 
-				if (!multiPadPressSelected) {
+				if (doRender) {
 					int32_t knobPos = getParameterKnobPos(modelStack, squareStart) + kKnobPosOffset;
 
 					renderDisplay(knobPos);
@@ -3460,7 +3460,7 @@ void AutomationInstrumentClipView::renderDisplayForMultiPadPress(ModelStackWithT
 			indicator_leds::setKnobIndicatorLevel(1, knobPosRight);
 
 			//update position of mod controllable stack
-			updateModPosition(modelStackWithParam, squareStart);
+			updateModPosition(modelStackWithParam, squareStart, false);
 		}
 	}
 }

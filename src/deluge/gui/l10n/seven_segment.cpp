@@ -377,7 +377,6 @@ PLACE_SDRAM_DATA Language seven_segment{
         * automation_instrument_clip_view.cpp
         */
         {STRING_FOR_AUTOMATION, "AUTO"},
-        {STRING_FOR_AUTOMATION_OVERVIEW, "OVERVIEW"},
         {STRING_FOR_COMING_SOON, "SOON"},
         {STRING_FOR_CANT_AUTOMATE_CV, "CANT"},
         {STRING_FOR_SHIFT_LEFT, "LEFT"},
