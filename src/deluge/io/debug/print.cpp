@@ -116,7 +116,6 @@ void prependTimeStamp(bool isNewLine) {
 		if (!initFlag)
 			Debug::init();
 		char buffer[32];
-		//intToString(Debug::sampleCycleCounter(), buffer);
 		lutHexString(Debug::sampleCycleCounter(), buffer);
 		buffer[8] = ' ';
 		buffer[9] = 0;
@@ -171,26 +170,43 @@ void print(int32_t number) {
 #endif
 }
 
-RTimer::RTimer(const char* label) : startTime(0), m_label(label) {
+RTimer::RTimer(const char* label) : startTime(0), m_label(label), stopped(false) {
 #if ENABLE_TEXT_OUTPUT
 	asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(startTime) :);
 #endif
 }
 
-void RTimer::split(const char* splitLabel) {
+// If stop() or split() hasn't happend yet, stop now.
+// Note that the ctor call may be optimized & could occur before block exit.
+RTimer::~RTimer()
+{
+#if ENABLE_TEXT_OUTPUT
+	if(!stopped)
+	{
+		stop();
+	}
+#endif
+}
+
+void RTimer::reset() {
+#if ENABLE_TEXT_OUTPUT
+	stopped = false;
+	asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(startTime) :);
+#endif
+}
+
+void RTimer::stop() {
 #if ENABLE_TEXT_OUTPUT
 	uint32_t endTime = 0;
 	asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(endTime) :);
 	uint32_t deltaT = endTime - startTime;
+	stopped = true;
 	char buffer[128];
-	lutHexString(endTime, buffer);
+	lutHexString(startTime, buffer);
 	buffer[8] = ',';
 	lutHexString(deltaT, buffer + 9);
 	buffer[17] = ' ';
 	strcpy(buffer + 18, m_label);
-	char* splitplace = buffer + 18 + strlen(m_label);
-	*splitplace++ = ':';
-	strcpy(splitplace, splitLabel);
 	if (midiDebugDevice) {
 		sysexDebugPrint(midiDebugDevice, buffer, true);
 	}
@@ -200,17 +216,21 @@ void RTimer::split(const char* splitLabel) {
 #endif
 }
 
-void RTimer::stop() {
+// Note: No guarding against buffer overflows!
+void RTimer::stop(char* stopLabel) {
 #if ENABLE_TEXT_OUTPUT
 	uint32_t endTime = 0;
 	asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(endTime) :);
 	uint32_t deltaT = endTime - startTime;
-	char buffer[64];
+	stopped = true;
+	char buffer[128];
 	lutHexString(startTime, buffer);
 	buffer[8] = ',';
 	lutHexString(deltaT, buffer + 9);
 	buffer[17] = ' ';
 	strcpy(buffer + 18, m_label);
+	char* stopplace = buffer + 18 + strlen(m_label);
+	strcpy(stopplace, stopLabel);
 	if (midiDebugDevice) {
 		sysexDebugPrint(midiDebugDevice, buffer, true);
 	}

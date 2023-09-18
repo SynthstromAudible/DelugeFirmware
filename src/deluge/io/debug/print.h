@@ -34,12 +34,16 @@ void ResetClock();
 class RTimer {
 public:
 	RTimer(const char* label);
-	void split(const char* splitLabel);
+	~RTimer();
+
+	void reset();
 	void stop();
+	void stop(char* stopLabel);
 
 private:
 	uint32_t startTime;
 	const char* m_label;
+	bool stopped;
 };
 
 extern MIDIDevice* midiDebugDevice;
