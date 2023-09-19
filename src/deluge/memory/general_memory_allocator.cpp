@@ -167,13 +167,19 @@ uint32_t GeneralMemoryAllocator::getAllocatedSize(void* address) {
 }
 
 int32_t GeneralMemoryAllocator::getRegion(void* address) {
-	if ((uint32_t)address >= (uint32_t)INTERNAL_MEMORY_BEGIN) {
+	uint32_t value = (uint32_t)address;
+	if (value >= regions[MEMORY_REGION_INTERNAL].start && value < regions[MEMORY_REGION_INTERNAL].end) {
 		return MEMORY_REGION_INTERNAL;
 	}
-	else if ((uint32_t)address <= EXTERNAL_MEMORY_END - RESERVED_NONAUDIO_ALLOCATOR) {
+	else if (value >= regions[MEMORY_REGION_SDRAM].start && value < regions[MEMORY_REGION_SDRAM].end) {
 		return MEMORY_REGION_SDRAM;
 	}
+	else if (value >= regions[MEMORY_REGION_NONAUDIO].start && value < regions[MEMORY_REGION_NONAUDIO].end) {
 	return MEMORY_REGION_NONAUDIO;
+	}
+
+	display->freezeWithError("E339");
+	return 0;
 }
 
 // Returns new size

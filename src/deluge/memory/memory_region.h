@@ -75,6 +75,8 @@ private:
 
 	void writeTempHeadersBeforeASteal(uint32_t newStartAddress, uint32_t newSize);
 	void sanityCheck();
+
+public:
 	uint32_t start;
 	uint32_t end;
 };
