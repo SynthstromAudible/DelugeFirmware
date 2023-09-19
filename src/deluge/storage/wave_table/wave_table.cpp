@@ -1106,8 +1106,19 @@ startRenderingACycle:
 				int32_t* bufferStartThisSync = outputBuffer;
 				uint32_t resetterPhase = resetterPhaseThisCycle;
 				int32_t numSamplesThisOscSyncSession = numSamplesThisCycle;
-				RENDER_OSC_SYNC(RENDER_WAVETABLE_LOOP, 0, WAVETABLE_EXTRA_INSTRUCTIONS_FOR_CROSSOVER_SAMPLE_REDO,
-				                startRenderingASyncForWavetable);
+
+				auto render_wavetable_loop = [&](uint32_t& phaseTemp, int32_t const* const bufferEndThisSyncRender,
+				                                 int32_t* __restrict__& writePos) {
+					doRenderingLoop(bufferStartThisSync, bufferEndThisSyncRender, firstCycleNumber, bandHere, phaseTemp,
+					                phaseIncrement, crossCycleStrength2, crossCycleStrength2Increment, kernel);
+				};
+				renderOscSync(
+				    render_wavetable_loop,
+				    [&](uint32_t samplesIncludingNextCrossoverSample) {
+					    crossCycleStrength2 += crossCycleStrength2Increment * (samplesIncludingNextCrossoverSample - 1);
+				    },
+				    phase, phaseIncrement, resetterPhase, resetterPhaseIncrement, resetterDivideByPhaseIncrement,
+				    retriggerPhase, numSamplesThisOscSyncSession, bufferStartThisSync);
 			}
 			else {
 				int32_t const* bufferEnd = outputBuffer + numSamplesThisCycle;
@@ -1134,7 +1145,16 @@ doneRenderingACycle:
 			int32_t* bufferStartThisSync = outputBuffer;
 			uint32_t resetterPhase = resetterPhaseThisCycle;
 			int32_t numSamplesThisOscSyncSession = numSamples;
-			RENDER_OSC_SYNC(RENDER_SINGLE_CYCLE_WAVEFORM_LOOP, 0, 0, startRenderingASyncForSingleCycleWaveform);
+			auto render_single_cycle_waveform_loop = [&](uint32_t& phaseTemp,
+			                                             int32_t const* const bufferEndThisSyncRender,
+			                                             int32_t* __restrict__& writePos) {
+				doRenderingLoopSingleCycle(bufferStartThisSync, bufferEndThisSyncRender, bandHere, phaseTemp,
+				                           phaseIncrement, kernel);
+			};
+			renderOscSync(
+			    render_single_cycle_waveform_loop, []() {}, phase, phaseIncrement, resetterPhase,
+			    resetterPhaseIncrement, resetterDivideByPhaseIncrement, retriggerPhase, numSamplesThisOscSyncSession,
+			    bufferStartThisSync);
 		}
 		else {
 			int32_t const* bufferEnd = outputBuffer + numSamples;
