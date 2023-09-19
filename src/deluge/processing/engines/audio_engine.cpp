@@ -609,7 +609,9 @@ startAgain:
 
 	// Render audio for song
 	if (currentSong) {
+		asm("cpsid if");
 		currentSong->renderAudio(renderingBuffer, numSamples, reverbBuffer, sideChainHitPending);
+		asm("cpsie if");
 	}
 
 #ifdef REPORT_CPU_USAGE
