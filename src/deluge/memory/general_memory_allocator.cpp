@@ -144,6 +144,12 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, uint32_t* getAllocate
 			*/
 			return address;
 		}
+#if !defined(NDEBUG)
+		else {
+			display->displayPopup("FULL Internal");
+		}
+#endif
+
 		AudioEngine::logAction("internal allocation failed");
 	}
 
@@ -175,7 +181,7 @@ int32_t GeneralMemoryAllocator::getRegion(void* address) {
 		return MEMORY_REGION_SDRAM;
 	}
 	else if (value >= regions[MEMORY_REGION_NONAUDIO].start && value < regions[MEMORY_REGION_NONAUDIO].end) {
-	return MEMORY_REGION_NONAUDIO;
+		return MEMORY_REGION_NONAUDIO;
 	}
 
 	display->freezeWithError("E339");
