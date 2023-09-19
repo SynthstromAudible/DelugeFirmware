@@ -169,8 +169,6 @@ VoiceSample* firstUnassignedVoiceSample = voiceSamples;
 TimeStretcher timeStretchers[kNumTimeStretchersStatic] = {};
 TimeStretcher* firstUnassignedTimeStretcher = timeStretchers;
 
-// Hmm, I forgot this was still being used. It's not a great way of doing things... wait does this still actually get used? No?
-Voice staticVoices[kNumVoicesStatic] = {};
 Voice* firstUnassignedVoice;
 
 // You must set up dynamic memory allocation before calling this, because of its call to setupWithPatching()
@@ -199,10 +197,6 @@ void init() {
 
 	for (int32_t i = 0; i < kNumTimeStretchersStatic; i++) {
 		timeStretchers[i].nextUnassigned = (i == kNumTimeStretchersStatic - 1) ? NULL : &timeStretchers[i + 1];
-	}
-
-	for (int32_t i = 0; i < kNumVoicesStatic; i++) {
-		staticVoices[i].nextUnassigned = (i == kNumVoicesStatic - 1) ? NULL : &staticVoices[i + 1];
 	}
 
 	i2sTXBufferPos = (uint32_t)getTxBufferStart();
@@ -1256,13 +1250,7 @@ void unassignVoice(Voice* voice, Sound* sound, ModelStackWithSoundFlags* modelSt
 }
 
 void disposeOfVoice(Voice* voice) {
-	if (voice >= staticVoices && voice < &staticVoices[kNumTimeStretchersStatic]) {
-		voice->nextUnassigned = firstUnassignedVoice;
-		firstUnassignedVoice = voice;
-	}
-	else {
-		GeneralMemoryAllocator::get().dealloc(voice);
-	}
+	GeneralMemoryAllocator::get().dealloc(voice);
 }
 
 VoiceSample* solicitVoiceSample() {
