@@ -144,6 +144,7 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, uint32_t* getAllocate
 			*/
 			return address;
 		}
+		AudioEngine::logAction("internal allocation failed");
 	}
 
 #if TEST_GENERAL_MEMORY_ALLOCATION
@@ -223,7 +224,7 @@ void GeneralMemoryAllocator::putStealableInAppropriateQueue(Stealable* stealable
 
 #if TEST_GENERAL_MEMORY_ALLOCATION
 
-#define NUM_TEST_ALLOCATIONS 64
+#define NUM_TEST_ALLOCATIONS 512
 void* testAllocations[NUM_TEST_ALLOCATIONS];
 uint32_t sizes[NUM_TEST_ALLOCATIONS];
 uint32_t spaceTypes[NUM_TEST_ALLOCATIONS];
@@ -231,10 +232,10 @@ uint32_t vtableAddress;
 
 class StealableTest : public Stealable {
 public:
-	void steal() {
+	void steal(char const* errorCode) {
 		//Stealable::steal();
 		testAllocations[testIndex] = 0;
-		GeneralMemoryAllocator::get().regions[MEMORY_REGION_SDRAM].numAllocations--;
+		GeneralMemoryAllocator::get().regions[GeneralMemoryAllocator::get().getRegion(this)].numAllocations--;
 
 		// The steal() function is allowed to deallocate or shorten some other allocations, too
 		int32_t i = getRandom255() % NUM_TEST_ALLOCATIONS;
@@ -391,8 +392,8 @@ void GeneralMemoryAllocator::test() {
 	Debug::println("GeneralMemoryAllocator::test()");
 
 	// Corrupt the crap out of these two so we know they can take it!
-	sampleManager.clusterSize = 0;
-	sampleManager.clusterSizeMagnitude = 0;
+	audioFileManager.clusterSize = 0;
+	audioFileManager.clusterSizeMagnitude = 0;
 
 	memset(testAllocations, 0, sizeof(testAllocations));
 
@@ -503,7 +504,7 @@ void GeneralMemoryAllocator::test() {
 			int32_t desiredSize =
 			    ((uint32_t)getRandom255() << 9) | ((uint32_t)getRandom255() << 1); // (uint32_t)getRandom255() << 17) |
 
-			int32_t magnitudeReduction = getRandom255() % 25;
+			int32_t magnitudeReduction = getRandom255() % 10;
 			desiredSize >>= magnitudeReduction;
 
 			if (desiredSize < 1)
@@ -534,8 +535,8 @@ void GeneralMemoryAllocator::test() {
 						StealableTest* stealable = new (testAllocations[i]) StealableTest();
 						stealable->testIndex = i;
 
-						regions[getRegion(stealable)].stealableClusterQueues[0].addToEnd(stealable);
-
+						//regions[getRegion(stealable)].stealableClusterQueues[0].addToEnd(stealable);
+						putStealableInQueue(stealable, 0);
 						vtableAddress = *(uint32_t*)testAllocations[i];
 					}
 					else {

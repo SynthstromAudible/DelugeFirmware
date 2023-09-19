@@ -69,6 +69,7 @@ uint32_t CacheManager::ReclaimMemory(MemoryRegion& region, int32_t totalSizeNeed
 				// it'll run out of new Clusters to write the cache to, and it'll start trying to steal from the cache-Cluster queue, and hit all of these ones
 				// of its own at the same time.
 				if (numRefusedTheft >= 512) {
+					AudioEngine::logAction("bypass culling - refused 512 times");
 					AudioEngine::bypassCulling = true;
 				}
 				stealable = static_cast<Stealable*>(reclamation_queue_[q].getNext(stealable));

@@ -17,6 +17,7 @@
 
 #include "model/global_effectable/global_effectable.h"
 #include "definitions_cxx.hpp"
+#include "gui/l10n/l10n.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
@@ -33,6 +34,7 @@
 #include "storage/storage_manager.h"
 #include "util/misc.h"
 #include <new>
+
 using namespace deluge;
 
 GlobalEffectable::GlobalEffectable() {
@@ -98,7 +100,7 @@ void GlobalEffectable::modButtonAction(uint8_t whichModButton, bool on, ParamMan
 // Returns whether Instrument changed
 bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
                                               ModelStackWithThreeMainThings* modelStack) {
-
+	using enum l10n::String;
 	int32_t modKnobMode = *getModKnobMode();
 
 	// Stutter section
@@ -120,28 +122,30 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 				if (modFXType == ModFXType::NONE) {
 					modFXType = static_cast<ModFXType>(1);
 				}
-				char const* displayText;
+				std::string_view displayText;
 				switch (modFXType) {
 				case ModFXType::FLANGER:
-					displayText = "FLANGER";
+					displayText = l10n::getView(STRING_FOR_FLANGER);
 					break;
 
 				case ModFXType::PHASER:
-					displayText = "PHASER";
+					displayText = l10n::getView(STRING_FOR_PHASER);
 					break;
 
 				case ModFXType::CHORUS:
-					displayText = "CHORUS";
+					displayText = l10n::getView(STRING_FOR_CHORUS);
 					break;
 
 				case ModFXType::CHORUS_STEREO:
-					displayText = "STEREO CHORUS";
+					displayText = l10n::getView(STRING_FOR_STEREO_CHORUS);
 					break;
 				case ModFXType::GRAIN:
-					displayText = "GRAIN";
+					displayText = l10n::getView(STRING_FOR_GRAIN);
 					break;
+				case ModFXType::NONE:
+					__builtin_unreachable();
 				}
-				display->displayPopup(displayText);
+				display->displayPopup(displayText.data());
 				ensureModFXParamIsValid();
 				return true;
 			}
@@ -155,21 +159,21 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 				    static_cast<ModFXParam>((util::to_underlying(currentModFXParam) + 1) % kNumModFXParams);
 				ensureModFXParamIsValid();
 
-				char const* displayText;
+				std::string_view displayText;
 				switch (currentModFXParam) {
 				case ModFXParam::DEPTH:
-					displayText = "DEPTH";
+					displayText = l10n::getView(STRING_FOR_DEPTH);
 					break;
 
 				case ModFXParam::FEEDBACK:
-					displayText = "FEEDBACK";
+					displayText = l10n::getView(STRING_FOR_FEEDBACK);
 					break;
 
 				case ModFXParam::OFFSET:
-					displayText = "OFFSET";
+					displayText = l10n::getView(STRING_FOR_OFFSET);
 					break;
 				}
-				display->displayPopup(displayText);
+				display->displayPopup(displayText.data());
 			}
 
 			return false;
@@ -183,21 +187,21 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 				currentFilterType =
 				    static_cast<FilterType>((util::to_underlying(currentFilterType) + 1) % kNumFilterTypes);
 
-				char const* displayText;
+				std::string_view displayText;
 				switch (currentFilterType) {
 				case FilterType::LPF:
-					displayText = "LPF";
+					displayText = l10n::getView(STRING_FOR_LPF);
 					break;
 
 				case FilterType::HPF:
-					displayText = "HPF";
+					displayText = l10n::getView(STRING_FOR_HPF);
 					break;
 
 				case FilterType::EQ:
-					displayText = "EQ";
+					displayText = l10n::getView(STRING_FOR_EQ);
 					break;
 				}
-				display->displayPopup(displayText);
+				display->displayPopup(displayText.data());
 			}
 
 			return false;

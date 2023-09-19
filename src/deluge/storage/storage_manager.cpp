@@ -78,7 +78,7 @@ struct FileSystemStuff fileSystemStuff;
 StorageManager::StorageManager() {
 	fileClusterBuffer = NULL;
 
-	devVarA = 100;
+	devVarA = 150;
 	devVarB = 8;
 	devVarC = 100;
 	devVarD = 60;
@@ -1493,6 +1493,8 @@ int32_t StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool m
 			return error;
 		}
 	}
+	song->deleteBackedUpParamManagersForModControllable(*getInstrument);
+	(*getInstrument)->detachSourcesFromAudioFiles();
 	*getInstrument = newDrum;
 	return error;
 }
