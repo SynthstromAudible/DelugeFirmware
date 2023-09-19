@@ -105,7 +105,7 @@ Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int32_
 		}
 
 #if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on on V4.0.x have been getting E341.
-		if (cluster->numReasonsToBeLoaded < 1) {
+		if (cluster->numReasonsToBeLoaded != 1) {
 			display->freezeWithError("i005"); // Diversifying Qui's E341. It should actually be exactly 1
 		}
 		if (cluster->type != ClusterType::Sample) {

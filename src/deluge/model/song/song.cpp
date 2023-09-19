@@ -3050,12 +3050,7 @@ traverseClips:
 			    modelStackWithTimelineCounter, newOutput, NULL, InstrumentRemoval::NONE,
 			    (InstrumentClip*)favourClipForCloningParamManager, keepNoteRowsWithMIDIInput,
 			    true); // Will call audio routine
-			// TODO: deal with errors!
-
-			if (newOutput->type == InstrumentType::KIT) {
-				instrumentClip->onKeyboardScreen =
-				    false; //this code is called when you switch between clip types (e.g. synth to kit)
-			}
+			           // TODO: deal with errors!
 		}
 
 		// If this is the first Clip we dealt with, tell all the rest of the Clips to just clone it from this one (if there isn't already a ParamManager backed up in memory for them)
