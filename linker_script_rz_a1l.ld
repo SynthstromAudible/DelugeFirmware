@@ -74,7 +74,7 @@ MEMORY
 	/* RAM3U (rwx)   : ORIGIN = 0x20800000, LENGTH = 0x00100000 * Page 3 Upper bank (1024KB) H'20800000 to H'208FFFFF */
 	/* RAM4U (rwx)   : ORIGIN = 0x20900000, LENGTH = 0x00100000 * Page 4 Upper bank (1024KB) H'20900000 to H'209FFFFF */
 
-	RAM012L   (rwx) : ORIGIN = 0x20020000, LENGTH = 0x002E0000
+	RAM012L   (rwx) : ORIGIN = 0x20000000, LENGTH =  0x00300000
 	/* RAM01234L (rwx) : ORIGIN = 0x20020000, LENGTH = 0x007E0000 */
 	/* RAM012U   (rwx) : ORIGIN = 0x20500000, LENGTH = 0x00300000 */
 
@@ -94,6 +94,15 @@ INTERNAL_RAM_END = 0x20300000;
 
 SECTIONS
 {
+	.frunk_text :
+	{
+        . = ALIGN(4);
+        PROVIDE(__frunk_text_start = .);
+        *(.frunk_text .frunk_text*)
+        . = ALIGN(4);
+        PROVIDE(__frunk_text_end = .);
+	} > RAM012L
+
 	/* L1 translation table must be aligned to 16KB Boundary!           */
 	/* Please refer to Cortex-A Series Version: 4.0 Programmer’s Guide, */
 	/* section 9.4 First level address translation                      */
@@ -252,7 +261,7 @@ SECTIONS
 		. = ALIGN(2);
 		_mdata = .;
 	} > RAM012L
-	
+
 	.heap (NOLOAD) :
 	{
 		. = ALIGN(4);
