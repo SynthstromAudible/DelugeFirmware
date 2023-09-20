@@ -52,6 +52,8 @@
 ******************************************************************************/
 OUTPUT_FORMAT("elf32-littlearm", "elf32-bigarm", "elf32-littlearm")
 OUTPUT_ARCH(arm)
+
+/* Corresponds with code_start in start.S and referenced in bootloader with DEF_USER_CODE_START */
 ENTRY(start)
 
 /* Base Address RAM Memory Table 10-Mbyte on-chip RAM */  
@@ -60,24 +62,24 @@ MEMORY
 {
 	/* Internal RAM address range H'2000_0000 to H'2001_FFFF is configured as data retention RAM */
 	/* Write access to this address range has to be enabled by writing to registers SYSCR1 and SYSCR2 */
-	RAM0L (rwx)   : ORIGIN = 0x20020000, LENGTH = 0x000E0000  /* Page 0 Lower bank ( 896KB) H'20020000 to H'200FFFFF */
-	RAM1L (rwx)   : ORIGIN = 0x20100000, LENGTH = 0x00100000  /* Page 1 Upper bank (1024KB) H'20100000 to H'201FFFFF */
-	RAM2L (rwx)   : ORIGIN = 0x20200000, LENGTH = 0x00100000  /* Page 2 Upper bank (1024KB) H'20200000 to H'202FFFFF */
-	RAM3L (rwx)   : ORIGIN = 0x20300000, LENGTH = 0x00100000  /* Page 3 Upper bank (1024KB) H'20300000 to H'203FFFFF */
-	RAM4L (rwx)   : ORIGIN = 0x20400000, LENGTH = 0x00100000  /* Page 4 Upper bank (1024KB) H'20400000 to H'204FFFFF */
-	RAM0U (rwx)   : ORIGIN = 0x20500000, LENGTH = 0x00100000  /* Page 0 Upper bank (1024KB) H'20500000 to H'205FFFFF */
-	RAM1U (rwx)   : ORIGIN = 0x20600000, LENGTH = 0x00100000  /* Page 1 Upper bank (1024KB) H'20600000 to H'206FFFFF */
-	RAM2U (rwx)   : ORIGIN = 0x20700000, LENGTH = 0x00100000  /* Page 2 Upper bank (1024KB) H'20700000 to H'207FFFFF */
-	RAM3U (rwx)   : ORIGIN = 0x20800000, LENGTH = 0x00100000  /* Page 3 Upper bank (1024KB) H'20800000 to H'208FFFFF */
-	RAM4U (rwx)   : ORIGIN = 0x20900000, LENGTH = 0x00100000  /* Page 4 Upper bank (1024KB) H'20900000 to H'209FFFFF */
-	SDRAM (rwx)   : ORIGIN = 0x48000000, LENGTH = 0x02000000  /* SDRAM 32MB attached to CS2 H'08000000 to H'09FFFFFF */
+	SDRAM (rwx)   : ORIGIN = 0x0C000000, LENGTH = 0x04000000  /* SDRAM 32MB attached to CS3 H'0C000000 to H'0FFFFFFF */
+	/* RAM0L (rwx)   : ORIGIN = 0x20020000, LENGTH = 0x000E0000 * Page 0 Lower bank ( 896KB) H'20020000 to H'200FFFFF */
+	/* RAM1L (rwx)   : ORIGIN = 0x20100000, LENGTH = 0x00100000 * Page 1 Upper bank (1024KB) H'20100000 to H'201FFFFF */
+	/* RAM2L (rwx)   : ORIGIN = 0x20200000, LENGTH = 0x00100000 * Page 2 Upper bank (1024KB) H'20200000 to H'202FFFFF */
+	/* RAM3L (rwx)   : ORIGIN = 0x20300000, LENGTH = 0x00100000 * Page 3 Upper bank (1024KB) H'20300000 to H'203FFFFF */
+	/* RAM4L (rwx)   : ORIGIN = 0x20400000, LENGTH = 0x00100000 * Page 4 Upper bank (1024KB) H'20400000 to H'204FFFFF */
+	/* RAM0U (rwx)   : ORIGIN = 0x20500000, LENGTH = 0x00100000 * Page 0 Upper bank (1024KB) H'20500000 to H'205FFFFF */
+	/* RAM1U (rwx)   : ORIGIN = 0x20600000, LENGTH = 0x00100000 * Page 1 Upper bank (1024KB) H'20600000 to H'206FFFFF */
+	/* RAM2U (rwx)   : ORIGIN = 0x20700000, LENGTH = 0x00100000 * Page 2 Upper bank (1024KB) H'20700000 to H'207FFFFF */
+	/* RAM3U (rwx)   : ORIGIN = 0x20800000, LENGTH = 0x00100000 * Page 3 Upper bank (1024KB) H'20800000 to H'208FFFFF */
+	/* RAM4U (rwx)   : ORIGIN = 0x20900000, LENGTH = 0x00100000 * Page 4 Upper bank (1024KB) H'20900000 to H'209FFFFF */
 
 	RAM012L   (rwx) : ORIGIN = 0x20020000, LENGTH = 0x002E0000
-	RAM01234L (rwx) : ORIGIN = 0x20020000, LENGTH = 0x007E0000
-	RAM012U   (rwx) : ORIGIN = 0x20500000, LENGTH = 0x00300000
+	/* RAM01234L (rwx) : ORIGIN = 0x20020000, LENGTH = 0x007E0000 */
+	/* RAM012U   (rwx) : ORIGIN = 0x20500000, LENGTH = 0x00300000 */
 
 	ROM   (rw)    : ORIGIN = 0x18000000, LENGTH = 0x02000000  /* SPI ROM attached to H'18000000 to H'19FFFFFF */
-	VRAM  (rw)    : ORIGIN = 0x60300000, LENGTH = 0x00700000  
+	/* VRAM  (rw)    : ORIGIN = 0x60300000, LENGTH = 0x00700000   */
 }
 
 PROGRAM_STACK_SIZE    = 0x8000; 	/* Application stack                  */
@@ -251,14 +253,6 @@ SECTIONS
 		_mdata = .;
 	} > RAM012L
 	
-	. = ALIGN(4);
-	/* End of user data. Heap starts from here */
-	end = .;
-	_end = .;
-
-	/* For more information see: rdimon's libgloss/arm/syscall.c @ _sbrk */
-	/* See also: https://ww1.microchip.com/downloads/en/DeviceDoc/Frequently-Asked-Questions-4.9.3.26.txt point 12 */	
-	
 	.heap (NOLOAD) :
 	{
 		. = ALIGN(4);
@@ -266,11 +260,40 @@ SECTIONS
 		PROVIDE(__heap_start = .);
 		PROVIDE(_nl_heap_start = .);
 		KEEP(*(.heap))
-		. = ALIGN(0x4);        				
+		. = ALIGN(0x4);
 		PROVIDE(__heap_end__ = .);
-		PROVIDE(__heap_end = .);
+		PROVIDE(__heap_end = .);	
 		PROVIDE(_nl_heap_end = .);
 	} > RAM012L
+
+	.sdram_text : AT(ADDR(.heap))
+	{
+        . = ALIGN(4);
+        PROVIDE(__sdram_text_start = .);
+        *(.sdram_text .sdram_text*)
+        . = ALIGN(4);
+        PROVIDE(__sdram_text_end = .);
+	} > SDRAM
+
+	. = ALIGN(4);
+	/* Definition of code_end declared in start.S and referenced in bootloader with DEF_USER_CODE_END */
+	/* For more information see: rdimon's libgloss/arm/syscall.c @ _sbrk */
+	/* See also: https://ww1.microchip.com/downloads/en/DeviceDoc/Frequently-Asked-Questions-4.9.3.26.txt point 12 */	
+	end = .;
+	_end = .;
+
+	/* EVERYTHING PLACED AFTER END SECTION WILL NOT BE COPIED TO RAM!!!!! */
+	
+    .sdram_bss (NOLOAD) :
+    {
+        . = ALIGN(4);
+        PROVIDE(__sdram_bss_start = .);
+        *(.sdram_bss .sdram_bss*)
+        . = ALIGN(4);
+        PROVIDE(__sdram_bss_end = .);
+    } > SDRAM
+
+
 
 	.program_stack (INTERNAL_RAM_END - PROGRAM_STACK_SIZE) :
 	{

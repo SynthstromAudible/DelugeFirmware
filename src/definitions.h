@@ -32,3 +32,6 @@
 #define MIDI_RX_TIMING_BUFFER_SIZE 32 // Must be <= MIDI_RX_BUFFER_SIZE, above
 
 #define MAX_NUM_USB_MIDI_DEVICES 6
+
+#define PLACE_SDRAM_BSS __attribute__((__section__(".sdram_bss")))
+#define PLACE_SDRAM_TEXT __attribute__((__section__(".sdram_text")))

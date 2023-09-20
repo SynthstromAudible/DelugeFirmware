@@ -32,6 +32,8 @@
 char emptySpacesMemory[sizeof(EmptySpaceRecord) * 512];
 char emptySpacesMemoryInternal[sizeof(EmptySpaceRecord) * 1024];
 char emptySpacesMemoryGeneral[sizeof(EmptySpaceRecord) * 256];
+extern uint32_t __sdram_bss_start;
+extern uint32_t __sdram_bss_end;
 extern uint32_t __heap_start;
 extern uint32_t __heap_end;
 extern uint32_t program_stack_start;
@@ -39,7 +41,7 @@ extern uint32_t program_stack_end;
 GeneralMemoryAllocator::GeneralMemoryAllocator() {
 	lock = false;
 
-	regions[MEMORY_REGION_SDRAM].setup(emptySpacesMemory, sizeof(emptySpacesMemory), EXTERNAL_MEMORY_BEGIN,
+	regions[MEMORY_REGION_SDRAM].setup(emptySpacesMemory, sizeof(emptySpacesMemory), (uint32_t)&__sdram_bss_end,
 	                                   EXTERNAL_MEMORY_END - RESERVED_NONAUDIO_ALLOCATOR);
 	//this region implements new. Arguably we don't need the GMA at all for it
 	regions[MEMORY_REGION_NONAUDIO].setup(emptySpacesMemoryGeneral, sizeof(emptySpacesMemoryGeneral),
