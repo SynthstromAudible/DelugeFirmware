@@ -1,10 +1,11 @@
 #pragma once
+#include "definitions_cxx.hpp"
 #include "gui/l10n/language.h"
 #include "gui/l10n/strings.h"
 
 namespace deluge::l10n::built_in {
 using enum String;
-constexpr Language english{
+PLACE_SDRAM_DATA Language english{
     "English",
     {
         {EMPTY_STRING, ""},
