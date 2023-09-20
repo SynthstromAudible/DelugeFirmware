@@ -76,6 +76,17 @@ extern int R_CACHE_L1Init(void);
 
 extern void __libc_init_array(void);
 
+#define PLACEMENT_SDRAM_START (0x0C000000)
+#define PLACEMENT_INTRAM_START (0x20020000)
+#define PLACEMENT_FLASH_START (0x18080000) // Copied from bootloader, start address of firmware image in flash
+
+extern uint32_t __heap_start;
+
+extern uint32_t __sdram_bss_start;
+extern uint32_t __sdram_bss_end;
+extern uint32_t __sdram_text_start;
+extern uint32_t __sdram_text_end;
+
 void* __dso_handle = NULL;
 
 void _init(void) {
@@ -86,6 +97,27 @@ void _fini(void) {
 	// empty
 }
 
+inline void emptySDRAMSection(uint32_t* start, uint32_t* end) {
+	uint32_t size = (end - start) / sizeof(uint32_t);
+
+	uint32_t* dst = start;
+	while(dst < end) {
+		*dst = 0;
+		++dst;
+	}
+}
+
+inline void relocateSDRAMSection(uint32_t* start, uint32_t* end) {
+	uint32_t* src = (uint32_t*)((uint32_t)&__heap_start + ((uint32_t)start - PLACEMENT_SDRAM_START));
+	uint32_t* dst = start;
+	while(dst < end) {
+		*dst = *src; // Copy to SDRAM
+		*src = 0; // Clear in internal ram
+		++src;
+		++dst;
+	}
+}
+
 /*******************************************************************************
  * Function Name: resetprg
  * Description  :
@@ -93,7 +125,6 @@ void _fini(void) {
  * Return Value : none
  *******************************************************************************/
 void resetprg(void) {
-
 	// Enable all modules' clocks --------------------------------------------------------------
 	STB_Init();
 	// SDRAM pin mux ------------------------------------------------------------------
@@ -148,10 +179,13 @@ void resetprg(void) {
 	__enable_fiq();
 	// Setup SDRAM. Have to do this before we init global objects
 	userdef_bsc_cs2_init(0); // 64MB, hardcoded
+
 #if !defined(NDEBUG)
 	const uint32_t SDRAM_SIZE = EXTERNAL_MEMORY_END - EXTERNAL_MEMORY_BEGIN;
 	memset((void*)EXTERNAL_MEMORY_BEGIN, 0, SDRAM_SIZE);
 #endif
+
+	relocateSDRAMSection(&__sdram_text_start, &__sdram_text_end);
 
 	__libc_init_array();
 
