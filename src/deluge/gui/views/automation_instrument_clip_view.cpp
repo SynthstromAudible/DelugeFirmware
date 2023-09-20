@@ -2379,15 +2379,17 @@ void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int
 
 						handleMultiPadPress(modelStack, clip, leftPadSelectedX, 0, rightPadSelectedX, 0, true);
 
-						renderDisplayForMultiPadPress(modelStack, clip, xDisplay);
+						renderDisplayForMultiPadPress(modelStack, clip, xDisplay, true);
 
 						/*	if (display->haveOLED()) {
-							renderDisplayForMultiPadPress(modelStack, clip);
+							renderDisplayForMultiPadPress(modelStack, clip, xDisplay);
 						}
 						else {
 							renderDisplay(newKnobPos + kKnobPosOffset);
 							indicator_leds::setKnobIndicatorLevel(whichModEncoder, newKnobPos + kKnobPosOffset);
-						}*/
+						}
+
+					*/
 
 						return;
 					}
@@ -3116,7 +3118,8 @@ void AutomationInstrumentClipView::setKnobIndicatorLevels(int32_t knobPos) {
 
 //updates the position that the active mod controllable stack is pointing to
 //this sets the current value for the active parameter so that it can be auditioned
-void AutomationInstrumentClipView::updateModPosition(ModelStackWithAutoParam* modelStack, uint32_t squareStart, bool doRender) {
+void AutomationInstrumentClipView::updateModPosition(ModelStackWithAutoParam* modelStack, uint32_t squareStart,
+                                                     bool doRender) {
 
 	if (!playbackHandler.isEitherClockActive() || padSelectionOn) {
 		if (modelStack && modelStack->autoParam) {
@@ -3420,7 +3423,8 @@ void AutomationInstrumentClipView::handleMultiPadPress(ModelStackWithTimelineCou
 }
 
 void AutomationInstrumentClipView::renderDisplayForMultiPadPress(ModelStackWithTimelineCounter* modelStack,
-                                                                 InstrumentClip* clip, int32_t xDisplay) {
+                                                                 InstrumentClip* clip, int32_t xDisplay,
+                                                                 bool modEncoderAction) {
 	if (modelStack) {
 
 		ModelStackWithAutoParam* modelStackWithParam =
@@ -3452,7 +3456,12 @@ void AutomationInstrumentClipView::renderDisplayForMultiPadPress(ModelStackWithT
 			}
 			//display pad value of second pad pressed
 			else {
-				renderDisplay();
+				if (modEncoderAction) {
+					renderDisplay(lastPadSelectedKnobPos);
+				}
+				else {
+					renderDisplay();
+				}
 			}
 
 			//update LED indicators
