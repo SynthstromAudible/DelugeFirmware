@@ -35,3 +35,4 @@
 
 #define PLACE_SDRAM_BSS __attribute__((__section__(".sdram_bss")))
 #define PLACE_SDRAM_TEXT __attribute__((__section__(".sdram_text")))
+#define PLACE_SDRAM_DATA __attribute__((__section__(".sdram_data")))

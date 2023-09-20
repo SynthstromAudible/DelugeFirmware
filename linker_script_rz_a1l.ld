@@ -262,7 +262,7 @@ SECTIONS
 		KEEP(*(.heap))
 		. = ALIGN(0x4);
 		PROVIDE(__heap_end__ = .);
-		PROVIDE(__heap_end = .);	
+		PROVIDE(__heap_end = .);
 		PROVIDE(_nl_heap_end = .);
 	} > RAM012L
 
@@ -275,8 +275,18 @@ SECTIONS
         PROVIDE(__sdram_text_end = .);
 	} > SDRAM
 
+	.sdram_data : AT(ADDR(.heap) + SIZEOF(.sdram_text))
+	{
+        . = ALIGN(4);
+        PROVIDE(__sdram_data_start = .);
+        *(.sdram_data .sdram_data*)
+        . = ALIGN(4);
+        PROVIDE(__sdram_data_end = .);
+	} > SDRAM
+
 	. = ALIGN(4);
 	/* Definition of code_end declared in start.S and referenced in bootloader with DEF_USER_CODE_END */
+	/* end is also used by glibc as start of heap and might be reinitialized */
 	/* For more information see: rdimon's libgloss/arm/syscall.c @ _sbrk */
 	/* See also: https://ww1.microchip.com/downloads/en/DeviceDoc/Frequently-Asked-Questions-4.9.3.26.txt point 12 */	
 	end = .;
@@ -292,8 +302,6 @@ SECTIONS
         . = ALIGN(4);
         PROVIDE(__sdram_bss_end = .);
     } > SDRAM
-
-
 
 	.program_stack (INTERNAL_RAM_END - PROGRAM_STACK_SIZE) :
 	{

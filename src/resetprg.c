@@ -86,6 +86,8 @@ extern uint32_t __sdram_bss_start;
 extern uint32_t __sdram_bss_end;
 extern uint32_t __sdram_text_start;
 extern uint32_t __sdram_text_end;
+extern uint32_t __sdram_data_start;
+extern uint32_t __sdram_data_end;
 
 void* __dso_handle = NULL;
 
@@ -101,7 +103,7 @@ inline void emptySDRAMSection(uint32_t* start, uint32_t* end) {
 	uint32_t size = (end - start) / sizeof(uint32_t);
 
 	uint32_t* dst = start;
-	while(dst < end) {
+	while (dst < end) {
 		*dst = 0;
 		++dst;
 	}
@@ -110,9 +112,9 @@ inline void emptySDRAMSection(uint32_t* start, uint32_t* end) {
 inline void relocateSDRAMSection(uint32_t* start, uint32_t* end) {
 	uint32_t* src = (uint32_t*)((uint32_t)&__heap_start + ((uint32_t)start - PLACEMENT_SDRAM_START));
 	uint32_t* dst = start;
-	while(dst < end) {
+	while (dst < end) {
 		*dst = *src; // Copy to SDRAM
-		*src = 0; // Clear in internal ram
+		*src = 0;    // Clear in internal ram
 		++src;
 		++dst;
 	}
@@ -186,6 +188,7 @@ void resetprg(void) {
 #endif
 
 	relocateSDRAMSection(&__sdram_text_start, &__sdram_text_end);
+	relocateSDRAMSection(&__sdram_data_start, &__sdram_data_end);
 
 	__libc_init_array();
 
