@@ -29,6 +29,7 @@
 #include <cstring>
 #include <new>
 
+//TODO: Check if these have the right size
 char emptySpacesMemory[sizeof(EmptySpaceRecord) * 512];
 char emptySpacesMemoryInternal[sizeof(EmptySpaceRecord) * 1024];
 char emptySpacesMemoryGeneral[sizeof(EmptySpaceRecord) * 256];
