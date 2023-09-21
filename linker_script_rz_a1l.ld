@@ -196,6 +196,21 @@ SECTIONS
 		. = ALIGN(0x4);
 	} > RAM012L
 	
+	.data : 
+	{
+		. = ALIGN(0x8);
+		address_start_data_ROM = .;
+		_data = .;
+		_sdata = .;
+		*(.data)
+		*(.data*)
+		*(.igot.plt)
+		*(.got.plt) 
+		*(.got)
+		.	= ALIGN(0x8);
+		address_end_data_ROM = .;
+		_edata = .;
+	} > RAM012L
 	
 	.preinit_array :
 	{
@@ -228,23 +243,6 @@ SECTIONS
 		PROVIDE_HIDDEN(__exidx_end = .);
 	} > RAM012L
 
-	
-	.data : 
-	{
-		. = ALIGN(0x8);
-		address_start_data_ROM = .;
-		_data = .;
-		_sdata = .;
-		*(.data)
-		*(.data*)
-		*(.igot.plt)
-		*(.got.plt) 
-		*(.got)
-		.	= ALIGN(0x8);
-		address_end_data_ROM = .;
-		_edata = .;
-	} > RAM012L
-
 	.tors :
 	{
 		__CTOR_LIST__ = .;
@@ -275,6 +273,7 @@ SECTIONS
 		PROVIDE(_nl_heap_end = .);
 	} > RAM012L
 
+	/* This worked in isolated testing, for example with init_crc_table but I had problems with bigger stuff, maybe timing? */
 	.sdram_text : AT(ADDR(.heap))
 	{
         . = ALIGN(4);
@@ -315,7 +314,7 @@ SECTIONS
         PROVIDE(__sdram_bss_end = .);
     } > SDRAM
 
-	.program_stack (INTERNAL_RAM_END - PROGRAM_STACK_SIZE) :
+	.program_stack (INTERNAL_RAM_END - PROGRAM_STACK_SIZE) (NOLOAD) :
 	{
 		program_stack_start = .;
 		.  += PROGRAM_STACK_SIZE;
@@ -323,3 +322,20 @@ SECTIONS
 		program_stack_end = .;
 	} >RAM012L
 }
+
+
+/*
+	// In order to attempt to move init functions in the SDRAM you need to move sdram_text before the .text sections
+	// so _Z41__static_initialization_and_destruction_0ii is not yet consumed by the wildcard, that works with the following block
+	// Problem was that seemingly the functions were copied to SDRAM but not executed as part of the init routine
+	.sdram_text : AT(__heap_start)
+	{
+        . = ALIGN(4);
+        PROVIDE(__sdram_text_start = .);
+		*(.text._Z41__static_initialization_and_destruction_0ii)
+        *(.sdram_text .sdram_text*)
+        . = ALIGN(4);
+        PROVIDE(__sdram_text_end = .);
+	} > SDRAM
+
+*/
