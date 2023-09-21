@@ -319,9 +319,10 @@ void routineWithClusterLoading(bool mayProcessUserActionsBetween) {
 }
 
 #define DO_AUDIO_LOG 0 // For advavnced debugging printouts.
-#define AUDIO_LOG_SIZE 128
+#define AUDIO_LOG_SIZE 64
 
 #if DO_AUDIO_LOG
+bool definitelyLog = false;
 uint16_t audioLogTimes[AUDIO_LOG_SIZE];
 char audioLogStrings[AUDIO_LOG_SIZE][64];
 int32_t numAudioLogItems = 0;
@@ -333,7 +334,6 @@ int32_t numAudioLogItems = 0;
 extern uint16_t g_usb_usbmode;
 
 void routine() {
-
 	logAction("AudioDriver::routine");
 	if (audioRoutineLocked) {
 		logAction("AudioDriver::routine locked");
@@ -438,6 +438,9 @@ void routine() {
 				}
 
 #if ALPHA_OR_BETA_VERSION
+#if DO_AUDIO_LOG
+				definitelyLog = true;
+#endif
 				Debug::print("culled ");
 				Debug::print(numToCull);
 				Debug::print(" voices. numSamples: ");
@@ -445,19 +448,29 @@ void routine() {
 
 				Debug::print(". voices left: ");
 				Debug::println(getNumVoices());
+				logAction("hard cull");
 #endif
 			}
 
 			// Or if it's just a little bit dire, do a soft cull with fade-out
 			else if (numSamplesOverLimit >= -6) {
+#if DO_AUDIO_LOG
+				definitelyLog = true;
+#endif
 				cullVoice(false, true);
+				logAction("soft cull");
 			}
 		}
 		else {
+
 			int32_t numSamplesOverLimit = smoothedSamples - numSamplesLimit;
 			if (numSamplesOverLimit >= 0) {
+#if DO_AUDIO_LOG
+				definitelyLog = true;
+#endif
 				Debug::print("Won't cull, but numSamples is ");
 				Debug::println(numSamples);
+				logAction("skipped cull");
 			}
 		}
 	}
@@ -839,7 +852,8 @@ startAgain:
 	uint16_t currentTime = *TCNT[TIMER_SYSTEM_FAST];
 	uint16_t timePassedA = (uint16_t)currentTime - lastRoutineTime;
 	uint32_t timePassedUSA = fastTimerCountToUS(timePassedA);
-	if (timePassedUSA > storageManager.devVarA * 10) {
+	if (definitelyLog || timePassedUSA > (storageManager.devVarA * 10)) {
+
 		Debug::println("");
 		for (int32_t i = 0; i < numAudioLogItems; i++) {
 			uint16_t timePassed = (uint16_t)audioLogTimes[i] - lastRoutineTime;
@@ -852,7 +866,7 @@ startAgain:
 		Debug::print(timePassedUSA);
 		Debug::println(": end");
 	}
-
+	definitelyLog = false;
 	lastRoutineTime = *TCNT[TIMER_SYSTEM_FAST];
 	numAudioLogItems = 0;
 #endif
