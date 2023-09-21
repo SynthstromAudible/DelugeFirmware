@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "definitions_cxx.hpp"
 #include "runtime_feature_settings.h"
 #include "gui/l10n/l10n.h"
 #include "hid/display/display.h"
@@ -36,7 +37,7 @@ struct UnknownSetting {
 	uint32_t value;
 };
 
-RuntimeFeatureSettings runtimeFeatureSettings{};
+PLACE_SDRAM_BSS RuntimeFeatureSettings runtimeFeatureSettings{};
 
 RuntimeFeatureSettings::RuntimeFeatureSettings() : unknownSettings(sizeof(UnknownSetting)) {
 }
