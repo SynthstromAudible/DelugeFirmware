@@ -209,7 +209,6 @@ constexpr Language english{
         {STRING_FOR_LOAD_FILES, "Load file(s)"},
         {STRING_FOR_CLEAR_SONG_QMARK, "Clear song?"},
         {STRING_FOR_LOAD_PRESET, "Load preset"},
-        {STRING_FOR_OVERWRITE_BOOTLOADER_TITLE, "Overwrite bootloader at own risk"},
         {STRING_FOR_OVERWRITE_QMARK, "Overwrite?"},
 
         // gui/context_menu/audio_input_selector.cpp
@@ -244,13 +243,6 @@ constexpr Language english{
 
         // gui/context_menu/load_instrument_preset.cpp
         {STRING_FOR_CLONE, "Clone"},
-
-        // gui/context_menu/overwrite_bootloader.cpp
-        {STRING_FOR_ACCEPT_RISK, "Accept risk"},
-        {STRING_FOR_ERROR_BOOTLOADER_TOO_BIG, "Bootloader file too large"},
-        {STRING_FOR_ERROR_BOOTLOADER_TOO_SMALL, "Bootloader file too small"},
-        {STRING_FOR_BOOTLOADER_UPDATED, "Bootloader updated"},
-        {STRING_FOR_ERROR_BOOTLOADER_FILE_NOT_FOUND, "No boot*.bin file found"},
 
         // gui/context_menu/save_song_or_instrument.cpp
         {STRING_FOR_COLLECT_MEDIA, "Collect media"},

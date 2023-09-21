@@ -3,7 +3,6 @@
 #include "definitions_cxx.hpp"
 #include "dsp/reverb/freeverb/revmodel.hpp"
 #include "extern.h"
-#include "gui/context_menu/overwrite_bootloader.h"
 #include "gui/l10n/strings.h"
 #include "gui/menu_item/menu_item.h"
 #include "gui/ui/audio_recorder.h"
@@ -910,24 +909,7 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 
 	// Otherwise...
 	if (currentUIMode == UI_MODE_NONE && on) {
-
-		// If doing secret bootloader-update action...
-		// Dear tinkerers and open-sourcers, please don't use or publicise this feature. If it goes wrong, your Deluge is toast.
-		if (getCurrentMenuItem() == &firmwareVersionMenu
-		    && ((x == 0 && y == 7) || (x == 1 && y == 6) || (x == 2 && y == 5))) {
-
-			if (matrixDriver.isUserDoingBootloaderOverwriteAction()) {
-				bool available = gui::context_menu::overwriteBootloader.setupAndCheckAvailability();
-				if (available) {
-					openUI(&gui::context_menu::overwriteBootloader);
-				}
-			}
-		}
-
-		// Otherwise, exit.
-		else {
-			exitCompletely();
-		}
+		exitCompletely();
 	}
 
 	return ActionResult::DEALT_WITH;

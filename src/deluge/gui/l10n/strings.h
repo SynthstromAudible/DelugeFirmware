@@ -111,7 +111,6 @@ enum class String : size_t {
 	STRING_FOR_LOAD_FILES,
 	STRING_FOR_CLEAR_SONG_QMARK,
 	STRING_FOR_LOAD_PRESET,
-	STRING_FOR_OVERWRITE_BOOTLOADER_TITLE,
 	STRING_FOR_OVERWRITE_QMARK,
 
 	// gui/context_menu/audio_input_selector.cpp
@@ -146,13 +145,6 @@ enum class String : size_t {
 
 	// gui/context_menu/load_instrument_preset.cpp
 	STRING_FOR_CLONE,
-
-	// gui/context_menu/overwrite_bootloader.cpp
-	STRING_FOR_ACCEPT_RISK,
-	STRING_FOR_ERROR_BOOTLOADER_TOO_BIG,
-	STRING_FOR_ERROR_BOOTLOADER_TOO_SMALL,
-	STRING_FOR_BOOTLOADER_UPDATED,
-	STRING_FOR_ERROR_BOOTLOADER_FILE_NOT_FOUND,
 
 	// gui/context_menu/save_song_or_instrument.cpp
 	STRING_FOR_COLLECT_MEDIA,
