@@ -94,13 +94,13 @@ INTERNAL_RAM_END = 0x20300000;
 
 SECTIONS
 {
-	.frunk_text :
+	.frunk_bss (NOLOAD) :
 	{
         . = ALIGN(4);
-        PROVIDE(__frunk_text_start = .);
-        *(.frunk_text .frunk_text*)
+        PROVIDE(__frunk_bss_start = .);
+        *(.frunk_bss .frunk_bss*)
         . = ALIGN(4);
-        PROVIDE(__frunk_text_end = .);
+        PROVIDE(__frunk_bss_end = .);
 	} > RAM012L
 
 	/* L1 translation table must be aligned to 16KB Boundary!           */
@@ -147,7 +147,7 @@ SECTIONS
 	} >RAM012L
 	
 	/* ALIGN(0x20) is only necessary for v0 bootloaders */
-  .reset : ALIGN(0x20) /* 0x10 isn't enough. Not sure why any of this is necessary though. */
+  	.reset : ALIGN(0x20) /* 0x10 isn't enough. Not sure why any of this is necessary though. */
 	{
 		execute = .;
 		*start.S.obj (.text)
@@ -293,7 +293,10 @@ SECTIONS
         PROVIDE(__sdram_data_end = .);
 	} > SDRAM
 
+	/* Reset location counter to RAM012L. Warning: Changing relocation sections before that will require change here */
+	. = ADDR(.heap) + SIZEOF(.sdram_text) + SIZEOF(.sdram_data);
 	. = ALIGN(4);
+
 	/* Definition of code_end declared in start.S and referenced in bootloader with DEF_USER_CODE_END */
 	/* end is also used by glibc as start of heap and might be reinitialized */
 	/* For more information see: rdimon's libgloss/arm/syscall.c @ _sbrk */
