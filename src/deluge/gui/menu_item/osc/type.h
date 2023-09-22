@@ -27,7 +27,7 @@
 #include "util/misc.h"
 
 namespace deluge::gui::menu_item::osc {
-class Type final : public Selection<kNumOscTypes>, public FormattedTitle {
+class Type final : public Selection, public FormattedTitle {
 public:
 	Type(l10n::String name, l10n::String title_format_str) : Selection(name), FormattedTitle(title_format_str){};
 	void beginSession(MenuItem* navigatedBackwardFrom) override { Selection::beginSession(navigatedBackwardFrom); }
@@ -60,9 +60,9 @@ public:
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
-	static_vector<std::string_view, capacity()> getOptions() override {
+	std::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
-		static_vector<std::string_view, capacity()> options = {
+		std::vector<std::string_view> options = {
 		    l10n::getView(STRING_FOR_SINE),          //<
 		    l10n::getView(STRING_FOR_TRIANGLE),      //<
 		    l10n::getView(STRING_FOR_SQUARE),        //<
