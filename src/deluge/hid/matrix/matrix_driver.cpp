@@ -78,15 +78,3 @@ ActionResult MatrixDriver::padAction(int32_t x, int32_t y, int32_t velocity) {
 bool MatrixDriver::isPadPressed(int32_t x, int32_t y) {
 	return padStates[x][y];
 }
-
-bool MatrixDriver::isUserDoingBootloaderOverwriteAction() {
-	for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
-		for (int32_t y = 0; y < kDisplayHeight; y++) {
-			bool shouldBePressed = (x == 0 && y == 7) || (x == 1 && y == 6) || (x == 2 && y == 5);
-			if (padStates[x][y] != shouldBePressed) {
-				return false;
-			}
-		}
-	}
-	return true;
-}

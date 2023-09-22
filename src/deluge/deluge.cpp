@@ -25,7 +25,6 @@
 #include "gui/context_menu/clear_song.h"
 #include "gui/context_menu/delete_file.h"
 #include "gui/context_menu/load_instrument_preset.h"
-#include "gui/context_menu/overwrite_bootloader.h"
 #include "gui/context_menu/overwrite_file.h"
 #include "gui/context_menu/sample_browser/kit.h"
 #include "gui/context_menu/sample_browser/synth.h"

@@ -87,13 +87,6 @@ PLACE_SDRAM_DATA Language seven_segment{
         // gui/context_menu/load_instrument_preset.cpp
         {STRING_FOR_CLONE, "COPY"},
 
-        // gui/context_menu/overwrite_bootloader.cpp
-        {STRING_FOR_ACCEPT_RISK, "SURE"},
-        {STRING_FOR_ERROR_BOOTLOADER_TOO_BIG, "BIG"},
-        {STRING_FOR_ERROR_BOOTLOADER_TOO_SMALL, "SMALL"},
-        {STRING_FOR_BOOTLOADER_UPDATED, "DONE"},
-        {STRING_FOR_ERROR_BOOTLOADER_FILE_NOT_FOUND, "FILE"},
-
         // gui/context_menu/save_song_or_instrument.cpp
         {STRING_FOR_COLLECT_MEDIA, "COLLECT MEDIA"},
         {STRING_FOR_CREATE_FOLDER, "CREATE FOLDER"},
