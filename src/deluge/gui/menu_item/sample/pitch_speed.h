@@ -24,7 +24,7 @@
 #include "processing/sound/sound_drum.h"
 
 namespace deluge::gui::menu_item::sample {
-class PitchSpeed final : public Selection<2> {
+class PitchSpeed final : public Selection {
 public:
 	using Selection::Selection;
 
@@ -54,7 +54,7 @@ public:
 		}
 	}
 
-	static_vector<std::string_view, capacity()> getOptions() override {
+	std::vector<std::string_view> getOptions() override {
 		return {l10n::getView(l10n::String::STRING_FOR_LINKED), l10n::getView(l10n::String::STRING_FOR_INDEPENDENT)};
 	}
 };

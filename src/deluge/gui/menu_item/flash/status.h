@@ -22,7 +22,7 @@
 #include "storage/flash_storage.h"
 
 namespace deluge::gui::menu_item::flash {
-class Status final : public Selection<3> {
+class Status final : public Selection {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(PadLEDs::flashCursor); }
@@ -32,7 +32,7 @@ public:
 		}
 		PadLEDs::flashCursor = this->getValue();
 	}
-	static_vector<std::string_view, capacity()> getOptions() override {
+	std::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
 		return {
 		    l10n::getView(STRING_FOR_FAST),

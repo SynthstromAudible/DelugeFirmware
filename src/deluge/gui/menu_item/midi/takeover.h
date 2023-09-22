@@ -23,12 +23,12 @@
 #include "util/misc.h"
 
 namespace deluge::gui::menu_item::midi {
-class Takeover final : public Selection<kNumMIDITakeoverModes> {
+class Takeover final : public Selection {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(midiEngine.midiTakeover); }
 	void writeCurrentValue() override { midiEngine.midiTakeover = this->getValue<MIDITakeoverMode>(); }
-	static_vector<std::string_view, capacity()> getOptions() override {
+	std::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
 		return {
 		    l10n::getView(STRING_FOR_JUMP),
