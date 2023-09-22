@@ -54,4 +54,10 @@ private:
 	map_type map_{};
 	const Language* fallback_ = nullptr;
 };
+
 } // namespace deluge::l10n
+
+namespace deluge::l10n::built_in {
+extern deluge::l10n::Language english;
+extern deluge::l10n::Language seven_segment;
+} // namespace deluge::l10n::built_in
