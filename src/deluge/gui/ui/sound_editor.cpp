@@ -24,6 +24,7 @@
 #include "io/debug/print.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
+#include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
@@ -909,6 +910,14 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 
 	// Otherwise...
 	if (currentUIMode == UI_MODE_NONE && on) {
+		if (getCurrentMenuItem() == &firmwareVersionMenu && (x == 0 && y == 0)) {
+			char buffer[12] = {0};
+			auto& region = GeneralMemoryAllocator::get().regions[MEMORY_REGION_INTERNAL];
+			intToString(region.end - region.start, buffer);
+			display->displayPopup(buffer);
+			return ActionResult::DEALT_WITH;
+		}
+
 		exitCompletely();
 	}
 
