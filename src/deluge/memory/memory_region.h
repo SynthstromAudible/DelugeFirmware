@@ -54,6 +54,8 @@ public:
 	void dealloc(void* address);
 	void verifyMemoryNotFree(void* address, uint32_t spaceSize);
 
+	uint32_t start;
+	uint32_t end;
 	int32_t numAllocations;
 
 	CacheManager& cache_manager() { return cache_manager_; }
@@ -75,8 +77,4 @@ private:
 
 	void writeTempHeadersBeforeASteal(uint32_t newStartAddress, uint32_t newSize);
 	void sanityCheck();
-
-public:
-	uint32_t start;
-	uint32_t end;
 };
