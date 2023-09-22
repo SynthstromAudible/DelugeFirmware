@@ -16,6 +16,7 @@
  */
 
 #include "runtime_feature_settings.h"
+#include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "hid/display/display.h"
 #include "storage/storage_manager.h"
@@ -36,7 +37,7 @@ struct UnknownSetting {
 	uint32_t value;
 };
 
-RuntimeFeatureSettings runtimeFeatureSettings{};
+PLACE_SDRAM_BSS RuntimeFeatureSettings runtimeFeatureSettings{};
 
 RuntimeFeatureSettings::RuntimeFeatureSettings() : unknownSettings(sizeof(UnknownSetting)) {
 }

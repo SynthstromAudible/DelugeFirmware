@@ -29,9 +29,12 @@
 #include <cstring>
 #include <new>
 
+//TODO: Check if these have the right size
 char emptySpacesMemory[sizeof(EmptySpaceRecord) * 512];
 char emptySpacesMemoryInternal[sizeof(EmptySpaceRecord) * 1024];
 char emptySpacesMemoryGeneral[sizeof(EmptySpaceRecord) * 256];
+extern uint32_t __sdram_bss_start;
+extern uint32_t __sdram_bss_end;
 extern uint32_t __heap_start;
 extern uint32_t __heap_end;
 extern uint32_t program_stack_start;
@@ -39,7 +42,7 @@ extern uint32_t program_stack_end;
 GeneralMemoryAllocator::GeneralMemoryAllocator() {
 	lock = false;
 
-	regions[MEMORY_REGION_SDRAM].setup(emptySpacesMemory, sizeof(emptySpacesMemory), EXTERNAL_MEMORY_BEGIN,
+	regions[MEMORY_REGION_SDRAM].setup(emptySpacesMemory, sizeof(emptySpacesMemory), (uint32_t)&__sdram_bss_end,
 	                                   EXTERNAL_MEMORY_END - RESERVED_NONAUDIO_ALLOCATOR);
 	//this region implements new. Arguably we don't need the GMA at all for it
 	regions[MEMORY_REGION_NONAUDIO].setup(emptySpacesMemoryGeneral, sizeof(emptySpacesMemoryGeneral),
@@ -144,6 +147,12 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, uint32_t* getAllocate
 			*/
 			return address;
 		}
+#if !defined(NDEBUG)
+		else {
+			display->displayPopup("FULL Internal");
+		}
+#endif
+
 		AudioEngine::logAction("internal allocation failed");
 	}
 
@@ -167,13 +176,19 @@ uint32_t GeneralMemoryAllocator::getAllocatedSize(void* address) {
 }
 
 int32_t GeneralMemoryAllocator::getRegion(void* address) {
-	if ((uint32_t)address >= (uint32_t)INTERNAL_MEMORY_BEGIN) {
+	uint32_t value = (uint32_t)address;
+	if (value >= regions[MEMORY_REGION_INTERNAL].start && value < regions[MEMORY_REGION_INTERNAL].end) {
 		return MEMORY_REGION_INTERNAL;
 	}
-	else if ((uint32_t)address <= EXTERNAL_MEMORY_END - RESERVED_NONAUDIO_ALLOCATOR) {
+	else if (value >= regions[MEMORY_REGION_SDRAM].start && value < regions[MEMORY_REGION_SDRAM].end) {
 		return MEMORY_REGION_SDRAM;
 	}
-	return MEMORY_REGION_NONAUDIO;
+	else if (value >= regions[MEMORY_REGION_NONAUDIO].start && value < regions[MEMORY_REGION_NONAUDIO].end) {
+		return MEMORY_REGION_NONAUDIO;
+	}
+
+	display->freezeWithError("E339");
+	return 0;
 }
 
 // Returns new size

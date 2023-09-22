@@ -1,11 +1,10 @@
-#pragma once
-#include "gui/l10n/english.h"
+#include "definitions_cxx.hpp"
 #include "gui/l10n/language.h"
 #include "gui/l10n/strings.h"
 
 namespace deluge::l10n::built_in {
 using enum String;
-constexpr Language seven_segment{
+PLACE_SDRAM_DATA Language seven_segment{
     "Seven Segment",
     {
         //Errors
