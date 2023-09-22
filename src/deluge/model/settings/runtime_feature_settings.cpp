@@ -33,7 +33,7 @@
 
 /// Unknown Settings container
 struct UnknownSetting {
-	std::string name;
+	std::string_view name;
 	uint32_t value;
 };
 
@@ -208,7 +208,7 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 				}
 				void* address = unknownSettings.getElementAddress(idx);
 				auto* unknownSetting = new (address) UnknownSetting();
-				unknownSetting->name = std::string(currentName.get());
+				unknownSetting->name = currentName.get();
 				unknownSetting->value = currentValue;
 			}
 		}
