@@ -36,7 +36,7 @@ enum RuntimeFeatureStateToggle : uint32_t { Off = 0, On = 1 };
 // Declare additional enums for specific multi state settings (e.g. like RuntimeFeatureStateTrackLaunchStyle)
 enum RuntimeFeatureStateSyncScalingAction : uint32_t { SyncScaling = 0, Fill = 1 };
 
-/// Every setting needs to be delcared in here - Warning - Probably don't use them in the rendering path
+/// Every setting needs to be declared in here
 enum RuntimeFeatureSettingType : uint32_t {
 	DrumRandomizer,
 	MasterCompressorFx,
