@@ -24,6 +24,7 @@
 #include "io/debug/print.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
+#include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
@@ -33,6 +34,7 @@
 #include "model/note/note_row.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
+#include "model/voice/voice_vector.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/mode/playback_mode.h"
@@ -909,6 +911,25 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 
 	// Otherwise...
 	if (currentUIMode == UI_MODE_NONE && on) {
+		if (getCurrentMenuItem() == &firmwareVersionMenu && y == 7) {
+			char buffer[12] = {0};
+
+			// Read available internal memory
+			if (x == 15) {
+				auto& region = GeneralMemoryAllocator::get().regions[MEMORY_REGION_INTERNAL];
+				intToString(region.end - region.start, buffer);
+				display->displayPopup(buffer);
+				return ActionResult::DEALT_WITH;
+			}
+
+			// Read active voices
+			else if (x == 14) {
+				intToString(AudioEngine::activeVoices.getNumElements(), buffer);
+				display->displayPopup(buffer);
+				return ActionResult::DEALT_WITH;
+			}
+		}
+
 		exitCompletely();
 	}
 

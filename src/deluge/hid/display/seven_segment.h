@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "gui/l10n/seven_segment.h"
+#include "gui/l10n/language.h"
 #include "hid/display/display.h"
 #include "hid/display/numeric_layer/numeric_layer_basic_text.h"
 #include <array>

@@ -36,6 +36,8 @@ set(CMAKE_OBJCOPY      ${ARM_TOOLCHAIN_BIN_PATH}/arm-none-eabi-objcopy${TOOLCHAI
 set(CMAKE_RANLIB       ${ARM_TOOLCHAIN_BIN_PATH}/arm-none-eabi-ranlib${TOOLCHAIN_EXT} CACHE FILEPATH "Path to ranlib.")
 set(CMAKE_SIZE         ${ARM_TOOLCHAIN_BIN_PATH}/arm-none-eabi-size${TOOLCHAIN_EXT} CACHE FILEPATH "Path to size.")
 set(CMAKE_STRIP        ${ARM_TOOLCHAIN_BIN_PATH}/arm-none-eabi-strip${TOOLCHAIN_EXT} CACHE FILEPATH "Path to strip.")
+set(CMAKE_NM           ${ARM_TOOLCHAIN_BIN_PATH}/arm-none-eabi-nm${TOOLCHAIN_EXT} CACHE FILEPATH "Path to list symbols.")
+set(CMAKE_OBJDUMP      ${ARM_TOOLCHAIN_BIN_PATH}/arm-none-eabi-objdump${TOOLCHAIN_EXT} CACHE FILEPATH "Path to dump objects.")
 
 set(CMAKE_ASM_FLAGS_RELEASE "-O2 -DNDEBUG" CACHE STRING "Flags used by the ASM compiler during RELEASE builds." FORCE)
 set(CMAKE_C_FLAGS_RELEASE "-O2 -DNDEBUG" CACHE STRING "Flags used by the C compiler during RELEASE builds."   FORCE)
