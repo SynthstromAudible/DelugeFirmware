@@ -30,8 +30,9 @@
 #include "processing/source.h"
 #include "storage/multi_range/multi_wave_table_range.h"
 #include "storage/multi_range/multisample_range.h"
+#include "util/container/static_vector.hpp"
 #include "util/functions.h"
-#include <string.h>
+#include <cstring>
 
 namespace deluge::gui::menu_item {
 

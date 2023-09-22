@@ -29,7 +29,7 @@
 
 namespace deluge::gui::menu_item::sample {
 
-class Repeat final : public Selection<kNumRepeatModes>, public FormattedTitle {
+class Repeat final : public Selection, public FormattedTitle {
 public:
 	Repeat(l10n::String name, l10n::String title_format_str) : Selection(name), FormattedTitle(title_format_str) {}
 
@@ -83,9 +83,13 @@ public:
 		// We need to re-render all rows, because this will have changed whether Note tails are displayed. Probably just one row, but we don't know which
 		uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
 	}
-	static_vector<std::string_view, capacity()> getOptions() override {
-		return {l10n::getView(l10n::String::STRING_FOR_CUT), l10n::getView(l10n::String::STRING_FOR_ONCE),
-		        l10n::getView(l10n::String::STRING_FOR_LOOP), l10n::getView(l10n::String::STRING_FOR_STRETCH)};
+	std::vector<std::string_view> getOptions() override {
+		return {
+		    l10n::getView(l10n::String::STRING_FOR_CUT),
+		    l10n::getView(l10n::String::STRING_FOR_ONCE),
+		    l10n::getView(l10n::String::STRING_FOR_LOOP),
+		    l10n::getView(l10n::String::STRING_FOR_STRETCH),
+		};
 	}
 };
 

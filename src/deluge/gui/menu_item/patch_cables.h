@@ -23,7 +23,7 @@ public:
 	int32_t savedVal = 0;
 	int32_t currentValue = 0;
 
-	static_vector<std::string_view, kMaxNumPatchCables> options;
+	std::vector<std::string_view> options;
 
 	PatchSource blinkSrc = PatchSource::NOT_AVAILABLE;
 	PatchSource blinkSrc2 = PatchSource::NOT_AVAILABLE;

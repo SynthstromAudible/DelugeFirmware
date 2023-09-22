@@ -18,18 +18,20 @@
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
-#include "util/container/static_vector.hpp"
 #include "util/misc.h"
 
 namespace deluge::gui::menu_item::voice {
-class Priority final : public Selection<kNumVoicePriorities> {
+class Priority final : public Selection {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(*soundEditor.currentPriority); }
 	void writeCurrentValue() override { *soundEditor.currentPriority = this->getValue<VoicePriority>(); }
-	static_vector<std::string_view, capacity()> getOptions() override {
-		return {l10n::getView(l10n::String::STRING_FOR_LOW), l10n::getView(l10n::String::STRING_FOR_MEDIUM),
-		        l10n::getView(l10n::String::STRING_FOR_HIGH)};
+	std::vector<std::string_view> getOptions() override {
+		return {
+		    l10n::getView(l10n::String::STRING_FOR_LOW),
+		    l10n::getView(l10n::String::STRING_FOR_MEDIUM),
+		    l10n::getView(l10n::String::STRING_FOR_HIGH),
+		};
 	}
 };
 } // namespace deluge::gui::menu_item::voice
