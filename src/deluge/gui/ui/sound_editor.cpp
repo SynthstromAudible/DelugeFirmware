@@ -34,6 +34,7 @@
 #include "model/note/note_row.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
+#include "model/voice/voice_vector.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/mode/playback_mode.h"
@@ -910,12 +911,23 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 
 	// Otherwise...
 	if (currentUIMode == UI_MODE_NONE && on) {
-		if (getCurrentMenuItem() == &firmwareVersionMenu && (x == 0 && y == 0)) {
+		if (getCurrentMenuItem() == &firmwareVersionMenu && y == 7) {
 			char buffer[12] = {0};
-			auto& region = GeneralMemoryAllocator::get().regions[MEMORY_REGION_INTERNAL];
-			intToString(region.end - region.start, buffer);
-			display->displayPopup(buffer);
-			return ActionResult::DEALT_WITH;
+
+			// Read available internal memory
+			if (x == 15) {
+				auto& region = GeneralMemoryAllocator::get().regions[MEMORY_REGION_INTERNAL];
+				intToString(region.end - region.start, buffer);
+				display->displayPopup(buffer);
+				return ActionResult::DEALT_WITH;
+			}
+
+			// Read active voices
+			else if (x == 14) {
+				intToString(AudioEngine::activeVoices.getNumElements(), buffer);
+				display->displayPopup(buffer);
+				return ActionResult::DEALT_WITH;
+			}
 		}
 
 		exitCompletely();
