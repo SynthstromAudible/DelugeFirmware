@@ -54,6 +54,10 @@
 #include <new>
 #include <string.h>
 
+extern "C" {
+#include "RZA1/compiler/asm/inc/asm.h"
+}
+
 #if AUTOMATED_TESTER_ENABLED
 #include "testing/automated_tester.h"
 #endif
@@ -603,9 +607,17 @@ startAgain:
 
 	// Render audio for song
 	if (currentSong) {
-		asm("cpsid if");
+		bool interruptsDisabled = false;
+		if (!intc_func_active) {
+			__disable_irq();
+			interruptsDisabled = true;
+		}
+
 		currentSong->renderAudio(renderingBuffer, numSamples, reverbBuffer, sideChainHitPending);
-		asm("cpsie if");
+
+		if (interruptsDisabled) {
+			__enable_irq();
+		}
 	}
 
 #ifdef REPORT_CPU_USAGE
