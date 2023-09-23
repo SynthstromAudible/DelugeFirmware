@@ -34,6 +34,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "gui/waveform/waveform_renderer.h"
+#include "hid/button.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
@@ -64,6 +65,7 @@
 #include "util/d_string.h"
 #include "util/functions.h"
 #include <algorithm>
+#include <cstdint>
 #include <new>
 
 extern "C" {
@@ -1517,14 +1519,16 @@ int32_t setPresetOrNextUnlaunchedOne(InstrumentClip* clip, InstrumentType instru
 	return NO_ERROR;
 }
 
-Clip* SessionView::createNewInstrumentClip(int32_t yDisplay) {
+constexpr float colourStep = 22.5882352941;
+static float lastColour = 192 - colourStep + 1;
 
+Clip* SessionView::createNewInstrumentClip(int32_t yDisplay) {
 	actionLogger.deleteAllLogs();
 
 	void* memory = GeneralMemoryAllocator::get().alloc(sizeof(InstrumentClip), NULL, false, true);
-	if (!memory) {
+	if (memory == nullptr) {
 		display->displayError(ERROR_INSUFFICIENT_RAM);
-		return NULL;
+		return nullptr;
 	}
 
 	InstrumentClip* newClip = new (memory) InstrumentClip(currentSong);
@@ -1541,7 +1545,8 @@ Clip* SessionView::createNewInstrumentClip(int32_t yDisplay) {
 	// Default Clip length. Default to current zoom, minimum 1 bar
 	int32_t newClipLength = std::max(currentDisplayLength, oneBar);
 
-	newClip->colourOffset = random(72);
+	lastColour = std::fmod(lastColour + colourStep + 192, 192);
+	newClip->colourOffset = lastColour;
 	newClip->loopLength = newClipLength;
 
 	bool instrumentAlreadyInSong;
@@ -1629,7 +1634,7 @@ ramError:
 
 	// Give the new clip its stuff
 	newClip->cloneFrom(clip);
-	newClip->colourOffset = random(72);
+	newClip->colourOffset = 0; //random(72);
 
 	bool instrumentAlreadyInSong;
 	int32_t error;
@@ -3106,7 +3111,8 @@ void SessionView::gridRenderClipColor(Clip* clip, uint8_t resultColour[]) {
 
 	// Set a random color if unset and convert to result colour
 	if (clip->output->colour == 0) {
-		clip->output->colour = random(255) + 1;
+		lastColour = std::fmod(lastColour + colourStep + 192, 192);
+		clip->output->colour = lastColour;
 	}
 	hueToRGB(clip->output->colour, resultColour);
 
@@ -3118,8 +3124,11 @@ void SessionView::gridRenderClipColor(Clip* clip, uint8_t resultColour[]) {
 
 	// If clip is not active or grayed out - dim it
 	else if (!clip->activeIfNoSolo) {
-		colorCopy(resultColour, resultColour, 255,
-		          8); // I was not able to get more contrast without scrolling through colors feeling steppy
+		resultColour[0] = ((float)resultColour[0] / 255) * 10;
+		resultColour[1] = ((float)resultColour[1] / 255) * 10;
+		resultColour[2] = ((float)resultColour[2] / 255) * 10;
+		// colorCopy(resultColour, resultColour, 255,
+		//           8); // I was not able to get more contrast without scrolling through colors feeling steppy
 	}
 
 	if (greyout) {
@@ -3170,7 +3179,7 @@ Clip* SessionView::gridCreateClipInTrack(Output* targetOutput) {
 	actionLogger.deleteAllLogs();
 
 	// For safety we set it up exactly as we want it
-	newClip->colourOffset = random(72);
+	newClip->colourOffset = 0; // random(72);
 	newClip->loopLength = currentSong->getBarLength();
 	newClip->activeIfNoSolo = false;
 	newClip->soloingInSessionMode = false;
@@ -3242,7 +3251,7 @@ InstrumentClip* SessionView::gridCreateClipWithNewTrack(InstrumentType type) {
 	}
 
 	// For safety we set it up exactly as we want it
-	newClip->colourOffset = random(72);
+	newClip->colourOffset = 0; //random(72);
 	newClip->loopLength = currentSong->getBarLength();
 	newClip->activeIfNoSolo = false;
 	newClip->soloingInSessionMode = false;
@@ -3696,10 +3705,10 @@ ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {
 	if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW && offsetY != 0) {
 		auto track = gridTrackFromX(gridFirstPressedX, gridTrackCount());
 		if (track != nullptr) {
-			track->colour += offsetY;
-			// Use 0 as uninitialized
-			if (track->colour == 0) {
+			if (Buttons::isButtonPressed(hid::button::Y_ENC)) {
 				track->colour += offsetY;
+			} else {
+				track->colour = static_cast<int16_t>(track->colour + (colourStep * offsetY) + 192) % 192;
 			}
 			requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 		}
