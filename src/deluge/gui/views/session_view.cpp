@@ -3704,6 +3704,9 @@ ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {
 		if (track != nullptr) {
 			if (Buttons::isButtonPressed(hid::button::Y_ENC)) {
 				track->colour += offsetY;
+				if(track->colour == 0) {
+					track->colour += offsetY;
+				}
 			}
 			else {
 				track->colour = static_cast<int16_t>(track->colour + (colourStep * offsetY) + 192) % 192;
