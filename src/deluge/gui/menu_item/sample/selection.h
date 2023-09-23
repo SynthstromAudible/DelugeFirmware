@@ -20,9 +20,9 @@
 
 namespace deluge::gui::menu_item::sample {
 template <size_t n>
-class Selection : public menu_item::Selection<n> {
+class Selection : public menu_item::Selection {
 public:
-	using menu_item::Selection<n>::Selection;
+	using menu_item::Selection::Selection;
 	bool isRelevant(Sound* sound, int32_t whichThing) override {
 		if (sound == nullptr) {
 			return true; // For AudioClips

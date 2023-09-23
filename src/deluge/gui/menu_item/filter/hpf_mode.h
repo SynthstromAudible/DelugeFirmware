@@ -24,7 +24,7 @@
 #include "util/misc.h"
 
 namespace deluge::gui::menu_item::filter {
-class HPFMode final : public Selection<kNumHPFModes> {
+class HPFMode final : public Selection {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override {
@@ -33,7 +33,7 @@ public:
 	void writeCurrentValue() override {
 		soundEditor.currentModControllable->hpfMode = static_cast<FilterMode>(this->getValue() + kFirstHPFMode);
 	}
-	static_vector<std::string_view, capacity()> getOptions() override {
+	std::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
 		return {
 		    l10n::getView(STRING_FOR_SVF_BAND),

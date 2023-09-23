@@ -24,6 +24,7 @@
 #include "modulation/patch/patch_cable_set.h"
 #include "patch_cable_strength.h"
 #include "processing/sound/sound.h"
+#include "util/container/static_vector.hpp"
 #include <array>
 
 namespace deluge::gui::menu_item {

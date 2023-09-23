@@ -24,7 +24,7 @@
 #include "util/misc.h"
 
 namespace deluge::gui::menu_item::sample {
-class Interpolation final : public Selection<kNumInterpolationModes>, public FormattedTitle {
+class Interpolation final : public Selection, public FormattedTitle {
 public:
 	Interpolation(l10n::String name, l10n::String title_format_str)
 	    : Selection(name), FormattedTitle(title_format_str) {}
@@ -37,7 +37,7 @@ public:
 		soundEditor.currentSampleControls->interpolationMode = this->getValue<InterpolationMode>();
 	}
 
-	static_vector<std::string_view, capacity()> getOptions() override {
+	std::vector<std::string_view> getOptions() override {
 		return {l10n::getView(l10n::String::STRING_FOR_LINEAR), l10n::getView(l10n::String::STRING_FOR_SINC)};
 	}
 

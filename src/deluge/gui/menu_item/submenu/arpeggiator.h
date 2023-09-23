@@ -24,20 +24,16 @@
 
 namespace deluge::gui::menu_item::submenu {
 
-template <size_t n>
-class Arpeggiator final : public Submenu<n> {
+class Arpeggiator final : public Submenu {
 public:
-	using Submenu<n>::Submenu;
+	using Submenu::Submenu;
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override {
 
 		soundEditor.currentArpSettings = soundEditor.editingKit()
 		                                     ? &(static_cast<SoundDrum*>(soundEditor.currentSound))->arpSettings
 		                                     : &(static_cast<InstrumentClip*>(currentSong->currentClip))->arpSettings;
-		Submenu<n>::beginSession(navigatedBackwardFrom);
+		Submenu::beginSession(navigatedBackwardFrom);
 	}
 };
 
-// Template deduction guide, will not be required with P2582@C++23
-template <size_t n>
-Arpeggiator(l10n::String, MenuItem* const (&)[n]) -> Arpeggiator<n>;
 } // namespace deluge::gui::menu_item::submenu

@@ -24,7 +24,7 @@
 #include "util/misc.h"
 
 namespace deluge::gui::menu_item {
-class SynthMode final : public Selection<kNumSynthModes> {
+class SynthMode final : public Selection {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(soundEditor.currentSound->synthMode); }
@@ -33,9 +33,12 @@ public:
 		view.setKnobIndicatorLevels();
 	}
 
-	static_vector<std::string_view, capacity()> getOptions() override {
-		return {l10n::getView(l10n::String::STRING_FOR_SUBTRACTIVE), l10n::getView(l10n::String::STRING_FOR_FM),
-		        l10n::getView(l10n::String::STRING_FOR_RINGMOD)};
+	std::vector<std::string_view> getOptions() override {
+		return {
+		    l10n::getView(l10n::String::STRING_FOR_SUBTRACTIVE),
+		    l10n::getView(l10n::String::STRING_FOR_FM),
+		    l10n::getView(l10n::String::STRING_FOR_RINGMOD),
+		};
 	}
 
 	bool isRelevant(Sound* sound, int32_t whichThing) override {

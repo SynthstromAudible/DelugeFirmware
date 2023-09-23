@@ -20,12 +20,12 @@
 #include "gui/ui/sound_editor.h"
 
 namespace deluge::gui::menu_item::shortcuts {
-class Version final : public Selection<NUM_SHORTCUTS_VERSIONS> {
+class Version final : public Selection {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(soundEditor.shortcutsVersion); }
 	void writeCurrentValue() override { soundEditor.setShortcutsVersion(this->getValue()); }
-	static_vector<std::string_view, capacity()> getOptions() override {
+	std::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
 		return {
 		    l10n::getView(STRING_FOR_SHORTCUTS_VERSION_1),
