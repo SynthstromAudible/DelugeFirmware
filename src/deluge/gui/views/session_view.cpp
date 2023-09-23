@@ -1545,8 +1545,7 @@ Clip* SessionView::createNewInstrumentClip(int32_t yDisplay) {
 	// Default Clip length. Default to current zoom, minimum 1 bar
 	int32_t newClipLength = std::max(currentDisplayLength, oneBar);
 
-	lastColour = std::fmod(lastColour + colourStep + 192, 192);
-	newClip->colourOffset = lastColour;
+	newClip->colourOffset = random(72);
 	newClip->loopLength = newClipLength;
 
 	bool instrumentAlreadyInSong;
@@ -1634,7 +1633,7 @@ ramError:
 
 	// Give the new clip its stuff
 	newClip->cloneFrom(clip);
-	newClip->colourOffset = 0; //random(72);
+	newClip->colourOffset = random(72);
 
 	bool instrumentAlreadyInSong;
 	int32_t error;
@@ -3127,8 +3126,6 @@ void SessionView::gridRenderClipColor(Clip* clip, uint8_t resultColour[]) {
 		resultColour[0] = ((float)resultColour[0] / 255) * 10;
 		resultColour[1] = ((float)resultColour[1] / 255) * 10;
 		resultColour[2] = ((float)resultColour[2] / 255) * 10;
-		// colorCopy(resultColour, resultColour, 255,
-		//           8); // I was not able to get more contrast without scrolling through colors feeling steppy
 	}
 
 	if (greyout) {
@@ -3179,7 +3176,7 @@ Clip* SessionView::gridCreateClipInTrack(Output* targetOutput) {
 	actionLogger.deleteAllLogs();
 
 	// For safety we set it up exactly as we want it
-	newClip->colourOffset = 0; // random(72);
+	newClip->colourOffset = random(72);
 	newClip->loopLength = currentSong->getBarLength();
 	newClip->activeIfNoSolo = false;
 	newClip->soloingInSessionMode = false;
@@ -3251,7 +3248,7 @@ InstrumentClip* SessionView::gridCreateClipWithNewTrack(InstrumentType type) {
 	}
 
 	// For safety we set it up exactly as we want it
-	newClip->colourOffset = 0; //random(72);
+	newClip->colourOffset = random(72);
 	newClip->loopLength = currentSong->getBarLength();
 	newClip->activeIfNoSolo = false;
 	newClip->soloingInSessionMode = false;
@@ -3707,7 +3704,8 @@ ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {
 		if (track != nullptr) {
 			if (Buttons::isButtonPressed(hid::button::Y_ENC)) {
 				track->colour += offsetY;
-			} else {
+			}
+			else {
 				track->colour = static_cast<int16_t>(track->colour + (colourStep * offsetY) + 192) % 192;
 			}
 			requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
