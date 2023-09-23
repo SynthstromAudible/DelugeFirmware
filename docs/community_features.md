@@ -76,26 +76,19 @@ Here is a list of features that have been added to the firmware as a list, group
 	 - In grid mode you will not be able to see multiple clips that are in the same section, only the first one. To make them visible move the clips to other sections
 	 - The colored coloumn on the right are all available sections, the columns are automatically filled with the tracks in the same order as in arrangement mode
 	 - In session mode hold "SONG" and turn "SELECT" encoder to switch between row layout and grid layout
-	 - Existing clips (dimly white or green) can be opened by holding "CLIP" button and clicking on them
-	 - New clips can be created by holding "CLIP" button and clicking on an empty pad. If the column was empty a new track is created
-	 - By quickly clicking (and releasing) populated pads you can change the arm state
-		 - If "SHIFT" is held at the same time the clip will launch immediately
-		 - If "RECORD" is held at the same time you can change recording status
-		 - If "HORIZONTAL ENCODER" ◀︎▶︎ is held at the same time you can change solo state
-	 - By holding a populated pad you can see the track, change the parameters and convert it to other instruments similar to rows layout
-	 - Hold an existing pad and press on another pad in the same, other or empty row to copy clips. If possible the content will be converted to the target track type
-	 - To delete a clip hold the pad and press the "SAVE/DELETE" button
-	 - To arm a whole row click on the section color to the right
-	 - To immediately switch to a whole row hold "SHIFT" and click on the section color
-	 - To MIDI learn:
-		 - Arming a section hold "LEARN/INPUT" and hold the section pad
-		 - Arming a clip hold "LEARN/INPUT" and hold the clip pad
-		 - Note input to a track hold "SHIFT" + "LEARN/INPUT" and hold the pad of any populated clip for that track
-	 - Compared to rows layout the following is not supported
-	 	 - Overdub recording
-		 - Copying clips to arranger
-		 - Copying audio clips between different tracks
+	 - Compared to rows layout overdub recording and copying clips to arranger is currently not supported
 	 - A new menu to select the default Layout has been added in Shift+Selection Encoder -> Defaults -> UI -> Song -> Layout
+	 - There are different interaction modes that change how the grid behaves
+		- The mode can be changed by clicking on one of the colored pads in the Audition/Section column on the right
+		- To permanently switch the mode click on a pad and release, to temporarily switch hold the mode pad and use the grid, the mode will snap back to the current permanent one
+		- Green mode
+		    - All main pads behave the same as the Mute/Launch pads in rows layout (arm/immediate launch/mute/record/MIDI learn arm)
+			- Section pads (left sidebar column) behave the same as in rows layout, in addition Shift+Section will immediate launch all clips in that row
+		- Blue mode
+			- All main pads behave the same as the main pads in rows layout (open/select/create/delete/MIDI learn)
+			- While holding a clip it can be copied to other empty slots by clicking on them, apart from audio/instrument conversion clips are automatically moved to that instrument/track and converted (e.g. Synth to MIDI target)
+			- Section pads (left sidebar column) will allow changing repeat count while held
+
 ### 4.2 - Clip View - General Features (Instrument and Audio Clips)
 
 #### 4.2.1 - Filters
@@ -287,9 +280,9 @@ In the main menu of the deluge (accessed by pressing "SHIFT" + the "SELECT" knob
 
 * Drum Randomizer (DRUM)
 	* When On, the "AUDITION + RANDOM" shortcut is enabled.
-* Master Compressor (MAST)
+* Master Compressor (COMP)
 	* When On, the Master Compressor is enabled.
-* Fine Tempo Knob (FINE)
+* Fine Tempo Knob (TEMP)
 	* When On, the Fine Tempo change option is enabled.
 * Quantize (QUAN)
 	* When On, the Note Quantize shortcut is enabled.
@@ -297,33 +290,37 @@ In the main menu of the deluge (accessed by pressing "SHIFT" + the "SELECT" knob
 	* When On, Modulation Resolution is increased.
 * Catch Notes (CATC)
 	* When Off, existing "Catch Notes" behaviour is disabled.
-* Delete Unused Kit Rows (DELE)
+* Delete Unused Kit Rows (UNUS)
 	* When On, the Delete Unused Kit Rows shortcut (hold "KIT" then "SHIFT" + "SAVE/DELETE") is enabled.
-* Alternative Golden Knob Delay Params
+* Alternative Golden Knob Delay Params (DELA)
 	* When On, it changes the behaviour of the Mod Encoder button action from the default (PingPong and Type) to the alternative params (SyncType and SyncLevel).
-* Stutter Rate Quantize
+* Stutter Rate Quantize (STUT)
 	* When On, the ability to set the stutterer effect to be quantized to 4th, 8th, 16th, 32nd, and 64th rate when selecting it is enabled.
 * Automation (AUTO)
-	* Interpolation
+	* Interpolation (INTE)
 		* When On, Interpolation is on by default in the Automation Instrument Clip View.
 		* Note: This is just a default setting and can be overriden in the Automation Instrument Clip View using the Select encoder button.
-	* Clear Clip
+	* Clear Clip (CLEA)
 		* When On, clearing a clip in the regular Instrument Clip View will clear Notes and MPE, but not Automation.
 		* When On, to clear Non-MPE Automation you will need to enter the Automation Instrument Clip View.
-	* Nudge Note
+	* Nudge Note (NUDG)
 		* When On, nudging a note in the regular Instrument Clip View will nudge the Note and MPE, but not the Automation.
 		* When On, to nudge Non-MPE Automation, you will need to either Shift or Manually Edit the automation in the Automation Instrument Clip View.
-	* Shift Note
+	* Shift Note (SHIF)
 		* When On, shifting notes horizontally in the regular Instrument Clip View will shift the Notes and MPE, but not the Automation.
 		* When On, to shift Non-MPE Automation horizontally you will need to enter the Automation Instrument Clip View.
-* Allow Insecure Develop Sysex Messages
+* Allow Insecure Develop Sysex Messages (SYX)
   	* When On, the ability to load firmware over USB is enabled.
-* Sync Scaling Action
+* Sync Scaling Action (SCAL)
   	* When set to Fill, it changes the behaviour of the "SYNC-SCALING" button is changed to activate "FILL" mode. The original Sync Scaling button function is moved to "SHIFT" + "SYNC-SCALING".
-* Highlight Incoming Notes
+* Highlight Incoming Notes (HIGH)
   	* When On, In-Key and Isometric Keyboard layouts display incoming MIDI notes with their velocity.
-* Display Norns Layout
+* Display Norns Layout (NORN)
   	* When On, all incoming notes are rendered consecutively as white pads with velocity as brightness.
+* Sticky Shift
+  	* When On, tapping shift briefly will enable sticky keys while a long press will keep it on. Enabling this setting will automatically enable "Light Shift" as well.
+* Light Shift
+  	* When On, the Deluge will illuminate the shift button when shift is active. Mostly useful in conjunction with sticky shift.
 
 ## 6. Sysex Handling
 
@@ -352,18 +349,19 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#47]: https://github.com/SynthstromAudible/DelugeFirmware/pull/47
 [#103]: https://github.com/SynthstromAudible/DelugeFirmware/pull/103
 [#112]: https://github.com/SynthstromAudible/DelugeFirmware/pull/112
+[#118]: https://github.com/SynthstromAudible/DelugeFirmware/pull/118
 [#120]: https://github.com/SynthstromAudible/DelugeFirmware/pull/120
 [#122]: https://github.com/SynthstromAudible/DelugeFirmware/pull/122
 [#125]: https://github.com/SynthstromAudible/DelugeFirmware/pull/125
 [#129]: https://github.com/SynthstromAudible/DelugeFirmware/pull/129
-[#141]: https://github.com/SynthstromAudible/DelugeFirmware/pull/141
 [#137]: https://github.com/SynthstromAudible/DelugeFirmware/pull/137
 [#138]: https://github.com/SynthstromAudible/DelugeFirmware/pull/138
+[#141]: https://github.com/SynthstromAudible/DelugeFirmware/pull/141
 [#157]: https://github.com/SynthstromAudible/DelugeFirmware/pull/157
 [#163]: https://github.com/SynthstromAudible/DelugeFirmware/pull/163
-[#178]: https://github.com/SynthstromAudible/DelugeFirmware/pull/178
 [#170]: https://github.com/SynthstromAudible/DelugeFirmware/pull/170
 [#174]: https://github.com/SynthstromAudible/DelugeFirmware/pull/174
+[#178]: https://github.com/SynthstromAudible/DelugeFirmware/pull/178
 [#192]: https://github.com/SynthstromAudible/DelugeFirmware/pull/192
 [#196]: https://github.com/SynthstromAudible/DelugeFirmware/pull/196
 [#198]: https://github.com/SynthstromAudible/DelugeFirmware/pull/198

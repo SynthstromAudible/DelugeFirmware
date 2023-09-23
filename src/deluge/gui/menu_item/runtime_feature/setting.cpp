@@ -19,7 +19,6 @@
 #include "gui/menu_item/runtime_feature/setting.h"
 #include "gui/ui/sound_editor.h"
 #include "model/settings/runtime_feature_settings.h"
-#include "util/container/static_vector.hpp"
 #include <algorithm>
 #include <iterator>
 #include <ranges>
@@ -46,8 +45,8 @@ void Setting::writeCurrentValue() {
 	    runtimeFeatureSettings.settings[currentSettingIndex].options[this->getValue()].value;
 }
 
-static_vector<std::string_view, RUNTIME_FEATURE_SETTING_MAX_OPTIONS> Setting::getOptions() {
-	static_vector<std::string_view, capacity()> options;
+std::vector<std::string_view> Setting::getOptions() {
+	std::vector<std::string_view> options;
 	for (const RuntimeFeatureSettingOption& option : runtimeFeatureSettings.settings[currentSettingIndex].options) {
 		options.push_back(option.displayName);
 	}

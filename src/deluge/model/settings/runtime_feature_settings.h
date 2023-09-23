@@ -18,9 +18,11 @@
 #pragma once
 
 #include "util/container/array/resizeable_array.h"
-#include "util/container/static_vector.hpp"
 
+#include <array>
 #include <cstdint>
+#include <string_view>
+#include <vector>
 
 namespace deluge::gui::menu_item::runtime_feature {
 class Setting;
@@ -34,7 +36,7 @@ enum RuntimeFeatureStateToggle : uint32_t { Off = 0, On = 1 };
 // Declare additional enums for specific multi state settings (e.g. like RuntimeFeatureStateTrackLaunchStyle)
 enum RuntimeFeatureStateSyncScalingAction : uint32_t { SyncScaling = 0, Fill = 1 };
 
-/// Every setting needs to be delcared in here
+/// Every setting needs to be declared in here
 enum RuntimeFeatureSettingType : uint32_t {
 	DrumRandomizer,
 	MasterCompressorFx,
@@ -53,23 +55,25 @@ enum RuntimeFeatureSettingType : uint32_t {
 	SyncScalingAction,
 	HighlightIncomingNotes,
 	DisplayNornsLayout,
+	ShiftIsSticky,
+	LightShiftLed,
 	MaxElement // Keep as boundary
 };
 
 /// Definition for selectable options
 struct RuntimeFeatureSettingOption {
-	std::string displayName;
+	std::string_view displayName;
 	uint32_t value; // Value to be defined as typed Enum above
 };
 
 /// Every setting keeps its metadata and value in here
 struct RuntimeFeatureSetting {
-	std::string displayName;
-	std::string xmlName;
+	std::string_view displayName;
+	std::string_view xmlName;
 	uint32_t value;
 
 	// Limited to safe memory
-	deluge::static_vector<RuntimeFeatureSettingOption, RUNTIME_FEATURE_SETTING_MAX_OPTIONS> options;
+	std::vector<RuntimeFeatureSettingOption> options;
 };
 
 /// Encapsulating class
@@ -79,6 +83,13 @@ public:
 
 	// Traded type safety for option values for code simplicity and size, use enum from above to compare
 	inline uint32_t get(RuntimeFeatureSettingType type) { return settings[type].value; };
+
+	/**
+	 * Set a runtime feature setting.
+	 *
+	 * Make sure when you use this the settings are eventually written back to the SDCard!
+	 */
+	inline void set(RuntimeFeatureSettingType type, uint32_t value) { settings[type].value = value; }
 
 	void init();
 	void readSettingsFromFile();

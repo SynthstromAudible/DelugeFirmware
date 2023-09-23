@@ -16,12 +16,13 @@
  */
 
 #include "runtime_feature_settings.h"
+#include "definitions_cxx.hpp"
+#include "gui/l10n/l10n.h"
 #include "hid/display/display.h"
 #include "storage/storage_manager.h"
 #include "util/d_string.h"
-#include <cstdio>
 #include <cstring>
-#include <new>
+#include <string_view>
 
 #define RUNTIME_FEATURE_SETTINGS_FILE "CommunityFeatures.XML"
 #define TAG_RUNTIME_FEATURE_SETTINGS "runtimeFeatureSettings"
@@ -31,7 +32,7 @@
 
 /// Unknown Settings container
 struct UnknownSetting {
-	std::string name;
+	std::string_view name;
 	uint32_t value;
 };
 
@@ -40,8 +41,8 @@ RuntimeFeatureSettings runtimeFeatureSettings{};
 RuntimeFeatureSettings::RuntimeFeatureSettings() : unknownSettings(sizeof(UnknownSetting)) {
 }
 
-static void SetupOnOffSetting(RuntimeFeatureSetting& setting, const std::string& displayName,
-                              const std::string& xmlName, RuntimeFeatureStateToggle def) {
+static void SetupOnOffSetting(RuntimeFeatureSetting& setting, std::string_view displayName, std::string_view xmlName,
+                              RuntimeFeatureStateToggle def) {
 	setting.displayName = displayName;
 	setting.xmlName = xmlName;
 	setting.value = static_cast<uint32_t>(def);
@@ -58,75 +59,102 @@ static void SetupOnOffSetting(RuntimeFeatureSetting& setting, const std::string&
 	};
 }
 
-static void SetupSyncScalingActionSetting(RuntimeFeatureSetting& setting, char const* const displayName,
-                                          char const* const xmlName, RuntimeFeatureStateSyncScalingAction def) {
+static void SetupSyncScalingActionSetting(RuntimeFeatureSetting& setting, std::string_view displayName,
+                                          std::string_view xmlName, RuntimeFeatureStateSyncScalingAction def) {
 	setting.displayName = displayName;
 	setting.xmlName = xmlName;
 	setting.value = static_cast<uint32_t>(def);
 
-	setting.options = {{
-	                       .displayName = display->haveOLED() ? "Sync Scaling" : "SCAL",
-	                       .value = RuntimeFeatureStateSyncScalingAction::SyncScaling,
-	                   },
-	                   {
-	                       .displayName = display->haveOLED() ? "Fill mode" : "FILL",
-	                       .value = RuntimeFeatureStateSyncScalingAction::Fill,
-	                   }};
+	setting.options = {
+	    {
+	        .displayName = display->haveOLED() ? "Sync Scaling" : "SCAL",
+	        .value = RuntimeFeatureStateSyncScalingAction::SyncScaling,
+	    },
+	    {
+	        .displayName = display->haveOLED() ? "Fill mode" : "FILL",
+	        .value = RuntimeFeatureStateSyncScalingAction::Fill,
+	    },
+	};
 }
 
 void RuntimeFeatureSettings::init() {
+	using enum deluge::l10n::String;
 	// Drum randomizer
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DrumRandomizer], "Drum Randomizer", "drumRandomizer",
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DrumRandomizer],
+	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_DRUM_RANDOMIZER), "drumRandomizer",
 	                  RuntimeFeatureStateToggle::On);
 	// Master compressor
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::MasterCompressorFx], "Master Compressor", "masterCompressor",
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::MasterCompressorFx],
+	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_MASTER_COMPRESSOR), "masterCompressor",
 	                  RuntimeFeatureStateToggle::On);
 	// Quantize
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::Quantize], "Quantize", "quantize",
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::Quantize],
+	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_QUANTIZE), "quantize",
 	                  RuntimeFeatureStateToggle::On);
 	// FineTempoKnob
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::FineTempoKnob], "Fine Tempo Knob", "fineTempoknob",
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::FineTempoKnob],
+	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_FINE_TEMPO_KNOB), "fineTempoKnob",
 	                  RuntimeFeatureStateToggle::On);
 	// PatchCableResolution
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::PatchCableResolution], "Mod. depth decimals",
-	                  "ModDepthDecimals", RuntimeFeatureStateToggle::On);
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::PatchCableResolution],
+	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_MOD_DEPTH_DECIMALS), "modDepthDecimals",
+	                  RuntimeFeatureStateToggle::On);
 	// CatchNotes
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::CatchNotes], "CatchNotes", "catchNotes",
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::CatchNotes],
+	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_CATCH_NOTES), "catchNotes",
 	                  RuntimeFeatureStateToggle::On);
 	// DeleteUnusedKitRows
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DeleteUnusedKitRows], "Delete Unused Kit Rows",
-	                  "deleteUnusedKitRows", RuntimeFeatureStateToggle::On);
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DeleteUnusedKitRows],
+	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_DELETE_UNUSED_KIT_ROWS), "deleteUnusedKitRows",
+	                  RuntimeFeatureStateToggle::On);
 	// AltGoldenKnobDelayParams
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AltGoldenKnobDelayParams],
-	                  "Alternative Golden Knob Delay Params", "altGoldenKnobDelayParams",
+	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_ALT_DELAY_PARAMS), "altGoldenKnobDelayParams",
 	                  RuntimeFeatureStateToggle::Off);
 	// QuantizedStutterRate
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::QuantizedStutterRate], "Stutter Rate Quantize",
-	                  "quantizedStutterRate", RuntimeFeatureStateToggle::Off);
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::QuantizedStutterRate],
+	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_QUANTIZED_STUTTER), "quantizedStutterRate",
+	                  RuntimeFeatureStateToggle::Off);
 	// InterpolateAutomation
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationInterpolate], "Interpolation",
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationInterpolate],
+	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_INTERPOLATION),
 	                  "automationInterpolate", RuntimeFeatureStateToggle::On);
 	// ClearClipAutomation
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationClearClip], "Clear Clip", "automationClearClip",
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationClearClip],
+	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_CLEAR_CLIP), "automationClearClip",
 	                  RuntimeFeatureStateToggle::On);
 	// NudgeNoteAutomation
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationNudgeNote], "Nudge Note", "automationNudgeNote",
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationNudgeNote],
+	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_NUDGE_NOTE), "automationNudgeNote",
 	                  RuntimeFeatureStateToggle::On);
 	// ShiftNoteAutomation
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationShiftClip], "Shift Note", "AutomationShiftClip",
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationShiftClip],
+	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_SHIFT_CLIP), "automationShiftClip",
 	                  RuntimeFeatureStateToggle::On);
 	// devSysexAllowed
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DevSysexAllowed], "Allow Insecure Develop Sysex Messages",
-	                  "devSysexAllowed", RuntimeFeatureStateToggle::Off);
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DevSysexAllowed],
+	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_DEV_SYSEX), "devSysexAllowed",
+	                  RuntimeFeatureStateToggle::Off);
 	// SyncScalingAction
-	SetupSyncScalingActionSetting(settings[RuntimeFeatureSettingType::SyncScalingAction], "Sync Scaling Action",
+	SetupSyncScalingActionSetting(settings[RuntimeFeatureSettingType::SyncScalingAction],
+	                              deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_SYNC_SCALING_ACTION),
 	                              "syncScalingAction", RuntimeFeatureStateSyncScalingAction::SyncScaling);
 	// HighlightIncomingNotes
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::HighlightIncomingNotes], "Highlight incoming notes",
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::HighlightIncomingNotes],
+	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_HIGHLIGHT_INCOMING_NOTES),
 	                  "highlightIncomingNotes", RuntimeFeatureStateToggle::On);
 	// DisplayNornsLayout
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DisplayNornsLayout], "Display Norns layout",
-	                  "displayNornsLayout", RuntimeFeatureStateToggle::Off);
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DisplayNornsLayout],
+	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_NORNS_LAYOUT), "displayNornsLayout",
+	                  RuntimeFeatureStateToggle::Off);
+
+	// ShiftIsSticky
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ShiftIsSticky], "Sticky Shift", "stickyShift",
+	                  RuntimeFeatureStateToggle::Off);
+
+	// LightShiftLed
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::LightShiftLed], "Light Shift", "lightShift",
+	                  RuntimeFeatureStateToggle::Off);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {
@@ -166,7 +194,7 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 
 			bool found = false;
 			for (auto& setting : settings) {
-				if (strcmp(setting.xmlName.c_str(), currentName.get()) == 0) {
+				if (strcmp(setting.xmlName.data(), currentName.get()) == 0) {
 					found = true;
 					setting.value = currentValue;
 				}
@@ -181,7 +209,7 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 				}
 				void* address = unknownSettings.getElementAddress(idx);
 				auto* unknownSetting = new (address) UnknownSetting();
-				unknownSetting->name = std::string(currentName.get());
+				unknownSetting->name = currentName.get();
 				unknownSetting->value = currentValue;
 			}
 		}
@@ -207,7 +235,7 @@ void RuntimeFeatureSettings::writeSettingsToFile() {
 
 	for (auto& setting : settings) {
 		storageManager.writeOpeningTagBeginning(TAG_RUNTIME_FEATURE_SETTING);
-		storageManager.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_NAME, setting.xmlName.c_str(), false);
+		storageManager.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_NAME, setting.xmlName.data(), false);
 		storageManager.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_VALUE, setting.value, false);
 		storageManager.writeOpeningTagEnd(false);
 		storageManager.writeClosingTag(TAG_RUNTIME_FEATURE_SETTING, false);
@@ -217,7 +245,7 @@ void RuntimeFeatureSettings::writeSettingsToFile() {
 	for (uint32_t idxUnknownSetting = 0; idxUnknownSetting < unknownSettings.getNumElements(); idxUnknownSetting++) {
 		UnknownSetting* unknownSetting = (UnknownSetting*)unknownSettings.getElementAddress(idxUnknownSetting);
 		storageManager.writeOpeningTagBeginning(TAG_RUNTIME_FEATURE_SETTING);
-		storageManager.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_NAME, unknownSetting->name.c_str(), false);
+		storageManager.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_NAME, unknownSetting->name.data(), false);
 		storageManager.writeAttribute(TAG_RUNTIME_FEATURE_SETTING_ATTR_VALUE, unknownSetting->value, false);
 		storageManager.writeOpeningTagEnd(false);
 		storageManager.writeClosingTag(TAG_RUNTIME_FEATURE_SETTING, false);

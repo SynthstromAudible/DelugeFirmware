@@ -25,11 +25,10 @@
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
-#include "util/container/static_vector.hpp"
 #include "util/misc.h"
 
 namespace deluge::gui::menu_item::voice {
-class Polyphony final : public Selection<kNumPolyphonyModes> {
+class Polyphony final : public Selection {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(soundEditor.currentSound->polyphonic); }
@@ -55,10 +54,13 @@ public:
 		}
 	}
 
-	static_vector<std::string_view, capacity()> getOptions() override {
-		static_vector<std::string_view, capacity()> options = {
-		    l10n::getView(l10n::String::STRING_FOR_AUTO), l10n::getView(l10n::String::STRING_FOR_POLYPHONIC),
-		    l10n::getView(l10n::String::STRING_FOR_MONOPHONIC), l10n::getView(l10n::String::STRING_FOR_LEGATO)};
+	std::vector<std::string_view> getOptions() override {
+		std::vector<std::string_view> options = {
+		    l10n::getView(l10n::String::STRING_FOR_AUTO),
+		    l10n::getView(l10n::String::STRING_FOR_POLYPHONIC),
+		    l10n::getView(l10n::String::STRING_FOR_MONOPHONIC),
+		    l10n::getView(l10n::String::STRING_FOR_LEGATO),
+		};
 
 		if (soundEditor.editingKit()) {
 			options.push_back(l10n::getView(l10n::String::STRING_FOR_CHOKE));

@@ -225,7 +225,7 @@ envelope::Segment envDecayMenu{STRING_FOR_DECAY, STRING_FOR_ENV_DECAY_MENU_TITLE
 envelope::Segment envSustainMenu{STRING_FOR_SUSTAIN, STRING_FOR_ENV_SUSTAIN_MENU_TITLE, ::Param::Local::ENV_0_SUSTAIN};
 envelope::Segment envReleaseMenu{STRING_FOR_RELEASE, STRING_FOR_ENV_RELEASE_MENU_TITLE, ::Param::Local::ENV_0_RELEASE};
 
-MenuItem* envMenuItems[] = {
+std::array<MenuItem*, 4> envMenuItems = {
     &envAttackMenu,
     &envDecayMenu,
     &envSustainMenu,
@@ -258,7 +258,7 @@ osc::PulseWidth pulseWidthMenu{STRING_FOR_PULSE_WIDTH, STRING_FOR_OSC_P_WIDTH_ME
 osc::Sync oscSyncMenu{STRING_FOR_OSCILLATOR_SYNC};
 osc::RetriggerPhase oscPhaseMenu{STRING_FOR_RETRIGGER_PHASE, STRING_FOR_OSC_R_PHASE_MENU_TITLE, false};
 
-MenuItem* oscMenuItems[] = {
+std::array<MenuItem*, 17> oscMenuItems = {
     &oscTypeMenu,         &sourceVolumeMenu,     &sourceWaveIndexMenu, &sourceFeedbackMenu, &fileSelectorMenu,
     &audioRecorderMenu,   &sampleReverseMenu,    &sampleRepeatMenu,    &sampleStartMenu,    &sampleEndMenu,
     &sourceTransposeMenu, &samplePitchSpeedMenu, &timeStretchMenu,     &interpolationMenu,  &pulseWidthMenu,
@@ -854,7 +854,7 @@ Submenu defaultsSubmenu{
 // Sound editor menu -----------------------------------------------------------------------------
 
 // FM only
-MenuItem* modulatorMenuItems[] = {
+std::array<MenuItem*, 5> modulatorMenuItems = {
     &modulatorVolume, &modulatorTransposeMenu, &modulatorFeedbackMenu, &modulatorDestMenu, &modulatorPhaseMenu,
 };
 

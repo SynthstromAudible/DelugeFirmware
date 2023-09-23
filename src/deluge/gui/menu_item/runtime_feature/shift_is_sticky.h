@@ -1,5 +1,5 @@
 /*
- * Copyright © 2022-2023 Synthstrom Audible Limited
+ * Copyright © 2021-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -17,17 +17,15 @@
 
 #pragma once
 
-#include "gui/context_menu/context_menu.h"
+#include "gui/menu_item/runtime_feature/setting.h"
+#include "model/settings/runtime_feature_settings.h"
 
-namespace deluge::gui::context_menu {
-class OverwriteBootloader final : public ContextMenu {
+namespace deluge::gui::menu_item::runtime_feature {
+class ShiftIsSticky final : public Setting {
 public:
-	OverwriteBootloader() = default;
+	ShiftIsSticky() : Setting(RuntimeFeatureSettingType::ShiftIsSticky) {}
 
-	char const* getTitle() override;
-	Sized<char const**> getOptions() override;
-	bool acceptCurrentOption() override;
+	void writeCurrentValue() override;
 };
 
-extern OverwriteBootloader overwriteBootloader;
-} // namespace deluge::gui::context_menu
+} // namespace deluge::gui::menu_item::runtime_feature

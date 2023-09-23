@@ -1,10 +1,10 @@
-#pragma once
+#include "definitions_cxx.hpp"
 #include "gui/l10n/language.h"
 #include "gui/l10n/strings.h"
 
 namespace deluge::l10n::built_in {
 using enum String;
-constexpr Language english{
+PLACE_SDRAM_DATA Language english{
     "English",
     {
         {EMPTY_STRING, ""},
@@ -209,7 +209,6 @@ constexpr Language english{
         {STRING_FOR_LOAD_FILES, "Load file(s)"},
         {STRING_FOR_CLEAR_SONG_QMARK, "Clear song?"},
         {STRING_FOR_LOAD_PRESET, "Load preset"},
-        {STRING_FOR_OVERWRITE_BOOTLOADER_TITLE, "Overwrite bootloader at own risk"},
         {STRING_FOR_OVERWRITE_QMARK, "Overwrite?"},
 
         // gui/context_menu/audio_input_selector.cpp
@@ -244,13 +243,6 @@ constexpr Language english{
 
         // gui/context_menu/load_instrument_preset.cpp
         {STRING_FOR_CLONE, "Clone"},
-
-        // gui/context_menu/overwrite_bootloader.cpp
-        {STRING_FOR_ACCEPT_RISK, "Accept risk"},
-        {STRING_FOR_ERROR_BOOTLOADER_TOO_BIG, "Bootloader file too large"},
-        {STRING_FOR_ERROR_BOOTLOADER_TOO_SMALL, "Bootloader file too small"},
-        {STRING_FOR_BOOTLOADER_UPDATED, "Bootloader updated"},
-        {STRING_FOR_ERROR_BOOTLOADER_FILE_NOT_FOUND, "No boot*.bin file found"},
 
         // gui/context_menu/save_song_or_instrument.cpp
         {STRING_FOR_COLLECT_MEDIA, "Collect media"},
@@ -467,7 +459,7 @@ constexpr Language english{
         {STRING_FOR_SAMPLE_PREVIEW, "Sample preview"},
         {STRING_FOR_PLAY_CURSOR, "Play-cursor"},
         {STRING_FOR_FIRMWARE_VERSION, "Firmware version"},
-        {STRING_FOR_COMMUNITY_FTS, "Community fts."},
+        {STRING_FOR_COMMUNITY_FTS, "Community features"},
         {STRING_FOR_MIDI_THRU, "MIDI-thru"},
         {STRING_FOR_TAKEOVER, "TAKEOVER"},
         {STRING_FOR_RECORD, "Record"},
@@ -490,6 +482,25 @@ constexpr Language english{
         {STRING_FOR_MASTER_TRANSPOSE, "Master transpose"},
         {STRING_FOR_SYNTH_MODE, "Synth mode"},
         {STRING_FOR_FILTER_ROUTE, "Filter route"},
+
+        {STRING_FOR_COMMUNITY_FEATURE_DRUM_RANDOMIZER, "Drum Randomizer"},
+        {STRING_FOR_COMMUNITY_FEATURE_MASTER_COMPRESSOR, "Master Compressor"},
+        {STRING_FOR_COMMUNITY_FEATURE_QUANTIZE, "Quantize"},
+        {STRING_FOR_COMMUNITY_FEATURE_FINE_TEMPO_KNOB, "Fine Tempo Knob"},
+        {STRING_FOR_COMMUNITY_FEATURE_MOD_DEPTH_DECIMALS, "Mod. Depth Decimals"},
+        {STRING_FOR_COMMUNITY_FEATURE_CATCH_NOTES, "Catch Notes"},
+        {STRING_FOR_COMMUNITY_FEATURE_DELETE_UNUSED_KIT_ROWS, "Delete Unused Kit Rows"},
+        {STRING_FOR_COMMUNITY_FEATURE_ALT_DELAY_PARAMS, "Alternative Golden Knob Delay Params"},
+        {STRING_FOR_COMMUNITY_FEATURE_QUANTIZED_STUTTER, "Stutter Rate Quantize"},
+        {STRING_FOR_COMMUNITY_FEATURE_AUTOMATION, "Automation"},
+        {STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_INTERPOLATION, "Interpolation"},
+        {STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_CLEAR_CLIP, "Clear Clip"},
+        {STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_NUDGE_NOTE, "Nudge Note"},
+        {STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_SHIFT_CLIP, "Shift Note"},
+        {STRING_FOR_COMMUNITY_FEATURE_DEV_SYSEX, "Allow Insecure Develop Sysex Messages"},
+        {STRING_FOR_COMMUNITY_FEATURE_SYNC_SCALING_ACTION, "Sync Scaling Action"},
+        {STRING_FOR_COMMUNITY_FEATURE_HIGHLIGHT_INCOMING_NOTES, "Highlight Incoming Notes"},
+        {STRING_FOR_COMMUNITY_FEATURE_NORNS_LAYOUT, "Display Norns Layout"},
 
         {STRING_FOR_TRACK_STILL_HAS_CLIPS_IN_SESSION, "Track still has clips in session"},
         {STRING_FOR_DELETE_ALL_TRACKS_CLIPS_FIRST, "Delete all track's clips first"},

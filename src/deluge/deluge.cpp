@@ -25,7 +25,6 @@
 #include "gui/context_menu/clear_song.h"
 #include "gui/context_menu/delete_file.h"
 #include "gui/context_menu/load_instrument_preset.h"
-#include "gui/context_menu/overwrite_bootloader.h"
 #include "gui/context_menu/overwrite_file.h"
 #include "gui/context_menu/sample_browser/kit.h"
 #include "gui/context_menu/sample_browser/synth.h"
@@ -362,6 +361,11 @@ bool readButtonsAndPads() {
 		}
 	}
 
+	if (!sdRoutineLock && Buttons::shiftHasChanged()
+	    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::LightShiftLed) == RuntimeFeatureStateToggle::On) {
+		indicator_leds::setLedState(indicator_leds::LED::SHIFT, Buttons::isShiftButtonPressed());
+	}
+
 #if SD_TEST_MODE_ENABLED_LOAD_SONGS
 
 	if (playbackHandler.currentlyPlaying) {
@@ -600,7 +604,7 @@ extern "C" int32_t deluge_main(void) {
 
 	Encoders::init();
 
-#ifdef TEST_GENERAL_MEMORY_ALLOCATION
+#if TEST_GENERAL_MEMORY_ALLOCATION
 	GeneralMemoryAllocator::get().test();
 #endif
 

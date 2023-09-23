@@ -18,56 +18,19 @@
 #pragma once
 
 #include "gui/menu_item/enumeration.h"
-#include "gui/menu_item/menu_item.h"
-#include "util/container/static_vector.hpp"
-#include "util/sized.h"
-
-#include "gui/ui/sound_editor.h"
-#include "hid/display/display.h"
+#include <span>
+#include <string_view>
 
 namespace deluge::gui::menu_item {
-template <size_t n>
-class Selection : public Enumeration<n> {
+class Selection : public Enumeration {
 public:
-	using Enumeration<n>::Enumeration;
+	using Enumeration::Enumeration;
 
-	virtual static_vector<std::string_view, n> getOptions() = 0;
+	virtual std::vector<std::string_view> getOptions() = 0;
 
 	void drawValue() override;
 
 	void drawPixelsForOled() override;
 	size_t size() override { return this->getOptions().size(); }
-	constexpr static size_t capacity() { return n; }
 };
-
-template <size_t n>
-void Selection<n>::drawValue() {
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	else {
-		const auto options = getOptions();
-		display->setText(options[this->getValue()].data());
-	}
-}
-
-template <size_t n>
-void Selection<n>::drawPixelsForOled() {
-	// Move scroll
-	if (soundEditor.menuCurrentScroll > this->getValue()) {
-		soundEditor.menuCurrentScroll = this->getValue();
-	}
-	else if (soundEditor.menuCurrentScroll < this->getValue() - kOLEDMenuNumOptionsVisible + 1) {
-		soundEditor.menuCurrentScroll = this->getValue() - kOLEDMenuNumOptionsVisible + 1;
-	}
-
-	const int32_t selectedOption = this->getValue() - soundEditor.menuCurrentScroll;
-
-	deluge::static_vector<std::string_view, n> options;
-	for (auto const& option : getOptions()) {
-		options.push_back(option);
-	}
-	MenuItem::drawItemsForOled(options, selectedOption, soundEditor.menuCurrentScroll);
-}
-
 } // namespace deluge::gui::menu_item

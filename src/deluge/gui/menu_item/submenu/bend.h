@@ -21,19 +21,14 @@
 #include "model/song/song.h"
 
 namespace deluge::gui::menu_item::submenu {
-template <size_t n>
-class Bend final : public Submenu<n> {
+class Bend final : public Submenu {
 public:
-	using Submenu<n>::Submenu;
+	using Submenu::Submenu;
 	bool isRelevant(Sound* sound, int32_t whichThing) override {
 		// Drums within a Kit don't need the two-item submenu - they have their own single item.
 		const auto type = currentSong->currentClip->output->type;
 		return (type == InstrumentType::SYNTH || type == InstrumentType::CV);
 	}
 };
-
-// Template deduction guide, will not be required with P2582@C++23
-template <size_t n>
-Bend(l10n::String, MenuItem* const (&)[n]) -> Bend<n>;
 
 } // namespace deluge::gui::menu_item::submenu
