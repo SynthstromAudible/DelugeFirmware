@@ -167,8 +167,6 @@ public:
 	// Archaic leftover feature that users wouldn't let me get rid of
 	bool fileBrowserShouldNotPreview;
 
-	bool isEditingRowProbability;
-
 	int16_t mpeValuesAtHighestPressure[MPE_RECORD_LENGTH_FOR_NOTE_EDITING][kNumExpressionDimensions];
 	int16_t mpeMostRecentPressure;
 	uint32_t mpeRecordLastUpdateTime;

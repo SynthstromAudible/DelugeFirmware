@@ -2021,7 +2021,7 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
 			((Instrument*)currentSong->currentClip->output)->defaultVelocity = velocityValue;
 		}
 		if (display->haveOLED()) {
-			display->popupTextTemporary(displayString);
+			display->popupText(displayString);
 		}
 		else {
 			display->displayPopup(displayString, 0, true);
@@ -2163,7 +2163,7 @@ multiplePresses:
 		probabilityValue = editPadPresses[leftMostIndex].intendedProbability & 127;
 
 		// If editing, continue edit
-		if (display->hasPopup()) {
+		if (display->hasPopupOfType(DisplayPopupType::PROBABILITY)) {
 			Action* action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
 			if (!action) {
 				return;
@@ -2824,7 +2824,7 @@ void InstrumentClipView::setRowProbability(int32_t offset) {
 	uint8_t probabilityValue = noteRow->probabilityValue;
 
 	// If editing, continue edit
-	if (isEditingRowProbability) {
+	if (display->hasPopupOfType(DisplayPopupType::PROBABILITY)) {
 		Action* action = actionLogger.getNewAction(ACTION_NOTE_EDIT, true);
 		if (!action) {
 			return;
@@ -2847,7 +2847,6 @@ void InstrumentClipView::setRowProbability(int32_t offset) {
 			note->setProbability(probabilityValue);
 		}
 	}
-	isEditingRowProbability = true;
 	displayProbability(probabilityValue, false);
 }
 
@@ -2904,10 +2903,10 @@ void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) 
 	}
 
 	if (display->haveOLED()) {
-		display->popupText(displayString);
+		display->popupText(displayString, DisplayPopupType::PROBABILITY);
 	}
 	if (display->have7SEG()) {
-		display->displayPopup(displayString, 0, true, prevBase ? 3 : 255);
+		display->displayPopup(displayString, 0, true, prevBase ? 3 : 255, 1, DisplayPopupType::PROBABILITY);
 	}
 }
 
@@ -3358,7 +3357,6 @@ void InstrumentClipView::cancelAllAuditioning() {
 		memset(auditionPadIsPressed, 0, sizeof(auditionPadIsPressed));
 		reassessAllAuditionStatus();
 		exitUIMode(UI_MODE_AUDITIONING);
-		isEditingRowProbability = false;
 		uiNeedsRendering(this, 0, 0xFFFFFFFF);
 	}
 }
@@ -3501,7 +3499,6 @@ void InstrumentClipView::someAuditioningHasEnded(bool recalculateLastAuditionedN
 	// Or, if all auditioning now finished...
 	if (i == kDisplayHeight) {
 		exitUIMode(UI_MODE_AUDITIONING);
-		isEditingRowProbability = false;
 		auditioningSilently = false;
 
 		//check that you're not in automation instrument clip view and holding an automation pad down
@@ -4335,7 +4332,7 @@ void InstrumentClipView::quantizeNotes(int32_t offset, int32_t nudgeMode) {
 		}
 		intToString(abs(quantizeAmount * 10), buffer + strlen(buffer));
 		strcpy(buffer + strlen(buffer), "%");
-		deluge::hid::display::OLED::popupText(buffer, false);
+		display->popupTextTemporary(buffer);
 	}
 	else {
 		char buffer[5];

@@ -119,7 +119,7 @@ void HIDSysex::sendOLEDData(MIDIDevice* device, bool rle) {
 			                           data_size);
 		}
 		if (packed < 0) {
-			deluge::hid::display::OLED::popupText("eror: fail", false);
+			display->popupTextTemporary("eror: fail");
 		}
 		reply[6 + packed] = 0xf7; // end of transmission
 		device->sendSysex(reply, packed + 7);

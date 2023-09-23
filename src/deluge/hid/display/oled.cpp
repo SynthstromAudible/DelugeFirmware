@@ -495,6 +495,7 @@ void OLED::drawScreenTitle(std::string_view title) {
 
 int32_t oledPopupWidth = 0; // If 0, means popup isn't present / active.
 int32_t popupHeight;
+DisplayPopupType popupType = DisplayPopupType::NONE;
 
 int32_t popupMinX;
 int32_t popupMaxX;
@@ -632,6 +633,7 @@ void OLED::removePopup() {
 	//if (!oledPopupWidth) return;
 
 	oledPopupWidth = 0;
+	popupType = DisplayPopupType::NONE;
 	workingAnimationText = NULL;
 	uiTimerManager.unsetTimer(TIMER_DISPLAY);
 	sendMainImage();
@@ -639,6 +641,9 @@ void OLED::removePopup() {
 
 bool OLED::isPopupPresent() {
 	return oledPopupWidth;
+}
+bool OLED::isPopupPresentOfType(DisplayPopupType type) {
+	return oledPopupWidth && popupType == type;
 }
 
 void copyRowWithMask(uint8_t destMask, uint8_t sourceRow[], uint8_t destRow[], int32_t minX, int32_t maxX) {
@@ -827,7 +832,7 @@ void OLED::drawPermanentPopupLookingText(char const* text) {
 	}
 }
 
-void OLED::popupText(char const* text, bool persistent) {
+void OLED::popupText(char const* text, bool persistent, DisplayPopupType type) {
 
 	TextLineBreakdown textLineBreakdown;
 	textLineBreakdown.maxCharsPerLine = 19;
@@ -840,6 +845,7 @@ void OLED::popupText(char const* text, bool persistent) {
 	int32_t doubleMargin = 12;
 
 	setupPopup(textWidth + doubleMargin, textHeight + doubleMargin);
+	popupType = type;
 
 	int32_t textPixelY = (OLED_MAIN_HEIGHT_PIXELS - textHeight) >> 1;
 	if (textPixelY < 0) {
@@ -879,7 +885,7 @@ void updateWorkingAnimation() {
 	}
 
 	error = textNow.concatenate(buffer);
-	OLED::popupText(textNow.get(), true);
+	OLED::popupText(textNow.get(), true, DisplayPopupType::GENERAL);
 }
 
 void OLED::displayWorkingAnimation(char const* word) {
@@ -1289,7 +1295,7 @@ void OLED::freezeWithError(char const* text) {
 	spiTransferQueueCurrentlySending = false;
 
 	clearMainImage();
-	OLED::popupText("Operation resumed. Save to new file then reboot.", false);
+	OLED::popupText("Operation resumed. Save to new file then reboot.", false, DisplayPopupType::GENERAL);
 }
 
 extern std::string_view getErrorMessage(int32_t);
