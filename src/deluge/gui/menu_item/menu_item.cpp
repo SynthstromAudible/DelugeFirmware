@@ -17,6 +17,7 @@
 
 #include "menu_item.h"
 #include "hid/display/display.h"
+#include <string_view>
 
 using namespace deluge;
 
@@ -36,4 +37,27 @@ void MenuItem::renderOLED() {
 
 void MenuItem::drawName() {
 	display->setText(getName(), false, shouldDrawDotOnName());
+}
+
+// A couple of our child classes call this - that's all
+void MenuItem::drawItemsForOled(std::span<std::string_view> options, const int32_t selectedOption,
+                                const int32_t offset) {
+	int32_t baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
+	baseY += OLED_MAIN_TOPMOST_PIXEL;
+
+	auto it = std::next(options.begin(), offset); // fast-forward to the first option visible
+	for (int32_t o = 0; o < OLED_HEIGHT_CHARS - 1 && o < options.size() - offset; o++) {
+		int32_t yPixel = o * kTextSpacingY + baseY;
+
+		deluge::hid::display::OLED::drawString(options[o + offset], kTextSpacingX, yPixel,
+		                                       deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
+		                                       kTextSpacingX, kTextSpacingY);
+
+		if (o == selectedOption) {
+			deluge::hid::display::OLED::invertArea(0, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8,
+			                                       &deluge::hid::display::OLED::oledMainImage[0]);
+			deluge::hid::display::OLED::setupSideScroller(0, options[o + offset], kTextSpacingX, OLED_MAIN_WIDTH_PIXELS,
+			                                              yPixel, yPixel + 8, kTextSpacingX, kTextSpacingY, true);
+		}
+	}
 }

@@ -27,7 +27,7 @@
 #include "util/misc.h"
 
 namespace deluge::gui::menu_item::arpeggiator {
-class Mode final : public Selection<kNumArpModes> {
+class Mode final : public Selection {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(soundEditor.currentArpSettings->mode); }
@@ -60,7 +60,8 @@ public:
 			bool arpNow = (current_value != ArpMode::OFF); // Uh.... this does nothing...
 		}
 	}
-	static_vector<std::string_view, capacity()> getOptions() override {
+
+	std::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
 		return {
 		    l10n::getView(STRING_FOR_DISABLED), //<

@@ -57,6 +57,7 @@ Imported global variables and functions (from other files)
 /******************************************************************************
 Exported global variables and functions (to be accessed by other files)
 ******************************************************************************/
+volatile uint32_t intc_func_active = false;
 
 /******************************************************************************
 Private global variables and functions
@@ -658,9 +659,9 @@ static void (*intc_func_table[INTC_ID_TOTAL])(uint32_t int_sense) = {
 
 /******************************************************************************
 * Function Name: Userdef_INTC_RegistIntFunc
-* Description  : This function is the user-defined function called by the 
-*              : R_INTC_RegistIntFunc. Write the processing to register the 
-*              : specified function to the element specified by the int_id in 
+* Description  : This function is the user-defined function called by the
+*              : R_INTC_RegistIntFunc. Write the processing to register the
+*              : specified function to the element specified by the int_id in
 *              : INTC interrupt handler function table intc_func_table[].
 * Arguments    : uint16_t int_id         : Interrupt ID
 *              : void (* func)(uint32_t) : Function to be registered to INTC
@@ -674,9 +675,9 @@ void Userdef_INTC_RegistIntFunc(uint16_t int_id, void (*func)(uint32_t int_sense
 
 /******************************************************************************
 * Function Name: Userdef_INTC_UndefId
-* Description  : This function is the user-defined function called by the 
+* Description  : This function is the user-defined function called by the
 *              : INTC_Handler_Interrupt. Write the processing to be executed
-*              : when an unsupported interrupt ID is received. 
+*              : when an unsupported interrupt ID is received.
 * Arguments    : uint16_t int_id    : Interrupt ID
 * Return Value : none
 ******************************************************************************/
@@ -692,8 +693,8 @@ void Userdef_INTC_UndefId(uint16_t int_id)
 /******************************************************************************
 * Function Name: Userdef_INTC_Dummy_Interrupt
 * Description  : This function is the dummy processing for interrupt handler.
-*              : In this sample code, this function is registered by default in 
-*              : all interrupts in the INTC interrupt handler talbe 
+*              : In this sample code, this function is registered by default in
+*              : all interrupts in the INTC interrupt handler talbe
 *              : intc_func_table[].
 * Arguments    : uint32_t int_sense : Interrupt detection
 *              :                    :   INTC_LEVEL_SENSITIVE : Level sense
@@ -713,9 +714,9 @@ static void Userdef_INTC_Dummy_Interrupt(uint32_t int_sense)
 
 /******************************************************************************
 * Function Name: Userdef_INTC_HandlerExe
-* Description  : This function is the user-defined function called by the 
-*              : INTC_Handler_Interrupt. Write the handler processing which 
-*              : corresponds to the INTC interrupt source ID specified by the 
+* Description  : This function is the user-defined function called by the
+*              : INTC_Handler_Interrupt. Write the handler processing which
+*              : corresponds to the INTC interrupt source ID specified by the
 *              : argument int_id to be executed. In this sample code, the function
 *              : registered as an element of the int_id in the INTC interrupt handler
 *              : function table intc_func_table[] is executed.
@@ -727,12 +728,14 @@ static void Userdef_INTC_Dummy_Interrupt(uint32_t int_sense)
 ******************************************************************************/
 void Userdef_INTC_HandlerExe(uint16_t int_id, uint32_t int_sense)
 {
+    intc_func_active = true;
     intc_func_table[int_id](int_sense);
+    intc_func_active = false;
 }
 
 /******************************************************************************
 * Function Name: Userdef_FIQ_HandlerExe
-* Description  : This function is the user-defined function called by 
+* Description  : This function is the user-defined function called by
 *              : the FiqHandler_Interrupt.
 * Arguments    : none
 * Return Value : none

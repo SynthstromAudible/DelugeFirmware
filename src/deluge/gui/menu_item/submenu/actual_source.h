@@ -24,15 +24,14 @@
 extern void setOscillatorNumberForTitles(int32_t);
 
 namespace deluge::gui::menu_item::submenu {
-template <size_t n>
-class ActualSource final : public SubmenuReferringToOneThing<n> {
+class ActualSource final : public SubmenuReferringToOneThing {
 public:
-	using SubmenuReferringToOneThing<n>::SubmenuReferringToOneThing;
+	using SubmenuReferringToOneThing::SubmenuReferringToOneThing;
 
 	//OLED Only
 	void beginSession(MenuItem* navigatedBackwardFrom) {
 		setOscillatorNumberForTitles(this->thingIndex);
-		SubmenuReferringToOneThing<n>::beginSession(navigatedBackwardFrom);
+		SubmenuReferringToOneThing::beginSession(navigatedBackwardFrom);
 	}
 
 	// 7seg Only
@@ -44,13 +43,9 @@ public:
 			display->setText(buffer);
 		}
 		else {
-			SubmenuReferringToOneThing<n>::drawName();
+			SubmenuReferringToOneThing::drawName();
 		}
 	}
 };
-
-// Template deduction guide, will not be required with P2582@C++23
-template <size_t n>
-ActualSource(l10n::String, MenuItem* const (&)[n], int32_t) -> ActualSource<n>;
 
 } // namespace deluge::gui::menu_item::submenu

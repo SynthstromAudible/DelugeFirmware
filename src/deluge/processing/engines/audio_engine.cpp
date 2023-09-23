@@ -54,6 +54,10 @@
 #include <new>
 #include <string.h>
 
+extern "C" {
+#include "RZA1/compiler/asm/inc/asm.h"
+}
+
 #if AUTOMATED_TESTER_ENABLED
 #include "testing/automated_tester.h"
 #endif
@@ -93,8 +97,8 @@ int16_t zeroMPEValues[kNumExpressionDimensions] = {0, 0, 0};
 
 namespace AudioEngine {
 
-revmodel reverb{};
-Compressor reverbCompressor{};
+PLACE_INTERNAL_FRUNK revmodel reverb{};
+PLACE_INTERNAL_FRUNK Compressor reverbCompressor{};
 int32_t reverbCompressorVolume;
 int32_t reverbCompressorShape;
 int32_t reverbPan = 0;
@@ -169,8 +173,6 @@ VoiceSample* firstUnassignedVoiceSample = voiceSamples;
 TimeStretcher timeStretchers[kNumTimeStretchersStatic] = {};
 TimeStretcher* firstUnassignedTimeStretcher = timeStretchers;
 
-// Hmm, I forgot this was still being used. It's not a great way of doing things... wait does this still actually get used? No?
-Voice staticVoices[kNumVoicesStatic] = {};
 Voice* firstUnassignedVoice;
 
 // You must set up dynamic memory allocation before calling this, because of its call to setupWithPatching()
@@ -199,10 +201,6 @@ void init() {
 
 	for (int32_t i = 0; i < kNumTimeStretchersStatic; i++) {
 		timeStretchers[i].nextUnassigned = (i == kNumTimeStretchersStatic - 1) ? NULL : &timeStretchers[i + 1];
-	}
-
-	for (int32_t i = 0; i < kNumVoicesStatic; i++) {
-		staticVoices[i].nextUnassigned = (i == kNumVoicesStatic - 1) ? NULL : &staticVoices[i + 1];
 	}
 
 	i2sTXBufferPos = (uint32_t)getTxBufferStart();
@@ -609,7 +607,17 @@ startAgain:
 
 	// Render audio for song
 	if (currentSong) {
+		bool interruptsDisabled = false;
+		if (!intc_func_active) {
+			__disable_irq();
+			interruptsDisabled = true;
+		}
+
 		currentSong->renderAudio(renderingBuffer, numSamples, reverbBuffer, sideChainHitPending);
+
+		if (interruptsDisabled) {
+			__enable_irq();
+		}
 	}
 
 #ifdef REPORT_CPU_USAGE
@@ -1256,13 +1264,7 @@ void unassignVoice(Voice* voice, Sound* sound, ModelStackWithSoundFlags* modelSt
 }
 
 void disposeOfVoice(Voice* voice) {
-	if (voice >= staticVoices && voice < &staticVoices[kNumTimeStretchersStatic]) {
-		voice->nextUnassigned = firstUnassignedVoice;
-		firstUnassignedVoice = voice;
-	}
-	else {
-		GeneralMemoryAllocator::get().dealloc(voice);
-	}
+	GeneralMemoryAllocator::get().dealloc(voice);
 }
 
 VoiceSample* solicitVoiceSample() {

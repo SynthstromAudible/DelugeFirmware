@@ -24,7 +24,7 @@
 
 namespace deluge::gui::menu_item::mod_fx {
 
-class Type : public Selection<kNumModFXTypes> {
+class Type : public Selection {
 public:
 	using Selection::Selection;
 
@@ -35,7 +35,7 @@ public:
 		}
 	}
 
-	static_vector<std::string_view, capacity()> getOptions() override {
+	std::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
 		return {
 		    l10n::getView(STRING_FOR_DISABLED),      //<

@@ -21,7 +21,7 @@
 #include "storage/flash_storage.h"
 
 namespace deluge::gui::menu_item::defaults {
-class Magnitude final : public Enumeration<7> {
+class Magnitude final : public Enumeration {
 public:
 	using Enumeration::Enumeration;
 	void readCurrentValue() override { this->setValue(FlashStorage::defaultMagnitude); }
@@ -36,5 +36,6 @@ public:
 	}
 
 	void drawValue() override { display->setTextAsNumber(96 << this->getValue()); }
+	size_t size() override { return 7; }
 };
 } // namespace deluge::gui::menu_item::defaults

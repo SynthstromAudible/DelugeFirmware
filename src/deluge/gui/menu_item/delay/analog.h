@@ -23,12 +23,12 @@
 
 namespace deluge::gui::menu_item::delay {
 
-class Analog final : public Selection<2> {
+class Analog final : public Selection {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->delay.analog); }
 	void writeCurrentValue() override { soundEditor.currentModControllable->delay.analog = this->getValue(); }
-	static_vector<std::string_view, 2> getOptions() override {
+	std::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
 		return {l10n::getView(STRING_FOR_DIGITAL), l10n::getView(STRING_FOR_ANALOG)};
 	}
