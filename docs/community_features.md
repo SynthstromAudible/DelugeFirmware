@@ -89,7 +89,7 @@ Here is a list of features that have been added to the firmware as a list, group
 		- Blue mode
 			- All main pads behave the same as the main pads in rows layout (open/select/create/delete/MIDI learn)
 			- While holding a clip it can be copied to other empty slots by clicking on them, apart from audio/instrument conversion clips are automatically moved to that instrument/track and converted (e.g. Synth to MIDI target)
-			- Track color can be changed by holding any populated clip in a column and rotating the vertical encoder  
+			- Track color can be changed by holding any populated clip in a column and rotating the vertical encoder. For fine changes to the color press the encoder while turning.
 			- Section pads (left sidebar column) will allow changing repeat count while held
 
 ### 4.2 - Clip View - General Features (Instrument and Audio Clips)
