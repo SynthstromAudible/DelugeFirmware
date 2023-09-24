@@ -1361,7 +1361,7 @@ void View::drawOutputNameFromDetails(InstrumentType instrumentType, int32_t chan
 	//hook to render display for OLED and 7SEG when in Automation Instrument Clip View
 	if (getCurrentUI() == &automationInstrumentClipView) {
 		if (!automationInstrumentClipView.isOnAutomationOverview()) {
-			automationInstrumentClipView.displayAutomation();
+			automationInstrumentClipView.displayAutomation(true, !display->have7SEG());
 		}
 		else {
 			automationInstrumentClipView.renderDisplay();
