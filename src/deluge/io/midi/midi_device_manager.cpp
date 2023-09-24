@@ -40,7 +40,7 @@ extern uint8_t anyUSBSendingStillHappening[];
 //This is supported by GCC and other compilers should error (not warn), so turn off for this file
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
 
-PLACE_INTERNAL_FRUNK ConnectedUSBMIDIDevice connectedUSBMIDIDevices[USB_NUM_USBIP][MAX_NUM_USB_MIDI_DEVICES] = { 0 };
+PLACE_INTERNAL_FRUNK ConnectedUSBMIDIDevice connectedUSBMIDIDevices[USB_NUM_USBIP][MAX_NUM_USB_MIDI_DEVICES];
 
 namespace MIDIDeviceManager {
 
