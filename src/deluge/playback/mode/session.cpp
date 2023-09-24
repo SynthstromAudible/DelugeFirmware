@@ -1308,6 +1308,11 @@ void Session::userWantsToArmClipsToStartOrSolo(uint8_t section, Clip* clip, bool
 				longestStartingClipLength = thisClip->loopLength;
 			}
 		}
+
+		// If section was empty, use longest clip waitForClip length instead
+		if (longestStartingClipLength == 0) {
+			longestStartingClipLength = waitForClip->loopLength;
+		}
 	}
 
 	uint32_t quantization;
