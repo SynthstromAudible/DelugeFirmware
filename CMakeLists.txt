@@ -231,6 +231,8 @@ set_target_properties(deluge
 set(BIN_FILE $<CONFIG>/deluge${EXECUTABLE_VERSION_SUFFIX}.bin)
 set(HEX_FILE $<CONFIG>/deluge${EXECUTABLE_VERSION_SUFFIX}.hex)
 set(MAP_FILE $<CONFIG>/deluge${EXECUTABLE_VERSION_SUFFIX}.map)
+# set(OBJDUMP_FILE $<CONFIG>/deluge${EXECUTABLE_VERSION_SUFFIX}.objdump)
+set(NMDUMP_FILE $<CONFIG>/deluge${EXECUTABLE_VERSION_SUFFIX}.nmdump)
 
 # add link options to generate memory map
 target_link_options(deluge PUBLIC
@@ -256,6 +258,31 @@ add_custom_command(TARGET deluge
         DEPENDS deluge
         BYPRODUCTS ${HEX_FILE})
 
+# # generate .objdump file
+# add_custom_command(TARGET deluge
+#     POST_BUILD
+#         COMMAND ${CMAKE_OBJDUMP} -t $<TARGET_FILE:deluge> > ${OBJDUMP_FILE}
+#         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+#         COMMENT "Objdumping deluge firmware ${OBJDUMP_FILE}"
+#         DEPENDS deluge
+#         BYPRODUCTS ${OBJDUMP_FILE})
+
+# generate .nmdump file
+add_custom_command(TARGET deluge
+POST_BUILD
+    COMMAND ${CMAKE_NM} -t d -S -C -r --special-syms --size-sort $<TARGET_FILE:deluge> > ${NMDUMP_FILE}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    COMMENT "NM dumping deluge firmware ${NMDUMP_FILE}"
+    DEPENDS deluge
+    BYPRODUCTS ${NMDUMP_FILE})
+
+# Print size
+add_custom_command(TARGET deluge
+POST_BUILD
+    COMMAND ${CMAKE_SIZE} $<TARGET_FILE:deluge>
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    DEPENDS deluge)
+    
 # Clean up artefacts
 set_target_properties(deluge
     PROPERTIES

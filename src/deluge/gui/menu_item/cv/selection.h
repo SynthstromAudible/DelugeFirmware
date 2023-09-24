@@ -28,9 +28,9 @@ extern void setCvNumberForTitle(int32_t m);
 extern deluge::gui::menu_item::cv::Submenu cvSubmenu;
 
 namespace deluge::gui::menu_item::cv {
-class Selection final : public menu_item::Selection<2> {
+class Selection final : public menu_item::Selection {
 public:
-	using menu_item::Selection<capacity()>::Selection;
+	using menu_item::Selection::Selection;
 
 	void beginSession(MenuItem* navigatedBackwardFrom) override {
 		if (navigatedBackwardFrom == nullptr) {
@@ -39,7 +39,7 @@ public:
 		else {
 			this->setValue(soundEditor.currentSourceIndex);
 		}
-		menu_item::Selection<2>::beginSession(navigatedBackwardFrom);
+		menu_item::Selection::beginSession(navigatedBackwardFrom);
 	}
 
 	MenuItem* selectButtonPress() override {
@@ -48,7 +48,7 @@ public:
 		return &cvSubmenu;
 	}
 
-	static_vector<std::string_view, capacity()> getOptions() override {
+	std::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
 		static auto cv1 = l10n::getView(STRING_FOR_CV_OUTPUT_1);
 		static auto cv2 = l10n::getView(STRING_FOR_CV_OUTPUT_2);

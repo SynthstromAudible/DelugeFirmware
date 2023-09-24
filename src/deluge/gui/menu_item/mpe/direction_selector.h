@@ -23,11 +23,11 @@
 
 namespace deluge::gui::menu_item::mpe {
 
-class DirectionSelector final : public Selection<2> {
+class DirectionSelector final : public Selection {
 public:
 	using Selection::Selection;
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
-	static_vector<std::string_view, capacity()> getOptions() override {
+	std::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
 		return {
 		    l10n::getView(STRING_FOR_IN),
