@@ -136,6 +136,8 @@ private:
 	bool gridRenderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
 	                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
 
+	void gridRenderClipColor(Clip* clip, uint8_t resultColour[]);
+
 	ActionResult gridHandlePads(int32_t x, int32_t y, int32_t on);
 	ActionResult gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, Clip* clip);
 	ActionResult gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on, Clip* clip);
