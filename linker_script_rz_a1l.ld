@@ -97,10 +97,8 @@ SECTIONS
 	.frunk_bss (NOLOAD) :
 	{
         . = ALIGN(4);
-        PROVIDE(__frunk_bss_start = .);
         *(.frunk_bss .frunk_bss*)
         . = ALIGN(4);
-        PROVIDE(__frunk_bss_end = .);
 	} > RAM012L
 
 	/* L1 translation table must be aligned to 16KB Boundary!           */
