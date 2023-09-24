@@ -635,9 +635,7 @@ startAgain:
 
 		usageTimes[REPORT_AVERAGE_NUM - 1] = value;
 
-		Debug::print("uS per ");
-		Debug::print(NUM_SAMPLES_FOR_CPU_USAGE_REPORT * 10);
-		Debug::print(" samples: ");
+		Debug::print("uS ");
 		Debug::println(total / REPORT_AVERAGE_NUM);
 	}
 #endif
