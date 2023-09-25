@@ -731,7 +731,7 @@ void changeDimmerInterval(int32_t offset) {
 		pos = strchr(text, 0);
 		*(pos++) = '%';
 		*pos = 0;
-		deluge::hid::display::OLED::popupText(text, false);
+		display->popupTextTemporary(text);
 	}
 }
 
