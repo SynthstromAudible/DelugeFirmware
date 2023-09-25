@@ -6,6 +6,13 @@
 class NumericLayer;
 class NumericLayerScrollingText;
 
+enum DisplayPopupType {
+	NONE,
+	GENERAL,     // Default popup type, if not specified
+	PROBABILITY, // Popup shown when editing note or row probability
+	             // Note: Add here more popup types
+};
+
 namespace deluge::hid {
 
 class Display {
@@ -19,10 +26,10 @@ public:
 	                     int32_t scrollPos = 0, uint8_t* blinkAddition = NULL, bool justReplaceBottomLayer = false){};
 
 	virtual void displayPopup(char const* newText, int8_t numFlashes = 3, bool alignRight = false, uint8_t = 255,
-	                          int32_t = 1) = 0;
+	                          int32_t = 1, DisplayPopupType type = DisplayPopupType::GENERAL) = 0;
 
-	virtual void popupText(char const* text) = 0;
-	virtual void popupTextTemporary(char const* text) = 0;
+	virtual void popupText(char const* text, DisplayPopupType type = DisplayPopupType::GENERAL) = 0;
+	virtual void popupTextTemporary(char const* text, DisplayPopupType type = DisplayPopupType::GENERAL) = 0;
 
 	virtual void setNextTransitionDirection(int8_t thisDirection){};
 
@@ -39,6 +46,7 @@ public:
 	virtual void removeLoadingAnimation() = 0;
 
 	virtual bool hasPopup() = 0;
+	virtual bool hasPopupOfType(DisplayPopupType type) = 0;
 
 	virtual void consoleText(char const* text) = 0;
 
