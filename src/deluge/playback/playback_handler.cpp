@@ -2751,8 +2751,7 @@ void PlaybackHandler::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, ui
 	}
 	else {
 
-		// If the SoundEditor is the active UI, give it first dibs on the message
-		if (getCurrentUI() == &soundEditor) {
+	if (getCurrentUI() == &soundEditor) {
 			if (soundEditor.midiCCReceived(fromDevice, channel, ccNumber, value)) {
 				return;
 			}

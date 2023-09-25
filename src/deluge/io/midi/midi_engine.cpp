@@ -935,6 +935,8 @@ void MidiEngine::midiMessageReceived(MIDIDevice* fromDevice, uint8_t statusType,
 		// All these messages, we should only interpret if there's definitely a song loaded
 		if (currentSong) {
 
+		// If the SoundEditor is the active UI, give it first dibs on the message
+
 			switch (statusType) {
 
 			case 0x09: // Note on

@@ -22,6 +22,7 @@
 #include "gui/ui/root_ui.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
+#include "hid/display/display.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
 #include "memory/general_memory_allocator.h"
@@ -232,6 +233,22 @@ justAuditionNote:
 					}
 				}
 				*/
+				if (sustainPedalPressed) {
+					if (sustainedNotes.searchExact(note) == -1) {
+						// if we are over the number of maximum sustainable notes
+						int32_t deleteSlots = sustainedNotes.getNumElements() - SUSTAIN_MAX;
+						if (deleteSlots > 0) {
+							for (int32_t i = 0; i < deleteSlots; i++) {
+								EarlyNote* dNote = (EarlyNote*)sustainedNotes.getElementAddress(i);
+								// fire note-offs for them
+								unsustainNote(dNote->note);
+							}
+						}
+
+						// add the note to the sustained note list
+						sustainedNotes.insertElementIfNonePresent(note, velocity);
+					}
+				}
 				beginAuditioningForNote(modelStack->toWithSong(), // Safe, cos we won't reference this again
 				                        note, velocity, mpeValues, midiChannel);
 			}
@@ -239,33 +256,44 @@ justAuditionNote:
 
 		// Note-off
 		else {
-			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::HighlightIncomingNotes)
-			        == RuntimeFeatureStateToggle::On
-			    && instrumentClip == currentSong->currentClip) {
-				highlightNoteValue = 0;
-			}
-			// NoteRow must already be auditioning
-			if (notesAuditioned.searchExact(note) != -1) {
 
-				if (noteRow) {
-					// If we get here, we know there is a Clip
-					if (shouldRecordNotes
-					    && ((playbackHandler.recording == RECORDING_ARRANGEMENT
-					         && instrumentClip->isArrangementOnlyClip())
-					        || currentSong->isClipActive(instrumentClip))) {
+			if (sustainPedalPressed) {
+				char popup[30];
+				strcpy(popup, "HX/");
+				intToString(notesAuditioned.getNumElements(), strlen(popup) + popup);
+				strcpy(popup, "SN/");
+				intToString(sustainedNotes.getNumElements(), strlen(popup) + popup);
+				display->displayPopup(popup);
+			} else {
+				if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::HighlightIncomingNotes)
+						== RuntimeFeatureStateToggle::On
+					&& instrumentClip == currentSong->currentClip) {
+					highlightNoteValue = 0;
+				}
+				// NoteRow must already be auditioning
+				if (notesAuditioned.searchExact(note) != -1) {
 
-						if (playbackHandler.recording == RECORDING_ARRANGEMENT
-						    && !instrumentClip->isArrangementOnlyClip()) {}
-						else {
-							instrumentClip->recordNoteOff(modelStackWithNoteRow, velocity);
-							if (getRootUI()) {
-								getRootUI()->noteRowChanged(instrumentClip, noteRow);
+					if (noteRow) {
+						// If we get here, we know there is a Clip
+						if (shouldRecordNotes
+							&& ((playbackHandler.recording == RECORDING_ARRANGEMENT
+								&& instrumentClip->isArrangementOnlyClip())
+								|| currentSong->isClipActive(instrumentClip))) {
+
+							if (playbackHandler.recording == RECORDING_ARRANGEMENT
+								&& !instrumentClip->isArrangementOnlyClip()) {}
+							else {
+								instrumentClip->recordNoteOff(modelStackWithNoteRow, velocity);
+								if (getRootUI()) {
+									getRootUI()->noteRowChanged(instrumentClip, noteRow);
+								}
 							}
 						}
-					}
 
-					instrumentClipView.reportNoteOffForMPEEditing(modelStackWithNoteRow);
+						instrumentClipView.reportNoteOffForMPEEditing(modelStackWithNoteRow);
+					}
 				}
+
 			}
 
 			if (noteRow) {
@@ -277,10 +305,13 @@ justAuditionNote:
 				}
 			}
 
-			// We want to make sure we sent the note-off even if it didn't think auditioning was happening. This is to stop a stuck note
-			// if MIDI thru was on and they're releasing the note while still holding learn to learn that input to a MIDIInstrument (with external synth attached)
-			endAuditioningForNote(modelStack->toWithSong(), // Safe, cos we won't reference this again
-			                      note, velocity);
+			if (!sustainPedalPressed) {
+				// We want to make sure we sent the note-off even if it didn't think auditioning was happening. This is to stop a stuck note
+				// if MIDI thru was on and they're releasing the note while still holding learn to learn that input to a MIDIInstrument (with external synth attached)
+				endAuditioningForNote(modelStack->toWithSong(), // Safe, cos we won't reference this again
+									note, velocity);
+
+			}
 		}
 	}
 
@@ -344,6 +375,13 @@ void MelodicInstrument::offerReceivedCC(ModelStackWithTimelineCounter* modelStac
 	if (midiInput.equalsDevice(fromDevice)) {
 
 		if (midiInput.channelOrZone == channel) {
+			if (ccNumber == 64 && value > 125) {
+				sustainPedalOn();
+			} else if (ccNumber == 64 && value <= 125) {
+				lastModelStack = modelStackWithTimelineCounter;
+				lastDevice =  fromDevice;
+				sustainPedalOff();
+			}
 			//map non MPE mod wheel to y expression
 			if (ccNumber == 1) {
 				int32_t value32 = (value - 64) << 25;
@@ -666,4 +704,39 @@ void MelodicInstrument::polyphonicExpressionEventPossiblyToRecord(ModelStackWith
 	}
 
 	expressionValueChangesMustBeDoneSmoothly = false;
+}
+
+void MelodicInstrument::sustainPedalOn() {
+	sustainPedalPressed = true;
+
+	for (int i = 0; i < notesAuditioned.getNumElements(); i++) {
+		EarlyNote* note = (EarlyNote*)notesAuditioned.getElementAddress(i);
+		sustainedNotes.insertElementIfNonePresent(note->note, note->velocity);
+		notesAuditioned.deleteAtKey(note->note);
+	}
+	char popup[30];
+	strcpy(popup, "SN1/");
+	intToString(sustainedNotes.getNumElements(), strlen(popup) + popup);
+	display->displayPopup(popup);
+
+}
+
+void MelodicInstrument::unsustainNote(int32_t note) {
+	int32_t idx = sustainedNotes.searchExact(note);
+	if (idx != -1) {
+		offerReceivedNote(lastModelStack, lastDevice, false, midiInput.channelOrZone, note, 0, true, nullptr);
+		sustainedNotes.deleteAtKey(note);
+	}
+}
+void MelodicInstrument::sustainPedalOff() {
+	sustainPedalPressed = false;
+	char popup[30];
+	strcpy(popup, "SN0/");
+	intToString(sustainedNotes.getNumElements(), strlen(popup) + popup);
+	display->displayPopup(popup);
+	for(int i = 0; i < sustainedNotes.getNumElements(); i++) {
+		EarlyNote* note = (EarlyNote*)sustainedNotes.getElementAddress(i);//(uint32_t*)sustainedNotes.getElementAddress(i);
+		unsustainNote(note->note);
+	}
+	sustainedNotes.empty();
 }

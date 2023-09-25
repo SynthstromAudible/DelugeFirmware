@@ -20,13 +20,16 @@
 #include "io/midi/learned_midi.h"
 #include "model/instrument/instrument.h"
 #include "modulation/arpeggiator.h"
+#include "util/container/array/ordered_resizeable_array.h"
 #include "util/container/array/early_note_array.h"
+#define SUSTAIN_MAX 15
 
 class PostArpTriggerable;
 class NoteRow;
 class ModelStackWithAutoParam;
 class ModelStackWithThreeMainThings;
 class MIDIDevice;
+class OrderedResizeable32bitArray;
 
 class MelodicInstrument : public Instrument {
 public:
@@ -77,11 +80,19 @@ public:
 
 	void offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone, int32_t whichBendRange,
 	                          int32_t bendSemitones);
+	void sustainPedalOn();
+	void sustainPedalOff();
+	void unsustainNote(int32_t note);
 
 	Arpeggiator arpeggiator;
 
 	EarlyNoteArray earlyNotes;
 	EarlyNoteArray notesAuditioned;
 
+
 	LearnedMIDI midiInput;
+	EarlyNoteArray sustainedNotes;
+	ModelStackWithTimelineCounter* lastModelStack;
+	MIDIDevice* lastDevice;
+	bool sustainPedalPressed = false;
 };
