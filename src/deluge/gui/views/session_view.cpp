@@ -3008,7 +3008,7 @@ bool SessionView::gridRenderMainPads(uint32_t whichRows, RGB image[][kDisplayWid
 		// Render colour for every valid clip
 		if (x >= 0 && y >= 0) {
 			occupancyMask[y][x] = 64;
-			gridRenderClipColor(clip, image[y][x]);
+			image[y][x] = gridRenderClipColor(clip);
 		}
 	}
 
@@ -3017,7 +3017,7 @@ bool SessionView::gridRenderMainPads(uint32_t whichRows, RGB image[][kDisplayWid
 	return true;
 }
 
-void SessionView::gridRenderClipColor(Clip* clip, uint8_t resultColour[]) {
+RGB SessionView::gridRenderClipColor(Clip* clip) {
 	// Greyout all clips during record button pressed or soloing, overwrite for clips that shouldn't be greyed out
 	bool greyout = (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING) || currentSong->getAnyClipsSoloing();
 
@@ -3029,31 +3029,17 @@ void SessionView::gridRenderClipColor(Clip* clip, uint8_t resultColour[]) {
 			// Bright colour
 			if (clip->wantsToBeginLinearRecording(currentSong)) {
 				if (shouldGoPurple) {
-					resultColour[0] = 128;
-					resultColour[1] = 0;
-					resultColour[2] = 128;
+					return colours::magenta;
 				}
-				else {
-					resultColour[0] = 255;
-					resultColour[1] = 1;
-					resultColour[2] = 0;
-				}
+				return colours::red;
 			}
+
 			// Dull colour, cos can't actually begin linear recording despite being armed
-			else {
-				if (shouldGoPurple) {
-					resultColour[0] = 60;
-					resultColour[1] = 15;
-					resultColour[2] = 60;
-				}
-				else {
-					resultColour[0] = 60;
-					resultColour[1] = 15;
-					resultColour[2] = 15;
-				}
+			if (shouldGoPurple) {
+				return colours::magenta_dull;
 			}
+			return colours::red_dull;
 		}
-		return;
 	}
 
 	// MIDI Learning
@@ -3061,14 +3047,11 @@ void SessionView::gridRenderClipColor(Clip* clip, uint8_t resultColour[]) {
 		if (gridModeActive == SessionGridModeLaunch) {
 			// Clip arm learned
 			if (clip->muteMIDICommand.containsSomething()) {
-				resultColour[0] = midiCommandColour.r;
-				resultColour[1] = midiCommandColour.g;
-				resultColour[2] = midiCommandColour.b;
-				return;
+				return colours::midi_command;
 			}
 			// Selected but unlearned
-			else if (view.learnedThing == &clip->muteMIDICommand) {
-				return; // Flash black
+			if (view.learnedThing == &clip->muteMIDICommand) {
+				return colours::black; // Flash black
 			}
 		}
 		else if (gridModeActive == SessionGridModeEdit) {
@@ -3077,23 +3060,20 @@ void SessionView::gridRenderClipColor(Clip* clip, uint8_t resultColour[]) {
 			bool canLearn =
 			    (type == InstrumentType::SYNTH || type == InstrumentType::MIDI_OUT || type == InstrumentType::CV);
 			if (canLearn && ((MelodicInstrument*)clip->output)->midiInput.containsSomething()) {
-				resultColour[0] = midiCommandColour.r;
-				resultColour[1] = midiCommandColour.g;
-				resultColour[2] = midiCommandColour.b;
-				return;
+				return colours::midi_command;
 			}
 
 			// Selected but unlearned
-			else if (view.thingPressedForMidiLearn == MidiLearn::MELODIC_INSTRUMENT_INPUT
-			         && view.learnedThing == &((MelodicInstrument*)clip->output)->midiInput) {
-				return; // Flash black
+			if (view.thingPressedForMidiLearn == MidiLearn::MELODIC_INSTRUMENT_INPUT
+			    && view.learnedThing == &((MelodicInstrument*)clip->output)->midiInput) {
+				return colours::black; // Flash black
 			}
 		}
 	}
 
 	// Black phase of arm flashing
 	if (view.clipArmFlashOn && clip->armState != ArmState::OFF) {
-		return;
+		return colours::black;
 	}
 
 	// Set a random color if unset and convert to result colour
@@ -3101,7 +3081,8 @@ void SessionView::gridRenderClipColor(Clip* clip, uint8_t resultColour[]) {
 		lastColour = std::fmod(lastColour + colourStep + 192, 192);
 		clip->output->colour = lastColour;
 	}
-	hueToRGB(clip->output->colour, resultColour);
+
+	RGB resultColour = RGB::fromHue(clip->output->colour);
 
 	// If we are not in record arming mode make this clip full color for being soloed
 	if ((clip->soloingInSessionMode || clip->armState == ArmState::ON_TO_SOLO)
@@ -3111,13 +3092,11 @@ void SessionView::gridRenderClipColor(Clip* clip, uint8_t resultColour[]) {
 
 	// If clip is not active or grayed out - dim it
 	else if (!clip->activeIfNoSolo) {
-		resultColour[0] = ((float)resultColour[0] / 255) * 10;
-		resultColour[1] = ((float)resultColour[1] / 255) * 10;
-		resultColour[2] = ((float)resultColour[2] / 255) * 10;
+		resultColour = resultColour.transform([](auto chan) { return ((float)chan / 255) * 10; });
 	}
 
 	if (greyout) {
-		greyColourOut(resultColour, resultColour, 6500000);
+		return resultColour.greyOut(6500000);
 	}
 }
 
