@@ -167,7 +167,7 @@ doNormal:
 			} while (++currentSample != bufferEnd);
 		}
 		//otherwise we can run a bunch of processing on an empty buffer
-		if (rendered) {
+		if (isClipActive | rendered) {
 
 			// Render filters
 			processFilters(globalEffectableBuffer, numSamples);
