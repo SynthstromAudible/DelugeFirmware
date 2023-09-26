@@ -208,6 +208,7 @@ bool Output::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 		}
 		storageManager.writeAttribute("isArmedForRecording", armedForRecording);
 		storageManager.writeAttribute("activeModFunction", modKnobMode);
+		storageManager.writeAttribute("colour", colour);
 
 		if (clipInstances.getNumElements()) {
 			storageManager.write("\n");
@@ -279,6 +280,10 @@ bool Output::readTagFromFile(char const* tagName) {
 
 	else if (!strcmp(tagName, "activeModFunction")) {
 		modKnobMode = storageManager.readTagOrAttributeValueInt();
+	}
+
+	else if (!strcmp(tagName, "colour")) {
+		colour = storageManager.readTagOrAttributeValueInt();
 	}
 
 	else if (!strcmp(tagName, "trackInstances") || !strcmp(tagName, "clipInstances")) {

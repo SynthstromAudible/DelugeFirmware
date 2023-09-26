@@ -246,7 +246,7 @@ ActionResult Slicer::horizontalEncoderAction(int32_t offset) {
 			char buffer[24];
 			strcpy(buffer, "Start: ");
 			intToString(manualSlicePoints[currentSlice].startPos, buffer + strlen(buffer));
-			deluge::hid::display::OLED::popupText(buffer, false);
+			display->popupTextTemporary(buffer);
 		}
 		else {
 			char buffer[12];
@@ -271,7 +271,7 @@ ActionResult Slicer::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 			char buffer[24];
 			strcpy(buffer, "Transpose: ");
 			intToString(manualSlicePoints[currentSlice].transpose, buffer + strlen(buffer));
-			deluge::hid::display::OLED::popupText(buffer, false);
+			display->popupTextTemporary(buffer);
 		}
 		else {
 			char buffer[12];
@@ -347,7 +347,7 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 			char buffer[24];
 			strcpy(buffer, "Transpose: ");
 			intToString(manualSlicePoints[currentSlice].transpose, buffer + strlen(buffer));
-			deluge::hid::display::OLED::popupText(buffer, false);
+			display->popupTextTemporary(buffer);
 		}
 		else {
 			char buffer[12];

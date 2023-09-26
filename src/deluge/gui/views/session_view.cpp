@@ -35,6 +35,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "gui/waveform/waveform_renderer.h"
+#include "hid/button.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
@@ -65,6 +66,7 @@
 #include "util/d_string.h"
 #include "util/functions.h"
 #include <algorithm>
+#include <cstdint>
 #include <new>
 
 extern "C" {
@@ -96,8 +98,8 @@ bool SessionView::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
 			break;
 		}
 		case SessionLayoutType::SessionLayoutTypeGrid: {
-			*cols = 0xFFFFFFFF;
-			*rows = 0xFFFFFFFF;
+			*cols = 0x03; // Only sidebar
+			*rows = 0x0;
 			break;
 		}
 		}
@@ -1514,14 +1516,16 @@ int32_t setPresetOrNextUnlaunchedOne(InstrumentClip* clip, InstrumentType instru
 	return NO_ERROR;
 }
 
-Clip* SessionView::createNewInstrumentClip(int32_t yDisplay) {
+constexpr float colourStep = 22.5882352941;
+static float lastColour = 192 - colourStep + 1;
 
+Clip* SessionView::createNewInstrumentClip(int32_t yDisplay) {
 	actionLogger.deleteAllLogs();
 
 	void* memory = GeneralMemoryAllocator::get().alloc(sizeof(InstrumentClip), NULL, false, true);
-	if (!memory) {
+	if (memory == nullptr) {
 		display->displayError(ERROR_INSUFFICIENT_RAM);
-		return NULL;
+		return nullptr;
 	}
 
 	InstrumentClip* newClip = new (memory) InstrumentClip(currentSong);
@@ -1672,6 +1676,8 @@ gotErrorDontDisplay:
 
 		newClip->output->setActiveClip(modelStackWithTimelineCounter);
 	}
+
+	newClip->output->colour = clip->output->colour;
 
 	currentSong->swapClips(newClip, clip, clipIndex);
 
@@ -3002,35 +3008,117 @@ bool SessionView::gridRenderMainPads(uint32_t whichRows, RGB image[][kDisplayWid
 		// Render colour for every valid clip
 		if (x >= 0 && y >= 0) {
 			occupancyMask[y][x] = 64;
-			RGB& ptrClipColour = image[y][x];
-
-			ptrClipColour =
-			    view.getClipMuteSquareColour(clip, ptrClipColour, true, gridModeActive == SessionGridModeLaunch);
-
-			// If we should MIDI learn flash and shift is pressed (different learn layer)
-			if (view.midiLearnFlashOn && gridModeActive == SessionGridModeEdit && clip->output != nullptr) {
-				// If user assigning MIDI controls and this Clip has a command assigned, flash pink
-				InstrumentType type = clip->output->type;
-				bool canLearn =
-				    (type == InstrumentType::SYNTH || type == InstrumentType::MIDI_OUT || type == InstrumentType::CV);
-				if (canLearn && ((MelodicInstrument*)clip->output)->midiInput.containsSomething()) {
-					// We halve the intensity of the brightness in this case, because a lot of pads will be lit,
-					// it looks mental, and I think one user was having it cause his Deluge to freeze due to underpowering.
-					ptrClipColour = colours::midi_command.dim();
-				}
-
-				// Should be fine even if output isn't a MelodicInstrument
-				else if (view.thingPressedForMidiLearn == MidiLearn::MELODIC_INSTRUMENT_INPUT
-				         && view.learnedThing == &((MelodicInstrument*)clip->output)->midiInput) {
-					ptrClipColour = ptrClipColour.dim();
-				}
-			}
+			gridRenderClipColor(clip, image[y][x]);
 		}
 	}
 
 	PadLEDs::renderingLock = false;
 
 	return true;
+}
+
+void SessionView::gridRenderClipColor(Clip* clip, uint8_t resultColour[]) {
+	// Greyout all clips during record button pressed or soloing, overwrite for clips that shouldn't be greyed out
+	bool greyout = (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING) || currentSong->getAnyClipsSoloing();
+
+	// Handle record button pressed
+	if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING && clip->armedForRecording) {
+		if (view.blinkOn) {
+			bool shouldGoPurple = (clip->type == CLIP_TYPE_AUDIO && ((AudioClip*)clip)->overdubsShouldCloneOutput);
+
+			// Bright colour
+			if (clip->wantsToBeginLinearRecording(currentSong)) {
+				if (shouldGoPurple) {
+					resultColour[0] = 128;
+					resultColour[1] = 0;
+					resultColour[2] = 128;
+				}
+				else {
+					resultColour[0] = 255;
+					resultColour[1] = 1;
+					resultColour[2] = 0;
+				}
+			}
+			// Dull colour, cos can't actually begin linear recording despite being armed
+			else {
+				if (shouldGoPurple) {
+					resultColour[0] = 60;
+					resultColour[1] = 15;
+					resultColour[2] = 60;
+				}
+				else {
+					resultColour[0] = 60;
+					resultColour[1] = 15;
+					resultColour[2] = 15;
+				}
+			}
+		}
+		return;
+	}
+
+	// MIDI Learning
+	if (view.midiLearnFlashOn) {
+		if (gridModeActive == SessionGridModeLaunch) {
+			// Clip arm learned
+			if (clip->muteMIDICommand.containsSomething()) {
+				resultColour[0] = midiCommandColour.r;
+				resultColour[1] = midiCommandColour.g;
+				resultColour[2] = midiCommandColour.b;
+				return;
+			}
+			// Selected but unlearned
+			else if (view.learnedThing == &clip->muteMIDICommand) {
+				return; // Flash black
+			}
+		}
+		else if (gridModeActive == SessionGridModeEdit) {
+			// Instrument learned
+			InstrumentType type = clip->output->type;
+			bool canLearn =
+			    (type == InstrumentType::SYNTH || type == InstrumentType::MIDI_OUT || type == InstrumentType::CV);
+			if (canLearn && ((MelodicInstrument*)clip->output)->midiInput.containsSomething()) {
+				resultColour[0] = midiCommandColour.r;
+				resultColour[1] = midiCommandColour.g;
+				resultColour[2] = midiCommandColour.b;
+				return;
+			}
+
+			// Selected but unlearned
+			else if (view.thingPressedForMidiLearn == MidiLearn::MELODIC_INSTRUMENT_INPUT
+			         && view.learnedThing == &((MelodicInstrument*)clip->output)->midiInput) {
+				return; // Flash black
+			}
+		}
+	}
+
+	// Black phase of arm flashing
+	if (view.clipArmFlashOn && clip->armState != ArmState::OFF) {
+		return;
+	}
+
+	// Set a random color if unset and convert to result colour
+	if (clip->output->colour == 0) {
+		lastColour = std::fmod(lastColour + colourStep + 192, 192);
+		clip->output->colour = lastColour;
+	}
+	hueToRGB(clip->output->colour, resultColour);
+
+	// If we are not in record arming mode make this clip full color for being soloed
+	if ((clip->soloingInSessionMode || clip->armState == ArmState::ON_TO_SOLO)
+	    && currentUIMode != UI_MODE_VIEWING_RECORD_ARMING) {
+		greyout = false;
+	}
+
+	// If clip is not active or grayed out - dim it
+	else if (!clip->activeIfNoSolo) {
+		resultColour[0] = ((float)resultColour[0] / 255) * 10;
+		resultColour[1] = ((float)resultColour[1] / 255) * 10;
+		resultColour[2] = ((float)resultColour[2] / 255) * 10;
+	}
+
+	if (greyout) {
+		greyColourOut(resultColour, resultColour, 6500000);
+	}
 }
 
 Clip* SessionView::gridCloneClip(Clip* sourceClip) {
@@ -3562,7 +3650,7 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 	}
 
 	// Normal arming, handle cases normally in View::clipStatusPadAction
-	if (!Buttons::isButtonPressed(deluge::hid::button::SHIFT)) {
+	if (!Buttons::isShiftButtonPressed()) {
 		if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING) {
 			// Here I removed the overdubbing settings
 			clip->armedForRecording = !clip->armedForRecording;
@@ -3597,6 +3685,24 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {
 	if (isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
 		display->cancelPopup();
+	}
+
+	if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW && offsetY != 0) {
+		auto track = gridTrackFromX(gridFirstPressedX, gridTrackCount());
+		if (track != nullptr) {
+			if (Buttons::isButtonPressed(hid::button::Y_ENC)) {
+				track->colour += offsetY;
+				if (track->colour == 0) {
+					track->colour += offsetY;
+				}
+			}
+			else {
+				track->colour = static_cast<int16_t>(track->colour + (colourStep * offsetY) + 192) % 192;
+			}
+			requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
+		}
+
+		return ActionResult::DEALT_WITH;
 	}
 
 	gridResetPresses();

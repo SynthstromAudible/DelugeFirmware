@@ -1,5 +1,18 @@
 configure_file(version.h.in version.h @ONLY)
 
+# Ask GCC to generate thumb-mode code for all the GUI code.
+file(GLOB_RECURSE deluge_THUMB_SOURCES
+  CONFIGURE_DEPENDS
+  ${CMAKE_CURRENT_LIST_DIR}/gui/*.c
+  ${CMAKE_CURRENT_LIST_DIR}/gui/*.cpp
+)
+
+set_source_files_properties(${deluge_THUMB_SOURCES}
+  TARGET_DIRECTORY deluge
+  PROPERTIES COMPILE_OPTIONS "-mthumb"
+)
+
+# Add the sources to the target
 file(GLOB_RECURSE deluge_SOURCES CONFIGURE_DEPENDS *.S *.c *.h *.cpp *.hpp)
 target_sources(deluge PUBLIC ${deluge_SOURCES})
 

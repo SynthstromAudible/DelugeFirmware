@@ -81,7 +81,8 @@ extern void __libc_init_array(void);
 #define PLACEMENT_FLASH_START (0x18080000) // Copied from bootloader, start address of firmware image in flash
 
 extern uint32_t __heap_start;
-
+extern uint32_t __frunk_bss_start;
+extern uint32_t __frunk_bss_end;
 extern uint32_t __sdram_bss_start;
 extern uint32_t __sdram_bss_end;
 extern uint32_t __sdram_text_start;
@@ -99,9 +100,7 @@ void _fini(void) {
 	// empty
 }
 
-inline void emptySDRAMSection(uint32_t* start, uint32_t* end) {
-	uint32_t size = (end - start) / sizeof(uint32_t);
-
+inline void emptySection(uint32_t* start, uint32_t* end) {
 	uint32_t* dst = start;
 	while (dst < end) {
 		*dst = 0;
@@ -127,6 +126,8 @@ inline void relocateSDRAMSection(uint32_t* start, uint32_t* end) {
  * Return Value : none
  *******************************************************************************/
 void resetprg(void) {
+	emptySection(&__frunk_bss_start, &__frunk_bss_end);
+
 	// Enable all modules' clocks --------------------------------------------------------------
 	STB_Init();
 	// SDRAM pin mux ------------------------------------------------------------------
