@@ -54,7 +54,7 @@ void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelS
                                            int32_t reverbAmountAdjust, int32_t sideChainHitPending,
                                            bool shouldLimitDelayFeedback, bool isClipActive,
                                            InstrumentType instrumentType, int32_t analogDelaySaturationAmount) {
-
+	bool rendered = false;
 	UnpatchedParamSet* unpatchedParams = paramManagerForClip->getUnpatchedParamSet();
 
 	// Process FX and stuff. For kits, stutter happens before reverb send
@@ -132,18 +132,18 @@ void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelS
 		// If it's a mono sample, that's going to have to get rendered into a mono buffer first before it can be copied out to the stereo song-level buffer
 		if (willRenderAsOneChannelOnlyWhichWillNeedCopying()) {
 			memset(globalEffectableBuffer, 0, sizeof(int32_t) * numSamples);
-			renderGlobalEffectableForClip(modelStack, globalEffectableBuffer, (int32_t*)outputBuffer, numSamples,
-			                              reverbBuffer, reverbAmountAdjustForDrums, sideChainHitPending,
-			                              shouldLimitDelayFeedback, isClipActive, pitchAdjust,
-			                              postFXAndReverbVolumeStart, postFXAndReverbVolumeEnd);
+			rendered = renderGlobalEffectableForClip(modelStack, globalEffectableBuffer, (int32_t*)outputBuffer,
+			                                         numSamples, reverbBuffer, reverbAmountAdjustForDrums,
+			                                         sideChainHitPending, shouldLimitDelayFeedback, isClipActive,
+			                                         pitchAdjust, postFXAndReverbVolumeStart, postFXAndReverbVolumeEnd);
 		}
 
 		// Or if it's a stereo sample, it can render directly into the song buffer
 		else {
-			renderGlobalEffectableForClip(modelStack, outputBuffer, NULL, numSamples, reverbBuffer,
-			                              reverbAmountAdjustForDrums, sideChainHitPending, shouldLimitDelayFeedback,
-			                              isClipActive, pitchAdjust, postFXAndReverbVolumeStart,
-			                              postFXAndReverbVolumeEnd);
+			rendered = renderGlobalEffectableForClip(modelStack, outputBuffer, NULL, numSamples, reverbBuffer,
+			                                         reverbAmountAdjustForDrums, sideChainHitPending,
+			                                         shouldLimitDelayFeedback, isClipActive, pitchAdjust,
+			                                         postFXAndReverbVolumeStart, postFXAndReverbVolumeEnd);
 		}
 	}
 
@@ -152,9 +152,9 @@ doNormal:
 		memset(globalEffectableBuffer, 0, sizeof(StereoSample) * numSamples);
 
 		// Render actual Drums / AudioClip
-		renderGlobalEffectableForClip(modelStack, globalEffectableBuffer, NULL, numSamples, reverbBuffer,
-		                              reverbAmountAdjustForDrums, sideChainHitPending, shouldLimitDelayFeedback,
-		                              isClipActive, pitchAdjust, 134217728, 134217728);
+		rendered = renderGlobalEffectableForClip(
+		    modelStack, globalEffectableBuffer, NULL, numSamples, reverbBuffer, reverbAmountAdjustForDrums,
+		    sideChainHitPending, shouldLimitDelayFeedback, isClipActive, pitchAdjust, 134217728, 134217728);
 
 		// Render saturation
 		if (clippingAmount) {
@@ -167,7 +167,7 @@ doNormal:
 			} while (++currentSample != bufferEnd);
 		}
 		//otherwise we can run a bunch of processing on an empty buffer
-		if (isClipActive) {
+		if (rendered) {
 
 			// Render filters
 			processFilters(globalEffectableBuffer, numSamples);
