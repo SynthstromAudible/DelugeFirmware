@@ -60,8 +60,6 @@ void AudioOutput::renderOutput(ModelStack* modelStack, StereoSample* outputBuffe
 
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
 
-	//audio clips are also effectively active if they're monitoring and turned on in arranger
-	isClipActive |= echoing && modelStack->song->isOutputActiveInArrangement(this);
 	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, outputBuffer, numSamples,
 	                                      reverbBuffer, reverbAmountAdjust, sideChainHitPending,
 	                                      shouldLimitDelayFeedback, isClipActive, InstrumentType::AUDIO, 5);
