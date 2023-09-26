@@ -23,14 +23,14 @@
 #include "util/misc.h"
 
 namespace deluge::gui::menu_item {
-class FilterRouting final : public Selection<kNumFilterRoutes> {
+class FilterRouting final : public Selection {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue<::FilterRoute>(soundEditor.currentModControllable->filterRoute); }
 	void writeCurrentValue() override {
 		soundEditor.currentModControllable->filterRoute = this->getValue<::FilterRoute>();
 	}
-	static_vector<std::string_view, capacity()> getOptions() override {
+	std::vector<std::string_view> getOptions() override {
 		return {"HPF2LPF", "LPF2HPF", l10n::getView(l10n::String::STRING_FOR_PARALLEL)};
 	}
 	bool isRelevant(Sound* sound, int32_t whichThing) override {

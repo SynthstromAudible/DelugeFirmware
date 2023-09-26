@@ -1,7 +1,5 @@
 #pragma once
-#include "gui/l10n/english.h"
 #include "gui/l10n/language.h"
-#include "gui/l10n/seven_segment.h"
 #include "util/misc.h"
 #include <array>
 #include <cstddef>

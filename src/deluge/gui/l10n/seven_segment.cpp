@@ -1,11 +1,10 @@
-#pragma once
-#include "gui/l10n/english.h"
+#include "definitions_cxx.hpp"
 #include "gui/l10n/language.h"
 #include "gui/l10n/strings.h"
 
 namespace deluge::l10n::built_in {
 using enum String;
-constexpr Language seven_segment{
+PLACE_SDRAM_DATA Language seven_segment{
     "Seven Segment",
     {
         //Errors
@@ -87,13 +86,6 @@ constexpr Language seven_segment{
 
         // gui/context_menu/load_instrument_preset.cpp
         {STRING_FOR_CLONE, "COPY"},
-
-        // gui/context_menu/overwrite_bootloader.cpp
-        {STRING_FOR_ACCEPT_RISK, "SURE"},
-        {STRING_FOR_ERROR_BOOTLOADER_TOO_BIG, "BIG"},
-        {STRING_FOR_ERROR_BOOTLOADER_TOO_SMALL, "SMALL"},
-        {STRING_FOR_BOOTLOADER_UPDATED, "DONE"},
-        {STRING_FOR_ERROR_BOOTLOADER_FILE_NOT_FOUND, "FILE"},
 
         // gui/context_menu/save_song_or_instrument.cpp
         {STRING_FOR_COLLECT_MEDIA, "COLLECT MEDIA"},
@@ -308,7 +300,7 @@ constexpr Language seven_segment{
         {STRING_FOR_SAMPLING_MONITORING, "MONITORING"},
         {STRING_FOR_SAMPLE_PREVIEW, "PREV"},
         {STRING_FOR_PLAY_CURSOR, "CURS"},
-        {STRING_FOR_FIRMWARE_VERSION, "VER."},
+        {STRING_FOR_FIRMWARE_VERSION, "FIRM"},
         {STRING_FOR_COMMUNITY_FTS, "FEAT"},
         {STRING_FOR_MIDI_THRU, "THRU"},
         {STRING_FOR_TAKEOVER, "TOVR"},

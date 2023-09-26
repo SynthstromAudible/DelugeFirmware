@@ -69,8 +69,7 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettin
     &menuHighlightIncomingNotes, &menuDisplayNornsLayout, &menuShiftIsSticky,       &menuLightShiftLed,
 };
 
-Settings::Settings(l10n::String name, l10n::String title)
-    : menu_item::Submenu<subMenuEntries.size()>(name, title, subMenuEntries) {
+Settings::Settings(l10n::String name, l10n::String title) : menu_item::Submenu(name, title, subMenuEntries) {
 }
 
 } // namespace deluge::gui::menu_item::runtime_feature

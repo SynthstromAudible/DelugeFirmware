@@ -15,92 +15,124 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// Hard-coded "for-loop" for the below function.
-#define waveRenderingFunctionGeneralForLoop(i)                                                                         \
-	{                                                                                                                  \
-		phaseTemp += phaseIncrement;                                                                                   \
-		uint32_t rshifted = phaseTemp >> (32 - 16 - tableSizeMagnitude);                                               \
-		strength2 = vset_lane_u16(rshifted, strength2, i);                                                             \
-                                                                                                                       \
-		uint32_t whichValue = phaseTemp >> (32 - tableSizeMagnitude);                                                  \
-		uint32_t* readAddress = (uint32_t*)((uint32_t)table + (whichValue << 1));                                      \
-                                                                                                                       \
-		readValue = vld1q_lane_u32(readAddress, readValue, i);                                                         \
-	}
+#include <arm_neon.h>
+#include <cstddef>
+#include <cstdint>
 
-// Renders 4 wave values (a "vector") together in one go.
-#define waveRenderingFunctionGeneral()                                                                                 \
-	{                                                                                                                  \
-		uint32x4_t readValue;                                                                                          \
-		uint16x4_t strength2;                                                                                          \
-                                                                                                                       \
-		/* Need to use a macro rather than a for loop here, otherwise won't compile with less than O2. */              \
-		waveRenderingFunctionGeneralForLoop(0) waveRenderingFunctionGeneralForLoop(1)                                  \
-		    waveRenderingFunctionGeneralForLoop(2) waveRenderingFunctionGeneralForLoop(3)                              \
-                                                                                                                       \
-		        strength2 = vshr_n_u16(strength2, 1);                                                                  \
-		int16x4_t value1 = vreinterpret_s16_u16(vmovn_u32(readValue));                                                 \
-		int16x4_t value2 = vreinterpret_s16_u16(vshrn_n_u32(readValue, 16));                                           \
-		int32x4_t value1Big = vshll_n_s16(value1, 16);                                                                 \
-                                                                                                                       \
-		int16x4_t difference = vsub_s16(value2, value1);                                                               \
-		valueVector = vqdmlal_s16(value1Big, difference, vreinterpret_s16_u16(strength2));                             \
-	}
+/// Hard-coded loop-body for waveRenderingFunctionGeneral
+template <int i>
+[[gnu::always_inline]] static inline void
+waveRenderingFunctionGeneralForLoop(uint32x4_t& readValue, uint16x4_t& strength2, uint32_t& phaseTemp,
+                                    int32_t phaseIncrement, const int16_t* table, int32_t tableSizeMagnitude) {
+	phaseTemp += phaseIncrement;
+	uint32_t rshifted = phaseTemp >> (32 - 16 - tableSizeMagnitude);
+	strength2 = vset_lane_u16(rshifted, strength2, i);
 
-// Hard-coded "for-loop" for the below function.
-#define waveRenderingFunctionPulseForLoop(i)                                                                           \
-	{                                                                                                                  \
-		{                                                                                                              \
-			phaseTemp += phaseIncrement;                                                                               \
-			rshiftedA = vset_lane_s16(phaseTemp >> rshiftAmount, rshiftedA, i);                                        \
-                                                                                                                       \
-			uint32_t whichValue = phaseTemp >> (32 - tableSizeMagnitude);                                              \
-			uint32_t* readAddress = (uint32_t*)((uint32_t)table + (whichValue << 1));                                  \
-			readValueA = vld1q_lane_u32(readAddress, readValueA, i);                                                   \
-		}                                                                                                              \
-                                                                                                                       \
-		{                                                                                                              \
-			uint32_t phaseLater = phaseTemp + phaseToAdd;                                                              \
-			rshiftedB = vset_lane_s16(phaseLater >> rshiftAmount, rshiftedB, i);                                       \
-                                                                                                                       \
-			uint32_t whichValue = phaseLater >> (32 - tableSizeMagnitude);                                             \
-			uint32_t* readAddress = (uint32_t*)((uint32_t)table + (whichValue << 1));                                  \
-			readValueB = vld1q_lane_u32(readAddress, readValueB, i);                                                   \
-		}                                                                                                              \
-	}
+	uint32_t whichValue = phaseTemp >> (32 - tableSizeMagnitude);
+	auto* readAddress = reinterpret_cast<uint32_t*>((uint32_t)table + (whichValue << 1));
 
-// Renders 4 wave values (a "vector") together in one go - special case for pulse waves with variable width.
-#define waveRenderingFunctionPulse()                                                                                   \
-	{                                                                                                                  \
-		int16x4_t rshiftedA, rshiftedB;                                                                                \
-		uint32x4_t readValueA, readValueB;                                                                             \
-                                                                                                                       \
-		int32_t rshiftAmount = (32 - tableSizeMagnitude - 16);                                                         \
-                                                                                                                       \
-		/* Need to use a macro rather than a for loop here, otherwise won't compile with less than O2. */              \
-		waveRenderingFunctionPulseForLoop(0) waveRenderingFunctionPulseForLoop(1) waveRenderingFunctionPulseForLoop(2) \
-		    waveRenderingFunctionPulseForLoop(3)                                                                       \
-                                                                                                                       \
-		        int16x4_t valueA1 = vreinterpret_s16_u16(vmovn_u32(readValueA));                                       \
-		int16x4_t valueA2 = vreinterpret_s16_u16(vshrn_n_u32(readValueA, 16));                                         \
-                                                                                                                       \
-		int16x4_t valueB1 = vreinterpret_s16_u16(vmovn_u32(readValueB));                                               \
-		int16x4_t valueB2 = vreinterpret_s16_u16(vshrn_n_u32(readValueB, 16));                                         \
-                                                                                                                       \
-		/* Sneakily do this backwards to flip the polarity of the output, which we need to do anyway */                \
-		int16x4_t const32768 = vdup_n_s16(-32768);                                                                     \
-		int16x4_t strengthA1 = vorr_s16(rshiftedA, const32768);                                                        \
-		int16x4_t strengthA2 = vsub_s16(const32768, strengthA1);                                                       \
-                                                                                                                       \
-		int32x4_t multipliedValueA2 = vqdmull_s16(strengthA2, valueA2);                                                \
-		int32x4_t outputA = vqdmlal_s16(multipliedValueA2, strengthA1, valueA1);                                       \
-                                                                                                                       \
-		int16x4_t strengthB2 = vand_s16(rshiftedB, const32767);                                                        \
-		int16x4_t strengthB1 = vsub_s16(const32767, strengthB2);                                                       \
-                                                                                                                       \
-		int32x4_t multipliedValueB2 = vqdmull_s16(strengthB2, valueB2);                                                \
-		int32x4_t outputB = vqdmlal_s16(multipliedValueB2, strengthB1, valueB1);                                       \
-                                                                                                                       \
-		int32x4_t output = vqrdmulhq_s32(outputA, outputB);                                                            \
-		valueVector = vshlq_n_s32(output, 1);                                                                          \
-	}
+	readValue = vld1q_lane_u32(readAddress, readValue, i);
+}
+
+/// Renders 4 wave values (a "vector") together in one go.
+[[gnu::always_inline]] static inline void //<
+waveRenderingFunctionGeneral(int32x4_t& valueVector, uint32_t& phaseTemp, int32_t phaseIncrement, uint32_t _phaseToAdd,
+                             const int16_t* table, int32_t tableSizeMagnitude) {
+	uint32x4_t readValue;
+	uint16x4_t strength2;
+
+	// Needs to be manually unrolled due to vld1q_lane_u32 requiring a "const" int.
+	// "const" here not meaning const-ness but rather _compile-time constant_.
+	waveRenderingFunctionGeneralForLoop<0>(readValue, strength2, phaseTemp, phaseIncrement, table, tableSizeMagnitude);
+	waveRenderingFunctionGeneralForLoop<1>(readValue, strength2, phaseTemp, phaseIncrement, table, tableSizeMagnitude);
+	waveRenderingFunctionGeneralForLoop<2>(readValue, strength2, phaseTemp, phaseIncrement, table, tableSizeMagnitude);
+	waveRenderingFunctionGeneralForLoop<3>(readValue, strength2, phaseTemp, phaseIncrement, table, tableSizeMagnitude);
+
+	strength2 = vshr_n_u16(strength2, 1);
+	int16x4_t value1 = vreinterpret_s16_u16(vmovn_u32(readValue));
+	int16x4_t value2 = vreinterpret_s16_u16(vshrn_n_u32(readValue, 16));
+	int32x4_t value1Big = vshll_n_s16(value1, 16);
+
+	int16x4_t difference = vsub_s16(value2, value1);
+
+	valueVector = vqdmlal_s16(value1Big, difference, vreinterpret_s16_u16(strength2));
+}
+
+template <int i>
+[[gnu::always_inline]] static inline void //<
+waveRenderingFunctionPulseForLoopFragment(int16x4_t& rshifted, uint32x4_t& readValue, const uint32_t phase,
+                                          int32_t rshiftAmount, const int16_t* table, int32_t tableSizeMagnitude) {
+	rshifted = vset_lane_s16(phase >> rshiftAmount, rshifted, i);
+
+	uint32_t whichValue = phase >> (32 - tableSizeMagnitude);
+	auto* readAddress = reinterpret_cast<uint32_t*>((uint32_t)table + (whichValue << 1));
+	readValue = vld1q_lane_u32(readAddress, readValue, i);
+}
+
+/// Hard-coded loop-body for waveRenderingFunctionPulse
+template <int i>
+[[gnu::always_inline]] static inline void //<
+waveRenderingFunctionPulseForLoop(int16x4_t& rshiftedA, uint32x4_t& readValueA, int16x4_t& rshiftedB,
+                                  uint32x4_t& readValueB, uint32_t& phaseTemp, int32_t phaseIncrement,
+                                  uint32_t phaseToAdd, int32_t rshiftAmount, const int16_t* table,
+                                  int32_t tableSizeMagnitude) {
+	// A
+	phaseTemp += phaseIncrement;
+	waveRenderingFunctionPulseForLoopFragment<i>(rshiftedA, readValueA, phaseTemp, rshiftAmount, table,
+	                                             tableSizeMagnitude);
+
+	// B
+	uint32_t phaseLater = phaseTemp + phaseToAdd;
+	waveRenderingFunctionPulseForLoopFragment<i>(rshiftedB, readValueB, phaseLater, rshiftAmount, table,
+	                                             tableSizeMagnitude);
+}
+
+/// Renders 4 wave values (a "vector") together in one go - special case for pulse waves with variable width.
+[[gnu::always_inline]] static inline void //<
+waveRenderingFunctionPulse(int32x4_t& valueVector, uint32_t& phaseTemp, int32_t phaseIncrement, uint32_t phaseToAdd,
+                           const int16_t* table, int32_t tableSizeMagnitude) {
+
+	int16x4_t rshiftedA;
+	uint32x4_t readValueA;
+	int16x4_t rshiftedB;
+	uint32x4_t readValueB;
+
+	int32_t rshiftAmount = (32 - tableSizeMagnitude - 16);
+
+	// Needs to be manually unrolled due to vld1q_lane_u32 requiring a "const" int.
+	// "const" here not meaning const-ness but rather _compile-time constant_.
+	waveRenderingFunctionPulseForLoop<0>(rshiftedA, readValueA, rshiftedB, readValueB, phaseTemp, phaseIncrement,
+	                                     phaseToAdd, rshiftAmount, table, tableSizeMagnitude);
+	waveRenderingFunctionPulseForLoop<1>(rshiftedA, readValueA, rshiftedB, readValueB, phaseTemp, phaseIncrement,
+	                                     phaseToAdd, rshiftAmount, table, tableSizeMagnitude);
+	waveRenderingFunctionPulseForLoop<2>(rshiftedA, readValueA, rshiftedB, readValueB, phaseTemp, phaseIncrement,
+	                                     phaseToAdd, rshiftAmount, table, tableSizeMagnitude);
+	waveRenderingFunctionPulseForLoop<3>(rshiftedA, readValueA, rshiftedB, readValueB, phaseTemp, phaseIncrement,
+	                                     phaseToAdd, rshiftAmount, table, tableSizeMagnitude);
+
+	int16x4_t valueA1 = vreinterpret_s16_u16(vmovn_u32(readValueA));
+	int16x4_t valueA2 = vreinterpret_s16_u16(vshrn_n_u32(readValueA, 16));
+
+	int16x4_t valueB1 = vreinterpret_s16_u16(vmovn_u32(readValueB));
+	int16x4_t valueB2 = vreinterpret_s16_u16(vshrn_n_u32(readValueB, 16));
+
+	/* Sneakily do this backwards to flip the polarity of the output, which we need to do anyway */
+	int16x4_t const32768 = vdup_n_s16(-32768);
+	int16x4_t const32767 = vdup_n_s16(32767);
+
+	int16x4_t strengthA1 = vorr_s16(rshiftedA, const32768);
+	int16x4_t strengthA2 = vsub_s16(const32768, strengthA1);
+
+	int32x4_t multipliedValueA2 = vqdmull_s16(strengthA2, valueA2);
+	int32x4_t outputA = vqdmlal_s16(multipliedValueA2, strengthA1, valueA1);
+
+	int16x4_t strengthB2 = vand_s16(rshiftedB, const32767);
+	int16x4_t strengthB1 = vsub_s16(const32767, strengthB2);
+
+	int32x4_t multipliedValueB2 = vqdmull_s16(strengthB2, valueB2);
+	int32x4_t outputB = vqdmlal_s16(multipliedValueB2, strengthB1, valueB1);
+
+	int32x4_t output = vqrdmulhq_s32(outputA, outputB);
+
+	valueVector = vshlq_n_s32(output, 1);
+}

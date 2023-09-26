@@ -25,14 +25,16 @@
 #include "util/misc.h"
 
 namespace deluge::gui::menu_item::defaults {
-class SessionLayout final : public Selection<2> {
+class SessionLayout final : public Selection {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(FlashStorage::defaultSessionLayout); }
 	void writeCurrentValue() override { FlashStorage::defaultSessionLayout = this->getValue<SessionLayoutType>(); }
-	static_vector<std::string_view, capacity()> getOptions() override {
-		return {l10n::getView(l10n::String::STRING_FOR_DEFAULT_UI_SONG_LAYOUT_ROWS),
-		        l10n::getView(l10n::String::STRING_FOR_DEFAULT_UI_SONG_LAYOUT_GRID)};
+	std::vector<std::string_view> getOptions() override {
+		return {
+		    l10n::getView(l10n::String::STRING_FOR_DEFAULT_UI_SONG_LAYOUT_ROWS),
+		    l10n::getView(l10n::String::STRING_FOR_DEFAULT_UI_SONG_LAYOUT_GRID),
+		};
 	}
 };
 } // namespace deluge::gui::menu_item::defaults

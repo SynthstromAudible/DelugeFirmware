@@ -292,7 +292,7 @@ int32_t Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSamp
 
 	LOCK_ENTRY
 
-	//AudioEngine::logAction("fillPercCache");
+	AudioEngine::logAction("fillPercCache");
 
 	//int32_t lengthInSamplesAfterReduction = ((lengthInSamples + (kPercBufferReductionSize >> 1)) >> PERC_BUFFER_REDUCTION_MAGNITUDE);
 	int32_t lengthInSamplesAfterReduction = ((lengthInSamples - 1) >> kPercBufferReductionMagnitude) + 1;
@@ -1483,7 +1483,7 @@ doneReading:
 	Debug::print("fft time uSec: ");
 	Debug::println(timerCountToUS(time));
 	*/
-
+	AudioEngine::logAction("bypassing culling in pitch detection");
 	AudioEngine::bypassCulling = true;
 	AudioEngine::routineWithClusterLoading();
 
