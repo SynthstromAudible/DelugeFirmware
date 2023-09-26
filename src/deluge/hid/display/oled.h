@@ -17,9 +17,7 @@
 
 #pragma once
 
-#include "gui/l10n/english.h"
 #include "gui/l10n/language.h"
-#include "gui/l10n/seven_segment.h"
 #ifdef __cplusplus
 #include "definitions_cxx.hpp"
 #include "display.h"
@@ -73,8 +71,9 @@ public:
 
 	static void setupPopup(int32_t width, int32_t height);
 	static void removePopup();
-	static void popupText(char const* text, bool persistent = false);
+	static void popupText(char const* text, bool persistent = false, DisplayPopupType type = DisplayPopupType::GENERAL);
 	static bool isPopupPresent();
+	static bool isPopupPresentOfType(DisplayPopupType type = DisplayPopupType::GENERAL);
 
 	static void displayWorkingAnimation(char const* word);
 
@@ -113,12 +112,17 @@ public:
 
 	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
 
-	void displayPopup(char const* newText, int8_t numFlashes = 3, bool = false, uint8_t = 255, int32_t = 1) override {
-		popupText(newText, !numFlashes);
+	void displayPopup(char const* newText, int8_t numFlashes = 3, bool = false, uint8_t = 255, int32_t = 1,
+	                  DisplayPopupType type = DisplayPopupType::GENERAL) override {
+		popupText(newText, !numFlashes, type);
 	}
 
-	void popupText(char const* text) override { popupText(text, true); }
-	void popupTextTemporary(char const* text) override { popupText(text, false); }
+	void popupText(char const* text, DisplayPopupType type = DisplayPopupType::GENERAL) override {
+		popupText(text, true, type);
+	}
+	void popupTextTemporary(char const* text, DisplayPopupType type = DisplayPopupType::GENERAL) override {
+		popupText(text, false, type);
+	}
 
 	void cancelPopup() override { removePopup(); }
 	bool isLayerCurrentlyOnTop(NumericLayer* layer) override { return (!this->hasPopup()); }
@@ -131,6 +135,7 @@ public:
 	void removeLoadingAnimation() override { removeWorkingAnimation(); }
 
 	bool hasPopup() override { return isPopupPresent(); }
+	bool hasPopupOfType(DisplayPopupType type) override { return isPopupPresentOfType(type); }
 
 	bool haveOLED() override { return true; }
 };

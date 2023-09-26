@@ -15,22 +15,26 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "definitions_cxx.hpp"
+#include "gui/l10n/l10n.h"
+#include "gui/l10n/strings.h"
 #include "gui/menu_item/selection.h"
-#include "processing/sound/sound.h"
+#include "gui/ui/sound_editor.h"
+#include "hid/display/display.h"
+#include "storage/flash_storage.h"
+#include "util/misc.h"
 
-namespace deluge::gui::menu_item::sample {
-template <size_t n>
-class Selection : public menu_item::Selection {
+namespace deluge::gui::menu_item::defaults {
+class SessionLayout final : public Selection {
 public:
-	using menu_item::Selection::Selection;
-	bool isRelevant(Sound* sound, int32_t whichThing) override {
-		if (sound == nullptr) {
-			return true; // For AudioClips
-		}
-
-		Source* source = &sound->sources[whichThing];
-		return (sound->getSynthMode() == SynthMode::SUBTRACTIVE && source->oscType == OscType::SAMPLE
-		        && source->hasAtLeastOneAudioFileLoaded());
+	using Selection::Selection;
+	void readCurrentValue() override { this->setValue(FlashStorage::defaultSessionLayout); }
+	void writeCurrentValue() override { FlashStorage::defaultSessionLayout = this->getValue<SessionLayoutType>(); }
+	std::vector<std::string_view> getOptions() override {
+		return {
+		    l10n::getView(l10n::String::STRING_FOR_DEFAULT_UI_SONG_LAYOUT_ROWS),
+		    l10n::getView(l10n::String::STRING_FOR_DEFAULT_UI_SONG_LAYOUT_GRID),
+		};
 	}
 };
-} // namespace deluge::gui::menu_item::sample
+} // namespace deluge::gui::menu_item::defaults

@@ -3068,12 +3068,7 @@ traverseClips:
 			    modelStackWithTimelineCounter, newOutput, NULL, InstrumentRemoval::NONE,
 			    (InstrumentClip*)favourClipForCloningParamManager, keepNoteRowsWithMIDIInput,
 			    true); // Will call audio routine
-			// TODO: deal with errors!
-
-			if (newOutput->type == InstrumentType::KIT) {
-				instrumentClip->onKeyboardScreen =
-				    false; //this code is called when you switch between clip types (e.g. synth to kit)
-			}
+			           // TODO: deal with errors!
 		}
 
 		// If this is the first Clip we dealt with, tell all the rest of the Clips to just clone it from this one (if there isn't already a ParamManager backed up in memory for them)
@@ -3094,6 +3089,9 @@ traverseClips:
 
 	// Copy default velocity
 	newOutput->defaultVelocity = oldOutput->defaultVelocity;
+
+	newOutput->colour = oldOutput->colour;
+	oldOutput->colour = 0;
 
 	newOutput->mutedInArrangementMode = oldOutput->mutedInArrangementMode;
 	oldOutput->mutedInArrangementMode = false;
@@ -4828,6 +4826,9 @@ void Song::replaceOutputLowLevel(Output* newOutput, Output* oldOutput) {
 	// Migrate all ClipInstances from oldInstrument to newInstrument
 	newOutput->clipInstances.swapStateWith(&oldOutput->clipInstances);
 
+	newOutput->colour = oldOutput->colour;
+	oldOutput->colour = 0;
+
 	newOutput->mutedInArrangementMode = oldOutput->mutedInArrangementMode;
 	oldOutput->mutedInArrangementMode = false;
 
@@ -5191,6 +5192,8 @@ Clip* Song::replaceInstrumentClipWithAudioClip(Clip* oldClip, int32_t clipIndex)
 		GeneralMemoryAllocator::get().dealloc(clipMemory);
 		return NULL;
 	}
+
+	newOutput->colour = oldClip->output->colour;
 
 	// Create the audio clip and ParamManager
 	AudioClip* newClip = new (clipMemory) AudioClip();

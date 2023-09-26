@@ -16,6 +16,7 @@
 */
 
 #pragma once
+#include <stddef.h>
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -44,14 +45,12 @@ extern void setTimeUSBInitializationEnds(int32_t timeFromNow);
 
 // The following is for use by RZA1, based on gui/l10n/strings.h
 // THIS MUST MATCH THE VALUES OF THESE ENTRIES IN deluge::l10n::String
-enum l10n_string {
-	STRING_FOR_USB_DEVICES_MAX = 256,
-	STRING_FOR_USB_DEVICE_DETACHED,
-	STRING_FOR_USB_HUB_ATTACHED,
-	STRING_FOR_USB_DEVICE_NOT_RECOGNIZED,
-};
+extern const size_t l10n_STRING_FOR_USB_DEVICES_MAX;
+extern const size_t l10n_STRING_FOR_USB_DEVICE_DETACHED;
+extern const size_t l10n_STRING_FOR_USB_HUB_ATTACHED;
+extern const size_t l10n_STRING_FOR_USB_DEVICE_NOT_RECOGNIZED;
 
-char const* l10n_get(enum l10n_string s);
+char const* l10n_get(size_t s);
 
 #ifdef __cplusplus
 }

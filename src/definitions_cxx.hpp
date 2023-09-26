@@ -34,7 +34,7 @@
 #if ALPHA_OR_BETA_VERSION
 //#define TEST_VECTOR 1
 //#define TEST_VECTOR_SEARCH_MULTIPLE 1
-//#define TEST_GENERAL_MEMORY_ALLOCATION 1
+#define TEST_GENERAL_MEMORY_ALLOCATION 0
 //#define TEST_VECTOR_DUPLICATES 1
 //#define TEST_BST 1
 //#define TEST_OPEN_ADDRESSING_HASH_TABLE 1
@@ -1085,3 +1085,17 @@ constexpr uint32_t kSampleRate = 44100;
 /// Length of press that deliniates a "short" press. Set to half a second (in units of samples, to work with
 /// AudioEngine::audioSampleTimer)
 constexpr uint32_t kShortPressTime = kSampleRate / 2;
+
+enum KeyboardLayoutType : uint8_t {
+	KeyboardLayoutTypeIsomorphic,
+	KeyboardLayoutTypeInKey,
+	KeyboardLayoutTypeDrums,
+	KeyboardLayoutTypeNorns,
+	KeyboardLayoutTypeMaxElement // Keep as boundary
+};
+
+enum SessionLayoutType : uint8_t {
+	SessionLayoutTypeRows,
+	SessionLayoutTypeGrid,
+	SessionLayoutTypeMaxElement // Keep as boundary
+};

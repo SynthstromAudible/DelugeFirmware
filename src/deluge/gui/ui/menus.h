@@ -29,13 +29,13 @@ extern DrumName drumNameMenu;
 
 extern deluge::gui::menu_item::firmware::Version firmwareVersionMenu;
 extern deluge::gui::menu_item::sequence::Direction sequenceDirectionMenu;
-extern deluge::gui::menu_item::Submenu<6> soundEditorRootMenuMIDIOrCV;
-extern deluge::gui::menu_item::Submenu<11> soundEditorRootMenuAudioClip;
-extern deluge::gui::menu_item::Submenu<25> soundEditorRootMenu;
-extern deluge::gui::menu_item::Submenu<12> settingsRootMenu;
+extern deluge::gui::menu_item::Submenu soundEditorRootMenuMIDIOrCV;
+extern deluge::gui::menu_item::Submenu soundEditorRootMenuAudioClip;
+extern deluge::gui::menu_item::Submenu soundEditorRootMenu;
+extern deluge::gui::menu_item::Submenu settingsRootMenu;
 
 namespace deluge::gui::menu_item::runtime_feature {
-extern Submenu<4> subMenuAutomation;
+extern Submenu subMenuAutomation;
 }
 
 extern deluge::gui::menu_item::PatchCables patchCablesMenu;

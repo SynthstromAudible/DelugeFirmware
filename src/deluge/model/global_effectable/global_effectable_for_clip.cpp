@@ -166,22 +166,25 @@ doNormal:
 				saturate(&currentSample->r, &lastSaturationTanHWorkingValue[1]);
 			} while (++currentSample != bufferEnd);
 		}
+		//otherwise we can run a bunch of processing on an empty buffer
+		if (isClipActive) {
 
-		// Render filters
-		processFilters(globalEffectableBuffer, numSamples);
+			// Render filters
+			processFilters(globalEffectableBuffer, numSamples);
 
-		// Render FX
-		processSRRAndBitcrushing(globalEffectableBuffer, numSamples, &volumePostFX, paramManagerForClip);
-		processFXForGlobalEffectable(globalEffectableBuffer, numSamples, &volumePostFX, paramManagerForClip,
-		                             &delayWorkingState, analogDelaySaturationAmount);
-		processStutter(globalEffectableBuffer, numSamples, paramManagerForClip);
+			// Render FX
+			processSRRAndBitcrushing(globalEffectableBuffer, numSamples, &volumePostFX, paramManagerForClip);
+			processFXForGlobalEffectable(globalEffectableBuffer, numSamples, &volumePostFX, paramManagerForClip,
+			                             &delayWorkingState, analogDelaySaturationAmount);
+			processStutter(globalEffectableBuffer, numSamples, paramManagerForClip);
 
-		int32_t postReverbSendVolumeIncrement = (int32_t)(postReverbVolume - postReverbVolumeLastTime) / numSamples;
+			int32_t postReverbSendVolumeIncrement = (int32_t)(postReverbVolume - postReverbVolumeLastTime) / numSamples;
 
-		processReverbSendAndVolume(globalEffectableBuffer, numSamples, reverbBuffer, volumePostFX,
-		                           postReverbVolumeLastTime, reverbSendAmount, pan, true,
-		                           postReverbSendVolumeIncrement);
-		addAudio(globalEffectableBuffer, outputBuffer, numSamples);
+			processReverbSendAndVolume(globalEffectableBuffer, numSamples, reverbBuffer, volumePostFX,
+			                           postReverbVolumeLastTime, reverbSendAmount, pan, true,
+			                           postReverbSendVolumeIncrement);
+			addAudio(globalEffectableBuffer, outputBuffer, numSamples);
+		}
 	}
 
 	postReverbVolumeLastTime = postReverbVolume;

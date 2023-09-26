@@ -54,6 +54,8 @@ public:
 	void dealloc(void* address);
 	void verifyMemoryNotFree(void* address, uint32_t spaceSize);
 
+	uint32_t start;
+	uint32_t end;
 	int32_t numAllocations;
 
 	CacheManager& cache_manager() { return cache_manager_; }
@@ -61,9 +63,9 @@ public:
 #if ALPHA_OR_BETA_VERSION
 	char const* name; // For debugging messages only.
 #endif
+	OrderedResizeableArrayWithMultiWordKey emptySpaces;
 
 private:
-	OrderedResizeableArrayWithMultiWordKey emptySpaces;
 	friend class CacheManager;
 	CacheManager cache_manager_;
 
@@ -72,8 +74,7 @@ private:
 	attemptToGrabNeighbouringMemory(void* originalSpaceAddress, int32_t originalSpaceSize, int32_t minAmountToExtend,
 	                                int32_t idealAmountToExtend, void* thingNotToStealFrom,
 	                                uint32_t markWithTraversalNo = 0, bool originalSpaceNeedsStealing = false);
+
 	void writeTempHeadersBeforeASteal(uint32_t newStartAddress, uint32_t newSize);
 	void sanityCheck();
-	uint32_t start;
-	uint32_t end;
 };

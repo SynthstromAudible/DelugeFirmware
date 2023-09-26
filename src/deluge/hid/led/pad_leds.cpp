@@ -731,7 +731,7 @@ void changeDimmerInterval(int32_t offset) {
 		pos = strchr(text, 0);
 		*(pos++) = '%';
 		*pos = 0;
-		deluge::hid::display::OLED::popupText(text, false);
+		display->popupTextTemporary(text);
 	}
 }
 
@@ -812,6 +812,10 @@ void timerRoutine() {
 						}
 						else {
 							changeRootUI(&instrumentClipView); // We want to fade the sidebar in
+							bool anyZoomingDone = instrumentClipView.zoomToMax(true);
+							if (anyZoomingDone) {
+								uiNeedsRendering(&instrumentClipView, 0, 0xFFFFFFFF);
+							}
 						}
 					}
 					else {
@@ -1324,7 +1328,7 @@ void vertical::renderScroll() {
 	for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
 		colours[x] = prepareColour(x, endSquare, Colour::fromArray(image[endSquare][x]));
 	}
-	PIC::doVerticalScroll(scrollDirection <= 0, colours);
+	PIC::doVerticalScroll(scrollDirection > 0, colours);
 	PIC::flush();
 }
 

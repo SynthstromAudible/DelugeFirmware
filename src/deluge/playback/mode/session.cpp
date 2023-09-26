@@ -1162,7 +1162,13 @@ void Session::armSectionWhenNeitherClockActive(ModelStack* modelStack, int32_t s
 // Updates LEDs after arming changed
 void Session::armingChanged() {
 	if (getRootUI() == &sessionView) {
-		uiNeedsRendering(&sessionView, 0, 0xFFFFFFFF); // Only need the mute pads
+		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+			uiNeedsRendering(&sessionView, 0xFFFFFFFF, 0xFFFFFFFF);
+		}
+		else {
+			uiNeedsRendering(&sessionView, 0, 0xFFFFFFFF); // Only need the mute pads
+		}
+
 		if (getCurrentUI()->canSeeViewUnderneath()) {
 			if (display->haveOLED()) {
 				if (!isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)
@@ -1301,6 +1307,11 @@ void Session::userWantsToArmClipsToStartOrSolo(uint8_t section, Clip* clip, bool
 			if (thisClip->section == section && thisClip->loopLength > longestStartingClipLength) {
 				longestStartingClipLength = thisClip->loopLength;
 			}
+		}
+
+		// If section was empty, use longest clip waitForClip length instead
+		if (longestStartingClipLength == 0) {
+			longestStartingClipLength = waitForClip->loopLength;
 		}
 	}
 

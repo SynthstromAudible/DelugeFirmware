@@ -53,7 +53,7 @@ ShiftIsSticky menuShiftIsSticky{};
 Setting menuLightShiftLed(RuntimeFeatureSettingType::LightShiftLed);
 
 Submenu subMenuAutomation{
-    l10n::String::STRING_FOR_AUTOMATION,
+    l10n::String::STRING_FOR_COMMUNITY_FEATURE_AUTOMATION,
     {
         &menuAutomationInterpolate,
         &menuAutomationClearClip,
@@ -69,8 +69,7 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettin
     &menuHighlightIncomingNotes, &menuDisplayNornsLayout, &menuShiftIsSticky,       &menuLightShiftLed,
 };
 
-Settings::Settings(l10n::String name, l10n::String title)
-    : menu_item::Submenu<subMenuEntries.size()>(name, title, subMenuEntries) {
+Settings::Settings(l10n::String name, l10n::String title) : menu_item::Submenu(name, title, subMenuEntries) {
 }
 
 } // namespace deluge::gui::menu_item::runtime_feature

@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "gui/l10n/seven_segment.h"
+#include "gui/l10n/language.h"
 #include "hid/display/display.h"
 #include "hid/display/numeric_layer/numeric_layer_basic_text.h"
 #include <array>
@@ -37,7 +37,7 @@ public:
 	             int32_t scrollPos = 0, uint8_t* blinkAddition = NULL, bool justReplaceBottomLayer = false) override;
 	void setNextTransitionDirection(int8_t thisDirection) override;
 	void displayPopup(char const* newText, int8_t numFlashes = 3, bool alignRight = false, uint8_t drawDot = 255,
-	                  int32_t blinkSpeed = 1) override;
+	                  int32_t blinkSpeed = 1, DisplayPopupType type = DisplayPopupType::GENERAL) override;
 	void freezeWithError(char const* text) override;
 	void cancelPopup() override;
 	void displayError(int32_t error) override;
@@ -56,12 +56,17 @@ public:
 	std::array<uint8_t, kNumericDisplayLength> getLast() override { return lastDisplay_; }
 
 	bool hasPopup() override { return this->popupActive; }
+	bool hasPopupOfType(DisplayPopupType type) override { return this->popupActive && type == this->popupType; }
 
 	constexpr size_t getNumBrowserAndMenuLines() override { return 1; }
 
 	void consoleText(char const* text) override { SevenSegment::displayPopup(text); }
-	void popupText(char const* text) override { SevenSegment::displayPopup(text); }
-	void popupTextTemporary(char const* text) override { SevenSegment::displayPopup(text); }
+	void popupText(char const* text, DisplayPopupType type = DisplayPopupType::GENERAL) override {
+		SevenSegment::displayPopup(text, type);
+	}
+	void popupTextTemporary(char const* text, DisplayPopupType type = DisplayPopupType::GENERAL) override {
+		SevenSegment::displayPopup(text, type);
+	}
 
 	void removeWorkingAnimation() override {}
 
@@ -78,6 +83,7 @@ private:
 	NumericLayer* topLayer = nullptr;
 	int8_t nextTransitionDirection = 0;
 	bool popupActive = false;
+	DisplayPopupType popupType = DisplayPopupType::NONE;
 
 	void deleteAllLayers();
 
