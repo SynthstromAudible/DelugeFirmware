@@ -1,6 +1,4 @@
 #pragma once
-#include "gui/l10n/strings.h"
-#include <array>
 #include <cstddef>
 
 namespace deluge::l10n {
