@@ -100,6 +100,7 @@ SECTIONS
         PROVIDE(__frunk_bss_start = .);
         *(.frunk_bss .frunk_bss*)
         . = ALIGN(4);
+		KEEP(*(.frunk_bss))
         PROVIDE(__frunk_bss_end = .);
 	} > RAM012L
 
@@ -280,6 +281,7 @@ SECTIONS
         PROVIDE(__sdram_text_start = .);
         *(.sdram_text .sdram_text*)
         . = ALIGN(4);
+		KEEP(*(.sdram_text))
         PROVIDE(__sdram_text_end = .);
 	} > SDRAM
 
@@ -289,6 +291,7 @@ SECTIONS
         PROVIDE(__sdram_data_start = .);
         *(.sdram_data .sdram_data*)
         . = ALIGN(4);
+		KEEP(*(.sdram_data))
         PROVIDE(__sdram_data_end = .);
 	} > SDRAM
 
@@ -311,6 +314,7 @@ SECTIONS
         PROVIDE(__sdram_bss_start = .);
         *(.sdram_bss .sdram_bss*)
         . = ALIGN(4);
+		KEEP(*(.sdram_bss))
         PROVIDE(__sdram_bss_end = .);
     } > SDRAM
 
