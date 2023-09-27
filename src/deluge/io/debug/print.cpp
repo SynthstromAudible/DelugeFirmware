@@ -211,11 +211,12 @@ void RTimer::stop() {
 	else {
 		uartPrintln(buffer);
 	}
+
 #endif
 }
 
 // Note: No guarding against buffer overflows!
-void RTimer::stop(char* stopLabel) {
+void RTimer::stop(const char* stopLabel) {
 #if ENABLE_TEXT_OUTPUT
 	uint32_t endTime = 0;
 	asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(endTime) :);
@@ -235,7 +236,62 @@ void RTimer::stop(char* stopLabel) {
 	else {
 		uartPrintln(buffer);
 	}
+	startTime = endTime;
 #endif
 }
 
+Averager::Averager(const char* label, uint32_t repeats) : m_label(label), accumulator(0), N(repeats), c(0)
+{
+}
+
+void	Averager::logValue(int32_t val) {
+	accumulator += val;
+	if (N == 0) return;
+	c++;
+	if (c >= N) {
+		int32_t avg = accumulator / c;
+		Debug::print(m_label);
+		Debug::print(" ");
+		Debug::println(avg);
+		accumulator = 0;
+		c = 0;
+	}
+}
+
+void Averager::setN(uint32_t n){
+	N = n;
+}
+
+OneOfN::OneOfN(const char* label, uint32_t repeats) : active(false), N(repeats), c(0), myRTimer(label) {
+
+}
+
+void OneOfN::setN(uint32_t n){
+	N = n;
+}
+
+void OneOfN::start() {
+	if (N == 0) return;
+	c++;
+	if (c > N)	{
+		active = true;
+		myRTimer.reset();
+	}
+}
+
+void OneOfN::stop() {
+	if (N > 0 && active) {
+		active = false;
+		c = 0;
+		myRTimer.stop();
+	}
+}
+
+void OneOfN::split(const char* splitLabel)
+{
+	if (!active || N == 0) return;
+	myRTimer.stop(splitLabel);
+}
+
 } // namespace Debug
+

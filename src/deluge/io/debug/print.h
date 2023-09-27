@@ -31,20 +31,54 @@ void printfloat(float number);
 void print(int32_t number);
 void ResetClock();
 
+
 class RTimer {
 public:
 	RTimer(const char* label);
 	~RTimer();
 
-	void reset();
-	void stop();
-	void stop(char* stopLabel);
+	virtual void reset();
+	virtual void stop();
+	virtual void stop(const char* stopLabel);
 
-private:
 	uint32_t startTime;
 	const char* m_label;
 	bool stopped;
 };
+
+
+class Averager {
+public:
+	Averager(const char* label, uint32_t repeats = 0);
+
+	void	setCount(uint32_t repeats);
+	void	logValue(int32_t val);
+	void 	setN(uint32_t numRepeats);
+
+	const char* m_label;
+	int64_t accumulator;
+	uint32_t N;
+	uint32_t c;
+
+};
+
+class OneOfN{
+public:
+	OneOfN(const char* label, uint32_t repeats = 0);
+
+	void start();
+	void stop();
+
+	void split(const char* splitLabel);
+	void setN(uint32_t numRepeats);
+
+	bool		active;
+	uint32_t 	repeats;
+	uint32_t 	N;
+	uint32_t 	c;
+	RTimer		myRTimer;
+};
+
 
 extern MIDIDevice* midiDebugDevice;
 } // namespace Debug
