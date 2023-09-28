@@ -271,6 +271,7 @@ renderEnvelope:
 			}
 		} while (outputPos < outputPosEnd);
 	}
+	return rendered;
 }
 
 bool AudioOutput::willRenderAsOneChannelOnlyWhichWillNeedCopying() {
