@@ -297,7 +297,7 @@ justAuditionNote:
 		}
 	} //end match switch
 	// In case Norns layout is active show
-	//this ignores input differentiation, but since midi learn doesn't work for norns grid
+	// this ignores input differentiation, but since midi learn doesn't work for norns grid
 	// you can't set a device
 	InstrumentClip* instrumentClip = (InstrumentClip*)activeClip;
 	if (instrumentClip->keyboardState.currentLayout == KeyboardLayoutType::KeyboardLayoutTypeNorns
@@ -389,53 +389,37 @@ void MelodicInstrument::offerReceivedCC(ModelStackWithTimelineCounter* modelStac
 void MelodicInstrument::offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
                                                 MIDIDevice* fromDevice, int32_t channel, int32_t value,
                                                 int32_t noteCode, bool* doingMidiThru) {
+	int32_t valueBig = (int32_t)value << 24;
+	switch (checkMatch(fromDevice, channel)) {
 
-	if (midiInput.equalsDevice(fromDevice)) {
-
-		int32_t valueBig = (int32_t)value << 24;
-
-		if (midiInput.channelOrZone == channel) {
-forMasterChannel:
-
-			// If it's a MIDI Clip...
-			if (type == InstrumentType::MIDI_OUT) {
-				// .. and it's outputting on the same channel as this MIDI message came in, don't do MIDI thru!
-				if (doingMidiThru && ((MIDIInstrument*)this)->channel == channel) {
-					*doingMidiThru = false;
-				}
-			}
-
-			// Still send the aftertouch even if the Output is muted. MidiInstruments will check for and block this themselves
-
-			// Polyphonic aftertouch gets processed along with MPE
-			if (noteCode != -1) {
-				polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, valueBig, 2, noteCode,
-				                                          MIDICharacteristic::NOTE);
-				// We wouldn't be here if this was MPE input, so we know this incoming polyphonic aftertouch message is allowed
-			}
-
-			// Or, channel pressure
-			else {
-				processParamFromInputMIDIChannel(CC_NUMBER_AFTERTOUCH, valueBig, modelStackWithTimelineCounter);
+	case MIDIMatchType::NO_MATCH:
+		return;
+	case MIDIMatchType::MPE_MEMBER:
+		polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, valueBig, 2, channel,
+		                                          MIDICharacteristic::CHANNEL);
+		break;
+	case MIDIMatchType::MPE_MASTER:
+	case MIDIMatchType::CHANNEL:
+		// If it's a MIDI Clip...
+		if (type == InstrumentType::MIDI_OUT) {
+			// .. and it's outputting on the same channel as this MIDI message came in, don't do MIDI thru!
+			if (doingMidiThru && ((MIDIInstrument*)this)->channel == channel) {
+				*doingMidiThru = false;
 			}
 		}
 
-		// Or if MPE enabled...
-		else {
+		// Still send the aftertouch even if the Output is muted. MidiInstruments will check for and block this themselves
+		// MPE should never send poly aftertouch but we might as well handle it anyway
+		// Polyphonic aftertouch gets processed along with MPE
+		if (noteCode != -1) {
+			polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, valueBig, 2, noteCode,
+			                                          MIDICharacteristic::NOTE);
+			// We wouldn't be here if this was MPE input, so we know this incoming polyphonic aftertouch message is allowed
+		}
 
-			// Only if a "channel pressure" message (which with MPE of course refers to ideally just one key).
-			// Non-MPE "polyphonic key pressure" messages are not allowed in MPE currently.
-			if (noteCode == -1) {
-				uint8_t corz = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
-				if (midiInput.channelOrZone == corz) {
-					bool master = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isMasterChannel(channel);
-					if (master) {
-						goto forMasterChannel;
-					}
-					polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, valueBig, 2, channel,
-					                                          MIDICharacteristic::CHANNEL);
-				}
-			}
+		// Or, channel pressure
+		else {
+			processParamFromInputMIDIChannel(CC_NUMBER_AFTERTOUCH, valueBig, modelStackWithTimelineCounter);
 		}
 	}
 }
