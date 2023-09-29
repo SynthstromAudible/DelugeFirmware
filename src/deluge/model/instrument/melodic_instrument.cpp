@@ -340,48 +340,42 @@ forMasterChannel:
 void MelodicInstrument::offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
                                         MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
                                         bool* doingMidiThru) {
-
-	if (midiInput.equalsDevice(fromDevice)) {
-
-		if (midiInput.channelOrZone == channel) {
-			//map non MPE mod wheel to y expression
-			if (ccNumber == 1) {
+	uint8_t corz = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
+	bool master = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isMasterChannel(channel);
+	bool isMPE = (corz >= MIDI_CHANNEL_MPE_LOWER_ZONE);
+	//MPE y axis is 74, and treat non-MPE mod wheel the same for panel modulation
+	//common assumption in controllers
+	int32_t yCC = isMPE ? 74 : 1;
+	if (midiInput.equalsDevice(fromDevice) && midiInput.channelOrZone == corz) {
+		//if not MPE
+		if (isMPE) {
+			if (ccNumber == 74) { // All other CCs are not supposed to be used for Member Channels, for anything.
 				int32_t value32 = (value - 64) << 25;
-				processParamFromInputMIDIChannel(74, value32, modelStackWithTimelineCounter);
-			}
-forMasterChannel:
-			// If it's a MIDI Clip...
-			if (type == InstrumentType::MIDI_OUT) {
-				// .. and it's outputting on the same channel as this MIDI message came in, don't do MIDI thru!
-				if (doingMidiThru && ((MIDIInstrument*)this)->channel == channel) {
-					*doingMidiThru = false;
-				}
-			}
-
-			// Still send the cc even if the Output is muted. MidiInstruments will check for and block this themselves
-			ccReceivedFromInputMIDIChannel(ccNumber, value, modelStackWithTimelineCounter);
-		}
-		else {
-			uint8_t corz = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
-			if (midiInput.channelOrZone == corz) {
-				bool master = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isMasterChannel(channel);
-				if (master) {
-mpeMasterChannel:
-					if (ccNumber == 74) {
-						int32_t value32 = (value - 64) << 25;
-						processParamFromInputMIDIChannel(74, value32, modelStackWithTimelineCounter);
-					}
-					goto forMasterChannel;
-				}
-mpeY:
-				if (ccNumber == 74) { // All other CCs are not supposed to be used for Member Channels, for anything.
-					int32_t value32 = (value - 64) << 25;
-					polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, value32, 1, channel,
-					                                          MIDICharacteristic::CHANNEL);
-				}
+				polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, value32, 1, channel,
+				                                          MIDICharacteristic::CHANNEL);
+				return;
 			}
 		}
 	}
+	else {
+		if (yCC == ccNumber) {
+			int32_t value32 = (value - 64) << 25;
+			//this also passes CC1 to the instrument, but that's important for midi instruments
+			//or internal synths that have CC1 learnt to a parameter instead of used as modwheel
+			processParamFromInputMIDIChannel(74, value32, modelStackWithTimelineCounter);
+		}
+		// If it's a MIDI Clip...
+		if (type == InstrumentType::MIDI_OUT) {
+			// .. and it's outputting on the same channel as this MIDI message came in, don't do MIDI thru!
+			if (doingMidiThru && ((MIDIInstrument*)this)->channel == channel) {
+				*doingMidiThru = false;
+			}
+		}
+
+		// Still send the cc even if the Output is muted. MidiInstruments will check for and block this themselves
+		ccReceivedFromInputMIDIChannel(ccNumber, value, modelStackWithTimelineCounter);
+	}
+	//it's MPE
 }
 
 // noteCode -1 means channel-wide, including for MPE input (which then means it could still then just apply to one note).
