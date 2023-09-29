@@ -98,6 +98,24 @@ bool MelodicInstrument::readTagFromFile(char const* tagName) {
 	return true;
 }
 
+MIDIMatchType MelodicInstrument::checkMatch(MIDIDevice* fromDevice, int32_t midiChannel) {
+	uint8_t corz = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(midiChannel);
+
+	if (midiInput.equalsDevice(fromDevice) && midiInput.channelOrZone == corz) {
+		if (midiInput.channelOrZone == midiChannel) {
+			return MIDIMatchType::CHANNEL;
+		}
+		bool master = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isMasterChannel(midiChannel);
+		if (master) {
+			return MIDIMatchType::MPE_MASTER;
+		}
+		else {
+			return MIDIMatchType::MPE_MEMBER;
+		}
+	}
+	return MIDIMatchType::NO_MATCH;
+}
+
 void MelodicInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on,
                                           int32_t midiChannel, int32_t note, int32_t velocity, bool shouldRecordNotes,
                                           bool* doingMidiThru) {
@@ -340,24 +358,22 @@ forMasterChannel:
 void MelodicInstrument::offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
                                         MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
                                         bool* doingMidiThru) {
-	uint8_t corz = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
-	bool master = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isMasterChannel(channel);
-	bool isMPE = (corz >= MIDI_CHANNEL_MPE_LOWER_ZONE);
-	//MPE y axis is 74, and treat non-MPE mod wheel the same for panel modulation
-	//common assumption in controllers
-	int32_t yCC = isMPE ? 74 : 1;
-	if (midiInput.equalsDevice(fromDevice) && midiInput.channelOrZone == corz) {
-		//if not MPE
-		if (isMPE) {
-			if (ccNumber == 74) { // All other CCs are not supposed to be used for Member Channels, for anything.
-				int32_t value32 = (value - 64) << 25;
-				polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, value32, 1, channel,
-				                                          MIDICharacteristic::CHANNEL);
-				return;
-			}
+	int yCC = 1;
+	switch (checkMatch(fromDevice, channel)) {
+
+	case MIDIMatchType::NO_MATCH:
+		return;
+	case MIDIMatchType::MPE_MEMBER:
+		if (ccNumber == 74) { // All other CCs are not supposed to be used for Member Channels, for anything.
+			int32_t value32 = (value - 64) << 25;
+			polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, value32, 1, channel,
+			                                          MIDICharacteristic::CHANNEL);
+			return;
 		}
-	}
-	else {
+	case MIDIMatchType::MPE_MASTER:
+		yCC = 74;
+		//no break
+	case MIDIMatchType::CHANNEL:
 		if (yCC == ccNumber) {
 			int32_t value32 = (value - 64) << 25;
 			//this also passes CC1 to the instrument, but that's important for midi instruments
@@ -374,8 +390,8 @@ void MelodicInstrument::offerReceivedCC(ModelStackWithTimelineCounter* modelStac
 
 		// Still send the cc even if the Output is muted. MidiInstruments will check for and block this themselves
 		ccReceivedFromInputMIDIChannel(ccNumber, value, modelStackWithTimelineCounter);
+		;
 	}
-	//it's MPE
 }
 
 // noteCode -1 means channel-wide, including for MPE input (which then means it could still then just apply to one note).
