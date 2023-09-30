@@ -16,7 +16,6 @@
 */
 
 #include "memory/memory_region.h"
-#include "drivers/mtu/mtu.h"
 #include "hid/display/display.h"
 #include "io/debug/print.h"
 #include "memory/general_memory_allocator.h"
