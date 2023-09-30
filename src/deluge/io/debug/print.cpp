@@ -100,11 +100,6 @@ void init() {
 	initFlag = true;
 }
 
-[[gnu::always_inline]] inline uint32_t sampleCycleCounter() {
-	uint32_t cycles = 0;
-	asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(cycles) :);
-	return cycles;
-}
 
 MIDIDevice* midiDebugDevice = nullptr;
 
@@ -168,6 +163,15 @@ void print(int32_t number) {
 	intToString(number, buffer);
 	print(buffer);
 #endif
+}
+
+void printsnln(char* label, uint32_t val) {
+	char buffer[128];
+	int len = strlen(label);
+	strcpy(buffer, label);
+	buffer[len] = ' ';
+	intToString(val, buffer + len + 1);
+	println(buffer);
 }
 
 RTimer::RTimer(const char* label) : startTime(0), m_label(label), stopped(false) {
@@ -250,9 +254,7 @@ void	Averager::logValue(int32_t val) {
 	c++;
 	if (c >= N) {
 		int32_t avg = accumulator / c;
-		Debug::print(m_label);
-		Debug::print(" ");
-		Debug::println(avg);
+		printsnln((char*) m_label, avg);
 		accumulator = 0;
 		c = 0;
 	}
@@ -292,6 +294,112 @@ void OneOfN::split(const char* splitLabel)
 	if (!active || N == 0) return;
 	myRTimer.stop(splitLabel);
 }
+
+
+CountsPer::CountsPer(const char* label, uint32_t timeBase) : label(label), timeBase(timeBase), active(false), count(0), t0(0)
+{}
+
+void CountsPer::CountsPer::bump() {
+	if (!active) {
+		count = 1;
+		active = true;
+		asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(t0) :);
+	} else {
+		uint32_t t1;
+		asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(t1) :);
+		uint32_t deltaT = t1 - t0;
+		if (deltaT >= timeBase) {
+			printsnln((char*) label, count);
+			count = 1;
+			t0 = t1;
+		} else {
+			count++;
+		}
+	}
+}
+
+	void CountsPer::clear() {
+		active = false;
+		count = 0;
+	}
+
+	AverageDT::AverageDT(const char* label, uint32_t timeBase, uint32_t scaling) : label(label), timeBase(timeBase), active(false), scaling(scaling), accumulator(0), count(0), t0(0), tnm1(0)
+	{}
+
+	void AverageDT::begin()
+	{
+		asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(tnm1) :);
+	}
+
+	void AverageDT::note() {
+		if (!active) {
+			count = 0;
+			active = true;
+			asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(t0) :);
+			tnm1 = t0;
+			accumulator = 0;
+		} else {
+			uint32_t t1;
+			asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(t1) :);
+			uint32_t deltaT = t1 - t0;
+			if (deltaT >= timeBase) {
+				uint32_t avg;
+				if (count == 0) {
+					avg = deltaT / scaling;
+				} else {
+					avg = accumulator / count;
+				}
+				if (scaling > 1) avg = avg / scaling;
+				printsnln((char*) label, avg);
+				count = 0;
+				accumulator = 0;
+				t0 = t1;
+			}
+			accumulator += (t1 - tnm1);
+			count++;
+			tnm1 = t1;
+		}
+	}
+
+		void AverageDT::clear() {
+			active = false;
+			count = 0;
+			accumulator = 0;
+		}
+
+		AverageVOT::AverageVOT(const char* label, uint32_t timeBase) : label(label), timeBase(timeBase), active(false), accumulator(0), count(0), t0(0)
+		{}
+
+		void AverageVOT::note(uint32_t value) {
+			if (!active) {
+				count = 0;
+				accumulator = 0;
+				active = true;
+				asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(t0) :);
+			} else {
+				uint32_t t1;
+				asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(t1) :);
+				uint32_t deltaT = t1 - t0;
+				if (deltaT >= timeBase) {
+					uint32_t avg;
+					if (count != 0) {
+						avg = (accumulator / count);
+						printsnln((char*) label, avg);
+					}
+					count = 0;
+					accumulator = 0;
+					t0 = t1;
+				}
+				accumulator += value;
+				count++;
+			}
+		}
+
+		void AverageVOT::clear() {
+			active = false;
+			count = 0;
+			accumulator = 0;
+		}
 
 } // namespace Debug
 

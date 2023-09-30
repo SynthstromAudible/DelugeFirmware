@@ -22,6 +22,17 @@
 class MIDIDevice;
 
 namespace Debug {
+const uint32_t sec = 400000000;
+const uint32_t mS = 400000;
+const uint32_t uS = 400;
+
+[[gnu::always_inline]] inline uint32_t sampleCycleCounter() {
+	uint32_t cycles = 0;
+	asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(cycles) :);
+	return cycles;
+}
+
+
 void init();
 void print(char const* output);
 void println(char const* output);
@@ -73,12 +84,52 @@ public:
 	void setN(uint32_t numRepeats);
 
 	bool		active;
-	uint32_t 	repeats;
 	uint32_t 	N;
 	uint32_t 	c;
 	RTimer		myRTimer;
 };
 
+
+class CountsPer {
+public:
+	CountsPer(const char* label, uint32_t timeBase);
+	void bump();
+	void clear();
+	const char*	label;
+	uint32_t	timeBase;
+	bool		active;
+	uint32_t 	count;
+	uint32_t	t0;
+};
+
+class AverageDT {
+public:
+	AverageDT(const char* label, uint32_t timeBase, uint32_t scaling = 1);
+	void begin();
+	void note();
+	void clear();
+	const char*	label;
+	uint32_t	timeBase;
+	bool		active;
+	uint32_t	scaling;
+	int64_t 	accumulator;
+	uint32_t 	count;
+	uint32_t	t0;
+	uint32_t	tnm1;
+
+};
+
+class AverageVOT {
+	AverageVOT(const char* label, uint32_t timeBase);
+	void note(uint32_t value);
+	void clear();
+	const char*	label;
+	uint32_t	timeBase;
+	bool		active;
+	int64_t 	accumulator;
+	uint32_t 	count;
+	uint32_t	t0;
+};
 
 extern MIDIDevice* midiDebugDevice;
 } // namespace Debug
