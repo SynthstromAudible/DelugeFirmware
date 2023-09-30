@@ -32,7 +32,6 @@ const uint32_t uS = 400;
 	return cycles;
 }
 
-
 void init();
 void print(char const* output);
 void println(char const* output);
@@ -41,7 +40,6 @@ void printlnfloat(float number);
 void printfloat(float number);
 void print(int32_t number);
 void ResetClock();
-
 
 class RTimer {
 public:
@@ -57,23 +55,21 @@ public:
 	bool stopped;
 };
 
-
 class Averager {
 public:
 	Averager(const char* label, uint32_t repeats = 0);
 
-	void	setCount(uint32_t repeats);
-	void	note(int32_t val);
-	void 	setN(uint32_t numRepeats);
+	void setCount(uint32_t repeats);
+	void note(int32_t val);
+	void setN(uint32_t numRepeats);
 
 	const char* m_label;
 	int64_t accumulator;
 	uint32_t N;
 	uint32_t c;
-
 };
 
-class OneOfN{
+class OneOfN {
 public:
 	OneOfN(const char* label, uint32_t repeats = 0);
 
@@ -83,10 +79,10 @@ public:
 	void split(const char* splitLabel);
 	void setN(uint32_t numRepeats);
 
-	bool		active;
-	uint32_t 	N;
-	uint32_t 	c;
-	RTimer		myRTimer;
+	bool active;
+	uint32_t N;
+	uint32_t c;
+	RTimer myRTimer;
 };
 
 class OnceEvery {
@@ -98,10 +94,10 @@ public:
 
 	void split(const char* splitLabel);
 
-	bool		active;
-	uint32_t	timeBase;
-	uint32_t	t0;
-	RTimer		myRTimer;
+	bool active;
+	uint32_t timeBase;
+	uint32_t t0;
+	RTimer myRTimer;
 };
 
 class CountsPer {
@@ -109,11 +105,11 @@ public:
 	CountsPer(const char* label, uint32_t timeBase);
 	void bump();
 	void clear();
-	const char*	label;
-	uint32_t	timeBase;
-	bool		active;
-	uint32_t 	count;
-	uint32_t	t0;
+	const char* label;
+	uint32_t timeBase;
+	bool active;
+	uint32_t count;
+	uint32_t t0;
 };
 
 class AverageDT {
@@ -122,27 +118,26 @@ public:
 	void begin();
 	void note();
 	void clear();
-	const char*	label;
-	uint32_t	timeBase;
-	bool		active;
-	uint32_t	scaling;
-	int64_t 	accumulator;
-	uint32_t 	count;
-	uint32_t	t0;
-	uint32_t	tnm1;
-
+	const char* label;
+	uint32_t timeBase;
+	bool active;
+	uint32_t scaling;
+	int64_t accumulator;
+	uint32_t count;
+	uint32_t t0;
+	uint32_t tnm1;
 };
 
 class AverageVOT {
 	AverageVOT(const char* label, uint32_t timeBase);
 	void note(uint32_t value);
 	void clear();
-	const char*	label;
-	uint32_t	timeBase;
-	bool		active;
-	int64_t 	accumulator;
-	uint32_t 	count;
-	uint32_t	t0;
+	const char* label;
+	uint32_t timeBase;
+	bool active;
+	int64_t accumulator;
+	uint32_t count;
+	uint32_t t0;
 };
 
 extern MIDIDevice* midiDebugDevice;

@@ -102,7 +102,6 @@ void init() {
 	initFlag = true;
 }
 
-
 MIDIDevice* midiDebugDevice = nullptr;
 
 void prependTimeStamp(bool isNewLine) {
@@ -248,32 +247,32 @@ void RTimer::stop(const char* stopLabel) {
 #endif
 }
 
-Averager::Averager(const char* label, uint32_t repeats) : m_label(label), accumulator(0), N(repeats), c(0)
-{
+Averager::Averager(const char* label, uint32_t repeats) : m_label(label), accumulator(0), N(repeats), c(0) {
 }
 
-void	Averager::note(int32_t val) {
+void Averager::note(int32_t val) {
 #if ENABLE_TEXT_OUTPUT
 	accumulator += val;
-	if (N == 0) return;
+	if (N == 0)
+		return;
 	c++;
 	if (c >= N) {
 		int32_t avg = accumulator / c;
-		printsnln((char*) m_label, avg);
+		printsnln((char*)m_label, avg);
 		accumulator = 0;
 		c = 0;
 	}
 #endif
 }
 
-void Averager::setN(uint32_t n){
+void Averager::setN(uint32_t n) {
 	N = n;
 }
 
 OneOfN::OneOfN(const char* label, uint32_t repeats) : active(false), N(repeats), c(0), myRTimer(label) {
 }
 
-void OneOfN::setN(uint32_t n){
+void OneOfN::setN(uint32_t n) {
 #if ENABLE_TEXT_OUTPUT
 	N = n;
 #endif
@@ -281,9 +280,10 @@ void OneOfN::setN(uint32_t n){
 
 void OneOfN::start() {
 #if ENABLE_TEXT_OUTPUT
-	if (N == 0) return;
+	if (N == 0)
+		return;
 	c++;
-	if (c > N)	{
+	if (c > N) {
 		active = true;
 		myRTimer.reset();
 	}
@@ -302,15 +302,14 @@ void OneOfN::stop() {
 
 void OneOfN::split(const char* splitLabel) {
 #if ENABLE_TEXT_OUTPUT
-	if (!active || N == 0) return;
+	if (!active || N == 0)
+		return;
 	myRTimer.stop(splitLabel);
 #endif
 }
 
 OnceEvery::OnceEvery(const char* label, uint32_t timeBase) : active(false), timeBase(timeBase), t0(0), myRTimer(label) {
-
 }
-
 
 void OnceEvery::start() {
 #if ENABLE_TEXT_OUTPUT
@@ -327,7 +326,8 @@ void OnceEvery::start() {
 
 void OnceEvery::stop() {
 #if ENABLE_TEXT_OUTPUT
-	if (!active) return;
+	if (!active)
+		return;
 	myRTimer.stop();
 	active = false;
 #endif
@@ -335,14 +335,15 @@ void OnceEvery::stop() {
 
 void OnceEvery::split(const char* splitLabel) {
 #if ENABLE_TEXT_OUTPUT
-	if (!active) return;
+	if (!active)
+		return;
 	myRTimer.stop(splitLabel);
 #endif
 }
 
-
-CountsPer::CountsPer(const char* label, uint32_t timeBase) : label(label), timeBase(timeBase), active(false), count(0), t0(0)
-{}
+CountsPer::CountsPer(const char* label, uint32_t timeBase)
+    : label(label), timeBase(timeBase), active(false), count(0), t0(0) {
+}
 
 void CountsPer::CountsPer::bump() {
 #if ENABLE_TEXT_OUTPUT
@@ -350,115 +351,122 @@ void CountsPer::CountsPer::bump() {
 		count = 1;
 		active = true;
 		asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(t0) :);
-	} else {
+	}
+	else {
 		uint32_t t1;
 		asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(t1) :);
 		uint32_t deltaT = t1 - t0;
 		if (deltaT >= timeBase) {
-			printsnln((char*) label, count);
+			printsnln((char*)label, count);
 			count = 1;
 			t0 = t1;
-		} else {
+		}
+		else {
 			count++;
 		}
 	}
 #endif
 }
 
-	void CountsPer::clear() {
+void CountsPer::clear() {
 #if ENABLE_TEXT_OUTPUT
-		active = false;
+	active = false;
+	count = 0;
+#endif
+}
+
+AverageDT::AverageDT(const char* label, uint32_t timeBase, uint32_t scaling)
+    : label(label), timeBase(timeBase), active(false), scaling(scaling), accumulator(0), count(0), t0(0), tnm1(0) {
+}
+
+void AverageDT::begin()
+#if ENABLE_TEXT_OUTPUT
+{
+	asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(tnm1) :);
+#endif
+}
+
+void AverageDT::note() {
+#if ENABLE_TEXT_OUTPUT
+	if (!active) {
 		count = 0;
-#endif
+		active = true;
+		asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(t0) :);
+		tnm1 = t0;
+		accumulator = 0;
 	}
-
-	AverageDT::AverageDT(const char* label, uint32_t timeBase, uint32_t scaling) : label(label), timeBase(timeBase), active(false), scaling(scaling), accumulator(0), count(0), t0(0), tnm1(0)
-	{}
-
-	void AverageDT::begin()
-#if ENABLE_TEXT_OUTPUT
-	{
-		asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(tnm1) :);
-#endif
-	}
-
-	void AverageDT::note() {
-#if ENABLE_TEXT_OUTPUT
-		if (!active) {
-			count = 0;
-			active = true;
-			asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(t0) :);
-			tnm1 = t0;
-			accumulator = 0;
-		} else {
-			uint32_t t1;
-			asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(t1) :);
-			uint32_t deltaT = t1 - t0;
-			if (deltaT >= timeBase) {
-				uint32_t avg;
-				if (count == 0) {
-					avg = deltaT / scaling;
-				} else {
-					avg = accumulator / count;
-				}
-				if (scaling > 1) avg = avg / scaling;
-				printsnln((char*) label, avg);
-				count = 0;
-				accumulator = 0;
-				t0 = t1;
+	else {
+		uint32_t t1;
+		asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(t1) :);
+		uint32_t deltaT = t1 - t0;
+		if (deltaT >= timeBase) {
+			uint32_t avg;
+			if (count == 0) {
+				avg = deltaT / scaling;
 			}
-			accumulator += (t1 - tnm1);
-			count++;
-			tnm1 = t1;
-		}
-#endif
-	}
-
-		void AverageDT::clear() {
-#if ENABLE_TEXT_OUTPUT
-			active = false;
-			count = 0;
-			accumulator = 0;
-#endif
-		}
-
-		AverageVOT::AverageVOT(const char* label, uint32_t timeBase) : label(label), timeBase(timeBase), active(false), accumulator(0), count(0), t0(0)
-		{}
-
-		void AverageVOT::note(uint32_t value) {
-#if ENABLE_TEXT_OUTPUT
-			if (!active) {
-				count = 0;
-				accumulator = 0;
-				active = true;
-				asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(t0) :);
-			} else {
-				uint32_t t1;
-				asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(t1) :);
-				uint32_t deltaT = t1 - t0;
-				if (deltaT >= timeBase) {
-					uint32_t avg;
-					if (count != 0) {
-						avg = (accumulator / count);
-						printsnln((char*) label, avg);
-					}
-					count = 0;
-					accumulator = 0;
-					t0 = t1;
-				}
-				accumulator += value;
-				count++;
+			else {
+				avg = accumulator / count;
 			}
-#endif
-		}
-
-		void AverageVOT::clear() {
-#if ENABLE_TEXT_OUTPUT
-			active = false;
+			if (scaling > 1)
+				avg = avg / scaling;
+			printsnln((char*)label, avg);
 			count = 0;
 			accumulator = 0;
-#endif
+			t0 = t1;
 		}
+		accumulator += (t1 - tnm1);
+		count++;
+		tnm1 = t1;
+	}
+#endif
+}
+
+void AverageDT::clear() {
+#if ENABLE_TEXT_OUTPUT
+	active = false;
+	count = 0;
+	accumulator = 0;
+#endif
+}
+
+AverageVOT::AverageVOT(const char* label, uint32_t timeBase)
+    : label(label), timeBase(timeBase), active(false), accumulator(0), count(0), t0(0) {
+}
+
+void AverageVOT::note(uint32_t value) {
+#if ENABLE_TEXT_OUTPUT
+	if (!active) {
+		count = 0;
+		accumulator = 0;
+		active = true;
+		asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(t0) :);
+	}
+	else {
+		uint32_t t1;
+		asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(t1) :);
+		uint32_t deltaT = t1 - t0;
+		if (deltaT >= timeBase) {
+			uint32_t avg;
+			if (count != 0) {
+				avg = (accumulator / count);
+				printsnln((char*)label, avg);
+			}
+			count = 0;
+			accumulator = 0;
+			t0 = t1;
+		}
+		accumulator += value;
+		count++;
+	}
+#endif
+}
+
+void AverageVOT::clear() {
+#if ENABLE_TEXT_OUTPUT
+	active = false;
+	count = 0;
+	accumulator = 0;
+#endif
+}
 
 } // namespace Debug
-
