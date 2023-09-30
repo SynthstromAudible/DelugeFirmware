@@ -20,7 +20,9 @@
 #include "io/debug/print.h"
 #include "memory/general_memory_allocator.h"
 #include "memory/stealable.h"
+#ifdef DO_AUDIO_LOG
 #include "processing/engines/audio_engine.h"
+#endif
 #include "util/functions.h"
 
 MemoryRegion::MemoryRegion() : emptySpaces(sizeof(EmptySpaceRecord)) {
@@ -583,7 +585,9 @@ tryNotStealingFirst:
 					}
 					stealable = (Stealable*)(void*)spaceHereAddress;
 					if (!stealable->mayBeStolen(thingNotToStealFrom)) {
+#ifdef DO_AUDIO_LOG
 						AudioEngine::logAction("found a stealable with a reason");
+#endif
 						break;
 					}
 					if (!actuallyGrabbing && markWithTraversalNo) {
@@ -647,7 +651,9 @@ tryNotStealingFirst:
 					// unused empty space, in case we just stumbled on more
 					//No - if we're not grabbing this can cause us to exit early without stealing all intermediate memory
 					if (tryingStealingYet) {
+#ifdef DO_AUDIO_LOG
 						AudioEngine::logAction("found some space and looking for more");
+#endif
 						goto tryNotStealingFirst;
 					}
 				}
