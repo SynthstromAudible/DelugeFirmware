@@ -117,17 +117,17 @@ depend:
 .PHONY : depend
 
 #=============================================================================
-# Target rules for targets named demo_test
+# Target rules for targets named memory_tests
 
 # Build rule for target.
-demo_test: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 demo_test
-.PHONY : demo_test
+memory_tests: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 memory_tests
+.PHONY : memory_tests
 
 # fast build rule for target.
-demo_test/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/demo_test.dir/build.make CMakeFiles/demo_test.dir/build
-.PHONY : demo_test/fast
+memory_tests/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/memory_tests.dir/build.make CMakeFiles/memory_tests.dir/build
+.PHONY : memory_tests/fast
 
 #=============================================================================
 # Target rules for targets named RunAllTests
@@ -166,29 +166,29 @@ RunAllTests.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/RunAllTests.dir/build.make CMakeFiles/RunAllTests.dir/RunAllTests.cpp.s
 .PHONY : RunAllTests.cpp.s
 
-demo_test.o: demo_test.cpp.o
-.PHONY : demo_test.o
+memory_tests.o: memory_tests.cpp.o
+.PHONY : memory_tests.o
 
 # target to build an object file
-demo_test.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/demo_test.dir/build.make CMakeFiles/demo_test.dir/demo_test.cpp.o
-.PHONY : demo_test.cpp.o
+memory_tests.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/memory_tests.dir/build.make CMakeFiles/memory_tests.dir/memory_tests.cpp.o
+.PHONY : memory_tests.cpp.o
 
-demo_test.i: demo_test.cpp.i
-.PHONY : demo_test.i
+memory_tests.i: memory_tests.cpp.i
+.PHONY : memory_tests.i
 
 # target to preprocess a source file
-demo_test.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/demo_test.dir/build.make CMakeFiles/demo_test.dir/demo_test.cpp.i
-.PHONY : demo_test.cpp.i
+memory_tests.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/memory_tests.dir/build.make CMakeFiles/memory_tests.dir/memory_tests.cpp.i
+.PHONY : memory_tests.cpp.i
 
-demo_test.s: demo_test.cpp.s
-.PHONY : demo_test.s
+memory_tests.s: memory_tests.cpp.s
+.PHONY : memory_tests.s
 
 # target to generate assembly for a file
-demo_test.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/demo_test.dir/build.make CMakeFiles/demo_test.dir/demo_test.cpp.s
-.PHONY : demo_test.cpp.s
+memory_tests.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/memory_tests.dir/build.make CMakeFiles/memory_tests.dir/memory_tests.cpp.s
+.PHONY : memory_tests.cpp.s
 
 # Help Target
 help:
@@ -199,13 +199,13 @@ help:
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... RunAllTests"
-	@echo "... demo_test"
+	@echo "... memory_tests"
 	@echo "... RunAllTests.o"
 	@echo "... RunAllTests.i"
 	@echo "... RunAllTests.s"
-	@echo "... demo_test.o"
-	@echo "... demo_test.i"
-	@echo "... demo_test.s"
+	@echo "... memory_tests.o"
+	@echo "... memory_tests.i"
+	@echo "... memory_tests.s"
 .PHONY : help
 
 
