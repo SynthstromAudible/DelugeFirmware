@@ -21,7 +21,6 @@
 #include "io/debug/print.h"
 #include "memory/stealable.h"
 #include "processing/engines/audio_engine.h"
-#include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
 #include "util/functions.h"
 
@@ -401,10 +400,6 @@ void GeneralMemoryAllocator::testShorten(int32_t i) {
 void GeneralMemoryAllocator::test() {
 
 	Debug::println("GeneralMemoryAllocator::test()");
-
-	// Corrupt the crap out of these two so we know they can take it!
-	audioFileManager.clusterSize = 0;
-	audioFileManager.clusterSizeMagnitude = 0;
 
 	memset(testAllocations, 0, sizeof(testAllocations));
 
