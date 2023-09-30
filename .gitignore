@@ -15,3 +15,7 @@ __pycache__
 /dbt_options.py
 /scripts/debug/openocd.log
 .cache
+/tests/CMakeFiles
+/tests/CMakeCache.txt
+/tests/Makefile
+*.a
