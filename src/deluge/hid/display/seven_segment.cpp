@@ -469,7 +469,7 @@ void SevenSegment::setNextTransitionDirection(int8_t thisDirection) {
 }
 
 void SevenSegment::displayPopup(char const* newText, int8_t numFlashes, bool alignRight, uint8_t drawDot,
-                                int32_t blinkSpeed) {
+                                int32_t blinkSpeed, DisplayPopupType type) {
 	encodeText(newText, popup.segments, alignRight, drawDot);
 	memset(&popup.blinkedSegments, 0, kNumericDisplayLength);
 	if (numFlashes == 0) {
@@ -480,6 +480,7 @@ void SevenSegment::displayPopup(char const* newText, int8_t numFlashes, bool ali
 	}
 	popup.currentlyBlanked = false;
 	popupActive = true;
+	popupType = type;
 	popup.blinkSpeed = blinkSpeed;
 
 	indicator_leds::ledBlinkTimeout(0, true);
