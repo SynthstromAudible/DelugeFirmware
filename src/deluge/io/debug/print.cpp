@@ -29,6 +29,8 @@ namespace Debug {
 
 constexpr uint32_t kNumSamplesBetweenReports = 44100;
 
+constexpr bool SysExLoggingEnabled = true;
+
 bool initFlag = false;
 bool prependDeltaT = true;
 bool lastWasNewline = false;
@@ -114,7 +116,7 @@ void prependTimeStamp(bool isNewLine) {
 		lutHexString(Debug::sampleCycleCounter(), buffer);
 		buffer[8] = ' ';
 		buffer[9] = 0;
-		if (midiDebugDevice) {
+		if (midiDebugDevice && SysExLoggingEnabled) {
 			sysexDebugPrint(midiDebugDevice, buffer, false);
 		}
 		else {
@@ -128,7 +130,7 @@ void prependTimeStamp(bool isNewLine) {
 void println(char const* output) {
 #if ENABLE_TEXT_OUTPUT
 	prependTimeStamp(true);
-	if (midiDebugDevice) {
+	if (midiDebugDevice && SysExLoggingEnabled) {
 		sysexDebugPrint(midiDebugDevice, output, true);
 	}
 	else {
@@ -148,7 +150,7 @@ void println(int32_t number) {
 void print(char const* output) {
 #if ENABLE_TEXT_OUTPUT
 	prependTimeStamp(false);
-	if (midiDebugDevice) {
+	if (midiDebugDevice && SysExLoggingEnabled) {
 		sysexDebugPrint(midiDebugDevice, output, false);
 	}
 	else {
@@ -166,12 +168,14 @@ void print(int32_t number) {
 }
 
 void printsnln(char* label, uint32_t val) {
+#if ENABLE_TEXT_OUTPUT
 	char buffer[128];
 	int len = strlen(label);
 	strcpy(buffer, label);
 	buffer[len] = ' ';
 	intToString(val, buffer + len + 1);
 	println(buffer);
+#endif
 }
 
 RTimer::RTimer(const char* label) : startTime(0), m_label(label), stopped(false) {
@@ -209,7 +213,7 @@ void RTimer::stop() {
 	lutHexString(deltaT, buffer + 9);
 	buffer[17] = ' ';
 	strcpy(buffer + 18, m_label);
-	if (midiDebugDevice) {
+	if (midiDebugDevice && SysExLoggingEnabled) {
 		sysexDebugPrint(midiDebugDevice, buffer, true);
 	}
 	else {
@@ -234,7 +238,7 @@ void RTimer::stop(const char* stopLabel) {
 	strcpy(buffer + 18, m_label);
 	char* stopplace = buffer + 18 + strlen(m_label);
 	strcpy(stopplace, stopLabel);
-	if (midiDebugDevice) {
+	if (midiDebugDevice && SysExLoggingEnabled) {
 		sysexDebugPrint(midiDebugDevice, buffer, true);
 	}
 	else {
@@ -248,7 +252,8 @@ Averager::Averager(const char* label, uint32_t repeats) : m_label(label), accumu
 {
 }
 
-void	Averager::logValue(int32_t val) {
+void	Averager::note(int32_t val) {
+#if ENABLE_TEXT_OUTPUT
 	accumulator += val;
 	if (N == 0) return;
 	c++;
@@ -258,6 +263,7 @@ void	Averager::logValue(int32_t val) {
 		accumulator = 0;
 		c = 0;
 	}
+#endif
 }
 
 void Averager::setN(uint32_t n){
@@ -265,34 +271,73 @@ void Averager::setN(uint32_t n){
 }
 
 OneOfN::OneOfN(const char* label, uint32_t repeats) : active(false), N(repeats), c(0), myRTimer(label) {
-
 }
 
 void OneOfN::setN(uint32_t n){
+#if ENABLE_TEXT_OUTPUT
 	N = n;
+#endif
 }
 
 void OneOfN::start() {
+#if ENABLE_TEXT_OUTPUT
 	if (N == 0) return;
 	c++;
 	if (c > N)	{
 		active = true;
 		myRTimer.reset();
 	}
+#endif
 }
 
 void OneOfN::stop() {
+#if ENABLE_TEXT_OUTPUT
 	if (N > 0 && active) {
 		active = false;
 		c = 0;
 		myRTimer.stop();
 	}
+#endif
 }
 
-void OneOfN::split(const char* splitLabel)
-{
+void OneOfN::split(const char* splitLabel) {
+#if ENABLE_TEXT_OUTPUT
 	if (!active || N == 0) return;
 	myRTimer.stop(splitLabel);
+#endif
+}
+
+OnceEvery::OnceEvery(const char* label, uint32_t timeBase) : active(false), timeBase(timeBase), t0(0), myRTimer(label) {
+
+}
+
+
+void OnceEvery::start() {
+#if ENABLE_TEXT_OUTPUT
+	uint32_t t1;
+	asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(t1) :);
+	uint32_t deltaT = t1 - t0;
+	if (deltaT >= timeBase) {
+		active = true;
+		t0 = t1;
+		myRTimer.reset();
+	}
+#endif
+}
+
+void OnceEvery::stop() {
+#if ENABLE_TEXT_OUTPUT
+	if (!active) return;
+	myRTimer.stop();
+	active = false;
+#endif
+}
+
+void OnceEvery::split(const char* splitLabel) {
+#if ENABLE_TEXT_OUTPUT
+	if (!active) return;
+	myRTimer.stop(splitLabel);
+#endif
 }
 
 
@@ -300,6 +345,7 @@ CountsPer::CountsPer(const char* label, uint32_t timeBase) : label(label), timeB
 {}
 
 void CountsPer::CountsPer::bump() {
+#if ENABLE_TEXT_OUTPUT
 	if (!active) {
 		count = 1;
 		active = true;
@@ -316,22 +362,28 @@ void CountsPer::CountsPer::bump() {
 			count++;
 		}
 	}
+#endif
 }
 
 	void CountsPer::clear() {
+#if ENABLE_TEXT_OUTPUT
 		active = false;
 		count = 0;
+#endif
 	}
 
 	AverageDT::AverageDT(const char* label, uint32_t timeBase, uint32_t scaling) : label(label), timeBase(timeBase), active(false), scaling(scaling), accumulator(0), count(0), t0(0), tnm1(0)
 	{}
 
 	void AverageDT::begin()
+#if ENABLE_TEXT_OUTPUT
 	{
 		asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(tnm1) :);
+#endif
 	}
 
 	void AverageDT::note() {
+#if ENABLE_TEXT_OUTPUT
 		if (!active) {
 			count = 0;
 			active = true;
@@ -359,18 +411,22 @@ void CountsPer::CountsPer::bump() {
 			count++;
 			tnm1 = t1;
 		}
+#endif
 	}
 
 		void AverageDT::clear() {
+#if ENABLE_TEXT_OUTPUT
 			active = false;
 			count = 0;
 			accumulator = 0;
+#endif
 		}
 
 		AverageVOT::AverageVOT(const char* label, uint32_t timeBase) : label(label), timeBase(timeBase), active(false), accumulator(0), count(0), t0(0)
 		{}
 
 		void AverageVOT::note(uint32_t value) {
+#if ENABLE_TEXT_OUTPUT
 			if (!active) {
 				count = 0;
 				accumulator = 0;
@@ -393,12 +449,15 @@ void CountsPer::CountsPer::bump() {
 				accumulator += value;
 				count++;
 			}
+#endif
 		}
 
 		void AverageVOT::clear() {
+#if ENABLE_TEXT_OUTPUT
 			active = false;
 			count = 0;
 			accumulator = 0;
+#endif
 		}
 
 } // namespace Debug

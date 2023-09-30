@@ -63,7 +63,7 @@ public:
 	Averager(const char* label, uint32_t repeats = 0);
 
 	void	setCount(uint32_t repeats);
-	void	logValue(int32_t val);
+	void	note(int32_t val);
 	void 	setN(uint32_t numRepeats);
 
 	const char* m_label;
@@ -89,6 +89,20 @@ public:
 	RTimer		myRTimer;
 };
 
+class OnceEvery {
+public:
+	OnceEvery(const char* label, uint32_t timeBase);
+
+	void start();
+	void stop();
+
+	void split(const char* splitLabel);
+
+	bool		active;
+	uint32_t	timeBase;
+	uint32_t	t0;
+	RTimer		myRTimer;
+};
 
 class CountsPer {
 public:
