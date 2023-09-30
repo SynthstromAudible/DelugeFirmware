@@ -379,9 +379,8 @@ AverageDT::AverageDT(const char* label, uint32_t timeBase, uint32_t scaling)
     : label(label), timeBase(timeBase), active(false), scaling(scaling), accumulator(0), count(0), t0(0), tnm1(0) {
 }
 
-void AverageDT::begin()
+void AverageDT::begin() {
 #if ENABLE_TEXT_OUTPUT
-{
 	asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(tnm1) :);
 #endif
 }
