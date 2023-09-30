@@ -247,7 +247,6 @@ Voice* cullVoice(bool saveVoice, bool justDoFastRelease) {
 
 	uint32_t bestRating = 0;
 	Voice* bestVoice = NULL;
-	Debug::println("cull");
 	for (int32_t v = 0; v < activeVoices.getNumElements(); v++) {
 		Voice* thisVoice = activeVoices.getVoice(v);
 
@@ -331,7 +330,11 @@ int32_t numAudioLogItems = 0;
 
 extern uint16_t g_usb_usbmode;
 
+Debug::AverageDT aeCtr("audio", Debug::mS);
+Debug::AverageDT rvb("reverb", Debug::uS);
+
 void routine() {
+	aeCtr.note();
 	logAction("AudioDriver::routine");
 	if (audioRoutineLocked) {
 		logAction("AudioDriver::routine locked");
@@ -634,9 +637,10 @@ startAgain:
 		}
 
 		usageTimes[REPORT_AVERAGE_NUM - 1] = value;
-
-		Debug::print("uS ");
-		Debug::println(total / REPORT_AVERAGE_NUM);
+		if (total >= 0) { // avoid garbage times.
+			Debug::print("uS ");
+			Debug::println(total / REPORT_AVERAGE_NUM);
+		}
 	}
 #endif
 
@@ -651,7 +655,9 @@ startAgain:
 		if (sideChainHitPending != 0) {
 			reverbCompressor.registerHit(sideChainHitPending);
 		}
+		rvb.begin();
 		compressorOutput = reverbCompressor.render(numSamples, reverbCompressorShapeInEffect);
+		rvb.note();
 	}
 
 	int32_t reverbAmplitudeL;
