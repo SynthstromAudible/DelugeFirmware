@@ -19,4 +19,5 @@ __pycache__
 /tests/CMakeCache.txt
 /tests/Makefile
 /tests/RunAllTests
+/tests/_deps/*
 *.a
