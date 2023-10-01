@@ -3,9 +3,7 @@
 #include "memory/general_memory_allocator.h"
 #include "memory/memory_region.h"
 
-// clang-format off
-TEST_GROUP(MemoryAllocation)
-{
+TEST_GROUP(MemoryAllocation) {
 	MemoryRegion memreg;
 	void setup() {
 		uint32_t empty_spaze_size = sizeof(EmptySpaceRecord) * 512;
