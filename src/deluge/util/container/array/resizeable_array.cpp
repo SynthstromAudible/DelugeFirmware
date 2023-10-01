@@ -67,7 +67,7 @@ ResizeableArray::~ResizeableArray() {
 	LOCK_ENTRY
 
 	if (memory) {
-		GeneralMemoryAllocator::get().dealloc(memoryAllocationStart);
+		delugeDealloc(memoryAllocationStart);
 	}
 	// Don't call empty() - this does some other writing, which is a waste of time
 
