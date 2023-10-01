@@ -16,6 +16,7 @@ __pycache__
 /scripts/debug/openocd.log
 .cache
 /tests/CMakeFiles
+/tests/cmake_install.cmake
 /tests/CMakeCache.txt
 /tests/Makefile
 /tests/RunAllTests
