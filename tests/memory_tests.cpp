@@ -6,8 +6,8 @@
 // clang-format off
 TEST_GROUP(MemoryAllocation)
 {
+	MemoryRegion memreg;
 	void setup() {
-		MemoryRegion memreg;
 		uint32_t empty_spaze_size = sizeof(EmptySpaceRecord) * 512;
 		void* emptySpacesMemory = malloc(empty_spaze_size);
 		constexpr int32_t mem_size = 0x02000000;
@@ -16,10 +16,12 @@ TEST_GROUP(MemoryAllocation)
 	}
 };
 
-TEST(MemoryAllocation, FirstTest) {
-	FAIL("Fail me!");
+TEST(MemoryAllocation, alloc1mb) {
+	void* testalloc = memreg.alloc(1000, NULL, false, NULL, false);
+	CHECK(testalloc != NULL);
 }
 
-TEST(MemoryAllocation, SecondTest) {
-	STRCMP_EQUAL("hello", "world");
+TEST(MemoryAllocation, alloc100mb) {
+	void* testalloc = memreg.alloc(0x04000000, NULL, false, NULL, false);
+	CHECK(testalloc == NULL);
 }
