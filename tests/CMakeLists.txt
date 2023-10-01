@@ -2,6 +2,9 @@ cmake_minimum_required(VERSION 3.24)
 project (DelugeTests)
 add_compile_options(
     -m32
+    -Og
+    -g
+    -ggdb
 )
 # CppUTest
 include(FetchContent)
@@ -12,7 +15,10 @@ FetchContent_Declare(
 )
 # Set this to ON if you want to have the CppUTests in your project as well.
 set(TESTS OFF CACHE BOOL "Switch off CppUTest Test build")
-add_compile_definitions(-DCPPUTEST_MEM_LEAK_DETECTION_DISABLED)
+add_compile_definitions(
+    -DCPPUTEST_MEM_LEAK_DETECTION_DISABLED
+)
+
 FetchContent_MakeAvailable(CppUTest)
 #strchr is seemingly different in x86
 add_compile_options(
@@ -23,13 +29,16 @@ add_compile_options(
 include_directories(../src/deluge)
 include_directories(../src)
 include_directories(./mocks)
-file(GLOB_RECURSE deluge_SOURCES ../src/deluge/memory/* ../src/deluge/util/*)
 
-#list(FILTER deluge_SOURCES EXCLUDE REGEX ".*point\\.h$")
-#target_sources(deluge PUBLIC ${deluge_SOURCES})
+#memory because I'm starting with a memory test
+#util because they're needed all over the place
+#l10n so the prints make sense
+file(GLOB_RECURSE deluge_SOURCES ../src/deluge/memory/* ../src/deluge/util/* mocks/* ../src/deluge/gui/l10n/*)
 
-add_executable(RunAllTests RunAllTests.cpp memory_tests.cpp ${deluge_SOURCES})
 
+
+add_executable(RunAllTests RunAllTests.cpp memory_tests.cpp)
+target_sources(RunAllTests PUBLIC ${deluge_SOURCES})
 
 set_target_properties(RunAllTests
     PROPERTIES
