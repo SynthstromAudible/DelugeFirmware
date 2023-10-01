@@ -3,7 +3,7 @@
 using namespace std;
 
 void AudioEngine::logAction(char const* item) {
-	cout << item;
+	cout << item << endl;
 }
 
 bool AudioEngine::bypassCulling;
