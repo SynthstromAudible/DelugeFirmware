@@ -1264,7 +1264,7 @@ void unassignVoice(Voice* voice, Sound* sound, ModelStackWithSoundFlags* modelSt
 }
 
 void disposeOfVoice(Voice* voice) {
-	GeneralMemoryAllocator::get().dealloc(voice);
+	delugeDealloc(voice);
 }
 
 VoiceSample* solicitVoiceSample() {
@@ -1289,7 +1289,7 @@ void voiceSampleUnassigned(VoiceSample* voiceSample) {
 		firstUnassignedVoiceSample = voiceSample;
 	}
 	else {
-		GeneralMemoryAllocator::get().dealloc(voiceSample);
+		delugeDealloc(voiceSample);
 	}
 }
 
@@ -1318,7 +1318,7 @@ void timeStretcherUnassigned(TimeStretcher* timeStretcher) {
 		firstUnassignedTimeStretcher = timeStretcher;
 	}
 	else {
-		GeneralMemoryAllocator::get().dealloc(timeStretcher);
+		delugeDealloc(timeStretcher);
 	}
 }
 
@@ -1376,7 +1376,7 @@ void doRecorderCardRoutines() {
 			Debug::println("deleting recorder");
 			*prevPointer = recorder->next;
 			recorder->~SampleRecorder();
-			GeneralMemoryAllocator::get().dealloc(recorder);
+			delugeDealloc(recorder);
 		}
 
 		// Otherwise, move on
@@ -1415,7 +1415,7 @@ void slowRoutine() {
 		if (liveInputBuffers[i]) {
 			if (liveInputBuffers[i]->upToTime != audioSampleTimer) {
 				liveInputBuffers[i]->~LiveInputBuffer();
-				GeneralMemoryAllocator::get().dealloc(liveInputBuffers[i]);
+				delugeDealloc(liveInputBuffers[i]);
 				liveInputBuffers[i] = NULL;
 			}
 		}
@@ -1441,7 +1441,7 @@ SampleRecorder* getNewRecorder(int32_t numChannels, AudioRecordingFolder folderI
 	error = newRecorder->setup(numChannels, mode, keepFirstReasons, writeLoopPoints, folderID, buttonPressLatency);
 	if (error) {
 		newRecorder->~SampleRecorder();
-		GeneralMemoryAllocator::get().dealloc(recorderMemory);
+		delugeDealloc(recorderMemory);
 		return NULL;
 	}
 
@@ -1477,7 +1477,7 @@ void discardRecorder(SampleRecorder* recorder) {
 	}
 
 	recorder->~SampleRecorder();
-	GeneralMemoryAllocator::get().dealloc(recorder);
+	delugeDealloc(recorder);
 }
 
 bool isAnyInternalRecordingHappening() {

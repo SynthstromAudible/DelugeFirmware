@@ -1408,7 +1408,7 @@ deleteInstrumentAndGetOut:
 		newInstrument->deleteBackedUpParamManagers(song);
 		void* toDealloc = dynamic_cast<void*>(newInstrument);
 		newInstrument->~Instrument();
-		GeneralMemoryAllocator::get().dealloc(toDealloc);
+		delugeDealloc(toDealloc);
 
 		return error;
 	}
@@ -1528,7 +1528,7 @@ Instrument* StorageManager::createNewInstrument(InstrumentType newInstrumentType
 			error = paramManager->setupWithPatching();
 			if (error) {
 paramManagerSetupError:
-				GeneralMemoryAllocator::get().dealloc(instrumentMemory);
+				delugeDealloc(instrumentMemory);
 				return NULL;
 			}
 			Sound::initParams(paramManager);

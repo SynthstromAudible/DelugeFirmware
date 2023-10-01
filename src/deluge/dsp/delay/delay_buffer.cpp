@@ -97,7 +97,7 @@ void DelayBuffer::makeNativeRatePreciseRelativeToOtherBuffer(DelayBuffer* otherB
 
 void DelayBuffer::discard(bool beingDestructed) {
 	if (bufferStart) {
-		GeneralMemoryAllocator::get().dealloc(bufferStart);
+		delugeDealloc(bufferStart);
 		if (!beingDestructed) {
 			bufferStart = NULL; // If destructing, writing anything would be a waste of time
 		}

@@ -143,7 +143,7 @@ int32_t SampleRecorder::setup(int32_t newNumChannels, AudioInputChannel newMode,
 	if (error) {
 gotError:
 		sample->~Sample();
-		GeneralMemoryAllocator::get().dealloc(sampleMemory);
+		delugeDealloc(sampleMemory);
 		return error;
 	}
 

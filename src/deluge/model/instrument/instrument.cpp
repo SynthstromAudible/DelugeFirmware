@@ -157,7 +157,7 @@ Clip* Instrument::createNewClipForArrangementRecording(ModelStack* modelStack) {
 		int32_t error = newParamManager.cloneParamCollectionsFrom(getParamManager(modelStack->song), false, true);
 
 		if (error) {
-			GeneralMemoryAllocator::get().dealloc(clipMemory);
+			delugeDealloc(clipMemory);
 			return NULL;
 		}
 	}
