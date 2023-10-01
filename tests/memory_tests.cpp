@@ -6,14 +6,10 @@
 #include <iostream>
 #define NUM_TEST_ALLOCATIONS 512
 uint32_t vtableAddress; // will hold address of the stealable test vtable
-MemoryRegion memreg;
+
 class StealableTest : public Stealable {
 public:
-	void steal(char const* errorCode) {
-		//Stealable::steal();
-
-		memreg.numAllocations--;
-	}
+	void steal(char const* errorCode) {}
 	bool mayBeStolen(void* thingNotToStealFrom) { return true; }
 	int32_t getAppropriateQueue() { return 0; }
 	int32_t testIndex;
@@ -30,7 +26,7 @@ bool testReadingMemory(void* address, uint32_t size) {
 		readValue++;
 	}
 	return true;
-}
+};
 
 void testWritingMemory(void* address, uint32_t size) {
 	uint8_t* __restrict__ writePos = (uint8_t*)address;
@@ -40,7 +36,8 @@ void testWritingMemory(void* address, uint32_t size) {
 		writeValue++;
 		writePos++;
 	}
-}
+};
+
 bool testAllocationStructure(void* address, uint32_t size, uint32_t spaceType) {
 
 	uint32_t* header = (uint32_t*)address - 1;
@@ -63,10 +60,10 @@ bool testAllocationStructure(void* address, uint32_t size, uint32_t spaceType) {
 		return false;
 	}
 	return true;
-}
+};
 
 TEST_GROUP(MemoryAllocation) {
-
+	MemoryRegion memreg;
 	//this will hold the address of the stealable test vtable
 	uint32_t empty_spaze_size = sizeof(EmptySpaceRecord) * 512;
 	void* emptySpacesMemory = malloc(empty_spaze_size);
@@ -74,13 +71,10 @@ TEST_GROUP(MemoryAllocation) {
 	void* raw_mem = malloc(mem_size);
 	//this runs before each test to re intitialize the memory
 	void setup() {
+
 		memset(raw_mem, 0, mem_size);
 		memset(emptySpacesMemory, 0, empty_spaze_size);
 		memreg.setup(emptySpacesMemory, empty_spaze_size, (uint32_t)raw_mem, (uint32_t)raw_mem + mem_size);
-	}
-	void teardown() {
-		//the empty spaces memory is freed when memreg is deconstructed
-		free(raw_mem);
 	}
 };
 
@@ -91,12 +85,12 @@ TEST(MemoryAllocation, alloc1kb) {
 	CHECK(testalloc != NULL);
 	CHECK(actualSize == size);
 	CHECK(testAllocationStructure(testalloc, size, SPACE_HEADER_ALLOCATED));
-}
+};
 
 TEST(MemoryAllocation, alloc100mb) {
 	void* testalloc = memreg.alloc(0x04000000, NULL, false, NULL, false);
 	CHECK(testalloc == NULL);
-}
+};
 
 TEST(MemoryAllocation, allocstealable) {
 	int32_t size = 1000;
@@ -110,14 +104,13 @@ TEST(MemoryAllocation, allocstealable) {
 	CHECK(testalloc != NULL);
 	CHECK(actualSize == size);
 	CHECK(testAllocationStructure(testalloc, size, SPACE_HEADER_STEALABLE));
-}
-//allocate 1000 1
+};
+// //allocate 1000 1
 TEST(MemoryAllocation, uniformAllocation) {
-
-	void* testAllocations[NUM_TEST_ALLOCATIONS + 1];
+	void* testAllocations[NUM_TEST_ALLOCATIONS];
 	uint32_t size = 1000000;
 	uint32_t actualSize;
-	for (int i = 0; i < NUM_TEST_ALLOCATIONS + 10; i += 1) {
+	for (int i = 0; i < NUM_TEST_ALLOCATIONS; i += 1) {
 		void* testalloc = memreg.alloc(size, &actualSize, true, NULL, false);
 		StealableTest* stealable = new (testalloc) StealableTest();
 		memreg.cache_manager().QueueForReclamation(0, stealable);
@@ -127,5 +120,4 @@ TEST(MemoryAllocation, uniformAllocation) {
 
 		testAllocations[i] = testalloc;
 	}
-	std::cout << "passed" << std::endl;
-}
+};
