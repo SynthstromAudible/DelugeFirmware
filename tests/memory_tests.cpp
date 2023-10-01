@@ -1,7 +1,18 @@
 #include "CppUTest/TestHarness.h"
+#include "CppUTestExt/MockSupport.h"
 #include "memory/general_memory_allocator.h"
 #include "memory/memory_region.h"
-TEST_GROUP(MemoryAllocation){};
+
+class MemoryRegionMock : public MemoryRegion {
+public:
+	virtual void dbgprint(const char* string) { printf(string); }
+	virtual void freeze(const char* string) { printf(string); }
+};
+
+TEST_GROUP(MemoryAllocation){void setup(){MemoryRegionMock memreg;
+}
+}
+;
 
 TEST(MemoryAllocation, FirstTest) {
 	FAIL("Fail me!");
