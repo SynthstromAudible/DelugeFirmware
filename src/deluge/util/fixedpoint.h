@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+
 #include "math.h"
 #include <cstdint>
 //signed 31 fractional bits (e.g. one would be 1<<31 but can't be represented)
@@ -24,6 +25,7 @@ typedef int32_t q31_t;
 #define ONE_Q15 65536
 #define NEGATIVE_ONE_Q31 -2147483648
 #define ONE_OVER_SQRT2_Q31 1518500250
+#if !defined(i386)
 // This multiplies two numbers in signed Q31 fixed point and truncates the result
 static inline q31_t multiply_32x32_rshift32(q31_t a, q31_t b) __attribute__((always_inline, unused));
 static inline q31_t multiply_32x32_rshift32(q31_t a, q31_t b) {
@@ -57,3 +59,65 @@ static inline q31_t multiply_subtract_32x32_rshift32_rounded(q31_t sum, q31_t a,
 	asm("smmlsr %0, %1, %2, %3" : "=r"(out) : "r"(a), "r"(b), "r"(sum));
 	return out;
 }
+
+// computes limit((val >> rshift), 2**bits)
+template <uint8_t bits>
+static inline int32_t signed_saturate(int32_t val) __attribute__((always_inline, unused));
+template <uint8_t bits>
+static inline int32_t signed_saturate(int32_t val) {
+	int32_t out;
+	asm("ssat %0, %1, %2" : "=r"(out) : "I"(bits), "r"(val));
+	return out;
+}
+
+static inline int32_t add_saturation(int32_t a, int32_t b) __attribute__((always_inline, unused));
+static inline int32_t add_saturation(int32_t a, int32_t b) {
+	int32_t out;
+	asm("qadd %0, %1, %2" : "=r"(out) : "r"(a), "r"(b));
+	return out;
+}
+
+inline int32_t clz(uint32_t input) {
+	int32_t out;
+	asm("clz %0, %1" : "=r"(out) : "r"(input));
+	return out;
+}
+#else
+
+static inline q31_t multiply_32x32_rshift32(q31_t a, q31_t b) {
+	return (q31_t)(((int64_t)a * (int64_t)b) >> 32);
+}
+
+// This multiplies two numbers in signed Q31 fixed point and rounds the result
+
+static inline q31_t multiply_32x32_rshift32_rounded(q31_t a, q31_t b) {
+	return (q31_t)(((int64_t)a * (int64_t)b) >> 32);
+}
+
+// Multiplies A and B, adds to sum, and returns output
+
+static inline q31_t multiply_accumulate_32x32_rshift32_rounded(q31_t sum, q31_t a, q31_t b) {
+	return sum + (q31_t)(((int64_t)a * (int64_t)b) >> 32);
+}
+
+// Multiplies A and B, subtracts from sum, and returns output
+
+static inline q31_t multiply_subtract_32x32_rshift32_rounded(q31_t sum, q31_t a, q31_t b) {
+	return sum - (q31_t)(((int64_t)a * (int64_t)b) >> 32);
+}
+
+// computes limit((val >> rshift), 2**bits)
+template <uint8_t bits>
+static inline int32_t signed_saturate(int32_t val) {
+	return std::min(val, 1 << bits);
+}
+
+static inline int32_t add_saturation(int32_t a, int32_t b) __attribute__((always_inline, unused));
+static inline int32_t add_saturation(int32_t a, int32_t b) {
+	return a + b;
+}
+
+inline int32_t clz(uint32_t input) {
+	return __builtin_clz(input);
+}
+#endif
