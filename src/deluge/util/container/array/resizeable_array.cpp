@@ -96,7 +96,7 @@ void ResizeableArray::empty() {
 
 	if (!staticMemoryAllocationSize && emptyingShouldFreeMemory) {
 		if (memory) {
-			GeneralMemoryAllocator::get().dealloc(memoryAllocationStart);
+			delugeDealloc(memoryAllocationStart);
 		}
 
 		memory = NULL;
@@ -588,7 +588,7 @@ allocationFail:
 			                elementsAfterWrap, newMemorySize, newMemoryStartIndex);
 		}
 
-		GeneralMemoryAllocator::get().dealloc(memoryAllocationStart);
+		delugeDealloc(memoryAllocationStart);
 		memory = newMemory;
 		memoryAllocationStart = newMemory;
 		memorySize = newMemorySize;
@@ -1151,7 +1151,7 @@ getBrandNewMemoryAgain:
 			// That copy may have taken ages, particularly in the case where they're recording / resampling a sample and the array of clusters has grown.
 			AudioEngine::bypassCulling = true;
 
-			GeneralMemoryAllocator::get().dealloc(memoryAllocationStart);
+			delugeDealloc(memoryAllocationStart);
 			memory = newMemory;
 			memoryAllocationStart = newMemory;
 			memorySize = newMemorySize;

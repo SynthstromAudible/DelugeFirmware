@@ -852,7 +852,7 @@ void InstrumentClipView::modEncoderButtonAction(uint8_t whichModEncoder, bool on
 
 void InstrumentClipView::copyAutomation(int32_t whichModEncoder) {
 	if (copiedParamAutomation.nodes) {
-		GeneralMemoryAllocator::get().dealloc(copiedParamAutomation.nodes);
+		delugeDealloc(copiedParamAutomation.nodes);
 		copiedParamAutomation.nodes = NULL;
 		copiedParamAutomation.numNodes = 0;
 	}
@@ -981,7 +981,7 @@ void InstrumentClipView::deleteCopiedNoteRows() {
 		CopiedNoteRow* toDelete = firstCopiedNoteRow;
 		firstCopiedNoteRow = firstCopiedNoteRow->next;
 		toDelete->~CopiedNoteRow();
-		GeneralMemoryAllocator::get().dealloc(toDelete);
+		delugeDealloc(toDelete);
 	}
 }
 
@@ -1899,7 +1899,7 @@ void InstrumentClipView::endEditPadPress(uint8_t i) {
 
 	for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
 		if (editPadPresses[i].stolenMPE[m].num) {
-			GeneralMemoryAllocator::get().dealloc(editPadPresses[i].stolenMPE[m].nodes);
+			delugeDealloc(editPadPresses[i].stolenMPE[m].nodes);
 		}
 	}
 }
@@ -3395,7 +3395,7 @@ doDisplayError:
 	ParamManagerForTimeline paramManager;
 	error = paramManager.setupWithPatching();
 	if (error) {
-		GeneralMemoryAllocator::get().dealloc(memory);
+		delugeDealloc(memory);
 		goto doDisplayError;
 	}
 
@@ -3475,7 +3475,7 @@ void InstrumentClipView::deleteDrum(SoundDrum* drum) {
 	currentSong->deleteBackedUpParamManagersForModControllable(drum);
 	void* toDealloc = dynamic_cast<void*>(drum);
 	drum->~SoundDrum();
-	GeneralMemoryAllocator::get().dealloc(toDealloc);
+	delugeDealloc(toDealloc);
 
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 

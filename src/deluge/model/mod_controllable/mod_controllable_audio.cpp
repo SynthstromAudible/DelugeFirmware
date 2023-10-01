@@ -91,10 +91,10 @@ ModControllableAudio::~ModControllableAudio() {
 
 	// Free the mod fx memory
 	if (modFXBuffer) {
-		GeneralMemoryAllocator::get().dealloc(modFXBuffer);
+		delugeDealloc(modFXBuffer);
 	}
 	if (modFXGrainBuffer) {
-		GeneralMemoryAllocator::get().dealloc(modFXGrainBuffer);
+		delugeDealloc(modFXGrainBuffer);
 	}
 }
 

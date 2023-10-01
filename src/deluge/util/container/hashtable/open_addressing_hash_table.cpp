@@ -45,10 +45,10 @@ OpenAddressingHashTable::~OpenAddressingHashTable() {
 
 void OpenAddressingHashTable::empty(bool destructing) {
 	if (memory) {
-		GeneralMemoryAllocator::get().dealloc(memory);
+		delugeDealloc(memory);
 	}
 	if (secondaryMemory) {
-		GeneralMemoryAllocator::get().dealloc(secondaryMemory);
+		delugeDealloc(secondaryMemory);
 	}
 
 	if (!destructing) {
@@ -158,7 +158,7 @@ void* OpenAddressingHashTable::insert(uint32_t key, bool* onlyIfNotAlreadyPresen
 
 			// Discard old stuff
 			secondaryMemoryCurrentFunction = SECONDARY_MEMORY_FUNCTION_NONE;
-			GeneralMemoryAllocator::get().dealloc(secondaryMemory);
+			delugeDealloc(secondaryMemory);
 			secondaryMemory = NULL;
 			secondaryMemoryNumBuckets = 0;
 		}
@@ -277,7 +277,7 @@ bool OpenAddressingHashTable::remove(uint32_t key) {
 
 	// If we've hit zero elements, and it's worth getting rid of the memory, just do that
 	if (!numElements && numBuckets > initialNumBuckets) {
-		GeneralMemoryAllocator::get().dealloc(memory);
+		delugeDealloc(memory);
 		memory = NULL;
 		numBuckets = 0;
 	}

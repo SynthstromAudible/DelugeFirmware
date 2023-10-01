@@ -170,7 +170,7 @@ void TimeStretcher::beenUnassigned() {
 	unassignAllReasonsForPercCacheClusters();
 	olderPartReader.unassignAllReasons();
 	if (buffer) {
-		GeneralMemoryAllocator::get().dealloc(buffer);
+		delugeDealloc(buffer);
 	}
 }
 
@@ -957,7 +957,7 @@ optForDirectReading:
 	// If no one's reading from the buffer anymore, stop filling it
 	if (buffer
 	    && !olderHeadReadingFromBuffer) { // olderHeadReadingFromBuffer will always be false - we set it above, at the start
-		GeneralMemoryAllocator::get().dealloc(buffer);
+		delugeDealloc(buffer);
 		buffer = NULL;
 		Debug::println("abandoning buffer!!!!!!!!!!!!!!!!");
 	}
@@ -1040,7 +1040,7 @@ void TimeStretcher::reassessWhetherToBeFillingBuffer(int32_t phaseIncrement, int
 		// If no one's reading from the buffer anymore, stop filling it
 		if (!newerHeadReadingFromBuffer && !olderHeadReadingFromBuffer && bufferFillingMode == BUFFER_FILLING_NEITHER) {
 			bufferFillingMode = BUFFER_FILLING_OFF;
-			GeneralMemoryAllocator::get().dealloc(buffer);
+			delugeDealloc(buffer);
 			buffer = NULL;
 			Debug::println("abandoning buffer!!!!!!!!!!!!!!!!");
 		}
@@ -1174,7 +1174,7 @@ void TimeStretcher::setupCrossfadeFromCache(SampleCache* cache, int32_t cacheByt
 
 	// If we're really unlucky, allocating the buffer may have stolen from the cache
 	if (originalCacheWriteBytePos != cache->writeBytePos) {
-		GeneralMemoryAllocator::get().dealloc(buffer);
+		delugeDealloc(buffer);
 		buffer = NULL;
 		return;
 	}

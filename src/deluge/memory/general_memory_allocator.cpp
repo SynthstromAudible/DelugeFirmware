@@ -262,7 +262,7 @@ public:
 				if (spaceTypes[i] == SPACE_HEADER_STEALABLE) {
 					((Stealable*)testAllocations[i])->~Stealable();
 				}
-				GeneralMemoryAllocator::get().dealloc(testAllocations[i]);
+				delugeDealloc(testAllocations[i]);
 				testAllocations[i] = NULL;
 			}
 

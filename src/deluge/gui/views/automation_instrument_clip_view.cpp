@@ -2419,7 +2419,7 @@ followOnAction: //it will come here when you are on the automation overview iscr
 
 void AutomationInstrumentClipView::copyAutomation() {
 	if (copiedParamAutomation.nodes) {
-		GeneralMemoryAllocator::get().dealloc(copiedParamAutomation.nodes);
+		delugeDealloc(copiedParamAutomation.nodes);
 		copiedParamAutomation.nodes = NULL;
 		copiedParamAutomation.numNodes = 0;
 	}

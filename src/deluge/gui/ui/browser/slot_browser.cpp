@@ -64,7 +64,7 @@ int32_t SlotBrowser::beginSlotSession(bool shouldDrawKeys, bool allowIfNoFolder)
 }
 
 void SlotBrowser::focusRegained() {
-	displayText(false);
+	Browser::displayText(false);
 }
 
 ActionResult SlotBrowser::horizontalEncoderAction(int32_t offset) {
