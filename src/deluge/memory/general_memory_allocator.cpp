@@ -85,7 +85,11 @@ extern "C" void* delugeAlloc(unsigned int requiredSize, bool mayUseOnChipRam) {
 	return GeneralMemoryAllocator::get().alloc(requiredSize, nullptr, false, mayUseOnChipRam);
 }
 extern "C" void delugeDealloc(void* address) {
+#ifdef IN_UNIT_TESTS
+	free(address);
+#else
 	GeneralMemoryAllocator::get().dealloc(address);
+#endif
 }
 void* GeneralMemoryAllocator::allocNonAudio(uint32_t requiredSize) {
 

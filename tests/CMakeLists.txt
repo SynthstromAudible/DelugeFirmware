@@ -17,6 +17,7 @@ FetchContent_Declare(
 set(TESTS OFF CACHE BOOL "Switch off CppUTest Test build")
 add_compile_definitions(
     -DCPPUTEST_MEM_LEAK_DETECTION_DISABLED
+    -DIN_UNIT_TESTS
 )
 
 FetchContent_MakeAvailable(CppUTest)
@@ -26,9 +27,10 @@ add_compile_options(
 )
 
 # include the non test project source
+include_directories(./mocks)
 include_directories(../src/deluge)
 include_directories(../src)
-include_directories(./mocks)
+
 
 #memory because I'm starting with a memory test
 #util because they're needed all over the place
