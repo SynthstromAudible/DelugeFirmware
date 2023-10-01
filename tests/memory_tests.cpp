@@ -9,7 +9,7 @@ uint32_t vtableAddress; // will hold address of the stealable test vtable
 
 class StealableTest : public Stealable {
 public:
-	void steal(char const* errorCode) {}
+	void steal(char const* errorCode) { mock().actualCall("steal"); }
 	bool mayBeStolen(void* thingNotToStealFrom) { return true; }
 	int32_t getAppropriateQueue() { return 0; }
 	int32_t testIndex;
@@ -93,6 +93,7 @@ TEST(MemoryAllocation, alloc100mb) {
 };
 
 TEST(MemoryAllocation, allocstealable) {
+	//mock().expectOneCall("steal");
 	int32_t size = 1000;
 	uint32_t actualSize;
 	void* testalloc = memreg.alloc(size, &actualSize, true, NULL, false);
@@ -105,10 +106,15 @@ TEST(MemoryAllocation, allocstealable) {
 	CHECK(actualSize == size);
 	CHECK(testAllocationStructure(testalloc, size, SPACE_HEADER_STEALABLE));
 };
-// //allocate 1000 1
+// //allocate 512 1m stealable samples
 TEST(MemoryAllocation, uniformAllocation) {
-	void* testAllocations[NUM_TEST_ALLOCATIONS];
 	uint32_t size = 1000000;
+	//this is the number of steals we expect to occur
+	int ncalls = NUM_TEST_ALLOCATIONS - mem_size / size;
+	std::cout << ncalls << std::endl;
+	mock().expectNCalls(ncalls, "steal");
+
+	void* testAllocations[NUM_TEST_ALLOCATIONS];
 	uint32_t actualSize;
 	for (int i = 0; i < NUM_TEST_ALLOCATIONS; i += 1) {
 		void* testalloc = memreg.alloc(size, &actualSize, true, NULL, false);
