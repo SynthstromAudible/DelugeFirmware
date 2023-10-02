@@ -60,7 +60,10 @@ public:
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
 	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
-	void renderDisplay(int32_t knobPosLeft = kNoSelection, int32_t knobPosRight = kNoSelection, bool modEncoderAction = false);
+	void renderDisplay(int32_t knobPosLeft = kNoSelection, int32_t knobPosRight = kNoSelection,
+	                   bool modEncoderAction = false);
+	void renderDisplayOLED(int32_t knobPosLeft = kNoSelection, int32_t knobPosRight = kNoSelection);
+	void renderDisplay7SEG(int32_t knobPosLeft = kNoSelection, bool modEncoderAction = false);
 	void displayAutomation(bool padSelected = false, bool updateDisplay = true);
 
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) { InstrumentClipMinder::renderOLED(image); }

@@ -792,153 +792,178 @@ bool AutomationInstrumentClipView::renderSidebar(uint32_t whichRows, uint8_t ima
 	return instrumentClipView.renderSidebar(whichRows, image, occupancyMask);
 }
 
-//render's what is displayed on OLED or 7SEG screens when in Automation View
-void AutomationInstrumentClipView::renderDisplay(int32_t knobPosLeft, int32_t knobPosRight, bool modEncoderAction) {
-	InstrumentClip* clip = getCurrentClip();
-	Instrument* instrument = (Instrument*)clip->output;
+/*render's what is displayed on OLED or 7SEG screens when in Automation View
 
+On Automation Overview:
+
+- on OLED it renders "Automation Overview" (or "Can't Automate CV" if you're on a CV clip)
+- on 7Seg it renders AUTO (or CANT if you're on a CV clip)
+
+On Automation Editor:
+
+- on OLED it renders Parameter Name, Automation Status and Parameter Value (for selected Pad or the current value for the Parameter for the last selected Mod Position)
+- on 7SEG it renders Parameter name if no pad is selected or mod encoder is turned. If selecting pad it displays the pads value for as long as you hold the pad. if turning mod encoder, it displays value while turning mod encoder. after value displaying is finished, it displays scrolling parameter name again.
+
+This function replaces the two functions that were previously called:
+
+DisplayParameterValue
+DisplayParameterName */
+
+void AutomationInstrumentClipView::renderDisplay(int32_t knobPosLeft, int32_t knobPosRight, bool modEncoderAction) {
 	//OLED Display
 	if (display->haveOLED()) {
-		deluge::hid::display::OLED::clearMainImage();
-
-		if (isOnAutomationOverview() || (instrument->type == InstrumentType::CV)) {
-
-			//align string to vertically to the centre of the display
-#if OLED_MAIN_HEIGHT_PIXELS == 64
-			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 24;
-#else
-			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 15;
-#endif
-
-			//display Automation Overview or Can't Automate CV
-			if (instrument->type != InstrumentType::CV) {
-				char const* outputTypeText;
-				deluge::hid::display::OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_AUTOMATION_OVERVIEW),
-				                                              yPos, deluge::hid::display::OLED::oledMainImage[0],
-				                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
-			}
-			else {
-				deluge::hid::display::OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_CANT_AUTOMATE_CV),
-				                                              yPos, deluge::hid::display::OLED::oledMainImage[0],
-				                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
-			}
-		}
-		else if (instrument->type != InstrumentType::CV) {
-			//display parameter name
-			char parameterName[30];
-			getParameterName(parameterName);
-
-#if OLED_MAIN_HEIGHT_PIXELS == 64
-			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
-#else
-			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
-#endif
-			deluge::hid::display::OLED::drawStringCentred(parameterName, yPos,
-			                                              deluge::hid::display::OLED::oledMainImage[0],
-			                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
-
-			//display automation status
-			yPos = yPos + 12;
-
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
-			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-			ModelStackWithAutoParam* modelStackWithParam =
-			    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID, clip->lastSelectedParamKind);
-
-			char const* isAutomated;
-
-			//check if Parameter is currently automated so that the automation status can be drawn on the screen with the Parameter Name
-			if (modelStackWithParam && modelStackWithParam->autoParam) {
-				if (modelStackWithParam->autoParam->isAutomated()) {
-					isAutomated = l10n::get(l10n::String::STRING_FOR_AUTOMATION_ON);
-				}
-				else {
-					isAutomated = l10n::get(l10n::String::STRING_FOR_AUTOMATION_OFF);
-				}
-			}
-
-			deluge::hid::display::OLED::drawStringCentred(isAutomated, yPos,
-			                                              deluge::hid::display::OLED::oledMainImage[0],
-			                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
-
-			//display parameter value
-			yPos = yPos + 12;
-
-			if ((multiPadPressSelected) && (knobPosRight != kNoSelection)) {
-				char bufferLeft[10];
-				bufferLeft[0] = 'L';
-				bufferLeft[1] = ':';
-				bufferLeft[2] = ' ';
-				intToString(knobPosLeft, &bufferLeft[3]);
-				deluge::hid::display::OLED::drawString(bufferLeft, 0, yPos,
-				                                       deluge::hid::display::OLED::oledMainImage[0],
-				                                       OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
-
-				char bufferRight[10];
-				bufferRight[0] = 'R';
-				bufferRight[1] = ':';
-				bufferRight[2] = ' ';
-				intToString(knobPosRight, &bufferRight[3]);
-				deluge::hid::display::OLED::drawStringAlignRight(bufferRight, yPos,
-				                                                 deluge::hid::display::OLED::oledMainImage[0],
-				                                                 OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
-			}
-			else {
-				char buffer[5];
-				intToString(knobPosLeft, buffer);
-				deluge::hid::display::OLED::drawStringCentred(buffer, yPos,
-				                                              deluge::hid::display::OLED::oledMainImage[0],
-				                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
-			}
-		}
-
-		deluge::hid::display::OLED::sendMainImage();
+		renderDisplayOLED(knobPosLeft, knobPosRight);
 	}
 	//7SEG Display
 	else {
-		//display OVERVIEW or CANT
-		if (isOnAutomationOverview() || (instrument->type == InstrumentType::CV)) {
-			if (instrument->type != InstrumentType::CV) {
-				display->setScrollingText(l10n::get(l10n::String::STRING_FOR_AUTOMATION));
+		renderDisplay7SEG(knobPosLeft, modEncoderAction);
+	}
+}
+
+void AutomationInstrumentClipView::renderDisplayOLED(int32_t knobPosLeft, int32_t knobPosRight) {
+
+	InstrumentClip* clip = getCurrentClip();
+	Instrument* instrument = (Instrument*)clip->output;
+
+	deluge::hid::display::OLED::clearMainImage();
+
+	if (isOnAutomationOverview() || (instrument->type == InstrumentType::CV)) {
+
+		//align string to vertically to the centre of the display
+#if OLED_MAIN_HEIGHT_PIXELS == 64
+		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 24;
+#else
+		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 15;
+#endif
+
+		//display Automation Overview or Can't Automate CV
+		if (instrument->type != InstrumentType::CV) {
+			char const* outputTypeText;
+			deluge::hid::display::OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_AUTOMATION_OVERVIEW), yPos,
+			                                              deluge::hid::display::OLED::oledMainImage[0],
+			                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+		}
+		else {
+			deluge::hid::display::OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_CANT_AUTOMATE_CV), yPos,
+			                                              deluge::hid::display::OLED::oledMainImage[0],
+			                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+		}
+	}
+	else if (instrument->type != InstrumentType::CV) {
+		//display parameter name
+		char parameterName[30];
+		getParameterName(parameterName);
+
+#if OLED_MAIN_HEIGHT_PIXELS == 64
+		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
+#else
+		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
+#endif
+		deluge::hid::display::OLED::drawStringCentred(parameterName, yPos, deluge::hid::display::OLED::oledMainImage[0],
+		                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+
+		//display automation status
+		yPos = yPos + 12;
+
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+		ModelStackWithAutoParam* modelStackWithParam =
+		    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID, clip->lastSelectedParamKind);
+
+		char const* isAutomated;
+
+		//check if Parameter is currently automated so that the automation status can be drawn on the screen with the Parameter Name
+		if (modelStackWithParam && modelStackWithParam->autoParam) {
+			if (modelStackWithParam->autoParam->isAutomated()) {
+				isAutomated = l10n::get(l10n::String::STRING_FOR_AUTOMATION_ON);
 			}
 			else {
-				display->setText(l10n::get(l10n::String::STRING_FOR_CANT_AUTOMATE_CV));
+				isAutomated = l10n::get(l10n::String::STRING_FOR_AUTOMATION_OFF);
 			}
 		}
-		else if (instrument->type != InstrumentType::CV) {
-			/* check if you're holding a pad
-			* if yes, store pad press knob position in lastPadSelectedKnobPos
-			* so that it can be used next time as the knob position if returning here
-			* to display parameter value after another popup has been cancelled (e.g. audition pad)
-			*/
-			if (isUIModeActive(UI_MODE_NOTES_PRESSED)) {
-				if (knobPosLeft != kNoSelection) {
-					lastPadSelectedKnobPos = knobPosLeft;
-				}
-				else if (lastPadSelectedKnobPos != kNoSelection) {
-					knobPosLeft = lastPadSelectedKnobPos;
-				}
-			}
 
-			//display parameter value if knobPos is provided
+		deluge::hid::display::OLED::drawStringCentred(isAutomated, yPos, deluge::hid::display::OLED::oledMainImage[0],
+		                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+
+		//display parameter value
+		yPos = yPos + 12;
+
+		if ((multiPadPressSelected) && (knobPosRight != kNoSelection)) {
+			char bufferLeft[10];
+			bufferLeft[0] = 'L';
+			bufferLeft[1] = ':';
+			bufferLeft[2] = ' ';
+			intToString(knobPosLeft, &bufferLeft[3]);
+			deluge::hid::display::OLED::drawString(bufferLeft, 0, yPos, deluge::hid::display::OLED::oledMainImage[0],
+			                                       OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+
+			char bufferRight[10];
+			bufferRight[0] = 'R';
+			bufferRight[1] = ':';
+			bufferRight[2] = ' ';
+			intToString(knobPosRight, &bufferRight[3]);
+			deluge::hid::display::OLED::drawStringAlignRight(bufferRight, yPos,
+			                                                 deluge::hid::display::OLED::oledMainImage[0],
+			                                                 OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+		}
+		else {
+			char buffer[5];
+			intToString(knobPosLeft, buffer);
+			deluge::hid::display::OLED::drawStringCentred(buffer, yPos, deluge::hid::display::OLED::oledMainImage[0],
+			                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+		}
+	}
+
+	deluge::hid::display::OLED::sendMainImage();
+}
+
+void AutomationInstrumentClipView::renderDisplay7SEG(int32_t knobPosLeft, bool modEncoderAction) {
+
+	InstrumentClip* clip = getCurrentClip();
+	Instrument* instrument = (Instrument*)clip->output;
+
+	//display OVERVIEW or CANT
+	if (isOnAutomationOverview() || (instrument->type == InstrumentType::CV)) {
+		if (instrument->type != InstrumentType::CV) {
+			display->setScrollingText(l10n::get(l10n::String::STRING_FOR_AUTOMATION));
+		}
+		else {
+			display->setText(l10n::get(l10n::String::STRING_FOR_CANT_AUTOMATE_CV));
+		}
+	}
+	else if (instrument->type != InstrumentType::CV) {
+		/* check if you're holding a pad
+		* if yes, store pad press knob position in lastPadSelectedKnobPos
+		* so that it can be used next time as the knob position if returning here
+		* to display parameter value after another popup has been cancelled (e.g. audition pad)
+		*/
+		if (isUIModeActive(UI_MODE_NOTES_PRESSED)) {
 			if (knobPosLeft != kNoSelection) {
-				char buffer[5];
-
-				intToString(knobPosLeft, buffer);
-
-				if (isUIModeActive(UI_MODE_NOTES_PRESSED)) {
-					display->setText(buffer, false, 255, false);
-				}
-				else if (modEncoderAction || padSelectionOn) {
-					display->displayPopup(buffer);
-				}
+				lastPadSelectedKnobPos = knobPosLeft;
 			}
-			//display parameter name
-			else {
-				char parameterName[30];
-				getParameterName(parameterName);
-				display->setScrollingText(parameterName);
+			else if (lastPadSelectedKnobPos != kNoSelection) {
+				knobPosLeft = lastPadSelectedKnobPos;
 			}
+		}
+
+		//display parameter value if knobPos is provided
+		if (knobPosLeft != kNoSelection) {
+			char buffer[5];
+
+			intToString(knobPosLeft, buffer);
+
+			if (isUIModeActive(UI_MODE_NOTES_PRESSED)) {
+				display->setText(buffer, false, 255, false);
+			}
+			else if (modEncoderAction || padSelectionOn) {
+				display->displayPopup(buffer);
+			}
+		}
+		//display parameter name
+		else {
+			char parameterName[30];
+			getParameterName(parameterName);
+			display->setScrollingText(parameterName);
 		}
 	}
 }
@@ -992,7 +1017,11 @@ void AutomationInstrumentClipView::getParameterName(char* parameterName) {
 	}
 }
 
-//adjust the LED meters
+//adjust the LED meters and update the display
+
+/*updated function for displaying automation when playback is enabled (called from ui_timer_manager). 
+Also used internally in the automation instrument clip view for updating the display and led indicators.*/
+
 void AutomationInstrumentClipView::displayAutomation(bool padSelected, bool updateDisplay) {
 	if ((!padSelectionOn && !isUIModeActive(UI_MODE_NOTES_PRESSED)) || padSelected) {
 
@@ -2366,8 +2395,8 @@ void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int
 					//use default interpolation settings
 					initInterpolation();
 
-					setParameterAutomationValue(modelStackWithParam, newKnobPos, squareStart, xDisplay,
-					                            effectiveLength, true);
+					setParameterAutomationValue(modelStackWithParam, newKnobPos, squareStart, xDisplay, effectiveLength,
+					                            true);
 
 					//once first or last pad in a multi pad press is adjusted, re-render calculate multi pad press based on revised start/ending values
 
