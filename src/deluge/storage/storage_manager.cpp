@@ -1494,7 +1494,7 @@ int32_t StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool m
 		}
 	}
 	song->deleteBackedUpParamManagersForModControllable(*getInstrument);
-	(*getInstrument)->detachSourcesFromAudioFiles();
+	(*getInstrument)->wontBeRenderedForAWhile();
 	*getInstrument = newDrum;
 	return error;
 }
