@@ -793,7 +793,7 @@ bool AutomationInstrumentClipView::renderSidebar(uint32_t whichRows, uint8_t ima
 }
 
 //render's what is displayed on OLED or 7SEG screens when in Automation View
-void AutomationInstrumentClipView::renderDisplay(int32_t knobPosLeft, int32_t knobPosRight) {
+void AutomationInstrumentClipView::renderDisplay(int32_t knobPosLeft, int32_t knobPosRight, bool modEncoderAction) {
 	InstrumentClip* clip = getCurrentClip();
 	Instrument* instrument = (Instrument*)clip->output;
 
@@ -926,7 +926,12 @@ void AutomationInstrumentClipView::renderDisplay(int32_t knobPosLeft, int32_t kn
 
 				intToString(knobPosLeft, buffer);
 
-				display->setText(buffer, false, 255, false);
+				if (isUIModeActive(UI_MODE_NOTES_PRESSED)) {
+					display->setText(buffer, false, 255, false);
+				}
+				else if (modEncoderAction || padSelectionOn) {
+					display->displayPopup(buffer);
+				}
 			}
 			//display parameter name
 			else {
@@ -2362,7 +2367,7 @@ void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int
 					initInterpolation();
 
 					setParameterAutomationValue(modelStackWithParam, newKnobPos, squareStart, xDisplay,
-					                            effectiveLength);
+					                            effectiveLength, true);
 
 					//once first or last pad in a multi pad press is adjusted, re-render calculate multi pad press based on revised start/ending values
 
@@ -2413,7 +2418,7 @@ void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int
 					modelStack->getTimelineCounter()->instrumentBeenEdited();
 
 					if (!playbackHandler.isEitherClockActive()) {
-						renderDisplay(newKnobPos + kKnobPosOffset);
+						renderDisplay(newKnobPos + kKnobPosOffset, kNoSelection, true);
 						setKnobIndicatorLevels(newKnobPos + kKnobPosOffset);
 					}
 				}
@@ -2775,8 +2780,13 @@ void AutomationInstrumentClipView::selectEncoderAction(int8_t offset) {
 flashShortcut:
 
 	lastPadSelectedKnobPos = kNoSelection;
-	if (!playbackHandler.isEitherClockActive()) {
-		displayAutomation(padSelectionOn, !display->have7SEG());
+	if (multiPadPressSelected && padSelectionOn) {
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+		renderDisplayForMultiPadPress(modelStack, clip);
+	}
+	else {
+		displayAutomation(true, !display->have7SEG());
 	}
 	resetShortcutBlinking();
 	uiNeedsRendering(this);
@@ -3031,7 +3041,7 @@ bool AutomationInstrumentClipView::getNodeInterpolation(ModelStackWithAutoParam*
 //this function writes the new values calculated by the handleSinglePadPress and handleMultiPadPress functions
 void AutomationInstrumentClipView::setParameterAutomationValue(ModelStackWithAutoParam* modelStack, int32_t knobPos,
                                                                int32_t squareStart, int32_t xDisplay,
-                                                               int32_t effectiveLength) {
+                                                               int32_t effectiveLength, bool modEncoderAction) {
 
 	int32_t newValue = modelStack->paramCollection->knobPosToParamValue(knobPos, modelStack);
 
@@ -3080,7 +3090,7 @@ void AutomationInstrumentClipView::setParameterAutomationValue(ModelStackWithAut
 
 	//in a multi pad press, no need to display all the values calculated
 	if (!multiPadPressSelected) {
-		renderDisplay(knobPos + kKnobPosOffset);
+		renderDisplay(knobPos + kKnobPosOffset, kNoSelection, modEncoderAction);
 		setKnobIndicatorLevels(knobPos + kKnobPosOffset);
 	}
 }
@@ -3401,6 +3411,10 @@ void AutomationInstrumentClipView::handleMultiPadPress(ModelStackWithTimelineCou
 	}
 }
 
+//new function to render display when a long press is active
+//on OLED this will display the left and right position in a long press on the screen
+//on 7SEG this will display the position of the last selected pad
+//also updates LED indicators. bottom LED indicator = left pad, top LED indicator = right pad
 void AutomationInstrumentClipView::renderDisplayForMultiPadPress(ModelStackWithTimelineCounter* modelStack,
                                                                  InstrumentClip* clip, int32_t xDisplay,
                                                                  bool modEncoderAction) {
