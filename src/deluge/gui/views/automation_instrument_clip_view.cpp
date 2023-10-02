@@ -2323,135 +2323,26 @@ void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int
 
 	instrumentClipView.dontDeleteNotesOnDepress();
 
-	InstrumentClip* clip = getCurrentClip();
-	Instrument* instrument = (Instrument*)clip->output;
-
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
-
 	//if user holding a node down, we'll adjust the value of the selected parameter being automated
 	if (isUIModeActive(UI_MODE_NOTES_PRESSED) || padSelectionOn) {
-
 		if (!isOnAutomationOverview()
 		    && ((instrumentClipView.numEditPadPresses > 0
 		         && ((int32_t)(instrumentClipView.timeLastEditPadPress + 80 * 44 - AudioEngine::audioSampleTimer) < 0))
 		        || padSelectionOn)) {
 
-			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-
-			ModelStackWithAutoParam* modelStackWithParam =
-			    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID, clip->lastSelectedParamKind);
-
-			if (modelStackWithParam && modelStackWithParam->autoParam) {
-
-				int32_t xDisplay = 0;
-
-				//for a multi pad press, adjust value of first or last pad depending on mod encoder turned
-				if (multiPadPressSelected) {
-					if (whichModEncoder == 0) {
-						xDisplay = leftPadSelectedX;
-					}
-					else if (whichModEncoder == 1) {
-						xDisplay = rightPadSelectedX;
-					}
-				}
-
-				//if not multi pad press, but in pad selection mode, then just adjust the single selected pad
-				else if (padSelectionOn) {
-					xDisplay = leftPadSelectedX;
-				}
-
-				//otherwise if not in pad selection mode, adjust the value of the pad currently being held
-				else {
-					// find pads that are currently pressed
-					int32_t i;
-					for (i = 0; i < kEditPadPressBufferSize; i++) {
-						if (instrumentClipView.editPadPresses[i].isActive) {
-							xDisplay = instrumentClipView.editPadPresses[i].xDisplay;
-						}
-					}
-				}
-
-				int32_t effectiveLength = getEffectiveLength(modelStack);
-
-				uint32_t squareStart = 0;
-
-				//for the second pad pressed in a long press, the square start position is set to the very last nodes position
-				if (multiPadPressSelected && (whichModEncoder == 1)) {
-
-					int32_t squareRightEdge = getPosFromSquare(xDisplay + 1);
-					squareStart = std::min(effectiveLength, squareRightEdge) - kParamNodeWidth;
-				}
-				else {
-					squareStart = getPosFromSquare(xDisplay);
-				}
-
-				if (squareStart < effectiveLength) {
-
-					int32_t knobPos = getParameterKnobPos(modelStackWithParam, squareStart);
-
-					int32_t newKnobPos = calculateKnobPosForModEncoderTurn(knobPos, offset);
-
-					//use default interpolation settings
-					initInterpolation();
-
-					setParameterAutomationValue(modelStackWithParam, newKnobPos, squareStart, xDisplay, effectiveLength,
-					                            true);
-
-					//once first or last pad in a multi pad press is adjusted, re-render calculate multi pad press based on revised start/ending values
-
-					if (multiPadPressSelected) {
-
-						handleMultiPadPress(modelStack, clip, leftPadSelectedX, 0, rightPadSelectedX, 0, true);
-
-						renderDisplayForMultiPadPress(modelStack, clip, xDisplay, true);
-
-						return;
-					}
-				}
+			if (modEncoderActionForSelectedPad(whichModEncoder, offset)) {
+				return;
 			}
 		}
-
 		else {
 			goto followOnAction;
 		}
 	}
-
-	else { //if playback is enabled and you are recording, you will be able to record in live automations for the selected parameter
-
+	//if playback is enabled and you are recording, you will be able to record in live automations for the selected parameter
+	//this code is also executed if you're just changing the current value of the parameter at the current mod position
+	else {
 		if (!isOnAutomationOverview()) {
-
-			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-
-			ModelStackWithAutoParam* modelStackWithParam =
-			    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID, clip->lastSelectedParamKind);
-
-			if (modelStackWithParam && modelStackWithParam->autoParam) {
-
-				if (modelStackWithParam->getTimelineCounter()
-				    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
-
-					int32_t knobPos = getParameterKnobPos(modelStackWithParam, view.modPos);
-
-					int32_t newKnobPos = calculateKnobPosForModEncoderTurn(knobPos, offset);
-
-					int32_t newValue =
-					    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
-
-					//use default interpolation settings
-					initInterpolation();
-
-					modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam,
-					                                                          view.modPos, view.modLength);
-
-					modelStack->getTimelineCounter()->instrumentBeenEdited();
-
-					if (!playbackHandler.isEitherClockActive()) {
-						renderDisplay(newKnobPos + kKnobPosOffset, kNoSelection, true);
-						setKnobIndicatorLevels(newKnobPos + kKnobPosOffset);
-					}
-				}
-			}
+			modEncoderActionForUnselectedPad(whichModEncoder, offset);
 		}
 		else {
 			goto followOnAction;
@@ -2463,6 +2354,123 @@ void AutomationInstrumentClipView::modEncoderAction(int32_t whichModEncoder, int
 
 followOnAction:
 	ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
+}
+
+bool AutomationInstrumentClipView::modEncoderActionForSelectedPad(int32_t whichModEncoder, int32_t offset) {
+	InstrumentClip* clip = getCurrentClip();
+
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+
+	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+
+	ModelStackWithAutoParam* modelStackWithParam =
+	    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID, clip->lastSelectedParamKind);
+
+	if (modelStackWithParam && modelStackWithParam->autoParam) {
+
+		int32_t xDisplay = 0;
+
+		//for a multi pad press, adjust value of first or last pad depending on mod encoder turned
+		if (multiPadPressSelected) {
+			if (whichModEncoder == 0) {
+				xDisplay = leftPadSelectedX;
+			}
+			else if (whichModEncoder == 1) {
+				xDisplay = rightPadSelectedX;
+			}
+		}
+
+		//if not multi pad press, but in pad selection mode, then just adjust the single selected pad
+		else if (padSelectionOn) {
+			xDisplay = leftPadSelectedX;
+		}
+
+		//otherwise if not in pad selection mode, adjust the value of the pad currently being held
+		else {
+			// find pads that are currently pressed
+			int32_t i;
+			for (i = 0; i < kEditPadPressBufferSize; i++) {
+				if (instrumentClipView.editPadPresses[i].isActive) {
+					xDisplay = instrumentClipView.editPadPresses[i].xDisplay;
+				}
+			}
+		}
+
+		int32_t effectiveLength = getEffectiveLength(modelStack);
+
+		uint32_t squareStart = 0;
+
+		//for the second pad pressed in a long press, the square start position is set to the very last nodes position
+		if (multiPadPressSelected && (whichModEncoder == 1)) {
+
+			int32_t squareRightEdge = getPosFromSquare(xDisplay + 1);
+			squareStart = std::min(effectiveLength, squareRightEdge) - kParamNodeWidth;
+		}
+		else {
+			squareStart = getPosFromSquare(xDisplay);
+		}
+
+		if (squareStart < effectiveLength) {
+
+			int32_t knobPos = getParameterKnobPos(modelStackWithParam, squareStart);
+
+			int32_t newKnobPos = calculateKnobPosForModEncoderTurn(knobPos, offset);
+
+			//use default interpolation settings
+			initInterpolation();
+
+			setParameterAutomationValue(modelStackWithParam, newKnobPos, squareStart, xDisplay, effectiveLength, true);
+
+			//once first or last pad in a multi pad press is adjusted, re-render calculate multi pad press based on revised start/ending values
+			if (multiPadPressSelected) {
+
+				handleMultiPadPress(modelStack, clip, leftPadSelectedX, 0, rightPadSelectedX, 0, true);
+
+				renderDisplayForMultiPadPress(modelStack, clip, xDisplay, true);
+
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+void AutomationInstrumentClipView::modEncoderActionForUnselectedPad(int32_t whichModEncoder, int32_t offset) {
+	InstrumentClip* clip = getCurrentClip();
+
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+
+	ModelStackWithAutoParam* modelStackWithParam =
+	    getModelStackWithParam(modelStack, clip, clip->lastSelectedParamID, clip->lastSelectedParamKind);
+
+	if (modelStackWithParam && modelStackWithParam->autoParam) {
+
+		if (modelStackWithParam->getTimelineCounter()
+		    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+
+			int32_t knobPos = getParameterKnobPos(modelStackWithParam, view.modPos);
+
+			int32_t newKnobPos = calculateKnobPosForModEncoderTurn(knobPos, offset);
+
+			int32_t newValue =
+			    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
+
+			//use default interpolation settings
+			initInterpolation();
+
+			modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, view.modPos,
+			                                                          view.modLength);
+
+			modelStack->getTimelineCounter()->instrumentBeenEdited();
+
+			if (!playbackHandler.isEitherClockActive()) {
+				renderDisplay(newKnobPos + kKnobPosOffset, kNoSelection, true);
+				setKnobIndicatorLevels(newKnobPos + kKnobPosOffset);
+			}
+		}
+	}
 }
 
 //used to copy paste automation or to delete automation of the current selected parameter

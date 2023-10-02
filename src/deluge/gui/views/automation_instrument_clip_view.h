@@ -89,6 +89,8 @@ public:
 
 	//mod encoder action
 	void modEncoderAction(int32_t whichModEncoder, int32_t offset);
+	bool modEncoderActionForSelectedPad(int32_t whichModEncoder, int32_t offset);
+	void modEncoderActionForUnselectedPad(int32_t whichModEncoder, int32_t offset);
 	void modEncoderButtonAction(uint8_t whichModEncoder, bool on);
 	CopiedParamAutomation copiedParamAutomation;
 
