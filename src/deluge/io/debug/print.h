@@ -36,7 +36,7 @@ const uint32_t uS = 400;
 	return cycles;
 }
 
-[[gnu::always_inline]] inline void readCycleCounter(uint32_t &time) {
+[[gnu::always_inline]] inline void readCycleCounter(uint32_t& time) {
 	asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(time) :);
 }
 
