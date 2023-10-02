@@ -4,7 +4,9 @@
 #include "memory/memory_region.h"
 #include "util/functions.h"
 #include <iostream>
+#include <stdlib.h>
 #define NUM_TEST_ALLOCATIONS 512
+#define MEM_SIZE 10000000
 uint32_t vtableAddress; // will hold address of the stealable test vtable
 
 class StealableTest : public Stealable {
@@ -46,11 +48,11 @@ bool testAllocationStructure(void* address, uint32_t size, uint32_t spaceType) {
 	uint32_t shouldBe = size | spaceType;
 
 	if (*header != shouldBe) {
-
+		std::cout << "header corrupted" << std::endl;
 		return false;
 	}
 	if (*footer != shouldBe) {
-
+		std::cout << "footer corrupted" << std::endl;
 		return false;
 	}
 	if (spaceType == SPACE_HEADER_STEALABLE && *(header + 1) != vtableAddress) {
@@ -67,7 +69,7 @@ TEST_GROUP(MemoryAllocation) {
 	//this will hold the address of the stealable test vtable
 	uint32_t empty_spaze_size = sizeof(EmptySpaceRecord) * 512;
 	void* emptySpacesMemory = malloc(empty_spaze_size);
-	int32_t mem_size = 0x02000000;
+	int32_t mem_size = MEM_SIZE;
 	void* raw_mem = malloc(mem_size);
 	//this runs before each test to re intitialize the memory
 	void setup() {
@@ -106,12 +108,13 @@ TEST(MemoryAllocation, allocstealable) {
 	CHECK(actualSize == size);
 	CHECK(testAllocationStructure(testalloc, size, SPACE_HEADER_STEALABLE));
 };
-// //allocate 512 1m stealable samples
+
+// allocate 512 1m stealables
 TEST(MemoryAllocation, uniformAllocation) {
 	uint32_t size = 1000000;
 	//this is the number of steals we expect to occur
-	int ncalls = NUM_TEST_ALLOCATIONS - mem_size / size;
-	std::cout << ncalls << std::endl;
+	//it's plus 8 for the header and footer
+	int ncalls = NUM_TEST_ALLOCATIONS - mem_size / (size + 8);
 	mock().expectNCalls(ncalls, "steal");
 
 	void* testAllocations[NUM_TEST_ALLOCATIONS];
@@ -125,5 +128,75 @@ TEST(MemoryAllocation, uniformAllocation) {
 		CHECK(testAllocationStructure(testalloc, actualSize, SPACE_HEADER_STEALABLE));
 
 		testAllocations[i] = testalloc;
+	}
+	mock().checkExpectations();
+};
+
+TEST(MemoryAllocation, randomAllocations) {
+	//this is technically random
+	int expectedAllocations = 1000;
+	void* testAllocations[expectedAllocations] = {0};
+	uint32_t testSizes[expectedAllocations] = {0};
+	uint32_t totalSize = 0;
+	uint32_t actualSize;
+
+	for (int i = 0; i < expectedAllocations; i++) {
+		//this is to make a log distribution - probably the worst case for packing efficiency
+		int magnitude = rand() % 16;
+		int size = (rand() % 10) << magnitude;
+		void* testalloc = memreg.alloc(size, &actualSize, false, NULL, false);
+		if (testalloc) {
+			totalSize += actualSize;
+			testWritingMemory(testalloc, actualSize);
+			CHECK(testAllocationStructure(testalloc, actualSize, SPACE_HEADER_ALLOCATED));
+			testAllocations[i] = testalloc;
+			testSizes[i] = actualSize;
+		}
+		else {
+			//filled the memory
+			break;
+		}
+	}
+	for (int i = 0; i < expectedAllocations; i++) {
+		if (testAllocations[i]) {
+			CHECK(testReadingMemory(testAllocations[i], testSizes[i]));
+		}
+	}
+};
+
+TEST(MemoryAllocation, randomAllocDeAlloc) {
+	//this is technically random
+	int expectedAllocations = 1000;
+	int numRepeats = 25;
+	void* testAllocations[expectedAllocations] = {0};
+	uint32_t testSizes[expectedAllocations] = {0};
+	uint32_t totalSize = 0;
+	uint32_t actualSize;
+	for (int j = 0; j < numRepeats; j++) {
+		for (int i = 0; i < expectedAllocations; i++) {
+			if (!testAllocations[i]) {
+				//this is to make a log distribution - probably the worst case for packing efficiency
+				int magnitude = rand() % 16;
+				int size = (rand() % 10) << magnitude;
+				void* testalloc = memreg.alloc(size, &actualSize, false, NULL, false);
+				if (testalloc) {
+					totalSize += actualSize;
+					testWritingMemory(testalloc, actualSize);
+					CHECK(testAllocationStructure(testalloc, actualSize, SPACE_HEADER_ALLOCATED));
+					testAllocations[i] = testalloc;
+					testSizes[i] = actualSize;
+				}
+				else {
+					//filled the memory
+					break;
+				}
+			}
+		}
+		for (int i = 0; i < expectedAllocations; i++) {
+			if (testAllocations[i]) {
+				CHECK(testReadingMemory(testAllocations[i], testSizes[i]));
+			}
+			memreg.dealloc(testAllocations[i]);
+		}
 	}
 };
