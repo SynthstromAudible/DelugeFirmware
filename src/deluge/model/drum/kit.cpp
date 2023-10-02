@@ -482,12 +482,12 @@ void Kit::cutAllSound() {
 }
 
 // Beware - unlike usual, modelStack, a ModelStackWithThreeMainThings*,  might have a NULL timelineCounter
-void Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack, StereoSample* globalEffectableBuffer,
+bool Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack, StereoSample* globalEffectableBuffer,
                                         int32_t* bufferToTransferTo, int32_t numSamples, int32_t* reverbBuffer,
                                         int32_t reverbAmountAdjust, int32_t sideChainHitPending,
                                         bool shouldLimitDelayFeedback, bool isClipActive, int32_t pitchAdjust,
                                         int32_t amplitudeAtStart, int32_t amplitudeAtEnd) {
-
+	bool rendered = false;
 	// Render Drums. Traverse backwards, in case one stops rendering (removing itself from the list) as we render it
 	for (int32_t d = drumsWithRenderingActive.getNumElements() - 1; d >= 0; d--) {
 		Drum* thisDrum = (Drum*)drumsWithRenderingActive.getKeyAtIndex(d);
@@ -528,6 +528,7 @@ void Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStac
 		soundDrum->render(modelStackWithThreeMainThings, globalEffectableBuffer, numSamples, reverbBuffer,
 		                  sideChainHitPending, reverbAmountAdjust, shouldLimitDelayFeedback,
 		                  pitchAdjust); // According to our volume, we tell Drums to send less reverb
+		rendered = true;
 	}
 
 	// Tick ParamManagers
@@ -610,6 +611,7 @@ yesTickParamManager:
 			}
 		}
 	}
+	return rendered;
 }
 
 void Kit::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, StereoSample* outputBufferEnd,
