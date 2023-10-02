@@ -28,9 +28,6 @@ extern "C" {
 namespace Debug {
 
 constexpr uint32_t kNumSamplesBetweenReports = 44100;
-
-constexpr bool SysExLoggingEnabled = true;
-
 bool initFlag = false;
 bool prependDeltaT = true;
 bool lastWasNewline = false;
@@ -112,10 +109,10 @@ void prependTimeStamp(bool isNewLine) {
 		if (!initFlag)
 			Debug::init();
 		char buffer[32];
-		lutHexString(Debug::sampleCycleCounter(), buffer);
+		lutHexString(Debug::readCycleCounter(), buffer);
 		buffer[8] = ' ';
 		buffer[9] = 0;
-		if (midiDebugDevice && SysExLoggingEnabled) {
+		if (midiDebugDevice && SYSEX_LOGGING_ENABLED) {
 			sysexDebugPrint(midiDebugDevice, buffer, false);
 		}
 		else {
@@ -129,7 +126,7 @@ void prependTimeStamp(bool isNewLine) {
 void println(char const* output) {
 #if ENABLE_TEXT_OUTPUT
 	prependTimeStamp(true);
-	if (midiDebugDevice && SysExLoggingEnabled) {
+	if (midiDebugDevice && SYSEX_LOGGING_ENABLED) {
 		sysexDebugPrint(midiDebugDevice, output, true);
 	}
 	else {
@@ -149,7 +146,7 @@ void println(int32_t number) {
 void print(char const* output) {
 #if ENABLE_TEXT_OUTPUT
 	prependTimeStamp(false);
-	if (midiDebugDevice && SysExLoggingEnabled) {
+	if (midiDebugDevice && SYSEX_LOGGING_ENABLED) {
 		sysexDebugPrint(midiDebugDevice, output, false);
 	}
 	else {
@@ -179,7 +176,8 @@ void printsnln(char* label, uint32_t val) {
 
 RTimer::RTimer(const char* label) : startTime(0), m_label(label), stopped(false) {
 #if ENABLE_TEXT_OUTPUT
-	asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(startTime) :);
+
+	readCycleCounter(startTime);
 #endif
 }
 
@@ -196,14 +194,14 @@ RTimer::~RTimer() {
 void RTimer::reset() {
 #if ENABLE_TEXT_OUTPUT
 	stopped = false;
-	asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(startTime) :);
+	readCycleCounter(startTime);
 #endif
 }
 
 void RTimer::stop() {
 #if ENABLE_TEXT_OUTPUT
 	uint32_t endTime = 0;
-	asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(endTime) :);
+	readCycleCounter(endTime);
 	uint32_t deltaT = endTime - startTime;
 	stopped = true;
 	char buffer[128];
@@ -212,7 +210,7 @@ void RTimer::stop() {
 	lutHexString(deltaT, buffer + 9);
 	buffer[17] = ' ';
 	strcpy(buffer + 18, m_label);
-	if (midiDebugDevice && SysExLoggingEnabled) {
+	if (midiDebugDevice && SYSEX_LOGGING_ENABLED) {
 		sysexDebugPrint(midiDebugDevice, buffer, true);
 	}
 	else {
@@ -226,7 +224,7 @@ void RTimer::stop() {
 void RTimer::stop(const char* stopLabel) {
 #if ENABLE_TEXT_OUTPUT
 	uint32_t endTime = 0;
-	asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(endTime) :);
+	readCycleCounter(endTime);
 	uint32_t deltaT = endTime - startTime;
 	stopped = true;
 	char buffer[128];
@@ -237,7 +235,7 @@ void RTimer::stop(const char* stopLabel) {
 	strcpy(buffer + 18, m_label);
 	char* stopplace = buffer + 18 + strlen(m_label);
 	strcpy(stopplace, stopLabel);
-	if (midiDebugDevice && SysExLoggingEnabled) {
+	if (midiDebugDevice && SYSEX_LOGGING_ENABLED) {
 		sysexDebugPrint(midiDebugDevice, buffer, true);
 	}
 	else {
@@ -314,7 +312,7 @@ OnceEvery::OnceEvery(const char* label, uint32_t timeBase) : active(false), time
 void OnceEvery::start() {
 #if ENABLE_TEXT_OUTPUT
 	uint32_t t1;
-	asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(t1) :);
+	readCycleCounter(t1);
 	uint32_t deltaT = t1 - t0;
 	if (deltaT >= timeBase) {
 		active = true;
@@ -345,24 +343,24 @@ CountsPer::CountsPer(const char* label, uint32_t timeBase)
     : label(label), timeBase(timeBase), active(false), count(0), t0(0) {
 }
 
-void CountsPer::CountsPer::bump() {
+void CountsPer::CountsPer::bump(uint32_t by) {
 #if ENABLE_TEXT_OUTPUT
 	if (!active) {
 		count = 1;
 		active = true;
-		asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(t0) :);
+		readCycleCounter(t0);
 	}
 	else {
 		uint32_t t1;
-		asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(t1) :);
+		readCycleCounter(t1);
 		uint32_t deltaT = t1 - t0;
 		if (deltaT >= timeBase) {
 			printsnln((char*)label, count);
-			count = 1;
+			count = by;
 			t0 = t1;
 		}
 		else {
-			count++;
+			count += by;
 		}
 	}
 #endif
@@ -381,7 +379,7 @@ AverageDT::AverageDT(const char* label, uint32_t timeBase, uint32_t scaling)
 
 void AverageDT::begin() {
 #if ENABLE_TEXT_OUTPUT
-	asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(tnm1) :);
+	readCycleCounter(tnm1);
 #endif
 }
 
@@ -390,13 +388,13 @@ void AverageDT::note() {
 	if (!active) {
 		count = 0;
 		active = true;
-		asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(t0) :);
+		readCycleCounter(t0);
 		tnm1 = t0;
 		accumulator = 0;
 	}
 	else {
 		uint32_t t1;
-		asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(t1) :);
+		readCycleCounter(t1);
 		uint32_t deltaT = t1 - t0;
 		if (deltaT >= timeBase) {
 			uint32_t avg;
@@ -438,11 +436,11 @@ void AverageVOT::note(uint32_t value) {
 		count = 0;
 		accumulator = 0;
 		active = true;
-		asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(t0) :);
+		readCycleCounter(t0);
 	}
 	else {
 		uint32_t t1;
-		asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(t1) :);
+		readCycleCounter(t1);
 		uint32_t deltaT = t1 - t0;
 		if (deltaT >= timeBase) {
 			uint32_t avg;

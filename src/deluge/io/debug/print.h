@@ -19,6 +19,10 @@
 
 #include <cstdint>
 
+#ifndef SYSEX_LOGGING_ENABLED
+#define SYSEX_LOGGING_ENABLED false
+#endif
+
 class MIDIDevice;
 
 namespace Debug {
@@ -26,10 +30,14 @@ const uint32_t sec = 400000000;
 const uint32_t mS = 400000;
 const uint32_t uS = 400;
 
-[[gnu::always_inline]] inline uint32_t sampleCycleCounter() {
+[[gnu::always_inline]] inline uint32_t readCycleCounter() {
 	uint32_t cycles = 0;
 	asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(cycles) :);
 	return cycles;
+}
+
+[[gnu::always_inline]] inline void readCycleCounter(uint32_t &time) {
+	asm volatile("MRC p15, 0, %0, c9, c13, 0" : "=r"(time) :);
 }
 
 void init();
@@ -103,7 +111,7 @@ public:
 class CountsPer {
 public:
 	CountsPer(const char* label, uint32_t timeBase);
-	void bump();
+	void bump(uint32_t by = 1);
 	void clear();
 	const char* label;
 	uint32_t timeBase;
