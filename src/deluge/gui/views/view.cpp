@@ -976,8 +976,7 @@ void View::setKnobIndicatorLevels() {
 	}
 
 	//don't update knob indicator levels when you're in automation editor
-	if (getCurrentUI() == &automationInstrumentClipView
-	    && (((InstrumentClip*)currentSong->currentClip)->lastSelectedParamID != kNoLastSelectedParamID)) {
+	if ((getCurrentUI() == &automationInstrumentClipView) && !automationInstrumentClipView.isOnAutomationOverview()) {
 		return;
 	}
 
@@ -1121,6 +1120,11 @@ void View::setModLedStates() {
 				    && (((InstrumentClip*)currentSong->getClipWithOutput(output))->onAutomationInstrumentClipView)) {
 					goto setBlinkLED;
 				}
+			}
+		}
+		else if (getRootUI() == &keyboardScreen) {
+			if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+				goto setBlinkLED;
 			}
 		}
 		else if (getRootUI() == &automationInstrumentClipView) {
@@ -1352,6 +1356,17 @@ void View::drawOutputNameFromDetails(InstrumentType instrumentType, int32_t chan
 		setLedState(LED::KEYBOARD, (clip && clip->onKeyboardScreen));
 		setLedState(LED::SCALE_MODE, (clip && clip->inScaleMode && clip->output->type != InstrumentType::KIT));
 		setLedState(LED::CROSS_SCREEN_EDIT, (clip && clip->wrapEditing));
+	}
+
+	//hook to render display for OLED and 7SEG when in Automation Instrument Clip View
+	if (getCurrentUI() == &automationInstrumentClipView) {
+		if (!automationInstrumentClipView.isOnAutomationOverview()) {
+			automationInstrumentClipView.displayAutomation(true, !display->have7SEG());
+		}
+		else {
+			automationInstrumentClipView.renderDisplay();
+		}
+		return;
 	}
 
 	if (display->haveOLED()) {
