@@ -74,7 +74,13 @@ bool LoadInstrumentPresetUI::opened() {
 
 	if (loadingSynthToKitRow) {
 		initialInstrumentType = instrumentTypeToLoad = InstrumentType::SYNTH;
-		initialName.set(&soundDrumToReplace->name);
+		if (soundDrumToReplace) {
+			initialName.set(&soundDrumToReplace->name);
+		}
+		else {
+			initialName.set("");
+		}
+
 		initialDirPath.set("SYNTHS");
 	}
 
