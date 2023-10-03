@@ -355,11 +355,10 @@ Also, similar to the Keyboard screen which uses the variable "onKeyboardScreen" 
 
 # De-scoped Items (Future Release)
 
-- Explore displaying a menu instead of a pop-up.
 - Automation for Audio Clips
 - Key Frames + Parameter value for each frame
 - Automation Shapes
-- Jump from Sound Editor
+- Jump from Sound Editor Menu to Automation View
 - Zoom in Vertically
 - Shading of lower node changes when viewing higher node level
 - How can we reset automation to default preset levels

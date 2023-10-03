@@ -60,9 +60,11 @@ public:
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
 	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
-	void displayAutomation();
-	void displayParameterName(int32_t paramID);
-	void setDisplayParameterNameTimer();
+	void renderDisplay(int32_t knobPosLeft = kNoSelection, int32_t knobPosRight = kNoSelection,
+	                   bool modEncoderAction = false);
+	void renderDisplayOLED(int32_t knobPosLeft = kNoSelection, int32_t knobPosRight = kNoSelection);
+	void renderDisplay7SEG(int32_t knobPosLeft = kNoSelection, bool modEncoderAction = false);
+	void displayAutomation(bool padSelected = false, bool updateDisplay = true);
 
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) { InstrumentClipMinder::renderOLED(image); }
 
@@ -87,6 +89,8 @@ public:
 
 	//mod encoder action
 	void modEncoderAction(int32_t whichModEncoder, int32_t offset);
+	bool modEncoderActionForSelectedPad(int32_t whichModEncoder, int32_t offset);
+	void modEncoderActionForUnselectedPad(int32_t whichModEncoder, int32_t offset);
 	void modEncoderButtonAction(uint8_t whichModEncoder, bool on);
 	CopiedParamAutomation copiedParamAutomation;
 
@@ -105,6 +109,8 @@ public:
 	//not sure how this is used
 	ClipMinder* toClipMinder() { return this; }
 
+	bool isOnAutomationOverview();
+
 	bool interpolation;
 	bool interpolationBefore;
 	bool interpolationAfter;
@@ -120,10 +126,8 @@ private:
 	void renderAutomationEditor(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, Instrument* instrument,
 	                            uint8_t* image, uint8_t occupancyMask[], int32_t renderWidth, int32_t xScroll,
 	                            uint32_t xZoom, int32_t yDisplay = 0, bool drawUndefinedArea = true);
-	void renderRow(ModelStackWithAutoParam* modelStack, uint8_t* image, uint8_t occupancyMask[], bool, uint32_t,
-	               bool allowNoteTails, int32_t xScroll, uint32_t xZoom, int32_t xStart = 0,
-	               int32_t xEnd = kDisplayWidth, bool drawRepeats = false, int32_t yDisplay = 0,
-	               bool isAutomated = false);
+	void renderRow(ModelStackWithTimelineCounter* modelStack, ModelStackWithAutoParam* modelStackWithParam,
+	               uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay = 0, bool isAutomated = false);
 	void renderLove(uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
 
 	//Enter/Exit Scale Mode
@@ -144,12 +148,18 @@ private:
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip,
 	                                                int32_t paramID = 0xFFFFFFFF,
 	                                                Param::Kind paramKind = Param::Kind::NONE);
+	int32_t getEffectiveLength(ModelStackWithTimelineCounter* modelStack);
+	uint32_t getMiddlePosFromSquare(ModelStackWithTimelineCounter* modelStack, int32_t xDisplay);
 
+	void getParameterName(char* parameterName);
 	int32_t getParameterKnobPos(ModelStackWithAutoParam* modelStack, uint32_t pos);
 
 	bool getNodeInterpolation(ModelStackWithAutoParam* modelStack, int32_t pos, bool reversed);
 	void setParameterAutomationValue(ModelStackWithAutoParam* modelStack, int32_t knobPos, int32_t squareStart,
-	                                 int32_t xDisplay, int32_t effectiveLength, bool displayValue = true);
+	                                 int32_t xDisplay, int32_t effectiveLength, bool modEncoderAction = false);
+	void setKnobIndicatorLevels(int32_t knobPos);
+	void updateModPosition(ModelStackWithAutoParam* modelStack, uint32_t squareStart, bool updateDisplay = true,
+	                       bool updateIndicatorLevels = true);
 
 	bool recordSinglePadPress(int32_t xDisplay, int32_t yDisplay);
 	void handleSinglePadPress(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, int32_t xDisplay,
@@ -158,10 +168,10 @@ private:
 
 	void handleMultiPadPress(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, int32_t firstPadX,
 	                         int32_t firstPadY, int32_t secondPadX, int32_t secondPadY, bool modEncoderAction = false);
+	void renderDisplayForMultiPadPress(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip,
+	                                   int32_t xDisplay = kNoSelection, bool modEncoderAction = false);
 
 	int32_t calculateKnobPosForModEncoderTurn(int32_t knobPos, int32_t offset);
-	bool isOnParameterGridMenuView();
-	void displayParameterValue(int32_t knobPos);
 	void displayCVErrorMessage();
 	void resetShortcutBlinking();
 
@@ -176,6 +186,8 @@ private:
 	int32_t rightPadSelectedX;
 	int32_t rightPadSelectedY;
 	int32_t lastPadSelectedKnobPos;
+
+	bool playbackStopped;
 };
 
 extern AutomationInstrumentClipView automationInstrumentClipView;

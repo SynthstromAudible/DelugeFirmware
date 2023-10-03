@@ -96,10 +96,10 @@ InstrumentClip::InstrumentClip(Song* song) : Clip(CLIP_TYPE_INSTRUMENT) {
 
 	//initialize automation instrument clip view variables
 	onAutomationInstrumentClipView = false;
-	lastSelectedParamID = kNoLastSelectedParamID;
+	lastSelectedParamID = kNoSelection;
 	lastSelectedParamKind = Param::Kind::NONE;
-	lastSelectedParamShortcutX = kNoLastSelectedParamShortcut;
-	lastSelectedParamShortcutY = kNoLastSelectedParamShortcut;
+	lastSelectedParamShortcutX = kNoSelection;
+	lastSelectedParamShortcutY = kNoSelection;
 	lastSelectedParamArrayPosition = 0;
 	lastSelectedInstrumentType = InstrumentType::NONE;
 	//end initialize of automation instrument clip view variables
@@ -2190,7 +2190,7 @@ void InstrumentClip::writeDataToFile(Song* song) {
 	if (onAutomationInstrumentClipView) {
 		storageManager.writeAttribute("onAutomationInstrumentClipView", (char*)"1");
 	}
-	if (lastSelectedParamID != kNoLastSelectedParamID) {
+	if (lastSelectedParamID != kNoSelection) {
 		storageManager.writeAttribute("lastSelectedParamID", lastSelectedParamID);
 		storageManager.writeAttribute("lastSelectedParamKind", util::to_underlying(lastSelectedParamKind));
 		storageManager.writeAttribute("lastSelectedParamShortcutX", lastSelectedParamShortcutX);

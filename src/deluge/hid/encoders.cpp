@@ -151,12 +151,6 @@ checkResult:
 					                                   Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC),
 					                                   Buttons::isShiftButtonPressed());
 				}
-
-				//when tempo encoder is finished, make sure to display parameter name again
-				if (getCurrentUI() == &automationInstrumentClipView) {
-					automationInstrumentClipView.setDisplayParameterNameTimer();
-				}
-
 				break;
 
 			case ENCODER_SELECT:

@@ -129,9 +129,8 @@ void UITimerManager::routine() {
 				}
 
 				case TIMER_DISPLAY_AUTOMATION:
-					if (getCurrentUI() == &automationInstrumentClipView
-					    && (((InstrumentClip*)currentSong->currentClip)->lastSelectedParamID
-					        != kNoLastSelectedParamID)) {
+					if ((getCurrentUI() == &automationInstrumentClipView)
+					    && !automationInstrumentClipView.isOnAutomationOverview()) {
 
 						automationInstrumentClipView.displayAutomation();
 					}
@@ -154,17 +153,6 @@ void UITimerManager::routine() {
 						getCurrentUI()->graphicsRoutine();
 					}
 					setTimer(TIMER_GRAPHICS_ROUTINE, 15);
-					break;
-
-				case TIMER_AUTOMATION_VIEW: //timer to redisplay the parameter name on the screen in automation view
-					if (getCurrentUI() == &automationInstrumentClipView
-					    && (((InstrumentClip*)currentSong->currentClip)->lastSelectedParamID
-					        != kNoLastSelectedParamID)) {
-
-						automationInstrumentClipView.displayParameterName(
-						    ((InstrumentClip*)currentSong->currentClip)->lastSelectedParamID);
-						unsetTimer(TIMER_AUTOMATION_VIEW);
-					}
 					break;
 
 				case TIMER_OLED_LOW_LEVEL:
