@@ -1055,6 +1055,12 @@ static const uint32_t modButtonUIModes[] = {UI_MODE_AUDITIONING,
                                             0};
 
 void View::modButtonAction(uint8_t whichButton, bool on) {
+
+	//ignore modButtonAction when in the Automation View Automation Editor
+	if ((getRootUI() == &automationInstrumentClipView) && !automationInstrumentClipView.isOnAutomationOverview()) {
+		return;
+	}
+
 	pretendModKnobsUntouchedForAWhile();
 
 	if (activeModControllableModelStack.modControllable) {
