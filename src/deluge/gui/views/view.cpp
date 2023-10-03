@@ -1168,7 +1168,13 @@ setNextLED:
 
 	for (int32_t i = 0; i < kNumModButtons; i++) {
 		bool on = (i == modKnobMode);
-		indicator_leds::setLedState(indicator_leds::modLed[i], on);
+		//if you're in the automation editor, turn off mod fx LED's
+		if ((getRootUI() == &automationInstrumentClipView) && !automationInstrumentClipView.isOnAutomationOverview()) {
+			indicator_leds::setLedState(indicator_leds::modLed[i], false);
+		}
+		else {
+			indicator_leds::setLedState(indicator_leds::modLed[i], on);
+		}
 	}
 }
 
