@@ -166,11 +166,12 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
 	// If not currently playing
 	if (!playbackState) {
 		setupPlaybackUsingInternalClock(buttonPressLatency);
+		Debug::println("Play");
 	}
 
 	// Or if currently playing...
 	else {
-
+		Debug::println("~Play");
 		// If holding <> encoder down...
 		if (Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
 
