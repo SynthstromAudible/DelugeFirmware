@@ -78,7 +78,7 @@ extern bool inSpamMode;
 extern bool anythingProbablyPressed;
 extern int32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
 
-//#define REPORT_CPU_USAGE 1
+#define REPORT_CPU_USAGE 1
 
 #define NUM_SAMPLES_FOR_CPU_USAGE_REPORT 32
 
@@ -247,7 +247,6 @@ Voice* cullVoice(bool saveVoice, bool justDoFastRelease) {
 
 	uint32_t bestRating = 0;
 	Voice* bestVoice = NULL;
-
 	for (int32_t v = 0; v < activeVoices.getNumElements(); v++) {
 		Voice* thisVoice = activeVoices.getVoice(v);
 
@@ -331,9 +330,12 @@ int32_t numAudioLogItems = 0;
 
 extern uint16_t g_usb_usbmode;
 
-void routine() {
-	logAction("AudioDriver::routine");
+Debug::AverageDT aeCtr("audio", Debug::mS);
+Debug::AverageDT rvb("reverb", Debug::uS);
 
+void routine() {
+	aeCtr.note();
+	logAction("AudioDriver::routine");
 	if (audioRoutineLocked) {
 		logAction("AudioDriver::routine locked");
 		return; // Prevents this from being called again from inside any e.g. memory allocation routines that get called from within this!
@@ -635,11 +637,10 @@ startAgain:
 		}
 
 		usageTimes[REPORT_AVERAGE_NUM - 1] = value;
-
-		Debug::print("uS per ");
-		Debug::print(NUM_SAMPLES_FOR_CPU_USAGE_REPORT * 10);
-		Debug::print(" samples: ");
-		Debug::println(total / REPORT_AVERAGE_NUM);
+		if (total >= 0) { // avoid garbage times.
+			Debug::print("uS ");
+			Debug::println(total / REPORT_AVERAGE_NUM);
+		}
 	}
 #endif
 
@@ -654,7 +655,9 @@ startAgain:
 		if (sideChainHitPending != 0) {
 			reverbCompressor.registerHit(sideChainHitPending);
 		}
+		rvb.begin();
 		compressorOutput = reverbCompressor.render(numSamples, reverbCompressorShapeInEffect);
+		rvb.note();
 	}
 
 	int32_t reverbAmplitudeL;
