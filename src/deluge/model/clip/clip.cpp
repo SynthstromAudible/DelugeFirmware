@@ -985,7 +985,8 @@ void Clip::clear(Action* action, ModelStackWithTimelineCounter* modelStack) {
 			else {
 				if (getCurrentUI() == &automationInstrumentClipView
 				    || runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationClearClip)
-				           == RuntimeFeatureStateToggle::Off) {
+				           == RuntimeFeatureStateToggle::Off
+				    || type == CLIP_TYPE_AUDIO) {
 					summary->paramCollection->deleteAllAutomation(action, modelStackWithParamCollection);
 				}
 			}
