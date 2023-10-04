@@ -1055,6 +1055,12 @@ static const uint32_t modButtonUIModes[] = {UI_MODE_AUDITIONING,
                                             0};
 
 void View::modButtonAction(uint8_t whichButton, bool on) {
+
+	//ignore modButtonAction when in the Automation View Automation Editor
+	if ((getRootUI() == &automationInstrumentClipView) && !automationInstrumentClipView.isOnAutomationOverview()) {
+		return;
+	}
+
 	pretendModKnobsUntouchedForAWhile();
 
 	if (activeModControllableModelStack.modControllable) {
@@ -1168,7 +1174,13 @@ setNextLED:
 
 	for (int32_t i = 0; i < kNumModButtons; i++) {
 		bool on = (i == modKnobMode);
-		indicator_leds::setLedState(indicator_leds::modLed[i], on);
+		//if you're in the Automation View Automation Editor, turn off Mod LED's
+		if ((getRootUI() == &automationInstrumentClipView) && !automationInstrumentClipView.isOnAutomationOverview()) {
+			indicator_leds::setLedState(indicator_leds::modLed[i], false);
+		}
+		else {
+			indicator_leds::setLedState(indicator_leds::modLed[i], on);
+		}
 	}
 }
 
