@@ -74,7 +74,13 @@ bool LoadInstrumentPresetUI::opened() {
 
 	if (loadingSynthToKitRow) {
 		initialInstrumentType = instrumentTypeToLoad = InstrumentType::SYNTH;
-		initialName.set(&soundDrumToReplace->name);
+		if (soundDrumToReplace) {
+			initialName.set(&soundDrumToReplace->name);
+		}
+		else {
+			initialName.set("");
+		}
+
 		initialDirPath.set("SYNTHS");
 	}
 
@@ -147,7 +153,7 @@ int32_t LoadInstrumentPresetUI::setupForInstrumentType() {
 	// call confirmPresetOrNextUnlaunchedOne() to skip any which aren't "available".
 
 	// If same Instrument type as we already had...
-	if (instrumentToReplace->type == instrumentTypeToLoad) {
+	if (instrumentToReplace && instrumentToReplace->type == instrumentTypeToLoad) {
 
 		// Then we can start by just looking at the existing Instrument, cos they're the same type...
 		currentDir.set(&instrumentToReplace->dirPath);
