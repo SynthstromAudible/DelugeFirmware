@@ -2826,6 +2826,7 @@ flashShortcut:
 		displayAutomation(true, !display->have7SEG());
 	}
 	resetShortcutBlinking();
+	view.setModLedStates();
 	uiNeedsRendering(this);
 }
 
@@ -2866,6 +2867,7 @@ void AutomationInstrumentClipView::initParameterSelection() {
 	display->cancelPopup();
 	renderDisplay();
 	view.setKnobIndicatorLevels();
+	view.setModLedStates();
 }
 
 //exit pad selection mode, reset pad press statuses
@@ -3252,6 +3254,7 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 
 		displayAutomation(true);
 		resetShortcutBlinking();
+		view.setModLedStates();
 	}
 
 	else if (!isOnAutomationOverview()) { //this means you are editing a parameter's value
