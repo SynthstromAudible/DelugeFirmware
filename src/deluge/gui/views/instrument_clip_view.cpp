@@ -795,40 +795,51 @@ someError:
 		reassessAuditionStatus(lastAuditionedYDisplay);
 	}
 
-	Drum* newDrum = storageManager.createNewDrum(drumType);
-
-	if (!newDrum) {
-		goto ramError;
-	}
-
 	Kit* kit = (Kit*)currentSong->currentClip->output;
-
-	ParamManager paramManager;
-	//add sound loading code here
 	if (drumType == DrumType::SOUND) {
 		Browser::instrumentTypeToLoad = InstrumentType::SYNTH;
 		loadInstrumentPresetUI.loadingSynthToKitRow = true;
+		loadInstrumentPresetUI.instrumentToReplace = nullptr;
+
 		loadInstrumentPresetUI.instrumentClipToLoadFor = nullptr;
-		loadInstrumentPresetUI.soundDrumToReplace = (SoundDrum*)newDrum;
+		if (noteRow->drum->type == drumType) {
+			loadInstrumentPresetUI.soundDrumToReplace = (SoundDrum*)noteRow->drum;
+		}
+		else {
+			loadInstrumentPresetUI.soundDrumToReplace = nullptr;
+		}
+
 		loadInstrumentPresetUI.kitToLoadFor = kit;
 		loadInstrumentPresetUI.noteRow = noteRow;
 		loadInstrumentPresetUI.noteRowIndex = noteRowIndex;
 		openUI(&loadInstrumentPresetUI);
 	}
 
-	kit->addDrum(newDrum);
+	else {
 
-	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowIndex, noteRow);
+		Drum* newDrum = storageManager.createNewDrum(drumType);
 
-	noteRow->setDrum(newDrum, kit, modelStackWithNoteRow, NULL, &paramManager);
+		if (!newDrum) {
+			goto ramError;
+		}
 
-	kit->beenEdited();
+		ParamManager paramManager;
+		//add sound loading code here
 
-	drawDrumName(newDrum);
+		kit->addDrum(newDrum);
+
+		ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowIndex, noteRow);
+
+		noteRow->setDrum(newDrum, kit, modelStackWithNoteRow, NULL, &paramManager);
+
+		kit->beenEdited();
+		drawDrumName(newDrum);
+		setSelectedDrum(newDrum, true);
+	}
 
 	auditionPadIsPressed[lastAuditionedYDisplay] = true;
 	reassessAuditionStatus(lastAuditionedYDisplay);
-	setSelectedDrum(newDrum, true);
+
 	// uiNeedsRendering(this, 0, 1 << lastAuditionedNoteOnScreen);
 }
 
