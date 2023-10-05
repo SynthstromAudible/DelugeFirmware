@@ -136,7 +136,7 @@ TEST(MemoryAllocation, uniformAllocation) {
 	mock().checkExpectations();
 };
 
-TEST(MemoryAllocation, randomAllocations) {
+TEST(MemoryAllocation, allocationStructure) {
 	//this is technically random
 	int expectedAllocations = 1000;
 	void* testAllocations[expectedAllocations] = {0};
@@ -155,8 +155,11 @@ TEST(MemoryAllocation, randomAllocations) {
 			CHECK(testAllocationStructure(testalloc, actualSize, SPACE_HEADER_ALLOCATED));
 			testAllocations[i] = testalloc;
 			testSizes[i] = actualSize;
-			if (i > 2) {
+			if (i > 1) {
 				CHECK(testAllocationStructure(testAllocations[i - 1], testSizes[i - 1], SPACE_HEADER_ALLOCATED));
+			}
+			if (i < expectedAllocations - 1) {
+				CHECK(testAllocationStructure(testAllocations[i + 1], testSizes[i + 1], SPACE_HEADER_ALLOCATED));
 			}
 		}
 		else {
@@ -169,18 +172,23 @@ TEST(MemoryAllocation, randomAllocations) {
 			CHECK(testReadingMemory(testAllocations[i], testSizes[i]));
 			memreg.dealloc(testAllocations[i]);
 		}
+		if (i < expectedAllocations - 1) {
+			CHECK(testAllocationStructure(testAllocations[i + 1], testSizes[i + 1], SPACE_HEADER_ALLOCATED));
+		}
 	}
 };
 
-TEST(MemoryAllocation, randomAllocDeAlloc) {
+TEST(MemoryAllocation, allocationSizes) {
 	//this is technically random, should fill memory in ~5-600 allocations
-	int expectedAllocations = 1000;
-	int numRepeats = 25;
+	int expectedAllocations = 700;
+	int numRepeats = 1000;
 	void* testAllocations[expectedAllocations] = {0};
 	uint32_t testSizes[expectedAllocations] = {0};
-	uint32_t totalSize = 0;
+	uint32_t totalSize;
 	uint32_t actualSize;
+	float average_packing_factor = 0;
 	for (int j = 0; j < numRepeats; j++) {
+		totalSize = 0;
 		for (int i = 0; i < expectedAllocations; i++) {
 			if (!testAllocations[i]) {
 				//this is to make a log distribution - probably the worst case for packing efficiency
@@ -189,38 +197,27 @@ TEST(MemoryAllocation, randomAllocDeAlloc) {
 				void* testalloc = memreg.alloc(size, &actualSize, false, NULL, false);
 				if (testalloc) {
 					totalSize += actualSize;
-					testWritingMemory(testalloc, actualSize);
-					CHECK(testAllocationStructure(testalloc, actualSize, SPACE_HEADER_ALLOCATED));
 					testAllocations[i] = testalloc;
 					testSizes[i] = actualSize;
-					if (i > 1) {
-						CHECK(
-						    testAllocationStructure(testAllocations[i - 1], testSizes[i - 1], SPACE_HEADER_ALLOCATED));
-					}
-					if (i < expectedAllocations - 1) {
-						CHECK(
-						    testAllocationStructure(testAllocations[i + 1], testSizes[i + 1], SPACE_HEADER_ALLOCATED));
-					}
-				}
-				else {
-					break;
 				}
 			}
 		}
 		for (int i = 0; i < expectedAllocations; i++) {
 			if (testAllocations[i]) {
-				CHECK(testReadingMemory(testAllocations[i], testSizes[i]));
 				memreg.dealloc(testAllocations[i]);
 				testAllocations[i] = nullptr;
 				testSizes[i] = 0;
 			}
-			if (i < expectedAllocations - 1) {
-				CHECK(testAllocationStructure(testAllocations[i + 1], testSizes[i + 1], SPACE_HEADER_ALLOCATED));
-			}
 		}
+		//check that fragmentation wasn't terrible
+		CHECK(totalSize > 0.95 * mem_size);
+		average_packing_factor += (float(totalSize) / float(mem_size));
+
 		//we should have one empty space left, and it should be the size of the memory minus headers
 		CHECK(memreg.emptySpaces.getNumElements() == 1);
 		CHECK(memreg.emptySpaces.getKeyAtIndex(0) == mem_size - 16);
 	}
+	//un modified GMA gets .999311
+	CHECK(average_packing_factor / numRepeats > 0.999);
 };
 } // namespace
