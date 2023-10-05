@@ -41,7 +41,10 @@ void testWritingMemory(void* address, uint32_t size) {
 };
 
 bool testAllocationStructure(void* address, uint32_t size, uint32_t spaceType) {
-
+	if (!address) {
+		//for convenience
+		return true;
+	}
 	uint32_t* header = (uint32_t*)address - 1;
 	uint32_t* footer = (uint32_t*)((int32_t)address + size);
 
@@ -151,6 +154,9 @@ TEST(MemoryAllocation, randomAllocations) {
 			CHECK(testAllocationStructure(testalloc, actualSize, SPACE_HEADER_ALLOCATED));
 			testAllocations[i] = testalloc;
 			testSizes[i] = actualSize;
+			if (i > 2) {
+				CHECK(testAllocationStructure(testAllocations[i - 1], testSizes[i - 1], SPACE_HEADER_ALLOCATED));
+			}
 		}
 		else {
 			//filled the memory
@@ -160,12 +166,13 @@ TEST(MemoryAllocation, randomAllocations) {
 	for (int i = 0; i < expectedAllocations; i++) {
 		if (testAllocations[i]) {
 			CHECK(testReadingMemory(testAllocations[i], testSizes[i]));
+			memreg.dealloc(testAllocations[i]);
 		}
 	}
 };
 
 TEST(MemoryAllocation, randomAllocDeAlloc) {
-	//this is technically random
+	//this is technically random, should fill memory in ~5-600 allocations
 	int expectedAllocations = 1000;
 	int numRepeats = 25;
 	void* testAllocations[expectedAllocations] = {0};
@@ -185,9 +192,16 @@ TEST(MemoryAllocation, randomAllocDeAlloc) {
 					CHECK(testAllocationStructure(testalloc, actualSize, SPACE_HEADER_ALLOCATED));
 					testAllocations[i] = testalloc;
 					testSizes[i] = actualSize;
+					if (i > 1) {
+						CHECK(
+						    testAllocationStructure(testAllocations[i - 1], testSizes[i - 1], SPACE_HEADER_ALLOCATED));
+					}
+					if (i < expectedAllocations - 1) {
+						CHECK(
+						    testAllocationStructure(testAllocations[i + 1], testSizes[i + 1], SPACE_HEADER_ALLOCATED));
+					}
 				}
 				else {
-					//filled the memory
 					break;
 				}
 			}
@@ -195,8 +209,13 @@ TEST(MemoryAllocation, randomAllocDeAlloc) {
 		for (int i = 0; i < expectedAllocations; i++) {
 			if (testAllocations[i]) {
 				CHECK(testReadingMemory(testAllocations[i], testSizes[i]));
+				memreg.dealloc(testAllocations[i]);
+				testAllocations[i] = nullptr;
+				testSizes[i] = 0;
 			}
-			memreg.dealloc(testAllocations[i]);
+			if (i < expectedAllocations - 1) {
+				CHECK(testAllocationStructure(testAllocations[i + 1], testSizes[i + 1], SPACE_HEADER_ALLOCATED));
+			}
 		}
 	}
 };
