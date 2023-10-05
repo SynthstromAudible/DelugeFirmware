@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #define NUM_TEST_ALLOCATIONS 512
 #define MEM_SIZE 10000000
+namespace {
 uint32_t vtableAddress; // will hold address of the stealable test vtable
 
 class StealableTest : public Stealable {
@@ -219,3 +220,4 @@ TEST(MemoryAllocation, randomAllocDeAlloc) {
 		}
 	}
 };
+} // namespace
