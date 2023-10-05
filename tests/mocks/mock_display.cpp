@@ -2,9 +2,9 @@
 #include "hid/display/oled.h"
 #include <iostream>
 
-class mockDisplay : public deluge::hid::Display {
+class MockDisplay : public deluge::hid::Display {
 public:
-	~mockDisplay() = default;
+	~MockDisplay() = default;
 
 	constexpr size_t getNumBrowserAndMenuLines() { return 0; };
 
@@ -54,5 +54,5 @@ public:
 	bool have7SEG() { return false; }
 };
 
-mockDisplay mockdisplay;
+MockDisplay mockdisplay;
 deluge::hid::Display* display = &mockdisplay;
