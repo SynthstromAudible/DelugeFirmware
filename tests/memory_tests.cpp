@@ -218,6 +218,9 @@ TEST(MemoryAllocation, randomAllocDeAlloc) {
 				CHECK(testAllocationStructure(testAllocations[i + 1], testSizes[i + 1], SPACE_HEADER_ALLOCATED));
 			}
 		}
+		//we should have one empty space left, and it should be the size of the memory minus headers
+		CHECK(memreg.emptySpaces.getNumElements() == 1);
+		CHECK(memreg.emptySpaces.getKeyAtIndex(0) == mem_size - 16);
 	}
 };
 } // namespace
