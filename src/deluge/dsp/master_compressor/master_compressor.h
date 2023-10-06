@@ -214,6 +214,8 @@ private:
 class MasterCompressor {
 public:
 	MasterCompressor();
+	void setup(int32_t attack, int32_t release, int32_t threshold, int32_t ratio, int32_t makeup, int32_t mix);
+
 	void render(StereoSample* buffer, uint16_t numSamples, int32_t masterVolumeAdjustmentL,
 	            int32_t masterVolumeAdjustmentR);
 	float makeup;

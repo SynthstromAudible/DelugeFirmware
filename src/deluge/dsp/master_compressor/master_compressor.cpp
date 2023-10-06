@@ -29,7 +29,7 @@ MasterCompressor::MasterCompressor() {
 	gr = 0.0;
 	wet = 1.0;
 }
-
+//with floats baseline is 60-90ms
 void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples, int32_t masterVolumeAdjustmentL,
                               int32_t masterVolumeAdjustmentR) {
 
@@ -69,7 +69,15 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples, int32_t
 		} while (++thisSample != bufferEnd);
 	}
 }
-
+void MasterCompressor::setup(int32_t attack, int32_t release, int32_t threshold, int32_t ratio, int32_t makeup,
+                             int32_t mix) {
+	compressor.setAttack((float)attack / 100.0);
+	compressor.setRelease((float)release / 100.0);
+	compressor.setThresh((float)threshold / 100.0);
+	compressor.setRatio(1.0 / ((float)ratio / 100.0));
+	setMakeup((float)makeup / 100.0);
+	wet = (float)makeup / 100.0;
+}
 namespace chunkware_simple {
 //-------------------------------------------------------------
 // envelope detector
