@@ -179,7 +179,7 @@ TEST(MemoryAllocation, allocationStructure) {
 };
 
 TEST(MemoryAllocation, allocationSizes) {
-	//this is technically random, should fill memory in ~5-600 allocations
+	srand(1);
 	int expectedAllocations = 700;
 	int numRepeats = 1000;
 	void* testAllocations[expectedAllocations] = {0};
@@ -219,5 +219,64 @@ TEST(MemoryAllocation, allocationSizes) {
 	}
 	//un modified GMA gets .999311
 	CHECK(average_packing_factor / numRepeats > 0.999);
+};
+
+TEST(MemoryAllocation, RandomAllocFragmentation) {
+	srand(1);
+	int expectedAllocations = 600;
+	int numRepeats = 1000;
+	void* testAllocations[expectedAllocations] = {0};
+	uint32_t testSizes[expectedAllocations] = {0};
+	uint32_t totalSize = 0;
+	uint32_t actualSize;
+	float averageSize = 0;
+	uint32_t allocations = 0;
+	//we need to pre alloc a bunch to setup the test
+	for (int i = 0; i < expectedAllocations; i++) {
+		if (i % 4 != 0) {
+			int magnitude = rand() % 18;
+			int size = (rand() % 10) << magnitude;
+			void* testalloc = memreg.alloc(size, &actualSize, false, NULL, false);
+			if (testalloc) {
+				allocations += 1;
+				totalSize += actualSize;
+				testAllocations[allocations] = testalloc;
+				testSizes[allocations] = actualSize;
+			}
+		}
+	}
+
+	for (int j = 0; j < numRepeats; j++) {
+		totalSize = 0;
+		for (int i = 0; i < allocations; i++) {
+			if (!testAllocations[i]) {
+				//this is to make a log distribution - probably the worst case for packing efficiency
+				int magnitude = rand() % 18;
+				int size = (rand() % 10) << magnitude;
+				void* testalloc = memreg.alloc(size, &actualSize, false, NULL, false);
+				if (testalloc) {
+					totalSize += actualSize;
+					testAllocations[i] = testalloc;
+					testSizes[i] = actualSize;
+				}
+			}
+			else {
+				if (rand() % 4 == 0) {
+					memreg.dealloc(testAllocations[i]);
+					testAllocations[i] = nullptr;
+					testSizes[i] = 0;
+				}
+				else {
+					totalSize += testSizes[i];
+				}
+			}
+		}
+		//std::cout << float(totalSize) / float(mem_size) << std::endl;
+		averageSize += totalSize;
+	};
+	//for regression - unmodified GMA scores 0.648
+	//a perfect allocator with no fragmentation would tend towards 0.75
+	//std::cout << (float(averageSize / numRepeats) / float(mem_size)) << std::endl;
+	CHECK(averageSize / numRepeats > 0.64 * mem_size);
 };
 } // namespace
