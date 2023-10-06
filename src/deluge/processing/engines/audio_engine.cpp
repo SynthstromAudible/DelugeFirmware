@@ -316,7 +316,7 @@ void routineWithClusterLoading(bool mayProcessUserActionsBetween) {
 	}
 }
 
-#define DO_AUDIO_LOG 0 // For advavnced debugging printouts.
+#define DO_AUDIO_LOG 1 // For advavnced debugging printouts.
 #define AUDIO_LOG_SIZE 64
 
 #if DO_AUDIO_LOG
@@ -752,11 +752,11 @@ startAgain:
 			}
 		}
 	}
-
+	logAction("mastercomp start");
 	mastercompressor.render(renderingBuffer, numSamples, masterVolumeAdjustmentL, masterVolumeAdjustmentR);
 	masterVolumeAdjustmentL <<= 2;
 	masterVolumeAdjustmentR <<= 2;
-
+	logAction("mastercomp end");
 	metronome.render(renderingBuffer, numSamples);
 
 	// Monitoring setup
@@ -1186,12 +1186,13 @@ void getReverbParamsFromSong(Song* song) {
 }
 
 void getMasterCompressorParamsFromSong(Song* song) {
-	AudioEngine::mastercompressor.compressor.setAttack(song->masterCompressorAttack);
-	AudioEngine::mastercompressor.compressor.setRelease(song->masterCompressorRelease);
-	AudioEngine::mastercompressor.compressor.setThresh(song->masterCompressorThresh);
-	AudioEngine::mastercompressor.compressor.setRatio(song->masterCompressorRatio);
-	AudioEngine::mastercompressor.setMakeup(song->masterCompressorMakeup);
-	AudioEngine::mastercompressor.wet = song->masterCompressorWet;
+	int32_t a = song->masterCompressorAttack;
+	int32_t r = song->masterCompressorRelease;
+	int32_t t = song->masterCompressorThresh;
+	int32_t rat = song->masterCompressorRatio;
+	int32_t m = song->masterCompressorMakeup;
+	int32_t w = song->masterCompressorWet;
+	mastercompressor.setup(a, r, t, rat, m, w);
 }
 
 Voice* solicitVoice(Sound* forSound) {
