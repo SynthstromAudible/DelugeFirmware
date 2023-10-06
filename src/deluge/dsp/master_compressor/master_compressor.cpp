@@ -36,15 +36,10 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples, int32_t
 	StereoSample* thisSample = buffer;
 	StereoSample* bufferEnd = buffer + numSamples;
 	if (compressor.getThresh() < -0.001) {
-		float adjustmentL = (masterVolumeAdjustmentL) / 4294967296.0; //  *2.0 is <<1 from multiply_32x32_rshift32
-		float adjustmentR = (masterVolumeAdjustmentR) / 4294967296.0;
-		if (adjustmentL < 0.000001)
-			adjustmentL = 0.000001;
-		if (adjustmentR < 0.000001)
-			adjustmentR = 0.000001;
 		do {
-			float l = thisSample->l / (float)ONE_Q31 / adjustmentL;
-			float r = thisSample->r / (float)ONE_Q31 / adjustmentR;
+			//correct for input level
+			float l = lshiftAndSaturate<5>(thisSample->l) / (float)ONE_Q31;
+			float r = lshiftAndSaturate<5>(thisSample->r) / (float)ONE_Q31;
 			float rawl = l;
 			float rawr = r;
 			compressor.process(l, r);
@@ -61,10 +56,8 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples, int32_t
 				r = rawr * (1.0 - wet) + r * wet;
 			}
 
-			thisSample->l = l * ONE_Q31;
-			thisSample->r = r * ONE_Q31;
-			thisSample->l = multiply_32x32_rshift32(thisSample->l, masterVolumeAdjustmentL);
-			thisSample->r = multiply_32x32_rshift32(thisSample->r, masterVolumeAdjustmentR);
+			thisSample->l = l * ONE_Q31 / (1 << 5);
+			thisSample->r = r * ONE_Q31 / (1 << 5);
 
 		} while (++thisSample != bufferEnd);
 	}
