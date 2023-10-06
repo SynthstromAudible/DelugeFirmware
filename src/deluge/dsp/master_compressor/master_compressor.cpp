@@ -29,7 +29,7 @@ MasterCompressor::MasterCompressor() {
 	gr = 0.0;
 	wet = 1.0;
 }
-//with floats baseline is 60-90ms
+//with floats baseline is 60-90us
 void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples, int32_t masterVolumeAdjustmentL,
                               int32_t masterVolumeAdjustmentR) {
 
