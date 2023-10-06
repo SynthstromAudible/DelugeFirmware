@@ -53,40 +53,40 @@ namespace chunkware_simple {
 // gain functions
 //-------------------------------------------------------------
 // linear -> dB conversion
-static INLINE double lin2dB(double lin) {
-	static const double LOG_2_DB = 8.6858896380650365530225783783321; // 20 / ln( 10 )
+static INLINE float lin2dB(float lin) {
+	static const float LOG_2_DB = 8.6858896380650365530225783783321; // 20 / ln( 10 )
 	return log(lin) * LOG_2_DB;
 }
 // dB -> linear conversion
-static INLINE double dB2lin(double dB) {
-	static const double DB_2_LOG = 0.11512925464970228420089957273422; // ln( 10 ) / 20
+static INLINE float dB2lin(float dB) {
+	static const float DB_2_LOG = 0.11512925464970228420089957273422; // ln( 10 ) / 20
 	return exp(dB * DB_2_LOG);
 }
 
-static const double DC_OFFSET = 1.0E-25;
+static const float DC_OFFSET = 1.0E-25;
 //-------------------------------------------------------------
 // envelope detector
 //-------------------------------------------------------------
 class EnvelopeDetector {
 public:
-	EnvelopeDetector(double ms = 1.0, double sampleRate = static_cast<double>(kSampleRate));
+	EnvelopeDetector(float ms = 1.0, float sampleRate = static_cast<float>(kSampleRate));
 	virtual ~EnvelopeDetector() {}
 
 	// time constant
-	virtual void setTc(double ms);
-	virtual double getTc(void) const { return timeConstant_; }
+	virtual void setTc(float ms);
+	virtual float getTc(void) const { return timeConstant_; }
 
 	// sample rate
-	virtual void setSampleRate(double sampleRate);
-	virtual double getSampleRate(void) const { return sampleRate_; }
+	virtual void setSampleRate(float sampleRate);
+	virtual float getSampleRate(void) const { return sampleRate_; }
 
 	// runtime function
-	INLINE void run(double in, double& state) { state = in + nSamplesInverse_ * (state - in); }
+	INLINE void run(float in, float& state) { state = in + nSamplesInverse_ * (state - in); }
 
 protected:
-	double sampleRate_;         // sample rate
-	double timeConstant_;       // time constant in ms
-	double nSamplesInverse_;    // runtime coefficient
+	float sampleRate_;          // sample rate
+	float timeConstant_;        // time constant in ms
+	float nSamplesInverse_;     // runtime coefficient
 	virtual void setCoef(void); // coef calculation
 
 }; // end SimpleComp class
@@ -96,23 +96,23 @@ protected:
 //-------------------------------------------------------------
 class AttRelEnvelope {
 public:
-	AttRelEnvelope(double att_ms = 10.0, double rel_ms = 100.0, double sampleRate = static_cast<double>(kSampleRate));
+	AttRelEnvelope(float att_ms = 10.0, float rel_ms = 100.0, float sampleRate = static_cast<float>(kSampleRate));
 	virtual ~AttRelEnvelope() {}
 
 	// attack time constant
-	virtual void setAttack(double ms);
-	virtual double getAttack(void) const { return attackEnvelope_.getTc(); }
+	virtual void setAttack(float ms);
+	virtual float getAttack(void) const { return attackEnvelope_.getTc(); }
 
 	// release time constant
-	virtual void setRelease(double ms);
-	virtual double getRelease(void) const { return releaseEnvelope_.getTc(); }
+	virtual void setRelease(float ms);
+	virtual float getRelease(void) const { return releaseEnvelope_.getTc(); }
 
 	// sample rate dependencies
-	virtual void setSampleRate(double sampleRate);
-	virtual double getSampleRate(void) const { return attackEnvelope_.getSampleRate(); }
+	virtual void setSampleRate(float sampleRate);
+	virtual float getSampleRate(void) const { return attackEnvelope_.getSampleRate(); }
 
 	// runtime function
-	INLINE void run(double in, double& state) {
+	INLINE void run(float in, float& state) {
 
 		/* assumes that:
 			* positive delta = attack
@@ -138,42 +138,42 @@ public:
 	virtual ~SimpleComp() {}
 
 	// parameters
-	virtual void setThresh(double dB);
-	virtual void setRatio(double dB);
+	virtual void setThresh(float dB);
+	virtual void setRatio(float dB);
 
-	virtual double getThresh(void) const { return threshdB_; }
-	virtual double getRatio(void) const { return ratio_; }
+	virtual float getThresh(void) const { return threshdB_; }
+	virtual float getRatio(void) const { return ratio_; }
 
 	// runtime
 	virtual void initRuntime(void); // call before runtime (in resume())
-	//void process(double& in1, double& in2);                   // compressor runtime process
-	//void process(double& in1, double& in2, double keyLinked); // with stereo-linked key in
+	//void process(float& in1, float& in2);                   // compressor runtime process
+	//void process(float& in1, float& in2, float keyLinked); // with stereo-linked key in
 
-	INLINE void process(double& in1, double& in2) {
+	INLINE void process(float& in1, float& in2) {
 		// create sidechain
 
-		double rect1 = fabs(in1); // rectify input
-		double rect2 = fabs(in2);
+		float rect1 = fabs(in1); // rectify input
+		float rect2 = fabs(in2);
 
 		/* if desired, one could use another EnvelopeDetector to smooth
 			 * the rectified signal.
 			 */
 
-		double link = std::max(rect1, rect2); // link channels with greater of 2
+		float link = std::max(rect1, rect2); // link channels with greater of 2
 
 		process(in1, in2, link); // rest of process
 	}
 
 	//-------------------------------------------------------------
-	INLINE void process(double& in1, double& in2, double keyLinked) {
+	INLINE void process(float& in1, float& in2, float keyLinked) {
 		keyLinked = fabs(keyLinked); // rectify (just in case)
 
 		// convert key to dB
-		keyLinked += DC_OFFSET;           // add DC offset to avoid log( 0 )
-		double keydB = lin2dB(keyLinked); // convert linear -> dB
+		keyLinked += DC_OFFSET;          // add DC offset to avoid log( 0 )
+		float keydB = lin2dB(keyLinked); // convert linear -> dB
 
 		// threshold
-		double overdB = keydB - threshdB_; // delta over threshold
+		float overdB = keydB - threshdB_; // delta over threshold
 		if (overdB < 0.0)
 			overdB = 0.0;
 
@@ -191,8 +191,8 @@ public:
 			 */
 
 		// transfer function
-		double gr = overdB * (ratio_ - 1.0); // gain reduction (dB)
-		gr = dB2lin(gr);                     // convert dB -> linear
+		float gr = overdB * (ratio_ - 1.0); // gain reduction (dB)
+		gr = dB2lin(gr);                    // convert dB -> linear
 
 		// output gain
 		in1 *= gr; // apply gain reduction to input
@@ -201,11 +201,11 @@ public:
 
 private:
 	// transfer function
-	double threshdB_; // threshold (dB)
-	double ratio_;    // ratio (compression: < 1 ; expansion: > 1)
+	float threshdB_; // threshold (dB)
+	float ratio_;    // ratio (compression: < 1 ; expansion: > 1)
 
 	// runtime variables
-	double envdB_; // over-threshold envelope (dB)
+	float envdB_; // over-threshold envelope (dB)
 
 }; // end SimpleComp class
 
@@ -216,10 +216,10 @@ public:
 	MasterCompressor();
 	void render(StereoSample* buffer, uint16_t numSamples, int32_t masterVolumeAdjustmentL,
 	            int32_t masterVolumeAdjustmentR);
-	double makeup;
-	double gr;
-	double wet;
-	inline void setMakeup(double dB) {
+	float makeup;
+	float gr;
+	float wet;
+	inline void setMakeup(float dB) {
 		makeup = pow(10.0, (dB / 20.0));
 		if (fabs(1.0 - makeup) < 0.0001)
 			makeup = 1.0;
@@ -228,7 +228,7 @@ public:
 		if (makeup < 0.0001)
 			makeup = 0.0;
 	}
-	inline double getMakeup() { return 20.0 * log10(makeup); }
+	inline float getMakeup() { return 20.0 * log10(makeup); }
 
 	chunkware_simple::SimpleComp compressor;
 };

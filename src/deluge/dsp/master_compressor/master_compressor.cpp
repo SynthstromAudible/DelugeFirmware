@@ -36,17 +36,17 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples, int32_t
 	StereoSample* thisSample = buffer;
 	StereoSample* bufferEnd = buffer + numSamples;
 	if (compressor.getThresh() < -0.001) {
-		double adjustmentL = (masterVolumeAdjustmentL) / 4294967296.0; //  *2.0 is <<1 from multiply_32x32_rshift32
-		double adjustmentR = (masterVolumeAdjustmentR) / 4294967296.0;
+		float adjustmentL = (masterVolumeAdjustmentL) / 4294967296.0; //  *2.0 is <<1 from multiply_32x32_rshift32
+		float adjustmentR = (masterVolumeAdjustmentR) / 4294967296.0;
 		if (adjustmentL < 0.000001)
 			adjustmentL = 0.000001;
 		if (adjustmentR < 0.000001)
 			adjustmentR = 0.000001;
 		do {
-			double l = thisSample->l / (double)ONE_Q31 / adjustmentL;
-			double r = thisSample->r / (double)ONE_Q31 / adjustmentR;
-			double rawl = l;
-			double rawr = r;
+			float l = thisSample->l / (float)ONE_Q31 / adjustmentL;
+			float r = thisSample->r / (float)ONE_Q31 / adjustmentR;
+			float rawl = l;
+			float rawr = r;
 			compressor.process(l, r);
 			if (thisSample == bufferEnd - 1 && fabs(rawl) > 0.00000001 && fabs(rawr) > 0.00000001) {
 				gr = chunkware_simple::lin2dB(l / rawl);
@@ -74,7 +74,7 @@ namespace chunkware_simple {
 //-------------------------------------------------------------
 // envelope detector
 //-------------------------------------------------------------
-EnvelopeDetector::EnvelopeDetector(double timeConstant, double sampleRate) {
+EnvelopeDetector::EnvelopeDetector(float timeConstant, float sampleRate) {
 	assert(sampleRate > 0.0);
 	assert(timeConstant > 0.0);
 	sampleRate_ = sampleRate;
@@ -82,13 +82,13 @@ EnvelopeDetector::EnvelopeDetector(double timeConstant, double sampleRate) {
 	setCoef();
 }
 //-------------------------------------------------------------
-void EnvelopeDetector::setTc(double timeConstant) {
+void EnvelopeDetector::setTc(float timeConstant) {
 	assert(timeConstant > 0.0);
 	timeConstant_ = timeConstant;
 	setCoef();
 }
 //-------------------------------------------------------------
-void EnvelopeDetector::setSampleRate(double sampleRate) {
+void EnvelopeDetector::setSampleRate(float sampleRate) {
 	assert(sampleRate > 0.0);
 	sampleRate_ = sampleRate;
 	setCoef();
@@ -101,19 +101,19 @@ void EnvelopeDetector::setCoef(void) {
 //-------------------------------------------------------------
 // attack/release envelope
 //-------------------------------------------------------------
-AttRelEnvelope::AttRelEnvelope(double att_ms, double rel_ms, double sampleRate)
+AttRelEnvelope::AttRelEnvelope(float att_ms, float rel_ms, float sampleRate)
     : attackEnvelope_(att_ms, sampleRate), releaseEnvelope_(rel_ms, sampleRate) {
 }
 //-------------------------------------------------------------
-void AttRelEnvelope::setAttack(double ms) {
+void AttRelEnvelope::setAttack(float ms) {
 	attackEnvelope_.setTc(ms);
 }
 //-------------------------------------------------------------
-void AttRelEnvelope::setRelease(double ms) {
+void AttRelEnvelope::setRelease(float ms) {
 	releaseEnvelope_.setTc(ms);
 }
 //-------------------------------------------------------------
-void AttRelEnvelope::setSampleRate(double sampleRate) {
+void AttRelEnvelope::setSampleRate(float sampleRate) {
 	attackEnvelope_.setSampleRate(sampleRate);
 	releaseEnvelope_.setSampleRate(sampleRate);
 }
@@ -124,11 +124,11 @@ void AttRelEnvelope::setSampleRate(double sampleRate) {
 SimpleComp::SimpleComp() : AttRelEnvelope(10.0, 100.0), threshdB_(0.0), ratio_(1.0), envdB_(DC_OFFSET) {
 }
 //-------------------------------------------------------------
-void SimpleComp::setThresh(double dB) {
+void SimpleComp::setThresh(float dB) {
 	threshdB_ = dB;
 }
 //-------------------------------------------------------------
-void SimpleComp::setRatio(double ratio) {
+void SimpleComp::setRatio(float ratio) {
 	assert(ratio > 0.0);
 	ratio_ = ratio;
 }
