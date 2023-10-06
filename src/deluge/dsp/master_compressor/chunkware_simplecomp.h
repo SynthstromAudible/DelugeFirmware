@@ -151,7 +151,6 @@ public:
 
 	INLINE void process(float& in1, float& in2) {
 		// create sidechain
-
 		float rect1 = fabs(in1); // rectify input
 		float rect2 = fabs(in2);
 
