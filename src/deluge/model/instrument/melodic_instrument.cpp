@@ -350,6 +350,7 @@ void MelodicInstrument::offerReceivedCC(ModelStackWithTimelineCounter* modelStac
                                         MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
                                         bool* doingMidiThru) {
 	int yCC = 1;
+	int32_t value32 = 0;
 	switch (checkMatch(fromDevice, channel)) {
 
 	case MIDIMatchType::NO_MATCH:
@@ -363,10 +364,15 @@ void MelodicInstrument::offerReceivedCC(ModelStackWithTimelineCounter* modelStac
 		}
 	case MIDIMatchType::MPE_MASTER:
 		yCC = 74;
+		if (ccNumber == 74) {
+			value32 = (value - 64) << 25;
+		}
 		//no break
 	case MIDIMatchType::CHANNEL:
-		if (yCC == ccNumber) {
-			int32_t value32 = (value - 64) << 25;
+		if (ccNumber == 1) {
+			value32 = (value) << 24;
+		}
+		if (ccNumber == yCC) {
 			//this also passes CC1 to the instrument, but that's important for midi instruments
 			//or internal synths that have CC1 learnt to a parameter instead of used as modwheel
 			processParamFromInputMIDIChannel(74, value32, modelStackWithTimelineCounter);
