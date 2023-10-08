@@ -52,7 +52,7 @@ void ConsequenceClipExistence::prepareForDestruction(int32_t whichQueueActionIn,
 #endif
 
 		clip->~Clip();
-		GeneralMemoryAllocator::get().dealloc(clip);
+		delugeDealloc(clip);
 	}
 }
 

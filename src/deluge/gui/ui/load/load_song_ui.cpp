@@ -302,7 +302,7 @@ fail:
 gotErrorAfterCreatingSong:
 		void* toDealloc = dynamic_cast<void*>(preLoadedSong);
 		preLoadedSong->~Song(); // Will also delete paramManager
-		GeneralMemoryAllocator::get().dealloc(toDealloc);
+		delugeDealloc(toDealloc);
 		preLoadedSong = NULL;
 		goto someError;
 	}
@@ -427,7 +427,7 @@ swapDone:
 	if (toDelete) {
 		void* toDealloc = dynamic_cast<void*>(toDelete);
 		toDelete->~Song();
-		GeneralMemoryAllocator::get().dealloc(toDealloc);
+		delugeDealloc(toDealloc);
 	}
 
 	audioFileManager.deleteAnyTempRecordedSamplesFromMemory();

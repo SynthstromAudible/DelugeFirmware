@@ -113,7 +113,7 @@ Sample::~Sample() {
 	for (int32_t i = 0; i < caches.getNumElements(); i++) {
 		SampleCacheElement* element = (SampleCacheElement*)caches.getElementAddress(i);
 		element->cache->~SampleCache();
-		GeneralMemoryAllocator::get().dealloc(element->cache);
+		delugeDealloc(element->cache);
 	}
 }
 
@@ -121,7 +121,7 @@ void Sample::deletePercCache(bool beingDestructed) {
 
 	for (int32_t reversed = 0; reversed < 2; reversed++) {
 		if (percCacheMemory[reversed]) {
-			GeneralMemoryAllocator::get().dealloc(percCacheMemory[reversed]);
+			delugeDealloc(percCacheMemory[reversed]);
 			if (!beingDestructed) {
 				percCacheMemory[reversed] = NULL;
 			}
@@ -142,7 +142,7 @@ void Sample::deletePercCache(bool beingDestructed) {
 				}
 			}
 
-			GeneralMemoryAllocator::get().dealloc(percCacheClusters[reversed]);
+			delugeDealloc(percCacheClusters[reversed]);
 			if (!beingDestructed) {
 				percCacheClusters[reversed] = NULL;
 			}
@@ -230,7 +230,7 @@ SampleCache* Sample::getOrCreateCache(SampleHolder* sampleHolder, int32_t phaseI
 
 	i = caches.insertAtKeyMultiWord(keyWords);
 	if (i == -1) { // If error
-		GeneralMemoryAllocator::get().dealloc(memory);
+		delugeDealloc(memory);
 		return NULL;
 	}
 
@@ -1331,7 +1331,7 @@ startAgain:
 	if (!cluster) {
 		Debug::println("failed to load first");
 getOut:
-		GeneralMemoryAllocator::get().dealloc(fftInput);
+		delugeDealloc(fftInput);
 		return 0;
 	}
 
@@ -1670,7 +1670,7 @@ doneReading:
 		goto startAgain;
 	}
 
-	GeneralMemoryAllocator::get().dealloc(fftInput);
+	delugeDealloc(fftInput);
 
 	float freq = freqBeforeAdjustment / (1 << lengthDoublings);
 	Debug::print("freq: ");

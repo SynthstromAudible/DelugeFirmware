@@ -58,7 +58,7 @@ void Action::prepareForDestruction(int32_t whichQueueActionIn, Song* song) {
 	deleteAllConsequences(whichQueueActionIn, song, true);
 
 	if (clipStates) {
-		GeneralMemoryAllocator::get().dealloc(clipStates);
+		delugeDealloc(clipStates);
 	}
 }
 
@@ -70,7 +70,7 @@ void Action::deleteAllConsequences(int32_t whichQueueActionIn, Song* song, bool 
 		currentConsequence = currentConsequence->next;
 		toDelete->prepareForDestruction(whichQueueActionIn, song);
 		toDelete->~Consequence();
-		GeneralMemoryAllocator::get().dealloc(toDelete);
+		delugeDealloc(toDelete);
 	}
 	if (!destructing) {
 		firstConsequence = NULL;
@@ -122,7 +122,7 @@ int32_t Action::revert(TimeType time, ModelStack* modelStack) {
 			    modelStack
 			        ->song); // Have to put AFTER. See the effect this will have in ConsequenceCDelete::prepareForDestruction()
 			thisConsequence->~Consequence();
-			GeneralMemoryAllocator::get().dealloc(thisConsequence);
+			delugeDealloc(thisConsequence);
 		}
 
 		// Or, normal case
@@ -313,7 +313,7 @@ void Action::updateYScrollClipViewAfter(InstrumentClip* clip) {
 	if (numClipStates
 	    != currentSong->sessionClips.getNumElements() + currentSong->arrangementOnlyClips.getNumElements()) {
 		numClipStates = 0;
-		GeneralMemoryAllocator::get().dealloc(clipStates);
+		delugeDealloc(clipStates);
 		clipStates = NULL;
 		Debug::println("discarded clip states");
 		return;

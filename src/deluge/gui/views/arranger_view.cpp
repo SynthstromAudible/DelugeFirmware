@@ -1570,7 +1570,7 @@ justGetOut:
 								if (error) {
 									display->displayError(error);
 									newClip->~Clip();
-									GeneralMemoryAllocator::get().dealloc(memory);
+									delugeDealloc(memory);
 									goto justGetOut;
 								}
 
