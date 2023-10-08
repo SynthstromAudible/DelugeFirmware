@@ -89,7 +89,7 @@
           "text": "monitor reset"
         },
         {
-          "text": "-file-exec-and-symbols build/debug/deluge.elf"
+          "text": "-file-exec-and-symbols build/Debug/deluge.elf"
         },
         {
           "text": "-target-download"
