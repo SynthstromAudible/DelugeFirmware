@@ -91,13 +91,13 @@ int32_t ParamManager::setupWithPatching() {
 	void* memoryPatched = GeneralMemoryAllocator::get().alloc(sizeof(PatchedParamSet), NULL, false, true);
 	if (!memoryPatched) {
 ramError2:
-		GeneralMemoryAllocator::get().dealloc(memoryUnpatched);
+		delugeDealloc(memoryUnpatched);
 		return ERROR_INSUFFICIENT_RAM;
 	}
 
 	void* memoryPatchCables = GeneralMemoryAllocator::get().alloc(sizeof(PatchCableSet), NULL, false, true);
 	if (!memoryPatchCables) {
-		GeneralMemoryAllocator::get().dealloc(memoryPatched);
+		delugeDealloc(memoryPatched);
 		goto ramError2;
 	}
 
@@ -127,7 +127,7 @@ void ParamManager::stealParamCollectionsFrom(ParamManager* other, bool stealExpr
 		// If "here" has them too, we'll just keep these, and destruct "other"'s ones
 		if (summaries[mpeParamsOffsetHere].paramCollection) {
 			other->summaries[stopAtOther].paramCollection->~ParamCollection();
-			GeneralMemoryAllocator::get().dealloc(other->summaries[stopAtOther].paramCollection);
+			delugeDealloc(other->summaries[stopAtOther].paramCollection);
 			other->summaries[stopAtOther] = {0};
 		}
 
@@ -192,7 +192,7 @@ int32_t ParamManager::cloneParamCollectionsFrom(ParamManager* other, bool copyAu
 		if (!newSummary->paramCollection) {
 			while (newSummary != newSummaries) {
 				newSummary--;
-				GeneralMemoryAllocator::get().dealloc(newSummary->paramCollection);
+				delugeDealloc(newSummary->paramCollection);
 			}
 
 			// Mark that there's nothing here
@@ -266,7 +266,7 @@ void ParamManager::destructAndForgetParamCollections() {
 	ParamCollectionSummary* summary = summaries;
 	while (summary->paramCollection) {
 		summary->paramCollection->~ParamCollection();
-		GeneralMemoryAllocator::get().dealloc(summary->paramCollection);
+		delugeDealloc(summary->paramCollection);
 		summary++;
 	}
 

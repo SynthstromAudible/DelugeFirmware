@@ -696,7 +696,7 @@ ramError:
 			if (!range) {
 ramError2:
 				newDrum->~Drum();
-				GeneralMemoryAllocator::get().dealloc(drumMemory);
+				delugeDealloc(drumMemory);
 				goto ramError;
 			}
 

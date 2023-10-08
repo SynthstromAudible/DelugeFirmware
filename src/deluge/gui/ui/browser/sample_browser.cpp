@@ -1640,7 +1640,7 @@ doReturnFalse:
 		AudioEngine::audioRoutineLocked = false;
 
 		if (!success) {
-			GeneralMemoryAllocator::get().dealloc(sortArea);
+			delugeDealloc(sortArea);
 			for (int32_t s = 0; s < numSamples; s++) {
 				Sample* thisSample = sortArea[s];
 #if ALPHA_OR_BETA_VERSION
@@ -1807,7 +1807,7 @@ skipOctaveCorrection:
 	Debug::print("distinct ranges: ");
 	Debug::println(numSamples);
 
-	GeneralMemoryAllocator::get().dealloc(sortArea);
+	delugeDealloc(sortArea);
 
 	audioFileIsNowSet();
 
@@ -1930,7 +1930,7 @@ getOut:
 				range = source->getOrCreateFirstRange();
 				if (!range) {
 					drum->~Drum();
-					GeneralMemoryAllocator::get().dealloc(drumMemory);
+					delugeDealloc(drumMemory);
 					goto getOut;
 				}
 
@@ -1982,7 +1982,7 @@ skipNameStuff:
 			thisSample->removeReason("E395");
 		}
 
-		GeneralMemoryAllocator::get().dealloc(sortArea);
+		delugeDealloc(sortArea);
 	}
 
 	// Make NoteRows for all these new Drums

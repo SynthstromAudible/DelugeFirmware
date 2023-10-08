@@ -73,7 +73,7 @@ void ActionLogger::deleteLastAction() {
 
 	toDelete->prepareForDestruction(BEFORE, currentSong);
 	toDelete->~Action();
-	GeneralMemoryAllocator::get().dealloc(toDelete);
+	delugeDealloc(toDelete);
 }
 
 Action* ActionLogger::getNewAction(int32_t newActionType, int32_t addToExistingIfPossible) {
@@ -141,7 +141,7 @@ Action* ActionLogger::getNewAction(int32_t newActionType, int32_t addToExistingI
 		    (ActionClipState*)GeneralMemoryAllocator::get().alloc(numClips * sizeof(ActionClipState), NULL, true);
 
 		if (!clipStates) {
-			GeneralMemoryAllocator::get().dealloc(actionMemory);
+			delugeDealloc(actionMemory);
 			return NULL;
 		}
 
@@ -204,7 +204,7 @@ void ActionLogger::updateAction(Action* newAction) {
 		if (newAction->numClipStates
 		    != currentSong->sessionClips.getNumElements() + currentSong->arrangementOnlyClips.getNumElements()) {
 			newAction->numClipStates = 0;
-			GeneralMemoryAllocator::get().dealloc(newAction->clipStates);
+			delugeDealloc(newAction->clipStates);
 			newAction->clipStates = NULL;
 			Debug::println("discarded clip states");
 		}
@@ -739,7 +739,7 @@ void ActionLogger::deleteLog(int32_t time) {
 
 		toDelete->prepareForDestruction(time, currentSong);
 		toDelete->~Action();
-		GeneralMemoryAllocator::get().dealloc(toDelete);
+		delugeDealloc(toDelete);
 	}
 }
 
@@ -851,7 +851,7 @@ gotMultipleConsequencesPerNoteRow:
 
 				firstConsequence->prepareForDestruction(BEFORE, modelStack->song);
 				firstConsequence->~Consequence();
-				GeneralMemoryAllocator::get().dealloc(firstConsequence);
+				delugeDealloc(firstConsequence);
 				firstConsequence = firstAction[BEFORE]->firstConsequence;
 			} while (thisConsequence->type != Consequence::NOTE_ARRAY_CHANGE
 			         || ((ConsequenceNoteArrayChange*)firstConsequence)->noteRowId != firstNoteRowId);

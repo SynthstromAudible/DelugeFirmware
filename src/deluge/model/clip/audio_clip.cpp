@@ -90,7 +90,7 @@ int32_t AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldF
 	int32_t error = newClip->paramManager.cloneParamCollectionsFrom(&paramManager, true);
 	if (error) {
 		newClip->~AudioClip();
-		GeneralMemoryAllocator::get().dealloc(clipMemory);
+		delugeDealloc(clipMemory);
 		return error;
 	}
 
@@ -240,7 +240,7 @@ ramError:
 
 	if (error) {
 		newClip->~AudioClip();
-		GeneralMemoryAllocator::get().dealloc(clipMemory);
+		delugeDealloc(clipMemory);
 		goto ramError;
 	}
 

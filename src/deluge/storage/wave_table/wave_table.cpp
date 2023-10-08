@@ -37,7 +37,7 @@ extern int32_t oscSyncRenderingBuffer[];
 WaveTableBand::~WaveTableBand() {
 	if (data) { // It might be NULL if that BandData was just "stolen".
 		data->~WaveTableBandData();
-		GeneralMemoryAllocator::get().dealloc(data);
+		delugeDealloc(data);
 	}
 }
 
@@ -309,13 +309,13 @@ gotError2:
 	if (!frequencyDomainData) {
 		error = ERROR_INSUFFICIENT_RAM;
 gotError4:
-		GeneralMemoryAllocator::get().dealloc(currentCycleInt32);
+		delugeDealloc(currentCycleInt32);
 		goto gotError2;
 	}
 
 	if (false) {
 gotError5:
-		GeneralMemoryAllocator::get().dealloc(frequencyDomainData);
+		delugeDealloc(frequencyDomainData);
 		goto gotError4;
 	}
 
@@ -730,8 +730,8 @@ transformBandToTimeDomain:
 	}
 
 	// Dispose of temp memory
-	GeneralMemoryAllocator::get().dealloc(currentCycleInt32);
-	GeneralMemoryAllocator::get().dealloc(frequencyDomainData);
+	delugeDealloc(currentCycleInt32);
+	delugeDealloc(frequencyDomainData);
 
 	// Printout stats
 	Debug::print("initial band size if all populated: ");

@@ -194,7 +194,7 @@ int32_t InstrumentClip::clone(ModelStackWithTimelineCounter* modelStack, bool sh
 	if (error) {
 deleteClipAndGetOut:
 		newClip->~InstrumentClip();
-		GeneralMemoryAllocator::get().dealloc(clipMemory);
+		delugeDealloc(clipMemory);
 		return error;
 	}
 
@@ -1816,7 +1816,7 @@ void InstrumentClip::actuallyDeleteEmptyNoteRow(ModelStackWithNoteRow* modelStac
 		noteRow->setDrum(NULL, (Kit*)output, modelStack);
 	}
 	noteRow->~NoteRow();
-	GeneralMemoryAllocator::get().dealloc(noteRow);
+	delugeDealloc(noteRow);
 }
 
 // Returns whether to delete it
@@ -3075,7 +3075,7 @@ bool InstrumentClip::deleteSoundsWhichWontSound(Song* song) {
 
 					void* toDealloc = dynamic_cast<void*>(drum);
 					drum->~Drum();
-					GeneralMemoryAllocator::get().dealloc(toDealloc);
+					delugeDealloc(toDealloc);
 				}
 
 				noteRows.deleteNoteRowAtIndex(i);

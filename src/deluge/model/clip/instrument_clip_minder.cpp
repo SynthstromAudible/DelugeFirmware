@@ -199,7 +199,7 @@ gotError:
 	if (error) {
 		void* toDealloc = dynamic_cast<void*>(newInstrument);
 		newInstrument->~Instrument();
-		GeneralMemoryAllocator::get().dealloc(toDealloc);
+		delugeDealloc(toDealloc);
 		goto gotError;
 	}
 

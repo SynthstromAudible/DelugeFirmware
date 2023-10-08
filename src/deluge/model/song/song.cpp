@@ -216,7 +216,7 @@ void Song::deleteAllOutputs(Output** prevPointer) {
 
 		void* toDealloc = dynamic_cast<void*>(toDelete);
 		toDelete->~Output();
-		GeneralMemoryAllocator::get().dealloc(toDealloc);
+		delugeDealloc(toDealloc);
 	}
 }
 
@@ -1627,7 +1627,7 @@ setDirPathFirst:
 						if (error) {
 gotError:
 							newOutput->~Output();
-							GeneralMemoryAllocator::get().dealloc(memory);
+							delugeDealloc(memory);
 							return error;
 						}
 
@@ -1952,7 +1952,7 @@ readClip:
 			int32_t error = newClip->readFromFile(this);
 			if (error) {
 				newClip->~Clip();
-				GeneralMemoryAllocator::get().dealloc(memory);
+				delugeDealloc(memory);
 				return error;
 			}
 
@@ -2780,7 +2780,7 @@ void Song::deleteClipObject(Clip* clip, bool songBeingDestroyedToo, InstrumentRe
 
 	void* toDealloc = dynamic_cast<void*>(clip);
 	clip->~Clip();
-	GeneralMemoryAllocator::get().dealloc(toDealloc);
+	delugeDealloc(toDealloc);
 }
 
 int32_t Song::getMaxMIDIChannelSuffix(int32_t channel) {
@@ -3131,7 +3131,7 @@ void Song::deleteOutput(Output* output) {
 	output->deleteBackedUpParamManagers(this);
 	void* toDealloc = dynamic_cast<void*>(output);
 	output->~Output();
-	GeneralMemoryAllocator::get().dealloc(toDealloc);
+	delugeDealloc(toDealloc);
 }
 
 void Song::moveInstrumentToHibernationList(Instrument* instrument) {
@@ -4024,7 +4024,7 @@ void Song::deleteHibernatingMIDIInstrument() {
 	if (hibernatingMIDIInstrument) {
 		void* toDealloc = dynamic_cast<void*>(hibernatingMIDIInstrument);
 		hibernatingMIDIInstrument->~Instrument();
-		GeneralMemoryAllocator::get().dealloc(toDealloc);
+		delugeDealloc(toDealloc);
 		hibernatingMIDIInstrument = NULL;
 	}
 }
@@ -5171,7 +5171,7 @@ Clip* Song::replaceInstrumentClipWithAudioClip(Clip* oldClip, int32_t clipIndex)
 	// Suss output
 	AudioOutput* newOutput = createNewAudioOutput();
 	if (!newOutput) {
-		GeneralMemoryAllocator::get().dealloc(clipMemory);
+		delugeDealloc(clipMemory);
 		return NULL;
 	}
 

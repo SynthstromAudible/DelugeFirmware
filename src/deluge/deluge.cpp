@@ -909,7 +909,7 @@ void deleteOldSongBeforeLoadingNew() {
 	currentSong = NULL;
 	void* toDealloc = dynamic_cast<void*>(toDelete);
 	toDelete->~Song();
-	GeneralMemoryAllocator::get().dealloc(toDelete);
+	delugeDealloc(toDelete);
 }
 
 #if ALLOW_SPAM_MODE
