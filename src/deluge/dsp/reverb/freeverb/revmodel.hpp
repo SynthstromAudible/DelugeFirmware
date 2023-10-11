@@ -30,6 +30,8 @@
 class revmodel {
 public:
 	revmodel();
+	~revmodel() = default;
+
 	void mute();
 	//void	process(int32_t input, int32_t *outputL, int32_t *outputR);
 	void setroomsize(float value);
