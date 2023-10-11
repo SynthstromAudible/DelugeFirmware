@@ -9,7 +9,7 @@
 #include <cstdint>
 #include <span>
 
-namespace dsp {
+namespace deluge::dsp {
 constexpr float OnePole(float& out, float in, float coefficient) {
 	out += (coefficient) * ((in)-out);
 	return out;
@@ -21,7 +21,7 @@ constexpr T Interpolate(const T x0, const T x1, float fractional) {
 }
 } // namespace dsp
 
-namespace dsp::reverb {
+namespace deluge::dsp::reverb {
 constexpr static int32_t TAIL = -1;
 
 enum LFOIndex { LFO_1, LFO_2 };

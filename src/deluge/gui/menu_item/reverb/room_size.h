@@ -15,7 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "dsp/reverb/freeverb/revmodel.hpp"
+
+#include "dsp/reverb/reverb.hpp"
 #include "gui/menu_item/integer.h"
 #include "gui/ui/sound_editor.h"
 #include "processing/engines/audio_engine.h"
@@ -25,8 +26,8 @@ namespace deluge::gui::menu_item::reverb {
 class RoomSize final : public Integer {
 public:
 	using Integer::Integer;
-	void readCurrentValue() override { this->setValue(std::round(AudioEngine::reverb.getroomsize() * 50)); }
-	void writeCurrentValue() override { AudioEngine::reverb.setroomsize((float)this->getValue() / 50); }
+	void readCurrentValue() override { this->setValue(std::round(AudioEngine::reverb.get_room_size() * 50)); }
+	void writeCurrentValue() override { AudioEngine::reverb.set_room_size((float)this->getValue() / 50); }
 	[[nodiscard]] int32_t getMaxValue() const override { return 50; }
 };
 } // namespace deluge::gui::menu_item::reverb

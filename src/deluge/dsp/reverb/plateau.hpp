@@ -3,12 +3,12 @@
 #include "freeverb/revmodel.hpp"
 
 namespace deluge::dsp::reverb {
-class Freeverb : public Base {
+class Plateau : public Base {
 	revmodel model;
 
 public:
-	Freeverb() = default;
-	~Freeverb() override = default;
+	Plateau() = default;
+	~Plateau() override = default;
 
 	void Process(std::span<int32_t> input, std::span<StereoSample> output) override {
 		int32_t output_left = 0;

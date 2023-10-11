@@ -1,23 +1,23 @@
 #pragma once
 
+#include "dsp/reverb/reverb.hpp"
 #include "gui/menu_item/selection.h"
 #include "processing/engines/audio_engine.h"
-#include "dsp/reverb/reverb_manager.hpp"
-
 namespace deluge::gui::menu_item::reverb {
-class MenuItemReverbModel final : public Selection {
+class Model final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->setValue(util::to_underlying(AudioEngine::reverb.get_model())); }
+	void readCurrentValue() override { this->setValue(util::to_underlying(AudioEngine::reverb.getModel())); }
 	void writeCurrentValue() override {
-		AudioEngine::reverb.set_model(static_cast<dsp::reverb::Model>(this->getValue()));
+		AudioEngine::reverb.setModel(static_cast<dsp::Reverb::Model>(this->getValue()));
 	}
 
 	std::vector<std::string_view> getOptions() override {
+		using enum l10n::String;
 		return {
-		    "Freeverb",
-		    "Mutable",
-		    "Plateau",
+		    l10n::getView(STRING_FOR_FREEVERB),
+		    l10n::getView(STRING_FOR_MUTABLE),
+		    l10n::getView(STRING_FOR_LEXICON_PLATE),
 		};
 	}
 };

@@ -778,6 +778,10 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_INTERPOLATION_ENABLED, "Interpolation On"},
         {STRING_FOR_PAD_SELECTION_OFF, "Pad Selection Off"},
         {STRING_FOR_PAD_SELECTION_ON, "Pad Selection On"},
+		{STRING_FOR_MODEL, "Model"},
+		{STRING_FOR_FREEVERB, "Freeverb"},
+		{STRING_FOR_MUTABLE, "Mutable"},
+		{STRING_FOR_LEXICON_PLATE, "Lexicon Plate"},
     },
 };
 } // namespace deluge::l10n::built_in

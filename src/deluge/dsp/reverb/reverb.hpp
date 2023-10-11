@@ -1,6 +1,4 @@
 #pragma once
-#include <algorithm>
-#include <array>
 #include <cstdint>
 #include <variant>
 
@@ -8,13 +6,14 @@
 #include "freeverb.hpp"
 #include "mutable/reverb.hpp"
 
-namespace dsp {
+namespace deluge::dsp {
 
 class Reverb : reverb::Base {
 public:
 	enum class Model {
 		Freeverb = 0, // Freeverb is the original
-		Mutable
+		Mutable,
+		Plateau
 	};
 
 	Reverb() : base_(&std::get<0>(reverb_)) {}
@@ -69,4 +68,4 @@ private:
 
 	reverb::Base* base_;
 };
-} // namespace dsp
+} // namespace deluge::dsp

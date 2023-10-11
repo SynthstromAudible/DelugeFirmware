@@ -386,6 +386,11 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_PAD_SELECTION_OFF, "OFF"},
         {STRING_FOR_PAD_SELECTION_ON, "ON"},
 
+        {STRING_FOR_MODEL, "MODE"},
+        {STRING_FOR_FREEVERB, "FVRB"},
+        {STRING_FOR_MUTABLE, "MTBL"},
+        {STRING_FOR_LEXICON_PLATE, "PLAT"},
+
     },
     &built_in::english,
 };

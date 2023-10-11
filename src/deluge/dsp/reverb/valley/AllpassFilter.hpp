@@ -13,7 +13,7 @@ class AllpassFilter {
 public:
 	AllpassFilter() { clear(); }
 
-	AllpassFilter(long maxDelay, long initDelay = 0, T gain = 0) : delay(InterpDelay<T>(maxDelay, initDelay)), gain(gain) {
+	AllpassFilter(long maxDelay, long initDelay = 0, T gain = 0) : delay(InterpDelay<T>(initDelay)), gain(gain) {
 		clear();
 	}
 

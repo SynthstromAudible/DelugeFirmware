@@ -7,7 +7,7 @@
 #include "fx_engine.hpp"
 #include <limits>
 
-namespace dsp::reverb {
+namespace deluge::dsp::reverb {
 
 class MutableReverb : public Base {
 	constexpr static size_t kBufferSize = 32768;

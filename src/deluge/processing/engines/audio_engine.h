@@ -44,6 +44,10 @@ class MasterCompressor;
 class ModelStackWithSoundFlags;
 class SoundDrum;
 
+namespace deluge::dsp {
+	class Reverb;
+}
+
 /*
  * ================== Audio rendering ==================
  *
@@ -188,7 +192,7 @@ extern uint8_t numHopsEndedThisRoutineCall;
 extern Compressor reverbCompressor;
 extern uint32_t timeThereWasLastSomeReverb;
 extern VoiceVector activeVoices;
-extern revmodel reverb;
+extern deluge::dsp::Reverb reverb;
 extern uint32_t nextVoiceState;
 extern SoundDrum* sampleForPreview;
 extern int32_t reverbCompressorVolume;

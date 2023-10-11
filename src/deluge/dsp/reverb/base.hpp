@@ -1,11 +1,9 @@
 #pragma once
 #include "dsp/stereo_sample.h"
-#include <algorithm>
 #include <cstdint>
 #include <span>
-#include <type_traits>
 
-namespace dsp::reverb {
+namespace deluge::dsp::reverb {
 struct Base {
 	Base() = default;
 	virtual ~Base() = default;;

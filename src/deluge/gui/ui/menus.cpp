@@ -113,6 +113,7 @@
 #include "gui/menu_item/reverb/compressor/shape.h"
 #include "gui/menu_item/reverb/compressor/volume.h"
 #include "gui/menu_item/reverb/dampening.h"
+#include "gui/menu_item/reverb/model.h"
 #include "gui/menu_item/reverb/pan.h"
 #include "gui/menu_item/reverb/room_size.h"
 #include "gui/menu_item/reverb/width.h"
@@ -450,10 +451,12 @@ reverb::RoomSize reverbRoomSizeMenu{STRING_FOR_ROOM_SIZE};
 reverb::Dampening reverbDampeningMenu{STRING_FOR_DAMPENING};
 reverb::Width reverbWidthMenu{STRING_FOR_WIDTH, STRING_FOR_REVERB_WIDTH};
 reverb::Pan reverbPanMenu{STRING_FOR_PAN, STRING_FOR_REVERB_PAN};
+reverb::Model reverbModelMenu{STRING_FOR_MODEL};
 
 Submenu reverbMenu{
     STRING_FOR_REVERB,
     {
+		&reverbModelMenu,
         &reverbAmountMenu,
         &reverbRoomSizeMenu,
         &reverbDampeningMenu,

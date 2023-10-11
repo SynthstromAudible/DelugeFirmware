@@ -1,8 +1,7 @@
 #include "OnePoleFilters.hpp"
 #include <cassert>
 
-OnePoleLPFilter::OnePoleLPFilter(float cutoffFreq, float initSampleRate) {
-    setSampleRate(initSampleRate);
+OnePoleLPFilter::OnePoleLPFilter(float cutoffFreq) {
     setCutoffFreq(cutoffFreq);
 }
 
@@ -16,15 +15,6 @@ void OnePoleLPFilter::clear() {
     input = 0.0;
     _z = 0.0;
     output = 0.0;
-}
-
-void OnePoleLPFilter::setSampleRate(float sampleRate) {
-    assert(sampleRate > 0.0);
-
-    _sampleRate = sampleRate;
-    _1_sampleRate = 1.0 / sampleRate;
-    _maxCutoffFreq = sampleRate / 2.0 - 1.0;
-    setCutoffFreq(_cutoffFreq);
 }
 
 void OnePoleLPFilter::setCutoffFreq(float cutoffFreq) {
@@ -46,8 +36,7 @@ float OnePoleLPFilter::getMaxCutoffFreq() const {
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
-OnePoleHPFilter::OnePoleHPFilter(float initCutoffFreq, float initSampleRate) {
-    setSampleRate(initSampleRate);
+OnePoleHPFilter::OnePoleHPFilter(float initCutoffFreq) {
     setCutoffFreq(initCutoffFreq);
     clear();
 }
@@ -84,24 +73,8 @@ void OnePoleHPFilter::setCutoffFreq(float cutoffFreq) {
     _a1 = -_a0;
 }
 
-void OnePoleHPFilter::setSampleRate(float sampleRate) {
-    _sampleRate = sampleRate;
-    _1_sampleRate = 1.0 / _sampleRate;
-    _maxCutoffFreq = sampleRate / 2.0 - 1.0;
-    setCutoffFreq(_cutoffFreq);
-    clear();
-}
-
-DCBlocker::DCBlocker() {
-    setSampleRate(44100.0);
-    setCutoffFreq(20.f);
-    clear();
-}
-
 DCBlocker::DCBlocker(float cutoffFreq) {
-    setSampleRate(44100.0);
     setCutoffFreq(cutoffFreq);
-    clear();
 }
 
 float DCBlocker::process(float input) {
@@ -115,17 +88,9 @@ void DCBlocker::clear() {
     output = 0.0;
 }
 
-void DCBlocker::setSampleRate(float sampleRate) {
-    _sampleRate = sampleRate;
-    _maxCutoffFreq = sampleRate / 2.0;
-    setCutoffFreq(_cutoffFreq);
-}
 
 void DCBlocker::setCutoffFreq(float cutoffFreq) {
     _cutoffFreq = cutoffFreq;
     _b = 0.999;
 }
 
-float DCBlocker::getMaxCutoffFreq() const {
-    return _maxCutoffFreq;
-}

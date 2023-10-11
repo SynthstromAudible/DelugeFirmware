@@ -7,8 +7,19 @@
         "editor.defaultFormatter": "ms-python.black-formatter"
     },
     "files.associations": {
+        "*.scons": "python",
         "compare": "cpp",
-        "ranges": "cpp"
+        "ranges": "cpp",
+        "filesystem": "cpp",
+        "memory_resource": "cpp",
+        "array": "cpp",
+        "span": "cpp",
+        "vector": "cpp",
+        "xstring": "cpp",
+        "xutility": "cpp",
+        "string": "cpp",
+        "string_view": "cpp",
+        "cwchar": "cpp"
     },
     "C_Cpp.errorSquiggles": "disabled",
     "cSpell.words": [
