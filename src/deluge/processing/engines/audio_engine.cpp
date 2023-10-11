@@ -608,7 +608,7 @@ startAgain:
 	// Render audio for song
 	if (currentSong) {
 		bool interruptsDisabled = false;
-		if (!intc_func_active) {
+		if (intc_func_active == 0) {
 			__disable_irq();
 			interruptsDisabled = true;
 		}
