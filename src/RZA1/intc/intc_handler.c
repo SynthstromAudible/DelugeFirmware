@@ -69,15 +69,15 @@ Exported global variables and functions (to be accessed by other files)
 
 /******************************************************************************
 * Function Name: INTC_Handler_Interrupt
-* Description  : This function is the INTC interrupt handler processing called 
-*              : by the irq_handler. Executes the handler processing which 
+* Description  : This function is the INTC interrupt handler processing called
+*              : by the irq_handler. Executes the handler processing which
 *              : corresponds to the INTC interrupt source ID specified by the
-*              : icciar by calling the Userdef_INTC_HandlerExe function. The IRQ 
+*              : icciar by calling the Userdef_INTC_HandlerExe function. The IRQ
 *              : multiple interrupts are enabled. The processing for unsupported
 *              : interrupt ID is executed by calling Userdef_INTC_UndefId function.
-*              : In the interrupt handler processing, when the int_sense shows 
+*              : In the interrupt handler processing, when the int_sense shows
 *              : "INTC_LEVEL_SENSITIVE", clear the interrupt source because it
-*              : means a level sense interrupt. 
+*              : means a level sense interrupt.
 * Arguments    : uint32_t icciar : Interrupt ID (value of ICCIAR register)
 * Return Value : none
 ******************************************************************************/
@@ -90,6 +90,20 @@ void INTC_Handler_Interrupt(uint32_t icciar)
     uint32_t volatile* addr;
 
     int_id = (uint16_t)(icciar & 0x000003FFuL); /* Obtain interrupt ID */
+
+    /*
+     * If an interrupt ID value read from the interrupt acknowledge register
+     * (ICCIAR) is 1022 or 1023, return from interrupt processing after
+     * writing the same value as the setting value to the interrupt priority
+     * register 0 (ICDIPR0).
+     */
+    if (int_id >= 0x3fe)    /* In case of unsupported interrupt ID */
+    {
+        addr = (volatile uint32_t *)&INTC.ICDIPR0;
+
+        *addr = icciar;
+        return;
+    }
 
     if (int_id >= INTC_ID_TOTAL) /* In case of unsupported interrupt ID */
     {
@@ -108,7 +122,7 @@ void INTC_Handler_Interrupt(uint32_t icciar)
     /* The upper 1 bit out of 2 bits for the bit field width is the target bit */
     /* The target bit can be calculated by ((int_id % 16) * 2) + 1             */
     addr = (volatile uint32_t*)&INTC.ICDICFR0;
-    mask = 1 << (((int_id % 16) * 2) + 1);
+    mask = (uint32_t)(1 << (((int_id % 16) * 2) + 1));
     if (0 == (*(addr + (int_id / 16)) & mask)) /* In the case of level sense */
     {
         int_sense = INTC_LEVEL_SENSITIVE;
@@ -125,7 +139,7 @@ void INTC_Handler_Interrupt(uint32_t icciar)
 
 /*******************************************************************************
 * Function Name: FiqHandler_Interrupt
-* Description  : This function is the INTC interrupt handler processing called by 
+* Description  : This function is the INTC interrupt handler processing called by
 *              : the fiq_handler.
 * Arguments    : none
 * Return Value : none
