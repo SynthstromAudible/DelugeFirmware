@@ -258,7 +258,7 @@ extern "C" void closeUSBHost();
 extern "C" void openUSBPeripheral();
 extern "C" void closeUSBPeripheral(void);
 
-int32_t picFirmwareVersion = 0;
+uint32_t picFirmwareVersion = 0;
 bool picSaysOLEDPresent = false;
 
 bool readButtonsAndPads() {
