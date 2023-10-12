@@ -17,8 +17,6 @@ public:
 		constexpr float sample_rate = 44100.f;
 		engine_.SetLFOFrequency(LFO_1, 0.5f / sample_rate);
 		engine_.SetLFOFrequency(LFO_2, 0.3f / sample_rate);
-		lp_ = 0.7f;
-		diffusion_ = 0.625f;
 		reverb_time_ = 0.35f + 0.63f * 0.5f;
 	}
 
@@ -143,10 +141,10 @@ private:
 	float reverb_time_;
 
 	// width
-	float diffusion_;
+	float diffusion_{0.625f};
 
 	// dampening
-	float lp_;
+	float lp_{0.7f};
 
 	float lp_decay_1_;
 	float lp_decay_2_;

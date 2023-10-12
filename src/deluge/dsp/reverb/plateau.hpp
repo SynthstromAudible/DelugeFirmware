@@ -1,10 +1,10 @@
 #pragma once
 #include "base.hpp"
-#include "freeverb/revmodel.hpp"
+#include "valley/Dattorro.hpp"
 
 namespace deluge::dsp::reverb {
 class Plateau : public Base {
-	revmodel model;
+	Dattorro plate;
 
 public:
 	Plateau() = default;

@@ -4,7 +4,7 @@
 
 namespace deluge::dsp::reverb {
 class Freeverb : public Base {
-	revmodel model;
+	revmodel model_;
 
 public:
 	Freeverb() = default;
@@ -18,19 +18,19 @@ public:
 			const int32_t input_sample = input[frame];
 			StereoSample& output_sample = output[frame];
 
-			model.process(input_sample, &output_left, &output_right);
+			model_.process(input_sample, &output_left, &output_right);
 			output_sample.l += multiply_32x32_rshift32_rounded(output_left, this->amplitude_left_);
 			output_sample.r += multiply_32x32_rshift32_rounded(output_right, this->amplitude_right_);
 		}
 	}
 
-	void set_room_size(float value) override { model.setroomsize(value); }
-	[[nodiscard]] float get_room_size() override { return model.getroomsize(); };
+	void set_room_size(float value) override { model_.setroomsize(value); }
+	[[nodiscard]] float get_room_size() override { return model_.getroomsize(); };
 
-	void set_damping(float value) override { model.setdamp(value); }
-	[[nodiscard]] float get_damping() override { return model.getdamp(); }
+	void set_damping(float value) override { model_.setdamp(value); }
+	[[nodiscard]] float get_damping() override { return model_.getdamp(); }
 
-	void set_width(float value) override { model.setwidth(value); }
-	[[nodiscard]] float get_width() override { return model.getwidth(); };
+	void set_width(float value) override { model_.setwidth(value); }
+	[[nodiscard]] float get_width() override { return model_.getwidth(); };
 };
 } // namespace dsp::reverb

@@ -703,6 +703,7 @@ startAgain:
 		}
 
 		// Mix reverb into main render
+		reverb.set_pan_levels(reverbAmplitudeL, reverbAmplitudeR);
 		reverb.Process(reverb_buffer_slice, render_buffer_slice);
 	}
 

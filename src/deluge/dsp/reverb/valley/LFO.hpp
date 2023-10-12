@@ -5,7 +5,6 @@
 class TriSawLFO {
 public:
 	TriSawLFO(float sampleRate = 44100.0, float frequency = 1.0) : _sampleRate(sampleRate) {
-
 		setFrequency(frequency);
 		setRevPoint(0.5);
 	}
@@ -59,7 +58,7 @@ public:
 		calcStepSize();
 	}
 
-	float getOutput() const { return _output; }
+	[[nodiscard]] float getOutput() const { return _output; }
 
 	float phase{0.0};
 
@@ -74,5 +73,5 @@ private:
 	float _stepSize;
 	bool _rising{true};
 
-	void calcStepSize() { _stepSize = _frequency / _sampleRate; }
+	constexpr void calcStepSize() { _stepSize = _frequency / _sampleRate; }
 };

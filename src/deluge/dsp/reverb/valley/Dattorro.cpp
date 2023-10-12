@@ -36,7 +36,7 @@ Dattorro1997Tank::Dattorro1997Tank(const float initMaxLfoDepth,
 void Dattorro1997Tank::process(const float leftIn, const float rightIn, float* leftOut, float* rightOut) {
 	tickApfModulation();
 
-	decay = frozen ? 1.0 : decayParam;
+	decay = frozen ? 1.0f : decayParam;
 
 	leftSum += leftIn;
 	rightSum += rightIn;
@@ -46,7 +46,7 @@ void Dattorro1997Tank::process(const float leftIn, const float rightIn, float* l
 	leftDelay1.process();
 	leftHighCutFilter.input = leftDelay1.output;
 	leftLowCutFilter.input = leftHighCutFilter.process();
-	leftApf2.input = (leftDelay1.output * (1.0 - fade) + leftLowCutFilter.process() * fade) * decay;
+	leftApf2.input = (leftDelay1.output * (1.0f - fade) + leftLowCutFilter.process() * fade) * decay;
 	leftDelay2.input = leftApf2.process();
 	leftDelay2.process();
 
@@ -55,7 +55,7 @@ void Dattorro1997Tank::process(const float leftIn, const float rightIn, float* l
 	rightDelay1.process();
 	rightHighCutFilter.input = rightDelay1.output;
 	rightLowCutFilter.input = rightHighCutFilter.process();
-	rightApf2.input = (rightDelay1.output * (1.0 - fade) + rightLowCutFilter.process() * fade) * decay;
+	rightApf2.input = (rightDelay1.output * (1.0f - fade) + rightLowCutFilter.process() * fade) * decay;
 	rightDelay2.input = rightApf2.process();
 	rightDelay2.process();
 
@@ -80,14 +80,14 @@ void Dattorro1997Tank::process(const float leftIn, const float rightIn, float* l
 	rightOutDCBlock.input -= leftApf2.delay.tap(scaledOutputTaps[L_APF_2_R_TAP]);
 	rightOutDCBlock.input -= leftDelay2.tap(scaledOutputTaps[L_DELAY_2_R_TAP]);
 
-	*leftOut = leftOutDCBlock.process() * 0.5;
-	*rightOut = rightOutDCBlock.process() * 0.5;
+	*leftOut = leftOutDCBlock.process() * 0.5f;
+	*rightOut = rightOutDCBlock.process() * 0.5f;
 
 	fade += fadeStep * fadeDir;
-	fade = (fade < 0.0) ? 0.0 : ((fade > 1.0) ? 1.0 : fade);
+	fade = (fade < 0.0f) ? 0.0f : ((fade > 1.0f) ? 1.0f : fade);
 
-	assert(fade >= 0.0);
-	assert(fade <= 1.0);
+	assert(fade >= 0.0f);
+	assert(fade <= 1.0f);
 }
 
 void Dattorro1997Tank::freeze(bool freezeFlag) {

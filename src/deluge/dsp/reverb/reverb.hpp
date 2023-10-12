@@ -1,4 +1,5 @@
 #pragma once
+#include <algorithm>
 #include <cstdint>
 #include <variant>
 
@@ -34,12 +35,18 @@ public:
 	Model getModel() { return model_; }
 
 	void Process(std::span<int32_t> input, std::span<StereoSample> output) override {
+		// for (size_t i = 0; i < input.size(); ++i) {
+		// 	output[i].l = input[i];
+		// 	output[i].r = input[i];
+		// }
 		switch (model_) {
 		case Model::Freeverb:
 			std::get<reverb::Freeverb>(reverb_).Process(input, output);
 			break;
 		case Model::Mutable:
 			std::get<reverb::MutableReverb>(reverb_).Process(input, output);
+			break;
+		case Model::Plateau:
 			break;
 		}
 	}
@@ -62,9 +69,9 @@ private:
 	    reverb::Freeverb,     //<
 	    reverb::MutableReverb //<
 	    >
-	    reverb_;
+	    reverb_{};
 
-	Model model_ = Model::Mutable;
+	Model model_ = Model::Freeverb;
 
 	reverb::Base* base_;
 };
