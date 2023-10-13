@@ -316,7 +316,7 @@ void routineWithClusterLoading(bool mayProcessUserActionsBetween) {
 	}
 }
 
-#define DO_AUDIO_LOG 1 // For advavnced debugging printouts.
+#define DO_AUDIO_LOG 0 // For advavnced debugging printouts.
 #define AUDIO_LOG_SIZE 64
 
 #if DO_AUDIO_LOG
@@ -608,7 +608,7 @@ startAgain:
 	// Render audio for song
 	if (currentSong) {
 		bool interruptsDisabled = false;
-		if (!intc_func_active) {
+		if (intc_func_active == 0) {
 			__disable_irq();
 			interruptsDisabled = true;
 		}
