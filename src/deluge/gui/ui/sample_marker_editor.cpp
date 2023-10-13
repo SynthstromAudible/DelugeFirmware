@@ -361,10 +361,14 @@ ActionResult SampleMarkerEditor::padAction(int32_t x, int32_t y, int32_t on) {
 			for (int32_t m = 0; m < kNumMarkerTypes; m++) {
 				if (cols[m].colOnScreen == x) {
 					if (markerPressed != MarkerType::NONE) {
-						// Get out if there are two markers occupying the same col we pressed
-						return ActionResult::DEALT_WITH;
+						// toggle between markers if there's two overlapping columns
+						if (MarkerType{m} != markerType) {
+							markerPressed = MarkerType{m};
+						}
 					}
-					markerPressed = MarkerType{m};
+					else {
+						markerPressed = MarkerType{m};
+					}
 				}
 			}
 
