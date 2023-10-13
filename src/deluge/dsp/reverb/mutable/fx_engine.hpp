@@ -28,7 +28,8 @@ enum LFOIndex { LFO_1, LFO_2 };
 
 class FxEngine {
 public:
-	FxEngine(std::span<float> signal) : buffer_(signal), mask(buffer_.size() - 1){};
+	FxEngine(std::span<float> signal, std::initializer_list<float> lfo_freqs)
+	    : buffer_(signal), mask(buffer_.size() - 1), lfo_{lfo_freqs} {};
 	~FxEngine() = default;
 
 	void Clear() {
@@ -36,10 +37,7 @@ public:
 		write_ptr_ = 0;
 	}
 
-	inline void SetLFOFrequency(LFOIndex index, float frequency) {
-		using OscMode = CosineOscillator::Mode;
-		lfo_[index].Init<OscMode::APPROX>(frequency * 32.0f);
-	}
+	inline void SetLFOFrequency(LFOIndex index, float frequency) { lfo_.SetFrequency(index, frequency * 32.0f); }
 
 	inline void Advance() {
 		--write_ptr_;
@@ -52,8 +50,7 @@ public:
 
 	inline void StepLFO() {
 		if ((write_ptr_ & 31) == 0) {
-			lfo_[0].Next();
-			lfo_[1].Next();
+			lfo_.Next();
 		}
 	}
 
@@ -61,16 +58,16 @@ public:
 		StepLFO();
 		switch (lfo) {
 		case LFO_1:
-			return lfo_[0].value();
+			return lfo_.values()[0];
 		case LFO_2:
-			return lfo_[1].value();
+			return lfo_.values()[1];
 		}
 	}
 
 private:
 	int32_t write_ptr_ = 0;
 	std::span<float> buffer_;
-	std::array<CosineOscillator, 2> lfo_;
+	DualCosineOscillator lfo_;
 
 	size_t mask;
 

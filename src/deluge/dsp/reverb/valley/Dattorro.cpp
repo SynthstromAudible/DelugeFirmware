@@ -17,19 +17,9 @@ Dattorro1997Tank::Dattorro1997Tank(const float initMaxLfoDepth, const float init
 	leftOutDCBlock.setCutoffFreq(20.0);
 	rightOutDCBlock.setCutoffFreq(20.0);
 
-	lfo1.setFrequency(lfo1Freq);
-	lfo2.setFrequency(lfo2Freq);
-	lfo3.setFrequency(lfo3Freq);
-	lfo4.setFrequency(lfo4Freq);
+	lfos.setFrequency({{lfo1Freq, lfo2Freq, lfo3Freq, lfo4Freq}});
 
-	lfo2.phase = 0.25;
-	lfo3.phase = 0.5;
-	lfo4.phase = 0.75;
-
-	lfo1.setRevPoint(0.5);
-	lfo2.setRevPoint(0.5);
-	lfo3.setRevPoint(0.5);
-	lfo4.setRevPoint(0.5);
+	lfos.setRevPointAll(0.5);
 }
 
 void Dattorro1997Tank::process(const float leftIn, const float rightIn, float* leftOut, float* rightOut) {
@@ -113,10 +103,9 @@ void Dattorro1997Tank::setDecay(const float newDecay) {
 }
 
 void Dattorro1997Tank::setModSpeed(const float newModSpeed) {
-	lfo1.setFrequency(lfo1Freq * newModSpeed);
-	lfo2.setFrequency(lfo2Freq * newModSpeed);
-	lfo3.setFrequency(lfo3Freq * newModSpeed);
-	lfo4.setFrequency(lfo4Freq * newModSpeed);
+	argon::Neon128<float> freqs{{lfo1Freq, lfo2Freq, lfo3Freq, lfo4Freq}};
+	freqs *= newModSpeed;
+	lfos.setFrequency(freqs);
 }
 
 void Dattorro1997Tank::setModDepth(const float newModDepth) {
@@ -125,10 +114,7 @@ void Dattorro1997Tank::setModDepth(const float newModDepth) {
 }
 
 void Dattorro1997Tank::setModShape(const float shape) {
-	lfo1.setRevPoint(shape);
-	lfo2.setRevPoint(shape);
-	lfo3.setRevPoint(shape);
-	lfo4.setRevPoint(shape);
+	lfos.setRevPointAll(shape);
 }
 
 void Dattorro1997Tank::setHighCutFrequency(const float frequency) {
@@ -201,10 +187,11 @@ void Dattorro1997Tank::initialiseDelaysAndApfs() {
 }
 
 void Dattorro1997Tank::tickApfModulation() {
-	leftApf1.delay.setDelayTime(lfo1.process() * lfoExcursion + scaledLeftApf1Time);
-	leftApf2.delay.setDelayTime(lfo2.process() * lfoExcursion + scaledLeftApf2Time);
-	rightApf1.delay.setDelayTime(lfo3.process() * lfoExcursion + scaledRightApf1Time);
-	rightApf2.delay.setDelayTime(lfo4.process() * lfoExcursion + scaledRightApf2Time);
+	argon::Neon128<float> lfo_output = lfos.process();
+	leftApf1.delay.setDelayTime(lfo_output[0] * lfoExcursion + scaledLeftApf1Time);
+	leftApf2.delay.setDelayTime(lfo_output[1] * lfoExcursion + scaledLeftApf2Time);
+	rightApf1.delay.setDelayTime(lfo_output[2] * lfoExcursion + scaledRightApf1Time);
+	rightApf2.delay.setDelayTime(lfo_output[3] * lfoExcursion + scaledRightApf2Time);
 }
 
 void Dattorro1997Tank::rescaleApfAndDelayTimes() {

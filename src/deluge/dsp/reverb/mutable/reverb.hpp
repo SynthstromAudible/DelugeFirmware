@@ -5,7 +5,10 @@
 #pragma once
 #include "dsp/reverb/base.hpp"
 #include "fx_engine.hpp"
+#include <array>
 #include <limits>
+#include <span>
+#include <numeric>
 
 namespace deluge::dsp::reverb {
 
@@ -13,12 +16,7 @@ class MutableReverb : public Base {
 	constexpr static size_t kBufferSize = 32768;
 
 public:
-	MutableReverb() {
-		constexpr float sample_rate = 44100.f;
-		engine_.SetLFOFrequency(LFO_1, 0.5f / sample_rate);
-		engine_.SetLFOFrequency(LFO_2, 0.3f / sample_rate);
-		reverb_time_ = 0.35f + 0.63f * 0.5f;
-	}
+	MutableReverb() : reverb_time_(0.35f + 0.63f * 0.5f) {}
 
 	~MutableReverb() override = default;
 
@@ -132,8 +130,10 @@ public:
 	[[nodiscard]] float get_width() override { return (diffusion_ - 0.35) / 0.63f; };
 
 private:
+	static constexpr float sample_rate = 44100.f;
+
 	std::array<float, kBufferSize> buffer_{};
-	FxEngine engine_{buffer_};
+	FxEngine engine_{buffer_, {0.5f / sample_rate, 0.3f / sample_rate}};
 
 	float input_gain_{0.2};
 
@@ -146,8 +146,8 @@ private:
 	// dampening
 	float lp_{0.7f};
 
-	float lp_decay_1_;
-	float lp_decay_2_;
+	float lp_decay_1_{0};
+	float lp_decay_2_{0};
 };
 
 } // namespace deluge::dsp::reverb

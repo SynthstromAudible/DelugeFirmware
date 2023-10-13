@@ -160,9 +160,9 @@ add_executable(deluge)
 add_subdirectory(src)
 
 # Link external libraries
-# target_link_libraries(deluge PUBLIC
-
-# )
+target_link_libraries(deluge PUBLIC
+    argon
+)
 
 option(MAINTAINER_MODE "Enables all warnings and errors" OFF)
 

@@ -79,10 +79,10 @@ private:
 	static constexpr float maxDiffusion2 = 0.7;
 
 	static constexpr float lfoMaxExcursion = 16.0;
-	static constexpr float lfo1Freq = 0.10;
-	static constexpr float lfo2Freq = 0.150;
-	static constexpr float lfo3Freq = 0.120;
-	static constexpr float lfo4Freq = 0.180;
+	static constexpr float lfo1Freq{0.10f};
+	static constexpr float lfo2Freq{0.150f};
+	static constexpr float lfo3Freq{0.120f};
+	static constexpr float lfo4Freq{0.180f};
 
 	static constexpr float minTimeScale = 0.0001;
 
@@ -119,10 +119,7 @@ private:
 	float fadeStep = 1.0 / (fadeTime * sampleRate);
 	float fadeDir = 1.0;
 
-	TriSawLFO lfo1;
-	TriSawLFO lfo2;
-	TriSawLFO lfo3;
-	TriSawLFO lfo4;
+	TriSawLFOBlock lfos;
 
 	float leftSum = 0.0;
 	float rightSum = 0.0;
