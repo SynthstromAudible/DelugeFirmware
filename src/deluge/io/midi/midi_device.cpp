@@ -31,6 +31,7 @@ extern "C" {
 
 MIDIDevice::MIDIDevice() {
 	connectionFlags = 0;
+	sendClock = true;
 	defaultVelocityToLevel = 0; // Means none set.
 	memset(defaultInputMPEValuesPerMIDIChannel, 0, sizeof(defaultInputMPEValuesPerMIDIChannel));
 
@@ -92,8 +93,7 @@ setMPEBendRange:
 				ports[MIDI_DIRECTION_INPUT_TO_DELUGE]
 				    .moveUpperZoneOutOfWayOfLowerZone(); // Move other zone out of the way if necessary (MPE spec says to do this).
 
-resetBendRanges
-    : // Have to reset pitch bend range for zone, according to MPE spec. Unless we just deactivated the MPE zone...
+resetBendRanges: // Have to reset pitch bend range for zone, according to MPE spec. Unless we just deactivated the MPE zone...
 				if (msb) {
 					mpeZoneBendRanges[zone][BEND_RANGE_MAIN] = 2;
 					mpeZoneBendRanges[zone][BEND_RANGE_FINGER_LEVEL] = 48;
@@ -194,6 +194,9 @@ void MIDIDevice::readFromFile() {
 		else if (!strcmp(tagName, "defaultVolumeVelocitySensitivity")) {
 			defaultVelocityToLevel = storageManager.readTagOrAttributeValueInt();
 		}
+		else if (!strcmp(tagName, "sendClock")) {
+			sendClock = storageManager.readTagOrAttributeValueInt();
+		}
 
 		storageManager.exitTag();
 	}
@@ -203,6 +206,7 @@ void MIDIDevice::writeDefinitionAttributesToFile() { // These only go into MIDID
 	if (hasDefaultVelocityToLevelSet()) {
 		storageManager.writeAttribute("defaultVolumeVelocitySensitivity", defaultVelocityToLevel);
 	}
+	storageManager.writeAttribute("sendClock", sendClock);
 }
 
 void MIDIDevice::writeToFile(char const* tagName) {
