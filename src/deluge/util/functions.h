@@ -21,6 +21,7 @@
 #include "fatfs/ff.h"
 #include "util/fixedpoint.h"
 #include "util/lookuptables/lookuptables.h"
+#include <bit>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -116,19 +117,19 @@ inline int32_t lshiftAndSaturateUnknown(int32_t val, uint8_t lshift) {
 	return signed_saturate_operand_unknown(val, 32 - lshift) << lshift;
 }
 
-static constexpr uint32_t charsToIntegerConstant(char a, char b, char c, char d) {
+constexpr uint32_t charsToIntegerConstant(char a, char b, char c, char d) {
 	return (static_cast<uint32_t>(a)) | (static_cast<uint32_t>(b) << 8) | (static_cast<uint32_t>(c) << 16)
 	       | (static_cast<uint32_t>(d) << 24);
 }
 
-static constexpr uint16_t charsToIntegerConstant(char a, char b) {
+constexpr uint16_t charsToIntegerConstant(char a, char b) {
 	return (static_cast<uint16_t>(a)) | (static_cast<uint16_t>(b) << 8);
 }
 /**
  * replace asterix with a digit
  * Only works for single digits
 */
-static void asterixToInt(char* str, int32_t i) {
+constexpr void asterixToInt(char* str, int32_t i) {
 	while (*str != 0) {
 		if (*str == '*') {
 			*str = (char)('0' + i);
@@ -227,7 +228,7 @@ bool paramNeedsLPF(int32_t p, bool fromAutomation);
 int32_t shiftVolumeByDB(int32_t oldValue, float offset);
 int32_t quickLog(uint32_t input);
 
-static void convertFloatToIntAtMemoryLocation(uint32_t* pos) {
+constexpr void convertFloatToIntAtMemoryLocation(uint32_t* pos) {
 
 	//*(int32_t*)pos = *(float*)pos * 2147483648;
 
@@ -243,8 +244,8 @@ static void convertFloatToIntAtMemoryLocation(uint32_t* pos) {
 	*pos = outputValue;
 }
 
-static int32_t floatToInt(float theFloat) {
-	uint32_t readValue = *(uint32_t*)&theFloat;
+constexpr int32_t floatToInt(float theFloat) {
+	uint32_t readValue = std::bit_cast<uint32_t>(theFloat);
 	int32_t exponent = (int32_t)((readValue >> 23) & 255) - 127;
 
 	int32_t outputValue = (exponent >= 0) ? 2147483647 : (uint32_t)((readValue << 8) | 0x80000000) >> (-exponent);
@@ -256,7 +257,7 @@ static int32_t floatToInt(float theFloat) {
 	return outputValue;
 }
 
-static int32_t floatBitPatternToInt(uint32_t readValue) {
+constexpr int32_t floatBitPatternToInt(uint32_t readValue) {
 	int32_t exponent = (int32_t)((readValue >> 23) & 255) - 127;
 
 	int32_t outputValue = (exponent >= 0) ? 2147483647 : (uint32_t)((readValue << 8) | 0x80000000) >> (-exponent);
