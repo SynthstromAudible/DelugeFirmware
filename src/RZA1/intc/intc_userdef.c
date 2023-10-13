@@ -728,12 +728,6 @@ static void Userdef_INTC_Dummy_Interrupt(uint32_t int_sense)
 ******************************************************************************/
 void Userdef_INTC_HandlerExe(uint16_t int_id, uint32_t int_sense)
 {
-	if(intc_func_active != 0) {
-		volatile int j = int_id;
-		++j;
-		++j;
-		//__asm__ __volatile__("bkpt");
-	}
 
     intc_func_active = int_id;
     intc_func_table[int_id](int_sense);

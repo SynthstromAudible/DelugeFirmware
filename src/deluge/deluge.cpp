@@ -839,7 +839,7 @@ extern "C" void logAudioAction(char const* string) {
 
 extern "C" void routineForSD(void) {
 
-	if(intc_func_active != 0) {
+	if (intc_func_active != 0) {
 		return;
 	}
 
