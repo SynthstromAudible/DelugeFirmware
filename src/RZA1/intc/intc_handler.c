@@ -97,9 +97,9 @@ void INTC_Handler_Interrupt(uint32_t icciar)
      * writing the same value as the setting value to the interrupt priority
      * register 0 (ICDIPR0).
      */
-    if (int_id >= 0x3fe)    /* In case of unsupported interrupt ID */
+    if (int_id >= 0x3fe) /* In case of unsupported interrupt ID */
     {
-        addr = (volatile uint32_t *)&INTC.ICDIPR0;
+        addr = (volatile uint32_t*)&INTC.ICDIPR0;
 
         *addr = icciar;
         return;
