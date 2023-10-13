@@ -26,7 +26,7 @@ public:
 	MultiRange();
 	virtual ~MultiRange();
 
-	AudioFileHolder* getAudioFileHolder();
+	virtual AudioFileHolder* getAudioFileHolder() = 0;
 
 	int16_t topNote;
 };
