@@ -393,7 +393,7 @@ void MidiEngine::flushUSBMIDIOutput() {
 
 			flushUSBMIDIToHostedDevice(ip, midiDeviceNumToSendTo);
 		}
-getOut: {}
+getOut : {}
 	}
 
 	usbLock = 0;

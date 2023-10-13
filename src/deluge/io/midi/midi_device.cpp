@@ -93,7 +93,8 @@ setMPEBendRange:
 				ports[MIDI_DIRECTION_INPUT_TO_DELUGE]
 				    .moveUpperZoneOutOfWayOfLowerZone(); // Move other zone out of the way if necessary (MPE spec says to do this).
 
-resetBendRanges: // Have to reset pitch bend range for zone, according to MPE spec. Unless we just deactivated the MPE zone...
+resetBendRanges
+    : // Have to reset pitch bend range for zone, according to MPE spec. Unless we just deactivated the MPE zone...
 				if (msb) {
 					mpeZoneBendRanges[zone][BEND_RANGE_MAIN] = 2;
 					mpeZoneBendRanges[zone][BEND_RANGE_FINGER_LEVEL] = 48;
