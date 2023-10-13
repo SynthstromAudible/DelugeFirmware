@@ -29,8 +29,7 @@ class Cluster;
 class MultisampleRange final : public MultiRange {
 public:
 	MultisampleRange();
-	AudioFileHolder* getAudioFileHolder();
+	AudioFileHolder* getAudioFileHolder() override;
 
-	SampleHolderForVoice
-	    sampleHolder; // Has to be first variable, cos I do a sneaky optimization between both of MultiRange's children.
+	SampleHolderForVoice sampleHolder;
 };
