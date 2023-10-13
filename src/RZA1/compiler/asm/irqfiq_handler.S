@@ -44,7 +44,7 @@
 
 .align 4
 read_intc_icciar_addr:
-	PUSH	{r0-r1, r12}
+	PUSH	{r1, r12}
 	PUSH	{r3-r4, r12}
 
     /*; ++REE_SS Addressing ARM Errata 801120 */
@@ -92,9 +92,9 @@ errata_733075_workaround:
     LDR     r3, [r2]
 
 post_733075_workaround:
-    //MOV     r0, r3
+    MOV     r0, r3
 	POP		{r3-r4, r12}
-	POP		{r0-r1, r12}
+	POP		{r1, r12}
 	B       icciar_read_complete
 
 /* ================================================================== */
@@ -143,11 +143,7 @@ irq_handler:
     CPS        #SYS_MODE
 
     PUSH    {r0-r3, r12}
-
-    LDR     r2, =INTC_ICCIAR_ADDR
-    LDR        r0, [r2]
-    PUSH    {r0}
-
+    
     B		read_intc_icciar_addr  
 icciar_read_complete:
 
@@ -163,7 +159,6 @@ icciar_read_complete:
     //POP        {r1, lr} (previous version)
     POP		{r0-r4, lr} 
     ADD        sp, sp, r1
-    POP        {r0}
 
     // Newer example has barriers here
 	CPSID	i
