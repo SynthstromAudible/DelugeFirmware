@@ -67,6 +67,7 @@
 #include "gui/menu_item/midi/command.h"
 #include "gui/menu_item/midi/default_velocity_to_level.h"
 #include "gui/menu_item/midi/device.h"
+#include "gui/menu_item/midi/device_send_clock.h"
 #include "gui/menu_item/midi/devices.h"
 #include "gui/menu_item/midi/input_differentiation.h"
 #include "gui/menu_item/midi/pgm.h"
@@ -735,11 +736,13 @@ Submenu midiCommandsMenu{
 // MIDI device submenu - for after we've selected which device we want it for
 
 midi::DefaultVelocityToLevel defaultVelocityToLevelMenu{STRING_FOR_VELOCITY};
+midi::SendClock sendClockMenu{STRING_FOR_CLOCK};
 midi::Device midiDeviceMenu{
     EMPTY_STRING,
     {
         &mpe::directionSelectorMenu,
         &defaultVelocityToLevelMenu,
+        &sendClockMenu,
     },
 };
 

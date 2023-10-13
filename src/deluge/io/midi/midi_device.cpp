@@ -172,7 +172,8 @@ void MIDIDevice::sendAllMCMs() {
 
 bool MIDIDevice::worthWritingToFile() {
 	return (ports[MIDI_DIRECTION_INPUT_TO_DELUGE].worthWritingToFile()
-	        || ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].worthWritingToFile() || hasDefaultVelocityToLevelSet());
+	        || ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].worthWritingToFile() || hasDefaultVelocityToLevelSet()
+	        || !sendClock);
 }
 
 void MIDIDevice::writePorts() {
