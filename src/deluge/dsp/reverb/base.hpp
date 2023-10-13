@@ -6,7 +6,8 @@
 namespace deluge::dsp::reverb {
 struct Base {
 	Base() = default;
-	virtual ~Base() = default;;
+	virtual ~Base() = default;
+	;
 
 	virtual void Process(std::span<int32_t> input, std::span<StereoSample> output) = 0;
 
@@ -29,4 +30,4 @@ protected:
 	int32_t amplitude_right_ = 0;
 	int32_t amplitude_left_ = 0;
 };
-} // namespace dsp::reverb
+} // namespace deluge::dsp::reverb

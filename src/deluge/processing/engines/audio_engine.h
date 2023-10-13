@@ -45,7 +45,7 @@ class ModelStackWithSoundFlags;
 class SoundDrum;
 
 namespace deluge::dsp {
-	class Reverb;
+class Reverb;
 }
 
 /*

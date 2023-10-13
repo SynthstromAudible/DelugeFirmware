@@ -19,7 +19,7 @@ template <typename T = float>
 constexpr T Interpolate(const T x0, const T x1, float fractional) {
 	return static_cast<T>(x0 + (x1 - x0) * fractional);
 }
-} // namespace dsp
+} // namespace deluge::dsp
 
 namespace deluge::dsp::reverb {
 constexpr static int32_t TAIL = -1;
@@ -208,4 +208,4 @@ public: /******************** INNER CLASSES ****************/
 	}
 };
 
-} // namespace dsp::reverb
+} // namespace deluge::dsp::reverb

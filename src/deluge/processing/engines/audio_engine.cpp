@@ -155,7 +155,7 @@ LiveInputBuffer* liveInputBuffers[3];
 // For debugging
 uint16_t lastRoutineTime;
 
-std::array<StereoSample,SSI_TX_BUFFER_NUM_SAMPLES> renderingBuffer __attribute__((aligned(CACHE_LINE_SIZE)));
+std::array<StereoSample, SSI_TX_BUFFER_NUM_SAMPLES> renderingBuffer __attribute__((aligned(CACHE_LINE_SIZE)));
 
 StereoSample* renderingBufferOutputPos = renderingBuffer.begin();
 StereoSample* renderingBufferOutputEnd = renderingBuffer.begin();
@@ -362,7 +362,7 @@ void routine() {
 	saddr = (uint32_t)(getTxBufferCurrentPlace());
 	uint32_t saddrPosAtStart = saddr >> (2 + NUM_MONO_OUTPUT_CHANNELS_MAGNITUDE);
 	size_t numSamples = ((uint32_t)(saddr - i2sTXBufferPos) >> (2 + NUM_MONO_OUTPUT_CHANNELS_MAGNITUDE))
-	                     & (SSI_TX_BUFFER_NUM_SAMPLES - 1);
+	                    & (SSI_TX_BUFFER_NUM_SAMPLES - 1);
 	if (!numSamples) {
 		audioRoutineLocked = false;
 		return;
@@ -600,7 +600,7 @@ startAgain:
 
 	memset(&renderingBuffer, 0, numSamples * sizeof(StereoSample));
 
-	static std::array<int32_t,SSI_TX_BUFFER_NUM_SAMPLES> reverbBuffer __attribute__((aligned(CACHE_LINE_SIZE)));
+	static std::array<int32_t, SSI_TX_BUFFER_NUM_SAMPLES> reverbBuffer __attribute__((aligned(CACHE_LINE_SIZE)));
 	reverbBuffer.fill(0);
 
 #ifdef REPORT_CPU_USAGE
@@ -695,7 +695,7 @@ startAgain:
 
 		// HPF on reverb send, cos if it has DC offset, the reverb magnifies that, and the sound farts out
 		{
-			for (auto &reverb_sample : reverb_buffer_slice) {
+			for (auto& reverb_sample : reverb_buffer_slice) {
 				int32_t distance_to_go_l = reverb_sample - reverbSendPostLPF;
 				reverbSendPostLPF += distance_to_go_l >> 11;
 				reverb_sample -= reverbSendPostLPF;
@@ -715,7 +715,8 @@ startAgain:
 		ModelStackWithThreeMainThings* modelStack = setupModelStackWithThreeMainThingsButNoNoteRow(
 		    modelStackMemory, currentSong, sampleForPreview, NULL, paramManagerForSamplePreview);
 
-		sampleForPreview->render(modelStack, renderingBuffer.data(), numSamples, reverbBuffer.data(), sideChainHitPending);
+		sampleForPreview->render(modelStack, renderingBuffer.data(), numSamples, reverbBuffer.data(),
+		                         sideChainHitPending);
 	}
 
 	// LPF and stutter for song (must happen after reverb mixed in, which is why it's happening all the way out here
@@ -726,8 +727,8 @@ startAgain:
 	if (currentSong) {
 		currentSong->globalEffectable.setupFilterSetConfig(&masterVolumeAdjustmentL, &currentSong->paramManager);
 		currentSong->globalEffectable.processFilters(renderingBuffer.data(), numSamples);
-		currentSong->globalEffectable.processSRRAndBitcrushing(renderingBuffer.data(), numSamples, &masterVolumeAdjustmentL,
-		                                                       &currentSong->paramManager);
+		currentSong->globalEffectable.processSRRAndBitcrushing(renderingBuffer.data(), numSamples,
+		                                                       &masterVolumeAdjustmentL, &currentSong->paramManager);
 
 		masterVolumeAdjustmentR = masterVolumeAdjustmentL; // This might have changed in the above function calls
 

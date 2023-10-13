@@ -33,4 +33,4 @@ public:
 	void set_width(float value) override { model_.setwidth(value); }
 	[[nodiscard]] float get_width() override { return model_.getwidth(); };
 };
-} // namespace dsp::reverb
+} // namespace deluge::dsp::reverb

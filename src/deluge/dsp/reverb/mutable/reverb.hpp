@@ -150,4 +150,4 @@ private:
 	float lp_decay_2_;
 };
 
-} // namespace dsp::reverb
+} // namespace deluge::dsp::reverb

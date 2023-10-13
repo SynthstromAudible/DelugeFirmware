@@ -71,12 +71,12 @@ public:
 	float process(float input);
 	void clear();
 	void setCutoffFreq(float cutoffFreq);
-	[[nodiscard]] static constexpr float getMaxCutoffFreq() {return _maxCutoffFreq; };
+	[[nodiscard]] static constexpr float getMaxCutoffFreq() { return _maxCutoffFreq; };
 	float output = 0.f;
 
 private:
-    static constexpr float _sampleRate = 44100.f;
-    static constexpr float _maxCutoffFreq = _sampleRate / 2.0f;
+	static constexpr float _sampleRate = 44100.f;
+	static constexpr float _maxCutoffFreq = _sampleRate / 2.0f;
 	float _cutoffFreq = 20.f;
 	float _b = 0.999f;
 	float _z = 0.f;

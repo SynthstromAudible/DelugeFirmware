@@ -10,9 +10,9 @@
 #include <cstddef>
 #include <cstdint>
 
-template<typename T>
+template <typename T>
 T linterp(T a, T b, T f) {
-    return a + f * (b - a);
+	return a + f * (b - a);
 }
 
 template <typename T = float, size_t maxLength = 512>

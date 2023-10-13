@@ -7,8 +7,7 @@ T scale(T a, T inMin, T inMax, T outMin, T outMax) {
 	return (a - inMin) / (inMax - inMin) * (outMax - outMin) + outMin;
 }
 
-Dattorro1997Tank::Dattorro1997Tank(const float initMaxLfoDepth,
-                                   const float initMaxTimeScale)
+Dattorro1997Tank::Dattorro1997Tank(const float initMaxLfoDepth, const float initMaxTimeScale)
     : timePadding(initMaxLfoDepth), maxTimeScale(initMaxTimeScale), fadeStep(1.0 / sampleRate) {
 	rescaleTapTimes();
 	setTimeScale(timeScale);
@@ -101,7 +100,6 @@ void Dattorro1997Tank::freeze(bool freezeFlag) {
 		decay = decayParam;
 	}
 }
-
 
 void Dattorro1997Tank::setTimeScale(const float newTimeScale) {
 	timeScale = newTimeScale;
