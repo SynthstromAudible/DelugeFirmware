@@ -4,14 +4,15 @@ on:
   workflow_dispatch: # allows manual triggering
   push:
     branches:
-      - 'release/1.0'
+      - 'release/1.0'  
   pull_request:
     types:
       - closed
+    branches:
+      - 'release/1.0'
 
 jobs:
   beta-build:
-    if: github.event.pull_request.merged == true
     uses: ./.github/workflows/build.yml
     with:
       firmware-retention-days: 30
