@@ -119,15 +119,12 @@ Song* currentSong = NULL;
 Song* preLoadedSong = NULL;
 
 bool sdRoutineLock = true;
-bool inInterrupt = false;
 
 bool allowSomeUserActionsEvenWhenInCardRoutine = false;
 
 extern "C" void timerGoneOff(void) {
-	inInterrupt = true;
 	cvEngine.updateGateOutputs();
 	midiEngine.flushMIDI();
-	inInterrupt = false;
 }
 
 uint32_t timeNextGraphicsTick = 0;
@@ -842,7 +839,7 @@ extern "C" void logAudioAction(char const* string) {
 
 extern "C" void routineForSD(void) {
 
-	if (inInterrupt) {
+	if (intc_func_active != 0) {
 		return;
 	}
 
