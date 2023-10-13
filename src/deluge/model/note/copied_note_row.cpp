@@ -25,6 +25,6 @@ CopiedNoteRow::CopiedNoteRow() {
 
 CopiedNoteRow::~CopiedNoteRow() {
 	if (notes) {
-		GeneralMemoryAllocator::get().dealloc(notes);
+		delugeDealloc(notes);
 	}
 }

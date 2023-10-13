@@ -74,7 +74,7 @@ void SevenSegment::deleteAllLayers() {
 		NumericLayer* toDelete = topLayer;
 		topLayer = topLayer->next;
 		toDelete->~NumericLayer();
-		GeneralMemoryAllocator::get().dealloc(toDelete);
+		delugeDealloc(toDelete);
 	}
 }
 
@@ -87,7 +87,7 @@ void SevenSegment::removeTopLayer() {
 	topLayer = topLayer->next;
 
 	toDelete->~NumericLayer();
-	GeneralMemoryAllocator::get().dealloc(toDelete);
+	delugeDealloc(toDelete);
 
 	if (!popupActive) {
 		uiTimerManager.unsetTimer(TIMER_DISPLAY);
@@ -178,7 +178,7 @@ void SevenSegment::replaceBottomLayer(NumericLayer* newLayer) {
 	NumericLayer* toDelete = *prevPointer;
 	*prevPointer = newLayer;
 	toDelete->~NumericLayer();
-	GeneralMemoryAllocator::get().dealloc(toDelete);
+	delugeDealloc(toDelete);
 
 	if (!popupActive && topLayer == newLayer) {
 		uiTimerManager.unsetTimer(TIMER_DISPLAY);

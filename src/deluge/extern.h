@@ -23,3 +23,4 @@ extern bool sdRoutineLock;
 extern int16_t zeroMPEValues[];
 extern bool allowSomeUserActionsEvenWhenInCardRoutine;
 extern bool readButtonsAndPads();
+extern uint32_t picFirmwareVersion;

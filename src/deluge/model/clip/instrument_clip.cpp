@@ -96,10 +96,10 @@ InstrumentClip::InstrumentClip(Song* song) : Clip(CLIP_TYPE_INSTRUMENT) {
 
 	//initialize automation instrument clip view variables
 	onAutomationInstrumentClipView = false;
-	lastSelectedParamID = kNoLastSelectedParamID;
+	lastSelectedParamID = kNoSelection;
 	lastSelectedParamKind = Param::Kind::NONE;
-	lastSelectedParamShortcutX = kNoLastSelectedParamShortcut;
-	lastSelectedParamShortcutY = kNoLastSelectedParamShortcut;
+	lastSelectedParamShortcutX = kNoSelection;
+	lastSelectedParamShortcutY = kNoSelection;
 	lastSelectedParamArrayPosition = 0;
 	lastSelectedInstrumentType = InstrumentType::NONE;
 	//end initialize of automation instrument clip view variables
@@ -194,7 +194,7 @@ int32_t InstrumentClip::clone(ModelStackWithTimelineCounter* modelStack, bool sh
 	if (error) {
 deleteClipAndGetOut:
 		newClip->~InstrumentClip();
-		GeneralMemoryAllocator::get().dealloc(clipMemory);
+		delugeDealloc(clipMemory);
 		return error;
 	}
 
@@ -1816,7 +1816,7 @@ void InstrumentClip::actuallyDeleteEmptyNoteRow(ModelStackWithNoteRow* modelStac
 		noteRow->setDrum(NULL, (Kit*)output, modelStack);
 	}
 	noteRow->~NoteRow();
-	GeneralMemoryAllocator::get().dealloc(noteRow);
+	delugeDealloc(noteRow);
 }
 
 // Returns whether to delete it
@@ -2190,7 +2190,7 @@ void InstrumentClip::writeDataToFile(Song* song) {
 	if (onAutomationInstrumentClipView) {
 		storageManager.writeAttribute("onAutomationInstrumentClipView", (char*)"1");
 	}
-	if (lastSelectedParamID != kNoLastSelectedParamID) {
+	if (lastSelectedParamID != kNoSelection) {
 		storageManager.writeAttribute("lastSelectedParamID", lastSelectedParamID);
 		storageManager.writeAttribute("lastSelectedParamKind", util::to_underlying(lastSelectedParamKind));
 		storageManager.writeAttribute("lastSelectedParamShortcutX", lastSelectedParamShortcutX);
@@ -3075,7 +3075,7 @@ bool InstrumentClip::deleteSoundsWhichWontSound(Song* song) {
 
 					void* toDealloc = dynamic_cast<void*>(drum);
 					drum->~Drum();
-					GeneralMemoryAllocator::get().dealloc(toDealloc);
+					delugeDealloc(toDealloc);
 				}
 
 				noteRows.deleteNoteRowAtIndex(i);

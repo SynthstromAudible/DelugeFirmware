@@ -57,7 +57,7 @@ Imported global variables and functions (from other files)
 /******************************************************************************
 Exported global variables and functions (to be accessed by other files)
 ******************************************************************************/
-volatile uint32_t intc_func_active = false;
+volatile uint32_t intc_func_active = 0;
 
 /******************************************************************************
 Private global variables and functions
@@ -728,9 +728,10 @@ static void Userdef_INTC_Dummy_Interrupt(uint32_t int_sense)
 ******************************************************************************/
 void Userdef_INTC_HandlerExe(uint16_t int_id, uint32_t int_sense)
 {
-    intc_func_active = true;
+
+    intc_func_active = int_id;
     intc_func_table[int_id](int_sense);
-    intc_func_active = false;
+    intc_func_active = 0;
 }
 
 /******************************************************************************

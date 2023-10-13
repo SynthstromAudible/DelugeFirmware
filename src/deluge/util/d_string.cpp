@@ -51,7 +51,7 @@ void String::clear(bool destructing) {
 			setNumReasons(numReasons - 1);
 		}
 		else {
-			GeneralMemoryAllocator::get().dealloc(stringMemory - 4);
+			delugeDealloc(stringMemory - 4);
 		}
 
 		if (!destructing) {
@@ -268,7 +268,7 @@ allocateNewMemory:
 			memcpy(newStringMemory, stringMemory, pos);
 
 			if (deallocateAfter) {
-				GeneralMemoryAllocator::get().dealloc(stringMemory - 4);
+				delugeDealloc(stringMemory - 4);
 			}
 			stringMemory = newStringMemory;
 			setNumReasons(1);

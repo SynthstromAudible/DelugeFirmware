@@ -2,6 +2,15 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "Debug Tests",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceRoot}/tests/RunAllTests",
+      "MIMode": "gdb",
+      "cwd": "${workspaceRoot}",
+      "miDebuggerPath": "gdb",
+    },
+    {
       "name": "Cortex-Debug J-Link",
       "preLaunchTask": "Build Debug",
       "type": "cortex-debug",
@@ -89,7 +98,7 @@
           "text": "monitor reset"
         },
         {
-          "text": "-file-exec-and-symbols build/debug/deluge.elf"
+          "text": "-file-exec-and-symbols build/Debug/deluge.elf"
         },
         {
           "text": "-target-download"

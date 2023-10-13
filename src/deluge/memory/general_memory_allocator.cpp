@@ -17,17 +17,12 @@
 
 #include "memory/general_memory_allocator.h"
 #include "definitions_cxx.hpp"
-#include "drivers/mtu/mtu.h"
 #include "hid/display/display.h"
 #include "io/debug/print.h"
 #include "memory/stealable.h"
-#include "model/action/action_logger.h"
 #include "processing/engines/audio_engine.h"
-#include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
 #include "util/functions.h"
-#include <cstring>
-#include <new>
 
 //TODO: Check if these have the right size
 char emptySpacesMemory[sizeof(EmptySpaceRecord) * 512];
@@ -90,7 +85,11 @@ extern "C" void* delugeAlloc(unsigned int requiredSize, bool mayUseOnChipRam) {
 	return GeneralMemoryAllocator::get().alloc(requiredSize, nullptr, false, mayUseOnChipRam);
 }
 extern "C" void delugeDealloc(void* address) {
+#ifdef IN_UNIT_TESTS
+	free(address);
+#else
 	GeneralMemoryAllocator::get().dealloc(address);
+#endif
 }
 void* GeneralMemoryAllocator::allocNonAudio(uint32_t requiredSize) {
 
@@ -263,7 +262,7 @@ public:
 				if (spaceTypes[i] == SPACE_HEADER_STEALABLE) {
 					((Stealable*)testAllocations[i])->~Stealable();
 				}
-				GeneralMemoryAllocator::get().dealloc(testAllocations[i]);
+				delugeDealloc(testAllocations[i]);
 				testAllocations[i] = NULL;
 			}
 
@@ -405,10 +404,6 @@ void GeneralMemoryAllocator::testShorten(int32_t i) {
 void GeneralMemoryAllocator::test() {
 
 	Debug::println("GeneralMemoryAllocator::test()");
-
-	// Corrupt the crap out of these two so we know they can take it!
-	audioFileManager.clusterSize = 0;
-	audioFileManager.clusterSizeMagnitude = 0;
 
 	memset(testAllocations, 0, sizeof(testAllocations));
 
