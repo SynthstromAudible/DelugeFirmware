@@ -30,3 +30,7 @@
 
 MultisampleRange::MultisampleRange() {
 }
+
+AudioFileHolder* MultisampleRange::getAudioFileHolder() {
+	return static_cast<AudioFileHolder*>(&sampleHolder);
+}

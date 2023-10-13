@@ -23,7 +23,7 @@
 class MultiWaveTableRange final : public MultiRange {
 public:
 	MultiWaveTableRange();
+	AudioFileHolder* getAudioFileHolder() override;
 
-	WaveTableHolder
-	    waveTableHolder; // Has to be first variable, cos I do a sneaky optimization between both of MultiRange's children.
+	WaveTableHolder waveTableHolder;
 };
