@@ -1,3 +1,6 @@
 [submodule "scripts/debug/PyCortexMDebug"]
 	path = scripts/debug/PyCortexMDebug
 	url = https://github.com/litui/PyCortexMDebug
+[submodule "tests/cpputest"]
+	path = tests/cpputest
+	url = https://github.com/cpputest/cpputest.git

@@ -82,7 +82,7 @@ void NoteRow::deleteOldDrumNames(bool shouldUpdatePointer) {
 		DrumName* toDelete = oldFirstOldDrumName;
 		oldFirstOldDrumName = oldFirstOldDrumName->next;
 		toDelete->~DrumName();
-		GeneralMemoryAllocator::get().dealloc(toDelete);
+		delugeDealloc(toDelete);
 	}
 
 	if (shouldUpdatePointer) {
@@ -375,7 +375,7 @@ int32_t NoteRow::addCorrespondingNotes(int32_t targetPos, int32_t newNotesLength
 	int32_t newNotesInitialSize = notes.getNumElements() + numScreensToAddNoteOn;
 	int32_t error = newNotes.insertAtIndex(0, newNotesInitialSize);
 	if (error) {
-		GeneralMemoryAllocator::get().dealloc(searchTerms);
+		delugeDealloc(searchTerms);
 		return error;
 	}
 
@@ -465,7 +465,7 @@ addNewNote:
 	}
 
 	// Deallocate working memory - no longer needed
-	GeneralMemoryAllocator::get().dealloc(searchTerms);
+	delugeDealloc(searchTerms);
 
 	// Copy the final notes too - after the insertion-point on the final screen
 	while (nextIndexToCopyFrom < notes.getNumElements()) {
@@ -673,7 +673,7 @@ int32_t NoteRow::clearArea(int32_t areaStart, int32_t areaWidth, ModelStackWithN
 	int32_t newNotesInitialSize = notes.getNumElements();
 	int32_t error = newNotes.insertAtIndex(0, newNotesInitialSize);
 	if (error) {
-		GeneralMemoryAllocator::get().dealloc(searchTerms);
+		delugeDealloc(searchTerms);
 		return error;
 	}
 
@@ -757,7 +757,7 @@ int32_t NoteRow::clearArea(int32_t areaStart, int32_t areaWidth, ModelStackWithN
 	}
 
 	// Deallocate working memory - no longer needed
-	GeneralMemoryAllocator::get().dealloc(searchTerms);
+	delugeDealloc(searchTerms);
 
 	Note* __restrict__ destNote = NULL;
 
@@ -970,7 +970,7 @@ int32_t NoteRow::editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareW
 	int32_t newNotesInitialSize = numSourceNotes + (newNumNotes - 1) * numScreens;
 	int32_t error = newNotes.insertAtIndex(0, newNotesInitialSize);
 	if (error) {
-		GeneralMemoryAllocator::get().dealloc(searchTerms);
+		delugeDealloc(searchTerms);
 		return error;
 	}
 
@@ -1084,7 +1084,7 @@ int32_t NoteRow::editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareW
 	}
 
 	// Deallocate working memory - no longer needed
-	GeneralMemoryAllocator::get().dealloc(searchTerms);
+	delugeDealloc(searchTerms);
 
 	// Copy the final notes too - after area end on the final screen
 	while (nextIndexToCopyFrom < numSourceNotes) {
@@ -1167,7 +1167,7 @@ int32_t NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteR
 	int32_t newNotesInitialSize = numSourceNotes;
 	int32_t error = newNotes.insertAtIndex(0, newNotesInitialSize);
 	if (error) {
-		GeneralMemoryAllocator::get().dealloc(searchTerms);
+		delugeDealloc(searchTerms);
 		return error;
 	}
 
@@ -1337,7 +1337,7 @@ int32_t NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteR
 	}
 
 	// Deallocate working memory - no longer needed
-	GeneralMemoryAllocator::get().dealloc(searchTerms);
+	delugeDealloc(searchTerms);
 
 	// Copy the final notes too - after area end on the final screen
 	while (nextIndexToCopyFrom < numSourceNotes) {
@@ -1480,7 +1480,7 @@ int32_t NoteRow::changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNote
 	}
 
 	// Deallocate working memory - no longer needed
-	GeneralMemoryAllocator::get().dealloc(searchTerms);
+	delugeDealloc(searchTerms);
 
 	return NO_ERROR;
 }

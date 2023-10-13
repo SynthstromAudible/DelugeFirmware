@@ -29,24 +29,19 @@ MasterCompressor::MasterCompressor() {
 	gr = 0.0;
 	wet = 1.0;
 }
-
+//with floats baseline is 60-90us
 void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples, int32_t masterVolumeAdjustmentL,
                               int32_t masterVolumeAdjustmentR) {
 
 	StereoSample* thisSample = buffer;
 	StereoSample* bufferEnd = buffer + numSamples;
 	if (compressor.getThresh() < -0.001) {
-		double adjustmentL = (masterVolumeAdjustmentL) / 4294967296.0; //  *2.0 is <<1 from multiply_32x32_rshift32
-		double adjustmentR = (masterVolumeAdjustmentR) / 4294967296.0;
-		if (adjustmentL < 0.000001)
-			adjustmentL = 0.000001;
-		if (adjustmentR < 0.000001)
-			adjustmentR = 0.000001;
 		do {
-			double l = thisSample->l / (double)ONE_Q31 / adjustmentL;
-			double r = thisSample->r / (double)ONE_Q31 / adjustmentR;
-			double rawl = l;
-			double rawr = r;
+			//correct for input level
+			float l = lshiftAndSaturate<5>(thisSample->l) / (float)ONE_Q31;
+			float r = lshiftAndSaturate<5>(thisSample->r) / (float)ONE_Q31;
+			float rawl = l;
+			float rawr = r;
 			compressor.process(l, r);
 			if (thisSample == bufferEnd - 1 && fabs(rawl) > 0.00000001 && fabs(rawr) > 0.00000001) {
 				gr = chunkware_simple::lin2dB(l / rawl);
@@ -61,80 +56,18 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples, int32_t
 				r = rawr * (1.0 - wet) + r * wet;
 			}
 
-			thisSample->l = l * ONE_Q31;
-			thisSample->r = r * ONE_Q31;
-			thisSample->l = multiply_32x32_rshift32(thisSample->l, masterVolumeAdjustmentL);
-			thisSample->r = multiply_32x32_rshift32(thisSample->r, masterVolumeAdjustmentR);
+			thisSample->l = l * ONE_Q31 / (1 << 5);
+			thisSample->r = r * ONE_Q31 / (1 << 5);
 
 		} while (++thisSample != bufferEnd);
 	}
 }
-
-namespace chunkware_simple {
-//-------------------------------------------------------------
-// envelope detector
-//-------------------------------------------------------------
-EnvelopeDetector::EnvelopeDetector(double timeConstant, double sampleRate) {
-	assert(sampleRate > 0.0);
-	assert(timeConstant > 0.0);
-	sampleRate_ = sampleRate;
-	timeConstant_ = timeConstant;
-	setCoef();
+void MasterCompressor::setup(int32_t attack, int32_t release, int32_t threshold, int32_t ratio, int32_t makeup,
+                             int32_t mix) {
+	compressor.setAttack((float)attack / 100.0);
+	compressor.setRelease((float)release / 100.0);
+	compressor.setThresh((float)threshold / 100.0);
+	compressor.setRatio(1.0 / ((float)ratio / 100.0));
+	setMakeup((float)makeup / 100.0);
+	wet = (float)makeup / 100.0;
 }
-//-------------------------------------------------------------
-void EnvelopeDetector::setTc(double timeConstant) {
-	assert(timeConstant > 0.0);
-	timeConstant_ = timeConstant;
-	setCoef();
-}
-//-------------------------------------------------------------
-void EnvelopeDetector::setSampleRate(double sampleRate) {
-	assert(sampleRate > 0.0);
-	sampleRate_ = sampleRate;
-	setCoef();
-}
-//-------------------------------------------------------------
-void EnvelopeDetector::setCoef(void) {
-	nSamplesInverse_ = exp(-1000.0 / (timeConstant_ * sampleRate_));
-}
-
-//-------------------------------------------------------------
-// attack/release envelope
-//-------------------------------------------------------------
-AttRelEnvelope::AttRelEnvelope(double att_ms, double rel_ms, double sampleRate)
-    : attackEnvelope_(att_ms, sampleRate), releaseEnvelope_(rel_ms, sampleRate) {
-}
-//-------------------------------------------------------------
-void AttRelEnvelope::setAttack(double ms) {
-	attackEnvelope_.setTc(ms);
-}
-//-------------------------------------------------------------
-void AttRelEnvelope::setRelease(double ms) {
-	releaseEnvelope_.setTc(ms);
-}
-//-------------------------------------------------------------
-void AttRelEnvelope::setSampleRate(double sampleRate) {
-	attackEnvelope_.setSampleRate(sampleRate);
-	releaseEnvelope_.setSampleRate(sampleRate);
-}
-
-//-------------------------------------------------------------
-// simple compressor
-//-------------------------------------------------------------
-SimpleComp::SimpleComp() : AttRelEnvelope(10.0, 100.0), threshdB_(0.0), ratio_(1.0), envdB_(DC_OFFSET) {
-}
-//-------------------------------------------------------------
-void SimpleComp::setThresh(double dB) {
-	threshdB_ = dB;
-}
-//-------------------------------------------------------------
-void SimpleComp::setRatio(double ratio) {
-	assert(ratio > 0.0);
-	ratio_ = ratio;
-}
-//-------------------------------------------------------------
-void SimpleComp::initRuntime(void) {
-	envdB_ = DC_OFFSET;
-}
-
-} // end namespace chunkware_simple

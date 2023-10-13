@@ -58,23 +58,6 @@ uint32_t hexToIntFixedLength(char const* __restrict__ hexChars, int32_t length);
 void byteToHex(uint8_t number, char* buffer);
 uint8_t hexToByte(char const* firstChar);
 
-static inline int32_t add_saturation(int32_t a, int32_t b) __attribute__((always_inline, unused));
-static inline int32_t add_saturation(int32_t a, int32_t b) {
-	int32_t out;
-	asm("qadd %0, %1, %2" : "=r"(out) : "r"(a), "r"(b));
-	return out;
-}
-
-// computes limit((val >> rshift), 2**bits)
-template <uint8_t bits>
-static inline int32_t signed_saturate(int32_t val) __attribute__((always_inline, unused));
-template <uint8_t bits>
-static inline int32_t signed_saturate(int32_t val) {
-	int32_t out;
-	asm("ssat %0, %1, %2" : "=r"(out) : "I"(bits), "r"(val));
-	return out;
-}
-
 // bits must be *less* than 32! I.e. 31 or less
 inline int32_t signed_saturate_operand_unknown(int32_t val, int32_t bits) {
 
@@ -549,12 +532,6 @@ inline uint32_t swapEndianness32(uint32_t input) {
 inline uint32_t swapEndianness2x16(uint32_t input) {
 	int32_t out;
 	asm("rev16 %0, %1" : "=r"(out) : "r"(input));
-	return out;
-}
-
-inline int32_t clz(uint32_t input) {
-	int32_t out;
-	asm("clz %0, %1" : "=r"(out) : "r"(input));
 	return out;
 }
 

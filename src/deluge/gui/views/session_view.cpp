@@ -1561,7 +1561,7 @@ doGetInstrument:
 			goto doGetInstrument;
 		}
 		newClip->~InstrumentClip();
-		GeneralMemoryAllocator::get().dealloc(memory);
+		delugeDealloc(memory);
 		display->displayError(error);
 		return NULL;
 	}
@@ -1646,7 +1646,7 @@ gotError:
 			display->displayError(error);
 gotErrorDontDisplay:
 			newClip->~InstrumentClip();
-			GeneralMemoryAllocator::get().dealloc(clipMemory);
+			delugeDealloc(clipMemory);
 			return;
 		}
 	}
@@ -3243,7 +3243,7 @@ InstrumentClip* SessionView::gridCreateClipWithNewTrack(InstrumentType type) {
 	InstrumentClip* newClip = new (memory) InstrumentClip(currentSong);
 	if (!gridCreateNewTrackForClip(type, newClip, true)) {
 		newClip->~InstrumentClip();
-		GeneralMemoryAllocator::get().dealloc(memory);
+		delugeDealloc(memory);
 		return nullptr;
 	}
 
@@ -3311,7 +3311,7 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 
 	if (currentSong->sessionClips.insertClipAtIndex(newClip, 0) != NO_ERROR) {
 		newClip->~Clip();
-		GeneralMemoryAllocator::get().dealloc(newClip);
+		delugeDealloc(newClip);
 		display->displayError(ERROR_INSUFFICIENT_RAM);
 		return nullptr;
 	}

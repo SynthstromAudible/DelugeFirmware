@@ -2307,7 +2307,7 @@ dontUseCache : {}
 				if (source->livePitchShifter && source->livePitchShifter->mayBeRemovedWithoutClick()) {
 					Debug::println("stop pitch shifting");
 					source->livePitchShifter->~LivePitchShifter();
-					GeneralMemoryAllocator::get().dealloc(source->livePitchShifter);
+					delugeDealloc(source->livePitchShifter);
 					source->livePitchShifter = NULL;
 				}
 			}

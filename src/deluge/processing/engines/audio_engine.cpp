@@ -610,7 +610,7 @@ startAgain:
 	// Render audio for song
 	if (currentSong) {
 		bool interruptsDisabled = false;
-		if (!intc_func_active) {
+		if (intc_func_active == 0) {
 			__disable_irq();
 			interruptsDisabled = true;
 		}
@@ -755,11 +755,11 @@ startAgain:
 			}
 		}
 	}
-
+	logAction("mastercomp start");
 	mastercompressor.render(renderingBuffer, numSamples, masterVolumeAdjustmentL, masterVolumeAdjustmentR);
 	masterVolumeAdjustmentL <<= 2;
 	masterVolumeAdjustmentR <<= 2;
-
+	logAction("mastercomp end");
 	metronome.render(renderingBuffer, numSamples);
 
 	// Monitoring setup
@@ -1189,12 +1189,13 @@ void getReverbParamsFromSong(Song* song) {
 }
 
 void getMasterCompressorParamsFromSong(Song* song) {
-	AudioEngine::mastercompressor.compressor.setAttack(song->masterCompressorAttack);
-	AudioEngine::mastercompressor.compressor.setRelease(song->masterCompressorRelease);
-	AudioEngine::mastercompressor.compressor.setThresh(song->masterCompressorThresh);
-	AudioEngine::mastercompressor.compressor.setRatio(song->masterCompressorRatio);
-	AudioEngine::mastercompressor.setMakeup(song->masterCompressorMakeup);
-	AudioEngine::mastercompressor.wet = song->masterCompressorWet;
+	int32_t a = song->masterCompressorAttack;
+	int32_t r = song->masterCompressorRelease;
+	int32_t t = song->masterCompressorThresh;
+	int32_t rat = song->masterCompressorRatio;
+	int32_t m = song->masterCompressorMakeup;
+	int32_t w = song->masterCompressorWet;
+	mastercompressor.setup(a, r, t, rat, m, w);
 }
 
 Voice* solicitVoice(Sound* forSound) {
@@ -1267,7 +1268,7 @@ void unassignVoice(Voice* voice, Sound* sound, ModelStackWithSoundFlags* modelSt
 }
 
 void disposeOfVoice(Voice* voice) {
-	GeneralMemoryAllocator::get().dealloc(voice);
+	delugeDealloc(voice);
 }
 
 VoiceSample* solicitVoiceSample() {
@@ -1292,7 +1293,7 @@ void voiceSampleUnassigned(VoiceSample* voiceSample) {
 		firstUnassignedVoiceSample = voiceSample;
 	}
 	else {
-		GeneralMemoryAllocator::get().dealloc(voiceSample);
+		delugeDealloc(voiceSample);
 	}
 }
 
@@ -1321,7 +1322,7 @@ void timeStretcherUnassigned(TimeStretcher* timeStretcher) {
 		firstUnassignedTimeStretcher = timeStretcher;
 	}
 	else {
-		GeneralMemoryAllocator::get().dealloc(timeStretcher);
+		delugeDealloc(timeStretcher);
 	}
 }
 
@@ -1379,7 +1380,7 @@ void doRecorderCardRoutines() {
 			Debug::println("deleting recorder");
 			*prevPointer = recorder->next;
 			recorder->~SampleRecorder();
-			GeneralMemoryAllocator::get().dealloc(recorder);
+			delugeDealloc(recorder);
 		}
 
 		// Otherwise, move on
@@ -1418,7 +1419,7 @@ void slowRoutine() {
 		if (liveInputBuffers[i]) {
 			if (liveInputBuffers[i]->upToTime != audioSampleTimer) {
 				liveInputBuffers[i]->~LiveInputBuffer();
-				GeneralMemoryAllocator::get().dealloc(liveInputBuffers[i]);
+				delugeDealloc(liveInputBuffers[i]);
 				liveInputBuffers[i] = NULL;
 			}
 		}
@@ -1444,7 +1445,7 @@ SampleRecorder* getNewRecorder(int32_t numChannels, AudioRecordingFolder folderI
 	error = newRecorder->setup(numChannels, mode, keepFirstReasons, writeLoopPoints, folderID, buttonPressLatency);
 	if (error) {
 		newRecorder->~SampleRecorder();
-		GeneralMemoryAllocator::get().dealloc(recorderMemory);
+		delugeDealloc(recorderMemory);
 		return NULL;
 	}
 
@@ -1480,7 +1481,7 @@ void discardRecorder(SampleRecorder* recorder) {
 	}
 
 	recorder->~SampleRecorder();
-	GeneralMemoryAllocator::get().dealloc(recorder);
+	delugeDealloc(recorder);
 }
 
 bool isAnyInternalRecordingHappening() {

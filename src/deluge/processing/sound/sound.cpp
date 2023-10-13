@@ -355,7 +355,7 @@ bool Sound::setModFXType(ModFXType newType) {
 			}
 		}
 		if (modFXGrainBuffer) {
-			GeneralMemoryAllocator::get().dealloc(modFXGrainBuffer);
+			delugeDealloc(modFXGrainBuffer);
 			modFXGrainBuffer = NULL;
 		}
 	}
@@ -368,17 +368,17 @@ bool Sound::setModFXType(ModFXType newType) {
 			}
 		}
 		if (modFXBuffer) {
-			GeneralMemoryAllocator::get().dealloc(modFXBuffer);
+			delugeDealloc(modFXBuffer);
 			modFXBuffer = NULL;
 		}
 	}
 	else {
 		if (modFXBuffer) {
-			GeneralMemoryAllocator::get().dealloc(modFXBuffer);
+			delugeDealloc(modFXBuffer);
 			modFXBuffer = NULL;
 		}
 		if (modFXGrainBuffer) {
-			GeneralMemoryAllocator::get().dealloc(modFXGrainBuffer);
+			delugeDealloc(modFXGrainBuffer);
 			modFXGrainBuffer = NULL;
 		}
 	}

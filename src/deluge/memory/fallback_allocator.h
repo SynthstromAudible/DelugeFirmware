@@ -27,7 +27,7 @@ public:
 		return static_cast<T*>(GeneralMemoryAllocator::get().allocNonAudio(n * sizeof(T)));
 	}
 
-	void deallocate(T* p, std::size_t n) { GeneralMemoryAllocator::get().deallocNonAudio(p); }
+	void deallocate(T* p, std::size_t n) { delugeDeallocNonAudio(p); }
 
 	template <typename U>
 	bool operator==(const deluge::memory::fallback_allocator<U>& o) {

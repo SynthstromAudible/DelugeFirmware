@@ -928,6 +928,12 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 				display->displayPopup(buffer);
 				return ActionResult::DEALT_WITH;
 			}
+
+			else if (x == 13) {
+				intToString(picFirmwareVersion, buffer);
+				display->displayPopup(buffer);
+				return ActionResult::DEALT_WITH;
+			}
 		}
 
 		exitCompletely();

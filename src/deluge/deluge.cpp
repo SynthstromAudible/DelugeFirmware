@@ -119,15 +119,12 @@ Song* currentSong = NULL;
 Song* preLoadedSong = NULL;
 
 bool sdRoutineLock = true;
-bool inInterrupt = false;
 
 bool allowSomeUserActionsEvenWhenInCardRoutine = false;
 
 extern "C" void timerGoneOff(void) {
-	inInterrupt = true;
 	cvEngine.updateGateOutputs();
 	midiEngine.flushMIDI();
-	inInterrupt = false;
 }
 
 uint32_t timeNextGraphicsTick = 0;
@@ -258,7 +255,7 @@ extern "C" void closeUSBHost();
 extern "C" void openUSBPeripheral();
 extern "C" void closeUSBPeripheral(void);
 
-int32_t picFirmwareVersion = 0;
+uint32_t picFirmwareVersion = 0;
 bool picSaysOLEDPresent = false;
 
 bool readButtonsAndPads() {
@@ -842,7 +839,7 @@ extern "C" void logAudioAction(char const* string) {
 
 extern "C" void routineForSD(void) {
 
-	if (inInterrupt) {
+	if (intc_func_active != 0) {
 		return;
 	}
 
@@ -909,7 +906,7 @@ void deleteOldSongBeforeLoadingNew() {
 	currentSong = NULL;
 	void* toDealloc = dynamic_cast<void*>(toDelete);
 	toDelete->~Song();
-	GeneralMemoryAllocator::get().dealloc(toDelete);
+	delugeDealloc(toDelete);
 }
 
 #if ALLOW_SPAM_MODE

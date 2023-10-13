@@ -89,7 +89,7 @@ void VoiceUnisonPartSource::unassign() {
 	}
 
 	if (livePitchShifter) {
-		GeneralMemoryAllocator::get().dealloc(livePitchShifter);
+		delugeDealloc(livePitchShifter);
 		livePitchShifter = NULL;
 	}
 }
