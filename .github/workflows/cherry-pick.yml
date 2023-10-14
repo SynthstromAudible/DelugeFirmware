@@ -1,0 +1,32 @@
+name: Cherry pick
+
+on:
+  pull_request_target:
+    branches:
+      - community
+    types: ["closed"]
+
+permissions:
+  issues: read
+  pull-requests: write
+  contents: write
+
+
+jobs:
+  cherry_pick_release_v1_0:
+    runs-on: ubuntu-latest
+    name: Cherry pick into release-v1.0
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'release-1.0') && github.event.pull_request.merged == true }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Cherry pick into release/1.0
+        uses: carloscastrojumo/github-cherry-pick-action@v1.0.1
+        with:
+          branch: release/1.0
+          labels: |
+            cherry-pick
+          reviewers: |
+            m-m-adams
