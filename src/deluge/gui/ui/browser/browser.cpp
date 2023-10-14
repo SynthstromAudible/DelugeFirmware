@@ -80,9 +80,8 @@ bool Browser::opened() {
 	arrivedAtFileByTyping = false;
 	allowedFileExtensions = allowedFileExtensionsXML;
 	allowFoldersSharingNameWithFile = false;
-	if (display->have7SEG()) {
-		numberEditPos = -1;
-	}
+
+	numberEditPos = -1;
 
 	return QwertyUI::opened();
 }
