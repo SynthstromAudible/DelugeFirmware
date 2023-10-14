@@ -1,5 +1,5 @@
 /*
- * Copyright © 2018-2023 Synthstrom Audible Limited
+ * Copyright (c) 2014-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -13,23 +13,20 @@
  *
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
- */
-
+*/
 #pragma once
+#include "gui/menu_item/toggle.h"
+#include "gui/ui/sound_editor.h"
+#include "io/midi/midi_device_manager.h"
 
-#include "definitions_cxx.hpp"
-#include "model/sample/sample_holder_for_voice.h"
-#include "storage/multi_range/multi_range.h"
-#include "util/d_string.h"
-
-class Source;
-class Sample;
-class Cluster;
-
-class MultisampleRange final : public MultiRange {
+namespace deluge::gui::menu_item::midi {
+class SendClock final : public Toggle {
 public:
-	MultisampleRange();
-	AudioFileHolder* getAudioFileHolder() override;
-
-	SampleHolderForVoice sampleHolder;
+	using Toggle::Toggle;
+	void readCurrentValue() override { this->setValue(soundEditor.currentMIDIDevice->sendClock); }
+	void writeCurrentValue() override {
+		soundEditor.currentMIDIDevice->sendClock = this->getValue();
+		MIDIDeviceManager::anyChangesToSave = true;
+	}
 };
+} // namespace deluge::gui::menu_item::midi
