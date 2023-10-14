@@ -31,6 +31,7 @@ extern "C" {
 
 MIDIDevice::MIDIDevice() {
 	connectionFlags = 0;
+	sendClock = true;
 	defaultVelocityToLevel = 0; // Means none set.
 	memset(defaultInputMPEValuesPerMIDIChannel, 0, sizeof(defaultInputMPEValuesPerMIDIChannel));
 
@@ -172,7 +173,8 @@ void MIDIDevice::sendAllMCMs() {
 
 bool MIDIDevice::worthWritingToFile() {
 	return (ports[MIDI_DIRECTION_INPUT_TO_DELUGE].worthWritingToFile()
-	        || ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].worthWritingToFile() || hasDefaultVelocityToLevelSet());
+	        || ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].worthWritingToFile() || hasDefaultVelocityToLevelSet()
+	        || !sendClock);
 }
 
 void MIDIDevice::writePorts() {
@@ -194,6 +196,9 @@ void MIDIDevice::readFromFile() {
 		else if (!strcmp(tagName, "defaultVolumeVelocitySensitivity")) {
 			defaultVelocityToLevel = storageManager.readTagOrAttributeValueInt();
 		}
+		else if (!strcmp(tagName, "sendClock")) {
+			sendClock = storageManager.readTagOrAttributeValueInt();
+		}
 
 		storageManager.exitTag();
 	}
@@ -203,6 +208,7 @@ void MIDIDevice::writeDefinitionAttributesToFile() { // These only go into MIDID
 	if (hasDefaultVelocityToLevelSet()) {
 		storageManager.writeAttribute("defaultVolumeVelocitySensitivity", defaultVelocityToLevel);
 	}
+	storageManager.writeAttribute("sendClock", sendClock);
 }
 
 void MIDIDevice::writeToFile(char const* tagName) {

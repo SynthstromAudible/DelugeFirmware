@@ -19,3 +19,7 @@
 
 MultiWaveTableRange::MultiWaveTableRange() {
 }
+
+AudioFileHolder* MultiWaveTableRange::getAudioFileHolder() {
+	return static_cast<AudioFileHolder*>(&waveTableHolder);
+}

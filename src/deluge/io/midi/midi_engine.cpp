@@ -512,7 +512,6 @@ void MidiEngine::sendUsbMidi(uint8_t statusType, uint8_t channel, uint8_t data1,
 
 	//formats message per USB midi spec on virtual cable 0
 	uint32_t fullMessage = setupUSBMessage(statusType, channel, data1, data2);
-
 	for (int32_t ip = 0; ip < USB_NUM_USBIP; ip++) {
 		int32_t potentialNumDevices = getPotentialNumConnectedUSBMIDIDevices(ip);
 
@@ -523,15 +522,20 @@ void MidiEngine::sendUsbMidi(uint8_t statusType, uint8_t channel, uint8_t data1,
 			}
 			int32_t maxPort = connectedDevice->maxPortConnected;
 			for (int32_t p = 0; p <= maxPort; p++) {
+				//if device exists, it's not port 3 (for sysex)
 				if (connectedDevice->device[p]
-				    && connectedDevice->device[p] != &MIDIDeviceManager::upstreamUSBMIDIDevice_port3
-				    && (statusType == 0x0F
-				        || connectedDevice->device[p]->wantsToOutputMIDIOnChannel(channel, filter))) {
+				    && connectedDevice->device[p] != &MIDIDeviceManager::upstreamUSBMIDIDevice_port3) {
+					//if it's a clock (or sysex technically but we don't send that to this function)
+					//or if it's a message that this channel wants
+					if ((statusType == 0x0F && connectedDevice->device[p]->sendClock)
+					    || (statusType != 0x0F
+					        && connectedDevice->device[p]->wantsToOutputMIDIOnChannel(channel, filter))) {
 
-					//Or with the port to add the cable number to the full message. This
-					//is a bit hacky but it works
-					uint32_t channeled_message = fullMessage | (p << 4);
-					connectedDevice->bufferMessage(channeled_message);
+						//Or with the port to add the cable number to the full message. This
+						//is a bit hacky but it works
+						uint32_t channeled_message = fullMessage | (p << 4);
+						connectedDevice->bufferMessage(channeled_message);
+					}
 				}
 			}
 		}
