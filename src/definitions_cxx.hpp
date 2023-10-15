@@ -818,9 +818,10 @@ enum class ExistenceChangeType {
 enum CCNumber {
 	CC_NUMBER_PITCH_BEND = 120,
 	CC_NUMBER_AFTERTOUCH = 121,
-	CC_NUMBER_NONE = 122,
+	CC_NUMBER_Y_AXIS = 122,
+	CC_NUMBER_NONE = 123,
 };
-constexpr int32_t kNumCCNumbersIncludingFake = 123;
+constexpr int32_t kNumCCNumbersIncludingFake = 124;
 constexpr int32_t kNumRealCCNumbers = 120;
 
 enum class InstrumentRemoval {
