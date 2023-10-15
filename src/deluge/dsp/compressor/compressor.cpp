@@ -164,7 +164,7 @@ prepareForRelease:
 			}
 			else {
 				pos = 0;
-				status = EnvelopeStage::OFF;
+				status = EnvelopeStage::HOLD;
 			}
 		}
 		//lastValue = (multiply_32x32_rshift32(envelopeHeight, decayTable4[pos >> 13]) << 1) + envelopeOffset; // Goes down quickly at first. Bad
