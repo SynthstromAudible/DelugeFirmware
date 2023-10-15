@@ -62,6 +62,81 @@
 #include "deluge/deluge.h"
 #include <string.h> //memset
 
+// optimized version of memset
+// we split up the region into several segments
+//
+// base_ptr
+// * store single bytes
+// mid1
+// * store words, 4 at a time
+// mid2
+// * store words, 1 at a time
+// mid3
+// * store single bytes
+// end
+//
+// For large buffers, most of the time is spent between mid1 and mid2 which is
+// highly optimized.
+void* memset(void* base_ptr, int x, size_t length) {
+	const uint32_t int_size = sizeof(uint32_t);
+	//static_assert(sizeof(uint32_t) == 4, "only supports 32 bit size");
+	// find first word-aligned address
+	uint32_t ptr = (uint32_t)base_ptr;
+	// get end of memory to set
+	uint32_t end = ptr + length;
+	// get location of first word-aligned address at/after the start, but not
+	// after the end
+	uint32_t mid1 = (ptr + int_size - 1) / int_size * int_size;
+	if (mid1 > end) {
+		mid1 = end;
+	}
+	// get location of last word-aligned address at/before the end
+	uint32_t mid3 = end / int_size * int_size;
+	// get end location of optimized section
+	uint32_t mid2 = mid1 + (mid3 - mid1) / (4 * int_size) * (4 * int_size);
+	// create a word-sized integer
+	uint32_t value = 0;
+	for (uint16_t i = 0; i < int_size; ++i) {
+		value <<= 8;
+		value |= (uint8_t)x;
+	}
+	asm volatile(
+	    // store bytes
+	    "b Compare1%=\n"
+	    "Store1%=:\n"
+	    "strb %[value], [%[ptr]], #1\n"
+	    "Compare1%=:\n"
+	    "cmp %[ptr], %[mid1]\n"
+	    "bcc Store1%=\n"
+	    // store words optimized
+	    "b Compare2%=\n"
+	    "Store2%=:\n"
+	    "str %[value], [%[ptr]], #4\n"
+	    "str %[value], [%[ptr]], #4\n"
+	    "str %[value], [%[ptr]], #4\n"
+	    "str %[value], [%[ptr]], #4\n"
+	    "Compare2%=:\n"
+	    "cmp %[ptr], %[mid2]\n"
+	    "bcc Store2%=\n"
+	    // store words
+	    "b Compare3%=\n"
+	    "Store3%=:\n"
+	    "str %[value], [%[ptr]], #4\n"
+	    "Compare3%=:\n"
+	    "cmp %[ptr], %[mid3]\n"
+	    "bcc Store3%=\n"
+	    // store bytes
+	    "b Compare4%=\n"
+	    "Store4%=:\n"
+	    "strb %[value], [%[ptr]], #1\n"
+	    "Compare4%=:\n"
+	    "cmp %[ptr], %[end]\n"
+	    "bcc Store4%=\n"
+	    : // no outputs
+	    : [value] "r"(value), [ptr] "r"(ptr), [mid1] "r"(mid1), [mid2] "r"(mid2), [mid3] "r"(mid3), [end] "r"(end));
+	return base_ptr;
+}
+
 #if defined(__thumb2__) || (defined(__thumb__) && defined(__ARM_ARCH_6M__))
 #define THUMB_V7_V6M
 #endif
