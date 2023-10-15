@@ -43,7 +43,8 @@ public:
 	//returns a gain compensation value
 	q31_t configure(q31_t frequency, q31_t resonance, FilterMode lpfMode, q31_t lpfMorph, q31_t filterGain) {
 		//lpfmorph comes in q28 but we want q31
-		return static_cast<T*>(this)->setConfig(frequency, resonance, lpfMode, 4 * lpfMorph, filterGain);
+		return static_cast<T*>(this)->setConfig(frequency, resonance, lpfMode, lshiftAndSaturate<2>(lpfMorph),
+		                                        filterGain);
 	}
 	/**
 	 * Filter a buffer of mono samples from startSample to endSample incrememnting by the increment
