@@ -26,6 +26,7 @@ Compressor::Compressor() {
 	status = EnvelopeStage::OFF;
 	lastValue = 2147483647;
 	pos = 0;
+	follower = false;
 	attack = getParamFromUserValue(Param::Static::COMPRESSOR_ATTACK, 7);
 	release = getParamFromUserValue(Param::Static::COMPRESSOR_RELEASE, 28);
 	pendingHitStrength = 0;
@@ -47,6 +48,7 @@ Compressor::Compressor() {
 }
 
 void Compressor::cloneFrom(Compressor* other) {
+	follower = other->follower;
 	attack = other->attack;
 	release = other->release;
 	syncLevel = other->syncLevel;
@@ -142,17 +144,28 @@ int32_t Compressor::render(uint16_t numSamples, int32_t shapeValue) {
 			envelopeHeight = lastValue - envelopeOffset;
 			pos = 0;
 		}
+		//or if we're working in follower mode, in which case we want to start releasing whenever the current hit strength is below the envelope level
+		else if (follower) {
+			envelopeOffset = newOffset;
+			goto prepareForRelease;
+		}
 	}
 
 	if (status == EnvelopeStage::ATTACK) {
 		pos += numSamples * getActualAttackRate();
 
 		if (pos >= 8388608) {
+			if (!follower) {
 prepareForRelease:
-			pos = 0;
-			status = EnvelopeStage::RELEASE;
-			envelopeHeight = ONE_Q31 - envelopeOffset;
-			goto doRelease;
+				pos = 0;
+				status = EnvelopeStage::RELEASE;
+				envelopeHeight = ONE_Q31 - envelopeOffset;
+				goto doRelease;
+			}
+			else {
+				pos = 0;
+				status = EnvelopeStage::OFF;
+			}
 		}
 		//lastValue = (multiply_32x32_rshift32(envelopeHeight, decayTable4[pos >> 13]) << 1) + envelopeOffset; // Goes down quickly at first. Bad
 		//lastValue = (multiply_32x32_rshift32(envelopeHeight, 2147483647 - (pos << 8)) << 1) + envelopeOffset; // Straight line
