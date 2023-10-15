@@ -163,7 +163,7 @@ noParam:
 		paramId = 0;
 		goto expressionParam;
 
-	case 74:
+	case CC_NUMBER_Y_AXIS:
 		paramId = 1;
 		goto expressionParam;
 

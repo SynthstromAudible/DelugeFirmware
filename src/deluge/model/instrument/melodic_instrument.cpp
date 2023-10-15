@@ -375,7 +375,7 @@ void MelodicInstrument::offerReceivedCC(ModelStackWithTimelineCounter* modelStac
 		if (ccNumber == yCC) {
 			//this also passes CC1 to the instrument, but that's important for midi instruments
 			//or internal synths that have CC1 learnt to a parameter instead of used as modwheel
-			processParamFromInputMIDIChannel(74, value32, modelStackWithTimelineCounter);
+			processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, value32, modelStackWithTimelineCounter);
 		}
 		// If it's a MIDI Clip...
 		if (type == InstrumentType::MIDI_OUT) {
@@ -545,7 +545,7 @@ MelodicInstrument::getParamToControlFromInputMIDIChannel(int32_t cc, ModelStackW
 		paramId = 0;
 		break;
 
-	case 74:
+	case CC_NUMBER_Y_AXIS:
 		paramId = 1;
 		break;
 
