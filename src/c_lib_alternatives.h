@@ -15,20 +15,19 @@
 #define LEAF_PROTECT_BIT 2
 
 #ifdef __ARM_FEATURE_PAC_DEFAULT
-# define HAVE_PAC_LEAF \
-	((__ARM_FEATURE_PAC_DEFAULT & (1 << LEAF_PROTECT_BIT)) && 1)
+#define HAVE_PAC_LEAF ((__ARM_FEATURE_PAC_DEFAULT & (1 << LEAF_PROTECT_BIT)) && 1)
 #else
-# define HAVE_PAC_LEAF 0
+#define HAVE_PAC_LEAF 0
 #endif
 
 /* Provide default parameters for PAC-code handling in leaf-functions.  */
 #if HAVE_PAC_LEAF
-# ifndef PAC_LEAF_PUSH_IP
-#  define PAC_LEAF_PUSH_IP 1
-# endif
+#ifndef PAC_LEAF_PUSH_IP
+#define PAC_LEAF_PUSH_IP 1
+#endif
 #else /* !HAVE_PAC_LEAF */
-# undef PAC_LEAF_PUSH_IP
-# define PAC_LEAF_PUSH_IP 0
+#undef PAC_LEAF_PUSH_IP
+#define PAC_LEAF_PUSH_IP 0
 #endif /* HAVE_PAC_LEAF */
 
 #define STACK_ALIGN_ENFORCE 0
@@ -100,7 +99,7 @@
 ******************************************************************************/
 
 /* Emit .cfi_restore directives for a consecutive sequence of registers.  */
-	.macro cfirestorelist first, last
+.macro cfirestorelist first, last
 	.cfi_restore \last
 	.if \last-\first
 	 cfirestorelist \first, \last-1
@@ -130,16 +129,16 @@
 	 .endif
 	.endif
 #if HAVE_PAC_LEAF
-# if __ARM_FEATURE_BTI_DEFAULT
+#if __ARM_FEATURE_BTI_DEFAULT
 	pacbti	ip, lr, sp
-# else
+#else
 	pac	ip, lr, sp
-# endif /* __ARM_FEATURE_BTI_DEFAULT */
+#endif /* __ARM_FEATURE_BTI_DEFAULT */
 	.cfi_register 143, 12
 #else
-# if __ARM_FEATURE_BTI_DEFAULT
+#if __ARM_FEATURE_BTI_DEFAULT
 	bti
-# endif /* __ARM_FEATURE_BTI_DEFAULT */
+#endif /* __ARM_FEATURE_BTI_DEFAULT */
 #endif /* HAVE_PAC_LEAF */
 	.if \first != -1
 	 .if \last != \first
@@ -447,33 +446,32 @@
 	.endif
 .endm
 
-#define ENTRY_ALIGN(name, alignment)	\
-  .global name;		\
-  .type name,%function;	\
-  .align alignment;		\
-  name:			\
-  .fnstart;		\
-  .cfi_startproc;
+#define ENTRY_ALIGN(name, alignment)                                                                                   \
+	.global name;                                                                                                      \
+	.type name, % function;                                                                                            \
+	.align alignment;                                                                                                  \
+name:                                                                                                                  \
+	.fnstart;                                                                                                          \
+	.cfi_startproc;
 
-#define ENTRY(name)	ENTRY_ALIGN(name, 6)
+#define ENTRY(name) ENTRY_ALIGN(name, 6)
 
-#define ENTRY_ALIAS(name)	\
-  .global name;		\
-  .type name,%function;	\
-  name:
+#define ENTRY_ALIAS(name)                                                                                              \
+	.global name;                                                                                                      \
+	.type name, % function;                                                                                            \
+name:
 
-#if defined (IS_LEAF)
-# define END_UNWIND .cantunwind;
+#if defined(IS_LEAF)
+#define END_UNWIND .cantunwind;
 #else
-# define END_UNWIND
+#define END_UNWIND
 #endif
 
-#define END(name)	\
-  .cfi_endproc;		\
-  END_UNWIND		\
-  .fnend;		\
-  .size name, .-name;
+#define END(name)                                                                                                      \
+	.cfi_endproc;                                                                                                      \
+	END_UNWIND.fnend;                                                                                                  \
+	.size name, .- name;
 
-#define L(l) .L ## l
+#define L(l) .L##l
 
 #endif

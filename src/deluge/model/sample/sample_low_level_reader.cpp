@@ -872,7 +872,7 @@ doZeroes:
 }
 
 #pragma GCC push_options
-#pragma GCC optimize ("no-tree-loop-distribute-patterns")
+#pragma GCC optimize("no-tree-loop-distribute-patterns")
 void SampleLowLevelReader::bufferIndividualSampleForInterpolation(uint32_t bitMask, int32_t numChannels,
                                                                   int32_t byteDepth, char* __restrict__ playPosNow) {
 
