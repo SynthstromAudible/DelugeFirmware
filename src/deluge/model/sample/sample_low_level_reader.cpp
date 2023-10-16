@@ -871,6 +871,8 @@ doZeroes:
 	return true;
 }
 
+#pragma GCC push_options
+#pragma GCC optimize ("no-tree-loop-distribute-patterns")
 void SampleLowLevelReader::bufferIndividualSampleForInterpolation(uint32_t bitMask, int32_t numChannels,
                                                                   int32_t byteDepth, char* __restrict__ playPosNow) {
 
@@ -888,6 +890,8 @@ void SampleLowLevelReader::bufferIndividualSampleForInterpolation(uint32_t bitMa
 		interpolationBuffer[1][0][0] = *(int16_t*)(playPosNow + 2 + byteDepth);
 	}
 }
+
+#pragma GCC pop_options
 
 void SampleLowLevelReader::bufferZeroForInterpolation(int32_t numChannels) {
 
