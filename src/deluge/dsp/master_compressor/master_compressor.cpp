@@ -17,16 +17,16 @@
 
 #include "dsp/master_compressor/master_compressor.h"
 #include "dsp/stereo_sample.h"
-
+#include "util/fast_fixed_math.h"
 MasterCompressor::MasterCompressor() {
 	//compressor.setAttack((float)attack / 100.0);
-	attack = attackRateTable[7] << 2;
-	release = releaseRateTable[35] >> 1;
+	attack = attackRateTable[4] << 2;
+	release = releaseRateTable[3] << 2;
 	//compressor.setRelease((float)release / 100.0);
 	//compressor.setThresh((float)threshold / 100.0);
 	//compressor.setRatio(1.0 / ((float)ratio / 100.0));
 	shape = 0;
-	threshold = 8 * 1 << 25;
+	threshold = 1 << 24;
 	follower = true;
 	amount = 25 * 85899345;
 	syncLevel = SyncLevel::SYNC_LEVEL_NONE;
@@ -35,8 +35,10 @@ MasterCompressor::MasterCompressor() {
 //with floats baseline is 60-90us
 void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples) {
 	meanVolume = calc_rms(buffer, numSamples);
-	registerHit(std::max<q31_t>(0, meanVolume - threshold));
+	q31_t over = std::max<q31_t>(0, meanVolume - threshold);
+	registerHit(over);
 	out = Compressor::render(numSamples, shape);
+	q31_t expout = -getExp(16, -out);
 	//copied from global effectable
 	int32_t positivePatchedValue = multiply_32x32_rshift32(out, amount) + 536870912;
 	finalVolume = lshiftAndSaturate<5>(multiply_32x32_rshift32(positivePatchedValue, positivePatchedValue));
@@ -57,7 +59,7 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples) {
 	} while (++thisSample != bufferEnd);
 	//for LEDs
 
-	gr = (ONE_Q31 - currentVolume) >> 24;
+	gr = 126 - (std::log(float(currentVolume)) * 6.0);
 }
 
 q31_t MasterCompressor::calc_rms(StereoSample* buffer, uint16_t numSamples) {
@@ -69,9 +71,10 @@ q31_t MasterCompressor::calc_rms(StereoSample* buffer, uint16_t numSamples) {
 		sum += s;
 
 	} while (++thisSample != bufferEnd);
-	mean = sum / numSamples + mean >> 3;
+	mean = sum / numSamples;
+	//mean = float(std::sqrt(float(mean) / ONE_Q31)) * ONE_Q31;
 	//16 is 0dB
-	return (log(mean + 1)) * (1 << 25);
+	return std::log(float(mean + 1)) * float(1 << 25);
 }
 
 void MasterCompressor::setup(int32_t attack, int32_t release, int32_t threshold, int32_t ratio, int32_t makeup,

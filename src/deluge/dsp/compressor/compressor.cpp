@@ -125,11 +125,11 @@ int32_t Compressor::getActualReleaseRate() {
 int32_t Compressor::render(uint16_t numSamples, int32_t shapeValue) {
 
 	// Initial hit detected...
-	if (pendingHitStrength != 0) {
+	if (pendingHitStrength != 0 || follower) {
 		int32_t newOffset = ONE_Q31 - pendingHitStrength;
 
 		pendingHitStrength = 0;
-
+		//envelope offset is the value we're attack/decaying to
 		// Only actually do anything if this hit is going to cause a bigger dip than we're already currently experiencing
 		if (newOffset < lastValue) {
 			envelopeOffset = newOffset;
@@ -137,21 +137,26 @@ int32_t Compressor::render(uint16_t numSamples, int32_t shapeValue) {
 			// If attack is all the way down, jump directly to release stage
 			if (attack == attackRateTable[0] << 2) {
 				envelopeHeight = ONE_Q31 - envelopeOffset;
-				goto prepareForRelease;
+				pos = 0;
+				status = EnvelopeStage::RELEASE;
+			}
+			if (status != EnvelopeStage::ATTACK) {
+				status = EnvelopeStage::ATTACK;
+				pos = 0;
 			}
 
-			status = EnvelopeStage::ATTACK;
 			envelopeHeight = lastValue - envelopeOffset;
-			pos = 0;
 		}
 		//or if we're working in follower mode, in which case we want to start releasing whenever the current hit strength is below the envelope level
-		else if (follower && newOffset > lastValue) {
+		else if (follower && newOffset > envelopeOffset) {
 			envelopeOffset = newOffset;
-			envelopeHeight = envelopeOffset - lastValue;
-			goto prepareForRelease;
+			envelopeHeight = newOffset - lastValue;
+			if (status != EnvelopeStage::RELEASE) {
+				pos = 0;
+				status = EnvelopeStage::RELEASE;
+			}
 		}
 	}
-
 	if (status == EnvelopeStage::ATTACK) {
 		pos += numSamples * getActualAttackRate();
 
@@ -159,6 +164,7 @@ int32_t Compressor::render(uint16_t numSamples, int32_t shapeValue) {
 			//if we're in follower mode then we just hold the value
 			if (!follower) {
 				envelopeHeight = ONE_Q31 - envelopeOffset;
+				envelopeOffset = ONE_Q31;
 prepareForRelease:
 				pos = 0;
 				status = EnvelopeStage::RELEASE;
@@ -166,8 +172,8 @@ prepareForRelease:
 				goto doRelease;
 			}
 			else {
-				pos = 0;
 				status = EnvelopeStage::HOLD;
+				goto doOff;
 			}
 		}
 		//lastValue = (multiply_32x32_rshift32(envelopeHeight, decayTable4[pos >> 13]) << 1) + envelopeOffset; // Goes down quickly at first. Bad
@@ -207,7 +213,7 @@ doRelease:
 			preValue = straightness * (pos >> 8) + (getDecay8(8388608 - pos, 23) >> 16) * curvedness16;
 		}
 
-		lastValue = ONE_Q31 - envelopeHeight + (multiply_32x32_rshift32(preValue, envelopeHeight) << 1);
+		lastValue = envelopeOffset - envelopeHeight + (multiply_32x32_rshift32(preValue, envelopeHeight) << 1);
 
 		//lastValue = 2147483647 - (multiply_32x32_rshift32(decayTable8[pos >> 13], envelopeHeight) << 1); // Upside down exponential curve
 		//lastValue = 2147483647 - (((int64_t)((sineWave[((pos >> 14) + 256) & 1023] >> 1) + 1073741824) * (int64_t)envelopeHeight) >> 31); // Sine wave. Not great
@@ -215,7 +221,7 @@ doRelease:
 	}
 	else { // Off
 doOff:
-		lastValue = ONE_Q31;
+		lastValue = envelopeOffset;
 	}
 
 	return lastValue - ONE_Q31;
