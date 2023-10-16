@@ -34,7 +34,7 @@ public:
 
 	void render(StereoSample* buffer, uint16_t numSamples);
 	q31_t calc_rms(StereoSample* buffer, uint16_t numSamples);
-	q31_t gr;
+	uint8_t gr;
 	q31_t threshold;
 	q31_t shape;
 	q31_t amount;
@@ -44,4 +44,5 @@ public:
 	q31_t finalVolume;
 	q31_t currentVolume;
 	q31_t amplitudeIncrement;
+	q31_t mean;
 };

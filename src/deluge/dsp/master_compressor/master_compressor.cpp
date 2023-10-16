@@ -20,26 +20,26 @@
 
 MasterCompressor::MasterCompressor() {
 	//compressor.setAttack((float)attack / 100.0);
-	attack = attackRateTable[7] << 1;
-	release = releaseRateTable[35];
+	attack = attackRateTable[7] << 2;
+	release = releaseRateTable[35] >> 1;
 	//compressor.setRelease((float)release / 100.0);
 	//compressor.setThresh((float)threshold / 100.0);
 	//compressor.setRatio(1.0 / ((float)ratio / 100.0));
-	shape = -601295438;
-	threshold = 1 * 21474836;
+	shape = 0;
+	threshold = 8 * 1 << 25;
 	follower = true;
 	amount = 25 * 85899345;
+	syncLevel = SyncLevel::SYNC_LEVEL_NONE;
 	currentVolume = 0;
 }
 //with floats baseline is 60-90us
 void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples) {
 	meanVolume = calc_rms(buffer, numSamples);
-	over = log(meanVolume + 1) * (1 << 25);
-	registerHit(over);
+	registerHit(std::max<q31_t>(0, meanVolume - threshold));
 	out = Compressor::render(numSamples, shape);
 	//copied from global effectable
 	int32_t positivePatchedValue = multiply_32x32_rshift32(out, amount) + 536870912;
-	finalVolume = multiply_32x32_rshift32(positivePatchedValue, positivePatchedValue) << 4;
+	finalVolume = lshiftAndSaturate<5>(multiply_32x32_rshift32(positivePatchedValue, positivePatchedValue));
 
 	amplitudeIncrement = (int32_t)(finalVolume - currentVolume) / numSamples;
 
@@ -56,7 +56,8 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples) {
 
 	} while (++thisSample != bufferEnd);
 	//for LEDs
-	gr = 4 * (clz(currentVolume) - 1);
+
+	gr = (ONE_Q31 - currentVolume) >> 24;
 }
 
 q31_t MasterCompressor::calc_rms(StereoSample* buffer, uint16_t numSamples) {
@@ -64,11 +65,13 @@ q31_t MasterCompressor::calc_rms(StereoSample* buffer, uint16_t numSamples) {
 	StereoSample* bufferEnd = buffer + numSamples;
 	q31_t sum = 0;
 	do {
-		q31_t s = std::max<q31_t>(0, std::abs(thisSample->l) + std::abs(thisSample->r));
+		q31_t s = std::max<q31_t>(std::abs(thisSample->l), std::abs(thisSample->r));
 		sum += s;
 
 	} while (++thisSample != bufferEnd);
-	return sum / numSamples;
+	mean = sum / numSamples + mean >> 3;
+	//16 is 0dB
+	return (log(mean + 1)) * (1 << 25);
 }
 
 void MasterCompressor::setup(int32_t attack, int32_t release, int32_t threshold, int32_t ratio, int32_t makeup,

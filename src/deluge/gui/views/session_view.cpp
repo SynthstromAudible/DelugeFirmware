@@ -1979,9 +1979,10 @@ void SessionView::graphicsRoutine() {
 				modKnobMode = *modKnobModePointer;
 		}
 		if (modKnobMode == 4) { //upper
-			int32_t gr = AudioEngine::mastercompressor.gr;
-
+			uint8_t gr = AudioEngine::mastercompressor.gr;
+			uint8_t mv = AudioEngine::mastercompressor.meanVolume >> 22;
 			indicator_leds::setKnobIndicatorLevel(1, gr); //Gain Reduction LED
+			indicator_leds::setKnobIndicatorLevel(0, mv); //Gain Reduction LED
 		}
 	}
 

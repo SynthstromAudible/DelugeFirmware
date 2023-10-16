@@ -136,6 +136,7 @@ int32_t Compressor::render(uint16_t numSamples, int32_t shapeValue) {
 
 			// If attack is all the way down, jump directly to release stage
 			if (attack == attackRateTable[0] << 2) {
+				envelopeHeight = ONE_Q31 - envelopeOffset;
 				goto prepareForRelease;
 			}
 
@@ -146,6 +147,7 @@ int32_t Compressor::render(uint16_t numSamples, int32_t shapeValue) {
 		//or if we're working in follower mode, in which case we want to start releasing whenever the current hit strength is below the envelope level
 		else if (follower && newOffset > lastValue) {
 			envelopeOffset = newOffset;
+			envelopeHeight = envelopeOffset - lastValue;
 			goto prepareForRelease;
 		}
 	}
@@ -156,10 +158,11 @@ int32_t Compressor::render(uint16_t numSamples, int32_t shapeValue) {
 		if (pos >= 8388608) {
 			//if we're in follower mode then we just hold the value
 			if (!follower) {
+				envelopeHeight = ONE_Q31 - envelopeOffset;
 prepareForRelease:
 				pos = 0;
 				status = EnvelopeStage::RELEASE;
-				envelopeHeight = ONE_Q31 - envelopeOffset;
+
 				goto doRelease;
 			}
 			else {
