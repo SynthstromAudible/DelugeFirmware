@@ -136,12 +136,12 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	reverbCompressorShape = -601295438;
 	reverbCompressorSync = SYNC_LEVEL_8TH;
 
-	masterCompressorAttack = 10.0;
-	masterCompressorRelease = 100.0;
-	masterCompressorThresh = 0.0;
-	masterCompressorRatio = 1.0 / 4.0;
-	masterCompressorMakeup = 0.0;
-	masterCompressorWet = 1.0;
+	masterCompressorAttack = 7;
+	masterCompressorRelease = 10;
+	masterCompressorThresh = 10;
+	masterCompressorRatio = 10;
+	masterCompressorMakeup = 0;
+	masterCompressorWet = 50;
 	AudioEngine::mastercompressor.gr = 0.0;
 
 	dirPath.set("SONGS");
@@ -1126,18 +1126,16 @@ weAreInArrangementEditorOrInClipInstance:
 
 	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx) == RuntimeFeatureStateToggle::On) {
 		storageManager.writeOpeningTagBeginning("masterCompressor");
-		int32_t attack = AudioEngine::mastercompressor.compressor.getAttack() * 100;
-		int32_t release = AudioEngine::mastercompressor.compressor.getRelease() * 100;
-		int32_t thresh = AudioEngine::mastercompressor.compressor.getThresh() * 100.0;
-		int32_t ratio = 1.0 / AudioEngine::mastercompressor.compressor.getRatio() * 100;
-		int32_t makeup = AudioEngine::mastercompressor.getMakeup() * 100;
-		int32_t wet = AudioEngine::mastercompressor.wet * 100;
+		int32_t attack = AudioEngine::mastercompressor.attack;
+		int32_t release = AudioEngine::mastercompressor.release;
+		int32_t thresh = AudioEngine::mastercompressor.threshold;
+		int32_t ratio = AudioEngine::mastercompressor.amount;
+
 		storageManager.writeAttribute("attack", attack);
 		storageManager.writeAttribute("release", release);
 		storageManager.writeAttribute("thresh", thresh);
 		storageManager.writeAttribute("ratio", ratio);
-		storageManager.writeAttribute("makeup", makeup);
-		storageManager.writeAttribute("wet", wet);
+
 		storageManager.closeTag();
 	}
 
@@ -2687,7 +2685,7 @@ int32_t Song::getCurrentPresetScale() {
 		// If we're here, must be this one!
 		return p;
 
-notThisOne : {}
+notThisOne: {}
 	}
 
 	return 255;
@@ -4576,7 +4574,7 @@ Instrument* Song::changeInstrumentType(Instrument* oldInstrument, InstrumentType
 			return NULL;
 		}
 
-gotAnInstrument : {}
+gotAnInstrument: {}
 	}
 
 	// Synth or Kit

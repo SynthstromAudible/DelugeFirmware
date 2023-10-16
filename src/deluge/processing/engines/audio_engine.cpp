@@ -754,7 +754,7 @@ startAgain:
 		}
 	}
 	logAction("mastercomp start");
-	mastercompressor.render(renderingBuffer, numSamples, masterVolumeAdjustmentL, masterVolumeAdjustmentR);
+	mastercompressor.render(renderingBuffer, numSamples);
 	masterVolumeAdjustmentL <<= 2;
 	masterVolumeAdjustmentR <<= 2;
 	logAction("mastercomp end");

@@ -2916,14 +2916,10 @@ void ArrangerView::graphicsRoutine() {
 				modKnobMode = *modKnobModePointer;
 		}
 
-		if (modKnobMode == 4 && abs(AudioEngine::mastercompressor.compressor.getThresh()) > 0.001) { //upper
-			double gr = AudioEngine::mastercompressor.gr;
-			if (gr >= 0)
-				gr = 0;
-			if (gr <= -12)
-				gr = -12.0;
-			gr = abs(gr);
-			indicator_leds::setKnobIndicatorLevel(1, int32_t(gr / 12.0 * 128)); //Gain Reduction LED
+		if (modKnobMode == 4) { //upper
+			int32_t gr = AudioEngine::mastercompressor.gr;
+
+			indicator_leds::setKnobIndicatorLevel(1, gr); //Gain Reduction LED
 		}
 	}
 

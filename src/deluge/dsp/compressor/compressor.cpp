@@ -48,7 +48,6 @@ Compressor::Compressor() {
 }
 
 void Compressor::cloneFrom(Compressor* other) {
-	follower = other->follower;
 	attack = other->attack;
 	release = other->release;
 	syncLevel = other->syncLevel;
@@ -145,7 +144,7 @@ int32_t Compressor::render(uint16_t numSamples, int32_t shapeValue) {
 			pos = 0;
 		}
 		//or if we're working in follower mode, in which case we want to start releasing whenever the current hit strength is below the envelope level
-		else if (follower) {
+		else if (follower && newOffset > lastValue) {
 			envelopeOffset = newOffset;
 			goto prepareForRelease;
 		}
@@ -155,6 +154,7 @@ int32_t Compressor::render(uint16_t numSamples, int32_t shapeValue) {
 		pos += numSamples * getActualAttackRate();
 
 		if (pos >= 8388608) {
+			//if we're in follower mode then we just hold the value
 			if (!follower) {
 prepareForRelease:
 				pos = 0;
