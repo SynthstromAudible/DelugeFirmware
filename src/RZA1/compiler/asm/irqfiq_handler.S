@@ -130,6 +130,7 @@ fiq_handler_end:
 /* Entry point for the IRQ handler */
 /* ================================================================== */
     .func irq_handler
+    .type irq_handler, %function
 irq_handler:
     
     SUB        lr, lr, #4                   // Make sure interrupted instruction gets executed after returining

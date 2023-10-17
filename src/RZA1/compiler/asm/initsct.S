@@ -38,6 +38,7 @@
     .global initsct
 
     .func   initsct
+    .type initsct, %function
 initsct:
 /*
     LDR  r0, = address_start_data_RAM
