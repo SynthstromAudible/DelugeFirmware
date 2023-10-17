@@ -398,15 +398,16 @@ void routine() {
 	int32_t unadjustedNumSamplesBeforeLappingPlayHead = numSamples;
 #else
 
-	if (smoothedSamples < numSamples) {
-		smoothedSamples = (numSamplesLastTime + numSamples) >> 1;
-	}
-	else {
-		smoothedSamples = numSamples;
-	}
-	if (!bypassCulling) {
-		numSamplesLastTime = numSamples;
-	}
+	//// Disable cull smoothing until we know how to keep it from soft culling multiple times but audible hard culling anyway
+	// if (smoothedSamples < numSamples) {
+	// 	smoothedSamples = (numSamplesLastTime + numSamples) >> 1;
+	// }
+	// else {
+	smoothedSamples = numSamples;
+	// }
+	// if (!bypassCulling) {
+	// 	numSamplesLastTime = numSamples;
+	// }
 
 	// Consider direness and culling - before increasing the number of samples
 	int32_t numSamplesLimit = 40; //storageManager.devVarC;
