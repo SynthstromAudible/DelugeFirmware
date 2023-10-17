@@ -37,17 +37,20 @@ MasterCompressor::MasterCompressor() {
 //with floats baseline is 60-90us
 void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples) {
 	meanVolume = calc_rms(buffer, numSamples);
-	//shift up by 10 to make it a q31, where one is max possible output
+	//shift up by 11 to make it a q31, where one is max possible output (21)
 	q31_t over = std::max<q31_t>(0, meanVolume - threshold) << 11;
 	if (over > 0) {
 		registerHit(over);
 	}
 	out = Compressor::render(numSamples, shape);
+	out = multiply_32x32_rshift32(out, ratio) << 1;
+	//21 is the max output from logmean
+	finalVolume = exp(21 * (out / ONE_Q31f)) * ONE_Q31;
 	//base is arbitrary for scale, important part is the shape
 
 	//copied from global effectable
-	int32_t positivePatchedValue = multiply_32x32_rshift32(out, ratio) + 536870912;
-	finalVolume = lshiftAndSaturate<5>(multiply_32x32_rshift32(positivePatchedValue, positivePatchedValue));
+	//int32_t positivePatchedValue = multiply_32x32_rshift32(out, ratio) + 536870912;
+	//finalVolume = lshiftAndSaturate<5>(multiply_32x32_rshift32(positivePatchedValue, positivePatchedValue));
 
 	amplitudeIncrement = (int32_t)(finalVolume - currentVolume) / numSamples;
 
@@ -67,6 +70,8 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples) {
 	gr = std::clamp<uint8_t>(-(std::log(float(currentVolume + 1) / ONE_Q31f) * 9.0) * 4, 0, 128);
 }
 
+//output range is 0-21 (2^31)
+//dac clipping is at 16
 q31_t MasterCompressor::calc_rms(StereoSample* buffer, uint16_t numSamples) {
 	StereoSample* thisSample = buffer;
 	StereoSample* bufferEnd = buffer + numSamples;
@@ -79,14 +84,17 @@ q31_t MasterCompressor::calc_rms(StereoSample* buffer, uint16_t numSamples) {
 		offset += thisSample->l;
 
 	} while (++thisSample != bufferEnd);
+	//we don't care about the low bits and they make visual noise
+	sum = (sum >> 8) << 8;
+	offset = (offset >> 8) << 8;
 	float ns = float(numSamples);
 	float rms = ONE_Q31 * sqrt((float(sum) / ONE_Q31f) / ns);
 	float dc = std::abs(offset) / ns;
 	//warning this is not good math but it's pretty close and way cheaper than doing it properly
 	mean = rms - dc / 1.4f;
 	mean = std::max(mean, 1.0f);
+
 	float logmean = std::log(mean);
 
-	//max value is 21 so this avoids clipping
 	return logmean * float(ONE_Q15);
 }
