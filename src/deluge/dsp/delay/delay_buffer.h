@@ -80,8 +80,8 @@ public:
 			*writePos = bufferStart;
 	}
 
-	[[gnu::always_inline]] inline void writeResampled(int32_t toDelayL, int32_t toDelayR, int32_t strength1, int32_t strength2,
-	                           DelayBufferSetup* setup) {
+	[[gnu::always_inline]] inline void writeResampled(int32_t toDelayL, int32_t toDelayR, int32_t strength1,
+	                                                  int32_t strength2, DelayBufferSetup* setup) {
 		// If delay buffer spinning above sample rate...
 		if (setup->actualSpinRate >= 16777216) {
 
