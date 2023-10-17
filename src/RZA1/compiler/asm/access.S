@@ -52,6 +52,7 @@
 /* Enables Privileged Access i.e. in both privileged and non privileged modes */
 /* ========================================================================== */
     .func   enable_neon_vfp_access_priv
+    .type enable_neon_vfp_access_priv, %function
 enable_neon_vfp_access_priv:
     MRC  p15, 0, r0, c1, c0, 2 /* Read Coprocessor Access Register (CPACR)    */
     ORR  r0, r0, #(0x5 << 20)  /* Enable access to CP 10 & 11                 */
@@ -67,6 +68,7 @@ enable_neon_vfp_access_priv:
 /* Enables Full Access i.e. in both privileged and non privileged modes       */
 /* ========================================================================== */
     .func   enable_neon_vfp_access_full
+    .type enable_neon_vfp_access_full, %function
 enable_neon_vfp_access_full:
     MRC  p15, 0, r0, c1, c0, 2 /* Read Coprocessor Access Register (CPACR)    */
     ORR  r0, r0, #(0xF << 22)  /* Enable access to CP 10 & 11                 */
@@ -82,6 +84,7 @@ enable_neon_vfp_access_full:
 /* Disable access to NEON/VFP by enabling access to Coprocessors 10 and 11.   */
 /* ========================================================================== */
     .func   disable_neon_vfp_access
+    .type disable_neon_vfp_access, %function
 disable_neon_vfp_access:
     MRC  p15, 0, r0, c1, c0, 2 /* Read Coprocessor Access Register (CPACR)    */
     BIC  r0, r0, #(0xF << 20)  /* Disable access to CP 10 & 11                */
@@ -95,6 +98,7 @@ disable_neon_vfp_access:
 /*  Switch on the VFP and NEON hardware                                       */
 /* ========================================================================== */
     .func neon_vfp_on
+    .type neon_vfp_on, %function
 neon_vfp_on:
     MOV  r0, #0x40000000
     //VMSR FPEXC, r0                        /* Write FPEXC register, EN bit set */
@@ -107,6 +111,7 @@ neon_vfp_on:
 /*  Switch off the VFP and NEON hardware                                      */
 /* ========================================================================== */
     .func neon_vfp_off
+    .type neon_vfp_off, %function
 neon_vfp_off:
     MOV  r0, #0x00000000
     //VMSR FPEXC, r0                      /* Write FPEXC register, EN bit clear */
@@ -120,6 +125,7 @@ neon_vfp_off:
 /* Leaving the caches disabled.                                               */
 /* ========================================================================== */
     .func enable_mmu
+    .type enable_mmu, %function
 enable_mmu:
     MRC  p15, 0, r0, c1, c0, 0     /* Read CP15 System Control register (SCTLR) */
     BIC  r0, r0, #(0x1 << 12)             /* Clear I bit 12 to disable I Cache */
@@ -137,6 +143,8 @@ enable_mmu:
 /* Leaving the caches disabled.                                               */
 /* ========================================================================== */
         .func disable_mmu
+        .type disable_mmu, %function
+
 disable_mmu:
         MRC  p15, 0, r0, c1, c0, 0       /* Read CP15 System Control register */
         BIC  r0, r0, #(0x1 << 12)        /* Clear I bit 12 to disable I Cache */
@@ -152,6 +160,7 @@ disable_mmu:
 /* VbarInit                                                                   */
 /* ========================================================================== */
 	.func VbarInit
+    .type VbarInit, %function
 VbarInit:
 /* ========================================================================== */
 /* Set Vector Base Address Register to point to application's vector table    */
@@ -168,6 +177,7 @@ VbarInit:
 /*      1 = High (High address) Vectors                                       */
 /* ========================================================================== */
     .func SetLowVectors
+    .type SetLowVectors, %function
 SetLowVectors:
     MRC  p15, 0, r0, c1, c0, 0   /* Read CP15 System Control register (SCTLR) */
     BIC  r0, r0, #(0x1 << 13)           /* Clear V bit 13 to set Low Vectors  */
@@ -183,6 +193,7 @@ SetLowVectors:
 /*      1 = High (High address) Vectors                                       */
 /* ========================================================================== */
     .func SetHighVectors
+    .type SetHighVectors, %function
 SetHighVectors:
     MRC  p15, 0, r0, c1, c0, 0   /* Read CP15 System Control register (SCTLR) */
     ORR  r0, r0, #(0x1 << 13)           /* Set V bit 13 to set High Vectors   */

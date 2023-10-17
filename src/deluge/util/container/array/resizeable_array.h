@@ -46,14 +46,14 @@ public:
 	void moveElementsLeft(int32_t oldStartIndex, int32_t oldStopIndex, int32_t distance);
 	void moveElementsRight(int32_t oldStartIndex, int32_t oldStopIndex, int32_t distance);
 
-	inline void* getElementAddress(int32_t index) {
+	[[gnu::always_inline]] inline void* getElementAddress(int32_t index) {
 		int32_t absoluteIndex = index + memoryStart;
 		if (absoluteIndex >= memorySize)
 			absoluteIndex -= memorySize;
 		return (char* __restrict__)memory + (absoluteIndex * elementSize);
 	}
 
-	inline int32_t getNumElements() { return numElements; }
+	[[gnu::always_inline]] inline int32_t getNumElements() { return numElements; }
 
 	uint32_t elementSize;
 	bool emptyingShouldFreeMemory;
