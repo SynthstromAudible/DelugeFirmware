@@ -327,7 +327,7 @@ inline int32_t getTanH(int32_t input) {
 	return interpolateTableSigned(workingValue, 32, tanHSmall, 8) >> (saturationAmount + 2);
 }
 
-inline int32_t getTanHUnknown(int32_t input, uint32_t saturationAmount) {
+[[gnu::always_inline]] inline int32_t getTanHUnknown(int32_t input, uint32_t saturationAmount) {
 	uint32_t workingValue;
 
 	if (saturationAmount)
