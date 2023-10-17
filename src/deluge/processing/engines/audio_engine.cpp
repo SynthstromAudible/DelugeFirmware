@@ -390,10 +390,15 @@ void routine() {
 	}
 
 #ifdef REPORT_CPU_USAGE
-	if (numSamples < (NUM_SAMPLES_FOR_CPU_USAGE_REPORT)) {
+#define MIN_SAMPLES NUM_SAMPLES_FOR_CPU_USAGE_REPORT
+#else
+#define MINSAMPLES 8
+#endif
+	if (numSamples < (MINSAMPLES)) {
 		audioRoutineLocked = false;
 		return;
 	}
+#ifdef REPORT_CPU_USAGE
 	numSamples = NUM_SAMPLES_FOR_CPU_USAGE_REPORT;
 	int32_t unadjustedNumSamplesBeforeLappingPlayHead = numSamples;
 #else

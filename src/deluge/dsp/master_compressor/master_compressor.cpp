@@ -20,27 +20,33 @@
 #include "util/fast_fixed_math.h"
 MasterCompressor::MasterCompressor() {
 	//compressor.setAttack((float)attack / 100.0);
-	attack = attackRateTable[4] << 2;
-	release = releaseRateTable[3] << 2;
+	attack = attackRateTable[2] << 2;
+	release = releaseRateTable[5] << 2;
 	//compressor.setRelease((float)release / 100.0);
 	//compressor.setThresh((float)threshold / 100.0);
 	//compressor.setRatio(1.0 / ((float)ratio / 100.0));
-	shape = 0;
-	threshold = 1 << 24;
+	shape = getParamFromUserValue(Param::Unpatched::COMPRESSOR_SHAPE, 25);
+	//an appropriate range is 0-50*one q 15
+	threshold = 15 * ONE_Q15;
 	follower = true;
-	amount = 25 * 85899345;
+	//this is about a 1:1 ratio
+	ratio = ONE_Q31 >> 3;
 	syncLevel = SyncLevel::SYNC_LEVEL_NONE;
 	currentVolume = 0;
 }
 //with floats baseline is 60-90us
 void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples) {
 	meanVolume = calc_rms(buffer, numSamples);
-	q31_t over = std::max<q31_t>(0, meanVolume - threshold);
-	registerHit(over);
+	//shift up by 10 to make it a q31, where one is max possible output
+	q31_t over = std::max<q31_t>(0, meanVolume - threshold) << 11;
+	if (over > 0) {
+		registerHit(over);
+	}
 	out = Compressor::render(numSamples, shape);
-	q31_t expout = -getExp(16, -out);
+	//base is arbitrary for scale, important part is the shape
+
 	//copied from global effectable
-	int32_t positivePatchedValue = multiply_32x32_rshift32(out, amount) + 536870912;
+	int32_t positivePatchedValue = multiply_32x32_rshift32(out, ratio) + 536870912;
 	finalVolume = lshiftAndSaturate<5>(multiply_32x32_rshift32(positivePatchedValue, positivePatchedValue));
 
 	amplitudeIncrement = (int32_t)(finalVolume - currentVolume) / numSamples;
@@ -51,50 +57,36 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples) {
 	do {
 
 		currentVolume += amplitudeIncrement;
-
 		// Apply post-fx and post-reverb-send volume
 		thisSample->l = multiply_32x32_rshift32(thisSample->l, currentVolume) << 1;
 		thisSample->r = multiply_32x32_rshift32(thisSample->r, currentVolume) << 1;
 
 	} while (++thisSample != bufferEnd);
 	//for LEDs
-
-	gr = 126 - (std::log(float(currentVolume)) * 6.0);
+	//9 converts to dB, quadrupled for display range since a 30db reduction is basically killing the signal
+	gr = std::clamp<uint8_t>(-(std::log(float(currentVolume + 1) / ONE_Q31f) * 9.0) * 4, 0, 128);
 }
 
 q31_t MasterCompressor::calc_rms(StereoSample* buffer, uint16_t numSamples) {
 	StereoSample* thisSample = buffer;
 	StereoSample* bufferEnd = buffer + numSamples;
 	q31_t sum = 0;
+	q31_t offset = 0; //to remove dc offset
+	q31_t last_mean = mean;
 	do {
-		q31_t s = std::max<q31_t>(std::abs(thisSample->l), std::abs(thisSample->r));
-		sum += s;
+		q31_t s = std::abs(thisSample->l) + std::abs(thisSample->r);
+		sum += multiply_32x32_rshift32(s, s) << 1;
+		offset += thisSample->l;
 
 	} while (++thisSample != bufferEnd);
-	mean = sum / numSamples;
-	//mean = float(std::sqrt(float(mean) / ONE_Q31)) * ONE_Q31;
-	//16 is 0dB
-	return std::log(float(mean + 1)) * float(1 << 25);
+	float ns = float(numSamples);
+	float rms = ONE_Q31 * sqrt((float(sum) / ONE_Q31f) / ns);
+	float dc = std::abs(offset) / ns;
+	//warning this is not good math but it's pretty close and way cheaper than doing it properly
+	mean = rms - dc / 1.4f;
+	mean = std::max(mean, 1.0f);
+	float logmean = std::log(mean);
+
+	//max value is 21 so this avoids clipping
+	return logmean * float(ONE_Q15);
 }
-
-void MasterCompressor::setup(int32_t attack, int32_t release, int32_t threshold, int32_t ratio, int32_t makeup,
-                             int32_t mix) {
-	//compressor.setAttack((float)attack / 100.0);
-	// attack = attackRateTable[attack] << 2;
-	// release = attackRateTable[attack] << 2;
-	// //compressor.setRelease((float)release / 100.0);
-	// //compressor.setThresh((float)threshold / 100.0);
-	// //compressor.setRatio(1.0 / ((float)ratio / 100.0));
-	// amount = ratio * 21474836;
-	// threshold = threshold * 21474836;
-}
-
-/*
-	masterCompressorAttack = 7;
-	masterCompressorRelease = 10;
-	masterCompressorThresh = 10;
-	masterCompressorRatio = 10;
-	masterCompressorMakeup = 0;
-	masterCompressorWet = 50;
-
-*/

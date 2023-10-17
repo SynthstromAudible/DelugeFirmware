@@ -157,30 +157,6 @@ void SessionView::focusRegained() {
 ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx) == RuntimeFeatureStateToggle::On
-	    && currentUIMode == UI_MODE_NONE) { //master compressor
-		int32_t modKnobMode = -1;
-		if (view.activeModControllableModelStack.modControllable) {
-			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
-			if (modKnobModePointer)
-				modKnobMode = *modKnobModePointer;
-		}
-		const char* paramLabels[] = {"THRE", "MAKE", "ATTK", "REL", "RATI", "MIX"};
-
-		if (modKnobMode == 4 && b == MOD_ENCODER_1 && on) {
-			masterCompEditMode++;
-			masterCompEditMode = masterCompEditMode % 6; //toggle master compressor setting
-
-			if (display->haveOLED()) {
-				modEncoderAction(1, 0);
-			}
-			else {
-				display->displayPopup(paramLabels[masterCompEditMode]);
-			}
-			return ActionResult::DEALT_WITH;
-		}
-	}
-
 	InstrumentType newInstrumentType;
 
 	// Clip-view button
@@ -1970,19 +1946,26 @@ ramError:
 }
 
 void SessionView::graphicsRoutine() {
+	static int counter = 0;
 	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx) == RuntimeFeatureStateToggle::On
 	    && currentUIMode == UI_MODE_NONE) {
 		int32_t modKnobMode = -1;
+		bool editingComp = false;
 		if (view.activeModControllableModelStack.modControllable) {
 			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
-			if (modKnobModePointer)
+			if (modKnobModePointer) {
 				modKnobMode = *modKnobModePointer;
+				editingComp = view.activeModControllableModelStack.modControllable->isEditingComp();
+			}
 		}
-		if (modKnobMode == 4) { //upper
-			uint8_t gr = AudioEngine::mastercompressor.gr;
-			uint8_t mv = AudioEngine::mastercompressor.meanVolume >> 23;
-			indicator_leds::setKnobIndicatorLevel(1, gr); //Gain Reduction LED
-			indicator_leds::setKnobIndicatorLevel(0, mv); //Gain Reduction LED
+		if (modKnobMode == 4 && editingComp) { //upper
+			counter = (counter + 1) % 5;
+			if (counter == 0) {
+				uint8_t gr = AudioEngine::mastercompressor.gr;
+				uint8_t mv = AudioEngine::mastercompressor.meanVolume >> 14;
+				indicator_leds::setKnobIndicatorLevel(1, gr); //Gain Reduction LED
+				indicator_leds::setKnobIndicatorLevel(0, mv); //Gain Reduction LED
+			}
 		}
 	}
 

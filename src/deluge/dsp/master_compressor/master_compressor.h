@@ -30,19 +30,19 @@
 class MasterCompressor : public Compressor {
 public:
 	MasterCompressor();
-	void setup(int32_t attack, int32_t release, int32_t threshold, int32_t ratio, int32_t makeup, int32_t mix);
+	void setup(int32_t attack, int32_t release, int32_t threshold, int32_t ratio, int32_t makeup, int32_t mix){};
 
 	void render(StereoSample* buffer, uint16_t numSamples);
 	q31_t calc_rms(StereoSample* buffer, uint16_t numSamples);
 	uint8_t gr;
 	q31_t threshold;
 	q31_t shape;
-	q31_t amount;
+	q31_t ratio;
 	q31_t out;
 	q31_t meanVolume;
 	q31_t over;
 	q31_t finalVolume;
 	q31_t currentVolume;
 	q31_t amplitudeIncrement;
-	q31_t mean;
+	float mean;
 };

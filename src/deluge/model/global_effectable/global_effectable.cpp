@@ -21,6 +21,7 @@
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
+#include "hid/led/indicator_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
@@ -47,6 +48,7 @@ GlobalEffectable::GlobalEffectable() {
 
 	memset(allpassMemory, 0, sizeof(allpassMemory));
 	memset(&phaserMemory, 0, sizeof(phaserMemory));
+	editingComp = false;
 }
 
 void GlobalEffectable::cloneFrom(ModControllableAudio* other) {
@@ -268,11 +270,40 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 				view.cycleThroughReverbPresets();
 			}
 		}
+		else {
+			if (on) {
+				editingComp = !editingComp;
+			}
+		}
 
 		return false;
 	}
 
 	return false; // Some cases could lead here
+}
+ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offset, int32_t whichModEncoder,
+                                                                   ModelStackWithAutoParam* modelStack) {
+	if (*getModKnobMode() == 4) {
+		if (whichModEncoder == 1) {
+			int current = AudioEngine::mastercompressor.threshold >> 15;
+			current -= offset;
+			current = std::clamp(current, 2, 50);
+			indicator_leds::setKnobIndicatorLevel(1, std::max(0, 128 - 3 * (current - 2)));
+			AudioEngine::mastercompressor.threshold = current << 15;
+
+			return ActionResult::DEALT_WITH;
+		}
+		else if (whichModEncoder == 0) {
+			int current = AudioEngine::mastercompressor.ratio >> 27;
+			current += offset;
+			current = std::clamp(current, 0, 8);
+			indicator_leds::setKnobIndicatorLevel(0, std::max(0, current << 4));
+			AudioEngine::mastercompressor.ratio = lshiftAndSaturate<27>(current);
+
+			return ActionResult::DEALT_WITH;
+		}
+	}
+	return ActionResult::NOT_DEALT_WITH;
 }
 
 // Always check this doesn't return NULL!
@@ -323,7 +354,7 @@ int32_t GlobalEffectable::getParameterFromKnob(int32_t whichModEncoder) {
 	}
 
 	else if (modKnobMode == 4) {
-		if (whichModEncoder == 0) {
+		if (whichModEncoder == 0 && !editingComp) {
 			return Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT;
 		}
 	}
