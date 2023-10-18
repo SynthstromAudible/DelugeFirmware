@@ -141,7 +141,7 @@ q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMo
 		            moveability, multiply_32x32_rshift32_rounded(
 		                             moveability, multiply_32x32_rshift32_rounded(
 		                                              moveability, processedResonance))))); // 1 represented as 67108864
-		divideByTotalMoveabilityAndProcessedResonance = (int64_t)67108864 * 1073741824 / onePlusThing;
+		divideByTotalMoveabilityAndProcessedResonance = (q31_t)(72057594037927936.0f / (float)onePlusThing);
 	}
 
 	if (lpfMode != FilterMode::TRANSISTOR_24DB_DRIVE) { // Cold transistor ladder only

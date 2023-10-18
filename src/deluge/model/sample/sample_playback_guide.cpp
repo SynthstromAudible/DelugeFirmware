@@ -102,10 +102,10 @@ uint64_t SamplePlaybackGuide::getSyncedNumSamplesIn() {
 	}
 	// If following external clock, that could happen
 	// TODO: is that still necessary?
-	return (uint64_t)(lengthInSamples * currentTickWithinSample
-	                  + (uint64_t)timeSinceLastInternalTick * lengthInSamples / timePerInternalTick
-	                  + (sequenceSyncLengthTicks >> 1)) // Rounding
-	       / sequenceSyncLengthTicks;
+	return (uint64_t)(((float)(lengthInSamples * currentTickWithinSample)
+	                  + (float)timeSinceLastInternalTick * (float)lengthInSamples / (float)timePerInternalTick
+	                  + (float)(sequenceSyncLengthTicks >> 1)) // Rounding
+	       / (float)sequenceSyncLengthTicks);
 }
 
 int32_t SamplePlaybackGuide::getNumSamplesLaggingBehindSync(VoiceSample* voiceSample) {

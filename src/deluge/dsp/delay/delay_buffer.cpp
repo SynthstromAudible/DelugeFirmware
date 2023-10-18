@@ -134,8 +134,8 @@ void DelayBuffer::setupForRender(int32_t userDelayRate, DelayBufferSetup* setup)
 
 	if (isResampling) {
 
-		setup->actualSpinRate = ((uint64_t)userDelayRate << 24) / nativeRate; // 1 is represented as 16777216
-		setup->divideByRate = 0xFFFFFFFF / (setup->actualSpinRate >> 8);      // 1 is represented as 65536
+		setup->actualSpinRate = (uint64_t)((float)(userDelayRate << 24) / (float)nativeRate); // 1 is represented as 16777216
+		setup->divideByRate = (uint32_t)((float)0xFFFFFFFF / (float)(setup->actualSpinRate >> 8));      // 1 is represented as 65536
 
 		// If buffer spinning slow
 		if (setup->actualSpinRate < 16777216) {
@@ -150,9 +150,9 @@ void DelayBuffer::setupForRender(int32_t userDelayRate, DelayBufferSetup* setup)
 			// because more of that means more "triangle area", or more stuff written each time.
 			//uint32_t delayWriteSizeAdjustment2 = (((uint32_t)delay.speed << 16) / (((uint32_t)(speedMultiple >> 2) * (uint32_t)(speedMultiple >> 2)) >> 11));
 			setup->writeSizeAdjustment =
-			    (uint32_t)0xFFFFFFFF
-			    / (setup->rateMultiple
-			       * (timesSlowerRead + 1)); // Equivalent to one order of magnitude bigger than the above line
+			    (uint32_t)((float)0xFFFFFFFF
+			    / (float)(setup->rateMultiple
+			       * (timesSlowerRead + 1))); // Equivalent to one order of magnitude bigger than the above line
 		}
 
 		// If buffer spinning fast
