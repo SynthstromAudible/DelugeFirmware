@@ -146,11 +146,6 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, uint32_t* getAllocate
 			*/
 			return address;
 		}
-#if !defined(NDEBUG)
-		else {
-			display->displayPopup("FULL Internal");
-		}
-#endif
 
 		AudioEngine::logAction("internal allocation failed");
 	}

@@ -24,6 +24,7 @@
 #include "processing/engines/audio_engine.h"
 #endif
 #include "util/functions.h"
+#include <cstring>
 
 MemoryRegion::MemoryRegion() : emptySpaces(sizeof(EmptySpaceRecord)) {
 	numAllocations = 0;
@@ -343,7 +344,18 @@ justUpdateRecord:
 noEmptySpace:
 		allocatedAddress = cache_manager_.ReclaimMemory(*this, requiredSize, thingNotToStealFrom, &allocatedSize);
 		if (!allocatedAddress) {
-			//Debug::println("nothing to steal.........................");
+			const uint32_t msgBufferLen = 32;
+			char msgBuffer[msgBufferLen] = {0};
+			strncpy(&msgBuffer[strlen(msgBuffer)], "-> FULL ", msgBufferLen - strlen(msgBuffer));
+
+#if ALPHA_OR_BETA_VERSION
+			strncpy(&msgBuffer[strlen(msgBuffer)], name, msgBufferLen - strlen(msgBuffer));
+#endif
+			Debug::println(msgBuffer);
+
+#if !defined(NDEBUG)
+			display->displayPopup(msgBuffer);
+#endif
 			return NULL;
 		}
 
