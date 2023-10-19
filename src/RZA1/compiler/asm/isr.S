@@ -42,6 +42,7 @@
     .global __disable_fiq
 
     .func   __enable_irq
+    .type __enable_irq, %function
 __enable_irq:
     CPSIE   i
     ISB
@@ -49,6 +50,7 @@ __enable_irq:
     .endfunc
 
     .func   __disable_irq
+    .type __disable_irq, %function
 __disable_irq:
     CPSID   i
     ISB
@@ -56,6 +58,7 @@ __disable_irq:
     .endfunc
 
     .func   __enable_fiq
+    .type __enable_fiq, %function
 __enable_fiq:
     CPSIE   f
     ISB
@@ -63,6 +66,7 @@ __enable_fiq:
     .endfunc
 
     .func   __disable_fiq
+    .type __disable_fiq, %function
 __disable_fiq:
     CPSID   f
     ISB
