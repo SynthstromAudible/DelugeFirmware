@@ -164,14 +164,17 @@ add_subdirectory(src)
 
 # )
 
+option(MAINTAINER_MODE "Enables all warnings and errors" OFF)
+
 # Project-only compile options (warnings, etc.)
 target_compile_options(deluge PUBLIC
-    $<$<AND:$<CONFIG:DEBUG>,$<CXX_COMPILER_ID:GNU>>:-fanalyzer> # static analysis
+    $<$<AND:$<BOOL:${MAINTAINER_MODE}>,$<CXX_COMPILER_ID:GNU>>:-fanalyzer> # static analysis
 
     # Warnings
-    $<$<CONFIG:DEBUG>:-Wextra>
-    $<$<CONFIG:DEBUG>:-Wall>
-    $<$<CONFIG:DEBUG>:-Wpedantic>
+    $<$<BOOL:${MAINTAINER_MODE}>:-Wextra>
+    $<$<BOOL:${MAINTAINER_MODE}>:-Wall>
+    $<$<BOOL:${MAINTAINER_MODE}>:-Wabi>
+    $<$<BOOL:${MAINTAINER_MODE}>:-Wpedantic>
     $<$<CONFIG:DEBUG>:-Wnull-dereference>
     $<$<CONFIG:DEBUG>:-Wno-psabi>
     $<$<CONFIG:DEBUG>:-Wno-unused-parameter>
@@ -190,7 +193,7 @@ target_compile_options(deluge PUBLIC
 
 set_target_properties(deluge
     PROPERTIES
-        C_STANDARD 11
+        C_STANDARD 17
         C_STANDARD_REQUIRED ON
         CXX_STANDARD 20
         CXX_STANDARD_REQUIRED ON
@@ -222,6 +225,7 @@ target_link_options(deluge PUBLIC
     # Print details
     LINKER:--warn-common
     LINKER:--stats
+    #$<$<CXX_COMPILER_ID:GNU>:LINKER:--print-memory-usage>
 
     # Link-Time Optimization
     $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-flto=auto>
