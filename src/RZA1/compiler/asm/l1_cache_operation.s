@@ -52,6 +52,8 @@
 @ Function Name : L1_I_CacheFlushAllAsm
 @ Description   : Invalidate all instruction caches to PoU.
 @******************************************************************************
+	.func L1_I_CacheFlushAllAsm
+	.type L1_I_CacheFlushAllAsm, %function
 L1_I_CacheFlushAllAsm: @FUNCTION
 
     MOV  r0, #0
@@ -60,6 +62,7 @@ L1_I_CacheFlushAllAsm: @FUNCTION
     ISB
 
     BX   lr
+.endfunc
 
 @    ENDFUNC
 
@@ -68,7 +71,8 @@ L1_I_CacheFlushAllAsm: @FUNCTION
 @ Description   : r0 = 0 : DCISW. Invalidate data or unified cache line by set/way.
 @               : r0 = 1 : DCCSW. Clean data or unified cache line by set/way.
 @               : r0 = 2 : DCCISW. Clean and Invalidate data or unified cache line by set/way.
-@******************************************************************************
+	.func L1_D_CacheOperationAsm
+	.type L1_D_CacheOperationAsm, %function
 L1_D_CacheOperationAsm: @FUNCTION
 
     PUSH {r4-r11}
@@ -127,6 +131,7 @@ Finished:
     DSB
     POP  {r4-r11}
     BX   lr
+.endfunc
 
 @    ENDFUNC
 
@@ -134,6 +139,8 @@ Finished:
 @ Function Name : L1_I_CacheEnableAsm
 @ Description   : Enable instruction caches.
 @******************************************************************************
+	.func L1_I_CacheEnableAsm
+	.type L1_I_CacheEnableAsm, %function
 L1_I_CacheEnableAsm: @FUNCTION
 
     @;; I-cache is controlled by bit 12
@@ -143,6 +150,7 @@ L1_I_CacheEnableAsm: @FUNCTION
     MCR  p15, 0, r0, c1, c0, 0          @;; Write CP15 register 1
 
     BX   lr
+.endfunc
 
 @    ENDFUNC
 
@@ -150,6 +158,8 @@ L1_I_CacheEnableAsm: @FUNCTION
 @ Function Name : L1_D_CacheEnableAsm
 @ Description   : Enable data caches.
 @******************************************************************************
+	.func L1_D_CacheEnableAsm
+	.type L1_D_CacheEnableAsm, %function
 L1_D_CacheEnableAsm: @FUNCTION
 
     @;; D-cache is controlled by bit 2
@@ -159,6 +169,7 @@ L1_D_CacheEnableAsm: @FUNCTION
     MCR  p15, 0, r0, c1, c0, 0          @;; Write CP15 register 1
 
     BX   lr
+.endfunc
 
 @    ENDFUNC
 
@@ -166,6 +177,8 @@ L1_D_CacheEnableAsm: @FUNCTION
 @ Function Name : L1_I_CacheDisableAsm
 @ Description   : Disable instruction caches.
 @******************************************************************************
+	.func L1_I_CacheDisableAsm
+	.type L1_I_CacheDisableAsm, %function
 L1_I_CacheDisableAsm: @FUNCTION
 
     @;; I-cache is controlled by bit 12
@@ -176,6 +189,7 @@ L1_I_CacheDisableAsm: @FUNCTION
     ISB
 
     BX   lr
+.endfunc
 
 @    ENDFUNC
 
@@ -183,6 +197,8 @@ L1_I_CacheDisableAsm: @FUNCTION
 @ Function Name : L1_D_CacheDisableAsm
 @ Description   : Disable data caches.
 @******************************************************************************
+	.func L1_D_CacheDisableAsm
+	.type L1_D_CacheDisableAsm, %function
 L1_D_CacheDisableAsm: @FUNCTION
 
     @;; D-cache is controlled by bit 2
@@ -193,6 +209,7 @@ L1_D_CacheDisableAsm: @FUNCTION
     ISB
 
     BX   lr
+.endfunc
 
 @    ENDFUNC
 
@@ -200,6 +217,8 @@ L1_D_CacheDisableAsm: @FUNCTION
 @ Function Name : L1BtacEnableAsm
 @ Description   : Enable program flow prediction.
 @******************************************************************************
+	.func L1BtacEnableAsm
+	.type L1BtacEnableAsm, %function
 L1BtacEnableAsm: @FUNCTION
 
     @;; Turning on branch prediction requires a general enable
@@ -215,6 +234,7 @@ L1BtacEnableAsm: @FUNCTION
     ISB
 
     BX   lr
+.endfunc
 
 @    ENDFUNC
 
@@ -222,6 +242,8 @@ L1BtacEnableAsm: @FUNCTION
 @ Function Name : L1BtacDisableAsm
 @ Description   : Disable program flow prediction.
 @******************************************************************************
+	.func L1BtacDisableAsm
+	.type L1BtacDisableAsm, %function
 L1BtacDisableAsm: @FUNCTION
 
     @;; Turning off branch prediction requires a general enable
@@ -236,6 +258,7 @@ L1BtacDisableAsm: @FUNCTION
     MCR  p15, 0, r0, c1, c0, 0          @;; Write System Control Register
 
     BX   lr
+.endfunc
 
 @    ENDFUNC
 
@@ -243,6 +266,8 @@ L1BtacDisableAsm: @FUNCTION
 @ Function Name : L1PrefetchEnableAsm
 @ Description   : Enable Dside prefetch.
 @******************************************************************************
+	.func L1PrefetchEnableAsm
+	.type L1PrefetchEnableAsm, %function
 L1PrefetchEnableAsm: @FUNCTION
 
     @;; Bit 2 [DP] Dside prefetch:
@@ -255,6 +280,7 @@ L1PrefetchEnableAsm: @FUNCTION
     ISB
 
     BX   lr
+.endfunc
 
 @    ENDFUNC
 
@@ -262,6 +288,8 @@ L1PrefetchEnableAsm: @FUNCTION
 @ Function Name : L1PrefetchDisableAsm
 @ Description   : Disable Dside prefetch.
 @******************************************************************************
+	.func L1PrefetchDisableAsm
+	.type L1PrefetchDisableAsm, %function
 L1PrefetchDisableAsm: @FUNCTION
 
     @;; Bit 2 [DP] Dside prefetch:
@@ -273,6 +301,7 @@ L1PrefetchDisableAsm: @FUNCTION
     MCR  p15, 0, r0, c1, c0, 1          @;; Write Auxiliary Control Register
 
     BX   lr
+.endfunc
 
 @    ENDFUNC
 
