@@ -33,6 +33,7 @@ public:
 	void setup(int32_t attack, int32_t release, int32_t threshold, int32_t ratio, int32_t makeup, int32_t mix){};
 
 	void render(StereoSample* buffer, uint16_t numSamples);
+	void updateER();
 	q31_t calc_rms(StereoSample* buffer, uint16_t numSamples);
 	uint8_t gr;
 	q31_t threshold;
@@ -45,4 +46,5 @@ public:
 	q31_t currentVolume;
 	q31_t amplitudeIncrement;
 	float mean;
+	float er;
 };

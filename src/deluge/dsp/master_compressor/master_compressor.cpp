@@ -33,7 +33,14 @@ MasterCompressor::MasterCompressor() {
 	ratio = ONE_Q31 >> 3;
 	syncLevel = SyncLevel::SYNC_LEVEL_NONE;
 	currentVolume = 0;
+	//auto make up gain
+	updateER();
 }
+
+void MasterCompressor::updateER() {
+	er = 0.33 * std::max<float>(0, (50 - (threshold >> 15))) * (float(ratio) / ONE_Q31f);
+}
+
 //with floats baseline is 60-90us
 void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples) {
 	meanVolume = calc_rms(buffer, numSamples);
@@ -45,9 +52,6 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples) {
 	}
 	out = Compressor::render(numSamples, shape);
 	out = multiply_32x32_rshift32(out, ratio) << 1;
-
-	//auto make up gain
-	float er = 0.33 * std::max<float>(0, (50 - (threshold >> 15))) * (float(ratio) / ONE_Q31f);
 
 	//21 is the max output from logmean
 	//base is arbitrary for scale, important part is the shape

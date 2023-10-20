@@ -290,7 +290,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 			current = std::clamp(current, 2, 50);
 			indicator_leds::setKnobIndicatorLevel(1, std::max(0, 128 - 3 * (current - 2)));
 			AudioEngine::mastercompressor.threshold = current << 15;
-
+			AudioEngine::mastercompressor.updateER();
 			return ActionResult::DEALT_WITH;
 		}
 		else if (whichModEncoder == 0) { //reverb (we can only get here in comp editing mode)
@@ -299,7 +299,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 			current = std::clamp(current, 0, 8);
 			indicator_leds::setKnobIndicatorLevel(0, std::max(0, current << 4));
 			AudioEngine::mastercompressor.ratio = lshiftAndSaturate<27>(current);
-
+			AudioEngine::mastercompressor.updateER();
 			return ActionResult::DEALT_WITH;
 		}
 	}
