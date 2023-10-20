@@ -781,7 +781,17 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_MODEL, "Model"},
         {STRING_FOR_FREEVERB, "Freeverb"},
         {STRING_FOR_MUTABLE, "Mutable"},
-        {STRING_FOR_LEXICON_PLATE, "Lexicon Plate"},
+        {STRING_FOR_PLATEAU, "Plateau"},
+
+        {STRING_FOR_PRE_DELAY, "Pre-delay"},
+        {STRING_FOR_INPUT_DIFFUSION, "Input diffusion"},
+        {STRING_FOR_INPUT_LPF_CUTOFF, "Input LPF Cutoff"},
+        {STRING_FOR_INPUT_HPF_CUTOFF, "Input HPF Cutoff"},
+        {STRING_FOR_MOD_DEPTH, "Mod. depth"},
+        {STRING_FOR_MOD_SHAPE, "Mod. shape"},
+        {STRING_FOR_MOD_SPEED, "Mod. speed"},
+        {STRING_FOR_LPF_CUTOFF, "LPF cutoff"},
+        {STRING_FOR_HPF_CUTOFF, "HPF cutoff"},
     },
 };
 } // namespace deluge::l10n::built_in

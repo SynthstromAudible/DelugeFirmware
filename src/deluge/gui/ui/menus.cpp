@@ -1,4 +1,3 @@
-#include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "gui/menu_item/arpeggiator/gate.h"
 #include "gui/menu_item/arpeggiator/midi_cv/gate.h"
@@ -14,7 +13,6 @@
 #include "gui/menu_item/audio_clip/reverse.h"
 #include "gui/menu_item/audio_clip/sample_marker_editor.h"
 #include "gui/menu_item/audio_clip/transpose.h"
-#include "gui/menu_item/bend_range.h"
 #include "gui/menu_item/bend_range/main.h"
 #include "gui/menu_item/bend_range/per_finger.h"
 #include "gui/menu_item/colour.h"
@@ -25,7 +23,6 @@
 #include "gui/menu_item/cv/submenu.h"
 #include "gui/menu_item/cv/transpose.h"
 #include "gui/menu_item/cv/volts.h"
-#include "gui/menu_item/decimal.h"
 #include "gui/menu_item/defaults/bend_range.h"
 #include "gui/menu_item/defaults/keyboard_layout.h"
 #include "gui/menu_item/defaults/magnitude.h"
@@ -50,7 +47,6 @@
 #include "gui/menu_item/gate/mode.h"
 #include "gui/menu_item/gate/off_time.h"
 #include "gui/menu_item/gate/selection.h"
-#include "gui/menu_item/integer.h"
 #include "gui/menu_item/integer_range.h"
 #include "gui/menu_item/key_range.h"
 #include "gui/menu_item/keyboard/layout.h"
@@ -58,7 +54,6 @@
 #include "gui/menu_item/lfo/global/sync.h"
 #include "gui/menu_item/lfo/global/type.h"
 #include "gui/menu_item/lfo/local/type.h"
-#include "gui/menu_item/lfo/shape.h"
 #include "gui/menu_item/master_transpose.h"
 #include "gui/menu_item/menu_item.h"
 #include "gui/menu_item/midi/bank.h"
@@ -71,7 +66,6 @@
 #include "gui/menu_item/midi/devices.h"
 #include "gui/menu_item/midi/input_differentiation.h"
 #include "gui/menu_item/midi/pgm.h"
-#include "gui/menu_item/midi/preset.h"
 #include "gui/menu_item/midi/sub.h"
 #include "gui/menu_item/midi/takeover.h"
 #include "gui/menu_item/midi/thru.h"
@@ -83,10 +77,6 @@
 #include "gui/menu_item/modulator/transpose.h"
 #include "gui/menu_item/monitor/mode.h"
 #include "gui/menu_item/mpe/direction_selector.h"
-#include "gui/menu_item/mpe/zone_num_member_channels.h"
-#include "gui/menu_item/mpe/zone_selector.h"
-#include "gui/menu_item/multi_range.h"
-#include "gui/menu_item/number.h"
 #include "gui/menu_item/osc/audio_recorder.h"
 #include "gui/menu_item/osc/pulse_width.h"
 #include "gui/menu_item/osc/retrigger_phase.h"
@@ -95,18 +85,11 @@
 #include "gui/menu_item/osc/source/wave_index.h"
 #include "gui/menu_item/osc/sync.h"
 #include "gui/menu_item/osc/type.h"
-#include "gui/menu_item/param.h"
-#include "gui/menu_item/patch_cable_strength.h"
 #include "gui/menu_item/patch_cable_strength/fixed.h"
-#include "gui/menu_item/patch_cable_strength/range.h"
-#include "gui/menu_item/patch_cable_strength/regular.h"
 #include "gui/menu_item/patch_cables.h"
-#include "gui/menu_item/patched_param.h"
 #include "gui/menu_item/patched_param/integer.h"
 #include "gui/menu_item/patched_param/integer_non_fm.h"
 #include "gui/menu_item/patched_param/pan.h"
-#include "gui/menu_item/ppqn.h"
-#include "gui/menu_item/range.h"
 #include "gui/menu_item/record/count_in.h"
 #include "gui/menu_item/record/margins.h"
 #include "gui/menu_item/record/quantize.h"
@@ -115,6 +98,15 @@
 #include "gui/menu_item/reverb/dampening.h"
 #include "gui/menu_item/reverb/model.h"
 #include "gui/menu_item/reverb/pan.h"
+#include "gui/menu_item/reverb/plateau/input_diffusion.h"
+#include "gui/menu_item/reverb/plateau/input_hpf.h"
+#include "gui/menu_item/reverb/plateau/input_lpf.h"
+#include "gui/menu_item/reverb/plateau/mod_depth.h"
+#include "gui/menu_item/reverb/plateau/mod_shape.h"
+#include "gui/menu_item/reverb/plateau/mod_speed.h"
+#include "gui/menu_item/reverb/plateau/pre_delay.h"
+#include "gui/menu_item/reverb/plateau/tank_hpf.h"
+#include "gui/menu_item/reverb/plateau/tank_lpf.h"
 #include "gui/menu_item/reverb/room_size.h"
 #include "gui/menu_item/reverb/width.h"
 #include "gui/menu_item/runtime_feature/setting.h"
@@ -122,11 +114,9 @@
 #include "gui/menu_item/sample/browser_preview/mode.h"
 #include "gui/menu_item/sample/end.h"
 #include "gui/menu_item/sample/interpolation.h"
-#include "gui/menu_item/sample/loop_point.h"
 #include "gui/menu_item/sample/pitch_speed.h"
 #include "gui/menu_item/sample/repeat.h"
 #include "gui/menu_item/sample/reverse.h"
-#include "gui/menu_item/sample/selection.h"
 #include "gui/menu_item/sample/start.h"
 #include "gui/menu_item/sample/time_stretch.h"
 #include "gui/menu_item/sample/transpose.h"
@@ -134,12 +124,7 @@
 #include "gui/menu_item/shortcuts/version.h"
 #include "gui/menu_item/sidechain/send.h"
 #include "gui/menu_item/sidechain/sync.h"
-#include "gui/menu_item/source/patched_param.h"
 #include "gui/menu_item/source/patched_param/fm.h"
-#include "gui/menu_item/source/transpose.h"
-#include "gui/menu_item/source_selection.h"
-#include "gui/menu_item/source_selection/range.h"
-#include "gui/menu_item/source_selection/regular.h"
 #include "gui/menu_item/submenu.h"
 #include "gui/menu_item/submenu/actual_source.h"
 #include "gui/menu_item/submenu/arpeggiator.h"
@@ -148,13 +133,9 @@
 #include "gui/menu_item/submenu/envelope.h"
 #include "gui/menu_item/submenu/filter.h"
 #include "gui/menu_item/submenu/modulator.h"
-#include "gui/menu_item/submenu_referring_to_one_thing.h"
 #include "gui/menu_item/swing/interval.h"
-#include "gui/menu_item/sync_level.h"
-#include "gui/menu_item/sync_level/relative_to_song.h"
 #include "gui/menu_item/synth_mode.h"
 #include "gui/menu_item/tempo/magnitude_matching.h"
-#include "gui/menu_item/transpose.h"
 #include "gui/menu_item/trigger/in/auto_start.h"
 #include "gui/menu_item/trigger/in/ppqn.h"
 #include "gui/menu_item/trigger/out/ppqn.h"
@@ -164,10 +145,8 @@
 #include "gui/menu_item/unpatched_param.h"
 #include "gui/menu_item/unpatched_param/pan.h"
 #include "gui/menu_item/unpatched_param/updating_reverb_params.h"
-#include "gui/menu_item/value.h"
 #include "gui/menu_item/voice/polyphony.h"
 #include "gui/menu_item/voice/priority.h"
-#include "processing/sound/sound.h"
 
 using namespace deluge;
 using namespace gui;
@@ -452,6 +431,15 @@ reverb::Dampening reverbDampeningMenu{STRING_FOR_DAMPENING};
 reverb::Width reverbWidthMenu{STRING_FOR_WIDTH, STRING_FOR_REVERB_WIDTH};
 reverb::Pan reverbPanMenu{STRING_FOR_PAN, STRING_FOR_REVERB_PAN};
 reverb::Model reverbModelMenu{STRING_FOR_MODEL};
+reverb::plateau::PreDelay plateauPreDelay{STRING_FOR_PRE_DELAY};
+reverb::plateau::InputDiffusion plateauInputDiffusion{STRING_FOR_INPUT_DIFFUSION};
+reverb::plateau::InputLPF plateauInputLPF{STRING_FOR_INPUT_LPF_CUTOFF};
+reverb::plateau::InputHPF plateauInputHPF{STRING_FOR_INPUT_HPF_CUTOFF};
+reverb::plateau::ModDepth plateauModDepth{STRING_FOR_MOD_DEPTH};
+reverb::plateau::ModShape plateauModShape{STRING_FOR_MOD_SHAPE};
+reverb::plateau::ModSpeed plateauModSpeed{STRING_FOR_MOD_SPEED};
+reverb::plateau::TankLPF plateauTankLPF{STRING_FOR_LPF_CUTOFF};
+reverb::plateau::TankHPF plateauTankHPF{STRING_FOR_HPF_CUTOFF};
 
 Submenu reverbMenu{
     STRING_FOR_REVERB,
@@ -463,6 +451,15 @@ Submenu reverbMenu{
         &reverbWidthMenu,
         &reverbPanMenu,
         &reverbCompressorMenu,
+        &plateauPreDelay,
+        &plateauInputDiffusion,
+        &plateauInputLPF,
+        &plateauInputHPF,
+        &plateauModDepth,
+        &plateauModShape,
+        &plateauModSpeed,
+        &plateauTankLPF,
+        &plateauTankHPF,
     },
 };
 

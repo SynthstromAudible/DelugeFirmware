@@ -389,7 +389,17 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_MODEL, "MODE"},
         {STRING_FOR_FREEVERB, "FVRB"},
         {STRING_FOR_MUTABLE, "MTBL"},
-        {STRING_FOR_LEXICON_PLATE, "PLAT"},
+        {STRING_FOR_PLATEAU, "PLAT"},
+
+        {STRING_FOR_PRE_DELAY, "PRE"},
+        {STRING_FOR_INPUT_DIFFUSION, "DIFF"},
+        {STRING_FOR_INPUT_LPF_CUTOFF, "ILPF"},
+        {STRING_FOR_INPUT_HPF_CUTOFF, "IHPF"},
+        {STRING_FOR_MOD_DEPTH, "M.STR"},
+        {STRING_FOR_MOD_SHAPE, "M.SHA"},
+        {STRING_FOR_MOD_SPEED, "M.SPD"},
+        {STRING_FOR_LPF_CUTOFF, "LPF"},
+        {STRING_FOR_HPF_CUTOFF, "HPF"},
 
     },
     &built_in::english,

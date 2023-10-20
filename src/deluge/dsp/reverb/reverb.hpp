@@ -4,9 +4,9 @@
 #include <variant>
 
 #include "base.hpp"
-#include "freeverb.hpp"
+#include "freeverb/freeverb.hpp"
 #include "mutable/reverb.hpp"
-#include "plateau.hpp"
+#include "valley/plateau.hpp"
 
 namespace deluge::dsp {
 
@@ -29,6 +29,9 @@ public:
 		case Model::Mutable:
 			reverb_.emplace<reverb::Mutable>();
 			break;
+		case Model::Plateau:
+			//reverb_.emplace<reverb::Plateau>();
+			break;
 		}
 		model_ = m;
 	}
@@ -45,26 +48,27 @@ public:
 			reverb_as<Mutable>().Process(input, output);
 			break;
 		case Model::Plateau:
-			reverb_as<Plateau>().Process(input, output);
+			reverb_as<Mutable>().Process(input, output);
+			//reverb_as<Plateau>().Process(input, output);
 			break;
 		}
 	}
 
-	void set_pan_levels(const int32_t amplitude_left, const int32_t amplitude_right) {
-		base_->set_pan_levels(amplitude_left, amplitude_right);
+	void setPanLevels(const int32_t amplitude_left, const int32_t amplitude_right) {
+		base_->setPanLevels(amplitude_left, amplitude_right);
 	}
 
-	void set_room_size(float value) override { base_->set_room_size(value); }
-	[[nodiscard]] float get_room_size() override { return base_->get_room_size(); };
+	void setRoomSize(float value) override { base_->setRoomSize(value); }
+	[[nodiscard]] float getRoomSize() const override { return base_->getRoomSize(); };
 
-	void set_damping(float value) override { base_->set_damping(value); }
-	[[nodiscard]] float get_damping() override { return base_->get_damping(); }
+	void setDamping(float value) override { base_->setDamping(value); }
+	[[nodiscard]] float getDamping() const override { return base_->getDamping(); }
 
-	void set_width(float value) override { base_->set_width(value); }
-	[[nodiscard]] float get_width() override { return base_->get_width(); };
+	void setWidth(float value) override { base_->setWidth(value); }
+	[[nodiscard]] float getWidth() const override { return base_->getWidth(); };
 
 	template <typename T>
-	constexpr T reverb_as() {
+	constexpr T& reverb_as() {
 		return std::get<T>(reverb_);
 	}
 
@@ -78,6 +82,6 @@ private:
 
 	Model model_ = Model::Freeverb;
 
-	reverb::Base* base_;
+	reverb::Base* base_ = nullptr;
 };
 } // namespace deluge::dsp

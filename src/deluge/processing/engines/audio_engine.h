@@ -38,7 +38,7 @@ class TimeStretcher;
 class String;
 class Compressor;
 class VoiceVector;
-class revmodel;
+class Freeverb;
 class Metronome;
 class MasterCompressor;
 class ModelStackWithSoundFlags;

@@ -18,7 +18,6 @@
 #include "model/song/song.h"
 #include "definitions_cxx.hpp"
 #include "dsp/master_compressor/master_compressor.h"
-#include "dsp/reverb/freeverb/revmodel.hpp"
 #include "dsp/reverb/reverb.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/browser/browser.h"
@@ -1099,9 +1098,9 @@ weAreInArrangementEditorOrInClipInstance:
 	storageManager.writeClosingTag("modeNotes");
 
 	storageManager.writeOpeningTagBeginning("reverb");
-	uint32_t roomSize = AudioEngine::reverb.get_room_size() * (uint32_t)2147483648u;
-	uint32_t dampening = AudioEngine::reverb.get_damping() * (uint32_t)2147483648u;
-	uint32_t width = AudioEngine::reverb.get_width() * (uint32_t)2147483648u;
+	uint32_t roomSize = AudioEngine::reverb.getRoomSize() * (uint32_t)2147483648u;
+	uint32_t dampening = AudioEngine::reverb.getDamping() * (uint32_t)2147483648u;
+	uint32_t width = AudioEngine::reverb.getWidth() * (uint32_t)2147483648u;
 
 	roomSize = std::min(roomSize, (uint32_t)2147483647);
 	dampening = std::min(dampening, (uint32_t)2147483647);

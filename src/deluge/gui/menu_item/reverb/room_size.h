@@ -26,8 +26,8 @@ namespace deluge::gui::menu_item::reverb {
 class RoomSize final : public Integer {
 public:
 	using Integer::Integer;
-	void readCurrentValue() override { this->setValue(std::round(AudioEngine::reverb.get_room_size() * 50)); }
-	void writeCurrentValue() override { AudioEngine::reverb.set_room_size((float)this->getValue() / 50); }
+	void readCurrentValue() override { this->setValue(std::round(AudioEngine::reverb.getRoomSize() * 50)); }
+	void writeCurrentValue() override { AudioEngine::reverb.setRoomSize((float)this->getValue() / 50); }
 	[[nodiscard]] int32_t getMaxValue() const override { return 50; }
 };
 } // namespace deluge::gui::menu_item::reverb

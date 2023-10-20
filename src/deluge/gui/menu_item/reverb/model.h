@@ -19,7 +19,7 @@ public:
 		return {
 		    l10n::getView(STRING_FOR_FREEVERB),
 		    l10n::getView(STRING_FOR_MUTABLE),
-		    l10n::getView(STRING_FOR_LEXICON_PLATE),
+		    l10n::getView(STRING_FOR_PLATEAU),
 		};
 	}
 };

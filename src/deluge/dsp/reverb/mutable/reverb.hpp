@@ -7,8 +7,8 @@
 #include "fx_engine.hpp"
 #include <array>
 #include <limits>
-#include <span>
 #include <numeric>
+#include <span>
 
 namespace deluge::dsp::reverb {
 
@@ -101,8 +101,8 @@ public:
 			    static_cast<int32_t>(wet * static_cast<float>(std::numeric_limits<uint32_t>::max()) * 0xF);
 
 			// Mix
-			s.l += multiply_32x32_rshift32_rounded(output_left - input_sample, this->amplitude_left_);
-			s.r += multiply_32x32_rshift32_rounded(output_right - input_sample, this->amplitude_right_);
+			s.l += multiply_32x32_rshift32_rounded(output_left - input_sample, getPanLeft());
+			s.r += multiply_32x32_rshift32_rounded(output_right - input_sample, getPanRight());
 		}
 
 		lp_decay_1_ = lp_1;
@@ -120,14 +120,14 @@ public:
 	inline void Clear() { engine_.Clear(); }
 
 	// Reverb Base Overrides
-	void set_room_size(float value) override { reverb_time_ = 0.35f + 0.63f * value; }
-	[[nodiscard]] float get_room_size() override { return (reverb_time_ - 0.35) / 0.63f; };
+	void setRoomSize(float value) override { reverb_time_ = 0.35f + 0.63f * value; }
+	[[nodiscard]] float getRoomSize() const override { return (reverb_time_ - 0.35) / 0.63f; };
 
-	void set_damping(float value) override { lp_ = 0.3f + value * 0.6f; }
-	[[nodiscard]] float get_damping() override { return (lp_ - 0.3f) / 0.6f; }
+	void setDamping(float value) override { lp_ = 0.3f + value * 0.6f; }
+	[[nodiscard]] float getDamping() const override { return (lp_ - 0.3f) / 0.6f; }
 
-	void set_width(float value) override { diffusion_ = 0.35 + 0.63f * value; }
-	[[nodiscard]] float get_width() override { return (diffusion_ - 0.35) / 0.63f; };
+	void setWidth(float value) override { diffusion_ = 0.35 + 0.63f * value; }
+	[[nodiscard]] float getWidth() const override { return (diffusion_ - 0.35) / 0.63f; };
 
 private:
 	static constexpr float sample_rate = 44100.f;

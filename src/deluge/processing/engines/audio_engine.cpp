@@ -703,7 +703,7 @@ startAgain:
 		}
 
 		// Mix reverb into main render
-		reverb.set_pan_levels(reverbAmplitudeL, reverbAmplitudeR);
+		reverb.setPanLevels(reverbAmplitudeL, reverbAmplitudeR);
 		reverb.Process(reverb_buffer_slice, render_buffer_slice);
 	}
 
@@ -1172,9 +1172,9 @@ void stopAnyPreviewing() {
 }
 
 void getReverbParamsFromSong(Song* song) {
-	reverb.set_room_size(song->reverbRoomSize);
-	reverb.set_damping(song->reverbDamp);
-	reverb.set_width(song->reverbWidth);
+	reverb.setRoomSize(song->reverbRoomSize);
+	reverb.setDamping(song->reverbDamp);
+	reverb.setWidth(song->reverbWidth);
 	reverbPan = song->reverbPan;
 	reverbCompressorVolume = song->reverbCompressorVolume;
 	reverbCompressorShape = song->reverbCompressorShape;
