@@ -2239,7 +2239,7 @@ void PlaybackHandler::grabTempoFromClip(Clip* clip) {
 	// Record that change, ourselves. We sent false above because that mechanism of recording it would do all this other stuff
 	if (action) {
 
-		void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceTempoChange));
+		void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceTempoChange));
 
 		if (consMemory) {
 			ConsequenceTempoChange* newConsequence =
@@ -2273,7 +2273,7 @@ uint32_t PlaybackHandler::setTempoFromAudioClipLength(uint64_t loopLengthSamples
 	// Record that change, ourselves. We sent false above because that mechanism of recording it would do all this other stuff
 	if (action) {
 
-		void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceTempoChange));
+		void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceTempoChange));
 
 		if (consMemory) {
 			ConsequenceTempoChange* newConsequence =
@@ -2357,7 +2357,7 @@ void PlaybackHandler::finishTempolessRecording(bool shouldStartPlaybackAgain, in
 
 		// And remember that this tempoless-record Action included beginning playback, so undoing / redoing it later will stop and start playback respectively
 		if (action) {
-			void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceBeginPlayback));
+			void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceBeginPlayback));
 
 			if (consMemory) {
 				ConsequenceBeginPlayback* newConsequence = new (consMemory) ConsequenceBeginPlayback();

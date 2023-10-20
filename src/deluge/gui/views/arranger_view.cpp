@@ -1535,7 +1535,7 @@ justGetOut:
 								int32_t size = (output->type == InstrumentType::AUDIO) ? sizeof(AudioClip)
 								                                                       : sizeof(InstrumentClip);
 
-								void* memory = GeneralMemoryAllocator::get().alloc(size, NULL, false, true);
+								void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(size);
 								if (!memory) {
 									display->displayError(ERROR_INSUFFICIENT_RAM);
 									goto justGetOut;
@@ -2630,7 +2630,7 @@ ActionResult ArrangerView::horizontalEncoderAction(int32_t offset) {
 
 				if (offset >= 0) {
 					void* consMemory =
-					    GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceArrangerParamsTimeInserted));
+					    GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceArrangerParamsTimeInserted));
 					if (consMemory) {
 						ConsequenceArrangerParamsTimeInserted* consequence = new (consMemory)
 						    ConsequenceArrangerParamsTimeInserted(currentSong->xScroll[NAVIGATION_ARRANGEMENT],

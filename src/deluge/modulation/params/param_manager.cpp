@@ -58,7 +58,7 @@ ParamManagerForTimeline* ParamManagerForTimeline::toForTimeline() {
 #endif
 
 int32_t ParamManager::setupMIDI() {
-	void* memory = GeneralMemoryAllocator::get().alloc(sizeof(MIDIParamCollection), NULL, false, true);
+	void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(MIDIParamCollection));
 	if (!memory) {
 		return ERROR_INSUFFICIENT_RAM;
 	}
@@ -71,7 +71,7 @@ int32_t ParamManager::setupMIDI() {
 }
 
 int32_t ParamManager::setupUnpatched() {
-	void* memoryUnpatched = GeneralMemoryAllocator::get().alloc(sizeof(UnpatchedParamSet), NULL, false, true);
+	void* memoryUnpatched = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(UnpatchedParamSet));
 	if (!memoryUnpatched) {
 		return ERROR_INSUFFICIENT_RAM;
 	}
@@ -83,19 +83,19 @@ int32_t ParamManager::setupUnpatched() {
 }
 
 int32_t ParamManager::setupWithPatching() {
-	void* memoryUnpatched = GeneralMemoryAllocator::get().alloc(sizeof(UnpatchedParamSet), NULL, false, true);
+	void* memoryUnpatched = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(UnpatchedParamSet));
 	if (!memoryUnpatched) {
 		return ERROR_INSUFFICIENT_RAM;
 	}
 
-	void* memoryPatched = GeneralMemoryAllocator::get().alloc(sizeof(PatchedParamSet), NULL, false, true);
+	void* memoryPatched = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(PatchedParamSet));
 	if (!memoryPatched) {
 ramError2:
 		delugeDealloc(memoryUnpatched);
 		return ERROR_INSUFFICIENT_RAM;
 	}
 
-	void* memoryPatchCables = GeneralMemoryAllocator::get().alloc(sizeof(PatchCableSet), NULL, false, true);
+	void* memoryPatchCables = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(PatchCableSet));
 	if (!memoryPatchCables) {
 		delugeDealloc(memoryPatched);
 		goto ramError2;
@@ -183,10 +183,9 @@ int32_t ParamManager::cloneParamCollectionsFrom(ParamManager* other, bool copyAu
 	}
 
 	while (otherSummary != otherStopAt) {
-
-		newSummary->paramCollection = (ParamCollection*)GeneralMemoryAllocator::get().alloc(
-		    otherSummary->paramCollection->objectSize, NULL, false,
-		    true); // To cut corners, we store this currently blank/undefined memory in our array of type ParamCollectionSummary
+		// To cut corners, we store this currently blank/undefined memory in our array of type ParamCollectionSummary
+		newSummary->paramCollection =
+		    (ParamCollection*)GeneralMemoryAllocator::get().allocMaxSpeed(otherSummary->paramCollection->objectSize);
 
 		// If that failed, deallocate all the previous memories
 		if (!newSummary->paramCollection) {
@@ -279,7 +278,7 @@ bool ParamManager::ensureExpressionParamSetExists(bool forDrum) {
 	int32_t offset = getExpressionParamSetOffset();
 	if (!summaries[offset].paramCollection) {
 
-		void* memory = GeneralMemoryAllocator::get().alloc(sizeof(ExpressionParamSet), NULL, false, true);
+		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(ExpressionParamSet));
 		if (!memory) {
 			return false;
 		}

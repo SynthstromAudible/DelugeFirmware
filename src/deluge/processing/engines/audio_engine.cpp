@@ -1216,7 +1216,7 @@ doCull:
 	}
 
 	else {
-		void* memory = GeneralMemoryAllocator::get().alloc(sizeof(Voice), NULL, false, true);
+		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Voice));
 		if (!memory) {
 			if (activeVoices.getNumElements()) {
 				goto doCull;
@@ -1276,7 +1276,7 @@ VoiceSample* solicitVoiceSample() {
 		return toReturn;
 	}
 	else {
-		void* memory = GeneralMemoryAllocator::get().alloc(sizeof(VoiceSample), NULL, false, true);
+		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(VoiceSample));
 		if (!memory) {
 			return NULL;
 		}
@@ -1304,7 +1304,7 @@ TimeStretcher* solicitTimeStretcher() {
 	}
 
 	else {
-		void* memory = GeneralMemoryAllocator::get().alloc(sizeof(TimeStretcher), NULL, false, true);
+		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(TimeStretcher));
 		if (!memory) {
 			return NULL;
 		}
@@ -1337,7 +1337,7 @@ LiveInputBuffer* getOrCreateLiveInputBuffer(OscType inputType, bool mayCreate) {
 			size += kInputRawBufferSize * sizeof(int32_t);
 		}
 
-		void* memory = GeneralMemoryAllocator::get().alloc(size, NULL, false, true);
+		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(size);
 		if (!memory) {
 			return NULL;
 		}
@@ -1433,7 +1433,7 @@ SampleRecorder* getNewRecorder(int32_t numChannels, AudioRecordingFolder folderI
                                bool keepFirstReasons, bool writeLoopPoints, int32_t buttonPressLatency) {
 	int32_t error;
 
-	void* recorderMemory = GeneralMemoryAllocator::get().alloc(sizeof(SampleRecorder), NULL, false, true);
+	void* recorderMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SampleRecorder));
 	if (!recorderMemory) {
 		return NULL;
 	}

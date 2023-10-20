@@ -932,7 +932,7 @@ void InstrumentClipView::copyNotes() {
 
 			if (numNotes > 0) {
 
-				void* copiedNoteRowMemory = GeneralMemoryAllocator::get().alloc(sizeof(CopiedNoteRow), NULL, true);
+				void* copiedNoteRowMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(CopiedNoteRow));
 				if (!copiedNoteRowMemory) {
 ramError:
 					deleteCopiedNoteRows();
@@ -948,8 +948,7 @@ ramError:
 				prevPointer = &newCopiedNoteRow->next;
 
 				// Allocate some memory for the notes
-				newCopiedNoteRow->notes =
-				    (Note*)GeneralMemoryAllocator::get().alloc(sizeof(Note) * numNotes, NULL, true);
+				newCopiedNoteRow->notes = (Note*)GeneralMemoryAllocator::get().allocLowSpeed(sizeof(Note) * numNotes);
 
 				if (!newCopiedNoteRow->notes) {
 					goto ramError;
@@ -1152,7 +1151,7 @@ void InstrumentClipView::doubleClipLengthAction() {
 	// Add the ConsequenceClipMultiply to the Action. This must happen before calling doubleClipLength(), which may add note changes and deletions,
 	// because when redoing, those have to happen after (and they'll have no effect at all, but who cares)
 	if (action) {
-		void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceInstrumentClipMultiply));
+		void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceInstrumentClipMultiply));
 
 		if (consMemory) {
 			ConsequenceInstrumentClipMultiply* newConsequence = new (consMemory) ConsequenceInstrumentClipMultiply();
@@ -3397,7 +3396,7 @@ doDisplayError:
 		return;
 	}
 
-	void* memory = GeneralMemoryAllocator::get().alloc(sizeof(SoundDrum), NULL, false, true);
+	void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SoundDrum));
 	if (!memory) {
 		error = ERROR_INSUFFICIENT_RAM;
 		goto doDisplayError;
@@ -5416,7 +5415,8 @@ getNewAction:
 			action = actionLogger.getNewAction(ACTION_NOTEROW_HORIZONTAL_SHIFT, ACTION_ADDITION_NOT_ALLOWED);
 			if (action) {
 addConsequenceToAction:
-				void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceNoteRowHorizontalShift));
+				void* consMemory =
+				    GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceNoteRowHorizontalShift));
 
 				if (consMemory) {
 					ConsequenceNoteRowHorizontalShift* newConsequence =
@@ -5532,7 +5532,7 @@ ramError:
 			return;
 		}
 
-		void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceNoteRowLength));
+		void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceNoteRowLength));
 		if (!consMemory) {
 			goto ramError;
 		}

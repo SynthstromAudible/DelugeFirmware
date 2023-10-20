@@ -248,8 +248,7 @@ goingToReplaceOldRecord:
 	emptySpaces.testSequentiality("M005");
 }
 
-void* MemoryRegion::alloc(uint32_t requiredSize, bool makeStealable,
-                          void* thingNotToStealFrom) {
+void* MemoryRegion::alloc(uint32_t requiredSize, bool makeStealable, void* thingNotToStealFrom) {
 	requiredSize = (requiredSize + 3) & 0b11111111111111111111111111111100; // Jump to 4-byte boundary
 
 	int32_t allocatedSize;
@@ -276,7 +275,7 @@ gotEmptySpace:
 		allocatedAddress = emptySpaceRecord->address;
 
 		int32_t extraSpaceSizeWithoutItsHeaders = allocatedSize - requiredSize - 8;
-		if(extraSpaceSizeWithoutItsHeaders < 0) {
+		if (extraSpaceSizeWithoutItsHeaders < 0) {
 			display->freezeWithError("M003");
 		}
 		else if (extraSpaceSizeWithoutItsHeaders == 0) {
@@ -360,7 +359,7 @@ noEmptySpace:
 			allocatedSize = requiredSize;
 			markSpaceAsEmpty(allocatedAddress + allocatedSize + 8, extraSpaceSizeWithoutItsHeaders, false, false);
 		}
-		else if(extraSpaceSizeWithoutItsHeaders < 0) {
+		else if (extraSpaceSizeWithoutItsHeaders < 0) {
 			display->freezeWithError("M004");
 		}
 	}

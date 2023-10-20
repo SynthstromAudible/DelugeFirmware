@@ -59,8 +59,12 @@ class Stealable;
 class GeneralMemoryAllocator {
 public:
 	GeneralMemoryAllocator();
-	void* alloc(uint32_t requiredSize, uint32_t* getAllocatedSize = NULL, bool mayDeleteFirstUndoAction = false,
-	            bool mayUseOnChipRam = false, bool makeStealable = false, void* thingNotToStealFrom = NULL);
+	void* allocMaxSpeed(uint32_t requiredSize, void* thingNotToStealFrom = NULL);
+	void* allocLowSpeed(uint32_t requiredSize, void* thingNotToStealFrom = NULL);
+	void* allocStealableMaxSpeed(uint32_t requiredSize, void* thingNotToStealFrom = NULL);
+	void* allocStealableLowSpeed(uint32_t requiredSize, void* thingNotToStealFrom = NULL);
+
+	void* alloc(uint32_t requiredSize, bool mayUseOnChipRam, bool makeStealable, void* thingNotToStealFrom);
 	void dealloc(void* address);
 	void* allocNonAudio(uint32_t requiredSize);
 	void deallocNonAudio(void* address);

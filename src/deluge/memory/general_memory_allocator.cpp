@@ -81,7 +81,7 @@ uint32_t totalMallocTime = 0;
 int32_t numMallocTimes = 0;
 #endif
 extern "C" void* delugeAlloc(unsigned int requiredSize, bool mayUseOnChipRam) {
-	return GeneralMemoryAllocator::get().alloc(requiredSize, nullptr, false, mayUseOnChipRam);
+	return GeneralMemoryAllocator::get().alloc(requiredSize, mayUseOnChipRam, false, nullptr);
 }
 extern "C" void delugeDealloc(void* address) {
 #ifdef IN_UNIT_TESTS
@@ -111,8 +111,8 @@ void GeneralMemoryAllocator::deallocNonAudio(void* address) {
 
 // Watch the heck out - in the older V3.1 branch, this had one less argument - makeStealable was missing - so in code from there, thingNotToStealFrom could be interpreted as makeStealable!
 // requiredSize 0 means get biggest allocation available.
-void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, uint32_t* getAllocatedSize, bool mayDeleteFirstUndoAction,
-                                    bool mayUseOnChipRam, bool makeStealable, void* thingNotToStealFrom) {
+void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam, bool makeStealable,
+                                    void* thingNotToStealFrom) {
 
 	if (lock) {
 		return NULL; // Prevent any weird loops in freeSomeStealableMemory(), which mostly would only be bad cos they could extend the stack an unspecified amount
@@ -125,8 +125,7 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, uint32_t* getAllocate
 	) {
 		lock = true;
 		//uint16_t startTime = *TCNT[TIMER_SYSTEM_FAST];
-		void* address = regions[MEMORY_REGION_INTERNAL].alloc(requiredSize, makeStealable,
-		                                                      thingNotToStealFrom);
+		void* address = regions[MEMORY_REGION_INTERNAL].alloc(requiredSize, makeStealable, thingNotToStealFrom);
 		//uint16_t endTime = *TCNT[TIMER_SYSTEM_FAST];
 		lock = false;
 		if (address) {
@@ -148,8 +147,7 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, uint32_t* getAllocate
 
 		// Second try nonaudio region instead of external
 		lock = true;
-		address = regions[MEMORY_REGION_NONAUDIO].alloc(requiredSize, makeStealable,
-														thingNotToStealFrom);
+		address = regions[MEMORY_REGION_NONAUDIO].alloc(requiredSize, makeStealable, thingNotToStealFrom);
 		lock = false;
 
 		if (address) {
@@ -165,10 +163,27 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, uint32_t* getAllocate
 #endif
 
 	lock = true;
-	void* address = regions[MEMORY_REGION_SDRAM].alloc(requiredSize, makeStealable,
-	                                                   thingNotToStealFrom);
+	void* address = regions[MEMORY_REGION_SDRAM].alloc(requiredSize, makeStealable, thingNotToStealFrom);
 	lock = false;
 	return address;
+}
+
+[[gnu::always_inline]] void* GeneralMemoryAllocator::allocMaxSpeed(uint32_t requiredSize, void* thingNotToStealFrom) {
+	return alloc(requiredSize, true, false, thingNotToStealFrom);
+}
+
+[[gnu::always_inline]] void* GeneralMemoryAllocator::allocLowSpeed(uint32_t requiredSize, void* thingNotToStealFrom) {
+	return alloc(requiredSize, false, false, thingNotToStealFrom);
+}
+
+[[gnu::always_inline]] void* GeneralMemoryAllocator::allocStealableMaxSpeed(uint32_t requiredSize,
+                                                                            void* thingNotToStealFrom) {
+	return alloc(requiredSize, true, true, thingNotToStealFrom);
+}
+
+[[gnu::always_inline]] void* GeneralMemoryAllocator::allocStealableLowSpeed(uint32_t requiredSize,
+                                                                            void* thingNotToStealFrom) {
+	return alloc(requiredSize, false, true, thingNotToStealFrom);
 }
 
 uint32_t GeneralMemoryAllocator::getAllocatedSize(void* address) {

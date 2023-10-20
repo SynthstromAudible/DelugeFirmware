@@ -1317,8 +1317,7 @@ removeReasonsFromSamplesAndGetOut:
 	// If all samples were tagged with the same MIDI note, we get suspicious and delete them.
 	bool discardingMIDINoteFromFile = (numSamples > 1 && commonMIDINote >= 0);
 
-	Sample** sortArea =
-	    (Sample**)GeneralMemoryAllocator::get().alloc(numSamples * sizeof(Sample*) * 2, NULL, false, true);
+	Sample** sortArea = (Sample**)GeneralMemoryAllocator::get().allocMaxSpeed(numSamples * sizeof(Sample*) * 2);
 	if (!sortArea) {
 		error = ERROR_INSUFFICIENT_RAM;
 		goto removeReasonsFromSamplesAndGetOut;
@@ -1919,7 +1918,7 @@ getOut:
 					goto getOut;
 				}
 
-				void* drumMemory = GeneralMemoryAllocator::get().alloc(sizeof(SoundDrum), NULL, false, true);
+				void* drumMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SoundDrum));
 				if (!drumMemory) {
 					goto getOut;
 				}
