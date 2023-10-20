@@ -270,9 +270,9 @@ void Dattorro::clear() {
 	tank.clear();
 }
 
-void Dattorro::setTimeScale(float timeScale) {
+void Dattorro::setTimeScale(float ts) {
 	constexpr float minTimeScale = 0.0001;
-	timeScale = timeScale < minTimeScale ? minTimeScale : timeScale;
+	timeScale = ts < minTimeScale ? minTimeScale : ts;
 	tank.setTimeScale(timeScale);
 }
 

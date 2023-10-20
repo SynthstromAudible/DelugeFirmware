@@ -177,6 +177,9 @@ public:
 	[[nodiscard]] float getLeftOutput() const;
 	[[nodiscard]] float getRightOutput() const;
 
+	[[nodiscard]] float getDecay() const { return decay; }
+	[[nodiscard]] float getTimeScale() const { return timeScale; }
+
 private:
 	float preDelayTime = 0.0;
 	static constexpr long kInApf1Time = 141;
@@ -201,7 +204,8 @@ private:
 	float inputDiffusion2 = 0.625;
 	float decay = 0.9999;
 	float modSpeed = 1.0;
-	float diffuseInput = 0.0;
+	float diffuseInput = 0.f;
+	float timeScale = 0.f;
 
 	OnePoleHPFilter leftInputDCBlock;
 	OnePoleHPFilter rightInputDCBlock;

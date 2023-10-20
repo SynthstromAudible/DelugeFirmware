@@ -12,13 +12,13 @@
 
 namespace deluge::dsp::reverb {
 
-class MutableReverb : public Base {
+class Mutable : public Base {
 	constexpr static size_t kBufferSize = 32768;
 
 public:
-	MutableReverb() : reverb_time_(0.35f + 0.63f * 0.5f) {}
+	Mutable() : reverb_time_(0.35f + 0.63f * 0.5f) {}
 
-	~MutableReverb() override = default;
+	~Mutable() override = default;
 
 	void Process(std::span<int32_t> in, std::span<StereoSample> output) override {
 		// This is the Griesinger topology described in the Dattorro paper

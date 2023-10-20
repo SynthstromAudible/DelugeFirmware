@@ -4,33 +4,29 @@
 
 namespace deluge::dsp::reverb {
 class Plateau : public Base {
-	Dattorro plate;
+	Dattorro plate_;
+	float diffusion_ = 0;
 
 public:
 	Plateau() = default;
 	~Plateau() override = default;
 
 	void Process(std::span<int32_t> input, std::span<StereoSample> output) override {
-		int32_t output_left = 0;
-		int32_t output_right = 0;
-
-		for (size_t frame = 0; frame < input.size(); frame++) {
-			const int32_t input_sample = input[frame];
-			StereoSample& output_sample = output[frame];
-
-			model.process(input_sample, &output_left, &output_right);
-			output_sample.l += multiply_32x32_rshift32_rounded(output_left, this->amplitude_left_);
-			output_sample.r += multiply_32x32_rshift32_rounded(output_right, this->amplitude_right_);
+		assert(input.size() == output.size());
+		for (size_t i = 0; i < input.size(); ++i) {
+			plate_.process(input[i], input[i]);
+			output[i].l = plate_.getLeftOutput();
+			output[i].r = plate_.getRightOutput();
 		}
 	}
 
-	void set_room_size(float value) override { model.setroomsize(value); }
-	[[nodiscard]] float get_room_size() override { return model.getroomsize(); };
+	void set_room_size(float value) override { plate_.setTimeScale(value); }
+	[[nodiscard]] float get_room_size() override { return plate_.getTimeScale(); };
 
-	void set_damping(float value) override { model.setdamp(value); }
-	[[nodiscard]] float get_damping() override { return model.getdamp(); }
+	void set_damping(float value) override { plate_.setDecay(value); }
+	[[nodiscard]] float get_damping() override { return plate_.getDecay(); }
 
-	void set_width(float value) override { model.setwidth(value); }
-	[[nodiscard]] float get_width() override { return model.getwidth(); };
+	void set_width(float value) override { plate_.setTankDiffusion(diffusion_ = value); }
+	[[nodiscard]] float get_width() override { return diffusion_; };
 };
 } // namespace deluge::dsp::reverb

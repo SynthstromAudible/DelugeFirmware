@@ -6,6 +6,7 @@
 #include "base.hpp"
 #include "freeverb.hpp"
 #include "mutable/reverb.hpp"
+#include "plateau.hpp"
 
 namespace deluge::dsp {
 
@@ -26,7 +27,7 @@ public:
 			reverb_.emplace<reverb::Freeverb>();
 			break;
 		case Model::Mutable:
-			reverb_.emplace<reverb::MutableReverb>();
+			reverb_.emplace<reverb::Mutable>();
 			break;
 		}
 		model_ = m;
@@ -35,18 +36,16 @@ public:
 	Model getModel() { return model_; }
 
 	void Process(std::span<int32_t> input, std::span<StereoSample> output) override {
-		// for (size_t i = 0; i < input.size(); ++i) {
-		// 	output[i].l = input[i];
-		// 	output[i].r = input[i];
-		// }
+		using namespace reverb;
 		switch (model_) {
 		case Model::Freeverb:
-			std::get<reverb::Freeverb>(reverb_).Process(input, output);
+			reverb_as<Freeverb>().Process(input, output);
 			break;
 		case Model::Mutable:
-			std::get<reverb::MutableReverb>(reverb_).Process(input, output);
+			reverb_as<Mutable>().Process(input, output);
 			break;
 		case Model::Plateau:
+			reverb_as<Plateau>().Process(input, output);
 			break;
 		}
 	}
@@ -64,10 +63,16 @@ public:
 	void set_width(float value) override { base_->set_width(value); }
 	[[nodiscard]] float get_width() override { return base_->get_width(); };
 
+	template <typename T>
+	constexpr T reverb_as() {
+		return std::get<T>(reverb_);
+	}
+
 private:
-	std::variant<             //<
-	    reverb::Freeverb,     //<
-	    reverb::MutableReverb //<
+	std::variant<         //<
+	    reverb::Freeverb, //<
+	    reverb::Mutable,  //<
+	    reverb::Plateau   //<
 	    >
 	    reverb_{};
 

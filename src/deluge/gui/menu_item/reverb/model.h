@@ -3,6 +3,8 @@
 #include "dsp/reverb/reverb.hpp"
 #include "gui/menu_item/selection.h"
 #include "processing/engines/audio_engine.h"
+#include <string_view>
+
 namespace deluge::gui::menu_item::reverb {
 class Model final : public Selection {
 public:
