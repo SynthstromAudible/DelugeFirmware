@@ -307,7 +307,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 		if (whichModEncoder == 1) { //attack
 			int current = getLookupIndexFromValue(AudioEngine::mastercompressor.attack >> 2, attackRateTable, 50);
 			current += offset;
-			current = std::clamp(current, 0, 50);
+			current = std::clamp(current, 1, 50);
 			indicator_leds::setKnobIndicatorLevel(1, (current * 128) / 50);
 			AudioEngine::mastercompressor.attack = attackRateTable[current] << 2;
 			;
@@ -317,7 +317,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 		if (whichModEncoder == 0) { //attack
 			int current = getLookupIndexFromValue(AudioEngine::mastercompressor.release >> 2, releaseRateTable, 50);
 			current += offset;
-			current = std::clamp(current, 0, 50);
+			current = std::clamp(current, 1, 50);
 			indicator_leds::setKnobIndicatorLevel(0, (current * 128) / 50);
 			AudioEngine::mastercompressor.release = releaseRateTable[current] << 2;
 
