@@ -85,8 +85,6 @@ q31_t MasterCompressor::calc_rms(StereoSample* buffer, uint16_t numSamples) {
 
 	} while (++thisSample != bufferEnd);
 	//we don't care about the low bits and they make visual noise
-	sum = (sum >> 8) << 8;
-	offset = (offset >> 8) << 8;
 	float ns = float(numSamples);
 	float rms = ONE_Q31 * sqrt((float(sum) / ONE_Q31f) / ns);
 	float dc = std::abs(offset) / ns;

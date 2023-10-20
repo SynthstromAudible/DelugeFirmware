@@ -284,7 +284,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offset, int32_t whichModEncoder,
                                                                    ModelStackWithAutoParam* modelStack) {
 	if (*getModKnobMode() == 4) {
-		if (whichModEncoder == 1) {
+		if (whichModEncoder == 1) { //sidechain (threshold)
 			int current = AudioEngine::mastercompressor.threshold >> 15;
 			current -= offset;
 			current = std::clamp(current, 2, 50);
@@ -293,7 +293,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 
 			return ActionResult::DEALT_WITH;
 		}
-		else if (whichModEncoder == 0) {
+		else if (whichModEncoder == 0) { //reverb (we can only get here in comp editing mode)
 			int current = AudioEngine::mastercompressor.ratio >> 27;
 			current += offset;
 			current = std::clamp(current, 0, 8);
@@ -303,6 +303,28 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 			return ActionResult::DEALT_WITH;
 		}
 	}
+	else if (*getModKnobMode() == 2) {
+		if (whichModEncoder == 1) { //attack
+			int current = getLookupIndexFromValue(AudioEngine::mastercompressor.attack >> 2, attackRateTable, 50);
+			current += offset;
+			current = std::clamp(current, 0, 50);
+			indicator_leds::setKnobIndicatorLevel(1, (current * 128) / 50);
+			AudioEngine::mastercompressor.attack = attackRateTable[current] << 2;
+			;
+
+			return ActionResult::DEALT_WITH;
+		}
+		if (whichModEncoder == 0) { //attack
+			int current = getLookupIndexFromValue(AudioEngine::mastercompressor.release >> 2, releaseRateTable, 50);
+			current += offset;
+			current = std::clamp(current, 0, 50);
+			indicator_leds::setKnobIndicatorLevel(0, (current * 128) / 50);
+			AudioEngine::mastercompressor.release = releaseRateTable[current] << 2;
+
+			return ActionResult::DEALT_WITH;
+		}
+	}
+
 	return ActionResult::NOT_DEALT_WITH;
 }
 

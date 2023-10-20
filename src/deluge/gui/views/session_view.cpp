@@ -1964,7 +1964,7 @@ void SessionView::graphicsRoutine() {
 				uint8_t gr = AudioEngine::mastercompressor.gr;
 				uint8_t mv = AudioEngine::mastercompressor.meanVolume >> 14;
 				indicator_leds::setKnobIndicatorLevel(1, gr); //Gain Reduction LED
-				indicator_leds::setKnobIndicatorLevel(0, mv); //Gain Reduction LED
+				indicator_leds::setKnobIndicatorLevel(0, mv); //Input level LED
 			}
 		}
 	}
