@@ -392,7 +392,7 @@ void routine() {
 #ifdef REPORT_CPU_USAGE
 #define MIN_SAMPLES NUM_SAMPLES_FOR_CPU_USAGE_REPORT
 #else
-#define MINSAMPLES 8
+#define MINSAMPLES 16
 #endif
 	if (numSamples < (MINSAMPLES)) {
 		audioRoutineLocked = false;
@@ -760,8 +760,8 @@ startAgain:
 	}
 	logAction("mastercomp start");
 	mastercompressor.render(renderingBuffer, numSamples);
-	masterVolumeAdjustmentL <<= 2;
-	masterVolumeAdjustmentR <<= 2;
+	masterVolumeAdjustmentL <<= 3;
+	masterVolumeAdjustmentR <<= 3;
 	logAction("mastercomp end");
 	metronome.render(renderingBuffer, numSamples);
 

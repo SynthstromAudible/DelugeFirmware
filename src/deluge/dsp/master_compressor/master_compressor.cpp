@@ -25,7 +25,7 @@ MasterCompressor::MasterCompressor() {
 	//compressor.setRelease((float)release / 100.0);
 	//compressor.setThresh((float)threshold / 100.0);
 	//compressor.setRatio(1.0 / ((float)ratio / 100.0));
-	shape = getParamFromUserValue(Param::Unpatched::COMPRESSOR_SHAPE, 25);
+	shape = getParamFromUserValue(Param::Unpatched::COMPRESSOR_SHAPE, 1);
 	//an appropriate range is 0-50*one q 15
 	threshold = 15 * ONE_Q15;
 	follower = true;
@@ -38,14 +38,16 @@ MasterCompressor::MasterCompressor() {
 }
 
 void MasterCompressor::updateER() {
-	er = 0.33 * std::max<float>(0, (50 - (threshold >> 15))) * (float(ratio) / ONE_Q31f);
+	threshdb = 8 + 13 * (threshold / ONE_Q31f);
+	//14 is about the level of a single synth voice
+	er = std::clamp<float>((14 - threshdb) * (float(ratio) / ONE_Q31f), 0, 4);
 }
 
 //with floats baseline is 60-90us
 void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples) {
 	meanVolume = calc_rms(buffer, numSamples);
-	//shift up by 11 to make it a q31, where one is max possible output (21)
-	q31_t over = std::max<q31_t>(0, meanVolume - threshold) << 11;
+
+	q31_t over = std::max<float>(0, (meanVolume - threshdb) / 21) * ONE_Q31;
 
 	if (over > 0) {
 		registerHit(over);
@@ -53,10 +55,13 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples) {
 	out = Compressor::render(numSamples, shape);
 	out = multiply_32x32_rshift32(out, ratio) << 1;
 
-	//21 is the max output from logmean
+	//21 is the max internal volume (i.e. one_q31)
+	//min ratio is 8 up to 1 (i.e. infinity/brick wall, 1 db reduction per db over)
 	//base is arbitrary for scale, important part is the shape
-	float dbChange = er + 21 * (out / ONE_Q31f);
-	finalVolume = exp(dbChange) * ONE_Q31;
+	//this will be negative
+	float reduction = 21 * (out / ONE_Q31f);
+	//this lowers the volume so we'll increase the levels afterwards
+	finalVolume = exp(er + reduction) * float(1 << 26);
 
 	amplitudeIncrement = (int32_t)(finalVolume - currentVolume) / numSamples;
 
@@ -73,12 +78,12 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples) {
 	} while (++thisSample != bufferEnd);
 	//for LEDs
 	//9 converts to dB, quadrupled for display range since a 30db reduction is basically killing the signal
-	gr = std::clamp<uint8_t>(-(std::log(float(currentVolume + 1) / ONE_Q31f) * 9.0) * 4, 0, 128);
+	gr = -reduction * 9 * 4;
 }
 
 //output range is 0-21 (2^31)
 //dac clipping is at 16
-q31_t MasterCompressor::calc_rms(StereoSample* buffer, uint16_t numSamples) {
+float MasterCompressor::calc_rms(StereoSample* buffer, uint16_t numSamples) {
 	StereoSample* thisSample = buffer;
 	StereoSample* bufferEnd = buffer + numSamples;
 	q31_t sum = 0;
@@ -100,7 +105,7 @@ q31_t MasterCompressor::calc_rms(StereoSample* buffer, uint16_t numSamples) {
 
 	float logmean = std::log(mean);
 
-	return logmean * float(ONE_Q15);
+	return logmean;
 }
 
 void MasterCompressor::setup(int32_t a, int32_t r, int32_t t, int32_t rat) {
@@ -108,4 +113,5 @@ void MasterCompressor::setup(int32_t a, int32_t r, int32_t t, int32_t rat) {
 	release = r;
 	threshold = t;
 	ratio = rat;
+	updateER();
 }

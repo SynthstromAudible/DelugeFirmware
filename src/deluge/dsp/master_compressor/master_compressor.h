@@ -34,17 +34,18 @@ public:
 
 	void render(StereoSample* buffer, uint16_t numSamples);
 	void updateER();
-	q31_t calc_rms(StereoSample* buffer, uint16_t numSamples);
+	float calc_rms(StereoSample* buffer, uint16_t numSamples);
 	uint8_t gr;
 	q31_t threshold;
 	q31_t shape;
 	q31_t ratio;
 	q31_t out;
-	q31_t meanVolume;
 	q31_t over;
 	q31_t finalVolume;
 	q31_t currentVolume;
 	q31_t amplitudeIncrement;
+	float meanVolume;
 	float mean;
 	float er;
+	float threshdb;
 };
