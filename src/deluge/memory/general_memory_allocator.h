@@ -23,7 +23,7 @@
 #define MEMORY_REGION_INTERNAL 1
 #define MEMORY_REGION_NONAUDIO 2
 #define NUM_MEMORY_REGIONS 3
-constexpr uint32_t RESERVED_NONAUDIO_ALLOCATOR = 0x00100000;
+constexpr uint32_t RESERVED_NONAUDIO_ALLOCATOR = 0x00800000;
 class Stealable;
 
 /*
@@ -60,8 +60,7 @@ class GeneralMemoryAllocator {
 public:
 	GeneralMemoryAllocator();
 	void* alloc(uint32_t requiredSize, uint32_t* getAllocatedSize = NULL, bool mayDeleteFirstUndoAction = false,
-	            bool mayUseOnChipRam = false, bool makeStealable = false, void* thingNotToStealFrom = NULL,
-	            bool getBiggestAllocationPossible = false);
+	            bool mayUseOnChipRam = false, bool makeStealable = false, void* thingNotToStealFrom = NULL);
 	void dealloc(void* address);
 	void* allocNonAudio(uint32_t requiredSize);
 	void deallocNonAudio(void* address);

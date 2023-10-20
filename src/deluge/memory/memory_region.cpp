@@ -248,10 +248,8 @@ goingToReplaceOldRecord:
 	emptySpaces.testSequentiality("M005");
 }
 
-// If getBiggestAllocationPossible is true, this will treat requiredSize as a minimum, and otherwise get as much empty RAM as possible. But, it won't "steal" any more than it has to go get that minimum size.
-void* MemoryRegion::alloc(uint32_t requiredSize, uint32_t* getAllocatedSize, bool makeStealable,
-                          void* thingNotToStealFrom, bool getBiggestAllocationPossible) {
-
+void* MemoryRegion::alloc(uint32_t requiredSize, bool makeStealable,
+                          void* thingNotToStealFrom) {
 	requiredSize = (requiredSize + 3) & 0b11111111111111111111111111111100; // Jump to 4-byte boundary
 
 	int32_t allocatedSize;
@@ -260,14 +258,6 @@ void* MemoryRegion::alloc(uint32_t requiredSize, uint32_t* getAllocatedSize, boo
 
 	if (!emptySpaces.getNumElements()) {
 		goto noEmptySpace;
-	}
-
-	if (getBiggestAllocationPossible) {
-		i = emptySpaces.getNumElements() - 1;
-		if (emptySpaces.getKeyAtIndex(i) < requiredSize) {
-			goto noEmptySpace;
-		}
-		goto gotEmptySpace;
 	}
 
 	// Here we're doing a search just on one 32-bit word of the key (that's "length of empty space").
@@ -285,16 +275,14 @@ gotEmptySpace:
 		allocatedSize = emptySpaceRecord->length;
 		allocatedAddress = emptySpaceRecord->address;
 
-		if (getBiggestAllocationPossible) {
-usedWholeSpace:
+		int32_t extraSpaceSizeWithoutItsHeaders = allocatedSize - requiredSize - 8;
+		if(extraSpaceSizeWithoutItsHeaders < 0) {
+			display->freezeWithError("M003");
+		}
+		else if (extraSpaceSizeWithoutItsHeaders == 0) {
 			emptySpaces.deleteAtIndex(i);
 		}
 		else {
-			int32_t extraSpaceSizeWithoutItsHeaders = allocatedSize - requiredSize - 8;
-			if (extraSpaceSizeWithoutItsHeaders <= 0) {
-				goto usedWholeSpace;
-			}
-
 			allocatedSize = requiredSize;
 
 			uint32_t extraSpaceAddress = allocatedAddress + allocatedSize + 8;
@@ -366,13 +354,14 @@ noEmptySpace:
 		}
 #endif
 
-		if (!getBiggestAllocationPossible) {
-			// See if there was some extra space left over
-			int32_t extraSpaceSizeWithoutItsHeaders = allocatedSize - requiredSize - 8;
-			if (requiredSize && extraSpaceSizeWithoutItsHeaders > 0) {
-				allocatedSize = requiredSize;
-				markSpaceAsEmpty(allocatedAddress + allocatedSize + 8, extraSpaceSizeWithoutItsHeaders, false, false);
-			}
+		// See if there was some extra space left over
+		int32_t extraSpaceSizeWithoutItsHeaders = allocatedSize - requiredSize - 8;
+		if (requiredSize && extraSpaceSizeWithoutItsHeaders > 0) {
+			allocatedSize = requiredSize;
+			markSpaceAsEmpty(allocatedAddress + allocatedSize + 8, extraSpaceSizeWithoutItsHeaders, false, false);
+		}
+		else if(extraSpaceSizeWithoutItsHeaders < 0) {
+			display->freezeWithError("M004");
 		}
 	}
 
@@ -382,10 +371,6 @@ noEmptySpace:
 	uint32_t headerData = (makeStealable ? SPACE_HEADER_STEALABLE : SPACE_HEADER_ALLOCATED) | allocatedSize;
 	*header = headerData;
 	*footer = headerData;
-
-	if (getAllocatedSize) {
-		*getAllocatedSize = allocatedSize;
-	}
 
 #if TEST_GENERAL_MEMORY_ALLOCATION
 	numAllocations++;
