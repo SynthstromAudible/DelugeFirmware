@@ -278,7 +278,7 @@ gotEmptySpace:
 		if (extraSpaceSizeWithoutItsHeaders < -8) {
 			display->freezeWithError("M003");
 		}
-		else if (extraSpaceSizeWithoutItsHeaders == 0) {
+		else if (extraSpaceSizeWithoutItsHeaders <= 0) {
 			emptySpaces.deleteAtIndex(i);
 		}
 		else {

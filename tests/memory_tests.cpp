@@ -86,29 +86,29 @@ TEST_GROUP(MemoryAllocation) {
 
 TEST(MemoryAllocation, alloc1kb) {
 	int32_t size = 1000;
-	uint32_t actualSize;
-	void* testalloc = memreg.alloc(size, &actualSize, false, NULL, false);
+	void* testalloc = memreg.alloc(size, false, NULL);
 	CHECK(testalloc != NULL);
+	uint32_t actualSize = GeneralMemoryAllocator::get().getAllocatedSize(testalloc);
 	CHECK(actualSize == size);
 	CHECK(testAllocationStructure(testalloc, size, SPACE_HEADER_ALLOCATED));
 };
 
 TEST(MemoryAllocation, alloc100mb) {
-	void* testalloc = memreg.alloc(0x04000000, NULL, false, NULL, false);
+	void* testalloc = memreg.alloc(0x04000000,false, NULL);
 	CHECK(testalloc == NULL);
 };
 
 TEST(MemoryAllocation, allocstealable) {
 	//mock().expectOneCall("steal");
 	int32_t size = 1000;
-	uint32_t actualSize;
-	void* testalloc = memreg.alloc(size, &actualSize, true, NULL, false);
+	void* testalloc = memreg.alloc(size, true, NULL);
 	StealableTest* stealable = new (testalloc) StealableTest();
 	stealable->testIndex = 0;
 
 	memreg.cache_manager().QueueForReclamation(0, stealable);
 	vtableAddress = *(uint32_t*)testalloc;
 	CHECK(testalloc != NULL);
+	uint32_t actualSize = GeneralMemoryAllocator::get().getAllocatedSize(testalloc);
 	CHECK(actualSize == size);
 	CHECK(testAllocationStructure(testalloc, size, SPACE_HEADER_STEALABLE));
 };
@@ -122,9 +122,9 @@ TEST(MemoryAllocation, uniformAllocation) {
 	mock().expectNCalls(ncalls, "steal");
 
 	void* testAllocations[NUM_TEST_ALLOCATIONS];
-	uint32_t actualSize;
 	for (int i = 0; i < NUM_TEST_ALLOCATIONS; i += 1) {
-		void* testalloc = memreg.alloc(size, &actualSize, true, NULL, false);
+		void* testalloc = memreg.alloc(size, true, NULL);
+		uint32_t actualSize = GeneralMemoryAllocator::get().getAllocatedSize(testalloc);
 		StealableTest* stealable = new (testalloc) StealableTest();
 		memreg.cache_manager().QueueForReclamation(0, stealable);
 		vtableAddress = *(uint32_t*)testalloc;
@@ -142,14 +142,14 @@ TEST(MemoryAllocation, allocationStructure) {
 	void* testAllocations[expectedAllocations] = {0};
 	uint32_t testSizes[expectedAllocations] = {0};
 	uint32_t totalSize = 0;
-	uint32_t actualSize;
 
 	for (int i = 0; i < expectedAllocations; i++) {
 		//this is to make a log distribution - probably the worst case for packing efficiency
 		int magnitude = rand() % 16;
 		int size = (rand() % 10) << magnitude;
-		void* testalloc = memreg.alloc(size, &actualSize, false, NULL, false);
+		void* testalloc = memreg.alloc(size, false, NULL);
 		if (testalloc) {
+			uint32_t actualSize = GeneralMemoryAllocator::get().getAllocatedSize(testalloc);
 			totalSize += actualSize;
 			testWritingMemory(testalloc, actualSize);
 			CHECK(testAllocationStructure(testalloc, actualSize, SPACE_HEADER_ALLOCATED));
@@ -185,7 +185,6 @@ TEST(MemoryAllocation, allocationSizes) {
 	void* testAllocations[expectedAllocations] = {0};
 	uint32_t testSizes[expectedAllocations] = {0};
 	uint32_t totalSize;
-	uint32_t actualSize;
 	float average_packing_factor = 0;
 	for (int j = 0; j < numRepeats; j++) {
 		totalSize = 0;
@@ -194,8 +193,9 @@ TEST(MemoryAllocation, allocationSizes) {
 				//this is to make a log distribution - probably the worst case for packing efficiency
 				int magnitude = rand() % 16;
 				int size = (rand() % 10) << magnitude;
-				void* testalloc = memreg.alloc(size, &actualSize, false, NULL, false);
+				void* testalloc = memreg.alloc(size, false, NULL);
 				if (testalloc) {
+					uint32_t actualSize = GeneralMemoryAllocator::get().getAllocatedSize(testalloc);
 					totalSize += actualSize;
 					testAllocations[i] = testalloc;
 					testSizes[i] = actualSize;
@@ -228,7 +228,6 @@ TEST(MemoryAllocation, RandomAllocFragmentation) {
 	void* testAllocations[expectedAllocations] = {0};
 	uint32_t testSizes[expectedAllocations] = {0};
 	uint32_t totalSize = 0;
-	uint32_t actualSize;
 	float averageSize = 0;
 	uint32_t allocations = 0;
 	//we need to pre alloc a bunch to setup the test
@@ -236,8 +235,9 @@ TEST(MemoryAllocation, RandomAllocFragmentation) {
 		if (i % 4 != 0) {
 			int magnitude = rand() % 18;
 			int size = (rand() % 10) << magnitude;
-			void* testalloc = memreg.alloc(size, &actualSize, false, NULL, false);
+			void* testalloc = memreg.alloc(size, false, NULL);
 			if (testalloc) {
+				uint32_t actualSize = GeneralMemoryAllocator::get().getAllocatedSize(testalloc);
 				allocations += 1;
 				totalSize += actualSize;
 				testAllocations[allocations] = testalloc;
@@ -253,8 +253,9 @@ TEST(MemoryAllocation, RandomAllocFragmentation) {
 				//this is to make a log distribution - probably the worst case for packing efficiency
 				int magnitude = rand() % 18;
 				int size = (rand() % 10) << magnitude;
-				void* testalloc = memreg.alloc(size, &actualSize, false, NULL, false);
+				void* testalloc = memreg.alloc(size, false, NULL);
 				if (testalloc) {
+					uint32_t actualSize = GeneralMemoryAllocator::get().getAllocatedSize(testalloc);
 					totalSize += actualSize;
 					testAllocations[i] = testalloc;
 					testSizes[i] = actualSize;
