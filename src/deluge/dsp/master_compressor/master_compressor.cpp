@@ -39,18 +39,19 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples) {
 	meanVolume = calc_rms(buffer, numSamples);
 	//shift up by 11 to make it a q31, where one is max possible output (21)
 	q31_t over = std::max<q31_t>(0, meanVolume - threshold) << 11;
+
 	if (over > 0) {
 		registerHit(over);
 	}
 	out = Compressor::render(numSamples, shape);
 	out = multiply_32x32_rshift32(out, ratio) << 1;
-	//21 is the max output from logmean
-	finalVolume = exp(21 * (out / ONE_Q31f)) * ONE_Q31;
-	//base is arbitrary for scale, important part is the shape
 
-	//copied from global effectable
-	//int32_t positivePatchedValue = multiply_32x32_rshift32(out, ratio) + 536870912;
-	//finalVolume = lshiftAndSaturate<5>(multiply_32x32_rshift32(positivePatchedValue, positivePatchedValue));
+	//auto make up gain
+	float er = 0.33 * std::max<float>(0, (50 - (threshold >> 15))) * (float(ratio) / ONE_Q31f);
+
+	//21 is the max output from logmean
+	//base is arbitrary for scale, important part is the shape
+	finalVolume = exp(er + 21 * (out / ONE_Q31f)) * ONE_Q31;
 
 	amplitudeIncrement = (int32_t)(finalVolume - currentVolume) / numSamples;
 
@@ -84,7 +85,7 @@ q31_t MasterCompressor::calc_rms(StereoSample* buffer, uint16_t numSamples) {
 		offset += thisSample->l;
 
 	} while (++thisSample != bufferEnd);
-	//we don't care about the low bits and they make visual noise
+
 	float ns = float(numSamples);
 	float rms = ONE_Q31 * sqrt((float(sum) / ONE_Q31f) / ns);
 	float dc = std::abs(offset) / ns;
