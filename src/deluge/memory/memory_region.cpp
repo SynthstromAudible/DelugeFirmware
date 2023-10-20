@@ -275,7 +275,7 @@ gotEmptySpace:
 		allocatedAddress = emptySpaceRecord->address;
 
 		int32_t extraSpaceSizeWithoutItsHeaders = allocatedSize - requiredSize - 8;
-		if (extraSpaceSizeWithoutItsHeaders < 0) {
+		if (extraSpaceSizeWithoutItsHeaders < -8) {
 			display->freezeWithError("M003");
 		}
 		else if (extraSpaceSizeWithoutItsHeaders == 0) {
