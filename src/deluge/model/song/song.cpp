@@ -1124,20 +1124,18 @@ weAreInArrangementEditorOrInClipInstance:
 
 	storageManager.writeClosingTag("reverb");
 
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx) == RuntimeFeatureStateToggle::On) {
-		storageManager.writeOpeningTagBeginning("masterCompressor");
-		int32_t attack = AudioEngine::mastercompressor.attack;
-		int32_t release = AudioEngine::mastercompressor.release;
-		int32_t thresh = AudioEngine::mastercompressor.threshold;
-		int32_t ratio = AudioEngine::mastercompressor.ratio;
+	storageManager.writeOpeningTagBeginning("masterCompressor");
+	int32_t attack = AudioEngine::mastercompressor.attack;
+	int32_t release = AudioEngine::mastercompressor.release;
+	int32_t thresh = AudioEngine::mastercompressor.threshold;
+	int32_t ratio = AudioEngine::mastercompressor.ratio;
 
-		storageManager.writeAttribute("attack", attack);
-		storageManager.writeAttribute("release", release);
-		storageManager.writeAttribute("thresh", thresh);
-		storageManager.writeAttribute("ratio", ratio);
+	storageManager.writeAttribute("attack", attack);
+	storageManager.writeAttribute("release", release);
+	storageManager.writeAttribute("thresh", thresh);
+	storageManager.writeAttribute("ratio", ratio);
 
-		storageManager.closeTag();
-	}
+	storageManager.closeTag();
 
 	globalEffectable.writeTagsToFile(NULL, false);
 
@@ -1480,10 +1478,7 @@ unknownTag:
 				storageManager.exitTag("affectEntire");
 			}
 
-			else if (!strcmp(tagName, "masterCompressor")
-			         && runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx)
-			                == RuntimeFeatureStateToggle::On) {
-				AudioEngine::mastercompressor.gr = 0.0;
+			else if (!strcmp(tagName, "masterCompressor")) {
 				while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "attack")) { //ms
 						masterCompressorAttack = storageManager.readTagOrAttributeValueInt();
@@ -1500,14 +1495,6 @@ unknownTag:
 					else if (!strcmp(tagName, "ratio")) { //r:1
 						masterCompressorRatio = storageManager.readTagOrAttributeValueInt();
 						storageManager.exitTag("ratio");
-					}
-					else if (!strcmp(tagName, "makeup")) { //db
-						masterCompressorMakeup = storageManager.readTagOrAttributeValueInt();
-						storageManager.exitTag("makeup");
-					}
-					else if (!strcmp(tagName, "wet")) { //0.0-1.0
-						masterCompressorWet = storageManager.readTagOrAttributeValueInt();
-						storageManager.exitTag("wet");
 					}
 					else {
 						storageManager.exitTag(tagName);

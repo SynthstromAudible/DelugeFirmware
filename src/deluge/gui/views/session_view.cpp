@@ -575,46 +575,6 @@ ActionResult SessionView::padAction(int32_t xDisplay, int32_t yDisplay, int32_t 
 		return gridHandlePads(xDisplay, yDisplay, on);
 	}
 
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx) == RuntimeFeatureStateToggle::On
-	    && currentUIMode == UI_MODE_NONE) { //master compressor
-		int32_t modKnobMode = -1;
-		if (view.activeModControllableModelStack.modControllable) {
-			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
-			if (modKnobModePointer)
-				modKnobMode = *modKnobModePointer;
-		}
-		const char* paramLabels[] = {"THRE", "MAKE", "ATTK", "REL", "RATI", "MIX"};
-
-		if (modKnobMode == 4 && Buttons::isShiftButtonPressed() && xDisplay == 10 && yDisplay < 6 && on) {
-			if (yDisplay == 0) {        //[RELEASE]
-				masterCompEditMode = 3; //REL
-			}
-			else if (yDisplay == 1) {   //[SYNC]
-				masterCompEditMode = 1; //MAKE
-			}
-			else if (yDisplay == 2) {   //[VOL DUCK]
-				masterCompEditMode = 0; //THRE
-			}
-			else if (yDisplay == 3) {   //[ATTAK]
-				masterCompEditMode = 2; //ATTK
-			}
-			else if (yDisplay == 4) {   //[SHAPE]
-				masterCompEditMode = 4; //RATI
-			}
-			else if (yDisplay == 5) {   //[SEND]
-				masterCompEditMode = 5; //MIX
-			}
-
-			if (display->haveOLED()) {
-				modEncoderAction(1, 0);
-			}
-			else {
-				display->displayPopup(paramLabels[masterCompEditMode]);
-			}
-			return ActionResult::DEALT_WITH;
-		}
-	}
-
 	Clip* clip = getClipOnScreen(yDisplay);
 	int32_t clipIndex = yDisplay + currentSong->songViewYScroll;
 
@@ -1947,8 +1907,7 @@ ramError:
 
 void SessionView::graphicsRoutine() {
 	static int counter = 0;
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx) == RuntimeFeatureStateToggle::On
-	    && currentUIMode == UI_MODE_NONE) {
+	if (currentUIMode == UI_MODE_NONE) {
 		int32_t modKnobMode = -1;
 		bool editingComp = false;
 		if (view.activeModControllableModelStack.modControllable) {
@@ -2689,15 +2648,6 @@ void SessionView::midiLearnFlash() {
 void SessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	performActionOnPadRelease = false;
 
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx) == RuntimeFeatureStateToggle::On
-	    && currentUIMode == UI_MODE_NONE) {
-		int32_t modKnobMode = -1;
-		if (view.activeModControllableModelStack.modControllable) {
-			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
-			if (modKnobModePointer)
-				modKnobMode = *modKnobModePointer;
-		}
-	}
 	if (getCurrentUI() == this) { //This routine may also be called from the Arranger view
 		ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
 	}

@@ -165,20 +165,6 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 
 	InstrumentType newInstrumentType;
 
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx) == RuntimeFeatureStateToggle::On
-	    && currentUIMode == UI_MODE_NONE) { //master compressor
-		int32_t modKnobMode = -1;
-		if (view.activeModControllableModelStack.modControllable) {
-			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
-			if (modKnobModePointer)
-				modKnobMode = *modKnobModePointer;
-		}
-		if (modKnobMode == 4 && b == MOD_ENCODER_1 && on) {
-			sessionView.buttonAction(b, on, inCardRoutine);
-			return ActionResult::DEALT_WITH;
-		}
-	}
-
 	// Song button
 	if (b == SESSION_VIEW) {
 		if (on) {
@@ -908,20 +894,6 @@ ActionResult ArrangerView::padAction(int32_t x, int32_t y, int32_t velocity) {
 
 	if (sdRoutineLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-	}
-
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx) == RuntimeFeatureStateToggle::On
-	    && currentUIMode == UI_MODE_NONE) { //master compressor
-		int32_t modKnobMode = -1;
-		if (view.activeModControllableModelStack.modControllable) {
-			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
-			if (modKnobModePointer)
-				modKnobMode = *modKnobModePointer;
-		}
-		if (modKnobMode == 4 && Buttons::isShiftButtonPressed() && x == 10 && y < 6 && velocity) {
-			sessionView.padAction(x, y, velocity);
-			return ActionResult::DEALT_WITH;
-		}
 	}
 
 	Output* output = outputsOnScreen[y];
@@ -2387,18 +2359,7 @@ void ArrangerView::selectEncoderAction(int8_t offset) {
 }
 
 void ArrangerView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx) == RuntimeFeatureStateToggle::On
-	    && currentUIMode == UI_MODE_NONE) {
-		int32_t modKnobMode = -1;
-		if (view.activeModControllableModelStack.modControllable) {
-			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
-			if (modKnobModePointer)
-				modKnobMode = *modKnobModePointer;
-		}
-		if (modKnobMode == 4 && whichModEncoder == 1) { //upper encoder
-			sessionView.modEncoderAction(whichModEncoder, offset);
-		}
-	}
+
 	TimelineView::modEncoderAction(whichModEncoder, offset);
 }
 
@@ -2906,20 +2867,25 @@ static const uint32_t autoScrollUIModes[] = {UI_MODE_HOLDING_HORIZONTAL_ENCODER_
                                              UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION, UI_MODE_HORIZONTAL_ZOOM, 0};
 
 void ArrangerView::graphicsRoutine() {
-
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx) == RuntimeFeatureStateToggle::On
-	    && currentUIMode == UI_MODE_NONE) {
+	static int counter = 0;
+	if (currentUIMode == UI_MODE_NONE) {
 		int32_t modKnobMode = -1;
+		bool editingComp = false;
 		if (view.activeModControllableModelStack.modControllable) {
 			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
-			if (modKnobModePointer)
+			if (modKnobModePointer) {
 				modKnobMode = *modKnobModePointer;
+				editingComp = view.activeModControllableModelStack.modControllable->isEditingComp();
+			}
 		}
-
-		if (modKnobMode == 4) { //upper
-			int32_t gr = AudioEngine::mastercompressor.gr;
-
-			indicator_leds::setKnobIndicatorLevel(1, gr); //Gain Reduction LED
+		if (modKnobMode == 4 && editingComp) { //upper
+			counter = (counter + 1) % 5;
+			if (counter == 0) {
+				uint8_t gr = AudioEngine::mastercompressor.gr;
+				uint8_t mv = int(6 * AudioEngine::mastercompressor.meanVolume);
+				indicator_leds::setKnobIndicatorLevel(1, gr); //Gain Reduction LED
+				indicator_leds::setKnobIndicatorLevel(0, mv); //Input level LED
+			}
 		}
 	}
 
