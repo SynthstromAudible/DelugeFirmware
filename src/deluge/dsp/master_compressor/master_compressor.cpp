@@ -55,7 +55,8 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples) {
 
 	//21 is the max output from logmean
 	//base is arbitrary for scale, important part is the shape
-	finalVolume = exp(er + 21 * (out / ONE_Q31f)) * ONE_Q31;
+	float dbChange = er + 21 * (out / ONE_Q31f);
+	finalVolume = exp(dbChange) * ONE_Q31;
 
 	amplitudeIncrement = (int32_t)(finalVolume - currentVolume) / numSamples;
 
@@ -100,4 +101,11 @@ q31_t MasterCompressor::calc_rms(StereoSample* buffer, uint16_t numSamples) {
 	float logmean = std::log(mean);
 
 	return logmean * float(ONE_Q15);
+}
+
+void MasterCompressor::setup(int32_t a, int32_t r, int32_t t, int32_t rat) {
+	attack = a;
+	release = r;
+	threshold = t;
+	ratio = rat;
 }

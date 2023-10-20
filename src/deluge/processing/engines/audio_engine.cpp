@@ -1196,9 +1196,8 @@ void getMasterCompressorParamsFromSong(Song* song) {
 	int32_t r = song->masterCompressorRelease;
 	int32_t t = song->masterCompressorThresh;
 	int32_t rat = song->masterCompressorRatio;
-	int32_t m = song->masterCompressorMakeup;
-	int32_t w = song->masterCompressorWet;
-	mastercompressor.setup(a, r, t, rat, m, w);
+
+	mastercompressor.setup(a, r, t, rat);
 }
 
 Voice* solicitVoice(Sound* forSound) {

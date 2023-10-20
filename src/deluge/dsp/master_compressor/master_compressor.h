@@ -30,7 +30,7 @@
 class MasterCompressor : public Compressor {
 public:
 	MasterCompressor();
-	void setup(int32_t attack, int32_t release, int32_t threshold, int32_t ratio, int32_t makeup, int32_t mix){};
+	void setup(int32_t attack, int32_t release, int32_t threshold, int32_t ratio);
 
 	void render(StereoSample* buffer, uint16_t numSamples);
 	void updateER();
