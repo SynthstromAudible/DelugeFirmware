@@ -62,7 +62,7 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples) {
 	float reduction = 21 * (out / ONE_Q31f);
 	//this lowers the volume so we'll increase the levels afterwards
 
-	finalVolume = exp(std::max<float>(er + reduction, 1)) * float(1 << 29);
+	finalVolume = exp(std::min<float>(er + reduction, 1)) * float(1 << 29);
 
 	amplitudeIncrement = (int32_t)(finalVolume - currentVolume) / numSamples;
 
