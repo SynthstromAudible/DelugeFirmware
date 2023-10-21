@@ -879,9 +879,9 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 				char buffer[5];
 				int32_t valueForDisplay;
 				if ((modelStackWithParam->paramId == Param::Local::PAN)
-					|| (modelStackWithParam->paramId == Param::Unpatched::GlobalEffectable::PAN)) {
-						valueForDisplay = newKnobPos;
-					}
+				    || (modelStackWithParam->paramId == Param::Unpatched::GlobalEffectable::PAN)) {
+					valueForDisplay = newKnobPos;
+				}
 				else {
 					valueForDisplay = newKnobPos + kKnobPosOffset;
 				}
