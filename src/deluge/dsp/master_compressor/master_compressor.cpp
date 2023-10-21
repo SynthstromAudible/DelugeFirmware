@@ -38,9 +38,9 @@ MasterCompressor::MasterCompressor() {
 }
 
 void MasterCompressor::updateER() {
-	threshdb = 8 + 13 * (threshold / ONE_Q31f);
+	threshdb = 16 * (threshold / ONE_Q31f);
 	//14 is about the level of a single synth voice
-	er = std::clamp<float>((14 - threshdb) * (float(ratio) / ONE_Q31f), 0, 4);
+	er = std::clamp<float>((16 - threshdb) * (float(ratio) / ONE_Q31f), 0, 4);
 }
 
 //with floats baseline is 60-90us
