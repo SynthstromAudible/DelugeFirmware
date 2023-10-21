@@ -877,7 +877,15 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 				newKnobPos = std::clamp(newKnobPos, lowerLimit, 64_i32);
 
 				char buffer[5];
-				intToString(newKnobPos + kKnobPosOffset, buffer);
+				int32_t valueForDisplay;
+				if ((modelStackWithParam->paramId == Param::Local::PAN)
+					|| (modelStackWithParam->paramId == Param::Unpatched::GlobalEffectable::PAN)) {
+						valueForDisplay = newKnobPos;
+					}
+				else {
+					valueForDisplay = newKnobPos + kKnobPosOffset;
+				}
+				intToString(valueForDisplay, buffer);
 				display->displayPopup(buffer);
 
 				if (newKnobPos == knobPos) {
