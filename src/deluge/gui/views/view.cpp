@@ -875,6 +875,11 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 				int32_t lowerLimit = std::min(-64_i32, knobPos);
 				int32_t newKnobPos = knobPos + offset;
 				newKnobPos = std::clamp(newKnobPos, lowerLimit, 64_i32);
+
+				char buffer[5];
+				intToString(newKnobPos + kKnobPosOffset, buffer);
+				display->displayPopup(buffer);
+
 				if (newKnobPos == knobPos) {
 					return;
 				}
