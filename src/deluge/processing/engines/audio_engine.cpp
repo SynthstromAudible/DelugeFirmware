@@ -760,8 +760,8 @@ startAgain:
 	}
 	logAction("mastercomp start");
 	mastercompressor.render(renderingBuffer, numSamples);
-	masterVolumeAdjustmentL <<= 3;
-	masterVolumeAdjustmentR <<= 3;
+	masterVolumeAdjustmentL <<= 2;
+	masterVolumeAdjustmentR <<= 2;
 	logAction("mastercomp end");
 	metronome.render(renderingBuffer, numSamples);
 

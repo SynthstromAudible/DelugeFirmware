@@ -136,12 +136,10 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	reverbCompressorShape = -601295438;
 	reverbCompressorSync = SYNC_LEVEL_8TH;
 
-	masterCompressorAttack = 7;
-	masterCompressorRelease = 10;
-	masterCompressorThresh = 10;
-	masterCompressorRatio = 10;
-	masterCompressorMakeup = 0;
-	masterCompressorWet = 50;
+	masterCompressorAttack = attackRateTable[2] << 2;
+	masterCompressorRelease = releaseRateTable[5] << 2;
+	masterCompressorThresh = ONE_Q31;
+	masterCompressorRatio = ONE_Q31 >> 1;
 	AudioEngine::mastercompressor.gr = 0.0;
 
 	dirPath.set("SONGS");
@@ -2672,7 +2670,7 @@ int32_t Song::getCurrentPresetScale() {
 		// If we're here, must be this one!
 		return p;
 
-notThisOne : {}
+notThisOne: {}
 	}
 
 	return 255;
@@ -4561,7 +4559,7 @@ Instrument* Song::changeInstrumentType(Instrument* oldInstrument, InstrumentType
 			return NULL;
 		}
 
-gotAnInstrument : {}
+gotAnInstrument: {}
 	}
 
 	// Synth or Kit

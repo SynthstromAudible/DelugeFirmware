@@ -289,7 +289,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 			int current = AudioEngine::mastercompressor.threshold >> 24;
 			current -= offset;
 			current = std::clamp(current, 1, 128);
-			indicator_leds::setKnobIndicatorLevel(1, std::max(0, 128 - 3 * (current - 2)));
+			indicator_leds::setKnobIndicatorLevel(1, std::max(0, 128 - current));
 			AudioEngine::mastercompressor.threshold = lshiftAndSaturate<24>(current);
 			AudioEngine::mastercompressor.updateER();
 			return ActionResult::DEALT_WITH;

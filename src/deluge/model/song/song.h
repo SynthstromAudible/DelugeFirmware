@@ -330,8 +330,6 @@ public:
 	int32_t masterCompressorRelease;
 	int32_t masterCompressorThresh;
 	int32_t masterCompressorRatio;
-	int32_t masterCompressorMakeup;
-	int32_t masterCompressorWet;
 
 private:
 	bool fillModeActive;

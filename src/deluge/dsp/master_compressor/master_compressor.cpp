@@ -27,10 +27,10 @@ MasterCompressor::MasterCompressor() {
 	//compressor.setRatio(1.0 / ((float)ratio / 100.0));
 	shape = getParamFromUserValue(Param::Unpatched::COMPRESSOR_SHAPE, 1);
 	//an appropriate range is 0-50*one q 15
-	threshold = 15 * ONE_Q15;
+	threshold = ONE_Q31;
 	follower = true;
 	//this is about a 1:1 ratio
-	ratio = ONE_Q31 >> 3;
+	ratio = ONE_Q31 >> 1;
 	syncLevel = SyncLevel::SYNC_LEVEL_NONE;
 	currentVolume = 0;
 	//auto make up gain
@@ -40,10 +40,9 @@ MasterCompressor::MasterCompressor() {
 void MasterCompressor::updateER() {
 	threshdb = 16 * (threshold / ONE_Q31f);
 	//14 is about the level of a single synth voice
-	er = std::clamp<float>((16 - threshdb) * (float(ratio) / ONE_Q31f), 0, 4);
+	er = std::clamp<float>((16 - threshdb) * (float(ratio) / ONE_Q31f), 0, 15);
 }
 
-//with floats baseline is 60-90us
 void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples) {
 	meanVolume = calc_rms(buffer, numSamples);
 
@@ -79,7 +78,7 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples) {
 	} while (++thisSample != bufferEnd);
 	//for LEDs
 	//9 converts to dB, quadrupled for display range since a 30db reduction is basically killing the signal
-	gr = -reduction * 9 * 4;
+	gr = std::clamp<int32_t>(-reduction * 9 * 4, 0, 127);
 }
 
 //output range is 0-21 (2^31)
