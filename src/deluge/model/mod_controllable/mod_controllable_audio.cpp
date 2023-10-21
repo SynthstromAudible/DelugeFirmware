@@ -1995,7 +1995,7 @@ void ModControllableAudio::switchDelaySyncLevel() {
 	if (display->haveOLED()) {
 		// Need to delete "-notes" from the name
 		std::string noteName(buffer);
- 		std::string cleanName = noteName.substr(0, noteName.find("-notes"));
+		std::string cleanName = noteName.substr(0, noteName.find("-notes"));
 		display->displayPopup(cleanName.c_str());
 	}
 	else {
