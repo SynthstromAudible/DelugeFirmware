@@ -246,13 +246,29 @@ goingToReplaceOldRecord:
 	*footer = headerData;
 	emptySpaces.testSequentiality("M005");
 }
-
+constexpr uint32_t maxAlign = 1 << 12;
 // If getBiggestAllocationPossible is true, this will treat requiredSize as a minimum, and otherwise get as much empty RAM as possible. But, it won't "steal" any more than it has to go get that minimum size.
 void* MemoryRegion::alloc(uint32_t requiredSize, uint32_t* getAllocatedSize, bool makeStealable,
                           void* thingNotToStealFrom, bool getBiggestAllocationPossible) {
 
-	requiredSize = (requiredSize + 3) & 0b11111111111111111111111111111100; // Jump to 4-byte boundary
-
+	//set a minimum size
+	if (requiredSize < 64) {
+		requiredSize = 64;
+	}
+	else {
+		int extraSize = 0;
+		while (requiredSize > maxAlign) {
+			extraSize += maxAlign;
+			requiredSize -= maxAlign;
+		}
+		//if it's not a power of 2 go up to the next power of 2
+		if (!((requiredSize & (requiredSize - 1)) == 0)) {
+			int magnitude = 32 - clz(requiredSize);
+			requiredSize = 1 << magnitude;
+		}
+		requiredSize += extraSize;
+	}
+	//requiredSize = (requiredSize + 3) & 0b11111111111111111111111111111100; // Jump to 4-byte boundary
 	int32_t allocatedSize;
 	uint32_t allocatedAddress;
 	int32_t i;
@@ -684,7 +700,7 @@ tryNotStealingFirst:
 			return toReturn;
 		}
 
-gotEnoughMemory : {}
+gotEnoughMemory: {}
 		// There's a small chance it will have found a bit less memory the second time through if stealing an allocation resulted in another little bit of memory being freed,
 		// that adding onto the discovered amount, and getting us less of a surplus while still reaching the desired (well actually the min) amount
 	}
