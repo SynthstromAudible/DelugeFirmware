@@ -40,6 +40,9 @@ struct NeighbouringMemoryGrabAttemptResult {
 #define SPACE_TYPE_MASK 0xC0000000u
 #define SPACE_SIZE_MASK 0x3FFFFFFFu
 
+constexpr int32_t maxAlign = 1 << 12;
+constexpr int32_t minAlign = 64;
+
 class MemoryRegion {
 public:
 	MemoryRegion();
@@ -56,8 +59,8 @@ public:
 
 	uint32_t start;
 	uint32_t end;
-	int32_t numAllocations;
-
+	uint32_t numAllocations;
+	uint32_t pivot;
 	CacheManager& cache_manager() { return cache_manager_; }
 
 #if ALPHA_OR_BETA_VERSION
@@ -77,4 +80,5 @@ private:
 
 	void writeTempHeadersBeforeASteal(uint32_t newStartAddress, uint32_t newSize);
 	void sanityCheck();
+	uint32_t padSize(uint32_t requiredSize);
 };
