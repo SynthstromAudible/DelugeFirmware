@@ -762,7 +762,7 @@ void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, i
 	    || modFXTypeNow == ModFXType::CHORUS_STEREO) {
 		if (!modFXBuffer) {
 			modFXBuffer =
-			    (StereoSample*)GeneralMemoryAllocator::get().allocMaxSpeed(kModFXBufferSize * sizeof(StereoSample));
+			    (StereoSample*)GeneralMemoryAllocator::get().allocMaxSpeed(kModFXBufferSize * sizeof(StereoSample)); //@TODO: Measure and put into nonaudio if no difference
 			if (!modFXBuffer) {
 				modFXTypeNow = ModFXType::NONE;
 			}
@@ -778,7 +778,7 @@ void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, i
 	else if (modFXTypeNow == ModFXType::GRAIN) {
 		if (!modFXGrainBuffer) {
 			modFXGrainBuffer = (StereoSample*)GeneralMemoryAllocator::get().allocMaxSpeed(kModFXGrainBufferSize
-			                                                                              * sizeof(StereoSample));
+			                                                                              * sizeof(StereoSample)); //@TODO: Measure and put into nonaudio if no difference
 			if (!modFXGrainBuffer) {
 				modFXTypeNow = ModFXType::NONE;
 			}

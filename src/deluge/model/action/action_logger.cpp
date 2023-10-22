@@ -126,7 +126,7 @@ Action* ActionLogger::getNewAction(int32_t newActionType, int32_t addToExistingI
 		}
 
 		// And make a new one
-		void* actionMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(Action));
+		void* actionMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(Action)); //@TODO: How many actions do we have, does it make sense to put them into nonaudio?
 
 		if (!actionMemory) {
 			Debug::println("no ram to create new Action");
@@ -138,7 +138,7 @@ Action* ActionLogger::getNewAction(int32_t newActionType, int32_t addToExistingI
 		    currentSong->sessionClips.getNumElements() + currentSong->arrangementOnlyClips.getNumElements();
 
 		ActionClipState* clipStates =
-		    (ActionClipState*)GeneralMemoryAllocator::get().allocLowSpeed(numClips * sizeof(ActionClipState));
+		    (ActionClipState*)GeneralMemoryAllocator::get().allocLowSpeed(numClips * sizeof(ActionClipState)); // See question above
 
 		if (!clipStates) {
 			delugeDealloc(actionMemory);

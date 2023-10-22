@@ -222,7 +222,7 @@ SampleCache* Sample::getOrCreateCache(SampleHolder* sampleHolder, int32_t phaseI
 	}
 
 	int32_t numClusters = ((lengthInBytesCached - 1) >> audioFileManager.clusterSizeMagnitude) + 1;
-	//@TODO: Should this really not be stealable?
+
 	void* memory =
 	    GeneralMemoryAllocator::get().allocLowSpeed(sizeof(SampleCache) + (numClusters - 1) * sizeof(Cluster*));
 	if (!memory) {
@@ -306,7 +306,7 @@ int32_t Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSamp
 			numPercCacheClusters = ((lengthInSamplesAfterReduction - 1) >> audioFileManager.clusterSizeMagnitude)
 			                       + 1; // Stores this number for the future too
 			int32_t memorySize = numPercCacheClusters * sizeof(Cluster*);
-			percCacheClusters[reversed] = (Cluster**)GeneralMemoryAllocator::get().allocMaxSpeed(memorySize);
+			percCacheClusters[reversed] = (Cluster**)GeneralMemoryAllocator::get().allocMaxSpeed(memorySize); //@TODO: Really not sure about those
 			if (!percCacheClusters[reversed]) {
 				LOCK_EXIT
 				return ERROR_INSUFFICIENT_RAM;
@@ -321,8 +321,7 @@ int32_t Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSamp
 		if (!percCacheMemory[reversed]) {
 			int32_t percCacheSize = lengthInSamplesAfterReduction;
 
-			//@TODO: Should this really not be stealable?
-			percCacheMemory[reversed] = (uint8_t*)GeneralMemoryAllocator::get().allocLowSpeed(percCacheSize);
+			percCacheMemory[reversed] = (uint8_t*)GeneralMemoryAllocator::get().allocLowSpeed(percCacheSize); //@TODO: Really not sure about those
 			if (!percCacheMemory[reversed]) {
 				LOCK_EXIT
 				return ERROR_INSUFFICIENT_RAM;

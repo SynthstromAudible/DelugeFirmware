@@ -95,7 +95,6 @@ void AudioFileManager::init() {
 
 	clusterSizeAtBoot = clusterSize;
 
-	//@TODO: Should this really be not stealable?
 	void* temp = GeneralMemoryAllocator::get().allocLowSpeed(clusterSizeAtBoot + CACHE_LINE_SIZE * 2);
 	storageManager.fileClusterBuffer = (char*)temp + CACHE_LINE_SIZE;
 
@@ -502,7 +501,7 @@ notLoadableAsWaveTable:
 				}
 			}
 
-			void* waveTableMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(WaveTable));
+			void* waveTableMemory = GeneralMemoryAllocator::get().allocStealableLowSpeed(sizeof(WaveTable));
 			if (!waveTableMemory) {
 				*error = ERROR_INSUFFICIENT_RAM;
 				return NULL;
@@ -729,8 +728,7 @@ cantLoadFile:
 
 	int32_t memorySizeNeeded = (type == AudioFileType::SAMPLE) ? sizeof(Sample) : sizeof(WaveTable);
 
-	//@TODO: Should allocStealableMaxSpeed even exist, was this intended to go into internal memory and why?
-	void* audioFileMemory = GeneralMemoryAllocator::get().allocStealableMaxSpeed(memorySizeNeeded);
+	void* audioFileMemory = GeneralMemoryAllocator::get().allocStealableLowSpeed(memorySizeNeeded);
 	if (!audioFileMemory) {
 ramError:
 		*error = ERROR_INSUFFICIENT_RAM;

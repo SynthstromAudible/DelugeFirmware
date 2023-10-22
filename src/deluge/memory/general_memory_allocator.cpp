@@ -176,11 +176,6 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam,
 	return alloc(requiredSize, false, false, thingNotToStealFrom);
 }
 
-[[gnu::always_inline]] void* GeneralMemoryAllocator::allocStealableMaxSpeed(uint32_t requiredSize,
-                                                                            void* thingNotToStealFrom) {
-	return alloc(requiredSize, true, true, thingNotToStealFrom);
-}
-
 [[gnu::always_inline]] void* GeneralMemoryAllocator::allocStealableLowSpeed(uint32_t requiredSize,
                                                                             void* thingNotToStealFrom) {
 	return alloc(requiredSize, false, true, thingNotToStealFrom);

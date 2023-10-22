@@ -3732,7 +3732,7 @@ int32_t InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 				thisNoteRow->drum = kit->getGateDrumForChannel(gateChannel);
 
 				if (!thisNoteRow->drum) {
-					void* drumMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(GateDrum));
+					void* drumMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(GateDrum));
 					if (!drumMemory) {
 						return ERROR_INSUFFICIENT_RAM;
 					}

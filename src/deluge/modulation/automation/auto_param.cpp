@@ -2115,7 +2115,7 @@ void AutoParam::copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* co
 
 		// Allocate some memory for the nodes
 		copiedParamAutomation->nodes = (ParamNode*)GeneralMemoryAllocator::get().allocLowSpeed(
-		    sizeof(ParamNode) * copiedParamAutomation->numNodes);
+		    sizeof(ParamNode) * copiedParamAutomation->numNodes); //@TODO: Does it make sense these are in SDRAM? Are the other nodes also in SDRAM?
 
 		if (!copiedParamAutomation->nodes) {
 			copiedParamAutomation->numNodes = 0;
