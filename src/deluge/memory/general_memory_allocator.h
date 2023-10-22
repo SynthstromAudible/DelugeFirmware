@@ -61,7 +61,6 @@ public:
 	GeneralMemoryAllocator();
 	void* allocMaxSpeed(uint32_t requiredSize, void* thingNotToStealFrom = NULL);
 	void* allocLowSpeed(uint32_t requiredSize, void* thingNotToStealFrom = NULL);
-	void* allocStealableMaxSpeed(uint32_t requiredSize, void* thingNotToStealFrom = NULL);
 	void* allocStealableLowSpeed(uint32_t requiredSize, void* thingNotToStealFrom = NULL);
 
 	void* alloc(uint32_t requiredSize, bool mayUseOnChipRam, bool makeStealable, void* thingNotToStealFrom);
