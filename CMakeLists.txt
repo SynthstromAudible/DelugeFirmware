@@ -215,9 +215,6 @@ target_link_options(deluge PUBLIC
     LINKER:--gc-sections
     LINKER:--entry=start # Set the entrypoint to 'start' (see RZA1/compiler/asm/start.S)
 
-    LINKER:--sort-common
-    LINKER:--sort-section=name
-
     $<$<CONFIG:RELEASE>:LINKER:--strip-all> # Strip
     
     -nostartfiles # Don't emit startfiles
