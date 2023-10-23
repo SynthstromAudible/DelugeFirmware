@@ -1990,38 +1990,18 @@ void ModControllableAudio::switchDelaySyncLevel() {
 	// Note: SYNC_LEVEL_NONE (value 0) can't be selected
 	delay.syncLevel = (SyncLevel)((delay.syncLevel) % SyncLevel::SYNC_LEVEL_256TH + 1); //cycle from 1 to 9 (omit 0)
 
-	char const* displayText;
-	switch (delay.syncLevel) {
-	case SYNC_LEVEL_2ND:
-		displayText = "2nd";
-		break;
-	case SYNC_LEVEL_4TH:
-		displayText = "4th";
-		break;
-	case SYNC_LEVEL_8TH:
-		displayText = "8th";
-		break;
-	case SYNC_LEVEL_16TH:
-		displayText = "16th";
-		break;
-	case SYNC_LEVEL_32ND:
-		displayText = "32nd";
-		break;
-	case SYNC_LEVEL_64TH:
-		displayText = "64th";
-		break;
-	case SYNC_LEVEL_128TH:
-		displayText = "128th";
-		break;
-	case SYNC_LEVEL_256TH:
-		displayText = "256th";
-		break;
-
-	default: //SYNC_LEVEL_WHOLE
-		displayText = "1-bar";
-		break;
+	char* buffer = shortStringBuffer;
+	currentSong->getNoteLengthName(buffer, (uint32_t)3 << (SYNC_LEVEL_256TH - delay.syncLevel));
+	if (display->haveOLED()) {
+		// Need to delete "-notes" from the name
+		std::string noteName(buffer);
+		std::string cleanName = noteName.substr(0, noteName.find("-notes"));
+		display->displayPopup(cleanName.c_str());
 	}
-	display->displayPopup(displayText);
+	else {
+		// 7 Seg just display it
+		display->displayPopup(buffer);
+	}
 }
 
 void ModControllableAudio::switchLPFMode() {

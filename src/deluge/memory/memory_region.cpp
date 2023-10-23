@@ -48,6 +48,27 @@ void MemoryRegion::setup(void* emptySpacesMemory, int32_t emptySpacesMemorySize,
 	EmptySpaceRecord* firstRecord = (EmptySpaceRecord*)emptySpaces.getElementAddress(0);
 	firstRecord->length = memorySizeWithoutHeaders;
 	firstRecord->address = regionBegin + 8;
+	pivot = 512;
+}
+
+uint32_t MemoryRegion::padSize(uint32_t requiredSize) {
+	if (requiredSize < minAlign) {
+		requiredSize = minAlign;
+	}
+	else {
+		int extraSize = 0;
+		while (requiredSize > maxAlign) {
+			extraSize += maxAlign;
+			requiredSize -= maxAlign;
+		}
+		//if it's not a power of 2 go up to the next power of 2
+		if (!((requiredSize & (requiredSize - 1)) == 0)) {
+			int magnitude = 32 - clz(requiredSize);
+			requiredSize = 1 << magnitude;
+		}
+		requiredSize += extraSize;
+	}
+	return requiredSize;
 }
 
 bool seenYet = false;
@@ -102,7 +123,7 @@ static EmptySpaceRecord* recordToMergeWith;
 // Specify the address and size of the actual memory region not including its headers, which this function will write and don't have to contain valid data yet.
 // spaceSize can even be 0 or less if you know it's going to get merged.
 inline void MemoryRegion::markSpaceAsEmpty(uint32_t address, uint32_t spaceSize, bool mayLookLeft, bool mayLookRight) {
-	if ((address <= start) || address >= end) {
+	if ((address < start) || address > end) {
 		display->freezeWithError("M998");
 		return;
 	}
@@ -249,8 +270,8 @@ goingToReplaceOldRecord:
 }
 
 void* MemoryRegion::alloc(uint32_t requiredSize, bool makeStealable, void* thingNotToStealFrom) {
-	requiredSize = (requiredSize + 3) & 0b11111111111111111111111111111100; // Jump to 4-byte boundary
-
+	bool large = requiredSize > pivot;
+	//set a minimum size	requiredSize = padSize(requiredSize);
 	int32_t allocatedSize;
 	uint32_t allocatedAddress;
 	int32_t i;
@@ -278,51 +299,66 @@ gotEmptySpace:
 		if (extraSpaceSizeWithoutItsHeaders < -8) {
 			display->freezeWithError("M003");
 		}
-		else if (extraSpaceSizeWithoutItsHeaders <= 0) {
-			emptySpaces.deleteAtIndex(i);
-		}
 		else {
-			allocatedSize = requiredSize;
-
-			uint32_t extraSpaceAddress = allocatedAddress + allocatedSize + 8;
-
-			uint32_t* __restrict__ header = (uint32_t*)((uint32_t)extraSpaceAddress - 4);
-			uint32_t* __restrict__ footer = (uint32_t*)((uint32_t)extraSpaceAddress + extraSpaceSizeWithoutItsHeaders);
-
-			// Update headers and footers
-			uint32_t headerData = SPACE_HEADER_EMPTY | extraSpaceSizeWithoutItsHeaders;
-			*header = headerData;
-			*footer = headerData;
-
-			// Hopefully we can just update the same empty space record.
-			// We definitely can if it was the leftmost record (smallest empty space).
-			if (!i) {
-				goto justUpdateRecord;
+			if (extraSpaceSizeWithoutItsHeaders <= minAlign) {
+				emptySpaces.deleteAtIndex(i);
 			}
+			else {
 
-			{
-				// Or even if it wasn't the leftmost record, we might still be able to just simply update - if our new value
-				// is still bigger than the record to the left.
-				EmptySpaceRecord* nextSmallerRecord = (EmptySpaceRecord*)emptySpaces.getElementAddress(i - 1);
-				int32_t howMuchBiggerStill = extraSpaceSizeWithoutItsHeaders - nextSmallerRecord->length;
-				if (howMuchBiggerStill > 0 || (!howMuchBiggerStill && extraSpaceAddress > nextSmallerRecord->address)) {
+				allocatedSize = requiredSize;
+				uint32_t extraSpaceAddress;
+				//basically the idea here is that small things get allocated at the end of
+				//the space, and large things are at the beginning
+				//setting pivot to 0 restores original behaviour
+				//This reduces fragmentation and avoids chains of steals
+				if (!large) {
+					extraSpaceAddress = allocatedAddress;
+					allocatedAddress = extraSpaceAddress + extraSpaceSizeWithoutItsHeaders + 8;
+				}
+				else {
+					extraSpaceAddress = allocatedAddress + allocatedSize + 8;
+				}
+
+				uint32_t* __restrict__ header = (uint32_t*)((uint32_t)extraSpaceAddress - 4);
+				uint32_t* __restrict__ footer =
+				    (uint32_t*)((uint32_t)extraSpaceAddress + extraSpaceSizeWithoutItsHeaders);
+
+				// Update headers and footers
+				uint32_t headerData = SPACE_HEADER_EMPTY | extraSpaceSizeWithoutItsHeaders;
+				*header = headerData;
+				*footer = headerData;
+
+				// Hopefully we can just update the same empty space record.
+				// We definitely can if it was the leftmost record (smallest empty space).
+				if (!i) {
 					goto justUpdateRecord;
 				}
 
-				// Okay, if we're here, we have to rearrange some records.
-				// Find the best empty space
-				EmptySpaceRecord searchThing;
-				searchThing.length = extraSpaceSizeWithoutItsHeaders;
-				searchThing.address = extraSpaceAddress;
-				int32_t insertAt = emptySpaces.searchMultiWord((uint32_t*)&searchThing, GREATER_OR_EQUAL, 0, i);
+				{
+					// Or even if it wasn't the leftmost record, we might still be able to just simply update - if our new value
+					// is still bigger than the record to the left.
+					EmptySpaceRecord* nextSmallerRecord = (EmptySpaceRecord*)emptySpaces.getElementAddress(i - 1);
+					int32_t howMuchBiggerStill = extraSpaceSizeWithoutItsHeaders - nextSmallerRecord->length;
+					if (howMuchBiggerStill > 0
+					    || (!howMuchBiggerStill && extraSpaceAddress > nextSmallerRecord->address)) {
+						goto justUpdateRecord;
+					}
 
-				emptySpaces.moveElementsRight(insertAt, i, 1);
+					// Okay, if we're here, we have to rearrange some records.
+					// Find the best empty space
+					EmptySpaceRecord searchThing;
+					searchThing.length = extraSpaceSizeWithoutItsHeaders;
+					searchThing.address = extraSpaceAddress;
+					int32_t insertAt = emptySpaces.searchMultiWord((uint32_t*)&searchThing, GREATER_OR_EQUAL, 0, i);
 
-				emptySpaceRecord = (EmptySpaceRecord*)emptySpaces.getElementAddress(insertAt);
-			}
+					emptySpaces.moveElementsRight(insertAt, i, 1);
+
+					emptySpaceRecord = (EmptySpaceRecord*)emptySpaces.getElementAddress(insertAt);
+				}
 justUpdateRecord:
-			emptySpaceRecord->length = extraSpaceSizeWithoutItsHeaders;
-			emptySpaceRecord->address = extraSpaceAddress;
+				emptySpaceRecord->length = extraSpaceSizeWithoutItsHeaders;
+				emptySpaceRecord->address = extraSpaceAddress;
+			}
 		}
 	}
 
@@ -357,7 +393,7 @@ noEmptySpace:
 
 		// See if there was some extra space left over
 		int32_t extraSpaceSizeWithoutItsHeaders = allocatedSize - requiredSize - 8;
-		if (requiredSize && extraSpaceSizeWithoutItsHeaders > 0) {
+		if (requiredSize && extraSpaceSizeWithoutItsHeaders > minAlign) {
 			allocatedSize = requiredSize;
 			markSpaceAsEmpty(allocatedAddress + allocatedSize + 8, extraSpaceSizeWithoutItsHeaders, false, false);
 		}
@@ -388,9 +424,7 @@ noEmptySpace:
 
 // Returns new size
 uint32_t MemoryRegion::shortenRight(void* address, uint32_t newSize) {
-
-	newSize = std::max(newSize, 4_u32);
-	newSize = (newSize + 3) & 0b11111111111111111111111111111100; // Round new size up to 4-byte boundary
+	newSize = padSize(newSize);
 
 	uint32_t* __restrict__ header = (uint32_t*)((char*)address - 4);
 	uint32_t oldAllocatedSize = *header & SPACE_SIZE_MASK;
@@ -432,8 +466,7 @@ uint32_t MemoryRegion::shortenLeft(void* address, uint32_t amountToShorten, uint
 	uint32_t* __restrict__ footer = (uint32_t*)((char*)address + oldAllocatedSize);
 	uint32_t newSize = oldAllocatedSize - amountToShorten;
 
-	newSize = std::max(newSize, 4_u32);
-	newSize = (newSize + 3) & 0b11111111111111111111111111111100; // Round new size up to 4-byte boundary
+	newSize = padSize(newSize);
 
 	uint32_t* __restrict__ lookLeft =
 	    (uint32_t*)((uint32_t)address - 8); // Looking to what's directly left of our old allocated space
@@ -654,6 +687,10 @@ tryNotStealingFirst:
 #endif
 						goto tryNotStealingFirst;
 					}
+				case SPACE_HEADER_ALLOCATED:
+					break;
+				default:
+					Debug::println("no match !!!!!!");
 				}
 			}
 
@@ -682,7 +719,7 @@ tryNotStealingFirst:
 			return toReturn;
 		}
 
-gotEnoughMemory : {}
+gotEnoughMemory: {}
 		// There's a small chance it will have found a bit less memory the second time through if stealing an allocation resulted in another little bit of memory being freed,
 		// that adding onto the discovered amount, and getting us less of a surplus while still reaching the desired (well actually the min) amount
 	}
@@ -694,9 +731,8 @@ void MemoryRegion::extend(void* address, uint32_t minAmountToExtend, uint32_t id
                           uint32_t* __restrict__ getAmountExtendedLeft, uint32_t* __restrict__ getAmountExtendedRight,
                           void* thingNotToStealFrom) {
 
-	// Jump to 4-byte boundary
-	minAmountToExtend = (minAmountToExtend + 3) & 0b11111111111111111111111111111100;
-	idealAmountToExtend = (idealAmountToExtend + 3) & 0b11111111111111111111111111111100;
+	minAmountToExtend = padSize(minAmountToExtend);
+	idealAmountToExtend = padSize(idealAmountToExtend);
 
 	uint32_t* header = (uint32_t*)((char*)address - 4);
 	uint32_t oldAllocatedSize = (*header & SPACE_SIZE_MASK);
