@@ -71,7 +71,7 @@ int32_t ParamManager::setupMIDI() {
 }
 
 int32_t ParamManager::setupUnpatched() {
-	void* memoryUnpatched = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(UnpatchedParamSet));
+	void* memoryUnpatched = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(UnpatchedParamSet));
 	if (!memoryUnpatched) {
 		return ERROR_INSUFFICIENT_RAM;
 	}
@@ -83,19 +83,19 @@ int32_t ParamManager::setupUnpatched() {
 }
 
 int32_t ParamManager::setupWithPatching() {
-	void* memoryUnpatched = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(UnpatchedParamSet));
+	void* memoryUnpatched = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(UnpatchedParamSet));
 	if (!memoryUnpatched) {
 		return ERROR_INSUFFICIENT_RAM;
 	}
 
-	void* memoryPatched = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(PatchedParamSet));
+	void* memoryPatched = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(PatchedParamSet));
 	if (!memoryPatched) {
 ramError2:
 		delugeDealloc(memoryUnpatched);
 		return ERROR_INSUFFICIENT_RAM;
 	}
 
-	void* memoryPatchCables = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(PatchCableSet));
+	void* memoryPatchCables = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(PatchCableSet));
 	if (!memoryPatchCables) {
 		delugeDealloc(memoryPatched);
 		goto ramError2;
