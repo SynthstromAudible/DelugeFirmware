@@ -71,7 +71,8 @@ int32_t ParamManager::setupMIDI() {
 }
 
 int32_t ParamManager::setupUnpatched() {
-	void* memoryUnpatched = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(UnpatchedParamSet)); //@TODO: We could try putting all the params into SDRAM and see the rendering difference
+	void* memoryUnpatched = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(
+	    UnpatchedParamSet)); //@TODO: We could try putting all the params into SDRAM and see the rendering difference
 	if (!memoryUnpatched) {
 		return ERROR_INSUFFICIENT_RAM;
 	}

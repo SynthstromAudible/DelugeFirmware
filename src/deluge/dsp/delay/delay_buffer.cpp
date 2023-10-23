@@ -63,7 +63,8 @@ uint8_t DelayBuffer::init(uint32_t newRate, uint32_t failIfThisSize, bool includ
 	sizeIncludingExtra = size + (includeExtraSpace ? delaySpaceBetweenReadAndWrite : 0);
 	AudioEngine::logAction("DelayBuffer::init before");
 
-	bufferStart = (StereoSample*)GeneralMemoryAllocator::get().allocMaxSpeed(sizeIncludingExtra * sizeof(StereoSample)); //@TODO: Measure and put into nonaudio if no difference
+	bufferStart = (StereoSample*)GeneralMemoryAllocator::get().allocMaxSpeed(
+	    sizeIncludingExtra * sizeof(StereoSample)); //@TODO: Measure and put into nonaudio if no difference
 	AudioEngine::logAction("DelayBuffer::init after");
 	if (bufferStart == 0) {
 		return ERROR_INSUFFICIENT_RAM;

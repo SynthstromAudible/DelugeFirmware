@@ -3315,7 +3315,8 @@ void NoteRow::rememberDrumName() {
 		}
 
 		// If we're here, we're at the end of the list, didn't find an instance of the name, and want to add it to the end of the list now
-		void* drumNameMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(DrumName)); //@TODO: tiny object, should be in internal?
+		void* drumNameMemory =
+		    GeneralMemoryAllocator::get().allocLowSpeed(sizeof(DrumName)); //@TODO: tiny object, should be in internal?
 		if (drumNameMemory) {
 			*prevPointer = new (drumNameMemory) DrumName(&soundDrum->name);
 		}

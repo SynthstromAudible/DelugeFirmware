@@ -348,8 +348,8 @@ bool Sound::setModFXType(ModFXType newType) {
 	if (newType == ModFXType::FLANGER || newType == ModFXType::CHORUS || newType == ModFXType::CHORUS_STEREO) {
 		if (!modFXBuffer) {
 			// TODO: should give an error here if no free ram
-			modFXBuffer =
-			    (StereoSample*)GeneralMemoryAllocator::get().allocMaxSpeed(kModFXBufferSize * sizeof(StereoSample)); //@TODO: Measure and put into nonaudio if no difference
+			modFXBuffer = (StereoSample*)GeneralMemoryAllocator::get().allocMaxSpeed(
+			    kModFXBufferSize * sizeof(StereoSample)); //@TODO: Measure and put into nonaudio if no difference
 			if (!modFXBuffer) {
 				return false;
 			}
@@ -361,8 +361,8 @@ bool Sound::setModFXType(ModFXType newType) {
 	}
 	else if (newType == ModFXType::GRAIN) {
 		if (!modFXGrainBuffer) {
-			modFXGrainBuffer = (StereoSample*)GeneralMemoryAllocator::get().allocMaxSpeed(kModFXGrainBufferSize
-			                                                                              * sizeof(StereoSample)); //@TODO: Measure and put into nonaudio if no difference
+			modFXGrainBuffer = (StereoSample*)GeneralMemoryAllocator::get().allocMaxSpeed(
+			    kModFXGrainBufferSize * sizeof(StereoSample)); //@TODO: Measure and put into nonaudio if no difference
 			if (!modFXGrainBuffer) {
 				return false;
 			}

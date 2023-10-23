@@ -1049,8 +1049,8 @@ void TimeStretcher::reassessWhetherToBeFillingBuffer(int32_t phaseIncrement, int
 #endif
 
 bool TimeStretcher::allocateBuffer(int32_t numChannels) {
-	buffer =
-	    (int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(TimeStretch::kBufferSize * sizeof(int32_t) * numChannels); //@TODO: Measure if internal vs SDRAM matters
+	buffer = (int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(
+	    TimeStretch::kBufferSize * sizeof(int32_t) * numChannels); //@TODO: Measure if internal vs SDRAM matters
 	return (buffer != NULL);
 }
 

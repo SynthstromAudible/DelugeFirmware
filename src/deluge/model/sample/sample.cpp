@@ -306,7 +306,8 @@ int32_t Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSamp
 			numPercCacheClusters = ((lengthInSamplesAfterReduction - 1) >> audioFileManager.clusterSizeMagnitude)
 			                       + 1; // Stores this number for the future too
 			int32_t memorySize = numPercCacheClusters * sizeof(Cluster*);
-			percCacheClusters[reversed] = (Cluster**)GeneralMemoryAllocator::get().allocMaxSpeed(memorySize); //@TODO: Really not sure about those
+			percCacheClusters[reversed] =
+			    (Cluster**)GeneralMemoryAllocator::get().allocMaxSpeed(memorySize); //@TODO: Really not sure about those
 			if (!percCacheClusters[reversed]) {
 				LOCK_EXIT
 				return ERROR_INSUFFICIENT_RAM;
@@ -321,7 +322,8 @@ int32_t Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSamp
 		if (!percCacheMemory[reversed]) {
 			int32_t percCacheSize = lengthInSamplesAfterReduction;
 
-			percCacheMemory[reversed] = (uint8_t*)GeneralMemoryAllocator::get().allocLowSpeed(percCacheSize); //@TODO: Really not sure about those
+			percCacheMemory[reversed] = (uint8_t*)GeneralMemoryAllocator::get().allocLowSpeed(
+			    percCacheSize); //@TODO: Really not sure about those
 			if (!percCacheMemory[reversed]) {
 				LOCK_EXIT
 				return ERROR_INSUFFICIENT_RAM;
