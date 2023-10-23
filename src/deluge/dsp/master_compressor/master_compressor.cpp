@@ -78,7 +78,7 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples) {
 	} while (++thisSample != bufferEnd);
 	//for LEDs
 	//9 converts to dB, quadrupled for display range since a 30db reduction is basically killing the signal
-	gr = std::clamp<int32_t>(-reduction * 9 * 4, 0, 127);
+	gainReduction = std::clamp<int32_t>(-reduction * 9 * 4, 0, 127);
 }
 
 //output range is 0-21 (2^31)

@@ -140,7 +140,7 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	masterCompressorRelease = releaseRateTable[5] << 2;
 	masterCompressorThresh = ONE_Q31;
 	masterCompressorRatio = ONE_Q31 >> 1;
-	AudioEngine::mastercompressor.gr = 0.0;
+	AudioEngine::mastercompressor.gainReduction = 0.0;
 
 	dirPath.set("SONGS");
 }

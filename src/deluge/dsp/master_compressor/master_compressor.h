@@ -35,7 +35,7 @@ public:
 	void render(StereoSample* buffer, uint16_t numSamples);
 	void updateER();
 	float calc_rms(StereoSample* buffer, uint16_t numSamples);
-	uint8_t gr;
+	uint8_t gainReduction;
 	q31_t threshold;
 	q31_t shape;
 	q31_t ratio;
