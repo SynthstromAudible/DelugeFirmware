@@ -37,18 +37,17 @@ extern uint32_t program_stack_end;
 GeneralMemoryAllocator::GeneralMemoryAllocator() {
 	lock = false;
 
-	regions[MEMORY_REGION_SDRAM].setup(emptySpacesMemory, sizeof(emptySpacesMemory), (uint32_t)&__sdram_bss_end,
-	                                   EXTERNAL_MEMORY_END - RESERVED_NONAUDIO_ALLOCATOR);
-	//this region implements new. Arguably we don't need the GMA at all for it
-	regions[MEMORY_REGION_NONAUDIO].setup(emptySpacesMemoryGeneral, sizeof(emptySpacesMemoryGeneral),
-	                                      EXTERNAL_MEMORY_END - RESERVED_NONAUDIO_ALLOCATOR, EXTERNAL_MEMORY_END);
+	regions[MEMORY_REGION_STEALABLE].setup(emptySpacesMemory, sizeof(emptySpacesMemory), (uint32_t)&__sdram_bss_end,
+	                                       EXTERNAL_MEMORY_END - RESERVED_EXTERNAL_ALLOCATOR);
+	regions[MEMORY_REGION_EXTERNAL].setup(emptySpacesMemoryGeneral, sizeof(emptySpacesMemoryGeneral),
+	                                      EXTERNAL_MEMORY_END - RESERVED_EXTERNAL_ALLOCATOR, EXTERNAL_MEMORY_END);
 	regions[MEMORY_REGION_INTERNAL].setup(emptySpacesMemoryInternal, sizeof(emptySpacesMemoryInternal),
 	                                      (uint32_t)&__heap_start, (uint32_t)&program_stack_start);
 
 #if ALPHA_OR_BETA_VERSION
-	regions[MEMORY_REGION_SDRAM].name = "external";
+	regions[MEMORY_REGION_STEALABLE].name = "stealable";
 	regions[MEMORY_REGION_INTERNAL].name = "internal";
-	regions[MEMORY_REGION_NONAUDIO].name = "nonaudio";
+	regions[MEMORY_REGION_EXTERNAL].name = "external";
 #endif
 }
 
@@ -90,14 +89,14 @@ extern "C" void delugeDealloc(void* address) {
 	GeneralMemoryAllocator::get().dealloc(address);
 #endif
 }
-void* GeneralMemoryAllocator::allocNonAudio(uint32_t requiredSize) {
+void* GeneralMemoryAllocator::allocExternal(uint32_t requiredSize) {
 
 	if (lock) {
 		return NULL; // Prevent any weird loops in freeSomeStealableMemory(), which mostly would only be bad cos they could extend the stack an unspecified amount
 	}
 
 	lock = true;
-	void* address = regions[MEMORY_REGION_NONAUDIO].alloc(requiredSize, false, NULL);
+	void* address = regions[MEMORY_REGION_EXTERNAL].alloc(requiredSize, false, NULL);
 	lock = false;
 	if (!address) {
 		//numericDriver.freezeWithError("M998");
@@ -105,8 +104,8 @@ void* GeneralMemoryAllocator::allocNonAudio(uint32_t requiredSize) {
 	}
 	return address;
 }
-void GeneralMemoryAllocator::deallocNonAudio(void* address) {
-	return regions[MEMORY_REGION_NONAUDIO].dealloc(address);
+void GeneralMemoryAllocator::deallocExternal(void* address) {
+	return regions[MEMORY_REGION_EXTERNAL].dealloc(address);
 }
 
 // Watch the heck out - in the older V3.1 branch, this had one less argument - makeStealable was missing - so in code from there, thingNotToStealFrom could be interpreted as makeStealable!
@@ -118,41 +117,35 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam,
 		return NULL; // Prevent any weird loops in freeSomeStealableMemory(), which mostly would only be bad cos they could extend the stack an unspecified amount
 	}
 
-	if (mayUseOnChipRam
-#if TEST_GENERAL_MEMORY_ALLOCATION
-	    && getRandom255() < 128
-#endif
-	) {
-		lock = true;
-		//uint16_t startTime = *TCNT[TIMER_SYSTEM_FAST];
-		void* address = regions[MEMORY_REGION_INTERNAL].alloc(requiredSize, makeStealable, thingNotToStealFrom);
-		//uint16_t endTime = *TCNT[TIMER_SYSTEM_FAST];
-		lock = false;
-		if (address) {
-			/*
-			uint16_t timeTaken = endTime - startTime;
-			totalMallocTime += timeTaken;
-			numMallocTimes++;
+	void* address = nullptr;
 
-			Debug::print("average malloc time: ");
-			Debug::println(totalMallocTime / numMallocTimes);
+	// Only allow allocating stealables in stelable region
+	if (!makeStealable) {
+		// If internal is allowed, try that first
+		if (mayUseOnChipRam) {
+			lock = true;
+			address = regions[MEMORY_REGION_INTERNAL].alloc(requiredSize, makeStealable, thingNotToStealFrom);
+			lock = false;
 
-			//Debug::print("total: ");
-			//Debug::println(totalMallocTime);
-			*/
-			return address;
+			if (address) {
+				return address;
+			}
+
+			AudioEngine::logAction("internal allocation failed");
 		}
 
-		AudioEngine::logAction("internal allocation failed");
-
-		// Second try nonaudio region instead of external
+		// Second try external region
 		lock = true;
-		address = regions[MEMORY_REGION_NONAUDIO].alloc(requiredSize, makeStealable, thingNotToStealFrom);
+		address = regions[MEMORY_REGION_EXTERNAL].alloc(requiredSize, makeStealable, thingNotToStealFrom);
 		lock = false;
 
 		if (address) {
 			return address;
 		}
+
+		AudioEngine::logAction("external allocation failed");
+
+		Debug::println("Dire memory, resorting to stealable area");
 	}
 
 #if TEST_GENERAL_MEMORY_ALLOCATION
@@ -163,7 +156,7 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam,
 #endif
 
 	lock = true;
-	void* address = regions[MEMORY_REGION_SDRAM].alloc(requiredSize, makeStealable, thingNotToStealFrom);
+	address = regions[MEMORY_REGION_STEALABLE].alloc(requiredSize, makeStealable, thingNotToStealFrom);
 	lock = false;
 	return address;
 }
@@ -176,8 +169,7 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam,
 	return alloc(requiredSize, false, false, thingNotToStealFrom);
 }
 
-[[gnu::always_inline]] void* GeneralMemoryAllocator::allocStealableLowSpeed(uint32_t requiredSize,
-                                                                            void* thingNotToStealFrom) {
+[[gnu::always_inline]] void* GeneralMemoryAllocator::allocStealable(uint32_t requiredSize, void* thingNotToStealFrom) {
 	return alloc(requiredSize, false, true, thingNotToStealFrom);
 }
 
@@ -191,11 +183,11 @@ int32_t GeneralMemoryAllocator::getRegion(void* address) {
 	if (value >= regions[MEMORY_REGION_INTERNAL].start && value < regions[MEMORY_REGION_INTERNAL].end) {
 		return MEMORY_REGION_INTERNAL;
 	}
-	else if (value >= regions[MEMORY_REGION_SDRAM].start && value < regions[MEMORY_REGION_SDRAM].end) {
-		return MEMORY_REGION_SDRAM;
+	else if (value >= regions[MEMORY_REGION_STEALABLE].start && value < regions[MEMORY_REGION_STEALABLE].end) {
+		return MEMORY_REGION_STEALABLE;
 	}
-	else if (value >= regions[MEMORY_REGION_NONAUDIO].start && value < regions[MEMORY_REGION_NONAUDIO].end) {
-		return MEMORY_REGION_NONAUDIO;
+	else if (value >= regions[MEMORY_REGION_EXTERNAL].start && value < regions[MEMORY_REGION_EXTERNAL].end) {
+		return MEMORY_REGION_EXTERNAL;
 	}
 
 	display->freezeWithError("E339");
@@ -351,8 +343,8 @@ void GeneralMemoryAllocator::checkEverythingOk(char const* errorString) {
 		}
 	}
 
-	for (int32_t i = 0; i < regions[MEMORY_REGION_SDRAM].emptySpaces.getNumElements(); i++) {
-		EmptySpaceRecord* record = (EmptySpaceRecord*)regions[MEMORY_REGION_SDRAM].emptySpaces.getElementAddress(i);
+	for (int32_t i = 0; i < regions[MEMORY_REGION_STEALABLE].emptySpaces.getNumElements(); i++) {
+		EmptySpaceRecord* record = (EmptySpaceRecord*)regions[MEMORY_REGION_STEALABLE].emptySpaces.getElementAddress(i);
 
 		uint32_t* header = (uint32_t*)record->address - 1;
 		uint32_t* footer = (uint32_t*)(record->address + record->length);
@@ -508,13 +500,13 @@ void GeneralMemoryAllocator::test() {
 
 			if (getRandom255() < 2) {
 				Debug::print("\nfree spaces: ");
-				Debug::println(regions[MEMORY_REGION_SDRAM].emptySpaces.getNumElements());
+				Debug::println(regions[MEMORY_REGION_STEALABLE].emptySpaces.getNumElements());
 				Debug::print("allocations: ");
-				Debug::println(regions[MEMORY_REGION_SDRAM].numAllocations);
+				Debug::println(regions[MEMORY_REGION_STEALABLE].numAllocations);
 
-				if (regions[MEMORY_REGION_SDRAM].emptySpaces.getNumElements() == 1) {
+				if (regions[MEMORY_REGION_STEALABLE].emptySpaces.getNumElements() == 1) {
 					EmptySpaceRecord* firstRecord =
-					    (EmptySpaceRecord*)regions[MEMORY_REGION_SDRAM].emptySpaces.getElementAddress(0);
+					    (EmptySpaceRecord*)regions[MEMORY_REGION_STEALABLE].emptySpaces.getElementAddress(0);
 					Debug::print("free space size: ");
 					Debug::println(firstRecord->length);
 					Debug::print("free space address: ");

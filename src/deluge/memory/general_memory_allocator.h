@@ -19,11 +19,11 @@
 
 #include "memory/memory_region.h"
 
-#define MEMORY_REGION_SDRAM 0
+#define MEMORY_REGION_STEALABLE 0
 #define MEMORY_REGION_INTERNAL 1
-#define MEMORY_REGION_NONAUDIO 2
+#define MEMORY_REGION_EXTERNAL 2
 #define NUM_MEMORY_REGIONS 3
-constexpr uint32_t RESERVED_NONAUDIO_ALLOCATOR = 0x00800000;
+constexpr uint32_t RESERVED_EXTERNAL_ALLOCATOR = 0x00800000;
 class Stealable;
 
 /*
@@ -61,12 +61,12 @@ public:
 	GeneralMemoryAllocator();
 	void* allocMaxSpeed(uint32_t requiredSize, void* thingNotToStealFrom = NULL);
 	void* allocLowSpeed(uint32_t requiredSize, void* thingNotToStealFrom = NULL);
-	void* allocStealableLowSpeed(uint32_t requiredSize, void* thingNotToStealFrom = NULL);
+	void* allocStealable(uint32_t requiredSize, void* thingNotToStealFrom = NULL);
 
 	void* alloc(uint32_t requiredSize, bool mayUseOnChipRam, bool makeStealable, void* thingNotToStealFrom);
 	void dealloc(void* address);
-	void* allocNonAudio(uint32_t requiredSize);
-	void deallocNonAudio(void* address);
+	void* allocExternal(uint32_t requiredSize);
+	void deallocExternal(void* address);
 	uint32_t shortenRight(void* address, uint32_t newSize);
 	uint32_t shortenLeft(void* address, uint32_t amountToShorten, uint32_t numBytesToMoveRightIfSuccessful = 0);
 	void extend(void* address, uint32_t minAmountToExtend, uint32_t idealAmountToExtend,

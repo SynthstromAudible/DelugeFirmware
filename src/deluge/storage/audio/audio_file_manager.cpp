@@ -501,7 +501,7 @@ notLoadableAsWaveTable:
 				}
 			}
 
-			void* waveTableMemory = GeneralMemoryAllocator::get().allocStealableLowSpeed(sizeof(WaveTable));
+			void* waveTableMemory = GeneralMemoryAllocator::get().allocStealable(sizeof(WaveTable));
 			if (!waveTableMemory) {
 				*error = ERROR_INSUFFICIENT_RAM;
 				return NULL;
@@ -728,7 +728,7 @@ cantLoadFile:
 
 	int32_t memorySizeNeeded = (type == AudioFileType::SAMPLE) ? sizeof(Sample) : sizeof(WaveTable);
 
-	void* audioFileMemory = GeneralMemoryAllocator::get().allocStealableLowSpeed(memorySizeNeeded);
+	void* audioFileMemory = GeneralMemoryAllocator::get().allocStealable(memorySizeNeeded);
 	if (!audioFileMemory) {
 ramError:
 		*error = ERROR_INSUFFICIENT_RAM;
@@ -883,7 +883,7 @@ void AudioFileManager::testQueue() {
 // Caller must initialize() the Cluster after getting it from this function
 Cluster* AudioFileManager::allocateCluster(ClusterType type, bool shouldAddReasons, void* dontStealFromThing) {
 
-	void* clusterMemory = GeneralMemoryAllocator::get().allocStealableLowSpeed(clusterObjectSize, dontStealFromThing);
+	void* clusterMemory = GeneralMemoryAllocator::get().allocStealable(clusterObjectSize, dontStealFromThing);
 	if (!clusterMemory) {
 		return NULL;
 	}

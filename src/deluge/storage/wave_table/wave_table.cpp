@@ -260,8 +260,8 @@ gotError2:
 		    numCycles * (cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE);
 		int32_t bandSizeBytesWithDuplicates = bandSizeSamplesWithDuplicates << 1; // All bands contain just 16-bit data.
 		// Ironically we'll even do that if the source file was just 8-bit, but that's really uncommon.
-		void* bandDataMemory = GeneralMemoryAllocator::get().allocStealableLowSpeed(bandSizeBytesWithDuplicates
-		                                                                            + sizeof(WaveTableBandData));
+		void* bandDataMemory =
+		    GeneralMemoryAllocator::get().allocStealable(bandSizeBytesWithDuplicates + sizeof(WaveTableBandData));
 		if (!bandDataMemory) {
 			error = ERROR_INSUFFICIENT_RAM;
 			// All bands from this one onwards still have undefined data, so gotta get rid of them before anything else tries to do anything with them.
