@@ -232,7 +232,8 @@ TEST(MemoryAllocation, allocationSizes) {
 		CHECK(memreg.emptySpaces.getKeyAtIndex(0) == mem_size - 16);
 	}
 	//un modified GMA gets .999311
-	std::cout << "Packing factor: " << (average_packing_factor / numRepeats) << std::endl;
+	//current with extra padding gets .9939
+	//std::cout << "Packing factor: " << (average_packing_factor / numRepeats) << std::endl;
 	CHECK(average_packing_factor / numRepeats > 0.99);
 };
 
@@ -290,10 +291,10 @@ TEST(MemoryAllocation, RandomAllocFragmentation) {
 		averageSize += totalSize;
 	};
 	//for regression - unmodified GMA scores 0.60
-	//with power of 2 alignment GMA scores 0.67
+	//with power of 2 alignment GMA scores 0.689
 	//a perfect allocator with no fragmentation would tend towards 0.75
-	std::cout << "Average efficiency: " << (float(averageSize / numRepeats) / float(mem_size)) << std::endl;
-	CHECK(averageSize / numRepeats > 0.67 * mem_size);
+	//std::cout << "Average efficiency: " << (float(averageSize / numRepeats) / float(mem_size)) << std::endl;
+	CHECK(averageSize / numRepeats > 0.685 * mem_size);
 };
 
 // allocate 512 1m stealables
@@ -321,8 +322,11 @@ TEST(MemoryAllocation, stealableAllocations) {
 
 		testAllocations[i] = testalloc;
 	}
-	std::cout << (nSteals) << std::endl;
-	std::cout << "stealable efficiency: " << (float(totalAllocated) / MEM_SIZE) << std::endl;
+	float efficiency = (float(totalAllocated) / MEM_SIZE);
+	//std::cout << (nSteals) << std::endl;
+	//std::cout << "stealable efficiency: " << efficiency << std::endl;
+	//current efficiency is .9968
+	CHECK(efficiency > 0.9965);
 	mock().enable();
 };
 } // namespace
