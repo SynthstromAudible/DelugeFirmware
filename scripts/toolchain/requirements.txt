@@ -1,4 +1,4 @@
-certifi==2023.5.7
+certifi==2023.7.22
 setuptools==68.0.0
 SCons==4.5.2
 smmap==5.0.0
