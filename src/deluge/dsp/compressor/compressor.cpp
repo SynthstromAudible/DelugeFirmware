@@ -81,11 +81,14 @@ void Compressor::registerHitRetrospectively(int32_t strength, uint32_t numSample
 		// If we're still in the release stage...
 		if (numSamplesSinceRelease < releaseStageLengthInSamples) {
 			pos = numSamplesSinceRelease * alteredRelease;
+			envelopeHeight = ONE_Q31 - envelopeOffset;
+			envelopeOffset = ONE_Q31;
 			status = EnvelopeStage::RELEASE;
 		}
 
 		// Or if we're past the release stage...
 		else {
+			envelopeOffset = ONE_Q31;
 			status = EnvelopeStage::OFF;
 		}
 	}
@@ -137,15 +140,18 @@ int32_t Compressor::render(uint16_t numSamples, int32_t shapeValue) {
 			// If attack is all the way down, jump directly to release stage
 			if (attack == attackRateTable[0] << 2) {
 				envelopeHeight = ONE_Q31 - envelopeOffset;
+				envelopeOffset = ONE_Q31;
 				pos = 0;
 				status = EnvelopeStage::RELEASE;
 			}
-			if (status != EnvelopeStage::ATTACK) {
-				status = EnvelopeStage::ATTACK;
-				pos = 0;
-			}
+			else {
+				if (status != EnvelopeStage::ATTACK) {
+					status = EnvelopeStage::ATTACK;
+					pos = 0;
+				}
 
-			envelopeHeight = lastValue - envelopeOffset;
+				envelopeHeight = lastValue - envelopeOffset;
+			}
 		}
 		//or if we're working in follower mode, in which case we want to start releasing whenever the current hit strength is below the envelope level
 		else if (follower && newOffset > envelopeOffset) {
