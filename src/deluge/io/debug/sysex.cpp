@@ -101,7 +101,7 @@ static void firstPacket(uint8_t* data, int32_t len) {
 		}
 		load_bufsize = load_codesize + (511 - ((load_codesize - 1) & 511));
 
-		load_buf = (uint8_t*)GeneralMemoryAllocator::get().allocMaxSpeed(load_bufsize); //@TODO: could this be in nonaudio instead?
+		load_buf = (uint8_t*)GeneralMemoryAllocator::get().allocMaxSpeed(load_bufsize);
 		if (load_buf == nullptr) {
 			// fail :(
 			return;

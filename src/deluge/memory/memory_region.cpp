@@ -724,7 +724,7 @@ tryNotStealingFirst:
 			return toReturn;
 		}
 
-gotEnoughMemory: {}
+gotEnoughMemory : {}
 		// There's a small chance it will have found a bit less memory the second time through if stealing an allocation resulted in another little bit of memory being freed,
 		// that adding onto the discovered amount, and getting us less of a surplus while still reaching the desired (well actually the min) amount
 	}

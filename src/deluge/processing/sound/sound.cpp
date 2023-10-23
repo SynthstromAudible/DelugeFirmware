@@ -349,7 +349,7 @@ bool Sound::setModFXType(ModFXType newType) {
 		if (!modFXBuffer) {
 			// TODO: should give an error here if no free ram
 			modFXBuffer =
-			    (StereoSample*)GeneralMemoryAllocator::get().allocMaxSpeed(kModFXBufferSize * sizeof(StereoSample)); //@TODO: Measure and put into nonaudio if no difference
+			    (StereoSample*)GeneralMemoryAllocator::get().allocLowSpeed(kModFXBufferSize * sizeof(StereoSample));
 			if (!modFXBuffer) {
 				return false;
 			}
@@ -361,8 +361,8 @@ bool Sound::setModFXType(ModFXType newType) {
 	}
 	else if (newType == ModFXType::GRAIN) {
 		if (!modFXGrainBuffer) {
-			modFXGrainBuffer = (StereoSample*)GeneralMemoryAllocator::get().allocMaxSpeed(kModFXGrainBufferSize
-			                                                                              * sizeof(StereoSample)); //@TODO: Measure and put into nonaudio if no difference
+			modFXGrainBuffer = (StereoSample*)GeneralMemoryAllocator::get().allocLowSpeed(kModFXGrainBufferSize
+			                                                                              * sizeof(StereoSample));
 			if (!modFXGrainBuffer) {
 				return false;
 			}

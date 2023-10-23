@@ -1566,7 +1566,8 @@ paramManagerSetupError:
 
 Instrument* StorageManager::createNewNonAudioInstrument(InstrumentType instrumentType, int32_t slot, int32_t subSlot) {
 	int32_t size = (instrumentType == InstrumentType::MIDI_OUT) ? sizeof(MIDIInstrument) : sizeof(CVInstrument);
-	void* instrumentMemory = GeneralMemoryAllocator::get().allocLowSpeed(size); // @TODO: Check size and if it makes sense these are in SDRAM
+	// Paul: Might make sense to put these into Internal?
+	void* instrumentMemory = GeneralMemoryAllocator::get().allocLowSpeed(size);
 	if (!instrumentMemory) { // RAM fail
 		return NULL;
 	}

@@ -51,7 +51,7 @@ void HIDSysex::requestOLEDDisplay(MIDIDevice* device, uint8_t* data, int32_t len
 
 			if (oledDeltaImage == nullptr) {
 				oledDeltaImage = (uint8_t*)GeneralMemoryAllocator::get().allocMaxSpeed(
-				    sizeof(uint8_t[OLED_MAIN_HEIGHT_PIXELS >> 3][OLED_MAIN_WIDTH_PIXELS])); //@TODO: Check if there is a speed difference putting this into nonaudio
+				    sizeof(uint8_t[OLED_MAIN_HEIGHT_PIXELS >> 3][OLED_MAIN_WIDTH_PIXELS]));
 			}
 		}
 		sendDisplayIfChanged();

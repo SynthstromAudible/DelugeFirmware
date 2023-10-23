@@ -931,8 +931,8 @@ void InstrumentClipView::copyNotes() {
 			int32_t numNotes = endI - startI;
 
 			if (numNotes > 0) {
-
-				void* copiedNoteRowMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(CopiedNoteRow)); //@TODO: Shouldn't this be internal first?
+				// Paul: Might make sense to put these into Internal?
+				void* copiedNoteRowMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(CopiedNoteRow));
 				if (!copiedNoteRowMemory) {
 ramError:
 					deleteCopiedNoteRows();
@@ -948,7 +948,8 @@ ramError:
 				prevPointer = &newCopiedNoteRow->next;
 
 				// Allocate some memory for the notes
-				newCopiedNoteRow->notes = (Note*)GeneralMemoryAllocator::get().allocLowSpeed(sizeof(Note) * numNotes); //@TODO: Shouldn't this be internal first?
+				// Paul: Might make sense to put these into Internal?
+				newCopiedNoteRow->notes = (Note*)GeneralMemoryAllocator::get().allocLowSpeed(sizeof(Note) * numNotes);
 
 				if (!newCopiedNoteRow->notes) {
 					goto ramError;
