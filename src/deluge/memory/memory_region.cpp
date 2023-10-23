@@ -270,6 +270,7 @@ goingToReplaceOldRecord:
 }
 
 void* MemoryRegion::alloc(uint32_t requiredSize, bool makeStealable, void* thingNotToStealFrom) {
+	requiredSize = padSize(requiredSize);
 	bool large = requiredSize > pivot;
 	//set a minimum size	requiredSize = padSize(requiredSize);
 	int32_t allocatedSize;
@@ -367,18 +368,22 @@ justUpdateRecord:
 noEmptySpace:
 		allocatedAddress = cache_manager_.ReclaimMemory(*this, requiredSize, thingNotToStealFrom, &allocatedSize);
 		if (!allocatedAddress) {
-			const uint32_t msgBufferLen = 32;
-			char msgBuffer[msgBufferLen] = {0};
-			strncpy(&msgBuffer[strlen(msgBuffer)], "-> FULL ", msgBufferLen - strlen(msgBuffer));
-
 #if ALPHA_OR_BETA_VERSION
-			strncpy(&msgBuffer[strlen(msgBuffer)], name, msgBufferLen - strlen(msgBuffer));
-#endif
-			Debug::println(msgBuffer);
+			if (name) {
+				const uint32_t msgBufferLen = 32;
+				char msgBuffer[msgBufferLen] = {0};
+				strncpy(&msgBuffer[strlen(msgBuffer)], "-> FULL ", msgBufferLen - strlen(msgBuffer));
+
+				strncpy(&msgBuffer[strlen(msgBuffer)], name, msgBufferLen - strlen(name));
+
+				Debug::println(msgBuffer);
 
 #if !defined(NDEBUG)
-			display->displayPopup(msgBuffer);
+				display->displayPopup(msgBuffer);
 #endif
+			}
+#endif
+
 			return NULL;
 		}
 

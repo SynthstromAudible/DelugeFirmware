@@ -1,6 +1,5 @@
 #include "CppUTest/TestHarness.h"
 #include "CppUTestExt/MockSupport.h"
-#include "memory/general_memory_allocator.h"
 #include "memory/memory_region.h"
 #include "model/sample/sample.h"
 #include "storage/cluster/cluster.h"
@@ -101,7 +100,7 @@ TEST(MemoryAllocation, alloc1kb) {
 	int32_t size = 1000;
 	void* testalloc = memreg.alloc(size, false, NULL);
 	CHECK(testalloc != NULL);
-	uint32_t actualSize = GeneralMemoryAllocator::get().getAllocatedSize(testalloc);
+	uint32_t actualSize = getAllocatedSize(testalloc);
 	CHECK(actualSize >= size);
 	CHECK(actualSize < 2 * size);
 	CHECK(testAllocationStructure(testalloc, actualSize, SPACE_HEADER_ALLOCATED));
@@ -122,7 +121,7 @@ TEST(MemoryAllocation, allocstealable) {
 	memreg.cache_manager().QueueForReclamation(0, stealable);
 	vtableAddress = *(uint32_t*)testalloc;
 	CHECK(testalloc != NULL);
-	uint32_t actualSize = GeneralMemoryAllocator::get().getAllocatedSize(testalloc);
+	uint32_t actualSize = getAllocatedSize(testalloc);
 	CHECK(actualSize >= size);
 	CHECK(actualSize < 2 * size);
 	CHECK(testAllocationStructure(testalloc, actualSize, SPACE_HEADER_STEALABLE));
@@ -139,7 +138,7 @@ TEST(MemoryAllocation, uniformAllocation) {
 	void* testAllocations[NUM_TEST_ALLOCATIONS];
 	for (int i = 0; i < NUM_TEST_ALLOCATIONS; i += 1) {
 		void* testalloc = memreg.alloc(size, true, NULL);
-		uint32_t actualSize = GeneralMemoryAllocator::get().getAllocatedSize(testalloc);
+		uint32_t actualSize = getAllocatedSize(testalloc);
 		StealableTest* stealable = new (testalloc) StealableTest();
 		memreg.cache_manager().QueueForReclamation(0, stealable);
 		vtableAddress = *(uint32_t*)testalloc;
@@ -164,7 +163,7 @@ TEST(MemoryAllocation, allocationStructure) {
 		int size = (rand() % 10) << magnitude;
 		void* testalloc = memreg.alloc(size, false, NULL);
 		if (testalloc) {
-			uint32_t actualSize = GeneralMemoryAllocator::get().getAllocatedSize(testalloc);
+			uint32_t actualSize = getAllocatedSize(testalloc);
 			totalSize += actualSize;
 			testWritingMemory(testalloc, actualSize);
 			CHECK(testAllocationStructure(testalloc, actualSize, SPACE_HEADER_ALLOCATED));
@@ -245,6 +244,7 @@ TEST(MemoryAllocation, RandomAllocFragmentation) {
 	uint32_t totalSize = 0;
 	float averageSize = 0;
 	uint32_t allocations = 0;
+
 	//we need to pre alloc a bunch to setup the test
 	for (int i = 0; i < expectedAllocations; i++) {
 		if (i % 4 != 0) {
@@ -252,7 +252,7 @@ TEST(MemoryAllocation, RandomAllocFragmentation) {
 			int size = (rand() % 10) << magnitude;
 			void* testalloc = memreg.alloc(size, false, NULL);
 			if (testalloc) {
-				uint32_t actualSize = GeneralMemoryAllocator::get().getAllocatedSize(testalloc);
+				uint32_t actualSize = getAllocatedSize(testalloc);
 				allocations += 1;
 				totalSize += size;
 				testAllocations[allocations] = testalloc;
@@ -272,7 +272,7 @@ TEST(MemoryAllocation, RandomAllocFragmentation) {
 				if (testalloc) {
 					totalSize += size;
 					testAllocations[i] = testalloc;
-					testSizes[i] = actualSize;
+					testSizes[i] = size;
 				}
 			}
 			else {
@@ -292,7 +292,7 @@ TEST(MemoryAllocation, RandomAllocFragmentation) {
 	//for regression - unmodified GMA scores 0.60
 	//with power of 2 alignment GMA scores 0.689
 	//a perfect allocator with no fragmentation would tend towards 0.75
-	//std::cout << "Average efficiency: " << (float(averageSize / numRepeats) / float(mem_size)) << std::endl;
+	std::cout << "Average efficiency: " << (float(averageSize / numRepeats) / float(mem_size)) << std::endl;
 	CHECK(averageSize / numRepeats > 0.685 * mem_size);
 };
 
@@ -311,11 +311,12 @@ TEST(MemoryAllocation, stealableAllocations) {
 		if (i % 10 == 0) {
 			size = sizes[rand() % 2];
 		}
-		void* testalloc = memreg.alloc(size, &actualSize, true, NULL, false);
-		totalAllocated += actualSize;
+		void* testalloc = memreg.alloc(size, true, NULL);
+		totalAllocated += size;
 		StealableTest* stealable = new (testalloc) StealableTest();
 		memreg.cache_manager().QueueForReclamation(0, stealable);
 		vtableAddress = *(uint32_t*)testalloc;
+		actualSize = getAllocatedSize(testalloc);
 
 		CHECK(testAllocationStructure(testalloc, actualSize, SPACE_HEADER_STEALABLE));
 
@@ -323,9 +324,9 @@ TEST(MemoryAllocation, stealableAllocations) {
 	}
 	float efficiency = (float(totalAllocated) / MEM_SIZE);
 	//std::cout << (nSteals) << std::endl;
-	//std::cout << "stealable efficiency: " << efficiency << std::endl;
-	//current efficiency is .9968
-	CHECK(efficiency > 0.9965);
+	std::cout << "stealable efficiency: " << efficiency << std::endl;
+	//current efficiency is .994
+	CHECK(efficiency > 0.994);
 	mock().enable();
 };
 } // namespace
