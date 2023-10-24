@@ -42,12 +42,9 @@ public:
 	q31_t ratio;
 	q31_t out;
 	q31_t over;
-	q31_t finalVolumeL;
 	q31_t currentVolumeL;
-	q31_t finalVolumeR;
 	q31_t currentVolumeR;
-	q31_t amplitudeIncrementL;
-	q31_t amplitudeIncrementR;
+
 	float meanVolume;
 	float mean;
 	float lastGain;

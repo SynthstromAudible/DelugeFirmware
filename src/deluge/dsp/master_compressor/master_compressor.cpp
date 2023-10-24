@@ -68,14 +68,15 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t v
 	//18 - meanVolume is the magic amount that makes sure the output
 	//won't exceed 1<<24
 	float dbGain = std::min<float>(0.5 + er + reduction, 18 - meanVolume);
-
+	//additionally this is the most gain available without overflow
+	dbGain = std::min(dbGain, 2.75f);
 	float gain = exp((dbGain + lastGain) / 2);
 	lastGain = dbGain;
-	finalVolumeL = gain * float(volAdjustL);
-	finalVolumeR = gain * float(volAdjustR);
+	float finalVolumeL = gain * float(volAdjustL);
+	float finalVolumeR = gain * float(volAdjustR);
 
-	amplitudeIncrementL = (int32_t)(finalVolumeL - currentVolumeL) / numSamples;
-	amplitudeIncrementR = (int32_t)(finalVolumeR - currentVolumeR) / numSamples;
+	q31_t amplitudeIncrementL = (int32_t)((finalVolumeL - currentVolumeL) / float(numSamples));
+	q31_t amplitudeIncrementR = (int32_t)((finalVolumeR - currentVolumeR) / float(numSamples));
 
 	StereoSample* thisSample = buffer;
 	StereoSample* bufferEnd = buffer + numSamples;
