@@ -145,7 +145,7 @@ int32_t Compressor::render(uint16_t numSamples, int32_t shapeValue) {
 				status = EnvelopeStage::RELEASE;
 			}
 			else {
-				if (status == EnvelopeStage::HOLD) {
+				if (!follower || status == EnvelopeStage::HOLD) {
 					status = EnvelopeStage::ATTACK;
 					pos = 0;
 				}
