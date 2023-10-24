@@ -273,7 +273,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 		else {
 			if (on) {
 				editingComp = !editingComp;
-				display->popupTextTemporary(editingComp ? "COMP" : "OFF");
+				display->popupTextTemporary(editingComp ? "FULL" : "ONE");
 			}
 		}
 
