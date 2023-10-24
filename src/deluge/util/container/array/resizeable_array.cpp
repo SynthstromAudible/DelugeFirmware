@@ -149,8 +149,8 @@ int32_t ResizeableArray::copyElementsFromOldMemory(void* __restrict__ otherMemor
 
 	else {
 		int32_t newSize = numElements + 1;
-		uint32_t allocatedSize;
-		memory = GeneralMemoryAllocator::get().alloc(newSize * elementSize, &allocatedSize, false, true);
+		uint32_t allocatedSize = newSize * elementSize;
+		memory = GeneralMemoryAllocator::get().allocMaxSpeed(allocatedSize);
 
 		if (!memory) {
 			numElements = 0;
@@ -469,10 +469,9 @@ bool ResizeableArray::ensureEnoughSpaceAllocated(int32_t numAdditionalElementsNe
 			return false;
 		}
 
-		uint32_t allocatedMemorySize;
+		uint32_t allocatedMemorySize = numAdditionalElementsNeeded * elementSize;
 
-		void* newMemory = GeneralMemoryAllocator::get().alloc(numAdditionalElementsNeeded * elementSize,
-		                                                      &allocatedMemorySize, false, true);
+		void* newMemory = GeneralMemoryAllocator::get().allocMaxSpeed(allocatedMemorySize);
 		if (!newMemory) {
 			LOCK_EXIT
 			return false;
@@ -538,8 +537,6 @@ getBrandNewMemory:
 
 		// If couldn't extend, try allocating brand new space instead
 
-		uint32_t newMemoryAllocationSize;
-
 		void* __restrict__ newMemory;
 
 #ifdef TEST_VECTOR
@@ -549,11 +546,11 @@ getBrandNewMemory:
 		}
 #endif
 
-		newMemory = GeneralMemoryAllocator::get().alloc((newNum + numExtraSpacesToAllocate) * elementSize,
-		                                                &newMemoryAllocationSize, false, true);
+		uint32_t newMemoryAllocationSize = (newNum + numExtraSpacesToAllocate) * elementSize;
+		newMemory = GeneralMemoryAllocator::get().allocMaxSpeed(newMemoryAllocationSize);
 		if (!newMemory) {
-			newMemory =
-			    GeneralMemoryAllocator::get().alloc(newNum * elementSize, &newMemoryAllocationSize, false, true);
+			newMemoryAllocationSize = newNum * elementSize;
+			newMemory = GeneralMemoryAllocator::get().allocMaxSpeed(newMemoryAllocationSize);
 		}
 
 		// If that didn't work...
@@ -913,10 +910,9 @@ int32_t ResizeableArray::insertAtIndex(int32_t i, int32_t numToInsert, void* thi
 		int32_t newMemorySize = (numExtraSpacesToAllocate >> 1)
 		                        + numToInsert; // The >>1 is arbirtary - we just don't wanna be allocating lots
 
-		uint32_t allocatedMemorySize;
+		uint32_t allocatedMemorySize = newMemorySize * elementSize;
 
-		void* newMemory = GeneralMemoryAllocator::get().alloc(newMemorySize * elementSize, &allocatedMemorySize, false,
-		                                                      true, false, thingNotToStealFrom);
+		void* newMemory = GeneralMemoryAllocator::get().allocMaxSpeed(allocatedMemorySize, thingNotToStealFrom);
 		if (!newMemory) {
 			LOCK_EXIT
 			return ERROR_INSUFFICIENT_RAM;
@@ -1090,9 +1086,9 @@ getBrandNewMemory:
 			uint32_t desiredSize = (newNum + numExtraSpacesToAllocate) * elementSize;
 
 getBrandNewMemoryAgain:
-			uint32_t allocatedSize;
-			void* __restrict__ newMemory = GeneralMemoryAllocator::get().alloc(desiredSize, &allocatedSize, false, true,
-			                                                                   false, thingNotToStealFrom);
+			uint32_t allocatedSize = desiredSize;
+			void* __restrict__ newMemory =
+			    GeneralMemoryAllocator::get().allocMaxSpeed(allocatedSize, thingNotToStealFrom);
 
 			// If that didn't work...
 			if (!newMemory) {

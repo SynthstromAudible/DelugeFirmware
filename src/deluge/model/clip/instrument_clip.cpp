@@ -175,7 +175,7 @@ void InstrumentClip::copyBasicsFrom(Clip* otherClip) {
 // Will replace the Clip in the modelStack, if success.
 int32_t InstrumentClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing) {
 
-	void* clipMemory = GeneralMemoryAllocator::get().alloc(sizeof(InstrumentClip), NULL, false, true);
+	void* clipMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(InstrumentClip));
 	if (!clipMemory) {
 		return ERROR_INSUFFICIENT_RAM;
 	}
@@ -935,7 +935,7 @@ void InstrumentClip::toggleNoteRowMute(ModelStackWithNoteRow* modelStack) {
 	// Record action
 	Action* action = actionLogger.getNewAction(ACTION_MISC);
 	if (action) {
-		void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceNoteRowMute));
+		void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceNoteRowMute));
 
 		if (consMemory) {
 			ConsequenceNoteRowMute* newConsequence =
@@ -1101,7 +1101,7 @@ ModelStackWithNoteRow* InstrumentClip::getOrCreateNoteRowForYNote(int32_t yNote,
 				thisNoteRow->notes.empty(); // Undo our "total hack", above
 
 				if (action) {
-					void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceScaleAddNote));
+					void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceScaleAddNote));
 
 					if (consMemory) {
 						ConsequenceScaleAddNote* newConsequence =
@@ -2569,8 +2569,7 @@ someError:
 		else if (!strcmp(tagName, "sound") || !strcmp(tagName, "synth")) {
 			if (!output) {
 				{
-					void* instrumentMemory =
-					    GeneralMemoryAllocator::get().alloc(sizeof(SoundInstrument), NULL, false, true);
+					void* instrumentMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SoundInstrument));
 					if (!instrumentMemory) {
 						goto ramError;
 					}
@@ -2603,7 +2602,7 @@ loadInstrument:
 		// For song files from before V2.0, where Instruments were stored within the Clip
 		else if (!strcmp(tagName, "kit")) {
 			if (!output) {
-				void* instrumentMemory = GeneralMemoryAllocator::get().alloc(sizeof(Kit), NULL, false, true);
+				void* instrumentMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Kit));
 				if (!instrumentMemory) {
 					goto ramError;
 				}
@@ -3733,7 +3732,7 @@ int32_t InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 				thisNoteRow->drum = kit->getGateDrumForChannel(gateChannel);
 
 				if (!thisNoteRow->drum) {
-					void* drumMemory = GeneralMemoryAllocator::get().alloc(sizeof(GateDrum), NULL, true);
+					void* drumMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(GateDrum));
 					if (!drumMemory) {
 						return ERROR_INSUFFICIENT_RAM;
 					}
@@ -4035,7 +4034,7 @@ void InstrumentClip::finishLinearRecording(ModelStackWithTimelineCounter* modelS
 Clip* InstrumentClip::cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStack, OverDubType newOverdubNature) {
 
 	// Allocate memory for Clip
-	void* clipMemory = GeneralMemoryAllocator::get().alloc(sizeof(InstrumentClip), NULL, false, true);
+	void* clipMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(InstrumentClip));
 	if (!clipMemory) {
 ramError:
 		display->displayError(ERROR_INSUFFICIENT_RAM);

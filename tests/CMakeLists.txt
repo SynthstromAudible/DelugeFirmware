@@ -29,6 +29,7 @@ add_compile_options(
 # include the non test project source
 include_directories(./mocks)
 include_directories(../src/deluge)
+include_directories(../src/NE10/inc)
 include_directories(../src)
 
 

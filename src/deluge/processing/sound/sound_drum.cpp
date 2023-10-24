@@ -40,7 +40,7 @@ SoundDrum::SoundDrum() : Drum(DrumType::SOUND), arpeggiator() {
 /*
 // Started but didn't finish this - it's hard!
 Drum* SoundDrum::clone() {
-	void* drumMemory = GeneralMemoryAllocator::get().alloc(sizeof(SoundDrum), NULL, false, true);
+	void* drumMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SoundDrum));
 	if (!drumMemory) return NULL;
 	SoundDrum* newDrum = new (drumMemory) SoundDrum();
 

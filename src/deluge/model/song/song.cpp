@@ -290,7 +290,7 @@ bool Song::ensureAtLeastOneSessionClip() {
 	// If no Clips added, make just one blank one - we can't have none!
 	if (!sessionClips.getNumElements()) {
 
-		void* memory = GeneralMemoryAllocator::get().alloc(sizeof(InstrumentClip), NULL, false, true);
+		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(InstrumentClip));
 		InstrumentClip* firstClip = new (memory) InstrumentClip(this);
 
 		sessionClips.insertClipAtIndex(firstClip, 0);
@@ -1606,7 +1606,7 @@ unknownTag:
 					int32_t error;
 
 					if (!strcmp(tagName, "audioTrack")) {
-						memory = GeneralMemoryAllocator::get().alloc(sizeof(AudioOutput), NULL, false, true);
+						memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(AudioOutput));
 						if (!memory) {
 							return ERROR_INSUFFICIENT_RAM;
 						}
@@ -1615,7 +1615,7 @@ unknownTag:
 					}
 
 					else if (!strcmp(tagName, "sound")) {
-						memory = GeneralMemoryAllocator::get().alloc(sizeof(SoundInstrument), NULL, false, true);
+						memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SoundInstrument));
 						if (!memory) {
 							return ERROR_INSUFFICIENT_RAM;
 						}
@@ -1644,7 +1644,7 @@ loadOutput:
 					}
 
 					else if (!strcmp(tagName, "kit")) {
-						memory = GeneralMemoryAllocator::get().alloc(sizeof(Kit), NULL, false, true);
+						memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Kit));
 						if (!memory) {
 							return ERROR_INSUFFICIENT_RAM;
 						}
@@ -1654,7 +1654,7 @@ loadOutput:
 					}
 
 					else if (!strcmp(tagName, "midiChannel") || !strcmp(tagName, "mpeZone")) {
-						memory = GeneralMemoryAllocator::get().alloc(sizeof(MIDIInstrument), NULL, false, true);
+						memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(MIDIInstrument));
 						if (!memory) {
 							return ERROR_INSUFFICIENT_RAM;
 						}
@@ -1663,7 +1663,7 @@ loadOutput:
 					}
 
 					else if (!strcmp(tagName, "cvChannel")) {
-						memory = GeneralMemoryAllocator::get().alloc(sizeof(CVInstrument), NULL, false, true);
+						memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(CVInstrument));
 						if (!memory) {
 							return ERROR_INSUFFICIENT_RAM;
 						}
@@ -1936,7 +1936,7 @@ readClip:
 				return ERROR_INSUFFICIENT_RAM;
 			}
 
-			void* memory = GeneralMemoryAllocator::get().alloc(allocationSize, NULL, false, true);
+			void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(allocationSize);
 			if (!memory) {
 				return ERROR_INSUFFICIENT_RAM;
 			}
@@ -4708,7 +4708,7 @@ AudioOutput* Song::createNewAudioOutput(Output* replaceOutput) {
 		return NULL;
 	}
 
-	void* outputMemory = GeneralMemoryAllocator::get().alloc(sizeof(AudioOutput), NULL, false, true);
+	void* outputMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(AudioOutput));
 	if (!outputMemory) {
 		return NULL;
 	}
@@ -5163,7 +5163,7 @@ int8_t defaultAudioClipOverdubOutputCloning = -1; // -1 means no default set
 Clip* Song::replaceInstrumentClipWithAudioClip(Clip* oldClip, int32_t clipIndex) {
 
 	// Allocate memory for audio clip
-	void* clipMemory = GeneralMemoryAllocator::get().alloc(sizeof(AudioClip), NULL, false, true);
+	void* clipMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(AudioClip));
 	if (!clipMemory) {
 		return NULL;
 	}

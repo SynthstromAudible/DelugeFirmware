@@ -271,7 +271,7 @@ void LoadSongUI::performLoad() {
 		playbackHandler.songSwapShouldPreserveTempo = Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC);
 	}
 
-	void* songMemory = GeneralMemoryAllocator::get().alloc(sizeof(Song), NULL, false, true);
+	void* songMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Song));
 	if (!songMemory) {
 ramError:
 		error = ERROR_INSUFFICIENT_RAM;
