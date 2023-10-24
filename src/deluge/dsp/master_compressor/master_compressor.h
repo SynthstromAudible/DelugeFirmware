@@ -50,6 +50,7 @@ public:
 	q31_t amplitudeIncrementR;
 	float meanVolume;
 	float mean;
+	float lastGain;
 	float er;
 	float threshdb;
 };

@@ -42,9 +42,9 @@ MasterCompressor::MasterCompressor() {
 //16 is ln(1<<24) - 1, i.e. where we start clipping
 //since this applies to output
 void MasterCompressor::updateER() {
-	threshdb = 16 * (threshold / ONE_Q31f);
-	//14 is about the level of a single synth voice
-	er = std::clamp<float>((16 - threshdb) * (float(ratio) / ONE_Q31f), 0, 18);
+	threshdb = 18 * (threshold / ONE_Q31f);
+	//16 is about the level of a single synth voice at max volume
+	er = std::clamp<float>((18 - threshdb) * (float(ratio >> 15) / ONE_Q15), 0, 18);
 }
 
 void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t volAdjustL, q31_t volAdjustR) {
@@ -67,10 +67,10 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t v
 	//So basically this limits the gain to not clip
 	//18 - meanVolume is the magic amount that makes sure the output
 	//won't exceed 1<<24
-	float dbGain = std::min<float>(2 + er + reduction, 18 - meanVolume);
+	float dbGain = std::min<float>(0.5 + er + reduction, 18 - meanVolume);
 
-	float gain = exp(dbGain);
-
+	float gain = exp((dbGain + lastGain) / 2);
+	lastGain = dbGain;
 	finalVolumeL = gain * float(volAdjustL);
 	finalVolumeR = gain * float(volAdjustR);
 
@@ -91,7 +91,7 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t v
 	} while (++thisSample != bufferEnd);
 	//for LEDs
 	//9 converts to dB, quadrupled for display range since a 30db reduction is basically killing the signal
-	gainReduction = std::clamp<int32_t>(-(2 + reduction) * 9 * 4, 0, 127);
+	gainReduction = std::clamp<int32_t>(-(reduction) * 9 * 4, 0, 127);
 }
 
 //output range is 0-21 (2^31)
