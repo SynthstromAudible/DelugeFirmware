@@ -270,8 +270,8 @@ int32_t quickLog(uint32_t input);
 }
 
 // input must not have any extra bits set than numBitsInInput specifies
-[[gnu::always_inline]] inline int32_t interpolateTableSigned(uint32_t input, int32_t numBitsInInput, const int16_t* table,
-                                      int32_t numBitsInTableSize = 8) {
+[[gnu::always_inline]] inline int32_t interpolateTableSigned(uint32_t input, int32_t numBitsInInput,
+                                                             const int16_t* table, int32_t numBitsInTableSize = 8) {
 	int32_t whichValue = input >> (numBitsInInput - numBitsInTableSize);
 	int32_t rshiftAmount = numBitsInInput - 16 - numBitsInTableSize;
 	uint32_t rshifted;
@@ -290,9 +290,10 @@ uint32_t interpolateTableInverse(int32_t tableValueBig, int32_t numBitsInLookupO
 
 // input must not have any extra bits set than numBitsInInput specifies
 // Output of this function (unlike the regular 1d one) is only +- 1073741824
-[[gnu::always_inline]] inline int32_t interpolateTableSigned2d(uint32_t inputX, uint32_t inputY, int32_t numBitsInInputX,
-                                        int32_t numBitsInInputY, const int16_t* table, int32_t numBitsInTableSizeX,
-                                        int32_t numBitsInTableSizeY) {
+[[gnu::always_inline]] inline int32_t interpolateTableSigned2d(uint32_t inputX, uint32_t inputY,
+                                                               int32_t numBitsInInputX, int32_t numBitsInInputY,
+                                                               const int16_t* table, int32_t numBitsInTableSizeX,
+                                                               int32_t numBitsInTableSizeY) {
 
 	int32_t whichValue = inputY >> (numBitsInInputY - numBitsInTableSizeY);
 
@@ -339,7 +340,8 @@ template <unsigned saturationAmount>
 	return interpolateTableSigned(workingValue, 32, tanHSmall, 8) >> (saturationAmount + 2);
 }
 
-[[gnu::always_inline]] inline int32_t getTanHAntialiased(int32_t input, uint32_t* lastWorkingValue, uint32_t saturationAmount) {
+[[gnu::always_inline]] inline int32_t getTanHAntialiased(int32_t input, uint32_t* lastWorkingValue,
+                                                         uint32_t saturationAmount) {
 
 	uint32_t workingValue = (uint32_t)lshiftAndSaturateUnknown(input, saturationAmount) + 2147483648u;
 
