@@ -60,7 +60,7 @@ void MasterCompressor::updateER() {
 	}
 	threshdb = songVolume * (threshold / ONE_Q31f);
 	//16 is about the level of a single synth voice at max volume
-	er = (songVolume - threshdb) * (float(ratio) / ONE_Q31);
+	er = std::max<float>((songVolume - threshdb - 2) * (float(ratio) / ONE_Q31), 0);
 }
 
 void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t volAdjustL, q31_t volAdjustR) {
@@ -86,7 +86,7 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t v
 	float reduction = 21 * (out / ONE_Q31f);
 
 	//this is the most gain available without overflow
-	float dbGain = std::min<float>(0.85 + er + reduction, 2.0f);
+	float dbGain = std::min<float>(0.85 + er + reduction, 2.7f);
 
 	float gain = exp((dbGain));
 	lastGain = dbGain;
@@ -110,7 +110,7 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t v
 	} while (++thisSample != bufferEnd);
 	//for LEDs
 	//9 converts to dB, quadrupled for display range since a 30db reduction is basically killing the signal
-	gainReduction = std::clamp<int32_t>(-(reduction) * 9 * 4, 0, 127);
+	gainReduction = std::clamp<int32_t>(-(reduction)*9 * 4, 0, 127);
 }
 
 //output range is 0-21 (2^31)
