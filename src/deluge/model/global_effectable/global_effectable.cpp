@@ -298,8 +298,8 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 			int current = AudioEngine::mastercompressor.ratio >> 24;
 			current += offset;
 			//this range is ratio of 2 to infinity
-			current = std::clamp(current, 64, 128);
-			indicator_leds::setKnobIndicatorLevel(0, (current - 64) * 2);
+			current = std::clamp(current, 48, 112);
+			indicator_leds::setKnobIndicatorLevel(0, (current - 48) * 2);
 			AudioEngine::mastercompressor.ratio = lshiftAndSaturate<24>(current);
 			AudioEngine::mastercompressor.updateER();
 			return ActionResult::DEALT_WITH;
