@@ -1525,7 +1525,7 @@ Instrument* StorageManager::createNewInstrument(InstrumentType newInstrumentType
 		instrumentSize = sizeof(Kit);
 	}
 
-	void* instrumentMemory = GeneralMemoryAllocator::get().alloc(instrumentSize, NULL, false, true);
+	void* instrumentMemory = GeneralMemoryAllocator::get().allocMaxSpeed(instrumentSize);
 	if (!instrumentMemory) {
 		return NULL;
 	}
@@ -1566,7 +1566,8 @@ paramManagerSetupError:
 
 Instrument* StorageManager::createNewNonAudioInstrument(InstrumentType instrumentType, int32_t slot, int32_t subSlot) {
 	int32_t size = (instrumentType == InstrumentType::MIDI_OUT) ? sizeof(MIDIInstrument) : sizeof(CVInstrument);
-	void* instrumentMemory = GeneralMemoryAllocator::get().alloc(size);
+	// Paul: Might make sense to put these into Internal?
+	void* instrumentMemory = GeneralMemoryAllocator::get().allocLowSpeed(size);
 	if (!instrumentMemory) { // RAM fail
 		return NULL;
 	}
@@ -1597,7 +1598,7 @@ Drum* StorageManager::createNewDrum(DrumType drumType) {
 		memorySize = sizeof(GateDrum);
 	}
 
-	void* drumMemory = GeneralMemoryAllocator::get().alloc(memorySize, NULL, false, true);
+	void* drumMemory = GeneralMemoryAllocator::get().allocMaxSpeed(memorySize);
 	if (!drumMemory) {
 		return NULL;
 	}
