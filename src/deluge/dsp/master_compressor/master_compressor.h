@@ -32,18 +32,22 @@ public:
 	MasterCompressor();
 	void setup(int32_t attack, int32_t release, int32_t threshold, int32_t ratio);
 
-	void render(StereoSample* buffer, uint16_t numSamples);
+	void render(StereoSample* buffer, uint16_t numSamples, q31_t volAdjustL, q31_t volAdjustR);
 	void updateER();
 	float calc_rms(StereoSample* buffer, uint16_t numSamples);
 	uint8_t gainReduction;
+	bool dither;
 	q31_t threshold;
 	q31_t shape;
 	q31_t ratio;
 	q31_t out;
 	q31_t over;
-	q31_t finalVolume;
-	q31_t currentVolume;
-	q31_t amplitudeIncrement;
+	q31_t finalVolumeL;
+	q31_t currentVolumeL;
+	q31_t finalVolumeR;
+	q31_t currentVolumeR;
+	q31_t amplitudeIncrementL;
+	q31_t amplitudeIncrementR;
 	float meanVolume;
 	float mean;
 	float er;

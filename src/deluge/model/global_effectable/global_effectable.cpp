@@ -317,11 +317,11 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 			return ActionResult::DEALT_WITH;
 		}
 		if (whichModEncoder == 0) { //attack
-			int current = getLookupIndexFromValue(AudioEngine::mastercompressor.release >> 2, releaseRateTable, 50);
+			int current = getLookupIndexFromValue(AudioEngine::mastercompressor.release >> 1, releaseRateTable, 50);
 			current += offset;
 			current = std::clamp(current, 1, 50);
 			indicator_leds::setKnobIndicatorLevel(0, (current * 128) / 50);
-			AudioEngine::mastercompressor.release = releaseRateTable[current] << 2;
+			AudioEngine::mastercompressor.release = releaseRateTable[current] << 1;
 
 			return ActionResult::DEALT_WITH;
 		}

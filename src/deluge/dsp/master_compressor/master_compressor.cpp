@@ -17,6 +17,8 @@
 
 #include "dsp/master_compressor/master_compressor.h"
 #include "dsp/stereo_sample.h"
+#include "io/debug/print.h"
+#include "processing/engines/audio_engine.h"
 #include "util/fast_fixed_math.h"
 MasterCompressor::MasterCompressor() {
 	//compressor.setAttack((float)attack / 100.0);
@@ -25,25 +27,27 @@ MasterCompressor::MasterCompressor() {
 	//compressor.setRelease((float)release / 100.0);
 	//compressor.setThresh((float)threshold / 100.0);
 	//compressor.setRatio(1.0 / ((float)ratio / 100.0));
-	shape = getParamFromUserValue(Param::Unpatched::COMPRESSOR_SHAPE, 1);
+	shape = getParamFromUserValue(Param::Unpatched::COMPRESSOR_SHAPE, 2);
 	//an appropriate range is 0-50*one q 15
 	threshold = ONE_Q31;
 	follower = true;
 	//this is about a 1:1 ratio
 	ratio = ONE_Q31 >> 1;
 	syncLevel = SyncLevel::SYNC_LEVEL_NONE;
-	currentVolume = 0;
+	currentVolumeL = 0;
+	currentVolumeR = 0;
 	//auto make up gain
 	updateER();
 }
-
+//16 is ln(1<<24) - 1, i.e. where we start clipping
+//since this applies to output
 void MasterCompressor::updateER() {
 	threshdb = 16 * (threshold / ONE_Q31f);
 	//14 is about the level of a single synth voice
-	er = std::clamp<float>((16 - threshdb) * (float(ratio) / ONE_Q31f), 0, 15);
+	er = std::clamp<float>((16 - threshdb) * (float(ratio) / ONE_Q31f), 0, 18);
 }
 
-void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples) {
+void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t volAdjustL, q31_t volAdjustR) {
 	meanVolume = calc_rms(buffer, numSamples);
 
 	q31_t over = std::max<float>(0, (meanVolume - threshdb) / 21) * ONE_Q31;
@@ -52,6 +56,7 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples) {
 		registerHit(over);
 	}
 	out = Compressor::render(numSamples, shape);
+
 	out = multiply_32x32_rshift32(out, ratio) << 1;
 
 	//21 is the max internal volume (i.e. one_q31)
@@ -59,26 +64,34 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples) {
 	//base is arbitrary for scale, important part is the shape
 	//this will be negative
 	float reduction = 21 * (out / ONE_Q31f);
-	//this lowers the volume so we'll increase the levels afterwards
+	//So basically this limits the gain to not clip
+	//18 - meanVolume is the magic amount that makes sure the output
+	//won't exceed 1<<24
+	float dbGain = std::min<float>(2 + er + reduction, 18 - meanVolume);
 
-	finalVolume = exp(std::min<float>(1 - er + reduction, 1)) * float(1 << 29);
+	float gain = exp(dbGain);
 
-	amplitudeIncrement = (int32_t)(finalVolume - currentVolume) / numSamples;
+	finalVolumeL = gain * float(volAdjustL);
+	finalVolumeR = gain * float(volAdjustR);
+
+	amplitudeIncrementL = (int32_t)(finalVolumeL - currentVolumeL) / numSamples;
+	amplitudeIncrementR = (int32_t)(finalVolumeR - currentVolumeR) / numSamples;
 
 	StereoSample* thisSample = buffer;
 	StereoSample* bufferEnd = buffer + numSamples;
 
 	do {
 
-		currentVolume += amplitudeIncrement;
+		currentVolumeL += amplitudeIncrementL;
+		currentVolumeR += amplitudeIncrementR;
 		// Apply post-fx and post-reverb-send volume
-		thisSample->l = multiply_32x32_rshift32(thisSample->l, currentVolume) << 1;
-		thisSample->r = multiply_32x32_rshift32(thisSample->r, currentVolume) << 1;
+		thisSample->l = multiply_32x32_rshift32(thisSample->l, currentVolumeL) << 1;
+		thisSample->r = multiply_32x32_rshift32(thisSample->r, currentVolumeR) << 1;
 
 	} while (++thisSample != bufferEnd);
 	//for LEDs
 	//9 converts to dB, quadrupled for display range since a 30db reduction is basically killing the signal
-	gainReduction = std::clamp<int32_t>(-reduction * 9 * 4, 0, 127);
+	gainReduction = std::clamp<int32_t>(-(2 + reduction) * 9 * 4, 0, 127);
 }
 
 //output range is 0-21 (2^31)
@@ -88,7 +101,7 @@ float MasterCompressor::calc_rms(StereoSample* buffer, uint16_t numSamples) {
 	StereoSample* bufferEnd = buffer + numSamples;
 	q31_t sum = 0;
 	q31_t offset = 0; //to remove dc offset
-	q31_t last_mean = mean;
+	float lastMean = mean;
 	do {
 		q31_t s = std::abs(thisSample->l) + std::abs(thisSample->r);
 		sum += multiply_32x32_rshift32(s, s) << 1;
@@ -103,7 +116,7 @@ float MasterCompressor::calc_rms(StereoSample* buffer, uint16_t numSamples) {
 	mean = rms - dc / 1.4f;
 	mean = std::max(mean, 1.0f);
 
-	float logmean = std::log(mean);
+	float logmean = std::log((mean + lastMean) / 2);
 
 	return logmean;
 }

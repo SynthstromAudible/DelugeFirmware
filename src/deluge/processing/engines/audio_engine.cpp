@@ -759,9 +759,9 @@ startAgain:
 		}
 	}
 	logAction("mastercomp start");
-	mastercompressor.render(renderingBuffer, numSamples);
-	masterVolumeAdjustmentL <<= 3;
-	masterVolumeAdjustmentR <<= 3;
+	mastercompressor.render(renderingBuffer, numSamples, masterVolumeAdjustmentL, masterVolumeAdjustmentR);
+	masterVolumeAdjustmentL = ONE_Q31;
+	masterVolumeAdjustmentR = ONE_Q31;
 	logAction("mastercomp end");
 	metronome.render(renderingBuffer, numSamples);
 

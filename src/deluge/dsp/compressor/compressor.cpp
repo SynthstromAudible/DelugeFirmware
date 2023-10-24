@@ -145,9 +145,12 @@ int32_t Compressor::render(uint16_t numSamples, int32_t shapeValue) {
 				status = EnvelopeStage::RELEASE;
 			}
 			else {
-				if (status != EnvelopeStage::ATTACK) {
+				if (status == EnvelopeStage::HOLD) {
 					status = EnvelopeStage::ATTACK;
 					pos = 0;
+				}
+				else if (status != EnvelopeStage::ATTACK) {
+					status = EnvelopeStage::HOLD;
 				}
 
 				envelopeHeight = lastValue - envelopeOffset;
@@ -157,9 +160,12 @@ int32_t Compressor::render(uint16_t numSamples, int32_t shapeValue) {
 		else if (follower && newOffset > envelopeOffset) {
 			envelopeOffset = newOffset;
 			envelopeHeight = newOffset - lastValue;
-			if (status != EnvelopeStage::RELEASE) {
+			if (status == EnvelopeStage::HOLD) {
 				pos = 0;
 				status = EnvelopeStage::RELEASE;
+			}
+			else if (status != EnvelopeStage::RELEASE) {
+				status = EnvelopeStage::HOLD;
 			}
 		}
 	}
