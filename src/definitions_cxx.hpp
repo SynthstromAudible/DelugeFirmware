@@ -18,6 +18,7 @@
 #pragma once
 #include "definitions.h"
 #include "util/misc.h"
+#include "version.h"
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -57,15 +58,6 @@
 #define ENABLE_CLIP_CUTTING_DIAGNOSTICS 1
 
 #define PITCH_DETECT_DEBUG_LEVEL 0
-
-struct SemVer {
-	uint8_t major;
-	uint8_t minor;
-	uint8_t patch;
-	// NOTE: below needs C++20
-	//auto operator<=>(const SemVer &) const = default
-};
-constexpr SemVer kCommunityFirmwareVersion{1, 0, 0};
 
 // FIXME: These need to be nuked and all references in the codebase removed in prep for the Community Firmware v1.0.0 release
 // correspondingly, we should probably we storing the semver version in three bytes in the flash rather than trying to compress
