@@ -18,22 +18,26 @@ void PatchCables::beginSession(MenuItem* navigatedBackwardFrom) {
 	currentValue = 0;
 
 	if (navigatedBackwardFrom != nullptr) {
-		PatchCableSet* set = soundEditor.currentParamManager->getPatchCableSet();
 		currentValue = savedVal;
-		if (savedVal >= set->numPatchCables) {
-			currentValue = 0;
-		}
 	}
 
 	if (display->haveOLED()) {
 		scrollPos = std::max((int32_t)0, currentValue - 1);
 	}
 
-	renderOptions();
 	readValueAgain();
 }
 
 void PatchCables::readValueAgain() {
+	PatchCableSet* set = soundEditor.currentParamManager->getPatchCableSet();
+	if (currentValue >= set->numPatchCables) {
+		// The last patch cable was deleted and it was selected, need to adjust
+		currentValue = std::max(0, set->numPatchCables - 1);
+		scrollPos = std::max((int32_t)0, currentValue - 1);
+	}
+
+	renderOptions();
+
 	if (display->haveOLED()) {
 		renderUIsForOled();
 	}
