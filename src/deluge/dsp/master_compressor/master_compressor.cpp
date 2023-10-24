@@ -29,7 +29,7 @@ MasterCompressor::MasterCompressor() {
 	//compressor.setRelease((float)release / 100.0);
 	//compressor.setThresh((float)threshold / 100.0);
 	//compressor.setRatio(1.0 / ((float)ratio / 100.0));
-	shape = getParamFromUserValue(Param::Unpatched::COMPRESSOR_SHAPE, 2);
+	shape = getParamFromUserValue(Param::Unpatched::COMPRESSOR_SHAPE, 1);
 	//an appropriate range is 0-50*one q 15
 	threshold = ONE_Q31;
 	follower = true;
@@ -68,26 +68,27 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t v
 	meanVolume = calc_rms(buffer, numSamples);
 
 	q31_t over = std::max<float>(0, (meanVolume - threshdb) / 21) * ONE_Q31;
+	q31_t clip = std::max<float>(0, (meanVolume - 18) / 21) * ONE_Q31;
+	//add some extra reduction if we're into clipping
+	over = (multiply_32x32_rshift32(over, ratio) << 1) + (multiply_32x32_rshift32(clip, ONE_Q31 - ratio));
 
 	if (over > 0) {
 		registerHit(over);
 	}
 	out = Compressor::render(numSamples, shape);
 
-	out = multiply_32x32_rshift32(out, ratio) << 1;
+	//out = multiply_32x32_rshift32(out, ratio) << 1;
 
 	//21 is the max internal volume (i.e. one_q31)
 	//min ratio is 8 up to 1 (i.e. infinity/brick wall, 1 db reduction per db over)
 	//base is arbitrary for scale, important part is the shape
 	//this will be negative
 	float reduction = 21 * (out / ONE_Q31f);
-	//So basically this limits the gain to not clip
-	//18 - meanVolume is the magic amount that makes sure the output
-	//won't exceed 1<<24
-	float dbGain = std::min<float>(1 + er + reduction, 18 - meanVolume);
-	//additionally this is the most gain available without overflow
-	dbGain = std::min(dbGain, 2.0f);
-	float gain = exp((dbGain + lastGain) / 2);
+
+	//this is the most gain available without overflow
+	float dbGain = std::min<float>(0.85 + er + reduction, 2.0f);
+
+	float gain = exp((dbGain));
 	lastGain = dbGain;
 	float finalVolumeL = gain * float(volAdjustL >> 8);
 	float finalVolumeR = gain * float(volAdjustR >> 8);
