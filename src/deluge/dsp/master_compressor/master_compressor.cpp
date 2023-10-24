@@ -18,6 +18,8 @@
 #include "dsp/master_compressor/master_compressor.h"
 #include "dsp/stereo_sample.h"
 #include "io/debug/print.h"
+#include "model/song/song.h"
+#include "modulation/params/param_set.h"
 #include "processing/engines/audio_engine.h"
 #include "util/fast_fixed_math.h"
 MasterCompressor::MasterCompressor() {
@@ -42,12 +44,27 @@ MasterCompressor::MasterCompressor() {
 //16 is ln(1<<24) - 1, i.e. where we start clipping
 //since this applies to output
 void MasterCompressor::updateER() {
-	threshdb = 18 * (threshold / ONE_Q31f);
+
+	//int32_t volumePostFX = getParamNeutralValue(Param::Global::VOLUME_POST_FX);
+	float songVolume;
+	if (currentSong) {
+		int32_t volumePostFX =
+		    getFinalParameterValueVolume(
+		        134217728, cableToLinearParamShortcut(currentSong->paramManager.getUnpatchedParamSet()->getValue(
+		                       Param::Unpatched::GlobalEffectable::VOLUME)))
+		    >> 1;
+		songVolume = std::log(volumePostFX);
+	}
+	else {
+		songVolume = 16;
+	}
+	threshdb = songVolume * (threshold / ONE_Q31f);
 	//16 is about the level of a single synth voice at max volume
-	er = std::clamp<float>((18 - threshdb) * (float(ratio >> 15) / ONE_Q15), 0, 18);
+	er = (songVolume - threshdb) * (float(ratio) / ONE_Q31);
 }
 
 void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t volAdjustL, q31_t volAdjustR) {
+	updateER();
 	meanVolume = calc_rms(buffer, numSamples);
 
 	q31_t over = std::max<float>(0, (meanVolume - threshdb) / 21) * ONE_Q31;
@@ -67,16 +84,16 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t v
 	//So basically this limits the gain to not clip
 	//18 - meanVolume is the magic amount that makes sure the output
 	//won't exceed 1<<24
-	float dbGain = std::min<float>(0.5 + er + reduction, 18 - meanVolume);
+	float dbGain = std::min<float>(1 + er + reduction, 18 - meanVolume);
 	//additionally this is the most gain available without overflow
-	dbGain = std::min(dbGain, 2.75f);
+	dbGain = std::min(dbGain, 2.0f);
 	float gain = exp((dbGain + lastGain) / 2);
 	lastGain = dbGain;
-	float finalVolumeL = gain * float(volAdjustL);
-	float finalVolumeR = gain * float(volAdjustR);
+	float finalVolumeL = gain * float(volAdjustL >> 8);
+	float finalVolumeR = gain * float(volAdjustR >> 8);
 
-	q31_t amplitudeIncrementL = (int32_t)((finalVolumeL - currentVolumeL) / float(numSamples));
-	q31_t amplitudeIncrementR = (int32_t)((finalVolumeR - currentVolumeR) / float(numSamples));
+	q31_t amplitudeIncrementL = ((int32_t)((finalVolumeL - (currentVolumeL >> 8)) / float(numSamples))) << 8;
+	q31_t amplitudeIncrementR = ((int32_t)((finalVolumeR - (currentVolumeR >> 8)) / float(numSamples))) << 8;
 
 	StereoSample* thisSample = buffer;
 	StereoSample* bufferEnd = buffer + numSamples;
