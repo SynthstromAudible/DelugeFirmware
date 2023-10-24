@@ -31,7 +31,7 @@ public:
 		soundEditor.currentCompressor->attack = attackRateTable[this->getValue()] << 2;
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}
-	[[nodiscard]] int32_t getMaxValue() const override { return 50; }
+	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 	bool isRelevant(Sound* sound, int32_t whichThing) override {
 		return !soundEditor.editingReverbCompressor() || AudioEngine::reverbCompressorVolume >= 0;
 	}

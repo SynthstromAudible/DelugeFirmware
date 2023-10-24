@@ -30,7 +30,7 @@ public:
 		AudioEngine::reverbCompressorVolume = this->getValue() * 21474836;
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}
-	[[nodiscard]] int32_t getMaxValue() const override { return 50; }
+	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 	[[nodiscard]] int32_t getMinValue() const override { return -1; }
 
 	void drawValue() override {

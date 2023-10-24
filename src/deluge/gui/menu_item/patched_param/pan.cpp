@@ -47,17 +47,19 @@ void Pan::drawValue() {
 }
 
 int32_t Pan::getFinalValue() {
-	if (this->getValue() == 32) {
+	if (this->getValue() == kMaxMenuPanValue) {
 		return 2147483647;
 	}
-	if (this->getValue() == -32) {
+	else if (this->getValue() == kMinMenuPanValue) {
 		return -2147483648;
 	}
-	return ((int32_t)this->getValue() * 33554432 * 2);
+	else {
+		return ((int32_t)this->getValue() * (2147483648 / (kMaxMenuPanValue * 2)) * 2);
+	}
 }
 
 void Pan::readCurrentValue() {
-	this->setValue(((int64_t)soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP()) * 64 + 2147483648)
+	this->setValue(((int64_t)soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP()) * (kMaxMenuPanValue * 2) + 2147483648)
 	               >> 32);
 }
 } // namespace deluge::gui::menu_item::patched_param

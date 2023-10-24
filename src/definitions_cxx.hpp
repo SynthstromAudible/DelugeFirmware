@@ -356,7 +356,15 @@ constexpr int32_t kNumPatchSources = static_cast<int32_t>(kLastPatchSource);
 constexpr PatchSource kFirstLocalSource = PatchSource::ENVELOPE_0;
 //constexpr PatchSource kFirstUnchangeableSource = PatchSource::VELOCITY;
 
-//Automation Instrument Clip View constants
+//Menu Min Max Values
+
+constexpr int32_t kMinMenuPanValue = -64;
+constexpr int32_t kMaxMenuPanValue = 64;
+constexpr int32_t kMinMenuValue = 0;
+constexpr int32_t kMaxMenuValue = 128;
+constexpr int32_t kMidMenuValue = kMinMenuValue + ((kMaxMenuValue - kMinMenuValue) / 2);
+
+//Automation View constants
 constexpr int32_t kNoSelection = 255;
 constexpr int32_t kNumNonKitAffectEntireParamsForAutomation = 55;
 constexpr int32_t kNumKitAffectEntireParamsForAutomation = 24;
