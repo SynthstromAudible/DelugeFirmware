@@ -136,13 +136,11 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	reverbCompressorShape = -601295438;
 	reverbCompressorSync = SYNC_LEVEL_8TH;
 
-	masterCompressorAttack = 10.0;
-	masterCompressorRelease = 100.0;
-	masterCompressorThresh = 0.0;
-	masterCompressorRatio = 1.0 / 4.0;
-	masterCompressorMakeup = 0.0;
-	masterCompressorWet = 1.0;
-	AudioEngine::mastercompressor.gr = 0.0;
+	masterCompressorAttack = attackRateTable[2] << 2;
+	masterCompressorRelease = releaseRateTable[5] << 2;
+	masterCompressorThresh = ONE_Q31;
+	masterCompressorRatio = ONE_Q31 >> 1;
+	AudioEngine::mastercompressor.gainReduction = 0.0;
 
 	dirPath.set("SONGS");
 }
@@ -1124,22 +1122,18 @@ weAreInArrangementEditorOrInClipInstance:
 
 	storageManager.writeClosingTag("reverb");
 
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx) == RuntimeFeatureStateToggle::On) {
-		storageManager.writeOpeningTagBeginning("masterCompressor");
-		int32_t attack = AudioEngine::mastercompressor.compressor.getAttack() * 100;
-		int32_t release = AudioEngine::mastercompressor.compressor.getRelease() * 100;
-		int32_t thresh = AudioEngine::mastercompressor.compressor.getThresh() * 100.0;
-		int32_t ratio = 1.0 / AudioEngine::mastercompressor.compressor.getRatio() * 100;
-		int32_t makeup = AudioEngine::mastercompressor.getMakeup() * 100;
-		int32_t wet = AudioEngine::mastercompressor.wet * 100;
-		storageManager.writeAttribute("attack", attack);
-		storageManager.writeAttribute("release", release);
-		storageManager.writeAttribute("thresh", thresh);
-		storageManager.writeAttribute("ratio", ratio);
-		storageManager.writeAttribute("makeup", makeup);
-		storageManager.writeAttribute("wet", wet);
-		storageManager.closeTag();
-	}
+	storageManager.writeOpeningTagBeginning("masterCompressor");
+	int32_t attack = AudioEngine::mastercompressor.attack;
+	int32_t release = AudioEngine::mastercompressor.release;
+	int32_t thresh = AudioEngine::mastercompressor.threshold;
+	int32_t ratio = AudioEngine::mastercompressor.ratio;
+
+	storageManager.writeAttribute("attack", attack);
+	storageManager.writeAttribute("release", release);
+	storageManager.writeAttribute("thresh", thresh);
+	storageManager.writeAttribute("ratio", ratio);
+
+	storageManager.closeTag();
 
 	globalEffectable.writeTagsToFile(NULL, false);
 
@@ -1482,10 +1476,7 @@ unknownTag:
 				storageManager.exitTag("affectEntire");
 			}
 
-			else if (!strcmp(tagName, "masterCompressor")
-			         && runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx)
-			                == RuntimeFeatureStateToggle::On) {
-				AudioEngine::mastercompressor.gr = 0.0;
+			else if (!strcmp(tagName, "masterCompressor")) {
 				while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "attack")) { //ms
 						masterCompressorAttack = storageManager.readTagOrAttributeValueInt();
@@ -1502,14 +1493,6 @@ unknownTag:
 					else if (!strcmp(tagName, "ratio")) { //r:1
 						masterCompressorRatio = storageManager.readTagOrAttributeValueInt();
 						storageManager.exitTag("ratio");
-					}
-					else if (!strcmp(tagName, "makeup")) { //db
-						masterCompressorMakeup = storageManager.readTagOrAttributeValueInt();
-						storageManager.exitTag("makeup");
-					}
-					else if (!strcmp(tagName, "wet")) { //0.0-1.0
-						masterCompressorWet = storageManager.readTagOrAttributeValueInt();
-						storageManager.exitTag("wet");
 					}
 					else {
 						storageManager.exitTag(tagName);

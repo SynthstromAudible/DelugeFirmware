@@ -17,8 +17,9 @@
 
 #pragma once
 
-#include "chunkware_simplecomp.h"
 #include "definitions_cxx.hpp"
+#include "dsp/compressor/compressor.h"
+#include "util/functions.h"
 
 #define INLINE inline
 #include <algorithm> // for min(), max()
@@ -26,26 +27,27 @@
 #include <cmath>
 #include <cstdint>
 
-class MasterCompressor {
+class MasterCompressor : public Compressor {
 public:
 	MasterCompressor();
-	void setup(int32_t attack, int32_t release, int32_t threshold, int32_t ratio, int32_t makeup, int32_t mix);
+	void setup(int32_t attack, int32_t release, int32_t threshold, int32_t ratio);
 
-	void render(StereoSample* buffer, uint16_t numSamples, int32_t masterVolumeAdjustmentL,
-	            int32_t masterVolumeAdjustmentR);
-	float makeup;
-	float gr;
-	float wet;
-	inline void setMakeup(float dB) {
-		makeup = pow(10.0, (dB / 20.0));
-		if (fabs(1.0 - makeup) < 0.0001)
-			makeup = 1.0;
-		if (makeup > 20.0)
-			makeup = 20.0;
-		if (makeup < 0.0001)
-			makeup = 0.0;
-	}
-	inline float getMakeup() { return 20.0 * log10(makeup); }
+	void render(StereoSample* buffer, uint16_t numSamples, q31_t volAdjustL, q31_t volAdjustR);
+	void updateER();
+	float calc_rms(StereoSample* buffer, uint16_t numSamples);
+	uint8_t gainReduction;
+	bool dither;
+	q31_t threshold;
+	q31_t shape;
+	q31_t ratio;
+	q31_t out;
+	q31_t over;
+	q31_t currentVolumeL;
+	q31_t currentVolumeR;
 
-	chunkware_simple::SimpleComp compressor;
+	float meanVolume;
+	float mean;
+	float lastGain;
+	float er;
+	float threshdb;
 };

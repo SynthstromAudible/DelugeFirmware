@@ -316,7 +316,7 @@ void routineWithClusterLoading(bool mayProcessUserActionsBetween) {
 	}
 }
 
-#define DO_AUDIO_LOG 0 // For advavnced debugging printouts.
+#define DO_AUDIO_LOG 1 // For advavnced debugging printouts.
 #define AUDIO_LOG_SIZE 64
 
 #if DO_AUDIO_LOG
@@ -390,10 +390,15 @@ void routine() {
 	}
 
 #ifdef REPORT_CPU_USAGE
-	if (numSamples < (NUM_SAMPLES_FOR_CPU_USAGE_REPORT)) {
+#define MIN_SAMPLES NUM_SAMPLES_FOR_CPU_USAGE_REPORT
+#else
+#define MINSAMPLES 16
+#endif
+	if (numSamples < (MINSAMPLES)) {
 		audioRoutineLocked = false;
 		return;
 	}
+#ifdef REPORT_CPU_USAGE
 	numSamples = NUM_SAMPLES_FOR_CPU_USAGE_REPORT;
 	int32_t unadjustedNumSamplesBeforeLappingPlayHead = numSamples;
 #else
@@ -755,8 +760,8 @@ startAgain:
 	}
 	logAction("mastercomp start");
 	mastercompressor.render(renderingBuffer, numSamples, masterVolumeAdjustmentL, masterVolumeAdjustmentR);
-	masterVolumeAdjustmentL <<= 2;
-	masterVolumeAdjustmentR <<= 2;
+	masterVolumeAdjustmentL = ONE_Q31;
+	masterVolumeAdjustmentR = ONE_Q31;
 	logAction("mastercomp end");
 	metronome.render(renderingBuffer, numSamples);
 
@@ -1191,9 +1196,8 @@ void getMasterCompressorParamsFromSong(Song* song) {
 	int32_t r = song->masterCompressorRelease;
 	int32_t t = song->masterCompressorThresh;
 	int32_t rat = song->masterCompressorRatio;
-	int32_t m = song->masterCompressorMakeup;
-	int32_t w = song->masterCompressorWet;
-	mastercompressor.setup(a, r, t, rat, m, w);
+
+	mastercompressor.setup(a, r, t, rat);
 }
 
 Voice* solicitVoice(Sound* forSound) {

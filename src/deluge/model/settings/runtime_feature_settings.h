@@ -39,7 +39,6 @@ enum RuntimeFeatureStateSyncScalingAction : uint32_t { SyncScaling = 0, Fill = 1
 /// Every setting needs to be declared in here
 enum RuntimeFeatureSettingType : uint32_t {
 	DrumRandomizer,
-	MasterCompressorFx,
 	Quantize,
 	FineTempoKnob,
 	PatchCableResolution,
