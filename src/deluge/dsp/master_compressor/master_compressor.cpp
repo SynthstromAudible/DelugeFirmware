@@ -70,13 +70,12 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t v
 	q31_t over = std::max<float>(0, (meanVolume - threshdb) / 21) * ONE_Q31;
 	q31_t clip = std::max<float>(0, (meanVolume - 18) / 21) * ONE_Q31;
 	//add some extra reduction if we're into clipping
-	over = (multiply_32x32_rshift32(over, ratio) << 1) + (multiply_32x32_rshift32(clip, ONE_Q31 - ratio));
 
 	if (over > 0) {
 		registerHit(over);
 	}
 	out = Compressor::render(numSamples, shape);
-
+	out = (multiply_32x32_rshift32(out, ratio) << 1) + (multiply_32x32_rshift32(clip, ONE_Q31 - ratio));
 	//out = multiply_32x32_rshift32(out, ratio) << 1;
 
 	//21 is the max internal volume (i.e. one_q31)
