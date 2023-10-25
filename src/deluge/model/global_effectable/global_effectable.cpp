@@ -21,6 +21,7 @@
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
+#include "hid/led/indicator_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
@@ -47,6 +48,7 @@ GlobalEffectable::GlobalEffectable() {
 
 	memset(allpassMemory, 0, sizeof(allpassMemory));
 	memset(&phaserMemory, 0, sizeof(phaserMemory));
+	editingComp = false;
 }
 
 void GlobalEffectable::cloneFrom(ModControllableAudio* other) {
@@ -268,11 +270,60 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 				view.cycleThroughReverbPresets();
 			}
 		}
+		else {
+			if (on) {
+				editingComp = !editingComp;
+				display->popupTextTemporary(editingComp ? "FULL" : "ONE");
+			}
+		}
 
 		return false;
 	}
 
 	return false; // Some cases could lead here
+}
+ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offset, int32_t whichModEncoder,
+                                                                   ModelStackWithAutoParam* modelStack) {
+	if (*getModKnobMode() == 4) {
+		if (whichModEncoder == 1) { //sidechain (threshold)
+			int current = AudioEngine::mastercompressor.threshold >> 24;
+			current -= offset;
+			current = std::clamp(current, 1, 128);
+			indicator_leds::setKnobIndicatorLevel(1, std::max(0, 128 - current));
+			AudioEngine::mastercompressor.threshold = lshiftAndSaturate<24>(current);
+			return ActionResult::DEALT_WITH;
+		}
+		else if (whichModEncoder == 0) { //ratio/reverb (we can only get here in comp editing mode)
+			int current = AudioEngine::mastercompressor.ratio >> 24;
+			current += offset;
+			//this range is ratio of 2 to infinity
+			current = std::clamp(current, 48, 112);
+			indicator_leds::setKnobIndicatorLevel(0, (current - 48) * 2);
+			AudioEngine::mastercompressor.ratio = lshiftAndSaturate<24>(current);
+			return ActionResult::DEALT_WITH;
+		}
+	}
+	else if (*getModKnobMode() == 2) {
+		if (whichModEncoder == 1) { //attack
+			int current = getLookupIndexFromValue(AudioEngine::mastercompressor.attack >> 2, attackRateTable, 50);
+			current += offset;
+			current = std::clamp(current, 1, 50);
+			indicator_leds::setKnobIndicatorLevel(1, (current * 128) / 50);
+			AudioEngine::mastercompressor.attack = attackRateTable[current] << 2;
+			return ActionResult::DEALT_WITH;
+		}
+		if (whichModEncoder == 0) { //release
+			int current = getLookupIndexFromValue(AudioEngine::mastercompressor.release >> 1, releaseRateTable, 50);
+			current += offset;
+			current = std::clamp(current, 2, 50);
+			indicator_leds::setKnobIndicatorLevel(0, (current * 128) / 50);
+			AudioEngine::mastercompressor.release = releaseRateTable[current] << 1;
+
+			return ActionResult::DEALT_WITH;
+		}
+	}
+
+	return ActionResult::NOT_DEALT_WITH;
 }
 
 // Always check this doesn't return NULL!
@@ -323,7 +374,7 @@ int32_t GlobalEffectable::getParameterFromKnob(int32_t whichModEncoder) {
 	}
 
 	else if (modKnobMode == 4) {
-		if (whichModEncoder == 0) {
+		if (whichModEncoder == 0 && !editingComp) {
 			return Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT;
 		}
 	}
@@ -761,8 +812,8 @@ void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, i
 	if (modFXTypeNow == ModFXType::FLANGER || modFXTypeNow == ModFXType::CHORUS
 	    || modFXTypeNow == ModFXType::CHORUS_STEREO) {
 		if (!modFXBuffer) {
-			modFXBuffer = (StereoSample*)GeneralMemoryAllocator::get().alloc(kModFXBufferSize * sizeof(StereoSample),
-			                                                                 NULL, false, true);
+			modFXBuffer =
+			    (StereoSample*)GeneralMemoryAllocator::get().allocLowSpeed(kModFXBufferSize * sizeof(StereoSample));
 			if (!modFXBuffer) {
 				modFXTypeNow = ModFXType::NONE;
 			}
@@ -777,8 +828,8 @@ void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, i
 	}
 	else if (modFXTypeNow == ModFXType::GRAIN) {
 		if (!modFXGrainBuffer) {
-			modFXGrainBuffer = (StereoSample*)GeneralMemoryAllocator::get().alloc(
-			    kModFXGrainBufferSize * sizeof(StereoSample), NULL, false, true);
+			modFXGrainBuffer = (StereoSample*)GeneralMemoryAllocator::get().allocLowSpeed(kModFXGrainBufferSize
+			                                                                              * sizeof(StereoSample));
 			if (!modFXGrainBuffer) {
 				modFXTypeNow = ModFXType::NONE;
 			}

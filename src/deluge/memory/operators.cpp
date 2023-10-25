@@ -5,7 +5,7 @@
 #if !defined IN_UNIT_TESTS
 void* operator new(std::size_t n) noexcept(false) {
 	//allocate on external RAM
-	return GeneralMemoryAllocator::get().allocNonAudio(n);
+	return GeneralMemoryAllocator::get().allocExternal(n);
 }
 
 void operator delete(void* p) {

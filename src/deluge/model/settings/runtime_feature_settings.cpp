@@ -83,10 +83,6 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DrumRandomizer],
 	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_DRUM_RANDOMIZER), "drumRandomizer",
 	                  RuntimeFeatureStateToggle::On);
-	// Master compressor
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::MasterCompressorFx],
-	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_MASTER_COMPRESSOR), "masterCompressor",
-	                  RuntimeFeatureStateToggle::On);
 	// Quantize
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::Quantize],
 	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_QUANTIZE), "quantize",

@@ -2292,7 +2292,7 @@ dontUseCache : {}
 
 					if (liveInputBuffer) {
 
-						void* memory = GeneralMemoryAllocator::get().alloc(sizeof(LivePitchShifter), NULL, false, true);
+						void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(LivePitchShifter));
 
 						if (memory) {
 							source->livePitchShifter = new (memory) LivePitchShifter(inputTypeNow, phaseIncrement);

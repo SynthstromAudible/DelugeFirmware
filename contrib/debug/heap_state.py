@@ -351,9 +351,9 @@ def parse_memory_region(inferior, offset, mem_region_idx):
     )
 
     MEM_REGION_NAMES = [
-        "EXTERNAL",
+        "STEALABLE",
         "INTERNAL",
-        "NONAUDIO",
+        "EXTERNAL",
     ]
     mem_region_name = MEM_REGION_NAMES[mem_region_idx]
 
@@ -425,18 +425,18 @@ def parse_gma(inferior=gdb.inferiors()[0]):
     if HEAP_START is not None:
         EXTERNAL_MEMORY_START = 0x0C000000
         EXTERNAL_MEMORY_END = 0x10000000
-        RESERVED_NONAUDIO_ALLOCATOR = 0x00100000
+        RESERVED_EXTERNAL_ALLOCATOR = 0x00100000
 
-        print("** External heap blocks:")
+        print("** Stealable heap blocks:")
         parse_heap(
             inferior,
             EXTERNAL_MEMORY_START,
-            EXTERNAL_MEMORY_END - RESERVED_NONAUDIO_ALLOCATOR,
+            EXTERNAL_MEMORY_END - RESERVED_EXTERNAL_ALLOCATOR,
         )
-        print("** Nonaudio heap blocks:")
+        print("** External heap blocks:")
         parse_heap(
             inferior,
-            EXTERNAL_MEMORY_END - RESERVED_NONAUDIO_ALLOCATOR,
+            EXTERNAL_MEMORY_END - RESERVED_EXTERNAL_ALLOCATOR,
             EXTERNAL_MEMORY_END,
         )
         print("** Internal Heap blocks:")

@@ -40,12 +40,14 @@ struct NeighbouringMemoryGrabAttemptResult {
 #define SPACE_TYPE_MASK 0xC0000000u
 #define SPACE_SIZE_MASK 0x3FFFFFFFu
 
+constexpr int32_t maxAlign = 1 << 12;
+constexpr int32_t minAlign = 64;
+
 class MemoryRegion {
 public:
 	MemoryRegion();
 	void setup(void* emptySpacesMemory, int32_t emptySpacesMemorySize, uint32_t regionBegin, uint32_t regionEnd);
-	void* alloc(uint32_t requiredSize, uint32_t* getAllocatedSize, bool makeStealable, void* thingNotToStealFrom,
-	            bool getBiggestAllocationPossible);
+	void* alloc(uint32_t requiredSize, bool makeStealable, void* thingNotToStealFrom);
 	uint32_t shortenRight(void* address, uint32_t newSize);
 	uint32_t shortenLeft(void* address, uint32_t amountToShorten, uint32_t numBytesToMoveRightIfSuccessful = 0);
 	void extend(void* address, uint32_t minAmountToExtend, uint32_t idealAmountToExtend,
@@ -56,8 +58,8 @@ public:
 
 	uint32_t start;
 	uint32_t end;
-	int32_t numAllocations;
-
+	uint32_t numAllocations;
+	uint32_t pivot;
 	CacheManager& cache_manager() { return cache_manager_; }
 
 #if ALPHA_OR_BETA_VERSION
@@ -77,4 +79,5 @@ private:
 
 	void writeTempHeadersBeforeASteal(uint32_t newStartAddress, uint32_t newSize);
 	void sanityCheck();
+	uint32_t padSize(uint32_t requiredSize);
 };
