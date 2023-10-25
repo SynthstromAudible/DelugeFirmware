@@ -33,7 +33,6 @@ namespace deluge::gui::menu_item::runtime_feature {
 
 // Generic menu item instances
 Setting menuDrumRandomizer(RuntimeFeatureSettingType::DrumRandomizer);
-Setting menuMasterCompressorFx(RuntimeFeatureSettingType::MasterCompressorFx);
 Setting menuFineTempo(RuntimeFeatureSettingType::FineTempoKnob);
 Setting menuQuantize(RuntimeFeatureSettingType::Quantize);
 Setting menuPatchCableResolution(RuntimeFeatureSettingType::PatchCableResolution);
@@ -63,10 +62,21 @@ Submenu subMenuAutomation{
 };
 
 std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettings> subMenuEntries{
-    &menuDrumRandomizer,         &menuMasterCompressorFx, &menuFineTempo,           &menuQuantize,
-    &menuPatchCableResolution,   &menuCatchNotes,         &menuDeleteUnusedKitRows, &menuAltGoldenKnobDelayParams,
-    &menuQuantizedStutterRate,   &subMenuAutomation,      &menuDevSysexAllowed,     &menuSyncScalingAction,
-    &menuHighlightIncomingNotes, &menuDisplayNornsLayout, &menuShiftIsSticky,       &menuLightShiftLed,
+    &menuDrumRandomizer,
+    &menuFineTempo,
+    &menuQuantize,
+    &menuPatchCableResolution,
+    &menuCatchNotes,
+    &menuDeleteUnusedKitRows,
+    &menuAltGoldenKnobDelayParams,
+    &menuQuantizedStutterRate,
+    &subMenuAutomation,
+    &menuDevSysexAllowed,
+    &menuSyncScalingAction,
+    &menuHighlightIncomingNotes,
+    &menuDisplayNornsLayout,
+    &menuShiftIsSticky,
+    &menuLightShiftLed,
 };
 
 Settings::Settings(l10n::String name, l10n::String title) : menu_item::Submenu(name, title, subMenuEntries) {

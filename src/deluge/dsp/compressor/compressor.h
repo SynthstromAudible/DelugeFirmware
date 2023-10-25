@@ -26,7 +26,7 @@ class Compressor {
 public:
 	Compressor();
 	void cloneFrom(Compressor* other);
-
+	bool follower;
 	EnvelopeStage status;
 	uint32_t pos;
 	int32_t lastValue;

@@ -2114,8 +2114,9 @@ void AutoParam::copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* co
 	if (copiedParamAutomation->numNodes > 0) {
 
 		// Allocate some memory for the nodes
-		copiedParamAutomation->nodes = (ParamNode*)GeneralMemoryAllocator::get().alloc(
-		    sizeof(ParamNode) * copiedParamAutomation->numNodes, NULL, true);
+		// Paul: Does it make sense these are in SDRAM? Are the other nodes also in SDRAM?
+		copiedParamAutomation->nodes = (ParamNode*)GeneralMemoryAllocator::get().allocLowSpeed(
+		    sizeof(ParamNode) * copiedParamAutomation->numNodes);
 
 		if (!copiedParamAutomation->nodes) {
 			copiedParamAutomation->numNodes = 0;
@@ -2677,8 +2678,7 @@ void AutoParam::stealNodes(ModelStackWithAutoParam const* modelStack, int32_t po
 				action->recordParamChangeIfNotAlreadySnapshotted(modelStack);
 			}
 
-			void* memory =
-			    GeneralMemoryAllocator::get().alloc(numNodesToStealTotal * sizeof(ParamNode), NULL, false, true);
+			void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(numNodesToStealTotal * sizeof(ParamNode));
 			if (memory) {
 				ParamNode* stolenNodes = (ParamNode*)memory;
 				stolenNodeRecord->nodes = stolenNodes;

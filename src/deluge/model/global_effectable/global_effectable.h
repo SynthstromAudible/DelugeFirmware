@@ -54,10 +54,13 @@ public:
 	int32_t stringToParam(char const* string);
 	void setupDelayWorkingState(DelayWorkingState* delayWorkingState, ParamManager* paramManager,
 	                            bool shouldLimitDelayFeedback = false);
-
+	bool isEditingComp() override { return editingComp; }
+	ActionResult modEncoderActionForNonExistentParam(int32_t offset, int32_t whichModEncoder,
+	                                                 ModelStackWithAutoParam* modelStack) override;
 	dsp::filter::FilterSet filterSet;
 	ModFXParam currentModFXParam;
 	FilterType currentFilterType;
+	bool editingComp;
 
 protected:
 	virtual int32_t getParameterFromKnob(int32_t whichModEncoder);

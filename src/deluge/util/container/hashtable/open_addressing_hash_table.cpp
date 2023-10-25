@@ -95,7 +95,7 @@ void* OpenAddressingHashTable::insert(uint32_t key, bool* onlyIfNotAlreadyPresen
 	// If no memory, get some
 	if (!memory) {
 		int32_t newNumBuckets = initialNumBuckets;
-		memory = GeneralMemoryAllocator::get().alloc(newNumBuckets * elementSize, NULL, false, true);
+		memory = GeneralMemoryAllocator::get().allocMaxSpeed(newNumBuckets * elementSize);
 		if (!memory) {
 			return NULL;
 		}
@@ -110,7 +110,7 @@ void* OpenAddressingHashTable::insert(uint32_t key, bool* onlyIfNotAlreadyPresen
 	else if (numElements >= numBuckets - (numBuckets >> 2)) {
 		int32_t newNumBuckets = numBuckets << 1;
 
-		secondaryMemory = GeneralMemoryAllocator::get().alloc(newNumBuckets * elementSize, NULL, false, true);
+		secondaryMemory = GeneralMemoryAllocator::get().allocMaxSpeed(newNumBuckets * elementSize);
 		if (secondaryMemory) {
 
 			// Initialize

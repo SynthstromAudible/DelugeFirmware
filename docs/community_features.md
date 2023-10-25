@@ -45,13 +45,8 @@ Here is a list of features that have been added to the firmware as a list, group
 ### 4.1 - Song View Features
 
 #### 4.1.1 - Master Compressor
-- ([#137]) In the Song view, select "AFFECT ENTIRE" and "SIDECHAIN" modulation button, and adjust the upper gold knob. Push the upper gold knob to switch to the next setting (Threshold (dB), Makeup Gain (dB), Attack (ms), Release (ms), Ratio, MIX). The LEDs next to the knob act as a gain reduction meter.
+- ([#630]) In the Song view, select "AFFECT ENTIRE" and "SIDECHAIN" modulation button, and adjust the upper gold knob for a single knob compressor with auto makeup gain. For detailed editing, press the sidechain gold knob. The top LED will become a compression meter, and the bottom LED level will show the compressor input level. The bottom (reverb) knob will adjust the ratio in this mode, from 1:8 to infinity/brick wall. The compressor attack and release are editable on the affect entire attack and release buttons if desired. 
 
-	- This feature can be turned ON/OFF in the Runtime Settings (Community Features) Menu (accessed by pressing "SHIFT" + "SELECT"). 
-
-- Follow up PR's:
-	- ([#200]) Fixed master compressor. The masterVolumeAdjustment value is now considered in the process. With this change, threshold value are now displayed correctly. This modification affects songs that had saved master compressor settings.
-	- ([#220]) Fixed a bug in the song view that, when the "SIDECHAIN" knob was turned while holding down a clip pad, the "SIDECHAIN" value and the Master Compressor Threshold would change at the same time.
 
 #### 4.1.2 - Change Row Colour
 
@@ -357,7 +352,7 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#122]: https://github.com/SynthstromAudible/DelugeFirmware/pull/122
 [#125]: https://github.com/SynthstromAudible/DelugeFirmware/pull/125
 [#129]: https://github.com/SynthstromAudible/DelugeFirmware/pull/129
-[#137]: https://github.com/SynthstromAudible/DelugeFirmware/pull/137
+[#630]: https://github.com/SynthstromAudible/DelugeFirmware/pull/630
 [#138]: https://github.com/SynthstromAudible/DelugeFirmware/pull/138
 [#141]: https://github.com/SynthstromAudible/DelugeFirmware/pull/141
 [#157]: https://github.com/SynthstromAudible/DelugeFirmware/pull/157
