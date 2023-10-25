@@ -20,7 +20,7 @@
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
 
-int32_t LFO::render(int32_t numSamples, LFOType waveType, uint32_t phaseIncrement) {
+[[gnu::always_inline]] int32_t LFO::render(int32_t numSamples, LFOType waveType, uint32_t phaseIncrement) {
 	int32_t value;
 	switch (waveType) {
 	case LFOType::SAW:
