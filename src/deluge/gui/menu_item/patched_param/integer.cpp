@@ -21,9 +21,10 @@
 
 namespace deluge::gui::menu_item::patched_param {
 void Integer::readCurrentValue() {
-	this->setValue((((int64_t)soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP()) + 2147483648) * kMaxMenuValue
-	                + 2147483648)
-	               >> 32);
+	this->setValue(
+	    (((int64_t)soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP()) + 2147483648) * kMaxMenuValue
+	     + 2147483648)
+	    >> 32);
 }
 
 void Integer::writeCurrentValue() {

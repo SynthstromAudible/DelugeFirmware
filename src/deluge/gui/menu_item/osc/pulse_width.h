@@ -43,7 +43,8 @@ public:
 
 	void readCurrentValue() override {
 		this->setValue(
-		    ((int64_t)soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP()) * (kMaxMenuValue * 2) + 2147483648)
+		    ((int64_t)soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP()) * (kMaxMenuValue * 2)
+		     + 2147483648)
 		    >> 32);
 	}
 

@@ -27,7 +27,8 @@ public:
 
 	void readCurrentValue() override {
 		this->setValue(
-		    (((int64_t)(static_cast<AudioClip*>(currentSong->currentClip))->attack + 2147483648) * kMaxMenuValue + 2147483648)
+		    (((int64_t)(static_cast<AudioClip*>(currentSong->currentClip))->attack + 2147483648) * kMaxMenuValue
+		     + 2147483648)
 		    >> 32);
 	}
 	void writeCurrentValue() override {

@@ -26,7 +26,8 @@ public:
 	using Integer::Integer;
 	void readCurrentValue() override {
 		this->setValue(
-		    (((int64_t)(static_cast<InstrumentClip*>(currentSong->currentClip))->arpeggiatorRate + 2147483648) * kMaxMenuValue
+		    (((int64_t)(static_cast<InstrumentClip*>(currentSong->currentClip))->arpeggiatorRate + 2147483648)
+		         * kMaxMenuValue
 		     + 2147483648)
 		    >> 32);
 	}

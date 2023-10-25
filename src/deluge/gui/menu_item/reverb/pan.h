@@ -43,7 +43,9 @@ public:
 
 	void writeCurrentValue() override { AudioEngine::reverbPan = ((int32_t)this->getValue() * 33554432); }
 
-	void readCurrentValue() override { this->setValue(((int64_t)AudioEngine::reverbPan * (kMaxMenuPanValue * 4) + 2147483648) >> 32); }
+	void readCurrentValue() override {
+		this->setValue(((int64_t)AudioEngine::reverbPan * (kMaxMenuPanValue * 4) + 2147483648) >> 32);
+	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuPanValue; }
 	[[nodiscard]] int32_t getMinValue() const override { return kMinMenuPanValue; }
 };

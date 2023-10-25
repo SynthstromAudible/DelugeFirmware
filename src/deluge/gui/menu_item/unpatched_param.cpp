@@ -31,10 +31,10 @@ extern "C" {
 namespace deluge::gui::menu_item {
 
 void UnpatchedParam::readCurrentValue() {
-	this->setValue(
-	    (((int64_t)soundEditor.currentParamManager->getUnpatchedParamSet()->getValue(getP()) + 2147483648) * kMaxMenuValue
-	     + 2147483648)
-	    >> 32);
+	this->setValue((((int64_t)soundEditor.currentParamManager->getUnpatchedParamSet()->getValue(getP()) + 2147483648)
+	                    * kMaxMenuValue
+	                + 2147483648)
+	               >> 32);
 }
 
 ModelStackWithAutoParam* UnpatchedParam::getModelStack(void* memory) {
