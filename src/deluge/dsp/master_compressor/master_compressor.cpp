@@ -65,7 +65,6 @@ void MasterCompressor::updateER() {
 
 void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t volAdjustL, q31_t volAdjustR) {
 	updateER();
-	meanVolume = calc_rms(buffer, numSamples);
 
 	q31_t over = std::max<float>(0, (meanVolume - threshdb) / 21) * ONE_Q31;
 	q31_t clip = std::max<float>(0, (meanVolume - 18) / 21) * ONE_Q31;
@@ -111,6 +110,8 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t v
 	//for LEDs
 	//9 converts to dB, quadrupled for display range since a 30db reduction is basically killing the signal
 	gainReduction = std::clamp<int32_t>(-(reduction) * 9 * 4, 0, 127);
+	//calc compression for next round (feedback compressor)
+	meanVolume = calc_rms(buffer, numSamples);
 }
 
 //output range is 0-21 (2^31)
