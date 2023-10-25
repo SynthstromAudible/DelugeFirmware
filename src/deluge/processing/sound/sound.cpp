@@ -2313,10 +2313,12 @@ void Sound::stopSkippingRendering(ArpeggiatorSettings* arpSettings) {
 
 			// Do sidechain compressor
 			//if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::COMPRESSOR)) {
-			compressor.registerHitRetrospectively(AudioEngine::sizeLastSideChainHit,
-			                                      AudioEngine::audioSampleTimer - AudioEngine::timeLastSideChainHit);
-			//}
-
+			if (AudioEngine::sizeLastSideChainHit) {
+				compressor.registerHitRetrospectively(AudioEngine::sizeLastSideChainHit,
+				                                      AudioEngine::audioSampleTimer
+				                                          - AudioEngine::timeLastSideChainHit);
+				//}
+			}
 			// Special state to make it grab the actual value the first time it's rendered
 			postReverbVolumeLastTime = -1;
 

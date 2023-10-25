@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "dsp/master_compressor/master_compressor.h"
 #include <cstdint>
 
 extern "C" {
