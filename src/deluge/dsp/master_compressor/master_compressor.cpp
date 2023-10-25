@@ -86,12 +86,13 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t v
 	float reduction = 21 * (out / ONE_Q31f);
 
 	//this is the most gain available without overflow
-	float dbGain = std::min<float>(0.85 + er + reduction, 2.7f);
+	float dbGain = 0.85 + er + reduction;
 
 	float gain = exp((dbGain));
+	gain = std::min<float>(gain, 31);
 	lastGain = dbGain;
-	float finalVolumeL = gain * float(volAdjustL >> 8);
-	float finalVolumeR = gain * float(volAdjustR >> 8);
+	float finalVolumeL = gain * float(volAdjustL >> 9);
+	float finalVolumeR = gain * float(volAdjustR >> 9);
 
 	q31_t amplitudeIncrementL = ((int32_t)((finalVolumeL - (currentVolumeL >> 8)) / float(numSamples))) << 8;
 	q31_t amplitudeIncrementR = ((int32_t)((finalVolumeR - (currentVolumeR >> 8)) / float(numSamples))) << 8;
@@ -104,13 +105,13 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t v
 		currentVolumeL += amplitudeIncrementL;
 		currentVolumeR += amplitudeIncrementR;
 		// Apply post-fx and post-reverb-send volume
-		thisSample->l = multiply_32x32_rshift32(thisSample->l, currentVolumeL) << 1;
-		thisSample->r = multiply_32x32_rshift32(thisSample->r, currentVolumeR) << 1;
+		thisSample->l = multiply_32x32_rshift32(thisSample->l, currentVolumeL) << 2;
+		thisSample->r = multiply_32x32_rshift32(thisSample->r, currentVolumeR) << 2;
 
 	} while (++thisSample != bufferEnd);
 	//for LEDs
 	//9 converts to dB, quadrupled for display range since a 30db reduction is basically killing the signal
-	gainReduction = std::clamp<int32_t>(-(reduction)*9 * 4, 0, 127);
+	gainReduction = std::clamp<int32_t>(-(reduction) * 9 * 4, 0, 127);
 }
 
 //output range is 0-21 (2^31)
