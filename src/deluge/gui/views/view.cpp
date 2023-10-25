@@ -876,17 +876,24 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 				int32_t newKnobPos = knobPos + offset;
 				newKnobPos = std::clamp(newKnobPos, lowerLimit, 64_i32);
 
-				char buffer[5];
-				int32_t valueForDisplay;
-				if ((modelStackWithParam->paramId == Param::Local::PAN)
-				    || (modelStackWithParam->paramId == Param::Unpatched::GlobalEffectable::PAN)) {
-					valueForDisplay = newKnobPos;
+				//don't display pop-up while in soundEditor as values are displayed on the menu screen
+				//unless you're turning a mod encoder for a different param than the menu displayed
+				if ((getCurrentUI() != &soundEditor)
+				    || ((getCurrentUI() == &soundEditor)
+				        && (soundEditor.getCurrentMenuItem()->getPatchedParamIndex()
+				            != modelStackWithParam->paramId))) {
+					char buffer[5];
+					int32_t valueForDisplay;
+					if ((modelStackWithParam->paramId == Param::Local::PAN)
+					    || (modelStackWithParam->paramId == Param::Unpatched::GlobalEffectable::PAN)) {
+						valueForDisplay = newKnobPos;
+					}
+					else {
+						valueForDisplay = newKnobPos + kKnobPosOffset;
+					}
+					intToString(valueForDisplay, buffer);
+					display->displayPopup(buffer);
 				}
-				else {
-					valueForDisplay = newKnobPos + kKnobPosOffset;
-				}
-				intToString(valueForDisplay, buffer);
-				display->displayPopup(buffer);
 
 				if (newKnobPos == knobPos) {
 					return;
