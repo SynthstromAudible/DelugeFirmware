@@ -50,7 +50,7 @@ private:
 			lpfLPF4.reset();
 		}
 	};
-	inline q31_t scaleInput(q31_t input, q31_t feedbacksSum) {
+	[[gnu::always_inline]] inline q31_t scaleInput(q31_t input, q31_t feedbacksSum) {
 		q31_t temp;
 		if (morph > 0 || processedResonance > 510000000) {
 			temp = multiply_32x32_rshift32_rounded(
@@ -72,8 +72,6 @@ private:
 	[[gnu::always_inline]] inline q31_t do24dBLPFOnSample(q31_t input, LpLadderState& state);
 	[[gnu::always_inline]] inline q31_t do12dBLPFOnSample(q31_t input, LpLadderState& state);
 	[[gnu::always_inline]] inline q31_t doDriveLPFOnSample(q31_t input, LpLadderState& state);
-	inline void renderLPLadder(q31_t* startSample, q31_t* endSample, FilterMode lpfMode, int32_t sampleIncrement);
-
 	//all ladders are in this class to share the basic components
 	//this differentiates between them
 	FilterMode lpfMode;

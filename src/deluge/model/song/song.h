@@ -328,12 +328,12 @@ public:
 	int32_t reverbCompressorRelease;
 	SyncLevel reverbCompressorSync;
 
-	double masterCompressorAttack;
-	double masterCompressorRelease;
-	double masterCompressorThresh;
-	double masterCompressorRatio;
-	double masterCompressorMakeup;
-	double masterCompressorWet;
+	int32_t masterCompressorAttack;
+	int32_t masterCompressorRelease;
+	int32_t masterCompressorThresh;
+	int32_t masterCompressorRatio;
+	int32_t masterCompressorMakeup;
+	int32_t masterCompressorWet;
 
 private:
 	bool fillModeActive;

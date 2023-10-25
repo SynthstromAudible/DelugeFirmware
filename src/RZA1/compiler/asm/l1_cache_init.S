@@ -39,10 +39,10 @@
 	.code 32
 
 	.global R_CACHE_L1Init
-
 	.func R_CACHE_L1Init
+	.type R_CACHE_L1Init, %function
 R_CACHE_L1Init:
-
+	
 /******************************************************************************/
 /* Enable caches                                                              */
 /* Caches are controlled by the System Control Register:                      */

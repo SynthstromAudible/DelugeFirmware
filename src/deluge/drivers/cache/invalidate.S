@@ -28,6 +28,7 @@
 	.global v7_dma_inv_range
 
 	.func v7_dma_inv_range
+	.type v7_dma_inv_range, %function
 
 v7_dma_inv_range:
          dcache_line_size r2, r3
@@ -55,6 +56,7 @@ v7_dma_inv_range:
 	.global v7_dma_flush_range
 
 	.func v7_dma_flush_range
+	.type v7_dma_flush_range, %function
 
 v7_dma_flush_range:
 		dcache_line_size r2, r3

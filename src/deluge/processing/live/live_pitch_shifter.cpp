@@ -66,7 +66,7 @@ LivePitchShifter::~LivePitchShifter() {
 
 #if INPUT_ENABLE_REPITCHED_BUFFER
 	if (repitchedBuffer) {
-		GeneralMemoryAllocator::get().dealloc(repitchedBuffer);
+		delugeDealloc(repitchedBuffer);
 	}
 #endif
 }
@@ -821,7 +821,7 @@ thatsDone:
 	if (repitchedBuffer && !stillWritingToRepitchedBuffer
 	    && playHeads[PLAY_HEAD_NEWER].mode != PLAY_HEAD_MODE_REPITCHED_BUFFER
 	    && playHeads[PLAY_HEAD_OLDER].mode != PLAY_HEAD_MODE_REPITCHED_BUFFER) {
-		GeneralMemoryAllocator::get().dealloc(repitchedBuffer);
+		delugeDealloc(repitchedBuffer);
 		repitchedBuffer = NULL;
 	}
 #endif

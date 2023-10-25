@@ -37,7 +37,7 @@ extern int32_t oscSyncRenderingBuffer[];
 WaveTableBand::~WaveTableBand() {
 	if (data) { // It might be NULL if that BandData was just "stolen".
 		data->~WaveTableBandData();
-		GeneralMemoryAllocator::get().dealloc(data);
+		delugeDealloc(data);
 	}
 }
 
@@ -309,13 +309,13 @@ gotError2:
 	if (!frequencyDomainData) {
 		error = ERROR_INSUFFICIENT_RAM;
 gotError4:
-		GeneralMemoryAllocator::get().dealloc(currentCycleInt32);
+		delugeDealloc(currentCycleInt32);
 		goto gotError2;
 	}
 
 	if (false) {
 gotError5:
-		GeneralMemoryAllocator::get().dealloc(frequencyDomainData);
+		delugeDealloc(frequencyDomainData);
 		goto gotError4;
 	}
 
@@ -730,8 +730,8 @@ transformBandToTimeDomain:
 	}
 
 	// Dispose of temp memory
-	GeneralMemoryAllocator::get().dealloc(currentCycleInt32);
-	GeneralMemoryAllocator::get().dealloc(frequencyDomainData);
+	delugeDealloc(currentCycleInt32);
+	delugeDealloc(frequencyDomainData);
 
 	// Printout stats
 	Debug::print("initial band size if all populated: ");
@@ -1106,19 +1106,8 @@ startRenderingACycle:
 				int32_t* bufferStartThisSync = outputBuffer;
 				uint32_t resetterPhase = resetterPhaseThisCycle;
 				int32_t numSamplesThisOscSyncSession = numSamplesThisCycle;
-
-				auto render_wavetable_loop = [&](uint32_t& phaseTemp, int32_t const* const bufferEndThisSyncRender,
-				                                 int32_t* __restrict__& writePos) {
-					doRenderingLoop(bufferStartThisSync, bufferEndThisSyncRender, firstCycleNumber, bandHere, phaseTemp,
-					                phaseIncrement, crossCycleStrength2, crossCycleStrength2Increment, kernel);
-				};
-				renderOscSync(
-				    render_wavetable_loop,
-				    [&](uint32_t samplesIncludingNextCrossoverSample) {
-					    crossCycleStrength2 += crossCycleStrength2Increment * (samplesIncludingNextCrossoverSample - 1);
-				    },
-				    phase, phaseIncrement, resetterPhase, resetterPhaseIncrement, resetterDivideByPhaseIncrement,
-				    retriggerPhase, numSamplesThisOscSyncSession, bufferStartThisSync);
+				RENDER_OSC_SYNC(RENDER_WAVETABLE_LOOP, 0, WAVETABLE_EXTRA_INSTRUCTIONS_FOR_CROSSOVER_SAMPLE_REDO,
+				                startRenderingASyncForWavetable);
 			}
 			else {
 				int32_t const* bufferEnd = outputBuffer + numSamplesThisCycle;
@@ -1145,16 +1134,7 @@ doneRenderingACycle:
 			int32_t* bufferStartThisSync = outputBuffer;
 			uint32_t resetterPhase = resetterPhaseThisCycle;
 			int32_t numSamplesThisOscSyncSession = numSamples;
-			auto render_single_cycle_waveform_loop = [&](uint32_t& phaseTemp,
-			                                             int32_t const* const bufferEndThisSyncRender,
-			                                             int32_t* __restrict__& writePos) {
-				doRenderingLoopSingleCycle(bufferStartThisSync, bufferEndThisSyncRender, bandHere, phaseTemp,
-				                           phaseIncrement, kernel);
-			};
-			renderOscSync(
-			    render_single_cycle_waveform_loop, []() {}, phase, phaseIncrement, resetterPhase,
-			    resetterPhaseIncrement, resetterDivideByPhaseIncrement, retriggerPhase, numSamplesThisOscSyncSession,
-			    bufferStartThisSync);
+			RENDER_OSC_SYNC(RENDER_SINGLE_CYCLE_WAVEFORM_LOOP, 0, 0, startRenderingASyncForSingleCycleWaveform);
 		}
 		else {
 			int32_t const* bufferEnd = outputBuffer + numSamples;

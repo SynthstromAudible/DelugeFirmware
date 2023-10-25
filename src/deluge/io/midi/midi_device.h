@@ -127,7 +127,7 @@ public:
 	// 0 if not connected. For USB devices, the bits signal a connection of the corresponding connectedUSBMIDIDevices[].
 	// Of course there'll usually just be one bit set, unless two of the same device are connected.
 	uint8_t connectionFlags;
-
+	bool sendClock; //whether to send clocks to this device
 	uint8_t incomingSysexBuffer[1024];
 	int32_t incomingSysexPos = 0;
 

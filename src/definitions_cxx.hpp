@@ -18,6 +18,7 @@
 #pragma once
 #include "definitions.h"
 #include "util/misc.h"
+#include "version.h"
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -57,15 +58,6 @@
 #define ENABLE_CLIP_CUTTING_DIAGNOSTICS 1
 
 #define PITCH_DETECT_DEBUG_LEVEL 0
-
-struct SemVer {
-	uint8_t major;
-	uint8_t minor;
-	uint8_t patch;
-	// NOTE: below needs C++20
-	//auto operator<=>(const SemVer &) const = default
-};
-constexpr SemVer kCommunityFirmwareVersion{1, 0, 0};
 
 // FIXME: These need to be nuked and all references in the codebase removed in prep for the Community Firmware v1.0.0 release
 // correspondingly, we should probably we storing the semver version in three bytes in the flash rather than trying to compress
@@ -364,9 +356,7 @@ constexpr PatchSource kFirstLocalSource = PatchSource::ENVELOPE_0;
 //constexpr PatchSource kFirstUnchangeableSource = PatchSource::VELOCITY;
 
 //Automation Instrument Clip View constants
-constexpr int32_t kNoLastSelectedParamID = 255;
-constexpr int32_t kNoLastSelectedParamShortcut = 255;
-constexpr int32_t kNoLastSelectedPad = 255;
+constexpr int32_t kNoSelection = 255;
 constexpr int32_t kNumNonKitAffectEntireParamsForAutomation = 55;
 constexpr int32_t kNumKitAffectEntireParamsForAutomation = 24;
 constexpr int32_t kLastMidiCCForAutomation = 121;
@@ -821,9 +811,10 @@ enum class ExistenceChangeType {
 enum CCNumber {
 	CC_NUMBER_PITCH_BEND = 120,
 	CC_NUMBER_AFTERTOUCH = 121,
-	CC_NUMBER_NONE = 122,
+	CC_NUMBER_Y_AXIS = 122,
+	CC_NUMBER_NONE = 123,
 };
-constexpr int32_t kNumCCNumbersIncludingFake = 123;
+constexpr int32_t kNumCCNumbersIncludingFake = 124;
 constexpr int32_t kNumRealCCNumbers = 120;
 
 enum class InstrumentRemoval {

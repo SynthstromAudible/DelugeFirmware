@@ -153,7 +153,9 @@ int32_t uartFlush(int32_t item) {
 	uartItems[item].shouldDoConsecutiveTransferAfter = false; // Only actually applies to MIDI
 
 	DMACn(txDmaChannels[item]).N0TB_n = num;
-	DMACn(txDmaChannels[item]).N0SA_n = (uint32_t)&txBuffers[item][prevReadPos];
+	uint32_t dataAddress = (uint32_t)&txBuffers[item][prevReadPos];
+	DMACn(txDmaChannels[item]).N0SA_n = dataAddress;
+	v7_dma_flush_range(dataAddress, dataAddress + num);
 
 	return 1;
 }

@@ -103,7 +103,7 @@ bool ClearSong::acceptCurrentOption() {
 	if (toDelete) {
 		void* toDealloc = dynamic_cast<void*>(toDelete);
 		toDelete->~Song();
-		GeneralMemoryAllocator::get().dealloc(toDealloc);
+		delugeDealloc(toDealloc);
 	}
 
 	audioFileManager.deleteAnyTempRecordedSamplesFromMemory();

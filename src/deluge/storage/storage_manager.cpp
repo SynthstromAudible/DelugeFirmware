@@ -1406,9 +1406,9 @@ int32_t StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip,
 
 deleteInstrumentAndGetOut:
 		newInstrument->deleteBackedUpParamManagers(song);
-		void* toDealloc = dynamic_cast<void*>(newInstrument);
+		void* toDealloc = static_cast<void*>(newInstrument);
 		newInstrument->~Instrument();
-		GeneralMemoryAllocator::get().dealloc(toDealloc);
+		delugeDealloc(toDealloc);
 
 		return error;
 	}
@@ -1488,13 +1488,25 @@ int32_t StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool m
 	// If that somehow didn't work...
 	if (error || !fileSuccess) {
 
+		void* toDealloc = static_cast<void*>(newDrum);
+		newDrum->~Drum();
+		GeneralMemoryAllocator::get().dealloc(toDealloc);
+		return error;
+
 		if (!fileSuccess) {
 			error = ERROR_SD_CARD;
 			return error;
 		}
 	}
-	song->deleteBackedUpParamManagersForModControllable(*getInstrument);
-	(*getInstrument)->wontBeRenderedForAWhile();
+	//these have to get cleared, otherwise we keep creating drums that aren't attached to note rows
+	if (*getInstrument) {
+		song->deleteBackedUpParamManagersForModControllable(*getInstrument);
+		(*getInstrument)->wontBeRenderedForAWhile();
+		void* toDealloc = static_cast<void*>(*getInstrument);
+		(*getInstrument)->~Drum();
+		GeneralMemoryAllocator::get().dealloc(toDealloc);
+	}
+
 	*getInstrument = newDrum;
 	return error;
 }
@@ -1528,7 +1540,7 @@ Instrument* StorageManager::createNewInstrument(InstrumentType newInstrumentType
 			error = paramManager->setupWithPatching();
 			if (error) {
 paramManagerSetupError:
-				GeneralMemoryAllocator::get().dealloc(instrumentMemory);
+				delugeDealloc(instrumentMemory);
 				return NULL;
 			}
 			Sound::initParams(paramManager);

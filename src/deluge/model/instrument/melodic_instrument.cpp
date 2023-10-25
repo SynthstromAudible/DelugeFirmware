@@ -98,27 +98,40 @@ bool MelodicInstrument::readTagFromFile(char const* tagName) {
 	return true;
 }
 
+MIDIMatchType MelodicInstrument::checkMatch(MIDIDevice* fromDevice, int32_t midiChannel) {
+	uint8_t corz = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(midiChannel);
+
+	if (midiInput.equalsDevice(fromDevice) && midiInput.channelOrZone == corz) {
+		if (midiInput.channelOrZone == midiChannel) {
+			return MIDIMatchType::CHANNEL;
+		}
+		bool master = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isMasterChannel(midiChannel);
+		if (master) {
+			return MIDIMatchType::MPE_MASTER;
+		}
+		else {
+			return MIDIMatchType::MPE_MEMBER;
+		}
+	}
+	return MIDIMatchType::NO_MATCH;
+}
+
 void MelodicInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on,
                                           int32_t midiChannel, int32_t note, int32_t velocity, bool shouldRecordNotes,
                                           bool* doingMidiThru) {
-
-	if (MIDIDeviceManager::differentiatingInputsByDevice && midiInput.device && fromDevice != midiInput.device) {
-		return;
-	}
-
-	int32_t corz = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(midiChannel);
-
 	int16_t const* mpeValues = zeroMPEValues;
 	int16_t const* mpeValuesOrNull = NULL;
-	if (corz >= MIDI_CHANNEL_MPE_LOWER_ZONE) {
-		mpeValues = mpeValuesOrNull = fromDevice->defaultInputMPEValuesPerMIDIChannel[midiChannel];
-	}
-
-	// -1 means no change
+	MIDIMatchType match = checkMatch(fromDevice, midiChannel);
 	int32_t highlightNoteValue = -1;
-
-	if (midiInput.channelOrZone == corz) {
-yupItsForUs:
+	switch (match) {
+	case MIDIMatchType::NO_MATCH:
+		break;
+	case MIDIMatchType::MPE_MASTER:
+	case MIDIMatchType::MPE_MEMBER:
+		mpeValues = mpeValuesOrNull = fromDevice->defaultInputMPEValuesPerMIDIChannel[midiChannel];
+		//no break
+	case MIDIMatchType::CHANNEL:
+		// -1 means no change
 		InstrumentClip* instrumentClip = (InstrumentClip*)activeClip;
 
 		ModelStackWithNoteRow* modelStackWithNoteRow =
@@ -282,9 +295,10 @@ justAuditionNote:
 			endAuditioningForNote(modelStack->toWithSong(), // Safe, cos we won't reference this again
 			                      note, velocity);
 		}
-	}
-
+	} //end match switch
 	// In case Norns layout is active show
+	// this ignores input differentiation, but since midi learn doesn't work for norns grid
+	// you can't set a device
 	InstrumentClip* instrumentClip = (InstrumentClip*)activeClip;
 	if (instrumentClip->keyboardState.currentLayout == KeyboardLayoutType::KeyboardLayoutTypeNorns
 	    && instrumentClip->onKeyboardScreen && instrumentClip->output
@@ -302,85 +316,78 @@ justAuditionNote:
 void MelodicInstrument::offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
                                                MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
                                                bool* doingMidiThru) {
-	if (midiInput.equalsDevice(fromDevice)) {
+	int32_t newValue;
+	switch (checkMatch(fromDevice, channel)) {
 
-		if (midiInput.channelOrZone == channel) {
-forMasterChannel:
-			// If it's a MIDIInstrtument...
-			if (type == InstrumentType::MIDI_OUT) {
-				// .. and it's outputting on the same channel as this MIDI message came in, don't do MIDI thru!
-				if (doingMidiThru && ((MIDIInstrument*)this)->channel == channel) {
-					*doingMidiThru = false;
-				}
-			}
-
-			// Still send the pitch-bend even if the Output is muted. MidiInstruments will check for and block this themselves
-
-			int32_t newValue = (int32_t)(((uint32_t)data1 | ((uint32_t)data2 << 7)) - 8192) << 18; // Was 16... why?
-			processParamFromInputMIDIChannel(CC_NUMBER_PITCH_BEND, newValue, modelStackWithTimelineCounter);
-		}
-		else {
-			uint8_t corz = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
-			if (midiInput.channelOrZone == corz) {
-				bool master = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isMasterChannel(channel);
-				if (master) {
-					goto forMasterChannel;
-				}
-				int16_t value16 = (((uint32_t)data1 | ((uint32_t)data2 << 7)) - 8192) << 2;
-				int32_t value32 =
-				    (int32_t)value16
-				    << 16; // Unlike for whole-Instrument pitch bend, this per-note kind is a modulation *source*, not the "preset" value for the parameter!
-				polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, value32, 0, channel,
-				                                          MIDICharacteristic::CHANNEL);
+	case MIDIMatchType::NO_MATCH:
+		return;
+	case MIDIMatchType::MPE_MEMBER:
+		//each of these are 7 bit values but we need them to represent the range +-2^31
+		newValue = (int32_t)(((uint32_t)data1 | ((uint32_t)data2 << 7)) - 8192) << 18;
+		// Unlike for whole-Instrument pitch bend, this per-note kind is a modulation *source*, not the "preset" value for the parameter!
+		polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, newValue, 0, channel,
+		                                          MIDICharacteristic::CHANNEL);
+		break;
+	case MIDIMatchType::MPE_MASTER:
+	case MIDIMatchType::CHANNEL:
+		// If it's a MIDIInstrtument...
+		if (type == InstrumentType::MIDI_OUT) {
+			// .. and it's outputting on the same channel as this MIDI message came in, don't do MIDI thru!
+			if (doingMidiThru && ((MIDIInstrument*)this)->channel == channel) {
+				*doingMidiThru = false;
 			}
 		}
+
+		// Still send the pitch-bend even if the Output is muted. MidiInstruments will check for and block this themselves
+
+		newValue = (int32_t)(((uint32_t)data1 | ((uint32_t)data2 << 7)) - 8192) << 18;
+		processParamFromInputMIDIChannel(CC_NUMBER_PITCH_BEND, newValue, modelStackWithTimelineCounter);
+		break;
 	}
 }
 
 void MelodicInstrument::offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
                                         MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
                                         bool* doingMidiThru) {
+	int yCC = 1;
+	int32_t value32 = 0;
+	switch (checkMatch(fromDevice, channel)) {
 
-	if (midiInput.equalsDevice(fromDevice)) {
-
-		if (midiInput.channelOrZone == channel) {
-			//map non MPE mod wheel to y expression
-			if (ccNumber == 1) {
-				int32_t value32 = (value - 64) << 25;
-				processParamFromInputMIDIChannel(74, value32, modelStackWithTimelineCounter);
-			}
-forMasterChannel:
-			// If it's a MIDI Clip...
-			if (type == InstrumentType::MIDI_OUT) {
-				// .. and it's outputting on the same channel as this MIDI message came in, don't do MIDI thru!
-				if (doingMidiThru && ((MIDIInstrument*)this)->channel == channel) {
-					*doingMidiThru = false;
-				}
-			}
-
-			// Still send the cc even if the Output is muted. MidiInstruments will check for and block this themselves
-			ccReceivedFromInputMIDIChannel(ccNumber, value, modelStackWithTimelineCounter);
+	case MIDIMatchType::NO_MATCH:
+		return;
+	case MIDIMatchType::MPE_MEMBER:
+		if (ccNumber == 74) { // All other CCs are not supposed to be used for Member Channels, for anything.
+			int32_t value32 = (value - 64) << 25;
+			polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, value32, 1, channel,
+			                                          MIDICharacteristic::CHANNEL);
+			return;
 		}
-		else {
-			uint8_t corz = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
-			if (midiInput.channelOrZone == corz) {
-				bool master = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isMasterChannel(channel);
-				if (master) {
-mpeMasterChannel:
-					if (ccNumber == 74) {
-						int32_t value32 = (value - 64) << 25;
-						processParamFromInputMIDIChannel(74, value32, modelStackWithTimelineCounter);
-					}
-					goto forMasterChannel;
-				}
-mpeY:
-				if (ccNumber == 74) { // All other CCs are not supposed to be used for Member Channels, for anything.
-					int32_t value32 = (value - 64) << 25;
-					polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, value32, 1, channel,
-					                                          MIDICharacteristic::CHANNEL);
-				}
+	case MIDIMatchType::MPE_MASTER:
+		yCC = 74;
+		if (ccNumber == 74) {
+			value32 = (value - 64) << 25;
+		}
+		//no break
+	case MIDIMatchType::CHANNEL:
+		if (ccNumber == 1) {
+			value32 = (value) << 24;
+		}
+		if (ccNumber == yCC) {
+			//this also passes CC1 to the instrument, but that's important for midi instruments
+			//or internal synths that have CC1 learnt to a parameter instead of used as modwheel
+			processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, value32, modelStackWithTimelineCounter);
+		}
+		// If it's a MIDI Clip...
+		if (type == InstrumentType::MIDI_OUT) {
+			// .. and it's outputting on the same channel as this MIDI message came in, don't do MIDI thru!
+			if (doingMidiThru && ((MIDIInstrument*)this)->channel == channel) {
+				*doingMidiThru = false;
 			}
 		}
+
+		// Still send the cc even if the Output is muted. MidiInstruments will check for and block this themselves
+		ccReceivedFromInputMIDIChannel(ccNumber, value, modelStackWithTimelineCounter);
+		;
 	}
 }
 
@@ -388,53 +395,37 @@ mpeY:
 void MelodicInstrument::offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
                                                 MIDIDevice* fromDevice, int32_t channel, int32_t value,
                                                 int32_t noteCode, bool* doingMidiThru) {
+	int32_t valueBig = (int32_t)value << 24;
+	switch (checkMatch(fromDevice, channel)) {
 
-	if (midiInput.equalsDevice(fromDevice)) {
-
-		int32_t valueBig = (int32_t)value << 24;
-
-		if (midiInput.channelOrZone == channel) {
-forMasterChannel:
-
-			// If it's a MIDI Clip...
-			if (type == InstrumentType::MIDI_OUT) {
-				// .. and it's outputting on the same channel as this MIDI message came in, don't do MIDI thru!
-				if (doingMidiThru && ((MIDIInstrument*)this)->channel == channel) {
-					*doingMidiThru = false;
-				}
-			}
-
-			// Still send the aftertouch even if the Output is muted. MidiInstruments will check for and block this themselves
-
-			// Polyphonic aftertouch gets processed along with MPE
-			if (noteCode != -1) {
-				polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, valueBig, 2, noteCode,
-				                                          MIDICharacteristic::NOTE);
-				// We wouldn't be here if this was MPE input, so we know this incoming polyphonic aftertouch message is allowed
-			}
-
-			// Or, channel pressure
-			else {
-				processParamFromInputMIDIChannel(CC_NUMBER_AFTERTOUCH, valueBig, modelStackWithTimelineCounter);
+	case MIDIMatchType::NO_MATCH:
+		return;
+	case MIDIMatchType::MPE_MEMBER:
+		polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, valueBig, 2, channel,
+		                                          MIDICharacteristic::CHANNEL);
+		break;
+	case MIDIMatchType::MPE_MASTER:
+	case MIDIMatchType::CHANNEL:
+		// If it's a MIDI Clip...
+		if (type == InstrumentType::MIDI_OUT) {
+			// .. and it's outputting on the same channel as this MIDI message came in, don't do MIDI thru!
+			if (doingMidiThru && ((MIDIInstrument*)this)->channel == channel) {
+				*doingMidiThru = false;
 			}
 		}
 
-		// Or if MPE enabled...
-		else {
+		// Still send the aftertouch even if the Output is muted. MidiInstruments will check for and block this themselves
+		// MPE should never send poly aftertouch but we might as well handle it anyway
+		// Polyphonic aftertouch gets processed along with MPE
+		if (noteCode != -1) {
+			polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, valueBig, 2, noteCode,
+			                                          MIDICharacteristic::NOTE);
+			// We wouldn't be here if this was MPE input, so we know this incoming polyphonic aftertouch message is allowed
+		}
 
-			// Only if a "channel pressure" message (which with MPE of course refers to ideally just one key).
-			// Non-MPE "polyphonic key pressure" messages are not allowed in MPE currently.
-			if (noteCode == -1) {
-				uint8_t corz = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
-				if (midiInput.channelOrZone == corz) {
-					bool master = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isMasterChannel(channel);
-					if (master) {
-						goto forMasterChannel;
-					}
-					polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, valueBig, 2, channel,
-					                                          MIDICharacteristic::CHANNEL);
-				}
-			}
+		// Or, channel pressure
+		else {
+			processParamFromInputMIDIChannel(CC_NUMBER_AFTERTOUCH, valueBig, modelStackWithTimelineCounter);
 		}
 	}
 }
@@ -554,7 +545,7 @@ MelodicInstrument::getParamToControlFromInputMIDIChannel(int32_t cc, ModelStackW
 		paramId = 0;
 		break;
 
-	case 74:
+	case CC_NUMBER_Y_AXIS:
 		paramId = 1;
 		break;
 

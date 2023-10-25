@@ -50,7 +50,7 @@ uint8_t OLED::oledMainConsoleImage[kConsoleImageNumRows][OLED_MAIN_WIDTH_PIXELS]
 uint8_t OLED::oledMainPopupImage[OLED_MAIN_HEIGHT_PIXELS >> 3][OLED_MAIN_WIDTH_PIXELS]
     __attribute__((aligned(alignof(int32_t))));
 
-uint8_t (*OLED::oledCurrentImage)[OLED_MAIN_WIDTH_PIXELS] = oledMainImage;
+uint8_t (*OLED::oledCurrentImage)[OLED_MAIN_WIDTH_PIXELS] __attribute__((aligned(CACHE_LINE_SIZE))) = oledMainImage;
 
 int32_t workingAnimationCount;
 char const* workingAnimationText; // NULL means animation not active

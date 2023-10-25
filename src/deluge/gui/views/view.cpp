@@ -803,10 +803,10 @@ void View::midiLearnFlash() {
 }
 
 void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
-
-	if (Buttons::isShiftButtonPressed()) {
-		return;
-	}
+	//this routine used to exit if shift was held, but the shift+encoder combo does not seem used anywhere else either
+	// if (Buttons::isShiftButtonPressed()) {
+	// 	return;
+	// }
 
 	if (activeModControllableModelStack.modControllable) {
 
@@ -976,8 +976,7 @@ void View::setKnobIndicatorLevels() {
 	}
 
 	//don't update knob indicator levels when you're in automation editor
-	if (getCurrentUI() == &automationInstrumentClipView
-	    && (((InstrumentClip*)currentSong->currentClip)->lastSelectedParamID != kNoLastSelectedParamID)) {
+	if ((getCurrentUI() == &automationInstrumentClipView) && !automationInstrumentClipView.isOnAutomationOverview()) {
 		return;
 	}
 
@@ -1056,6 +1055,12 @@ static const uint32_t modButtonUIModes[] = {UI_MODE_AUDITIONING,
                                             0};
 
 void View::modButtonAction(uint8_t whichButton, bool on) {
+
+	//ignore modButtonAction when in the Automation View Automation Editor
+	if ((getRootUI() == &automationInstrumentClipView) && !automationInstrumentClipView.isOnAutomationOverview()) {
+		return;
+	}
+
 	pretendModKnobsUntouchedForAWhile();
 
 	if (activeModControllableModelStack.modControllable) {
@@ -1123,6 +1128,11 @@ void View::setModLedStates() {
 				}
 			}
 		}
+		else if (getRootUI() == &keyboardScreen) {
+			if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+				goto setBlinkLED;
+			}
+		}
 		else if (getRootUI() == &automationInstrumentClipView) {
 			goto setBlinkLED;
 		}
@@ -1164,7 +1174,13 @@ setNextLED:
 
 	for (int32_t i = 0; i < kNumModButtons; i++) {
 		bool on = (i == modKnobMode);
-		indicator_leds::setLedState(indicator_leds::modLed[i], on);
+		//if you're in the Automation View Automation Editor, turn off Mod LED's
+		if ((getRootUI() == &automationInstrumentClipView) && !automationInstrumentClipView.isOnAutomationOverview()) {
+			indicator_leds::setLedState(indicator_leds::modLed[i], false);
+		}
+		else {
+			indicator_leds::setLedState(indicator_leds::modLed[i], on);
+		}
 	}
 }
 
@@ -1352,6 +1368,17 @@ void View::drawOutputNameFromDetails(InstrumentType instrumentType, int32_t chan
 		setLedState(LED::KEYBOARD, (clip && clip->onKeyboardScreen));
 		setLedState(LED::SCALE_MODE, (clip && clip->inScaleMode && clip->output->type != InstrumentType::KIT));
 		setLedState(LED::CROSS_SCREEN_EDIT, (clip && clip->wrapEditing));
+	}
+
+	//hook to render display for OLED and 7SEG when in Automation Instrument Clip View
+	if (getCurrentUI() == &automationInstrumentClipView) {
+		if (!automationInstrumentClipView.isOnAutomationOverview()) {
+			automationInstrumentClipView.displayAutomation(true, !display->have7SEG());
+		}
+		else {
+			automationInstrumentClipView.renderDisplay();
+		}
+		return;
 	}
 
 	if (display->haveOLED()) {

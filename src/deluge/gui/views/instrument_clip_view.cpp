@@ -795,40 +795,51 @@ someError:
 		reassessAuditionStatus(lastAuditionedYDisplay);
 	}
 
-	Drum* newDrum = storageManager.createNewDrum(drumType);
-
-	if (!newDrum) {
-		goto ramError;
-	}
-
 	Kit* kit = (Kit*)currentSong->currentClip->output;
-
-	ParamManager paramManager;
-	//add sound loading code here
 	if (drumType == DrumType::SOUND) {
 		Browser::instrumentTypeToLoad = InstrumentType::SYNTH;
 		loadInstrumentPresetUI.loadingSynthToKitRow = true;
+		loadInstrumentPresetUI.instrumentToReplace = nullptr;
+
 		loadInstrumentPresetUI.instrumentClipToLoadFor = nullptr;
-		loadInstrumentPresetUI.soundDrumToReplace = (SoundDrum*)newDrum;
+		if (noteRow->drum->type == drumType) {
+			loadInstrumentPresetUI.soundDrumToReplace = (SoundDrum*)noteRow->drum;
+		}
+		else {
+			loadInstrumentPresetUI.soundDrumToReplace = nullptr;
+		}
+
 		loadInstrumentPresetUI.kitToLoadFor = kit;
 		loadInstrumentPresetUI.noteRow = noteRow;
 		loadInstrumentPresetUI.noteRowIndex = noteRowIndex;
 		openUI(&loadInstrumentPresetUI);
 	}
 
-	kit->addDrum(newDrum);
+	else {
 
-	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowIndex, noteRow);
+		Drum* newDrum = storageManager.createNewDrum(drumType);
 
-	noteRow->setDrum(newDrum, kit, modelStackWithNoteRow, NULL, &paramManager);
+		if (!newDrum) {
+			goto ramError;
+		}
 
-	kit->beenEdited();
+		ParamManager paramManager;
+		//add sound loading code here
 
-	drawDrumName(newDrum);
+		kit->addDrum(newDrum);
+
+		ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowIndex, noteRow);
+
+		noteRow->setDrum(newDrum, kit, modelStackWithNoteRow, NULL, &paramManager);
+
+		kit->beenEdited();
+		drawDrumName(newDrum);
+		setSelectedDrum(newDrum, true);
+	}
 
 	auditionPadIsPressed[lastAuditionedYDisplay] = true;
 	reassessAuditionStatus(lastAuditionedYDisplay);
-	setSelectedDrum(newDrum, true);
+
 	// uiNeedsRendering(this, 0, 1 << lastAuditionedNoteOnScreen);
 }
 
@@ -852,7 +863,7 @@ void InstrumentClipView::modEncoderButtonAction(uint8_t whichModEncoder, bool on
 
 void InstrumentClipView::copyAutomation(int32_t whichModEncoder) {
 	if (copiedParamAutomation.nodes) {
-		GeneralMemoryAllocator::get().dealloc(copiedParamAutomation.nodes);
+		delugeDealloc(copiedParamAutomation.nodes);
 		copiedParamAutomation.nodes = NULL;
 		copiedParamAutomation.numNodes = 0;
 	}
@@ -981,7 +992,7 @@ void InstrumentClipView::deleteCopiedNoteRows() {
 		CopiedNoteRow* toDelete = firstCopiedNoteRow;
 		firstCopiedNoteRow = firstCopiedNoteRow->next;
 		toDelete->~CopiedNoteRow();
-		GeneralMemoryAllocator::get().dealloc(toDelete);
+		delugeDealloc(toDelete);
 	}
 }
 
@@ -1899,7 +1910,7 @@ void InstrumentClipView::endEditPadPress(uint8_t i) {
 
 	for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
 		if (editPadPresses[i].stolenMPE[m].num) {
-			GeneralMemoryAllocator::get().dealloc(editPadPresses[i].stolenMPE[m].nodes);
+			delugeDealloc(editPadPresses[i].stolenMPE[m].nodes);
 		}
 	}
 }
@@ -3395,7 +3406,7 @@ doDisplayError:
 	ParamManagerForTimeline paramManager;
 	error = paramManager.setupWithPatching();
 	if (error) {
-		GeneralMemoryAllocator::get().dealloc(memory);
+		delugeDealloc(memory);
 		goto doDisplayError;
 	}
 
@@ -3475,7 +3486,7 @@ void InstrumentClipView::deleteDrum(SoundDrum* drum) {
 	currentSong->deleteBackedUpParamManagersForModControllable(drum);
 	void* toDealloc = dynamic_cast<void*>(drum);
 	drum->~SoundDrum();
-	GeneralMemoryAllocator::get().dealloc(toDealloc);
+	delugeDealloc(toDealloc);
 
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 

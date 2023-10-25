@@ -58,7 +58,7 @@ void unflagCable(uint32_t* flags, int32_t c) {
 inline void PatchCableSet::freeDestinationMemory(bool destructing) {
 	for (int32_t g = 0; g < 2; g++) {
 		if (destinations[g]) {
-			GeneralMemoryAllocator::get().dealloc(destinations[g]);
+			delugeDealloc(destinations[g]);
 			if (!destructing) {
 				destinations[g] = NULL;
 			}
@@ -144,7 +144,7 @@ void PatchCableSet::setupPatching(ModelStackWithParamCollection const* modelStac
 
 			// If we'd got the first one successfully, deallocate it again
 			if (g == 1) {
-				GeneralMemoryAllocator::get().dealloc(destinations[0]);
+				delugeDealloc(destinations[0]);
 				destinations[0] = NULL;
 			}
 
@@ -250,7 +250,7 @@ goAgainWithoutIncrement:
 
 		// If no Destinations here at all, free memory
 		if (!numDestinations[globality]) {
-			GeneralMemoryAllocator::get().dealloc(destinations[globality]);
+			delugeDealloc(destinations[globality]);
 			destinations[globality] = NULL;
 		}
 
@@ -756,7 +756,7 @@ void PatchCableSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWith
 
 			// If we'd got the first one successfully, deallocate it again
 			if (g == 1) {
-				GeneralMemoryAllocator::get().dealloc(newDestinations[0]);
+				delugeDealloc(newDestinations[0]);
 				newDestinations[0] = NULL;
 			}
 

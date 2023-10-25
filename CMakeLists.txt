@@ -10,18 +10,6 @@ project(Deluge
 include(ProcessorCount)
 ProcessorCount(HOST_NUM_CORES)
 
-# Check for IPO support
-include(CheckIPOSupported)
-check_ipo_supported(RESULT IPO_SUPPORTED OUTPUT error)
-
-if(IPO_SUPPORTED)
-    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION
-        $<$<CONFIG:DEBUG>:OFF>
-        $<$<CONFIG:RELWITHDEBINFO>:ON>
-        $<$<CONFIG:RELEASE>:ON>
-    )
-endif()
-
 # Create our version string
 set(RELEASE_TYPE "dev" CACHE STRING "The type of releasepack to build")
 set_property(CACHE RELEASE_TYPE PROPERTY STRINGS dev nightly alpha beta rc release)
@@ -80,66 +68,15 @@ else()
     set(EXECUTABLE_VERSION_SUFFIX "")
 endif(ENABLE_VERSIONED_OUTPUT)
 
-# Global compilation options
-add_compile_options(
-
-    # Feature flags
-    -fdiagnostics-parseable-fixits
-    -fsigned-char
-
-    # Debug symbols
-    $<$<CONFIG:DEBUG>:-g> # Include
-    $<$<CONFIG:DEBUG>:-ggdb> # Include
-    $<$<CONFIG:RELWITHDEBINFO>:-g> # Include
-    $<$<CONFIG:RELEASE>:-s> # Strip
-
-    # Optimization level
-    $<$<CONFIG:DEBUG>:-Og>
-    $<$<CONFIG:RELWITHDEBINFO>:-O2>
-    $<$<CONFIG:RELEASE>:-O2>
-    -fno-inline-functions
-    # Link time optimizations
-    $<$<CONFIG:RELWITHDEBINFO>:-flto>
-    $<$<CONFIG:RELEASE>:-flto>
-    -ffunction-sections
-    -fdata-sections
-
-    # C++ stuff
-    $<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>
-    $<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions>
-    $<$<COMPILE_LANGUAGE:CXX>:-fno-use-cxa-atexit>
-    $<$<COMPILE_LANGUAGE:CXX>:-fno-threadsafe-statics>
-
-    # ASM stuff
-    $<$<COMPILE_LANGUAGE:ASM>:-x>
-    $<$<COMPILE_LANGUAGE:ASM>:assembler-with-cpp>
-)
-
-add_link_options(
-    -T ${PROJECT_SOURCE_DIR}/linker_script_rz_a1l.ld
-    LINKER:--gc-sections
-
-    -nostartfiles # Don't emit startfiles
-    -estart # Set the entrypoint to 'start' (see RZA1/compiler/asm/start.S)
-)
-
-# RTT Debug options
+# RTT option
 option(ENABLE_RTT "Enable RTT output" ON)
+
+# SYSEX Load option
 option(ENABLE_SYSEX_LOAD "Enable loading firmware over midi sysex" OFF)
 
 # Colored output
-option(FORCE_COLORED_OUTPUT "Always produce ANSI-colored output (GNU/Clang only)." ON)
-
-if(FORCE_COLORED_OUTPUT)
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-        message(STATUS "Forcing colors for GCC")
-        add_compile_options(-fdiagnostics-color=always)
-        add_link_options(-fdiagnostics-color=always)
-    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-        message(STATUS "Forcing colors for Clang")
-        add_compile_options(-fcolor-diagnostics)
-    endif()
-endif(FORCE_COLORED_OUTPUT)
+set(CMAKE_COLOR_DIAGNOSTICS ON)
+add_compile_options($<$<CXX_COMPILER_ID:Clang>:-fansi-escape-codes>)
 
 # ##### Documentation generation #######
 # check if Doxygen is installed
@@ -181,6 +118,38 @@ else(DOXYGEN_FOUND)
         "Please install from https://github.com/doxygen/doxygen/releases")
 endif(DOXYGEN_FOUND)
 
+# Global compilation options
+add_compile_options(
+
+    # Feature flags
+    -fdiagnostics-parseable-fixits
+    -fsigned-char
+
+    # Debug symbols
+    $<$<CONFIG:DEBUG,RELWITHDEBINFO>:-ggdb3> # Include
+
+    # Optimization level
+    $<$<CONFIG:DEBUG>:-Og>
+    $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-O2>
+    -fno-inline-functions
+    
+    # Link time optimizations
+    $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-flto=auto>
+    $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-fuse-linker-plugin>
+    -ffunction-sections
+    -fdata-sections
+
+    # C++ stuff
+    $<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>
+    $<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions>
+    $<$<COMPILE_LANGUAGE:CXX>:-fno-use-cxa-atexit>
+    $<$<COMPILE_LANGUAGE:CXX>:-fno-threadsafe-statics>
+
+    # ASM stuff
+    $<$<COMPILE_LANGUAGE:ASM>:-x>
+    $<$<COMPILE_LANGUAGE:ASM>:assembler-with-cpp>
+)
+
 # Add libraries
 add_subdirectory(lib)
 
@@ -195,15 +164,20 @@ add_subdirectory(src)
 
 # )
 
+option(MAINTAINER_MODE "Enables all warnings and errors" OFF)
+
 # Project-only compile options (warnings, etc.)
 target_compile_options(deluge PUBLIC
+    $<$<AND:$<BOOL:${MAINTAINER_MODE}>,$<CXX_COMPILER_ID:GNU>>:-fanalyzer> # static analysis
 
     # Warnings
-    # $<$<CONFIG:DEBUG>:-Wextra> # TODO: Enable when ready
-    # $<$<CONFIG:DEBUG>:-Wall> # TODO: Enable when ready
-    # $<$<CONFIG:DEBUG>:-Wpedantic> # TODO: Enable when ready
+    $<$<BOOL:${MAINTAINER_MODE}>:-Wextra>
+    $<$<BOOL:${MAINTAINER_MODE}>:-Wall>
+    $<$<BOOL:${MAINTAINER_MODE}>:-Wabi>
+    $<$<BOOL:${MAINTAINER_MODE}>:-Wpedantic>
     $<$<CONFIG:DEBUG>:-Wnull-dereference>
     $<$<CONFIG:DEBUG>:-Wno-psabi>
+    $<$<CONFIG:DEBUG>:-Wno-unused-parameter>
 
     $<$<CONFIG:DEBUG>:-Werror=write-strings>
 
@@ -214,13 +188,12 @@ target_compile_options(deluge PUBLIC
     # tracked for diagnostic usage. We have a 32k stack so it's not that important
     # primarily concerned with unbounded stack use
     $<$<CONFIG:DEBUG>:-Wstack-usage=2000>
-    $<$<CONFIG:RELWITHDEBINFO>:-Wstack-usage=2000>
-    $<$<CONFIG:RELEASE>:-Wstack-usage=2000>
+    $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-Wstack-usage=2000>
 )
 
 set_target_properties(deluge
     PROPERTIES
-        C_STANDARD 11
+        C_STANDARD 17
         C_STANDARD_REQUIRED ON
         CXX_STANDARD 20
         CXX_STANDARD_REQUIRED ON
@@ -236,8 +209,27 @@ set(NMDUMP_FILE $<CONFIG>/deluge${EXECUTABLE_VERSION_SUFFIX}.nmdump)
 
 # add link options to generate memory map
 target_link_options(deluge PUBLIC
+    -T ${PROJECT_SOURCE_DIR}/linker_script_rz_a1l.ld    
     LINKER:-Map=${MAP_FILE}
     LINKER:--cref
+    LINKER:--gc-sections
+    LINKER:--entry=start # Set the entrypoint to 'start' (see RZA1/compiler/asm/start.S)
+
+    $<$<CONFIG:RELEASE>:LINKER:--strip-all> # Strip
+    
+    -nostartfiles # Don't emit startfiles
+
+    # Print details
+    LINKER:--warn-common
+    LINKER:--stats
+    #$<$<CXX_COMPILER_ID:GNU>:LINKER:--print-memory-usage>
+
+    # Link-Time Optimization
+    $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-flto=auto>
+    $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-fuse-linker-plugin>
+
+    # Coloring
+    $<$<CXX_COMPILER_ID:GNU>:-fdiagnostics-color=always>
 )
 
 # generate .bin firmware file
