@@ -2416,6 +2416,9 @@ bool AutomationInstrumentClipView::modEncoderActionForSelectedPad(int32_t whichM
 
 			int32_t newKnobPos = calculateKnobPosForModEncoderTurn(knobPos, offset);
 
+			//ignore modEncoderTurn for Midi CC if current or new knobPos exceeds 127
+			//if current knobPos exceeds 127, e.g. it's 128, then it needs to drop to 126 before a value change gets recorded
+			//if newKnobPos exceeds 127, then it means current knobPos was 127 and it was increased to 128. In which case, ignore value change
 			if (clip->output->type == InstrumentType::MIDI_OUT) {
 				if ((knobPos == 64) || (newKnobPos == 64)) {
 					return true;
@@ -2460,6 +2463,9 @@ void AutomationInstrumentClipView::modEncoderActionForUnselectedPad(int32_t whic
 
 			int32_t newKnobPos = calculateKnobPosForModEncoderTurn(knobPos, offset);
 
+			//ignore modEncoderTurn for Midi CC if current or new knobPos exceeds 127
+			//if current knobPos exceeds 127, e.g. it's 128, then it needs to drop to 126 before a value change gets recorded
+			//if newKnobPos exceeds 127, then it means current knobPos was 127 and it was increased to 128. In which case, ignore value change
 			if (clip->output->type == InstrumentType::MIDI_OUT) {
 				if ((knobPos == 64) || (newKnobPos == 64)) {
 					return;
@@ -2698,7 +2704,13 @@ void AutomationInstrumentClipView::selectEncoderAction(int8_t offset) {
 	InstrumentClip* clip = getCurrentClip();
 	Instrument* instrument = (Instrument*)clip->output;
 
-	if (instrument->type == InstrumentType::SYNTH || instrument->type == InstrumentType::KIT) {
+	//if you've selected a mod encoder (e.g. by pressing modEncoderButton) and you're in Automation Overview
+	//the currentUIMode will change to Selecting Midi CC. In this case, turning select encoder should allow
+	//you to change the midi CC assignment to that modEncoder
+	if (currentUIMode == UI_MODE_SELECTING_MIDI_CC) {
+		InstrumentClipMinder::selectEncoderAction(offset);
+	}
+	else if (instrument->type == InstrumentType::SYNTH || instrument->type == InstrumentType::KIT) {
 
 		//if you're a kit with affect entire enabled
 		if (instrument->type == InstrumentType::KIT && instrumentClipView.getAffectEntire()) {
@@ -3333,8 +3345,9 @@ int32_t AutomationInstrumentClipView::calculateKnobPosForSinglePadPress(Instrume
 	}
 	//if you are pressing the top pad, set the value to max (128)
 	else {
+		//for Midi Clips, maxKnobPos = 127
 		if (clip->output->type == InstrumentType::MIDI_OUT) {
-			newKnobPos = kMaxKnobPos - 1;
+			newKnobPos = kMaxKnobPos - 1; //128 - 1 = 127
 		}
 		else {
 			newKnobPos = kMaxKnobPos;
