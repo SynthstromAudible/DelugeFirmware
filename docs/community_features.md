@@ -42,7 +42,7 @@ Here is a list of general improvements that have been made, ordered from newest 
 - ([#636]) Changing parameter values with Mod (Gold) Encoders now displays a pop-up with the current value of the Parameter. The Menu's for Parameters and Patch Cables have also been adjusted to show the same value range as displayed with the Mod Encoders.
 	- This allows for better fine-tuning of values. 
 	- The value range displayed is 0-128 for non-MIDI parameters and 0-127 for MIDI parameters.
-	- Note: In the Menu, turning the Select Encoder will now, by default, change values by an increment of +/- 2. This allows you to scroll through the entire value range in an accelerated manner. To better fine tune values using the select encoder (e.g. +/- 1), Hold Shift while turning the Select Encoder and the values will change by an increment of +/- 1.
+	- Note: In the Menu, if you wish to scroll through the parameter value range faster at an accelerated rate of +/- 2, hold Shift while turning the Select Encoder.
 
 ## 4. New Features Added
 
