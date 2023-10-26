@@ -2420,7 +2420,7 @@ bool AutomationInstrumentClipView::modEncoderActionForSelectedPad(int32_t whichM
 				if ((knobPos == 64) || (newKnobPos == 64)) {
 					return true;
 				}
-			}			
+			}
 
 			//use default interpolation settings
 			initInterpolation();
