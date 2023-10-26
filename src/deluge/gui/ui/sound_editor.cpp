@@ -651,7 +651,7 @@ ActionResult SoundEditor::horizontalEncoderAction(int32_t offset) {
 void SoundEditor::selectEncoderAction(int8_t offset) {
 
 	if (Buttons::isShiftButtonPressed()) {
-		offset = offset * 2;
+		offset = offset * 5;
 	}
 
 	if (currentUIMode != UI_MODE_NONE && currentUIMode != UI_MODE_AUDITIONING
