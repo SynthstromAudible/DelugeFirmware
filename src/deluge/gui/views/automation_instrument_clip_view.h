@@ -164,7 +164,7 @@ private:
 	bool recordSinglePadPress(int32_t xDisplay, int32_t yDisplay);
 	void handleSinglePadPress(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, int32_t xDisplay,
 	                          int32_t yDisplay, bool shortcutPress = false);
-	int32_t calculateKnobPosForSinglePadPress(int32_t yDisplay);
+	int32_t calculateKnobPosForSinglePadPress(InstrumentClip* clip, int32_t yDisplay);
 
 	void handleMultiPadPress(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, int32_t firstPadX,
 	                         int32_t firstPadY, int32_t secondPadX, int32_t secondPadY, bool modEncoderAction = false);

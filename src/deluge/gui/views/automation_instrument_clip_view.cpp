@@ -2416,6 +2416,12 @@ bool AutomationInstrumentClipView::modEncoderActionForSelectedPad(int32_t whichM
 
 			int32_t newKnobPos = calculateKnobPosForModEncoderTurn(knobPos, offset);
 
+			if (clip->output->type == InstrumentType::MIDI_OUT) {
+				if ((knobPos == 64) || (newKnobPos == 64)) {
+					return true;
+				}
+			}			
+
 			//use default interpolation settings
 			initInterpolation();
 
@@ -2453,6 +2459,12 @@ void AutomationInstrumentClipView::modEncoderActionForUnselectedPad(int32_t whic
 			int32_t knobPos = getParameterKnobPos(modelStackWithParam, view.modPos);
 
 			int32_t newKnobPos = calculateKnobPosForModEncoderTurn(knobPos, offset);
+
+			if (clip->output->type == InstrumentType::MIDI_OUT) {
+				if ((knobPos == 64) || (newKnobPos == 64)) {
+					return;
+				}
+			}
 
 			int32_t newValue =
 			    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
@@ -3301,7 +3313,7 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 				//use default interpolation settings
 				initInterpolation();
 
-				int32_t newKnobPos = calculateKnobPosForSinglePadPress(yDisplay);
+				int32_t newKnobPos = calculateKnobPosForSinglePadPress(clip, yDisplay);
 				setParameterAutomationValue(modelStackWithParam, newKnobPos, squareStart, xDisplay, effectiveLength);
 			}
 		}
@@ -3311,7 +3323,7 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 }
 
 //calculates what the new parameter value is when you press a single pad
-int32_t AutomationInstrumentClipView::calculateKnobPosForSinglePadPress(int32_t yDisplay) {
+int32_t AutomationInstrumentClipView::calculateKnobPosForSinglePadPress(InstrumentClip* clip, int32_t yDisplay) {
 
 	int32_t newKnobPos = 0;
 
@@ -3321,7 +3333,12 @@ int32_t AutomationInstrumentClipView::calculateKnobPosForSinglePadPress(int32_t 
 	}
 	//if you are pressing the top pad, set the value to max (128)
 	else {
-		newKnobPos = kMaxKnobPos;
+		if (clip->output->type == InstrumentType::MIDI_OUT) {
+			newKnobPos = kMaxKnobPos - 1;
+		}
+		else {
+			newKnobPos = kMaxKnobPos;
+		}
 	}
 
 	//in the deluge knob positions are stored in the range of -64 to + 64, so need to adjust newKnobPos set above.
@@ -3361,8 +3378,8 @@ void AutomationInstrumentClipView::handleMultiPadPress(ModelStackWithTimelineCou
 
 			//otherwise if it's a regular long press, calculate values from the y position of the pads pressed
 			else {
-				firstPadValue = calculateKnobPosForSinglePadPress(firstPadY) + kKnobPosOffset;
-				secondPadValue = calculateKnobPosForSinglePadPress(secondPadY) + kKnobPosOffset;
+				firstPadValue = calculateKnobPosForSinglePadPress(clip, firstPadY) + kKnobPosOffset;
+				secondPadValue = calculateKnobPosForSinglePadPress(clip, secondPadY) + kKnobPosOffset;
 			}
 
 			//converting variables to float for more accurate interpolation calculation
