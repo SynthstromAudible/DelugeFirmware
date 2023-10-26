@@ -907,23 +907,23 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 				//if turning stutter mod encoder and stutter quantize is enabled
 				//display stutter quantization instead of knob position
 				if ((modelStackWithParam->paramId == Param::Unpatched::STUTTER_RATE
-				         && (runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate)
-				             == RuntimeFeatureStateToggle::On))) {
+				     && (runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate)
+				         == RuntimeFeatureStateToggle::On))) {
 					char buffer[10];
 					if (newKnobPos < -39) { // 4ths stutter: no leds turned on
-						strncpy (buffer, "4ths", 10);
+						strncpy(buffer, "4ths", 10);
 					}
 					else if (newKnobPos < -14) { // 8ths stutter: 1 led turned on
-						strncpy (buffer, "8ths", 10);
+						strncpy(buffer, "8ths", 10);
 					}
 					else if (newKnobPos < 14) { // 16ths stutter: 2 leds turned on
-						strncpy (buffer, "16ths", 10);
+						strncpy(buffer, "16ths", 10);
 					}
 					else if (newKnobPos < 39) { // 32nds stutter: 3 leds turned on
-						strncpy (buffer, "32nds", 10);
+						strncpy(buffer, "32nds", 10);
 					}
 					else { // 64ths stutter: all 4 leds turned on
-						strncpy (buffer, "64ths", 10);
+						strncpy(buffer, "64ths", 10);
 					}
 					display->displayPopup(buffer);
 				}
