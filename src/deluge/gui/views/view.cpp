@@ -876,6 +876,23 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 				int32_t newKnobPos = knobPos + offset;
 				newKnobPos = std::clamp(newKnobPos, lowerLimit, 64_i32);
 
+				//ignore modEncoderTurn for Midi CC if current or new knobPos exceeds 127
+				//if current knobPos exceeds 127, e.g. it's 128, then it needs to drop to 126 before a value change gets recorded
+				//if newKnobPos exceeds 127, then it means current knobPos was 127 and it was increased to 128. In which case, ignore value change
+				if ((getRootUI() == &instrumentClipView) || (getRootUI() == &automationInstrumentClipView)) {
+					char modelStackTempMemory[MODEL_STACK_MAX_SIZE];
+					copyModelStack(modelStackTempMemory, modelStackWithParam, sizeof(ModelStackWithThreeMainThings));
+					ModelStackWithThreeMainThings* tempModelStack =
+					    (ModelStackWithThreeMainThings*)modelStackTempMemory;					
+					
+					InstrumentClip* clip = (InstrumentClip*)tempModelStack->getTimelineCounter();
+					if (clip->output->type == InstrumentType::MIDI_OUT) {
+						if ((knobPos == 64) || (newKnobPos == 64)) {
+							return;
+						}
+					}
+				}
+
 				//don't display pop-up while in soundEditor as values are displayed on the menu screen
 				//unless you're turning a mod encoder for a different param than the menu displayed
 				if ((getCurrentUI() != &soundEditor)
