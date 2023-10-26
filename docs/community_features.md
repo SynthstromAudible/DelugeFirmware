@@ -38,6 +38,12 @@ Here is a list of general improvements that have been made, ordered from newest 
 #### 3.7 - Mod Wheel
 - ([#512]) Incoming mod wheel on non-MPE synths now maps to y axis
 
+#### 3.8 - Visual Feedback on Value Changes with Mod Encoders and Increased Resolution for Value's in Menu's
+- ([#636]) Changing parameter values with Mod (Gold) Encoders now displays a pop-up with the current value of the Parameter. The Menu's for Parameters and Patch Cables have also been adjusted to show the same value range as displayed with the Mod Encoders.
+	- This allows for better fine-tuning of values. 
+	- The value range displayed is 0-128 for non-MIDI parameters and 0-127 for MIDI parameters.
+	- Note: In the Menu, turning the Select Encoder will now, by default, change values by an increment of +/- 2. This allows you to scroll through the entire value range in an accelerated manner. To better fine tune values using the select encoder (e.g. +/- 1), Hold Shift while turning the Select Encoder and the values will change by an increment of +/- 1.
+
 ## 4. New Features Added
 
 Here is a list of features that have been added to the firmware as a list, grouped by category:
@@ -390,4 +396,5 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#368]: https://github.com/SynthstromAudible/DelugeFirmware/pull/368
 [#395]: https://github.com/SynthstromAudible/DelugeFirmware/pull/395
 [#512]: https://github.com/SynthstromAudible/DelugeFirmware/pull/512
+[#636]: https://github.com/SynthstromAudible/DelugeFirmware/pull/636
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
