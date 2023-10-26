@@ -883,8 +883,8 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 					char modelStackTempMemory[MODEL_STACK_MAX_SIZE];
 					copyModelStack(modelStackTempMemory, modelStackWithParam, sizeof(ModelStackWithThreeMainThings));
 					ModelStackWithThreeMainThings* tempModelStack =
-					    (ModelStackWithThreeMainThings*)modelStackTempMemory;					
-					
+					    (ModelStackWithThreeMainThings*)modelStackTempMemory;
+
 					InstrumentClip* clip = (InstrumentClip*)tempModelStack->getTimelineCounter();
 					if (clip->output->type == InstrumentType::MIDI_OUT) {
 						if ((knobPos == 64) || (newKnobPos == 64)) {
