@@ -889,7 +889,8 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 				         && (soundEditor.getCurrentMenuItem()->getPatchedParamIndex() != modelStackWithParam->paramId)))
 				    && !(modelStackWithParam->paramId == Param::Unpatched::STUTTER_RATE
 				         && (runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate)
-				             == RuntimeFeatureStateToggle::On))) {
+				             == RuntimeFeatureStateToggle::On)
+				         && !isUIModeActive(UI_MODE_STUTTERING))) {
 
 					char buffer[5];
 					int32_t valueForDisplay;
@@ -906,9 +907,10 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 
 				//if turning stutter mod encoder and stutter quantize is enabled
 				//display stutter quantization instead of knob position
-				if ((modelStackWithParam->paramId == Param::Unpatched::STUTTER_RATE
-				     && (runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate)
-				         == RuntimeFeatureStateToggle::On))) {
+				if (modelStackWithParam->paramId == Param::Unpatched::STUTTER_RATE
+				    && (runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate)
+				        == RuntimeFeatureStateToggle::On)
+				    && !isUIModeActive(UI_MODE_STUTTERING)) {
 					char buffer[10];
 					if (newKnobPos < -39) { // 4ths stutter: no leds turned on
 						strncpy(buffer, "4ths", 10);
