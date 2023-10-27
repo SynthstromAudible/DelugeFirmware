@@ -38,6 +38,9 @@ Here is a list of general improvements that have been made, ordered from newest 
 #### 3.7 - Mod Wheel
 - ([#512]) Incoming mod wheel on non-MPE synths now maps to y axis
 
+#### 3.9 - Enable Stutter Automation
+- ([#653]) Enabled ability to record stutter automation with mod (gold) encoder.
+
 ## 4. New Features Added
 
 Here is a list of features that have been added to the firmware as a list, grouped by category:
@@ -390,4 +393,5 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#368]: https://github.com/SynthstromAudible/DelugeFirmware/pull/368
 [#395]: https://github.com/SynthstromAudible/DelugeFirmware/pull/395
 [#512]: https://github.com/SynthstromAudible/DelugeFirmware/pull/512
+[#653]: https://github.com/SynthstromAudible/DelugeFirmware/pull/653
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
