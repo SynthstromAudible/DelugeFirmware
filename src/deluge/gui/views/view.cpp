@@ -859,17 +859,6 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 
 			// Or, if normal case - an actual param
 			else {
-
-				char newModelStackMemory[MODEL_STACK_MAX_SIZE];
-
-				// Hack to make it so stutter can't be automated
-				if (modelStackWithParam->timelineCounterIsSet()
-				    && !modelStackWithParam->paramCollection->doesParamIdAllowAutomation(modelStackWithParam)) {
-					copyModelStack(newModelStackMemory, modelStackWithParam, sizeof(ModelStackWithAutoParam));
-					modelStackWithParam = (ModelStackWithAutoParam*)newModelStackMemory;
-					modelStackWithParam->setTimelineCounter(NULL);
-				}
-
 				int32_t value = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
 				int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
 				int32_t lowerLimit = std::min(-64_i32, knobPos);
