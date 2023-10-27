@@ -51,7 +51,7 @@ public:
 	float output = 0.0;
 
 private:
-	static constexpr float _sampleRate = 0.0;
+	static constexpr float _sampleRate = 44100.0;
 	static constexpr float _1_sampleRate = 0.0;
 	static constexpr float _maxCutoffFreq = _sampleRate / 2.0 - 1.0;
 	float _cutoffFreq = 0.0;

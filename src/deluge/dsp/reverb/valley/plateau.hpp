@@ -9,11 +9,11 @@ public:
 	struct Settings {
 		float width = 0.f;
 		bool input_diffusion;
-		float input_lpf, input_hpf; // 0 to 10
-		float tank_lpf, tank_hpf; // 0 to 10
+		float input_lpf{0}, input_hpf{10};     // 0 to 10
+		float tank_lpf{0}, tank_hpf{10};       // 0 to 10
 		float mod_speed, mod_depth, mod_shape; // 0 to 1, 0 to 16, 0 to 1
-		float damping = 0.9999; // 0 to 1
-		float pre_delay_time = 0.0; // 0 to 0.5
+		float damping = 0.9999;                // 0 to 1
+		float pre_delay_time = 0.0;            // 0 to 0.5
 	};
 
 	Plateau(float initMaxLfoDepth = 16.f, float initMaxTimeScale = 1.f);
@@ -28,7 +28,10 @@ public:
 
 	void setInputFilterLowCutoffPitch(float pitch);
 	void setInputFilterHighCutoffPitch(float pitch);
-	void enableInputDiffusion(bool enable) { diffuseInput = enable ? 1.0 : 0.0; }
+	void enableInputDiffusion(bool enable) {
+		diffuseInput = enable ? 1.0 : 0.0;
+		settings_.input_diffusion = enable;
+	}
 
 	void setTankFilterHighCutFrequency(float frequency);
 	void setTankFilterLowCutFrequency(float frequency);
@@ -43,9 +46,18 @@ public:
 	[[gnu::always_inline]] void Process(std::span<int32_t> input, std::span<StereoSample> output) override {
 		assert(input.size() == output.size());
 		for (size_t i = 0; i < input.size(); ++i) {
-			processOne(input[i], input[i]);
-			output[i].l = getLeftOutput();
-			output[i].r = getRightOutput();
+			StereoSample& out_sample = output[i];
+			const float input_sample = input[i] / static_cast<float>(std::numeric_limits<int32_t>::max());
+			processOne(input_sample, input_sample);
+
+			int32_t output_left =
+			    static_cast<int32_t>(leftOut * static_cast<float>(std::numeric_limits<uint32_t>::max()) * 0xF);
+			int32_t output_right =
+			    static_cast<int32_t>(rightOut * static_cast<float>(std::numeric_limits<uint32_t>::max()) * 0xF);
+
+			// Mix
+			out_sample.l += multiply_32x32_rshift32_rounded(output_left, getPanLeft());
+			out_sample.r += multiply_32x32_rshift32_rounded(output_right, getPanRight());
 		}
 	}
 
@@ -81,7 +93,7 @@ private:
 
 	float rightOut = 0.0;
 	float leftOut = 0.0;
-	float inputLowCut = 0.0;
+	float inputLowCut = 1.0;
 	float inputHighCut = 10000.0;
 	float reverbHighCut = 10000.0;
 	float reverbLowCut = 0.0;
@@ -91,24 +103,26 @@ private:
 
 	float modSpeed = 1.0;
 	float diffuseInput = 0.f;
-	float timeScale = 0.f;
+	float timeScale = 0.5;
 
 	OnePoleHPFilter leftInputDCBlock;
 	OnePoleHPFilter rightInputDCBlock;
 	OnePoleLPFilter inputLpf{22000.0};
-	OnePoleHPFilter inputHpf{0};
+	OnePoleHPFilter inputHpf{1.f};
 
 	InterpDelay<float, 192010> preDelay{0};
 
-	AllpassFilter<float> inApf1{dattorroScale(8 * kInApf1Time), dattorroScale(kInApf1Time), inputDiffusion1};
-	AllpassFilter<float> inApf2{dattorroScale(8 * kInApf2Time), dattorroScale(kInApf2Time), inputDiffusion1};
-	AllpassFilter<float> inApf3{dattorroScale(8 * kInApf3Time), dattorroScale(kInApf3Time), inputDiffusion2};
-	AllpassFilter<float> inApf4{dattorroScale(8 * kInApf4Time), dattorroScale(kInApf4Time), inputDiffusion2};
+	AllpassFilter<float, static_cast<int32_t>(8 * kInApf1Time * dattorroScaleFactor)> inApf1{dattorroScale(kInApf1Time),
+	                                                                                         inputDiffusion1};
+	AllpassFilter<float, static_cast<int32_t>(8 * kInApf2Time * dattorroScaleFactor)> inApf2{dattorroScale(kInApf2Time),
+	                                                                                         inputDiffusion1};
+	AllpassFilter<float, static_cast<int32_t>(8 * kInApf3Time * dattorroScaleFactor)> inApf3{dattorroScale(kInApf3Time),
+	                                                                                         inputDiffusion2};
+	AllpassFilter<float, static_cast<int32_t>(8 * kInApf4Time * dattorroScaleFactor)> inApf4{dattorroScale(kInApf4Time),
+	                                                                                         inputDiffusion2};
 
 	Dattorro1997Tank tank;
 
 	float tankFeed = 0.0;
-
-
 };
 } // namespace deluge::dsp::reverb

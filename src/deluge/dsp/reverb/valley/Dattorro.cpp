@@ -9,7 +9,6 @@ T scale(T a, T inMin, T inMax, T outMin, T outMax) {
 
 Dattorro1997Tank::Dattorro1997Tank(const float initMaxLfoDepth, const float initMaxTimeScale)
     : timePadding(initMaxLfoDepth), maxTimeScale(initMaxTimeScale), fadeStep(1.0 / sampleRate) {
-	rescaleTapTimes();
 	setTimeScale(timeScale);
 	initialiseDelaysAndApfs();
 	clear();
@@ -176,14 +175,14 @@ void Dattorro1997Tank::initialiseDelaysAndApfs() {
 	const int32_t kRightApf2MaxTime = calcMaxTime(rightApf2Time);
 	const int32_t kRightDelay2MaxTime = calcMaxTime(rightDelay2Time);
 
-	leftApf1 = AllpassFilter<float>(kLeftApf1MaxTime);
-	leftDelay1 = InterpDelay<float>(kLeftDelay1MaxTime);
-	leftApf2 = AllpassFilter<float>(kLeftApf2MaxTime);
-	leftDelay2 = InterpDelay<float>(kLeftDelay2MaxTime);
-	rightApf1 = AllpassFilter<float>(kRightApf1MaxTime);
-	rightDelay1 = InterpDelay<float>(kRightDelay1MaxTime);
-	rightApf2 = AllpassFilter<float>(kRightApf2MaxTime);
-	rightDelay2 = InterpDelay<float>(kRightDelay2MaxTime);
+	leftApf1.init(kLeftApf1MaxTime);
+	leftDelay1.init(kLeftDelay1MaxTime);
+	leftApf2.init(kLeftApf2MaxTime);
+	leftDelay2.init(kLeftDelay2MaxTime);
+	rightApf1.init(kRightApf1MaxTime);
+	rightDelay1.init(kRightDelay1MaxTime);
+	rightApf2.init(kRightApf2MaxTime);
+	rightDelay2.init(kRightDelay2MaxTime);
 }
 
 void Dattorro1997Tank::tickApfModulation() {
@@ -211,10 +210,4 @@ void Dattorro1997Tank::rescaleApfAndDelayTimes() {
 	leftDelay2.setDelayTime(scaledLeftDelay2Time);
 	rightDelay1.setDelayTime(scaledRightDelay1Time);
 	rightDelay2.setDelayTime(scaledRightDelay2Time);
-}
-
-void Dattorro1997Tank::rescaleTapTimes() {
-	for (size_t i = 0; i < scaledOutputTaps.size(); ++i) {
-		scaledOutputTaps[i] = (int32_t)((float)kOutputTaps[i] * sampleRateScale);
-	}
 }

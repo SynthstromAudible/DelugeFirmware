@@ -16,7 +16,7 @@ public:
 	void writeCurrentValue() override { set((float)this->getValue() / scaler()); }
 
 	virtual bool isRelevant(Sound* sound, int32_t whichThing) {
-		return AudioEngine::reverb.getModel() == dsp::Reverb::Model::Plateau;
+		return AudioEngine::reverb.getModel() == dsp::Reverb::Model::PLATEAU;
 	}
 
 	[[nodiscard]] int32_t getMaxValue() const override { return 50; }
@@ -24,6 +24,8 @@ public:
 	[[nodiscard]] virtual float getMinFloat() const { return 0.f; }
 	[[nodiscard]] constexpr float scaler() const { return static_cast<float>(getMaxValue()) / getMaxFloat(); }
 
-	[[nodiscard]] static deluge::dsp::reverb::Plateau& reverb()  { return AudioEngine::reverb.reverb_as<dsp::reverb::Plateau>(); }
+	[[nodiscard]] static deluge::dsp::reverb::Plateau& reverb() {
+		return AudioEngine::reverb.reverb_as<dsp::reverb::Plateau>();
+	}
 };
-}
+} // namespace deluge::gui::menu_item::reverb::plateau

@@ -3,6 +3,8 @@ namespace deluge::dsp::reverb {
 Plateau::Plateau(const float initMaxLfoDepth, const float initMaxTimeScale) : tank{initMaxLfoDepth, initMaxTimeScale} {
 	leftInputDCBlock.setCutoffFreq(20.0);
 	rightInputDCBlock.setCutoffFreq(20.0);
+	tank.setDecay(settings_.damping);
+	setRoomSize(0);
 }
 
 void Plateau::processOne(float leftInput, float rightInput) {

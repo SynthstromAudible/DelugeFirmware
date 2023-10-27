@@ -8,18 +8,22 @@
 #include "InterpDelay.hpp"
 #include <cassert>
 
-template <class T>
+template <class T, size_t maxDelay>
 class AllpassFilter {
 public:
 	AllpassFilter() { clear(); }
 
-	AllpassFilter(long maxDelay, long initDelay = 0, T gain = 0) : delay(InterpDelay<T>(initDelay)), gain(gain) {
+	AllpassFilter(long initDelay, T gain = 0) : delay(initDelay), _gain(gain) { clear(); }
+
+	void init(long initDelay, T gain = 0) {
+		delay.init(initDelay);
+		_gain = gain;
 		clear();
 	}
 
-	T inline process() {
-		_inSum = input + delay.output * gain;
-		output = delay.output + _inSum * gain * -1;
+	[[gnu::always_inline]] T inline process() {
+		_inSum = input + delay.output * _gain;
+		output = delay.output + _inSum * _gain * -1;
 		delay.input = _inSum;
 		delay.process();
 		return output;
@@ -37,26 +41,27 @@ public:
 		assert(newGain >= -1.0);
 		assert(newGain <= 1.0);
 
-		gain = newGain;
+		_gain = newGain;
 	}
 
 	T input;
 	T output;
-	InterpDelay<T> delay;
+	InterpDelay<T, maxDelay> delay;
 
 private:
-	T gain{0};
+	T _gain{0};
 	T _inSum;
 	T _outSum;
 };
 
-template <class T>
+template <class T, size_t maxLength>
 class NestedAllPassType1 {
 public:
 	NestedAllPassType1() { clear(); }
 
 	NestedAllPassType1(long maxDelay, long delayTime1, long delayTime2)
-	    : delay1(InterpDelay<T>(maxDelay, delayTime1)), delay2(InterpDelay<T>(maxDelay, delayTime2)) {
+	    : delay1(InterpDelay<T, maxLength>(maxDelay, delayTime1)),
+	      delay2(InterpDelay<T, maxLength>(maxDelay, delayTime2)) {
 		clear();
 	}
 
@@ -86,8 +91,8 @@ public:
 	T output;
 	T decay1{0};
 	T decay2{0};
-	InterpDelay<T> delay1;
-	InterpDelay<T> delay2;
+	InterpDelay<T, maxLength> delay1;
+	InterpDelay<T, maxLength> delay2;
 
 private:
 	T _inSum1, _inSum2;

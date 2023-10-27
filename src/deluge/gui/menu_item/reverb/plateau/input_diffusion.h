@@ -7,7 +7,11 @@ namespace deluge::gui::menu_item::reverb::plateau {
 class InputDiffusion final : public Toggle {
 public:
 	using Toggle::Toggle;
-	void readCurrentValue() override {  this->setValue(AudioEngine::reverb.reverb_as<dsp::reverb::Plateau>().settings().input_diffusion); }
-	void writeCurrentValue() override { AudioEngine::reverb.reverb_as<dsp::reverb::Plateau>().enableInputDiffusion(this->getValue()); }
+	void readCurrentValue() override {
+		this->setValue(AudioEngine::reverb.reverb_as<dsp::reverb::Plateau>().settings().input_diffusion);
+	}
+	void writeCurrentValue() override {
+		AudioEngine::reverb.reverb_as<dsp::reverb::Plateau>().enableInputDiffusion(this->getValue());
+	}
 };
 } // namespace deluge::gui::menu_item::reverb::plateau

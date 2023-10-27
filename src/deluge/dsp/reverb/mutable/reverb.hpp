@@ -64,8 +64,7 @@ public:
 			//c.Interpolate(ap1, 10.0f, LFO_1, 80.0f, 1.0f);
 			//c.Write(ap1, 100, 0.0f);
 
-			const float input_sample =
-			    static_cast<float>(in[frame]) / static_cast<float>(std::numeric_limits<int32_t>::max());
+			const float input_sample = in[frame] / static_cast<float>(std::numeric_limits<int32_t>::max());
 
 			c.Set(input_sample // * gain
 			);
@@ -86,7 +85,7 @@ public:
 			del1.Write(c, 2.0f);
 			wet = c.Get();
 
-			auto output_right =
+			int32_t output_right =
 			    static_cast<int32_t>(wet * static_cast<float>(std::numeric_limits<uint32_t>::max()) * 0xF);
 
 			c.Set(apout);
@@ -97,12 +96,12 @@ public:
 			del2.Write(c, 2.0f);
 			wet = c.Get();
 
-			auto output_left =
+			int32_t output_left =
 			    static_cast<int32_t>(wet * static_cast<float>(std::numeric_limits<uint32_t>::max()) * 0xF);
 
 			// Mix
-			s.l += multiply_32x32_rshift32_rounded(output_left - input_sample, getPanLeft());
-			s.r += multiply_32x32_rshift32_rounded(output_right - input_sample, getPanRight());
+			s.l += multiply_32x32_rshift32_rounded(output_left, getPanLeft());
+			s.r += multiply_32x32_rshift32_rounded(output_right, getPanRight());
 		}
 
 		lp_decay_1_ = lp_1;

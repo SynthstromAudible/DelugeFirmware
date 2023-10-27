@@ -51,9 +51,10 @@ public:
 	}
 
 	void setRevPointAll(float revPoint) {
-		_revPoint = std::clamp(revPoint, 0.0001f, 0.999f);
-		_riseRate = 1.0f / _revPoint;
-		_fallRate = -1.0f / (1.0f - _revPoint);
+		revPoint = std::clamp(revPoint, 0.0001f, 0.999f);
+		_revPoint = revPoint;
+		_riseRate = 1.0f / revPoint;
+		_fallRate = -1.0f / (1.0f - revPoint);
 	}
 
 	void setSamplerate(float sampleRate) {

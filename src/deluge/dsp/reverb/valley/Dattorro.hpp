@@ -73,8 +73,6 @@ private:
 		L_DELAY_2_R_TAP
 	};
 
-	const long kOutputTaps[7] = {266, 2974, 1913, 1996, 1990, 187, 1066};
-
 	static constexpr float maxDiffusion1 = 0.7;
 	static constexpr float maxDiffusion2 = 0.7;
 
@@ -98,10 +96,20 @@ private:
 	float scaledRightApf2Time = rightApf2Time;
 	float scaledRightDelay2Time = rightDelay2Time;
 
-	std::array<long, 7> scaledOutputTaps;
-
 	static constexpr float sampleRate = 44100.f;
 	static constexpr float sampleRateScale = sampleRate / dattorroSampleRate;
+
+	static constexpr std::array<int32_t, 7> kOutputTaps = {266, 2974, 1913, 1996, 1990, 187, 1066};
+
+	static constexpr std::array<int32_t, 7> scaledOutputTaps{{
+	    static_cast<int32_t>(266 * sampleRateScale),  //<
+	    static_cast<int32_t>(2974 * sampleRateScale), //<
+	    static_cast<int32_t>(1913 * sampleRateScale), //<
+	    static_cast<int32_t>(1996 * sampleRateScale), //<
+	    static_cast<int32_t>(1990 * sampleRateScale), //<
+	    static_cast<int32_t>(187 * sampleRateScale),  //<
+	    static_cast<int32_t>(1066 * sampleRateScale), //<
+	}};
 
 	float maxTimeScale = 1.0;
 	float timeScale = 1.0;
@@ -124,20 +132,21 @@ private:
 	float leftSum = 0.0;
 	float rightSum = 0.0;
 
-	AllpassFilter<float> leftApf1;
-	InterpDelay<float> leftDelay1;
+	AllpassFilter<float, 512> leftApf1;
+	InterpDelay<float, std::max(scaledOutputTaps[L_DELAY_1_L_TAP_1], scaledOutputTaps[L_DELAY_1_L_TAP_2]) + 1>
+	    leftDelay1;
 	OnePoleLPFilter leftHighCutFilter;
 	OnePoleHPFilter leftLowCutFilter;
-	AllpassFilter<float> leftApf2;
-	InterpDelay<float> leftDelay2;
+	AllpassFilter<float, scaledOutputTaps[L_APF_2_L_TAP] + 1> leftApf2;
+	InterpDelay<float, scaledOutputTaps[L_DELAY_2_L_TAP] + 1> leftDelay2;
 
-	AllpassFilter<float> rightApf1;
-	InterpDelay<float> rightDelay1;
+	AllpassFilter<float, 512> rightApf1;
+	InterpDelay<float, std::max(scaledOutputTaps[R_DELAY_1_R_TAP_1], scaledOutputTaps[R_DELAY_1_R_TAP_2]) + 1>
+	    rightDelay1;
 	OnePoleLPFilter rightHighCutFilter;
-	;
 	OnePoleHPFilter rightLowCutFilter;
-	AllpassFilter<float> rightApf2;
-	InterpDelay<float> rightDelay2;
+	AllpassFilter<float, scaledOutputTaps[R_APF_2_R_TAP] + 1> rightApf2;
+	InterpDelay<float, scaledOutputTaps[R_DELAY_2_R_TAP] + 1> rightDelay2;
 
 	OnePoleHPFilter leftOutDCBlock;
 	OnePoleHPFilter rightOutDCBlock;
@@ -147,6 +156,4 @@ private:
 	void tickApfModulation();
 
 	void rescaleApfAndDelayTimes();
-	void rescaleTapTimes();
 };
-

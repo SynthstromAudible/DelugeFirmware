@@ -102,5 +102,4 @@ void Freeverb::update() {
 	}
 }
 
-
 } // namespace deluge::dsp::reverb

@@ -1,21 +1,20 @@
 #pragma once
-#include <algorithm>
-#include <cstdint>
-#include <variant>
-
 #include "base.hpp"
 #include "freeverb/freeverb.hpp"
 #include "mutable/reverb.hpp"
 #include "valley/plateau.hpp"
+#include <algorithm>
+#include <cstdint>
+#include <variant>
 
 namespace deluge::dsp {
 
 class Reverb : reverb::Base {
 public:
 	enum class Model {
-		Freeverb = 0, // Freeverb is the original
-		Mutable,
-		Plateau
+		FREEVERB = 0, // Freeverb is the original
+		MUTABLE,
+		PLATEAU
 	};
 
 	Reverb() : base_(&std::get<0>(reverb_)) {}
@@ -23,14 +22,14 @@ public:
 
 	void setModel(Model m) {
 		switch (m) {
-		case Model::Freeverb:
+		case Model::FREEVERB:
 			reverb_.emplace<reverb::Freeverb>();
 			break;
-		case Model::Mutable:
+		case Model::MUTABLE:
 			reverb_.emplace<reverb::Mutable>();
 			break;
-		case Model::Plateau:
-			//reverb_.emplace<reverb::Plateau>();
+		case Model::PLATEAU:
+			reverb_.emplace<reverb::Plateau>();
 			break;
 		}
 		model_ = m;
@@ -41,15 +40,14 @@ public:
 	void Process(std::span<int32_t> input, std::span<StereoSample> output) override {
 		using namespace reverb;
 		switch (model_) {
-		case Model::Freeverb:
+		case Model::FREEVERB:
 			reverb_as<Freeverb>().Process(input, output);
 			break;
-		case Model::Mutable:
+		case Model::MUTABLE:
 			reverb_as<Mutable>().Process(input, output);
 			break;
-		case Model::Plateau:
-			reverb_as<Mutable>().Process(input, output);
-			//reverb_as<Plateau>().Process(input, output);
+		case Model::PLATEAU:
+			reverb_as<Plateau>().Process(input, output);
 			break;
 		}
 	}
@@ -80,7 +78,7 @@ private:
 	    >
 	    reverb_{};
 
-	Model model_ = Model::Freeverb;
+	Model model_ = Model::FREEVERB;
 
 	reverb::Base* base_ = nullptr;
 };

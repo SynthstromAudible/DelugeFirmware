@@ -59,4 +59,4 @@ private:
 	std::span<int32_t> buffer_;
 	int32_t bufidx_{0};
 };
-}
+} // namespace freeverb

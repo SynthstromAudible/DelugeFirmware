@@ -11,17 +11,19 @@
 #include <cstdint>
 
 template <typename T>
-T linterp(T a, T b, T f) {
+[[gnu::always_inline]] constexpr T linterp(T a, T b, T f) {
 	return a + f * (b - a);
 }
 
-template <typename T = float, size_t maxLength = 512>
+template <typename T, size_t maxLength>
 class InterpDelay {
 public:
 	T input{0};
 	T output{0};
 
-	InterpDelay(uint32_t initDelayTime = 0) {
+	InterpDelay(uint32_t initDelayTime = 0) { init(initDelayTime); }
+
+	void init(uint32_t initDelayTime = 0) {
 		assert(maxLength != 0);
 		l = maxLength;
 		setDelayTime(initDelayTime);
