@@ -268,6 +268,8 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 	else if (modKnobMode == 4) {
 		if (whichModEncoder == 0) { // Reverb
 			if (on) {
+				//if we're in full move/editingComp then we cycle through the comp params
+				//otherwise cycle reverb sizes
 				if (!editingComp) {
 					view.cycleThroughReverbPresets();
 				}
@@ -291,6 +293,44 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 
 	return false; // Some cases could lead here
 }
+
+int32_t GlobalEffectable::getKnobPosForNonExistentParam(int32_t whichModEncoder, ModelStackWithAutoParam* modelStack) {
+	int displayLevel = -64;
+	if (*getModKnobMode() == 4) {
+		int current;
+
+		//this is only reachable in comp editing mode, otherwise it's an existent param
+		if (whichModEncoder == 1) { //sidechain (threshold)
+			current = AudioEngine::mastercompressor.threshold >> 24;
+			displayLevel = 128 - current;
+		}
+		else if (whichModEncoder == 0) {
+			switch (currentCompParam) {
+
+			case CompParam::RATIO:
+				current = AudioEngine::mastercompressor.ratio >> 24;
+
+				displayLevel = (current - 48) * 2;
+
+				break;
+
+			case CompParam::ATTACK:
+				current = getLookupIndexFromValue(AudioEngine::mastercompressor.attack >> 2, attackRateTable, 50);
+				displayLevel = (current * 128) / 50;
+
+				break;
+
+			case CompParam::RELEASE:
+				current = getLookupIndexFromValue(AudioEngine::mastercompressor.release >> 1, releaseRateTable, 50);
+				displayLevel = (current * 128) / 50;
+
+				break;
+			}
+		}
+	}
+	return displayLevel - 64;
+}
+
 ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offset, int32_t whichModEncoder,
                                                                    ModelStackWithAutoParam* modelStack) {
 	if (*getModKnobMode() == 4) {
