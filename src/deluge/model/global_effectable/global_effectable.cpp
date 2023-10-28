@@ -309,21 +309,17 @@ int32_t GlobalEffectable::getKnobPosForNonExistentParam(int32_t whichModEncoder,
 
 			case CompParam::RATIO:
 				current = AudioEngine::mastercompressor.ratio >> 24;
-
 				displayLevel = (current - 48) * 2;
-
 				break;
 
 			case CompParam::ATTACK:
 				current = getLookupIndexFromValue(AudioEngine::mastercompressor.attack >> 2, attackRateTable, 50);
 				displayLevel = (current * 128) / 50;
-
 				break;
 
 			case CompParam::RELEASE:
 				current = getLookupIndexFromValue(AudioEngine::mastercompressor.release >> 1, releaseRateTable, 50);
 				displayLevel = (current * 128) / 50;
-
 				break;
 			}
 		}

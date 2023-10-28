@@ -166,6 +166,7 @@ void indicateAlertOnLed(LED led) {
 	blinkLed(led, 3, 1);
 }
 
+//this sets the level only if there hasn't been a value update in 500ms
 void setMeterLevel(uint8_t whichKnob, uint8_t level) {
 	whichKnobMetering = whichKnob;
 	if (!uiTimerManager.isTimerSet(TIMER_METER_INDICATOR_BLINK)) {
@@ -174,6 +175,7 @@ void setMeterLevel(uint8_t whichKnob, uint8_t level) {
 }
 
 // Level is out of 128
+//Set level and block metering for 500ms
 void setKnobIndicatorLevel(uint8_t whichKnob, uint8_t level) {
 	if (whichKnob == whichKnobMetering) {
 		uiTimerManager.setTimer(TIMER_METER_INDICATOR_BLINK, 500);
@@ -181,6 +183,7 @@ void setKnobIndicatorLevel(uint8_t whichKnob, uint8_t level) {
 	actuallySetKnobIndicatorLevel(whichKnob, level);
 }
 
+//Just set level
 void actuallySetKnobIndicatorLevel(uint8_t whichKnob, uint8_t level) {
 	// If this indicator was blinking, stop it
 	if (uiTimerManager.isTimerSet(TIMER_LEVEL_INDICATOR_BLINK) && whichLevelIndicatorBlinking == whichKnob) {
