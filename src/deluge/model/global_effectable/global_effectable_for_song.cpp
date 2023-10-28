@@ -19,4 +19,6 @@
 
 GlobalEffectableForSong::GlobalEffectableForSong() {
 	modKnobMode = 1;
+	//attack and release can't go in the param manager so this keeps them from changing in clip comps
+	maxCompParam = 3;
 }

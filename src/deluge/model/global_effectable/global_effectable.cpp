@@ -49,6 +49,7 @@ GlobalEffectable::GlobalEffectable() {
 	memset(allpassMemory, 0, sizeof(allpassMemory));
 	memset(&phaserMemory, 0, sizeof(phaserMemory));
 	editingComp = false;
+	currentCompParam = CompParam::RATIO;
 }
 
 void GlobalEffectable::cloneFrom(ModControllableAudio* other) {
@@ -267,7 +268,15 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 	else if (modKnobMode == 4) {
 		if (whichModEncoder == 0) { // Reverb
 			if (on) {
-				view.cycleThroughReverbPresets();
+				if (!editingComp) {
+					view.cycleThroughReverbPresets();
+				}
+				else {
+					currentCompParam =
+					    static_cast<CompParam>((util::to_underlying(currentCompParam) + 1) % maxCompParam);
+					const char* params[3] = {"ratio", "attack", "release"};
+					display->popupTextTemporary(params[int(currentCompParam)]);
+				}
 			}
 		}
 		else {
@@ -285,47 +294,60 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offset, int32_t whichModEncoder,
                                                                    ModelStackWithAutoParam* modelStack) {
 	if (*getModKnobMode() == 4) {
+		int current;
+		int displayLevel;
+		//this is only reachable in comp editing mode, otherwise it's an existent param
 		if (whichModEncoder == 1) { //sidechain (threshold)
-			int current = AudioEngine::mastercompressor.threshold >> 24;
+			current = AudioEngine::mastercompressor.threshold >> 24;
 			current -= offset;
 			current = std::clamp(current, 1, 128);
-			indicator_leds::setKnobIndicatorLevel(1, std::max(0, 128 - current));
+			displayLevel = 128 - current;
 			AudioEngine::mastercompressor.threshold = lshiftAndSaturate<24>(current);
-			return ActionResult::DEALT_WITH;
+			indicator_leds::setKnobIndicatorLevel(1, displayLevel);
 		}
-		else if (whichModEncoder == 0) { //ratio/reverb (we can only get here in comp editing mode)
-			int current = AudioEngine::mastercompressor.ratio >> 24;
-			current += offset;
-			//this range is ratio of 2 to infinity
-			current = std::clamp(current, 48, 112);
-			indicator_leds::setKnobIndicatorLevel(0, (current - 48) * 2);
-			AudioEngine::mastercompressor.ratio = lshiftAndSaturate<24>(current);
-			return ActionResult::DEALT_WITH;
-		}
-	}
-	else if (*getModKnobMode() == 2) {
-		if (whichModEncoder == 1) { //attack
-			int current = getLookupIndexFromValue(AudioEngine::mastercompressor.attack >> 2, attackRateTable, 50);
-			current += offset;
-			current = std::clamp(current, 1, 50);
-			indicator_leds::setKnobIndicatorLevel(1, (current * 128) / 50);
-			AudioEngine::mastercompressor.attack = attackRateTable[current] << 2;
-			return ActionResult::DEALT_WITH;
-		}
-		if (whichModEncoder == 0) { //release
-			int current = getLookupIndexFromValue(AudioEngine::mastercompressor.release >> 1, releaseRateTable, 50);
-			current += offset;
-			current = std::clamp(current, 2, 50);
-			indicator_leds::setKnobIndicatorLevel(0, (current * 128) / 50);
-			AudioEngine::mastercompressor.release = releaseRateTable[current] << 1;
+		else if (whichModEncoder == 0) {
+			switch (currentCompParam) {
 
-			return ActionResult::DEALT_WITH;
-		}
-	}
+			case CompParam::RATIO:
+				current = AudioEngine::mastercompressor.ratio >> 24;
+				current += offset;
+				//this range is ratio of 2 to 20
+				current = std::clamp(current, 48, 112);
+				displayLevel = (current - 48) * 2;
 
+				AudioEngine::mastercompressor.ratio = lshiftAndSaturate<24>(current);
+				break;
+
+			case CompParam::ATTACK:
+				current = getLookupIndexFromValue(AudioEngine::mastercompressor.attack >> 2, attackRateTable, 50);
+				current += offset;
+				current = std::clamp(current, 1, 50);
+				displayLevel = (current * 128) / 50;
+
+				AudioEngine::mastercompressor.attack = attackRateTable[current] << 2;
+				break;
+
+			case CompParam::RELEASE:
+
+				current = getLookupIndexFromValue(AudioEngine::mastercompressor.release >> 1, releaseRateTable, 50);
+				current += offset;
+				current = std::clamp(current, 2, 50);
+				displayLevel = (current * 128) / 50;
+
+				AudioEngine::mastercompressor.release = releaseRateTable[current] << 1;
+
+				break;
+			}
+			indicator_leds::setKnobIndicatorLevel(0, displayLevel);
+		}
+		char buffer[5];
+		intToString(displayLevel, buffer);
+		display->displayPopup(buffer);
+
+		return ActionResult::DEALT_WITH;
+	}
 	return ActionResult::NOT_DEALT_WITH;
 }
-
 // Always check this doesn't return NULL!
 int32_t GlobalEffectable::getParameterFromKnob(int32_t whichModEncoder) {
 

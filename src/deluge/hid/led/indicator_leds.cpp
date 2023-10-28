@@ -39,6 +39,8 @@ uint8_t whichLevelIndicatorBlinking;
 bool levelIndicatorBlinkOn;
 uint8_t levelIndicatorBlinksLeft;
 
+uint8_t whichKnobMetering;
+
 void setLedState(LED led, bool newState, bool allowContinuedBlinking) {
 
 	if (!allowContinuedBlinking) {
@@ -164,8 +166,22 @@ void indicateAlertOnLed(LED led) {
 	blinkLed(led, 3, 1);
 }
 
+void setMeterLevel(uint8_t whichKnob, uint8_t level) {
+	whichKnobMetering = whichKnob;
+	if (!uiTimerManager.isTimerSet(TIMER_METER_INDICATOR_BLINK)) {
+		actuallySetKnobIndicatorLevel(whichKnob, level);
+	}
+}
+
 // Level is out of 128
 void setKnobIndicatorLevel(uint8_t whichKnob, uint8_t level) {
+	if (whichKnob == whichKnobMetering) {
+		uiTimerManager.setTimer(TIMER_METER_INDICATOR_BLINK, 500);
+	}
+	actuallySetKnobIndicatorLevel(whichKnob, level);
+}
+
+void actuallySetKnobIndicatorLevel(uint8_t whichKnob, uint8_t level) {
 	// If this indicator was blinking, stop it
 	if (uiTimerManager.isTimerSet(TIMER_LEVEL_INDICATOR_BLINK) && whichLevelIndicatorBlinking == whichKnob) {
 		uiTimerManager.unsetTimer(TIMER_LEVEL_INDICATOR_BLINK);
