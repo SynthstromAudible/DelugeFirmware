@@ -156,7 +156,7 @@ void UITimerManager::routine() {
 					break;
 
 				case TIMER_OLED_LOW_LEVEL:
-					if (display->haveOLED()) {
+					if (deluge::hid::display::have_oled_screen) {
 						oledLowLevelTimerCallback();
 					}
 					break;
