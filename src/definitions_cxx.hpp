@@ -1097,3 +1097,10 @@ enum SessionLayoutType : uint8_t {
 	SessionLayoutTypeGrid,
 	SessionLayoutTypeMaxElement // Keep as boundary
 };
+
+enum GridDefaultActiveMode : uint8_t {
+	GridDefaultActiveModeSelection,
+	GridDefaultActiveModeGreen,
+	GridDefaultActiveModeBlue,
+	GridDefaultActiveModeMaxElement // Keep as boundary
+};

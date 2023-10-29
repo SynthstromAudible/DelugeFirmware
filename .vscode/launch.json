@@ -54,8 +54,11 @@
       "MIMode": "gdb",
       "miDebuggerPath": "arm-none-eabi-gdb",
       "windows": {
-        "miDebuggerPath": "${workspaceRoot}/toolchain/win32-x86_64/arm-none-eabi-gcc/bin/arm-none-eabi-gdb.exe"
+        "miDebuggerPath": "${workspaceRoot}/toolchain/win32-x86_64/arm-none-eabi-gcc/bin/arm-none-eabi-gdb.exe",
+        "debugServerPath": "C:/Program Files/SEGGER/JLink/JLinkGDBServerCL.exe",
       },
+      "debugServerArgs": "-select USB -device R7S721020 -endian little -if SWD -speed auto -noir -LocalhostOnly -nologtofile -port 3333 -SWOPort 2332 -TelnetPort 2333",
+      "serverStarted": "Connected to target",
       "linux": {
         "miDebuggerPath": "${workspaceRoot}/toolchain/linux-x86_64/arm-none-eabi-gcc/bin/arm-none-eabi-gdb"
       },
@@ -75,8 +78,11 @@
       "MIMode": "gdb",
       "miDebuggerPath": "arm-none-eabi-gdb",
       "windows": {
-        "miDebuggerPath": "${workspaceRoot}/toolchain/win32-x86_64/arm-none-eabi-gcc/bin/arm-none-eabi-gdb.exe"
+        "miDebuggerPath": "${workspaceRoot}/toolchain/win32-x86_64/arm-none-eabi-gcc/bin/arm-none-eabi-gdb.exe",
+        "debugServerPath": "C:/Program Files/SEGGER/JLink/JLinkGDBServerCL.exe",
       },
+      "debugServerArgs": "-select USB -device R7S721020 -endian little -if SWD -speed auto -noir -LocalhostOnly -nologtofile -port 3333 -SWOPort 2332 -TelnetPort 2333",
+      "serverStarted": "Connected to target",
       "linux": {
         "miDebuggerPath": "${workspaceRoot}/toolchain/linux-x86_64/arm-none-eabi-gcc/bin/arm-none-eabi-gdb"
       },
@@ -115,8 +121,11 @@
       "MIMode": "gdb",
       "miDebuggerPath": "arm-none-eabi-gdb",
       "windows": {
-        "miDebuggerPath": "${workspaceRoot}/toolchain/win32-x86_64/arm-none-eabi-gcc/bin/arm-none-eabi-gdb.exe"
+        "miDebuggerPath": "${workspaceRoot}/toolchain/win32-x86_64/arm-none-eabi-gcc/bin/arm-none-eabi-gdb.exe",
+        "debugServerPath": "C:/Program Files/SEGGER/JLink/JLinkGDBServerCL.exe",
       },
+      "debugServerArgs": "-select USB -device R7S721020 -endian little -if SWD -speed auto -noir -LocalhostOnly -nologtofile -port 3333 -SWOPort 2332 -TelnetPort 2333",
+      "serverStarted": "Connected to target",
       "linux": {
         "miDebuggerPath": "${workspaceRoot}/toolchain/linux-x86_64/arm-none-eabi-gcc/bin/arm-none-eabi-gdb"
       },

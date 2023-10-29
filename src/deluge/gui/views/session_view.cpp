@@ -2666,6 +2666,7 @@ Clip* SessionView::getClipForLayout() {
 }
 
 void SessionView::selectLayout(int8_t offset) {
+	gridSetDefaultMode();
 	gridResetPresses();
 	gridModeActive = gridModeSelected;
 
@@ -3214,8 +3215,13 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 			}
 		}
 		else {
-			if (!gridActiveModeUsed) {
-				gridModeSelected = gridModeActive;
+			if (FlashStorage::defaultGridActiveMode == GridDefaultActiveModeSelection) {
+				if (!gridActiveModeUsed) {
+					gridModeSelected = gridModeActive;
+				}
+			}
+			else {
+				gridSetDefaultMode();
 			}
 
 			gridModeActive = gridModeSelected;
@@ -3412,6 +3418,24 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 	}
 
 	if (clip == nullptr) {
+		if (on && currentUIMode == UI_MODE_NONE && FlashStorage::gridUnarmEmptyPads) {
+			auto maxTrack = gridTrackCount();
+			Output* track = gridTrackFromX(x, maxTrack);
+			if (track != nullptr) {
+				for (int32_t idxClip = 0; idxClip < currentSong->sessionClips.getNumElements(); ++idxClip) {
+					Clip* sessionClip = currentSong->sessionClips.getClipAtIndex(idxClip);
+					if (sessionClip->output == track) {
+						if (sessionClip->activeIfNoSolo) {
+							gridToggleClipPlay(sessionClip, Buttons::isShiftButtonPressed());
+						}
+						else {
+							sessionClip->armState = ArmState::OFF;
+						}
+					}
+				}
+			}
+		}
+
 		return ActionResult::DEALT_WITH;
 	}
 
@@ -3421,13 +3445,77 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 		return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 	}
 
+	if (FlashStorage::gridAllowGreenSelection) {
+		return gridHandlePadsLaunchWithSelection(x, y, on, clip);
+	}
+	else {
+		return gridHandlePadsLaunchImmediate(x, y, on, clip);
+	}
+}
+
+ActionResult SessionView::gridHandlePadsLaunchImmediate(int32_t x, int32_t y, int32_t on, Clip* clip) {
 	// From here all actions only happen on press
 	if (!on) {
 		return ActionResult::DEALT_WITH;
 	}
 
-	// Normal arming, handle cases normally in View::clipStatusPadAction
-	if (!Buttons::isShiftButtonPressed()) {
+	gridHandlePadsLaunchToggleArming(clip, Buttons::isShiftButtonPressed());
+
+	return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
+}
+
+ActionResult SessionView::gridHandlePadsLaunchWithSelection(int32_t x, int32_t y, int32_t on, Clip* clip) {
+	if (on) {
+		// Immediate arming, immediate consumption
+		if (Buttons::isShiftButtonPressed()) {
+			gridHandlePadsLaunchToggleArming(clip, true);
+			return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
+		}
+
+		if (gridFirstPressedX == -1 && gridFirstPressedY == -1) {
+			gridFirstPressedX = x;
+			gridFirstPressedY = y;
+
+			// Allow clip control (selection)
+			currentUIMode = UI_MODE_CLIP_PRESSED_IN_SONG_VIEW;
+			performActionOnPadRelease = true;
+			selectedClipTimePressed = AudioEngine::audioSampleTimer;
+			view.setActiveModControllableTimelineCounter(clip);
+			view.displayOutputName(clip->output, true, clip);
+			if (display->haveOLED()) {
+				deluge::hid::display::OLED::sendMainImage();
+			}
+		}
+		// Special case, if there are already selected pads we allow immediate arming all others
+		else {
+			return gridHandlePadsLaunchImmediate(x, y, on, clip);
+		}
+	}
+	else {
+		if (gridFirstPressedX == x && gridFirstPressedY == y) {
+			if (isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) && performActionOnPadRelease
+			    && AudioEngine::audioSampleTimer - selectedClipTimePressed < kShortPressTime) {
+
+				gridHandlePadsLaunchToggleArming(clip, false);
+			}
+
+			clipPressEnded();
+		}
+	}
+
+	return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
+}
+
+void SessionView::gridHandlePadsLaunchToggleArming(Clip* clip, bool immediate) {
+	if (immediate) {
+		if (currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
+			session.soloClipAction(clip, kInternalButtonPressLatency);
+		}
+		else {
+			gridToggleClipPlay(clip, true);
+		}
+	}
+	else {
 		if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING) {
 			// Here I removed the overdubbing settings
 			clip->armedForRecording = !clip->armedForRecording;
@@ -3446,17 +3534,6 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 			// Make sure we can mute additional pads after this and don't loose UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON
 		}
 	}
-	// Immediate arming, immediate consumption
-	else {
-		if (currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
-			session.soloClipAction(clip, kInternalButtonPressLatency);
-		}
-		else {
-			gridToggleClipPlay(clip, true);
-		}
-	}
-
-	return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 }
 
 ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {
