@@ -334,24 +334,24 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 		int displayLevel;
 		//this is only reachable in comp editing mode, otherwise it's an existent param
 		if (whichModEncoder == 1) { //sidechain (threshold)
-			current = AudioEngine::mastercompressor.threshold >> 24;
-			current -= offset;
-			current = std::clamp(current, 1, 128);
-			displayLevel = 128 - current;
-			AudioEngine::mastercompressor.threshold = lshiftAndSaturate<24>(current);
+			current = (AudioEngine::mastercompressor.rawThreshold >> 24) - 64;
+			current += offset;
+			current = std::clamp(current, -64, 64);
+			displayLevel = 64 + current;
+			AudioEngine::mastercompressor.rawThreshold = lshiftAndSaturate<24>(current + 64);
 			indicator_leds::setKnobIndicatorLevel(1, displayLevel);
 		}
 		else if (whichModEncoder == 0) {
 			switch (currentCompParam) {
 
 			case CompParam::RATIO:
-				current = AudioEngine::mastercompressor.ratio >> 24;
+				current = (AudioEngine::mastercompressor.rawRatio >> 24) - 64;
 				current += offset;
 				//this range is ratio of 2 to 20
-				current = std::clamp(current, 48, 112);
-				displayLevel = (current - 48) * 2;
+				current = std::clamp(current, -64, 64);
+				displayLevel = current + 64;
 
-				AudioEngine::mastercompressor.ratio = lshiftAndSaturate<24>(current);
+				AudioEngine::mastercompressor.rawRatio = lshiftAndSaturate<24>(current + 64);
 				break;
 
 			case CompParam::ATTACK:
@@ -367,7 +367,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 
 				current = getLookupIndexFromValue(AudioEngine::mastercompressor.release >> 1, releaseRateTable, 50);
 				current += offset;
-				current = std::clamp(current, 2, 50);
+				current = std::clamp(current, 1, 50);
 				displayLevel = (current * 128) / 50;
 
 				AudioEngine::mastercompressor.release = releaseRateTable[current] << 1;
