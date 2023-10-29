@@ -301,15 +301,15 @@ int32_t GlobalEffectable::getKnobPosForNonExistentParam(int32_t whichModEncoder,
 
 		//this is only reachable in comp editing mode, otherwise it's an existent param
 		if (whichModEncoder == 1) { //sidechain (threshold)
-			current = AudioEngine::mastercompressor.threshold >> 24;
-			displayLevel = 128 - current;
+			current = AudioEngine::mastercompressor.rawThreshold >> 24;
+			displayLevel = current;
 		}
 		else if (whichModEncoder == 0) {
 			switch (currentCompParam) {
 
 			case CompParam::RATIO:
-				current = AudioEngine::mastercompressor.ratio >> 24;
-				displayLevel = (current - 48) * 2;
+				current = AudioEngine::mastercompressor.rawRatio >> 24;
+				displayLevel = current;
 				break;
 
 			case CompParam::ATTACK:
@@ -365,12 +365,12 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 
 			case CompParam::RELEASE:
 
-				current = getLookupIndexFromValue(AudioEngine::mastercompressor.release >> 1, releaseRateTable, 50);
+				current = getLookupIndexFromValue(AudioEngine::mastercompressor.release, releaseRateTable, 50);
 				current += offset;
-				current = std::clamp(current, 1, 50);
+				current = std::clamp(current, 0, 50);
 				displayLevel = (current * 128) / 50;
 
-				AudioEngine::mastercompressor.release = releaseRateTable[current] << 1;
+				AudioEngine::mastercompressor.release = releaseRateTable[current];
 
 				break;
 			}

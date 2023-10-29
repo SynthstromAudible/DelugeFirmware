@@ -64,7 +64,7 @@ void MasterCompressor::updateER() {
 }
 
 void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t volAdjustL, q31_t volAdjustR) {
-	ratio = (rawRatio >> 1) + (48 << 24);
+	ratio = (rawRatio >> 1) + (3 << 28);
 	threshold = ONE_Q31 - rawThreshold;
 	updateER();
 
