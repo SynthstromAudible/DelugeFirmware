@@ -200,6 +200,7 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
  - Follow-up PR's: 
 	- ([#347]) Added new automatable parameters
  	- ([#360]) Fixed interpolation bugs, added fine tuning for long presses, and added pad selection mode
+	- ([#658]) Added Stutter Rate Parameter to Automation View. There is no grid shortcut for this parameter so you will not see a pad on the Automation Overview that indicates whether Stutter has been automated. This parameter can be selected and automated using the Select Encoder to scroll the available list of Automatable Parameters.
 
 #### 4.3.6 - Set Probability By Row
 
@@ -394,4 +395,5 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#395]: https://github.com/SynthstromAudible/DelugeFirmware/pull/395
 [#512]: https://github.com/SynthstromAudible/DelugeFirmware/pull/512
 [#653]: https://github.com/SynthstromAudible/DelugeFirmware/pull/653
+[#658]: https://github.com/SynthstromAudible/DelugeFirmware/pull/658
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md

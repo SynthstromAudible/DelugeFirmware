@@ -6,7 +6,7 @@ Automatable Parameters are broken down into two categories for Automation Instru
 
 1. Automatable Parameters for Synths, Kits with affect entire DISABLED, and Midi
 
->The 55 parameters that can be edited are:
+>The 56 parameters that can be edited are:
 >
 > - **Master** Level, Pitch, Pan
 > - **LPF** Frequency, Resonance, Morph
@@ -28,10 +28,11 @@ Automatable Parameters are broken down into two categories for Automation Instru
 > - **Arp** Rate, Gate
 > - **Noise** Level
 > - **Portamento**
+> - **Stutter** Rate
 
 2. Automatable Parameters for Kits with affect entire ENABLED
 
->The 24 parameters that can be edited are:
+>The 25 parameters that can be edited are:
 >
 > - **Master** Level, Pitch, Pan
 > - **LPF** Frequency, Resonance
@@ -44,6 +45,7 @@ Automatable Parameters are broken down into two categories for Automation Instru
 > - **Mod FX** Offset, Feedback, Depth, Rate
 > - **Arp** Gate
 > - **Portamento**
+> - **Stutter** Rate
 
 It can be thought of as a layer sitting on top of the Instrument Clip View for Synths, Kits and Midi instrument clip types. This PR does not address automation for audio clips.
 
