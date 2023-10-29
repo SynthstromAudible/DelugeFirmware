@@ -166,7 +166,7 @@ const std::array<std::pair<Param::Kind, ParamType>, kNumNonKitAffectEntireParams
         {Param::Kind::UNPATCHED, Param::Unpatched::Sound::ARP_GATE},
         {Param::Kind::PATCHED, Param::Local::NOISE_VOLUME},            //Noise
         {Param::Kind::UNPATCHED, Param::Unpatched::Sound::PORTAMENTO}, //Portamento
-		{Param::Kind::UNPATCHED, Param::Unpatched::STUTTER_RATE}, //Stutter Rate
+        {Param::Kind::UNPATCHED, Param::Unpatched::STUTTER_RATE},      //Stutter Rate
     }};
 
 //kit affect entire FX - sorted in the order that Parameters are scrolled through on the display
@@ -196,7 +196,7 @@ const std::array<std::pair<Param::Kind, ParamType>, kNumKitAffectEntireParamsFor
         {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::MOD_FX_RATE},
         {Param::Kind::UNPATCHED, Param::Unpatched::Sound::ARP_GATE},   //Arp Gate
         {Param::Kind::UNPATCHED, Param::Unpatched::Sound::PORTAMENTO}, //Portamento
-		{Param::Kind::UNPATCHED, Param::Unpatched::STUTTER_RATE}, //Stutter Rate
+        {Param::Kind::UNPATCHED, Param::Unpatched::STUTTER_RATE},      //Stutter Rate
     }};
 
 //grid sized arrays to assign automatable parameters to the grid
@@ -2776,11 +2776,11 @@ void AutomationInstrumentClipView::selectEncoderAction(int8_t offset) {
 				for (int32_t y = 0; y < kDisplayHeight; y++) {
 
 					if ((clip->lastSelectedParamKind == Param::Kind::PATCHED
-						&& patchedParamShortcutsForAutomation[x][y] == clip->lastSelectedParamID)
-						|| (clip->lastSelectedParamKind == Param::Kind::UNPATCHED
-							&& unpatchedParamShortcutsForAutomation[x][y] == clip->lastSelectedParamID)
-						|| (clip->lastSelectedParamKind == Param::Kind::GLOBAL_EFFECTABLE
-							&& globalEffectableParamShortcutsForAutomation[x][y] == clip->lastSelectedParamID)) {
+					     && patchedParamShortcutsForAutomation[x][y] == clip->lastSelectedParamID)
+					    || (clip->lastSelectedParamKind == Param::Kind::UNPATCHED
+					        && unpatchedParamShortcutsForAutomation[x][y] == clip->lastSelectedParamID)
+					    || (clip->lastSelectedParamKind == Param::Kind::GLOBAL_EFFECTABLE
+					        && globalEffectableParamShortcutsForAutomation[x][y] == clip->lastSelectedParamID)) {
 						clip->lastSelectedParamShortcutX = x;
 						clip->lastSelectedParamShortcutY = y;
 
