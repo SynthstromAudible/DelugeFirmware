@@ -74,7 +74,12 @@ Here is a list of features that have been added to the firmware as a list, group
 	 - Compared to rows layout overdub recording and copying clips to arranger is currently not supported
 	 - Every track (column) has a random generated color that can be changed in edit mode (see below)
 	 - Launched clips are full color, unlaunched dimmed and during soloing all non soloed clips are greyed out
-	 - A new menu to select the default Layout has been added in Shift+Selection Encoder -> Defaults -> UI -> Song -> Layout
+	 - New default settings that can be reached with Shift+Selection Encoder -> Defaults -> UI -> Song
+		- Layout: Select the default layout for all new songs
+		- Grid
+			- Default active mode: "Selection" allows changing the mode as described below, all other settings will always make mode snap back to the configured one (default Selection)
+			- Select in green mode: Enabling this will make allow holding clips in green (launch) mode to change their parameters like in blue mode, tradeoff is arming is executed on finger up (default on)
+			- Empty pad unarm: Enabling will make pressing empty pads in a track unarm all playing tracks in that track (default off)
 	 - There are different interaction modes that change how the grid behaves
 		- The mode can be changed by clicking on one of the colored pads in the Audition/Section column on the right
 		- To permanently switch the mode click on a pad and release, to temporarily switch hold the mode pad and use the grid, the mode will snap back to the current permanent one
