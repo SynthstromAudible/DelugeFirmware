@@ -810,21 +810,27 @@ DisplayParameterValue
 DisplayParameterName */
 
 void AutomationInstrumentClipView::renderDisplay(int32_t knobPosLeft, int32_t knobPosRight, bool modEncoderAction) {
-	//OLED Display
-	if (display->haveOLED()) {
-		renderDisplayOLED(knobPosLeft, knobPosRight);
-	}
-	//7SEG Display
-	else {
-		renderDisplay7SEG(knobPosLeft, modEncoderAction);
-	}
-}
-
-void AutomationInstrumentClipView::renderDisplayOLED(int32_t knobPosLeft, int32_t knobPosRight) {
-
 	InstrumentClip* clip = getCurrentClip();
 	Instrument* instrument = (Instrument*)clip->output;
 
+	//if you're not in a MIDI instrument clip, convert the knobPos to the same range as the menu (0-50)
+	if (instrument->type != InstrumentType::MIDI_OUT) {
+		knobPosLeft = calculateKnobPosForDisplay(clip, knobPosLeft);
+		knobPosRight = calculateKnobPosForDisplay(clip, knobPosRight);
+	}
+
+	//OLED Display
+	if (display->haveOLED()) {
+		renderDisplayOLED(clip, instrument, knobPosLeft, knobPosRight);
+	}
+	//7SEG Display
+	else {
+		renderDisplay7SEG(clip, instrument, knobPosLeft, modEncoderAction);
+	}
+}
+
+void AutomationInstrumentClipView::renderDisplayOLED(InstrumentClip* clip, Instrument* instrument, int32_t knobPosLeft,
+                                                     int32_t knobPosRight) {
 	deluge::hid::display::OLED::clearMainImage();
 
 	if (isOnAutomationOverview() || (instrument->type == InstrumentType::CV)) {
@@ -852,7 +858,7 @@ void AutomationInstrumentClipView::renderDisplayOLED(int32_t knobPosLeft, int32_
 	else if (instrument->type != InstrumentType::CV) {
 		//display parameter name
 		char parameterName[30];
-		getParameterName(parameterName);
+		getParameterName(clip, instrument, parameterName);
 
 #if OLED_MAIN_HEIGHT_PIXELS == 64
 		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
@@ -917,11 +923,8 @@ void AutomationInstrumentClipView::renderDisplayOLED(int32_t knobPosLeft, int32_
 	deluge::hid::display::OLED::sendMainImage();
 }
 
-void AutomationInstrumentClipView::renderDisplay7SEG(int32_t knobPosLeft, bool modEncoderAction) {
-
-	InstrumentClip* clip = getCurrentClip();
-	Instrument* instrument = (Instrument*)clip->output;
-
+void AutomationInstrumentClipView::renderDisplay7SEG(InstrumentClip* clip, Instrument* instrument, int32_t knobPosLeft,
+                                                     bool modEncoderAction) {
 	//display OVERVIEW or CANT
 	if (isOnAutomationOverview() || (instrument->type == InstrumentType::CV)) {
 		if (instrument->type != InstrumentType::CV) {
@@ -962,18 +965,14 @@ void AutomationInstrumentClipView::renderDisplay7SEG(int32_t knobPosLeft, bool m
 		//display parameter name
 		else {
 			char parameterName[30];
-			getParameterName(parameterName);
+			getParameterName(clip, instrument, parameterName);
 			display->setScrollingText(parameterName);
 		}
 	}
 }
 
 //get's the name of the Parameter being edited so it can be displayed on the screen
-void AutomationInstrumentClipView::getParameterName(char* parameterName) {
-
-	InstrumentClip* clip = getCurrentClip();
-	Instrument* instrument = (Instrument*)clip->output;
-
+void AutomationInstrumentClipView::getParameterName(InstrumentClip* clip, Instrument* instrument, char* parameterName) {
 	if (instrument->type == InstrumentType::SYNTH || instrument->type == InstrumentType::KIT) {
 		if (clip->lastSelectedParamKind == Param::Kind::PATCHED) {
 			strncpy(parameterName, getPatchedParamDisplayName(clip->lastSelectedParamID), 29);
@@ -1015,6 +1014,20 @@ void AutomationInstrumentClipView::getParameterName(char* parameterName) {
 			}
 		}
 	}
+}
+
+//for non-MIDI instruments, convert deluge internal knobPos range to same range as used by menu's.
+int32_t AutomationInstrumentClipView::calculateKnobPosForDisplay(InstrumentClip* clip, int32_t knobPos) {
+	int32_t offset = 0;
+
+	//if the parameter is pan, convert knobPos from 0 - 50 to -25 to +25
+	if ((clip->lastSelectedParamID == Param::Local::PAN)
+	    || (clip->lastSelectedParamID == Param::Unpatched::GlobalEffectable::PAN)) {
+		offset = kMaxMenuPanValue;
+	}
+
+	//convert knobPos from 0 - 128 to 0 - 50
+	return (((((knobPos << 20) / kMaxKnobPos) * kMaxMenuValue) >> 20) - offset);
 }
 
 //adjust the LED meters and update the display
@@ -2416,6 +2429,15 @@ bool AutomationInstrumentClipView::modEncoderActionForSelectedPad(int32_t whichM
 
 			int32_t newKnobPos = calculateKnobPosForModEncoderTurn(knobPos, offset);
 
+			//ignore modEncoderTurn for Midi CC if current or new knobPos exceeds 127
+			//if current knobPos exceeds 127, e.g. it's 128, then it needs to drop to 126 before a value change gets recorded
+			//if newKnobPos exceeds 127, then it means current knobPos was 127 and it was increased to 128. In which case, ignore value change
+			if (clip->output->type == InstrumentType::MIDI_OUT) {
+				if ((knobPos == 64) || (newKnobPos == 64)) {
+					return true;
+				}
+			}
+
 			//use default interpolation settings
 			initInterpolation();
 
@@ -2453,6 +2475,15 @@ void AutomationInstrumentClipView::modEncoderActionForUnselectedPad(int32_t whic
 			int32_t knobPos = getParameterKnobPos(modelStackWithParam, view.modPos);
 
 			int32_t newKnobPos = calculateKnobPosForModEncoderTurn(knobPos, offset);
+
+			//ignore modEncoderTurn for Midi CC if current or new knobPos exceeds 127
+			//if current knobPos exceeds 127, e.g. it's 128, then it needs to drop to 126 before a value change gets recorded
+			//if newKnobPos exceeds 127, then it means current knobPos was 127 and it was increased to 128. In which case, ignore value change
+			if (clip->output->type == InstrumentType::MIDI_OUT) {
+				if ((knobPos == 64) || (newKnobPos == 64)) {
+					return;
+				}
+			}
 
 			int32_t newValue =
 			    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
@@ -2686,7 +2717,13 @@ void AutomationInstrumentClipView::selectEncoderAction(int8_t offset) {
 	InstrumentClip* clip = getCurrentClip();
 	Instrument* instrument = (Instrument*)clip->output;
 
-	if (instrument->type == InstrumentType::SYNTH || instrument->type == InstrumentType::KIT) {
+	//if you've selected a mod encoder (e.g. by pressing modEncoderButton) and you're in Automation Overview
+	//the currentUIMode will change to Selecting Midi CC. In this case, turning select encoder should allow
+	//you to change the midi CC assignment to that modEncoder
+	if (currentUIMode == UI_MODE_SELECTING_MIDI_CC) {
+		InstrumentClipMinder::selectEncoderAction(offset);
+	}
+	else if (instrument->type == InstrumentType::SYNTH || instrument->type == InstrumentType::KIT) {
 
 		//if you're a kit with affect entire enabled
 		if (instrument->type == InstrumentType::KIT && instrumentClipView.getAffectEntire()) {
@@ -3301,7 +3338,7 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 				//use default interpolation settings
 				initInterpolation();
 
-				int32_t newKnobPos = calculateKnobPosForSinglePadPress(yDisplay);
+				int32_t newKnobPos = calculateKnobPosForSinglePadPress(instrument, yDisplay);
 				setParameterAutomationValue(modelStackWithParam, newKnobPos, squareStart, xDisplay, effectiveLength);
 			}
 		}
@@ -3311,7 +3348,7 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 }
 
 //calculates what the new parameter value is when you press a single pad
-int32_t AutomationInstrumentClipView::calculateKnobPosForSinglePadPress(int32_t yDisplay) {
+int32_t AutomationInstrumentClipView::calculateKnobPosForSinglePadPress(Instrument* instrument, int32_t yDisplay) {
 
 	int32_t newKnobPos = 0;
 
@@ -3321,7 +3358,13 @@ int32_t AutomationInstrumentClipView::calculateKnobPosForSinglePadPress(int32_t 
 	}
 	//if you are pressing the top pad, set the value to max (128)
 	else {
-		newKnobPos = kMaxKnobPos;
+		//for Midi Clips, maxKnobPos = 127
+		if (instrument->type == InstrumentType::MIDI_OUT) {
+			newKnobPos = kMaxKnobPos - 1; //128 - 1 = 127
+		}
+		else {
+			newKnobPos = kMaxKnobPos;
+		}
 	}
 
 	//in the deluge knob positions are stored in the range of -64 to + 64, so need to adjust newKnobPos set above.
@@ -3361,8 +3404,8 @@ void AutomationInstrumentClipView::handleMultiPadPress(ModelStackWithTimelineCou
 
 			//otherwise if it's a regular long press, calculate values from the y position of the pads pressed
 			else {
-				firstPadValue = calculateKnobPosForSinglePadPress(firstPadY) + kKnobPosOffset;
-				secondPadValue = calculateKnobPosForSinglePadPress(secondPadY) + kKnobPosOffset;
+				firstPadValue = calculateKnobPosForSinglePadPress(instrument, firstPadY) + kKnobPosOffset;
+				secondPadValue = calculateKnobPosForSinglePadPress(instrument, secondPadY) + kKnobPosOffset;
 			}
 
 			//converting variables to float for more accurate interpolation calculation

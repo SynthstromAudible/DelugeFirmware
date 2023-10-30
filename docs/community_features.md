@@ -38,6 +38,12 @@ Here is a list of general improvements that have been made, ordered from newest 
 #### 3.7 - Mod Wheel
 - ([#512]) Incoming mod wheel on non-MPE synths now maps to y axis
 
+#### 3.8 - Visual Feedback on Value Changes with Mod Encoders and Increased Resolution for Value's in Menu's
+- ([#636]) Changing parameter values with Mod (Gold) Encoders now displays a pop-up with the current value of the Parameter. The Menu's for Parameters and Patch Cables have also been adjusted to show the same value range as displayed with the Mod Encoders.
+	- This allows for better fine-tuning of values. 
+	- The value range displayed is 0-50 for non-MIDI parameters and 0-127 for MIDI parameters.
+	- Note: In the Menu, if you wish to scroll through the parameter value range faster at an accelerated rate of +/- 5, hold Shift while turning the Select Encoder.
+
 ## 4. New Features Added
 
 Here is a list of features that have been added to the firmware as a list, grouped by category:
@@ -57,7 +63,6 @@ Here is a list of features that have been added to the firmware as a list, group
  - ([#196]) Holding the status pad (mute pad) for a clip and pressing select brings up a clip type selection menu. The options are:
     - Default (DEFA) - the default Deluge clip type.
 	- Fill (FILL) - Fill clip. It appears orange/cyan on the status pads, and when triggered it will schedule itself to start at such a time that it _finishes_ at the start of the next loop. If the fill clip is longer than the remaining time, it is triggered immediately at a point midway through. The loop length is set by the longest playing clip, or by the total length of a section times the repeat count set for that section. **Limitation**: a fill clip is still subject to the one clip per instrument behavior of the Deluge. Fill clips can steal an output from another fill, but they cannot steal from a non-fill. This can lead to some fills never starting since a default type clip has the needed instrument. This can be worked around by cloning the instrument to an independent copy.
-
 
 #### 4.1.4 - Catch Notes
 
@@ -202,6 +207,7 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
  - Follow-up PR's: 
 	- ([#347]) Added new automatable parameters
  	- ([#360]) Fixed interpolation bugs, added fine tuning for long presses, and added pad selection mode
+	- ([#636]) Updated Parameter Values displayed in Automation View to match Parameter Value Ranges displayed in the Menu's. E.g. instead of 0 - 128, it now displays 0 - 50 (except for Pan which now displays -25 to +25 and MIDI instrument clips which now display 0 - 127).
 
 #### 4.3.6 - Set Probability By Row
 
@@ -395,4 +401,5 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#368]: https://github.com/SynthstromAudible/DelugeFirmware/pull/368
 [#395]: https://github.com/SynthstromAudible/DelugeFirmware/pull/395
 [#512]: https://github.com/SynthstromAudible/DelugeFirmware/pull/512
+[#636]: https://github.com/SynthstromAudible/DelugeFirmware/pull/636
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
