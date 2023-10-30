@@ -737,6 +737,13 @@ enum class ModFXParam {
 	FEEDBACK,
 	OFFSET,
 };
+
+enum class CompParam {
+	RATIO,
+	ATTACK,
+	RELEASE,
+};
+
 constexpr auto kNumModFXParams = util::to_underlying(ModFXParam::OFFSET) + 1;
 
 enum class PatchCableAcceptance {
