@@ -55,14 +55,17 @@ public:
 	void setupDelayWorkingState(DelayWorkingState* delayWorkingState, ParamManager* paramManager,
 	                            bool shouldLimitDelayFeedback = false);
 	bool isEditingComp() override { return editingComp; }
+	int32_t getKnobPosForNonExistentParam(int32_t whichModEncoder, ModelStackWithAutoParam* modelStack) override;
 	ActionResult modEncoderActionForNonExistentParam(int32_t offset, int32_t whichModEncoder,
 	                                                 ModelStackWithAutoParam* modelStack) override;
 	dsp::filter::FilterSet filterSet;
 	ModFXParam currentModFXParam;
 	FilterType currentFilterType;
 	bool editingComp;
+	CompParam currentCompParam;
 
 protected:
+	int maxCompParam = 0;
 	virtual int32_t getParameterFromKnob(int32_t whichModEncoder);
 	ModFXType getActiveModFXType(ParamManager* paramManager);
 

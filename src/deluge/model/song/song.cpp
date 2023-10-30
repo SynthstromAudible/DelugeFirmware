@@ -138,7 +138,7 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 
 	masterCompressorAttack = attackRateTable[2] << 2;
 	masterCompressorRelease = releaseRateTable[5] << 2;
-	masterCompressorThresh = ONE_Q31;
+	masterCompressorThresh = 0;
 	masterCompressorRatio = ONE_Q31 >> 1;
 	AudioEngine::mastercompressor.gainReduction = 0.0;
 
