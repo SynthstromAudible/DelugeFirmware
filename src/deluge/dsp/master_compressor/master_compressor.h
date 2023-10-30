@@ -37,6 +37,8 @@ public:
 	float calc_rms(StereoSample* buffer, uint16_t numSamples);
 	uint8_t gainReduction;
 	bool dither;
+	q31_t rawRatio;
+	q31_t rawThreshold;
 	q31_t threshold;
 	q31_t shape;
 	q31_t ratio;

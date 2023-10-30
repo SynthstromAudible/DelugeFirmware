@@ -38,7 +38,8 @@
 #define TIMER_OLED_CONSOLE 16
 #define TIMER_OLED_SCROLLING_AND_BLINKING 17
 #define TIMER_SYSEX_DISPLAY 18
-#define NUM_TIMERS 19
+#define TIMER_METER_INDICATOR_BLINK 19
+#define NUM_TIMERS 20
 
 struct Timer {
 	bool active;
