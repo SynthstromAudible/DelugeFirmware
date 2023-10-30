@@ -32,6 +32,7 @@ MasterCompressor::MasterCompressor() {
 	shape = getParamFromUserValue(Param::Unpatched::COMPRESSOR_SHAPE, 1);
 	//an appropriate range is 0-50*one q 15
 	threshold = ONE_Q31;
+	rawThreshold = 0;
 	follower = true;
 	//this is about a 1:1 ratio
 	ratio = ONE_Q31 >> 1;
@@ -111,7 +112,7 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t v
 	} while (++thisSample != bufferEnd);
 	//for LEDs
 	//9 converts to dB, quadrupled for display range since a 30db reduction is basically killing the signal
-	gainReduction = std::clamp<int32_t>(-(reduction) * 9 * 4, 0, 127);
+	gainReduction = std::clamp<int32_t>(-(reduction)*9 * 4, 0, 127);
 	//calc compression for next round (feedback compressor)
 	meanVolume = calc_rms(buffer, numSamples);
 }
