@@ -150,6 +150,8 @@ SECTIONS
 	/* ALIGN(0x20) is only necessary for v0 bootloaders */
   	.reset : ALIGN(0x20) /* 0x10 isn't enough. Not sure why any of this is necessary though. */
 	{
+        PROVIDE(program_code_start = .);
+
 		execute = .;
 		*start.S.obj (.text)
 		*start.S.obj (.rodata)
@@ -180,6 +182,8 @@ SECTIONS
 
 		_etext = .;
 		address_end_reset = .;
+
+        PROVIDE(program_code_end = .);
 	} > RAM012L
 	
 	.rodata :

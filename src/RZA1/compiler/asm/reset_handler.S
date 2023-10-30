@@ -234,18 +234,17 @@ Finished:
 /* Other Handler                                                             */
 /* ========================================================================= */
 undefined_handler:
-    B    undefined_handler
-
 svc_handler:
-    B    svc_handler
-
-prefetch_handler:
-    B    prefetch_handler
-
 abort_handler:
-    B    abort_handler
-
+prefetch_handler:
 reserved_handler:
-    B    reserved_handler
+    CPSID   i                   /* Disable interrupt handling to preserve stack */
+    MOV     r0, LR              /* Store SYS LR value as first function parameter */
+    MOV     r1, SP              /* Store SYS SP value as second function parameter */
+    CPS  #USR_MODE              /* Switch into user mode to get those register values */
+    MOV     r2, LR              /* Store USR LR value as third function parameter */
+    MOV     r3, SP              /* Store USR SP value as fourth function parameter */
+    CPS  #SYS_MODE              /* Go back to SYS mode */
+    LDR  r12,=handle_cpu_fault  /* Load address of handle_cpu_fault */
+    BX   r12                    /* Jump to handle_cpu_fault without link */
 .end
-
