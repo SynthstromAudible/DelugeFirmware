@@ -79,7 +79,7 @@ void PatchCables::renderOptions() {
 		}
 
 		int32_t param_value = cable->param.getCurrentValue();
-		int32_t level = ((int64_t)param_value * 5000 + (1 << 29)) >> 30;
+		int32_t level = ((int64_t)param_value * kMaxMenuPatchCableValue + (1 << 29)) >> 30;
 
 		floatToString((float)level / 100, buf + off + 5, 2, 2);
 		//fmt::vformat_to_n(buf + off + 5, 5, "{:4}", fmt::make_format_args();

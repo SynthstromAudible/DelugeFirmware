@@ -19,21 +19,21 @@
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "gui/menu_item/selection.h"
-#include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
 #include "storage/flash_storage.h"
 #include "util/misc.h"
 
 namespace deluge::gui::menu_item::defaults {
-class SessionLayout final : public Selection {
+class DefaultGridDefaultActiveMode final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->setValue(FlashStorage::defaultSessionLayout); }
-	void writeCurrentValue() override { FlashStorage::defaultSessionLayout = this->getValue<SessionLayoutType>(); }
+	void readCurrentValue() override { this->setValue(FlashStorage::defaultGridActiveMode); }
+	void writeCurrentValue() override { FlashStorage::defaultGridActiveMode = this->getValue<GridDefaultActiveMode>(); }
 	std::vector<std::string_view> getOptions() override {
 		return {
-		    l10n::getView(l10n::String::STRING_FOR_DEFAULT_UI_SONG_LAYOUT_ROWS),
-		    l10n::getView(l10n::String::STRING_FOR_DEFAULT_UI_GRID),
+		    l10n::getView(l10n::String::STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ACTIVE_MODE_SELECTION),
+		    l10n::getView(l10n::String::STRING_FOR_GREEN),
+		    l10n::getView(l10n::String::STRING_FOR_BLUE),
 		};
 	}
 };
