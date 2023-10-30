@@ -27,6 +27,9 @@
 #include "gui/menu_item/cv/volts.h"
 #include "gui/menu_item/decimal.h"
 #include "gui/menu_item/defaults/bend_range.h"
+#include "gui/menu_item/defaults/grid_allow_green_selection.h"
+#include "gui/menu_item/defaults/grid_default_active_mode.h"
+#include "gui/menu_item/defaults/grid_unarm_empty_pads.h"
 #include "gui/menu_item/defaults/keyboard_layout.h"
 #include "gui/menu_item/defaults/magnitude.h"
 #include "gui/menu_item/defaults/scale.h"
@@ -821,10 +824,21 @@ Submenu defaultUIKeyboard{
     {&defaultKeyboardLayoutMenu},
 };
 
+defaults::DefaultGridDefaultActiveMode defaultGridDefaultActiveMode{STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ACTIVE_MODE,
+                                                                    STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ACTIVE_MODE};
+defaults::DefaultGridAllowGreenSelection defaultGridAllowGreenSelection{
+    STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ALLOW_GREEN_SELECTION, STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ALLOW_GREEN_SELECTION};
+defaults::DefaultGridUnarmEmptyPads defaultGridUnarmEmptyPads{STRING_FOR_DEFAULT_UI_DEFAULT_GRID_UNARM_EMPTY_PADS,
+                                                              STRING_FOR_DEFAULT_UI_DEFAULT_GRID_UNARM_EMPTY_PADS};
+Submenu defaultSessionGridMenu{
+    STRING_FOR_DEFAULT_UI_GRID,
+    {&defaultGridDefaultActiveMode, &defaultGridAllowGreenSelection, &defaultGridUnarmEmptyPads},
+};
+
 defaults::SessionLayout defaultSessionLayoutMenu{STRING_FOR_DEFAULT_UI_LAYOUT, STRING_FOR_DEFAULT_UI_LAYOUT};
 Submenu defaultUISession{
     STRING_FOR_DEFAULT_UI_SONG,
-    {&defaultSessionLayoutMenu},
+    {&defaultSessionLayoutMenu, &defaultSessionGridMenu},
 };
 
 Submenu defaultUI{

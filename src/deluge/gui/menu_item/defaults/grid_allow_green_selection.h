@@ -15,18 +15,13 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "dsp/reverb/freeverb/revmodel.hpp"
-#include "gui/menu_item/integer.h"
-#include "gui/ui/sound_editor.h"
-#include "processing/engines/audio_engine.h"
-#include <cmath>
+#include "gui/menu_item/toggle.h"
 
-namespace deluge::gui::menu_item::reverb {
-class RoomSize final : public Integer {
+namespace deluge::gui::menu_item::defaults {
+class DefaultGridAllowGreenSelection final : public Toggle {
 public:
-	using Integer::Integer;
-	void readCurrentValue() override { this->setValue(std::round(AudioEngine::reverb.getroomsize() * kMaxMenuValue)); }
-	void writeCurrentValue() override { AudioEngine::reverb.setroomsize((float)this->getValue() / kMaxMenuValue); }
-	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
+	using Toggle::Toggle;
+	void readCurrentValue() override { this->setValue(FlashStorage::gridAllowGreenSelection); }
+	void writeCurrentValue() override { FlashStorage::gridAllowGreenSelection = this->getValue(); }
 };
-} // namespace deluge::gui::menu_item::reverb
+} // namespace deluge::gui::menu_item::defaults

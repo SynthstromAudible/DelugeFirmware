@@ -553,21 +553,6 @@ void ExpressionParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam co
 
 // Displays text number. This will only actually end up getting used/seen on MIDI Clips, at channel/Clip level - not MPE/polyphonic.
 int32_t ExpressionParamSet::knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) {
-
-	if (getCurrentUI()
-	    != &automationInstrumentClipView) { //let the automation instrument clip view handle the drawing of midi cc value
-		char buffer[5];
-		int32_t valueForDisplay = knobPos;
-		if (modelStack->paramId == 2) { // Just for aftertouch
-			valueForDisplay += 64;
-			if (valueForDisplay == 128) {
-				valueForDisplay = 127;
-			}
-		}
-		intToString(valueForDisplay, buffer);
-		display->displayPopup(buffer, 3, true);
-	}
-
 	// Everything but aftertouch gets handled by parent from here
 	if (modelStack->paramId != 2) {
 		return ParamSet::knobPosToParamValue(knobPos, modelStack);
