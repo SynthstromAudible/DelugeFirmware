@@ -332,14 +332,16 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 	if (*getModKnobMode() == 4) {
 		int current;
 		int displayLevel;
+		int ledLevel;
 		//this is only reachable in comp editing mode, otherwise it's an existent param
 		if (whichModEncoder == 1) { //sidechain (threshold)
 			current = (AudioEngine::mastercompressor.rawThreshold >> 24) - 64;
 			current += offset;
 			current = std::clamp(current, -64, 64);
-			displayLevel = ((64 + current) * 50) / 128;
+			ledLevel = (64 + current);
+			displayLevel = ((ledLevel)*kMaxMenuValue) / 128;
 			AudioEngine::mastercompressor.rawThreshold = lshiftAndSaturate<24>(current + 64);
-			indicator_leds::setKnobIndicatorLevel(1, displayLevel);
+			indicator_leds::setKnobIndicatorLevel(1, ledLevel);
 		}
 		else if (whichModEncoder == 0) {
 			switch (currentCompParam) {
@@ -349,7 +351,8 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				current += offset;
 				//this range is ratio of 2 to 20
 				current = std::clamp(current, -64, 64);
-				displayLevel = ((current + 64) * 50) / 128;
+				ledLevel = (64 + current);
+				displayLevel = ((ledLevel)*kMaxMenuValue) / 128;
 
 				AudioEngine::mastercompressor.rawRatio = lshiftAndSaturate<24>(current + 64);
 				break;
@@ -359,6 +362,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				current += offset;
 				current = std::clamp(current, 1, 50);
 				displayLevel = current;
+				ledLevel = (displayLevel * 128) / 50;
 
 				AudioEngine::mastercompressor.attack = attackRateTable[current] << 2;
 				break;
@@ -369,12 +373,13 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				current += offset;
 				current = std::clamp(current, 0, 50);
 				displayLevel = current;
+				ledLevel = (displayLevel * 128) / 50;
 
 				AudioEngine::mastercompressor.release = releaseRateTable[current];
 
 				break;
 			}
-			indicator_leds::setKnobIndicatorLevel(0, displayLevel);
+			indicator_leds::setKnobIndicatorLevel(0, ledLevel);
 		}
 		char buffer[5];
 		intToString(displayLevel, buffer);
