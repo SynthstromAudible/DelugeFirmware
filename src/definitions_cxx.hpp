@@ -356,7 +356,23 @@ constexpr int32_t kNumPatchSources = static_cast<int32_t>(kLastPatchSource);
 constexpr PatchSource kFirstLocalSource = PatchSource::ENVELOPE_0;
 //constexpr PatchSource kFirstUnchangeableSource = PatchSource::VELOCITY;
 
-//Automation Instrument Clip View constants
+//Menu Min Max Values
+
+//regular menu range e.g. 0 - 50
+constexpr int32_t kMaxMenuValue = 50;
+constexpr int32_t kMinMenuValue = 0;
+constexpr int32_t kMidMenuValue = kMinMenuValue + ((kMaxMenuValue - kMinMenuValue) / 2);
+
+//pan menu range e.g. -25 to +25
+constexpr int32_t kMaxMenuPanValue = kMaxMenuValue / 2;
+constexpr int32_t kMinMenuPanValue = -1 * kMaxMenuPanValue;
+
+//patch cable menu range e.g. -5000 to 5000
+constexpr int32_t kMaxMenuPatchCableValue = kMaxMenuValue * 100;
+constexpr int32_t kMinMenuPatchCableValue = -1 * kMaxMenuPatchCableValue;
+//
+
+//Automation View constants
 constexpr int32_t kNoSelection = 255;
 constexpr int32_t kNumNonKitAffectEntireParamsForAutomation = 55;
 constexpr int32_t kNumKitAffectEntireParamsForAutomation = 24;
@@ -1089,4 +1105,11 @@ enum SessionLayoutType : uint8_t {
 	SessionLayoutTypeRows,
 	SessionLayoutTypeGrid,
 	SessionLayoutTypeMaxElement // Keep as boundary
+};
+
+enum GridDefaultActiveMode : uint8_t {
+	GridDefaultActiveModeSelection,
+	GridDefaultActiveModeGreen,
+	GridDefaultActiveModeBlue,
+	GridDefaultActiveModeMaxElement // Keep as boundary
 };

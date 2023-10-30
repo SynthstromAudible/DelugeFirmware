@@ -112,7 +112,7 @@ void PatchCableStrength::renderOLED() {
 
 	char buffer[12];
 	if (preferBarDrawing) {
-		int32_t rounded = (this->getValue() + 50 * (this->getValue() > 0 ? 1 : -1)) / 100;
+		int32_t rounded = this->getValue() / 100;
 		intToString(rounded, buffer, 1);
 		deluge::hid::display::OLED::drawStringAlignRight(
 		    buffer, extraY + OLED_MAIN_TOPMOST_PIXEL + 4 + destinationDescriptor.isJustAParam(),
@@ -152,7 +152,7 @@ void PatchCableStrength::readCurrentValue() {
 		int32_t paramValue = patchCableSet->patchCables[c].param.getCurrentValue();
 		// the internal values are stored in the range -(2^30) to 2^30.
 		// rescale them to the range -5000 to 5000 and round to nearest.
-		this->setValue(((int64_t)paramValue * 5000 + (1 << 29)) >> 30);
+		this->setValue(((int64_t)paramValue * kMaxMenuPatchCableValue + (1 << 29)) >> 30);
 	}
 }
 
@@ -175,8 +175,9 @@ void PatchCableStrength::writeCurrentValue() {
 		return;
 	}
 
-	// rescale from 5000 to 2**30. The magic constant is ((2^30)/5000), shifted 32 bits for precision ((1<<(30+32))/5000)
-	int32_t finalValue = ((int64_t)922337203685477 * this->getValue()) >> 32;
+	//rescale from 5000 to 2^30. The magic constant is ((2^30)/5000), shifted 32 bits for precision ((1<<(30+32))/5000)
+	int64_t magicConstant = (922337203685477 * 5000) / kMaxMenuPatchCableValue;
+	int32_t finalValue = (magicConstant * this->getValue()) >> 32;
 	modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
 }
 
