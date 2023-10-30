@@ -51,8 +51,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "definitions.h"
 #include "RZA1/uart/sio_char.h"
+#include "definitions.h"
 #include "drivers/uart/uart.h"
 
 extern uint32_t program_stack_start;
@@ -69,14 +69,14 @@ extern uint32_t program_code_end;
 }
 
 [[gnu::always_inline]] inline void sendColor(uint8_t r, uint8_t g, uint8_t b) {
-		sendToPIC(r);
-		sendToPIC(g);
-		sendToPIC(b);
+	sendToPIC(r);
+	sendToPIC(g);
+	sendToPIC(b);
 }
 
 [[gnu::always_inline]] inline void drawByte(uint8_t byte, uint8_t r, uint8_t g, uint8_t b) {
 	for (int32_t idxBit = 7; idxBit >= 0; --idxBit) {
-		if(((byte >> idxBit) & 0x01) == 0x01) {
+		if (((byte >> idxBit) & 0x01) == 0x01) {
 			sendColor(r, g, b);
 		}
 		else {
@@ -86,7 +86,8 @@ extern uint32_t program_code_end;
 }
 
 // Requires 32 pads so two double cloumns
-[[gnu::always_inline]] inline int32_t drawPointer(uint32_t idxColumnPairStart, uint32_t pointerValue, uint8_t r, uint8_t g, uint8_t b) {
+[[gnu::always_inline]] inline int32_t drawPointer(uint32_t idxColumnPairStart, uint32_t pointerValue, uint8_t r,
+                                                  uint8_t g, uint8_t b) {
 	sendToPIC(1 + idxColumnPairStart);
 	++idxColumnPairStart;
 
@@ -103,62 +104,66 @@ extern uint32_t program_code_end;
 }
 
 [[gnu::always_inline]] inline bool isStackPointer(uint32_t value) {
-	if(value >= (uint32_t)&program_stack_start && value < (uint32_t)&program_stack_end) {
+	if (value >= (uint32_t)&program_stack_start && value < (uint32_t)&program_stack_end) {
 		return true;
 	}
 
 	return false;
 }
-
 
 [[gnu::always_inline]] inline bool isCodePointer(uint32_t value) {
-	if(value >= (uint32_t)&program_code_start && value < (uint32_t)&program_code_end) {
+	if (value >= (uint32_t)&program_code_start && value < (uint32_t)&program_code_end) {
 		return true;
 	}
 
 	return false;
 }
-
 
 void handle_cpu_fault(uint32_t addrSYSLR, uint32_t addrSYSSP, uint32_t addrUSRLR, uint32_t addrUSRSP) {
 	uint32_t currentColumnPairIndex = 0;
 
 	// Print LR from USR mode if it is valid
-	if(isCodePointer(addrUSRLR)) {
+	if (isCodePointer(addrUSRLR)) {
 		currentColumnPairIndex = drawPointer(currentColumnPairIndex, addrUSRLR, 255, 0, 255);
 	}
 
 	// Print LR from SYS mode if it is valid and different from USR mode
-	if(isCodePointer(addrSYSLR) && addrSYSLR != addrUSRLR) {
+	if (isCodePointer(addrSYSLR) && addrSYSLR != addrUSRLR) {
 		currentColumnPairIndex = drawPointer(currentColumnPairIndex, addrSYSLR, 0, 0, 255);
 	}
 
 	// Check if any stack pointer is valid preferring USR pointer
 	uint32_t stackPointer = 0;
-	if(isStackPointer(addrUSRSP)) {
+	if (isStackPointer(addrUSRSP)) {
 		stackPointer = addrUSRSP;
-	} else if(isStackPointer(addrSYSSP)) {
+	}
+	else if (isStackPointer(addrSYSSP)) {
 		stackPointer = addrSYSSP;
 	}
 
-	if(stackPointer != 0x00000000) {
+	if (stackPointer != 0x00000000) {
 		uint8_t currentBlueValue = 0;
 		uint32_t lastCodePointer = 0;
 		stackPointer = stackPointer - (stackPointer % 4); // Align to 4 bytes
-		while(stackPointer >= (uint32_t)&program_stack_start) {
+		while (stackPointer >= (uint32_t)&program_stack_start) {
 			uint32_t stackValue = *((uint32_t*)stackPointer);
 			// Print any pointer that is pointing to code, different from the LRs and not the same as before
-			if(isCodePointer(stackValue) && stackValue != lastCodePointer && stackValue != addrUSRLR && stackValue != addrSYSLR) {
+			if (isCodePointer(stackValue) && stackValue != lastCodePointer && stackValue != addrUSRLR
+			    && stackValue != addrSYSLR) {
 				currentColumnPairIndex = drawPointer(currentColumnPairIndex, stackValue, 0, 255, currentBlueValue);
 
 				// Stop after filling all columns
-				if(currentColumnPairIndex >= 8) {
+				if (currentColumnPairIndex >= 8) {
 					break;
 				}
 
 				// Alternate colors
-				if(currentBlueValue == 0) { currentBlueValue = 255; }
-				else if(currentBlueValue == 255) { currentBlueValue = 0; }
+				if (currentBlueValue == 0) {
+					currentBlueValue = 255;
+				}
+				else if (currentBlueValue == 255) {
+					currentBlueValue = 0;
+				}
 
 				lastCodePointer = stackValue;
 			}
@@ -168,7 +173,7 @@ void handle_cpu_fault(uint32_t addrSYSLR, uint32_t addrSYSSP, uint32_t addrUSRLR
 	}
 
 	// Clear all other pads
-	for(; currentColumnPairIndex < 8; ++currentColumnPairIndex) {
+	for (; currentColumnPairIndex < 8; ++currentColumnPairIndex) {
 		sendToPIC(1 + currentColumnPairIndex);
 
 		for (uint32_t idxColumnPairBuffer = 0; idxColumnPairBuffer < 16; ++idxColumnPairBuffer) {
@@ -181,7 +186,7 @@ void handle_cpu_fault(uint32_t addrSYSLR, uint32_t addrSYSSP, uint32_t addrUSRLR
 	bool lightActive = true;
 	for (uint32_t idxColumnPairBuffer = 0; idxColumnPairBuffer < 16; ++idxColumnPairBuffer) {
 		sendColor(lightActive ? 255 : 0, 0, 0);
-		if(idxColumnPairBuffer != 7) {
+		if (idxColumnPairBuffer != 7) {
 			lightActive = !lightActive;
 		}
 	}
