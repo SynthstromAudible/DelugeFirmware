@@ -859,22 +859,21 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 
 			// Or, if normal case - an actual param
 			else {
+				char modelStackTempMemory[MODEL_STACK_MAX_SIZE];
+				copyModelStack(modelStackTempMemory, modelStackWithParam, sizeof(ModelStackWithThreeMainThings));
+				ModelStackWithThreeMainThings* tempModelStack = (ModelStackWithThreeMainThings*)modelStackTempMemory;
+
+				InstrumentClip* clip = (InstrumentClip*)tempModelStack->getTimelineCounter();
+
 				int32_t value = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
 				int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
 				int32_t lowerLimit = std::min(-64_i32, knobPos);
 				int32_t newKnobPos = knobPos + offset;
 				newKnobPos = std::clamp(newKnobPos, lowerLimit, 64_i32);
-
 				//ignore modEncoderTurn for Midi CC if current or new knobPos exceeds 127
 				//if current knobPos exceeds 127, e.g. it's 128, then it needs to drop to 126 before a value change gets recorded
 				//if newKnobPos exceeds 127, then it means current knobPos was 127 and it was increased to 128. In which case, ignore value change
 				if ((getRootUI() == &instrumentClipView) || (getRootUI() == &automationInstrumentClipView)) {
-					char modelStackTempMemory[MODEL_STACK_MAX_SIZE];
-					copyModelStack(modelStackTempMemory, modelStackWithParam, sizeof(ModelStackWithThreeMainThings));
-					ModelStackWithThreeMainThings* tempModelStack =
-					    (ModelStackWithThreeMainThings*)modelStackTempMemory;
-
-					InstrumentClip* clip = (InstrumentClip*)tempModelStack->getTimelineCounter();
 					if (clip->output->type == InstrumentType::MIDI_OUT) {
 						if ((knobPos == 64) || (newKnobPos == 64)) {
 							return;
@@ -894,12 +893,17 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 
 					char buffer[5];
 					int32_t valueForDisplay;
-					if ((modelStackWithParam->paramId == Param::Local::PAN)
-					    || (modelStackWithParam->paramId == Param::Unpatched::GlobalEffectable::PAN)) {
-						valueForDisplay = newKnobPos;
+					if (clip->output->type == InstrumentType::MIDI_OUT) {
+						valueForDisplay = newKnobPos = kKnobPosOffset;
+					}
+					else if ((modelStackWithParam->paramId == Param::Local::PAN)
+					         || (modelStackWithParam->paramId == Param::Unpatched::GlobalEffectable::PAN)) {
+						valueForDisplay =
+						    ((((newKnobPos << 20) / (kMaxKnobPos - kKnobPosOffset)) * kMaxMenuPanValue) >> 20);
 					}
 					else {
-						valueForDisplay = newKnobPos + kKnobPosOffset;
+						valueForDisplay =
+						    (((((newKnobPos + kKnobPosOffset) << 20) / kMaxKnobPos) * kMaxMenuValue) >> 20);
 					}
 					intToString(valueForDisplay, buffer);
 					display->displayPopup(buffer);
@@ -952,11 +956,6 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 				                                                          modLength);
 
 				if (activeModControllableModelStack.timelineCounterIsSet()) {
-					char modelStackTempMemory[MODEL_STACK_MAX_SIZE];
-					copyModelStack(modelStackTempMemory, modelStackWithParam, sizeof(ModelStackWithThreeMainThings));
-					ModelStackWithThreeMainThings* tempModelStack =
-					    (ModelStackWithThreeMainThings*)modelStackTempMemory;
-
 					bool noteTailsAllowedAfter =
 					    modelStackWithParam->modControllable->allowNoteTails(tempModelStack->addSoundFlags());
 

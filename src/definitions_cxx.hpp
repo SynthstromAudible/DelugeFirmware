@@ -358,16 +358,16 @@ constexpr PatchSource kFirstLocalSource = PatchSource::ENVELOPE_0;
 
 //Menu Min Max Values
 
-//regular menu range e.g. 0 - 50 or 0 - 128
-constexpr int32_t kMaxMenuValue = 128;
+//regular menu range e.g. 0 - 50
+constexpr int32_t kMaxMenuValue = 50;
 constexpr int32_t kMinMenuValue = 0;
 constexpr int32_t kMidMenuValue = kMinMenuValue + ((kMaxMenuValue - kMinMenuValue) / 2);
 
-//pan menu range e.g. -32 to +32 or -64 to +64
+//pan menu range e.g. -25 to +25
 constexpr int32_t kMaxMenuPanValue = kMaxMenuValue / 2;
 constexpr int32_t kMinMenuPanValue = -1 * kMaxMenuPanValue;
 
-//patch cable menu range e.g. -50 to 50 or -128 to +128
+//patch cable menu range e.g. -5000 to 5000
 constexpr int32_t kMaxMenuPatchCableValue = kMaxMenuValue * 100;
 constexpr int32_t kMinMenuPatchCableValue = -1 * kMaxMenuPatchCableValue;
 //
