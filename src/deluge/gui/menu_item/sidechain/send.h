@@ -24,17 +24,17 @@ class Send final : public Integer {
 public:
 	using Integer::Integer;
 	void readCurrentValue() override {
-		this->setValue(((uint64_t)soundEditor.currentSound->sideChainSendLevel * 50 + 1073741824) >> 31);
+		this->setValue(((uint64_t)soundEditor.currentSound->sideChainSendLevel * kMaxMenuValue + 1073741824) >> 31);
 	}
 	void writeCurrentValue() override {
-		if (this->getValue() == 50) {
+		if (this->getValue() == kMaxMenuValue) {
 			soundEditor.currentSound->sideChainSendLevel = 2147483647;
 		}
 		else {
 			soundEditor.currentSound->sideChainSendLevel = this->getValue() * 42949673;
 		}
 	}
-	[[nodiscard]] int32_t getMaxValue() const override { return 50; }
+	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 	bool isRelevant(Sound* sound, int32_t whichThing) override { return (soundEditor.editingKit()); }
 };
 } // namespace deluge::gui::menu_item::sidechain

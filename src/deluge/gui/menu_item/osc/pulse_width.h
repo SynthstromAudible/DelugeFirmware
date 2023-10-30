@@ -29,11 +29,22 @@ public:
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
-	int32_t getFinalValue() override { return (uint32_t)this->getValue() * (85899345 >> 1); }
+	int32_t getFinalValue() override {
+		if (this->getValue() == kMaxMenuValue) {
+			return 2147483647;
+		}
+		else if (this->getValue() == kMinMenuValue) {
+			return 0;
+		}
+		else {
+			return (uint32_t)this->getValue() * (2147483648 / kMidMenuValue) >> 1;
+		}
+	}
 
 	void readCurrentValue() override {
 		this->setValue(
-		    ((int64_t)soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP()) * 100 + 2147483648)
+		    ((int64_t)soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP()) * (kMaxMenuValue * 2)
+		     + 2147483648)
 		    >> 32);
 	}
 
