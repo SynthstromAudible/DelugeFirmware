@@ -125,8 +125,8 @@ add_compile_options(
     -fdiagnostics-parseable-fixits
     -fsigned-char
 
-    # Debug symbols
-    $<$<CONFIG:DEBUG,RELWITHDEBINFO>:-ggdb3> # Include
+    # Debug symbols, also for release so we get a full ELF
+    $<$<CONFIG:DEBUG,RELEASE,RELWITHDEBINFO>:-ggdb3> # Include
 
     # Optimization level
     $<$<CONFIG:DEBUG>:-Og>
@@ -215,7 +215,8 @@ target_link_options(deluge PUBLIC
     LINKER:--gc-sections
     LINKER:--entry=start # Set the entrypoint to 'start' (see RZA1/compiler/asm/start.S)
 
-    $<$<CONFIG:RELEASE>:LINKER:--strip-all> # Strip
+    # Enabled to generate a full ELF, objcopy will do the stripping
+    # $<$<CONFIG:RELEASE>:LINKER:--strip-all> # Strip
     
     -nostartfiles # Don't emit startfiles
 
