@@ -337,7 +337,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 			current = (AudioEngine::mastercompressor.rawThreshold >> 24) - 64;
 			current += offset;
 			current = std::clamp(current, -64, 64);
-			displayLevel = 64 + current;
+			displayLevel = ((64 + current) * 50) / 128;
 			AudioEngine::mastercompressor.rawThreshold = lshiftAndSaturate<24>(current + 64);
 			indicator_leds::setKnobIndicatorLevel(1, displayLevel);
 		}
@@ -349,7 +349,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				current += offset;
 				//this range is ratio of 2 to 20
 				current = std::clamp(current, -64, 64);
-				displayLevel = current + 64;
+				displayLevel = ((current + 64) * 50) / 128;
 
 				AudioEngine::mastercompressor.rawRatio = lshiftAndSaturate<24>(current + 64);
 				break;
@@ -358,7 +358,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				current = getLookupIndexFromValue(AudioEngine::mastercompressor.attack >> 2, attackRateTable, 50);
 				current += offset;
 				current = std::clamp(current, 1, 50);
-				displayLevel = (current * 128) / 50;
+				displayLevel = current;
 
 				AudioEngine::mastercompressor.attack = attackRateTable[current] << 2;
 				break;
@@ -368,7 +368,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				current = getLookupIndexFromValue(AudioEngine::mastercompressor.release, releaseRateTable, 50);
 				current += offset;
 				current = std::clamp(current, 0, 50);
-				displayLevel = (current * 128) / 50;
+				displayLevel = current;
 
 				AudioEngine::mastercompressor.release = releaseRateTable[current];
 
