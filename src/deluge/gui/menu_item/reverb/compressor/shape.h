@@ -26,13 +26,13 @@ class Shape final : public Integer {
 public:
 	using Integer::Integer;
 	void readCurrentValue() override {
-		this->setValue((((int64_t)AudioEngine::reverbCompressorShape + 2147483648) * 50 + 2147483648) >> 32);
+		this->setValue((((int64_t)AudioEngine::reverbCompressorShape + 2147483648) * kMaxMenuValue + 2147483648) >> 32);
 	}
 	void writeCurrentValue() override {
 		AudioEngine::reverbCompressorShape = (uint32_t)this->getValue() * 85899345 - 2147483648;
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}
-	[[nodiscard]] int32_t getMaxValue() const override { return 50; }
+	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 	bool isRelevant(Sound* sound, int32_t whichThing) override { return (AudioEngine::reverbCompressorVolume >= 0); }
 };
 } // namespace deluge::gui::menu_item::reverb::compressor
