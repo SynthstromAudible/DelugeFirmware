@@ -32,6 +32,7 @@ MasterCompressor::MasterCompressor() {
 	shape = getParamFromUserValue(Param::Unpatched::COMPRESSOR_SHAPE, 1);
 	//an appropriate range is 0-50*one q 15
 	threshold = ONE_Q31;
+	rawThreshold = 0;
 	follower = true;
 	//this is about a 1:1 ratio
 	ratio = ONE_Q31 >> 1;
@@ -64,6 +65,8 @@ void MasterCompressor::updateER() {
 }
 
 void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t volAdjustL, q31_t volAdjustR) {
+	ratio = (rawRatio >> 1) + (3 << 28);
+	threshold = ONE_Q31 - rawThreshold;
 	updateER();
 
 	q31_t over = std::max<float>(0, (meanVolume - threshdb) / 21) * ONE_Q31;
@@ -144,7 +147,7 @@ float MasterCompressor::calc_rms(StereoSample* buffer, uint16_t numSamples) {
 void MasterCompressor::setup(int32_t a, int32_t r, int32_t t, int32_t rat) {
 	attack = a;
 	release = r;
-	threshold = t;
-	ratio = rat;
+	rawThreshold = t;
+	rawRatio = rat;
 	updateER();
 }
