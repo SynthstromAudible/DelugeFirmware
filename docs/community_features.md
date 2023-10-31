@@ -41,6 +41,12 @@ Here is a list of general improvements that have been made, ordered from newest 
 #### 3.9 - Enable Stutter Automation
 - ([#653]) Enabled ability to record stutter automation with mod (gold) encoder.
 
+#### 3.8 - Visual Feedback on Value Changes with Mod Encoders and Increased Resolution for Value's in Menu's
+- ([#636]) Changing parameter values with Mod (Gold) Encoders now displays a pop-up with the current value of the Parameter. The Menu's for Parameters and Patch Cables have also been adjusted to show the same value range as displayed with the Mod Encoders.
+	- This allows for better fine-tuning of values. 
+	- The value range displayed is 0-50 for non-MIDI parameters and 0-127 for MIDI parameters.
+	- Note: In the Menu, if you wish to scroll through the parameter value range faster at an accelerated rate of +/- 5, hold Shift while turning the Select Encoder.
+
 ## 4. New Features Added
 
 Here is a list of features that have been added to the firmware as a list, grouped by category:
@@ -61,7 +67,6 @@ Here is a list of features that have been added to the firmware as a list, group
     - Default (DEFA) - the default Deluge clip type.
 	- Fill (FILL) - Fill clip. It appears orange/cyan on the status pads, and when triggered it will schedule itself to start at such a time that it _finishes_ at the start of the next loop. If the fill clip is longer than the remaining time, it is triggered immediately at a point midway through. The loop length is set by the longest playing clip, or by the total length of a section times the repeat count set for that section. **Limitation**: a fill clip is still subject to the one clip per instrument behavior of the Deluge. Fill clips can steal an output from another fill, but they cannot steal from a non-fill. This can lead to some fills never starting since a default type clip has the needed instrument. This can be worked around by cloning the instrument to an independent copy.
 
-
 #### 4.1.4 - Catch Notes
 
  - ([#221]) The normal behavior of the Deluge is to try to keep up with 'in progress' notes when instant switching between clips by playing them late. However this leads to glitches with drum clips and other percussive sounds. Changing this setting to OFF will prevent this behavior and *not* try to keep up with those notes, leading to smoother instant switching between clips.
@@ -77,7 +82,12 @@ Here is a list of features that have been added to the firmware as a list, group
 	 - Compared to rows layout overdub recording and copying clips to arranger is currently not supported
 	 - Every track (column) has a random generated color that can be changed in edit mode (see below)
 	 - Launched clips are full color, unlaunched dimmed and during soloing all non soloed clips are greyed out
-	 - A new menu to select the default Layout has been added in Shift+Selection Encoder -> Defaults -> UI -> Song -> Layout
+	 - New default settings that can be reached with Shift+Selection Encoder -> Defaults -> UI -> Song
+		- Layout: Select the default layout for all new songs
+		- Grid
+			- Default active mode: "Selection" allows changing the mode as described below, all other settings will always make mode snap back to the configured one (default Selection)
+			- Select in green mode: Enabling this will make allow holding clips in green (launch) mode to change their parameters like in blue mode, tradeoff is arming is executed on finger up (default on)
+			- Empty pad unarm: Enabling will make pressing empty pads in a track unarm all playing tracks in that track (default off)
 	 - There are different interaction modes that change how the grid behaves
 		- The mode can be changed by clicking on one of the colored pads in the Audition/Section column on the right
 		- To permanently switch the mode click on a pad and release, to temporarily switch hold the mode pad and use the grid, the mode will snap back to the current permanent one
@@ -200,6 +210,7 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
  - Follow-up PR's: 
 	- ([#347]) Added new automatable parameters
  	- ([#360]) Fixed interpolation bugs, added fine tuning for long presses, and added pad selection mode
+	- ([#636]) Updated Parameter Values displayed in Automation View to match Parameter Value Ranges displayed in the Menu's. E.g. instead of 0 - 128, it now displays 0 - 50 (except for Pan which now displays -25 to +25 and MIDI instrument clips which now display 0 - 127).
 	- ([#658]) Added Stutter Rate Parameter to Automation View. There is no grid shortcut for this parameter so you will not see a pad on the Automation Overview that indicates whether Stutter has been automated. This parameter can be selected and automated using the Select Encoder to scroll the available list of Automatable Parameters.
 
 #### 4.3.6 - Set Probability By Row
@@ -356,7 +367,6 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#122]: https://github.com/SynthstromAudible/DelugeFirmware/pull/122
 [#125]: https://github.com/SynthstromAudible/DelugeFirmware/pull/125
 [#129]: https://github.com/SynthstromAudible/DelugeFirmware/pull/129
-[#630]: https://github.com/SynthstromAudible/DelugeFirmware/pull/630
 [#138]: https://github.com/SynthstromAudible/DelugeFirmware/pull/138
 [#141]: https://github.com/SynthstromAudible/DelugeFirmware/pull/141
 [#157]: https://github.com/SynthstromAudible/DelugeFirmware/pull/157
@@ -394,6 +404,8 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#368]: https://github.com/SynthstromAudible/DelugeFirmware/pull/368
 [#395]: https://github.com/SynthstromAudible/DelugeFirmware/pull/395
 [#512]: https://github.com/SynthstromAudible/DelugeFirmware/pull/512
+[#630]: https://github.com/SynthstromAudible/DelugeFirmware/pull/630
+[#636]: https://github.com/SynthstromAudible/DelugeFirmware/pull/636
 [#653]: https://github.com/SynthstromAudible/DelugeFirmware/pull/653
 [#658]: https://github.com/SynthstromAudible/DelugeFirmware/pull/658
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md

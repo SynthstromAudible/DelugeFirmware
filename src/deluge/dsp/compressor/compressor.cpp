@@ -25,6 +25,7 @@
 Compressor::Compressor() {
 	status = EnvelopeStage::OFF;
 	lastValue = 2147483647;
+	envelopeOffset = ONE_Q31;
 	pos = 0;
 	follower = false;
 	attack = getParamFromUserValue(Param::Static::COMPRESSOR_ATTACK, 7);
@@ -231,7 +232,9 @@ doRelease:
 		//lastValue = 2147483647 - (((int64_t)((sineWave[((pos >> 14) + 256) & 1023] >> 1) + 1073741824) * (int64_t)envelopeHeight) >> 31); // Sine wave. Not great
 		//lastValue = (multiply_32x32_rshift32(pos * (pos >> 15), envelopeHeight) << 1); // Parabola. Doesn't "punch".
 	}
-	else { // Off
+
+	else { // Off or hold
+
 doOff:
 		lastValue = envelopeOffset;
 	}

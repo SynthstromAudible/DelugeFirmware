@@ -26,12 +26,13 @@ public:
 	using Integer::Integer;
 	void readCurrentValue() override {
 		this->setValue(
-		    (((int64_t)(static_cast<InstrumentClip*>(currentSong->currentClip))->arpeggiatorRate + 2147483648) * 50
+		    (((int64_t)(static_cast<InstrumentClip*>(currentSong->currentClip))->arpeggiatorRate + 2147483648)
+		         * kMaxMenuValue
 		     + 2147483648)
 		    >> 32);
 	}
 	void writeCurrentValue() override {
-		if (this->getValue() == 25) {
+		if (this->getValue() == kMidMenuValue) {
 			(static_cast<InstrumentClip*>(currentSong->currentClip))->arpeggiatorRate = 0;
 		}
 		else {
@@ -39,7 +40,7 @@ public:
 			    (uint32_t)this->getValue() * 85899345 - 2147483648;
 		}
 	}
-	[[nodiscard]] int32_t getMaxValue() const override { return 50; }
+	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 	bool isRelevant(Sound* sound, int32_t whichThing) override { return soundEditor.editingCVOrMIDIClip(); }
 };
 } // namespace deluge::gui::menu_item::arpeggiator::midi_cv
