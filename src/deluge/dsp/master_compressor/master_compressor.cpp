@@ -77,7 +77,7 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t v
 		registerHit(over);
 	}
 	out = Compressor::render(numSamples, shape);
-	out = (multiply_32x32_rshift32(out, ratio) << 1) + (multiply_32x32_rshift32(clip, ONE_Q31 - ratio));
+	out = (multiply_32x32_rshift32(out, ratio) << 1) - (multiply_32x32_rshift32(clip, ONE_Q31 - ratio));
 	//out = multiply_32x32_rshift32(out, ratio) << 1;
 
 	//21 is the max internal volume (i.e. one_q31)
@@ -112,7 +112,7 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t v
 	} while (++thisSample != bufferEnd);
 	//for LEDs
 	//9 converts to dB, quadrupled for display range since a 30db reduction is basically killing the signal
-	gainReduction = std::clamp<int32_t>(-(reduction)*9 * 4, 0, 127);
+	gainReduction = std::clamp<int32_t>(-(reduction) * 9 * 4, 0, 127);
 	//calc compression for next round (feedback compressor)
 	meanVolume = calc_rms(buffer, numSamples);
 }
