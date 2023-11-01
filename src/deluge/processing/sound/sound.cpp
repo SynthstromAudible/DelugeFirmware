@@ -1304,14 +1304,14 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 	case Param::Local::LPF_FREQ:
 	case Param::Local::LPF_RESONANCE:
 		if (synthMode == SynthMode::FM) {
-			return PatchCableAcceptance::DISALLOWED;
+			//return PatchCableAcceptance::DISALLOWED;
 		}
 		break;
 
 	case Param::Local::HPF_FREQ:
 	case Param::Local::HPF_RESONANCE:
 		if (synthMode == SynthMode::FM) {
-			return PatchCableAcceptance::DISALLOWED;
+			//return PatchCableAcceptance::DISALLOWED;
 		}
 		break;
 
@@ -2916,7 +2916,7 @@ bool Sound::anyNoteIsOn() {
 }
 
 bool Sound::hasFilters() {
-	return (getSynthMode() != SynthMode::FM);
+	return true;
 }
 
 void Sound::readParamsFromFile(ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos) {
