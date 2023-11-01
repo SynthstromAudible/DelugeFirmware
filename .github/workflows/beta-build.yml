@@ -5,7 +5,7 @@ on:
   push:
     branches:
       - 'release/1.0'  
-  pull_request:
+  pull_request_target:
     types:
       - closed
     branches:
