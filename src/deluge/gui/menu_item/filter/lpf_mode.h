@@ -37,8 +37,6 @@ public:
 		    l10n::getView(STRING_FOR_SVF_NOTCH),
 		};
 	}
-	bool isRelevant(Sound* sound, int32_t whichThing) override {
-		return ((sound == nullptr) || sound->synthMode != ::SynthMode::FM);
-	}
+	bool isRelevant(Sound* sound, int32_t whichThing) override { return (true); }
 };
 } // namespace deluge::gui::menu_item::filter
