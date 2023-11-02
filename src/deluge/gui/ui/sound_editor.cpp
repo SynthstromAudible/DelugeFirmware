@@ -650,7 +650,7 @@ ActionResult SoundEditor::horizontalEncoderAction(int32_t offset) {
 
 void SoundEditor::selectEncoderAction(int8_t offset) {
 
-	if (Buttons::isShiftButtonPressed()) {
+	if (Buttons::isButtonPressed(deluge::hid::button::SHIFT)) {
 		offset = offset * 5;
 	}
 
