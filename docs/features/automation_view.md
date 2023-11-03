@@ -327,7 +327,7 @@ By default in the Automation Instrument Clip View that same behaviour of holding
 
 Through the community features menu, you can disable this change and re-instate the audition pad shortcuts by setting the community feature to "Off."
 
-Note: in automation view, shortcuts do not open the menu. They change the selected parameter for automation lane editing.
+> **Note:** in automation view, shortcuts do not open the menu. They change the selected parameter for automation lane editing.
 
 # Fun things to try with the new Automation Instrument Clip View
 
