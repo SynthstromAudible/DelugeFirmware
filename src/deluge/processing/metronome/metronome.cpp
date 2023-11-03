@@ -17,6 +17,9 @@
 
 #include "processing/metronome/metronome.h"
 #include "dsp/stereo_sample.h"
+#include "model/song/song.h"
+#include "modulation/params/param_set.h"
+#include "processing/engines/audio_engine.h"
 
 Metronome::Metronome() {
 	sounding = false;
@@ -33,17 +36,29 @@ void Metronome::render(StereoSample* buffer, uint16_t numSamples) {
 	if (!sounding) {
 		return;
 	}
+	int32_t volumePostFX;
+	if (currentSong) {
+		volumePostFX =
+		    getFinalParameterValueVolume(
+		        134217728, cableToLinearParamShortcut(currentSong->paramManager.getUnpatchedParamSet()->getValue(
+		                       Param::Unpatched::GlobalEffectable::VOLUME)))
+		    >> 1;
+	}
+	else {
+		volumePostFX = ONE_Q31;
+	}
 
+	q31_t high = multiply_32x32_rshift32(1 << 27, volumePostFX);
 	StereoSample* thisSample = buffer;
 	StereoSample* bufferEnd = buffer + numSamples;
 	do {
 
 		int32_t value;
 		if (phase < 2147483648u) {
-			value = 8388608;
+			value = high;
 		}
 		else {
-			value = -8388608;
+			value = -high;
 		}
 
 		phase += phaseIncrement;
