@@ -366,7 +366,6 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#122]: https://github.com/SynthstromAudible/DelugeFirmware/pull/122
 [#125]: https://github.com/SynthstromAudible/DelugeFirmware/pull/125
 [#129]: https://github.com/SynthstromAudible/DelugeFirmware/pull/129
-[#630]: https://github.com/SynthstromAudible/DelugeFirmware/pull/630
 [#138]: https://github.com/SynthstromAudible/DelugeFirmware/pull/138
 [#141]: https://github.com/SynthstromAudible/DelugeFirmware/pull/141
 [#157]: https://github.com/SynthstromAudible/DelugeFirmware/pull/157
@@ -404,6 +403,7 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#368]: https://github.com/SynthstromAudible/DelugeFirmware/pull/368
 [#395]: https://github.com/SynthstromAudible/DelugeFirmware/pull/395
 [#512]: https://github.com/SynthstromAudible/DelugeFirmware/pull/512
-[#653]: https://github.com/SynthstromAudible/DelugeFirmware/pull/653
+[#630]: https://github.com/SynthstromAudible/DelugeFirmware/pull/630
 [#636]: https://github.com/SynthstromAudible/DelugeFirmware/pull/636
+[#653]: https://github.com/SynthstromAudible/DelugeFirmware/pull/653
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md

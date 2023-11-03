@@ -77,7 +77,7 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t v
 		registerHit(over);
 	}
 	out = Compressor::render(numSamples, shape);
-	out = (multiply_32x32_rshift32(out, ratio) << 1) + (multiply_32x32_rshift32(clip, ONE_Q31 - ratio));
+	out = (multiply_32x32_rshift32(out, ratio) << 1) - (multiply_32x32_rshift32(clip, ONE_Q31 - ratio));
 	//out = multiply_32x32_rshift32(out, ratio) << 1;
 
 	//21 is the max internal volume (i.e. one_q31)
