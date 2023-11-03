@@ -392,29 +392,25 @@ void routine() {
 	}
 
 #ifdef REPORT_CPU_USAGE
-#define MIN_SAMPLES NUM_SAMPLES_FOR_CPU_USAGE_REPORT
-#else
-#define MINSAMPLES 16
-#endif
+#define MINSAMPLES NUM_SAMPLES_FOR_CPU_USAGE_REPORT
 	if (numSamples < (MINSAMPLES)) {
 		audioRoutineLocked = false;
 		return;
 	}
-#ifdef REPORT_CPU_USAGE
+
 	numSamples = NUM_SAMPLES_FOR_CPU_USAGE_REPORT;
 	int32_t unadjustedNumSamplesBeforeLappingPlayHead = numSamples;
 #else
+#define MINSAMPLES 16
 
-	//// Disable cull smoothing until we know how to keep it from soft culling multiple times but audible hard culling anyway
-	// if (smoothedSamples < numSamples) {
-	// 	smoothedSamples = (numSamplesLastTime + numSamples) >> 1;
-	// }
-	// else {
 	smoothedSamples = numSamples;
-	// }
-	// if (!bypassCulling) {
-	// 	numSamplesLastTime = numSamples;
-	// }
+
+	if (numSamplesLastTime < numSamples) {
+		Debug::print("rendered ");
+		Debug::print(numSamplesLastTime);
+		Debug::print(" samples but output ");
+		Debug::println(numSamples);
+	}
 
 	// Consider direness and culling - before increasing the number of samples
 	int32_t numSamplesLimit = 40; //storageManager.devVarC;
@@ -596,7 +592,13 @@ startAgain:
 			}
 		}
 	}
-
+	//this sets a floor on the number of samples at 16, avoiding the audio DMA catching up to the
+	//output when cutting rendering short for clock at critical times
+	//the max error is 0.3ms. At 100bpm 24ppq it is 25ms per pulse
+	//this works out to a 1% error in the absolute worse case of alternating
+	//no extension and max extension, approximately 10x better than average usb midi accuracy.
+	numSamples = std::max<int32_t>(numSamples, MINSAMPLES);
+	numSamplesLastTime = numSamples;
 	memset(&renderingBuffer, 0, numSamples * sizeof(StereoSample));
 
 	static int32_t reverbBuffer[SSI_TX_BUFFER_NUM_SAMPLES] __attribute__((aligned(CACHE_LINE_SIZE)));

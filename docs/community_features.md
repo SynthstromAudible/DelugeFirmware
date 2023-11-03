@@ -54,7 +54,7 @@ Here is a list of features that have been added to the firmware as a list, group
 ### 4.1 - Song View Features
 
 #### 4.1.1 - Master Compressor
-- ([#630]) In the Song view, select "AFFECT ENTIRE" and "SIDECHAIN" modulation button, and adjust the upper gold knob for a single knob compressor with auto makeup gain. For detailed editing, press the sidechain gold knob. The top LED will become a compression meter, and the bottom LED level will show the compressor input level. The bottom (reverb) knob will adjust the ratio in this mode, from 1:8 to infinity/brick wall. The compressor attack and release are editable on the affect entire attack and release buttons if desired. 
+- ([#630]) In the Song view, select "AFFECT ENTIRE" and "SIDECHAIN" modulation button, and adjust the upper gold knob for a single knob compressor with auto makeup gain. For detailed editing, press the sidechain gold knob. The top LED will become a compression meter. The bottom (reverb) knob will adjust the ratio in this mode, from 1:2 to 1:20. Pressing the bottom knob will toggle between ratio, attack, and release. 
 
 
 #### 4.1.2 - Change Row Colour

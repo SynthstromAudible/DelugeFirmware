@@ -1125,8 +1125,8 @@ weAreInArrangementEditorOrInClipInstance:
 	storageManager.writeOpeningTagBeginning("masterCompressor");
 	int32_t attack = AudioEngine::mastercompressor.attack;
 	int32_t release = AudioEngine::mastercompressor.release;
-	int32_t thresh = AudioEngine::mastercompressor.threshold;
-	int32_t ratio = AudioEngine::mastercompressor.ratio;
+	int32_t thresh = AudioEngine::mastercompressor.rawThreshold;
+	int32_t ratio = AudioEngine::mastercompressor.rawRatio;
 
 	storageManager.writeAttribute("attack", attack);
 	storageManager.writeAttribute("release", release);
@@ -4006,7 +4006,7 @@ void Song::setHibernatingMIDIInstrument(MIDIInstrument* newInstrument) {
 void Song::deleteHibernatingMIDIInstrument() {
 	if (hibernatingMIDIInstrument) {
 		void* toDealloc = dynamic_cast<void*>(hibernatingMIDIInstrument);
-		hibernatingMIDIInstrument->~Instrument();
+		hibernatingMIDIInstrument->~MIDIInstrument();
 		delugeDealloc(toDealloc);
 		hibernatingMIDIInstrument = NULL;
 	}
