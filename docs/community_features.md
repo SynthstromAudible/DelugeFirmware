@@ -208,7 +208,7 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 	- ([#347]) Added new automatable parameters
  	- ([#360]) Fixed interpolation bugs, added fine tuning for long presses, and added pad selection mode
 	- ([#636]) Updated Parameter Values displayed in Automation View to match Parameter Value Ranges displayed in the Menu's. E.g. instead of 0 - 128, it now displays 0 - 50 (except for Pan which now displays -25 to +25 and MIDI instrument clips which now display 0 - 127).
-	- Added new automation community feature menu to re-instate audition pad shortcuts in the Automation Instrument Clip View.
+	- ([#681]) Added new automation community feature menu to re-instate audition pad shortcuts in the Automation Instrument Clip View.
 		- Current in the Instrument Clip VIew if hold down an audition pad and press a shortcut pad on the grid, it will open the menu corresponding to that shortcut pad.
 		- By default in the Automation Instrument Clip View that same behaviour of holding an audition pad and pressing a shortcut pad is disabled in favour of you being able to hold down an audition pad and adjust the automation lane values so that you can audible hear the changes to the sound while adjusting automation settings.
 		- Through the community features menu, you can disable this change and re-instate the audition pad shortcuts by setting the community feature to "Off."
@@ -412,4 +412,5 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#512]: https://github.com/SynthstromAudible/DelugeFirmware/pull/512
 [#630]: https://github.com/SynthstromAudible/DelugeFirmware/pull/630
 [#636]: https://github.com/SynthstromAudible/DelugeFirmware/pull/636
+[#681]: https://github.com/SynthstromAudible/DelugeFirmware/pull/681
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
