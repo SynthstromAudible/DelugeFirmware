@@ -48,6 +48,7 @@ uint32_t CacheManager::ReclaimMemory(MemoryRegion& region, int32_t totalSizeNeed
 		stealable = static_cast<Stealable*>(reclamation_queue_[q].getFirst());
 		while (stealable != nullptr) {
 			// If we've already looked at this one as part of a bigger run, move on
+			//this works because the uint cast makes negatives high numbers instead
 			uint32_t lastTraversalQueue = stealable->lastTraversalNo - traversalNumberBeforeQueues;
 			if (lastTraversalQueue <= q) {
 
@@ -61,6 +62,7 @@ uint32_t CacheManager::ReclaimMemory(MemoryRegion& region, int32_t totalSizeNeed
 			}
 
 			// If we're forbidden from stealing from a particular thing (usually SampleCache), then make sure we don't
+			// TODO: this should never happen
 			if (!stealable->mayBeStolen(thingNotToStealFrom)) {
 				numRefusedTheft++;
 
@@ -113,6 +115,8 @@ uint32_t CacheManager::ReclaimMemory(MemoryRegion& region, int32_t totalSizeNeed
 
 			// If that one Stealable alone was big enough, that's great
 			if (amountToExtend <= 0) {
+				//need to reset this since it's getting stolen
+				longestRunSeenInThisQueue = 0xFFFFFFFF;
 				found = true;
 				break;
 			}
@@ -136,6 +140,10 @@ uint32_t CacheManager::ReclaimMemory(MemoryRegion& region, int32_t totalSizeNeed
 				stealable = static_cast<Stealable*>(reclamation_queue_[q].getNext(stealable));
 				continue;
 			}
+			else {
+				//reset this since it's getting stolen
+				longestRunSeenInThisQueue = 0xFFFFFFFF;
+			}
 
 			newSpaceAddress = result.address;
 
@@ -146,8 +154,10 @@ uint32_t CacheManager::ReclaimMemory(MemoryRegion& region, int32_t totalSizeNeed
 			break;
 		}
 
-		// End of that particular queue - so go to the next one
 		longest_runs_[q] = longestRunSeenInThisQueue;
+
+		// End of that particular queue - so go to the next one
+
 		currentTraversalNo++;
 	}
 
