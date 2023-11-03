@@ -874,10 +874,8 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 				//if current knobPos exceeds 127, e.g. it's 128, then it needs to drop to 126 before a value change gets recorded
 				//if newKnobPos exceeds 127, then it means current knobPos was 127 and it was increased to 128. In which case, ignore value change
 				if ((getRootUI() == &instrumentClipView) || (getRootUI() == &automationInstrumentClipView)) {
-					if (clip->output->type == InstrumentType::MIDI_OUT) {
-						if ((knobPos == 64) || (newKnobPos == 64)) {
-							return;
-						}
+					if ((clip->output->type == InstrumentType::MIDI_OUT) && (newKnobPos == 64)) {
+						return;
 					}
 				}
 
@@ -894,7 +892,7 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 					char buffer[5];
 					int32_t valueForDisplay;
 					if (clip->output->type == InstrumentType::MIDI_OUT) {
-						valueForDisplay = newKnobPos = kKnobPosOffset;
+						valueForDisplay = newKnobPos + kKnobPosOffset;
 					}
 					else if ((modelStackWithParam->paramId == Param::Local::PAN)
 					         || (modelStackWithParam->paramId == Param::Unpatched::GlobalEffectable::PAN)) {

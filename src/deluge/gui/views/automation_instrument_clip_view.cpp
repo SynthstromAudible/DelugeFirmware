@@ -2432,10 +2432,8 @@ bool AutomationInstrumentClipView::modEncoderActionForSelectedPad(int32_t whichM
 			//ignore modEncoderTurn for Midi CC if current or new knobPos exceeds 127
 			//if current knobPos exceeds 127, e.g. it's 128, then it needs to drop to 126 before a value change gets recorded
 			//if newKnobPos exceeds 127, then it means current knobPos was 127 and it was increased to 128. In which case, ignore value change
-			if (clip->output->type == InstrumentType::MIDI_OUT) {
-				if ((knobPos == 64) || (newKnobPos == 64)) {
-					return true;
-				}
+			if ((clip->output->type == InstrumentType::MIDI_OUT) && (newKnobPos == 64)) {
+				return true;
 			}
 
 			//use default interpolation settings
@@ -2479,10 +2477,8 @@ void AutomationInstrumentClipView::modEncoderActionForUnselectedPad(int32_t whic
 			//ignore modEncoderTurn for Midi CC if current or new knobPos exceeds 127
 			//if current knobPos exceeds 127, e.g. it's 128, then it needs to drop to 126 before a value change gets recorded
 			//if newKnobPos exceeds 127, then it means current knobPos was 127 and it was increased to 128. In which case, ignore value change
-			if (clip->output->type == InstrumentType::MIDI_OUT) {
-				if ((knobPos == 64) || (newKnobPos == 64)) {
-					return;
-				}
+			if ((clip->output->type == InstrumentType::MIDI_OUT) && (newKnobPos == 64)) {
+				return;
 			}
 
 			int32_t newValue =
