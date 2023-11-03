@@ -187,6 +187,9 @@ PLACE_SDRAM_DATA Language english{
         //Portamento
         {STRING_FOR_PORTAMENTO, "PORTAMENTO"},
 
+        //Stutter Rate
+        {STRING_FOR_STUTTER_RATE, "Stutter Rate"},
+
         /*
 		 * End Parameter Strings
 		 */

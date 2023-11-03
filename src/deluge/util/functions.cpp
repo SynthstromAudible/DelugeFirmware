@@ -547,6 +547,10 @@ char const* getUnpatchedParamDisplayName(int32_t p) {
 	case Param::Unpatched::Sound::PORTAMENTO:
 		return l10n::get(STRING_FOR_PORTAMENTO);
 
+	//Stutter
+	case Param::Unpatched::STUTTER_RATE:
+		return l10n::get(STRING_FOR_STUTTER_RATE);
+
 	default:
 		return l10n::get(STRING_FOR_NONE);
 	}

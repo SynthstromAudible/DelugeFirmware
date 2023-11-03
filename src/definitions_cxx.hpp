@@ -374,8 +374,8 @@ constexpr int32_t kMinMenuPatchCableValue = -1 * kMaxMenuPatchCableValue;
 
 //Automation View constants
 constexpr int32_t kNoSelection = 255;
-constexpr int32_t kNumNonKitAffectEntireParamsForAutomation = 55;
-constexpr int32_t kNumKitAffectEntireParamsForAutomation = 24;
+constexpr int32_t kNumNonKitAffectEntireParamsForAutomation = 56;
+constexpr int32_t kNumKitAffectEntireParamsForAutomation = 25;
 constexpr int32_t kLastMidiCCForAutomation = 121;
 constexpr int32_t kKnobPosOffset = 64;
 constexpr int32_t kMaxKnobPos = 128;
