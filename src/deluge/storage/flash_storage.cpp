@@ -118,6 +118,7 @@ namespace FlashStorage {
 119: gridUnarmEmptyPads
 120: gridAllowGreenSelection
 121: defaultGridActiveMode
+122: defaultMetronomeVolume
 */
 
 uint8_t defaultScale;
@@ -141,6 +142,8 @@ KeyboardLayoutType defaultKeyboardLayout;
 bool gridUnarmEmptyPads;
 bool gridAllowGreenSelection;
 GridDefaultActiveMode defaultGridActiveMode;
+
+uint8_t defaultMetronomeVolume;
 
 void resetSettings() {
 
@@ -212,6 +215,8 @@ void resetSettings() {
 	gridUnarmEmptyPads = false;
 	gridAllowGreenSelection = true;
 	defaultGridActiveMode = GridDefaultActiveModeSelection;
+
+	defaultMetronomeVolume = 32;
 }
 
 void readSettings() {
@@ -407,6 +412,8 @@ void readSettings() {
 	gridUnarmEmptyPads = buffer[119];
 	gridAllowGreenSelection = buffer[120];
 	defaultGridActiveMode = static_cast<GridDefaultActiveMode>(buffer[121]);
+
+	defaultMetronomeVolume = buffer[122];
 }
 
 void writeSettings() {
@@ -515,6 +522,8 @@ void writeSettings() {
 	buffer[119] = gridUnarmEmptyPads;
 	buffer[120] = gridAllowGreenSelection;
 	buffer[121] = util::to_underlying(defaultGridActiveMode);
+
+	buffer[122] = defaultMetronomeVolume;
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer, 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,

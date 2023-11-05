@@ -688,6 +688,8 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_SIDECH_RELEASE_MENU_TITLE, "Sidech release"},
         {STRING_FOR_SIDECHAIN_COMP_MENU_TITLE, "Sidechain comp"},
         {STRING_FOR_NUM_MEMBER_CH_MENU_TITLE, "Num member ch."},
+        {STRING_FOR_METRONOME, "METRONOME"},
+        {STRING_FOR_DEFAULT_METRO_MENU_TITLE, "Default metro."},
 
         {STRING_FOR_CV_INSTRUMENT, "CV instrument"},
 

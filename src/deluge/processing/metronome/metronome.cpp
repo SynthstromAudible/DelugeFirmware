@@ -20,6 +20,7 @@
 #include "model/song/song.h"
 #include "modulation/params/param_set.h"
 #include "processing/engines/audio_engine.h"
+#include "storage/flash_storage.h"
 
 Metronome::Metronome() {
 	sounding = false;
@@ -40,7 +41,7 @@ void Metronome::render(StereoSample* buffer, uint16_t numSamples) {
 	if (currentSong) {
 		volumePostFX =
 		    getFinalParameterValueVolume(
-		        134217728, cableToLinearParamShortcut(currentSong->paramManager.getUnpatchedParamSet()->getValue(
+		        1 << FlashStorage::defaultMetronomeVolume, cableToLinearParamShortcut(currentSong->paramManager.getUnpatchedParamSet()->getValue(
 		                       Param::Unpatched::GlobalEffectable::VOLUME)))
 		    >> 1;
 	}
@@ -48,7 +49,7 @@ void Metronome::render(StereoSample* buffer, uint16_t numSamples) {
 		volumePostFX = ONE_Q31;
 	}
 
-	q31_t high = multiply_32x32_rshift32(1 << 27, volumePostFX);
+	q31_t high = multiply_32x32_rshift32(1 << FlashStorage::defaultMetronomeVolume, volumePostFX);
 	StereoSample* thisSample = buffer;
 	StereoSample* bufferEnd = buffer + numSamples;
 	do {
