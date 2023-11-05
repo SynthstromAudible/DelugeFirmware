@@ -414,7 +414,8 @@ void readSettings() {
 	defaultGridActiveMode = static_cast<GridDefaultActiveMode>(buffer[121]);
 
 	defaultMetronomeVolume = buffer[122];
-	if (defaultMetronomeVolume > kMaxMenuMetronomeVolumeValue || defaultMetronomeVolume < kMinMenuMetronomeVolumeValue) {
+	if (defaultMetronomeVolume > kMaxMenuMetronomeVolumeValue
+	    || defaultMetronomeVolume < kMinMenuMetronomeVolumeValue) {
 		defaultMetronomeVolume = kMaxMenuMetronomeVolumeValue;
 	}
 }
