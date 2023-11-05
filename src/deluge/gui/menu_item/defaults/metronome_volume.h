@@ -22,8 +22,8 @@ namespace deluge::gui::menu_item::defaults {
 class MetronomeVolume final : public Integer {
 public:
 	using Integer::Integer;
-	[[nodiscard]] int32_t getMinValue() const override { return 22; }
-	[[nodiscard]] int32_t getMaxValue() const override { return 27; }
+	[[nodiscard]] int32_t getMinValue() const override { return kMinMenuMetronomeVolumeValue; }
+	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuMetronomeVolumeValue; }
 	void readCurrentValue() override { this->setValue(FlashStorage::defaultMetronomeVolume); }
 	void writeCurrentValue() override { FlashStorage::defaultMetronomeVolume = this->getValue(); }
 };

@@ -370,6 +370,11 @@ constexpr int32_t kMinMenuPanValue = -1 * kMaxMenuPanValue;
 //patch cable menu range e.g. -5000 to 5000
 constexpr int32_t kMaxMenuPatchCableValue = kMaxMenuValue * 100;
 constexpr int32_t kMinMenuPatchCableValue = -1 * kMaxMenuPatchCableValue;
+
+//metronome volume default range : 22 to 27
+constexpr int32_t kMaxMenuMetronomeVolumeValue = 27;
+constexpr int32_t kMinMenuMetronomeVolumeValue = 22;
+
 //
 
 //Automation View constants

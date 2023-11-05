@@ -216,7 +216,7 @@ void resetSettings() {
 	gridAllowGreenSelection = true;
 	defaultGridActiveMode = GridDefaultActiveModeSelection;
 
-	defaultMetronomeVolume = 27;
+	defaultMetronomeVolume = kMaxMenuMetronomeVolumeValue;
 }
 
 void readSettings() {
@@ -414,6 +414,9 @@ void readSettings() {
 	defaultGridActiveMode = static_cast<GridDefaultActiveMode>(buffer[121]);
 
 	defaultMetronomeVolume = buffer[122];
+	if (defaultMetronomeVolume > kMaxMenuMetronomeVolumeValue || defaultMetronomeVolume < kMinMenuMetronomeVolumeValue) {
+		defaultMetronomeVolume = kMaxMenuMetronomeVolumeValue;
+	}
 }
 
 void writeSettings() {
