@@ -32,6 +32,7 @@
 #include "gui/menu_item/defaults/grid_unarm_empty_pads.h"
 #include "gui/menu_item/defaults/keyboard_layout.h"
 #include "gui/menu_item/defaults/magnitude.h"
+#include "gui/menu_item/defaults/metronome_volume.h"
 #include "gui/menu_item/defaults/scale.h"
 #include "gui/menu_item/defaults/session_layout.h"
 #include "gui/menu_item/defaults/velocity.h"
@@ -853,6 +854,7 @@ defaults::Scale defaultScaleMenu{STRING_FOR_SCALE, STRING_FOR_DEFAULT_SCALE};
 defaults::Velocity defaultVelocityMenu{STRING_FOR_VELOCITY, STRING_FOR_DEFAULT_VELOC_MENU_TITLE};
 defaults::Magnitude defaultMagnitudeMenu{STRING_FOR_RESOLUTION, STRING_FOR_DEFAULT_RESOL_MENU_TITLE};
 defaults::BendRange defaultBendRangeMenu{STRING_FOR_BEND_RANGE, STRING_FOR_DEFAULT_BEND_R};
+defaults::MetronomeVolume defaultMetronomeVolumeMenu{STRING_FOR_METRONOME, STRING_FOR_DEFAULT_METRO_MENU_TITLE};
 
 Submenu defaultsSubmenu{
     STRING_FOR_DEFAULTS,
@@ -865,6 +867,7 @@ Submenu defaultsSubmenu{
         &defaultVelocityMenu,
         &defaultMagnitudeMenu,
         &defaultBendRangeMenu,
+        &defaultMetronomeVolumeMenu,
     },
 };
 
