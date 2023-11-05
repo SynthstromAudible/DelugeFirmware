@@ -44,6 +44,7 @@ Setting menuAutomationInterpolate(RuntimeFeatureSettingType::AutomationInterpola
 Setting menuAutomationClearClip(RuntimeFeatureSettingType::AutomationClearClip);
 Setting menuAutomationNudgeNote(RuntimeFeatureSettingType::AutomationNudgeNote);
 Setting menuAutomationShiftClip(RuntimeFeatureSettingType::AutomationShiftClip);
+Setting menuAutomationDisableAuditionPadShortcuts(RuntimeFeatureSettingType::AutomationDisableAuditionPadShortcuts);
 Setting menuSyncScalingAction(RuntimeFeatureSettingType::SyncScalingAction);
 DevSysexSetting menuDevSysexAllowed(RuntimeFeatureSettingType::DevSysexAllowed);
 Setting menuHighlightIncomingNotes(RuntimeFeatureSettingType::HighlightIncomingNotes);
@@ -58,6 +59,7 @@ Submenu subMenuAutomation{
         &menuAutomationClearClip,
         &menuAutomationNudgeNote,
         &menuAutomationShiftClip,
+        &menuAutomationDisableAuditionPadShortcuts,
     },
 };
 

@@ -50,6 +50,7 @@ enum RuntimeFeatureSettingType : uint32_t {
 	AutomationNudgeNote,
 	AutomationShiftClip,
 	AutomationInterpolate,
+	AutomationDisableAuditionPadShortcuts,
 	DevSysexAllowed,
 	SyncScalingAction,
 	HighlightIncomingNotes,

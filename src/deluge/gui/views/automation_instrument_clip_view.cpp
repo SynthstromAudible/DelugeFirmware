@@ -1463,8 +1463,10 @@ ActionResult AutomationInstrumentClipView::padAction(int32_t x, int32_t y, int32
 
 		//if the user wants to change the parameter they are editing using Shift + Pad shortcut
 		if (velocity) {
-			if (Buttons::isShiftButtonPressed()) {
-
+			if (Buttons::isShiftButtonPressed()
+			    || (isUIModeActive(UI_MODE_AUDITIONING)
+			        && (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationDisableAuditionPadShortcuts)
+			            == RuntimeFeatureStateToggle::Off))) {
 				initPadSelection();
 				handleSinglePadPress(modelStack, clip, x, y, true);
 
