@@ -595,7 +595,8 @@ startAgain:
 	//the max error is 0.3ms. At 100bpm 24ppq it is 25ms per pulse
 	//this works out to a 1% error in the absolute worse case of alternating
 	//no extension and max extension, approximately 10x better than average usb midi accuracy.
-	numSamples = std::max<int32_t>(numSamples, MINSAMPLES);
+	int32_t minSamples = std::min<int32_t>(unadjustedNumSamplesBeforeLappingPlayHead, MINSAMPLES);
+	numSamples = std::max<int32_t>(numSamples, minSamples);
 	numSamplesLastTime = numSamples;
 	memset(&renderingBuffer, 0, numSamples * sizeof(StereoSample));
 
@@ -1411,11 +1412,15 @@ void slowRoutine() {
 	     - SSI_TX_BUFFER_NUM_SAMPLES)
 	    & (SSI_RX_BUFFER_NUM_SAMPLES - 1);
 
-	if (latencyWithinAppropriateWindow >= SSI_TX_BUFFER_NUM_SAMPLES) {
+	while (latencyWithinAppropriateWindow >= SSI_TX_BUFFER_NUM_SAMPLES) {
 		i2sRXBufferPos += (SSI_TX_BUFFER_NUM_SAMPLES << (2 + NUM_MONO_INPUT_CHANNELS_MAGNITUDE));
 		if (i2sRXBufferPos >= (uint32_t)getRxBufferEnd()) {
 			i2sRXBufferPos -= (SSI_RX_BUFFER_NUM_SAMPLES << (2 + NUM_MONO_INPUT_CHANNELS_MAGNITUDE));
 		}
+		latencyWithinAppropriateWindow =
+		    (((rxBufferWriteAddr - (uint32_t)i2sRXBufferPos) >> (2 + NUM_MONO_INPUT_CHANNELS_MAGNITUDE))
+		     - SSI_TX_BUFFER_NUM_SAMPLES)
+		    & (SSI_RX_BUFFER_NUM_SAMPLES - 1);
 	}
 
 	// Discard any LiveInputBuffers which aren't in use
