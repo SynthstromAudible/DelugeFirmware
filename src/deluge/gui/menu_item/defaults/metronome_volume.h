@@ -25,8 +25,6 @@ public:
 	[[nodiscard]] int32_t getMinValue() const override { return 22; }
 	[[nodiscard]] int32_t getMaxValue() const override { return 27; }
 	void readCurrentValue() override { this->setValue(FlashStorage::defaultMetronomeVolume); }
-	void writeCurrentValue() override {
-		FlashStorage::defaultMetronomeVolume = this->getValue();
-	}
+	void writeCurrentValue() override { FlashStorage::defaultMetronomeVolume = this->getValue(); }
 };
 } // namespace deluge::gui::menu_item::defaults
