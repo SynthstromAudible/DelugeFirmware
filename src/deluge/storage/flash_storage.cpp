@@ -216,7 +216,7 @@ void resetSettings() {
 	gridAllowGreenSelection = true;
 	defaultGridActiveMode = GridDefaultActiveModeSelection;
 
-	defaultMetronomeVolume = 32;
+	defaultMetronomeVolume = 27;
 }
 
 void readSettings() {
