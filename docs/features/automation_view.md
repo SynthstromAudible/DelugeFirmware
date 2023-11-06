@@ -321,6 +321,16 @@ In the Automation Instrument Clip View, functionality is provided to shift autom
 
 > **Note:** MPE recorded will still be shifted as the scope of this PR does not cover editing MPE.
 
+### Disable Audition Pad Shortcuts
+
+Currently in the Instrument Clip View if you hold down an audition pad and press a shortcut pad on the grid, it will open the menu corresponding to that shortcut pad.
+
+By default in the Automation Instrument Clip View that same behaviour of holding an audition pad and pressing a shortcut pad is disabled in favour of you being able to hold down an audition pad and adjust the automation lane values so that you can audible hear the changes to the sound while adjusting automation settings.
+
+Through the community features menu, you can disable this change and re-instate the audition pad shortcuts by setting the community feature to "Off."
+
+> **Note:** in automation view, shortcuts do not open the menu. They change the selected parameter for automation lane editing.
+
 # Fun things to try with the new Automation Instrument Clip View
 
 ## Two Hand Automation Drumming
