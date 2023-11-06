@@ -202,12 +202,14 @@ DRESULT disk_read_without_streaming_first(BYTE pdrv, /* Physical drive nmuber to
 
     BYTE err;
 
-    if (currentlyAccessingCard) {
-		if (ALPHA_OR_BETA_VERSION) {
-			// Operatricks got! But I think I fixed.
-        	FREEZE_WITH_ERROR("E259");
-		}
-	}
+    if (currentlyAccessingCard)
+    {
+        if (ALPHA_OR_BETA_VERSION)
+        {
+            // Operatricks got! But I think I fixed.
+            FREEZE_WITH_ERROR("E259");
+        }
+    }
 
     //uint16_t startTime = MTU2.TCNT_0;
 
@@ -250,11 +252,13 @@ DRESULT disk_write(BYTE pdrv, /* Physical drive nmuber to identify the drive */
 
     BYTE err;
 
-    if (currentlyAccessingCard) {
-		if (ALPHA_OR_BETA_VERSION) {
-	        FREEZE_WITH_ERROR("E258");
-		}
-	}
+    if (currentlyAccessingCard)
+    {
+        if (ALPHA_OR_BETA_VERSION)
+        {
+            FREEZE_WITH_ERROR("E258");
+        }
+    }
 
     currentlyAccessingCard = 1;
 

@@ -15,15 +15,15 @@ extern void freezeWithError(char const* errmsg);
 }
 #endif
 
-#define FREEZE_WITH_ERROR(error) ({\
-	uint32_t regLR = 0; \
-	uint32_t regSP = 0; \
-  	asm volatile ("MOV %0, LR\n" : "=r" (regLR)); \
-  	asm volatile ("MOV %0, SP\n" : "=r" (regSP)); \
-	fault_handler_print_freeze_pointers(0, 0, regLR, regSP); \
-	freezeWithError(error); \
-})
-
+#define FREEZE_WITH_ERROR(error)                                                                                       \
+	({                                                                                                                 \
+		uint32_t regLR = 0;                                                                                            \
+		uint32_t regSP = 0;                                                                                            \
+		asm volatile("MOV %0, LR\n" : "=r"(regLR));                                                                    \
+		asm volatile("MOV %0, SP\n" : "=r"(regSP));                                                                    \
+		fault_handler_print_freeze_pointers(0, 0, regLR, regSP);                                                       \
+		freezeWithError(error);                                                                                        \
+	})
 
 #define TIMER_MIDI_GATE_OUTPUT 2
 #define TIMER_SYSTEM_FAST 0

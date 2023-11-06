@@ -44,7 +44,7 @@ extern "C" {
 #if SAMPLE_DO_LOCKS
 #define LOCK_ENTRY                                                                                                     \
 	if (lock) {                                                                                                        \
-		FREEZE_WITH_ERROR("i024");                                                                              \
+		FREEZE_WITH_ERROR("i024");                                                                                     \
 	}                                                                                                                  \
 	lock = true;
 #define LOCK_EXIT lock = false;

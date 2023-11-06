@@ -102,6 +102,8 @@ extern uint32_t program_code_end;
 	drawByte(pointerValue >> 8, r, g, b);
 	drawByte(pointerValue, r, g, b);
 
+	//@TODO: Debug print pointers in debug version
+
 	return idxColumnPairStart;
 }
 
@@ -121,7 +123,8 @@ extern uint32_t program_code_end;
 	return false;
 }
 
-[[gnu::always_inline]] inline void printPointers(uint32_t addrSYSLR, uint32_t addrSYSSP, uint32_t addrUSRLR, uint32_t addrUSRSP, bool hardFault) {
+[[gnu::always_inline]] inline void printPointers(uint32_t addrSYSLR, uint32_t addrSYSSP, uint32_t addrUSRLR,
+                                                 uint32_t addrUSRSP, bool hardFault) {
 	uint32_t currentColumnPairIndex = 0;
 
 	// Print LR from USR mode if it is valid
@@ -187,7 +190,7 @@ extern uint32_t program_code_end;
 	sendToPIC(1 + currentColumnPairIndex);
 	bool lightActive = true;
 	for (uint32_t idxColumnPairBuffer = 0; idxColumnPairBuffer < 16; ++idxColumnPairBuffer) {
-		if(lightActive) {
+		if (lightActive) {
 			sendColor(255, (hardFault ? 0 : 255), 0);
 		}
 		else {
@@ -205,7 +208,8 @@ extern uint32_t program_code_end;
 }
 
 //@TODO: Pointers seem to be wrong right now and we will need to filter out the SP call to fault_handler_print_freeze_pointers (we can't inline, otherwise that would be huge)
-extern void fault_handler_print_freeze_pointers(uint32_t addrSYSLR, uint32_t addrSYSSP, uint32_t addrUSRLR, uint32_t addrUSRSP) {
+extern void fault_handler_print_freeze_pointers(uint32_t addrSYSLR, uint32_t addrSYSSP, uint32_t addrUSRLR,
+                                                uint32_t addrUSRSP) {
 	printPointers(addrSYSLR, addrSYSSP, addrUSRLR, addrUSRSP, false);
 }
 
