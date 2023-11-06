@@ -275,7 +275,7 @@ void SoundInstrument::setupWithoutActiveClip(ModelStack* modelStack) {
 	ParamManager* paramManager =
 	    modelStackWithTimelineCounter->song->getBackedUpParamManagerPreferablyWithClip(this, NULL);
 	if (!paramManager) {
-		display->freezeWithError("E173");
+		FREEZE_WITH_ERROR("E173");
 	}
 	patcher.performInitialPatching(this, paramManager);
 
@@ -375,7 +375,7 @@ void SoundInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, bool i
 #if ALPHA_OR_BETA_VERSION
 			if (!modelStack->paramManager) {
 				// Previously we were allowed to receive a NULL paramManager, then would just crudely do an unassignAllVoices(). But I'm pretty sure this doesn't exist anymore?
-				display->freezeWithError("E402");
+				FREEZE_WITH_ERROR("E402");
 			}
 #endif
 			ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();

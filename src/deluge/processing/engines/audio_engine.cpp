@@ -1244,7 +1244,7 @@ doCull:
 
 	int32_t i = activeVoices.insertAtKeyMultiWord(keyWords);
 	if (i == -1) {
-		// if (ALPHA_OR_BETA_VERSION) display->freezeWithError("E193"); // No, having run out of RAM here isn't a reason to not continue.
+		// if (ALPHA_OR_BETA_VERSION) FREEZE_WITH_ERROR("E193"); // No, having run out of RAM here isn't a reason to not continue.
 		disposeOfVoice(newVoice);
 		return NULL;
 	}
@@ -1479,7 +1479,7 @@ void discardRecorder(SampleRecorder* recorder) {
 
 		count++;
 		if (ALPHA_OR_BETA_VERSION && !*prevPointer) {
-			display->freezeWithError("E264");
+			FREEZE_WITH_ERROR("E264");
 		}
 		if (*prevPointer == recorder) {
 			*prevPointer = recorder->next;

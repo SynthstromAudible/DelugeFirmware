@@ -1574,7 +1574,7 @@ ModelStackWithThreeMainThings* ModControllableAudio::addNoteRowIndexAndStuff(Mod
 		InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
 #if ALPHA_OR_BETA_VERSION
 		if (noteRowIndex >= clip->noteRows.getNumElements()) {
-			display->freezeWithError("E406");
+			FREEZE_WITH_ERROR("E406");
 		}
 #endif
 		noteRow = clip->noteRows.getElement(noteRowIndex);

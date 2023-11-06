@@ -51,6 +51,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "fault_handler.h"
+
 #include "RZA1/uart/sio_char.h"
 #include "definitions.h"
 #include "drivers/uart/uart.h"
@@ -119,7 +121,7 @@ extern uint32_t program_code_end;
 	return false;
 }
 
-void handle_cpu_fault(uint32_t addrSYSLR, uint32_t addrSYSSP, uint32_t addrUSRLR, uint32_t addrUSRSP) {
+[[gnu::always_inline]] inline void printPointers(uint32_t addrSYSLR, uint32_t addrSYSSP, uint32_t addrUSRLR, uint32_t addrUSRSP, bool hardFault) {
 	uint32_t currentColumnPairIndex = 0;
 
 	// Print LR from USR mode if it is valid
@@ -185,13 +187,32 @@ void handle_cpu_fault(uint32_t addrSYSLR, uint32_t addrSYSSP, uint32_t addrUSRLR
 	sendToPIC(1 + currentColumnPairIndex);
 	bool lightActive = true;
 	for (uint32_t idxColumnPairBuffer = 0; idxColumnPairBuffer < 16; ++idxColumnPairBuffer) {
-		sendColor(lightActive ? 255 : 0, 0, 0);
+		if(lightActive) {
+			sendColor(255, (hardFault ? 0 : 255), 0);
+		}
+		else {
+			sendColor(0, 0, 0);
+		}
+
 		if (idxColumnPairBuffer != 7) {
 			lightActive = !lightActive;
 		}
 	}
 
+	sendToPIC(240); //@TODO: For some reason the OLED is not updated if we just flush, still not working
+	sendToPIC(0);
 	uartFlushIfNotSending(UART_ITEM_PIC);
+}
+
+//@TODO: Pointers seem to be wrong right now and we will need to filter out the SP call to fault_handler_print_freeze_pointers (we can't inline, otherwise that would be huge)
+extern void fault_handler_print_freeze_pointers(uint32_t addrSYSLR, uint32_t addrSYSSP, uint32_t addrUSRLR, uint32_t addrUSRSP) {
+	printPointers(addrSYSLR, addrSYSSP, addrUSRLR, addrUSRSP, false);
+}
+
+extern void handle_cpu_fault(uint32_t addrSYSLR, uint32_t addrSYSSP, uint32_t addrUSRLR, uint32_t addrUSRSP) {
+	printPointers(addrSYSLR, addrSYSSP, addrUSRLR, addrUSRSP, true);
+
+	__asm__("CPS  0x10"); // Go to USR mode
 
 	while (1) {
 		__asm__("nop");

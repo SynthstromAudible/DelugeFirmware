@@ -366,8 +366,8 @@ char const* StorageManager::readNextTagOrAttributeName() {
 
 	default:
 #if ALPHA_OR_BETA_VERSION
-		display->freezeWithError(
-		    "E365"); // Can happen with invalid files, though I'm implementing error checks whenever a user alerts me to a scenario. Fraser got this, Nov 2021.
+		// Can happen with invalid files, though I'm implementing error checks whenever a user alerts me to a scenario. Fraser got this, Nov 2021.
+		FREEZE_WITH_ERROR("E365");
 #else
 		__builtin_unreachable();
 #endif
@@ -742,7 +742,7 @@ char const* StorageManager::readTagOrAttributeValue() {
 		return "";
 
 	default:
-		display->freezeWithError("BBBB");
+		FREEZE_WITH_ERROR("BBBB");
 		__builtin_unreachable();
 	}
 }
@@ -763,7 +763,7 @@ int32_t StorageManager::readTagOrAttributeValueInt() {
 		return 0;
 
 	default:
-		display->freezeWithError("BBBB");
+		FREEZE_WITH_ERROR("BBBB");
 		__builtin_unreachable();
 	}
 }
@@ -799,7 +799,7 @@ int32_t StorageManager::readTagOrAttributeValueString(String* string) {
 
 	default:
 		if (ALPHA_OR_BETA_VERSION) {
-			display->freezeWithError("BBBB");
+			FREEZE_WITH_ERROR("BBBB");
 		}
 		__builtin_unreachable();
 	}
@@ -830,7 +830,7 @@ bool StorageManager::prepareToReadTagOrAttributeValueOneCharAtATime() {
 
 	default:
 		if (ALPHA_OR_BETA_VERSION) {
-			display->freezeWithError("CCCC");
+			FREEZE_WITH_ERROR("CCCC");
 		}
 		__builtin_unreachable();
 	}
@@ -907,7 +907,7 @@ void StorageManager::exitTag(char const* exitTagName) {
 
 		default:
 			if (ALPHA_OR_BETA_VERSION) {
-				display->freezeWithError("AAAA"); // Really shouldn't be possible anymore, I feel fairly certain...
+				FREEZE_WITH_ERROR("AAAA"); // Really shouldn't be possible anymore, I feel fairly certain...
 			}
 			__builtin_unreachable();
 		}

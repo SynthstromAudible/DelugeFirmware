@@ -425,7 +425,7 @@ void Kit::drumRemoved(Drum* drum) {
 #if ALPHA_OR_BETA_VERSION
 	int32_t i = drumsWithRenderingActive.searchExact((int32_t)drum);
 	if (i != -1) {
-		display->freezeWithError("E321");
+		FREEZE_WITH_ERROR("E321");
 	}
 #endif
 }
@@ -493,13 +493,13 @@ bool Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStac
 		Drum* thisDrum = (Drum*)drumsWithRenderingActive.getKeyAtIndex(d);
 
 		if (ALPHA_OR_BETA_VERSION && thisDrum->type != DrumType::SOUND) {
-			display->freezeWithError("E253");
+			FREEZE_WITH_ERROR("E253");
 		}
 
 		SoundDrum* soundDrum = (SoundDrum*)thisDrum;
 
 		if (ALPHA_OR_BETA_VERSION && soundDrum->skippingRendering) {
-			display->freezeWithError("E254");
+			FREEZE_WITH_ERROR("E254");
 		}
 
 		ParamManager* drumParamManager;
@@ -738,7 +738,7 @@ void Kit::setupWithoutActiveClip(ModelStack* modelStack) {
 			ParamManager* paramManager = modelStackWithTimelineCounter->song->getBackedUpParamManagerPreferablyWithClip(
 			    (ModControllableAudio*)soundDrum, NULL);
 			if (!paramManager) {
-				display->freezeWithError("E174");
+				FREEZE_WITH_ERROR("E174");
 			}
 
 			soundDrum->patcher.performInitialPatching(soundDrum, (ParamManagerForTimeline*)paramManager);
@@ -795,7 +795,7 @@ void Kit::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 				ParamManager* paramManager =
 				    modelStack->song->getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)soundDrum, NULL);
 				if (!paramManager) {
-					display->freezeWithError("E172");
+					FREEZE_WITH_ERROR("E172");
 				}
 
 				soundDrum->ensureInaccessibleParamPresetValuesWithoutKnobsAreZeroWithMinimalDetails(
@@ -1124,7 +1124,7 @@ goingToRecordNoteOnEarly:
 
 					if (thisNoteRow && thisDrum->type == DrumType::SOUND
 					    && !thisNoteRow->paramManager.containsAnyMainParamCollections()) {
-						display->freezeWithError("E326"); // Trying to catch an E313 that Vinz got
+						FREEZE_WITH_ERROR("E326"); // Trying to catch an E313 that Vinz got
 					}
 
 					beginAuditioningforDrum(modelStackWithNoteRow, thisDrum, velocity, mpeValues, channel);
@@ -1355,15 +1355,15 @@ void Kit::beginAuditioningforDrum(ModelStackWithNoteRow* modelStack, Drum* drum,
 	if (modelStack->getNoteRowAllowNull()) {
 		paramManagerForDrum = &modelStack->getNoteRow()->paramManager;
 		if (!paramManagerForDrum->containsAnyMainParamCollections() && drum->type == DrumType::SOUND) {
-			display->freezeWithError("E313"); // Vinz got this!
+			FREEZE_WITH_ERROR("E313"); // Vinz got this!
 		}
 	}
 	else {
 		if (drum->type == DrumType::SOUND) {
 			paramManagerForDrum = modelStack->song->getBackedUpParamManagerPreferablyWithClip((SoundDrum*)drum, NULL);
 			if (!paramManagerForDrum) {
-				display->freezeWithError(
-				    "E314"); // Ron got this, June 2020, while "dragging" a row vertically in arranger
+				// Ron got this, June 2020, while "dragging" a row vertically in arranger
+				FREEZE_WITH_ERROR("E314");
 			}
 		}
 	}
@@ -1402,7 +1402,7 @@ void Kit::endAuditioningForDrum(ModelStackWithNoteRow* modelStack, Drum* drum, i
 		// If still here, haven't found paramManager yet
 		paramManagerForDrum = modelStack->song->getBackedUpParamManagerPreferablyWithClip((SoundDrum*)drum, NULL);
 		if (!paramManagerForDrum) {
-			display->freezeWithError("E312"); // Should make ALPHA_OR_BETA_VERSION after V3.0.0 release
+			FREEZE_WITH_ERROR("E312"); // Should make ALPHA_OR_BETA_VERSION after V3.0.0 release
 		}
 	}
 

@@ -49,10 +49,10 @@ void SampleCache::clusterStolen(int32_t clusterIndex) {
 
 #if ALPHA_OR_BETA_VERSION
 	if (clusterIndex < 0) {
-		display->freezeWithError("E296");
+		FREEZE_WITH_ERROR("E296");
 	}
 	else if (clusterIndex >= numClusters) {
-		display->freezeWithError("E297");
+		FREEZE_WITH_ERROR("E297");
 	}
 #endif
 
@@ -71,16 +71,16 @@ void SampleCache::clusterStolen(int32_t clusterIndex) {
 
 #if ALPHA_OR_BETA_VERSION
 	if (writeBytePos < 0) {
-		display->freezeWithError("E298");
+		FREEZE_WITH_ERROR("E298");
 	}
 	else if (writeBytePos >= waveformLengthBytes) {
-		display->freezeWithError("E299");
+		FREEZE_WITH_ERROR("E299");
 	}
 
 	int32_t numExistentClusters = getNumExistentClusters(writeBytePos);
 
 	if (numExistentClusters != clusterIndex) {
-		display->freezeWithError("E295");
+		FREEZE_WITH_ERROR("E295");
 	}
 	clusters[clusterIndex] =
 	    NULL; // No need to remove this first Cluster from a queue or anything - that's already all done by the thing that's stealing it
@@ -92,7 +92,7 @@ void SampleCache::unlinkClusters(int32_t startAtIndex, bool beingDestructed) {
 	int32_t numExistentClusters = getNumExistentClusters(writeBytePos);
 	for (int32_t i = startAtIndex; i < numExistentClusters; i++) {
 		if (ALPHA_OR_BETA_VERSION && !clusters[i]) {
-			display->freezeWithError("E167");
+			FREEZE_WITH_ERROR("E167");
 		}
 
 		audioFileManager.deallocateCluster(clusters[i]);
@@ -108,15 +108,15 @@ void SampleCache::setWriteBytePos(int32_t newWriteBytePos) {
 
 #if ALPHA_OR_BETA_VERSION
 	if (newWriteBytePos < 0) {
-		display->freezeWithError("E300");
+		FREEZE_WITH_ERROR("E300");
 	}
 	if (newWriteBytePos > waveformLengthBytes) {
-		display->freezeWithError("E301");
+		FREEZE_WITH_ERROR("E301");
 	}
 
 	uint32_t bytesPerSample = sample->numChannels * kCacheByteDepth;
 	if (newWriteBytePos != (uint32_t)newWriteBytePos / bytesPerSample * bytesPerSample) {
-		display->freezeWithError("E302");
+		FREEZE_WITH_ERROR("E302");
 	}
 #endif
 
@@ -129,7 +129,7 @@ void SampleCache::setWriteBytePos(int32_t newWriteBytePos) {
 	writeBytePos = newWriteBytePos;
 
 	if (ALPHA_OR_BETA_VERSION && getNumExistentClusters(writeBytePos) != newNumExistentClusters) {
-		display->freezeWithError("E294");
+		FREEZE_WITH_ERROR("E294");
 	}
 }
 
@@ -140,10 +140,10 @@ bool SampleCache::setupNewCluster(int32_t clusterIndex) {
 
 #if ALPHA_OR_BETA_VERSION
 	if (clusterIndex >= numClusters) {
-		display->freezeWithError("E126");
+		FREEZE_WITH_ERROR("E126");
 	}
 	if (clusterIndex > getNumExistentClusters(writeBytePos)) {
-		display->freezeWithError("E293");
+		FREEZE_WITH_ERROR("E293");
 	}
 #endif
 
@@ -164,7 +164,7 @@ void SampleCache::prioritizeNotStealingCluster(int32_t clusterIndex) {
 
 	if (GeneralMemoryAllocator::get().getRegion(clusters[clusterIndex]) != MEMORY_REGION_STEALABLE) {
 		//clusters not in external
-		display->freezeWithError("C002");
+		FREEZE_WITH_ERROR("C002");
 		return; // Sorta just have to do this
 	}
 
@@ -174,7 +174,7 @@ void SampleCache::prioritizeNotStealingCluster(int32_t clusterIndex) {
 	// Remember, cache clusters never have "reasons", so we can assume these are already in one of the stealableClusterQueues, ready to be "stolen".
 #if ALPHA_OR_BETA_VERSION
 	if (clusters[clusterIndex]->numReasonsToBeLoaded != 0) {
-		display->freezeWithError("C003"); //let's just check to make sure
+		FREEZE_WITH_ERROR("C003"); //let's just check to make sure
 	}
 #endif
 	// First Cluster
@@ -193,7 +193,7 @@ void SampleCache::prioritizeNotStealingCluster(int32_t clusterIndex) {
 
 		if (GeneralMemoryAllocator::get().getRegion(clusters[clusterIndex - 1]) != MEMORY_REGION_STEALABLE) {
 			//clusters not in external
-			display->freezeWithError("C001");
+			FREEZE_WITH_ERROR("C001");
 			return; // Sorta just have to do this
 		}
 
@@ -225,10 +225,10 @@ int32_t SampleCache::getNumExistentClusters(int32_t thisWriteBytePos) {
 
 #if ALPHA_OR_BETA_VERSION
 	if (numExistentClusters < 0) {
-		display->freezeWithError("E303");
+		FREEZE_WITH_ERROR("E303");
 	}
 	if (numExistentClusters > numClusters) {
-		display->freezeWithError("E304");
+		FREEZE_WITH_ERROR("E304");
 	}
 #endif
 
