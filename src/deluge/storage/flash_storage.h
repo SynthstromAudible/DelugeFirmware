@@ -44,6 +44,8 @@ extern bool gridUnarmEmptyPads;
 extern bool gridAllowGreenSelection;
 extern GridDefaultActiveMode defaultGridActiveMode;
 
+extern uint8_t defaultMetronomeVolume;
+
 void readSettings();
 void writeSettings();
 void resetSettings();

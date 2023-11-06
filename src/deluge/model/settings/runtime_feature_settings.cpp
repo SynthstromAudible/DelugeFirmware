@@ -127,6 +127,10 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationShiftClip],
 	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_SHIFT_CLIP), "automationShiftClip",
 	                  RuntimeFeatureStateToggle::On);
+	// Disable Audition Pad Shortcuts in Automation View
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AutomationDisableAuditionPadShortcuts],
+	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_DISABLE_AUDITION_PAD_SHORTCUTS),
+	                  "automationDisableAuditionPadShortcuts", RuntimeFeatureStateToggle::On);
 	// devSysexAllowed
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DevSysexAllowed],
 	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_DEV_SYSEX), "devSysexAllowed",
