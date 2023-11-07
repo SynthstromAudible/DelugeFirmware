@@ -313,12 +313,12 @@ int32_t GlobalEffectable::getKnobPosForNonExistentParam(int32_t whichModEncoder,
 				break;
 
 			case CompParam::ATTACK:
-				current = getLookupIndexFromValue(AudioEngine::mastercompressor.attack >> 2, attackRateTable, 50);
+				current = getLookupIndexFromValue(AudioEngine::mastercompressor.attack, attackRateTable, 50) << 2;
 				displayLevel = (current * 128) / 50;
 				break;
 
 			case CompParam::RELEASE:
-				current = getLookupIndexFromValue(AudioEngine::mastercompressor.release >> 1, releaseRateTable, 50);
+				current = getLookupIndexFromValue(AudioEngine::mastercompressor.release, releaseRateTable, 50) << 2;
 				displayLevel = (current * 128) / 50;
 				break;
 			}
@@ -369,13 +369,13 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 
 			case CompParam::RELEASE:
 
-				current = getLookupIndexFromValue(AudioEngine::mastercompressor.release, releaseRateTable, 50);
+				current = getLookupIndexFromValue(AudioEngine::mastercompressor.release >> 2, releaseRateTable, 50);
 				current += offset;
 				current = std::clamp(current, 0, 50);
 				displayLevel = current;
 				ledLevel = (displayLevel * 128) / 50;
 
-				AudioEngine::mastercompressor.release = releaseRateTable[current];
+				AudioEngine::mastercompressor.release = releaseRateTable[current] << 2;
 
 				break;
 			}

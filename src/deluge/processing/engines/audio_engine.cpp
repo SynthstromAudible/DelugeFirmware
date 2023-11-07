@@ -404,10 +404,10 @@ void routine() {
 	smoothedSamples = numSamples;
 
 	if (numSamplesLastTime < numSamples) {
-		Debug::print("rendered ");
-		Debug::print(numSamplesLastTime);
-		Debug::print(" samples but output ");
-		Debug::println(numSamples);
+		logAction("rendered ");
+		logAction(numSamplesLastTime);
+		logAction(" samples but output ");
+		logAction(numSamples);
 	}
 
 	// Consider direness and culling - before increasing the number of samples
