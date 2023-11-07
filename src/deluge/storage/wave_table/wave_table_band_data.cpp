@@ -35,7 +35,7 @@ bool WaveTableBandData::mayBeStolen(void* thingNotToStealFrom) {
 void WaveTableBandData::steal(char const* errorCode) {
 #if ALPHA_OR_BETA_VERSION
 	if (!waveTable || waveTable->numReasonsToBeLoaded) {
-		display->freezeWithError("E387");
+		FREEZE_WITH_ERROR("E387");
 	}
 #endif
 

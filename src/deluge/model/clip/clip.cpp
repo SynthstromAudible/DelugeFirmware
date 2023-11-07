@@ -552,7 +552,7 @@ int32_t Clip::undoDetachmentFromOutput(ModelStackWithTimelineCounter* modelStack
 
 	if (!success) {
 		if (ALPHA_OR_BETA_VERSION) {
-			display->freezeWithError("E245");
+			FREEZE_WITH_ERROR("E245");
 		}
 		return ERROR_BUG;
 	}
@@ -938,13 +938,13 @@ trimFoundParamManager:
 				int32_t error = paramManager.cloneParamCollectionsFrom(&otherClip->paramManager, false, true);
 
 				if (error) {
-					display->freezeWithError("E050");
+					FREEZE_WITH_ERROR("E050");
 					return error;
 				}
 			}
 			// Unless I've done something wrong, there *has* to be another Clip if the Output didn't have a backed-up ParamManager. But, just in case
 			else {
-				display->freezeWithError("E051");
+				FREEZE_WITH_ERROR("E051");
 				return ERROR_UNSPECIFIED;
 			}
 		}

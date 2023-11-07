@@ -48,7 +48,7 @@ ParamManager::~ParamManager() {
 
 #if ALPHA_OR_BETA_VERSION
 ParamManagerForTimeline* ParamManager::toForTimeline() {
-	display->freezeWithError("E407");
+	FREEZE_WITH_ERROR("E407");
 	return NULL;
 }
 
@@ -113,7 +113,7 @@ ramError2:
 void ParamManager::stealParamCollectionsFrom(ParamManager* other, bool stealExpressionParams) {
 #if ALPHA_OR_BETA_VERSION
 	if (!other) {
-		display->freezeWithError("E413");
+		FREEZE_WITH_ERROR("E413");
 	}
 #endif
 
@@ -300,7 +300,7 @@ ExpressionParamSet* ParamManager::getOrCreateExpressionParamSet(bool forDrum) {
 ModelStackWithParamCollection* ParamManager::getPatchCableSet(ModelStackWithThreeMainThings const* modelStack) {
 #if ALPHA_OR_BETA_VERSION
 	if (!summaries[2].paramCollection) {
-		display->freezeWithError("E412");
+		FREEZE_WITH_ERROR("E412");
 	}
 #endif
 	return modelStack->addParamCollection(summaries[2].paramCollection, &summaries[2]);
@@ -315,7 +315,7 @@ ParamManagerForTimeline::ParamManagerForTimeline() {
 void ParamManagerForTimeline::ensureSomeParamCollections() {
 #if ALPHA_OR_BETA_VERSION
 	if (!summaries[0].paramCollection) {
-		display->freezeWithError("E408");
+		FREEZE_WITH_ERROR("E408");
 	}
 #endif
 }

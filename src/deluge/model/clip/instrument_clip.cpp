@@ -1095,7 +1095,7 @@ ModelStackWithNoteRow* InstrumentClip::getOrCreateNoteRowForYNote(int32_t yNote,
 
 				thisNoteRow = getNoteRowForYNote(yNote); // Must re-get it
 				if (ALPHA_OR_BETA_VERSION && !thisNoteRow) {
-					display->freezeWithError("E -1");
+					FREEZE_WITH_ERROR("E -1");
 				}
 
 				thisNoteRow->notes.empty(); // Undo our "total hack", above
@@ -1492,7 +1492,7 @@ int32_t InstrumentClip::setNonAudioInstrument(Instrument* newInstrument, Song* s
 			int32_t error = paramManager.setupMIDI();
 			if (error) {
 				if (ALPHA_OR_BETA_VERSION) {
-					display->freezeWithError("E052");
+					FREEZE_WITH_ERROR("E052");
 				}
 				return error;
 			}
@@ -1606,7 +1606,7 @@ int32_t InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelSta
 	    newInstrument, modelStack->song, newParamManager,
 	    favourClipForCloningParamManager); // Tell it not to setup patching - this will happen back here in changeInstrumentPreset() after all Drums matched up
 	if (error) {
-		display->freezeWithError("E039");
+		FREEZE_WITH_ERROR("E039");
 		return error; // TODO: we'll need to get the old Instrument back...
 	}
 
@@ -2034,7 +2034,7 @@ int32_t InstrumentClip::undoUnassignmentOfAllNoteRowsFromDrums(ModelStackWithTim
 
 			if (!success) {
 				if (ALPHA_OR_BETA_VERSION) {
-					display->freezeWithError("E229");
+					FREEZE_WITH_ERROR("E229");
 				}
 				return ERROR_BUG;
 			}
@@ -2125,7 +2125,7 @@ int32_t InstrumentClip::undoDetachmentFromOutput(ModelStackWithTimelineCounter* 
 
 		if (!paramManager.containsAnyMainParamCollections()) {
 			if (ALPHA_OR_BETA_VERSION) {
-				display->freezeWithError("E230");
+				FREEZE_WITH_ERROR("E230");
 			}
 			return ERROR_BUG;
 		}
@@ -3066,7 +3066,7 @@ bool InstrumentClip::deleteSoundsWhichWontSound(Song* song) {
 
 					if (ALPHA_OR_BETA_VERSION && noteRow->drum->type == DrumType::SOUND
 					    && ((SoundDrum*)noteRow->drum)->hasAnyVoices()) {
-						display->freezeWithError("E176");
+						FREEZE_WITH_ERROR("E176");
 					}
 
 					Drum* drum = noteRow->drum;
@@ -3236,7 +3236,7 @@ int32_t InstrumentClip::getDistanceToNextNote(Note* givenNote, ModelStackWithNot
 int32_t InstrumentClip::getNoteRowId(NoteRow* noteRow, int32_t noteRowIndex) {
 #if ALPHA_OR_BETA_VERSION
 	if (!noteRow) {
-		display->freezeWithError("E380");
+		FREEZE_WITH_ERROR("E380");
 	}
 #endif
 	if (output->type == InstrumentType::KIT) {
@@ -3250,7 +3250,7 @@ int32_t InstrumentClip::getNoteRowId(NoteRow* noteRow, int32_t noteRowIndex) {
 NoteRow* InstrumentClip::getNoteRowFromId(int32_t id) {
 	if (output->type == InstrumentType::KIT) {
 		if (id < 0 || id >= noteRows.getNumElements()) {
-			display->freezeWithError("E177");
+			FREEZE_WITH_ERROR("E177");
 		}
 		return noteRows.getElement(id);
 	}
@@ -3801,7 +3801,7 @@ int32_t InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 
 						// If wasn't enough RAM, we're really in trouble
 						if (error) {
-							display->freezeWithError("E011");
+							FREEZE_WITH_ERROR("E011");
 haveNoDrum:
 							thisNoteRow->drum = NULL;
 						}

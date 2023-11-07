@@ -519,7 +519,7 @@ doOther:
 
 					if (ALPHA_OR_BETA_VERSION
 					    && (noteRowIndex < 0 || noteRowIndex >= clip->noteRows.getNumElements())) {
-						display->freezeWithError("E323");
+						FREEZE_WITH_ERROR("E323");
 					}
 
 					if (clip->isActiveOnOutput()) {
@@ -2750,7 +2750,7 @@ void InstrumentClipView::sendAuditionNote(bool on, uint8_t yDisplay, uint8_t vel
 				if (on) {
 					if (drum->type == DrumType::SOUND
 					    && !modelStackWithNoteRow->getNoteRow()->paramManager.containsAnyMainParamCollections()) {
-						display->freezeWithError("E325"); // Trying to catch an E313 that Vinz got
+						FREEZE_WITH_ERROR("E325"); // Trying to catch an E313 that Vinz got
 					}
 					((Kit*)instrument)->beginAuditioningforDrum(modelStackWithNoteRow, drum, velocity, zeroMPEValues);
 				}
@@ -5184,7 +5184,7 @@ void InstrumentClipView::modEncoderAction(int32_t whichModEncoder, int32_t offse
 		if (kit->selectedDrum && kit->selectedDrum->type != DrumType::SOUND) {
 
 			if (ALPHA_OR_BETA_VERSION && !kit->activeClip) {
-				display->freezeWithError("E381");
+				FREEZE_WITH_ERROR("E381");
 			}
 
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =

@@ -2018,7 +2018,7 @@ void Voice::renderBasicSource(Sound* sound, ParamManagerForTimeline* paramManage
 instantUnassign:
 
 #ifdef TEST_SAMPLE_LOOP_POINTS
-			display->freezeWithError("YEP");
+			FREEZE_WITH_ERROR("YEP");
 #endif
 
 			*unisonPartBecameInactive = true;

@@ -17,6 +17,9 @@
       "request": "launch",
       "cwd": "${workspaceRoot}",
       "executable": "${workspaceRoot}/build/Debug/deluge.elf",
+      "windows": {
+        "serverpath": "C:\\Program Files\\SEGGER\\JLink\\JLinkGDBServerCL.exe", 
+      },
       "servertype": "jlink",
       "device": "R7S721020",
       "interface": "swd",

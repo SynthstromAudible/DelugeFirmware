@@ -720,7 +720,7 @@ noNumberYet:
 			int32_t searchResult = fileItems.search(endSearchString.get());
 #if ALPHA_OR_BETA_VERSION
 			if (searchResult <= 0) {
-				display->freezeWithError("E448");
+				FREEZE_WITH_ERROR("E448");
 				error = ERROR_BUG;
 				goto gotErrorAfterAllocating;
 			}

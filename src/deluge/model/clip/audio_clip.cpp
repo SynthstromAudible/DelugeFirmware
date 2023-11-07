@@ -67,7 +67,7 @@ AudioClip::AudioClip() : Clip(CLIP_TYPE_AUDIO) {
 
 AudioClip::~AudioClip() {
 	if (recorder) {
-		display->freezeWithError("E278");
+		FREEZE_WITH_ERROR("E278");
 	}
 
 	// Sirhc actually got this in a V3.0.5 RC! No idea how. Also Qui got around V3.1.3.
@@ -246,7 +246,7 @@ ramError:
 
 #if ALPHA_OR_BETA_VERSION
 	if (!newClip->paramManager.summaries[0].paramCollection) {
-		display->freezeWithError("E421"); // Trying to diversify Leo's E410
+		FREEZE_WITH_ERROR("E421"); // Trying to diversify Leo's E410
 	}
 #endif
 
@@ -388,7 +388,7 @@ void AudioClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, bool m
 
 #if ALPHA_OR_BETA_VERSION
 	if (!playbackHandler.isEitherClockActive() || !modelStack->song->isClipActive(this)) {
-		display->freezeWithError("E430");
+		FREEZE_WITH_ERROR("E430");
 	}
 #endif
 
@@ -417,7 +417,7 @@ void AudioClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, bool m
 	int32_t sequenceSyncStartedNumTicksAgo = currentInternalTickCount - sequenceSyncStartedAtTickTrivialValue;
 	if (sequenceSyncStartedNumTicksAgo < 0) { // Shouldn't happen
 		if (ALPHA_OR_BETA_VERSION) {
-			display->freezeWithError("nofg"); // Ron got, Nov 2021. Wait no, he didn't have playback on!
+			FREEZE_WITH_ERROR("nofg"); // Ron got, Nov 2021. Wait no, he didn't have playback on!
 		}
 		sequenceSyncStartedNumTicksAgo = 0; // The show must go on
 	}

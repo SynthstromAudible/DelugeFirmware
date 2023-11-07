@@ -1861,7 +1861,7 @@ int32_t Session::getCurrentSection() {
 		}
 		else {
 			if (ALPHA_OR_BETA_VERSION && clip->section > kMaxNumSections) {
-				display->freezeWithError("E243");
+				FREEZE_WITH_ERROR("E243");
 			}
 			anyUnlaunchedLoopablesInSection[clip->section] = true;
 		}
