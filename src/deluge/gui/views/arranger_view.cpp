@@ -425,8 +425,6 @@ void ArrangerView::setLedStates() {
 }
 
 void ArrangerView::focusRegained() {
-	FREEZE_WITH_ERROR("EPAUL");
-
 	view.focusRegained();
 
 	repopulateOutputsOnScreen(false);

@@ -48,6 +48,7 @@ execute_process(
 string(TIMESTAMP DATE_TODAY "%Y.%m.%d")
 
 # Build our version string
+set(BUILD_COMMIT_SHORT "${GIT_COMMIT_SHORT}") # Used in firmware
 set(BUILD_VERSION_STRING "${PROJECT_VERSION}${SEMVER_PRERELEASE_ID}-${GIT_COMMIT_SHORT}") # Used in firmware
 set(BUILD_VERSION_SUFFIX "-v${PROJECT_VERSION}${SEMVER_PRERELEASE_ID}+${DATE_TODAY}-${GIT_COMMIT_SHORT}") # Used for filename
 

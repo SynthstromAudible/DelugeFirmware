@@ -52,10 +52,13 @@
  */
 
 #include "fault_handler.h"
-
+#include "RTT/SEGGER_RTT.h"
+#include "RZA1/compiler/asm/inc/asm.h"
+#include "RZA1/system/iodefines/dmac_iodefine.h"
 #include "RZA1/uart/sio_char.h"
 #include "definitions.h"
 #include "drivers/uart/uart.h"
+#include <version.h>
 
 extern uint32_t program_stack_start;
 extern uint32_t program_stack_end;
@@ -102,7 +105,9 @@ extern uint32_t program_code_end;
 	drawByte(pointerValue >> 8, r, g, b);
 	drawByte(pointerValue, r, g, b);
 
-	//@TODO: Debug print pointers in debug version
+#if ENABLE_TEXT_OUTPUT
+	SEGGER_RTT_printf(0, "PTR: 0x%8X (%d, %d, %d)\n", pointerValue, r, g, b);
+#endif
 
 	return idxColumnPairStart;
 }
@@ -123,8 +128,54 @@ extern uint32_t program_code_end;
 	return false;
 }
 
+[[gnu::always_inline]] inline uint8_t getHexCharValue(char input) {
+	uint8_t result = 0;
+	if (input >= '0' && input <= '9') {
+		result = input - '0';
+	}
+	if (input >= 'a' && input <= 'f') {
+		result = input - 'a' + 10;
+	}
+	return result;
+}
+
+#define MIN(a, b) ((a) > (b) ? (b) : (a))
+#define MAX_POINTER_COUNT 4
 [[gnu::always_inline]] inline void printPointers(uint32_t addrSYSLR, uint32_t addrSYSSP, uint32_t addrUSRLR,
                                                  uint32_t addrUSRSP, bool hardFault) {
+	// Search for stack pointers
+	uint32_t stackPointer = 0;
+	if (isStackPointer(addrUSRSP)) {
+		stackPointer = addrUSRSP;
+	}
+	else if (isStackPointer(addrSYSSP)) {
+		stackPointer = addrSYSSP;
+	}
+
+	uint8_t stackPointerCount = 0;
+	uint32_t stackPointers[MAX_POINTER_COUNT] = {0};
+
+	// Search for stack pointers before any printing
+	if (stackPointer != 0x00000000) {
+		stackPointer = stackPointer - (stackPointer % 4); // Align to 4 bytes
+		while (stackPointer <= (uint32_t)&program_stack_end) {
+			uint32_t stackValue = *((uint32_t*)stackPointer);
+
+			// Print any pointer that is pointing to code, different from the LRs and not the same as before
+			if (isCodePointer(stackValue) && stackValue != stackPointers[MIN(0, stackPointerCount - 1)]
+			    && stackValue != addrUSRLR && stackValue != addrSYSLR) {
+				stackPointers[stackPointerCount] = stackValue;
+				++stackPointerCount;
+
+				if (stackPointerCount >= MAX_POINTER_COUNT) {
+					break;
+				}
+			}
+
+			stackPointer += 4;
+		}
+	}
+
 	uint32_t currentColumnPairIndex = 0;
 
 	// Print LR from USR mode if it is valid
@@ -137,43 +188,28 @@ extern uint32_t program_code_end;
 		currentColumnPairIndex = drawPointer(currentColumnPairIndex, addrSYSLR, 0, 0, 255);
 	}
 
-	// Check if any stack pointer is valid preferring USR pointer
-	uint32_t stackPointer = 0;
-	if (isStackPointer(addrUSRSP)) {
-		stackPointer = addrUSRSP;
-	}
-	else if (isStackPointer(addrSYSSP)) {
-		stackPointer = addrSYSSP;
-	}
-
-	if (stackPointer != 0x00000000) {
+	// Print all pointers
+	if (stackPointerCount > 0) {
+		uint8_t currentPointerIndex = 0;
 		uint8_t currentBlueValue = 0;
-		uint32_t lastCodePointer = 0;
-		stackPointer = stackPointer - (stackPointer % 4); // Align to 4 bytes
-		while (stackPointer >= (uint32_t)&program_stack_start) {
-			uint32_t stackValue = *((uint32_t*)stackPointer);
-			// Print any pointer that is pointing to code, different from the LRs and not the same as before
-			if (isCodePointer(stackValue) && stackValue != lastCodePointer && stackValue != addrUSRLR
-			    && stackValue != addrSYSLR) {
-				currentColumnPairIndex = drawPointer(currentColumnPairIndex, stackValue, 0, 255, currentBlueValue);
+		while (currentPointerIndex < MAX_POINTER_COUNT) {
+			currentColumnPairIndex =
+			    drawPointer(currentColumnPairIndex, stackPointers[currentPointerIndex], 0, 255, currentBlueValue);
 
-				// Stop after filling all columns
-				if (currentColumnPairIndex >= 8) {
-					break;
-				}
-
-				// Alternate colors
-				if (currentBlueValue == 0) {
-					currentBlueValue = 255;
-				}
-				else if (currentBlueValue == 255) {
-					currentBlueValue = 0;
-				}
-
-				lastCodePointer = stackValue;
+			// Stop after filling all columns
+			if (currentColumnPairIndex >= 8) {
+				break;
 			}
 
-			stackPointer -= 4;
+			// Alternate colors
+			if (currentBlueValue == 0) {
+				currentBlueValue = 255;
+			}
+			else if (currentBlueValue == 255) {
+				currentBlueValue = 0;
+			}
+
+			++currentPointerIndex;
 		}
 	}
 
@@ -186,31 +222,31 @@ extern uint32_t program_code_end;
 		}
 	}
 
-	// Send error pattern to sidebar
+	// Print first 4 byte of commit ID
 	sendToPIC(1 + currentColumnPairIndex);
-	bool lightActive = true;
-	for (uint32_t idxColumnPairBuffer = 0; idxColumnPairBuffer < 16; ++idxColumnPairBuffer) {
-		if (lightActive) {
-			sendColor(255, (hardFault ? 0 : 255), 0);
-		}
-		else {
-			sendColor(0, 0, 0);
-		}
+	char commitShort[32] = FIRMWARE_COMMIT_SHORT;
 
-		if (idxColumnPairBuffer != 7) {
-			lightActive = !lightActive;
-		}
-	}
+	uint8_t firstByte = (getHexCharValue(commitShort[0]) << 4) | getHexCharValue(commitShort[1]);
+	drawByte(firstByte, 255, (hardFault ? 0 : 255), 0);
+	uint8_t secondByte = (getHexCharValue(commitShort[2]) << 4) | getHexCharValue(commitShort[3]);
+	drawByte(secondByte, 255, (hardFault ? 0 : 255), 0);
 
-	sendToPIC(240); //@TODO: For some reason the OLED is not updated if we just flush, still not working
-	sendToPIC(0);
+#if ENABLE_TEXT_OUTPUT
+	SEGGER_RTT_printf(0, "COMMIT: %s\n", FIRMWARE_COMMIT_SHORT);
+#endif
+
 	uartFlushIfNotSending(UART_ITEM_PIC);
+
+	// Wait for flush to finish
+	while (!(DMACn(PIC_TX_DMA_CHANNEL).CHSTAT_n & (1 << 6))) {}
 }
 
 //@TODO: Pointers seem to be wrong right now and we will need to filter out the SP call to fault_handler_print_freeze_pointers (we can't inline, otherwise that would be huge)
 extern void fault_handler_print_freeze_pointers(uint32_t addrSYSLR, uint32_t addrSYSSP, uint32_t addrUSRLR,
                                                 uint32_t addrUSRSP) {
+	__disable_irq();
 	printPointers(addrSYSLR, addrSYSSP, addrUSRLR, addrUSRSP, false);
+	__enable_irq();
 }
 
 extern void handle_cpu_fault(uint32_t addrSYSLR, uint32_t addrSYSSP, uint32_t addrUSRLR, uint32_t addrUSRSP) {
