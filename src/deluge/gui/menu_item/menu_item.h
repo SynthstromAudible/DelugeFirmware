@@ -95,7 +95,7 @@ public:
 	///
 	/// The returned pointer must live long enough for us to draw the title, which for practical purposes means "the
 	/// lifetime of this menu item"
-	[[nodiscard]] virtual std::string_view getTitle() const { return deluge::l10n::getView(name); }
+	[[nodiscard]] virtual std::string_view getTitle() const { return deluge::l10n::getView(title); }
 
 	virtual void renderOLED();
 	virtual void drawPixelsForOled() {}
