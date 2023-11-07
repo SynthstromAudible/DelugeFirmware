@@ -31,7 +31,7 @@ void VoiceVector::checkVoiceExists(Voice* voice, Sound* sound, char const* error
 		int32_t i = searchMultiWordExact(searchWords);
 
 		if (i == -1) {
-			display->freezeWithError(errorCode);
+			FREEZE_WITH_ERROR(errorCode);
 		}
 	}
 }

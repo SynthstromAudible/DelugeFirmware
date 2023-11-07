@@ -658,7 +658,7 @@ getOut:
 
 #if 1 || ALPHA_OR_BETA_VERSION
 		if (!firstRange->sampleHolder.audioFile) {
-			display->freezeWithError("i032"); // Trying to narrow down E368 that Kevin F got
+			FREEZE_WITH_ERROR("i032"); // Trying to narrow down E368 that Kevin F got
 		}
 #endif
 

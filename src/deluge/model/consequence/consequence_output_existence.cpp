@@ -39,7 +39,7 @@ int32_t ConsequenceOutputExistence::revert(TimeType time, ModelStack* modelStack
 
 		outputIndex = modelStack->song->removeOutputFromMainList(output);
 		if (ALPHA_OR_BETA_VERSION && outputIndex == -1) {
-			display->freezeWithError("E263");
+			FREEZE_WITH_ERROR("E263");
 		}
 
 		output->prepareForHibernationOrDeletion();

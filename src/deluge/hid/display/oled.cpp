@@ -1231,12 +1231,12 @@ void OLED::freezeWithError(char const* text) {
 	// Wait for existing DMA transfer to finish
 	uint16_t startTime = *TCNT[TIMER_SYSTEM_SLOW];
 	while (!(DMACn(OLED_SPI_DMA_CHANNEL).CHSTAT_n & DMAC0_CHSTAT_n_TC)
-	       && (uint16_t)(*TCNT[TIMER_SYSTEM_SLOW] - startTime) < msToSlowTimerCount(10)) {}
+	       && (uint16_t)(*TCNT[TIMER_SYSTEM_SLOW] - startTime) < msToSlowTimerCount(50)) {}
 
 	// Wait for PIC to de-select OLED, if it's been doing that.
 	if (oledWaitingForMessage != 256) {
 		startTime = *TCNT[TIMER_SYSTEM_SLOW];
-		while ((uint16_t)(*TCNT[TIMER_SYSTEM_SLOW] - startTime) < msToSlowTimerCount(10)) {
+		while ((uint16_t)(*TCNT[TIMER_SYSTEM_SLOW] - startTime) < msToSlowTimerCount(50)) {
 			uint8_t value;
 			bool anything = uartGetChar(UART_ITEM_PIC, (char*)&value);
 			if (anything && value == oledWaitingForMessage) {
@@ -1254,7 +1254,7 @@ void OLED::freezeWithError(char const* text) {
 
 	// Wait for selection to be done
 	startTime = *TCNT[TIMER_SYSTEM_SLOW];
-	while ((uint16_t)(*TCNT[TIMER_SYSTEM_SLOW] - startTime) < msToSlowTimerCount(10)) {
+	while ((uint16_t)(*TCNT[TIMER_SYSTEM_SLOW] - startTime) < msToSlowTimerCount(50)) {
 		uint8_t value;
 		bool anything = uartGetChar(UART_ITEM_PIC, (char*)&value);
 		if (anything && value == 248) {

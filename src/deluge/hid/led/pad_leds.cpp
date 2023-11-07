@@ -438,7 +438,7 @@ void setupAudioClipCollapseOrExplodeAnimation(AudioClip* clip) {
 	Sample* sample = (Sample*)clip->sampleHolder.audioFile;
 
 	if (ALPHA_OR_BETA_VERSION && !sample) {
-		display->freezeWithError("E311");
+		FREEZE_WITH_ERROR("E311");
 	}
 
 	sampleMaxPeakFromZero = sample->getMaxPeakFromZero();

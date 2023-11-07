@@ -425,7 +425,6 @@ void ArrangerView::setLedStates() {
 }
 
 void ArrangerView::focusRegained() {
-
 	view.focusRegained();
 
 	repopulateOutputsOnScreen(false);
@@ -649,7 +648,7 @@ void ArrangerView::beginAudition(Output* output) {
 			if (noteRow) {
 				drum = noteRow->drum;
 				if (drum && drum->type == DrumType::SOUND && !noteRow->paramManager.containsAnyMainParamCollections()) {
-					display->freezeWithError("E324"); // Vinz got this! I may have since fixed.
+					FREEZE_WITH_ERROR("E324"); // Vinz got this! I may have since fixed.
 				}
 			}
 			else {
@@ -1177,7 +1176,7 @@ void ArrangerView::editPadAction(int32_t x, int32_t y, bool on) {
 			int32_t squareEnd = getPosFromSquare(x + 1, xScroll);
 
 			if (squareStart >= squareEnd) {
-				display->freezeWithError("E210");
+				FREEZE_WITH_ERROR("E210");
 			}
 
 			// No previous press
@@ -1243,7 +1242,7 @@ makeNewInstance:
 						int32_t j = output->clipInstances.search(squareStart, GREATER_OR_EQUAL);
 						ClipInstance* nextClipInstance = output->clipInstances.getElement(j);
 						if (nextClipInstance && nextClipInstance->pos == squareStart) {
-							display->freezeWithError("E233"); // Yes, this happened to someone. Including me!!
+							FREEZE_WITH_ERROR("E233"); // Yes, this happened to someone. Including me!!
 						}
 					}
 
@@ -1297,7 +1296,7 @@ getItFromSection:
 						ClipInstance* nextInstance = output->clipInstances.getElement(pressedClipInstanceIndex + 1);
 						if (nextInstance) {
 							if (nextInstance->pos == squareStart) {
-								display->freezeWithError("E232");
+								FREEZE_WITH_ERROR("E232");
 							}
 						}
 					}
@@ -1318,21 +1317,21 @@ getItFromSection:
 					}
 
 					if (clipInstance->length < 1) {
-						display->freezeWithError("E049");
+						FREEZE_WITH_ERROR("E049");
 					}
 
 					ClipInstance* nextInstance = output->clipInstances.getElement(pressedClipInstanceIndex + 1);
 					if (nextInstance) {
 
 						if (nextInstance->pos == squareStart) {
-							display->freezeWithError("E209");
+							FREEZE_WITH_ERROR("E209");
 						}
 
 						int32_t maxLength = nextInstance->pos - squareStart;
 						if (clipInstance->length > maxLength) {
 							clipInstance->length = maxLength;
 							if (clipInstance->length < 1) {
-								display->freezeWithError("E048");
+								FREEZE_WITH_ERROR("E048");
 							}
 						}
 					}
@@ -1340,7 +1339,7 @@ getItFromSection:
 					if (clipInstance->length > kMaxSequenceLength - clipInstance->pos) {
 						clipInstance->length = kMaxSequenceLength - clipInstance->pos;
 						if (clipInstance->length < 1) {
-							display->freezeWithError("E045");
+							FREEZE_WITH_ERROR("E045");
 						}
 					}
 
@@ -2454,7 +2453,7 @@ cant:
 	if (instrumentClip) {
 		int32_t clipIndex = currentSong->sessionClips.getIndexForClip(instrumentClip);
 		if (ALPHA_OR_BETA_VERSION && clipIndex == -1) {
-			display->freezeWithError("E266");
+			FREEZE_WITH_ERROR("E266");
 		}
 		newClip = currentSong->replaceInstrumentClipWithAudioClip(instrumentClip, clipIndex);
 

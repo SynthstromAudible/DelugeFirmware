@@ -166,7 +166,7 @@ void QwertyUI::displayText(bool blinkImmediately) {
 	memset(encodedAddition, 0, kNumericDisplayLength);
 	if (totalTextLength == enteredTextEditPos || enteredText.get()[enteredTextEditPos] == ' ') {
 		if (ALPHA_OR_BETA_VERSION && (editPosOnscreen < 0 || editPosOnscreen >= kNumericDisplayLength)) {
-			display->freezeWithError("E292");
+			FREEZE_WITH_ERROR("E292");
 		}
 		encodedAddition[editPosOnscreen] = 0x08;
 		encodedEditPosAndAHalf =

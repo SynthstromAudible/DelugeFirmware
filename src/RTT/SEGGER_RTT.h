@@ -49,7 +49,7 @@
 ---------------------------END-OF-HEADER------------------------------
 File    : SEGGER_RTT.h
 Purpose : Implementation of SEGGER real-time transfer which allows
-          real-time communication on targets which support debugger 
+          real-time communication on targets which support debugger
           memory accesses while the CPU is running.
 Revision: $Rev: 17697 $
 ----------------------------------------------------------------------
@@ -225,7 +225,7 @@ unsigned SEGGER_RTT_GetBytesInBuffer(unsigned BufferIndex);
 //
 // Function macro for performance optimization
 //
-#define SEGGER_RTT_HASDATA(n) (_SEGGER_RTT.aDown[n].WrOff - _SEGGER_RTT.aDown[n].RdOff)
+#define SEGGER_RTT_HASDATA(n) (_SEGGER_RTT_UNCACHED.aDown[n].WrOff - _SEGGER_RTT_UNCACHED.aDown[n].RdOff)
 
 #if RTT_USE_ASM
 #define SEGGER_RTT_WriteSkipNoLock SEGGER_RTT_ASM_WriteSkipNoLock
@@ -242,7 +242,7 @@ unsigned SEGGER_RTT_ReadUpBufferNoLock(unsigned BufferIndex, void* pData, unsign
 unsigned SEGGER_RTT_WriteDownBuffer(unsigned BufferIndex, const void* pBuffer, unsigned NumBytes);
 unsigned SEGGER_RTT_WriteDownBufferNoLock(unsigned BufferIndex, const void* pBuffer, unsigned NumBytes);
 
-#define SEGGER_RTT_HASDATA_UP(n) (_SEGGER_RTT.aUp[n].WrOff - _SEGGER_RTT.aUp[n].RdOff)
+#define SEGGER_RTT_HASDATA_UP(n) (_SEGGER_RTT_UNCACHED.aUp[n].WrOff - _SEGGER_RTT_UNCACHED.aUp[n].RdOff)
 
 /*********************************************************************
 *

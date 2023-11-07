@@ -1,4 +1,6 @@
 #pragma once
+
+#ifdef __cplusplus
 #include <compare>
 #include <cstdint>
 
@@ -19,3 +21,14 @@ constexpr SemVer kCommunityFirmwareVersion {
 //clang-format on
 
 constexpr char const* kFirmwareVersionString = "@BUILD_VERSION_STRING@";
+
+#else
+
+#define FIRMWARE_VERSION_MAJOR @PROJECT_VERSION_MAJOR@
+#define FIRMWARE_VERSION_MINOR @PROJECT_VERSION_MINOR@
+#define FIRMWARE_VERSION_PATCH @PROJECT_VERSION_PATCH@
+
+#define FIRMWARE_VERSION_STRING "@BUILD_VERSION_STRING@"
+#define FIRMWARE_COMMIT_SHORT "@BUILD_COMMIT_SHORT@"
+
+#endif
