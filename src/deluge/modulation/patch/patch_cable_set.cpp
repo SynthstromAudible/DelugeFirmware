@@ -303,7 +303,7 @@ goAgainWithoutIncrement:
 					// If getting crashes here, well I previously fixed a bug where sometimes the range-adjust*ed* cable was not "allowed", so
 					// was not present here, but the adjust*ing* cable still was here, which this code can't handle. So check that again?
 					if (thatDestination >= (&destinations[globality][numDestinations[globality]])) {
-						display->freezeWithError("E434");
+						FREEZE_WITH_ERROR("E434");
 					}
 #endif
 				}

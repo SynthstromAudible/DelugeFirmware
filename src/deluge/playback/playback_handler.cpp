@@ -1048,7 +1048,7 @@ int64_t PlaybackHandler::getCurrentInternalTickCount(uint32_t* timeRemainder) {
 #if ALPHA_OR_BETA_VERSION
 	if (internalTickCount < 0) {
 		// Trying to narrow down "nofg" error, which Ron got most recently (Nov 2021). Wait no, he didn't have playback on!
-		display->freezeWithError("E429");
+		FREEZE_WITH_ERROR("E429");
 	}
 #endif
 
@@ -1096,7 +1096,7 @@ goAgain:
 
 		// Should now be impossible for them to be at the same time, since we should be looking at one in the future and one not
 		if (ALPHA_OR_BETA_VERSION && timeBetweenInputTicks <= 0) {
-			display->freezeWithError("E337");
+			FREEZE_WITH_ERROR("E337");
 		}
 
 		currentInputTick =

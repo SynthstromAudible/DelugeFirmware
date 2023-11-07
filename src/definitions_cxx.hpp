@@ -24,8 +24,6 @@
 #include <cstddef>
 #include <cstdint>
 
-#define ALPHA_OR_BETA_VERSION 1 // Whether to compile with additional error-checking
-
 #define HARDWARE_TEST_MODE 0
 
 #define AUTOMATED_TESTER_ENABLED (0 && ALPHA_OR_BETA_VERSION)

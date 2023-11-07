@@ -88,7 +88,7 @@ void* OpenAddressingHashTable::insert(uint32_t key, bool* onlyIfNotAlreadyPresen
 
 #if ALPHA_OR_BETA_VERSION
 	if (doesKeyIndicateEmptyBucket(key)) {
-		display->freezeWithError("E330");
+		FREEZE_WITH_ERROR("E330");
 	}
 #endif
 
@@ -197,7 +197,7 @@ void* OpenAddressingHashTable::lookup(uint32_t key) {
 
 #if ALPHA_OR_BETA_VERSION
 	if (doesKeyIndicateEmptyBucket(key)) {
-		display->freezeWithError("E331");
+		FREEZE_WITH_ERROR("E331");
 	}
 #endif
 
@@ -238,7 +238,7 @@ bool OpenAddressingHashTable::remove(uint32_t key) {
 
 #if ALPHA_OR_BETA_VERSION
 	if (doesKeyIndicateEmptyBucket(key)) {
-		display->freezeWithError("E332");
+		FREEZE_WITH_ERROR("E332");
 	}
 #endif
 

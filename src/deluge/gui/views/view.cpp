@@ -1860,14 +1860,14 @@ getOut:
 						        kit, soundDrum)) { // If no ParamManager with a NoteRow somewhere...
 
 							if (results.loadedFromFile) {
-								display->freezeWithError("E103");
+								FREEZE_WITH_ERROR("E103");
 							}
 							else if (instrumentAlreadyInSong) {
-								display->freezeWithError("E104");
+								FREEZE_WITH_ERROR("E104");
 							}
 							else {
 								// Sven got - very rare! This means Kit was hibernating, I guess.
-								display->freezeWithError("E105");
+								FREEZE_WITH_ERROR("E105");
 							}
 						}
 					}

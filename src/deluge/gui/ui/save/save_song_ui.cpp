@@ -112,7 +112,7 @@ void SaveSongUI::focusRegained() {
 bool SaveSongUI::performSave(bool mayOverwrite) {
 
 	if (ALPHA_OR_BETA_VERSION && currentlyAccessingCard) {
-		display->freezeWithError("E316");
+		FREEZE_WITH_ERROR("E316");
 	}
 
 	if (currentSong->hasAnyPendingNextOverdubs()) {

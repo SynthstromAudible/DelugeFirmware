@@ -83,7 +83,7 @@ void MemoryRegion::sanityCheck() {
 	}
 
 	if (count > 1) {
-		display->freezeWithError("BBBB");
+		FREEZE_WITH_ERROR("BBBB");
 		Debug::println("multiple 0xc0080bc!!!!");
 	}
 	else if (count == 1) {
@@ -99,16 +99,16 @@ void MemoryRegion::verifyMemoryNotFree(void* address, uint32_t spaceSize) {
 		EmptySpaceRecord* emptySpaceRecord = (EmptySpaceRecord*)emptySpaces.getElementAddress(i);
 		if (emptySpaceRecord->address == (uint32_t)address) {
 			Debug::println("Exact address free!");
-			display->freezeWithError("dddffffd");
+			FREEZE_WITH_ERROR("dddffffd");
 		}
 		else if (emptySpaceRecord->address <= (uint32_t)address
 		         && (emptySpaceRecord->address + emptySpaceRecord->length > (uint32_t)address)) {
-			display->freezeWithError("dddd");
+			FREEZE_WITH_ERROR("dddd");
 			Debug::println("free mem overlap on left!");
 		}
 		else if ((uint32_t)address <= (uint32_t)emptySpaceRecord->address
 		         && ((uint32_t)address + spaceSize > emptySpaceRecord->address)) {
-			display->freezeWithError("eeee");
+			FREEZE_WITH_ERROR("eeee");
 			Debug::println("free mem overlap on right!");
 		}
 	}
@@ -124,7 +124,7 @@ static EmptySpaceRecord* recordToMergeWith;
 // spaceSize can even be 0 or less if you know it's going to get merged.
 inline void MemoryRegion::markSpaceAsEmpty(uint32_t address, uint32_t spaceSize, bool mayLookLeft, bool mayLookRight) {
 	if ((address < start) || address > end) {
-		display->freezeWithError("M998");
+		FREEZE_WITH_ERROR("M998");
 		return;
 	}
 	int32_t biggerRecordSearchFromIndex = 0;
@@ -209,7 +209,7 @@ justInsertRecord:
 		newRecord.address = address;
 		int32_t i = emptySpaces.searchMultiWordExact((uint32_t*)&newRecord);
 		if (i != -1) {
-			display->freezeWithError("M123");
+			FREEZE_WITH_ERROR("M123");
 		}
 		i = emptySpaces.insertAtKeyMultiWord((uint32_t*)&newRecord, insertRangeBegin);
 #if ALPHA_OR_BETA_VERSION
@@ -298,7 +298,7 @@ gotEmptySpace:
 
 		int32_t extraSpaceSizeWithoutItsHeaders = allocatedSize - requiredSize - 8;
 		if (extraSpaceSizeWithoutItsHeaders < -8) {
-			display->freezeWithError("M003");
+			FREEZE_WITH_ERROR("M003");
 		}
 		else {
 			if (extraSpaceSizeWithoutItsHeaders <= minAlign) {
@@ -403,7 +403,7 @@ noEmptySpace:
 			markSpaceAsEmpty(allocatedAddress + allocatedSize + 8, extraSpaceSizeWithoutItsHeaders, false, false);
 		}
 		else if (extraSpaceSizeWithoutItsHeaders < -8) {
-			display->freezeWithError("M004");
+			FREEZE_WITH_ERROR("M004");
 		}
 	}
 
@@ -421,7 +421,7 @@ noEmptySpace:
 #if ALPHA_OR_BETA_VERSION
 	if (allocatedAddress < start || allocatedAddress > end) {
 		//trying to allocate outside our region
-		display->freezeWithError("M002");
+		FREEZE_WITH_ERROR("M002");
 	}
 #endif
 	return (void*)allocatedAddress;
@@ -821,11 +821,11 @@ void MemoryRegion::dealloc(void* address) {
 #if ALPHA_OR_BETA_VERSION
 	if ((uint32_t)address < start || (uint32_t)address > end) {
 		//deallocating outside our region
-		display->freezeWithError("M001");
+		FREEZE_WITH_ERROR("M001");
 	}
 	if ((*header & SPACE_TYPE_MASK) == SPACE_HEADER_EMPTY) {
 		//double free
-		display->freezeWithError("M000");
+		FREEZE_WITH_ERROR("M000");
 	}
 #endif
 

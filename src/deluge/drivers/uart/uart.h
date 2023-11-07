@@ -60,5 +60,6 @@ void uartPrintFloat(float number);
 void uartFlushIfNotSending(int32_t item);
 int32_t uartGetTxBufferFullnessByItem(int32_t item);
 int32_t uartGetTxBufferSpace(int32_t item);
+void uartDrain(uint32_t item);
 
 extern void tx_interrupt(int32_t item);
