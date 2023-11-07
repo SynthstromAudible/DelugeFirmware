@@ -26,6 +26,7 @@
       //"runToEntryPoint": "main",
       "svdFile": "${workspaceRoot}/contrib/rza1.svd",
       "overrideLaunchCommands": [
+        "monitor reset",
         "load"
       ],
       "overrideResetCommands": [
@@ -33,7 +34,8 @@
         "load"
       ],
       "overrideRestartCommands": [
-        "jump start"
+        "monitor reset",
+        "load"
       ],
       "rttConfig": {
         "enabled": true,
