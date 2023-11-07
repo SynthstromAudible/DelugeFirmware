@@ -80,9 +80,7 @@ std::string_view getErrorMessage(int32_t error) {
 } // namespace deluge::hid::display
 
 extern "C" void freezeWithError(char const* error) {
-	if (ALPHA_OR_BETA_VERSION) {
-		display->freezeWithError(error);
-	}
+	display->freezeWithError(error);
 }
 
 extern "C" void displayPopup(char const* text) {

@@ -17,13 +17,34 @@
       "request": "launch",
       "cwd": "${workspaceRoot}",
       "executable": "${workspaceRoot}/build/Debug/deluge.elf",
+      "windows": {
+        "serverpath": "C:\\Program Files\\SEGGER\\JLink\\JLinkGDBServerCL.exe", 
+      },
       "servertype": "jlink",
       "device": "R7S721020",
       "interface": "swd",
-      "runToEntryPoint": "main",
+      //"runToEntryPoint": "main",
       "svdFile": "${workspaceRoot}/contrib/rza1.svd",
+      "overrideLaunchCommands": [
+        "load"
+      ],
+      "overrideResetCommands": [
+        "monitor reset",
+        "load"
+      ],
+      "overrideRestartCommands": [
+        "jump start"
+      ],
       "rttConfig": {
         "enabled": true,
+        "address": "auto",
+        "decoders": [
+          {
+            "port": 0,
+            "timestamp": true,
+            "type": "console"
+          }
+        ]
       },
     },
     {
@@ -160,7 +181,7 @@
       "type": "lldb",
       "request": "launch",
       "targetCreateCommands": [
-        "target create ${workspaceFolder}/build/debug/deluge7SEG.elf"
+        "target create ${workspaceFolder}/build/Debug/deluge.elf"
       ],
       "processCreateCommands": [
         "gdb-remote localhost:3333"

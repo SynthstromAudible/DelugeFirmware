@@ -2756,7 +2756,7 @@ void Song::deleteClipObject(Clip* clip, bool songBeingDestroyedToo, InstrumentRe
 #if ALPHA_OR_BETA_VERSION
 	if (clip->type == CLIP_TYPE_AUDIO) {
 		if (((AudioClip*)clip)->recorder) {
-			display->freezeWithError("i001"); // Trying to diversify Qui's E278
+			FREEZE_WITH_ERROR("i001"); // Trying to diversify Qui's E278
 		}
 	}
 #endif
@@ -2971,7 +2971,7 @@ void Song::replaceInstrument(Instrument* oldOutput, Instrument* newOutput, bool 
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
 		if (thisOutput == newOutput) {
 			display->cancelPopup();
-			display->freezeWithError("i009");
+			FREEZE_WITH_ERROR("i009");
 		}
 	}
 
@@ -3563,15 +3563,15 @@ void Song::deleteBackedUpParamManagersForClip(Clip* clip) {
 		if (i >= 1) {
 
 			if (backedUp->modControllable < lastModControllable) {
-				display->freezeWithError("E053");
+				FREEZE_WITH_ERROR("E053");
 			}
 
 			else if (backedUp->modControllable == lastModControllable) {
 				if (backedUp->clip < lastClip) {
-					display->freezeWithError("E054");
+					FREEZE_WITH_ERROR("E054");
 				}
 				else if (backedUp->clip == lastClip) {
-					display->freezeWithError("E055");
+					FREEZE_WITH_ERROR("E055");
 				}
 			}
 		}
@@ -3903,7 +3903,7 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 					if (!getBackedUpParamManagerPreferablyWithClip(soundDrum, NULL)) { // If no backedUpParamManager...
 						if (!findParamManagerForDrum(kit,
 						                             soundDrum)) { // If no ParamManager with a NoteRow somewhere...
-							display->freezeWithError("E102");
+							FREEZE_WITH_ERROR("E102");
 						}
 					}
 				}
@@ -4081,7 +4081,7 @@ void Song::ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* error
 		else {
 			if (!getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)thisOutput->toModControllable(),
 			                                               NULL)) {
-				display->freezeWithError(errorMessageNormal);
+				FREEZE_WITH_ERROR(errorMessageNormal);
 			}
 		}
 	}
@@ -4097,14 +4097,14 @@ void Song::ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* error
 
 		// If has Clip, it shouldn't!
 		if (getClipWithOutput(thisInstrument)) {
-			display->freezeWithError(
-			    "E056"); // gtridr got, V4.0.0-beta2. Before I fixed memory corruption issues, so hopefully could just be that.
+			// gtridr got, V4.0.0-beta2. Before I fixed memory corruption issues, so hopefully could just be that.
+			FREEZE_WITH_ERROR("E056");
 		}
 
 		else {
 			if (!getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)thisInstrument->toModControllable(),
 			                                               NULL)) {
-				display->freezeWithError(errorMessageHibernating);
+				FREEZE_WITH_ERROR(errorMessageHibernating);
 			}
 		}
 	}

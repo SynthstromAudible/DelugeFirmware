@@ -137,12 +137,12 @@ void String::set(String* otherString) {
 	//if the other string has memory and it's not in the non audio region
 	if (sm) {
 		if (!(EXTERNAL_MEMORY_END - RESERVED_EXTERNAL_ALLOCATOR < (uint32_t)sm && (uint32_t)sm < EXTERNAL_MEMORY_END)) {
-			display->freezeWithError("S001");
+			FREEZE_WITH_ERROR("S001");
 			return;
 		}
 		//or if it doesn't have an allocation
 		else if (!GeneralMemoryAllocator::get().getAllocatedSize(sm)) {
-			display->freezeWithError("S002");
+			FREEZE_WITH_ERROR("S002");
 			return;
 		}
 	}

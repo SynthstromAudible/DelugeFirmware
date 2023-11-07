@@ -192,6 +192,14 @@ int32_t uartGetTxBufferSpace(int32_t item) {
 	return txBufferSizes[item] - uartGetTxBufferFullnessByItem(item);
 }
 
+void uartDrain(uint32_t item) {
+	char value;
+	bool charReceived = true;
+	while (charReceived) {
+		charReceived = uartGetChar(item, (char*)&value);
+	}
+}
+
 void uartPutCharBack(int32_t item) {
 	int32_t readPos = (uint32_t)rxBufferReadAddr[item] - ((uint32_t)rxBuffers[item]);
 	readPos = (readPos - 1) & (rxBufferSizes[item] - 1);

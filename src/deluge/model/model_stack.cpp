@@ -32,7 +32,7 @@ ModelStackWithThreeMainThings* ModelStackWithTimelineCounter::addNoteRowAndExtra
 
 #if ALPHA_OR_BETA_VERSION
 	if (!newNoteRow->paramManager.containsAnyParamCollectionsIncludingExpression()) {
-		display->freezeWithError("E389");
+		FREEZE_WITH_ERROR("E389");
 	}
 #endif
 
