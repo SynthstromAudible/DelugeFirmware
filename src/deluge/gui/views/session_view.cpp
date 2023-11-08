@@ -3089,7 +3089,13 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 			InstrumentClip* newInstrumentClip = (InstrumentClip*)newClip;
 			// Create a new track for the clip
 			if (targetOutput == nullptr) {
-				gridCreateNewTrackForClip(sourceClip->output->type, newInstrumentClip, false);
+				if(!gridCreateNewTrackForClip(sourceClip->output->type, newInstrumentClip, false)) {
+					currentSong->sessionClips.deleteAtIndex(0);
+					newClip->~Clip();
+					delugeDealloc(newClip);
+					return nullptr;
+				}
+
 				targetOutput = newInstrumentClip->output;
 			}
 
@@ -3433,6 +3439,8 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 						}
 					}
 				}
+
+				return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 			}
 		}
 
