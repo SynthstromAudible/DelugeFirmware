@@ -300,11 +300,8 @@ doRelease:
 
 		lastValue = envelopeOffset - envelopeHeight + (multiply_32x32_rshift32(preValue, envelopeHeight) << 1);
 
-		lastValue = envelopeOffset
-		            - (multiply_32x32_rshift32(envelopeHeight, (ONE_Q31 - getDecay8(8388608 - pos, 23)))
-		               << 1); // Upside down exponential curve
-		//lastValue = 2147483647 - (((int64_t)((sineWave[((pos >> 14) + 256) & 1023] >> 1) + 1073741824) * (int64_t)envelopeHeight) >> 31); // Sine wave. Not great
-		//lastValue = (multiply_32x32_rshift32(pos * (pos >> 15), envelopeHeight) << 1); // Parabola. Doesn't "punch".
+		lastValue =
+		    envelopeOffset - (multiply_32x32_rshift32(envelopeHeight, (ONE_Q31 - getDecay4(8388608 - pos, 23))) << 1);
 	}
 
 	else { // Off or hold

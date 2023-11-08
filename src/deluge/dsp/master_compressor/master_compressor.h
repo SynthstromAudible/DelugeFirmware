@@ -27,29 +27,57 @@
 #include <cmath>
 #include <cstdint>
 
-class MasterCompressor : public Compressor {
+class MasterCompressor {
 public:
 	MasterCompressor();
 	void setup(int32_t attack, int32_t release, int32_t threshold, int32_t ratio);
 
 	void render(StereoSample* buffer, uint16_t numSamples, q31_t volAdjustL, q31_t volAdjustR);
+	float runEnvelope(float in, float numSamples);
+	//attack/release in ms
+	int32_t getAttack() { return attackms; }
+	void setAttack(int32_t attack) {
+		a_ = (-1000.0 / 44100) / (float(attack));
+		attackms = attack;
+	};
+	int32_t getRelease() { return releasems; }
+	void setRelease(int32_t release) {
+		r_ = (-1000.0 / 44100) / (float(10 * release));
+		releasems = release;
+	};
+	q31_t getThreshold() { return rawThreshold; }
+	void setThreshold(q31_t t) {
+		rawThreshold = t;
+		threshold = 1 - ((rawThreshold >> 1) / ONE_Q31f);
+		updateER();
+	}
+	q31_t getRatio() { return rawRatio; }
+	void setRatio(q31_t rat) {
+		rawRatio = rat;
+		ratio = 0.5 + (float(rawRatio) / ONE_Q31f) / 2;
+		updateER();
+	}
+
 	void updateER();
 	float calc_rms(StereoSample* buffer, uint16_t numSamples);
 	uint8_t gainReduction;
-	bool dither;
-	q31_t rawRatio;
-	q31_t rawThreshold;
-	q31_t threshold;
-	q31_t shape;
-	q31_t ratio;
-	q31_t out;
-	q31_t over;
+
+private:
+	float a_;
+	float r_;
+	float ratio;
+	float er;
+
+	float threshdb;
+	float state;
+	float rms;
+	float mean;
 	q31_t currentVolumeL;
 	q31_t currentVolumeR;
 
-	float meanVolume;
-	float mean;
-	float lastGain;
-	float er;
-	float threshdb;
+	q31_t rawThreshold;
+	q31_t rawRatio;
+	int32_t attackms;
+	int32_t releasems;
+	float threshold;
 };

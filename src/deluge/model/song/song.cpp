@@ -136,8 +136,8 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	reverbCompressorShape = -601295438;
 	reverbCompressorSync = SYNC_LEVEL_8TH;
 
-	masterCompressorAttack = attackRateTable[5] << 2;
-	masterCompressorRelease = releaseRateTable[15] << 1;
+	masterCompressorAttack = 10;
+	masterCompressorRelease = 100;
 	masterCompressorThresh = 0;
 	masterCompressorRatio = 0;
 	AudioEngine::mastercompressor.gainReduction = 0.0;
@@ -1123,10 +1123,10 @@ weAreInArrangementEditorOrInClipInstance:
 	storageManager.writeClosingTag("reverb");
 
 	storageManager.writeOpeningTagBeginning("songCompressor");
-	int32_t attack = AudioEngine::mastercompressor.attack;
-	int32_t release = AudioEngine::mastercompressor.release;
-	int32_t thresh = AudioEngine::mastercompressor.rawThreshold;
-	int32_t ratio = AudioEngine::mastercompressor.rawRatio;
+	int32_t attack = AudioEngine::mastercompressor.getAttack();
+	int32_t release = AudioEngine::mastercompressor.getRelease();
+	int32_t thresh = AudioEngine::mastercompressor.getThreshold();
+	int32_t ratio = AudioEngine::mastercompressor.getRatio();
 
 	storageManager.writeAttribute("attack", attack);
 	storageManager.writeAttribute("release", release);
@@ -2670,7 +2670,7 @@ int32_t Song::getCurrentPresetScale() {
 		// If we're here, must be this one!
 		return p;
 
-notThisOne: {}
+notThisOne : {}
 	}
 
 	return 255;
@@ -4559,7 +4559,7 @@ Instrument* Song::changeInstrumentType(Instrument* oldInstrument, InstrumentType
 			return NULL;
 		}
 
-gotAnInstrument: {}
+gotAnInstrument : {}
 	}
 
 	// Synth or Kit
