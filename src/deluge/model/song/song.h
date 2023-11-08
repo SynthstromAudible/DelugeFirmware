@@ -167,6 +167,7 @@ public:
 	String name;
 
 	bool affectEntire;
+	bool performanceView;
 
 	SessionLayoutType sessionLayout = FlashStorage::defaultSessionLayout;
 	int32_t songGridScrollX = 0;

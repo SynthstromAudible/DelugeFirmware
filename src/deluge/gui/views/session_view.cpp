@@ -32,6 +32,7 @@
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/performance_session_view.h"
 #include "gui/views/view.h"
 #include "gui/waveform/waveform_renderer.h"
 #include "hid/button.h"
@@ -123,6 +124,8 @@ bool SessionView::opened() {
 	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
 
 	focusRegained();
+
+	currentSong->performanceView = false;
 
 	return true;
 }
@@ -549,7 +552,16 @@ doActualSimpleChange:
 		newInstrumentType = InstrumentType::CV;
 		goto changeInstrumentType;
 	}
+	// Keyboard button
+	else if (b == KEYBOARD) {
+		if (on && currentUIMode == UI_MODE_NONE) {
+			if (inCardRoutine) {
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
 
+			changeRootUI(&performanceSessionView);
+		}
+	}
 	else {
 notDealtWith:
 		return TimelineView::buttonAction(b, on, inCardRoutine);

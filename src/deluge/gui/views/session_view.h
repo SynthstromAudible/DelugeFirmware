@@ -110,6 +110,10 @@ public:
 	uint8_t masterCompEditMode;
 
 	Clip* getClipForLayout();
+	void goToArrangementEditor();
+
+	// Members for grid layout
+	inline bool gridFirstPadActive() { return (gridFirstPressedX != -1 && gridFirstPressedY != -1); }
 
 private:
 	void sectionPadAction(uint8_t y, bool on);
@@ -117,7 +121,6 @@ private:
 	void drawSectionRepeatNumber();
 	void beginEditingSectionRepeatsNum();
 	Clip* createNewInstrumentClip(int32_t yDisplay);
-	void goToArrangementEditor();
 	void replaceInstrumentClipWithAudioClip(Clip* clip);
 	void replaceAudioClipWithInstrumentClip(Clip* clip, InstrumentType instrumentType);
 	void rowNeedsRenderingDependingOnSubMode(int32_t yDisplay);
@@ -159,8 +162,6 @@ private:
 	int32_t gridFirstPressedY = -1;
 	int32_t gridSecondPressedX = -1;
 	int32_t gridSecondPressedY = -1;
-
-	inline bool gridFirstPadActive() { return (gridFirstPressedX != -1 && gridFirstPressedY != -1); }
 
 	inline bool gridSecondPadInactive() { return (gridSecondPressedX == -1 && gridSecondPressedY == -1); }
 
