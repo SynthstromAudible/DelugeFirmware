@@ -66,45 +66,50 @@ void Submenu::drawPixelsForOled() {
 }
 
 void Submenu::selectEncoderAction(int32_t offset) {
-
+	int32_t sign = (offset > 0) ? 1 : ((offset < 0) ? -1 : 0);
 	auto thisSubmenuItem = current_item_;
 
-	do {
-		if (offset >= 0) {
-			thisSubmenuItem++;
-			if (thisSubmenuItem == items.end()) {
-				if (display->haveOLED()) {
-					return;
-				}
-				else {
+	int32_t moved = 0;
+	for (; moved < std::abs(offset); moved++) {
+		do {
+			if (offset >= 0) {
+				thisSubmenuItem++;
+				if (thisSubmenuItem >= items.end()) {
+					if (display->haveOLED()) {
+						updateDisplay();
+						return;
+					}
+					// 7SEG wraps
 					thisSubmenuItem = items.begin();
 				}
 			}
-		}
-		else {
-			if (thisSubmenuItem == items.begin()) {
-				if (display->haveOLED()) {
-					return;
-				}
-				else {
+			else {
+				if (thisSubmenuItem <= items.begin()) {
+					if (display->haveOLED()) {
+						updateDisplay();
+						return;
+					}
+					// 7SEG wraps
 					thisSubmenuItem = (items.end() - 1);
 				}
+				else {
+					thisSubmenuItem--;
+				}
 			}
-			else {
-				thisSubmenuItem--;
+		} while (!(*thisSubmenuItem)->isRelevant(soundEditor.currentSound, soundEditor.currentSourceIndex));
+
+
+
+		current_item_ = thisSubmenuItem;
+
+		if (display->haveOLED()) {
+			soundEditor.menuCurrentScroll += sign;
+			if (soundEditor.menuCurrentScroll < 0) {
+				soundEditor.menuCurrentScroll = 0;
 			}
-		}
-	} while (!(*thisSubmenuItem)->isRelevant(soundEditor.currentSound, soundEditor.currentSourceIndex));
-
-	current_item_ = thisSubmenuItem;
-
-	if (display->haveOLED()) {
-		soundEditor.menuCurrentScroll += offset;
-		if (soundEditor.menuCurrentScroll < 0) {
-			soundEditor.menuCurrentScroll = 0;
-		}
-		else if (soundEditor.menuCurrentScroll > kOLEDMenuNumOptionsVisible - 1) {
-			soundEditor.menuCurrentScroll = kOLEDMenuNumOptionsVisible - 1;
+			else if (soundEditor.menuCurrentScroll > kOLEDMenuNumOptionsVisible - 1) {
+				soundEditor.menuCurrentScroll = kOLEDMenuNumOptionsVisible - 1;
+			}
 		}
 	}
 
