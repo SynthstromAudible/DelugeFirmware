@@ -69,8 +69,7 @@ void Submenu::selectEncoderAction(int32_t offset) {
 	int32_t sign = (offset > 0) ? 1 : ((offset < 0) ? -1 : 0);
 	auto thisSubmenuItem = current_item_;
 
-	int32_t moved = 0;
-	for (; moved < std::abs(offset); moved++) {
+	for (size_t i = 0; i < std::abs(offset); ++i) {
 		do {
 			if (offset >= 0) {
 				thisSubmenuItem++;
@@ -97,8 +96,6 @@ void Submenu::selectEncoderAction(int32_t offset) {
 				}
 			}
 		} while (!(*thisSubmenuItem)->isRelevant(soundEditor.currentSound, soundEditor.currentSourceIndex));
-
-
 
 		current_item_ = thisSubmenuItem;
 
