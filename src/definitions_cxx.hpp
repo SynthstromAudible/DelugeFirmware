@@ -24,8 +24,6 @@
 #include <cstddef>
 #include <cstdint>
 
-#define ALPHA_OR_BETA_VERSION 1 // Whether to compile with additional error-checking
-
 #define HARDWARE_TEST_MODE 0
 
 #define AUTOMATED_TESTER_ENABLED (0 && ALPHA_OR_BETA_VERSION)
@@ -356,7 +354,28 @@ constexpr int32_t kNumPatchSources = static_cast<int32_t>(kLastPatchSource);
 constexpr PatchSource kFirstLocalSource = PatchSource::ENVELOPE_0;
 //constexpr PatchSource kFirstUnchangeableSource = PatchSource::VELOCITY;
 
-//Automation Instrument Clip View constants
+//Menu Min Max Values
+
+//regular menu range e.g. 0 - 50
+constexpr int32_t kMaxMenuValue = 50;
+constexpr int32_t kMinMenuValue = 0;
+constexpr int32_t kMidMenuValue = kMinMenuValue + ((kMaxMenuValue - kMinMenuValue) / 2);
+
+//pan menu range e.g. -25 to +25
+constexpr int32_t kMaxMenuPanValue = kMaxMenuValue / 2;
+constexpr int32_t kMinMenuPanValue = -1 * kMaxMenuPanValue;
+
+//patch cable menu range e.g. -5000 to 5000
+constexpr int32_t kMaxMenuPatchCableValue = kMaxMenuValue * 100;
+constexpr int32_t kMinMenuPatchCableValue = -1 * kMaxMenuPatchCableValue;
+
+//metronome volume menu range : 22 to 27
+constexpr int32_t kMaxMenuMetronomeVolumeValue = 27;
+constexpr int32_t kMinMenuMetronomeVolumeValue = 22;
+
+//
+
+//Automation View constants
 constexpr int32_t kNoSelection = 255;
 constexpr int32_t kNumNonKitAffectEntireParamsForAutomation = 55;
 constexpr int32_t kNumKitAffectEntireParamsForAutomation = 24;
@@ -721,6 +740,13 @@ enum class ModFXParam {
 	FEEDBACK,
 	OFFSET,
 };
+
+enum class CompParam {
+	RATIO,
+	ATTACK,
+	RELEASE,
+};
+
 constexpr auto kNumModFXParams = util::to_underlying(ModFXParam::OFFSET) + 1;
 
 enum class PatchCableAcceptance {
@@ -1089,4 +1115,11 @@ enum SessionLayoutType : uint8_t {
 	SessionLayoutTypeRows,
 	SessionLayoutTypeGrid,
 	SessionLayoutTypeMaxElement // Keep as boundary
+};
+
+enum GridDefaultActiveMode : uint8_t {
+	GridDefaultActiveModeSelection,
+	GridDefaultActiveModeGreen,
+	GridDefaultActiveModeBlue,
+	GridDefaultActiveModeMaxElement // Keep as boundary
 };

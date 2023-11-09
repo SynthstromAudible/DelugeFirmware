@@ -394,7 +394,7 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 		SampleCluster* sampleCluster = sample->clusters.getElement(clusterIndexToDo);
 
 		if (sampleCluster->cluster && sampleCluster->cluster->numReasonsToBeLoaded < 0) {
-			display->freezeWithError("E449"); // Trying to catch errer before i028, which users have gotten.
+			FREEZE_WITH_ERROR("E449"); // Trying to catch errer before i028, which users have gotten.
 		}
 
 		// If we're wanting to investigate the whole length of one Cluster, and that's already actually been done previously, we can just reuse those findings!
@@ -429,8 +429,8 @@ cantReadData:
 			}
 
 			if (cluster->numReasonsToBeLoaded <= 0) {
-				display->freezeWithError(
-				    errorCode); // Branko V got this. Trying to catch E340 below, which Ron R got while recording
+				// Branko V got this. Trying to catch E340 below, which Ron R got while recording
+				FREEZE_WITH_ERROR(errorCode);
 			}
 
 			uint32_t numBytesToRead = endByteWithinCluster - startByteWithinCluster;
@@ -445,12 +445,12 @@ cantReadData:
 				endByteWithinCluster += overshoot;
 				SampleCluster* nextSampleCluster = sample->clusters.getElement(clusterIndexToDo + 1);
 				if (nextSampleCluster->cluster && nextSampleCluster->cluster->numReasonsToBeLoaded < 0) {
-					display->freezeWithError("E450"); // Trying to catch errer before i028, which users have gotten.
+					FREEZE_WITH_ERROR("E450"); // Trying to catch errer before i028, which users have gotten.
 				}
 				nextCluster = nextSampleCluster->getCluster(sample, clusterIndexToDo, CLUSTER_LOAD_IMMEDIATELY);
 
 				if (cluster->numReasonsToBeLoaded <= 0) {
-					display->freezeWithError("E342"); // Trying to catch E340 below, which Ron R got while recording
+					FREEZE_WITH_ERROR("E342"); // Trying to catch E340 below, which Ron R got while recording
 				}
 
 				if (!nextCluster) {

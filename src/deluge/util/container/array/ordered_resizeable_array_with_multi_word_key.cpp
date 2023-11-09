@@ -131,12 +131,12 @@ void OrderedResizeableArrayWithMultiWordKey::testSequentiality(char const* error
 		for (int j = 0; j < numWordsInKey; j++) {
 			int32_t difference = wordsHere[j] - lastWords[j];
 			if (difference < 0) {
-				display->freezeWithError(errorCode);
+				FREEZE_WITH_ERROR(errorCode);
 			}
 			if (difference == 0) {
 				if (j == numWordsInKey - 1) {
 					//if we got here it's a duplicate key
-					display->freezeWithError(errorCode);
+					FREEZE_WITH_ERROR(errorCode);
 				}
 			}
 			else {

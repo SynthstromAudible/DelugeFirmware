@@ -32,13 +32,13 @@
 #define LOCK_EXIT exitLock();
 void ResizeableArray::freezeOnLock() {
 	if (lock) {
-		display->freezeWithError("i008");
+		FREEZE_WITH_ERROR("i008");
 	}
 	lock = true;
 }
 void ResizeableArray::exitLock() {
 	if (!lock) {
-		display->freezeWithError("i008");
+		FREEZE_WITH_ERROR("i008");
 	}
 	lock = false;
 }
@@ -892,7 +892,7 @@ void ResizeableArray::setStaticMemory(void* newMemory, int32_t newMemorySize) {
 int32_t ResizeableArray::insertAtIndex(int32_t i, int32_t numToInsert, void* thingNotToStealFrom) {
 
 	if (ALPHA_OR_BETA_VERSION && (i < 0 || i > numElements || numToInsert < 1)) {
-		display->freezeWithError("E280");
+		FREEZE_WITH_ERROR("E280");
 	}
 
 	LOCK_ENTRY
@@ -919,7 +919,7 @@ int32_t ResizeableArray::insertAtIndex(int32_t i, int32_t numToInsert, void* thi
 		}
 
 		if (ALPHA_OR_BETA_VERSION && allocatedMemorySize < newMemorySize * elementSize) {
-			display->freezeWithError("FFFF");
+			FREEZE_WITH_ERROR("FFFF");
 		}
 
 		setMemory(newMemory, allocatedMemorySize);

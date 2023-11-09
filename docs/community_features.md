@@ -38,6 +38,16 @@ Here is a list of general improvements that have been made, ordered from newest 
 #### 3.7 - Mod Wheel
 - ([#512]) Incoming mod wheel on non-MPE synths now maps to y axis
 
+#### 3.8 - Visual Feedback on Value Changes with Mod Encoders and Increased Resolution for Value's in Menu's
+- ([#636]) Changing parameter values with Mod (Gold) Encoders now displays a pop-up with the current value of the Parameter. The Menu's for Parameters and Patch Cables have also been adjusted to show the same value range as displayed with the Mod Encoders.
+	- This allows for better fine-tuning of values. 
+	- The value range displayed is 0-50 for non-MIDI parameters and 0-127 for MIDI parameters.
+	- Note: In the Menu, if you wish to scroll through the parameter value range faster at an accelerated rate of +/- 5, hold Shift while turning the Select Encoder.
+
+#### 3.9 - Adjust Metronome Volume
+- ([#683]) The Metronome's volume now respects the song's volume and will increase and decrease in volume together with the Gold Volume Encoder.
+	- In addition, a Default menu was created titled "Metronome" which enables you to set a value between 22 and 27 to further adjust the volume of the Metronome. 22 being the lowest metronome volume that can be heard when the Song's volume is at its maximum and 27 being the loudest metronome volume.
+
 ## 4. New Features Added
 
 Here is a list of features that have been added to the firmware as a list, grouped by category:
@@ -58,7 +68,6 @@ Here is a list of features that have been added to the firmware as a list, group
     - Default (DEFA) - the default Deluge clip type.
 	- Fill (FILL) - Fill clip. It appears orange/cyan on the status pads, and when triggered it will schedule itself to start at such a time that it _finishes_ at the start of the next loop. If the fill clip is longer than the remaining time, it is triggered immediately at a point midway through. The loop length is set by the longest playing clip, or by the total length of a section times the repeat count set for that section. **Limitation**: a fill clip is still subject to the one clip per instrument behavior of the Deluge. Fill clips can steal an output from another fill, but they cannot steal from a non-fill. This can lead to some fills never starting since a default type clip has the needed instrument. This can be worked around by cloning the instrument to an independent copy.
 
-
 #### 4.1.4 - Catch Notes
 
  - ([#221]) The normal behavior of the Deluge is to try to keep up with 'in progress' notes when instant switching between clips by playing them late. However this leads to glitches with drum clips and other percussive sounds. Changing this setting to OFF will prevent this behavior and *not* try to keep up with those notes, leading to smoother instant switching between clips.
@@ -74,7 +83,12 @@ Here is a list of features that have been added to the firmware as a list, group
 	 - Compared to rows layout overdub recording and copying clips to arranger is currently not supported
 	 - Every track (column) has a random generated color that can be changed in edit mode (see below)
 	 - Launched clips are full color, unlaunched dimmed and during soloing all non soloed clips are greyed out
-	 - A new menu to select the default Layout has been added in Shift+Selection Encoder -> Defaults -> UI -> Song -> Layout
+	 - New default settings that can be reached with Shift+Selection Encoder -> Defaults -> UI -> Song
+		- Layout: Select the default layout for all new songs
+		- Grid
+			- Default active mode: "Selection" allows changing the mode as described below, all other settings will always make mode snap back to the configured one (default Selection)
+			- Select in green mode: Enabling this will make allow holding clips in green (launch) mode to change their parameters like in blue mode, tradeoff is arming is executed on finger up (default on)
+			- Empty pad unarm: Enabling will make pressing empty pads in a track unarm all playing tracks in that track (default off)
 	 - There are different interaction modes that change how the grid behaves
 		- The mode can be changed by clicking on one of the colored pads in the Audition/Section column on the right
 		- To permanently switch the mode click on a pad and release, to temporarily switch hold the mode pad and use the grid, the mode will snap back to the current permanent one
@@ -197,6 +211,11 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
  - Follow-up PR's: 
 	- ([#347]) Added new automatable parameters
  	- ([#360]) Fixed interpolation bugs, added fine tuning for long presses, and added pad selection mode
+	- ([#636]) Updated Parameter Values displayed in Automation View to match Parameter Value Ranges displayed in the Menu's. E.g. instead of 0 - 128, it now displays 0 - 50 (except for Pan which now displays -25 to +25 and MIDI instrument clips which now display 0 - 127).
+	- ([#681]) Added new automation community feature menu to re-instate audition pad shortcuts in the Automation Instrument Clip View.
+		- Currently in the Instrument Clip View if you hold down an audition pad and press a shortcut pad on the grid, it will open the menu corresponding to that shortcut pad.
+		- By default in the Automation Instrument Clip View that same behaviour of holding an audition pad and pressing a shortcut pad is disabled in favour of you being able to hold down an audition pad and adjust the automation lane values so that you can audible hear the changes to the sound while adjusting automation settings.
+		- Through the community features menu, you can disable this change and re-instate the audition pad shortcuts by setting the community feature to "Off."
 
 #### 4.3.6 - Set Probability By Row
 
@@ -307,6 +326,12 @@ In the main menu of the deluge (accessed by pressing "SHIFT" + the "SELECT" knob
 	* Shift Note (SHIF)
 		* When On, shifting notes horizontally in the regular Instrument Clip View will shift the Notes and MPE, but not the Automation.
 		* When On, to shift Non-MPE Automation horizontally you will need to enter the Automation Instrument Clip View.
+	* Disable Audition Pad Shortcuts (SCUT)
+		* When On, audition pad shortcuts are disabled. Holding an audition pad and pressing a shortcut pad will not activate the shortcut and will not change the selected parameter.
+		* When On, to change the selected parameter you will need to either: 
+			1) use the select encoder; 
+			2) use the shift + shortcut pad combo; or
+			3) go back to the automation overview;
 * Allow Insecure Develop Sysex Messages (SYX)
   	* When On, the ability to load firmware over USB is enabled.
 * Sync Scaling Action (SCAL)
@@ -352,7 +377,6 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#122]: https://github.com/SynthstromAudible/DelugeFirmware/pull/122
 [#125]: https://github.com/SynthstromAudible/DelugeFirmware/pull/125
 [#129]: https://github.com/SynthstromAudible/DelugeFirmware/pull/129
-[#630]: https://github.com/SynthstromAudible/DelugeFirmware/pull/630
 [#138]: https://github.com/SynthstromAudible/DelugeFirmware/pull/138
 [#141]: https://github.com/SynthstromAudible/DelugeFirmware/pull/141
 [#157]: https://github.com/SynthstromAudible/DelugeFirmware/pull/157
@@ -390,4 +414,8 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#368]: https://github.com/SynthstromAudible/DelugeFirmware/pull/368
 [#395]: https://github.com/SynthstromAudible/DelugeFirmware/pull/395
 [#512]: https://github.com/SynthstromAudible/DelugeFirmware/pull/512
+[#630]: https://github.com/SynthstromAudible/DelugeFirmware/pull/630
+[#636]: https://github.com/SynthstromAudible/DelugeFirmware/pull/636
+[#681]: https://github.com/SynthstromAudible/DelugeFirmware/pull/681
+[#683]: https://github.com/SynthstromAudible/DelugeFirmware/pull/683
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md

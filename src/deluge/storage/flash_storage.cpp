@@ -113,6 +113,12 @@ namespace FlashStorage {
 114: GlobalMIDICommand::FILL channel + 1
 115: GlobalMIDICommand::FILL noteCode + 1
 116: GlobalMIDICommand::FILL product / vendor ids
+117: defaultSessionLayout
+118: defaultKeyboardLayout
+119: gridUnarmEmptyPads
+120: gridAllowGreenSelection
+121: defaultGridActiveMode
+122: defaultMetronomeVolume
 */
 
 uint8_t defaultScale;
@@ -132,6 +138,12 @@ uint8_t defaultBendRange[2] = {
 
 SessionLayoutType defaultSessionLayout;
 KeyboardLayoutType defaultKeyboardLayout;
+
+bool gridUnarmEmptyPads;
+bool gridAllowGreenSelection;
+GridDefaultActiveMode defaultGridActiveMode;
+
+uint8_t defaultMetronomeVolume;
 
 void resetSettings() {
 
@@ -199,6 +211,12 @@ void resetSettings() {
 
 	defaultSessionLayout = SessionLayoutType::SessionLayoutTypeRows;
 	defaultKeyboardLayout = KeyboardLayoutType::KeyboardLayoutTypeIsomorphic;
+
+	gridUnarmEmptyPads = false;
+	gridAllowGreenSelection = true;
+	defaultGridActiveMode = GridDefaultActiveModeSelection;
+
+	defaultMetronomeVolume = kMaxMenuMetronomeVolumeValue;
 }
 
 void readSettings() {
@@ -390,6 +408,16 @@ void readSettings() {
 
 	defaultSessionLayout = static_cast<SessionLayoutType>(buffer[117]);
 	defaultKeyboardLayout = static_cast<KeyboardLayoutType>(buffer[118]);
+
+	gridUnarmEmptyPads = buffer[119];
+	gridAllowGreenSelection = buffer[120];
+	defaultGridActiveMode = static_cast<GridDefaultActiveMode>(buffer[121]);
+
+	defaultMetronomeVolume = buffer[122];
+	if (defaultMetronomeVolume > kMaxMenuMetronomeVolumeValue
+	    || defaultMetronomeVolume < kMinMenuMetronomeVolumeValue) {
+		defaultMetronomeVolume = kMaxMenuMetronomeVolumeValue;
+	}
 }
 
 void writeSettings() {
@@ -494,6 +522,12 @@ void writeSettings() {
 
 	buffer[117] = util::to_underlying(defaultSessionLayout);
 	buffer[118] = util::to_underlying(defaultKeyboardLayout);
+
+	buffer[119] = gridUnarmEmptyPads;
+	buffer[120] = gridAllowGreenSelection;
+	buffer[121] = util::to_underlying(defaultGridActiveMode);
+
+	buffer[122] = defaultMetronomeVolume;
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer, 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,

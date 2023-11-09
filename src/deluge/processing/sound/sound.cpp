@@ -1552,7 +1552,7 @@ void Sound::allNotesOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBa
 #if ALPHA_OR_BETA_VERSION
 	if (!modelStack->paramManager) {
 		// Previously we were allowed to receive a NULL paramManager, then would just crudely do an unassignAllVoices(). But I'm pretty sure this doesn't exist anymore?
-		display->freezeWithError("E403");
+		FREEZE_WITH_ERROR("E403");
 	}
 #endif
 
@@ -2366,11 +2366,11 @@ void Sound::unassignAllVoices() {
 	if (ALPHA_OR_BETA_VERSION) {
 		if (numVoicesAssigned > 0) {
 			// ronronsen got error! https://forums.synthstrom.com/discussion/4090/e203-by-changing-a-drum-kit#latest
-			display->freezeWithError("E070");
+			FREEZE_WITH_ERROR("E070");
 		}
 		else if (numVoicesAssigned < 0) {
 			// ronronsen got error! https://forums.synthstrom.com/discussion/4090/e203-by-changing-a-drum-kit#latest
-			display->freezeWithError("E071");
+			FREEZE_WITH_ERROR("E071");
 		}
 	}
 
@@ -2405,7 +2405,7 @@ void Sound::confirmNumVoices(char const* error) {
 		Uart::print(numVoicesAssigned);
 		Uart::print(", but actually ");
 		Uart::println(voiceCount);
-		display->freezeWithError(error);
+		FREEZE_WITH_ERROR(error);
 	}
 
 	int32_t reasonCountSources = 0;
@@ -2433,7 +2433,7 @@ void Sound::confirmNumVoices(char const* error) {
 			char buffer[5];
 			strcpy(buffer, error);
 			buffer[0] = 'F';
-			display->freezeWithError(buffer);
+			FREEZE_WITH_ERROR(buffer);
 		}
 	}
 	*/
@@ -4145,7 +4145,7 @@ void Sound::wontBeRenderedForAWhile() {
 
 	// If it still thinks it's meant to be rendering, we did something wrong
 	if (ALPHA_OR_BETA_VERSION && !skippingRendering) {
-		display->freezeWithError("E322");
+		FREEZE_WITH_ERROR("E322");
 	}
 }
 

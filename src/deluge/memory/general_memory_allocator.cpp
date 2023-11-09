@@ -68,7 +68,7 @@ void GeneralMemoryAllocator::checkStack(char const* caller) {
 		Debug::println(caller);
 
 		if (distance < 200) {
-			display->freezeWithError("E338");
+			FREEZE_WITH_ERROR("E338");
 			Debug::println("COLLISION");
 		}
 	}
@@ -99,7 +99,7 @@ void* GeneralMemoryAllocator::allocExternal(uint32_t requiredSize) {
 	void* address = regions[MEMORY_REGION_EXTERNAL].alloc(requiredSize, false, NULL);
 	lock = false;
 	if (!address) {
-		//numericDriver.freezeWithError("M998");
+		//FREEZE_WITH_ERROR("M998");
 		return nullptr;
 	}
 	return address;
@@ -190,7 +190,7 @@ int32_t GeneralMemoryAllocator::getRegion(void* address) {
 		return MEMORY_REGION_EXTERNAL;
 	}
 
-	display->freezeWithError("E339");
+	FREEZE_WITH_ERROR("E339");
 	return 0;
 }
 

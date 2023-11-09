@@ -859,6 +859,82 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 
 			// Or, if normal case - an actual param
 			else {
+				char modelStackTempMemory[MODEL_STACK_MAX_SIZE];
+				copyModelStack(modelStackTempMemory, modelStackWithParam, sizeof(ModelStackWithThreeMainThings));
+				ModelStackWithThreeMainThings* tempModelStack = (ModelStackWithThreeMainThings*)modelStackTempMemory;
+
+				InstrumentClip* clip = (InstrumentClip*)tempModelStack->getTimelineCounter();
+
+				int32_t value = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
+				int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
+				int32_t lowerLimit = std::min(-64_i32, knobPos);
+				int32_t newKnobPos = knobPos + offset;
+				newKnobPos = std::clamp(newKnobPos, lowerLimit, 64_i32);
+				//ignore modEncoderTurn for Midi CC if current or new knobPos exceeds 127
+				//if current knobPos exceeds 127, e.g. it's 128, then it needs to drop to 126 before a value change gets recorded
+				//if newKnobPos exceeds 127, then it means current knobPos was 127 and it was increased to 128. In which case, ignore value change
+				if ((getRootUI() == &instrumentClipView) || (getRootUI() == &automationInstrumentClipView)) {
+					if ((clip->output->type == InstrumentType::MIDI_OUT) && (newKnobPos == 64)) {
+						return;
+					}
+				}
+
+				//don't display pop-up while in soundEditor as values are displayed on the menu screen
+				//unless you're turning a mod encoder for a different param than the menu displayed
+				if (((getCurrentUI() != &soundEditor)
+				     || ((getCurrentUI() == &soundEditor)
+				         && (soundEditor.getCurrentMenuItem()->getPatchedParamIndex() != modelStackWithParam->paramId)))
+				    && !(modelStackWithParam->paramId == Param::Unpatched::STUTTER_RATE
+				         && (runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate)
+				             == RuntimeFeatureStateToggle::On)
+				         && !isUIModeActive(UI_MODE_STUTTERING))) {
+
+					char buffer[5];
+					int32_t valueForDisplay;
+					if (clip->output->type == InstrumentType::MIDI_OUT) {
+						valueForDisplay = newKnobPos + kKnobPosOffset;
+					}
+					else if ((modelStackWithParam->paramId == Param::Local::PAN)
+					         || (modelStackWithParam->paramId == Param::Unpatched::GlobalEffectable::PAN)) {
+						valueForDisplay =
+						    ((((newKnobPos << 20) / (kMaxKnobPos - kKnobPosOffset)) * kMaxMenuPanValue) >> 20);
+					}
+					else {
+						valueForDisplay =
+						    (((((newKnobPos + kKnobPosOffset) << 20) / kMaxKnobPos) * kMaxMenuValue) >> 20);
+					}
+					intToString(valueForDisplay, buffer);
+					display->displayPopup(buffer);
+				}
+
+				//if turning stutter mod encoder and stutter quantize is enabled
+				//display stutter quantization instead of knob position
+				if (modelStackWithParam->paramId == Param::Unpatched::STUTTER_RATE
+				    && (runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate)
+				        == RuntimeFeatureStateToggle::On)
+				    && !isUIModeActive(UI_MODE_STUTTERING)) {
+					char buffer[10];
+					if (newKnobPos < -39) { // 4ths stutter: no leds turned on
+						strncpy(buffer, "4ths", 10);
+					}
+					else if (newKnobPos < -14) { // 8ths stutter: 1 led turned on
+						strncpy(buffer, "8ths", 10);
+					}
+					else if (newKnobPos < 14) { // 16ths stutter: 2 leds turned on
+						strncpy(buffer, "16ths", 10);
+					}
+					else if (newKnobPos < 39) { // 32nds stutter: 3 leds turned on
+						strncpy(buffer, "32nds", 10);
+					}
+					else { // 64ths stutter: all 4 leds turned on
+						strncpy(buffer, "64ths", 10);
+					}
+					display->displayPopup(buffer);
+				}
+
+				if (newKnobPos == knobPos) {
+					return;
+				}
 
 				char newModelStackMemory[MODEL_STACK_MAX_SIZE];
 
@@ -870,15 +946,6 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 					modelStackWithParam->setTimelineCounter(NULL);
 				}
 
-				int32_t value = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
-				int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
-				int32_t lowerLimit = std::min(-64_i32, knobPos);
-				int32_t newKnobPos = knobPos + offset;
-				newKnobPos = std::clamp(newKnobPos, lowerLimit, 64_i32);
-				if (newKnobPos == knobPos) {
-					return;
-				}
-
 				int32_t newValue =
 				    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
 
@@ -887,11 +954,6 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 				                                                          modLength);
 
 				if (activeModControllableModelStack.timelineCounterIsSet()) {
-					char modelStackTempMemory[MODEL_STACK_MAX_SIZE];
-					copyModelStack(modelStackTempMemory, modelStackWithParam, sizeof(ModelStackWithThreeMainThings));
-					ModelStackWithThreeMainThings* tempModelStack =
-					    (ModelStackWithThreeMainThings*)modelStackTempMemory;
-
 					bool noteTailsAllowedAfter =
 					    modelStackWithParam->modControllable->allowNoteTails(tempModelStack->addSoundFlags());
 
@@ -1798,14 +1860,14 @@ getOut:
 						        kit, soundDrum)) { // If no ParamManager with a NoteRow somewhere...
 
 							if (results.loadedFromFile) {
-								display->freezeWithError("E103");
+								FREEZE_WITH_ERROR("E103");
 							}
 							else if (instrumentAlreadyInSong) {
-								display->freezeWithError("E104");
+								FREEZE_WITH_ERROR("E104");
 							}
 							else {
 								// Sven got - very rare! This means Kit was hibernating, I guess.
-								display->freezeWithError("E105");
+								FREEZE_WITH_ERROR("E105");
 							}
 						}
 					}

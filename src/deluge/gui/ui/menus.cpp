@@ -27,8 +27,12 @@
 #include "gui/menu_item/cv/volts.h"
 #include "gui/menu_item/decimal.h"
 #include "gui/menu_item/defaults/bend_range.h"
+#include "gui/menu_item/defaults/grid_allow_green_selection.h"
+#include "gui/menu_item/defaults/grid_default_active_mode.h"
+#include "gui/menu_item/defaults/grid_unarm_empty_pads.h"
 #include "gui/menu_item/defaults/keyboard_layout.h"
 #include "gui/menu_item/defaults/magnitude.h"
+#include "gui/menu_item/defaults/metronome_volume.h"
 #include "gui/menu_item/defaults/scale.h"
 #include "gui/menu_item/defaults/session_layout.h"
 #include "gui/menu_item/defaults/velocity.h"
@@ -821,10 +825,21 @@ Submenu defaultUIKeyboard{
     {&defaultKeyboardLayoutMenu},
 };
 
+defaults::DefaultGridDefaultActiveMode defaultGridDefaultActiveMode{STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ACTIVE_MODE,
+                                                                    STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ACTIVE_MODE};
+defaults::DefaultGridAllowGreenSelection defaultGridAllowGreenSelection{
+    STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ALLOW_GREEN_SELECTION, STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ALLOW_GREEN_SELECTION};
+defaults::DefaultGridUnarmEmptyPads defaultGridUnarmEmptyPads{STRING_FOR_DEFAULT_UI_DEFAULT_GRID_UNARM_EMPTY_PADS,
+                                                              STRING_FOR_DEFAULT_UI_DEFAULT_GRID_UNARM_EMPTY_PADS};
+Submenu defaultSessionGridMenu{
+    STRING_FOR_DEFAULT_UI_GRID,
+    {&defaultGridDefaultActiveMode, &defaultGridAllowGreenSelection, &defaultGridUnarmEmptyPads},
+};
+
 defaults::SessionLayout defaultSessionLayoutMenu{STRING_FOR_DEFAULT_UI_LAYOUT, STRING_FOR_DEFAULT_UI_LAYOUT};
 Submenu defaultUISession{
     STRING_FOR_DEFAULT_UI_SONG,
-    {&defaultSessionLayoutMenu},
+    {&defaultSessionLayoutMenu, &defaultSessionGridMenu},
 };
 
 Submenu defaultUI{
@@ -839,6 +854,7 @@ defaults::Scale defaultScaleMenu{STRING_FOR_SCALE, STRING_FOR_DEFAULT_SCALE};
 defaults::Velocity defaultVelocityMenu{STRING_FOR_VELOCITY, STRING_FOR_DEFAULT_VELOC_MENU_TITLE};
 defaults::Magnitude defaultMagnitudeMenu{STRING_FOR_RESOLUTION, STRING_FOR_DEFAULT_RESOL_MENU_TITLE};
 defaults::BendRange defaultBendRangeMenu{STRING_FOR_BEND_RANGE, STRING_FOR_DEFAULT_BEND_R};
+defaults::MetronomeVolume defaultMetronomeVolumeMenu{STRING_FOR_METRONOME, STRING_FOR_DEFAULT_METRO_MENU_TITLE};
 
 Submenu defaultsSubmenu{
     STRING_FOR_DEFAULTS,
@@ -851,6 +867,7 @@ Submenu defaultsSubmenu{
         &defaultVelocityMenu,
         &defaultMagnitudeMenu,
         &defaultBendRangeMenu,
+        &defaultMetronomeVolumeMenu,
     },
 };
 

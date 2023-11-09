@@ -171,7 +171,7 @@ ParamManager* Output::getParamManager(Song* song) {
 		ParamManager* paramManager =
 		    song->getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)toModControllable(), NULL);
 		if (!paramManager) {
-			display->freezeWithError("E170");
+			FREEZE_WITH_ERROR("E170");
 		}
 		return paramManager;
 	}
@@ -426,11 +426,11 @@ void Output::endAnyArrangementRecording(Song* song, int32_t actualEndPosInternal
 		int32_t i = clipInstances.search(actualEndPosInternalTicks, LESS);
 		ClipInstance* clipInstance = clipInstances.getElement(i);
 		if (ALPHA_OR_BETA_VERSION && !clipInstance) {
-			display->freezeWithError("E261");
+			FREEZE_WITH_ERROR("E261");
 		}
 		if (ALPHA_OR_BETA_VERSION && clipInstance->clip != activeClip) {
 			// Michael B got, in 3.2.0-alpha10. Possibly a general memory corruption thing?
-			display->freezeWithError("E262");
+			FREEZE_WITH_ERROR("E262");
 		}
 
 		int32_t lengthSoFarInternalTicks = actualEndPosInternalTicks - clipInstance->pos;

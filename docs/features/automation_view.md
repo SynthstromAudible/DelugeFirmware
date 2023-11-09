@@ -146,7 +146,9 @@ The Automation Editor **will:**
 - enable you to quickly change parameters in focus for editing by turning select or using shift + shortcut pad
 - enable you to view the current parameter value setting for the parameters that are currently automatable.
 - illuminate each pad row according to the current value within the range of 0-128. E.g. bottom pad = 0-16, then 17-32, 33-48, 49-64, 65-80, 81-96, 97-112, 113-128) 
+> **Update** The values displayed in automation view have been updated to display the same value range displayed in the menu's for consistency across the Deluge UI. So instead of displaying 0 - 128, it now displays 0 - 50. Calculations in automation view are still being done based on the 0 - 128 range, but the display converts it to the 0 - 50 range.
 - edit new or existing parameter automations on a per step basis, at any zoom level across the entire timeline. Each row in a step column corresponds to a range of values in the parameter value range (0-128) (see above). If you press the bottom row, the value will be set to 0. if you press the top row, the value will be set to 128. Pressing the rows in between increments/decrements the value by 18 (e.g. 0, 18, 36, 54, 72, 90, 108, 128). 
+> **Update** The values displayed in automation view have been updated to display the same value range displayed in the menu's for consistency across the Deluge UI. So instead of displaying 0 - 128, it now displays 0 - 50. Calculations in automation view are still being done based on the 0 - 128 range, but the display converts it to the 0 - 50 range.
 
 ![image](https://github.com/seangoodvibes/DelugeFirmware/assets/138174805/8cc7befa-9071-4bd3-ac3c-15049f69b250)
 
@@ -316,6 +318,16 @@ Similar to above with the Nudging Notes community feature, this feature will dis
 In the Automation Instrument Clip View, functionality is provided to shift automations at the parameter level.
 
 > **Note:** MPE recorded will still be shifted as the scope of this PR does not cover editing MPE.
+
+### Disable Audition Pad Shortcuts
+
+Currently in the Instrument Clip View if you hold down an audition pad and press a shortcut pad on the grid, it will open the menu corresponding to that shortcut pad.
+
+By default in the Automation Instrument Clip View that same behaviour of holding an audition pad and pressing a shortcut pad is disabled in favour of you being able to hold down an audition pad and adjust the automation lane values so that you can audible hear the changes to the sound while adjusting automation settings.
+
+Through the community features menu, you can disable this change and re-instate the audition pad shortcuts by setting the community feature to "Off."
+
+> **Note:** in automation view, shortcuts do not open the menu. They change the selected parameter for automation lane editing.
 
 # Fun things to try with the new Automation Instrument Clip View
 

@@ -1104,7 +1104,7 @@ int32_t NoteRow::editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareW
 	}
 #if ALPHA_OR_BETA_VERSION
 	else if (numToDelete < 0) { // If we overshot somehow
-		display->freezeWithError("E329");
+		FREEZE_WITH_ERROR("E329");
 	}
 #endif
 
@@ -3210,7 +3210,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 
 						// If there also was no RAM...
 						if (!paramManager.containsAnyMainParamCollections()) {
-							display->freezeWithError("E101");
+							FREEZE_WITH_ERROR("E101");
 						}
 					}
 
@@ -3218,7 +3218,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 					else {
 						int32_t error = paramManager.setupWithPatching();
 						if (error) {
-							display->freezeWithError("E010"); // If there also was no RAM, we're really in trouble.
+							FREEZE_WITH_ERROR("E010"); // If there also was no RAM, we're really in trouble.
 						}
 						Sound::initParams(&paramManager);
 

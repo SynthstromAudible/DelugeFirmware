@@ -439,10 +439,10 @@ int32_t MIDIInstrument::moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC
 	else {
 #if ALPHA_OR_BETA_VERSION
 		if (modelStackWithAutoParam->paramCollection != modelStack->paramManager->getExpressionParamSet()) {
-			display->freezeWithError("E415");
+			FREEZE_WITH_ERROR("E415");
 		}
 		if (modelStackWithAutoParam->paramId >= kNumExpressionDimensions) {
-			display->freezeWithError("E416");
+			FREEZE_WITH_ERROR("E416");
 		}
 #endif
 		((ExpressionParamSet*)modelStackWithAutoParam->paramCollection)

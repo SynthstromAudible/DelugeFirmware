@@ -148,7 +148,7 @@ SEGGER_RTT_ASM_WriteSkipNoLock:   // unsigned SEGGER_RTT_WriteSkipNoLock(unsigne
         //
         PUSH     {R4-R7}
         ADD      R3,R0,R0, LSL #+1
-        LDR.W    R0,=_SEGGER_RTT                 // pRing = &_SEGGER_RTT.aUp[BufferIndex];
+        LDR.W    R0,=_SEGGER_RTT_UNCACHED                 // pRing = &_SEGGER_RTT_UNCACHED.aUp[BufferIndex];
         ADD      R0,R0,R3, LSL #+3
         ADD      R6,R0,#+24
         LDR      R0,[R6, #+16]                   // RdOff = pRing->RdOff;
