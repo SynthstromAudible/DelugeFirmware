@@ -140,6 +140,7 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	masterCompressorRelease = 20 << 24;
 	masterCompressorThresh = 0;
 	masterCompressorRatio = 0;
+	masterCompressorSidechainFC = ONE_Q31 >> 1;
 	AudioEngine::mastercompressor.gainReduction = 0.0;
 
 	dirPath.set("SONGS");
@@ -2670,7 +2671,7 @@ int32_t Song::getCurrentPresetScale() {
 		// If we're here, must be this one!
 		return p;
 
-notThisOne : {}
+notThisOne: {}
 	}
 
 	return 255;
@@ -4559,7 +4560,7 @@ Instrument* Song::changeInstrumentType(Instrument* oldInstrument, InstrumentType
 			return NULL;
 		}
 
-gotAnInstrument : {}
+gotAnInstrument: {}
 	}
 
 	// Synth or Kit
