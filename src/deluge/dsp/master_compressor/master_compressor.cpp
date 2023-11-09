@@ -23,20 +23,14 @@
 #include "processing/engines/audio_engine.h"
 #include "util/fast_fixed_math.h"
 MasterCompressor::MasterCompressor() {
-	//compressor.setAttack((float)attack / 100.0);
-	attack = attackRateTable[2] << 2;
-	release = releaseRateTable[5] << 2;
-	//compressor.setRelease((float)release / 100.0);
-	//compressor.setThresh((float)threshold / 100.0);
-	//compressor.setRatio(1.0 / ((float)ratio / 100.0));
-	shape = getParamFromUserValue(Param::Unpatched::COMPRESSOR_SHAPE, 1);
+
 	//an appropriate range is 0-50*one q 15
-	threshold = ONE_Q31;
-	rawThreshold = 0;
-	follower = true;
-	//this is about a 1:1 ratio
-	ratio = ONE_Q31 >> 1;
-	syncLevel = SyncLevel::SYNC_LEVEL_NONE;
+
+	thresholdKnobPos = 0;
+
+	//this is 2:1
+	ratioKnobPos = 0;
+
 	currentVolumeL = 0;
 	currentVolumeR = 0;
 	//auto make up gain
@@ -54,44 +48,32 @@ void MasterCompressor::updateER() {
 		        134217728, cableToLinearParamShortcut(currentSong->paramManager.getUnpatchedParamSet()->getValue(
 		                       Param::Unpatched::GlobalEffectable::VOLUME)))
 		    >> 1;
-		songVolume = std::log(volumePostFX);
+		songVolume = std::log(volumePostFX) - 2;
 	}
 	else {
 		songVolume = 16;
 	}
-	threshdb = songVolume * (threshold / ONE_Q31f);
+	threshdb = songVolume * threshold;
 	//16 is about the level of a single synth voice at max volume
-	er = std::max<float>((songVolume - threshdb - 2) * (float(ratio) / ONE_Q31), 0);
+	er = std::max<float>((songVolume - threshdb - 2) * ratio, 0);
 }
 
 void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t volAdjustL, q31_t volAdjustR) {
-	ratio = (rawRatio >> 1) + (3 << 28);
-	threshold = ONE_Q31 - rawThreshold;
+	//we update this every time since we won't know if the song volume changed
 	updateER();
 
-	q31_t over = std::max<float>(0, (meanVolume - threshdb) / 21) * ONE_Q31;
-	q31_t clip = std::max<float>(0, (meanVolume - 18) / 21) * ONE_Q31;
-	//add some extra reduction if we're into clipping
+	float over = std::max<float>(0, (rms - threshdb));
 
-	if (over > 0) {
-		registerHit(over);
-	}
-	out = Compressor::render(numSamples, shape);
-	out = (multiply_32x32_rshift32(out, ratio) << 1) - (multiply_32x32_rshift32(clip, ONE_Q31 - ratio));
-	//out = multiply_32x32_rshift32(out, ratio) << 1;
+	float out = runEnvelope(over, numSamples);
 
-	//21 is the max internal volume (i.e. one_q31)
-	//min ratio is 8 up to 1 (i.e. infinity/brick wall, 1 db reduction per db over)
-	//base is arbitrary for scale, important part is the shape
-	//this will be negative
-	float reduction = 21 * (out / ONE_Q31f);
+	float reduction = -out * ratio;
 
 	//this is the most gain available without overflow
 	float dbGain = 0.85 + er + reduction;
 
 	float gain = exp((dbGain));
 	gain = std::min<float>(gain, 31);
-	lastGain = dbGain;
+
 	float finalVolumeL = gain * float(volAdjustL >> 9);
 	float finalVolumeR = gain * float(volAdjustR >> 9);
 
@@ -114,7 +96,17 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t v
 	//9 converts to dB, quadrupled for display range since a 30db reduction is basically killing the signal
 	gainReduction = std::clamp<int32_t>(-(reduction)*9 * 4, 0, 127);
 	//calc compression for next round (feedback compressor)
-	meanVolume = calc_rms(buffer, numSamples);
+	rms = calc_rms(buffer, numSamples);
+}
+
+float MasterCompressor::runEnvelope(float in, float numSamples) {
+	if (in > state) {
+		state = in + exp(a_ * numSamples) * (state - in);
+	}
+	else {
+		state = in + exp(r_ * numSamples) * (state - in);
+	}
+	return state;
 }
 
 //output range is 0-21 (2^31)
@@ -126,28 +118,28 @@ float MasterCompressor::calc_rms(StereoSample* buffer, uint16_t numSamples) {
 	q31_t offset = 0; //to remove dc offset
 	float lastMean = mean;
 	do {
-		q31_t s = std::abs(thisSample->l) + std::abs(thisSample->r);
+		q31_t s = std::max(std::abs(thisSample->l), std::abs(thisSample->r));
 		sum += multiply_32x32_rshift32(s, s) << 1;
-		offset += thisSample->l;
 
 	} while (++thisSample != bufferEnd);
 
 	float ns = float(numSamples);
-	float rms = ONE_Q31 * sqrt((float(sum) / ONE_Q31f) / ns);
-	float dc = std::abs(offset) / ns;
+	mean = (float(sum) / ONE_Q31f) / ns;
 	//warning this is not good math but it's pretty close and way cheaper than doing it properly
-	mean = rms - dc / 1.4f;
-	mean = std::max(mean, 1.0f);
+	//good math would use a long FIR, this is a one pole IIR instead
+	//the more samples we have, the more weight we put on the current mean to avoid response slowing down
+	//at high cpu loads
+	mean = (mean * ns + lastMean) / (1 + ns);
+	float rms = ONE_Q31 * sqrt(mean);
 
-	float logmean = std::log((mean + lastMean) / 2);
+	float logmean = std::log(std::max(rms, 1.0f));
 
 	return logmean;
 }
 
 void MasterCompressor::setup(int32_t a, int32_t r, int32_t t, int32_t rat) {
-	attack = a;
-	release = r;
-	rawThreshold = t;
-	rawRatio = rat;
-	updateER();
+	setAttack(a);
+	setRelease(r);
+	setThreshold(t);
+	setRatio(rat);
 }
