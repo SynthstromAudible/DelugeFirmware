@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/views/clip_navigation_timeline_view.h"
+#include "model/mod_controllable/mod_controllable_audio.h"
 #include "hid/button.h"
 #include "storage/flash_storage.h"
 
@@ -26,12 +27,14 @@ class Editor;
 class InstrumentClip;
 class Clip;
 class ModelStack;
+class ModelStackWithThreeMainThings;
+class ModelStackWithAutoParam;
 
 // Clip Group colours
 extern const uint8_t numDefaultClipGroupColours;
 extern const uint8_t defaultClipGroupColours[];
 
-class PerformanceSessionView final : public ClipNavigationTimelineView {
+class PerformanceSessionView final : public ClipNavigationTimelineView, public ModControllableAudio {
 public:
 	PerformanceSessionView();
 	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
@@ -76,10 +79,22 @@ public:
 	uint8_t masterCompEditMode;
 
 private:
+	void performActualRender(uint32_t whichRows, uint8_t* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
+	                         int32_t xScroll, uint32_t xZoom, int32_t renderWidth, int32_t imageWidth,
+	                         bool drawUndefinedArea = true);
+	void renderRow(uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
+
 	void drawSectionRepeatNumber();
 	void beginEditingSectionRepeatsNum();
 	void rowNeedsRenderingDependingOnSubMode(int32_t yDisplay);
 	void setCentralLEDStates();
+	ModelStackWithAutoParam* getModelStackWithParam(int32_t paramID);
+	int32_t calculateKnobPosForSinglePadPress(int32_t yDisplay);
+	int32_t calculateKnobPosForDisplay(int32_t knobPos);
+	int32_t getParamIDFromSinglePadPress(int32_t xDisplay);
+	void renderDisplayOLED(Param::Kind lastSelectedParamKind, int32_t lastSelectedParamID, int32_t knobPos);
+	int32_t currentKnobPosition[kDisplayWidth];
+	int32_t previousKnobPosition[kDisplayWidth];
 
 	// Members regarding rendering different layouts
 private:

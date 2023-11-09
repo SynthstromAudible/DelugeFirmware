@@ -77,10 +77,56 @@ extern "C" {
 using namespace deluge;
 using namespace gui;
 
+//kit affect entire FX - sorted in the order that Parameters are scrolled through on the display
+const std::array<std::pair<Param::Kind, ParamType>, kDisplayWidth>
+    songParamsForPerformance{{
+        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::PITCH_ADJUST},
+        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::PITCH_ADJUST},
+        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::LPF_FREQ}, //LPF Cutoff, Resonance
+        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::LPF_RES},
+        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::HPF_FREQ}, //HPF Cutoff, Resonance
+        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::HPF_RES},
+        {Param::Kind::UNPATCHED, Param::Unpatched::BASS}, //Bass, Bass Freq
+        {Param::Kind::UNPATCHED, Param::Unpatched::BASS_FREQ},
+        {Param::Kind::UNPATCHED, Param::Unpatched::TREBLE}, //Treble, Treble Freq
+        {Param::Kind::UNPATCHED, Param::Unpatched::TREBLE_FREQ},
+        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT}, //Reverb Amount
+        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::DELAY_RATE},         //Delay Rate, Amount
+        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::DELAY_AMOUNT},
+        {Param::Kind::UNPATCHED, Param::Unpatched::SAMPLE_RATE_REDUCTION}, //Decimation, Bitcrush
+        {Param::Kind::UNPATCHED, Param::Unpatched::BITCRUSHING},
+		{Param::Kind::UNPATCHED, Param::Unpatched::STUTTER_RATE},      //Stutter Rate
+    }};
+
+    //    {Param::Kind::UNPATCHED, Param::Unpatched::MOD_FX_OFFSET}, //Mod FX Offset, Feedback, Depth, Rate
+    //    {Param::Kind::UNPATCHED, Param::Unpatched::MOD_FX_FEEDBACK},
+    //    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH},
+    //    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::MOD_FX_RATE},
+
+
+//VU meter style colours for the automation editor
+
+const uint8_t rowColour[kDisplayHeight][3] = {
+
+    {0, 255, 0}, {36, 219, 0}, {73, 182, 0}, {109, 146, 0}, {146, 109, 0}, {182, 73, 0}, {219, 36, 0}, {255, 0, 0}};
+
+const uint8_t rowTailColour[kDisplayHeight][3] = {
+
+    {2, 53, 2}, {9, 46, 2}, {17, 38, 2}, {24, 31, 2}, {31, 24, 2}, {38, 17, 2}, {46, 9, 2}, {53, 2, 2}};
+
+const uint8_t rowBlurColour[kDisplayHeight][3] = {
+
+    {71, 111, 71}, {72, 101, 66}, {73, 90, 62}, {74, 80, 57}, {76, 70, 53}, {77, 60, 48}, {78, 49, 44}, {79, 39, 39}};
+
 PerformanceSessionView performanceSessionView{};
 
 PerformanceSessionView::PerformanceSessionView() {
 	xScrollBeforeFollowingAutoExtendingLinearRecording = -1;
+
+	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+		previousKnobPosition[xDisplay] = kNoSelection;
+		currentKnobPosition[xDisplay] = kNoSelection;
+	}
 }
 
 bool PerformanceSessionView::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
@@ -280,7 +326,175 @@ void PerformanceSessionView::beginEditingSectionRepeatsNum() {
 }
 
 ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDisplay, int32_t on) {
+	//editPadAction
+	if (xDisplay < kDisplayWidth) {
+		auto [kind, id] = songParamsForPerformance[xDisplay];
+
+		Param::Kind lastSelectedParamKind = kind;
+		int32_t lastSelectedParamID = id;
+
+		if (on) {			
+			//ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(paramID);
+
+			ModelStackWithAutoParam* modelStackWithParam = nullptr;
+			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithThreeMainThings* modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+
+			if (modelStackWithThreeMainThings) {
+				ParamCollectionSummary* summary = modelStackWithThreeMainThings->paramManager->getUnpatchedParamSetSummary();
+						
+				if (summary) {
+					ParamSet* paramSet = (ParamSet*)summary->paramCollection;
+					modelStackWithParam =
+						modelStackWithThreeMainThings->addParam(paramSet, summary, lastSelectedParamID, &paramSet->params[lastSelectedParamID]);
+				}
+			}
+					
+			if (modelStackWithParam && modelStackWithParam->autoParam) {
+
+				if (modelStackWithParam->getTimelineCounter()
+					== view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+
+					int32_t oldValue = modelStackWithParam->autoParam->getValuePossiblyAtPos(view.modPos, modelStackWithParam);
+					previousKnobPosition[xDisplay] = modelStackWithParam->paramCollection->paramValueToKnobPos(oldValue, modelStackWithParam);
+					currentKnobPosition[xDisplay] = calculateKnobPosForSinglePadPress(yDisplay);
+
+					int32_t newValue = modelStackWithParam->paramCollection->knobPosToParamValue(currentKnobPosition[xDisplay], modelStackWithParam);
+						
+					modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, view.modPos,
+																			view.modLength);
+
+					char buffer[5];
+					int32_t valueForDisplay = calculateKnobPosForDisplay(currentKnobPosition[xDisplay] + kKnobPosOffset);
+					//intToString(valueForDisplay, buffer);
+					//display->displayPopup(buffer);
+					renderDisplayOLED(lastSelectedParamKind, lastSelectedParamID, valueForDisplay);
+
+					uiNeedsRendering(this); //re-render mute pads
+				}
+			} 
+		}
+		else if (previousKnobPosition[xDisplay] != kNoSelection) {
+			//ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(paramID);
+
+			ModelStackWithAutoParam* modelStackWithParam = nullptr;
+			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithThreeMainThings* modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+
+			if (modelStackWithThreeMainThings) {
+				ParamCollectionSummary* summary = modelStackWithThreeMainThings->paramManager->getUnpatchedParamSetSummary();
+						
+				if (summary) {
+					ParamSet* paramSet = (ParamSet*)summary->paramCollection;
+					modelStackWithParam =
+						modelStackWithThreeMainThings->addParam(paramSet, summary, lastSelectedParamID, &paramSet->params[lastSelectedParamID]);
+				}
+			}
+					
+			if (modelStackWithParam && modelStackWithParam->autoParam) {
+
+				if (modelStackWithParam->getTimelineCounter()
+					== view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+
+					int32_t oldValue = modelStackWithParam->paramCollection->knobPosToParamValue(previousKnobPosition[xDisplay], modelStackWithParam);
+						
+					modelStackWithParam->autoParam->setValuePossiblyForRegion(oldValue, modelStackWithParam, view.modPos,
+																			view.modLength);
+
+					char buffer[5];
+					int32_t valueForDisplay = calculateKnobPosForDisplay(previousKnobPosition[xDisplay] + kKnobPosOffset);
+					//intToString(valueForDisplay, buffer);
+					//display->displayPopup(buffer);
+					renderDisplayOLED(lastSelectedParamKind, lastSelectedParamID, valueForDisplay);
+
+					previousKnobPosition[xDisplay] = kNoSelection;
+					currentKnobPosition[xDisplay] = kNoSelection;
+
+					uiNeedsRendering(this); //re-render mute pads
+				}
+			} 
+		}	
+	}
+
 	return ActionResult::DEALT_WITH;
+}
+
+//get's the modelstack for the parameters that are being edited
+ModelStackWithAutoParam* PerformanceSessionView::getModelStackWithParam(int32_t paramID) {
+
+	ModelStackWithAutoParam* modelStackWithParam = nullptr;
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+
+	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+
+	if (modelStackWithThreeMainThings) {
+		ParamCollectionSummary* summary = modelStackWithThreeMainThings->paramManager->getUnpatchedParamSetSummary();
+				
+		if (summary) {
+			ParamSet* paramSet = (ParamSet*)summary->paramCollection;
+			modelStackWithParam =
+				modelStackWithThreeMainThings->addParam(paramSet, summary, paramID, &paramSet->params[paramID]);
+		}
+	}
+
+	return modelStackWithParam;
+}
+
+int32_t PerformanceSessionView::calculateKnobPosForSinglePadPress(int32_t yDisplay) {
+	int32_t newKnobPos = 0;
+
+	//if you press bottom pad, value is 0, for all other pads except for the top pad, value = row Y * 18
+	if (yDisplay < 7) {
+		newKnobPos = yDisplay * kParamValueIncrementForAutomationSinglePadPress;
+	}
+	//if you are pressing the top pad, set the value to max (128)
+	else {
+		newKnobPos = kMaxKnobPos;
+	}
+
+	//in the deluge knob positions are stored in the range of -64 to + 64, so need to adjust newKnobPos set above.
+	newKnobPos = newKnobPos - kKnobPosOffset;
+
+	return newKnobPos;
+}
+
+//for non-MIDI instruments, convert deluge internal knobPos range to same range as used by menu's.
+int32_t PerformanceSessionView::calculateKnobPosForDisplay(int32_t knobPos) {
+	int32_t offset = 0;
+
+	//convert knobPos from 0 - 128 to 0 - 50
+	return (((((knobPos << 20) / kMaxKnobPos) * kMaxMenuValue) >> 20) - offset);
+}
+
+void PerformanceSessionView::renderDisplayOLED(Param::Kind lastSelectedParamKind, int32_t lastSelectedParamID, int32_t knobPos) {
+	deluge::hid::display::OLED::clearMainImage();
+
+	//display parameter name
+	char parameterName[30];
+	if (lastSelectedParamKind == Param::Kind::UNPATCHED) {
+		strncpy(parameterName, getUnpatchedParamDisplayName(lastSelectedParamID), 29);
+		}
+	else if (lastSelectedParamKind == Param::Kind::GLOBAL_EFFECTABLE) {
+		strncpy(parameterName, getGlobalEffectableParamDisplayName(lastSelectedParamID), 29);
+	}
+
+#if OLED_MAIN_HEIGHT_PIXELS == 64
+	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
+#else
+	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
+#endif
+	deluge::hid::display::OLED::drawStringCentred(parameterName, yPos, deluge::hid::display::OLED::oledMainImage[0],
+		                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+
+	//display parameter value
+	yPos = yPos + 24;
+
+	char buffer[5];
+	intToString(knobPos, buffer);
+	deluge::hid::display::OLED::drawStringCentred(buffer, yPos, deluge::hid::display::OLED::oledMainImage[0],
+			                                      OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+
+	deluge::hid::display::OLED::sendMainImage();
 }
 
 ActionResult PerformanceSessionView::timerCallback() {
@@ -564,15 +778,60 @@ bool PerformanceSessionView::renderMainPads(uint32_t whichRows, uint8_t image[][
 		return true;
 	}
 
+	if (!occupancyMask) {
+		return true;
+	}
+
+	PadLEDs::renderingLock = true;
+
+	// erase current image as it will be refreshed
+	memset(image, 0, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth + kSideBarWidth) * 3);
+
+	// erase current occupancy mask as it will be refreshed
+	memset(occupancyMask, 0, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth + kSideBarWidth));
+
+	performActualRender(whichRows, &image[0][0][0], occupancyMask, currentSong->xScroll[NAVIGATION_CLIP],
+	                    currentSong->xZoom[NAVIGATION_CLIP], kDisplayWidth, kDisplayWidth + kSideBarWidth,
+	                    drawUndefinedArea);
+
+	PadLEDs::renderingLock = false;
+
 	return true;
 }
 
-// Returns false if can't because in card routine
-bool PerformanceSessionView::renderRow(ModelStack* modelStack, uint8_t yDisplay,
-                            uint8_t thisImage[kDisplayWidth + kSideBarWidth][3],
-                            uint8_t thisOccupancyMask[kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
+//render performance mode
+void PerformanceSessionView::performActualRender(uint32_t whichRows, uint8_t* image,
+                                                       uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
+                                                       int32_t xScroll, uint32_t xZoom, int32_t renderWidth,
+                                                       int32_t imageWidth, bool drawUndefinedArea) {
 
-	return true;
+	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+
+		uint8_t* occupancyMaskOfRow = occupancyMask[yDisplay];
+
+		renderRow(image + (yDisplay * imageWidth * 3), occupancyMaskOfRow, yDisplay);
+	}
+}
+
+//this function started off as a copy of the renderRow function from the NoteRow class - I replaced "notes" with "nodes"
+//it worked for the most part, but there was bugs so I removed the buggy code and inserted my alternative rendering method
+//which always works. hoping to bring back the other code once I've worked out the bugs.
+void PerformanceSessionView::renderRow(uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay) {
+
+	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+		uint8_t* pixel = image + (xDisplay * 3);
+
+		memcpy(pixel, &rowTailColour[yDisplay], 3);
+		occupancyMask[xDisplay] = 64;
+
+		if ((yDisplay == (kDisplayHeight - 1)) && ((currentKnobPosition[xDisplay] + kKnobPosOffset) == kMaxKnobPos)) {
+			memcpy(pixel, &rowBlurColour[yDisplay], 3);
+		}
+		else if (((currentKnobPosition[xDisplay] + kKnobPosOffset) / kParamValueIncrementForAutomationDisplay) == yDisplay) {
+			memcpy(pixel, &rowBlurColour[yDisplay], 3);
+		}
+		occupancyMask[xDisplay] = 64;
+	}
 }
 
 void PerformanceSessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
