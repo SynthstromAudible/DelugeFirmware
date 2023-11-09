@@ -533,7 +533,8 @@ void AudioClip::render(ModelStackWithTimelineCounter* modelStack, int32_t* outpu
 	// To stop things getting insane, limit to 32x speed
 	//if ((sampleLengthInSamples >> 5) > clipLengthInSamples) return false;
 
-	uint64_t requiredSpeedAdjustment = (uint64_t)((float)((uint64_t)sampleLengthInSamples << 24)) / (float)clipLengthInSamples;
+	uint64_t requiredSpeedAdjustment =
+	    (uint64_t)((float)((uint64_t)sampleLengthInSamples << 24)) / (float)clipLengthInSamples;
 
 	// If we're squishing time...
 	if (sampleControls.pitchAndSpeedAreIndependent) {
