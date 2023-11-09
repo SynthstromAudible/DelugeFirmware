@@ -20,7 +20,7 @@ void Selection::drawPixelsForOled() {
 	if (soundEditor.menuCurrentScroll > value) {
 		soundEditor.menuCurrentScroll = value;
 	}
-	else if (soundEditor.menuCurrentScroll < this->getValue() - kOLEDMenuNumOptionsVisible + 1) {
+	else if (soundEditor.menuCurrentScroll < value - kOLEDMenuNumOptionsVisible + 1) {
 		soundEditor.menuCurrentScroll = value - kOLEDMenuNumOptionsVisible + 1;
 	}
 
