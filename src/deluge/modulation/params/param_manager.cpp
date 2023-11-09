@@ -165,8 +165,11 @@ int32_t ParamManager::cloneParamCollectionsFrom(ParamManager* other, bool copyAu
                                                 int32_t reverseDirectionWithLength) {
 
 	ParamCollectionSummary mpeParamsOrNullHere = *getExpressionParamSetSummary();
-	if (mpeParamsOrNullHere.paramCollection) {
-		cloneExpressionParams = false; // If we already have expression params, then just don't clone from "other".
+	// Paul: Prevent MPE data from not getting exchanged with a newly allocated pointer if we allocate the same params for another clip
+	if (this != other) {
+		if (mpeParamsOrNullHere.paramCollection) {
+			cloneExpressionParams = false; // If we already have expression params, then just don't clone from "other".
+		}
 	}
 
 	// First, allocate the memories
@@ -220,10 +223,16 @@ int32_t ParamManager::cloneParamCollectionsFrom(ParamManager* other, bool copyAu
 		otherSummary++;
 	}
 
-	*newSummary = mpeParamsOrNullHere;
-	if (mpeParamsOrNullHere.paramCollection) { // Check first, otherwise we'll overflow the array, I think...
-		newSummary++;
+	// Paul: If we move allocation position of the same clip mpe data was allocated above and doesn't require special treatment
+	if (this == other) {
 		*newSummary = {0}; // Mark end of list
+	}
+	else {
+		*newSummary = mpeParamsOrNullHere;
+		if (mpeParamsOrNullHere.paramCollection) { // Check first, otherwise we'll overflow the array, I think...
+			newSummary++;
+			*newSummary = {0}; // Mark end of list
+		}
 	}
 
 	// And finally, copy the pointers and flags from newSummaries to our permanent summaries array.

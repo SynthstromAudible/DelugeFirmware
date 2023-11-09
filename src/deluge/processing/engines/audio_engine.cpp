@@ -402,13 +402,15 @@ void routine() {
 #define MINSAMPLES 16
 
 	smoothedSamples = numSamples;
-
-	if (numSamplesLastTime < numSamples) {
-		Debug::print("rendered ");
-		Debug::print(numSamplesLastTime);
-		Debug::print(" samples but output ");
-		Debug::println(numSamples);
-	}
+	//this is sometimes good for debugging but super spammy
+	//audiolog doesn't work because the render that notices the failure
+	//is one after the render with the problem
+	// if (numSamplesLastTime < numSamples) {
+	// 	Debug::println("rendered ");
+	// 	Debug::println(numSamplesLastTime);
+	// 	Debug::println(" samples but output ");
+	// 	Debug::println(numSamples);
+	// }
 
 	// Consider direness and culling - before increasing the number of samples
 	int32_t numSamplesLimit = 40; //storageManager.devVarC;
@@ -616,17 +618,18 @@ startAgain:
 
 	// Render audio for song
 	if (currentSong) {
-		bool interruptsDisabled = false;
-		if (intc_func_active == 0) {
-			__disable_irq();
-			interruptsDisabled = true;
-		}
+		// Paul: Removed again because of MIDI and CV jitter, leaving interrupts enabled costs about 8 Voices
+		// bool interruptsDisabled = false;
+		// if (intc_func_active == 0) {
+		// 	__disable_irq();
+		// 	interruptsDisabled = true;
+		// }
 
 		currentSong->renderAudio(renderingBuffer, numSamples, reverbBuffer, sideChainHitPending);
 
-		if (interruptsDisabled) {
-			__enable_irq();
-		}
+		// if (interruptsDisabled) {
+		// 	__enable_irq();
+		// }
 	}
 
 #ifdef REPORT_CPU_USAGE

@@ -41,7 +41,7 @@ private:
 		BasicFilterComponent hpfHPF1;
 		BasicFilterComponent hpfLPF1;
 		BasicFilterComponent hpfHPF3;
-
+		uint32_t hpfLastWorkingValue;
 		void reset() {
 			hpfHPF1.reset();
 			hpfLPF1.reset();
@@ -50,8 +50,6 @@ private:
 	};
 	[[gnu::always_inline]] inline q31_t doHPF(q31_t input, HPLadderState& state);
 
-	//config
-	uint32_t hpfLastWorkingValue;
 	bool hpfDoingAntialiasingNow;
 	int32_t hpfDivideByTotalMoveabilityLastTime;
 	int32_t hpfDivideByProcessedResonanceLastTime;
