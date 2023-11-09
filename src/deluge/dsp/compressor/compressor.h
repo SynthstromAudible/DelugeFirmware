@@ -26,6 +26,7 @@ class Compressor {
 public:
 	Compressor();
 	void cloneFrom(Compressor* other);
+
 	EnvelopeStage status;
 	uint32_t pos;
 	int32_t lastValue;
@@ -41,7 +42,6 @@ public:
 	SyncLevel syncLevel; // Basically, 0 is off, max value is 9. Higher numbers are shorter intervals (higher speed).
 
 	int32_t render(uint16_t numSamples, int32_t shapeValue);
-	int32_t renderFollower(uint16_t numSamples, int32_t shapeValue);
 	void registerHit(int32_t strength);
 	void registerHitRetrospectively(int32_t strength, uint32_t numSamplesAgo);
 
