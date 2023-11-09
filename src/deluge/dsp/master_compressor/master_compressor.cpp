@@ -94,7 +94,7 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t v
 	} while (++thisSample != bufferEnd);
 	//for LEDs
 	//9 converts to dB, quadrupled for display range since a 30db reduction is basically killing the signal
-	gainReduction = std::clamp<int32_t>(-(reduction)*9 * 4, 0, 127);
+	gainReduction = std::clamp<int32_t>(-(reduction) * 9 * 4, 0, 127);
 	//calc compression for next round (feedback compressor)
 	rms = calc_rms(buffer, numSamples);
 }
@@ -127,7 +127,9 @@ float MasterCompressor::calc_rms(StereoSample* buffer, uint16_t numSamples) {
 	mean = (float(sum) / ONE_Q31f) / ns;
 	//warning this is not good math but it's pretty close and way cheaper than doing it properly
 	//good math would use a long FIR, this is a one pole IIR instead
-	mean = (mean + lastMean) / 2;
+	//the more samples we have, the more weight we put on the current mean to avoid response slowing down
+	//at high cpu loads
+	mean = (mean * ns + lastMean) / (1 + ns);
 	float rms = ONE_Q31 * sqrt(mean);
 
 	float logmean = std::log(std::max(rms, 1.0f));
