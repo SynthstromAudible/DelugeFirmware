@@ -3368,6 +3368,9 @@ void InstrumentClip::clear(Action* action, ModelStackWithTimelineCounter* modelS
 		    modelStack->addNoteRow(getNoteRowId(thisNoteRow, i), thisNoteRow);
 		thisNoteRow->clear(action, modelStackWithNoteRow);
 	}
+
+	// Paul: Note rows were lingering, delete them immediately instead of relying they get deleted along the way
+	noteRows.deleteNoteRowAtIndex(0, noteRows.getNumElements());
 }
 
 bool InstrumentClip::doesProbabilityExist(int32_t apartFromPos, int32_t probability, int32_t secondProbability) {
