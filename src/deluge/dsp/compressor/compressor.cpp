@@ -25,9 +25,7 @@
 Compressor::Compressor() {
 	status = EnvelopeStage::OFF;
 	lastValue = 2147483647;
-	envelopeOffset = ONE_Q31;
 	pos = 0;
-	follower = false;
 	attack = getParamFromUserValue(Param::Static::COMPRESSOR_ATTACK, 7);
 	release = getParamFromUserValue(Param::Static::COMPRESSOR_RELEASE, 28);
 	pendingHitStrength = 0;
@@ -82,14 +80,11 @@ void Compressor::registerHitRetrospectively(int32_t strength, uint32_t numSample
 		// If we're still in the release stage...
 		if (numSamplesSinceRelease < releaseStageLengthInSamples) {
 			pos = numSamplesSinceRelease * alteredRelease;
-			envelopeHeight = ONE_Q31 - envelopeOffset;
-			envelopeOffset = ONE_Q31;
 			status = EnvelopeStage::RELEASE;
 		}
 
 		// Or if we're past the release stage...
 		else {
-			envelopeOffset = ONE_Q31;
 			status = EnvelopeStage::OFF;
 		}
 	}
@@ -129,65 +124,35 @@ int32_t Compressor::getActualReleaseRate() {
 int32_t Compressor::render(uint16_t numSamples, int32_t shapeValue) {
 
 	// Initial hit detected...
-	if (pendingHitStrength != 0 || follower) {
+	if (pendingHitStrength != 0) {
 		int32_t newOffset = ONE_Q31 - pendingHitStrength;
 
 		pendingHitStrength = 0;
-		//envelope offset is the value we're attack/decaying to
+
 		// Only actually do anything if this hit is going to cause a bigger dip than we're already currently experiencing
 		if (newOffset < lastValue) {
 			envelopeOffset = newOffset;
 
 			// If attack is all the way down, jump directly to release stage
 			if (attack == attackRateTable[0] << 2) {
-				envelopeHeight = ONE_Q31 - envelopeOffset;
-				envelopeOffset = ONE_Q31;
-				pos = 0;
-				status = EnvelopeStage::RELEASE;
+				goto prepareForRelease;
 			}
-			else {
-				if (!follower || status == EnvelopeStage::HOLD) {
-					status = EnvelopeStage::ATTACK;
-					pos = 0;
-				}
-				else if (status != EnvelopeStage::ATTACK) {
-					status = EnvelopeStage::HOLD;
-				}
 
-				envelopeHeight = lastValue - envelopeOffset;
-			}
-		}
-		//or if we're working in follower mode, in which case we want to start releasing whenever the current hit strength is below the envelope level
-		else if (follower && newOffset > envelopeOffset) {
-			envelopeOffset = newOffset;
-			envelopeHeight = newOffset - lastValue;
-			if (status == EnvelopeStage::HOLD) {
-				pos = 0;
-				status = EnvelopeStage::RELEASE;
-			}
-			else if (status != EnvelopeStage::RELEASE) {
-				status = EnvelopeStage::HOLD;
-			}
+			status = EnvelopeStage::ATTACK;
+			envelopeHeight = lastValue - envelopeOffset;
+			pos = 0;
 		}
 	}
+
 	if (status == EnvelopeStage::ATTACK) {
 		pos += numSamples * getActualAttackRate();
 
 		if (pos >= 8388608) {
-			//if we're in follower mode then we just hold the value
-			if (!follower) {
-				envelopeHeight = ONE_Q31 - envelopeOffset;
-				envelopeOffset = ONE_Q31;
 prepareForRelease:
-				pos = 0;
-				status = EnvelopeStage::RELEASE;
-
-				goto doRelease;
-			}
-			else {
-				status = EnvelopeStage::HOLD;
-				goto doOff;
-			}
+			pos = 0;
+			status = EnvelopeStage::RELEASE;
+			envelopeHeight = ONE_Q31 - envelopeOffset;
+			goto doRelease;
 		}
 		//lastValue = (multiply_32x32_rshift32(envelopeHeight, decayTable4[pos >> 13]) << 1) + envelopeOffset; // Goes down quickly at first. Bad
 		//lastValue = (multiply_32x32_rshift32(envelopeHeight, 2147483647 - (pos << 8)) << 1) + envelopeOffset; // Straight line
@@ -226,17 +191,15 @@ doRelease:
 			preValue = straightness * (pos >> 8) + (getDecay8(8388608 - pos, 23) >> 16) * curvedness16;
 		}
 
-		lastValue = envelopeOffset - envelopeHeight + (multiply_32x32_rshift32(preValue, envelopeHeight) << 1);
+		lastValue = ONE_Q31 - envelopeHeight + (multiply_32x32_rshift32(preValue, envelopeHeight) << 1);
 
 		//lastValue = 2147483647 - (multiply_32x32_rshift32(decayTable8[pos >> 13], envelopeHeight) << 1); // Upside down exponential curve
 		//lastValue = 2147483647 - (((int64_t)((sineWave[((pos >> 14) + 256) & 1023] >> 1) + 1073741824) * (int64_t)envelopeHeight) >> 31); // Sine wave. Not great
 		//lastValue = (multiply_32x32_rshift32(pos * (pos >> 15), envelopeHeight) << 1); // Parabola. Doesn't "punch".
 	}
-
-	else { // Off or hold
-
+	else { // Off
 doOff:
-		lastValue = envelopeOffset;
+		lastValue = ONE_Q31;
 	}
 
 	return lastValue - ONE_Q31;
