@@ -56,14 +56,14 @@ public:
 	q31_t getThreshold() { return thresholdKnobPos; }
 	void setThreshold(q31_t t) {
 		thresholdKnobPos = t;
-		threshold = 1 - ((thresholdKnobPos >> 1) / ONE_Q31f);
+		threshold = 1 - 0.8 * (float(thresholdKnobPos) / ONE_Q31f);
 		updateER();
 	}
 	q31_t getRatio() { return ratioKnobPos; }
-	void setRatio(q31_t rat) {
+	q31_t setRatio(q31_t rat) {
 		ratioKnobPos = rat;
 		ratio = 0.5 + (float(ratioKnobPos) / ONE_Q31f) / 2;
-		updateER();
+		return 1 / (1 - ratio);
 	}
 
 	void updateER();

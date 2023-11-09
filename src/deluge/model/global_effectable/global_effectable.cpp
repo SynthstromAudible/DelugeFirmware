@@ -352,7 +352,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				ledLevel = (64 + current);
 				displayLevel = ((ledLevel)*kMaxMenuValue) / 128;
 
-				AudioEngine::mastercompressor.setRatio(lshiftAndSaturate<24>(current + 64));
+				displayLevel = AudioEngine::mastercompressor.setRatio(lshiftAndSaturate<24>(current + 64));
 				break;
 
 			case CompParam::ATTACK:
