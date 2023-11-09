@@ -616,17 +616,18 @@ startAgain:
 
 	// Render audio for song
 	if (currentSong) {
-		bool interruptsDisabled = false;
-		if (intc_func_active == 0) {
-			__disable_irq();
-			interruptsDisabled = true;
-		}
+		// Paul: Removed again because of MIDI and CV jitter, leaving interrupts enabled costs about 8 Voices
+		// bool interruptsDisabled = false;
+		// if (intc_func_active == 0) {
+		// 	__disable_irq();
+		// 	interruptsDisabled = true;
+		// }
 
 		currentSong->renderAudio(renderingBuffer, numSamples, reverbBuffer, sideChainHitPending);
 
-		if (interruptsDisabled) {
-			__enable_irq();
-		}
+		// if (interruptsDisabled) {
+		// 	__enable_irq();
+		// }
 	}
 
 #ifdef REPORT_CPU_USAGE
