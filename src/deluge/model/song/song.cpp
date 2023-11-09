@@ -136,10 +136,10 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	reverbCompressorShape = -601295438;
 	reverbCompressorSync = SYNC_LEVEL_8TH;
 
-	masterCompressorAttack = attackRateTable[2] << 2;
-	masterCompressorRelease = releaseRateTable[5] << 2;
+	masterCompressorAttack = 10 << 24;
+	masterCompressorRelease = 20 << 24;
 	masterCompressorThresh = 0;
-	masterCompressorRatio = ONE_Q31 >> 1;
+	masterCompressorRatio = 0;
 	AudioEngine::mastercompressor.gainReduction = 0.0;
 
 	dirPath.set("SONGS");
@@ -1122,11 +1122,11 @@ weAreInArrangementEditorOrInClipInstance:
 
 	storageManager.writeClosingTag("reverb");
 
-	storageManager.writeOpeningTagBeginning("masterCompressor");
-	int32_t attack = AudioEngine::mastercompressor.attack;
-	int32_t release = AudioEngine::mastercompressor.release;
-	int32_t thresh = AudioEngine::mastercompressor.rawThreshold;
-	int32_t ratio = AudioEngine::mastercompressor.rawRatio;
+	storageManager.writeOpeningTagBeginning("songCompressor");
+	int32_t attack = AudioEngine::mastercompressor.getAttack();
+	int32_t release = AudioEngine::mastercompressor.getRelease();
+	int32_t thresh = AudioEngine::mastercompressor.getThreshold();
+	int32_t ratio = AudioEngine::mastercompressor.getRatio();
 
 	storageManager.writeAttribute("attack", attack);
 	storageManager.writeAttribute("release", release);
@@ -1476,7 +1476,7 @@ unknownTag:
 				storageManager.exitTag("affectEntire");
 			}
 
-			else if (!strcmp(tagName, "masterCompressor")) {
+			else if (!strcmp(tagName, "songCompressor")) {
 				while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "attack")) { //ms
 						masterCompressorAttack = storageManager.readTagOrAttributeValueInt();
@@ -1498,7 +1498,7 @@ unknownTag:
 						storageManager.exitTag(tagName);
 					}
 				}
-				storageManager.exitTag("masterCompressor");
+				storageManager.exitTag("songCompressor");
 			}
 
 			else if (!strcmp(tagName, "modeNotes")) {
