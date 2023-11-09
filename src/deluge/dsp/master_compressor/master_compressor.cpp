@@ -94,8 +94,8 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t v
 
 	} while (++thisSample != bufferEnd);
 	//for LEDs
-	//9 converts to dB, quadrupled for display range since a 30db reduction is basically killing the signal
-	gainReduction = std::clamp<int32_t>(-(reduction) * 9 * 4, 0, 127);
+	//4 converts to dB, then quadrupled for display range since a 30db reduction is basically killing the signal
+	gainReduction = std::clamp<int32_t>(-(reduction)*4 * 4, 0, 127);
 	//calc compression for next round (feedback compressor)
 	rms = calc_rms(buffer, numSamples);
 }
