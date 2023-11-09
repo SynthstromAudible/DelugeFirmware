@@ -402,13 +402,15 @@ void routine() {
 #define MINSAMPLES 16
 
 	smoothedSamples = numSamples;
-
-	if (numSamplesLastTime < numSamples) {
-		logAction("rendered ");
-		logAction(numSamplesLastTime);
-		logAction(" samples but output ");
-		logAction(numSamples);
-	}
+	//this is sometimes good for debugging but super spammy
+	//audiolog doesn't work because the render that notices the failure
+	//is one after the render with the problem
+	// if (numSamplesLastTime < numSamples) {
+	// 	Debug::println("rendered ");
+	// 	Debug::println(numSamplesLastTime);
+	// 	Debug::println(" samples but output ");
+	// 	Debug::println(numSamples);
+	// }
 
 	// Consider direness and culling - before increasing the number of samples
 	int32_t numSamplesLimit = 40; //storageManager.devVarC;
