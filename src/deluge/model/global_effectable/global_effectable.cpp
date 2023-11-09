@@ -311,12 +311,12 @@ int32_t GlobalEffectable::getKnobPosForNonExistentParam(int32_t whichModEncoder,
 				break;
 
 			case CompParam::ATTACK:
-				current = AudioEngine::mastercompressor.getAttack();
+				current = AudioEngine::mastercompressor.getAttack() >> 24;
 
 				break;
 
 			case CompParam::RELEASE:
-				current = AudioEngine::mastercompressor.getRelease();
+				current = AudioEngine::mastercompressor.getRelease() >> 24;
 
 				break;
 			}
@@ -356,23 +356,21 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				break;
 
 			case CompParam::ATTACK:
-				current = AudioEngine::mastercompressor.getAttack() - 64;
+				current = (AudioEngine::mastercompressor.getAttack() >> 24) - 64;
 				current += offset;
-				current = std::clamp(current, -63, 64);
+				current = std::clamp(current, -64, 64);
 				ledLevel = (64 + current);
-				displayLevel = ((ledLevel)*kMaxMenuValue) / 128;
 
-				AudioEngine::mastercompressor.setAttack(current + 64);
+				displayLevel = AudioEngine::mastercompressor.setAttack(lshiftAndSaturate<24>(current + 64));
 				break;
 
 			case CompParam::RELEASE:
-				current = AudioEngine::mastercompressor.getRelease() - 64;
+				current = (AudioEngine::mastercompressor.getRelease() >> 24) - 64;
 				current += offset;
-				current = std::clamp(current, -63, 64);
+				current = std::clamp(current, -64, 64);
 				ledLevel = (64 + current);
-				displayLevel = ((ledLevel)*kMaxMenuValue) / 128;
 
-				AudioEngine::mastercompressor.setRelease(current + 64);
+				displayLevel = AudioEngine::mastercompressor.setRelease(lshiftAndSaturate<24>(current + 64));
 				break;
 			}
 			indicator_leds::setKnobIndicatorLevel(0, ledLevel);

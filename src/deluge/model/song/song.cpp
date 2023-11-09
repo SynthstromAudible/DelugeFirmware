@@ -136,8 +136,8 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	reverbCompressorShape = -601295438;
 	reverbCompressorSync = SYNC_LEVEL_8TH;
 
-	masterCompressorAttack = 10;
-	masterCompressorRelease = 100;
+	masterCompressorAttack = 10 << 24;
+	masterCompressorRelease = 20 << 24;
 	masterCompressorThresh = 0;
 	masterCompressorRatio = 0;
 	AudioEngine::mastercompressor.gainReduction = 0.0;

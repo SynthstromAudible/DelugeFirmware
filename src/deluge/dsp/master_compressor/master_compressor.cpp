@@ -26,10 +26,10 @@ MasterCompressor::MasterCompressor() {
 
 	//an appropriate range is 0-50*one q 15
 
-	rawThreshold = 0;
+	thresholdKnobPos = 0;
 
 	//this is 2:1
-	rawRatio = 0;
+	ratioKnobPos = 0;
 
 	currentVolumeL = 0;
 	currentVolumeR = 0;
@@ -59,21 +59,14 @@ void MasterCompressor::updateER() {
 }
 
 void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t volAdjustL, q31_t volAdjustR) {
-
+	//we update this every time since we won't know if the song volume changed
 	updateER();
 
 	float over = std::max<float>(0, (rms - threshdb));
 
 	float out = runEnvelope(over, numSamples);
 
-	out = out * ratio;
-	//out = multiply_32x32_rshift32(out, ratio) << 1;
-
-	//21 is the max internal volume (i.e. one_q31)
-	//min ratio is 8 up to 1 (i.e. infinity/brick wall, 1 db reduction per db over)
-	//base is arbitrary for scale, important part is the shape
-	//this will be negative
-	float reduction = -out;
+	float reduction = -out * ratio;
 
 	//this is the most gain available without overflow
 	float dbGain = 0.85 + er + reduction;
