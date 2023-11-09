@@ -72,6 +72,17 @@ extern "C" {
 //void *__dso_handle = NULL; // This fixes an insane error.
 }
 
+#define DISABLE_INTERRUPTS_COUNT (sizeof(disableInterrupts) / sizeof(uint32_t))
+uint32_t disableInterrupts[] = {INTC_ID_SPRI0,
+                                INTC_ID_DMAINT0 + PIC_TX_DMA_CHANNEL,
+                                IRQ_INTERRUPT_0 + 6,
+                                INTC_ID_USBI0,
+                                INTC_ID_SDHI1_0,
+                                INTC_ID_SDHI1_3,
+                                INTC_ID_DMAINT0 + OLED_SPI_DMA_CHANNEL,
+                                INTC_ID_DMAINT0 + MIDI_TX_DMA_CHANNEL,
+                                INTC_ID_SDHI1_1};
+
 using namespace deluge;
 
 extern bool inSpamMode;
@@ -618,18 +629,21 @@ startAgain:
 
 	// Render audio for song
 	if (currentSong) {
-		// Paul: Removed again because of MIDI and CV jitter, leaving interrupts enabled costs about 8 Voices
-		// bool interruptsDisabled = false;
-		// if (intc_func_active == 0) {
-		// 	__disable_irq();
-		// 	interruptsDisabled = true;
-		// }
+		uint8_t enabledInterrupts[DISABLE_INTERRUPTS_COUNT] = {0};
+		for (uint32_t idx = 0; idx < DISABLE_INTERRUPTS_COUNT; ++idx) {
+			enabledInterrupts[idx] = R_INTC_Enabled(disableInterrupts[idx]);
+			if (enabledInterrupts[idx]) {
+				R_INTC_Disable(disableInterrupts[idx]);
+			}
+		}
 
 		currentSong->renderAudio(renderingBuffer, numSamples, reverbBuffer, sideChainHitPending);
 
-		// if (interruptsDisabled) {
-		// 	__enable_irq();
-		// }
+		for (uint32_t idx = 0; idx < DISABLE_INTERRUPTS_COUNT; ++idx) {
+			if (enabledInterrupts[idx] != 0) {
+				R_INTC_Enable(disableInterrupts[idx]);
+			}
+		}
 	}
 
 #ifdef REPORT_CPU_USAGE
