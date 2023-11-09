@@ -77,46 +77,85 @@ extern "C" {
 using namespace deluge;
 using namespace gui;
 
-//kit affect entire FX - sorted in the order that Parameters are scrolled through on the display
+//sorted in the order that Parameters are assigned to performance mode columns on the grid
 const std::array<std::pair<Param::Kind, ParamType>, kDisplayWidth>
     songParamsForPerformance{{
         {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::PITCH_ADJUST},
-        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::PITCH_ADJUST},
+		{Param::Kind::UNPATCHED, Param::Unpatched::Sound::PORTAMENTO}, //Portamento
         {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::LPF_FREQ}, //LPF Cutoff, Resonance
         {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::LPF_RES},
         {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::HPF_FREQ}, //HPF Cutoff, Resonance
         {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::HPF_RES},
-        {Param::Kind::UNPATCHED, Param::Unpatched::BASS}, //Bass, Bass Freq
-        {Param::Kind::UNPATCHED, Param::Unpatched::BASS_FREQ},
-        {Param::Kind::UNPATCHED, Param::Unpatched::TREBLE}, //Treble, Treble Freq
-        {Param::Kind::UNPATCHED, Param::Unpatched::TREBLE_FREQ},
         {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT}, //Reverb Amount
-        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::DELAY_RATE},         //Delay Rate, Amount
         {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::DELAY_AMOUNT},
+        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::DELAY_RATE},         //Delay Rate, Amount
+       	{Param::Kind::UNPATCHED, Param::Unpatched::MOD_FX_OFFSET}, //Mod FX Offset, Feedback, Depth, Rate
+        {Param::Kind::UNPATCHED, Param::Unpatched::MOD_FX_FEEDBACK},
+        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH},
+        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::MOD_FX_RATE},
         {Param::Kind::UNPATCHED, Param::Unpatched::SAMPLE_RATE_REDUCTION}, //Decimation, Bitcrush
         {Param::Kind::UNPATCHED, Param::Unpatched::BITCRUSHING},
 		{Param::Kind::UNPATCHED, Param::Unpatched::STUTTER_RATE},      //Stutter Rate
     }};
 
-    //    {Param::Kind::UNPATCHED, Param::Unpatched::MOD_FX_OFFSET}, //Mod FX Offset, Feedback, Depth, Rate
-    //    {Param::Kind::UNPATCHED, Param::Unpatched::MOD_FX_FEEDBACK},
-    //    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH},
-    //    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::MOD_FX_RATE},
+//colours for the performance mode
 
+const uint8_t rowColour[kDisplayWidth][3] = {
 
-//VU meter style colours for the automation editor
+    {255,0,0}, //Pitch
+	{255,0,0}, //Portamento
+	{221,72,13}, //LPF Cutoff
+	{221,72,13}, //LPF Resonance
+	{170,182,0}, //HPF Cutoff
+	{170,182,0}, //HPF Resonance
+	{85,182,72}, //Reverb Amount
+	{51,109,145}, //Delay Amount
+	{51,109,145}, //Delay Rate
+	{144,72,91}, //Mod FX Offset
+	{144,72,91}, //Mod FX Feedback
+	{144,72,91}, //Mod FX Depth
+	{144,72,91}, //Mod FX Rate
+	{128,0,128}, //Decimation
+	{128,0,128}, //Bitcrush
+	{0,0,255}}; //Stutter
 
-const uint8_t rowColour[kDisplayHeight][3] = {
+const uint8_t rowTailColour[kDisplayWidth][3] = {
 
-    {0, 255, 0}, {36, 219, 0}, {73, 182, 0}, {109, 146, 0}, {146, 109, 0}, {182, 73, 0}, {219, 36, 0}, {255, 0, 0}};
+    {53,2,2}, //Pitch
+	{53,2,2}, //Portamento
+	{46,16,2}, //LPF Cutoff
+	{46,16,2}, //LPF Resonance
+	{36,38,2}, //HPF Cutoff
+	{36,38,2}, //HPF Resonance
+	{19,38,16}, //Reverb Amount
+	{12,23,31}, //Delay Amount
+	{12,23,31}, //Delay Rate
+	{37,15,37}, //Mod FX Offset
+	{37,15,37}, //Mod FX Feedback
+	{37,15,37}, //Mod FX Depth
+	{37,15,37}, //Mod FX Rate
+	{53,0,53}, //Decimation
+	{53,0,53}, //Bitcrush
+	{2,2,53}}; //Stutter
 
-const uint8_t rowTailColour[kDisplayHeight][3] = {
+const uint8_t rowBlurColour[kDisplayWidth][3] = {
 
-    {2, 53, 2}, {9, 46, 2}, {17, 38, 2}, {24, 31, 2}, {31, 24, 2}, {38, 17, 2}, {46, 9, 2}, {53, 2, 2}};
-
-const uint8_t rowBlurColour[kDisplayHeight][3] = {
-
-    {71, 111, 71}, {72, 101, 66}, {73, 90, 62}, {74, 80, 57}, {76, 70, 53}, {77, 60, 48}, {78, 49, 44}, {79, 39, 39}};
+    {79,39,39}, //Pitch
+	{79,39,39}, //Portamento
+	{67,50,39}, //LPF Cutoff
+	{67,50,39}, //LPF Resonance
+	{50,67,39}, //HPF Cutoff
+	{50,67,39}, //HPF Resonance
+	{39,67,50}, //Reverb Amount
+	{39,56,61}, //Delay Amount
+	{39,56,61}, //Delay Rate
+	{39,22,39}, //Mod FX Offset
+	{39,22,39}, //Mod FX Feedback
+	{39,22,39}, //Mod FX Depth
+	{39,22,39}, //Mod FX Rate
+	{39,0,39}, //Decimation
+	{39,0,39}, //Bitcrush
+	{39,39,79}}; //Stutter
 
 PerformanceSessionView performanceSessionView{};
 
@@ -821,14 +860,20 @@ void PerformanceSessionView::renderRow(uint8_t* image, uint8_t occupancyMask[], 
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		uint8_t* pixel = image + (xDisplay * 3);
 
-		memcpy(pixel, &rowTailColour[yDisplay], 3);
-		occupancyMask[xDisplay] = 64;
-
-		if ((yDisplay == (kDisplayHeight - 1)) && ((currentKnobPosition[xDisplay] + kKnobPosOffset) == kMaxKnobPos)) {
-			memcpy(pixel, &rowBlurColour[yDisplay], 3);
+		if (currentKnobPosition[xDisplay] != kNoSelection) {
+			memcpy(pixel, &rowColour[xDisplay], 3);
 		}
-		else if (((currentKnobPosition[xDisplay] + kKnobPosOffset) / kParamValueIncrementForAutomationDisplay) == yDisplay) {
-			memcpy(pixel, &rowBlurColour[yDisplay], 3);
+		else {
+			memcpy(pixel, &rowTailColour[xDisplay], 3);
+		}
+
+		if (currentKnobPosition[xDisplay] != kNoSelection) {
+			if ((yDisplay == (kDisplayHeight - 1)) && ((currentKnobPosition[xDisplay] + kKnobPosOffset) == kMaxKnobPos)) {
+				memcpy(pixel, &rowBlurColour[yDisplay], 3);
+			}
+			else if (((currentKnobPosition[xDisplay] + kKnobPosOffset) / kParamValueIncrementForAutomationDisplay) == yDisplay) {
+				memcpy(pixel, &rowBlurColour[yDisplay], 3);
+			}
 		}
 		occupancyMask[xDisplay] = 64;
 	}
