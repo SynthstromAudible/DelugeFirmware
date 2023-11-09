@@ -295,7 +295,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 }
 
 int32_t GlobalEffectable::getKnobPosForNonExistentParam(int32_t whichModEncoder, ModelStackWithAutoParam* modelStack) {
-	int current;
+	int current = 0;
 	if (*getModKnobMode() == 4) {
 
 		//this is only reachable in comp editing mode, otherwise it's an existent param
