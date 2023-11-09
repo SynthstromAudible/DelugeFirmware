@@ -100,10 +100,10 @@ void HpLadderFilter::doFilterStereo(q31_t* startSample, q31_t* endSample) {
 
 	// Only saturate / anti-alias if lots of resonance
 	if (hpfProcessedResonance > 900000000) { // 890551738
-		a = getTanHAntialiased(a, &hpfLastWorkingValue, 1);
+		a = getTanHAntialiased(a, &state.hpfLastWorkingValue, 1);
 	}
 	else {
-		hpfLastWorkingValue = (uint32_t)lshiftAndSaturate<2>(a) + 2147483648u;
+		state.hpfLastWorkingValue = (uint32_t)lshiftAndSaturate<2>(a) + 2147483648u;
 		if (hpfProcessedResonance > 750000000) { // 400551738
 			a = getTanHUnknown(a, 2);
 		}
