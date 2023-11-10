@@ -788,6 +788,12 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_INTERPOLATION_ENABLED, "Interpolation On"},
         {STRING_FOR_PAD_SELECTION_OFF, "Pad Selection Off"},
         {STRING_FOR_PAD_SELECTION_ON, "Pad Selection On"},
+
+        /* Strings Specifically for Performance View 
+        * performance_session_view.cpp
+        */        
+
+        {STRING_FOR_PERFORMANCE, "Performance Mode"},
     },
 };
 } // namespace deluge::l10n::built_in

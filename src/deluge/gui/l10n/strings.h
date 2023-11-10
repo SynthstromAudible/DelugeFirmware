@@ -714,6 +714,12 @@ enum class String : size_t {
 	STRING_FOR_PAD_SELECTION_OFF,
 	STRING_FOR_PAD_SELECTION_ON,
 
+	/* Strings Specifically for Performance View 
+	* performance_session_view.cpp
+	*/
+
+	STRING_FOR_PERFORMANCE,
+
 	STRING_LAST
 };
 

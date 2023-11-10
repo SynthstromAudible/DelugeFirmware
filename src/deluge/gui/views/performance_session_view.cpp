@@ -164,13 +164,14 @@ bool PerformanceSessionView::opened() {
 
 	focusRegained();
 
-	currentSong->performanceView = true;
-
 	return true;
 }
 
 void PerformanceSessionView::focusRegained() {
 	bool doingRender = (currentUIMode != UI_MODE_ANIMATION_FADE);
+
+	currentSong->affectEntire = true;
+	currentSong->performanceView = true;
 
 	ClipNavigationTimelineView::focusRegained();
 	view.focusRegained();
@@ -189,6 +190,8 @@ void PerformanceSessionView::focusRegained() {
 	setLedStates();
 
 	currentSong->lastClipInstanceEnteredStartPos = -1;
+
+	uiNeedsRendering(this);
 }
 
 ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
@@ -280,38 +283,6 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 		}
 	}
 
-	// Affect-entire button
-	else if (b == AFFECT_ENTIRE) {
-		if (on && currentUIMode == UI_MODE_NONE) {
-			currentSong->affectEntire = !currentSong->affectEntire;
-			view.setActiveModControllableTimelineCounter(currentSong);
-		}
-	}
-
-	// Record button - adds to what MatrixDriver does with it
-	else if (b == RECORD) {
-		if (on) {
-			if (isNoUIModeActive()) {
-				uiTimerManager.setTimer(TIMER_UI_SPECIFIC, 500);
-				view.blinkOn = true;
-			}
-			else {
-				goto notDealtWith;
-			}
-		}
-		else {
-			if (isUIModeActive(UI_MODE_VIEWING_RECORD_ARMING)) {
-				exitUIMode(UI_MODE_VIEWING_RECORD_ARMING);
-				PadLEDs::reassessGreyout(false);
-				requestRendering(this, 0, 0xFFFFFFFF);
-			}
-			else {
-				goto notDealtWith;
-			}
-		}
-		return ActionResult::NOT_DEALT_WITH; // Make the MatrixDriver do its normal thing with it too
-	}
-
 	// Select encoder button
 	else if (b == SELECT_ENC && !Buttons::isShiftButtonPressed()) {
 		if (on) {
@@ -338,12 +309,6 @@ notDealtWith:
 	}
 
 	return ActionResult::DEALT_WITH;
-}
-
-void PerformanceSessionView::beginEditingSectionRepeatsNum() {
-	performActionOnSectionPadRelease = false;
-	drawSectionRepeatNumber();
-	uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
 }
 
 ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDisplay, int32_t on) {
@@ -393,11 +358,15 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 													->beginStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
 						}
 
-						char buffer[5];
 						int32_t valueForDisplay = calculateKnobPosForDisplay(currentKnobPosition[xDisplay] + kKnobPosOffset);
-						//intToString(valueForDisplay, buffer);
-						//display->displayPopup(buffer);
-						renderDisplayOLED(lastSelectedParamKind, lastSelectedParamID, valueForDisplay);
+						if (display->haveOLED()) {
+							renderDisplayOLED(lastSelectedParamKind, lastSelectedParamID, valueForDisplay);
+						}
+						else {
+							char buffer[5];
+							intToString(valueForDisplay, buffer);
+							display->displayPopup(buffer);
+						}
 
 						uiNeedsRendering(this); //re-render mute pads
 					}
@@ -437,11 +406,15 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 													->endStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
 						}					
 						
-						char buffer[5];
 						int32_t valueForDisplay = calculateKnobPosForDisplay(previousKnobPosition[xDisplay] + kKnobPosOffset);
-						//intToString(valueForDisplay, buffer);
-						//display->displayPopup(buffer);
-						renderDisplayOLED(lastSelectedParamKind, lastSelectedParamID, valueForDisplay);
+						if (display->haveOLED()) {
+							renderDisplayOLED(lastSelectedParamKind, lastSelectedParamID, valueForDisplay);
+						}
+						else {
+							char buffer[5];
+							intToString(valueForDisplay, buffer);
+							display->displayPopup(buffer);
+						}
 
 						previousPadPressYDisplay[xDisplay] = kNoSelection;
 						previousKnobPosition[xDisplay] = kNoSelection;
@@ -458,6 +431,7 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 }
 
 //get's the modelstack for the parameters that are being edited
+//not working atm
 ModelStackWithAutoParam* PerformanceSessionView::getModelStackWithParam(int32_t paramID) {
 
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
@@ -496,12 +470,35 @@ int32_t PerformanceSessionView::calculateKnobPosForSinglePadPress(int32_t yDispl
 	return newKnobPos;
 }
 
-//for non-MIDI instruments, convert deluge internal knobPos range to same range as used by menu's.
+//convert deluge internal knobPos range to same range as used by menu's.
 int32_t PerformanceSessionView::calculateKnobPosForDisplay(int32_t knobPos) {
 	int32_t offset = 0;
 
 	//convert knobPos from 0 - 128 to 0 - 50
 	return (((((knobPos << 20) / kMaxKnobPos) * kMaxMenuValue) >> 20) - offset);
+}
+
+//render performance view display on opening
+void PerformanceSessionView::renderDisplay() {
+	if (display->haveOLED()) {
+		deluge::hid::display::OLED::clearMainImage();
+			
+	#if OLED_MAIN_HEIGHT_PIXELS == 64
+		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
+	#else
+		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
+	#endif	
+
+		yPos = yPos + 12;
+
+		deluge::hid::display::OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_PERFORMANCE), yPos, deluge::hid::display::OLED::oledMainImage[0],
+													OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+
+		deluge::hid::display::OLED::sendMainImage();			
+	}
+	else {
+		display->setScrollingText(l10n::get(l10n::String::STRING_FOR_PERFORMANCE));
+	}
 }
 
 void PerformanceSessionView::renderDisplayOLED(Param::Kind lastSelectedParamKind, int32_t lastSelectedParamID, int32_t knobPos) {
@@ -536,67 +533,7 @@ void PerformanceSessionView::renderDisplayOLED(Param::Kind lastSelectedParamKind
 }
 
 ActionResult PerformanceSessionView::timerCallback() {
-	switch (currentUIMode) {
-
-	case UI_MODE_HOLDING_SECTION_PAD:
-		beginEditingSectionRepeatsNum();
-		break;
-
-	case UI_MODE_NONE:
-		if (Buttons::isButtonPressed(deluge::hid::button::RECORD)) {
-			enterUIMode(UI_MODE_VIEWING_RECORD_ARMING);
-			PadLEDs::reassessGreyout(false);
-		case UI_MODE_VIEWING_RECORD_ARMING:
-			requestRendering(this, 0, 0xFFFFFFFF);
-			view.blinkOn = !view.blinkOn;
-			uiTimerManager.setTimer(TIMER_UI_SPECIFIC, kFastFlashTime);
-		}
-		break;
-	}
-
 	return ActionResult::DEALT_WITH;
-}
-
-void PerformanceSessionView::drawSectionRepeatNumber() {
-	int32_t number = currentSong->sections[sectionPressed].numRepetitions;
-	char const* outputText;
-	if (display->haveOLED()) {
-		char buffer[21];
-		if (number == -1) {
-			outputText = "Launch non-\nexclusively"; // Need line break cos line splitter doesn't deal with hyphens.
-		}
-		else {
-			outputText = buffer;
-			strcpy(buffer, "Repeats: ");
-			if (number == 0) {
-				strcpy(&buffer[9], "infinite");
-			}
-			else {
-				intToString(number, &buffer[9]);
-			}
-		}
-
-		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
-			display->popupText(outputText);
-		}
-		else {
-			display->popupTextTemporary(outputText);
-		}
-	}
-	else {
-		char buffer[5];
-		if (number == -1) {
-			outputText = "SHAR";
-		}
-		else if (number == 0) {
-			outputText = "INFI";
-		}
-		else {
-			intToString(number, buffer);
-			outputText = buffer;
-		}
-		display->setText(outputText, true, 255, true);
-	}
 }
 
 void PerformanceSessionView::selectEncoderAction(int8_t offset) {
@@ -625,6 +562,7 @@ void PerformanceSessionView::setLedStates() {
 	indicator_leds::setLedState(IndicatorLED::KEYBOARD, false);
 
 	view.setLedStates();
+	view.setModLedStates();
 
 #ifdef currentClipStatusButtonX
 	view.switchOffCurrentClipPad();
@@ -773,30 +711,11 @@ void PerformanceSessionView::graphicsRoutine() {
 	}
 }
 
-void PerformanceSessionView::requestRendering(UI* ui, uint32_t whichMainRows, uint32_t whichSideRows) {
-	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
-		// Just redrawing should be faster than evaluating every cell in every row
-		uiNeedsRendering(ui, 0xFFFFFFFF, 0xFFFFFFFF);
-	}
+void PerformanceSessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
+	performActionOnPadRelease = false;
 
-	uiNeedsRendering(ui, whichMainRows, whichSideRows);
-}
-
-void PerformanceSessionView::rowNeedsRenderingDependingOnSubMode(int32_t yDisplay) {
-
-	switch (currentUIMode) {
-	case UI_MODE_HORIZONTAL_SCROLL:
-	case UI_MODE_HORIZONTAL_ZOOM:
-	case UI_MODE_AUDIO_CLIP_EXPANDING:
-	case UI_MODE_AUDIO_CLIP_COLLAPSING:
-	case UI_MODE_INSTRUMENT_CLIP_EXPANDING:
-	case UI_MODE_INSTRUMENT_CLIP_COLLAPSING:
-	case UI_MODE_ANIMATION_FADE:
-	case UI_MODE_EXPLODE_ANIMATION:
-		break;
-
-	default:
-		requestRendering(this, 1 << yDisplay, 0);
+	if (getCurrentUI() == this) { //This routine may also be called from the Arranger view
+		ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
 	}
 }
 
@@ -881,13 +800,5 @@ void PerformanceSessionView::renderRow(uint8_t* image, uint8_t occupancyMask[], 
 		}
 	finishRender:
 		occupancyMask[xDisplay] = 64;
-	}
-}
-
-void PerformanceSessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
-	performActionOnPadRelease = false;
-
-	if (getCurrentUI() == this) { //This routine may also be called from the Arranger view
-		ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
 	}
 }

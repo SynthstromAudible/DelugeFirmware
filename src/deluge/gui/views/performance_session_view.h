@@ -67,6 +67,7 @@ public:
 
 	// 7SEG only
 	void redrawNumericDisplay();
+	void renderDisplay();
 
 	uint32_t selectedClipTimePressed;
 	uint8_t selectedClipYDisplay;      // Where the clip is on screen
@@ -84,9 +85,6 @@ private:
 	                         bool drawUndefinedArea = true);
 	void renderRow(uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
 
-	void drawSectionRepeatNumber();
-	void beginEditingSectionRepeatsNum();
-	void rowNeedsRenderingDependingOnSubMode(int32_t yDisplay);
 	void setCentralLEDStates();
 	ModelStackWithAutoParam* getModelStackWithParam(int32_t paramID);
 	int32_t calculateKnobPosForSinglePadPress(int32_t yDisplay);
