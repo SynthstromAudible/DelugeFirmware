@@ -207,7 +207,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
-			sessionView.transitionToViewForClip(); // May fail if no currentClip
+			sessionView.transitionToViewForClip(); // May fail if no currentClip		
 		}
 	}
 
@@ -302,8 +302,31 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 			}
 
 			changeRootUI(&sessionView);
+
+			indicator_leds::setLedState(IndicatorLED::KEYBOARD, false);
 		}
 	}
+
+	//WIP clear and reset params
+	/*else if (b == BACK && currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
+		if (on) {
+			for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+				previousKnobPosition[xDisplay] = kNoSelection;
+				currentKnobPosition[xDisplay] = kNoSelection;
+				previousPadPressYDisplay[xDisplay] = kNoSelection;
+				timeLastPadPress[xDisplay] = 0;
+				padPressHeld[xDisplay] = false;
+			}
+
+			// If also stuttering, stop that
+			if (isUIModeActive(UI_MODE_STUTTERING)) {
+				((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
+					->endStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
+			}
+			
+			uiNeedsRendering(this);
+		}
+	}*/
 
 	else {
 notDealtWith:
@@ -428,7 +451,7 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 					}
 				} 
 			}
-			else if (previousKnobPosition[xDisplay] != kNoSelection) {
+			else if ((previousKnobPosition[xDisplay] != kNoSelection) && (previousPadPressYDisplay[xDisplay] == yDisplay)) {
 				padPressHeld[xDisplay] = true;
 				goto renderPads;
 			}
@@ -571,7 +594,7 @@ bool PerformanceSessionView::renderSidebar(uint32_t whichRows, uint8_t image[][k
 
 void PerformanceSessionView::setLedStates() {
 
-	indicator_leds::setLedState(IndicatorLED::KEYBOARD, false);
+	indicator_leds::setLedState(IndicatorLED::KEYBOARD, true);
 
 	view.setLedStates();
 	view.setModLedStates();
