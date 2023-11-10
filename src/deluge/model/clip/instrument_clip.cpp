@@ -3007,7 +3007,7 @@ void InstrumentClip::prepNoteRowsForExitingKitMode(Song* song) {
 				chosenNoteRowIndex = i;
 				break;
 			}
-noteRowFailed : {}
+noteRowFailed: {}
 		}
 	}
 
@@ -3370,7 +3370,8 @@ void InstrumentClip::clear(Action* action, ModelStackWithTimelineCounter* modelS
 	}
 
 	// Paul: Note rows were lingering, delete them immediately instead of relying they get deleted along the way
-	noteRows.deleteNoteRowAtIndex(0, noteRows.getNumElements());
+	// Mark: BayMud immediately had 2 crashes related to missing note rows - E105 and E177
+	// noteRows.deleteNoteRowAtIndex(0, noteRows.getNumElements());
 }
 
 bool InstrumentClip::doesProbabilityExist(int32_t apartFromPos, int32_t probability, int32_t secondProbability) {
