@@ -140,6 +140,7 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	masterCompressorRelease = 20 << 24;
 	masterCompressorThresh = 0;
 	masterCompressorRatio = 0;
+	masterCompressorSidechain = ONE_Q31 >> 1;
 	AudioEngine::mastercompressor.gainReduction = 0.0;
 
 	dirPath.set("SONGS");
@@ -1127,12 +1128,12 @@ weAreInArrangementEditorOrInClipInstance:
 	int32_t release = AudioEngine::mastercompressor.getRelease();
 	int32_t thresh = AudioEngine::mastercompressor.getThreshold();
 	int32_t ratio = AudioEngine::mastercompressor.getRatio();
-
+	int32_t hpf = AudioEngine::mastercompressor.getSidechain();
 	storageManager.writeAttribute("attack", attack);
 	storageManager.writeAttribute("release", release);
 	storageManager.writeAttribute("thresh", thresh);
 	storageManager.writeAttribute("ratio", ratio);
-
+	storageManager.writeAttribute("compHPF", hpf);
 	storageManager.closeTag();
 
 	globalEffectable.writeTagsToFile(NULL, false);
@@ -1478,21 +1479,25 @@ unknownTag:
 
 			else if (!strcmp(tagName, "songCompressor")) {
 				while (*(tagName = storageManager.readNextTagOrAttributeName())) {
-					if (!strcmp(tagName, "attack")) { //ms
+					if (!strcmp(tagName, "attack")) {
 						masterCompressorAttack = storageManager.readTagOrAttributeValueInt();
 						storageManager.exitTag("attack");
 					}
-					else if (!strcmp(tagName, "release")) { //ms
+					else if (!strcmp(tagName, "release")) {
 						masterCompressorRelease = storageManager.readTagOrAttributeValueInt();
 						storageManager.exitTag("release");
 					}
-					else if (!strcmp(tagName, "thresh")) { //db
+					else if (!strcmp(tagName, "thresh")) {
 						masterCompressorThresh = storageManager.readTagOrAttributeValueInt();
 						storageManager.exitTag("thresh");
 					}
-					else if (!strcmp(tagName, "ratio")) { //r:1
+					else if (!strcmp(tagName, "ratio")) {
 						masterCompressorRatio = storageManager.readTagOrAttributeValueInt();
 						storageManager.exitTag("ratio");
+					}
+					else if (!strcmp(tagName, "compHPF")) {
+						masterCompressorSidechain = storageManager.readTagOrAttributeValueInt();
+						storageManager.exitTag("compHPF");
 					}
 					else {
 						storageManager.exitTag(tagName);

@@ -27,7 +27,7 @@ MasterCompressor::MasterCompressor() {
 	//an appropriate range is 0-50*one q 15
 
 	thresholdKnobPos = 0;
-
+	sideChainKnobPos = ONE_Q31 >> 1;
 	//this is 2:1
 	ratioKnobPos = 0;
 
@@ -35,6 +35,7 @@ MasterCompressor::MasterCompressor() {
 	currentVolumeR = 0;
 	//auto make up gain
 	updateER();
+	setSidechain(sideChainKnobPos);
 }
 //16 is ln(1<<24) - 1, i.e. where we start clipping
 //since this applies to output
@@ -55,7 +56,7 @@ void MasterCompressor::updateER() {
 	}
 	threshdb = songVolume * threshold;
 	//16 is about the level of a single synth voice at max volume
-	er = std::max<float>((songVolume - threshdb - 2) * ratio, 0);
+	er = std::max<float>((songVolume - threshdb - 1) * ratio, 0);
 }
 
 void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t volAdjustL, q31_t volAdjustR) {
@@ -93,8 +94,8 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t v
 
 	} while (++thisSample != bufferEnd);
 	//for LEDs
-	//9 converts to dB, quadrupled for display range since a 30db reduction is basically killing the signal
-	gainReduction = std::clamp<int32_t>(-(reduction)*9 * 4, 0, 127);
+	//4 converts to dB, then quadrupled for display range since a 30db reduction is basically killing the signal
+	gainReduction = std::clamp<int32_t>(-(reduction)*4 * 4, 0, 127);
 	//calc compression for next round (feedback compressor)
 	rms = calc_rms(buffer, numSamples);
 }
@@ -118,7 +119,9 @@ float MasterCompressor::calc_rms(StereoSample* buffer, uint16_t numSamples) {
 	q31_t offset = 0; //to remove dc offset
 	float lastMean = mean;
 	do {
-		q31_t s = std::max(std::abs(thisSample->l), std::abs(thisSample->r));
+		q31_t l = thisSample->l - hpfL.doFilter(thisSample->l, a);
+		q31_t r = thisSample->r - hpfL.doFilter(thisSample->r, a);
+		q31_t s = std::max(std::abs(l), std::abs(r));
 		sum += multiply_32x32_rshift32(s, s) << 1;
 
 	} while (++thisSample != bufferEnd);
@@ -136,10 +139,11 @@ float MasterCompressor::calc_rms(StereoSample* buffer, uint16_t numSamples) {
 
 	return logmean;
 }
-
-void MasterCompressor::setup(int32_t a, int32_t r, int32_t t, int32_t rat) {
+//takes in knob positions in the range 0-ONE_Q31
+void MasterCompressor::setup(q31_t a, q31_t r, q31_t t, q31_t rat, q31_t fc) {
 	setAttack(a);
 	setRelease(r);
 	setThreshold(t);
 	setRatio(rat);
+	setSidechain(fc);
 }
