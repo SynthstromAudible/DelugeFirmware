@@ -1216,7 +1216,7 @@ void getMasterCompressorParamsFromSong(Song* song) {
 	q31_t r = song->masterCompressorRelease;
 	q31_t t = song->masterCompressorThresh;
 	q31_t rat = song->masterCompressorRatio;
-	q31_t fc = song->masterCompressorSidechainFC;
+	q31_t fc = song->masterCompressorSidechain;
 	mastercompressor.setup(a, r, t, rat, fc);
 }
 
