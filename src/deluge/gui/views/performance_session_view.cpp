@@ -195,6 +195,37 @@ void PerformanceSessionView::focusRegained() {
 	uiNeedsRendering(this);
 }
 
+void PerformanceSessionView::graphicsRoutine() {
+	static int counter = 0;
+	if (currentUIMode == UI_MODE_NONE) {
+		int32_t modKnobMode = -1;
+		bool editingComp = false;
+		if (view.activeModControllableModelStack.modControllable) {
+			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
+			if (modKnobModePointer) {
+				modKnobMode = *modKnobModePointer;
+				editingComp = view.activeModControllableModelStack.modControllable->isEditingComp();
+			}
+		}
+		if (modKnobMode == 4 && editingComp) { //upper
+			counter = (counter + 1) % 5;
+			if (counter == 0) {
+				uint8_t gr = AudioEngine::mastercompressor.gainReduction;
+
+				indicator_leds::setMeterLevel(1, gr); //Gain Reduction LED
+			}
+		}
+	}
+
+	uint8_t tickSquares[kDisplayHeight];
+	uint8_t colours[kDisplayHeight];
+
+	// Nothing to do here but clear since we don't render playhead
+	memset(&tickSquares, 255, sizeof(tickSquares));
+	memset(&colours, 255, sizeof(colours));
+	PadLEDs::setTickSquares(tickSquares, colours);
+}
+
 ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
@@ -465,7 +496,7 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 
 						previousPadPressYDisplay[xDisplay] = kNoSelection;
 						previousKnobPosition[xDisplay] = kNoSelection;
-						currentKnobPosition[xDisplay] = kNoSelection;}
+						currentKnobPosition[xDisplay] = kNoSelection;
 
 						goto renderPads;
 					}
@@ -747,29 +778,6 @@ uint32_t PerformanceSessionView::getMaxZoom() {
 
 uint32_t PerformanceSessionView::getMaxLength() {
 	return currentSong->getLongestClip(true, false)->loopLength;
-}
-
-void PerformanceSessionView::graphicsRoutine() {
-	static int counter = 0;
-	if (currentUIMode == UI_MODE_NONE) {
-		int32_t modKnobMode = -1;
-		bool editingComp = false;
-		if (view.activeModControllableModelStack.modControllable) {
-			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
-			if (modKnobModePointer) {
-				modKnobMode = *modKnobModePointer;
-				editingComp = view.activeModControllableModelStack.modControllable->isEditingComp();
-			}
-		}
-		if (modKnobMode == 4 && editingComp) { //upper
-			counter = (counter + 1) % 5;
-			if (counter == 0) {
-				uint8_t gr = AudioEngine::mastercompressor.gainReduction;
-
-				indicator_leds::setMeterLevel(1, gr); //Gain Reduction LED
-			}
-		}
-	}
 }
 
 void PerformanceSessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
