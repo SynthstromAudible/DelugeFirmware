@@ -389,7 +389,8 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 																				view.modLength);
 
 						if ((lastSelectedParamKind == Param::Kind::UNPATCHED) && (lastSelectedParamID == Param::Unpatched::STUTTER_RATE)) {
-							beginStutter((ParamManagerForTimeline*)modelStackWithThreeMainThings->paramManager);
+							((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
+													->beginStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
 						}
 
 						char buffer[5];
@@ -432,7 +433,8 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 																				view.modLength);
 
 						if ((lastSelectedParamKind == Param::Kind::UNPATCHED) && (lastSelectedParamID == Param::Unpatched::STUTTER_RATE)) {
-							endStutter((ParamManagerForTimeline*)modelStackWithThreeMainThings->paramManager);
+							((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
+													->endStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
 						}					
 						
 						char buffer[5];
