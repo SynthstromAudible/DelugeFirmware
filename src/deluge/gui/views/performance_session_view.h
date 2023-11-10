@@ -95,6 +95,7 @@ private:
 	void renderDisplayOLED(Param::Kind lastSelectedParamKind, int32_t lastSelectedParamID, int32_t knobPos);
 	int32_t currentKnobPosition[kDisplayWidth];
 	int32_t previousKnobPosition[kDisplayWidth];
+	int32_t previousPadPressYDisplay[kDisplayWidth];
 
 	// Members regarding rendering different layouts
 private:

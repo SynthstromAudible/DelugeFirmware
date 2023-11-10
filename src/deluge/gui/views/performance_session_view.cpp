@@ -80,12 +80,12 @@ using namespace gui;
 //sorted in the order that Parameters are assigned to performance mode columns on the grid
 const std::array<std::pair<Param::Kind, ParamType>, kDisplayWidth>
     songParamsForPerformance{{
-        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::PITCH_ADJUST},
-		{Param::Kind::UNPATCHED, Param::Unpatched::Sound::PORTAMENTO}, //Portamento
         {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::LPF_FREQ}, //LPF Cutoff, Resonance
         {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::LPF_RES},
         {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::HPF_FREQ}, //HPF Cutoff, Resonance
         {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::HPF_RES},
+        {Param::Kind::UNPATCHED, Param::Unpatched::BASS}, //Bass
+        {Param::Kind::UNPATCHED, Param::Unpatched::TREBLE}, //Treble
         {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT}, //Reverb Amount
         {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::DELAY_AMOUNT},
         {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::DELAY_RATE},         //Delay Rate, Amount
@@ -102,12 +102,12 @@ const std::array<std::pair<Param::Kind, ParamType>, kDisplayWidth>
 
 const uint8_t rowColour[kDisplayWidth][3] = {
 
-    {255,0,0}, //Pitch
-	{255,0,0}, //Portamento
-	{221,72,13}, //LPF Cutoff
-	{221,72,13}, //LPF Resonance
-	{170,182,0}, //HPF Cutoff
-	{170,182,0}, //HPF Resonance
+    {255,0,0}, //LPF Cutoff
+	{255,0,0}, //LPF Resonance
+	{221,72,13}, //HPF Cutoff
+	{221,72,13}, //HPF Resonance
+	{170,182,0}, //EQ Bass
+	{170,182,0}, //EQ Treble
 	{85,182,72}, //Reverb Amount
 	{51,109,145}, //Delay Amount
 	{51,109,145}, //Delay Rate
@@ -121,12 +121,12 @@ const uint8_t rowColour[kDisplayWidth][3] = {
 
 const uint8_t rowTailColour[kDisplayWidth][3] = {
 
-    {53,2,2}, //Pitch
-	{53,2,2}, //Portamento
-	{46,16,2}, //LPF Cutoff
-	{46,16,2}, //LPF Resonance
-	{36,38,2}, //HPF Cutoff
-	{36,38,2}, //HPF Resonance
+    {53,2,2}, //LPF Cutoff
+	{53,2,2}, //LPF Resonance
+	{46,16,2}, //HPF Cutoff
+	{46,16,2}, //HPF Resonance
+	{36,38,2}, //EQ Bass
+	{36,38,2}, //EQ Treble
 	{19,38,16}, //Reverb Amount
 	{12,23,31}, //Delay Amount
 	{12,23,31}, //Delay Rate
@@ -138,25 +138,6 @@ const uint8_t rowTailColour[kDisplayWidth][3] = {
 	{53,0,53}, //Bitcrush
 	{2,2,53}}; //Stutter
 
-const uint8_t rowBlurColour[kDisplayWidth][3] = {
-
-    {79,39,39}, //Pitch
-	{79,39,39}, //Portamento
-	{67,50,39}, //LPF Cutoff
-	{67,50,39}, //LPF Resonance
-	{50,67,39}, //HPF Cutoff
-	{50,67,39}, //HPF Resonance
-	{39,67,50}, //Reverb Amount
-	{39,56,61}, //Delay Amount
-	{39,56,61}, //Delay Rate
-	{39,22,39}, //Mod FX Offset
-	{39,22,39}, //Mod FX Feedback
-	{39,22,39}, //Mod FX Depth
-	{39,22,39}, //Mod FX Rate
-	{39,0,39}, //Decimation
-	{39,0,39}, //Bitcrush
-	{39,39,79}}; //Stutter
-
 PerformanceSessionView performanceSessionView{};
 
 PerformanceSessionView::PerformanceSessionView() {
@@ -165,6 +146,7 @@ PerformanceSessionView::PerformanceSessionView() {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		previousKnobPosition[xDisplay] = kNoSelection;
 		currentKnobPosition[xDisplay] = kNoSelection;
+		previousPadPressYDisplay[xDisplay] = kNoSelection;
 	}
 }
 
@@ -372,86 +354,101 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 		Param::Kind lastSelectedParamKind = kind;
 		int32_t lastSelectedParamID = id;
 
-		if (on) {			
-			//ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(paramID);
+		if (on) {	
+			if (currentKnobPosition[xDisplay] == kNoSelection) {		
+				//ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(paramID);
 
-			ModelStackWithAutoParam* modelStackWithParam = nullptr;
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
-			ModelStackWithThreeMainThings* modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+				ModelStackWithAutoParam* modelStackWithParam = nullptr;
+				char modelStackMemory[MODEL_STACK_MAX_SIZE];
+				ModelStackWithThreeMainThings* modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
-			if (modelStackWithThreeMainThings) {
-				ParamCollectionSummary* summary = modelStackWithThreeMainThings->paramManager->getUnpatchedParamSetSummary();
-						
-				if (summary) {
-					ParamSet* paramSet = (ParamSet*)summary->paramCollection;
-					modelStackWithParam =
-						modelStackWithThreeMainThings->addParam(paramSet, summary, lastSelectedParamID, &paramSet->params[lastSelectedParamID]);
+				if (modelStackWithThreeMainThings) {
+					ParamCollectionSummary* summary = modelStackWithThreeMainThings->paramManager->getUnpatchedParamSetSummary();
+							
+					if (summary) {
+						ParamSet* paramSet = (ParamSet*)summary->paramCollection;
+						modelStackWithParam =
+							modelStackWithThreeMainThings->addParam(paramSet, summary, lastSelectedParamID, &paramSet->params[lastSelectedParamID]);
+					}
 				}
+						
+				if (modelStackWithParam && modelStackWithParam->autoParam) {
+
+					if (modelStackWithParam->getTimelineCounter()
+						== view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+
+						previousPadPressYDisplay[xDisplay] = yDisplay;
+
+						int32_t oldValue = modelStackWithParam->autoParam->getValuePossiblyAtPos(view.modPos, modelStackWithParam);
+						previousKnobPosition[xDisplay] = modelStackWithParam->paramCollection->paramValueToKnobPos(oldValue, modelStackWithParam);
+						currentKnobPosition[xDisplay] = calculateKnobPosForSinglePadPress(yDisplay);
+
+						int32_t newValue = modelStackWithParam->paramCollection->knobPosToParamValue(currentKnobPosition[xDisplay], modelStackWithParam);
+							
+						modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, view.modPos,
+																				view.modLength);
+
+						if ((lastSelectedParamKind == Param::Kind::UNPATCHED) && (lastSelectedParamID == Param::Unpatched::STUTTER_RATE)) {
+							beginStutter((ParamManagerForTimeline*)modelStackWithThreeMainThings->paramManager);
+						}
+
+						char buffer[5];
+						int32_t valueForDisplay = calculateKnobPosForDisplay(currentKnobPosition[xDisplay] + kKnobPosOffset);
+						//intToString(valueForDisplay, buffer);
+						//display->displayPopup(buffer);
+						renderDisplayOLED(lastSelectedParamKind, lastSelectedParamID, valueForDisplay);
+
+						uiNeedsRendering(this); //re-render mute pads
+					}
+				} 
 			}
-					
-			if (modelStackWithParam && modelStackWithParam->autoParam) {
-
-				if (modelStackWithParam->getTimelineCounter()
-					== view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
-
-					int32_t oldValue = modelStackWithParam->autoParam->getValuePossiblyAtPos(view.modPos, modelStackWithParam);
-					previousKnobPosition[xDisplay] = modelStackWithParam->paramCollection->paramValueToKnobPos(oldValue, modelStackWithParam);
-					currentKnobPosition[xDisplay] = calculateKnobPosForSinglePadPress(yDisplay);
-
-					int32_t newValue = modelStackWithParam->paramCollection->knobPosToParamValue(currentKnobPosition[xDisplay], modelStackWithParam);
-						
-					modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, view.modPos,
-																			view.modLength);
-
-					char buffer[5];
-					int32_t valueForDisplay = calculateKnobPosForDisplay(currentKnobPosition[xDisplay] + kKnobPosOffset);
-					//intToString(valueForDisplay, buffer);
-					//display->displayPopup(buffer);
-					renderDisplayOLED(lastSelectedParamKind, lastSelectedParamID, valueForDisplay);
-
-					uiNeedsRendering(this); //re-render mute pads
-				}
-			} 
 		}
-		else if (previousKnobPosition[xDisplay] != kNoSelection) {
-			//ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(paramID);
+		else {
+			if ((previousKnobPosition[xDisplay] != kNoSelection) && (previousPadPressYDisplay[xDisplay] == yDisplay)) {
+				//ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(paramID);
 
-			ModelStackWithAutoParam* modelStackWithParam = nullptr;
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
-			ModelStackWithThreeMainThings* modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+				ModelStackWithAutoParam* modelStackWithParam = nullptr;
+				char modelStackMemory[MODEL_STACK_MAX_SIZE];
+				ModelStackWithThreeMainThings* modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
-			if (modelStackWithThreeMainThings) {
-				ParamCollectionSummary* summary = modelStackWithThreeMainThings->paramManager->getUnpatchedParamSetSummary();
-						
-				if (summary) {
-					ParamSet* paramSet = (ParamSet*)summary->paramCollection;
-					modelStackWithParam =
-						modelStackWithThreeMainThings->addParam(paramSet, summary, lastSelectedParamID, &paramSet->params[lastSelectedParamID]);
+				if (modelStackWithThreeMainThings) {
+					ParamCollectionSummary* summary = modelStackWithThreeMainThings->paramManager->getUnpatchedParamSetSummary();
+							
+					if (summary) {
+						ParamSet* paramSet = (ParamSet*)summary->paramCollection;
+						modelStackWithParam =
+							modelStackWithThreeMainThings->addParam(paramSet, summary, lastSelectedParamID, &paramSet->params[lastSelectedParamID]);
+					}
 				}
+						
+				if (modelStackWithParam && modelStackWithParam->autoParam) {
+
+					if (modelStackWithParam->getTimelineCounter()
+						== view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+
+						int32_t oldValue = modelStackWithParam->paramCollection->knobPosToParamValue(previousKnobPosition[xDisplay], modelStackWithParam);
+							
+						modelStackWithParam->autoParam->setValuePossiblyForRegion(oldValue, modelStackWithParam, view.modPos,
+																				view.modLength);
+
+						if ((lastSelectedParamKind == Param::Kind::UNPATCHED) && (lastSelectedParamID == Param::Unpatched::STUTTER_RATE)) {
+							endStutter((ParamManagerForTimeline*)modelStackWithThreeMainThings->paramManager);
+						}					
+						
+						char buffer[5];
+						int32_t valueForDisplay = calculateKnobPosForDisplay(previousKnobPosition[xDisplay] + kKnobPosOffset);
+						//intToString(valueForDisplay, buffer);
+						//display->displayPopup(buffer);
+						renderDisplayOLED(lastSelectedParamKind, lastSelectedParamID, valueForDisplay);
+
+						previousPadPressYDisplay[xDisplay] = kNoSelection;
+						previousKnobPosition[xDisplay] = kNoSelection;
+						currentKnobPosition[xDisplay] = kNoSelection;
+
+						uiNeedsRendering(this); //re-render mute pads
+					}
+				} 
 			}
-					
-			if (modelStackWithParam && modelStackWithParam->autoParam) {
-
-				if (modelStackWithParam->getTimelineCounter()
-					== view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
-
-					int32_t oldValue = modelStackWithParam->paramCollection->knobPosToParamValue(previousKnobPosition[xDisplay], modelStackWithParam);
-						
-					modelStackWithParam->autoParam->setValuePossiblyForRegion(oldValue, modelStackWithParam, view.modPos,
-																			view.modLength);
-
-					char buffer[5];
-					int32_t valueForDisplay = calculateKnobPosForDisplay(previousKnobPosition[xDisplay] + kKnobPosOffset);
-					//intToString(valueForDisplay, buffer);
-					//display->displayPopup(buffer);
-					renderDisplayOLED(lastSelectedParamKind, lastSelectedParamID, valueForDisplay);
-
-					previousKnobPosition[xDisplay] = kNoSelection;
-					currentKnobPosition[xDisplay] = kNoSelection;
-
-					uiNeedsRendering(this); //re-render mute pads
-				}
-			} 
 		}	
 	}
 
@@ -869,12 +866,18 @@ void PerformanceSessionView::renderRow(uint8_t* image, uint8_t occupancyMask[], 
 
 		if (currentKnobPosition[xDisplay] != kNoSelection) {
 			if ((yDisplay == (kDisplayHeight - 1)) && ((currentKnobPosition[xDisplay] + kKnobPosOffset) == kMaxKnobPos)) {
-				memcpy(pixel, &rowBlurColour[yDisplay], 3);
+				goto highlightPad;
 			}
 			else if (((currentKnobPosition[xDisplay] + kKnobPosOffset) / kParamValueIncrementForAutomationDisplay) == yDisplay) {
-				memcpy(pixel, &rowBlurColour[yDisplay], 3);
+				goto highlightPad;
 			}
+			goto finishRender;
+		highlightPad:
+			pixel[0] = 130;
+			pixel[1] = 120;
+			pixel[2] = 130;
 		}
+	finishRender:
 		occupancyMask[xDisplay] = 64;
 	}
 }
