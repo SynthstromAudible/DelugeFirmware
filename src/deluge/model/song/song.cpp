@@ -140,7 +140,7 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	masterCompressorRelease = 20 << 24;
 	masterCompressorThresh = 0;
 	masterCompressorRatio = 0;
-	masterCompressorSidechainFC = ONE_Q31 >> 1;
+	masterCompressorSidechain = ONE_Q31 >> 1;
 	AudioEngine::mastercompressor.gainReduction = 0.0;
 
 	dirPath.set("SONGS");
@@ -1496,7 +1496,7 @@ unknownTag:
 						storageManager.exitTag("ratio");
 					}
 					else if (!strcmp(tagName, "compHPF")) {
-						masterCompressorSidechainFC = storageManager.readTagOrAttributeValueInt();
+						masterCompressorSidechain = storageManager.readTagOrAttributeValueInt();
 						storageManager.exitTag("compHPF");
 					}
 					else {
