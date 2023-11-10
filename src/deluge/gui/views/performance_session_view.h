@@ -19,8 +19,8 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/views/clip_navigation_timeline_view.h"
-#include "model/mod_controllable/mod_controllable_audio.h"
 #include "hid/button.h"
+#include "model/mod_controllable/mod_controllable_audio.h"
 #include "storage/flash_storage.h"
 
 class Editor;

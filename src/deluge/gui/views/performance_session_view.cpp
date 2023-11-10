@@ -78,65 +78,64 @@ using namespace deluge;
 using namespace gui;
 
 //sorted in the order that Parameters are assigned to performance mode columns on the grid
-const std::array<std::pair<Param::Kind, ParamType>, kDisplayWidth>
-    songParamsForPerformance{{
-        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::LPF_FREQ}, //LPF Cutoff, Resonance
-        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::LPF_RES},
-        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::HPF_FREQ}, //HPF Cutoff, Resonance
-        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::HPF_RES},
-        {Param::Kind::UNPATCHED, Param::Unpatched::BASS}, //Bass
-        {Param::Kind::UNPATCHED, Param::Unpatched::TREBLE}, //Treble
-        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT}, //Reverb Amount
-        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::DELAY_AMOUNT},
-        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::DELAY_RATE},         //Delay Rate, Amount
-       	{Param::Kind::UNPATCHED, Param::Unpatched::MOD_FX_OFFSET}, //Mod FX Offset, Feedback, Depth, Rate
-        {Param::Kind::UNPATCHED, Param::Unpatched::MOD_FX_FEEDBACK},
-        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH},
-        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::MOD_FX_RATE},
-        {Param::Kind::UNPATCHED, Param::Unpatched::SAMPLE_RATE_REDUCTION}, //Decimation, Bitcrush
-        {Param::Kind::UNPATCHED, Param::Unpatched::BITCRUSHING},
-		{Param::Kind::UNPATCHED, Param::Unpatched::STUTTER_RATE},      //Stutter Rate
-    }};
+const std::array<std::pair<Param::Kind, ParamType>, kDisplayWidth> songParamsForPerformance{{
+    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::LPF_FREQ}, //LPF Cutoff, Resonance
+    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::LPF_RES},
+    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::HPF_FREQ}, //HPF Cutoff, Resonance
+    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::HPF_RES},
+    {Param::Kind::UNPATCHED, Param::Unpatched::BASS},                                         //Bass
+    {Param::Kind::UNPATCHED, Param::Unpatched::TREBLE},                                       //Treble
+    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT}, //Reverb Amount
+    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::DELAY_AMOUNT},
+    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::DELAY_RATE}, //Delay Rate, Amount
+    {Param::Kind::UNPATCHED, Param::Unpatched::MOD_FX_OFFSET}, //Mod FX Offset, Feedback, Depth, Rate
+    {Param::Kind::UNPATCHED, Param::Unpatched::MOD_FX_FEEDBACK},
+    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH},
+    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::MOD_FX_RATE},
+    {Param::Kind::UNPATCHED, Param::Unpatched::SAMPLE_RATE_REDUCTION}, //Decimation, Bitcrush
+    {Param::Kind::UNPATCHED, Param::Unpatched::BITCRUSHING},
+    {Param::Kind::UNPATCHED, Param::Unpatched::STUTTER_RATE}, //Stutter Rate
+}};
 
 //colours for the performance mode
 
 const uint8_t rowColour[kDisplayWidth][3] = {
 
-    {255,0,0}, //LPF Cutoff
-	{255,0,0}, //LPF Resonance
-	{221,72,13}, //HPF Cutoff
-	{221,72,13}, //HPF Resonance
-	{170,182,0}, //EQ Bass
-	{170,182,0}, //EQ Treble
-	{85,182,72}, //Reverb Amount
-	{51,109,145}, //Delay Amount
-	{51,109,145}, //Delay Rate
-	{144,72,91}, //Mod FX Offset
-	{144,72,91}, //Mod FX Feedback
-	{144,72,91}, //Mod FX Depth
-	{144,72,91}, //Mod FX Rate
-	{128,0,128}, //Decimation
-	{128,0,128}, //Bitcrush
-	{0,0,255}}; //Stutter
+    {255, 0, 0},    //LPF Cutoff
+    {255, 0, 0},    //LPF Resonance
+    {221, 72, 13},  //HPF Cutoff
+    {221, 72, 13},  //HPF Resonance
+    {170, 182, 0},  //EQ Bass
+    {170, 182, 0},  //EQ Treble
+    {85, 182, 72},  //Reverb Amount
+    {51, 109, 145}, //Delay Amount
+    {51, 109, 145}, //Delay Rate
+    {144, 72, 91},  //Mod FX Offset
+    {144, 72, 91},  //Mod FX Feedback
+    {144, 72, 91},  //Mod FX Depth
+    {144, 72, 91},  //Mod FX Rate
+    {128, 0, 128},  //Decimation
+    {128, 0, 128},  //Bitcrush
+    {0, 0, 255}};   //Stutter
 
 const uint8_t rowTailColour[kDisplayWidth][3] = {
 
-    {53,2,2}, //LPF Cutoff
-	{53,2,2}, //LPF Resonance
-	{46,16,2}, //HPF Cutoff
-	{46,16,2}, //HPF Resonance
-	{36,38,2}, //EQ Bass
-	{36,38,2}, //EQ Treble
-	{19,38,16}, //Reverb Amount
-	{12,23,31}, //Delay Amount
-	{12,23,31}, //Delay Rate
-	{37,15,37}, //Mod FX Offset
-	{37,15,37}, //Mod FX Feedback
-	{37,15,37}, //Mod FX Depth
-	{37,15,37}, //Mod FX Rate
-	{53,0,53}, //Decimation
-	{53,0,53}, //Bitcrush
-	{2,2,53}}; //Stutter
+    {53, 2, 2},   //LPF Cutoff
+    {53, 2, 2},   //LPF Resonance
+    {46, 16, 2},  //HPF Cutoff
+    {46, 16, 2},  //HPF Resonance
+    {36, 38, 2},  //EQ Bass
+    {36, 38, 2},  //EQ Treble
+    {19, 38, 16}, //Reverb Amount
+    {12, 23, 31}, //Delay Amount
+    {12, 23, 31}, //Delay Rate
+    {37, 15, 37}, //Mod FX Offset
+    {37, 15, 37}, //Mod FX Feedback
+    {37, 15, 37}, //Mod FX Depth
+    {37, 15, 37}, //Mod FX Rate
+    {53, 0, 53},  //Decimation
+    {53, 0, 53},  //Bitcrush
+    {2, 2, 53}};  //Stutter
 
 PerformanceSessionView performanceSessionView{};
 
@@ -207,7 +206,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
-			sessionView.transitionToViewForClip(); // May fail if no currentClip		
+			sessionView.transitionToViewForClip(); // May fail if no currentClip
 		}
 	}
 
@@ -267,7 +266,8 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 		}
 		// Release without special mode
 		else if (!on && currentUIMode == UI_MODE_NONE) {
-			if (lastSessionButtonActiveState && !sessionButtonActive && !sessionButtonUsed && !sessionView.gridFirstPadActive()) {
+			if (lastSessionButtonActiveState && !sessionButtonActive && !sessionButtonUsed
+			    && !sessionView.gridFirstPadActive()) {
 				if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
 					currentSong->endInstancesOfActiveClips(playbackHandler.getActualArrangementRecordPos());
 					// Must call before calling getArrangementRecordPos(), cos that detaches the cloned Clip
@@ -337,54 +337,66 @@ notDealtWith:
 }
 
 ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDisplay, int32_t on) {
-	//editPadAction
+	//performancePadAction
 	if (xDisplay < kDisplayWidth) {
 		auto [kind, id] = songParamsForPerformance[xDisplay];
 
 		Param::Kind lastSelectedParamKind = kind;
 		int32_t lastSelectedParamID = id;
 
-		if (on) {	
-			if (currentKnobPosition[xDisplay] == kNoSelection) {		
+		if (on) {
+			if (previousPadPressYDisplay[xDisplay] != yDisplay) {
+				padPressHeld[xDisplay] = false;
+
 				//ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(paramID);
 
 				ModelStackWithAutoParam* modelStackWithParam = nullptr;
 				char modelStackMemory[MODEL_STACK_MAX_SIZE];
-				ModelStackWithThreeMainThings* modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+				    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
 				if (modelStackWithThreeMainThings) {
-					ParamCollectionSummary* summary = modelStackWithThreeMainThings->paramManager->getUnpatchedParamSetSummary();
-							
+					ParamCollectionSummary* summary =
+					    modelStackWithThreeMainThings->paramManager->getUnpatchedParamSetSummary();
+
 					if (summary) {
 						ParamSet* paramSet = (ParamSet*)summary->paramCollection;
-						modelStackWithParam =
-							modelStackWithThreeMainThings->addParam(paramSet, summary, lastSelectedParamID, &paramSet->params[lastSelectedParamID]);
+						modelStackWithParam = modelStackWithThreeMainThings->addParam(
+						    paramSet, summary, lastSelectedParamID, &paramSet->params[lastSelectedParamID]);
 					}
 				}
-						
+
 				if (modelStackWithParam && modelStackWithParam->autoParam) {
 
 					if (modelStackWithParam->getTimelineCounter()
-						== view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+					    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 
 						previousPadPressYDisplay[xDisplay] = yDisplay;
 						timeLastPadPress[xDisplay] = AudioEngine::audioSampleTimer;
 
-						int32_t oldValue = modelStackWithParam->autoParam->getValuePossiblyAtPos(view.modPos, modelStackWithParam);
-						previousKnobPosition[xDisplay] = modelStackWithParam->paramCollection->paramValueToKnobPos(oldValue, modelStackWithParam);
+						if (previousKnobPosition[xDisplay] == kNoSelection) {
+							int32_t oldValue =
+							    modelStackWithParam->autoParam->getValuePossiblyAtPos(view.modPos, modelStackWithParam);
+							previousKnobPosition[xDisplay] = modelStackWithParam->paramCollection->paramValueToKnobPos(
+							    oldValue, modelStackWithParam);
+						}
 						currentKnobPosition[xDisplay] = calculateKnobPosForSinglePadPress(yDisplay);
 
-						int32_t newValue = modelStackWithParam->paramCollection->knobPosToParamValue(currentKnobPosition[xDisplay], modelStackWithParam);
-							
-						modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, view.modPos,
-																				view.modLength);
+						int32_t newValue = modelStackWithParam->paramCollection->knobPosToParamValue(
+						    currentKnobPosition[xDisplay], modelStackWithParam);
 
-						if ((lastSelectedParamKind == Param::Kind::UNPATCHED) && (lastSelectedParamID == Param::Unpatched::STUTTER_RATE)) {
+						modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam,
+						                                                          view.modPos, view.modLength);
+
+						if ((lastSelectedParamKind == Param::Kind::UNPATCHED)
+						    && (lastSelectedParamID == Param::Unpatched::STUTTER_RATE)) {
 							((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
-													->beginStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
+							    ->beginStutter(
+							        (ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
 						}
 
-						int32_t valueForDisplay = calculateKnobPosForDisplay(currentKnobPosition[xDisplay] + kKnobPosOffset);
+						int32_t valueForDisplay =
+						    calculateKnobPosForDisplay(currentKnobPosition[xDisplay] + kKnobPosOffset);
 						if (display->haveOLED()) {
 							renderDisplayOLED(lastSelectedParamKind, lastSelectedParamID, valueForDisplay);
 						}
@@ -396,43 +408,52 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 
 						goto renderPads;
 					}
-				} 
+				}
 			}
 		}
 		else {
-			if ((previousKnobPosition[xDisplay] != kNoSelection) && (previousPadPressYDisplay[xDisplay] == yDisplay) && ((AudioEngine::audioSampleTimer - timeLastPadPress[xDisplay]) >= kShortPressTime)) {
+			if ((padPressHeld[xDisplay]
+			     && ((AudioEngine::audioSampleTimer - timeLastPadPress[xDisplay]) < kShortPressTime))
+			    || ((previousKnobPosition[xDisplay] != kNoSelection) && (previousPadPressYDisplay[xDisplay] == yDisplay)
+			        && ((AudioEngine::audioSampleTimer - timeLastPadPress[xDisplay]) >= kShortPressTime))) {
 				//ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(paramID);
 
 				ModelStackWithAutoParam* modelStackWithParam = nullptr;
 				char modelStackMemory[MODEL_STACK_MAX_SIZE];
-				ModelStackWithThreeMainThings* modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+				    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
 				if (modelStackWithThreeMainThings) {
-					ParamCollectionSummary* summary = modelStackWithThreeMainThings->paramManager->getUnpatchedParamSetSummary();
-							
+					ParamCollectionSummary* summary =
+					    modelStackWithThreeMainThings->paramManager->getUnpatchedParamSetSummary();
+
 					if (summary) {
 						ParamSet* paramSet = (ParamSet*)summary->paramCollection;
-						modelStackWithParam =
-							modelStackWithThreeMainThings->addParam(paramSet, summary, lastSelectedParamID, &paramSet->params[lastSelectedParamID]);
+						modelStackWithParam = modelStackWithThreeMainThings->addParam(
+						    paramSet, summary, lastSelectedParamID, &paramSet->params[lastSelectedParamID]);
 					}
 				}
-						
+
 				if (modelStackWithParam && modelStackWithParam->autoParam) {
 
 					if (modelStackWithParam->getTimelineCounter()
-						== view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+					    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 
-						int32_t oldValue = modelStackWithParam->paramCollection->knobPosToParamValue(previousKnobPosition[xDisplay], modelStackWithParam);
-							
-						modelStackWithParam->autoParam->setValuePossiblyForRegion(oldValue, modelStackWithParam, view.modPos,
-																				view.modLength);
+						int32_t oldValue = modelStackWithParam->paramCollection->knobPosToParamValue(
+						    previousKnobPosition[xDisplay], modelStackWithParam);
 
-						if ((lastSelectedParamKind == Param::Kind::UNPATCHED) && (lastSelectedParamID == Param::Unpatched::STUTTER_RATE)) {
+						modelStackWithParam->autoParam->setValuePossiblyForRegion(oldValue, modelStackWithParam,
+						                                                          view.modPos, view.modLength);
+
+						if ((lastSelectedParamKind == Param::Kind::UNPATCHED)
+						    && (lastSelectedParamID == Param::Unpatched::STUTTER_RATE)) {
 							((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
-													->endStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
-						}					
-						
-						int32_t valueForDisplay = calculateKnobPosForDisplay(previousKnobPosition[xDisplay] + kKnobPosOffset);
+							    ->endStutter(
+							        (ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
+						}
+
+						int32_t valueForDisplay =
+						    calculateKnobPosForDisplay(previousKnobPosition[xDisplay] + kKnobPosOffset);
 						if (display->haveOLED()) {
 							renderDisplayOLED(lastSelectedParamKind, lastSelectedParamID, valueForDisplay);
 						}
@@ -444,20 +465,22 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 
 						previousPadPressYDisplay[xDisplay] = kNoSelection;
 						previousKnobPosition[xDisplay] = kNoSelection;
-						currentKnobPosition[xDisplay] = kNoSelection;
-						padPressHeld[xDisplay] = false;
+						currentKnobPosition[xDisplay] = kNoSelection;}
 
 						goto renderPads;
 					}
-				} 
+				}
 			}
-			else if ((previousKnobPosition[xDisplay] != kNoSelection) && (previousPadPressYDisplay[xDisplay] == yDisplay)) {
+			else if ((previousKnobPosition[xDisplay] != kNoSelection)
+			         && (previousPadPressYDisplay[xDisplay] == yDisplay)
+			         && ((AudioEngine::audioSampleTimer - timeLastPadPress[xDisplay]) < kShortPressTime)) {
 				padPressHeld[xDisplay] = true;
+
 				goto renderPads;
 			}
-		}	
+		}
 		goto done;
-	renderPads:
+renderPads:
 		uiNeedsRendering(this); //re-render pads
 	}
 
@@ -472,15 +495,16 @@ ModelStackWithAutoParam* PerformanceSessionView::getModelStackWithParam(int32_t 
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 
-	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+	    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
 	if (modelStackWithThreeMainThings) {
 		ParamCollectionSummary* summary = modelStackWithThreeMainThings->paramManager->getUnpatchedParamSetSummary();
-				
+
 		if (summary) {
 			ParamSet* paramSet = (ParamSet*)summary->paramCollection;
 			modelStackWithParam =
-				modelStackWithThreeMainThings->addParam(paramSet, summary, paramID, &paramSet->params[paramID]);
+			    modelStackWithThreeMainThings->addParam(paramSet, summary, paramID, &paramSet->params[paramID]);
 		}
 	}
 
@@ -517,33 +541,35 @@ int32_t PerformanceSessionView::calculateKnobPosForDisplay(int32_t knobPos) {
 void PerformanceSessionView::renderDisplay() {
 	if (display->haveOLED()) {
 		deluge::hid::display::OLED::clearMainImage();
-			
-	#if OLED_MAIN_HEIGHT_PIXELS == 64
+
+#if OLED_MAIN_HEIGHT_PIXELS == 64
 		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
-	#else
+#else
 		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
-	#endif	
+#endif
 
 		yPos = yPos + 12;
 
-		deluge::hid::display::OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_PERFORMANCE), yPos, deluge::hid::display::OLED::oledMainImage[0],
-													OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+		deluge::hid::display::OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_PERFORMANCE), yPos,
+		                                              deluge::hid::display::OLED::oledMainImage[0],
+		                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 
-		deluge::hid::display::OLED::sendMainImage();			
+		deluge::hid::display::OLED::sendMainImage();
 	}
 	else {
 		display->setScrollingText(l10n::get(l10n::String::STRING_FOR_PERFORMANCE));
 	}
 }
 
-void PerformanceSessionView::renderDisplayOLED(Param::Kind lastSelectedParamKind, int32_t lastSelectedParamID, int32_t knobPos) {
+void PerformanceSessionView::renderDisplayOLED(Param::Kind lastSelectedParamKind, int32_t lastSelectedParamID,
+                                               int32_t knobPos) {
 	deluge::hid::display::OLED::clearMainImage();
 
 	//display parameter name
 	char parameterName[30];
 	if (lastSelectedParamKind == Param::Kind::UNPATCHED) {
 		strncpy(parameterName, getUnpatchedParamDisplayName(lastSelectedParamID), 29);
-		}
+	}
 	else if (lastSelectedParamKind == Param::Kind::GLOBAL_EFFECTABLE) {
 		strncpy(parameterName, getGlobalEffectableParamDisplayName(lastSelectedParamID), 29);
 	}
@@ -554,7 +580,7 @@ void PerformanceSessionView::renderDisplayOLED(Param::Kind lastSelectedParamKind
 	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
 #endif
 	deluge::hid::display::OLED::drawStringCentred(parameterName, yPos, deluge::hid::display::OLED::oledMainImage[0],
-		                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+	                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 
 	//display parameter value
 	yPos = yPos + 24;
@@ -562,7 +588,7 @@ void PerformanceSessionView::renderDisplayOLED(Param::Kind lastSelectedParamKind
 	char buffer[5];
 	intToString(knobPos, buffer);
 	deluge::hid::display::OLED::drawStringCentred(buffer, yPos, deluge::hid::display::OLED::oledMainImage[0],
-			                                      OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+	                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 
 	deluge::hid::display::OLED::sendMainImage();
 }
@@ -584,7 +610,7 @@ ActionResult PerformanceSessionView::verticalEncoderAction(int32_t offset, bool 
 }
 
 bool PerformanceSessionView::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
-                                uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
+                                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	if (!image) {
 		return true;
 	}
@@ -765,7 +791,8 @@ void PerformanceSessionView::modButtonAction(uint8_t whichButton, bool on) {
 }
 
 bool PerformanceSessionView::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
-                                 uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
+                                            uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
+                                            bool drawUndefinedArea) {
 	if (!image) {
 		return true;
 	}
@@ -793,9 +820,9 @@ bool PerformanceSessionView::renderMainPads(uint32_t whichRows, uint8_t image[][
 
 //render performance mode
 void PerformanceSessionView::performActualRender(uint32_t whichRows, uint8_t* image,
-                                                       uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
-                                                       int32_t xScroll, uint32_t xZoom, int32_t renderWidth,
-                                                       int32_t imageWidth, bool drawUndefinedArea) {
+                                                 uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
+                                                 int32_t xScroll, uint32_t xZoom, int32_t renderWidth,
+                                                 int32_t imageWidth, bool drawUndefinedArea) {
 
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 
@@ -821,19 +848,21 @@ void PerformanceSessionView::renderRow(uint8_t* image, uint8_t occupancyMask[], 
 		}
 
 		if (currentKnobPosition[xDisplay] != kNoSelection) {
-			if ((yDisplay == (kDisplayHeight - 1)) && ((currentKnobPosition[xDisplay] + kKnobPosOffset) == kMaxKnobPos)) {
+			if ((yDisplay == (kDisplayHeight - 1))
+			    && ((currentKnobPosition[xDisplay] + kKnobPosOffset) == kMaxKnobPos)) {
 				goto highlightPad;
 			}
-			else if (((currentKnobPosition[xDisplay] + kKnobPosOffset) / kParamValueIncrementForAutomationDisplay) == yDisplay) {
+			else if (((currentKnobPosition[xDisplay] + kKnobPosOffset) / kParamValueIncrementForAutomationDisplay)
+			         == yDisplay) {
 				goto highlightPad;
 			}
 			goto finishRender;
-		highlightPad:
+highlightPad:
 			pixel[0] = 130;
 			pixel[1] = 120;
 			pixel[2] = 130;
 		}
-	finishRender:
+finishRender:
 		occupancyMask[xDisplay] = 64;
 	}
 }

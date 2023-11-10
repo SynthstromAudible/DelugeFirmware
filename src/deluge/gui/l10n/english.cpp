@@ -791,7 +791,7 @@ PLACE_SDRAM_DATA Language english{
 
         /* Strings Specifically for Performance View 
         * performance_session_view.cpp
-        */        
+        */
 
         {STRING_FOR_PERFORMANCE, "Performance Mode"},
     },
