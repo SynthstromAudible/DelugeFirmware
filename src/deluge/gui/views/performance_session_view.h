@@ -94,6 +94,8 @@ private:
 	int32_t currentKnobPosition[kDisplayWidth];
 	int32_t previousKnobPosition[kDisplayWidth];
 	int32_t previousPadPressYDisplay[kDisplayWidth];
+	uint32_t timeLastPadPress[kDisplayWidth];
+	bool padPressHeld[kDisplayWidth];
 
 	// Members regarding rendering different layouts
 private:

@@ -147,6 +147,8 @@ PerformanceSessionView::PerformanceSessionView() {
 		previousKnobPosition[xDisplay] = kNoSelection;
 		currentKnobPosition[xDisplay] = kNoSelection;
 		previousPadPressYDisplay[xDisplay] = kNoSelection;
+		timeLastPadPress[xDisplay] = 0;
+		padPressHeld[xDisplay] = false;
 	}
 }
 
@@ -343,6 +345,7 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 						== view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 
 						previousPadPressYDisplay[xDisplay] = yDisplay;
+						timeLastPadPress[xDisplay] = AudioEngine::audioSampleTimer;
 
 						int32_t oldValue = modelStackWithParam->autoParam->getValuePossiblyAtPos(view.modPos, modelStackWithParam);
 						previousKnobPosition[xDisplay] = modelStackWithParam->paramCollection->paramValueToKnobPos(oldValue, modelStackWithParam);
@@ -368,13 +371,13 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 							display->displayPopup(buffer);
 						}
 
-						uiNeedsRendering(this); //re-render mute pads
+						goto renderPads;
 					}
 				} 
 			}
 		}
 		else {
-			if ((previousKnobPosition[xDisplay] != kNoSelection) && (previousPadPressYDisplay[xDisplay] == yDisplay)) {
+			if ((previousKnobPosition[xDisplay] != kNoSelection) && (previousPadPressYDisplay[xDisplay] == yDisplay) && ((AudioEngine::audioSampleTimer - timeLastPadPress[xDisplay]) >= kShortPressTime)) {
 				//ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(paramID);
 
 				ModelStackWithAutoParam* modelStackWithParam = nullptr;
@@ -419,14 +422,23 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 						previousPadPressYDisplay[xDisplay] = kNoSelection;
 						previousKnobPosition[xDisplay] = kNoSelection;
 						currentKnobPosition[xDisplay] = kNoSelection;
+						padPressHeld[xDisplay] = false;
 
-						uiNeedsRendering(this); //re-render mute pads
+						goto renderPads;
 					}
 				} 
 			}
+			else if (previousKnobPosition[xDisplay] != kNoSelection) {
+				padPressHeld[xDisplay] = true;
+				goto renderPads;
+			}
 		}	
+		goto done;
+	renderPads:
+		uiNeedsRendering(this); //re-render pads
 	}
 
+done:
 	return ActionResult::DEALT_WITH;
 }
 
@@ -778,7 +790,7 @@ void PerformanceSessionView::renderRow(uint8_t* image, uint8_t occupancyMask[], 
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		uint8_t* pixel = image + (xDisplay * 3);
 
-		if (currentKnobPosition[xDisplay] != kNoSelection) {
+		if ((currentKnobPosition[xDisplay] != kNoSelection) && (padPressHeld[xDisplay] == false)) {
 			memcpy(pixel, &rowColour[xDisplay], 3);
 		}
 		else {
