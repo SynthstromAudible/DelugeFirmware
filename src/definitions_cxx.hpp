@@ -745,6 +745,8 @@ enum class CompParam {
 	RATIO,
 	ATTACK,
 	RELEASE,
+	SIDECHAIN,
+	LAST,
 };
 
 constexpr auto kNumModFXParams = util::to_underlying(ModFXParam::OFFSET) + 1;

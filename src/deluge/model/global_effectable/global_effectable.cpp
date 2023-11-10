@@ -276,7 +276,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 				else {
 					currentCompParam =
 					    static_cast<CompParam>((util::to_underlying(currentCompParam) + 1) % maxCompParam);
-					const char* params[3] = {"ratio", "attack", "release"};
+					const char* params[util::to_underlying(CompParam::LAST)] = {"ratio", "attack", "release", "hpf"};
 					display->popupTextTemporary(params[int(currentCompParam)]);
 				}
 			}
@@ -318,6 +318,10 @@ int32_t GlobalEffectable::getKnobPosForNonExistentParam(int32_t whichModEncoder,
 			case CompParam::RELEASE:
 				current = AudioEngine::mastercompressor.getRelease() >> 24;
 
+				break;
+
+			case CompParam::SIDECHAIN:
+				current = AudioEngine::mastercompressor.getSidechain() >> 24;
 				break;
 			}
 		}
@@ -371,6 +375,15 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				ledLevel = (64 + current);
 
 				displayLevel = AudioEngine::mastercompressor.setRelease(lshiftAndSaturate<24>(current + 64));
+				break;
+
+			case CompParam::SIDECHAIN:
+				current = (AudioEngine::mastercompressor.getSidechain() >> 24) - 64;
+				current += offset;
+				current = std::clamp(current, -64, 64);
+				ledLevel = (64 + current);
+
+				displayLevel = AudioEngine::mastercompressor.setSidechain(lshiftAndSaturate<24>(current + 64));
 				break;
 			}
 			indicator_leds::setKnobIndicatorLevel(0, ledLevel);
