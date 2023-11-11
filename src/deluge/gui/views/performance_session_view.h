@@ -44,7 +44,7 @@ public:
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
 	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
-	void renderDisplay();
+	void renderModeDisplay();
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
 	void setLedStates();
 
@@ -77,7 +77,7 @@ private:
 	                         int32_t xScroll, uint32_t xZoom, int32_t renderWidth, int32_t imageWidth,
 	                         bool drawUndefinedArea = true);
 	void renderRow(uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
-	void renderDisplayOLED(Param::Kind lastSelectedParamKind, int32_t lastSelectedParamID, int32_t knobPos);
+	void renderFXDisplay(Param::Kind lastSelectedParamKind, int32_t lastSelectedParamID, int32_t knobPos);
 	void setCentralLEDStates();
 
 	ModelStackWithAutoParam* getModelStackWithParam(int32_t paramID);

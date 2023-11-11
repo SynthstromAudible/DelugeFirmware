@@ -262,6 +262,11 @@ void PerformanceSessionView::renderRow(uint8_t* image, uint8_t occupancyMask[], 
 		}
 
 		if (currentKnobPosition[xDisplay] != kNoSelection) {
+			//the following code checks if the current knob position corresponds to the value ranges
+			//of each pad in a column (e.g. 0 - 15, 16 - 31, 32 - 47, 48 - 63, 64 - 79, 80 - 95, 96 - 111, 112 - 128)
+			//it does so by diving the grid into intervals of 16 and diving the current knob position by the interval
+			//will indicate which pad yDisplay should be highlighted (the exception being 128 which needs to be checked
+			//separately)
 			if ((yDisplay == (kDisplayHeight - 1))
 			    && ((currentKnobPosition[xDisplay] + kKnobPosOffset) == kMaxKnobPos)) {
 				goto highlightPad;
@@ -291,7 +296,7 @@ bool PerformanceSessionView::renderSidebar(uint32_t whichRows, uint8_t image[][k
 }
 
 //render performance view display on opening
-void PerformanceSessionView::renderDisplay() {
+void PerformanceSessionView::renderModeDisplay() {
 	if (display->haveOLED()) {
 		deluge::hid::display::OLED::clearMainImage();
 
@@ -314,36 +319,45 @@ void PerformanceSessionView::renderDisplay() {
 	}
 }
 
-void PerformanceSessionView::renderDisplayOLED(Param::Kind lastSelectedParamKind, int32_t lastSelectedParamID,
+//Render Parameter Name and Value set when using Performance Pads
+void PerformanceSessionView::renderFXDisplay(Param::Kind lastSelectedParamKind, int32_t lastSelectedParamID,
                                                int32_t knobPos) {
-	deluge::hid::display::OLED::clearMainImage();
+	if (display->haveOLED()) {
+		deluge::hid::display::OLED::clearMainImage();
 
-	//display parameter name
-	char parameterName[30];
-	if (lastSelectedParamKind == Param::Kind::UNPATCHED) {
-		strncpy(parameterName, getUnpatchedParamDisplayName(lastSelectedParamID), 29);
+		//display parameter name
+		char parameterName[30];
+		if (lastSelectedParamKind == Param::Kind::UNPATCHED) {
+			strncpy(parameterName, getUnpatchedParamDisplayName(lastSelectedParamID), 29);
+		}
+		else if (lastSelectedParamKind == Param::Kind::GLOBAL_EFFECTABLE) {
+			strncpy(parameterName, getGlobalEffectableParamDisplayName(lastSelectedParamID), 29);
+		}
+
+	#if OLED_MAIN_HEIGHT_PIXELS == 64
+		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
+	#else
+		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
+	#endif
+		deluge::hid::display::OLED::drawStringCentred(parameterName, yPos, deluge::hid::display::OLED::oledMainImage[0],
+													OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+
+		//display parameter value
+		yPos = yPos + 24;
+
+		char buffer[5];
+		intToString(knobPos, buffer);
+		deluge::hid::display::OLED::drawStringCentred(buffer, yPos, deluge::hid::display::OLED::oledMainImage[0],
+													OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+
+		deluge::hid::display::OLED::sendMainImage();
 	}
-	else if (lastSelectedParamKind == Param::Kind::GLOBAL_EFFECTABLE) {
-		strncpy(parameterName, getGlobalEffectableParamDisplayName(lastSelectedParamID), 29);
+	//7Seg Display
+	else {
+		char buffer[5];
+		intToString(knobPos, buffer);
+		display->displayPopup(buffer);
 	}
-
-#if OLED_MAIN_HEIGHT_PIXELS == 64
-	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
-#else
-	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
-#endif
-	deluge::hid::display::OLED::drawStringCentred(parameterName, yPos, deluge::hid::display::OLED::oledMainImage[0],
-	                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
-
-	//display parameter value
-	yPos = yPos + 24;
-
-	char buffer[5];
-	intToString(knobPos, buffer);
-	deluge::hid::display::OLED::drawStringCentred(buffer, yPos, deluge::hid::display::OLED::oledMainImage[0],
-	                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
-
-	deluge::hid::display::OLED::sendMainImage();
 }
 
 void PerformanceSessionView::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
@@ -588,14 +602,8 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 
 						int32_t valueForDisplay =
 						    calculateKnobPosForDisplay(currentKnobPosition[xDisplay] + kKnobPosOffset);
-						if (display->haveOLED()) {
-							renderDisplayOLED(lastSelectedParamKind, lastSelectedParamID, valueForDisplay);
-						}
-						else {
-							char buffer[5];
-							intToString(valueForDisplay, buffer);
-							display->displayPopup(buffer);
-						}
+							
+						renderFXDisplay(lastSelectedParamKind, lastSelectedParamID, valueForDisplay);
 
 						goto renderPads;
 					}
@@ -648,14 +656,8 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 
 						int32_t valueForDisplay =
 						    calculateKnobPosForDisplay(previousKnobPosition[xDisplay] + kKnobPosOffset);
-						if (display->haveOLED()) {
-							renderDisplayOLED(lastSelectedParamKind, lastSelectedParamID, valueForDisplay);
-						}
-						else {
-							char buffer[5];
-							intToString(valueForDisplay, buffer);
-							display->displayPopup(buffer);
-						}
+
+						renderFXDisplay(lastSelectedParamKind, lastSelectedParamID, valueForDisplay);
 
 						previousPadPressYDisplay[xDisplay] = kNoSelection;
 						previousKnobPosition[xDisplay] = kNoSelection;
