@@ -30,67 +30,61 @@ class ModelStack;
 class ModelStackWithThreeMainThings;
 class ModelStackWithAutoParam;
 
-// Clip Group colours
-extern const uint8_t numDefaultClipGroupColours;
-extern const uint8_t defaultClipGroupColours[];
-
 class PerformanceSessionView final : public ClipNavigationTimelineView, public ModControllableAudio {
 public:
 	PerformanceSessionView();
-	bool getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows);
 	bool opened();
 	void focusRegained();
 
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
-	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
-	ActionResult horizontalEncoderAction(int32_t offset);
-	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
-	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
-	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
-	uint32_t getMaxZoom();
-	uint32_t getMaxLength();
-	bool renderRow(ModelStack* modelStack, uint8_t yDisplay, uint8_t thisImage[kDisplayWidth + kSideBarWidth][3],
-	               uint8_t thisOccupancyMask[kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
 	void graphicsRoutine();
-	void requestRendering(UI* ui, uint32_t whichMainRows = 0xFFFFFFFF, uint32_t whichSideRows = 0xFFFFFFFF);
-
-	void modEncoderButtonAction(uint8_t whichModEncoder, bool on);
-	void modButtonAction(uint8_t whichButton, bool on);
-	void selectEncoderAction(int8_t offset);
 	ActionResult timerCallback();
-	void setLedStates();
+
+	//rendering
 	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
-	void modEncoderAction(int32_t whichModEncoder, int32_t offset);
-
-	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
-
-	// 7SEG only
-	void redrawNumericDisplay();
+	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 	void renderDisplay();
+	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
+	void setLedStates();
 
-	uint32_t selectedClipTimePressed;
-	uint8_t selectedClipYDisplay;      // Where the clip is on screen
-	uint8_t selectedClipPressYDisplay; // Where the user's finger actually is on screen
-	uint8_t selectedClipPressXDisplay;
-	bool performActionOnPadRelease;
-	bool
-	    performActionOnSectionPadRelease; // Keep this separate from the above one because we don't want a mod encoder action to set this to false
-	uint8_t sectionPressed;
-	uint8_t masterCompEditMode;
+	//button action
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
+
+	//pad action
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
+
+	//horizontal encoder action
+	ActionResult horizontalEncoderAction(int32_t offset);
+
+	//vertical encoder action
+	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
+
+	//mod encoder action
+	void modEncoderAction(int32_t whichModEncoder, int32_t offset);
+	void modEncoderButtonAction(uint8_t whichModEncoder, bool on);
+	void modButtonAction(uint8_t whichButton, bool on);
+
+	//select encoder action
+	void selectEncoderAction(int8_t offset);
+
+	//not sure why we need these...
+	uint32_t getMaxZoom();
+	uint32_t getMaxLength();
 
 private:
 	void performActualRender(uint32_t whichRows, uint8_t* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
 	                         int32_t xScroll, uint32_t xZoom, int32_t renderWidth, int32_t imageWidth,
 	                         bool drawUndefinedArea = true);
 	void renderRow(uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
-
+	void renderDisplayOLED(Param::Kind lastSelectedParamKind, int32_t lastSelectedParamID, int32_t knobPos);
 	void setCentralLEDStates();
+
 	ModelStackWithAutoParam* getModelStackWithParam(int32_t paramID);
 	int32_t calculateKnobPosForSinglePadPress(int32_t yDisplay);
 	int32_t calculateKnobPosForDisplay(int32_t knobPos);
 	int32_t getParamIDFromSinglePadPress(int32_t xDisplay);
-	void renderDisplayOLED(Param::Kind lastSelectedParamKind, int32_t lastSelectedParamID, int32_t knobPos);
+
 	int32_t currentKnobPosition[kDisplayWidth];
 	int32_t previousKnobPosition[kDisplayWidth];
 	int32_t previousPadPressYDisplay[kDisplayWidth];

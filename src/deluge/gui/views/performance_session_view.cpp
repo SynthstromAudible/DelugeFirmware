@@ -34,7 +34,6 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
-#include "gui/waveform/waveform_renderer.h"
 #include "hid/button.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
@@ -43,30 +42,15 @@
 #include "io/debug/print.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
-#include "model/clip/audio_clip.h"
-#include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
-#include "model/clip/instrument_clip_minder.h"
-#include "model/instrument/instrument.h"
-#include "model/instrument/melodic_instrument.h"
-#include "model/note/note_row.h"
-#include "model/sample/sample.h"
-#include "model/sample/sample_recorder.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
-#include "modulation/params/param_manager.h"
 #include "playback/mode/arrangement.h"
-#include "playback/mode/session.h"
 #include "playback/playback_handler.h"
-#include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
-#include "storage/audio/audio_file_manager.h"
-#include "storage/file_item.h"
 #include "storage/storage_manager.h"
 #include "util/d_string.h"
 #include "util/functions.h"
-#include <algorithm>
-#include <cstdint>
 #include <new>
 
 extern "C" {
@@ -151,10 +135,6 @@ PerformanceSessionView::PerformanceSessionView() {
 	}
 }
 
-bool PerformanceSessionView::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
-	return false;
-}
-
 bool PerformanceSessionView::opened() {
 	if (playbackHandler.playbackState && currentPlaybackMode == &arrangement) {
 		PadLEDs::skipGreyoutFade();
@@ -178,13 +158,7 @@ void PerformanceSessionView::focusRegained() {
 	view.focusRegained();
 	view.setActiveModControllableTimelineCounter(currentSong);
 
-	selectedClipYDisplay = 255;
-	if (display->haveOLED()) {
-		setCentralLEDStates();
-	}
-	else {
-		redrawNumericDisplay();
-	}
+	setCentralLEDStates();
 
 	indicator_leds::setLedState(IndicatorLED::BACK, false);
 
@@ -224,6 +198,181 @@ void PerformanceSessionView::graphicsRoutine() {
 	memset(&tickSquares, 255, sizeof(tickSquares));
 	memset(&colours, 255, sizeof(colours));
 	PadLEDs::setTickSquares(tickSquares, colours);
+}
+
+ActionResult PerformanceSessionView::timerCallback() {
+	return ActionResult::DEALT_WITH;
+}
+
+bool PerformanceSessionView::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+                                            uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
+                                            bool drawUndefinedArea) {
+	if (!image) {
+		return true;
+	}
+
+	if (!occupancyMask) {
+		return true;
+	}
+
+	PadLEDs::renderingLock = true;
+
+	// erase current image as it will be refreshed
+	memset(image, 0, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth + kSideBarWidth) * 3);
+
+	// erase current occupancy mask as it will be refreshed
+	memset(occupancyMask, 0, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth + kSideBarWidth));
+
+	performActualRender(whichRows, &image[0][0][0], occupancyMask, currentSong->xScroll[NAVIGATION_CLIP],
+	                    currentSong->xZoom[NAVIGATION_CLIP], kDisplayWidth, kDisplayWidth + kSideBarWidth,
+	                    drawUndefinedArea);
+
+	PadLEDs::renderingLock = false;
+
+	return true;
+}
+
+//render performance mode
+void PerformanceSessionView::performActualRender(uint32_t whichRows, uint8_t* image,
+                                                 uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
+                                                 int32_t xScroll, uint32_t xZoom, int32_t renderWidth,
+                                                 int32_t imageWidth, bool drawUndefinedArea) {
+
+	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+
+		uint8_t* occupancyMaskOfRow = occupancyMask[yDisplay];
+
+		renderRow(image + (yDisplay * imageWidth * 3), occupancyMaskOfRow, yDisplay);
+	}
+}
+
+//this function started off as a copy of the renderRow function from the NoteRow class - I replaced "notes" with "nodes"
+//it worked for the most part, but there was bugs so I removed the buggy code and inserted my alternative rendering method
+//which always works. hoping to bring back the other code once I've worked out the bugs.
+void PerformanceSessionView::renderRow(uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay) {
+
+	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+		uint8_t* pixel = image + (xDisplay * 3);
+
+		if ((currentKnobPosition[xDisplay] != kNoSelection) && (padPressHeld[xDisplay] == false)) {
+			memcpy(pixel, &rowColour[xDisplay], 3);
+		}
+		else {
+			memcpy(pixel, &rowTailColour[xDisplay], 3);
+		}
+
+		if (currentKnobPosition[xDisplay] != kNoSelection) {
+			if ((yDisplay == (kDisplayHeight - 1))
+			    && ((currentKnobPosition[xDisplay] + kKnobPosOffset) == kMaxKnobPos)) {
+				goto highlightPad;
+			}
+			else if (((currentKnobPosition[xDisplay] + kKnobPosOffset) / kParamValueIncrementForAutomationDisplay)
+			         == yDisplay) {
+				goto highlightPad;
+			}
+			goto finishRender;
+highlightPad:
+			pixel[0] = 130;
+			pixel[1] = 120;
+			pixel[2] = 130;
+		}
+finishRender:
+		occupancyMask[xDisplay] = 64;
+	}
+}
+
+bool PerformanceSessionView::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+                                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
+	if (!image) {
+		return true;
+	}
+
+	return true;
+}
+
+//render performance view display on opening
+void PerformanceSessionView::renderDisplay() {
+	if (display->haveOLED()) {
+		deluge::hid::display::OLED::clearMainImage();
+
+#if OLED_MAIN_HEIGHT_PIXELS == 64
+		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
+#else
+		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
+#endif
+
+		yPos = yPos + 12;
+
+		deluge::hid::display::OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_PERFORMANCE), yPos,
+		                                              deluge::hid::display::OLED::oledMainImage[0],
+		                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+
+		deluge::hid::display::OLED::sendMainImage();
+	}
+	else {
+		display->setScrollingText(l10n::get(l10n::String::STRING_FOR_PERFORMANCE));
+	}
+}
+
+void PerformanceSessionView::renderDisplayOLED(Param::Kind lastSelectedParamKind, int32_t lastSelectedParamID,
+                                               int32_t knobPos) {
+	deluge::hid::display::OLED::clearMainImage();
+
+	//display parameter name
+	char parameterName[30];
+	if (lastSelectedParamKind == Param::Kind::UNPATCHED) {
+		strncpy(parameterName, getUnpatchedParamDisplayName(lastSelectedParamID), 29);
+	}
+	else if (lastSelectedParamKind == Param::Kind::GLOBAL_EFFECTABLE) {
+		strncpy(parameterName, getGlobalEffectableParamDisplayName(lastSelectedParamID), 29);
+	}
+
+#if OLED_MAIN_HEIGHT_PIXELS == 64
+	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
+#else
+	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
+#endif
+	deluge::hid::display::OLED::drawStringCentred(parameterName, yPos, deluge::hid::display::OLED::oledMainImage[0],
+	                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+
+	//display parameter value
+	yPos = yPos + 24;
+
+	char buffer[5];
+	intToString(knobPos, buffer);
+	deluge::hid::display::OLED::drawStringCentred(buffer, yPos, deluge::hid::display::OLED::oledMainImage[0],
+	                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+
+	deluge::hid::display::OLED::sendMainImage();
+}
+
+void PerformanceSessionView::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
+	return;
+}
+
+void PerformanceSessionView::setLedStates() {
+
+	indicator_leds::setLedState(IndicatorLED::KEYBOARD, true);
+
+	view.setLedStates();
+	view.setModLedStates();
+
+#ifdef currentClipStatusButtonX
+	view.switchOffCurrentClipPad();
+#endif
+}
+
+void PerformanceSessionView::setCentralLEDStates() {
+	indicator_leds::setLedState(IndicatorLED::SYNTH, false);
+	indicator_leds::setLedState(IndicatorLED::KIT, false);
+	indicator_leds::setLedState(IndicatorLED::MIDI, false);
+	indicator_leds::setLedState(IndicatorLED::CV, false);
+	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
+	indicator_leds::setLedState(IndicatorLED::KEYBOARD, false);
+
+	if (getCurrentUI() == this) {
+		indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
+	}
 }
 
 ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
@@ -370,14 +519,25 @@ notDealtWith:
 ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDisplay, int32_t on) {
 	//performancePadAction
 	if (xDisplay < kDisplayWidth) {
+		//obtain Param::Kind and ParamID corresponding to the column pressed on performance grid
 		auto [kind, id] = songParamsForPerformance[xDisplay];
-
 		Param::Kind lastSelectedParamKind = kind;
 		int32_t lastSelectedParamID = id;
 
 		if (on) {
+			//pressing a pad
 			if (previousPadPressYDisplay[xDisplay] != yDisplay) {
+				//if pressing a new pad in a column, reset held status
 				padPressHeld[xDisplay] = false;
+
+				//if switching to a new pad in the stutter column and stuttering is already active
+				//e.g. it means a pad was held before, end previous stutter before starting stutter again
+				if ((lastSelectedParamKind == Param::Kind::UNPATCHED)
+				    && (lastSelectedParamID == Param::Unpatched::STUTTER_RATE)
+				    && (isUIModeActive(UI_MODE_STUTTERING))) {
+					((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
+					    ->endStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
+				}
 
 				//ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(paramID);
 
@@ -442,7 +602,10 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 				}
 			}
 		}
+		//releasing a pad
 		else {
+			//if releasing a pad with "held" status shortly after being given that status 
+			//or releasing a pad that was not in "held" status but was a longer press and release
 			if ((padPressHeld[xDisplay]
 			     && ((AudioEngine::audioSampleTimer - timeLastPadPress[xDisplay]) < kShortPressTime))
 			    || ((previousKnobPosition[xDisplay] != kNoSelection) && (previousPadPressYDisplay[xDisplay] == yDisplay)
@@ -502,6 +665,7 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 					}
 				}
 			}
+			//if releasing a pad that was quickly pressed, give it held status
 			else if ((previousKnobPosition[xDisplay] != kNoSelection)
 			         && (previousPadPressYDisplay[xDisplay] == yDisplay)
 			         && ((AudioEngine::audioSampleTimer - timeLastPadPress[xDisplay]) < kShortPressTime)) {
@@ -542,6 +706,8 @@ ModelStackWithAutoParam* PerformanceSessionView::getModelStackWithParam(int32_t 
 	return modelStackWithParam;
 }
 
+//converts grid pad press yDisplay into a knobPosition value
+//this will likely need to be customized based on the parameter to create some more param appropriate ranges
 int32_t PerformanceSessionView::calculateKnobPosForSinglePadPress(int32_t yDisplay) {
 	int32_t newKnobPos = 0;
 
@@ -568,66 +734,6 @@ int32_t PerformanceSessionView::calculateKnobPosForDisplay(int32_t knobPos) {
 	return (((((knobPos << 20) / kMaxKnobPos) * kMaxMenuValue) >> 20) - offset);
 }
 
-//render performance view display on opening
-void PerformanceSessionView::renderDisplay() {
-	if (display->haveOLED()) {
-		deluge::hid::display::OLED::clearMainImage();
-
-#if OLED_MAIN_HEIGHT_PIXELS == 64
-		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
-#else
-		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
-#endif
-
-		yPos = yPos + 12;
-
-		deluge::hid::display::OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_PERFORMANCE), yPos,
-		                                              deluge::hid::display::OLED::oledMainImage[0],
-		                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
-
-		deluge::hid::display::OLED::sendMainImage();
-	}
-	else {
-		display->setScrollingText(l10n::get(l10n::String::STRING_FOR_PERFORMANCE));
-	}
-}
-
-void PerformanceSessionView::renderDisplayOLED(Param::Kind lastSelectedParamKind, int32_t lastSelectedParamID,
-                                               int32_t knobPos) {
-	deluge::hid::display::OLED::clearMainImage();
-
-	//display parameter name
-	char parameterName[30];
-	if (lastSelectedParamKind == Param::Kind::UNPATCHED) {
-		strncpy(parameterName, getUnpatchedParamDisplayName(lastSelectedParamID), 29);
-	}
-	else if (lastSelectedParamKind == Param::Kind::GLOBAL_EFFECTABLE) {
-		strncpy(parameterName, getGlobalEffectableParamDisplayName(lastSelectedParamID), 29);
-	}
-
-#if OLED_MAIN_HEIGHT_PIXELS == 64
-	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
-#else
-	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
-#endif
-	deluge::hid::display::OLED::drawStringCentred(parameterName, yPos, deluge::hid::display::OLED::oledMainImage[0],
-	                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
-
-	//display parameter value
-	yPos = yPos + 24;
-
-	char buffer[5];
-	intToString(knobPos, buffer);
-	deluge::hid::display::OLED::drawStringCentred(buffer, yPos, deluge::hid::display::OLED::oledMainImage[0],
-	                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
-
-	deluge::hid::display::OLED::sendMainImage();
-}
-
-ActionResult PerformanceSessionView::timerCallback() {
-	return ActionResult::DEALT_WITH;
-}
-
 void PerformanceSessionView::selectEncoderAction(int8_t offset) {
 	return;
 }
@@ -640,138 +746,6 @@ ActionResult PerformanceSessionView::verticalEncoderAction(int32_t offset, bool 
 	return ActionResult::DEALT_WITH;
 }
 
-bool PerformanceSessionView::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
-                                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
-	if (!image) {
-		return true;
-	}
-
-	return true;
-}
-
-void PerformanceSessionView::setLedStates() {
-
-	indicator_leds::setLedState(IndicatorLED::KEYBOARD, true);
-
-	view.setLedStates();
-	view.setModLedStates();
-
-#ifdef currentClipStatusButtonX
-	view.switchOffCurrentClipPad();
-#endif
-}
-
-extern char loopsRemainingText[];
-
-void PerformanceSessionView::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
-
-	if (playbackHandler.isEitherClockActive()) {
-		// Session playback
-		if (currentPlaybackMode == &session) {
-			if (session.launchEventAtSwungTickCount) {
-yesDoIt:
-				intToString(session.numRepeatsTilLaunch, &loopsRemainingText[17]);
-				deluge::hid::display::OLED::drawPermanentPopupLookingText(loopsRemainingText);
-			}
-		}
-
-		else { // Arrangement playback
-			if (playbackHandler.stopOutputRecordingAtLoopEnd) {
-				deluge::hid::display::OLED::drawPermanentPopupLookingText("Resampling will end...");
-			}
-		}
-	}
-}
-
-void PerformanceSessionView::redrawNumericDisplay() {
-
-	if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
-		return;
-	}
-
-	// If playback on...
-	if (playbackHandler.isEitherClockActive()) {
-
-		// Session playback
-		if (currentPlaybackMode == &session) {
-			if (!session.launchEventAtSwungTickCount) {
-				goto nothingToDisplay;
-			}
-
-			if (getCurrentUI() == &loadSongUI) {
-				if (currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED) {
-yesDoIt:
-					char buffer[5];
-					intToString(session.numRepeatsTilLaunch, buffer);
-					display->setText(buffer, true, 255, true, NULL, false, true);
-				}
-			}
-
-			else if (getCurrentUI() == &arrangerView) {
-				if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW
-				    || currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
-					if (session.switchToArrangementAtLaunchEvent) {
-						goto yesDoIt;
-					}
-					else {
-						goto setBlank;
-					}
-				}
-			}
-
-			else if (getCurrentUI() == this) {
-				if (currentUIMode != UI_MODE_HOLDING_SECTION_PAD) {
-					goto yesDoIt;
-				}
-			}
-		}
-
-		else { // Arrangement playback
-			if (getCurrentUI() == &arrangerView) {
-
-				if (currentUIMode != UI_MODE_HOLDING_SECTION_PAD && currentUIMode != UI_MODE_HOLDING_ARRANGEMENT_ROW) {
-					if (playbackHandler.stopOutputRecordingAtLoopEnd) {
-						display->setText("1", true, 255, true, NULL, false, true);
-					}
-					else {
-						goto setBlank;
-					}
-				}
-			}
-			else if (getCurrentUI() == this) {
-setBlank:
-				display->setText("");
-			}
-		}
-	}
-
-	// Or if no playback active...
-	else {
-nothingToDisplay:
-		if (getCurrentUI() == this || getCurrentUI() == &arrangerView) {
-			if (currentUIMode != UI_MODE_HOLDING_SECTION_PAD) {
-				display->setText("");
-			}
-		}
-	}
-
-	setCentralLEDStates();
-}
-
-// This gets called by redrawNumericDisplay() - or, if OLED, it gets called instead, because this still needs to happen.
-void PerformanceSessionView::setCentralLEDStates() {
-	indicator_leds::setLedState(IndicatorLED::SYNTH, false);
-	indicator_leds::setLedState(IndicatorLED::KIT, false);
-	indicator_leds::setLedState(IndicatorLED::MIDI, false);
-	indicator_leds::setLedState(IndicatorLED::CV, false);
-	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
-	indicator_leds::setLedState(IndicatorLED::KEYBOARD, false);
-
-	if (getCurrentUI() == this) {
-		indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
-	}
-}
-
 uint32_t PerformanceSessionView::getMaxZoom() {
 	return currentSong->getLongestClip(true, false)->getMaxZoom();
 }
@@ -781,8 +755,6 @@ uint32_t PerformanceSessionView::getMaxLength() {
 }
 
 void PerformanceSessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
-	performActionOnPadRelease = false;
-
 	if (getCurrentUI() == this) { //This routine may also be called from the Arranger view
 		ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
 	}
@@ -790,87 +762,8 @@ void PerformanceSessionView::modEncoderAction(int32_t whichModEncoder, int32_t o
 
 void PerformanceSessionView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 	UI::modEncoderButtonAction(whichModEncoder, on);
-	performActionOnPadRelease = false;
 }
 
 void PerformanceSessionView::modButtonAction(uint8_t whichButton, bool on) {
 	UI::modButtonAction(whichButton, on);
-	performActionOnPadRelease = false;
-}
-
-bool PerformanceSessionView::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
-                                            uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
-                                            bool drawUndefinedArea) {
-	if (!image) {
-		return true;
-	}
-
-	if (!occupancyMask) {
-		return true;
-	}
-
-	PadLEDs::renderingLock = true;
-
-	// erase current image as it will be refreshed
-	memset(image, 0, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth + kSideBarWidth) * 3);
-
-	// erase current occupancy mask as it will be refreshed
-	memset(occupancyMask, 0, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth + kSideBarWidth));
-
-	performActualRender(whichRows, &image[0][0][0], occupancyMask, currentSong->xScroll[NAVIGATION_CLIP],
-	                    currentSong->xZoom[NAVIGATION_CLIP], kDisplayWidth, kDisplayWidth + kSideBarWidth,
-	                    drawUndefinedArea);
-
-	PadLEDs::renderingLock = false;
-
-	return true;
-}
-
-//render performance mode
-void PerformanceSessionView::performActualRender(uint32_t whichRows, uint8_t* image,
-                                                 uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
-                                                 int32_t xScroll, uint32_t xZoom, int32_t renderWidth,
-                                                 int32_t imageWidth, bool drawUndefinedArea) {
-
-	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-
-		uint8_t* occupancyMaskOfRow = occupancyMask[yDisplay];
-
-		renderRow(image + (yDisplay * imageWidth * 3), occupancyMaskOfRow, yDisplay);
-	}
-}
-
-//this function started off as a copy of the renderRow function from the NoteRow class - I replaced "notes" with "nodes"
-//it worked for the most part, but there was bugs so I removed the buggy code and inserted my alternative rendering method
-//which always works. hoping to bring back the other code once I've worked out the bugs.
-void PerformanceSessionView::renderRow(uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay) {
-
-	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
-		uint8_t* pixel = image + (xDisplay * 3);
-
-		if ((currentKnobPosition[xDisplay] != kNoSelection) && (padPressHeld[xDisplay] == false)) {
-			memcpy(pixel, &rowColour[xDisplay], 3);
-		}
-		else {
-			memcpy(pixel, &rowTailColour[xDisplay], 3);
-		}
-
-		if (currentKnobPosition[xDisplay] != kNoSelection) {
-			if ((yDisplay == (kDisplayHeight - 1))
-			    && ((currentKnobPosition[xDisplay] + kKnobPosOffset) == kMaxKnobPos)) {
-				goto highlightPad;
-			}
-			else if (((currentKnobPosition[xDisplay] + kKnobPosOffset) / kParamValueIncrementForAutomationDisplay)
-			         == yDisplay) {
-				goto highlightPad;
-			}
-			goto finishRender;
-highlightPad:
-			pixel[0] = 130;
-			pixel[1] = 120;
-			pixel[2] = 130;
-		}
-finishRender:
-		occupancyMask[xDisplay] = 64;
-	}
 }
