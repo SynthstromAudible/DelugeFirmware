@@ -604,7 +604,7 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 		}
 		//releasing a pad
 		else {
-			//if releasing a pad with "held" status shortly after being given that status 
+			//if releasing a pad with "held" status shortly after being given that status
 			//or releasing a pad that was not in "held" status but was a longer press and release
 			if ((padPressHeld[xDisplay]
 			     && ((AudioEngine::audioSampleTimer - timeLastPadPress[xDisplay]) < kShortPressTime))
