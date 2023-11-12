@@ -538,151 +538,144 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 		Param::Kind lastSelectedParamKind = kind;
 		int32_t lastSelectedParamID = id;
 
+		//pressing a pad
 		if (on) {
-			//pressing a pad
-			if (previousPadPressYDisplay[xDisplay] != yDisplay) {
-				//if pressing a new pad in a column, reset held status
-				padPressHeld[xDisplay] = false;
+			padPressAction(lastSelectedParamKind, lastSelectedParamID, xDisplay, yDisplay);
+		}
+		//releasing a pad
+		else {
+			padReleaseAction(lastSelectedParamKind, lastSelectedParamID, xDisplay, yDisplay);
+		}
+		uiNeedsRendering(this); //re-render pads
+	}
+	return ActionResult::DEALT_WITH;
+}
 
-				//if switching to a new pad in the stutter column and stuttering is already active
-				//e.g. it means a pad was held before, end previous stutter before starting stutter again
+void PerformanceSessionView::padPressAction(Param::Kind lastSelectedParamKind, int32_t lastSelectedParamID,
+                                            int32_t xDisplay, int32_t yDisplay) {
+	if (previousPadPressYDisplay[xDisplay] != yDisplay) {
+		//if pressing a new pad in a column, reset held status
+		padPressHeld[xDisplay] = false;
+
+		//if switching to a new pad in the stutter column and stuttering is already active
+		//e.g. it means a pad was held before, end previous stutter before starting stutter again
+		if ((lastSelectedParamKind == Param::Kind::UNPATCHED) && (lastSelectedParamID == Param::Unpatched::STUTTER_RATE)
+		    && (isUIModeActive(UI_MODE_STUTTERING))) {
+			((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
+			    ->endStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
+		}
+
+		//ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(paramID);
+
+		ModelStackWithAutoParam* modelStackWithParam = nullptr;
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+
+		if (modelStackWithThreeMainThings) {
+			ParamCollectionSummary* summary =
+			    modelStackWithThreeMainThings->paramManager->getUnpatchedParamSetSummary();
+
+			if (summary) {
+				ParamSet* paramSet = (ParamSet*)summary->paramCollection;
+				modelStackWithParam = modelStackWithThreeMainThings->addParam(paramSet, summary, lastSelectedParamID,
+				                                                              &paramSet->params[lastSelectedParamID]);
+			}
+		}
+
+		if (modelStackWithParam && modelStackWithParam->autoParam) {
+
+			if (modelStackWithParam->getTimelineCounter()
+			    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+
+				previousPadPressYDisplay[xDisplay] = yDisplay;
+				timeLastPadPress[xDisplay] = AudioEngine::audioSampleTimer;
+
+				if (previousKnobPosition[xDisplay] == kNoSelection) {
+					int32_t oldValue =
+					    modelStackWithParam->autoParam->getValuePossiblyAtPos(view.modPos, modelStackWithParam);
+					previousKnobPosition[xDisplay] =
+					    modelStackWithParam->paramCollection->paramValueToKnobPos(oldValue, modelStackWithParam);
+				}
+				currentKnobPosition[xDisplay] = calculateKnobPosForSinglePadPress(yDisplay);
+
+				int32_t newValue = modelStackWithParam->paramCollection->knobPosToParamValue(
+				    currentKnobPosition[xDisplay], modelStackWithParam);
+
+				modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, view.modPos,
+				                                                          view.modLength);
+
 				if ((lastSelectedParamKind == Param::Kind::UNPATCHED)
-				    && (lastSelectedParamID == Param::Unpatched::STUTTER_RATE)
-				    && (isUIModeActive(UI_MODE_STUTTERING))) {
+				    && (lastSelectedParamID == Param::Unpatched::STUTTER_RATE)) {
+					((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
+					    ->beginStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
+				}
+
+				int32_t valueForDisplay = calculateKnobPosForDisplay(currentKnobPosition[xDisplay] + kKnobPosOffset);
+
+				renderFXDisplay(lastSelectedParamKind, lastSelectedParamID, valueForDisplay);
+			}
+		}
+	}
+}
+
+void PerformanceSessionView::padReleaseAction(Param::Kind lastSelectedParamKind, int32_t lastSelectedParamID,
+                                              int32_t xDisplay, int32_t yDisplay) {
+	//if releasing a pad with "held" status shortly after being given that status
+	//or releasing a pad that was not in "held" status but was a longer press and release
+	if ((padPressHeld[xDisplay] && ((AudioEngine::audioSampleTimer - timeLastPadPress[xDisplay]) < kShortPressTime))
+	    || ((previousKnobPosition[xDisplay] != kNoSelection) && (previousPadPressYDisplay[xDisplay] == yDisplay)
+	        && ((AudioEngine::audioSampleTimer - timeLastPadPress[xDisplay]) >= kShortPressTime))) {
+		//ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(paramID);
+
+		ModelStackWithAutoParam* modelStackWithParam = nullptr;
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+
+		if (modelStackWithThreeMainThings) {
+			ParamCollectionSummary* summary =
+			    modelStackWithThreeMainThings->paramManager->getUnpatchedParamSetSummary();
+
+			if (summary) {
+				ParamSet* paramSet = (ParamSet*)summary->paramCollection;
+				modelStackWithParam = modelStackWithThreeMainThings->addParam(paramSet, summary, lastSelectedParamID,
+				                                                              &paramSet->params[lastSelectedParamID]);
+			}
+		}
+
+		if (modelStackWithParam && modelStackWithParam->autoParam) {
+
+			if (modelStackWithParam->getTimelineCounter()
+			    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+
+				if ((lastSelectedParamKind == Param::Kind::UNPATCHED)
+				    && (lastSelectedParamID == Param::Unpatched::STUTTER_RATE)) {
 					((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
 					    ->endStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
 				}
 
-				//ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(paramID);
+				int32_t oldValue = modelStackWithParam->paramCollection->knobPosToParamValue(
+				    previousKnobPosition[xDisplay], modelStackWithParam);
 
-				ModelStackWithAutoParam* modelStackWithParam = nullptr;
-				char modelStackMemory[MODEL_STACK_MAX_SIZE];
-				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-				    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+				modelStackWithParam->autoParam->setValuePossiblyForRegion(oldValue, modelStackWithParam, view.modPos,
+				                                                          view.modLength);
 
-				if (modelStackWithThreeMainThings) {
-					ParamCollectionSummary* summary =
-					    modelStackWithThreeMainThings->paramManager->getUnpatchedParamSetSummary();
+				int32_t valueForDisplay = calculateKnobPosForDisplay(previousKnobPosition[xDisplay] + kKnobPosOffset);
 
-					if (summary) {
-						ParamSet* paramSet = (ParamSet*)summary->paramCollection;
-						modelStackWithParam = modelStackWithThreeMainThings->addParam(
-						    paramSet, summary, lastSelectedParamID, &paramSet->params[lastSelectedParamID]);
-					}
-				}
+				renderFXDisplay(lastSelectedParamKind, lastSelectedParamID, valueForDisplay);
 
-				if (modelStackWithParam && modelStackWithParam->autoParam) {
-
-					if (modelStackWithParam->getTimelineCounter()
-					    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
-
-						previousPadPressYDisplay[xDisplay] = yDisplay;
-						timeLastPadPress[xDisplay] = AudioEngine::audioSampleTimer;
-
-						if (previousKnobPosition[xDisplay] == kNoSelection) {
-							int32_t oldValue =
-							    modelStackWithParam->autoParam->getValuePossiblyAtPos(view.modPos, modelStackWithParam);
-							previousKnobPosition[xDisplay] = modelStackWithParam->paramCollection->paramValueToKnobPos(
-							    oldValue, modelStackWithParam);
-						}
-						currentKnobPosition[xDisplay] = calculateKnobPosForSinglePadPress(yDisplay);
-
-						int32_t newValue = modelStackWithParam->paramCollection->knobPosToParamValue(
-						    currentKnobPosition[xDisplay], modelStackWithParam);
-
-						modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam,
-						                                                          view.modPos, view.modLength);
-
-						if ((lastSelectedParamKind == Param::Kind::UNPATCHED)
-						    && (lastSelectedParamID == Param::Unpatched::STUTTER_RATE)) {
-							((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
-							    ->beginStutter(
-							        (ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
-						}
-
-						int32_t valueForDisplay =
-						    calculateKnobPosForDisplay(currentKnobPosition[xDisplay] + kKnobPosOffset);
-
-						renderFXDisplay(lastSelectedParamKind, lastSelectedParamID, valueForDisplay);
-
-						goto renderPads;
-					}
-				}
+				previousPadPressYDisplay[xDisplay] = kNoSelection;
+				previousKnobPosition[xDisplay] = kNoSelection;
+				currentKnobPosition[xDisplay] = kNoSelection;
 			}
 		}
-		//releasing a pad
-		else {
-			//if releasing a pad with "held" status shortly after being given that status
-			//or releasing a pad that was not in "held" status but was a longer press and release
-			if ((padPressHeld[xDisplay]
-			     && ((AudioEngine::audioSampleTimer - timeLastPadPress[xDisplay]) < kShortPressTime))
-			    || ((previousKnobPosition[xDisplay] != kNoSelection) && (previousPadPressYDisplay[xDisplay] == yDisplay)
-			        && ((AudioEngine::audioSampleTimer - timeLastPadPress[xDisplay]) >= kShortPressTime))) {
-				//ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(paramID);
-
-				ModelStackWithAutoParam* modelStackWithParam = nullptr;
-				char modelStackMemory[MODEL_STACK_MAX_SIZE];
-				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-				    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-
-				if (modelStackWithThreeMainThings) {
-					ParamCollectionSummary* summary =
-					    modelStackWithThreeMainThings->paramManager->getUnpatchedParamSetSummary();
-
-					if (summary) {
-						ParamSet* paramSet = (ParamSet*)summary->paramCollection;
-						modelStackWithParam = modelStackWithThreeMainThings->addParam(
-						    paramSet, summary, lastSelectedParamID, &paramSet->params[lastSelectedParamID]);
-					}
-				}
-
-				if (modelStackWithParam && modelStackWithParam->autoParam) {
-
-					if (modelStackWithParam->getTimelineCounter()
-					    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
-
-						if ((lastSelectedParamKind == Param::Kind::UNPATCHED)
-						    && (lastSelectedParamID == Param::Unpatched::STUTTER_RATE)) {
-							((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
-							    ->endStutter(
-							        (ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
-						}
-
-						int32_t oldValue = modelStackWithParam->paramCollection->knobPosToParamValue(
-						    previousKnobPosition[xDisplay], modelStackWithParam);
-
-						modelStackWithParam->autoParam->setValuePossiblyForRegion(oldValue, modelStackWithParam,
-						                                                          view.modPos, view.modLength);
-
-						int32_t valueForDisplay =
-						    calculateKnobPosForDisplay(previousKnobPosition[xDisplay] + kKnobPosOffset);
-
-						renderFXDisplay(lastSelectedParamKind, lastSelectedParamID, valueForDisplay);
-
-						previousPadPressYDisplay[xDisplay] = kNoSelection;
-						previousKnobPosition[xDisplay] = kNoSelection;
-						currentKnobPosition[xDisplay] = kNoSelection;
-
-						goto renderPads;
-					}
-				}
-			}
-			//if releasing a pad that was quickly pressed, give it held status
-			else if ((previousKnobPosition[xDisplay] != kNoSelection)
-			         && (previousPadPressYDisplay[xDisplay] == yDisplay)
-			         && ((AudioEngine::audioSampleTimer - timeLastPadPress[xDisplay]) < kShortPressTime)) {
-				padPressHeld[xDisplay] = true;
-
-				goto renderPads;
-			}
-		}
-		goto done;
-renderPads:
-		uiNeedsRendering(this); //re-render pads
 	}
-
-done:
-	return ActionResult::DEALT_WITH;
+	//if releasing a pad that was quickly pressed, give it held status
+	else if ((previousKnobPosition[xDisplay] != kNoSelection) && (previousPadPressYDisplay[xDisplay] == yDisplay)
+	         && ((AudioEngine::audioSampleTimer - timeLastPadPress[xDisplay]) < kShortPressTime)) {
+		padPressHeld[xDisplay] = true;
+	}
 }
 
 //get's the modelstack for the parameters that are being edited
