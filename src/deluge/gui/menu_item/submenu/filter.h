@@ -22,7 +22,7 @@ namespace deluge::gui::menu_item::submenu {
 class Filter final : public Submenu {
 public:
 	using Submenu::Submenu;
-	bool isRelevant(Sound* sound, int32_t whichThing) override { return (true); }
+	bool isRelevant(Sound* sound, int32_t whichThing) override { return (sound->synthMode != SynthMode::FM); }
 };
 
 } // namespace deluge::gui::menu_item::submenu
