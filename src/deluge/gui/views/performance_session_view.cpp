@@ -321,7 +321,7 @@ void PerformanceSessionView::renderModeDisplay() {
 
 //Render Parameter Name and Value set when using Performance Pads
 void PerformanceSessionView::renderFXDisplay(Param::Kind lastSelectedParamKind, int32_t lastSelectedParamID,
-                                               int32_t knobPos) {
+                                             int32_t knobPos) {
 	if (display->haveOLED()) {
 		deluge::hid::display::OLED::clearMainImage();
 
@@ -334,13 +334,13 @@ void PerformanceSessionView::renderFXDisplay(Param::Kind lastSelectedParamKind, 
 			strncpy(parameterName, getGlobalEffectableParamDisplayName(lastSelectedParamID), 29);
 		}
 
-	#if OLED_MAIN_HEIGHT_PIXELS == 64
+#if OLED_MAIN_HEIGHT_PIXELS == 64
 		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
-	#else
+#else
 		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
-	#endif
+#endif
 		deluge::hid::display::OLED::drawStringCentred(parameterName, yPos, deluge::hid::display::OLED::oledMainImage[0],
-													OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+		                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 
 		//display parameter value
 		yPos = yPos + 24;
@@ -348,7 +348,7 @@ void PerformanceSessionView::renderFXDisplay(Param::Kind lastSelectedParamKind, 
 		char buffer[5];
 		intToString(knobPos, buffer);
 		deluge::hid::display::OLED::drawStringCentred(buffer, yPos, deluge::hid::display::OLED::oledMainImage[0],
-													OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+		                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 
 		deluge::hid::display::OLED::sendMainImage();
 	}
@@ -602,7 +602,7 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 
 						int32_t valueForDisplay =
 						    calculateKnobPosForDisplay(currentKnobPosition[xDisplay] + kKnobPosOffset);
-							
+
 						renderFXDisplay(lastSelectedParamKind, lastSelectedParamID, valueForDisplay);
 
 						goto renderPads;
@@ -641,18 +641,18 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 					if (modelStackWithParam->getTimelineCounter()
 					    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 
-						int32_t oldValue = modelStackWithParam->paramCollection->knobPosToParamValue(
-						    previousKnobPosition[xDisplay], modelStackWithParam);
-
-						modelStackWithParam->autoParam->setValuePossiblyForRegion(oldValue, modelStackWithParam,
-						                                                          view.modPos, view.modLength);
-
 						if ((lastSelectedParamKind == Param::Kind::UNPATCHED)
 						    && (lastSelectedParamID == Param::Unpatched::STUTTER_RATE)) {
 							((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
 							    ->endStutter(
 							        (ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
 						}
+
+						int32_t oldValue = modelStackWithParam->paramCollection->knobPosToParamValue(
+						    previousKnobPosition[xDisplay], modelStackWithParam);
+
+						modelStackWithParam->autoParam->setValuePossiblyForRegion(oldValue, modelStackWithParam,
+						                                                          view.modPos, view.modLength);
 
 						int32_t valueForDisplay =
 						    calculateKnobPosForDisplay(previousKnobPosition[xDisplay] + kKnobPosOffset);
