@@ -82,10 +82,8 @@ private:
 	void setCentralLEDStates();
 
 	//pad action
-	void padPressAction(Param::Kind lastSelectedParamKind, int32_t lastSelectedParamID, int32_t xDisplay,
-	                    int32_t yDisplay);
-	void padReleaseAction(Param::Kind lastSelectedParamKind, int32_t lastSelectedParamID, int32_t xDisplay,
-	                      int32_t yDisplay);
+	void padPressAction(int32_t xDisplay, int32_t yDisplay);
+	void padReleaseAction(int32_t xDisplay, int32_t yDisplay);
 
 	ModelStackWithAutoParam* getModelStackWithParam(int32_t paramID);
 	int32_t calculateKnobPosForSinglePadPress(int32_t yDisplay);
