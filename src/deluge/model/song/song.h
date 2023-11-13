@@ -330,6 +330,7 @@ public:
 	int32_t masterCompressorRelease;
 	int32_t masterCompressorThresh;
 	int32_t masterCompressorRatio;
+	int32_t masterCompressorSidechain;
 
 private:
 	bool fillModeActive;

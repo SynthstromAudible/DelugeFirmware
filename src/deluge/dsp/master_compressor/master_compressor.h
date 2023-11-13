@@ -19,18 +19,17 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp/compressor/compressor.h"
+#include "dsp/filter/ladder_components.h"
 #include "util/functions.h"
 
-#define INLINE inline
 #include <algorithm> // for min(), max()
 #include <cassert>   // for assert()
 #include <cmath>
-#include <cstdint>
 
 class MasterCompressor {
 public:
 	MasterCompressor();
-	void setup(int32_t attack, int32_t release, int32_t threshold, int32_t ratio);
+	void setup(q31_t attack, q31_t release, q31_t threshold, q31_t ratio, q31_t sidechain_fc);
 
 	void render(StereoSample* buffer, uint16_t numSamples, q31_t volAdjustL, q31_t volAdjustR);
 	float runEnvelope(float in, float numSamples);
@@ -60,10 +59,22 @@ public:
 		updateER();
 	}
 	q31_t getRatio() { return ratioKnobPos; }
-	q31_t setRatio(q31_t rat) {
+	int32_t setRatio(q31_t rat) {
 		ratioKnobPos = rat;
 		ratio = 0.5 + (float(ratioKnobPos) / ONE_Q31f) / 2;
 		return 1 / (1 - ratio);
+	}
+	q31_t getSidechain() { return sideChainKnobPos; }
+
+	int32_t setSidechain(q31_t f) {
+		sideChainKnobPos = f;
+		//this exp will be between 1 and 5ish, half the knob range is about 2
+		//the result will then be from 0 to 100hz with half the knob range at 60hz
+		float fc_hz = (exp(1.5 * float(f) / ONE_Q31f) - 1) * 30;
+		float fc = fc_hz / float(kSampleRate);
+		float wc = fc / (1 + fc);
+		a = wc * ONE_Q31;
+		return fc_hz;
 	}
 
 	void updateER();
@@ -78,6 +89,7 @@ private:
 	float er;
 	float threshdb;
 	float threshold;
+	q31_t a;
 
 	//state
 	float state;
@@ -86,6 +98,9 @@ private:
 	float rms;
 	float mean;
 
+	//sidechain filter
+	deluge::dsp::filter::BasicFilterComponent hpfL;
+	deluge::dsp::filter::BasicFilterComponent hpfR;
 	//for display
 	float attackMS;
 	float releaseMS;
@@ -95,4 +110,5 @@ private:
 	q31_t ratioKnobPos;
 	q31_t attackKnobPos;
 	q31_t releaseKnobPos;
+	q31_t sideChainKnobPos;
 };
