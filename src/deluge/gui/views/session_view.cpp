@@ -560,8 +560,6 @@ doActualSimpleChange:
 			}
 
 			changeRootUI(&performanceSessionView);
-
-			performanceSessionView.renderViewDisplay();
 		}
 	}
 	else {

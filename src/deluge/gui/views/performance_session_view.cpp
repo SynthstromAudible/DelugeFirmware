@@ -127,6 +127,7 @@ PerformanceSessionView::PerformanceSessionView() {
 	xScrollBeforeFollowingAutoExtendingLinearRecording = -1;
 	successfullyReadDefaultsFromFile = false;
 	anyChangesToSave = false;
+	defaultEditingMode = false;
 
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		previousKnobPosition[xDisplay] = kNoSelection;
@@ -172,6 +173,10 @@ void PerformanceSessionView::focusRegained() {
 	setLedStates();
 
 	currentSong->lastClipInstanceEnteredStartPos = -1;
+
+	if (display->have7SEG()) {
+		redrawNumericDisplay();
+	}
 
 	uiNeedsRendering(this);
 }
@@ -290,25 +295,53 @@ bool PerformanceSessionView::renderSidebar(uint32_t whichRows, uint8_t image[][k
 
 //render performance view display on opening
 void PerformanceSessionView::renderViewDisplay() {
-	if (display->haveOLED()) {
-		deluge::hid::display::OLED::clearMainImage();
+	if (defaultEditingMode) {
+		if (display->haveOLED()) {
+			deluge::hid::display::OLED::clearMainImage();
 
-#if OLED_MAIN_HEIGHT_PIXELS == 64
-		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
-#else
-		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
-#endif
+	#if OLED_MAIN_HEIGHT_PIXELS == 64
+			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
+	#else
+			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
+	#endif
 
-		yPos = yPos + 12;
+			deluge::hid::display::OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_PERFORMANCE), yPos,
+														deluge::hid::display::OLED::oledMainImage[0],
+														OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 
-		deluge::hid::display::OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_PERFORMANCE), yPos,
-		                                              deluge::hid::display::OLED::oledMainImage[0],
-		                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+			yPos = yPos + 24;
 
-		deluge::hid::display::OLED::sendMainImage();
+			deluge::hid::display::OLED::drawStringCentred("Editing Mode", yPos,
+														deluge::hid::display::OLED::oledMainImage[0],
+														OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);	
+
+			deluge::hid::display::OLED::sendMainImage();	
+		}
+		else {
+			display->setScrollingText("Editing Mode");
+		}
 	}
 	else {
-		display->setScrollingText(l10n::get(l10n::String::STRING_FOR_PERFORMANCE));
+		if (display->haveOLED()) {
+			deluge::hid::display::OLED::clearMainImage();
+
+	#if OLED_MAIN_HEIGHT_PIXELS == 64
+			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
+	#else
+			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
+	#endif
+
+			yPos = yPos + 12;
+
+			deluge::hid::display::OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_PERFORMANCE), yPos,
+														deluge::hid::display::OLED::oledMainImage[0],
+														OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);			
+
+			deluge::hid::display::OLED::sendMainImage();
+		}
+		else {
+			display->setScrollingText(l10n::get(l10n::String::STRING_FOR_PERFORMANCE));
+		}
 	}
 }
 
@@ -334,8 +367,16 @@ void PerformanceSessionView::renderFXDisplay(Param::Kind paramKind, int32_t para
 		deluge::hid::display::OLED::drawStringCentred(parameterName, yPos, deluge::hid::display::OLED::oledMainImage[0],
 		                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 
+		//display Editing Mode if enabled
+		yPos = yPos + 12;
+
+		if (defaultEditingMode) {
+			deluge::hid::display::OLED::drawStringCentred("(Editing Mode)", yPos, deluge::hid::display::OLED::oledMainImage[0],
+														OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);	
+		}
+
 		//display parameter value
-		yPos = yPos + 24;
+		yPos = yPos + 12;
 
 		char buffer[5];
 		intToString(knobPos, buffer);
@@ -353,6 +394,12 @@ void PerformanceSessionView::renderFXDisplay(Param::Kind paramKind, int32_t para
 }
 
 void PerformanceSessionView::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
+	renderViewDisplay();
+	return;
+}
+
+void PerformanceSessionView::redrawNumericDisplay() {
+	renderViewDisplay();
 	return;
 }
 
@@ -476,15 +523,6 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 		}
 	}
 
-	// Select encoder button
-	else if (b == SELECT_ENC && !Buttons::isShiftButtonPressed()) {
-		if (on) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
-		}
-	}
-
 	// Keyboard button
 	else if (b == KEYBOARD) {
 		if (on && ((currentUIMode == UI_MODE_NONE) || isUIModeActive(UI_MODE_STUTTERING))) {
@@ -515,6 +553,22 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 		if (on) {
 			readDefaultsFromFile();
 			display->displayPopup("Defaults Loaded");
+		}
+	}
+
+	//toggle default value editing mode on/off
+
+	else if (b == SELECT_ENC) {
+		if (on) {
+			if (defaultEditingMode) {
+				defaultEditingMode = false;
+				display->displayPopup("Editor Off");
+			}
+			else {
+				defaultEditingMode = true;
+				display->displayPopup("Editor On");
+			}
+			renderViewDisplay();
 		}
 	}
 
@@ -676,9 +730,9 @@ void PerformanceSessionView::releaseStutter(ModelStackWithThreeMainThings* model
 }
 
 void PerformanceSessionView::writeDefaultsToFile() {
-	//	if (!anyChangesToSave) {
-	//		return;
-	//	}
+	if (!anyChangesToSave) {
+		return;
+	}
 
 	int32_t error = storageManager.createXMLFile("PerformanceView.XML", true);
 	if (error) {
@@ -724,6 +778,7 @@ void PerformanceSessionView::writeDefaultFXRowValuesToFile(int32_t xDisplay) {
 	storageManager.writeOpeningTagBeginning("row");
 	storageManager.writeOpeningTagEnd();
 	char rowNumber[5];
+	//creates tags from row 8 down to row 1
 	for (int32_t yDisplay = kDisplayHeight - 1; yDisplay >= 0; yDisplay--) {
 		intToString(yDisplay + 1, rowNumber);
 		storageManager.writeTag(rowNumber, defaultFXValues[xDisplay][yDisplay] + kKnobPosOffset);
@@ -799,6 +854,7 @@ void PerformanceSessionView::readDefaultFXRowNumberValuesFromFile(int32_t xDispl
 	//loop through all row number tags
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 		//find the row number that the tag corresponds to
+		//reads from row 8 down to row 1
 		for (int32_t yDisplay = kDisplayHeight - 1; yDisplay >= 0; yDisplay--) {
 			intToString(yDisplay + 1, rowNumber);
 			if (!strcmp(tagName, rowNumber)) {
@@ -875,7 +931,7 @@ uint32_t PerformanceSessionView::getMaxLength() {
 	return currentSong->getLongestClip(true, false)->loopLength;
 }
 
-void PerformanceSessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
+void PerformanceSessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {	
 	if (getCurrentUI() == this) { //This routine may also be called from the Arranger view
 		ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
 	}

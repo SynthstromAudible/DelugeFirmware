@@ -46,6 +46,8 @@ public:
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 	void renderViewDisplay();
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
+	// 7SEG only
+	void redrawNumericDisplay();
 	void setLedStates();
 
 	//button action
@@ -110,6 +112,7 @@ private:
 	uint32_t timeLastPadPress[kDisplayWidth];
 	bool padPressHeld[kDisplayWidth];
 	int32_t defaultFXValues[kDisplayWidth][kDisplayHeight];
+	bool defaultEditingMode;
 
 	// Members regarding rendering different layouts
 private:
