@@ -1380,6 +1380,7 @@ int32_t StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip,
 
 	AudioEngine::logAction("loadInstrumentFromFile");
 	Debug::print("opening instrument file - ");
+	Debug::print(dirPath->get());
 	Debug::print(name->get());
 	Debug::print(" from FP ");
 	Debug::println((int32_t)filePointer->sclust);
