@@ -89,6 +89,16 @@ private:
 	void resetPerformanceView(ModelStackWithThreeMainThings* modelStack);
 	void releaseStutter(ModelStackWithThreeMainThings* modelStack);
 
+	//write/load default values
+	void writeDefaultsToFile();
+	void writeDefaultFXValuesToFile();
+	void writeDefaultFXRowValuesToFile(int32_t xDisplay);
+	void readDefaultsFromFile();
+	void readDefaultFXValuesFromFile();
+	void readDefaultFXRowValuesFromFile(int32_t xDisplay);
+	bool successfullyReadDefaultsFromFile;
+	bool anyChangesToSave;
+
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithThreeMainThings* modelStack, int32_t paramID);
 	int32_t calculateKnobPosForSinglePadPress(int32_t yDisplay);
 	int32_t calculateKnobPosForDisplay(int32_t knobPos);
@@ -98,6 +108,7 @@ private:
 	int32_t previousPadPressYDisplay[kDisplayWidth];
 	uint32_t timeLastPadPress[kDisplayWidth];
 	bool padPressHeld[kDisplayWidth];
+	int32_t defaultFXValues[kDisplayWidth][kDisplayHeight];
 
 	// Members regarding rendering different layouts
 private:

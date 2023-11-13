@@ -125,6 +125,8 @@ PerformanceSessionView performanceSessionView{};
 
 PerformanceSessionView::PerformanceSessionView() {
 	xScrollBeforeFollowingAutoExtendingLinearRecording = -1;
+	successfullyReadDefaultsFromFile = false;
+	anyChangesToSave = false;
 
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		previousKnobPosition[xDisplay] = kNoSelection;
@@ -132,6 +134,11 @@ PerformanceSessionView::PerformanceSessionView() {
 		previousPadPressYDisplay[xDisplay] = kNoSelection;
 		timeLastPadPress[xDisplay] = 0;
 		padPressHeld[xDisplay] = false;
+
+		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+			int32_t defaultFXValue = calculateKnobPosForSinglePadPress(yDisplay);
+			defaultFXValues[xDisplay][yDisplay] = defaultFXValue;
+		}
 	}
 }
 
@@ -261,27 +268,13 @@ void PerformanceSessionView::renderRow(uint8_t* image, uint8_t occupancyMask[], 
 			memcpy(pixel, &rowTailColour[xDisplay], 3);
 		}
 
-		if (currentKnobPosition[xDisplay] != kNoSelection) {
-			//the following code checks if the current knob position corresponds to the value ranges
-			//of each pad in a column (e.g. 0 - 15, 16 - 31, 32 - 47, 48 - 63, 64 - 79, 80 - 95, 96 - 111, 112 - 128)
-			//it does so by diving the grid into intervals of 16 and diving the current knob position by the interval
-			//will indicate which pad yDisplay should be highlighted (the exception being 128 which needs to be checked
-			//separately)
-			if ((yDisplay == (kDisplayHeight - 1))
-			    && ((currentKnobPosition[xDisplay] + kKnobPosOffset) == kMaxKnobPos)) {
-				goto highlightPad;
-			}
-			else if (((currentKnobPosition[xDisplay] + kKnobPosOffset) / kParamValueIncrementForAutomationDisplay)
-			         == yDisplay) {
-				goto highlightPad;
-			}
-			goto finishRender;
-highlightPad:
+		if ((currentKnobPosition[xDisplay] == defaultFXValues[xDisplay][yDisplay])
+		    && (previousPadPressYDisplay[xDisplay] == yDisplay)) {
 			pixel[0] = 130;
 			pixel[1] = 120;
 			pixel[2] = 130;
 		}
-finishRender:
+
 		occupancyMask[xDisplay] = 64;
 	}
 }
@@ -396,7 +389,8 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 
 	// Clip-view button
 	if (b == CLIP_VIEW) {
-		if (on && ((currentUIMode == UI_MODE_NONE) || isUIModeActive(UI_MODE_STUTTERING)) && playbackHandler.recording != RECORDING_ARRANGEMENT) {
+		if (on && ((currentUIMode == UI_MODE_NONE) || isUIModeActive(UI_MODE_STUTTERING))
+		    && playbackHandler.recording != RECORDING_ARRANGEMENT) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
@@ -510,6 +504,21 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 		}
 	}
 
+	else if (b == SAVE) {
+		if (on) {
+			anyChangesToSave = true;
+			writeDefaultsToFile();
+			display->displayPopup("Defaults Saved");
+		}
+	}
+
+	else if (b == LOAD) {
+		if (on) {
+			readDefaultsFromFile();
+			display->displayPopup("Defaults Loaded");
+		}
+	}
+
 	else {
 notDealtWith:
 		return TimelineView::buttonAction(b, on, inCardRoutine);
@@ -588,7 +597,7 @@ void PerformanceSessionView::padPressAction(ModelStackWithThreeMainThings* model
 				previousKnobPosition[xDisplay] =
 				    modelStackWithParam->paramCollection->paramValueToKnobPos(oldValue, modelStackWithParam);
 			}
-			currentKnobPosition[xDisplay] = calculateKnobPosForSinglePadPress(yDisplay);
+			currentKnobPosition[xDisplay] = defaultFXValues[xDisplay][yDisplay];
 
 			int32_t newValue = modelStackWithParam->paramCollection->knobPosToParamValue(currentKnobPosition[xDisplay],
 			                                                                             modelStackWithParam);
@@ -664,6 +673,227 @@ void PerformanceSessionView::resetPerformanceView(ModelStackWithThreeMainThings*
 void PerformanceSessionView::releaseStutter(ModelStackWithThreeMainThings* modelStack) {
 	if (isUIModeActive(UI_MODE_STUTTERING)) {
 		padReleaseAction(modelStack, Param::Kind::UNPATCHED, Param::Unpatched::STUTTER_RATE, kDisplayWidth - 1, false);
+	}
+}
+
+void PerformanceSessionView::writeDefaultsToFile() {
+	if (!anyChangesToSave) {
+		return;
+	}
+
+	int32_t error = storageManager.createXMLFile("PerformanceView.XML", true);
+	if (error) {
+		return;
+	}
+
+	storageManager.writeOpeningTagBeginning("defaults");
+	storageManager.writeOpeningTagEnd();
+
+	storageManager.writeOpeningTagBeginning("defaultFXValues");
+	storageManager.writeOpeningTagEnd();
+
+	writeDefaultFXValuesToFile();
+
+	storageManager.writeClosingTag("defaultFXValues");
+
+	storageManager.writeClosingTag("defaults");
+
+	storageManager.closeFileAfterWriting();
+
+	anyChangesToSave = false;
+}
+
+void PerformanceSessionView::writeDefaultFXValuesToFile() {
+	storageManager.writeOpeningTagBeginning("FX1");
+	writeDefaultFXRowValuesToFile(0);
+	storageManager.writeClosingTag("FX1");
+
+	storageManager.writeOpeningTagBeginning("FX2");
+	writeDefaultFXRowValuesToFile(1);
+	storageManager.writeClosingTag("FX2");
+
+	storageManager.writeOpeningTagBeginning("FX3");
+	writeDefaultFXRowValuesToFile(2);
+	storageManager.writeClosingTag("FX3");
+
+	storageManager.writeOpeningTagBeginning("FX4");
+	writeDefaultFXRowValuesToFile(3);
+	storageManager.writeClosingTag("FX4");
+
+	storageManager.writeOpeningTagBeginning("FX5");
+	writeDefaultFXRowValuesToFile(4);
+	storageManager.writeClosingTag("FX5");
+
+	storageManager.writeOpeningTagBeginning("FX6");
+	writeDefaultFXRowValuesToFile(5);
+	storageManager.writeClosingTag("FX6");
+
+	storageManager.writeOpeningTagBeginning("FX7");
+	writeDefaultFXRowValuesToFile(6);
+	storageManager.writeClosingTag("FX7");
+
+	storageManager.writeOpeningTagBeginning("FX8");
+	writeDefaultFXRowValuesToFile(7);
+	storageManager.writeClosingTag("FX8");
+
+	storageManager.writeOpeningTagBeginning("FX9");
+	writeDefaultFXRowValuesToFile(8);
+	storageManager.writeClosingTag("FX9");
+
+	storageManager.writeOpeningTagBeginning("FX10");
+	writeDefaultFXRowValuesToFile(9);
+	storageManager.writeClosingTag("FX10");
+
+	storageManager.writeOpeningTagBeginning("FX11");
+	writeDefaultFXRowValuesToFile(10);
+	storageManager.writeClosingTag("FX11");
+
+	storageManager.writeOpeningTagBeginning("FX12");
+	writeDefaultFXRowValuesToFile(11);
+	storageManager.writeClosingTag("FX12");
+
+	storageManager.writeOpeningTagBeginning("FX13");
+	writeDefaultFXRowValuesToFile(12);
+	storageManager.writeClosingTag("FX13");
+
+	storageManager.writeOpeningTagBeginning("FX14");
+	writeDefaultFXRowValuesToFile(13);
+	storageManager.writeClosingTag("FX14");
+
+	storageManager.writeOpeningTagBeginning("FX15");
+	writeDefaultFXRowValuesToFile(14);
+	storageManager.writeClosingTag("FX15");
+
+	storageManager.writeOpeningTagBeginning("FX16");
+	writeDefaultFXRowValuesToFile(15);
+	storageManager.writeClosingTag("FX16");
+}
+
+void PerformanceSessionView::writeDefaultFXRowValuesToFile(int32_t xDisplay) {
+	storageManager.writeAttribute("8", defaultFXValues[xDisplay][7] + kKnobPosOffset);
+	storageManager.writeAttribute("7", defaultFXValues[xDisplay][6] + kKnobPosOffset);
+	storageManager.writeAttribute("6", defaultFXValues[xDisplay][5] + kKnobPosOffset);
+	storageManager.writeAttribute("5", defaultFXValues[xDisplay][4] + kKnobPosOffset);
+	storageManager.writeAttribute("4", defaultFXValues[xDisplay][3] + kKnobPosOffset);
+	storageManager.writeAttribute("3", defaultFXValues[xDisplay][2] + kKnobPosOffset);
+	storageManager.writeAttribute("2", defaultFXValues[xDisplay][1] + kKnobPosOffset);
+	storageManager.writeAttribute("1", defaultFXValues[xDisplay][0] + kKnobPosOffset);
+}
+
+void PerformanceSessionView::readDefaultsFromFile() {
+	if (successfullyReadDefaultsFromFile) {
+		return; // Yup, we only want to do this once
+	}
+
+	FilePointer fp;
+	bool success = storageManager.fileExists("PerformanceView.XML", &fp);
+	if (!success) {
+		return;
+	}
+
+	int32_t error = storageManager.openXMLFile(&fp, "defaults");
+	if (error) {
+		return;
+	}
+
+	char const* tagName;
+	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+		if (!strcmp(tagName, "defaultFXValues")) {
+			readDefaultFXValuesFromFile();
+		}
+		storageManager.exitTag();
+	}
+
+	storageManager.closeFile();
+
+	successfullyReadDefaultsFromFile = true;
+}
+
+void PerformanceSessionView::readDefaultFXValuesFromFile() {
+	char const* tagName;
+	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+		if (!strcmp(tagName, "FX1")) {
+			readDefaultFXRowValuesFromFile(0);
+		}
+		else if (!strcmp(tagName, "FX2")) {
+			readDefaultFXRowValuesFromFile(1);
+		}
+		else if (!strcmp(tagName, "FX3")) {
+			readDefaultFXRowValuesFromFile(2);
+		}
+		else if (!strcmp(tagName, "FX4")) {
+			readDefaultFXRowValuesFromFile(3);
+		}
+		else if (!strcmp(tagName, "FX5")) {
+			readDefaultFXRowValuesFromFile(4);
+		}
+		else if (!strcmp(tagName, "FX6")) {
+			readDefaultFXRowValuesFromFile(5);
+		}
+		else if (!strcmp(tagName, "FX7")) {
+			readDefaultFXRowValuesFromFile(6);
+		}
+		else if (!strcmp(tagName, "FX8")) {
+			readDefaultFXRowValuesFromFile(7);
+		}
+		else if (!strcmp(tagName, "FX9")) {
+			readDefaultFXRowValuesFromFile(8);
+		}
+		else if (!strcmp(tagName, "FX10")) {
+			readDefaultFXRowValuesFromFile(9);
+		}
+		else if (!strcmp(tagName, "FX11")) {
+			readDefaultFXRowValuesFromFile(10);
+		}
+		else if (!strcmp(tagName, "FX12")) {
+			readDefaultFXRowValuesFromFile(11);
+		}
+		else if (!strcmp(tagName, "FX13")) {
+			readDefaultFXRowValuesFromFile(12);
+		}
+		else if (!strcmp(tagName, "FX14")) {
+			readDefaultFXRowValuesFromFile(13);
+		}
+		else if (!strcmp(tagName, "FX15")) {
+			readDefaultFXRowValuesFromFile(14);
+		}
+		else if (!strcmp(tagName, "FX16")) {
+			readDefaultFXRowValuesFromFile(15);
+		}
+
+		storageManager.exitTag();
+	}
+}
+
+void PerformanceSessionView::readDefaultFXRowValuesFromFile(int32_t xDisplay) {
+	char const* tagName;
+	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+		if (!strcmp(tagName, "1")) {
+			defaultFXValues[xDisplay][0] = storageManager.readTagOrAttributeValueInt() - kKnobPosOffset;
+		}
+		else if (!strcmp(tagName, "2")) {
+			defaultFXValues[xDisplay][1] = storageManager.readTagOrAttributeValueInt() - kKnobPosOffset;
+		}
+		else if (!strcmp(tagName, "3")) {
+			defaultFXValues[xDisplay][2] = storageManager.readTagOrAttributeValueInt() - kKnobPosOffset;
+		}
+		else if (!strcmp(tagName, "4")) {
+			defaultFXValues[xDisplay][3] = storageManager.readTagOrAttributeValueInt() - kKnobPosOffset;
+		}
+		else if (!strcmp(tagName, "5")) {
+			defaultFXValues[xDisplay][4] = storageManager.readTagOrAttributeValueInt() - kKnobPosOffset;
+		}
+		else if (!strcmp(tagName, "6")) {
+			defaultFXValues[xDisplay][5] = storageManager.readTagOrAttributeValueInt() - kKnobPosOffset;
+		}
+		else if (!strcmp(tagName, "7")) {
+			defaultFXValues[xDisplay][6] = storageManager.readTagOrAttributeValueInt() - kKnobPosOffset;
+		}
+		else if (!strcmp(tagName, "8")) {
+			defaultFXValues[xDisplay][7] = storageManager.readTagOrAttributeValueInt() - kKnobPosOffset;
+		}
+
+		storageManager.exitTag();
 	}
 }
 
