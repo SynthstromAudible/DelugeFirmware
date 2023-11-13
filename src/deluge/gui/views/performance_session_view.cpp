@@ -655,7 +655,7 @@ void PerformanceSessionView::resetPerformanceView(ModelStackWithThreeMainThings*
 			padReleaseAction(modelStack, lastSelectedParamKind, lastSelectedParamID, xDisplay, false);
 		}
 	}
-	renderModeDisplay();
+	renderViewDisplay();
 	uiNeedsRendering(this);
 }
 
