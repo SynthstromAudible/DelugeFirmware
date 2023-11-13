@@ -296,7 +296,7 @@ bool PerformanceSessionView::renderSidebar(uint32_t whichRows, uint8_t image[][k
 }
 
 //render performance view display on opening
-void PerformanceSessionView::renderModeDisplay() {
+void PerformanceSessionView::renderViewDisplay() {
 	if (display->haveOLED()) {
 		deluge::hid::display::OLED::clearMainImage();
 
@@ -320,18 +320,17 @@ void PerformanceSessionView::renderModeDisplay() {
 }
 
 //Render Parameter Name and Value set when using Performance Pads
-void PerformanceSessionView::renderFXDisplay(Param::Kind lastSelectedParamKind, int32_t lastSelectedParamID,
-                                             int32_t knobPos) {
+void PerformanceSessionView::renderFXDisplay(Param::Kind paramKind, int32_t paramID, int32_t knobPos) {
 	if (display->haveOLED()) {
 		deluge::hid::display::OLED::clearMainImage();
 
 		//display parameter name
 		char parameterName[30];
-		if (lastSelectedParamKind == Param::Kind::UNPATCHED) {
-			strncpy(parameterName, getUnpatchedParamDisplayName(lastSelectedParamID), 29);
+		if (paramKind == Param::Kind::UNPATCHED) {
+			strncpy(parameterName, getUnpatchedParamDisplayName(paramID), 29);
 		}
-		else if (lastSelectedParamKind == Param::Kind::GLOBAL_EFFECTABLE) {
-			strncpy(parameterName, getGlobalEffectableParamDisplayName(lastSelectedParamID), 29);
+		else if (paramKind == Param::Kind::GLOBAL_EFFECTABLE) {
+			strncpy(parameterName, getGlobalEffectableParamDisplayName(paramID), 29);
 		}
 
 #if OLED_MAIN_HEIGHT_PIXELS == 64
@@ -392,7 +391,8 @@ void PerformanceSessionView::setCentralLEDStates() {
 ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
-	InstrumentType newInstrumentType;
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* modelStack = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
 	// Clip-view button
 	if (b == CLIP_VIEW) {
@@ -501,26 +501,12 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 		}
 	}
 
-	//WIP clear and reset params
-	/*else if (b == BACK && currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
+	//clear and reset held params
+	else if (b == BACK && currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
 		if (on) {
-			for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
-				previousKnobPosition[xDisplay] = kNoSelection;
-				currentKnobPosition[xDisplay] = kNoSelection;
-				previousPadPressYDisplay[xDisplay] = kNoSelection;
-				timeLastPadPress[xDisplay] = 0;
-				padPressHeld[xDisplay] = false;
-			}
-
-			// If also stuttering, stop that
-			if (isUIModeActive(UI_MODE_STUTTERING)) {
-				((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
-					->endStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
-			}
-			
-			uiNeedsRendering(this);
+			resetPerformanceView(modelStack);
 		}
-	}*/
+	}
 
 	else {
 notDealtWith:
@@ -533,6 +519,10 @@ notDealtWith:
 ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDisplay, int32_t on) {
 	//if pad was pressed in main deluge grid (not sidebar)
 	if (xDisplay < kDisplayWidth) {
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithThreeMainThings* modelStack =
+		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+
 		//obtain Param::Kind and ParamID corresponding to the column pressed on performance grid
 		auto [kind, id] = songParamsForPerformance[xDisplay];
 		Param::Kind lastSelectedParamKind = kind;
@@ -542,7 +532,7 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 		if (on) {
 			//no need to pad press action if you've already processed it previously and pad was held
 			if (previousPadPressYDisplay[xDisplay] != yDisplay) {
-				padPressAction(lastSelectedParamKind, lastSelectedParamID, xDisplay, yDisplay);
+				padPressAction(modelStack, lastSelectedParamKind, lastSelectedParamID, xDisplay, yDisplay);
 			}
 		}
 		//releasing a pad
@@ -553,7 +543,7 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 			     && ((AudioEngine::audioSampleTimer - timeLastPadPress[xDisplay]) < kShortPressTime))
 			    || ((previousKnobPosition[xDisplay] != kNoSelection) && (previousPadPressYDisplay[xDisplay] == yDisplay)
 			        && ((AudioEngine::audioSampleTimer - timeLastPadPress[xDisplay]) >= kShortPressTime))) {
-				padReleaseAction(lastSelectedParamKind, lastSelectedParamID, xDisplay, yDisplay);
+				padReleaseAction(modelStack, lastSelectedParamKind, lastSelectedParamID, xDisplay);
 			}
 			//if releasing a pad that was quickly pressed, give it held status
 			else if ((previousKnobPosition[xDisplay] != kNoSelection)
@@ -567,35 +557,20 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 	return ActionResult::DEALT_WITH;
 }
 
-void PerformanceSessionView::padPressAction(Param::Kind lastSelectedParamKind, int32_t lastSelectedParamID,
-                                            int32_t xDisplay, int32_t yDisplay) {
+void PerformanceSessionView::padPressAction(ModelStackWithThreeMainThings* modelStack, Param::Kind paramKind,
+                                            int32_t paramID, int32_t xDisplay, int32_t yDisplay, bool renderDisplay) {
 	//if pressing a new pad in a column, reset held status
 	padPressHeld[xDisplay] = false;
 
 	//if switching to a new pad in the stutter column and stuttering is already active
 	//e.g. it means a pad was held before, end previous stutter before starting stutter again
-	if ((lastSelectedParamKind == Param::Kind::UNPATCHED) && (lastSelectedParamID == Param::Unpatched::STUTTER_RATE)
+	if ((paramKind == Param::Kind::UNPATCHED) && (paramID == Param::Unpatched::STUTTER_RATE)
 	    && (isUIModeActive(UI_MODE_STUTTERING))) {
 		((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
 		    ->endStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
 	}
 
-	//ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(paramID);
-
-	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-	    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-
-	if (modelStackWithThreeMainThings) {
-		ParamCollectionSummary* summary = modelStackWithThreeMainThings->paramManager->getUnpatchedParamSetSummary();
-
-		if (summary) {
-			ParamSet* paramSet = (ParamSet*)summary->paramCollection;
-			modelStackWithParam = modelStackWithThreeMainThings->addParam(paramSet, summary, lastSelectedParamID,
-			                                                              &paramSet->params[lastSelectedParamID]);
-		}
-	}
+	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, paramID);
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 
@@ -619,45 +594,32 @@ void PerformanceSessionView::padPressAction(Param::Kind lastSelectedParamKind, i
 			modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, view.modPos,
 			                                                          view.modLength);
 
-			if ((lastSelectedParamKind == Param::Kind::UNPATCHED)
-			    && (lastSelectedParamID == Param::Unpatched::STUTTER_RATE)) {
+			if ((paramKind == Param::Kind::UNPATCHED) && (paramID == Param::Unpatched::STUTTER_RATE)) {
 				((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
 				    ->beginStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
 			}
 
 			int32_t valueForDisplay = calculateKnobPosForDisplay(currentKnobPosition[xDisplay] + kKnobPosOffset);
 
-			renderFXDisplay(lastSelectedParamKind, lastSelectedParamID, valueForDisplay);
+			if (renderDisplay) {
+				renderFXDisplay(paramKind, paramID, valueForDisplay);
+			}
 		}
 	}
 }
 
-void PerformanceSessionView::padReleaseAction(Param::Kind lastSelectedParamKind, int32_t lastSelectedParamID,
-                                              int32_t xDisplay, int32_t yDisplay) {
-	//ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(paramID);
+void PerformanceSessionView::padReleaseAction(ModelStackWithThreeMainThings* modelStack, Param::Kind paramKind,
+                                              int32_t paramID, int32_t xDisplay, bool renderDisplay) {
 
-	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-	    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-
-	if (modelStackWithThreeMainThings) {
-		ParamCollectionSummary* summary = modelStackWithThreeMainThings->paramManager->getUnpatchedParamSetSummary();
-
-		if (summary) {
-			ParamSet* paramSet = (ParamSet*)summary->paramCollection;
-			modelStackWithParam = modelStackWithThreeMainThings->addParam(paramSet, summary, lastSelectedParamID,
-			                                                              &paramSet->params[lastSelectedParamID]);
-		}
-	}
+	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, paramID);
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 
 		if (modelStackWithParam->getTimelineCounter()
 		    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 
-			if ((lastSelectedParamKind == Param::Kind::UNPATCHED)
-			    && (lastSelectedParamID == Param::Unpatched::STUTTER_RATE)) {
+			if ((paramKind == Param::Kind::UNPATCHED) && (paramID == Param::Unpatched::STUTTER_RATE)
+			    && (isUIModeActive(UI_MODE_STUTTERING))) {
 				((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
 				    ->endStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
 			}
@@ -670,7 +632,9 @@ void PerformanceSessionView::padReleaseAction(Param::Kind lastSelectedParamKind,
 
 			int32_t valueForDisplay = calculateKnobPosForDisplay(previousKnobPosition[xDisplay] + kKnobPosOffset);
 
-			renderFXDisplay(lastSelectedParamKind, lastSelectedParamID, valueForDisplay);
+			if (renderDisplay) {
+				renderFXDisplay(paramKind, paramID, valueForDisplay);
+			}
 
 			previousPadPressYDisplay[xDisplay] = kNoSelection;
 			previousKnobPosition[xDisplay] = kNoSelection;
@@ -680,23 +644,32 @@ void PerformanceSessionView::padReleaseAction(Param::Kind lastSelectedParamKind,
 	}
 }
 
+void PerformanceSessionView::resetPerformanceView(ModelStackWithThreeMainThings* modelStack) {
+	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+		if (padPressHeld[xDisplay]) {
+			//obtain Param::Kind and ParamID corresponding to the column in focus (xDisplay)
+			auto [kind, id] = songParamsForPerformance[xDisplay];
+			Param::Kind lastSelectedParamKind = kind;
+			int32_t lastSelectedParamID = id;
+
+			padReleaseAction(modelStack, lastSelectedParamKind, lastSelectedParamID, xDisplay, false);
+		}
+	}
+	renderModeDisplay();
+	uiNeedsRendering(this);
+}
+
 //get's the modelstack for the parameters that are being edited
-//not working atm
-ModelStackWithAutoParam* PerformanceSessionView::getModelStackWithParam(int32_t paramID) {
-
+ModelStackWithAutoParam* PerformanceSessionView::getModelStackWithParam(ModelStackWithThreeMainThings* modelStack,
+                                                                        int32_t paramID) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 
-	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-	    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-
-	if (modelStackWithThreeMainThings) {
-		ParamCollectionSummary* summary = modelStackWithThreeMainThings->paramManager->getUnpatchedParamSetSummary();
+	if (modelStack) {
+		ParamCollectionSummary* summary = modelStack->paramManager->getUnpatchedParamSetSummary();
 
 		if (summary) {
 			ParamSet* paramSet = (ParamSet*)summary->paramCollection;
-			modelStackWithParam =
-			    modelStackWithThreeMainThings->addParam(paramSet, summary, paramID, &paramSet->params[paramID]);
+			modelStackWithParam = modelStack->addParam(paramSet, summary, paramID, &paramSet->params[paramID]);
 		}
 	}
 

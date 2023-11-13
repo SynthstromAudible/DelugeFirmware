@@ -793,7 +793,7 @@ PLACE_SDRAM_DATA Language english{
         * performance_session_view.cpp
         */
 
-        {STRING_FOR_PERFORMANCE, "Performance Mode"},
+        {STRING_FOR_PERFORMANCE, "Performance View"},
     },
 };
 } // namespace deluge::l10n::built_in

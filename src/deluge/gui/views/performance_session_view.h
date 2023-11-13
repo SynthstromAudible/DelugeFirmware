@@ -44,7 +44,7 @@ public:
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
 	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
-	void renderModeDisplay();
+	void renderViewDisplay();
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
 	void setLedStates();
 
@@ -78,17 +78,19 @@ private:
 	                         int32_t xScroll, uint32_t xZoom, int32_t renderWidth, int32_t imageWidth,
 	                         bool drawUndefinedArea = true);
 	void renderRow(uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
-	void renderFXDisplay(Param::Kind lastSelectedParamKind, int32_t lastSelectedParamID, int32_t knobPos);
+	void renderFXDisplay(Param::Kind paramKind, int32_t paramID, int32_t knobPos);
 	void setCentralLEDStates();
 
 	//pad action
-	void padPressAction(int32_t xDisplay, int32_t yDisplay);
-	void padReleaseAction(int32_t xDisplay, int32_t yDisplay);
+	void padPressAction(ModelStackWithThreeMainThings* modelStack, Param::Kind paramKind, int32_t paramID,
+	                    int32_t xDisplay, int32_t yDisplay, bool renderDisplay = true);
+	void padReleaseAction(ModelStackWithThreeMainThings* modelStack, Param::Kind paramKind, int32_t paramID,
+	                      int32_t xDisplay, bool renderDisplay = true);
+	void resetPerformanceView(ModelStackWithThreeMainThings* modelStack);
 
-	ModelStackWithAutoParam* getModelStackWithParam(int32_t paramID);
+	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithThreeMainThings* modelStack, int32_t paramID);
 	int32_t calculateKnobPosForSinglePadPress(int32_t yDisplay);
 	int32_t calculateKnobPosForDisplay(int32_t knobPos);
-	int32_t getParamIDFromSinglePadPress(int32_t xDisplay);
 
 	int32_t currentKnobPosition[kDisplayWidth];
 	int32_t previousKnobPosition[kDisplayWidth];
