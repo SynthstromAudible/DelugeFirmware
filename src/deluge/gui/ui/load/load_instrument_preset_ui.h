@@ -80,7 +80,6 @@ private:
 	void exitAction();
 	bool isInstrumentInList(Instrument* searchInstrument, Output* list);
 	bool findUnusedSlotVariation(String* oldName, String* newName);
-	bool checkFPs();
 
 	uint8_t currentInstrumentLoadError;
 

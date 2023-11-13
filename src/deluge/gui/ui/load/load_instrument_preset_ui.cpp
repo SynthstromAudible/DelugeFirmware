@@ -51,32 +51,6 @@ LoadInstrumentPresetUI loadInstrumentPresetUI{};
 LoadInstrumentPresetUI::LoadInstrumentPresetUI() {
 }
 
-//returns true if the FP for the filepath is correct
-bool LoadInstrumentPresetUI::checkFPs() {
-	FileItem* currentFileItem = getCurrentFileItem();
-	String filePath;
-	int32_t error = getCurrentFilePath(&filePath);
-	if (error != 0) {
-		Debug::println("couldn't get filepath");
-		return false;
-	}
-
-	FilePointer tempfp;
-	bool fileExists = storageManager.fileExists(filePath.get(), &tempfp);
-	if (!fileExists) {
-		Debug::println("couldn't get filepath");
-		return false;
-	}
-	else if (tempfp.sclust != currentFileItem->filePointer.sclust) {
-		Debug::println("FPs don't match");
-#if ALPHA_OR_BETA_VERSION
-		display->freezeWithError("P001");
-#endif
-		return false;
-	}
-	return true;
-}
-
 bool LoadInstrumentPresetUI::getGreyoutRowsAndCols(uint32_t* cols, uint32_t* rows) {
 	if (showingAuditionPads()) {
 		*cols = 0b10;
@@ -881,7 +855,7 @@ giveUsedError:
 			}
 		}
 		int32_t error;
-		checkFPs();
+		Browser::checkFP();
 		error = storageManager.loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, instrumentTypeToLoad, false,
 		                                              &newInstrument, &currentFileItem->filePointer, &enteredText,
 		                                              &currentDir);

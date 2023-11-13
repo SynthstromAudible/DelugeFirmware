@@ -86,6 +86,7 @@ public:
 	int32_t getUnusedSlot(InstrumentType instrumentType, String* newName, char const* thingName);
 	bool opened();
 	void cullSomeFileItems();
+	bool checkFP();
 
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
 
