@@ -153,8 +153,8 @@ void DelayBuffer::setupForRender(int32_t userDelayRate, DelayBufferSetup* setup)
 			setup->writeSizeAdjustment =
 			    (uint32_t)((double)0xFFFFFFFF
 			               / (double)(setup->rateMultiple
-			                         * (timesSlowerRead
-			                            + 1))); // Equivalent to one order of magnitude bigger than the above line
+			                          * (timesSlowerRead
+			                             + 1))); // Equivalent to one order of magnitude bigger than the above line
 		}
 
 		// If buffer spinning fast
