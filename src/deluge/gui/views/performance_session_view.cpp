@@ -396,10 +396,11 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 
 	// Clip-view button
 	if (b == CLIP_VIEW) {
-		if (on && currentUIMode == UI_MODE_NONE && playbackHandler.recording != RECORDING_ARRANGEMENT) {
+		if (on && ((currentUIMode == UI_MODE_NONE) || isUIModeActive(UI_MODE_STUTTERING)) && playbackHandler.recording != RECORDING_ARRANGEMENT) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
+			releaseStutter(modelStack);
 			sessionView.transitionToViewForClip(); // May fail if no currentClip
 		}
 	}
@@ -459,9 +460,10 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 			}
 		}
 		// Release without special mode
-		else if (!on && currentUIMode == UI_MODE_NONE) {
+		else if (!on && ((currentUIMode == UI_MODE_NONE) || isUIModeActive(UI_MODE_STUTTERING))) {
 			if (lastSessionButtonActiveState && !sessionButtonActive && !sessionButtonUsed
 			    && !sessionView.gridFirstPadActive()) {
+
 				if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
 					currentSong->endInstancesOfActiveClips(playbackHandler.getActualArrangementRecordPos());
 					// Must call before calling getArrangementRecordPos(), cos that detaches the cloned Clip
@@ -471,6 +473,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 					playbackHandler.setLedStates();
 				}
 				else {
+					releaseStutter(modelStack);
 					sessionView.goToArrangementEditor();
 				}
 
@@ -490,13 +493,12 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 
 	// Keyboard button
 	else if (b == KEYBOARD) {
-		if (on && currentUIMode == UI_MODE_NONE) {
+		if (on && ((currentUIMode == UI_MODE_NONE) || isUIModeActive(UI_MODE_STUTTERING))) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
-
+			releaseStutter(modelStack);
 			changeRootUI(&sessionView);
-
 			indicator_leds::setLedState(IndicatorLED::KEYBOARD, false);
 		}
 	}
@@ -657,6 +659,12 @@ void PerformanceSessionView::resetPerformanceView(ModelStackWithThreeMainThings*
 	}
 	renderViewDisplay();
 	uiNeedsRendering(this);
+}
+
+void PerformanceSessionView::releaseStutter(ModelStackWithThreeMainThings* modelStack) {
+	if (isUIModeActive(UI_MODE_STUTTERING)) {
+		padReleaseAction(modelStack, Param::Kind::UNPATCHED, Param::Unpatched::STUTTER_RATE, kDisplayWidth - 1, false);
+	}
 }
 
 //get's the modelstack for the parameters that are being edited

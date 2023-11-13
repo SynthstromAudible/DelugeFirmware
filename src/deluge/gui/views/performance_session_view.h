@@ -87,6 +87,7 @@ private:
 	void padReleaseAction(ModelStackWithThreeMainThings* modelStack, Param::Kind paramKind, int32_t paramID,
 	                      int32_t xDisplay, bool renderDisplay = true);
 	void resetPerformanceView(ModelStackWithThreeMainThings* modelStack);
+	void releaseStutter(ModelStackWithThreeMainThings* modelStack);
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithThreeMainThings* modelStack, int32_t paramID);
 	int32_t calculateKnobPosForSinglePadPress(int32_t yDisplay);
