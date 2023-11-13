@@ -676,9 +676,9 @@ void PerformanceSessionView::releaseStutter(ModelStackWithThreeMainThings* model
 }
 
 void PerformanceSessionView::writeDefaultsToFile() {
-//	if (!anyChangesToSave) {
-//		return;
-//	}
+	//	if (!anyChangesToSave) {
+	//		return;
+	//	}
 
 	int32_t error = storageManager.createXMLFile("PerformanceView.XML", true);
 	if (error) {
@@ -790,7 +790,7 @@ void PerformanceSessionView::readDefaultFXRowValuesFromFile(int32_t xDisplay) {
 			readDefaultFXRowNumberValuesFromFile(xDisplay);
 		}
 		storageManager.exitTag();
-	}	
+	}
 }
 
 void PerformanceSessionView::readDefaultFXRowNumberValuesFromFile(int32_t xDisplay) {
