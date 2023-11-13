@@ -96,6 +96,7 @@ private:
 	void readDefaultsFromFile();
 	void readDefaultFXValuesFromFile();
 	void readDefaultFXRowValuesFromFile(int32_t xDisplay);
+	void readDefaultFXRowNumberValuesFromFile(int32_t xDisplay);
 	bool successfullyReadDefaultsFromFile;
 	bool anyChangesToSave;
 

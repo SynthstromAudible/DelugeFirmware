@@ -506,7 +506,6 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 
 	else if (b == SAVE) {
 		if (on) {
-			anyChangesToSave = true;
 			writeDefaultsToFile();
 			display->displayPopup("Defaults Saved");
 		}
@@ -677,9 +676,9 @@ void PerformanceSessionView::releaseStutter(ModelStackWithThreeMainThings* model
 }
 
 void PerformanceSessionView::writeDefaultsToFile() {
-	if (!anyChangesToSave) {
-		return;
-	}
+//	if (!anyChangesToSave) {
+//		return;
+//	}
 
 	int32_t error = storageManager.createXMLFile("PerformanceView.XML", true);
 	if (error) {
@@ -703,81 +702,33 @@ void PerformanceSessionView::writeDefaultsToFile() {
 	anyChangesToSave = false;
 }
 
+//creates "FX1 - FX16 tags"
+//limiting # of FX to the # of columns on the grid (16 = kDisplayWidth)
+//could expand # of FX in the future if we allow user to selected from a larger bank of FX / build their own FX
 void PerformanceSessionView::writeDefaultFXValuesToFile() {
-	storageManager.writeOpeningTagBeginning("FX1");
-	writeDefaultFXRowValuesToFile(0);
-	storageManager.writeClosingTag("FX1");
-
-	storageManager.writeOpeningTagBeginning("FX2");
-	writeDefaultFXRowValuesToFile(1);
-	storageManager.writeClosingTag("FX2");
-
-	storageManager.writeOpeningTagBeginning("FX3");
-	writeDefaultFXRowValuesToFile(2);
-	storageManager.writeClosingTag("FX3");
-
-	storageManager.writeOpeningTagBeginning("FX4");
-	writeDefaultFXRowValuesToFile(3);
-	storageManager.writeClosingTag("FX4");
-
-	storageManager.writeOpeningTagBeginning("FX5");
-	writeDefaultFXRowValuesToFile(4);
-	storageManager.writeClosingTag("FX5");
-
-	storageManager.writeOpeningTagBeginning("FX6");
-	writeDefaultFXRowValuesToFile(5);
-	storageManager.writeClosingTag("FX6");
-
-	storageManager.writeOpeningTagBeginning("FX7");
-	writeDefaultFXRowValuesToFile(6);
-	storageManager.writeClosingTag("FX7");
-
-	storageManager.writeOpeningTagBeginning("FX8");
-	writeDefaultFXRowValuesToFile(7);
-	storageManager.writeClosingTag("FX8");
-
-	storageManager.writeOpeningTagBeginning("FX9");
-	writeDefaultFXRowValuesToFile(8);
-	storageManager.writeClosingTag("FX9");
-
-	storageManager.writeOpeningTagBeginning("FX10");
-	writeDefaultFXRowValuesToFile(9);
-	storageManager.writeClosingTag("FX10");
-
-	storageManager.writeOpeningTagBeginning("FX11");
-	writeDefaultFXRowValuesToFile(10);
-	storageManager.writeClosingTag("FX11");
-
-	storageManager.writeOpeningTagBeginning("FX12");
-	writeDefaultFXRowValuesToFile(11);
-	storageManager.writeClosingTag("FX12");
-
-	storageManager.writeOpeningTagBeginning("FX13");
-	writeDefaultFXRowValuesToFile(12);
-	storageManager.writeClosingTag("FX13");
-
-	storageManager.writeOpeningTagBeginning("FX14");
-	writeDefaultFXRowValuesToFile(13);
-	storageManager.writeClosingTag("FX14");
-
-	storageManager.writeOpeningTagBeginning("FX15");
-	writeDefaultFXRowValuesToFile(14);
-	storageManager.writeClosingTag("FX15");
-
-	storageManager.writeOpeningTagBeginning("FX16");
-	writeDefaultFXRowValuesToFile(15);
-	storageManager.writeClosingTag("FX16");
+	char tagName[10];
+	tagName[0] = 'F';
+	tagName[1] = 'X';
+	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+		intToString(xDisplay + 1, &tagName[2]);
+		storageManager.writeOpeningTagBeginning(tagName);
+		storageManager.writeOpeningTagEnd();
+		writeDefaultFXRowValuesToFile(xDisplay);
+		storageManager.writeClosingTag(tagName);
+	}
 }
 
+//creates "8 - 1 row # tags within a "row" tag"
+//limiting # of rows to the # of rows on the grid (8 = kDisplayHeight)
 void PerformanceSessionView::writeDefaultFXRowValuesToFile(int32_t xDisplay) {
-	storageManager.writeAttribute("8", defaultFXValues[xDisplay][7] + kKnobPosOffset);
-	storageManager.writeAttribute("7", defaultFXValues[xDisplay][6] + kKnobPosOffset);
-	storageManager.writeAttribute("6", defaultFXValues[xDisplay][5] + kKnobPosOffset);
-	storageManager.writeAttribute("5", defaultFXValues[xDisplay][4] + kKnobPosOffset);
-	storageManager.writeAttribute("4", defaultFXValues[xDisplay][3] + kKnobPosOffset);
-	storageManager.writeAttribute("3", defaultFXValues[xDisplay][2] + kKnobPosOffset);
-	storageManager.writeAttribute("2", defaultFXValues[xDisplay][1] + kKnobPosOffset);
-	storageManager.writeAttribute("1", defaultFXValues[xDisplay][0] + kKnobPosOffset);
+	storageManager.writeOpeningTagBeginning("row");
+	storageManager.writeOpeningTagEnd();
+	char rowNumber[5];
+	for (int32_t yDisplay = kDisplayHeight - 1; yDisplay >= 0; yDisplay--) {
+		intToString(yDisplay + 1, rowNumber);
+		storageManager.writeTag(rowNumber, defaultFXValues[xDisplay][yDisplay] + kKnobPosOffset);
+	}
+	storageManager.writeClosingTag("row");
 }
 
 void PerformanceSessionView::readDefaultsFromFile() {
@@ -797,6 +748,7 @@ void PerformanceSessionView::readDefaultsFromFile() {
 	}
 
 	char const* tagName;
+	//step into the defaultFXValues tag
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "defaultFXValues")) {
 			readDefaultFXValuesFromFile();
@@ -811,88 +763,49 @@ void PerformanceSessionView::readDefaultsFromFile() {
 
 void PerformanceSessionView::readDefaultFXValuesFromFile() {
 	char const* tagName;
-	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
-		if (!strcmp(tagName, "FX1")) {
-			readDefaultFXRowValuesFromFile(0);
-		}
-		else if (!strcmp(tagName, "FX2")) {
-			readDefaultFXRowValuesFromFile(1);
-		}
-		else if (!strcmp(tagName, "FX3")) {
-			readDefaultFXRowValuesFromFile(2);
-		}
-		else if (!strcmp(tagName, "FX4")) {
-			readDefaultFXRowValuesFromFile(3);
-		}
-		else if (!strcmp(tagName, "FX5")) {
-			readDefaultFXRowValuesFromFile(4);
-		}
-		else if (!strcmp(tagName, "FX6")) {
-			readDefaultFXRowValuesFromFile(5);
-		}
-		else if (!strcmp(tagName, "FX7")) {
-			readDefaultFXRowValuesFromFile(6);
-		}
-		else if (!strcmp(tagName, "FX8")) {
-			readDefaultFXRowValuesFromFile(7);
-		}
-		else if (!strcmp(tagName, "FX9")) {
-			readDefaultFXRowValuesFromFile(8);
-		}
-		else if (!strcmp(tagName, "FX10")) {
-			readDefaultFXRowValuesFromFile(9);
-		}
-		else if (!strcmp(tagName, "FX11")) {
-			readDefaultFXRowValuesFromFile(10);
-		}
-		else if (!strcmp(tagName, "FX12")) {
-			readDefaultFXRowValuesFromFile(11);
-		}
-		else if (!strcmp(tagName, "FX13")) {
-			readDefaultFXRowValuesFromFile(12);
-		}
-		else if (!strcmp(tagName, "FX14")) {
-			readDefaultFXRowValuesFromFile(13);
-		}
-		else if (!strcmp(tagName, "FX15")) {
-			readDefaultFXRowValuesFromFile(14);
-		}
-		else if (!strcmp(tagName, "FX16")) {
-			readDefaultFXRowValuesFromFile(15);
-		}
+	char tagNameFX[5];
+	tagNameFX[0] = 'F';
+	tagNameFX[1] = 'X';
 
+	//loop through all FX number tags
+	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+		//find the FX number that the tag corresponds to
+		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+			intToString(xDisplay + 1, &tagNameFX[2]);
+
+			if (!strcmp(tagName, tagNameFX)) {
+				readDefaultFXRowValuesFromFile(xDisplay);
+				break;
+			}
+		}
 		storageManager.exitTag();
 	}
 }
 
 void PerformanceSessionView::readDefaultFXRowValuesFromFile(int32_t xDisplay) {
 	char const* tagName;
+	//step into the row tag
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
-		if (!strcmp(tagName, "1")) {
-			defaultFXValues[xDisplay][0] = storageManager.readTagOrAttributeValueInt() - kKnobPosOffset;
+		if (!strcmp(tagName, "row")) {
+			readDefaultFXRowNumberValuesFromFile(xDisplay);
 		}
-		else if (!strcmp(tagName, "2")) {
-			defaultFXValues[xDisplay][1] = storageManager.readTagOrAttributeValueInt() - kKnobPosOffset;
-		}
-		else if (!strcmp(tagName, "3")) {
-			defaultFXValues[xDisplay][2] = storageManager.readTagOrAttributeValueInt() - kKnobPosOffset;
-		}
-		else if (!strcmp(tagName, "4")) {
-			defaultFXValues[xDisplay][3] = storageManager.readTagOrAttributeValueInt() - kKnobPosOffset;
-		}
-		else if (!strcmp(tagName, "5")) {
-			defaultFXValues[xDisplay][4] = storageManager.readTagOrAttributeValueInt() - kKnobPosOffset;
-		}
-		else if (!strcmp(tagName, "6")) {
-			defaultFXValues[xDisplay][5] = storageManager.readTagOrAttributeValueInt() - kKnobPosOffset;
-		}
-		else if (!strcmp(tagName, "7")) {
-			defaultFXValues[xDisplay][6] = storageManager.readTagOrAttributeValueInt() - kKnobPosOffset;
-		}
-		else if (!strcmp(tagName, "8")) {
-			defaultFXValues[xDisplay][7] = storageManager.readTagOrAttributeValueInt() - kKnobPosOffset;
-		}
+		storageManager.exitTag();
+	}	
+}
 
+void PerformanceSessionView::readDefaultFXRowNumberValuesFromFile(int32_t xDisplay) {
+	char const* tagName;
+	char rowNumber[5];
+	//loop through all row number tags
+	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+		//find the row number that the tag corresponds to
+		for (int32_t yDisplay = kDisplayHeight - 1; yDisplay >= 0; yDisplay--) {
+			intToString(yDisplay + 1, rowNumber);
+			if (!strcmp(tagName, rowNumber)) {
+				defaultFXValues[xDisplay][yDisplay] = storageManager.readTagOrAttributeValueInt() - kKnobPosOffset;
+				break;
+			}
+		}
 		storageManager.exitTag();
 	}
 }
