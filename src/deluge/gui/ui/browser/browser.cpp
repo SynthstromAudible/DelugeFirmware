@@ -934,7 +934,7 @@ void Browser::selectEncoderAction(int8_t offset) {
 				if (thisSlot.slot < 0) {
 					goto nonNumeric;
 				}
-
+				Debug::println("treating as numeric");
 				thisSlot.subSlot = -1;
 				switch (numberEditPosNow) {
 				case 0:
@@ -983,6 +983,7 @@ void Browser::selectEncoderAction(int8_t offset) {
 				if (thisSlot.slot < 0) {
 					goto nonNumeric;
 				}
+				Debug::println("treating as numeric");
 				thisSlot.slot += offset;
 
 				char searchString[9];
@@ -1021,6 +1022,7 @@ tryReadingItems:
 			                                         NULL, true, Availability::ANY, CATALOG_SEARCH_BOTH);
 			if (error) {
 gotErrorAfterAllocating:
+				Debug::println("error while reloading, emptying file items");
 				emptyFileItems();
 				return;
 				// TODO - need to close UI or something?
