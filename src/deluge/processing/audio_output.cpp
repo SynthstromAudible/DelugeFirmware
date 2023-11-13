@@ -220,7 +220,7 @@ renderEnvelope:
 			inputChannelNow = AudioInputChannel::NONE; // 0 means combine channels
 		}
 
-		int32_t amplitudeIncrement = (int32_t)((float)(amplitudeAtEnd - amplitudeAtStart) / (float)numSamples);
+		int32_t amplitudeIncrement = (int32_t)((double)(amplitudeAtEnd - amplitudeAtStart) / (double)numSamples);
 		int32_t amplitudeNow = amplitudeAtStart;
 
 		do {

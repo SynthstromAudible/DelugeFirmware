@@ -43,7 +43,7 @@ q31_t HpLadderFilter::setConfig(q31_t hpfFrequency, q31_t hpfResonance, FilterMo
 	// Extra feedback
 	hpfProcessedResonance = multiply_32x32_rshift32(hpfProcessedResonance, extraFeedback) << 1;
 
-	hpfDivideByProcessedResonance = (q31_t)(2147483648.0f / (float)(hpfProcessedResonance >> (23)));
+	hpfDivideByProcessedResonance = (q31_t)(2147483648.0 / (double)(hpfProcessedResonance >> (23)));
 
 	int32_t moveabilityTimesProcessedResonance =
 	    multiply_32x32_rshift32(hpfProcessedResonanceUnaltered, fc); // 1 = 536870912
@@ -55,7 +55,7 @@ q31_t HpLadderFilter::setConfig(q31_t hpfFrequency, q31_t hpfResonance, FilterMo
 
 	uint32_t toDivideBy =
 	    ((int32_t)268435456 - (moveabilityTimesProcessedResonance >> 1) + moveabilitySquaredTimesProcessedResonance);
-	divideByTotalMoveability = (int32_t)((float)hpfProcessedResonance * 67108864.0f / (float)toDivideBy);
+	divideByTotalMoveability = (int32_t)((double)hpfProcessedResonance * 67108864.0 / (double)toDivideBy);
 
 	hpfDoAntialiasing = (hpfProcessedResonance > 900000000);
 
