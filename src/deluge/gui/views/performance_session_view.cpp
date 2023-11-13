@@ -502,7 +502,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 	}
 
 	//clear and reset held params
-	else if (b == BACK && currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
+	else if (b == BACK && isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
 		if (on) {
 			resetPerformanceView(modelStack);
 		}
