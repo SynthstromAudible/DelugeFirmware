@@ -588,9 +588,20 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 		}
 	}
 
-	//disable button presses for Vertical and Horizontal encoders
+	else if (b == X_ENC) {
+		if (on) {
+			enterUIMode(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON);
+		}
+		else {
+			if (isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
+				exitUIMode(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON);
+			}
+		}
+	}
+
+	//disable button presses for Vertical encoder
 	//disable back button press since undo doesn't work well in this view atm.
-	else if ((b == Y_ENC) || (b == X_ENC) || (b == BACK)) {
+	else if ((b == Y_ENC) || (b == BACK)) {
 		goto doNothing;
 	}
 
