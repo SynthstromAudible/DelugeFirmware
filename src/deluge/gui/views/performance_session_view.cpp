@@ -185,10 +185,6 @@ void PerformanceSessionView::focusRegained() {
 		indicator_leds::blinkLed(IndicatorLED::SAVE);
 	}
 
-	if (defaultEditingMode) {
-		indicator_leds::setLedState(IndicatorLED::LEARN, true);
-	}
-
 	currentSong->lastClipInstanceEnteredStartPos = -1;
 
 	if (display->have7SEG()) {
@@ -578,17 +574,15 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 
 	//toggle default value editing mode on/off
 
-	else if (b == LEARN) {
+	else if (b == SELECT_ENC) {
 		if (on) {
 			if (defaultEditingMode) {
 				defaultEditingMode = false;
 				display->displayPopup("Editor Off");
-				indicator_leds::setLedState(IndicatorLED::LEARN, false);
 			}
 			else {
 				defaultEditingMode = true;
 				display->displayPopup("Editor On");
-				indicator_leds::setLedState(IndicatorLED::LEARN, true);
 			}
 			renderViewDisplay();
 		}
