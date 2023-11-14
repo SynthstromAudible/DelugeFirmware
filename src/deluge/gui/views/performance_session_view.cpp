@@ -23,9 +23,11 @@
 #include "gui/context_menu/audio_input_selector.h"
 #include "gui/context_menu/launch_style.h"
 #include "gui/menu_item/colour.h"
+#include "gui/menu_item/unpatched_param.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/load/load_song_ui.h"
+#include "gui/ui/menus.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
@@ -60,26 +62,46 @@ extern "C" {
 
 using namespace deluge;
 using namespace gui;
+using namespace deluge::gui::menu_item;
 
 //sorted in the order that Parameters are assigned to performance mode columns on the grid
-const std::array<std::pair<Param::Kind, ParamType>, kDisplayWidth> songParamsForPerformance{{
-    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::LPF_FREQ}, //LPF Cutoff, Resonance
-    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::LPF_RES},
-    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::HPF_FREQ}, //HPF Cutoff, Resonance
-    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::HPF_RES},
-    {Param::Kind::UNPATCHED, Param::Unpatched::BASS},                                         //Bass
-    {Param::Kind::UNPATCHED, Param::Unpatched::TREBLE},                                       //Treble
-    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT}, //Reverb Amount
-    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::DELAY_AMOUNT},
-    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::DELAY_RATE}, //Delay Rate, Amount
-    {Param::Kind::UNPATCHED, Param::Unpatched::MOD_FX_OFFSET}, //Mod FX Offset, Feedback, Depth, Rate
-    {Param::Kind::UNPATCHED, Param::Unpatched::MOD_FX_FEEDBACK},
-    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH},
-    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::MOD_FX_RATE},
-    {Param::Kind::UNPATCHED, Param::Unpatched::SAMPLE_RATE_REDUCTION}, //Decimation, Bitcrush
-    {Param::Kind::UNPATCHED, Param::Unpatched::BITCRUSHING},
-    {Param::Kind::UNPATCHED, Param::Unpatched::STUTTER_RATE}, //Stutter Rate
-}};
+/*const ParamsForPerformance songParamsForPerformance[kDisplayWidth] = {
+    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::LPF_FREQ},					//LPF Cutoff
+    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::LPF_RES},					//LPF Resonance
+    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::HPF_FREQ}, 
+    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::HPF_RES},					//HPF Resonance
+    {Param::Kind::UNPATCHED, Param::Unpatched::BASS},     											//Bass
+    {Param::Kind::UNPATCHED, Param::Unpatched::TREBLE}, 											//Treble
+    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT},		//Reverb Amount
+    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::DELAY_AMOUNT},				//Delay Amount
+    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::DELAY_RATE},				//Delay Rate                                                    
+    {Param::Kind::UNPATCHED, Param::Unpatched::MOD_FX_OFFSET}, 										//Mod FX Offset
+    {Param::Kind::UNPATCHED, Param::Unpatched::MOD_FX_FEEDBACK},									//Mod FX Feedback
+    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH},				//Mod FX Depth
+    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::MOD_FX_RATE},				//Mod FX Rate
+    {Param::Kind::UNPATCHED, Param::Unpatched::SAMPLE_RATE_REDUCTION}, 								//Decimation
+    {Param::Kind::UNPATCHED, Param::Unpatched::BITCRUSHING},										//Bitcrush
+    {Param::Kind::UNPATCHED, Param::Unpatched::STUTTER_RATE}, 										//Stutter Rate
+};*/
+
+const ParamsForPerformance songParamsForPerformance[kDisplayWidth] = {
+    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::LPF_FREQ, 8, 7},										
+    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::LPF_RES, 8, 6},										
+    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::HPF_FREQ, 9, 7},										 
+    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::HPF_RES, 9, 6},									
+    {Param::Kind::UNPATCHED, Param::Unpatched::BASS, 10, 6},     																
+    {Param::Kind::UNPATCHED, Param::Unpatched::TREBLE, 11, 6}, 																
+    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT, 13, 3},						
+    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::DELAY_AMOUNT, 14, 3},									
+    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::DELAY_RATE, 14, 0},                                                    
+    {Param::Kind::UNPATCHED, Param::Unpatched::MOD_FX_OFFSET, 12, 4}, 									
+    {Param::Kind::UNPATCHED, Param::Unpatched::MOD_FX_FEEDBACK, 12, 5},								
+    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH, 12, 6},		
+    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::MOD_FX_RATE, 12, 7},			
+    {Param::Kind::UNPATCHED, Param::Unpatched::SAMPLE_RATE_REDUCTION, 6, 5}, 										
+    {Param::Kind::UNPATCHED, Param::Unpatched::BITCRUSHING, 6, 6},											
+    {Param::Kind::UNPATCHED, Param::Unpatched::STUTTER_RATE, kNoSelection, kNoSelection},
+};
 
 //colours for the performance mode
 
@@ -133,6 +155,7 @@ PerformanceSessionView::PerformanceSessionView() {
 	lastPadPress.yDisplay = kNoSelection;
 	lastPadPress.paramKind = Param::Kind::NONE;
 	lastPadPress.paramID = kNoSelection;
+	//lastSelectedMenuItem = NULL;
 
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		previousKnobPosition[xDisplay] = kNoSelection;
@@ -574,17 +597,37 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 
 	//toggle default value editing mode on/off
 
-	else if (b == SELECT_ENC) {
+	/*else if (b == LEARN) {
 		if (on) {
 			if (defaultEditingMode) {
 				defaultEditingMode = false;
 				display->displayPopup("Editor Off");
+				indicator_leds::setLedState(IndicatorLED::LEARN, false);
 			}
 			else {
 				defaultEditingMode = true;
 				display->displayPopup("Editor On");
+				indicator_leds::blinkLed(IndicatorLED::LEARN, true);
 			}
 			renderViewDisplay();
+		}
+	}*/
+
+	else if ((b == SELECT_ENC) && !Buttons::isShiftButtonPressed()) {
+		if (on && currentUIMode == UI_MODE_NONE) {
+
+			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
+				return ActionResult::DEALT_WITH;
+			}
+
+			if (inCardRoutine) {
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
+
+			display->setNextTransitionDirection(1);
+			soundEditor.setup();
+			openUI(&soundEditor);
 		}
 	}
 
@@ -621,16 +664,22 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 		ModelStackWithThreeMainThings* modelStack =
 		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
-		//obtain Param::Kind and ParamID corresponding to the column pressed on performance grid
-		auto [kind, id] = songParamsForPerformance[xDisplay];
-		Param::Kind lastSelectedParamKind = kind;
-		int32_t lastSelectedParamID = id;
+		//obtain Param::Kind, ParamID and Menu Item corresponding to the column pressed on performance grid
+		//auto [kind, id] = songParamsForPerformance[xDisplay];
+		Param::Kind lastSelectedParamKind = songParamsForPerformance[xDisplay].paramKind; //kind;
+		int32_t lastSelectedParamID = songParamsForPerformance[xDisplay].paramID;
+		int32_t lastSelectedParamShortcutX = songParamsForPerformance[xDisplay].xDisplay;
+		int32_t lastSelectedParamShortcutY = songParamsForPerformance[xDisplay].yDisplay;
 
 		//pressing a pad
 		if (on) {
 			//no need to pad press action if you've already processed it previously and pad was held
 			if (previousPadPressYDisplay[xDisplay] != yDisplay) {
-				padPressAction(modelStack, lastSelectedParamKind, lastSelectedParamID, xDisplay, yDisplay);
+				padPressAction(modelStack, lastSelectedParamKind, lastSelectedParamID, xDisplay, yDisplay, !defaultEditingMode);
+			//	if (soundEditor.getCurrentMenuItem() != paramShortcutsForPerformanceView[lastSelectedParamShortcutX][lastSelectedParamShortcutY]) {
+				if (defaultEditingMode)	{
+					soundEditor.potentialShortcutPadAction(lastSelectedParamShortcutX, lastSelectedParamShortcutY, on);
+				}
 			}
 		}
 		//releasing a pad
@@ -641,7 +690,16 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 			     && ((AudioEngine::audioSampleTimer - timeLastPadPress[xDisplay]) < kShortPressTime))
 			    || ((previousKnobPosition[xDisplay] != kNoSelection) && (previousPadPressYDisplay[xDisplay] == yDisplay)
 			        && ((AudioEngine::audioSampleTimer - timeLastPadPress[xDisplay]) >= kShortPressTime))) {
-				padReleaseAction(modelStack, lastSelectedParamKind, lastSelectedParamID, xDisplay);
+				
+				padReleaseAction(modelStack, lastSelectedParamKind, lastSelectedParamID, xDisplay, !defaultEditingMode);
+
+			//	if (soundEditor.getCurrentMenuItem() == paramShortcutsForPerformanceView[lastSelectedParamShortcutX][lastSelectedParamShortcutY]) {
+			//		soundEditor.getCurrentMenuItem()->readValueAgain();
+			//	}
+			//	else {
+				if (defaultEditingMode) {
+					soundEditor.potentialShortcutPadAction(lastSelectedParamShortcutX, lastSelectedParamShortcutY, on);
+				}				
 			}
 			//if releasing a pad that was quickly pressed, give it held status
 			else if ((previousKnobPosition[xDisplay] != kNoSelection)
@@ -699,9 +757,11 @@ void PerformanceSessionView::resetPerformanceView(ModelStackWithThreeMainThings*
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		if (padPressHeld[xDisplay]) {
 			//obtain Param::Kind and ParamID corresponding to the column in focus (xDisplay)
-			auto [kind, id] = songParamsForPerformance[xDisplay];
-			Param::Kind lastSelectedParamKind = kind;
-			int32_t lastSelectedParamID = id;
+			//kind, id] = songParamsForPerformance[xDisplay];
+			//Param::Kind lastSelectedParamKind = kind;
+			//int32_t lastSelectedParamID = id;
+			Param::Kind lastSelectedParamKind = songParamsForPerformance[xDisplay].paramKind; //kind;
+			int32_t lastSelectedParamID = songParamsForPerformance[xDisplay].paramID;
 
 			padReleaseAction(modelStack, lastSelectedParamKind, lastSelectedParamID, xDisplay, false);
 		}
@@ -943,23 +1003,33 @@ int32_t PerformanceSessionView::calculateKnobPosForDisplay(int32_t knobPos) {
 	return (((((knobPos << 20) / kMaxKnobPos) * kMaxMenuValue) >> 20) - offset);
 }
 
+//Used to edit a pad's value in editing mode
 void PerformanceSessionView::selectEncoderAction(int8_t offset) {
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithThreeMainThings* modelStack = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+	if (defaultEditingMode && (getCurrentUI() == &soundEditor)) {
+		int32_t lastSelectedParamShortcutX = songParamsForPerformance[lastPadPress.xDisplay].xDisplay;
+		int32_t lastSelectedParamShortcutY = songParamsForPerformance[lastPadPress.xDisplay].yDisplay;
 
-	if (defaultEditingMode) {
 		if (lastPadPress.isActive) {
-			defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay] = calculateKnobPosForSelectEncoderTurn(
-			    defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay], offset);
+			if (soundEditor.getCurrentMenuItem() == paramShortcutsForPerformanceView[lastSelectedParamShortcutX][lastSelectedParamShortcutY]) {
+				defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay] = calculateKnobPosForSelectEncoderTurn(
+					defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay], offset);
 
-			if (setParameterValue(modelStack, lastPadPress.paramKind, lastPadPress.paramID, lastPadPress.xDisplay,
-			                      defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay])) {
-				anyChangesToSave = true;
-				indicator_leds::blinkLed(IndicatorLED::SAVE);
+				char modelStackMemory[MODEL_STACK_MAX_SIZE];
+				ModelStackWithThreeMainThings* modelStack =
+					currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+
+				if (setParameterValue(modelStack, lastPadPress.paramKind, lastPadPress.paramID, lastPadPress.xDisplay,
+									defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay])) {
+					anyChangesToSave = true;
+					indicator_leds::blinkLed(IndicatorLED::SAVE);
+				}
+				goto exit;
 			}
 		}
+		soundEditor.getCurrentMenuItem()->selectEncoderAction(offset);
 	}
 
+exit:
 	return;
 }
 

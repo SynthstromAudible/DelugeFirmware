@@ -32,10 +32,17 @@ class ModelStackWithAutoParam;
 
 struct LastPadPress {
 	bool isActive;
-	int32_t yDisplay;
 	int32_t xDisplay;
+	int32_t yDisplay;
 	Param::Kind paramKind;
 	int32_t paramID;
+};
+
+struct ParamsForPerformance {
+	Param::Kind paramKind;
+	ParamType paramID;
+	int32_t xDisplay;
+	int32_t yDisplay;
 };
 
 class PerformanceSessionView final : public ClipNavigationTimelineView, public ModControllableAudio {
@@ -82,6 +89,12 @@ public:
 	uint32_t getMaxZoom();
 	uint32_t getMaxLength();
 
+	//public so soundEditor can access them
+	bool defaultEditingMode;
+	void writeDefaultsToFile();
+	void readDefaultsFromFile();
+	//MenuItem* lastSelectedMenuItem;
+
 private:
 	//rendering
 	void performActualRender(uint32_t whichRows, uint8_t* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
@@ -102,10 +115,8 @@ private:
 	void releaseStutter(ModelStackWithThreeMainThings* modelStack);
 
 	//write/load default values
-	void writeDefaultsToFile();
 	void writeDefaultFXValuesToFile();
 	void writeDefaultFXRowValuesToFile(int32_t xDisplay);
-	void readDefaultsFromFile();
 	void readDefaultFXValuesFromFile();
 	void readDefaultFXRowValuesFromFile(int32_t xDisplay);
 	void readDefaultFXRowNumberValuesFromFile(int32_t xDisplay);
@@ -123,8 +134,8 @@ private:
 	uint32_t timeLastPadPress[kDisplayWidth];
 	bool padPressHeld[kDisplayWidth];
 	int32_t defaultFXValues[kDisplayWidth][kDisplayHeight];
-	bool defaultEditingMode;
 	LastPadPress lastPadPress;
+	//ParamsForPerformance songParamsForPerformance[kDisplayWidth];
 
 	// Members regarding rendering different layouts
 private:

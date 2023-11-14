@@ -15,6 +15,8 @@
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/performance_session_view.h"
+#include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
@@ -279,13 +281,31 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
-			if (Buttons::isShiftButtonPressed()) {
-				if (getCurrentMenuItem() == &menu_item::multiRangeMenu) {
-					menu_item::multiRangeMenu.deletePress();
+			if (getRootUI() != &performanceSessionView) {
+				if (Buttons::isShiftButtonPressed()) {
+					if (getCurrentMenuItem() == &menu_item::multiRangeMenu) {
+						menu_item::multiRangeMenu.deletePress();
+					}
+				}
+				else {
+					openUI(&saveInstrumentPresetUI);
 				}
 			}
 			else {
-				openUI(&saveInstrumentPresetUI);
+				performanceSessionView.writeDefaultsToFile();
+				display->displayPopup("Defaults Saved");
+				indicator_leds::setLedState(IndicatorLED::SAVE, false);
+			}
+		}
+	}
+
+	//Load button (only used in performanceSessionView)
+	else if (b == LOAD) {
+		if (on) {
+			if (getRootUI() == &performanceSessionView) {
+				performanceSessionView.readDefaultsFromFile();
+				display->displayPopup("Defaults Loaded");
+				indicator_leds::setLedState(IndicatorLED::SAVE, false);
 			}
 		}
 	}
@@ -485,8 +505,25 @@ bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 		// Find param shortcut
 		currentParamShorcutX = 255;
 
+		if (getRootUI() == &performanceSessionView) {
+			int32_t x, y;
+
+			// First, see if there's a shortcut for the actual MenuItem we're currently on
+			for (x = 0; x < 15; x++) {
+				for (y = 0; y < kDisplayHeight; y++) {
+					if (paramShortcutsForPerformanceView[x][y] == currentItem) {
+						goto doSetupBlinkingForPerformanceView;
+					}
+				}
+			}
+
+			if (false) {
+doSetupBlinkingForPerformanceView:
+				setupShortcutBlink(x, y, 0);
+			}
+		}
 		// For AudioClips...
-		if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
+		else if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
 
 			int32_t x, y;
 
@@ -659,37 +696,42 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 		return;
 	}
 
-	bool hadNoteTails;
+	if (performanceSessionView.defaultEditingMode && (getRootUI() == &performanceSessionView)) {
+		performanceSessionView.selectEncoderAction(offset);
+	}
+	else {
+		bool hadNoteTails;
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithSoundFlags* modelStack = getCurrentModelStack(modelStackMemory)->addSoundFlags();
-
-	if (currentSound) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithSoundFlags* modelStack = getCurrentModelStack(modelStackMemory)->addSoundFlags();
 
-		hadNoteTails = currentSound->allowNoteTails(modelStack);
-	}
+		if (currentSound) {
+			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithSoundFlags* modelStack = getCurrentModelStack(modelStackMemory)->addSoundFlags();
 
-	getCurrentMenuItem()->selectEncoderAction(offset);
-
-	if (currentSound) {
-		if (getCurrentMenuItem()->selectEncoderActionEditsInstrument()) {
-			markInstrumentAsEdited(); // TODO: make reverb and reverb-compressor stuff exempt from this
+			hadNoteTails = currentSound->allowNoteTails(modelStack);
 		}
 
-		// If envelope param preset values were changed, there's a chance that there could have been a change to whether notes have tails
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithSoundFlags* modelStack = getCurrentModelStack(modelStackMemory)->addSoundFlags();
+		getCurrentMenuItem()->selectEncoderAction(offset);
 
-		bool hasNoteTailsNow = currentSound->allowNoteTails(modelStack);
-		if (hadNoteTails != hasNoteTailsNow) {
-			uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+		if (currentSound) {
+			if (getCurrentMenuItem()->selectEncoderActionEditsInstrument()) {
+				markInstrumentAsEdited(); // TODO: make reverb and reverb-compressor stuff exempt from this
+			}
+
+			// If envelope param preset values were changed, there's a chance that there could have been a change to whether notes have tails
+			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithSoundFlags* modelStack = getCurrentModelStack(modelStackMemory)->addSoundFlags();
+
+			bool hasNoteTailsNow = currentSound->allowNoteTails(modelStack);
+			if (hadNoteTails != hasNoteTailsNow) {
+				uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+			}
 		}
-	}
 
-	if (currentModControllable) {
-		view.setKnobIndicatorLevels(); // Is this really necessary every time?
+		if (currentModControllable) {
+			view.setKnobIndicatorLevels(); // Is this really necessary every time?
+		}
 	}
 }
 
@@ -708,10 +750,12 @@ static const uint32_t shortcutPadUIModes[] = {UI_MODE_AUDITIONING, 0};
 
 ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool on) {
 
-	if (!on || x >= kDisplayWidth
-	    || (!Buttons::isShiftButtonPressed()
-	        && !(currentUIMode == UI_MODE_AUDITIONING && getRootUI() == &instrumentClipView))) {
-		return ActionResult::NOT_DEALT_WITH;
+	if ((getRootUI() != &performanceSessionView) && (getCurrentUI() != &performanceSessionView)) {
+		if (!on || x >= kDisplayWidth
+			|| (!Buttons::isShiftButtonPressed()
+				&& !(currentUIMode == UI_MODE_AUDITIONING && getRootUI() == &instrumentClipView))) {
+			return ActionResult::NOT_DEALT_WITH;
+		}
 	}
 
 	if (on && isUIModeWithinRange(shortcutPadUIModes)) {
@@ -722,9 +766,16 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 
 		const MenuItem* item = NULL;
 
-		// AudioClips - there are just a few shortcuts
-		if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
+		// performance session view
+		if ((getRootUI() == &performanceSessionView) || (getCurrentUI() == &performanceSessionView)) {
+			if (x <= 14) {
+				item = paramShortcutsForPerformanceView[x][y];
+			}
 
+			goto doSetup;
+		}
+		// AudioClips - there are just a few shortcuts
+		else if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
 			if (x <= 14) {
 				item = paramShortcutsForAudioClips[x][y];
 			}
@@ -884,6 +935,14 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 
+	//used to convert column press to a shortcut to change Perform FX menu displayed
+	if (((getRootUI() == &performanceSessionView) || (getCurrentUI() == &performanceSessionView)) && !Buttons::isShiftButtonPressed()) {
+		if (x < kDisplayWidth) {
+			performanceSessionView.padAction(x, y, on);
+			return ActionResult::DEALT_WITH;
+		}
+	}	
+
 	if (!inSettingsMenu()) {
 		ActionResult result = potentialShortcutPadAction(x, y, on);
 		if (result != ActionResult::NOT_DEALT_WITH) {
@@ -1007,7 +1066,17 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 	ArpeggiatorSettings* newArpSettings = NULL;
 	ModControllableAudio* newModControllable = NULL;
 
-	if (clip) {
+	//getParamManager and ModControllable for Performance Session View (and Session View)
+	if (getRootUI() == &performanceSessionView) {
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithThreeMainThings* modelStack =
+		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+		if (modelStack) {
+			newParamManager = (ParamManagerForTimeline*)modelStack->paramManager;
+			newModControllable = (ModControllableAudio*)modelStack->modControllable;
+		}
+	}
+	else if (clip) {
 
 		// InstrumentClips
 		if (clip->type == CLIP_TYPE_INSTRUMENT) {
@@ -1105,6 +1174,9 @@ doMIDIOrCV:
 			if (getCurrentUI() == &automationInstrumentClipView) {
 				display->cancelPopup();
 				newItem = &deluge::gui::menu_item::runtime_feature::subMenuAutomation;
+			}
+			else if (getCurrentUI() == &performanceSessionView) {
+				newItem = &soundEditorRootMenuPerformanceView;
 			}
 			else {
 				newItem = &settingsRootMenu;
@@ -1237,19 +1309,23 @@ AudioFileHolder* SoundEditor::getCurrentAudioFileHolder() {
 }
 
 ModelStackWithThreeMainThings* SoundEditor::getCurrentModelStack(void* memory) {
-	NoteRow* noteRow = NULL;
-	int32_t noteRowIndex;
-
-	if (currentSong->currentClip->output->type == InstrumentType::KIT) {
-		Drum* selectedDrum = ((Kit*)currentSong->currentClip->output)->selectedDrum;
-		if (selectedDrum) {
-			noteRow = ((InstrumentClip*)currentSong->currentClip)->getNoteRowForDrum(selectedDrum, &noteRowIndex);
-		}
+	if (getRootUI() == &performanceSessionView) {
+		return currentSong->setupModelStackWithSongAsTimelineCounter(memory);
 	}
+	else {
+		NoteRow* noteRow = NULL;
+		int32_t noteRowIndex;
+		if (currentSong->currentClip->output->type == InstrumentType::KIT) {
+			Drum* selectedDrum = ((Kit*)currentSong->currentClip->output)->selectedDrum;
+			if (selectedDrum) {
+				noteRow = ((InstrumentClip*)currentSong->currentClip)->getNoteRowForDrum(selectedDrum, &noteRowIndex);
+			}
+		}
 
-	return setupModelStackWithThreeMainThingsIncludingNoteRow(memory, currentSong, currentSong->currentClip,
-	                                                          noteRowIndex, noteRow, currentModControllable,
-	                                                          currentParamManager);
+		return setupModelStackWithThreeMainThingsIncludingNoteRow(memory, currentSong, currentSong->currentClip,
+		                                                          noteRowIndex, noteRow, currentModControllable,
+		                                                          currentParamManager);
+	}
 }
 
 void SoundEditor::mpeZonesPotentiallyUpdated() {

@@ -172,6 +172,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_SIDECHAIN_SHAPE, "Sidechain shape"},
 
         //Decimation, Bitcrush
+        {STRING_FOR_DISTORTION, "Distortion"},
         {STRING_FOR_DECIMATION, "DECIMATION"},
         {STRING_FOR_BITCRUSH, "Bitcrush"},
 
@@ -188,6 +189,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_PORTAMENTO, "PORTAMENTO"},
 
         //Stutter Rate
+        {STRING_FOR_STUTTER, "STUTTER"},
         {STRING_FOR_STUTTER_RATE, "Stutter Rate"},
 
         /*
@@ -647,6 +649,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_PAN, "PAN"},
         {STRING_FOR_SOUND, "Sound"},
         {STRING_FOR_AUDIO_CLIP, "Audio clip"},
+        {STRING_FOR_SONG, "Song"},
         {STRING_FOR_SETTINGS, "Settings"},
         {STRING_FOR_ENV_ATTACK_MENU_TITLE, "Env* attack"},
         {STRING_FOR_ENV_DECAY_MENU_TITLE, "Env* decay"},
@@ -793,6 +796,8 @@ PLACE_SDRAM_DATA Language english{
         * performance_session_view.cpp
         */
 
+        {STRING_FOR_PERFORM_FX, "Perform FX"},
+        {STRING_FOR_PERFORM_EDITOR, "Editing Mode"},
         {STRING_FOR_PERFORMANCE, "Performance View"},
     },
 };
