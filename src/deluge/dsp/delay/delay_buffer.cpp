@@ -134,7 +134,7 @@ void DelayBuffer::setupForRender(int32_t userDelayRate, DelayBufferSetup* setup)
 	if (isResampling) {
 
 		setup->actualSpinRate =
-		    (uint64_t)((double)(userDelayRate << 24) / (double)nativeRate); // 1 is represented as 16777216
+		    (uint64_t)((double)((uint64_t)userDelayRate << 24) / (double)nativeRate); // 1 is represented as 16777216
 		setup->divideByRate =
 		    (uint32_t)((double)0xFFFFFFFF / (double)(setup->actualSpinRate >> 8)); // 1 is represented as 65536
 
