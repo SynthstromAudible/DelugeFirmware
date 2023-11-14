@@ -3,9 +3,9 @@
 #define ALPHA_OR_BETA_VERSION 1 // Whether to compile with additional error-checking
 
 #if !defined(NDEBUG)
-	#define ENABLE_SEQUENTIALITY_TESTS 1
+#define ENABLE_SEQUENTIALITY_TESTS 1
 #else
-	#define ENABLE_SEQUENTIALITY_TESTS 0
+#define ENABLE_SEQUENTIALITY_TESTS 0
 #endif
 
 #include "RZA1/cpu_specific.h"

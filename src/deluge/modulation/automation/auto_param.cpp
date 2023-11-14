@@ -1018,9 +1018,9 @@ int32_t AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, i
 		FREEZE_WITH_ERROR("E437");
 	}
 
-//#if ENABLE_SEQUENTIALITY_TESTS
-//	// nodes.testSequentiality("E435"); // drbourbon got! March 2022. Now moved check to each caller.
-//#endif
+	//#if ENABLE_SEQUENTIALITY_TESTS
+	//	// nodes.testSequentiality("E435"); // drbourbon got! March 2022. Now moved check to each caller.
+	//#endif
 
 	if (nodes.getNumElements() && nodes.getFirst()->pos < 0) {
 		FREEZE_WITH_ERROR("E436");
