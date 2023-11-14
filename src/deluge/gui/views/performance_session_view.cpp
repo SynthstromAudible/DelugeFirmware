@@ -948,9 +948,8 @@ void PerformanceSessionView::selectEncoderAction(int8_t offset) {
 
 	if (defaultEditingMode) {
 		if (lastPadPress.isActive) {
-
-			defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay] =
-			    defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay] + offset;
+			defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay] = calculateKnobPosForSelectEncoderTurn(
+			    defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay], offset);
 
 			if (setParameterValue(modelStack, lastPadPress.paramKind, lastPadPress.paramID, lastPadPress.xDisplay,
 			                      defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay])) {
@@ -961,6 +960,33 @@ void PerformanceSessionView::selectEncoderAction(int8_t offset) {
 	}
 
 	return;
+}
+
+//used to calculate new knobPos when you turn the select encoder
+int32_t PerformanceSessionView::calculateKnobPosForSelectEncoderTurn(int32_t knobPos, int32_t offset) {
+
+	//adjust the current knob so that it is within the range of 0-128 for calculation purposes
+	knobPos = knobPos + kKnobPosOffset;
+
+	int32_t newKnobPos = 0;
+
+	if ((knobPos + offset) < 0) {
+		newKnobPos = knobPos;
+	}
+	else if ((knobPos + offset) <= kMaxKnobPos) {
+		newKnobPos = knobPos + offset;
+	}
+	else if ((knobPos + offset) > kMaxKnobPos) {
+		newKnobPos = kMaxKnobPos;
+	}
+	else {
+		newKnobPos = knobPos;
+	}
+
+	//in the deluge knob positions are stored in the range of -64 to + 64, so need to adjust newKnobPos set above.
+	newKnobPos = newKnobPos - kKnobPosOffset;
+
+	return newKnobPos;
 }
 
 ActionResult PerformanceSessionView::horizontalEncoderAction(int32_t offset) {
