@@ -30,6 +30,14 @@ class ModelStack;
 class ModelStackWithThreeMainThings;
 class ModelStackWithAutoParam;
 
+struct LastPadPress {
+	bool isActive;
+	int32_t yDisplay;
+	int32_t xDisplay;
+	Param::Kind paramKind;
+	int32_t paramID;
+};
+
 class PerformanceSessionView final : public ClipNavigationTimelineView, public ModControllableAudio {
 public:
 	PerformanceSessionView();
@@ -84,6 +92,8 @@ private:
 	void setCentralLEDStates();
 
 	//pad action
+	bool setParameterValue(ModelStackWithThreeMainThings* modelStack, Param::Kind paramKind, int32_t paramID,
+	                       int32_t xDisplay, int32_t knobPos, bool renderDisplay = true);
 	void padPressAction(ModelStackWithThreeMainThings* modelStack, Param::Kind paramKind, int32_t paramID,
 	                    int32_t xDisplay, int32_t yDisplay, bool renderDisplay = true);
 	void padReleaseAction(ModelStackWithThreeMainThings* modelStack, Param::Kind paramKind, int32_t paramID,
@@ -113,6 +123,7 @@ private:
 	bool padPressHeld[kDisplayWidth];
 	int32_t defaultFXValues[kDisplayWidth][kDisplayHeight];
 	bool defaultEditingMode;
+	LastPadPress lastPadPress;
 
 	// Members regarding rendering different layouts
 private:

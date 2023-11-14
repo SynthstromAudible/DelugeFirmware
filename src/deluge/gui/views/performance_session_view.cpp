@@ -128,6 +128,11 @@ PerformanceSessionView::PerformanceSessionView() {
 	successfullyReadDefaultsFromFile = false;
 	anyChangesToSave = false;
 	defaultEditingMode = false;
+	lastPadPress.isActive = false;
+	lastPadPress.xDisplay = kNoSelection;
+	lastPadPress.yDisplay = kNoSelection;
+	lastPadPress.paramKind = Param::Kind::NONE;
+	lastPadPress.paramID = kNoSelection;
 
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		previousKnobPosition[xDisplay] = kNoSelection;
@@ -151,6 +156,10 @@ bool PerformanceSessionView::opened() {
 	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
 	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
 
+	if (!successfullyReadDefaultsFromFile) {
+		readDefaultsFromFile();
+	}
+
 	focusRegained();
 
 	return true;
@@ -171,6 +180,10 @@ void PerformanceSessionView::focusRegained() {
 	indicator_leds::setLedState(IndicatorLED::BACK, false);
 
 	setLedStates();
+
+	if (anyChangesToSave) {
+		indicator_leds::blinkLed(IndicatorLED::SAVE);
+	}
 
 	currentSong->lastClipInstanceEnteredStartPos = -1;
 
@@ -299,23 +312,23 @@ void PerformanceSessionView::renderViewDisplay() {
 		if (display->haveOLED()) {
 			deluge::hid::display::OLED::clearMainImage();
 
-	#if OLED_MAIN_HEIGHT_PIXELS == 64
+#if OLED_MAIN_HEIGHT_PIXELS == 64
 			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
-	#else
+#else
 			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
-	#endif
+#endif
 
 			deluge::hid::display::OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_PERFORMANCE), yPos,
-														deluge::hid::display::OLED::oledMainImage[0],
-														OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+			                                              deluge::hid::display::OLED::oledMainImage[0],
+			                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 
 			yPos = yPos + 24;
 
 			deluge::hid::display::OLED::drawStringCentred("Editing Mode", yPos,
-														deluge::hid::display::OLED::oledMainImage[0],
-														OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);	
+			                                              deluge::hid::display::OLED::oledMainImage[0],
+			                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 
-			deluge::hid::display::OLED::sendMainImage();	
+			deluge::hid::display::OLED::sendMainImage();
 		}
 		else {
 			display->setScrollingText("Editing Mode");
@@ -325,17 +338,17 @@ void PerformanceSessionView::renderViewDisplay() {
 		if (display->haveOLED()) {
 			deluge::hid::display::OLED::clearMainImage();
 
-	#if OLED_MAIN_HEIGHT_PIXELS == 64
+#if OLED_MAIN_HEIGHT_PIXELS == 64
 			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
-	#else
+#else
 			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
-	#endif
+#endif
 
 			yPos = yPos + 12;
 
 			deluge::hid::display::OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_PERFORMANCE), yPos,
-														deluge::hid::display::OLED::oledMainImage[0],
-														OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);			
+			                                              deluge::hid::display::OLED::oledMainImage[0],
+			                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 
 			deluge::hid::display::OLED::sendMainImage();
 		}
@@ -371,8 +384,9 @@ void PerformanceSessionView::renderFXDisplay(Param::Kind paramKind, int32_t para
 		yPos = yPos + 12;
 
 		if (defaultEditingMode) {
-			deluge::hid::display::OLED::drawStringCentred("(Editing Mode)", yPos, deluge::hid::display::OLED::oledMainImage[0],
-														OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);	
+			deluge::hid::display::OLED::drawStringCentred("(Editing Mode)", yPos,
+			                                              deluge::hid::display::OLED::oledMainImage[0],
+			                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 		}
 
 		//display parameter value
@@ -546,6 +560,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 		if (on) {
 			writeDefaultsToFile();
 			display->displayPopup("Defaults Saved");
+			indicator_leds::setLedState(IndicatorLED::SAVE, false);
 		}
 	}
 
@@ -553,6 +568,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 		if (on) {
 			readDefaultsFromFile();
 			display->displayPopup("Defaults Loaded");
+			indicator_leds::setLedState(IndicatorLED::SAVE, false);
 		}
 	}
 
@@ -572,11 +588,18 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 		}
 	}
 
+	//disable button presses for Vertical and Horizontal encoders
+	//disable back button press since undo doesn't work well in this view atm.
+	else if ((b == Y_ENC) || (b == X_ENC) || (b == BACK)) {
+		goto doNothing;
+	}
+
 	else {
 notDealtWith:
 		return TimelineView::buttonAction(b, on, inCardRoutine);
 	}
 
+doNothing:
 	return ActionResult::DEALT_WITH;
 }
 
@@ -623,88 +646,41 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 
 void PerformanceSessionView::padPressAction(ModelStackWithThreeMainThings* modelStack, Param::Kind paramKind,
                                             int32_t paramID, int32_t xDisplay, int32_t yDisplay, bool renderDisplay) {
-	//if pressing a new pad in a column, reset held status
-	padPressHeld[xDisplay] = false;
+	if (setParameterValue(modelStack, paramKind, paramID, xDisplay, defaultFXValues[xDisplay][yDisplay],
+	                      renderDisplay)) {
+		//if pressing a new pad in a column, reset held status
+		padPressHeld[xDisplay] = false;
 
-	//if switching to a new pad in the stutter column and stuttering is already active
-	//e.g. it means a pad was held before, end previous stutter before starting stutter again
-	if ((paramKind == Param::Kind::UNPATCHED) && (paramID == Param::Unpatched::STUTTER_RATE)
-	    && (isUIModeActive(UI_MODE_STUTTERING))) {
-		((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
-		    ->endStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
-	}
+		//save row yDisplay of current pad press in column xDisplay
+		previousPadPressYDisplay[xDisplay] = yDisplay;
 
-	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, paramID);
+		//save time of current pad press in column xDisplay
+		timeLastPadPress[xDisplay] = AudioEngine::audioSampleTimer;
 
-	if (modelStackWithParam && modelStackWithParam->autoParam) {
+		//update current knob position
+		currentKnobPosition[xDisplay] = defaultFXValues[xDisplay][yDisplay];
 
-		if (modelStackWithParam->getTimelineCounter()
-		    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
-
-			previousPadPressYDisplay[xDisplay] = yDisplay;
-			timeLastPadPress[xDisplay] = AudioEngine::audioSampleTimer;
-
-			if (previousKnobPosition[xDisplay] == kNoSelection) {
-				int32_t oldValue =
-				    modelStackWithParam->autoParam->getValuePossiblyAtPos(view.modPos, modelStackWithParam);
-				previousKnobPosition[xDisplay] =
-				    modelStackWithParam->paramCollection->paramValueToKnobPos(oldValue, modelStackWithParam);
-			}
-			currentKnobPosition[xDisplay] = defaultFXValues[xDisplay][yDisplay];
-
-			int32_t newValue = modelStackWithParam->paramCollection->knobPosToParamValue(currentKnobPosition[xDisplay],
-			                                                                             modelStackWithParam);
-
-			modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, view.modPos,
-			                                                          view.modLength);
-
-			if ((paramKind == Param::Kind::UNPATCHED) && (paramID == Param::Unpatched::STUTTER_RATE)) {
-				((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
-				    ->beginStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
-			}
-
-			int32_t valueForDisplay = calculateKnobPosForDisplay(currentKnobPosition[xDisplay] + kKnobPosOffset);
-
-			if (renderDisplay) {
-				renderFXDisplay(paramKind, paramID, valueForDisplay);
-			}
-		}
+		//save xDisplay, yDisplay, paramKind and paramID currently being edited
+		lastPadPress.isActive = true;
+		lastPadPress.xDisplay = xDisplay;
+		lastPadPress.yDisplay = yDisplay;
+		lastPadPress.paramKind = paramKind;
+		lastPadPress.paramID = paramID;
 	}
 }
 
 void PerformanceSessionView::padReleaseAction(ModelStackWithThreeMainThings* modelStack, Param::Kind paramKind,
                                               int32_t paramID, int32_t xDisplay, bool renderDisplay) {
-
-	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, paramID);
-
-	if (modelStackWithParam && modelStackWithParam->autoParam) {
-
-		if (modelStackWithParam->getTimelineCounter()
-		    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
-
-			if ((paramKind == Param::Kind::UNPATCHED) && (paramID == Param::Unpatched::STUTTER_RATE)
-			    && (isUIModeActive(UI_MODE_STUTTERING))) {
-				((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
-				    ->endStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
-			}
-
-			int32_t oldValue = modelStackWithParam->paramCollection->knobPosToParamValue(previousKnobPosition[xDisplay],
-			                                                                             modelStackWithParam);
-
-			modelStackWithParam->autoParam->setValuePossiblyForRegion(oldValue, modelStackWithParam, view.modPos,
-			                                                          view.modLength);
-
-			int32_t valueForDisplay = calculateKnobPosForDisplay(previousKnobPosition[xDisplay] + kKnobPosOffset);
-
-			if (renderDisplay) {
-				renderFXDisplay(paramKind, paramID, valueForDisplay);
-			}
-
-			previousPadPressYDisplay[xDisplay] = kNoSelection;
-			previousKnobPosition[xDisplay] = kNoSelection;
-			currentKnobPosition[xDisplay] = kNoSelection;
-			padPressHeld[xDisplay] = false;
-		}
+	if (setParameterValue(modelStack, paramKind, paramID, xDisplay, previousKnobPosition[xDisplay], renderDisplay)) {
+		previousPadPressYDisplay[xDisplay] = kNoSelection;
+		previousKnobPosition[xDisplay] = kNoSelection;
+		currentKnobPosition[xDisplay] = kNoSelection;
+		padPressHeld[xDisplay] = false;
+		lastPadPress.isActive = false;
+		lastPadPress.xDisplay = kNoSelection;
+		lastPadPress.yDisplay = kNoSelection;
+		lastPadPress.paramKind = Param::Kind::NONE;
+		lastPadPress.paramID = kNoSelection;
 	}
 }
 
@@ -727,6 +703,54 @@ void PerformanceSessionView::releaseStutter(ModelStackWithThreeMainThings* model
 	if (isUIModeActive(UI_MODE_STUTTERING)) {
 		padReleaseAction(modelStack, Param::Kind::UNPATCHED, Param::Unpatched::STUTTER_RATE, kDisplayWidth - 1, false);
 	}
+}
+
+bool PerformanceSessionView::setParameterValue(ModelStackWithThreeMainThings* modelStack, Param::Kind paramKind,
+                                               int32_t paramID, int32_t xDisplay, int32_t knobPos, bool renderDisplay) {
+	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, paramID);
+
+	if (modelStackWithParam && modelStackWithParam->autoParam) {
+
+		if (modelStackWithParam->getTimelineCounter()
+		    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+
+			//if switching to a new pad in the stutter column and stuttering is already active
+			//e.g. it means a pad was held before, end previous stutter before starting stutter again
+			if ((paramKind == Param::Kind::UNPATCHED) && (paramID == Param::Unpatched::STUTTER_RATE)
+			    && (isUIModeActive(UI_MODE_STUTTERING))) {
+				((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
+				    ->endStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
+			}
+
+			if (previousKnobPosition[xDisplay] == kNoSelection) {
+				int32_t oldParameterValue =
+				    modelStackWithParam->autoParam->getValuePossiblyAtPos(view.modPos, modelStackWithParam);
+				previousKnobPosition[xDisplay] =
+				    modelStackWithParam->paramCollection->paramValueToKnobPos(oldParameterValue, modelStackWithParam);
+			}
+
+			int32_t newParameterValue =
+			    modelStackWithParam->paramCollection->knobPosToParamValue(knobPos, modelStackWithParam);
+
+			modelStackWithParam->autoParam->setValuePossiblyForRegion(newParameterValue, modelStackWithParam,
+			                                                          view.modPos, view.modLength);
+
+			if ((paramKind == Param::Kind::UNPATCHED) && (paramID == Param::Unpatched::STUTTER_RATE)) {
+				((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
+				    ->beginStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
+			}
+
+			int32_t valueForDisplay = calculateKnobPosForDisplay(knobPos + kKnobPosOffset);
+
+			if (renderDisplay) {
+				renderFXDisplay(paramKind, paramID, valueForDisplay);
+			}
+
+			return true;
+		}
+	}
+
+	return false;
 }
 
 void PerformanceSessionView::writeDefaultsToFile() {
@@ -787,10 +811,6 @@ void PerformanceSessionView::writeDefaultFXRowValuesToFile(int32_t xDisplay) {
 }
 
 void PerformanceSessionView::readDefaultsFromFile() {
-	if (successfullyReadDefaultsFromFile) {
-		return; // Yup, we only want to do this once
-	}
-
 	FilePointer fp;
 	bool success = storageManager.fileExists("PerformanceView.XML", &fp);
 	if (!success) {
@@ -912,6 +932,23 @@ int32_t PerformanceSessionView::calculateKnobPosForDisplay(int32_t knobPos) {
 }
 
 void PerformanceSessionView::selectEncoderAction(int8_t offset) {
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* modelStack = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+
+	if (defaultEditingMode) {
+		if (lastPadPress.isActive) {
+
+			defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay] =
+			    defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay] + offset;
+
+			if (setParameterValue(modelStack, lastPadPress.paramKind, lastPadPress.paramID, lastPadPress.xDisplay,
+			                      defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay])) {
+				anyChangesToSave = true;
+				indicator_leds::blinkLed(IndicatorLED::SAVE);
+			}
+		}
+	}
+
 	return;
 }
 
@@ -931,7 +968,7 @@ uint32_t PerformanceSessionView::getMaxLength() {
 	return currentSong->getLongestClip(true, false)->loopLength;
 }
 
-void PerformanceSessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {	
+void PerformanceSessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	if (getCurrentUI() == this) { //This routine may also be called from the Arranger view
 		ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
 	}
