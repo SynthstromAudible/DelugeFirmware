@@ -204,7 +204,7 @@ investigatePrevNode:
 
 				bool shouldInterpolateLeft = reversed || shouldInterpolateRegionStart;
 
-#if ALPHA_OR_BETA_VERSION
+#if ENABLE_SEQUENTIALITY_TESTS
 				// drbourbon got, when check was inside homogenizeRegion(). Now trying to work out where that came from.
 				// March 2022.
 				nodes.testSequentiality("E435");
@@ -249,7 +249,7 @@ investigatePrevNode:
 skipThat : {}
 			}
 
-#if ALPHA_OR_BETA_VERSION
+#if ENABLE_SEQUENTIALITY_TESTS
 			nodes.testSequentiality("ffff");
 #endif
 
@@ -688,7 +688,7 @@ adjustNodeJustReached:
 					nextNodeInOurDirection = nodes.getElement(iRight);
 				}
 
-#if ALPHA_OR_BETA_VERSION
+#if ENABLE_SEQUENTIALITY_TESTS
 				nodes.testSequentiality("eeee");
 #endif
 			}
@@ -955,7 +955,7 @@ void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
 	// Or, normal case
 	else {
 
-#if ALPHA_OR_BETA_VERSION
+#if ENABLE_SEQUENTIALITY_TESTS
 		// drbourbon got, when check was inside homogenizeRegion(). Now trying to work out where that came from.
 		// March 2022. Sven got, oddly while editing note velocity. Then again by "Adding some snares while playing".
 		nodes.testSequentiality("E441");
@@ -1017,7 +1017,11 @@ int32_t AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, i
 	if (startPos < 0) {
 		FREEZE_WITH_ERROR("E437");
 	}
-	// nodes.testSequentiality("E435"); // drbourbon got! March 2022. Now moved check to each caller.
+
+//#if ENABLE_SEQUENTIALITY_TESTS
+//	// nodes.testSequentiality("E435"); // drbourbon got! March 2022. Now moved check to each caller.
+//#endif
+
 	if (nodes.getNumElements() && nodes.getFirst()->pos < 0) {
 		FREEZE_WITH_ERROR("E436");
 	}
@@ -1211,9 +1215,11 @@ getValueNormalWay:
 		edgeIndexes[REGION_EDGE_LEFT] -= edgeIndexes[REGION_EDGE_RIGHT];
 	}
 
-#if ALPHA_OR_BETA_VERSION
+#if ENABLE_SEQUENTIALITY_TESTS
 	nodes.testSequentiality(
 	    "E433"); // Was "GGGG". Leo got. Sven got. (Probably now solved). (Nope, Michael got on V4.1.0-alpha10 (OLED)!)
+#endif
+#if ALPHA_OR_BETA_VERSION
 	if (nodes.getNumElements()) {
 		ParamNode* rightmostNode = nodes.getElement(nodes.getNumElements() - 1);
 		if (rightmostNode->pos >= effectiveLength) {
