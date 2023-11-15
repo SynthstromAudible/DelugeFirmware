@@ -513,14 +513,14 @@ bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 			// First, see if there's a shortcut for the actual MenuItem we're currently on
 			for (x = 0; x < 15; x++) {
 				for (y = 0; y < kDisplayHeight; y++) {
-					if (paramShortcutsForPerformanceView[x][y] == currentItem) {
-						goto doSetupBlinkingForPerformanceView;
+					if (paramShortcutsForSessionView[x][y] == currentItem) {
+						goto doSetupBlinkingForSessionView;
 					}
 				}
 			}
 
 			if (false) {
-doSetupBlinkingForPerformanceView:
+doSetupBlinkingForSessionView:
 				setupShortcutBlink(x, y, 0);
 			}
 		}
@@ -775,7 +775,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 		// performance session view
 		if ((getRootUI() == &performanceSessionView) || (getCurrentUI() == &performanceSessionView)) {
 			if (x <= 14) {
-				item = paramShortcutsForPerformanceView[x][y];
+				item = paramShortcutsForSessionView[x][y];
 			}
 
 			goto doSetup;

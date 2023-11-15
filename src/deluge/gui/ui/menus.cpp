@@ -209,14 +209,14 @@ submenu::Filter lpfMenu{
 filter::HPFFreq hpfFreqMenu{STRING_FOR_FREQUENCY, STRING_FOR_HPF_FREQUENCY, ::Param::Local::HPF_FREQ};
 patched_param::IntegerNonFM hpfResMenu{STRING_FOR_RESONANCE, STRING_FOR_HPF_RESONANCE, ::Param::Local::HPF_RESONANCE};
 patched_param::IntegerNonFM hpfMorphMenu{STRING_FOR_MORPH, STRING_FOR_HPF_MORPH, ::Param::Local::HPF_MORPH};
-filter::HPFMode hpfModemenu{STRING_FOR_MODE, STRING_FOR_HPF_MODE};
+filter::HPFMode hpfModeMenu{STRING_FOR_MODE, STRING_FOR_HPF_MODE};
 
 submenu::Filter hpfMenu{
     STRING_FOR_HPF,
     {
         &hpfFreqMenu,
         &hpfResMenu,
-        &hpfModemenu,
+        &hpfModeMenu,
         &hpfMorphMenu,
     },
 };
@@ -542,7 +542,7 @@ Submenu audioClipHPFMenu{
     {
         &audioClipHPFFreqMenu,
         &audioClipHPFResMenu,
-        &hpfModemenu,
+        &hpfModeMenu,
     },
 };
 
@@ -646,6 +646,7 @@ Submenu songLPFMenu{
     {
         &globalFXLPFFreqMenu,
         &globalFXLPFResMenu,
+        &lpfModeMenu,
     },
 };
 
@@ -660,6 +661,7 @@ Submenu songHPFMenu{
     {
         &globalFXHPFFreqMenu,
         &globalFXHPFResMenu,
+        &hpfModeMenu,
     },
 };
 
@@ -670,15 +672,29 @@ Submenu songEQMenu{
     {
         &bassMenu,
         &trebleMenu,
+        &bassFreqMenu,
+        &trebleFreqMenu,
     },
 };
 
 // Reverb Menu
 
 UnpatchedParam globalFXReverbSendAmountMenu{
-    STRING_FOR_REVERB,
+    STRING_FOR_AMOUNT,
     STRING_FOR_REVERB_AMOUNT,
     ::Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT,
+};
+
+Submenu songReverbMenu{
+    STRING_FOR_REVERB,
+    {
+        &globalFXReverbSendAmountMenu,
+        &reverbRoomSizeMenu,
+        &reverbDampeningMenu,
+        &reverbWidthMenu,
+        &reverbPanMenu,
+        &reverbCompressorMenu,
+    },
 };
 
 // Delay Menu
@@ -692,6 +708,9 @@ Submenu songDelayMenu{
     {
         &globalFXDelayFeedbackMenu,
         &globalFXDelayRateMenu,
+        &delayPingPongMenu,
+        &delayAnalogMenu,
+        &delaySyncMenu,
     },
 };
 
@@ -705,10 +724,11 @@ UnpatchedParam globalFXModFXRateMenu{STRING_FOR_RATE, STRING_FOR_MOD_FX_RATE,
 Submenu songModFXMenu{
     STRING_FOR_MOD_FX,
     {
-        &modFXOffsetMenu,
-        &modFXFeedbackMenu,
-        &globalFXModFXDepthMenu,
+        &modFXTypeMenu,
         &globalFXModFXRateMenu,
+        &globalFXModFXDepthMenu,
+        &modFXFeedbackMenu,
+        &modFXOffsetMenu,
     },
 };
 
@@ -722,7 +742,7 @@ Submenu songDistortionMenu{
 
 // Stutter Menu
 
-UnpatchedParam songStutterMenu{
+UnpatchedParam songStutterRateMenu{
     STRING_FOR_STUTTER,
     STRING_FOR_STUTTER_RATE,
     ::Param::Unpatched::STUTTER_RATE,
@@ -1069,11 +1089,11 @@ menu_item::Submenu soundEditorRootMenuPerformanceView{
         &songLPFMenu,
         &songHPFMenu,
         &songEQMenu,
-        &globalFXReverbSendAmountMenu,
+        &songReverbMenu,
         &songDelayMenu,
         &songModFXMenu,
         &songDistortionMenu,
-        &songStutterMenu,
+        &songStutterRateMenu,
     },
 };
 
@@ -1110,7 +1130,7 @@ MenuItem* paramShortcutsForSounds[][8] = {
     {&volumeMenu,             &masterTransposeMenu,    &vibratoMenu,                   &panMenu,                       &synthModeMenu,       &srrMenu,               &bitcrushMenu,            &clippingMenu                      },
     {&portaMenu,              &polyphonyMenu,          &priorityMenu,                  &unisonDetuneMenu,              &numUnisonMenu,       nullptr,                nullptr,                  &foldMenu                          },
     {&envReleaseMenu,         &envSustainMenu,         &envDecayMenu,                  &envAttackMenu,                 &lpfMorphMenu,        &lpfModeMenu,           &lpfResMenu,              &lpfFreqMenu                       },
-    {&envReleaseMenu,         &envSustainMenu,         &envDecayMenu,                  &envAttackMenu,                 &hpfMorphMenu,        &hpfModemenu,           &hpfResMenu,              &hpfFreqMenu                       },
+    {&envReleaseMenu,         &envSustainMenu,         &envDecayMenu,                  &envAttackMenu,                 &hpfMorphMenu,        &hpfModeMenu,           &hpfResMenu,              &hpfFreqMenu                       },
     {&compressorReleaseMenu,  &sidechainSyncMenu,      &compressorVolumeShortcutMenu,  &compressorAttackMenu,          &compressorShapeMenu, &sidechainSendMenu,     &bassMenu,                &bassFreqMenu                      },
     {&arpRateMenu,            &arpSyncMenu,            &arpGateMenu,                   &arpOctavesMenu,                &arpModeMenu,         &drumNameMenu,          &trebleMenu,              &trebleFreqMenu                    },
     {&lfo1RateMenu,           &lfo1SyncMenu,           &lfo1TypeMenu,                  &modFXTypeMenu,                 &modFXOffsetMenu,     &modFXFeedbackMenu,     &modFXDepthMenu,          &modFXRateMenu                     },
@@ -1128,7 +1148,7 @@ MenuItem* paramShortcutsForAudioClips[][8] = {
     {&audioClipLevelMenu,     &audioClipTransposeMenu, nullptr,                        &audioClipPanMenu,              nullptr,              &srrMenu,               &bitcrushMenu,            &clippingMenu                      },
     {nullptr,                 nullptr,                 &priorityMenu,                  nullptr,                        nullptr,              nullptr,                nullptr,                  comingSoonMenu                     },
     {nullptr,                 nullptr,                 nullptr,                        &audioClipAttackMenu,           comingSoonMenu,       &lpfModeMenu,           &audioClipLPFResMenu,     &audioClipLPFFreqMenu              },
-    {nullptr,                 nullptr,                 nullptr,                        &audioClipAttackMenu,           comingSoonMenu,       &hpfModemenu,           &audioClipHPFResMenu,     &audioClipHPFFreqMenu              },
+    {nullptr,                 nullptr,                 nullptr,                        &audioClipAttackMenu,           comingSoonMenu,       &hpfModeMenu,           &audioClipHPFResMenu,     &audioClipHPFFreqMenu              },
     {&compressorReleaseMenu,  &sidechainSyncMenu,      &audioClipCompressorVolumeMenu, &compressorAttackMenu,          &compressorShapeMenu, nullptr,                &bassMenu,                &bassFreqMenu                      },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                &trebleMenu,              &trebleFreqMenu                    },
     {nullptr,                 nullptr,                 nullptr,                        &audioClipModFXTypeMenu,        &modFXOffsetMenu,     &modFXFeedbackMenu,     &audioClipModFXDepthMenu, &audioClipModFXRateMenu            },
@@ -1136,22 +1156,22 @@ MenuItem* paramShortcutsForAudioClips[][8] = {
     {&audioClipDelayRateMenu, &delaySyncMenu,          &delayAnalogMenu,               &audioClipDelayFeedbackMenu,    &delayPingPongMenu,   nullptr,                nullptr,                  nullptr                            },
 };
 
-MenuItem* paramShortcutsForPerformanceView[][8] = {
+MenuItem* paramShortcutsForSessionView[][8] = {
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
-    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  &songStutterMenu                   },
+    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  &songStutterRateMenu               },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              &srrMenu,               &bitcrushMenu,            nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
-    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                &globalFXLPFResMenu,     &globalFXLPFFreqMenu                },
-    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                &globalFXHPFResMenu,     &globalFXHPFFreqMenu                },
-    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                &bassMenu,                nullptr                            },
-    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                &trebleMenu,              nullptr                            },
-    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        &modFXOffsetMenu,     &modFXFeedbackMenu,     &globalFXModFXDepthMenu, &globalFXModFXRateMenu              },
-    {nullptr,                 nullptr,                 nullptr,                        &globalFXReverbSendAmountMenu,  nullptr,              nullptr,                nullptr,                  nullptr                            },
-    {&globalFXDelayRateMenu,  nullptr,                 nullptr,                        &globalFXDelayFeedbackMenu,     nullptr,              nullptr,                nullptr,                  nullptr                            },
+    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              &lpfModeMenu,           &globalFXLPFResMenu,      &globalFXLPFFreqMenu               },
+    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              &hpfModeMenu,           &globalFXHPFResMenu,      &globalFXHPFFreqMenu               },
+    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                &bassMenu,                &bassFreqMenu                      },
+    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                &trebleMenu,              &trebleFreqMenu                    },
+    {nullptr,                 nullptr,                 nullptr,                        &modFXTypeMenu,                 &modFXOffsetMenu,     &modFXFeedbackMenu,     &globalFXModFXDepthMenu,  &globalFXModFXRateMenu             },
+    {nullptr,                 nullptr,                 nullptr,                        &globalFXReverbSendAmountMenu,  &reverbPanMenu,       &reverbWidthMenu,       &reverbDampeningMenu,     &reverbRoomSizeMenu                },
+    {&globalFXDelayRateMenu,  &delaySyncMenu,          &delayAnalogMenu,               &globalFXDelayFeedbackMenu,     &delayPingPongMenu,   nullptr,                nullptr,                  nullptr                            },
 };
 //clang-format on
 

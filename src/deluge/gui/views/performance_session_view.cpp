@@ -74,10 +74,10 @@ const ParamsForPerformance songParamsForPerformance[kDisplayWidth] = {
     {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT, 13, 3},
     {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::DELAY_AMOUNT, 14, 3},
     {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::DELAY_RATE, 14, 0},
-    {Param::Kind::UNPATCHED, Param::Unpatched::MOD_FX_OFFSET, 12, 4},
-    {Param::Kind::UNPATCHED, Param::Unpatched::MOD_FX_FEEDBACK, 12, 5},
-    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH, 12, 6},
     {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::MOD_FX_RATE, 12, 7},
+    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH, 12, 6},
+    {Param::Kind::UNPATCHED, Param::Unpatched::MOD_FX_FEEDBACK, 12, 5},
+    {Param::Kind::UNPATCHED, Param::Unpatched::MOD_FX_OFFSET, 12, 4},
     {Param::Kind::UNPATCHED, Param::Unpatched::SAMPLE_RATE_REDUCTION, 6, 5},
     {Param::Kind::UNPATCHED, Param::Unpatched::BITCRUSHING, 6, 6},
     {Param::Kind::UNPATCHED, Param::Unpatched::STUTTER_RATE, 5, 7},
@@ -766,6 +766,138 @@ bool PerformanceSessionView::setParameterValue(ModelStackWithThreeMainThings* mo
 	return false;
 }
 
+//get's the modelstack for the parameters that are being edited
+ModelStackWithAutoParam* PerformanceSessionView::getModelStackWithParam(ModelStackWithThreeMainThings* modelStack,
+                                                                        int32_t paramID) {
+	ModelStackWithAutoParam* modelStackWithParam = nullptr;
+
+	if (modelStack) {
+		ParamCollectionSummary* summary = modelStack->paramManager->getUnpatchedParamSetSummary();
+
+		if (summary) {
+			ParamSet* paramSet = (ParamSet*)summary->paramCollection;
+			modelStackWithParam = modelStack->addParam(paramSet, summary, paramID, &paramSet->params[paramID]);
+		}
+	}
+
+	return modelStackWithParam;
+}
+
+//converts grid pad press yDisplay into a knobPosition value
+//this will likely need to be customized based on the parameter to create some more param appropriate ranges
+int32_t PerformanceSessionView::calculateKnobPosForSinglePadPress(int32_t yDisplay) {
+	int32_t newKnobPos = 0;
+
+	//if you press bottom pad, value is 0, for all other pads except for the top pad, value = row Y * 18
+	if (yDisplay < 7) {
+		newKnobPos = yDisplay * kParamValueIncrementForAutomationSinglePadPress;
+	}
+	//if you are pressing the top pad, set the value to max (128)
+	else {
+		newKnobPos = kMaxKnobPos;
+	}
+
+	//in the deluge knob positions are stored in the range of -64 to + 64, so need to adjust newKnobPos set above.
+	newKnobPos = newKnobPos - kKnobPosOffset;
+
+	return newKnobPos;
+}
+
+//convert deluge internal knobPos range to same range as used by menu's.
+int32_t PerformanceSessionView::calculateKnobPosForDisplay(int32_t knobPos) {
+	int32_t offset = 0;
+
+	//convert knobPos from 0 - 128 to 0 - 50
+	return (((((knobPos << 20) / kMaxKnobPos) * kMaxMenuValue) >> 20) - offset);
+}
+
+//Used to edit a pad's value in editing mode
+void PerformanceSessionView::selectEncoderAction(int8_t offset) {
+	if (defaultEditingMode && lastPadPress.isActive && (getCurrentUI() == &soundEditor)) {
+		int32_t lastSelectedParamShortcutX = songParamsForPerformance[lastPadPress.xDisplay].xDisplay;
+		int32_t lastSelectedParamShortcutY = songParamsForPerformance[lastPadPress.xDisplay].yDisplay;
+
+		if (soundEditor.getCurrentMenuItem()
+		    == paramShortcutsForSessionView[lastSelectedParamShortcutX][lastSelectedParamShortcutY]) {
+			defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay] = calculateKnobPosForSelectEncoderTurn(
+			    defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay], offset);
+
+			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithThreeMainThings* modelStack =
+			    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+
+			if (setParameterValue(modelStack, lastPadPress.paramKind, lastPadPress.paramID, lastPadPress.xDisplay,
+			                      defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay], false)) {
+				anyChangesToSave = true;
+				indicator_leds::blinkLed(IndicatorLED::SAVE);
+			}
+			goto exit;
+		}
+	}
+	if (getCurrentUI() == &soundEditor) {
+		soundEditor.getCurrentMenuItem()->selectEncoderAction(offset);
+	}
+exit:
+	return;
+}
+
+//used to calculate new knobPos when you turn the select encoder
+int32_t PerformanceSessionView::calculateKnobPosForSelectEncoderTurn(int32_t knobPos, int32_t offset) {
+
+	//adjust the current knob so that it is within the range of 0-128 for calculation purposes
+	knobPos = knobPos + kKnobPosOffset;
+
+	int32_t newKnobPos = 0;
+
+	if ((knobPos + offset) < 0) {
+		newKnobPos = knobPos;
+	}
+	else if ((knobPos + offset) <= kMaxKnobPos) {
+		newKnobPos = knobPos + offset;
+	}
+	else if ((knobPos + offset) > kMaxKnobPos) {
+		newKnobPos = kMaxKnobPos;
+	}
+	else {
+		newKnobPos = knobPos;
+	}
+
+	//in the deluge knob positions are stored in the range of -64 to + 64, so need to adjust newKnobPos set above.
+	newKnobPos = newKnobPos - kKnobPosOffset;
+
+	return newKnobPos;
+}
+
+ActionResult PerformanceSessionView::horizontalEncoderAction(int32_t offset) {
+	return ActionResult::DEALT_WITH;
+}
+
+ActionResult PerformanceSessionView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+	return ActionResult::DEALT_WITH;
+}
+
+uint32_t PerformanceSessionView::getMaxZoom() {
+	return currentSong->getLongestClip(true, false)->getMaxZoom();
+}
+
+uint32_t PerformanceSessionView::getMaxLength() {
+	return currentSong->getLongestClip(true, false)->loopLength;
+}
+
+void PerformanceSessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
+	if (getCurrentUI() == this) { //This routine may also be called from the Arranger view
+		ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
+	}
+}
+
+void PerformanceSessionView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
+	UI::modEncoderButtonAction(whichModEncoder, on);
+}
+
+void PerformanceSessionView::modButtonAction(uint8_t whichButton, bool on) {
+	UI::modButtonAction(whichButton, on);
+}
+
 void PerformanceSessionView::writeDefaultsToFile() {
 	if (!anyChangesToSave) {
 		return;
@@ -897,136 +1029,4 @@ void PerformanceSessionView::readDefaultFXRowNumberValuesFromFile(int32_t xDispl
 		}
 		storageManager.exitTag();
 	}
-}
-
-//get's the modelstack for the parameters that are being edited
-ModelStackWithAutoParam* PerformanceSessionView::getModelStackWithParam(ModelStackWithThreeMainThings* modelStack,
-                                                                        int32_t paramID) {
-	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-
-	if (modelStack) {
-		ParamCollectionSummary* summary = modelStack->paramManager->getUnpatchedParamSetSummary();
-
-		if (summary) {
-			ParamSet* paramSet = (ParamSet*)summary->paramCollection;
-			modelStackWithParam = modelStack->addParam(paramSet, summary, paramID, &paramSet->params[paramID]);
-		}
-	}
-
-	return modelStackWithParam;
-}
-
-//converts grid pad press yDisplay into a knobPosition value
-//this will likely need to be customized based on the parameter to create some more param appropriate ranges
-int32_t PerformanceSessionView::calculateKnobPosForSinglePadPress(int32_t yDisplay) {
-	int32_t newKnobPos = 0;
-
-	//if you press bottom pad, value is 0, for all other pads except for the top pad, value = row Y * 18
-	if (yDisplay < 7) {
-		newKnobPos = yDisplay * kParamValueIncrementForAutomationSinglePadPress;
-	}
-	//if you are pressing the top pad, set the value to max (128)
-	else {
-		newKnobPos = kMaxKnobPos;
-	}
-
-	//in the deluge knob positions are stored in the range of -64 to + 64, so need to adjust newKnobPos set above.
-	newKnobPos = newKnobPos - kKnobPosOffset;
-
-	return newKnobPos;
-}
-
-//convert deluge internal knobPos range to same range as used by menu's.
-int32_t PerformanceSessionView::calculateKnobPosForDisplay(int32_t knobPos) {
-	int32_t offset = 0;
-
-	//convert knobPos from 0 - 128 to 0 - 50
-	return (((((knobPos << 20) / kMaxKnobPos) * kMaxMenuValue) >> 20) - offset);
-}
-
-//Used to edit a pad's value in editing mode
-void PerformanceSessionView::selectEncoderAction(int8_t offset) {
-	if (defaultEditingMode && lastPadPress.isActive && (getCurrentUI() == &soundEditor)) {
-		int32_t lastSelectedParamShortcutX = songParamsForPerformance[lastPadPress.xDisplay].xDisplay;
-		int32_t lastSelectedParamShortcutY = songParamsForPerformance[lastPadPress.xDisplay].yDisplay;
-
-		if (soundEditor.getCurrentMenuItem()
-		    == paramShortcutsForPerformanceView[lastSelectedParamShortcutX][lastSelectedParamShortcutY]) {
-			defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay] = calculateKnobPosForSelectEncoderTurn(
-			    defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay], offset);
-
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
-			ModelStackWithThreeMainThings* modelStack =
-			    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-
-			if (setParameterValue(modelStack, lastPadPress.paramKind, lastPadPress.paramID, lastPadPress.xDisplay,
-			                      defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay], false)) {
-				anyChangesToSave = true;
-				indicator_leds::blinkLed(IndicatorLED::SAVE);
-			}
-			goto exit;
-		}
-	}
-	if (getCurrentUI() == &soundEditor) {
-		soundEditor.getCurrentMenuItem()->selectEncoderAction(offset);
-	}
-exit:
-	return;
-}
-
-//used to calculate new knobPos when you turn the select encoder
-int32_t PerformanceSessionView::calculateKnobPosForSelectEncoderTurn(int32_t knobPos, int32_t offset) {
-
-	//adjust the current knob so that it is within the range of 0-128 for calculation purposes
-	knobPos = knobPos + kKnobPosOffset;
-
-	int32_t newKnobPos = 0;
-
-	if ((knobPos + offset) < 0) {
-		newKnobPos = knobPos;
-	}
-	else if ((knobPos + offset) <= kMaxKnobPos) {
-		newKnobPos = knobPos + offset;
-	}
-	else if ((knobPos + offset) > kMaxKnobPos) {
-		newKnobPos = kMaxKnobPos;
-	}
-	else {
-		newKnobPos = knobPos;
-	}
-
-	//in the deluge knob positions are stored in the range of -64 to + 64, so need to adjust newKnobPos set above.
-	newKnobPos = newKnobPos - kKnobPosOffset;
-
-	return newKnobPos;
-}
-
-ActionResult PerformanceSessionView::horizontalEncoderAction(int32_t offset) {
-	return ActionResult::DEALT_WITH;
-}
-
-ActionResult PerformanceSessionView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
-	return ActionResult::DEALT_WITH;
-}
-
-uint32_t PerformanceSessionView::getMaxZoom() {
-	return currentSong->getLongestClip(true, false)->getMaxZoom();
-}
-
-uint32_t PerformanceSessionView::getMaxLength() {
-	return currentSong->getLongestClip(true, false)->loopLength;
-}
-
-void PerformanceSessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
-	if (getCurrentUI() == this) { //This routine may also be called from the Arranger view
-		ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
-	}
-}
-
-void PerformanceSessionView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
-	UI::modEncoderButtonAction(whichModEncoder, on);
-}
-
-void PerformanceSessionView::modButtonAction(uint8_t whichButton, bool on) {
-	UI::modButtonAction(whichButton, on);
 }
