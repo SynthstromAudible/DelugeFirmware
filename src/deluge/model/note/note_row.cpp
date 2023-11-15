@@ -504,7 +504,7 @@ addNewNote:
 	// Swap the new temporary note data into the permanent place
 	notes.swapStateWith(&newNotes);
 
-#if ALPHA_OR_BETA_VERSION
+#if ENABLE_SEQUENTIALITY_TESTS
 	notes.testSequentiality("E318");
 #endif
 
@@ -810,7 +810,7 @@ thatsDone:
 	// Swap the new temporary note data into the permanent place
 	notes.swapStateWith(&newNotes);
 
-#if ALPHA_OR_BETA_VERSION
+#if ENABLE_SEQUENTIALITY_TESTS
 	notes.testSequentiality("E319");
 #endif
 
@@ -1118,7 +1118,7 @@ int32_t NoteRow::editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareW
 	// Swap the new temporary note data into the permanent place
 	notes.swapStateWith(&newNotes);
 
-#if ALPHA_OR_BETA_VERSION
+#if ENABLE_SEQUENTIALITY_TESTS
 	notes.testSequentiality("E328");
 #endif
 
@@ -1413,7 +1413,7 @@ int32_t NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteR
 	// Swap the new temporary note data into the permanent place
 	notes.swapStateWith(&newNotes);
 
-#if ALPHA_OR_BETA_VERSION
+#if ENABLE_SEQUENTIALITY_TESTS
 	notes.testSequentiality("E327");
 #endif
 
