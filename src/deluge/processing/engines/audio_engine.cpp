@@ -1215,12 +1215,12 @@ void getReverbParamsFromSong(Song* song) {
 }
 
 void getMasterCompressorParamsFromSong(Song* song) {
-	int32_t a = song->masterCompressorAttack;
-	int32_t r = song->masterCompressorRelease;
-	int32_t t = song->masterCompressorThresh;
-	int32_t rat = song->masterCompressorRatio;
-
-	mastercompressor.setup(a, r, t, rat);
+	q31_t a = song->masterCompressorAttack;
+	q31_t r = song->masterCompressorRelease;
+	q31_t t = song->masterCompressorThresh;
+	q31_t rat = song->masterCompressorRatio;
+	q31_t fc = song->masterCompressorSidechain;
+	mastercompressor.setup(a, r, t, rat, fc);
 }
 
 Voice* solicitVoice(Sound* forSound) {
