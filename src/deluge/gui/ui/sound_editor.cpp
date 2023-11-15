@@ -221,7 +221,8 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 	// Encoder button
 	if (b == SELECT_ENC) {
-		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING || getRootUI() == &performanceSessionView) {
+		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING
+		    || getRootUI() == &performanceSessionView) {
 			if (on) {
 				if (inCardRoutine) {
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -257,7 +258,8 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 	// Back button
 	else if (b == BACK) {
-		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING || getRootUI() == &performanceSessionView) {
+		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING
+		    || getRootUI() == &performanceSessionView) {
 			if (on) {
 				if (inCardRoutine) {
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -275,8 +277,8 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 	// Save button
 	else if (b == SAVE) {
-		if (on && (currentUIMode == UI_MODE_NONE || getRootUI() == &performanceSessionView) && !inSettingsMenu() && !editingCVOrMIDIClip()
-		    && currentSong->currentClip->type != CLIP_TYPE_AUDIO) {
+		if (on && (currentUIMode == UI_MODE_NONE || getRootUI() == &performanceSessionView) && !inSettingsMenu()
+		    && !editingCVOrMIDIClip() && currentSong->currentClip->type != CLIP_TYPE_AUDIO) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
@@ -293,7 +295,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 			}
 			else {
 				performanceSessionView.writeDefaultsToFile();
-				display->displayPopup("Defaults Saved");
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_SAVED));
 				indicator_leds::setLedState(IndicatorLED::SAVE, false);
 			}
 		}
@@ -304,7 +306,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 		if (on) {
 			if (getRootUI() == &performanceSessionView) {
 				performanceSessionView.readDefaultsFromFile();
-				display->displayPopup("Defaults Loaded");
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_LOADED));
 				indicator_leds::setLedState(IndicatorLED::SAVE, false);
 			}
 		}
@@ -698,7 +700,7 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 	}
 	else {
 		if (currentUIMode != UI_MODE_NONE && currentUIMode != UI_MODE_AUDITIONING
-			&& currentUIMode != UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR) {
+		    && currentUIMode != UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR) {
 			return;
 		}
 
@@ -754,13 +756,15 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 
 	if ((getRootUI() != &performanceSessionView) && (getCurrentUI() != &performanceSessionView)) {
 		if (!on || x >= kDisplayWidth
-			|| (!Buttons::isShiftButtonPressed()
-				&& !(currentUIMode == UI_MODE_AUDITIONING && getRootUI() == &instrumentClipView))) {
+		    || (!Buttons::isShiftButtonPressed()
+		        && !(currentUIMode == UI_MODE_AUDITIONING && getRootUI() == &instrumentClipView))) {
 			return ActionResult::NOT_DEALT_WITH;
 		}
 	}
 
-	if (on && (isUIModeWithinRange(shortcutPadUIModes) || (getRootUI() == &performanceSessionView) || (getCurrentUI() == &performanceSessionView))) {
+	if (on
+	    && (isUIModeWithinRange(shortcutPadUIModes) || (getRootUI() == &performanceSessionView)
+	        || (getCurrentUI() == &performanceSessionView))) {
 
 		if (sdRoutineLock) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -938,12 +942,13 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 	}
 
 	//used to convert column press to a shortcut to change Perform FX menu displayed
-	if (((getRootUI() == &performanceSessionView) || (getCurrentUI() == &performanceSessionView)) && !Buttons::isShiftButtonPressed()) {
+	if (((getRootUI() == &performanceSessionView) || (getCurrentUI() == &performanceSessionView))
+	    && !Buttons::isShiftButtonPressed()) {
 		if (x < kDisplayWidth) {
 			performanceSessionView.padAction(x, y, on);
 			return ActionResult::DEALT_WITH;
 		}
-	}	
+	}
 
 	if (!inSettingsMenu()) {
 		ActionResult result = potentialShortcutPadAction(x, y, on);
@@ -1177,7 +1182,7 @@ doMIDIOrCV:
 				display->cancelPopup();
 				newItem = &deluge::gui::menu_item::runtime_feature::subMenuAutomation;
 			}
-			else if (getCurrentUI() == &performanceSessionView) {
+			else if ((getCurrentUI() == &performanceSessionView) && !Buttons::isShiftButtonPressed()) {
 				newItem = &soundEditorRootMenuPerformanceView;
 			}
 			else {

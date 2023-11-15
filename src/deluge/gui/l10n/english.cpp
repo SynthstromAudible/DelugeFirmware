@@ -799,6 +799,12 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_PERFORM_FX, "Perform FX"},
         {STRING_FOR_PERFORM_EDITOR, "Editing Mode"},
         {STRING_FOR_PERFORMANCE, "Performance View"},
+        {STRING_FOR_PERFORM_DEFAULTS_LOADED, "Defaults Loaded"},
+        {STRING_FOR_PERFORM_DEFAULTS_SAVED, "Defaults Saved"},
+        {STRING_FOR_PERFORM_DEFAULTS_XML, "PerformanceView.XML"},
+        {STRING_FOR_PERFORM_DEFAULTS_TAG, "defaults"},
+        {STRING_FOR_PERFORM_DEFAULTS_FXVALUES_TAG, "defaultFXValues"},
+        {STRING_FOR_PERFORM_DEFAULTS_ROW_TAG, "row"},
     },
 };
 } // namespace deluge::l10n::built_in

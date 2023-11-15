@@ -93,7 +93,6 @@ public:
 	bool defaultEditingMode;
 	void writeDefaultsToFile();
 	void readDefaultsFromFile();
-	//MenuItem* lastSelectedMenuItem;
 
 private:
 	//rendering
@@ -135,7 +134,6 @@ private:
 	bool padPressHeld[kDisplayWidth];
 	int32_t defaultFXValues[kDisplayWidth][kDisplayHeight];
 	LastPadPress lastPadPress;
-	//ParamsForPerformance songParamsForPerformance[kDisplayWidth];
 
 	// Members regarding rendering different layouts
 private:

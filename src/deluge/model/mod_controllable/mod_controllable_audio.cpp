@@ -1137,7 +1137,16 @@ void ModControllableAudio::processStutter(StereoSample* buffer, int32_t numSampl
 
 int32_t ModControllableAudio::getStutterRate(ParamManager* paramManager) {
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-	int32_t paramValue = unpatchedParams->getValue(Param::Unpatched::STUTTER_RATE);
+	int32_t paramValue;
+
+	// When stuttering, we center the value at 0, so the center is the reference for the stutter rate that we selected just before pressing the knob
+	// and we use the lastQuantizedKnobDiff value to calculate the relative (real) value
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate) == RuntimeFeatureStateToggle::On) {
+		paramValue = 0;
+	}
+	else {
+		paramValue = unpatchedParams->getValue(Param::Unpatched::STUTTER_RATE);
+	}
 
 	// Quantized Stutter diff
 	// Convert to knobPos (range -64 to 64) for easy operation
@@ -1877,11 +1886,6 @@ void ModControllableAudio::beginStutter(ParamManagerForTimeline* paramManager) {
 		// Save current values for later recovering them
 		stutterer.valueBeforeStuttering = paramValue;
 		stutterer.lastQuantizedKnobDiff = knobPos;
-
-		// When stuttering, we center the value at 0, so the center is the reference for the stutter rate that we selected just before pressing the knob
-		// and we use the lastQuantizedKnobDiff value to calculate the relative (real) value
-		unpatchedParams->params[Param::Unpatched::STUTTER_RATE].setCurrentValueBasicForSetup(0);
-		view.notifyParamAutomationOccurred(paramManager);
 	}
 
 	// You'd think I should apply "false" here, to make it not add extra space to the buffer, but somehow this seems to sound as good if not better (in terms of ticking / crackling)...
