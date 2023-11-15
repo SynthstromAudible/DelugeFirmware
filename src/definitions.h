@@ -14,7 +14,7 @@ extern void freezeWithError(char const* errmsg);
 #ifdef __cplusplus
 }
 #endif
-
+#if defined(__arm__)
 #define FREEZE_WITH_ERROR(error)                                                                                       \
 	({                                                                                                                 \
 		uint32_t regLR = 0;                                                                                            \
@@ -24,7 +24,9 @@ extern void freezeWithError(char const* errmsg);
 		fault_handler_print_freeze_pointers(0, 0, regLR, regSP);                                                       \
 		freezeWithError(error);                                                                                        \
 	})
-
+#else
+#define FREEZE_WITH_ERROR(error) ({ freezeWithError(error); })
+#endif
 #define TIMER_MIDI_GATE_OUTPUT 2
 #define TIMER_SYSTEM_FAST 0
 #define TIMER_SYSTEM_SLOW 4
