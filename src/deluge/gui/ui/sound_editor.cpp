@@ -221,7 +221,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 	// Encoder button
 	if (b == SELECT_ENC) {
-		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING) {
+		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING || getRootUI() == &performanceSessionView) {
 			if (on) {
 				if (inCardRoutine) {
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -257,7 +257,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 	// Back button
 	else if (b == BACK) {
-		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING) {
+		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING || getRootUI() == &performanceSessionView) {
 			if (on) {
 				if (inCardRoutine) {
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -275,7 +275,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 	// Save button
 	else if (b == SAVE) {
-		if (on && currentUIMode == UI_MODE_NONE && !inSettingsMenu() && !editingCVOrMIDIClip()
+		if (on && (currentUIMode == UI_MODE_NONE || getRootUI() == &performanceSessionView) && !inSettingsMenu() && !editingCVOrMIDIClip()
 		    && currentSong->currentClip->type != CLIP_TYPE_AUDIO) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -687,19 +687,21 @@ ActionResult SoundEditor::horizontalEncoderAction(int32_t offset) {
 
 void SoundEditor::selectEncoderAction(int8_t offset) {
 
+	//5x acceleration of select encoder when holding the shift button
 	if (Buttons::isButtonPressed(deluge::hid::button::SHIFT)) {
 		offset = offset * 5;
 	}
 
-	if (currentUIMode != UI_MODE_NONE && currentUIMode != UI_MODE_AUDITIONING
-	    && currentUIMode != UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR) {
-		return;
-	}
-
-	if (performanceSessionView.defaultEditingMode && (getRootUI() == &performanceSessionView)) {
+	//if you're in the performance view, let it handle the select encoder action
+	if (getRootUI() == &performanceSessionView) {
 		performanceSessionView.selectEncoderAction(offset);
 	}
 	else {
+		if (currentUIMode != UI_MODE_NONE && currentUIMode != UI_MODE_AUDITIONING
+			&& currentUIMode != UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR) {
+			return;
+		}
+
 		bool hadNoteTails;
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -758,7 +760,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 		}
 	}
 
-	if (on && isUIModeWithinRange(shortcutPadUIModes)) {
+	if (on && (isUIModeWithinRange(shortcutPadUIModes) || (getRootUI() == &performanceSessionView) || (getCurrentUI() == &performanceSessionView))) {
 
 		if (sdRoutineLock) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;

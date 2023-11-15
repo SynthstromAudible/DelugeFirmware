@@ -614,7 +614,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 	}*/
 
 	else if ((b == SELECT_ENC) && !Buttons::isShiftButtonPressed()) {
-		if (on && currentUIMode == UI_MODE_NONE) {
+		if (on) {
 
 			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
 				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
@@ -1005,30 +1005,29 @@ int32_t PerformanceSessionView::calculateKnobPosForDisplay(int32_t knobPos) {
 
 //Used to edit a pad's value in editing mode
 void PerformanceSessionView::selectEncoderAction(int8_t offset) {
-	if (defaultEditingMode && (getCurrentUI() == &soundEditor)) {
+	if (defaultEditingMode && lastPadPress.isActive && (getCurrentUI() == &soundEditor)) {
 		int32_t lastSelectedParamShortcutX = songParamsForPerformance[lastPadPress.xDisplay].xDisplay;
 		int32_t lastSelectedParamShortcutY = songParamsForPerformance[lastPadPress.xDisplay].yDisplay;
 
-		if (lastPadPress.isActive) {
-			if (soundEditor.getCurrentMenuItem() == paramShortcutsForPerformanceView[lastSelectedParamShortcutX][lastSelectedParamShortcutY]) {
-				defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay] = calculateKnobPosForSelectEncoderTurn(
-					defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay], offset);
+		if (soundEditor.getCurrentMenuItem() == paramShortcutsForPerformanceView[lastSelectedParamShortcutX][lastSelectedParamShortcutY]) {
+			defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay] = calculateKnobPosForSelectEncoderTurn(
+				defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay], offset);
 
-				char modelStackMemory[MODEL_STACK_MAX_SIZE];
-				ModelStackWithThreeMainThings* modelStack =
-					currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithThreeMainThings* modelStack =
+				currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
-				if (setParameterValue(modelStack, lastPadPress.paramKind, lastPadPress.paramID, lastPadPress.xDisplay,
-									defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay])) {
-					anyChangesToSave = true;
-					indicator_leds::blinkLed(IndicatorLED::SAVE);
-				}
-				goto exit;
+			if (setParameterValue(modelStack, lastPadPress.paramKind, lastPadPress.paramID, lastPadPress.xDisplay,
+								defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay], false)) {
+				anyChangesToSave = true;
+				indicator_leds::blinkLed(IndicatorLED::SAVE);
 			}
+			goto exit;
 		}
+	}
+	if (getCurrentUI() == &soundEditor) {
 		soundEditor.getCurrentMenuItem()->selectEncoderAction(offset);
 	}
-
 exit:
 	return;
 }
