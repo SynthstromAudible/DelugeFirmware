@@ -507,13 +507,13 @@ bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 		// Find param shortcut
 		currentParamShorcutX = 255;
 
-		if (getRootUI() == &performanceSessionView) {
+		if ((getRootUI() == &performanceSessionView) || (getRootUI() == &sessionView)) {
 			int32_t x, y;
 
 			// First, see if there's a shortcut for the actual MenuItem we're currently on
 			for (x = 0; x < 15; x++) {
 				for (y = 0; y < kDisplayHeight; y++) {
-					if (paramShortcutsForSessionView[x][y] == currentItem) {
+					if (paramShortcutsForSongView[x][y] == currentItem) {
 						goto doSetupBlinkingForSessionView;
 					}
 				}
@@ -754,6 +754,7 @@ static const uint32_t shortcutPadUIModes[] = {UI_MODE_AUDITIONING, 0};
 
 ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool on) {
 
+	//allow this function to execute if in performance view when called directly
 	if ((getRootUI() != &performanceSessionView) && (getCurrentUI() != &performanceSessionView)) {
 		if (!on || x >= kDisplayWidth
 		    || (!Buttons::isShiftButtonPressed()
@@ -775,7 +776,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 		// performance session view
 		if ((getRootUI() == &performanceSessionView) || (getCurrentUI() == &performanceSessionView)) {
 			if (x <= 14) {
-				item = paramShortcutsForSessionView[x][y];
+				item = paramShortcutsForSongView[x][y];
 			}
 
 			goto doSetup;
@@ -943,7 +944,7 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 
 	//used to convert column press to a shortcut to change Perform FX menu displayed
 	if (((getRootUI() == &performanceSessionView) || (getCurrentUI() == &performanceSessionView))
-	    && !Buttons::isShiftButtonPressed()) {
+	    && !(Buttons::isButtonPressed(deluge::hid::button::SHIFT))) {
 		if (x < kDisplayWidth) {
 			performanceSessionView.padAction(x, y, on);
 			return ActionResult::DEALT_WITH;
@@ -1074,7 +1075,7 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 	ModControllableAudio* newModControllable = NULL;
 
 	//getParamManager and ModControllable for Performance Session View (and Session View)
-	if (getRootUI() == &performanceSessionView) {
+	if ((getRootUI() == &performanceSessionView) || (getRootUI() == &sessionView)) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* modelStack =
 		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
@@ -1182,8 +1183,11 @@ doMIDIOrCV:
 				display->cancelPopup();
 				newItem = &deluge::gui::menu_item::runtime_feature::subMenuAutomation;
 			}
-			else if ((getCurrentUI() == &performanceSessionView) && !Buttons::isShiftButtonPressed()) {
+			else if ((getCurrentUI() == &performanceSessionView) && !(Buttons::isButtonPressed(deluge::hid::button::SHIFT))) {
 				newItem = &soundEditorRootMenuPerformanceView;
+			}
+			else if ((getCurrentUI() == &sessionView) && !(Buttons::isButtonPressed(deluge::hid::button::SHIFT))) {
+				newItem = &soundEditorRootMenuSongView;
 			}
 			else {
 				newItem = &settingsRootMenu;
@@ -1316,7 +1320,7 @@ AudioFileHolder* SoundEditor::getCurrentAudioFileHolder() {
 }
 
 ModelStackWithThreeMainThings* SoundEditor::getCurrentModelStack(void* memory) {
-	if (getRootUI() == &performanceSessionView) {
+	if ((getRootUI() == &performanceSessionView) || (getRootUI() == &sessionView)) {
 		return currentSong->setupModelStackWithSongAsTimelineCounter(memory);
 	}
 	else {

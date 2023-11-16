@@ -116,6 +116,7 @@ public:
 	inline bool gridFirstPadActive() { return (gridFirstPressedX != -1 && gridFirstPressedY != -1); }
 
 private:
+	void renderViewDisplay(char const* viewString);
 	void sectionPadAction(uint8_t y, bool on);
 	void clipPressEnded();
 	void drawSectionRepeatNumber();

@@ -1097,6 +1097,23 @@ menu_item::Submenu soundEditorRootMenuPerformanceView{
     },
 };
 
+//Root menu for Song View
+
+//Root menu for Performance View
+menu_item::Submenu soundEditorRootMenuSongView{
+    STRING_FOR_SONG_FX,
+    {
+        &songLPFMenu,
+        &songHPFMenu,
+        &songEQMenu,
+        &songReverbMenu,
+        &songDelayMenu,
+        &songModFXMenu,
+        &songDistortionMenu,
+        &songStutterRateMenu,
+    },
+};
+
 // Root Menu
 Submenu settingsRootMenu{
     STRING_FOR_SETTINGS,
@@ -1156,7 +1173,7 @@ MenuItem* paramShortcutsForAudioClips[][8] = {
     {&audioClipDelayRateMenu, &delaySyncMenu,          &delayAnalogMenu,               &audioClipDelayFeedbackMenu,    &delayPingPongMenu,   nullptr,                nullptr,                  nullptr                            },
 };
 
-MenuItem* paramShortcutsForSessionView[][8] = {
+MenuItem* paramShortcutsForSongView[][8] = {
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },

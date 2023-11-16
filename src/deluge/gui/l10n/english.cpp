@@ -796,15 +796,30 @@ PLACE_SDRAM_DATA Language english{
         * performance_session_view.cpp
         */
 
+        {STRING_FOR_PERFORM_VIEW, "Performance View"},
         {STRING_FOR_PERFORM_FX, "Perform FX"},
         {STRING_FOR_PERFORM_EDITOR, "Editing Mode"},
-        {STRING_FOR_PERFORMANCE, "Performance View"},
+        {STRING_FOR_PERFORM_EDITOR_ON, "Editor On"},
+        {STRING_FOR_PERFORM_EDITOR_OFF, "Editor Off"},
         {STRING_FOR_PERFORM_DEFAULTS_LOADED, "Defaults Loaded"},
         {STRING_FOR_PERFORM_DEFAULTS_SAVED, "Defaults Saved"},
         {STRING_FOR_PERFORM_DEFAULTS_XML, "PerformanceView.XML"},
         {STRING_FOR_PERFORM_DEFAULTS_TAG, "defaults"},
         {STRING_FOR_PERFORM_DEFAULTS_FXVALUES_TAG, "defaultFXValues"},
         {STRING_FOR_PERFORM_DEFAULTS_ROW_TAG, "row"},
+
+        /* Strings Specifically for Song View
+        * session_view.cpp
+        */
+
+        {STRING_FOR_SONG_VIEW, "Song View"},
+        {STRING_FOR_SONG_FX, "Song FX"},
+
+        /* Strings Specifically for Arranger View
+        * arranger_view.cpp
+        */
+
+        {STRING_FOR_ARRANGER_VIEW, "Arranger View"},
     },
 };
 } // namespace deluge::l10n::built_in

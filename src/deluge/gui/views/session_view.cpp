@@ -32,7 +32,6 @@
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/views/performance_session_view.h"
 #include "gui/views/view.h"
 #include "gui/waveform/waveform_renderer.h"
 #include "hid/button.h"
@@ -388,7 +387,7 @@ moveAfterClipInstance:
 	}
 
 	// Select encoder button
-	else if (b == SELECT_ENC && !Buttons::isShiftButtonPressed()) {
+	else if (b == SELECT_ENC && !(Buttons::isButtonPressed(deluge::hid::button::SHIFT))) {
 		if (on) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -437,6 +436,10 @@ moveAfterClipInstance:
 						requestRendering(this, 0, 0xFFFFFFFF);
 					}
 				}
+
+				display->setNextTransitionDirection(1);
+				soundEditor.setup();
+				openUI(&soundEditor);		
 			}
 		}
 	}
@@ -551,16 +554,6 @@ doActualSimpleChange:
 	else if (b == CV) {
 		newInstrumentType = InstrumentType::CV;
 		goto changeInstrumentType;
-	}
-	// Keyboard button
-	else if (b == KEYBOARD) {
-		if (on && currentUIMode == UI_MODE_NONE) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
-
-			changeRootUI(&performanceSessionView);
-		}
 	}
 	else {
 notDealtWith:
@@ -1754,6 +1747,7 @@ void SessionView::setLedStates() {
 extern char loopsRemainingText[];
 
 void SessionView::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
+	renderViewDisplay(getCurrentUI() == &arrangerView ? l10n::get(l10n::String::STRING_FOR_ARRANGER_VIEW) : l10n::get(l10n::String::STRING_FOR_SONG_VIEW));
 
 	if (playbackHandler.isEitherClockActive()) {
 		// Session playback
@@ -1774,6 +1768,7 @@ yesDoIt:
 }
 
 void SessionView::redrawNumericDisplay() {
+	renderViewDisplay(getCurrentUI() == &arrangerView ? l10n::get(l10n::String::STRING_FOR_ARRANGER_VIEW) : l10n::get(l10n::String::STRING_FOR_SONG_VIEW));
 
 	if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
 		return;
@@ -1846,6 +1841,30 @@ nothingToDisplay:
 	}
 
 	setCentralLEDStates();
+}
+
+//render session view display on opening
+void SessionView::renderViewDisplay(char const* viewString) {
+	if (display->haveOLED()) {
+		deluge::hid::display::OLED::clearMainImage();
+
+#if OLED_MAIN_HEIGHT_PIXELS == 64
+		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
+#else
+		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
+#endif
+
+		yPos = yPos + 12;
+
+		deluge::hid::display::OLED::drawStringCentred(viewString, yPos,
+		                                              deluge::hid::display::OLED::oledMainImage[0],
+		                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+
+		deluge::hid::display::OLED::sendMainImage();
+	}
+	else {
+		display->setScrollingText(viewString);
+	}
 }
 
 // This gets called by redrawNumericDisplay() - or, if OLED, it gets called instead, because this still needs to happen.

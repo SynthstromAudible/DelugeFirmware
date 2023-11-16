@@ -64,7 +64,9 @@ using namespace deluge;
 using namespace gui;
 //using namespace deluge::gui::menu_item;
 
-const ParamsForPerformance songParamsForPerformance[kDisplayWidth] = {
+const int32_t sizeParamsForPerformance = sizeof(ParamsForPerformance);
+
+const ParamsForPerformance songParamsForPerformance[kNumParamsForPerformance] = {
     {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::LPF_FREQ, 8, 7},
     {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::LPF_RES, 8, 6},
     {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::HPF_FREQ, 9, 7},
@@ -135,6 +137,7 @@ PerformanceSessionView::PerformanceSessionView() {
 	lastPadPress.yDisplay = kNoSelection;
 	lastPadPress.paramKind = Param::Kind::NONE;
 	lastPadPress.paramID = kNoSelection;
+	onFXDisplay = false;
 
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		previousKnobPosition[xDisplay] = kNoSelection;
@@ -142,6 +145,11 @@ PerformanceSessionView::PerformanceSessionView() {
 		previousPadPressYDisplay[xDisplay] = kNoSelection;
 		timeLastPadPress[xDisplay] = 0;
 		padPressHeld[xDisplay] = false;
+
+		layoutForPerformance[xDisplay].paramKind = Param::Kind::NONE;
+		layoutForPerformance[xDisplay].paramID = kNoSelection;
+		layoutForPerformance[xDisplay].xDisplay = kNoSelection;
+		layoutForPerformance[xDisplay].yDisplay = kNoSelection;
 
 		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 			int32_t defaultFXValue = calculateKnobPosForSinglePadPress(yDisplay);
@@ -185,6 +193,10 @@ void PerformanceSessionView::focusRegained() {
 
 	if (anyChangesToSave) {
 		indicator_leds::blinkLed(IndicatorLED::SAVE);
+	}
+
+	if (defaultEditingMode) {
+		indicator_leds::blinkLed(IndicatorLED::AFFECT_ENTIRE);
 	}
 
 	currentSong->lastClipInstanceEnteredStartPos = -1;
@@ -281,18 +293,25 @@ void PerformanceSessionView::renderRow(uint8_t* image, uint8_t occupancyMask[], 
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		uint8_t* pixel = image + (xDisplay * 3);
 
-		if ((currentKnobPosition[xDisplay] != kNoSelection) && (padPressHeld[xDisplay] == false)) {
-			memcpy(pixel, &rowColour[xDisplay], 3);
+		if (layoutForPerformance[xDisplay].paramID == kNoSelection) {
+			pixel[0] = kUndefinedGreyShade;
+			pixel[1] = kUndefinedGreyShade;
+			pixel[2] = kUndefinedGreyShade;
 		}
 		else {
-			memcpy(pixel, &rowTailColour[xDisplay], 3);
-		}
+			if ((currentKnobPosition[xDisplay] != kNoSelection) && (padPressHeld[xDisplay] == false)) {
+				memcpy(pixel, &rowColour[xDisplay], 3);
+			}
+			else {
+				memcpy(pixel, &rowTailColour[xDisplay], 3);
+			}
 
-		if ((currentKnobPosition[xDisplay] == defaultFXValues[xDisplay][yDisplay])
-		    && (previousPadPressYDisplay[xDisplay] == yDisplay)) {
-			pixel[0] = 130;
-			pixel[1] = 120;
-			pixel[2] = 130;
+			if ((currentKnobPosition[xDisplay] == defaultFXValues[xDisplay][yDisplay])
+				&& (previousPadPressYDisplay[xDisplay] == yDisplay)) {
+				pixel[0] = 130;
+				pixel[1] = 120;
+				pixel[2] = 130;
+			}
 		}
 
 		occupancyMask[xDisplay] = 64;
@@ -320,7 +339,7 @@ void PerformanceSessionView::renderViewDisplay() {
 			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
 #endif
 
-			deluge::hid::display::OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_PERFORMANCE), yPos,
+			deluge::hid::display::OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_PERFORM_VIEW), yPos,
 			                                              deluge::hid::display::OLED::oledMainImage[0],
 			                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 
@@ -348,16 +367,17 @@ void PerformanceSessionView::renderViewDisplay() {
 
 			yPos = yPos + 12;
 
-			deluge::hid::display::OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_PERFORMANCE), yPos,
+			deluge::hid::display::OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_PERFORM_VIEW), yPos,
 			                                              deluge::hid::display::OLED::oledMainImage[0],
 			                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 
 			deluge::hid::display::OLED::sendMainImage();
 		}
 		else {
-			display->setScrollingText(l10n::get(l10n::String::STRING_FOR_PERFORMANCE));
+			display->setScrollingText(l10n::get(l10n::String::STRING_FOR_PERFORM_VIEW));
 		}
 	}
+	onFXDisplay = false;
 }
 
 //Render Parameter Name and Value set when using Performance Pads
@@ -398,22 +418,18 @@ void PerformanceSessionView::renderFXDisplay(Param::Kind paramKind, int32_t para
 		intToString(knobPos, buffer);
 		display->displayPopup(buffer);
 	}
+	onFXDisplay = true;
 }
 
 void PerformanceSessionView::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	renderViewDisplay();
-	return;
 }
 
 void PerformanceSessionView::redrawNumericDisplay() {
 	renderViewDisplay();
-	return;
 }
 
 void PerformanceSessionView::setLedStates() {
-
-	indicator_leds::setLedState(IndicatorLED::KEYBOARD, true);
-
 	view.setLedStates();
 	view.setModLedStates();
 
@@ -459,7 +475,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 #ifdef arrangerViewButtonX
 	else if (b == arrangerView) {
 #else
-	else if (b == SESSION_VIEW && !Buttons::isShiftButtonPressed()) {
+	else if (b == SESSION_VIEW && !(Buttons::isButtonPressed(deluge::hid::button::SHIFT))) {
 #endif
 		if (inCardRoutine) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -522,7 +538,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 				}
 				else {
 					releaseStutter(modelStack);
-					sessionView.goToArrangementEditor();
+					changeRootUI(&sessionView);
 				}
 
 				sessionButtonUsed = false;
@@ -530,15 +546,23 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 		}
 	}
 
-	// Keyboard button
-	else if (b == KEYBOARD) {
+	// Affect Entire button
+	else if (b == AFFECT_ENTIRE) {
 		if (on && ((currentUIMode == UI_MODE_NONE) || isUIModeActive(UI_MODE_STUTTERING))) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
-			releaseStutter(modelStack);
-			changeRootUI(&sessionView);
-			indicator_leds::setLedState(IndicatorLED::KEYBOARD, false);
+			if (defaultEditingMode) {
+				defaultEditingMode = false;
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_EDITOR_OFF));
+				indicator_leds::setLedState(IndicatorLED::AFFECT_ENTIRE, true);
+			}
+			else {
+				defaultEditingMode = true;
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_EDITOR_ON));
+				indicator_leds::blinkLed(IndicatorLED::AFFECT_ENTIRE);
+			}
+			renderViewDisplay();
 		}
 	}
 
@@ -565,7 +589,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 		}
 	}
 
-	else if ((b == SELECT_ENC) && !Buttons::isShiftButtonPressed()) {
+	else if ((b == SELECT_ENC) && !(Buttons::isButtonPressed(deluge::hid::button::SHIFT))) {
 		if (on) {
 
 			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
@@ -617,8 +641,12 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
 		//obtain Param::Kind, ParamID corresponding to the column pressed on performance grid
-		Param::Kind lastSelectedParamKind = songParamsForPerformance[xDisplay].paramKind; //kind;
-		int32_t lastSelectedParamID = songParamsForPerformance[xDisplay].paramID;
+		Param::Kind lastSelectedParamKind = layoutForPerformance[xDisplay].paramKind; //kind;
+		int32_t lastSelectedParamID = layoutForPerformance[xDisplay].paramID;
+
+		if (lastSelectedParamID == kNoSelection) {
+			return ActionResult::DEALT_WITH;
+		}
 
 		//pressing a pad
 		if (on) {
@@ -695,10 +723,12 @@ void PerformanceSessionView::resetPerformanceView(ModelStackWithThreeMainThings*
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		if (padPressHeld[xDisplay]) {
 			//obtain Param::Kind and ParamID corresponding to the column in focus (xDisplay)
-			Param::Kind lastSelectedParamKind = songParamsForPerformance[xDisplay].paramKind; //kind;
-			int32_t lastSelectedParamID = songParamsForPerformance[xDisplay].paramID;
+			Param::Kind lastSelectedParamKind = layoutForPerformance[xDisplay].paramKind; //kind;
+			int32_t lastSelectedParamID = layoutForPerformance[xDisplay].paramID;
 
-			padReleaseAction(modelStack, lastSelectedParamKind, lastSelectedParamID, xDisplay, false);
+			if (lastSelectedParamID != kNoSelection) {
+				padReleaseAction(modelStack, lastSelectedParamKind, lastSelectedParamID, xDisplay, false);
+			}
 		}
 	}
 	renderViewDisplay();
@@ -753,8 +783,8 @@ bool PerformanceSessionView::setParameterValue(ModelStackWithThreeMainThings* mo
 			}
 
 			if (defaultEditingMode) {
-				int32_t lastSelectedParamShortcutX = songParamsForPerformance[xDisplay].xDisplay;
-				int32_t lastSelectedParamShortcutY = songParamsForPerformance[xDisplay].yDisplay;
+				int32_t lastSelectedParamShortcutX = layoutForPerformance[xDisplay].xDisplay;
+				int32_t lastSelectedParamShortcutY = layoutForPerformance[xDisplay].yDisplay;
 
 				soundEditor.potentialShortcutPadAction(lastSelectedParamShortcutX, lastSelectedParamShortcutY, true);
 			}
@@ -764,6 +794,29 @@ bool PerformanceSessionView::setParameterValue(ModelStackWithThreeMainThings* mo
 	}
 
 	return false;
+}
+
+void PerformanceSessionView::getParameterValue(ModelStackWithThreeMainThings* modelStack, Param::Kind paramKind,
+                                               int32_t paramID, int32_t xDisplay, bool renderDisplay) {
+	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, paramID);
+
+	if (modelStackWithParam && modelStackWithParam->autoParam) {
+
+		if (modelStackWithParam->getTimelineCounter()
+		    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+			
+			int32_t value =
+				modelStackWithParam->autoParam->getValuePossiblyAtPos(view.modPos, modelStackWithParam);
+			
+			int32_t knobPos = 
+				    modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
+
+			if (renderDisplay && (currentKnobPosition[xDisplay] != knobPos)) {
+				int32_t valueForDisplay = calculateKnobPosForDisplay(knobPos + kKnobPosOffset);
+				renderFXDisplay(paramKind, paramID, valueForDisplay);
+			}
+		}
+	}
 }
 
 //get's the modelstack for the parameters that are being edited
@@ -807,6 +860,8 @@ int32_t PerformanceSessionView::calculateKnobPosForSinglePadPress(int32_t yDispl
 int32_t PerformanceSessionView::calculateKnobPosForDisplay(int32_t knobPos) {
 	int32_t offset = 0;
 
+
+
 	//convert knobPos from 0 - 128 to 0 - 50
 	return (((((knobPos << 20) / kMaxKnobPos) * kMaxMenuValue) >> 20) - offset);
 }
@@ -814,11 +869,11 @@ int32_t PerformanceSessionView::calculateKnobPosForDisplay(int32_t knobPos) {
 //Used to edit a pad's value in editing mode
 void PerformanceSessionView::selectEncoderAction(int8_t offset) {
 	if (defaultEditingMode && lastPadPress.isActive && (getCurrentUI() == &soundEditor)) {
-		int32_t lastSelectedParamShortcutX = songParamsForPerformance[lastPadPress.xDisplay].xDisplay;
-		int32_t lastSelectedParamShortcutY = songParamsForPerformance[lastPadPress.xDisplay].yDisplay;
+		int32_t lastSelectedParamShortcutX = layoutForPerformance[lastPadPress.xDisplay].xDisplay;
+		int32_t lastSelectedParamShortcutY = layoutForPerformance[lastPadPress.xDisplay].yDisplay;
 
 		if (soundEditor.getCurrentMenuItem()
-		    == paramShortcutsForSessionView[lastSelectedParamShortcutX][lastSelectedParamShortcutY]) {
+		    == paramShortcutsForSongView[lastSelectedParamShortcutX][lastSelectedParamShortcutY]) {
 			defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay] = calculateKnobPosForSelectEncoderTurn(
 			    defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay], offset);
 
@@ -887,6 +942,19 @@ uint32_t PerformanceSessionView::getMaxLength() {
 void PerformanceSessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	if (getCurrentUI() == this) { //This routine may also be called from the Arranger view
 		ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
+
+		if (!defaultEditingMode) {
+			if (lastPadPress.isActive) {
+				char modelStackMemory[MODEL_STACK_MAX_SIZE];
+				ModelStackWithThreeMainThings* modelStack =
+					currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+
+				getParameterValue(modelStack, lastPadPress.paramKind, lastPadPress.paramID, lastPadPress.xDisplay);
+			}
+			else if (onFXDisplay) {
+				renderViewDisplay();
+			}
+		}
 	}
 }
 
@@ -936,6 +1004,7 @@ void PerformanceSessionView::writeDefaultFXValuesToFile() {
 		intToString(xDisplay + 1, &tagName[2]);
 		storageManager.writeOpeningTagBeginning(tagName);
 		storageManager.writeOpeningTagEnd();
+		storageManager.writeTag("param", "lpfCutoff");			
 		writeDefaultFXRowValuesToFile(xDisplay);
 		storageManager.writeClosingTag(tagName);
 	}
@@ -994,7 +1063,7 @@ void PerformanceSessionView::readDefaultFXValuesFromFile() {
 			intToString(xDisplay + 1, &tagNameFX[2]);
 
 			if (!strcmp(tagName, tagNameFX)) {
-				readDefaultFXRowValuesFromFile(xDisplay);
+				readDefaultFXParamAndRowValuesFromFile(xDisplay);
 				break;
 			}
 		}
@@ -1002,11 +1071,22 @@ void PerformanceSessionView::readDefaultFXValuesFromFile() {
 	}
 }
 
-void PerformanceSessionView::readDefaultFXRowValuesFromFile(int32_t xDisplay) {
+void PerformanceSessionView::readDefaultFXParamAndRowValuesFromFile(int32_t xDisplay) {
 	char const* tagName;
 	//step into the row tag
-	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
-		if (!strcmp(tagName, l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_ROW_TAG))) {
+	while (*(tagName = storageManager.readNextTagOrAttributeName())) {		
+		if (!strcmp(tagName, "param")) {
+			if (!strcmp(storageManager.readTagOrAttributeValue(), "lpfCutoff")) {
+				int32_t paramID = Param::Unpatched::GlobalEffectable::LPF_FREQ;
+				for (int32_t i = 0; i < kNumParamsForPerformance; i++) {
+					if (songParamsForPerformance[i].paramID == paramID) {
+						memcpy(&layoutForPerformance[xDisplay], &songParamsForPerformance[i], sizeParamsForPerformance);
+						break;
+					}
+				}
+			}
+		}		
+		else if (!strcmp(tagName, l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_ROW_TAG))) {
 			readDefaultFXRowNumberValuesFromFile(xDisplay);
 		}
 		storageManager.exitTag();
@@ -1024,6 +1104,12 @@ void PerformanceSessionView::readDefaultFXRowNumberValuesFromFile(int32_t xDispl
 			intToString(yDisplay + 1, rowNumber);
 			if (!strcmp(tagName, rowNumber)) {
 				defaultFXValues[xDisplay][yDisplay] = storageManager.readTagOrAttributeValueInt() - kKnobPosOffset;
+				
+				//check if a value greater than 64 was entered as a default value in xml file
+				if (defaultFXValues[xDisplay][yDisplay] > kKnobPosOffset){
+					defaultFXValues[xDisplay][yDisplay] = kKnobPosOffset;
+				}
+
 				break;
 			}
 		}

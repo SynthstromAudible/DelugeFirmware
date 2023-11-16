@@ -101,11 +101,14 @@ private:
 	                         bool drawUndefinedArea = true);
 	void renderRow(uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
 	void renderFXDisplay(Param::Kind paramKind, int32_t paramID, int32_t knobPos);
+	bool onFXDisplay;
 	void setCentralLEDStates();
 
 	//pad action
 	bool setParameterValue(ModelStackWithThreeMainThings* modelStack, Param::Kind paramKind, int32_t paramID,
 	                       int32_t xDisplay, int32_t knobPos, bool renderDisplay = true);
+	void getParameterValue(ModelStackWithThreeMainThings* modelStack, Param::Kind paramKind, int32_t paramID,
+	                       int32_t xDisplay, bool renderDisplay = true);
 	void padPressAction(ModelStackWithThreeMainThings* modelStack, Param::Kind paramKind, int32_t paramID,
 	                    int32_t xDisplay, int32_t yDisplay, bool renderDisplay = true);
 	void padReleaseAction(ModelStackWithThreeMainThings* modelStack, Param::Kind paramKind, int32_t paramID,
@@ -117,7 +120,7 @@ private:
 	void writeDefaultFXValuesToFile();
 	void writeDefaultFXRowValuesToFile(int32_t xDisplay);
 	void readDefaultFXValuesFromFile();
-	void readDefaultFXRowValuesFromFile(int32_t xDisplay);
+	void readDefaultFXParamAndRowValuesFromFile(int32_t xDisplay);
 	void readDefaultFXRowNumberValuesFromFile(int32_t xDisplay);
 	bool successfullyReadDefaultsFromFile;
 	bool anyChangesToSave;
@@ -134,6 +137,7 @@ private:
 	bool padPressHeld[kDisplayWidth];
 	int32_t defaultFXValues[kDisplayWidth][kDisplayHeight];
 	LastPadPress lastPadPress;
+	ParamsForPerformance layoutForPerformance[kDisplayWidth];
 
 	// Members regarding rendering different layouts
 private:

@@ -373,7 +373,9 @@ constexpr int32_t kMinMenuPatchCableValue = -1 * kMaxMenuPatchCableValue;
 constexpr int32_t kMaxMenuMetronomeVolumeValue = 27;
 constexpr int32_t kMinMenuMetronomeVolumeValue = 22;
 
-//
+//Performance View constant
+
+constexpr int32_t kNumParamsForPerformance = 16;
 
 //Automation View constants
 constexpr int32_t kNoSelection = 255;

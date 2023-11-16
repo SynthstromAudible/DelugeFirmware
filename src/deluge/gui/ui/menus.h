@@ -35,6 +35,7 @@ extern deluge::gui::menu_item::sequence::Direction sequenceDirectionMenu;
 extern deluge::gui::menu_item::Submenu soundEditorRootMenuMIDIOrCV;
 extern deluge::gui::menu_item::Submenu soundEditorRootMenuAudioClip;
 extern deluge::gui::menu_item::Submenu soundEditorRootMenuPerformanceView;
+extern deluge::gui::menu_item::Submenu soundEditorRootMenuSongView;
 extern deluge::gui::menu_item::Submenu soundEditorRootMenu;
 extern deluge::gui::menu_item::Submenu settingsRootMenu;
 
@@ -47,7 +48,7 @@ extern deluge::gui::menu_item::PatchCables patchCablesMenu;
 extern MenuItem* midiOrCVParamShortcuts[8];
 extern MenuItem* paramShortcutsForSounds[15][8];
 extern MenuItem* paramShortcutsForAudioClips[15][8];
-extern MenuItem* paramShortcutsForSessionView[15][8];
+extern MenuItem* paramShortcutsForSongView[15][8];
 
 void setOscillatorNumberForTitles(int32_t);
 void setModulatorNumberForTitles(int32_t);
