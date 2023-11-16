@@ -528,12 +528,15 @@ tryReadingItems:
 		return error;
 	}
 
+	printInstrumentFileList("After readFileItemsForFolder");
 	if (song && instrumentType != InstrumentType::NONE) {
 		error = song->addInstrumentsToFileItems(instrumentType);
 		if (error) {
 			return error;
 		}
 	}
+	printInstrumentFileList("Before sorting");
+
 
 	if (fileItems.getNumElements()) {
 		sortFileItems();

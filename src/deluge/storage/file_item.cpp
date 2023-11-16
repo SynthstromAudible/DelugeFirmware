@@ -20,6 +20,7 @@
 #include <string.h>
 
 FileItem::FileItem() {
+	filePointer = {0};
 	instrument = NULL;
 	filenameIncludesExtension = true;
 	instrumentAlreadyInSong = false;

@@ -143,3 +143,20 @@ protected:
 	char const* filePrefix;
 	bool shouldInterpretNoteNamesForThisBrowser;
 };
+
+#include "io/debug/print.h"
+	inline void printInstrumentFileList(const char* where) {
+		Debug::print("\n");
+		Debug::print(where);
+		Debug::print(" List: \n");
+		for(uint32_t idx = 0; idx < Browser::fileItems.getNumElements(); ++idx) {
+			FileItem* fileItem = (FileItem*)Browser::fileItems.getElementAddress(idx);
+			Debug::print(" - ");
+			Debug::print(fileItem->displayName);
+			Debug::print(" (");
+			Debug::print(fileItem->filePointer.sclust);
+			Debug::print(")\n");
+		}
+
+		Debug::print("\n");
+	}
