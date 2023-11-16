@@ -20,7 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/views/clip_navigation_timeline_view.h"
 #include "hid/button.h"
-#include "model/mod_controllable/mod_controllable_audio.h"
+#include "model/global_effectable/global_effectable.h"
 #include "storage/flash_storage.h"
 
 class Editor;
@@ -45,7 +45,7 @@ struct ParamsForPerformance {
 	int32_t yDisplay;
 };
 
-class PerformanceSessionView final : public ClipNavigationTimelineView, public ModControllableAudio {
+class PerformanceSessionView final : public ClipNavigationTimelineView, public GlobalEffectable {
 public:
 	PerformanceSessionView();
 	bool opened();
@@ -118,9 +118,12 @@ private:
 
 	//write/load default values
 	void writeDefaultFXValuesToFile();
+	void writeDefaultFXParamToFile(int32_t xDisplay);
 	void writeDefaultFXRowValuesToFile(int32_t xDisplay);
+	void loadDefaultLayout();
 	void readDefaultFXValuesFromFile();
 	void readDefaultFXParamAndRowValuesFromFile(int32_t xDisplay);
+	void readDefaultFXParamFromFile(int32_t xDisplay);
 	void readDefaultFXRowNumberValuesFromFile(int32_t xDisplay);
 	bool successfullyReadDefaultsFromFile;
 	bool anyChangesToSave;

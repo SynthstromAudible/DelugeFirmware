@@ -85,6 +85,25 @@ const ParamsForPerformance songParamsForPerformance[kNumParamsForPerformance] = 
     {Param::Kind::UNPATCHED, Param::Unpatched::STUTTER_RATE, 5, 7},
 };
 
+const ParamsForPerformance defaultLayoutForPerformance[kDisplayWidth] = {
+    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::LPF_FREQ, 8, 7},
+    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::LPF_RES, 8, 6},
+    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::HPF_FREQ, 9, 7},
+    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::HPF_RES, 9, 6},
+    {Param::Kind::UNPATCHED, Param::Unpatched::BASS, 10, 6},
+    {Param::Kind::UNPATCHED, Param::Unpatched::TREBLE, 11, 6},
+    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT, 13, 3},
+    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::DELAY_AMOUNT, 14, 3},
+    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::DELAY_RATE, 14, 0},
+    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::MOD_FX_RATE, 12, 7},
+    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH, 12, 6},
+    {Param::Kind::UNPATCHED, Param::Unpatched::MOD_FX_FEEDBACK, 12, 5},
+    {Param::Kind::UNPATCHED, Param::Unpatched::MOD_FX_OFFSET, 12, 4},
+    {Param::Kind::UNPATCHED, Param::Unpatched::SAMPLE_RATE_REDUCTION, 6, 5},
+    {Param::Kind::UNPATCHED, Param::Unpatched::BITCRUSHING, 6, 6},
+    {Param::Kind::UNPATCHED, Param::Unpatched::STUTTER_RATE, 5, 7},
+}; 
+
 //colours for the performance mode
 
 const uint8_t rowColour[kDisplayWidth][3] = {
@@ -1004,10 +1023,22 @@ void PerformanceSessionView::writeDefaultFXValuesToFile() {
 		intToString(xDisplay + 1, &tagName[2]);
 		storageManager.writeOpeningTagBeginning(tagName);
 		storageManager.writeOpeningTagEnd();
-		storageManager.writeTag("param", "lpfCutoff");			
+		writeDefaultFXParamToFile(xDisplay);
 		writeDefaultFXRowValuesToFile(xDisplay);
 		storageManager.writeClosingTag(tagName);
 	}
+}
+
+void PerformanceSessionView::writeDefaultFXParamToFile(int32_t xDisplay) {
+	char const* paramName;
+	
+	if (layoutForPerformance[xDisplay].paramKind == Param::Kind::GLOBAL_EFFECTABLE) {
+		paramName = GlobalEffectable::paramToString(Param::Unpatched::START + layoutForPerformance[xDisplay].paramID);
+	}
+	else if (layoutForPerformance[xDisplay].paramKind == Param::Kind::UNPATCHED) {
+		paramName = ModControllableAudio::paramToString(Param::Unpatched::START + layoutForPerformance[xDisplay].paramID);
+	}
+	storageManager.writeTag(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_PARAM_TAG), paramName);		
 }
 
 //creates "8 - 1 row # tags within a "row" tag"
@@ -1028,11 +1059,13 @@ void PerformanceSessionView::readDefaultsFromFile() {
 	FilePointer fp;
 	bool success = storageManager.fileExists(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_XML), &fp);
 	if (!success) {
+		loadDefaultLayout();
 		return;
 	}
 
 	int32_t error = storageManager.openXMLFile(&fp, l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_TAG));
 	if (error) {
+		loadDefaultLayout();
 		return;
 	}
 
@@ -1048,6 +1081,12 @@ void PerformanceSessionView::readDefaultsFromFile() {
 	storageManager.closeFile();
 
 	successfullyReadDefaultsFromFile = true;
+}
+
+void PerformanceSessionView::loadDefaultLayout() {
+	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+		memcpy(&layoutForPerformance[xDisplay], &defaultLayoutForPerformance[xDisplay], sizeParamsForPerformance);
+	}
 }
 
 void PerformanceSessionView::readDefaultFXValuesFromFile() {
@@ -1075,21 +1114,31 @@ void PerformanceSessionView::readDefaultFXParamAndRowValuesFromFile(int32_t xDis
 	char const* tagName;
 	//step into the row tag
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {		
-		if (!strcmp(tagName, "param")) {
-			if (!strcmp(storageManager.readTagOrAttributeValue(), "lpfCutoff")) {
-				int32_t paramID = Param::Unpatched::GlobalEffectable::LPF_FREQ;
-				for (int32_t i = 0; i < kNumParamsForPerformance; i++) {
-					if (songParamsForPerformance[i].paramID == paramID) {
-						memcpy(&layoutForPerformance[xDisplay], &songParamsForPerformance[i], sizeParamsForPerformance);
-						break;
-					}
-				}
-			}
+		if (!strcmp(tagName, l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_PARAM_TAG))) {
+			readDefaultFXParamFromFile(xDisplay);
 		}		
 		else if (!strcmp(tagName, l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_ROW_TAG))) {
 			readDefaultFXRowNumberValuesFromFile(xDisplay);
 		}
 		storageManager.exitTag();
+	}
+}
+
+void PerformanceSessionView::readDefaultFXParamFromFile(int32_t xDisplay) {
+	char const* paramName;
+	char const* tagName = storageManager.readTagOrAttributeValue();
+	
+	for (int32_t i = 0; i < kNumParamsForPerformance; i++) {
+		if (songParamsForPerformance[i].paramKind == Param::Kind::GLOBAL_EFFECTABLE) {
+			paramName = GlobalEffectable::paramToString(Param::Unpatched::START + songParamsForPerformance[i].paramID);
+		}
+		else if (songParamsForPerformance[i].paramKind == Param::Kind::UNPATCHED) {
+			paramName = ModControllableAudio::paramToString(Param::Unpatched::START + songParamsForPerformance[i].paramID);
+		}
+		if (!strcmp(tagName, paramName)) {
+			memcpy(&layoutForPerformance[xDisplay], &songParamsForPerformance[i], sizeParamsForPerformance);
+			break;
+		}
 	}
 }
 
