@@ -437,15 +437,14 @@ bool SoundEditor::findPatchedParam(int32_t paramLookingFor, int32_t* xout, int32
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
 			if (paramShortcutsForSounds[x][y] && paramShortcutsForSounds[x][y] != comingSoonMenu
 			    && ((MenuItem*)paramShortcutsForSounds[x][y])->getPatchedParamIndex() == paramLookingFor) {
-				if ((x & 1) && currentSourceIndex == 0) {
-					//this means we're on osc2/env2/lfo2 but wanted osc1
-					return true;
-				}
+
 				*xout = x;
 				*yout = y;
 
-				//can't return yet in case we're on an indexed param and want the second one
-				found = true;
+				if ((x & 1) == currentSourceIndex) {
+					//check we're on the corretc index
+					return true;
+				}
 			}
 		}
 	}
