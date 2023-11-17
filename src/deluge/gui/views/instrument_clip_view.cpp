@@ -5329,7 +5329,7 @@ justDisplayOldNumNotes:
 					// Swap the new temporary note data into the permanent place
 					noteRow->notes.swapStateWith(&newNotes);
 
-#if ALPHA_OR_BETA_VERSION
+#if ENABLE_SEQUENTIALITY_TESTS
 					noteRow->notes.testSequentiality("E376");
 #endif
 				}

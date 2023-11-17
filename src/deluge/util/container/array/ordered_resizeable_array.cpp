@@ -260,10 +260,7 @@ void OrderedResizeableArray::deleteAtKey(int32_t key) {
 }
 
 void OrderedResizeableArray::testSequentiality(char const* errorCode) {
-	if (!ALPHA_OR_BETA_VERSION) {
-		return;
-	}
-
+#if ENABLE_SEQUENTIALITY_TESTS
 	int32_t lastKey = -2147483648;
 	for (int32_t i = 0; i < getNumElements(); i++) {
 		int32_t key = getKeyAtIndex(i);
@@ -273,6 +270,7 @@ void OrderedResizeableArray::testSequentiality(char const* errorCode) {
 
 		lastKey = key;
 	}
+#endif
 }
 
 #define TEST_SEARCH_MULTIPLE_NUM_ITEMS 50000
@@ -624,7 +622,7 @@ updateKeys:
 		}
 	}
 
-#if ALPHA_OR_BETA_VERSION
+#if ENABLE_SEQUENTIALITY_TESTS
 	testSequentiality("E378");
 #endif
 }

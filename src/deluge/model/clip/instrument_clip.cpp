@@ -4385,7 +4385,7 @@ doNormal: // Wrap it back to the start.
 
 		else if (reversed) {
 doHomogenize:
-#if ALPHA_OR_BETA_VERSION
+#if ENABLE_SEQUENTIALITY_TESTS
 			param->nodes.testSequentiality(
 			    "E442"); // drbourbon got, when check was inside homogenizeRegion(). Now trying to work out where that came from. March 2022.
 #endif

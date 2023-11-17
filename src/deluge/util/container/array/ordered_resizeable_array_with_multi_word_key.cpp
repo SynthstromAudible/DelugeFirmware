@@ -121,10 +121,7 @@ bool OrderedResizeableArrayWithMultiWordKey::deleteAtKeyMultiWord(uint32_t* __re
 }
 
 void OrderedResizeableArrayWithMultiWordKey::testSequentiality(char const* errorCode) {
-	if (!ALPHA_OR_BETA_VERSION) {
-		return;
-	}
-
+#if ENABLE_SEQUENTIALITY_TESTS
 	for (int32_t i = 1; i < getNumElements(); i++) {
 		uint32_t* __restrict__ wordsHere = (uint32_t*)getElementAddress(i);
 		uint32_t* __restrict__ lastWords = (uint32_t*)getElementAddress(i - 1);
@@ -144,4 +141,5 @@ void OrderedResizeableArrayWithMultiWordKey::testSequentiality(char const* error
 			}
 		}
 	}
+#endif
 }
