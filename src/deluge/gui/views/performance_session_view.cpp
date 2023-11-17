@@ -833,13 +833,13 @@ void PerformanceSessionView::getParameterValue(ModelStackWithThreeMainThings* mo
 
 			int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
 
-			if (currentKnobPosition[xDisplay] != knobPos) {
-				currentKnobPosition[xDisplay] = knobPos;
-			}
-
 			if (renderDisplay && (currentKnobPosition[xDisplay] != knobPos)) {
 				int32_t valueForDisplay = view.calculateKnobPosForDisplay(InstrumentType::NONE, paramID, knobPos + kKnobPosOffset);
 				renderFXDisplay(paramKind, paramID, valueForDisplay);
+			}
+
+			if (currentKnobPosition[xDisplay] != knobPos) {
+				currentKnobPosition[xDisplay] = knobPos;
 			}
 		}
 	}
