@@ -1183,8 +1183,7 @@ doMIDIOrCV:
 				display->cancelPopup();
 				newItem = &deluge::gui::menu_item::runtime_feature::subMenuAutomation;
 			}
-			else if ((getCurrentUI() == &performanceSessionView)
-			         && !Buttons::isShiftButtonPressed()) {
+			else if ((getCurrentUI() == &performanceSessionView) && !Buttons::isShiftButtonPressed()) {
 				newItem = &soundEditorRootMenuPerformanceView;
 			}
 			else if ((getCurrentUI() == &sessionView) && !Buttons::isShiftButtonPressed()) {

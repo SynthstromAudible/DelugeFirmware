@@ -215,7 +215,7 @@ void PerformanceSessionView::focusRegained() {
 	}
 
 	if (defaultEditingMode) {
-		indicator_leds::blinkLed(IndicatorLED::AFFECT_ENTIRE);
+		indicator_leds::blinkLed(IndicatorLED::KEYBOARD);
 	}
 
 	currentSong->lastClipInstanceEnteredStartPos = -1;
@@ -463,7 +463,7 @@ void PerformanceSessionView::setCentralLEDStates() {
 	indicator_leds::setLedState(IndicatorLED::MIDI, false);
 	indicator_leds::setLedState(IndicatorLED::CV, false);
 	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
-	indicator_leds::setLedState(IndicatorLED::KEYBOARD, false);
+	indicator_leds::setLedState(IndicatorLED::KEYBOARD, true);
 
 	if (getCurrentUI() == this) {
 		indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
@@ -555,33 +555,9 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 					view.setModLedStates();
 					playbackHandler.setLedStates();
 				}
-				else {
-					releaseStutter(modelStack);
-					changeRootUI(&sessionView);
-				}
 
 				sessionButtonUsed = false;
 			}
-		}
-	}
-
-	// Affect Entire button
-	else if (b == AFFECT_ENTIRE) {
-		if (on && ((currentUIMode == UI_MODE_NONE) || isUIModeActive(UI_MODE_STUTTERING))) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
-			if (defaultEditingMode) {
-				defaultEditingMode = false;
-				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_EDITOR_OFF));
-				indicator_leds::setLedState(IndicatorLED::AFFECT_ENTIRE, true);
-			}
-			else {
-				defaultEditingMode = true;
-				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_EDITOR_ON));
-				indicator_leds::blinkLed(IndicatorLED::AFFECT_ENTIRE);
-			}
-			renderViewDisplay();
 		}
 	}
 
@@ -633,6 +609,28 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 		else {
 			if (isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
 				exitUIMode(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON);
+			}
+		}
+	}
+
+	else if (b == KEYBOARD) {
+		if (on) {
+			if (Buttons::isShiftButtonPressed()) {
+				if (defaultEditingMode) {
+					defaultEditingMode = false;
+					display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_EDITOR_OFF));
+					indicator_leds::setLedState(IndicatorLED::KEYBOARD, true);
+				}
+				else {
+					defaultEditingMode = true;
+					display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_EDITOR_ON));
+					indicator_leds::blinkLed(IndicatorLED::KEYBOARD);
+				}
+				renderViewDisplay();
+			}
+			else {
+				releaseStutter(modelStack);
+				changeRootUI(&sessionView);
 			}
 		}
 	}
