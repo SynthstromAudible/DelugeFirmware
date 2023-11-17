@@ -802,7 +802,7 @@ bool PerformanceSessionView::setParameterValue(ModelStackWithThreeMainThings* mo
 			}
 
 			if (renderDisplay) {
-				int32_t valueForDisplay = calculateKnobPosForDisplay(paramKind, paramID, knobPos + kKnobPosOffset);
+				int32_t valueForDisplay = view.calculateKnobPosForDisplay(InstrumentType::NONE, paramID, knobPos + kKnobPosOffset);
 				renderFXDisplay(paramKind, paramID, valueForDisplay);
 			}
 
@@ -838,7 +838,7 @@ void PerformanceSessionView::getParameterValue(ModelStackWithThreeMainThings* mo
 			}
 
 			if (renderDisplay && (currentKnobPosition[xDisplay] != knobPos)) {
-				int32_t valueForDisplay = calculateKnobPosForDisplay(paramKind, paramID, knobPos + kKnobPosOffset);
+				int32_t valueForDisplay = view.calculateKnobPosForDisplay(InstrumentType::NONE, paramID, knobPos + kKnobPosOffset);
 				renderFXDisplay(paramKind, paramID, valueForDisplay);
 			}
 		}
@@ -880,35 +880,6 @@ int32_t PerformanceSessionView::calculateKnobPosForSinglePadPress(int32_t yDispl
 	newKnobPos = newKnobPos - kKnobPosOffset;
 
 	return newKnobPos;
-}
-
-//convert deluge internal knobPos range to same range as used by menu's.
-int32_t PerformanceSessionView::calculateKnobPosForDisplay(Param::Kind paramKind, int32_t paramID, int32_t knobPos) {
-	float knobPosFloat = static_cast<float>(knobPos);
-	float knobPosOffsetFloat = static_cast<float>(kKnobPosOffset);
-	float maxKnobPosFloat = static_cast<float>(kMaxKnobPos);
-	float maxMenuValueFloat = static_cast<float>(kMaxMenuValue);
-	float maxMenuPanValueFloat = static_cast<float>(kMaxMenuPanValue);
-	float valueForDisplayFloat;
-
-	//calculate parameter value for display by converting 0 - 128 range to same range as menu (0 - 50)
-	valueForDisplayFloat = (knobPosFloat / maxKnobPosFloat) * maxMenuValueFloat;
-
-	//check if parameter is pan, in which case, further adjust range from 0 - 50 to -25 to +25
-	if ((paramKind == Param::Kind::GLOBAL_EFFECTABLE) && (paramID == Param::Unpatched::GlobalEffectable::PAN)) {
-		goto calculatePanValue;
-	}
-	else if ((paramKind == Param::Kind::PATCHED) && (paramID == Param::Local::PAN)) {
-		goto calculatePanValue;
-	}
-	goto returnValue;
-
-calculatePanValue:
-	//calculate pan parameter value for display
-	valueForDisplayFloat = valueForDisplayFloat - maxMenuPanValueFloat;
-
-returnValue:
-	return static_cast<int32_t>(std::round(valueForDisplayFloat));
 }
 
 //Used to edit a pad's value in editing mode

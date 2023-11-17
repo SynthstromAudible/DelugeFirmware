@@ -131,7 +131,6 @@ private:
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithThreeMainThings* modelStack, int32_t paramID);
 	int32_t calculateKnobPosForSinglePadPress(int32_t yDisplay);
 	int32_t calculateKnobPosForSelectEncoderTurn(int32_t knobPos, int32_t offset);
-	int32_t calculateKnobPosForDisplay(Param::Kind paramKind, int32_t paramID, int32_t knobPos);
 
 	int32_t currentKnobPosition[kDisplayWidth];
 	int32_t previousKnobPosition[kDisplayWidth];
