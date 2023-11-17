@@ -815,8 +815,8 @@ void AutomationInstrumentClipView::renderDisplay(int32_t knobPosLeft, int32_t kn
 
 	//if you're not in a MIDI instrument clip, convert the knobPos to the same range as the menu (0-50)
 	if (instrument->type != InstrumentType::MIDI_OUT) {
-		knobPosLeft = calculateKnobPosForDisplay(clip, knobPosLeft);
-		knobPosRight = calculateKnobPosForDisplay(clip, knobPosRight);
+		knobPosLeft = view.calculateKnobPosForDisplay(instrument->type, clip->lastSelectedParamID, knobPosLeft);
+		knobPosRight = view.calculateKnobPosForDisplay(instrument->type, clip->lastSelectedParamID, knobPosRight);
 	}
 
 	//OLED Display
@@ -1014,26 +1014,6 @@ void AutomationInstrumentClipView::getParameterName(InstrumentClip* clip, Instru
 			}
 		}
 	}
-}
-
-//for non-MIDI instruments, convert deluge internal knobPos range to same range as used by menu's.
-int32_t AutomationInstrumentClipView::calculateKnobPosForDisplay(InstrumentClip* clip, int32_t knobPos) {
-	float knobPosFloat = static_cast<float>(knobPos);
-	float knobPosOffsetFloat = static_cast<float>(kKnobPosOffset);
-	float maxKnobPosFloat = static_cast<float>(kMaxKnobPos);
-	float maxMenuValueFloat = static_cast<float>(kMaxMenuValue);
-	float maxMenuPanValueFloat = static_cast<float>(kMaxMenuPanValue);
-	float valueForDisplayFloat;
-
-	//calculate parameter value for display by converting 0 - 128 range to same range as menu (0 - 50)
-	valueForDisplayFloat = (knobPosFloat / maxKnobPosFloat) * maxMenuValueFloat;
-
-	//check if parameter is pan, in which case, further adjust range from 0 - 50 to -25 to +25
-	if (view.isParamPan(clip, clip->lastSelectedParamID)) {
-		valueForDisplayFloat = valueForDisplayFloat - maxMenuPanValueFloat;
-	}
-
-	return static_cast<int32_t>(std::round(valueForDisplayFloat));
 }
 
 //adjust the LED meters and update the display

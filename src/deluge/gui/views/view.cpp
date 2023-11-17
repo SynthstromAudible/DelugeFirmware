@@ -879,7 +879,7 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 					}
 				}
 
-				displayModEncoderValuePopup(clip, modelStackWithParam->paramId, newKnobPos);
+				displayModEncoderValuePopup(clip->output->type, modelStackWithParam->paramId, newKnobPos);
 
 				if (newKnobPos == knobPos) {
 					return;
@@ -930,35 +930,17 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	}
 }
 
-void View::displayModEncoderValuePopup(InstrumentClip* clip, int32_t paramID, int32_t newKnobPos) {
+void View::displayModEncoderValuePopup(InstrumentType instrumentType, int32_t paramID, int32_t newKnobPos) {
 	//check if param is quantized stutter with stuttering enabled
 	if (!(isParamQuantizedStutter(paramID) && !isUIModeActive(UI_MODE_STUTTERING))) {
 
 		char buffer[5];
 		int32_t valueForDisplay;
-		if (clip->output->type == InstrumentType::MIDI_OUT) {
+		if (instrumentType == InstrumentType::MIDI_OUT) {
 			valueForDisplay = newKnobPos + kKnobPosOffset;
 		}
 		else {
-			float newKnobPosFloat = static_cast<float>(newKnobPos);
-			float knobPosOffsetFloat = static_cast<float>(kKnobPosOffset);
-			float maxKnobPosFloat = static_cast<float>(kMaxKnobPos);
-			float maxMenuValueFloat = static_cast<float>(kMaxMenuValue);
-			float maxMenuPanValueFloat = static_cast<float>(kMaxMenuPanValue);
-			float valueForDisplayFloat;
-
-			if (isParamPan(clip, paramID)) {
-				//calculate pan parameter value for display
-				valueForDisplayFloat =
-				    std::round((newKnobPosFloat / (maxKnobPosFloat - knobPosOffsetFloat)) * maxMenuPanValueFloat);
-				valueForDisplay = static_cast<int32_t>(valueForDisplayFloat);
-			}
-			else {
-				//calculate non pan parameter value for display
-				valueForDisplayFloat =
-				    std::round(((newKnobPosFloat + knobPosOffsetFloat) / maxKnobPosFloat) * maxMenuValueFloat);
-				valueForDisplay = static_cast<int32_t>(valueForDisplayFloat);
-			}
+			valueForDisplay = calculateKnobPosForDisplay(instrumentType, paramID, newKnobPos + kKnobPosOffset);
 		}
 		intToString(valueForDisplay, buffer);
 		display->displayPopup(buffer);
@@ -987,6 +969,27 @@ void View::displayModEncoderValuePopup(InstrumentClip* clip, int32_t paramID, in
 	}
 }
 
+//convert deluge internal knobPos range to same range as used by menu's.
+int32_t View::calculateKnobPosForDisplay(InstrumentType instrumentType, int32_t paramID, int32_t knobPos) {
+	float knobPosFloat = static_cast<float>(knobPos);
+	float knobPosOffsetFloat = static_cast<float>(kKnobPosOffset);
+	float maxKnobPosFloat = static_cast<float>(kMaxKnobPos);
+	float maxMenuValueFloat = static_cast<float>(kMaxMenuValue);
+	float maxMenuPanValueFloat = static_cast<float>(kMaxMenuPanValue);
+	float valueForDisplayFloat;
+
+	//calculate parameter value for display by converting 0 - 128 range to same range as menu (0 - 50)
+	valueForDisplayFloat = (knobPosFloat / maxKnobPosFloat) * maxMenuValueFloat;
+
+	//check if parameter is pan, in which case, further adjust range from 0 - 50 to -25 to +25
+	if (isParamPan(instrumentType, paramID)) {
+		valueForDisplayFloat = valueForDisplayFloat - maxMenuPanValueFloat;
+	}
+
+returnValue:
+	return static_cast<int32_t>(std::round(valueForDisplayFloat));
+}
+
 //check if Parameter is Stutter Rate and if Quantized Stutter Community Feature is enabled
 bool View::isParamQuantizedStutter(int32_t paramID) {
 	if (((Param::Unpatched::START + paramID) == (Param::Unpatched::START + Param::Unpatched::STUTTER_RATE))
@@ -997,12 +1000,12 @@ bool View::isParamQuantizedStutter(int32_t paramID) {
 	return false;
 }
 
-bool View::isParamPan(InstrumentClip* clip, int32_t paramID) {
+bool View::isParamPan(InstrumentType instrumentType, int32_t paramID) {
 	bool isPan = false;
 
 	//in a synth or a kit (with affect entire disabled), check if it is the patched Pan parameter
-	if ((clip->output->type == InstrumentType::SYNTH)
-	    || ((clip->output->type == InstrumentType::KIT) && !instrumentClipView.getAffectEntire())) {
+	if ((instrumentType == InstrumentType::SYNTH)
+	    || ((instrumentType == InstrumentType::KIT) && !instrumentClipView.getAffectEntire())) {
 		if (paramID == Param::Local::PAN) {
 			isPan = true;
 		}
