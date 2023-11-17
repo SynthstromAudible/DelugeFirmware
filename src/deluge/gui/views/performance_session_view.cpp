@@ -653,6 +653,13 @@ doNothing:
 ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDisplay, int32_t on) {
 	//if pad was pressed in main deluge grid (not sidebar)
 	if (xDisplay < kDisplayWidth) {
+		if (on) {
+			if (Buttons::isShiftButtonPressed()) {
+				ActionResult soundEditorResult = soundEditor.potentialShortcutPadAction(xDisplay, yDisplay, on);
+				return soundEditorResult;
+			}
+		}
+
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* modelStack =
 		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);

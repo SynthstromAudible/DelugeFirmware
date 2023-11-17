@@ -754,11 +754,17 @@ static const uint32_t shortcutPadUIModes[] = {UI_MODE_AUDITIONING, 0};
 
 ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool on) {
 
-	//allow this function to execute if in performance view when called directly
+	//if not in performanceSessionView
 	if ((getRootUI() != &performanceSessionView) && (getCurrentUI() != &performanceSessionView)) {
 		if (!on || x >= kDisplayWidth
 		    || (!Buttons::isShiftButtonPressed()
 		        && !(currentUIMode == UI_MODE_AUDITIONING && getRootUI() == &instrumentClipView))) {
+			return ActionResult::NOT_DEALT_WITH;
+		}
+	}
+	//if in performanceSessionView, if not in editing mode, check that shift is pressed
+	else {
+		if (!on || x >= kDisplayWidth || (!Buttons::isShiftButtonPressed() && !performanceSessionView.defaultEditingMode)) {
 			return ActionResult::NOT_DEALT_WITH;
 		}
 	}
@@ -944,7 +950,7 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 
 	//used to convert column press to a shortcut to change Perform FX menu displayed
 	if (((getRootUI() == &performanceSessionView) || (getCurrentUI() == &performanceSessionView))
-	    && !Buttons::isShiftButtonPressed()) {
+	    && !Buttons::isShiftButtonPressed() && performanceSessionView.defaultEditingMode) {
 		if (x < kDisplayWidth) {
 			performanceSessionView.padAction(x, y, on);
 			return ActionResult::DEALT_WITH;
