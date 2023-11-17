@@ -439,7 +439,7 @@ moveAfterClipInstance:
 
 				display->setNextTransitionDirection(1);
 				soundEditor.setup();
-				openUI(&soundEditor);		
+				openUI(&soundEditor);
 			}
 		}
 	}
@@ -1747,7 +1747,8 @@ void SessionView::setLedStates() {
 extern char loopsRemainingText[];
 
 void SessionView::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
-	renderViewDisplay(getCurrentUI() == &arrangerView ? l10n::get(l10n::String::STRING_FOR_ARRANGER_VIEW) : l10n::get(l10n::String::STRING_FOR_SONG_VIEW));
+	renderViewDisplay(getCurrentUI() == &arrangerView ? l10n::get(l10n::String::STRING_FOR_ARRANGER_VIEW)
+	                                                  : l10n::get(l10n::String::STRING_FOR_SONG_VIEW));
 
 	if (playbackHandler.isEitherClockActive()) {
 		// Session playback
@@ -1768,7 +1769,8 @@ yesDoIt:
 }
 
 void SessionView::redrawNumericDisplay() {
-	renderViewDisplay(getCurrentUI() == &arrangerView ? l10n::get(l10n::String::STRING_FOR_ARRANGER_VIEW) : l10n::get(l10n::String::STRING_FOR_SONG_VIEW));
+	renderViewDisplay(getCurrentUI() == &arrangerView ? l10n::get(l10n::String::STRING_FOR_ARRANGER_VIEW)
+	                                                  : l10n::get(l10n::String::STRING_FOR_SONG_VIEW));
 
 	if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
 		return;
@@ -1856,8 +1858,7 @@ void SessionView::renderViewDisplay(char const* viewString) {
 
 		yPos = yPos + 12;
 
-		deluge::hid::display::OLED::drawStringCentred(viewString, yPos,
-		                                              deluge::hid::display::OLED::oledMainImage[0],
+		deluge::hid::display::OLED::drawStringCentred(viewString, yPos, deluge::hid::display::OLED::oledMainImage[0],
 		                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 
 		deluge::hid::display::OLED::sendMainImage();

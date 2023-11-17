@@ -734,18 +734,18 @@ enum class String : size_t {
 	STRING_FOR_PERFORM_DEFAULTS_PARAM_TAG,
 	STRING_FOR_PERFORM_DEFAULTS_ROW_TAG,
 
-    /* Strings Specifically for Song View
+	/* Strings Specifically for Song View
 	* session_view.cpp
 	*/
 
 	STRING_FOR_SONG_VIEW,
 	STRING_FOR_SONG_FX,
 
-    /* Strings Specifically for Arranger View
+	/* Strings Specifically for Arranger View
     * arranger_view.cpp
     */
 
-    STRING_FOR_ARRANGER_VIEW,
+	STRING_FOR_ARRANGER_VIEW,
 
 	STRING_LAST
 };

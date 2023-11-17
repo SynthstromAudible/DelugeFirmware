@@ -1020,16 +1020,33 @@ void AutomationInstrumentClipView::getParameterName(InstrumentClip* clip, Instru
 
 //for non-MIDI instruments, convert deluge internal knobPos range to same range as used by menu's.
 int32_t AutomationInstrumentClipView::calculateKnobPosForDisplay(InstrumentClip* clip, int32_t knobPos) {
-	int32_t offset = 0;
+	float knobPosFloat = static_cast<float>(knobPos);
+	float knobPosOffsetFloat = static_cast<float>(kKnobPosOffset);
+	float maxKnobPosFloat = static_cast<float>(kMaxKnobPos);
+	float maxMenuValueFloat = static_cast<float>(kMaxMenuValue);
+	float maxMenuPanValueFloat = static_cast<float>(kMaxMenuPanValue);
+	float valueForDisplayFloat;
 
-	//if the parameter is pan, convert knobPos from 0 - 50 to -25 to +25
-	if ((clip->lastSelectedParamID == Param::Local::PAN)
-	    || (clip->lastSelectedParamID == Param::Unpatched::GlobalEffectable::PAN)) {
-		offset = kMaxMenuPanValue;
+	//calculate parameter value for display by converting 0 - 128 range to same range as menu (0 - 50)
+	valueForDisplayFloat = (knobPosFloat / maxKnobPosFloat) * maxMenuValueFloat;
+
+	//check if parameter is pan, in which case, further adjust range from 0 - 50 to -25 to +25
+	if ((clip->lastSelectedParamKind == Param::Kind::GLOBAL_EFFECTABLE)
+	    && (clip->lastSelectedParamID == Param::Unpatched::GlobalEffectable::PAN)) {
+		goto calculatePanValue;
 	}
+	else if ((clip->lastSelectedParamKind == Param::Kind::PATCHED)
+	         && (clip->lastSelectedParamID == Param::Local::PAN)) {
+		goto calculatePanValue;
+	}
+	goto returnValue;
 
-	//convert knobPos from 0 - 128 to 0 - 50
-	return (((((knobPos << 20) / kMaxKnobPos) * kMaxMenuValue) >> 20) - offset);
+calculatePanValue:
+	//calculate pan parameter value for display
+	valueForDisplayFloat = valueForDisplayFloat - maxMenuPanValueFloat;
+
+returnValue:
+	return static_cast<int32_t>(std::round(valueForDisplayFloat));
 }
 
 //adjust the LED meters and update the display

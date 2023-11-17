@@ -178,9 +178,9 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 			else if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW) {
 				moveClipToSession();
 			}
-		//	if (currentUIMode == UI_MODE_NONE) {
-		//		goToSongView();
-		//	}
+			//	if (currentUIMode == UI_MODE_NONE) {
+			//		goToSongView();
+			//	}
 		}
 	}
 

@@ -102,7 +102,7 @@ const ParamsForPerformance defaultLayoutForPerformance[kDisplayWidth] = {
     {Param::Kind::UNPATCHED, Param::Unpatched::SAMPLE_RATE_REDUCTION, 6, 5},
     {Param::Kind::UNPATCHED, Param::Unpatched::BITCRUSHING, 6, 6},
     {Param::Kind::UNPATCHED, Param::Unpatched::STUTTER_RATE, 5, 7},
-}; 
+};
 
 //colours for the performance mode
 
@@ -326,7 +326,7 @@ void PerformanceSessionView::renderRow(uint8_t* image, uint8_t occupancyMask[], 
 			}
 
 			if ((currentKnobPosition[xDisplay] == defaultFXValues[xDisplay][yDisplay])
-				&& (previousPadPressYDisplay[xDisplay] == yDisplay)) {
+			    && (previousPadPressYDisplay[xDisplay] == yDisplay)) {
 				pixel[0] = 130;
 				pixel[1] = 120;
 				pixel[2] = 130;
@@ -797,7 +797,7 @@ bool PerformanceSessionView::setParameterValue(ModelStackWithThreeMainThings* mo
 			}
 
 			if (renderDisplay) {
-				int32_t valueForDisplay = calculateKnobPosForDisplay(knobPos + kKnobPosOffset);
+				int32_t valueForDisplay = calculateKnobPosForDisplay(paramKind, paramID, knobPos + kKnobPosOffset);
 				renderFXDisplay(paramKind, paramID, valueForDisplay);
 			}
 
@@ -823,15 +823,17 @@ void PerformanceSessionView::getParameterValue(ModelStackWithThreeMainThings* mo
 
 		if (modelStackWithParam->getTimelineCounter()
 		    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
-			
-			int32_t value =
-				modelStackWithParam->autoParam->getValuePossiblyAtPos(view.modPos, modelStackWithParam);
-			
-			int32_t knobPos = 
-				    modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
+
+			int32_t value = modelStackWithParam->autoParam->getValuePossiblyAtPos(view.modPos, modelStackWithParam);
+
+			int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
+
+			if (currentKnobPosition[xDisplay] != knobPos) {
+				currentKnobPosition[xDisplay] = knobPos;
+			}
 
 			if (renderDisplay && (currentKnobPosition[xDisplay] != knobPos)) {
-				int32_t valueForDisplay = calculateKnobPosForDisplay(knobPos + kKnobPosOffset);
+				int32_t valueForDisplay = calculateKnobPosForDisplay(paramKind, paramID, knobPos + kKnobPosOffset);
 				renderFXDisplay(paramKind, paramID, valueForDisplay);
 			}
 		}
@@ -876,13 +878,32 @@ int32_t PerformanceSessionView::calculateKnobPosForSinglePadPress(int32_t yDispl
 }
 
 //convert deluge internal knobPos range to same range as used by menu's.
-int32_t PerformanceSessionView::calculateKnobPosForDisplay(int32_t knobPos) {
-	int32_t offset = 0;
+int32_t PerformanceSessionView::calculateKnobPosForDisplay(Param::Kind paramKind, int32_t paramID, int32_t knobPos) {
+	float knobPosFloat = static_cast<float>(knobPos);
+	float knobPosOffsetFloat = static_cast<float>(kKnobPosOffset);
+	float maxKnobPosFloat = static_cast<float>(kMaxKnobPos);
+	float maxMenuValueFloat = static_cast<float>(kMaxMenuValue);
+	float maxMenuPanValueFloat = static_cast<float>(kMaxMenuPanValue);
+	float valueForDisplayFloat;
 
+	//calculate parameter value for display by converting 0 - 128 range to same range as menu (0 - 50)
+	valueForDisplayFloat = (knobPosFloat / maxKnobPosFloat) * maxMenuValueFloat;
 
+	//check if parameter is pan, in which case, further adjust range from 0 - 50 to -25 to +25
+	if ((paramKind == Param::Kind::GLOBAL_EFFECTABLE) && (paramID == Param::Unpatched::GlobalEffectable::PAN)) {
+		goto calculatePanValue;
+	}
+	else if ((paramKind == Param::Kind::PATCHED) && (paramID == Param::Local::PAN)) {
+		goto calculatePanValue;
+	}
+	goto returnValue;
 
-	//convert knobPos from 0 - 128 to 0 - 50
-	return (((((knobPos << 20) / kMaxKnobPos) * kMaxMenuValue) >> 20) - offset);
+calculatePanValue:
+	//calculate pan parameter value for display
+	valueForDisplayFloat = valueForDisplayFloat - maxMenuPanValueFloat;
+
+returnValue:
+	return static_cast<int32_t>(std::round(valueForDisplayFloat));
 }
 
 //Used to edit a pad's value in editing mode
@@ -893,12 +914,15 @@ void PerformanceSessionView::selectEncoderAction(int8_t offset) {
 
 		if (soundEditor.getCurrentMenuItem()
 		    == paramShortcutsForSongView[lastSelectedParamShortcutX][lastSelectedParamShortcutY]) {
-			defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay] = calculateKnobPosForSelectEncoderTurn(
-			    defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay], offset);
 
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithThreeMainThings* modelStack =
 			    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+
+			getParameterValue(modelStack, lastPadPress.paramKind, lastPadPress.paramID, lastPadPress.xDisplay);
+
+			defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay] =
+			    calculateKnobPosForSelectEncoderTurn(currentKnobPosition[lastPadPress.xDisplay], offset);
 
 			if (setParameterValue(modelStack, lastPadPress.paramKind, lastPadPress.paramID, lastPadPress.xDisplay,
 			                      defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay], false)) {
@@ -966,7 +990,7 @@ void PerformanceSessionView::modEncoderAction(int32_t whichModEncoder, int32_t o
 			if (lastPadPress.isActive) {
 				char modelStackMemory[MODEL_STACK_MAX_SIZE];
 				ModelStackWithThreeMainThings* modelStack =
-					currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+				    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
 				getParameterValue(modelStack, lastPadPress.paramKind, lastPadPress.paramID, lastPadPress.xDisplay);
 			}
@@ -1031,14 +1055,15 @@ void PerformanceSessionView::writeDefaultFXValuesToFile() {
 
 void PerformanceSessionView::writeDefaultFXParamToFile(int32_t xDisplay) {
 	char const* paramName;
-	
+
 	if (layoutForPerformance[xDisplay].paramKind == Param::Kind::GLOBAL_EFFECTABLE) {
 		paramName = GlobalEffectable::paramToString(Param::Unpatched::START + layoutForPerformance[xDisplay].paramID);
 	}
 	else if (layoutForPerformance[xDisplay].paramKind == Param::Kind::UNPATCHED) {
-		paramName = ModControllableAudio::paramToString(Param::Unpatched::START + layoutForPerformance[xDisplay].paramID);
+		paramName =
+		    ModControllableAudio::paramToString(Param::Unpatched::START + layoutForPerformance[xDisplay].paramID);
 	}
-	storageManager.writeTag(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_PARAM_TAG), paramName);		
+	storageManager.writeTag(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_PARAM_TAG), paramName);
 }
 
 //creates "8 - 1 row # tags within a "row" tag"
@@ -1113,10 +1138,10 @@ void PerformanceSessionView::readDefaultFXValuesFromFile() {
 void PerformanceSessionView::readDefaultFXParamAndRowValuesFromFile(int32_t xDisplay) {
 	char const* tagName;
 	//step into the row tag
-	while (*(tagName = storageManager.readNextTagOrAttributeName())) {		
+	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_PARAM_TAG))) {
 			readDefaultFXParamFromFile(xDisplay);
-		}		
+		}
 		else if (!strcmp(tagName, l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_ROW_TAG))) {
 			readDefaultFXRowNumberValuesFromFile(xDisplay);
 		}
@@ -1127,13 +1152,14 @@ void PerformanceSessionView::readDefaultFXParamAndRowValuesFromFile(int32_t xDis
 void PerformanceSessionView::readDefaultFXParamFromFile(int32_t xDisplay) {
 	char const* paramName;
 	char const* tagName = storageManager.readTagOrAttributeValue();
-	
+
 	for (int32_t i = 0; i < kNumParamsForPerformance; i++) {
 		if (songParamsForPerformance[i].paramKind == Param::Kind::GLOBAL_EFFECTABLE) {
 			paramName = GlobalEffectable::paramToString(Param::Unpatched::START + songParamsForPerformance[i].paramID);
 		}
 		else if (songParamsForPerformance[i].paramKind == Param::Kind::UNPATCHED) {
-			paramName = ModControllableAudio::paramToString(Param::Unpatched::START + songParamsForPerformance[i].paramID);
+			paramName =
+			    ModControllableAudio::paramToString(Param::Unpatched::START + songParamsForPerformance[i].paramID);
 		}
 		if (!strcmp(tagName, paramName)) {
 			memcpy(&layoutForPerformance[xDisplay], &songParamsForPerformance[i], sizeParamsForPerformance);
@@ -1153,9 +1179,9 @@ void PerformanceSessionView::readDefaultFXRowNumberValuesFromFile(int32_t xDispl
 			intToString(yDisplay + 1, rowNumber);
 			if (!strcmp(tagName, rowNumber)) {
 				defaultFXValues[xDisplay][yDisplay] = storageManager.readTagOrAttributeValueInt() - kKnobPosOffset;
-				
+
 				//check if a value greater than 64 was entered as a default value in xml file
-				if (defaultFXValues[xDisplay][yDisplay] > kKnobPosOffset){
+				if (defaultFXValues[xDisplay][yDisplay] > kKnobPosOffset) {
 					defaultFXValues[xDisplay][yDisplay] = kKnobPosOffset;
 				}
 

@@ -879,37 +879,70 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 					}
 				}
 
-				//don't display pop-up while in soundEditor as values are displayed on the menu screen
 				//unless you're turning a mod encoder for a different param than the menu displayed
-				if (((getCurrentUI() != &soundEditor)
-				     || ((getCurrentUI() == &soundEditor)
-				         && (soundEditor.getCurrentMenuItem()->getPatchedParamIndex() != modelStackWithParam->paramId)))
-				    && !(modelStackWithParam->paramId == Param::Unpatched::STUTTER_RATE
-				         && (runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate)
-				             == RuntimeFeatureStateToggle::On)
-				         && !isUIModeActive(UI_MODE_STUTTERING))) {
+				if (!(((Param::Unpatched::START + modelStackWithParam->paramId)
+				       == (Param::Unpatched::START + Param::Unpatched::STUTTER_RATE))
+				      && (runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate)
+				          == RuntimeFeatureStateToggle::On)
+				      && !isUIModeActive(UI_MODE_STUTTERING))) {
 
 					char buffer[5];
 					int32_t valueForDisplay;
 					if (clip->output->type == InstrumentType::MIDI_OUT) {
 						valueForDisplay = newKnobPos + kKnobPosOffset;
 					}
-					else if ((modelStackWithParam->paramId == Param::Local::PAN)
-					         || (modelStackWithParam->paramId == Param::Unpatched::GlobalEffectable::PAN)) {
-						valueForDisplay =
-						    ((((newKnobPos << 20) / (kMaxKnobPos - kKnobPosOffset)) * kMaxMenuPanValue) >> 20);
-					}
 					else {
-						valueForDisplay =
-						    (((((newKnobPos + kKnobPosOffset) << 20) / kMaxKnobPos) * kMaxMenuValue) >> 20);
+						float newKnobPosFloat = static_cast<float>(newKnobPos);
+						float knobPosOffsetFloat = static_cast<float>(kKnobPosOffset);
+						float maxKnobPosFloat = static_cast<float>(kMaxKnobPos);
+						float maxMenuValueFloat = static_cast<float>(kMaxMenuValue);
+						float maxMenuPanValueFloat = static_cast<float>(kMaxMenuPanValue);
+						float valueForDisplayFloat;
+
+						//in a kit with affect entire enabled, check if it is the global effectable Pan parameter
+						if ((clip->output->type == InstrumentType::KIT) && instrumentClipView.getAffectEntire()) {
+							goto checkForGlobalEffectablePan;
+						}
+						//in a synth or a kit (with affect entire disabled), check if it is the patched Pan parameter
+						else if ((clip->output->type == InstrumentType::SYNTH)
+						         || (clip->output->type == InstrumentType::KIT)) {
+							goto checkForPatchedPan;
+						}
+						//elsewhere (song, performance, audio clip, only global effectable pan is used - check for it)
+						else {
+checkForGlobalEffectablePan:
+							if ((Param::Unpatched::START + modelStackWithParam->paramId)
+							    == (Param::Unpatched::START + Param::Unpatched::GlobalEffectable::PAN)) {
+								goto calculatePanValue;
+							}
+							goto calculateNonPanValue;
+checkForPatchedPan:
+							if (modelStackWithParam->paramId == Param::Local::PAN) {
+								goto calculatePanValue;
+							}
+calculateNonPanValue:
+							//calculate non pan parameter value for display
+							valueForDisplayFloat = std::round(((newKnobPosFloat + knobPosOffsetFloat) / maxKnobPosFloat)
+							                                  * maxMenuValueFloat);
+							valueForDisplay = static_cast<int32_t>(valueForDisplayFloat);
+
+							goto displayValue;
+						}
+calculatePanValue:
+						//calculate pan parameter value for display
+						valueForDisplayFloat = std::round((newKnobPosFloat / (maxKnobPosFloat - knobPosOffsetFloat))
+						                                  * maxMenuPanValueFloat);
+						valueForDisplay = static_cast<int32_t>(valueForDisplayFloat);
 					}
+displayValue:
 					intToString(valueForDisplay, buffer);
 					display->displayPopup(buffer);
 				}
 
 				//if turning stutter mod encoder and stutter quantize is enabled
 				//display stutter quantization instead of knob position
-				if (modelStackWithParam->paramId == Param::Unpatched::STUTTER_RATE
+				if (((Param::Unpatched::START + modelStackWithParam->paramId)
+				     == (Param::Unpatched::START + Param::Unpatched::STUTTER_RATE))
 				    && (runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate)
 				        == RuntimeFeatureStateToggle::On)
 				    && !isUIModeActive(UI_MODE_STUTTERING)) {
