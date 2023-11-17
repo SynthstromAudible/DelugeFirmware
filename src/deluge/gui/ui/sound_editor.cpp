@@ -764,7 +764,8 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 	}
 	//if in performanceSessionView, if not in editing mode, check that shift is pressed
 	else {
-		if (!on || x >= kDisplayWidth || (!Buttons::isShiftButtonPressed() && !performanceSessionView.defaultEditingMode)) {
+		if (!on || x >= kDisplayWidth
+		    || (!Buttons::isShiftButtonPressed() && !performanceSessionView.defaultEditingMode)) {
 			return ActionResult::NOT_DEALT_WITH;
 		}
 	}
