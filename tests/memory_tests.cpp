@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #define NUM_TEST_ALLOCATIONS 1024
 #define MEM_SIZE 10000000
+
 namespace {
 uint32_t vtableAddress;  // will hold address of the stealable test vtable
 uint32_t nSteals;        //to count steals
@@ -305,7 +306,7 @@ TEST(MemoryAllocation, stealableAllocations) {
 	void* testAllocations[NUM_TEST_ALLOCATIONS];
 	uint32_t actualSize;
 
-	mock().disable(); //disable mocking since number of steals is unpredictable
+	mock().expectNCalls(720, "steal");
 	for (int i = 0; i < NUM_TEST_ALLOCATIONS; i += 1) {
 		uint32_t size = sizes[2];
 		if (i % 10 == 0) {
@@ -327,6 +328,6 @@ TEST(MemoryAllocation, stealableAllocations) {
 	std::cout << "stealable efficiency: " << efficiency << std::endl;
 	//current efficiency is .994
 	CHECK(efficiency > 0.994);
-	mock().enable();
+	mock().checkExpectations();
 };
 } // namespace
