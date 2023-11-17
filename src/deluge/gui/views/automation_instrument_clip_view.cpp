@@ -1031,21 +1031,10 @@ int32_t AutomationInstrumentClipView::calculateKnobPosForDisplay(InstrumentClip*
 	valueForDisplayFloat = (knobPosFloat / maxKnobPosFloat) * maxMenuValueFloat;
 
 	//check if parameter is pan, in which case, further adjust range from 0 - 50 to -25 to +25
-	if ((clip->lastSelectedParamKind == Param::Kind::GLOBAL_EFFECTABLE)
-	    && (clip->lastSelectedParamID == Param::Unpatched::GlobalEffectable::PAN)) {
-		goto calculatePanValue;
+	if (view.isParamPan(clip, clip->lastSelectedParamID)) {
+		valueForDisplayFloat = valueForDisplayFloat - maxMenuPanValueFloat;
 	}
-	else if ((clip->lastSelectedParamKind == Param::Kind::PATCHED)
-	         && (clip->lastSelectedParamID == Param::Local::PAN)) {
-		goto calculatePanValue;
-	}
-	goto returnValue;
 
-calculatePanValue:
-	//calculate pan parameter value for display
-	valueForDisplayFloat = valueForDisplayFloat - maxMenuPanValueFloat;
-
-returnValue:
 	return static_cast<int32_t>(std::round(valueForDisplayFloat));
 }
 

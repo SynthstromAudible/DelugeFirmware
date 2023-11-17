@@ -879,91 +879,7 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 					}
 				}
 
-				//unless you're turning a mod encoder for a different param than the menu displayed
-				if (!(((Param::Unpatched::START + modelStackWithParam->paramId)
-				       == (Param::Unpatched::START + Param::Unpatched::STUTTER_RATE))
-				      && (runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate)
-				          == RuntimeFeatureStateToggle::On)
-				      && !isUIModeActive(UI_MODE_STUTTERING))) {
-
-					char buffer[5];
-					int32_t valueForDisplay;
-					if (clip->output->type == InstrumentType::MIDI_OUT) {
-						valueForDisplay = newKnobPos + kKnobPosOffset;
-					}
-					else {
-						float newKnobPosFloat = static_cast<float>(newKnobPos);
-						float knobPosOffsetFloat = static_cast<float>(kKnobPosOffset);
-						float maxKnobPosFloat = static_cast<float>(kMaxKnobPos);
-						float maxMenuValueFloat = static_cast<float>(kMaxMenuValue);
-						float maxMenuPanValueFloat = static_cast<float>(kMaxMenuPanValue);
-						float valueForDisplayFloat;
-
-						//in a kit with affect entire enabled, check if it is the global effectable Pan parameter
-						if ((clip->output->type == InstrumentType::KIT) && instrumentClipView.getAffectEntire()) {
-							goto checkForGlobalEffectablePan;
-						}
-						//in a synth or a kit (with affect entire disabled), check if it is the patched Pan parameter
-						else if ((clip->output->type == InstrumentType::SYNTH)
-						         || (clip->output->type == InstrumentType::KIT)) {
-							goto checkForPatchedPan;
-						}
-						//elsewhere (song, performance, audio clip, only global effectable pan is used - check for it)
-						else {
-checkForGlobalEffectablePan:
-							if ((Param::Unpatched::START + modelStackWithParam->paramId)
-							    == (Param::Unpatched::START + Param::Unpatched::GlobalEffectable::PAN)) {
-								goto calculatePanValue;
-							}
-							goto calculateNonPanValue;
-checkForPatchedPan:
-							if (modelStackWithParam->paramId == Param::Local::PAN) {
-								goto calculatePanValue;
-							}
-calculateNonPanValue:
-							//calculate non pan parameter value for display
-							valueForDisplayFloat = std::round(((newKnobPosFloat + knobPosOffsetFloat) / maxKnobPosFloat)
-							                                  * maxMenuValueFloat);
-							valueForDisplay = static_cast<int32_t>(valueForDisplayFloat);
-
-							goto displayValue;
-						}
-calculatePanValue:
-						//calculate pan parameter value for display
-						valueForDisplayFloat = std::round((newKnobPosFloat / (maxKnobPosFloat - knobPosOffsetFloat))
-						                                  * maxMenuPanValueFloat);
-						valueForDisplay = static_cast<int32_t>(valueForDisplayFloat);
-					}
-displayValue:
-					intToString(valueForDisplay, buffer);
-					display->displayPopup(buffer);
-				}
-
-				//if turning stutter mod encoder and stutter quantize is enabled
-				//display stutter quantization instead of knob position
-				if (((Param::Unpatched::START + modelStackWithParam->paramId)
-				     == (Param::Unpatched::START + Param::Unpatched::STUTTER_RATE))
-				    && (runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate)
-				        == RuntimeFeatureStateToggle::On)
-				    && !isUIModeActive(UI_MODE_STUTTERING)) {
-					char buffer[10];
-					if (newKnobPos < -39) { // 4ths stutter: no leds turned on
-						strncpy(buffer, "4ths", 10);
-					}
-					else if (newKnobPos < -14) { // 8ths stutter: 1 led turned on
-						strncpy(buffer, "8ths", 10);
-					}
-					else if (newKnobPos < 14) { // 16ths stutter: 2 leds turned on
-						strncpy(buffer, "16ths", 10);
-					}
-					else if (newKnobPos < 39) { // 32nds stutter: 3 leds turned on
-						strncpy(buffer, "32nds", 10);
-					}
-					else { // 64ths stutter: all 4 leds turned on
-						strncpy(buffer, "64ths", 10);
-					}
-					display->displayPopup(buffer);
-				}
+				displayModEncoderValuePopup(clip, modelStackWithParam->paramId, newKnobPos);
 
 				if (newKnobPos == knobPos) {
 					return;
@@ -1012,6 +928,93 @@ displayValue:
 
 		instrumentBeenEdited();
 	}
+}
+
+void View::displayModEncoderValuePopup(InstrumentClip* clip, int32_t paramID, int32_t newKnobPos) {
+	//check if param is quantized stutter with stuttering enabled
+	if (!(isParamQuantizedStutter(paramID) && !isUIModeActive(UI_MODE_STUTTERING))) {
+
+		char buffer[5];
+		int32_t valueForDisplay;
+		if (clip->output->type == InstrumentType::MIDI_OUT) {
+			valueForDisplay = newKnobPos + kKnobPosOffset;
+		}
+		else {
+			float newKnobPosFloat = static_cast<float>(newKnobPos);
+			float knobPosOffsetFloat = static_cast<float>(kKnobPosOffset);
+			float maxKnobPosFloat = static_cast<float>(kMaxKnobPos);
+			float maxMenuValueFloat = static_cast<float>(kMaxMenuValue);
+			float maxMenuPanValueFloat = static_cast<float>(kMaxMenuPanValue);
+			float valueForDisplayFloat;
+
+			if (isParamPan(clip, paramID)) {
+				//calculate pan parameter value for display
+				valueForDisplayFloat =
+				    std::round((newKnobPosFloat / (maxKnobPosFloat - knobPosOffsetFloat)) * maxMenuPanValueFloat);
+				valueForDisplay = static_cast<int32_t>(valueForDisplayFloat);
+			}
+			else {
+				//calculate non pan parameter value for display
+				valueForDisplayFloat =
+				    std::round(((newKnobPosFloat + knobPosOffsetFloat) / maxKnobPosFloat) * maxMenuValueFloat);
+				valueForDisplay = static_cast<int32_t>(valueForDisplayFloat);
+			}
+		}
+		intToString(valueForDisplay, buffer);
+		display->displayPopup(buffer);
+	}
+
+	//if turning stutter mod encoder and stutter quantize is enabled
+	//display stutter quantization instead of knob position
+	if (isParamQuantizedStutter(paramID) && !isUIModeActive(UI_MODE_STUTTERING)) {
+		char buffer[10];
+		if (newKnobPos < -39) { // 4ths stutter: no leds turned on
+			strncpy(buffer, "4ths", 10);
+		}
+		else if (newKnobPos < -14) { // 8ths stutter: 1 led turned on
+			strncpy(buffer, "8ths", 10);
+		}
+		else if (newKnobPos < 14) { // 16ths stutter: 2 leds turned on
+			strncpy(buffer, "16ths", 10);
+		}
+		else if (newKnobPos < 39) { // 32nds stutter: 3 leds turned on
+			strncpy(buffer, "32nds", 10);
+		}
+		else { // 64ths stutter: all 4 leds turned on
+			strncpy(buffer, "64ths", 10);
+		}
+		display->displayPopup(buffer);
+	}
+}
+
+//check if Parameter is Stutter Rate and if Quantized Stutter Community Feature is enabled
+bool View::isParamQuantizedStutter(int32_t paramID) {
+	if (((Param::Unpatched::START + paramID) == (Param::Unpatched::START + Param::Unpatched::STUTTER_RATE))
+		&& (runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate)
+		   == RuntimeFeatureStateToggle::On)) {
+			return true;
+		}
+	return false;
+}
+
+bool View::isParamPan(InstrumentClip* clip, int32_t paramID) {
+	bool isPan = false;
+
+	//in a synth or a kit (with affect entire disabled), check if it is the patched Pan parameter
+	if ((clip->output->type == InstrumentType::SYNTH)
+	    || ((clip->output->type == InstrumentType::KIT) && !instrumentClipView.getAffectEntire())) {
+		if (paramID == Param::Local::PAN) {
+			isPan = true;
+		}
+	}
+	//elsewhere (song, performance, audio clip, kit with affect entire enabled)
+	// only global effectable pan is used - check for it)
+	else if ((Param::Unpatched::START + paramID)
+	         == (Param::Unpatched::START + Param::Unpatched::GlobalEffectable::PAN)) {
+		isPan = true;
+	}
+
+	return isPan;
 }
 
 void View::instrumentBeenEdited() {
