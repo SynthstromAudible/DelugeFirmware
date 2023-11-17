@@ -494,7 +494,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 #ifdef arrangerViewButtonX
 	else if (b == arrangerView) {
 #else
-	else if (b == SESSION_VIEW && !(Buttons::isButtonPressed(deluge::hid::button::SHIFT))) {
+	else if (b == SESSION_VIEW && !Buttons::isShiftButtonPressed()) {
 #endif
 		if (inCardRoutine) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -608,7 +608,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 		}
 	}
 
-	else if ((b == SELECT_ENC) && !(Buttons::isButtonPressed(deluge::hid::button::SHIFT))) {
+	else if ((b == SELECT_ENC) && !Buttons::isShiftButtonPressed()) {
 		if (on) {
 
 			if (playbackHandler.recording == RECORDING_ARRANGEMENT) {

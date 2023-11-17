@@ -387,7 +387,7 @@ moveAfterClipInstance:
 	}
 
 	// Select encoder button
-	else if (b == SELECT_ENC && !(Buttons::isButtonPressed(deluge::hid::button::SHIFT))) {
+	else if (b == SELECT_ENC && !Buttons::isShiftButtonPressed()) {
 		if (on) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;

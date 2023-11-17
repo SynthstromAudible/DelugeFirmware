@@ -944,7 +944,7 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 
 	//used to convert column press to a shortcut to change Perform FX menu displayed
 	if (((getRootUI() == &performanceSessionView) || (getCurrentUI() == &performanceSessionView))
-	    && !(Buttons::isButtonPressed(deluge::hid::button::SHIFT))) {
+	    && !Buttons::isShiftButtonPressed()) {
 		if (x < kDisplayWidth) {
 			performanceSessionView.padAction(x, y, on);
 			return ActionResult::DEALT_WITH;
@@ -1184,10 +1184,10 @@ doMIDIOrCV:
 				newItem = &deluge::gui::menu_item::runtime_feature::subMenuAutomation;
 			}
 			else if ((getCurrentUI() == &performanceSessionView)
-			         && !(Buttons::isButtonPressed(deluge::hid::button::SHIFT))) {
+			         && !Buttons::isShiftButtonPressed()) {
 				newItem = &soundEditorRootMenuPerformanceView;
 			}
-			else if ((getCurrentUI() == &sessionView) && !(Buttons::isButtonPressed(deluge::hid::button::SHIFT))) {
+			else if ((getCurrentUI() == &sessionView) && !Buttons::isShiftButtonPressed()) {
 				newItem = &soundEditorRootMenuSongView;
 			}
 			else {
