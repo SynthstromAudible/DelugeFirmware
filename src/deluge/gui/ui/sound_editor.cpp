@@ -765,7 +765,8 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 	//if in performanceSessionView, if not in editing mode, check that shift is pressed
 	else {
 		if (!on || x >= kDisplayWidth
-		    || (!Buttons::isShiftButtonPressed() && !performanceSessionView.defaultEditingMode)) {
+		    || (!Buttons::isShiftButtonPressed()
+		        && (!performanceSessionView.defaultEditingMode || performanceSessionView.editingParam))) {
 			return ActionResult::NOT_DEALT_WITH;
 		}
 	}
@@ -951,7 +952,8 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 
 	//used to convert column press to a shortcut to change Perform FX menu displayed
 	if (((getRootUI() == &performanceSessionView) || (getCurrentUI() == &performanceSessionView))
-	    && !Buttons::isShiftButtonPressed() && performanceSessionView.defaultEditingMode) {
+	    && !Buttons::isShiftButtonPressed() && performanceSessionView.defaultEditingMode
+	    && !performanceSessionView.editingParam) {
 		if (x < kDisplayWidth) {
 			performanceSessionView.padAction(x, y, on);
 			return ActionResult::DEALT_WITH;

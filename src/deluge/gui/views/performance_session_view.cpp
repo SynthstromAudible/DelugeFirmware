@@ -104,6 +104,67 @@ const ParamsForPerformance defaultLayoutForPerformance[kDisplayWidth] = {
     {Param::Kind::UNPATCHED, Param::Unpatched::STUTTER_RATE, 5, 7},
 };
 
+const Param::Kind paramKindShortcutsForPerformanceView[kDisplayWidth][kDisplayHeight] = {
+    {Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE,
+     Param::Kind::NONE, Param::Kind::NONE},
+    {Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE,
+     Param::Kind::NONE, Param::Kind::NONE},
+    {Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE,
+     Param::Kind::NONE, Param::Kind::NONE},
+    {Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE,
+     Param::Kind::NONE, Param::Kind::NONE},
+    {Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE,
+     Param::Kind::NONE, Param::Kind::NONE},
+    {Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE,
+     Param::Kind::NONE, Param::Kind::UNPATCHED},
+    {Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE,
+     Param::Kind::UNPATCHED, Param::Kind::UNPATCHED, Param::Kind::NONE},
+    {Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE,
+     Param::Kind::NONE, Param::Kind::NONE},
+    {Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE,
+     Param::Kind::GLOBAL_EFFECTABLE, Param::Kind::GLOBAL_EFFECTABLE},
+    {Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE,
+     Param::Kind::GLOBAL_EFFECTABLE, Param::Kind::GLOBAL_EFFECTABLE},
+    {Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE,
+     Param::Kind::UNPATCHED, Param::Kind::NONE},
+    {Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE,
+     Param::Kind::UNPATCHED, Param::Kind::NONE},
+    {Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::UNPATCHED,
+     Param::Kind::UNPATCHED, Param::Kind::GLOBAL_EFFECTABLE, Param::Kind::GLOBAL_EFFECTABLE},
+    {Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::GLOBAL_EFFECTABLE, Param::Kind::NONE,
+     Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE},
+    {Param::Kind::GLOBAL_EFFECTABLE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::GLOBAL_EFFECTABLE,
+     Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE},
+    {Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE,
+     Param::Kind::NONE, Param::Kind::NONE},
+};
+
+const uint32_t paramIDShortcutsForPerformanceView[kDisplayWidth][kDisplayHeight] = {
+    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
+    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
+    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
+    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
+    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
+    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
+     Param::Unpatched::STUTTER_RATE},
+    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, Param::Unpatched::SAMPLE_RATE_REDUCTION,
+     Param::Unpatched::BITCRUSHING, 0xFFFFFFFF},
+    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
+    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
+     Param::Unpatched::GlobalEffectable::LPF_RES, Param::Unpatched::GlobalEffectable::LPF_FREQ},
+    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
+     Param::Unpatched::GlobalEffectable::HPF_RES, Param::Unpatched::GlobalEffectable::HPF_FREQ},
+    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, Param::Unpatched::BASS, 0xFFFFFFFF},
+    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, Param::Unpatched::TREBLE, 0xFFFFFFFF},
+    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, Param::Unpatched::MOD_FX_OFFSET, Param::Unpatched::MOD_FX_FEEDBACK,
+     Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH, Param::Unpatched::GlobalEffectable::MOD_FX_RATE},
+    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT, 0xFFFFFFFF, 0xFFFFFFFF,
+     0xFFFFFFFF, 0xFFFFFFFF},
+    {Param::Unpatched::GlobalEffectable::DELAY_RATE, 0xFFFFFFFF, 0xFFFFFFFF,
+     Param::Unpatched::GlobalEffectable::DELAY_AMOUNT, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
+    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
+};
+
 //colours for the performance mode
 
 const uint8_t rowColour[kDisplayWidth][3] = {
@@ -148,14 +209,23 @@ PerformanceSessionView performanceSessionView{};
 
 PerformanceSessionView::PerformanceSessionView() {
 	xScrollBeforeFollowingAutoExtendingLinearRecording = -1;
+
 	successfullyReadDefaultsFromFile = false;
 	anyChangesToSave = false;
 	defaultEditingMode = false;
+
+	firstPadPress.isActive = false;
+	firstPadPress.xDisplay = kNoSelection;
+	firstPadPress.yDisplay = kNoSelection;
+	firstPadPress.paramKind = Param::Kind::NONE;
+	firstPadPress.paramID = kNoSelection;
+
 	lastPadPress.isActive = false;
 	lastPadPress.xDisplay = kNoSelection;
 	lastPadPress.yDisplay = kNoSelection;
 	lastPadPress.paramKind = Param::Kind::NONE;
 	lastPadPress.paramID = kNoSelection;
+
 	onFXDisplay = false;
 
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
@@ -312,29 +382,61 @@ void PerformanceSessionView::renderRow(uint8_t* image, uint8_t occupancyMask[], 
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		uint8_t* pixel = image + (xDisplay * 3);
 
-		if (layoutForPerformance[xDisplay].paramID == kNoSelection) {
-			pixel[0] = kUndefinedGreyShade;
-			pixel[1] = kUndefinedGreyShade;
-			pixel[2] = kUndefinedGreyShade;
+		if (editingParam) {
+			if (isPadShortcut(xDisplay, yDisplay)) {
+				if (isParamAssignedToFXColumn(paramKindShortcutsForPerformanceView[xDisplay][yDisplay],
+				                              paramIDShortcutsForPerformanceView[xDisplay][yDisplay])) {
+					pixel[0] = 130;
+					pixel[1] = 120;
+					pixel[2] = 130;
+				}
+				else {
+					pixel[0] = kUndefinedGreyShade;
+					pixel[1] = kUndefinedGreyShade;
+					pixel[2] = kUndefinedGreyShade;
+				}
+			}
+			if (firstPadPress.isActive) {
+				if ((layoutForPerformance[xDisplay].paramKind == firstPadPress.paramKind) && (layoutForPerformance[xDisplay].paramID == firstPadPress.paramID)) {
+					memcpy(pixel, &rowTailColour[xDisplay], 3);
+				}
+			}
 		}
 		else {
-			if ((currentKnobPosition[xDisplay] != kNoSelection) && (padPressHeld[xDisplay] == false)) {
-				memcpy(pixel, &rowColour[xDisplay], 3);
+			if (layoutForPerformance[xDisplay].paramID == kNoSelection) {
+				pixel[0] = kUndefinedGreyShade;
+				pixel[1] = kUndefinedGreyShade;
+				pixel[2] = kUndefinedGreyShade;
 			}
 			else {
-				memcpy(pixel, &rowTailColour[xDisplay], 3);
-			}
+				if ((currentKnobPosition[xDisplay] != kNoSelection) && (padPressHeld[xDisplay] == false)) {
+					memcpy(pixel, &rowColour[xDisplay], 3);
+				}
+				else {
+					memcpy(pixel, &rowTailColour[xDisplay], 3);
+				}
 
-			if ((currentKnobPosition[xDisplay] == defaultFXValues[xDisplay][yDisplay])
-			    && (previousPadPressYDisplay[xDisplay] == yDisplay)) {
-				pixel[0] = 130;
-				pixel[1] = 120;
-				pixel[2] = 130;
+				if ((currentKnobPosition[xDisplay] == defaultFXValues[xDisplay][yDisplay])
+				    && (previousPadPressYDisplay[xDisplay] == yDisplay)) {
+					pixel[0] = 130;
+					pixel[1] = 120;
+					pixel[2] = 130;
+				}
 			}
 		}
 
 		occupancyMask[xDisplay] = 64;
 	}
+}
+
+bool PerformanceSessionView::isParamAssignedToFXColumn(Param::Kind paramKind, int32_t paramID) {
+	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+		if ((layoutForPerformance[xDisplay].paramKind == paramKind)
+		    && (layoutForPerformance[xDisplay].paramID == paramID)) {
+			return true;
+		}
+	}
+	return false;
 }
 
 bool PerformanceSessionView::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
@@ -362,7 +464,22 @@ void PerformanceSessionView::renderViewDisplay() {
 			                                              deluge::hid::display::OLED::oledMainImage[0],
 			                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 
-			yPos = yPos + 24;
+			yPos = yPos + 12;
+
+			char const* editingModeType;
+
+			if (editingParam) {
+				editingModeType = l10n::get(l10n::String::STRING_FOR_PERFORM_EDIT_PARAM);
+			}
+			else {
+				editingModeType = l10n::get(l10n::String::STRING_FOR_PERFORM_EDIT_VALUE);
+			}
+
+			deluge::hid::display::OLED::drawStringCentred(editingModeType, yPos,
+			                                              deluge::hid::display::OLED::oledMainImage[0],
+			                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+
+			yPos = yPos + 12;
 
 			deluge::hid::display::OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_PERFORM_EDITOR), yPos,
 			                                              deluge::hid::display::OLED::oledMainImage[0],
@@ -401,9 +518,7 @@ void PerformanceSessionView::renderViewDisplay() {
 
 //Render Parameter Name and Value set when using Performance Pads
 void PerformanceSessionView::renderFXDisplay(Param::Kind paramKind, int32_t paramID, int32_t knobPos) {
-	if (display->haveOLED()) {
-		deluge::hid::display::OLED::clearMainImage();
-
+	if (editingParam) {
 		//display parameter name
 		char parameterName[30];
 		if (paramKind == Param::Kind::UNPATCHED) {
@@ -412,30 +527,64 @@ void PerformanceSessionView::renderFXDisplay(Param::Kind paramKind, int32_t para
 		else if (paramKind == Param::Kind::GLOBAL_EFFECTABLE) {
 			strncpy(parameterName, getGlobalEffectableParamDisplayName(paramID), 29);
 		}
+		if (display->haveOLED()) {
+			deluge::hid::display::OLED::clearMainImage();
 
 #if OLED_MAIN_HEIGHT_PIXELS == 64
-		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
+			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
 #else
-		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
+			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
 #endif
-		deluge::hid::display::OLED::drawStringCentred(parameterName, yPos, deluge::hid::display::OLED::oledMainImage[0],
-		                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+			yPos = yPos + 12;
 
-		//display parameter value
-		yPos = yPos + 24;
+			deluge::hid::display::OLED::drawStringCentred(parameterName, yPos,
+			                                              deluge::hid::display::OLED::oledMainImage[0],
+			                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 
-		char buffer[5];
-		intToString(knobPos, buffer);
-		deluge::hid::display::OLED::drawStringCentred(buffer, yPos, deluge::hid::display::OLED::oledMainImage[0],
-		                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
-
-		deluge::hid::display::OLED::sendMainImage();
+			deluge::hid::display::OLED::sendMainImage();	
+		}
+		else {
+			display->setScrollingText(parameterName);
+		}
 	}
-	//7Seg Display
 	else {
-		char buffer[5];
-		intToString(knobPos, buffer);
-		display->displayPopup(buffer);
+		if (display->haveOLED()) {
+			deluge::hid::display::OLED::clearMainImage();
+
+			//display parameter name
+			char parameterName[30];
+			if (paramKind == Param::Kind::UNPATCHED) {
+				strncpy(parameterName, getUnpatchedParamDisplayName(paramID), 29);
+			}
+			else if (paramKind == Param::Kind::GLOBAL_EFFECTABLE) {
+				strncpy(parameterName, getGlobalEffectableParamDisplayName(paramID), 29);
+			}
+
+#if OLED_MAIN_HEIGHT_PIXELS == 64
+			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
+#else
+			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
+#endif
+			deluge::hid::display::OLED::drawStringCentred(parameterName, yPos,
+			                                              deluge::hid::display::OLED::oledMainImage[0],
+			                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+
+			//display parameter value
+			yPos = yPos + 24;
+
+			char buffer[5];
+			intToString(knobPos, buffer);
+			deluge::hid::display::OLED::drawStringCentred(buffer, yPos, deluge::hid::display::OLED::oledMainImage[0],
+			                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+
+			deluge::hid::display::OLED::sendMainImage();
+		}
+		//7Seg Display
+		else {
+			char buffer[5];
+			intToString(knobPos, buffer);
+			display->displayPopup(buffer);
+		}
 	}
 	onFXDisplay = true;
 }
@@ -616,17 +765,22 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 	else if (b == KEYBOARD) {
 		if (on) {
 			if (Buttons::isShiftButtonPressed()) {
-				if (defaultEditingMode) {
+				if (defaultEditingMode && editingParam) {
 					defaultEditingMode = false;
-					display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_EDITOR_OFF));
+					editingParam = false;
 					indicator_leds::setLedState(IndicatorLED::KEYBOARD, true);
 				}
 				else {
+					if (!defaultEditingMode) {
+						indicator_leds::blinkLed(IndicatorLED::KEYBOARD);
+					}
+					else {
+						editingParam = true;
+					}
 					defaultEditingMode = true;
-					display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_EDITOR_ON));
-					indicator_leds::blinkLed(IndicatorLED::KEYBOARD);
 				}
 				renderViewDisplay();
+				uiNeedsRendering(this);
 			}
 			else {
 				releaseStutter(modelStack);
@@ -660,42 +814,81 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 			}
 		}
 
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithThreeMainThings* modelStack =
-		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+		if (!editingParam) {
+			//obtain Param::Kind, ParamID corresponding to the column pressed on performance grid
+			Param::Kind lastSelectedParamKind = layoutForPerformance[xDisplay].paramKind; //kind;
+			int32_t lastSelectedParamID = layoutForPerformance[xDisplay].paramID;
 
-		//obtain Param::Kind, ParamID corresponding to the column pressed on performance grid
-		Param::Kind lastSelectedParamKind = layoutForPerformance[xDisplay].paramKind; //kind;
-		int32_t lastSelectedParamID = layoutForPerformance[xDisplay].paramID;
+			if (lastSelectedParamID == kNoSelection) {
+				return ActionResult::DEALT_WITH;
+			}
 
-		if (lastSelectedParamID == kNoSelection) {
-			return ActionResult::DEALT_WITH;
-		}
+			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithThreeMainThings* modelStack =
+			    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
-		//pressing a pad
-		if (on) {
-			//no need to pad press action if you've already processed it previously and pad was held
-			if (previousPadPressYDisplay[xDisplay] != yDisplay) {
-				padPressAction(modelStack, lastSelectedParamKind, lastSelectedParamID, xDisplay, yDisplay,
-				               !defaultEditingMode);
+			//pressing a pad
+			if (on) {
+				//no need to pad press action if you've already processed it previously and pad was held
+				if (previousPadPressYDisplay[xDisplay] != yDisplay) {
+					padPressAction(modelStack, lastSelectedParamKind, lastSelectedParamID, xDisplay, yDisplay,
+					               !defaultEditingMode);
+				}
+			}
+			//releasing a pad
+			else {
+				//if releasing a pad with "held" status shortly after being given that status
+				//or releasing a pad that was not in "held" status but was a longer press and release
+				if ((padPressHeld[xDisplay]
+				     && ((AudioEngine::audioSampleTimer - timeLastPadPress[xDisplay]) < kShortPressTime))
+				    || ((previousKnobPosition[xDisplay] != kNoSelection)
+				        && (previousPadPressYDisplay[xDisplay] == yDisplay)
+				        && ((AudioEngine::audioSampleTimer - timeLastPadPress[xDisplay]) >= kShortPressTime))) {
+
+					padReleaseAction(modelStack, lastSelectedParamKind, lastSelectedParamID, xDisplay,
+					                 !defaultEditingMode);
+				}
+				//if releasing a pad that was quickly pressed, give it held status
+				else if ((previousKnobPosition[xDisplay] != kNoSelection)
+				         && (previousPadPressYDisplay[xDisplay] == yDisplay)
+				         && ((AudioEngine::audioSampleTimer - timeLastPadPress[xDisplay]) < kShortPressTime)) {
+					padPressHeld[xDisplay] = true;
+				}
 			}
 		}
-		//releasing a pad
+		//editing mode & editing parameter FX assignments
 		else {
-			//if releasing a pad with "held" status shortly after being given that status
-			//or releasing a pad that was not in "held" status but was a longer press and release
-			if ((padPressHeld[xDisplay]
-			     && ((AudioEngine::audioSampleTimer - timeLastPadPress[xDisplay]) < kShortPressTime))
-			    || ((previousKnobPosition[xDisplay] != kNoSelection) && (previousPadPressYDisplay[xDisplay] == yDisplay)
-			        && ((AudioEngine::audioSampleTimer - timeLastPadPress[xDisplay]) >= kShortPressTime))) {
-
-				padReleaseAction(modelStack, lastSelectedParamKind, lastSelectedParamID, xDisplay, !defaultEditingMode);
+			//pressing a pad
+			if (on) {
+				if (!firstPadPress.isActive) {
+					if (isPadShortcut(xDisplay, yDisplay)) {
+						firstPadPress.isActive = true;
+						firstPadPress.paramKind = paramKindShortcutsForPerformanceView[xDisplay][yDisplay];
+						firstPadPress.paramID = paramIDShortcutsForPerformanceView[xDisplay][yDisplay];
+						firstPadPress.xDisplay = xDisplay;
+						firstPadPress.yDisplay = yDisplay;
+						renderFXDisplay(firstPadPress.paramKind, firstPadPress.paramID);
+					}
+				}
+				else {
+					layoutForPerformance[xDisplay].paramKind = firstPadPress.paramKind;
+					layoutForPerformance[xDisplay].paramID = firstPadPress.paramID;
+					layoutForPerformance[xDisplay].xDisplay = firstPadPress.xDisplay;
+					layoutForPerformance[xDisplay].yDisplay = firstPadPress.yDisplay;
+					anyChangesToSave = true;
+					indicator_leds::blinkLed(IndicatorLED::SAVE);
+				}
 			}
-			//if releasing a pad that was quickly pressed, give it held status
-			else if ((previousKnobPosition[xDisplay] != kNoSelection)
-			         && (previousPadPressYDisplay[xDisplay] == yDisplay)
-			         && ((AudioEngine::audioSampleTimer - timeLastPadPress[xDisplay]) < kShortPressTime)) {
-				padPressHeld[xDisplay] = true;
+			//releasing a pad
+			else {
+				if ((firstPadPress.xDisplay == xDisplay) && (firstPadPress.yDisplay == yDisplay)) {
+					firstPadPress.isActive = false;
+					firstPadPress.xDisplay = kNoSelection;
+					firstPadPress.yDisplay = kNoSelection;
+					firstPadPress.paramKind = Param::Kind::NONE;
+					firstPadPress.paramID = kNoSelection;
+					renderViewDisplay();
+				}
 			}
 		}
 		uiNeedsRendering(this); //re-render pads
@@ -703,10 +896,22 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 	return ActionResult::DEALT_WITH;
 }
 
+bool PerformanceSessionView::isPadShortcut(int32_t xDisplay, int32_t yDisplay) {
+	if ((paramKindShortcutsForPerformanceView[xDisplay][yDisplay] != Param::Kind::NONE)
+	    && (paramIDShortcutsForPerformanceView[xDisplay][yDisplay] != 0xFFFFFFFF)) {
+		return true;
+	}
+	return false;
+}
+
 void PerformanceSessionView::padPressAction(ModelStackWithThreeMainThings* modelStack, Param::Kind paramKind,
                                             int32_t paramID, int32_t xDisplay, int32_t yDisplay, bool renderDisplay) {
-	if (setParameterValue(modelStack, paramKind, paramID, xDisplay, defaultFXValues[xDisplay][yDisplay],
-	                      renderDisplay)) {
+	if (editingParam) {
+		display->displayPopup("padPressAction");
+		return;
+	}
+	else if (setParameterValue(modelStack, paramKind, paramID, xDisplay, defaultFXValues[xDisplay][yDisplay],
+	                           renderDisplay)) {
 		//if pressing a new pad in a column, reset held status
 		padPressHeld[xDisplay] = false;
 
@@ -730,7 +935,12 @@ void PerformanceSessionView::padPressAction(ModelStackWithThreeMainThings* model
 
 void PerformanceSessionView::padReleaseAction(ModelStackWithThreeMainThings* modelStack, Param::Kind paramKind,
                                               int32_t paramID, int32_t xDisplay, bool renderDisplay) {
-	if (setParameterValue(modelStack, paramKind, paramID, xDisplay, previousKnobPosition[xDisplay], renderDisplay)) {
+	if (editingParam) {
+		display->displayPopup("padReleaseAction");
+		return;
+	}
+	else if (setParameterValue(modelStack, paramKind, paramID, xDisplay, previousKnobPosition[xDisplay],
+	                           renderDisplay)) {
 		previousPadPressYDisplay[xDisplay] = kNoSelection;
 		previousKnobPosition[xDisplay] = kNoSelection;
 		currentKnobPosition[xDisplay] = kNoSelection;
@@ -802,7 +1012,8 @@ bool PerformanceSessionView::setParameterValue(ModelStackWithThreeMainThings* mo
 			}
 
 			if (renderDisplay) {
-				int32_t valueForDisplay = view.calculateKnobPosForDisplay(InstrumentType::NONE, paramID, knobPos + kKnobPosOffset);
+				int32_t valueForDisplay =
+				    view.calculateKnobPosForDisplay(InstrumentType::NONE, paramID, knobPos + kKnobPosOffset);
 				renderFXDisplay(paramKind, paramID, valueForDisplay);
 			}
 
@@ -834,7 +1045,8 @@ void PerformanceSessionView::getParameterValue(ModelStackWithThreeMainThings* mo
 			int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
 
 			if (renderDisplay && (currentKnobPosition[xDisplay] != knobPos)) {
-				int32_t valueForDisplay = view.calculateKnobPosForDisplay(InstrumentType::NONE, paramID, knobPos + kKnobPosOffset);
+				int32_t valueForDisplay =
+				    view.calculateKnobPosForDisplay(InstrumentType::NONE, paramID, knobPos + kKnobPosOffset);
 				renderFXDisplay(paramKind, paramID, valueForDisplay);
 			}
 

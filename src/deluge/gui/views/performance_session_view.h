@@ -91,6 +91,7 @@ public:
 
 	//public so soundEditor can access them
 	bool defaultEditingMode;
+	bool editingParam; //if you're not editing a param, you're editing a value
 	void writeDefaultsToFile();
 	void readDefaultsFromFile();
 
@@ -100,11 +101,13 @@ private:
 	                         int32_t xScroll, uint32_t xZoom, int32_t renderWidth, int32_t imageWidth,
 	                         bool drawUndefinedArea = true);
 	void renderRow(uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
-	void renderFXDisplay(Param::Kind paramKind, int32_t paramID, int32_t knobPos);
+	bool isParamAssignedToFXColumn(Param::Kind paramKind, int32_t paramID);
+	void renderFXDisplay(Param::Kind paramKind, int32_t paramID, int32_t knobPos = kNoSelection);
 	bool onFXDisplay;
 	void setCentralLEDStates();
 
 	//pad action
+	bool isPadShortcut(int32_t xDisplay, int32_t yDisplay);
 	bool setParameterValue(ModelStackWithThreeMainThings* modelStack, Param::Kind paramKind, int32_t paramID,
 	                       int32_t xDisplay, int32_t knobPos, bool renderDisplay = true);
 	void getParameterValue(ModelStackWithThreeMainThings* modelStack, Param::Kind paramKind, int32_t paramID,
@@ -138,6 +141,7 @@ private:
 	uint32_t timeLastPadPress[kDisplayWidth];
 	bool padPressHeld[kDisplayWidth];
 	int32_t defaultFXValues[kDisplayWidth][kDisplayHeight];
+	LastPadPress firstPadPress;
 	LastPadPress lastPadPress;
 	ParamsForPerformance layoutForPerformance[kDisplayWidth];
 
