@@ -807,6 +807,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_PERFORM_DEFAULTS_TAG, "defaults"},
         {STRING_FOR_PERFORM_DEFAULTS_FXVALUES_TAG, "defaultFXValues"},
         {STRING_FOR_PERFORM_DEFAULTS_PARAM_TAG, "param"},
+        {STRING_FOR_PERFORM_DEFAULTS_NO_PARAM, "none"},
         {STRING_FOR_PERFORM_DEFAULTS_ROW_TAG, "row"},
 
         /* Strings Specifically for Song View

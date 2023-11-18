@@ -397,7 +397,8 @@ void PerformanceSessionView::renderRow(uint8_t* image, uint8_t occupancyMask[], 
 				}
 			}
 			if (firstPadPress.isActive) {
-				if ((layoutForPerformance[xDisplay].paramKind == firstPadPress.paramKind) && (layoutForPerformance[xDisplay].paramID == firstPadPress.paramID)) {
+				if ((layoutForPerformance[xDisplay].paramKind == firstPadPress.paramKind)
+				    && (layoutForPerformance[xDisplay].paramID == firstPadPress.paramID)) {
 					memcpy(pixel, &rowTailColour[xDisplay], 3);
 				}
 			}
@@ -541,7 +542,7 @@ void PerformanceSessionView::renderFXDisplay(Param::Kind paramKind, int32_t para
 			                                              deluge::hid::display::OLED::oledMainImage[0],
 			                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 
-			deluge::hid::display::OLED::sendMainImage();	
+			deluge::hid::display::OLED::sendMainImage();
 		}
 		else {
 			display->setScrollingText(parameterName);
@@ -871,10 +872,21 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 					}
 				}
 				else {
-					layoutForPerformance[xDisplay].paramKind = firstPadPress.paramKind;
-					layoutForPerformance[xDisplay].paramID = firstPadPress.paramID;
-					layoutForPerformance[xDisplay].xDisplay = firstPadPress.xDisplay;
-					layoutForPerformance[xDisplay].yDisplay = firstPadPress.yDisplay;
+					if ((layoutForPerformance[xDisplay].paramKind != firstPadPress.paramKind)
+					    || (layoutForPerformance[xDisplay].paramID != firstPadPress.paramID)
+					    || (layoutForPerformance[xDisplay].xDisplay != firstPadPress.xDisplay)
+					    || (layoutForPerformance[xDisplay].yDisplay != firstPadPress.yDisplay)) {
+						layoutForPerformance[xDisplay].paramKind = firstPadPress.paramKind;
+						layoutForPerformance[xDisplay].paramID = firstPadPress.paramID;
+						layoutForPerformance[xDisplay].xDisplay = firstPadPress.xDisplay;
+						layoutForPerformance[xDisplay].yDisplay = firstPadPress.yDisplay;
+					}
+					else {
+						layoutForPerformance[xDisplay].paramKind = Param::Kind::NONE;
+						layoutForPerformance[xDisplay].paramID = kNoSelection;
+						layoutForPerformance[xDisplay].xDisplay = kNoSelection;
+						layoutForPerformance[xDisplay].yDisplay = kNoSelection;
+					}
 					anyChangesToSave = true;
 					indicator_leds::blinkLed(IndicatorLED::SAVE);
 				}
@@ -907,7 +919,6 @@ bool PerformanceSessionView::isPadShortcut(int32_t xDisplay, int32_t yDisplay) {
 void PerformanceSessionView::padPressAction(ModelStackWithThreeMainThings* modelStack, Param::Kind paramKind,
                                             int32_t paramID, int32_t xDisplay, int32_t yDisplay, bool renderDisplay) {
 	if (editingParam) {
-		display->displayPopup("padPressAction");
 		return;
 	}
 	else if (setParameterValue(modelStack, paramKind, paramID, xDisplay, defaultFXValues[xDisplay][yDisplay],
@@ -936,7 +947,6 @@ void PerformanceSessionView::padPressAction(ModelStackWithThreeMainThings* model
 void PerformanceSessionView::padReleaseAction(ModelStackWithThreeMainThings* modelStack, Param::Kind paramKind,
                                               int32_t paramID, int32_t xDisplay, bool renderDisplay) {
 	if (editingParam) {
-		display->displayPopup("padReleaseAction");
 		return;
 	}
 	else if (setParameterValue(modelStack, paramKind, paramID, xDisplay, previousKnobPosition[xDisplay],
@@ -955,7 +965,16 @@ void PerformanceSessionView::padReleaseAction(ModelStackWithThreeMainThings* mod
 
 void PerformanceSessionView::resetPerformanceView(ModelStackWithThreeMainThings* modelStack) {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
-		if (padPressHeld[xDisplay]) {
+		if (editingParam) {
+			layoutForPerformance[xDisplay].paramKind = Param::Kind::NONE;
+			layoutForPerformance[xDisplay].paramID = kNoSelection;
+			layoutForPerformance[xDisplay].xDisplay = kNoSelection;
+			layoutForPerformance[xDisplay].yDisplay = kNoSelection;
+
+			anyChangesToSave = true;
+			indicator_leds::blinkLed(IndicatorLED::SAVE);
+		}
+		else if (padPressHeld[xDisplay]) {
 			//obtain Param::Kind and ParamID corresponding to the column in focus (xDisplay)
 			Param::Kind lastSelectedParamKind = layoutForPerformance[xDisplay].paramKind; //kind;
 			int32_t lastSelectedParamID = layoutForPerformance[xDisplay].paramID;
@@ -1251,6 +1270,9 @@ void PerformanceSessionView::writeDefaultFXParamToFile(int32_t xDisplay) {
 		paramName =
 		    ModControllableAudio::paramToString(Param::Unpatched::START + layoutForPerformance[xDisplay].paramID);
 	}
+	else {
+		paramName = l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_NO_PARAM);
+	}
 	storageManager.writeTag(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_PARAM_TAG), paramName);
 }
 
@@ -1294,6 +1316,7 @@ void PerformanceSessionView::readDefaultsFromFile() {
 	storageManager.closeFile();
 
 	successfullyReadDefaultsFromFile = true;
+	uiNeedsRendering(this);
 }
 
 void PerformanceSessionView::loadDefaultLayout() {

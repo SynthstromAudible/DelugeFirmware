@@ -192,6 +192,15 @@ void SoundEditor::focusRegained() {
 	}
 
 	setLedStates();
+
+	if (getRootUI() == &performanceSessionView) {
+		if (performanceSessionView.defaultEditingMode) {
+			indicator_leds::blinkLed(IndicatorLED::KEYBOARD);
+		}
+		else {
+			indicator_leds::setLedState(IndicatorLED::KEYBOARD, true);
+		}
+	}
 }
 
 void SoundEditor::displayOrLanguageChanged() {

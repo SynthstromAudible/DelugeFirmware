@@ -30,7 +30,7 @@ class ModelStack;
 class ModelStackWithThreeMainThings;
 class ModelStackWithAutoParam;
 
-struct LastPadPress {
+struct PadPress {
 	bool isActive;
 	int32_t xDisplay;
 	int32_t yDisplay;
@@ -141,8 +141,8 @@ private:
 	uint32_t timeLastPadPress[kDisplayWidth];
 	bool padPressHeld[kDisplayWidth];
 	int32_t defaultFXValues[kDisplayWidth][kDisplayHeight];
-	LastPadPress firstPadPress;
-	LastPadPress lastPadPress;
+	PadPress firstPadPress;
+	PadPress lastPadPress;
 	ParamsForPerformance layoutForPerformance[kDisplayWidth];
 
 	// Members regarding rendering different layouts
