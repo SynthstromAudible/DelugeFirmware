@@ -1137,15 +1137,12 @@ void ModControllableAudio::processStutter(StereoSample* buffer, int32_t numSampl
 
 int32_t ModControllableAudio::getStutterRate(ParamManager* paramManager) {
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-	int32_t paramValue;
+	int32_t paramValue = unpatchedParams->getValue(Param::Unpatched::STUTTER_RATE);
 
 	// When stuttering, we center the value at 0, so the center is the reference for the stutter rate that we selected just before pressing the knob
 	// and we use the lastQuantizedKnobDiff value to calculate the relative (real) value
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate) == RuntimeFeatureStateToggle::On) {
+	if ((stutterer.lastQuantizedKnobDiff != 0) && (paramValue == stutterer.valueBeforeStuttering)) {
 		paramValue = 0;
-	}
-	else {
-		paramValue = unpatchedParams->getValue(Param::Unpatched::STUTTER_RATE);
 	}
 
 	// Quantized Stutter diff

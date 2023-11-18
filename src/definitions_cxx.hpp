@@ -1106,6 +1106,7 @@ constexpr uint32_t kSampleRate = 44100;
 /// Length of press that deliniates a "short" press. Set to half a second (in units of samples, to work with
 /// AudioEngine::audioSampleTimer)
 constexpr uint32_t kShortPressTime = kSampleRate / 2;
+constexpr uint32_t kHoldTime = kSampleRate / 5;
 
 enum KeyboardLayoutType : uint8_t {
 	KeyboardLayoutTypeIsomorphic,

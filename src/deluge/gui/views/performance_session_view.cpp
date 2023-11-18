@@ -798,7 +798,16 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 
 	else {
 notDealtWith:
-		return TimelineView::buttonAction(b, on, inCardRoutine);
+		ActionResult buttonActionResult;
+		buttonActionResult = TimelineView::buttonAction(b, on, inCardRoutine);
+
+		//release stutter if you press play - stutter needs to be turned on after playback is running
+		if (on && (b == PLAY)) {
+			releaseStutter(modelStack);
+			uiNeedsRendering(this);
+		}
+
+		return buttonActionResult;
 	}
 
 doNothing:
@@ -841,10 +850,10 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 				//if releasing a pad with "held" status shortly after being given that status
 				//or releasing a pad that was not in "held" status but was a longer press and release
 				if ((padPressHeld[xDisplay]
-				     && ((AudioEngine::audioSampleTimer - timeLastPadPress[xDisplay]) < kShortPressTime))
+				     && ((AudioEngine::audioSampleTimer - timeLastPadPress[xDisplay]) < kHoldTime))
 				    || ((previousKnobPosition[xDisplay] != kNoSelection)
 				        && (previousPadPressYDisplay[xDisplay] == yDisplay)
-				        && ((AudioEngine::audioSampleTimer - timeLastPadPress[xDisplay]) >= kShortPressTime))) {
+				        && ((AudioEngine::audioSampleTimer - timeLastPadPress[xDisplay]) >= kHoldTime))) {
 
 					padReleaseAction(modelStack, lastSelectedParamKind, lastSelectedParamID, xDisplay,
 					                 !defaultEditingMode);
@@ -852,7 +861,7 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 				//if releasing a pad that was quickly pressed, give it held status
 				else if ((previousKnobPosition[xDisplay] != kNoSelection)
 				         && (previousPadPressYDisplay[xDisplay] == yDisplay)
-				         && ((AudioEngine::audioSampleTimer - timeLastPadPress[xDisplay]) < kShortPressTime)) {
+				         && ((AudioEngine::audioSampleTimer - timeLastPadPress[xDisplay]) < kHoldTime)) {
 					padPressHeld[xDisplay] = true;
 				}
 			}
