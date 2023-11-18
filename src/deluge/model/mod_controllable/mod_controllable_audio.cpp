@@ -1141,9 +1141,7 @@ int32_t ModControllableAudio::getStutterRate(ParamManager* paramManager) {
 
 	// When stuttering, we center the value at 0, so the center is the reference for the stutter rate that we selected just before pressing the knob
 	// and we use the lastQuantizedKnobDiff value to calculate the relative (real) value
-	if ((currentUIMode != UI_MODE_STUTTERING)
-	    && (runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate)
-	        == RuntimeFeatureStateToggle::On)) {
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate) == RuntimeFeatureStateToggle::On) {
 		paramValue = 0;
 	}
 	else {
