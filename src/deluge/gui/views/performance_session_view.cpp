@@ -66,44 +66,227 @@ using namespace gui;
 
 const int32_t sizeParamsForPerformance = sizeof(ParamsForPerformance);
 
+//colours for the performance mode
+
+const uint8_t rowColourRed[3] = {255, 0, 0};            //LPF Cutoff, Resonance
+const uint8_t rowColourPastelOrange[3] = {221, 72, 13}; //HPF Cutoff, Resonance
+const uint8_t rowColourPastelYellow[3] = {170, 182, 0}; //EQ Bass, Treble
+const uint8_t rowColourPastelGreen[3] = {85, 182, 72};  //Reverb Amount
+const uint8_t rowColourPastelBlue[3] = {51, 109, 145};  //Delay Amount, Rate
+const uint8_t rowColourPastelPink[3] = {144, 72, 91};   //Mod FX Rate, Depth, Feedback, Offset
+const uint8_t rowColourPink[3] = {128, 0, 128};         //Decimation, Bitcrush
+const uint8_t rowColourBlue[3] = {0, 0, 255};           //Stutter
+
+const uint8_t rowTailColourRed[3] = {53, 2, 2};           //LPF Cutoff, Resonance
+const uint8_t rowTailColourPastelOrange[3] = {46, 16, 2}; //HPF Cutoff, Resonance
+const uint8_t rowTailColourPastelYellow[3] = {36, 38, 2}; //EQ Bass, Treble
+const uint8_t rowTailColourPastelGreen[3] = {19, 38, 16}; //Reverb Amount
+const uint8_t rowTailColourPastelBlue[3] = {12, 23, 31};  //Delay Amount, Rate
+const uint8_t rowTailColourPastelPink[3] = {37, 15, 37};  //Mod FX Rate, Depth, Feedback, Offset
+const uint8_t rowTailColourPink[3] = {53, 0, 53};         //Decimation, Bitcrush
+const uint8_t rowTailColourBlue[3] = {2, 2, 53};          //Stutter
+
+//list of parameters available for assignment to FX columns in performance view
+
 const ParamsForPerformance songParamsForPerformance[kNumParamsForPerformance] = {
-    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::LPF_FREQ, 8, 7},
-    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::LPF_RES, 8, 6},
-    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::HPF_FREQ, 9, 7},
-    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::HPF_RES, 9, 6},
-    {Param::Kind::UNPATCHED, Param::Unpatched::BASS, 10, 6},
-    {Param::Kind::UNPATCHED, Param::Unpatched::TREBLE, 11, 6},
-    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT, 13, 3},
-    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::DELAY_AMOUNT, 14, 3},
-    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::DELAY_RATE, 14, 0},
-    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::MOD_FX_RATE, 12, 7},
-    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH, 12, 6},
-    {Param::Kind::UNPATCHED, Param::Unpatched::MOD_FX_FEEDBACK, 12, 5},
-    {Param::Kind::UNPATCHED, Param::Unpatched::MOD_FX_OFFSET, 12, 4},
-    {Param::Kind::UNPATCHED, Param::Unpatched::SAMPLE_RATE_REDUCTION, 6, 5},
-    {Param::Kind::UNPATCHED, Param::Unpatched::BITCRUSHING, 6, 6},
-    {Param::Kind::UNPATCHED, Param::Unpatched::STUTTER_RATE, 5, 7},
+    {Param::Kind::GLOBAL_EFFECTABLE,                                   //paramKind
+     Param::Unpatched::GlobalEffectable::LPF_FREQ,                     //paramID
+     8,                                                                //xDisplay
+     7,                                                                //yDisplay
+     {rowColourRed[0], rowColourRed[1], rowColourRed[2]},              //rowColour[3]
+     {rowTailColourRed[0], rowTailColourRed[1], rowTailColourRed[2]}}, //rowTailColour[3]
+    {Param::Kind::GLOBAL_EFFECTABLE,
+     Param::Unpatched::GlobalEffectable::LPF_RES,
+     8,
+     6,
+     {rowColourRed[0], rowColourRed[1], rowColourRed[2]},
+     {rowTailColourRed[0], rowTailColourRed[1], rowTailColourRed[2]}},
+    {Param::Kind::GLOBAL_EFFECTABLE,
+     Param::Unpatched::GlobalEffectable::HPF_FREQ,
+     9,
+     7,
+     {rowColourPastelOrange[0], rowColourPastelOrange[1], rowColourPastelOrange[2]},
+     {rowTailColourPastelOrange[0], rowTailColourPastelOrange[1], rowTailColourPastelOrange[2]}},
+    {Param::Kind::GLOBAL_EFFECTABLE,
+     Param::Unpatched::GlobalEffectable::HPF_RES,
+     9,
+     6,
+     {rowColourPastelOrange[0], rowColourPastelOrange[1], rowColourPastelOrange[2]},
+     {rowTailColourPastelOrange[0], rowTailColourPastelOrange[1], rowTailColourPastelOrange[2]}},
+    {Param::Kind::UNPATCHED,
+     Param::Unpatched::BASS,
+     10,
+     6,
+     {rowColourPastelYellow[0], rowColourPastelYellow[1], rowColourPastelYellow[2]},
+     {rowTailColourPastelYellow[0], rowTailColourPastelYellow[1], rowTailColourPastelYellow[2]}},
+    {Param::Kind::UNPATCHED,
+     Param::Unpatched::TREBLE,
+     11,
+     6,
+     {rowColourPastelYellow[0], rowColourPastelYellow[1], rowColourPastelYellow[2]},
+     {rowTailColourPastelYellow[0], rowTailColourPastelYellow[1], rowTailColourPastelYellow[2]}},
+    {Param::Kind::GLOBAL_EFFECTABLE,
+     Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT,
+     13,
+     3,
+     {rowColourPastelGreen[0], rowColourPastelGreen[1], rowColourPastelGreen[2]},
+     {rowTailColourPastelGreen[0], rowTailColourPastelGreen[1], rowTailColourPastelGreen[2]}},
+    {Param::Kind::GLOBAL_EFFECTABLE,
+     Param::Unpatched::GlobalEffectable::DELAY_AMOUNT,
+     14,
+     3,
+     {rowColourPastelBlue[0], rowColourPastelBlue[1], rowColourPastelBlue[2]},
+     {rowTailColourPastelBlue[0], rowTailColourPastelBlue[1], rowTailColourPastelBlue[2]}},
+    {Param::Kind::GLOBAL_EFFECTABLE,
+     Param::Unpatched::GlobalEffectable::DELAY_RATE,
+     14,
+     0,
+     {rowColourPastelBlue[0], rowColourPastelBlue[1], rowColourPastelBlue[2]},
+     {rowTailColourPastelBlue[0], rowTailColourPastelBlue[1], rowTailColourPastelBlue[2]}},
+    {Param::Kind::GLOBAL_EFFECTABLE,
+     Param::Unpatched::GlobalEffectable::MOD_FX_RATE,
+     12,
+     7,
+     {rowColourPastelPink[0], rowColourPastelPink[1], rowColourPastelPink[2]},
+     {rowTailColourPastelPink[0], rowTailColourPastelPink[1], rowTailColourPastelPink[2]}},
+    {Param::Kind::GLOBAL_EFFECTABLE,
+     Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH,
+     12,
+     6,
+     {rowColourPastelPink[0], rowColourPastelPink[1], rowColourPastelPink[2]},
+     {rowTailColourPastelPink[0], rowTailColourPastelPink[1], rowTailColourPastelPink[2]}},
+    {Param::Kind::UNPATCHED,
+     Param::Unpatched::MOD_FX_FEEDBACK,
+     12,
+     5,
+     {rowColourPastelPink[0], rowColourPastelPink[1], rowColourPastelPink[2]},
+     {rowTailColourPastelPink[0], rowTailColourPastelPink[1], rowTailColourPastelPink[2]}},
+    {Param::Kind::UNPATCHED,
+     Param::Unpatched::MOD_FX_OFFSET,
+     12,
+     4,
+     {rowColourPastelPink[0], rowColourPastelPink[1], rowColourPastelPink[2]},
+     {rowTailColourPastelPink[0], rowTailColourPastelPink[1], rowTailColourPastelPink[2]}},
+    {Param::Kind::UNPATCHED,
+     Param::Unpatched::SAMPLE_RATE_REDUCTION,
+     6,
+     5,
+     {rowColourPink[0], rowColourPink[1], rowColourPink[2]},
+     {rowTailColourPink[0], rowTailColourPink[1], rowTailColourPink[2]}},
+    {Param::Kind::UNPATCHED,
+     Param::Unpatched::BITCRUSHING,
+     6,
+     6,
+     {rowColourPink[0], rowColourPink[1], rowColourPink[2]},
+     {rowTailColourPink[0], rowTailColourPink[1], rowTailColourPink[2]}},
+    {Param::Kind::UNPATCHED,
+     Param::Unpatched::STUTTER_RATE,
+     5,
+     7,
+     {rowColourBlue[0], rowColourBlue[1], rowColourBlue[2]},
+     {rowTailColourBlue[0], rowTailColourBlue[1], rowTailColourBlue[2]}},
 };
 
 const ParamsForPerformance defaultLayoutForPerformance[kDisplayWidth] = {
-    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::LPF_FREQ, 8, 7},
-    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::LPF_RES, 8, 6},
-    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::HPF_FREQ, 9, 7},
-    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::HPF_RES, 9, 6},
-    {Param::Kind::UNPATCHED, Param::Unpatched::BASS, 10, 6},
-    {Param::Kind::UNPATCHED, Param::Unpatched::TREBLE, 11, 6},
-    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT, 13, 3},
-    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::DELAY_AMOUNT, 14, 3},
-    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::DELAY_RATE, 14, 0},
-    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::MOD_FX_RATE, 12, 7},
-    {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH, 12, 6},
-    {Param::Kind::UNPATCHED, Param::Unpatched::MOD_FX_FEEDBACK, 12, 5},
-    {Param::Kind::UNPATCHED, Param::Unpatched::MOD_FX_OFFSET, 12, 4},
-    {Param::Kind::UNPATCHED, Param::Unpatched::SAMPLE_RATE_REDUCTION, 6, 5},
-    {Param::Kind::UNPATCHED, Param::Unpatched::BITCRUSHING, 6, 6},
-    {Param::Kind::UNPATCHED, Param::Unpatched::STUTTER_RATE, 5, 7},
+    {Param::Kind::GLOBAL_EFFECTABLE,                                   //paramKind
+     Param::Unpatched::GlobalEffectable::LPF_FREQ,                     //paramID
+     8,                                                                //xDisplay
+     7,                                                                //yDisplay
+     {rowColourRed[0], rowColourRed[1], rowColourRed[2]},              //rowColour[3]
+     {rowTailColourRed[0], rowTailColourRed[1], rowTailColourRed[2]}}, //rowTailColour[3]
+    {Param::Kind::GLOBAL_EFFECTABLE,
+     Param::Unpatched::GlobalEffectable::LPF_RES,
+     8,
+     6,
+     {rowColourRed[0], rowColourRed[1], rowColourRed[2]},
+     {rowTailColourRed[0], rowTailColourRed[1], rowTailColourRed[2]}},
+    {Param::Kind::GLOBAL_EFFECTABLE,
+     Param::Unpatched::GlobalEffectable::HPF_FREQ,
+     9,
+     7,
+     {rowColourPastelOrange[0], rowColourPastelOrange[1], rowColourPastelOrange[2]},
+     {rowTailColourPastelOrange[0], rowTailColourPastelOrange[1], rowTailColourPastelOrange[2]}},
+    {Param::Kind::GLOBAL_EFFECTABLE,
+     Param::Unpatched::GlobalEffectable::HPF_RES,
+     9,
+     6,
+     {rowColourPastelOrange[0], rowColourPastelOrange[1], rowColourPastelOrange[2]},
+     {rowTailColourPastelOrange[0], rowTailColourPastelOrange[1], rowTailColourPastelOrange[2]}},
+    {Param::Kind::UNPATCHED,
+     Param::Unpatched::BASS,
+     10,
+     6,
+     {rowColourPastelYellow[0], rowColourPastelYellow[1], rowColourPastelYellow[2]},
+     {rowTailColourPastelYellow[0], rowTailColourPastelYellow[1], rowTailColourPastelYellow[2]}},
+    {Param::Kind::UNPATCHED,
+     Param::Unpatched::TREBLE,
+     11,
+     6,
+     {rowColourPastelYellow[0], rowColourPastelYellow[1], rowColourPastelYellow[2]},
+     {rowTailColourPastelYellow[0], rowTailColourPastelYellow[1], rowTailColourPastelYellow[2]}},
+    {Param::Kind::GLOBAL_EFFECTABLE,
+     Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT,
+     13,
+     3,
+     {rowColourPastelGreen[0], rowColourPastelGreen[1], rowColourPastelGreen[2]},
+     {rowTailColourPastelGreen[0], rowTailColourPastelGreen[1], rowTailColourPastelGreen[2]}},
+    {Param::Kind::GLOBAL_EFFECTABLE,
+     Param::Unpatched::GlobalEffectable::DELAY_AMOUNT,
+     14,
+     3,
+     {rowColourPastelBlue[0], rowColourPastelBlue[1], rowColourPastelBlue[2]},
+     {rowTailColourPastelBlue[0], rowTailColourPastelBlue[1], rowTailColourPastelBlue[2]}},
+    {Param::Kind::GLOBAL_EFFECTABLE,
+     Param::Unpatched::GlobalEffectable::DELAY_RATE,
+     14,
+     0,
+     {rowColourPastelBlue[0], rowColourPastelBlue[1], rowColourPastelBlue[2]},
+     {rowTailColourPastelBlue[0], rowTailColourPastelBlue[1], rowTailColourPastelBlue[2]}},
+    {Param::Kind::GLOBAL_EFFECTABLE,
+     Param::Unpatched::GlobalEffectable::MOD_FX_RATE,
+     12,
+     7,
+     {rowColourPastelPink[0], rowColourPastelPink[1], rowColourPastelPink[2]},
+     {rowTailColourPastelPink[0], rowTailColourPastelPink[1], rowTailColourPastelPink[2]}},
+    {Param::Kind::GLOBAL_EFFECTABLE,
+     Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH,
+     12,
+     6,
+     {rowColourPastelPink[0], rowColourPastelPink[1], rowColourPastelPink[2]},
+     {rowTailColourPastelPink[0], rowTailColourPastelPink[1], rowTailColourPastelPink[2]}},
+    {Param::Kind::UNPATCHED,
+     Param::Unpatched::MOD_FX_FEEDBACK,
+     12,
+     5,
+     {rowColourPastelPink[0], rowColourPastelPink[1], rowColourPastelPink[2]},
+     {rowTailColourPastelPink[0], rowTailColourPastelPink[1], rowTailColourPastelPink[2]}},
+    {Param::Kind::UNPATCHED,
+     Param::Unpatched::MOD_FX_OFFSET,
+     12,
+     4,
+     {rowColourPastelPink[0], rowColourPastelPink[1], rowColourPastelPink[2]},
+     {rowTailColourPastelPink[0], rowTailColourPastelPink[1], rowTailColourPastelPink[2]}},
+    {Param::Kind::UNPATCHED,
+     Param::Unpatched::SAMPLE_RATE_REDUCTION,
+     6,
+     5,
+     {rowColourPink[0], rowColourPink[1], rowColourPink[2]},
+     {rowTailColourPink[0], rowTailColourPink[1], rowTailColourPink[2]}},
+    {Param::Kind::UNPATCHED,
+     Param::Unpatched::BITCRUSHING,
+     6,
+     6,
+     {rowColourPink[0], rowColourPink[1], rowColourPink[2]},
+     {rowTailColourPink[0], rowTailColourPink[1], rowTailColourPink[2]}},
+    {Param::Kind::UNPATCHED,
+     Param::Unpatched::STUTTER_RATE,
+     5,
+     7,
+     {rowColourBlue[0], rowColourBlue[1], rowColourBlue[2]},
+     {rowTailColourBlue[0], rowTailColourBlue[1], rowTailColourBlue[2]}},
 };
 
+//mapping shortcuts to paramKind
 const Param::Kind paramKindShortcutsForPerformanceView[kDisplayWidth][kDisplayHeight] = {
     {Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE,
      Param::Kind::NONE, Param::Kind::NONE},
@@ -139,6 +322,7 @@ const Param::Kind paramKindShortcutsForPerformanceView[kDisplayWidth][kDisplayHe
      Param::Kind::NONE, Param::Kind::NONE},
 };
 
+//mapping shortcuts to paramID
 const uint32_t paramIDShortcutsForPerformanceView[kDisplayWidth][kDisplayHeight] = {
     {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
     {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
@@ -164,46 +348,6 @@ const uint32_t paramIDShortcutsForPerformanceView[kDisplayWidth][kDisplayHeight]
      Param::Unpatched::GlobalEffectable::DELAY_AMOUNT, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
     {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
 };
-
-//colours for the performance mode
-
-const uint8_t rowColour[kDisplayWidth][3] = {
-
-    {255, 0, 0},    //LPF Cutoff
-    {255, 0, 0},    //LPF Resonance
-    {221, 72, 13},  //HPF Cutoff
-    {221, 72, 13},  //HPF Resonance
-    {170, 182, 0},  //EQ Bass
-    {170, 182, 0},  //EQ Treble
-    {85, 182, 72},  //Reverb Amount
-    {51, 109, 145}, //Delay Amount
-    {51, 109, 145}, //Delay Rate
-    {144, 72, 91},  //Mod FX Offset
-    {144, 72, 91},  //Mod FX Feedback
-    {144, 72, 91},  //Mod FX Depth
-    {144, 72, 91},  //Mod FX Rate
-    {128, 0, 128},  //Decimation
-    {128, 0, 128},  //Bitcrush
-    {0, 0, 255}};   //Stutter
-
-const uint8_t rowTailColour[kDisplayWidth][3] = {
-
-    {53, 2, 2},   //LPF Cutoff
-    {53, 2, 2},   //LPF Resonance
-    {46, 16, 2},  //HPF Cutoff
-    {46, 16, 2},  //HPF Resonance
-    {36, 38, 2},  //EQ Bass
-    {36, 38, 2},  //EQ Treble
-    {19, 38, 16}, //Reverb Amount
-    {12, 23, 31}, //Delay Amount
-    {12, 23, 31}, //Delay Rate
-    {37, 15, 37}, //Mod FX Offset
-    {37, 15, 37}, //Mod FX Feedback
-    {37, 15, 37}, //Mod FX Depth
-    {37, 15, 37}, //Mod FX Rate
-    {53, 0, 53},  //Decimation
-    {53, 0, 53},  //Bitcrush
-    {2, 2, 53}};  //Stutter
 
 PerformanceSessionView performanceSessionView{};
 
@@ -239,6 +383,12 @@ PerformanceSessionView::PerformanceSessionView() {
 		layoutForPerformance[xDisplay].paramID = kNoSelection;
 		layoutForPerformance[xDisplay].xDisplay = kNoSelection;
 		layoutForPerformance[xDisplay].yDisplay = kNoSelection;
+		layoutForPerformance[xDisplay].rowColour[0] = 0;
+		layoutForPerformance[xDisplay].rowColour[1] = 0;
+		layoutForPerformance[xDisplay].rowColour[2] = 0;
+		layoutForPerformance[xDisplay].rowTailColour[0] = 0;
+		layoutForPerformance[xDisplay].rowTailColour[1] = 0;
+		layoutForPerformance[xDisplay].rowTailColour[2] = 0;
 
 		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 			int32_t defaultFXValue = calculateKnobPosForSinglePadPress(yDisplay);
@@ -399,7 +549,7 @@ void PerformanceSessionView::renderRow(uint8_t* image, uint8_t occupancyMask[], 
 			if (firstPadPress.isActive) {
 				if ((layoutForPerformance[xDisplay].paramKind == firstPadPress.paramKind)
 				    && (layoutForPerformance[xDisplay].paramID == firstPadPress.paramID)) {
-					memcpy(pixel, &rowTailColour[xDisplay], 3);
+					memcpy(pixel, &layoutForPerformance[xDisplay].rowTailColour, 3);
 				}
 			}
 		}
@@ -411,10 +561,10 @@ void PerformanceSessionView::renderRow(uint8_t* image, uint8_t occupancyMask[], 
 			}
 			else {
 				if ((currentKnobPosition[xDisplay] != kNoSelection) && (padPressHeld[xDisplay] == false)) {
-					memcpy(pixel, &rowColour[xDisplay], 3);
+					memcpy(pixel, &layoutForPerformance[xDisplay].rowColour, 3);
 				}
 				else {
-					memcpy(pixel, &rowTailColour[xDisplay], 3);
+					memcpy(pixel, &layoutForPerformance[xDisplay].rowTailColour, 3);
 				}
 
 				if ((currentKnobPosition[xDisplay] == defaultFXValues[xDisplay][yDisplay])
@@ -889,12 +1039,29 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 						layoutForPerformance[xDisplay].paramID = firstPadPress.paramID;
 						layoutForPerformance[xDisplay].xDisplay = firstPadPress.xDisplay;
 						layoutForPerformance[xDisplay].yDisplay = firstPadPress.yDisplay;
+
+						for (int32_t i = 0; i < kNumParamsForPerformance; i++) {
+							if ((songParamsForPerformance[i].paramKind == firstPadPress.paramKind)
+							    && (songParamsForPerformance[i].paramID == firstPadPress.paramID)) {
+								memcpy(&layoutForPerformance[xDisplay].rowColour,
+								       &songParamsForPerformance[i].rowColour, 3);
+								memcpy(&layoutForPerformance[xDisplay].rowTailColour,
+								       &songParamsForPerformance[i].rowTailColour, 3);
+								break;
+							}
+						}
 					}
 					else {
 						layoutForPerformance[xDisplay].paramKind = Param::Kind::NONE;
 						layoutForPerformance[xDisplay].paramID = kNoSelection;
 						layoutForPerformance[xDisplay].xDisplay = kNoSelection;
 						layoutForPerformance[xDisplay].yDisplay = kNoSelection;
+						layoutForPerformance[xDisplay].rowColour[0] = 0;
+						layoutForPerformance[xDisplay].rowColour[1] = 0;
+						layoutForPerformance[xDisplay].rowColour[2] = 0;
+						layoutForPerformance[xDisplay].rowTailColour[0] = 0;
+						layoutForPerformance[xDisplay].rowTailColour[1] = 0;
+						layoutForPerformance[xDisplay].rowTailColour[2] = 0;
 					}
 					anyChangesToSave = true;
 					indicator_leds::blinkLed(IndicatorLED::SAVE);

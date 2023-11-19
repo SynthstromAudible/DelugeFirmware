@@ -43,6 +43,8 @@ struct ParamsForPerformance {
 	ParamType paramID;
 	int32_t xDisplay;
 	int32_t yDisplay;
+	uint8_t rowColour[3];
+	uint8_t rowTailColour[3];
 };
 
 class PerformanceSessionView final : public ClipNavigationTimelineView, public GlobalEffectable {
