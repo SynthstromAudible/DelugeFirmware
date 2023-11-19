@@ -150,6 +150,7 @@ uint32_t CacheManager::ReclaimMemory(MemoryRegion& region, int32_t totalSizeNeed
 			spaceSize += result.amountsExtended[0] + result.amountsExtended[1];
 
 			Debug::println("stole and grabbed neighbouring stuff too...........");
+			AudioEngine::bypassCulling = true; // Paul: We don't want our samples to drop out because of this maneuver
 			stolen = true;
 			break;
 		}
