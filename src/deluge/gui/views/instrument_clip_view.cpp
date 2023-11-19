@@ -3092,7 +3092,10 @@ void InstrumentClipView::setSelectedDrum(Drum* drum, bool shouldRedrawStuff) {
 }
 
 void InstrumentClipView::auditionPadAction(int32_t velocity, int32_t yDisplay, bool shiftButtonDown) {
-
+	if (editedAnyPerNoteRowStuffSinceAuditioningBegan && !velocity) {
+		//in case we were editing quantize/humanize
+		actionLogger.closeAction(ACTION_NOTE_NUDGE);
+	}
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
@@ -4482,6 +4485,7 @@ void InstrumentClipView::quantizeNotes(int32_t offset, int32_t nudgeMode) {
 			modelStack->song->currentClip->reGetParameterAutomation(modelStack);
 		}
 	}
+	editedAnyPerNoteRowStuffSinceAuditioningBegan = true;
 	return;
 }
 
