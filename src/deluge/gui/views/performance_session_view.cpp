@@ -991,6 +991,22 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 			if (on) {
 				//no need to pad press action if you've already processed it previously and pad was held
 				if (previousPadPressYDisplay[xDisplay] != yDisplay) {
+
+					//check if there a previously held press for this parameter in another column and disable it
+					//also transfer the previous value for that held pad to this new pad column press
+					for (int32_t i = 0; i < kDisplayWidth; i++) {
+						if (i != xDisplay) {
+							if ((layoutForPerformance[i].paramKind == lastSelectedParamKind)
+							    && (layoutForPerformance[i].paramID == lastSelectedParamID)) {
+								previousPadPressYDisplay[i] = kNoSelection;
+								previousKnobPosition[xDisplay] = previousKnobPosition[i];
+								previousKnobPosition[i] = kNoSelection;
+								currentKnobPosition[i] = kNoSelection;
+								padPressHeld[i] = false;
+							}
+						}
+					}
+
 					padPressAction(modelStack, lastSelectedParamKind, lastSelectedParamID, xDisplay, yDisplay,
 					               !defaultEditingMode);
 				}
@@ -1385,6 +1401,32 @@ void PerformanceSessionView::modEncoderAction(int32_t whichModEncoder, int32_t o
 }
 
 void PerformanceSessionView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
+	//release stutter if it's already active before beginning stutter again
+	if (on) {
+		int32_t modKnobMode = -1;
+		if (view.activeModControllableModelStack.modControllable) {
+			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
+			if (modKnobModePointer) {
+				modKnobMode = *modKnobModePointer;
+
+				// Stutter section
+				if ((modKnobMode == 6) && (whichModEncoder == 1)) {
+					char modelStackMemory[MODEL_STACK_MAX_SIZE];
+					ModelStackWithThreeMainThings* modelStack =
+					    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+
+					releaseStutter(modelStack);
+
+					uiNeedsRendering(this);
+
+					if (onFXDisplay) {
+						renderViewDisplay();
+					}
+				}
+			}
+		}
+	}
+
 	UI::modEncoderButtonAction(whichModEncoder, on);
 }
 
