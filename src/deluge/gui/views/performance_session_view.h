@@ -130,6 +130,7 @@ private:
 	void readDefaultFXParamAndRowValuesFromFile(int32_t xDisplay);
 	void readDefaultFXParamFromFile(int32_t xDisplay);
 	void readDefaultFXRowNumberValuesFromFile(int32_t xDisplay);
+	void readDefaultFXHoldStatusFromFile(int32_t xDisplay);
 	bool successfullyReadDefaultsFromFile;
 	bool anyChangesToSave;
 

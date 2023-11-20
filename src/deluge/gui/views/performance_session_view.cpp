@@ -405,10 +405,6 @@ bool PerformanceSessionView::opened() {
 	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
 	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
 
-	if (!successfullyReadDefaultsFromFile) {
-		readDefaultsFromFile();
-	}
-
 	focusRegained();
 
 	return true;
@@ -423,6 +419,10 @@ void PerformanceSessionView::focusRegained() {
 	ClipNavigationTimelineView::focusRegained();
 	view.focusRegained();
 	view.setActiveModControllableTimelineCounter(currentSong);
+
+	if (!successfullyReadDefaultsFromFile) {
+		readDefaultsFromFile();
+	}
 
 	setCentralLEDStates();
 
@@ -879,8 +879,9 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 	else if (b == LOAD) {
 		if (on) {
 			readDefaultsFromFile();
-			display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_LOADED));
+			//	display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_LOADED));
 			indicator_leds::setLedState(IndicatorLED::SAVE, false);
+			renderViewDisplay();
 		}
 	}
 
@@ -1574,6 +1575,9 @@ void PerformanceSessionView::readDefaultFXParamAndRowValuesFromFile(int32_t xDis
 		else if (!strcmp(tagName, l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_ROW_TAG))) {
 			readDefaultFXRowNumberValuesFromFile(xDisplay);
 		}
+		else if (!strcmp(tagName, l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_HOLD_TAG))) {
+			readDefaultFXHoldStatusFromFile(xDisplay);
+		}
 		storageManager.exitTag();
 	}
 }
@@ -1615,6 +1619,49 @@ void PerformanceSessionView::readDefaultFXRowNumberValuesFromFile(int32_t xDispl
 				}
 
 				break;
+			}
+		}
+		storageManager.exitTag();
+	}
+}
+
+void PerformanceSessionView::readDefaultFXHoldStatusFromFile(int32_t xDisplay) {
+	char const* tagName;
+	//loop through the hold tags
+	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+		if (!strcmp(tagName, l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_HOLD_STATUS_TAG))) {
+			char const* holdStatus = storageManager.readTagOrAttributeValue();
+			if (!strcmp(holdStatus, l10n::get(l10n::String::STRING_FOR_ON))) {
+				padPressHeld[xDisplay] = true;
+				timeLastPadPress[xDisplay] = AudioEngine::audioSampleTimer;
+			}
+		}
+		if (padPressHeld[xDisplay]) {
+			if (!strcmp(tagName, l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_ROW_TAG))) {
+				int32_t yDisplay = storageManager.readTagOrAttributeValueInt();
+				if ((yDisplay >= 1) && (yDisplay <= 8)) {
+					previousPadPressYDisplay[xDisplay] = yDisplay - 1;
+					currentKnobPosition[xDisplay] = defaultFXValues[xDisplay][previousPadPressYDisplay[xDisplay]];
+				}
+			}
+			else if (!strcmp(tagName, l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_HOLD_RESETVALUE_TAG))) {
+				previousKnobPosition[xDisplay] = storageManager.readTagOrAttributeValueInt() - kKnobPosOffset;
+				//check if a value greater than 64 was entered as a default value in xml file
+				if (previousKnobPosition[xDisplay] > kKnobPosOffset) {
+					previousKnobPosition[xDisplay] = kKnobPosOffset;
+				}
+			}
+			if ((currentKnobPosition[xDisplay] != kNoSelection) && (previousKnobPosition[xDisplay] != kNoSelection)) {
+				char modelStackMemory[MODEL_STACK_MAX_SIZE];
+				ModelStackWithThreeMainThings* modelStack =
+				    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+
+				if ((layoutForPerformance[xDisplay].paramKind != Param::Kind::NONE)
+				    && (layoutForPerformance[xDisplay].paramID != kNoSelection)) {
+					setParameterValue(modelStack, layoutForPerformance[xDisplay].paramKind,
+					                  layoutForPerformance[xDisplay].paramID, xDisplay,
+					                  defaultFXValues[xDisplay][previousPadPressYDisplay[xDisplay]], false);
+				}
 			}
 		}
 		storageManager.exitTag();
