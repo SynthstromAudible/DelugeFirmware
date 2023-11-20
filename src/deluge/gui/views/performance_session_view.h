@@ -95,7 +95,6 @@ public:
 	bool defaultEditingMode;
 	bool editingParam; //if you're not editing a param, you're editing a value
 	void writeDefaultsToFile();
-	void readDefaultsFromFile();
 
 private:
 	//rendering
@@ -122,11 +121,13 @@ private:
 	void releaseStutter(ModelStackWithThreeMainThings* modelStack);
 
 	//write/load default values
+	
 	void writeDefaultFXValuesToFile();
 	void writeDefaultFXParamToFile(int32_t xDisplay);
 	void writeDefaultFXRowValuesToFile(int32_t xDisplay);
 	void writeDefaultFXHoldStatusToFile(int32_t xDisplay);
 	void loadDefaultLayout();
+	void readDefaultsFromFile();
 	void readDefaultFXValuesFromFile();
 	void readDefaultFXParamAndRowValuesFromFile(int32_t xDisplay);
 	void readDefaultFXParamFromFile(int32_t xDisplay);
@@ -148,6 +149,8 @@ private:
 	PadPress firstPadPress;
 	PadPress lastPadPress;
 	ParamsForPerformance layoutForPerformance[kDisplayWidth];
+	int32_t layoutBank;    //A or B (assign a layout to the bank for cross fader action)
+	int32_t layoutVariant; //1, 2, 3, 4, 5 (1 = Load, 2 = Synth, 3 = Kit, 4 = Midi, 5 = CV)
 
 	// Members regarding rendering different layouts
 private:

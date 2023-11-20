@@ -310,17 +310,6 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 		}
 	}
 
-	//Load button (only used in performanceSessionView)
-	else if (b == LOAD) {
-		if (on) {
-			if (getRootUI() == &performanceSessionView) {
-				performanceSessionView.readDefaultsFromFile();
-				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_LOADED));
-				indicator_leds::setLedState(IndicatorLED::SAVE, false);
-			}
-		}
-	}
-
 	// MIDI learn button
 	else if (b == LEARN) {
 		if (inCardRoutine) {

@@ -64,6 +64,18 @@ using namespace deluge;
 using namespace gui;
 //using namespace deluge::gui::menu_item;
 
+const char* STRING_FOR_PERFORM_DEFAULTS_XML = "PerformanceView.XML";
+const char* STRING_FOR_PERFORM_DEFAULTS_TAG = "defaults";
+const char* STRING_FOR_PERFORM_DEFAULTS_FXVALUES_TAG = "defaultFXValues";
+const char* STRING_FOR_PERFORM_DEFAULTS_PARAM_TAG = "param";
+const char* STRING_FOR_PERFORM_DEFAULTS_NO_PARAM = "none";
+const char* STRING_FOR_PERFORM_DEFAULTS_HOLD_TAG = "hold";
+const char* STRING_FOR_PERFORM_DEFAULTS_HOLD_STATUS_TAG = "status";
+const char* STRING_FOR_PERFORM_DEFAULTS_HOLD_RESETVALUE_TAG = "resetValue";
+const char* STRING_FOR_PERFORM_DEFAULTS_ROW_TAG = "row";
+const char* STRING_FOR_ON = "On";
+const char* STRING_FOR_OFF = "Off";
+
 const int32_t sizeParamsForPerformance = sizeof(ParamsForPerformance);
 
 //colours for the performance mode
@@ -357,6 +369,7 @@ PerformanceSessionView::PerformanceSessionView() {
 	successfullyReadDefaultsFromFile = false;
 	anyChangesToSave = false;
 	defaultEditingMode = false;
+	layoutVariant = 1;
 
 	firstPadPress.isActive = false;
 	firstPadPress.xDisplay = kNoSelection;
@@ -870,6 +883,21 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 
 	else if (b == SAVE) {
 		if (on) {
+			if (Buttons::isButtonPressed(deluge::hid::button::SYNTH)) {
+				layoutVariant = 2;
+			}
+			else if (Buttons::isButtonPressed(deluge::hid::button::KIT)) {
+				layoutVariant = 3;
+			}
+			else if (Buttons::isButtonPressed(deluge::hid::button::MIDI)) {
+				layoutVariant = 4;
+			}
+			else if (Buttons::isButtonPressed(deluge::hid::button::CV)) {
+				layoutVariant = 5;
+			}
+			else {
+				layoutVariant = 1;
+			}
 			writeDefaultsToFile();
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_SAVED));
 			indicator_leds::setLedState(IndicatorLED::SAVE, false);
@@ -878,6 +906,21 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 
 	else if (b == LOAD) {
 		if (on) {
+			if (Buttons::isButtonPressed(deluge::hid::button::SYNTH)) {
+				layoutVariant = 2;
+			}
+			else if (Buttons::isButtonPressed(deluge::hid::button::KIT)) {
+				layoutVariant = 3;
+			}
+			else if (Buttons::isButtonPressed(deluge::hid::button::MIDI)) {
+				layoutVariant = 4;
+			}
+			else if (Buttons::isButtonPressed(deluge::hid::button::CV)) {
+				layoutVariant = 5;
+			}
+			else {
+				layoutVariant = 1;
+			}
 			resetPerformanceView(modelStack);
 			readDefaultsFromFile();
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_LOADED));
@@ -944,7 +987,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 
 	//disable button presses for Vertical encoder
 	//disable back button press since undo doesn't work well in this view atm.
-	else if ((b == Y_ENC) || (b == BACK)) {
+	else if (b == Y_ENC) { //|| (b == BACK)) {
 		goto doNothing;
 	}
 
@@ -1437,22 +1480,22 @@ void PerformanceSessionView::modButtonAction(uint8_t whichButton, bool on) {
 }
 
 void PerformanceSessionView::writeDefaultsToFile() {
-	int32_t error = storageManager.createXMLFile(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_XML), true);
+	int32_t error = storageManager.createXMLFile(STRING_FOR_PERFORM_DEFAULTS_XML, true);
 	if (error) {
 		return;
 	}
 
-	storageManager.writeOpeningTagBeginning(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_TAG));
+	storageManager.writeOpeningTagBeginning(STRING_FOR_PERFORM_DEFAULTS_TAG);
 	storageManager.writeOpeningTagEnd();
 
-	storageManager.writeOpeningTagBeginning(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_FXVALUES_TAG));
+	storageManager.writeOpeningTagBeginning(STRING_FOR_PERFORM_DEFAULTS_FXVALUES_TAG);
 	storageManager.writeOpeningTagEnd();
 
 	writeDefaultFXValuesToFile();
 
-	storageManager.writeClosingTag(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_FXVALUES_TAG));
+	storageManager.writeClosingTag(STRING_FOR_PERFORM_DEFAULTS_FXVALUES_TAG);
 
-	storageManager.writeClosingTag(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_TAG));
+	storageManager.writeClosingTag(STRING_FOR_PERFORM_DEFAULTS_TAG);
 
 	storageManager.closeFileAfterWriting();
 
@@ -1488,15 +1531,15 @@ void PerformanceSessionView::writeDefaultFXParamToFile(int32_t xDisplay) {
 		    ModControllableAudio::paramToString(Param::Unpatched::START + layoutForPerformance[xDisplay].paramID);
 	}
 	else {
-		paramName = l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_NO_PARAM);
+		paramName = STRING_FOR_PERFORM_DEFAULTS_NO_PARAM;
 	}
-	storageManager.writeTag(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_PARAM_TAG), paramName);
+	storageManager.writeTag(STRING_FOR_PERFORM_DEFAULTS_PARAM_TAG, paramName);
 }
 
 //creates "8 - 1 row # tags within a "row" tag"
 //limiting # of rows to the # of rows on the grid (8 = kDisplayHeight)
 void PerformanceSessionView::writeDefaultFXRowValuesToFile(int32_t xDisplay) {
-	storageManager.writeOpeningTagBeginning(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_ROW_TAG));
+	storageManager.writeOpeningTagBeginning(STRING_FOR_PERFORM_DEFAULTS_ROW_TAG);
 	storageManager.writeOpeningTagEnd();
 	char rowNumber[5];
 	//creates tags from row 8 down to row 1
@@ -1504,49 +1547,47 @@ void PerformanceSessionView::writeDefaultFXRowValuesToFile(int32_t xDisplay) {
 		intToString(yDisplay + 1, rowNumber);
 		storageManager.writeTag(rowNumber, defaultFXValues[xDisplay][yDisplay] + kKnobPosOffset);
 	}
-	storageManager.writeClosingTag(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_ROW_TAG));
+	storageManager.writeClosingTag(STRING_FOR_PERFORM_DEFAULTS_ROW_TAG);
 }
 
 void PerformanceSessionView::writeDefaultFXHoldStatusToFile(int32_t xDisplay) {
-	storageManager.writeOpeningTagBeginning(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_HOLD_TAG));
+	storageManager.writeOpeningTagBeginning(STRING_FOR_PERFORM_DEFAULTS_HOLD_TAG);
 	storageManager.writeOpeningTagEnd();
 
 	if (padPressHeld[xDisplay]) {
-		storageManager.writeTag(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_HOLD_STATUS_TAG),
-		                        l10n::get(l10n::String::STRING_FOR_ON));
-		storageManager.writeTag(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_ROW_TAG),
-		                        previousPadPressYDisplay[xDisplay] + 1);
-		storageManager.writeTag(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_HOLD_RESETVALUE_TAG),
+		storageManager.writeTag(STRING_FOR_PERFORM_DEFAULTS_HOLD_STATUS_TAG, STRING_FOR_ON);
+		storageManager.writeTag(STRING_FOR_PERFORM_DEFAULTS_ROW_TAG, previousPadPressYDisplay[xDisplay] + 1);
+		storageManager.writeTag(STRING_FOR_PERFORM_DEFAULTS_HOLD_RESETVALUE_TAG,
 		                        previousKnobPosition[xDisplay] + kKnobPosOffset);
 	}
 	else {
-		storageManager.writeTag(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_HOLD_STATUS_TAG),
-		                        l10n::get(l10n::String::STRING_FOR_OFF));
-		storageManager.writeTag(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_ROW_TAG), kNoSelection);
-		storageManager.writeTag(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_HOLD_RESETVALUE_TAG), kNoSelection);
+		storageManager.writeTag(STRING_FOR_PERFORM_DEFAULTS_HOLD_STATUS_TAG, STRING_FOR_OFF);
+		storageManager.writeTag(STRING_FOR_PERFORM_DEFAULTS_ROW_TAG, kNoSelection);
+		storageManager.writeTag(STRING_FOR_PERFORM_DEFAULTS_HOLD_RESETVALUE_TAG, kNoSelection);
 	}
 
-	storageManager.writeClosingTag(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_HOLD_TAG));
+	storageManager.writeClosingTag(STRING_FOR_PERFORM_DEFAULTS_HOLD_TAG);
 }
 
 void PerformanceSessionView::readDefaultsFromFile() {
 	FilePointer fp;
-	bool success = storageManager.fileExists(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_XML), &fp);
+	bool success = storageManager.fileExists(STRING_FOR_PERFORM_DEFAULTS_XML, &fp);
 	if (!success) {
 		loadDefaultLayout();
 		return;
 	}
 
-	int32_t error = storageManager.openXMLFile(&fp, l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_TAG));
+	//<defaults>
+	int32_t error = storageManager.openXMLFile(&fp, STRING_FOR_PERFORM_DEFAULTS_TAG);
 	if (error) {
 		loadDefaultLayout();
 		return;
 	}
 
 	char const* tagName;
-	//step into the defaultFXValues tag
+	//step into the <defaultFXValues> tag
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
-		if (!strcmp(tagName, l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_FXVALUES_TAG))) {
+		if (!strcmp(tagName, STRING_FOR_PERFORM_DEFAULTS_FXVALUES_TAG)) {
 			readDefaultFXValuesFromFile();
 		}
 		storageManager.exitTag();
@@ -1571,6 +1612,7 @@ void PerformanceSessionView::readDefaultFXValuesFromFile() {
 	tagNameFX[1] = 'X';
 
 	//loop through all FX number tags
+	//<FX#>
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 		//find the FX number that the tag corresponds to
 		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
@@ -1587,15 +1629,17 @@ void PerformanceSessionView::readDefaultFXValuesFromFile() {
 
 void PerformanceSessionView::readDefaultFXParamAndRowValuesFromFile(int32_t xDisplay) {
 	char const* tagName;
-	//step into the row tag
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
-		if (!strcmp(tagName, l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_PARAM_TAG))) {
+		//<param>
+		if (!strcmp(tagName, STRING_FOR_PERFORM_DEFAULTS_PARAM_TAG)) {
 			readDefaultFXParamFromFile(xDisplay);
 		}
-		else if (!strcmp(tagName, l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_ROW_TAG))) {
+		//<row>
+		else if (!strcmp(tagName, STRING_FOR_PERFORM_DEFAULTS_ROW_TAG)) {
 			readDefaultFXRowNumberValuesFromFile(xDisplay);
 		}
-		else if (!strcmp(tagName, l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_HOLD_TAG))) {
+		//<hold>
+		else if (!strcmp(tagName, STRING_FOR_PERFORM_DEFAULTS_HOLD_TAG)) {
 			readDefaultFXHoldStatusFromFile(xDisplay);
 		}
 		storageManager.exitTag();
@@ -1624,7 +1668,7 @@ void PerformanceSessionView::readDefaultFXParamFromFile(int32_t xDisplay) {
 void PerformanceSessionView::readDefaultFXRowNumberValuesFromFile(int32_t xDisplay) {
 	char const* tagName;
 	char rowNumber[5];
-	//loop through all row number tags
+	//loop through all row <#> number tags
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 		//find the row number that the tag corresponds to
 		//reads from row 8 down to row 1
@@ -1649,7 +1693,8 @@ void PerformanceSessionView::readDefaultFXHoldStatusFromFile(int32_t xDisplay) {
 	char const* tagName;
 	//loop through the hold tags
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
-		if (!strcmp(tagName, l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_HOLD_STATUS_TAG))) {
+		//<status>
+		if (!strcmp(tagName, STRING_FOR_PERFORM_DEFAULTS_HOLD_STATUS_TAG)) {
 			char const* holdStatus = storageManager.readTagOrAttributeValue();
 			if (!strcmp(holdStatus, l10n::get(l10n::String::STRING_FOR_ON))) {
 				padPressHeld[xDisplay] = true;
@@ -1657,14 +1702,16 @@ void PerformanceSessionView::readDefaultFXHoldStatusFromFile(int32_t xDisplay) {
 			}
 		}
 		if (padPressHeld[xDisplay]) {
-			if (!strcmp(tagName, l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_ROW_TAG))) {
+			//<row>
+			if (!strcmp(tagName, STRING_FOR_PERFORM_DEFAULTS_ROW_TAG)) {
 				int32_t yDisplay = storageManager.readTagOrAttributeValueInt();
 				if ((yDisplay >= 1) && (yDisplay <= 8)) {
 					previousPadPressYDisplay[xDisplay] = yDisplay - 1;
 					currentKnobPosition[xDisplay] = defaultFXValues[xDisplay][previousPadPressYDisplay[xDisplay]];
 				}
 			}
-			else if (!strcmp(tagName, l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_HOLD_RESETVALUE_TAG))) {
+			//<resetValue>
+			else if (!strcmp(tagName, STRING_FOR_PERFORM_DEFAULTS_HOLD_RESETVALUE_TAG)) {
 				previousKnobPosition[xDisplay] = storageManager.readTagOrAttributeValueInt() - kKnobPosOffset;
 				//check if a value greater than 64 was entered as a default value in xml file
 				if (previousKnobPosition[xDisplay] > kKnobPosOffset) {

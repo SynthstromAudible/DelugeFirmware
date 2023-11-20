@@ -803,15 +803,6 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_PERFORM_EDIT_VALUE, "Value"},
         {STRING_FOR_PERFORM_DEFAULTS_LOADED, "Defaults Loaded"},
         {STRING_FOR_PERFORM_DEFAULTS_SAVED, "Defaults Saved"},
-        {STRING_FOR_PERFORM_DEFAULTS_XML, "PerformanceView.XML"},
-        {STRING_FOR_PERFORM_DEFAULTS_TAG, "defaults"},
-        {STRING_FOR_PERFORM_DEFAULTS_FXVALUES_TAG, "defaultFXValues"},
-        {STRING_FOR_PERFORM_DEFAULTS_PARAM_TAG, "param"},
-        {STRING_FOR_PERFORM_DEFAULTS_NO_PARAM, "none"},
-        {STRING_FOR_PERFORM_DEFAULTS_HOLD_TAG, "hold"},
-        {STRING_FOR_PERFORM_DEFAULTS_HOLD_STATUS_TAG, "status"},
-        {STRING_FOR_PERFORM_DEFAULTS_HOLD_RESETVALUE_TAG, "resetValue"},
-        {STRING_FOR_PERFORM_DEFAULTS_ROW_TAG, "row"},
 
         /* Strings Specifically for Song View
         * session_view.cpp
