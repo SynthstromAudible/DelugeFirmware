@@ -108,6 +108,9 @@ private:
 	void setCentralLEDStates();
 
 	//pad action
+	void normalPadAction(ModelStackWithThreeMainThings* modelStack, int32_t xDisplay, int32_t yDisplay, int32_t on);
+	void paramEditorPadAction(ModelStackWithThreeMainThings* modelStack, int32_t xDisplay, int32_t yDisplay,
+	                          int32_t on);
 	bool isPadShortcut(int32_t xDisplay, int32_t yDisplay);
 	bool setParameterValue(ModelStackWithThreeMainThings* modelStack, Param::Kind paramKind, int32_t paramID,
 	                       int32_t xDisplay, int32_t knobPos, bool renderDisplay = true);

@@ -1023,137 +1023,148 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 		ModelStackWithThreeMainThings* modelStack =
 		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
+		//if not in param editor (so, regular performance view or value editor)
 		if (!editingParam) {
-			//obtain Param::Kind, ParamID corresponding to the column pressed on performance grid
-			Param::Kind lastSelectedParamKind = layoutForPerformance[xDisplay].paramKind; //kind;
-			int32_t lastSelectedParamID = layoutForPerformance[xDisplay].paramID;
-
-			if (lastSelectedParamID == kNoSelection) {
+			if (layoutForPerformance[xDisplay].paramID == kNoSelection) {
 				return ActionResult::DEALT_WITH;
 			}
-
-			//pressing a pad
-			if (on) {
-				//no need to pad press action if you've already processed it previously and pad was held
-				if (previousPadPressYDisplay[xDisplay] != yDisplay) {
-
-					//check if there a previously held press for this parameter in another column and disable it
-					//also transfer the previous value for that held pad to this new pad column press
-					for (int32_t i = 0; i < kDisplayWidth; i++) {
-						if (i != xDisplay) {
-							if ((layoutForPerformance[i].paramKind == lastSelectedParamKind)
-							    && (layoutForPerformance[i].paramID == lastSelectedParamID)) {
-								previousPadPressYDisplay[i] = kNoSelection;
-								previousKnobPosition[xDisplay] = previousKnobPosition[i];
-								previousKnobPosition[i] = kNoSelection;
-								currentKnobPosition[i] = kNoSelection;
-								padPressHeld[i] = false;
-							}
-						}
-					}
-
-					padPressAction(modelStack, lastSelectedParamKind, lastSelectedParamID, xDisplay, yDisplay,
-					               !defaultEditingMode);
-				}
-			}
-			//releasing a pad
-			else {
-				//if releasing a pad with "held" status shortly after being given that status
-				//or releasing a pad that was not in "held" status but was a longer press and release
-				if (isParamStutter(lastSelectedParamKind, lastSelectedParamID)
-				    || (padPressHeld[xDisplay]
-				        && ((AudioEngine::audioSampleTimer - timeLastPadPress[xDisplay]) < kHoldTime))
-				    || ((previousKnobPosition[xDisplay] != kNoSelection)
-				        && (previousPadPressYDisplay[xDisplay] == yDisplay)
-				        && ((AudioEngine::audioSampleTimer - timeLastPadPress[xDisplay]) >= kHoldTime))) {
-
-					padReleaseAction(modelStack, lastSelectedParamKind, lastSelectedParamID, xDisplay,
-					                 !defaultEditingMode);
-				}
-				//if releasing a pad that was quickly pressed, give it held status
-				else if ((previousKnobPosition[xDisplay] != kNoSelection)
-				         && (previousPadPressYDisplay[xDisplay] == yDisplay)
-				         && ((AudioEngine::audioSampleTimer - timeLastPadPress[xDisplay]) < kHoldTime)) {
-					padPressHeld[xDisplay] = true;
-				}
-			}
+			normalPadAction(modelStack, xDisplay, yDisplay, on);
 		}
 		//editing mode & editing parameter FX assignments
 		else {
-			//pressing a pad
-			if (on) {
-				if (!firstPadPress.isActive) {
-					if (isPadShortcut(xDisplay, yDisplay)) {
-						firstPadPress.isActive = true;
-						firstPadPress.paramKind = paramKindShortcutsForPerformanceView[xDisplay][yDisplay];
-						firstPadPress.paramID = paramIDShortcutsForPerformanceView[xDisplay][yDisplay];
-						firstPadPress.xDisplay = xDisplay;
-						firstPadPress.yDisplay = yDisplay;
-						renderFXDisplay(firstPadPress.paramKind, firstPadPress.paramID);
-					}
-				}
-				else {
-					if ((layoutForPerformance[xDisplay].paramKind != firstPadPress.paramKind)
-					    || (layoutForPerformance[xDisplay].paramID != firstPadPress.paramID)
-					    || (layoutForPerformance[xDisplay].xDisplay != firstPadPress.xDisplay)
-					    || (layoutForPerformance[xDisplay].yDisplay != firstPadPress.yDisplay)) {
-
-						//remove any existing holds from the FX column before assigning a new param
-						resetFXColumn(modelStack, xDisplay);
-
-						//assign new param to the FX column
-						layoutForPerformance[xDisplay].paramKind = firstPadPress.paramKind;
-						layoutForPerformance[xDisplay].paramID = firstPadPress.paramID;
-						layoutForPerformance[xDisplay].xDisplay = firstPadPress.xDisplay;
-						layoutForPerformance[xDisplay].yDisplay = firstPadPress.yDisplay;
-
-						//assign new colour to the FX column based on the new param assigned
-						for (int32_t i = 0; i < kNumParamsForPerformance; i++) {
-							if ((songParamsForPerformance[i].paramKind == firstPadPress.paramKind)
-							    && (songParamsForPerformance[i].paramID == firstPadPress.paramID)) {
-								memcpy(&layoutForPerformance[xDisplay].rowColour,
-								       &songParamsForPerformance[i].rowColour, 3);
-								memcpy(&layoutForPerformance[xDisplay].rowTailColour,
-								       &songParamsForPerformance[i].rowTailColour, 3);
-								break;
-							}
-						}
-					}
-					else {
-						//remove any existing holds from the FX column before clearing param from column
-						resetFXColumn(modelStack, xDisplay);
-
-						//remove param from FX column
-						layoutForPerformance[xDisplay].paramKind = Param::Kind::NONE;
-						layoutForPerformance[xDisplay].paramID = kNoSelection;
-						layoutForPerformance[xDisplay].xDisplay = kNoSelection;
-						layoutForPerformance[xDisplay].yDisplay = kNoSelection;
-						layoutForPerformance[xDisplay].rowColour[0] = 0;
-						layoutForPerformance[xDisplay].rowColour[1] = 0;
-						layoutForPerformance[xDisplay].rowColour[2] = 0;
-						layoutForPerformance[xDisplay].rowTailColour[0] = 0;
-						layoutForPerformance[xDisplay].rowTailColour[1] = 0;
-						layoutForPerformance[xDisplay].rowTailColour[2] = 0;
-					}
-					anyChangesToSave = true;
-					indicator_leds::blinkLed(IndicatorLED::SAVE);
-				}
-			}
-			//releasing a pad
-			else {
-				if ((firstPadPress.xDisplay == xDisplay) && (firstPadPress.yDisplay == yDisplay)) {
-					firstPadPress.isActive = false;
-					firstPadPress.xDisplay = kNoSelection;
-					firstPadPress.yDisplay = kNoSelection;
-					firstPadPress.paramKind = Param::Kind::NONE;
-					firstPadPress.paramID = kNoSelection;
-					renderViewDisplay();
-				}
-			}
+			paramEditorPadAction(modelStack, xDisplay, yDisplay, on);
 		}
 		uiNeedsRendering(this); //re-render pads
 	}
 	return ActionResult::DEALT_WITH;
+}
+
+//process pad actions in the normal performance view or value editor
+void PerformanceSessionView::normalPadAction(ModelStackWithThreeMainThings* modelStack, int32_t xDisplay,
+                                             int32_t yDisplay, int32_t on) {
+	//obtain Param::Kind, ParamID corresponding to the column pressed on performance grid
+	Param::Kind lastSelectedParamKind = layoutForPerformance[xDisplay].paramKind; //kind;
+	int32_t lastSelectedParamID = layoutForPerformance[xDisplay].paramID;
+
+	//pressing a pad
+	if (on) {
+		//no need to pad press action if you've already processed it previously and pad was held
+		if (previousPadPressYDisplay[xDisplay] != yDisplay) {
+
+			//check if there a previously held press for this parameter in another column and disable it
+			//also transfer the previous value for that held pad to this new pad column press
+			for (int32_t i = 0; i < kDisplayWidth; i++) {
+				if (i != xDisplay) {
+					if ((layoutForPerformance[i].paramKind == lastSelectedParamKind)
+					    && (layoutForPerformance[i].paramID == lastSelectedParamID)) {
+						previousPadPressYDisplay[i] = kNoSelection;
+						previousKnobPosition[xDisplay] = previousKnobPosition[i];
+						previousKnobPosition[i] = kNoSelection;
+						currentKnobPosition[i] = kNoSelection;
+						padPressHeld[i] = false;
+					}
+				}
+			}
+
+			padPressAction(modelStack, lastSelectedParamKind, lastSelectedParamID, xDisplay, yDisplay,
+			               !defaultEditingMode);
+		}
+	}
+	//releasing a pad
+	else {
+		//if releasing a pad with "held" status shortly after being given that status
+		//or releasing a pad that was not in "held" status but was a longer press and release
+		if (isParamStutter(lastSelectedParamKind, lastSelectedParamID)
+		    || (padPressHeld[xDisplay] && ((AudioEngine::audioSampleTimer - timeLastPadPress[xDisplay]) < kHoldTime))
+		    || ((previousKnobPosition[xDisplay] != kNoSelection) && (previousPadPressYDisplay[xDisplay] == yDisplay)
+		        && ((AudioEngine::audioSampleTimer - timeLastPadPress[xDisplay]) >= kHoldTime))) {
+
+			padReleaseAction(modelStack, lastSelectedParamKind, lastSelectedParamID, xDisplay, !defaultEditingMode);
+		}
+		//if releasing a pad that was quickly pressed, give it held status
+		else if ((previousKnobPosition[xDisplay] != kNoSelection) && (previousPadPressYDisplay[xDisplay] == yDisplay)
+		         && ((AudioEngine::audioSampleTimer - timeLastPadPress[xDisplay]) < kHoldTime)) {
+			padPressHeld[xDisplay] = true;
+		}
+	}
+}
+
+//process pad actions in the param editor
+void PerformanceSessionView::paramEditorPadAction(ModelStackWithThreeMainThings* modelStack, int32_t xDisplay,
+                                                  int32_t yDisplay, int32_t on) {
+	//pressing a pad
+	if (on) {
+		//if you haven't yet pressed and are holding a param shortcut pad on the param overview
+		if (!firstPadPress.isActive) {
+			if (isPadShortcut(xDisplay, yDisplay)) {
+				firstPadPress.isActive = true;
+				firstPadPress.paramKind = paramKindShortcutsForPerformanceView[xDisplay][yDisplay];
+				firstPadPress.paramID = paramIDShortcutsForPerformanceView[xDisplay][yDisplay];
+				firstPadPress.xDisplay = xDisplay;
+				firstPadPress.yDisplay = yDisplay;
+				renderFXDisplay(firstPadPress.paramKind, firstPadPress.paramID);
+			}
+		}
+		//if you are holding a param shortcut pad and are now pressing a pad in an FX column
+		else {
+			//if the FX column you are pressing is currently assigned to a different param or no param
+			if ((layoutForPerformance[xDisplay].paramKind != firstPadPress.paramKind)
+			    || (layoutForPerformance[xDisplay].paramID != firstPadPress.paramID)
+			    || (layoutForPerformance[xDisplay].xDisplay != firstPadPress.xDisplay)
+			    || (layoutForPerformance[xDisplay].yDisplay != firstPadPress.yDisplay)) {
+
+				//remove any existing holds from the FX column before assigning a new param
+				resetFXColumn(modelStack, xDisplay);
+
+				//assign new param to the FX column
+				layoutForPerformance[xDisplay].paramKind = firstPadPress.paramKind;
+				layoutForPerformance[xDisplay].paramID = firstPadPress.paramID;
+				layoutForPerformance[xDisplay].xDisplay = firstPadPress.xDisplay;
+				layoutForPerformance[xDisplay].yDisplay = firstPadPress.yDisplay;
+
+				//assign new colour to the FX column based on the new param assigned
+				for (int32_t i = 0; i < kNumParamsForPerformance; i++) {
+					if ((songParamsForPerformance[i].paramKind == firstPadPress.paramKind)
+					    && (songParamsForPerformance[i].paramID == firstPadPress.paramID)) {
+						memcpy(&layoutForPerformance[xDisplay].rowColour, &songParamsForPerformance[i].rowColour, 3);
+						memcpy(&layoutForPerformance[xDisplay].rowTailColour,
+						       &songParamsForPerformance[i].rowTailColour, 3);
+						break;
+					}
+				}
+			}
+			//if you have already assigned the same param to the FX column, pressing the column will remove it
+			else {
+				//remove any existing holds from the FX column before clearing param from column
+				resetFXColumn(modelStack, xDisplay);
+
+				//remove param from FX column
+				layoutForPerformance[xDisplay].paramKind = Param::Kind::NONE;
+				layoutForPerformance[xDisplay].paramID = kNoSelection;
+				layoutForPerformance[xDisplay].xDisplay = kNoSelection;
+				layoutForPerformance[xDisplay].yDisplay = kNoSelection;
+				layoutForPerformance[xDisplay].rowColour[0] = 0;
+				layoutForPerformance[xDisplay].rowColour[1] = 0;
+				layoutForPerformance[xDisplay].rowColour[2] = 0;
+				layoutForPerformance[xDisplay].rowTailColour[0] = 0;
+				layoutForPerformance[xDisplay].rowTailColour[1] = 0;
+				layoutForPerformance[xDisplay].rowTailColour[2] = 0;
+			}
+			anyChangesToSave = true;
+			indicator_leds::blinkLed(IndicatorLED::SAVE);
+		}
+	}
+	//releasing a pad
+	else {
+		if ((firstPadPress.xDisplay == xDisplay) && (firstPadPress.yDisplay == yDisplay)) {
+			firstPadPress.isActive = false;
+			firstPadPress.xDisplay = kNoSelection;
+			firstPadPress.yDisplay = kNoSelection;
+			firstPadPress.paramKind = Param::Kind::NONE;
+			firstPadPress.paramID = kNoSelection;
+			renderViewDisplay();
+		}
+	}
 }
 
 bool PerformanceSessionView::isPadShortcut(int32_t xDisplay, int32_t yDisplay) {
