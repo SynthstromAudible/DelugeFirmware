@@ -878,8 +878,9 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 
 	else if (b == LOAD) {
 		if (on) {
+			resetPerformanceView(modelStack);
 			readDefaultsFromFile();
-			//	display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_LOADED));
+			display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_LOADED));
 			indicator_leds::setLedState(IndicatorLED::SAVE, false);
 			renderViewDisplay();
 		}
@@ -1436,10 +1437,6 @@ void PerformanceSessionView::modButtonAction(uint8_t whichButton, bool on) {
 }
 
 void PerformanceSessionView::writeDefaultsToFile() {
-	if (!anyChangesToSave) {
-		return;
-	}
-
 	int32_t error = storageManager.createXMLFile(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_XML), true);
 	if (error) {
 		return;
@@ -1475,6 +1472,7 @@ void PerformanceSessionView::writeDefaultFXValuesToFile() {
 		storageManager.writeOpeningTagEnd();
 		writeDefaultFXParamToFile(xDisplay);
 		writeDefaultFXRowValuesToFile(xDisplay);
+		writeDefaultFXHoldStatusToFile(xDisplay);
 		storageManager.writeClosingTag(tagName);
 	}
 }
@@ -1507,6 +1505,28 @@ void PerformanceSessionView::writeDefaultFXRowValuesToFile(int32_t xDisplay) {
 		storageManager.writeTag(rowNumber, defaultFXValues[xDisplay][yDisplay] + kKnobPosOffset);
 	}
 	storageManager.writeClosingTag(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_ROW_TAG));
+}
+
+void PerformanceSessionView::writeDefaultFXHoldStatusToFile(int32_t xDisplay) {
+	storageManager.writeOpeningTagBeginning(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_HOLD_TAG));
+	storageManager.writeOpeningTagEnd();
+
+	if (padPressHeld[xDisplay]) {
+		storageManager.writeTag(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_HOLD_STATUS_TAG),
+		                        l10n::get(l10n::String::STRING_FOR_ON));
+		storageManager.writeTag(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_ROW_TAG),
+		                        previousPadPressYDisplay[xDisplay] + 1);
+		storageManager.writeTag(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_HOLD_RESETVALUE_TAG),
+		                        previousKnobPosition[xDisplay] + kKnobPosOffset);
+	}
+	else {
+		storageManager.writeTag(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_HOLD_STATUS_TAG),
+		                        l10n::get(l10n::String::STRING_FOR_OFF));
+		storageManager.writeTag(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_ROW_TAG), kNoSelection);
+		storageManager.writeTag(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_HOLD_RESETVALUE_TAG), kNoSelection);
+	}
+
+	storageManager.writeClosingTag(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_HOLD_TAG));
 }
 
 void PerformanceSessionView::readDefaultsFromFile() {

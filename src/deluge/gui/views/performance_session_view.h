@@ -125,6 +125,7 @@ private:
 	void writeDefaultFXValuesToFile();
 	void writeDefaultFXParamToFile(int32_t xDisplay);
 	void writeDefaultFXRowValuesToFile(int32_t xDisplay);
+	void writeDefaultFXHoldStatusToFile(int32_t xDisplay);
 	void loadDefaultLayout();
 	void readDefaultFXValuesFromFile();
 	void readDefaultFXParamAndRowValuesFromFile(int32_t xDisplay);
