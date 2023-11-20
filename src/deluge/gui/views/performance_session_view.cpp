@@ -1019,6 +1019,10 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 			}
 		}
 
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithThreeMainThings* modelStack =
+		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+
 		if (!editingParam) {
 			//obtain Param::Kind, ParamID corresponding to the column pressed on performance grid
 			Param::Kind lastSelectedParamKind = layoutForPerformance[xDisplay].paramKind; //kind;
@@ -1027,10 +1031,6 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 			if (lastSelectedParamID == kNoSelection) {
 				return ActionResult::DEALT_WITH;
 			}
-
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
-			ModelStackWithThreeMainThings* modelStack =
-			    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
 			//pressing a pad
 			if (on) {
@@ -1060,8 +1060,9 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 			else {
 				//if releasing a pad with "held" status shortly after being given that status
 				//or releasing a pad that was not in "held" status but was a longer press and release
-				if ((padPressHeld[xDisplay]
-				     && ((AudioEngine::audioSampleTimer - timeLastPadPress[xDisplay]) < kHoldTime))
+				if (isParamStutter(lastSelectedParamKind, lastSelectedParamID)
+				    || (padPressHeld[xDisplay]
+				        && ((AudioEngine::audioSampleTimer - timeLastPadPress[xDisplay]) < kHoldTime))
 				    || ((previousKnobPosition[xDisplay] != kNoSelection)
 				        && (previousPadPressYDisplay[xDisplay] == yDisplay)
 				        && ((AudioEngine::audioSampleTimer - timeLastPadPress[xDisplay]) >= kHoldTime))) {
@@ -1096,11 +1097,17 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 					    || (layoutForPerformance[xDisplay].paramID != firstPadPress.paramID)
 					    || (layoutForPerformance[xDisplay].xDisplay != firstPadPress.xDisplay)
 					    || (layoutForPerformance[xDisplay].yDisplay != firstPadPress.yDisplay)) {
+
+						//remove any existing holds from the FX column before assigning a new param
+						resetFXColumn(modelStack, xDisplay);
+
+						//assign new param to the FX column
 						layoutForPerformance[xDisplay].paramKind = firstPadPress.paramKind;
 						layoutForPerformance[xDisplay].paramID = firstPadPress.paramID;
 						layoutForPerformance[xDisplay].xDisplay = firstPadPress.xDisplay;
 						layoutForPerformance[xDisplay].yDisplay = firstPadPress.yDisplay;
 
+						//assign new colour to the FX column based on the new param assigned
 						for (int32_t i = 0; i < kNumParamsForPerformance; i++) {
 							if ((songParamsForPerformance[i].paramKind == firstPadPress.paramKind)
 							    && (songParamsForPerformance[i].paramID == firstPadPress.paramID)) {
@@ -1113,6 +1120,10 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 						}
 					}
 					else {
+						//remove any existing holds from the FX column before clearing param from column
+						resetFXColumn(modelStack, xDisplay);
+
+						//remove param from FX column
 						layoutForPerformance[xDisplay].paramKind = Param::Kind::NONE;
 						layoutForPerformance[xDisplay].paramID = kNoSelection;
 						layoutForPerformance[xDisplay].xDisplay = kNoSelection;
@@ -1155,11 +1166,8 @@ bool PerformanceSessionView::isPadShortcut(int32_t xDisplay, int32_t yDisplay) {
 
 void PerformanceSessionView::padPressAction(ModelStackWithThreeMainThings* modelStack, Param::Kind paramKind,
                                             int32_t paramID, int32_t xDisplay, int32_t yDisplay, bool renderDisplay) {
-	if (editingParam) {
-		return;
-	}
-	else if (setParameterValue(modelStack, paramKind, paramID, xDisplay, defaultFXValues[xDisplay][yDisplay],
-	                           renderDisplay)) {
+	if (setParameterValue(modelStack, paramKind, paramID, xDisplay, defaultFXValues[xDisplay][yDisplay],
+	                      renderDisplay)) {
 		//if pressing a new pad in a column, reset held status
 		padPressHeld[xDisplay] = false;
 
@@ -1183,11 +1191,7 @@ void PerformanceSessionView::padPressAction(ModelStackWithThreeMainThings* model
 
 void PerformanceSessionView::padReleaseAction(ModelStackWithThreeMainThings* modelStack, Param::Kind paramKind,
                                               int32_t paramID, int32_t xDisplay, bool renderDisplay) {
-	if (editingParam) {
-		return;
-	}
-	else if (setParameterValue(modelStack, paramKind, paramID, xDisplay, previousKnobPosition[xDisplay],
-	                           renderDisplay)) {
+	if (setParameterValue(modelStack, paramKind, paramID, xDisplay, previousKnobPosition[xDisplay], renderDisplay)) {
 		previousPadPressYDisplay[xDisplay] = kNoSelection;
 		previousKnobPosition[xDisplay] = kNoSelection;
 		currentKnobPosition[xDisplay] = kNoSelection;
@@ -1223,6 +1227,29 @@ void PerformanceSessionView::resetPerformanceView(ModelStackWithThreeMainThings*
 	}
 	renderViewDisplay();
 	uiNeedsRendering(this);
+}
+
+void PerformanceSessionView::resetFXColumn(ModelStackWithThreeMainThings* modelStack, int32_t xDisplay) {
+	if (padPressHeld[xDisplay]) {
+		//obtain Param::Kind and ParamID corresponding to the column in focus (xDisplay)
+		Param::Kind lastSelectedParamKind = layoutForPerformance[xDisplay].paramKind; //kind;
+		int32_t lastSelectedParamID = layoutForPerformance[xDisplay].paramID;
+
+		if (lastSelectedParamID != kNoSelection) {
+			padReleaseAction(modelStack, lastSelectedParamKind, lastSelectedParamID, xDisplay, false);
+		}
+
+		if (!editingParam) {
+			uiNeedsRendering(this);
+		}
+	}
+}
+
+bool PerformanceSessionView::isParamStutter(Param::Kind paramKind, int32_t paramID) {
+	if ((paramKind == Param::Kind::UNPATCHED) && (paramID == Param::Unpatched::STUTTER_RATE)) {
+		return true;
+	}
+	return false;
 }
 
 void PerformanceSessionView::releaseStutter(ModelStackWithThreeMainThings* modelStack) {
@@ -1697,8 +1724,10 @@ void PerformanceSessionView::readDefaultFXHoldStatusFromFile(int32_t xDisplay) {
 		if (!strcmp(tagName, STRING_FOR_PERFORM_DEFAULTS_HOLD_STATUS_TAG)) {
 			char const* holdStatus = storageManager.readTagOrAttributeValue();
 			if (!strcmp(holdStatus, l10n::get(l10n::String::STRING_FOR_ON))) {
-				padPressHeld[xDisplay] = true;
-				timeLastPadPress[xDisplay] = AudioEngine::audioSampleTimer;
+				if (!isParamStutter(layoutForPerformance[xDisplay].paramKind, layoutForPerformance[xDisplay].paramID)) {
+					padPressHeld[xDisplay] = true;
+					timeLastPadPress[xDisplay] = AudioEngine::audioSampleTimer;
+				}
 			}
 		}
 		if (padPressHeld[xDisplay]) {

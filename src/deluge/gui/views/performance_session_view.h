@@ -118,10 +118,12 @@ private:
 	void padReleaseAction(ModelStackWithThreeMainThings* modelStack, Param::Kind paramKind, int32_t paramID,
 	                      int32_t xDisplay, bool renderDisplay = true);
 	void resetPerformanceView(ModelStackWithThreeMainThings* modelStack);
+	void resetFXColumn(ModelStackWithThreeMainThings* modelStack, int32_t xDisplay);
+	bool isParamStutter(Param::Kind paramKind, int32_t paramID);
 	void releaseStutter(ModelStackWithThreeMainThings* modelStack);
 
 	//write/load default values
-	
+
 	void writeDefaultFXValuesToFile();
 	void writeDefaultFXParamToFile(int32_t xDisplay);
 	void writeDefaultFXRowValuesToFile(int32_t xDisplay);
