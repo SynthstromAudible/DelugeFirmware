@@ -32,7 +32,7 @@ public:
 	void setup(q31_t attack, q31_t release, q31_t threshold, q31_t ratio, q31_t sidechain_fc);
 
 	void render(StereoSample* buffer, uint16_t numSamples, q31_t volAdjustL, q31_t volAdjustR);
-	float runEnvelope(float in, float numSamples);
+	float runEnvelope(float current, float desired, float numSamples);
 	//attack/release in range 0 to 2^31
 	inline q31_t getAttack() { return attackKnobPos; }
 	inline int32_t getAttackMS() { return attackMS; }
@@ -56,7 +56,6 @@ public:
 	void setThreshold(q31_t t) {
 		thresholdKnobPos = t;
 		threshold = 1 - 0.8 * (float(thresholdKnobPos) / ONE_Q31f);
-		updateER();
 	}
 	q31_t getRatio() { return ratioKnobPos; }
 	int32_t setRatio(q31_t rat) {
@@ -77,7 +76,7 @@ public:
 		return fc_hz;
 	}
 
-	void updateER();
+	void updateER(float numSamples);
 	float calc_rms(StereoSample* buffer, uint16_t numSamples);
 	uint8_t gainReduction;
 
