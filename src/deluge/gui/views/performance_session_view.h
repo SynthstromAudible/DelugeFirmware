@@ -38,6 +38,14 @@ struct PadPress {
 	int32_t paramID;
 };
 
+struct FXColumnPress {
+	int32_t previousKnobPosition;
+	int32_t currentKnobPosition;
+	int32_t yDisplay;
+	uint32_t timeLastPadPress;
+	bool padPressHeld;
+};
+
 struct ParamsForPerformance {
 	Param::Kind paramKind;
 	ParamType paramID;
@@ -145,14 +153,10 @@ private:
 	int32_t calculateKnobPosForSinglePadPress(int32_t yDisplay);
 	int32_t calculateKnobPosForSelectEncoderTurn(int32_t knobPos, int32_t offset);
 
-	int32_t currentKnobPosition[kDisplayWidth];
-	int32_t previousKnobPosition[kDisplayWidth];
-	int32_t previousPadPressYDisplay[kDisplayWidth];
-	uint32_t timeLastPadPress[kDisplayWidth];
-	bool padPressHeld[kDisplayWidth];
 	int32_t defaultFXValues[kDisplayWidth][kDisplayHeight];
 	PadPress firstPadPress;
 	PadPress lastPadPress;
+	FXColumnPress FXPress[kDisplayWidth];
 	ParamsForPerformance layoutForPerformance[kDisplayWidth];
 	int32_t layoutBank;    //A or B (assign a layout to the bank for cross fader action)
 	int32_t layoutVariant; //1, 2, 3, 4, 5 (1 = Load, 2 = Synth, 3 = Kit, 4 = Midi, 5 = CV)
