@@ -103,13 +103,13 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t v
 	rms = calc_rms(buffer, numSamples);
 }
 
-float MasterCompressor::runEnvelope(float state, float in, float numSamples) {
+float MasterCompressor::runEnvelope(float current, float desired, float numSamples) {
 	float s;
-	if (in > state) {
-		s = in + exp(a_ * numSamples) * (state - in);
+	if (desired > current) {
+		s = desired + exp(a_ * numSamples) * (current - desired);
 	}
 	else {
-		s = in + exp(r_ * numSamples) * (state - in);
+		s = desired + exp(r_ * numSamples) * (current - desired);
 	}
 	return s;
 }

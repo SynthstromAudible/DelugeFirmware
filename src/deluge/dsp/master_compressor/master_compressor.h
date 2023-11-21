@@ -32,7 +32,7 @@ public:
 	void setup(q31_t attack, q31_t release, q31_t threshold, q31_t ratio, q31_t sidechain_fc);
 
 	void render(StereoSample* buffer, uint16_t numSamples, q31_t volAdjustL, q31_t volAdjustR);
-	float runEnvelope(float state, float in, float numSamples);
+	float runEnvelope(float current, float desired, float numSamples);
 	//attack/release in range 0 to 2^31
 	inline q31_t getAttack() { return attackKnobPos; }
 	inline int32_t getAttackMS() { return attackMS; }
