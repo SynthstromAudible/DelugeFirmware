@@ -603,8 +603,6 @@ startAgain:
 			}
 		}
 	}
-	//TODO: this causes problems when the update rate (BPM/60)*resolution needs updates more often than once per 16 samples
-	//not having this increases the number of audible clicks
 
 	//this sets a floor on the number of samples at 16, avoiding the audio DMA catching up to the
 	//output when cutting rendering short for clock at critical times
