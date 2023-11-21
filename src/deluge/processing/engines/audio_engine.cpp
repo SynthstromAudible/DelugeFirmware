@@ -603,13 +603,16 @@ startAgain:
 			}
 		}
 	}
+	//TODO: this causes problems when the update rate (BPM/60)*resolution needs updates more often than once per 16 samples
+	//not having this increases the number of audible clicks
+
 	//this sets a floor on the number of samples at 16, avoiding the audio DMA catching up to the
 	//output when cutting rendering short for clock at critical times
 	//the max error is 0.3ms. At 100bpm 24ppq it is 25ms per pulse
 	//this works out to a 1% error in the absolute worse case of alternating
 	//no extension and max extension, approximately 10x better than average usb midi accuracy.
-	int32_t minSamples = std::min<int32_t>(unadjustedNumSamplesBeforeLappingPlayHead, MINSAMPLES);
-	numSamples = std::max<int32_t>(numSamples, minSamples);
+	//int32_t minSamples = std::min<int32_t>(unadjustedNumSamplesBeforeLappingPlayHead, MINSAMPLES);
+	//numSamples = std::max<int32_t>(numSamples, minSamples);
 	numSamplesLastTime = numSamples;
 	memset(&renderingBuffer, 0, numSamples * sizeof(StereoSample));
 
