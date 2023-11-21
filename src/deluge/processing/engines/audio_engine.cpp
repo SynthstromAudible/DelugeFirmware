@@ -610,7 +610,9 @@ startAgain:
 	//this works out to a 1% error in the absolute worse case of alternating
 	//no extension and max extension, approximately 10x better than average usb midi accuracy.
 	int32_t minSamples = std::min<int32_t>(unadjustedNumSamplesBeforeLappingPlayHead, MINSAMPLES);
-	minSamples = std::min<int32_t>(minSamples, currentSong->timePerTimerTickBig >> 32);
+	if (currentSong) {
+		minSamples = std::min<int32_t>(minSamples, currentSong->timePerTimerTickBig >> 32);
+	}
 	numSamples = std::max<int32_t>(numSamples, minSamples);
 	numSamplesLastTime = numSamples;
 	memset(&renderingBuffer, 0, numSamples * sizeof(StereoSample));
