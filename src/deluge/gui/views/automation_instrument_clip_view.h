@@ -174,7 +174,6 @@ private:
 	                                   int32_t xDisplay = kNoSelection, bool modEncoderAction = false);
 
 	int32_t calculateKnobPosForModEncoderTurn(int32_t knobPos, int32_t offset);
-	int32_t calculateKnobPosForDisplay(InstrumentClip* clip, int32_t knobPos);
 	void displayCVErrorMessage();
 	void resetShortcutBlinking();
 

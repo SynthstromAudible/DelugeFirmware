@@ -815,8 +815,8 @@ void AutomationInstrumentClipView::renderDisplay(int32_t knobPosLeft, int32_t kn
 
 	//if you're not in a MIDI instrument clip, convert the knobPos to the same range as the menu (0-50)
 	if (instrument->type != InstrumentType::MIDI_OUT) {
-		knobPosLeft = calculateKnobPosForDisplay(clip, knobPosLeft);
-		knobPosRight = calculateKnobPosForDisplay(clip, knobPosRight);
+		knobPosLeft = view.calculateKnobPosForDisplay(instrument->type, clip->lastSelectedParamID, knobPosLeft);
+		knobPosRight = view.calculateKnobPosForDisplay(instrument->type, clip->lastSelectedParamID, knobPosRight);
 	}
 
 	//OLED Display
@@ -1014,20 +1014,6 @@ void AutomationInstrumentClipView::getParameterName(InstrumentClip* clip, Instru
 			}
 		}
 	}
-}
-
-//for non-MIDI instruments, convert deluge internal knobPos range to same range as used by menu's.
-int32_t AutomationInstrumentClipView::calculateKnobPosForDisplay(InstrumentClip* clip, int32_t knobPos) {
-	int32_t offset = 0;
-
-	//if the parameter is pan, convert knobPos from 0 - 50 to -25 to +25
-	if ((clip->lastSelectedParamID == Param::Local::PAN)
-	    || (clip->lastSelectedParamID == Param::Unpatched::GlobalEffectable::PAN)) {
-		offset = kMaxMenuPanValue;
-	}
-
-	//convert knobPos from 0 - 128 to 0 - 50
-	return (((((knobPos << 20) / kMaxKnobPos) * kMaxMenuValue) >> 20) - offset);
 }
 
 //adjust the LED meters and update the display
