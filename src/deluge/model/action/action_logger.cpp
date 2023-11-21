@@ -59,7 +59,7 @@ void ActionLogger::deleteLastActionIfEmpty() {
 	if (firstAction[BEFORE]) {
 
 		// There are probably more cases where we might want to do this, but I've only done it for recording so far
-		if (firstAction[BEFORE]->type == ACTION_RECORD && !firstAction[BEFORE]->firstConsequence) {
+		while (!firstAction[BEFORE]->firstConsequence) {
 
 			deleteLastAction();
 		}
