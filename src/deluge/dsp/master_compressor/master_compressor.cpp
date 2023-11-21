@@ -33,7 +33,7 @@ MasterCompressor::MasterCompressor() {
 
 	currentVolumeL = 0;
 	currentVolumeR = 0;
-
+	er = 0;
 	setSidechain(sideChainKnobPos);
 }
 //16 is ln(1<<24) - 1, i.e. where we start clipping
