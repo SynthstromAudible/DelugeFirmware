@@ -714,6 +714,10 @@ enum class String : size_t {
 	STRING_FOR_PAD_SELECTION_OFF,
 	STRING_FOR_PAD_SELECTION_ON,
 
+	/* Strings for Snake View*/
+
+	STRING_FOR_SNAKE_VIEW,
+
 	STRING_LAST
 };
 
