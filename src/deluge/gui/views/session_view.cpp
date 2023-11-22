@@ -375,7 +375,7 @@ moveAfterClipInstance:
 
 		else {
 			if (isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
-				if(currentSong->sessionLayout != SessionLayoutType::SessionLayoutTypeGrid) {
+				if (currentSong->sessionLayout != SessionLayoutType::SessionLayoutTypeGrid) {
 					display->cancelPopup();
 				}
 				exitUIMode(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON);
