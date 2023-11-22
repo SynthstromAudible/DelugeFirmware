@@ -343,7 +343,7 @@ extern uint16_t g_usb_usbmode;
 
 Debug::AverageDT aeCtr("audio", Debug::mS);
 Debug::AverageDT rvb("reverb", Debug::uS);
-
+uint8_t numRoutines = 0;
 void routine() {
 	aeCtr.note();
 	logAction("AudioDriver::routine");
@@ -505,8 +505,8 @@ void routine() {
 			}
 		}
 	}
-	bypassCulling = false;
 
+	bool shortenedWindow = false;
 	// Double the number of samples we're going to do - within some constraints
 	int32_t sampleThreshold = 6; // If too low, it'll lead to bigger audio windows and stuff
 	constexpr int32_t maxAdjustedNumSamples = 0.66 * SSI_TX_BUFFER_NUM_SAMPLES;
@@ -577,6 +577,7 @@ startAgain:
 		// If the tick is during this window, shorten the window so we stop right at the tick
 		if (timeTilNextTick < numSamples) {
 			numSamples = timeTilNextTick;
+			shortenedWindow = true;
 		}
 
 		// And now we know how long the window's definitely going to be, see if we want to do any trigger clock or MIDI clock out ticks during it
@@ -606,16 +607,16 @@ startAgain:
 		}
 	}
 
-	//this sets a floor on the number of samples at 16, avoiding the audio DMA catching up to the
-	//output when cutting rendering short for clock at critical times
-	//the max error is 0.3ms. At 100bpm 24ppq it is 25ms per pulse
-	//this works out to a 1% error in the absolute worse case of alternating
-	//no extension and max extension, approximately 10x better than average usb midi accuracy.
-	int32_t minSamples = std::min<int32_t>(unadjustedNumSamplesBeforeLappingPlayHead, MINSAMPLES);
-	if (currentSong) {
-		minSamples = std::min<int32_t>(minSamples, currentSong->timePerTimerTickBig >> 32);
-	}
-	numSamples = std::max<int32_t>(numSamples, minSamples);
+	// //this sets a floor on the number of samples at 16, avoiding the audio DMA catching up to the
+	// //output when cutting rendering short for clock at critical times
+	// //the max error is 0.3ms. At 100bpm 24ppq it is 25ms per pulse
+	// //this works out to a 1% error in the absolute worse case of alternating
+	// //no extension and max extension, approximately 10x better than average usb midi accuracy.
+	// int32_t minSamples = std::min<int32_t>(unadjustedNumSamplesBeforeLappingPlayHead, MINSAMPLES);
+	// if (currentSong) {
+	// 	minSamples = std::min<int32_t>(minSamples, currentSong->timePerTimerTickBig >> 32);
+	// }
+	// numSamples = std::max<int32_t>(numSamples, minSamples);
 	numSamplesLastTime = numSamples;
 	memset(&renderingBuffer, 0, numSamples * sizeof(StereoSample));
 
@@ -915,7 +916,20 @@ startAgain:
 
 	sideChainHitPending = 0;
 	audioSampleTimer += numSamples;
-
+	//If we shorten the window we need to render again immediately - otherwise
+	//we'll get a click at high CPU loads, and hard cull when we could soft cull
+	//this is basically so that we don't click at normal tempos and still
+	//let Ron go to 10 000 BPM and then play wildly with the tempo knob for
+	//whatever reason
+	if (shortenedWindow) {
+		if (numRoutines < 5) {
+			numRoutines += 1;
+			//this seems to get tail call optimized
+			routine();
+		}
+	}
+	numRoutines = 0;
+	bypassCulling = false;
 	audioRoutineLocked = false;
 }
 
