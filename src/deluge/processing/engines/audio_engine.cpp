@@ -914,10 +914,17 @@ startAgain:
 
 	sideChainHitPending = 0;
 	audioSampleTimer += numSamples;
-
-	if (shortenedWindow && (numRoutines < 5)) {
-		numRoutines += 1;
-		routine();
+	//If we shorten the window we need to render again immediately - otherwise
+	//we'll get a click at high CPU loads, and hard cull when we could soft cull
+	//this is basically so that we don't click at normal tempos and still
+	//let Ron go to 10 000 BPM and then play wildly with the tempo knob for
+	//whatever reason
+	if (shortenedWindow) {
+		if (numRoutines < 5) {
+			numRoutines += 1;
+			//this seems to get tail call optimized
+			routine();
+		}
 	}
 	numRoutines = 0;
 	audioRoutineLocked = false;
