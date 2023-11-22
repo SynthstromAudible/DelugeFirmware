@@ -35,6 +35,7 @@
 #include "model/consequence/consequence_clip_begin_linear_record.h"
 #include "model/consequence/consequence_note_array_change.h"
 #include "model/consequence/consequence_param_change.h"
+#include "model/consequence/consequence_performance_layout_change.h"
 #include "model/consequence/consequence_swing_change.h"
 #include "model/consequence/consequence_tempo_change.h"
 #include "model/drum/kit.h"
@@ -295,6 +296,34 @@ void ActionLogger::recordTempoChange(uint64_t timePerBigBefore, uint64_t timePer
 			    new (consMemory) ConsequenceTempoChange(timePerBigBefore, timePerBigAfter);
 			action->addConsequence(newConsequence);
 		}
+	}
+}
+
+//record changes to the layout in Performance View so that you can undo changes
+//changes that can be undone:
+//1) loading a new layout
+//2) setting a pad to "hold"
+//3) value editor: changing pad values
+//4) param editor: changing FX assignments to pads
+void ActionLogger::recordPerformanceLayoutChange(PadPress(*padPressBefore), PadPress(*padPressAfter),
+                                                 FXColumnPress(*FXPressBefore), FXColumnPress(*FXPressAfter),
+                                                 ParamsForPerformance(*layoutBefore),
+                                                 ParamsForPerformance(*layoutAfter), int32_t valuesBefore[kDisplayWidth][kDisplayHeight],
+                                                 int32_t valuesAfter[kDisplayWidth][kDisplayHeight], bool changesBefore, bool changesAfter) {
+
+	Action* action = getNewAction(ACTION_PARAM_UNAUTOMATED_VALUE_CHANGE, true);
+
+	if (!action) {
+		return;
+	}
+
+	void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequencePerformanceLayoutChange));
+
+	if (consMemory) {
+		ConsequencePerformanceLayoutChange* newConsequence = new (consMemory)
+		    ConsequencePerformanceLayoutChange(padPressBefore, padPressAfter, FXPressBefore, FXPressAfter, layoutBefore,
+		                                       layoutAfter, valuesBefore, valuesAfter, changesBefore, changesAfter);
+		action->addConsequence(newConsequence);
 	}
 }
 

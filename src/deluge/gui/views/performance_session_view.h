@@ -55,6 +55,10 @@ struct ParamsForPerformance {
 	uint8_t rowTailColour[3];
 };
 
+const int32_t sizePadPress = sizeof(PadPress);
+const int32_t sizeFXPress = sizeof(FXColumnPress);
+const int32_t sizeParamsForPerformance = sizeof(ParamsForPerformance);
+
 class PerformanceSessionView final : public ClipNavigationTimelineView, public GlobalEffectable {
 public:
 	PerformanceSessionView();
@@ -99,12 +103,23 @@ public:
 	uint32_t getMaxZoom();
 	uint32_t getMaxLength();
 
-	//public so soundEditor can access them
+	//public so soundEditor and Action Logger can access them
+	bool anyChangesToSave;
 	bool defaultEditingMode;
 	bool editingParam; //if you're not editing a param, you're editing a value
 	void writeDefaultsToFile();
+	PadPress lastPadPress;
+	FXColumnPress FXPress[kDisplayWidth];
+	ParamsForPerformance layoutForPerformance[kDisplayWidth];
+	int32_t defaultFXValues[kDisplayWidth][kDisplayHeight];
 
 private:
+	//initialize
+	void initPadPress(PadPress(*padPress));
+	void initFXPress(FXColumnPress(*columnPress));
+	void initLayout(ParamsForPerformance(*layout));
+	void initDefaultFXValues(int32_t xDisplay);
+
 	//rendering
 	void performActualRender(uint32_t whichRows, uint8_t* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
 	                         int32_t xScroll, uint32_t xZoom, int32_t renderWidth, int32_t imageWidth,
@@ -147,19 +162,23 @@ private:
 	void readDefaultFXRowNumberValuesFromFile(int32_t xDisplay);
 	void readDefaultFXHoldStatusFromFile(int32_t xDisplay);
 	bool successfullyReadDefaultsFromFile;
-	bool anyChangesToSave;
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithThreeMainThings* modelStack, int32_t paramID);
 	int32_t calculateKnobPosForSinglePadPress(int32_t yDisplay);
 	int32_t calculateKnobPosForSelectEncoderTurn(int32_t knobPos, int32_t offset);
 
-	int32_t defaultFXValues[kDisplayWidth][kDisplayHeight];
 	PadPress firstPadPress;
-	PadPress lastPadPress;
-	FXColumnPress FXPress[kDisplayWidth];
-	ParamsForPerformance layoutForPerformance[kDisplayWidth];
 	int32_t layoutBank;    //A or B (assign a layout to the bank for cross fader action)
 	int32_t layoutVariant; //1, 2, 3, 4, 5 (1 = Load, 2 = Synth, 3 = Kit, 4 = Midi, 5 = CV)
+
+	//backup layout
+	void backupPerformanceLayout();
+	void logPerformanceLayoutChange();
+	PadPress backupLastPadPress;
+	FXColumnPress backupFXPress[kDisplayWidth];
+	ParamsForPerformance backupLayoutForPerformance[kDisplayWidth];
+	int32_t backupDefaultFXValues[kDisplayWidth][kDisplayHeight];
+	bool backupAnyChangesToSave;
 
 	// Members regarding rendering different layouts
 private:

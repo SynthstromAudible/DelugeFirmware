@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/views/performance_session_view.h"
 #include "model/action/action.h"
 #include <cstdint>
 
@@ -37,6 +38,11 @@ public:
 	                                  int32_t actionType = ACTION_PARAM_UNAUTOMATED_VALUE_CHANGE);
 	void recordSwingChange(int8_t swingBefore, int8_t swingAfter);
 	void recordTempoChange(uint64_t timePerBigBefore, uint64_t timePerBigAfter);
+	void recordPerformanceLayoutChange(PadPress(*padPressBefore), PadPress(*padPressAfter),
+	                                   FXColumnPress(*FXPressBefore), FXColumnPress(*FXPressAfter),
+	                                   ParamsForPerformance(*layoutBefore), ParamsForPerformance(*layoutAfter),
+	                                   int32_t valuesBefore[kDisplayWidth][kDisplayHeight], int32_t valuesAfter[kDisplayWidth][kDisplayHeight], bool changesBefore,
+	                                   bool changesAfter);
 	void closeAction(int32_t actionType);
 	void closeActionUnlessCreatedJustNow(int32_t actionType);
 	void deleteAllLogs();
