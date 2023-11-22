@@ -504,7 +504,7 @@ void routine() {
 			}
 		}
 	}
-	bypassCulling = false;
+
 	bool shortenedWindow = false;
 	// Double the number of samples we're going to do - within some constraints
 	int32_t sampleThreshold = 6; // If too low, it'll lead to bigger audio windows and stuff
@@ -927,6 +927,7 @@ startAgain:
 		}
 	}
 	numRoutines = 0;
+	bypassCulling = false;
 	audioRoutineLocked = false;
 }
 
