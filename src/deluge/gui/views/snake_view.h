@@ -21,6 +21,15 @@
 #include "gui/views/clip_navigation_timeline_view.h"
 #include "hid/button.h"
 
+class ModelStack;
+class ModelStackWithThreeMainThings;
+class ModelStackWithAutoParam;
+
+struct SnakeCoord {
+	int32_t xDisplay;
+	int32_t yDisplay;
+};
+
 class SnakeView final : public ClipNavigationTimelineView {
 public:
 	SnakeView();
@@ -73,8 +82,14 @@ private:
 	void renderRow(uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
 	void setCentralLEDStates();
 
-	// Members regarding rendering different layouts
-private:
+	SnakeCoord snakeHead;
+	SnakeCoord snakeTail;
+
+	int32_t snakeGrid[kDisplayWidth][kDisplayHeight];
+	int32_t snakeDirection; //0 = left, 1 = right, 2 = up, 3 = down
+	int32_t rowTickSquarePrevious;
+	int32_t rowTickOffset;
+	bool snakeDied;
 };
 
 extern SnakeView snakeView;

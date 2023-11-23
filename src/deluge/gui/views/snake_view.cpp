@@ -68,7 +68,19 @@ SnakeView snakeView{};
 
 //initialize variables
 SnakeView::SnakeView() {
-	return;
+	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+		for(int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+			snakeGrid[xDisplay][yDisplay] = 0;
+		}
+ 	}
+	snakeDirection = 1;
+	snakeHead.xDisplay = 0;
+	snakeHead.yDisplay = 0;
+	snakeTail.xDisplay = 0;
+	snakeTail.yDisplay = 0;
+	rowTickSquarePrevious = kNoSelection;
+	rowTickOffset = kNoSelection;
+	snakeDied = false;
 }
 
 bool SnakeView::opened() {
@@ -84,8 +96,11 @@ bool SnakeView::opened() {
 void SnakeView::focusRegained() {
 	bool doingRender = (currentUIMode != UI_MODE_ANIMATION_FADE);
 
+	currentSong->affectEntire = true;
+
 	ClipNavigationTimelineView::focusRegained();
 	view.focusRegained();
+	view.setActiveModControllableTimelineCounter(currentSong);
 
 	setCentralLEDStates();
 	setLedStates();
@@ -98,7 +113,74 @@ void SnakeView::focusRegained() {
 }
 
 void SnakeView::graphicsRoutine() {
-	return;
+
+	uint8_t tickSquares[kDisplayHeight];
+	uint8_t colours[kDisplayHeight];
+
+	// Nothing to do here but clear since we don't render playhead
+	memset(&tickSquares, 255, sizeof(tickSquares));
+	memset(&colours, 255, sizeof(colours));
+	PadLEDs::setTickSquares(tickSquares, colours);
+
+	if (playbackHandler.isEitherClockActive()) {
+		int32_t rowTickSquareNew = getSquareFromPos(currentSong->getLivePos());
+
+		if (rowTickSquarePrevious == kNoSelection) {
+			rowTickSquarePrevious = rowTickSquareNew;
+		}
+
+		if (rowTickOffset == kNoSelection) {
+			rowTickOffset = 0;
+		}
+		else if (rowTickOffset == 0) {
+			rowTickOffset = rowTickSquareNew - rowTickSquarePrevious;
+		}
+		else {
+			rowTickOffset = 0;
+			rowTickSquarePrevious = kNoSelection;
+		}
+		
+		if (rowTickOffset > 0) {
+			if (snakeDirection == 0) { //left
+				if ((snakeHead.xDisplay - rowTickOffset) >= 0) {
+					snakeHead.xDisplay = snakeHead.xDisplay - rowTickOffset;
+					snakeDied = false;
+				}
+				else {
+					snakeDied = true;
+				}
+			}
+			else if (snakeDirection == 1) { //right
+				if ((snakeHead.xDisplay + rowTickOffset) < kDisplayWidth) {
+					snakeHead.xDisplay = snakeHead.xDisplay + rowTickOffset;
+					snakeDied = false;
+				}
+				else {
+					snakeDied = true;
+				}
+			}
+			else if (snakeDirection == 2) { //up
+				if ((snakeHead.yDisplay + rowTickOffset) < kDisplayHeight) {
+					snakeHead.yDisplay = snakeHead.yDisplay + rowTickOffset;
+					snakeDied = false;
+				}
+				else {
+					snakeDied = true;
+				}
+			}
+			else if (snakeDirection == 3) { //down
+				if ((snakeHead.yDisplay - rowTickOffset) >= 0) {
+					snakeHead.yDisplay = snakeHead.yDisplay - rowTickOffset;
+					snakeDied = false;
+				}
+				else {
+					snakeDied = true;
+				}
+			}
+
+			uiNeedsRendering(this);
+		}	
+	}
 }
 
 ActionResult SnakeView::timerCallback() {
@@ -149,6 +231,22 @@ void SnakeView::performActualRender(uint32_t whichRows, uint8_t* image,
 //it worked for the most part, but there was bugs so I removed the buggy code and inserted my alternative rendering method
 //which always works. hoping to bring back the other code once I've worked out the bugs.
 void SnakeView::renderRow(uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay) {
+	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+		uint8_t* pixel = image + (xDisplay * 3);
+
+		if (snakeDied) {
+			pixel[0] = 255;
+			pixel[1] = 0;
+			pixel[2] = 0;			
+		}
+		else if ((snakeHead.xDisplay == xDisplay) && (snakeHead.yDisplay == yDisplay)) {
+			pixel[0] = 130;
+			pixel[1] = 120;
+			pixel[2] = 130;
+		}
+		occupancyMask[xDisplay] = 64;
+
+	}
 	return;
 }
 
@@ -234,8 +332,22 @@ doNothing:
 
 ActionResult SnakeView::padAction(int32_t xDisplay, int32_t yDisplay, int32_t on) {
 	//if pad was pressed in main deluge grid (not sidebar)
-	//	if (xDisplay < kDisplayWidth) {
-	//	}
+	if (xDisplay < kDisplayWidth) {
+		if (on) {
+			if (xDisplay > snakeHead.xDisplay) {
+				snakeDirection = 1;
+			}
+			else if (xDisplay < snakeHead.xDisplay) {
+				snakeDirection = 0;
+			}
+			else if (yDisplay > snakeHead.yDisplay) {
+				snakeDirection = 2;
+			}
+			else if (yDisplay < snakeHead.yDisplay) {
+				snakeDirection = 3;
+			}
+		}
+	}
 	return ActionResult::DEALT_WITH;
 }
 
