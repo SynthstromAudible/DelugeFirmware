@@ -399,11 +399,15 @@ using ParamType = uint8_t;
 namespace Param {
 
 enum Kind : int32_t {
-	PATCHED,
-	UNPATCHED,
-	GLOBAL_EFFECTABLE,
-
 	NONE,
+
+	PATCHED,
+	UNPATCHED_SOUND,
+	UNPATCHED_GLOBAL,
+	STATIC,
+	MIDI,
+	PATCH_CABLE,
+	EXPRESSION,
 };
 
 namespace Local {

@@ -164,6 +164,8 @@ void Sound::initParams(ParamManager* paramManager) {
 	ModControllableAudio::initParams(paramManager);
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
+	unpatchedParams->kind = Param::Kind::UNPATCHED_SOUND;
+
 	unpatchedParams->params[Param::Unpatched::Sound::ARP_GATE].setCurrentValueBasicForSetup(0);
 	unpatchedParams->params[Param::Unpatched::MOD_FX_FEEDBACK].setCurrentValueBasicForSetup(0);
 	unpatchedParams->params[Param::Unpatched::Sound::PORTAMENTO].setCurrentValueBasicForSetup(-2147483648);
