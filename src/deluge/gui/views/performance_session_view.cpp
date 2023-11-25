@@ -1081,10 +1081,9 @@ void PerformanceSessionView::normalPadAction(ModelStackWithThreeMainThings* mode
 
 	//pressing a pad
 	if (on) {
+		backupPerformanceLayout();
 		//no need to pad press action if you've already processed it previously and pad was held
 		if (FXPress[xDisplay].yDisplay != yDisplay) {
-			backupPerformanceLayout();
-
 			//check if there a previously held press for this parameter in another column and disable it
 			//also transfer the previous value for that held pad to this new pad column press
 			for (int32_t i = 0; i < kDisplayWidth; i++) {
