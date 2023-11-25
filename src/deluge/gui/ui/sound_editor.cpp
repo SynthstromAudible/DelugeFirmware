@@ -9,6 +9,7 @@
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/rename/rename_drum_ui.h"
+#include "gui/ui/rename/rename_output_ui.h"
 #include "gui/ui/sample_marker_editor.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
 #include "gui/ui_timer_manager.h"
@@ -730,7 +731,17 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 		// AudioClips - there are just a few shortcuts
 		if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
 
-			if (x <= 14) {
+			// NAME shortcut
+			if (x == 11 && y == 5) {
+				// Renames the output (track), not the clip
+				Output* output = currentSong->currentClip->output;
+				if (output) {
+					renameOutputUI.output = output;
+					openUI(&renameOutputUI);
+					return ActionResult::DEALT_WITH;
+				}
+			}
+			else if (x <= 14) {
 				item = paramShortcutsForAudioClips[x][y];
 			}
 
