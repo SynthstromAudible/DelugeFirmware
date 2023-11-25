@@ -635,6 +635,11 @@ unpatched_param::Pan audioClipPanMenu{STRING_FOR_PAN, ::Param::Unpatched::Global
 
 //Song View Menu
 
+//Volume Menu
+
+UnpatchedParam globalFXLevelMenu{STRING_FOR_VOLUME_LEVEL, ::Param::Unpatched::GlobalEffectable::VOLUME};
+unpatched_param::Pan globalFXPanMenu{STRING_FOR_PAN, ::Param::Unpatched::GlobalEffectable::PAN};
+
 // LPF Menu
 UnpatchedParam globalFXLPFFreqMenu{STRING_FOR_FREQUENCY, STRING_FOR_LPF_FREQUENCY,
                                    ::Param::Unpatched::GlobalEffectable::LPF_FREQ};
@@ -1086,6 +1091,8 @@ menu_item::Submenu soundEditorRootMenuPerformanceView{
     STRING_FOR_PERFORM_FX,
     {
         &performEditorMenu,
+        &globalFXLevelMenu,
+        &globalFXPanMenu,
         &songLPFMenu,
         &songHPFMenu,
         &songEQMenu,
@@ -1098,11 +1105,11 @@ menu_item::Submenu soundEditorRootMenuPerformanceView{
 };
 
 //Root menu for Song View
-
-//Root menu for Performance View
 menu_item::Submenu soundEditorRootMenuSongView{
     STRING_FOR_SONG_FX,
     {
+        &globalFXLevelMenu,
+        &globalFXPanMenu,
         &songLPFMenu,
         &songHPFMenu,
         &songEQMenu,
@@ -1180,7 +1187,7 @@ MenuItem* paramShortcutsForSongView[][8] = {
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  &songStutterRateMenu               },
-    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              &srrMenu,               &bitcrushMenu,            nullptr                            },
+    {&globalFXLevelMenu,      nullptr,                 nullptr,                        &globalFXPanMenu,               nullptr,              &srrMenu,               &bitcrushMenu,            nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              &lpfModeMenu,           &globalFXLPFResMenu,      &globalFXLPFFreqMenu               },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              &hpfModeMenu,           &globalFXHPFResMenu,      &globalFXHPFFreqMenu               },
