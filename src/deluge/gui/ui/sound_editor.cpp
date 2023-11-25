@@ -170,6 +170,10 @@ bool SoundEditor::opened() {
 
 	setLedStates();
 
+	if (getRootUI() == &performanceSessionView) {
+		performanceSessionView.updateLayoutChangeStatus();
+	}	
+
 	return true;
 }
 
@@ -200,6 +204,7 @@ void SoundEditor::focusRegained() {
 		else {
 			indicator_leds::setLedState(IndicatorLED::KEYBOARD, true);
 		}
+		performanceSessionView.updateLayoutChangeStatus();
 	}
 }
 
@@ -399,9 +404,11 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 				keyboardScreen.openedInBackground();
 			}
 
-			PadLEDs::reassessGreyout(true);
+			if (getRootUI() != &performanceSessionView) {
+				PadLEDs::reassessGreyout(true);
 
-			indicator_leds::setLedState(IndicatorLED::KEYBOARD, getRootUI() == &keyboardScreen);
+				indicator_leds::setLedState(IndicatorLED::KEYBOARD, getRootUI() == &keyboardScreen);
+			}
 		}
 	}
 

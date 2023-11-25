@@ -22,7 +22,7 @@
 ConsequencePerformanceLayoutChange::ConsequencePerformanceLayoutChange(
     PadPress(*padPressBefore), PadPress(*padPressAfter), FXColumnPress(*FXPressBefore), FXColumnPress(*FXPressAfter),
     ParamsForPerformance(*layoutBefore), ParamsForPerformance(*layoutAfter), int32_t valuesBefore[kDisplayWidth][kDisplayHeight],
-    int32_t valuesAfter[kDisplayWidth][kDisplayHeight], bool changesBefore, bool changesAfter) {
+    int32_t valuesAfter[kDisplayWidth][kDisplayHeight]) {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		memcpy(&FXPress[xDisplay][BEFORE], &FXPressBefore[xDisplay], sizeFXPress);
 		memcpy(&layoutForPerformance[xDisplay][BEFORE], &layoutBefore[xDisplay], sizeParamsForPerformance);
@@ -37,9 +37,6 @@ ConsequencePerformanceLayoutChange::ConsequencePerformanceLayoutChange(
 	}
 	memcpy(&lastPadPress[BEFORE], &padPressBefore, sizePadPress);
 	memcpy(&lastPadPress[AFTER], &padPressAfter, sizePadPress);
-
-	anyChangesToSave[BEFORE] = changesBefore;
-	anyChangesToSave[AFTER] = changesAfter;
 }
 
 int32_t ConsequencePerformanceLayoutChange::revert(TimeType time, ModelStack* modelStack) {
@@ -54,16 +51,7 @@ int32_t ConsequencePerformanceLayoutChange::revert(TimeType time, ModelStack* mo
 	}
 	memcpy(&performanceSessionView.lastPadPress, &lastPadPress[time], sizePadPress);
 
-	performanceSessionView.anyChangesToSave = anyChangesToSave[time];
-
-	if (getCurrentUI() == &performanceSessionView) {
-		if (anyChangesToSave[time]) {
-			indicator_leds::blinkLed(IndicatorLED::SAVE);
-		}
-		else {
-			indicator_leds::setLedState(IndicatorLED::SAVE, false);
-		}
-	}
+	performanceSessionView.updateLayoutChangeStatus();
 
 	return NO_ERROR;
 }

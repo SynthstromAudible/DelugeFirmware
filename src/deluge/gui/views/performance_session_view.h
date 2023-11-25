@@ -104,6 +104,7 @@ public:
 	uint32_t getMaxLength();
 
 	//public so soundEditor and Action Logger can access them
+	void updateLayoutChangeStatus();
 	bool anyChangesToSave;
 	bool defaultEditingMode;
 	bool editingParam; //if you're not editing a param, you're editing a value
@@ -163,6 +164,13 @@ private:
 	void readDefaultFXHoldStatusFromFile(int32_t xDisplay);
 	bool successfullyReadDefaultsFromFile;
 
+	//backup loaded layout (what's currently in XML file)
+	//backup the last loaded/last saved changes, so you can compare and let user know if any changes
+	//need to be saved
+	FXColumnPress backupXMLDefaultFXPress[kDisplayWidth];
+	ParamsForPerformance backupXMLDefaultLayoutForPerformance[kDisplayWidth];
+	int32_t backupXMLDefaultFXValues[kDisplayWidth][kDisplayHeight];
+
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithThreeMainThings* modelStack, int32_t paramID);
 	int32_t calculateKnobPosForSinglePadPress(int32_t yDisplay);
 	int32_t calculateKnobPosForSelectEncoderTurn(int32_t knobPos, int32_t offset);
@@ -171,14 +179,14 @@ private:
 	int32_t layoutBank;    //A or B (assign a layout to the bank for cross fader action)
 	int32_t layoutVariant; //1, 2, 3, 4, 5 (1 = Load, 2 = Synth, 3 = Kit, 4 = Midi, 5 = CV)
 
-	//backup layout
-	void backupPerformanceLayout();
+	//backup current layout
+	void backupPerformanceLayout();	
 	void logPerformanceLayoutChange();
+	bool anyChangesToLog();
 	PadPress backupLastPadPress;
 	FXColumnPress backupFXPress[kDisplayWidth];
 	ParamsForPerformance backupLayoutForPerformance[kDisplayWidth];
 	int32_t backupDefaultFXValues[kDisplayWidth][kDisplayHeight];
-	bool backupAnyChangesToSave;
 
 	// Members regarding rendering different layouts
 private:

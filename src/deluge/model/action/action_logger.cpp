@@ -309,7 +309,7 @@ void ActionLogger::recordPerformanceLayoutChange(PadPress(*padPressBefore), PadP
                                                  FXColumnPress(*FXPressBefore), FXColumnPress(*FXPressAfter),
                                                  ParamsForPerformance(*layoutBefore),
                                                  ParamsForPerformance(*layoutAfter), int32_t valuesBefore[kDisplayWidth][kDisplayHeight],
-                                                 int32_t valuesAfter[kDisplayWidth][kDisplayHeight], bool changesBefore, bool changesAfter) {
+                                                 int32_t valuesAfter[kDisplayWidth][kDisplayHeight]) {
 
 	Action* action = getNewAction(ACTION_PARAM_UNAUTOMATED_VALUE_CHANGE, true);
 
@@ -322,7 +322,7 @@ void ActionLogger::recordPerformanceLayoutChange(PadPress(*padPressBefore), PadP
 	if (consMemory) {
 		ConsequencePerformanceLayoutChange* newConsequence = new (consMemory)
 		    ConsequencePerformanceLayoutChange(padPressBefore, padPressAfter, FXPressBefore, FXPressAfter, layoutBefore,
-		                                       layoutAfter, valuesBefore, valuesAfter, changesBefore, changesAfter);
+		                                       layoutAfter, valuesBefore, valuesAfter);
 		action->addConsequence(newConsequence);
 	}
 }
