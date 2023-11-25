@@ -100,7 +100,8 @@ public:
 	void redrawNumericDisplay();
 
 	uint32_t selectedClipTimePressed;
-	uint8_t selectedClipYDisplay;      // Where the clip is on screen
+	uint8_t selectedClipYDisplay; // Where the clip is on screen
+	uint8_t selectedClipYDisplayForColorChange = 255;
 	uint8_t selectedClipPressYDisplay; // Where the user's finger actually is on screen
 	uint8_t selectedClipPressXDisplay;
 	bool performActionOnPadRelease;

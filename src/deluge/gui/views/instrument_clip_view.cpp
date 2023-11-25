@@ -3092,7 +3092,10 @@ void InstrumentClipView::setSelectedDrum(Drum* drum, bool shouldRedrawStuff) {
 }
 
 void InstrumentClipView::auditionPadAction(int32_t velocity, int32_t yDisplay, bool shiftButtonDown) {
-
+	if (editedAnyPerNoteRowStuffSinceAuditioningBegan && !velocity) {
+		//in case we were editing quantize/humanize
+		actionLogger.closeAction(ACTION_NOTE_NUDGE);
+	}
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
@@ -4284,7 +4287,7 @@ wantToEditNoteRowLength:
 
 void InstrumentClipView::tempoEncoderAction(int8_t offset, bool encoderButtonPressed, bool shiftButtonPressed) {
 
-	if (isUIModeActive(UI_MODE_NOTES_PRESSED)
+	if (isUIModeActive(UI_MODE_AUDITIONING)
 	    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::Quantize)
 	           == RuntimeFeatureStateToggle::On) { //quantize
 		if (encoderButtonPressed) {
@@ -4353,17 +4356,14 @@ void InstrumentClipView::quantizeNotes(int32_t offset, int32_t nudgeMode) {
 	}
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
-	ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-	    modelStack->addTimelineCounter(modelStack->song->currentClip);
-	InstrumentClip* currentClip = getCurrentClip();
+	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 	if (nudgeMode == NUDGEMODE_QUANTIZE) { // Only the row(s) being pressed
 
 		//reset
 		Action* lastAction = actionLogger.firstAction[BEFORE];
 		if (lastAction && lastAction->type == ACTION_NOTE_NUDGE && lastAction->openForAdditions)
-			actionLogger.undoJustOneConsequencePerNoteRow(modelStack);
+			actionLogger.undoJustOneConsequencePerNoteRow(modelStack->toWithSong());
 
 		Action* action = NULL;
 		if (offset) {
@@ -4372,18 +4372,11 @@ void InstrumentClipView::quantizeNotes(int32_t offset, int32_t nudgeMode) {
 				action->offset = quantizeAmount;
 		}
 
-		NoteRow* thisNoteRow;
-		int32_t noteRowId;
-		for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
-			if (editPadPresses[i].isActive) {
+		for (int32_t i = 0; i < kDisplayHeight; i++) {
+			if (auditionPadIsPressed[i]) {
 
-				int32_t noteRowIndex;
-				thisNoteRow = currentClip->getNoteRowOnScreen(editPadPresses[i].yDisplay, currentSong, &noteRowIndex);
-				noteRowId = currentClip->getNoteRowId(thisNoteRow, noteRowIndex);
-
-				ModelStackWithNoteRow* modelStackWithNoteRow =
-				    modelStackWithTimelineCounter->addNoteRow(noteRowId, thisNoteRow);
-
+				ModelStackWithNoteRow* modelStackWithNoteRow = getOrCreateNoteRowForYDisplay(modelStack, i);
+				NoteRow* thisNoteRow = modelStackWithNoteRow->getNoteRow();
 				int32_t noteRowEffectiveLength = modelStackWithNoteRow->getLoopLength();
 
 				if (offset) { //store
@@ -4427,7 +4420,7 @@ void InstrumentClipView::quantizeNotes(int32_t offset, int32_t nudgeMode) {
 		//reset
 		Action* lastAction = actionLogger.firstAction[BEFORE];
 		if (lastAction && lastAction->type == ACTION_NOTE_NUDGE && lastAction->openForAdditions)
-			actionLogger.undoJustOneConsequencePerNoteRow(modelStack);
+			actionLogger.undoJustOneConsequencePerNoteRow(modelStack->toWithSong());
 
 		Action* action = NULL;
 		if (offset) {
@@ -4443,8 +4436,7 @@ void InstrumentClipView::quantizeNotes(int32_t offset, int32_t nudgeMode) {
 			int32_t noteRowIndex;
 			noteRowId = getCurrentClip()->getNoteRowId(thisNoteRow, i);
 
-			ModelStackWithNoteRow* modelStackWithNoteRow =
-			    modelStackWithTimelineCounter->addNoteRow(noteRowId, thisNoteRow);
+			ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, thisNoteRow);
 			int32_t noteRowEffectiveLength = modelStackWithNoteRow->getLoopLength();
 
 			// If this NoteRow has any notes...
@@ -4488,11 +4480,12 @@ void InstrumentClipView::quantizeNotes(int32_t offset, int32_t nudgeMode) {
 
 	uiNeedsRendering(this, 0xFFFFFFFF, 0);
 	{
-		if (playbackHandler.isEitherClockActive() && modelStackWithTimelineCounter->song->isClipActive(currentClip)) {
-			currentClip->expectEvent();
-			currentClip->reGetParameterAutomation(modelStackWithTimelineCounter);
+		if (playbackHandler.isEitherClockActive() && modelStack->song->currentClip->isActiveOnOutput()) {
+			modelStack->song->currentClip->expectEvent();
+			modelStack->song->currentClip->reGetParameterAutomation(modelStack);
 		}
 	}
+	editedAnyPerNoteRowStuffSinceAuditioningBegan = true;
 	return;
 }
 
