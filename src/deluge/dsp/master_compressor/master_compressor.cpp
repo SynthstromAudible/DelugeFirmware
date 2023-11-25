@@ -33,13 +33,12 @@ MasterCompressor::MasterCompressor() {
 
 	currentVolumeL = 0;
 	currentVolumeR = 0;
-	//auto make up gain
-	updateER();
+	er = 0;
 	setSidechain(sideChainKnobPos);
 }
 //16 is ln(1<<24) - 1, i.e. where we start clipping
 //since this applies to output
-void MasterCompressor::updateER() {
+void MasterCompressor::updateER(float numSamples) {
 
 	//int32_t volumePostFX = getParamNeutralValue(Param::Global::VOLUME_POST_FX);
 	float songVolume;
@@ -52,22 +51,26 @@ void MasterCompressor::updateER() {
 		songVolume = std::log(volumePostFX) - 2;
 	}
 	else {
+		//16 is about the level of a single synth voice at max volume
 		songVolume = 16;
 	}
 	threshdb = songVolume * threshold;
-	//16 is about the level of a single synth voice at max volume
+	//this is effectively where song volume gets applied, so we'll stick an IIR filter (e.g. the envelope) here to reduce clicking
+	float lastER = er;
 	er = std::max<float>((songVolume - threshdb - 1) * ratio, 0);
+	//using the envelope is convenient since it means makeup gain and compression amount change at the same rate
+	er = runEnvelope(lastER, er, numSamples);
 }
 
 void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t volAdjustL, q31_t volAdjustR) {
 	//we update this every time since we won't know if the song volume changed
-	updateER();
+	updateER(numSamples);
 
 	float over = std::max<float>(0, (rms - threshdb));
 
-	float out = runEnvelope(over, numSamples);
+	state = runEnvelope(state, over, numSamples);
 
-	float reduction = -out * ratio;
+	float reduction = -state * ratio;
 
 	//this is the most gain available without overflow
 	float dbGain = 0.85 + er + reduction;
@@ -100,14 +103,15 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t v
 	rms = calc_rms(buffer, numSamples);
 }
 
-float MasterCompressor::runEnvelope(float in, float numSamples) {
-	if (in > state) {
-		state = in + exp(a_ * numSamples) * (state - in);
+float MasterCompressor::runEnvelope(float current, float desired, float numSamples) {
+	float s;
+	if (desired > current) {
+		s = desired + exp(a_ * numSamples) * (current - desired);
 	}
 	else {
-		state = in + exp(r_ * numSamples) * (state - in);
+		s = desired + exp(r_ * numSamples) * (current - desired);
 	}
-	return state;
+	return s;
 }
 
 //output range is 0-21 (2^31)

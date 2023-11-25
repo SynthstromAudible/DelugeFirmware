@@ -794,10 +794,15 @@ midiLearnMelodicInstrumentAction:
 					}
 				}
 			}
+			else if (clip) {
+				// Shift button is pressed, this is only interresting for changing colour
+				selectedClipYDisplayForColorChange = yDisplay;
+			}
 		}
 
 		// Release
 		else {
+			selectedClipYDisplayForColorChange = 255;
 
 			// If Clip was pressed before...
 			if (isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
@@ -1237,13 +1242,17 @@ ActionResult SessionView::verticalEncoderAction(int32_t offset, bool inCardRouti
 		}
 
 		// Change row color by pressing row & shift - same shortcut as in clip view.
-		if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW && Buttons::isShiftButtonPressed()) {
-			Clip* clip = getClipOnScreen(selectedClipYDisplay);
+		if ((currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW || selectedClipYDisplayForColorChange != 255)
+		    && Buttons::isShiftButtonPressed()) {
+			auto yDisplay =
+			    (selectedClipYDisplayForColorChange != 255) ? selectedClipYDisplayForColorChange : selectedClipYDisplay;
+
+			Clip* clip = getClipOnScreen(yDisplay);
 			if (!clip)
 				return ActionResult::NOT_DEALT_WITH;
 
 			clip->colourOffset += offset;
-			requestRendering(this, 1 << selectedClipYDisplay, 0);
+			requestRendering(this, 1 << yDisplay, 0);
 
 			return ActionResult::DEALT_WITH;
 		}
