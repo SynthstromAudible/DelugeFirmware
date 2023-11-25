@@ -21,8 +21,8 @@
 
 ConsequencePerformanceLayoutChange::ConsequencePerformanceLayoutChange(
     PadPress(*padPressBefore), PadPress(*padPressAfter), FXColumnPress(*FXPressBefore), FXColumnPress(*FXPressAfter),
-    ParamsForPerformance(*layoutBefore), ParamsForPerformance(*layoutAfter), int32_t valuesBefore[kDisplayWidth][kDisplayHeight],
-    int32_t valuesAfter[kDisplayWidth][kDisplayHeight]) {
+    ParamsForPerformance(*layoutBefore), ParamsForPerformance(*layoutAfter),
+    int32_t valuesBefore[kDisplayWidth][kDisplayHeight], int32_t valuesAfter[kDisplayWidth][kDisplayHeight]) {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		memcpy(&FXPress[xDisplay][BEFORE], &FXPressBefore[xDisplay], sizeFXPress);
 		memcpy(&layoutForPerformance[xDisplay][BEFORE], &layoutBefore[xDisplay], sizeParamsForPerformance);

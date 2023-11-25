@@ -25,7 +25,8 @@ public:
 	ConsequencePerformanceLayoutChange(PadPress(*padPressBefore), PadPress(*padPressAfter),
 	                                   FXColumnPress(*FXPressBefore), FXColumnPress(*FXPressAfter),
 	                                   ParamsForPerformance(*layoutBefore), ParamsForPerformance(*layoutAfter),
-	                                   int32_t valuesBefore[kDisplayWidth][kDisplayHeight], int32_t valuesAfter[kDisplayWidth][kDisplayHeight]);
+	                                   int32_t valuesBefore[kDisplayWidth][kDisplayHeight],
+	                                   int32_t valuesAfter[kDisplayWidth][kDisplayHeight]);
 	int32_t revert(TimeType time, ModelStack* modelStack);
 
 	PadPress lastPadPress[2];

@@ -308,7 +308,8 @@ void ActionLogger::recordTempoChange(uint64_t timePerBigBefore, uint64_t timePer
 void ActionLogger::recordPerformanceLayoutChange(PadPress(*padPressBefore), PadPress(*padPressAfter),
                                                  FXColumnPress(*FXPressBefore), FXColumnPress(*FXPressAfter),
                                                  ParamsForPerformance(*layoutBefore),
-                                                 ParamsForPerformance(*layoutAfter), int32_t valuesBefore[kDisplayWidth][kDisplayHeight],
+                                                 ParamsForPerformance(*layoutAfter),
+                                                 int32_t valuesBefore[kDisplayWidth][kDisplayHeight],
                                                  int32_t valuesAfter[kDisplayWidth][kDisplayHeight]) {
 
 	Action* action = getNewAction(ACTION_PARAM_UNAUTOMATED_VALUE_CHANGE, true);

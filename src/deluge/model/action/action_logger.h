@@ -43,7 +43,8 @@ public:
 	void recordPerformanceLayoutChange(PadPress(*padPressBefore), PadPress(*padPressAfter),
 	                                   FXColumnPress(*FXPressBefore), FXColumnPress(*FXPressAfter),
 	                                   ParamsForPerformance(*layoutBefore), ParamsForPerformance(*layoutAfter),
-	                                   int32_t valuesBefore[kDisplayWidth][kDisplayHeight], int32_t valuesAfter[kDisplayWidth][kDisplayHeight]);
+	                                   int32_t valuesBefore[kDisplayWidth][kDisplayHeight],
+	                                   int32_t valuesAfter[kDisplayWidth][kDisplayHeight]);
 	void closeAction(int32_t actionType);
 	void closeActionUnlessCreatedJustNow(int32_t actionType);
 	void deleteAllLogs();

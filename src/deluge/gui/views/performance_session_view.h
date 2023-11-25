@@ -180,7 +180,8 @@ private:
 	int32_t layoutVariant; //1, 2, 3, 4, 5 (1 = Load, 2 = Synth, 3 = Kit, 4 = Midi, 5 = CV)
 
 	//backup current layout
-	void backupPerformanceLayout();	
+	void backupPerformanceLayout();
+	bool performanceLayoutBackedUp;
 	void logPerformanceLayoutChange();
 	bool anyChangesToLog();
 	PadPress backupLastPadPress;

@@ -172,7 +172,7 @@ bool SoundEditor::opened() {
 
 	if (getRootUI() == &performanceSessionView) {
 		performanceSessionView.updateLayoutChangeStatus();
-	}	
+	}
 
 	return true;
 }
