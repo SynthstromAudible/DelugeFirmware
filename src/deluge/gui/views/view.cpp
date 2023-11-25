@@ -864,23 +864,21 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 				copyModelStack(modelStackTempMemory, modelStackWithParam, sizeof(ModelStackWithThreeMainThings));
 				ModelStackWithThreeMainThings* tempModelStack = (ModelStackWithThreeMainThings*)modelStackTempMemory;
 
-				InstrumentClip* clip = (InstrumentClip*)tempModelStack->getTimelineCounter();
-
 				int32_t value = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
 				int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
 				int32_t lowerLimit = std::min(-64_i32, knobPos);
 				int32_t newKnobPos = knobPos + offset;
 				newKnobPos = std::clamp(newKnobPos, lowerLimit, 64_i32);
+
+				Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+
 				//ignore modEncoderTurn for Midi CC if current or new knobPos exceeds 127
 				//if current knobPos exceeds 127, e.g. it's 128, then it needs to drop to 126 before a value change gets recorded
 				//if newKnobPos exceeds 127, then it means current knobPos was 127 and it was increased to 128. In which case, ignore value change
-				if ((getRootUI() == &instrumentClipView) || (getRootUI() == &automationInstrumentClipView)) {
-					if ((clip->output->type == InstrumentType::MIDI_OUT) && (newKnobPos == 64)) {
-						return;
-					}
+				if (kind == Param::Kind::MIDI && (newKnobPos == 64)) {
+					return;
 				}
 
-				Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 				displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos);
 
 				if (newKnobPos == knobPos) {
