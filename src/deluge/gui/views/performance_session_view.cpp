@@ -1255,7 +1255,7 @@ void PerformanceSessionView::backupPerformanceLayout() {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		if (successfullyReadDefaultsFromFile) {
 			memcpy(&backupFXPress[xDisplay], &FXPress[xDisplay], sizeFXPress);
-		}	
+		}
 		memcpy(&backupLayoutForPerformance[xDisplay], &layoutForPerformance[xDisplay], sizeParamsForPerformance);
 		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 			backupDefaultFXValues[xDisplay][yDisplay] = defaultFXValues[xDisplay][yDisplay];
@@ -1993,6 +1993,7 @@ void PerformanceSessionView::readDefaultFXHoldStatusFromFile(int32_t xDisplay) {
 				}
 				backupXMLDefaultFXPress[xDisplay].previousKnobPosition = FXPress[xDisplay].previousKnobPosition;
 			}
+			//set the value associated with the held pad
 			if ((FXPress[xDisplay].currentKnobPosition != kNoSelection)
 			    && (FXPress[xDisplay].previousKnobPosition != kNoSelection)) {
 				char modelStackMemory[MODEL_STACK_MAX_SIZE];

@@ -19,11 +19,46 @@
 #include "gui/views/performance_session_view.h"
 
 namespace deluge::gui::menu_item::performance_session_view {
-class EditingMode final : public Toggle {
+class EditingMode final : public Selection {
 public:
-	using Toggle::Toggle;
-	void readCurrentValue() override { this->setValue(performanceSessionView.defaultEditingMode); }
-	void writeCurrentValue() override { performanceSessionView.defaultEditingMode = this->getValue(); }
+	using Selection::Selection;
+	void readCurrentValue() override {
+		int32_t currentValue;
+		if (!performanceSessionView.defaultEditingMode) {
+			currentValue = 0;
+		}
+		else if (!performanceSessionView.editingParam) {
+			currentValue = 1;
+		}
+		else {
+			currentValue = 2;
+		}
+		this->setValue(currentValue);
+	}
+	void writeCurrentValue() override {
+		int32_t currentValue = this->getValue();
+		if (currentValue == 0) {
+			performanceSessionView.defaultEditingMode = false;
+			performanceSessionView.editingParam = false;
+		}
+		else if (currentValue == 1) {
+			performanceSessionView.defaultEditingMode = true;
+			performanceSessionView.editingParam = false;
+		}
+		else {
+			performanceSessionView.defaultEditingMode = true;
+			performanceSessionView.editingParam = true;
+		}
+		uiNeedsRendering(&performanceSessionView);
+	}
+	std::vector<std::string_view> getOptions() override {
+		using enum l10n::String;
+		return {
+		    l10n::getView(STRING_FOR_DISABLED),
+		    l10n::getView(STRING_FOR_PERFORM_EDIT_VALUE),
+		    l10n::getView(STRING_FOR_PERFORM_EDIT_PARAM),
+		};
+	}
 };
 
 } // namespace deluge::gui::menu_item::performance_session_view
