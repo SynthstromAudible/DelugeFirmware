@@ -64,6 +64,7 @@ void GlobalEffectable::initParams(ParamManager* paramManager) {
 	ModControllableAudio::initParams(paramManager);
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
+	unpatchedParams->kind = Param::Kind::UNPATCHED_GLOBAL;
 
 	unpatchedParams->params[Param::Unpatched::GlobalEffectable::MOD_FX_RATE].setCurrentValueBasicForSetup(-536870912);
 	unpatchedParams->params[Param::Unpatched::MOD_FX_FEEDBACK].setCurrentValueBasicForSetup(-2147483648);

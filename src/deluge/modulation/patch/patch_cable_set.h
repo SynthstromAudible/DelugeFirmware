@@ -101,6 +101,8 @@ public:
 
 	Destination* getDestinationForParam(int32_t p);
 
+	Param::Kind getParamKind() { return Param::Kind::PATCH_CABLE; }
+
 	uint32_t sourcesPatchedToAnything[2]; // Only valid after setupPatching()
 
 	PatchCable patchCables[kMaxNumPatchCables]; // TODO: store these in dynamic memory.

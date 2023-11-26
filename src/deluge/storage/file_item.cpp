@@ -72,27 +72,20 @@ int32_t FileItem::getDisplayNameWithoutExtension(String* displayNameWithoutExten
 	}
 
 	// 7SEG...
-	if (displayName != filename.get()) {
-		int32_t error = displayNameWithoutExtension->set(displayName);
-		if (error) {
-			return error;
-		}
-		if (filenameIncludesExtension) {
-			char const* chars = displayNameWithoutExtension->get();
-			char const* dotAddress = strrchr(chars, '.');
-			if (dotAddress) {
-				int32_t newLength = (uint32_t)dotAddress - (uint32_t)chars;
-				error = displayNameWithoutExtension->shorten(newLength);
-				if (error) {
-					return error;
-				}
+	int32_t error = displayNameWithoutExtension->set(displayName);
+	if (error) {
+		return error;
+	}
+	if (filenameIncludesExtension) {
+		char const* chars = displayNameWithoutExtension->get();
+		char const* dotAddress = strrchr(chars, '.');
+		if (dotAddress) {
+			int32_t newLength = (uint32_t)dotAddress - (uint32_t)chars;
+			error = displayNameWithoutExtension->shorten(newLength);
+			if (error) {
+				return error;
 			}
 		}
-		return NO_ERROR;
 	}
-	/*
-Warning - not having a return is functional. Whatever is passing through
-is required to reset the display after auditioning. Further debugging required,
-returning 0, 1, filename.get() or (displayName != filename.get()) all cause bugs
-*/
+	return NO_ERROR;
 }
