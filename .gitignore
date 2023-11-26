@@ -22,3 +22,4 @@ __pycache__
 /tests/RunAllTests
 /tests/_deps/*
 *.a
+*.jdebug.user

@@ -155,6 +155,11 @@ void RuntimeFeatureSettings::init() {
 	// LightShiftLed
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::LightShiftLed], "Light Shift", "lightShift",
 	                  RuntimeFeatureStateToggle::Off);
+
+	// EnableGrainFX
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::EnableGrainFX],
+	                  deluge::l10n::getView(STRING_FOR_COMMUNITY_FEATURE_GRAIN_FX), "enableGrainFX",
+	                  RuntimeFeatureStateToggle::Off);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {
