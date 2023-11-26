@@ -28,6 +28,7 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/load/load_song_ui.h"
+#include "gui/ui/menus.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui/save/save_song_ui.h"
 #include "gui/ui/sound_editor.h"
@@ -863,23 +864,22 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 				copyModelStack(modelStackTempMemory, modelStackWithParam, sizeof(ModelStackWithThreeMainThings));
 				ModelStackWithThreeMainThings* tempModelStack = (ModelStackWithThreeMainThings*)modelStackTempMemory;
 
-				InstrumentClip* clip = (InstrumentClip*)tempModelStack->getTimelineCounter();
-
 				int32_t value = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
 				int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
 				int32_t lowerLimit = std::min(-64_i32, knobPos);
 				int32_t newKnobPos = knobPos + offset;
 				newKnobPos = std::clamp(newKnobPos, lowerLimit, 64_i32);
+
+				Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+
 				//ignore modEncoderTurn for Midi CC if current or new knobPos exceeds 127
 				//if current knobPos exceeds 127, e.g. it's 128, then it needs to drop to 126 before a value change gets recorded
 				//if newKnobPos exceeds 127, then it means current knobPos was 127 and it was increased to 128. In which case, ignore value change
-				if ((getRootUI() == &instrumentClipView) || (getRootUI() == &automationInstrumentClipView)) {
-					if ((clip->output->type == InstrumentType::MIDI_OUT) && (newKnobPos == 64)) {
-						return;
-					}
+				if (kind == Param::Kind::MIDI && (newKnobPos == 64)) {
+					return;
 				}
 
-				displayModEncoderValuePopup(clip->output->type, modelStackWithParam->paramId, newKnobPos);
+				displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos);
 
 				if (newKnobPos == knobPos) {
 					return;
@@ -913,7 +913,7 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 					}
 				}
 
-				if (!newKnobPos
+				if (newKnobPos == 0
 				    && modelStackWithParam->paramCollection->shouldParamIndicateMiddleValue(modelStackWithParam)) {
 					indicator_leds::blinkKnobIndicator(whichModEncoder);
 
@@ -930,47 +930,51 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	}
 }
 
-void View::displayModEncoderValuePopup(InstrumentType instrumentType, int32_t paramID, int32_t newKnobPos) {
-	//check if param is quantized stutter with stuttering enabled
-	if (!(isParamQuantizedStutter(paramID) && !isUIModeActive(UI_MODE_STUTTERING))) {
+void View::displayModEncoderValuePopup(Param::Kind kind, int32_t paramID, int32_t newKnobPos) {
+	DEF_STACK_STRING_BUF(popupMsg, 40);
 
-		char buffer[5];
-		int32_t valueForDisplay;
-		if (instrumentType == InstrumentType::MIDI_OUT) {
-			valueForDisplay = newKnobPos + kKnobPosOffset;
+	// On OLED, display the name of the parameter on the first line of the popup
+	if (display->haveOLED()) {
+		const char* name = getParamDisplayName(kind, paramID);
+		if (name != l10n::get(l10n::String::STRING_FOR_NONE)) {
+			popupMsg.append(name);
+			popupMsg.append(": ");
 		}
-		else {
-			valueForDisplay = calculateKnobPosForDisplay(instrumentType, paramID, newKnobPos + kKnobPosOffset);
-		}
-		intToString(valueForDisplay, buffer);
-		display->displayPopup(buffer);
 	}
 
 	//if turning stutter mod encoder and stutter quantize is enabled
 	//display stutter quantization instead of knob position
-	if (isParamQuantizedStutter(paramID) && !isUIModeActive(UI_MODE_STUTTERING)) {
+	if (isParamQuantizedStutter(kind, paramID) && !isUIModeActive(UI_MODE_STUTTERING)) {
 		char buffer[10];
 		if (newKnobPos < -39) { // 4ths stutter: no leds turned on
-			strncpy(buffer, "4ths", 10);
+			popupMsg.append("4ths");
 		}
 		else if (newKnobPos < -14) { // 8ths stutter: 1 led turned on
-			strncpy(buffer, "8ths", 10);
+			popupMsg.append("8ths");
 		}
 		else if (newKnobPos < 14) { // 16ths stutter: 2 leds turned on
-			strncpy(buffer, "16ths", 10);
+			popupMsg.append("16ths");
 		}
 		else if (newKnobPos < 39) { // 32nds stutter: 3 leds turned on
-			strncpy(buffer, "32nds", 10);
+			popupMsg.append("32nds");
 		}
 		else { // 64ths stutter: all 4 leds turned on
-			strncpy(buffer, "64ths", 10);
+			popupMsg.append("64ths");
 		}
-		display->displayPopup(buffer);
 	}
+	else {
+		int valueForDisplay = calculateKnobPosForDisplay(kind, paramID, newKnobPos + kKnobPosOffset);
+		popupMsg.appendInt(valueForDisplay);
+	}
+	display->displayPopup(popupMsg.c_str());
 }
 
 //convert deluge internal knobPos range to same range as used by menu's.
-int32_t View::calculateKnobPosForDisplay(InstrumentType instrumentType, int32_t paramID, int32_t knobPos) {
+int32_t View::calculateKnobPosForDisplay(Param::Kind kind, int32_t paramID, int32_t knobPos) {
+	if (kind == Param::Kind::MIDI) {
+		return knobPos;
+	}
+
 	float knobPosFloat = static_cast<float>(knobPos);
 	float knobPosOffsetFloat = static_cast<float>(kKnobPosOffset);
 	float maxKnobPosFloat = static_cast<float>(kMaxKnobPos);
@@ -982,7 +986,7 @@ int32_t View::calculateKnobPosForDisplay(InstrumentType instrumentType, int32_t 
 	valueForDisplayFloat = (knobPosFloat / maxKnobPosFloat) * maxMenuValueFloat;
 
 	//check if parameter is pan, in which case, further adjust range from 0 - 50 to -25 to +25
-	if (isParamPan(instrumentType, paramID)) {
+	if (isParamPan(kind, paramID)) {
 		valueForDisplayFloat = valueForDisplayFloat - maxMenuPanValueFloat;
 	}
 
@@ -991,33 +995,26 @@ returnValue:
 }
 
 //check if Parameter is Stutter Rate and if Quantized Stutter Community Feature is enabled
-bool View::isParamQuantizedStutter(int32_t paramID) {
-	if (((Param::Unpatched::START + paramID) == (Param::Unpatched::START + Param::Unpatched::STUTTER_RATE))
-	    && (runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate)
-	        == RuntimeFeatureStateToggle::On)) {
+bool View::isParamQuantizedStutter(Param::Kind kind, int32_t paramID) {
+	if (!runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate) == RuntimeFeatureStateToggle::On) {
+		return false;
+	}
+	if ((kind == Param::Kind::UNPATCHED_GLOBAL || kind == Param::Kind::UNPATCHED_SOUND)
+	    && paramID == Param::Unpatched::Shared::STUTTER_RATE) {
 		return true;
 	}
 	return false;
 }
 
-bool View::isParamPan(InstrumentType instrumentType, int32_t paramID) {
-	bool isPan = false;
-
-	//in a synth or a kit (with affect entire disabled), check if it is the patched Pan parameter
-	if ((instrumentType == InstrumentType::SYNTH)
-	    || ((instrumentType == InstrumentType::KIT) && !instrumentClipView.getAffectEntire())) {
-		if (paramID == Param::Local::PAN) {
-			isPan = true;
-		}
+bool View::isParamPan(Param::Kind kind, int32_t paramID) {
+	if (kind == Param::Kind::PATCHED && paramID == Param::Local::PAN) {
+		return true;
 	}
-	//elsewhere (song, performance, audio clip, kit with affect entire enabled)
-	// only global effectable pan is used - check for it)
-	else if ((Param::Unpatched::START + paramID)
-	         == (Param::Unpatched::START + Param::Unpatched::GlobalEffectable::PAN)) {
-		isPan = true;
+	if (kind == Param::Kind::UNPATCHED_GLOBAL && paramID == Param::Unpatched::GlobalEffectable::PAN) {
+		return true;
 	}
 
-	return isPan;
+	return false;
 }
 
 void View::instrumentBeenEdited() {

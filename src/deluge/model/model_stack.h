@@ -265,6 +265,8 @@ public:
 	int32_t paramId;
 
 	ModelStackWithAutoParam* addAutoParam(AutoParam* newAutoParam) const;
+
+	bool isParam(Param::Kind kind, ParamType id);
 };
 
 class ModelStackWithAutoParam : public ModelStackWithParamId {

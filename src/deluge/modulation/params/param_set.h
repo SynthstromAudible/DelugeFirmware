@@ -101,6 +101,9 @@ public:
 	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength);
 	bool shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack);
 	bool doesParamIdAllowAutomation(ModelStackWithParamId const* modelStack);
+	Param::Kind getParamKind() { return kind; }
+
+	Param::Kind kind = Param::Kind::NONE;
 
 private:
 	std::array<AutoParam, kMaxNumUnpatchedParams> params_;
@@ -115,6 +118,7 @@ public:
 	int32_t paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack);
 	int32_t knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack);
 	bool shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack);
+	Param::Kind getParamKind() { return Param::Kind::PATCHED; }
 
 private:
 	std::array<AutoParam, kNumParams> params_;
@@ -136,6 +140,7 @@ public:
 	void clearValues(ModelStackWithParamCollection const* modelStack);
 	void cancelAllOverriding();
 	void deleteAllAutomation(Action* action, ModelStackWithParamCollection* modelStack);
+	Param::Kind getParamKind() { return Param::Kind::EXPRESSION; }
 
 	// bendRanges being stored here in ExpressionParamSet still seems like the best option. I was thinking storing them in the ParamManager would make more sense, except for one thing
 	// - persistence when preset/Instrument changes. ExpressionParamSets do this unique thing where they normally aren't "stolen" or "backed up" - unless the last Clip is being deleted,

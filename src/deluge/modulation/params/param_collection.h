@@ -18,6 +18,8 @@
 #pragma once
 #include <cstdint>
 
+#include "definitions_cxx.hpp"
+
 class ParamManagerForTimeline;
 class Sound;
 class InstrumentClip;
@@ -67,12 +69,14 @@ public:
 	    ModelStackWithParamId* modelStack,
 	    bool allowCreation =
 	        false) = 0; // You must not pass this any child class of ModelStackWithThreeMoreThings (wait why again?). May return NULL
+
 	virtual bool mayParamInterpolate(int32_t paramId);
 	virtual bool shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) { return false; }
 	virtual bool doesParamIdAllowAutomation(ModelStackWithParamId const* modelStack) { return true; }
 	virtual int32_t paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack);
 	virtual int32_t knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack);
 	virtual void notifyPingpongOccurred(ModelStackWithParamCollection* modelStack);
+	virtual Param::Kind getParamKind() = 0;
 
 	const int32_t objectSize;
 	int32_t ticksTilNextEvent;
