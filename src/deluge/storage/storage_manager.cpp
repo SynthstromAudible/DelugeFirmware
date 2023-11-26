@@ -1356,7 +1356,9 @@ void StorageManager::openFilePointer(FilePointer* fp) {
 int32_t StorageManager::openInstrumentFile(InstrumentType instrumentType, FilePointer* filePointer) {
 
 	AudioEngine::logAction("openInstrumentFile");
-
+	if (!filePointer->sclust) {
+		return ERROR_FILE_NOT_FOUND;
+	}
 	char const* firstTagName;
 	char const* altTagName = "";
 
@@ -1379,9 +1381,16 @@ int32_t StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip,
                                                FilePointer* filePointer, String* name, String* dirPath) {
 
 	AudioEngine::logAction("loadInstrumentFromFile");
+	Debug::print("opening instrument file - ");
+	Debug::print(dirPath->get());
+	Debug::print(name->get());
+	Debug::print(" from FP ");
+	Debug::println((int32_t)filePointer->sclust);
 
 	int32_t error = openInstrumentFile(instrumentType, filePointer);
 	if (error) {
+		Debug::print("opening instrument file failed - ");
+		Debug::println(name->get());
 		return error;
 	}
 
@@ -1390,6 +1399,8 @@ int32_t StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip,
 
 	if (!newInstrument) {
 		closeFile();
+		Debug::print("Allocating instrument file failed - ");
+		Debug::println(name->get());
 		return ERROR_INSUFFICIENT_RAM;
 	}
 
@@ -1399,12 +1410,15 @@ int32_t StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip,
 
 	// If that somehow didn't work...
 	if (error || !fileSuccess) {
-
+		Debug::print("reading instrument file failed - ");
+		Debug::println(name->get());
 		if (!fileSuccess) {
 			error = ERROR_SD_CARD;
 		}
 
 deleteInstrumentAndGetOut:
+		Debug::print("abandoning load - ");
+		Debug::println(name->get());
 		newInstrument->deleteBackedUpParamManagers(song);
 		void* toDealloc = static_cast<void*>(newInstrument);
 		newInstrument->~Instrument();
@@ -1432,6 +1446,8 @@ deleteInstrumentAndGetOut:
 		}
 		else {
 paramManagersMissing:
+			Debug::print("creating param manager failed - ");
+			Debug::println(name->get());
 			error = ERROR_FILE_CORRUPTED;
 			goto deleteInstrumentAndGetOut;
 		}
