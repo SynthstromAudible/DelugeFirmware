@@ -46,7 +46,6 @@ int32_t FileItem::setupWithInstrument(Instrument* newInstrument, bool hibernatin
 	if (!fileExists) {
 		Debug::print("couldn't get filepath for file");
 		Debug::println(filename.get());
-		return false;
 	}
 	return NO_ERROR;
 }
