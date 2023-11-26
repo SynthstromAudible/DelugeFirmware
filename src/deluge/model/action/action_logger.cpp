@@ -82,7 +82,8 @@ Action* ActionLogger::getNewAction(int32_t newActionType, int32_t addToExistingI
 	deleteLog(AFTER);
 
 	// If not on a View, not allowed!
-	if (getCurrentUI() != getRootUI()) {
+	// Exception for performanceSessionView where the view can interact with soundEditor UI
+	if ((getCurrentUI() != getRootUI()) && (getRootUI() != &performanceSessionView)) {
 		return NULL;
 	}
 

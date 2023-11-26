@@ -309,8 +309,8 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 			}
 			else {
 				performanceSessionView.writeDefaultsToFile();
+				performanceSessionView.updateLayoutChangeStatus();
 				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_SAVED));
-				indicator_leds::setLedState(IndicatorLED::SAVE, false);
 			}
 		}
 	}
@@ -1024,6 +1024,12 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 				display->displayPopup(buffer);
 				return ActionResult::DEALT_WITH;
 			}
+		}
+
+		//used in performanceSessionView to ignore pad presses when you just exited soundEditor
+		//with a padAction
+		if (getRootUI() == &performanceSessionView) {
+			performanceSessionView.justExitedSoundEditor = true;
 		}
 
 		exitCompletely();

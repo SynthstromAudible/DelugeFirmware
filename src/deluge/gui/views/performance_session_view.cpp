@@ -63,7 +63,6 @@ extern "C" {
 
 using namespace deluge;
 using namespace gui;
-//using namespace deluge::gui::menu_item;
 
 const char* STRING_FOR_PERFORM_DEFAULTS_XML = "PerformanceView.XML";
 const char* STRING_FOR_PERFORM_DEFAULTS_TAG = "defaults";
@@ -364,8 +363,6 @@ PerformanceSessionView performanceSessionView{};
 
 //initialize variables
 PerformanceSessionView::PerformanceSessionView() {
-	xScrollBeforeFollowingAutoExtendingLinearRecording = -1;
-
 	successfullyReadDefaultsFromFile = false;
 
 	anyChangesToSave = false;
@@ -377,6 +374,8 @@ PerformanceSessionView::PerformanceSessionView() {
 	onFXDisplay = false;
 
 	performanceLayoutBackedUp = false;
+
+	justExitedSoundEditor = false;
 
 	initPadPress(&firstPadPress);
 	initPadPress(&lastPadPress);
@@ -445,8 +444,6 @@ bool PerformanceSessionView::opened() {
 }
 
 void PerformanceSessionView::focusRegained() {
-	bool doingRender = (currentUIMode != UI_MODE_ANIMATION_FADE);
-
 	currentSong->affectEntire = true;
 	currentSong->performanceView = true;
 
@@ -458,10 +455,6 @@ void PerformanceSessionView::focusRegained() {
 		readDefaultsFromFile();
 	}
 
-	setCentralLEDStates();
-
-	indicator_leds::setLedState(IndicatorLED::BACK, false);
-
 	setLedStates();
 
 	updateLayoutChangeStatus();
@@ -469,8 +462,6 @@ void PerformanceSessionView::focusRegained() {
 	if (defaultEditingMode) {
 		indicator_leds::blinkLed(IndicatorLED::KEYBOARD);
 	}
-
-	currentSong->lastClipInstanceEnteredStartPos = -1;
 
 	if (display->have7SEG()) {
 		redrawNumericDisplay();
@@ -565,6 +556,8 @@ void PerformanceSessionView::renderRow(uint8_t* image, uint8_t occupancyMask[], 
 		uint8_t* pixel = image + (xDisplay * 3);
 
 		if (editingParam) {
+			//if you're in param editing mode, highlight shortcuts for performance view params
+			//if param has been assigned to an FX column, highlight it white, otherwise highlight it grey
 			if (isPadShortcut(xDisplay, yDisplay)) {
 				if (isParamAssignedToFXColumn(paramKindShortcutsForPerformanceView[xDisplay][yDisplay],
 				                              paramIDShortcutsForPerformanceView[xDisplay][yDisplay])) {
@@ -578,6 +571,8 @@ void PerformanceSessionView::renderRow(uint8_t* image, uint8_t occupancyMask[], 
 					pixel[2] = kUndefinedGreyShade;
 				}
 			}
+			//if you're in param editing mode and pressing a shortcut pad, highlight the columns
+			//that the param is assigned to the colour of that FX column
 			if (firstPadPress.isActive) {
 				if ((layoutForPerformance[xDisplay].paramKind == firstPadPress.paramKind)
 				    && (layoutForPerformance[xDisplay].paramID == firstPadPress.paramID)) {
@@ -586,20 +581,25 @@ void PerformanceSessionView::renderRow(uint8_t* image, uint8_t occupancyMask[], 
 			}
 		}
 		else {
+			//elsewhere in performance view, if an FX column has not been assigned a param,
+			//highlight the column grey
 			if (layoutForPerformance[xDisplay].paramID == kNoSelection) {
 				pixel[0] = kUndefinedGreyShade;
 				pixel[1] = kUndefinedGreyShade;
 				pixel[2] = kUndefinedGreyShade;
 			}
 			else {
+				//if you're currently pressing an FX column, highlight it a bright colour
 				if ((FXPress[xDisplay].currentKnobPosition != kNoSelection)
 				    && (FXPress[xDisplay].padPressHeld == false)) {
 					memcpy(pixel, &layoutForPerformance[xDisplay].rowColour, 3);
 				}
+				//if you're not currently pressing an FX column, highlight it a dimmer colour
 				else {
 					memcpy(pixel, &layoutForPerformance[xDisplay].rowTailColour, 3);
 				}
 
+				//if you're currently pressing an FX column, highlight the pad you're pressing white
 				if ((FXPress[xDisplay].currentKnobPosition == defaultFXValues[xDisplay][yDisplay])
 				    && (FXPress[xDisplay].yDisplay == yDisplay)) {
 					pixel[0] = 130;
@@ -613,6 +613,7 @@ void PerformanceSessionView::renderRow(uint8_t* image, uint8_t occupancyMask[], 
 	}
 }
 
+//check if a param has been assinged to any of the FX columns
 bool PerformanceSessionView::isParamAssignedToFXColumn(Param::Kind paramKind, int32_t paramID) {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		if ((layoutForPerformance[xDisplay].paramKind == paramKind)
@@ -623,6 +624,7 @@ bool PerformanceSessionView::isParamAssignedToFXColumn(Param::Kind paramKind, in
 	return false;
 }
 
+//nothing to render in sidebar (yet)
 bool PerformanceSessionView::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
                                            uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	if (!image) {
@@ -644,6 +646,7 @@ void PerformanceSessionView::renderViewDisplay() {
 			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
 #endif
 
+			//render "Performance View" at top of OLED screen
 			deluge::hid::display::OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_PERFORM_VIEW), yPos,
 			                                              deluge::hid::display::OLED::oledMainImage[0],
 			                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
@@ -652,6 +655,7 @@ void PerformanceSessionView::renderViewDisplay() {
 
 			char const* editingModeType;
 
+			//render "Param" or "Value" in the middle of the OLED screen
 			if (editingParam) {
 				editingModeType = l10n::get(l10n::String::STRING_FOR_PERFORM_EDIT_PARAM);
 			}
@@ -665,6 +669,7 @@ void PerformanceSessionView::renderViewDisplay() {
 
 			yPos = yPos + 12;
 
+			//render "Editing Mode" at the bottom of the OLED screen
 			deluge::hid::display::OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_PERFORM_EDITOR), yPos,
 			                                              deluge::hid::display::OLED::oledMainImage[0],
 			                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
@@ -687,6 +692,7 @@ void PerformanceSessionView::renderViewDisplay() {
 
 			yPos = yPos + 12;
 
+			//Render "Performance View" in the middle of the OLED screen
 			deluge::hid::display::OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_PERFORM_VIEW), yPos,
 			                                              deluge::hid::display::OLED::oledMainImage[0],
 			                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
@@ -782,12 +788,9 @@ void PerformanceSessionView::redrawNumericDisplay() {
 }
 
 void PerformanceSessionView::setLedStates() {
+	setCentralLEDStates();
 	view.setLedStates();
 	view.setModLedStates();
-
-#ifdef currentClipStatusButtonX
-	view.switchOffCurrentClipPad();
-#endif
 }
 
 void PerformanceSessionView::setCentralLEDStates() {
@@ -797,10 +800,8 @@ void PerformanceSessionView::setCentralLEDStates() {
 	indicator_leds::setLedState(IndicatorLED::CV, false);
 	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
 	indicator_leds::setLedState(IndicatorLED::KEYBOARD, true);
-
-	if (getCurrentUI() == this) {
-		indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
-	}
+	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
+	indicator_leds::setLedState(IndicatorLED::BACK, false);
 }
 
 ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
@@ -903,6 +904,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 		}
 	}
 
+	//save performance view layout
 	else if (b == SAVE) {
 		if (on) {
 			/*if (Buttons::isButtonPressed(deluge::hid::button::SYNTH)) {
@@ -921,11 +923,12 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 				layoutVariant = 1;
 			}*/
 			writeDefaultsToFile();
+			updateLayoutChangeStatus();
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_SAVED));
-			indicator_leds::setLedState(IndicatorLED::SAVE, false);
 		}
 	}
 
+	//load performance view layout
 	else if (b == LOAD) {
 		if (on) {
 			/*if (Buttons::isButtonPressed(deluge::hid::button::SYNTH)) {
@@ -947,13 +950,14 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 			backupPerformanceLayout();
 			resetPerformanceView(modelStack);
 			readDefaultsFromFile();
+			updateLayoutChangeStatus();
 			logPerformanceLayoutChange();
-			display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_LOADED));
-			indicator_leds::setLedState(IndicatorLED::SAVE, false);
 			renderViewDisplay();
+			display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_LOADED));
 		}
 	}
 
+	//enter "Perform FX" soundEditor menu
 	else if ((b == SELECT_ENC) && !Buttons::isShiftButtonPressed()) {
 		if (on) {
 
@@ -972,6 +976,8 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 		}
 	}
 
+	//enter exit Horizontal Encoder Button Press UI Mode
+	//(not used yet, will be though!)
 	else if (b == X_ENC) {
 		if (on) {
 			enterUIMode(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON);
@@ -983,6 +989,8 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 		}
 	}
 
+	//enter/exit Performance View when used on its own
+	//enter/cycle/exit editing modes when used while holding shift button
 	else if (b == KEYBOARD) {
 		if (on) {
 			if (Buttons::isShiftButtonPressed()) {
@@ -1038,36 +1046,42 @@ doNothing:
 }
 
 ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDisplay, int32_t on) {
-	//if pad was pressed in main deluge grid (not sidebar)
-	if (xDisplay < kDisplayWidth) {
-		if (on) {
-			if (Buttons::isShiftButtonPressed()) {
-				ActionResult soundEditorResult = soundEditor.potentialShortcutPadAction(xDisplay, yDisplay, on);
+	if (!justExitedSoundEditor) {
+		//if pad was pressed in main deluge grid (not sidebar)
+		if (xDisplay < kDisplayWidth) {
+			if (on) {
+				//if it's a shortcut press, enter soundEditor menu for that parameter
+				if (Buttons::isShiftButtonPressed()) {
+					ActionResult soundEditorResult = soundEditor.potentialShortcutPadAction(xDisplay, yDisplay, on);
 
-				//	if (defaultEditingMode && soundEditor.getCurrentMenuItem()
-				//		!= paramShortcutsForSongView[lastSelectedParamShortcutX][lastSelectedParamShortcutY]) {
-				//		initPadPress(&lastPadPress);
-				//	}
+					//	if (defaultEditingMode && soundEditor.getCurrentMenuItem()
+					//		!= paramShortcutsForSongView[lastSelectedParamShortcutX][lastSelectedParamShortcutY]) {
+					//		initPadPress(&lastPadPress);
+					//	}
 
-				return soundEditorResult;
+					return soundEditorResult;
+				}
 			}
-		}
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithThreeMainThings* modelStack =
-		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithThreeMainThings* modelStack =
+			    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
-		//if not in param editor (so, regular performance view or value editor)
-		if (!editingParam) {
-			if (layoutForPerformance[xDisplay].paramID == kNoSelection) {
-				return ActionResult::DEALT_WITH;
+			//if not in param editor (so, regular performance view or value editor)
+			if (!editingParam) {
+				if (layoutForPerformance[xDisplay].paramID == kNoSelection) {
+					return ActionResult::DEALT_WITH;
+				}
+				normalPadAction(modelStack, xDisplay, yDisplay, on);
 			}
-			normalPadAction(modelStack, xDisplay, yDisplay, on);
+			//editing mode & editing parameter FX assignments
+			else {
+				paramEditorPadAction(modelStack, xDisplay, yDisplay, on);
+			}
+			uiNeedsRendering(this); //re-render pads
 		}
-		//editing mode & editing parameter FX assignments
-		else {
-			paramEditorPadAction(modelStack, xDisplay, yDisplay, on);
-		}
-		uiNeedsRendering(this); //re-render pads
+	}
+	else if (!on) {
+		justExitedSoundEditor = false;
 	}
 	return ActionResult::DEALT_WITH;
 }
@@ -1081,9 +1095,9 @@ void PerformanceSessionView::normalPadAction(ModelStackWithThreeMainThings* mode
 
 	//pressing a pad
 	if (on) {
-		backupPerformanceLayout();
 		//no need to pad press action if you've already processed it previously and pad was held
 		if (FXPress[xDisplay].yDisplay != yDisplay) {
+			backupPerformanceLayout();
 			//check if there a previously held press for this parameter in another column and disable it
 			//also transfer the previous value for that held pad to this new pad column press
 			for (int32_t i = 0; i < kDisplayWidth; i++) {
@@ -1095,7 +1109,6 @@ void PerformanceSessionView::normalPadAction(ModelStackWithThreeMainThings* mode
 					}
 				}
 			}
-
 			padPressAction(modelStack, lastSelectedParamKind, lastSelectedParamID, xDisplay, yDisplay,
 			               !defaultEditingMode);
 		}
@@ -1116,22 +1129,27 @@ void PerformanceSessionView::normalPadAction(ModelStackWithThreeMainThings* mode
 		else if ((FXPress[xDisplay].previousKnobPosition != kNoSelection) && (FXPress[xDisplay].yDisplay == yDisplay)
 		         && ((AudioEngine::audioSampleTimer - FXPress[xDisplay].timeLastPadPress) < kHoldTime)) {
 			FXPress[xDisplay].padPressHeld = true;
+			updateLayoutChangeStatus();
+			logPerformanceLayoutChange();
 		}
-		updateLayoutChangeStatus();
-		logPerformanceLayoutChange();
 	}
 
+	//if you're in editing mode and not editing a param, pressing an FX column will open soundEditor menu
+	//if a parameter has been assigned to that FX column
 	if (defaultEditingMode && on) {
 		int32_t lastSelectedParamShortcutX = layoutForPerformance[lastPadPress.xDisplay].xDisplay;
 		int32_t lastSelectedParamShortcutY = layoutForPerformance[lastPadPress.xDisplay].yDisplay;
 
+		//if you're not already in soundEditor, enter soundEditor
 		if (getCurrentUI() != &soundEditor) {
 			goto potentialShortcutPadAction;
 		}
+		//if you're already in soundEditor, check if you're in the right menu
 		else if (soundEditor.getCurrentMenuItem()
 		         != paramShortcutsForSongView[lastSelectedParamShortcutX][lastSelectedParamShortcutY]) {
 			goto potentialShortcutPadAction;
 		}
+		//otherwise no need to do anything as you're already displaying the menu for the parameter
 		else {
 			return;
 		}
@@ -1265,6 +1283,8 @@ void PerformanceSessionView::backupPerformanceLayout() {
 	performanceLayoutBackedUp = true;
 }
 
+//used in conjunction with backupPerformanceLayout and updateLayoutChangeStatus() to log changes
+//while in Performance View so that you can undo/redo them afters
 void PerformanceSessionView::logPerformanceLayoutChange() {
 	if (anyChangesToLog()) {
 		actionLogger.recordPerformanceLayoutChange(&backupLastPadPress, &lastPadPress, &backupFXPress[0], &FXPress[0],

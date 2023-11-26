@@ -108,6 +108,7 @@ public:
 	bool anyChangesToSave;
 	bool defaultEditingMode;
 	bool editingParam; //if you're not editing a param, you're editing a value
+	bool justExitedSoundEditor;
 	void writeDefaultsToFile();
 	PadPress lastPadPress;
 	FXColumnPress FXPress[kDisplayWidth];
