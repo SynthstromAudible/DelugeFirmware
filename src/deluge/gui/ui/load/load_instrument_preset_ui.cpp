@@ -860,7 +860,8 @@ giveUsedError:
 			}
 		}
 		int32_t error;
-		Browser::checkFP();
+		//check if the file pointer matches the current file item
+		//Browser::checkFP();
 		error = storageManager.loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, instrumentTypeToLoad, false,
 		                                              &newInstrument, &currentFileItem->filePointer, &enteredText,
 		                                              &currentDir);
