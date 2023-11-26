@@ -949,7 +949,8 @@ void AutomationInstrumentClipView::renderDisplay7SEG(InstrumentClip* clip, Instr
 				lastPadSelectedKnobPos = knobPosLeft;
 			}
 			else if (lastPadSelectedKnobPos != kNoSelection) {
-				knobPosLeft = view.calculateKnobPosForDisplay(instrument->type, clip->lastSelectedParamID, lastPadSelectedKnobPos);
+				knobPosLeft = view.calculateKnobPosForDisplay(instrument->type, clip->lastSelectedParamID,
+				                                              lastPadSelectedKnobPos);
 			}
 		}
 
