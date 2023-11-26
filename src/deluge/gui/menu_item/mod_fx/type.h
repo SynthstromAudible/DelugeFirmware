@@ -20,6 +20,7 @@
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "util/misc.h"
 
 namespace deluge::gui::menu_item::mod_fx {
@@ -37,6 +38,16 @@ public:
 
 	std::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
+		if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableGrainFX) == RuntimeFeatureStateToggle::Off) {
+			return {
+			    l10n::getView(STRING_FOR_DISABLED),      //<
+			    l10n::getView(STRING_FOR_FLANGER),       //<
+			    l10n::getView(STRING_FOR_CHORUS),        //<
+			    l10n::getView(STRING_FOR_PHASER),        //<
+			    l10n::getView(STRING_FOR_STEREO_CHORUS), //<
+			};
+		}
+
 		return {
 		    l10n::getView(STRING_FOR_DISABLED),      //<
 		    l10n::getView(STRING_FOR_FLANGER),       //<

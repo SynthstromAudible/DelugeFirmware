@@ -121,7 +121,11 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 	else if (modKnobMode == 5) {
 		if (whichModEncoder == 1) {
 			if (on) {
-				modFXType = static_cast<ModFXType>((util::to_underlying(modFXType) + 1) % kNumModFXTypes);
+				auto modTypeCount = (runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableGrainFX)
+				                     == RuntimeFeatureStateToggle::Off)
+				                        ? (kNumModFXTypes - 1)
+				                        : kNumModFXTypes;
+				modFXType = static_cast<ModFXType>((util::to_underlying(modFXType) + 1) % modTypeCount);
 				if (modFXType == ModFXType::NONE) {
 					modFXType = static_cast<ModFXType>(1);
 				}
