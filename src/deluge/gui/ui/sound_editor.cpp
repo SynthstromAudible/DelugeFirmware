@@ -800,7 +800,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 
 			goto doSetup;
 		}
-    
+
 		// AudioClips - there are just a few shortcuts
 		else if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
 

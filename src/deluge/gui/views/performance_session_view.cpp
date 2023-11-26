@@ -99,97 +99,97 @@ const uint8_t rowTailColourBlue[3] = {2, 2, 53};          //Stutter
 //list of parameters available for assignment to FX columns in performance view
 
 const ParamsForPerformance songParamsForPerformance[kNumParamsForPerformance] = {
-    {Param::Kind::GLOBAL_EFFECTABLE,                                   //paramKind
+    {Param::Kind::UNPATCHED_GLOBAL,                                    //paramKind
      Param::Unpatched::GlobalEffectable::LPF_FREQ,                     //paramID
      8,                                                                //xDisplay
      7,                                                                //yDisplay
      {rowColourRed[0], rowColourRed[1], rowColourRed[2]},              //rowColour[3]
      {rowTailColourRed[0], rowTailColourRed[1], rowTailColourRed[2]}}, //rowTailColour[3]
-    {Param::Kind::GLOBAL_EFFECTABLE,
+    {Param::Kind::UNPATCHED_GLOBAL,
      Param::Unpatched::GlobalEffectable::LPF_RES,
      8,
      6,
      {rowColourRed[0], rowColourRed[1], rowColourRed[2]},
      {rowTailColourRed[0], rowTailColourRed[1], rowTailColourRed[2]}},
-    {Param::Kind::GLOBAL_EFFECTABLE,
+    {Param::Kind::UNPATCHED_GLOBAL,
      Param::Unpatched::GlobalEffectable::HPF_FREQ,
      9,
      7,
      {rowColourPastelOrange[0], rowColourPastelOrange[1], rowColourPastelOrange[2]},
      {rowTailColourPastelOrange[0], rowTailColourPastelOrange[1], rowTailColourPastelOrange[2]}},
-    {Param::Kind::GLOBAL_EFFECTABLE,
+    {Param::Kind::UNPATCHED_GLOBAL,
      Param::Unpatched::GlobalEffectable::HPF_RES,
      9,
      6,
      {rowColourPastelOrange[0], rowColourPastelOrange[1], rowColourPastelOrange[2]},
      {rowTailColourPastelOrange[0], rowTailColourPastelOrange[1], rowTailColourPastelOrange[2]}},
-    {Param::Kind::UNPATCHED,
+    {Param::Kind::UNPATCHED_SOUND,
      Param::Unpatched::BASS,
      10,
      6,
      {rowColourPastelYellow[0], rowColourPastelYellow[1], rowColourPastelYellow[2]},
      {rowTailColourPastelYellow[0], rowTailColourPastelYellow[1], rowTailColourPastelYellow[2]}},
-    {Param::Kind::UNPATCHED,
+    {Param::Kind::UNPATCHED_SOUND,
      Param::Unpatched::TREBLE,
      11,
      6,
      {rowColourPastelYellow[0], rowColourPastelYellow[1], rowColourPastelYellow[2]},
      {rowTailColourPastelYellow[0], rowTailColourPastelYellow[1], rowTailColourPastelYellow[2]}},
-    {Param::Kind::GLOBAL_EFFECTABLE,
+    {Param::Kind::UNPATCHED_GLOBAL,
      Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT,
      13,
      3,
      {rowColourPastelGreen[0], rowColourPastelGreen[1], rowColourPastelGreen[2]},
      {rowTailColourPastelGreen[0], rowTailColourPastelGreen[1], rowTailColourPastelGreen[2]}},
-    {Param::Kind::GLOBAL_EFFECTABLE,
+    {Param::Kind::UNPATCHED_GLOBAL,
      Param::Unpatched::GlobalEffectable::DELAY_AMOUNT,
      14,
      3,
      {rowColourPastelBlue[0], rowColourPastelBlue[1], rowColourPastelBlue[2]},
      {rowTailColourPastelBlue[0], rowTailColourPastelBlue[1], rowTailColourPastelBlue[2]}},
-    {Param::Kind::GLOBAL_EFFECTABLE,
+    {Param::Kind::UNPATCHED_GLOBAL,
      Param::Unpatched::GlobalEffectable::DELAY_RATE,
      14,
      0,
      {rowColourPastelBlue[0], rowColourPastelBlue[1], rowColourPastelBlue[2]},
      {rowTailColourPastelBlue[0], rowTailColourPastelBlue[1], rowTailColourPastelBlue[2]}},
-    {Param::Kind::GLOBAL_EFFECTABLE,
+    {Param::Kind::UNPATCHED_GLOBAL,
      Param::Unpatched::GlobalEffectable::MOD_FX_RATE,
      12,
      7,
      {rowColourPastelPink[0], rowColourPastelPink[1], rowColourPastelPink[2]},
      {rowTailColourPastelPink[0], rowTailColourPastelPink[1], rowTailColourPastelPink[2]}},
-    {Param::Kind::GLOBAL_EFFECTABLE,
+    {Param::Kind::UNPATCHED_GLOBAL,
      Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH,
      12,
      6,
      {rowColourPastelPink[0], rowColourPastelPink[1], rowColourPastelPink[2]},
      {rowTailColourPastelPink[0], rowTailColourPastelPink[1], rowTailColourPastelPink[2]}},
-    {Param::Kind::UNPATCHED,
+    {Param::Kind::UNPATCHED_SOUND,
      Param::Unpatched::MOD_FX_FEEDBACK,
      12,
      5,
      {rowColourPastelPink[0], rowColourPastelPink[1], rowColourPastelPink[2]},
      {rowTailColourPastelPink[0], rowTailColourPastelPink[1], rowTailColourPastelPink[2]}},
-    {Param::Kind::UNPATCHED,
+    {Param::Kind::UNPATCHED_SOUND,
      Param::Unpatched::MOD_FX_OFFSET,
      12,
      4,
      {rowColourPastelPink[0], rowColourPastelPink[1], rowColourPastelPink[2]},
      {rowTailColourPastelPink[0], rowTailColourPastelPink[1], rowTailColourPastelPink[2]}},
-    {Param::Kind::UNPATCHED,
+    {Param::Kind::UNPATCHED_SOUND,
      Param::Unpatched::SAMPLE_RATE_REDUCTION,
      6,
      5,
      {rowColourPink[0], rowColourPink[1], rowColourPink[2]},
      {rowTailColourPink[0], rowTailColourPink[1], rowTailColourPink[2]}},
-    {Param::Kind::UNPATCHED,
+    {Param::Kind::UNPATCHED_SOUND,
      Param::Unpatched::BITCRUSHING,
      6,
      6,
      {rowColourPink[0], rowColourPink[1], rowColourPink[2]},
      {rowTailColourPink[0], rowTailColourPink[1], rowTailColourPink[2]}},
-    {Param::Kind::UNPATCHED,
+    {Param::Kind::UNPATCHED_SOUND,
      Param::Unpatched::STUTTER_RATE,
      5,
      7,
@@ -198,97 +198,97 @@ const ParamsForPerformance songParamsForPerformance[kNumParamsForPerformance] = 
 };
 
 const ParamsForPerformance defaultLayoutForPerformance[kDisplayWidth] = {
-    {Param::Kind::GLOBAL_EFFECTABLE,                                   //paramKind
+    {Param::Kind::UNPATCHED_GLOBAL,                                    //paramKind
      Param::Unpatched::GlobalEffectable::LPF_FREQ,                     //paramID
      8,                                                                //xDisplay
      7,                                                                //yDisplay
      {rowColourRed[0], rowColourRed[1], rowColourRed[2]},              //rowColour[3]
      {rowTailColourRed[0], rowTailColourRed[1], rowTailColourRed[2]}}, //rowTailColour[3]
-    {Param::Kind::GLOBAL_EFFECTABLE,
+    {Param::Kind::UNPATCHED_GLOBAL,
      Param::Unpatched::GlobalEffectable::LPF_RES,
      8,
      6,
      {rowColourRed[0], rowColourRed[1], rowColourRed[2]},
      {rowTailColourRed[0], rowTailColourRed[1], rowTailColourRed[2]}},
-    {Param::Kind::GLOBAL_EFFECTABLE,
+    {Param::Kind::UNPATCHED_GLOBAL,
      Param::Unpatched::GlobalEffectable::HPF_FREQ,
      9,
      7,
      {rowColourPastelOrange[0], rowColourPastelOrange[1], rowColourPastelOrange[2]},
      {rowTailColourPastelOrange[0], rowTailColourPastelOrange[1], rowTailColourPastelOrange[2]}},
-    {Param::Kind::GLOBAL_EFFECTABLE,
+    {Param::Kind::UNPATCHED_GLOBAL,
      Param::Unpatched::GlobalEffectable::HPF_RES,
      9,
      6,
      {rowColourPastelOrange[0], rowColourPastelOrange[1], rowColourPastelOrange[2]},
      {rowTailColourPastelOrange[0], rowTailColourPastelOrange[1], rowTailColourPastelOrange[2]}},
-    {Param::Kind::UNPATCHED,
+    {Param::Kind::UNPATCHED_SOUND,
      Param::Unpatched::BASS,
      10,
      6,
      {rowColourPastelYellow[0], rowColourPastelYellow[1], rowColourPastelYellow[2]},
      {rowTailColourPastelYellow[0], rowTailColourPastelYellow[1], rowTailColourPastelYellow[2]}},
-    {Param::Kind::UNPATCHED,
+    {Param::Kind::UNPATCHED_SOUND,
      Param::Unpatched::TREBLE,
      11,
      6,
      {rowColourPastelYellow[0], rowColourPastelYellow[1], rowColourPastelYellow[2]},
      {rowTailColourPastelYellow[0], rowTailColourPastelYellow[1], rowTailColourPastelYellow[2]}},
-    {Param::Kind::GLOBAL_EFFECTABLE,
+    {Param::Kind::UNPATCHED_GLOBAL,
      Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT,
      13,
      3,
      {rowColourPastelGreen[0], rowColourPastelGreen[1], rowColourPastelGreen[2]},
      {rowTailColourPastelGreen[0], rowTailColourPastelGreen[1], rowTailColourPastelGreen[2]}},
-    {Param::Kind::GLOBAL_EFFECTABLE,
+    {Param::Kind::UNPATCHED_GLOBAL,
      Param::Unpatched::GlobalEffectable::DELAY_AMOUNT,
      14,
      3,
      {rowColourPastelBlue[0], rowColourPastelBlue[1], rowColourPastelBlue[2]},
      {rowTailColourPastelBlue[0], rowTailColourPastelBlue[1], rowTailColourPastelBlue[2]}},
-    {Param::Kind::GLOBAL_EFFECTABLE,
+    {Param::Kind::UNPATCHED_GLOBAL,
      Param::Unpatched::GlobalEffectable::DELAY_RATE,
      14,
      0,
      {rowColourPastelBlue[0], rowColourPastelBlue[1], rowColourPastelBlue[2]},
      {rowTailColourPastelBlue[0], rowTailColourPastelBlue[1], rowTailColourPastelBlue[2]}},
-    {Param::Kind::GLOBAL_EFFECTABLE,
+    {Param::Kind::UNPATCHED_GLOBAL,
      Param::Unpatched::GlobalEffectable::MOD_FX_RATE,
      12,
      7,
      {rowColourPastelPink[0], rowColourPastelPink[1], rowColourPastelPink[2]},
      {rowTailColourPastelPink[0], rowTailColourPastelPink[1], rowTailColourPastelPink[2]}},
-    {Param::Kind::GLOBAL_EFFECTABLE,
+    {Param::Kind::UNPATCHED_GLOBAL,
      Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH,
      12,
      6,
      {rowColourPastelPink[0], rowColourPastelPink[1], rowColourPastelPink[2]},
      {rowTailColourPastelPink[0], rowTailColourPastelPink[1], rowTailColourPastelPink[2]}},
-    {Param::Kind::UNPATCHED,
+    {Param::Kind::UNPATCHED_SOUND,
      Param::Unpatched::MOD_FX_FEEDBACK,
      12,
      5,
      {rowColourPastelPink[0], rowColourPastelPink[1], rowColourPastelPink[2]},
      {rowTailColourPastelPink[0], rowTailColourPastelPink[1], rowTailColourPastelPink[2]}},
-    {Param::Kind::UNPATCHED,
+    {Param::Kind::UNPATCHED_SOUND,
      Param::Unpatched::MOD_FX_OFFSET,
      12,
      4,
      {rowColourPastelPink[0], rowColourPastelPink[1], rowColourPastelPink[2]},
      {rowTailColourPastelPink[0], rowTailColourPastelPink[1], rowTailColourPastelPink[2]}},
-    {Param::Kind::UNPATCHED,
+    {Param::Kind::UNPATCHED_SOUND,
      Param::Unpatched::SAMPLE_RATE_REDUCTION,
      6,
      5,
      {rowColourPink[0], rowColourPink[1], rowColourPink[2]},
      {rowTailColourPink[0], rowTailColourPink[1], rowTailColourPink[2]}},
-    {Param::Kind::UNPATCHED,
+    {Param::Kind::UNPATCHED_SOUND,
      Param::Unpatched::BITCRUSHING,
      6,
      6,
      {rowColourPink[0], rowColourPink[1], rowColourPink[2]},
      {rowTailColourPink[0], rowTailColourPink[1], rowTailColourPink[2]}},
-    {Param::Kind::UNPATCHED,
+    {Param::Kind::UNPATCHED_SOUND,
      Param::Unpatched::STUTTER_RATE,
      5,
      7,
@@ -309,24 +309,24 @@ const Param::Kind paramKindShortcutsForPerformanceView[kDisplayWidth][kDisplayHe
     {Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE,
      Param::Kind::NONE, Param::Kind::NONE},
     {Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE,
-     Param::Kind::NONE, Param::Kind::UNPATCHED},
+     Param::Kind::NONE, Param::Kind::UNPATCHED_SOUND},
     {Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE,
-     Param::Kind::UNPATCHED, Param::Kind::UNPATCHED, Param::Kind::NONE},
+     Param::Kind::UNPATCHED_SOUND, Param::Kind::UNPATCHED_SOUND, Param::Kind::NONE},
     {Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE,
      Param::Kind::NONE, Param::Kind::NONE},
     {Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE,
-     Param::Kind::GLOBAL_EFFECTABLE, Param::Kind::GLOBAL_EFFECTABLE},
+     Param::Kind::UNPATCHED_GLOBAL, Param::Kind::UNPATCHED_GLOBAL},
     {Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE,
-     Param::Kind::GLOBAL_EFFECTABLE, Param::Kind::GLOBAL_EFFECTABLE},
+     Param::Kind::UNPATCHED_GLOBAL, Param::Kind::UNPATCHED_GLOBAL},
     {Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE,
-     Param::Kind::UNPATCHED, Param::Kind::NONE},
+     Param::Kind::UNPATCHED_SOUND, Param::Kind::NONE},
     {Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE,
-     Param::Kind::UNPATCHED, Param::Kind::NONE},
-    {Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::UNPATCHED,
-     Param::Kind::UNPATCHED, Param::Kind::GLOBAL_EFFECTABLE, Param::Kind::GLOBAL_EFFECTABLE},
-    {Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::GLOBAL_EFFECTABLE, Param::Kind::NONE,
+     Param::Kind::UNPATCHED_SOUND, Param::Kind::NONE},
+    {Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::UNPATCHED_SOUND,
+     Param::Kind::UNPATCHED_SOUND, Param::Kind::UNPATCHED_GLOBAL, Param::Kind::UNPATCHED_GLOBAL},
+    {Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::UNPATCHED_GLOBAL, Param::Kind::NONE,
      Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE},
-    {Param::Kind::GLOBAL_EFFECTABLE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::GLOBAL_EFFECTABLE,
+    {Param::Kind::UNPATCHED_GLOBAL, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::UNPATCHED_GLOBAL,
      Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE},
     {Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE,
      Param::Kind::NONE, Param::Kind::NONE},
@@ -711,12 +711,7 @@ void PerformanceSessionView::renderFXDisplay(Param::Kind paramKind, int32_t para
 	if (editingParam) {
 		//display parameter name
 		char parameterName[30];
-		if (paramKind == Param::Kind::UNPATCHED) {
-			strncpy(parameterName, getUnpatchedParamDisplayName(paramID), 29);
-		}
-		else if (paramKind == Param::Kind::GLOBAL_EFFECTABLE) {
-			strncpy(parameterName, getGlobalEffectableParamDisplayName(paramID), 29);
-		}
+		strncpy(parameterName, getParamDisplayName(paramKind, paramID), 29);
 		if (display->haveOLED()) {
 			deluge::hid::display::OLED::clearMainImage();
 
@@ -743,12 +738,7 @@ void PerformanceSessionView::renderFXDisplay(Param::Kind paramKind, int32_t para
 
 			//display parameter name
 			char parameterName[30];
-			if (paramKind == Param::Kind::UNPATCHED) {
-				strncpy(parameterName, getUnpatchedParamDisplayName(paramID), 29);
-			}
-			else if (paramKind == Param::Kind::GLOBAL_EFFECTABLE) {
-				strncpy(parameterName, getGlobalEffectableParamDisplayName(paramID), 29);
-			}
+			strncpy(parameterName, getParamDisplayName(paramKind, paramID), 29);
 
 #if OLED_MAIN_HEIGHT_PIXELS == 64
 			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
@@ -1400,7 +1390,7 @@ void PerformanceSessionView::resetFXColumn(ModelStackWithThreeMainThings* modelS
 
 //check if parameter is stutter
 bool PerformanceSessionView::isParamStutter(Param::Kind paramKind, int32_t paramID) {
-	if ((paramKind == Param::Kind::UNPATCHED) && (paramID == Param::Unpatched::STUTTER_RATE)) {
+	if ((paramKind == Param::Kind::UNPATCHED_SOUND) && (paramID == Param::Unpatched::STUTTER_RATE)) {
 		return true;
 	}
 	return false;
@@ -1409,8 +1399,8 @@ bool PerformanceSessionView::isParamStutter(Param::Kind paramKind, int32_t param
 //check if stutter is active and release it if it is
 void PerformanceSessionView::releaseStutter(ModelStackWithThreeMainThings* modelStack) {
 	if (isUIModeActive(UI_MODE_STUTTERING)) {
-		padReleaseAction(modelStack, Param::Kind::UNPATCHED, Param::Unpatched::STUTTER_RATE, lastPadPress.xDisplay,
-		                 false);
+		padReleaseAction(modelStack, Param::Kind::UNPATCHED_SOUND, Param::Unpatched::STUTTER_RATE,
+		                 lastPadPress.xDisplay, false);
 	}
 }
 
@@ -1431,7 +1421,7 @@ bool PerformanceSessionView::setParameterValue(ModelStackWithThreeMainThings* mo
 
 			//if switching to a new pad in the stutter column and stuttering is already active
 			//e.g. it means a pad was held before, end previous stutter before starting stutter again
-			if ((paramKind == Param::Kind::UNPATCHED) && (paramID == Param::Unpatched::STUTTER_RATE)
+			if ((paramKind == Param::Kind::UNPATCHED_SOUND) && (paramID == Param::Unpatched::STUTTER_RATE)
 			    && (isUIModeActive(UI_MODE_STUTTERING))) {
 				((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
 				    ->endStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
@@ -1450,15 +1440,14 @@ bool PerformanceSessionView::setParameterValue(ModelStackWithThreeMainThings* mo
 			modelStackWithParam->autoParam->setValuePossiblyForRegion(newParameterValue, modelStackWithParam,
 			                                                          view.modPos, view.modLength);
 
-			if ((paramKind == Param::Kind::UNPATCHED) && (paramID == Param::Unpatched::STUTTER_RATE)
+			if ((paramKind == Param::Kind::UNPATCHED_SOUND) && (paramID == Param::Unpatched::STUTTER_RATE)
 			    && (FXPress[xDisplay].previousKnobPosition != knobPos)) {
 				((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
 				    ->beginStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
 			}
 
 			if (renderDisplay) {
-				int32_t valueForDisplay =
-				    view.calculateKnobPosForDisplay(InstrumentType::NONE, paramID, knobPos + kKnobPosOffset);
+				int32_t valueForDisplay = view.calculateKnobPosForDisplay(paramKind, paramID, knobPos + kKnobPosOffset);
 				renderFXDisplay(paramKind, paramID, valueForDisplay);
 			}
 
@@ -1485,8 +1474,7 @@ void PerformanceSessionView::getParameterValue(ModelStackWithThreeMainThings* mo
 			int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
 
 			if (renderDisplay && (FXPress[xDisplay].currentKnobPosition != knobPos)) {
-				int32_t valueForDisplay =
-				    view.calculateKnobPosForDisplay(InstrumentType::NONE, paramID, knobPos + kKnobPosOffset);
+				int32_t valueForDisplay = view.calculateKnobPosForDisplay(paramKind, paramID, knobPos + kKnobPosOffset);
 				renderFXDisplay(paramKind, paramID, valueForDisplay);
 			}
 
@@ -1773,10 +1761,10 @@ void PerformanceSessionView::writeDefaultFXValuesToFile() {
 void PerformanceSessionView::writeDefaultFXParamToFile(int32_t xDisplay) {
 	char const* paramName;
 
-	if (layoutForPerformance[xDisplay].paramKind == Param::Kind::GLOBAL_EFFECTABLE) {
+	if (layoutForPerformance[xDisplay].paramKind == Param::Kind::UNPATCHED_GLOBAL) {
 		paramName = GlobalEffectable::paramToString(Param::Unpatched::START + layoutForPerformance[xDisplay].paramID);
 	}
-	else if (layoutForPerformance[xDisplay].paramKind == Param::Kind::UNPATCHED) {
+	else if (layoutForPerformance[xDisplay].paramKind == Param::Kind::UNPATCHED_SOUND) {
 		paramName =
 		    ModControllableAudio::paramToString(Param::Unpatched::START + layoutForPerformance[xDisplay].paramID);
 	}
@@ -1938,10 +1926,10 @@ void PerformanceSessionView::readDefaultFXParamFromFile(int32_t xDisplay) {
 	char const* tagName = storageManager.readTagOrAttributeValue();
 
 	for (int32_t i = 0; i < kNumParamsForPerformance; i++) {
-		if (songParamsForPerformance[i].paramKind == Param::Kind::GLOBAL_EFFECTABLE) {
+		if (songParamsForPerformance[i].paramKind == Param::Kind::UNPATCHED_GLOBAL) {
 			paramName = GlobalEffectable::paramToString(Param::Unpatched::START + songParamsForPerformance[i].paramID);
 		}
-		else if (songParamsForPerformance[i].paramKind == Param::Kind::UNPATCHED) {
+		else if (songParamsForPerformance[i].paramKind == Param::Kind::UNPATCHED_SOUND) {
 			paramName =
 			    ModControllableAudio::paramToString(Param::Unpatched::START + songParamsForPerformance[i].paramID);
 		}
