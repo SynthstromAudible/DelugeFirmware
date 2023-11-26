@@ -1101,7 +1101,7 @@ void PerformanceSessionView::normalPadAction(ModelStackWithThreeMainThings* mode
 		}
 	}
 	//releasing a pad
-	else {
+	else if (lastPadPress.isActive) {
 		//if releasing a pad with "held" status shortly after being given that status
 		//or releasing a pad that was not in "held" status but was a longer press and release
 		if (isParamStutter(lastSelectedParamKind, lastSelectedParamID)
@@ -1387,10 +1387,10 @@ bool PerformanceSessionView::isParamStutter(Param::Kind paramKind, int32_t param
 }
 
 //check if stutter is active and release it if it is
-//don't think this needed anymore now that I disabled the ability "hold" stutter
 void PerformanceSessionView::releaseStutter(ModelStackWithThreeMainThings* modelStack) {
 	if (isUIModeActive(UI_MODE_STUTTERING)) {
-		padReleaseAction(modelStack, Param::Kind::UNPATCHED, Param::Unpatched::STUTTER_RATE, kDisplayWidth - 1, false);
+		padReleaseAction(modelStack, Param::Kind::UNPATCHED, Param::Unpatched::STUTTER_RATE, lastPadPress.xDisplay,
+		                 false);
 	}
 }
 
@@ -1642,8 +1642,13 @@ void PerformanceSessionView::modEncoderButtonAction(uint8_t whichModEncoder, boo
 			}
 		}
 	}
-
-	UI::modEncoderButtonAction(whichModEncoder, on);
+	if (isUIModeActive(UI_MODE_STUTTERING) && lastPadPress.isActive
+	    && isParamStutter(lastPadPress.paramKind, lastPadPress.paramID)) {
+		return;
+	}
+	else {
+		UI::modEncoderButtonAction(whichModEncoder, on);
+	}
 }
 
 void PerformanceSessionView::modButtonAction(uint8_t whichButton, bool on) {
