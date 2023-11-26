@@ -16,6 +16,7 @@
 */
 #include "storage/file_item.h"
 #include "hid/display/display.h"
+#include "io/debug/print.h"
 #include "model/instrument/instrument.h"
 #include <string.h>
 
@@ -37,6 +38,16 @@ int32_t FileItem::setupWithInstrument(Instrument* newInstrument, bool hibernatin
 	isFolder = false;
 	instrumentAlreadyInSong = !hibernating;
 	displayName = filename.get();
+	String tempFilePath;
+	tempFilePath.set(newInstrument->dirPath.get());
+	tempFilePath.concatenate("/");
+	tempFilePath.concatenate(filename.get());
+	bool fileExists = storageManager.fileExists(tempFilePath.get(), &filePointer);
+	if (!fileExists) {
+		Debug::print("couldn't get filepath for file");
+		Debug::println(filename.get());
+		return false;
+	}
 	return NO_ERROR;
 }
 

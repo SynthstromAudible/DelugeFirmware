@@ -260,7 +260,12 @@ void LoadInstrumentPresetUI::enterKeyPress() {
 	else {
 
 		if (currentInstrumentLoadError) {
-			currentInstrumentLoadError = performLoad();
+			if (loadingSynthToKitRow) {
+				currentInstrumentLoadError = performLoadSynthToKit();
+			}
+			else {
+				currentInstrumentLoadError = performLoad();
+			}
 			if (currentInstrumentLoadError) {
 				display->displayError(currentInstrumentLoadError);
 				return;

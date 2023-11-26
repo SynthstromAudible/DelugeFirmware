@@ -1356,7 +1356,9 @@ void StorageManager::openFilePointer(FilePointer* fp) {
 int32_t StorageManager::openInstrumentFile(InstrumentType instrumentType, FilePointer* filePointer) {
 
 	AudioEngine::logAction("openInstrumentFile");
-
+	if (!filePointer->sclust) {
+		return ERROR_FILE_NOT_FOUND;
+	}
 	char const* firstTagName;
 	char const* altTagName = "";
 
@@ -1384,6 +1386,7 @@ int32_t StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip,
 	Debug::print(name->get());
 	Debug::print(" from FP ");
 	Debug::println((int32_t)filePointer->sclust);
+
 	int32_t error = openInstrumentFile(instrumentType, filePointer);
 	if (error) {
 		Debug::print("opening instrument file failed - ");
