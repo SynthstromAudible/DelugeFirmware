@@ -501,116 +501,113 @@ char const* getPatchedParamDisplayName(int32_t p) {
 	}
 }
 
-char const* getUnpatchedParamDisplayName(int32_t p) {
+char const* getParamDisplayName(Param::Kind kind, int32_t p) {
 	using enum l10n::String;
-
-	// These can basically be 13 chars long, or 14 if the last one is a dot.
-	switch (p) {
-
-	//Bass, Bass Freq
-	case Param::Unpatched::BASS:
-		return l10n::get(STRING_FOR_BASS);
-
-	case Param::Unpatched::BASS_FREQ:
-		return l10n::get(STRING_FOR_BASS_FREQUENCY);
-
-	//Treble, Treble Freq
-	case Param::Unpatched::TREBLE:
-		return l10n::get(STRING_FOR_TREBLE);
-
-	case Param::Unpatched::TREBLE_FREQ:
-		return l10n::get(STRING_FOR_TREBLE_FREQUENCY);
-
-	//Sidechain Shape
-	case Param::Unpatched::COMPRESSOR_SHAPE:
-		return l10n::get(STRING_FOR_SIDECHAIN_SHAPE);
-
-	//Decimation, Bitcrush
-	case Param::Unpatched::SAMPLE_RATE_REDUCTION:
-		return l10n::get(STRING_FOR_DECIMATION);
-
-	case Param::Unpatched::BITCRUSHING:
-		return l10n::get(STRING_FOR_BITCRUSH);
-
-	//Mod FX Offset, Feedback
-	case Param::Unpatched::MOD_FX_OFFSET:
-		return l10n::get(STRING_FOR_MODFX_OFFSET);
-
-	case Param::Unpatched::MOD_FX_FEEDBACK:
-		return l10n::get(STRING_FOR_MODFX_FEEDBACK);
-
-	//Arp Gate
-	case Param::Unpatched::Sound::ARP_GATE:
-		return l10n::get(STRING_FOR_ARP_GATE_MENU_TITLE);
-
-	//Portamento
-	case Param::Unpatched::Sound::PORTAMENTO:
-		return l10n::get(STRING_FOR_PORTAMENTO);
-
-	//Stutter
-	case Param::Unpatched::STUTTER_RATE:
-		return l10n::get(STRING_FOR_STUTTER_RATE);
-
-	default:
-		return l10n::get(STRING_FOR_NONE);
+	if (kind == Param::Kind::PATCHED) {
+		return getPatchedParamDisplayName(p);
 	}
-}
 
-char const* getGlobalEffectableParamDisplayName(int32_t p) {
-	using enum l10n::String;
+	if (kind == Param::Kind::UNPATCHED_SOUND || kind == Param::Kind::UNPATCHED_GLOBAL) {
+		// These can basically be 13 chars long, or 14 if the last one is a dot.
+		switch (p) {
 
-	// These can basically be 13 chars long, or 14 if the last one is a dot.
-	switch (p) {
+		//Bass, Bass Freq
+		case Param::Unpatched::BASS:
+			return l10n::get(STRING_FOR_BASS);
 
-	//Master Volume, Pitch, Pan
-	case Param::Unpatched::GlobalEffectable::VOLUME:
-		return l10n::get(STRING_FOR_MASTER_LEVEL);
+		case Param::Unpatched::BASS_FREQ:
+			return l10n::get(STRING_FOR_BASS_FREQUENCY);
 
-	case Param::Unpatched::GlobalEffectable::PITCH_ADJUST:
-		return l10n::get(STRING_FOR_MASTER_PITCH);
+		//Treble, Treble Freq
+		case Param::Unpatched::TREBLE:
+			return l10n::get(STRING_FOR_TREBLE);
 
-	case Param::Unpatched::GlobalEffectable::PAN:
-		return l10n::get(STRING_FOR_MASTER_PAN);
+		case Param::Unpatched::TREBLE_FREQ:
+			return l10n::get(STRING_FOR_TREBLE_FREQUENCY);
 
-	//LPF Cutoff, Resonance
-	case Param::Unpatched::GlobalEffectable::LPF_FREQ:
-		return l10n::get(STRING_FOR_LPF_FREQUENCY);
+		//Sidechain Shape
+		case Param::Unpatched::COMPRESSOR_SHAPE:
+			return l10n::get(STRING_FOR_SIDECHAIN_SHAPE);
 
-	case Param::Unpatched::GlobalEffectable::LPF_RES:
-		return l10n::get(STRING_FOR_LPF_RESONANCE);
+		//Decimation, Bitcrush
+		case Param::Unpatched::SAMPLE_RATE_REDUCTION:
+			return l10n::get(STRING_FOR_DECIMATION);
 
-	//HPF Cutoff, Resonance
-	case Param::Unpatched::GlobalEffectable::HPF_FREQ:
-		return l10n::get(STRING_FOR_HPF_FREQUENCY);
+		case Param::Unpatched::BITCRUSHING:
+			return l10n::get(STRING_FOR_BITCRUSH);
 
-	case Param::Unpatched::GlobalEffectable::HPF_RES:
-		return l10n::get(STRING_FOR_HPF_RESONANCE);
+		//Mod FX Offset, Feedback
+		case Param::Unpatched::MOD_FX_OFFSET:
+			return l10n::get(STRING_FOR_MODFX_OFFSET);
 
-	//Reverb Amount
-	case Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT:
-		return l10n::get(STRING_FOR_REVERB_AMOUNT);
+		case Param::Unpatched::MOD_FX_FEEDBACK:
+			return l10n::get(STRING_FOR_MODFX_FEEDBACK);
 
-	//Delay Rate, Amount
-	case Param::Unpatched::GlobalEffectable::DELAY_RATE:
-		return l10n::get(STRING_FOR_DELAY_RATE);
-
-	case Param::Unpatched::GlobalEffectable::DELAY_AMOUNT:
-		return l10n::get(STRING_FOR_DELAY_AMOUNT);
-
-	//Sidechain Send
-	case Param::Unpatched::GlobalEffectable::SIDECHAIN_VOLUME:
-		return l10n::get(STRING_FOR_SIDECHAIN_LEVEL);
-
-	//Mod FX Depth, Rate
-	case Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH:
-		return l10n::get(STRING_FOR_MODFX_DEPTH);
-
-	case Param::Unpatched::GlobalEffectable::MOD_FX_RATE:
-		return l10n::get(STRING_FOR_MODFX_RATE);
-
-	default:
-		return l10n::get(STRING_FOR_NONE);
+		case Param::Unpatched::STUTTER_RATE:
+			return l10n::get(STRING_FOR_STUTTER_RATE);
+		}
 	}
+
+	if (kind == Param::Kind::UNPATCHED_SOUND) {
+		switch (p) {
+		case Param::Unpatched::Sound::ARP_GATE:
+			return l10n::get(STRING_FOR_ARP_GATE_MENU_TITLE);
+		case Param::Unpatched::Sound::PORTAMENTO:
+			return l10n::get(STRING_FOR_PORTAMENTO);
+		}
+	}
+
+	if (kind == Param::Kind::UNPATCHED_GLOBAL) {
+		// These can basically be 13 chars long, or 14 if the last one is a dot.
+		switch (p) {
+		//Master Volume, Pitch, Pan
+		case Param::Unpatched::GlobalEffectable::VOLUME:
+			return l10n::get(STRING_FOR_MASTER_LEVEL);
+
+		case Param::Unpatched::GlobalEffectable::PITCH_ADJUST:
+			return l10n::get(STRING_FOR_MASTER_PITCH);
+
+		case Param::Unpatched::GlobalEffectable::PAN:
+			return l10n::get(STRING_FOR_MASTER_PAN);
+
+		//LPF Cutoff, Resonance
+		case Param::Unpatched::GlobalEffectable::LPF_FREQ:
+			return l10n::get(STRING_FOR_LPF_FREQUENCY);
+
+		case Param::Unpatched::GlobalEffectable::LPF_RES:
+			return l10n::get(STRING_FOR_LPF_RESONANCE);
+
+		//HPF Cutoff, Resonance
+		case Param::Unpatched::GlobalEffectable::HPF_FREQ:
+			return l10n::get(STRING_FOR_HPF_FREQUENCY);
+
+		case Param::Unpatched::GlobalEffectable::HPF_RES:
+			return l10n::get(STRING_FOR_HPF_RESONANCE);
+
+		//Reverb Amount
+		case Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT:
+			return l10n::get(STRING_FOR_REVERB_AMOUNT);
+
+		//Delay Rate, Amount
+		case Param::Unpatched::GlobalEffectable::DELAY_RATE:
+			return l10n::get(STRING_FOR_DELAY_RATE);
+
+		case Param::Unpatched::GlobalEffectable::DELAY_AMOUNT:
+			return l10n::get(STRING_FOR_DELAY_AMOUNT);
+
+		//Sidechain Send
+		case Param::Unpatched::GlobalEffectable::SIDECHAIN_VOLUME:
+			return l10n::get(STRING_FOR_SIDECHAIN_LEVEL);
+
+		//Mod FX Depth, Rate
+		case Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH:
+			return l10n::get(STRING_FOR_MODFX_DEPTH);
+
+		case Param::Unpatched::GlobalEffectable::MOD_FX_RATE:
+			return l10n::get(STRING_FOR_MODFX_RATE);
+		}
+	}
+	return l10n::get(STRING_FOR_NONE);
 }
 
 PatchSource stringToSource(char const* string) {

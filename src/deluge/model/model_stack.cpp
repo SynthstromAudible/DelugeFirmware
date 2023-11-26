@@ -185,6 +185,10 @@ ModelStackWithThreeMainThings* ModelStackWithNoteRow::addOtherTwoThingsAutomatic
 	return toReturn;
 }
 
+bool ModelStackWithParamId::isParam(Param::Kind kind, ParamType id) {
+	return paramCollection && paramCollection->getParamKind() == kind && paramId == id;
+}
+
 bool ModelStackWithSoundFlags::checkSourceEverActiveDisregardingMissingSample(int32_t s) {
 	int32_t flagValue = soundFlags[SOUND_FLAG_SOURCE_0_ACTIVE_DISREGARDING_MISSING_SAMPLE + s];
 	if (flagValue == FLAG_TBD) {
