@@ -125,8 +125,6 @@ bool SessionView::opened() {
 
 	focusRegained();
 
-	currentSong->performanceView = false;
-
 	return true;
 }
 

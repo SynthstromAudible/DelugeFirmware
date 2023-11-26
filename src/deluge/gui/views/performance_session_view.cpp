@@ -445,7 +445,6 @@ bool PerformanceSessionView::opened() {
 
 void PerformanceSessionView::focusRegained() {
 	currentSong->affectEntire = true;
-	currentSong->performanceView = true;
 
 	ClipNavigationTimelineView::focusRegained();
 	view.focusRegained();

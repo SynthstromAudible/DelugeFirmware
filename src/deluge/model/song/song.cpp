@@ -95,7 +95,6 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	tripletsOn = false;
 
 	affectEntire = false;
-	performanceView = false;
 
 	fillModeActive = false;
 
@@ -1086,7 +1085,6 @@ weAreInArrangementEditorOrInClipInstance:
 	}
 
 	storageManager.writeAttribute("affectEntire", affectEntire);
-	storageManager.writeAttribute("performanceView", performanceView);
 	storageManager.writeAttribute("activeModFunction", globalEffectable.modKnobMode);
 
 	globalEffectable.writeAttributesToFile(false);
@@ -1477,11 +1475,6 @@ unknownTag:
 			else if (!strcmp(tagName, "affectEntire")) {
 				affectEntire = storageManager.readTagOrAttributeValueInt();
 				storageManager.exitTag("affectEntire");
-			}
-
-			else if (!strcmp(tagName, "performanceView")) {
-				performanceView = storageManager.readTagOrAttributeValueInt();
-				storageManager.exitTag("performanceView");
 			}
 
 			else if (!strcmp(tagName, "songCompressor")) {
