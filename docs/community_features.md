@@ -55,7 +55,7 @@ Here is a list of features that have been added to the firmware as a list, group
 ### 4.1 - Song View Features
 
 #### 4.1.1 - Master Compressor
-- ([#630]) In the Song view, select "AFFECT ENTIRE" and "SIDECHAIN" modulation button, and adjust the upper gold knob for a single knob compressor with auto makeup gain. For detailed editing, press the sidechain gold knob. The top LED will become a compression meter, and the bottom LED level will show the compressor input level. The bottom (reverb) knob will adjust the ratio in this mode, from 1:8 to infinity/brick wall. The compressor attack and release are editable on the affect entire attack and release buttons if desired. 
+- ([#630]) In the Song view, select "AFFECT ENTIRE" and "SIDECHAIN" modulation button, and adjust the upper gold knob for a single knob compressor with auto makeup gain. For detailed editing, press the sidechain gold knob. The top LED will become a compression meter.  Clicking the bottom knob will cycle through additional params: ratio (displays actual ratio), attack/release (shown in ms) and sidechain HPF (shown in Hz). The sidechain HPF is useful to remove some bass from the compressor level detection, which sounds like an increase in bass allowed through the compression. 
 
 
 #### 4.1.2 - Change Row Colour
@@ -104,25 +104,10 @@ Here is a list of features that have been added to the firmware as a list, group
 ### 4.2 - Clip View - General Features (Instrument and Audio Clips)
 
 #### 4.2.1 - Filters
- - ([#103]) Adds a new filter in the low-pass slot, a state-variable filter. This filter has significantly less distortion than the ladder filters, think sequential vs. moog. Cutoff and resonance ranges are subject to change with further testing.
+ - ([#103] and [#336]) Adds 2 new state variable filters to both high and lowpass slots. This filter has significantly less distortion than the ladder filters, think sequential vs. moog. The morph parameter (pad under db/oct) adjusts smoothly from lowpass -> bandpass/notch -> highpass. The knob is inverted in the HPF slot so that at 0 the filter is highpass and at 50 it is lowpassed. 
+ 	- The morph param is also added to the ladders, in 12/24/drive filters it smoothly increases drive and in the HPF ladder it adds filter FM. This param is modulatable and automatable
 
-	- Follow-up PR's: ([#125] and [#212]) Various SVF fixes
-
-- ([#336]) Morphable and Driveable Parallel Filters
-	- Add an SVF option to the HPF slot, set for HPF mode by default. This can be modified through the menu, shortcuts, or clicking the lower knob while HPF is selected.
-
-	- Follow-up PR: ([#339]) SVF Notch Filter
- 		- Adds an SVF notch mode (SV_Notch) alongside the SVF Band mode (SV_Band)
-		- Changes SVF morph in HP slot to go HP-band/notch-LP (HP by default)
-		- Tweaks default ladder saturation to match original firmware
-		- Applies ladder gain on input instead of feedback, avoiding interaction with resonance
-		- Tweaks SVF level to match ladder volumes
-		- Removes distinction between high and lowpass SVF enums so they can now be used in either slot
-adds HP ladder morph to filter FM
-
-	- Adds a 3rd filter paramater called morph, placed in the menu and on the pads under the db/oct on filters. Morph smoothly morphs the SVF through LP-BP-HP, and smoothly increases drive in the ladder filters. This param is modulatable and automatable
-
-	- Adds a setting to switch the filter order or run them in parallel. This setting is menu only and named ROUTE
+	- Also adds a setting to switch the filter order or run them in parallel. This setting is menu only and named ROUTE
 
 #### 4.2.2 - Stereo Chorus
 - ([#120]) New Stereo Chorus type added to Mod FX. The recommended settings are OFFSET=30, DEPTH=17, and RATE=15.
@@ -193,9 +178,10 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 
 #### 4.3.3 - Quantize & Humanize
  - ([#129])
-	- Press and hold a note in clip view and turn the tempo knob right or left to apply quantize or humanize respectively to that row.
-	- Press and hold a note and press and turn the tempo knob to apply quantize or humanize to all rows.
+	- Press and hold an audition pad in clip view and turn the tempo knob right or left to apply quantize or humanize respectively to that row.
+	- Press and hold an audition pad and press and turn the tempo knob to apply quantize or humanize to all rows.
 	- The amount of quantization/humanization is shown in the display.
+	- This is destructive (your original note positions are not saved) The implementation of this feature is likely to change in the future
 	- This feature can be turned ON/OFF in the Runtime Settings (Community Features) Menu (accessed by pressing "SHIFT" + "SELECT"). 
 
 #### 4.3.4 - Fill Mode
@@ -297,8 +283,6 @@ In the main menu of the deluge (accessed by pressing "SHIFT" + the "SELECT" knob
 
 * Drum Randomizer (DRUM)
 	* When On, the "AUDITION + RANDOM" shortcut is enabled.
-* Master Compressor (COMP)
-	* When On, the Master Compressor is enabled.
 * Fine Tempo Knob (TEMP)
 	* When On, the Fine Tempo change option is enabled.
 * Quantize (QUAN)
