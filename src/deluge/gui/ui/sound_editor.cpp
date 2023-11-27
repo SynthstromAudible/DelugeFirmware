@@ -310,10 +310,17 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 				}
 			}
 			else {
-				performanceSessionView.writeDefaultsToFile();
-				performanceSessionView.updateLayoutChangeStatus();
+				performanceSessionView.savePerformanceViewLayout();
 				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_SAVED));
 			}
+		}
+	}
+
+	//Load button
+	else if (b == LOAD) {
+		if (on && (getRootUI() == &performanceSessionView)) {
+			performanceSessionView.loadPerformanceViewLayout();
+			display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_LOADED));
 		}
 	}
 

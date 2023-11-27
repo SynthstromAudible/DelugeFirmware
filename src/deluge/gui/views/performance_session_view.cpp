@@ -917,8 +917,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 			else {
 				layoutVariant = 1;
 			}*/
-			writeDefaultsToFile();
-			updateLayoutChangeStatus();
+			savePerformanceViewLayout();
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_SAVED));
 		}
 	}
@@ -941,12 +940,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 			else {
 				layoutVariant = 1;
 			}*/
-
-			backupPerformanceLayout();
-			resetPerformanceView(modelStack);
-			readDefaultsFromFile();
-			updateLayoutChangeStatus();
-			logPerformanceLayoutChange();
+			loadPerformanceViewLayout();
 			renderViewDisplay();
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_LOADED));
 		}
@@ -1129,9 +1123,9 @@ void PerformanceSessionView::normalPadAction(ModelStackWithThreeMainThings* mode
 		else if ((FXPress[xDisplay].previousKnobPosition != kNoSelection) && (FXPress[xDisplay].yDisplay == yDisplay)
 		         && ((AudioEngine::audioSampleTimer - FXPress[xDisplay].timeLastPadPress) < kHoldTime)) {
 			FXPress[xDisplay].padPressHeld = true;
-			updateLayoutChangeStatus();
 			logPerformanceLayoutChange();
 		}
+		updateLayoutChangeStatus();
 	}
 
 	//if you're in editing mode and not editing a param, pressing an FX column will open soundEditor menu
@@ -1246,8 +1240,8 @@ void PerformanceSessionView::paramEditorPadAction(ModelStackWithThreeMainThings*
 				//remove param from FX column
 				initLayout(&layoutForPerformance[xDisplay]);
 			}
-			updateLayoutChangeStatus();
 			logPerformanceLayoutChange();
+			updateLayoutChangeStatus();
 		}
 	}
 	//releasing a pad
@@ -1283,7 +1277,7 @@ void PerformanceSessionView::backupPerformanceLayout() {
 	performanceLayoutBackedUp = true;
 }
 
-//used in conjunction with backupPerformanceLayout and updateLayoutChangeStatus() to log changes
+//used in conjunction with backupPerformanceLayout to log changes
 //while in Performance View so that you can undo/redo them afters
 void PerformanceSessionView::logPerformanceLayoutChange() {
 	if (anyChangesToLog()) {
@@ -1554,8 +1548,8 @@ void PerformanceSessionView::selectEncoderAction(int8_t offset) {
 
 			if (setParameterValue(modelStack, lastPadPress.paramKind, lastPadPress.paramID, lastPadPress.xDisplay,
 			                      defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay], false)) {
-				updateLayoutChangeStatus();
 				logPerformanceLayoutChange();
+				updateLayoutChangeStatus();
 			}
 			goto exit;
 		}
@@ -1717,8 +1711,17 @@ void PerformanceSessionView::updateLayoutChangeStatus() {
 			indicator_leds::setLedState(IndicatorLED::SAVE, false);
 		}
 	}
+	else {
+		indicator_leds::setLedState(IndicatorLED::SAVE, false);
+	}
 
 	return;
+}
+
+//update saved perfomance view layout and update saved changes status
+void PerformanceSessionView::savePerformanceViewLayout() {
+	writeDefaultsToFile();
+	updateLayoutChangeStatus();
 }
 
 //create default XML file and write defaults
@@ -1839,6 +1842,18 @@ void PerformanceSessionView::writeDefaultFXHoldStatusToFile(int32_t xDisplay) {
 	}
 
 	storageManager.writeClosingTag(STRING_FOR_PERFORM_DEFAULTS_HOLD_TAG);
+}
+
+//backup current layout, load saved layout, log layout change, update change status
+void PerformanceSessionView::loadPerformanceViewLayout() {
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* modelStack = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+
+	backupPerformanceLayout();
+	resetPerformanceView(modelStack);
+	readDefaultsFromFile();
+	logPerformanceLayoutChange();
+	updateLayoutChangeStatus();
 }
 
 //read defaults from XML

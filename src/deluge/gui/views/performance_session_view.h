@@ -103,13 +103,15 @@ public:
 	uint32_t getMaxZoom();
 	uint32_t getMaxLength();
 
-	//public so soundEditor and Action Logger can access them
-	void updateLayoutChangeStatus();
-	bool anyChangesToSave;
+	//public so soundEditor can access it
+	void savePerformanceViewLayout();
+	void loadPerformanceViewLayout();
 	bool defaultEditingMode;
 	bool editingParam; //if you're not editing a param, you're editing a value
 	bool justExitedSoundEditor;
-	void writeDefaultsToFile();
+
+	//public so Action Logger can access it
+	void updateLayoutChangeStatus();
 	PadPress lastPadPress;
 	FXColumnPress FXPress[kDisplayWidth];
 	ParamsForPerformance layoutForPerformance[kDisplayWidth];
@@ -151,7 +153,7 @@ private:
 	void releaseStutter(ModelStackWithThreeMainThings* modelStack);
 
 	//write/load default values
-
+	void writeDefaultsToFile();
 	void writeDefaultFXValuesToFile();
 	void writeDefaultFXParamToFile(int32_t xDisplay);
 	void writeDefaultFXRowValuesToFile(int32_t xDisplay);
@@ -164,6 +166,7 @@ private:
 	void readDefaultFXRowNumberValuesFromFile(int32_t xDisplay);
 	void readDefaultFXHoldStatusFromFile(int32_t xDisplay);
 	bool successfullyReadDefaultsFromFile;
+	bool anyChangesToSave;
 
 	//backup loaded layout (what's currently in XML file)
 	//backup the last loaded/last saved changes, so you can compare and let user know if any changes

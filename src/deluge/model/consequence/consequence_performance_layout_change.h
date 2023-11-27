@@ -33,5 +33,4 @@ public:
 	FXColumnPress FXPress[kDisplayWidth][2];
 	ParamsForPerformance layoutForPerformance[kDisplayWidth][2];
 	int32_t defaultFXValues[kDisplayWidth][kDisplayHeight][2];
-	bool anyChangesToSave[2];
 };
