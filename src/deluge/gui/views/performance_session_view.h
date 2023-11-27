@@ -113,7 +113,7 @@ public:
 	//public so Action Logger can access it
 	void updateLayoutChangeStatus();
 	PadPress lastPadPress;
-	FXColumnPress FXPress[kDisplayWidth];
+	FXColumnPress fxPress[kDisplayWidth];
 	ParamsForPerformance layoutForPerformance[kDisplayWidth];
 	int32_t defaultFXValues[kDisplayWidth][kDisplayHeight];
 

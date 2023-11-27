@@ -382,7 +382,7 @@ PerformanceSessionView::PerformanceSessionView() {
 	initPadPress(&backupLastPadPress);
 
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
-		initFXPress(&FXPress[xDisplay]);
+		initFXPress(&fxPress[xDisplay]);
 		initFXPress(&backupFXPress[xDisplay]);
 		initFXPress(&backupXMLDefaultFXPress[xDisplay]);
 
@@ -587,8 +587,8 @@ void PerformanceSessionView::renderRow(uint8_t* image, uint8_t occupancyMask[], 
 			}
 			else {
 				//if you're currently pressing an FX column, highlight it a bright colour
-				if ((FXPress[xDisplay].currentKnobPosition != kNoSelection)
-				    && (FXPress[xDisplay].padPressHeld == false)) {
+				if ((fxPress[xDisplay].currentKnobPosition != kNoSelection)
+				    && (fxPress[xDisplay].padPressHeld == false)) {
 					memcpy(pixel, &layoutForPerformance[xDisplay].rowColour, 3);
 				}
 				//if you're not currently pressing an FX column, highlight it a dimmer colour
@@ -597,8 +597,8 @@ void PerformanceSessionView::renderRow(uint8_t* image, uint8_t occupancyMask[], 
 				}
 
 				//if you're currently pressing an FX column, highlight the pad you're pressing white
-				if ((FXPress[xDisplay].currentKnobPosition == defaultFXValues[xDisplay][yDisplay])
-				    && (FXPress[xDisplay].yDisplay == yDisplay)) {
+				if ((fxPress[xDisplay].currentKnobPosition == defaultFXValues[xDisplay][yDisplay])
+				    && (fxPress[xDisplay].yDisplay == yDisplay)) {
 					pixel[0] = 130;
 					pixel[1] = 120;
 					pixel[2] = 130;
@@ -1052,7 +1052,7 @@ void PerformanceSessionView::normalPadAction(ModelStackWithThreeMainThings* mode
 	//pressing a pad
 	if (on) {
 		//no need to pad press action if you've already processed it previously and pad was held
-		if (FXPress[xDisplay].yDisplay != yDisplay) {
+		if (fxPress[xDisplay].yDisplay != yDisplay) {
 			backupPerformanceLayout();
 			//check if there a previously held press for this parameter in another column and disable it
 			//also transfer the previous value for that held pad to this new pad column press
@@ -1060,8 +1060,8 @@ void PerformanceSessionView::normalPadAction(ModelStackWithThreeMainThings* mode
 				if (i != xDisplay) {
 					if ((layoutForPerformance[i].paramKind == lastSelectedParamKind)
 					    && (layoutForPerformance[i].paramID == lastSelectedParamID)) {
-						FXPress[xDisplay].previousKnobPosition = FXPress[i].previousKnobPosition;
-						initFXPress(&FXPress[i]);
+						fxPress[xDisplay].previousKnobPosition = fxPress[i].previousKnobPosition;
+						initFXPress(&fxPress[i]);
 					}
 				}
 			}
@@ -1074,17 +1074,17 @@ void PerformanceSessionView::normalPadAction(ModelStackWithThreeMainThings* mode
 		//if releasing a pad with "held" status shortly after being given that status
 		//or releasing a pad that was not in "held" status but was a longer press and release
 		if ((isParamStutter(lastSelectedParamKind, lastSelectedParamID) && lastPadPress.isActive)
-		    || (FXPress[xDisplay].padPressHeld
-		        && ((AudioEngine::audioSampleTimer - FXPress[xDisplay].timeLastPadPress) < kHoldTime))
-		    || ((FXPress[xDisplay].previousKnobPosition != kNoSelection) && (FXPress[xDisplay].yDisplay == yDisplay)
-		        && ((AudioEngine::audioSampleTimer - FXPress[xDisplay].timeLastPadPress) >= kHoldTime))) {
+		    || (fxPress[xDisplay].padPressHeld
+		        && ((AudioEngine::audioSampleTimer - fxPress[xDisplay].timeLastPadPress) < kHoldTime))
+		    || ((fxPress[xDisplay].previousKnobPosition != kNoSelection) && (fxPress[xDisplay].yDisplay == yDisplay)
+		        && ((AudioEngine::audioSampleTimer - fxPress[xDisplay].timeLastPadPress) >= kHoldTime))) {
 
 			padReleaseAction(modelStack, lastSelectedParamKind, lastSelectedParamID, xDisplay, !defaultEditingMode);
 		}
 		//if releasing a pad that was quickly pressed, give it held status
-		else if ((FXPress[xDisplay].previousKnobPosition != kNoSelection) && (FXPress[xDisplay].yDisplay == yDisplay)
-		         && ((AudioEngine::audioSampleTimer - FXPress[xDisplay].timeLastPadPress) < kHoldTime)) {
-			FXPress[xDisplay].padPressHeld = true;
+		else if ((fxPress[xDisplay].previousKnobPosition != kNoSelection) && (fxPress[xDisplay].yDisplay == yDisplay)
+		         && ((AudioEngine::audioSampleTimer - fxPress[xDisplay].timeLastPadPress) < kHoldTime)) {
+			fxPress[xDisplay].padPressHeld = true;
 			logPerformanceLayoutChange();
 		}
 		updateLayoutChangeStatus();
@@ -1120,16 +1120,16 @@ void PerformanceSessionView::padPressAction(ModelStackWithThreeMainThings* model
 	if (setParameterValue(modelStack, paramKind, paramID, xDisplay, defaultFXValues[xDisplay][yDisplay],
 	                      renderDisplay)) {
 		//if pressing a new pad in a column, reset held status
-		FXPress[xDisplay].padPressHeld = false;
+		fxPress[xDisplay].padPressHeld = false;
 
 		//save row yDisplay of current pad press in column xDisplay
-		FXPress[xDisplay].yDisplay = yDisplay;
+		fxPress[xDisplay].yDisplay = yDisplay;
 
 		//save time of current pad press in column xDisplay
-		FXPress[xDisplay].timeLastPadPress = AudioEngine::audioSampleTimer;
+		fxPress[xDisplay].timeLastPadPress = AudioEngine::audioSampleTimer;
 
 		//update current knob position
-		FXPress[xDisplay].currentKnobPosition = defaultFXValues[xDisplay][yDisplay];
+		fxPress[xDisplay].currentKnobPosition = defaultFXValues[xDisplay][yDisplay];
 
 		//save xDisplay, yDisplay, paramKind and paramID currently being edited
 		lastPadPress.isActive = true;
@@ -1142,9 +1142,9 @@ void PerformanceSessionView::padPressAction(ModelStackWithThreeMainThings* model
 
 void PerformanceSessionView::padReleaseAction(ModelStackWithThreeMainThings* modelStack, Param::Kind paramKind,
                                               int32_t paramID, int32_t xDisplay, bool renderDisplay) {
-	if (setParameterValue(modelStack, paramKind, paramID, xDisplay, FXPress[xDisplay].previousKnobPosition,
+	if (setParameterValue(modelStack, paramKind, paramID, xDisplay, fxPress[xDisplay].previousKnobPosition,
 	                      renderDisplay)) {
-		initFXPress(&FXPress[xDisplay]);
+		initFXPress(&fxPress[xDisplay]);
 		initPadPress(&lastPadPress);
 	}
 }
@@ -1228,7 +1228,7 @@ bool PerformanceSessionView::isPadShortcut(int32_t xDisplay, int32_t yDisplay) {
 void PerformanceSessionView::backupPerformanceLayout() {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		if (successfullyReadDefaultsFromFile) {
-			memcpy(&backupFXPress[xDisplay], &FXPress[xDisplay], sizeFXPress);
+			memcpy(&backupFXPress[xDisplay], &fxPress[xDisplay], sizeFXPress);
 		}
 		memcpy(&backupLayoutForPerformance[xDisplay], &layoutForPerformance[xDisplay], sizeParamsForPerformance);
 		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
@@ -1243,7 +1243,7 @@ void PerformanceSessionView::backupPerformanceLayout() {
 /// while in Performance View so that you can undo/redo them afters
 void PerformanceSessionView::logPerformanceLayoutChange() {
 	if (anyChangesToLog()) {
-		actionLogger.recordPerformanceLayoutChange(&backupLastPadPress, &lastPadPress, &backupFXPress[0], &FXPress[0],
+		actionLogger.recordPerformanceLayoutChange(&backupLastPadPress, &lastPadPress, &backupFXPress[0], &fxPress[0],
 		                                           &backupLayoutForPerformance[0], &layoutForPerformance[0],
 		                                           backupDefaultFXValues, defaultFXValues);
 		actionLogger.closeAction(ACTION_PARAM_UNAUTOMATED_VALUE_CHANGE);
@@ -1254,19 +1254,19 @@ void PerformanceSessionView::logPerformanceLayoutChange() {
 bool PerformanceSessionView::anyChangesToLog() {
 	if (performanceLayoutBackedUp) {
 		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
-			if (backupFXPress[xDisplay].previousKnobPosition != FXPress[xDisplay].previousKnobPosition) {
+			if (backupFXPress[xDisplay].previousKnobPosition != fxPress[xDisplay].previousKnobPosition) {
 				return true;
 			}
-			else if (backupFXPress[xDisplay].currentKnobPosition != FXPress[xDisplay].currentKnobPosition) {
+			else if (backupFXPress[xDisplay].currentKnobPosition != fxPress[xDisplay].currentKnobPosition) {
 				return true;
 			}
-			else if (backupFXPress[xDisplay].yDisplay != FXPress[xDisplay].yDisplay) {
+			else if (backupFXPress[xDisplay].yDisplay != fxPress[xDisplay].yDisplay) {
 				return true;
 			}
-			else if (backupFXPress[xDisplay].timeLastPadPress != FXPress[xDisplay].timeLastPadPress) {
+			else if (backupFXPress[xDisplay].timeLastPadPress != fxPress[xDisplay].timeLastPadPress) {
 				return true;
 			}
-			else if (backupFXPress[xDisplay].padPressHeld != FXPress[xDisplay].padPressHeld) {
+			else if (backupFXPress[xDisplay].padPressHeld != fxPress[xDisplay].padPressHeld) {
 				return true;
 			}
 			else if (backupLayoutForPerformance[xDisplay].paramKind != layoutForPerformance[xDisplay].paramKind) {
@@ -1320,7 +1320,7 @@ void PerformanceSessionView::resetPerformanceView(ModelStackWithThreeMainThings*
 		if (editingParam) {
 			initLayout(&layoutForPerformance[xDisplay]);
 		}
-		else if (FXPress[xDisplay].padPressHeld) {
+		else if (fxPress[xDisplay].padPressHeld) {
 			//obtain Param::Kind and ParamID corresponding to the column in focus (xDisplay)
 			Param::Kind lastSelectedParamKind = layoutForPerformance[xDisplay].paramKind; //kind;
 			int32_t lastSelectedParamID = layoutForPerformance[xDisplay].paramID;
@@ -1338,7 +1338,7 @@ void PerformanceSessionView::resetPerformanceView(ModelStackWithThreeMainThings*
 /// resets a single FX column to remove held status
 /// and reset the param value assigned to that FX column to pre-held state
 void PerformanceSessionView::resetFXColumn(ModelStackWithThreeMainThings* modelStack, int32_t xDisplay) {
-	if (FXPress[xDisplay].padPressHeld) {
+	if (fxPress[xDisplay].padPressHeld) {
 		//obtain Param::Kind and ParamID corresponding to the column in focus (xDisplay)
 		Param::Kind lastSelectedParamKind = layoutForPerformance[xDisplay].paramKind; //kind;
 		int32_t lastSelectedParamID = layoutForPerformance[xDisplay].paramID;
@@ -1393,10 +1393,10 @@ bool PerformanceSessionView::setParameterValue(ModelStackWithThreeMainThings* mo
 				    ->endStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
 			}
 
-			if (FXPress[xDisplay].previousKnobPosition == kNoSelection) {
+			if (fxPress[xDisplay].previousKnobPosition == kNoSelection) {
 				int32_t oldParameterValue =
 				    modelStackWithParam->autoParam->getValuePossiblyAtPos(view.modPos, modelStackWithParam);
-				FXPress[xDisplay].previousKnobPosition =
+				fxPress[xDisplay].previousKnobPosition =
 				    modelStackWithParam->paramCollection->paramValueToKnobPos(oldParameterValue, modelStackWithParam);
 			}
 
@@ -1407,7 +1407,7 @@ bool PerformanceSessionView::setParameterValue(ModelStackWithThreeMainThings* mo
 			                                                          view.modPos, view.modLength);
 
 			if ((paramKind == Param::Kind::UNPATCHED_SOUND) && (paramID == Param::Unpatched::STUTTER_RATE)
-			    && (FXPress[xDisplay].previousKnobPosition != knobPos)) {
+			    && (fxPress[xDisplay].previousKnobPosition != knobPos)) {
 				((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
 				    ->beginStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
 			}
@@ -1439,13 +1439,13 @@ void PerformanceSessionView::getParameterValue(ModelStackWithThreeMainThings* mo
 
 			int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
 
-			if (renderDisplay && (FXPress[xDisplay].currentKnobPosition != knobPos)) {
+			if (renderDisplay && (fxPress[xDisplay].currentKnobPosition != knobPos)) {
 				int32_t valueForDisplay = view.calculateKnobPosForDisplay(paramKind, paramID, knobPos + kKnobPosOffset);
 				renderFXDisplay(paramKind, paramID, valueForDisplay);
 			}
 
-			if (FXPress[xDisplay].currentKnobPosition != knobPos) {
-				FXPress[xDisplay].currentKnobPosition = knobPos;
+			if (fxPress[xDisplay].currentKnobPosition != knobPos) {
+				fxPress[xDisplay].currentKnobPosition = knobPos;
 			}
 		}
 	}
@@ -1506,7 +1506,7 @@ void PerformanceSessionView::selectEncoderAction(int8_t offset) {
 			getParameterValue(modelStack, lastPadPress.paramKind, lastPadPress.paramID, lastPadPress.xDisplay, false);
 
 			defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay] =
-			    calculateKnobPosForSelectEncoderTurn(FXPress[lastPadPress.xDisplay].currentKnobPosition, offset);
+			    calculateKnobPosForSelectEncoderTurn(fxPress[lastPadPress.xDisplay].currentKnobPosition, offset);
 
 			if (setParameterValue(modelStack, lastPadPress.paramKind, lastPadPress.paramID, lastPadPress.xDisplay,
 			                      defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay], false)) {
@@ -1643,15 +1643,15 @@ void PerformanceSessionView::updateLayoutChangeStatus() {
 			anyChangesToSave = true;
 			break;
 		}
-		else if (backupXMLDefaultFXPress[xDisplay].padPressHeld != FXPress[xDisplay].padPressHeld) {
+		else if (backupXMLDefaultFXPress[xDisplay].padPressHeld != fxPress[xDisplay].padPressHeld) {
 			anyChangesToSave = true;
 			break;
 		}
-		else if (backupXMLDefaultFXPress[xDisplay].yDisplay != FXPress[xDisplay].yDisplay) {
+		else if (backupXMLDefaultFXPress[xDisplay].yDisplay != fxPress[xDisplay].yDisplay) {
 			anyChangesToSave = true;
 			break;
 		}
-		else if (backupXMLDefaultFXPress[xDisplay].previousKnobPosition != FXPress[xDisplay].previousKnobPosition) {
+		else if (backupXMLDefaultFXPress[xDisplay].previousKnobPosition != fxPress[xDisplay].previousKnobPosition) {
 			anyChangesToSave = true;
 			break;
 		}
@@ -1777,18 +1777,18 @@ void PerformanceSessionView::writeDefaultFXHoldStatusToFile(int32_t xDisplay) {
 	storageManager.writeOpeningTagBeginning(STRING_FOR_PERFORM_DEFAULTS_HOLD_TAG);
 	storageManager.writeOpeningTagEnd();
 
-	if (FXPress[xDisplay].padPressHeld) {
+	if (fxPress[xDisplay].padPressHeld) {
 		//<status>
 		storageManager.writeTag(STRING_FOR_PERFORM_DEFAULTS_HOLD_STATUS_TAG, STRING_FOR_ON);
 		//<row>
-		storageManager.writeTag(STRING_FOR_PERFORM_DEFAULTS_ROW_TAG, FXPress[xDisplay].yDisplay + 1);
+		storageManager.writeTag(STRING_FOR_PERFORM_DEFAULTS_ROW_TAG, fxPress[xDisplay].yDisplay + 1);
 		//<resetValue>
 		storageManager.writeTag(STRING_FOR_PERFORM_DEFAULTS_HOLD_RESETVALUE_TAG,
-		                        FXPress[xDisplay].previousKnobPosition + kKnobPosOffset);
+		                        fxPress[xDisplay].previousKnobPosition + kKnobPosOffset);
 
-		backupXMLDefaultFXPress[xDisplay].padPressHeld = FXPress[xDisplay].padPressHeld;
-		backupXMLDefaultFXPress[xDisplay].yDisplay = FXPress[xDisplay].yDisplay;
-		backupXMLDefaultFXPress[xDisplay].previousKnobPosition = FXPress[xDisplay].previousKnobPosition;
+		backupXMLDefaultFXPress[xDisplay].padPressHeld = fxPress[xDisplay].padPressHeld;
+		backupXMLDefaultFXPress[xDisplay].yDisplay = fxPress[xDisplay].yDisplay;
+		backupXMLDefaultFXPress[xDisplay].previousKnobPosition = fxPress[xDisplay].previousKnobPosition;
 	}
 	else {
 		//<status>
@@ -1965,37 +1965,37 @@ void PerformanceSessionView::readDefaultFXHoldStatusFromFile(int32_t xDisplay) {
 			char const* holdStatus = storageManager.readTagOrAttributeValue();
 			if (!strcmp(holdStatus, l10n::get(l10n::String::STRING_FOR_ON))) {
 				if (!isParamStutter(layoutForPerformance[xDisplay].paramKind, layoutForPerformance[xDisplay].paramID)) {
-					FXPress[xDisplay].padPressHeld = true;
-					FXPress[xDisplay].timeLastPadPress = AudioEngine::audioSampleTimer;
+					fxPress[xDisplay].padPressHeld = true;
+					fxPress[xDisplay].timeLastPadPress = AudioEngine::audioSampleTimer;
 
-					backupXMLDefaultFXPress[xDisplay].padPressHeld = FXPress[xDisplay].padPressHeld;
-					backupXMLDefaultFXPress[xDisplay].timeLastPadPress = FXPress[xDisplay].timeLastPadPress;
+					backupXMLDefaultFXPress[xDisplay].padPressHeld = fxPress[xDisplay].padPressHeld;
+					backupXMLDefaultFXPress[xDisplay].timeLastPadPress = fxPress[xDisplay].timeLastPadPress;
 				}
 			}
 		}
-		if (FXPress[xDisplay].padPressHeld) {
+		if (fxPress[xDisplay].padPressHeld) {
 			//<row>
 			if (!strcmp(tagName, STRING_FOR_PERFORM_DEFAULTS_ROW_TAG)) {
 				int32_t yDisplay = storageManager.readTagOrAttributeValueInt();
 				if ((yDisplay >= 1) && (yDisplay <= 8)) {
-					FXPress[xDisplay].yDisplay = yDisplay - 1;
-					FXPress[xDisplay].currentKnobPosition = defaultFXValues[xDisplay][FXPress[xDisplay].yDisplay];
+					fxPress[xDisplay].yDisplay = yDisplay - 1;
+					fxPress[xDisplay].currentKnobPosition = defaultFXValues[xDisplay][fxPress[xDisplay].yDisplay];
 
-					backupXMLDefaultFXPress[xDisplay].yDisplay = FXPress[xDisplay].yDisplay;
+					backupXMLDefaultFXPress[xDisplay].yDisplay = fxPress[xDisplay].yDisplay;
 				}
 			}
 			//<resetValue>
 			else if (!strcmp(tagName, STRING_FOR_PERFORM_DEFAULTS_HOLD_RESETVALUE_TAG)) {
-				FXPress[xDisplay].previousKnobPosition = storageManager.readTagOrAttributeValueInt() - kKnobPosOffset;
+				fxPress[xDisplay].previousKnobPosition = storageManager.readTagOrAttributeValueInt() - kKnobPosOffset;
 				//check if a value greater than 64 was entered as a default value in xml file
-				if (FXPress[xDisplay].previousKnobPosition > kKnobPosOffset) {
-					FXPress[xDisplay].previousKnobPosition = kKnobPosOffset;
+				if (fxPress[xDisplay].previousKnobPosition > kKnobPosOffset) {
+					fxPress[xDisplay].previousKnobPosition = kKnobPosOffset;
 				}
-				backupXMLDefaultFXPress[xDisplay].previousKnobPosition = FXPress[xDisplay].previousKnobPosition;
+				backupXMLDefaultFXPress[xDisplay].previousKnobPosition = fxPress[xDisplay].previousKnobPosition;
 			}
 			//set the value associated with the held pad
-			if ((FXPress[xDisplay].currentKnobPosition != kNoSelection)
-			    && (FXPress[xDisplay].previousKnobPosition != kNoSelection)) {
+			if ((fxPress[xDisplay].currentKnobPosition != kNoSelection)
+			    && (fxPress[xDisplay].previousKnobPosition != kNoSelection)) {
 				char modelStackMemory[MODEL_STACK_MAX_SIZE];
 				ModelStackWithThreeMainThings* modelStack =
 				    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
@@ -2004,7 +2004,7 @@ void PerformanceSessionView::readDefaultFXHoldStatusFromFile(int32_t xDisplay) {
 				    && (layoutForPerformance[xDisplay].paramID != kNoSelection)) {
 					setParameterValue(modelStack, layoutForPerformance[xDisplay].paramKind,
 					                  layoutForPerformance[xDisplay].paramID, xDisplay,
-					                  defaultFXValues[xDisplay][FXPress[xDisplay].yDisplay], false);
+					                  defaultFXValues[xDisplay][fxPress[xDisplay].yDisplay], false);
 				}
 			}
 		}

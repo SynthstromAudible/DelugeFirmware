@@ -20,14 +20,14 @@
 #include "model/model_stack.h"
 
 ConsequencePerformanceLayoutChange::ConsequencePerformanceLayoutChange(
-    PadPress(*padPressBefore), PadPress(*padPressAfter), FXColumnPress(*FXPressBefore), FXColumnPress(*FXPressAfter),
+    PadPress(*padPressBefore), PadPress(*padPressAfter), FXColumnPress(*fxPressBefore), FXColumnPress(*fxPressAfter),
     ParamsForPerformance(*layoutBefore), ParamsForPerformance(*layoutAfter),
     int32_t valuesBefore[kDisplayWidth][kDisplayHeight], int32_t valuesAfter[kDisplayWidth][kDisplayHeight]) {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
-		memcpy(&FXPress[xDisplay][BEFORE], &FXPressBefore[xDisplay], sizeFXPress);
+		memcpy(&fxPress[xDisplay][BEFORE], &fxPressBefore[xDisplay], sizeFXPress);
 		memcpy(&layoutForPerformance[xDisplay][BEFORE], &layoutBefore[xDisplay], sizeParamsForPerformance);
 
-		memcpy(&FXPress[xDisplay][AFTER], &FXPressAfter[xDisplay], sizeFXPress);
+		memcpy(&fxPress[xDisplay][AFTER], &fxPressAfter[xDisplay], sizeFXPress);
 		memcpy(&layoutForPerformance[xDisplay][AFTER], &layoutAfter[xDisplay], sizeParamsForPerformance);
 
 		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
@@ -41,7 +41,7 @@ ConsequencePerformanceLayoutChange::ConsequencePerformanceLayoutChange(
 
 int32_t ConsequencePerformanceLayoutChange::revert(TimeType time, ModelStack* modelStack) {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
-		memcpy(&performanceSessionView.FXPress[xDisplay], &FXPress[xDisplay][time], sizeFXPress);
+		memcpy(&performanceSessionView.fxPress[xDisplay], &fxPress[xDisplay][time], sizeFXPress);
 		memcpy(&performanceSessionView.layoutForPerformance[xDisplay], &layoutForPerformance[xDisplay][time],
 		       sizeParamsForPerformance);
 

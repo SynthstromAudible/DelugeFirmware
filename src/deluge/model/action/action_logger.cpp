@@ -307,7 +307,7 @@ void ActionLogger::recordTempoChange(uint64_t timePerBigBefore, uint64_t timePer
 /// 3) value editor: changing pad values
 /// 4) param editor: changing FX assignments to pads
 void ActionLogger::recordPerformanceLayoutChange(PadPress(*padPressBefore), PadPress(*padPressAfter),
-                                                 FXColumnPress(*FXPressBefore), FXColumnPress(*FXPressAfter),
+                                                 FXColumnPress(*fxPressBefore), FXColumnPress(*fxPressAfter),
                                                  ParamsForPerformance(*layoutBefore),
                                                  ParamsForPerformance(*layoutAfter),
                                                  int32_t valuesBefore[kDisplayWidth][kDisplayHeight],
@@ -323,7 +323,7 @@ void ActionLogger::recordPerformanceLayoutChange(PadPress(*padPressBefore), PadP
 
 	if (consMemory) {
 		ConsequencePerformanceLayoutChange* newConsequence = new (consMemory)
-		    ConsequencePerformanceLayoutChange(padPressBefore, padPressAfter, FXPressBefore, FXPressAfter, layoutBefore,
+		    ConsequencePerformanceLayoutChange(padPressBefore, padPressAfter, fxPressBefore, fxPressAfter, layoutBefore,
 		                                       layoutAfter, valuesBefore, valuesAfter);
 		action->addConsequence(newConsequence);
 	}
