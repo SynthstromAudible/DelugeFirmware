@@ -1086,7 +1086,7 @@ ActionResult SessionView::timerCallback() {
 		break;
 	}
 
-	if(currentUIMode == UI_MODE_VIEWING_RECORD_ARMING || viewingRecordArmingActive) {
+	if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING || viewingRecordArmingActive) {
 		requestRendering(this, 0, 0xFFFFFFFF);
 		view.blinkOn = !view.blinkOn;
 		uiTimerManager.setTimer(TIMER_UI_SPECIFIC, kFastFlashTime);
@@ -2919,8 +2919,7 @@ void SessionView::gridRenderClipColor(Clip* clip, uint8_t resultColour[]) {
 	hueToRGB(clip->output->colour, resultColour);
 
 	// If we are not in record arming mode make this clip full color for being soloed
-	if ((clip->soloingInSessionMode || clip->armState == ArmState::ON_TO_SOLO)
-	    && !viewingRecordArmingActive) {
+	if ((clip->soloingInSessionMode || clip->armState == ArmState::ON_TO_SOLO) && !viewingRecordArmingActive) {
 		greyout = false;
 	}
 
