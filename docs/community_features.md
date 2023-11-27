@@ -114,6 +114,7 @@ Here is a list of features that have been added to the firmware as a list, group
 		- 8 FX values per column
 			- Long press pads in a column to change value momentarily and reset it (to the value before the pad was pressed) upon pad release
 			- Short press pads in a column to the change value until you press the pad again (resetting it to the value before the pad was pressed)
+		- Editing mode to edit FX values assigned to each pad and the parameter assigned to each FX column
 		- Save defaults as PerformanceView.xml file
 			- Adjustable default Values assigned to each FX column via "Value" editing mode or PerformanceView.xml
 			- Adjustable default Param assigned to each FX column via "Param" editing mode or PerformanceView.xml
