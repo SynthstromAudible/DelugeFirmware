@@ -1047,12 +1047,6 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 				//if it's a shortcut press, enter soundEditor menu for that parameter
 				if (Buttons::isShiftButtonPressed()) {
 					ActionResult soundEditorResult = soundEditor.potentialShortcutPadAction(xDisplay, yDisplay, on);
-
-					//	if (defaultEditingMode && soundEditor.getCurrentMenuItem()
-					//		!= paramShortcutsForSongView[lastSelectedParamShortcutX][lastSelectedParamShortcutY]) {
-					//		initPadPress(&lastPadPress);
-					//	}
-
 					return soundEditorResult;
 				}
 			}

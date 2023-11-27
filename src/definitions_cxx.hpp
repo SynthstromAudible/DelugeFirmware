@@ -1107,9 +1107,12 @@ constexpr int32_t kDefaultCalculateRootNote = std::numeric_limits<int32_t>::max(
 /// more detail.
 constexpr uint32_t kSampleRate = 44100;
 
-/// Length of press that deliniates a "short" press. Set to half a second (in units of samples, to work with
+/// Length of press that delineates a "short" press. Set to half a second (in units of samples, to work with
 /// AudioEngine::audioSampleTimer)
 constexpr uint32_t kShortPressTime = kSampleRate / 2;
+
+//Length of a press that delineates a "hold" press. 
+//Used in Performance View and with Sticky Shift
 constexpr uint32_t kHoldTime = kSampleRate / 10;
 
 enum KeyboardLayoutType : uint8_t {

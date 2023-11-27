@@ -17,6 +17,7 @@
 #pragma once
 #include "gui/menu_item/toggle.h"
 #include "gui/views/performance_session_view.h"
+#include "hid/led/indicator_leds.h"
 
 namespace deluge::gui::menu_item::performance_session_view {
 class EditingMode final : public Selection {
@@ -49,6 +50,14 @@ public:
 			performanceSessionView.defaultEditingMode = true;
 			performanceSessionView.editingParam = true;
 		}
+
+		if (performanceSessionView.defaultEditingMode) {
+			indicator_leds::blinkLed(IndicatorLED::KEYBOARD);
+		}
+		else {
+			indicator_leds::setLedState(IndicatorLED::KEYBOARD, true);
+		}
+
 		uiNeedsRendering(&performanceSessionView);
 	}
 	std::vector<std::string_view> getOptions() override {

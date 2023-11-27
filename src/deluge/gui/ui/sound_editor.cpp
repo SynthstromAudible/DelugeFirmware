@@ -172,6 +172,7 @@ bool SoundEditor::opened() {
 
 	setLedStates();
 
+	//update save button blinking status when in performance session view
 	if (getRootUI() == &performanceSessionView) {
 		performanceSessionView.updateLayoutChangeStatus();
 	}
@@ -199,13 +200,8 @@ void SoundEditor::focusRegained() {
 
 	setLedStates();
 
+	//update save button blinking status when in performance session view
 	if (getRootUI() == &performanceSessionView) {
-		if (performanceSessionView.defaultEditingMode) {
-			indicator_leds::blinkLed(IndicatorLED::KEYBOARD);
-		}
-		else {
-			indicator_leds::setLedState(IndicatorLED::KEYBOARD, true);
-		}
 		performanceSessionView.updateLayoutChangeStatus();
 	}
 }
