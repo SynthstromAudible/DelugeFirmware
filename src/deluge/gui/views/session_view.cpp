@@ -435,7 +435,7 @@ moveAfterClipInstance:
 						requestRendering(this, 0, 0xFFFFFFFF);
 					}
 				}
-
+				//open Song FX menu
 				display->setNextTransitionDirection(1);
 				soundEditor.setup();
 				openUI(&soundEditor);

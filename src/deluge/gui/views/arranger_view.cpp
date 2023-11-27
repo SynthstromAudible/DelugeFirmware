@@ -243,6 +243,7 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 			}
 			changeOutputToAudio();
 		}
+		//open Song FX menu
 		else if (on && currentUIMode == UI_MODE_NONE) {
 			display->setNextTransitionDirection(1);
 			soundEditor.setup();

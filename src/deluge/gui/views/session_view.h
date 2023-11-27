@@ -111,7 +111,6 @@ public:
 	uint8_t masterCompEditMode;
 
 	Clip* getClipForLayout();
-	void goToArrangementEditor();
 
 	// Members for grid layout
 	inline bool gridFirstPadActive() { return (gridFirstPressedX != -1 && gridFirstPressedY != -1); }
@@ -123,6 +122,7 @@ private:
 	void drawSectionRepeatNumber();
 	void beginEditingSectionRepeatsNum();
 	Clip* createNewInstrumentClip(int32_t yDisplay);
+	void goToArrangementEditor();
 	void replaceInstrumentClipWithAudioClip(Clip* clip);
 	void replaceAudioClipWithInstrumentClip(Clip* clip, InstrumentType instrumentType);
 	void rowNeedsRenderingDependingOnSubMode(int32_t yDisplay);
