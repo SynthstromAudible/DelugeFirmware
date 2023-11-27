@@ -815,8 +815,12 @@ void AutomationInstrumentClipView::renderDisplay(int32_t knobPosLeft, int32_t kn
 
 	//if you're not in a MIDI instrument clip, convert the knobPos to the same range as the menu (0-50)
 	if (instrument->type != InstrumentType::MIDI_OUT) {
-		knobPosLeft = view.calculateKnobPosForDisplay(instrument->type, clip->lastSelectedParamID, knobPosLeft);
-		knobPosRight = view.calculateKnobPosForDisplay(instrument->type, clip->lastSelectedParamID, knobPosRight);
+		if (knobPosLeft != kNoSelection) {
+			knobPosLeft = view.calculateKnobPosForDisplay(instrument->type, clip->lastSelectedParamID, knobPosLeft);
+		}
+		if (knobPosRight != kNoSelection) {
+			knobPosRight = view.calculateKnobPosForDisplay(instrument->type, clip->lastSelectedParamID, knobPosRight);
+		}
 	}
 
 	//OLED Display
@@ -945,7 +949,8 @@ void AutomationInstrumentClipView::renderDisplay7SEG(InstrumentClip* clip, Instr
 				lastPadSelectedKnobPos = knobPosLeft;
 			}
 			else if (lastPadSelectedKnobPos != kNoSelection) {
-				knobPosLeft = lastPadSelectedKnobPos;
+				knobPosLeft = view.calculateKnobPosForDisplay(instrument->type, clip->lastSelectedParamID,
+				                                              lastPadSelectedKnobPos);
 			}
 		}
 
@@ -956,10 +961,10 @@ void AutomationInstrumentClipView::renderDisplay7SEG(InstrumentClip* clip, Instr
 			intToString(knobPosLeft, buffer);
 
 			if (isUIModeActive(UI_MODE_NOTES_PRESSED)) {
-				display->setText(buffer, false, 255, false);
+				display->setText(buffer, true, 255, false);
 			}
 			else if (modEncoderAction || padSelectionOn) {
-				display->displayPopup(buffer);
+				display->displayPopup(buffer, 3, true);
 			}
 		}
 		//display parameter name
