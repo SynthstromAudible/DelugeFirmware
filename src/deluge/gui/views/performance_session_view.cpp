@@ -762,7 +762,7 @@ void PerformanceSessionView::renderFXDisplay(Param::Kind paramKind, int32_t para
 		else {
 			char buffer[5];
 			intToString(knobPos, buffer);
-			display->displayPopup(buffer);
+			display->displayPopup(buffer, 3, true);
 		}
 	}
 	onFXDisplay = true;
