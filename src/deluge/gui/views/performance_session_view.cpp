@@ -1097,21 +1097,15 @@ void PerformanceSessionView::normalPadAction(ModelStackWithThreeMainThings* mode
 		int32_t lastSelectedParamShortcutY = layoutForPerformance[lastPadPress.xDisplay].yDisplay;
 
 		//if you're not already in soundEditor, enter soundEditor
-		if (getCurrentUI() != &soundEditor) {
-			goto potentialShortcutPadAction;
-		}
-		//if you're already in soundEditor, check if you're in the right menu
-		else if (soundEditor.getCurrentMenuItem()
-		         != paramShortcutsForSongView[lastSelectedParamShortcutX][lastSelectedParamShortcutY]) {
-			goto potentialShortcutPadAction;
+		//or if you're already in soundEditor, check if you're in the right menu
+		if ((getCurrentUI() != &soundEditor)
+		    || ((getCurrentUI() == &soundEditor)
+		        && (soundEditor.getCurrentMenuItem()
+		            != paramShortcutsForSongView[lastSelectedParamShortcutX][lastSelectedParamShortcutY]))) {
+			soundEditor.potentialShortcutPadAction(layoutForPerformance[xDisplay].xDisplay,
+			                                       layoutForPerformance[xDisplay].yDisplay, on);
 		}
 		//otherwise no need to do anything as you're already displaying the menu for the parameter
-		else {
-			return;
-		}
-potentialShortcutPadAction:
-		soundEditor.potentialShortcutPadAction(layoutForPerformance[xDisplay].xDisplay,
-		                                       layoutForPerformance[xDisplay].yDisplay, on);
 	}
 }
 
