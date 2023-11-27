@@ -777,9 +777,16 @@ void PerformanceSessionView::redrawNumericDisplay() {
 }
 
 void PerformanceSessionView::setLedStates() {
-	setCentralLEDStates();
-	view.setLedStates();
-	view.setModLedStates();
+	setCentralLEDStates();  //inherited from session view
+	view.setLedStates();    //inherited from session view
+	view.setModLedStates(); //inherited from session view
+
+	//performanceView specific LED settings
+	indicator_leds::setLedState(IndicatorLED::KEYBOARD, true);
+
+	if (currentSong->lastClipInstanceEnteredStartPos != -1) {
+		indicator_leds::blinkLed(IndicatorLED::SESSION_VIEW);
+	}
 }
 
 void PerformanceSessionView::setCentralLEDStates() {
@@ -788,7 +795,6 @@ void PerformanceSessionView::setCentralLEDStates() {
 	indicator_leds::setLedState(IndicatorLED::MIDI, false);
 	indicator_leds::setLedState(IndicatorLED::CV, false);
 	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
-	indicator_leds::setLedState(IndicatorLED::KEYBOARD, true);
 	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
 	indicator_leds::setLedState(IndicatorLED::BACK, false);
 }
@@ -1003,7 +1009,12 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 			}
 			else {
 				releaseStutter(modelStack);
-				changeRootUI(&sessionView);
+				if (currentSong->lastClipInstanceEnteredStartPos != -1) {
+					changeRootUI(&arrangerView);
+				}
+				else {
+					changeRootUI(&sessionView);
+				}
 			}
 		}
 	}

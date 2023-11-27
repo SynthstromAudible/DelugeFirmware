@@ -13,6 +13,7 @@
 #include "gui/ui/sample_marker_editor.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
 #include "gui/ui_timer_manager.h"
+#include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
@@ -518,7 +519,8 @@ bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 		// Find param shortcut
 		currentParamShorcutX = 255;
 
-		if ((getRootUI() == &performanceSessionView) || (getRootUI() == &sessionView)) {
+		if ((getRootUI() == &performanceSessionView) || (getRootUI() == &sessionView)
+		    || (getRootUI() == &arrangerView)) {
 			int32_t x, y;
 
 			// First, see if there's a shortcut for the actual MenuItem we're currently on
@@ -1113,7 +1115,7 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 	ModControllableAudio* newModControllable = NULL;
 
 	//getParamManager and ModControllable for Performance Session View (and Session View)
-	if ((getRootUI() == &performanceSessionView) || (getRootUI() == &sessionView)) {
+	if ((getRootUI() == &performanceSessionView) || (getRootUI() == &sessionView) || (getRootUI() == &arrangerView)) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* modelStack =
 		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
@@ -1224,7 +1226,8 @@ doMIDIOrCV:
 			else if ((getCurrentUI() == &performanceSessionView) && !Buttons::isShiftButtonPressed()) {
 				newItem = &soundEditorRootMenuPerformanceView;
 			}
-			else if ((getCurrentUI() == &sessionView) && !Buttons::isShiftButtonPressed()) {
+			else if (((getCurrentUI() == &sessionView) || (getCurrentUI() == &arrangerView))
+			         && !Buttons::isShiftButtonPressed()) {
 				newItem = &soundEditorRootMenuSongView;
 			}
 			else {
@@ -1358,7 +1361,7 @@ AudioFileHolder* SoundEditor::getCurrentAudioFileHolder() {
 }
 
 ModelStackWithThreeMainThings* SoundEditor::getCurrentModelStack(void* memory) {
-	if ((getRootUI() == &performanceSessionView) || (getRootUI() == &sessionView)) {
+	if ((getRootUI() == &performanceSessionView) || (getRootUI() == &sessionView) || (getRootUI() == &arrangerView)) {
 		return currentSong->setupModelStackWithSongAsTimelineCounter(memory);
 	}
 	else {
