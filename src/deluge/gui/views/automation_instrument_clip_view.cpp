@@ -816,9 +816,15 @@ void AutomationInstrumentClipView::renderDisplay(int32_t knobPosLeft, int32_t kn
 	InstrumentClip* clip = getCurrentClip();
 	Instrument* instrument = (Instrument*)clip->output;
 
-	knobPosLeft = view.calculateKnobPosForDisplay(clip->lastSelectedParamKind, clip->lastSelectedParamID, knobPosLeft);
-	knobPosRight =
-	    view.calculateKnobPosForDisplay(clip->lastSelectedParamKind, clip->lastSelectedParamID, knobPosRight);
+	//if you're not in a MIDI instrument clip, convert the knobPos to the same range as the menu (0-50)
+	if (instrument->type != InstrumentType::MIDI_OUT) {
+		if (knobPosLeft != kNoSelection) {
+			knobPosLeft = view.calculateKnobPosForDisplay(clip->lastSelectedParamKind, clip->lastSelectedParamID, knobPosLeft);
+		}
+		if (knobPosRight != kNoSelection) {
+			knobPosRight = view.calculateKnobPosForDisplay(clip->lastSelectedParamKind, clip->lastSelectedParamID, knobPosRight);
+		}
+	}
 
 	//OLED Display
 	if (display->haveOLED()) {
@@ -946,7 +952,8 @@ void AutomationInstrumentClipView::renderDisplay7SEG(InstrumentClip* clip, Instr
 				lastPadSelectedKnobPos = knobPosLeft;
 			}
 			else if (lastPadSelectedKnobPos != kNoSelection) {
-				knobPosLeft = lastPadSelectedKnobPos;
+				knobPosLeft = view.calculateKnobPosForDisplay(clip->lastSelectedParamKind, clip->lastSelectedParamID,
+				                                              lastPadSelectedKnobPos);
 			}
 		}
 
@@ -957,10 +964,10 @@ void AutomationInstrumentClipView::renderDisplay7SEG(InstrumentClip* clip, Instr
 			intToString(knobPosLeft, buffer);
 
 			if (isUIModeActive(UI_MODE_NOTES_PRESSED)) {
-				display->setText(buffer, false, 255, false);
+				display->setText(buffer, true, 255, false);
 			}
 			else if (modEncoderAction || padSelectionOn) {
-				display->displayPopup(buffer);
+				display->displayPopup(buffer, 3, true);
 			}
 		}
 		//display parameter name
@@ -1011,7 +1018,7 @@ void AutomationInstrumentClipView::getParameterName(InstrumentClip* clip, Instru
 
 //adjust the LED meters and update the display
 
-/*updated function for displaying automation when playback is enabled (called from ui_timer_manager). 
+/*updated function for displaying automation when playback is enabled (called from ui_timer_manager).
 Also used internally in the automation instrument clip view for updating the display and led indicators.*/
 
 void AutomationInstrumentClipView::displayAutomation(bool padSelected, bool updateDisplay) {

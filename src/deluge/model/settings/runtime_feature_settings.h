@@ -57,6 +57,7 @@ enum RuntimeFeatureSettingType : uint32_t {
 	DisplayNornsLayout,
 	ShiftIsSticky,
 	LightShiftLed,
+	EnableGrainFX,
 	MaxElement // Keep as boundary
 };
 

@@ -51,6 +51,7 @@ Setting menuHighlightIncomingNotes(RuntimeFeatureSettingType::HighlightIncomingN
 Setting menuDisplayNornsLayout(RuntimeFeatureSettingType::DisplayNornsLayout);
 ShiftIsSticky menuShiftIsSticky{};
 Setting menuLightShiftLed(RuntimeFeatureSettingType::LightShiftLed);
+Setting menuEnableGrainFX(RuntimeFeatureSettingType::EnableGrainFX);
 
 Submenu subMenuAutomation{
     l10n::String::STRING_FOR_COMMUNITY_FEATURE_AUTOMATION,
@@ -79,7 +80,7 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettin
     &menuDisplayNornsLayout,
     &menuShiftIsSticky,
     &menuLightShiftLed,
-};
+    &menuEnableGrainFX};
 
 Settings::Settings(l10n::String name, l10n::String title) : menu_item::Submenu(name, title, subMenuEntries) {
 }

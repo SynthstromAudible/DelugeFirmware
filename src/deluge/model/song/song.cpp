@@ -5390,11 +5390,13 @@ doHibernatingInstruments:
 		}
 
 		FileItem* thisItem = loadInstrumentPresetUI.getNewFileItem();
+
 		if (!thisItem) {
 			return ERROR_INSUFFICIENT_RAM;
 		}
 
 		int32_t error = thisItem->setupWithInstrument(thisInstrument, doingHibernatingOnes);
+
 		if (error) {
 			return error;
 		}
