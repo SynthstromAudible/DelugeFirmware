@@ -819,10 +819,12 @@ void AutomationInstrumentClipView::renderDisplay(int32_t knobPosLeft, int32_t kn
 	//if you're not in a MIDI instrument clip, convert the knobPos to the same range as the menu (0-50)
 	if (instrument->type != InstrumentType::MIDI_OUT) {
 		if (knobPosLeft != kNoSelection) {
-			knobPosLeft = view.calculateKnobPosForDisplay(clip->lastSelectedParamKind, clip->lastSelectedParamID, knobPosLeft);
+			knobPosLeft =
+			    view.calculateKnobPosForDisplay(clip->lastSelectedParamKind, clip->lastSelectedParamID, knobPosLeft);
 		}
 		if (knobPosRight != kNoSelection) {
-			knobPosRight = view.calculateKnobPosForDisplay(clip->lastSelectedParamKind, clip->lastSelectedParamID, knobPosRight);
+			knobPosRight =
+			    view.calculateKnobPosForDisplay(clip->lastSelectedParamKind, clip->lastSelectedParamID, knobPosRight);
 		}
 	}
 
