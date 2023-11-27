@@ -984,11 +984,10 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 	//disable button presses for Vertical encoder
 	//disable back button press since undo doesn't work well in this view atm.
 	else if (b == Y_ENC) { //|| (b == BACK)) {
-		goto doNothing;
+		return ActionResult::DEALT_WITH;
 	}
 
 	else {
-notDealtWith:
 		ActionResult buttonActionResult;
 		buttonActionResult = TimelineView::buttonAction(b, on, inCardRoutine);
 
@@ -1002,8 +1001,6 @@ notDealtWith:
 		}
 		return buttonActionResult;
 	}
-
-doNothing:
 	return ActionResult::DEALT_WITH;
 }
 
@@ -1014,8 +1011,7 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 			if (on) {
 				//if it's a shortcut press, enter soundEditor menu for that parameter
 				if (Buttons::isShiftButtonPressed()) {
-					ActionResult soundEditorResult = soundEditor.potentialShortcutPadAction(xDisplay, yDisplay, on);
-					return soundEditorResult;
+					return soundEditor.potentialShortcutPadAction(xDisplay, yDisplay, on);
 				}
 			}
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
