@@ -2688,7 +2688,7 @@ createNewParamManager:
 			}
 		}
 
-		// These next 3 - only created by alpha testers for a few weeks. Could eventually remove.
+		// These are the expression params for MPE
 		else if (!strcmp(tagName, "pitchBend")) {
 			temp = 0;
 doReadExpressionParam:
@@ -2900,8 +2900,11 @@ expressionParam:
 						paramId = stringToInt(contents);
 						if (paramId < kNumRealCCNumbers) {
 							if (paramId == 74) {
-								paramId = 1;
-								goto expressionParam;
+								if (storageManager.firmwareVersionOfFileBeingRead
+								    < FirmwareVersion::FIRMWARE_3P2P0_ALPHA) {
+									paramId = 1;
+									goto expressionParam;
+								}
 							}
 							MIDIParam* midiParam =
 							    paramManager.getMIDIParamCollection()->params.getOrCreateParamFromCC(paramId, 0);

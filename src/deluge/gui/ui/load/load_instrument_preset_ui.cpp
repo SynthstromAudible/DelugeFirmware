@@ -260,7 +260,12 @@ void LoadInstrumentPresetUI::enterKeyPress() {
 	else {
 
 		if (currentInstrumentLoadError) {
-			currentInstrumentLoadError = performLoad();
+			if (loadingSynthToKitRow) {
+				currentInstrumentLoadError = performLoadSynthToKit();
+			}
+			else {
+				currentInstrumentLoadError = performLoad();
+			}
 			if (currentInstrumentLoadError) {
 				display->displayError(currentInstrumentLoadError);
 				return;
@@ -796,6 +801,7 @@ int32_t LoadInstrumentPresetUI::performLoad(bool doClone) {
 	if (currentFileItem->instrument == instrumentToReplace && !doClone) {
 		return NO_ERROR; // Happens if navigate over a folder's name (Instrument stays the same),
 	}
+
 	// then back onto that neighbouring Instrument - you'd incorrectly get a "USED" error without this line.
 
 	// Work out availabilityRequirement. This can't change as presets are navigated through... I don't think?
@@ -854,7 +860,8 @@ giveUsedError:
 			}
 		}
 		int32_t error;
-
+		//check if the file pointer matches the current file item
+		//Browser::checkFP();
 		error = storageManager.loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, instrumentTypeToLoad, false,
 		                                              &newInstrument, &currentFileItem->filePointer, &enteredText,
 		                                              &currentDir);
