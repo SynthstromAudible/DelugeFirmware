@@ -1111,8 +1111,8 @@ constexpr uint32_t kSampleRate = 44100;
 /// AudioEngine::audioSampleTimer)
 constexpr uint32_t kShortPressTime = kSampleRate / 2;
 
-//Length of a press that delineates a "hold" press.
-//Used in Performance View and with Sticky Shift
+/// Length of a press that delineates a "hold" press.
+/// Used in Performance View and with Sticky Shift
 constexpr uint32_t kHoldTime = kSampleRate / 10;
 
 enum KeyboardLayoutType : uint8_t {

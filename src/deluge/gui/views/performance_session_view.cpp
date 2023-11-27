@@ -532,7 +532,7 @@ bool PerformanceSessionView::renderMainPads(uint32_t whichRows, uint8_t image[][
 	return true;
 }
 
-//render performance mode
+/// render performance mode
 void PerformanceSessionView::performActualRender(uint32_t whichRows, uint8_t* image,
                                                  uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
                                                  int32_t xScroll, uint32_t xZoom, int32_t renderWidth,
@@ -546,9 +546,7 @@ void PerformanceSessionView::performActualRender(uint32_t whichRows, uint8_t* im
 	}
 }
 
-//this function started off as a copy of the renderRow function from the NoteRow class - I replaced "notes" with "nodes"
-//it worked for the most part, but there was bugs so I removed the buggy code and inserted my alternative rendering method
-//which always works. hoping to bring back the other code once I've worked out the bugs.
+/// render every column, one row at a time
 void PerformanceSessionView::renderRow(uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay) {
 
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
@@ -612,7 +610,7 @@ void PerformanceSessionView::renderRow(uint8_t* image, uint8_t occupancyMask[], 
 	}
 }
 
-//check if a param has been assinged to any of the FX columns
+/// check if a param has been assinged to any of the FX columns
 bool PerformanceSessionView::isParamAssignedToFXColumn(Param::Kind paramKind, int32_t paramID) {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		if ((layoutForPerformance[xDisplay].paramKind == paramKind)
@@ -623,7 +621,7 @@ bool PerformanceSessionView::isParamAssignedToFXColumn(Param::Kind paramKind, in
 	return false;
 }
 
-//nothing to render in sidebar (yet)
+/// nothing to render in sidebar (yet)
 bool PerformanceSessionView::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
                                            uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	if (!image) {
@@ -633,7 +631,7 @@ bool PerformanceSessionView::renderSidebar(uint32_t whichRows, uint8_t image[][k
 	return true;
 }
 
-//render performance view display on opening
+/// render performance view display on opening
 void PerformanceSessionView::renderViewDisplay() {
 	if (defaultEditingMode) {
 		if (display->haveOLED()) {
@@ -705,7 +703,7 @@ void PerformanceSessionView::renderViewDisplay() {
 	onFXDisplay = false;
 }
 
-//Render Parameter Name and Value set when using Performance Pads
+/// Render Parameter Name and Value set when using Performance Pads
 void PerformanceSessionView::renderFXDisplay(Param::Kind paramKind, int32_t paramID, int32_t knobPos) {
 	if (editingParam) {
 		//display parameter name
@@ -902,21 +900,6 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 	//save performance view layout
 	else if (b == SAVE) {
 		if (on) {
-			/*if (Buttons::isButtonPressed(deluge::hid::button::SYNTH)) {
-				layoutVariant = 2;
-			}
-			else if (Buttons::isButtonPressed(deluge::hid::button::KIT)) {
-				layoutVariant = 3;
-			}
-			else if (Buttons::isButtonPressed(deluge::hid::button::MIDI)) {
-				layoutVariant = 4;
-			}
-			else if (Buttons::isButtonPressed(deluge::hid::button::CV)) {
-				layoutVariant = 5;
-			}
-			else {
-				layoutVariant = 1;
-			}*/
 			savePerformanceViewLayout();
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_SAVED));
 		}
@@ -925,21 +908,6 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 	//load performance view layout
 	else if (b == LOAD) {
 		if (on) {
-			/*if (Buttons::isButtonPressed(deluge::hid::button::SYNTH)) {
-				layoutVariant = 2;
-			}
-			else if (Buttons::isButtonPressed(deluge::hid::button::KIT)) {
-				layoutVariant = 3;
-			}
-			else if (Buttons::isButtonPressed(deluge::hid::button::MIDI)) {
-				layoutVariant = 4;
-			}
-			else if (Buttons::isButtonPressed(deluge::hid::button::CV)) {
-				layoutVariant = 5;
-			}
-			else {
-				layoutVariant = 1;
-			}*/
 			loadPerformanceViewLayout();
 			renderViewDisplay();
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_LOADED));
@@ -1074,7 +1042,7 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 	return ActionResult::DEALT_WITH;
 }
 
-//process pad actions in the normal performance view or value editor
+/// process pad actions in the normal performance view or value editor
 void PerformanceSessionView::normalPadAction(ModelStackWithThreeMainThings* modelStack, int32_t xDisplay,
                                              int32_t yDisplay, int32_t on) {
 	//obtain Param::Kind, ParamID corresponding to the column pressed on performance grid
@@ -1181,7 +1149,7 @@ void PerformanceSessionView::padReleaseAction(ModelStackWithThreeMainThings* mod
 	}
 }
 
-//process pad actions in the param editor
+/// process pad actions in the param editor
 void PerformanceSessionView::paramEditorPadAction(ModelStackWithThreeMainThings* modelStack, int32_t xDisplay,
                                                   int32_t yDisplay, int32_t on) {
 	//pressing a pad
@@ -1247,7 +1215,7 @@ void PerformanceSessionView::paramEditorPadAction(ModelStackWithThreeMainThings*
 	}
 }
 
-//check if pad press corresponds to a shortcut pad on the grid
+/// check if pad press corresponds to a shortcut pad on the grid
 bool PerformanceSessionView::isPadShortcut(int32_t xDisplay, int32_t yDisplay) {
 	if ((paramKindShortcutsForPerformanceView[xDisplay][yDisplay] != Param::Kind::NONE)
 	    && (paramIDShortcutsForPerformanceView[xDisplay][yDisplay] != 0xFFFFFFFF)) {
@@ -1256,7 +1224,7 @@ bool PerformanceSessionView::isPadShortcut(int32_t xDisplay, int32_t yDisplay) {
 	return false;
 }
 
-//backup performance layout so changes can be undone / redone later
+/// backup performance layout so changes can be undone / redone later
 void PerformanceSessionView::backupPerformanceLayout() {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		if (successfullyReadDefaultsFromFile) {
@@ -1271,8 +1239,8 @@ void PerformanceSessionView::backupPerformanceLayout() {
 	performanceLayoutBackedUp = true;
 }
 
-//used in conjunction with backupPerformanceLayout to log changes
-//while in Performance View so that you can undo/redo them afters
+/// used in conjunction with backupPerformanceLayout to log changes
+/// while in Performance View so that you can undo/redo them afters
 void PerformanceSessionView::logPerformanceLayoutChange() {
 	if (anyChangesToLog()) {
 		actionLogger.recordPerformanceLayoutChange(&backupLastPadPress, &lastPadPress, &backupFXPress[0], &FXPress[0],
@@ -1282,7 +1250,7 @@ void PerformanceSessionView::logPerformanceLayoutChange() {
 	}
 }
 
-//check if there are any changes that needed to be logged in action logger for undo/redo mechanism to work
+/// check if there are any changes that needed to be logged in action logger for undo/redo mechanism to work
 bool PerformanceSessionView::anyChangesToLog() {
 	if (performanceLayoutBackedUp) {
 		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
@@ -1344,9 +1312,9 @@ bool PerformanceSessionView::anyChangesToLog() {
 	return false;
 }
 
-//called when you press <> + back
-//in param editor, it will clear existing param mappings
-//in regular performance view or value editor, it will clear held pads and reset param values to pre-held state
+/// called when you press <> + back
+/// in param editor, it will clear existing param mappings
+/// in regular performance view or value editor, it will clear held pads and reset param values to pre-held state
 void PerformanceSessionView::resetPerformanceView(ModelStackWithThreeMainThings* modelStack) {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		if (editingParam) {
@@ -1367,8 +1335,8 @@ void PerformanceSessionView::resetPerformanceView(ModelStackWithThreeMainThings*
 	uiNeedsRendering(this);
 }
 
-//resets a single FX column to remove held status
-//and reset the param value assigned to that FX column to pre-held state
+/// resets a single FX column to remove held status
+/// and reset the param value assigned to that FX column to pre-held state
 void PerformanceSessionView::resetFXColumn(ModelStackWithThreeMainThings* modelStack, int32_t xDisplay) {
 	if (FXPress[xDisplay].padPressHeld) {
 		//obtain Param::Kind and ParamID corresponding to the column in focus (xDisplay)
@@ -1386,7 +1354,7 @@ void PerformanceSessionView::resetFXColumn(ModelStackWithThreeMainThings* modelS
 	updateLayoutChangeStatus();
 }
 
-//check if parameter is stutter
+/// check if parameter is stutter
 bool PerformanceSessionView::isParamStutter(Param::Kind paramKind, int32_t paramID) {
 	if ((paramKind == Param::Kind::UNPATCHED_SOUND) && (paramID == Param::Unpatched::STUTTER_RATE)) {
 		return true;
@@ -1394,7 +1362,7 @@ bool PerformanceSessionView::isParamStutter(Param::Kind paramKind, int32_t param
 	return false;
 }
 
-//check if stutter is active and release it if it is
+/// check if stutter is active and release it if it is
 void PerformanceSessionView::releaseStutter(ModelStackWithThreeMainThings* modelStack) {
 	if (isUIModeActive(UI_MODE_STUTTERING)) {
 		padReleaseAction(modelStack, Param::Kind::UNPATCHED_SOUND, Param::Unpatched::STUTTER_RATE,
@@ -1402,12 +1370,12 @@ void PerformanceSessionView::releaseStutter(ModelStackWithThreeMainThings* model
 	}
 }
 
-//this will set a new value for a parameter
-//if we're dealing with stutter, it will check if stutter is active and end the stutter first
-//if we're dealing with stutter, it will change the stutter rate value and then begin stutter
-//if you're in the value editor, pressing a column and changing the value will also open the sound editor
-//menu for the parameter to show you the current value in the menu
-//in regular performance view, this function will also update the parameter value shown on the display
+/// this will set a new value for a parameter
+/// if we're dealing with stutter, it will check if stutter is active and end the stutter first
+/// if we're dealing with stutter, it will change the stutter rate value and then begin stutter
+/// if you're in the value editor, pressing a column and changing the value will also open the sound editor
+/// menu for the parameter to show you the current value in the menu
+/// in regular performance view, this function will also update the parameter value shown on the display
 bool PerformanceSessionView::setParameterValue(ModelStackWithThreeMainThings* modelStack, Param::Kind paramKind,
                                                int32_t paramID, int32_t xDisplay, int32_t knobPos, bool renderDisplay) {
 	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, paramID);
@@ -1456,8 +1424,8 @@ bool PerformanceSessionView::setParameterValue(ModelStackWithThreeMainThings* mo
 	return false;
 }
 
-//get the current value for a parameter and update display if value is different than currently shown
-//update current value stored
+/// get the current value for a parameter and update display if value is different than currently shown
+/// update current value stored
 void PerformanceSessionView::getParameterValue(ModelStackWithThreeMainThings* modelStack, Param::Kind paramKind,
                                                int32_t paramID, int32_t xDisplay, bool renderDisplay) {
 	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(modelStack, paramID);
@@ -1483,7 +1451,7 @@ void PerformanceSessionView::getParameterValue(ModelStackWithThreeMainThings* mo
 	}
 }
 
-//get's the modelstack for the parameters that are being edited
+/// get's the modelstack for the parameters that are being edited
 ModelStackWithAutoParam* PerformanceSessionView::getModelStackWithParam(ModelStackWithThreeMainThings* modelStack,
                                                                         int32_t paramID) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
@@ -1500,8 +1468,8 @@ ModelStackWithAutoParam* PerformanceSessionView::getModelStackWithParam(ModelSta
 	return modelStackWithParam;
 }
 
-//converts grid pad press yDisplay into a knobPosition value
-//this will likely need to be customized based on the parameter to create some more param appropriate ranges
+/// converts grid pad press yDisplay into a knobPosition value
+/// this will likely need to be customized based on the parameter to create some more param appropriate ranges
 int32_t PerformanceSessionView::calculateKnobPosForSinglePadPress(int32_t yDisplay) {
 	int32_t newKnobPos = 0;
 
@@ -1520,7 +1488,7 @@ int32_t PerformanceSessionView::calculateKnobPosForSinglePadPress(int32_t yDispl
 	return newKnobPos;
 }
 
-//Used to edit a pad's value in editing mode
+/// Used to edit a pad's value in editing mode
 void PerformanceSessionView::selectEncoderAction(int8_t offset) {
 	if (lastPadPress.isActive && defaultEditingMode && !editingParam && (getCurrentUI() == &soundEditor)) {
 		backupPerformanceLayout();
@@ -1555,7 +1523,7 @@ exit:
 	return;
 }
 
-//used to calculate new knobPos when you turn the select encoder
+/// used to calculate new knobPos when you turn the select encoder
 int32_t PerformanceSessionView::calculateKnobPosForSelectEncoderTurn(int32_t knobPos, int32_t offset) {
 
 	//adjust the current knob so that it is within the range of 0-128 for calculation purposes
@@ -1590,18 +1558,18 @@ ActionResult PerformanceSessionView::verticalEncoderAction(int32_t offset, bool 
 	return ActionResult::DEALT_WITH;
 }
 
-//why do I need this? (code won't compile without it)
+/// why do I need this? (code won't compile without it)
 uint32_t PerformanceSessionView::getMaxZoom() {
 	return currentSong->getLongestClip(true, false)->getMaxZoom();
 }
 
-//why do I need this? (code won't compile without it)
+/// why do I need this? (code won't compile without it)
 uint32_t PerformanceSessionView::getMaxLength() {
 	return currentSong->getLongestClip(true, false)->loopLength;
 }
 
-//updates the display if the mod encoder has just updated the same parameter currently being held / last held
-//if no param is currently being held, it will reset the display to just show "Performance View"
+/// updates the display if the mod encoder has just updated the same parameter currently being held / last held
+/// if no param is currently being held, it will reset the display to just show "Performance View"
 void PerformanceSessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	if (getCurrentUI() == this) { //This routine may also be called from the Arranger view
 		ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
@@ -1621,7 +1589,7 @@ void PerformanceSessionView::modEncoderAction(int32_t whichModEncoder, int32_t o
 	}
 }
 
-//used to reset stutter if it's already active
+/// used to reset stutter if it's already active
 void PerformanceSessionView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 	//release stutter if it's already active before beginning stutter again
 	if (on) {
@@ -1661,8 +1629,8 @@ void PerformanceSessionView::modButtonAction(uint8_t whichButton, bool on) {
 	UI::modButtonAction(whichButton, on);
 }
 
-//this compares the last loaded XML file defaults to the current layout in performance view
-//to determine if there are any unsaved changes
+/// this compares the last loaded XML file defaults to the current layout in performance view
+/// to determine if there are any unsaved changes
 void PerformanceSessionView::updateLayoutChangeStatus() {
 	anyChangesToSave = false;
 
@@ -1712,14 +1680,14 @@ void PerformanceSessionView::updateLayoutChangeStatus() {
 	return;
 }
 
-//update saved perfomance view layout and update saved changes status
+/// update saved perfomance view layout and update saved changes status
 void PerformanceSessionView::savePerformanceViewLayout() {
 	writeDefaultsToFile();
 	updateLayoutChangeStatus();
 }
 
-//create default XML file and write defaults
-//I should check if file exists before creating one
+/// create default XML file and write defaults
+/// I should check if file exists before creating one
 void PerformanceSessionView::writeDefaultsToFile() {
 	//PerformanceView.xml
 	int32_t error = storageManager.createXMLFile(STRING_FOR_PERFORM_DEFAULTS_XML, true);
@@ -1746,9 +1714,9 @@ void PerformanceSessionView::writeDefaultsToFile() {
 	anyChangesToSave = false;
 }
 
-//creates "FX1 - FX16 tags"
-//limiting # of FX to the # of columns on the grid (16 = kDisplayWidth)
-//could expand # of FX in the future if we allow user to selected from a larger bank of FX / build their own FX
+/// creates "FX1 - FX16 tags"
+/// limiting # of FX to the # of columns on the grid (16 = kDisplayWidth)
+/// could expand # of FX in the future if we allow user to selected from a larger bank of FX / build their own FX
 void PerformanceSessionView::writeDefaultFXValuesToFile() {
 	char tagName[10];
 	tagName[0] = 'F';
@@ -1764,7 +1732,7 @@ void PerformanceSessionView::writeDefaultFXValuesToFile() {
 	}
 }
 
-//convert paramID to a paramName to write to XML
+/// convert paramID to a paramName to write to XML
 void PerformanceSessionView::writeDefaultFXParamToFile(int32_t xDisplay) {
 	char const* paramName;
 
@@ -1785,8 +1753,8 @@ void PerformanceSessionView::writeDefaultFXParamToFile(int32_t xDisplay) {
 	backupXMLDefaultLayoutForPerformance[xDisplay].paramID = layoutForPerformance[xDisplay].paramID;
 }
 
-//creates "8 - 1 row # tags within a "row" tag"
-//limiting # of rows to the # of rows on the grid (8 = kDisplayHeight)
+/// creates "8 - 1 row # tags within a "row" tag"
+/// limiting # of rows to the # of rows on the grid (8 = kDisplayHeight)
 void PerformanceSessionView::writeDefaultFXRowValuesToFile(int32_t xDisplay) {
 	//<row>
 	storageManager.writeOpeningTagBeginning(STRING_FOR_PERFORM_DEFAULTS_ROW_TAG);
@@ -1802,8 +1770,8 @@ void PerformanceSessionView::writeDefaultFXRowValuesToFile(int32_t xDisplay) {
 	storageManager.writeClosingTag(STRING_FOR_PERFORM_DEFAULTS_ROW_TAG);
 }
 
-//for each FX column, write the held status, what row is being held, and what previous value was
-//(previous value is used to reset param after you remove the held status)
+/// for each FX column, write the held status, what row is being held, and what previous value was
+/// (previous value is used to reset param after you remove the held status)
 void PerformanceSessionView::writeDefaultFXHoldStatusToFile(int32_t xDisplay) {
 	//<hold>
 	storageManager.writeOpeningTagBeginning(STRING_FOR_PERFORM_DEFAULTS_HOLD_TAG);
@@ -1838,7 +1806,7 @@ void PerformanceSessionView::writeDefaultFXHoldStatusToFile(int32_t xDisplay) {
 	storageManager.writeClosingTag(STRING_FOR_PERFORM_DEFAULTS_HOLD_TAG);
 }
 
-//backup current layout, load saved layout, log layout change, update change status
+/// backup current layout, load saved layout, log layout change, update change status
 void PerformanceSessionView::loadPerformanceViewLayout() {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* modelStack = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
@@ -1850,7 +1818,7 @@ void PerformanceSessionView::loadPerformanceViewLayout() {
 	updateLayoutChangeStatus();
 }
 
-//read defaults from XML
+/// read defaults from XML
 void PerformanceSessionView::readDefaultsFromFile() {
 	FilePointer fp;
 	//PerformanceView.XML
@@ -1887,7 +1855,7 @@ void PerformanceSessionView::readDefaultsFromFile() {
 	uiNeedsRendering(this);
 }
 
-//if no XML file exists, load default layout (paramKind, paramID, xDisplay, yDisplay, rowColour, rowTailColour)
+/// if no XML file exists, load default layout (paramKind, paramID, xDisplay, yDisplay, rowColour, rowTailColour)
 void PerformanceSessionView::loadDefaultLayout() {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		memcpy(&layoutForPerformance[xDisplay], &defaultLayoutForPerformance[xDisplay], sizeParamsForPerformance);
@@ -1938,8 +1906,8 @@ void PerformanceSessionView::readDefaultFXParamAndRowValuesFromFile(int32_t xDis
 	}
 }
 
-//compares param name from <param> tag to the list of params available for use in performance view
-//if param is found, it loads the layout info for that param into the view (paramKind, paramID, xDisplay, yDisplay, rowColour, rowTailColour)
+/// compares param name from <param> tag to the list of params available for use in performance view
+/// if param is found, it loads the layout info for that param into the view (paramKind, paramID, xDisplay, yDisplay, rowColour, rowTailColour)
 void PerformanceSessionView::readDefaultFXParamFromFile(int32_t xDisplay) {
 	char const* paramName;
 	char const* tagName = storageManager.readTagOrAttributeValue();

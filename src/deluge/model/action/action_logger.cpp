@@ -300,12 +300,12 @@ void ActionLogger::recordTempoChange(uint64_t timePerBigBefore, uint64_t timePer
 	}
 }
 
-//record changes to the layout in Performance View so that you can undo changes
-//changes that can be undone:
-//1) loading a new layout
-//2) setting a pad to "hold"
-//3) value editor: changing pad values
-//4) param editor: changing FX assignments to pads
+/// record changes to the layout in Performance View so that you can undo changes
+/// changes that can be undone:
+/// 1) loading a new layout
+/// 2) setting a pad to "hold"
+/// 3) value editor: changing pad values
+/// 4) param editor: changing FX assignments to pads
 void ActionLogger::recordPerformanceLayoutChange(PadPress(*padPressBefore), PadPress(*padPressAfter),
                                                  FXColumnPress(*FXPressBefore), FXColumnPress(*FXPressAfter),
                                                  ParamsForPerformance(*layoutBefore),
