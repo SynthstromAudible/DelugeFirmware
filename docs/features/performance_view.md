@@ -101,10 +101,10 @@ Light Blue:
 9 = Delay Rate
 
 Light Pink:
-10 = MOD-FX Offset
-11 = MOD-FX Feedback
-12 = MOD-FX Depth
-13 = MOD-FX Rate
+10 = MOD-FX Rate
+11 = MOD-FX Depth
+12 = MOD-FX Feedback
+13 = MOD-FX Offset
 
 Dark Pink:
 14 = Decimation
