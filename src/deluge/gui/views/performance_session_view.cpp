@@ -64,17 +64,17 @@ extern "C" {
 using namespace deluge;
 using namespace gui;
 
-const char* STRING_FOR_PERFORM_DEFAULTS_XML = "PerformanceView.XML";
-const char* STRING_FOR_PERFORM_DEFAULTS_TAG = "defaults";
-const char* STRING_FOR_PERFORM_DEFAULTS_FXVALUES_TAG = "defaultFXValues";
-const char* STRING_FOR_PERFORM_DEFAULTS_PARAM_TAG = "param";
-const char* STRING_FOR_PERFORM_DEFAULTS_NO_PARAM = "none";
-const char* STRING_FOR_PERFORM_DEFAULTS_HOLD_TAG = "hold";
-const char* STRING_FOR_PERFORM_DEFAULTS_HOLD_STATUS_TAG = "status";
-const char* STRING_FOR_PERFORM_DEFAULTS_HOLD_RESETVALUE_TAG = "resetValue";
-const char* STRING_FOR_PERFORM_DEFAULTS_ROW_TAG = "row";
-const char* STRING_FOR_ON = "On";
-const char* STRING_FOR_OFF = "Off";
+const char* PERFORM_DEFAULTS_XML = "PerformanceView.XML";
+const char* PERFORM_DEFAULTS_TAG = "defaults";
+const char* PERFORM_DEFAULTS_FXVALUES_TAG = "defaultFXValues";
+const char* PERFORM_DEFAULTS_PARAM_TAG = "param";
+const char* PERFORM_DEFAULTS_NO_PARAM = "none";
+const char* PERFORM_DEFAULTS_HOLD_TAG = "hold";
+const char* PERFORM_DEFAULTS_HOLD_STATUS_TAG = "status";
+const char* PERFORM_DEFAULTS_HOLD_RESETVALUE_TAG = "resetValue";
+const char* PERFORM_DEFAULTS_ROW_TAG = "row";
+const char* PERFORM_DEFAULTS_ON = "On";
+const char* PERFORM_DEFAULTS_OFF = "Off";
 
 //colours for the performance mode
 
@@ -1692,24 +1692,24 @@ void PerformanceSessionView::savePerformanceViewLayout() {
 /// I should check if file exists before creating one
 void PerformanceSessionView::writeDefaultsToFile() {
 	//PerformanceView.xml
-	int32_t error = storageManager.createXMLFile(STRING_FOR_PERFORM_DEFAULTS_XML, true);
+	int32_t error = storageManager.createXMLFile(PERFORM_DEFAULTS_XML, true);
 	if (error) {
 		return;
 	}
 
 	//<defaults>
-	storageManager.writeOpeningTagBeginning(STRING_FOR_PERFORM_DEFAULTS_TAG);
+	storageManager.writeOpeningTagBeginning(PERFORM_DEFAULTS_TAG);
 	storageManager.writeOpeningTagEnd();
 
 	//<defaultFXValues>
-	storageManager.writeOpeningTagBeginning(STRING_FOR_PERFORM_DEFAULTS_FXVALUES_TAG);
+	storageManager.writeOpeningTagBeginning(PERFORM_DEFAULTS_FXVALUES_TAG);
 	storageManager.writeOpeningTagEnd();
 
 	writeDefaultFXValuesToFile();
 
-	storageManager.writeClosingTag(STRING_FOR_PERFORM_DEFAULTS_FXVALUES_TAG);
+	storageManager.writeClosingTag(PERFORM_DEFAULTS_FXVALUES_TAG);
 
-	storageManager.writeClosingTag(STRING_FOR_PERFORM_DEFAULTS_TAG);
+	storageManager.writeClosingTag(PERFORM_DEFAULTS_TAG);
 
 	storageManager.closeFileAfterWriting();
 
@@ -1746,10 +1746,10 @@ void PerformanceSessionView::writeDefaultFXParamToFile(int32_t xDisplay) {
 		    ModControllableAudio::paramToString(Param::Unpatched::START + layoutForPerformance[xDisplay].paramID);
 	}
 	else {
-		paramName = STRING_FOR_PERFORM_DEFAULTS_NO_PARAM;
+		paramName = PERFORM_DEFAULTS_NO_PARAM;
 	}
 	//<param>
-	storageManager.writeTag(STRING_FOR_PERFORM_DEFAULTS_PARAM_TAG, paramName);
+	storageManager.writeTag(PERFORM_DEFAULTS_PARAM_TAG, paramName);
 
 	backupXMLDefaultLayoutForPerformance[xDisplay].paramKind = layoutForPerformance[xDisplay].paramKind;
 	backupXMLDefaultLayoutForPerformance[xDisplay].paramID = layoutForPerformance[xDisplay].paramID;
@@ -1759,7 +1759,7 @@ void PerformanceSessionView::writeDefaultFXParamToFile(int32_t xDisplay) {
 /// limiting # of rows to the # of rows on the grid (8 = kDisplayHeight)
 void PerformanceSessionView::writeDefaultFXRowValuesToFile(int32_t xDisplay) {
 	//<row>
-	storageManager.writeOpeningTagBeginning(STRING_FOR_PERFORM_DEFAULTS_ROW_TAG);
+	storageManager.writeOpeningTagBeginning(PERFORM_DEFAULTS_ROW_TAG);
 	storageManager.writeOpeningTagEnd();
 	char rowNumber[5];
 	//creates tags from row 8 down to row 1
@@ -1769,23 +1769,23 @@ void PerformanceSessionView::writeDefaultFXRowValuesToFile(int32_t xDisplay) {
 
 		backupXMLDefaultFXValues[xDisplay][yDisplay] = defaultFXValues[xDisplay][yDisplay];
 	}
-	storageManager.writeClosingTag(STRING_FOR_PERFORM_DEFAULTS_ROW_TAG);
+	storageManager.writeClosingTag(PERFORM_DEFAULTS_ROW_TAG);
 }
 
 /// for each FX column, write the held status, what row is being held, and what previous value was
 /// (previous value is used to reset param after you remove the held status)
 void PerformanceSessionView::writeDefaultFXHoldStatusToFile(int32_t xDisplay) {
 	//<hold>
-	storageManager.writeOpeningTagBeginning(STRING_FOR_PERFORM_DEFAULTS_HOLD_TAG);
+	storageManager.writeOpeningTagBeginning(PERFORM_DEFAULTS_HOLD_TAG);
 	storageManager.writeOpeningTagEnd();
 
 	if (fxPress[xDisplay].padPressHeld) {
 		//<status>
-		storageManager.writeTag(STRING_FOR_PERFORM_DEFAULTS_HOLD_STATUS_TAG, STRING_FOR_ON);
+		storageManager.writeTag(PERFORM_DEFAULTS_HOLD_STATUS_TAG, PERFORM_DEFAULTS_ON);
 		//<row>
-		storageManager.writeTag(STRING_FOR_PERFORM_DEFAULTS_ROW_TAG, fxPress[xDisplay].yDisplay + 1);
+		storageManager.writeTag(PERFORM_DEFAULTS_ROW_TAG, fxPress[xDisplay].yDisplay + 1);
 		//<resetValue>
-		storageManager.writeTag(STRING_FOR_PERFORM_DEFAULTS_HOLD_RESETVALUE_TAG,
+		storageManager.writeTag(PERFORM_DEFAULTS_HOLD_RESETVALUE_TAG,
 		                        fxPress[xDisplay].previousKnobPosition + kKnobPosOffset);
 
 		backupXMLDefaultFXPress[xDisplay].padPressHeld = fxPress[xDisplay].padPressHeld;
@@ -1794,18 +1794,18 @@ void PerformanceSessionView::writeDefaultFXHoldStatusToFile(int32_t xDisplay) {
 	}
 	else {
 		//<status>
-		storageManager.writeTag(STRING_FOR_PERFORM_DEFAULTS_HOLD_STATUS_TAG, STRING_FOR_OFF);
+		storageManager.writeTag(PERFORM_DEFAULTS_HOLD_STATUS_TAG, PERFORM_DEFAULTS_OFF);
 		//<row>
-		storageManager.writeTag(STRING_FOR_PERFORM_DEFAULTS_ROW_TAG, kNoSelection);
+		storageManager.writeTag(PERFORM_DEFAULTS_ROW_TAG, kNoSelection);
 		//<resetValue>
-		storageManager.writeTag(STRING_FOR_PERFORM_DEFAULTS_HOLD_RESETVALUE_TAG, kNoSelection);
+		storageManager.writeTag(PERFORM_DEFAULTS_HOLD_RESETVALUE_TAG, kNoSelection);
 
 		backupXMLDefaultFXPress[xDisplay].padPressHeld = false;
 		backupXMLDefaultFXPress[xDisplay].yDisplay = kNoSelection;
 		backupXMLDefaultFXPress[xDisplay].previousKnobPosition = kNoSelection;
 	}
 
-	storageManager.writeClosingTag(STRING_FOR_PERFORM_DEFAULTS_HOLD_TAG);
+	storageManager.writeClosingTag(PERFORM_DEFAULTS_HOLD_TAG);
 }
 
 /// backup current layout, load saved layout, log layout change, update change status
@@ -1824,14 +1824,14 @@ void PerformanceSessionView::loadPerformanceViewLayout() {
 void PerformanceSessionView::readDefaultsFromFile() {
 	FilePointer fp;
 	//PerformanceView.XML
-	bool success = storageManager.fileExists(STRING_FOR_PERFORM_DEFAULTS_XML, &fp);
+	bool success = storageManager.fileExists(PERFORM_DEFAULTS_XML, &fp);
 	if (!success) {
 		loadDefaultLayout();
 		return;
 	}
 
 	//<defaults>
-	int32_t error = storageManager.openXMLFile(&fp, STRING_FOR_PERFORM_DEFAULTS_TAG);
+	int32_t error = storageManager.openXMLFile(&fp, PERFORM_DEFAULTS_TAG);
 	if (error) {
 		loadDefaultLayout();
 		return;
@@ -1840,7 +1840,7 @@ void PerformanceSessionView::readDefaultsFromFile() {
 	char const* tagName;
 	//step into the <defaultFXValues> tag
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
-		if (!strcmp(tagName, STRING_FOR_PERFORM_DEFAULTS_FXVALUES_TAG)) {
+		if (!strcmp(tagName, PERFORM_DEFAULTS_FXVALUES_TAG)) {
 			readDefaultFXValuesFromFile();
 		}
 		storageManager.exitTag();
@@ -1893,15 +1893,15 @@ void PerformanceSessionView::readDefaultFXParamAndRowValuesFromFile(int32_t xDis
 	char const* tagName;
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 		//<param>
-		if (!strcmp(tagName, STRING_FOR_PERFORM_DEFAULTS_PARAM_TAG)) {
+		if (!strcmp(tagName, PERFORM_DEFAULTS_PARAM_TAG)) {
 			readDefaultFXParamFromFile(xDisplay);
 		}
 		//<row>
-		else if (!strcmp(tagName, STRING_FOR_PERFORM_DEFAULTS_ROW_TAG)) {
+		else if (!strcmp(tagName, PERFORM_DEFAULTS_ROW_TAG)) {
 			readDefaultFXRowNumberValuesFromFile(xDisplay);
 		}
 		//<hold>
-		else if (!strcmp(tagName, STRING_FOR_PERFORM_DEFAULTS_HOLD_TAG)) {
+		else if (!strcmp(tagName, PERFORM_DEFAULTS_HOLD_TAG)) {
 			readDefaultFXHoldStatusFromFile(xDisplay);
 		}
 		storageManager.exitTag();
@@ -1963,9 +1963,9 @@ void PerformanceSessionView::readDefaultFXHoldStatusFromFile(int32_t xDisplay) {
 	//loop through the hold tags
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 		//<status>
-		if (!strcmp(tagName, STRING_FOR_PERFORM_DEFAULTS_HOLD_STATUS_TAG)) {
+		if (!strcmp(tagName, PERFORM_DEFAULTS_HOLD_STATUS_TAG)) {
 			char const* holdStatus = storageManager.readTagOrAttributeValue();
-			if (!strcmp(holdStatus, l10n::get(l10n::String::STRING_FOR_ON))) {
+			if (!strcmp(holdStatus, PERFORM_DEFAULTS_ON)) {
 				if (!isParamStutter(layoutForPerformance[xDisplay].paramKind, layoutForPerformance[xDisplay].paramID)) {
 					fxPress[xDisplay].padPressHeld = true;
 					fxPress[xDisplay].timeLastPadPress = AudioEngine::audioSampleTimer;
@@ -1976,7 +1976,7 @@ void PerformanceSessionView::readDefaultFXHoldStatusFromFile(int32_t xDisplay) {
 			}
 		}
 		//<row>
-		else if (!strcmp(tagName, STRING_FOR_PERFORM_DEFAULTS_ROW_TAG)) {
+		else if (!strcmp(tagName, PERFORM_DEFAULTS_ROW_TAG)) {
 			int32_t yDisplay = storageManager.readTagOrAttributeValueInt();
 			if ((yDisplay >= 1) && (yDisplay <= 8)) {
 				fxPress[xDisplay].yDisplay = yDisplay - 1;
@@ -1986,7 +1986,7 @@ void PerformanceSessionView::readDefaultFXHoldStatusFromFile(int32_t xDisplay) {
 			}
 		}
 		//<resetValue>
-		else if (!strcmp(tagName, STRING_FOR_PERFORM_DEFAULTS_HOLD_RESETVALUE_TAG)) {
+		else if (!strcmp(tagName, PERFORM_DEFAULTS_HOLD_RESETVALUE_TAG)) {
 			fxPress[xDisplay].previousKnobPosition = storageManager.readTagOrAttributeValueInt() - kKnobPosOffset;
 			//check if a value greater than 64 was entered as a default value in xml file
 			if (fxPress[xDisplay].previousKnobPosition > kKnobPosOffset) {
