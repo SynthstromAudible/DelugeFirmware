@@ -76,7 +76,7 @@ const char* PERFORM_DEFAULTS_ROW_TAG = "row";
 const char* PERFORM_DEFAULTS_ON = "On";
 const char* PERFORM_DEFAULTS_OFF = "Off";
 
-//colours for the performance mode
+//colours for performance view
 
 const uint8_t rowColourRed[3] = {255, 0, 0};            //LPF Cutoff, Resonance
 const uint8_t rowColourPastelOrange[3] = {221, 72, 13}; //HPF Cutoff, Resonance
@@ -535,27 +535,18 @@ bool PerformanceSessionView::renderMainPads(uint32_t whichRows, uint8_t image[][
 	// erase current occupancy mask as it will be refreshed
 	memset(occupancyMask, 0, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth + kSideBarWidth));
 
-	performActualRender(whichRows, &image[0][0][0], occupancyMask, currentSong->xScroll[NAVIGATION_CLIP],
-	                    currentSong->xZoom[NAVIGATION_CLIP], kDisplayWidth, kDisplayWidth + kSideBarWidth,
-	                    drawUndefinedArea);
+	//render performance view
+	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+
+		uint8_t* occupancyMaskOfRow = occupancyMask[yDisplay];
+		int32_t imageWidth = kDisplayWidth + kSideBarWidth;
+
+		renderRow(&image[0][0][0] + (yDisplay * imageWidth * 3), occupancyMaskOfRow, yDisplay);
+	}
 
 	PadLEDs::renderingLock = false;
 
 	return true;
-}
-
-/// render performance mode
-void PerformanceSessionView::performActualRender(uint32_t whichRows, uint8_t* image,
-                                                 uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
-                                                 int32_t xScroll, uint32_t xZoom, int32_t renderWidth,
-                                                 int32_t imageWidth, bool drawUndefinedArea) {
-
-	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-
-		uint8_t* occupancyMaskOfRow = occupancyMask[yDisplay];
-
-		renderRow(image + (yDisplay * imageWidth * 3), occupancyMaskOfRow, yDisplay);
-	}
 }
 
 /// render every column, one row at a time
@@ -2014,5 +2005,6 @@ void PerformanceSessionView::readDefaultFXHoldStatusFromFile(int32_t xDisplay) {
 	}
 	else {
 		initFXPress(fxPress[xDisplay]);
+		initFXPress(backupXMLDefaultFXPress[xDisplay]);
 	}
 }

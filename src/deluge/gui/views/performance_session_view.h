@@ -125,9 +125,6 @@ private:
 	void initDefaultFXValues(int32_t xDisplay);
 
 	//rendering
-	void performActualRender(uint32_t whichRows, uint8_t* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
-	                         int32_t xScroll, uint32_t xZoom, int32_t renderWidth, int32_t imageWidth,
-	                         bool drawUndefinedArea = true);
 	void renderRow(uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
 	bool isParamAssignedToFXColumn(Param::Kind paramKind, int32_t paramID);
 	void renderFXDisplay(Param::Kind paramKind, int32_t paramID, int32_t knobPos = kNoSelection);
