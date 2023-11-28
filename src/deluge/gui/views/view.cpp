@@ -943,7 +943,7 @@ void View::displayModEncoderValuePopup(InstrumentType instrumentType, int32_t pa
 			valueForDisplay = calculateKnobPosForDisplay(instrumentType, paramID, newKnobPos + kKnobPosOffset);
 		}
 		intToString(valueForDisplay, buffer);
-		display->displayPopup(buffer);
+		display->displayPopup(buffer, 3, true);
 	}
 
 	//if turning stutter mod encoder and stutter quantize is enabled
