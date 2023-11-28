@@ -374,7 +374,7 @@ constexpr int32_t kMaxMenuMetronomeVolumeValue = 27;
 constexpr int32_t kMinMenuMetronomeVolumeValue = 22;
 
 //Performance View and Automation View Constant
-constexpr int32_t kNoParamIDShortcut = 0xFFFFFFFF;
+constexpr uint32_t kNoParamIDShortcut = 0xFFFFFFFF;
 
 //Performance View constant
 constexpr int32_t kNumParamsForPerformance = 16;
