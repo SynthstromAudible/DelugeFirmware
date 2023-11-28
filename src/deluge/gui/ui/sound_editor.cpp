@@ -778,7 +778,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 	}
 	else {
 		//ignore if you're not auditioning and in instrument clip view
-		ignoreAction = !(currentUIMode == UI_MODE_AUDITIONING && getRootUI() == &instrumentClipView);
+		ignoreAction = !(isUIModeActive(UI_MODE_AUDITIONING) && getRootUI() == &instrumentClipView);
 	}
 
 	// ignore if:
