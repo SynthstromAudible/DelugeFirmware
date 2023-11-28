@@ -119,9 +119,9 @@ public:
 
 private:
 	//initialize
-	void initPadPress(PadPress(*padPress));
-	void initFXPress(FXColumnPress(*columnPress));
-	void initLayout(ParamsForPerformance(*layout));
+	void initPadPress(PadPress& padPress);
+	void initFXPress(FXColumnPress& columnPress);
+	void initLayout(ParamsForPerformance& layout);
 	void initDefaultFXValues(int32_t xDisplay);
 
 	//rendering

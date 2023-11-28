@@ -388,49 +388,49 @@ PerformanceSessionView::PerformanceSessionView() {
 
 	justExitedSoundEditor = false;
 
-	initPadPress(&firstPadPress);
-	initPadPress(&lastPadPress);
-	initPadPress(&backupLastPadPress);
+	initPadPress(firstPadPress);
+	initPadPress(lastPadPress);
+	initPadPress(backupLastPadPress);
 
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
-		initFXPress(&fxPress[xDisplay]);
-		initFXPress(&backupFXPress[xDisplay]);
-		initFXPress(&backupXMLDefaultFXPress[xDisplay]);
+		initFXPress(fxPress[xDisplay]);
+		initFXPress(backupFXPress[xDisplay]);
+		initFXPress(backupXMLDefaultFXPress[xDisplay]);
 
-		initLayout(&layoutForPerformance[xDisplay]);
-		initLayout(&backupLayoutForPerformance[xDisplay]);
-		initLayout(&backupXMLDefaultLayoutForPerformance[xDisplay]);
+		initLayout(layoutForPerformance[xDisplay]);
+		initLayout(backupLayoutForPerformance[xDisplay]);
+		initLayout(backupXMLDefaultLayoutForPerformance[xDisplay]);
 
 		initDefaultFXValues(xDisplay);
 	}
 }
 
-void PerformanceSessionView::initPadPress(PadPress(*padPress)) {
-	padPress->isActive = false;
-	padPress->xDisplay = kNoSelection;
-	padPress->yDisplay = kNoSelection;
-	padPress->paramKind = Param::Kind::NONE;
-	padPress->paramID = kNoSelection;
+void PerformanceSessionView::initPadPress(PadPress& padPress) {
+	padPress.isActive = false;
+	padPress.xDisplay = kNoSelection;
+	padPress.yDisplay = kNoSelection;
+	padPress.paramKind = Param::Kind::NONE;
+	padPress.paramID = kNoSelection;
 }
 
-void PerformanceSessionView::initFXPress(FXColumnPress(*columnPress)) {
-	columnPress->previousKnobPosition = kNoSelection;
-	columnPress->currentKnobPosition = kNoSelection;
-	columnPress->yDisplay = kNoSelection;
-	columnPress->timeLastPadPress = 0;
-	columnPress->padPressHeld = false;
+void PerformanceSessionView::initFXPress(FXColumnPress& columnPress) {
+	columnPress.previousKnobPosition = kNoSelection;
+	columnPress.currentKnobPosition = kNoSelection;
+	columnPress.yDisplay = kNoSelection;
+	columnPress.timeLastPadPress = 0;
+	columnPress.padPressHeld = false;
 }
 
-void PerformanceSessionView::initLayout(ParamsForPerformance(*layout)) {
-	layout->paramID = kNoSelection;
-	layout->xDisplay = kNoSelection;
-	layout->yDisplay = kNoSelection;
-	layout->rowColour[0] = 0;
-	layout->rowColour[1] = 0;
-	layout->rowColour[2] = 0;
-	layout->rowTailColour[0] = 0;
-	layout->rowTailColour[1] = 0;
-	layout->rowTailColour[2] = 0;
+void PerformanceSessionView::initLayout(ParamsForPerformance& layout) {
+	layout.paramID = kNoSelection;
+	layout.xDisplay = kNoSelection;
+	layout.yDisplay = kNoSelection;
+	layout.rowColour[0] = 0;
+	layout.rowColour[1] = 0;
+	layout.rowColour[2] = 0;
+	layout.rowTailColour[0] = 0;
+	layout.rowTailColour[1] = 0;
+	layout.rowTailColour[2] = 0;
 }
 
 void PerformanceSessionView::initDefaultFXValues(int32_t xDisplay) {
@@ -1068,7 +1068,7 @@ void PerformanceSessionView::normalPadAction(ModelStackWithThreeMainThings* mode
 					if ((layoutForPerformance[i].paramKind == lastSelectedParamKind)
 					    && (layoutForPerformance[i].paramID == lastSelectedParamID)) {
 						fxPress[xDisplay].previousKnobPosition = fxPress[i].previousKnobPosition;
-						initFXPress(&fxPress[i]);
+						initFXPress(fxPress[i]);
 					}
 				}
 			}
@@ -1145,8 +1145,8 @@ void PerformanceSessionView::padReleaseAction(ModelStackWithThreeMainThings* mod
                                               int32_t paramID, int32_t xDisplay, bool renderDisplay) {
 	if (setParameterValue(modelStack, paramKind, paramID, xDisplay, fxPress[xDisplay].previousKnobPosition,
 	                      renderDisplay)) {
-		initFXPress(&fxPress[xDisplay]);
-		initPadPress(&lastPadPress);
+		initFXPress(fxPress[xDisplay]);
+		initPadPress(lastPadPress);
 	}
 }
 
@@ -1201,7 +1201,7 @@ void PerformanceSessionView::paramEditorPadAction(ModelStackWithThreeMainThings*
 				resetFXColumn(modelStack, xDisplay);
 
 				//remove param from FX column
-				initLayout(&layoutForPerformance[xDisplay]);
+				initLayout(layoutForPerformance[xDisplay]);
 			}
 			logPerformanceLayoutChange();
 			updateLayoutChangeStatus();
@@ -1210,7 +1210,7 @@ void PerformanceSessionView::paramEditorPadAction(ModelStackWithThreeMainThings*
 	//releasing a pad
 	else {
 		if ((firstPadPress.xDisplay == xDisplay) && (firstPadPress.yDisplay == yDisplay)) {
-			initPadPress(&firstPadPress);
+			initPadPress(firstPadPress);
 			renderViewDisplay();
 		}
 	}
@@ -1319,7 +1319,7 @@ bool PerformanceSessionView::anyChangesToLog() {
 void PerformanceSessionView::resetPerformanceView(ModelStackWithThreeMainThings* modelStack) {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		if (editingParam) {
-			initLayout(&layoutForPerformance[xDisplay]);
+			initLayout(layoutForPerformance[xDisplay]);
 		}
 		else if (fxPress[xDisplay].padPressHeld) {
 			//obtain Param::Kind and ParamID corresponding to the column in focus (xDisplay)
