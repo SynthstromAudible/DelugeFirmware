@@ -770,21 +770,23 @@ static const uint32_t shortcutPadUIModes[] = {UI_MODE_AUDITIONING, 0};
 
 ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool on) {
 
-	//if not in performanceSessionView
-	if ((getRootUI() != &performanceSessionView) && (getCurrentUI() != &performanceSessionView)) {
-		if (!on || x >= kDisplayWidth
-		    || (!Buttons::isShiftButtonPressed()
-		        && !(currentUIMode == UI_MODE_AUDITIONING && getRootUI() == &instrumentClipView))) {
-			return ActionResult::NOT_DEALT_WITH;
-		}
+	bool ignoreAction = false;
+	//if in Performance Session View
+	if ((getRootUI() == &performanceSessionView) || (getCurrentUI() == &performanceSessionView)) {
+		//ignore if you're not in editing mode or if you're in editing mode but editing a param
+		ignoreAction = (!performanceSessionView.defaultEditingMode || performanceSessionView.editingParam);
 	}
-	//if in performanceSessionView, if not in editing mode, check that shift is pressed
 	else {
-		if (!on || x >= kDisplayWidth
-		    || (!Buttons::isShiftButtonPressed()
-		        && (!performanceSessionView.defaultEditingMode || performanceSessionView.editingParam))) {
-			return ActionResult::NOT_DEALT_WITH;
-		}
+		//ignore if you're not auditioning and in instrument clip view
+		ignoreAction = !(currentUIMode == UI_MODE_AUDITIONING && getRootUI() == &instrumentClipView);
+	}
+
+	// ignore if:
+	// A) velocity is off (you let go of pad)
+	// B) you're pressing a pad in sidebar (not a shortcut)
+	// C) or you're not holding shift and ignore criteria above are met
+	if (!on || x >= kDisplayWidth || (!Buttons::isShiftButtonPressed() && ignoreAction)) {
+		return ActionResult::NOT_DEALT_WITH;
 	}
 
 	if (on
