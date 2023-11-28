@@ -1975,41 +1975,44 @@ void PerformanceSessionView::readDefaultFXHoldStatusFromFile(int32_t xDisplay) {
 				}
 			}
 		}
-		if (fxPress[xDisplay].padPressHeld) {
-			//<row>
-			if (!strcmp(tagName, STRING_FOR_PERFORM_DEFAULTS_ROW_TAG)) {
-				int32_t yDisplay = storageManager.readTagOrAttributeValueInt();
-				if ((yDisplay >= 1) && (yDisplay <= 8)) {
-					fxPress[xDisplay].yDisplay = yDisplay - 1;
-					fxPress[xDisplay].currentKnobPosition = defaultFXValues[xDisplay][fxPress[xDisplay].yDisplay];
+		//<row>
+		else if (!strcmp(tagName, STRING_FOR_PERFORM_DEFAULTS_ROW_TAG)) {
+			int32_t yDisplay = storageManager.readTagOrAttributeValueInt();
+			if ((yDisplay >= 1) && (yDisplay <= 8)) {
+				fxPress[xDisplay].yDisplay = yDisplay - 1;
+				fxPress[xDisplay].currentKnobPosition = defaultFXValues[xDisplay][fxPress[xDisplay].yDisplay];
 
-					backupXMLDefaultFXPress[xDisplay].yDisplay = fxPress[xDisplay].yDisplay;
-				}
-			}
-			//<resetValue>
-			else if (!strcmp(tagName, STRING_FOR_PERFORM_DEFAULTS_HOLD_RESETVALUE_TAG)) {
-				fxPress[xDisplay].previousKnobPosition = storageManager.readTagOrAttributeValueInt() - kKnobPosOffset;
-				//check if a value greater than 64 was entered as a default value in xml file
-				if (fxPress[xDisplay].previousKnobPosition > kKnobPosOffset) {
-					fxPress[xDisplay].previousKnobPosition = kKnobPosOffset;
-				}
-				backupXMLDefaultFXPress[xDisplay].previousKnobPosition = fxPress[xDisplay].previousKnobPosition;
-			}
-			//set the value associated with the held pad
-			if ((fxPress[xDisplay].currentKnobPosition != kNoSelection)
-			    && (fxPress[xDisplay].previousKnobPosition != kNoSelection)) {
-				char modelStackMemory[MODEL_STACK_MAX_SIZE];
-				ModelStackWithThreeMainThings* modelStack =
-				    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-
-				if ((layoutForPerformance[xDisplay].paramKind != Param::Kind::NONE)
-				    && (layoutForPerformance[xDisplay].paramID != kNoSelection)) {
-					setParameterValue(modelStack, layoutForPerformance[xDisplay].paramKind,
-					                  layoutForPerformance[xDisplay].paramID, xDisplay,
-					                  defaultFXValues[xDisplay][fxPress[xDisplay].yDisplay], false);
-				}
+				backupXMLDefaultFXPress[xDisplay].yDisplay = fxPress[xDisplay].yDisplay;
 			}
 		}
+		//<resetValue>
+		else if (!strcmp(tagName, STRING_FOR_PERFORM_DEFAULTS_HOLD_RESETVALUE_TAG)) {
+			fxPress[xDisplay].previousKnobPosition = storageManager.readTagOrAttributeValueInt() - kKnobPosOffset;
+			//check if a value greater than 64 was entered as a default value in xml file
+			if (fxPress[xDisplay].previousKnobPosition > kKnobPosOffset) {
+				fxPress[xDisplay].previousKnobPosition = kKnobPosOffset;
+			}
+			backupXMLDefaultFXPress[xDisplay].previousKnobPosition = fxPress[xDisplay].previousKnobPosition;
+		}
 		storageManager.exitTag();
+	}
+	if (fxPress[xDisplay].padPressHeld) {
+		//set the value associated with the held pad
+		if ((fxPress[xDisplay].currentKnobPosition != kNoSelection)
+		    && (fxPress[xDisplay].previousKnobPosition != kNoSelection)) {
+			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithThreeMainThings* modelStack =
+			    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+
+			if ((layoutForPerformance[xDisplay].paramKind != Param::Kind::NONE)
+			    && (layoutForPerformance[xDisplay].paramID != kNoSelection)) {
+				setParameterValue(modelStack, layoutForPerformance[xDisplay].paramKind,
+				                  layoutForPerformance[xDisplay].paramID, xDisplay,
+				                  defaultFXValues[xDisplay][fxPress[xDisplay].yDisplay], false);
+			}
+		}
+	}
+	else {
+		initFXPress(fxPress[xDisplay]);
 	}
 }
