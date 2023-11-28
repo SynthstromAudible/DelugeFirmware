@@ -379,6 +379,12 @@ constexpr uint32_t kNoParamIDShortcut = 0xFFFFFFFF;
 //Performance View constant
 constexpr int32_t kNumParamsForPerformance = 16;
 
+enum class PerformanceEditingMode : int32_t {
+	DISABLED,
+	VALUE,
+	PARAM,
+};
+
 //Automation View constants
 constexpr int32_t kNoSelection = 255;
 constexpr int32_t kNumNonKitAffectEntireParamsForAutomation = 56;

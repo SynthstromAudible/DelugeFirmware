@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "definitions_cxx.hpp"
 #include "gui/menu_item/toggle.h"
 #include "gui/views/performance_session_view.h"
 #include "hid/led/indicator_leds.h"
@@ -24,29 +25,29 @@ class EditingMode final : public Selection {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override {
-		int32_t currentValue;
+		PerformanceEditingMode currentMode;
 		if (!performanceSessionView.defaultEditingMode) {
-			currentValue = 0;
+			currentMode = PerformanceEditingMode::DISABLED;
 		}
 		else if (!performanceSessionView.editingParam) {
-			currentValue = 1;
+			currentMode = PerformanceEditingMode::VALUE;
 		}
 		else {
-			currentValue = 2;
+			currentMode = PerformanceEditingMode::PARAM;
 		}
-		this->setValue(currentValue);
+		this->setValue(currentMode);
 	}
 	void writeCurrentValue() override {
-		int32_t currentValue = this->getValue();
-		if (currentValue == 0) {
+		PerformanceEditingMode currentMode = this->getValue<PerformanceEditingMode>();
+		if (currentMode == PerformanceEditingMode::DISABLED) {
 			performanceSessionView.defaultEditingMode = false;
 			performanceSessionView.editingParam = false;
 		}
-		else if (currentValue == 1) {
+		else if (currentMode == PerformanceEditingMode::VALUE) {
 			performanceSessionView.defaultEditingMode = true;
 			performanceSessionView.editingParam = false;
 		}
-		else {
+		else { //PerformanceEditingMode::PARAM
 			performanceSessionView.defaultEditingMode = true;
 			performanceSessionView.editingParam = true;
 		}
