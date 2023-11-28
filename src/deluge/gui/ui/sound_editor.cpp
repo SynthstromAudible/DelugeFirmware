@@ -799,7 +799,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 
 		// performance session view
 		if ((getRootUI() == &performanceSessionView) || (getCurrentUI() == &performanceSessionView)) {
-			if (x <= 14) {
+			if (x <= (kDisplayWidth - 2)) {
 				item = paramShortcutsForSongView[x][y];
 			}
 

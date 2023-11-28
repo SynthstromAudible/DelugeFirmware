@@ -334,29 +334,40 @@ const Param::Kind paramKindShortcutsForPerformanceView[kDisplayWidth][kDisplayHe
 
 //mapping shortcuts to paramID
 const uint32_t paramIDShortcutsForPerformanceView[kDisplayWidth][kDisplayHeight] = {
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
-     Param::Unpatched::STUTTER_RATE},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, Param::Unpatched::SAMPLE_RATE_REDUCTION,
-     Param::Unpatched::BITCRUSHING, 0xFFFFFFFF},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
-     Param::Unpatched::GlobalEffectable::LPF_RES, Param::Unpatched::GlobalEffectable::LPF_FREQ},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
-     Param::Unpatched::GlobalEffectable::HPF_RES, Param::Unpatched::GlobalEffectable::HPF_FREQ},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, Param::Unpatched::BASS, 0xFFFFFFFF},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, Param::Unpatched::TREBLE, 0xFFFFFFFF},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, Param::Unpatched::MOD_FX_OFFSET, Param::Unpatched::MOD_FX_FEEDBACK,
-     Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH, Param::Unpatched::GlobalEffectable::MOD_FX_RATE},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT, 0xFFFFFFFF, 0xFFFFFFFF,
-     0xFFFFFFFF, 0xFFFFFFFF},
-    {Param::Unpatched::GlobalEffectable::DELAY_RATE, 0xFFFFFFFF, 0xFFFFFFFF,
-     Param::Unpatched::GlobalEffectable::DELAY_AMOUNT, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
-    {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
+    {kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut,
+     kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut},
+    {kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut,
+     kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut},
+    {kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut,
+     kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut},
+    {kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut,
+     kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut},
+    {kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut,
+     kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut},
+    {kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut,
+     kNoParamIDShortcut, kNoParamIDShortcut, Param::Unpatched::STUTTER_RATE},
+    {kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut,
+     Param::Unpatched::SAMPLE_RATE_REDUCTION, Param::Unpatched::BITCRUSHING, kNoParamIDShortcut},
+    {kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut,
+     kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut},
+    {kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut,
+     kNoParamIDShortcut, Param::Unpatched::GlobalEffectable::LPF_RES, Param::Unpatched::GlobalEffectable::LPF_FREQ},
+    {kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut,
+     kNoParamIDShortcut, Param::Unpatched::GlobalEffectable::HPF_RES, Param::Unpatched::GlobalEffectable::HPF_FREQ},
+    {kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut,
+     kNoParamIDShortcut, Param::Unpatched::BASS, kNoParamIDShortcut},
+    {kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut,
+     kNoParamIDShortcut, Param::Unpatched::TREBLE, kNoParamIDShortcut},
+    {kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut, Param::Unpatched::MOD_FX_OFFSET,
+     Param::Unpatched::MOD_FX_FEEDBACK, Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH,
+     Param::Unpatched::GlobalEffectable::MOD_FX_RATE},
+    {kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut, Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT,
+     kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut},
+    {Param::Unpatched::GlobalEffectable::DELAY_RATE, kNoParamIDShortcut, kNoParamIDShortcut,
+     Param::Unpatched::GlobalEffectable::DELAY_AMOUNT, kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut,
+     kNoParamIDShortcut},
+    {kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut,
+     kNoParamIDShortcut, kNoParamIDShortcut, kNoParamIDShortcut},
 };
 
 PerformanceSessionView performanceSessionView{};
@@ -1208,7 +1219,7 @@ void PerformanceSessionView::paramEditorPadAction(ModelStackWithThreeMainThings*
 /// check if pad press corresponds to a shortcut pad on the grid
 bool PerformanceSessionView::isPadShortcut(int32_t xDisplay, int32_t yDisplay) {
 	if ((paramKindShortcutsForPerformanceView[xDisplay][yDisplay] != Param::Kind::NONE)
-	    && (paramIDShortcutsForPerformanceView[xDisplay][yDisplay] != 0xFFFFFFFF)) {
+	    && (paramIDShortcutsForPerformanceView[xDisplay][yDisplay] != kNoParamIDShortcut)) {
 		return true;
 	}
 	return false;
