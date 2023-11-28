@@ -422,6 +422,7 @@ void PerformanceSessionView::initFXPress(FXColumnPress& columnPress) {
 }
 
 void PerformanceSessionView::initLayout(ParamsForPerformance& layout) {
+	layout.paramKind = Param::Kind::NONE;
 	layout.paramID = kNoSelection;
 	layout.xDisplay = kNoSelection;
 	layout.yDisplay = kNoSelection;
