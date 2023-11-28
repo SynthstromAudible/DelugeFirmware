@@ -134,7 +134,7 @@ private:
 
 	bool sessionButtonActive = false;
 	bool sessionButtonUsed = false;
-
+	bool horizontalEncoderPressed = false;
 	// Members for grid layout
 private:
 	bool gridRenderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],

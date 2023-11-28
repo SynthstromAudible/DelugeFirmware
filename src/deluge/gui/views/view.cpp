@@ -941,6 +941,10 @@ void View::displayModEncoderValuePopup(Param::Kind kind, int32_t paramID, int32_
 			popupMsg.append(name);
 			popupMsg.append(": ");
 		}
+		else {
+			int valueForDisplay = calculateKnobPosForDisplay(kind, paramID, newKnobPos + kKnobPosOffset);
+			popupMsg.appendInt(valueForDisplay);
+		}
 	}
 
 	//if turning stutter mod encoder and stutter quantize is enabled

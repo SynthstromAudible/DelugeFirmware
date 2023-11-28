@@ -565,10 +565,10 @@ Submenu audioClipModFXMenu{
 };
 
 // Delay Menu
-UnpatchedParam audioClipDelayRateMenu{STRING_FOR_AMOUNT, STRING_FOR_DELAY_AMOUNT,
-                                      ::Param::Unpatched::GlobalEffectable::DELAY_AMOUNT};
-UnpatchedParam audioClipDelayFeedbackMenu{STRING_FOR_RATE, STRING_FOR_DELAY_RATE,
-                                          ::Param::Unpatched::GlobalEffectable::DELAY_RATE};
+UnpatchedParam audioClipDelayFeedbackMenu{STRING_FOR_AMOUNT, STRING_FOR_DELAY_AMOUNT,
+                                          ::Param::Unpatched::GlobalEffectable::DELAY_AMOUNT};
+UnpatchedParam audioClipDelayRateMenu{STRING_FOR_RATE, STRING_FOR_DELAY_RATE,
+                                      ::Param::Unpatched::GlobalEffectable::DELAY_RATE};
 
 Submenu audioClipDelayMenu{
     STRING_FOR_DELAY,

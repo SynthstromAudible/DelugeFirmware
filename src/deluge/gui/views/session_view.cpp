@@ -129,6 +129,7 @@ bool SessionView::opened() {
 }
 
 void SessionView::focusRegained() {
+	horizontalEncoderPressed = false;
 	selectLayout(0); // Make sure we get a valid layout from the loaded file
 
 	bool doingRender = (currentUIMode != UI_MODE_ANIMATION_FADE);
@@ -359,6 +360,28 @@ moveAfterClipInstance:
 			}
 		}
 		return ActionResult::NOT_DEALT_WITH; // Make the MatrixDriver do its normal thing with it too
+	}
+
+	// Overwrite to allow not showing zoom level in grid
+	else if (b == X_ENC) {
+		horizontalEncoderPressed = on;
+		if (on) {
+			// Show current zoom level
+			if (isNoUIModeActive() && (currentSong->sessionLayout != SessionLayoutType::SessionLayoutTypeGrid)) {
+				displayZoomLevel();
+			}
+
+			enterUIMode(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON);
+		}
+
+		else {
+			if (isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
+				if (currentSong->sessionLayout != SessionLayoutType::SessionLayoutTypeGrid) {
+					display->cancelPopup();
+				}
+				exitUIMode(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON);
+			}
+		}
 	}
 
 	// If save / delete button pressed, delete the Clip!
@@ -3561,7 +3584,7 @@ ActionResult SessionView::gridHandlePadsLaunchWithSelection(int32_t x, int32_t y
 
 void SessionView::gridHandlePadsLaunchToggleArming(Clip* clip, bool immediate) {
 	if (immediate) {
-		if (currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
+		if (horizontalEncoderPressed) {
 			session.soloClipAction(clip, kInternalButtonPressLatency);
 		}
 		else {
@@ -3569,7 +3592,10 @@ void SessionView::gridHandlePadsLaunchToggleArming(Clip* clip, bool immediate) {
 		}
 	}
 	else {
-		if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING) {
+		if (horizontalEncoderPressed) {
+			session.soloClipAction(clip, kInternalButtonPressLatency);
+		}
+		else if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING) {
 			// Here I removed the overdubbing settings
 			clip->armedForRecording = !clip->armedForRecording;
 			PadLEDs::reassessGreyout(true);
@@ -3582,18 +3608,10 @@ void SessionView::gridHandlePadsLaunchToggleArming(Clip* clip, bool immediate) {
 		          || currentUIMode == UI_MODE_STUTTERING)) {
 			gridToggleClipPlay(clip, false);
 		}
-		else if (currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
-			session.soloClipAction(clip, kInternalButtonPressLatency);
-			// Make sure we can mute additional pads after this and don't loose UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON
-		}
 	}
 }
 
 ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {
-	if (isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
-		display->cancelPopup();
-	}
-
 	if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW && offsetY != 0) {
 		auto track = gridTrackFromX(gridFirstPressedX, gridTrackCount());
 		if (track != nullptr) {
