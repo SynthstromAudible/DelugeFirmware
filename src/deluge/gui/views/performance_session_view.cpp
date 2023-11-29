@@ -1649,7 +1649,7 @@ void PerformanceSessionView::updateLayoutChangeStatus() {
 			break;
 		}
 		else {
-			for (int32_t yDisplay = kDisplayHeight - 1; yDisplay >= 0; yDisplay--) {
+			for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 				if (backupXMLDefaultFXValues[xDisplay][yDisplay] != defaultFXValues[xDisplay][yDisplay]) {
 					anyChangesToSave = true;
 					break;
@@ -1782,6 +1782,7 @@ void PerformanceSessionView::writeDefaultFXHoldStatusToFile(int32_t xDisplay) {
 		backupXMLDefaultFXPress[xDisplay].padPressHeld = fxPress[xDisplay].padPressHeld;
 		backupXMLDefaultFXPress[xDisplay].yDisplay = fxPress[xDisplay].yDisplay;
 		backupXMLDefaultFXPress[xDisplay].previousKnobPosition = fxPress[xDisplay].previousKnobPosition;
+		backupXMLDefaultFXPress[xDisplay].currentKnobPosition = fxPress[xDisplay].currentKnobPosition;
 	}
 	else {
 		//<status>
@@ -1794,6 +1795,7 @@ void PerformanceSessionView::writeDefaultFXHoldStatusToFile(int32_t xDisplay) {
 		backupXMLDefaultFXPress[xDisplay].padPressHeld = false;
 		backupXMLDefaultFXPress[xDisplay].yDisplay = kNoSelection;
 		backupXMLDefaultFXPress[xDisplay].previousKnobPosition = kNoSelection;
+		backupXMLDefaultFXPress[xDisplay].currentKnobPosition = kNoSelection;
 	}
 
 	storageManager.writeClosingTag(PERFORM_DEFAULTS_HOLD_TAG);
@@ -1806,13 +1808,39 @@ void PerformanceSessionView::loadPerformanceViewLayout() {
 
 	backupPerformanceLayout();
 	resetPerformanceView(modelStack);
-	readDefaultsFromFile();
+	if (successfullyReadDefaultsFromFile) {
+		readDefaultsFromBackedUpFile();
+	}
+	else {
+		readDefaultsFromFile();
+	}
 	logPerformanceLayoutChange();
 	updateLayoutChangeStatus();
 }
 
+/// re-read defaults from backed up XML in memory in order to reduce SD Card IO
+void PerformanceSessionView::readDefaultsFromBackedUpFile() {
+	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+		memcpy(&layoutForPerformance[xDisplay], &backupXMLDefaultLayoutForPerformance[xDisplay],
+		       sizeParamsForPerformance);
+
+		memcpy(&fxPress[xDisplay], &backupXMLDefaultFXPress[xDisplay], sizeFXPress);
+
+		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+			defaultFXValues[xDisplay][yDisplay] = backupXMLDefaultFXValues[xDisplay][yDisplay];
+		}
+
+		initializeHeldFX(xDisplay);
+	}
+}
+
 /// read defaults from XML
 void PerformanceSessionView::readDefaultsFromFile() {
+	//no need to keep reading from SD card after first load
+	if (successfullyReadDefaultsFromFile) {
+		return;
+	}
+
 	FilePointer fp;
 	//PerformanceView.XML
 	bool success = storageManager.fileExists(PERFORM_DEFAULTS_XML, &fp);
@@ -1974,6 +2002,7 @@ void PerformanceSessionView::readDefaultFXHoldStatusFromFile(int32_t xDisplay) {
 				fxPress[xDisplay].currentKnobPosition = defaultFXValues[xDisplay][fxPress[xDisplay].yDisplay];
 
 				backupXMLDefaultFXPress[xDisplay].yDisplay = fxPress[xDisplay].yDisplay;
+				backupXMLDefaultFXPress[xDisplay].currentKnobPosition = fxPress[xDisplay].currentKnobPosition;
 			}
 		}
 		//<resetValue>
@@ -1987,6 +2016,10 @@ void PerformanceSessionView::readDefaultFXHoldStatusFromFile(int32_t xDisplay) {
 		}
 		storageManager.exitTag();
 	}
+	initializeHeldFX(xDisplay);
+}
+
+void PerformanceSessionView::initializeHeldFX(int32_t xDisplay) {
 	if (fxPress[xDisplay].padPressHeld) {
 		//set the value associated with the held pad
 		if ((fxPress[xDisplay].currentKnobPosition != kNoSelection)

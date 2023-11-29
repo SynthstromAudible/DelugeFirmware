@@ -149,25 +149,27 @@ private:
 	bool isParamStutter(Param::Kind paramKind, int32_t paramID);
 	void releaseStutter(ModelStackWithThreeMainThings* modelStack);
 
-	//write/load default values
+	/// write/load default values
 	void writeDefaultsToFile();
 	void writeDefaultFXValuesToFile();
 	void writeDefaultFXParamToFile(int32_t xDisplay);
 	void writeDefaultFXRowValuesToFile(int32_t xDisplay);
 	void writeDefaultFXHoldStatusToFile(int32_t xDisplay);
 	void loadDefaultLayout();
+	void readDefaultsFromBackedUpFile();
 	void readDefaultsFromFile();
 	void readDefaultFXValuesFromFile();
 	void readDefaultFXParamAndRowValuesFromFile(int32_t xDisplay);
 	void readDefaultFXParamFromFile(int32_t xDisplay);
 	void readDefaultFXRowNumberValuesFromFile(int32_t xDisplay);
 	void readDefaultFXHoldStatusFromFile(int32_t xDisplay);
+	void initializeHeldFX(int32_t xDisplay);
 	bool successfullyReadDefaultsFromFile;
 	bool anyChangesToSave;
 
-	//backup loaded layout (what's currently in XML file)
-	//backup the last loaded/last saved changes, so you can compare and let user know if any changes
-	//need to be saved
+	/// backup loaded layout (what's currently in XML file)
+	/// backup the last loaded/last saved changes, so you can compare and let user know if any changes
+	/// need to be saved
 	FXColumnPress backupXMLDefaultFXPress[kDisplayWidth];
 	ParamsForPerformance backupXMLDefaultLayoutForPerformance[kDisplayWidth];
 	int32_t backupXMLDefaultFXValues[kDisplayWidth][kDisplayHeight];
