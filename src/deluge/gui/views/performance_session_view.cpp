@@ -1236,8 +1236,8 @@ void PerformanceSessionView::backupPerformanceLayout() {
 /// while in Performance View so that you can undo/redo them afters
 void PerformanceSessionView::logPerformanceLayoutChange() {
 	if (anyChangesToLog()) {
-		actionLogger.recordPerformanceLayoutChange(&backupLastPadPress, &lastPadPress, &backupFXPress[0], &fxPress[0],
-		                                           &backupLayoutForPerformance[0], &layoutForPerformance[0],
+		actionLogger.recordPerformanceLayoutChange(backupLastPadPress, lastPadPress, backupFXPress, fxPress,
+		                                           backupLayoutForPerformance, layoutForPerformance,
 		                                           backupDefaultFXValues, defaultFXValues);
 		actionLogger.closeAction(ACTION_PARAM_UNAUTOMATED_VALUE_CHANGE);
 	}

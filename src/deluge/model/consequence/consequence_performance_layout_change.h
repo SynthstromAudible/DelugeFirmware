@@ -22,9 +22,11 @@
 
 class ConsequencePerformanceLayoutChange final : public Consequence {
 public:
-	ConsequencePerformanceLayoutChange(PadPress(*padPressBefore), PadPress(*padPressAfter),
-	                                   FXColumnPress(*fxPressBefore), FXColumnPress(*fxPressAfter),
-	                                   ParamsForPerformance(*layoutBefore), ParamsForPerformance(*layoutAfter),
+	ConsequencePerformanceLayoutChange(PadPress& padPressBefore, PadPress& padPressAfter,
+	                                   FXColumnPress fxPressBefore[kDisplayWidth],
+	                                   FXColumnPress fxPressAfter[kDisplayWidth],
+	                                   ParamsForPerformance layoutBefore[kDisplayWidth],
+	                                   ParamsForPerformance layoutAfter[kDisplayWidth],
 	                                   int32_t valuesBefore[kDisplayWidth][kDisplayHeight],
 	                                   int32_t valuesAfter[kDisplayWidth][kDisplayHeight]);
 	int32_t revert(TimeType time, ModelStack* modelStack);

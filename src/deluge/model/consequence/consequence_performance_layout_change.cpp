@@ -20,9 +20,10 @@
 #include "model/model_stack.h"
 
 ConsequencePerformanceLayoutChange::ConsequencePerformanceLayoutChange(
-    PadPress(*padPressBefore), PadPress(*padPressAfter), FXColumnPress(*fxPressBefore), FXColumnPress(*fxPressAfter),
-    ParamsForPerformance(*layoutBefore), ParamsForPerformance(*layoutAfter),
-    int32_t valuesBefore[kDisplayWidth][kDisplayHeight], int32_t valuesAfter[kDisplayWidth][kDisplayHeight]) {
+    PadPress& padPressBefore, PadPress& padPressAfter, FXColumnPress fxPressBefore[kDisplayWidth],
+    FXColumnPress fxPressAfter[kDisplayWidth], ParamsForPerformance layoutBefore[kDisplayWidth],
+    ParamsForPerformance layoutAfter[kDisplayWidth], int32_t valuesBefore[kDisplayWidth][kDisplayHeight],
+    int32_t valuesAfter[kDisplayWidth][kDisplayHeight]) {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		memcpy(&fxPress[xDisplay][BEFORE], &fxPressBefore[xDisplay], sizeFXPress);
 		memcpy(&layoutForPerformance[xDisplay][BEFORE], &layoutBefore[xDisplay], sizeParamsForPerformance);
