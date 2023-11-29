@@ -53,6 +53,20 @@ struct ParamsForPerformance {
 	int32_t yDisplay;
 	uint8_t rowColour[3];
 	uint8_t rowTailColour[3];
+	ParamsForPerformance(){};
+	ParamsForPerformance(Param::Kind kind, ParamType param, int32_t x, int32_t y, const uint8_t colour[3],
+	                     const uint8_t tailColour[3]) {
+		paramKind = kind;
+		paramID = param;
+		xDisplay = x;
+		yDisplay = y;
+		rowColour[0] = colour[0];
+		rowColour[1] = colour[1];
+		rowColour[2] = colour[2];
+		rowTailColour[0] = tailColour[0];
+		rowTailColour[1] = tailColour[1];
+		rowTailColour[2] = tailColour[2];
+	}
 };
 
 const int32_t sizePadPress = sizeof(PadPress);
