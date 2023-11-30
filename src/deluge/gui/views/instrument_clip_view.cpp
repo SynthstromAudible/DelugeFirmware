@@ -3543,7 +3543,6 @@ void InstrumentClipView::drawNoteCode(uint8_t yDisplay) {
 }
 
 void InstrumentClipView::drawDrumName(Drum* drum, bool justPopUp) {
-
 	char const* newText;
 
 	if (display->haveOLED()) {
@@ -3559,18 +3558,22 @@ void InstrumentClipView::drawDrumName(Drum* drum, bool justPopUp) {
 			newText = buffer;
 
 			if (drum->type == DrumType::GATE) {
-
 				strcpy(buffer, "Gate channel ");
 				intToString(((GateDrum*)drum)->channel + 1, &buffer[13]);
 				indicator_leds::blinkLed(IndicatorLED::CV, 1, 1);
 			}
 			else { // MIDI
-				strcpy(buffer, "MIDI channel ");
-				intToString(((MIDIDrum*)drum)->channel + 1, &buffer[13]);
-				strcat(buffer, ", note ");
-				char* pos = strchr(buffer, 0);
-				intToString(((MIDIDrum*)drum)->note, pos);
+				uint8_t drumNote = ((MIDIDrum*)drum)->note;
+				char channelString[10];
+				char noteString[5];
 
+				strcpy(buffer, "CHAN ");
+				intToString(((MIDIDrum*)drum)->channel + 1, channelString);
+				strcat(buffer, channelString);
+				strcat(buffer, ", NOTE ");
+
+				noteCodeToString(drumNote, noteString, nullptr);
+				strcat(buffer, noteString);
 				indicator_leds::blinkLed(IndicatorLED::MIDI, 1, 1);
 			}
 		}
@@ -3578,19 +3581,10 @@ void InstrumentClipView::drawDrumName(Drum* drum, bool justPopUp) {
 		display->popupText(newText);
 	}
 	else {
-
 		char buffer[7];
 
 		if (!drum) {
 			newText = "NONE";
-
-basicDisplay:
-			if (justPopUp && currentUIMode != UI_MODE_AUDITIONING) {
-				display->displayPopup(newText);
-			}
-			else {
-				display->setText(newText, false, 255, true);
-			}
 		}
 		else {
 			if (drum->type != DrumType::SOUND) {
@@ -3603,20 +3597,25 @@ basicDisplay:
 				else if (drum->type == DrumType::GATE) {
 					indicator_leds::blinkLed(IndicatorLED::CV, 1, 1);
 				}
-
-				goto basicDisplay;
 			}
+			else {
+				SoundDrum* soundDrum = (SoundDrum*)drum;
+				newText = soundDrum->name.get();
+				bool andAHalf;
 
-			// If we're here, it's a SoundDrum
-			SoundDrum* soundDrum = (SoundDrum*)drum;
-
-			newText = soundDrum->name.get();
-			bool andAHalf;
-
-			if (display->getEncodedPosFromLeft(99999, newText, &andAHalf) <= kNumericDisplayLength) {
-				goto basicDisplay;
+				if (display->getEncodedPosFromLeft(99999, newText, &andAHalf) <= kNumericDisplayLength) {
+					goto basicDisplay;
+				}
+				display->setScrollingText(newText, 0, kInitialFlashTime + kFlashTime);
 			}
-			display->setScrollingText(newText, 0, kInitialFlashTime + kFlashTime);
+		}
+
+basicDisplay:
+		if (justPopUp && currentUIMode != UI_MODE_AUDITIONING) {
+			display->displayPopup(newText);
+		}
+		else {
+			display->setText(newText, false, 255, true);
 		}
 	}
 }
