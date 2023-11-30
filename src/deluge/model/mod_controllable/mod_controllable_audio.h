@@ -131,6 +131,8 @@ public:
 	LFO modFXLFO;
 
 	//Grain
+	int32_t wrapsToShutdown;
+	void setWrapsToShutdown();
 	StereoSample* modFXGrainBuffer;
 	uint32_t modFXGrainBufferWriteIndex;
 	int32_t grainSize;
