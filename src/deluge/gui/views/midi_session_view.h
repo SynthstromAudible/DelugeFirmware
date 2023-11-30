@@ -30,6 +30,14 @@ class ModelStack;
 class ModelStackWithThreeMainThings;
 class ModelStackWithAutoParam;
 
+struct MidiPadPress {
+	bool isActive;
+	int32_t xDisplay;
+	int32_t yDisplay;
+	Param::Kind paramKind;
+	int32_t paramID;
+};
+
 class MidiSessionView final : public ClipNavigationTimelineView, public GlobalEffectable {
 public:
 	MidiSessionView();
@@ -73,6 +81,11 @@ public:
 	//not sure why we need these...
 	uint32_t getMaxZoom();
 	uint32_t getMaxLength();
+
+	//midi CC mappings
+	uint8_t paramToCC[kDisplayWidth][kDisplayHeight];
+	MidiPadPress lastPadPress;
+	bool masterMidiMode;
 
 private:
 	//initialize

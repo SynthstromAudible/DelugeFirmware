@@ -67,6 +67,85 @@ const char* MIDI_DEFAULTS_XML = "MidiView.XML";
 const char* MIDI_DEFAULTS_TAG = "defaults";
 const char* MIDI_DEFAULTS_CC_TAG = "defaultCCMappings";
 
+//grid sized arrays to assign automatable parameters to the grid
+
+const uint32_t patchedParamShortcuts[kDisplayWidth][kDisplayHeight] = {
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {Param::Local::OSC_A_VOLUME, Param::Local::OSC_A_PITCH_ADJUST, kNoParamID, Param::Local::OSC_A_PHASE_WIDTH,
+     kNoParamID, Param::Local::CARRIER_0_FEEDBACK, Param::Local::OSC_A_WAVE_INDEX, Param::Local::NOISE_VOLUME},
+    {Param::Local::OSC_B_VOLUME, Param::Local::OSC_B_PITCH_ADJUST, kNoParamID, Param::Local::OSC_B_PHASE_WIDTH,
+     kNoParamID, Param::Local::CARRIER_1_FEEDBACK, Param::Local::OSC_B_WAVE_INDEX, kNoParamID},
+    {Param::Local::MODULATOR_0_VOLUME, Param::Local::MODULATOR_0_PITCH_ADJUST, kNoParamID, kNoParamID, kNoParamID,
+     Param::Local::MODULATOR_0_FEEDBACK, kNoParamID, kNoParamID},
+    {Param::Local::MODULATOR_1_VOLUME, Param::Local::MODULATOR_1_PITCH_ADJUST, kNoParamID, kNoParamID, kNoParamID,
+     Param::Local::MODULATOR_1_FEEDBACK, kNoParamID, kNoParamID},
+    {Param::Global::VOLUME_POST_FX, kNoParamID, Param::Local::PITCH_ADJUST, Param::Local::PAN, kNoParamID, kNoParamID,
+     kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, Param::Local::FOLD},
+    {Param::Local::ENV_0_RELEASE, Param::Local::ENV_0_SUSTAIN, Param::Local::ENV_0_DECAY, Param::Local::ENV_0_ATTACK,
+     Param::Local::LPF_MORPH, kNoParamID, Param::Local::LPF_RESONANCE, Param::Local::LPF_FREQ},
+    {Param::Local::ENV_1_RELEASE, Param::Local::ENV_1_SUSTAIN, Param::Local::ENV_1_DECAY, Param::Local::ENV_1_ATTACK,
+     Param::Local::HPF_MORPH, kNoParamID, Param::Local::HPF_RESONANCE, Param::Local::HPF_FREQ},
+    {kNoParamID, kNoParamID, Param::Global::VOLUME_POST_REVERB_SEND, kNoParamID, kNoParamID, kNoParamID, kNoParamID,
+     kNoParamID},
+    {Param::Global::ARP_RATE, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {Param::Global::LFO_FREQ, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, Param::Global::MOD_FX_DEPTH,
+     Param::Global::MOD_FX_RATE},
+    {Param::Local::LFO_LOCAL_FREQ, kNoParamID, kNoParamID, Param::Global::REVERB_AMOUNT, kNoParamID, kNoParamID,
+     kNoParamID, kNoParamID},
+    {Param::Global::DELAY_RATE, kNoParamID, kNoParamID, Param::Global::DELAY_FEEDBACK, kNoParamID, kNoParamID,
+     kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID}};
+
+const uint32_t unpatchedParamShortcuts[kDisplayWidth][kDisplayHeight] = {
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, Param::Unpatched::SAMPLE_RATE_REDUCTION,
+     Param::Unpatched::BITCRUSHING, kNoParamID},
+    {Param::Unpatched::Sound::PORTAMENTO, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID,
+     kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, Param::Unpatched::COMPRESSOR_SHAPE, kNoParamID,
+     Param::Unpatched::BASS, Param::Unpatched::BASS_FREQ},
+    {kNoParamID, kNoParamID, Param::Unpatched::Sound::ARP_GATE, kNoParamID, kNoParamID, kNoParamID,
+     Param::Unpatched::TREBLE, Param::Unpatched::TREBLE_FREQ},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, Param::Unpatched::MOD_FX_OFFSET, Param::Unpatched::MOD_FX_FEEDBACK,
+     kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID}};
+
+const uint32_t globalEffectableParamShortcuts[kDisplayWidth][kDisplayHeight] = {
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {Param::Unpatched::GlobalEffectable::VOLUME, kNoParamID, Param::Unpatched::GlobalEffectable::PITCH_ADJUST,
+     Param::Unpatched::GlobalEffectable::PAN, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID,
+     Param::Unpatched::GlobalEffectable::LPF_RES, Param::Unpatched::GlobalEffectable::LPF_FREQ},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID,
+     Param::Unpatched::GlobalEffectable::HPF_RES, Param::Unpatched::GlobalEffectable::HPF_FREQ},
+    {kNoParamID, kNoParamID, Param::Unpatched::GlobalEffectable::SIDECHAIN_VOLUME, kNoParamID, kNoParamID, kNoParamID,
+     kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID,
+     Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH, Param::Unpatched::GlobalEffectable::MOD_FX_RATE},
+    {kNoParamID, kNoParamID, kNoParamID, Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT, kNoParamID, kNoParamID,
+     kNoParamID, kNoParamID},
+    {Param::Unpatched::GlobalEffectable::DELAY_RATE, kNoParamID, kNoParamID,
+     Param::Unpatched::GlobalEffectable::DELAY_AMOUNT, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID}};
+
 MidiSessionView midiSessionView{};
 
 //initialize variables
@@ -74,6 +153,20 @@ MidiSessionView::MidiSessionView() {
 	successfullyReadDefaultsFromFile = false;
 
 	anyChangesToSave = false;
+
+	lastPadPress.isActive = false;
+	lastPadPress.xDisplay = kNoSelection;
+	lastPadPress.yDisplay = kNoSelection;
+	lastPadPress.paramKind = Param::Kind::NONE;
+	lastPadPress.paramID = kNoSelection;
+
+	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+			paramToCC[xDisplay][yDisplay] = kNoSelection;
+		}
+	}
+
+	masterMidiMode = true;
 }
 
 bool MidiSessionView::opened() {
@@ -136,14 +229,14 @@ bool MidiSessionView::renderMainPads(uint32_t whichRows, uint8_t image[][kDispla
 	// erase current occupancy mask as it will be refreshed
 	memset(occupancyMask, 0, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth + kSideBarWidth));
 
-	//render performance view
-	//	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-	//
-	//		uint8_t* occupancyMaskOfRow = occupancyMask[yDisplay];
-	//		int32_t imageWidth = kDisplayWidth + kSideBarWidth;
-	//
-	//		renderRow(&image[0][0][0] + (yDisplay * imageWidth * 3), occupancyMaskOfRow, yDisplay);
-	//	}
+	//render midi view
+	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+	
+		uint8_t* occupancyMaskOfRow = occupancyMask[yDisplay];
+		int32_t imageWidth = kDisplayWidth + kSideBarWidth;
+	
+		renderRow(&image[0][0][0] + (yDisplay * imageWidth * 3), occupancyMaskOfRow, yDisplay);
+	}
 
 	PadLEDs::renderingLock = false;
 
@@ -152,7 +245,19 @@ bool MidiSessionView::renderMainPads(uint32_t whichRows, uint8_t image[][kDispla
 
 /// render every column, one row at a time
 void MidiSessionView::renderRow(uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay) {
-	return;
+	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+		uint8_t* pixel = image + (xDisplay * 3);
+
+		if ((patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) 
+		|| (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID)
+		|| (globalEffectableParamShortcuts[xDisplay][yDisplay] != kNoParamID)) {
+			pixel[0] = kUndefinedGreyShade;
+			pixel[1] = kUndefinedGreyShade;
+			pixel[2] = kUndefinedGreyShade;
+		
+			occupancyMask[xDisplay] = 64;
+		}
+	}	
 }
 
 /// check if a midi cc has been assigned to any of the params
@@ -361,14 +466,16 @@ ActionResult MidiSessionView::buttonAction(deluge::hid::Button b, bool on, bool 
 		}
 	}
 
-	//enter/exit Midi View
+	//exit Midi View
 	else if (b == MIDI) {
 		if (on) {
-			if (currentSong->lastClipInstanceEnteredStartPos != -1) {
-				changeRootUI(&arrangerView);
-			}
-			else {
-				changeRootUI(&sessionView);
+			if (Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
+				if (currentSong->lastClipInstanceEnteredStartPos != -1) {
+					changeRootUI(&arrangerView);
+				}
+				else {
+					changeRootUI(&sessionView);
+				}
 			}
 		}
 	}
@@ -394,7 +501,38 @@ ActionResult MidiSessionView::buttonAction(deluge::hid::Button b, bool on, bool 
 ActionResult MidiSessionView::padAction(int32_t xDisplay, int32_t yDisplay, int32_t on) {
 	//if pad was pressed in main deluge grid (not sidebar)
 	if (xDisplay < kDisplayWidth) {
-		uiNeedsRendering(this); //re-render pads
+		if (on) {
+			//display parameter name
+			Param::Kind paramKind = Param::Kind::NONE;
+			int32_t paramID = 0;
+
+			if (patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+				paramKind = Param::Kind::PATCHED;
+				paramID = patchedParamShortcuts[xDisplay][yDisplay];
+			}
+			else if (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+				paramKind = Param::Kind::UNPATCHED_SOUND;
+				paramID = unpatchedParamShortcuts[xDisplay][yDisplay];
+			}
+			else if (globalEffectableParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+				paramKind = Param::Kind::UNPATCHED_GLOBAL;
+				paramID = globalEffectableParamShortcuts[xDisplay][yDisplay];
+			}
+			if (paramKind != Param::Kind::NONE) {
+				char parameterName[30];
+				strncpy(parameterName, getParamDisplayName(paramKind, paramID), 29);
+				display->displayPopup(parameterName);
+				lastPadPress.isActive = true;
+				lastPadPress.xDisplay = xDisplay;
+				lastPadPress.yDisplay = yDisplay;
+			}
+		}
+		else {
+			display->cancelPopup();
+			lastPadPress.isActive = false;
+			lastPadPress.xDisplay = kNoSelection;
+			lastPadPress.yDisplay = kNoSelection;
+		}
 	}
 	return ActionResult::DEALT_WITH;
 }
