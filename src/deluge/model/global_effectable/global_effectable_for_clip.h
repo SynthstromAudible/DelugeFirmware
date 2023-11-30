@@ -67,4 +67,7 @@ protected:
 	                                           int32_t amplitudeAtEnd) = 0;
 
 	virtual bool willRenderAsOneChannelOnlyWhichWillNeedCopying() { return false; }
+
+private:
+	bool renderedLastTime;
 };

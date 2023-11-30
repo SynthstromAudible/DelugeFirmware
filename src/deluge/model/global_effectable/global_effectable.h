@@ -53,7 +53,7 @@ public:
 	char const* paramToString(uint8_t param);
 	int32_t stringToParam(char const* string);
 	void setupDelayWorkingState(DelayWorkingState* delayWorkingState, ParamManager* paramManager,
-	                            bool shouldLimitDelayFeedback = false);
+	                            bool shouldLimitDelayFeedback = false, bool soundComingIn = true);
 	bool isEditingComp() override { return editingComp; }
 	int32_t getKnobPosForNonExistentParam(int32_t whichModEncoder, ModelStackWithAutoParam* modelStack) override;
 	ActionResult modEncoderActionForNonExistentParam(int32_t offset, int32_t whichModEncoder,

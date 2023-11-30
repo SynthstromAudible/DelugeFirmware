@@ -846,7 +846,7 @@ ModFXType GlobalEffectable::getActiveModFXType(ParamManager* paramManager) {
 }
 
 void GlobalEffectable::setupDelayWorkingState(DelayWorkingState* delayWorkingState, ParamManager* paramManager,
-                                              bool shouldLimitDelayFeedback) {
+                                              bool shouldLimitDelayFeedback, bool soundComingIn) {
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
@@ -860,7 +860,7 @@ void GlobalEffectable::setupDelayWorkingState(DelayWorkingState* delayWorkingSta
 	delayWorkingState->userDelayRate = getFinalParameterValueExp(
 	    paramNeutralValues[Param::Global::DELAY_RATE],
 	    cableToExpParamShortcut(unpatchedParams->getValue(Param::Unpatched::GlobalEffectable::DELAY_RATE)));
-	delay.setupWorkingState(delayWorkingState);
+	delay.setupWorkingState(delayWorkingState, soundComingIn);
 }
 
 void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, int32_t numSamples,
