@@ -165,26 +165,23 @@ doNormal:
 				saturate(&currentSample->r, &lastSaturationTanHWorkingValue[1]);
 			} while (++currentSample != bufferEnd);
 		}
-		//note that we can currently run a bunch of processing on an empty buffer
-		if (true) {
 
-			// Render filters
-			processFilters(globalEffectableBuffer, numSamples);
+		// Render filters
+		processFilters(globalEffectableBuffer, numSamples);
 
-			// Render FX
-			processSRRAndBitcrushing(globalEffectableBuffer, numSamples, &volumePostFX, paramManagerForClip);
-			processFXForGlobalEffectable(globalEffectableBuffer, numSamples, &volumePostFX, paramManagerForClip,
-			                             &delayWorkingState, analogDelaySaturationAmount);
-			processStutter(globalEffectableBuffer, numSamples, paramManagerForClip);
+		// Render FX
+		processSRRAndBitcrushing(globalEffectableBuffer, numSamples, &volumePostFX, paramManagerForClip);
+		processFXForGlobalEffectable(globalEffectableBuffer, numSamples, &volumePostFX, paramManagerForClip,
+		                             &delayWorkingState, analogDelaySaturationAmount, renderedLastTime);
+		processStutter(globalEffectableBuffer, numSamples, paramManagerForClip);
 
-			int32_t postReverbSendVolumeIncrement =
-			    (int32_t)((double)(postReverbVolume - postReverbVolumeLastTime) / (double)numSamples);
+		int32_t postReverbSendVolumeIncrement =
+		    (int32_t)((double)(postReverbVolume - postReverbVolumeLastTime) / (double)numSamples);
 
-			processReverbSendAndVolume(globalEffectableBuffer, numSamples, reverbBuffer, volumePostFX,
-			                           postReverbVolumeLastTime, reverbSendAmount, pan, true,
-			                           postReverbSendVolumeIncrement);
-			addAudio(globalEffectableBuffer, outputBuffer, numSamples);
-		}
+		processReverbSendAndVolume(globalEffectableBuffer, numSamples, reverbBuffer, volumePostFX,
+		                           postReverbVolumeLastTime, reverbSendAmount, pan, true,
+		                           postReverbSendVolumeIncrement);
+		addAudio(globalEffectableBuffer, outputBuffer, numSamples);
 	}
 
 	postReverbVolumeLastTime = postReverbVolume;

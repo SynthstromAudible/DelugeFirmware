@@ -866,7 +866,7 @@ void GlobalEffectable::setupDelayWorkingState(DelayWorkingState* delayWorkingSta
 void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, int32_t numSamples,
                                                     int32_t* postFXVolume, ParamManager* paramManager,
                                                     DelayWorkingState* delayWorkingState,
-                                                    int32_t analogDelaySaturationAmount) {
+                                                    int32_t analogDelaySaturationAmount, bool grainHadInput) {
 
 	StereoSample* inputBufferEnd = inputBuffer + numSamples;
 
@@ -901,21 +901,30 @@ void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, i
 		}
 	}
 	else if (modFXTypeNow == ModFXType::GRAIN) {
-		if (!modFXGrainBuffer) {
-			modFXGrainBuffer = (StereoSample*)GeneralMemoryAllocator::get().allocLowSpeed(kModFXGrainBufferSize
-			                                                                              * sizeof(StereoSample));
-			if (!modFXGrainBuffer) {
-				modFXTypeNow = ModFXType::NONE;
-			}
-			for (int i = 0; i < 8; i++) {
-				grains[i].length = 0;
-			}
-			grainInitialized = false;
-			modFXGrainBufferWriteIndex = 0;
+		if (grainHadInput) {
+			setWrapsToShutdown();
 		}
-		if (modFXBuffer) {
-			delugeDealloc(modFXBuffer);
-			modFXBuffer = NULL;
+		if (wrapsToShutdown > 0) {
+			if (!modFXGrainBuffer) {
+				modFXGrainBuffer = (StereoSample*)GeneralMemoryAllocator::get().allocLowSpeed(kModFXGrainBufferSize
+				                                                                              * sizeof(StereoSample));
+				if (!modFXGrainBuffer) {
+					modFXTypeNow = ModFXType::NONE;
+				}
+				for (int i = 0; i < 8; i++) {
+					grains[i].length = 0;
+				}
+				grainInitialized = false;
+				modFXGrainBufferWriteIndex = 0;
+			}
+			if (modFXBuffer) {
+				delugeDealloc(modFXBuffer);
+				modFXBuffer = NULL;
+			}
+		}
+		else if (modFXGrainBuffer) {
+			delugeDealloc(modFXGrainBuffer);
+			modFXGrainBuffer = NULL;
 		}
 	}
 	else {
