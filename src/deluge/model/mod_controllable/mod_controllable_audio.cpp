@@ -52,6 +52,7 @@ ModControllableAudio::ModControllableAudio() {
 
 	//Grain
 	modFXGrainBuffer = NULL;
+	wrapsToShutdown = 0;
 	modFXGrainBufferWriteIndex = 0;
 	grainShift = 13230; // 300ms
 	grainSize = 13230;  // 300ms
@@ -296,7 +297,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 				currentSample->r += phaserMemory.r;
 			}
 			else if (modFXType == ModFXType::GRAIN && modFXGrainBuffer) {
-				if (modFXGrainBufferWriteIndex > kModFXGrainBufferSize) {
+				if (modFXGrainBufferWriteIndex >= kModFXGrainBufferSize) {
 					modFXGrainBufferWriteIndex = 0;
 					wrapsToShutdown -= 1;
 				}

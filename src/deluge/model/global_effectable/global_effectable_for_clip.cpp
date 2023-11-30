@@ -46,6 +46,7 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 
 	lastSaturationTanHWorkingValue[0] = 2147483648;
 	lastSaturationTanHWorkingValue[1] = 2147483648;
+	renderedLastTime = false;
 }
 
 // Beware - unlike usual, modelStack might have a NULL timelineCounter.
