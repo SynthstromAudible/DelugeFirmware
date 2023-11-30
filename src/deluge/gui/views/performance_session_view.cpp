@@ -792,8 +792,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 	}
 
 	//disable button presses for Vertical encoder
-	//disable back button press since undo doesn't work well in this view atm.
-	else if (b == Y_ENC) { //|| (b == BACK)) {
+	else if (b == Y_ENC) {
 		return ActionResult::DEALT_WITH;
 	}
 
