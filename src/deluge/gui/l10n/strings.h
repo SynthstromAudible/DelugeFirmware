@@ -743,6 +743,14 @@ enum class String : size_t {
 
 	STRING_FOR_ARRANGER_VIEW,
 
+	/* Strings Specifically for Midi Mapping View
+	* midi_session_view.cpp
+	*/
+
+	STRING_FOR_MIDI_VIEW,
+	STRING_FOR_MIDI_DEFAULTS_LOADED,
+	STRING_FOR_MIDI_DEFAULTS_SAVED,
+
 	STRING_LAST
 };
 

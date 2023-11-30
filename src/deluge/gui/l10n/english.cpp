@@ -817,6 +817,14 @@ PLACE_SDRAM_DATA Language english{
         */
 
         {STRING_FOR_ARRANGER_VIEW, "Arranger View"},
+
+        /* Strings Specifically for Midi Mapping View
+        * midi_session_view.cpp
+        */
+
+        {STRING_FOR_MIDI_VIEW, "Midi View"},
+        {STRING_FOR_MIDI_DEFAULTS_LOADED, "Defaults Loaded"},
+        {STRING_FOR_MIDI_DEFAULTS_SAVED, "Defaults Saved"},
     },
 };
 } // namespace deluge::l10n::built_in

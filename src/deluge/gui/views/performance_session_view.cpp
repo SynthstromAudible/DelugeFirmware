@@ -257,9 +257,6 @@ bool PerformanceSessionView::opened() {
 		PadLEDs::skipGreyoutFade();
 	}
 
-	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
-	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
-
 	focusRegained();
 
 	return true;
