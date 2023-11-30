@@ -904,7 +904,7 @@ void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, i
 		if (grainHadInput) {
 			setWrapsToShutdown();
 		}
-		if (wrapsToShutdown > 0) {
+		if (wrapsToShutdown >= 0) {
 			if (!modFXGrainBuffer) {
 				modFXGrainBuffer = (StereoSample*)GeneralMemoryAllocator::get().allocLowSpeed(kModFXGrainBufferSize
 				                                                                              * sizeof(StereoSample));

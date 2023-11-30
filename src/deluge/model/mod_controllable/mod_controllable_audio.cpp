@@ -295,7 +295,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 				currentSample->l += phaserMemory.l;
 				currentSample->r += phaserMemory.r;
 			}
-			else if (modFXType == ModFXType::GRAIN) {
+			else if (modFXType == ModFXType::GRAIN && modFXGrainBuffer) {
 				if (modFXGrainBufferWriteIndex > kModFXGrainBufferSize) {
 					modFXGrainBufferWriteIndex = 0;
 					wrapsToShutdown -= 1;
