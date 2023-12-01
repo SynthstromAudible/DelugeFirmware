@@ -21,6 +21,7 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/root_ui.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/midi_session_view.h"
 #include "gui/views/view.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
@@ -121,7 +122,15 @@ void MelodicInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelSt
                                           bool* doingMidiThru) {
 	int16_t const* mpeValues = zeroMPEValues;
 	int16_t const* mpeValuesOrNull = NULL;
-	MIDIMatchType match = checkMatch(fromDevice, midiChannel);
+	MIDIMatchType match = MIDIMatchType::NO_MATCH;
+	//check if channel = midifollow channel and midi follow is enabled and current clip is the active clip
+	//if so, identify it as a match so incoming midi note is processed
+	if ((getCurrentUI() == &instrumentClipView) && (midiChannel == midiSessionView.masterMidiChannel) && (midiSessionView.masterMidiMode) && ((InstrumentClip*)currentSong->currentClip == (InstrumentClip*)activeClip)) {
+		match = MIDIMatchType::CHANNEL;
+	}	
+	else {
+		match = checkMatch(fromDevice, midiChannel);
+	}
 	int32_t highlightNoteValue = -1;
 	switch (match) {
 	case MIDIMatchType::NO_MATCH:

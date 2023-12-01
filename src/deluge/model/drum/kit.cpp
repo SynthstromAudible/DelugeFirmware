@@ -20,6 +20,7 @@
 #include "gui/ui/ui.h"
 #include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/midi_session_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "io/debug/print.h"
@@ -1008,6 +1009,8 @@ void Kit::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevic
 	                                                  // special cases below where we might insist on making
 	                                                  // it true
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
+		
+		//bool processMidiNote = (getCurrentUI() == &instrumentClipView) && (channel == midiSessionView.masterMidiChannel) && (midiSessionView.masterMidiMode);
 
 		// If this is the "input" command, to sound / audition the Drum...
 		// Returns true if midi channel and note match the learned midi note
