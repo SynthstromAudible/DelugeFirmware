@@ -146,29 +146,25 @@ const uint32_t globalEffectableParamShortcuts[kDisplayWidth][kDisplayHeight] = {
      Param::Unpatched::GlobalEffectable::DELAY_AMOUNT, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID}};
 
-using namespace Param;
-using namespace Unpatched;
-using namespace GlobalEffectable;
-
 //mapping shortcuts to paramKind
 const Param::Kind paramKindShortcutsForPerformanceView[kDisplayWidth][kDisplayHeight] = {
-    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE},
-    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE},
-    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE},
-    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE},
-    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE},
-    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, UNPATCHED_SOUND},
-    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, UNPATCHED_SOUND, UNPATCHED_SOUND, Kind::NONE},
-    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE},
-    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, UNPATCHED_GLOBAL, UNPATCHED_GLOBAL},
-    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, UNPATCHED_GLOBAL, UNPATCHED_GLOBAL},
-    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, UNPATCHED_SOUND, Kind::NONE},
-    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, UNPATCHED_SOUND, Kind::NONE},
-    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, UNPATCHED_SOUND, UNPATCHED_SOUND, UNPATCHED_GLOBAL,
-     UNPATCHED_GLOBAL},
-    {Kind::NONE, Kind::NONE, Kind::NONE, UNPATCHED_GLOBAL, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE},
-    {UNPATCHED_GLOBAL, Kind::NONE, Kind::NONE, UNPATCHED_GLOBAL, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE},
-    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE},
+    {Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE},
+    {Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE},
+    {Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE},
+    {Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE},
+    {Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE},
+    {Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::UNPATCHED_SOUND},
+    {Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::UNPATCHED_SOUND, Param::Kind::UNPATCHED_SOUND, Param::Kind::NONE},
+    {Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE},
+    {Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::UNPATCHED_GLOBAL, Param::Kind::UNPATCHED_GLOBAL},
+    {Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::UNPATCHED_GLOBAL, Param::Kind::UNPATCHED_GLOBAL},
+    {Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::UNPATCHED_SOUND, Param::Kind::NONE},
+    {Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::UNPATCHED_SOUND, Param::Kind::NONE},
+    {Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::UNPATCHED_SOUND, Param::Kind::UNPATCHED_SOUND, Param::Kind::UNPATCHED_GLOBAL,
+     Param::Kind::UNPATCHED_GLOBAL},
+    {Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::UNPATCHED_GLOBAL, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE},
+    {Param::Kind::UNPATCHED_GLOBAL, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::UNPATCHED_GLOBAL, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE},
+    {Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE, Param::Kind::NONE},
 };
 
 //mapping shortcuts to paramID
@@ -178,16 +174,16 @@ const uint32_t paramIDShortcutsForPerformanceView[kDisplayWidth][kDisplayHeight]
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, STUTTER_RATE},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, SAMPLE_RATE_REDUCTION, BITCRUSHING, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, Param::Unpatched::STUTTER_RATE},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, Param::Unpatched::SAMPLE_RATE_REDUCTION, Param::Unpatched::BITCRUSHING, kNoParamID},
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, LPF_RES, LPF_FREQ},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, HPF_RES, HPF_FREQ},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, BASS, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, TREBLE, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, MOD_FX_OFFSET, MOD_FX_FEEDBACK, MOD_FX_DEPTH, MOD_FX_RATE},
-    {kNoParamID, kNoParamID, kNoParamID, REVERB_SEND_AMOUNT, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {DELAY_RATE, kNoParamID, kNoParamID, DELAY_AMOUNT, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, Param::Unpatched::GlobalEffectable::LPF_RES, Param::Unpatched::GlobalEffectable::LPF_FREQ},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, Param::Unpatched::GlobalEffectable::HPF_RES, Param::Unpatched::GlobalEffectable::HPF_FREQ},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, Param::Unpatched::BASS, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, Param::Unpatched::TREBLE, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, Param::Unpatched::MOD_FX_OFFSET, Param::Unpatched::MOD_FX_FEEDBACK, Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH, Param::Unpatched::GlobalEffectable::MOD_FX_RATE},
+    {kNoParamID, kNoParamID, kNoParamID, Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
+    {Param::Unpatched::GlobalEffectable::DELAY_RATE, kNoParamID, kNoParamID, Param::Unpatched::GlobalEffectable::DELAY_AMOUNT, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
 };
 
@@ -198,6 +194,8 @@ MidiSessionView::MidiSessionView() {
 	successfullyReadDefaultsFromFile = false;
 
 	anyChangesToSave = false;
+	onParamDisplay = false;
+	showLearnedParams = false;
 
 	lastPadPress.isActive = false;
 	lastPadPress.xDisplay = kNoSelection;
@@ -212,7 +210,7 @@ MidiSessionView::MidiSessionView() {
 	}
 
 	masterMidiMode = true;
-	masterMidiChannel = 16;
+	masterMidiChannel = 15;
 }
 
 bool MidiSessionView::opened() {
@@ -277,10 +275,10 @@ bool MidiSessionView::renderMainPads(uint32_t whichRows, uint8_t image[][kDispla
 
 	//render midi view
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-	
+
 		uint8_t* occupancyMaskOfRow = occupancyMask[yDisplay];
 		int32_t imageWidth = kDisplayWidth + kSideBarWidth;
-	
+
 		renderRow(&image[0][0][0] + (yDisplay * imageWidth * 3), occupancyMaskOfRow, yDisplay);
 	}
 
@@ -294,11 +292,11 @@ void MidiSessionView::renderRow(uint8_t* image, uint8_t occupancyMask[], int32_t
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		uint8_t* pixel = image + (xDisplay * 3);
 
-		if ((patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) 
-		|| (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID)
-		|| (globalEffectableParamShortcuts[xDisplay][yDisplay] != kNoParamID)) {
+		if ((patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID)
+		    || (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID)
+		    || (globalEffectableParamShortcuts[xDisplay][yDisplay] != kNoParamID)) {
 			if (paramToCC[xDisplay][yDisplay] != kNoSelection) {
-				if (paramToCC[xDisplay][yDisplay] == currentCC) {
+				if (showLearnedParams && (paramToCC[xDisplay][yDisplay] == currentCC)) {
 					pixel[0] = 0;
 					pixel[1] = 255;
 					pixel[2] = 0;
@@ -314,10 +312,10 @@ void MidiSessionView::renderRow(uint8_t* image, uint8_t occupancyMask[], int32_t
 				pixel[1] = kUndefinedGreyShade;
 				pixel[2] = kUndefinedGreyShade;
 			}
-		
+
 			occupancyMask[xDisplay] = 64;
 		}
-	}	
+	}
 }
 
 /// check if a midi cc has been assigned to any of the params
@@ -356,23 +354,22 @@ void MidiSessionView::renderViewDisplay() {
 		//Render Follow Mode Enabled Status at the bottom left of the OLED screen
 
 		char followBuffer[20] = {0};
-		strncat (followBuffer, l10n::get(l10n::String::STRING_FOR_MIDI_FOLLOW), 19);
+		strncat(followBuffer, l10n::get(l10n::String::STRING_FOR_MIDI_FOLLOW), 19);
 
 		if (masterMidiMode) {
-			strncat (followBuffer, l10n::get(l10n::String::STRING_FOR_ON), 4);
+			strncat(followBuffer, l10n::get(l10n::String::STRING_FOR_ON), 4);
 		}
 		else {
-			strncat (followBuffer, l10n::get(l10n::String::STRING_FOR_OFF), 4);
+			strncat(followBuffer, l10n::get(l10n::String::STRING_FOR_OFF), 4);
 		}
 
 		deluge::hid::display::OLED::drawString(followBuffer, 0, yPos, deluge::hid::display::OLED::oledMainImage[0],
-			                                       OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+		                                       OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 
-		
-	//Render Follow Mode Master Channel at the bottom right of the OLED screen
+		//Render Follow Mode Master Channel at the bottom right of the OLED screen
 
 		char channelBuffer[10] = {0};
-		strncat(channelBuffer, l10n::get(l10n::String::STRING_FOR_MIDI_CHANNEL), 9);	
+		strncat(channelBuffer, l10n::get(l10n::String::STRING_FOR_MIDI_CHANNEL), 9);
 
 		char buffer[5];
 		intToString(masterMidiChannel, buffer);
@@ -380,14 +377,68 @@ void MidiSessionView::renderViewDisplay() {
 		strncat(channelBuffer, buffer, 4);
 
 		deluge::hid::display::OLED::drawStringAlignRight(channelBuffer, yPos,
-			                                                 deluge::hid::display::OLED::oledMainImage[0],
-			                                                 OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+		                                                 deluge::hid::display::OLED::oledMainImage[0],
+		                                                 OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 
 		deluge::hid::display::OLED::sendMainImage();
 	}
 	else {
 		display->setScrollingText(l10n::get(l10n::String::STRING_FOR_MIDI_VIEW));
 	}
+	onParamDisplay = false;
+}
+
+/// Render Parameter Name and Learned Status with CC Set when holding param shortcut in Midi Learning View
+void MidiSessionView::renderParamDisplay(Param::Kind paramKind, int32_t paramID, uint8_t ccNumber) {
+	if (display->haveOLED()) {
+		deluge::hid::display::OLED::clearMainImage();
+
+		//display parameter name
+		char parameterName[30];
+		strncpy(parameterName, getParamDisplayName(paramKind, paramID), 29);
+
+#if OLED_MAIN_HEIGHT_PIXELS == 64
+		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
+#else
+		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
+#endif
+		deluge::hid::display::OLED::drawStringCentred(parameterName, yPos, deluge::hid::display::OLED::oledMainImage[0],
+		                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+
+		//display parameter value
+		yPos = yPos + 24;
+
+		if (ccNumber != kNoSelection) {
+			char ccBuffer[20] = {0};
+			strncat(ccBuffer, l10n::get(l10n::String::STRING_FOR_MIDI_LEARNED), 19);
+
+			char buffer[5];
+			intToString(ccNumber, buffer);
+
+			strncat(ccBuffer, buffer, 4);
+
+			deluge::hid::display::OLED::drawStringCentred(ccBuffer, yPos, deluge::hid::display::OLED::oledMainImage[0],
+														OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+		}
+		else {
+			deluge::hid::display::OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_MIDI_NOT_LEARNED), yPos, deluge::hid::display::OLED::oledMainImage[0],
+														OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);			
+		}
+
+		deluge::hid::display::OLED::sendMainImage();
+	}
+	//7Seg Display
+	else {
+		if (ccNumber != kNoSelection) {
+			char buffer[5];
+			intToString(ccNumber, buffer);
+			display->displayPopup(buffer, 3, true);
+		}
+		else {
+			display->displayPopup(l10n::get(l10n::String::STRING_FOR_NONE), 3, true);
+		}
+	}
+	onParamDisplay = true;
 }
 
 void MidiSessionView::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
@@ -557,15 +608,26 @@ ActionResult MidiSessionView::buttonAction(deluge::hid::Button b, bool on, bool 
 	}
 
 	//exit Midi View
-	else if (b == deluge::hid::button::MIDI) {
-		if (on) {
-			if (Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
+	else if (b == MIDI) {
+		if (Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
+			if (on) {
 				if (currentSong->lastClipInstanceEnteredStartPos != -1) {
 					changeRootUI(&arrangerView);
 				}
 				else {
 					changeRootUI(&sessionView);
 				}
+			}
+		}
+		else {
+			currentCC = kNoSelection;
+
+			if (on) {
+				showLearnedParams = true;
+			}
+			else {
+				showLearnedParams = false;
+				uiNeedsRendering(this);
 			}
 		}
 	}
@@ -576,6 +638,7 @@ ActionResult MidiSessionView::buttonAction(deluge::hid::Button b, bool on, bool 
 	}
 
 	else {
+
 		ActionResult buttonActionResult;
 		buttonActionResult = TimelineView::buttonAction(b, on, inCardRoutine);
 
@@ -609,19 +672,21 @@ ActionResult MidiSessionView::padAction(int32_t xDisplay, int32_t yDisplay, int3
 				paramID = globalEffectableParamShortcuts[xDisplay][yDisplay];
 			}
 			if (paramKind != Param::Kind::NONE) {
-				char parameterName[30];
-				strncpy(parameterName, getParamDisplayName(paramKind, paramID), 29);
-				display->displayPopup(parameterName);
+				renderParamDisplay(paramKind, paramID, paramToCC[xDisplay][yDisplay]);
 				lastPadPress.isActive = true;
 				lastPadPress.xDisplay = xDisplay;
 				lastPadPress.yDisplay = yDisplay;
+				lastPadPress.paramKind = paramKind;
+				lastPadPress.paramID = paramID;
 			}
 		}
 		else {
-			display->cancelPopup();
+			renderViewDisplay();
 			lastPadPress.isActive = false;
 			lastPadPress.xDisplay = kNoSelection;
 			lastPadPress.yDisplay = kNoSelection;
+			lastPadPress.paramKind = Param::Kind::NONE;
+			lastPadPress.paramID = kNoSelection;
 		}
 	}
 	return ActionResult::DEALT_WITH;
@@ -675,15 +740,16 @@ ModelStackWithAutoParam* MidiSessionView::getModelStackWithParam(int32_t xDispla
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 
 	if ((getRootUI() == &sessionView) || (getRootUI() == &arrangerView) || (getRootUI() == &performanceSessionView)) {
-		ModelStackWithThreeMainThings* modelStack = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-		
+		ModelStackWithThreeMainThings* modelStack =
+		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+
 		paramID = paramIDShortcutsForPerformanceView[xDisplay][yDisplay];
 		if (paramID != kNoParamID) {
 			modelStackWithParam = performanceSessionView.getModelStackWithParam(modelStack, paramID);
 		}
 	}
 	else if ((getRootUI() == &instrumentClipView) || (getRootUI() == &automationInstrumentClipView)) {
-		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);	
+		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		InstrumentClip* clip = (InstrumentClip*)currentSong->currentClip;
 		Instrument* instrument = (Instrument*)clip->output;
 
@@ -720,7 +786,8 @@ ModelStackWithAutoParam* MidiSessionView::getModelStackWithParam(int32_t xDispla
 			}
 		}
 		if ((paramKind != Param::Kind::NONE) && (paramID != kNoParamID)) {
-			modelStackWithParam = automationInstrumentClipView.getModelStackWithParam(modelStack, clip, paramID, paramKind);
+			modelStackWithParam =
+			    automationInstrumentClipView.getModelStackWithParam(modelStack, clip, paramID, paramKind);
 		}
 	}
 	return modelStackWithParam;

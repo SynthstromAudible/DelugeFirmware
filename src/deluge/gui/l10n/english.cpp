@@ -827,8 +827,9 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_MIDI_DEFAULTS_SAVED, "Defaults Saved"},
         {STRING_FOR_MIDI_FOLLOW, "Follow: "},
         {STRING_FOR_MIDI_CHANNEL, "CH: "},
-        {STRING_FOR_MIDI_LEARNED, "Learned: "},
+        {STRING_FOR_MIDI_LEARNED, "Learned: CC "},
         {STRING_FOR_MIDI_NOT_LEARNED, "Not Learned"},
+        {STRING_FOR_MIDI_LEARN_CHANNEL, "\n Channel is: "},
     },
 };
 } // namespace deluge::l10n::built_in

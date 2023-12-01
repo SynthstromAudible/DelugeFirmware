@@ -116,7 +116,7 @@ public:
 	//public to midiSessionView can access it
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip,
 	                                                int32_t paramID = 0xFFFFFFFF,
-	                                                Param::Kind paramKind = Param::Kind::NONE);	
+	                                                Param::Kind paramKind = Param::Kind::NONE);
 
 private:
 	//Automation View Render Functions

@@ -1610,19 +1610,39 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 	bool messageUsed = false;
 
 	if (getRootUI() == &midiSessionView) {
-		if (midiSessionView.lastPadPress.isActive) {
-			midiSessionView.paramToCC[midiSessionView.lastPadPress.xDisplay][midiSessionView.lastPadPress.yDisplay] = ccNumber;	
-			display->displayPopup("CC Learned");
+		if (channel == midiSessionView.masterMidiChannel) {
+			if (midiSessionView.lastPadPress.isActive) {
+				midiSessionView.paramToCC[midiSessionView.lastPadPress.xDisplay][midiSessionView.lastPadPress.yDisplay] =
+					ccNumber;
+				midiSessionView.renderParamDisplay(midiSessionView.lastPadPress.paramKind, midiSessionView.lastPadPress.paramID, ccNumber);
+				midiSessionView.currentCC = kNoSelection;
+			}
+			else {
+				midiSessionView.currentCC = ccNumber;
+			}
 			uiNeedsRendering(&midiSessionView);
-			midiSessionView.currentCC = kNoSelection;
 		}
-		else {
-			midiSessionView.currentCC = ccNumber;
+		else if (midiSessionView.lastPadPress.isActive) {
+			if (display->haveOLED()) {
+				char cantBuffer[40] = {0};
+				strncat(cantBuffer, l10n::get(l10n::String::STRING_FOR_CANT_LEARN), 39);
+				strncat(cantBuffer, l10n::get(l10n::String::STRING_FOR_MIDI_LEARN_CHANNEL), 39);
+
+				char buffer[5];
+				intToString(channel, buffer);
+
+				strncat(cantBuffer, buffer, 4);
+
+				display->displayPopup(cantBuffer);
+			}
+			else {
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_CANT_LEARN));
+			}
 		}
 		messageUsed = true;
 	}
 	else {
-		if (midiSessionView.masterMidiMode) {
+		if ((midiSessionView.masterMidiMode) && (channel == midiSessionView.masterMidiChannel)) {
 			for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 				for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 					if (midiSessionView.paramToCC[xDisplay][yDisplay] == ccNumber) {
@@ -1632,8 +1652,8 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 
 						if (modelStack->timelineCounterIsSet()) {
 							if (view.modLength
-								&& modelStack->getTimelineCounter()
-									== view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+							    && modelStack->getTimelineCounter()
+							           == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 								modPos = view.modPos;
 								modLength = view.modLength;
 							}
@@ -1641,20 +1661,20 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 							modelStack->getTimelineCounter()->possiblyCloneForArrangementRecording(modelStack);
 						}
 
-						ModelStackWithAutoParam* modelStackWithParam = midiSessionView.getModelStackWithParam(xDisplay, yDisplay);
+						ModelStackWithAutoParam* modelStackWithParam =
+						    midiSessionView.getModelStackWithParam(xDisplay, yDisplay);
 						if (modelStackWithParam->autoParam) {
 							int32_t newKnobPos = 64;
 							if (value < 127) {
 								newKnobPos = (int32_t)value - 64;
 								//Convert the New Knob Position to a Parameter Value
-								int32_t newValue =
-									modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
+								int32_t newValue = modelStackWithParam->paramCollection->knobPosToParamValue(
+								    newKnobPos, modelStackWithParam);
 
 								//Set the new Parameter Value for the MIDI Learned Parameter
-								modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos,
-																						modLength);
+								modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam,
+								                                                          modPos, modLength);
 							}
-
 						}
 					}
 				}
@@ -1680,8 +1700,8 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 
 					if (modelStack->timelineCounterIsSet()) {
 						if (view.modLength
-							&& modelStack->getTimelineCounter()
-								== view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+						    && modelStack->getTimelineCounter()
+						           == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 							modPos = view.modPos;
 							modLength = view.modLength;
 						}
@@ -1691,9 +1711,10 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 
 					// Ok, that above might have just changed modelStack->timelineCounter. So we're basically starting from scratch now from that.
 					ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-						addNoteRowIndexAndStuff(modelStack, noteRowIndex);
+					    addNoteRowIndexAndStuff(modelStack, noteRowIndex);
 
-					ModelStackWithAutoParam* modelStackWithParam = getParamFromMIDIKnob(knob, modelStackWithThreeMainThings);
+					ModelStackWithAutoParam* modelStackWithParam =
+					    getParamFromMIDIKnob(knob, modelStackWithThreeMainThings);
 
 					if (modelStackWithParam->autoParam) {
 						int32_t newKnobPos;
@@ -1705,9 +1726,9 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 							}
 
 							int32_t previousValue =
-								modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
-							int32_t knobPos =
-								modelStackWithParam->paramCollection->paramValueToKnobPos(previousValue, modelStackWithParam);
+							    modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
+							int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(
+							    previousValue, modelStackWithParam);
 							int32_t lowerLimit = std::min(-64_i32, knobPos);
 							newKnobPos = knobPos + offset;
 							newKnobPos = std::max(newKnobPos, lowerLimit);
@@ -1758,18 +1779,19 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 								//If it's by more than 1, the previous position is adjusted.
 								//This could happen for example if you changed banks and the previous position is no longer valid.
 								//By resetting the previous position we ensure that the there isn't unwanted jumpyness in the calculation of the midi knob position change amount
-								if (knob->previousPosition > (midiKnobPos + 1) || knob->previousPosition < (midiKnobPos - 1)) {
+								if (knob->previousPosition > (midiKnobPos + 1)
+								    || knob->previousPosition < (midiKnobPos - 1)) {
 
 									knob->previousPosition = midiKnobPos;
 								}
 
 								//Here we obtain the current Parameter Value on the Deluge
 								int32_t previousValue =
-									modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
+								    modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
 
 								//Here we convert the current Parameter Value on the Deluge to a Knob Position Value
 								int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(
-									previousValue, modelStackWithParam);
+								    previousValue, modelStackWithParam);
 
 								//Here is where we check if the Knob/Fader on the Midi Controller is out of sync with the Deluge Knob Position
 
@@ -1811,19 +1833,21 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 										if (midiKnobPosChange > 0) {
 											//fixed point math calculation of new deluge knob position when midi knob position has increased
 
-											midiKnobPosChangePercentage = (midiKnobPosChange << 20) / midiKnobMaxPosDelta;
+											midiKnobPosChangePercentage =
+											    (midiKnobPosChange << 20) / midiKnobMaxPosDelta;
 
 											newKnobPos =
-												knobPos + ((delugeKnobMaxPosDelta * midiKnobPosChangePercentage) >> 20);
+											    knobPos + ((delugeKnobMaxPosDelta * midiKnobPosChangePercentage) >> 20);
 										}
 										//if midi knob position change is less than 0, then the midi knob position has decreased (e.g. turned knob left)
 										else if (midiKnobPosChange < 0) {
 											//fixed point math calculation of new deluge knob position when midi knob position has decreased
 
-											midiKnobPosChangePercentage = (midiKnobPosChange << 20) / midiKnobMinPosDelta;
+											midiKnobPosChangePercentage =
+											    (midiKnobPosChange << 20) / midiKnobMinPosDelta;
 
 											newKnobPos =
-												knobPos + ((delugeKnobMinPosDelta * midiKnobPosChangePercentage) >> 20);
+											    knobPos + ((delugeKnobMinPosDelta * midiKnobPosChangePercentage) >> 20);
 										}
 										//if midi knob position change is 0, then the midi knob position has not changed and thus no change in deluge knob position / parameter value is required
 										else {
@@ -1839,11 +1863,11 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 
 						//Convert the New Knob Position to a Parameter Value
 						int32_t newValue =
-							modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
+						    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
 
 						//Set the new Parameter Value for the MIDI Learned Parameter
 						modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos,
-																				modLength);
+						                                                          modLength);
 					}
 				}
 			}

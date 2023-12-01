@@ -88,8 +88,11 @@ public:
 	bool masterMidiMode;
 	uint8_t currentCC;
 	uint8_t masterMidiChannel;
+	bool onParamDisplay;
+	bool showLearnedParams;
 
 	ModelStackWithAutoParam* getModelStackWithParam(int32_t xDisplay, int32_t yDisplay);
+	void renderParamDisplay(Param::Kind paramKind, int32_t paramID, uint8_t ccNumber);
 
 private:
 	//initialize
