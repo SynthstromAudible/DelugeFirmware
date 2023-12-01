@@ -748,7 +748,7 @@ ModelStackWithAutoParam* MidiSessionView::getModelStackWithParam(int32_t xDispla
 			modelStackWithParam = performanceSessionView.getModelStackWithParam(modelStack, paramID);
 		}
 	}
-	else if ((getRootUI() == &instrumentClipView) || (getRootUI() == &automationInstrumentClipView)) {
+	else if ((getRootUI() == &audioClipView) || (getRootUI() == &instrumentClipView) || (getRootUI() == &automationInstrumentClipView)) {
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		InstrumentClip* clip = (InstrumentClip*)currentSong->currentClip;
 		Instrument* instrument = (Instrument*)clip->output;
@@ -783,6 +783,16 @@ ModelStackWithAutoParam* MidiSessionView::getModelStackWithParam(int32_t xDispla
 					paramKind = Param::Kind::UNPATCHED_GLOBAL;
 					paramID = globalEffectableParamShortcuts[xDisplay][yDisplay];
 				}
+			}
+		}
+		else if (instrument->type == InstrumentType::AUDIO) {
+			if (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+				paramKind = Param::Kind::UNPATCHED_SOUND;
+				paramID = unpatchedParamShortcuts[xDisplay][yDisplay];
+			}
+			else if (globalEffectableParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+				paramKind = Param::Kind::UNPATCHED_GLOBAL;
+				paramID = globalEffectableParamShortcuts[xDisplay][yDisplay];
 			}
 		}
 		if ((paramKind != Param::Kind::NONE) && (paramID != kNoParamID)) {

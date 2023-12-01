@@ -3008,6 +3008,24 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
 		}
 	}
 
+	else if (instrument->type == InstrumentType::AUDIO) {
+		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+		modelStack->addOtherTwoThingsButNoNoteRow(instrument->toModControllable(), &clip->paramManager);
+
+		if (modelStackWithThreeMainThings) {
+
+			ParamCollectionSummary* summary = nullptr;
+
+			summary = modelStackWithThreeMainThings->paramManager->getUnpatchedParamSetSummary();
+
+			if (summary) {
+				ParamSet* paramSet = (ParamSet*)summary->paramCollection;
+				modelStackWithParam =
+					modelStackWithThreeMainThings->addParam(paramSet, summary, paramID, &paramSet->params[paramID]);
+			}
+		}
+	}
+
 	else if (instrument->type == InstrumentType::MIDI_OUT) {
 
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
