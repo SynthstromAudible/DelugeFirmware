@@ -131,6 +131,9 @@ public:
 	ParamsForPerformance layoutForPerformance[kDisplayWidth];
 	int32_t defaultFXValues[kDisplayWidth][kDisplayHeight];
 
+	//public so midiSessionView can access it
+	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithThreeMainThings* modelStack, int32_t paramID);
+
 private:
 	//initialize
 	void initPadPress(PadPress& padPress);
@@ -188,7 +191,6 @@ private:
 	ParamsForPerformance backupXMLDefaultLayoutForPerformance[kDisplayWidth];
 	int32_t backupXMLDefaultFXValues[kDisplayWidth][kDisplayHeight];
 
-	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithThreeMainThings* modelStack, int32_t paramID);
 	int32_t calculateKnobPosForSinglePadPress(int32_t yDisplay);
 	int32_t calculateKnobPosForSelectEncoderTurn(int32_t knobPos, int32_t offset);
 

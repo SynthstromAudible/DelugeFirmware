@@ -86,6 +86,10 @@ public:
 	uint8_t paramToCC[kDisplayWidth][kDisplayHeight];
 	MidiPadPress lastPadPress;
 	bool masterMidiMode;
+	uint8_t currentCC;
+	uint8_t masterMidiChannel;
+
+	ModelStackWithAutoParam* getModelStackWithParam(int32_t xDisplay, int32_t yDisplay);
 
 private:
 	//initialize

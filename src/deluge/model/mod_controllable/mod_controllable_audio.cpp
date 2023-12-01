@@ -1612,6 +1612,12 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 	if (getRootUI() == &midiSessionView) {
 		if (midiSessionView.lastPadPress.isActive) {
 			midiSessionView.paramToCC[midiSessionView.lastPadPress.xDisplay][midiSessionView.lastPadPress.yDisplay] = ccNumber;	
+			display->displayPopup("CC Learned");
+			uiNeedsRendering(&midiSessionView);
+			midiSessionView.currentCC = kNoSelection;
+		}
+		else {
+			midiSessionView.currentCC = ccNumber;
 		}
 		messageUsed = true;
 	}
@@ -1620,8 +1626,36 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 			for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 				for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 					if (midiSessionView.paramToCC[xDisplay][yDisplay] == ccNumber) {
-						messageUsed = true;
-						display->displayPopup("Found Param");
+						// Only if this exact TimelineCounter is having automation step-edited, we can set the value for just a region.
+						int32_t modPos = 0;
+						int32_t modLength = 0;
+
+						if (modelStack->timelineCounterIsSet()) {
+							if (view.modLength
+								&& modelStack->getTimelineCounter()
+									== view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+								modPos = view.modPos;
+								modLength = view.modLength;
+							}
+
+							modelStack->getTimelineCounter()->possiblyCloneForArrangementRecording(modelStack);
+						}
+
+						ModelStackWithAutoParam* modelStackWithParam = midiSessionView.getModelStackWithParam(xDisplay, yDisplay);
+						if (modelStackWithParam->autoParam) {
+							int32_t newKnobPos = 64;
+							if (value < 127) {
+								newKnobPos = (int32_t)value - 64;
+								//Convert the New Knob Position to a Parameter Value
+								int32_t newValue =
+									modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
+
+								//Set the new Parameter Value for the MIDI Learned Parameter
+								modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos,
+																						modLength);
+							}
+
+						}
 					}
 				}
 			}

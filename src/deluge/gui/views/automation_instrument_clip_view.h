@@ -113,6 +113,11 @@ public:
 	bool interpolationBefore;
 	bool interpolationAfter;
 
+	//public to midiSessionView can access it
+	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip,
+	                                                int32_t paramID = 0xFFFFFFFF,
+	                                                Param::Kind paramKind = Param::Kind::NONE);	
+
 private:
 	//Automation View Render Functions
 	void performActualRender(uint32_t whichRows, uint8_t* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
@@ -147,9 +152,6 @@ private:
 	void initParameterSelection();
 	void initPadSelection();
 	void initInterpolation();
-	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip,
-	                                                int32_t paramID = 0xFFFFFFFF,
-	                                                Param::Kind paramKind = Param::Kind::NONE);
 	int32_t getEffectiveLength(ModelStackWithTimelineCounter* modelStack);
 	uint32_t getMiddlePosFromSquare(ModelStackWithTimelineCounter* modelStack, int32_t xDisplay);
 
