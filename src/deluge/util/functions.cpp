@@ -2505,6 +2505,29 @@ void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutD
 	}
 }
 
+void concatenateLines(const char* lines[], size_t numLines, char* resultString) {
+	const size_t maxCharsPerLine = 19;
+	size_t resultIndex = 0;
+
+	for (size_t i = 0; i < numLines; ++i) {
+		const char* currentLine = lines[i];
+		size_t lineLength = std::strlen(currentLine);
+
+		// Copy the current line to the result string
+		std::strncpy(&resultString[resultIndex], currentLine, lineLength);
+		resultIndex += lineLength;
+
+		// Add a line break after each line except the last one
+		if (i < numLines - 1) {
+			resultString[resultIndex] = '\n';
+			resultIndex++;
+		}
+	}
+
+	// Null-terminate the result string
+	resultString[resultIndex] = '\0';
+}
+
 void seedRandom() {
 	jcong = *TCNT[TIMER_SYSTEM_FAST];
 }

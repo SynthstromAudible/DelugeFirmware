@@ -493,7 +493,7 @@ void InstrumentClipMinder::drawActualNoteCode(int16_t noteCode) {
 		display->popupTextTemporary(noteName);
 	}
 	else {
-		uint8_t drawDot =  !isNatural ? 0 : 255;
+		uint8_t drawDot = !isNatural ? 0 : 255;
 		display->setText(noteName, false, drawDot, true);
 	}
 }
