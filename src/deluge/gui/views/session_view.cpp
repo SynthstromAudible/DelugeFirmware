@@ -130,6 +130,7 @@ bool SessionView::opened() {
 }
 
 void SessionView::focusRegained() {
+	viewingRecordArmingActive = false;
 	horizontalEncoderPressed = false;
 	selectLayout(0); // Make sure we get a valid layout from the loaded file
 
@@ -351,6 +352,7 @@ moveAfterClipInstance:
 			}
 		}
 		else {
+			viewingRecordArmingActive = false;
 			if (isUIModeActive(UI_MODE_VIEWING_RECORD_ARMING)) {
 				exitUIMode(UI_MODE_VIEWING_RECORD_ARMING);
 				PadLEDs::reassessGreyout(false);
@@ -1095,14 +1097,17 @@ ActionResult SessionView::timerCallback() {
 			    || (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid
 			        && gridModeActive == SessionGridModeLaunch)) {
 				enterUIMode(UI_MODE_VIEWING_RECORD_ARMING);
+				viewingRecordArmingActive = true;
 				PadLEDs::reassessGreyout(false);
 			}
-		case UI_MODE_VIEWING_RECORD_ARMING:
-			requestRendering(this, 0, 0xFFFFFFFF);
-			view.blinkOn = !view.blinkOn;
-			uiTimerManager.setTimer(TIMER_UI_SPECIFIC, kFastFlashTime);
 		}
 		break;
+	}
+
+	if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING || viewingRecordArmingActive) {
+		requestRendering(this, 0, 0xFFFFFFFF);
+		view.blinkOn = !view.blinkOn;
+		uiTimerManager.setTimer(TIMER_UI_SPECIFIC, kFastFlashTime);
 	}
 
 	return ActionResult::DEALT_WITH;
@@ -2874,10 +2879,10 @@ bool SessionView::gridRenderMainPads(uint32_t whichRows, uint8_t image[][kDispla
 
 void SessionView::gridRenderClipColor(Clip* clip, uint8_t resultColour[]) {
 	// Greyout all clips during record button pressed or soloing, overwrite for clips that shouldn't be greyed out
-	bool greyout = (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING) || currentSong->getAnyClipsSoloing();
+	bool greyout = (viewingRecordArmingActive || currentSong->getAnyClipsSoloing());
 
 	// Handle record button pressed
-	if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING && clip->armedForRecording) {
+	if (viewingRecordArmingActive && clip->armedForRecording) {
 		if (view.blinkOn) {
 			bool shouldGoPurple = (clip->type == CLIP_TYPE_AUDIO && ((AudioClip*)clip)->overdubsShouldCloneOutput);
 
@@ -2959,8 +2964,7 @@ void SessionView::gridRenderClipColor(Clip* clip, uint8_t resultColour[]) {
 	hueToRGB(clip->output->colour, resultColour);
 
 	// If we are not in record arming mode make this clip full color for being soloed
-	if ((clip->soloingInSessionMode || clip->armState == ArmState::ON_TO_SOLO)
-	    && currentUIMode != UI_MODE_VIEWING_RECORD_ARMING) {
+	if ((clip->soloingInSessionMode || clip->armState == ArmState::ON_TO_SOLO) && !viewingRecordArmingActive) {
 		greyout = false;
 	}
 
@@ -3604,7 +3608,7 @@ void SessionView::gridHandlePadsLaunchToggleArming(Clip* clip, bool immediate) {
 		if (horizontalEncoderPressed) {
 			session.soloClipAction(clip, kInternalButtonPressLatency);
 		}
-		else if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING) {
+		else if (viewingRecordArmingActive) {
 			// Here I removed the overdubbing settings
 			clip->armedForRecording = !clip->armedForRecording;
 			PadLEDs::reassessGreyout(true);
