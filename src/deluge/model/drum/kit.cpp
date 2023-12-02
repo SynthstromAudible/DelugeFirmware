@@ -1204,9 +1204,9 @@ bool Kit::shouldMidiFollow(ModelStackWithTimelineCounter* modelStack, Instrument
 		}
 		if (modelStackWithNoteRow) {
 			//bottom kit noteRowId = 0
-			//middle C3 note number = 60
-			//noteRowId + 60 = C3 up for kit sounds
-			if ((modelStackWithNoteRow->noteRowId + 60) == note) {
+			//middle C1 note number = 36
+			//noteRowId + 36 = C1 up for kit sounds
+			if ((modelStackWithNoteRow->noteRowId + 36) == note) {
 				return true;
 			}
 		}
