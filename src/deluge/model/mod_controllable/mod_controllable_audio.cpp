@@ -52,6 +52,7 @@ ModControllableAudio::ModControllableAudio() {
 
 	//Grain
 	modFXGrainBuffer = NULL;
+	wrapsToShutdown = 0;
 	modFXGrainBufferWriteIndex = 0;
 	grainShift = 13230; // 300ms
 	grainSize = 13230;  // 300ms
@@ -139,6 +140,23 @@ bool ModControllableAudio::hasBassAdjusted(ParamManager* paramManager) {
 bool ModControllableAudio::hasTrebleAdjusted(ParamManager* paramManager) {
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 	return (unpatchedParams->getValue(Param::Unpatched::TREBLE) != 0);
+}
+
+void ModControllableAudio::setWrapsToShutdown() {
+
+	if (grainFeedbackVol < 33554432) {
+		wrapsToShutdown = 1;
+	}
+	else if (grainFeedbackVol <= 100663296) {
+		wrapsToShutdown = 2;
+	}
+	else if (grainFeedbackVol <= 218103808) {
+		wrapsToShutdown = 3;
+	}
+	//max possible, feedback doesn't go very high
+	else {
+		wrapsToShutdown = 4;
+	}
 }
 
 void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, ModFXType modFXType, int32_t modFXRate,
@@ -278,9 +296,12 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 				currentSample->l += phaserMemory.l;
 				currentSample->r += phaserMemory.r;
 			}
-			else if (modFXType == ModFXType::GRAIN) {
-
-				int32_t writeIndex = modFXGrainBufferWriteIndex & kModFXGrainBufferIndexMask; // % kModFXGrainBufferSize
+			else if (modFXType == ModFXType::GRAIN && modFXGrainBuffer) {
+				if (modFXGrainBufferWriteIndex >= kModFXGrainBufferSize) {
+					modFXGrainBufferWriteIndex = 0;
+					wrapsToShutdown -= 1;
+				}
+				int32_t writeIndex = modFXGrainBufferWriteIndex; // % kModFXGrainBufferSize
 				if (modFXGrainBufferWriteIndex % grainRate == 0) {
 					for (int32_t i = 0; i < 8; i++) {
 						if (grains[i].length <= 0) {
