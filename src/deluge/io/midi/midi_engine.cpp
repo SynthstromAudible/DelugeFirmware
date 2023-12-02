@@ -218,6 +218,8 @@ MidiEngine::MidiEngine() {
 	lastStatusByteSent = 0;
 	currentlyReceivingSysExSerial = false;
 	midiThru = false;
+	midiFollow = false;
+	midiFollowChannel = 15;
 	midiTakeover = MIDITakeoverMode::JUMP;
 
 	g_usb_peri_connected = 0; // Needs initializing with A2 driver

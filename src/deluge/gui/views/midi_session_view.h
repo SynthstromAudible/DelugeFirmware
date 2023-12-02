@@ -85,9 +85,7 @@ public:
 	//midi CC mappings
 	uint8_t paramToCC[kDisplayWidth][kDisplayHeight];
 	MidiPadPress lastPadPress;
-	bool masterMidiMode;
 	uint8_t currentCC;
-	uint8_t masterMidiChannel;
 	bool onParamDisplay;
 	bool showLearnedParams;
 

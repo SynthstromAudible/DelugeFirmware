@@ -18,6 +18,7 @@
 #include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_session_view.h"
+#include "gui/views/midi_session_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
@@ -1234,6 +1235,9 @@ doMIDIOrCV:
 			else if (((getCurrentUI() == &sessionView) || (getCurrentUI() == &arrangerView))
 			         && !Buttons::isShiftButtonPressed()) {
 				newItem = &soundEditorRootMenuSongView;
+			}
+			else if ((getCurrentUI() == &midiSessionView) && !Buttons::isShiftButtonPressed()) {
+				newItem = &midiFollowSubmenu;
 			}
 			else {
 				newItem = &settingsRootMenu;

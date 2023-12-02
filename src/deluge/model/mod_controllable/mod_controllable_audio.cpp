@@ -1610,7 +1610,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 	bool messageUsed = false;
 
 	if (getRootUI() == &midiSessionView) {
-		if (channel == midiSessionView.masterMidiChannel) {
+		if (channel == midiEngine.midiFollowChannel) {
 			if (midiSessionView.lastPadPress.isActive) {
 				midiSessionView.paramToCC[midiSessionView.lastPadPress.xDisplay][midiSessionView.lastPadPress.yDisplay] =
 					ccNumber;
@@ -1642,7 +1642,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 		messageUsed = true;
 	}
 	else {
-		if ((midiSessionView.masterMidiMode) && (channel == midiSessionView.masterMidiChannel)) {
+		if ((midiEngine.midiFollow) && (channel == midiEngine.midiFollowChannel)) {
 			for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 				for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 					if (midiSessionView.paramToCC[xDisplay][yDisplay] == ccNumber) {

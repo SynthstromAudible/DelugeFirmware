@@ -73,6 +73,8 @@
 #include "gui/menu_item/midi/device.h"
 #include "gui/menu_item/midi/device_send_clock.h"
 #include "gui/menu_item/midi/devices.h"
+#include "gui/menu_item/midi/follow/follow.h"
+#include "gui/menu_item/midi/follow/follow_channel.h"
 #include "gui/menu_item/midi/input_differentiation.h"
 #include "gui/menu_item/midi/pgm.h"
 #include "gui/menu_item/midi/preset.h"
@@ -831,6 +833,19 @@ midi::Thru midiThruMenu{STRING_FOR_MIDI_THRU};
 // MIDI Takeover
 midi::Takeover midiTakeoverMenu{STRING_FOR_TAKEOVER};
 
+//MIDI Follow
+midi::Follow midiFollowMenu{STRING_FOR_FOLLOW};
+midi::FollowChannel midiFollowChannelMenu{STRING_FOR_CHANNEL};
+
+Submenu midiFollowSubmenu{
+    STRING_FOR_FOLLOW_TITLE,
+    STRING_FOR_FOLLOW_TITLE,
+    {
+        &midiFollowMenu,
+        &midiFollowChannelMenu,
+    },
+};
+
 // MIDI commands submenu
 midi::Command playbackRestartMidiCommand{STRING_FOR_RESTART, GlobalMIDICommand::PLAYBACK_RESTART};
 midi::Command playMidiCommand{STRING_FOR_PLAY, GlobalMIDICommand::PLAY};
@@ -898,6 +913,7 @@ Submenu midiMenu{
     STRING_FOR_MIDI,
     {
         &midiClockMenu,
+        &midiFollowSubmenu,
         &midiThruMenu,
         &midiTakeoverMenu,
         &midiCommandsMenu,

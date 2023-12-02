@@ -169,6 +169,8 @@ void resetSettings() {
 	PadLEDs::flashCursor = FLASH_CURSOR_SLOW;
 
 	midiEngine.midiThru = false;
+	midiEngine.midiFollow = false;
+	midiEngine.midiFollowChannel = 15;
 	midiEngine.midiTakeover = MIDITakeoverMode::JUMP;
 
 	for (auto& globalMIDICommand : midiEngine.globalMIDICommands) {
@@ -418,6 +420,9 @@ void readSettings() {
 	    || defaultMetronomeVolume < kMinMenuMetronomeVolumeValue) {
 		defaultMetronomeVolume = kMaxMenuMetronomeVolumeValue;
 	}
+
+	midiEngine.midiFollow = buffer[123];
+	midiEngine.midiFollowChannel = buffer[124];
 }
 
 void writeSettings() {
@@ -528,6 +533,9 @@ void writeSettings() {
 	buffer[121] = util::to_underlying(defaultGridActiveMode);
 
 	buffer[122] = defaultMetronomeVolume;
+
+	buffer[123] = midiEngine.midiFollow;
+	buffer[124] = midiEngine.midiFollowChannel;
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer, 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,

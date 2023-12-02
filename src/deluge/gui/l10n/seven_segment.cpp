@@ -392,6 +392,14 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_PAD_SELECTION_OFF, "OFF"},
         {STRING_FOR_PAD_SELECTION_ON, "ON"},
 
+        /* Strings for Midi Session View
+        * midi_session_view.cpp
+        */
+
+       {STRING_FOR_FOLLOW_TITLE, "FOLO"},
+       {STRING_FOR_FOLLOW, "FOLO"},
+       {STRING_FOR_CHANNEL, "CHAN"},
+
     },
     &built_in::english,
 };

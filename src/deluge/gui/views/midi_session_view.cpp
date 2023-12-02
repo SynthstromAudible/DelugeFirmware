@@ -42,6 +42,7 @@
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "io/debug/print.h"
+#include "io/midi/midi_engine.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
@@ -167,9 +168,6 @@ MidiSessionView::MidiSessionView() {
 			paramToCC[xDisplay][yDisplay] = kNoSelection;
 		}
 	}
-
-	masterMidiMode = true;
-	masterMidiChannel = 15;
 }
 
 bool MidiSessionView::opened() {
@@ -315,7 +313,7 @@ void MidiSessionView::renderViewDisplay() {
 		char followBuffer[20] = {0};
 		strncat(followBuffer, l10n::get(l10n::String::STRING_FOR_MIDI_FOLLOW), 19);
 
-		if (masterMidiMode) {
+		if (midiEngine.midiFollow) {
 			strncat(followBuffer, l10n::get(l10n::String::STRING_FOR_ON), 4);
 		}
 		else {
@@ -331,7 +329,7 @@ void MidiSessionView::renderViewDisplay() {
 		strncat(channelBuffer, l10n::get(l10n::String::STRING_FOR_MIDI_CHANNEL), 9);
 
 		char buffer[5];
-		intToString(masterMidiChannel + 1, buffer);
+		intToString(midiEngine.midiFollowChannel + 1, buffer);
 
 		strncat(channelBuffer, buffer, 4);
 
@@ -546,10 +544,12 @@ ActionResult MidiSessionView::buttonAction(deluge::hid::Button b, bool on, bool 
 		}
 	}
 
-	//enter "Perform FX" soundEditor menu
+	//enter "Midi Follow" soundEditor menu
 	else if ((b == SELECT_ENC) && !Buttons::isShiftButtonPressed()) {
 		if (on) {
-			return ActionResult::DEALT_WITH;
+			display->setNextTransitionDirection(1);
+			soundEditor.setup();
+			openUI(&soundEditor);
 		}
 	}
 
