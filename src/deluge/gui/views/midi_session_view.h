@@ -83,22 +83,25 @@ public:
 	uint32_t getMaxLength();
 
 	//midi CC mappings
-	uint8_t paramToCC[kDisplayWidth][kDisplayHeight];
+	int32_t paramToCC[kDisplayWidth][kDisplayHeight];
+	int32_t previousKnobPos[kDisplayWidth][kDisplayHeight];
 	MidiPadPress lastPadPress;
-	uint8_t currentCC;
+	int32_t currentCC;
 	bool onParamDisplay;
 	bool showLearnedParams;
 
 	ModelStackWithAutoParam* getModelStackWithParam(int32_t xDisplay, int32_t yDisplay);
-	void learnCC(uint8_t channel, uint8_t ccNumber);
+	void learnCC(int32_t channel, int32_t ccNumber);
+
+	void readDefaultsFromFile();
 
 private:
 	//initialize
 	void initPadPress(MidiPadPress& padPress);
-	void initParamToCC(uint8_t mapping[kDisplayWidth][kDisplayHeight]);
+	void initMapping(int32_t mapping[kDisplayWidth][kDisplayHeight]);
 
 	//display
-	void renderParamDisplay(Param::Kind paramKind, int32_t paramID, uint8_t ccNumber);
+	void renderParamDisplay(Param::Kind paramKind, int32_t paramID, int32_t ccNumber);
 
 	//rendering
 	void renderRow(uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
@@ -108,14 +111,14 @@ private:
 	void potentialShortcutPadAction(int32_t xDisplay, int32_t yDisplay);
 
 	//learning
-	void cantLearn(uint8_t channel);
+	void cantLearn(int32_t channel);
 
 	//change status
 	void updateMappingChangeStatus();
 	bool anyChangesToSave;
 
 	// save/load default values
-	uint8_t backupXMLParamToCC[kDisplayWidth][kDisplayHeight];
+	int32_t backupXMLParamToCC[kDisplayWidth][kDisplayHeight];
 
 	//saving
 	void saveMidiFollowMappings();
@@ -126,7 +129,6 @@ private:
 	bool successfullyReadDefaultsFromFile;
 	void loadMidiFollowMappings();
 	void readDefaultsFromBackedUpFile();
-	void readDefaultsFromFile();
 	void readDefaultMappingsFromFile();
 };
 

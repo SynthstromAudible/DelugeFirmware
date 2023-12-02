@@ -158,8 +158,9 @@ MidiSessionView::MidiSessionView() {
 	showLearnedParams = false;
 
 	initPadPress(lastPadPress);
-	initParamToCC(paramToCC);
-	initParamToCC(backupXMLParamToCC);
+	initMapping(paramToCC);
+	initMapping(backupXMLParamToCC);
+	initMapping(previousKnobPos);
 }
 
 void MidiSessionView::initPadPress(MidiPadPress& padPress) {
@@ -170,7 +171,7 @@ void MidiSessionView::initPadPress(MidiPadPress& padPress) {
 	padPress.paramID = kNoSelection;
 }
 
-void MidiSessionView::initParamToCC(uint8_t mapping[kDisplayWidth][kDisplayHeight]) {
+void MidiSessionView::initMapping(int32_t mapping[kDisplayWidth][kDisplayHeight]) {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 			mapping[xDisplay][yDisplay] = kNoSelection;
@@ -349,7 +350,7 @@ void MidiSessionView::renderViewDisplay() {
 }
 
 /// Render Parameter Name and Learned Status with CC Set when holding param shortcut in Midi Learning View
-void MidiSessionView::renderParamDisplay(Param::Kind paramKind, int32_t paramID, uint8_t ccNumber) {
+void MidiSessionView::renderParamDisplay(Param::Kind paramKind, int32_t paramID, int32_t ccNumber) {
 	if (display->haveOLED()) {
 		deluge::hid::display::OLED::clearMainImage();
 
@@ -439,7 +440,8 @@ ActionResult MidiSessionView::buttonAction(deluge::hid::Button b, bool on, bool 
 	if (b == BACK && isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
 		if (on) {
 			initPadPress(lastPadPress);
-			initParamToCC(paramToCC);
+			initMapping(paramToCC);
+			initMapping(previousKnobPos);
 			uiNeedsRendering(this);
 		}
 	}
@@ -554,7 +556,8 @@ void MidiSessionView::potentialShortcutPadAction(int32_t xDisplay, int32_t yDisp
 	if (paramKind != Param::Kind::NONE) {
 		//if pressing a param shortcut while holding learn, unlearn midi CC from a specific param
 		if (Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
-			initParamToCC(paramToCC);
+			paramToCC[xDisplay][yDisplay] = kNoSelection;
+			previousKnobPos[xDisplay][yDisplay] = kNoSelection;
 			updateMappingChangeStatus();
 			uiNeedsRendering(this);
 		}
@@ -567,12 +570,29 @@ void MidiSessionView::potentialShortcutPadAction(int32_t xDisplay, int32_t yDisp
 	}
 }
 
-void MidiSessionView::learnCC(uint8_t channel, uint8_t ccNumber) {
+void MidiSessionView::learnCC(int32_t channel, int32_t ccNumber) {
 	if (channel == midiEngine.midiFollowChannel) {
 		if (lastPadPress.isActive) {
 			if (paramToCC[lastPadPress.xDisplay][lastPadPress.yDisplay] != ccNumber) {
+				//init knobPos for current param
+				previousKnobPos[lastPadPress.xDisplay][lastPadPress.yDisplay] = kNoSelection;
+
+				//look to see if this cc was mapped elsewhere and we have a previousKnobPosition saved
+				for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+					for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+						if ((paramToCC[xDisplay][yDisplay] == ccNumber)
+						    && (previousKnobPos[xDisplay][yDisplay] != kNoSelection)) {
+							previousKnobPos[lastPadPress.xDisplay][lastPadPress.yDisplay] =
+							    previousKnobPos[xDisplay][yDisplay];
+						}
+					}
+				}
+
+				//assign cc to current param selected
 				paramToCC[lastPadPress.xDisplay][lastPadPress.yDisplay] = ccNumber;
+
 				renderParamDisplay(lastPadPress.paramKind, lastPadPress.paramID, ccNumber);
+
 				currentCC = kNoSelection;
 				updateMappingChangeStatus();
 			}
@@ -587,7 +607,7 @@ void MidiSessionView::learnCC(uint8_t channel, uint8_t ccNumber) {
 	}
 }
 
-void MidiSessionView::cantLearn(uint8_t channel) {
+void MidiSessionView::cantLearn(int32_t channel) {
 	if (display->haveOLED()) {
 		char cantBuffer[40] = {0};
 		strncat(cantBuffer, l10n::get(l10n::String::STRING_FOR_CANT_LEARN), 39);
@@ -816,7 +836,8 @@ void MidiSessionView::writeDefaultMappingsToFile() {
 /// load saved layout, update change status
 void MidiSessionView::loadMidiFollowMappings() {
 	initPadPress(lastPadPress);
-	initParamToCC(paramToCC);
+	initMapping(paramToCC);
+	initMapping(previousKnobPos);
 	if (successfullyReadDefaultsFromFile) {
 		readDefaultsFromBackedUpFile();
 	}

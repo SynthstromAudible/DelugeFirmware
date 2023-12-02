@@ -1719,7 +1719,8 @@ void ModControllableAudio::offerReceivedCCToMidiFollow(ModelStackWithTimelineCou
 				ModelStackWithAutoParam* modelStackWithParam =
 				    midiSessionView.getModelStackWithParam(xDisplay, yDisplay);
 				if (modelStackWithParam->autoParam) {
-					int32_t newKnobPos = calculateKnobPosForMidiTakeover(modelStackWithParam, modPos, value);
+					int32_t newKnobPos = calculateKnobPosForMidiTakeover(modelStackWithParam, modPos, value, nullptr,
+					                                                     true, xDisplay, yDisplay);
 
 					//Convert the New Knob Position to a Parameter Value
 					int32_t newValue =
@@ -1734,7 +1735,9 @@ void ModControllableAudio::offerReceivedCCToMidiFollow(ModelStackWithTimelineCou
 	}
 }
 
-int32_t ModControllableAudio::calculateKnobPosForMidiTakeover(ModelStackWithAutoParam* modelStackWithParam, int32_t modPos, uint8_t value, MIDIKnob* knob) {
+int32_t ModControllableAudio::calculateKnobPosForMidiTakeover(ModelStackWithAutoParam* modelStackWithParam,
+                                                              int32_t modPos, uint8_t value, MIDIKnob* knob,
+                                                              bool midiFollow, int32_t xDisplay, int32_t yDisplay) {
 	int32_t newKnobPos = 0;
 
 	if (midiEngine.midiTakeover == MIDITakeoverMode::JUMP) { //Midi Takeover Mode = Jump
@@ -1744,6 +1747,9 @@ int32_t ModControllableAudio::calculateKnobPosForMidiTakeover(ModelStackWithAuto
 		}
 		if (knob != nullptr) {
 			knob->previousPositionSaved = false;
+		}
+		else if (midiFollow) {
+			midiSessionView.previousKnobPos[xDisplay][yDisplay] = kNoSelection;
 		}
 	}
 	else { //Midi Takeover Mode = Pickup or Value Scaling
@@ -1775,6 +1781,11 @@ int32_t ModControllableAudio::calculateKnobPosForMidiTakeover(ModelStackWithAuto
 				knob->previousPositionSaved = true;
 			}
 		}
+		else if (midiFollow) {
+			if (midiSessionView.previousKnobPos[xDisplay][yDisplay] == kNoSelection) {
+				midiSessionView.previousKnobPos[xDisplay][yDisplay] = midiKnobPos;
+			}
+		}
 
 		//adjust previous knob position saved
 
@@ -1786,6 +1797,13 @@ int32_t ModControllableAudio::calculateKnobPosForMidiTakeover(ModelStackWithAuto
 			if (knob->previousPosition > (midiKnobPos + 1) || knob->previousPosition < (midiKnobPos - 1)) {
 
 				knob->previousPosition = midiKnobPos;
+			}
+		}
+		else if (midiFollow) {
+			int32_t previousKnobPos = midiSessionView.previousKnobPos[xDisplay][yDisplay];
+			if (previousKnobPos > (midiKnobPos + 1) || previousKnobPos < (midiKnobPos - 1)) {
+
+				midiSessionView.previousKnobPos[xDisplay][yDisplay] = midiKnobPos;
 			}
 		}
 
@@ -1830,6 +1848,9 @@ int32_t ModControllableAudio::calculateKnobPosForMidiTakeover(ModelStackWithAuto
 				if (knob != nullptr) {
 					midiKnobPosChange = midiKnobPos - knob->previousPosition;
 				}
+				else if (midiFollow) {
+					midiKnobPosChange = midiKnobPos - midiSessionView.previousKnobPos[xDisplay][yDisplay];
+				}
 
 				//Set fixed point variable which will be used calculate the percentage in midi knob position
 				int32_t midiKnobPosChangePercentage;
@@ -1860,6 +1881,9 @@ int32_t ModControllableAudio::calculateKnobPosForMidiTakeover(ModelStackWithAuto
 		//save the current midi knob position as the previous midi knob position so that it can be used next time the takeover code is executed
 		if (knob != nullptr) {
 			knob->previousPosition = midiKnobPos;
+		}
+		else if (midiFollow) {
+			midiSessionView.previousKnobPos[xDisplay][yDisplay] = midiKnobPos;
 		}
 	}
 
