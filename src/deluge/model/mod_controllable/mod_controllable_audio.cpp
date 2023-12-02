@@ -1609,41 +1609,9 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
                                                           int32_t noteRowIndex) {
 	bool messageUsed = false;
 
+	//if you're currently in midiSessionView, see if you can learn this CC
 	if (getRootUI() == &midiSessionView) {
-		if (channel == midiEngine.midiFollowChannel) {
-			if (midiSessionView.lastPadPress.isActive) {
-				if (midiSessionView
-				    .paramToCC[midiSessionView.lastPadPress.xDisplay][midiSessionView.lastPadPress.yDisplay] != ccNumber) {
-					midiSessionView
-						.paramToCC[midiSessionView.lastPadPress.xDisplay][midiSessionView.lastPadPress.yDisplay] = ccNumber;
-					midiSessionView.renderParamDisplay(midiSessionView.lastPadPress.paramKind,
-													midiSessionView.lastPadPress.paramID, ccNumber);
-					midiSessionView.currentCC = kNoSelection;
-					midiSessionView.updateMappingChangeStatus();
-				}
-			}
-			else {
-				midiSessionView.currentCC = ccNumber;
-			}
-			uiNeedsRendering(&midiSessionView);
-		}
-		else if (midiSessionView.lastPadPress.isActive) {
-			if (display->haveOLED()) {
-				char cantBuffer[40] = {0};
-				strncat(cantBuffer, l10n::get(l10n::String::STRING_FOR_CANT_LEARN), 39);
-				strncat(cantBuffer, l10n::get(l10n::String::STRING_FOR_MIDI_LEARN_CHANNEL), 39);
-
-				char buffer[5];
-				intToString(channel + 1, buffer);
-
-				strncat(cantBuffer, buffer, 4);
-
-				display->displayPopup(cantBuffer);
-			}
-			else {
-				display->displayPopup(l10n::get(l10n::String::STRING_FOR_CANT_LEARN));
-			}
-		}
+		midiSessionView.learnCC(channel, ccNumber);
 		messageUsed = true;
 	}
 	else {

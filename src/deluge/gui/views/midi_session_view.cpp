@@ -504,7 +504,7 @@ ActionResult MidiSessionView::buttonAction(deluge::hid::Button b, bool on, bool 
 				exitUIMode(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON);
 			}
 		}
-	}	
+	}
 
 	//disable button presses for Vertical encoder
 	else if (b == Y_ENC) {
@@ -564,6 +564,44 @@ void MidiSessionView::potentialShortcutPadAction(int32_t xDisplay, int32_t yDisp
 		lastPadPress.yDisplay = yDisplay;
 		lastPadPress.paramKind = paramKind;
 		lastPadPress.paramID = paramID;
+	}
+}
+
+void MidiSessionView::learnCC(uint8_t channel, uint8_t ccNumber) {
+	if (channel == midiEngine.midiFollowChannel) {
+		if (lastPadPress.isActive) {
+			if (paramToCC[lastPadPress.xDisplay][lastPadPress.yDisplay] != ccNumber) {
+				paramToCC[lastPadPress.xDisplay][lastPadPress.yDisplay] = ccNumber;
+				renderParamDisplay(lastPadPress.paramKind, lastPadPress.paramID, ccNumber);
+				currentCC = kNoSelection;
+				updateMappingChangeStatus();
+			}
+		}
+		else {
+			currentCC = ccNumber;
+		}
+		uiNeedsRendering(this);
+	}
+	else if (lastPadPress.isActive) {
+		cantLearn(channel);
+	}
+}
+
+void MidiSessionView::cantLearn(uint8_t channel) {
+	if (display->haveOLED()) {
+		char cantBuffer[40] = {0};
+		strncat(cantBuffer, l10n::get(l10n::String::STRING_FOR_CANT_LEARN), 39);
+		strncat(cantBuffer, l10n::get(l10n::String::STRING_FOR_MIDI_LEARN_CHANNEL), 39);
+
+		char buffer[5];
+		intToString(channel + 1, buffer);
+
+		strncat(cantBuffer, buffer, 4);
+
+		display->displayPopup(cantBuffer);
+	}
+	else {
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_CANT_LEARN));
 	}
 }
 
@@ -743,22 +781,25 @@ void MidiSessionView::writeDefaultMappingsToFile() {
 
 			if (patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
 				paramName = ((Sound*)NULL)->Sound::paramToString(patchedParamShortcuts[xDisplay][yDisplay]);
-				writeTag = true;	
+				writeTag = true;
 			}
 			else if (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
 				if ((unpatchedParamShortcuts[xDisplay][yDisplay] == Param::Unpatched::Sound::ARP_GATE)
-				|| (unpatchedParamShortcuts[xDisplay][yDisplay] == Param::Unpatched::Sound::PORTAMENTO)) {
-					paramName = ((Sound*)NULL)->Sound::paramToString(Param::Unpatched::START + unpatchedParamShortcuts[xDisplay][yDisplay]);
+				    || (unpatchedParamShortcuts[xDisplay][yDisplay] == Param::Unpatched::Sound::PORTAMENTO)) {
+					paramName = ((Sound*)NULL)
+					                ->Sound::paramToString(Param::Unpatched::START
+					                                       + unpatchedParamShortcuts[xDisplay][yDisplay]);
 				}
 				else {
-					paramName =
-						ModControllableAudio::paramToString(Param::Unpatched::START + unpatchedParamShortcuts[xDisplay][yDisplay]);
+					paramName = ModControllableAudio::paramToString(Param::Unpatched::START
+					                                                + unpatchedParamShortcuts[xDisplay][yDisplay]);
 				}
 				writeTag = true;
 			}
 			else if (globalEffectableParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-				paramName = GlobalEffectable::paramToString(Param::Unpatched::START + globalEffectableParamShortcuts[xDisplay][yDisplay]);
-				writeTag = true;			
+				paramName = GlobalEffectable::paramToString(Param::Unpatched::START
+				                                            + globalEffectableParamShortcuts[xDisplay][yDisplay]);
+				writeTag = true;
 			}
 
 			if (writeTag) {
@@ -767,7 +808,7 @@ void MidiSessionView::writeDefaultMappingsToFile() {
 				storageManager.writeTag(paramName, buffer);
 
 				backupXMLParamToCC[xDisplay][yDisplay] = paramToCC[xDisplay][yDisplay];
-			}			
+			}
 		}
 	}
 }
@@ -840,18 +881,23 @@ void MidiSessionView::readDefaultMappingsFromFile() {
 				if (!strcmp(tagName, ((Sound*)NULL)->Sound::paramToString(patchedParamShortcuts[xDisplay][yDisplay]))) {
 					paramToCC[xDisplay][yDisplay] = storageManager.readTagOrAttributeValueInt();
 				}
-				else if (!strcmp(tagName, ((Sound*)NULL)->Sound::paramToString(Param::Unpatched::START + unpatchedParamShortcuts[xDisplay][yDisplay]))) {
+				else if (!strcmp(tagName, ((Sound*)NULL)
+				                              ->Sound::paramToString(Param::Unpatched::START
+				                                                     + unpatchedParamShortcuts[xDisplay][yDisplay]))) {
 					paramToCC[xDisplay][yDisplay] = storageManager.readTagOrAttributeValueInt();
 				}
-				else if (!strcmp(tagName, ModControllableAudio::paramToString(Param::Unpatched::START + unpatchedParamShortcuts[xDisplay][yDisplay]))) {
+				else if (!strcmp(tagName, ModControllableAudio::paramToString(
+				                              Param::Unpatched::START + unpatchedParamShortcuts[xDisplay][yDisplay]))) {
 					paramToCC[xDisplay][yDisplay] = storageManager.readTagOrAttributeValueInt();
 				}
-				else if (!strcmp(tagName, GlobalEffectable::paramToString(Param::Unpatched::START + globalEffectableParamShortcuts[xDisplay][yDisplay]))) {
+				else if (!strcmp(tagName,
+				                 GlobalEffectable::paramToString(
+				                     Param::Unpatched::START + globalEffectableParamShortcuts[xDisplay][yDisplay]))) {
 					paramToCC[xDisplay][yDisplay] = storageManager.readTagOrAttributeValueInt();
 				}
 				backupXMLParamToCC[xDisplay][yDisplay] = paramToCC[xDisplay][yDisplay];
 			}
-		}		
+		}
 		storageManager.exitTag();
 	}
 }

@@ -90,13 +90,15 @@ public:
 	bool showLearnedParams;
 
 	ModelStackWithAutoParam* getModelStackWithParam(int32_t xDisplay, int32_t yDisplay);
-	void renderParamDisplay(Param::Kind paramKind, int32_t paramID, uint8_t ccNumber);
-	void updateMappingChangeStatus();
+	void learnCC(uint8_t channel, uint8_t ccNumber);
 
 private:
 	//initialize
 	void initPadPress(MidiPadPress& padPress);
 	void initParamToCC(uint8_t mapping[kDisplayWidth][kDisplayHeight]);
+
+	//display
+	void renderParamDisplay(Param::Kind paramKind, int32_t paramID, uint8_t ccNumber);
 
 	//rendering
 	void renderRow(uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
@@ -105,13 +107,23 @@ private:
 	//pad action
 	void potentialShortcutPadAction(int32_t xDisplay, int32_t yDisplay);
 
-	// write/load default values
-	bool successfullyReadDefaultsFromFile;
+	//learning
+	void cantLearn(uint8_t channel);
+
+	//change status
+	void updateMappingChangeStatus();
 	bool anyChangesToSave;
+
+	// save/load default values
 	uint8_t backupXMLParamToCC[kDisplayWidth][kDisplayHeight];
+
+	//saving
 	void saveMidiFollowMappings();
 	void writeDefaultsToFile();
 	void writeDefaultMappingsToFile();
+
+	//loading
+	bool successfullyReadDefaultsFromFile;
 	void loadMidiFollowMappings();
 	void readDefaultsFromBackedUpFile();
 	void readDefaultsFromFile();
