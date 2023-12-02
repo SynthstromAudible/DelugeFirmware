@@ -494,8 +494,20 @@ ActionResult MidiSessionView::buttonAction(deluge::hid::Button b, bool on, bool 
 		}
 	}
 
+	//enter exit Horizontal Encoder Button Press UI Mode
+	else if (b == X_ENC) {
+		if (on) {
+			enterUIMode(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON);
+		}
+		else {
+			if (isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
+				exitUIMode(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON);
+			}
+		}
+	}	
+
 	//disable button presses for Vertical encoder
-	else if ((b == X_ENC) || (b == Y_ENC)) {
+	else if (b == Y_ENC) {
 		return ActionResult::DEALT_WITH;
 	}
 
@@ -540,6 +552,12 @@ void MidiSessionView::potentialShortcutPadAction(int32_t xDisplay, int32_t yDisp
 		paramID = globalEffectableParamShortcuts[xDisplay][yDisplay];
 	}
 	if (paramKind != Param::Kind::NONE) {
+		//if pressing a param shortcut while holding learn, unlearn midi CC from a specific param
+		if (Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
+			initParamToCC(paramToCC);
+			updateMappingChangeStatus();
+			uiNeedsRendering(this);
+		}
 		renderParamDisplay(paramKind, paramID, paramToCC[xDisplay][yDisplay]);
 		lastPadPress.isActive = true;
 		lastPadPress.xDisplay = xDisplay;

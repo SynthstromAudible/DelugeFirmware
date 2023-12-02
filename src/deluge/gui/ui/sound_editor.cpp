@@ -445,7 +445,7 @@ void SoundEditor::goUpOneLevel() {
 }
 
 void SoundEditor::exitCompletely() {
-	if (inSettingsMenu()) {
+	if (inSettingsMenu() || inMidiFollowSubmenu()) {
 		// First, save settings
 
 		display->displayLoadingAnimationText("Saving settings");
@@ -1312,6 +1312,10 @@ MenuItem* SoundEditor::getCurrentMenuItem() {
 
 bool SoundEditor::inSettingsMenu() {
 	return (menuItemNavigationRecord[0] == &settingsRootMenu);
+}
+
+bool SoundEditor::inMidiFollowSubmenu() {
+	return ((getRootUI() == &midiSessionView) && (menuItemNavigationRecord[0] == &midiFollowSubmenu));
 }
 
 bool SoundEditor::isUntransposedNoteWithinRange(int32_t noteCode) {

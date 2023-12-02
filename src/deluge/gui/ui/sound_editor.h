@@ -116,6 +116,7 @@ public:
 	bool editingReverbCompressor();
 	MenuItem* getCurrentMenuItem();
 	bool inSettingsMenu();
+	bool inMidiFollowSubmenu();
 	void exitCompletely();
 	void goUpOneLevel();
 	bool noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channel, int32_t note, int32_t velocity);
