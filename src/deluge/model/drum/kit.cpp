@@ -1012,32 +1012,13 @@ void Kit::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevic
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 
-		bool processMidiNote = false;
-		if (((getCurrentUI() == &instrumentClipView) || !on) && (channel == midiEngine.midiFollowChannel)
-		    && (midiEngine.midiFollow) && ((InstrumentClip*)currentSong->currentClip == instrumentClip)) {
-			ModelStackWithNoteRow* modelStackWithNoteRow;
-			if (instrumentClip) {
-				modelStackWithNoteRow = instrumentClip->getNoteRowForDrum(modelStack, thisDrum);
-			}
-			else {
-				modelStackWithNoteRow = modelStack->addNoteRow(0, NULL);
-			}
-			if (modelStackWithNoteRow) {
-				NoteRow* thisNoteRow = modelStackWithNoteRow->getNoteRowAllowNull();
-				if (thisNoteRow) {
-					//bottom kit noteRowId = 0
-					//middle C3 note number = 60
-					//noteRowId + 60 = C3 up for kit sounds
-					if ((modelStackWithNoteRow->noteRowId + 60) == note) {
-						processMidiNote = true;
-					}
-				}
-			}
-		}
+		//check if master midi follow mode dictates whether midi note received on this channel should be processed
+		//against the current drum row selected based on the noteRowID and mapping to notes
+		bool midiFollow = shouldMidiFollow(modelStack, instrumentClip, on, channel, note, thisDrum);
 
 		// If this is the "input" command, to sound / audition the Drum...
 		// Returns true if midi channel and note match the learned midi note
-		if (processMidiNote || thisDrum->midiInput.equalsNoteOrCCAllowMPE(fromDevice, channel, note)) {
+		if (midiFollow || thisDrum->midiInput.equalsNoteOrCCAllowMPE(fromDevice, channel, note)) {
 
 			// If MIDIDrum, outputting same note, then don't additionally do thru
 			if (doingMidiThru && thisDrum->type == DrumType::MIDI && ((MIDIDrum*)thisDrum)->channel == channel
@@ -1208,6 +1189,29 @@ goingToRecordNoteOnEarly:
 			}
 		}
 	}
+}
+
+bool Kit::shouldMidiFollow(ModelStackWithTimelineCounter* modelStack, InstrumentClip* instrumentClip, bool on,
+                           int32_t channel, int32_t note, Drum* thisDrum) {
+	if (((getCurrentUI() == &instrumentClipView) || !on) && (channel == midiEngine.midiFollowChannel)
+	    && (midiEngine.midiFollow) && ((InstrumentClip*)currentSong->currentClip == instrumentClip)) {
+		ModelStackWithNoteRow* modelStackWithNoteRow;
+		if (instrumentClip) {
+			modelStackWithNoteRow = instrumentClip->getNoteRowForDrum(modelStack, thisDrum);
+		}
+		else {
+			modelStackWithNoteRow = modelStack->addNoteRow(0, NULL);
+		}
+		if (modelStackWithNoteRow) {
+			//bottom kit noteRowId = 0
+			//middle C3 note number = 60
+			//noteRowId + 60 = C3 up for kit sounds
+			if ((modelStackWithNoteRow->noteRowId + 60) == note) {
+				return true;
+			}
+		}
+	}
+	return false;
 }
 
 void Kit::offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,

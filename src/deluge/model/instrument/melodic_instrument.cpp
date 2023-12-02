@@ -126,8 +126,7 @@ void MelodicInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelSt
 	MIDIMatchType match = MIDIMatchType::NO_MATCH;
 	//check if channel = midifollow channel and midi follow is enabled and current clip is the active clip
 	//if so, identify it as a match so incoming midi note is processed
-	if (((getCurrentUI() == &instrumentClipView) || !on) && (midiChannel == midiEngine.midiFollowChannel)
-	    && (midiEngine.midiFollow) && ((InstrumentClip*)currentSong->currentClip == (InstrumentClip*)activeClip)) {
+	if (shouldMidiFollow(on, midiChannel)) {
 		match = MIDIMatchType::CHANNEL;
 	}
 	else {
@@ -322,6 +321,11 @@ justAuditionNote:
 		keyboardScreen.highlightedNotes[note] = highlightNoteValue;
 		keyboardScreen.requestRendering();
 	}
+}
+
+bool MelodicInstrument::shouldMidiFollow(bool on, int32_t midiChannel) {
+	return ((getCurrentUI() == &instrumentClipView) || !on) && (midiChannel == midiEngine.midiFollowChannel)
+	       && (midiEngine.midiFollow) && ((InstrumentClip*)currentSong->currentClip == (InstrumentClip*)activeClip);
 }
 
 void MelodicInstrument::offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
