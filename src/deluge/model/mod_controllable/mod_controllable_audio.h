@@ -158,6 +158,12 @@ public:
 
 	MidiKnobArray midiKnobArray;
 
+private:
+	void offerReceivedCCToMidiFollow(ModelStackWithTimelineCounter* modelStack, uint8_t channel, uint8_t ccNumber,
+	                                 uint8_t value);
+	int32_t calculateKnobPosForMidiTakeover(ModelStackWithAutoParam* modelStackWithParam, int32_t modPos, uint8_t value,
+	                                        MIDIKnob* knob = nullptr);
+
 protected:
 	void processFX(StereoSample* buffer, int32_t numSamples, ModFXType modFXType, int32_t modFXRate, int32_t modFXDepth,
 	               DelayWorkingState* delayWorkingState, int32_t* postFXVolume, ParamManager* paramManager,
