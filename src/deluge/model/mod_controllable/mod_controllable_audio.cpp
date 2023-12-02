@@ -1612,10 +1612,15 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 	if (getRootUI() == &midiSessionView) {
 		if (channel == midiEngine.midiFollowChannel) {
 			if (midiSessionView.lastPadPress.isActive) {
-				midiSessionView.paramToCC[midiSessionView.lastPadPress.xDisplay][midiSessionView.lastPadPress.yDisplay] =
-					ccNumber;
-				midiSessionView.renderParamDisplay(midiSessionView.lastPadPress.paramKind, midiSessionView.lastPadPress.paramID, ccNumber);
-				midiSessionView.currentCC = kNoSelection;
+				if (midiSessionView
+				    .paramToCC[midiSessionView.lastPadPress.xDisplay][midiSessionView.lastPadPress.yDisplay] != ccNumber) {
+					midiSessionView
+						.paramToCC[midiSessionView.lastPadPress.xDisplay][midiSessionView.lastPadPress.yDisplay] = ccNumber;
+					midiSessionView.renderParamDisplay(midiSessionView.lastPadPress.paramKind,
+													midiSessionView.lastPadPress.paramID, ccNumber);
+					midiSessionView.currentCC = kNoSelection;
+					midiSessionView.updateMappingChangeStatus();
+				}
 			}
 			else {
 				midiSessionView.currentCC = ccNumber;
@@ -1629,7 +1634,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 				strncat(cantBuffer, l10n::get(l10n::String::STRING_FOR_MIDI_LEARN_CHANNEL), 39);
 
 				char buffer[5];
-				intToString(channel, buffer);
+				intToString(channel + 1, buffer);
 
 				strncat(cantBuffer, buffer, 4);
 

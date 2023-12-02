@@ -64,7 +64,7 @@ extern "C" {
 using namespace deluge;
 using namespace gui;
 
-const char* MIDI_DEFAULTS_XML = "MidiView.XML";
+const char* MIDI_DEFAULTS_XML = "MIDIFollow.XML";
 const char* MIDI_DEFAULTS_TAG = "defaults";
 const char* MIDI_DEFAULTS_CC_TAG = "defaultCCMappings";
 
@@ -157,15 +157,23 @@ MidiSessionView::MidiSessionView() {
 	onParamDisplay = false;
 	showLearnedParams = false;
 
-	lastPadPress.isActive = false;
-	lastPadPress.xDisplay = kNoSelection;
-	lastPadPress.yDisplay = kNoSelection;
-	lastPadPress.paramKind = Param::Kind::NONE;
-	lastPadPress.paramID = kNoSelection;
+	initPadPress(lastPadPress);
+	initParamToCC(paramToCC);
+	initParamToCC(backupXMLParamToCC);
+}
 
+void MidiSessionView::initPadPress(MidiPadPress& padPress) {
+	padPress.isActive = false;
+	padPress.xDisplay = kNoSelection;
+	padPress.yDisplay = kNoSelection;
+	padPress.paramKind = Param::Kind::NONE;
+	padPress.paramID = kNoSelection;
+}
+
+void MidiSessionView::initParamToCC(uint8_t mapping[kDisplayWidth][kDisplayHeight]) {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-			paramToCC[xDisplay][yDisplay] = kNoSelection;
+			mapping[xDisplay][yDisplay] = kNoSelection;
 		}
 	}
 }
@@ -183,13 +191,13 @@ void MidiSessionView::focusRegained() {
 	view.focusRegained();
 	view.setActiveModControllableTimelineCounter(currentSong);
 
-	//	if (!successfullyReadDefaultsFromFile) {
-	//		readDefaultsFromFile();
-	//	}
+	if (!successfullyReadDefaultsFromFile) {
+		readDefaultsFromFile();
+	}
 
 	setLedStates();
 
-	//	updateLayoutChangeStatus();
+	updateMappingChangeStatus();
 
 	if (display->have7SEG()) {
 		redrawNumericDisplay();
@@ -273,11 +281,6 @@ void MidiSessionView::renderRow(uint8_t* image, uint8_t occupancyMask[], int32_t
 			occupancyMask[xDisplay] = 64;
 		}
 	}
-}
-
-/// check if a midi cc has been assigned to any of the params
-bool MidiSessionView::isMidiCCAssignedToParam() {
-	return false;
 }
 
 /// nothing to render in sidebar (yet)
@@ -375,11 +378,12 @@ void MidiSessionView::renderParamDisplay(Param::Kind paramKind, int32_t paramID,
 			strncat(ccBuffer, buffer, 4);
 
 			deluge::hid::display::OLED::drawStringCentred(ccBuffer, yPos, deluge::hid::display::OLED::oledMainImage[0],
-														OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+			                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 		}
 		else {
-			deluge::hid::display::OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_MIDI_NOT_LEARNED), yPos, deluge::hid::display::OLED::oledMainImage[0],
-														OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);			
+			deluge::hid::display::OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_MIDI_NOT_LEARNED), yPos,
+			                                              deluge::hid::display::OLED::oledMainImage[0],
+			                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 		}
 
 		deluge::hid::display::OLED::sendMainImage();
@@ -431,107 +435,19 @@ void MidiSessionView::setCentralLEDStates() {
 ActionResult MidiSessionView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithThreeMainThings* modelStack = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-
-	// Clip-view button
-	if (b == CLIP_VIEW) {
-		if (on && ((currentUIMode == UI_MODE_NONE) || isUIModeActive(UI_MODE_STUTTERING))
-		    && playbackHandler.recording != RECORDING_ARRANGEMENT) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
-			sessionView.transitionToViewForClip(); // May fail if no currentClip
-		}
-	}
-
-	// Song-view button without shift
-
-	// Arranger view button, or if there isn't one then song view button
-#ifdef arrangerViewButtonX
-	else if (b == arrangerView) {
-#else
-	else if (b == SESSION_VIEW && !Buttons::isShiftButtonPressed()) {
-#endif
-		if (inCardRoutine) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
-		bool lastSessionButtonActiveState = sessionButtonActive;
-		sessionButtonActive = on;
-
-		// Press with special modes
+	//clear and reset learned params
+	if (b == BACK && isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
 		if (on) {
-			sessionButtonUsed = false;
-
-			// If holding record button...
-			if (Buttons::isButtonPressed(deluge::hid::button::RECORD)) {
-				Buttons::recordButtonPressUsedUp = true;
-
-				// Make sure we weren't already playing...
-				if (!playbackHandler.playbackState) {
-
-					Action* action = actionLogger.getNewAction(ACTION_ARRANGEMENT_RECORD, false);
-
-					arrangerView.xScrollWhenPlaybackStarted = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
-					if (action) {
-						action->posToClearArrangementFrom = arrangerView.xScrollWhenPlaybackStarted;
-					}
-
-					currentSong->clearArrangementBeyondPos(
-					    arrangerView.xScrollWhenPlaybackStarted,
-					    action); // Want to do this before setting up playback or place new instances
-					int32_t error =
-					    currentSong->placeFirstInstancesOfActiveClips(arrangerView.xScrollWhenPlaybackStarted);
-
-					if (error) {
-						display->displayError(error);
-						return ActionResult::DEALT_WITH;
-					}
-					playbackHandler.recording = RECORDING_ARRANGEMENT;
-					playbackHandler.setupPlaybackUsingInternalClock();
-
-					arrangement.playbackStartedAtPos =
-					    arrangerView.xScrollWhenPlaybackStarted; // Have to do this after setting up playback
-
-					indicator_leds::blinkLed(IndicatorLED::RECORD, 255, 1);
-					indicator_leds::blinkLed(IndicatorLED::SESSION_VIEW, 255, 1);
-					sessionButtonUsed = true;
-				}
-			}
-		}
-		// Release without special mode
-		else if (!on && ((currentUIMode == UI_MODE_NONE) || isUIModeActive(UI_MODE_STUTTERING))) {
-			if (lastSessionButtonActiveState && !sessionButtonActive && !sessionButtonUsed
-			    && !sessionView.gridFirstPadActive()) {
-
-				if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-					currentSong->endInstancesOfActiveClips(playbackHandler.getActualArrangementRecordPos());
-					// Must call before calling getArrangementRecordPos(), cos that detaches the cloned Clip
-					currentSong->resumeClipsClonedForArrangementRecording();
-					playbackHandler.recording = RECORDING_OFF;
-					view.setModLedStates();
-					playbackHandler.setLedStates();
-				}
-
-				sessionButtonUsed = false;
-			}
-		}
-	}
-
-	//clear and reset held params
-	else if (b == BACK && isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
-		if (on) {
-			return ActionResult::DEALT_WITH;
-			//backupPerformanceLayout();
-			//resetPerformanceView(modelStack);
-			//logPerformanceLayoutChange();
+			initPadPress(lastPadPress);
+			initParamToCC(paramToCC);
+			uiNeedsRendering(this);
 		}
 	}
 
 	//save midi mappings
 	else if (b == SAVE) {
 		if (on) {
-			return ActionResult::DEALT_WITH;
+			saveMidiFollowMappings();
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_MIDI_DEFAULTS_SAVED));
 		}
 	}
@@ -539,7 +455,7 @@ ActionResult MidiSessionView::buttonAction(deluge::hid::Button b, bool on, bool 
 	//load midi mappings
 	else if (b == LOAD) {
 		if (on) {
-			return ActionResult::DEALT_WITH;
+			loadMidiFollowMappings();
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_MIDI_DEFAULTS_LOADED));
 		}
 	}
@@ -550,19 +466,6 @@ ActionResult MidiSessionView::buttonAction(deluge::hid::Button b, bool on, bool 
 			display->setNextTransitionDirection(1);
 			soundEditor.setup();
 			openUI(&soundEditor);
-		}
-	}
-
-	//enter exit Horizontal Encoder Button Press UI Mode
-	//(not used yet, will be though!)
-	else if (b == X_ENC) {
-		if (on) {
-			enterUIMode(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON);
-		}
-		else {
-			if (isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
-				exitUIMode(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON);
-			}
 		}
 	}
 
@@ -592,20 +495,12 @@ ActionResult MidiSessionView::buttonAction(deluge::hid::Button b, bool on, bool 
 	}
 
 	//disable button presses for Vertical encoder
-	else if (b == Y_ENC) {
+	else if ((b == X_ENC) || (b == Y_ENC)) {
 		return ActionResult::DEALT_WITH;
 	}
 
 	else {
-
-		ActionResult buttonActionResult;
-		buttonActionResult = TimelineView::buttonAction(b, on, inCardRoutine);
-
-		//re-render grid if undoing an action (e.g. you previously loaded cc mappings)
-		if (on && (b == BACK)) {
-			uiNeedsRendering(this);
-		}
-		return buttonActionResult;
+		return TimelineView::buttonAction(b, on, inCardRoutine);
 	}
 	return ActionResult::DEALT_WITH;
 }
@@ -614,49 +509,46 @@ ActionResult MidiSessionView::padAction(int32_t xDisplay, int32_t yDisplay, int3
 	//if pad was pressed in main deluge grid (not sidebar)
 	if (xDisplay < kDisplayWidth) {
 		if (on) {
-			//display parameter name
-			Param::Kind paramKind = Param::Kind::NONE;
-			int32_t paramID = 0;
-
-			if (patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-				paramKind = Param::Kind::PATCHED;
-				paramID = patchedParamShortcuts[xDisplay][yDisplay];
-			}
-			else if (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-				paramKind = Param::Kind::UNPATCHED_SOUND;
-				paramID = unpatchedParamShortcuts[xDisplay][yDisplay];
-			}
-			else if (globalEffectableParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-				paramKind = Param::Kind::UNPATCHED_GLOBAL;
-				paramID = globalEffectableParamShortcuts[xDisplay][yDisplay];
-			}
-			if (paramKind != Param::Kind::NONE) {
-				renderParamDisplay(paramKind, paramID, paramToCC[xDisplay][yDisplay]);
-				lastPadPress.isActive = true;
-				lastPadPress.xDisplay = xDisplay;
-				lastPadPress.yDisplay = yDisplay;
-				lastPadPress.paramKind = paramKind;
-				lastPadPress.paramID = paramID;
-			}
+			//check if pad press corresponds to shortcut press
+			//if yes, display parameter name and learned status
+			potentialShortcutPadAction(xDisplay, yDisplay);
 		}
+		//let go of pad
 		else {
 			renderViewDisplay();
-			lastPadPress.isActive = false;
-			lastPadPress.xDisplay = kNoSelection;
-			lastPadPress.yDisplay = kNoSelection;
-			lastPadPress.paramKind = Param::Kind::NONE;
-			lastPadPress.paramID = kNoSelection;
+			initPadPress(lastPadPress);
 		}
 	}
 	return ActionResult::DEALT_WITH;
 }
 
-/// check if pad press corresponds to a shortcut pad on the grid
-bool MidiSessionView::isPadShortcut(int32_t xDisplay, int32_t yDisplay) {
-	return false;
+//check if pad press corresponds to shortcut press
+void MidiSessionView::potentialShortcutPadAction(int32_t xDisplay, int32_t yDisplay) {
+	Param::Kind paramKind = Param::Kind::NONE;
+	int32_t paramID = kNoSelection;
+
+	if (patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+		paramKind = Param::Kind::PATCHED;
+		paramID = patchedParamShortcuts[xDisplay][yDisplay];
+	}
+	else if (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+		paramKind = Param::Kind::UNPATCHED_SOUND;
+		paramID = unpatchedParamShortcuts[xDisplay][yDisplay];
+	}
+	else if (globalEffectableParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+		paramKind = Param::Kind::UNPATCHED_GLOBAL;
+		paramID = globalEffectableParamShortcuts[xDisplay][yDisplay];
+	}
+	if (paramKind != Param::Kind::NONE) {
+		renderParamDisplay(paramKind, paramID, paramToCC[xDisplay][yDisplay]);
+		lastPadPress.isActive = true;
+		lastPadPress.xDisplay = xDisplay;
+		lastPadPress.yDisplay = yDisplay;
+		lastPadPress.paramKind = paramKind;
+		lastPadPress.paramID = paramID;
+	}
 }
 
-/// Used to edit a pad's value in editing mode
 void MidiSessionView::selectEncoderAction(int8_t offset) {
 	return;
 }
@@ -714,7 +606,8 @@ ModelStackWithAutoParam* MidiSessionView::getModelStackWithParam(int32_t xDispla
 			modelStackWithParam = performanceSessionView.getModelStackWithParam(modelStack, paramID);
 		}
 	}
-	else if ((getRootUI() == &audioClipView) || (getRootUI() == &instrumentClipView) || (getRootUI() == &automationInstrumentClipView)) {
+	else if ((getRootUI() == &audioClipView) || (getRootUI() == &instrumentClipView)
+	         || (getRootUI() == &automationInstrumentClipView)) {
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 		InstrumentClip* clip = (InstrumentClip*)currentSong->currentClip;
 		Instrument* instrument = (Instrument*)clip->output;
@@ -767,4 +660,180 @@ ModelStackWithAutoParam* MidiSessionView::getModelStackWithParam(int32_t xDispla
 		}
 	}
 	return modelStackWithParam;
+}
+
+void MidiSessionView::updateMappingChangeStatus() {
+	anyChangesToSave = false;
+
+	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+			if (backupXMLParamToCC[xDisplay][yDisplay] != paramToCC[xDisplay][yDisplay]) {
+				anyChangesToSave = true;
+				break;
+			}
+		}
+	}
+
+	if (anyChangesToSave) {
+		indicator_leds::blinkLed(IndicatorLED::SAVE);
+	}
+	else {
+		indicator_leds::setLedState(IndicatorLED::SAVE, false);
+	}
+}
+
+/// update saved paramToCC mapping and update saved changes status
+void MidiSessionView::saveMidiFollowMappings() {
+	writeDefaultsToFile();
+	updateMappingChangeStatus();
+}
+
+/// create default XML file and write defaults
+/// I should check if file exists before creating one
+void MidiSessionView::writeDefaultsToFile() {
+	//MidiFollow.xml
+	int32_t error = storageManager.createXMLFile(MIDI_DEFAULTS_XML, true);
+	if (error) {
+		return;
+	}
+
+	//<defaults>
+	storageManager.writeOpeningTagBeginning(MIDI_DEFAULTS_TAG);
+	storageManager.writeOpeningTagEnd();
+
+	//<defaultCCMappings>
+	storageManager.writeOpeningTagBeginning(MIDI_DEFAULTS_CC_TAG);
+	storageManager.writeOpeningTagEnd();
+
+	writeDefaultMappingsToFile();
+
+	storageManager.writeClosingTag(MIDI_DEFAULTS_CC_TAG);
+
+	storageManager.writeClosingTag(MIDI_DEFAULTS_TAG);
+
+	storageManager.closeFileAfterWriting();
+
+	anyChangesToSave = false;
+}
+
+/// convert paramID to a paramName to write to XML
+void MidiSessionView::writeDefaultMappingsToFile() {
+	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+			bool writeTag = false;
+			char const* paramName;
+
+			if (patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+				paramName = ((Sound*)NULL)->Sound::paramToString(patchedParamShortcuts[xDisplay][yDisplay]);
+				writeTag = true;	
+			}
+			else if (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+				if ((unpatchedParamShortcuts[xDisplay][yDisplay] == Param::Unpatched::Sound::ARP_GATE)
+				|| (unpatchedParamShortcuts[xDisplay][yDisplay] == Param::Unpatched::Sound::PORTAMENTO)) {
+					paramName = ((Sound*)NULL)->Sound::paramToString(Param::Unpatched::START + unpatchedParamShortcuts[xDisplay][yDisplay]);
+				}
+				else {
+					paramName =
+						ModControllableAudio::paramToString(Param::Unpatched::START + unpatchedParamShortcuts[xDisplay][yDisplay]);
+				}
+				writeTag = true;
+			}
+			else if (globalEffectableParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+				paramName = GlobalEffectable::paramToString(Param::Unpatched::START + globalEffectableParamShortcuts[xDisplay][yDisplay]);
+				writeTag = true;			
+			}
+
+			if (writeTag) {
+				char buffer[10];
+				intToString(paramToCC[xDisplay][yDisplay], buffer);
+				storageManager.writeTag(paramName, buffer);
+
+				backupXMLParamToCC[xDisplay][yDisplay] = paramToCC[xDisplay][yDisplay];
+			}			
+		}
+	}
+}
+
+/// load saved layout, update change status
+void MidiSessionView::loadMidiFollowMappings() {
+	initPadPress(lastPadPress);
+	initParamToCC(paramToCC);
+	if (successfullyReadDefaultsFromFile) {
+		readDefaultsFromBackedUpFile();
+	}
+	else {
+		readDefaultsFromFile();
+	}
+	updateMappingChangeStatus();
+	uiNeedsRendering(this);
+}
+
+/// re-read defaults from backed up XML in memory in order to reduce SD Card IO
+void MidiSessionView::readDefaultsFromBackedUpFile() {
+	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+			paramToCC[xDisplay][yDisplay] = backupXMLParamToCC[xDisplay][yDisplay];
+		}
+	}
+}
+
+/// read defaults from XML
+void MidiSessionView::readDefaultsFromFile() {
+	//no need to keep reading from SD card after first load
+	if (successfullyReadDefaultsFromFile) {
+		return;
+	}
+
+	FilePointer fp;
+	//MIDIFollow.XML
+	bool success = storageManager.fileExists(MIDI_DEFAULTS_XML, &fp);
+	if (!success) {
+		return;
+	}
+
+	//<defaults>
+	int32_t error = storageManager.openXMLFile(&fp, MIDI_DEFAULTS_TAG);
+	if (error) {
+		return;
+	}
+
+	char const* tagName;
+	//step into the <defaultCCMappings> tag
+	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+		if (!strcmp(tagName, MIDI_DEFAULTS_CC_TAG)) {
+			readDefaultMappingsFromFile();
+		}
+		storageManager.exitTag();
+	}
+
+	storageManager.closeFile();
+
+	successfullyReadDefaultsFromFile = true;
+}
+
+/// compares param name tag to the list of params available are midi controllable
+/// if param is found, it loads the CC mapping info for that param into the view
+void MidiSessionView::readDefaultMappingsFromFile() {
+	char const* paramName;
+	char const* tagName;
+	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+			for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+				if (!strcmp(tagName, ((Sound*)NULL)->Sound::paramToString(patchedParamShortcuts[xDisplay][yDisplay]))) {
+					paramToCC[xDisplay][yDisplay] = storageManager.readTagOrAttributeValueInt();
+				}
+				else if (!strcmp(tagName, ((Sound*)NULL)->Sound::paramToString(Param::Unpatched::START + unpatchedParamShortcuts[xDisplay][yDisplay]))) {
+					paramToCC[xDisplay][yDisplay] = storageManager.readTagOrAttributeValueInt();
+				}
+				else if (!strcmp(tagName, ModControllableAudio::paramToString(Param::Unpatched::START + unpatchedParamShortcuts[xDisplay][yDisplay]))) {
+					paramToCC[xDisplay][yDisplay] = storageManager.readTagOrAttributeValueInt();
+				}
+				else if (!strcmp(tagName, GlobalEffectable::paramToString(Param::Unpatched::START + globalEffectableParamShortcuts[xDisplay][yDisplay]))) {
+					paramToCC[xDisplay][yDisplay] = storageManager.readTagOrAttributeValueInt();
+				}
+				backupXMLParamToCC[xDisplay][yDisplay] = paramToCC[xDisplay][yDisplay];
+			}
+		}		
+		storageManager.exitTag();
+	}
 }

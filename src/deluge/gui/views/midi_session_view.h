@@ -91,26 +91,31 @@ public:
 
 	ModelStackWithAutoParam* getModelStackWithParam(int32_t xDisplay, int32_t yDisplay);
 	void renderParamDisplay(Param::Kind paramKind, int32_t paramID, uint8_t ccNumber);
+	void updateMappingChangeStatus();
 
 private:
 	//initialize
+	void initPadPress(MidiPadPress& padPress);
+	void initParamToCC(uint8_t mapping[kDisplayWidth][kDisplayHeight]);
 
 	//rendering
 	void renderRow(uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
-	bool isMidiCCAssignedToParam();
 	void setCentralLEDStates();
 
 	//pad action
-	bool isPadShortcut(int32_t xDisplay, int32_t yDisplay);
+	void potentialShortcutPadAction(int32_t xDisplay, int32_t yDisplay);
 
-	/// write/load default values
+	// write/load default values
 	bool successfullyReadDefaultsFromFile;
 	bool anyChangesToSave;
-
-	// Members regarding rendering different layouts
-private:
-	bool sessionButtonActive = false;
-	bool sessionButtonUsed = false;
+	uint8_t backupXMLParamToCC[kDisplayWidth][kDisplayHeight];
+	void saveMidiFollowMappings();
+	void writeDefaultsToFile();
+	void writeDefaultMappingsToFile();
+	void loadMidiFollowMappings();
+	void readDefaultsFromBackedUpFile();
+	void readDefaultsFromFile();
+	void readDefaultMappingsFromFile();
 };
 
 extern MidiSessionView midiSessionView;

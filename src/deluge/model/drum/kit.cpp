@@ -1009,11 +1009,12 @@ void Kit::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevic
 	    && currentSong->isClipActive(instrumentClip); // Even if this comes out as false here, there are some
 	                                                  // special cases below where we might insist on making
 	                                                  // it true
-										  
+
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 
 		bool processMidiNote = false;
-		if (((getCurrentUI() == &instrumentClipView) || !on) && (channel == midiEngine.midiFollowChannel) && (midiEngine.midiFollow) && ((InstrumentClip*)currentSong->currentClip == instrumentClip)) {
+		if (((getCurrentUI() == &instrumentClipView) || !on) && (channel == midiEngine.midiFollowChannel)
+		    && (midiEngine.midiFollow) && ((InstrumentClip*)currentSong->currentClip == instrumentClip)) {
 			ModelStackWithNoteRow* modelStackWithNoteRow;
 			if (instrumentClip) {
 				modelStackWithNoteRow = instrumentClip->getNoteRowForDrum(modelStack, thisDrum);

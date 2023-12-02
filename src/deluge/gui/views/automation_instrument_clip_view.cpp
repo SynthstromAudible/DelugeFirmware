@@ -3010,7 +3010,7 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
 
 	else if (instrument->type == InstrumentType::AUDIO) {
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-		modelStack->addOtherTwoThingsButNoNoteRow(instrument->toModControllable(), &clip->paramManager);
+		    modelStack->addOtherTwoThingsButNoNoteRow(instrument->toModControllable(), &clip->paramManager);
 
 		if (modelStackWithThreeMainThings) {
 
@@ -3021,7 +3021,7 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
 			if (summary) {
 				ParamSet* paramSet = (ParamSet*)summary->paramCollection;
 				modelStackWithParam =
-					modelStackWithThreeMainThings->addParam(paramSet, summary, paramID, &paramSet->params[paramID]);
+				    modelStackWithThreeMainThings->addParam(paramSet, summary, paramID, &paramSet->params[paramID]);
 			}
 		}
 	}
