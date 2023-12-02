@@ -442,6 +442,7 @@ ActionResult MidiSessionView::buttonAction(deluge::hid::Button b, bool on, bool 
 			initPadPress(lastPadPress);
 			initMapping(paramToCC);
 			initMapping(previousKnobPos);
+			updateMappingChangeStatus();
 			uiNeedsRendering(this);
 		}
 	}
