@@ -1008,13 +1008,34 @@ void Kit::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevic
 	    && currentSong->isClipActive(instrumentClip); // Even if this comes out as false here, there are some
 	                                                  // special cases below where we might insist on making
 	                                                  // it true
+										  
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-		
-		//bool processMidiNote = (getCurrentUI() == &instrumentClipView) && (channel == midiSessionView.masterMidiChannel) && (midiSessionView.masterMidiMode);
+
+		bool processMidiNote = false;
+		if (((getCurrentUI() == &instrumentClipView) || !on) && (channel == midiSessionView.masterMidiChannel) && (midiSessionView.masterMidiMode) && ((InstrumentClip*)currentSong->currentClip == instrumentClip)) {
+			ModelStackWithNoteRow* modelStackWithNoteRow;
+			if (instrumentClip) {
+				modelStackWithNoteRow = instrumentClip->getNoteRowForDrum(modelStack, thisDrum);
+			}
+			else {
+				modelStackWithNoteRow = modelStack->addNoteRow(0, NULL);
+			}
+			if (modelStackWithNoteRow) {
+				NoteRow* thisNoteRow = modelStackWithNoteRow->getNoteRowAllowNull();
+				if (thisNoteRow) {
+					//bottom kit noteRowId = 0
+					//middle C3 note number = 60
+					//noteRowId + 60 = C3 up for kit sounds
+					if ((modelStackWithNoteRow->noteRowId + 60) == note) {
+						processMidiNote = true;
+					}
+				}
+			}
+		}
 
 		// If this is the "input" command, to sound / audition the Drum...
 		// Returns true if midi channel and note match the learned midi note
-		if (thisDrum->midiInput.equalsNoteOrCCAllowMPE(fromDevice, channel, note)) {
+		if (processMidiNote || thisDrum->midiInput.equalsNoteOrCCAllowMPE(fromDevice, channel, note)) {
 
 			// If MIDIDrum, outputting same note, then don't additionally do thru
 			if (doingMidiThru && thisDrum->type == DrumType::MIDI && ((MIDIDrum*)thisDrum)->channel == channel

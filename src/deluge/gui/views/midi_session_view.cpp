@@ -331,7 +331,7 @@ void MidiSessionView::renderViewDisplay() {
 		strncat(channelBuffer, l10n::get(l10n::String::STRING_FOR_MIDI_CHANNEL), 9);
 
 		char buffer[5];
-		intToString(masterMidiChannel, buffer);
+		intToString(masterMidiChannel + 1, buffer);
 
 		strncat(channelBuffer, buffer, 4);
 
