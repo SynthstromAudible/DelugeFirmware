@@ -1677,7 +1677,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 					ModelStackWithAutoParam* modelStackWithParam =
 					    getParamFromMIDIKnob(knob, modelStackWithThreeMainThings);
 
-					if (modelStackWithParam->autoParam) {
+					if (modelStackWithParam && modelStackWithParam->autoParam) {
 						int32_t newKnobPos;
 
 						if (knob->relative) {
@@ -1739,7 +1739,7 @@ void ModControllableAudio::offerReceivedCCToMidiFollow(ModelStackWithTimelineCou
 
 				ModelStackWithAutoParam* modelStackWithParam =
 				    midiSessionView.getModelStackWithParam(xDisplay, yDisplay);
-				if (modelStackWithParam->autoParam) {
+				if (modelStackWithParam && modelStackWithParam->autoParam) {
 					int32_t newKnobPos = calculateKnobPosForMidiTakeover(modelStackWithParam, modPos, value, nullptr,
 					                                                     true, xDisplay, yDisplay);
 
