@@ -370,8 +370,8 @@ constexpr int32_t kMaxMenuPatchCableValue = kMaxMenuValue * 100;
 constexpr int32_t kMinMenuPatchCableValue = -1 * kMaxMenuPatchCableValue;
 
 //metronome volume menu range : 22 to 27
-constexpr int32_t kMaxMenuMetronomeVolumeValue = 27;
-constexpr int32_t kMinMenuMetronomeVolumeValue = 22;
+constexpr int32_t kMaxMenuMetronomeVolumeValue = 50;
+constexpr int32_t kMinMenuMetronomeVolumeValue = 1;
 
 //
 

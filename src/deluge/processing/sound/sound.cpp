@@ -4293,8 +4293,11 @@ char const* Sound::paramToString(uint8_t param) {
 	case Param::Local::LPF_FREQ:
 		return "lpfFrequency";
 
+	case Param::Local::LPF_MORPH:
+		return "lpfMorph";
+
 	case Param::Local::HPF_MORPH:
-		return "HPFMorph";
+		return "hpfMorph";
 
 	case Param::Local::PITCH_ADJUST:
 		return "pitch";
