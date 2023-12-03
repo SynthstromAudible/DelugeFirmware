@@ -1,7 +1,9 @@
 # Community Features
 ## 1. Introduction
 
-Every time a Pull Request improves the community firmware it shall note down its achievements and usage in this document.
+Every time a Pull Request improves the community firmware it shall be noted down what it accomplishes and how it is used.
+
+Reference the 'Community Features Menu' section at the end of this document to understand what each entry is and their 7SEG abbreviations.
 
 ## 2. File Compatibility Warning
 In general, we try to maintain file compatibility with the official firmware. However, **files (including songs, presets, etc.) that use community features may not ever load correctly on the official firmware again**. Make sure to back up your SD card!
@@ -12,19 +14,19 @@ Here is a list of general improvements that have been made, ordered from newest 
 
 #### 3.1 - Patch Cable Modulation Resolution
 
-- ([#17]) Increase the resolution of "patch cables" between mod sources and destinations. (Adds two decimal points when modulating parameters).
+- ([#17]) Increase the resolution of "patch cables" between mod sources and destinations. This adds two decimal points when modulating parameters.
   	- This feature is `ON` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
 
 #### 3.2 - MPE
-- ([#29]) Bugfix to respect MPE zones in kit rows. In the official firmware kit rows with midi learned to a channel would be triggered by an MPE zone which uses that channel. With this change they respect zones in the same way as synth and midi clips. ([#512]) adds further fixes related to channels 0 and 15 always getting received as MPE.
+- ([#29]) Bugfix to respect MPE zones in kit rows. In the official firmware, kit rows with MIDI learned to a channel would be triggered by an MPE zone which uses that channel. With this change they respect zones in the same way as synth and MIDI clips. ([#512]) adds further fixes related to channels 0 and 15 always getting received as MPE.
 
-- ([#512]) Change handling of MPE expression when collapsed to a single midi channel. Previously y axis would still be sent as CC74 on single midi channels. This changes it to send CC1 instead, allowing for controllable behaviour on more non-MPE synths. Future work will make a menu to set this per device. 
+- ([#512]) Change handling of MPE expression when collapsed to a single MIDI channel. Previously Y axis would still be sent as CC74 on single MIDI channels. This changes it to send CC1 instead, allowing for controllable behaviour on more non-MPE synths. Future work will make a menu to set this per device. 
 
 #### 3.3 - MIDI
-- ([#47]) Extra MIDI ports on the USB interface for MPE. Port 2 shows in the midi device menu, and improves the usability of MPE-capable devices through the USB interface by allowing MPE zones to be sent to port 2 and non-MPE to be sent to port 1 (or vice versa). A third port is added for future use such as a desktop/mobile companion app, DAW control or Mackie HUI emulation. When USB for MIDI is plugged into the Deluge, you can browse these settings in `SETTINGS > MIDI > DEVICES > UPSTREAM USB PORT 1` or `UPSTREAM USB PORT 2`.
+- ([#47]) Extra MIDI ports on the USB interface for MPE. Port 2 shows in the MIDI device menu, and improves the usability of MPE-capable devices through the USB interface by allowing MPE zones to be sent to port 2 and non-MPE to be sent to port 1 (or vice versa). A third port is added for future use such as a desktop/mobile companion app, DAW control or Mackie HUI emulation. When USB for MIDI is plugged into the Deluge, you can browse these settings in `SETTINGS > MIDI > DEVICES > UPSTREAM USB PORT 1` or `UPSTREAM USB PORT 2`.
 
 #### 3.4 - Tempo
-- ([#178]) New option (`FINE TEMPO` in the Runtime Settings (Community Features) menu) to invert the push+turn behavior of the `TEMPO` encoder. With this option enabled the tempo changes by 1 when unpushed and 4 when pushed (vs 4 unpushed and 1 pushed in the official firmware).
+- ([#178]) New option (`FINE TEMPO` in the `COMMUNITY FEATURES` menu). Inverts the push+turn behavior of the `TEMPO` encoder. With this option enabled the tempo changes by 1 when unpushed and ~4 when pushed (vs ~4 unpushed and 1 pushed in the official firmware).
 	- This feature is `ON` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
 
 #### 3.5 - Kits
@@ -39,17 +41,17 @@ Here is a list of general improvements that have been made, ordered from newest 
 	- This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
 
 #### 3.7 - Mod Wheel
-- ([#512]) Incoming mod wheel on non-MPE synths now maps to `Y` axis
+- ([#512]) Incoming mod wheel MIDI data from non-MPE devices now maps to the `Y` axis.
 
 #### 3.9 - Enable Stutter Automation
 - ([#653]) Enabled ability to record stutter automation with mod (gold) encoder.
   	- This feature is not present in the v1.0.0 release.
 
 #### 3.8 - Visual Feedback on Value Changes with Mod Encoders and Increased Resolution for Value's in Menu's
-- ([#636]) Changing parameter values with Mod (Gold) Encoders now displays a pop-up with the current value of the Parameter. The Menu's for Parameters and Patch Cables have also been adjusted to show the same value range as displayed with the Mod Encoders.
+- ([#636]) Changing parameter values with Mod (Gold) Encoders now displays a pop-up with the current value of the parameter. The `SOUND` and `MODULATION` screens when parameter and modulation editing have also been adjusted to show the same value range as displayed with the Mod Encoders.
 	- This allows for better fine-tuning of values. 
 	- The value range displayed is 0-50 for non-MIDI parameters and 0-127 for MIDI parameters.
-	- Note: In the Menu, if you wish to scroll through the parameter value range faster at an accelerated rate of +/- 5, hold Shift while turning the Select Encoder.
+	- Note: In the Menu, if you wish to scroll through the parameter value range faster at an accelerated rate of +/- 5, hold `SHIFT` while turning the Select Encoder.
 
 #### 3.9 - Adjust Metronome Volume
 - ([#683]) The Metronome's volume now respects the song's volume and will increase and decrease in volume together with the Gold Volume Encoder.
@@ -62,7 +64,7 @@ Here is a list of features that have been added to the firmware as a list, group
 ### 4.1 - Song View Features
 
 #### 4.1.1 - Master Compressor
-- ([#630]) In the Song view, select `AFFECT ENTIRE` and `SIDECHAIN` modulation button, and adjust the upper gold encoder for a single knob compressor with auto makeup gain. For detailed editing, press the `SIDECHAIN`-related gold encoder. The top LED will become a compression meter.  Clicking the lower gold encoder will cycle through additional params: `RATIO` (displays actual ratio), `ATTACK` & `RELEASE` (shown in ms) and sidechain `HPF` (shown in Hz). The sidechain HPF is useful to remove some bass from the compressor level detection, which sounds like an increase in bass allowed through the compression.
+- ([#630]) In Song view, select `AFFECT ENTIRE` and the `SIDECHAIN`-related parameter button. Adjust the `UPPER` gold encoder for a single knob compressor with auto makeup gain (`ONE` mode). For detailed editing, press the `SIDECHAIN`-related gold encoder (`FULL` mode). The top LED will become a compression meter.  Clicking the `REVERB`-related lower gold encoder will cycle through additional params: `RATIO` (displays ratio), `ATTACK` & `RELEASE` (shown in milliseconds) and Sidechain `HPF` (shown in Hz). The sidechain HPF is useful to remove some bass from the compressor level detection, which sounds like an increase in bass allowed through the compression.
  
 	- `ATTACK`: 0ms - 63ms
 
@@ -77,11 +79,11 @@ Here is a list of features that have been added to the firmware as a list, group
 
 #### 4.1.2 - Change Row Colour
 
- - ([#163]) In Song View, pressing a clip row pad + `SHIFT` + turning `▼︎▲︎` changes the selected row color. This is the same shortcut like when setting the color in the clip view.
+ - ([#163]) In Song View, pressing a clip row pad + `SHIFT` + turning `▼︎▲︎` changes the selected row color. This is similar to the shortcut when setting the color while in a clip view.
 
 #### 4.1.3 - Fill Clips
 
- - ([#196]) Holding the status pad (mute pad) for a clip and pressing select brings up a clip type selection menu. The options are:
+ - ([#196]) Holding the status pad (mute pad) for a clip and pressing `SELECT` brings up a clip type selection menu. The options are:
     - Default (DEFA) - the default Deluge clip type.
 	- Fill (FILL) - Fill clip. It appears orange/cyan on the status pads, and when triggered it will schedule itself to start at such a time that it _finishes_ at the start of the next loop. If the fill clip is longer than the remaining time, it is triggered immediately at a point midway through. The loop length is set by the longest playing clip, or by the total length of a section times the repeat count set for that section. **Limitation**: a fill clip is still subject to the one clip per instrument behavior of the Deluge. Fill clips can steal an output from another fill, but they cannot steal from a non-fill. This can lead to some fills never starting since a default type clip has the needed instrument. This can be worked around by cloning the instrument to an independent copy.
 
@@ -135,11 +137,11 @@ This mode affects how the Deluge handles MIDI input for learned CC controls.
 
  - ([#170]) A new `TAKEOVER` submenu was created in the `MIDI` settings menu which consists of three modes that can be selected from:
 
-	**1. `JUMP`:** This is the default mode for the Deluge. As soon as a Midi encoder/Fader position is changed, the Deluge's internal encoder position/Parameter value jumps to the position of the Midi encoder/Fader.
+	**1. `JUMP`:** This is the default mode for the Deluge. As soon as a MIDI encoder/Fader position is changed, the Deluge's internal encoder position/Parameter value jumps to the position of the MIDI encoder/Fader.
 
-	**2. `PICKUP`:** The Deluge will ignore changes to its internal encoder position/Parameter value until the Midi encoder/Fader's position is equal to the Deluge encoder position. After which the Midi encoder/Fader will move in sync with the Deluge.
+	**2. `PICKUP`:** The Deluge will ignore changes to its internal encoder position/Parameter value until the MIDI encoder/Fader's position is equal to the Deluge encoder position. After which the MIDI encoder/Fader will move in sync with the Deluge.
 
-	**3. `SCALE`:** The Deluge will increase/decrease its internal encoder position/Parameter value relative to the change of the Midi encoder/Fader position and the amount of "runway" remaining on the Midi controller. Once the Midi controller reaches its maximum or minimum position, the Midi encoder/Fader will move in sync with the Deluge. The Deluge value will always decrease/increase in the same direction as the Midi controller.
+	**3. `SCALE`:** The Deluge will increase/decrease its internal encoder position/Parameter value relative to the change of the MIDI encoder/Fader position and the amount of "runway" remaining on the MIDI controller. Once the MIDI controller reaches its maximum or minimum position, the MIDI encoder/Fader will move in sync with the Deluge. The Deluge value will always decrease/increase in the same direction as the MIDI controller.
 
 #### 4.2.4 - Alternative Delay Types for Param Encoders (Gold encoders)
 - ([#282]) Ability to select in `COMMUNITY FEATURES` menu, which parameters are controlled when you click the `DELAY`-related golden encoders. The default (for upper and lower encoders) is `PINGPONG` (`ON/OFF`) and `TYPE` (`DIGITAL`/`ANALOG`), and you can modify it so the encoder clicks change the `SYNC TYPE` (`EVEN, TRIPLETS, DOTTED`) and `SYNC RATE` (`OFF, WHOLE, 2ND, 4TH, ETC`) respectively.
@@ -178,7 +180,7 @@ This mode affects how the Deluge handles MIDI input for learned CC controls.
 
 ### 4.3 - Instrument Clip View - General Features
 
-These features were added to the Instrument Clip View and affect Synth, Kit and Midi instrument clip types.
+These features were added to the Instrument Clip View and affect Synth, Kit and MIDI instrument clip types.
 
 #### 4.3.1 - New LFO Shapes
 LFO types added to the "LFO SHAPE" shortcut.
@@ -207,7 +209,7 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
  - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Automation View Documentation]
  - ([#241]) Automation Instrument Clip View is a new view that complements the existing Instrument Clip View.
 	- It is accessed from within the Clip View by pressing  `CLIP` (which will blink to indicate you are in the Automation View).
-	- You can edit Non-MPE Parameter Automation for Synth, Kit and Midi instrument clips on a per step basis at any zoom level.
+	- You can edit Non-MPE Parameter Automation for Synth, Kit and MIDI instrument clips on a per step basis at any zoom level.
 	- A `COMMUNITY FEATURES` sub-menu titled `AUTOMATION` was created to access a number of configurable settings for changes to existing behaviour.
 	- The three changes to existing behaviour included in this feature are: Clearing Clips, Nudging Notes and Shifting a Clip Horizontally.
  - Follow-up PR's: 
@@ -224,7 +226,7 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
 
 - ([#368]) Extends the probability system to set a row at a time. Hold an `AUDITION` pad and turn `SELECT` to change the whole rows probability. This is particularly useful in combination with the euclidean sequencing to get a semi random pattern going
 
-### 4.4 - Instrument Clip View - Synth/Midi/CV Clip Features
+### 4.4 - Instrument Clip View - Synth/MIDI/CV Clip Features
 
 #### 4.4.1 - Keyboard View
 
@@ -279,9 +281,9 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
 
 #### 4.6.3 - Manual Slicing / Lazy Chop
 
-- ([#198]) In the `SLICE` menu, press '◀︎▶︎' to enter `MANUAL SLICING`. When you press the green pad in the bottom left, it starts playing the first slice, and pressing any empty pad creates a new slice at the time you've pressed it. Turning `SELECT` to the left or pressing the `PAD` + `DELETE` button allows you to delete a slice.
+- ([#198]) In the `SLICE` menu, press `◀︎▶︎` to enter `MANUAL SLICING`. When you press the green pad in the bottom left, it starts playing the first slice, and pressing any empty pad creates a new slice at the time you've pressed it. Turning `SELECT` to the left or pressing the `PAD` + `DELETE` button allows you to delete a slice.
 
-- Turning '◀︎▶︎' allows you to adjust the start point of the slice. Additionally, turning `▼︎▲︎` transposes the slice by a semitone.
+- Turning `◀︎▶︎` allows you to adjust the start point of the slice. Additionally, turning `▼︎▲︎` transposes the slice by a semitone.
 
 - Follow-up PR: ([#210]) Changed to stop audio preview (played by the sample browser) when entering manual slicer mode.
 
@@ -296,9 +298,9 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
 
  - ([#141]) Holding `▼︎▲︎` down while turning `◀︎▶︎` will shift the waveform of an Audio clip, similar to Instrument clips.
 
-## 5. Runtime Settings aka Community Features Menu
+## 5. Community Features Menu (aka Runtime Settings)
 
-In the main menu of the Deluge (accessed by pressing both "SHIFT" + the "SELECT" encoder) there is the `COMMUNITY FEATURES` entry which allows you to turn features on and off as needed. Here is a list of all options and what they do:
+In the main menu of the Deluge (accessed by pressing both "SHIFT" + the "SELECT" encoder) there is the `COMMUNITY FEATURES` (OLED) or `FEAT` (7SEG) entry which allows you to turn features on and off as needed. Here is a list of all options as listed in OLED and 7SEG displays and what they do:
 
 * Drum Randomizer (DRUM)
 	* When On, the "AUDITION + RANDOM" shortcut is enabled.
@@ -335,7 +337,7 @@ In the main menu of the Deluge (accessed by pressing both "SHIFT" + the "SELECT"
 			1) use the select encoder; 
 			2) use the shift + shortcut pad combo; or
 			3) go back to the automation overview;
-* Allow Insecure Develop Sysex Messages (SYX)
+* Allow Insecure Develop Sysex Messages (SYSX)
   	* When On, the ability to load firmware over USB is enabled.
 * Sync Scaling Action (SCAL)
   	* When set to Fill, it changes the behaviour of the "SYNC-SCALING" button is changed to activate "FILL" mode. The original Sync Scaling button function is moved to "SHIFT" + "SYNC-SCALING".
@@ -343,10 +345,12 @@ In the main menu of the Deluge (accessed by pressing both "SHIFT" + the "SELECT"
   	* When On, In-Key and Isometric Keyboard layouts display incoming MIDI notes with their velocity.
 * Display Norns Layout (NORN)
   	* When On, all incoming notes are rendered consecutively as white pads with velocity as brightness.
-* Sticky Shift
+* Sticky Shift (STIC)
   	* When On, tapping shift briefly will enable sticky keys while a long press will keep it on. Enabling this setting will automatically enable "Light Shift" as well.
-* Light Shift
+* Light Shift (LIGH)
   	* When On, the Deluge will illuminate the shift button when shift is active. Mostly useful in conjunction with sticky shift.
+* Grain FX (GRFX)
+	* When On, `GRAIN` will be a selectable option in the `MOD FX TYPE` category. Resource intensive, recommended to only use one instance per song or resample and remove instance afterwards.	 
 
 ## 6. Sysex Handling
 
