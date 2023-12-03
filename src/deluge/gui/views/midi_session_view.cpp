@@ -667,7 +667,22 @@ ModelStackWithAutoParam* MidiSessionView::getModelStackWithParam(int32_t xDispla
 	int32_t paramID = kNoParamID;
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 
-	if ((getRootUI() == &sessionView) || (getRootUI() == &arrangerView) || (getRootUI() == &performanceSessionView)) {
+	Clip* clip = nullptr;
+	if (getRootUI() == &sessionView) {
+		clip = sessionView.getClipForLayout();
+	}
+	else if ((getRootUI() == &arrangerView)) {
+		if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW) && arrangerView.pressedClipInstanceOutput) {
+			clip = currentSong->getClipWithOutput(arrangerView.pressedClipInstanceOutput);
+		}
+	}
+	else {
+		clip = currentSong->currentClip;
+	}
+
+	if (!clip
+	    && ((getRootUI() == &sessionView) || (getRootUI() == &arrangerView)
+	        || (getRootUI() == &performanceSessionView))) {
 		ModelStackWithThreeMainThings* modelStack =
 		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
@@ -683,10 +698,9 @@ ModelStackWithAutoParam* MidiSessionView::getModelStackWithParam(int32_t xDispla
 			modelStackWithParam = performanceSessionView.getModelStackWithParam(modelStack, paramID);
 		}
 	}
-	else if ((getRootUI() == &audioClipView) || (getRootUI() == &instrumentClipView)
-	         || (getRootUI() == &automationInstrumentClipView)) {
+	else {
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-		InstrumentClip* clip = (InstrumentClip*)currentSong->currentClip;
+		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 		Instrument* instrument = (Instrument*)clip->output;
 
 		if (instrument->type == InstrumentType::SYNTH) {
@@ -733,7 +747,7 @@ ModelStackWithAutoParam* MidiSessionView::getModelStackWithParam(int32_t xDispla
 		}
 		if ((paramKind != Param::Kind::NONE) && (paramID != kNoParamID)) {
 			modelStackWithParam =
-			    automationInstrumentClipView.getModelStackWithParam(modelStack, clip, paramID, paramKind);
+			    automationInstrumentClipView.getModelStackWithParam(modelStack, instrumentClip, paramID, paramKind);
 		}
 	}
 	return modelStackWithParam;
