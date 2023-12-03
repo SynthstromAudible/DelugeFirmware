@@ -24,6 +24,7 @@
 
 Metronome::Metronome() {
 	sounding = false;
+	setVolume(25);
 }
 
 void Metronome::trigger(uint32_t newPhaseIncrement) {
@@ -39,17 +40,17 @@ void Metronome::render(StereoSample* buffer, uint16_t numSamples) {
 	}
 	int32_t volumePostFX;
 	if (currentSong) {
-		volumePostFX = getFinalParameterValueVolume(
-		                   1 << FlashStorage::defaultMetronomeVolume,
-		                   cableToLinearParamShortcut(currentSong->paramManager.getUnpatchedParamSet()->getValue(
+		volumePostFX =
+		    getFinalParameterValueVolume(
+		        134217728, cableToLinearParamShortcut(currentSong->paramManager.getUnpatchedParamSet()->getValue(
 		                       Param::Unpatched::GlobalEffectable::VOLUME)))
-		               >> 1;
+		    >> 1;
 	}
 	else {
 		volumePostFX = ONE_Q31;
 	}
 
-	q31_t high = multiply_32x32_rshift32(1 << FlashStorage::defaultMetronomeVolume, volumePostFX);
+	q31_t high = multiply_32x32_rshift32(metronomeVolume, volumePostFX);
 	StereoSample* thisSample = buffer;
 	StereoSample* bufferEnd = buffer + numSamples;
 	do {
