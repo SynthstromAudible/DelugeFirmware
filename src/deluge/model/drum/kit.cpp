@@ -1204,9 +1204,10 @@ bool Kit::shouldMidiFollow(ModelStackWithTimelineCounter* modelStack, Instrument
 		}
 		if (modelStackWithNoteRow) {
 			//bottom kit noteRowId = 0
-			//middle C1 note number = 36
+			//default middle C1 note number = 36
 			//noteRowId + 36 = C1 up for kit sounds
-			if ((modelStackWithNoteRow->noteRowId + 36) == note) {
+			//this is configurable through the default menu
+			if ((modelStackWithNoteRow->noteRowId + midiEngine.midiFollowKitRootNote) == note) {
 				return true;
 			}
 		}

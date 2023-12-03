@@ -399,6 +399,7 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_FOLLOW_TITLE, "FOLO"},
         {STRING_FOR_FOLLOW, "FOLO"},
         {STRING_FOR_CHANNEL, "CHAN"},
+        {STRING_FOR_FOLLOW_KIT_ROOT_NOTE, "KIT"},
 
     },
     &built_in::english,

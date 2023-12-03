@@ -119,6 +119,9 @@ namespace FlashStorage {
 120: gridAllowGreenSelection
 121: defaultGridActiveMode
 122: defaultMetronomeVolume
+123: midiFollow enable/disable
+124: midiFollow set follow channel
+125: midiFollow set kit root note
 */
 
 uint8_t defaultScale;
@@ -171,6 +174,7 @@ void resetSettings() {
 	midiEngine.midiThru = false;
 	midiEngine.midiFollow = false;
 	midiEngine.midiFollowChannel = 15;
+	midiEngine.midiFollowKitRootNote = 36;
 	midiEngine.midiTakeover = MIDITakeoverMode::JUMP;
 
 	for (auto& globalMIDICommand : midiEngine.globalMIDICommands) {
@@ -423,6 +427,7 @@ void readSettings() {
 
 	midiEngine.midiFollow = buffer[123];
 	midiEngine.midiFollowChannel = buffer[124];
+	midiEngine.midiFollowKitRootNote = buffer[125];
 }
 
 void writeSettings() {
@@ -536,6 +541,7 @@ void writeSettings() {
 
 	buffer[123] = midiEngine.midiFollow;
 	buffer[124] = midiEngine.midiFollowChannel;
+	buffer[125] = midiEngine.midiFollowKitRootNote;
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer, 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,

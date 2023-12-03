@@ -831,8 +831,10 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_MIDI_NOT_LEARNED, "Not Learned"},
         {STRING_FOR_MIDI_LEARN_CHANNEL, "\n Channel is: "},
 
+        //strings for midi follow menu
         {STRING_FOR_FOLLOW_TITLE, "Midi-Follow"},
         {STRING_FOR_FOLLOW, "Follow"},
+        {STRING_FOR_FOLLOW_KIT_ROOT_NOTE, "Kit Root Note"},
     },
 };
 } // namespace deluge::l10n::built_in

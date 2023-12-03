@@ -63,7 +63,8 @@ public:
 
 	bool midiThru;
 	bool midiFollow;
-	uint8_t midiFollowChannel;
+	int32_t midiFollowChannel;
+	int32_t midiFollowKitRootNote;
 	MIDITakeoverMode midiTakeover;
 
 	// shared buffer for formatting sysex messages.
