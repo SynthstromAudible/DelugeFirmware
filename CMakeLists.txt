@@ -48,15 +48,23 @@ execute_process(
 string(TIMESTAMP DATE_TODAY "%Y.%m.%d")
 
 # Build our version string
-set(BUILD_COMMIT_SHORT "${GIT_COMMIT_SHORT}") # Used in firmware
-set(BUILD_VERSION_STRING "${PROJECT_VERSION}${SEMVER_PRERELEASE_ID}-${GIT_COMMIT_SHORT}") # Used in firmware
-set(BUILD_VERSION_SUFFIX "-v${PROJECT_VERSION}${SEMVER_PRERELEASE_ID}+${DATE_TODAY}-${GIT_COMMIT_SHORT}") # Used for filename
+if(RELEASE_TYPE STREQUAL "release")
+    set(BUILD_COMMIT_SHORT "${GIT_COMMIT_SHORT}") # Used in firmware
+    set(BUILD_VERSION_STRING "c${PROJECT_VERSION}") # Used in firmware
+    set(BUILD_VERSION_SUFFIX "-c${PROJECT_VERSION}") # Used for filename
+else()
+    set(BUILD_COMMIT_SHORT "${GIT_COMMIT_SHORT}") # Used in firmware
+    set(BUILD_VERSION_STRING "${PROJECT_VERSION}${SEMVER_PRERELEASE_ID}-${GIT_COMMIT_SHORT}") # Used in firmware
+    set(BUILD_VERSION_SUFFIX "-v${PROJECT_VERSION}${SEMVER_PRERELEASE_ID}+${DATE_TODAY}-${GIT_COMMIT_SHORT}") # Used for filename
+endif()
 
 string(REPLACE "." "_" BUILD_VERSION_SUFFIX ${BUILD_VERSION_SUFFIX})
 
 if(NOT "${GIT_STATUS}" STREQUAL "")
-    string(APPEND BUILD_VERSION_SUFFIX "-dirty")
-    string(APPEND BUILD_VERSION_STRING "-dirty")
+    if(NOT RELEASE_TYPE STREQUAL "release")
+        string(APPEND BUILD_VERSION_SUFFIX "-dirty")
+        string(APPEND BUILD_VERSION_STRING "-dirty")
+    endif()
 endif()
 
 message(STATUS "Deluge version: v${BUILD_VERSION_STRING}")

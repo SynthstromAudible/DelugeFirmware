@@ -1,4 +1,4 @@
-name: RC Build
+name: Release Build
 
 on:
   workflow_dispatch: # allows manual triggering
@@ -12,8 +12,8 @@ on:
       - 'release/1.0'
 
 jobs:
-  rc-build:
+  release-build:
     uses: ./.github/workflows/build.yml
     with:
-      firmware-retention-days: 30
-      build-type: 'rc'
+      firmware-retention-days: 120
+      build-type: 'release'
