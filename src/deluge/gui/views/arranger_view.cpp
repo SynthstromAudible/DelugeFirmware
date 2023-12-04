@@ -91,6 +91,7 @@ ArrangerView::ArrangerView() {
 	lastInteractedOutputIndex = 0;
 	lastInteractedPos = -1;
 	lastInteractedSection = 0;
+	lastInteractedClipInstance = nullptr;
 }
 
 void ArrangerView::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {

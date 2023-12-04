@@ -673,7 +673,7 @@ ModelStackWithAutoParam* MidiSessionView::getModelStackWithParam(int32_t xDispla
 		clip = sessionView.getClipForLayout();
 	}
 	else if ((getRootUI() == &arrangerView)) {
-		if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW)) {
+		if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW) && arrangerView.lastInteractedClipInstance) {
 			clip = arrangerView.lastInteractedClipInstance->clip;
 		}
 	}
