@@ -1709,6 +1709,9 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 						//Set the new Parameter Value for the MIDI Learned Parameter
 						modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos,
 						                                                          modLength);
+
+						Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+						view.displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos);
 					}
 				}
 			}
@@ -1750,6 +1753,9 @@ void ModControllableAudio::offerReceivedCCToMidiFollow(ModelStackWithTimelineCou
 					//Set the new Parameter Value for the MIDI Learned Parameter
 					modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos,
 					                                                          modLength);
+
+					Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+					view.displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos);
 				}
 			}
 		}

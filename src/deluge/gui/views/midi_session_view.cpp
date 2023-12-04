@@ -683,19 +683,21 @@ ModelStackWithAutoParam* MidiSessionView::getModelStackWithParam(int32_t xDispla
 	if (!clip
 	    && ((getRootUI() == &sessionView) || (getRootUI() == &arrangerView)
 	        || (getRootUI() == &performanceSessionView))) {
-		ModelStackWithThreeMainThings* modelStack =
-		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+		if (currentSong->affectEntire) {
+			ModelStackWithThreeMainThings* modelStack =
+			    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
-		if (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-			paramKind = Param::Kind::UNPATCHED_SOUND;
-			paramID = unpatchedParamShortcuts[xDisplay][yDisplay];
-		}
-		else if (globalEffectableParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-			paramKind = Param::Kind::UNPATCHED_GLOBAL;
-			paramID = globalEffectableParamShortcuts[xDisplay][yDisplay];
-		}
-		if (paramID != kNoParamID) {
-			modelStackWithParam = performanceSessionView.getModelStackWithParam(modelStack, paramID);
+			if (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+				paramKind = Param::Kind::UNPATCHED_SOUND;
+				paramID = unpatchedParamShortcuts[xDisplay][yDisplay];
+			}
+			else if (globalEffectableParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+				paramKind = Param::Kind::UNPATCHED_GLOBAL;
+				paramID = globalEffectableParamShortcuts[xDisplay][yDisplay];
+			}
+			if (paramID != kNoParamID) {
+				modelStackWithParam = performanceSessionView.getModelStackWithParam(modelStack, paramID);
+			}
 		}
 	}
 	else {
@@ -750,6 +752,36 @@ ModelStackWithAutoParam* MidiSessionView::getModelStackWithParam(int32_t xDispla
 			    automationInstrumentClipView.getModelStackWithParam(modelStack, instrumentClip, paramID, paramKind);
 		}
 	}
+
+	if (!modelStackWithParam || !modelStackWithParam->autoParam) {
+		if (patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+			paramKind = Param::Kind::PATCHED;
+			paramID = patchedParamShortcuts[xDisplay][yDisplay];
+		}
+		else if (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+			paramKind = Param::Kind::UNPATCHED_SOUND;
+			paramID = unpatchedParamShortcuts[xDisplay][yDisplay];
+		}
+		else if (globalEffectableParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+			paramKind = Param::Kind::UNPATCHED_GLOBAL;
+			paramID = globalEffectableParamShortcuts[xDisplay][yDisplay];
+		}
+
+		if (display->haveOLED()) {
+			DEF_STACK_STRING_BUF(popupMsg, 40);
+
+			const char* name = getParamDisplayName(paramKind, paramID);
+			if (name != l10n::get(l10n::String::STRING_FOR_NONE)) {
+				popupMsg.append("Can't control: \n");
+				popupMsg.append(name);
+			}
+			display->displayPopup(popupMsg.c_str());
+		}
+		else {
+			display->displayPopup(l10n::get(l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
+		}
+	}
+
 	return modelStackWithParam;
 }
 
