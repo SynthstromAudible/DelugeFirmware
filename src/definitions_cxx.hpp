@@ -392,6 +392,8 @@ constexpr int32_t kParamNodeWidth = 3;
 constexpr int32_t kNumParamsForPerformance = 16;
 constexpr int32_t kParamValueIncrementForDelayAmount = kParamValueIncrementForAutomationSinglePadPress / 2;
 constexpr int32_t kMaxKnobPosForDelayAmount = (kMaxKnobPos / 2) - 1;
+constexpr int32_t kParamValueIncrementForQuantizedStutter = 15;
+constexpr int32_t kMinKnobPosForQuantizedStutter = 52;
 
 enum class PerformanceEditingMode : int32_t {
 	DISABLED,

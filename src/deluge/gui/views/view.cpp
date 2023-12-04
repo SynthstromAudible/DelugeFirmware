@@ -945,8 +945,7 @@ void View::displayModEncoderValuePopup(Param::Kind kind, int32_t paramID, int32_
 
 	//if turning stutter mod encoder and stutter quantize is enabled
 	//display stutter quantization instead of knob position
-	if (isParamQuantizedStutter(kind, paramID) && !isUIModeActive(UI_MODE_STUTTERING)) {
-		char buffer[10];
+	if (isParamQuantizedStutter(kind, paramID)) {
 		if (newKnobPos < -39) { // 4ths stutter: no leds turned on
 			popupMsg.append("4ths");
 		}

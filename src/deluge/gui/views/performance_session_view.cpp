@@ -559,18 +559,63 @@ void PerformanceSessionView::renderFXDisplay(Param::Kind paramKind, int32_t para
 			//display parameter value
 			yPos = yPos + 24;
 
-			char buffer[5];
-			intToString(knobPos, buffer);
-			deluge::hid::display::OLED::drawStringCentred(buffer, yPos, deluge::hid::display::OLED::oledMainImage[0],
-			                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+			if (view.isParamQuantizedStutter(paramKind, paramID)) {
+				char const* buffer;
+				if (knobPos < -39) { // 4ths stutter: no leds turned on
+					buffer = "4ths";
+				}
+				else if (knobPos < -14) { // 8ths stutter: 1 led turned on
+					buffer = "8ths";
+				}
+				else if (knobPos < 14) { // 16ths stutter: 2 leds turned on
+					buffer = "16ths";
+				}
+				else if (knobPos < 39) { // 32nds stutter: 3 leds turned on
+					buffer = "32nds";
+				}
+				else { // 64ths stutter: all 4 leds turned on
+					buffer = "64ths";
+				}
+				deluge::hid::display::OLED::drawStringCentred(buffer, yPos,
+				                                              deluge::hid::display::OLED::oledMainImage[0],
+				                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+			}
+			else {
+				char buffer[5];
+				intToString(knobPos, buffer);
+				deluge::hid::display::OLED::drawStringCentred(buffer, yPos,
+				                                              deluge::hid::display::OLED::oledMainImage[0],
+				                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+			}
 
 			deluge::hid::display::OLED::sendMainImage();
 		}
 		//7Seg Display
 		else {
-			char buffer[5];
-			intToString(knobPos, buffer);
-			display->displayPopup(buffer, 3, true);
+			if (view.isParamQuantizedStutter(paramKind, paramID)) {
+				char const* buffer;
+				if (knobPos < -39) { // 4ths stutter: no leds turned on
+					buffer = "4ths";
+				}
+				else if (knobPos < -14) { // 8ths stutter: 1 led turned on
+					buffer = "8ths";
+				}
+				else if (knobPos < 14) { // 16ths stutter: 2 leds turned on
+					buffer = "16ths";
+				}
+				else if (knobPos < 39) { // 32nds stutter: 3 leds turned on
+					buffer = "32nds";
+				}
+				else { // 64ths stutter: all 4 leds turned on
+					buffer = "64ths";
+				}
+				display->displayPopup(buffer, 3, true);
+			}
+			else {
+				char buffer[5];
+				intToString(knobPos, buffer);
+				display->displayPopup(buffer, 3, true);
+			}
 		}
 	}
 	onFXDisplay = true;
@@ -1208,8 +1253,14 @@ bool PerformanceSessionView::setParameterValue(ModelStackWithThreeMainThings* mo
 			}
 
 			if (renderDisplay) {
-				int32_t valueForDisplay = view.calculateKnobPosForDisplay(paramKind, paramID, knobPos + kKnobPosOffset);
-				renderFXDisplay(paramKind, paramID, valueForDisplay);
+				if (view.isParamQuantizedStutter(paramKind, paramID)) {
+					renderFXDisplay(paramKind, paramID, knobPos);
+				}
+				else {
+					int32_t valueForDisplay =
+					    view.calculateKnobPosForDisplay(paramKind, paramID, knobPos + kKnobPosOffset);
+					renderFXDisplay(paramKind, paramID, valueForDisplay);
+				}
 			}
 
 			return true;
@@ -1235,8 +1286,14 @@ void PerformanceSessionView::getParameterValue(ModelStackWithThreeMainThings* mo
 			int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
 
 			if (renderDisplay && (fxPress[xDisplay].currentKnobPosition != knobPos)) {
-				int32_t valueForDisplay = view.calculateKnobPosForDisplay(paramKind, paramID, knobPos + kKnobPosOffset);
-				renderFXDisplay(paramKind, paramID, valueForDisplay);
+				if (view.isParamQuantizedStutter(paramKind, paramID)) {
+					renderFXDisplay(paramKind, paramID, knobPos);
+				}
+				else {
+					int32_t valueForDisplay =
+					    view.calculateKnobPosForDisplay(paramKind, paramID, knobPos + kKnobPosOffset);
+					renderFXDisplay(paramKind, paramID, valueForDisplay);
+				}
 			}
 
 			if (fxPress[xDisplay].currentKnobPosition != knobPos) {
@@ -1268,13 +1325,15 @@ ModelStackWithAutoParam* PerformanceSessionView::getModelStackWithParam(ModelSta
 int32_t PerformanceSessionView::calculateKnobPosForSinglePadPress(int32_t xDisplay, int32_t yDisplay) {
 	int32_t newKnobPos = 0;
 
+	Param::Kind paramKind = defaultLayoutForPerformance[xDisplay].paramKind;
+	int32_t paramID = defaultLayoutForPerformance[xDisplay].paramID;
+
 	bool isDelayAmount =
-	    ((defaultLayoutForPerformance[xDisplay].paramKind == Param::Kind::UNPATCHED_GLOBAL)
-	     && (defaultLayoutForPerformance[xDisplay].paramID == Param::Unpatched::GlobalEffectable::DELAY_AMOUNT));
+	    ((paramKind == Param::Kind::UNPATCHED_GLOBAL) && (paramID == Param::Unpatched::GlobalEffectable::DELAY_AMOUNT));
 
 	//if you press bottom pad, value is 0, for all other pads except for the top pad, value = row Y * 18
 	//exception: delay amount increment is set to 9 by default
-	
+
 	if (yDisplay < 7) {
 		newKnobPos =
 		    yDisplay
@@ -1352,6 +1411,11 @@ int32_t PerformanceSessionView::calculateKnobPosForSelectEncoderTurn(int32_t kno
 	newKnobPos = newKnobPos - kKnobPosOffset;
 
 	return newKnobPos;
+}
+
+int32_t PerformanceSessionView::adjustKnobPosForQuantizedStutter(int32_t yDisplay) {
+	int32_t knobPos = -kMinKnobPosForQuantizedStutter + (yDisplay * kParamValueIncrementForQuantizedStutter);
+	return knobPos;
 }
 
 ActionResult PerformanceSessionView::horizontalEncoderAction(int32_t offset) {
@@ -1694,6 +1758,13 @@ void PerformanceSessionView::loadDefaultLayout() {
 		memcpy(&backupLayoutForPerformance[xDisplay], &defaultLayoutForPerformance[xDisplay], sizeParamsForPerformance);
 		memcpy(&backupXMLDefaultLayoutForPerformance[xDisplay], &defaultLayoutForPerformance[xDisplay],
 		       sizeParamsForPerformance);
+		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+			if (view.isParamQuantizedStutter(layoutForPerformance[xDisplay].paramKind,
+			                                 layoutForPerformance[xDisplay].paramID)) {
+				defaultFXValues[xDisplay][yDisplay] = adjustKnobPosForQuantizedStutter(yDisplay);
+				backupXMLDefaultFXValues[xDisplay][yDisplay] = defaultFXValues[xDisplay][yDisplay];
+			}
+		}
 	}
 	successfullyReadDefaultsFromFile = true;
 }
@@ -1778,6 +1849,11 @@ void PerformanceSessionView::readDefaultFXRowNumberValuesFromFile(int32_t xDispl
 				//check if a value greater than 64 was entered as a default value in xml file
 				if (defaultFXValues[xDisplay][yDisplay] > kKnobPosOffset) {
 					defaultFXValues[xDisplay][yDisplay] = kKnobPosOffset;
+				}
+
+				if (view.isParamQuantizedStutter(layoutForPerformance[xDisplay].paramKind,
+				                                 layoutForPerformance[xDisplay].paramID)) {
+					defaultFXValues[xDisplay][yDisplay] = adjustKnobPosForQuantizedStutter(yDisplay);
 				}
 
 				backupXMLDefaultFXValues[xDisplay][yDisplay] = defaultFXValues[xDisplay][yDisplay];
