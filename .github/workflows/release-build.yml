@@ -1,0 +1,19 @@
+name: Release Build
+
+on:
+  workflow_dispatch: # allows manual triggering
+  push:
+    branches:
+      - 'release/1.0'  
+  pull_request_target:
+    types:
+      - closed
+    branches:
+      - 'release/1.0'
+
+jobs:
+  release-build:
+    uses: ./.github/workflows/build.yml
+    with:
+      firmware-retention-days: 120
+      build-type: 'release'

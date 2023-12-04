@@ -16,15 +16,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: normal check out repo
-        if: inputs.build-type != 'nightly' && inputs.build-type != 'rc'
+        if: inputs.build-type != 'nightly' && inputs.build-type != 'release'
         uses: actions/checkout@v3
       - name: nightly check out repo
         if: inputs.build-type == 'nightly'
         uses: actions/checkout@v3
         with:
           ref: 'community'
-      - name: rc check out repo
-        if: inputs.build-type == 'rc'
+      - name: release check out repo
+        if: inputs.build-type == 'release'
         uses: actions/checkout@v3
         with:
           ref: 'release/1.0'
@@ -82,19 +82,19 @@ jobs:
           asset_name: deluge-nightly.zip # name to upload the release as, use $$ to insert date (YYYYMMDD) and 6 letter commit hash
           asset_content_type: application/zip # required by GitHub API
           max_releases: 30 # optional, if there are more releases than this matching the asset_name, the oldest ones are going to be deleted
-      - name: Create rc archive
-        if: inputs.build-type == 'rc'
+      - name: Create release archive
+        if: inputs.build-type == 'release'
         run: |
-          zip -j ./rc.zip build/Release/deluge*.bin
-      - name: Deploy rc zip to releases
-        if: inputs.build-type == 'rc'
+          zip -j ./release.zip build/Release/deluge*.bin
+      - name: Deploy release zip to releases
+        if: inputs.build-type == 'release'
         uses: WebFreak001/deploy-nightly@v2.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # automatically provided by github actions
         with:
           upload_url: https://uploads.github.com/repos/SynthstromAudible/DelugeFirmware/releases/123368988/assets{?name,label} # find out this value by opening https://api.github.com/repos/<owner>/<repo>/releases in your browser and copy the full "upload_url" value including the {?name,label} part
           release_id: 123368988 # same as above (id can just be taken out the upload_url, it's used to find old releases)
-          asset_path: ./rc.zip # path to archive to upload
-          asset_name: deluge-rc.zip # name to upload the release as, use $$ to insert date (YYYYMMDD) and 6 letter commit hash
+          asset_path: ./release.zip # path to archive to upload
+          asset_name: deluge-community-release.zip # name to upload the release as, use $$ to insert date (YYYYMMDD) and 6 letter commit hash
           asset_content_type: application/zip # required by GitHub API
           max_releases: 30 # optional, if there are more releases than this matching the asset_name, the oldest ones are going to be deleted

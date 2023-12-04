@@ -23,6 +23,7 @@
 #include "io/midi/midi_engine.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
+#include "processing/metronome/metronome.h"
 #include "util/functions.h"
 #include "util/misc.h"
 
@@ -424,6 +425,7 @@ void readSettings() {
 	    || defaultMetronomeVolume < kMinMenuMetronomeVolumeValue) {
 		defaultMetronomeVolume = kMaxMenuMetronomeVolumeValue;
 	}
+  AudioEngine::metronome.setVolume(defaultMetronomeVolume);
 
 	midiEngine.midiFollow = buffer[123];
 	midiEngine.midiFollowChannel = buffer[124];
