@@ -20,8 +20,11 @@
 #include "extern.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/root_ui.h"
+#include "gui/views/arranger_view.h"
+#include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/midi_session_view.h"
+#include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
@@ -324,8 +327,21 @@ justAuditionNote:
 }
 
 bool MelodicInstrument::shouldMidiFollow(bool on, int32_t midiChannel) {
-	return ((getCurrentUI() == &instrumentClipView) || !on) && (midiChannel == midiEngine.midiFollowChannel)
-	       && (midiEngine.midiFollow) && ((InstrumentClip*)currentSong->currentClip == (InstrumentClip*)activeClip);
+	Clip* clip = nullptr;
+	if (getRootUI() == &sessionView) {
+		clip = sessionView.getClipForLayout();
+	}
+	else if ((getRootUI() == &arrangerView)) {
+		if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW) && arrangerView.pressedClipInstanceOutput) {
+			clip = currentSong->getClipWithOutput(arrangerView.pressedClipInstanceOutput);
+		}
+	}
+	else {
+		clip = currentSong->currentClip;
+	}
+
+	return ((midiEngine.midiFollow && (midiChannel == midiEngine.midiFollowChannel))
+	        && (!on || ((InstrumentClip*)clip == (InstrumentClip*)activeClip)));
 }
 
 void MelodicInstrument::offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,

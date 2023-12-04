@@ -18,9 +18,11 @@
 #include "model/drum/kit.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/ui.h"
+#include "gui/views/arranger_view.h"
 #include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/midi_session_view.h"
+#include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "io/debug/print.h"
@@ -1193,8 +1195,21 @@ goingToRecordNoteOnEarly:
 
 bool Kit::shouldMidiFollow(ModelStackWithTimelineCounter* modelStack, InstrumentClip* instrumentClip, bool on,
                            int32_t channel, int32_t note, Drum* thisDrum) {
-	if (((getCurrentUI() == &instrumentClipView) || !on) && (channel == midiEngine.midiFollowChannel)
-	    && (midiEngine.midiFollow) && ((InstrumentClip*)currentSong->currentClip == instrumentClip)) {
+	Clip* clip = nullptr;
+	if (getRootUI() == &sessionView) {
+		clip = sessionView.getClipForLayout();
+	}
+	else if ((getRootUI() == &arrangerView)) {
+		if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW) && arrangerView.pressedClipInstanceOutput) {
+			clip = currentSong->getClipWithOutput(arrangerView.pressedClipInstanceOutput);
+		}
+	}
+	else {
+		clip = currentSong->currentClip;
+	}
+
+	if ((midiEngine.midiFollow && (channel == midiEngine.midiFollowChannel))
+	    && (!on || ((InstrumentClip*)clip == instrumentClip))) {
 		ModelStackWithNoteRow* modelStackWithNoteRow;
 		if (instrumentClip) {
 			modelStackWithNoteRow = instrumentClip->getNoteRowForDrum(modelStack, thisDrum);
