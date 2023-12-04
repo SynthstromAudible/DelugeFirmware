@@ -45,6 +45,7 @@
 #include "io/midi/midi_engine.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
+#include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
@@ -672,8 +673,8 @@ ModelStackWithAutoParam* MidiSessionView::getModelStackWithParam(int32_t xDispla
 		clip = sessionView.getClipForLayout();
 	}
 	else if ((getRootUI() == &arrangerView)) {
-		if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW) && arrangerView.pressedClipInstanceOutput) {
-			clip = currentSong->getClipWithOutput(arrangerView.pressedClipInstanceOutput);
+		if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW)) {
+			clip = arrangerView.lastInteractedClipInstance->clip;
 		}
 	}
 	else {
