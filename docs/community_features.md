@@ -175,7 +175,7 @@ This mode affects how the Deluge handles MIDI input for learned CC controls.
 
 #### 4.2.6 - Quantized Stutter
 
-- ([#357]) Set the stutter effect to be quantized to `4TH, 8TH, 16TH, 32ND, and 64TH` rate before triggering it.
+- ([#357]) Set the stutter effect to be quantized to `4TH, 8TH, 16TH, 32ND, and 64TH` rate before triggering it. Once you have pressed the `STUTTER`-related gold encoder, then the selected value will be the center value of the encoder and you can go up and down with the golden encoder and come back to the original rate by centering the encoder (LEDs will flash indicating it).
 
 	- This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
 
