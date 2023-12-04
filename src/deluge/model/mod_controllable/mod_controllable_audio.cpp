@@ -1710,8 +1710,10 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 						modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos,
 						                                                          modLength);
 
-						Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-						view.displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos);
+						if (midiEngine.midiFollowDisplayParam) {
+							Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+							view.displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos);
+						}
 					}
 				}
 			}
@@ -1754,8 +1756,10 @@ void ModControllableAudio::offerReceivedCCToMidiFollow(ModelStackWithTimelineCou
 					modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos,
 					                                                          modLength);
 
-					Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-					view.displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos);
+					if (midiEngine.midiFollowDisplayParam) {
+						Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+						view.displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos);
+					}
 				}
 			}
 		}

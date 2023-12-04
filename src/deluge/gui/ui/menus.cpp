@@ -75,6 +75,8 @@
 #include "gui/menu_item/midi/devices.h"
 #include "gui/menu_item/midi/follow/follow.h"
 #include "gui/menu_item/midi/follow/follow_channel.h"
+#include "gui/menu_item/midi/follow/follow_display_param.h"
+#include "gui/menu_item/midi/follow/follow_feedback.h"
 #include "gui/menu_item/midi/follow/follow_kit_root_note.h"
 #include "gui/menu_item/midi/input_differentiation.h"
 #include "gui/menu_item/midi/pgm.h"
@@ -838,6 +840,8 @@ midi::Takeover midiTakeoverMenu{STRING_FOR_TAKEOVER};
 midi::Follow midiFollowMenu{STRING_FOR_FOLLOW};
 midi::FollowChannel midiFollowChannelMenu{STRING_FOR_CHANNEL};
 midi::FollowKitRootNote midiFollowKitRootNoteMenu{STRING_FOR_FOLLOW_KIT_ROOT_NOTE};
+midi::FollowDisplayParam midiFollowDisplayParamMenu{STRING_FOR_FOLLOW_DISPLAY_PARAM};
+midi::FollowFeedback midiFollowFeedbackMenu{STRING_FOR_FOLLOW_FEEDBACK};
 
 Submenu midiFollowSubmenu{
     STRING_FOR_FOLLOW_TITLE,
@@ -846,6 +850,8 @@ Submenu midiFollowSubmenu{
         &midiFollowMenu,
         &midiFollowChannelMenu,
         &midiFollowKitRootNoteMenu,
+        &midiFollowDisplayParamMenu,
+        &midiFollowFeedbackMenu,
     },
 };
 

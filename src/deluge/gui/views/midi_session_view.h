@@ -92,6 +92,7 @@ public:
 
 	ModelStackWithAutoParam* getModelStackWithParam(int32_t xDisplay, int32_t yDisplay);
 	void learnCC(int32_t channel, int32_t ccNumber);
+	void sendCC(ModelStackWithAutoParam const* modelStack, int32_t value);
 
 	void readDefaultsFromFile();
 

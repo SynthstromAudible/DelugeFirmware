@@ -17,6 +17,8 @@
 
 #include "modulation/params/param_collection.h"
 #include "definitions_cxx.hpp"
+#include "gui/views/midi_session_view.h"
+#include "io/midi/midi_engine.h"
 #include "model/model_stack.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param_manager.h"
@@ -37,15 +39,19 @@ ParamCollection::~ParamCollection() {
 void ParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
                                                    bool automationChanged, bool automatedBefore, bool automatedNow) {
 
-	bool currentValueChanged = (oldValue != modelStack->autoParam->getCurrentValue());
+	int32_t currentValue = modelStack->autoParam->getCurrentValue();
+	bool currentValueChanged = (oldValue != currentValue);
 	if (currentValueChanged || automationChanged) {
 		modelStack->paramManager->notifyParamModifiedInSomeWay(modelStack, currentValueChanged, automationChanged,
 		                                                       automatedNow);
+		if (midiEngine.midiFollow && midiEngine.midiFollowFeedback) {
+			midiSessionView.sendCC(modelStack, currentValue);
+		}													   
 	}
 
 	if (automationChanged && automatedNow) {
 		ticksTilNextEvent = 0;
-	}
+	}	
 }
 
 bool ParamCollection::mayParamInterpolate(int32_t paramId) {

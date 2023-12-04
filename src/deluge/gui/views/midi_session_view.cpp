@@ -627,6 +627,44 @@ void MidiSessionView::cantLearn(int32_t channel) {
 	}
 }
 
+void MidiSessionView::sendCC(ModelStackWithAutoParam const* modelStack, int32_t value) {
+	DEF_STACK_STRING_BUF(popupMsg, 40);
+
+	Param::Kind paramKind = modelStack->paramCollection->getParamKind();
+
+	if ((paramKind == Param::Kind::PATCHED) || (paramKind == Param::Kind::UNPATCHED_SOUND)
+	    || (Param::Kind::UNPATCHED_GLOBAL)) {
+		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+			for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+				if (paramToCC[xDisplay][yDisplay] != kNoSelection) {
+					if (((paramKind == Param::Kind::PATCHED)
+					     && (patchedParamShortcuts[xDisplay][yDisplay] == modelStack->paramId))
+					    || ((paramKind == Param::Kind::UNPATCHED_SOUND)
+					        && (unpatchedParamShortcuts[xDisplay][yDisplay] == modelStack->paramId))
+					    || ((paramKind == Param::Kind::UNPATCHED_GLOBAL)
+					        && (globalEffectableParamShortcuts[xDisplay][yDisplay] == modelStack->paramId))) {
+
+						int32_t knobPos = modelStack->paramCollection->paramValueToKnobPos(
+						                      value, (ModelStackWithAutoParam*)modelStack)
+						                  + kKnobPosOffset;
+
+						/*popupMsg.append("CH: ");
+						popupMsg.appendInt(midiEngine.midiFollowChannel + 1);
+						popupMsg.append("; CC: ");
+						popupMsg.appendInt(paramToCC[xDisplay][yDisplay]);
+						popupMsg.append("; Val: ");
+						popupMsg.appendInt(knobPos);
+						display->displayPopup(popupMsg.c_str());*/
+
+						midiEngine.sendCC(midiEngine.midiFollowChannel, paramToCC[xDisplay][yDisplay], knobPos,
+						                  midiEngine.midiFollowChannel);
+					}
+				}
+			}
+		}
+	}
+}
+
 void MidiSessionView::selectEncoderAction(int8_t offset) {
 	return;
 }
