@@ -46,12 +46,12 @@ void ParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const
 		                                                       automatedNow);
 		if (midiEngine.midiFollow && midiEngine.midiFollowFeedback) {
 			midiSessionView.sendCC(modelStack, currentValue);
-		}													   
+		}
 	}
 
 	if (automationChanged && automatedNow) {
 		ticksTilNextEvent = 0;
-	}	
+	}
 }
 
 bool ParamCollection::mayParamInterpolate(int32_t paramId) {

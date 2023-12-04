@@ -1247,8 +1247,8 @@ bool PerformanceSessionView::setParameterValue(ModelStackWithThreeMainThings* mo
 			modelStackWithParam->autoParam->setValuePossiblyForRegion(newParameterValue, modelStackWithParam,
 			                                                          view.modPos, view.modLength);
 
-			if (!defaultEditingMode && (paramKind == Param::Kind::UNPATCHED_SOUND) && (paramID == Param::Unpatched::STUTTER_RATE)
-			    && (fxPress[xDisplay].previousKnobPosition != knobPos)) {
+			if (!defaultEditingMode && (paramKind == Param::Kind::UNPATCHED_SOUND)
+			    && (paramID == Param::Unpatched::STUTTER_RATE) && (fxPress[xDisplay].previousKnobPosition != knobPos)) {
 				((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
 				    ->beginStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
 			}

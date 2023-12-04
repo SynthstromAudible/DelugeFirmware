@@ -191,7 +191,6 @@ private:
 	ParamsForPerformance backupXMLDefaultLayoutForPerformance[kDisplayWidth];
 	int32_t backupXMLDefaultFXValues[kDisplayWidth][kDisplayHeight];
 
-	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithThreeMainThings* modelStack, int32_t paramID);
 	int32_t calculateKnobPosForSinglePadPress(int32_t xDisplay, int32_t yDisplay);
 	int32_t calculateKnobPosForSelectEncoderTurn(int32_t knobPos, int32_t offset);
 	int32_t adjustKnobPosForQuantizedStutter(int32_t yDisplay);
