@@ -16,6 +16,8 @@
 */
 #pragma once
 #include "gui/menu_item/integer.h"
+#include "processing/engines/audio_engine.h"
+#include "processing/metronome/metronome.h"
 #include "storage/flash_storage.h"
 
 namespace deluge::gui::menu_item::defaults {
@@ -25,6 +27,9 @@ public:
 	[[nodiscard]] int32_t getMinValue() const override { return kMinMenuMetronomeVolumeValue; }
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuMetronomeVolumeValue; }
 	void readCurrentValue() override { this->setValue(FlashStorage::defaultMetronomeVolume); }
-	void writeCurrentValue() override { FlashStorage::defaultMetronomeVolume = this->getValue(); }
+	void writeCurrentValue() override {
+		FlashStorage::defaultMetronomeVolume = this->getValue();
+		AudioEngine::metronome.setVolume(this->getValue());
+	}
 };
 } // namespace deluge::gui::menu_item::defaults
