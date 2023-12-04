@@ -376,15 +376,6 @@ constexpr int32_t kMinMenuMetronomeVolumeValue = 1;
 //Performance View and Automation View Constant
 constexpr uint32_t kNoParamID = 0xFFFFFFFF;
 
-//Performance View constant
-constexpr int32_t kNumParamsForPerformance = 16;
-
-enum class PerformanceEditingMode : int32_t {
-	DISABLED,
-	VALUE,
-	PARAM,
-};
-
 //Automation View constants
 constexpr int32_t kNoSelection = 255;
 constexpr int32_t kNumNonKitAffectEntireParamsForAutomation = 56;
@@ -396,6 +387,17 @@ constexpr int32_t kParamValueIncrementForAutomationSinglePadPress = 18;
 constexpr int32_t kParamValueIncrementForAutomationDisplay = 16;
 constexpr int32_t kParamNodeWidth = 3;
 //
+
+//Performance View constant
+constexpr int32_t kNumParamsForPerformance = 16;
+constexpr int32_t kParamValueIncrementForDelayAmount = kParamValueIncrementForAutomationSinglePadPress / 2;
+constexpr int32_t kMaxKnobPosForDelayAmount = (kMaxKnobPos / 2) - 1;
+
+enum class PerformanceEditingMode : int32_t {
+	DISABLED,
+	VALUE,
+	PARAM,
+};
 
 // Linear params have different sources multiplied together, then multiplied by the neutral value
 // -- and "volume" ones get squared at the end
