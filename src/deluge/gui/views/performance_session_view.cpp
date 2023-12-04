@@ -246,7 +246,7 @@ void PerformanceSessionView::initLayout(ParamsForPerformance& layout) {
 
 void PerformanceSessionView::initDefaultFXValues(int32_t xDisplay) {
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-		int32_t defaultFXValue = calculateKnobPosForSinglePadPress(yDisplay);
+		int32_t defaultFXValue = calculateKnobPosForSinglePadPress(xDisplay, yDisplay);
 		defaultFXValues[xDisplay][yDisplay] = defaultFXValue;
 		backupXMLDefaultFXValues[xDisplay][yDisplay] = defaultFXValue;
 	}
@@ -1263,18 +1263,27 @@ ModelStackWithAutoParam* PerformanceSessionView::getModelStackWithParam(ModelSta
 	return modelStackWithParam;
 }
 
-/// converts grid pad press yDisplay into a knobPosition value
+/// converts grid pad press yDisplay into a knobPosition value default
 /// this will likely need to be customized based on the parameter to create some more param appropriate ranges
-int32_t PerformanceSessionView::calculateKnobPosForSinglePadPress(int32_t yDisplay) {
+int32_t PerformanceSessionView::calculateKnobPosForSinglePadPress(int32_t xDisplay, int32_t yDisplay) {
 	int32_t newKnobPos = 0;
 
+	bool isDelayAmount =
+	    ((defaultLayoutForPerformance[xDisplay].paramKind == Param::Kind::UNPATCHED_GLOBAL)
+	     && (defaultLayoutForPerformance[xDisplay].paramID == Param::Unpatched::GlobalEffectable::DELAY_AMOUNT));
+
 	//if you press bottom pad, value is 0, for all other pads except for the top pad, value = row Y * 18
+	//exception: delay amount increment is set to 9 by default
+	
 	if (yDisplay < 7) {
-		newKnobPos = yDisplay * kParamValueIncrementForAutomationSinglePadPress;
+		newKnobPos =
+		    yDisplay
+		    * (isDelayAmount ? kParamValueIncrementForDelayAmount : kParamValueIncrementForAutomationSinglePadPress);
 	}
 	//if you are pressing the top pad, set the value to max (128)
+	//exception: delay amount max value is set to 63 by default
 	else {
-		newKnobPos = kMaxKnobPos;
+		newKnobPos = isDelayAmount ? kMaxKnobPosForDelayAmount : kMaxKnobPos;
 	}
 
 	//in the deluge knob positions are stored in the range of -64 to + 64, so need to adjust newKnobPos set above.

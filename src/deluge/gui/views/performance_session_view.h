@@ -161,6 +161,7 @@ private:
 	void resetPerformanceView(ModelStackWithThreeMainThings* modelStack);
 	void resetFXColumn(ModelStackWithThreeMainThings* modelStack, int32_t xDisplay);
 	bool isParamStutter(Param::Kind paramKind, int32_t paramID);
+	bool isParamDelay(Param::Kind paramKind, int32_t paramID);
 	void releaseStutter(ModelStackWithThreeMainThings* modelStack);
 
 	/// write/load default values
@@ -189,7 +190,7 @@ private:
 	int32_t backupXMLDefaultFXValues[kDisplayWidth][kDisplayHeight];
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithThreeMainThings* modelStack, int32_t paramID);
-	int32_t calculateKnobPosForSinglePadPress(int32_t yDisplay);
+	int32_t calculateKnobPosForSinglePadPress(int32_t xDisplay, int32_t yDisplay);
 	int32_t calculateKnobPosForSelectEncoderTurn(int32_t knobPos, int32_t offset);
 
 	PadPress firstPadPress;
