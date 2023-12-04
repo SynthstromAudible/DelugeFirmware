@@ -425,7 +425,7 @@ void readSettings() {
 	    || defaultMetronomeVolume < kMinMenuMetronomeVolumeValue) {
 		defaultMetronomeVolume = kMaxMenuMetronomeVolumeValue;
 	}
-  AudioEngine::metronome.setVolume(defaultMetronomeVolume);
+	AudioEngine::metronome.setVolume(defaultMetronomeVolume);
 
 	midiEngine.midiFollow = buffer[123];
 	midiEngine.midiFollowChannel = buffer[124];
