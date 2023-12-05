@@ -148,7 +148,6 @@ public:
 	bool grainInitialized;
 
 	Stutterer stutterer;
-	bool beginQuantizedStutter;
 
 	uint32_t lowSampleRatePos;
 	uint32_t highSampleRatePos;

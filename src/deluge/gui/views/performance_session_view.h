@@ -53,7 +53,20 @@ struct ParamsForPerformance {
 	int32_t yDisplay;
 	uint8_t rowColour[3];
 	uint8_t rowTailColour[3];
-	ParamsForPerformance(){};
+
+	ParamsForPerformance() {
+		paramKind = Param::Kind::NONE;
+		paramID = kNoSelection;
+		xDisplay = kNoSelection;
+		yDisplay = kNoSelection;
+		rowColour[0] = 0;
+		rowColour[1] = 0;
+		rowColour[2] = 0;
+		rowTailColour[0] = 0;
+		rowTailColour[1] = 0;
+		rowTailColour[2] = 0;
+	}
+
 	ParamsForPerformance(Param::Kind kind, ParamType param, int32_t x, int32_t y, const uint8_t colour[3],
 	                     const uint8_t tailColour[3]) {
 		paramKind = kind;

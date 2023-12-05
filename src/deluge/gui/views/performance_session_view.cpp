@@ -64,37 +64,37 @@ extern "C" {
 using namespace deluge;
 using namespace gui;
 
-const char* PERFORM_DEFAULTS_XML = "PerformanceView.XML";
-const char* PERFORM_DEFAULTS_TAG = "defaults";
-const char* PERFORM_DEFAULTS_FXVALUES_TAG = "defaultFXValues";
-const char* PERFORM_DEFAULTS_PARAM_TAG = "param";
-const char* PERFORM_DEFAULTS_NO_PARAM = "none";
-const char* PERFORM_DEFAULTS_HOLD_TAG = "hold";
-const char* PERFORM_DEFAULTS_HOLD_STATUS_TAG = "status";
-const char* PERFORM_DEFAULTS_HOLD_RESETVALUE_TAG = "resetValue";
-const char* PERFORM_DEFAULTS_ROW_TAG = "row";
-const char* PERFORM_DEFAULTS_ON = "On";
-const char* PERFORM_DEFAULTS_OFF = "Off";
+#define PERFORM_DEFAULTS_XML "PerformanceView.XML"
+#define PERFORM_DEFAULTS_TAG "defaults"
+#define PERFORM_DEFAULTS_FXVALUES_TAG "defaultFXValues"
+#define PERFORM_DEFAULTS_PARAM_TAG "param"
+#define PERFORM_DEFAULTS_NO_PARAM "none"
+#define PERFORM_DEFAULTS_HOLD_TAG "hold"
+#define PERFORM_DEFAULTS_HOLD_STATUS_TAG "status"
+#define PERFORM_DEFAULTS_HOLD_RESETVALUE_TAG "resetValue"
+#define PERFORM_DEFAULTS_ROW_TAG "row"
+#define PERFORM_DEFAULTS_ON "On"
+#define PERFORM_DEFAULTS_OFF "Off"
 
 //colours for performance view
 
-const uint8_t rowColourRed[3] = {255, 0, 0};            //LPF Cutoff, Resonance
-const uint8_t rowColourPastelOrange[3] = {221, 72, 13}; //HPF Cutoff, Resonance
-const uint8_t rowColourPastelYellow[3] = {170, 182, 0}; //EQ Bass, Treble
-const uint8_t rowColourPastelGreen[3] = {85, 182, 72};  //Reverb Amount
-const uint8_t rowColourPastelBlue[3] = {51, 109, 145};  //Delay Amount, Rate
-const uint8_t rowColourPastelPink[3] = {144, 72, 91};   //Mod FX Rate, Depth, Feedback, Offset
-const uint8_t rowColourPink[3] = {128, 0, 128};         //Decimation, Bitcrush
-const uint8_t rowColourBlue[3] = {0, 0, 255};           //Stutter
+constexpr uint8_t rowColourRed[3] = {255, 0, 0};            //LPF Cutoff, Resonance
+constexpr uint8_t rowColourPastelOrange[3] = {221, 72, 13}; //HPF Cutoff, Resonance
+constexpr uint8_t rowColourPastelYellow[3] = {170, 182, 0}; //EQ Bass, Treble
+constexpr uint8_t rowColourPastelGreen[3] = {85, 182, 72};  //Reverb Amount
+constexpr uint8_t rowColourPastelBlue[3] = {51, 109, 145};  //Delay Amount, Rate
+constexpr uint8_t rowColourPastelPink[3] = {144, 72, 91};   //Mod FX Rate, Depth, Feedback, Offset
+constexpr uint8_t rowColourPink[3] = {128, 0, 128};         //Decimation, Bitcrush
+constexpr uint8_t rowColourBlue[3] = {0, 0, 255};           //Stutter
 
-const uint8_t rowTailColourRed[3] = {53, 2, 2};           //LPF Cutoff, Resonance
-const uint8_t rowTailColourPastelOrange[3] = {46, 16, 2}; //HPF Cutoff, Resonance
-const uint8_t rowTailColourPastelYellow[3] = {36, 38, 2}; //EQ Bass, Treble
-const uint8_t rowTailColourPastelGreen[3] = {19, 38, 16}; //Reverb Amount
-const uint8_t rowTailColourPastelBlue[3] = {12, 23, 31};  //Delay Amount, Rate
-const uint8_t rowTailColourPastelPink[3] = {37, 15, 37};  //Mod FX Rate, Depth, Feedback, Offset
-const uint8_t rowTailColourPink[3] = {53, 0, 53};         //Decimation, Bitcrush
-const uint8_t rowTailColourBlue[3] = {2, 2, 53};          //Stutter
+constexpr uint8_t rowTailColourRed[3] = {53, 2, 2};           //LPF Cutoff, Resonance
+constexpr uint8_t rowTailColourPastelOrange[3] = {46, 16, 2}; //HPF Cutoff, Resonance
+constexpr uint8_t rowTailColourPastelYellow[3] = {36, 38, 2}; //EQ Bass, Treble
+constexpr uint8_t rowTailColourPastelGreen[3] = {19, 38, 16}; //Reverb Amount
+constexpr uint8_t rowTailColourPastelBlue[3] = {12, 23, 31};  //Delay Amount, Rate
+constexpr uint8_t rowTailColourPastelPink[3] = {37, 15, 37};  //Mod FX Rate, Depth, Feedback, Offset
+constexpr uint8_t rowTailColourPink[3] = {53, 0, 53};         //Decimation, Bitcrush
+constexpr uint8_t rowTailColourBlue[3] = {2, 2, 53};          //Stutter
 
 using namespace Param;
 using namespace Unpatched;
