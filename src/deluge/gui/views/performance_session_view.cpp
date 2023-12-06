@@ -941,6 +941,9 @@ void PerformanceSessionView::normalPadAction(ModelStackWithThreeMainThings* mode
 		else if ((fxPress[xDisplay].previousKnobPosition != kNoSelection) && (fxPress[xDisplay].yDisplay == yDisplay)
 		         && ((AudioEngine::audioSampleTimer - fxPress[xDisplay].timeLastPadPress) < kHoldTime)) {
 			fxPress[xDisplay].padPressHeld = true;
+		}
+		//no saving of logs in performance view value editing mode
+		if (!defaultEditingMode) {
 			logPerformanceViewPress(xDisplay);
 		}
 		updateLayoutChangeStatus();
@@ -1639,7 +1642,6 @@ void PerformanceSessionView::loadPerformanceViewLayout() {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* modelStack = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
-	backupPerformanceLayout();
 	resetPerformanceView(modelStack);
 	if (successfullyReadDefaultsFromFile) {
 		readDefaultsFromBackedUpFile();
@@ -1648,6 +1650,7 @@ void PerformanceSessionView::loadPerformanceViewLayout() {
 		readDefaultsFromFile();
 	}
 	actionLogger.deleteAllLogs();
+	backupPerformanceLayout();
 	updateLayoutChangeStatus();
 	uiNeedsRendering(this);
 }

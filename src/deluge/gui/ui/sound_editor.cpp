@@ -461,6 +461,12 @@ void SoundEditor::exitCompletely() {
 	// a bit ad-hoc but the current memory allocator
 	// is not happy with these strings being around
 	patchCablesMenu.options.clear();
+
+	//don't save any of the logs created while using the sound editor to edit param values
+	//in performance view value editing mode
+	if ((getRootUI() == &performanceSessionView) && (performanceSessionView.defaultEditingMode)) {
+		actionLogger.deleteAllLogs();
+	}
 }
 
 bool SoundEditor::findPatchedParam(int32_t paramLookingFor, int32_t* xout, int32_t* yout) {
