@@ -35,7 +35,7 @@
 #include "model/consequence/consequence_clip_begin_linear_record.h"
 #include "model/consequence/consequence_note_array_change.h"
 #include "model/consequence/consequence_param_change.h"
-#include "model/consequence/consequence_performance_layout_change.h"
+#include "model/consequence/consequence_performance_view_press.h"
 #include "model/consequence/consequence_swing_change.h"
 #include "model/consequence/consequence_tempo_change.h"
 #include "model/drum/kit.h"
@@ -302,19 +302,9 @@ void ActionLogger::recordTempoChange(uint64_t timePerBigBefore, uint64_t timePer
 	}
 }
 
-/// record changes to the layout in Performance View so that you can undo changes
-/// changes that can be undone:
-/// 1) loading a new layout
-/// 2) setting a pad to "hold"
-/// 3) value editor: changing pad values
-/// 4) param editor: changing FX assignments to pads
-void ActionLogger::recordPerformanceLayoutChange(PadPress& padPressBefore, PadPress& padPressAfter,
-                                                 FXColumnPress fxPressBefore[kDisplayWidth],
-                                                 FXColumnPress fxPressAfter[kDisplayWidth],
-                                                 ParamsForPerformance layoutBefore[kDisplayWidth],
-                                                 ParamsForPerformance layoutAfter[kDisplayWidth],
-                                                 int32_t valuesBefore[kDisplayWidth][kDisplayHeight],
-                                                 int32_t valuesAfter[kDisplayWidth][kDisplayHeight]) {
+/// Record Performance View Hold Press
+void ActionLogger::recordPerformanceViewPress(FXColumnPress fxPressBefore[kDisplayWidth],
+                                              FXColumnPress fxPressAfter[kDisplayWidth], int32_t xDisplay) {
 
 	Action* action = getNewAction(ACTION_PARAM_UNAUTOMATED_VALUE_CHANGE, true);
 
@@ -322,12 +312,11 @@ void ActionLogger::recordPerformanceLayoutChange(PadPress& padPressBefore, PadPr
 		return;
 	}
 
-	void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequencePerformanceLayoutChange));
+	void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequencePerformanceViewPress));
 
 	if (consMemory) {
-		ConsequencePerformanceLayoutChange* newConsequence = new (consMemory)
-		    ConsequencePerformanceLayoutChange(padPressBefore, padPressAfter, fxPressBefore, fxPressAfter, layoutBefore,
-		                                       layoutAfter, valuesBefore, valuesAfter);
+		ConsequencePerformanceViewPress* newConsequence =
+		    new (consMemory) ConsequencePerformanceViewPress(fxPressBefore, fxPressAfter, xDisplay);
 		action->addConsequence(newConsequence);
 	}
 }

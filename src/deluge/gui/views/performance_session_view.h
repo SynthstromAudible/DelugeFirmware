@@ -139,14 +139,12 @@ public:
 
 	//public so Action Logger can access it
 	void updateLayoutChangeStatus();
+	void initPadPress(PadPress& padPress);
 	PadPress lastPadPress;
 	FXColumnPress fxPress[kDisplayWidth];
-	ParamsForPerformance layoutForPerformance[kDisplayWidth];
-	int32_t defaultFXValues[kDisplayWidth][kDisplayHeight];
 
 private:
 	//initialize
-	void initPadPress(PadPress& padPress);
 	void initFXPress(FXColumnPress& columnPress);
 	void initLayout(ParamsForPerformance& layout);
 	void initDefaultFXValues(int32_t xDisplay);
@@ -207,18 +205,17 @@ private:
 	int32_t adjustKnobPosForQuantizedStutter(int32_t yDisplay);
 
 	PadPress firstPadPress;
+	ParamsForPerformance layoutForPerformance[kDisplayWidth];
+	int32_t defaultFXValues[kDisplayWidth][kDisplayHeight];
 	int32_t layoutBank;    //A or B (assign a layout to the bank for cross fader action)
 	int32_t layoutVariant; //1, 2, 3, 4, 5 (1 = Load, 2 = Synth, 3 = Kit, 4 = Midi, 5 = CV)
 
 	//backup current layout
 	void backupPerformanceLayout();
 	bool performanceLayoutBackedUp;
-	void logPerformanceLayoutChange();
+	void logPerformanceViewPress(int32_t xDisplay, bool closeAction = true);
 	bool anyChangesToLog();
-	PadPress backupLastPadPress;
 	FXColumnPress backupFXPress[kDisplayWidth];
-	ParamsForPerformance backupLayoutForPerformance[kDisplayWidth];
-	int32_t backupDefaultFXValues[kDisplayWidth][kDisplayHeight];
 
 	// Members regarding rendering different layouts
 private:

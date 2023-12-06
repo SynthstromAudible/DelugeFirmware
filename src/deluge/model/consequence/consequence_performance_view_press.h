@@ -20,19 +20,12 @@
 #include "model/consequence/consequence.h"
 #include <cstdint>
 
-class ConsequencePerformanceLayoutChange final : public Consequence {
+class ConsequencePerformanceViewPress final : public Consequence {
 public:
-	ConsequencePerformanceLayoutChange(PadPress& padPressBefore, PadPress& padPressAfter,
-	                                   FXColumnPress fxPressBefore[kDisplayWidth],
-	                                   FXColumnPress fxPressAfter[kDisplayWidth],
-	                                   ParamsForPerformance layoutBefore[kDisplayWidth],
-	                                   ParamsForPerformance layoutAfter[kDisplayWidth],
-	                                   int32_t valuesBefore[kDisplayWidth][kDisplayHeight],
-	                                   int32_t valuesAfter[kDisplayWidth][kDisplayHeight]);
+	ConsequencePerformanceViewPress(FXColumnPress fxPressBefore[kDisplayWidth],
+	                                FXColumnPress fxPressAfter[kDisplayWidth], int32_t xDisplay);
 	int32_t revert(TimeType time, ModelStack* modelStack);
 
-	PadPress lastPadPress[2];
-	FXColumnPress fxPress[kDisplayWidth][2];
-	ParamsForPerformance layoutForPerformance[kDisplayWidth][2];
-	int32_t defaultFXValues[kDisplayWidth][kDisplayHeight][2];
+	int32_t xDisplayChanged = kNoSelection;
+	FXColumnPress fxPress[2];
 };
