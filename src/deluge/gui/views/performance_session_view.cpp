@@ -843,10 +843,18 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 		buttonActionResult = TimelineView::buttonAction(b, on, inCardRoutine);
 
 		//release stutter if you press play - stutter needs to be turned on after playback is running
-		//re-render grid if undoing an action (e.g. you previously loaded layout)
+		//re-render grid, display if undoing/redoing an action (e.g. you previously loaded layout)
+		//update change status if undoing/redoing an action
 		if (on && (b == PLAY || b == BACK)) {
 			if (b == PLAY) {
 				releaseStutter(modelStack);
+			}
+			else if (b == BACK) {
+				initPadPress(lastPadPress);
+				updateLayoutChangeStatus();
+				if (onFXDisplay) {
+					renderViewDisplay();
+				}
 			}
 			uiNeedsRendering(this);
 		}

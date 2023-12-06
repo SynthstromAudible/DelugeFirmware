@@ -133,18 +133,17 @@ public:
 	//public so soundEditor can access it
 	void savePerformanceViewLayout();
 	void loadPerformanceViewLayout();
+	void updateLayoutChangeStatus();
 	bool defaultEditingMode;
 	bool editingParam; //if you're not editing a param, you're editing a value
 	bool justExitedSoundEditor;
 
 	//public so Action Logger can access it
-	void updateLayoutChangeStatus();
-	void initPadPress(PadPress& padPress);
-	PadPress lastPadPress;
 	FXColumnPress fxPress[kDisplayWidth];
 
 private:
 	//initialize
+	void initPadPress(PadPress& padPress);
 	void initFXPress(FXColumnPress& columnPress);
 	void initLayout(ParamsForPerformance& layout);
 	void initDefaultFXValues(int32_t xDisplay);
@@ -205,6 +204,7 @@ private:
 	int32_t adjustKnobPosForQuantizedStutter(int32_t yDisplay);
 
 	PadPress firstPadPress;
+	PadPress lastPadPress;
 	ParamsForPerformance layoutForPerformance[kDisplayWidth];
 	int32_t defaultFXValues[kDisplayWidth][kDisplayHeight];
 	int32_t layoutBank;    //A or B (assign a layout to the bank for cross fader action)

@@ -16,7 +16,6 @@
 */
 
 #include "model/consequence/consequence_performance_view_press.h"
-#include "hid/led/indicator_leds.h"
 #include "model/model_stack.h"
 
 ConsequencePerformanceViewPress::ConsequencePerformanceViewPress(FXColumnPress fxPressBefore[kDisplayWidth],
@@ -31,10 +30,6 @@ ConsequencePerformanceViewPress::ConsequencePerformanceViewPress(FXColumnPress f
 
 int32_t ConsequencePerformanceViewPress::revert(TimeType time, ModelStack* modelStack) {
 	memcpy(&performanceSessionView.fxPress[xDisplayChanged], &fxPress[time], sizeFXPress);
-
-	performanceSessionView.initPadPress(performanceSessionView.lastPadPress);
-	performanceSessionView.updateLayoutChangeStatus();
-	performanceSessionView.renderViewDisplay();
 
 	return NO_ERROR;
 }
