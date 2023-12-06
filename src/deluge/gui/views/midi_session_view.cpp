@@ -65,88 +65,9 @@ extern "C" {
 using namespace deluge;
 using namespace gui;
 
-const char* MIDI_DEFAULTS_XML = "MIDIFollow.XML";
-const char* MIDI_DEFAULTS_TAG = "defaults";
-const char* MIDI_DEFAULTS_CC_TAG = "defaultCCMappings";
-
-//grid sized arrays to assign automatable parameters to the grid
-
-const uint32_t patchedParamShortcuts[kDisplayWidth][kDisplayHeight] = {
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {Param::Local::OSC_A_VOLUME, Param::Local::OSC_A_PITCH_ADJUST, kNoParamID, Param::Local::OSC_A_PHASE_WIDTH,
-     kNoParamID, Param::Local::CARRIER_0_FEEDBACK, Param::Local::OSC_A_WAVE_INDEX, Param::Local::NOISE_VOLUME},
-    {Param::Local::OSC_B_VOLUME, Param::Local::OSC_B_PITCH_ADJUST, kNoParamID, Param::Local::OSC_B_PHASE_WIDTH,
-     kNoParamID, Param::Local::CARRIER_1_FEEDBACK, Param::Local::OSC_B_WAVE_INDEX, kNoParamID},
-    {Param::Local::MODULATOR_0_VOLUME, Param::Local::MODULATOR_0_PITCH_ADJUST, kNoParamID, kNoParamID, kNoParamID,
-     Param::Local::MODULATOR_0_FEEDBACK, kNoParamID, kNoParamID},
-    {Param::Local::MODULATOR_1_VOLUME, Param::Local::MODULATOR_1_PITCH_ADJUST, kNoParamID, kNoParamID, kNoParamID,
-     Param::Local::MODULATOR_1_FEEDBACK, kNoParamID, kNoParamID},
-    {Param::Global::VOLUME_POST_FX, kNoParamID, Param::Local::PITCH_ADJUST, Param::Local::PAN, kNoParamID, kNoParamID,
-     kNoParamID, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, Param::Local::FOLD},
-    {Param::Local::ENV_0_RELEASE, Param::Local::ENV_0_SUSTAIN, Param::Local::ENV_0_DECAY, Param::Local::ENV_0_ATTACK,
-     Param::Local::LPF_MORPH, kNoParamID, Param::Local::LPF_RESONANCE, Param::Local::LPF_FREQ},
-    {Param::Local::ENV_1_RELEASE, Param::Local::ENV_1_SUSTAIN, Param::Local::ENV_1_DECAY, Param::Local::ENV_1_ATTACK,
-     Param::Local::HPF_MORPH, kNoParamID, Param::Local::HPF_RESONANCE, Param::Local::HPF_FREQ},
-    {kNoParamID, kNoParamID, Param::Global::VOLUME_POST_REVERB_SEND, kNoParamID, kNoParamID, kNoParamID, kNoParamID,
-     kNoParamID},
-    {Param::Global::ARP_RATE, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {Param::Global::LFO_FREQ, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, Param::Global::MOD_FX_DEPTH,
-     Param::Global::MOD_FX_RATE},
-    {Param::Local::LFO_LOCAL_FREQ, kNoParamID, kNoParamID, Param::Global::REVERB_AMOUNT, kNoParamID, kNoParamID,
-     kNoParamID, kNoParamID},
-    {Param::Global::DELAY_RATE, kNoParamID, kNoParamID, Param::Global::DELAY_FEEDBACK, kNoParamID, kNoParamID,
-     kNoParamID, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID}};
-
-const uint32_t unpatchedParamShortcuts[kDisplayWidth][kDisplayHeight] = {
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, Param::Unpatched::SAMPLE_RATE_REDUCTION,
-     Param::Unpatched::BITCRUSHING, kNoParamID},
-    {Param::Unpatched::Sound::PORTAMENTO, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID,
-     kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, Param::Unpatched::COMPRESSOR_SHAPE, kNoParamID,
-     Param::Unpatched::BASS, Param::Unpatched::BASS_FREQ},
-    {kNoParamID, kNoParamID, Param::Unpatched::Sound::ARP_GATE, kNoParamID, kNoParamID, kNoParamID,
-     Param::Unpatched::TREBLE, Param::Unpatched::TREBLE_FREQ},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, Param::Unpatched::MOD_FX_OFFSET, Param::Unpatched::MOD_FX_FEEDBACK,
-     kNoParamID, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID}};
-
-const uint32_t globalEffectableParamShortcuts[kDisplayWidth][kDisplayHeight] = {
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {Param::Unpatched::GlobalEffectable::VOLUME, kNoParamID, Param::Unpatched::GlobalEffectable::PITCH_ADJUST,
-     Param::Unpatched::GlobalEffectable::PAN, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID,
-     Param::Unpatched::GlobalEffectable::LPF_RES, Param::Unpatched::GlobalEffectable::LPF_FREQ},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID,
-     Param::Unpatched::GlobalEffectable::HPF_RES, Param::Unpatched::GlobalEffectable::HPF_FREQ},
-    {kNoParamID, kNoParamID, Param::Unpatched::GlobalEffectable::SIDECHAIN_VOLUME, kNoParamID, kNoParamID, kNoParamID,
-     kNoParamID, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID,
-     Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH, Param::Unpatched::GlobalEffectable::MOD_FX_RATE},
-    {kNoParamID, kNoParamID, kNoParamID, Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT, kNoParamID, kNoParamID,
-     kNoParamID, kNoParamID},
-    {Param::Unpatched::GlobalEffectable::DELAY_RATE, kNoParamID, kNoParamID,
-     Param::Unpatched::GlobalEffectable::DELAY_AMOUNT, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID}};
+#define MIDI_DEFAULTS_XML "MIDIFollow.XML"
+#define MIDI_DEFAULTS_TAG "defaults"
+#define MIDI_DEFAULTS_CC_TAG "defaultCCMappings"
 
 MidiSessionView midiSessionView{};
 
@@ -162,6 +83,7 @@ MidiSessionView::MidiSessionView() {
 	initMapping(paramToCC);
 	initMapping(backupXMLParamToCC);
 	initMapping(previousKnobPos);
+	initMapping(previousCCValueSent);
 }
 
 void MidiSessionView::initPadPress(MidiPadPress& padPress) {
@@ -417,7 +339,7 @@ void MidiSessionView::setLedStates() {
 	view.setLedStates();    //inherited from session view
 	view.setModLedStates(); //inherited from session view
 
-	//performanceView specific LED settings
+	//midi session view specific LED settings
 	indicator_leds::setLedState(IndicatorLED::MIDI, true);
 
 	if (currentSong->lastClipInstanceEnteredStartPos != -1) {
@@ -627,8 +549,8 @@ void MidiSessionView::cantLearn(int32_t channel) {
 	}
 }
 
-void MidiSessionView::sendCC(ModelStackWithAutoParam const* modelStack, int32_t value) {
-	DEF_STACK_STRING_BUF(popupMsg, 40);
+void MidiSessionView::sendCCWithModelStack(ModelStackWithAutoParam const* modelStack, int32_t value) {
+	//DEF_STACK_STRING_BUF(popupMsg, 40);
 
 	Param::Kind paramKind = modelStack->paramCollection->getParamKind();
 
@@ -648,21 +570,53 @@ void MidiSessionView::sendCC(ModelStackWithAutoParam const* modelStack, int32_t 
 						                      value, (ModelStackWithAutoParam*)modelStack)
 						                  + kKnobPosOffset;
 
+						//	if (previousCCValueSent[xDisplay][yDisplay] != knobPos) {
 						/*popupMsg.append("CH: ");
-						popupMsg.appendInt(midiEngine.midiFollowChannel + 1);
-						popupMsg.append("; CC: ");
-						popupMsg.appendInt(paramToCC[xDisplay][yDisplay]);
-						popupMsg.append("; Val: ");
-						popupMsg.appendInt(knobPos);
-						display->displayPopup(popupMsg.c_str());*/
+							popupMsg.appendInt(midiEngine.midiFollowChannel + 1);
+							popupMsg.append("; CC: ");
+							popupMsg.appendInt(paramToCC[xDisplay][yDisplay]);
+							popupMsg.append("; Val: ");
+							popupMsg.appendInt(knobPos);
+							display->displayPopup(popupMsg.c_str());*/
 
 						midiEngine.sendCC(midiEngine.midiFollowChannel, paramToCC[xDisplay][yDisplay], knobPos,
 						                  midiEngine.midiFollowChannel);
+
+						//		previousCCValueSent[xDisplay][yDisplay] = knobPos;
+						//	}
 					}
 				}
 			}
 		}
 	}
+}
+
+void MidiSessionView::sendCCWithoutModelStack() {
+	//	if (view.activeModControllableModelStack.modControllable) {
+	//		if (view.activeModControllableModelStack.timelineCounterIsSet()) {
+	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+			if (paramToCC[xDisplay][yDisplay] != kNoSelection) {
+
+				ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(xDisplay, yDisplay, false);
+
+				if (modelStackWithParam && modelStackWithParam->autoParam) {
+					//	if (modelStackWithParam->getTimelineCounter()
+					//		== view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+
+					int32_t value =
+					    modelStackWithParam->autoParam->getValuePossiblyAtPos(view.modPos, modelStackWithParam);
+					int32_t knobPos =
+					    modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
+
+					midiEngine.sendCC(midiEngine.midiFollowChannel, paramToCC[xDisplay][yDisplay], knobPos, 0);
+					//}
+				}
+			}
+		}
+	}
+	//		}
+	//	}
 }
 
 void MidiSessionView::selectEncoderAction(int8_t offset) {
@@ -700,51 +654,109 @@ void MidiSessionView::modButtonAction(uint8_t whichButton, bool on) {
 	UI::modButtonAction(whichButton, on);
 }
 
-ModelStackWithAutoParam* MidiSessionView::getModelStackWithParam(int32_t xDisplay, int32_t yDisplay) {
+ModelStackWithAutoParam* MidiSessionView::getModelStackWithParam(int32_t xDisplay, int32_t yDisplay,
+                                                                 bool displayError) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-	Param::Kind paramKind = Param::Kind::NONE;
-	int32_t paramID = kNoParamID;
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	if (currentSong) {
+		Param::Kind paramKind = Param::Kind::NONE;
+		int32_t paramID = kNoParamID;
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 
-	Clip* clip = nullptr;
-	if (getRootUI() == &sessionView) {
-		clip = sessionView.getClipForLayout();
-	}
-	else if ((getRootUI() == &arrangerView)) {
-		if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW) && arrangerView.lastInteractedClipInstance) {
-			clip = arrangerView.lastInteractedClipInstance->clip;
+		Clip* clip = nullptr;
+		if (getRootUI() == &sessionView) {
+			clip = sessionView.getClipForLayout();
 		}
-	}
-	else {
-		clip = currentSong->currentClip;
-	}
-
-	if (!clip
-	    && ((getRootUI() == &sessionView) || (getRootUI() == &arrangerView)
-	        || (getRootUI() == &performanceSessionView))) {
-		if (currentSong->affectEntire) {
-			ModelStackWithThreeMainThings* modelStack =
-			    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-
-			if (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-				paramKind = Param::Kind::UNPATCHED_SOUND;
-				paramID = unpatchedParamShortcuts[xDisplay][yDisplay];
-			}
-			else if (globalEffectableParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-				paramKind = Param::Kind::UNPATCHED_GLOBAL;
-				paramID = globalEffectableParamShortcuts[xDisplay][yDisplay];
-			}
-			if (paramID != kNoParamID) {
-				modelStackWithParam = performanceSessionView.getModelStackWithParam(modelStack, paramID);
+		else if ((getRootUI() == &arrangerView)) {
+			if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW) && arrangerView.lastInteractedClipInstance) {
+				clip = arrangerView.lastInteractedClipInstance->clip;
 			}
 		}
-	}
-	else {
-		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
-		Instrument* instrument = (Instrument*)clip->output;
+		else {
+			clip = currentSong->currentClip;
+		}
 
-		if (instrument->type == InstrumentType::SYNTH) {
+		if (!clip
+		    && ((getRootUI() == &sessionView) || (getRootUI() == &arrangerView)
+		        || (getRootUI() == &performanceSessionView))) {
+			if (currentSong->affectEntire) {
+				ModelStackWithThreeMainThings* modelStack =
+				    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+
+				if (modelStack) {
+					if (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+						paramKind = Param::Kind::UNPATCHED_SOUND;
+						paramID = unpatchedParamShortcuts[xDisplay][yDisplay];
+					}
+					else if (globalEffectableParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+						paramKind = Param::Kind::UNPATCHED_GLOBAL;
+						paramID = globalEffectableParamShortcuts[xDisplay][yDisplay];
+					}
+					if (paramID != kNoParamID) {
+						modelStackWithParam = performanceSessionView.getModelStackWithParam(modelStack, paramID);
+					}
+				}
+			}
+		}
+		else {
+			//ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+			ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+			if (modelStack) {
+				ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
+				if (modelStackWithTimelineCounter) {
+					InstrumentClip* instrumentClip = (InstrumentClip*)clip;
+					Instrument* instrument = (Instrument*)clip->output;
+
+					if (instrument->type == InstrumentType::SYNTH) {
+						if (patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+							paramKind = Param::Kind::PATCHED;
+							paramID = patchedParamShortcuts[xDisplay][yDisplay];
+						}
+						else if (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+							paramKind = Param::Kind::UNPATCHED_SOUND;
+							paramID = unpatchedParamShortcuts[xDisplay][yDisplay];
+						}
+					}
+					else if (instrument->type == InstrumentType::KIT) {
+						if (!instrumentClipView.getAffectEntire()) {
+							if (patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+								paramKind = Param::Kind::PATCHED;
+								paramID = patchedParamShortcuts[xDisplay][yDisplay];
+							}
+							else if (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+								paramKind = Param::Kind::UNPATCHED_SOUND;
+								paramID = unpatchedParamShortcuts[xDisplay][yDisplay];
+							}
+						}
+						else {
+							if (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+								paramKind = Param::Kind::UNPATCHED_SOUND;
+								paramID = unpatchedParamShortcuts[xDisplay][yDisplay];
+							}
+							else if (globalEffectableParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+								paramKind = Param::Kind::UNPATCHED_GLOBAL;
+								paramID = globalEffectableParamShortcuts[xDisplay][yDisplay];
+							}
+						}
+					}
+					else if (instrument->type == InstrumentType::AUDIO) {
+						if (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+							paramKind = Param::Kind::UNPATCHED_SOUND;
+							paramID = unpatchedParamShortcuts[xDisplay][yDisplay];
+						}
+						else if (globalEffectableParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+							paramKind = Param::Kind::UNPATCHED_GLOBAL;
+							paramID = globalEffectableParamShortcuts[xDisplay][yDisplay];
+						}
+					}
+					if ((paramKind != Param::Kind::NONE) && (paramID != kNoParamID)) {
+						modelStackWithParam = automationInstrumentClipView.getModelStackWithParam(
+						    modelStackWithTimelineCounter, instrumentClip, paramID, paramKind);
+					}
+				}
+			}
+		}
+
+		if (displayError && (!modelStackWithParam || !modelStackWithParam->autoParam)) {
 			if (patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
 				paramKind = Param::Kind::PATCHED;
 				paramID = patchedParamShortcuts[xDisplay][yDisplay];
@@ -753,71 +765,24 @@ ModelStackWithAutoParam* MidiSessionView::getModelStackWithParam(int32_t xDispla
 				paramKind = Param::Kind::UNPATCHED_SOUND;
 				paramID = unpatchedParamShortcuts[xDisplay][yDisplay];
 			}
-		}
-		else if (instrument->type == InstrumentType::KIT) {
-			if (!instrumentClipView.getAffectEntire()) {
-				if (patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-					paramKind = Param::Kind::PATCHED;
-					paramID = patchedParamShortcuts[xDisplay][yDisplay];
-				}
-				else if (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-					paramKind = Param::Kind::UNPATCHED_SOUND;
-					paramID = unpatchedParamShortcuts[xDisplay][yDisplay];
-				}
-			}
-			else {
-				if (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-					paramKind = Param::Kind::UNPATCHED_SOUND;
-					paramID = unpatchedParamShortcuts[xDisplay][yDisplay];
-				}
-				else if (globalEffectableParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-					paramKind = Param::Kind::UNPATCHED_GLOBAL;
-					paramID = globalEffectableParamShortcuts[xDisplay][yDisplay];
-				}
-			}
-		}
-		else if (instrument->type == InstrumentType::AUDIO) {
-			if (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-				paramKind = Param::Kind::UNPATCHED_SOUND;
-				paramID = unpatchedParamShortcuts[xDisplay][yDisplay];
-			}
 			else if (globalEffectableParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
 				paramKind = Param::Kind::UNPATCHED_GLOBAL;
 				paramID = globalEffectableParamShortcuts[xDisplay][yDisplay];
 			}
-		}
-		if ((paramKind != Param::Kind::NONE) && (paramID != kNoParamID)) {
-			modelStackWithParam =
-			    automationInstrumentClipView.getModelStackWithParam(modelStack, instrumentClip, paramID, paramKind);
-		}
-	}
 
-	if (!modelStackWithParam || !modelStackWithParam->autoParam) {
-		if (patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-			paramKind = Param::Kind::PATCHED;
-			paramID = patchedParamShortcuts[xDisplay][yDisplay];
-		}
-		else if (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-			paramKind = Param::Kind::UNPATCHED_SOUND;
-			paramID = unpatchedParamShortcuts[xDisplay][yDisplay];
-		}
-		else if (globalEffectableParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-			paramKind = Param::Kind::UNPATCHED_GLOBAL;
-			paramID = globalEffectableParamShortcuts[xDisplay][yDisplay];
-		}
+			if (display->haveOLED()) {
+				DEF_STACK_STRING_BUF(popupMsg, 40);
 
-		if (display->haveOLED()) {
-			DEF_STACK_STRING_BUF(popupMsg, 40);
-
-			const char* name = getParamDisplayName(paramKind, paramID);
-			if (name != l10n::get(l10n::String::STRING_FOR_NONE)) {
-				popupMsg.append("Can't control: \n");
-				popupMsg.append(name);
+				const char* name = getParamDisplayName(paramKind, paramID);
+				if (name != l10n::get(l10n::String::STRING_FOR_NONE)) {
+					popupMsg.append("Can't control: \n");
+					popupMsg.append(name);
+				}
+				display->displayPopup(popupMsg.c_str());
 			}
-			display->displayPopup(popupMsg.c_str());
-		}
-		else {
-			display->displayPopup(l10n::get(l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
+			else {
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
+			}
 		}
 	}
 

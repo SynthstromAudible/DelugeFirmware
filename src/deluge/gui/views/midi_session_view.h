@@ -84,15 +84,17 @@ public:
 
 	//midi CC mappings
 	int32_t paramToCC[kDisplayWidth][kDisplayHeight];
+	int32_t previousCCValueSent[kDisplayWidth][kDisplayHeight];
 	int32_t previousKnobPos[kDisplayWidth][kDisplayHeight];
 	MidiPadPress lastPadPress;
 	int32_t currentCC;
 	bool onParamDisplay;
 	bool showLearnedParams;
 
-	ModelStackWithAutoParam* getModelStackWithParam(int32_t xDisplay, int32_t yDisplay);
+	ModelStackWithAutoParam* getModelStackWithParam(int32_t xDisplay, int32_t yDisplay, bool displayError = true);
 	void learnCC(int32_t channel, int32_t ccNumber);
-	void sendCC(ModelStackWithAutoParam const* modelStack, int32_t value);
+	void sendCCWithModelStack(ModelStackWithAutoParam const* modelStack, int32_t value);
+	void sendCCWithoutModelStack();
 
 	void readDefaultsFromFile();
 

@@ -30,6 +30,7 @@
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/midi_session_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "gui/waveform/waveform_renderer.h"
@@ -312,8 +313,16 @@ doActualSimpleChange:
 	}
 
 	else if (b == MIDI) {
-		newInstrumentType = InstrumentType::MIDI_OUT;
-		goto doChangeInstrumentType;
+		//enter midi view
+		if (on) {
+			if (Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
+				changeRootUI(&midiSessionView);
+			}
+			else {
+				newInstrumentType = InstrumentType::MIDI_OUT;
+				goto doChangeInstrumentType;
+			}
+		}
 	}
 
 	else if (b == CV) {

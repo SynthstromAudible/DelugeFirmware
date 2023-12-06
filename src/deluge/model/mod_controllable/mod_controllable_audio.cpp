@@ -1631,83 +1631,81 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 	}
 	else {
 		//if midi follow mode is enabled and current channel is the midi follow channel
-		//only allow CC's learned in midi session/learning view to control parameters
+		//allow CC's learned in midi session/learning view to control parameters
 		if ((midiEngine.midiFollow) && (channel == midiEngine.midiFollowChannel)) {
 			offerReceivedCCToMidiFollow(modelStack, channel, ccNumber, value);
 		}
-		else {
-			// For each MIDI knob...
-			for (int32_t k = 0; k < midiKnobArray.getNumElements(); k++) {
-				MIDIKnob* knob = midiKnobArray.getElement(k);
+		// For each MIDI knob...
+		for (int32_t k = 0; k < midiKnobArray.getNumElements(); k++) {
+			MIDIKnob* knob = midiKnobArray.getElement(k);
 
-				// If this is the knob...
-				if (knob->midiInput.equalsNoteOrCC(fromDevice, channel, ccNumber)) {
+			// If this is the knob...
+			if (knob->midiInput.equalsNoteOrCC(fromDevice, channel, ccNumber)) {
 
-					messageUsed = true;
+				messageUsed = true;
 
-					// See if this message is evidence that the knob is not "relative"
-					if (value >= 16 && value < 112) {
-						knob->relative = false;
-					}
-					// Only if this exact TimelineCounter is having automation step-edited, we can set the value for just a region.
-					int32_t modPos = 0;
-					int32_t modLength = 0;
+				// See if this message is evidence that the knob is not "relative"
+				if (value >= 16 && value < 112) {
+					knob->relative = false;
+				}
+				// Only if this exact TimelineCounter is having automation step-edited, we can set the value for just a region.
+				int32_t modPos = 0;
+				int32_t modLength = 0;
 
-					if (modelStack->timelineCounterIsSet()) {
-						if (view.modLength
-						    && modelStack->getTimelineCounter()
-						           == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
-							modPos = view.modPos;
-							modLength = view.modLength;
-						}
-
-						modelStack->getTimelineCounter()->possiblyCloneForArrangementRecording(modelStack);
+				if (modelStack->timelineCounterIsSet()) {
+					if (view.modLength
+					    && modelStack->getTimelineCounter()
+					           == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+						modPos = view.modPos;
+						modLength = view.modLength;
 					}
 
-					// Ok, that above might have just changed modelStack->timelineCounter. So we're basically starting from scratch now from that.
-					ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-					    addNoteRowIndexAndStuff(modelStack, noteRowIndex);
+					modelStack->getTimelineCounter()->possiblyCloneForArrangementRecording(modelStack);
+				}
 
-					ModelStackWithAutoParam* modelStackWithParam =
-					    getParamFromMIDIKnob(knob, modelStackWithThreeMainThings);
+				// Ok, that above might have just changed modelStack->timelineCounter. So we're basically starting from scratch now from that.
+				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+				    addNoteRowIndexAndStuff(modelStack, noteRowIndex);
 
-					if (modelStackWithParam && modelStackWithParam->autoParam) {
-						int32_t newKnobPos;
+				ModelStackWithAutoParam* modelStackWithParam =
+				    getParamFromMIDIKnob(knob, modelStackWithThreeMainThings);
 
-						if (knob->relative) {
-							int32_t offset = value;
-							if (offset >= 64) {
-								offset -= 128;
-							}
+				if (modelStackWithParam && modelStackWithParam->autoParam) {
+					int32_t newKnobPos;
 
-							int32_t previousValue =
-							    modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
-							int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(
-							    previousValue, modelStackWithParam);
-							int32_t lowerLimit = std::min(-64_i32, knobPos);
-							newKnobPos = knobPos + offset;
-							newKnobPos = std::max(newKnobPos, lowerLimit);
-							newKnobPos = std::min(newKnobPos, 64_i32);
-							if (newKnobPos == knobPos) {
-								continue;
-							}
-						}
-						else {
-							newKnobPos = calculateKnobPosForMidiTakeover(modelStackWithParam, modPos, value, knob);
+					if (knob->relative) {
+						int32_t offset = value;
+						if (offset >= 64) {
+							offset -= 128;
 						}
 
-						//Convert the New Knob Position to a Parameter Value
-						int32_t newValue =
-						    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
-
-						//Set the new Parameter Value for the MIDI Learned Parameter
-						modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos,
-						                                                          modLength);
-
-						if (midiEngine.midiFollowDisplayParam) {
-							Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-							view.displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos);
+						int32_t previousValue =
+						    modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
+						int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(
+						    previousValue, modelStackWithParam);
+						int32_t lowerLimit = std::min(-64_i32, knobPos);
+						newKnobPos = knobPos + offset;
+						newKnobPos = std::max(newKnobPos, lowerLimit);
+						newKnobPos = std::min(newKnobPos, 64_i32);
+						if (newKnobPos == knobPos) {
+							continue;
 						}
+					}
+					else {
+						newKnobPos = calculateKnobPosForMidiTakeover(modelStackWithParam, modPos, value, knob);
+					}
+
+					//Convert the New Knob Position to a Parameter Value
+					int32_t newValue =
+					    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
+
+					//Set the new Parameter Value for the MIDI Learned Parameter
+					modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos,
+					                                                          modLength);
+
+					if (midiEngine.midiFollowDisplayParam) {
+						Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+						view.displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos);
 					}
 				}
 			}

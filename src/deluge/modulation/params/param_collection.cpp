@@ -44,9 +44,9 @@ void ParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const
 	if (currentValueChanged || automationChanged) {
 		modelStack->paramManager->notifyParamModifiedInSomeWay(modelStack, currentValueChanged, automationChanged,
 		                                                       automatedNow);
-		if (midiEngine.midiFollow && midiEngine.midiFollowFeedback) {
-			midiSessionView.sendCC(modelStack, currentValue);
-		}
+		//	if (currentValueChanged && midiEngine.midiFollow && midiEngine.midiFollowFeedback) {
+		//		midiSessionView.sendCCWithModelStack(modelStack, currentValue);
+		//	}
 	}
 
 	if (automationChanged && automatedNow) {
