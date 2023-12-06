@@ -399,12 +399,7 @@ ActionResult MidiSessionView::buttonAction(deluge::hid::Button b, bool on, bool 
 	else if (b == MIDI) {
 		if (Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
 			if (on) {
-				if (currentSong->lastClipInstanceEnteredStartPos != -1) {
-					changeRootUI(&arrangerView);
-				}
-				else {
-					changeRootUI(&sessionView);
-				}
+				changeRootUI(&sessionView);
 			}
 		}
 		else {
