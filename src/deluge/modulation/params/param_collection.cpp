@@ -17,7 +17,6 @@
 
 #include "modulation/params/param_collection.h"
 #include "definitions_cxx.hpp"
-#include "gui/views/midi_session_view.h"
 #include "io/midi/midi_engine.h"
 #include "model/model_stack.h"
 #include "modulation/automation/auto_param.h"
@@ -44,9 +43,6 @@ void ParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const
 	if (currentValueChanged || automationChanged) {
 		modelStack->paramManager->notifyParamModifiedInSomeWay(modelStack, currentValueChanged, automationChanged,
 		                                                       automatedNow);
-		//	if (currentValueChanged && midiEngine.midiFollow && midiEngine.midiFollowFeedback) {
-		//		midiSessionView.sendCCWithModelStack(modelStack, currentValue);
-		//	}
 	}
 
 	if (automationChanged && automatedNow) {

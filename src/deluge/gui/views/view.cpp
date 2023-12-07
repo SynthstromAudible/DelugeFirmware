@@ -107,10 +107,6 @@ View::View() {
 }
 
 void View::focusRegained() {
-	//	if (midiEngine.midiFollow && midiEngine.midiFollowFeedback) {
-	//		midiSessionView.sendCCWithoutModelStack();
-	//	}
-
 	uiTimerManager.unsetTimer(TIMER_SHORTCUT_BLINK);
 	setTripletsLedState();
 

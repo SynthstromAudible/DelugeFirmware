@@ -340,7 +340,7 @@ void MidiSessionView::setLedStates() {
 	view.setModLedStates(); //inherited from session view
 
 	//midi session view specific LED settings
-	indicator_leds::setLedState(IndicatorLED::MIDI, true);
+	indicator_leds::blinkLed(IndicatorLED::MIDI);
 
 	if (currentSong->lastClipInstanceEnteredStartPos != -1) {
 		indicator_leds::blinkLed(IndicatorLED::SESSION_VIEW);
@@ -433,7 +433,12 @@ ActionResult MidiSessionView::buttonAction(deluge::hid::Button b, bool on, bool 
 	}
 
 	else {
-		return TimelineView::buttonAction(b, on, inCardRoutine);
+		ActionResult actionResult;
+		actionResult = TimelineView::buttonAction(b, on, inCardRoutine);
+		if (b == LEARN) {
+			indicator_leds::blinkLed(IndicatorLED::LEARN);
+		}
+		return actionResult;
 	}
 	return ActionResult::DEALT_WITH;
 }
