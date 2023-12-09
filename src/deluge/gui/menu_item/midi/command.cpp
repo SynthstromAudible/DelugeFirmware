@@ -68,7 +68,8 @@ void Command::drawPixelsForOled() {
 			int32_t channelmod = 0;
 			if (command->channelOrZone >= IS_A_PC) {
 				channelmod = IS_A_PC + IS_A_CC; // the great CC channel hack extended
-			} else if (command->channelOrZone >= IS_A_CC) {
+			}
+			else if (command->channelOrZone >= IS_A_CC) {
 				channelmod = IS_A_CC;
 			}
 			intToString(command->channelOrZone + 1 - channelmod, buffer, 1);
@@ -84,13 +85,13 @@ void Command::drawPixelsForOled() {
 			deluge::hid::display::OLED::drawString("Note", 0, yPixel, deluge::hid::display::OLED::oledMainImage[0],
 			                                       OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSizeYUpdated);
 		}
-		else if (command->channelOrZone < IS_A_PC){
+		else if (command->channelOrZone < IS_A_PC) {
 			deluge::hid::display::OLED::drawString("CC", 0, yPixel, deluge::hid::display::OLED::oledMainImage[0],
 			                                       OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSizeYUpdated);
-		} else {
+		}
+		else {
 			deluge::hid::display::OLED::drawString("PC", 0, yPixel, deluge::hid::display::OLED::oledMainImage[0],
 			                                       OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSizeYUpdated);
-
 		}
 
 		char buffer[12];

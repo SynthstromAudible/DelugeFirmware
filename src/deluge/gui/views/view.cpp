@@ -628,9 +628,6 @@ void View::noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channelOrZ
 
 		default:
 recordDetailsOfLearnedThing:
-char popupText[100];
-sprintf(popupText, "rdolt: %d %d %d ", fromDevice, channelOrZone, note);
-display->displayPopup(popupText);
 
 			learnedThing->device = fromDevice;
 			learnedThing->channelOrZone = channelOrZone;

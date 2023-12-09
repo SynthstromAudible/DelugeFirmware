@@ -1122,7 +1122,6 @@ bool SoundEditor::noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t cha
 	return getCurrentMenuItem()->learnNoteOn(fromDevice, channel, note);
 }
 
-
 bool SoundEditor::programChangeReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t program) {
 	return false;
 }

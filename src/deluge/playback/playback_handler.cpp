@@ -2523,13 +2523,14 @@ bool PlaybackHandler::tryGlobalMIDICommandsOff(MIDIDevice* device, int32_t chann
 }
 
 void PlaybackHandler::programChangeReceived(MIDIDevice* fromDevice, int32_t channel, int32_t program) {
-    // If user assigning MIDI commands, do that
-    if (currentUIMode == UI_MODE_MIDI_LEARN) {
-		if (getCurrentUI()->pcReceivedForMidiLearn(fromDevice, channel, program)) {
-		} else {
+	// If user assigning MIDI commands, do that
+	if (currentUIMode == UI_MODE_MIDI_LEARN) {
+		if (getCurrentUI()->pcReceivedForMidiLearn(fromDevice, channel, program)) {}
+		else {
 			view.pcReceivedForMIDILearn(fromDevice, channel, program);
 		}
-    } else {
+	}
+	else {
 		// we build ontop of the CC hack
 		tryGlobalMIDICommands(fromDevice, channel + IS_A_CC + IS_A_PC, program);
 	}
@@ -2543,8 +2544,8 @@ void PlaybackHandler::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32
 		// so no risk of stuck note if they pressed learn while holding a note
 		int32_t channelOrZone = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
 
-		if (getCurrentUI()->noteOnReceivedForMidiLearn(fromDevice, channelOrZone, note, velocity)) {
-		} else {
+		if (getCurrentUI()->noteOnReceivedForMidiLearn(fromDevice, channelOrZone, note, velocity)) {}
+		else {
 			view.noteOnReceivedForMidiLearn(fromDevice, channelOrZone, note, velocity);
 		}
 		return;
