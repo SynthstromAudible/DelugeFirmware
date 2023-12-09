@@ -520,6 +520,7 @@ inline void colorCopy(uint8_t* dest, uint8_t* src, uint8_t intensity, uint8_t br
 
 int32_t howMuchMoreMagnitude(uint32_t to, uint32_t from);
 void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutDot = NULL);
+void concatenateLines(const char* lines[], size_t numLines, char* resultString);
 double ConvertFromIeeeExtended(unsigned char* bytes /* LCN */);
 int32_t divide_round_negative(int32_t dividend, int32_t divisor);
 void dissectIterationDependence(int32_t probability, int32_t* getDivisor, int32_t* getWhichIterationWithinDivisor);
