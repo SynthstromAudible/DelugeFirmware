@@ -30,7 +30,7 @@ void RenameUI::displayText(bool blinkImmediately) {
 
 void RenameUI::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 
-	int32_t windowWidth = 100;
+	int32_t windowWidth = 120;
 	int32_t windowHeight = 40;
 
 	int32_t windowMinX = (OLED_MAIN_WIDTH_PIXELS - windowWidth) >> 1;
@@ -46,7 +46,7 @@ void RenameUI::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	deluge::hid::display::OLED::drawStringCentred(title, windowMinY + 6, image[0], OLED_MAIN_WIDTH_PIXELS,
 	                                              kTextSpacingX, kTextSpacingY);
 
-	int32_t maxNumChars = 12;
+	int32_t maxNumChars = 17; // "RENAME INSTRUMENT" should be the longest title string, so match that, so match that
 	int32_t charsWidthPixels = maxNumChars * kTextSpacingX;
 	int32_t charsStartPixel = (OLED_MAIN_WIDTH_PIXELS - charsWidthPixels) >> 1;
 	int32_t boxStartPixel = charsStartPixel - 3;

@@ -106,15 +106,15 @@ static uint32_t intc_icdicfrn_table[] = /* Initial value table of Interrupt Conf
 
 /******************************************************************************
 * Function Name: R_INTC_RegistIntFunc
-* Description  : Registers the function specified by the func to the element 
+* Description  : Registers the function specified by the func to the element
 *              : specified by the int_id in the INTC interrupt handler function
 *              : table.
 * Arguments    : uint16_t int_id         : Interrupt ID
 *              : void (* func)(uint32_t) : Function to be registered to INTC
 *              :                         : interrupt hander table
-* Return Value : DEVDRV_SUCCESS          : Success of registration of INTC 
+* Return Value : DEVDRV_SUCCESS          : Success of registration of INTC
 *              :                         : interrupt handler function
-*              : DEVDRV_ERROR            : Failure of registration of INTC 
+*              : DEVDRV_ERROR            : Failure of registration of INTC
 *              :                         : interrupt handler function
 ******************************************************************************/
 int32_t R_INTC_RegistIntFunc(uint16_t int_id, void (*func)(uint32_t int_sense))
@@ -133,7 +133,7 @@ int32_t R_INTC_RegistIntFunc(uint16_t int_id, void (*func)(uint32_t int_sense))
 /******************************************************************************
 * Function Name: R_INTC_Init
 * Description  : Executes initial setting for the INTC.
-*              : The interrupt mask level is set to 31 to receive interrupts 
+*              : The interrupt mask level is set to 31 to receive interrupts
 *              : with the interrupt priority level 0 to 30.
 * Arguments    : none
 * Return Value : none
@@ -263,9 +263,22 @@ int32_t R_INTC_Disable(uint16_t int_id)
     return DEVDRV_SUCCESS;
 }
 
+uint8_t R_INTC_Enabled(uint16_t int_id)
+{
+    if (int_id >= INTC_ID_TOTAL)
+    {
+        return false;
+    }
+
+    volatile uint32_t* addr = (volatile uint32_t*)&INTC.ICDICER0;
+    uint32_t mask           = 1 << (int_id & 31); /* Create mask data */
+
+    return ((*(addr + (int_id >> 5)) & mask) == mask) ? 1 : 0;
+}
+
 /******************************************************************************
 * Function Name: R_INTC_SetPriority
-* Description  : Sets the priority level of the ID specified by the int_id to 
+* Description  : Sets the priority level of the ID specified by the int_id to
 *              : the priority level specified by the priority.
 * Arguments    : uint16_t int_id   : Interrupt ID
 *              : uint8_t  priority : Interrupt priority level (0 to 31)
@@ -332,7 +345,7 @@ int32_t R_INTC_SetMaskLevel(uint8_t mask_level)
 
 /******************************************************************************
 * Function Name: R_INTC_GetMaskLevel
-* Description  : Obtains the setting value of the interrupt mask level, and 
+* Description  : Obtains the setting value of the interrupt mask level, and
 *              : returns the obtained value to the mask_level.
 * Arguments    : uint8_t * mask_level : Interrupt mask level (0 to 31)
 * Return Value : none
@@ -345,10 +358,10 @@ void R_INTC_GetMaskLevel(uint8_t* mask_level)
 
 /******************************************************************************
 * Function Name: R_INTC_GetPendingStatus
-* Description  : Obtains the interrupt state of the interrupt specified by 
+* Description  : Obtains the interrupt state of the interrupt specified by
 *              : int_id, and returns the obtained value to the *icdicpr.
 * Arguments    : uint16_t int_id    : Interrupt ID
-*              : uint32_t * icdicpr : Interrupt state of the interrupt 
+*              : uint32_t * icdicpr : Interrupt state of the interrupt
 *              :                    : specified by int_id
 *              :                    :   1 : Pending or active and pending
 *              :                    :   0 : Not pending
@@ -378,7 +391,7 @@ int32_t R_INTC_GetPendingStatus(uint16_t int_id, uint32_t* icdicpr)
 
 /******************************************************************************
 * Function Name: R_INTC_SetConfiguration
-* Description  : Sets the interrupt detection mode of the ID specified by the 
+* Description  : Sets the interrupt detection mode of the ID specified by the
 *              : int_id to the detection mode specified by the int_sense.
 * Arguments    : uint16_t int_id    : Interrupt ID (INTC_ID_TINT0 to INTC_ID_TINT170)
 *              : uint32_t int_sense : Interrupt detection

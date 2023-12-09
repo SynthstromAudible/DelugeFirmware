@@ -63,8 +63,7 @@ uint8_t DelayBuffer::init(uint32_t newRate, uint32_t failIfThisSize, bool includ
 	sizeIncludingExtra = size + (includeExtraSpace ? delaySpaceBetweenReadAndWrite : 0);
 	AudioEngine::logAction("DelayBuffer::init before");
 
-	bufferStart = (StereoSample*)GeneralMemoryAllocator::get().alloc(sizeIncludingExtra * sizeof(StereoSample), NULL,
-	                                                                 false, true);
+	bufferStart = (StereoSample*)GeneralMemoryAllocator::get().allocLowSpeed(sizeIncludingExtra * sizeof(StereoSample));
 	AudioEngine::logAction("DelayBuffer::init after");
 	if (bufferStart == 0) {
 		return ERROR_INSUFFICIENT_RAM;
@@ -134,8 +133,10 @@ void DelayBuffer::setupForRender(int32_t userDelayRate, DelayBufferSetup* setup)
 
 	if (isResampling) {
 
-		setup->actualSpinRate = ((uint64_t)userDelayRate << 24) / nativeRate; // 1 is represented as 16777216
-		setup->divideByRate = 0xFFFFFFFF / (setup->actualSpinRate >> 8);      // 1 is represented as 65536
+		setup->actualSpinRate =
+		    (uint64_t)((double)((uint64_t)userDelayRate << 24) / (double)nativeRate); // 1 is represented as 16777216
+		setup->divideByRate =
+		    (uint32_t)((double)0xFFFFFFFF / (double)(setup->actualSpinRate >> 8)); // 1 is represented as 65536
 
 		// If buffer spinning slow
 		if (setup->actualSpinRate < 16777216) {
@@ -150,9 +151,10 @@ void DelayBuffer::setupForRender(int32_t userDelayRate, DelayBufferSetup* setup)
 			// because more of that means more "triangle area", or more stuff written each time.
 			//uint32_t delayWriteSizeAdjustment2 = (((uint32_t)delay.speed << 16) / (((uint32_t)(speedMultiple >> 2) * (uint32_t)(speedMultiple >> 2)) >> 11));
 			setup->writeSizeAdjustment =
-			    (uint32_t)0xFFFFFFFF
-			    / (setup->rateMultiple
-			       * (timesSlowerRead + 1)); // Equivalent to one order of magnitude bigger than the above line
+			    (uint32_t)((double)0xFFFFFFFF
+			               / (double)(setup->rateMultiple
+			                          * (timesSlowerRead
+			                             + 1))); // Equivalent to one order of magnitude bigger than the above line
 		}
 
 		// If buffer spinning fast

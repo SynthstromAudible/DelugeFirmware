@@ -54,5 +54,13 @@ public:
 	bool have7SEG() { return false; }
 };
 
+extern "C" void freezeWithError(char const* error) {
+	display->freezeWithError(error);
+}
+
+extern "C" void displayPopup(char const* text) {
+	display->displayPopup(text);
+}
+
 MockDisplay mockdisplay;
 deluge::hid::Display* display = &mockdisplay;

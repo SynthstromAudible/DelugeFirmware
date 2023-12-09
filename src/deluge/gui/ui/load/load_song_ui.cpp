@@ -127,7 +127,7 @@ gotError:
 	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
 
 	if (ALPHA_OR_BETA_VERSION && currentUIMode == UI_MODE_WAITING_FOR_NEXT_FILE_TO_LOAD) {
-		display->freezeWithError("E188");
+		FREEZE_WITH_ERROR("E188");
 	}
 
 	return true;
@@ -271,7 +271,7 @@ void LoadSongUI::performLoad() {
 		playbackHandler.songSwapShouldPreserveTempo = Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC);
 	}
 
-	void* songMemory = GeneralMemoryAllocator::get().alloc(sizeof(Song), NULL, false, true);
+	void* songMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Song));
 	if (!songMemory) {
 ramError:
 		error = ERROR_INSUFFICIENT_RAM;

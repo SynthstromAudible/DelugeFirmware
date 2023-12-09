@@ -59,6 +59,8 @@ void ActionLogger::deleteLastActionIfEmpty() {
 	if (firstAction[BEFORE]) {
 
 		// There are probably more cases where we might want to do this, but I've only done it for recording so far
+		// Paul: reinstating the original for now because it seems there are broken pointers in this list which lead to crashes, we need to fix after release
+		// while (!firstAction[BEFORE]->firstConsequence) {
 		if (firstAction[BEFORE]->type == ACTION_RECORD && !firstAction[BEFORE]->firstConsequence) {
 
 			deleteLastAction();
@@ -126,7 +128,7 @@ Action* ActionLogger::getNewAction(int32_t newActionType, int32_t addToExistingI
 		}
 
 		// And make a new one
-		void* actionMemory = GeneralMemoryAllocator::get().alloc(sizeof(Action), NULL, true);
+		void* actionMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(Action));
 
 		if (!actionMemory) {
 			Debug::println("no ram to create new Action");
@@ -138,7 +140,7 @@ Action* ActionLogger::getNewAction(int32_t newActionType, int32_t addToExistingI
 		    currentSong->sessionClips.getNumElements() + currentSong->arrangementOnlyClips.getNumElements();
 
 		ActionClipState* clipStates =
-		    (ActionClipState*)GeneralMemoryAllocator::get().alloc(numClips * sizeof(ActionClipState), NULL, true);
+		    (ActionClipState*)GeneralMemoryAllocator::get().allocLowSpeed(numClips * sizeof(ActionClipState));
 
 		if (!clipStates) {
 			delugeDealloc(actionMemory);
@@ -265,7 +267,7 @@ void ActionLogger::recordSwingChange(int8_t swingBefore, int8_t swingAfter) {
 		consequence->swing[AFTER] = swingAfter;
 	}
 	else {
-		void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceSwingChange));
+		void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceSwingChange));
 
 		if (consMemory) {
 			ConsequenceSwingChange* newConsequence = new (consMemory) ConsequenceSwingChange(swingBefore, swingAfter);
@@ -288,7 +290,7 @@ void ActionLogger::recordTempoChange(uint64_t timePerBigBefore, uint64_t timePer
 	}
 	else {
 
-		void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceTempoChange));
+		void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceTempoChange));
 
 		if (consMemory) {
 			ConsequenceTempoChange* newConsequence =

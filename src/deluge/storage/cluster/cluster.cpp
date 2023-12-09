@@ -183,14 +183,14 @@ void Cluster::steal(char const* errorCode) {
 
 	case ClusterType::Sample:
 		if (ALPHA_OR_BETA_VERSION && !sample) {
-			display->freezeWithError("E181");
+			FREEZE_WITH_ERROR("E181");
 		}
 		sample->clusters.getElement(clusterIndex)->cluster = NULL;
 		break;
 
 	case ClusterType::SAMPLE_CACHE:
 		if (ALPHA_OR_BETA_VERSION && !sampleCache) {
-			display->freezeWithError("E183");
+			FREEZE_WITH_ERROR("E183");
 		}
 		sampleCache->clusterStolen(clusterIndex);
 
@@ -205,7 +205,7 @@ void Cluster::steal(char const* errorCode) {
 	case ClusterType::PERC_CACHE_FORWARDS:
 	case ClusterType::PERC_CACHE_REVERSED:
 		if (ALPHA_OR_BETA_VERSION && !sample) {
-			display->freezeWithError("E184");
+			FREEZE_WITH_ERROR("E184");
 		}
 		sample->percCacheClusterStolen(this);
 		break;

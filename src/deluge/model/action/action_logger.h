@@ -32,6 +32,8 @@ class ModelStack;
 class ActionLogger {
 public:
 	ActionLogger();
+
+	//warning - super not thread safe
 	Action* getNewAction(int32_t newActionType, int32_t addToExistingIfPossible = ACTION_ADDITION_NOT_ALLOWED);
 	void recordUnautomatedParamChange(ModelStackWithAutoParam const* modelStack,
 	                                  int32_t actionType = ACTION_PARAM_UNAUTOMATED_VALUE_CHANGE);

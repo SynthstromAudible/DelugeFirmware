@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/views/clip_navigation_timeline_view.h"
 #include "hid/button.h"
+#include "storage/flash_storage.h"
 
 class Editor;
 class InstrumentClip;
@@ -99,7 +100,8 @@ public:
 	void redrawNumericDisplay();
 
 	uint32_t selectedClipTimePressed;
-	uint8_t selectedClipYDisplay;      // Where the clip is on screen
+	uint8_t selectedClipYDisplay; // Where the clip is on screen
+	uint8_t selectedClipYDisplayForColorChange = 255;
 	uint8_t selectedClipPressYDisplay; // Where the user's finger actually is on screen
 	uint8_t selectedClipPressXDisplay;
 	bool performActionOnPadRelease;
@@ -128,7 +130,8 @@ private:
 
 	bool sessionButtonActive = false;
 	bool sessionButtonUsed = false;
-
+	bool horizontalEncoderPressed = false;
+	bool viewingRecordArmingActive = false;
 	// Members for grid layout
 private:
 	bool gridRenderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
@@ -141,6 +144,9 @@ private:
 	ActionResult gridHandlePads(int32_t x, int32_t y, int32_t on);
 	ActionResult gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, Clip* clip);
 	ActionResult gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on, Clip* clip);
+	ActionResult gridHandlePadsLaunchImmediate(int32_t x, int32_t y, int32_t on, Clip* clip);
+	ActionResult gridHandlePadsLaunchWithSelection(int32_t x, int32_t y, int32_t on, Clip* clip);
+	void gridHandlePadsLaunchToggleArming(Clip* clip, bool immediate);
 
 	ActionResult gridHandleScroll(int32_t offsetX, int32_t offsetY);
 
@@ -191,6 +197,19 @@ private:
 	int32_t gridTrackIndexFromX(uint32_t x, uint32_t maxTrack);
 	Output* gridTrackFromX(uint32_t x, uint32_t maxTrack);
 	Clip* gridClipFromCoords(uint32_t x, uint32_t y);
+
+	inline void gridSetDefaultMode() {
+		switch (FlashStorage::defaultGridActiveMode) {
+		case GridDefaultActiveModeGreen: {
+			gridModeSelected = SessionGridModeLaunch;
+			break;
+		}
+		case GridDefaultActiveModeBlue: {
+			gridModeSelected = SessionGridModeEdit;
+			break;
+		}
+		}
+	}
 };
 
 extern SessionView sessionView;

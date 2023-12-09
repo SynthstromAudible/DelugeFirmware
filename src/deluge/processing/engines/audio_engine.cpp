@@ -72,6 +72,17 @@ extern "C" {
 //void *__dso_handle = NULL; // This fixes an insane error.
 }
 
+#define DISABLE_INTERRUPTS_COUNT (sizeof(disableInterrupts) / sizeof(uint32_t))
+uint32_t disableInterrupts[] = {INTC_ID_SPRI0,
+                                INTC_ID_DMAINT0 + PIC_TX_DMA_CHANNEL,
+                                IRQ_INTERRUPT_0 + 6,
+                                INTC_ID_USBI0,
+                                INTC_ID_SDHI1_0,
+                                INTC_ID_SDHI1_3,
+                                INTC_ID_DMAINT0 + OLED_SPI_DMA_CHANNEL,
+                                INTC_ID_DMAINT0 + MIDI_TX_DMA_CHANNEL,
+                                INTC_ID_SDHI1_1};
+
 using namespace deluge;
 
 extern bool inSpamMode;
@@ -332,7 +343,7 @@ extern uint16_t g_usb_usbmode;
 
 Debug::AverageDT aeCtr("audio", Debug::mS);
 Debug::AverageDT rvb("reverb", Debug::uS);
-
+uint8_t numRoutines = 0;
 void routine() {
 	aeCtr.note();
 	logAction("AudioDriver::routine");
@@ -392,23 +403,26 @@ void routine() {
 	}
 
 #ifdef REPORT_CPU_USAGE
-	if (numSamples < (NUM_SAMPLES_FOR_CPU_USAGE_REPORT)) {
+#define MINSAMPLES NUM_SAMPLES_FOR_CPU_USAGE_REPORT
+	if (numSamples < (MINSAMPLES)) {
 		audioRoutineLocked = false;
 		return;
 	}
+
 	numSamples = NUM_SAMPLES_FOR_CPU_USAGE_REPORT;
 	int32_t unadjustedNumSamplesBeforeLappingPlayHead = numSamples;
 #else
+#define MINSAMPLES 16
 
-	//// Disable cull smoothing until we know how to keep it from soft culling multiple times but audible hard culling anyway
-	// if (smoothedSamples < numSamples) {
-	// 	smoothedSamples = (numSamplesLastTime + numSamples) >> 1;
-	// }
-	// else {
 	smoothedSamples = numSamples;
-	// }
-	// if (!bypassCulling) {
-	// 	numSamplesLastTime = numSamples;
+	//this is sometimes good for debugging but super spammy
+	//audiolog doesn't work because the render that notices the failure
+	//is one after the render with the problem
+	// if (numSamplesLastTime < numSamples) {
+	// 	Debug::println("rendered ");
+	// 	Debug::println(numSamplesLastTime);
+	// 	Debug::println(" samples but output ");
+	// 	Debug::println(numSamples);
 	// }
 
 	// Consider direness and culling - before increasing the number of samples
@@ -491,8 +505,8 @@ void routine() {
 			}
 		}
 	}
-	bypassCulling = false;
 
+	bool shortenedWindow = false;
 	// Double the number of samples we're going to do - within some constraints
 	int32_t sampleThreshold = 6; // If too low, it'll lead to bigger audio windows and stuff
 	constexpr int32_t maxAdjustedNumSamples = 0.66 * SSI_TX_BUFFER_NUM_SAMPLES;
@@ -563,6 +577,7 @@ startAgain:
 		// If the tick is during this window, shorten the window so we stop right at the tick
 		if (timeTilNextTick < numSamples) {
 			numSamples = timeTilNextTick;
+			shortenedWindow = true;
 		}
 
 		// And now we know how long the window's definitely going to be, see if we want to do any trigger clock or MIDI clock out ticks during it
@@ -592,6 +607,17 @@ startAgain:
 		}
 	}
 
+	// //this sets a floor on the number of samples at 16, avoiding the audio DMA catching up to the
+	// //output when cutting rendering short for clock at critical times
+	// //the max error is 0.3ms. At 100bpm 24ppq it is 25ms per pulse
+	// //this works out to a 1% error in the absolute worse case of alternating
+	// //no extension and max extension, approximately 10x better than average usb midi accuracy.
+	// int32_t minSamples = std::min<int32_t>(unadjustedNumSamplesBeforeLappingPlayHead, MINSAMPLES);
+	// if (currentSong) {
+	// 	minSamples = std::min<int32_t>(minSamples, currentSong->timePerTimerTickBig >> 32);
+	// }
+	// numSamples = std::max<int32_t>(numSamples, minSamples);
+	numSamplesLastTime = numSamples;
 	memset(&renderingBuffer, 0, numSamples * sizeof(StereoSample));
 
 	static int32_t reverbBuffer[SSI_TX_BUFFER_NUM_SAMPLES] __attribute__((aligned(CACHE_LINE_SIZE)));
@@ -610,16 +636,20 @@ startAgain:
 
 	// Render audio for song
 	if (currentSong) {
-		bool interruptsDisabled = false;
-		if (intc_func_active == 0) {
-			__disable_irq();
-			interruptsDisabled = true;
+		uint8_t enabledInterrupts[DISABLE_INTERRUPTS_COUNT] = {0};
+		for (uint32_t idx = 0; idx < DISABLE_INTERRUPTS_COUNT; ++idx) {
+			enabledInterrupts[idx] = R_INTC_Enabled(disableInterrupts[idx]);
+			if (enabledInterrupts[idx]) {
+				R_INTC_Disable(disableInterrupts[idx]);
+			}
 		}
 
 		currentSong->renderAudio(renderingBuffer, numSamples, reverbBuffer, sideChainHitPending);
 
-		if (interruptsDisabled) {
-			__enable_irq();
+		for (uint32_t idx = 0; idx < DISABLE_INTERRUPTS_COUNT; ++idx) {
+			if (enabledInterrupts[idx] != 0) {
+				R_INTC_Enable(disableInterrupts[idx]);
+			}
 		}
 	}
 
@@ -758,8 +788,8 @@ startAgain:
 	}
 	logAction("mastercomp start");
 	mastercompressor.render(renderingBuffer, numSamples, masterVolumeAdjustmentL, masterVolumeAdjustmentR);
-	masterVolumeAdjustmentL <<= 2;
-	masterVolumeAdjustmentR <<= 2;
+	masterVolumeAdjustmentL = ONE_Q31;
+	masterVolumeAdjustmentR = ONE_Q31;
 	logAction("mastercomp end");
 	metronome.render(renderingBuffer, numSamples);
 
@@ -886,7 +916,20 @@ startAgain:
 
 	sideChainHitPending = 0;
 	audioSampleTimer += numSamples;
-
+	//If we shorten the window we need to render again immediately - otherwise
+	//we'll get a click at high CPU loads, and hard cull when we could soft cull
+	//this is basically so that we don't click at normal tempos and still
+	//let Ron go to 10 000 BPM and then play wildly with the tempo knob for
+	//whatever reason
+	if (shortenedWindow) {
+		if (numRoutines < 5) {
+			numRoutines += 1;
+			//this seems to get tail call optimized
+			routine();
+		}
+	}
+	numRoutines = 0;
+	bypassCulling = false;
 	audioRoutineLocked = false;
 }
 
@@ -1190,13 +1233,12 @@ void getReverbParamsFromSong(Song* song) {
 }
 
 void getMasterCompressorParamsFromSong(Song* song) {
-	int32_t a = song->masterCompressorAttack;
-	int32_t r = song->masterCompressorRelease;
-	int32_t t = song->masterCompressorThresh;
-	int32_t rat = song->masterCompressorRatio;
-	int32_t m = song->masterCompressorMakeup;
-	int32_t w = song->masterCompressorWet;
-	mastercompressor.setup(a, r, t, rat, m, w);
+	q31_t a = song->masterCompressorAttack;
+	q31_t r = song->masterCompressorRelease;
+	q31_t t = song->masterCompressorThresh;
+	q31_t rat = song->masterCompressorRatio;
+	q31_t fc = song->masterCompressorSidechain;
+	mastercompressor.setup(a, r, t, rat, fc);
 }
 
 Voice* solicitVoice(Sound* forSound) {
@@ -1219,7 +1261,7 @@ doCull:
 	}
 
 	else {
-		void* memory = GeneralMemoryAllocator::get().alloc(sizeof(Voice), NULL, false, true);
+		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Voice));
 		if (!memory) {
 			if (activeVoices.getNumElements()) {
 				goto doCull;
@@ -1240,7 +1282,7 @@ doCull:
 
 	int32_t i = activeVoices.insertAtKeyMultiWord(keyWords);
 	if (i == -1) {
-		// if (ALPHA_OR_BETA_VERSION) display->freezeWithError("E193"); // No, having run out of RAM here isn't a reason to not continue.
+		// if (ALPHA_OR_BETA_VERSION) FREEZE_WITH_ERROR("E193"); // No, having run out of RAM here isn't a reason to not continue.
 		disposeOfVoice(newVoice);
 		return NULL;
 	}
@@ -1279,7 +1321,7 @@ VoiceSample* solicitVoiceSample() {
 		return toReturn;
 	}
 	else {
-		void* memory = GeneralMemoryAllocator::get().alloc(sizeof(VoiceSample), NULL, false, true);
+		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(VoiceSample));
 		if (!memory) {
 			return NULL;
 		}
@@ -1307,7 +1349,7 @@ TimeStretcher* solicitTimeStretcher() {
 	}
 
 	else {
-		void* memory = GeneralMemoryAllocator::get().alloc(sizeof(TimeStretcher), NULL, false, true);
+		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(TimeStretcher));
 		if (!memory) {
 			return NULL;
 		}
@@ -1340,7 +1382,7 @@ LiveInputBuffer* getOrCreateLiveInputBuffer(OscType inputType, bool mayCreate) {
 			size += kInputRawBufferSize * sizeof(int32_t);
 		}
 
-		void* memory = GeneralMemoryAllocator::get().alloc(size, NULL, false, true);
+		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(size);
 		if (!memory) {
 			return NULL;
 		}
@@ -1408,11 +1450,15 @@ void slowRoutine() {
 	     - SSI_TX_BUFFER_NUM_SAMPLES)
 	    & (SSI_RX_BUFFER_NUM_SAMPLES - 1);
 
-	if (latencyWithinAppropriateWindow >= SSI_TX_BUFFER_NUM_SAMPLES) {
+	while (latencyWithinAppropriateWindow >= SSI_TX_BUFFER_NUM_SAMPLES) {
 		i2sRXBufferPos += (SSI_TX_BUFFER_NUM_SAMPLES << (2 + NUM_MONO_INPUT_CHANNELS_MAGNITUDE));
 		if (i2sRXBufferPos >= (uint32_t)getRxBufferEnd()) {
 			i2sRXBufferPos -= (SSI_RX_BUFFER_NUM_SAMPLES << (2 + NUM_MONO_INPUT_CHANNELS_MAGNITUDE));
 		}
+		latencyWithinAppropriateWindow =
+		    (((rxBufferWriteAddr - (uint32_t)i2sRXBufferPos) >> (2 + NUM_MONO_INPUT_CHANNELS_MAGNITUDE))
+		     - SSI_TX_BUFFER_NUM_SAMPLES)
+		    & (SSI_RX_BUFFER_NUM_SAMPLES - 1);
 	}
 
 	// Discard any LiveInputBuffers which aren't in use
@@ -1436,7 +1482,7 @@ SampleRecorder* getNewRecorder(int32_t numChannels, AudioRecordingFolder folderI
                                bool keepFirstReasons, bool writeLoopPoints, int32_t buttonPressLatency) {
 	int32_t error;
 
-	void* recorderMemory = GeneralMemoryAllocator::get().alloc(sizeof(SampleRecorder), NULL, false, true);
+	void* recorderMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SampleRecorder));
 	if (!recorderMemory) {
 		return NULL;
 	}
@@ -1471,7 +1517,7 @@ void discardRecorder(SampleRecorder* recorder) {
 
 		count++;
 		if (ALPHA_OR_BETA_VERSION && !*prevPointer) {
-			display->freezeWithError("E264");
+			FREEZE_WITH_ERROR("E264");
 		}
 		if (*prevPointer == recorder) {
 			*prevPointer = recorder->next;

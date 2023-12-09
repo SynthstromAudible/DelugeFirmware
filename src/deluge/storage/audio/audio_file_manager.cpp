@@ -95,7 +95,7 @@ void AudioFileManager::init() {
 
 	clusterSizeAtBoot = clusterSize;
 
-	void* temp = GeneralMemoryAllocator::get().alloc(clusterSizeAtBoot + CACHE_LINE_SIZE * 2, NULL, false, false);
+	void* temp = GeneralMemoryAllocator::get().allocLowSpeed(clusterSizeAtBoot + CACHE_LINE_SIZE * 2);
 	storageManager.fileClusterBuffer = (char*)temp + CACHE_LINE_SIZE;
 
 	clusterObjectSize = sizeof(Cluster) + clusterSize;
@@ -228,7 +228,7 @@ void AudioFileManager::deleteAnyTempRecordedSamplesFromMemory() {
 			// If it's a temp-recorded one
 			if (!((Sample*)audioFile)->tempFilePathForRecording.isEmpty()) {
 
-				//if (ALPHA_OR_BETA_VERSION && audioFile->numReasons) display->freezeWithError("E281"); // It definitely shouldn't still have any reasons
+				//if (ALPHA_OR_BETA_VERSION && audioFile->numReasons) FREEZE_WITH_ERROR("E281"); // It definitely shouldn't still have any reasons
 				// No - it could still have a reason - the reason of its SampleRecorder. Scenario where this happened was: recording AudioClip (instance)
 				// into Arranger when loading a new song, first causes Arranger playback to switch to Session playback, which causes
 				// finishLinearRecording() on AudioClip, so when song-swap does happen, the AudioClip no longer has a recorder, so the recorder doesn't clear stuff,
@@ -367,7 +367,7 @@ void AudioFileManager::deleteUnusedAudioFileFromMemoryIndexUnknown(AudioFile* au
 	int32_t i = audioFiles.searchForExactObject(audioFile);
 	if (i < 0) {
 #if ALPHA_OR_BETA_VERSION
-		display->freezeWithError("E401"); // Leo got. And me! But now I've solved.
+		FREEZE_WITH_ERROR("E401"); // Leo got. And me! But now I've solved.
 #endif
 	}
 	else {
@@ -501,7 +501,7 @@ notLoadableAsWaveTable:
 				}
 			}
 
-			void* waveTableMemory = GeneralMemoryAllocator::get().alloc(sizeof(WaveTable));
+			void* waveTableMemory = GeneralMemoryAllocator::get().allocStealable(sizeof(WaveTable));
 			if (!waveTableMemory) {
 				*error = ERROR_INSUFFICIENT_RAM;
 				return NULL;
@@ -728,8 +728,7 @@ cantLoadFile:
 
 	int32_t memorySizeNeeded = (type == AudioFileType::SAMPLE) ? sizeof(Sample) : sizeof(WaveTable);
 
-	void* audioFileMemory =
-	    GeneralMemoryAllocator::get().alloc(memorySizeNeeded, NULL, false, true, true); // Stealable!
+	void* audioFileMemory = GeneralMemoryAllocator::get().allocStealable(memorySizeNeeded);
 	if (!audioFileMemory) {
 ramError:
 		*error = ERROR_INSUFFICIENT_RAM;
@@ -884,8 +883,7 @@ void AudioFileManager::testQueue() {
 // Caller must initialize() the Cluster after getting it from this function
 Cluster* AudioFileManager::allocateCluster(ClusterType type, bool shouldAddReasons, void* dontStealFromThing) {
 
-	void* clusterMemory =
-	    GeneralMemoryAllocator::get().alloc(clusterObjectSize, NULL, false, false, true, dontStealFromThing);
+	void* clusterMemory = GeneralMemoryAllocator::get().allocStealable(clusterObjectSize, dontStealFromThing);
 	if (!clusterMemory) {
 		return NULL;
 	}
@@ -928,17 +926,17 @@ bool AudioFileManager::loadCluster(Cluster* cluster, int32_t minNumReasonsAfter)
 	Sample* sample = cluster->sample;
 
 	if (cluster->type != ClusterType::Sample) {
-		display->freezeWithError("E205"); // Chris F got this, so gonna leave checking in release build
+		FREEZE_WITH_ERROR("E205"); // Chris F got this, so gonna leave checking in release build
 	}
 
 #if ALPHA_OR_BETA_VERSION
 	if (cluster->numReasonsToBeLoaded <= 0) {
 		// Ok, I think we know there's at least 1 reason at the point this function's called, because
-		display->freezeWithError("E204");
+		FREEZE_WITH_ERROR("E204");
 	}
 	// it'd only be in the loading queue if it had a "reason".
 	if (!sample) {
-		display->freezeWithError("E206");
+		FREEZE_WITH_ERROR("E206");
 	}
 #endif
 
@@ -986,11 +984,11 @@ getOutEarly:
 
 #if ALPHA_OR_BETA_VERSION
 	if (cluster->type != ClusterType::Sample) {
-		display->freezeWithError("i023"); // Happened to me while thrash testing with reduced RAM
+		FREEZE_WITH_ERROR("i023"); // Happened to me while thrash testing with reduced RAM
 	}
 
 	if (cluster->numReasonsToBeLoaded < minNumReasonsAfter + 1) {
-		display->freezeWithError("i039"); // It's +1 because we haven't removed this function's "reason" yet.
+		FREEZE_WITH_ERROR("i039"); // It's +1 because we haven't removed this function's "reason" yet.
 	}
 #endif
 
@@ -1008,14 +1006,14 @@ getOutEarly:
 
 #if ALPHA_OR_BETA_VERSION
 	if (cluster->type != ClusterType::Sample) {
-		display->freezeWithError("E207");
+		FREEZE_WITH_ERROR("E207");
 	}
 	if (!cluster->sample) {
-		display->freezeWithError("E208");
+		FREEZE_WITH_ERROR("E208");
 	}
 
 	if (cluster->numReasonsToBeLoaded < minNumReasonsAfter + 1) {
-		display->freezeWithError("i038"); // It's +1 because we haven't removed this function's "reason" yet.
+		FREEZE_WITH_ERROR("i038"); // It's +1 because we haven't removed this function's "reason" yet.
 	}
 #endif
 
@@ -1028,7 +1026,7 @@ getOutEarly:
 
 #if ALPHA_OR_BETA_VERSION
 	if (cluster->numReasonsToBeLoaded < minNumReasonsAfter + 1) {
-		display->freezeWithError("i040"); // It's +1 because we haven't removed this function's "reason" yet.
+		FREEZE_WITH_ERROR("i040"); // It's +1 because we haven't removed this function's "reason" yet.
 	}
 #endif
 
@@ -1210,10 +1208,10 @@ copy7ToMe:
 
 #if ALPHA_OR_BETA_VERSION
 	if (cluster->numReasonsToBeLoaded < minNumReasonsAfter) {
-		display->freezeWithError("i037");
+		FREEZE_WITH_ERROR("i037");
 	}
 	if (cluster->sample->clusters.getElement(cluster->clusterIndex)->cluster != cluster) {
-		display->freezeWithError("E438");
+		FREEZE_WITH_ERROR("E438");
 	}
 #endif
 
@@ -1309,7 +1307,7 @@ performActionsAndGetOut:
 
 		// Do the actual loading
 		if (cluster->type != ClusterType::Sample) {
-			display->freezeWithError("E235"); // Cos Chris F got an E205
+			FREEZE_WITH_ERROR("E235"); // Cos Chris F got an E205
 		}
 
 		allowSomeUserActionsEvenWhenInCardRoutine = true; // Sorry!!
@@ -1328,7 +1326,7 @@ performActionsAndGetOut:
 			else {
 
 				if (cluster->type != ClusterType::Sample) {
-					display->freezeWithError("E237"); // Cos Chris F got an E205
+					FREEZE_WITH_ERROR("E237"); // Cos Chris F got an E205
 				}
 
 				enqueueCluster(cluster); // TODO: If that fails, it'll just get awkwardly forgotten about
@@ -1368,7 +1366,7 @@ void AudioFileManager::removeReasonFromCluster(Cluster* cluster, char const* err
 	cluster->numReasonsToBeLoaded--;
 
 	if (cluster == clusterBeingLoaded && cluster->numReasonsToBeLoaded < minNumReasonsForClusterBeingLoaded) {
-		display->freezeWithError("E041"); // Sven got this!
+		FREEZE_WITH_ERROR("E041"); // Sven got this!
 	}
 
 	// If it's now zero, it's become available
@@ -1376,7 +1374,7 @@ void AudioFileManager::removeReasonFromCluster(Cluster* cluster, char const* err
 
 		// Bug hunting
 		if (ALPHA_OR_BETA_VERSION && cluster->numReasonsHeldBySampleRecorder) {
-			display->freezeWithError("E364");
+			FREEZE_WITH_ERROR("E364");
 		}
 
 		// If it's still in the load queue, remove it from there. (We know that it isn't in the process of being loaded right now
@@ -1403,7 +1401,7 @@ void AudioFileManager::removeReasonFromCluster(Cluster* cluster, char const* err
 			Debug::print("reason remains on cluster of sample: ");
 			Debug::println(cluster->sample->filePath.get());
 		}
-		display->freezeWithError(errorCode);
+		FREEZE_WITH_ERROR(errorCode);
 #else
 		display->displayPopup(errorCode);  // For non testers, just display the error code without freezing
 		cluster->numReasonsToBeLoaded = 0; // Save it from crashing or anything

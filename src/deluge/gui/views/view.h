@@ -122,10 +122,15 @@ public:
 	// == activeModControllableTimelineCounter
 	uint32_t modLength;
 
+	bool isParamPan(Param::Kind kind, int32_t paramID);
+	int32_t calculateKnobPosForDisplay(Param::Kind kind, int32_t paramID, int32_t knobPos);
+
 private:
 	void pretendModKnobsUntouchedForAWhile();
 	void instrumentBeenEdited();
 	void clearMelodicInstrumentMonoExpressionIfPossible();
+	void displayModEncoderValuePopup(Param::Kind kind, int32_t paramID, int32_t newKnobPos);
+	bool isParamQuantizedStutter(Param::Kind kind, int32_t paramID);
 };
 
 extern View view;

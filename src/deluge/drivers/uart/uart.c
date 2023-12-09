@@ -155,7 +155,8 @@ int32_t uartFlush(int32_t item) {
 	DMACn(txDmaChannels[item]).N0TB_n = num;
 	uint32_t dataAddress = (uint32_t)&txBuffers[item][prevReadPos];
 	DMACn(txDmaChannels[item]).N0SA_n = dataAddress;
-	v7_dma_flush_range(dataAddress, dataAddress + num);
+	// Paul: Removed from now as this was not present before and I am unsure if it helps with anything
+	// v7_dma_flush_range(dataAddress, dataAddress + num);
 
 	return 1;
 }
@@ -189,6 +190,14 @@ int32_t uartGetTxBufferFullnessByItem(int32_t item) {
 
 int32_t uartGetTxBufferSpace(int32_t item) {
 	return txBufferSizes[item] - uartGetTxBufferFullnessByItem(item);
+}
+
+void uartDrain(uint32_t item) {
+	char value;
+	bool charReceived = true;
+	while (charReceived) {
+		charReceived = uartGetChar(item, (char*)&value);
+	}
 }
 
 void uartPutCharBack(int32_t item) {

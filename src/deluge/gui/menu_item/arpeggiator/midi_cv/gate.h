@@ -27,13 +27,13 @@ public:
 	void readCurrentValue() override {
 		auto* current_clip = static_cast<InstrumentClip*>(currentSong->currentClip);
 		int64_t arp_gate = (int64_t)current_clip->arpeggiatorGate + 2147483648;
-		this->setValue((arp_gate * 50 + 2147483648) >> 32);
+		this->setValue((arp_gate * kMaxMenuValue + 2147483648) >> 32);
 	}
 	void writeCurrentValue() override {
 		(static_cast<InstrumentClip*>(currentSong->currentClip))->arpeggiatorGate =
 		    (uint32_t)this->getValue() * 85899345 - 2147483648;
 	}
-	[[nodiscard]] int32_t getMaxValue() const override { return 50; }
+	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 	bool isRelevant(Sound* sound, int32_t whichThing) override { return soundEditor.editingCVOrMIDIClip(); }
 };
 } // namespace deluge::gui::menu_item::arpeggiator::midi_cv

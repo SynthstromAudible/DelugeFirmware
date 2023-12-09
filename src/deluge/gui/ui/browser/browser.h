@@ -86,6 +86,7 @@ public:
 	int32_t getUnusedSlot(InstrumentType instrumentType, String* newName, char const* thingName);
 	bool opened();
 	void cullSomeFileItems();
+	bool checkFP();
 
 	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
 
@@ -142,3 +143,20 @@ protected:
 	char const* filePrefix;
 	bool shouldInterpretNoteNamesForThisBrowser;
 };
+
+#include "io/debug/print.h"
+inline void printInstrumentFileList(const char* where) {
+	Debug::print("\n");
+	Debug::print(where);
+	Debug::print(" List: \n");
+	for (uint32_t idx = 0; idx < Browser::fileItems.getNumElements(); ++idx) {
+		FileItem* fileItem = (FileItem*)Browser::fileItems.getElementAddress(idx);
+		Debug::print(" - ");
+		Debug::print(fileItem->displayName);
+		Debug::print(" (");
+		Debug::print(fileItem->filePointer.sclust);
+		Debug::print(")\n");
+	}
+
+	Debug::print("\n");
+}

@@ -187,6 +187,9 @@ PLACE_SDRAM_DATA Language english{
         //Portamento
         {STRING_FOR_PORTAMENTO, "PORTAMENTO"},
 
+        //Stutter Rate
+        {STRING_FOR_STUTTER_RATE, "Stutter Rate"},
+
         /*
 		 * End Parameter Strings
 		 */
@@ -466,13 +469,17 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_COMMANDS, "Commands"},
         {STRING_FOR_OUTPUT, "Output"},
         {STRING_FOR_DEFAULT_UI, "UI"},
+        {STRING_FOR_DEFAULT_UI_GRID, "Grid"},
+        {STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ACTIVE_MODE, "Default active mode"},
+        {STRING_FOR_DEFAULT_UI_DEFAULT_GRID_UNARM_EMPTY_PADS, "Empty pad unarm"},
+        {STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ALLOW_GREEN_SELECTION, "Select in green mode"},
+        {STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ACTIVE_MODE_SELECTION, "Selection"},
         {STRING_FOR_DEFAULT_UI_LAYOUT, "Layout"},
         {STRING_FOR_DEFAULT_UI_KEYBOARD, "Keyboard"},
         {STRING_FOR_DEFAULT_UI_KEYBOARD_LAYOUT_ISOMORPHIC, "Isomorphic"},
         {STRING_FOR_DEFAULT_UI_KEYBOARD_LAYOUT_INKEY, "In-Key"},
         {STRING_FOR_DEFAULT_UI_SONG, "Song"},
         {STRING_FOR_DEFAULT_UI_SONG_LAYOUT_ROWS, "Rows"},
-        {STRING_FOR_DEFAULT_UI_SONG_LAYOUT_GRID, "Grid"},
         {STRING_FOR_INPUT, "Input"},
         {STRING_FOR_TEMPO_MAGNITUDE_MATCHING, "Tempo magnitude matching"},
         {STRING_FOR_TRIGGER_CLOCK, "Trigger clock"},
@@ -497,10 +504,12 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_CLEAR_CLIP, "Clear Clip"},
         {STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_NUDGE_NOTE, "Nudge Note"},
         {STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_SHIFT_CLIP, "Shift Note"},
+        {STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_DISABLE_AUDITION_PAD_SHORTCUTS, "Disable Audition Pad Shortcuts"},
         {STRING_FOR_COMMUNITY_FEATURE_DEV_SYSEX, "Allow Insecure Develop Sysex Messages"},
         {STRING_FOR_COMMUNITY_FEATURE_SYNC_SCALING_ACTION, "Sync Scaling Action"},
         {STRING_FOR_COMMUNITY_FEATURE_HIGHLIGHT_INCOMING_NOTES, "Highlight Incoming Notes"},
         {STRING_FOR_COMMUNITY_FEATURE_NORNS_LAYOUT, "Display Norns Layout"},
+        {STRING_FOR_COMMUNITY_FEATURE_GRAIN_FX, "Enable Grain FX"},
 
         {STRING_FOR_TRACK_STILL_HAS_CLIPS_IN_SESSION, "Track still has clips in session"},
         {STRING_FOR_DELETE_ALL_TRACKS_CLIPS_FIRST, "Delete all track's clips first"},
@@ -684,6 +693,8 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_SIDECH_RELEASE_MENU_TITLE, "Sidech release"},
         {STRING_FOR_SIDECHAIN_COMP_MENU_TITLE, "Sidechain comp"},
         {STRING_FOR_NUM_MEMBER_CH_MENU_TITLE, "Num member ch."},
+        {STRING_FOR_METRONOME, "METRONOME"},
+        {STRING_FOR_DEFAULT_METRO_MENU_TITLE, "Default metro."},
 
         {STRING_FOR_CV_INSTRUMENT, "CV instrument"},
 

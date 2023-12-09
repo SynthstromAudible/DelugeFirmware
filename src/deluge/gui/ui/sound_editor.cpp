@@ -9,6 +9,7 @@
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/rename/rename_drum_ui.h"
+#include "gui/ui/rename/rename_output_ui.h"
 #include "gui/ui/sample_marker_editor.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
 #include "gui/ui_timer_manager.h"
@@ -432,6 +433,7 @@ void SoundEditor::exitCompletely() {
 }
 
 bool SoundEditor::findPatchedParam(int32_t paramLookingFor, int32_t* xout, int32_t* yout) {
+	bool found = false;
 	for (int32_t x = 0; x < 15; x++) {
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
 			if (paramShortcutsForSounds[x][y] && paramShortcutsForSounds[x][y] != comingSoonMenu
@@ -439,11 +441,15 @@ bool SoundEditor::findPatchedParam(int32_t paramLookingFor, int32_t* xout, int32
 
 				*xout = x;
 				*yout = y;
-				return true;
+
+				if ((x & 1) == currentSourceIndex) {
+					//check we're on the corretc index
+					return true;
+				}
 			}
 		}
 	}
-	return false;
+	return found;
 }
 
 void SoundEditor::updateSourceBlinks(MenuItem* currentItem) {
@@ -650,6 +656,10 @@ ActionResult SoundEditor::horizontalEncoderAction(int32_t offset) {
 
 void SoundEditor::selectEncoderAction(int8_t offset) {
 
+	if (Buttons::isShiftButtonPressed()) {
+		offset = offset * 5;
+	}
+
 	if (currentUIMode != UI_MODE_NONE && currentUIMode != UI_MODE_AUDITIONING
 	    && currentUIMode != UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR) {
 		return;
@@ -721,7 +731,17 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 		// AudioClips - there are just a few shortcuts
 		if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
 
-			if (x <= 14) {
+			// NAME shortcut
+			if (x == 11 && y == 5) {
+				// Renames the output (track), not the clip
+				Output* output = currentSong->currentClip->output;
+				if (output) {
+					renameOutputUI.output = output;
+					openUI(&renameOutputUI);
+					return ActionResult::DEALT_WITH;
+				}
+			}
+			else if (x <= 14) {
 				item = paramShortcutsForAudioClips[x][y];
 			}
 

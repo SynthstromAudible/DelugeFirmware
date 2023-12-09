@@ -122,7 +122,7 @@ void VoiceSample::setupCacheLoopPoints(SamplePlaybackGuide* guide, Sample* sampl
 		if (ALPHA_OR_BETA_VERSION && cacheEndPointBytes > cache->waveformLengthBytes) {
 			Debug::println(cacheEndPointBytes);
 			Debug::println(cache->waveformLengthBytes);
-			display->freezeWithError("E128");
+			FREEZE_WITH_ERROR("E128");
 		}
 	}
 
@@ -182,7 +182,7 @@ int32_t VoiceSample::attemptLateSampleStart(SamplePlaybackGuide* voiceSource, Sa
 	}
 
 	if ((int64_t)(startAtByte - voiceSource->startPlaybackAtByte) * voiceSource->playDirection < 0) {
-		display->freezeWithError("E439"); // Chasing "E366".
+		FREEZE_WITH_ERROR("E439"); // Chasing "E366".
 	}
 
 	uint32_t startAtClusterIndex = startAtByte >> audioFileManager.clusterSizeMagnitude;
@@ -192,7 +192,7 @@ int32_t VoiceSample::attemptLateSampleStart(SamplePlaybackGuide* voiceSource, Sa
 		// This was a problem around V3.1.0 release, so currently keeping this check
 		// even outside of ALPHA_OR_BETA_VERSION.
 		// Sven got! 4.0.0-beta4.
-		display->freezeWithError("E366");
+		FREEZE_WITH_ERROR("E366");
 	}
 
 	int32_t finalClusterIndex = voiceSource->getFinalClusterIndex(sample, cache); // Think this is right...
@@ -631,10 +631,10 @@ readCachedWindow:
 
 			// If we're here, then timeStretchRatio should be 16777216, and phaseIncrement should *not*
 			if (ALPHA_OR_BETA_VERSION && timeStretchRatio != 16777216) {
-				display->freezeWithError("E240"); // This should have been caught and dealt with above
+				FREEZE_WITH_ERROR("E240"); // This should have been caught and dealt with above
 			}
 			if (ALPHA_OR_BETA_VERSION && phaseIncrement == 16777216) {
-				display->freezeWithError("E241"); // If this were the case, there'd be no reason to have a cache
+				FREEZE_WITH_ERROR("E241"); // If this were the case, there'd be no reason to have a cache
 			}
 
 			if (!stopReadingFromCache()) {
@@ -674,7 +674,7 @@ readCachedWindow:
 
 		// This shouldn't happen - it gets checked for up at the start
 		else if (ALPHA_OR_BETA_VERSION && bytesTilCacheEnd < 0) {
-			display->freezeWithError("E164");
+			FREEZE_WITH_ERROR("E164");
 		}
 
 		int32_t cachedClusterIndex = cacheBytePos >> audioFileManager.clusterSizeMagnitude;
@@ -683,7 +683,7 @@ readCachedWindow:
 		Cluster* cacheCluster = cache->getCluster(cachedClusterIndex);
 		if (ALPHA_OR_BETA_VERSION
 		    && !cacheCluster) { // If it got stolen - but we should have already detected this above
-			display->freezeWithError("E157");
+			FREEZE_WITH_ERROR("E157");
 		}
 		int32_t* __restrict__ readPos = (int32_t*)&cacheCluster->data[bytePosWithinCluster - 4 + kCacheByteDepth];
 
@@ -716,7 +716,7 @@ readCachedWindow:
 		}
 
 		if (ALPHA_OR_BETA_VERSION && numSamplesThisCacheRead <= 0) {
-			display->freezeWithError("E156");
+			FREEZE_WITH_ERROR("E156");
 		}
 
 		// Ok, now we know how many samples we can read from the cache right now. Do it.
@@ -897,7 +897,7 @@ uncachedPlayback:
 			Cluster* cacheCluster = cache->getCluster(cacheClusterIndex);
 			if (ALPHA_OR_BETA_VERSION && !cacheCluster) {
 				// Check that the Cluster hasn't been stolen - but this should have been detected right at the start
-				display->freezeWithError("E166");
+				FREEZE_WITH_ERROR("E166");
 			}
 			cacheWritePos = &cacheCluster->data[bytePosWithinCluster];
 
@@ -925,7 +925,7 @@ uncachedPlayback:
 			}
 
 			if (ALPHA_OR_BETA_VERSION && numSamplesThisUncachedRead <= 0) {
-				display->freezeWithError("E155");
+				FREEZE_WITH_ERROR("E155");
 			}
 		}
 
@@ -992,7 +992,7 @@ assessLoopPointAgainTimestretched:
 
 #if ALPHA_OR_BETA_VERSION
 							if (count >= 1024) {
-								display->freezeWithError("E169");
+								FREEZE_WITH_ERROR("E169");
 							}
 							count++;
 #endif
@@ -1011,7 +1011,7 @@ assessLoopPointAgainTimestretched:
 						    (uint64_t)combinedIncrementingLeftToDoAbsolute / combinedIncrement;
 						if (ALPHA_OR_BETA_VERSION && combinedIncrementsLeft > numSamplesThisUncachedRead) {
 							Debug::println(combinedIncrementsLeft);
-							display->freezeWithError("E151");
+							FREEZE_WITH_ERROR("E151");
 						}
 						numSamplesThisUncachedRead = combinedIncrementsLeft;
 					}

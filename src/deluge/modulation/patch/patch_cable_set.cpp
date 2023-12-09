@@ -136,8 +136,8 @@ void PatchCableSet::setupPatching(ModelStackWithParamCollection const* modelStac
 
 	// Allocate new memory - max size we might need
 	for (int32_t g = 0; g < 2; g++) {
-		destinations[g] = (Destination*)GeneralMemoryAllocator::get().alloc(
-		    sizeof(Destination) * (kMaxNumPatchCables + 1), NULL, false, true);
+		destinations[g] =
+		    (Destination*)GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Destination) * (kMaxNumPatchCables + 1));
 
 		// If couldn't...
 		if (!destinations[g]) {
@@ -303,7 +303,7 @@ goAgainWithoutIncrement:
 					// If getting crashes here, well I previously fixed a bug where sometimes the range-adjust*ed* cable was not "allowed", so
 					// was not present here, but the adjust*ing* cable still was here, which this code can't handle. So check that again?
 					if (thatDestination >= (&destinations[globality][numDestinations[globality]])) {
-						display->freezeWithError("E434");
+						FREEZE_WITH_ERROR("E434");
 					}
 #endif
 				}
@@ -747,9 +747,9 @@ void PatchCableSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWith
 			continue;
 		}
 
-		newDestinations[g] = (Destination*)GeneralMemoryAllocator::get().alloc(
-		    sizeof(Destination) * (kMaxNumPatchCables + 1), NULL, false,
-		    true); // TODO: this is more than we'll soon realise we need - we should really shorten it again afterwards.
+		// TODO: this is more than we'll soon realise we need - we should really shorten it again afterwards.
+		newDestinations[g] =
+		    (Destination*)GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Destination) * (kMaxNumPatchCables + 1));
 
 		// If couldn't...
 		if (!newDestinations[g]) {

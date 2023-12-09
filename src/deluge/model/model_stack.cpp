@@ -32,7 +32,7 @@ ModelStackWithThreeMainThings* ModelStackWithTimelineCounter::addNoteRowAndExtra
 
 #if ALPHA_OR_BETA_VERSION
 	if (!newNoteRow->paramManager.containsAnyParamCollectionsIncludingExpression()) {
-		display->freezeWithError("E389");
+		FREEZE_WITH_ERROR("E389");
 	}
 #endif
 
@@ -183,6 +183,10 @@ ModelStackWithThreeMainThings* ModelStackWithNoteRow::addOtherTwoThingsAutomatic
 	        : clip->output->toModControllable();
 	toReturn->paramManager = &noteRowHere->paramManager;
 	return toReturn;
+}
+
+bool ModelStackWithParamId::isParam(Param::Kind kind, ParamType id) {
+	return paramCollection && paramCollection->getParamKind() == kind && paramId == id;
 }
 
 bool ModelStackWithSoundFlags::checkSourceEverActiveDisregardingMissingSample(int32_t s) {

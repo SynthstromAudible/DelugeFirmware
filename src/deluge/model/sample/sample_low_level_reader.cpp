@@ -76,7 +76,7 @@ void SampleLowLevelReader::setupForPlayPosMovedIntoNewCluster(SamplePlaybackGuid
 
 #if ALPHA_OR_BETA_VERSION
 	if (!clusters[0]) {
-		display->freezeWithError("i022");
+		FREEZE_WITH_ERROR("i022");
 	}
 #endif
 
@@ -146,7 +146,7 @@ void SampleLowLevelReader::setupReassessmentLocation(SamplePlaybackGuide* guide,
 
 #if ALPHA_OR_BETA_VERSION
 	if (!clusters[0]) {
-		display->freezeWithError("i021");
+		FREEZE_WITH_ERROR("i021");
 	}
 #endif
 
@@ -195,7 +195,7 @@ void SampleLowLevelReader::setupReassessmentLocation(SamplePlaybackGuide* guide,
 			if ((endPosWithinCurrentCluster + currentClusterIndex * audioFileManager.clusterSize
 			     - sample->audioDataStartPosBytes)
 			    % bytesPerSample) {
-				display->freezeWithError("E163");
+				FREEZE_WITH_ERROR("E163");
 			}
 #endif
 			reassessmentLocation = clusters[0]->data + endPosWithinCurrentCluster;
@@ -339,7 +339,7 @@ bool SampleLowLevelReader::moveOnToNextCluster(SamplePlaybackGuide* guide, Sampl
 
 #if ALPHA_OR_BETA_VERSION
 	if (!clusters[0]) {
-		display->freezeWithError("i019");
+		FREEZE_WITH_ERROR("i019");
 	}
 #endif
 
@@ -451,7 +451,7 @@ bool SampleLowLevelReader::changeClusterIfNecessary(SamplePlaybackGuide* guide, 
 		count++;
 		if (count >= 1024) {
 			// This happened one time! When stopping AudioClips from playing back, after recording and mucking around with SD card reaching full
-			display->freezeWithError("E227");
+			FREEZE_WITH_ERROR("E227");
 		}
 #endif
 	}
@@ -566,7 +566,7 @@ bool SampleLowLevelReader::considerUpcomingWindow(SamplePlaybackGuide* guide, Sa
                                                   int32_t priorityRating) {
 
 	if (ALPHA_OR_BETA_VERSION && phaseIncrement < 0) {
-		display->freezeWithError("E228");
+		FREEZE_WITH_ERROR("E228");
 	}
 
 	int32_t bytesPerSample = sample->numChannels * sample->byteDepth;
@@ -595,7 +595,7 @@ bool SampleLowLevelReader::considerUpcomingWindow(SamplePlaybackGuide* guide, Sa
 				int32_t bytesLeftWhichMayBeRead =
 				    (int32_t)((uint32_t)reassessmentLocation - (uint32_t)currentPlayPos) * guide->playDirection;
 				if (bytesLeftWhichMayBeRead < 0) {
-					display->freezeWithError("E222");
+					FREEZE_WITH_ERROR("E222");
 				}
 			}
 		}
@@ -610,7 +610,7 @@ bool SampleLowLevelReader::considerUpcomingWindow(SamplePlaybackGuide* guide, Sa
 					int32_t bytesLeftWhichMayBeRead =
 					    (int32_t)((uint32_t)reassessmentLocation - (uint32_t)currentPlayPos) * guide->playDirection;
 					if (bytesLeftWhichMayBeRead < 0) {
-						display->freezeWithError("E305");
+						FREEZE_WITH_ERROR("E305");
 					}
 				}
 
@@ -630,7 +630,7 @@ bool SampleLowLevelReader::considerUpcomingWindow(SamplePlaybackGuide* guide, Sa
 					int32_t bytesLeftWhichMayBeRead =
 					    (int32_t)((uint32_t)reassessmentLocation - (uint32_t)currentPlayPos) * guide->playDirection;
 					if (bytesLeftWhichMayBeRead < 0) {
-						display->freezeWithError("E306");
+						FREEZE_WITH_ERROR("E306");
 					}
 				}
 			}
@@ -642,7 +642,7 @@ bool SampleLowLevelReader::considerUpcomingWindow(SamplePlaybackGuide* guide, Sa
 					int32_t bytesLeftWhichMayBeRead =
 					    (int32_t)((uint32_t)reassessmentLocation - (uint32_t)currentPlayPos) * guide->playDirection;
 					if (bytesLeftWhichMayBeRead < 0) {
-						display->freezeWithError("E308");
+						FREEZE_WITH_ERROR("E308");
 					}
 				}
 
@@ -675,7 +675,7 @@ bool SampleLowLevelReader::considerUpcomingWindow(SamplePlaybackGuide* guide, Sa
 					int32_t bytesLeftWhichMayBeRead =
 					    (int32_t)((uint32_t)reassessmentLocation - (uint32_t)currentPlayPos) * guide->playDirection;
 					if (bytesLeftWhichMayBeRead < 0) {
-						display->freezeWithError("E221");
+						FREEZE_WITH_ERROR("E221");
 					}
 				}
 			}
@@ -723,13 +723,13 @@ doZeroes:
 
 					if (ALPHA_OR_BETA_VERSION) {
 						if (!clusters[0]) {
-							display->freezeWithError("E225");
+							FREEZE_WITH_ERROR("E225");
 						}
 
 						int32_t bytesLeftWhichMayBeRead =
 						    (int32_t)((uint32_t)reassessmentLocation - (uint32_t)currentPlayPos) * guide->playDirection;
 						if (bytesLeftWhichMayBeRead <= 0) {
-							display->freezeWithError("E226");
+							FREEZE_WITH_ERROR("E226");
 						}
 					}
 
@@ -744,7 +744,7 @@ doZeroes:
 						int32_t bytesLeftWhichMayBeRead =
 						    (int32_t)((uint32_t)reassessmentLocation - (uint32_t)currentPlayPos) * guide->playDirection;
 						if (bytesLeftWhichMayBeRead < 0) {
-							display->freezeWithError("E185");
+							FREEZE_WITH_ERROR("E185");
 						}
 					}
 				}
@@ -759,7 +759,7 @@ doZeroes:
 				int32_t bytesLeftWhichMayBeRead =
 				    (int32_t)((uint32_t)reassessmentLocation - (uint32_t)currentPlayPos) * guide->playDirection;
 				if (bytesLeftWhichMayBeRead < 0) {
-					display->freezeWithError("E223");
+					FREEZE_WITH_ERROR("E223");
 				}
 			}
 		}
@@ -789,7 +789,7 @@ doZeroes:
 				int32_t bytesLeftWhichMayBeRead =
 				    (int32_t)((uint32_t)reassessmentLocation - (uint32_t)currentPlayPos) * guide->playDirection;
 				if (ALPHA_OR_BETA_VERSION && bytesLeftWhichMayBeRead < 0) {
-					display->freezeWithError("E148");
+					FREEZE_WITH_ERROR("E148");
 				}
 
 				int32_t bytesWeWantToRead = samplesWeWantToReadThisWindow * bytesPerSample;
@@ -810,10 +810,10 @@ doZeroes:
 				// This really really should never happen.
 				if (ALPHA_OR_BETA_VERSION && phaseIncrementingLeftWhichMayBeDone < 0) {
 					if (!clusters[0]) {
-						display->freezeWithError("E143");
+						FREEZE_WITH_ERROR("E143");
 					}
 					else {
-						display->freezeWithError("E000");
+						FREEZE_WITH_ERROR("E000");
 					}
 				}
 
@@ -853,7 +853,7 @@ doZeroes:
 		    (int32_t)((uint32_t)reassessmentLocation - (uint32_t)currentPlayPos) * guide->playDirection;
 
 		if (ALPHA_OR_BETA_VERSION && bytesLeftWhichMayBeRead <= 0) {
-			display->freezeWithError("E001");
+			FREEZE_WITH_ERROR("E001");
 		}
 
 		// If there are actually less bytes remaining than we ideally wanted for this window...
@@ -863,7 +863,7 @@ doZeroes:
 			if (ALPHA_OR_BETA_VERSION && *numSamples <= 0) {
 				Debug::print("bytesLeftWhichMayBeRead: ");
 				Debug::println(bytesLeftWhichMayBeRead);
-				display->freezeWithError("E147"); // Crazily, Michael B got in Nov 2022, when "closing" a recorded loop.
+				FREEZE_WITH_ERROR("E147"); // Crazily, Michael B got in Nov 2022, when "closing" a recorded loop.
 			}
 		}
 	}

@@ -88,14 +88,14 @@ void* OpenAddressingHashTable::insert(uint32_t key, bool* onlyIfNotAlreadyPresen
 
 #if ALPHA_OR_BETA_VERSION
 	if (doesKeyIndicateEmptyBucket(key)) {
-		display->freezeWithError("E330");
+		FREEZE_WITH_ERROR("E330");
 	}
 #endif
 
 	// If no memory, get some
 	if (!memory) {
 		int32_t newNumBuckets = initialNumBuckets;
-		memory = GeneralMemoryAllocator::get().alloc(newNumBuckets * elementSize, NULL, false, true);
+		memory = GeneralMemoryAllocator::get().allocMaxSpeed(newNumBuckets * elementSize);
 		if (!memory) {
 			return NULL;
 		}
@@ -110,7 +110,7 @@ void* OpenAddressingHashTable::insert(uint32_t key, bool* onlyIfNotAlreadyPresen
 	else if (numElements >= numBuckets - (numBuckets >> 2)) {
 		int32_t newNumBuckets = numBuckets << 1;
 
-		secondaryMemory = GeneralMemoryAllocator::get().alloc(newNumBuckets * elementSize, NULL, false, true);
+		secondaryMemory = GeneralMemoryAllocator::get().allocMaxSpeed(newNumBuckets * elementSize);
 		if (secondaryMemory) {
 
 			// Initialize
@@ -197,7 +197,7 @@ void* OpenAddressingHashTable::lookup(uint32_t key) {
 
 #if ALPHA_OR_BETA_VERSION
 	if (doesKeyIndicateEmptyBucket(key)) {
-		display->freezeWithError("E331");
+		FREEZE_WITH_ERROR("E331");
 	}
 #endif
 
@@ -238,7 +238,7 @@ bool OpenAddressingHashTable::remove(uint32_t key) {
 
 #if ALPHA_OR_BETA_VERSION
 	if (doesKeyIndicateEmptyBucket(key)) {
-		display->freezeWithError("E332");
+		FREEZE_WITH_ERROR("E332");
 	}
 #endif
 

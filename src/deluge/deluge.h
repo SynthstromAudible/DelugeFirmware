@@ -33,8 +33,6 @@ extern void loadAnyEnqueuedClustersRoutine(void);
 
 extern void logAudioAction(char const* string);
 
-// This is defined in display.cpp
-extern void freezeWithError(char const* errmsg);
 extern void consoleTextIfAllBootedUp(char const* text);
 
 extern void routineForSD(void);

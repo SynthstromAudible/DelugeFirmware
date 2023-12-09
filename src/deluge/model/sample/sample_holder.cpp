@@ -43,7 +43,7 @@ SampleHolder::~SampleHolder() {
 		unassignAllClusterReasons(true);
 #if ALPHA_OR_BETA_VERSION
 		if (audioFile->numReasonsToBeLoaded <= 0) {
-			display->freezeWithError("E219"); // I put this here to try and catch an E004 Luc got
+			FREEZE_WITH_ERROR("E219"); // I put this here to try and catch an E004 Luc got
 		}
 #endif
 		audioFile->removeReason("E396");
@@ -130,7 +130,7 @@ void SampleHolder::setAudioFile(AudioFile* newSample, bool reversed, bool manual
 
 #if 1 || ALPHA_OR_BETA_VERSION
 		if (!audioFile) {
-			display->freezeWithError("i031"); // Trying to narrow down E368 that Kevin F got
+			FREEZE_WITH_ERROR("i031"); // Trying to narrow down E368 that Kevin F got
 		}
 #endif
 
@@ -145,7 +145,7 @@ constexpr int32_t kMarkerSamplesBeforeToClaim = 150;
 void SampleHolder::claimClusterReasons(bool reversed, int32_t clusterLoadInstruction) {
 
 	if (ALPHA_OR_BETA_VERSION && !audioFile) {
-		display->freezeWithError("E368");
+		FREEZE_WITH_ERROR("E368");
 	}
 
 	//unassignAllReasons(); // This now happens as part of reassessPosForMarker(), called below

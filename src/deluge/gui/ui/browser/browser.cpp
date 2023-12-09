@@ -86,6 +86,35 @@ bool Browser::opened() {
 	return QwertyUI::opened();
 }
 
+//returns true if the FP for the filepath is correct
+bool Browser::checkFP() {
+	FileItem* currentFileItem = getCurrentFileItem();
+	String filePath;
+	int32_t error = getCurrentFilePath(&filePath);
+	if (error != 0) {
+		Debug::println("couldn't get filepath");
+		return false;
+	}
+
+	FilePointer tempfp;
+	bool fileExists = storageManager.fileExists(filePath.get(), &tempfp);
+	if (!fileExists) {
+		Debug::println("couldn't get filepath");
+		return false;
+	}
+	else if (tempfp.sclust != currentFileItem->filePointer.sclust) {
+		Debug::print("FPs don't match: correct is ");
+		Debug::print(tempfp.sclust);
+		Debug::print(" but the browser has ");
+		Debug::println(currentFileItem->filePointer.sclust);
+#if ALPHA_OR_BETA_VERSION
+		display->freezeWithError("B001");
+#endif
+		return false;
+	}
+	return true;
+}
+
 void Browser::close() {
 	emptyFileItems();
 	QwertyUI::close();
@@ -518,6 +547,7 @@ tryReadingItems:
 			}
 		}
 	}
+
 	return NO_ERROR;
 }
 
@@ -720,7 +750,7 @@ noNumberYet:
 			int32_t searchResult = fileItems.search(endSearchString.get());
 #if ALPHA_OR_BETA_VERSION
 			if (searchResult <= 0) {
-				display->freezeWithError("E448");
+				FREEZE_WITH_ERROR("E448");
 				error = ERROR_BUG;
 				goto gotErrorAfterAllocating;
 			}
@@ -934,7 +964,7 @@ void Browser::selectEncoderAction(int8_t offset) {
 				if (thisSlot.slot < 0) {
 					goto nonNumeric;
 				}
-
+				Debug::println("treating as numeric");
 				thisSlot.subSlot = -1;
 				switch (numberEditPosNow) {
 				case 0:
@@ -983,6 +1013,7 @@ void Browser::selectEncoderAction(int8_t offset) {
 				if (thisSlot.slot < 0) {
 					goto nonNumeric;
 				}
+				Debug::println("treating as numeric");
 				thisSlot.slot += offset;
 
 				char searchString[9];
@@ -1012,6 +1043,7 @@ nonNumeric:
 	int32_t error;
 
 	if (newFileIndex < 0) {
+		Debug::println("index below 0");
 		if (numFileItemsDeletedAtStart) {
 			scrollPosVertical = 9999;
 
@@ -1021,12 +1053,15 @@ tryReadingItems:
 			                                         NULL, true, Availability::ANY, CATALOG_SEARCH_BOTH);
 			if (error) {
 gotErrorAfterAllocating:
+				Debug::println("error while reloading, emptying file items");
 				emptyFileItems();
 				return;
 				// TODO - need to close UI or something?
 			}
 
 			newFileIndex = fileItems.search(enteredText.get()) + offset;
+			Debug::print("new file Index is ");
+			Debug::println(newFileIndex);
 		}
 
 		else if (!shouldWrapFolderContents && display->have7SEG()) {
@@ -1057,6 +1092,7 @@ searchFromOneEnd:
 	}
 
 	else if (newFileIndex >= fileItems.getNumElements()) {
+		Debug::println("out of file items");
 		if (numFileItemsDeletedAtEnd) {
 			scrollPosVertical = 0;
 			goto tryReadingItems;

@@ -47,6 +47,7 @@ public:
 	    ModelStackWithThreeMainThings* modelStack); // Check that autoParam isn't NULL, after calling this
 	virtual uint8_t* getModKnobMode();              // Return NULL if different modes not supported
 	virtual bool isKit() { return false; }
+	virtual bool isEditingComp() { return false; }
 	virtual int32_t getKnobPosForNonExistentParam(
 	    int32_t whichModEncoder,
 	    ModelStackWithAutoParam* modelStack); // modelStack->autoParam will be NULL in this rare case!!

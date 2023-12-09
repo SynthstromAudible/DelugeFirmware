@@ -37,7 +37,7 @@ public:
 	void compensateVolumeForResonance(ParamManagerForTimeline* paramManager);
 	void processFXForGlobalEffectable(StereoSample* inputBuffer, int32_t numSamples, int32_t* postFXVolume,
 	                                  ParamManager* paramManager, DelayWorkingState* delayWorkingState,
-	                                  int32_t analogDelaySaturationAmount);
+	                                  int32_t analogDelaySaturationAmount, bool grainHadInput = true);
 
 	void writeAttributesToFile(bool writeToFile);
 	void writeTagsToFile(ParamManager* paramManager, bool writeToFile);
@@ -53,13 +53,19 @@ public:
 	char const* paramToString(uint8_t param);
 	int32_t stringToParam(char const* string);
 	void setupDelayWorkingState(DelayWorkingState* delayWorkingState, ParamManager* paramManager,
-	                            bool shouldLimitDelayFeedback = false);
-
+	                            bool shouldLimitDelayFeedback = false, bool soundComingIn = true);
+	bool isEditingComp() override { return editingComp; }
+	int32_t getKnobPosForNonExistentParam(int32_t whichModEncoder, ModelStackWithAutoParam* modelStack) override;
+	ActionResult modEncoderActionForNonExistentParam(int32_t offset, int32_t whichModEncoder,
+	                                                 ModelStackWithAutoParam* modelStack) override;
 	dsp::filter::FilterSet filterSet;
 	ModFXParam currentModFXParam;
 	FilterType currentFilterType;
+	bool editingComp;
+	CompParam currentCompParam;
 
 protected:
+	int maxCompParam = 0;
 	virtual int32_t getParameterFromKnob(int32_t whichModEncoder);
 	ModFXType getActiveModFXType(ParamManager* paramManager);
 

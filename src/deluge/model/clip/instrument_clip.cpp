@@ -175,7 +175,7 @@ void InstrumentClip::copyBasicsFrom(Clip* otherClip) {
 // Will replace the Clip in the modelStack, if success.
 int32_t InstrumentClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing) {
 
-	void* clipMemory = GeneralMemoryAllocator::get().alloc(sizeof(InstrumentClip), NULL, false, true);
+	void* clipMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(InstrumentClip));
 	if (!clipMemory) {
 		return ERROR_INSUFFICIENT_RAM;
 	}
@@ -935,7 +935,7 @@ void InstrumentClip::toggleNoteRowMute(ModelStackWithNoteRow* modelStack) {
 	// Record action
 	Action* action = actionLogger.getNewAction(ACTION_MISC);
 	if (action) {
-		void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceNoteRowMute));
+		void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceNoteRowMute));
 
 		if (consMemory) {
 			ConsequenceNoteRowMute* newConsequence =
@@ -1095,13 +1095,13 @@ ModelStackWithNoteRow* InstrumentClip::getOrCreateNoteRowForYNote(int32_t yNote,
 
 				thisNoteRow = getNoteRowForYNote(yNote); // Must re-get it
 				if (ALPHA_OR_BETA_VERSION && !thisNoteRow) {
-					display->freezeWithError("E -1");
+					FREEZE_WITH_ERROR("E -1");
 				}
 
 				thisNoteRow->notes.empty(); // Undo our "total hack", above
 
 				if (action) {
-					void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceScaleAddNote));
+					void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceScaleAddNote));
 
 					if (consMemory) {
 						ConsequenceScaleAddNote* newConsequence =
@@ -1492,7 +1492,7 @@ int32_t InstrumentClip::setNonAudioInstrument(Instrument* newInstrument, Song* s
 			int32_t error = paramManager.setupMIDI();
 			if (error) {
 				if (ALPHA_OR_BETA_VERSION) {
-					display->freezeWithError("E052");
+					FREEZE_WITH_ERROR("E052");
 				}
 				return error;
 			}
@@ -1606,7 +1606,7 @@ int32_t InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelSta
 	    newInstrument, modelStack->song, newParamManager,
 	    favourClipForCloningParamManager); // Tell it not to setup patching - this will happen back here in changeInstrumentPreset() after all Drums matched up
 	if (error) {
-		display->freezeWithError("E039");
+		FREEZE_WITH_ERROR("E039");
 		return error; // TODO: we'll need to get the old Instrument back...
 	}
 
@@ -2034,7 +2034,7 @@ int32_t InstrumentClip::undoUnassignmentOfAllNoteRowsFromDrums(ModelStackWithTim
 
 			if (!success) {
 				if (ALPHA_OR_BETA_VERSION) {
-					display->freezeWithError("E229");
+					FREEZE_WITH_ERROR("E229");
 				}
 				return ERROR_BUG;
 			}
@@ -2125,7 +2125,7 @@ int32_t InstrumentClip::undoDetachmentFromOutput(ModelStackWithTimelineCounter* 
 
 		if (!paramManager.containsAnyMainParamCollections()) {
 			if (ALPHA_OR_BETA_VERSION) {
-				display->freezeWithError("E230");
+				FREEZE_WITH_ERROR("E230");
 			}
 			return ERROR_BUG;
 		}
@@ -2569,8 +2569,7 @@ someError:
 		else if (!strcmp(tagName, "sound") || !strcmp(tagName, "synth")) {
 			if (!output) {
 				{
-					void* instrumentMemory =
-					    GeneralMemoryAllocator::get().alloc(sizeof(SoundInstrument), NULL, false, true);
+					void* instrumentMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SoundInstrument));
 					if (!instrumentMemory) {
 						goto ramError;
 					}
@@ -2603,7 +2602,7 @@ loadInstrument:
 		// For song files from before V2.0, where Instruments were stored within the Clip
 		else if (!strcmp(tagName, "kit")) {
 			if (!output) {
-				void* instrumentMemory = GeneralMemoryAllocator::get().alloc(sizeof(Kit), NULL, false, true);
+				void* instrumentMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Kit));
 				if (!instrumentMemory) {
 					goto ramError;
 				}
@@ -2689,7 +2688,7 @@ createNewParamManager:
 			}
 		}
 
-		// These next 3 - only created by alpha testers for a few weeks. Could eventually remove.
+		// These are the expression params for MPE
 		else if (!strcmp(tagName, "pitchBend")) {
 			temp = 0;
 doReadExpressionParam:
@@ -2901,8 +2900,11 @@ expressionParam:
 						paramId = stringToInt(contents);
 						if (paramId < kNumRealCCNumbers) {
 							if (paramId == 74) {
-								paramId = 1;
-								goto expressionParam;
+								if (storageManager.firmwareVersionOfFileBeingRead
+								    < FirmwareVersion::FIRMWARE_3P2P0_ALPHA) {
+									paramId = 1;
+									goto expressionParam;
+								}
 							}
 							MIDIParam* midiParam =
 							    paramManager.getMIDIParamCollection()->params.getOrCreateParamFromCC(paramId, 0);
@@ -3067,7 +3069,7 @@ bool InstrumentClip::deleteSoundsWhichWontSound(Song* song) {
 
 					if (ALPHA_OR_BETA_VERSION && noteRow->drum->type == DrumType::SOUND
 					    && ((SoundDrum*)noteRow->drum)->hasAnyVoices()) {
-						display->freezeWithError("E176");
+						FREEZE_WITH_ERROR("E176");
 					}
 
 					Drum* drum = noteRow->drum;
@@ -3237,7 +3239,7 @@ int32_t InstrumentClip::getDistanceToNextNote(Note* givenNote, ModelStackWithNot
 int32_t InstrumentClip::getNoteRowId(NoteRow* noteRow, int32_t noteRowIndex) {
 #if ALPHA_OR_BETA_VERSION
 	if (!noteRow) {
-		display->freezeWithError("E380");
+		FREEZE_WITH_ERROR("E380");
 	}
 #endif
 	if (output->type == InstrumentType::KIT) {
@@ -3251,7 +3253,7 @@ int32_t InstrumentClip::getNoteRowId(NoteRow* noteRow, int32_t noteRowIndex) {
 NoteRow* InstrumentClip::getNoteRowFromId(int32_t id) {
 	if (output->type == InstrumentType::KIT) {
 		if (id < 0 || id >= noteRows.getNumElements()) {
-			display->freezeWithError("E177");
+			FREEZE_WITH_ERROR("E177");
 		}
 		return noteRows.getElement(id);
 	}
@@ -3369,6 +3371,10 @@ void InstrumentClip::clear(Action* action, ModelStackWithTimelineCounter* modelS
 		    modelStack->addNoteRow(getNoteRowId(thisNoteRow, i), thisNoteRow);
 		thisNoteRow->clear(action, modelStackWithNoteRow);
 	}
+
+	// Paul: Note rows were lingering, delete them immediately instead of relying they get deleted along the way
+	// Mark: BayMud immediately had 2 crashes related to missing note rows - E105 and E177
+	// noteRows.deleteNoteRowAtIndex(0, noteRows.getNumElements());
 }
 
 bool InstrumentClip::doesProbabilityExist(int32_t apartFromPos, int32_t probability, int32_t secondProbability) {
@@ -3733,7 +3739,7 @@ int32_t InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 				thisNoteRow->drum = kit->getGateDrumForChannel(gateChannel);
 
 				if (!thisNoteRow->drum) {
-					void* drumMemory = GeneralMemoryAllocator::get().alloc(sizeof(GateDrum), NULL, true);
+					void* drumMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(GateDrum));
 					if (!drumMemory) {
 						return ERROR_INSUFFICIENT_RAM;
 					}
@@ -3802,7 +3808,7 @@ int32_t InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 
 						// If wasn't enough RAM, we're really in trouble
 						if (error) {
-							display->freezeWithError("E011");
+							FREEZE_WITH_ERROR("E011");
 haveNoDrum:
 							thisNoteRow->drum = NULL;
 						}
@@ -4035,7 +4041,7 @@ void InstrumentClip::finishLinearRecording(ModelStackWithTimelineCounter* modelS
 Clip* InstrumentClip::cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStack, OverDubType newOverdubNature) {
 
 	// Allocate memory for Clip
-	void* clipMemory = GeneralMemoryAllocator::get().alloc(sizeof(InstrumentClip), NULL, false, true);
+	void* clipMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(InstrumentClip));
 	if (!clipMemory) {
 ramError:
 		display->displayError(ERROR_INSUFFICIENT_RAM);
@@ -4382,7 +4388,7 @@ doNormal: // Wrap it back to the start.
 
 		else if (reversed) {
 doHomogenize:
-#if ALPHA_OR_BETA_VERSION
+#if ENABLE_SEQUENTIALITY_TESTS
 			param->nodes.testSequentiality(
 			    "E442"); // drbourbon got, when check was inside homogenizeRegion(). Now trying to work out where that came from. March 2022.
 #endif

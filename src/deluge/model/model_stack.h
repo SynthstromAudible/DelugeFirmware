@@ -146,7 +146,7 @@ public:
 	inline TimelineCounter* getTimelineCounter() const {
 #if ALPHA_OR_BETA_VERSION
 		if (!timelineCounter) {
-			display->freezeWithError("E369");
+			FREEZE_WITH_ERROR("E369");
 		}
 #endif
 		return timelineCounter;
@@ -199,7 +199,7 @@ public:
 	inline NoteRow* getNoteRow() const {
 #if ALPHA_OR_BETA_VERSION
 		if (!noteRow) {
-			display->freezeWithError("E379");
+			FREEZE_WITH_ERROR("E379");
 		}
 #endif
 		return noteRow;
@@ -265,6 +265,8 @@ public:
 	int32_t paramId;
 
 	ModelStackWithAutoParam* addAutoParam(AutoParam* newAutoParam) const;
+
+	bool isParam(Param::Kind kind, ParamType id);
 };
 
 class ModelStackWithAutoParam : public ModelStackWithParamId {

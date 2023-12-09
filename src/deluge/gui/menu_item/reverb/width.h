@@ -25,8 +25,8 @@ namespace deluge::gui::menu_item::reverb {
 class Width final : public Integer {
 public:
 	using Integer::Integer;
-	void readCurrentValue() override { this->setValue(std::round(AudioEngine::reverb.getwidth() * 50)); }
-	void writeCurrentValue() override { AudioEngine::reverb.setwidth((float)this->getValue() / 50); }
-	[[nodiscard]] int32_t getMaxValue() const override { return 50; }
+	void readCurrentValue() override { this->setValue(std::round(AudioEngine::reverb.getwidth() * kMaxMenuValue)); }
+	void writeCurrentValue() override { AudioEngine::reverb.setwidth((float)this->getValue() / kMaxMenuValue); }
+	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 };
 } // namespace deluge::gui::menu_item::reverb

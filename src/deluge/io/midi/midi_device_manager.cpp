@@ -137,7 +137,7 @@ MIDIDeviceUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16
 		return NULL;
 	}
 
-	void* memory = GeneralMemoryAllocator::get().alloc(sizeof(MIDIDeviceUSBHosted), NULL, false, true);
+	void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(MIDIDeviceUSBHosted));
 	if (!memory) {
 		return NULL;
 	}
@@ -153,7 +153,7 @@ MIDIDeviceUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16
 	int32_t error = hostedMIDIDevices.insertElement(device, i); // We made sure, above, that there's space
 #if ALPHA_OR_BETA_VERSION
 	if (error) {
-		display->freezeWithError("E405");
+		FREEZE_WITH_ERROR("E405");
 	}
 #endif
 
@@ -240,7 +240,7 @@ extern "C" void hostedDeviceDetached(int32_t ip, int32_t midiDeviceNum) {
 
 #if ALPHA_OR_BETA_VERSION
 	if (midiDeviceNum == MAX_NUM_USB_MIDI_DEVICES) {
-		display->freezeWithError("E367");
+		FREEZE_WITH_ERROR("E367");
 	}
 #endif
 

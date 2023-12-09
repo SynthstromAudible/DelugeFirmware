@@ -220,7 +220,7 @@ renderEnvelope:
 			inputChannelNow = AudioInputChannel::NONE; // 0 means combine channels
 		}
 
-		int32_t amplitudeIncrement = (amplitudeAtEnd - amplitudeAtStart) / numSamples;
+		int32_t amplitudeIncrement = (int32_t)((double)(amplitudeAtEnd - amplitudeAtStart) / (double)numSamples);
 		int32_t amplitudeNow = amplitudeAtStart;
 
 		do {
@@ -366,7 +366,7 @@ void AudioOutput::deleteBackedUpParamManagers(Song* song) {
 Clip* AudioOutput::createNewClipForArrangementRecording(ModelStack* modelStack) {
 
 	// Allocate memory for audio clip
-	void* clipMemory = GeneralMemoryAllocator::get().alloc(sizeof(AudioClip), NULL, false, true);
+	void* clipMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(AudioClip));
 	if (!clipMemory) {
 		return NULL;
 	}
@@ -376,7 +376,7 @@ Clip* AudioOutput::createNewClipForArrangementRecording(ModelStack* modelStack) 
 
 #if ALPHA_OR_BETA_VERSION
 	if (!newClip->paramManager.summaries[0].paramCollection) {
-		display->freezeWithError("E422"); // Trying to diversify Leo's E410
+		FREEZE_WITH_ERROR("E422"); // Trying to diversify Leo's E410
 	}
 #endif
 

@@ -77,7 +77,7 @@ void LivePitchShifter::render(int32_t* __restrict__ outputBuffer, int32_t numSam
 
 	LiveInputBuffer* liveInputBuffer = AudioEngine::getOrCreateLiveInputBuffer(inputType, false);
 	if (ALPHA_OR_BETA_VERSION && !liveInputBuffer) {
-		display->freezeWithError("E165");
+		FREEZE_WITH_ERROR("E165");
 	}
 
 	liveInputBuffer->giveInput(numSamplesThisFunctionCall, AudioEngine::audioSampleTimer, inputType);
@@ -371,7 +371,7 @@ void LivePitchShifter::hopEnd(int32_t phaseIncrement, LiveInputBuffer* liveInput
 	//Debug::println(numRawSamplesProcessedAtNowTime);
 	if (crossfadeProgress < 16777216) {
 		Debug::println("last crossfade not finished");
-		//if (ALPHA_OR_BETA_VERSION) display->freezeWithError("FADE");
+		//if (ALPHA_OR_BETA_VERSION) FREEZE_WITH_ERROR("FADE");
 	}
 	//Debug::println(phaseIncrement);
 
@@ -841,8 +841,8 @@ void LivePitchShifter::considerRepitchedBuffer(int32_t phaseIncrement) {
 	if (phaseIncrement > 16777216) {
 		if (!repitchedBuffer) {
 
-			repitchedBuffer = (int32_t*)GeneralMemoryAllocator::get().alloc(
-			    INPUT_REPITCHED_BUFFER_SIZE * sizeof(int32_t) * numChannels, NULL, false, true);
+			repitchedBuffer = (int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(INPUT_REPITCHED_BUFFER_SIZE
+			                                                                        * sizeof(int32_t) * numChannels);
 			if (repitchedBuffer) {
 				repitchedBufferWritePos = 0;
 				oscPos = 0;

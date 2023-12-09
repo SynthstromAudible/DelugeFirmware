@@ -259,10 +259,9 @@ gotError2:
 		int32_t bandSizeSamplesWithDuplicates =
 		    numCycles * (cycleSizeNoDuplicates + WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE);
 		int32_t bandSizeBytesWithDuplicates = bandSizeSamplesWithDuplicates << 1; // All bands contain just 16-bit data.
-		    // Ironically we'll even do that if the source file was just 8-bit, but that's really uncommon.
+		// Ironically we'll even do that if the source file was just 8-bit, but that's really uncommon.
 		void* bandDataMemory =
-		    GeneralMemoryAllocator::get().alloc(bandSizeBytesWithDuplicates + sizeof(WaveTableBandData), NULL, false,
-		                                        WAVETABLE_ALLOW_INTERNAL_MEMORY, true); // Stealable!
+		    GeneralMemoryAllocator::get().allocStealable(bandSizeBytesWithDuplicates + sizeof(WaveTableBandData));
 		if (!bandDataMemory) {
 			error = ERROR_INSUFFICIENT_RAM;
 			// All bands from this one onwards still have undefined data, so gotta get rid of them before anything else tries to do anything with them.
@@ -295,8 +294,9 @@ gotError2:
 	// This will also be used for outputting the time-domain cycle data back out of the inverse FFT, so ensure it's big enough for that if our biggest band is bigger
 	// than the cycle size in the file (i.e. if that's not a power-of-two).
 	int32_t currentCycleMemorySize = std::max(rawFileCycleSize, initialBandCycleSizeNoDuplicates);
-	int32_t* __restrict__ currentCycleInt32 = (int32_t*)GeneralMemoryAllocator::get().alloc(
-	    currentCycleMemorySize * sizeof(int32_t), NULL, false, true); // Internal RAM is good, and it's only temporary
+	// Internal RAM is good, and it's only temporary
+	int32_t* __restrict__ currentCycleInt32 =
+	    (int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(currentCycleMemorySize * sizeof(int32_t));
 	if (!currentCycleInt32) {
 		error = ERROR_INSUFFICIENT_RAM;
 		goto gotError2;
@@ -304,8 +304,9 @@ gotError2:
 
 	// And temporary FFT output (frequency domain) buffer. The same sizing considerations as above are needed, and we use that same decision here
 	// - except for frequency-domain complex numbers, we only need to store half of it, plus one.
-	ne10_fft_cpx_int32_t* __restrict__ frequencyDomainData = (ne10_fft_cpx_int32_t*)GeneralMemoryAllocator::get().alloc(
-	    ((currentCycleMemorySize >> 1) + 1) * sizeof(ne10_fft_cpx_int32_t), NULL, false, true);
+	ne10_fft_cpx_int32_t* __restrict__ frequencyDomainData =
+	    (ne10_fft_cpx_int32_t*)GeneralMemoryAllocator::get().allocMaxSpeed(((currentCycleMemorySize >> 1) + 1)
+	                                                                       * sizeof(ne10_fft_cpx_int32_t));
 	if (!frequencyDomainData) {
 		error = ERROR_INSUFFICIENT_RAM;
 gotError4:
@@ -671,7 +672,7 @@ transformBandToTimeDomain:
 			if (!fftCFGThisBand) {
 #if ALPHA_OR_BETA_VERSION
 				if (!b) {
-					display->freezeWithError("E390");
+					FREEZE_WITH_ERROR("E390");
 				}
 #endif
 				band->~WaveTableBand();
@@ -1082,7 +1083,7 @@ startRenderingACycle:
 			    numIncrementsWeCanDoNow
 			    + 1; // +1 because we can only have to increment *between* the samples we're rendering. If can only do 1 increment, we can still render 2 samples.
 			if (ALPHA_OR_BETA_VERSION && numSamplesThisCycle > numSamplesLeftToDo) {
-				display->freezeWithError("E386");
+				FREEZE_WITH_ERROR("E386");
 			}
 		}
 
@@ -1165,7 +1166,7 @@ void WaveTable::numReasonsDecreasedToZero(char const* errorCode) {
 		if (band->data) {
 #if ALPHA_OR_BETA_VERSION
 			if (band->data->list) {
-				display->freezeWithError("E388");
+				FREEZE_WITH_ERROR("E388");
 			}
 #endif
 			GeneralMemoryAllocator::get().putStealableInQueue(band->data, STEALABLE_QUEUE_NO_SONG_WAVETABLE_BAND_DATA);

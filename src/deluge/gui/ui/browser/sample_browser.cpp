@@ -838,7 +838,7 @@ doLoadAsWaveTable:
 			if (soundEditor.currentSource->ranges.getNumElements() > 1
 					&& soundEditor.currentSource->oscType == OscType::SAMPLE) {
 #if ALPHA_OR_BETA_VERSION
-				if (mayDoWaveTable == 2) display->freezeWithError("E425");
+				if (mayDoWaveTable == 2) FREEZE_WITH_ERROR("E425");
 #endif
 				goto doLoadAsSample;
 			}
@@ -900,7 +900,7 @@ doLoadAsSample:
 			if (soundEditor.currentSource->ranges.getNumElements() > 1
 					&& soundEditor.currentSource->oscType == OscType::WAVETABLE) {
 #if ALPHA_OR_BETA_VERSION
-				if (!mayDoWaveTable) display->freezeWithError("E426");
+				if (!mayDoWaveTable) FREEZE_WITH_ERROR("E426");
 #endif
 				goto doLoadAsWaveTable;
 			}
@@ -1214,7 +1214,7 @@ removeReasonsFromSamplesAndGetOut:
 					thisSample->partOfFolderBeingLoaded = false;
 #if ALPHA_OR_BETA_VERSION
 					if (thisSample->numReasonsToBeLoaded <= 0) {
-						display->freezeWithError("E213"); // I put this here to try and catch an E004 Luc got
+						FREEZE_WITH_ERROR("E213"); // I put this here to try and catch an E004 Luc got
 					}
 #endif
 					thisSample->removeReason("E392"); // Remove that temporary reason we added
@@ -1317,8 +1317,7 @@ removeReasonsFromSamplesAndGetOut:
 	// If all samples were tagged with the same MIDI note, we get suspicious and delete them.
 	bool discardingMIDINoteFromFile = (numSamples > 1 && commonMIDINote >= 0);
 
-	Sample** sortArea =
-	    (Sample**)GeneralMemoryAllocator::get().alloc(numSamples * sizeof(Sample*) * 2, NULL, false, true);
+	Sample** sortArea = (Sample**)GeneralMemoryAllocator::get().allocMaxSpeed(numSamples * sizeof(Sample*) * 2);
 	if (!sortArea) {
 		error = ERROR_INSUFFICIENT_RAM;
 		goto removeReasonsFromSamplesAndGetOut;
@@ -1645,7 +1644,7 @@ doReturnFalse:
 				Sample* thisSample = sortArea[s];
 #if ALPHA_OR_BETA_VERSION
 				if (thisSample->numReasonsToBeLoaded <= 0) {
-					display->freezeWithError("E215"); // I put this here to try and catch an E004 Luc got
+					FREEZE_WITH_ERROR("E215"); // I put this here to try and catch an E004 Luc got
 				}
 #endif
 				thisSample->removeReason("E393"); // Remove that temporary reason we added above
@@ -1761,7 +1760,7 @@ skipOctaveCorrection:
 		else {
 #if ALPHA_OR_BETA_VERSION
 			if (soundEditor.currentSource->ranges.elementSize != sizeof(MultisampleRange)) {
-				display->freezeWithError("E431");
+				FREEZE_WITH_ERROR("E431");
 			}
 #endif
 			range = (MultisampleRange*)soundEditor.currentSource->ranges.insertMultiRange(
@@ -1788,7 +1787,7 @@ skipOctaveCorrection:
 		}
 
 		if (ALPHA_OR_BETA_VERSION && thisSample->numReasonsToBeLoaded <= 0) {
-			display->freezeWithError("E216"); // I put this here to try and catch an E004 Luc got
+			FREEZE_WITH_ERROR("E216"); // I put this here to try and catch an E004 Luc got
 		}
 		thisSample->removeReason("E394"); // Remove that temporary reason we added above
 
@@ -1919,7 +1918,7 @@ getOut:
 					goto getOut;
 				}
 
-				void* drumMemory = GeneralMemoryAllocator::get().alloc(sizeof(SoundDrum), NULL, false, true);
+				void* drumMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SoundDrum));
 				if (!drumMemory) {
 					goto getOut;
 				}
@@ -1976,7 +1975,7 @@ skipNameStuff:
 
 #if ALPHA_OR_BETA_VERSION
 			if (thisSample->numReasonsToBeLoaded <= 0) {
-				display->freezeWithError("E217"); // I put this here to try and catch an E004 Luc got
+				FREEZE_WITH_ERROR("E217"); // I put this here to try and catch an E004 Luc got
 			}
 #endif
 			thisSample->removeReason("E395");

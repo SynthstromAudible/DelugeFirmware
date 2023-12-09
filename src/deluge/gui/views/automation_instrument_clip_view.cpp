@@ -118,17 +118,17 @@ const std::array<std::pair<Param::Kind, ParamType>, kNumNonKitAffectEntireParams
         {Param::Kind::PATCHED, Param::Local::HPF_FREQ}, //HPF Cutoff, Resonance, Morph
         {Param::Kind::PATCHED, Param::Local::HPF_RESONANCE},
         {Param::Kind::PATCHED, Param::Local::HPF_MORPH},
-        {Param::Kind::UNPATCHED, Param::Unpatched::BASS}, //Bass, Bass Freq
-        {Param::Kind::UNPATCHED, Param::Unpatched::BASS_FREQ},
-        {Param::Kind::UNPATCHED, Param::Unpatched::TREBLE}, //Treble, Treble Freq
-        {Param::Kind::UNPATCHED, Param::Unpatched::TREBLE_FREQ},
+        {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::BASS}, //Bass, Bass Freq
+        {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::BASS_FREQ},
+        {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::TREBLE}, //Treble, Treble Freq
+        {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::TREBLE_FREQ},
         {Param::Kind::PATCHED, Param::Global::REVERB_AMOUNT}, //Reverb Amount
         {Param::Kind::PATCHED, Param::Global::DELAY_RATE},    //Delay Rate, Amount
         {Param::Kind::PATCHED, Param::Global::DELAY_FEEDBACK},
         {Param::Kind::PATCHED, Param::Global::VOLUME_POST_REVERB_SEND}, //Sidechain Send, Shape
-        {Param::Kind::UNPATCHED, Param::Unpatched::COMPRESSOR_SHAPE},
-        {Param::Kind::UNPATCHED, Param::Unpatched::SAMPLE_RATE_REDUCTION}, //Decimation, Bitcrush, Wavefolder
-        {Param::Kind::UNPATCHED, Param::Unpatched::BITCRUSHING},
+        {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::COMPRESSOR_SHAPE},
+        {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::SAMPLE_RATE_REDUCTION}, //Decimation, Bitcrush, Wavefolder
+        {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::BITCRUSHING},
         {Param::Kind::PATCHED, Param::Local::FOLD},
         {Param::Kind::PATCHED,
          Param::Local::OSC_A_VOLUME}, //OSC 1 Volume, Pitch, Phase Width, Carrier Feedback, Wave Index
@@ -156,45 +156,47 @@ const std::array<std::pair<Param::Kind, ParamType>, kNumNonKitAffectEntireParams
         {Param::Kind::PATCHED, Param::Local::ENV_1_DECAY},
         {Param::Kind::PATCHED, Param::Local::ENV_1_SUSTAIN},
         {Param::Kind::PATCHED, Param::Local::ENV_1_RELEASE},
-        {Param::Kind::PATCHED, Param::Global::LFO_FREQ},           //LFO 1 Freq
-        {Param::Kind::PATCHED, Param::Local::LFO_LOCAL_FREQ},      //LFO 2 Freq
-        {Param::Kind::UNPATCHED, Param::Unpatched::MOD_FX_OFFSET}, //Mod FX Offset, Feedback, Depth, Rate
-        {Param::Kind::UNPATCHED, Param::Unpatched::MOD_FX_FEEDBACK},
+        {Param::Kind::PATCHED, Param::Global::LFO_FREQ},                 //LFO 1 Freq
+        {Param::Kind::PATCHED, Param::Local::LFO_LOCAL_FREQ},            //LFO 2 Freq
+        {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::MOD_FX_OFFSET}, //Mod FX Offset, Feedback, Depth, Rate
+        {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::MOD_FX_FEEDBACK},
         {Param::Kind::PATCHED, Param::Global::MOD_FX_DEPTH},
         {Param::Kind::PATCHED, Param::Global::MOD_FX_RATE},
         {Param::Kind::PATCHED, Param::Global::ARP_RATE}, //Arp Rate, Gate
-        {Param::Kind::UNPATCHED, Param::Unpatched::Sound::ARP_GATE},
-        {Param::Kind::PATCHED, Param::Local::NOISE_VOLUME},            //Noise
-        {Param::Kind::UNPATCHED, Param::Unpatched::Sound::PORTAMENTO}, //Portamento
+        {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::Sound::ARP_GATE},
+        {Param::Kind::PATCHED, Param::Local::NOISE_VOLUME},                  //Noise
+        {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::Sound::PORTAMENTO}, //Portamento
+        {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::STUTTER_RATE},      //Stutter Rate
     }};
 
 //kit affect entire FX - sorted in the order that Parameters are scrolled through on the display
 const std::array<std::pair<Param::Kind, ParamType>, kNumKitAffectEntireParamsForAutomation>
     kitAffectEntireParamsForAutomation{{
-        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::VOLUME}, //Master Volume, Pitch, Pan
-        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::PITCH_ADJUST},
-        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::PAN},
-        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::LPF_FREQ}, //LPF Cutoff, Resonance
-        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::LPF_RES},
-        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::HPF_FREQ}, //HPF Cutoff, Resonance
-        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::HPF_RES},
-        {Param::Kind::UNPATCHED, Param::Unpatched::BASS}, //Bass, Bass Freq
-        {Param::Kind::UNPATCHED, Param::Unpatched::BASS_FREQ},
-        {Param::Kind::UNPATCHED, Param::Unpatched::TREBLE}, //Treble, Treble Freq
-        {Param::Kind::UNPATCHED, Param::Unpatched::TREBLE_FREQ},
-        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT}, //Reverb Amount
-        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::DELAY_RATE},         //Delay Rate, Amount
-        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::DELAY_AMOUNT},
-        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::SIDECHAIN_VOLUME}, //Sidechain Send, Shape
-        {Param::Kind::UNPATCHED, Param::Unpatched::COMPRESSOR_SHAPE},
-        {Param::Kind::UNPATCHED, Param::Unpatched::SAMPLE_RATE_REDUCTION}, //Decimation, Bitcrush
-        {Param::Kind::UNPATCHED, Param::Unpatched::BITCRUSHING},
-        {Param::Kind::UNPATCHED, Param::Unpatched::MOD_FX_OFFSET}, //Mod FX Offset, Feedback, Depth, Rate
-        {Param::Kind::UNPATCHED, Param::Unpatched::MOD_FX_FEEDBACK},
-        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH},
-        {Param::Kind::GLOBAL_EFFECTABLE, Param::Unpatched::GlobalEffectable::MOD_FX_RATE},
-        {Param::Kind::UNPATCHED, Param::Unpatched::Sound::ARP_GATE},   //Arp Gate
-        {Param::Kind::UNPATCHED, Param::Unpatched::Sound::PORTAMENTO}, //Portamento
+        {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::VOLUME}, //Master Volume, Pitch, Pan
+        {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::PITCH_ADJUST},
+        {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::PAN},
+        {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::LPF_FREQ}, //LPF Cutoff, Resonance
+        {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::LPF_RES},
+        {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::HPF_FREQ}, //HPF Cutoff, Resonance
+        {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::HPF_RES},
+        {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::BASS}, //Bass, Bass Freq
+        {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::BASS_FREQ},
+        {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::TREBLE}, //Treble, Treble Freq
+        {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::TREBLE_FREQ},
+        {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::REVERB_SEND_AMOUNT}, //Reverb Amount
+        {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::DELAY_RATE},         //Delay Rate, Amount
+        {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::DELAY_AMOUNT},
+        {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::SIDECHAIN_VOLUME}, //Sidechain Send, Shape
+        {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::COMPRESSOR_SHAPE},
+        {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::SAMPLE_RATE_REDUCTION}, //Decimation, Bitcrush
+        {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::BITCRUSHING},
+        {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::MOD_FX_OFFSET}, //Mod FX Offset, Feedback, Depth, Rate
+        {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::MOD_FX_FEEDBACK},
+        {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH},
+        {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::MOD_FX_RATE},
+        {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::Sound::ARP_GATE},   //Arp Gate
+        {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::Sound::PORTAMENTO}, //Portamento
+        {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::STUTTER_RATE},      //Stutter Rate
     }};
 
 //grid sized arrays to assign automatable parameters to the grid
@@ -644,8 +646,9 @@ void AutomationInstrumentClipView::renderAutomationOverview(ModelStackWithTimeli
 
 			else if (unpatchedParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
 
-				modelStackWithParam = getModelStackWithParam(
-				    modelStack, clip, unpatchedParamShortcutsForAutomation[xDisplay][yDisplay], Param::Kind::UNPATCHED);
+				modelStackWithParam =
+				    getModelStackWithParam(modelStack, clip, unpatchedParamShortcutsForAutomation[xDisplay][yDisplay],
+				                           Param::Kind::UNPATCHED_SOUND);
 			}
 		}
 
@@ -810,21 +813,33 @@ DisplayParameterValue
 DisplayParameterName */
 
 void AutomationInstrumentClipView::renderDisplay(int32_t knobPosLeft, int32_t knobPosRight, bool modEncoderAction) {
-	//OLED Display
-	if (display->haveOLED()) {
-		renderDisplayOLED(knobPosLeft, knobPosRight);
-	}
-	//7SEG Display
-	else {
-		renderDisplay7SEG(knobPosLeft, modEncoderAction);
-	}
-}
-
-void AutomationInstrumentClipView::renderDisplayOLED(int32_t knobPosLeft, int32_t knobPosRight) {
-
 	InstrumentClip* clip = getCurrentClip();
 	Instrument* instrument = (Instrument*)clip->output;
 
+	//if you're not in a MIDI instrument clip, convert the knobPos to the same range as the menu (0-50)
+	if (instrument->type != InstrumentType::MIDI_OUT) {
+		if (knobPosLeft != kNoSelection) {
+			knobPosLeft =
+			    view.calculateKnobPosForDisplay(clip->lastSelectedParamKind, clip->lastSelectedParamID, knobPosLeft);
+		}
+		if (knobPosRight != kNoSelection) {
+			knobPosRight =
+			    view.calculateKnobPosForDisplay(clip->lastSelectedParamKind, clip->lastSelectedParamID, knobPosRight);
+		}
+	}
+
+	//OLED Display
+	if (display->haveOLED()) {
+		renderDisplayOLED(clip, instrument, knobPosLeft, knobPosRight);
+	}
+	//7SEG Display
+	else {
+		renderDisplay7SEG(clip, instrument, knobPosLeft, modEncoderAction);
+	}
+}
+
+void AutomationInstrumentClipView::renderDisplayOLED(InstrumentClip* clip, Instrument* instrument, int32_t knobPosLeft,
+                                                     int32_t knobPosRight) {
 	deluge::hid::display::OLED::clearMainImage();
 
 	if (isOnAutomationOverview() || (instrument->type == InstrumentType::CV)) {
@@ -852,7 +867,7 @@ void AutomationInstrumentClipView::renderDisplayOLED(int32_t knobPosLeft, int32_
 	else if (instrument->type != InstrumentType::CV) {
 		//display parameter name
 		char parameterName[30];
-		getParameterName(parameterName);
+		getParameterName(clip, instrument, parameterName);
 
 #if OLED_MAIN_HEIGHT_PIXELS == 64
 		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
@@ -917,11 +932,8 @@ void AutomationInstrumentClipView::renderDisplayOLED(int32_t knobPosLeft, int32_
 	deluge::hid::display::OLED::sendMainImage();
 }
 
-void AutomationInstrumentClipView::renderDisplay7SEG(int32_t knobPosLeft, bool modEncoderAction) {
-
-	InstrumentClip* clip = getCurrentClip();
-	Instrument* instrument = (Instrument*)clip->output;
-
+void AutomationInstrumentClipView::renderDisplay7SEG(InstrumentClip* clip, Instrument* instrument, int32_t knobPosLeft,
+                                                     bool modEncoderAction) {
 	//display OVERVIEW or CANT
 	if (isOnAutomationOverview() || (instrument->type == InstrumentType::CV)) {
 		if (instrument->type != InstrumentType::CV) {
@@ -942,7 +954,8 @@ void AutomationInstrumentClipView::renderDisplay7SEG(int32_t knobPosLeft, bool m
 				lastPadSelectedKnobPos = knobPosLeft;
 			}
 			else if (lastPadSelectedKnobPos != kNoSelection) {
-				knobPosLeft = lastPadSelectedKnobPos;
+				knobPosLeft = view.calculateKnobPosForDisplay(clip->lastSelectedParamKind, clip->lastSelectedParamID,
+				                                              lastPadSelectedKnobPos);
 			}
 		}
 
@@ -953,37 +966,25 @@ void AutomationInstrumentClipView::renderDisplay7SEG(int32_t knobPosLeft, bool m
 			intToString(knobPosLeft, buffer);
 
 			if (isUIModeActive(UI_MODE_NOTES_PRESSED)) {
-				display->setText(buffer, false, 255, false);
+				display->setText(buffer, true, 255, false);
 			}
 			else if (modEncoderAction || padSelectionOn) {
-				display->displayPopup(buffer);
+				display->displayPopup(buffer, 3, true);
 			}
 		}
 		//display parameter name
 		else {
 			char parameterName[30];
-			getParameterName(parameterName);
+			getParameterName(clip, instrument, parameterName);
 			display->setScrollingText(parameterName);
 		}
 	}
 }
 
 //get's the name of the Parameter being edited so it can be displayed on the screen
-void AutomationInstrumentClipView::getParameterName(char* parameterName) {
-
-	InstrumentClip* clip = getCurrentClip();
-	Instrument* instrument = (Instrument*)clip->output;
-
+void AutomationInstrumentClipView::getParameterName(InstrumentClip* clip, Instrument* instrument, char* parameterName) {
 	if (instrument->type == InstrumentType::SYNTH || instrument->type == InstrumentType::KIT) {
-		if (clip->lastSelectedParamKind == Param::Kind::PATCHED) {
-			strncpy(parameterName, getPatchedParamDisplayName(clip->lastSelectedParamID), 29);
-		}
-		else if (clip->lastSelectedParamKind == Param::Kind::UNPATCHED) {
-			strncpy(parameterName, getUnpatchedParamDisplayName(clip->lastSelectedParamID), 29);
-		}
-		else if (clip->lastSelectedParamKind == Param::Kind::GLOBAL_EFFECTABLE) {
-			strncpy(parameterName, getGlobalEffectableParamDisplayName(clip->lastSelectedParamID), 29);
-		}
+		strncpy(parameterName, getParamDisplayName(clip->lastSelectedParamKind, clip->lastSelectedParamID), 29);
 	}
 	else if (instrument->type == InstrumentType::MIDI_OUT) {
 		if (clip->lastSelectedParamID == CC_NUMBER_NONE) {
@@ -1019,7 +1020,7 @@ void AutomationInstrumentClipView::getParameterName(char* parameterName) {
 
 //adjust the LED meters and update the display
 
-/*updated function for displaying automation when playback is enabled (called from ui_timer_manager). 
+/*updated function for displaying automation when playback is enabled (called from ui_timer_manager).
 Also used internally in the automation instrument clip view for updating the display and led indicators.*/
 
 void AutomationInstrumentClipView::displayAutomation(bool padSelected, bool updateDisplay) {
@@ -1450,8 +1451,10 @@ ActionResult AutomationInstrumentClipView::padAction(int32_t x, int32_t y, int32
 
 		//if the user wants to change the parameter they are editing using Shift + Pad shortcut
 		if (velocity) {
-			if (Buttons::isShiftButtonPressed()) {
-
+			if (Buttons::isShiftButtonPressed()
+			    || (isUIModeActive(UI_MODE_AUDITIONING)
+			        && (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationDisableAuditionPadShortcuts)
+			            == RuntimeFeatureStateToggle::Off))) {
 				initPadSelection();
 				handleSinglePadPress(modelStack, clip, x, y, true);
 
@@ -2416,6 +2419,13 @@ bool AutomationInstrumentClipView::modEncoderActionForSelectedPad(int32_t whichM
 
 			int32_t newKnobPos = calculateKnobPosForModEncoderTurn(knobPos, offset);
 
+			//ignore modEncoderTurn for Midi CC if current or new knobPos exceeds 127
+			//if current knobPos exceeds 127, e.g. it's 128, then it needs to drop to 126 before a value change gets recorded
+			//if newKnobPos exceeds 127, then it means current knobPos was 127 and it was increased to 128. In which case, ignore value change
+			if ((clip->output->type == InstrumentType::MIDI_OUT) && (newKnobPos == 64)) {
+				return true;
+			}
+
 			//use default interpolation settings
 			initInterpolation();
 
@@ -2453,6 +2463,13 @@ void AutomationInstrumentClipView::modEncoderActionForUnselectedPad(int32_t whic
 			int32_t knobPos = getParameterKnobPos(modelStackWithParam, view.modPos);
 
 			int32_t newKnobPos = calculateKnobPosForModEncoderTurn(knobPos, offset);
+
+			//ignore modEncoderTurn for Midi CC if current or new knobPos exceeds 127
+			//if current knobPos exceeds 127, e.g. it's 128, then it needs to drop to 126 before a value change gets recorded
+			//if newKnobPos exceeds 127, then it means current knobPos was 127 and it was increased to 128. In which case, ignore value change
+			if ((clip->output->type == InstrumentType::MIDI_OUT) && (newKnobPos == 64)) {
+				return;
+			}
 
 			int32_t newValue =
 			    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
@@ -2686,7 +2703,13 @@ void AutomationInstrumentClipView::selectEncoderAction(int8_t offset) {
 	InstrumentClip* clip = getCurrentClip();
 	Instrument* instrument = (Instrument*)clip->output;
 
-	if (instrument->type == InstrumentType::SYNTH || instrument->type == InstrumentType::KIT) {
+	//if you've selected a mod encoder (e.g. by pressing modEncoderButton) and you're in Automation Overview
+	//the currentUIMode will change to Selecting Midi CC. In this case, turning select encoder should allow
+	//you to change the midi CC assignment to that modEncoder
+	if (currentUIMode == UI_MODE_SELECTING_MIDI_CC) {
+		InstrumentClipMinder::selectEncoderAction(offset);
+	}
+	else if (instrument->type == InstrumentType::SYNTH || instrument->type == InstrumentType::KIT) {
 
 		//if you're a kit with affect entire enabled
 		if (instrument->type == InstrumentType::KIT && instrumentClipView.getAffectEntire()) {
@@ -2764,19 +2787,24 @@ void AutomationInstrumentClipView::selectEncoderAction(int8_t offset) {
 			}
 		}
 
-		for (int32_t x = 0; x < kDisplayWidth; x++) {
-			for (int32_t y = 0; y < kDisplayHeight; y++) {
-
-				if ((clip->lastSelectedParamKind == Param::Kind::PATCHED
-				     && patchedParamShortcutsForAutomation[x][y] == clip->lastSelectedParamID)
-				    || (clip->lastSelectedParamKind == Param::Kind::UNPATCHED
-				        && unpatchedParamShortcutsForAutomation[x][y] == clip->lastSelectedParamID)
-				    || (clip->lastSelectedParamKind == Param::Kind::GLOBAL_EFFECTABLE
-				        && globalEffectableParamShortcutsForAutomation[x][y] == clip->lastSelectedParamID)) {
-					clip->lastSelectedParamShortcutX = x;
-					clip->lastSelectedParamShortcutY = y;
-
-					goto flashShortcut;
+		//no shortcut to flash for Stutter, so no need to search for the Shortcut X,Y
+		//just update name on display, the LED mod indicators, and the grid
+		if (clip->lastSelectedParamID == Param::Unpatched::STUTTER_RATE) {
+			goto flashShortcut;
+		}
+		else {
+			for (int32_t x = 0; x < kDisplayWidth; x++) {
+				for (int32_t y = 0; y < kDisplayHeight; y++) {
+					if ((clip->lastSelectedParamKind == Param::Kind::PATCHED
+					     && patchedParamShortcutsForAutomation[x][y] == clip->lastSelectedParamID)
+					    || (clip->lastSelectedParamKind == Param::Kind::UNPATCHED_SOUND
+					        && unpatchedParamShortcutsForAutomation[x][y] == clip->lastSelectedParamID)
+					    || (clip->lastSelectedParamKind == Param::Kind::UNPATCHED_GLOBAL
+					        && globalEffectableParamShortcutsForAutomation[x][y] == clip->lastSelectedParamID)) {
+						clip->lastSelectedParamShortcutX = x;
+						clip->lastSelectedParamShortcutY = y;
+						goto flashShortcut;
+					}
 				}
 			}
 		}
@@ -2908,7 +2936,7 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
 				summary = modelStackWithThreeMainThings->paramManager->getPatchedParamSetSummary();
 			}
 
-			else if (paramKind == Param::Kind::UNPATCHED) {
+			else if (paramKind == Param::Kind::UNPATCHED_SOUND) {
 				summary = modelStackWithThreeMainThings->paramManager->getUnpatchedParamSetSummary();
 			}
 
@@ -2945,7 +2973,7 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
 								summary = modelStackWithThreeMainThings->paramManager->getPatchedParamSetSummary();
 							}
 
-							else if (paramKind == Param::Kind::UNPATCHED) {
+							else if (paramKind == Param::Kind::UNPATCHED_SOUND) {
 								summary = modelStackWithThreeMainThings->paramManager->getUnpatchedParamSetSummary();
 							}
 
@@ -3194,7 +3222,7 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 			}
 
 			else if (unpatchedParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
-				clip->lastSelectedParamKind = Param::Kind::UNPATCHED;
+				clip->lastSelectedParamKind = Param::Kind::UNPATCHED_SOUND;
 				//if you are in a synth or a kit clip and the shortcut is valid, set current selected ParamID
 				clip->lastSelectedParamID = unpatchedParamShortcutsForAutomation[xDisplay][yDisplay];
 			}
@@ -3215,13 +3243,13 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 		             || (globalEffectableParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF))) {
 
 			if (unpatchedParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
-				clip->lastSelectedParamKind = Param::Kind::UNPATCHED;
+				clip->lastSelectedParamKind = Param::Kind::UNPATCHED_SOUND;
 				//if you are in a kit clip with affect entire enabled and the shortcut is valid, set current selected ParamID
 				clip->lastSelectedParamID = unpatchedParamShortcutsForAutomation[xDisplay][yDisplay];
 			}
 
 			else if (globalEffectableParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
-				clip->lastSelectedParamKind = Param::Kind::GLOBAL_EFFECTABLE;
+				clip->lastSelectedParamKind = Param::Kind::UNPATCHED_GLOBAL;
 				//if you are in a kit clip with affect entire enabled and the shortcut is valid, set current selected ParamID
 				clip->lastSelectedParamID = globalEffectableParamShortcutsForAutomation[xDisplay][yDisplay];
 			}
@@ -3301,7 +3329,7 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 				//use default interpolation settings
 				initInterpolation();
 
-				int32_t newKnobPos = calculateKnobPosForSinglePadPress(yDisplay);
+				int32_t newKnobPos = calculateKnobPosForSinglePadPress(instrument, yDisplay);
 				setParameterAutomationValue(modelStackWithParam, newKnobPos, squareStart, xDisplay, effectiveLength);
 			}
 		}
@@ -3311,7 +3339,7 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 }
 
 //calculates what the new parameter value is when you press a single pad
-int32_t AutomationInstrumentClipView::calculateKnobPosForSinglePadPress(int32_t yDisplay) {
+int32_t AutomationInstrumentClipView::calculateKnobPosForSinglePadPress(Instrument* instrument, int32_t yDisplay) {
 
 	int32_t newKnobPos = 0;
 
@@ -3321,7 +3349,13 @@ int32_t AutomationInstrumentClipView::calculateKnobPosForSinglePadPress(int32_t 
 	}
 	//if you are pressing the top pad, set the value to max (128)
 	else {
-		newKnobPos = kMaxKnobPos;
+		//for Midi Clips, maxKnobPos = 127
+		if (instrument->type == InstrumentType::MIDI_OUT) {
+			newKnobPos = kMaxKnobPos - 1; //128 - 1 = 127
+		}
+		else {
+			newKnobPos = kMaxKnobPos;
+		}
 	}
 
 	//in the deluge knob positions are stored in the range of -64 to + 64, so need to adjust newKnobPos set above.
@@ -3361,8 +3395,8 @@ void AutomationInstrumentClipView::handleMultiPadPress(ModelStackWithTimelineCou
 
 			//otherwise if it's a regular long press, calculate values from the y position of the pads pressed
 			else {
-				firstPadValue = calculateKnobPosForSinglePadPress(firstPadY) + kKnobPosOffset;
-				secondPadValue = calculateKnobPosForSinglePadPress(secondPadY) + kKnobPosOffset;
+				firstPadValue = calculateKnobPosForSinglePadPress(instrument, firstPadY) + kKnobPosOffset;
+				secondPadValue = calculateKnobPosForSinglePadPress(instrument, secondPadY) + kKnobPosOffset;
 			}
 
 			//converting variables to float for more accurate interpolation calculation

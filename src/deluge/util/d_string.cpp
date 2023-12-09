@@ -116,7 +116,7 @@ clearAndAllocateNew:
 	}
 
 	{
-		void* newMemory = GeneralMemoryAllocator::get().allocNonAudio(newLength + 1 + 4);
+		void* newMemory = GeneralMemoryAllocator::get().allocExternal(newLength + 1 + 4);
 		if (!newMemory) {
 			return ERROR_INSUFFICIENT_RAM;
 		}
@@ -136,13 +136,13 @@ void String::set(String* otherString) {
 #if ALPHA_OR_BETA_VERSION
 	//if the other string has memory and it's not in the non audio region
 	if (sm) {
-		if (!(EXTERNAL_MEMORY_END - RESERVED_NONAUDIO_ALLOCATOR < (uint32_t)sm && (uint32_t)sm < EXTERNAL_MEMORY_END)) {
-			display->freezeWithError("S001");
+		if (!(EXTERNAL_MEMORY_END - RESERVED_EXTERNAL_ALLOCATOR < (uint32_t)sm && (uint32_t)sm < EXTERNAL_MEMORY_END)) {
+			FREEZE_WITH_ERROR("S001");
 			return;
 		}
 		//or if it doesn't have an allocation
 		else if (!GeneralMemoryAllocator::get().getAllocatedSize(sm)) {
-			display->freezeWithError("S002");
+			FREEZE_WITH_ERROR("S002");
 			return;
 		}
 	}
@@ -174,7 +174,7 @@ int32_t String::shorten(int32_t newLength) {
 
 		// If reasons, we have to do a clone
 		if (oldNumReasons > 1) {
-			void* newMemory = GeneralMemoryAllocator::get().allocNonAudio(newLength + 1 + 4);
+			void* newMemory = GeneralMemoryAllocator::get().allocExternal(newLength + 1 + 4);
 			if (!newMemory) {
 				return ERROR_INSUFFICIENT_RAM;
 			}
@@ -257,7 +257,7 @@ int32_t String::concatenateAtPos(char const* newChars, int32_t pos, int32_t newC
 		// Otherwise, gotta allocate brand new memory
 		else {
 allocateNewMemory:
-			void* newMemory = GeneralMemoryAllocator::get().allocNonAudio(requiredSize);
+			void* newMemory = GeneralMemoryAllocator::get().allocExternal(requiredSize);
 			if (!newMemory) {
 				return ERROR_INSUFFICIENT_RAM;
 			}
@@ -301,7 +301,7 @@ int32_t String::setChar(char newChar, int32_t pos) {
 		int32_t length = getLength();
 
 		int32_t requiredSize = length + 4 + 1;
-		void* newMemory = GeneralMemoryAllocator::get().allocNonAudio(requiredSize);
+		void* newMemory = GeneralMemoryAllocator::get().allocExternal(requiredSize);
 		if (!newMemory) {
 			return ERROR_INSUFFICIENT_RAM;
 		}

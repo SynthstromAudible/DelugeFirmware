@@ -1,8 +1,8 @@
 {
 	"recommendations": [
 		"ms-vscode.cpptools",
-		"EditorConfig.EditorConfig",
+		"editorconfig.editorconfig",
 		"xaver.clang-format",
-		"ms-python.black-formatter"
+		"marus25.cortex-debug"
 	]
 }

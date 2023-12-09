@@ -204,7 +204,7 @@ investigatePrevNode:
 
 				bool shouldInterpolateLeft = reversed || shouldInterpolateRegionStart;
 
-#if ALPHA_OR_BETA_VERSION
+#if ENABLE_SEQUENTIALITY_TESTS
 				// drbourbon got, when check was inside homogenizeRegion(). Now trying to work out where that came from.
 				// March 2022.
 				nodes.testSequentiality("E435");
@@ -249,7 +249,7 @@ investigatePrevNode:
 skipThat : {}
 			}
 
-#if ALPHA_OR_BETA_VERSION
+#if ENABLE_SEQUENTIALITY_TESTS
 			nodes.testSequentiality("ffff");
 #endif
 
@@ -262,7 +262,7 @@ skipThat : {}
 			if (nodes.getNumElements()) {
 				ParamNode* rightmostNode = nodes.getElement(nodes.getNumElements() - 1);
 				if (rightmostNode->pos >= effectiveLength) {
-					display->freezeWithError("llll");
+					FREEZE_WITH_ERROR("llll");
 				}
 			}
 #endif
@@ -688,7 +688,7 @@ adjustNodeJustReached:
 					nextNodeInOurDirection = nodes.getElement(iRight);
 				}
 
-#if ALPHA_OR_BETA_VERSION
+#if ENABLE_SEQUENTIALITY_TESTS
 				nodes.testSequentiality("eeee");
 #endif
 			}
@@ -705,7 +705,7 @@ adjustNodeJustReached:
 		// we still contain automation, which I think we have to... Let's just verify that.
 #if ALPHA_OR_BETA_VERSION
 		if (!isAutomated()) {
-			display->freezeWithError("E372");
+			FREEZE_WITH_ERROR("E372");
 		}
 #endif
 		modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, false, true, true);
@@ -733,7 +733,7 @@ getOut:
 		ParamNode* rightmostNode = nodes.getElement(i);
 		if (rightmostNode->pos >= effectiveLength) {
 			nodes.deleteAtIndex(i);
-			//display->freezeWithError("jjjj"); // drbourbon got! And Quixotic7, on V4.0.0-beta8.
+			//FREEZE_WITH_ERROR("jjjj"); // drbourbon got! And Quixotic7, on V4.0.0-beta8.
 		}
 	}
 
@@ -955,7 +955,7 @@ void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
 	// Or, normal case
 	else {
 
-#if ALPHA_OR_BETA_VERSION
+#if ENABLE_SEQUENTIALITY_TESTS
 		// drbourbon got, when check was inside homogenizeRegion(). Now trying to work out where that came from.
 		// March 2022. Sven got, oddly while editing note velocity. Then again by "Adding some snares while playing".
 		nodes.testSequentiality("E441");
@@ -1012,14 +1012,18 @@ int32_t AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, i
 #if ALPHA_OR_BETA_VERSION
 	// Chasing "E433" / "GGGG" error (probably now largely solved - except got E435, see below).
 	if (length <= 0) {
-		display->freezeWithError("E427");
+		FREEZE_WITH_ERROR("E427");
 	}
 	if (startPos < 0) {
-		display->freezeWithError("E437");
+		FREEZE_WITH_ERROR("E437");
 	}
-	// nodes.testSequentiality("E435"); // drbourbon got! March 2022. Now moved check to each caller.
+
+	//#if ENABLE_SEQUENTIALITY_TESTS
+	//	// nodes.testSequentiality("E435"); // drbourbon got! March 2022. Now moved check to each caller.
+	//#endif
+
 	if (nodes.getNumElements() && nodes.getFirst()->pos < 0) {
-		display->freezeWithError("E436");
+		FREEZE_WITH_ERROR("E436");
 	}
 	// Should probably also check that stuff doesn't exist too far right - but that's a bit more complicated.
 #endif
@@ -1037,7 +1041,7 @@ int32_t AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, i
 			length = maxLength;
 #if ALPHA_OR_BETA_VERSION
 			if (length <= 0) {
-				display->freezeWithError("E428"); // Chasing Leo's GGGG error (probably now solved).
+				FREEZE_WITH_ERROR("E428"); // Chasing Leo's GGGG error (probably now solved).
 			}
 #endif
 			interpolateRightNode = false;
@@ -1070,7 +1074,7 @@ int32_t AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, i
 	else {
 		if constexpr (ALPHA_OR_BETA_VERSION || kCurrentFirmwareVersion <= FIRMWARE_4P0P0) {
 			if (startPos < posAtWhichClipWillCut) {
-				display->freezeWithError("E445");
+				FREEZE_WITH_ERROR("E445");
 			}
 		}
 		edgePositions[REGION_EDGE_RIGHT] = startPos;
@@ -1082,7 +1086,7 @@ int32_t AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, i
 			length = edgePositions[REGION_EDGE_RIGHT] - edgePositions[REGION_EDGE_LEFT];
 			if constexpr (ALPHA_OR_BETA_VERSION) {
 				if (edgePositions[REGION_EDGE_LEFT] >= edgePositions[REGION_EDGE_RIGHT]) {
-					display->freezeWithError("HHHH");
+					FREEZE_WITH_ERROR("HHHH");
 				}
 			}
 
@@ -1211,13 +1215,15 @@ getValueNormalWay:
 		edgeIndexes[REGION_EDGE_LEFT] -= edgeIndexes[REGION_EDGE_RIGHT];
 	}
 
-#if ALPHA_OR_BETA_VERSION
+#if ENABLE_SEQUENTIALITY_TESTS
 	nodes.testSequentiality(
 	    "E433"); // Was "GGGG". Leo got. Sven got. (Probably now solved). (Nope, Michael got on V4.1.0-alpha10 (OLED)!)
+#endif
+#if ALPHA_OR_BETA_VERSION
 	if (nodes.getNumElements()) {
 		ParamNode* rightmostNode = nodes.getElement(nodes.getNumElements() - 1);
 		if (rightmostNode->pos >= effectiveLength) {
-			display->freezeWithError("iiii");
+			FREEZE_WITH_ERROR("iiii");
 		}
 	}
 #endif
@@ -1237,24 +1243,24 @@ void AutoParam::homogenizeRegionTestSuccess(int32_t pos, int32_t regionEnd, int3
 		// Fine
 	}
 	else {
-		display->freezeWithError("E119");
+		FREEZE_WITH_ERROR("E119");
 	}
 
 	ParamNode* startNode = nodes.getElement(startI);
 	ParamNode* endNode = nodes.getElement(endI);
 
 	if (!startNode || !endNode) {
-		display->freezeWithError("E118");
+		FREEZE_WITH_ERROR("E118");
 	}
 
 	if (startNode->value != startValue) {
-		display->freezeWithError("E120");
+		FREEZE_WITH_ERROR("E120");
 	}
 	if (startNode->interpolated != interpolateStart) {
-		display->freezeWithError("E121");
+		FREEZE_WITH_ERROR("E121");
 	}
 	if (endNode->interpolated != interpolateEnd) {
-		display->freezeWithError("E122");
+		FREEZE_WITH_ERROR("E122");
 	}
 }
 
@@ -1714,7 +1720,7 @@ void AutoParam::trimToLength(uint32_t newLength, Action* action, ModelStackWithA
 	int32_t newNumNodes = nodes.search(newLength, GREATER_OR_EQUAL);
 
 	if (ALPHA_OR_BETA_VERSION && newNumNodes >= nodes.getNumElements()) {
-		display->freezeWithError("E315");
+		FREEZE_WITH_ERROR("E315");
 	}
 
 	// If still at least 2 nodes afterwards (1 is not allowed, actually wait it is now but let's keep this safe for now)...
@@ -2114,8 +2120,9 @@ void AutoParam::copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* co
 	if (copiedParamAutomation->numNodes > 0) {
 
 		// Allocate some memory for the nodes
-		copiedParamAutomation->nodes = (ParamNode*)GeneralMemoryAllocator::get().alloc(
-		    sizeof(ParamNode) * copiedParamAutomation->numNodes, NULL, true);
+		// Paul: Does it make sense these are in SDRAM? Are the other nodes also in SDRAM?
+		copiedParamAutomation->nodes = (ParamNode*)GeneralMemoryAllocator::get().allocLowSpeed(
+		    sizeof(ParamNode) * copiedParamAutomation->numNodes);
 
 		if (!copiedParamAutomation->nodes) {
 			copiedParamAutomation->numNodes = 0;
@@ -2565,7 +2572,7 @@ void AutoParam::nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int
 doWrap:
 				// There should never be just one node
 				if (ALPHA_OR_BETA_VERSION && nodes.getNumElements() == 1) {
-					display->freezeWithError("E335");
+					FREEZE_WITH_ERROR("E335");
 				}
 				int32_t ourValue = node->value; // Grab this before deleting stuff
 
@@ -2595,7 +2602,7 @@ doWrap:
 						int32_t error = nodes.insertAtIndex(
 						    nextNodeI); // This shouldn't be able to fail, cos we just deleted a node
 						if (ALPHA_OR_BETA_VERSION && error) {
-							display->freezeWithError("E333");
+							FREEZE_WITH_ERROR("E333");
 						}
 					}
 
@@ -2677,8 +2684,7 @@ void AutoParam::stealNodes(ModelStackWithAutoParam const* modelStack, int32_t po
 				action->recordParamChangeIfNotAlreadySnapshotted(modelStack);
 			}
 
-			void* memory =
-			    GeneralMemoryAllocator::get().alloc(numNodesToStealTotal * sizeof(ParamNode), NULL, false, true);
+			void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(numNodesToStealTotal * sizeof(ParamNode));
 			if (memory) {
 				ParamNode* stolenNodes = (ParamNode*)memory;
 				stolenNodeRecord->nodes = stolenNodes;

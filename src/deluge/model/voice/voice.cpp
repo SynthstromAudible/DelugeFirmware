@@ -2018,7 +2018,7 @@ void Voice::renderBasicSource(Sound* sound, ParamManagerForTimeline* paramManage
 instantUnassign:
 
 #ifdef TEST_SAMPLE_LOOP_POINTS
-			display->freezeWithError("YEP");
+			FREEZE_WITH_ERROR("YEP");
 #endif
 
 			*unisonPartBecameInactive = true;
@@ -2292,7 +2292,7 @@ dontUseCache : {}
 
 					if (liveInputBuffer) {
 
-						void* memory = GeneralMemoryAllocator::get().alloc(sizeof(LivePitchShifter), NULL, false, true);
+						void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(LivePitchShifter));
 
 						if (memory) {
 							source->livePitchShifter = new (memory) LivePitchShifter(inputTypeNow, phaseIncrement);

@@ -108,7 +108,7 @@ void INTC_Handler_Interrupt(uint32_t icciar)
     if (int_id >= INTC_ID_TOTAL) /* In case of unsupported interrupt ID */
     {
         // Insane thing that keeps happening - we get here somehow, with int_id 1023.
-        //freezeWithError("i029");
+        //FREEZE_WITH_ERROR("i029");
         uartPrintln("i029 ----------------------------------------------------!!");
         return; // Just keep running - it seems to work at least most of the time?
         //Userdef_INTC_UndefId(int_id); // Previously, it'd just go in here and freeze.

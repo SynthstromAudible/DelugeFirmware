@@ -15,8 +15,12 @@ enum DisplayPopupType {
 
 namespace deluge::hid {
 
+enum struct DisplayType { OLED, SEVENSEG };
+
 class Display {
 public:
+	Display(DisplayType displayType) : displayType(displayType) {}
+
 	virtual ~Display() = default;
 
 	constexpr virtual size_t getNumBrowserAndMenuLines() = 0;
@@ -63,8 +67,11 @@ public:
 
 	virtual std::array<uint8_t, kNumericDisplayLength> getLast() { return {0}; }; // to match SevenSegment
 
-	virtual bool haveOLED() { return false; }
-	virtual bool have7SEG() { return false; }
+	bool haveOLED() { return displayType == DisplayType::OLED; }
+	bool have7SEG() { return displayType == DisplayType::SEVENSEG; }
+
+private:
+	DisplayType displayType;
 };
 
 } // namespace deluge::hid

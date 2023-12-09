@@ -165,20 +165,6 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 
 	InstrumentType newInstrumentType;
 
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx) == RuntimeFeatureStateToggle::On
-	    && currentUIMode == UI_MODE_NONE) { //master compressor
-		int32_t modKnobMode = -1;
-		if (view.activeModControllableModelStack.modControllable) {
-			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
-			if (modKnobModePointer)
-				modKnobMode = *modKnobModePointer;
-		}
-		if (modKnobMode == 4 && b == MOD_ENCODER_1 && on) {
-			sessionView.buttonAction(b, on, inCardRoutine);
-			return ActionResult::DEALT_WITH;
-		}
-	}
-
 	// Song button
 	if (b == SESSION_VIEW) {
 		if (on) {
@@ -439,7 +425,6 @@ void ArrangerView::setLedStates() {
 }
 
 void ArrangerView::focusRegained() {
-
 	view.focusRegained();
 
 	repopulateOutputsOnScreen(false);
@@ -663,7 +648,7 @@ void ArrangerView::beginAudition(Output* output) {
 			if (noteRow) {
 				drum = noteRow->drum;
 				if (drum && drum->type == DrumType::SOUND && !noteRow->paramManager.containsAnyMainParamCollections()) {
-					display->freezeWithError("E324"); // Vinz got this! I may have since fixed.
+					FREEZE_WITH_ERROR("E324"); // Vinz got this! I may have since fixed.
 				}
 			}
 			else {
@@ -908,20 +893,6 @@ ActionResult ArrangerView::padAction(int32_t x, int32_t y, int32_t velocity) {
 
 	if (sdRoutineLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-	}
-
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx) == RuntimeFeatureStateToggle::On
-	    && currentUIMode == UI_MODE_NONE) { //master compressor
-		int32_t modKnobMode = -1;
-		if (view.activeModControllableModelStack.modControllable) {
-			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
-			if (modKnobModePointer)
-				modKnobMode = *modKnobModePointer;
-		}
-		if (modKnobMode == 4 && Buttons::isShiftButtonPressed() && x == 10 && y < 6 && velocity) {
-			sessionView.padAction(x, y, velocity);
-			return ActionResult::DEALT_WITH;
-		}
 	}
 
 	Output* output = outputsOnScreen[y];
@@ -1205,7 +1176,7 @@ void ArrangerView::editPadAction(int32_t x, int32_t y, bool on) {
 			int32_t squareEnd = getPosFromSquare(x + 1, xScroll);
 
 			if (squareStart >= squareEnd) {
-				display->freezeWithError("E210");
+				FREEZE_WITH_ERROR("E210");
 			}
 
 			// No previous press
@@ -1271,7 +1242,7 @@ makeNewInstance:
 						int32_t j = output->clipInstances.search(squareStart, GREATER_OR_EQUAL);
 						ClipInstance* nextClipInstance = output->clipInstances.getElement(j);
 						if (nextClipInstance && nextClipInstance->pos == squareStart) {
-							display->freezeWithError("E233"); // Yes, this happened to someone. Including me!!
+							FREEZE_WITH_ERROR("E233"); // Yes, this happened to someone. Including me!!
 						}
 					}
 
@@ -1325,7 +1296,7 @@ getItFromSection:
 						ClipInstance* nextInstance = output->clipInstances.getElement(pressedClipInstanceIndex + 1);
 						if (nextInstance) {
 							if (nextInstance->pos == squareStart) {
-								display->freezeWithError("E232");
+								FREEZE_WITH_ERROR("E232");
 							}
 						}
 					}
@@ -1346,21 +1317,21 @@ getItFromSection:
 					}
 
 					if (clipInstance->length < 1) {
-						display->freezeWithError("E049");
+						FREEZE_WITH_ERROR("E049");
 					}
 
 					ClipInstance* nextInstance = output->clipInstances.getElement(pressedClipInstanceIndex + 1);
 					if (nextInstance) {
 
 						if (nextInstance->pos == squareStart) {
-							display->freezeWithError("E209");
+							FREEZE_WITH_ERROR("E209");
 						}
 
 						int32_t maxLength = nextInstance->pos - squareStart;
 						if (clipInstance->length > maxLength) {
 							clipInstance->length = maxLength;
 							if (clipInstance->length < 1) {
-								display->freezeWithError("E048");
+								FREEZE_WITH_ERROR("E048");
 							}
 						}
 					}
@@ -1368,7 +1339,7 @@ getItFromSection:
 					if (clipInstance->length > kMaxSequenceLength - clipInstance->pos) {
 						clipInstance->length = kMaxSequenceLength - clipInstance->pos;
 						if (clipInstance->length < 1) {
-							display->freezeWithError("E045");
+							FREEZE_WITH_ERROR("E045");
 						}
 					}
 
@@ -1535,7 +1506,7 @@ justGetOut:
 								int32_t size = (output->type == InstrumentType::AUDIO) ? sizeof(AudioClip)
 								                                                       : sizeof(InstrumentClip);
 
-								void* memory = GeneralMemoryAllocator::get().alloc(size, NULL, false, true);
+								void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(size);
 								if (!memory) {
 									display->displayError(ERROR_INSUFFICIENT_RAM);
 									goto justGetOut;
@@ -2387,18 +2358,7 @@ void ArrangerView::selectEncoderAction(int8_t offset) {
 }
 
 void ArrangerView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx) == RuntimeFeatureStateToggle::On
-	    && currentUIMode == UI_MODE_NONE) {
-		int32_t modKnobMode = -1;
-		if (view.activeModControllableModelStack.modControllable) {
-			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
-			if (modKnobModePointer)
-				modKnobMode = *modKnobModePointer;
-		}
-		if (modKnobMode == 4 && whichModEncoder == 1) { //upper encoder
-			sessionView.modEncoderAction(whichModEncoder, offset);
-		}
-	}
+
 	TimelineView::modEncoderAction(whichModEncoder, offset);
 }
 
@@ -2493,7 +2453,7 @@ cant:
 	if (instrumentClip) {
 		int32_t clipIndex = currentSong->sessionClips.getIndexForClip(instrumentClip);
 		if (ALPHA_OR_BETA_VERSION && clipIndex == -1) {
-			display->freezeWithError("E266");
+			FREEZE_WITH_ERROR("E266");
 		}
 		newClip = currentSong->replaceInstrumentClipWithAudioClip(instrumentClip, clipIndex);
 
@@ -2630,7 +2590,7 @@ ActionResult ArrangerView::horizontalEncoderAction(int32_t offset) {
 
 				if (offset >= 0) {
 					void* consMemory =
-					    GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceArrangerParamsTimeInserted));
+					    GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceArrangerParamsTimeInserted));
 					if (consMemory) {
 						ConsequenceArrangerParamsTimeInserted* consequence = new (consMemory)
 						    ConsequenceArrangerParamsTimeInserted(currentSong->xScroll[NAVIGATION_ARRANGEMENT],
@@ -2906,24 +2866,25 @@ static const uint32_t autoScrollUIModes[] = {UI_MODE_HOLDING_HORIZONTAL_ENCODER_
                                              UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION, UI_MODE_HORIZONTAL_ZOOM, 0};
 
 void ArrangerView::graphicsRoutine() {
-
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::MasterCompressorFx) == RuntimeFeatureStateToggle::On
-	    && currentUIMode == UI_MODE_NONE) {
+	static int counter = 0;
+	if (currentUIMode == UI_MODE_NONE) {
 		int32_t modKnobMode = -1;
+		bool editingComp = false;
 		if (view.activeModControllableModelStack.modControllable) {
 			uint8_t* modKnobModePointer = view.activeModControllableModelStack.modControllable->getModKnobMode();
-			if (modKnobModePointer)
+			if (modKnobModePointer) {
 				modKnobMode = *modKnobModePointer;
+				editingComp = view.activeModControllableModelStack.modControllable->isEditingComp();
+			}
 		}
-
-		if (modKnobMode == 4 && abs(AudioEngine::mastercompressor.compressor.getThresh()) > 0.001) { //upper
-			double gr = AudioEngine::mastercompressor.gr;
-			if (gr >= 0)
-				gr = 0;
-			if (gr <= -12)
-				gr = -12.0;
-			gr = abs(gr);
-			indicator_leds::setKnobIndicatorLevel(1, int32_t(gr / 12.0 * 128)); //Gain Reduction LED
+		if (modKnobMode == 4 && editingComp) { //upper
+			counter = (counter + 1) % 5;
+			if (counter == 0) {
+				uint8_t gr = AudioEngine::mastercompressor.gainReduction;
+				//uint8_t mv = int(6 * AudioEngine::mastercompressor.meanVolume);
+				indicator_leds::setKnobIndicatorLevel(1, gr); //Gain Reduction LED
+				//indicator_leds::setKnobIndicatorLevel(0, mv); //Input level LED
+			}
 		}
 	}
 

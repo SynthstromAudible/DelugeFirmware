@@ -80,7 +80,7 @@ public:
 	static bool readParamTagFromFile(char const* tagName, ParamManagerForTimeline* paramManager,
 	                                 int32_t readAutomationUpToPos);
 	static void initParams(ParamManager* paramManager);
-	void wontBeRenderedForAWhile();
+	virtual void wontBeRenderedForAWhile();
 	void endStutter(ParamManagerForTimeline* paramManager);
 	virtual bool setModFXType(ModFXType newType);
 	bool offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
@@ -131,6 +131,8 @@ public:
 	LFO modFXLFO;
 
 	//Grain
+	int32_t wrapsToShutdown;
+	void setWrapsToShutdown();
 	StereoSample* modFXGrainBuffer;
 	uint32_t modFXGrainBufferWriteIndex;
 	int32_t grainSize;

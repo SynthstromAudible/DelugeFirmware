@@ -26,7 +26,7 @@ public:
 
 	// 7Seg ONLY
 	void drawValue() override {
-		if (this->getValue() == 50
+		if (this->getValue() == kMaxMenuValue
 		    && !soundEditor.currentParamManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(
 		        ::Param::Local::LPF_FREQ)) {
 			display->setText(l10n::get(l10n::String::STRING_FOR_DISABLED));

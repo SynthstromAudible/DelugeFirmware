@@ -1049,7 +1049,7 @@ int64_t PlaybackHandler::getCurrentInternalTickCount(uint32_t* timeRemainder) {
 #if ALPHA_OR_BETA_VERSION
 	if (internalTickCount < 0) {
 		// Trying to narrow down "nofg" error, which Ron got most recently (Nov 2021). Wait no, he didn't have playback on!
-		display->freezeWithError("E429");
+		FREEZE_WITH_ERROR("E429");
 	}
 #endif
 
@@ -1097,7 +1097,7 @@ goAgain:
 
 		// Should now be impossible for them to be at the same time, since we should be looking at one in the future and one not
 		if (ALPHA_OR_BETA_VERSION && timeBetweenInputTicks <= 0) {
-			display->freezeWithError("E337");
+			FREEZE_WITH_ERROR("E337");
 		}
 
 		currentInputTick =
@@ -2241,7 +2241,7 @@ void PlaybackHandler::grabTempoFromClip(Clip* clip) {
 	// Record that change, ourselves. We sent false above because that mechanism of recording it would do all this other stuff
 	if (action) {
 
-		void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceTempoChange));
+		void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceTempoChange));
 
 		if (consMemory) {
 			ConsequenceTempoChange* newConsequence =
@@ -2275,7 +2275,7 @@ uint32_t PlaybackHandler::setTempoFromAudioClipLength(uint64_t loopLengthSamples
 	// Record that change, ourselves. We sent false above because that mechanism of recording it would do all this other stuff
 	if (action) {
 
-		void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceTempoChange));
+		void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceTempoChange));
 
 		if (consMemory) {
 			ConsequenceTempoChange* newConsequence =
@@ -2359,7 +2359,7 @@ void PlaybackHandler::finishTempolessRecording(bool shouldStartPlaybackAgain, in
 
 		// And remember that this tempoless-record Action included beginning playback, so undoing / redoing it later will stop and start playback respectively
 		if (action) {
-			void* consMemory = GeneralMemoryAllocator::get().alloc(sizeof(ConsequenceBeginPlayback));
+			void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceBeginPlayback));
 
 			if (consMemory) {
 				ConsequenceBeginPlayback* newConsequence = new (consMemory) ConsequenceBeginPlayback();

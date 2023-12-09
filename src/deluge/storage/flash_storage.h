@@ -40,6 +40,12 @@ extern uint8_t defaultBendRange[2];
 extern SessionLayoutType defaultSessionLayout;
 extern KeyboardLayoutType defaultKeyboardLayout;
 
+extern bool gridUnarmEmptyPads;
+extern bool gridAllowGreenSelection;
+extern GridDefaultActiveMode defaultGridActiveMode;
+
+extern uint8_t defaultMetronomeVolume;
+
 void readSettings();
 void writeSettings();
 void resetSettings();

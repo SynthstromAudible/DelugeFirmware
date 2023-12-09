@@ -260,19 +260,17 @@ void OrderedResizeableArray::deleteAtKey(int32_t key) {
 }
 
 void OrderedResizeableArray::testSequentiality(char const* errorCode) {
-	if (!ALPHA_OR_BETA_VERSION) {
-		return;
-	}
-
+#if ENABLE_SEQUENTIALITY_TESTS
 	int32_t lastKey = -2147483648;
 	for (int32_t i = 0; i < getNumElements(); i++) {
 		int32_t key = getKeyAtIndex(i);
 		if (key <= lastKey) {
-			display->freezeWithError(errorCode);
+			FREEZE_WITH_ERROR(errorCode);
 		}
 
 		lastKey = key;
 	}
+#endif
 }
 
 #define TEST_SEARCH_MULTIPLE_NUM_ITEMS 50000
@@ -281,10 +279,10 @@ void OrderedResizeableArray::testSequentiality(char const* errorCode) {
 void OrderedResizeableArrayWith32bitKey::testSearchMultiple() {
 	insertAtIndex(0, TEST_SEARCH_MULTIPLE_NUM_ITEMS);
 
-	int32_t* searchPos = (int32_t*)GeneralMemoryAllocator::get().alloc(
-	    TEST_SEARCH_MULTIPLE_NUM_SEARCH_TERMS * sizeof(int32_t), NULL, false, false);
-	int32_t* resultingIndexes = (int32_t*)GeneralMemoryAllocator::get().alloc(
-	    TEST_SEARCH_MULTIPLE_NUM_SEARCH_TERMS * sizeof(int32_t), NULL, false, false);
+	int32_t* searchPos =
+	    (int32_t*)GeneralMemoryAllocator::get().allocLowSpeed(TEST_SEARCH_MULTIPLE_NUM_SEARCH_TERMS * sizeof(int32_t));
+	int32_t* resultingIndexes =
+	    (int32_t*)GeneralMemoryAllocator::get().allocLowSpeed(TEST_SEARCH_MULTIPLE_NUM_SEARCH_TERMS * sizeof(int32_t));
 
 	while (true) {
 
@@ -310,7 +308,7 @@ void OrderedResizeableArrayWith32bitKey::testSearchMultiple() {
 		for (int32_t t = 0; t < TEST_SEARCH_MULTIPLE_NUM_SEARCH_TERMS; t++) {
 			while (getKeyAtIndex(i) < searchPos[t]) {
 				if (i >= resultingIndexes[t]) {
-					//display->freezeWithError("FAIL");
+					//FREEZE_WITH_ERROR("FAIL");
 					Debug::println("fail");
 					goto thatsDone;
 				}
@@ -624,7 +622,7 @@ updateKeys:
 		}
 	}
 
-#if ALPHA_OR_BETA_VERSION
+#if ENABLE_SEQUENTIALITY_TESTS
 	testSequentiality("E378");
 #endif
 }
