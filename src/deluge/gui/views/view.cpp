@@ -38,7 +38,6 @@
 #include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/midi_session_view.h"
-#include "gui/views/performance_session_view.h"
 #include "gui/views/session_view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
@@ -887,6 +886,8 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 					return;
 				}
 
+				//midiSessionView.sendCCWithModelStack(modelStackWithParam, value);
+
 				char newModelStackMemory[MODEL_STACK_MAX_SIZE];
 
 				// Hack to make it so stutter can't be automated
@@ -926,6 +927,10 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 					indicator_leds::stopBlinkingKnobIndicator(whichModEncoder);
 				}
 			}
+
+			//midi follow and midi feedback enabled
+			//re-send midi cc's because learned parameter values may have changed
+			updateMidiFollowFeedback();
 		}
 
 		instrumentBeenEdited();
@@ -946,7 +951,8 @@ void View::displayModEncoderValuePopup(Param::Kind kind, int32_t paramID, int32_
 
 	//if turning stutter mod encoder and stutter quantize is enabled
 	//display stutter quantization instead of knob position
-	if (isParamQuantizedStutter(kind, paramID)) {
+	if (isParamQuantizedStutter(kind, paramID) && !isUIModeActive(UI_MODE_STUTTERING)) {
+		char buffer[10];
 		if (newKnobPos < -39) { // 4ths stutter: no leds turned on
 			popupMsg.append("4ths");
 		}
@@ -1111,6 +1117,7 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 		else if (knobPos > 64) {
 			knobPos = 64;
 		}
+		//midiSessionView.sendCCWithModelStack(modelStackWithParam, value);
 	}
 	else {
 		knobPos =
@@ -1165,7 +1172,7 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 	if (activeModControllableModelStack.modControllable) {
 		if (on) {
 
-			if (isUIModeWithinRange(modButtonUIModes) || (getRootUI() == &performanceSessionView)) {
+			if (isUIModeWithinRange(modButtonUIModes)) {
 				activeModControllableModelStack.modControllable->modButtonAction(
 				    whichButton, true, (ParamManagerForTimeline*)activeModControllableModelStack.paramManager);
 
@@ -1293,11 +1300,22 @@ void View::notifyParamAutomationOccurred(ParamManager* paramManager, bool update
 			uiTimerManager.setTimer(TIMER_DISPLAY_AUTOMATION, 25);
 		}
 
+	//	if (!uiTimerManager.isTimerSet(TIMER_SEND_MIDI_FEEDBACK_FOR_AUTOMATION)) {
+	//		uiTimerManager.setTimer(TIMER_SEND_MIDI_FEEDBACK_FOR_AUTOMATION, 25);
+	//	}
+
 		else {
 			if (updateModLevels) {
 				pendingParamAutomationUpdatesModLevels = true;
 			}
 		}
+	}
+}
+
+void View::updateMidiFollowFeedback() {
+	if (midiEngine.midiFollow && midiEngine.midiFollowFeedback && activeModControllableModelStack.modControllable) {
+		((ModControllableAudio*)activeModControllableModelStack.modControllable)
+		    ->offerReceivedCCToMidiFollow(nullptr, kNoSelection, kNoSelection, kNoSelection, false);
 	}
 }
 
@@ -1329,6 +1347,10 @@ void View::setActiveModControllableTimelineCounter(TimelineCounter* timelineCoun
 
 	setModLedStates();
 	setKnobIndicatorLevels();
+
+	//midi follow and midi feedback enabled
+	//re-send midi cc's because learned parameter values may have changed
+	updateMidiFollowFeedback();
 }
 
 void View::setActiveModControllableWithoutTimelineCounter(ModControllable* modControllable,
@@ -1342,6 +1364,10 @@ void View::setActiveModControllableWithoutTimelineCounter(ModControllable* modCo
 
 	setModLedStates();
 	setKnobIndicatorLevels();
+
+	//midi follow and midi feedback enabled
+	//re-send midi cc's because learned parameter values may have changed
+	//updateMidiFollowFeedback();
 }
 
 void View::setModRegion(uint32_t pos, uint32_t length, int32_t noteRowId) {

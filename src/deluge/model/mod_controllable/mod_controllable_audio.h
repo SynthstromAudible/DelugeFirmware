@@ -86,6 +86,8 @@ public:
 	virtual bool setModFXType(ModFXType newType);
 	bool offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
 	                                    ModelStackWithTimelineCounter* modelStack, int32_t noteRowIndex = -1);
+	void offerReceivedCCToMidiFollow(ModelStackWithTimelineCounter* modelStack, int32_t channel, int32_t ccNumber,
+	                                 int32_t value, bool renderDisplay = true);
 	bool offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
 	                                           ModelStackWithTimelineCounter* modelStack, int32_t noteRowIndex = -1);
 	virtual bool learnKnob(MIDIDevice* fromDevice, ParamDescriptor paramDescriptor, uint8_t whichKnob,
@@ -161,9 +163,7 @@ public:
 	MidiKnobArray midiKnobArray;
 
 private:
-	void offerReceivedCCToMidiFollow(ModelStackWithTimelineCounter* modelStack, uint8_t channel, uint8_t ccNumber,
-	                                 uint8_t value);
-	int32_t calculateKnobPosForMidiTakeover(ModelStackWithAutoParam* modelStackWithParam, int32_t modPos, uint8_t value,
+	int32_t calculateKnobPosForMidiTakeover(ModelStackWithAutoParam* modelStackWithParam, int32_t modPos, int32_t value,
 	                                        MIDIKnob* knob = nullptr, bool midiFollow = false, int32_t xDisplay = 0,
 	                                        int32_t yDisplay = 0);
 

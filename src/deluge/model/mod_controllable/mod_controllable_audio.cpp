@@ -1703,10 +1703,10 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 					modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos,
 					                                                          modLength);
 
-					if (midiEngine.midiFollowDisplayParam) {
-						Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-						view.displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos);
-					}
+					//	if (midiEngine.midiFollowDisplayParam) {
+					//		Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+					//		view.displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos);
+					//	}
 				}
 			}
 		}
@@ -1714,43 +1714,66 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 	return messageUsed;
 }
 
-void ModControllableAudio::offerReceivedCCToMidiFollow(ModelStackWithTimelineCounter* modelStack, uint8_t channel,
-                                                       uint8_t ccNumber, uint8_t value) {
+void ModControllableAudio::offerReceivedCCToMidiFollow(ModelStackWithTimelineCounter* modelStack, int32_t channel,
+                                                       int32_t ccNumber, int32_t value, bool renderDisplay) {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-			if (midiSessionView.paramToCC[xDisplay][yDisplay] == ccNumber) {
-				// Only if this exact TimelineCounter is having automation step-edited, we can set the value for just a region.
-				int32_t modPos = 0;
-				int32_t modLength = 0;
-
-				if (modelStack->timelineCounterIsSet()) {
-					if (view.modLength
-					    && modelStack->getTimelineCounter()
-					           == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
-						modPos = view.modPos;
-						modLength = view.modLength;
-					}
-
-					modelStack->getTimelineCounter()->possiblyCloneForArrangementRecording(modelStack);
-				}
-
+			if (midiSessionView.paramToCC[xDisplay][yDisplay] != kNoSelection) {
 				ModelStackWithAutoParam* modelStackWithParam =
-				    midiSessionView.getModelStackWithParam(xDisplay, yDisplay);
+				    midiSessionView.getModelStackWithParam(xDisplay, yDisplay, renderDisplay);
 				if (modelStackWithParam && modelStackWithParam->autoParam) {
-					int32_t newKnobPos = calculateKnobPosForMidiTakeover(modelStackWithParam, modPos, value, nullptr,
-					                                                     true, xDisplay, yDisplay);
+					if (modelStackWithParam->getTimelineCounter()
+					    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+						if ((modelStack != nullptr) && (midiSessionView.paramToCC[xDisplay][yDisplay] == ccNumber)) {
 
-					//Convert the New Knob Position to a Parameter Value
-					int32_t newValue =
-					    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
+							/*DEF_STACK_STRING_BUF(popupMsg, 40);
+							popupMsg.append("CH: ");
+							popupMsg.appendInt(channel + 1);
+							popupMsg.append("; CC: ");
+							popupMsg.appendInt(ccNumber);
+							popupMsg.append("; Val: ");
+							popupMsg.appendInt(value);
+							display->displayPopup(popupMsg.c_str());*/
 
-					//Set the new Parameter Value for the MIDI Learned Parameter
-					modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos,
-					                                                          modLength);
+							int32_t oldValue =
+							    modelStackWithParam->autoParam->getValuePossiblyAtPos(view.modPos, modelStackWithParam);
 
-					if (midiEngine.midiFollowDisplayParam) {
-						Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-						view.displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos);
+							int32_t newKnobPos = calculateKnobPosForMidiTakeover(
+							    modelStackWithParam, view.modPos, value, nullptr, true, xDisplay, yDisplay);
+
+							//Convert the New Knob Position to a Parameter Value
+							int32_t newValue = modelStackWithParam->paramCollection->knobPosToParamValue(
+							    newKnobPos, modelStackWithParam);
+
+							if (oldValue != newValue) {
+								//Set the new Parameter Value for the MIDI Learned Parameter
+								modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam,
+								                                                          view.modPos, view.modLength);
+
+								if (midiEngine.midiFollowDisplayParam && renderDisplay) {
+									Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+									view.displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos);
+								}
+							}
+						}
+						//no midi feedback if this is called by midi being received because that leads to a feedback loop
+						//controller sending a value to the deluge has the latest value and doesn't need to be told that same
+						//value in return
+
+						//this code will be called in a couple scenarios:
+						//use of deluge mod encoders to change values
+						//changing context on the deluge (e.g. switching to another view, peeking a clip by holding a pad,
+						//changing instruments)
+						if ((modelStack == nullptr) && midiEngine.midiFollowFeedback) {
+							int32_t value =
+							    modelStackWithParam->autoParam->getValuePossiblyAtPos(view.modPos, modelStackWithParam);
+							int32_t knobPos =
+							    modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
+
+							midiEngine.sendCC(midiEngine.midiFollowChannel,
+							                  midiSessionView.paramToCC[xDisplay][yDisplay], knobPos + kKnobPosOffset,
+							                  0);
+						}
 					}
 				}
 			}
@@ -1759,14 +1782,14 @@ void ModControllableAudio::offerReceivedCCToMidiFollow(ModelStackWithTimelineCou
 }
 
 int32_t ModControllableAudio::calculateKnobPosForMidiTakeover(ModelStackWithAutoParam* modelStackWithParam,
-                                                              int32_t modPos, uint8_t value, MIDIKnob* knob,
+                                                              int32_t modPos, int32_t value, MIDIKnob* knob,
                                                               bool midiFollow, int32_t xDisplay, int32_t yDisplay) {
 	int32_t newKnobPos = 0;
 
 	if (midiEngine.midiTakeover == MIDITakeoverMode::JUMP) { //Midi Takeover Mode = Jump
 		newKnobPos = 64;
 		if (value < 127) {
-			newKnobPos = (int32_t)value - 64;
+			newKnobPos = value - 64;
 		}
 		if (knob != nullptr) {
 			knob->previousPositionSaved = false;

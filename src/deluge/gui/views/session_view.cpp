@@ -985,6 +985,9 @@ void SessionView::clipPressEnded() {
 		return;
 	}
 
+	selectedClipYDisplay = 255;
+	gridResetPresses();
+
 	currentUIMode = UI_MODE_NONE;
 	view.setActiveModControllableTimelineCounter(currentSong);
 	if (display->haveOLED()) {
@@ -994,8 +997,6 @@ void SessionView::clipPressEnded() {
 	else {
 		redrawNumericDisplay();
 	}
-	selectedClipYDisplay = 255;
-	gridResetPresses();
 }
 
 void SessionView::sectionPadAction(uint8_t y, bool on) {
