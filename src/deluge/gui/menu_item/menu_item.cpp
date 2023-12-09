@@ -30,6 +30,9 @@ void MenuItem::learnCC(MIDIDevice* fromDevice, int32_t channel, int32_t ccNumber
 	learnKnob(fromDevice, ccNumber, 0, channel);
 }
 
+void MenuItem::learnProgramChange(MIDIDevice* fromDevice, int32_t channel, int32_t programNumber) {
+}
+
 void MenuItem::renderOLED() {
 	deluge::hid::display::OLED::drawScreenTitle(getTitle());
 	drawPixelsForOled();

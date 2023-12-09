@@ -1084,6 +1084,7 @@ constexpr int32_t MIDI_CHANNEL_NONE = 255;
 constexpr int32_t MIDI_CC_NONE = 255;
 
 constexpr int32_t IS_A_CC = NUM_CHANNELS;
+constexpr int32_t IS_A_PC = 128; // CC128 is max.
 // To be used instead of MIDI_CHANNEL_MPE_LOWER_ZONE etc for functions that require a "midi output filter". Although in
 // fact, any number <16 or >=18 would work, the way I've defined it.
 constexpr int32_t kMIDIOutputFilterNoMPE = 0;

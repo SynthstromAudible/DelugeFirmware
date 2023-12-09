@@ -65,7 +65,12 @@ void Command::drawPixelsForOled() {
 		else {
 			channelText = l10n::get(l10n::String::STRING_FOR_CHANNEL);
 			char buffer[12];
-			int32_t channelmod = (command->channelOrZone >= IS_A_CC) * IS_A_CC;
+			int32_t channelmod = 0;
+			if (command->channelOrZone >= IS_A_PC) {
+				channelmod = IS_A_PC + IS_A_CC; // the great CC channel hack extended
+			} else if (command->channelOrZone >= IS_A_CC) {
+				channelmod = IS_A_CC;
+			}
 			intToString(command->channelOrZone + 1 - channelmod, buffer, 1);
 			deluge::hid::display::OLED::drawString(buffer, kTextSpacingX * 8, yPixel,
 			                                       deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
@@ -79,9 +84,13 @@ void Command::drawPixelsForOled() {
 			deluge::hid::display::OLED::drawString("Note", 0, yPixel, deluge::hid::display::OLED::oledMainImage[0],
 			                                       OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSizeYUpdated);
 		}
-		else {
+		else if (command->channelOrZone < IS_A_PC){
 			deluge::hid::display::OLED::drawString("CC", 0, yPixel, deluge::hid::display::OLED::oledMainImage[0],
 			                                       OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSizeYUpdated);
+		} else {
+			deluge::hid::display::OLED::drawString("PC", 0, yPixel, deluge::hid::display::OLED::oledMainImage[0],
+			                                       OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSizeYUpdated);
+
 		}
 
 		char buffer[12];
@@ -126,6 +135,10 @@ void Command::unlearnAction() {
 	else {
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_UNLEARNED));
 	}
+}
+
+void Command::learnProgramChange(MIDIDevice* device, int32_t channel, int32_t programNumber) {
+	learnCC(device, channel + IS_A_PC, programNumber, 1);
 }
 
 bool Command::learnNoteOn(MIDIDevice* device, int32_t channel, int32_t noteCode) {

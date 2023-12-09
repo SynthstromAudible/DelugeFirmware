@@ -35,6 +35,7 @@ public:
 	bool shouldBlinkLearnLed() override { return true; }
 	void unlearnAction() override;
 	bool learnNoteOn(MIDIDevice* device, int32_t channel, int32_t noteCode) override;
+	void learnProgramChange(MIDIDevice* device, int32_t channel, int32_t programNumber) override;
 	void learnCC(MIDIDevice* device, int32_t channel, int32_t ccNumber, int32_t value) override;
 
 	void drawPixelsForOled();

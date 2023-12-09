@@ -52,6 +52,7 @@ enum class RangeEdit : uint8_t;
 class SoundEditor final : public UI {
 public:
 	SoundEditor();
+	const char* getName() override { return "SoundEditor"; }
 	bool opened();
 	void focusRegained();
 	void displayOrLanguageChanged() final;
@@ -78,7 +79,6 @@ public:
 	bool editingKit();
 
 	ActionResult timerCallback() override;
-
 	void setupShortcutBlink(int32_t x, int32_t y, int32_t frequency);
 	bool findPatchedParam(int32_t paramLookingFor, int32_t* xout, int32_t* yout);
 	void updateSourceBlinks(MenuItem* currentItem);
@@ -106,6 +106,7 @@ public:
 
 	bool shouldGoUpOneLevelOnBegin;
 
+	bool programChangeReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t program);
 	bool midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value);
 	bool pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2);
 	void selectEncoderAction(int8_t offset);
@@ -119,6 +120,7 @@ public:
 	bool setupKitGlobalFXMenu;
 	void exitCompletely();
 	void goUpOneLevel();
+	bool pcReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channel, int32_t program);
 	bool noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channel, int32_t note, int32_t velocity);
 	void markInstrumentAsEdited();
 	bool editingCVOrMIDIClip();

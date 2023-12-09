@@ -27,6 +27,7 @@ class Sample;
 class RootUI : public UI {
 public:
 	RootUI();
+	const char* getName() override { return "RootUI"; }
 	virtual bool getAffectEntire();
 	bool canSeeViewUnderneath() final { return true; }
 	virtual bool supportsTriplets() { return true; }

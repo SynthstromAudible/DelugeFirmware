@@ -54,6 +54,7 @@ public:
 	void unlearnAction() final;
 	bool allowsLearnMode() final;
 	void learnKnob(MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) final;
+	void learnProgramChange(MIDIDevice* fromDevice, int32_t channel, int32_t programNumber);
 	bool learnNoteOn(MIDIDevice* fromDevice, int32_t channel, int32_t noteCode) final;
 	void drawPixelsForOled() override;
 

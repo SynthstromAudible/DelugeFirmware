@@ -628,6 +628,10 @@ void View::noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channelOrZ
 
 		default:
 recordDetailsOfLearnedThing:
+char popupText[100];
+sprintf(popupText, "rdolt: %d %d %d ", fromDevice, channelOrZone, note);
+display->displayPopup(popupText);
+
 			learnedThing->device = fromDevice;
 			learnedThing->channelOrZone = channelOrZone;
 			learnedThing->noteOrCC = note;
@@ -756,8 +760,16 @@ void View::clearMelodicInstrumentMonoExpressionIfPossible() {
 	}
 }
 
+/* adapt program change messages to cc*/
+void View::pcReceivedForMIDILearn(MIDIDevice* fromDevice, int32_t channel, int32_t pc) {
+	ccReceivedForMIDILearn(fromDevice, channel + IS_A_PC, pc, 1);
+}
+
 void View::ccReceivedForMIDILearn(MIDIDevice* fromDevice, int32_t channel, int32_t cc, int32_t value) {
 	if (thingPressedForMidiLearn != MidiLearn::NONE) {
+		char popupText[100];
+		sprintf(popupText, "CRFML 0 %d", thingPressedForMidiLearn);
+		display->displayPopup(popupText);
 		deleteMidiCommandOnRelease = false;
 
 		// For MelodicInstruments...
@@ -777,6 +789,9 @@ void View::ccReceivedForMIDILearn(MIDIDevice* fromDevice, int32_t channel, int32
 
 		// Or, for all other types of things the user might be holding down...
 		else {
+			char popupText[100];
+			sprintf(popupText, "CRFML 1 %d %d %d", value, channel, cc);
+			display->displayPopup(popupText);
 
 			// So long as the value wasn't 0, pretend it was a note-on for command-learn purposes
 			if (value) {
