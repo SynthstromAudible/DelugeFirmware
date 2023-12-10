@@ -1581,8 +1581,7 @@ void PerformanceSessionView::writeDefaultFXParamToFile(int32_t xDisplay) {
 	//<param>
 	storageManager.writeTag(PERFORM_DEFAULTS_PARAM_TAG, paramName);
 
-	backupXMLDefaultLayoutForPerformance[xDisplay].paramKind = layoutForPerformance[xDisplay].paramKind;
-	backupXMLDefaultLayoutForPerformance[xDisplay].paramID = layoutForPerformance[xDisplay].paramID;
+	memcpy(&backupXMLDefaultLayoutForPerformance[xDisplay], &layoutForPerformance[xDisplay], sizeParamsForPerformance);
 }
 
 /// creates "8 - 1 row # tags within a "row" tag"
@@ -1618,10 +1617,7 @@ void PerformanceSessionView::writeDefaultFXHoldStatusToFile(int32_t xDisplay) {
 		storageManager.writeTag(PERFORM_DEFAULTS_HOLD_RESETVALUE_TAG,
 		                        fxPress[xDisplay].previousKnobPosition + kKnobPosOffset);
 
-		backupXMLDefaultFXPress[xDisplay].padPressHeld = fxPress[xDisplay].padPressHeld;
-		backupXMLDefaultFXPress[xDisplay].yDisplay = fxPress[xDisplay].yDisplay;
-		backupXMLDefaultFXPress[xDisplay].previousKnobPosition = fxPress[xDisplay].previousKnobPosition;
-		backupXMLDefaultFXPress[xDisplay].currentKnobPosition = fxPress[xDisplay].currentKnobPosition;
+		memcpy(&backupXMLDefaultFXPress[xDisplay], &fxPress[xDisplay], sizeFXPress);
 	}
 	else {
 		//<status>
@@ -1631,10 +1627,7 @@ void PerformanceSessionView::writeDefaultFXHoldStatusToFile(int32_t xDisplay) {
 		//<resetValue>
 		storageManager.writeTag(PERFORM_DEFAULTS_HOLD_RESETVALUE_TAG, kNoSelection);
 
-		backupXMLDefaultFXPress[xDisplay].padPressHeld = false;
-		backupXMLDefaultFXPress[xDisplay].yDisplay = kNoSelection;
-		backupXMLDefaultFXPress[xDisplay].previousKnobPosition = kNoSelection;
-		backupXMLDefaultFXPress[xDisplay].currentKnobPosition = kNoSelection;
+		initFXPress(backupXMLDefaultFXPress[xDisplay]);
 	}
 
 	storageManager.writeClosingTag(PERFORM_DEFAULTS_HOLD_TAG);
