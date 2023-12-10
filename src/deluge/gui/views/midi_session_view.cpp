@@ -600,6 +600,10 @@ ModelStackWithAutoParam* MidiSessionView::getModelStackWithParam(int32_t xDispla
 			if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW) && arrangerView.lastInteractedClipInstance) {
 				clip = arrangerView.lastInteractedClipInstance->clip;
 			}
+			else if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
+				Output* output = arrangerView.outputsOnScreen[arrangerView.yPressedEffective];
+				clip = currentSong->getClipWithOutput(output);
+			}
 		}
 		else {
 			clip = currentSong->currentClip;
