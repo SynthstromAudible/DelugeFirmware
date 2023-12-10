@@ -1300,9 +1300,9 @@ void View::notifyParamAutomationOccurred(ParamManager* paramManager, bool update
 			uiTimerManager.setTimer(TIMER_DISPLAY_AUTOMATION, 25);
 		}
 
-		//	if (!uiTimerManager.isTimerSet(TIMER_SEND_MIDI_FEEDBACK_FOR_AUTOMATION)) {
-		//		uiTimerManager.setTimer(TIMER_SEND_MIDI_FEEDBACK_FOR_AUTOMATION, 25);
-		//	}
+		if (!uiTimerManager.isTimerSet(TIMER_SEND_MIDI_FEEDBACK_FOR_AUTOMATION)) {
+			uiTimerManager.setTimer(TIMER_SEND_MIDI_FEEDBACK_FOR_AUTOMATION, 25);
+		}
 
 		else {
 			if (updateModLevels) {
