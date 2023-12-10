@@ -584,7 +584,7 @@ void MidiSessionView::modButtonAction(uint8_t whichButton, bool on) {
 	UI::modButtonAction(whichButton, on);
 }
 
-ModelStackWithAutoParam* MidiSessionView::getModelStackWithParam(int32_t xDisplay, int32_t yDisplay,
+ModelStackWithAutoParam* MidiSessionView::getModelStackWithParam(int32_t xDisplay, int32_t yDisplay, int32_t ccNumber,
                                                                  bool displayError) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 	if (currentSong) {
@@ -690,7 +690,7 @@ ModelStackWithAutoParam* MidiSessionView::getModelStackWithParam(int32_t xDispla
 			}
 		}
 
-		if (displayError && (!modelStackWithParam || !modelStackWithParam->autoParam)) {
+		if (displayError && (paramToCC[xDisplay][yDisplay] == ccNumber) && (!modelStackWithParam || !modelStackWithParam->autoParam)) {
 			if (patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
 				paramKind = Param::Kind::PATCHED;
 				paramID = patchedParamShortcuts[xDisplay][yDisplay];

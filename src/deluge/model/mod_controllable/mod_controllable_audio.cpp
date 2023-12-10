@@ -1731,7 +1731,7 @@ void ModControllableAudio::offerReceivedCCToMidiFollow(ModelStackWithTimelineCou
 					return;
 				}
 				ModelStackWithAutoParam* modelStackWithParam =
-				    midiSessionView.getModelStackWithParam(xDisplay, yDisplay, renderDisplay);
+				    midiSessionView.getModelStackWithParam(xDisplay, yDisplay, ccNumber, renderDisplay);
 				if (modelStackWithParam && modelStackWithParam->autoParam) {
 					if (modelStackWithParam->getTimelineCounter()
 					    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
@@ -1789,6 +1789,14 @@ void ModControllableAudio::offerReceivedCCToMidiFollow(ModelStackWithTimelineCou
 						}
 					}
 				}
+			//	else {
+			//		if (midiEngine.midiFollowFeedback) {
+			//			midiEngine.sendCC(midiEngine.midiFollowChannel, midiSessionView.paramToCC[xDisplay][yDisplay],
+			//			                  0, 0);
+
+			//			timeLastSentCC[xDisplay][yDisplay] = AudioEngine::audioSampleTimer;
+			//		}
+			//	}
 			}
 		}
 	}
