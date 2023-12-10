@@ -810,6 +810,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 				}
 				else {
 					if (!defaultEditingMode) {
+						resetPerformanceView(modelStack);
 						indicator_leds::blinkLed(IndicatorLED::KEYBOARD);
 					}
 					else {
@@ -879,7 +880,9 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 
 			//if not in param editor (so, regular performance view or value editor)
 			if (!editingParam) {
-				if (layoutForPerformance[xDisplay].paramID == kNoSelection) {
+				bool ignorePadAction =
+				    defaultEditingMode && lastPadPress.isActive && (lastPadPress.xDisplay != xDisplay);
+				if (ignorePadAction || (layoutForPerformance[xDisplay].paramID == kNoSelection)) {
 					return ActionResult::DEALT_WITH;
 				}
 				normalPadAction(modelStack, xDisplay, yDisplay, on);
@@ -942,7 +945,7 @@ void PerformanceSessionView::normalPadAction(ModelStackWithThreeMainThings* mode
 		         && ((AudioEngine::audioSampleTimer - fxPress[xDisplay].timeLastPadPress) < kHoldTime)) {
 			fxPress[xDisplay].padPressHeld = true;
 		}
-		//no saving of logs in performance view value editing mode
+		//no saving of logs in performance view editing mode
 		if (!defaultEditingMode) {
 			logPerformanceViewPress(xDisplay);
 		}

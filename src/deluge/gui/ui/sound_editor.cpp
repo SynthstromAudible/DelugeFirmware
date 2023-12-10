@@ -992,7 +992,7 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 	    (getRootUI() == &performanceSessionView) || (getCurrentUI() == &performanceSessionView);
 
 	//used to convert column press to a shortcut to change Perform FX menu displayed
-	if ((isUIPerformanceSessionView) && !Buttons::isShiftButtonPressed() && performanceSessionView.defaultEditingMode
+	if (isUIPerformanceSessionView && !Buttons::isShiftButtonPressed() && performanceSessionView.defaultEditingMode
 	    && !performanceSessionView.editingParam) {
 		if (x < kDisplayWidth) {
 			performanceSessionView.padAction(x, y, on);

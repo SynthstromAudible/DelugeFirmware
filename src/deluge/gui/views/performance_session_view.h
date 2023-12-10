@@ -134,6 +134,7 @@ public:
 	void savePerformanceViewLayout();
 	void loadPerformanceViewLayout();
 	void updateLayoutChangeStatus();
+	void resetPerformanceView(ModelStackWithThreeMainThings* modelStack);
 	bool defaultEditingMode;
 	bool editingParam; //if you're not editing a param, you're editing a value
 	bool justExitedSoundEditor;
@@ -168,7 +169,6 @@ private:
 	                    int32_t xDisplay, int32_t yDisplay, bool renderDisplay = true);
 	void padReleaseAction(ModelStackWithThreeMainThings* modelStack, Param::Kind paramKind, int32_t paramID,
 	                      int32_t xDisplay, bool renderDisplay = true);
-	void resetPerformanceView(ModelStackWithThreeMainThings* modelStack);
 	void resetFXColumn(ModelStackWithThreeMainThings* modelStack, int32_t xDisplay);
 	bool isParamStutter(Param::Kind paramKind, int32_t paramID);
 	void releaseStutter(ModelStackWithThreeMainThings* modelStack);
