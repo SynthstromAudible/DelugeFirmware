@@ -527,9 +527,10 @@ bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 
 		// Find param shortcut
 		currentParamShorcutX = 255;
+		bool isUISessionView =
+		    (getRootUI() == &performanceSessionView) || (getRootUI() == &sessionView) || (getRootUI() == &arrangerView);
 
-		if ((getRootUI() == &performanceSessionView) || (getRootUI() == &sessionView)
-		    || (getRootUI() == &arrangerView)) {
+		if (isUISessionView) {
 			int32_t x, y;
 
 			// First, see if there's a shortcut for the actual MenuItem we're currently on
@@ -795,9 +796,10 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 		return ActionResult::NOT_DEALT_WITH;
 	}
 
-	if (on
-	    && (isUIModeWithinRange(shortcutPadUIModes) || (getRootUI() == &performanceSessionView)
-	        || (getCurrentUI() == &performanceSessionView))) {
+	bool isUIPerformanceSessionView =
+	    (getRootUI() == &performanceSessionView) || (getCurrentUI() == &performanceSessionView);
+
+	if (on && (isUIModeWithinRange(shortcutPadUIModes) || isUIPerformanceSessionView)) {
 
 		if (sdRoutineLock) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -806,7 +808,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 		const MenuItem* item = NULL;
 
 		// performance session view
-		if ((getRootUI() == &performanceSessionView) || (getCurrentUI() == &performanceSessionView)) {
+		if (isUIPerformanceSessionView) {
 			if (x <= (kDisplayWidth - 2)) {
 				item = paramShortcutsForSongView[x][y];
 			}
@@ -986,9 +988,11 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 
+	bool isUIPerformanceSessionView =
+	    (getRootUI() == &performanceSessionView) || (getCurrentUI() == &performanceSessionView);
+
 	//used to convert column press to a shortcut to change Perform FX menu displayed
-	if (((getRootUI() == &performanceSessionView) || (getCurrentUI() == &performanceSessionView))
-	    && !Buttons::isShiftButtonPressed() && performanceSessionView.defaultEditingMode
+	if ((isUIPerformanceSessionView) && !Buttons::isShiftButtonPressed() && performanceSessionView.defaultEditingMode
 	    && !performanceSessionView.editingParam) {
 		if (x < kDisplayWidth) {
 			performanceSessionView.padAction(x, y, on);
@@ -1125,8 +1129,11 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 	ArpeggiatorSettings* newArpSettings = NULL;
 	ModControllableAudio* newModControllable = NULL;
 
+	bool isUISessionView =
+	    (getRootUI() == &performanceSessionView) || (getRootUI() == &sessionView) || (getRootUI() == &arrangerView);
+
 	//getParamManager and ModControllable for Performance Session View (and Session View)
-	if ((getRootUI() == &performanceSessionView) || (getRootUI() == &sessionView) || (getRootUI() == &arrangerView)) {
+	if (isUISessionView) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* modelStack =
 		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
@@ -1372,7 +1379,9 @@ AudioFileHolder* SoundEditor::getCurrentAudioFileHolder() {
 }
 
 ModelStackWithThreeMainThings* SoundEditor::getCurrentModelStack(void* memory) {
-	if ((getRootUI() == &performanceSessionView) || (getRootUI() == &sessionView) || (getRootUI() == &arrangerView)) {
+	bool isUISessionView =
+	    (getRootUI() == &performanceSessionView) || (getRootUI() == &sessionView) || (getRootUI() == &arrangerView);
+	if (isUISessionView) {
 		return currentSong->setupModelStackWithSongAsTimelineCounter(memory);
 	}
 	else {
