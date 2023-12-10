@@ -16,9 +16,13 @@ MIDITranspose::MIDITranspose() {
 }
 
 void MIDITranspose::doTranspose(MIDIDevice* newDevice, int32_t newChannel, int32_t newNoteOrCC) {
+	int32_t offset;
+	if (!currentSong->hasBeenTransposed) {
+		currentSong->transposeOffset = currentSong->rootNote - newNoteOrCC;
+		currentSong->hasBeenTransposed = 1;
+	}
 
-	display->displayPopup("trn");
-	int32_t offset = (newNoteOrCC - currentSong->rootNote)-60;
+	offset = (newNoteOrCC + currentSong->transposeOffset) - currentSong->rootNote;
 
 	uint8_t indexInMode = currentSong->getYNoteIndexInMode(newNoteOrCC);
 

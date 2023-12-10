@@ -334,6 +334,9 @@ public:
 	int32_t masterCompressorRatio;
 	int32_t masterCompressorSidechain;
 
+	bool hasBeenTransposed = 0;
+	int16_t transposeOffset = 0;
+
 private:
 	bool fillModeActive;
 	void inputTickScalePotentiallyJustChanged(uint32_t oldScale);
