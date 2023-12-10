@@ -1616,8 +1616,8 @@ void ArrangerView::exitSubModeWithoutAction() {
 	}
 
 	else if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW)) {
-		view.setActiveModControllableTimelineCounter(currentSong);
 		setNoSubMode();
+		view.setActiveModControllableTimelineCounter(currentSong);
 		uint32_t whichRowsNeedReRendering;
 		if (outputsOnScreen[yPressedEffective] == pressedClipInstanceOutput) {
 			whichRowsNeedReRendering = (1 << yPressedEffective);
