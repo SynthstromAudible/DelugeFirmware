@@ -86,6 +86,13 @@ ModControllableAudio::ModControllableAudio() {
 
 	// Saturation
 	clippingAmount = 0;
+
+	// Midi follow Mode
+	for (int32_t xDisplay; xDisplay < kDisplayWidth; xDisplay++) {
+		for (int32_t yDisplay; yDisplay < kDisplayHeight; yDisplay++) {
+			timeLastSentCC[xDisplay][yDisplay] = 0;
+		}
+	}
 }
 
 ModControllableAudio::~ModControllableAudio() {
@@ -1719,6 +1726,10 @@ void ModControllableAudio::offerReceivedCCToMidiFollow(ModelStackWithTimelineCou
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 			if (midiSessionView.paramToCC[xDisplay][yDisplay] != kNoSelection) {
+				if ((modelStack != nullptr)
+				    && ((AudioEngine::audioSampleTimer - timeLastSentCC[xDisplay][yDisplay]) < kShortPressTime)) {
+					return;
+				}
 				ModelStackWithAutoParam* modelStackWithParam =
 				    midiSessionView.getModelStackWithParam(xDisplay, yDisplay, renderDisplay);
 				if (modelStackWithParam && modelStackWithParam->autoParam) {
@@ -1773,6 +1784,8 @@ void ModControllableAudio::offerReceivedCCToMidiFollow(ModelStackWithTimelineCou
 							midiEngine.sendCC(midiEngine.midiFollowChannel,
 							                  midiSessionView.paramToCC[xDisplay][yDisplay], knobPos + kKnobPosOffset,
 							                  0);
+
+							timeLastSentCC[xDisplay][yDisplay] = AudioEngine::audioSampleTimer;
 						}
 					}
 				}
