@@ -38,6 +38,7 @@
 #include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/midi_session_view.h"
+#include "gui/views/performance_session_view.h"
 #include "gui/views/session_view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
@@ -951,8 +952,7 @@ void View::displayModEncoderValuePopup(Param::Kind kind, int32_t paramID, int32_
 
 	//if turning stutter mod encoder and stutter quantize is enabled
 	//display stutter quantization instead of knob position
-	if (isParamQuantizedStutter(kind, paramID) && !isUIModeActive(UI_MODE_STUTTERING)) {
-		char buffer[10];
+	if (isParamQuantizedStutter(kind, paramID)) {
 		if (newKnobPos < -39) { // 4ths stutter: no leds turned on
 			popupMsg.append("4ths");
 		}
@@ -1172,7 +1172,7 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 	if (activeModControllableModelStack.modControllable) {
 		if (on) {
 
-			if (isUIModeWithinRange(modButtonUIModes)) {
+			if (isUIModeWithinRange(modButtonUIModes) || (getRootUI() == &performanceSessionView)) {
 				activeModControllableModelStack.modControllable->modButtonAction(
 				    whichButton, true, (ParamManagerForTimeline*)activeModControllableModelStack.paramManager);
 

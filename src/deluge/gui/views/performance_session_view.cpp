@@ -45,7 +45,7 @@
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
-#include "model/consequence/consequence_performance_layout_change.h"
+#include "model/consequence/consequence_performance_view_press.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "playback/mode/arrangement.h"
@@ -64,37 +64,37 @@ extern "C" {
 using namespace deluge;
 using namespace gui;
 
-const char* PERFORM_DEFAULTS_XML = "PerformanceView.XML";
-const char* PERFORM_DEFAULTS_TAG = "defaults";
-const char* PERFORM_DEFAULTS_FXVALUES_TAG = "defaultFXValues";
-const char* PERFORM_DEFAULTS_PARAM_TAG = "param";
-const char* PERFORM_DEFAULTS_NO_PARAM = "none";
-const char* PERFORM_DEFAULTS_HOLD_TAG = "hold";
-const char* PERFORM_DEFAULTS_HOLD_STATUS_TAG = "status";
-const char* PERFORM_DEFAULTS_HOLD_RESETVALUE_TAG = "resetValue";
-const char* PERFORM_DEFAULTS_ROW_TAG = "row";
-const char* PERFORM_DEFAULTS_ON = "On";
-const char* PERFORM_DEFAULTS_OFF = "Off";
+#define PERFORM_DEFAULTS_XML "PerformanceView.XML"
+#define PERFORM_DEFAULTS_TAG "defaults"
+#define PERFORM_DEFAULTS_FXVALUES_TAG "defaultFXValues"
+#define PERFORM_DEFAULTS_PARAM_TAG "param"
+#define PERFORM_DEFAULTS_NO_PARAM "none"
+#define PERFORM_DEFAULTS_HOLD_TAG "hold"
+#define PERFORM_DEFAULTS_HOLD_STATUS_TAG "status"
+#define PERFORM_DEFAULTS_HOLD_RESETVALUE_TAG "resetValue"
+#define PERFORM_DEFAULTS_ROW_TAG "row"
+#define PERFORM_DEFAULTS_ON "On"
+#define PERFORM_DEFAULTS_OFF "Off"
 
 //colours for performance view
 
-const uint8_t rowColourRed[3] = {255, 0, 0};            //LPF Cutoff, Resonance
-const uint8_t rowColourPastelOrange[3] = {221, 72, 13}; //HPF Cutoff, Resonance
-const uint8_t rowColourPastelYellow[3] = {170, 182, 0}; //EQ Bass, Treble
-const uint8_t rowColourPastelGreen[3] = {85, 182, 72};  //Reverb Amount
-const uint8_t rowColourPastelBlue[3] = {51, 109, 145};  //Delay Amount, Rate
-const uint8_t rowColourPastelPink[3] = {144, 72, 91};   //Mod FX Rate, Depth, Feedback, Offset
-const uint8_t rowColourPink[3] = {128, 0, 128};         //Decimation, Bitcrush
-const uint8_t rowColourBlue[3] = {0, 0, 255};           //Stutter
+constexpr uint8_t rowColourRed[3] = {255, 0, 0};            //LPF Cutoff, Resonance
+constexpr uint8_t rowColourPastelOrange[3] = {221, 72, 13}; //HPF Cutoff, Resonance
+constexpr uint8_t rowColourPastelYellow[3] = {170, 182, 0}; //EQ Bass, Treble
+constexpr uint8_t rowColourPastelGreen[3] = {85, 182, 72};  //Reverb Amount
+constexpr uint8_t rowColourPastelBlue[3] = {51, 109, 145};  //Delay Amount, Rate
+constexpr uint8_t rowColourPastelPink[3] = {144, 72, 91};   //Mod FX Rate, Depth, Feedback, Offset
+constexpr uint8_t rowColourPink[3] = {128, 0, 128};         //Decimation, Bitcrush
+constexpr uint8_t rowColourBlue[3] = {0, 0, 255};           //Stutter
 
-const uint8_t rowTailColourRed[3] = {53, 2, 2};           //LPF Cutoff, Resonance
-const uint8_t rowTailColourPastelOrange[3] = {46, 16, 2}; //HPF Cutoff, Resonance
-const uint8_t rowTailColourPastelYellow[3] = {36, 38, 2}; //EQ Bass, Treble
-const uint8_t rowTailColourPastelGreen[3] = {19, 38, 16}; //Reverb Amount
-const uint8_t rowTailColourPastelBlue[3] = {12, 23, 31};  //Delay Amount, Rate
-const uint8_t rowTailColourPastelPink[3] = {37, 15, 37};  //Mod FX Rate, Depth, Feedback, Offset
-const uint8_t rowTailColourPink[3] = {53, 0, 53};         //Decimation, Bitcrush
-const uint8_t rowTailColourBlue[3] = {2, 2, 53};          //Stutter
+constexpr uint8_t rowTailColourRed[3] = {53, 2, 2};           //LPF Cutoff, Resonance
+constexpr uint8_t rowTailColourPastelOrange[3] = {46, 16, 2}; //HPF Cutoff, Resonance
+constexpr uint8_t rowTailColourPastelYellow[3] = {36, 38, 2}; //EQ Bass, Treble
+constexpr uint8_t rowTailColourPastelGreen[3] = {19, 38, 16}; //Reverb Amount
+constexpr uint8_t rowTailColourPastelBlue[3] = {12, 23, 31};  //Delay Amount, Rate
+constexpr uint8_t rowTailColourPastelPink[3] = {37, 15, 37};  //Mod FX Rate, Depth, Feedback, Offset
+constexpr uint8_t rowTailColourPink[3] = {53, 0, 53};         //Decimation, Bitcrush
+constexpr uint8_t rowTailColourBlue[3] = {2, 2, 53};          //Stutter
 
 using namespace Param;
 using namespace Unpatched;
@@ -200,7 +200,6 @@ PerformanceSessionView::PerformanceSessionView() {
 
 	initPadPress(firstPadPress);
 	initPadPress(lastPadPress);
-	initPadPress(backupLastPadPress);
 
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		initFXPress(fxPress[xDisplay]);
@@ -208,7 +207,6 @@ PerformanceSessionView::PerformanceSessionView() {
 		initFXPress(backupXMLDefaultFXPress[xDisplay]);
 
 		initLayout(layoutForPerformance[xDisplay]);
-		initLayout(backupLayoutForPerformance[xDisplay]);
 		initLayout(backupXMLDefaultLayoutForPerformance[xDisplay]);
 
 		initDefaultFXValues(xDisplay);
@@ -271,6 +269,7 @@ void PerformanceSessionView::focusRegained() {
 
 	if (!successfullyReadDefaultsFromFile) {
 		readDefaultsFromFile();
+		actionLogger.deleteAllLogs();
 	}
 
 	setLedStates();
@@ -746,9 +745,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 	//clear and reset held params
 	else if (b == BACK && isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
 		if (on) {
-			backupPerformanceLayout();
 			resetPerformanceView(modelStack);
-			logPerformanceLayoutChange();
 		}
 	}
 
@@ -813,6 +810,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 				}
 				else {
 					if (!defaultEditingMode) {
+						resetPerformanceView(modelStack);
 						indicator_leds::blinkLed(IndicatorLED::KEYBOARD);
 					}
 					else {
@@ -837,8 +835,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 	}
 
 	//disable button presses for Vertical encoder
-	//disable back button press since undo doesn't work well in this view atm.
-	else if (b == Y_ENC) { //|| (b == BACK)) {
+	else if (b == Y_ENC) {
 		return ActionResult::DEALT_WITH;
 	}
 
@@ -847,10 +844,18 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 		buttonActionResult = TimelineView::buttonAction(b, on, inCardRoutine);
 
 		//release stutter if you press play - stutter needs to be turned on after playback is running
-		//re-render grid if undoing an action (e.g. you previously loaded layout)
+		//re-render grid, display if undoing/redoing an action (e.g. you previously loaded layout)
+		//update change status if undoing/redoing an action
 		if (on && (b == PLAY || b == BACK)) {
 			if (b == PLAY) {
 				releaseStutter(modelStack);
+			}
+			else if (b == BACK) {
+				initPadPress(lastPadPress);
+				updateLayoutChangeStatus();
+				if (onFXDisplay) {
+					renderViewDisplay();
+				}
 			}
 			uiNeedsRendering(this);
 		}
@@ -875,7 +880,9 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 
 			//if not in param editor (so, regular performance view or value editor)
 			if (!editingParam) {
-				if (layoutForPerformance[xDisplay].paramID == kNoSelection) {
+				bool ignorePadAction =
+				    defaultEditingMode && lastPadPress.isActive && (lastPadPress.xDisplay != xDisplay);
+				if (ignorePadAction || (layoutForPerformance[xDisplay].paramID == kNoSelection)) {
 					return ActionResult::DEALT_WITH;
 				}
 				normalPadAction(modelStack, xDisplay, yDisplay, on);
@@ -913,6 +920,7 @@ void PerformanceSessionView::normalPadAction(ModelStackWithThreeMainThings* mode
 					    && (layoutForPerformance[i].paramID == lastSelectedParamID)) {
 						fxPress[xDisplay].previousKnobPosition = fxPress[i].previousKnobPosition;
 						initFXPress(fxPress[i]);
+						logPerformanceViewPress(i, false);
 					}
 				}
 			}
@@ -936,7 +944,10 @@ void PerformanceSessionView::normalPadAction(ModelStackWithThreeMainThings* mode
 		else if ((fxPress[xDisplay].previousKnobPosition != kNoSelection) && (fxPress[xDisplay].yDisplay == yDisplay)
 		         && ((AudioEngine::audioSampleTimer - fxPress[xDisplay].timeLastPadPress) < kHoldTime)) {
 			fxPress[xDisplay].padPressHeld = true;
-			logPerformanceLayoutChange();
+		}
+		//no saving of logs in performance view editing mode
+		if (!defaultEditingMode) {
+			logPerformanceViewPress(xDisplay);
 		}
 		updateLayoutChangeStatus();
 	}
@@ -1012,7 +1023,6 @@ void PerformanceSessionView::paramEditorPadAction(ModelStackWithThreeMainThings*
 		}
 		//if you are holding a param shortcut pad and are now pressing a pad in an FX column
 		else {
-			backupPerformanceLayout();
 			//if the FX column you are pressing is currently assigned to a different param or no param
 			if ((layoutForPerformance[xDisplay].paramKind != firstPadPress.paramKind)
 			    || (layoutForPerformance[xDisplay].paramID != firstPadPress.paramID)
@@ -1047,7 +1057,6 @@ void PerformanceSessionView::paramEditorPadAction(ModelStackWithThreeMainThings*
 				//remove param from FX column
 				initLayout(layoutForPerformance[xDisplay]);
 			}
-			logPerformanceLayoutChange();
 			updateLayoutChangeStatus();
 		}
 	}
@@ -1075,23 +1084,18 @@ void PerformanceSessionView::backupPerformanceLayout() {
 		if (successfullyReadDefaultsFromFile) {
 			memcpy(&backupFXPress[xDisplay], &fxPress[xDisplay], sizeFXPress);
 		}
-		memcpy(&backupLayoutForPerformance[xDisplay], &layoutForPerformance[xDisplay], sizeParamsForPerformance);
-		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-			backupDefaultFXValues[xDisplay][yDisplay] = defaultFXValues[xDisplay][yDisplay];
-		}
 	}
-	memcpy(&backupLastPadPress, &lastPadPress, sizePadPress);
 	performanceLayoutBackedUp = true;
 }
 
 /// used in conjunction with backupPerformanceLayout to log changes
 /// while in Performance View so that you can undo/redo them afters
-void PerformanceSessionView::logPerformanceLayoutChange() {
+void PerformanceSessionView::logPerformanceViewPress(int32_t xDisplay, bool closeAction) {
 	if (anyChangesToLog()) {
-		actionLogger.recordPerformanceLayoutChange(backupLastPadPress, lastPadPress, backupFXPress, fxPress,
-		                                           backupLayoutForPerformance, layoutForPerformance,
-		                                           backupDefaultFXValues, defaultFXValues);
-		actionLogger.closeAction(ACTION_PARAM_UNAUTOMATED_VALUE_CHANGE);
+		actionLogger.recordPerformanceViewPress(backupFXPress, fxPress, xDisplay);
+		if (closeAction) {
+			actionLogger.closeAction(ACTION_PARAM_UNAUTOMATED_VALUE_CHANGE);
+		}
 	}
 }
 
@@ -1113,44 +1117,6 @@ bool PerformanceSessionView::anyChangesToLog() {
 			}
 			else if (backupFXPress[xDisplay].padPressHeld != fxPress[xDisplay].padPressHeld) {
 				return true;
-			}
-			else if (backupLayoutForPerformance[xDisplay].paramKind != layoutForPerformance[xDisplay].paramKind) {
-				return true;
-			}
-			else if (backupLayoutForPerformance[xDisplay].paramID != layoutForPerformance[xDisplay].paramID) {
-				return true;
-			}
-			else if (backupLayoutForPerformance[xDisplay].xDisplay != layoutForPerformance[xDisplay].xDisplay) {
-				return true;
-			}
-			else if (backupLayoutForPerformance[xDisplay].yDisplay != layoutForPerformance[xDisplay].yDisplay) {
-				return true;
-			}
-			else if (backupLayoutForPerformance[xDisplay].rowColour[0] != layoutForPerformance[xDisplay].rowColour[0]) {
-				return true;
-			}
-			else if (backupLayoutForPerformance[xDisplay].rowColour[1] != layoutForPerformance[xDisplay].rowColour[1]) {
-				return true;
-			}
-			else if (backupLayoutForPerformance[xDisplay].rowColour[2] != layoutForPerformance[xDisplay].rowColour[2]) {
-				return true;
-			}
-			else if (backupLayoutForPerformance[xDisplay].rowTailColour[0]
-			         != layoutForPerformance[xDisplay].rowTailColour[0]) {
-				return true;
-			}
-			else if (backupLayoutForPerformance[xDisplay].rowTailColour[1]
-			         != layoutForPerformance[xDisplay].rowTailColour[1]) {
-				return true;
-			}
-			else if (backupLayoutForPerformance[xDisplay].rowTailColour[2]
-			         != layoutForPerformance[xDisplay].rowTailColour[2]) {
-				return true;
-			}
-			for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-				if (backupDefaultFXValues[xDisplay][yDisplay] != defaultFXValues[xDisplay][yDisplay]) {
-					return true;
-				}
 			}
 		}
 	}
@@ -1355,8 +1321,6 @@ int32_t PerformanceSessionView::calculateKnobPosForSinglePadPress(int32_t xDispl
 /// Used to edit a pad's value in editing mode
 void PerformanceSessionView::selectEncoderAction(int8_t offset) {
 	if (lastPadPress.isActive && defaultEditingMode && !editingParam && (getCurrentUI() == &soundEditor)) {
-		backupPerformanceLayout();
-
 		int32_t lastSelectedParamShortcutX = layoutForPerformance[lastPadPress.xDisplay].xDisplay;
 		int32_t lastSelectedParamShortcutY = layoutForPerformance[lastPadPress.xDisplay].yDisplay;
 
@@ -1374,7 +1338,6 @@ void PerformanceSessionView::selectEncoderAction(int8_t offset) {
 
 			if (setParameterValue(modelStack, lastPadPress.paramKind, lastPadPress.paramID, lastPadPress.xDisplay,
 			                      defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay], false)) {
-				logPerformanceLayoutChange();
 				updateLayoutChangeStatus();
 			}
 			goto exit;
@@ -1618,8 +1581,7 @@ void PerformanceSessionView::writeDefaultFXParamToFile(int32_t xDisplay) {
 	//<param>
 	storageManager.writeTag(PERFORM_DEFAULTS_PARAM_TAG, paramName);
 
-	backupXMLDefaultLayoutForPerformance[xDisplay].paramKind = layoutForPerformance[xDisplay].paramKind;
-	backupXMLDefaultLayoutForPerformance[xDisplay].paramID = layoutForPerformance[xDisplay].paramID;
+	memcpy(&backupXMLDefaultLayoutForPerformance[xDisplay], &layoutForPerformance[xDisplay], sizeParamsForPerformance);
 }
 
 /// creates "8 - 1 row # tags within a "row" tag"
@@ -1655,10 +1617,7 @@ void PerformanceSessionView::writeDefaultFXHoldStatusToFile(int32_t xDisplay) {
 		storageManager.writeTag(PERFORM_DEFAULTS_HOLD_RESETVALUE_TAG,
 		                        fxPress[xDisplay].previousKnobPosition + kKnobPosOffset);
 
-		backupXMLDefaultFXPress[xDisplay].padPressHeld = fxPress[xDisplay].padPressHeld;
-		backupXMLDefaultFXPress[xDisplay].yDisplay = fxPress[xDisplay].yDisplay;
-		backupXMLDefaultFXPress[xDisplay].previousKnobPosition = fxPress[xDisplay].previousKnobPosition;
-		backupXMLDefaultFXPress[xDisplay].currentKnobPosition = fxPress[xDisplay].currentKnobPosition;
+		memcpy(&backupXMLDefaultFXPress[xDisplay], &fxPress[xDisplay], sizeFXPress);
 	}
 	else {
 		//<status>
@@ -1668,10 +1627,7 @@ void PerformanceSessionView::writeDefaultFXHoldStatusToFile(int32_t xDisplay) {
 		//<resetValue>
 		storageManager.writeTag(PERFORM_DEFAULTS_HOLD_RESETVALUE_TAG, kNoSelection);
 
-		backupXMLDefaultFXPress[xDisplay].padPressHeld = false;
-		backupXMLDefaultFXPress[xDisplay].yDisplay = kNoSelection;
-		backupXMLDefaultFXPress[xDisplay].previousKnobPosition = kNoSelection;
-		backupXMLDefaultFXPress[xDisplay].currentKnobPosition = kNoSelection;
+		initFXPress(backupXMLDefaultFXPress[xDisplay]);
 	}
 
 	storageManager.writeClosingTag(PERFORM_DEFAULTS_HOLD_TAG);
@@ -1682,7 +1638,6 @@ void PerformanceSessionView::loadPerformanceViewLayout() {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* modelStack = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
-	backupPerformanceLayout();
 	resetPerformanceView(modelStack);
 	if (successfullyReadDefaultsFromFile) {
 		readDefaultsFromBackedUpFile();
@@ -1690,7 +1645,8 @@ void PerformanceSessionView::loadPerformanceViewLayout() {
 	else {
 		readDefaultsFromFile();
 	}
-	logPerformanceLayoutChange();
+	actionLogger.deleteAllLogs();
+	backupPerformanceLayout();
 	updateLayoutChangeStatus();
 	uiNeedsRendering(this);
 }
@@ -1744,11 +1700,6 @@ void PerformanceSessionView::readDefaultsFromFile() {
 
 	storageManager.closeFile();
 
-	if (!successfullyReadDefaultsFromFile) {
-		backupPerformanceLayout();
-		logPerformanceLayoutChange();
-	}
-
 	successfullyReadDefaultsFromFile = true;
 }
 
@@ -1756,7 +1707,6 @@ void PerformanceSessionView::readDefaultsFromFile() {
 void PerformanceSessionView::loadDefaultLayout() {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		memcpy(&layoutForPerformance[xDisplay], &defaultLayoutForPerformance[xDisplay], sizeParamsForPerformance);
-		memcpy(&backupLayoutForPerformance[xDisplay], &defaultLayoutForPerformance[xDisplay], sizeParamsForPerformance);
 		memcpy(&backupXMLDefaultLayoutForPerformance[xDisplay], &defaultLayoutForPerformance[xDisplay],
 		       sizeParamsForPerformance);
 		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {

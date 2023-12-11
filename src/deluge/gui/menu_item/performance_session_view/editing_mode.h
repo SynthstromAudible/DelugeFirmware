@@ -59,6 +59,13 @@ public:
 			indicator_leds::setLedState(IndicatorLED::KEYBOARD, true);
 		}
 
+		if (performanceSessionView.defaultEditingMode && !performanceSessionView.editingParam) {
+			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithThreeMainThings* modelStack =
+			    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+			performanceSessionView.resetPerformanceView(modelStack);
+		}
+
 		uiNeedsRendering(&performanceSessionView);
 	}
 	std::vector<std::string_view> getOptions() override {

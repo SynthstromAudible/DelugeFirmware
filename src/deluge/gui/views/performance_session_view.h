@@ -53,7 +53,20 @@ struct ParamsForPerformance {
 	int32_t yDisplay;
 	uint8_t rowColour[3];
 	uint8_t rowTailColour[3];
-	ParamsForPerformance(){};
+
+	ParamsForPerformance() {
+		paramKind = Param::Kind::NONE;
+		paramID = kNoSelection;
+		xDisplay = kNoSelection;
+		yDisplay = kNoSelection;
+		rowColour[0] = 0;
+		rowColour[1] = 0;
+		rowColour[2] = 0;
+		rowTailColour[0] = 0;
+		rowTailColour[1] = 0;
+		rowTailColour[2] = 0;
+	}
+
 	ParamsForPerformance(Param::Kind kind, ParamType param, int32_t x, int32_t y, const uint8_t colour[3],
 	                     const uint8_t tailColour[3]) {
 		paramKind = kind;
@@ -120,16 +133,14 @@ public:
 	//public so soundEditor can access it
 	void savePerformanceViewLayout();
 	void loadPerformanceViewLayout();
+	void updateLayoutChangeStatus();
+	void resetPerformanceView(ModelStackWithThreeMainThings* modelStack);
 	bool defaultEditingMode;
 	bool editingParam; //if you're not editing a param, you're editing a value
 	bool justExitedSoundEditor;
 
 	//public so Action Logger can access it
-	void updateLayoutChangeStatus();
-	PadPress lastPadPress;
 	FXColumnPress fxPress[kDisplayWidth];
-	ParamsForPerformance layoutForPerformance[kDisplayWidth];
-	int32_t defaultFXValues[kDisplayWidth][kDisplayHeight];
 
 	//public so midiSessionView can access it
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithThreeMainThings* modelStack, int32_t paramID);
@@ -161,7 +172,6 @@ private:
 	                    int32_t xDisplay, int32_t yDisplay, bool renderDisplay = true);
 	void padReleaseAction(ModelStackWithThreeMainThings* modelStack, Param::Kind paramKind, int32_t paramID,
 	                      int32_t xDisplay, bool renderDisplay = true);
-	void resetPerformanceView(ModelStackWithThreeMainThings* modelStack);
 	void resetFXColumn(ModelStackWithThreeMainThings* modelStack, int32_t xDisplay);
 	bool isParamStutter(Param::Kind paramKind, int32_t paramID);
 	void releaseStutter(ModelStackWithThreeMainThings* modelStack);
@@ -196,18 +206,18 @@ private:
 	int32_t adjustKnobPosForQuantizedStutter(int32_t yDisplay);
 
 	PadPress firstPadPress;
+	PadPress lastPadPress;
+	ParamsForPerformance layoutForPerformance[kDisplayWidth];
+	int32_t defaultFXValues[kDisplayWidth][kDisplayHeight];
 	int32_t layoutBank;    //A or B (assign a layout to the bank for cross fader action)
 	int32_t layoutVariant; //1, 2, 3, 4, 5 (1 = Load, 2 = Synth, 3 = Kit, 4 = Midi, 5 = CV)
 
 	//backup current layout
 	void backupPerformanceLayout();
 	bool performanceLayoutBackedUp;
-	void logPerformanceLayoutChange();
+	void logPerformanceViewPress(int32_t xDisplay, bool closeAction = true);
 	bool anyChangesToLog();
-	PadPress backupLastPadPress;
 	FXColumnPress backupFXPress[kDisplayWidth];
-	ParamsForPerformance backupLayoutForPerformance[kDisplayWidth];
-	int32_t backupDefaultFXValues[kDisplayWidth][kDisplayHeight];
 
 	// Members regarding rendering different layouts
 private:

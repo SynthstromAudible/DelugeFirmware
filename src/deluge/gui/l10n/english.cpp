@@ -793,7 +793,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_PAD_SELECTION_OFF, "Pad Selection Off"},
         {STRING_FOR_PAD_SELECTION_ON, "Pad Selection On"},
 
-        /* Strings Specifically for Performance View
+        /* Strings Specifically for Performance View 
         * performance_session_view.cpp
         */
 
