@@ -373,7 +373,8 @@ constexpr int32_t kMinMenuPatchCableValue = -1 * kMaxMenuPatchCableValue;
 constexpr int32_t kMaxMenuMetronomeVolumeValue = 50;
 constexpr int32_t kMinMenuMetronomeVolumeValue = 1;
 
-//
+//Performance View and Automation View Constant
+constexpr uint32_t kNoParamID = 0xFFFFFFFF;
 
 //Automation View constants
 constexpr int32_t kNoSelection = 255;
@@ -386,6 +387,19 @@ constexpr int32_t kParamValueIncrementForAutomationSinglePadPress = 18;
 constexpr int32_t kParamValueIncrementForAutomationDisplay = 16;
 constexpr int32_t kParamNodeWidth = 3;
 //
+
+//Performance View constant
+constexpr int32_t kNumParamsForPerformance = 16;
+constexpr int32_t kParamValueIncrementForDelayAmount = kParamValueIncrementForAutomationSinglePadPress / 2;
+constexpr int32_t kMaxKnobPosForDelayAmount = (kMaxKnobPos / 2) - 1;
+constexpr int32_t kParamValueIncrementForQuantizedStutter = 15;
+constexpr int32_t kMinKnobPosForQuantizedStutter = 52;
+
+enum class PerformanceEditingMode : int32_t {
+	DISABLED,
+	VALUE,
+	PARAM,
+};
 
 // Linear params have different sources multiplied together, then multiplied by the neutral value
 // -- and "volume" ones get squared at the end
@@ -1106,9 +1120,13 @@ constexpr int32_t kDefaultCalculateRootNote = std::numeric_limits<int32_t>::max(
 /// more detail.
 constexpr uint32_t kSampleRate = 44100;
 
-/// Length of press that deliniates a "short" press. Set to half a second (in units of samples, to work with
+/// Length of press that delineates a "short" press. Set to half a second (in units of samples, to work with
 /// AudioEngine::audioSampleTimer)
 constexpr uint32_t kShortPressTime = kSampleRate / 2;
+
+/// Length of a press that delineates a "hold" press.
+/// Used in Performance View and with Sticky Shift
+constexpr uint32_t kHoldTime = kSampleRate / 10;
 
 enum KeyboardLayoutType : uint8_t {
 	KeyboardLayoutTypeIsomorphic,

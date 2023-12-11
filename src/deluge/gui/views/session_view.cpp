@@ -32,6 +32,7 @@
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/performance_session_view.h"
 #include "gui/views/view.h"
 #include "gui/waveform/waveform_renderer.h"
 #include "hid/button.h"
@@ -459,6 +460,10 @@ moveAfterClipInstance:
 						requestRendering(this, 0, 0xFFFFFFFF);
 					}
 				}
+				//open Song FX menu
+				display->setNextTransitionDirection(1);
+				soundEditor.setup();
+				openUI(&soundEditor);
 			}
 		}
 	}
@@ -574,7 +579,11 @@ doActualSimpleChange:
 		newInstrumentType = InstrumentType::CV;
 		goto changeInstrumentType;
 	}
-
+	else if (b == KEYBOARD) {
+		if (on && currentUIMode == UI_MODE_NONE) {
+			changeRootUI(&performanceSessionView);
+		}
+	}
 	else {
 notDealtWith:
 		return TimelineView::buttonAction(b, on, inCardRoutine);
@@ -1779,6 +1788,8 @@ void SessionView::setLedStates() {
 extern char loopsRemainingText[];
 
 void SessionView::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
+	renderViewDisplay(getCurrentUI() == &arrangerView ? l10n::get(l10n::String::STRING_FOR_ARRANGER_VIEW)
+	                                                  : l10n::get(l10n::String::STRING_FOR_SONG_VIEW));
 
 	if (playbackHandler.isEitherClockActive()) {
 		// Session playback
@@ -1786,12 +1797,14 @@ void SessionView::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 			if (session.launchEventAtSwungTickCount) {
 yesDoIt:
 				intToString(session.numRepeatsTilLaunch, &loopsRemainingText[17]);
+				deluge::hid::display::OLED::clearMainImage();
 				deluge::hid::display::OLED::drawPermanentPopupLookingText(loopsRemainingText);
 			}
 		}
 
 		else { // Arrangement playback
 			if (playbackHandler.stopOutputRecordingAtLoopEnd) {
+				deluge::hid::display::OLED::clearMainImage();
 				deluge::hid::display::OLED::drawPermanentPopupLookingText("Resampling will end...");
 			}
 		}
@@ -1799,6 +1812,8 @@ yesDoIt:
 }
 
 void SessionView::redrawNumericDisplay() {
+	renderViewDisplay(getCurrentUI() == &arrangerView ? l10n::get(l10n::String::STRING_FOR_ARRANGER_VIEW)
+	                                                  : l10n::get(l10n::String::STRING_FOR_SONG_VIEW));
 
 	if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
 		return;
@@ -1871,6 +1886,29 @@ nothingToDisplay:
 	}
 
 	setCentralLEDStates();
+}
+
+//render session view display on opening
+void SessionView::renderViewDisplay(char const* viewString) {
+	if (display->haveOLED()) {
+		deluge::hid::display::OLED::clearMainImage();
+
+#if OLED_MAIN_HEIGHT_PIXELS == 64
+		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
+#else
+		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
+#endif
+
+		yPos = yPos + 12;
+
+		deluge::hid::display::OLED::drawStringCentred(viewString, yPos, deluge::hid::display::OLED::oledMainImage[0],
+		                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+
+		deluge::hid::display::OLED::sendMainImage();
+	}
+	else {
+		display->setScrollingText(viewString);
+	}
 }
 
 // This gets called by redrawNumericDisplay() - or, if OLED, it gets called instead, because this still needs to happen.
