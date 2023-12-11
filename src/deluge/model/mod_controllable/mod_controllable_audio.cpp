@@ -1639,8 +1639,8 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 	else {
 		//if midi follow mode is enabled and current channel is the midi follow channel
 		//allow CC's learned in midi session/learning view to control parameters
-		if ((midiEngine.midiFollow) && (channel == midiEngine.midiFollowChannel)) {
-			offerReceivedCCToMidiFollow(modelStack, channel, ccNumber, value);
+		if ((midiEngine.midiFollow) && (channel == midiEngine.midiFollowChannelParam)) {
+			offerReceivedCCToMidiFollow(modelStack, channel, ccNumber, value, midiEngine.midiFollowDisplayParam);
 		}
 		// For each MIDI knob...
 		for (int32_t k = 0; k < midiKnobArray.getNumElements(); k++) {
@@ -1781,7 +1781,7 @@ void ModControllableAudio::offerReceivedCCToMidiFollow(ModelStackWithTimelineCou
 							int32_t knobPos =
 							    modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
 
-							midiEngine.sendCC(midiEngine.midiFollowChannel,
+							midiEngine.sendCC(midiEngine.midiFollowChannelParam,
 							                  midiSessionView.paramToCC[xDisplay][yDisplay], knobPos + kKnobPosOffset,
 							                  0);
 
@@ -1789,14 +1789,14 @@ void ModControllableAudio::offerReceivedCCToMidiFollow(ModelStackWithTimelineCou
 						}
 					}
 				}
-			//	else {
-			//		if (midiEngine.midiFollowFeedback) {
-			//			midiEngine.sendCC(midiEngine.midiFollowChannel, midiSessionView.paramToCC[xDisplay][yDisplay],
-			//			                  0, 0);
+				//	else {
+				//		if (midiEngine.midiFollowFeedback) {
+				//			midiEngine.sendCC(midiEngine.midiFollowChannel, midiSessionView.paramToCC[xDisplay][yDisplay],
+				//			                  0, 0);
 
-			//			timeLastSentCC[xDisplay][yDisplay] = AudioEngine::audioSampleTimer;
-			//		}
-			//	}
+				//			timeLastSentCC[xDisplay][yDisplay] = AudioEngine::audioSampleTimer;
+				//		}
+				//	}
 			}
 		}
 	}

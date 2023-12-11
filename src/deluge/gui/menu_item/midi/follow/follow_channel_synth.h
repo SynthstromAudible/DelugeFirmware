@@ -21,11 +21,11 @@
 
 namespace deluge::gui::menu_item::midi {
 
-class FollowChannel final : public Integer {
+class FollowChannelSynth final : public Integer {
 public:
 	using Integer::Integer;
-	void readCurrentValue() override { this->setValue(midiEngine.midiFollowChannel + 1); }
-	void writeCurrentValue() override { midiEngine.midiFollowChannel = this->getValue() - 1; }
+	void readCurrentValue() override { this->setValue(midiEngine.midiFollowChannelSynth + 1); }
+	void writeCurrentValue() override { midiEngine.midiFollowChannelSynth = this->getValue() - 1; }
 	[[nodiscard]] int32_t getMinValue() const override { return 1; }
 	[[nodiscard]] int32_t getMaxValue() const override { return 16; }
 };

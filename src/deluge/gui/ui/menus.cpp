@@ -74,7 +74,9 @@
 #include "gui/menu_item/midi/device_send_clock.h"
 #include "gui/menu_item/midi/devices.h"
 #include "gui/menu_item/midi/follow/follow.h"
-#include "gui/menu_item/midi/follow/follow_channel.h"
+#include "gui/menu_item/midi/follow/follow_channel_kit.h"
+#include "gui/menu_item/midi/follow/follow_channel_param.h"
+#include "gui/menu_item/midi/follow/follow_channel_synth.h"
 #include "gui/menu_item/midi/follow/follow_display_param.h"
 #include "gui/menu_item/midi/follow/follow_feedback.h"
 #include "gui/menu_item/midi/follow/follow_kit_root_note.h"
@@ -838,17 +840,29 @@ midi::Takeover midiTakeoverMenu{STRING_FOR_TAKEOVER};
 
 //MIDI Follow
 midi::Follow midiFollowMenu{STRING_FOR_FOLLOW};
-midi::FollowChannel midiFollowChannelMenu{STRING_FOR_CHANNEL};
+midi::FollowChannelSynth midiFollowChannelSynthMenu{STRING_FOR_FOLLOW_CHANNEL_SYNTH};
+midi::FollowChannelKit midiFollowChannelKitMenu{STRING_FOR_FOLLOW_CHANNEL_KIT};
+midi::FollowChannelParam midiFollowChannelParamMenu{STRING_FOR_FOLLOW_CHANNEL_PARAM};
 midi::FollowKitRootNote midiFollowKitRootNoteMenu{STRING_FOR_FOLLOW_KIT_ROOT_NOTE};
 midi::FollowDisplayParam midiFollowDisplayParamMenu{STRING_FOR_FOLLOW_DISPLAY_PARAM};
 midi::FollowFeedback midiFollowFeedbackMenu{STRING_FOR_FOLLOW_FEEDBACK};
+
+Submenu midiFollowChannelSubmenu{
+    STRING_FOR_CHANNEL,
+    STRING_FOR_CHANNEL,
+    {
+        &midiFollowChannelSynthMenu,
+        &midiFollowChannelKitMenu,
+        &midiFollowChannelParamMenu,
+    },
+};
 
 Submenu midiFollowSubmenu{
     STRING_FOR_FOLLOW_TITLE,
     STRING_FOR_FOLLOW_TITLE,
     {
         &midiFollowMenu,
-        &midiFollowChannelMenu,
+        &midiFollowChannelSubmenu,
         &midiFollowKitRootNoteMenu,
         &midiFollowDisplayParamMenu,
         &midiFollowFeedbackMenu,

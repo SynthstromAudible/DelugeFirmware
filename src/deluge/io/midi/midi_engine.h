@@ -63,7 +63,9 @@ public:
 
 	bool midiThru;
 	bool midiFollow;
-	int32_t midiFollowChannel;
+	int32_t midiFollowChannelSynth;
+	int32_t midiFollowChannelKit;
+	int32_t midiFollowChannelParam;
 	int32_t midiFollowKitRootNote;
 	bool midiFollowDisplayParam;
 	bool midiFollowFeedback;

@@ -340,7 +340,7 @@ bool MelodicInstrument::shouldMidiFollow(bool on, int32_t midiChannel) {
 		clip = currentSong->currentClip;
 	}
 
-	return ((midiEngine.midiFollow && (midiChannel == midiEngine.midiFollowChannel))
+	return ((midiEngine.midiFollow && (midiChannel == midiEngine.midiFollowChannelSynth))
 	        && (!on || ((InstrumentClip*)clip == (InstrumentClip*)activeClip)));
 }
 

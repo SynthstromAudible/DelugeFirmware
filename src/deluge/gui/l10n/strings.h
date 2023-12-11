@@ -718,7 +718,7 @@ enum class String : size_t {
 	STRING_FOR_PAD_SELECTION_OFF,
 	STRING_FOR_PAD_SELECTION_ON,
 
-	/* Strings Specifically for Performance View 
+	/* Strings Specifically for Performance View
 	* performance_session_view.cpp
 	*/
 
@@ -759,6 +759,12 @@ enum class String : size_t {
 	//strings for midi follow menu
 	STRING_FOR_FOLLOW_TITLE,
 	STRING_FOR_FOLLOW,
+	STRING_FOR_SYNTH,
+	STRING_FOR_FOLLOW_CHANNEL_SYNTH,
+	STRING_FOR_KIT,
+	STRING_FOR_FOLLOW_CHANNEL_KIT,
+	STRING_FOR_PARAM,
+	STRING_FOR_FOLLOW_CHANNEL_PARAM,
 	STRING_FOR_FOLLOW_KIT_ROOT_NOTE,
 	STRING_FOR_FOLLOW_DISPLAY_PARAM,
 	STRING_FOR_FOLLOW_FEEDBACK,

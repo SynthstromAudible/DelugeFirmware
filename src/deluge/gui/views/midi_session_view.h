@@ -91,7 +91,8 @@ public:
 	bool onParamDisplay;
 	bool showLearnedParams;
 
-	ModelStackWithAutoParam* getModelStackWithParam(int32_t xDisplay, int32_t yDisplay, int32_t ccNumber, bool displayError = true);
+	ModelStackWithAutoParam* getModelStackWithParam(int32_t xDisplay, int32_t yDisplay, int32_t ccNumber,
+	                                                bool displayError = true);
 	void learnCC(int32_t channel, int32_t ccNumber);
 
 	void readDefaultsFromFile();

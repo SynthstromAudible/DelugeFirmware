@@ -219,7 +219,9 @@ MidiEngine::MidiEngine() {
 	currentlyReceivingSysExSerial = false;
 	midiThru = false;
 	midiFollow = false;
-	midiFollowChannel = 15;
+	midiFollowChannelSynth = 15;
+	midiFollowChannelKit = 15;
+	midiFollowChannelParam = 15;
 	midiFollowKitRootNote = 36;
 	midiFollowDisplayParam = true;
 	midiFollowFeedback = false;

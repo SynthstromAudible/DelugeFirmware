@@ -1208,7 +1208,7 @@ bool Kit::shouldMidiFollow(ModelStackWithTimelineCounter* modelStack, Instrument
 		clip = currentSong->currentClip;
 	}
 
-	if ((midiEngine.midiFollow && (channel == midiEngine.midiFollowChannel))
+	if ((midiEngine.midiFollow && (channel == midiEngine.midiFollowChannelKit))
 	    && (!on || ((InstrumentClip*)clip == instrumentClip))) {
 		ModelStackWithNoteRow* modelStackWithNoteRow;
 		if (instrumentClip) {

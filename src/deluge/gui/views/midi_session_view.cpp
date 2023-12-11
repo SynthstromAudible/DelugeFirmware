@@ -233,7 +233,7 @@ void MidiSessionView::renderViewDisplay() {
 		                                              deluge::hid::display::OLED::oledMainImage[0],
 		                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 
-		yPos = yPos + 24;
+		yPos = yPos + 9;
 
 		//Render Follow Mode Enabled Status at the bottom left of the OLED screen
 
@@ -247,16 +247,54 @@ void MidiSessionView::renderViewDisplay() {
 			strncat(followBuffer, l10n::get(l10n::String::STRING_FOR_OFF), 4);
 		}
 
-		deluge::hid::display::OLED::drawString(followBuffer, 0, yPos, deluge::hid::display::OLED::oledMainImage[0],
-		                                       OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+		deluge::hid::display::OLED::drawStringCentred(followBuffer, yPos, deluge::hid::display::OLED::oledMainImage[0],
+		                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 
-		//Render Follow Mode Master Channel at the bottom right of the OLED screen
+		yPos = yPos + 9;
+
+		deluge::hid::display::OLED::drawString(l10n::get(l10n::String::STRING_FOR_SYNTH), 0, yPos,
+		                                       deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
+		                                       kTextSpacingX, kTextSpacingY);
+
+		deluge::hid::display::OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_KIT), yPos,
+		                                              deluge::hid::display::OLED::oledMainImage[0],
+		                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+
+		deluge::hid::display::OLED::drawStringAlignRight(l10n::get(l10n::String::STRING_FOR_PARAM), yPos,
+		                                                 deluge::hid::display::OLED::oledMainImage[0],
+		                                                 OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+
+		yPos = yPos + 9;
+
+		//Render Follow Mode Master Channel for Synth Kit and Midi on the bottom row of screen
 
 		char channelBuffer[10] = {0};
 		strncat(channelBuffer, l10n::get(l10n::String::STRING_FOR_MIDI_CHANNEL), 9);
 
 		char buffer[5];
-		intToString(midiEngine.midiFollowChannel + 1, buffer);
+		intToString(midiEngine.midiFollowChannelSynth + 1, buffer);
+
+		strncat(channelBuffer, buffer, 4);
+
+		deluge::hid::display::OLED::drawString(channelBuffer, 0, yPos, deluge::hid::display::OLED::oledMainImage[0],
+		                                       OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+
+		memset(channelBuffer, 0, 10);
+		strncat(channelBuffer, l10n::get(l10n::String::STRING_FOR_MIDI_CHANNEL), 9);
+
+		memset(buffer, 0, 5);
+		intToString(midiEngine.midiFollowChannelKit + 1, buffer);
+
+		strncat(channelBuffer, buffer, 4);
+
+		deluge::hid::display::OLED::drawStringCentred(channelBuffer, yPos, deluge::hid::display::OLED::oledMainImage[0],
+		                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+
+		memset(channelBuffer, 0, 10);
+		strncat(channelBuffer, l10n::get(l10n::String::STRING_FOR_MIDI_CHANNEL), 9);
+
+		memset(buffer, 0, 5);
+		intToString(midiEngine.midiFollowChannelParam + 1, buffer);
 
 		strncat(channelBuffer, buffer, 4);
 
@@ -341,6 +379,7 @@ void MidiSessionView::setLedStates() {
 
 	//midi session view specific LED settings
 	indicator_leds::blinkLed(IndicatorLED::MIDI);
+	indicator_leds::blinkLed(IndicatorLED::LEARN);
 
 	if (currentSong->lastClipInstanceEnteredStartPos != -1) {
 		indicator_leds::blinkLed(IndicatorLED::SESSION_VIEW);
@@ -495,7 +534,7 @@ void MidiSessionView::potentialShortcutPadAction(int32_t xDisplay, int32_t yDisp
 }
 
 void MidiSessionView::learnCC(int32_t channel, int32_t ccNumber) {
-	if (channel == midiEngine.midiFollowChannel) {
+	if (channel == midiEngine.midiFollowChannelParam) {
 		if (lastPadPress.isActive) {
 			if (paramToCC[lastPadPress.xDisplay][lastPadPress.yDisplay] != ccNumber) {
 				//init knobPos for current param
@@ -690,7 +729,8 @@ ModelStackWithAutoParam* MidiSessionView::getModelStackWithParam(int32_t xDispla
 			}
 		}
 
-		if (displayError && (paramToCC[xDisplay][yDisplay] == ccNumber) && (!modelStackWithParam || !modelStackWithParam->autoParam)) {
+		if (displayError && (paramToCC[xDisplay][yDisplay] == ccNumber)
+		    && (!modelStackWithParam || !modelStackWithParam->autoParam)) {
 			if (patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
 				paramKind = Param::Kind::PATCHED;
 				paramID = patchedParamShortcuts[xDisplay][yDisplay];
