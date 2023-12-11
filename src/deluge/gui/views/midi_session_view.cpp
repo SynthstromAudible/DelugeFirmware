@@ -648,9 +648,10 @@ ModelStackWithAutoParam* MidiSessionView::getModelStackWithParam(int32_t xDispla
 			clip = currentSong->currentClip;
 		}
 
-		if (!clip
-		    && ((getRootUI() == &sessionView) || (getRootUI() == &arrangerView)
-		        || (getRootUI() == &performanceSessionView))) {
+		bool isSessionView = ((getRootUI() == &sessionView) || (getRootUI() == &arrangerView)
+		                      || (getRootUI() == &performanceSessionView));
+
+		if (!clip && isSessionView) {
 			if (currentSong->affectEntire) {
 				ModelStackWithThreeMainThings* modelStack =
 				    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
@@ -671,7 +672,6 @@ ModelStackWithAutoParam* MidiSessionView::getModelStackWithParam(int32_t xDispla
 			}
 		}
 		else {
-			//ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 			ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 			if (modelStack) {
 				ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);

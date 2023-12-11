@@ -743,7 +743,7 @@ enum class String : size_t {
 
 	STRING_FOR_ARRANGER_VIEW,
 
-	/* Strings Specifically for Midi Mapping View
+	/* Strings Specifically for Midi Learning View
 	* midi_session_view.cpp
 	*/
 
@@ -756,14 +756,15 @@ enum class String : size_t {
 	STRING_FOR_MIDI_NOT_LEARNED,
 	STRING_FOR_MIDI_LEARN_CHANNEL,
 
+	STRING_FOR_SYNTH,
+	STRING_FOR_KIT,
+	STRING_FOR_PARAM,
+
 	//strings for midi follow menu
 	STRING_FOR_FOLLOW_TITLE,
 	STRING_FOR_FOLLOW,
-	STRING_FOR_SYNTH,
 	STRING_FOR_FOLLOW_CHANNEL_SYNTH,
-	STRING_FOR_KIT,
 	STRING_FOR_FOLLOW_CHANNEL_KIT,
-	STRING_FOR_PARAM,
 	STRING_FOR_FOLLOW_CHANNEL_PARAM,
 	STRING_FOR_FOLLOW_KIT_ROOT_NOTE,
 	STRING_FOR_FOLLOW_DISPLAY_PARAM,

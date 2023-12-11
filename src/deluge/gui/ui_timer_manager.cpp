@@ -143,7 +143,7 @@ void UITimerManager::routine() {
 				case TIMER_SEND_MIDI_FEEDBACK_FOR_AUTOMATION:
 					//midi follow and midi feedback enabled
 					//re-send midi cc's because learned parameter values may have changed
-					//view.updateMidiFollowFeedback();
+					//view.sendMidiFollowFeedback();
 					break;
 
 				case TIMER_READ_INPUTS:

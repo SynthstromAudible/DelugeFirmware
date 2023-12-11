@@ -1637,7 +1637,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 		messageUsed = true;
 	}
 	else {
-		//if midi follow mode is enabled and current channel is the midi follow channel
+		//if midi follow mode is enabled and current channel is the midi follow channel for params
 		//allow CC's learned in midi session/learning view to control parameters
 		if ((midiEngine.midiFollow) && (channel == midiEngine.midiFollowChannelParam)) {
 			offerReceivedCCToMidiFollow(modelStack, channel, ccNumber, value, midiEngine.midiFollowDisplayParam);
@@ -1774,7 +1774,7 @@ void ModControllableAudio::offerReceivedCCToMidiFollow(ModelStackWithTimelineCou
 						//this code will be called in a couple scenarios:
 						//use of deluge mod encoders to change values
 						//changing context on the deluge (e.g. switching to another view, peeking a clip by holding a pad,
-						//changing instruments)
+						//changing instruments
 						if ((modelStack == nullptr) && midiEngine.midiFollowFeedback) {
 							int32_t value =
 							    modelStackWithParam->autoParam->getValuePossiblyAtPos(view.modPos, modelStackWithParam);

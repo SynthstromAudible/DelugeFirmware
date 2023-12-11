@@ -818,7 +818,7 @@ PLACE_SDRAM_DATA Language english{
 
         {STRING_FOR_ARRANGER_VIEW, "Arranger View"},
 
-        /* Strings Specifically for Midi Mapping View
+        /* Strings Specifically for Midi Learning View
         * midi_session_view.cpp
         */
 
@@ -831,14 +831,15 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_MIDI_NOT_LEARNED, "Not Learned"},
         {STRING_FOR_MIDI_LEARN_CHANNEL, "\n Channel is: "},
 
+        {STRING_FOR_SYNTH, "Synth"},
+        {STRING_FOR_KIT, "Kit"},
+        {STRING_FOR_PARAM, "Param"},
+
         //strings for midi follow menu
         {STRING_FOR_FOLLOW_TITLE, "Midi-Follow"},
         {STRING_FOR_FOLLOW, "Follow"},
-        {STRING_FOR_SYNTH, "Synth"},
         {STRING_FOR_FOLLOW_CHANNEL_SYNTH, "Synth Channel"},
-        {STRING_FOR_KIT, "Kit"},
         {STRING_FOR_FOLLOW_CHANNEL_KIT, "Kit Channel"},
-        {STRING_FOR_PARAM, "Param"},
         {STRING_FOR_FOLLOW_CHANNEL_PARAM, "Param Channel"},
         {STRING_FOR_FOLLOW_KIT_ROOT_NOTE, "Kit Root Note"},
         {STRING_FOR_FOLLOW_DISPLAY_PARAM, "Display Param"},

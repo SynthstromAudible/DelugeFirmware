@@ -931,7 +931,7 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 
 			//midi follow and midi feedback enabled
 			//re-send midi cc's because learned parameter values may have changed
-			updateMidiFollowFeedback();
+			sendMidiFollowFeedback();
 		}
 
 		instrumentBeenEdited();
@@ -1312,7 +1312,7 @@ void View::notifyParamAutomationOccurred(ParamManager* paramManager, bool update
 	}
 }
 
-void View::updateMidiFollowFeedback() {
+void View::sendMidiFollowFeedback() {
 	if (midiEngine.midiFollow && midiEngine.midiFollowFeedback && activeModControllableModelStack.modControllable) {
 		((ModControllableAudio*)activeModControllableModelStack.modControllable)
 		    ->offerReceivedCCToMidiFollow(nullptr, kNoSelection, kNoSelection, kNoSelection, false);
@@ -1350,7 +1350,7 @@ void View::setActiveModControllableTimelineCounter(TimelineCounter* timelineCoun
 
 	//midi follow and midi feedback enabled
 	//re-send midi cc's because learned parameter values may have changed
-	updateMidiFollowFeedback();
+	sendMidiFollowFeedback();
 }
 
 void View::setActiveModControllableWithoutTimelineCounter(ModControllable* modControllable,
@@ -1364,10 +1364,6 @@ void View::setActiveModControllableWithoutTimelineCounter(ModControllable* modCo
 
 	setModLedStates();
 	setKnobIndicatorLevels();
-
-	//midi follow and midi feedback enabled
-	//re-send midi cc's because learned parameter values may have changed
-	//updateMidiFollowFeedback();
 }
 
 void View::setModRegion(uint32_t pos, uint32_t length, int32_t noteRowId) {

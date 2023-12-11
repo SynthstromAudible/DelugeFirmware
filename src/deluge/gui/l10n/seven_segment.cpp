@@ -392,7 +392,7 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_PAD_SELECTION_OFF, "OFF"},
         {STRING_FOR_PAD_SELECTION_ON, "ON"},
 
-        /* Strings for Midi Session View
+        /* Strings for Midi Learning View
         * midi_session_view.cpp
         */
 
