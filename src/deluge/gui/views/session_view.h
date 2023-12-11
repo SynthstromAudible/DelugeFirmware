@@ -112,7 +112,11 @@ public:
 
 	Clip* getClipForLayout();
 
+	// Members for grid layout
+	inline bool gridFirstPadActive() { return (gridFirstPressedX != -1 && gridFirstPressedY != -1); }
+
 private:
+	void renderViewDisplay(char const* viewString);
 	void sectionPadAction(uint8_t y, bool on);
 	void clipPressEnded();
 	void drawSectionRepeatNumber();
@@ -161,8 +165,6 @@ private:
 	int32_t gridFirstPressedY = -1;
 	int32_t gridSecondPressedX = -1;
 	int32_t gridSecondPressedY = -1;
-
-	inline bool gridFirstPadActive() { return (gridFirstPressedX != -1 && gridFirstPressedY != -1); }
 
 	inline bool gridSecondPadInactive() { return (gridSecondPressedX == -1 && gridSecondPressedY == -1); }
 

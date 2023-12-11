@@ -3,6 +3,8 @@
 #include "gui/menu_item/dev_var/dev_var.h"
 #include "gui/menu_item/file_selector.h"
 #include "gui/menu_item/firmware/version.h"
+#include "gui/menu_item/mod_fx/feedback.h"
+#include "gui/menu_item/mod_fx/offset.h"
 #include "gui/menu_item/mpe/zone_num_member_channels.h"
 #include "gui/menu_item/multi_range.h"
 #include "gui/menu_item/osc/source/wave_index.h"
@@ -14,6 +16,7 @@
 #include "gui/menu_item/sample/start.h"
 #include "gui/menu_item/sequence/direction.h"
 #include "gui/menu_item/submenu.h"
+#include "gui/menu_item/unpatched_param.h"
 
 extern deluge::gui::menu_item::dev_var::AMenu devVarAMenu;
 
@@ -31,6 +34,8 @@ extern deluge::gui::menu_item::firmware::Version firmwareVersionMenu;
 extern deluge::gui::menu_item::sequence::Direction sequenceDirectionMenu;
 extern deluge::gui::menu_item::Submenu soundEditorRootMenuMIDIOrCV;
 extern deluge::gui::menu_item::Submenu soundEditorRootMenuAudioClip;
+extern deluge::gui::menu_item::Submenu soundEditorRootMenuPerformanceView;
+extern deluge::gui::menu_item::Submenu soundEditorRootMenuSongView;
 extern deluge::gui::menu_item::Submenu soundEditorRootMenu;
 extern deluge::gui::menu_item::Submenu settingsRootMenu;
 
@@ -43,6 +48,7 @@ extern deluge::gui::menu_item::PatchCables patchCablesMenu;
 extern MenuItem* midiOrCVParamShortcuts[8];
 extern MenuItem* paramShortcutsForSounds[15][8];
 extern MenuItem* paramShortcutsForAudioClips[15][8];
+extern MenuItem* paramShortcutsForSongView[15][8];
 
 void setOscillatorNumberForTitles(int32_t);
 void setModulatorNumberForTitles(int32_t);
