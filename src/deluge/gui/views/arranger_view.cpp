@@ -1616,6 +1616,8 @@ void ArrangerView::exitSubModeWithoutAction() {
 	}
 
 	else if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW)) {
+		//needs to be set before setActiveModControllableTimelineCounter so that midi follow mode can get
+		//the right model stack with param (otherwise midi follow mode will think you're still in a clip)
 		setNoSubMode();
 		view.setActiveModControllableTimelineCounter(currentSong);
 		uint32_t whichRowsNeedReRendering;
