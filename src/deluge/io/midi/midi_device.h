@@ -152,12 +152,15 @@ public:
 	uint8_t portNumber;
 };
 
-class MIDIDeviceUSBHosted final : public MIDIDeviceUSB {
+class MIDIDeviceUSBHosted : public MIDIDeviceUSB {
 public:
 	MIDIDeviceUSBHosted() {}
 	void writeReferenceAttributesToFile();
 	void writeToFlash(uint8_t* memory);
 	char const* getDisplayName();
+
+	virtual void hookOnConnected() {};
+	virtual void hookOnChangeKeyOrScale() {};
 
 	uint16_t vendorId;
 	uint16_t productId;

@@ -24,6 +24,7 @@
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "storage/storage_manager.h"
+#include "io/midi/device_specific/midi_device_lumi_keys.h"
 #include <string.h>
 
 extern "C" {
