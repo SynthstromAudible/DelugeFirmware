@@ -19,12 +19,12 @@
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/sound_editor.h"
+#include "io/midi/device_specific/midi_device_lumi_keys.h"
 #include "io/debug/print.h"
 #include "io/midi/midi_engine.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "storage/storage_manager.h"
-#include "io/midi/device_specific/midi_device_lumi_keys.h"
 #include <string.h>
 
 extern "C" {

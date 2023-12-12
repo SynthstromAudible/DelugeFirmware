@@ -10,6 +10,7 @@ ReflowComments: False
 AllowShortBlocksOnASingleLine: Empty
 AllowShortFunctionsOnASingleLine: InlineOnly
 AllowShortIfStatementsOnASingleLine: Never
+AllowShortEnumsOnASingleLine: True
 IndentGotoLabels: False
 PointerAlignment: Left
 BreakBeforeBinaryOperators: NonAssignment

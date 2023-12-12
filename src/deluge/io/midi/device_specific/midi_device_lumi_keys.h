@@ -41,20 +41,7 @@ public:
 
 	static constexpr uint8_t sysexManufacturer[3] = {0x00, 0x21, 0x10};
 
-	enum class Key {
-		C = 0,
-		C_SHARP,
-		D,
-		D_SHARP,
-		E,
-		F,
-		F_SHARP,
-		G,
-		G_SHARP,
-		A,
-		A_SHARP,
-		B
-	};
+	enum class Key { C = 0, C_SHARP, D, D_SHARP, E, F, F_SHARP, G, G_SHARP, A, A_SHARP, B };
 
 	static constexpr uint8_t sysexKeyCodes[MIDI_DEVICE_LUMI_KEYS_KEY_COUNT][2] = {
 	    {0x03, 0x00}, // C

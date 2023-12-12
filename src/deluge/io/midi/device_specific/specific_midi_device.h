@@ -17,12 +17,9 @@
 
 #pragma once
 
-#include "io/midi/midi_device.h"
 #include "io/midi/device_specific/midi_device_lumi_keys.h"
+#include "io/midi/midi_device.h"
 
-enum class SpecificMidiDeviceHook {
-	ON_CONNECTED = 0,
-	ON_CHANGE_KEY_OR_SCALE = 1
-};
+enum class SpecificMidiDeviceHook { ON_CONNECTED = 0, ON_CHANGE_KEY_OR_SCALE = 1 };
 
-void midiDeviceCallHook(MIDIDeviceUSBHosted *device, SpecificMidiDeviceHook hook);
+void midiDeviceCallHook(MIDIDeviceUSBHosted* device, SpecificMidiDeviceHook hook);

@@ -159,8 +159,8 @@ public:
 	void writeToFlash(uint8_t* memory);
 	char const* getDisplayName();
 
-	virtual void hookOnConnected() {};
-	virtual void hookOnChangeKeyOrScale() {};
+	virtual void hookOnConnected(){};
+	virtual void hookOnChangeKeyOrScale(){};
 
 	uint16_t vendorId;
 	uint16_t productId;

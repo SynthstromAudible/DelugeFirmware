@@ -17,17 +17,17 @@
 
 #include "io/midi/device_specific/specific_midi_device.h"
 
-void midiDeviceCallHook(MIDIDeviceUSBHosted *device, SpecificMidiDeviceHook hook) {
-	MIDIDeviceUSBHosted *specificDevice;
+void midiDeviceCallHook(MIDIDeviceUSBHosted* device, SpecificMidiDeviceHook hook) {
+	MIDIDeviceUSBHosted* specificDevice;
 
 	if (MIDIDeviceLumiKeys::matchesVendorProduct(device->vendorId, device->productId)) {
 		specificDevice = (MIDIDeviceLumiKeys*)device;
-	} else {
+	}
+	else {
 		specificDevice = device;
 	}
 
-	switch (hook)
-	{
+	switch (hook) {
 	case SpecificMidiDeviceHook::ON_CONNECTED:
 		specificDevice->hookOnConnected();
 		break;
