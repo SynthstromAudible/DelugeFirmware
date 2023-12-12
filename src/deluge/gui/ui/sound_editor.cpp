@@ -1267,8 +1267,7 @@ doMIDIOrCV:
 				}
 
 				else if ((currentSong->currentClip->output->type == InstrumentType::KIT)
-				         && (((InstrumentClip*)currentSong->currentClip)->affectEntire)
-				         && !Buttons::isShiftButtonPressed()) {
+				         && (((InstrumentClip*)currentSong->currentClip)->affectEntire)) {
 					newItem = &soundEditorRootMenuKitGlobalFX;
 				}
 
