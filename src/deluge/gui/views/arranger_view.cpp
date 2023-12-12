@@ -243,6 +243,12 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 			}
 			changeOutputToAudio();
 		}
+		//open Song FX menu
+		else if (on && currentUIMode == UI_MODE_NONE) {
+			display->setNextTransitionDirection(1);
+			soundEditor.setup();
+			openUI(&soundEditor);
+		}
 	}
 
 	// Which-instrument-type buttons
@@ -321,6 +327,12 @@ doActualSimpleChange:
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			clearArrangement();
+		}
+	}
+
+	else if (b == KEYBOARD) {
+		if (on && currentUIMode == UI_MODE_NONE) {
+			changeRootUI(&performanceSessionView);
 		}
 	}
 

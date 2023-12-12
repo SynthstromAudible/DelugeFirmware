@@ -123,6 +123,23 @@ Here is a list of features that have been added to the firmware as a list, group
 			- Track color can be changed by holding any populated clip in a column and rotating `▼︎▲︎`. For fine changes to the color press `▼︎▲︎` while turning it.
 			- Section pads (left sidebar column) will allow changing repeat count while held
 
+#### 4.1.6 - New Performance View
+- ([#711]) Adds a new performance view, accessible from Song and Arranger View's using the Keyboard button.
+	- Each column on the grid represents a different "FX" and each pad/row in the column corresponds to a different FX value.
+	- Specifications:
+		- Perform FX menu to edit Song level parameters and enable/disable editing mode.
+		- 16 FX columns
+			- 1 Param assigned to each column
+		- 8 FX values per column
+			- Long press pads in a column to change value momentarily and reset it (to the value before the pad was pressed) upon pad release
+			- Short press pads in a column to the change value until you press the pad again (resetting it to the value before the pad was pressed)
+		- Editing mode to edit the FX values assigned to each pad and the parameter assigned to each FX column
+		- Save defaults as PerformanceView.xml file
+			- Adjustable default Values assigned to each FX column via "Value" editing mode or PerformanceView.xml
+			- Adjustable default Param assigned to each FX column via "Param" editing mode or PerformanceView.xml
+			- Adjustable default "held pad" settings for each FX column via Performance View or PerformanceView.xml (simply change a held pad in Performance View and save the layout to save the layout with the held pads).
+		- Load defaults from PerformanceView.xml file
+
 ### 4.2 - Clip View - General Features (Instrument and Audio Clips)
 
 #### 4.2.1 - Filters
@@ -430,4 +447,5 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#658]: https://github.com/SynthstromAudible/DelugeFirmware/pull/658
 [#681]: https://github.com/SynthstromAudible/DelugeFirmware/pull/681
 [#683]: https://github.com/SynthstromAudible/DelugeFirmware/pull/683
+[#711]: https://github.com/SynthstromAudible/DelugeFirmware/pull/711
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md

@@ -172,6 +172,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_SIDECHAIN_SHAPE, "Sidechain shape"},
 
         //Decimation, Bitcrush
+        {STRING_FOR_DISTORTION, "Distortion"},
         {STRING_FOR_DECIMATION, "DECIMATION"},
         {STRING_FOR_BITCRUSH, "Bitcrush"},
 
@@ -188,6 +189,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_PORTAMENTO, "PORTAMENTO"},
 
         //Stutter Rate
+        {STRING_FOR_STUTTER, "STUTTER"},
         {STRING_FOR_STUTTER_RATE, "Stutter Rate"},
 
         /*
@@ -648,6 +650,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_PAN, "PAN"},
         {STRING_FOR_SOUND, "Sound"},
         {STRING_FOR_AUDIO_CLIP, "Audio clip"},
+        {STRING_FOR_SONG, "Song"},
         {STRING_FOR_SETTINGS, "Settings"},
         {STRING_FOR_ENV_ATTACK_MENU_TITLE, "Env* attack"},
         {STRING_FOR_ENV_DECAY_MENU_TITLE, "Env* decay"},
@@ -789,6 +792,31 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_INTERPOLATION_ENABLED, "Interpolation On"},
         {STRING_FOR_PAD_SELECTION_OFF, "Pad Selection Off"},
         {STRING_FOR_PAD_SELECTION_ON, "Pad Selection On"},
+
+        /* Strings Specifically for Performance View 
+        * performance_session_view.cpp
+        */
+
+        {STRING_FOR_PERFORM_VIEW, "Performance View"},
+        {STRING_FOR_PERFORM_FX, "Perform FX"},
+        {STRING_FOR_PERFORM_EDITOR, "Editing Mode"},
+        {STRING_FOR_PERFORM_EDIT_PARAM, "Param"},
+        {STRING_FOR_PERFORM_EDIT_VALUE, "Value"},
+        {STRING_FOR_PERFORM_DEFAULTS_LOADED, "Defaults Loaded"},
+        {STRING_FOR_PERFORM_DEFAULTS_SAVED, "Defaults Saved"},
+
+        /* Strings Specifically for Song View
+        * session_view.cpp
+        */
+
+        {STRING_FOR_SONG_VIEW, "Song View"},
+        {STRING_FOR_SONG_FX, "Song FX"},
+
+        /* Strings Specifically for Arranger View
+        * arranger_view.cpp
+        */
+
+        {STRING_FOR_ARRANGER_VIEW, "Arranger View"},
     },
 };
 } // namespace deluge::l10n::built_in

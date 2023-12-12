@@ -159,7 +159,7 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 				}
 				// We got a short press, maybe enable sticky keys
 				//5th of a second
-				if (delta < kSampleRate / 5) {
+				if (delta < kHoldTime) {
 					// unstick shift if another button was pressed while shift was held, or we were already stuck and
 					// this short press is to get us unstuck.
 					shiftCurrentlyStuck = considerShiftReleaseForSticky && !shiftCurrentlyStuck;
