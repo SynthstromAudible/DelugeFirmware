@@ -547,6 +547,28 @@ doSetupBlinkingForSessionView:
 				setupShortcutBlink(x, y, 0);
 			}
 		}
+
+		//For Kit Instrument Clip with Affect Entire Enabled
+		else if ((currentSong->currentClip->output->type == InstrumentType::KIT)
+		         && (((InstrumentClip*)currentSong->currentClip)->affectEntire)) {
+
+			int32_t x, y;
+
+			// First, see if there's a shortcut for the actual MenuItem we're currently on
+			for (x = 0; x < 15; x++) {
+				for (y = 0; y < kDisplayHeight; y++) {
+					if (paramShortcutsForKitGlobalFX[x][y] == currentItem) {
+						goto doSetupBlinkingForKitGlobalFX;
+					}
+				}
+			}
+
+			if (false) {
+doSetupBlinkingForKitGlobalFX:
+				setupShortcutBlink(x, y, 0);
+			}
+		}
+
 		// For AudioClips...
 		else if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
 
@@ -811,6 +833,16 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 		if (isUIPerformanceSessionView) {
 			if (x <= (kDisplayWidth - 2)) {
 				item = paramShortcutsForSongView[x][y];
+			}
+
+			goto doSetup;
+		}
+
+		//For Kit Instrument Clip with Affect Entire Enabled
+		else if ((currentSong->currentClip->output->type == InstrumentType::KIT)
+		         && (((InstrumentClip*)currentSong->currentClip)->affectEntire)) {
+			if (x <= (kDisplayWidth - 2)) {
+				item = paramShortcutsForKitGlobalFX[x][y];
 			}
 
 			goto doSetup;
@@ -1148,10 +1180,16 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 		if (clip->type == CLIP_TYPE_INSTRUMENT) {
 			// Kit
 			if (clip->output->type == InstrumentType::KIT) {
-
 				Drum* selectedDrum = ((Kit*)clip->output)->selectedDrum;
+
+				// If Affect Entire is selected
+				if (((InstrumentClip*)clip)->affectEntire) {
+					newModControllable = (ModControllableAudio*)(Instrument*)clip->output->toModControllable();
+					newParamManager = &(((InstrumentClip*)clip)->paramManager);
+				}
+
 				// If a SoundDrum is selected...
-				if (selectedDrum) {
+				else if (selectedDrum) {
 					if (selectedDrum->type == DrumType::SOUND) {
 						NoteRow* noteRow = ((InstrumentClip*)clip)->getNoteRowForDrum(selectedDrum);
 						if (noteRow == NULL) {
@@ -1227,6 +1265,13 @@ doMIDIOrCV:
 					soundEditorRootMenuMIDIOrCV.title = l10n::String::STRING_FOR_CV_INSTRUMENT;
 					goto doMIDIOrCV;
 				}
+
+				else if ((currentSong->currentClip->output->type == InstrumentType::KIT)
+				         && (((InstrumentClip*)currentSong->currentClip)->affectEntire)
+				         && !Buttons::isShiftButtonPressed()) {
+					newItem = &soundEditorRootMenuKitGlobalFX;
+				}
+
 				else {
 					newItem = &soundEditorRootMenu;
 				}
@@ -1381,16 +1426,25 @@ AudioFileHolder* SoundEditor::getCurrentAudioFileHolder() {
 ModelStackWithThreeMainThings* SoundEditor::getCurrentModelStack(void* memory) {
 	bool isUISessionView =
 	    (getRootUI() == &performanceSessionView) || (getRootUI() == &sessionView) || (getRootUI() == &arrangerView);
+
+	InstrumentClip* clip = (InstrumentClip*)currentSong->currentClip;
+	Instrument* instrument = (Instrument*)clip->output;
+
 	if (isUISessionView) {
 		return currentSong->setupModelStackWithSongAsTimelineCounter(memory);
+	}
+	else if (instrument->type == InstrumentType::KIT && clip->affectEntire) {
+		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(memory);
+
+		return modelStack->addOtherTwoThingsButNoNoteRow(currentModControllable, currentParamManager);
 	}
 	else {
 		NoteRow* noteRow = NULL;
 		int32_t noteRowIndex;
-		if (currentSong->currentClip->output->type == InstrumentType::KIT) {
-			Drum* selectedDrum = ((Kit*)currentSong->currentClip->output)->selectedDrum;
+		if (instrument->type == InstrumentType::KIT) {
+			Drum* selectedDrum = ((Kit*)instrument)->selectedDrum;
 			if (selectedDrum) {
-				noteRow = ((InstrumentClip*)currentSong->currentClip)->getNoteRowForDrum(selectedDrum, &noteRowIndex);
+				noteRow = clip->getNoteRowForDrum(selectedDrum, &noteRowIndex);
 			}
 		}
 
