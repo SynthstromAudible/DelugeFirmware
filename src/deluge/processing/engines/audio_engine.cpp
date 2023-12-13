@@ -345,7 +345,9 @@ Debug::AverageDT aeCtr("audio", Debug::mS);
 Debug::AverageDT rvb("reverb", Debug::uS);
 uint8_t numRoutines = 0;
 void routine() {
+#if DO_AUDIO_LOG
 	aeCtr.note();
+#endif
 	logAction("AudioDriver::routine");
 	if (audioRoutineLocked) {
 		logAction("AudioDriver::routine locked");
