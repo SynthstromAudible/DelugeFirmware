@@ -99,6 +99,7 @@ public:
 	bool onParamDisplay;
 	bool showLearnedParams;
 
+	Clip* getClipForMidiFollow();
 	ModelStackWithAutoParam* getModelStackWithParam(int32_t xDisplay, int32_t yDisplay, int32_t ccNumber,
 	                                                bool displayError = true);
 	void getCCFromParam(Param::Kind paramKind, int32_t paramID);

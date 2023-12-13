@@ -630,6 +630,26 @@ void MidiSessionView::modButtonAction(uint8_t whichButton, bool on) {
 	UI::modButtonAction(whichButton, on);
 }
 
+Clip* MidiSessionView::getClipForMidiFollow() {
+	Clip* clip = nullptr;
+	if (getRootUI() == &sessionView) {
+		clip = sessionView.getClipForLayout();
+	}
+	else if ((getRootUI() == &arrangerView)) {
+		if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW) && arrangerView.lastInteractedClipInstance) {
+			clip = arrangerView.lastInteractedClipInstance->clip;
+		}
+		else if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
+			Output* output = arrangerView.outputsOnScreen[arrangerView.yPressedEffective];
+			clip = currentSong->getClipWithOutput(output);
+		}
+	}
+	else {
+		clip = currentSong->currentClip;
+	}
+	return clip;
+}
+
 ModelStackWithAutoParam* MidiSessionView::getModelStackWithParam(int32_t xDisplay, int32_t yDisplay, int32_t ccNumber,
                                                                  bool displayError) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
@@ -638,22 +658,7 @@ ModelStackWithAutoParam* MidiSessionView::getModelStackWithParam(int32_t xDispla
 		int32_t paramID = kNoParamID;
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 
-		Clip* clip = nullptr;
-		if (getRootUI() == &sessionView) {
-			clip = sessionView.getClipForLayout();
-		}
-		else if ((getRootUI() == &arrangerView)) {
-			if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW) && arrangerView.lastInteractedClipInstance) {
-				clip = arrangerView.lastInteractedClipInstance->clip;
-			}
-			else if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
-				Output* output = arrangerView.outputsOnScreen[arrangerView.yPressedEffective];
-				clip = currentSong->getClipWithOutput(output);
-			}
-		}
-		else {
-			clip = currentSong->currentClip;
-		}
+		Clip* clip = getClipForMidiFollow();
 
 		bool isSessionView = ((getRootUI() == &sessionView) || (getRootUI() == &arrangerView)
 		                      || (getRootUI() == &performanceSessionView));

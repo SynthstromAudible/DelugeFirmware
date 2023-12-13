@@ -327,18 +327,7 @@ justAuditionNote:
 }
 
 bool MelodicInstrument::shouldMidiFollow(bool on, int32_t midiChannel) {
-	Clip* clip = nullptr;
-	if (getRootUI() == &sessionView) {
-		clip = sessionView.getClipForLayout();
-	}
-	else if ((getRootUI() == &arrangerView)) {
-		if (isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW) && arrangerView.pressedClipInstanceOutput) {
-			clip = currentSong->getClipWithOutput(arrangerView.pressedClipInstanceOutput);
-		}
-	}
-	else {
-		clip = currentSong->currentClip;
-	}
+	Clip* clip = midiSessionView.getClipForMidiFollow();
 
 	return ((midiEngine.midiFollow && (midiChannel == midiEngine.midiFollowChannelSynth))
 	        && (!on || ((InstrumentClip*)clip == (InstrumentClip*)activeClip)));

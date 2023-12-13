@@ -881,7 +881,7 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 					return;
 				}
 
-				displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos);
+				//displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos);
 
 				if (newKnobPos == knobPos) {
 					return;
@@ -1319,8 +1319,7 @@ void View::sendMidiFollowFeedback(ModelStackWithAutoParam* modelStackWithParam, 
 			midiSessionView.getCCFromParam(kind, modelStackWithParam->paramId);
 			if (midiSessionView.lastCCFound.ccNumber != kNoSelection) {
 				((ModControllableAudio*)activeModControllableModelStack.modControllable)
-				    ->sendCCWithModelStackForMidiFollowFeedback(
-				        modelStackWithParam, midiSessionView.lastCCFound.ccNumber, knobPos,
+				    ->sendCCForMidiFollowFeedback(midiSessionView.lastCCFound.ccNumber, knobPos,
 				        midiSessionView.lastCCFound.xDisplay, midiSessionView.lastCCFound.yDisplay);
 			}
 		}

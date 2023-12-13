@@ -89,8 +89,7 @@ public:
 	void offerReceivedCCToMidiFollow(ModelStackWithTimelineCounter* modelStack, int32_t channel, int32_t ccNumber,
 	                                 int32_t value);
 	void sendCCWithoutModelStackForMidiFollowFeedback();
-	void sendCCWithModelStackForMidiFollowFeedback(ModelStackWithAutoParam* modelStackWithParam, int32_t ccNumber,
-	                                               int32_t knobPos, int32_t xDisplay, int32_t yDisplay);
+	void sendCCForMidiFollowFeedback(int32_t ccNumber, int32_t knobPos, int32_t xDisplay, int32_t yDisplay);
 	bool offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
 	                                           ModelStackWithTimelineCounter* modelStack, int32_t noteRowIndex = -1);
 	virtual bool learnKnob(MIDIDevice* fromDevice, ParamDescriptor paramDescriptor, uint8_t whichKnob,
@@ -169,6 +168,7 @@ private:
 	int32_t calculateKnobPosForMidiTakeover(ModelStackWithAutoParam* modelStackWithParam, int32_t modPos, int32_t value,
 	                                        MIDIKnob* knob = nullptr, bool midiFollow = false, int32_t xDisplay = 0,
 	                                        int32_t yDisplay = 0);
+	uint32_t timeLastCCSent[128];
 	uint32_t timeLastSentCC[kDisplayWidth][kDisplayHeight];
 
 protected:
