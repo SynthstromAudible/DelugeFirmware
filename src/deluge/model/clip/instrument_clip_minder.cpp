@@ -369,6 +369,11 @@ yesLoadInstrument:
 	// Select button, without shift
 	else if (b == SELECT_ENC && !Buttons::isShiftButtonPressed()) {
 		if (on && currentUIMode == UI_MODE_NONE) {
+			if ((currentSong->currentClip->output->type == InstrumentType::KIT)
+			    && (((InstrumentClip*)currentSong->currentClip)->affectEntire)) {
+				soundEditor.setupKitGlobalFXMenu = true;
+			}
+
 			if (!soundEditor.setup(currentSong->currentClip)) {
 				return ActionResult::DEALT_WITH;
 			}

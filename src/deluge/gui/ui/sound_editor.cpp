@@ -139,6 +139,7 @@ SoundEditor::SoundEditor() {
 	memset(sourceShortcutBlinkFrequencies, 255, sizeof(sourceShortcutBlinkFrequencies));
 	timeLastAttemptedAutomatedParamEdit = 0;
 	shouldGoUpOneLevelOnBegin = false;
+	setupKitGlobalFXMenu = false;
 }
 
 bool SoundEditor::editingKit() {
@@ -467,6 +468,8 @@ void SoundEditor::exitCompletely() {
 	if ((getRootUI() == &performanceSessionView) && (performanceSessionView.defaultEditingMode)) {
 		actionLogger.deleteAllLogs();
 	}
+
+	setupKitGlobalFXMenu = false;
 }
 
 bool SoundEditor::findPatchedParam(int32_t paramLookingFor, int32_t* xout, int32_t* yout) {
@@ -839,7 +842,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 		}
 
 		//For Kit Instrument Clip with Affect Entire Enabled
-		else if ((currentSong->currentClip->output->type == InstrumentType::KIT)
+		else if (setupKitGlobalFXMenu && (currentSong->currentClip->output->type == InstrumentType::KIT)
 		         && (((InstrumentClip*)currentSong->currentClip)->affectEntire)) {
 			if (x <= (kDisplayWidth - 2)) {
 				item = paramShortcutsForKitGlobalFX[x][y];
@@ -1183,7 +1186,7 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 				Drum* selectedDrum = ((Kit*)clip->output)->selectedDrum;
 
 				// If Affect Entire is selected
-				if (((InstrumentClip*)clip)->affectEntire) {
+				if (setupKitGlobalFXMenu && ((InstrumentClip*)clip)->affectEntire) {
 					newModControllable = (ModControllableAudio*)(Instrument*)clip->output->toModControllable();
 					newParamManager = &(((InstrumentClip*)clip)->paramManager);
 				}
