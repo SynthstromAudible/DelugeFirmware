@@ -52,7 +52,9 @@ enum class RangeEdit : uint8_t;
 class SoundEditor final : public UI {
 public:
 	SoundEditor();
+#if !defined(NDEBUG)
 	const char* getName() override { return "SoundEditor"; }
+#endif
 	bool opened();
 	void focusRegained();
 	void displayOrLanguageChanged() final;
