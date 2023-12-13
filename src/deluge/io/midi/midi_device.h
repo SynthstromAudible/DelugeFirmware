@@ -160,7 +160,9 @@ public:
 	char const* getDisplayName();
 
 	virtual void hookOnConnected(){};
-	virtual void hookOnChangeKeyOrScale(){};
+	virtual void hookOnChangeRootNote(int16_t rootNote){};
+	virtual void hookOnChangeScale(uint8_t* scaleNotes, uint8_t noteCount){};
+	virtual void hookOnLearn(){};
 
 	uint16_t vendorId;
 	uint16_t productId;

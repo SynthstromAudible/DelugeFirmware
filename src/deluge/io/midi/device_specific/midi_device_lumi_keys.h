@@ -35,15 +35,35 @@
 #define MIDI_DEVICE_LUMI_KEYS_CONFIG_ROOT_COLOR_PREFIX 0x30
 #define MIDI_DEVICE_LUMI_KEYS_CONFIG_GLOBAL_COLOR_PREFIX 0x20
 
+#define MIDI_DEVICE_LUMI_SCALE_MAJOR 0b101010110101
+#define MIDI_DEVICE_LUMI_SCALE_MINOR 0b010110101101
+#define MIDI_DEVICE_LUMI_SCALE_HARMONIC_MINOR 0b100110101101
+#define MIDI_DEVICE_LUMI_SCALE_PENTATONIC_NEUTRAL 0b010010100101
+#define MIDI_DEVICE_LUMI_SCALE_PENTATONIC_MAJOR 0b001010010101
+#define MIDI_DEVICE_LUMI_SCALE_PENTATONIC_MINOR 0b010010101001
+#define MIDI_DEVICE_LUMI_SCALE_BLUES 0b010011101001
+#define MIDI_DEVICE_LUMI_SCALE_DORIAN 0b011010101101
+#define MIDI_DEVICE_LUMI_SCALE_PHRYGIAN 0b010110101011
+#define MIDI_DEVICE_LUMI_SCALE_LYDIAN 0b101011010101
+#define MIDI_DEVICE_LUMI_SCALE_MIXOLYDIAN 0b011010110101
+#define MIDI_DEVICE_LUMI_SCALE_LOCRIAN 0b010101101011
+#define MIDI_DEVICE_LUMI_SCALE_WHOLE_TONE 0b010101010101
+#define MIDI_DEVICE_LUMI_SCALE_ARABIC_A 0b101101101101
+#define MIDI_DEVICE_LUMI_SCALE_ARABIC_B 0b010101110101
+#define MIDI_DEVICE_LUMI_SCALE_JAPANESE 0b100011010001
+#define MIDI_DEVICE_LUMI_SCALE_RYUKYU 0b100010110001
+#define MIDI_DEVICE_LUMI_SCALE_8TONE_SPANISH 0b010101111011
+#define MIDI_DEVICE_LUMI_SCALE_CHROMATIC 0b111111111111
+
 class MIDIDeviceLumiKeys final : public MIDIDeviceUSBHosted {
 public:
 	static constexpr uint16_t lumiKeysVendorProductPairs[MIDI_DEVICE_LUMI_KEYS_VP_COUNT][2] = {{0x2af4, 0xe00}};
 
 	static constexpr uint8_t sysexManufacturer[3] = {0x00, 0x21, 0x10};
 
-	enum class Key { C = 0, C_SHARP, D, D_SHARP, E, F, F_SHARP, G, G_SHARP, A, A_SHARP, B };
+	enum class RootNote { C = 0, C_SHARP, D, D_SHARP, E, F, F_SHARP, G, G_SHARP, A, A_SHARP, B };
 
-	static constexpr uint8_t sysexKeyCodes[MIDI_DEVICE_LUMI_KEYS_KEY_COUNT][2] = {
+	static constexpr uint8_t sysexRootNoteCodes[MIDI_DEVICE_LUMI_KEYS_KEY_COUNT][2] = {
 	    {0x03, 0x00}, // C
 	    {0x23, 0x00}, // C#
 	    {0x43, 0x00}, // D
@@ -59,8 +79,8 @@ public:
 	};
 
 	enum class Scale {
-		MAJOR = 0,
-		MINOR,
+		MAJOR = 0, // IONIAN
+		MINOR,     // AEOLIAN
 		HARMONIC_MINOR,
 		PENTATONIC_NEUTRAL,
 		PENTATONIC_MAJOR,
@@ -80,6 +100,40 @@ public:
 		CHROMATIC
 	};
 
+	static constexpr uint16_t scaleNotes[MIDI_DEVICE_LUMI_KEYS_SCALE_COUNT] = {
+	    MIDI_DEVICE_LUMI_SCALE_MAJOR,
+	    MIDI_DEVICE_LUMI_SCALE_MINOR,
+	    MIDI_DEVICE_LUMI_SCALE_HARMONIC_MINOR,
+	    MIDI_DEVICE_LUMI_SCALE_PENTATONIC_NEUTRAL,
+	    MIDI_DEVICE_LUMI_SCALE_PENTATONIC_MAJOR,
+	    MIDI_DEVICE_LUMI_SCALE_PENTATONIC_MINOR,
+	    MIDI_DEVICE_LUMI_SCALE_BLUES,
+	    MIDI_DEVICE_LUMI_SCALE_DORIAN,
+	    MIDI_DEVICE_LUMI_SCALE_PHRYGIAN,
+	    MIDI_DEVICE_LUMI_SCALE_LYDIAN,
+	    MIDI_DEVICE_LUMI_SCALE_MIXOLYDIAN,
+	    MIDI_DEVICE_LUMI_SCALE_LOCRIAN,
+	    MIDI_DEVICE_LUMI_SCALE_WHOLE_TONE,
+	    MIDI_DEVICE_LUMI_SCALE_ARABIC_A,
+	    MIDI_DEVICE_LUMI_SCALE_ARABIC_B,
+	    MIDI_DEVICE_LUMI_SCALE_JAPANESE,
+	    MIDI_DEVICE_LUMI_SCALE_RYUKYU,
+	    MIDI_DEVICE_LUMI_SCALE_8TONE_SPANISH,
+	    MIDI_DEVICE_LUMI_SCALE_CHROMATIC};
+
+	// By reference to presetScaleNames in global scope
+	static constexpr Scale delugeScaleMap[9] = {
+	    Scale::MAJOR,      // MAJOR (IONIAN) -> MAJOR
+	    Scale::MINOR,      // MINOR (AEOLIAN) -> MINOR
+	    Scale::DORIAN,     // DORIAN -> DORIAN
+	    Scale::PHRYGIAN,   // PHRYGIAN -> PHRYGIAN
+	    Scale::LYDIAN,     // LYDIAN -> LYDIAN
+	    Scale::MIXOLYDIAN, // MIXOLYDIAN -> MIXOLYDIAN,
+	    Scale::LOCRIAN,    // LOCRIAN -> LOCRIAN
+	    Scale::CHROMATIC,  // RANDOM -> CHROMATIC (no idea how else to handle)
+	    Scale::CHROMATIC   // NONE -> CHROMATIC
+	};
+
 	static constexpr uint8_t sysexScaleCodes[MIDI_DEVICE_LUMI_KEYS_SCALE_COUNT][2] = {
 	    {0x02, 0x00}, {0x22, 0x00}, {0x42, 0x00}, {0x62, 0x00}, {0x02, 0x01}, {0x22, 0x01}, {0x42, 0x01},
 	    {0x62, 0x01}, {0x02, 0x02}, {0x22, 0x02}, {0x42, 0x02}, {0x62, 0x02}, {0x02, 0x03}, {0x22, 0x03},
@@ -87,9 +141,18 @@ public:
 
 	static bool matchesVendorProduct(uint16_t vendorId, uint16_t productId);
 	void hookOnConnected() override;
-	void hookOnChangeKeyOrScale() override;
+	void hookOnChangeRootNote(int16_t rootNote) override;
+	void hookOnChangeScale(uint8_t* scaleNotes, uint8_t noteCount) override;
+	void hookOnLearn() override;
 
 private:
-	uint8_t sysexChecksum(uint8_t* chk_bytes, uint8_t size);
+	uint8_t sysexChecksum(uint8_t* chkBytes, uint8_t size);
 	void sendLumiCommand(uint8_t* command, uint8_t length);
+
+	void enumerateLumi();
+
+	void setRootNote(RootNote rootNote);
+
+	Scale determineScaleFromNotes(uint8_t* modeNotes, uint8_t noteCount);
+	void setScale(Scale scale);
 };

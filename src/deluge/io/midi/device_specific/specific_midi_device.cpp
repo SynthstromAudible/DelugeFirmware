@@ -17,24 +17,25 @@
 
 #include "io/midi/device_specific/specific_midi_device.h"
 
-void midiDeviceCallHook(MIDIDeviceUSBHosted* device, SpecificMidiDeviceHook hook) {
-	MIDIDeviceUSBHosted* specificDevice;
-
-	if (MIDIDeviceLumiKeys::matchesVendorProduct(device->vendorId, device->productId)) {
-		specificDevice = (MIDIDeviceLumiKeys*)device;
-	}
-	else {
-		specificDevice = device;
+SpecificMidiDeviceType getSpecificMidiDeviceType(uint16_t vendorId, uint16_t productId) {
+	if (MIDIDeviceLumiKeys::matchesVendorProduct(vendorId, productId)) {
+		return SpecificMidiDeviceType::LUMI_KEYS;
 	}
 
-	switch (hook) {
-	case SpecificMidiDeviceHook::ON_CONNECTED:
-		specificDevice->hookOnConnected();
-		break;
-	case SpecificMidiDeviceHook::ON_CHANGE_KEY_OR_SCALE:
-		specificDevice->hookOnChangeKeyOrScale();
-		break;
-	default:
-		break;
+	return SpecificMidiDeviceType::NONE;
+}
+
+MIDIDeviceUSBHosted* recastSpecificMidiDevice(void* sourceDevice) {
+	return recastSpecificMidiDevice((MIDIDeviceUSBHosted*)sourceDevice);
+}
+
+// This _should_ allow taking advantage of the overridden virtual functions on the children
+MIDIDeviceUSBHosted* recastSpecificMidiDevice(MIDIDeviceUSBHosted* sourceDevice) {
+	if (MIDIDeviceLumiKeys::matchesVendorProduct(sourceDevice->vendorId, sourceDevice->productId)) {
+		MIDIDeviceLumiKeys* targetDevice = (MIDIDeviceLumiKeys*)sourceDevice;
+		return targetDevice;
 	}
+
+	MIDIDeviceUSBHosted* targetDevice = sourceDevice;
+	return targetDevice;
 }

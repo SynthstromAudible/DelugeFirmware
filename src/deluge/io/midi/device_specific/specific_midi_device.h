@@ -20,6 +20,13 @@
 #include "io/midi/device_specific/midi_device_lumi_keys.h"
 #include "io/midi/midi_device.h"
 
-enum class SpecificMidiDeviceHook { ON_CONNECTED = 0, ON_CHANGE_KEY_OR_SCALE = 1 };
+enum class SpecificMidiDeviceType { NONE = 0, LUMI_KEYS = 1 };
+
+enum class SpecificMidiDeviceHook { ON_CONNECTED = 0, ON_CHANGE_KEY, ON_CHANGE_SCALE };
+
+SpecificMidiDeviceType getSpecificMidiDeviceType(uint16_t vendorId, uint16_t productId);
+
+MIDIDeviceUSBHosted* recastSpecificMidiDevice(void* sourceDevice);
+MIDIDeviceUSBHosted* recastSpecificMidiDevice(MIDIDeviceUSBHosted* sourceDevice);
 
 void midiDeviceCallHook(MIDIDeviceUSBHosted* device, SpecificMidiDeviceHook hook);
