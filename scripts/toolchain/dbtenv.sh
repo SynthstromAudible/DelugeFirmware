@@ -154,7 +154,7 @@ dbtenv_get_kernel_type()
         # Disabling rosetta checking now that we've got native arm64
         # dbtenv_check_rosetta || return 1;
         TOOLCHAIN_ARCH_DIR="${DBT_TOOLCHAIN_PATH}/toolchain/${SYS_TYPE}-${ARCH_TYPE}";
-        TOOLCHAIN_URL="https://github.com/litui/dbt-toolchain/releases/download/v${DBT_TOOLCHAIN_VERSION}/dbt-toolchain-${DBT_TOOLCHAIN_VERSION}-${SYS_TYPE}-${ARCH_TYPE}.tar.gz";
+        TOOLCHAIN_URL="https://github.com/SynthstromAudible/dbt-toolchain/releases/download/v${DBT_TOOLCHAIN_VERSION}/dbt-toolchain-${DBT_TOOLCHAIN_VERSION}-${SYS_TYPE}-${ARCH_TYPE}.tar.gz";
     elif echo "$SYS_TYPE" | grep -q "MINGW"; then
         echo "In MinGW shell, use \"[u]dbt.cmd\" instead of \"[u]dbt\"";
         return 1;
