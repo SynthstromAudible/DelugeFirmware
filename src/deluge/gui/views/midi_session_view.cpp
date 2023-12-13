@@ -80,6 +80,7 @@ MidiSessionView::MidiSessionView() {
 	showLearnedParams = false;
 
 	initPadPress(lastPadPress);
+	initCCFound(lastCCFound);
 	initMapping(paramToCC);
 	initMapping(backupXMLParamToCC);
 	initMapping(previousKnobPos);
@@ -92,6 +93,12 @@ void MidiSessionView::initPadPress(MidiPadPress& padPress) {
 	padPress.yDisplay = kNoSelection;
 	padPress.paramKind = Param::Kind::NONE;
 	padPress.paramID = kNoSelection;
+}
+
+void MidiSessionView::initCCFound(CCFound& lastCC) {
+	lastCC.ccNumber = kNoSelection;
+	lastCC.xDisplay = kNoSelection;
+	lastCC.yDisplay = kNoSelection;
 }
 
 void MidiSessionView::initMapping(int32_t mapping[kDisplayWidth][kDisplayHeight]) {
@@ -761,6 +768,30 @@ ModelStackWithAutoParam* MidiSessionView::getModelStackWithParam(int32_t xDispla
 	}
 
 	return modelStackWithParam;
+}
+
+void MidiSessionView::getCCFromParam(Param::Kind paramKind, int32_t paramID) {
+	lastCCFound.ccNumber = kNoSelection;
+	lastCCFound.xDisplay = kNoSelection;
+	lastCCFound.yDisplay = kNoSelection;
+
+	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+			bool isParamMappedToCC =
+			    (((paramKind == Param::Kind::PATCHED) && (patchedParamShortcuts[xDisplay][yDisplay] == paramID))
+			     || ((paramKind == Param::Kind::UNPATCHED_SOUND)
+			         && (unpatchedParamShortcuts[xDisplay][yDisplay] == paramID))
+			     || ((paramKind == Param::Kind::UNPATCHED_GLOBAL)
+			         && (globalEffectableParamShortcuts[xDisplay][yDisplay] == paramID)));
+
+			if (isParamMappedToCC) {
+				lastCCFound.ccNumber = paramToCC[xDisplay][yDisplay];
+				lastCCFound.xDisplay = xDisplay;
+				lastCCFound.yDisplay = yDisplay;
+				return;
+			}
+		}
+	}
 }
 
 void MidiSessionView::updateMappingChangeStatus() {

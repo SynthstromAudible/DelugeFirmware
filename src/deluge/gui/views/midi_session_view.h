@@ -38,6 +38,12 @@ struct MidiPadPress {
 	int32_t paramID;
 };
 
+struct CCFound {
+	int32_t ccNumber;
+	int32_t xDisplay;
+	int32_t yDisplay;
+};
+
 class MidiSessionView final : public ClipNavigationTimelineView, public GlobalEffectable {
 public:
 	MidiSessionView();
@@ -83,16 +89,19 @@ public:
 	uint32_t getMaxLength();
 
 	//midi CC mappings
+	void initCCFound(CCFound& lastCC);
 	int32_t paramToCC[kDisplayWidth][kDisplayHeight];
 	int32_t previousCCValueSent[kDisplayWidth][kDisplayHeight];
 	int32_t previousKnobPos[kDisplayWidth][kDisplayHeight];
 	MidiPadPress lastPadPress;
+	CCFound lastCCFound;
 	int32_t currentCC;
 	bool onParamDisplay;
 	bool showLearnedParams;
 
 	ModelStackWithAutoParam* getModelStackWithParam(int32_t xDisplay, int32_t yDisplay, int32_t ccNumber,
 	                                                bool displayError = true);
+	void getCCFromParam(Param::Kind paramKind, int32_t paramID);
 	void learnCC(int32_t channel, int32_t ccNumber);
 
 	void readDefaultsFromFile();

@@ -887,7 +887,7 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 					return;
 				}
 
-				//midiSessionView.sendCCWithModelStack(modelStackWithParam, value);
+				sendMidiFollowFeedback(modelStackWithParam, newKnobPos);
 
 				char newModelStackMemory[MODEL_STACK_MAX_SIZE];
 
@@ -931,7 +931,7 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 
 			//midi follow and midi feedback enabled
 			//re-send midi cc's because learned parameter values may have changed
-			sendMidiFollowFeedback();
+			//sendMidiFollowFeedback();
 		}
 
 		instrumentBeenEdited();
@@ -1312,10 +1312,22 @@ void View::notifyParamAutomationOccurred(ParamManager* paramManager, bool update
 	}
 }
 
-void View::sendMidiFollowFeedback() {
+void View::sendMidiFollowFeedback(ModelStackWithAutoParam* modelStackWithParam, int32_t knobPos) {
 	if (midiEngine.midiFollow && midiEngine.midiFollowFeedback && activeModControllableModelStack.modControllable) {
-		((ModControllableAudio*)activeModControllableModelStack.modControllable)
-		    ->offerReceivedCCToMidiFollow(nullptr, kNoSelection, kNoSelection, kNoSelection, false);
+		if (modelStackWithParam && modelStackWithParam->autoParam) {
+			Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+			midiSessionView.getCCFromParam(kind, modelStackWithParam->paramId);
+			if (midiSessionView.lastCCFound.ccNumber != kNoSelection) {
+				((ModControllableAudio*)activeModControllableModelStack.modControllable)
+				    ->sendCCWithModelStackForMidiFollowFeedback(
+				        modelStackWithParam, midiSessionView.lastCCFound.ccNumber, knobPos,
+				        midiSessionView.lastCCFound.xDisplay, midiSessionView.lastCCFound.yDisplay);
+			}
+		}
+		else {
+			((ModControllableAudio*)activeModControllableModelStack.modControllable)
+			    ->sendCCWithoutModelStackForMidiFollowFeedback();
+		}
 	}
 }
 
