@@ -24,6 +24,7 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/midi_session_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
@@ -2760,7 +2761,12 @@ void PlaybackHandler::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, ui
 		}
 
 		else {
-			if (currentUIMode == UI_MODE_MIDI_LEARN) {
+			//if you're currently in midiSessionView, see if you can learn this CC
+			if (getRootUI() == &midiSessionView) {
+				midiSessionView.learnCC(channel, ccNumber);
+				return;
+			}
+			else if (currentUIMode == UI_MODE_MIDI_LEARN) {
 				view.ccReceivedForMIDILearn(fromDevice, channel, ccNumber, value);
 				return;
 			}

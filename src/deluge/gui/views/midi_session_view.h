@@ -91,8 +91,8 @@ public:
 	//midi CC mappings
 	void initCCFound(CCFound& lastCC);
 	int32_t paramToCC[kDisplayWidth][kDisplayHeight];
-	int32_t previousCCValueSent[kDisplayWidth][kDisplayHeight];
 	int32_t previousKnobPos[kDisplayWidth][kDisplayHeight];
+	uint32_t timeLastCCSent[128];
 	MidiPadPress lastPadPress;
 	CCFound lastCCFound;
 	int32_t currentCC;
@@ -100,7 +100,9 @@ public:
 	bool showLearnedParams;
 
 	Clip* getClipForMidiFollow();
-	ModelStackWithAutoParam* getModelStackWithParam(int32_t xDisplay, int32_t yDisplay, int32_t ccNumber,
+	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithThreeMainThings* modelStackWithThreeMainThings,
+	                                                ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+	                                                Clip* clip, int32_t xDisplay, int32_t yDisplay, int32_t ccNumber,
 	                                                bool displayError = true);
 	void getCCFromParam(Param::Kind paramKind, int32_t paramID);
 	void learnCC(int32_t channel, int32_t ccNumber);

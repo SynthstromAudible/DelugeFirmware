@@ -1319,8 +1319,7 @@ void View::sendMidiFollowFeedback(ModelStackWithAutoParam* modelStackWithParam, 
 			midiSessionView.getCCFromParam(kind, modelStackWithParam->paramId);
 			if (midiSessionView.lastCCFound.ccNumber != kNoSelection) {
 				((ModControllableAudio*)activeModControllableModelStack.modControllable)
-				    ->sendCCForMidiFollowFeedback(midiSessionView.lastCCFound.ccNumber, knobPos,
-				        midiSessionView.lastCCFound.xDisplay, midiSessionView.lastCCFound.yDisplay);
+				    ->sendCCForMidiFollowFeedback(midiSessionView.lastCCFound.ccNumber, knobPos);
 			}
 		}
 		else {
