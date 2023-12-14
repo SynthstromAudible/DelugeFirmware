@@ -718,7 +718,7 @@ enum class String : size_t {
 	STRING_FOR_PAD_SELECTION_OFF,
 	STRING_FOR_PAD_SELECTION_ON,
 
-	/* Strings Specifically for Performance View 
+	/* Strings Specifically for Performance View
 	* performance_session_view.cpp
 	*/
 
@@ -742,6 +742,11 @@ enum class String : size_t {
     */
 
 	STRING_FOR_ARRANGER_VIEW,
+
+	/* Strings for Kit Global FX Menu*/
+
+	STRING_FOR_KIT_GLOBAL_FX,
+	STRING_FOR_PITCH,
 
 	STRING_LAST
 };
