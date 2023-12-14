@@ -1631,7 +1631,8 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 			//check time elapsed since last midi cc was sent with midi feedback for this same ccNumber
 			//if it was greater or equal than 1 second ago, allow received midi cc to go through
 			//this helps avoid additional processing of midi cc's receiver
-			if ((AudioEngine::audioSampleTimer - midiSessionView.timeLastCCSent[ccNumber]) >= kSampleRate) {
+			if ((!midiEngine.midiFollowFeedback)
+			    || ((AudioEngine::audioSampleTimer - midiSessionView.timeLastCCSent[ccNumber]) >= kSampleRate)) {
 				offerReceivedCCToMidiFollow(ccNumber, value);
 			}
 			messageUsed = true;

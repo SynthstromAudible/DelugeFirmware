@@ -985,7 +985,7 @@ void SessionView::clipPressEnded() {
 	//needs to be set before setActiveModControllableTimelineCounter so that midi follow mode can get
 	//the right model stack with param (otherwise midi follow mode will think you're still in a clip)
 	selectedClipYDisplay = 255;
- 	clipWasSelectedWithShift = false;
+	clipWasSelectedWithShift = false;
 	gridResetPresses();
 
 	currentUIMode = UI_MODE_NONE;
