@@ -793,7 +793,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_PAD_SELECTION_OFF, "Pad Selection Off"},
         {STRING_FOR_PAD_SELECTION_ON, "Pad Selection On"},
 
-        /* Strings Specifically for Performance View 
+        /* Strings Specifically for Performance View
         * performance_session_view.cpp
         */
 
@@ -817,6 +817,11 @@ PLACE_SDRAM_DATA Language english{
         */
 
         {STRING_FOR_ARRANGER_VIEW, "Arranger View"},
+
+        /* Strings for Kit Global FX Menu*/
+
+        {STRING_FOR_KIT_GLOBAL_FX, "Kit FX"},
+        {STRING_FOR_PITCH, "Pitch"},
 
         /* Strings Specifically for Midi Learning View
         * midi_session_view.cpp

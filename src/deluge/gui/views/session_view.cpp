@@ -632,156 +632,31 @@ ActionResult SessionView::padAction(int32_t xDisplay, int32_t yDisplay, int32_t 
 
 			Buttons::recordButtonPressUsedUp = true;
 
-			if (!Buttons::isShiftButtonPressed()) {
+			if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING) {
+				goto holdingRecord;
+			}
 
-				if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING) {
-					goto holdingRecord;
-				}
+			// If no Clip previously pressed...
+			if (currentUIMode == UI_MODE_NONE) {
 
-				// If no Clip previously pressed...
-				if (currentUIMode == UI_MODE_NONE) {
-
-					// If they're holding down the record button...
-					if (Buttons::isButtonPressed(deluge::hid::button::RECORD)) {
+				// If they're holding down the record button...
+				if (Buttons::isButtonPressed(deluge::hid::button::RECORD)) {
 
 holdingRecord:
-						// If doing recording stuff, create a "pending overdub".
-						// We may or may not be doing a tempoless record and need to finish that up.
-						if (playbackHandler.playbackState && currentPlaybackMode == &session) {
+					// If doing recording stuff, create a "pending overdub".
+					// We may or may not be doing a tempoless record and need to finish that up.
+					if (playbackHandler.playbackState && currentPlaybackMode == &session) {
 
-							Clip* sourceClip = getClipOnScreen(yDisplay + 1);
+						Clip* sourceClip = getClipOnScreen(yDisplay + 1);
 
-							if (!sourceClip) {
-								return ActionResult::DEALT_WITH;
-							}
-
-							// If already has a pending overdub, get out
-							if (currentSong->getPendingOverdubWithOutput(sourceClip->output)) {
-								return ActionResult::DEALT_WITH;
-							}
-
-							if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-								display->displayPopup(
-								    deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
-								return ActionResult::DEALT_WITH;
-							}
-
-							if (sdRoutineLock) {
-								return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-							}
-
-							int32_t clipIndex = yDisplay + currentSong->songViewYScroll + 1;
-
-							// If source clip currently recording, arm it to stop (but not if tempoless recording)
-							if (playbackHandler.isEitherClockActive() && sourceClip->getCurrentlyRecordingLinearly()
-							    && sourceClip->armState == ArmState::OFF) {
-								session.toggleClipStatus(sourceClip, &clipIndex, false, kInternalButtonPressLatency);
-							}
-
-							OverDubType newOverdubNature =
-							    (xDisplay < kDisplayWidth) ? OverDubType::Normal : OverDubType::ContinuousLayering;
-							Clip* overdub =
-							    currentSong->createPendingNextOverdubBelowClip(sourceClip, clipIndex, newOverdubNature);
-							if (overdub) {
-
-								session.scheduleOverdubToStartRecording(overdub, sourceClip);
-
-								if (!playbackHandler.recording) {
-									playbackHandler.recording = RECORDING_NORMAL;
-									playbackHandler.setLedStates();
-								}
-
-								// Since that was all effective, let's exit out of UI_MODE_VIEWING_RECORD_ARMING too
-								if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING) {
-									uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
-									currentUIMode = UI_MODE_NONE;
-									PadLEDs::reassessGreyout(false);
-									requestRendering(this, 0, 0xFFFFFFFF);
-								}
-
-								// If we were doing a tempoless record, now's the time to stop that and restart playback
-								if (!playbackHandler.isEitherClockActive()) {
-									playbackHandler.finishTempolessRecording(true, kInternalButtonPressLatency, false);
-								}
-							}
-							else if (currentSong->anyClipsSoloing) {
-								display->displayPopup(deluge::l10n::get(
-								    deluge::l10n::String::STRING_FOR_CANT_CREATE_OVERDUB_WHILE_CLIPS_SOLOING));
-							}
-						}
-					}
-
-					// If Clip present here...
-					else if (clip) {
-
-						// If holding down tempo knob...
-						if (Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC)) {
-							playbackHandler.grabTempoFromClip(clip);
-						}
-
-						// If it's a pending overdub, delete it
-						else if (clip->isPendingOverdub) {
-removePendingOverdub:
-							if (sdRoutineLock) {
-								return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Possibly not quite necessary...
-							}
-
-							removeClip(getClipOnScreen(yDisplay));
-							session.justAbortedSomeLinearRecording();
-						}
-
-						// Or, normal action - select the pressed Clip
-						else {
-
-							selectedClipYDisplay = yDisplay;
-startHoldingDown:
-							selectedClipPressYDisplay = yDisplay;
-							currentUIMode = UI_MODE_CLIP_PRESSED_IN_SONG_VIEW;
-							selectedClipPressXDisplay = xDisplay;
-							performActionOnPadRelease = true;
-							selectedClipTimePressed = AudioEngine::audioSampleTimer;
-							view.setActiveModControllableTimelineCounter(clip);
-							view.displayOutputName(clip->output, true, clip);
-							if (display->haveOLED()) {
-								deluge::hid::display::OLED::sendMainImage();
-							}
-						}
-					}
-
-					// Otherwise, try and create one
-					else {
-
-						if (Buttons::isButtonPressed(deluge::hid::button::RECORD)) {
-							return ActionResult::DEALT_WITH;
-						}
-						if (sdRoutineLock) {
-							return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-						}
-
-						//if (possiblyCreatePendingNextOverdub(clipIndex, OVERDUB_EXTENDING)) return ActionResult::DEALT_WITH;
-
-						clip = createNewInstrumentClip(yDisplay);
-						if (!clip) {
+						if (!sourceClip) {
 							return ActionResult::DEALT_WITH;
 						}
 
-						int32_t numClips = currentSong->sessionClips.getNumElements();
-						if (clipIndex < 0) {
-							clipIndex = 0;
+						// If already has a pending overdub, get out
+						if (currentSong->getPendingOverdubWithOutput(sourceClip->output)) {
+							return ActionResult::DEALT_WITH;
 						}
-						else if (clipIndex >= numClips) {
-							clipIndex = numClips - 1;
-						}
-
-						selectedClipYDisplay = clipIndex - currentSong->songViewYScroll;
-						requestRendering(this, 0, 1 << selectedClipYDisplay);
-						goto startHoldingDown;
-					}
-				}
-
-				// If Clip previously already pressed, clone it to newly-pressed row
-				else if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
-					if (selectedClipYDisplay != yDisplay && performActionOnPadRelease) {
 
 						if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
 							display->displayPopup(
@@ -793,52 +668,172 @@ startHoldingDown:
 							return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 						}
 
-						actionLogger.deleteAllLogs();
-						cloneClip(selectedClipYDisplay, yDisplay);
-						goto justEndClipPress;
+						int32_t clipIndex = yDisplay + currentSong->songViewYScroll + 1;
+
+						// If source clip currently recording, arm it to stop (but not if tempoless recording)
+						if (playbackHandler.isEitherClockActive() && sourceClip->getCurrentlyRecordingLinearly()
+						    && sourceClip->armState == ArmState::OFF) {
+							session.toggleClipStatus(sourceClip, &clipIndex, false, kInternalButtonPressLatency);
+						}
+
+						OverDubType newOverdubNature =
+						    (xDisplay < kDisplayWidth) ? OverDubType::Normal : OverDubType::ContinuousLayering;
+						Clip* overdub =
+						    currentSong->createPendingNextOverdubBelowClip(sourceClip, clipIndex, newOverdubNature);
+						if (overdub) {
+
+							session.scheduleOverdubToStartRecording(overdub, sourceClip);
+
+							if (!playbackHandler.recording) {
+								playbackHandler.recording = RECORDING_NORMAL;
+								playbackHandler.setLedStates();
+							}
+
+							// Since that was all effective, let's exit out of UI_MODE_VIEWING_RECORD_ARMING too
+							if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING) {
+								uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
+								currentUIMode = UI_MODE_NONE;
+								PadLEDs::reassessGreyout(false);
+								requestRendering(this, 0, 0xFFFFFFFF);
+							}
+
+							// If we were doing a tempoless record, now's the time to stop that and restart playback
+							if (!playbackHandler.isEitherClockActive()) {
+								playbackHandler.finishTempolessRecording(true, kInternalButtonPressLatency, false);
+							}
+						}
+						else if (currentSong->anyClipsSoloing) {
+							display->displayPopup(deluge::l10n::get(
+							    deluge::l10n::String::STRING_FOR_CANT_CREATE_OVERDUB_WHILE_CLIPS_SOLOING));
+						}
 					}
 				}
 
-				else if (currentUIMode == UI_MODE_MIDI_LEARN) {
-					if (clip) {
+				// If Clip present here...
+				else if (clip) {
 
-						// AudioClip
-						if (clip->type == CLIP_TYPE_AUDIO) {
+					// If holding down tempo knob...
+					if (Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC)) {
+						playbackHandler.grabTempoFromClip(clip);
+					}
+
+					// If it's a pending overdub, delete it
+					else if (clip->isPendingOverdub) {
+removePendingOverdub:
+						if (sdRoutineLock) {
+							return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Possibly not quite necessary...
+						}
+
+						removeClip(getClipOnScreen(yDisplay));
+						session.justAbortedSomeLinearRecording();
+					}
+
+					// Or, normal action - select the pressed Clip
+					else {
+
+						selectedClipYDisplay = yDisplay;
+						// This is only interresting for changing colour
+						clipWasSelectedWithShift = Buttons::isShiftButtonPressed();
+startHoldingDown:
+						selectedClipPressYDisplay = yDisplay;
+						currentUIMode = UI_MODE_CLIP_PRESSED_IN_SONG_VIEW;
+						selectedClipPressXDisplay = xDisplay;
+						performActionOnPadRelease = true;
+						selectedClipTimePressed = AudioEngine::audioSampleTimer;
+						view.setActiveModControllableTimelineCounter(clip);
+						view.displayOutputName(clip->output, true, clip);
+						if (display->haveOLED()) {
+							deluge::hid::display::OLED::sendMainImage();
+						}
+					}
+				}
+
+				// Otherwise, try and create one
+				else {
+
+					if (Buttons::isButtonPressed(deluge::hid::button::RECORD)) {
+						return ActionResult::DEALT_WITH;
+					}
+					if (sdRoutineLock) {
+						return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+					}
+
+					//if (possiblyCreatePendingNextOverdub(clipIndex, OVERDUB_EXTENDING)) return ActionResult::DEALT_WITH;
+
+					clip = createNewInstrumentClip(yDisplay);
+					if (!clip) {
+						return ActionResult::DEALT_WITH;
+					}
+
+					int32_t numClips = currentSong->sessionClips.getNumElements();
+					if (clipIndex < 0) {
+						clipIndex = 0;
+					}
+					else if (clipIndex >= numClips) {
+						clipIndex = numClips - 1;
+					}
+
+					// This is only interresting for changing colour
+					clipWasSelectedWithShift = Buttons::isShiftButtonPressed();
+					selectedClipYDisplay = clipIndex - currentSong->songViewYScroll;
+					requestRendering(this, 0, 1 << selectedClipYDisplay);
+					goto startHoldingDown;
+				}
+			}
+
+			// If Clip previously already pressed, clone it to newly-pressed row
+			else if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
+				if (selectedClipYDisplay != yDisplay && performActionOnPadRelease) {
+
+					if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+						display->displayPopup(
+						    deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
+						return ActionResult::DEALT_WITH;
+					}
+
+					if (sdRoutineLock) {
+						return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+					}
+
+					actionLogger.deleteAllLogs();
+					cloneClip(selectedClipYDisplay, yDisplay);
+					goto justEndClipPress;
+				}
+			}
+
+			else if (currentUIMode == UI_MODE_MIDI_LEARN) {
+				if (clip) {
+
+					// AudioClip
+					if (clip->type == CLIP_TYPE_AUDIO) {
+						if (sdRoutineLock) {
+							return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+						}
+						view.endMIDILearn();
+						gui::context_menu::audioInputSelector.audioOutput = (AudioOutput*)clip->output;
+						gui::context_menu::audioInputSelector.setupAndCheckAvailability();
+						openUI(&gui::context_menu::audioInputSelector);
+					}
+
+					// InstrumentClip
+					else {
+midiLearnMelodicInstrumentAction:
+						if (clip->output->type == InstrumentType::SYNTH
+						    || clip->output->type == InstrumentType::MIDI_OUT
+						    || clip->output->type == InstrumentType::CV) {
+
 							if (sdRoutineLock) {
 								return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 							}
-							view.endMIDILearn();
-							gui::context_menu::audioInputSelector.audioOutput = (AudioOutput*)clip->output;
-							gui::context_menu::audioInputSelector.setupAndCheckAvailability();
-							openUI(&gui::context_menu::audioInputSelector);
-						}
-
-						// InstrumentClip
-						else {
-midiLearnMelodicInstrumentAction:
-							if (clip->output->type == InstrumentType::SYNTH
-							    || clip->output->type == InstrumentType::MIDI_OUT
-							    || clip->output->type == InstrumentType::CV) {
-
-								if (sdRoutineLock) {
-									return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-								}
-								view.melodicInstrumentMidiLearnPadPressed(on, (MelodicInstrument*)clip->output);
-							}
+							view.melodicInstrumentMidiLearnPadPressed(on, (MelodicInstrument*)clip->output);
 						}
 					}
 				}
-			}
-			else if (clip) {
-				// Shift button is pressed, this is only interresting for changing colour
-				selectedClipYDisplayForColorChange = yDisplay;
 			}
 		}
 
 		// Release
 		else {
-			selectedClipYDisplayForColorChange = 255;
-
 			// If Clip was pressed before...
 			if (isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
 
@@ -990,6 +985,7 @@ void SessionView::clipPressEnded() {
 	//needs to be set before setActiveModControllableTimelineCounter so that midi follow mode can get
 	//the right model stack with param (otherwise midi follow mode will think you're still in a clip)
 	selectedClipYDisplay = 255;
+ 	clipWasSelectedWithShift = false;
 	gridResetPresses();
 
 	currentUIMode = UI_MODE_NONE;
@@ -1282,17 +1278,15 @@ ActionResult SessionView::verticalEncoderAction(int32_t offset, bool inCardRouti
 		}
 
 		// Change row color by pressing row & shift - same shortcut as in clip view.
-		if ((currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW || selectedClipYDisplayForColorChange != 255)
-		    && Buttons::isShiftButtonPressed()) {
-			auto yDisplay =
-			    (selectedClipYDisplayForColorChange != 255) ? selectedClipYDisplayForColorChange : selectedClipYDisplay;
+		if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW
+		    && (Buttons::isShiftButtonPressed() || clipWasSelectedWithShift)) {
 
-			Clip* clip = getClipOnScreen(yDisplay);
+			Clip* clip = getClipOnScreen(selectedClipYDisplay);
 			if (!clip)
 				return ActionResult::NOT_DEALT_WITH;
 
 			clip->colourOffset += offset;
-			requestRendering(this, 1 << yDisplay, 0);
+			requestRendering(this, 1 << selectedClipYDisplay, 0);
 
 			return ActionResult::DEALT_WITH;
 		}

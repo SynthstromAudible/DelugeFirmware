@@ -743,6 +743,11 @@ enum class String : size_t {
 
 	STRING_FOR_ARRANGER_VIEW,
 
+	/* Strings for Kit Global FX Menu*/
+
+	STRING_FOR_KIT_GLOBAL_FX,
+	STRING_FOR_PITCH,
+
 	/* Strings Specifically for Midi Learning View
 	* midi_session_view.cpp
 	*/
