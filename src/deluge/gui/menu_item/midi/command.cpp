@@ -139,7 +139,11 @@ void Command::unlearnAction() {
 }
 
 void Command::learnProgramChange(MIDIDevice* device, int32_t channel, int32_t programNumber) {
-	learnCC(device, channel + IS_A_PC, programNumber, 1);
+	if (commandNumber == GlobalMIDICommand::FILL) {
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_CANT_LEARN_PC));
+	} else {
+		learnCC(device, channel + IS_A_PC, programNumber, 1);
+	}
 }
 
 bool Command::learnNoteOn(MIDIDevice* device, int32_t channel, int32_t noteCode) {
