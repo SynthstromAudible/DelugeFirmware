@@ -67,7 +67,7 @@ void Command::drawPixelsForOled() {
 			char buffer[12];
 			int32_t channelmod = 0;
 			if (command->channelOrZone >= IS_A_PC) {
-				channelmod = IS_A_PC + IS_A_CC; // the great CC channel hack extended
+				channelmod = IS_A_PC; // the great CC channel hack extended
 			}
 			else if (command->channelOrZone >= IS_A_CC) {
 				channelmod = IS_A_CC;
@@ -142,7 +142,7 @@ void Command::learnProgramChange(MIDIDevice* device, int32_t channel, int32_t pr
 	if (commandNumber == GlobalMIDICommand::FILL) {
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_CANT_LEARN_PC));
 	} else {
-		learnCC(device, channel + IS_A_PC, programNumber, 1);
+		learnNoteOn(device, channel + IS_A_PC, programNumber);
 	}
 }
 

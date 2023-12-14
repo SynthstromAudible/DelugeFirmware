@@ -25,6 +25,3 @@ extern int16_t zeroMPEValues[];
 extern bool allowSomeUserActionsEvenWhenInCardRoutine;
 extern bool readButtonsAndPads();
 extern uint32_t picFirmwareVersion;
-#if !defined(NDEBUG)
-extern String* debugPath;
-#endif

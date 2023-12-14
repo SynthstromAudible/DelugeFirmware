@@ -2532,7 +2532,7 @@ void PlaybackHandler::programChangeReceived(MIDIDevice* fromDevice, int32_t chan
 	}
 	else {
 		// we build ontop of the CC hack
-		tryGlobalMIDICommands(fromDevice, channel + IS_A_CC + IS_A_PC, program);
+		tryGlobalMIDICommands(fromDevice, channel + IS_A_PC, program);
 	}
 }
 
