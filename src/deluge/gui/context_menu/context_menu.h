@@ -30,7 +30,9 @@ class ContextMenu : public UI {
 public:
 	ContextMenu() { oledShowsUIUnderneath = true; };
 #if !defined(NDEBUG)
-	const char* getName() override { return "ContextMenu"; }
+	const char* getName() override {
+		return "ContextMenu";
+	}
 #endif
 	virtual ~ContextMenu() = default;
 
@@ -38,8 +40,12 @@ public:
 	void selectEncoderAction(int8_t offset) override;
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) final;
 	void drawCurrentOption();
-	virtual bool isCurrentOptionAvailable() { return true; }
-	virtual bool acceptCurrentOption() { return false; } // If returns false, will cause UI to exit
+	virtual bool isCurrentOptionAvailable() {
+		return true;
+	}
+	virtual bool acceptCurrentOption() {
+		return false;
+	} // If returns false, will cause UI to exit
 
 	virtual Sized<char const**> getOptions() = 0;
 
@@ -47,7 +53,9 @@ public:
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 	bool setupAndCheckAvailability();
 
-	virtual deluge::hid::Button getAcceptButton() { return deluge::hid::button::SELECT_ENC; }
+	virtual deluge::hid::Button getAcceptButton() {
+		return deluge::hid::button::SELECT_ENC;
+	}
 
 	int32_t currentOption = 0; // Don't make static. We'll have multiple nested ContextMenus open at the same time
 

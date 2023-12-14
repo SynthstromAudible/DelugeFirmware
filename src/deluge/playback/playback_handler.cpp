@@ -2514,7 +2514,8 @@ bool PlaybackHandler::tryGlobalMIDICommandsOff(MIDIDevice* device, int32_t chann
 	bool foundAnything = false;
 
 	// Check for FILL command at index [8]
-	if (midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::FILL)].equalsNoteOrCC(device, channel, note)) {
+	if (midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::FILL)].equalsNoteOrCC(device, channel,
+	                                                                                               note)) {
 		currentSong->changeFillMode(false);
 		foundAnything = true;
 	}
