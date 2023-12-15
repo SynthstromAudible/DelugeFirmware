@@ -887,6 +887,8 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 					return;
 				}
 
+				//midi follow and midi feedback enabled
+				//re-send midi cc because learned parameter value has changed
 				sendMidiFollowFeedback(modelStackWithParam, newKnobPos);
 
 				char newModelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -928,10 +930,6 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 					indicator_leds::stopBlinkingKnobIndicator(whichModEncoder);
 				}
 			}
-
-			//midi follow and midi feedback enabled
-			//re-send midi cc's because learned parameter values may have changed
-			//sendMidiFollowFeedback();
 		}
 
 		instrumentBeenEdited();
@@ -1117,7 +1115,6 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 		else if (knobPos > 64) {
 			knobPos = 64;
 		}
-		//midiSessionView.sendCCWithModelStack(modelStackWithParam, value);
 	}
 	else {
 		knobPos =
