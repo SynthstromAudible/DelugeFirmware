@@ -881,7 +881,7 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 					return;
 				}
 
-				//displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos);
+				displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos);
 
 				if (newKnobPos == knobPos) {
 					return;
