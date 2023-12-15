@@ -223,7 +223,7 @@ MidiEngine::MidiEngine() {
 	midiFollowChannelKit = 15;
 	midiFollowChannelParam = 15;
 	midiFollowKitRootNote = 36;
-	midiFollowDisplayParam = true;
+	midiFollowDisplayParam = false;
 	midiFollowFeedback = false;
 	midiTakeover = MIDITakeoverMode::JUMP;
 

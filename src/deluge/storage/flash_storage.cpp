@@ -182,7 +182,7 @@ void resetSettings() {
 	midiEngine.midiFollowChannelKit = 15;
 	midiEngine.midiFollowChannelParam = 15;
 	midiEngine.midiFollowKitRootNote = 36;
-	midiEngine.midiFollowDisplayParam = true;
+	midiEngine.midiFollowDisplayParam = false;
 	midiEngine.midiFollowFeedback = false;
 	midiEngine.midiTakeover = MIDITakeoverMode::JUMP;
 

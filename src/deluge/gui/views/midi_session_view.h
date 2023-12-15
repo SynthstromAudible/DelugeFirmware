@@ -38,15 +38,10 @@ struct MidiPadPress {
 	int32_t paramID;
 };
 
-struct CCFound {
-	int32_t ccNumber;
-	int32_t xDisplay;
-	int32_t yDisplay;
-};
-
 class MidiSessionView final : public ClipNavigationTimelineView, public GlobalEffectable {
 public:
 	MidiSessionView();
+	void readDefaultsFromFile();
 	bool opened();
 	void focusRegained();
 
@@ -88,26 +83,20 @@ public:
 	uint32_t getMaxZoom();
 	uint32_t getMaxLength();
 
-	//midi CC mappings
-	void initCCFound(CCFound& lastCC);
-	int32_t paramToCC[kDisplayWidth][kDisplayHeight];
-	int32_t previousKnobPos[kDisplayWidth][kDisplayHeight];
-	uint32_t timeLastCCSent[128];
-	MidiPadPress lastPadPress;
-	CCFound lastCCFound;
-	int32_t currentCC;
-	bool onParamDisplay;
-	bool showLearnedParams;
-
+	//midi follow context
 	Clip* getClipForMidiFollow();
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithThreeMainThings* modelStackWithThreeMainThings,
 	                                                ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
 	                                                Clip* clip, int32_t xDisplay, int32_t yDisplay, int32_t ccNumber,
 	                                                bool displayError = true);
-	void getCCFromParam(Param::Kind paramKind, int32_t paramID);
-	void learnCC(int32_t channel, int32_t ccNumber);
 
-	void readDefaultsFromFile();
+	//midi CC mappings
+	void learnCC(int32_t channel, int32_t ccNumber);
+	int32_t getCCFromParam(Param::Kind paramKind, int32_t paramID);
+
+	int32_t paramToCC[kDisplayWidth][kDisplayHeight];
+	int32_t previousKnobPos[kDisplayWidth][kDisplayHeight];
+	uint32_t timeLastCCSent[128];
 
 private:
 	//initialize
@@ -144,6 +133,12 @@ private:
 	void loadMidiFollowMappings();
 	void readDefaultsFromBackedUpFile();
 	void readDefaultMappingsFromFile();
+
+	//learning view related
+	MidiPadPress lastPadPress;
+	int32_t currentCC;
+	bool onParamDisplay;
+	bool showLearnedParams;
 };
 
 extern MidiSessionView midiSessionView;

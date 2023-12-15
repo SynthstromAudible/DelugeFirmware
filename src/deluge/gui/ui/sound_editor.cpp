@@ -1375,7 +1375,7 @@ bool SoundEditor::inSettingsMenu() {
 }
 
 bool SoundEditor::inMidiFollowSubmenu() {
-	return ((getRootUI() == &midiSessionView) && (menuItemNavigationRecord[0] == &midiFollowSubmenu));
+	return (menuItemNavigationRecord[0] == &midiFollowSubmenu);
 }
 
 bool SoundEditor::isUntransposedNoteWithinRange(int32_t noteCode) {

@@ -17,7 +17,6 @@
 
 #include "modulation/params/param_collection.h"
 #include "definitions_cxx.hpp"
-#include "io/midi/midi_engine.h"
 #include "model/model_stack.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param_manager.h"
@@ -38,8 +37,7 @@ ParamCollection::~ParamCollection() {
 void ParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
                                                    bool automationChanged, bool automatedBefore, bool automatedNow) {
 
-	int32_t currentValue = modelStack->autoParam->getCurrentValue();
-	bool currentValueChanged = (oldValue != currentValue);
+	bool currentValueChanged = (oldValue != modelStack->autoParam->getCurrentValue());
 	if (currentValueChanged || automationChanged) {
 		modelStack->paramManager->notifyParamModifiedInSomeWay(modelStack, currentValueChanged, automationChanged,
 		                                                       automatedNow);

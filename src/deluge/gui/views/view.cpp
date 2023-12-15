@@ -1316,10 +1316,10 @@ void View::sendMidiFollowFeedback(ModelStackWithAutoParam* modelStackWithParam, 
 	if (midiEngine.midiFollow && midiEngine.midiFollowFeedback && activeModControllableModelStack.modControllable) {
 		if (modelStackWithParam && modelStackWithParam->autoParam) {
 			Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-			midiSessionView.getCCFromParam(kind, modelStackWithParam->paramId);
-			if (midiSessionView.lastCCFound.ccNumber != kNoSelection) {
+			int32_t ccNumber = midiSessionView.getCCFromParam(kind, modelStackWithParam->paramId);
+			if (ccNumber != kNoSelection) {
 				((ModControllableAudio*)activeModControllableModelStack.modControllable)
-				    ->sendCCForMidiFollowFeedback(midiSessionView.lastCCFound.ccNumber, knobPos);
+				    ->sendCCForMidiFollowFeedback(ccNumber, knobPos);
 			}
 		}
 		else {

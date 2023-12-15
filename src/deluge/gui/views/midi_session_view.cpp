@@ -80,7 +80,6 @@ MidiSessionView::MidiSessionView() {
 	showLearnedParams = false;
 
 	initPadPress(lastPadPress);
-	initCCFound(lastCCFound);
 	initMapping(paramToCC);
 	initMapping(backupXMLParamToCC);
 	initMapping(previousKnobPos);
@@ -96,12 +95,6 @@ void MidiSessionView::initPadPress(MidiPadPress& padPress) {
 	padPress.yDisplay = kNoSelection;
 	padPress.paramKind = Param::Kind::NONE;
 	padPress.paramID = kNoSelection;
-}
-
-void MidiSessionView::initCCFound(CCFound& lastCC) {
-	lastCC.ccNumber = kNoSelection;
-	lastCC.xDisplay = kNoSelection;
-	lastCC.yDisplay = kNoSelection;
 }
 
 void MidiSessionView::initMapping(int32_t mapping[kDisplayWidth][kDisplayHeight]) {
@@ -187,6 +180,10 @@ bool MidiSessionView::renderMainPads(uint32_t whichRows, uint8_t image[][kDispla
 }
 
 /// render every column, one row at a time
+/// this illuminates the shortcut pads corresponding to learnable parameters on the grid
+/// it also illuminates the shortcut pads brighter when a param has been learned
+/// it illuminates the shortcut pad green when holding midi and a cc is received to show
+/// what params that midi cc has been learned to
 void MidiSessionView::renderRow(uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay) {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		uint8_t* pixel = image + (xDisplay * 3);
@@ -195,17 +192,21 @@ void MidiSessionView::renderRow(uint8_t* image, uint8_t occupancyMask[], int32_t
 		    || (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID)
 		    || (globalEffectableParamShortcuts[xDisplay][yDisplay] != kNoParamID)) {
 			if (paramToCC[xDisplay][yDisplay] != kNoSelection) {
+				//if a cc is being received while midi button is held, hghlight the shortcut
+				//pads that cc has been learned to green
 				if (showLearnedParams && (paramToCC[xDisplay][yDisplay] == currentCC)) {
 					pixel[0] = 0;
 					pixel[1] = 255;
 					pixel[2] = 0;
 				}
+				//if it's a valid shortcut pad and has been learned, highlight it bright white
 				else {
 					pixel[0] = 130;
 					pixel[1] = 120;
 					pixel[2] = 130;
 				}
 			}
+			//illuminate unlearned param shortcut pads dim white / grey
 			else {
 				pixel[0] = kUndefinedGreyShade;
 				pixel[1] = kUndefinedGreyShade;
@@ -217,7 +218,7 @@ void MidiSessionView::renderRow(uint8_t* image, uint8_t occupancyMask[], int32_t
 	}
 }
 
-/// nothing to render in sidebar (yet)
+/// nothing to render in sidebar
 bool MidiSessionView::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
                                     uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	if (!image) {
@@ -245,7 +246,7 @@ void MidiSessionView::renderViewDisplay() {
 
 		yPos = yPos + 9;
 
-		//Render Follow Mode Enabled Status at the bottom left of the OLED screen
+		//Render Follow Mode Enabled Status
 
 		char followBuffer[20] = {0};
 		strncat(followBuffer, l10n::get(l10n::String::STRING_FOR_MIDI_FOLLOW), 19);
@@ -262,6 +263,8 @@ void MidiSessionView::renderViewDisplay() {
 
 		yPos = yPos + 9;
 
+		//render Synth Kit Param on the screen
+
 		deluge::hid::display::OLED::drawString(l10n::get(l10n::String::STRING_FOR_SYNTH), 0, yPos,
 		                                       deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
 		                                       kTextSpacingX, kTextSpacingY);
@@ -276,7 +279,7 @@ void MidiSessionView::renderViewDisplay() {
 
 		yPos = yPos + 9;
 
-		//Render Follow Mode Master Channel for Synth Kit and Midi on the bottom row of screen
+		//Render Follow Mode Master Channel for Synth Kit and Param on the bottom row of screen
 
 		char channelBuffer[10] = {0};
 		strncat(channelBuffer, l10n::get(l10n::String::STRING_FOR_MIDI_CHANNEL), 9);
@@ -444,7 +447,8 @@ ActionResult MidiSessionView::buttonAction(deluge::hid::Button b, bool on, bool 
 		}
 	}
 
-	//exit Midi View
+	//exit Midi View if learn button is being held
+	//otherwise show learned params in green when midi button is held and cc's are being received
 	else if (b == MIDI) {
 		if (Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
 			if (on) {
@@ -500,7 +504,7 @@ ActionResult MidiSessionView::padAction(int32_t xDisplay, int32_t yDisplay, int3
 			//if yes, display parameter name and learned status
 			potentialShortcutPadAction(xDisplay, yDisplay);
 		}
-		//let go of pad
+		//let go of pad, reset display and pad press history
 		else {
 			renderViewDisplay();
 			initPadPress(lastPadPress);
@@ -543,6 +547,8 @@ void MidiSessionView::potentialShortcutPadAction(int32_t xDisplay, int32_t yDisp
 	}
 }
 
+/// used in midi learning view to learn a cc received to a grid sized array in the shortcut positions
+/// corresponding to valid learnable parameters
 void MidiSessionView::learnCC(int32_t channel, int32_t ccNumber) {
 	if (channel == midiEngine.midiFollowChannelParam) {
 		if (lastPadPress.isActive) {
@@ -580,6 +586,8 @@ void MidiSessionView::learnCC(int32_t channel, int32_t ccNumber) {
 	}
 }
 
+/// display error message if a cc cannot be learned
+/// this only happens if cc is received on a different channel than the midi follow channel for params
 void MidiSessionView::cantLearn(int32_t channel) {
 	if (display->haveOLED()) {
 		char cantBuffer[40] = {0};
@@ -598,41 +606,11 @@ void MidiSessionView::cantLearn(int32_t channel) {
 	}
 }
 
-void MidiSessionView::selectEncoderAction(int8_t offset) {
-	return;
-}
-
-ActionResult MidiSessionView::horizontalEncoderAction(int32_t offset) {
-	return ActionResult::DEALT_WITH;
-}
-
-ActionResult MidiSessionView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
-	return ActionResult::DEALT_WITH;
-}
-
-/// why do I need this? (code won't compile without it)
-uint32_t MidiSessionView::getMaxZoom() {
-	return currentSong->getLongestClip(true, false)->getMaxZoom();
-}
-
-/// why do I need this? (code won't compile without it)
-uint32_t MidiSessionView::getMaxLength() {
-	return currentSong->getLongestClip(true, false)->loopLength;
-}
-
-void MidiSessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
-	return;
-}
-
-/// used to reset stutter if it's already active
-void MidiSessionView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
-	return;
-}
-
-void MidiSessionView::modButtonAction(uint8_t whichButton, bool on) {
-	UI::modButtonAction(whichButton, on);
-}
-
+/// checks to see if there is an active clip for the current context
+/// cases where there is an active clip:
+/// 1) pressing and holding a clip pad in arranger view, song view, grid view
+/// 2) pressing and holding the audition pad of a row in arranger view
+/// 3) entering a clip
 Clip* MidiSessionView::getClipForMidiFollow() {
 	Clip* clip = nullptr;
 	if (getRootUI() == &sessionView) {
@@ -653,6 +631,8 @@ Clip* MidiSessionView::getClipForMidiFollow() {
 	return clip;
 }
 
+/// based on the current context, as determined by clip returned from the getClipForMidiFollow function
+/// obtain the modelStackWithParam for that context and return it so it can be used by midi follow
 ModelStackWithAutoParam*
 MidiSessionView::getModelStackWithParam(ModelStackWithThreeMainThings* modelStackWithThreeMainThings,
                                         ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
@@ -662,10 +642,7 @@ MidiSessionView::getModelStackWithParam(ModelStackWithThreeMainThings* modelStac
 	Param::Kind paramKind = Param::Kind::NONE;
 	int32_t paramID = kNoParamID;
 
-	bool isSessionView =
-	    ((getRootUI() == &sessionView) || (getRootUI() == &arrangerView) || (getRootUI() == &performanceSessionView));
-
-	if (!clip && isSessionView) {
+	if (!clip) {
 		if (modelStackWithThreeMainThings) {
 			if (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
 				paramKind = Param::Kind::UNPATCHED_SOUND;
@@ -768,30 +745,30 @@ MidiSessionView::getModelStackWithParam(ModelStackWithThreeMainThings* modelStac
 	return modelStackWithParam;
 }
 
-void MidiSessionView::getCCFromParam(Param::Kind paramKind, int32_t paramID) {
-	lastCCFound.ccNumber = kNoSelection;
-	lastCCFound.xDisplay = kNoSelection;
-	lastCCFound.yDisplay = kNoSelection;
-
+/// a parameter can be learned t one cc at a time
+/// for a given parameter, find and return the cc that has been learned (if any)
+/// it does this by finding the grid shortcut that corresponds to that param
+/// and then returns what cc or no cc (255) has been mapped to that param shortcut
+int32_t MidiSessionView::getCCFromParam(Param::Kind paramKind, int32_t paramID) {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-			bool isParamMappedToCC =
+			bool foundParamShortcut =
 			    (((paramKind == Param::Kind::PATCHED) && (patchedParamShortcuts[xDisplay][yDisplay] == paramID))
 			     || ((paramKind == Param::Kind::UNPATCHED_SOUND)
 			         && (unpatchedParamShortcuts[xDisplay][yDisplay] == paramID))
 			     || ((paramKind == Param::Kind::UNPATCHED_GLOBAL)
 			         && (globalEffectableParamShortcuts[xDisplay][yDisplay] == paramID)));
 
-			if (isParamMappedToCC) {
-				lastCCFound.ccNumber = paramToCC[xDisplay][yDisplay];
-				lastCCFound.xDisplay = xDisplay;
-				lastCCFound.yDisplay = yDisplay;
-				return;
+			if (foundParamShortcut) {
+				return paramToCC[xDisplay][yDisplay];
 			}
 		}
 	}
+	return kNoSelection;
 }
 
+/// checking to see if there are any changes have been made to the cc-param mappings
+/// since the last time the mappings were loaded from the MidiFollow.XML file
 void MidiSessionView::updateMappingChangeStatus() {
 	anyChangesToSave = false;
 
@@ -975,4 +952,38 @@ void MidiSessionView::readDefaultMappingsFromFile() {
 		}
 		storageManager.exitTag();
 	}
+}
+
+void MidiSessionView::selectEncoderAction(int8_t offset) {
+	return;
+}
+
+ActionResult MidiSessionView::horizontalEncoderAction(int32_t offset) {
+	return ActionResult::DEALT_WITH;
+}
+
+ActionResult MidiSessionView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+	return ActionResult::DEALT_WITH;
+}
+
+/// why do I need this? (code won't compile without it)
+uint32_t MidiSessionView::getMaxZoom() {
+	return currentSong->getLongestClip(true, false)->getMaxZoom();
+}
+
+/// why do I need this? (code won't compile without it)
+uint32_t MidiSessionView::getMaxLength() {
+	return currentSong->getLongestClip(true, false)->loopLength;
+}
+
+void MidiSessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
+	return;
+}
+
+void MidiSessionView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
+	return;
+}
+
+void MidiSessionView::modButtonAction(uint8_t whichButton, bool on) {
+	UI::modButtonAction(whichButton, on);
 }

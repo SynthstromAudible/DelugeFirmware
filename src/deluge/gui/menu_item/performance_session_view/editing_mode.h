@@ -65,7 +65,6 @@ public:
 			    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 			performanceSessionView.resetPerformanceView(modelStack);
 		}
-
 		uiNeedsRendering(&performanceSessionView);
 	}
 	std::vector<std::string_view> getOptions() override {

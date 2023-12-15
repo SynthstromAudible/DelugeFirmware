@@ -1705,10 +1705,11 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 					modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos,
 					                                                          modLength);
 
-					//	if (midiEngine.midiFollowDisplayParam) {
-					//		Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-					//		view.displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos);
-					//	}
+					//check if you should display name of the parameter that was changed and the value that has been set
+					if (midiEngine.midiFollowDisplayParam) {
+						Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+						view.displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos);
+					}
 				}
 			}
 		}
@@ -1716,14 +1717,21 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 	return messageUsed;
 }
 
+/// this function is called when midi follow is enabled
+/// it checks if the ccNumber received has been learned to any parameters in midi learning view
+/// if the cc has been learned, it sets the new value for that parameter
+/// this function works by first checking the active context to see if there is an active clip
+/// to determine if the cc intends to control a song level or clip level parameter
 void ModControllableAudio::offerReceivedCCToMidiFollow(int32_t ccNumber, int32_t value) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = nullptr;
 
+	//obtain clip for active context
 	Clip* clip = midiSessionView.getClipForMidiFollow();
 
+	//setup model stack for the active context
 	if (!clip) {
 		if (currentSong->affectEntire) {
 			modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
@@ -1736,13 +1744,17 @@ void ModControllableAudio::offerReceivedCCToMidiFollow(int32_t ccNumber, int32_t
 		}
 	}
 
+	//check that model stack is valid
 	if (modelStackWithThreeMainThings || modelStackWithTimelineCounter) {
+		//loop through the grid to see if any parameters have been learned to the ccNumber received
 		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 			for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 				if (midiSessionView.paramToCC[xDisplay][yDisplay] == ccNumber) {
+					//obtain the model stack for the parameter the ccNumber received is learned to
 					ModelStackWithAutoParam* modelStackWithParam = midiSessionView.getModelStackWithParam(
 					    modelStackWithThreeMainThings, modelStackWithTimelineCounter, clip, xDisplay, yDisplay,
 					    ccNumber, midiEngine.midiFollowDisplayParam);
+					//check if model stack is valid
 					if (modelStackWithParam && modelStackWithParam->autoParam) {
 						if (modelStackWithParam->getTimelineCounter()
 						    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
@@ -1757,14 +1769,7 @@ void ModControllableAudio::offerReceivedCCToMidiFollow(int32_t ccNumber, int32_t
 
 							//is the cc being received the same as the current knob pos? If so, do nothing
 							if (value != (knobPos + kKnobPosOffset)) {
-
-								/*DEF_STACK_STRING_BUF(popupMsg, 40);
-								popupMsg.append("; CC: ");
-								popupMsg.appendInt(ccNumber);
-								popupMsg.append("; Val: ");
-								popupMsg.appendInt(value);
-								display->displayPopup(popupMsg.c_str());*/
-
+								//calculate new knob position based on value received and deluge current value
 								int32_t newKnobPos = calculateKnobPosForMidiTakeover(
 								    modelStackWithParam, view.modPos, value, nullptr, true, xDisplay, yDisplay);
 
@@ -1776,6 +1781,7 @@ void ModControllableAudio::offerReceivedCCToMidiFollow(int32_t ccNumber, int32_t
 								modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam,
 								                                                          view.modPos, view.modLength);
 
+								//check if you should display name of the parameter that was changed and the value that has been set
 								if (midiEngine.midiFollowDisplayParam) {
 									Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 									view.displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos);
@@ -1789,15 +1795,23 @@ void ModControllableAudio::offerReceivedCCToMidiFollow(int32_t ccNumber, int32_t
 	}
 }
 
-/// called when updating the context, e.g. switching from song to clip, changing instruments presets, peeking a clip in song view
+/// called when updating the context,
+/// e.g. switching from song to clip, changing instruments presets, peeking a clip in song view
+/// this function:
+/// 1) checks the active context
+/// 2) sets up the model stack for that context
+/// 3) checks what parameters have been learned and obtains the model stack for those params
+/// 4) sends midi feedback of the current parameter value to the cc numbers learned to those parameters
 void ModControllableAudio::sendCCWithoutModelStackForMidiFollowFeedback() {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = nullptr;
 
+	//obtain clip for active context
 	Clip* clip = midiSessionView.getClipForMidiFollow();
 
+	//setup model stack for the active context
 	if (!clip) {
 		if (currentSong->affectEntire) {
 			modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
@@ -1810,22 +1824,30 @@ void ModControllableAudio::sendCCWithoutModelStackForMidiFollowFeedback() {
 		}
 	}
 
+	//check that model stack is valid
 	if (modelStackWithThreeMainThings || modelStackWithTimelineCounter) {
+		//loop through the grid to see if any parameters have been learned
 		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 			for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 				if (midiSessionView.paramToCC[xDisplay][yDisplay] != kNoSelection) {
+					//obtain the model stack for the parameter that has been learned
 					ModelStackWithAutoParam* modelStackWithParam = midiSessionView.getModelStackWithParam(
 					    modelStackWithThreeMainThings, modelStackWithTimelineCounter, clip, xDisplay, yDisplay,
 					    kNoSelection, false);
+					//check that model stack is valid
 					if (modelStackWithParam && modelStackWithParam->autoParam) {
 						if (modelStackWithParam->getTimelineCounter()
 						    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
-							int32_t value =
+
+							//obtain current value of the learned parameter
+							int32_t currentValue =
 							    modelStackWithParam->autoParam->getValuePossiblyAtPos(view.modPos, modelStackWithParam);
 
-							int32_t knobPos =
-							    modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
+							//convert current value to a knob position
+							int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(
+							    currentValue, modelStackWithParam);
 
+							//send midi feedback to the ccNumber learned to the param with the current knob position
 							sendCCForMidiFollowFeedback(midiSessionView.paramToCC[xDisplay][yDisplay], knobPos);
 						}
 					}
@@ -1843,6 +1865,9 @@ void ModControllableAudio::sendCCForMidiFollowFeedback(int32_t ccNumber, int32_t
 	midiSessionView.timeLastCCSent[ccNumber] = AudioEngine::audioSampleTimer;
 }
 
+/// based on the midi takeover default setting of JUMP, PICKUP, or SCALE
+/// this function will calculate the knob position that the deluge parameter that the midi cc
+/// received is learned to should be set at based on the midi cc value received
 int32_t ModControllableAudio::calculateKnobPosForMidiTakeover(ModelStackWithAutoParam* modelStackWithParam,
                                                               int32_t modPos, int32_t value, MIDIKnob* knob,
                                                               bool midiFollow, int32_t xDisplay, int32_t yDisplay) {
