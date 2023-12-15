@@ -1138,9 +1138,9 @@ constexpr uint32_t kShortPressTime = kSampleRate / 2;
 constexpr uint32_t kHoldTime = kSampleRate / 10;
 
 /// Rate at which midi follow feedback for automation is sent
-constexpr uint32_t kLowFeedbackAutomationRate = (kSampleRate / 1000) * 500; //500 ms
+constexpr uint32_t kLowFeedbackAutomationRate = (kSampleRate / 1000) * 500;    //500 ms
 constexpr uint32_t kMediumFeedbackAutomationRate = (kSampleRate / 1000) * 150; //150 ms
-constexpr uint32_t kHighFeedbackAutomationRate = (kSampleRate / 1000) * 40; //40 ms
+constexpr uint32_t kHighFeedbackAutomationRate = (kSampleRate / 1000) * 40;    //40 ms
 
 enum KeyboardLayoutType : uint8_t {
 	KeyboardLayoutTypeIsomorphic,

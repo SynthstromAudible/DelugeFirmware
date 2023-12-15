@@ -849,9 +849,8 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_FOLLOW_KIT_ROOT_NOTE, "Kit Root Note"},
         {STRING_FOR_FOLLOW_DISPLAY_PARAM, "Display Param"},
         {STRING_FOR_FOLLOW_FEEDBACK, "Feedback"},
-
-        //strings for midi follow feedback automation menu
         {STRING_FOR_FOLLOW_FEEDBACK_AUTOMATION, "Automation Feedback"},
+        {STRING_FOR_FOLLOW_FEEDBACK_FILTER, "Filter Responses"},
     },
 };
 } // namespace deluge::l10n::built_in

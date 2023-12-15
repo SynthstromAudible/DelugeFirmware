@@ -70,6 +70,7 @@ public:
 	bool midiFollowDisplayParam;
 	bool midiFollowFeedback;
 	MIDIFollowFeedbackAutomationMode midiFollowFeedbackAutomation;
+	bool midiFollowFeedbackFilter;
 	MIDITakeoverMode midiTakeover;
 
 	// shared buffer for formatting sysex messages.
