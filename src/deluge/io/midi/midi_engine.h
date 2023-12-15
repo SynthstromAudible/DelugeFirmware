@@ -69,6 +69,7 @@ public:
 	int32_t midiFollowKitRootNote;
 	bool midiFollowDisplayParam;
 	bool midiFollowFeedback;
+	MIDIFollowFeedbackAutomationMode midiFollowFeedbackAutomation;
 	MIDITakeoverMode midiTakeover;
 
 	// shared buffer for formatting sysex messages.

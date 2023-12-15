@@ -401,6 +401,15 @@ enum class PerformanceEditingMode : int32_t {
 	PARAM,
 };
 
+//Midi Follow Mode Feedback Automation Modes
+
+enum class MIDIFollowFeedbackAutomationMode : int32_t {
+	DISABLED,
+	LOW,
+	MEDIUM,
+	HIGH,
+};
+
 // Linear params have different sources multiplied together, then multiplied by the neutral value
 // -- and "volume" ones get squared at the end
 
@@ -1127,6 +1136,11 @@ constexpr uint32_t kShortPressTime = kSampleRate / 2;
 /// Length of a press that delineates a "hold" press.
 /// Used in Performance View and with Sticky Shift
 constexpr uint32_t kHoldTime = kSampleRate / 10;
+
+/// Rate at which midi follow feedback for automation is sent
+constexpr uint32_t kLowFeedbackAutomationRate = kSampleRate / 2;
+constexpr uint32_t kMediumFeedbackAutomationRate = kSampleRate / 5;
+constexpr uint32_t kHighFeedbackAutomationRate = kSampleRate / 10;
 
 enum KeyboardLayoutType : uint8_t {
 	KeyboardLayoutTypeIsomorphic,

@@ -86,7 +86,7 @@ public:
 	virtual bool setModFXType(ModFXType newType);
 	bool offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
 	                                    ModelStackWithTimelineCounter* modelStack, int32_t noteRowIndex = -1);
-	void sendCCWithoutModelStackForMidiFollowFeedback();
+	void sendCCWithoutModelStackForMidiFollowFeedback(bool isAutomation = false);
 	void sendCCForMidiFollowFeedback(int32_t ccNumber, int32_t knobPos);
 	bool offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
 	                                           ModelStackWithTimelineCounter* modelStack, int32_t noteRowIndex = -1);

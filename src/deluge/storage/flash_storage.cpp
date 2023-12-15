@@ -127,6 +127,7 @@ namespace FlashStorage {
 127: midiFollow set kit root note
 128: midiFollow display param pop up
 129: midiFollow feedback
+130: midiFollow feedback automation mode
 */
 
 uint8_t defaultScale;
@@ -184,6 +185,7 @@ void resetSettings() {
 	midiEngine.midiFollowKitRootNote = 36;
 	midiEngine.midiFollowDisplayParam = false;
 	midiEngine.midiFollowFeedback = false;
+	midiEngine.midiFollowFeedbackAutomation = MIDIFollowFeedbackAutomationMode::DISABLED;
 	midiEngine.midiTakeover = MIDITakeoverMode::JUMP;
 
 	for (auto& globalMIDICommand : midiEngine.globalMIDICommands) {
@@ -442,6 +444,7 @@ void readSettings() {
 	midiEngine.midiFollowKitRootNote = buffer[127];
 	midiEngine.midiFollowDisplayParam = buffer[128];
 	midiEngine.midiFollowFeedback = buffer[129];
+	midiEngine.midiFollowFeedbackAutomation = static_cast<MIDIFollowFeedbackAutomationMode>(buffer[130]);
 }
 
 void writeSettings() {
@@ -560,6 +563,7 @@ void writeSettings() {
 	buffer[127] = midiEngine.midiFollowKitRootNote;
 	buffer[128] = midiEngine.midiFollowDisplayParam;
 	buffer[129] = midiEngine.midiFollowFeedback;
+	buffer[130] = util::to_underlying(midiEngine.midiFollowFeedbackAutomation);
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer, 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,

@@ -77,6 +77,7 @@
 #include "gui/menu_item/midi/follow/follow_channel_synth.h"
 #include "gui/menu_item/midi/follow/follow_display_param.h"
 #include "gui/menu_item/midi/follow/follow_feedback.h"
+#include "gui/menu_item/midi/follow/follow_feedback_automation.h"
 #include "gui/menu_item/midi/follow/follow_kit_root_note.h"
 #include "gui/menu_item/midi/input_differentiation.h"
 #include "gui/menu_item/midi/pgm.h"
@@ -786,6 +787,7 @@ midi::FollowChannelParam midiFollowChannelParamMenu{STRING_FOR_FOLLOW_CHANNEL_PA
 midi::FollowKitRootNote midiFollowKitRootNoteMenu{STRING_FOR_FOLLOW_KIT_ROOT_NOTE};
 midi::FollowDisplayParam midiFollowDisplayParamMenu{STRING_FOR_FOLLOW_DISPLAY_PARAM};
 midi::FollowFeedback midiFollowFeedbackMenu{STRING_FOR_FOLLOW_FEEDBACK};
+midi::FollowFeedbackAutomation midiFollowFeedbackAutomationMenu{STRING_FOR_FOLLOW_FEEDBACK_AUTOMATION};
 
 Submenu midiFollowChannelSubmenu{
     STRING_FOR_CHANNEL,
@@ -797,6 +799,15 @@ Submenu midiFollowChannelSubmenu{
     },
 };
 
+Submenu midiFollowFeedbackSubmenu{
+    STRING_FOR_FOLLOW_FEEDBACK,
+    STRING_FOR_FOLLOW_FEEDBACK,
+    {
+        &midiFollowFeedbackMenu,
+        &midiFollowFeedbackAutomationMenu,
+    },
+};
+
 Submenu midiFollowSubmenu{
     STRING_FOR_FOLLOW_TITLE,
     STRING_FOR_FOLLOW_TITLE,
@@ -805,7 +816,7 @@ Submenu midiFollowSubmenu{
         &midiFollowChannelSubmenu,
         &midiFollowKitRootNoteMenu,
         &midiFollowDisplayParamMenu,
-        &midiFollowFeedbackMenu,
+        &midiFollowFeedbackSubmenu,
     },
 };
 

@@ -21,12 +21,14 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/midi_session_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "hid/hid_sysex.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
+#include "io/midi/midi_engine.h"
 #include "model/clip/clip_minder.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
@@ -143,7 +145,34 @@ void UITimerManager::routine() {
 				case TIMER_SEND_MIDI_FEEDBACK_FOR_AUTOMATION:
 					//midi follow and midi feedback enabled
 					//re-send midi cc's because learned parameter values may have changed
-					//view.sendMidiFollowFeedback();
+					//only send updates when playback is active
+					if (playbackHandler.isEitherClockActive()
+					    && (midiEngine.midiFollowFeedbackAutomation != MIDIFollowFeedbackAutomationMode::DISABLED)) {
+						uint32_t sendRate = 0;
+						if (midiEngine.midiFollowFeedbackAutomation == MIDIFollowFeedbackAutomationMode::LOW) {
+							sendRate = kLowFeedbackAutomationRate;
+						}
+						else if (midiEngine.midiFollowFeedbackAutomation == MIDIFollowFeedbackAutomationMode::MEDIUM) {
+							sendRate = kMediumFeedbackAutomationRate;
+						}
+						else if (midiEngine.midiFollowFeedbackAutomation == MIDIFollowFeedbackAutomationMode::HIGH) {
+							sendRate = kHighFeedbackAutomationRate;
+						}
+						//check time elapsed since previous automation update is greater than or equal to send rate
+						//if so, send another automation feedback message
+						if ((AudioEngine::audioSampleTimer - midiSessionView.timeAutomationFeedbackLastSent)
+						    >= sendRate) {
+							view.sendMidiFollowFeedback(nullptr, kNoSelection, true);
+							midiSessionView.timeAutomationFeedbackLastSent = AudioEngine::audioSampleTimer;
+						}
+					}
+					//if automation feedback was previously sent and now playback is stopped,
+					//send one more update to sync controller with deluge's current values
+					//for automated params only
+					else if (midiSessionView.timeAutomationFeedbackLastSent != 0) {
+						view.sendMidiFollowFeedback(nullptr, kNoSelection, true);
+						midiSessionView.timeAutomationFeedbackLastSent = 0;
+					}
 					break;
 
 				case TIMER_READ_INPUTS:

@@ -775,6 +775,9 @@ enum class String : size_t {
 	STRING_FOR_FOLLOW_DISPLAY_PARAM,
 	STRING_FOR_FOLLOW_FEEDBACK,
 
+	//strings for midi follow feedback automation menu
+	STRING_FOR_FOLLOW_FEEDBACK_AUTOMATION,
+
 	STRING_LAST
 };
 

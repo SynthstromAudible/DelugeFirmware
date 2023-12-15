@@ -1802,7 +1802,7 @@ void ModControllableAudio::offerReceivedCCToMidiFollow(int32_t ccNumber, int32_t
 /// 2) sets up the model stack for that context
 /// 3) checks what parameters have been learned and obtains the model stack for those params
 /// 4) sends midi feedback of the current parameter value to the cc numbers learned to those parameters
-void ModControllableAudio::sendCCWithoutModelStackForMidiFollowFeedback() {
+void ModControllableAudio::sendCCWithoutModelStackForMidiFollowFeedback(bool isAutomation) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
@@ -1838,17 +1838,18 @@ void ModControllableAudio::sendCCWithoutModelStackForMidiFollowFeedback() {
 					if (modelStackWithParam && modelStackWithParam->autoParam) {
 						if (modelStackWithParam->getTimelineCounter()
 						    == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+							if (!isAutomation || (isAutomation && modelStackWithParam->autoParam->isAutomated())) {
+								//obtain current value of the learned parameter
+								int32_t currentValue = modelStackWithParam->autoParam->getValuePossiblyAtPos(
+								    view.modPos, modelStackWithParam);
 
-							//obtain current value of the learned parameter
-							int32_t currentValue =
-							    modelStackWithParam->autoParam->getValuePossiblyAtPos(view.modPos, modelStackWithParam);
+								//convert current value to a knob position
+								int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(
+								    currentValue, modelStackWithParam);
 
-							//convert current value to a knob position
-							int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(
-							    currentValue, modelStackWithParam);
-
-							//send midi feedback to the ccNumber learned to the param with the current knob position
-							sendCCForMidiFollowFeedback(midiSessionView.paramToCC[xDisplay][yDisplay], knobPos);
+								//send midi feedback to the ccNumber learned to the param with the current knob position
+								sendCCForMidiFollowFeedback(midiSessionView.paramToCC[xDisplay][yDisplay], knobPos);
+							}
 						}
 					}
 				}

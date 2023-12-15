@@ -2406,6 +2406,10 @@ void AutomationInstrumentClipView::modEncoderActionForUnselectedPad(int32_t whic
 				renderDisplay(newKnobPos + kKnobPosOffset, kNoSelection, true);
 				setKnobIndicatorLevels(newKnobPos + kKnobPosOffset);
 			}
+
+			//midi follow and midi feedback enabled
+			//re-send midi cc because learned parameter value has changed
+			view.sendMidiFollowFeedback(modelStackWithParam, newKnobPos);
 		}
 	}
 }
@@ -3122,6 +3126,10 @@ void AutomationInstrumentClipView::setParameterAutomationValue(ModelStackWithAut
 		renderDisplay(knobPos + kKnobPosOffset, kNoSelection, modEncoderAction);
 		setKnobIndicatorLevels(knobPos + kKnobPosOffset);
 	}
+
+	//midi follow and midi feedback enabled
+	//re-send midi cc because learned parameter value has changed
+	view.sendMidiFollowFeedback(modelStack, knobPos);
 }
 
 //sets both knob indicators to the same value when pressing single pad,

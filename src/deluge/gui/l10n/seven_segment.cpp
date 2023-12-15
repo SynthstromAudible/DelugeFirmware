@@ -403,6 +403,9 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_FOLLOW_DISPLAY_PARAM, "DISP"},
         {STRING_FOR_FOLLOW_FEEDBACK, "FEED"},
 
+        //strings for midi follow feedback automation menu
+        {STRING_FOR_FOLLOW_FEEDBACK_AUTOMATION, "AUTO"},
+
     },
     &built_in::english,
 };

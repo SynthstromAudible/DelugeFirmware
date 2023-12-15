@@ -97,6 +97,7 @@ public:
 	int32_t paramToCC[kDisplayWidth][kDisplayHeight];
 	int32_t previousKnobPos[kDisplayWidth][kDisplayHeight];
 	uint32_t timeLastCCSent[128];
+	uint32_t timeAutomationFeedbackLastSent;
 
 private:
 	//initialize

@@ -87,6 +87,8 @@ MidiSessionView::MidiSessionView() {
 	for (int32_t i = 0; i < 128; i++) {
 		timeLastCCSent[i] = 0;
 	}
+
+	timeAutomationFeedbackLastSent = 0;
 }
 
 void MidiSessionView::initPadPress(MidiPadPress& padPress) {
