@@ -1,11 +1,12 @@
 #! /usr/bin/env python3
-import argparse
-import subprocess
 from datetime import datetime
-import os
-from pathlib import Path
-import mido
 from iterfzf import iterfzf
+from pathlib import Path
+import argparse
+import mido
+import os
+import subprocess
+import sys
 
 DEBUG_SYSEX_ID = 0x7D
 DELUGE_PORT_DEFAULT_IN = "Deluge IN"
@@ -48,11 +49,48 @@ def run_command(command: list, verbose: bool) -> None:
     result.check_returncode()
 
 def unpack_7bit_to_8bit(bytes):
+  output = bytearray()
+
+  for b in bytes:
+    # Extract 7-bit value
+    value = b & 0x7F
+    
+    # Extend to 8-bit
+    if value & 0x40:
+      value |= 0x80
+    
+    output.append(value)
+
     result = []
     for byte in bytes:
         result.append(byte & 0x7f)
         result.append(byte >> 7)
     return bytearray(result)
+
+def unpack_7bit_to_8bit_rle(data):
+  output = bytearray()
+
+  i = 0
+  while i < len(data):
+    b = data[i]
+    
+    # If high bit set, next byte is repeat count
+    if b & 0x80:  
+      repeat = data[i+1] 
+      i += 2
+    else:
+      repeat = 1
+      i += 1
+      
+    # Extend 7-bit to 8-bit
+    value = b & 0x7F
+    if value & 0x40:
+      value |= 0x80
+    
+    # Append repeated value 
+    output.extend(bytes([value]) * repeat)
+
+  return output
 
 def main() -> int:
     args = argparser().parse_args()
@@ -93,10 +131,13 @@ def main() -> int:
         for message in port:
             if message.type == 'sysex':
                 if len(message.data) > 5 and message.bytes()[0:5] == [0xf0, 0x7d, 0x03, 0x40, 0x00]:
+                  #print(message.hex())
                   target_bytes = unpack_7bit_to_8bit(message.bin()[5:-1])
                   # Debug message 
-                  print(f'[{timestamp}] {target_bytes.decode("ascii")}')
-                  print(message.hex())
+                  decoded = target_bytes.decode('ascii')
+                  sys.stdout.write(decoded.replace("\n", f"\n[{timestamp}] "))
+                
+                  #print(message.hex())
 
     return 0
 
