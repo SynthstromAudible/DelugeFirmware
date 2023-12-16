@@ -394,6 +394,8 @@ ActionResult SampleMarkerEditor::padAction(int32_t x, int32_t y, int32_t on) {
 						if (x == cols[util::to_underlying(MarkerType::LOOP_START)].colOnScreen) {
 							markerType = MarkerType::LOOP_START;
 							value = 0;
+							// Unlock the loop to avoid setting the loop end to something nonsensical
+							this->loopUnlock();
 							writeValue(value);
 							markerType = MarkerType::START; // Switch it back
 							goto doRender;
@@ -428,6 +430,8 @@ ensureNotPastSampleLength:
 						if (x == cols[util::to_underlying(MarkerType::LOOP_END)].colOnScreen) {
 							markerType = MarkerType::LOOP_END;
 							value = 0;
+							// Unlock the loop to avoid setting the loop start to something nonsensical
+							this->loopUnlock();
 							writeValue(value);
 							markerType = MarkerType::END; // Switch it back
 							goto doRender;
@@ -450,18 +454,12 @@ ensureNotPastSampleLength:
 						goto ensureNotPastSampleLength;
 					}
 					else if (markerHeld == MarkerType::LOOP_START && markerPressed == MarkerType::LOOP_END) {
+						// Toggle loop lock
 						if (loopLocked) {
-							loopLocked = false;
-							loopLength = 0;
-							display->displayPopup("FREE");
+							this->loopUnlock();
 						}
 						else {
-							loopLocked = true;
-							auto loopStart =
-							    static_cast<int32_t>(getCurrentMultisampleRange()->sampleHolder.loopStartPos);
-							auto loopEnd = static_cast<int32_t>(getCurrentMultisampleRange()->sampleHolder.loopEndPos);
-							loopLength = loopEnd - loopStart;
-							display->displayPopup("LOCK");
+							this->loopLock();
 						}
 						return ActionResult::DEALT_WITH;
 					}
@@ -470,6 +468,9 @@ ensureNotPastSampleLength:
 					else if (markerHeld == MarkerType::LOOP_START) {
 						if (x == cols[util::to_underlying(MarkerType::START)].colOnScreen) {
 							value = 0;
+
+							// Unlock the loop so we don't set the end position to something nonsensical.
+							this->loopUnlock();
 							writeValue(value);
 							markerType = MarkerType::START;
 
@@ -485,6 +486,8 @@ exitAfterRemovingLoopMarker:
 					else if (markerHeld == MarkerType::LOOP_END) {
 						if (x == cols[util::to_underlying(MarkerType::END)].colOnScreen) {
 							value = 0;
+							// Unlock the loop so we don't set the start position to something nonsensical.
+							this->loopUnlock();
 							writeValue(value);
 							markerType = MarkerType::END;
 
@@ -1165,6 +1168,20 @@ printSeconds:
 	deluge::hid::display::OLED::drawString("smpl)", xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, smallTextSpacingX,
 	                                       smallTextSizeY);
 	xPixel += smallTextSpacingX * 6;
+}
+
+void SampleMarkerEditor::loopUnlock() {
+	loopLocked = false;
+	loopLength = 0;
+	display->displayPopup("FREE");
+}
+
+void SampleMarkerEditor::loopLock() {
+	loopLocked = true;
+	auto loopStart = static_cast<int32_t>(getCurrentMultisampleRange()->sampleHolder.loopStartPos);
+	auto loopEnd = static_cast<int32_t>(getCurrentMultisampleRange()->sampleHolder.loopEndPos);
+	loopLength = loopEnd - loopStart;
+	display->displayPopup("LOCK");
 }
 
 void SampleMarkerEditor::displayText() {

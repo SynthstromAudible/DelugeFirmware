@@ -53,6 +53,11 @@ public:
 	// 7SEG
 	void displayText();
 
+	/// Unlock the loop, allowing the ends to be moved independently
+	void loopUnlock();
+	/// Lock the loop so the start and end are always the same number of samples apart
+	void loopLock();
+
 	MarkerType markerType;
 
 	bool blinkInvisible;
