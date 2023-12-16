@@ -11,6 +11,9 @@ DEBUG_SYSEX_ID = 0x7D
 DELUGE_PORT_DEFAULT_IN = "Deluge IN"
 DELUGE_PORT_DEFAULT_OUT = "Deluge OUT"
 
+# b.mtime
+# gcc -shared -o scripts/util/pack.so -fPIC src/deluge/util/pack.c
+
 
 def argparser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -43,6 +46,13 @@ def run_command(command: list, verbose: bool) -> None:
             print(f"Error: {result.stderr}")
 
     result.check_returncode()
+
+def unpack_7bit_to_8bit(bytes):
+    result = []
+    for byte in bytes:
+        result.append(byte & 0x7f)
+        result.append(byte >> 7)
+    return bytearray(result)
 
 def main() -> int:
     args = argparser().parse_args()
@@ -82,10 +92,11 @@ def main() -> int:
     with mido.open_input(input_device) as port:
         for message in port:
             if message.type == 'sysex':
-                if len(message.data) > 2 and message.data[1] == DEBUG_SYSEX_ID:
-                    # Debug message 
-                    print(bytes(message.data[5:-1]).decode('ascii'))
-                    print(f'[{timestamp}] {bytes(message.data[5:-1]).decode("ascii")}')
+                if len(message.data) > 5 and message.bytes()[0:5] == [0xf0, 0x7d, 0x03, 0x40, 0x00]:
+                  target_bytes = unpack_7bit_to_8bit(message.bin()[5:-1])
+                  # Debug message 
+                  print(f'[{timestamp}] {target_bytes.decode("ascii")}')
+                  print(message.hex())
 
     return 0
 

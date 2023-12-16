@@ -59,6 +59,24 @@ def run_command(command: list, verbose: bool) -> None:
     result.check_returncode()
 
 
+def resolve_source_build(source_build):
+    source_build_dir = Path(source_build).parent
+    source_bins = [f for f in source_build_dir.glob('*.bin')]
+    try:
+        source_build_ts = os.path.getmtime(source_build)
+        newer_bins = [f for f in source_bins if os.path.getmtime(f) > source_build_ts]
+        if len(newer_bins) > 0:
+            raise RuntimeError("Found newer bin files")
+    except Exception as e:
+        def iter_bins():
+            bins = sorted(source_bins, key=lambda b: -os.path.getmtime(b)) 
+            for bin in bins:
+                print(bin)
+                yield "\t".join([str(datetime.datetime.fromtimestamp(os.path.getmtime(bin))), str(bin)])
+        chosen_build = iterfzf(iter_bins(), prompt=f"{e}, please confirm your build file.")
+        source_build = chosen_build.split("\t")[1]
+    return source_build
+
 def load_sd(args) -> None:
     # only list fstype=msdos
     device_name = args.name
@@ -73,22 +91,7 @@ def load_sd(args) -> None:
 
         device_name = iterfzf(iter_disks())
 
-    source_build = args.build
-    source_build_dir = Path(source_build).parent
-    source_bins = [f for f in source_build_dir.glob('*.bin')]
-    try:
-        source_build_ts = os.path.getmtime(source_build)
-        newer_bins = [f for f in source_bins if os.path.getmtime(f) > source_build_ts]
-        if len(newer_bins) > 0:
-            raise RuntimeError("Found newer bin files")
-    except Exception as e:
-        def iter_bins():
-            for bin in source_bins:
-                print(bin)
-                yield "\t".join([str(datetime.datetime.fromtimestamp(os.path.getmtime(bin))), str(bin)])
-        chosen_build = iterfzf(iter_bins(), prompt=f"{e}, please confirm your build file.")
-        source_build = chosen_build.split("\t")[1]
-
+    source_build = resolve_source_build(args.build)
     target_bins = [f for f in Path(device_name).glob("*.bin")]
     target_build = 'deluge.bin'
     try:
@@ -131,9 +134,9 @@ def load_sysex(args) -> None:
     if device not in ports:
         print(f"'{device}' not found, please choose a port")
         device = iterfzf(iter_ports())
-
+    source_build = resolve_source_build(args.build)
     # Invoke loadfw with the specified arguments
-    loadfw_command = [str(loadfw_path), "-o", "output.syx", args.key, args.build]
+    loadfw_command = [str(loadfw_path), "-o", "output.syx", args.key, source_build]
     run_command(loadfw_command, args.verbose)
 
     # Use mido to send the syx file to the device
