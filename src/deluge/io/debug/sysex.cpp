@@ -80,6 +80,7 @@ void Debug::sysexDebugPrint(MIDIDevice* device, const char* msg, bool nl) {
 	}
 
 	reply[5 + len] = 0xf7;
+	//0xf0, 0x7d, 0x03, 0x40, 0x00, 'm', 's', 'g', 'e', 't', ' ', 't', 'o', ' ', 'd', 'e', 'b', 'u', 'g', 'g', 0xf7
 
 	device->sendSysex(reply, len + 6);
 }
