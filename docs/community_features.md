@@ -251,6 +251,12 @@ Synchronization modes accessible through the "LFO SYNC" shortcut.
 #### 4.5.3 - Waveform Loop Lock
  - ([#293]) When a sample has loop start and loop end points set, holding down loop start and tapping loop end will lock the loop points together. Moving one will move the other, keeping them the same distance apart. Use the same process to unlock the loop points. Use "SHIFT" + turn "HORIZONTAL ENCODER" ◀︎▶︎ to double or half the loop length.
 
+ #### 4.5.4 - Copy row(s)
+ - ([#805]) If you hold down the audition pad(s) while pressing the shortcut to "copy notes", only the auditioned rows will be copied. If you were to normally paste these rows, no behavior is changed from the current implementation. It's exactly the same result as deleting the notes on any rows you didn't have held down before copying.
+
+ #### 4.5.5 - Paste gently
+ - ([#805]) Shift+Cross+X_ENC will paste any notes on the clipboard _over_ the existing notes i.e. the existing notes will not be deleted and the clipboard contents will be added to the existing notes. Positioning/scale/timing semantics have not changed, only whether the notes are cleared before pasting. 
+
 ### 4.6 - Instrument Clip View - Kit Clip Features
 
 #### 4.6.1 - Keyboard View
