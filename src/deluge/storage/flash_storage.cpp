@@ -432,8 +432,8 @@ void readSettings() {
 	}
 	AudioEngine::metronome.setVolume(defaultMetronomeVolume);
 
-    /* Future bytes reserved for PR #781, MIDI follow */
-    /* 123 -> 131 */
+	/* Future bytes reserved for PR #781, MIDI follow */
+	/* 123 -> 131 */
 
 	defaultSessionLayout = static_cast<SessionLayoutType>(buffer[132]);
 	defaultKeyboardLayout = static_cast<KeyboardLayoutType>(buffer[133]);
@@ -441,8 +441,7 @@ void readSettings() {
 	gridUnarmEmptyPads = buffer[134];
 
 	/* Future bytes reserved for PR #781, Global MIDI Command transpose */
-    /* 135 -> 140 */
-
+	/* 135 -> 140 */
 }
 
 void writeSettings() {
@@ -564,14 +563,14 @@ void writeSettings() {
 	midiEngine.midiFollowFeedback = buffer[131];
 	*/
 
-    buffer[132] = util::to_underlying(defaultSessionLayout);
+	buffer[132] = util::to_underlying(defaultSessionLayout);
 	buffer[133] = util::to_underlying(defaultKeyboardLayout);
 
 	buffer[134] = gridUnarmEmptyPads;
 
-    /* Future bytes reserved for Global MIDI Command transpose */
-    /* 135 -> 140 */
-    /*
+	/* Future bytes reserved for Global MIDI Command transpose */
+	/* 135 -> 140 */
+	/*
 	buffer[135] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::TRANSPOSE)].channelOrZone + 1;
 	buffer[136] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::TRANSPOSE)].noteOrCC + 1;
     MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::TRANSPOSE, &buffer[137]);
@@ -580,8 +579,6 @@ void writeSettings() {
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer, 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,
 	                     SPIBSC_OUTPUT_ADDR_24);
-
-
 }
 
 } // namespace FlashStorage
