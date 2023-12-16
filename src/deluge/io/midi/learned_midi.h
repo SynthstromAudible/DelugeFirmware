@@ -25,7 +25,7 @@
 #define MIDI_MESSAGE_CC 2
 
 class MIDIDevice;
-
+enum MIDIMatchType { NO_MATCH, CHANNEL, MPE_MEMBER, MPE_MASTER };
 class LearnedMIDI {
 public:
 	LearnedMIDI();
@@ -54,7 +54,7 @@ public:
 	inline bool equalsNoteOrCCAllowMPEMasterChannels(MIDIDevice* newDevice, int32_t newChannel, int32_t newNoteOrCC) {
 		return (newNoteOrCC == noteOrCC && equalsChannelAllowMPEMasterChannels(newDevice, newChannel));
 	}
-
+	MIDIMatchType checkMatch(MIDIDevice* fromDevice, int32_t channel);
 	inline bool containsSomething() { return (channelOrZone != MIDI_CHANNEL_NONE); }
 
 	// You must have determined that containsSomething() == true before calling this.

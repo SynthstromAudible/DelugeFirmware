@@ -28,8 +28,6 @@ class ModelStackWithAutoParam;
 class ModelStackWithThreeMainThings;
 class MIDIDevice;
 
-enum MIDIMatchType { NO_MATCH, CHANNEL, MPE_MEMBER, MPE_MASTER };
-
 class MelodicInstrument : public Instrument {
 public:
 	MelodicInstrument(InstrumentType newType) : Instrument(newType) {}
@@ -45,7 +43,7 @@ public:
 	bool writeMelodicInstrumentAttributesToFile(Clip* clipForSavingOutputOnly, Song* song);
 	void writeMelodicInstrumentTagsToFile(Clip* clipForSavingOutputOnly, Song* song);
 	bool readTagFromFile(char const* tagName);
-	MIDIMatchType checkMatch(MIDIDevice* fromDevice, int32_t channel);
+
 	void offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
 	                       bool on, int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
 	                       bool* doingMidiThru);
