@@ -377,8 +377,8 @@ In the main menu of the Deluge (accessed by pressing both "SHIFT" + the "SELECT"
 Support for sending and receiving large sysex messages has been added. Initially, this has been used for development centric features.
 
 - ([#174] and [#192]) Send the contents of the screen to a computer. This allows 7SEG behavior to be evaluated on OLED hardware and vice versa
-- ([#215]) Forward debug messages. This can be used as an alternative to RTT for print-style debugging.
-- ([#295]) Load firmware over USB. As this could be a security risk, it must be enabled in community feature settings
+- ([#215]) Forward debug messages. This can be used as an alternative to RTT for print-style debugging. (`./dbt sysex-console`)
+- ([#295]) Load firmware over USB. As this could be a security risk, it must be enabled in community feature settings (`./dbt loadfw sysex`)
 
 ## 7. Compiletime settings
 
@@ -387,6 +387,10 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 * ENABLE_SYSEX_LOAD
 
     Allow loading firmware over sysex as described above
++    ```
+    ./dbt build debug -m -t dev -DENABLE_SYSEX_LOAD=ON -DSYSEX_LOGGING_ENABLED=ON
+
++    ```
 
 * FEATURE_...
 

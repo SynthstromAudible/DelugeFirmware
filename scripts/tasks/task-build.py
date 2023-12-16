@@ -91,12 +91,13 @@ def main() -> int:
     if args.clean_first:
         build_args += ["--clean-first"]
 
-    # Append unknown arguments to CMake arglist
-    build_args += unknown_args
+    # Append unknown arguments to CMake arglist UNLESS its a configure flag, we would have processed those with -m/-t
+    build_args += [arg for arg in unknown_args if not arg.startswith('-D')] 
 
     if args.no_status:
         build_args += ["--", "--quiet"]  # pass quiet directly to ninja
 
+    previw = subprocess.run(["echo", "cmake"] + build_args, env=os.environ)
     result = subprocess.run(["cmake"] + build_args, env=os.environ)
     return result.returncode
 

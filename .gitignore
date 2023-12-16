@@ -1,5 +1,6 @@
 .DS_Store
 /Release*/*
+/tmp/*
 /HardwareDebug*/*
 /.settings/*
 /Deluge.jlink

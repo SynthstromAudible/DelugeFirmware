@@ -82,6 +82,7 @@ option(ENABLE_RTT "Enable RTT output" ON)
 
 # SYSEX Load option
 option(ENABLE_SYSEX_LOAD "Enable loading firmware over midi sysex" OFF)
+option(SYSEX_LOGGING_ENABLED "Enable logging over midi sysex" OFF)
 
 # Colored output
 set(CMAKE_COLOR_DIAGNOSTICS ON)

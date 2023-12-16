@@ -63,6 +63,23 @@ These live under the `dbt build` subcommand. The general format is `dbt build {c
 
 Built files output to subdirectories named after the configuration (e.g. `build/Release`).
 
+They may be then flashed to the device by transfering them to SD and holding Shift while booting, or by flashing over sysex.
+
+#### Flashing over sysex
+
+**Requirements**
+- Enable "Allow Insecure Dev" in the community features settings. Write down the number you see on the screen once it is enabled.
+- Build the firmware with sysex support.
+
+```
+./dbt build debug -m -t dev -DENABLE_SYSEX_LOAD=on
+```
+
+- Load the firmware via sysex
+```
+./dbt loadfw sysex -K <number from your deluge>
+```
+
 #### Build configurations:
 
 * `debug` - build selected target with debugging support (including debugging symbols and different optimizations) 
