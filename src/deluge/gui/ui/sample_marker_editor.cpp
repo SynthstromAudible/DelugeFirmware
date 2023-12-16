@@ -51,9 +51,6 @@ extern "C" {
 
 const uint8_t zeroes[] = {0, 0, 0, 0, 0, 0, 0, 0};
 
-int loopLength = 0;
-bool loopLocked = false;
-
 SampleMarkerEditor sampleMarkerEditor{};
 
 SampleMarkerEditor::SampleMarkerEditor() {
@@ -146,8 +143,8 @@ void SampleMarkerEditor::writeValue(uint32_t value, MarkerType markerTypeNow) {
 	}
 	else if (markerTypeNow == MarkerType::LOOP_START) {
 		if (loopLocked) {
-			int intendedLoopEndPos = value + loopLength;
-			if (intendedLoopEndPos <= getCurrentSampleHolder()->endPos) {
+			int32_t intendedLoopEndPos = static_cast<int32_t>(value) + loopLength;
+			if (intendedLoopEndPos >= 0 && intendedLoopEndPos <= getCurrentSampleHolder()->endPos) {
 				getCurrentMultisampleRange()->sampleHolder.loopStartPos = value;
 				getCurrentMultisampleRange()->sampleHolder.loopEndPos = intendedLoopEndPos;
 			}
@@ -158,7 +155,7 @@ void SampleMarkerEditor::writeValue(uint32_t value, MarkerType markerTypeNow) {
 	}
 	else if (markerTypeNow == MarkerType::LOOP_END) {
 		if (loopLocked) {
-			int intendedLoopStartPos = value - loopLength;
+			int32_t intendedLoopStartPos = static_cast<int32_t>(value) - loopLength;
 			if (intendedLoopStartPos >= getCurrentSampleHolder()->startPos) {
 				getCurrentMultisampleRange()->sampleHolder.loopEndPos = value;
 				getCurrentMultisampleRange()->sampleHolder.loopStartPos = intendedLoopStartPos;
@@ -453,17 +450,18 @@ ensureNotPastSampleLength:
 						goto ensureNotPastSampleLength;
 					}
 					else if (markerHeld == MarkerType::LOOP_START && markerPressed == MarkerType::LOOP_END) {
-						if (loopLocked == false) {
-							loopLocked = true;
-							int loopStart = getCurrentMultisampleRange()->sampleHolder.loopStartPos;
-							int loopEnd = getCurrentMultisampleRange()->sampleHolder.loopEndPos;
-							loopLength = loopEnd - loopStart;
-							display->displayPopup("LOCK");
-						}
-						else {
+						if (loopLocked) {
 							loopLocked = false;
 							loopLength = 0;
 							display->displayPopup("FREE");
+						}
+						else {
+							loopLocked = true;
+							auto loopStart =
+							    static_cast<int32_t>(getCurrentMultisampleRange()->sampleHolder.loopStartPos);
+							auto loopEnd = static_cast<int32_t>(getCurrentMultisampleRange()->sampleHolder.loopEndPos);
+							loopLength = loopEnd - loopStart;
+							display->displayPopup("LOCK");
 						}
 						return ActionResult::DEALT_WITH;
 					}
