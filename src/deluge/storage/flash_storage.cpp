@@ -101,25 +101,40 @@ namespace FlashStorage {
 77: "solo" colour
 78: default magnitude (resolution)
 79: MIDI input device differentiation on/off
-80: GlobalMIDICommand::PLAYBACK_RESTART			product / vendor ids
-84: GlobalMIDICommand::PLAY						product / vendor ids
-88: GlobalMIDICommand::RECORD						product / vendor ids
-92: GlobalMIDICommand::TAP							product / vendor ids
-96: GlobalMIDICommand::LOOP						product / vendor ids
-100: GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING	product / vendor ids
-104: GlobalMIDICommand::UNDO						product / vendor ids
-108-111: GlobalMIDICommand::REDO					product / vendor ids
+80-83: GlobalMIDICommand::PLAYBACK_RESTART				product / vendor ids
+84-87: GlobalMIDICommand::PLAY							product / vendor ids
+88-91: GlobalMIDICommand::RECORD						product / vendor ids
+92-95: GlobalMIDICommand::TAP							product / vendor ids
+96-99: GlobalMIDICommand::LOOP							product / vendor ids
+100-103: GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING 	product / vendor ids
+104-107: GlobalMIDICommand::UNDO						product / vendor ids
+108-111: GlobalMIDICommand::REDO						product / vendor ids
 112: default MIDI bend range
 113: MIDI takeover mode
 114: GlobalMIDICommand::FILL channel + 1
 115: GlobalMIDICommand::FILL noteCode + 1
-116: GlobalMIDICommand::FILL product / vendor ids
-117: defaultSessionLayout
-118: defaultKeyboardLayout
-119: gridUnarmEmptyPads
+116-119: GlobalMIDICommand::FILL product / vendor ids
 120: gridAllowGreenSelection
 121: defaultGridActiveMode
 122: defaultMetronomeVolume
+-- Future reservation for follow mode: --
+123: midiFollow enable/disable
+124: midiFollow set follow channel synth
+125: midiFollow set follow channel kit
+126: midiFollow set follow channel param
+127: midiFollow set kit root note
+128: midiFollow display param pop up
+129: midiFollow feedback
+130: midiFollow feedback automation mode
+131: midiFollow feedback filter to handle feedback loops
+--
+132: defaultSessionLayout
+133: defaultKeyboardLayout
+134: gridUnarmEmptyPads
+-- Future reservation for transpose global MIDI command: --
+135: GlobalMIDICommand::TRANSPOSE channel + 1
+136: GlobalMIDICommand::TRANSPOSE noteCode + 1
+137-140: GlobalMIDICommand::TRANSPOSE product / vendor ids
 */
 
 uint8_t defaultScale;
