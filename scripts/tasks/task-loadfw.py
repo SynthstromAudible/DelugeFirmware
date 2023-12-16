@@ -1,7 +1,9 @@
 #! /usr/bin/env python3
 import argparse
+from pathlib import Path
 import subprocess
 import os
+import datetime
 from pathlib import Path
 from iterfzf import iterfzf
 import mido
@@ -70,12 +72,49 @@ def load_sd(args) -> None:
                 yield disk.mountpoint
 
         device_name = iterfzf(iter_disks())
+
+    source_build = args.build
+    source_build_dir = Path(source_build).parent
+    source_bins = [f for f in source_build_dir.glob('*.bin')]
     try:
-        dest = shutil.copy2(args.build, device_name)
+        source_build_ts = os.path.getmtime(source_build)
+        newer_bins = [f for f in source_bins if os.path.getmtime(f) > source_build_ts]
+        if len(newer_bins) > 0:
+            raise RuntimeError("Found newer bin files")
+    except Exception as e:
+        def iter_bins():
+            for bin in source_bins:
+                print(bin)
+                yield "\t".join([str(datetime.datetime.fromtimestamp(os.path.getmtime(bin))), str(bin)])
+        chosen_build = iterfzf(iter_bins(), prompt=f"{e}, please confirm your build file.")
+        source_build = chosen_build.split("\t")[1]
+
+    target_bins = [f for f in Path(device_name).glob("*.bin")]
+    target_build = 'deluge.bin'
+    try:
+        if len(target_bins) > 1:
+            raise RuntimeError("Found multiple target overwrite candidates")
+    except Exception as e:
+        def iter_target_bins():
+            for bin in target_bins:
+                yield bin
+        target_build = iterfzf(iter_target_bins(), prompt=f"{len(target_bins)} targets , please confirm your target build file.")
+
+
+    # check if there is a newer ".bin" file in the same directory as args.build 
+    # if so, confirm with the user if they are sure
+    # if not, show them a list of bin files and their modified dates via iterfzf
+    # set build to their choice
+
+    try:
+        dest = shutil.copy(source_build, os.path.join(device_name, target_build))
+        source_ts = str(datetime.datetime.fromtimestamp(os.path.getmtime(source_build)))
+        target_ts = str(datetime.datetime.fromtimestamp(os.path.getmtime(dest)))
+            
+        print(f"Copied {source_build} [{source_ts}] to {device_name} {dest} [{target_ts}]")
     except:
-        print(f"Failed to copy {args.build} to {device_name}")
+        print(f"Failed to copy {source_build} to {device_name}")
         raise
-    print(f"Copied {args.build} to {device_name} ({dest})")
 
 def load_sysex(args) -> None:
     loadfw_path = Path("./toolchain/darwin-arm64/loadfw")
