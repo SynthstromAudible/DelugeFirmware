@@ -2883,12 +2883,10 @@ void InstrumentClipView::setRowProbability(int32_t offset) {
 
 void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) {
 	char buffer[(display->haveOLED()) ? 29 : 5];
-	char* displayString;
 
 	// FILL mode
 	if (probability == kFillProbabilityValue) {
 		strcpy(buffer, "FILL");
-		displayString = buffer;
 	}
 
 	// Probability dependence
@@ -2904,7 +2902,6 @@ void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) 
 		if (display->have7SEG()) {
 			intToString(probability * 5, buffer);
 		}
-		displayString = buffer;
 	}
 
 	// Iteration dependence
@@ -2934,10 +2931,10 @@ void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) 
 	}
 
 	if (display->haveOLED()) {
-		display->popupText(displayString, DisplayPopupType::PROBABILITY);
+		display->popupText(buffer, DisplayPopupType::PROBABILITY);
 	}
 	if (display->have7SEG()) {
-		display->displayPopup(displayString, 0, true, prevBase ? 3 : 255, 1, DisplayPopupType::PROBABILITY);
+		display->displayPopup(buffer, 0, true, prevBase ? 3 : 255, 1, DisplayPopupType::PROBABILITY);
 	}
 }
 
