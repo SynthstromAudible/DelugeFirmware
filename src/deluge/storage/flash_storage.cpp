@@ -101,25 +101,41 @@ namespace FlashStorage {
 77: "solo" colour
 78: default magnitude (resolution)
 79: MIDI input device differentiation on/off
-80: GlobalMIDICommand::PLAYBACK_RESTART			product / vendor ids
-84: GlobalMIDICommand::PLAY						product / vendor ids
-88: GlobalMIDICommand::RECORD						product / vendor ids
-92: GlobalMIDICommand::TAP							product / vendor ids
-96: GlobalMIDICommand::LOOP						product / vendor ids
-100: GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING	product / vendor ids
-104: GlobalMIDICommand::UNDO						product / vendor ids
-108-111: GlobalMIDICommand::REDO					product / vendor ids
+80-83: GlobalMIDICommand::PLAYBACK_RESTART				product / vendor ids
+84-87: GlobalMIDICommand::PLAY							product / vendor ids
+88-91: GlobalMIDICommand::RECORD						product / vendor ids
+92-95: GlobalMIDICommand::TAP							product / vendor ids
+96-99: GlobalMIDICommand::LOOP							product / vendor ids
+100-103: GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING 	product / vendor ids
+104-107: GlobalMIDICommand::UNDO						product / vendor ids
+108-111: GlobalMIDICommand::REDO						product / vendor ids
 112: default MIDI bend range
 113: MIDI takeover mode
 114: GlobalMIDICommand::FILL channel + 1
 115: GlobalMIDICommand::FILL noteCode + 1
-116: GlobalMIDICommand::FILL product / vendor ids
-117: defaultSessionLayout
-118: defaultKeyboardLayout
-119: gridUnarmEmptyPads
+116-119: GlobalMIDICommand::FILL product / vendor ids
 120: gridAllowGreenSelection
 121: defaultGridActiveMode
 122: defaultMetronomeVolume
+-- Future reservation for follow mode: --
+123: midiFollow enable/disable
+124: midiFollow set follow channel synth
+125: midiFollow set follow channel kit
+126: midiFollow set follow channel param
+127: midiFollow set kit root note
+128: midiFollow display param pop up
+129: midiFollow feedback
+130: midiFollow feedback automation mode
+131: midiFollow feedback filter to handle feedback loops
+--
+132: defaultSessionLayout
+133: defaultKeyboardLayout
+134: gridUnarmEmptyPads
+-- Future reservation for transpose global MIDI command: --
+135: GlobalMIDICommand::TRANSPOSE channel + 1
+136: GlobalMIDICommand::TRANSPOSE noteCode + 1
+137-140: GlobalMIDICommand::TRANSPOSE product / vendor ids
+--
 */
 
 uint8_t defaultScale;
@@ -405,12 +421,8 @@ void readSettings() {
 		}
 	}
 	midiEngine.midiTakeover = static_cast<MIDITakeoverMode>(buffer[113]);
-	// 114 and 115, 116 used further up
+	// 114 and 115, and 116-119 used further up
 
-	defaultSessionLayout = static_cast<SessionLayoutType>(buffer[117]);
-	defaultKeyboardLayout = static_cast<KeyboardLayoutType>(buffer[118]);
-
-	gridUnarmEmptyPads = buffer[119];
 	gridAllowGreenSelection = buffer[120];
 	defaultGridActiveMode = static_cast<GridDefaultActiveMode>(buffer[121]);
 
@@ -420,6 +432,33 @@ void readSettings() {
 		defaultMetronomeVolume = kMaxMenuMetronomeVolumeValue;
 	}
 	AudioEngine::metronome.setVolume(defaultMetronomeVolume);
+
+	/* Future bytes reserved for PR #781, MIDI follow */
+	/* 123 -> 131 */
+	/*
+	midiEngine.midiFollow = buffer[123];
+	midiEngine.midiFollowChannelSynth = buffer[124];
+	midiEngine.midiFollowChannelKit = buffer[125];
+	midiEngine.midiFollowChannelParam = buffer[126];
+	midiEngine.midiFollowKitRootNote = buffer[127];
+	midiEngine.midiFollowDisplayParam = buffer[128];
+	midiEngine.midiFollowFeedback = buffer[129];
+	midiEngine.midiFollowFeedbackAutomation = static_cast<MIDIFollowFeedbackAutomationMode>(buffer[130]);
+	midiEngine.midiFollowFeedback = buffer[131];
+	*/
+
+	defaultSessionLayout = static_cast<SessionLayoutType>(buffer[132]);
+	defaultKeyboardLayout = static_cast<KeyboardLayoutType>(buffer[133]);
+
+	gridUnarmEmptyPads = buffer[134];
+
+	/* Future bytes reserved for PR #837, Global MIDI Command transpose */
+	/* 135 -> 140 */
+	/*
+	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::TRANSPOSE)].channelOrZone = buffer[135] - 1;
+	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::TRANSPOSE)].noteOrCC = buffer[136] - 1;
+	MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::TRANSPOSE, &buffer[137]);
+	*/
 }
 
 void writeSettings() {
@@ -475,6 +514,7 @@ void writeSettings() {
 	buffer[71] =
 	    midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING)].noteOrCC + 1;
 
+	/* Global MIDI command device references - these occupy 4 bytes each */
 	MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::PLAYBACK_RESTART, &buffer[80]);
 	MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::PLAY, &buffer[84]);
 	MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::RECORD, &buffer[88]);
@@ -520,16 +560,37 @@ void writeSettings() {
 	buffer[112] = defaultBendRange[BEND_RANGE_MAIN];
 
 	buffer[113] = util::to_underlying(midiEngine.midiTakeover);
-	// 114 and 115, 116 used further up
+	// 114, 115, and 116-119 used further up
 
-	buffer[117] = util::to_underlying(defaultSessionLayout);
-	buffer[118] = util::to_underlying(defaultKeyboardLayout);
-
-	buffer[119] = gridUnarmEmptyPads;
 	buffer[120] = gridAllowGreenSelection;
 	buffer[121] = util::to_underlying(defaultGridActiveMode);
 
 	buffer[122] = defaultMetronomeVolume;
+
+	/* Future bytes reserved for PR #781, MIDI follow:
+	123 -> 131
+	buffer[123] = midiEngine.midiFollow;
+	buffer[124] = midiEngine.midiFollowChannelSynth;
+	buffer[125] = midiEngine.midiFollowChannelKit;
+	buffer[126] = midiEngine.midiFollowChannelParam;
+	buffer[127] = midiEngine.midiFollowKitRootNote;
+	buffer[128] = midiEngine.midiFollowDisplayParam;
+	buffer[129] = midiEngine.midiFollowFeedback;
+	buffer[130] = util::to_underlying(midiEngine.midiFollowFeedbackAutomation);
+	buffer[131] = midiEngine.midiFollowFeedbackFilter;
+	*/
+
+	buffer[132] = util::to_underlying(defaultSessionLayout);
+	buffer[133] = util::to_underlying(defaultKeyboardLayout);
+
+	buffer[134] = gridUnarmEmptyPads;
+
+	/* Future bytes reserved for PR #837 Global MIDI Command transpose:
+    135 -> 140
+	buffer[135] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::TRANSPOSE)].channelOrZone + 1;
+	buffer[136] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::TRANSPOSE)].noteOrCC + 1;
+    MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::TRANSPOSE, &buffer[137]);
+	*/
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer, 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,
