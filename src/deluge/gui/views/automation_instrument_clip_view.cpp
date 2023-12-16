@@ -2939,9 +2939,14 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
 			}
 
 			if (summary) {
-				ParamSet* paramSet = (ParamSet*)summary->paramCollection;
-				modelStackWithParam =
-				    modelStackWithThreeMainThings->addParam(paramSet, summary, paramID, &paramSet->params[paramID]);
+				ModelStackWithParamCollection* modelStackWithParamCollection =
+				    modelStackWithThreeMainThings->addParamCollectionSummary(summary);
+				if (modelStackWithParamCollection) {
+					ModelStackWithParamId* ModelStackWithParamId = modelStackWithParamCollection->addParamId(paramID);
+					if (ModelStackWithParamId) {
+						modelStackWithParam = summary->paramCollection->getAutoParamFromId(ModelStackWithParamId, true);
+					}
+				}
 			}
 		}
 	}
@@ -2976,9 +2981,16 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
 							}
 
 							if (summary) {
-								ParamSet* paramSet = (ParamSet*)summary->paramCollection;
-								modelStackWithParam = modelStackWithThreeMainThings->addParam(
-								    paramSet, summary, paramID, &paramSet->params[paramID]);
+								ModelStackWithParamCollection* modelStackWithParamCollection =
+								    modelStackWithThreeMainThings->addParamCollectionSummary(summary);
+								if (modelStackWithParamCollection) {
+									ModelStackWithParamId* ModelStackWithParamId =
+									    modelStackWithParamCollection->addParamId(paramID);
+									if (ModelStackWithParamId) {
+										modelStackWithParam =
+										    summary->paramCollection->getAutoParamFromId(ModelStackWithParamId, true);
+									}
+								}
 							}
 						}
 					}
@@ -2998,9 +3010,16 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
 				summary = modelStackWithThreeMainThings->paramManager->getUnpatchedParamSetSummary();
 
 				if (summary) {
-					ParamSet* paramSet = (ParamSet*)summary->paramCollection;
-					modelStackWithParam =
-					    modelStackWithThreeMainThings->addParam(paramSet, summary, paramID, &paramSet->params[paramID]);
+					ModelStackWithParamCollection* modelStackWithParamCollection =
+					    modelStackWithThreeMainThings->addParamCollectionSummary(summary);
+					if (modelStackWithParamCollection) {
+						ModelStackWithParamId* ModelStackWithParamId =
+						    modelStackWithParamCollection->addParamId(paramID);
+						if (ModelStackWithParamId) {
+							modelStackWithParam =
+							    summary->paramCollection->getAutoParamFromId(ModelStackWithParamId, true);
+						}
+					}
 				}
 			}
 		}
