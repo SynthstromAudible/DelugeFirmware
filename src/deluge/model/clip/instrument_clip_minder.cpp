@@ -369,6 +369,11 @@ yesLoadInstrument:
 	// Select button, without shift
 	else if (b == SELECT_ENC && !Buttons::isShiftButtonPressed()) {
 		if (on && currentUIMode == UI_MODE_NONE) {
+			if ((currentSong->currentClip->output->type == InstrumentType::KIT)
+			    && (((InstrumentClip*)currentSong->currentClip)->affectEntire)) {
+				soundEditor.setupKitGlobalFXMenu = true;
+			}
+
 			if (!soundEditor.setup(currentSong->currentClip)) {
 				return ActionResult::DEALT_WITH;
 			}
@@ -485,25 +490,15 @@ void InstrumentClipMinder::calculateDefaultRootNote() {
 }
 
 void InstrumentClipMinder::drawActualNoteCode(int16_t noteCode) {
-	int32_t octave = (noteCode) / 12 - 2;
-	int32_t noteCodeWithinOctave = (uint16_t)(noteCode + 120) % (uint8_t)12;
-
 	char noteName[5];
-	noteName[0] = noteCodeToNoteLetter[noteCodeWithinOctave];
-	char* writePos = &noteName[1];
-	if (display->haveOLED()) {
-		if (noteCodeIsSharp[noteCodeWithinOctave]) {
-			*writePos = '#';
-			writePos++;
-		}
-	}
-	intToString(octave, writePos, 1);
+	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
+	noteCodeToString(noteCode, noteName, &isNatural);
 
 	if (display->haveOLED()) {
 		display->popupTextTemporary(noteName);
 	}
 	else {
-		uint8_t drawDot = noteCodeIsSharp[noteCodeWithinOctave] ? 0 : 255;
+		uint8_t drawDot = !isNatural ? 0 : 255;
 		display->setText(noteName, false, drawDot, true);
 	}
 }

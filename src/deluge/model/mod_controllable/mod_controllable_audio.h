@@ -81,6 +81,7 @@ public:
 	                                 int32_t readAutomationUpToPos);
 	static void initParams(ParamManager* paramManager);
 	virtual void wontBeRenderedForAWhile();
+	void beginStutter(ParamManagerForTimeline* paramManager);
 	void endStutter(ParamManagerForTimeline* paramManager);
 	virtual bool setModFXType(ModFXType newType);
 	bool offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
@@ -163,7 +164,6 @@ protected:
 	               DelayWorkingState* delayWorkingState, int32_t* postFXVolume, ParamManager* paramManager,
 	               int32_t analogDelaySaturationAmount);
 	int32_t getStutterRate(ParamManager* paramManager);
-	void beginStutter(ParamManagerForTimeline* paramManager);
 	void switchDelayPingPong();
 	void switchDelayAnalog();
 	void switchDelaySyncType();

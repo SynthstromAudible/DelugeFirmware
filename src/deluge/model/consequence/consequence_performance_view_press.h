@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2023 Synthstrom Audible Limited
+ * Copyright © 2017-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -14,23 +14,18 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
 */
+
 #pragma once
-#include "gui/menu_item/unpatched_param.h"
-#include "gui/ui/sound_editor.h"
+#include "gui/views/performance_session_view.h"
+#include "model/consequence/consequence.h"
+#include <cstdint>
 
-namespace deluge::gui::menu_item::audio_clip {
-class LPFFreq final : public UnpatchedParam {
+class ConsequencePerformanceViewPress final : public Consequence {
 public:
-	using UnpatchedParam::UnpatchedParam;
+	ConsequencePerformanceViewPress(FXColumnPress fxPressBefore[kDisplayWidth],
+	                                FXColumnPress fxPressAfter[kDisplayWidth], int32_t xDisplay);
+	int32_t revert(TimeType time, ModelStack* modelStack);
 
-	// 7Seg ONLY
-	void drawValue() override {
-		if (this->getValue() == kMaxMenuValue) {
-			display->setText(l10n::get(l10n::String::STRING_FOR_DISABLED));
-		}
-		else {
-			UnpatchedParam::drawValue();
-		}
-	}
+	int32_t xDisplayChanged = kNoSelection;
+	FXColumnPress fxPress[2];
 };
-} // namespace deluge::gui::menu_item::audio_clip

@@ -100,10 +100,10 @@ public:
 	void redrawNumericDisplay();
 
 	uint32_t selectedClipTimePressed;
-	uint8_t selectedClipYDisplay; // Where the clip is on screen
-	uint8_t selectedClipYDisplayForColorChange = 255;
+	uint8_t selectedClipYDisplay;      // Where the clip is on screen
 	uint8_t selectedClipPressYDisplay; // Where the user's finger actually is on screen
 	uint8_t selectedClipPressXDisplay;
+	bool clipWasSelectedWithShift; // Whether shift was held when clip pad started to be held
 	bool performActionOnPadRelease;
 	bool
 	    performActionOnSectionPadRelease; // Keep this separate from the above one because we don't want a mod encoder action to set this to false
@@ -112,7 +112,11 @@ public:
 
 	Clip* getClipForLayout();
 
+	// Members for grid layout
+	inline bool gridFirstPadActive() { return (gridFirstPressedX != -1 && gridFirstPressedY != -1); }
+
 private:
+	void renderViewDisplay(char const* viewString);
 	void sectionPadAction(uint8_t y, bool on);
 	void clipPressEnded();
 	void drawSectionRepeatNumber();
@@ -161,8 +165,6 @@ private:
 	int32_t gridFirstPressedY = -1;
 	int32_t gridSecondPressedX = -1;
 	int32_t gridSecondPressedY = -1;
-
-	inline bool gridFirstPadActive() { return (gridFirstPressedX != -1 && gridFirstPressedY != -1); }
 
 	inline bool gridSecondPadInactive() { return (gridSecondPressedX == -1 && gridSecondPressedY == -1); }
 
