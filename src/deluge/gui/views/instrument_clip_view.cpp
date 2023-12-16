@@ -3567,7 +3567,7 @@ void InstrumentClipView::drawDrumName(Drum* drum, bool justPopUp) {
 	char const* newText;
 
 	if (display->haveOLED()) {
-		char buffer[30];
+		char buffer[50];
 
 		if (!drum) {
 			newText = "No sound";
@@ -3585,12 +3585,16 @@ void InstrumentClipView::drawDrumName(Drum* drum, bool justPopUp) {
 				indicator_leds::blinkLed(IndicatorLED::CV, 1, 1);
 			}
 			else { // MIDI
-				strcpy(buffer, "MIDI channel ");
-				intToString(((MIDIDrum*)drum)->channel + 1, &buffer[13]);
-				strcat(buffer, ", note ");
-				char* pos = strchr(buffer, 0);
-				intToString(((MIDIDrum*)drum)->note, pos);
+				char topLine[30];
+				char noteLabel[5];
 
+				sprintf(topLine, "CH: %d  N#: %d", ((MIDIDrum*)drum)->channel + 1, ((MIDIDrum*)drum)->note);
+				noteCodeToString(((MIDIDrum*)drum)->note, noteLabel);
+
+				const char* lines[] = {topLine, noteLabel};
+
+				char bufferLines[50];
+				concatenateLines(lines, sizeof(lines) / sizeof(lines[0]), buffer);
 				indicator_leds::blinkLed(IndicatorLED::MIDI, 1, 1);
 			}
 		}

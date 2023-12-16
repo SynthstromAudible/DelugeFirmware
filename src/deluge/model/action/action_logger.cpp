@@ -35,6 +35,7 @@
 #include "model/consequence/consequence_clip_begin_linear_record.h"
 #include "model/consequence/consequence_note_array_change.h"
 #include "model/consequence/consequence_param_change.h"
+#include "model/consequence/consequence_performance_view_press.h"
 #include "model/consequence/consequence_swing_change.h"
 #include "model/consequence/consequence_tempo_change.h"
 #include "model/drum/kit.h"
@@ -59,7 +60,9 @@ void ActionLogger::deleteLastActionIfEmpty() {
 	if (firstAction[BEFORE]) {
 
 		// There are probably more cases where we might want to do this, but I've only done it for recording so far
-		while (!firstAction[BEFORE]->firstConsequence) {
+		// Paul: reinstating the original for now because it seems there are broken pointers in this list which lead to crashes, we need to fix after release
+		// while (!firstAction[BEFORE]->firstConsequence) {
+		if (firstAction[BEFORE]->type == ACTION_RECORD && !firstAction[BEFORE]->firstConsequence) {
 
 			deleteLastAction();
 		}
@@ -81,7 +84,8 @@ Action* ActionLogger::getNewAction(int32_t newActionType, int32_t addToExistingI
 	deleteLog(AFTER);
 
 	// If not on a View, not allowed!
-	if (getCurrentUI() != getRootUI()) {
+	// Exception for performanceSessionView where the view can interact with soundEditor UI
+	if ((getCurrentUI() != getRootUI()) && (getRootUI() != &performanceSessionView)) {
 		return NULL;
 	}
 
@@ -295,6 +299,25 @@ void ActionLogger::recordTempoChange(uint64_t timePerBigBefore, uint64_t timePer
 			    new (consMemory) ConsequenceTempoChange(timePerBigBefore, timePerBigAfter);
 			action->addConsequence(newConsequence);
 		}
+	}
+}
+
+/// Record Performance View Hold Press
+void ActionLogger::recordPerformanceViewPress(FXColumnPress fxPressBefore[kDisplayWidth],
+                                              FXColumnPress fxPressAfter[kDisplayWidth], int32_t xDisplay) {
+
+	Action* action = getNewAction(ACTION_PARAM_UNAUTOMATED_VALUE_CHANGE, true);
+
+	if (!action) {
+		return;
+	}
+
+	void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequencePerformanceViewPress));
+
+	if (consMemory) {
+		ConsequencePerformanceViewPress* newConsequence =
+		    new (consMemory) ConsequencePerformanceViewPress(fxPressBefore, fxPressAfter, xDisplay);
+		action->addConsequence(newConsequence);
 	}
 }
 

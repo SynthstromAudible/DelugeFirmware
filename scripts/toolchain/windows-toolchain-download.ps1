@@ -6,7 +6,7 @@ $download_dir = (Get-Item "$PSScriptRoot\..\..").FullName
 $toolchain_version = $args[0]
 $toolchain_target_path = $args[1]
 
-$toolchain_url = "https://github.com/litui/dbt-toolchain/releases/download/v$toolchain_version/dbt-toolchain-$toolchain_version-win32-x86_64.zip"
+$toolchain_url = "https://github.com/SynthstromAudible/dbt-toolchain/releases/download/v$toolchain_version/dbt-toolchain-$toolchain_version-win32-x86_64.zip"
 $toolchain_dist_folder = "win32-x86_64"
 $toolchain_zip = "$toolchain_dist_folder-$toolchain_version.zip"
 
