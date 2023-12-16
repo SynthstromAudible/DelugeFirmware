@@ -458,13 +458,76 @@ traverseClips:
 		goto traverseClips;
 	}
 
-	modeNotes[0] = 0;
-	numModeNotes = 1;
-	for (int32_t n = 1; n < 12; n++) {
-		if (notesWithinOctavePresent[n]) {
-			addModeNote(n);
+	// Determine the majorness or minorness of the scale
+	int32_t majorness = 0;
+
+	// The 3rd is the main indicator of majorness, to my ear
+	if (notesWithinOctavePresent[4]) {
+		majorness++;
+	}
+	if (notesWithinOctavePresent[3]) {
+		majorness--;
+	}
+
+	// If it's still a tie, try the 2nd, 6th, and 7th to help us decide
+	if (majorness == 0) {
+		if (notesWithinOctavePresent[1]) {
+			majorness--;
+		}
+		if (notesWithinOctavePresent[8]) {
+			majorness--;
+		}
+		if (notesWithinOctavePresent[9]) {
+			majorness++;
 		}
 	}
+
+	bool moreMajor = (majorness >= 0);
+
+	modeNotes[0] = 0;
+	numModeNotes = 1;
+
+	// 2nd
+	addMajorDependentModeNotes(1, true, notesWithinOctavePresent);
+
+	// 3rd
+	addMajorDependentModeNotes(3, moreMajor, notesWithinOctavePresent);
+
+	// 4th, 5th
+	if (notesWithinOctavePresent[5]) {
+		addModeNote(5);
+		if (notesWithinOctavePresent[6]) {
+			addModeNote(6);
+			if (notesWithinOctavePresent[7]) {
+				addModeNote(7);
+			}
+		}
+		else {
+			addModeNote(7);
+		}
+	}
+	else {
+		if (notesWithinOctavePresent[6]) {
+			if (notesWithinOctavePresent[7] || moreMajor) {
+				addModeNote(6);
+				addModeNote(7);
+			}
+			else {
+				addModeNote(5);
+				addModeNote(6);
+			}
+		}
+		else {
+			addModeNote(5);
+			addModeNote(7);
+		}
+	}
+
+	// 6th
+	addMajorDependentModeNotes(8, moreMajor, notesWithinOctavePresent);
+
+	// 7th
+	addMajorDependentModeNotes(10, moreMajor, notesWithinOctavePresent);
 
 	// Adjust scroll for Clips with the scale. Crudely - not as high quality as happens for the Clip being processed in enterScaleMode();
 	int32_t numMoreNotes = (int32_t)numModeNotes - oldNumModeNotes;
