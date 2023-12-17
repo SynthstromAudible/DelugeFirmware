@@ -1939,7 +1939,7 @@ displayNudge:
 			case 2:
 				// Fine tempo adjustment
 
-				uint32_t tempoBPM = calculateBPM(currentSong->getTimePerTimerTickFloat()) + 0.5;
+				int32_t tempoBPM = calculateBPM(currentSong->getTimePerTimerTickFloat()) + 0.5;
 				tempoBPM += offset;
 				if (tempoBPM > 0) {
 					currentSong->setBPM(tempoBPM, true);

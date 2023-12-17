@@ -102,29 +102,12 @@ bool MelodicInstrument::readTagFromFile(char const* tagName) {
 	return true;
 }
 
-MIDIMatchType MelodicInstrument::checkMatch(MIDIDevice* fromDevice, int32_t midiChannel) {
-	uint8_t corz = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(midiChannel);
-
-	if (midiInput.equalsDevice(fromDevice) && midiInput.channelOrZone == corz) {
-		if (midiInput.channelOrZone == midiChannel) {
-			return MIDIMatchType::CHANNEL;
-		}
-		bool master = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isMasterChannel(midiChannel);
-		if (master) {
-			return MIDIMatchType::MPE_MASTER;
-		}
-		else {
-			return MIDIMatchType::MPE_MEMBER;
-		}
-	}
-	return MIDIMatchType::NO_MATCH;
-}
-
 void MelodicInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on,
                                           int32_t midiChannel, int32_t note, int32_t velocity, bool shouldRecordNotes,
                                           bool* doingMidiThru) {
 	int16_t const* mpeValues = zeroMPEValues;
 	int16_t const* mpeValuesOrNull = NULL;
+  
 	MIDIMatchType match = MIDIMatchType::NO_MATCH;
 	//check if channel = midifollow channel and midi follow is enabled and current clip is the active clip
 	//if so, identify it as a match so incoming midi note is processed
@@ -132,8 +115,9 @@ void MelodicInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelSt
 		match = MIDIMatchType::CHANNEL;
 	}
 	else {
-		match = checkMatch(fromDevice, midiChannel);
+		match = midiInput.checkMatch(fromDevice, midiChannel);
 	}
+  
 	int32_t highlightNoteValue = -1;
 	switch (match) {
 	case MIDIMatchType::NO_MATCH:
@@ -336,7 +320,7 @@ void MelodicInstrument::offerReceivedPitchBend(ModelStackWithTimelineCounter* mo
                                                MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
                                                bool* doingMidiThru) {
 	int32_t newValue;
-	switch (checkMatch(fromDevice, channel)) {
+	switch (midiInput.checkMatch(fromDevice, channel)) {
 
 	case MIDIMatchType::NO_MATCH:
 		return;
@@ -370,7 +354,7 @@ void MelodicInstrument::offerReceivedCC(ModelStackWithTimelineCounter* modelStac
                                         bool* doingMidiThru) {
 	int yCC = 1;
 	int32_t value32 = 0;
-	switch (checkMatch(fromDevice, channel)) {
+	switch (midiInput.checkMatch(fromDevice, channel)) {
 
 	case MIDIMatchType::NO_MATCH:
 		return;
@@ -415,7 +399,7 @@ void MelodicInstrument::offerReceivedAftertouch(ModelStackWithTimelineCounter* m
                                                 MIDIDevice* fromDevice, int32_t channel, int32_t value,
                                                 int32_t noteCode, bool* doingMidiThru) {
 	int32_t valueBig = (int32_t)value << 24;
-	switch (checkMatch(fromDevice, channel)) {
+	switch (midiInput.checkMatch(fromDevice, channel)) {
 
 	case MIDIMatchType::NO_MATCH:
 		return;
