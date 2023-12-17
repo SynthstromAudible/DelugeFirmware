@@ -447,8 +447,19 @@ void readSettings() {
 	midiEngine.midiFollowFeedback = buffer[131];
 	*/
 
+	/* Bytes 132-134 have migrated from a previous location. Loading firmware either side
+	   of the change sequentially can risk reading arbitrary data, which will
+	   cast to an enum of the right type, but with a value that matches none of
+	   the available enum values. Pick a valid default if this happens. */
 	defaultSessionLayout = static_cast<SessionLayoutType>(buffer[132]);
+	if (defaultSessionLayout >= SessionLayoutType::SessionLayoutTypeMaxElement) {
+		defaultSessionLayout = SessionLayoutType::SessionLayoutTypeRows;
+	}
+
 	defaultKeyboardLayout = static_cast<KeyboardLayoutType>(buffer[133]);
+	if (defaultKeyboardLayout >= KeyboardLayoutType::KeyboardLayoutTypeMaxElement) {
+		defaultKeyboardLayout = KeyboardLayoutTypeIsomorphic;
+	}
 
 	gridUnarmEmptyPads = buffer[134];
 
