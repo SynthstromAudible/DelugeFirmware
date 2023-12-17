@@ -622,13 +622,12 @@ doOther:
 		}
 
 		if (Buttons::isShiftButtonPressed()) {
-			pasteNotes();
+			pasteNotes(true);
 		}
 		else {
 			copyNotes();
 		}
 	}
-
 	else if (b == TEMPO_ENC && isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)
 	         && runtimeFeatureSettings.get(RuntimeFeatureSettingType::Quantize) == RuntimeFeatureStateToggle::On) {
 		//prevent Tempo pop-up , when note is pressed
@@ -642,14 +641,19 @@ doOther:
 				if (inCardRoutine) {
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 				}
-
-				// Zoom to max if we weren't already there...
-				if (!zoomToMax()) {
-					// Or if we didn't need to do that, double Clip length
-					doubleClipLengthAction();
+				if (Buttons::isButtonPressed(deluge::hid::button::CROSS_SCREEN_EDIT)) {
+					pasteNotes(false);
 				}
 				else {
-					displayZoomLevel();
+					// Zoom to max if we weren't already there...
+
+					if (!zoomToMax()) {
+						// Or if we didn't need to do that, double Clip length
+						doubleClipLengthAction();
+					}
+					else {
+						displayZoomLevel();
+					}
 				}
 			}
 			enterUIMode(
@@ -917,9 +921,29 @@ void InstrumentClipView::copyNotes() {
 	    getCurrentClip()->getYNoteFromYDisplay(0, currentSong); //currentSong->currentClip->yScroll;
 
 	CopiedNoteRow** prevPointer = &firstCopiedNoteRow;
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+	uint8_t isFilteredCopy = getNumNoteRowsAuditioning() > 0; // any note rows pesseed
 
 	for (int32_t i = 0; i < getCurrentClip()->noteRows.getNumElements(); i++) {
 		NoteRow* thisNoteRow = getCurrentClip()->noteRows.getElement(i);
+		/* this is a little hacky, ideally we could get the yDisplay 
+		   of thisNoteRow efficiently, but the one we calculate will have to do now
+
+		   considered isNoteRowAuditioning but that required a modelstack and this was leaner
+		*/
+		int32_t noteRowYDisplay;
+		if (currentSong->currentClip->output->type == InstrumentType::KIT) { // yDisplay for Kits
+			noteRowYDisplay = i - getCurrentClip()->yScroll;
+		}
+		else { // Or for non-Kits
+			int32_t yVisual = currentSong->getYVisualFromYNote(thisNoteRow->y, getCurrentClip()->inScaleMode);
+			noteRowYDisplay = yVisual - getCurrentClip()->yScroll;
+		}
+		if (isFilteredCopy) {
+			if (!auditionPadIsPressed[noteRowYDisplay])
+				continue;
+		}
 
 		// If this NoteRow has any notes...
 		if (!thisNoteRow->hasNoNotes()) {
@@ -958,13 +982,7 @@ ramError:
 				// Fill in some details for the row
 				newCopiedNoteRow->numNotes = numNotes;
 				newCopiedNoteRow->yNote = thisNoteRow->y;
-				if (currentSong->currentClip->output->type == InstrumentType::KIT) { // yDisplay for Kits
-					newCopiedNoteRow->yDisplay = i - getCurrentClip()->yScroll;
-				}
-				else { // Or for non-Kits
-					int32_t yVisual = currentSong->getYVisualFromYNote(thisNoteRow->y, getCurrentClip()->inScaleMode);
-					newCopiedNoteRow->yDisplay = yVisual - getCurrentClip()->yScroll;
-				}
+				newCopiedNoteRow->yDisplay = noteRowYDisplay;
 
 				// Fill in all the Notes' details
 				for (int32_t n = 0; n < numNotes; n++) {
@@ -1045,7 +1063,7 @@ void InstrumentClipView::pasteAutomation(int32_t whichModEncoder) {
 	}
 }
 
-void InstrumentClipView::pasteNotes() {
+void InstrumentClipView::pasteNotes(bool overwriteExisting = true) {
 
 	if (!firstCopiedNoteRow) {
 		return;
@@ -1074,13 +1092,15 @@ ramError:
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
-	getCurrentClip()->clearArea(modelStack, startPos, endPos, action);
+	if (overwriteExisting) {
+		getCurrentClip()->clearArea(modelStack, startPos, endPos, action);
+	}
 
 	// Kit
 	if (currentSong->currentClip->output->type == InstrumentType::KIT) {
-
 		for (CopiedNoteRow* thisCopiedNoteRow = firstCopiedNoteRow; thisCopiedNoteRow;
 		     thisCopiedNoteRow = thisCopiedNoteRow->next) {
+			// the vertical offset of the copied y note added to the current yscr
 			int32_t noteRowId = thisCopiedNoteRow->yDisplay + getCurrentClip()->yScroll;
 
 			if (noteRowId < 0) {
@@ -2863,12 +2883,10 @@ void InstrumentClipView::setRowProbability(int32_t offset) {
 
 void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) {
 	char buffer[(display->haveOLED()) ? 29 : 5];
-	char* displayString;
 
 	// FILL mode
 	if (probability == kFillProbabilityValue) {
 		strcpy(buffer, "FILL");
-		displayString = buffer;
 	}
 
 	// Probability dependence
@@ -2884,7 +2902,6 @@ void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) 
 		if (display->have7SEG()) {
 			intToString(probability * 5, buffer);
 		}
-		displayString = buffer;
 	}
 
 	// Iteration dependence
@@ -2914,10 +2931,10 @@ void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) 
 	}
 
 	if (display->haveOLED()) {
-		display->popupText(displayString, DisplayPopupType::PROBABILITY);
+		display->popupText(buffer, DisplayPopupType::PROBABILITY);
 	}
 	if (display->have7SEG()) {
-		display->displayPopup(displayString, 0, true, prevBase ? 3 : 255, 1, DisplayPopupType::PROBABILITY);
+		display->displayPopup(buffer, 0, true, prevBase ? 3 : 255, 1, DisplayPopupType::PROBABILITY);
 	}
 }
 

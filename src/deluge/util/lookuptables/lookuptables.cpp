@@ -182,26 +182,8 @@ const int16_t tanHSmall[] = {
 32729, 32733, 32736, 32739, 32742, 32745, 32748, 32750, 32753, 32755, 32757, 32759, 32761, 32762, 32764, 32766,
 32767, };
 
-std::array<char const*, 18> presetScaleNames = {
-	"MAJOR",
-	"MINOR",
-	"DORIAN",
-	"PHRYGIAN",
-	"LYDIAN",
-	"MIXOLYDIAN",
-	"LOCRIAN",
-	"MELODIC MINOR",
-	"HARMONIC MINOR",
-	"GYPSY",
-	"HUNGARIAN MINOR",
-	"ROMANIAN",
-	"MARVA",
-	"TODI",
-	"PERSIAN",
-	"ORIENTAL",
-	"RANDOM",
-	"NONE"
-};
+
+std::array<char const*, 9> presetScaleNames = {"MAJOR", "MINOR", "DORIAN", "PHRYGIAN", "LYDIAN", "MIXOLYDIAN", "LOCRIAN", "RANDOM", "NONE"};
 
 deluge::l10n::String presetReverbNames[] = {
 	deluge::l10n::String::STRING_FOR_SMALL_ROOM_REVERB, //<
@@ -286,24 +268,14 @@ const int16_t oldResonanceCompensation[] = {
 };
 
 
-// Note: Value of note intervals taken from here: https://www.apassion4jazz.net/scales2.html
 const uint8_t presetScaleNotes[NUM_PRESET_SCALES][7] = {
 		{0, 2, 4, 5, 7, 9, 11}, // Major
-		{0, 2, 3, 5, 7, 8, 10}, // Natural Minor
+		{0, 2, 3, 5, 7, 8, 10}, // Minor
 		{0, 2, 3, 5, 7, 9, 10}, // Dorian (minor with raised 6th)
 		{0, 1, 3, 5, 7, 8, 10}, // Phrygian (minor with flattened 2nd)
 		{0, 2, 4, 6, 7, 9, 11}, // Lydian (major with raised 4th)
 		{0, 2, 4, 5, 7, 9, 10}, // Mixolydian (major with flattened 7th)
 		{0, 1, 3, 5, 6, 8, 10}, // Locrian (minor with flattened 2nd and 5th)
-		{0, 2, 3, 5, 7, 9, 11}, // Melodic Minor (Asc)
-		{0, 2, 3, 5, 7, 8, 11}, // Harmonic Minor
-		{0, 2, 3, 6, 7, 8, 10}, // Gypsy (Hungarian)
-		{0, 2, 3, 6, 7, 8, 11}, // Hungarian Minor
-		{0, 2, 3, 6, 7, 9, 10}, // Romanian (Ukranian Dorian)
-		{0, 1, 4, 6, 7, 9, 11}, // Marva (Indian)
-		{0, 1, 3, 6, 7, 8, 11}, // Todi (Indian)
-		{0, 1, 4, 5, 6, 8, 11}, // Persian
-		{0, 1, 4, 5, 6, 9, 10}, // Oriental
 };
 
 

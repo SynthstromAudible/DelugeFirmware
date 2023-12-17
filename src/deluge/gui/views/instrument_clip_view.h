@@ -215,7 +215,7 @@ private:
 	void setRowProbability(int32_t offset);
 	void displayProbability(uint8_t probability, bool prevBase);
 	void copyNotes();
-	void pasteNotes();
+	void pasteNotes(bool overwriteExisting);
 	void deleteCopiedNoteRows();
 
 	void createDrumForAuditionedNoteRow(DrumType drumType);
