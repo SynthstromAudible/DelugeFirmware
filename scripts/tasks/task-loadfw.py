@@ -6,11 +6,22 @@ from tqdm import tqdm
 import argparse
 import datetime
 import mido
+import re
 import os
 import psutil
 import shutil
 import subprocess
+import sys
 import time
+
+def platform_arch():
+    # forgive me
+    env_ssl_path = os.environ.get("SSL_CERT_FILE")
+    match = re.search(r"/toolchain/([^/]+)/", env_ssl_path)
+    if match:
+        folder = match.group(1)
+        return folder
+
 
 def argparser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -122,7 +133,7 @@ def load_sd(args) -> None:
         raise
 
 def load_sysex(args) -> None:
-    loadfw_path = Path("./toolchain/darwin-arm64/loadfw")
+    loadfw_path = Path(f"./toolchain/{platform_arch()}/loadfw")
     # Check if loadfw exists, if not compile it
     if not loadfw_path.exists():
         compile_command = ["gcc", "./contrib/load/loadfw.c", "src/deluge/util/pack.c", "-Isrc/deluge", "-o", str(loadfw_path)]

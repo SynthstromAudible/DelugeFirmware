@@ -61,7 +61,7 @@ void Debug::sysexReceived(MIDIDevice* device, uint8_t* data, int32_t len) {
 }
 
 void Debug::sysexDebugPrint(const char* msg, bool nl) {
-	if (midiDebugDevice == nullptr || !SYSEX_LOGGING_ENABLED || !msg)  {
+	if (midiDebugDevice == nullptr || !SYSEX_LOGGING_ENABLED || !msg) {
 		return;
 	}
 	// data[4]: reserved, could serve as a message identifier to filter messages per category
@@ -78,7 +78,6 @@ void Debug::sysexDebugPrint(const char* msg, bool nl) {
 		reply[5 + len] = '\n';
 		len++;
 	}
-
 
 	reply[5 + len] = 0xf7;
 	//0xf0, 0x7d, 0x03, 0x40, 0x00, 'm', 's', 'g', 'e', 't', ' ', 't', 'o', ' ', 'd', 'e', 'b', 'u', 'g', 'g', 0xf7
