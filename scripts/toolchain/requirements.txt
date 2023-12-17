@@ -11,3 +11,4 @@ mido==1.3
 python-rtmidi
 iterfzf
 psutil
+tqdm

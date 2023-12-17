@@ -688,9 +688,13 @@ startAgain:
 		if (sideChainHitPending != 0) {
 			reverbCompressor.registerHit(sideChainHitPending);
 		}
+#if DO_AUDIO_LOG
 		rvb.begin();
+#endif
 		compressorOutput = reverbCompressor.render(numSamples, reverbCompressorShapeInEffect);
+#if DO_AUDIO_LOG
 		rvb.note();
+#endif
 	}
 
 	int32_t reverbAmplitudeL;

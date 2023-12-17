@@ -131,14 +131,10 @@ def main() -> int:
         for message in port:
             if message.type == 'sysex':
                 if len(message.data) > 5 and message.bytes()[0:5] == [0xf0, 0x7d, 0x03, 0x40, 0x00]:
-                  #print(message.hex())
                   target_bytes = unpack_7bit_to_8bit(message.bin()[5:-1])
                   # Debug message 
                   decoded = target_bytes.decode('ascii')
                   sys.stdout.write(decoded.replace("\n", f"\n[{timestamp}] "))
-                
-                  #print(message.hex())
-
     return 0
 
 if __name__ == "__main__":

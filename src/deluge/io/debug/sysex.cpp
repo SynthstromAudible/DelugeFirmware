@@ -60,9 +60,9 @@ void Debug::sysexReceived(MIDIDevice* device, uint8_t* data, int32_t len) {
 	}
 }
 
-void Debug::sysexDebugPrint(MIDIDevice* device, const char* msg, bool nl) {
-	if (!msg) {
-		return; // Do not do that
+void Debug::sysexDebugPrint(const char* msg, bool nl) {
+	if (midiDebugDevice == nullptr || !SYSEX_LOGGING_ENABLED || !msg)  {
+		return;
 	}
 	// data[4]: reserved, could serve as a message identifier to filter messages per category
 	uint8_t reply_hdr[5] = {0xf0, 0x7d, 0x03, 0x40, 0x00};
@@ -79,10 +79,13 @@ void Debug::sysexDebugPrint(MIDIDevice* device, const char* msg, bool nl) {
 		len++;
 	}
 
+
 	reply[5 + len] = 0xf7;
 	//0xf0, 0x7d, 0x03, 0x40, 0x00, 'm', 's', 'g', 'e', 't', ' ', 't', 'o', ' ', 'd', 'e', 'b', 'u', 'g', 'g', 0xf7
 
-	device->sendSysex(reply, len + 6);
+	if (midiDebugDevice != nullptr) { // rare race condition
+		midiDebugDevice->sendSysex(reply, len + 6);
+	}
 }
 
 #ifdef ENABLE_SYSEX_LOAD
@@ -91,6 +94,8 @@ static size_t load_bufsize;
 static size_t load_codesize;
 
 static void firstPacket(uint8_t* data, int32_t len) {
+	Debug::println("sysex.cpp/firstPacket");
+	// pause debug print over sysex
 	uint8_t tmpbuf[0x40] __attribute__((aligned(CACHE_LINE_SIZE)));
 	unpack_7bit_to_8bit(tmpbuf, 0x40, data + 11, 0x4a);
 	uint32_t user_code_start = *(uint32_t*)(tmpbuf + OFF_USER_CODE_START);
@@ -142,6 +147,7 @@ void Debug::loadPacketReceived(uint8_t* data, int32_t len) {
 }
 
 void Debug::loadCheckAndRun(uint8_t* data, int32_t len) {
+	Debug::println("sysex.cpp/loadCheckAndRun");
 	uint32_t handshake = runtimeFeatureSettings.get(RuntimeFeatureSettingType::DevSysexAllowed);
 	if (handshake == 0) {
 		return; // not allowed
@@ -169,7 +175,6 @@ void Debug::loadCheckAndRun(uint8_t* data, int32_t len) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CHECKSUM_FAIL));
 		return;
 	}
-
 	chainload_from_buf(load_buf, load_codesize);
 }
 #endif

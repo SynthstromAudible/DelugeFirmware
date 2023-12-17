@@ -1,14 +1,16 @@
 #! /usr/bin/env python3
-import argparse
-from pathlib import Path
-import subprocess
-import os
-import datetime
-from pathlib import Path
 from iterfzf import iterfzf
+from pathlib import Path
+from pathlib import Path
+from tqdm import tqdm
+import argparse
+import datetime
 import mido
+import os
 import psutil
 import shutil
+import subprocess
+import time
 
 def argparser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -143,8 +145,16 @@ def load_sysex(args) -> None:
     if args.verbose:
         print(f"Sending syx file to {device}")
 
+    MAX_KB_SEC = 300
+    bytes_sent_sec = 0
     with mido.open_output(device) as output:
-        for msg in mido.read_syx_file("output.syx"):
+        for msg in tqdm(mido.read_syx_file("output.syx")):
+            bytes_sent_sec +=len(msg.bin())
+            if bytes_sent_sec > MAX_KB_SEC*1024:
+                time.sleep(1)
+                bytes_sent_sec = 0
+            else:
+                time.sleep(0.001)
             output.send(msg)
     print(f"Sent syx file: {args.build} to device {args.device}")
 

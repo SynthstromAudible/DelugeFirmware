@@ -25,7 +25,7 @@ class MIDIDevice;
 namespace Debug {
 
 void sysexReceived(MIDIDevice* device, uint8_t* data, int32_t len);
-void sysexDebugPrint(MIDIDevice* device, const char* msg, bool nl);
+void sysexDebugPrint(const char* msg, bool nl);
 
 #ifdef ENABLE_SYSEX_LOAD
 void loadPacketReceived(uint8_t* data, int32_t len);

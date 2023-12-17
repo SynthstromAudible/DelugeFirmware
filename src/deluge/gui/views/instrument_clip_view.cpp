@@ -168,7 +168,6 @@ void InstrumentClipView::setLedStates() {
 
 ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
-
 	// Scale mode button
 	if (b == SCALE_MODE) {
 		if (inCardRoutine) {
