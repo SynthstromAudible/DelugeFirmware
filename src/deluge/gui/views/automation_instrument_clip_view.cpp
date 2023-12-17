@@ -1023,7 +1023,7 @@ void AutomationInstrumentClipView::getParameterName(InstrumentClip* clip, Instru
 
 //adjust the LED meters and update the display
 
-/*updated function for displaying automation when playback is enabled (called from ui_timer_manager). 
+/*updated function for displaying automation when playback is enabled (called from ui_timer_manager).
 Also used internally in the automation instrument clip view for updating the display and led indicators.*/
 
 void AutomationInstrumentClipView::displayAutomation(bool padSelected, bool updateDisplay) {
@@ -2942,7 +2942,7 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
 				ModelStackWithParamCollection* modelStackWithParamCollection =
 				    modelStackWithThreeMainThings->addParamCollectionSummary(summary);
 				if (modelStackWithParamCollection) {
-					ModelStackWithParamId* ModelStackWithParamId = modelStackWithParamCollection->addParamId(paramID);
+					ModelStackWithParamId* modelStackWithParamId = modelStackWithParamCollection->addParamId(paramID);
 					if (ModelStackWithParamId) {
 						modelStackWithParam = summary->paramCollection->getAutoParamFromId(ModelStackWithParamId, true);
 					}
@@ -2984,7 +2984,7 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
 								ModelStackWithParamCollection* modelStackWithParamCollection =
 								    modelStackWithThreeMainThings->addParamCollectionSummary(summary);
 								if (modelStackWithParamCollection) {
-									ModelStackWithParamId* ModelStackWithParamId =
+									ModelStackWithParamId* modelStackWithParamId =
 									    modelStackWithParamCollection->addParamId(paramID);
 									if (ModelStackWithParamId) {
 										modelStackWithParam =
@@ -3013,7 +3013,7 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
 					ModelStackWithParamCollection* modelStackWithParamCollection =
 					    modelStackWithThreeMainThings->addParamCollectionSummary(summary);
 					if (modelStackWithParamCollection) {
-						ModelStackWithParamId* ModelStackWithParamId =
+						ModelStackWithParamId* modelStackWithParamId =
 						    modelStackWithParamCollection->addParamId(paramID);
 						if (ModelStackWithParamId) {
 							modelStackWithParam =
