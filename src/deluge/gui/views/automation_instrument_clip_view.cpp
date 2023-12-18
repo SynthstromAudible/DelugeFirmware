@@ -1023,7 +1023,7 @@ void AutomationInstrumentClipView::getParameterName(InstrumentClip* clip, Instru
 
 //adjust the LED meters and update the display
 
-/*updated function for displaying automation when playback is enabled (called from ui_timer_manager). 
+/*updated function for displaying automation when playback is enabled (called from ui_timer_manager).
 Also used internally in the automation instrument clip view for updating the display and led indicators.*/
 
 void AutomationInstrumentClipView::displayAutomation(bool padSelected, bool updateDisplay) {
@@ -2939,9 +2939,14 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
 			}
 
 			if (summary) {
-				ParamSet* paramSet = (ParamSet*)summary->paramCollection;
-				modelStackWithParam =
-				    modelStackWithThreeMainThings->addParam(paramSet, summary, paramID, &paramSet->params[paramID]);
+				ModelStackWithParamCollection* modelStackWithParamCollection =
+				    modelStackWithThreeMainThings->addParamCollectionSummary(summary);
+				if (modelStackWithParamCollection) {
+					ModelStackWithParamId* modelStackWithParamId = modelStackWithParamCollection->addParamId(paramID);
+					if (modelStackWithParamId) {
+						modelStackWithParam = summary->paramCollection->getAutoParamFromId(modelStackWithParamId, true);
+					}
+				}
 			}
 		}
 	}
@@ -2976,9 +2981,16 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
 							}
 
 							if (summary) {
-								ParamSet* paramSet = (ParamSet*)summary->paramCollection;
-								modelStackWithParam = modelStackWithThreeMainThings->addParam(
-								    paramSet, summary, paramID, &paramSet->params[paramID]);
+								ModelStackWithParamCollection* modelStackWithParamCollection =
+								    modelStackWithThreeMainThings->addParamCollectionSummary(summary);
+								if (modelStackWithParamCollection) {
+									ModelStackWithParamId* modelStackWithParamId =
+									    modelStackWithParamCollection->addParamId(paramID);
+									if (modelStackWithParamId) {
+										modelStackWithParam =
+										    summary->paramCollection->getAutoParamFromId(modelStackWithParamId, true);
+									}
+								}
 							}
 						}
 					}
@@ -2998,9 +3010,16 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
 				summary = modelStackWithThreeMainThings->paramManager->getUnpatchedParamSetSummary();
 
 				if (summary) {
-					ParamSet* paramSet = (ParamSet*)summary->paramCollection;
-					modelStackWithParam =
-					    modelStackWithThreeMainThings->addParam(paramSet, summary, paramID, &paramSet->params[paramID]);
+					ModelStackWithParamCollection* modelStackWithParamCollection =
+					    modelStackWithThreeMainThings->addParamCollectionSummary(summary);
+					if (modelStackWithParamCollection) {
+						ModelStackWithParamId* modelStackWithParamId =
+						    modelStackWithParamCollection->addParamId(paramID);
+						if (modelStackWithParamId) {
+							modelStackWithParam =
+							    summary->paramCollection->getAutoParamFromId(modelStackWithParamId, true);
+						}
+					}
 				}
 			}
 		}
