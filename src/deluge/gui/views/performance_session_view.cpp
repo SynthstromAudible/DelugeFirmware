@@ -1286,9 +1286,9 @@ ModelStackWithAutoParam* PerformanceSessionView::getModelStackWithParam(ModelSta
 			ModelStackWithParamCollection* modelStackWithParamCollection =
 			    modelStack->addParamCollectionSummary(summary);
 			if (modelStackWithParamCollection) {
-				ModelStackWithParamId* ModelStackWithParamId = modelStackWithParamCollection->addParamId(paramID);
-				if (ModelStackWithParamId) {
-					modelStackWithParam = summary->paramCollection->getAutoParamFromId(ModelStackWithParamId, true);
+				ModelStackWithParamId* modelStackWithParamId = modelStackWithParamCollection->addParamId(paramID);
+				if (modelStackWithParamId) {
+					modelStackWithParam = summary->paramCollection->getAutoParamFromId(modelStackWithParamId, true);
 				}
 			}
 		}

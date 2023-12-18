@@ -287,7 +287,9 @@ void MidiSessionView::renderViewDisplay() {
 		strncat(channelBuffer, l10n::get(l10n::String::STRING_FOR_MIDI_CHANNEL), 9);
 
 		char buffer[5];
-		intToString(midiEngine.midiFollowChannelSynth + 1, buffer);
+		intToString(midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)].channelOrZone
+		                + 1,
+		            buffer);
 
 		strncat(channelBuffer, buffer, 4);
 
@@ -298,7 +300,8 @@ void MidiSessionView::renderViewDisplay() {
 		strncat(channelBuffer, l10n::get(l10n::String::STRING_FOR_MIDI_CHANNEL), 9);
 
 		memset(buffer, 0, 5);
-		intToString(midiEngine.midiFollowChannelKit + 1, buffer);
+		intToString(midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)].channelOrZone + 1,
+		            buffer);
 
 		strncat(channelBuffer, buffer, 4);
 
@@ -309,7 +312,9 @@ void MidiSessionView::renderViewDisplay() {
 		strncat(channelBuffer, l10n::get(l10n::String::STRING_FOR_MIDI_CHANNEL), 9);
 
 		memset(buffer, 0, 5);
-		intToString(midiEngine.midiFollowChannelParam + 1, buffer);
+		intToString(midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)].channelOrZone
+		                + 1,
+		            buffer);
 
 		strncat(channelBuffer, buffer, 4);
 
@@ -552,7 +557,7 @@ void MidiSessionView::potentialShortcutPadAction(int32_t xDisplay, int32_t yDisp
 /// used in midi learning view to learn a cc received to a grid sized array in the shortcut positions
 /// corresponding to valid learnable parameters
 void MidiSessionView::learnCC(int32_t channel, int32_t ccNumber) {
-	if (channel == midiEngine.midiFollowChannelParam) {
+	if (channel == midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)].channelOrZone) {
 		if (lastPadPress.isActive) {
 			if (paramToCC[lastPadPress.xDisplay][lastPadPress.yDisplay] != ccNumber) {
 				//init knobPos for current param

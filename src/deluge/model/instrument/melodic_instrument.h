@@ -75,8 +75,8 @@ public:
 	                                                      int32_t channelOrNoteNumber,
 	                                                      MIDICharacteristic whichCharacteristic) = 0;
 
-	void offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone, int32_t whichBendRange,
-	                          int32_t bendSemitones);
+	void offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* fromDevice, int32_t channelOrZone,
+	                          int32_t whichBendRange, int32_t bendSemitones);
 
 	Arpeggiator arpeggiator;
 
@@ -86,5 +86,5 @@ public:
 	LearnedMIDI midiInput;
 
 private:
-	bool shouldMidiFollow(bool on, int32_t midiChannel);
+	MIDIMatchType shouldMidiFollow(bool on, MIDIDevice* fromDevice, int32_t midiChannel);
 };

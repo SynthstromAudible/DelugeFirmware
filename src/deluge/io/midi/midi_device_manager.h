@@ -99,6 +99,8 @@ void slowRoutine();
 MIDIDevice* readDeviceReferenceFromFile();
 void readDeviceReferenceFromFlash(GlobalMIDICommand whichCommand, uint8_t const* memory);
 void writeDeviceReferenceToFlash(GlobalMIDICommand whichCommand, uint8_t* memory);
+void readDeviceReferenceFromFlash(MIDIFollowChannelType whichType, uint8_t const* memory);
+void writeDeviceReferenceToFlash(MIDIFollowChannelType whichType, uint8_t* memory);
 void recountSmallestMPEZones();
 void writeDevicesToFile();
 void readAHostedDeviceFromFile();

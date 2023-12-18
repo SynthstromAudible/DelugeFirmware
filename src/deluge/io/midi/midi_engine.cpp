@@ -219,9 +219,12 @@ MidiEngine::MidiEngine() {
 	currentlyReceivingSysExSerial = false;
 	midiThru = false;
 	midiFollow = false;
-	midiFollowChannelSynth = 15;
-	midiFollowChannelKit = 15;
-	midiFollowChannelParam = 15;
+	for (auto& midiChannelType : midiEngine.midiFollowChannelType) {
+		midiChannelType.clear();
+	}
+	midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)].channelOrZone = 15;
+	midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)].channelOrZone = 15;
+	midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)].channelOrZone = 15;
 	midiFollowKitRootNote = 36;
 	midiFollowDisplayParam = false;
 	midiFollowFeedback = false;

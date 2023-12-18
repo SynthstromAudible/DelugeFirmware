@@ -112,7 +112,7 @@ public:
 protected:
 	bool isKit() { return true; }
 	bool shouldMidiFollow(ModelStackWithTimelineCounter* modelStack, InstrumentClip* instrumentClip, bool on,
-	                      int32_t channel, int32_t note, Drum* thisDrum);
+	                      MIDIDevice* fromDevice, int32_t channel, int32_t note, Drum* thisDrum);
 
 private:
 	int32_t readDrumFromFile(Song* song, Clip* clip, DrumType drumType, int32_t readAutomationUpToPos);

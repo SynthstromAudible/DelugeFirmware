@@ -1627,17 +1627,20 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 	if (getRootUI() != &midiSessionView) {
 		//if midi follow mode is enabled and current channel is the midi follow channel for params
 		//allow CC's learned in midi session/learning view to control parameters
-		if ((midiEngine.midiFollow) && (channel == midiEngine.midiFollowChannelParam)) {
+		MIDIMatchType match =
+			midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)].checkMatch(fromDevice,
+																										channel);
+		if (midiEngine.midiFollow && match) {
 			//if midi follow feedback and feedback filter is enabled,
 			//check time elapsed since last midi cc was sent with midi feedback for this same ccNumber
 			//if it was greater or equal than 1 second ago, allow received midi cc to go through
 			//this helps avoid additional processing of midi cc's receiver
 			if (!midiEngine.midiFollowFeedback
-			    || (midiEngine.midiFollowFeedback
-			        && (!midiEngine.midiFollowFeedbackFilter
-			            || (midiEngine.midiFollowFeedbackFilter
-			                && ((AudioEngine::audioSampleTimer - midiSessionView.timeLastCCSent[ccNumber])
-			                    >= kSampleRate))))) {
+				|| (midiEngine.midiFollowFeedback
+					&& (!midiEngine.midiFollowFeedbackFilter
+						|| (midiEngine.midiFollowFeedbackFilter
+							&& ((AudioEngine::audioSampleTimer - midiSessionView.timeLastCCSent[ccNumber])
+								>= kSampleRate))))) {
 				offerReceivedCCToMidiFollow(ccNumber, value);
 			}
 			messageUsed = true;
@@ -1661,8 +1664,8 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 
 				if (modelStack->timelineCounterIsSet()) {
 					if (view.modLength
-					    && modelStack->getTimelineCounter()
-					           == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+						&& modelStack->getTimelineCounter()
+							== view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 						modPos = view.modPos;
 						modLength = view.modLength;
 					}
@@ -1672,10 +1675,9 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 
 				// Ok, that above might have just changed modelStack->timelineCounter. So we're basically starting from scratch now from that.
 				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-				    addNoteRowIndexAndStuff(modelStack, noteRowIndex);
+					addNoteRowIndexAndStuff(modelStack, noteRowIndex);
 
-				ModelStackWithAutoParam* modelStackWithParam =
-				    getParamFromMIDIKnob(knob, modelStackWithThreeMainThings);
+				ModelStackWithAutoParam* modelStackWithParam = getParamFromMIDIKnob(knob, modelStackWithThreeMainThings);
 
 				if (modelStackWithParam && modelStackWithParam->autoParam) {
 					int32_t newKnobPos;
@@ -1687,9 +1689,9 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 						}
 
 						int32_t previousValue =
-						    modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
-						int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(
-						    previousValue, modelStackWithParam);
+							modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
+						int32_t knobPos =
+							modelStackWithParam->paramCollection->paramValueToKnobPos(previousValue, modelStackWithParam);
 						int32_t lowerLimit = std::min(-64_i32, knobPos);
 						newKnobPos = knobPos + offset;
 						newKnobPos = std::max(newKnobPos, lowerLimit);
@@ -1704,11 +1706,11 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 
 					//Convert the New Knob Position to a Parameter Value
 					int32_t newValue =
-					    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
+						modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
 
 					//Set the new Parameter Value for the MIDI Learned Parameter
 					modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos,
-					                                                          modLength);
+																			modLength);
 
 					//check if you should display name of the parameter that was changed and the value that has been set
 					if (midiEngine.midiFollowDisplayParam) {
@@ -1865,8 +1867,10 @@ void ModControllableAudio::sendCCWithoutModelStackForMidiFollowFeedback(bool isA
 
 /// called when updating parameter values using mod (gold) encoders or the select encoder in the soudnEditor menu
 void ModControllableAudio::sendCCForMidiFollowFeedback(int32_t ccNumber, int32_t knobPos) {
-	midiEngine.sendCC(midiEngine.midiFollowChannelParam, ccNumber, knobPos + kKnobPosOffset,
-	                  midiEngine.midiFollowChannelParam);
+	midiEngine.sendCC(
+	    midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)].channelOrZone, ccNumber,
+	    knobPos + kKnobPosOffset,
+	    midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)].channelOrZone);
 
 	midiSessionView.timeLastCCSent[ccNumber] = AudioEngine::audioSampleTimer;
 }

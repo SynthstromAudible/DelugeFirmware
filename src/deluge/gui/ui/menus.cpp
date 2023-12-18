@@ -511,7 +511,7 @@ sequence::Direction sequenceDirectionMenu{STRING_FOR_PLAY_DIRECTION};
 UnpatchedParam globalLevelMenu{STRING_FOR_VOLUME_LEVEL, ::Param::Unpatched::GlobalEffectable::VOLUME};
 
 //Pitch
-UnpatchedParam globalVibratoMenu{STRING_FOR_PITCH, ::Param::Unpatched::GlobalEffectable::PITCH_ADJUST};
+UnpatchedParam globalPitchMenu{STRING_FOR_PITCH, ::Param::Unpatched::GlobalEffectable::PITCH_ADJUST};
 
 //Pan
 unpatched_param::Pan globalPanMenu{STRING_FOR_PAN, ::Param::Unpatched::GlobalEffectable::PAN};
@@ -1119,7 +1119,7 @@ menu_item::Submenu soundEditorRootMenuKitGlobalFX{
     STRING_FOR_KIT_GLOBAL_FX,
     {
         &globalLevelMenu,
-        &globalVibratoMenu,
+        &globalPitchMenu,
         &globalPanMenu,
         &globalLPFMenu,
         &globalHPFMenu,
@@ -1219,7 +1219,7 @@ MenuItem* paramShortcutsForKitGlobalFX[][8] = {
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  &globalStutterRateMenu             },
-    {&globalLevelMenu,        nullptr,                 &globalVibratoMenu,             &globalPanMenu,                 nullptr,              &srrMenu,               &bitcrushMenu,            nullptr                            },
+    {&globalLevelMenu,        &globalPitchMenu,        nullptr,               		   &globalPanMenu,                 nullptr,              &srrMenu,               &bitcrushMenu,            nullptr                            },
     {&portaMenu,              nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              &lpfModeMenu,           &globalLPFResMenu,        &globalLPFFreqMenu                 },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              &hpfModeMenu,           &globalHPFResMenu,        &globalHPFFreqMenu                 },

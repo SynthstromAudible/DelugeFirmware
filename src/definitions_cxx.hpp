@@ -810,6 +810,13 @@ enum class MIDITakeoverMode : uint8_t {
 constexpr auto kNumMIDITakeoverModes = util::to_underlying(MIDITakeoverMode::SCALE) + 1;
 constexpr int32_t kMIDITakeoverKnobSyncThreshold = 5;
 
+enum class MIDIFollowChannelType : uint8_t {
+	SYNTH,
+	KIT,
+	PARAM,
+};
+constexpr auto kNumMIDIFollowChannelTypes = util::to_underlying(MIDIFollowChannelType::PARAM) + 1;
+
 constexpr int32_t kNumClustersLoadedAhead = 2;
 
 enum class InputMonitoringMode : uint8_t {
