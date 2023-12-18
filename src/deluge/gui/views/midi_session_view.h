@@ -85,7 +85,7 @@ public:
 
 	//midi follow context
 	Clip* getClipForMidiFollow();
-	Clip* clipLastNoteReceived[128];
+	Clip* clipForLastNoteReceived[128];
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithThreeMainThings* modelStackWithThreeMainThings,
 	                                                ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
 	                                                Clip* clip, int32_t xDisplay, int32_t yDisplay, int32_t ccNumber,

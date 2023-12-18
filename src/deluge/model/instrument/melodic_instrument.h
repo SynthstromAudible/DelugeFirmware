@@ -46,7 +46,7 @@ public:
 
 	void offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
 	                       bool on, int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
-	                       bool* doingMidiThru);
+	                       bool* doingMidiThru, bool doingMidiFollow = false);
 	void offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
 	                            uint8_t channel, uint8_t data1, uint8_t data2, bool* doingMidiThru);
 	void offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,

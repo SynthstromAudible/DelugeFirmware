@@ -633,12 +633,12 @@ void Kit::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, Stere
 }
 
 void Kit::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
-                                         ModelStackWithTimelineCounter* modelStack) {
+                                         ModelStackWithTimelineCounter* modelStack, bool doingMidiFollow) {
 
 	// Do it for this whole Kit
 	ModControllableAudio::offerReceivedCCToLearnedParams(
-	    fromDevice, channel, ccNumber, value,
-	    modelStack); // NOTE: this call may change modelStack->timelineCounter etc!
+	    fromDevice, channel, ccNumber, value, modelStack,
+	    doingMidiFollow); // NOTE: this call may change modelStack->timelineCounter etc!
 
 	// Now do it for each NoteRow / Drum
 	if (modelStack
@@ -999,7 +999,8 @@ void Kit::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** par
 }
 
 void Kit::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on, int32_t channel,
-                            int32_t note, int32_t velocity, bool shouldRecordNotes, bool* doingMidiThru) {
+                            int32_t note, int32_t velocity, bool shouldRecordNotes, bool* doingMidiThru,
+                            bool doingMidiFollow) {
 
 	InstrumentClip* instrumentClip = (InstrumentClip*)modelStack->getTimelineCounterAllowNull(); // Yup it might be NULL
 
@@ -1016,7 +1017,10 @@ void Kit::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevic
 
 		//check if master midi follow mode dictates whether midi note received on this channel should be processed
 		//against the current drum row selected based on the noteRowID and mapping to notes
-		bool midiFollow = shouldMidiFollow(modelStack, instrumentClip, on, fromDevice, channel, note, thisDrum);
+		bool midiFollow = false;
+		if (doingMidiFollow) {
+			midiFollow = shouldMidiFollow(modelStack, instrumentClip, fromDevice, channel, note, thisDrum);
+		}
 
 		// If this is the "input" command, to sound / audition the Drum...
 		// Returns true if midi channel and note match the learned midi note
@@ -1193,14 +1197,11 @@ goingToRecordNoteOnEarly:
 	}
 }
 
-bool Kit::shouldMidiFollow(ModelStackWithTimelineCounter* modelStack, InstrumentClip* instrumentClip, bool on,
+bool Kit::shouldMidiFollow(ModelStackWithTimelineCounter* modelStack, InstrumentClip* instrumentClip,
                            MIDIDevice* fromDevice, int32_t channel, int32_t note, Drum* thisDrum) {
-	Clip* clip = midiSessionView.getClipForMidiFollow();
-
 	MIDIMatchType match = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)].checkMatch(
 	    fromDevice, channel);
-
-	if ((getRootUI() != &midiSessionView) && midiEngine.midiFollow && match && (!on || ((InstrumentClip*)clip == instrumentClip))) {
+	if (match) {
 		ModelStackWithNoteRow* modelStackWithNoteRow;
 		if (instrumentClip) {
 			modelStackWithNoteRow = instrumentClip->getNoteRowForDrum(modelStack, thisDrum);

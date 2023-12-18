@@ -1621,102 +1621,102 @@ ModelStackWithThreeMainThings* ModControllableAudio::addNoteRowIndexAndStuff(Mod
 
 bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber,
                                                           uint8_t value, ModelStackWithTimelineCounter* modelStack,
-                                                          int32_t noteRowIndex) {
+                                                          int32_t noteRowIndex, bool doingMidiFollow) {
 	bool messageUsed = false;
 
-	if (getRootUI() != &midiSessionView) {
+	if (doingMidiFollow) {
 		//if midi follow mode is enabled and current channel is the midi follow channel for params
 		//allow CC's learned in midi session/learning view to control parameters
 		MIDIMatchType match =
-			midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)].checkMatch(fromDevice,
-																										channel);
-		if (midiEngine.midiFollow && match) {
+		    midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)].checkMatch(fromDevice,
+		                                                                                                   channel);
+		if (match) {
 			//if midi follow feedback and feedback filter is enabled,
 			//check time elapsed since last midi cc was sent with midi feedback for this same ccNumber
 			//if it was greater or equal than 1 second ago, allow received midi cc to go through
 			//this helps avoid additional processing of midi cc's receiver
 			if (!midiEngine.midiFollowFeedback
-				|| (midiEngine.midiFollowFeedback
-					&& (!midiEngine.midiFollowFeedbackFilter
-						|| (midiEngine.midiFollowFeedbackFilter
-							&& ((AudioEngine::audioSampleTimer - midiSessionView.timeLastCCSent[ccNumber])
-								>= kSampleRate))))) {
+			    || (midiEngine.midiFollowFeedback
+			        && (!midiEngine.midiFollowFeedbackFilter
+			            || (midiEngine.midiFollowFeedbackFilter
+			                && ((AudioEngine::audioSampleTimer - midiSessionView.timeLastCCSent[ccNumber])
+			                    >= kSampleRate))))) {
 				offerReceivedCCToMidiFollow(ccNumber, value);
-			}
-			messageUsed = true;
-		}
-		// For each MIDI knob...
-		for (int32_t k = 0; k < midiKnobArray.getNumElements(); k++) {
-			MIDIKnob* knob = midiKnobArray.getElement(k);
-
-			// If this is the knob...
-			if (knob->midiInput.equalsNoteOrCC(fromDevice, channel, ccNumber)) {
-
 				messageUsed = true;
+			}
+		}
+	}
+	// For each MIDI knob...
+	for (int32_t k = 0; k < midiKnobArray.getNumElements(); k++) {
+		MIDIKnob* knob = midiKnobArray.getElement(k);
 
-				// See if this message is evidence that the knob is not "relative"
-				if (value >= 16 && value < 112) {
-					knob->relative = false;
+		// If this is the knob...
+		if (knob->midiInput.equalsNoteOrCC(fromDevice, channel, ccNumber)) {
+
+			messageUsed = true;
+
+			// See if this message is evidence that the knob is not "relative"
+			if (value >= 16 && value < 112) {
+				knob->relative = false;
+			}
+			// Only if this exact TimelineCounter is having automation step-edited, we can set the value for just a region.
+			int32_t modPos = 0;
+			int32_t modLength = 0;
+
+			if (modelStack->timelineCounterIsSet()) {
+				if (view.modLength
+				    && modelStack->getTimelineCounter()
+				           == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+					modPos = view.modPos;
+					modLength = view.modLength;
 				}
-				// Only if this exact TimelineCounter is having automation step-edited, we can set the value for just a region.
-				int32_t modPos = 0;
-				int32_t modLength = 0;
 
-				if (modelStack->timelineCounterIsSet()) {
-					if (view.modLength
-						&& modelStack->getTimelineCounter()
-							== view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
-						modPos = view.modPos;
-						modLength = view.modLength;
+				modelStack->getTimelineCounter()->possiblyCloneForArrangementRecording(modelStack);
+			}
+
+			// Ok, that above might have just changed modelStack->timelineCounter. So we're basically starting from scratch now from that.
+			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+			    addNoteRowIndexAndStuff(modelStack, noteRowIndex);
+
+			ModelStackWithAutoParam* modelStackWithParam = getParamFromMIDIKnob(knob, modelStackWithThreeMainThings);
+
+			if (modelStackWithParam && modelStackWithParam->autoParam) {
+				int32_t newKnobPos;
+
+				if (knob->relative) {
+					int32_t offset = value;
+					if (offset >= 64) {
+						offset -= 128;
 					}
 
-					modelStack->getTimelineCounter()->possiblyCloneForArrangementRecording(modelStack);
+					int32_t previousValue =
+					    modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
+					int32_t knobPos =
+					    modelStackWithParam->paramCollection->paramValueToKnobPos(previousValue, modelStackWithParam);
+					int32_t lowerLimit = std::min(-64_i32, knobPos);
+					newKnobPos = knobPos + offset;
+					newKnobPos = std::max(newKnobPos, lowerLimit);
+					newKnobPos = std::min(newKnobPos, 64_i32);
+					if (newKnobPos == knobPos) {
+						continue;
+					}
+				}
+				else {
+					newKnobPos = calculateKnobPosForMidiTakeover(modelStackWithParam, modPos, value, knob);
 				}
 
-				// Ok, that above might have just changed modelStack->timelineCounter. So we're basically starting from scratch now from that.
-				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-					addNoteRowIndexAndStuff(modelStack, noteRowIndex);
+				//Convert the New Knob Position to a Parameter Value
+				int32_t newValue =
+				    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
 
-				ModelStackWithAutoParam* modelStackWithParam = getParamFromMIDIKnob(knob, modelStackWithThreeMainThings);
+				//Set the new Parameter Value for the MIDI Learned Parameter
+				modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos,
+				                                                          modLength);
 
-				if (modelStackWithParam && modelStackWithParam->autoParam) {
-					int32_t newKnobPos;
-
-					if (knob->relative) {
-						int32_t offset = value;
-						if (offset >= 64) {
-							offset -= 128;
-						}
-
-						int32_t previousValue =
-							modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
-						int32_t knobPos =
-							modelStackWithParam->paramCollection->paramValueToKnobPos(previousValue, modelStackWithParam);
-						int32_t lowerLimit = std::min(-64_i32, knobPos);
-						newKnobPos = knobPos + offset;
-						newKnobPos = std::max(newKnobPos, lowerLimit);
-						newKnobPos = std::min(newKnobPos, 64_i32);
-						if (newKnobPos == knobPos) {
-							continue;
-						}
-					}
-					else {
-						newKnobPos = calculateKnobPosForMidiTakeover(modelStackWithParam, modPos, value, knob);
-					}
-
-					//Convert the New Knob Position to a Parameter Value
-					int32_t newValue =
-						modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
-
-					//Set the new Parameter Value for the MIDI Learned Parameter
-					modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos,
-																			modLength);
-
-					//check if you should display name of the parameter that was changed and the value that has been set
-					if (midiEngine.midiFollowDisplayParam) {
-						Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-						view.displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos);
-					}
+				//check if you should display name of the parameter that was changed and the value that has been set
+				if (midiEngine.midiFollowDisplayParam) {
+					Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+					view.displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos);
 				}
 			}
 		}

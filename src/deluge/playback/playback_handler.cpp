@@ -2607,33 +2607,33 @@ void PlaybackHandler::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 	// midi follow mode
-	if ((getRootUI() != &midiSessionView) && midiEngine.midiFollow)
-		Clip* clip = nullptr;
-		if (!on) {
-			// for note off's, see if a note on message was previously sent so you can direct the note off to the right place
-			clip = midiSessionView.clipLastNoteReceived[note];
-		}
-		else {
-			// See if you've currently selected a clip
-			clip = midiSessionView.getClipForMidiFollow();
+	if ((getRootUI() != &midiSessionView) && midiEngine.midiFollow) {
+		Clip* clip = midiSessionView.getClipForMidiFollow();
+		if (!on && !clip) {
+			// for note off's when you're no longer in an active clip,
+			// see if a note on message was previously sent so you can
+			// direct the note off to the right place
+			clip = midiSessionView.clipForLastNoteReceived[note];
 		}
 
 		// Only send if not muted - but let note-offs through always, for safety
 		if (clip && (!on || currentSong->isOutputActiveInArrangement(clip->output))) {
 			if (clip->output->type != InstrumentType::MIDI_OUT) {
-				ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-					modelStack->addTimelineCounter(clip);
+				ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 				//Output is a kit or melodic instrument
 				//Note: Midi instruments not currently supported for midi follow mode
-				clip->output->offerReceivedNote(modelStackWithTimelineCounter, fromDevice, on, channel, note, velocity,
-											shouldRecordNotesNowNow
-												&& currentSong->isOutputActiveInArrangement(
-													clip->output), // Definitely don't record if muted in arrangement
-											doingMidiThru, true);
-				if (on) {
-					midisessionView.clipLastNoteReceived[note] = clip;
-				}		
-			}			
+				if (modelStackWithTimelineCounter) {
+					clip->output->offerReceivedNote(
+						modelStackWithTimelineCounter, fromDevice, on, channel, note, velocity,
+						shouldRecordNotesNowNow
+							&& currentSong->isOutputActiveInArrangement(
+								clip->output), // Definitely don't record if muted in arrangement
+						doingMidiThru, true);
+					if (on) {
+						midiSessionView.clipForLastNoteReceived[note] = clip;
+					}
+				}
+			}
 		}
 	}
 
@@ -2819,6 +2819,27 @@ void PlaybackHandler::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, ui
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+
+	// midi follow mode
+	if ((getRootUI() != &midiSessionView) && midiEngine.midiFollow) {
+		Clip* clip = midiSessionView.getClipForMidiFollow();
+
+		// Only send if not muted - but let note-offs through always, for safety
+		if (clip) {
+			if (clip->output->type != InstrumentType::MIDI_OUT) {
+				ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
+				if (!isMPE) {
+					// See if it's learned to a parameter
+					clip->output->offerReceivedCCToLearnedParams(
+					    fromDevice, channel, ccNumber, value, modelStackWithTimelineCounter,
+					    true); // NOTE: this call may change modelStackWithTimelineCounter->timelineCounter etc!
+				}
+
+				clip->output->offerReceivedCC(modelStackWithTimelineCounter, fromDevice, channel, ccNumber, value,
+				                              doingMidiThru);
+			}
+		}
+	}
 
 	// Go through all Outputs...
 	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {

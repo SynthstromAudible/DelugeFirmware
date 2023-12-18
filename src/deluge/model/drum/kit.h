@@ -51,7 +51,7 @@ public:
 	                  bool shouldLimitDelayFeedback, bool isClipActive);
 	void notifySamplesInterruptsSuspended();
 	void offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
-	                                    ModelStackWithTimelineCounter* modelStack);
+	                                    ModelStackWithTimelineCounter* modelStack, bool doingMidiFollow = false);
 	bool offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
 	                                           ModelStackWithTimelineCounter* modelStack);
 
@@ -85,7 +85,7 @@ public:
 	Output* toOutput() { return this; }
 	void offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
 	                       bool on, int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
-	                       bool* doingMidiThru);
+	                       bool* doingMidiThru, bool doingMidiFollow = false);
 	bool isNoteRowStillAuditioningAsLinearRecordingEnded(NoteRow* noteRow);
 	bool allowNoteTails(NoteRow* noteRow);
 	void stopAnyAuditioning(ModelStack* modelStack);
@@ -111,7 +111,7 @@ public:
 
 protected:
 	bool isKit() { return true; }
-	bool shouldMidiFollow(ModelStackWithTimelineCounter* modelStack, InstrumentClip* instrumentClip, bool on,
+	bool shouldMidiFollow(ModelStackWithTimelineCounter* modelStack, InstrumentClip* instrumentClip,
 	                      MIDIDevice* fromDevice, int32_t channel, int32_t note, Drum* thisDrum);
 
 private:

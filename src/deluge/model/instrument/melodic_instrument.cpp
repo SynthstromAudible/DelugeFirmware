@@ -104,14 +104,18 @@ bool MelodicInstrument::readTagFromFile(char const* tagName) {
 
 void MelodicInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on,
                                           int32_t midiChannel, int32_t note, int32_t velocity, bool shouldRecordNotes,
-                                          bool* doingMidiThru) {
+                                          bool* doingMidiThru, bool doingMidiFollow) {
 	int16_t const* mpeValues = zeroMPEValues;
 	int16_t const* mpeValuesOrNull = NULL;
 
 	//check if channel = midifollow channel and midi follow is enabled and current clip is the active clip
 	//if so, identify it as a match so incoming midi note is processed
-	MIDIMatchType match = shouldMidiFollow(on, fromDevice, midiChannel);
-	if (match == MIDIMatchType::NO_MATCH) {
+	MIDIMatchType match = MIDIMatchType::NO_MATCH;
+	if (doingMidiFollow) {
+		match = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)].checkMatch(
+		    fromDevice, midiChannel);
+	}
+	else {
 		match = midiInput.checkMatch(fromDevice, midiChannel);
 	}
 
@@ -488,7 +492,8 @@ MIDIMatchType MelodicInstrument::shouldMidiFollow(bool on, MIDIDevice* fromDevic
 	    midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)].checkMatch(fromDevice,
 	                                                                                                   midiChannel);
 
-	if ((getRootUI() != &midiSessionView) && midiEngine.midiFollow && match && (!on || ((InstrumentClip*)clip == (InstrumentClip*)activeClip))) {
+	if ((getRootUI() != &midiSessionView) && midiEngine.midiFollow && match
+	    && (!on || ((InstrumentClip*)clip == (InstrumentClip*)activeClip))) {
 		return match;
 	}
 
