@@ -82,6 +82,7 @@ public:
 	void learnCC(MIDIDevice* device, int32_t channel, int32_t ccNumber, int32_t value) {
 		this->setValue(channel);
 		midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)].device = device;
+		midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)].channelOrZone = channel;
 
 		if (soundEditor.getCurrentMenuItem() == this) {
 			if (display->haveOLED()) {

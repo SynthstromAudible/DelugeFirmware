@@ -82,6 +82,7 @@ public:
 	bool learnNoteOn(MIDIDevice* device, int32_t channel, int32_t noteCode) {
 		this->setValue(channel);
 		midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)].device = device;
+		midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)].channelOrZone = channel;
 
 		if (soundEditor.getCurrentMenuItem() == this) {
 			if (display->haveOLED()) {
