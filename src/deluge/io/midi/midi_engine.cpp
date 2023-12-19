@@ -486,6 +486,8 @@ void MidiEngine::sendPolyphonicAftertouch(int32_t channel, uint8_t value, uint8_
 
 void MidiEngine::sendMidi(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2, int32_t filter,
                           bool sendUSB) {
+	bool loopBack = true;
+
 	// Send USB MIDI
 	if (sendUSB) {
 		sendUsbMidi(statusType, channel, data1, data2, filter);
@@ -494,6 +496,11 @@ void MidiEngine::sendMidi(uint8_t statusType, uint8_t channel, uint8_t data1, ui
 	// Send serial MIDI
 	if (statusType == 0x0F || MIDIDeviceManager::dinMIDIPorts.wantsToOutputMIDIOnChannel(channel, filter)) {
 		sendSerialMidi(statusType, channel, data1, data2);
+	}
+
+	// Send loopback to delly
+	if (loopBack) {
+		midiMessageReceived(&MIDIDeviceManager::dinMIDIPorts, statusType, channel, data1, data2, 0, false);
 	}
 }
 
@@ -911,7 +918,7 @@ bool lastWasNoteOn = false;
 #endif
 
 void MidiEngine::midiMessageReceived(MIDIDevice* fromDevice, uint8_t statusType, uint8_t channel, uint8_t data1,
-                                     uint8_t data2, uint32_t* timer) {
+                                     uint8_t data2, uint32_t* timer, bool notDoingLoopback) {
 
 	bool shouldDoMidiThruNow = midiThru;
 
@@ -1029,7 +1036,7 @@ void MidiEngine::midiMessageReceived(MIDIDevice* fromDevice, uint8_t statusType,
 	}
 
 	// Do MIDI-thru if that's on and we didn't decide not to, above. This will let clock messages through along with all other messages, rather than using our special clock-specific system
-	if (shouldDoMidiThruNow) {
+	if (shouldDoMidiThruNow && notDoingLoopback) {
 		bool shouldSendUSB =
 		    (fromDevice == &MIDIDeviceManager::dinMIDIPorts); // Only send out on USB if it didn't originate from USB
 		sendMidi(originalStatusType, channel, data1, originalData2, kMIDIOutputFilterNoMPE,

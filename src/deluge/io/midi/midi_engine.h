@@ -83,7 +83,7 @@ private:
 
 	int32_t getMidiMessageLength(uint8_t statusuint8_t);
 	void midiMessageReceived(MIDIDevice* fromDevice, uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2,
-	                         uint32_t* timer = NULL);
+	                         uint32_t* timer = NULL, bool notDoingLoopback = true);
 
 	void midiSysexReceived(MIDIDevice* device, uint8_t* data, int32_t len);
 	int32_t getPotentialNumConnectedUSBMIDIDevices(int32_t ip);
