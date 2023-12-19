@@ -30,30 +30,49 @@ bool MIDIDeviceLumiKeys::matchesVendorProduct(uint16_t vendorId, uint16_t produc
 }
 
 void MIDIDeviceLumiKeys::hookOnConnected() {
-	sendMCMsNowIfNeeded();
+	uint8_t upperZoneLastChannel = this->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeUpperZoneLastMemberChannel;
+	uint8_t lowerZoneLastChannel = this->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeLowerZoneLastMemberChannel;
 
-	enumerateLumi();
-	sendBufferSpace();
+	RootNote currentRoot = RootNote(currentSong->rootNote % kOctaveSize);
+	Scale currentScale = determineScaleFromNotes(currentSong->modeNotes, currentSong->numModeNotes);
 
-	if (currentSong != NULL) {
-		setRootNote(RootNote(currentSong->rootNote % kOctaveSize));
-		Scale scale = determineScaleFromNotes(currentSong->modeNotes, currentSong->numModeNotes);
-		setScale(scale);
+	if (lowerZoneLastChannel != 0 || upperZoneLastChannel != 15) {
+		setMIDIMode(MIDIMode::MPE);
+
+		// Lumi Keys seems to only allow either Lower or Upper modes
+		// We'll default to Lower mode for now unless Upper is enabled.
+
+		if (upperZoneLastChannel != 15) {
+			setMPEZone(MPEZone::UPPER);
+		}
+		else {
+			setMPEZone(MPEZone::LOWER);
+		}
+
+		setMPENumChannels(15); // Max out to 15 since we can't do split config.
+	}
+	else {
+		// Fall back to single-channel mode if MPE is off
+		setMIDIMode(MIDIMode::SINGLE);
 	}
 
-	sendBufferSpace();
+	// Since we're in the neighbourhood, set the root and scale
+	setRootNote(currentRoot);
+	setScale(currentScale);
 }
 
-void MIDIDeviceLumiKeys::hookOnChangeRootNote(int16_t rootNote) {
-	setRootNote(RootNote(rootNote % kOctaveSize));
+void MIDIDeviceLumiKeys::hookOnWriteHostedDeviceToFile() {
+	// Just call hookOnConnected as the same logic applies.
+	hookOnConnected();
 }
 
-void MIDIDeviceLumiKeys::hookOnChangeScale(uint8_t* scaleNotes, uint8_t noteCount) {
-	Scale scale = determineScaleFromNotes(scaleNotes, noteCount);
+void MIDIDeviceLumiKeys::hookOnChangeRootNote() {
+	setRootNote(RootNote(currentSong->rootNote % kOctaveSize));
+}
+
+void MIDIDeviceLumiKeys::hookOnChangeScale() {
+	Scale scale = determineScaleFromNotes(currentSong->modeNotes, currentSong->numModeNotes);
 	setScale(scale);
-}
-
-void MIDIDeviceLumiKeys::hookOnLearn() {
 }
 
 // Private functions
@@ -82,6 +101,34 @@ void MIDIDeviceLumiKeys::sendLumiCommand(uint8_t* command, uint8_t length) {
 // Enumeration command - responds with Lumi topology dump
 void MIDIDeviceLumiKeys::enumerateLumi() {
 	uint8_t command[4] = {0x01, 0x01, 0x00, 0x5D};
+	sendLumiCommand(command, 4);
+}
+
+void MIDIDeviceLumiKeys::setMIDIMode(MIDIMode midiMode) {
+	uint8_t command[3];
+	command[0] = MIDI_DEVICE_LUMI_KEYS_CONFIG_PREFIX;
+	command[1] = MIDI_DEVICE_LUMI_KEYS_MIDI_MODE_PREFIX;
+	command[2] = sysexMidiModeCodes[(uint8_t)midiMode];
+
+	sendLumiCommand(command, 3);
+}
+
+void MIDIDeviceLumiKeys::setMPEZone(MPEZone mpeZone) {
+	uint8_t command[3];
+	command[0] = MIDI_DEVICE_LUMI_KEYS_CONFIG_PREFIX;
+	command[1] = MIDI_DEVICE_LUMI_KEYS_MPE_ZONE_PREFIX;
+	command[2] = SysexMpeZoneCodes[(uint8_t)mpeZone];
+
+	sendLumiCommand(command, 3);
+}
+
+void MIDIDeviceLumiKeys::setMPENumChannels(uint8_t numChannels) {
+	uint8_t command[4];
+	command[0] = MIDI_DEVICE_LUMI_KEYS_CONFIG_PREFIX;
+	command[1] = MIDI_DEVICE_LUMI_KEYS_MPE_CHANNELS_PREFIX;
+	command[2] = sysexMidiChannel[numChannels - 1][0] + 1;
+	command[3] = sysexMidiChannel[numChannels - 1][1];
+
 	sendLumiCommand(command, 4);
 }
 

@@ -19,7 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/sound_editor.h"
-#include "io/midi/device_specific/midi_device_lumi_keys.h"
+#include "io/midi/device_specific/specific_midi_device.h"
 #include "io/debug/print.h"
 #include "io/midi/midi_engine.h"
 #include "model/model_stack.h"
@@ -288,6 +288,7 @@ void MIDIPort::writeToFile(char const* tagName) {
 
 void MIDIPort::readFromFile(MIDIDevice* deviceToSendMCMsOn) {
 	char const* tagName;
+	bool sentMPEConfig = false;
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "mpeLowerZone")) {
 
@@ -302,6 +303,7 @@ void MIDIPort::readFromFile(MIDIDevice* deviceToSendMCMsOn) {
 							moveLowerZoneOutOfWayOfUpperZone(); // Move self out of way of other - just in case user or MCM has set other and that's the important one they want now.
 							if (deviceToSendMCMsOn) {
 								deviceToSendMCMsOn->sendRPN(0, 0, 6, mpeLowerZoneLastMemberChannel);
+								sentMPEConfig = true;
 							}
 						}
 					}
@@ -324,6 +326,7 @@ void MIDIPort::readFromFile(MIDIDevice* deviceToSendMCMsOn) {
 							moveUpperZoneOutOfWayOfLowerZone(); // Move self out of way of other - just in case user or MCM has set other and that's the important one they want now.
 							if (deviceToSendMCMsOn) {
 								deviceToSendMCMsOn->sendRPN(15, 0, 6, 15 - mpeUpperZoneLastMemberChannel);
+								sentMPEConfig = true;
 							}
 						}
 					}

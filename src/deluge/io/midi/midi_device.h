@@ -160,12 +160,14 @@ public:
 	char const* getDisplayName();
 
 	virtual void hookOnConnected(){};
-	virtual void hookOnChangeRootNote(int16_t rootNote){};
-	virtual void hookOnChangeScale(uint8_t* scaleNotes, uint8_t noteCount){};
-	virtual void hookOnLearn(){};
+	virtual void hookOnWriteHostedDeviceToFile(){};
+	virtual void hookOnChangeRootNote(){};
+	virtual void hookOnChangeScale(){};
 
 	uint16_t vendorId;
 	uint16_t productId;
+
+	bool freshly_connected = true; // Used to trigger hookOnConnected from the input loop
 
 	String name;
 };

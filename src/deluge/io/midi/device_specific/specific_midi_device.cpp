@@ -16,6 +16,7 @@
 */
 
 #include "io/midi/device_specific/specific_midi_device.h"
+#include "io/midi/midi_device_manager.h"
 
 SpecificMidiDeviceType getSpecificMidiDeviceType(uint16_t vendorId, uint16_t productId) {
 	if (MIDIDeviceLumiKeys::matchesVendorProduct(vendorId, productId)) {
@@ -38,4 +39,24 @@ MIDIDeviceUSBHosted* recastSpecificMidiDevice(MIDIDeviceUSBHosted* sourceDevice)
 
 	MIDIDeviceUSBHosted* targetDevice = sourceDevice;
 	return targetDevice;
+}
+
+MIDIDeviceUSBHosted* getSpecificDeviceFromMIDIDevice(MIDIDevice* sourceDevice) {
+	using namespace MIDIDeviceManager;
+	// This depends on the MIDIDevice having been originally cast as something with a name
+	const char* sourceName = sourceDevice->getDisplayName();
+
+	if (sourceDevice->connectionFlags && sourceName) {
+		for (int32_t i = 0; i < hostedMIDIDevices.getNumElements(); i++) {
+			MIDIDeviceUSBHosted* candidate = recastSpecificMidiDevice(hostedMIDIDevices.getElement(i));
+
+			const char* candidateName = candidate->getDisplayName();
+
+			if (sourceName == candidateName && candidate->connectionFlags == sourceDevice->connectionFlags) {
+				return candidate;
+			}
+		}
+	}
+
+	return NULL;
 }

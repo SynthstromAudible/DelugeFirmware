@@ -27,6 +27,9 @@
 #define MIDI_DEVICE_LUMI_KEYS_DEVICE 0x00 // All Devices
 
 #define MIDI_DEVICE_LUMI_KEYS_CONFIG_PREFIX 0x10
+#define MIDI_DEVICE_LUMI_KEYS_MPE_ZONE_PREFIX 0x00
+#define MIDI_DEVICE_LUMI_KEYS_MPE_CHANNELS_PREFIX 0x10
+#define MIDI_DEVICE_LUMI_KEYS_MIDI_MODE_PREFIX 0x20
 #define MIDI_DEVICE_LUMI_KEYS_KEY_PREFIX 0x30
 #define MIDI_DEVICE_LUMI_KEYS_KEY_COUNT 12
 #define MIDI_DEVICE_LUMI_KEYS_SCALE_PREFIX 0x60
@@ -61,6 +64,25 @@ public:
 
 	static constexpr uint8_t sysexManufacturer[3] = {0x00, 0x21, 0x10};
 
+	static constexpr uint8_t sysexMidiChannel[16][2] = {
+		{0x20, 0x00}, // Ch. 1
+		{0x40, 0x00},
+		{0x60, 0x00},
+		{0x00, 0x01},
+		{0x20, 0x01},
+		{0x40, 0x01},
+		{0x60, 0x01},
+		{0x00, 0x02},
+		{0x20, 0x02},
+		{0x40, 0x02},
+		{0x60, 0x02},
+		{0x00, 0x03},
+		{0x20, 0x03},
+		{0x40, 0x03},
+		{0x60, 0x03},
+		{0x00, 0x04} // Ch. 16
+	};
+
 	enum class RootNote { C = 0, C_SHARP, D, D_SHARP, E, F, F_SHARP, G, G_SHARP, A, A_SHARP, B };
 
 	static constexpr uint8_t sysexRootNoteCodes[MIDI_DEVICE_LUMI_KEYS_KEY_COUNT][2] = {
@@ -76,6 +98,28 @@ public:
 	    {0x23, 0x02}, // A
 	    {0x43, 0x02}, // A#
 	    {0x63, 0x02}  // B
+	};
+
+	enum class MIDIMode {
+		MPE = 0,
+		MULTI,
+		SINGLE
+	};
+
+	static constexpr uint8_t sysexMidiModeCodes[3] = {
+		0x20, // MPE
+		0x00, // Multi
+		0x40  // Single
+	};
+
+	enum class MPEZone {
+		LOWER = 0,
+		UPPER
+	};
+
+	static constexpr uint8_t SysexMpeZoneCodes[2] = {
+		0x05, // LOWER
+		0x25  // UPPER
 	};
 
 	enum class Scale {
@@ -141,9 +185,9 @@ public:
 
 	static bool matchesVendorProduct(uint16_t vendorId, uint16_t productId);
 	void hookOnConnected() override;
-	void hookOnChangeRootNote(int16_t rootNote) override;
-	void hookOnChangeScale(uint8_t* scaleNotes, uint8_t noteCount) override;
-	void hookOnLearn() override;
+	void hookOnWriteHostedDeviceToFile() override;
+	void hookOnChangeRootNote() override;
+	void hookOnChangeScale() override;
 
 private:
 	uint8_t sysexChecksum(uint8_t* chkBytes, uint8_t size);
@@ -151,8 +195,10 @@ private:
 
 	void enumerateLumi();
 
+	void setMIDIMode(MIDIMode midiMode);
+	void setMPEZone(MPEZone mpeZone);
+	void setMPENumChannels(uint8_t numChannels);
 	void setRootNote(RootNote rootNote);
-
 	Scale determineScaleFromNotes(uint8_t* modeNotes, uint8_t noteCount);
 	void setScale(Scale scale);
 };

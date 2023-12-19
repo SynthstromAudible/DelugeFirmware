@@ -76,6 +76,12 @@ void slowRoutine() {
 	for (int32_t d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
 		MIDIDeviceUSBHosted* device = (MIDIDeviceUSBHosted*)hostedMIDIDevices.getElement(d);
 		device->sendMCMsNowIfNeeded();
+
+		// This routine placed here because for whatever reason we can't send sysex from hostedDeviceConfigured
+		if (device->freshly_connected) {
+			device->hookOnConnected();
+			device->freshly_connected = false; // Must be set to false here or the hook will run forever
+		}
 	}
 }
 
@@ -240,6 +246,8 @@ extern "C" void hostedDeviceConfigured(int32_t ip, int32_t midiDeviceNum) {
 
 	device->connectedNow(midiDeviceNum);
 	recountSmallestMPEZones(); // Must be called after setting device->connectionFlags
+
+	device->freshly_connected = true; // Used to trigger hookOnConnected from the input loop
 
 	if (display->haveOLED()) {
 		String text;
@@ -431,6 +439,8 @@ worthIt:
 		return;
 	}
 
+	MIDIDeviceUSBHosted* specificMIDIDevice = NULL;
+
 	storageManager.writeOpeningTagBeginning("midiDevices");
 	storageManager.writeFirmwareVersion();
 	storageManager.writeEarliestCompatibleFirmwareVersion("4.0.0");
@@ -451,11 +461,18 @@ worthIt:
 		if (device->worthWritingToFile()) {
 			device->writeToFile("hostedUSBDevice");
 		}
+		// Stow this for the hook  point later
+		specificMIDIDevice = recastSpecificMidiDevice(device);
 	}
 
 	storageManager.writeClosingTag("midiDevices");
 
 	storageManager.closeFileAfterWriting();
+
+	// Hook point for Hosted USB MIDI Device
+	if (specificMIDIDevice != NULL) {
+		specificMIDIDevice->hookOnWriteHostedDeviceToFile();
+	}
 }
 
 bool successfullyReadDevicesFromFile = false; // We'll only do this one time
@@ -561,6 +578,10 @@ checkDevice:
 		}
 
 		storageManager.exitTag();
+	}
+
+	// Hook point!
+	if (device) {
 	}
 }
 
