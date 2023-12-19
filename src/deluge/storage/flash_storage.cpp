@@ -458,6 +458,11 @@ void readSettings() {
 	MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::SYNTH, &buffer[132]);
 	MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::KIT, &buffer[136]);
 	MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::PARAM, &buffer[140]);
+
+	char deviceBuffer[10];
+	intToString((int32_t)midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)].device,
+	            deviceBuffer);
+	display->displayPopup(deviceBuffer);
 }
 
 void writeSettings() {
@@ -581,6 +586,11 @@ void writeSettings() {
 	MIDIDeviceManager::writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType::SYNTH, &buffer[132]);
 	MIDIDeviceManager::writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType::KIT, &buffer[136]);
 	MIDIDeviceManager::writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType::PARAM, &buffer[140]);
+
+	char deviceBuffer[10];
+	intToString((int32_t)midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)].device,
+	            deviceBuffer);
+	display->displayPopup(deviceBuffer);
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer, 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,
