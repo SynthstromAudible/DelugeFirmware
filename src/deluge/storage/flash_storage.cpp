@@ -20,6 +20,7 @@
 #include "gui/menu_item/colour.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/led/pad_leds.h"
+#include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
@@ -459,10 +460,12 @@ void readSettings() {
 	MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::KIT, &buffer[136]);
 	MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::PARAM, &buffer[140]);
 
-	char deviceBuffer[10];
-	intToString((int32_t)midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)].device,
-	            deviceBuffer);
-	display->displayPopup(deviceBuffer);
+	char const* deviceString = l10n::get(l10n::String::STRING_FOR_ANY_MIDI_DEVICE);
+	if (midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)].device) {
+		deviceString = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)]
+		                   .device->getDisplayName();
+	}
+	display->displayPopup(deviceString);
 }
 
 void writeSettings() {
@@ -587,10 +590,12 @@ void writeSettings() {
 	MIDIDeviceManager::writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType::KIT, &buffer[136]);
 	MIDIDeviceManager::writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType::PARAM, &buffer[140]);
 
-	char deviceBuffer[10];
-	intToString((int32_t)midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)].device,
-	            deviceBuffer);
-	display->displayPopup(deviceBuffer);
+	char const* deviceString = l10n::get(l10n::String::STRING_FOR_ANY_MIDI_DEVICE);
+	if (midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)].device) {
+		deviceString = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)]
+		                   .device->getDisplayName();
+	}
+	display->displayPopup(deviceString);
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer, 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,
