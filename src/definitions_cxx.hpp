@@ -403,7 +403,7 @@ enum class PerformanceEditingMode : int32_t {
 
 //Midi Follow Mode Feedback Automation Modes
 
-enum class MIDIFollowFeedbackAutomationMode : int32_t {
+enum class MIDIFollowFeedbackAutomationMode : uint8_t {
 	DISABLED,
 	LOW,
 	MEDIUM,
