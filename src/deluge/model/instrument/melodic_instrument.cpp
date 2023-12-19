@@ -465,11 +465,17 @@ void MelodicInstrument::offerReceivedAftertouch(ModelStackWithTimelineCounter* m
 }
 
 void MelodicInstrument::offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone,
-                                             int32_t whichBendRange, int32_t bendSemitones) {
+                                             int32_t whichBendRange, int32_t bendSemitones, bool doingMidiFollow) {
 
-	//check if channel = midifollow channel and midi follow is enabled and current clip is the active clip
-	//if so, identify it as a match so incoming midi note is processed
-	MIDIMatchType match = shouldMidiFollow(true, device, channelOrZone);
+	MIDIMatchType match = MIDIMatchType::NO_MATCH;
+	if (doingMidiFollow) {
+		//check if:
+		// - device = midifollow device (only if input differation is enabled)
+		// - channel = midifollow channel
+		//if so, identify it as a match so incoming midi note is processed
+		match = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)].checkMatch(
+		    device, channelOrZone);
+	}
 
 	bool offerUpdate = match || midiInput.equalsChannelOrZone(device, channelOrZone);
 

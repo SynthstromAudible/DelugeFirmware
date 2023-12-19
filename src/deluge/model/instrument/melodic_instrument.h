@@ -78,7 +78,7 @@ public:
 	                                                      MIDICharacteristic whichCharacteristic) = 0;
 
 	void offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* fromDevice, int32_t channelOrZone,
-	                          int32_t whichBendRange, int32_t bendSemitones);
+	                          int32_t whichBendRange, int32_t bendSemitones, bool doingMidiFollow = false);
 
 	Arpeggiator arpeggiator;
 

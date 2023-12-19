@@ -140,7 +140,7 @@ public:
 
 	virtual void stopAnyAuditioning(ModelStack* modelStack) {}
 	virtual void offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone,
-	                                  int32_t whichBendRange, int32_t bendSemitones) {}
+	                                  int32_t whichBendRange, int32_t bendSemitones, bool doingMidiFollow = false) {}
 
 	// Arrangement stuff
 	int32_t possiblyBeginArrangementRecording(Song* song, int32_t newPos);
