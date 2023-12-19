@@ -38,21 +38,57 @@ public:
 	bool allowsLearnMode() override { return true; }
 
 	void drawInteger(int32_t textWidth, int32_t textHeight, int32_t yPixel) {
-		char buffer[12];
+		yPixel = 20;
+
+		char const* differentiationString;
+		if (MIDIDeviceManager::differentiatingInputsByDevice) {
+			differentiationString = l10n::get(l10n::String::STRING_FOR_INPUT_DIFFERENTIATION_ON);
+		}
+		else {
+			differentiationString = l10n::get(l10n::String::STRING_FOR_INPUT_DIFFERENTIATION_OFF);
+		}
+		deluge::hid::display::OLED::drawString(differentiationString, 0, yPixel, deluge::hid::display::OLED::oledMainImage[0],
+		                                       OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSizeYUpdated);
+
+		yPixel += kTextSpacingY;
+
+		char const* deviceString = l10n::get(l10n::String::STRING_FOR_FOLLOW_DEVICE_UNASSIGNED);
+		if (midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)].device) {
+			deviceString = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)]
+			                   .device->getDisplayName();
+		}
+		deluge::hid::display::OLED::drawString(deviceString, 0, yPixel, deluge::hid::display::OLED::oledMainImage[0],
+		                                       OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSizeYUpdated);
+		deluge::hid::display::OLED::setupSideScroller(0, deviceString, kTextSpacingX, OLED_MAIN_WIDTH_PIXELS, yPixel,
+		                                              yPixel + 8, kTextSpacingX, kTextSpacingY, false);
+
+		yPixel += kTextSpacingY;
+
 		char const* channelText;
-		if (this->getValue() == MIDI_CHANNEL_MPE_LOWER_ZONE) {
+		if (midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)].channelOrZone
+		    == MIDI_CHANNEL_MPE_LOWER_ZONE) {
 			channelText = l10n::get(l10n::String::STRING_FOR_MPE_LOWER_ZONE);
 		}
-		else if (this->getValue() == MIDI_CHANNEL_MPE_UPPER_ZONE) {
+		else if (midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)].channelOrZone
+		         == MIDI_CHANNEL_MPE_UPPER_ZONE) {
 			channelText = l10n::get(l10n::String::STRING_FOR_MPE_UPPER_ZONE);
 		}
 		else {
-			intToString(this->getValue() + 1, buffer, 1);
-			channelText = buffer;
+			channelText = l10n::get(l10n::String::STRING_FOR_CHANNEL);
+			char buffer[12];
+			int32_t channelmod =
+			    (midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)].channelOrZone
+			     >= IS_A_CC)
+			    * IS_A_CC;
+			intToString(midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)].channelOrZone
+			                + 1 - channelmod,
+			            buffer, 1);
+			deluge::hid::display::OLED::drawString(buffer, kTextSpacingX * 8, yPixel,
+			                                       deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
+			                                       kTextSpacingX, kTextSizeYUpdated);
 		}
-		deluge::hid::display::OLED::drawStringCentred(channelText, yPixel + OLED_MAIN_TOPMOST_PIXEL,
-		                                              deluge::hid::display::OLED::oledMainImage[0],
-		                                              OLED_MAIN_WIDTH_PIXELS, textWidth, textHeight);
+		deluge::hid::display::OLED::drawString(channelText, 0, yPixel, deluge::hid::display::OLED::oledMainImage[0],
+		                                       OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSizeYUpdated);
 	}
 
 	void drawValue() override {
@@ -76,6 +112,21 @@ public:
 			this->setValue(this->getValue() + NUM_CHANNELS);
 		}
 		Number::selectEncoderAction(offset);
+	}
+
+	void unlearnAction() {
+		midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)].device = NULL;
+		if (soundEditor.getCurrentMenuItem() == this) {
+			if (display->haveOLED()) {
+				renderUIsForOled();
+			}
+			else {
+				drawValue();
+			}
+		}
+		else {
+			display->displayPopup(l10n::get(l10n::String::STRING_FOR_UNLEARNED));
+		}
 	}
 
 	bool learnNoteOn(MIDIDevice* device, int32_t channel, int32_t noteCode) {

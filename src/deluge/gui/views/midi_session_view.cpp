@@ -248,7 +248,7 @@ void MidiSessionView::renderViewDisplay() {
 		                                              deluge::hid::display::OLED::oledMainImage[0],
 		                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 
-		yPos = yPos + 9;
+		yPos += kTextSpacingY;
 
 		//Render Follow Mode Enabled Status
 
@@ -265,7 +265,7 @@ void MidiSessionView::renderViewDisplay() {
 		deluge::hid::display::OLED::drawStringCentred(followBuffer, yPos, deluge::hid::display::OLED::oledMainImage[0],
 		                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 
-		yPos = yPos + 9;
+		yPos += kTextSpacingY;
 
 		//render Synth Kit Param on the screen
 
@@ -281,7 +281,7 @@ void MidiSessionView::renderViewDisplay() {
 		                                                 deluge::hid::display::OLED::oledMainImage[0],
 		                                                 OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 
-		yPos = yPos + 9;
+		yPos += kTextSpacingY;
 
 		//Render Follow Mode Master Channel for Synth Kit and Param on the bottom row of screen
 
