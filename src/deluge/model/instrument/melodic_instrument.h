@@ -87,7 +87,4 @@ public:
 	EarlyNoteArray notesAuditioned;
 
 	LearnedMIDI midiInput;
-
-private:
-	MIDIMatchType shouldMidiFollow(bool on, MIDIDevice* fromDevice, int32_t midiChannel);
 };

@@ -510,21 +510,6 @@ void MelodicInstrument::offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice*
 	}
 }
 
-MIDIMatchType MelodicInstrument::shouldMidiFollow(bool on, MIDIDevice* fromDevice, int32_t midiChannel) {
-	Clip* clip = midiSessionView.getClipForMidiFollow();
-
-	MIDIMatchType match =
-	    midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)].checkMatch(fromDevice,
-	                                                                                                   midiChannel);
-
-	if ((getRootUI() != &midiSessionView) && midiEngine.midiFollow && match
-	    && (!on || ((InstrumentClip*)clip == (InstrumentClip*)activeClip))) {
-		return match;
-	}
-
-	return MIDIMatchType::NO_MATCH;
-}
-
 bool MelodicInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) {
 
 	earlyNotes.empty();
