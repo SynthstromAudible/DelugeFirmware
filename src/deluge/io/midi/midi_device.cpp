@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/sound_editor.h"
+#include "io/debug/print.h"
 #include "io/midi/midi_engine.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
@@ -459,7 +460,11 @@ void MIDIDeviceUSBUpstream::writeReferenceAttributesToFile() {
 }
 
 void MIDIDeviceUSBUpstream::writeToFlash(uint8_t* memory) {
-	*(uint16_t*)memory = portNumber ? VENDOR_ID_UPSTREAM_USB : VENDOR_ID_UPSTREAM_USB2;
+	Debug::print("writing to flash port ");
+	Debug::print(portNumber);
+	Debug::print(" into ");
+	*(uint16_t*)memory = portNumber ? VENDOR_ID_UPSTREAM_USB2 : VENDOR_ID_UPSTREAM_USB;
+	Debug::println(*memory);
 }
 
 char const* MIDIDeviceUSBUpstream::getDisplayName() {

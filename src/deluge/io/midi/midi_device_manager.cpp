@@ -56,7 +56,7 @@ struct {
 
 //This class represents a thing you can send midi too,
 //the virtual cable is an implementation detail
-MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port1{};
+MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port1{0};
 MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port2{1};
 MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port3{2};
 MIDIDeviceDINPorts dinMIDIPorts{};
