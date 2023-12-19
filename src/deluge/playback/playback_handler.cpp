@@ -2821,7 +2821,10 @@ void PlaybackHandler::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, ui
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 	// midi follow mode
-	if ((getRootUI() != &midiSessionView) && midiEngine.midiFollow && view.activeModControllableModelStack.modControllable) {
+	if ((getRootUI() != &midiSessionView) && midiEngine.midiFollow
+	    && view.activeModControllableModelStack.modControllable) {
+		//obtain clip for active context
+		Clip* clip = midiSessionView.getClipForMidiFollow();
 		if (!isMPE) {
 			MIDIMatchType match =
 			    midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)].checkMatch(
@@ -2839,10 +2842,19 @@ void PlaybackHandler::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, ui
 				                    >= kSampleRate))))) {
 					// See if it's learned to a parameter
 					((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
-				    ->offerReceivedCCToMidiFollow(ccNumber, value);
+					    ->offerReceivedCCToMidiFollow(modelStack, clip, ccNumber, value);
 				}
 			}
 		}
+		/*if (clip) {
+			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
+			    modelStack->addTimelineCounter(clip);
+
+			if (modelStackWithTimelineCounter) {
+				clip->output->offerReceivedCC(modelStackWithTimelineCounter, fromDevice, channel, ccNumber, value,
+											doingMidiThru);
+			}
+		}*/
 	}
 
 	// Go through all Outputs...

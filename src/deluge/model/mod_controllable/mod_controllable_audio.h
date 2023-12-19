@@ -52,8 +52,10 @@ struct Grain {
 	int32_t panVolR; //0 - 1073741823
 };
 
+class Clip;
 class Knob;
 class MIDIDevice;
+class ModelStack;
 class ModelStackWithTimelineCounter;
 class ParamManager;
 
@@ -86,7 +88,7 @@ public:
 	virtual bool setModFXType(ModFXType newType);
 	bool offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
 	                                    ModelStackWithTimelineCounter* modelStack, int32_t noteRowIndex = -1);
-	void offerReceivedCCToMidiFollow(int32_t ccNumber, int32_t value);
+	void offerReceivedCCToMidiFollow(ModelStack* modelStack, Clip* clip, int32_t ccNumber, int32_t value);
 	void sendCCWithoutModelStackForMidiFollowFeedback(bool isAutomation = false);
 	void sendCCForMidiFollowFeedback(int32_t ccNumber, int32_t knobPos);
 	bool offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,

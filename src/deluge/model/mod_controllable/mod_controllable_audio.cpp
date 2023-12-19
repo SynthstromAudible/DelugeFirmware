@@ -1707,14 +1707,12 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 /// if the cc has been learned, it sets the new value for that parameter
 /// this function works by first checking the active context to see if there is an active clip
 /// to determine if the cc intends to control a song level or clip level parameter
-void ModControllableAudio::offerReceivedCCToMidiFollow(int32_t ccNumber, int32_t value) {
+void ModControllableAudio::offerReceivedCCToMidiFollow(ModelStack* modelStack, Clip* clip, int32_t ccNumber,
+                                                       int32_t value) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = nullptr;
-
-	//obtain clip for active context
-	Clip* clip = midiSessionView.getClipForMidiFollow();
 
 	//setup model stack for the active context
 	if (!clip) {
@@ -1722,11 +1720,8 @@ void ModControllableAudio::offerReceivedCCToMidiFollow(int32_t ccNumber, int32_t
 			modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 		}
 	}
-	else {
-		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
-		if (modelStack) {
-			modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
-		}
+	else if (modelStack) {
+		modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 	}
 
 	//check that model stack is valid
