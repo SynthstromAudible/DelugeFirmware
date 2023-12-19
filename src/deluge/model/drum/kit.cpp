@@ -1199,42 +1199,30 @@ goingToRecordNoteOnEarly:
 	}
 }
 
-bool Kit::shouldMidiFollow(ModelStackWithTimelineCounter* modelStack, InstrumentClip* instrumentClip,
-                           MIDIDevice* fromDevice, int32_t channel, int32_t note, Drum* thisDrum) {
-	MIDIMatchType match = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)].checkMatch(
-	    fromDevice, channel);
-	if (match) {
-		ModelStackWithNoteRow* modelStackWithNoteRow;
-		if (instrumentClip) {
-			modelStackWithNoteRow = instrumentClip->getNoteRowForDrum(modelStack, thisDrum);
-		}
-		else {
-			modelStackWithNoteRow = modelStack->addNoteRow(0, NULL);
-		}
-		if (modelStackWithNoteRow) {
-			//bottom kit noteRowId = 0
-			//default middle C1 note number = 36
-			//noteRowId + 36 = C1 up for kit sounds
-			//this is configurable through the default menu
-			if ((modelStackWithNoteRow->noteRowId + midiEngine.midiFollowKitRootNote) == note) {
-				return true;
-			}
-		}
-	}
-	return false;
-}
-
 void Kit::offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
                                  uint8_t channel, uint8_t data1, uint8_t data2, bool* doingMidiThru,
                                  bool doingMidiFollow) {
 
+	MIDIMatchType match = MIDIMatchType::NO_MATCH;
+	if (doingMidiFollow) {
+		//check if:
+		// - device = midifollow device (only if input differation is enabled)
+		// - channel = midifollow channel
+		//if so, identify it as a match so incoming midi note is processed
+		match = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)].checkMatch(fromDevice,
+		                                                                                                     channel);
+	}
+
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-		if (thisDrum->midiInput.equalsChannelAllowMPE(fromDevice, channel)) {
+		if (match || thisDrum->midiInput.equalsChannelAllowMPE(fromDevice, channel)) {
 			int32_t level = BEND_RANGE_MAIN;
-			if (thisDrum->midiInput.isForMPEZone()) { // If Drum has MPE input.
-				if (channel
-				    == thisDrum->midiInput
-				           .getMasterChannel()) { // Message coming in on master channel - that's "main"/zone-level, too.
+			bool hasMPEInput = (match != MIDIMatchType::CHANNEL) || thisDrum->midiInput.isForMPEZone();
+			if (hasMPEInput) { // If Drum has MPE input.
+				int32_t masterChannel =
+				    match ? midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)]
+				                .getMasterChannel()
+				          : thisDrum->midiInput.getMasterChannel();
+				if (channel == masterChannel) { // Message coming in on master channel - that's "main"/zone-level, too.
 					goto yesThisDrum;
 				}
 				if (channel
@@ -1263,14 +1251,26 @@ void Kit::offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineC
 		return;
 	}
 
-	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-		if (thisDrum->midiInput.equalsChannelAllowMPE(fromDevice, channel)) {
+	MIDIMatchType match = MIDIMatchType::NO_MATCH;
+	if (doingMidiFollow) {
+		//check if:
+		// - device = midifollow device (only if input differation is enabled)
+		// - channel = midifollow channel
+		//if so, identify it as a match so incoming midi note is processed
+		match = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)].checkMatch(fromDevice,
+		                                                                                                     channel);
+	}
 
-			if (thisDrum->midiInput.isForMPEZone()) { // If Drum has MPE input.
+	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
+		if (match || thisDrum->midiInput.equalsChannelAllowMPE(fromDevice, channel)) {
+			bool hasMPEInput = (match != MIDIMatchType::CHANNEL) || thisDrum->midiInput.isForMPEZone();
+			if (hasMPEInput) { // If Drum has MPE input.
 				int32_t level = BEND_RANGE_MAIN;
-				if (channel
-				    == thisDrum->midiInput
-				           .getMasterChannel()) { // Message coming in on master channel - that's "main"/zone-level, too.
+				int32_t masterChannel =
+				    match ? midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)]
+				                .getMasterChannel()
+				          : thisDrum->midiInput.getMasterChannel();
+				if (channel == masterChannel) { // Message coming in on master channel - that's "main"/zone-level, too.
 					goto yesThisDrum;
 				}
 				if (channel
@@ -1294,14 +1294,30 @@ void Kit::offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithT
                                   int32_t channel, int32_t value, int32_t noteCode, bool* doingMidiThru,
                                   bool doingMidiFollow) {
 
+	MIDIMatchType match = MIDIMatchType::NO_MATCH;
+	if (doingMidiFollow && (noteCode == -1)) {
+		//check if:
+		// - device = midifollow device (only if input differation is enabled)
+		// - channel = midifollow channel
+		//if so, identify it as a match so incoming midi note is processed
+		match = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)].checkMatch(fromDevice,
+		                                                                                                     channel);
+	}
+
+	bool hasMPEInput = false;
+
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		int32_t level = BEND_RANGE_MAIN;
 		if (noteCode == -1) { // Channel pressure message...
-			if (thisDrum->midiInput.equalsChannelAllowMPE(fromDevice, channel)) {
-				if (thisDrum->midiInput.isForMPEZone()) { // If Drum has MPE input.
+			if (match || thisDrum->midiInput.equalsChannelAllowMPE(fromDevice, channel)) {
+				hasMPEInput = (match != MIDIMatchType::CHANNEL) || thisDrum->midiInput.isForMPEZone();
+				if (hasMPEInput) { // If Drum has MPE input.
+					int32_t masterChannel =
+					    match ? midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)]
+					                .getMasterChannel()
+					          : thisDrum->midiInput.getMasterChannel();
 					if (channel
-					    == thisDrum->midiInput
-					           .getMasterChannel()) { // Message coming in on master channel - that's "main"/zone-level, too.
+					    == masterChannel) { // Message coming in on master channel - that's "main"/zone-level, too.
 						goto yesThisDrum;
 					}
 					if (channel
@@ -1321,8 +1337,14 @@ yesThisDrum:
 
 		// Or a polyphonic aftertouch message - these aren't allowed for MPE except on the "master" channel.
 		else {
-			if (thisDrum->midiInput.equalsNoteOrCCAllowMPEMasterChannels(fromDevice, channel, noteCode)
-			    && channel == thisDrum->lastMIDIChannelAuditioned) {
+			bool midiFollow = false;
+			if (doingMidiFollow) {
+				midiFollow = shouldMidiFollow(modelStackWithTimelineCounter, (InstrumentClip*)activeClip, fromDevice,
+				                              channel, noteCode, thisDrum);
+			}
+			if (midiFollow
+			    || thisDrum->midiInput.equalsNoteOrCCAllowMPEMasterChannels(fromDevice, channel, noteCode)
+			           && channel == thisDrum->lastMIDIChannelAuditioned) {
 				level = BEND_RANGE_FINGER_LEVEL;
 				goto yesThisDrum;
 			}
@@ -1367,6 +1389,31 @@ void Kit::offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int32
 			}
 		}
 	}
+}
+
+bool Kit::shouldMidiFollow(ModelStackWithTimelineCounter* modelStack, InstrumentClip* instrumentClip,
+                           MIDIDevice* fromDevice, int32_t channel, int32_t note, Drum* thisDrum) {
+	MIDIMatchType match = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)].checkMatch(
+	    fromDevice, channel);
+	if (match) {
+		ModelStackWithNoteRow* modelStackWithNoteRow;
+		if (instrumentClip) {
+			modelStackWithNoteRow = instrumentClip->getNoteRowForDrum(modelStack, thisDrum);
+		}
+		else {
+			modelStackWithNoteRow = modelStack->addNoteRow(0, NULL);
+		}
+		if (modelStackWithNoteRow) {
+			//bottom kit noteRowId = 0
+			//default middle C1 note number = 36
+			//noteRowId + 36 = C1 up for kit sounds
+			//this is configurable through the default menu
+			if ((modelStackWithNoteRow->noteRowId + midiEngine.midiFollowKitRootNote) == note) {
+				return true;
+			}
+		}
+	}
+	return false;
 }
 
 bool Kit::isNoteRowStillAuditioningAsLinearRecordingEnded(NoteRow* noteRow) {

@@ -2754,7 +2754,7 @@ void PlaybackHandler::pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel,
 	if ((getRootUI() != &midiSessionView) && midiEngine.midiFollow) {
 		//obtain clip for active context
 		Clip* clip = midiSessionView.getClipForMidiFollow();
-		if (clip && (clip->output->type == InstrumentType::SYNTH)) {
+		if (clip) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
 			if (modelStackWithTimelineCounter) {
@@ -2859,7 +2859,7 @@ void PlaybackHandler::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, ui
 				}
 			}
 		}
-		if (clip && (clip->output->type == InstrumentType::SYNTH)) {
+		if (clip) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
 			if (modelStackWithTimelineCounter) {
@@ -2909,7 +2909,7 @@ void PlaybackHandler::aftertouchReceived(MIDIDevice* fromDevice, int32_t channel
 	if ((getRootUI() != &midiSessionView) && midiEngine.midiFollow) {
 		//obtain clip for active context
 		Clip* clip = midiSessionView.getClipForMidiFollow();
-		if (clip && (clip->output->type == InstrumentType::SYNTH)) {
+		if (clip) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
 			if (modelStackWithTimelineCounter) {
