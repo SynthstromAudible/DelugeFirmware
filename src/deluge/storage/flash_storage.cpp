@@ -130,9 +130,9 @@ namespace FlashStorage {
 129: midiFollow feedback
 130: midiFollow feedback automation mode
 131: midiFollow feedback filter to handle feedback loops
-132: midiFollow set follow device synth 	product / vendor ids
-136: midiFollow set follow device kit		product / vendor ids
-140: midiFollow set follow device param		product / vendor ids
+132-135: midiFollow set follow device synth 	product / vendor ids
+136-139: midiFollow set follow device kit		product / vendor ids
+140-143: midiFollow set follow device param		product / vendor ids
 */
 
 uint8_t defaultScale;
@@ -459,13 +459,6 @@ void readSettings() {
 	MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::SYNTH, &buffer[132]);
 	MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::KIT, &buffer[136]);
 	MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::PARAM, &buffer[140]);
-
-	char const* deviceString = l10n::get(l10n::String::STRING_FOR_ANY_MIDI_DEVICE);
-	if (midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)].device) {
-		deviceString = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)]
-		                   .device->getDisplayName();
-	}
-	display->displayPopup(deviceString);
 }
 
 void writeSettings() {
@@ -589,13 +582,6 @@ void writeSettings() {
 	MIDIDeviceManager::writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType::SYNTH, &buffer[132]);
 	MIDIDeviceManager::writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType::KIT, &buffer[136]);
 	MIDIDeviceManager::writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType::PARAM, &buffer[140]);
-
-	char const* deviceString = l10n::get(l10n::String::STRING_FOR_ANY_MIDI_DEVICE);
-	if (midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)].device) {
-		deviceString = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)]
-		                   .device->getDisplayName();
-	}
-	display->displayPopup(deviceString);
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer, 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,
