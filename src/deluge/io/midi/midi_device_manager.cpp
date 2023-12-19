@@ -379,7 +379,7 @@ void writeDeviceReferenceToFlash(GlobalMIDICommand whichCommand, uint8_t* memory
 	}
 }
 
-void readDeviceReferenceFromFlash(MIDIFollowChannelType whichType, uint8_t const* memory) {
+void readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType whichType, uint8_t const* memory) {
 
 	uint16_t vendorId = *(uint16_t const*)memory;
 
@@ -408,7 +408,7 @@ void readDeviceReferenceFromFlash(MIDIFollowChannelType whichType, uint8_t const
 	midiEngine.midiFollowChannelType[util::to_underlying(whichType)].device = device;
 }
 
-void writeDeviceReferenceToFlash(MIDIFollowChannelType whichType, uint8_t* memory) {
+void writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType whichType, uint8_t* memory) {
 	if (midiEngine.midiFollowChannelType[util::to_underlying(whichType)].device) {
 		midiEngine.midiFollowChannelType[util::to_underlying(whichType)].device->writeToFlash(memory);
 	}
