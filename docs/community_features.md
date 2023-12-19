@@ -95,7 +95,7 @@ Here is a list of features that have been added to the firmware as a list, group
  - ([#221]) The normal behavior of the Deluge is to try to keep up with 'in progress' notes when instant switching between clips by playing them late. However this leads to glitches with drum clips and other percussive sounds. Changing this setting to OFF will prevent this behavior and *not* try to keep up with those notes, leading to smoother instant switching between clips.
 	- This feature is `ON` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
 
-#### 4.1.5 - New Grid Layout
+#### 4.1.5 - Grid View
 
  - ([#251]) Add new grid session layout to "SONG" mode. All functionality from (classic) row layout applies except for the following:
 	 - The data model of rows and grid mode are compatible, you can switch between them freely
@@ -250,9 +250,9 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
 
 #### 4.4.1 - Keyboard View
 
-##### 4.4.1.1 - Note Offset
+##### 4.4.1.1 - Row Step
 
- - ([#46]) Note offset between rows, `ROW STEP` is now configurable by holding `SHIFT` and turning `◀︎▶︎`. This allows e.g. an isomorphic keyboard layout by setting the row offset to 12. The setting is saved per clip in the song file. The default Deluge Keyboard note offset is 5.
+ - ([#46]) Row Step affects the offset between rows, `ROW STEP` is now configurable by holding `SHIFT` and turning `◀︎▶︎`. The default Deluge Keyboard note offset is 5. A row step of 12 will produce a layout in which any given note's octave is directly above or below it. The setting is saved per clip in the song file. 
 
 ##### 4.4.1.2 - Keyboard API and General Improvements
 
