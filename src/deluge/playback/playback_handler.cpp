@@ -2750,6 +2750,20 @@ void PlaybackHandler::pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel,
 
 	dealingWithReceivedMIDIPitchBendRightNow = true;
 
+	// midi follow mode
+	if ((getRootUI() != &midiSessionView) && midiEngine.midiFollow) {
+		//obtain clip for active context
+		Clip* clip = midiSessionView.getClipForMidiFollow();
+		if (clip && (clip->output->type == InstrumentType::SYNTH)) {
+			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
+
+			if (modelStackWithTimelineCounter) {
+				clip->output->offerReceivedPitchBend(modelStackWithTimelineCounter, fromDevice, channel, data1, data2,
+				                                     doingMidiThru, true);
+			}
+		}
+	}
+
 	// Go through all Outputs...
 	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
 

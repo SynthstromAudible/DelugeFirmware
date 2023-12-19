@@ -314,13 +314,19 @@ justAuditionNote:
 
 void MelodicInstrument::offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
                                                MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
-                                               bool* doingMidiThru) {
+                                               bool* doingMidiThru, bool doingMidiFollow) {
 	int32_t newValue;
 
-	//check if channel = midifollow channel and midi follow is enabled and current clip is the active clip
-	//if so, identify it as a match so incoming midi note is processed
-	MIDIMatchType match = shouldMidiFollow(true, fromDevice, channel);
-	if (match == MIDIMatchType::NO_MATCH) {
+	MIDIMatchType match = MIDIMatchType::NO_MATCH;
+	if (doingMidiFollow) {
+		//check if:
+		// - device = midifollow device (only if input differation is enabled)
+		// - channel = midifollow channel
+		//if so, identify it as a match so incoming midi note is processed
+		match = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)].checkMatch(
+		    fromDevice, channel);
+	}
+	else {
 		match = midiInput.checkMatch(fromDevice, channel);
 	}
 

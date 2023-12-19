@@ -1225,7 +1225,8 @@ bool Kit::shouldMidiFollow(ModelStackWithTimelineCounter* modelStack, Instrument
 }
 
 void Kit::offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
-                                 uint8_t channel, uint8_t data1, uint8_t data2, bool* doingMidiThru) {
+                                 uint8_t channel, uint8_t data1, uint8_t data2, bool* doingMidiThru,
+                                 bool doingMidiFollow) {
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		if (thisDrum->midiInput.equalsChannelAllowMPE(fromDevice, channel)) {
