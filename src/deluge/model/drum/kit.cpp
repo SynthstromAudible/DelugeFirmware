@@ -1216,7 +1216,7 @@ void Kit::offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTi
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		if (match || thisDrum->midiInput.equalsChannelAllowMPE(fromDevice, channel)) {
 			int32_t level = BEND_RANGE_MAIN;
-			bool hasMPEInput = (match != MIDIMatchType::CHANNEL) || thisDrum->midiInput.isForMPEZone();
+			bool hasMPEInput = (match && (match != MIDIMatchType::CHANNEL)) || thisDrum->midiInput.isForMPEZone();
 			if (hasMPEInput) { // If Drum has MPE input.
 				int32_t masterChannel =
 				    match ? midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)]
@@ -1263,7 +1263,7 @@ void Kit::offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineC
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		if (match || thisDrum->midiInput.equalsChannelAllowMPE(fromDevice, channel)) {
-			bool hasMPEInput = (match != MIDIMatchType::CHANNEL) || thisDrum->midiInput.isForMPEZone();
+			bool hasMPEInput = (match && (match != MIDIMatchType::CHANNEL)) || thisDrum->midiInput.isForMPEZone();
 			if (hasMPEInput) { // If Drum has MPE input.
 				int32_t level = BEND_RANGE_MAIN;
 				int32_t masterChannel =
@@ -1310,7 +1310,7 @@ void Kit::offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithT
 		int32_t level = BEND_RANGE_MAIN;
 		if (noteCode == -1) { // Channel pressure message...
 			if (match || thisDrum->midiInput.equalsChannelAllowMPE(fromDevice, channel)) {
-				hasMPEInput = (match != MIDIMatchType::CHANNEL) || thisDrum->midiInput.isForMPEZone();
+				hasMPEInput = (match && (match != MIDIMatchType::CHANNEL)) || thisDrum->midiInput.isForMPEZone();
 				if (hasMPEInput) { // If Drum has MPE input.
 					int32_t masterChannel =
 					    match ? midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)]
