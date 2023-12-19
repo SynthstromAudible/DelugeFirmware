@@ -1014,11 +1014,13 @@ void Kit::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevic
 	                                                  // it true
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-
-		//check if master midi follow mode dictates whether midi note received on this channel should be processed
-		//against the current drum row selected based on the noteRowID and mapping to notes
 		bool midiFollow = false;
 		if (doingMidiFollow) {
+			//check if:
+			// - device = midifollow device (only if input differation is enabled)
+			// - channel = midifollow channel
+			// - thisDrum maps to note received
+			// if yes, offer received note
 			midiFollow = shouldMidiFollow(modelStack, instrumentClip, fromDevice, channel, note, thisDrum);
 		}
 
@@ -1251,7 +1253,7 @@ yesThisDrum:
 }
 
 void Kit::offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
-                          uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru) {
+                          uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru, bool doingMidiFollow) {
 
 	if (ccNumber != 74) {
 		return;

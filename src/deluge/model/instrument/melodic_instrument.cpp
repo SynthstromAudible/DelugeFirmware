@@ -108,10 +108,12 @@ void MelodicInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelSt
 	int16_t const* mpeValues = zeroMPEValues;
 	int16_t const* mpeValuesOrNull = NULL;
 
-	//check if channel = midifollow channel and midi follow is enabled and current clip is the active clip
-	//if so, identify it as a match so incoming midi note is processed
 	MIDIMatchType match = MIDIMatchType::NO_MATCH;
 	if (doingMidiFollow) {
+		//check if:
+		// - device = midifollow device (only if input differation is enabled)
+		// - channel = midifollow channel
+		//if so, identify it as a match so incoming midi note is processed
 		match = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)].checkMatch(
 		    fromDevice, midiChannel);
 	}
@@ -353,14 +355,20 @@ void MelodicInstrument::offerReceivedPitchBend(ModelStackWithTimelineCounter* mo
 
 void MelodicInstrument::offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
                                         MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
-                                        bool* doingMidiThru) {
+                                        bool* doingMidiThru, bool doingMidiFollow) {
 	int yCC = 1;
 	int32_t value32 = 0;
 
-	//check if channel = midifollow channel and midi follow is enabled and current clip is the active clip
-	//if so, identify it as a match so incoming midi note is processed
-	MIDIMatchType match = shouldMidiFollow(true, fromDevice, channel);
-	if (match == MIDIMatchType::NO_MATCH) {
+	MIDIMatchType match = MIDIMatchType::NO_MATCH;
+	if (doingMidiFollow) {
+		//check if:
+		// - device = midifollow device (only if input differation is enabled)
+		// - channel = midifollow channel
+		//if so, identify it as a match so incoming midi note is processed
+		match = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)].checkMatch(
+		    fromDevice, channel);
+	}
+	else {
 		match = midiInput.checkMatch(fromDevice, channel);
 	}
 

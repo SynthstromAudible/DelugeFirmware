@@ -2846,15 +2846,14 @@ void PlaybackHandler::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, ui
 				}
 			}
 		}
-		/*if (clip) {
-			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-			    modelStack->addTimelineCounter(clip);
+		if (clip && (clip->output->type == InstrumentType::SYNTH)) {
+			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
 			if (modelStackWithTimelineCounter) {
 				clip->output->offerReceivedCC(modelStackWithTimelineCounter, fromDevice, channel, ccNumber, value,
-											doingMidiThru);
+				                              doingMidiThru, true);
 			}
-		}*/
+		}
 	}
 
 	// Go through all Outputs...

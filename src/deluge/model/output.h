@@ -132,7 +132,8 @@ public:
 	                                    MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
 	                                    bool* doingMidiThru) {}
 	virtual void offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
-	                             uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru) {}
+	                             uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru,
+	                             bool doingMidiFollow = false) {}
 	virtual void offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
 	                                     MIDIDevice* fromDevice, int32_t channel, int32_t value, int32_t noteCode,
 	                                     bool* doingMidiThru) {}
