@@ -1290,7 +1290,8 @@ yesThisDrum:
 // noteCode -1 means channel-wide, including for MPE input (which then means it could still then just apply to one note).
 // This function could be optimized a bit better, there are lots of calls to similar functions.
 void Kit::offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
-                                  int32_t channel, int32_t value, int32_t noteCode, bool* doingMidiThru) {
+                                  int32_t channel, int32_t value, int32_t noteCode, bool* doingMidiThru,
+                                  bool doingMidiFollow) {
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		int32_t level = BEND_RANGE_MAIN;

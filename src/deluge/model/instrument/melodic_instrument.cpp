@@ -414,13 +414,19 @@ void MelodicInstrument::offerReceivedCC(ModelStackWithTimelineCounter* modelStac
 // noteCode -1 means channel-wide, including for MPE input (which then means it could still then just apply to one note).
 void MelodicInstrument::offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
                                                 MIDIDevice* fromDevice, int32_t channel, int32_t value,
-                                                int32_t noteCode, bool* doingMidiThru) {
+                                                int32_t noteCode, bool* doingMidiThru, bool doingMidiFollow) {
 	int32_t valueBig = (int32_t)value << 24;
 
-	//check if channel = midifollow channel and midi follow is enabled and current clip is the active clip
-	//if so, identify it as a match so incoming midi note is processed
-	MIDIMatchType match = shouldMidiFollow(true, fromDevice, channel);
-	if (match == MIDIMatchType::NO_MATCH) {
+	MIDIMatchType match = MIDIMatchType::NO_MATCH;
+	if (doingMidiFollow) {
+		//check if:
+		// - device = midifollow device (only if input differation is enabled)
+		// - channel = midifollow channel
+		//if so, identify it as a match so incoming midi note is processed
+		match = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)].checkMatch(
+		    fromDevice, channel);
+	}
+	else {
 		match = midiInput.checkMatch(fromDevice, channel);
 	}
 

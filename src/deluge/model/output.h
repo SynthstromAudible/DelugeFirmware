@@ -136,7 +136,7 @@ public:
 	                             bool doingMidiFollow = false) {}
 	virtual void offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
 	                                     MIDIDevice* fromDevice, int32_t channel, int32_t value, int32_t noteCode,
-	                                     bool* doingMidiThru) {}
+	                                     bool* doingMidiThru, bool doingMidiFollow = false) {}
 
 	virtual void stopAnyAuditioning(ModelStack* modelStack) {}
 	virtual void offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone,
