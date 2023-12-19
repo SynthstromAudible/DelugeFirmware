@@ -64,7 +64,7 @@ public:
 	bool midiThru;
 	bool midiFollow;
 	LearnedMIDI midiFollowChannelType[kNumMIDIFollowChannelTypes]; //Synth, Kit, Param
-	int32_t midiFollowKitRootNote;
+	uint8_t midiFollowKitRootNote;
 	bool midiFollowDisplayParam;
 	bool midiFollowFeedback;
 	MIDIFollowFeedbackAutomationMode midiFollowFeedbackAutomation;
