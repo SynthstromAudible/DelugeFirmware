@@ -581,8 +581,7 @@ checkDevice:
 	}
 
 	// Hook point!
-	if (device) {
-	}
+	if (device) {}
 }
 
 } // namespace MIDIDeviceManager

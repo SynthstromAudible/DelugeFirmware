@@ -16,6 +16,11 @@
 */
 
 #include "io/midi/device_specific/midi_device_lumi_keys.h"
+#include "gui/ui/ui.h"
+#include "io/midi/device_specific/specific_midi_device.h"
+#include "model/clip/instrument_clip.h"
+#include "model/instrument/melodic_instrument.h"
+#include "model/note/note_row.h"
 #include "model/song/song.h"
 
 // Determine whether the current device is a Lumi Keys
@@ -59,6 +64,9 @@ void MIDIDeviceLumiKeys::hookOnConnected() {
 	// Since we're in the neighbourhood, set the root and scale
 	setRootNote(currentRoot);
 	setScale(currentScale);
+
+	// Run colour-setting hook.
+	hookOnRecalculateColour();
 }
 
 void MIDIDeviceLumiKeys::hookOnWriteHostedDeviceToFile() {
@@ -73,6 +81,79 @@ void MIDIDeviceLumiKeys::hookOnChangeRootNote() {
 void MIDIDeviceLumiKeys::hookOnChangeScale() {
 	Scale scale = determineScaleFromNotes(currentSong->modeNotes, currentSong->numModeNotes);
 	setScale(scale);
+}
+
+void MIDIDeviceLumiKeys::hookOnEnterScaleMode() {
+	hookOnChangeRootNote();
+	hookOnChangeScale();
+}
+
+void MIDIDeviceLumiKeys::hookOnExitScaleMode() {
+	hookOnChangeRootNote();
+	setScale(Scale::CHROMATIC);
+}
+
+void MIDIDeviceLumiKeys::hookOnMIDILearn() {
+	hookOnRecalculateColour();
+}
+
+void MIDIDeviceLumiKeys::hookOnTransitionToSessionView() {
+	hookOnRecalculateColour();
+}
+
+void MIDIDeviceLumiKeys::hookOnTransitionToClipView() {
+	// recalculate colour already runs on this transition
+	// hookOnRecalculateColour();
+}
+
+void MIDIDeviceLumiKeys::hookOnTransitionToArrangerView() {
+	hookOnRecalculateColour();
+}
+
+void MIDIDeviceLumiKeys::hookOnRecalculateColour() {
+	InstrumentClip* clip = (InstrumentClip*)currentSong->currentClip;
+
+	bool learnedToCurrentClip = false;
+
+	if (clip) {
+		// Determine if learned device on the current clip is the same as this one
+		LearnedMIDI* midiInput = &(((MelodicInstrument*)clip->output)->midiInput);
+		if (midiInput->containsSomething() && midiInput->device) {
+			if (midiInput->device->getDisplayName() == getDisplayName()
+			    && midiInput->device->connectionFlags == connectionFlags) {
+				learnedToCurrentClip = true;
+			}
+		}
+
+		bool applicableUIMode = isUIModeActive(UI_MODE_NONE) || isUIModeActive(UI_MODE_MIDI_LEARN)
+		                        || isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW);
+
+		if (learnedToCurrentClip && applicableUIMode) {
+			uint32_t yPos = 0;
+			uint32_t offset = 0;
+			NoteRow* noteRow = clip->getNoteRowOnScreen(yPos, currentSong);
+
+			if (noteRow) {
+				offset = noteRow->getColourOffset(clip);
+			}
+
+			uint8_t rgb_main[3];
+			uint8_t rgb_tail[3];
+			uint8_t rgb_blur[3];
+
+			clip->getMainColourFromY(clip->getYNoteFromYDisplay(yPos, currentSong), offset, rgb_main);
+			getTailColour(rgb_tail, rgb_main);
+			getBlurColour(rgb_blur, rgb_main);
+
+			setColour(ColourZone::ROOT, rgb_main[0], rgb_main[1], rgb_main[2]);
+			setColour(ColourZone::GLOBAL, rgb_blur[0], rgb_blur[1], rgb_blur[2]);
+
+			return;
+		}
+	}
+
+	setColour(ColourZone::ROOT, 0, 0, 0);
+	setColour(ColourZone::GLOBAL, 0, 0, 0);
 }
 
 // Private functions
@@ -168,3 +249,19 @@ void MIDIDeviceLumiKeys::setScale(Scale scale) {
 
 	sendLumiCommand(command, 4);
 }
+
+void MIDIDeviceLumiKeys::setColour(ColourZone zone, uint8_t r, uint8_t g, uint8_t b) {
+	uint64_t colourBits = 0b00100 | b << 6 | g << 15 | r << 24 | (uint64_t)0b11111100 << 32;
+
+	uint8_t command[7];
+	command[0] = MIDI_DEVICE_LUMI_KEYS_CONFIG_PREFIX;
+	command[1] = zone == ColourZone::ROOT ? MIDI_DEVICE_LUMI_KEYS_CONFIG_ROOT_COLOUR_PREFIX
+	                                      : MIDI_DEVICE_LUMI_KEYS_CONFIG_GLOBAL_COLOUR_PREFIX;
+	command[2] = (uint8_t)colourBits;
+	command[3] = (uint8_t)(colourBits >> 8);
+	command[4] = (uint8_t)(colourBits >> 16);
+	command[5] = (uint8_t)(colourBits >> 24);
+	command[6] = (uint8_t)(colourBits >> 32);
+
+	sendLumiCommand(command, 7);
+};

@@ -19,8 +19,8 @@
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/sound_editor.h"
-#include "io/midi/device_specific/specific_midi_device.h"
 #include "io/debug/print.h"
+#include "io/midi/device_specific/specific_midi_device.h"
 #include "io/midi/midi_engine.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
@@ -455,6 +455,46 @@ void MIDIDeviceUSBHosted::writeToFlash(uint8_t* memory) {
 
 char const* MIDIDeviceUSBHosted::getDisplayName() {
 	return name.get();
+}
+
+void MIDIDeviceUSBHosted::callHook(Hook hook) {
+	switch (hook) {
+	case Hook::HOOK_ON_CONNECTED:
+		hookOnConnected();
+		break;
+	case Hook::HOOK_ON_CHANGE_ROOT_NOTE:
+		hookOnChangeRootNote();
+		break;
+	case Hook::HOOK_ON_CHANGE_SCALE:
+		hookOnChangeScale();
+		break;
+	case Hook::HOOK_ON_ENTER_SCALE_MODE:
+		hookOnEnterScaleMode();
+		break;
+	case Hook::HOOK_ON_EXIT_SCALE_MODE:
+		hookOnExitScaleMode();
+		break;
+	case Hook::HOOK_ON_MIDI_LEARN:
+		hookOnMIDILearn();
+		break;
+	case Hook::HOOK_ON_RECALCULATE_COLOUR:
+		hookOnRecalculateColour();
+		break;
+	case Hook::HOOK_ON_TRANSITION_TO_ARRANGER_VIEW:
+		hookOnTransitionToArrangerView();
+		break;
+	case Hook::HOOK_ON_TRANSITION_TO_CLIP_VIEW:
+		hookOnTransitionToClipView();
+		break;
+	case Hook::HOOK_ON_TRANSITION_TO_SESSION_VIEW:
+		hookOnTransitionToSessionView();
+		break;
+	case Hook::HOOK_ON_WRITE_HOSTED_DEVICE_TO_FILE:
+		hookOnWriteHostedDeviceToFile();
+		break;
+	default:
+		break;
+	}
 }
 
 void MIDIDeviceUSBUpstream::writeReferenceAttributesToFile() {

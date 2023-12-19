@@ -35,8 +35,8 @@
 #define MIDI_DEVICE_LUMI_KEYS_SCALE_PREFIX 0x60
 #define MIDI_DEVICE_LUMI_KEYS_SCALE_COUNT 19
 
-#define MIDI_DEVICE_LUMI_KEYS_CONFIG_ROOT_COLOR_PREFIX 0x30
-#define MIDI_DEVICE_LUMI_KEYS_CONFIG_GLOBAL_COLOR_PREFIX 0x20
+#define MIDI_DEVICE_LUMI_KEYS_CONFIG_ROOT_COLOUR_PREFIX 0x30
+#define MIDI_DEVICE_LUMI_KEYS_CONFIG_GLOBAL_COLOUR_PREFIX 0x20
 
 #define MIDI_DEVICE_LUMI_SCALE_MAJOR 0b101010110101
 #define MIDI_DEVICE_LUMI_SCALE_MINOR 0b010110101101
@@ -65,22 +65,9 @@ public:
 	static constexpr uint8_t sysexManufacturer[3] = {0x00, 0x21, 0x10};
 
 	static constexpr uint8_t sysexMidiChannel[16][2] = {
-		{0x20, 0x00}, // Ch. 1
-		{0x40, 0x00},
-		{0x60, 0x00},
-		{0x00, 0x01},
-		{0x20, 0x01},
-		{0x40, 0x01},
-		{0x60, 0x01},
-		{0x00, 0x02},
-		{0x20, 0x02},
-		{0x40, 0x02},
-		{0x60, 0x02},
-		{0x00, 0x03},
-		{0x20, 0x03},
-		{0x40, 0x03},
-		{0x60, 0x03},
-		{0x00, 0x04} // Ch. 16
+	    {0x20, 0x00}, // Ch. 1
+	    {0x40, 0x00}, {0x60, 0x00}, {0x00, 0x01}, {0x20, 0x01}, {0x40, 0x01}, {0x60, 0x01}, {0x00, 0x02}, {0x20, 0x02},
+	    {0x40, 0x02}, {0x60, 0x02}, {0x00, 0x03}, {0x20, 0x03}, {0x40, 0x03}, {0x60, 0x03}, {0x00, 0x04} // Ch. 16
 	};
 
 	enum class RootNote { C = 0, C_SHARP, D, D_SHARP, E, F, F_SHARP, G, G_SHARP, A, A_SHARP, B };
@@ -100,26 +87,19 @@ public:
 	    {0x63, 0x02}  // B
 	};
 
-	enum class MIDIMode {
-		MPE = 0,
-		MULTI,
-		SINGLE
-	};
+	enum class MIDIMode { MPE = 0, MULTI, SINGLE };
 
 	static constexpr uint8_t sysexMidiModeCodes[3] = {
-		0x20, // MPE
-		0x00, // Multi
-		0x40  // Single
+	    0x20, // MPE
+	    0x00, // Multi
+	    0x40  // Single
 	};
 
-	enum class MPEZone {
-		LOWER = 0,
-		UPPER
-	};
+	enum class MPEZone { LOWER = 0, UPPER };
 
 	static constexpr uint8_t SysexMpeZoneCodes[2] = {
-		0x05, // LOWER
-		0x25  // UPPER
+	    0x05, // LOWER
+	    0x25  // UPPER
 	};
 
 	enum class Scale {
@@ -183,11 +163,20 @@ public:
 	    {0x62, 0x01}, {0x02, 0x02}, {0x22, 0x02}, {0x42, 0x02}, {0x62, 0x02}, {0x02, 0x03}, {0x22, 0x03},
 	    {0x42, 0x03}, {0x62, 0x03}, {0x02, 0x04}, {0x22, 0x04}, {0x42, 0x04}};
 
+	enum class ColourZone { ROOT = 0, GLOBAL };
+
 	static bool matchesVendorProduct(uint16_t vendorId, uint16_t productId);
 	void hookOnConnected() override;
-	void hookOnWriteHostedDeviceToFile() override;
 	void hookOnChangeRootNote() override;
 	void hookOnChangeScale() override;
+	void hookOnEnterScaleMode() override;
+	void hookOnExitScaleMode() override;
+	void hookOnMIDILearn() override;
+	void hookOnRecalculateColour() override;
+	void hookOnTransitionToSessionView() override;
+	void hookOnTransitionToClipView() override;
+	void hookOnTransitionToArrangerView() override;
+	void hookOnWriteHostedDeviceToFile() override;
 
 private:
 	uint8_t sysexChecksum(uint8_t* chkBytes, uint8_t size);
@@ -201,4 +190,5 @@ private:
 	void setRootNote(RootNote rootNote);
 	Scale determineScaleFromNotes(uint8_t* modeNotes, uint8_t noteCount);
 	void setScale(Scale scale);
+	void setColour(ColourZone zone, uint8_t r, uint8_t g, uint8_t b);
 };

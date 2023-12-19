@@ -32,10 +32,10 @@
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "io/debug/print.h"
+#include "io/midi/device_specific/specific_midi_device.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
-#include "io/midi/device_specific/specific_midi_device.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
@@ -562,23 +562,11 @@ traverseClips2:
 		clipArray = &arrangementOnlyClips;
 		goto traverseClips2;
 	}
-
-	// Hook point for specificMidiDevice
-	for (int32_t i = 0; i < MIDIDeviceManager::hostedMIDIDevices.getNumElements(); i++) {
-		MIDIDeviceUSBHosted* specificDevice = recastSpecificMidiDevice(MIDIDeviceManager::hostedMIDIDevices.getElement(i));
-		specificDevice->hookOnChangeRootNote();
-	}
 }
 
 void Song::addModeNote(uint8_t modeNote) {
 	modeNotes[numModeNotes] = modeNote;
 	numModeNotes++;
-
-	// Hook point for specificMidiDevice
-	for (int32_t i = 0; i < MIDIDeviceManager::hostedMIDIDevices.getNumElements(); i++) {
-		MIDIDeviceUSBHosted* specificDevice = recastSpecificMidiDevice(MIDIDeviceManager::hostedMIDIDevices.getElement(i));
-		specificDevice->hookOnChangeScale();
-	}
 }
 
 // Sets up a mode-note, optionally specifying that we prefer it a semitone higher, although this may be overridden by what actual note is present
@@ -652,12 +640,6 @@ traverseClips:
 		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(instrumentClip);
 
 		instrumentClip->musicalModeChanged(yVisualWithinOctave, change, modelStackWithTimelineCounter);
-	}
-
-	// Hook point for specificMidiDevice
-	for (int32_t i = 0; i < MIDIDeviceManager::hostedMIDIDevices.getNumElements(); i++) {
-		MIDIDeviceUSBHosted* specificDevice = recastSpecificMidiDevice(MIDIDeviceManager::hostedMIDIDevices.getElement(i));
-		specificDevice->hookOnChangeScale();
 	}
 
 	if (clipArray != &arrangementOnlyClips) {
@@ -740,12 +722,6 @@ bool Song::mayMoveModeNote(int16_t yVisualWithinOctave, int8_t newOffset) {
 		                < modeNotes[yVisualWithinOctave] - 1 // The next note down has left us space to move down
 		            ));
 	}
-
-	// Hook point for specificMidiDevice
-	for (int32_t i = 0; i < MIDIDeviceManager::hostedMIDIDevices.getNumElements(); i++) {
-		MIDIDeviceUSBHosted* specificDevice = recastSpecificMidiDevice(MIDIDeviceManager::hostedMIDIDevices.getElement(i));
-		specificDevice->hookOnChangeScale();
-	}
 }
 
 void Song::removeYNoteFromMode(int32_t yNoteWithinOctave) {
@@ -782,12 +758,6 @@ traverseClips:
 		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 
 		instrumentClip->noteRemovedFromMode(yNoteWithinOctave, this);
-	}
-
-	// Hook point for specificMidiDevice
-	for (int32_t i = 0; i < MIDIDeviceManager::hostedMIDIDevices.getNumElements(); i++) {
-		MIDIDeviceUSBHosted* specificDevice = recastSpecificMidiDevice(MIDIDeviceManager::hostedMIDIDevices.getElement(i));
-		specificDevice->hookOnChangeScale();
 	}
 
 	if (clipArray != &arrangementOnlyClips) {
@@ -2688,12 +2658,6 @@ traverseClips2:
 
 	for (int32_t n = 1; n < 7; n++) {
 		modeNotes[n] = presetScaleNotes[newScale][n];
-	}
-
-	// Hook point for specificMidiDevice
-	for (int32_t i = 0; i < MIDIDeviceManager::hostedMIDIDevices.getNumElements(); i++) {
-		MIDIDeviceUSBHosted* specificDevice = recastSpecificMidiDevice(MIDIDeviceManager::hostedMIDIDevices.getElement(i));
-		specificDevice->hookOnChangeScale();
 	}
 
 	return newScale;

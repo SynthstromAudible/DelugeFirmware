@@ -15,6 +15,4 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-class LumiKeys {
-
-}
+class LumiKeys {}
