@@ -5360,7 +5360,7 @@ void Song::midiDeviceBendRangeUpdatedViaMessage(ModelStack* modelStack, MIDIDevi
 	// midi follow mode
 	if ((getRootUI() != &midiSessionView) && midiEngine.midiFollow) {
 		//obtain clip for active context
-		Clip* clip = midiSessionView.getClipForMidiFollow();
+		Clip* clip = midiSessionView.getClipForMidiFollow(true);
 		if (clip) {
 			clip->output->offerBendRangeUpdate(modelStack, device, channelOrZone, whichBendRange, bendSemitones, true);
 		}

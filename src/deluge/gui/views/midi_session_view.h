@@ -84,7 +84,7 @@ public:
 	uint32_t getMaxLength();
 
 	//midi follow context
-	Clip* getClipForMidiFollow();
+	Clip* getClipForMidiFollow(bool useActiveClip = false);
 	Clip* clipForLastNoteReceived;
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithThreeMainThings* modelStackWithThreeMainThings,
 	                                                ModelStackWithTimelineCounter* modelStackWithTimelineCounter,

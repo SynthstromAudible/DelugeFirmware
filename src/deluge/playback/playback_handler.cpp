@@ -2608,7 +2608,7 @@ void PlaybackHandler::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32
 
 	// midi follow mode
 	if ((getRootUI() != &midiSessionView) && midiEngine.midiFollow) {
-		Clip* clip = midiSessionView.getClipForMidiFollow();
+		Clip* clip = midiSessionView.getClipForMidiFollow(true);
 		if (!on && !clip) {
 			// for note off's when you're no longer in an active clip,
 			// see if a note on message was previously sent so you can
@@ -2753,7 +2753,7 @@ void PlaybackHandler::pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel,
 	// midi follow mode
 	if ((getRootUI() != &midiSessionView) && midiEngine.midiFollow) {
 		//obtain clip for active context
-		Clip* clip = midiSessionView.getClipForMidiFollow();
+		Clip* clip = midiSessionView.getClipForMidiFollow(true);
 		if (clip) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
@@ -2836,7 +2836,7 @@ void PlaybackHandler::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, ui
 
 	// midi follow mode
 	if ((getRootUI() != &midiSessionView) && midiEngine.midiFollow) {
-		//obtain clip for active context
+		//obtain clip for active context (for params that's only for the active mod controllable stack)
 		Clip* clip = midiSessionView.getClipForMidiFollow();
 		if (!isMPE && view.activeModControllableModelStack.modControllable) {
 			MIDIMatchType match =
@@ -2858,6 +2858,10 @@ void PlaybackHandler::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, ui
 					    ->offerReceivedCCToMidiFollow(modelStack, clip, ccNumber, value);
 				}
 			}
+		}
+		//for these cc's, check if there's an active clip
+		if (!clip) {
+			clip = currentSong->currentClip;
 		}
 		if (clip) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
@@ -2908,7 +2912,7 @@ void PlaybackHandler::aftertouchReceived(MIDIDevice* fromDevice, int32_t channel
 	// midi follow mode
 	if ((getRootUI() != &midiSessionView) && midiEngine.midiFollow) {
 		//obtain clip for active context
-		Clip* clip = midiSessionView.getClipForMidiFollow();
+		Clip* clip = midiSessionView.getClipForMidiFollow(true);
 		if (clip) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 

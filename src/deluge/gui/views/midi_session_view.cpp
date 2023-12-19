@@ -620,7 +620,7 @@ void MidiSessionView::cantLearn(int32_t channel) {
 /// 1) pressing and holding a clip pad in arranger view, song view, grid view
 /// 2) pressing and holding the audition pad of a row in arranger view
 /// 3) entering a clip
-Clip* MidiSessionView::getClipForMidiFollow() {
+Clip* MidiSessionView::getClipForMidiFollow(bool useActiveClip) {
 	Clip* clip = nullptr;
 	if (getRootUI() == &sessionView) {
 		clip = sessionView.getClipForLayout();
@@ -635,6 +635,10 @@ Clip* MidiSessionView::getClipForMidiFollow() {
 		}
 	}
 	else {
+		clip = currentSong->currentClip;
+	}
+	//special case for instruments where you want to let notes and MPE through to the active clip
+	if (!clip && useActiveClip) {
 		clip = currentSong->currentClip;
 	}
 	return clip;
