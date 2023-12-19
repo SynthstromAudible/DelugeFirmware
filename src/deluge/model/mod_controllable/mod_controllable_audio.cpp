@@ -1621,31 +1621,9 @@ ModelStackWithThreeMainThings* ModControllableAudio::addNoteRowIndexAndStuff(Mod
 
 bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber,
                                                           uint8_t value, ModelStackWithTimelineCounter* modelStack,
-                                                          int32_t noteRowIndex, bool doingMidiFollow) {
+                                                          int32_t noteRowIndex) {
 	bool messageUsed = false;
 
-	if (doingMidiFollow) {
-		//if midi follow mode is enabled and current channel is the midi follow channel for params
-		//allow CC's learned in midi session/learning view to control parameters
-		MIDIMatchType match =
-		    midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)].checkMatch(fromDevice,
-		                                                                                                   channel);
-		if (match) {
-			//if midi follow feedback and feedback filter is enabled,
-			//check time elapsed since last midi cc was sent with midi feedback for this same ccNumber
-			//if it was greater or equal than 1 second ago, allow received midi cc to go through
-			//this helps avoid additional processing of midi cc's receiver
-			if (!midiEngine.midiFollowFeedback
-			    || (midiEngine.midiFollowFeedback
-			        && (!midiEngine.midiFollowFeedbackFilter
-			            || (midiEngine.midiFollowFeedbackFilter
-			                && ((AudioEngine::audioSampleTimer - midiSessionView.timeLastCCSent[ccNumber])
-			                    >= kSampleRate))))) {
-				offerReceivedCCToMidiFollow(ccNumber, value);
-				messageUsed = true;
-			}
-		}
-	}
 	// For each MIDI knob...
 	for (int32_t k = 0; k < midiKnobArray.getNumElements(); k++) {
 		MIDIKnob* knob = midiKnobArray.getElement(k);

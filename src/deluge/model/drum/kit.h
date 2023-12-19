@@ -51,7 +51,7 @@ public:
 	                  bool shouldLimitDelayFeedback, bool isClipActive);
 	void notifySamplesInterruptsSuspended();
 	void offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
-	                                    ModelStackWithTimelineCounter* modelStack, bool doingMidiFollow = false);
+	                                    ModelStackWithTimelineCounter* modelStack);
 	bool offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
 	                                           ModelStackWithTimelineCounter* modelStack);
 

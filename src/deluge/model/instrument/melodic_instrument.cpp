@@ -400,7 +400,6 @@ void MelodicInstrument::offerReceivedCC(ModelStackWithTimelineCounter* modelStac
 
 		// Still send the cc even if the Output is muted. MidiInstruments will check for and block this themselves
 		ccReceivedFromInputMIDIChannel(ccNumber, value, modelStackWithTimelineCounter);
-		;
 	}
 }
 

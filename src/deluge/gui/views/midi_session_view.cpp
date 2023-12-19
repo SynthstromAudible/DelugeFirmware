@@ -86,8 +86,9 @@ MidiSessionView::MidiSessionView() {
 
 	for (int32_t i = 0; i < 128; i++) {
 		timeLastCCSent[i] = 0;
-		clipForLastNoteReceived[i] = nullptr;
 	}
+
+	clipForLastNoteReceived = nullptr;
 
 	timeAutomationFeedbackLastSent = 0;
 }

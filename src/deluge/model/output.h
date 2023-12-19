@@ -96,8 +96,8 @@ public:
 		return false;
 	} // A TimelineCounter is required
 	virtual void offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber,
-	                                            uint8_t value, ModelStackWithTimelineCounter* modelStack,
-	                                            bool doingMidiFollow = false) {} // A TimelineCounter is required
+	                                            uint8_t value, ModelStackWithTimelineCounter* modelStack) {
+	} // A TimelineCounter is required
 	virtual int32_t doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) { return 2147483647; }
 	void endAnyArrangementRecording(Song* song, int32_t actualEndPos, uint32_t timeRemainder);
 	virtual bool wantsToBeginArrangementRecording() { return armedForRecording; }

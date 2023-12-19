@@ -879,6 +879,7 @@ enum CCNumber {
 };
 constexpr int32_t kNumCCNumbersIncludingFake = 124;
 constexpr int32_t kNumRealCCNumbers = 120;
+constexpr int32_t kMaxCCNumber = 127;
 
 enum class InstrumentRemoval {
 	NONE,

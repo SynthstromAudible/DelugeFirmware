@@ -633,12 +633,12 @@ void Kit::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, Stere
 }
 
 void Kit::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
-                                         ModelStackWithTimelineCounter* modelStack, bool doingMidiFollow) {
+                                         ModelStackWithTimelineCounter* modelStack) {
 
 	// Do it for this whole Kit
 	ModControllableAudio::offerReceivedCCToLearnedParams(
-	    fromDevice, channel, ccNumber, value, modelStack,
-	    doingMidiFollow); // NOTE: this call may change modelStack->timelineCounter etc!
+	    fromDevice, channel, ccNumber, value,
+	    modelStack); // NOTE: this call may change modelStack->timelineCounter etc!
 
 	// Now do it for each NoteRow / Drum
 	if (modelStack

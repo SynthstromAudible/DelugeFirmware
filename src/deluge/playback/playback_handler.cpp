@@ -2613,7 +2613,7 @@ void PlaybackHandler::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32
 			// for note off's when you're no longer in an active clip,
 			// see if a note on message was previously sent so you can
 			// direct the note off to the right place
-			clip = midiSessionView.clipForLastNoteReceived[note];
+			clip = midiSessionView.clipForLastNoteReceived;
 		}
 
 		// Only send if not muted - but let note-offs through always, for safety
@@ -2624,13 +2624,13 @@ void PlaybackHandler::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32
 				//Note: Midi instruments not currently supported for midi follow mode
 				if (modelStackWithTimelineCounter) {
 					clip->output->offerReceivedNote(
-						modelStackWithTimelineCounter, fromDevice, on, channel, note, velocity,
-						shouldRecordNotesNowNow
-							&& currentSong->isOutputActiveInArrangement(
-								clip->output), // Definitely don't record if muted in arrangement
-						doingMidiThru, true);
+					    modelStackWithTimelineCounter, fromDevice, on, channel, note, velocity,
+					    shouldRecordNotesNowNow
+					        && currentSong->isOutputActiveInArrangement(
+					            clip->output), // Definitely don't record if muted in arrangement
+					    doingMidiThru, true);
 					if (on) {
-						midiSessionView.clipForLastNoteReceived[note] = clip;
+						midiSessionView.clipForLastNoteReceived = clip;
 					}
 				}
 			}
@@ -2821,22 +2821,26 @@ void PlaybackHandler::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, ui
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 	// midi follow mode
-	if ((getRootUI() != &midiSessionView) && midiEngine.midiFollow) {
-		Clip* clip = midiSessionView.getClipForMidiFollow();
-
-		// Only send if not muted - but let note-offs through always, for safety
-		if (clip) {
-			if (clip->output->type != InstrumentType::MIDI_OUT) {
-				ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
-				if (!isMPE) {
+	if ((getRootUI() != &midiSessionView) && midiEngine.midiFollow && view.activeModControllableModelStack.modControllable) {
+		if (!isMPE) {
+			MIDIMatchType match =
+			    midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)].checkMatch(
+			        fromDevice, channel);
+			if (match) {
+				//if midi follow feedback and feedback filter is enabled,
+				//check time elapsed since last midi cc was sent with midi feedback for this same ccNumber
+				//if it was greater or equal than 1 second ago, allow received midi cc to go through
+				//this helps avoid additional processing of midi cc's receiver
+				if (!midiEngine.midiFollowFeedback
+				    || (midiEngine.midiFollowFeedback
+				        && (!midiEngine.midiFollowFeedbackFilter
+				            || (midiEngine.midiFollowFeedbackFilter
+				                && ((AudioEngine::audioSampleTimer - midiSessionView.timeLastCCSent[ccNumber])
+				                    >= kSampleRate))))) {
 					// See if it's learned to a parameter
-					clip->output->offerReceivedCCToLearnedParams(
-					    fromDevice, channel, ccNumber, value, modelStackWithTimelineCounter,
-					    true); // NOTE: this call may change modelStackWithTimelineCounter->timelineCounter etc!
+					((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
+				    ->offerReceivedCCToMidiFollow(ccNumber, value);
 				}
-
-				clip->output->offerReceivedCC(modelStackWithTimelineCounter, fromDevice, channel, ccNumber, value,
-				                              doingMidiThru);
 			}
 		}
 	}

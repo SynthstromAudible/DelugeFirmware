@@ -85,7 +85,7 @@ public:
 
 	//midi follow context
 	Clip* getClipForMidiFollow();
-	Clip* clipForLastNoteReceived[128];
+	Clip* clipForLastNoteReceived;
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithThreeMainThings* modelStackWithThreeMainThings,
 	                                                ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
 	                                                Clip* clip, int32_t xDisplay, int32_t yDisplay, int32_t ccNumber,
@@ -97,7 +97,7 @@ public:
 
 	int32_t paramToCC[kDisplayWidth][kDisplayHeight];
 	int32_t previousKnobPos[kDisplayWidth][kDisplayHeight];
-	uint32_t timeLastCCSent[128];
+	uint32_t timeLastCCSent[kMaxCCNumber + 1];
 	uint32_t timeAutomationFeedbackLastSent;
 
 private:
