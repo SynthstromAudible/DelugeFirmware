@@ -86,6 +86,9 @@ public:
 	void offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
 	                       bool on, int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
 	                       bool* doingMidiThru);
+	void receivedNoteForDrum(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on,
+	                         int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
+	                         bool* doingMidiThru, Drum* thisDrum);
 	bool isNoteRowStillAuditioningAsLinearRecordingEnded(NoteRow* noteRow);
 	bool allowNoteTails(NoteRow* noteRow);
 	void stopAnyAuditioning(ModelStack* modelStack);
