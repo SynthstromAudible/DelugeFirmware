@@ -1747,8 +1747,16 @@ void ModControllableAudio::offerReceivedCCToMidiFollow(ModelStack* modelStack, C
 							int32_t knobPos =
 							    modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
 
-							//is the cc being received the same as the current knob pos? If so, do nothing
-							if (value != (knobPos + kKnobPosOffset)) {
+							//add 64 to internal knobPos to compare to midi cc value received
+							//if internal pos + 64 is greater than 127 (e.g. 128), adjust it to 127
+							//because midi can only send a max midi value of 127
+							int32_t knobPosForCCComparison = knobPos + kKnobPosOffset;
+							if (knobPosForCCComparison > 127) {
+								knobPosForCCComparison = 127;
+							}
+
+							//is the cc being received for the same value as the current knob pos? If so, do nothing
+							if (value != knobPosForCCComparison) {
 								//calculate new knob position based on value received and deluge current value
 								int32_t newKnobPos = calculateKnobPosForMidiTakeover(
 								    modelStackWithParam, view.modPos, value, nullptr, true, xDisplay, yDisplay);
