@@ -28,5 +28,25 @@ public:
 	void writeCurrentValue() override { midiEngine.midiFollowKitRootNote = this->getValue(); }
 	[[nodiscard]] int32_t getMinValue() const override { return 0; }
 	[[nodiscard]] int32_t getMaxValue() const override { return 127; }
+	bool allowsLearnMode() override { return true; }
+
+	bool learnNoteOn(MIDIDevice* device, int32_t channel, int32_t noteCode) {
+		this->setValue(noteCode);
+		midiEngine.midiFollowKitRootNote = noteCode;
+
+		if (soundEditor.getCurrentMenuItem() == this) {
+			if (display->haveOLED()) {
+				renderUIsForOled();
+			}
+			else {
+				drawValue();
+			}
+		}
+		else {
+			display->displayPopup(l10n::get(l10n::String::STRING_FOR_LEARNED));
+		}
+
+		return true;
+	}
 };
 } // namespace deluge::gui::menu_item::midi
