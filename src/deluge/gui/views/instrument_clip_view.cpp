@@ -77,6 +77,7 @@
 #include "storage/audio/audio_file_holder.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/multi_range/multi_range.h"
+#include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 #include <new>
@@ -927,7 +928,7 @@ void InstrumentClipView::copyNotes() {
 
 	for (int32_t i = 0; i < getCurrentClip()->noteRows.getNumElements(); i++) {
 		NoteRow* thisNoteRow = getCurrentClip()->noteRows.getElement(i);
-		/* this is a little hacky, ideally we could get the yDisplay 
+		/* this is a little hacky, ideally we could get the yDisplay
 		   of thisNoteRow efficiently, but the one we calculate will have to do now
 
 		   considered isNoteRowAuditioning but that required a modelstack and this was leaner
@@ -1288,16 +1289,25 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 				}
 				AudioEngine::stopAnyPreviewing();
 				Drum* drum = getCurrentClip()->getNoteRowOnScreen(i, currentSong)->drum;
-				if (drum->type != DrumType::SOUND) {
+				if (!drum || drum->type != DrumType::SOUND) {
 					continue;
 				}
 				SoundDrum* soundDrum = (SoundDrum*)drum;
 				MultiRange* r = soundDrum->sources[0].getRange(0);
+				if (r == NULL || ((MultisampleRange*)r)->sampleHolder.audioFile == NULL) {
+					continue;
+				}
 				AudioFileHolder* afh = r->getAudioFileHolder();
+				if (afh == NULL) {
+					continue;
+				}
 
 				static int32_t MaxFiles = 25;
 				String fnArray[MaxFiles];
 				char const* currentPathChars = afh->filePath.get();
+				if (currentPathChars == NULL) {
+					continue;
+				}
 				char const* slashAddress = strrchr(currentPathChars, '/');
 				if (slashAddress) {
 					int32_t slashPos = (uint32_t)slashAddress - (uint32_t)currentPathChars;
