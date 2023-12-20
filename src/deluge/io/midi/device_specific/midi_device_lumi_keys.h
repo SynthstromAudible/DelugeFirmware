@@ -26,13 +26,31 @@
 #define MIDI_DEVICE_LUMI_KEYS_SYSEX_SPACER 0x77
 #define MIDI_DEVICE_LUMI_KEYS_DEVICE 0x00 // All Devices
 
+// Config codes, counts, and counter offsets
 #define MIDI_DEVICE_LUMI_KEYS_CONFIG_PREFIX 0x10
+
 #define MIDI_DEVICE_LUMI_KEYS_MPE_ZONE_PREFIX 0x00
+#define MIDI_DEVICE_LUMI_KEYS_MPE_ZONE_OFFSET 5
+#define MIDI_DEVICE_LUMI_KEYS_MPE_ZONE_COUNT 2
+
 #define MIDI_DEVICE_LUMI_KEYS_MPE_CHANNELS_PREFIX 0x10
+#define MIDI_DEVICE_LUMI_KEYS_MPE_CHANNELS_OFFSET 1
+#define MIDI_DEVICE_LUMI_KEYS_MPE_CHANNELS_COUNT 15
+
 #define MIDI_DEVICE_LUMI_KEYS_MIDI_MODE_PREFIX 0x20
-#define MIDI_DEVICE_LUMI_KEYS_KEY_PREFIX 0x30
-#define MIDI_DEVICE_LUMI_KEYS_KEY_COUNT 12
+#define MIDI_DEVICE_LUMI_KEYS_MIDI_MODE_OFFSET 0
+#define MIDI_DEVICE_LUMI_KEYS_MIDI_MODE_COUNT 3
+
+#define MIDI_DEVICE_LUMI_KEYS_BEND_RANGE_PREFIX 0x30
+#define MIDI_DEVICE_LUMI_KEYS_BEND_RANGE_OFFSET 0
+#define MIDI_DEVICE_LUMI_KEYS_BEND_RANGE_COUNT 97
+
+#define MIDI_DEVICE_LUMI_KEYS_ROOT_NOTE_PREFIX 0x30
+#define MIDI_DEVICE_LUMI_KEYS_ROOT_NOTE_OFFSET 3
+#define MIDI_DEVICE_LUMI_KEYS_ROOT_NOTE_COUNT 12
+
 #define MIDI_DEVICE_LUMI_KEYS_SCALE_PREFIX 0x60
+#define MIDI_DEVICE_LUMI_KEYS_SCALE_OFFSET 2
 #define MIDI_DEVICE_LUMI_KEYS_SCALE_COUNT 19
 
 #define MIDI_DEVICE_LUMI_KEYS_CONFIG_ROOT_COLOUR_PREFIX 0x30
@@ -64,43 +82,11 @@ public:
 
 	static constexpr uint8_t sysexManufacturer[3] = {0x00, 0x21, 0x10};
 
-	static constexpr uint8_t sysexMidiChannel[16][2] = {
-	    {0x20, 0x00}, // Ch. 1
-	    {0x40, 0x00}, {0x60, 0x00}, {0x00, 0x01}, {0x20, 0x01}, {0x40, 0x01}, {0x60, 0x01}, {0x00, 0x02}, {0x20, 0x02},
-	    {0x40, 0x02}, {0x60, 0x02}, {0x00, 0x03}, {0x20, 0x03}, {0x40, 0x03}, {0x60, 0x03}, {0x00, 0x04} // Ch. 16
-	};
-
 	enum class RootNote { C = 0, C_SHARP, D, D_SHARP, E, F, F_SHARP, G, G_SHARP, A, A_SHARP, B };
 
-	static constexpr uint8_t sysexRootNoteCodes[MIDI_DEVICE_LUMI_KEYS_KEY_COUNT][2] = {
-	    {0x03, 0x00}, // C
-	    {0x23, 0x00}, // C#
-	    {0x43, 0x00}, // D
-	    {0x63, 0x00}, // D#
-	    {0x03, 0x01}, // E
-	    {0x23, 0x01}, // F
-	    {0x43, 0x01}, // F#
-	    {0x63, 0x01}, // G
-	    {0x03, 0x02}, // G#
-	    {0x23, 0x02}, // A
-	    {0x43, 0x02}, // A#
-	    {0x63, 0x02}  // B
-	};
-
-	enum class MIDIMode { MPE = 0, MULTI, SINGLE };
-
-	static constexpr uint8_t sysexMidiModeCodes[3] = {
-	    0x20, // MPE
-	    0x00, // Multi
-	    0x40  // Single
-	};
+	enum class MIDIMode { MULTI = 0, MPE, SINGLE };
 
 	enum class MPEZone { LOWER = 0, UPPER };
-
-	static constexpr uint8_t SysexMpeZoneCodes[2] = {
-	    0x05, // LOWER
-	    0x25  // UPPER
-	};
 
 	enum class Scale {
 		MAJOR = 0, // IONIAN
@@ -158,11 +144,6 @@ public:
 	    Scale::CHROMATIC   // NONE -> CHROMATIC
 	};
 
-	static constexpr uint8_t sysexScaleCodes[MIDI_DEVICE_LUMI_KEYS_SCALE_COUNT][2] = {
-	    {0x02, 0x00}, {0x22, 0x00}, {0x42, 0x00}, {0x62, 0x00}, {0x02, 0x01}, {0x22, 0x01}, {0x42, 0x01},
-	    {0x62, 0x01}, {0x02, 0x02}, {0x22, 0x02}, {0x42, 0x02}, {0x62, 0x02}, {0x02, 0x03}, {0x22, 0x03},
-	    {0x42, 0x03}, {0x62, 0x03}, {0x02, 0x04}, {0x22, 0x04}, {0x42, 0x04}};
-
 	enum class ColourZone { ROOT = 0, GLOBAL };
 
 	static bool matchesVendorProduct(uint16_t vendorId, uint16_t productId);
@@ -181,6 +162,9 @@ public:
 private:
 	uint8_t sysexChecksum(uint8_t* chkBytes, uint8_t size);
 	void sendLumiCommand(uint8_t* command, uint8_t length);
+
+	// Calculates the two sysex codes aligning with a given index, for ranges
+	void getCounterCodes(uint8_t* destination, int32_t index, uint8_t valueOffset = 0);
 
 	void enumerateLumi();
 

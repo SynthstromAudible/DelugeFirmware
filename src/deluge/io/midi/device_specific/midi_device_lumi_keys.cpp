@@ -138,11 +138,11 @@ void MIDIDeviceLumiKeys::hookOnRecalculateColour() {
 			}
 
 			uint8_t rgb_main[3];
-			uint8_t rgb_tail[3];
+			// uint8_t rgb_tail[3];
 			uint8_t rgb_blur[3];
 
 			clip->getMainColourFromY(clip->getYNoteFromYDisplay(yPos, currentSong), offset, rgb_main);
-			getTailColour(rgb_tail, rgb_main);
+			// getTailColour(rgb_tail, rgb_main);
 			getBlurColour(rgb_blur, rgb_main);
 
 			setColour(ColourZone::ROOT, rgb_main[0], rgb_main[1], rgb_main[2]);
@@ -179,47 +179,60 @@ void MIDIDeviceLumiKeys::sendLumiCommand(uint8_t* command, uint8_t length) {
 	sendSysex(sysexMsg, 16);
 }
 
-// Enumeration command - responds with Lumi topology dump
+/// @brief Fills the first 6 values at the pointer location with a 7-bit, offset representation of the 32-bit signed index
+/// @param destination A pointer with space for 6 bytes
+/// @param index The index of the value we want to generate
+/// @param value_offset The offset for the resultant values (eg: 0x00 + value_offset, 0x20 + value_offset, etc.)
+void MIDIDeviceLumiKeys::getCounterCodes(uint8_t* destination, int32_t index, uint8_t valueOffset) {
+	destination[0] = (index % (uint32_t)4 * 32) + valueOffset;
+	int32_t tens = index / (uint32_t)4;
+	destination[1] = tens & 0x7f;
+	destination[2] = (tens >> 7) & 0x7f;
+	destination[3] = (tens >> 14) & 0x7f;
+	destination[4] = (tens >> 21) & 0x7f;
+	destination[5] = (tens >> 28) & 0x7f;
+}
+
+/// @brief Enumeration command - responds with Lumi topology dump
 void MIDIDeviceLumiKeys::enumerateLumi() {
 	uint8_t command[4] = {0x01, 0x01, 0x00, 0x5D};
 	sendLumiCommand(command, 4);
 }
 
 void MIDIDeviceLumiKeys::setMIDIMode(MIDIMode midiMode) {
-	uint8_t command[3];
+	uint8_t command[8];
 	command[0] = MIDI_DEVICE_LUMI_KEYS_CONFIG_PREFIX;
 	command[1] = MIDI_DEVICE_LUMI_KEYS_MIDI_MODE_PREFIX;
-	command[2] = sysexMidiModeCodes[(uint8_t)midiMode];
+	getCounterCodes(&command[2], (uint8_t)midiMode, MIDI_DEVICE_LUMI_KEYS_MIDI_MODE_OFFSET);
 
-	sendLumiCommand(command, 3);
+	sendLumiCommand(command, 8);
 }
 
 void MIDIDeviceLumiKeys::setMPEZone(MPEZone mpeZone) {
-	uint8_t command[3];
+	uint8_t command[8];
 	command[0] = MIDI_DEVICE_LUMI_KEYS_CONFIG_PREFIX;
 	command[1] = MIDI_DEVICE_LUMI_KEYS_MPE_ZONE_PREFIX;
-	command[2] = SysexMpeZoneCodes[(uint8_t)mpeZone];
+	getCounterCodes(&command[2], (uint8_t)mpeZone, MIDI_DEVICE_LUMI_KEYS_MPE_ZONE_OFFSET);
 
-	sendLumiCommand(command, 3);
+	sendLumiCommand(command, 8);
 }
 
 void MIDIDeviceLumiKeys::setMPENumChannels(uint8_t numChannels) {
-	uint8_t command[4];
+	uint8_t command[8];
 	command[0] = MIDI_DEVICE_LUMI_KEYS_CONFIG_PREFIX;
 	command[1] = MIDI_DEVICE_LUMI_KEYS_MPE_CHANNELS_PREFIX;
-	command[2] = sysexMidiChannel[numChannels - 1][0] + 1;
-	command[3] = sysexMidiChannel[numChannels - 1][1];
+	getCounterCodes(&command[2], numChannels - 1, MIDI_DEVICE_LUMI_KEYS_MPE_CHANNELS_OFFSET);
 
-	sendLumiCommand(command, 4);
+	sendLumiCommand(command, 8);
 }
 
 void MIDIDeviceLumiKeys::setRootNote(RootNote rootNote) {
-	uint8_t command[4];
+	uint8_t command[8];
 	command[0] = MIDI_DEVICE_LUMI_KEYS_CONFIG_PREFIX;
-	command[1] = MIDI_DEVICE_LUMI_KEYS_KEY_PREFIX;
-	memcpy(&command[2], sysexRootNoteCodes[(uint8_t)rootNote], 2);
+	command[1] = MIDI_DEVICE_LUMI_KEYS_ROOT_NOTE_PREFIX;
+	getCounterCodes(&command[2], (uint8_t)rootNote, MIDI_DEVICE_LUMI_KEYS_ROOT_NOTE_OFFSET);
 
-	sendLumiCommand(command, 4);
+	sendLumiCommand(command, 8);
 }
 
 // Efficient binary comparison of notes to Lumi builtin scales
@@ -242,12 +255,12 @@ MIDIDeviceLumiKeys::Scale MIDIDeviceLumiKeys::determineScaleFromNotes(uint8_t* m
 }
 
 void MIDIDeviceLumiKeys::setScale(Scale scale) {
-	uint8_t command[4];
+	uint8_t command[8];
 	command[0] = MIDI_DEVICE_LUMI_KEYS_CONFIG_PREFIX;
 	command[1] = MIDI_DEVICE_LUMI_KEYS_SCALE_PREFIX;
-	memcpy(&command[2], sysexScaleCodes[(uint8_t)scale], 2);
+	getCounterCodes(&command[2], (uint8_t)scale, MIDI_DEVICE_LUMI_KEYS_SCALE_OFFSET);
 
-	sendLumiCommand(command, 4);
+	sendLumiCommand(command, 8);
 }
 
 void MIDIDeviceLumiKeys::setColour(ColourZone zone, uint8_t r, uint8_t g, uint8_t b) {
