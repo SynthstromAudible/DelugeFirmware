@@ -655,7 +655,10 @@ MidiSessionView::getModelStackWithParam(ModelStackWithThreeMainThings* modelStac
 	Param::Kind paramKind = Param::Kind::NONE;
 	int32_t paramID = kNoParamID;
 
-	if (!clip) {
+	bool isUISessionView =
+	    (getRootUI() == &performanceSessionView) || (getRootUI() == &sessionView) || (getRootUI() == &arrangerView);
+
+	if (!clip && isUISessionView) {
 		if (modelStackWithThreeMainThings) {
 			if (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
 				paramKind = Param::Kind::UNPATCHED_SOUND;
