@@ -2606,36 +2606,9 @@ void PlaybackHandler::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
-	// midi follow mode
-	if ((getRootUI() != &midiSessionView) && midiEngine.midiFollow) {
-		Clip* clip = midiSessionView.getClipForMidiFollow(true);
-		if (!on && !clip) {
-			// for note off's when you're no longer in an active clip,
-			// see if a note on message was previously sent so you can
-			// direct the note off to the right place
-			clip = midiSessionView.clipForLastNoteReceived;
-		}
-
-		// Only send if not muted - but let note-offs through always, for safety
-		if (clip && (!on || currentSong->isOutputActiveInArrangement(clip->output))) {
-			if (clip->output->type != InstrumentType::MIDI_OUT) {
-				ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
-				//Output is a kit or melodic instrument
-				//Note: Midi instruments not currently supported for midi follow mode
-				if (modelStackWithTimelineCounter) {
-					clip->output->offerReceivedNote(
-					    modelStackWithTimelineCounter, fromDevice, on, channel, note, velocity,
-					    shouldRecordNotesNowNow
-					        && currentSong->isOutputActiveInArrangement(
-					            clip->output), // Definitely don't record if muted in arrangement
-					    doingMidiThru, true);
-					if (on) {
-						midiSessionView.clipForLastNoteReceived = clip;
-					}
-				}
-			}
-		}
-	}
+	// See if note message received should be processed by midi follow mode
+	midiSessionView.noteMessageReceived(fromDevice, on, channel, note, velocity, doingMidiThru, shouldRecordNotesNowNow,
+	                                    modelStack);
 
 	// Go through all Instruments...
 	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
@@ -2750,19 +2723,8 @@ void PlaybackHandler::pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel,
 
 	dealingWithReceivedMIDIPitchBendRightNow = true;
 
-	// midi follow mode
-	if ((getRootUI() != &midiSessionView) && midiEngine.midiFollow) {
-		//obtain clip for active context
-		Clip* clip = midiSessionView.getClipForMidiFollow(true);
-		if (clip) {
-			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
-
-			if (modelStackWithTimelineCounter) {
-				clip->output->offerReceivedPitchBend(modelStackWithTimelineCounter, fromDevice, channel, data1, data2,
-				                                     doingMidiThru, true);
-			}
-		}
-	}
+	// See if pitch bend received should be processed by midi follow mode
+	midiSessionView.pitchBendReceived(fromDevice, channel, data1, data2, doingMidiThru, modelStack);
 
 	// Go through all Outputs...
 	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
@@ -2834,44 +2796,8 @@ void PlaybackHandler::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, ui
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
-	// midi follow mode
-	if ((getRootUI() != &midiSessionView) && midiEngine.midiFollow) {
-		//obtain clip for active context (for params that's only for the active mod controllable stack)
-		Clip* clip = midiSessionView.getClipForMidiFollow();
-		if (!isMPE && view.activeModControllableModelStack.modControllable) {
-			MIDIMatchType match =
-			    midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)].checkMatch(
-			        fromDevice, channel);
-			if (match) {
-				//if midi follow feedback and feedback filter is enabled,
-				//check time elapsed since last midi cc was sent with midi feedback for this same ccNumber
-				//if it was greater or equal than 1 second ago, allow received midi cc to go through
-				//this helps avoid additional processing of midi cc's receiver
-				if (!midiEngine.midiFollowFeedback
-				    || (midiEngine.midiFollowFeedback
-				        && (!midiEngine.midiFollowFeedbackFilter
-				            || (midiEngine.midiFollowFeedbackFilter
-				                && ((AudioEngine::audioSampleTimer - midiSessionView.timeLastCCSent[ccNumber])
-				                    >= kSampleRate))))) {
-					// See if it's learned to a parameter
-					((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
-					    ->offerReceivedCCToMidiFollow(modelStack, clip, ccNumber, value);
-				}
-			}
-		}
-		//for these cc's, check if there's an active clip
-		if (!clip) {
-			clip = currentSong->currentClip;
-		}
-		if (clip) {
-			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
-
-			if (modelStackWithTimelineCounter) {
-				clip->output->offerReceivedCC(modelStackWithTimelineCounter, fromDevice, channel, ccNumber, value,
-				                              doingMidiThru, true);
-			}
-		}
-	}
+	// See if midi cc received should be processed by midi follow mode
+	midiSessionView.midiCCReceived(fromDevice, channel, ccNumber, value, doingMidiThru, isMPE, modelStack);
 
 	// Go through all Outputs...
 	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
@@ -2909,19 +2835,8 @@ void PlaybackHandler::aftertouchReceived(MIDIDevice* fromDevice, int32_t channel
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
-	// midi follow mode
-	if ((getRootUI() != &midiSessionView) && midiEngine.midiFollow) {
-		//obtain clip for active context
-		Clip* clip = midiSessionView.getClipForMidiFollow(true);
-		if (clip) {
-			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
-
-			if (modelStackWithTimelineCounter) {
-				clip->output->offerReceivedAftertouch(modelStackWithTimelineCounter, fromDevice, channel, value,
-				                                      noteCode, doingMidiThru, true);
-			}
-		}
-	}
+	// See if aftertouch received should be processed by midi follow mode
+	midiSessionView.aftertouchReceived(fromDevice, channel, value, noteCode, doingMidiThru, modelStack);
 
 	// Go through all Instruments...
 	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {

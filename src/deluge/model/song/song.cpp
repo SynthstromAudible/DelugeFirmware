@@ -5357,14 +5357,8 @@ int32_t Song::convertSyncLevelFromInternalValueToFileValue(int32_t internalValue
 void Song::midiDeviceBendRangeUpdatedViaMessage(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone,
                                                 int32_t whichBendRange, int32_t bendSemitones) {
 
-	// midi follow mode
-	if ((getRootUI() != &midiSessionView) && midiEngine.midiFollow) {
-		//obtain clip for active context
-		Clip* clip = midiSessionView.getClipForMidiFollow(true);
-		if (clip) {
-			clip->output->offerBendRangeUpdate(modelStack, device, channelOrZone, whichBendRange, bendSemitones, true);
-		}
-	}
+	// See if bend range update received should be processed by midi follow mode
+	midiSessionView.bendRangeUpdateReceived(modelStack, device, channelOrZone, whichBendRange, bendSemitones);
 
 	// Go through all Instruments...
 	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {

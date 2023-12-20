@@ -780,6 +780,143 @@ int32_t MidiSessionView::getCCFromParam(Param::Kind paramKind, int32_t paramID) 
 	return kNoSelection;
 }
 
+/// called from playback handler
+/// determines whether a note message received is midi follow relevant
+/// and should be routed to the active context for further processing
+void MidiSessionView::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32_t channel, int32_t note,
+                                          int32_t velocity, bool* doingMidiThru, bool shouldRecordNotesNowNow,
+                                          ModelStack* modelStack) {
+	// midi follow mode
+	if ((getRootUI() != &midiSessionView) && midiEngine.midiFollow) {
+		Clip* clip = getClipForMidiFollow(true);
+		if (!on && !clip) {
+			// for note off's when you're no longer in an active clip,
+			// see if a note on message was previously sent so you can
+			// direct the note off to the right place
+			clip = clipForLastNoteReceived;
+		}
+
+		// Only send if not muted - but let note-offs through always, for safety
+		if (clip && (!on || currentSong->isOutputActiveInArrangement(clip->output))) {
+			if (clip->output->type != InstrumentType::MIDI_OUT) {
+				ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
+				//Output is a kit or melodic instrument
+				//Note: Midi instruments not currently supported for midi follow mode
+				if (modelStackWithTimelineCounter) {
+					clip->output->offerReceivedNote(
+					    modelStackWithTimelineCounter, fromDevice, on, channel, note, velocity,
+					    shouldRecordNotesNowNow
+					        && currentSong->isOutputActiveInArrangement(
+					            clip->output), // Definitely don't record if muted in arrangement
+					    doingMidiThru, true);
+					if (on) {
+						clipForLastNoteReceived = clip;
+					}
+				}
+			}
+		}
+	}
+}
+
+/// called from playback handler
+/// determines whether a midi cc received is midi follow relevant
+/// and should be routed to the active context for further processing
+void MidiSessionView::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
+                                     bool* doingMidiThru, bool isMPE, ModelStack* modelStack) {
+	// midi follow mode
+	if ((getRootUI() != &midiSessionView) && midiEngine.midiFollow) {
+		//obtain clip for active context (for params that's only for the active mod controllable stack)
+		Clip* clip = getClipForMidiFollow();
+		if (!isMPE && view.activeModControllableModelStack.modControllable) {
+			MIDIMatchType match =
+			    midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)].checkMatch(
+			        fromDevice, channel);
+			if (match) {
+				//if midi follow feedback and feedback filter is enabled,
+				//check time elapsed since last midi cc was sent with midi feedback for this same ccNumber
+				//if it was greater or equal than 1 second ago, allow received midi cc to go through
+				//this helps avoid additional processing of midi cc's receiver
+				if (!midiEngine.midiFollowFeedback
+				    || (midiEngine.midiFollowFeedback
+				        && (!midiEngine.midiFollowFeedbackFilter
+				            || (midiEngine.midiFollowFeedbackFilter
+				                && ((AudioEngine::audioSampleTimer - timeLastCCSent[ccNumber]) >= kSampleRate))))) {
+					// See if it's learned to a parameter
+					((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
+					    ->offerReceivedCCToMidiFollow(modelStack, clip, ccNumber, value);
+				}
+			}
+		}
+		//for these cc's, check if there's an active clip if the clip returned above is NULL
+		if (!clip) {
+			clip = currentSong->currentClip;
+		}
+		if (clip) {
+			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
+
+			if (modelStackWithTimelineCounter) {
+				clip->output->offerReceivedCC(modelStackWithTimelineCounter, fromDevice, channel, ccNumber, value,
+				                              doingMidiThru, true);
+			}
+		}
+	}
+}
+
+/// called from playback handler
+/// determines whether a pitch bend received is midi follow relevant
+/// and should be routed to the active context for further processing
+void MidiSessionView::pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
+                                        bool* doingMidiThru, ModelStack* modelStack) {
+	// midi follow mode
+	if ((getRootUI() != &midiSessionView) && midiEngine.midiFollow) {
+		//obtain clip for active context
+		Clip* clip = getClipForMidiFollow(true);
+		if (clip) {
+			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
+
+			if (modelStackWithTimelineCounter) {
+				clip->output->offerReceivedPitchBend(modelStackWithTimelineCounter, fromDevice, channel, data1, data2,
+				                                     doingMidiThru, true);
+			}
+		}
+	}
+}
+
+/// called from playback handler
+/// determines whether aftertouch received is midi follow relevant
+/// and should be routed to the active context for further processing
+void MidiSessionView::aftertouchReceived(MIDIDevice* fromDevice, int32_t channel, int32_t value, int32_t noteCode,
+                                         bool* doingMidiThru, ModelStack* modelStack) {
+	// midi follow mode
+	if ((getRootUI() != &midiSessionView) && midiEngine.midiFollow) {
+		//obtain clip for active context
+		Clip* clip = getClipForMidiFollow(true);
+		if (clip) {
+			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
+
+			if (modelStackWithTimelineCounter) {
+				clip->output->offerReceivedAftertouch(modelStackWithTimelineCounter, fromDevice, channel, value,
+				                                      noteCode, doingMidiThru, true);
+			}
+		}
+	}
+}
+
+/// called from song.cpp
+/// determines whether bend range update received is midi follow relevant
+/// and should be routed to the active context for further processing
+void MidiSessionView::bendRangeUpdateReceived(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone,
+                                              int32_t whichBendRange, int32_t bendSemitones) {
+	// midi follow mode
+	if ((getRootUI() != &midiSessionView) && midiEngine.midiFollow) {
+		//obtain clip for active context
+		Clip* clip = getClipForMidiFollow(true);
+		if (clip) {
+			clip->output->offerBendRangeUpdate(modelStack, device, channelOrZone, whichBendRange, bendSemitones, true);
+		}
+	}
+}
+
 /// checking to see if there are any changes have been made to the cc-param mappings
 /// since the last time the mappings were loaded from the MidiFollow.XML file
 void MidiSessionView::updateMappingChangeStatus() {
