@@ -131,19 +131,6 @@ public:
 	    MIDI_DEVICE_LUMI_SCALE_8TONE_SPANISH,
 	    MIDI_DEVICE_LUMI_SCALE_CHROMATIC};
 
-	// By reference to presetScaleNames in global scope
-	static constexpr Scale delugeScaleMap[9] = {
-	    Scale::MAJOR,      // MAJOR (IONIAN) -> MAJOR
-	    Scale::MINOR,      // MINOR (AEOLIAN) -> MINOR
-	    Scale::DORIAN,     // DORIAN -> DORIAN
-	    Scale::PHRYGIAN,   // PHRYGIAN -> PHRYGIAN
-	    Scale::LYDIAN,     // LYDIAN -> LYDIAN
-	    Scale::MIXOLYDIAN, // MIXOLYDIAN -> MIXOLYDIAN,
-	    Scale::LOCRIAN,    // LOCRIAN -> LOCRIAN
-	    Scale::CHROMATIC,  // RANDOM -> CHROMATIC (no idea how else to handle)
-	    Scale::CHROMATIC   // NONE -> CHROMATIC
-	};
-
 	enum class ColourZone { ROOT = 0, GLOBAL };
 
 	static bool matchesVendorProduct(uint16_t vendorId, uint16_t productId);
