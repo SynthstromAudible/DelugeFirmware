@@ -498,8 +498,8 @@ void MidiEngine::sendMidi(uint8_t statusType, uint8_t channel, uint8_t data1, ui
 		sendSerialMidi(statusType, channel, data1, data2);
 	}
 
-	// Send loopback to delly
-	if (loopBack) {
+	// Send loopback (other than clock) to delly
+	if (loopBack && channel != 0x08) { // channel 0x08 is clock
 		midiMessageReceived(&MIDIDeviceManager::dinMIDIPorts, statusType, channel, data1, data2, 0, false);
 	}
 }
