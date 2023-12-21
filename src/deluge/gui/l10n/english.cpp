@@ -395,6 +395,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_CLIP_HAS_INSTANCES_IN_ARRANGER, "Clip has instances in arranger"},
         {STRING_FOR_CANT_SAVE_WHILE_OVERDUBS_PENDING, "Can't save while overdubs pending"},
         {STRING_FOR_DIN_PORTS, "DIN ports"},
+        {STRING_FOR_LOOPBACK, "Loopback"},
         {STRING_FOR_UPSTREAM_USB_PORT_3_SYSEX, "upstream USB port 3 (sysex)"},
         {STRING_FOR_UPSTREAM_USB_PORT_2, "upstream USB port 2"},
         {STRING_FOR_UPSTREAM_USB_PORT_1, "upstream USB port 1"},

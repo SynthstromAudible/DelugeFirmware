@@ -61,6 +61,7 @@ MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port1{0};
 MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port2{1};
 MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port3{2};
 MIDIDeviceDINPorts dinMIDIPorts{};
+MIDIDeviceLoopback loopbackMidi{};
 
 uint8_t lowestLastMemberChannelOfLowerZoneOnConnectedOutput = 15;
 uint8_t highestLastMemberChannelOfUpperZoneOnConnectedOutput = 0;
