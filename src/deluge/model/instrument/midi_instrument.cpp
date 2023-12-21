@@ -723,7 +723,7 @@ void MIDIInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldOutputMe
 
 	// Or, MPE
 	else {
-		if (oldOutputMemberChannel <= 14) {
+		if (oldOutputMemberChannel <= 15) {
 			mpeOutputMemberChannels[oldOutputMemberChannel].lastNoteCode = noteCodePostArp;
 			mpeOutputMemberChannels[oldOutputMemberChannel].noteOffOrder = lastNoteOffOrder++;
 
