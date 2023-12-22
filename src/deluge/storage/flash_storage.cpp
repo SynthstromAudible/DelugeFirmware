@@ -117,25 +117,9 @@ namespace FlashStorage {
 120: gridAllowGreenSelection
 121: defaultGridActiveMode
 122: defaultMetronomeVolume
--- Future reservation for follow mode: --
-123: midiFollow enable/disable
-124: midiFollow set follow channel synth
-125: midiFollow set follow channel kit
-126: midiFollow set follow channel param
-127: midiFollow set kit root note
-128: midiFollow display param pop up
-129: midiFollow feedback
-130: midiFollow feedback automation mode
-131: midiFollow feedback filter to handle feedback loops
---
-132: defaultSessionLayout
-133: defaultKeyboardLayout
-134: gridUnarmEmptyPads
--- Future reservation for transpose global MIDI command: --
-135: GlobalMIDICommand::TRANSPOSE channel + 1
-136: GlobalMIDICommand::TRANSPOSE noteCode + 1
-137-140: GlobalMIDICommand::TRANSPOSE product / vendor ids
---
+123: defaultSessionLayout
+124: defaultKeyboardLayout
+125: gridUnarmEmptyPads
 */
 
 uint8_t defaultScale;
@@ -455,48 +439,22 @@ void readSettings() {
 	}
 	AudioEngine::metronome.setVolume(defaultMetronomeVolume);
 
-	/* Future bytes reserved for PR #781, MIDI follow */
-	/* 123 -> 131 */
-	/*
-	midiEngine.midiFollow = buffer[123];
-	midiEngine.midiFollowChannelSynth = buffer[124];
-	midiEngine.midiFollowChannelKit = buffer[125];
-	midiEngine.midiFollowChannelParam = buffer[126];
-	midiEngine.midiFollowKitRootNote = buffer[127];
-	midiEngine.midiFollowDisplayParam = buffer[128];
-	midiEngine.midiFollowFeedback = buffer[129];
-	midiEngine.midiFollowFeedbackAutomation = static_cast<MIDIFollowFeedbackAutomationMode>(buffer[130]);
-	midiEngine.midiFollowFeedback = buffer[131];
-	*/
-
-	/* Bytes 132-134 have migrated from a previous location. Loading firmware either side
-	   of the change sequentially can risk reading arbitrary data, which will
-	   cast to an enum of the right type, but with a value that matches none of
-	   the available enum values. Pick a valid default if this happens. */
-
-	if (util::to_underlying(SessionLayoutTypeMaxElement) <= buffer[132]) {
+	if (util::to_underlying(SessionLayoutTypeMaxElement) <= buffer[123]) {
 		defaultSessionLayout = SessionLayoutType::SessionLayoutTypeRows;
 	}
 	else {
-		defaultSessionLayout = static_cast<SessionLayoutType>(buffer[132]);
+		defaultSessionLayout = static_cast<SessionLayoutType>(buffer[123]);
 	}
 
-	if (util::to_underlying(KeyboardLayoutTypeMaxElement) <= buffer[133]) {
+	if (util::to_underlying(KeyboardLayoutTypeMaxElement) <= buffer[124]) {
 		defaultKeyboardLayout = KeyboardLayoutType::KeyboardLayoutTypeIsomorphic;
 	}
 	else {
-		defaultKeyboardLayout = static_cast<KeyboardLayoutType>(buffer[133]);
+		defaultKeyboardLayout = static_cast<KeyboardLayoutType>(buffer[124]);
 	}
 
-	gridUnarmEmptyPads = buffer[134];
+	gridUnarmEmptyPads = buffer[125];
 
-	/* Future bytes reserved for PR #837, Global MIDI Command transpose */
-	/* 135 -> 140 */
-	/*
-	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::TRANSPOSE)].channelOrZone = buffer[135] - 1;
-	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::TRANSPOSE)].noteOrCC = buffer[136] - 1;
-	MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::TRANSPOSE, &buffer[137]);
-	*/
 }
 
 void writeSettings() {
@@ -605,30 +563,10 @@ void writeSettings() {
 
 	buffer[122] = defaultMetronomeVolume;
 
-	/* Future bytes reserved for PR #781, MIDI follow:
-	123 -> 131
-	buffer[123] = midiEngine.midiFollow;
-	buffer[124] = midiEngine.midiFollowChannelSynth;
-	buffer[125] = midiEngine.midiFollowChannelKit;
-	buffer[126] = midiEngine.midiFollowChannelParam;
-	buffer[127] = midiEngine.midiFollowKitRootNote;
-	buffer[128] = midiEngine.midiFollowDisplayParam;
-	buffer[129] = midiEngine.midiFollowFeedback;
-	buffer[130] = util::to_underlying(midiEngine.midiFollowFeedbackAutomation);
-	buffer[131] = midiEngine.midiFollowFeedbackFilter;
-	*/
+	buffer[123] = util::to_underlying(defaultSessionLayout);
+	buffer[124] = util::to_underlying(defaultKeyboardLayout);
 
-	buffer[132] = util::to_underlying(defaultSessionLayout);
-	buffer[133] = util::to_underlying(defaultKeyboardLayout);
-
-	buffer[134] = gridUnarmEmptyPads;
-
-	/* Future bytes reserved for PR #837 Global MIDI Command transpose:
-    135 -> 140
-	buffer[135] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::TRANSPOSE)].channelOrZone + 1;
-	buffer[136] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::TRANSPOSE)].noteOrCC + 1;
-    MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::TRANSPOSE, &buffer[137]);
-	*/
+	buffer[125] = gridUnarmEmptyPads;
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer, 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,
