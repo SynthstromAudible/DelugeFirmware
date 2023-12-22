@@ -17,7 +17,6 @@
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/views/midi_session_view.h"
 #include "gui/views/performance_session_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -446,7 +445,7 @@ void SoundEditor::goUpOneLevel() {
 }
 
 void SoundEditor::exitCompletely() {
-	if (inSettingsMenu() || inMidiFollowSubmenu()) {
+	if (inSettingsMenu()) {
 		// First, save settings
 
 		display->displayLoadingAnimationText("Saving settings");
@@ -1296,9 +1295,6 @@ doMIDIOrCV:
 			         && !Buttons::isShiftButtonPressed()) {
 				newItem = &soundEditorRootMenuSongView;
 			}
-			else if ((getCurrentUI() == &midiSessionView) && !Buttons::isShiftButtonPressed()) {
-				newItem = &midiFollowSubmenu;
-			}
 			else {
 				newItem = &settingsRootMenu;
 			}
@@ -1372,10 +1368,6 @@ MenuItem* SoundEditor::getCurrentMenuItem() {
 
 bool SoundEditor::inSettingsMenu() {
 	return (menuItemNavigationRecord[0] == &settingsRootMenu);
-}
-
-bool SoundEditor::inMidiFollowSubmenu() {
-	return (menuItemNavigationRecord[0] == &midiFollowSubmenu);
 }
 
 bool SoundEditor::isUntransposedNoteWithinRange(int32_t noteCode) {

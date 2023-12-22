@@ -826,20 +826,6 @@ PLACE_SDRAM_DATA Language english{
         /* Strings Specifically for Midi Learning View
         * midi_session_view.cpp
         */
-
-        {STRING_FOR_MIDI_VIEW, "Midi Learning View"},
-        {STRING_FOR_MIDI_DEFAULTS_LOADED, "Defaults Loaded"},
-        {STRING_FOR_MIDI_DEFAULTS_SAVED, "Defaults Saved"},
-        {STRING_FOR_MIDI_FOLLOW, "Follow: "},
-        {STRING_FOR_MIDI_CHANNEL, "CH: "},
-        {STRING_FOR_MIDI_LEARNED, "Learned: CC "},
-        {STRING_FOR_MIDI_NOT_LEARNED, "Not Learned"},
-        {STRING_FOR_MIDI_LEARN_CHANNEL, "\n Channel is: "},
-
-        {STRING_FOR_SYNTH, "Synth"},
-        {STRING_FOR_KIT, "Kit"},
-        {STRING_FOR_PARAM, "Param"},
-
         //strings for midi follow menu
         {STRING_FOR_FOLLOW_TITLE, "Midi-Follow"},
         {STRING_FOR_FOLLOW, "Follow"},

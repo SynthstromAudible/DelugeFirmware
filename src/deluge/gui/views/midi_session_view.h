@@ -27,40 +27,10 @@ class ModelStack;
 class ModelStackWithThreeMainThings;
 class ModelStackWithAutoParam;
 
-struct MidiPadPress {
-	bool isActive;
-	int32_t xDisplay;
-	int32_t yDisplay;
-	Param::Kind paramKind;
-	int32_t paramID;
-};
-
-class MidiSessionView final : public RootUI, public GlobalEffectable {
+class MidiSessionView final : public GlobalEffectable {
 public:
 	MidiSessionView();
 	void readDefaultsFromFile();
-	bool opened();
-	void focusRegained();
-
-	void graphicsRoutine();
-	ActionResult timerCallback();
-
-	//rendering
-	bool renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
-	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
-	bool renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
-	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
-	void renderViewDisplay();
-	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
-	// 7SEG only
-	void redrawNumericDisplay();
-	void setLedStates();
-
-	//button action
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
-
-	//pad action
-	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
 
 	//midi follow context
 	Clip* getClipForMidiFollow(bool useActiveClip = false);
@@ -81,7 +51,6 @@ public:
 	                             int32_t whichBendRange, int32_t bendSemitones);
 
 	//midi CC mappings
-	void learnCC(int32_t channel, int32_t ccNumber);
 	int32_t getCCFromParam(Param::Kind paramKind, int32_t paramID);
 
 	int32_t paramToCC[kDisplayWidth][kDisplayHeight];
@@ -91,45 +60,11 @@ public:
 
 private:
 	//initialize
-	void initPadPress(MidiPadPress& padPress);
 	void initMapping(int32_t mapping[kDisplayWidth][kDisplayHeight]);
-
-	//display
-	void renderParamDisplay(Param::Kind paramKind, int32_t paramID, int32_t ccNumber);
-
-	//rendering
-	void renderRow(uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
-	void setCentralLEDStates();
-
-	//pad action
-	void potentialShortcutPadAction(int32_t xDisplay, int32_t yDisplay);
-
-	//learning
-	void cantLearn(int32_t channel);
-
-	//change status
-	void updateMappingChangeStatus();
-	bool anyChangesToSave;
-
-	// save/load default values
-	int32_t backupXMLParamToCC[kDisplayWidth][kDisplayHeight];
-
-	//saving
-	void saveMidiFollowMappings();
-	void writeDefaultsToFile();
-	void writeDefaultMappingsToFile();
 
 	//loading
 	bool successfullyReadDefaultsFromFile;
-	void loadMidiFollowMappings();
-	void readDefaultsFromBackedUpFile();
 	void readDefaultMappingsFromFile();
-
-	//learning view related
-	MidiPadPress lastPadPress;
-	int32_t currentCC;
-	bool onParamDisplay;
-	bool showLearnedParams;
 };
 
 extern MidiSessionView midiSessionView;
