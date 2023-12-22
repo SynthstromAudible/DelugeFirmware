@@ -260,7 +260,12 @@ void readSettings() {
 	cvEngine.setCVTranspose(1, buffer[15], buffer[19]);
 
 	for (int32_t i = 0; i < NUM_GATE_CHANNELS; i++) {
-		cvEngine.setGateType(i, static_cast<GateType>(buffer[22 + i]));
+		if (util::to_underlying(GateType::SPECIAL) < buffer[22 + i]) {
+			cvEngine.setGateType(i, GateType::V_TRIG);
+		}
+		else {
+			cvEngine.setGateType(i, static_cast<GateType>(buffer[22 + i]));
+		}
 	}
 
 	cvEngine.minGateOffTime = buffer[30];
@@ -359,7 +364,12 @@ void readSettings() {
 	else {
 		audioClipRecordMargins = buffer[61];
 		playbackHandler.countInEnabled = buffer[62];
-		keyboardLayout = static_cast<KeyboardLayout>(buffer[69]);
+		if (util::to_underlying(KeyboardLayout::QWERTZ) < buffer[69]) {
+			keyboardLayout = KeyboardLayout::QWERTY;
+		}
+		else {
+			keyboardLayout = static_cast<KeyboardLayout>(buffer[69]);
+		}
 	}
 
 	if (previouslySavedByFirmwareVersion < FIRMWARE_3P0P0_BETA) {
@@ -420,11 +430,23 @@ void readSettings() {
 			defaultBendRange[BEND_RANGE_MAIN] = 12;
 		}
 	}
-	midiEngine.midiTakeover = static_cast<MIDITakeoverMode>(buffer[113]);
+
+	if (util::to_underlying(MIDITakeoverMode::SCALE) < buffer[113]) {
+		midiEngine.midiTakeover = MIDITakeoverMode::JUMP;
+	}
+	else {
+		midiEngine.midiTakeover = static_cast<MIDITakeoverMode>(buffer[113]);
+	}
+
 	// 114 and 115, and 116-119 used further up
 
 	gridAllowGreenSelection = buffer[120];
-	defaultGridActiveMode = static_cast<GridDefaultActiveMode>(buffer[121]);
+	if (util::to_underlying(GridDefaultActiveModeMaxElement) <= buffer[121]) {
+		defaultGridActiveMode = GridDefaultActiveMode::GridDefaultActiveModeSelection;
+	}
+	else {
+		defaultGridActiveMode = static_cast<GridDefaultActiveMode>(buffer[121]);
+	}
 
 	defaultMetronomeVolume = buffer[122];
 	if (defaultMetronomeVolume > kMaxMenuMetronomeVolumeValue
@@ -451,14 +473,19 @@ void readSettings() {
 	   of the change sequentially can risk reading arbitrary data, which will
 	   cast to an enum of the right type, but with a value that matches none of
 	   the available enum values. Pick a valid default if this happens. */
-	defaultSessionLayout = static_cast<SessionLayoutType>(buffer[132]);
-	if (defaultSessionLayout >= SessionLayoutType::SessionLayoutTypeMaxElement) {
+
+	if (util::to_underlying(SessionLayoutTypeMaxElement) <= buffer[132]) {
 		defaultSessionLayout = SessionLayoutType::SessionLayoutTypeRows;
 	}
+	else {
+		defaultSessionLayout = static_cast<SessionLayoutType>(buffer[132]);
+	}
 
-	defaultKeyboardLayout = static_cast<KeyboardLayoutType>(buffer[133]);
-	if (defaultKeyboardLayout >= KeyboardLayoutType::KeyboardLayoutTypeMaxElement) {
-		defaultKeyboardLayout = KeyboardLayoutTypeIsomorphic;
+	if (util::to_underlying(KeyboardLayoutTypeMaxElement) <= buffer[133]) {
+		defaultKeyboardLayout = KeyboardLayoutType::KeyboardLayoutTypeIsomorphic;
+	}
+	else {
+		defaultKeyboardLayout = static_cast<KeyboardLayoutType>(buffer[133]);
 	}
 
 	gridUnarmEmptyPads = buffer[134];
