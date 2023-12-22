@@ -162,8 +162,8 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 
 	paramsInAutomationMode = false;
 
-    // default to off XXX 
-	midiLoopback = true;
+    // default to off
+	midiLoopback = false;
 
 	// Setup reverb temp variables
 	reverbRoomSize = (float)30 / 50;
@@ -1128,6 +1128,8 @@ weAreInArrangementEditorOrInClipInstance:
 	storageManager.writeAttribute("affectEntire", affectEntire);
 	storageManager.writeAttribute("activeModFunction", globalEffectable.modKnobMode);
 
+	storageManager.writeAttribute("midiLoopback", midiLoopback);
+
 	globalEffectable.writeAttributesToFile(false);
 
 	storageManager
@@ -1516,6 +1518,11 @@ unknownTag:
 			else if (!strcmp(tagName, "affectEntire")) {
 				affectEntire = storageManager.readTagOrAttributeValueInt();
 				storageManager.exitTag("affectEntire");
+			}
+
+			else if (!strcmp(tagName, "midiLoopback")) {
+				midiLoopback = storageManager.readTagOrAttributeValueInt();
+				storageManager.exitTag("midiLoopback");
 			}
 
 			else if (!strcmp(tagName, "songCompressor")) {
