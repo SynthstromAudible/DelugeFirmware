@@ -18,12 +18,9 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "gui/views/clip_navigation_timeline_view.h"
-#include "hid/button.h"
+#include "gui/ui/root_ui.h"
 #include "model/global_effectable/global_effectable.h"
-#include "storage/flash_storage.h"
 
-class Editor;
 class InstrumentClip;
 class Clip;
 class ModelStack;
@@ -38,7 +35,7 @@ struct MidiPadPress {
 	int32_t paramID;
 };
 
-class MidiSessionView final : public ClipNavigationTimelineView, public GlobalEffectable {
+class MidiSessionView final : public RootUI, public GlobalEffectable {
 public:
 	MidiSessionView();
 	void readDefaultsFromFile();
@@ -64,24 +61,6 @@ public:
 
 	//pad action
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
-
-	//horizontal encoder action
-	ActionResult horizontalEncoderAction(int32_t offset);
-
-	//vertical encoder action
-	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
-
-	//mod encoder action
-	void modEncoderAction(int32_t whichModEncoder, int32_t offset);
-	void modEncoderButtonAction(uint8_t whichModEncoder, bool on);
-	void modButtonAction(uint8_t whichButton, bool on);
-
-	//select encoder action
-	void selectEncoderAction(int8_t offset);
-
-	//not sure why we need these...
-	uint32_t getMaxZoom();
-	uint32_t getMaxLength();
 
 	//midi follow context
 	Clip* getClipForMidiFollow(bool useActiveClip = false);

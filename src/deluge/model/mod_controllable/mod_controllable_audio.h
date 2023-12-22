@@ -165,7 +165,7 @@ public:
 	MidiKnobArray midiKnobArray;
 
 private:
-	int32_t calculateKnobPosForMidiTakeover(ModelStackWithAutoParam* modelStackWithParam, int32_t modPos, int32_t value,
+	int32_t calculateKnobPosForMidiTakeover(ModelStackWithAutoParam* modelStackWithParam, int32_t knobPos, int32_t value,
 	                                        MIDIKnob* knob = nullptr, bool midiFollow = false, int32_t xDisplay = 0,
 	                                        int32_t yDisplay = 0);
 

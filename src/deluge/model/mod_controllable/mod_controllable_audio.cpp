@@ -1661,16 +1661,16 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 			if (modelStackWithParam && modelStackWithParam->autoParam) {
 				int32_t newKnobPos;
 
+				int32_t previousValue =
+				    modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
+				int32_t knobPos =
+				    modelStackWithParam->paramCollection->paramValueToKnobPos(previousValue, modelStackWithParam);
+
 				if (knob->relative) {
 					int32_t offset = value;
 					if (offset >= 64) {
 						offset -= 128;
 					}
-
-					int32_t previousValue =
-					    modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
-					int32_t knobPos =
-					    modelStackWithParam->paramCollection->paramValueToKnobPos(previousValue, modelStackWithParam);
 					int32_t lowerLimit = std::min(-64_i32, knobPos);
 					newKnobPos = knobPos + offset;
 					newKnobPos = std::max(newKnobPos, lowerLimit);
@@ -1680,7 +1680,21 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 					}
 				}
 				else {
-					newKnobPos = calculateKnobPosForMidiTakeover(modelStackWithParam, modPos, value, knob);
+					//add 64 to internal knobPos to compare to midi cc value received
+					//if internal pos + 64 is greater than 127 (e.g. 128), adjust it to 127
+					//because midi can only send a max midi value of 127
+					int32_t knobPosForMidiValueComparison = knobPos + kKnobPosOffset;
+					if (knobPosForMidiValueComparison > 127) {
+						knobPosForMidiValueComparison = 127;
+					}
+
+					//is the cc being received for the same value as the current knob pos? If so, do nothing
+					if (value != knobPosForMidiValueComparison) {
+						newKnobPos = calculateKnobPosForMidiTakeover(modelStackWithParam, knobPos, value, knob);
+					}
+					else {
+						continue;
+					}
 				}
 
 				//Convert the New Knob Position to a Parameter Value
@@ -1690,12 +1704,6 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 				//Set the new Parameter Value for the MIDI Learned Parameter
 				modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos,
 				                                                          modLength);
-
-				//check if you should display name of the parameter that was changed and the value that has been set
-				if (midiEngine.midiFollowDisplayParam) {
-					Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-					view.displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos);
-				}
 			}
 		}
 	}
@@ -1750,16 +1758,16 @@ void ModControllableAudio::offerReceivedCCToMidiFollow(ModelStack* modelStack, C
 							//add 64 to internal knobPos to compare to midi cc value received
 							//if internal pos + 64 is greater than 127 (e.g. 128), adjust it to 127
 							//because midi can only send a max midi value of 127
-							int32_t knobPosForCCComparison = knobPos + kKnobPosOffset;
-							if (knobPosForCCComparison > 127) {
-								knobPosForCCComparison = 127;
+							int32_t knobPosForMidiValueComparison = knobPos + kKnobPosOffset;
+							if (knobPosForMidiValueComparison > 127) {
+								knobPosForMidiValueComparison = 127;
 							}
 
 							//is the cc being received for the same value as the current knob pos? If so, do nothing
-							if (value != knobPosForCCComparison) {
+							if (value != knobPosForMidiValueComparison) {
 								//calculate new knob position based on value received and deluge current value
 								int32_t newKnobPos = calculateKnobPosForMidiTakeover(
-								    modelStackWithParam, view.modPos, value, nullptr, true, xDisplay, yDisplay);
+								    modelStackWithParam, knobPos, value, nullptr, true, xDisplay, yDisplay);
 
 								//Convert the New Knob Position to a Parameter Value
 								int32_t newValue = modelStackWithParam->paramCollection->knobPosToParamValue(
@@ -1860,7 +1868,7 @@ void ModControllableAudio::sendCCForMidiFollowFeedback(int32_t ccNumber, int32_t
 /// this function will calculate the knob position that the deluge parameter that the midi cc
 /// received is learned to should be set at based on the midi cc value received
 int32_t ModControllableAudio::calculateKnobPosForMidiTakeover(ModelStackWithAutoParam* modelStackWithParam,
-                                                              int32_t modPos, int32_t value, MIDIKnob* knob,
+                                                              int32_t knobPos, int32_t value, MIDIKnob* knob,
                                                               bool midiFollow, int32_t xDisplay, int32_t yDisplay) {
 	int32_t newKnobPos = 0;
 
@@ -1930,12 +1938,6 @@ int32_t ModControllableAudio::calculateKnobPosForMidiTakeover(ModelStackWithAuto
 				midiSessionView.previousKnobPos[xDisplay][yDisplay] = midiKnobPos;
 			}
 		}
-
-		//Here we obtain the current Parameter Value on the Deluge
-		int32_t previousValue = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
-
-		//Here we convert the current Parameter Value on the Deluge to a Knob Position Value
-		int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(previousValue, modelStackWithParam);
 
 		//Here is where we check if the Knob/Fader on the Midi Controller is out of sync with the Deluge Knob Position
 

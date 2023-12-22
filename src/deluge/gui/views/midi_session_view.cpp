@@ -17,23 +17,11 @@
 
 #include "gui/views/midi_session_view.h"
 #include "definitions_cxx.hpp"
-#include "dsp/master_compressor/master_compressor.h"
-#include "extern.h"
-#include "gui/colour.h"
-#include "gui/context_menu/audio_input_selector.h"
-#include "gui/context_menu/launch_style.h"
-#include "gui/menu_item/colour.h"
-#include "gui/menu_item/unpatched_param.h"
-#include "gui/ui/keyboard/keyboard_screen.h"
-#include "gui/ui/load/load_instrument_preset_ui.h"
-#include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/menus.h"
-#include "gui/ui/ui.h"
-#include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/audio_clip_view.h"
 #include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/performance_session_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/button.h"
@@ -43,16 +31,11 @@
 #include "hid/led/pad_leds.h"
 #include "io/debug/print.h"
 #include "io/midi/midi_engine.h"
-#include "memory/general_memory_allocator.h"
-#include "model/action/action_logger.h"
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
-#include "playback/mode/arrangement.h"
 #include "playback/playback_handler.h"
-#include "processing/engines/audio_engine.h"
-#include "storage/storage_manager.h"
 #include "util/d_string.h"
 #include "util/functions.h"
 #include <new>
@@ -118,7 +101,6 @@ bool MidiSessionView::opened() {
 void MidiSessionView::focusRegained() {
 	currentSong->affectEntire = true;
 
-	ClipNavigationTimelineView::focusRegained();
 	view.focusRegained();
 	view.setActiveModControllableTimelineCounter(currentSong);
 
@@ -458,8 +440,8 @@ ActionResult MidiSessionView::buttonAction(deluge::hid::Button b, bool on, bool 
 
 	//exit Midi View if learn button is being held
 	//otherwise show learned params in green when midi button is held and cc's are being received
-	else if (b == MIDI) {
-		if (Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
+	else if ((b == MIDI) || (b == BACK)) {
+		if ((b != MIDI) || Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
 			if (on) {
 				changeRootUI(&sessionView);
 			}
@@ -496,7 +478,7 @@ ActionResult MidiSessionView::buttonAction(deluge::hid::Button b, bool on, bool 
 
 	else {
 		ActionResult actionResult;
-		actionResult = TimelineView::buttonAction(b, on, inCardRoutine);
+		actionResult = view.buttonAction(b, on, inCardRoutine);
 		if (b == LEARN) {
 			indicator_leds::blinkLed(IndicatorLED::LEARN);
 		}
@@ -1107,36 +1089,3 @@ void MidiSessionView::readDefaultMappingsFromFile() {
 	}
 }
 
-void MidiSessionView::selectEncoderAction(int8_t offset) {
-	return;
-}
-
-ActionResult MidiSessionView::horizontalEncoderAction(int32_t offset) {
-	return ActionResult::DEALT_WITH;
-}
-
-ActionResult MidiSessionView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
-	return ActionResult::DEALT_WITH;
-}
-
-/// why do I need this? (code won't compile without it)
-uint32_t MidiSessionView::getMaxZoom() {
-	return currentSong->getLongestClip(true, false)->getMaxZoom();
-}
-
-/// why do I need this? (code won't compile without it)
-uint32_t MidiSessionView::getMaxLength() {
-	return currentSong->getLongestClip(true, false)->loopLength;
-}
-
-void MidiSessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
-	return;
-}
-
-void MidiSessionView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
-	return;
-}
-
-void MidiSessionView::modButtonAction(uint8_t whichButton, bool on) {
-	UI::modButtonAction(whichButton, on);
-}
