@@ -71,14 +71,10 @@
 #include "gui/menu_item/midi/device.h"
 #include "gui/menu_item/midi/device_send_clock.h"
 #include "gui/menu_item/midi/devices.h"
-#include "gui/menu_item/midi/follow/follow.h"
 #include "gui/menu_item/midi/follow/follow_channel_kit.h"
 #include "gui/menu_item/midi/follow/follow_channel_param.h"
 #include "gui/menu_item/midi/follow/follow_channel_synth.h"
-#include "gui/menu_item/midi/follow/follow_display_param.h"
-#include "gui/menu_item/midi/follow/follow_feedback.h"
 #include "gui/menu_item/midi/follow/follow_feedback_automation.h"
-#include "gui/menu_item/midi/follow/follow_feedback_filter.h"
 #include "gui/menu_item/midi/follow/follow_kit_root_note.h"
 #include "gui/menu_item/midi/input_differentiation.h"
 #include "gui/menu_item/midi/pgm.h"
@@ -178,6 +174,7 @@
 #include "gui/menu_item/value.h"
 #include "gui/menu_item/voice/polyphony.h"
 #include "gui/menu_item/voice/priority.h"
+#include "io/midi/midi_engine.h"
 #include "processing/sound/sound.h"
 
 using namespace deluge;
@@ -781,15 +778,18 @@ midi::Thru midiThruMenu{STRING_FOR_MIDI_THRU};
 midi::Takeover midiTakeoverMenu{STRING_FOR_TAKEOVER};
 
 //MIDI Follow
-midi::Follow midiFollowMenu{STRING_FOR_FOLLOW};
+ToggleBool midiFollowMenu{STRING_FOR_FOLLOW, STRING_FOR_FOLLOW, midiEngine.midiFollow};
 midi::FollowChannelSynth midiFollowChannelSynthMenu{STRING_FOR_FOLLOW_CHANNEL_SYNTH};
 midi::FollowChannelKit midiFollowChannelKitMenu{STRING_FOR_FOLLOW_CHANNEL_KIT};
 midi::FollowChannelParam midiFollowChannelParamMenu{STRING_FOR_FOLLOW_CHANNEL_PARAM};
 midi::FollowKitRootNote midiFollowKitRootNoteMenu{STRING_FOR_FOLLOW_KIT_ROOT_NOTE};
-midi::FollowDisplayParam midiFollowDisplayParamMenu{STRING_FOR_FOLLOW_DISPLAY_PARAM};
-midi::FollowFeedback midiFollowFeedbackMenu{STRING_FOR_FOLLOW_FEEDBACK};
+ToggleBool midiFollowDisplayParamMenu{STRING_FOR_FOLLOW_DISPLAY_PARAM, STRING_FOR_FOLLOW_DISPLAY_PARAM,
+                                      midiEngine.midiFollowDisplayParam};
+ToggleBool midiFollowFeedbackMenu{STRING_FOR_FOLLOW_FEEDBACK, STRING_FOR_FOLLOW_FEEDBACK,
+                                  midiEngine.midiFollowFeedback};
 midi::FollowFeedbackAutomation midiFollowFeedbackAutomationMenu{STRING_FOR_FOLLOW_FEEDBACK_AUTOMATION};
-midi::FollowFeedbackFilter midiFollowFeedbackFilterMenu{STRING_FOR_FOLLOW_FEEDBACK_FILTER};
+ToggleBool midiFollowFeedbackFilterMenu{STRING_FOR_FOLLOW_FEEDBACK_FILTER, STRING_FOR_FOLLOW_FEEDBACK_FILTER,
+                                        midiEngine.midiFollowFeedbackFilter};
 
 Submenu midiFollowChannelSubmenu{
     STRING_FOR_CHANNEL,

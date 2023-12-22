@@ -46,4 +46,3 @@ char const* l10n_get(size_t string) {
 	return deluge::l10n::get(static_cast<deluge::l10n::String>(string));
 }
 }
-

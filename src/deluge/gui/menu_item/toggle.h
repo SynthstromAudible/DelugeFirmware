@@ -14,4 +14,17 @@ public:
 	virtual void drawValue();
 	void drawPixelsForOled();
 };
+
+class ToggleBool : public Toggle {
+public:
+	using Toggle::Toggle;
+
+	ToggleBool(l10n::String newName, l10n::String title, bool& newToggle) : Toggle(newName, title), t(newToggle) {}
+
+	void readCurrentValue() override { this->setValue(t); }
+	void writeCurrentValue() override { t = this->getValue(); }
+
+	bool& t;
+};
+
 } // namespace deluge::gui::menu_item
