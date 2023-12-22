@@ -32,6 +32,7 @@
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "io/debug/print.h"
+#include "io/midi/device_specific/specific_midi_device.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
@@ -433,6 +434,7 @@ void Song::setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjusting
 
 	int32_t oldRootNote = rootNote;
 	rootNote = newRootNote;
+
 	int32_t oldNumModeNotes = numModeNotes;
 	bool notesWithinOctavePresent[12];
 	for (int32_t i = 0; i < 12; i++) {
@@ -639,6 +641,7 @@ traverseClips:
 
 		instrumentClip->musicalModeChanged(yVisualWithinOctave, change, modelStackWithTimelineCounter);
 	}
+
 	if (clipArray != &arrangementOnlyClips) {
 		clipArray = &arrangementOnlyClips;
 		goto traverseClips;
@@ -756,6 +759,7 @@ traverseClips:
 
 		instrumentClip->noteRemovedFromMode(yNoteWithinOctave, this);
 	}
+
 	if (clipArray != &arrangementOnlyClips) {
 		clipArray = &arrangementOnlyClips;
 		goto traverseClips;
