@@ -454,7 +454,6 @@ void readSettings() {
 	}
 
 	gridUnarmEmptyPads = buffer[125];
-
 }
 
 void writeSettings() {
