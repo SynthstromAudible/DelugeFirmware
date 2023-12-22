@@ -486,7 +486,6 @@ void MidiEngine::sendPolyphonicAftertouch(int32_t channel, uint8_t value, uint8_
 
 void MidiEngine::sendMidi(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2, int32_t filter,
                           bool sendUSB) {
-	bool loopBack = true;
 
 	// Send USB MIDI
 	if (sendUSB) {
@@ -499,7 +498,7 @@ void MidiEngine::sendMidi(uint8_t statusType, uint8_t channel, uint8_t data1, ui
 	}
 
 	// Send loopback (other than clock) to delly
-	if (loopBack && channel != 0x08) { // channel 0x08 is clock
+	if (currentSong->midiLoopback && channel != 0x08) { // channel 0x08 is clock
 		midiMessageReceived(&MIDIDeviceManager::loopbackMidi, statusType, channel, data1, data2, 0, false);
 	}
 }

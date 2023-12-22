@@ -329,6 +329,9 @@ public:
 	ModelStackWithTimelineCounter* setupModelStackWithCurrentClip(void* memory);
 	ModelStackWithThreeMainThings* addToModelStack(ModelStack* modelStack);
 
+	// Whether this song wants notes/cc/etc from delly midi clips looped back
+	bool midiLoopback = false;
+
 	// Reverb params to be stored here between loading and song being made the active one
 	float reverbRoomSize;
 	float reverbDamp;
