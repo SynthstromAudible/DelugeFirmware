@@ -56,6 +56,10 @@ MidiSessionView midiSessionView{};
 
 //initialize variables
 MidiSessionView::MidiSessionView() {
+	initView();
+}
+
+void MidiSessionView::initView() {
 	successfullyReadDefaultsFromFile = false;
 
 	anyChangesToSave = false;
@@ -1028,6 +1032,9 @@ void MidiSessionView::readDefaultsFromFile() {
 	//no need to keep reading from SD card after first load
 	if (successfullyReadDefaultsFromFile) {
 		return;
+	}
+	else {
+		initView();
 	}
 
 	FilePointer fp;

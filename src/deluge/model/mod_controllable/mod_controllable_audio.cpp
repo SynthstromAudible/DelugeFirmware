@@ -1900,7 +1900,10 @@ int32_t ModControllableAudio::calculateKnobPosForMidiTakeover(ModelStackWithAuto
 
 		*/
 
-		int32_t midiKnobPos = value - 64;
+		int32_t midiKnobPos = 64;
+		if (value < 127) {
+			midiKnobPos = value - 64;
+		}
 
 		//Save previous knob position for first time
 		//The first time a midi knob is turned in a session, no previous midi knob position information exists, so to start, it will be equal to the current midiKnobPos

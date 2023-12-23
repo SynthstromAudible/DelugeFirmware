@@ -91,6 +91,7 @@ public:
 
 private:
 	//initialize
+	void initView();
 	void initPadPress(MidiPadPress& padPress);
 	void initMapping(int32_t mapping[kDisplayWidth][kDisplayHeight]);
 
