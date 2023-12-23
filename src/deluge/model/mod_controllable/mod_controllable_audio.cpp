@@ -1789,11 +1789,6 @@ void ModControllableAudio::offerReceivedCCToMidiFollow(ModelStack* modelStack, C
 			}
 		}
 	}
-
-	midiSessionView.previousKnobPos[ccNumber] = 64;
-	if (value < 127) {
-		midiSessionView.previousKnobPos[ccNumber] = value - 64;
-	}
 }
 
 /// called when updating the context,
@@ -1918,6 +1913,11 @@ int32_t ModControllableAudio::calculateKnobPosForMidiTakeover(ModelStackWithAuto
 				knob->previousPositionSaved = true;
 			}
 		}
+		else if (midiFollow) {
+			if (midiSessionView.previousKnobPos[ccNumber] == kNoSelection) {
+				midiSessionView.previousKnobPos[ccNumber] = midiKnobPos;
+			}
+		}
 
 		//adjust previous knob position saved
 
@@ -1929,6 +1929,13 @@ int32_t ModControllableAudio::calculateKnobPosForMidiTakeover(ModelStackWithAuto
 			if (knob->previousPosition > (midiKnobPos + 1) || knob->previousPosition < (midiKnobPos - 1)) {
 
 				knob->previousPosition = midiKnobPos;
+			}
+		}
+		else if (midiFollow) {
+			int32_t previousPosition = midiSessionView.previousKnobPos[ccNumber];
+			if (previousPosition > midiKnobPos || previousPosition < (midiKnobPos - 1)) {
+
+				midiSessionView.previousKnobPos[ccNumber] = midiKnobPos;
 			}
 		}
 
@@ -1968,12 +1975,7 @@ int32_t ModControllableAudio::calculateKnobPosForMidiTakeover(ModelStackWithAuto
 					midiKnobPosChange = midiKnobPos - knob->previousPosition;
 				}
 				else if (midiFollow) {
-					if (midiSessionView.previousKnobPos[ccNumber] == kNoSelection) {
-						midiKnobPosChange = 0;
-					}
-					else {
-						midiKnobPosChange = midiKnobPos - midiSessionView.previousKnobPos[ccNumber];
-					}
+					midiKnobPosChange = midiKnobPos - midiSessionView.previousKnobPos[ccNumber];
 				}
 
 				//Set fixed point variable which will be used calculate the percentage in midi knob position
@@ -2005,6 +2007,9 @@ int32_t ModControllableAudio::calculateKnobPosForMidiTakeover(ModelStackWithAuto
 		//save the current midi knob position as the previous midi knob position so that it can be used next time the takeover code is executed
 		if (knob != nullptr) {
 			knob->previousPosition = midiKnobPos;
+		}
+		else if (midiFollow) {
+			midiSessionView.previousKnobPos[ccNumber] = midiKnobPos;
 		}
 	}
 
