@@ -244,7 +244,7 @@ void readSettings() {
 	cvEngine.setCVTranspose(1, buffer[15], buffer[19]);
 
 	for (int32_t i = 0; i < NUM_GATE_CHANNELS; i++) {
-		if (util::to_underlying(GateType::SPECIAL) < buffer[22 + i]) {
+		if (buffer[22 + i] >= util::to_underlying(GateType::GateTypeMaxElement)) {
 			cvEngine.setGateType(i, GateType::V_TRIG);
 		}
 		else {
@@ -304,7 +304,12 @@ void readSettings() {
 		MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::FILL, &buffer[116]);
 	}
 
-	AudioEngine::inputMonitoringMode = static_cast<InputMonitoringMode>(buffer[50]);
+	if (buffer[50] >= kNumInputMonitoringModes) {
+		AudioEngine::inputMonitoringMode = InputMonitoringMode::SMART;
+	}
+	else {
+		AudioEngine::inputMonitoringMode = static_cast<InputMonitoringMode>(buffer[50]);
+	}
 
 	recordQuantizeLevel = buffer[51] + 8;
 	if (recordQuantizeLevel == 10) {
@@ -348,7 +353,7 @@ void readSettings() {
 	else {
 		audioClipRecordMargins = buffer[61];
 		playbackHandler.countInEnabled = buffer[62];
-		if (util::to_underlying(KeyboardLayout::QWERTZ) < buffer[69]) {
+		if (buffer[69] >= kNumKeyboardLayouts) {
 			keyboardLayout = KeyboardLayout::QWERTY;
 		}
 		else {
@@ -415,7 +420,7 @@ void readSettings() {
 		}
 	}
 
-	if (util::to_underlying(MIDITakeoverMode::SCALE) < buffer[113]) {
+	if (buffer[113] >= kNumMIDITakeoverModes) {
 		midiEngine.midiTakeover = MIDITakeoverMode::JUMP;
 	}
 	else {
@@ -425,7 +430,7 @@ void readSettings() {
 	// 114 and 115, and 116-119 used further up
 
 	gridAllowGreenSelection = buffer[120];
-	if (util::to_underlying(GridDefaultActiveModeMaxElement) <= buffer[121]) {
+	if (buffer[121] >= util::to_underlying(GridDefaultActiveModeMaxElement)) {
 		defaultGridActiveMode = GridDefaultActiveMode::GridDefaultActiveModeSelection;
 	}
 	else {
@@ -439,14 +444,14 @@ void readSettings() {
 	}
 	AudioEngine::metronome.setVolume(defaultMetronomeVolume);
 
-	if (util::to_underlying(SessionLayoutTypeMaxElement) <= buffer[123]) {
+	if (buffer[123] >= util::to_underlying(SessionLayoutTypeMaxElement)) {
 		defaultSessionLayout = SessionLayoutType::SessionLayoutTypeRows;
 	}
 	else {
 		defaultSessionLayout = static_cast<SessionLayoutType>(buffer[123]);
 	}
 
-	if (util::to_underlying(KeyboardLayoutTypeMaxElement) <= buffer[124]) {
+	if (buffer[124] >= util::to_underlying(KeyboardLayoutTypeMaxElement)) {
 		defaultKeyboardLayout = KeyboardLayoutType::KeyboardLayoutTypeIsomorphic;
 	}
 	else {
