@@ -60,6 +60,7 @@ public:
 
 private:
 	//initialize
+	void initView();
 	void initMapping(int32_t mapping[kDisplayWidth][kDisplayHeight]);
 
 	//loading
