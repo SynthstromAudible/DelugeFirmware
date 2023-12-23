@@ -33,6 +33,7 @@
 #include "gui/menu_item/defaults/session_layout.h"
 #include "gui/menu_item/defaults/velocity.h"
 #include "gui/menu_item/delay/analog.h"
+#include "gui/menu_item/delay/ping_pong.h"
 #include "gui/menu_item/delay/sync.h"
 #include "gui/menu_item/dev_var/dev_var.h"
 #include "gui/menu_item/drum_name.h"
@@ -372,8 +373,7 @@ Submenu eqMenu{
 // Delay ---------------------------------------------------------------------------------
 patched_param::Integer delayFeedbackMenu{STRING_FOR_AMOUNT, STRING_FOR_DELAY_AMOUNT, ::Param::Global::DELAY_FEEDBACK};
 patched_param::Integer delayRateMenu{STRING_FOR_RATE, STRING_FOR_DELAY_RATE, ::Param::Global::DELAY_RATE};
-ToggleBool delayPingPongMenu{STRING_FOR_PINGPONG, STRING_FOR_DELAY_PINGPONG,
-                             soundEditor.currentModControllable->delay.pingPong};
+delay::PingPong delayPingPongMenu{STRING_FOR_PINGPONG, STRING_FOR_DELAY_PINGPONG};
 delay::Analog delayAnalogMenu{STRING_FOR_TYPE, STRING_FOR_DELAY_TYPE};
 delay::Sync delaySyncMenu{STRING_FOR_SYNC, STRING_FOR_DELAY_SYNC};
 
