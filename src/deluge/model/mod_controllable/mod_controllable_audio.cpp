@@ -1968,7 +1968,12 @@ int32_t ModControllableAudio::calculateKnobPosForMidiTakeover(ModelStackWithAuto
 					midiKnobPosChange = midiKnobPos - knob->previousPosition;
 				}
 				else if (midiFollow) {
-					midiKnobPosChange = midiKnobPos - midiSessionView.previousKnobPos[ccNumber];
+					if (midiSessionView.previousKnobPos[ccNumber] == kNoSelection) {
+						midiKnobPosChange = 0;
+					}
+					else {
+						midiKnobPosChange = midiKnobPos - midiSessionView.previousKnobPos[ccNumber];
+					}
 				}
 
 				//Set fixed point variable which will be used calculate the percentage in midi knob position
