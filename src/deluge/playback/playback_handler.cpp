@@ -2770,7 +2770,7 @@ void PlaybackHandler::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, ui
 		else {
 			//if you're currently in midiSessionView, see if you can learn this CC
 			if (getRootUI() == &midiSessionView) {
-				midiSessionView.learnCC(channel, ccNumber);
+				midiSessionView.learnCC(channel, ccNumber, value);
 				return;
 			}
 			else if (currentUIMode == UI_MODE_MIDI_LEARN) {

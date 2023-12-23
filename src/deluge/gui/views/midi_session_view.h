@@ -81,11 +81,11 @@ public:
 	                             int32_t whichBendRange, int32_t bendSemitones);
 
 	//midi CC mappings
-	void learnCC(int32_t channel, int32_t ccNumber);
+	void learnCC(int32_t channel, int32_t ccNumber, int32_t value);
 	int32_t getCCFromParam(Param::Kind paramKind, int32_t paramID);
 
 	int32_t paramToCC[kDisplayWidth][kDisplayHeight];
-	int32_t previousKnobPos[kDisplayWidth][kDisplayHeight];
+	int32_t previousKnobPos[kMaxCCNumber + 1];
 	uint32_t timeLastCCSent[kMaxCCNumber + 1];
 	uint32_t timeAutomationFeedbackLastSent;
 

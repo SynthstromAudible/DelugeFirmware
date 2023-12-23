@@ -69,10 +69,10 @@ void MidiSessionView::initView() {
 	initPadPress(lastPadPress);
 	initMapping(paramToCC);
 	initMapping(backupXMLParamToCC);
-	initMapping(previousKnobPos);
 
 	for (int32_t i = 0; i < 128; i++) {
 		timeLastCCSent[i] = 0;
+		previousKnobPos[i] = kNoSelection;
 	}
 
 	clipForLastNoteReceived = nullptr;
@@ -411,7 +411,6 @@ ActionResult MidiSessionView::buttonAction(deluge::hid::Button b, bool on, bool 
 		if (on) {
 			initPadPress(lastPadPress);
 			initMapping(paramToCC);
-			initMapping(previousKnobPos);
 			updateMappingChangeStatus();
 			uiNeedsRendering(this);
 		}
@@ -529,7 +528,6 @@ void MidiSessionView::potentialShortcutPadAction(int32_t xDisplay, int32_t yDisp
 		//if pressing a param shortcut while holding learn, unlearn midi CC from a specific param
 		if (Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
 			paramToCC[xDisplay][yDisplay] = kNoSelection;
-			previousKnobPos[xDisplay][yDisplay] = kNoSelection;
 			updateMappingChangeStatus();
 			uiNeedsRendering(this);
 		}
@@ -544,24 +542,10 @@ void MidiSessionView::potentialShortcutPadAction(int32_t xDisplay, int32_t yDisp
 
 /// used in midi learning view to learn a cc received to a grid sized array in the shortcut positions
 /// corresponding to valid learnable parameters
-void MidiSessionView::learnCC(int32_t channel, int32_t ccNumber) {
+void MidiSessionView::learnCC(int32_t channel, int32_t ccNumber, int32_t value) {
 	if (channel == midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)].channelOrZone) {
 		if (lastPadPress.isActive) {
 			if (paramToCC[lastPadPress.xDisplay][lastPadPress.yDisplay] != ccNumber) {
-				//init knobPos for current param
-				previousKnobPos[lastPadPress.xDisplay][lastPadPress.yDisplay] = kNoSelection;
-
-				//look to see if this cc was mapped elsewhere and we have a previousKnobPosition saved
-				for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
-					for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-						if ((paramToCC[xDisplay][yDisplay] == ccNumber)
-						    && (previousKnobPos[xDisplay][yDisplay] != kNoSelection)) {
-							previousKnobPos[lastPadPress.xDisplay][lastPadPress.yDisplay] =
-							    previousKnobPos[xDisplay][yDisplay];
-						}
-					}
-				}
-
 				//assign cc to current param selected
 				paramToCC[lastPadPress.xDisplay][lastPadPress.yDisplay] = ccNumber;
 
@@ -578,6 +562,10 @@ void MidiSessionView::learnCC(int32_t channel, int32_t ccNumber) {
 	}
 	else if (lastPadPress.isActive) {
 		cantLearn(channel);
+	}
+	previousKnobPos[ccNumber] = 64;
+	if (value < 127) {
+		previousKnobPos[ccNumber] = value - 64;
 	}
 }
 
@@ -1007,7 +995,6 @@ void MidiSessionView::writeDefaultMappingsToFile() {
 void MidiSessionView::loadMidiFollowMappings() {
 	initPadPress(lastPadPress);
 	initMapping(paramToCC);
-	initMapping(previousKnobPos);
 	if (successfullyReadDefaultsFromFile) {
 		readDefaultsFromBackedUpFile();
 	}
@@ -1095,4 +1082,3 @@ void MidiSessionView::readDefaultMappingsFromFile() {
 		storageManager.exitTag();
 	}
 }
-
