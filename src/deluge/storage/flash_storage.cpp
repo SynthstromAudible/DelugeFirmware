@@ -244,7 +244,7 @@ void readSettings() {
 	cvEngine.setCVTranspose(1, buffer[15], buffer[19]);
 
 	for (int32_t i = 0; i < NUM_GATE_CHANNELS; i++) {
-		if (buffer[22 + i] >= util::to_underlying(GateType::GateTypeMaxElement)) {
+		if (buffer[22 + i] >= kNumGateTypes) {
 			cvEngine.setGateType(i, GateType::V_TRIG);
 		}
 		else {

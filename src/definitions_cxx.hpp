@@ -259,8 +259,8 @@ enum class GateType : uint8_t {
 	V_TRIG,
 	S_TRIG,
 	SPECIAL,
-	GateTypeMaxElement, // Keep as boundary
 };
+constexpr int32_t kNumGateTypes = util::to_underlying(GateType::SPECIAL) + 1;
 
 constexpr int32_t kNumSongSlots = 1000;
 constexpr int32_t kNumInstrumentSlots = 1000;
