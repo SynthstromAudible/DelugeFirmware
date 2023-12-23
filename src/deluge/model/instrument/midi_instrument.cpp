@@ -49,7 +49,7 @@ MIDIInstrument::MIDIInstrument() : NonAudioInstrument(InstrumentType::MIDI_OUT) 
 	modKnobMode = 0;
 	memset(modKnobCCAssignments, CC_NUMBER_NONE, sizeof(modKnobCCAssignments));
 
-	for (int32_t c = 1; c <= 14; c++) {
+	for (int32_t c = 0; c <= 15; c++) {
 		mpeOutputMemberChannels[c].lastNoteCode = 32767;
 		mpeOutputMemberChannels[c].noteOffOrder = 0;
 	}
@@ -593,7 +593,7 @@ void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) {
 		                                   ? MIDIDeviceManager::lowestLastMemberChannelOfLowerZoneOnConnectedOutput
 		                                   : 14;
 
-		uint8_t numNotesPreviouslyActiveOnMemberChannel[15];
+		uint8_t numNotesPreviouslyActiveOnMemberChannel[16];
 		memset(numNotesPreviouslyActiveOnMemberChannel, 0, sizeof(numNotesPreviouslyActiveOnMemberChannel));
 
 		int32_t outputMemberChannelWithNoteSharingInputMemberChannel = 16; // 16 means "none", I think
@@ -602,7 +602,8 @@ void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) {
 			// Count up notes per member channel. This traversal will *not* find the new note that we're switching on, which will have had its toMIDIChannel set to 16 by Arpeggiator (we'll decide and set it below).
 			for (int32_t n = 0; n < arpeggiator.notes.getNumElements(); n++) {
 				ArpNote* thisArpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
-				if (thisArpNote->outputMemberChannel >= 1 && thisArpNote->outputMemberChannel <= 14) {
+				if (thisArpNote->outputMemberChannel >= lowestMemberChannel
+				    && thisArpNote->outputMemberChannel <= highestMemberChannel) {
 					numNotesPreviouslyActiveOnMemberChannel[thisArpNote->outputMemberChannel]++;
 
 					// If this note is coming in live from the same member channel as the one we wish to switch on now, that's a good clue that we should group them together at the output. (Final decision to be made further below.)
@@ -723,38 +724,36 @@ void MIDIInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldOutputMe
 
 	// Or, MPE
 	else {
-		if (oldOutputMemberChannel <= 14) {
-			mpeOutputMemberChannels[oldOutputMemberChannel].lastNoteCode = noteCodePostArp;
-			mpeOutputMemberChannels[oldOutputMemberChannel].noteOffOrder = lastNoteOffOrder++;
 
-			midiEngine.sendNote(false, noteCodePostArp, velocity, oldOutputMemberChannel, channel);
+		mpeOutputMemberChannels[oldOutputMemberChannel].lastNoteCode = noteCodePostArp;
+		mpeOutputMemberChannels[oldOutputMemberChannel].noteOffOrder = lastNoteOffOrder++;
 
-			// And now, if this note was sharing a member channel with any others, we want to send MPE values for those new averages
-			int32_t numNotesFound = 0;
-			int32_t mpeValuesSum
-			    [kNumExpressionDimensions]; // We'll be summing 16-bit values into this 32-bit container, so no overflowing
-			memset(mpeValuesSum, 0, sizeof(mpeValuesSum));
+		midiEngine.sendNote(false, noteCodePostArp, velocity, oldOutputMemberChannel, channel);
 
-			for (
-			    int32_t n = 0; n < arpeggiator.notes.getNumElements();
-			    n++) { // This traversal will not include the original note, which has already been deleted from the array.
-				ArpNote* lookingAtArpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
-				if (lookingAtArpNote->outputMemberChannel == oldOutputMemberChannel) {
-					numNotesFound++;
-					for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
-						mpeValuesSum[m] += lookingAtArpNote->mpeValues[m];
-					}
-				}
-			}
+		// And now, if this note was sharing a member channel with any others, we want to send MPE values for those new averages
+		int32_t numNotesFound = 0;
+		int32_t mpeValuesSum
+		    [kNumExpressionDimensions]; // We'll be summing 16-bit values into this 32-bit container, so no overflowing
+		memset(mpeValuesSum, 0, sizeof(mpeValuesSum));
 
-			if (numNotesFound) {
-				// Work out averages
-				int16_t mpeValuesAverage[kNumExpressionDimensions];
+		for (int32_t n = 0; n < arpeggiator.notes.getNumElements();
+		     n++) { // This traversal will not include the original note, which has already been deleted from the array.
+			ArpNote* lookingAtArpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
+			if (lookingAtArpNote->outputMemberChannel == oldOutputMemberChannel) {
+				numNotesFound++;
 				for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
-					mpeValuesAverage[m] = mpeValuesSum[m] / numNotesFound;
+					mpeValuesSum[m] += lookingAtArpNote->mpeValues[m];
 				}
-				outputAllMPEValuesOnMemberChannel(mpeValuesAverage, oldOutputMemberChannel);
 			}
+		}
+
+		if (numNotesFound) {
+			// Work out averages
+			int16_t mpeValuesAverage[kNumExpressionDimensions];
+			for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
+				mpeValuesAverage[m] = mpeValuesSum[m] / numNotesFound;
+			}
+			outputAllMPEValuesOnMemberChannel(mpeValuesAverage, oldOutputMemberChannel);
 		}
 	}
 }
