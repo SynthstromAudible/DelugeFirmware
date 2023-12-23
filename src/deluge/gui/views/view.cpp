@@ -1122,6 +1122,8 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 
 	// Quantized Stutter FX
 	if (modelStackWithParam->paramId == Param::Unpatched::STUTTER_RATE
+	    && (modelStackWithParam->isParam(Param::Kind::UNPATCHED_SOUND, modelStackWithParam->paramId)
+	        || modelStackWithParam->isParam(Param::Kind::UNPATCHED_GLOBAL, modelStackWithParam->paramId))
 	    && (runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate)
 	        == RuntimeFeatureStateToggle::On)
 	    && !isUIModeActive(UI_MODE_STUTTERING)) {
