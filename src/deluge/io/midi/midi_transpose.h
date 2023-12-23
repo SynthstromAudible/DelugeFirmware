@@ -21,13 +21,8 @@
 
 class MIDIDevice;
 
-
-
-class MIDITranspose {
-public:
-	MIDITranspose();
+namespace MIDITranspose {
 	void doTranspose(MIDIDevice* newDevice, int32_t newChannel, int32_t newNoteOrCC);
-
 };
 
-extern MIDITranspose midiTranspose;
+//extern MIDITranspose midiTranspose;

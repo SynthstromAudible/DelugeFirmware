@@ -2452,13 +2452,8 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, int32_t channel,
 		if (midiEngine.globalMIDICommands[c].equalsChannelOrZone(device, channel) &&
 			static_cast<GlobalMIDICommand>(c) == GlobalMIDICommand::TRANSPOSE) {
 			foundAnything = true;
-			midiTranspose.doTranspose(device, channel, note);
+			MIDITranspose::doTranspose(device, channel, note);
 		}
-		/*else if (midiEngine.globalMIDICommands[c].equalsNoteOrCC(device, channel, note)
-			&& static_cast<GlobalMIDICommand>(c) == GlobalMIDICommand::SCALE) {
-
-		}*/
-
 
 		else if (midiEngine.globalMIDICommands[c].equalsNoteOrCC(device, channel, note)) {
 			switch (static_cast<GlobalMIDICommand>(c)) {
