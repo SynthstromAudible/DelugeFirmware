@@ -54,7 +54,7 @@ public:
 	int32_t getCCFromParam(Param::Kind paramKind, int32_t paramID);
 
 	int32_t paramToCC[kDisplayWidth][kDisplayHeight];
-	int32_t previousKnobPos[kDisplayWidth][kDisplayHeight];
+	int32_t previousKnobPos[kMaxCCNumber + 1];
 	uint32_t timeLastCCSent[kMaxCCNumber + 1];
 	uint32_t timeAutomationFeedbackLastSent;
 

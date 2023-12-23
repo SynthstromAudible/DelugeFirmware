@@ -63,10 +63,10 @@ void MidiSessionView::initView() {
 	successfullyReadDefaultsFromFile = false;
 
 	initMapping(paramToCC);
-	initMapping(previousKnobPos);
 
 	for (int32_t i = 0; i < 128; i++) {
 		timeLastCCSent[i] = 0;
+		previousKnobPos[i] = kNoSelection;
 	}
 
 	clipForLastNoteReceived = nullptr;
@@ -454,4 +454,3 @@ void MidiSessionView::readDefaultMappingsFromFile() {
 		storageManager.exitTag();
 	}
 }
-
