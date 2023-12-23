@@ -42,6 +42,7 @@
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "io/debug/print.h"
+#include "io/midi/device_specific/specific_midi_device.h"
 #include "io/midi/midi_engine.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action.h"
@@ -195,6 +196,8 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 					cycleThroughScales();
 					recalculateColours();
 					uiNeedsRendering(this);
+					// Hook point for specificMidiDevice
+					iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_CHANGE_SCALE);
 				}
 
 				// Or, no shift button - normal behaviour
@@ -205,6 +208,8 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 						calculateDefaultRootNote(); // Calculate it now so we can show the user even before they've released the button
 						flashDefaultRootNoteOn = false;
 						flashDefaultRootNote();
+						// Hook point for specificMidiDevice
+						iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_CHANGE_SCALE);
 					}
 				}
 			}
@@ -2404,6 +2409,9 @@ void InstrumentClipView::recalculateColour(uint8_t yDisplay) {
 	                                     rowColour[yDisplay]);
 	getTailColour(rowTailColour[yDisplay], rowColour[yDisplay]);
 	getBlurColour(rowBlurColour[yDisplay], rowColour[yDisplay]);
+
+	// Hook point for specificMidiDevice
+	iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_RECALCULATE_COLOUR);
 }
 
 ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCardRoutine, bool draggingNoteRow) {
@@ -3769,6 +3777,9 @@ void InstrumentClipView::enterScaleMode(uint8_t yDisplay) {
 	//drawAllAuditionSquares(false);
 
 	PadLEDs::renderNoteRowExpandOrCollapse();
+
+	// Hook point for specificMidiDevice
+	iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_ENTER_SCALE_MODE);
 }
 
 int32_t InstrumentClipView::setupForExitingScaleMode() {
@@ -3852,6 +3863,9 @@ void InstrumentClipView::exitScaleMode() {
 	PadLEDs::recordTransitionBegin(kNoteRowCollapseSpeed);
 	setLedStates();
 	PadLEDs::renderNoteRowExpandOrCollapse();
+
+	// Hook point for specificMidiDevice
+	iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_EXIT_SCALE_MODE);
 }
 
 // If called from KeyboardScreen, the newRootNote won't correspond to the yDisplay, and that's ok
@@ -3875,6 +3889,9 @@ void InstrumentClipView::changeRootNote(uint8_t yDisplay) {
 
 	recalculateColours();
 	uiNeedsRendering(this);
+
+	// Hook point for specificMidiDevice
+	iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_CHANGE_ROOT_NOTE);
 }
 
 bool InstrumentClipView::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
