@@ -1870,38 +1870,38 @@ void ModControllableAudio::sendCCForMidiFollowFeedback(int32_t ccNumber, int32_t
 int32_t ModControllableAudio::calculateKnobPosForMidiTakeover(ModelStackWithAutoParam* modelStackWithParam,
                                                               int32_t knobPos, int32_t value, MIDIKnob* knob,
                                                               bool midiFollow, int32_t ccNumber) {
+	/*
+
+	Step #1: Convert Midi Controller's CC Value to Deluge Knob Position Value
+
+	- Midi CC Values for non endless encoders typically go from 0 to 127
+	- Deluge Knob Position Value goes from -64 to 64
+
+	To convert Midi CC Value to Deluge Knob Position Value, subtract 64 from the Midi CC Value
+
+	So a Midi CC Value of 0 is equal to a Deluge Knob Position Value of -64 (0 less 64).
+
+	Similarly a Midi CC Value of 127 is equal to a Deluge Knob Position Value of +63 (127 less 64)
+
+	*/
+
+	int32_t midiKnobPos = 64;
+	if (value < 127) {
+		midiKnobPos = value - 64;
+	}
+
 	int32_t newKnobPos = 0;
 
 	if (midiEngine.midiTakeover == MIDITakeoverMode::JUMP) { //Midi Takeover Mode = Jump
-		newKnobPos = 64;
-		if (value < 127) {
-			newKnobPos = value - 64;
-		}
+		newKnobPos = midiKnobPos;
 		if (knob != nullptr) {
-			knob->previousPositionSaved = false;
+			knob->previousPosition = midiKnobPos;
+		}
+		else if (midiFollow) {
+			midiSessionView.previousKnobPos[ccNumber] = midiKnobPos;
 		}
 	}
 	else { //Midi Takeover Mode = Pickup or Value Scaling
-		/*
-
-		Step #1: Convert Midi Controller's CC Value to Deluge Knob Position Value
-
-		- Midi CC Values for non endless encoders typically go from 0 to 127
-		- Deluge Knob Position Value goes from -64 to 64
-
-		To convert Midi CC Value to Deluge Knob Position Value, subtract 64 from the Midi CC Value
-
-		So a Midi CC Value of 0 is equal to a Deluge Knob Position Value of -64 (0 less 64).
-
-		Similarly a Midi CC Value of 127 is equal to a Deluge Knob Position Value of +63 (127 less 64)
-
-		*/
-
-		int32_t midiKnobPos = 64;
-		if (value < 127) {
-			midiKnobPos = value - 64;
-		}
-
 		//Save previous knob position for first time
 		//The first time a midi knob is turned in a session, no previous midi knob position information exists, so to start, it will be equal to the current midiKnobPos
 		//This code is also executed when takeover mode is changed to Jump and back to Pickup/Scale because in Jump mode no previousPosition information gets saved
@@ -1933,7 +1933,7 @@ int32_t ModControllableAudio::calculateKnobPosForMidiTakeover(ModelStackWithAuto
 		}
 		else if (midiFollow) {
 			int32_t previousPosition = midiSessionView.previousKnobPos[ccNumber];
-			if (previousPosition > midiKnobPos || previousPosition < (midiKnobPos - 1)) {
+			if (previousPosition > (midiKnobPos + 1) || previousPosition < (midiKnobPos - 1)) {
 
 				midiSessionView.previousKnobPos[ccNumber] = midiKnobPos;
 			}
