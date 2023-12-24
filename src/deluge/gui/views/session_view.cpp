@@ -587,7 +587,8 @@ doActualSimpleChange:
 		goto changeOutputType;
 	}
 	else if (b == KEYBOARD) {
-		if (on && currentUIMode == UI_MODE_NONE) {
+		if (on && (currentUIMode == UI_MODE_NONE)
+		    && (currentSong->sessionLayout != SessionLayoutType::SessionLayoutTypeGrid)) {
 			changeRootUI(&performanceSessionView);
 		}
 	}
@@ -2820,6 +2821,14 @@ bool SessionView::gridRenderSidebar(uint32_t whichRows, RGB image[][kDisplayWidt
 			}
 		}
 
+		gridRenderActionModes(y, image, occupancyMask);
+	}
+
+	return true;
+}
+
+void SessionView::gridRenderActionModes(int32_t y, RGB image[][kDisplayWidth + kSideBarWidth],
+                                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 		// Action modes column
 		uint32_t actionModeColumnIndex = kDisplayWidth + 1;
 		bool modeExists = true;
@@ -2838,9 +2847,7 @@ bool SessionView::gridRenderSidebar(uint32_t whichRows, RGB image[][kDisplayWidt
 		}
 		case 0: {
 			modeActive = (gridModeActive == SessionGridModePerformanceView);
-			modeColour[0] = 128; //Pink
-			modeColour[1] = 0;
-			modeColour[2] = 128;
+			modeColour = colours::magenta; // Pink
 		}
 
 		default: {
@@ -2850,9 +2857,6 @@ bool SessionView::gridRenderSidebar(uint32_t whichRows, RGB image[][kDisplayWidt
 		}
 		occupancyMask[y][actionModeColumnIndex] = (modeExists ? 1 : 0);
 		image[y][actionModeColumnIndex] = modeColour.adjust(255, (modeActive ? 1 : 8));
-	}
-
-	return true;
 }
 
 bool SessionView::gridRenderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
@@ -3293,7 +3297,8 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 				break;
 			}
 			case 0: {
-				gridModeActive = SessionGridModePerformanceView;
+				performanceSessionView.gridModeActive = true;
+				performanceSessionView.timeGridModePress = AudioEngine::audioSampleTimer;
 				changeRootUI(&performanceSessionView);
 				uiNeedsRendering(&performanceSessionView);
 				return ActionResult::DEALT_WITH;
@@ -3302,7 +3307,7 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 		}
 		else {
 			if (FlashStorage::defaultGridActiveMode == GridDefaultActiveModeSelection) {
-				if (!gridActiveModeUsed && (gridModeActive != SessionGridModePerformanceView)) {
+				if (!gridActiveModeUsed) {
 					gridModeSelected = gridModeActive;
 				}
 			}

@@ -120,6 +120,10 @@ public:
 	void renderFXDisplay(deluge::modulation::params::Kind paramKind, int32_t paramID, int32_t knobPos = kNoSelection);
 	bool onFXDisplay;
 
+	//public so Grid View can access it
+	bool gridModeActive;
+	uint32_t timeGridModePress;
+
 private:
 	// initialize
 	void initPadPress(PadPress& padPress);

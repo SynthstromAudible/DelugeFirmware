@@ -191,6 +191,9 @@ PerformanceSessionView::PerformanceSessionView() {
 
 	justExitedSoundEditor = false;
 
+	gridModeActive = false;
+	timeGridModePress = 0;
+
 	initPadPress(firstPadPress);
 	initPadPress(lastPadPress);
 
@@ -434,14 +437,10 @@ bool PerformanceSessionView::renderSidebar(uint32_t whichRows, RGB image[][kDisp
 		return true;
 	}
 
-	if (sessionView.gridModeActive == SessionGridModePerformanceView) {
-		int32_t yDisplay = 0;
-		int32_t xDisplay = kDisplayWidth + 1;
-
-		image[yDisplay][xDisplay][0] = 128;
-		image[yDisplay][xDisplay][1] = 0;
-		image[yDisplay][xDisplay][2] = 128;
-		occupancyMask[yDisplay][xDisplay] = 64;
+	if (gridModeActive) {
+		for (int32_t y = (kGridHeight - 1); y >= 0; --y) {
+			sessionView.gridRenderActionModes(y, image, occupancyMask);
+		}
 	}
 
 	return true;
@@ -837,6 +836,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 				else {
 					changeRootUI(&sessionView);
 				}
+				gridModeActive = false;
 			}
 		}
 	}
@@ -900,9 +900,11 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 			}
 			uiNeedsRendering(this); // re-render pads
 		}
+		//if
 		else if ((xDisplay == 17) && (yDisplay == 0)) {
-			if (sessionView.gridModeActive == SessionGridModePerformanceView) {
+			if (!on && gridModeActive && ((AudioEngine::audioSampleTimer - timeGridModePress) >= kHoldTime)) {
 				changeRootUI(&sessionView);
+				gridModeActive = false;
 			}
 		}
 	}
