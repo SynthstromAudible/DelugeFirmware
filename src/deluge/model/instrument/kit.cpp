@@ -1197,8 +1197,7 @@ void Kit::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevic
 }
 
 void Kit::offerReceivedPitchBendToDrum(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Drum* thisDrum,
-                                       MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
-                                       int32_t level, bool* doingMidiThru) {
+                                       uint8_t data1, uint8_t data2, int32_t level, bool* doingMidiThru) {
 	int16_t value16 = (((uint32_t)data1 | ((uint32_t)data2 << 7)) - 8192) << 2;
 	thisDrum->expressionEventPossiblyToRecord(modelStackWithTimelineCounter, value16, 0, level);
 }
@@ -1224,13 +1223,18 @@ void Kit::offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTi
 			}
 			else { // Or, if Drum does not have MPE input, then this is a channel-level message.
 yesThisDrum:
-				offerReceivedPitchBendToDrum(modelStackWithTimelineCounter, thisDrum, fromDevice, channel, data1, data2,
-				                             level, doingMidiThru);
+				offerReceivedPitchBendToDrum(modelStackWithTimelineCounter, thisDrum, data1, data2, level,
+				                             doingMidiThru);
 			}
 		}
 	}
 }
 
+void Kit::offerMPEYAxisToDrum(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Drum* thisDrum,
+                              int32_t level, uint8_t value) {
+	int16_t value16 = (value - 64) << 9;
+	thisDrum->expressionEventPossiblyToRecord(modelStackWithTimelineCounter, value16, 1, level);
+}
 void Kit::offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
                           uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru) {
 
@@ -1242,27 +1246,18 @@ void Kit::offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineC
 	}
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-		if (thisDrum->midiInput.equalsChannelAllowMPE(fromDevice, channel)) {
-
-			if (thisDrum->midiInput.isForMPEZone()) { // If Drum has MPE input.
-				int32_t level = BEND_RANGE_MAIN;
-				if (channel
-				    == thisDrum->midiInput
-				           .getMasterChannel()) { // Message coming in on master channel - that's "main"/zone-level, too.
-					goto yesThisDrum;
-				}
-				if (channel
-				    == thisDrum
-				           ->lastMIDIChannelAuditioned) { // Or if per-finger level, check the member channel of the message matches the one sounding on the Drum right now.
-					level = BEND_RANGE_FINGER_LEVEL;
-yesThisDrum:
-					int16_t value16 = (value - 64) << 9;
-					thisDrum->expressionEventPossiblyToRecord(modelStackWithTimelineCounter, value16, 1, level);
-				}
-			}
-
-			// If not an MPE input, we don't want to respond to this CC74 at all (for this Drum).
+		int32_t bend_range = BEND_RANGE_FINGER_LEVEL;
+		switch (thisDrum->midiInput.checkMatch(fromDevice, channel)) {
+		case MPE_MASTER:
+			bend_range = BEND_RANGE_MAIN;
+			//no break
+		case MPE_MEMBER:
+			offerMPEYAxisToDrum(modelStackWithTimelineCounter, thisDrum, bend_range, value);
+			break;
+		default:
+			continue;
 		}
+		// If not an MPE input, we don't want to respond to this CC74 at all (for this Drum).
 	}
 }
 

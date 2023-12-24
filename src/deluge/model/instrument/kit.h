@@ -60,8 +60,9 @@ public:
 	void offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
 	                            uint8_t channel, uint8_t data1, uint8_t data2, bool* doingMidiThru);
 	void offerReceivedPitchBendToDrum(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Drum* thisDrum,
-	                                  MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
-	                                  int32_t level, bool* doingMidiThru);
+	                                  uint8_t data1, uint8_t data2, int32_t level, bool* doingMidiThru);
+	void offerMPEYAxisToDrum(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Drum* thisDrum,
+	                         int32_t level, uint8_t value);
 	void offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
 	                     uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru);
 	void offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
