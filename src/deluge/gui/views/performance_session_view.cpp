@@ -837,7 +837,6 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 				else {
 					changeRootUI(&sessionView);
 				}
-				gridModeActive = false;
 			}
 		}
 	}
