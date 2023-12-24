@@ -332,7 +332,7 @@ bool PerformanceSessionView::renderMainPads(uint32_t whichRows, RGB image[][kDis
 	memset(image, 0, sizeof(RGB) * kDisplayHeight * (kDisplayWidth + kSideBarWidth));
 
 	// erase current occupancy mask as it will be refreshed
-	memset(occupancyMask, 0, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth + kSideBarWidth));
+	memset(occupancyMask, 0, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth));
 
 	// render performance view
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
@@ -885,6 +885,11 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 				paramEditorPadAction(modelStack, xDisplay, yDisplay, on);
 			}
 			uiNeedsRendering(this); // re-render pads
+		}
+		else if (xDisplay == (kDisplayWidth + kSideBarWidth - 1)) {
+			if (sessionView.gridModeActive == SessionGridModePerformanceView) {
+				changeRootUI(&sessionView);
+			}
 		}
 	}
 	else if (!on) {

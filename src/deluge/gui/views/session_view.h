@@ -30,6 +30,7 @@ class ModelStack;
 enum SessionGridMode : uint8_t {
 	SessionGridModeEdit,
 	SessionGridModeLaunch,
+	SessionGridModePerformanceView,
 	SessionGridModeMaxElement // Keep as boundary
 };
 
@@ -114,6 +115,7 @@ public:
 
 	// Members for grid layout
 	inline bool gridFirstPadActive() { return (gridFirstPressedX != -1 && gridFirstPressedY != -1); }
+	SessionGridMode gridModeActive = SessionGridModeEdit;
 
 private:
 	void renderViewDisplay(char const* viewString);
@@ -158,7 +160,6 @@ private:
 	void gridTransitionToViewForClip(Clip* clip);
 
 	SessionGridMode gridModeSelected = SessionGridModeEdit;
-	SessionGridMode gridModeActive = SessionGridModeEdit;
 	bool gridActiveModeUsed = false;
 
 	int32_t gridFirstPressedX = -1;

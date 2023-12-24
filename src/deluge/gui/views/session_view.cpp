@@ -2836,6 +2836,12 @@ bool SessionView::gridRenderSidebar(uint32_t whichRows, RGB image[][kDisplayWidt
 			modeColour = colours::blue; // Blue
 			break;
 		}
+		case 0: {
+			modeActive = (gridModeActive == SessionGridModePerformanceView);
+			modeColour[0] = 128; //Pink
+			modeColour[1] = 0;
+			modeColour[2] = 128;
+		}
 
 		default: {
 			modeExists = false;
@@ -3286,11 +3292,15 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 				gridModeActive = SessionGridModeEdit;
 				break;
 			}
+			case 0: {
+				gridModeActive = SessionGridModePerformanceView;
+				break;
+			}
 			}
 		}
 		else {
 			if (FlashStorage::defaultGridActiveMode == GridDefaultActiveModeSelection) {
-				if (!gridActiveModeUsed) {
+				if (!gridActiveModeUsed && (gridModeActive != SessionGridModePerformanceView)) {
 					gridModeSelected = gridModeActive;
 				}
 			}
@@ -3314,6 +3324,11 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 		case SessionGridModeLaunch: {
 			modeHandleResult = gridHandlePadsLaunch(x, y, on, clip);
 			break;
+		}
+		case SessionGridModePerformanceView: {
+			changeRootUI(&performanceSessionView);
+			uiNeedsRendering(&performanceSessionView);
+			return ActionResult::DEALT_WITH;
 		}
 		}
 
