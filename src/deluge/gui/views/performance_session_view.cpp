@@ -332,7 +332,7 @@ bool PerformanceSessionView::renderMainPads(uint32_t whichRows, RGB image[][kDis
 	memset(image, 0, sizeof(RGB) * kDisplayHeight * (kDisplayWidth + kSideBarWidth));
 
 	// erase current occupancy mask as it will be refreshed
-	memset(occupancyMask, 0, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth));
+	memset(occupancyMask, 0, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth + kSideBarWidth));
 
 	// render performance view
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
@@ -423,11 +423,18 @@ bool PerformanceSessionView::isParamAssignedToFXColumn(params::Kind paramKind, i
 	return false;
 }
 
-/// nothing to render in sidebar (yet)
+/// if entered performance view using pink grid mode pad, render the pink pad
 bool PerformanceSessionView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                            uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	if (!image) {
 		return true;
+	}
+
+	if (sessionView.gridModeActive == SessionGridModePerformanceView) {
+		image[0][kDisplayWidth + kSideBarWidth - 1][0] = 128;
+		image[0][kDisplayWidth + kSideBarWidth - 1][1] = 0;
+		image[0][kDisplayWidth + kSideBarWidth - 1][2] = 128;
+		occupancyMask[0][kDisplayWidth + kSideBarWidth - 1] = 64;
 	}
 
 	return true;
@@ -886,7 +893,7 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 			}
 			uiNeedsRendering(this); // re-render pads
 		}
-		else if (xDisplay == (kDisplayWidth + kSideBarWidth - 1)) {
+		else if ((xDisplay == 17) && (yDisplay == 0)) {
 			if (sessionView.gridModeActive == SessionGridModePerformanceView) {
 				changeRootUI(&sessionView);
 			}

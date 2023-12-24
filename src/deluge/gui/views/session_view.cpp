@@ -3294,7 +3294,9 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 			}
 			case 0: {
 				gridModeActive = SessionGridModePerformanceView;
-				break;
+				changeRootUI(&performanceSessionView);
+				uiNeedsRendering(&performanceSessionView);
+				return ActionResult::DEALT_WITH;
 			}
 			}
 		}
@@ -3324,11 +3326,6 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 		case SessionGridModeLaunch: {
 			modeHandleResult = gridHandlePadsLaunch(x, y, on, clip);
 			break;
-		}
-		case SessionGridModePerformanceView: {
-			changeRootUI(&performanceSessionView);
-			uiNeedsRendering(&performanceSessionView);
-			return ActionResult::DEALT_WITH;
 		}
 		}
 
