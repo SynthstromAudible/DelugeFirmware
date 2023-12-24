@@ -335,7 +335,7 @@ bool PerformanceSessionView::renderMainPads(uint32_t whichRows, RGB image[][kDis
 	memset(image, 0, sizeof(RGB) * kDisplayHeight * (kDisplayWidth + kSideBarWidth));
 
 	// erase current occupancy mask as it will be refreshed
-	memset(occupancyMask, 0, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth));
+	memset(occupancyMask, 0, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth + kSideBarWidth));
 
 	// render performance view
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {

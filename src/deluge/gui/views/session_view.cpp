@@ -3332,11 +3332,6 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 			modeHandleResult = gridHandlePadsLaunch(x, y, on, clip);
 			break;
 		}
-		case SessionGridModePerformanceView: {
-			changeRootUI(&performanceSessionView);
-			uiNeedsRendering(&performanceSessionView);
-			return ActionResult::DEALT_WITH;
-		}
 		}
 
 		if (modeHandleResult == ActionResult::DEALT_WITH) {
