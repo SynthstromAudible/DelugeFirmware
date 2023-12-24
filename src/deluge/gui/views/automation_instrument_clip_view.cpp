@@ -131,12 +131,12 @@ const std::array<std::pair<Param::Kind, ParamType>, kNumNonKitAffectEntireParams
         {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::BITCRUSHING},
         {Param::Kind::PATCHED, Param::Local::FOLD},
         {Param::Kind::PATCHED,
-         Param::Local::OSC_A_VOLUME}, //OSC 1 Volume, Pitch, Phase Width, Carrier Feedback, Wave Index
+         Param::Local::OSC_A_VOLUME}, //OSC 1 Volume, Pitch, Pulse Width, Carrier Feedback, Wave Index
         {Param::Kind::PATCHED, Param::Local::OSC_A_PITCH_ADJUST},
         {Param::Kind::PATCHED, Param::Local::OSC_A_PHASE_WIDTH},
         {Param::Kind::PATCHED, Param::Local::CARRIER_0_FEEDBACK},
         {Param::Kind::PATCHED,
-         Param::Local::OSC_A_WAVE_INDEX}, //OSC 2 Volume, Pitch, Phase Width, Carrier Feedback, Wave Index
+         Param::Local::OSC_A_WAVE_INDEX}, //OSC 2 Volume, Pitch, Pulse Width, Carrier Feedback, Wave Index
         {Param::Kind::PATCHED, Param::Local::OSC_B_VOLUME},
         {Param::Kind::PATCHED, Param::Local::OSC_B_PITCH_ADJUST},
         {Param::Kind::PATCHED, Param::Local::OSC_B_PHASE_WIDTH},
