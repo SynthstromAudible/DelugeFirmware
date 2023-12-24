@@ -658,6 +658,7 @@ void Kit::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel
 	}
 }
 
+//not updated for midi follow, this seems dumb and is just left for backwards compatibility
 bool Kit::offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
                                                 ModelStackWithTimelineCounter* modelStack) {
 
@@ -1195,6 +1196,13 @@ void Kit::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevic
 	}
 }
 
+void Kit::offerReceivedPitchBendToDrum(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Drum* thisDrum,
+                                       MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
+                                       int32_t level, bool* doingMidiThru) {
+	int16_t value16 = (((uint32_t)data1 | ((uint32_t)data2 << 7)) - 8192) << 2;
+	thisDrum->expressionEventPossiblyToRecord(modelStackWithTimelineCounter, value16, 0, level);
+}
+
 void Kit::offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
                                  uint8_t channel, uint8_t data1, uint8_t data2, bool* doingMidiThru) {
 
@@ -1216,8 +1224,8 @@ void Kit::offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTi
 			}
 			else { // Or, if Drum does not have MPE input, then this is a channel-level message.
 yesThisDrum:
-				int16_t value16 = (((uint32_t)data1 | ((uint32_t)data2 << 7)) - 8192) << 2;
-				thisDrum->expressionEventPossiblyToRecord(modelStackWithTimelineCounter, value16, 0, level);
+				offerReceivedPitchBendToDrum(modelStackWithTimelineCounter, thisDrum, fromDevice, channel, data1, data2,
+				                             level, doingMidiThru);
 			}
 		}
 	}
