@@ -246,6 +246,8 @@ public:
 	                                               ParamCollectionSummary* newSummary, int32_t newParamId) const;
 	ModelStackWithAutoParam* addParam(ParamCollection* newParamCollection, ParamCollectionSummary* newSummary,
 	                                  int32_t newParamId, AutoParam* newAutoParam) const;
+	ModelStackWithAutoParam* getUnpatchedAutoParamFromId(int32_t newParamId);
+	ModelStackWithAutoParam* getPatchedAutoParamFromId(int32_t newParamId);
 
 	inline ModelStackWithSoundFlags* addSoundFlags() const;
 	inline ModelStackWithSoundFlags* addDummySoundFlags() const;
