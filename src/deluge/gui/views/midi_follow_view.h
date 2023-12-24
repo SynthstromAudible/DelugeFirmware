@@ -35,9 +35,9 @@ struct MidiPadPress {
 	int32_t paramID;
 };
 
-class MidiSessionView final : public RootUI, public GlobalEffectable {
+class MidiFollowView final : public RootUI, public GlobalEffectable {
 public:
-	MidiSessionView();
+	MidiFollowView();
 	void readDefaultsFromFile();
 	bool opened();
 	void focusRegained();
@@ -133,4 +133,4 @@ private:
 	bool showLearnedParams;
 };
 
-extern MidiSessionView midiSessionView;
+extern MidiFollowView midiFollowView;

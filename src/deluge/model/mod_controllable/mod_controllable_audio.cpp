@@ -19,7 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "deluge/model/settings/runtime_feature_settings.h"
 #include "gui/l10n/l10n.h"
-#include "gui/views/midi_session_view.h"
+#include "gui/views/midi_follow_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
@@ -1737,9 +1737,9 @@ void ModControllableAudio::offerReceivedCCToMidiFollow(ModelStack* modelStack, C
 		//loop through the grid to see if any parameters have been learned to the ccNumber received
 		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 			for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-				if (midiSessionView.paramToCC[xDisplay][yDisplay] == ccNumber) {
+				if (midiFollowView.paramToCC[xDisplay][yDisplay] == ccNumber) {
 					//obtain the model stack for the parameter the ccNumber received is learned to
-					ModelStackWithAutoParam* modelStackWithParam = midiSessionView.getModelStackWithParam(
+					ModelStackWithAutoParam* modelStackWithParam = midiFollowView.getModelStackWithParam(
 					    modelStackWithThreeMainThings, modelStackWithTimelineCounter, clip, xDisplay, yDisplay,
 					    ccNumber, midiEngine.midiFollowDisplayParam);
 					//check if model stack is valid
@@ -1805,7 +1805,7 @@ void ModControllableAudio::sendCCWithoutModelStackForMidiFollowFeedback(bool isA
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = nullptr;
 
 	//obtain clip for active context
-	Clip* clip = midiSessionView.getClipForMidiFollow();
+	Clip* clip = midiFollowView.getClipForMidiFollow();
 
 	//setup model stack for the active context
 	if (!clip) {
@@ -1825,9 +1825,9 @@ void ModControllableAudio::sendCCWithoutModelStackForMidiFollowFeedback(bool isA
 		//loop through the grid to see if any parameters have been learned
 		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 			for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-				if (midiSessionView.paramToCC[xDisplay][yDisplay] != kNoSelection) {
+				if (midiFollowView.paramToCC[xDisplay][yDisplay] != kNoSelection) {
 					//obtain the model stack for the parameter that has been learned
-					ModelStackWithAutoParam* modelStackWithParam = midiSessionView.getModelStackWithParam(
+					ModelStackWithAutoParam* modelStackWithParam = midiFollowView.getModelStackWithParam(
 					    modelStackWithThreeMainThings, modelStackWithTimelineCounter, clip, xDisplay, yDisplay,
 					    kNoSelection, false);
 					//check that model stack is valid
@@ -1844,7 +1844,7 @@ void ModControllableAudio::sendCCWithoutModelStackForMidiFollowFeedback(bool isA
 								    currentValue, modelStackWithParam);
 
 								//send midi feedback to the ccNumber learned to the param with the current knob position
-								sendCCForMidiFollowFeedback(midiSessionView.paramToCC[xDisplay][yDisplay], knobPos);
+								sendCCForMidiFollowFeedback(midiFollowView.paramToCC[xDisplay][yDisplay], knobPos);
 							}
 						}
 					}
@@ -1861,7 +1861,7 @@ void ModControllableAudio::sendCCForMidiFollowFeedback(int32_t ccNumber, int32_t
 	    knobPos + kKnobPosOffset,
 	    midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)].channelOrZone);
 
-	midiSessionView.timeLastCCSent[ccNumber] = AudioEngine::audioSampleTimer;
+	midiFollowView.timeLastCCSent[ccNumber] = AudioEngine::audioSampleTimer;
 }
 
 /// based on the midi takeover default setting of JUMP, PICKUP, or SCALE
@@ -1898,7 +1898,7 @@ int32_t ModControllableAudio::calculateKnobPosForMidiTakeover(ModelStackWithAuto
 			knob->previousPosition = midiKnobPos;
 		}
 		else if (midiFollow) {
-			midiSessionView.previousKnobPos[ccNumber] = midiKnobPos;
+			midiFollowView.previousKnobPos[ccNumber] = midiKnobPos;
 		}
 	}
 	else { //Midi Takeover Mode = Pickup or Value Scaling
@@ -1914,8 +1914,8 @@ int32_t ModControllableAudio::calculateKnobPosForMidiTakeover(ModelStackWithAuto
 			}
 		}
 		else if (midiFollow) {
-			if (midiSessionView.previousKnobPos[ccNumber] == kNoSelection) {
-				midiSessionView.previousKnobPos[ccNumber] = midiKnobPos;
+			if (midiFollowView.previousKnobPos[ccNumber] == kNoSelection) {
+				midiFollowView.previousKnobPos[ccNumber] = midiKnobPos;
 			}
 		}
 
@@ -1932,10 +1932,10 @@ int32_t ModControllableAudio::calculateKnobPosForMidiTakeover(ModelStackWithAuto
 			}
 		}
 		else if (midiFollow) {
-			int32_t previousPosition = midiSessionView.previousKnobPos[ccNumber];
+			int32_t previousPosition = midiFollowView.previousKnobPos[ccNumber];
 			if (previousPosition > (midiKnobPos + 1) || previousPosition < (midiKnobPos - 1)) {
 
-				midiSessionView.previousKnobPos[ccNumber] = midiKnobPos;
+				midiFollowView.previousKnobPos[ccNumber] = midiKnobPos;
 			}
 		}
 
@@ -1975,7 +1975,7 @@ int32_t ModControllableAudio::calculateKnobPosForMidiTakeover(ModelStackWithAuto
 					midiKnobPosChange = midiKnobPos - knob->previousPosition;
 				}
 				else if (midiFollow) {
-					midiKnobPosChange = midiKnobPos - midiSessionView.previousKnobPos[ccNumber];
+					midiKnobPosChange = midiKnobPos - midiFollowView.previousKnobPos[ccNumber];
 				}
 
 				//Set fixed point variable which will be used calculate the percentage in midi knob position
@@ -2009,7 +2009,7 @@ int32_t ModControllableAudio::calculateKnobPosForMidiTakeover(ModelStackWithAuto
 			knob->previousPosition = midiKnobPos;
 		}
 		else if (midiFollow) {
-			midiSessionView.previousKnobPos[ccNumber] = midiKnobPos;
+			midiFollowView.previousKnobPos[ccNumber] = midiKnobPos;
 		}
 	}
 

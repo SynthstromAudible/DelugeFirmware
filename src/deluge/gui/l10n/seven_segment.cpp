@@ -393,7 +393,7 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_PAD_SELECTION_ON, "ON"},
 
         /* Strings for Midi Learning View
-        * midi_session_view.cpp
+        * midi_follow_view.cpp
         */
 
         {STRING_FOR_FOLLOW_TITLE, "FOLO"},

@@ -24,7 +24,7 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/views/midi_session_view.h"
+#include "gui/views/midi_follow_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
@@ -2607,7 +2607,7 @@ void PlaybackHandler::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 	// See if note message received should be processed by midi follow mode
-	midiSessionView.noteMessageReceived(fromDevice, on, channel, note, velocity, doingMidiThru, shouldRecordNotesNowNow,
+	midiFollowView.noteMessageReceived(fromDevice, on, channel, note, velocity, doingMidiThru, shouldRecordNotesNowNow,
 	                                    modelStack);
 
 	// Go through all Instruments...
@@ -2724,7 +2724,7 @@ void PlaybackHandler::pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel,
 	dealingWithReceivedMIDIPitchBendRightNow = true;
 
 	// See if pitch bend received should be processed by midi follow mode
-	midiSessionView.pitchBendReceived(fromDevice, channel, data1, data2, doingMidiThru, modelStack);
+	midiFollowView.pitchBendReceived(fromDevice, channel, data1, data2, doingMidiThru, modelStack);
 
 	// Go through all Outputs...
 	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
@@ -2769,8 +2769,8 @@ void PlaybackHandler::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, ui
 
 		else {
 			//if you're currently in midiSessionView, see if you can learn this CC
-			if (getRootUI() == &midiSessionView) {
-				midiSessionView.learnCC(channel, ccNumber, value);
+			if (getRootUI() == &midiFollowView) {
+				midiFollowView.learnCC(channel, ccNumber, value);
 				return;
 			}
 			else if (currentUIMode == UI_MODE_MIDI_LEARN) {
@@ -2797,7 +2797,7 @@ void PlaybackHandler::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, ui
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 	// See if midi cc received should be processed by midi follow mode
-	midiSessionView.midiCCReceived(fromDevice, channel, ccNumber, value, doingMidiThru, isMPE, modelStack);
+	midiFollowView.midiCCReceived(fromDevice, channel, ccNumber, value, doingMidiThru, isMPE, modelStack);
 
 	// Go through all Outputs...
 	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
@@ -2836,7 +2836,7 @@ void PlaybackHandler::aftertouchReceived(MIDIDevice* fromDevice, int32_t channel
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 	// See if aftertouch received should be processed by midi follow mode
-	midiSessionView.aftertouchReceived(fromDevice, channel, value, noteCode, doingMidiThru, modelStack);
+	midiFollowView.aftertouchReceived(fromDevice, channel, value, noteCode, doingMidiThru, modelStack);
 
 	// Go through all Instruments...
 	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {

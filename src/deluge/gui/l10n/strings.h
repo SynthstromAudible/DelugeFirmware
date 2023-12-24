@@ -749,7 +749,7 @@ enum class String : size_t {
 	STRING_FOR_PITCH,
 
 	/* Strings Specifically for Midi Learning View
-	* midi_session_view.cpp
+	* midi_follow_view.cpp
 	*/
 
 	STRING_FOR_MIDI_VIEW,

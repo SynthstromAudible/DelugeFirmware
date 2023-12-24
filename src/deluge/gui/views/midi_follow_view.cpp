@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "gui/views/midi_session_view.h"
+#include "gui/views/midi_follow_view.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/menus.h"
 #include "gui/views/arranger_view.h"
@@ -52,14 +52,14 @@ using namespace gui;
 #define MIDI_DEFAULTS_TAG "defaults"
 #define MIDI_DEFAULTS_CC_TAG "defaultCCMappings"
 
-MidiSessionView midiSessionView{};
+MidiFollowView midiFollowView{};
 
 //initialize variables
-MidiSessionView::MidiSessionView() {
+MidiFollowView::MidiFollowView() {
 	initView();
 }
 
-void MidiSessionView::initView() {
+void MidiFollowView::initView() {
 	successfullyReadDefaultsFromFile = false;
 
 	anyChangesToSave = false;
@@ -80,7 +80,7 @@ void MidiSessionView::initView() {
 	timeAutomationFeedbackLastSent = 0;
 }
 
-void MidiSessionView::initPadPress(MidiPadPress& padPress) {
+void MidiFollowView::initPadPress(MidiPadPress& padPress) {
 	padPress.isActive = false;
 	padPress.xDisplay = kNoSelection;
 	padPress.yDisplay = kNoSelection;
@@ -88,7 +88,7 @@ void MidiSessionView::initPadPress(MidiPadPress& padPress) {
 	padPress.paramID = kNoSelection;
 }
 
-void MidiSessionView::initMapping(int32_t mapping[kDisplayWidth][kDisplayHeight]) {
+void MidiFollowView::initMapping(int32_t mapping[kDisplayWidth][kDisplayHeight]) {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 			mapping[xDisplay][yDisplay] = kNoSelection;
@@ -96,13 +96,13 @@ void MidiSessionView::initMapping(int32_t mapping[kDisplayWidth][kDisplayHeight]
 	}
 }
 
-bool MidiSessionView::opened() {
+bool MidiFollowView::opened() {
 	focusRegained();
 
 	return true;
 }
 
-void MidiSessionView::focusRegained() {
+void MidiFollowView::focusRegained() {
 	currentSong->affectEntire = true;
 
 	view.focusRegained();
@@ -123,7 +123,7 @@ void MidiSessionView::focusRegained() {
 	uiNeedsRendering(this);
 }
 
-void MidiSessionView::graphicsRoutine() {
+void MidiFollowView::graphicsRoutine() {
 	uint8_t tickSquares[kDisplayHeight];
 	uint8_t colours[kDisplayHeight];
 
@@ -133,11 +133,11 @@ void MidiSessionView::graphicsRoutine() {
 	PadLEDs::setTickSquares(tickSquares, colours);
 }
 
-ActionResult MidiSessionView::timerCallback() {
+ActionResult MidiFollowView::timerCallback() {
 	return ActionResult::DEALT_WITH;
 }
 
-bool MidiSessionView::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+bool MidiFollowView::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
                                      uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
 	if (!image) {
 		return true;
@@ -174,7 +174,7 @@ bool MidiSessionView::renderMainPads(uint32_t whichRows, uint8_t image[][kDispla
 /// it also illuminates the shortcut pads brighter when a param has been learned
 /// it illuminates the shortcut pad green when holding midi and a cc is received to show
 /// what params that midi cc has been learned to
-void MidiSessionView::renderRow(uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay) {
+void MidiFollowView::renderRow(uint8_t* image, uint8_t occupancyMask[], int32_t yDisplay) {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		uint8_t* pixel = image + (xDisplay * 3);
 
@@ -209,7 +209,7 @@ void MidiSessionView::renderRow(uint8_t* image, uint8_t occupancyMask[], int32_t
 }
 
 /// nothing to render in sidebar
-bool MidiSessionView::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
+bool MidiFollowView::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
                                     uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	if (!image) {
 		return true;
@@ -219,7 +219,7 @@ bool MidiSessionView::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplay
 }
 
 /// render midi learning view display on opening
-void MidiSessionView::renderViewDisplay() {
+void MidiFollowView::renderViewDisplay() {
 	if (display->haveOLED()) {
 		deluge::hid::display::OLED::clearMainImage();
 
@@ -319,7 +319,7 @@ void MidiSessionView::renderViewDisplay() {
 }
 
 /// Render Parameter Name and Learned Status with CC Set when holding param shortcut in Midi Learning View
-void MidiSessionView::renderParamDisplay(Param::Kind paramKind, int32_t paramID, int32_t ccNumber) {
+void MidiFollowView::renderParamDisplay(Param::Kind paramKind, int32_t paramID, int32_t ccNumber) {
 	if (display->haveOLED()) {
 		deluge::hid::display::OLED::clearMainImage();
 
@@ -372,20 +372,20 @@ void MidiSessionView::renderParamDisplay(Param::Kind paramKind, int32_t paramID,
 	onParamDisplay = true;
 }
 
-void MidiSessionView::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
+void MidiFollowView::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	renderViewDisplay();
 }
 
-void MidiSessionView::redrawNumericDisplay() {
+void MidiFollowView::redrawNumericDisplay() {
 	renderViewDisplay();
 }
 
-void MidiSessionView::setLedStates() {
+void MidiFollowView::setLedStates() {
 	setCentralLEDStates();  //inherited from session view
 	view.setLedStates();    //inherited from session view
 	view.setModLedStates(); //inherited from session view
 
-	//midi session view specific LED settings
+	//midi follow view specific LED settings
 	indicator_leds::blinkLed(IndicatorLED::MIDI);
 	indicator_leds::blinkLed(IndicatorLED::LEARN);
 
@@ -394,7 +394,7 @@ void MidiSessionView::setLedStates() {
 	}
 }
 
-void MidiSessionView::setCentralLEDStates() {
+void MidiFollowView::setCentralLEDStates() {
 	indicator_leds::setLedState(IndicatorLED::SYNTH, false);
 	indicator_leds::setLedState(IndicatorLED::KIT, false);
 	indicator_leds::setLedState(IndicatorLED::CV, false);
@@ -403,7 +403,7 @@ void MidiSessionView::setCentralLEDStates() {
 	indicator_leds::setLedState(IndicatorLED::BACK, false);
 }
 
-ActionResult MidiSessionView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult MidiFollowView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
 	//clear and reset learned params
@@ -490,7 +490,7 @@ ActionResult MidiSessionView::buttonAction(deluge::hid::Button b, bool on, bool 
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult MidiSessionView::padAction(int32_t xDisplay, int32_t yDisplay, int32_t on) {
+ActionResult MidiFollowView::padAction(int32_t xDisplay, int32_t yDisplay, int32_t on) {
 	//if pad was pressed in main deluge grid (not sidebar)
 	if (xDisplay < kDisplayWidth) {
 		if (on) {
@@ -508,7 +508,7 @@ ActionResult MidiSessionView::padAction(int32_t xDisplay, int32_t yDisplay, int3
 }
 
 //check if pad press corresponds to shortcut press
-void MidiSessionView::potentialShortcutPadAction(int32_t xDisplay, int32_t yDisplay) {
+void MidiFollowView::potentialShortcutPadAction(int32_t xDisplay, int32_t yDisplay) {
 	Param::Kind paramKind = Param::Kind::NONE;
 	int32_t paramID = kNoSelection;
 
@@ -542,7 +542,7 @@ void MidiSessionView::potentialShortcutPadAction(int32_t xDisplay, int32_t yDisp
 
 /// used in midi learning view to learn a cc received to a grid sized array in the shortcut positions
 /// corresponding to valid learnable parameters
-void MidiSessionView::learnCC(int32_t channel, int32_t ccNumber, int32_t value) {
+void MidiFollowView::learnCC(int32_t channel, int32_t ccNumber, int32_t value) {
 	if (channel == midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)].channelOrZone) {
 		if (lastPadPress.isActive) {
 			if (paramToCC[lastPadPress.xDisplay][lastPadPress.yDisplay] != ccNumber) {
@@ -571,7 +571,7 @@ void MidiSessionView::learnCC(int32_t channel, int32_t ccNumber, int32_t value) 
 
 /// display error message if a cc cannot be learned
 /// this only happens if cc is received on a different channel than the midi follow channel for params
-void MidiSessionView::cantLearn(int32_t channel) {
+void MidiFollowView::cantLearn(int32_t channel) {
 	if (display->haveOLED()) {
 		char cantBuffer[40] = {0};
 		strncat(cantBuffer, l10n::get(l10n::String::STRING_FOR_CANT_LEARN), 39);
@@ -594,7 +594,7 @@ void MidiSessionView::cantLearn(int32_t channel) {
 /// 1) pressing and holding a clip pad in arranger view, song view, grid view
 /// 2) pressing and holding the audition pad of a row in arranger view
 /// 3) entering a clip
-Clip* MidiSessionView::getClipForMidiFollow(bool useActiveClip) {
+Clip* MidiFollowView::getClipForMidiFollow(bool useActiveClip) {
 	Clip* clip = nullptr;
 	if (getRootUI() == &sessionView) {
 		clip = sessionView.getClipForLayout();
@@ -621,7 +621,7 @@ Clip* MidiSessionView::getClipForMidiFollow(bool useActiveClip) {
 /// based on the current context, as determined by clip returned from the getClipForMidiFollow function
 /// obtain the modelStackWithParam for that context and return it so it can be used by midi follow
 ModelStackWithAutoParam*
-MidiSessionView::getModelStackWithParam(ModelStackWithThreeMainThings* modelStackWithThreeMainThings,
+MidiFollowView::getModelStackWithParam(ModelStackWithThreeMainThings* modelStackWithThreeMainThings,
                                         ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
                                         int32_t xDisplay, int32_t yDisplay, int32_t ccNumber, bool displayError) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
@@ -739,7 +739,7 @@ MidiSessionView::getModelStackWithParam(ModelStackWithThreeMainThings* modelStac
 /// for a given parameter, find and return the cc that has been learned (if any)
 /// it does this by finding the grid shortcut that corresponds to that param
 /// and then returns what cc or no cc (255) has been mapped to that param shortcut
-int32_t MidiSessionView::getCCFromParam(Param::Kind paramKind, int32_t paramID) {
+int32_t MidiFollowView::getCCFromParam(Param::Kind paramKind, int32_t paramID) {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 			bool foundParamShortcut =
@@ -760,11 +760,11 @@ int32_t MidiSessionView::getCCFromParam(Param::Kind paramKind, int32_t paramID) 
 /// called from playback handler
 /// determines whether a note message received is midi follow relevant
 /// and should be routed to the active context for further processing
-void MidiSessionView::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32_t channel, int32_t note,
+void MidiFollowView::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32_t channel, int32_t note,
                                           int32_t velocity, bool* doingMidiThru, bool shouldRecordNotesNowNow,
                                           ModelStack* modelStack) {
 	// midi follow mode
-	if ((getRootUI() != &midiSessionView) && midiEngine.midiFollow) {
+	if ((getRootUI() != &midiFollowView) && midiEngine.midiFollow) {
 		Clip* clip = getClipForMidiFollow(true);
 		if (!on && !clip) {
 			// for note off's when you're no longer in an active clip,
@@ -798,10 +798,10 @@ void MidiSessionView::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32
 /// called from playback handler
 /// determines whether a midi cc received is midi follow relevant
 /// and should be routed to the active context for further processing
-void MidiSessionView::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
+void MidiFollowView::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
                                      bool* doingMidiThru, bool isMPE, ModelStack* modelStack) {
 	// midi follow mode
-	if ((getRootUI() != &midiSessionView) && midiEngine.midiFollow) {
+	if ((getRootUI() != &midiFollowView) && midiEngine.midiFollow) {
 		//obtain clip for active context (for params that's only for the active mod controllable stack)
 		Clip* clip = getClipForMidiFollow();
 		if (!isMPE && view.activeModControllableModelStack.modControllable) {
@@ -842,10 +842,10 @@ void MidiSessionView::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, ui
 /// called from playback handler
 /// determines whether a pitch bend received is midi follow relevant
 /// and should be routed to the active context for further processing
-void MidiSessionView::pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
+void MidiFollowView::pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
                                         bool* doingMidiThru, ModelStack* modelStack) {
 	// midi follow mode
-	if ((getRootUI() != &midiSessionView) && midiEngine.midiFollow) {
+	if ((getRootUI() != &midiFollowView) && midiEngine.midiFollow) {
 		//obtain clip for active context
 		Clip* clip = getClipForMidiFollow(true);
 		if (clip) {
@@ -862,10 +862,10 @@ void MidiSessionView::pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel,
 /// called from playback handler
 /// determines whether aftertouch received is midi follow relevant
 /// and should be routed to the active context for further processing
-void MidiSessionView::aftertouchReceived(MIDIDevice* fromDevice, int32_t channel, int32_t value, int32_t noteCode,
+void MidiFollowView::aftertouchReceived(MIDIDevice* fromDevice, int32_t channel, int32_t value, int32_t noteCode,
                                          bool* doingMidiThru, ModelStack* modelStack) {
 	// midi follow mode
-	if ((getRootUI() != &midiSessionView) && midiEngine.midiFollow) {
+	if ((getRootUI() != &midiFollowView) && midiEngine.midiFollow) {
 		//obtain clip for active context
 		Clip* clip = getClipForMidiFollow(true);
 		if (clip) {
@@ -882,10 +882,10 @@ void MidiSessionView::aftertouchReceived(MIDIDevice* fromDevice, int32_t channel
 /// called from song.cpp
 /// determines whether bend range update received is midi follow relevant
 /// and should be routed to the active context for further processing
-void MidiSessionView::bendRangeUpdateReceived(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone,
+void MidiFollowView::bendRangeUpdateReceived(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone,
                                               int32_t whichBendRange, int32_t bendSemitones) {
 	// midi follow mode
-	if ((getRootUI() != &midiSessionView) && midiEngine.midiFollow) {
+	if ((getRootUI() != &midiFollowView) && midiEngine.midiFollow) {
 		//obtain clip for active context
 		Clip* clip = getClipForMidiFollow(true);
 		if (clip) {
@@ -896,7 +896,7 @@ void MidiSessionView::bendRangeUpdateReceived(ModelStack* modelStack, MIDIDevice
 
 /// checking to see if there are any changes have been made to the cc-param mappings
 /// since the last time the mappings were loaded from the MidiFollow.XML file
-void MidiSessionView::updateMappingChangeStatus() {
+void MidiFollowView::updateMappingChangeStatus() {
 	anyChangesToSave = false;
 
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
@@ -917,14 +917,14 @@ void MidiSessionView::updateMappingChangeStatus() {
 }
 
 /// update saved paramToCC mapping and update saved changes status
-void MidiSessionView::saveMidiFollowMappings() {
+void MidiFollowView::saveMidiFollowMappings() {
 	writeDefaultsToFile();
 	updateMappingChangeStatus();
 }
 
 /// create default XML file and write defaults
 /// I should check if file exists before creating one
-void MidiSessionView::writeDefaultsToFile() {
+void MidiFollowView::writeDefaultsToFile() {
 	//MidiFollow.xml
 	int32_t error = storageManager.createXMLFile(MIDI_DEFAULTS_XML, true);
 	if (error) {
@@ -951,7 +951,7 @@ void MidiSessionView::writeDefaultsToFile() {
 }
 
 /// convert paramID to a paramName to write to XML
-void MidiSessionView::writeDefaultMappingsToFile() {
+void MidiFollowView::writeDefaultMappingsToFile() {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 			bool writeTag = false;
@@ -992,7 +992,7 @@ void MidiSessionView::writeDefaultMappingsToFile() {
 }
 
 /// load saved layout, update change status
-void MidiSessionView::loadMidiFollowMappings() {
+void MidiFollowView::loadMidiFollowMappings() {
 	initPadPress(lastPadPress);
 	initMapping(paramToCC);
 	if (successfullyReadDefaultsFromFile) {
@@ -1006,7 +1006,7 @@ void MidiSessionView::loadMidiFollowMappings() {
 }
 
 /// re-read defaults from backed up XML in memory in order to reduce SD Card IO
-void MidiSessionView::readDefaultsFromBackedUpFile() {
+void MidiFollowView::readDefaultsFromBackedUpFile() {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 			paramToCC[xDisplay][yDisplay] = backupXMLParamToCC[xDisplay][yDisplay];
@@ -1015,7 +1015,7 @@ void MidiSessionView::readDefaultsFromBackedUpFile() {
 }
 
 /// read defaults from XML
-void MidiSessionView::readDefaultsFromFile() {
+void MidiFollowView::readDefaultsFromFile() {
 	//no need to keep reading from SD card after first load
 	if (successfullyReadDefaultsFromFile) {
 		return;
@@ -1053,7 +1053,7 @@ void MidiSessionView::readDefaultsFromFile() {
 
 /// compares param name tag to the list of params available are midi controllable
 /// if param is found, it loads the CC mapping info for that param into the view
-void MidiSessionView::readDefaultMappingsFromFile() {
+void MidiFollowView::readDefaultMappingsFromFile() {
 	char const* paramName;
 	char const* tagName;
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {

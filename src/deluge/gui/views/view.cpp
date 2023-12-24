@@ -37,7 +37,7 @@
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/views/midi_session_view.h"
+#include "gui/views/midi_follow_view.h"
 #include "gui/views/performance_session_view.h"
 #include "gui/views/session_view.h"
 #include "hid/buttons.h"
@@ -1313,7 +1313,7 @@ void View::sendMidiFollowFeedback(ModelStackWithAutoParam* modelStackWithParam, 
 	if (midiEngine.midiFollow && midiEngine.midiFollowFeedback && activeModControllableModelStack.modControllable) {
 		if (modelStackWithParam && modelStackWithParam->autoParam) {
 			Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-			int32_t ccNumber = midiSessionView.getCCFromParam(kind, modelStackWithParam->paramId);
+			int32_t ccNumber = midiFollowView.getCCFromParam(kind, modelStackWithParam->paramId);
 			if (ccNumber != kNoSelection) {
 				((ModControllableAudio*)activeModControllableModelStack.modControllable)
 				    ->sendCCForMidiFollowFeedback(ccNumber, knobPos);

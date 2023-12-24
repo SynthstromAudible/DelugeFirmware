@@ -21,7 +21,7 @@
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/views/midi_session_view.h"
+#include "gui/views/midi_follow_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
