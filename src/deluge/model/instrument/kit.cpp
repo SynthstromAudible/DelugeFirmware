@@ -628,13 +628,19 @@ void Kit::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, Stere
 	                                      shouldLimitDelayFeedback, isClipActive, InstrumentType::KIT, 8);
 }
 
+//offer the CC to kit gold knobs without also offering to all drums
+void Kit::offerReceivedCCToModControllable(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
+                                           ModelStackWithTimelineCounter* modelStack) {
+	ModControllableAudio::offerReceivedCCToLearnedParams(
+	    fromDevice, channel, ccNumber, value,
+	    modelStack); // NOTE: this call may change modelStack->timelineCounter etc!
+}
 void Kit::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
                                          ModelStackWithTimelineCounter* modelStack) {
 
 	// Do it for this whole Kit
-	ModControllableAudio::offerReceivedCCToLearnedParams(
-	    fromDevice, channel, ccNumber, value,
-	    modelStack); // NOTE: this call may change modelStack->timelineCounter etc!
+	offerReceivedCCToModControllable(fromDevice, channel, ccNumber, value,
+	                                 modelStack); // NOTE: this call may change modelStack->timelineCounter etc!
 
 	// Now do it for each NoteRow / Drum
 	if (modelStack

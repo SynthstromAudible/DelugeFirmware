@@ -50,6 +50,8 @@ public:
 	                  int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
 	                  bool shouldLimitDelayFeedback, bool isClipActive);
 	void notifySamplesInterruptsSuspended();
+	inline void offerReceivedCCToModControllable(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber,
+	                                             uint8_t value, ModelStackWithTimelineCounter* modelStack);
 	void offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
 	                                    ModelStackWithTimelineCounter* modelStack);
 	bool offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
