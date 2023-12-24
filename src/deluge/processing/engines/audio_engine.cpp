@@ -32,7 +32,7 @@
 #include "io/debug/print.h"
 #include "io/midi/midi_engine.h"
 #include "memory/general_memory_allocator.h"
-#include "model/drum/kit.h"
+#include "model/instrument/kit.h"
 #include "model/sample/sample_recorder.h"
 #include "model/song/song.h"
 #include "model/voice/voice.h"

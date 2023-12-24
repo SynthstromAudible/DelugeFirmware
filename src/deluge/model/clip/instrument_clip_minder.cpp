@@ -39,7 +39,7 @@
 #include "model/clip/clip_minder.h"
 #include "model/clip/instrument_clip.h"
 #include "model/consequence/consequence.h"
-#include "model/drum/kit.h"
+#include "model/instrument/kit.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/model_stack.h"

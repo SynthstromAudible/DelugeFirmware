@@ -28,7 +28,7 @@
 #include "hid/matrix/matrix_driver.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
-#include "model/drum/kit.h"
+#include "model/instrument/kit.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_instrument.h"

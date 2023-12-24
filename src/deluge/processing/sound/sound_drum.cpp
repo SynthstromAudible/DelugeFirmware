@@ -23,7 +23,7 @@
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
-#include "model/drum/kit.h"
+#include "model/instrument/kit.h"
 #include "model/song/song.h"
 #include "model/voice/voice.h"
 #include "model/voice/voice_vector.h"

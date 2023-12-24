@@ -31,7 +31,7 @@
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/gate_drum.h"
-#include "model/drum/kit.h"
+#include "model/instrument/kit.h"
 #include "model/drum/midi_drum.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/instrument.h"

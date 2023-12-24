@@ -54,7 +54,7 @@
 #include "model/consequence/consequence_note_row_length.h"
 #include "model/consequence/consequence_note_row_mute.h"
 #include "model/drum/drum.h"
-#include "model/drum/kit.h"
+#include "model/instrument/kit.h"
 #include "model/drum/midi_drum.h"
 #include "model/instrument/melodic_instrument.h"
 #include "model/instrument/midi_instrument.h"
