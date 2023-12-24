@@ -3307,7 +3307,7 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 		}
 		else {
 			if (FlashStorage::defaultGridActiveMode == GridDefaultActiveModeSelection) {
-				if (!gridActiveModeUsed && (gridModeActive != SessionGridModePerformanceView)) {
+				if (!gridActiveModeUsed) {
 					gridModeSelected = gridModeActive;
 				}
 			}
