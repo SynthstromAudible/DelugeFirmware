@@ -47,7 +47,7 @@
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/views/midi_session_view.h"
+#include "modulation/midi/midi_follow.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "gui/waveform/waveform_basic_navigator.h"
@@ -706,7 +706,7 @@ extern "C" int32_t deluge_main(void) {
 	// initialized yet. I think I sorta have that for host, but not for peripheral yet.
 
 	MIDIDeviceManager::readDevicesFromFile(); // Hopefully we can read this file now.
-	midiSessionView.readDefaultsFromFile();
+	midiFollow.readDefaultsFromFile();
 
 	setupBlankSong(); // Can only happen after settings, which includes default settings, have been read
 

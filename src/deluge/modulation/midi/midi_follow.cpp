@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "gui/views/midi_session_view.h"
+#include "modulation/midi/midi_follow.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/menus.h"
 #include "gui/views/arranger_view.h"
@@ -52,14 +52,14 @@ using namespace gui;
 #define MIDI_DEFAULTS_TAG "defaults"
 #define MIDI_DEFAULTS_CC_TAG "defaultCCMappings"
 
-MidiSessionView midiSessionView{};
+MidiFollow midiFollow{};
 
 //initialize variables
-MidiSessionView::MidiSessionView() {
+MidiFollow::MidiFollow() {
 	initView();
 }
 
-void MidiSessionView::initView() {
+void MidiFollow::initView() {
 	successfullyReadDefaultsFromFile = false;
 
 	initMapping(paramToCC);
@@ -74,7 +74,7 @@ void MidiSessionView::initView() {
 	timeAutomationFeedbackLastSent = 0;
 }
 
-void MidiSessionView::initMapping(int32_t mapping[kDisplayWidth][kDisplayHeight]) {
+void MidiFollow::initMapping(int32_t mapping[kDisplayWidth][kDisplayHeight]) {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 			mapping[xDisplay][yDisplay] = kNoSelection;
@@ -87,7 +87,7 @@ void MidiSessionView::initMapping(int32_t mapping[kDisplayWidth][kDisplayHeight]
 /// 1) pressing and holding a clip pad in arranger view, song view, grid view
 /// 2) pressing and holding the audition pad of a row in arranger view
 /// 3) entering a clip
-Clip* MidiSessionView::getClipForMidiFollow(bool useActiveClip) {
+Clip* MidiFollow::getClipForMidiFollow(bool useActiveClip) {
 	Clip* clip = nullptr;
 	if (getRootUI() == &sessionView) {
 		clip = sessionView.getClipForLayout();
@@ -114,7 +114,7 @@ Clip* MidiSessionView::getClipForMidiFollow(bool useActiveClip) {
 /// based on the current context, as determined by clip returned from the getClipForMidiFollow function
 /// obtain the modelStackWithParam for that context and return it so it can be used by midi follow
 ModelStackWithAutoParam*
-MidiSessionView::getModelStackWithParam(ModelStackWithThreeMainThings* modelStackWithThreeMainThings,
+MidiFollow::getModelStackWithParam(ModelStackWithThreeMainThings* modelStackWithThreeMainThings,
                                         ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
                                         int32_t xDisplay, int32_t yDisplay, int32_t ccNumber, bool displayError) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
@@ -232,7 +232,7 @@ MidiSessionView::getModelStackWithParam(ModelStackWithThreeMainThings* modelStac
 /// for a given parameter, find and return the cc that has been learned (if any)
 /// it does this by finding the grid shortcut that corresponds to that param
 /// and then returns what cc or no cc (255) has been mapped to that param shortcut
-int32_t MidiSessionView::getCCFromParam(Param::Kind paramKind, int32_t paramID) {
+int32_t MidiFollow::getCCFromParam(Param::Kind paramKind, int32_t paramID) {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 			bool foundParamShortcut =
@@ -253,7 +253,7 @@ int32_t MidiSessionView::getCCFromParam(Param::Kind paramKind, int32_t paramID) 
 /// called from playback handler
 /// determines whether a note message received is midi follow relevant
 /// and should be routed to the active context for further processing
-void MidiSessionView::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32_t channel, int32_t note,
+void MidiFollow::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32_t channel, int32_t note,
                                           int32_t velocity, bool* doingMidiThru, bool shouldRecordNotesNowNow,
                                           ModelStack* modelStack) {
 	// midi follow mode
@@ -291,7 +291,7 @@ void MidiSessionView::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32
 /// called from playback handler
 /// determines whether a midi cc received is midi follow relevant
 /// and should be routed to the active context for further processing
-void MidiSessionView::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
+void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
                                      bool* doingMidiThru, bool isMPE, ModelStack* modelStack) {
 	// midi follow mode
 	if (midiEngine.midiFollow) {
@@ -335,7 +335,7 @@ void MidiSessionView::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, ui
 /// called from playback handler
 /// determines whether a pitch bend received is midi follow relevant
 /// and should be routed to the active context for further processing
-void MidiSessionView::pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
+void MidiFollow::pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
                                         bool* doingMidiThru, ModelStack* modelStack) {
 	// midi follow mode
 	if (midiEngine.midiFollow) {
@@ -355,7 +355,7 @@ void MidiSessionView::pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel,
 /// called from playback handler
 /// determines whether aftertouch received is midi follow relevant
 /// and should be routed to the active context for further processing
-void MidiSessionView::aftertouchReceived(MIDIDevice* fromDevice, int32_t channel, int32_t value, int32_t noteCode,
+void MidiFollow::aftertouchReceived(MIDIDevice* fromDevice, int32_t channel, int32_t value, int32_t noteCode,
                                          bool* doingMidiThru, ModelStack* modelStack) {
 	// midi follow mode
 	if (midiEngine.midiFollow) {
@@ -375,7 +375,7 @@ void MidiSessionView::aftertouchReceived(MIDIDevice* fromDevice, int32_t channel
 /// called from song.cpp
 /// determines whether bend range update received is midi follow relevant
 /// and should be routed to the active context for further processing
-void MidiSessionView::bendRangeUpdateReceived(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone,
+void MidiFollow::bendRangeUpdateReceived(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone,
                                               int32_t whichBendRange, int32_t bendSemitones) {
 	// midi follow mode
 	if (midiEngine.midiFollow) {
@@ -388,7 +388,7 @@ void MidiSessionView::bendRangeUpdateReceived(ModelStack* modelStack, MIDIDevice
 }
 
 /// read defaults from XML
-void MidiSessionView::readDefaultsFromFile() {
+void MidiFollow::readDefaultsFromFile() {
 	//no need to keep reading from SD card after first load
 	if (successfullyReadDefaultsFromFile) {
 		return;
@@ -426,7 +426,7 @@ void MidiSessionView::readDefaultsFromFile() {
 
 /// compares param name tag to the list of params available are midi controllable
 /// if param is found, it loads the CC mapping info for that param into the view
-void MidiSessionView::readDefaultMappingsFromFile() {
+void MidiFollow::readDefaultMappingsFromFile() {
 	char const* paramName;
 	char const* tagName;
 	while (*(tagName = storageManager.readNextTagOrAttributeName())) {

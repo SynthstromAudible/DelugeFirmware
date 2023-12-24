@@ -27,9 +27,9 @@ class ModelStack;
 class ModelStackWithThreeMainThings;
 class ModelStackWithAutoParam;
 
-class MidiSessionView final : public GlobalEffectable {
+class MidiFollow final : public GlobalEffectable {
 public:
-	MidiSessionView();
+	MidiFollow();
 	void readDefaultsFromFile();
 
 	//midi follow context
@@ -68,4 +68,4 @@ private:
 	void readDefaultMappingsFromFile();
 };
 
-extern MidiSessionView midiSessionView;
+extern MidiFollow midiFollow;

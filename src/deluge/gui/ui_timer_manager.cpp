@@ -21,7 +21,7 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/views/midi_session_view.h"
+#include "modulation/midi/midi_follow.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
@@ -160,18 +160,18 @@ void UITimerManager::routine() {
 						}
 						//check time elapsed since previous automation update is greater than or equal to send rate
 						//if so, send another automation feedback message
-						if ((AudioEngine::audioSampleTimer - midiSessionView.timeAutomationFeedbackLastSent)
+						if ((AudioEngine::audioSampleTimer - midiFollow.timeAutomationFeedbackLastSent)
 						    >= sendRate) {
 							view.sendMidiFollowFeedback(nullptr, kNoSelection, true);
-							midiSessionView.timeAutomationFeedbackLastSent = AudioEngine::audioSampleTimer;
+							midiFollow.timeAutomationFeedbackLastSent = AudioEngine::audioSampleTimer;
 						}
 					}
 					//if automation feedback was previously sent and now playback is stopped,
 					//send one more update to sync controller with deluge's current values
 					//for automated params only
-					else if (midiSessionView.timeAutomationFeedbackLastSent != 0) {
+					else if (midiFollow.timeAutomationFeedbackLastSent != 0) {
 						view.sendMidiFollowFeedback(nullptr, kNoSelection, true);
-						midiSessionView.timeAutomationFeedbackLastSent = 0;
+						midiFollow.timeAutomationFeedbackLastSent = 0;
 					}
 					break;
 

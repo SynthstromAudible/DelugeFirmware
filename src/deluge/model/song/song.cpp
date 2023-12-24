@@ -25,7 +25,7 @@
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/views/midi_session_view.h"
+#include "modulation/midi/midi_follow.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
@@ -5358,7 +5358,7 @@ void Song::midiDeviceBendRangeUpdatedViaMessage(ModelStack* modelStack, MIDIDevi
                                                 int32_t whichBendRange, int32_t bendSemitones) {
 
 	// See if bend range update received should be processed by midi follow mode
-	midiSessionView.bendRangeUpdateReceived(modelStack, device, channelOrZone, whichBendRange, bendSemitones);
+	midiFollow.bendRangeUpdateReceived(modelStack, device, channelOrZone, whichBendRange, bendSemitones);
 
 	// Go through all Instruments...
 	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
