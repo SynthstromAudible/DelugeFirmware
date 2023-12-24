@@ -829,6 +829,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 				uiNeedsRendering(this);
 			}
 			else {
+				gridModeActive = false;
 				releaseStutter(modelStack);
 				if (currentSong->lastClipInstanceEnteredStartPos != -1) {
 					changeRootUI(&arrangerView);
@@ -836,7 +837,6 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 				else {
 					changeRootUI(&sessionView);
 				}
-				gridModeActive = false;
 			}
 		}
 	}
@@ -901,10 +901,17 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 			uiNeedsRendering(this); // re-render pads
 		}
 		//if
-		else if ((xDisplay == 17) && (yDisplay == 0)) {
-			if (!on && gridModeActive && ((AudioEngine::audioSampleTimer - timeGridModePress) >= kHoldTime)) {
-				changeRootUI(&sessionView);
+		else if (gridModeActive && (xDisplay == (kDisplayWidth + 1))) {
+			if (yDisplay == 0) {
+				if (!on && ((AudioEngine::audioSampleTimer - timeGridModePress) >= kHoldTime)) {
+					gridModeActive = false;
+					changeRootUI(&sessionView);
+				}
+			}
+			else if ((yDisplay == 7) || (yDisplay == 6)) {
 				gridModeActive = false;
+				changeRootUI(&sessionView);
+				return sessionView.gridHandlePads(xDisplay, yDisplay, on);
 			}
 		}
 	}
