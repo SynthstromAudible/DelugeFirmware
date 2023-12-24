@@ -3307,7 +3307,7 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 		}
 		else {
 			if (FlashStorage::defaultGridActiveMode == GridDefaultActiveModeSelection) {
-				if (!gridActiveModeUsed) {
+				if (!gridActiveModeUsed && (gridModeActive != SessionGridModePerformanceView)) {
 					gridModeSelected = gridModeActive;
 				}
 			}
@@ -3331,6 +3331,11 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 		case SessionGridModeLaunch: {
 			modeHandleResult = gridHandlePadsLaunch(x, y, on, clip);
 			break;
+		}
+		case SessionGridModePerformanceView: {
+			changeRootUI(&performanceSessionView);
+			uiNeedsRendering(&performanceSessionView);
+			return ActionResult::DEALT_WITH;
 		}
 		}
 
