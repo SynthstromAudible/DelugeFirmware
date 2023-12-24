@@ -436,7 +436,7 @@ bool PerformanceSessionView::renderSidebar(uint32_t whichRows, RGB image[][kDisp
 
 	if (sessionView.gridModeActive == SessionGridModePerformanceView) {
 		int32_t yDisplay = 0;
-		int32_t xDisplay = kDisplayWidth + 2;
+		int32_t xDisplay = kDisplayWidth + 1;
 
 		image[yDisplay][xDisplay][0] = 128;
 		image[yDisplay][xDisplay][1] = 0;
