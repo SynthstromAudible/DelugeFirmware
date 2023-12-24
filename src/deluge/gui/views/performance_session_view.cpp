@@ -430,6 +430,10 @@ bool PerformanceSessionView::renderSidebar(uint32_t whichRows, RGB image[][kDisp
 		return true;
 	}
 
+	if (!occupancyMask) {
+		return true;
+	}
+
 	if (sessionView.gridModeActive == SessionGridModePerformanceView) {
 		image[0][kDisplayWidth + kSideBarWidth - 1][0] = 128;
 		image[0][kDisplayWidth + kSideBarWidth - 1][1] = 0;
