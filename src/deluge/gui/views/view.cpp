@@ -1121,8 +1121,10 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 	}
 
 	// Quantized Stutter FX
-	Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-	if (isParamQuantizedStutter(kind, modelStackWithParam->paramId) && !isUIModeActive(UI_MODE_STUTTERING)) {
+	if (modelStackWithParam->paramId == Param::Unpatched::STUTTER_RATE
+	    && (runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate)
+	        == RuntimeFeatureStateToggle::On)
+	    && !isUIModeActive(UI_MODE_STUTTERING)) {
 		if (knobPos < -39) { // 4ths stutter: no leds turned on
 			indicator_leds::setKnobIndicatorLevel(whichModEncoder, 0);
 		}
