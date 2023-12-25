@@ -3343,8 +3343,15 @@ int32_t AutomationInstrumentClipView::calculateKnobPosForSinglePadPress(Instrume
 
 	int32_t newKnobPos = 0;
 
+	//make this row neutral
+	if (yDisplay == 3) {
+		newKnobPos = 64; //25 out of 50
+	}
+	else if (yDisplay == 4) {
+		newKnobPos = 77; //30 out of 50
+	}
 	//if you press bottom pad, value is 0, for all other pads except for the top pad, value = row Y * 18
-	if (yDisplay < 7) {
+	else if (yDisplay < 7) {
 		newKnobPos = yDisplay * kParamValueIncrementForAutomationSinglePadPress;
 	}
 	//if you are pressing the top pad, set the value to max (128)
