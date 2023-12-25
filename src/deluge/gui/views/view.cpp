@@ -983,15 +983,15 @@ int32_t View::calculateKnobPosForDisplay(Param::Kind kind, int32_t paramID, int3
 	float knobPosOffsetFloat = static_cast<float>(kKnobPosOffset);
 	float maxKnobPosFloat = static_cast<float>(kMaxKnobPos);
 	float maxMenuValueFloat = static_cast<float>(kMaxMenuValue);
-	float maxMenuPanValueFloat = static_cast<float>(kMaxMenuPanValue);
+	float maxMenuRelativeValueFloat = static_cast<float>(kMaxMenuRelativeValue);
 	float valueForDisplayFloat;
 
 	//calculate parameter value for display by converting 0 - 128 range to same range as menu (0 - 50)
 	valueForDisplayFloat = (knobPosFloat / maxKnobPosFloat) * maxMenuValueFloat;
 
-	//check if parameter is pan, in which case, further adjust range from 0 - 50 to -25 to +25
-	if (isParamPan(kind, paramID)) {
-		valueForDisplayFloat = valueForDisplayFloat - maxMenuPanValueFloat;
+	//check if parameter is pan or pitch, in which case, further adjust range from 0 - 50 to -25 to +25
+	if (isParamPan(kind, paramID) || isParamPitch(kind, paramID)) {
+		valueForDisplayFloat = valueForDisplayFloat - maxMenuRelativeValueFloat;
 	}
 
 returnValue:
@@ -1011,10 +1011,21 @@ bool View::isParamQuantizedStutter(Param::Kind kind, int32_t paramID) {
 }
 
 bool View::isParamPan(Param::Kind kind, int32_t paramID) {
-	if (kind == Param::Kind::PATCHED && paramID == Param::Local::PAN) {
+	if ((kind == Param::Kind::PATCHED && paramID == Param::Local::PAN)
+	|| (kind == Param::Kind::UNPATCHED_GLOBAL && paramID == Param::Unpatched::GlobalEffectable::PAN)) {
 		return true;
 	}
-	if (kind == Param::Kind::UNPATCHED_GLOBAL && paramID == Param::Unpatched::GlobalEffectable::PAN) {
+
+	return false;
+}
+
+bool View::isParamPitch(Param::Kind kind, int32_t paramID) {
+	if ((kind == Param::Kind::PATCHED && paramID == Param::Local::PITCH_ADJUST)
+	|| (kind == Param::Kind::PATCHED && paramID == Param::Local::OSC_A_PITCH_ADJUST)
+	|| (kind == Param::Kind::PATCHED && paramID == Param::Local::OSC_B_PITCH_ADJUST)
+	|| (kind == Param::Kind::PATCHED && paramID == Param::Local::MODULATOR_0_PITCH_ADJUST)
+	|| (kind == Param::Kind::PATCHED && paramID == Param::Local::MODULATOR_1_PITCH_ADJUST)
+	|| (kind == Param::Kind::UNPATCHED_GLOBAL && paramID == Param::Unpatched::GlobalEffectable::PITCH_ADJUST)) {
 		return true;
 	}
 

@@ -361,9 +361,9 @@ constexpr int32_t kMaxMenuValue = 50;
 constexpr int32_t kMinMenuValue = 0;
 constexpr int32_t kMidMenuValue = kMinMenuValue + ((kMaxMenuValue - kMinMenuValue) / 2);
 
-//pan menu range e.g. -25 to +25
-constexpr int32_t kMaxMenuPanValue = kMaxMenuValue / 2;
-constexpr int32_t kMinMenuPanValue = -1 * kMaxMenuPanValue;
+//relative menu range e.g. -25 to +25 - used with pan and pitch
+constexpr int32_t kMaxMenuRelativeValue = kMaxMenuValue / 2;
+constexpr int32_t kMinMenuRelativeValue = -1 * kMaxMenuRelativeValue;
 
 //patch cable menu range e.g. -5000 to 5000
 constexpr int32_t kMaxMenuPatchCableValue = kMaxMenuValue * 100;
