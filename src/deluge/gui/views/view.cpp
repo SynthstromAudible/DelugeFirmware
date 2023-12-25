@@ -1012,7 +1012,7 @@ bool View::isParamQuantizedStutter(Param::Kind kind, int32_t paramID) {
 
 bool View::isParamPan(Param::Kind kind, int32_t paramID) {
 	if ((kind == Param::Kind::PATCHED && paramID == Param::Local::PAN)
-	|| (kind == Param::Kind::UNPATCHED_GLOBAL && paramID == Param::Unpatched::GlobalEffectable::PAN)) {
+	    || (kind == Param::Kind::UNPATCHED_GLOBAL && paramID == Param::Unpatched::GlobalEffectable::PAN)) {
 		return true;
 	}
 
@@ -1021,11 +1021,11 @@ bool View::isParamPan(Param::Kind kind, int32_t paramID) {
 
 bool View::isParamPitch(Param::Kind kind, int32_t paramID) {
 	if ((kind == Param::Kind::PATCHED && paramID == Param::Local::PITCH_ADJUST)
-	|| (kind == Param::Kind::PATCHED && paramID == Param::Local::OSC_A_PITCH_ADJUST)
-	|| (kind == Param::Kind::PATCHED && paramID == Param::Local::OSC_B_PITCH_ADJUST)
-	|| (kind == Param::Kind::PATCHED && paramID == Param::Local::MODULATOR_0_PITCH_ADJUST)
-	|| (kind == Param::Kind::PATCHED && paramID == Param::Local::MODULATOR_1_PITCH_ADJUST)
-	|| (kind == Param::Kind::UNPATCHED_GLOBAL && paramID == Param::Unpatched::GlobalEffectable::PITCH_ADJUST)) {
+	    || (kind == Param::Kind::PATCHED && paramID == Param::Local::OSC_A_PITCH_ADJUST)
+	    || (kind == Param::Kind::PATCHED && paramID == Param::Local::OSC_B_PITCH_ADJUST)
+	    || (kind == Param::Kind::PATCHED && paramID == Param::Local::MODULATOR_0_PITCH_ADJUST)
+	    || (kind == Param::Kind::PATCHED && paramID == Param::Local::MODULATOR_1_PITCH_ADJUST)
+	    || (kind == Param::Kind::UNPATCHED_GLOBAL && paramID == Param::Unpatched::GlobalEffectable::PITCH_ADJUST)) {
 		return true;
 	}
 
