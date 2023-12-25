@@ -21,7 +21,6 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
-#include "modulation/midi/midi_follow.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
@@ -33,6 +32,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
 #include "model/song/song.h"
+#include "modulation/midi/midi_follow.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "util/functions.h"
@@ -160,8 +160,7 @@ void UITimerManager::routine() {
 						}
 						//check time elapsed since previous automation update is greater than or equal to send rate
 						//if so, send another automation feedback message
-						if ((AudioEngine::audioSampleTimer - midiFollow.timeAutomationFeedbackLastSent)
-						    >= sendRate) {
+						if ((AudioEngine::audioSampleTimer - midiFollow.timeAutomationFeedbackLastSent) >= sendRate) {
 							view.sendMidiFollowFeedback(nullptr, kNoSelection, true);
 							midiFollow.timeAutomationFeedbackLastSent = AudioEngine::audioSampleTimer;
 						}

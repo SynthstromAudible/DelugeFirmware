@@ -115,8 +115,8 @@ Clip* MidiFollow::getClipForMidiFollow(bool useActiveClip) {
 /// obtain the modelStackWithParam for that context and return it so it can be used by midi follow
 ModelStackWithAutoParam*
 MidiFollow::getModelStackWithParam(ModelStackWithThreeMainThings* modelStackWithThreeMainThings,
-                                        ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
-                                        int32_t xDisplay, int32_t yDisplay, int32_t ccNumber, bool displayError) {
+                                   ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
+                                   int32_t xDisplay, int32_t yDisplay, int32_t ccNumber, bool displayError) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
 	Param::Kind paramKind = Param::Kind::NONE;
@@ -260,9 +260,8 @@ int32_t MidiFollow::getCCFromParam(Param::Kind paramKind, int32_t paramID) {
 /// called from playback handler
 /// determines whether a note message received is midi follow relevant
 /// and should be routed to the active context for further processing
-void MidiFollow::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32_t channel, int32_t note,
-                                          int32_t velocity, bool* doingMidiThru, bool shouldRecordNotesNowNow,
-                                          ModelStack* modelStack) {
+void MidiFollow::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32_t channel, int32_t note, int32_t velocity,
+                                     bool* doingMidiThru, bool shouldRecordNotesNowNow, ModelStack* modelStack) {
 	// midi follow mode
 	if (midiEngine.midiFollow) {
 		Clip* clip = getClipForMidiFollow(true);
@@ -299,7 +298,7 @@ void MidiFollow::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32_t ch
 /// determines whether a midi cc received is midi follow relevant
 /// and should be routed to the active context for further processing
 void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
-                                     bool* doingMidiThru, bool isMPE, ModelStack* modelStack) {
+                                bool* doingMidiThru, bool isMPE, ModelStack* modelStack) {
 	// midi follow mode
 	if (midiEngine.midiFollow) {
 		//obtain clip for active context (for params that's only for the active mod controllable stack)
@@ -343,7 +342,7 @@ void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t
 /// determines whether a pitch bend received is midi follow relevant
 /// and should be routed to the active context for further processing
 void MidiFollow::pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
-                                        bool* doingMidiThru, ModelStack* modelStack) {
+                                   bool* doingMidiThru, ModelStack* modelStack) {
 	// midi follow mode
 	if (midiEngine.midiFollow) {
 		//obtain clip for active context
@@ -363,7 +362,7 @@ void MidiFollow::pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel, uint
 /// determines whether aftertouch received is midi follow relevant
 /// and should be routed to the active context for further processing
 void MidiFollow::aftertouchReceived(MIDIDevice* fromDevice, int32_t channel, int32_t value, int32_t noteCode,
-                                         bool* doingMidiThru, ModelStack* modelStack) {
+                                    bool* doingMidiThru, ModelStack* modelStack) {
 	// midi follow mode
 	if (midiEngine.midiFollow) {
 		//obtain clip for active context
@@ -383,7 +382,7 @@ void MidiFollow::aftertouchReceived(MIDIDevice* fromDevice, int32_t channel, int
 /// determines whether bend range update received is midi follow relevant
 /// and should be routed to the active context for further processing
 void MidiFollow::bendRangeUpdateReceived(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone,
-                                              int32_t whichBendRange, int32_t bendSemitones) {
+                                         int32_t whichBendRange, int32_t bendSemitones) {
 	// midi follow mode
 	if (midiEngine.midiFollow) {
 		//obtain clip for active context

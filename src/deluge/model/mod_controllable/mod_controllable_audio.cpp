@@ -19,7 +19,6 @@
 #include "definitions_cxx.hpp"
 #include "deluge/model/settings/runtime_feature_settings.h"
 #include "gui/l10n/l10n.h"
-#include "modulation/midi/midi_follow.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
@@ -32,6 +31,7 @@
 #include "model/note/note_row.h"
 #include "model/song/song.h"
 #include "model/timeline_counter.h"
+#include "modulation/midi/midi_follow.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
@@ -1827,9 +1827,9 @@ void ModControllableAudio::sendCCWithoutModelStackForMidiFollowFeedback(bool isA
 			for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 				if (midiFollow.paramToCC[xDisplay][yDisplay] != kNoSelection) {
 					//obtain the model stack for the parameter that has been learned
-					ModelStackWithAutoParam* modelStackWithParam = midiFollow.getModelStackWithParam(
-					    modelStackWithThreeMainThings, modelStackWithTimelineCounter, clip, xDisplay, yDisplay,
-					    kNoSelection, false);
+					ModelStackWithAutoParam* modelStackWithParam =
+					    midiFollow.getModelStackWithParam(modelStackWithThreeMainThings, modelStackWithTimelineCounter,
+					                                      clip, xDisplay, yDisplay, kNoSelection, false);
 					//check that model stack is valid
 					if (modelStackWithParam && modelStackWithParam->autoParam) {
 						if (modelStackWithParam->getTimelineCounter()
