@@ -2865,13 +2865,10 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
 			}
 
 			if (summary) {
-				ModelStackWithParamCollection* modelStackWithParamCollection =
-				    modelStackWithThreeMainThings->addParamCollectionSummary(summary);
-				if (modelStackWithParamCollection) {
-					ModelStackWithParamId* modelStackWithParamId = modelStackWithParamCollection->addParamId(paramID);
-					if (modelStackWithParamId) {
-						modelStackWithParam = summary->paramCollection->getAutoParamFromId(modelStackWithParamId, true);
-					}
+				ModelStackWithParamId* modelStackWithParamId =
+				    modelStackWithThreeMainThings->addParamCollectionAndId(summary->paramCollection, summary, paramID);
+				if (modelStackWithParamId) {
+					modelStackWithParam = summary->paramCollection->getAutoParamFromId(modelStackWithParamId, true);
 				}
 			}
 		}
@@ -2907,15 +2904,12 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
 							}
 
 							if (summary) {
-								ModelStackWithParamCollection* modelStackWithParamCollection =
-								    modelStackWithThreeMainThings->addParamCollectionSummary(summary);
-								if (modelStackWithParamCollection) {
-									ModelStackWithParamId* modelStackWithParamId =
-									    modelStackWithParamCollection->addParamId(paramID);
-									if (modelStackWithParamId) {
-										modelStackWithParam =
-										    summary->paramCollection->getAutoParamFromId(modelStackWithParamId, true);
-									}
+								ModelStackWithParamId* modelStackWithParamId =
+								    modelStackWithThreeMainThings->addParamCollectionAndId(summary->paramCollection,
+								                                                           summary, paramID);
+								if (modelStackWithParamId) {
+									modelStackWithParam =
+									    summary->paramCollection->getAutoParamFromId(modelStackWithParamId, true);
 								}
 							}
 						}
@@ -2936,15 +2930,11 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
 				summary = modelStackWithThreeMainThings->paramManager->getUnpatchedParamSetSummary();
 
 				if (summary) {
-					ModelStackWithParamCollection* modelStackWithParamCollection =
-					    modelStackWithThreeMainThings->addParamCollectionSummary(summary);
-					if (modelStackWithParamCollection) {
-						ModelStackWithParamId* modelStackWithParamId =
-						    modelStackWithParamCollection->addParamId(paramID);
-						if (modelStackWithParamId) {
-							modelStackWithParam =
-							    summary->paramCollection->getAutoParamFromId(modelStackWithParamId, true);
-						}
+					ModelStackWithParamId* modelStackWithParamId =
+					    modelStackWithThreeMainThings->addParamCollectionAndId(summary->paramCollection, summary,
+					                                                           paramID);
+					if (modelStackWithParamId) {
+						modelStackWithParam = summary->paramCollection->getAutoParamFromId(modelStackWithParamId, true);
 					}
 				}
 			}
@@ -2962,13 +2952,10 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
 			summary = modelStackWithThreeMainThings->paramManager->getUnpatchedParamSetSummary();
 
 			if (summary) {
-				ModelStackWithParamCollection* modelStackWithParamCollection =
-				    modelStackWithThreeMainThings->addParamCollectionSummary(summary);
-				if (modelStackWithParamCollection) {
-					ModelStackWithParamId* modelStackWithParamId = modelStackWithParamCollection->addParamId(paramID);
-					if (modelStackWithParamId) {
-						modelStackWithParam = summary->paramCollection->getAutoParamFromId(modelStackWithParamId, true);
-					}
+				ModelStackWithParamId* modelStackWithParamId =
+				    modelStackWithThreeMainThings->addParamCollectionAndId(summary->paramCollection, summary, paramID);
+				if (modelStackWithParamId) {
+					modelStackWithParam = summary->paramCollection->getAutoParamFromId(modelStackWithParamId, true);
 				}
 			}
 		}
