@@ -43,8 +43,6 @@ Automatable Parameters are broken down into two categories for Automation Instru
 > - **Sidechain** Level, Shape
 > - **Distortion** Decimation, Bitcrush
 > - **Mod FX** Offset, Feedback, Depth, Rate
-> - **Arp** Gate
-> - **Portamento**
 > - **Stutter** Rate
 
 It can be thought of as a layer sitting on top of the Instrument Clip View for Synths, Kits and Midi instrument clip types. This PR does not address automation for audio clips.

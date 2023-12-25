@@ -194,9 +194,7 @@ const std::array<std::pair<Param::Kind, ParamType>, kNumKitAffectEntireParamsFor
         {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::MOD_FX_FEEDBACK},
         {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH},
         {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::MOD_FX_RATE},
-        {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::Sound::ARP_GATE},   //Arp Gate
-        {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::Sound::PORTAMENTO}, //Portamento
-        {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::STUTTER_RATE},      //Stutter Rate
+        {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::STUTTER_RATE}, //Stutter Rate
     }};
 
 //grid sized arrays to assign automatable parameters to the grid
@@ -646,6 +644,13 @@ void AutomationInstrumentClipView::renderAutomationOverview(ModelStackWithTimeli
 
 			else if (unpatchedParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
 
+				//don't make portamento available for automation in kit rows
+				if ((instrument->type == InstrumentType::KIT)
+				    && (unpatchedParamShortcutsForAutomation[xDisplay][yDisplay]
+				        == Param::Unpatched::Sound::PORTAMENTO)) {
+					continue;
+				}
+
 				modelStackWithParam =
 				    getModelStackWithParam(modelStack, clip, unpatchedParamShortcutsForAutomation[xDisplay][yDisplay],
 				                           Param::Kind::UNPATCHED_SOUND);
@@ -657,6 +662,13 @@ void AutomationInstrumentClipView::renderAutomationOverview(ModelStackWithTimeli
 		             || (globalEffectableParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF))) {
 
 			if (unpatchedParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
+
+				//don't make portamento and arp gate available for automation in kit affect entire
+				if ((unpatchedParamShortcutsForAutomation[xDisplay][yDisplay] == Param::Unpatched::Sound::PORTAMENTO)
+				    || (unpatchedParamShortcutsForAutomation[xDisplay][yDisplay]
+				        == Param::Unpatched::Sound::ARP_GATE)) {
+					continue;
+				}
 
 				modelStackWithParam =
 				    getModelStackWithParam(modelStack, clip, unpatchedParamShortcutsForAutomation[xDisplay][yDisplay]);
@@ -2752,6 +2764,7 @@ void AutomationInstrumentClipView::selectEncoderAction(int8_t offset) {
 		else if (instrument->type == InstrumentType::SYNTH
 		         || (instrument->type == InstrumentType::KIT && ((Kit*)instrument)->selectedDrum)) {
 
+obtainNextParam:
 			//if you haven't selected a parameter yet, start at the beginning of the list
 			if (isOnAutomationOverview()) {
 				auto idx = 0;
@@ -2784,6 +2797,17 @@ void AutomationInstrumentClipView::selectEncoderAction(int8_t offset) {
 				clip->lastSelectedParamID = id;
 				clip->lastSelectedParamKind = kind;
 				clip->lastSelectedParamArrayPosition = idx;
+			}
+			//don't make portamento available for automation in kit rows
+			if ((instrument->type == InstrumentType::KIT)
+			    && (clip->lastSelectedParamID == Param::Unpatched::Sound::PORTAMENTO)) {
+				if (offset < 0) {
+					offset -= 1;
+				}
+				else if (offset > 0) {
+					offset += 1;
+				}
+				goto obtainNextParam;
 			}
 		}
 
@@ -3215,6 +3239,12 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 		    && ((patchedParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF)
 		        || (unpatchedParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF))) {
 
+			//don't allow automation of portamento in kit's
+			if ((instrument->type == InstrumentType::KIT)
+			    && (unpatchedParamShortcutsForAutomation[xDisplay][yDisplay] == Param::Unpatched::Sound::PORTAMENTO)) {
+				return;
+			}
+
 			if (patchedParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
 				clip->lastSelectedParamKind = Param::Kind::PATCHED;
 				//if you are in a synth or a kit clip and the shortcut is valid, set current selected ParamID
@@ -3241,6 +3271,12 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 		else if (instrument->type == InstrumentType::KIT && instrumentClipView.getAffectEntire()
 		         && ((unpatchedParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF)
 		             || (globalEffectableParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF))) {
+
+			//don't allow automation of arp gate or portamento in kit affect entire
+			if ((unpatchedParamShortcutsForAutomation[xDisplay][yDisplay] == Param::Unpatched::Sound::PORTAMENTO)
+			    || (unpatchedParamShortcutsForAutomation[xDisplay][yDisplay] == Param::Unpatched::Sound::ARP_GATE)) {
+				return;
+			}
 
 			if (unpatchedParamShortcutsForAutomation[xDisplay][yDisplay] != 0xFFFFFFFF) {
 				clip->lastSelectedParamKind = Param::Kind::UNPATCHED_SOUND;
