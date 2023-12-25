@@ -152,7 +152,7 @@ The Automation Editor **will:**
 - edit new or existing parameter automations on a per step basis, at any zoom level across the entire timeline. Each row in a step column corresponds to a range of values in the parameter value range (0-128) (see above). If you press the bottom row, the value will be set to 0. if you press the top row, the value will be set to 128. Pressing the rows in between increments/decrements the value by 18 (e.g. 0, 18, 36, 64, 77, 90, 108, 128). 
 > **Update** The values displayed in automation view have been updated to display the same value range displayed in the menu's for consistency across the Deluge UI. So instead of displaying 0 - 128, it now displays 0 - 50. Calculations in automation view are still being done based on the 0 - 128 range, but the display converts it to the 0 - 50 range.
 
-![image](https://github.com/seangoodvibes/DelugeFirmware/assets/138174805/8cc7befa-9071-4bd3-ac3c-15049f69b250)
+<img width="336" alt="Screenshot 2023-12-25 at 12 37 28 PM" src="https://github.com/seangoodvibes/DelugeFirmware/assets/138174805/85d848b8-dd11-4bdc-9ba8-dac4d6bc4f03">
 
 - enable you to enter long multi-step automations by pressing and holding one pad and then pressing a second pad
 
