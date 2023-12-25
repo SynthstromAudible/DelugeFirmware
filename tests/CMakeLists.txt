@@ -16,8 +16,8 @@ FetchContent_Declare(
 # Set this to ON if you want to have the CppUTests in your project as well.
 set(TESTS OFF CACHE BOOL "Switch off CppUTest Test build")
 add_compile_definitions(
-    -DCPPUTEST_MEM_LEAK_DETECTION_DISABLED
-    -DIN_UNIT_TESTS
+    CPPUTEST_MEM_LEAK_DETECTION_DISABLED
+    IN_UNIT_TESTS=1
 )
 
 FetchContent_MakeAvailable(CppUTest)
@@ -33,10 +33,16 @@ include_directories(../src/NE10/inc)
 include_directories(../src)
 
 
-#memory because I'm starting with a memory test
-#util because they're needed all over the place
-#l10n so the prints make sense
-file(GLOB_RECURSE deluge_SOURCES ../src/deluge/memory/* ../src/deluge/util/* mocks/* ../src/deluge/gui/l10n/*)
+file(GLOB_RECURSE deluge_SOURCES
+  # Required for memory tests
+  ../src/deluge/memory/*
+  # Used for prints
+  ../src/deluge/gui/l10n/*
+  # Used by most other modules
+  ../src/deluge/util/*
+  # Mock implementations
+  mocks/*
+)
 
 
 
