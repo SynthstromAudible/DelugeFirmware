@@ -1281,15 +1281,11 @@ ModelStackWithAutoParam* PerformanceSessionView::getModelStackWithParam(ModelSta
 
 	if (modelStack) {
 		ParamCollectionSummary* summary = modelStack->paramManager->getUnpatchedParamSetSummary();
-
 		if (summary) {
-			ModelStackWithParamCollection* modelStackWithParamCollection =
-			    modelStack->addParamCollectionSummary(summary);
-			if (modelStackWithParamCollection) {
-				ModelStackWithParamId* modelStackWithParamId = modelStackWithParamCollection->addParamId(paramID);
-				if (modelStackWithParamId) {
-					modelStackWithParam = summary->paramCollection->getAutoParamFromId(modelStackWithParamId, true);
-				}
+			ModelStackWithParamId* modelStackWithParamId =
+			    modelStack->addParamCollectionAndId(summary->paramCollection, summary, paramID);
+			if (modelStackWithParamId) {
+				modelStackWithParam = summary->paramCollection->getAutoParamFromId(modelStackWithParamId, true);
 			}
 		}
 	}
