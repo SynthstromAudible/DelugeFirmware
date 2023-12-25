@@ -1280,14 +1280,7 @@ ModelStackWithAutoParam* PerformanceSessionView::getModelStackWithParam(ModelSta
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
 	if (modelStack) {
-		ParamCollectionSummary* summary = modelStack->paramManager->getUnpatchedParamSetSummary();
-		if (summary) {
-			ModelStackWithParamId* modelStackWithParamId =
-			    modelStack->addParamCollectionAndId(summary->paramCollection, summary, paramID);
-			if (modelStackWithParamId) {
-				modelStackWithParam = summary->paramCollection->getAutoParamFromId(modelStackWithParamId, true);
-			}
-		}
+		modelStackWithParam = modelStack->getUnpatchedAutoParamFromId(paramID);
 	}
 
 	return modelStackWithParam;
