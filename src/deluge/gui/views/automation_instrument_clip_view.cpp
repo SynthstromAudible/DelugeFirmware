@@ -2962,7 +2962,8 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
 							}
 
 							else if (paramKind == Param::Kind::UNPATCHED_SOUND) {
-								modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
+								modelStackWithParam =
+								    modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
 							}
 						}
 					}
