@@ -2853,23 +2853,12 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
 		    modelStack->addOtherTwoThingsButNoNoteRow(instrument->toModControllable(), &clip->paramManager);
 
 		if (modelStackWithThreeMainThings) {
-
-			ParamCollectionSummary* summary = nullptr;
-
 			if (paramKind == Param::Kind::PATCHED) {
-				summary = modelStackWithThreeMainThings->paramManager->getPatchedParamSetSummary();
+				modelStackWithParam = modelStackWithThreeMainThings->getPatchedAutoParamFromId(paramID);
 			}
 
 			else if (paramKind == Param::Kind::UNPATCHED_SOUND) {
-				summary = modelStackWithThreeMainThings->paramManager->getUnpatchedParamSetSummary();
-			}
-
-			if (summary) {
-				ModelStackWithParamId* modelStackWithParamId =
-				    modelStackWithThreeMainThings->addParamCollectionAndId(summary->paramCollection, summary, paramID);
-				if (modelStackWithParamId) {
-					modelStackWithParam = summary->paramCollection->getAutoParamFromId(modelStackWithParamId, true);
-				}
+				modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
 			}
 		}
 	}
@@ -2892,25 +2881,12 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
 						    modelStackWithNoteRow->addOtherTwoThingsAutomaticallyGivenNoteRow();
 
 						if (modelStackWithThreeMainThings) {
-
-							ParamCollectionSummary* summary = nullptr;
-
 							if (paramKind == Param::Kind::PATCHED) {
-								summary = modelStackWithThreeMainThings->paramManager->getPatchedParamSetSummary();
+								modelStackWithParam = modelStackWithThreeMainThings->getPatchedAutoParamFromId(paramID);
 							}
 
 							else if (paramKind == Param::Kind::UNPATCHED_SOUND) {
-								summary = modelStackWithThreeMainThings->paramManager->getUnpatchedParamSetSummary();
-							}
-
-							if (summary) {
-								ModelStackWithParamId* modelStackWithParamId =
-								    modelStackWithThreeMainThings->addParamCollectionAndId(summary->paramCollection,
-								                                                           summary, paramID);
-								if (modelStackWithParamId) {
-									modelStackWithParam =
-									    summary->paramCollection->getAutoParamFromId(modelStackWithParamId, true);
-								}
+								modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
 							}
 						}
 					}
@@ -2924,19 +2900,7 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
 			    modelStack->addOtherTwoThingsButNoNoteRow(instrument->toModControllable(), &clip->paramManager);
 
 			if (modelStackWithThreeMainThings) {
-
-				ParamCollectionSummary* summary = nullptr;
-
-				summary = modelStackWithThreeMainThings->paramManager->getUnpatchedParamSetSummary();
-
-				if (summary) {
-					ModelStackWithParamId* modelStackWithParamId =
-					    modelStackWithThreeMainThings->addParamCollectionAndId(summary->paramCollection, summary,
-					                                                           paramID);
-					if (modelStackWithParamId) {
-						modelStackWithParam = summary->paramCollection->getAutoParamFromId(modelStackWithParamId, true);
-					}
-				}
+				modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
 			}
 		}
 	}
@@ -2946,18 +2910,7 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
 		    modelStack->addOtherTwoThingsButNoNoteRow(instrument->toModControllable(), &clip->paramManager);
 
 		if (modelStackWithThreeMainThings) {
-
-			ParamCollectionSummary* summary = nullptr;
-
-			summary = modelStackWithThreeMainThings->paramManager->getUnpatchedParamSetSummary();
-
-			if (summary) {
-				ModelStackWithParamId* modelStackWithParamId =
-				    modelStackWithThreeMainThings->addParamCollectionAndId(summary->paramCollection, summary, paramID);
-				if (modelStackWithParamId) {
-					modelStackWithParam = summary->paramCollection->getAutoParamFromId(modelStackWithParamId, true);
-				}
-			}
+			modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
 		}
 	}
 
