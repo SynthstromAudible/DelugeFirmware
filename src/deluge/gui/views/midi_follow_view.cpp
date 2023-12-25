@@ -138,7 +138,7 @@ ActionResult MidiFollowView::timerCallback() {
 }
 
 bool MidiFollowView::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
-                                     uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
+                                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
 	if (!image) {
 		return true;
 	}
@@ -210,7 +210,7 @@ void MidiFollowView::renderRow(uint8_t* image, uint8_t occupancyMask[], int32_t 
 
 /// nothing to render in sidebar
 bool MidiFollowView::renderSidebar(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
-                                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
+                                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	if (!image) {
 		return true;
 	}
@@ -622,8 +622,8 @@ Clip* MidiFollowView::getClipForMidiFollow(bool useActiveClip) {
 /// obtain the modelStackWithParam for that context and return it so it can be used by midi follow
 ModelStackWithAutoParam*
 MidiFollowView::getModelStackWithParam(ModelStackWithThreeMainThings* modelStackWithThreeMainThings,
-                                        ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
-                                        int32_t xDisplay, int32_t yDisplay, int32_t ccNumber, bool displayError) {
+                                       ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
+                                       int32_t xDisplay, int32_t yDisplay, int32_t ccNumber, bool displayError) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
 	Param::Kind paramKind = Param::Kind::NONE;
@@ -670,14 +670,21 @@ MidiFollowView::getModelStackWithParam(ModelStackWithThreeMainThings* modelStack
 						paramID = patchedParamShortcuts[xDisplay][yDisplay];
 					}
 					else if (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-						paramKind = Param::Kind::UNPATCHED_SOUND;
-						paramID = unpatchedParamShortcuts[xDisplay][yDisplay];
+						//don't allow control of Portamento in Kit's
+						if (unpatchedParamShortcuts[xDisplay][yDisplay] != Param::Unpatched::Sound::PORTAMENTO) {
+							paramKind = Param::Kind::UNPATCHED_SOUND;
+							paramID = unpatchedParamShortcuts[xDisplay][yDisplay];
+						}
 					}
 				}
 				else {
 					if (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-						paramKind = Param::Kind::UNPATCHED_SOUND;
-						paramID = unpatchedParamShortcuts[xDisplay][yDisplay];
+						//don't allow control of Portamento or Arp Gate in Kit Affect Entire
+						if ((unpatchedParamShortcuts[xDisplay][yDisplay] != Param::Unpatched::Sound::PORTAMENTO)
+						    && (unpatchedParamShortcuts[xDisplay][yDisplay] != Param::Unpatched::Sound::ARP_GATE)) {
+							paramKind = Param::Kind::UNPATCHED_SOUND;
+							paramID = unpatchedParamShortcuts[xDisplay][yDisplay];
+						}
 					}
 					else if (globalEffectableParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
 						paramKind = Param::Kind::UNPATCHED_GLOBAL;
@@ -761,8 +768,8 @@ int32_t MidiFollowView::getCCFromParam(Param::Kind paramKind, int32_t paramID) {
 /// determines whether a note message received is midi follow relevant
 /// and should be routed to the active context for further processing
 void MidiFollowView::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32_t channel, int32_t note,
-                                          int32_t velocity, bool* doingMidiThru, bool shouldRecordNotesNowNow,
-                                          ModelStack* modelStack) {
+                                         int32_t velocity, bool* doingMidiThru, bool shouldRecordNotesNowNow,
+                                         ModelStack* modelStack) {
 	// midi follow mode
 	if ((getRootUI() != &midiFollowView) && midiEngine.midiFollow) {
 		Clip* clip = getClipForMidiFollow(true);
@@ -799,7 +806,7 @@ void MidiFollowView::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32_
 /// determines whether a midi cc received is midi follow relevant
 /// and should be routed to the active context for further processing
 void MidiFollowView::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
-                                     bool* doingMidiThru, bool isMPE, ModelStack* modelStack) {
+                                    bool* doingMidiThru, bool isMPE, ModelStack* modelStack) {
 	// midi follow mode
 	if ((getRootUI() != &midiFollowView) && midiEngine.midiFollow) {
 		//obtain clip for active context (for params that's only for the active mod controllable stack)
@@ -843,7 +850,7 @@ void MidiFollowView::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uin
 /// determines whether a pitch bend received is midi follow relevant
 /// and should be routed to the active context for further processing
 void MidiFollowView::pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
-                                        bool* doingMidiThru, ModelStack* modelStack) {
+                                       bool* doingMidiThru, ModelStack* modelStack) {
 	// midi follow mode
 	if ((getRootUI() != &midiFollowView) && midiEngine.midiFollow) {
 		//obtain clip for active context
@@ -863,7 +870,7 @@ void MidiFollowView::pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel, 
 /// determines whether aftertouch received is midi follow relevant
 /// and should be routed to the active context for further processing
 void MidiFollowView::aftertouchReceived(MIDIDevice* fromDevice, int32_t channel, int32_t value, int32_t noteCode,
-                                         bool* doingMidiThru, ModelStack* modelStack) {
+                                        bool* doingMidiThru, ModelStack* modelStack) {
 	// midi follow mode
 	if ((getRootUI() != &midiFollowView) && midiEngine.midiFollow) {
 		//obtain clip for active context
@@ -883,7 +890,7 @@ void MidiFollowView::aftertouchReceived(MIDIDevice* fromDevice, int32_t channel,
 /// determines whether bend range update received is midi follow relevant
 /// and should be routed to the active context for further processing
 void MidiFollowView::bendRangeUpdateReceived(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone,
-                                              int32_t whichBendRange, int32_t bendSemitones) {
+                                             int32_t whichBendRange, int32_t bendSemitones) {
 	// midi follow mode
 	if ((getRootUI() != &midiFollowView) && midiEngine.midiFollow) {
 		//obtain clip for active context
