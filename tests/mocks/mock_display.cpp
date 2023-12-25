@@ -4,6 +4,8 @@
 
 class MockDisplay : public deluge::hid::Display {
 public:
+	MockDisplay() : deluge::hid::Display(deluge::hid::DisplayType::SEVENSEG) {}
+
 	~MockDisplay() = default;
 
 	constexpr size_t getNumBrowserAndMenuLines() { return 0; };
@@ -49,9 +51,6 @@ public:
 	}
 
 	std::array<uint8_t, kNumericDisplayLength> getLast() { return {0}; }; // to match SevenSegment
-
-	bool haveOLED() { return false; }
-	bool have7SEG() { return false; }
 };
 
 extern "C" void freezeWithError(char const* error) {
