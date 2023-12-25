@@ -163,14 +163,21 @@ MidiFollow::getModelStackWithParam(ModelStackWithThreeMainThings* modelStackWith
 						paramID = patchedParamShortcuts[xDisplay][yDisplay];
 					}
 					else if (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-						paramKind = Param::Kind::UNPATCHED_SOUND;
-						paramID = unpatchedParamShortcuts[xDisplay][yDisplay];
+						//don't allow control of Portamento in Kit's
+						if (unpatchedParamShortcuts[xDisplay][yDisplay] != Param::Unpatched::Sound::PORTAMENTO) {
+							paramKind = Param::Kind::UNPATCHED_SOUND;
+							paramID = unpatchedParamShortcuts[xDisplay][yDisplay];
+						}
 					}
 				}
 				else {
 					if (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-						paramKind = Param::Kind::UNPATCHED_SOUND;
-						paramID = unpatchedParamShortcuts[xDisplay][yDisplay];
+						//don't allow control of Portamento or Arp Gate in Kit Affect Entire
+						if ((unpatchedParamShortcuts[xDisplay][yDisplay] != Param::Unpatched::Sound::PORTAMENTO)
+						    && (unpatchedParamShortcuts[xDisplay][yDisplay] != Param::Unpatched::Sound::ARP_GATE)) {
+							paramKind = Param::Kind::UNPATCHED_SOUND;
+							paramID = unpatchedParamShortcuts[xDisplay][yDisplay];
+						}
 					}
 					else if (globalEffectableParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
 						paramKind = Param::Kind::UNPATCHED_GLOBAL;
