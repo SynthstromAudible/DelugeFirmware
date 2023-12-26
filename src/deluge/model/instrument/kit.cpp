@@ -631,20 +631,19 @@ void Kit::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, Stere
 //offer the CC to kit gold knobs without also offering to all drums
 void Kit::offerReceivedCCToModControllable(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
                                            ModelStackWithTimelineCounter* modelStack) {
-	ModControllableAudio::offerReceivedCCToLearnedParams(
-	    fromDevice, channel, ccNumber, value,
-	    modelStack); // NOTE: this call may change modelStack->timelineCounter etc!
+	// NOTE: this call may change modelStack->timelineCounter etc!
+	ModControllableAudio::offerReceivedCCToLearnedParams(fromDevice, channel, ccNumber, value, modelStack);
 }
 void Kit::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
                                          ModelStackWithTimelineCounter* modelStack) {
 
 	// Do it for this whole Kit
-	offerReceivedCCToModControllable(fromDevice, channel, ccNumber, value,
-	                                 modelStack); // NOTE: this call may change modelStack->timelineCounter etc!
+	// NOTE: this call may change modelStack->timelineCounter etc!
+	offerReceivedCCToModControllable(fromDevice, channel, ccNumber, value, modelStack);
 
 	// Now do it for each NoteRow / Drum
-	if (modelStack
-	        ->timelineCounterIsSet()) { // This is always actually true currently for calls to this function, but let's make this safe and future proof.
+	// This is always actually true currently for calls to this function, but let's make this safe and future proof.
+	if (modelStack->timelineCounterIsSet()) {
 		InstrumentClip* clip =
 		    (InstrumentClip*)modelStack->getTimelineCounter(); // May have been changed by call above!
 		for (int32_t i = 0; i < clip->noteRows.getNumElements(); i++) {
@@ -659,6 +658,7 @@ void Kit::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel
 }
 
 //not updated for midi follow, this seems dumb and is just left for backwards compatibility
+//Pitch bend is available in the mod matrix as X and shouldn't be learned to params anymore (post 4.0)
 bool Kit::offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
                                                 ModelStackWithTimelineCounter* modelStack) {
 
@@ -1080,8 +1080,9 @@ goingToRecordNoteOnEarly:
 	// Note-on
 	if (on) {
 
-		// If input is MPE, we need to give the Drum the most recent MPE expression values received on the channel on the Device. It doesn't keep track of these when a note isn't on, and
-		// even if it did, this new note might be on a different channel (just same notecode).
+		// If input is MPE, we need to give the Drum the most recent MPE expression values received on the channel on the Device.
+		// It doesn't keep track of these when a note isn't on, and
+		// even if it did this new note might be on a different channel (just same notecode).
 		if (thisDrum->midiInput.isForMPEZone()) {
 			for (int32_t i = 0; i < kNumExpressionDimensions; i++) {
 				thisDrum->lastExpressionInputsReceived[BEND_RANGE_FINGER_LEVEL][i] =
@@ -1250,7 +1251,7 @@ void Kit::offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineC
 		switch (thisDrum->midiInput.checkMatch(fromDevice, channel)) {
 		case MPE_MASTER:
 			bend_range = BEND_RANGE_MAIN;
-			//no break
+			[[fallthrough]];
 		case MPE_MEMBER:
 			offerMPEYAxisToDrum(modelStackWithTimelineCounter, thisDrum, bend_range, value);
 			break;
