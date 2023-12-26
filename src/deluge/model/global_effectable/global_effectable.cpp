@@ -138,75 +138,108 @@ void GlobalEffectable::displayCompressorAndReverbSettings(bool on) {
 	if (display->haveOLED()) {
 		DEF_STACK_STRING_BUF(popupMsg, 100);
 		//Master Compressor
-		popupMsg.append("Comp Type: ");
-		popupMsg.append(editingComp ? "Full" : "One");
-
-		popupMsg.append("\n Comp Param: ");
-		currentCompParam = static_cast<CompParam>(util::to_underlying(currentCompParam) % maxCompParam);
-		const char* params[util::to_underlying(CompParam::LAST)] = {"ratio", "attack", "release", "hpf"};
-		popupMsg.append(params[int(currentCompParam)]);
+		popupMsg.append("Comp Mode: ");
+		popupMsg.append(getCompressorModeDisplayName());
 
 		popupMsg.append("\n");
 
-		//Reverb
-		int32_t currentPreset = view.getCurrentReverbPreset();
-		popupMsg.append(deluge::l10n::get(presetReverbNames[currentPreset]));
+		if (editingComp) {
+			popupMsg.append("Comp Param: ");
+			popupMsg.append(getCompressorParamDisplayName());
+		}
+		else {
+			//Reverb
+			popupMsg.append(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
+		}
 
 		display->displayPopup(popupMsg.c_str());
 	}
+	else {
+		if (on) {
+			display->displayPopup(getCompressorModeDisplayName());
+		}
+		else {
+			if (editingComp) {
+				display->displayPopup(getCompressorParamDisplayName());
+			}
+			else {
+				display->displayPopup(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
+			}
+		}
+	}
+}
+
+char const* GlobalEffectable::getCompressorModeDisplayName() {
+	return editingComp ? "FULL" : "ONE";
+}
+
+char const* GlobalEffectable::getCompressorParamDisplayName() {
+	currentCompParam = static_cast<CompParam>(util::to_underlying(currentCompParam) % maxCompParam);
+	const char* params[util::to_underlying(CompParam::LAST)] = {"ratio", "attack", "release", "hpf"};
+	return params[int(currentCompParam)];
 }
 
 void GlobalEffectable::displayModFXSettings(bool on) {
 	if (display->haveOLED()) {
 		DEF_STACK_STRING_BUF(popupMsg, 100);
 		popupMsg.append("Type: ");
-
-		auto modTypeCount =
-			(runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableGrainFX) == RuntimeFeatureStateToggle::Off)
-				? (kNumModFXTypes - 1)
-				: kNumModFXTypes;
-
-		modFXType = static_cast<ModFXType>(util::to_underlying(modFXType) % modTypeCount);
-		if (modFXType == ModFXType::NONE) {
-			modFXType = static_cast<ModFXType>(1);
-		}
-		switch (modFXType) {
-			using enum deluge::l10n::String;
-		case ModFXType::FLANGER:
-			popupMsg.append(l10n::get(STRING_FOR_FLANGER));
-			break;
-		case ModFXType::PHASER:
-			popupMsg.append(l10n::get(STRING_FOR_PHASER));
-			break;
-		case ModFXType::CHORUS:
-			popupMsg.append(l10n::get(STRING_FOR_CHORUS));
-			break;
-		case ModFXType::CHORUS_STEREO:
-			popupMsg.append(l10n::get(STRING_FOR_STEREO_CHORUS));
-			break;
-		case ModFXType::GRAIN:
-			popupMsg.append(l10n::get(STRING_FOR_GRAIN));
-			break;
-		}
+		popupMsg.append(getModFXTypeDisplayName());
 
 		popupMsg.append("\n Param: ");
-
-		currentModFXParam = static_cast<ModFXParam>(util::to_underlying(currentModFXParam) % kNumModFXParams);
-
-		switch (currentModFXParam) {
-			using enum deluge::l10n::String;
-		case ModFXParam::DEPTH:
-			popupMsg.append(l10n::get(STRING_FOR_DEPTH));
-			break;
-		case ModFXParam::FEEDBACK:
-			popupMsg.append(l10n::get(STRING_FOR_FEEDBACK));
-			break;
-		case ModFXParam::OFFSET:
-			popupMsg.append(l10n::get(STRING_FOR_OFFSET));
-			break;
-		}
+		popupMsg.append(getModFXParamDisplayName());
 
 		display->displayPopup(popupMsg.c_str());
+	}
+	else {
+		if (on) {
+			display->displayPopup(getModFXTypeDisplayName());
+		}
+		else {
+			display->displayPopup(getModFXParamDisplayName());
+		}
+	}
+}
+
+char const* GlobalEffectable::getModFXTypeDisplayName() {
+	auto modTypeCount =
+	    (runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableGrainFX) == RuntimeFeatureStateToggle::Off)
+	        ? (kNumModFXTypes - 1)
+	        : kNumModFXTypes;
+
+	modFXType = static_cast<ModFXType>(util::to_underlying(modFXType) % modTypeCount);
+	if (modFXType == ModFXType::NONE) {
+		modFXType = static_cast<ModFXType>(1);
+	}
+	switch (modFXType) {
+		using enum deluge::l10n::String;
+	case ModFXType::FLANGER:
+		return l10n::get(STRING_FOR_FLANGER);
+	case ModFXType::PHASER:
+		return l10n::get(STRING_FOR_PHASER);
+	case ModFXType::CHORUS:
+		return l10n::get(STRING_FOR_CHORUS);
+	case ModFXType::CHORUS_STEREO:
+		return l10n::get(STRING_FOR_STEREO_CHORUS);
+	case ModFXType::GRAIN:
+		return l10n::get(STRING_FOR_GRAIN);
+	default:
+		return l10n::get(STRING_FOR_NONE);
+	}
+}
+
+char const* GlobalEffectable::getModFXParamDisplayName() {
+	currentModFXParam = static_cast<ModFXParam>(util::to_underlying(currentModFXParam) % kNumModFXParams);
+
+	switch (currentModFXParam) {
+		using enum deluge::l10n::String;
+	case ModFXParam::DEPTH:
+		return l10n::get(STRING_FOR_DEPTH);
+	case ModFXParam::FEEDBACK:
+		return l10n::get(STRING_FOR_FEEDBACK);
+	case ModFXParam::OFFSET:
+		return l10n::get(STRING_FOR_OFFSET);
+	default:
+		return l10n::get(STRING_FOR_NONE);
 	}
 }
 
@@ -390,15 +423,14 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 				else {
 					currentCompParam =
 					    static_cast<CompParam>((util::to_underlying(currentCompParam) + 1) % maxCompParam);
-					const char* params[util::to_underlying(CompParam::LAST)] = {"ratio", "attack", "release", "hpf"};
-					display->popupTextTemporary(params[int(currentCompParam)]);
+					display->displayPopup(getCompressorParamDisplayName());
 				}
 			}
 		}
 		else {
 			if (on) {
 				editingComp = !editingComp;
-				display->popupTextTemporary(editingComp ? "FULL" : "ONE");
+				display->displayPopup(getCompressorModeDisplayName());
 			}
 		}
 

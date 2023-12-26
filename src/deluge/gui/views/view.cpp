@@ -1417,7 +1417,7 @@ void View::cycleThroughReverbPresets() {
 	AudioEngine::reverb.setRoomSize((float)presetReverbRoomSize[newPreset] / 50);
 	AudioEngine::reverb.setDamping((float)presetReverbDampening[newPreset] / 50);
 
-	display->displayPopup(deluge::l10n::get(presetReverbNames[newPreset]));
+	display->displayPopup(getReverbPresetDisplayName(newPreset));
 }
 
 int32_t View::getCurrentReverbPreset() {
@@ -1437,6 +1437,10 @@ int32_t View::getCurrentReverbPreset() {
 	}
 
 	return currentPreset;
+}
+
+char const* View::getReverbPresetDisplayName(int32_t preset) {
+	return deluge::l10n::get(presetReverbNames[preset]);
 }
 
 // If OLED, must make sure deluge::hid::display::OLED::sendMainImage() gets called after this.

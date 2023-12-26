@@ -3966,32 +3966,45 @@ void Sound::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTime
 }
 
 void Sound::displayCompressorAndReverbSettings(bool on) {
+	//Sidechain Compressor
+	int32_t insideWorldTickMagnitude;
+	if (currentSong) { // Bit of a hack just referring to currentSong in here...
+		insideWorldTickMagnitude =
+		    (currentSong->insideWorldTickMagnitude + currentSong->insideWorldTickMagnitudeOffsetFromBPM);
+	}
+	else {
+		insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
+	}
+
 	if (display->haveOLED()) {
 		DEF_STACK_STRING_BUF(popupMsg, 100);
 		//Sidechain Compressor
-		int32_t insideWorldTickMagnitude;
-		if (currentSong) { // Bit of a hack just referring to currentSong in here...
-			insideWorldTickMagnitude =
-				(currentSong->insideWorldTickMagnitude + currentSong->insideWorldTickMagnitudeOffsetFromBPM);
-		}
-		else {
-			insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
-		}
-
-		if (compressor.syncLevel == (SyncLevel)(7 - insideWorldTickMagnitude)) {
-			popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_SLOW_SIDECHAIN_COMPRESSOR));
-		}
-		else {
-			popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_FAST_SIDECHAIN_COMPRESSOR));
-		}
+		popupMsg.append(getCompressorDisplayName(insideWorldTickMagnitude));
 
 		popupMsg.append("\n");
 
 		//Reverb
-		int32_t currentPreset = view.getCurrentReverbPreset();
-		popupMsg.append(deluge::l10n::get(presetReverbNames[currentPreset]));
+		popupMsg.append(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
 
 		display->displayPopup(popupMsg.c_str());
+	}
+	else {
+		if (on) {
+			display->displayPopup(getCompressorDisplayName(insideWorldTickMagnitude));
+		}
+		else {
+			display->displayPopup(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
+		}
+	}
+}
+
+char const* Sound::getCompressorDisplayName(int32_t insideWorldTickMagnitude) {
+	using enum deluge::l10n::String;
+	if (compressor.syncLevel == (SyncLevel)(7 - insideWorldTickMagnitude)) {
+		return l10n::get(STRING_FOR_SLOW_SIDECHAIN_COMPRESSOR);
+	}
+	else {
+		return l10n::get(STRING_FOR_FAST_SIDECHAIN_COMPRESSOR);
 	}
 }
 

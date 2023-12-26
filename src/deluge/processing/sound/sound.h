@@ -298,4 +298,5 @@ private:
 	                                                      bool allowCreation = true);
 
 	void displayCompressorAndReverbSettings(bool on = false);
+	char const* getCompressorDisplayName(int32_t insideWorldTickMagnitude);
 };

@@ -188,6 +188,14 @@ protected:
 	/// This should be UNPATCHED_GLOBAL for GlobalEffectable and UNPATCHED_SOUND for Sound. If a new ModControllable
 	/// subclass is
 	deluge::modulation::params::Kind unpatchedParamKind_;
+
+	char const* getLPFModeDisplayName();
+	char const* getHPFModeDisplayName();
+	char const* getDelayTypeDisplayName();
+	char const* getDelayPingPongStatusDisplayName();
+	char const* getDelaySyncTypeDisplayName();
+	char const* getDelaySyncLevelDisplayName();
+
 	void displayLPFMode(bool on = false);
 	void displayHPFMode(bool on = false);
 	void displayDelaySettings(bool on = false);
