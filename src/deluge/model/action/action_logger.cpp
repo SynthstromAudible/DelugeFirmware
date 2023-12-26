@@ -38,7 +38,7 @@
 #include "model/consequence/consequence_performance_view_press.h"
 #include "model/consequence/consequence_swing_change.h"
 #include "model/consequence/consequence_tempo_change.h"
-#include "model/drum/kit.h"
+#include "model/instrument/kit.h"
 #include "model/song/song.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/playback_mode.h"
