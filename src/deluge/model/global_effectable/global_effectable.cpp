@@ -102,6 +102,9 @@ void GlobalEffectable::modButtonAction(uint8_t whichModButton, bool on, ParamMan
 		// If we're leaving this mod function or anything else is happening, we want to be sure that stutter has stopped
 		endStutter(paramManager);
 	}
+
+	using enum l10n::String;
+	int32_t modKnobMode = *getModKnobMode();
 }
 
 // Returns whether Instrument changed

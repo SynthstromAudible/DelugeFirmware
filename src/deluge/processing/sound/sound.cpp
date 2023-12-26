@@ -3935,6 +3935,130 @@ bool Sound::envelopeHasSustainEver(int32_t e, ParamManagerForTimeline* paramMana
 
 void Sound::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) {
 	endStutter(paramManager);
+
+	if (!on) {
+		int32_t modKnobMode = *getModKnobMode();
+
+		ModKnob* ourModKnob = &modKnobs[modKnobMode][1];
+
+		if (getSynthMode() != SynthMode::FM) {
+			if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(Param::Local::LPF_FREQ)) {
+				displayLPFMode();
+			}
+			else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(Param::Local::HPF_FREQ)) {
+				displayHPFMode();
+			}
+		}
+
+		if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(Param::Global::DELAY_RATE)) {
+			displayDelaySettings();
+		}
+	}
+}
+
+void Sound::displayLPFMode() {
+	DEF_STACK_STRING_BUF(popupMsg, 40);
+	popupMsg.append("LPF: ");
+
+	lpfMode = static_cast<FilterMode>((util::to_underlying(lpfMode)) % kNumLPFModes);
+
+	switch (lpfMode) {
+		using enum deluge::l10n::String;
+	case FilterMode::TRANSISTOR_12DB:
+		popupMsg.append(l10n::get(STRING_FOR_12DB_LADDER));
+		break;
+	case FilterMode::TRANSISTOR_24DB:
+		popupMsg.append(l10n::get(STRING_FOR_24DB_LADDER));
+		break;
+	case FilterMode::TRANSISTOR_24DB_DRIVE:
+		popupMsg.append(l10n::get(STRING_FOR_DRIVE));
+		break;
+	case FilterMode::SVF_BAND:
+		popupMsg.append(l10n::get(STRING_FOR_SVF_BAND));
+		break;
+	case FilterMode::SVF_NOTCH:
+		popupMsg.append(l10n::get(STRING_FOR_SVF_NOTCH));
+		break;
+	}
+	display->displayPopup(popupMsg.c_str());
+}
+
+void Sound::displayHPFMode() {
+	DEF_STACK_STRING_BUF(popupMsg, 40);
+	popupMsg.append("HPF: ");
+
+	//this works fine, the offset to the first hpf doesn't matter with the modulus
+	hpfMode = static_cast<FilterMode>((util::to_underlying(hpfMode)) % kNumHPFModes + kFirstHPFMode);
+
+	char const* displayText;
+	switch (hpfMode) {
+		using enum deluge::l10n::String;
+	case FilterMode::HPLADDER:
+		popupMsg.append(l10n::get(STRING_FOR_HPLADDER));
+		break;
+	case FilterMode::SVF_BAND:
+		popupMsg.append(l10n::get(STRING_FOR_SVF_BAND));
+		break;
+	case FilterMode::SVF_NOTCH:
+		popupMsg.append(l10n::get(STRING_FOR_SVF_NOTCH));
+		break;
+	}
+	display->displayPopup(popupMsg.c_str());
+}
+
+void Sound::displayDelaySettings() {
+	DEF_STACK_STRING_BUF(popupMsg, 100);
+	switch (delay.analog) {
+	case 0:
+		popupMsg.append("Digital delay");
+		break;
+
+	default:
+		popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_ANALOG_DELAY));
+		;
+		break;
+	}
+
+	popupMsg.append("\n Ping pong: ");
+
+	switch (delay.pingPong) {
+	case 0:
+		popupMsg.append("Disabled");
+		break;
+
+	default:
+		popupMsg.append("Enabled");
+		break;
+	}
+
+	popupMsg.append("\n Sync Type: ");
+
+	switch (delay.syncType) {
+	case SYNC_TYPE_TRIPLET:
+		popupMsg.append("Triplet");
+		break;
+	case SYNC_TYPE_DOTTED:
+		popupMsg.append("Dotted");
+		break;
+
+	default: //SYNC_TYPE_EVEN
+		popupMsg.append("Even");
+		break;
+	}
+
+	popupMsg.append("\n Sync Level: ");
+
+	// Note: SYNC_LEVEL_NONE (value 0) can't be selected
+	delay.syncLevel = (SyncLevel)((delay.syncLevel) % SyncLevel::SYNC_LEVEL_256TH); //cycle from 1 to 9 (omit 0)
+
+	char* buffer = shortStringBuffer;
+	currentSong->getNoteLengthName(buffer, (uint32_t)3 << (SYNC_LEVEL_256TH - delay.syncLevel));
+	// Need to delete "-notes" from the name
+	std::string noteName(buffer);
+	std::string cleanName = noteName.substr(0, noteName.find("-notes"));
+	popupMsg.append(cleanName.c_str());
+
+	display->displayPopup(popupMsg.c_str());
 }
 
 ModelStackWithAutoParam* Sound::getParamFromModEncoder(int32_t whichModEncoder,

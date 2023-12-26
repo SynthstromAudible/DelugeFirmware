@@ -296,4 +296,8 @@ private:
 	ModelStackWithAutoParam* getParamFromModEncoderDeeper(int32_t whichModEncoder,
 	                                                      ModelStackWithThreeMainThings* modelStack,
 	                                                      bool allowCreation = true);
+
+	void displayLPFMode();
+	void displayHPFMode();
+	void displayDelaySettings();
 };
