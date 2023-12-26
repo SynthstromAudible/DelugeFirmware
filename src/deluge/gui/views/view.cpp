@@ -1407,6 +1407,20 @@ void View::pretendModKnobsUntouchedForAWhile() {
 
 void View::cycleThroughReverbPresets() {
 
+	int32_t currentPreset = getCurrentReverbPreset();
+
+	int32_t newPreset = currentPreset + 1;
+	if (newPreset >= NUM_PRESET_REVERBS) {
+		newPreset = 0;
+	}
+
+	AudioEngine::reverb.setRoomSize((float)presetReverbRoomSize[newPreset] / 50);
+	AudioEngine::reverb.setDamping((float)presetReverbDampening[newPreset] / 50);
+
+	display->displayPopup(deluge::l10n::get(presetReverbNames[newPreset]));
+}
+
+int32_t View::getCurrentReverbPreset() {
 	int32_t currentRoomSize = AudioEngine::reverb.getRoomSize() * 50;
 	int32_t currentDampening = AudioEngine::reverb.getDamping() * 50;
 
@@ -1422,15 +1436,7 @@ void View::cycleThroughReverbPresets() {
 		}
 	}
 
-	int32_t newPreset = currentPreset + 1;
-	if (newPreset >= NUM_PRESET_REVERBS) {
-		newPreset = 0;
-	}
-
-	AudioEngine::reverb.setRoomSize((float)presetReverbRoomSize[newPreset] / 50);
-	AudioEngine::reverb.setDamping((float)presetReverbDampening[newPreset] / 50);
-
-	display->displayPopup(deluge::l10n::get(presetReverbNames[newPreset]));
+	return currentPreset;
 }
 
 // If OLED, must make sure deluge::hid::display::OLED::sendMainImage() gets called after this.

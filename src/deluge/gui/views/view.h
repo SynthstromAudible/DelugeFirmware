@@ -76,6 +76,7 @@ public:
 	void setActiveModControllableTimelineCounter(TimelineCounter* playPositionCounter);
 	void setActiveModControllableWithoutTimelineCounter(ModControllable* modControllable, ParamManager* paramManager);
 	void cycleThroughReverbPresets();
+	int32_t getCurrentReverbPreset();
 	void setModRegion(uint32_t pos = 0xFFFFFFFF, uint32_t length = 0, int32_t noteRowId = 0);
 	void notifyParamAutomationOccurred(ParamManager* paramManager, bool updateModLevels = true);
 	void displayAutomation();

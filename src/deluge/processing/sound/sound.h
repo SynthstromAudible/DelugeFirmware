@@ -300,4 +300,5 @@ private:
 	void displayLPFMode();
 	void displayHPFMode();
 	void displayDelaySettings();
+	void displayCompressorAndReverbSettings();
 };
