@@ -69,10 +69,10 @@ protected:
 
 private:
 	void ensureModFXParamIsValid();
-	void displayCompressorAndReverbSettings(bool on = false);
+	void displayCompressorAndReverbSettings(bool on);
 	char const* getCompressorModeDisplayName();
 	char const* getCompressorParamDisplayName();
-	void displayModFXSettings(bool on = false);
+	void displayModFXSettings(bool on);
 	char const* getModFXTypeDisplayName();
 	char const* getModFXParamDisplayName();
 };

@@ -196,9 +196,9 @@ protected:
 	char const* getDelaySyncTypeDisplayName();
 	char const* getDelaySyncLevelDisplayName();
 
-	void displayLPFMode(bool on = false);
-	void displayHPFMode(bool on = false);
-	void displayDelaySettings(bool on = false);
+	void displayLPFMode(bool on);
+	void displayHPFMode(bool on);
+	void displayDelaySettings(bool on);
 
 private:
 	void initializeSecondaryDelayBuffer(int32_t newNativeRate, bool makeNativeRatePreciseRelativeToOtherBuffer);

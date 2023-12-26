@@ -110,11 +110,11 @@ void GlobalEffectable::modButtonAction(uint8_t whichModButton, bool on, ParamMan
 			currentFilterType = static_cast<FilterType>(util::to_underlying(currentFilterType) % kNumFilterTypes);
 			switch (currentFilterType) {
 			case FilterType::LPF:
-				displayLPFMode();
+				displayLPFMode(on);
 				break;
 
 			case FilterType::HPF:
-				displayHPFMode();
+				displayHPFMode(on);
 				break;
 
 			case FilterType::EQ:
@@ -123,13 +123,13 @@ void GlobalEffectable::modButtonAction(uint8_t whichModButton, bool on, ParamMan
 			}
 		}
 		else if (modKnobMode == 3) {
-			displayDelaySettings();
+			displayDelaySettings(on);
 		}
 		else if (modKnobMode == 4) {
-			displayCompressorAndReverbSettings();
+			displayCompressorAndReverbSettings(on);
 		}
 		else if (modKnobMode == 5) {
-			displayModFXSettings();
+			displayModFXSettings(on);
 		}
 	}
 }

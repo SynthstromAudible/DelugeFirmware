@@ -3943,10 +3943,10 @@ void Sound::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTime
 
 		if (getSynthMode() != SynthMode::FM) {
 			if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(Param::Local::LPF_FREQ)) {
-				displayLPFMode();
+				displayLPFMode(on);
 			}
 			else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(Param::Local::HPF_FREQ)) {
-				displayHPFMode();
+				displayHPFMode(on);
 			}
 			else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(Param::Unpatched::START
 			                                                              + Param::Unpatched::TREBLE)) {
@@ -3955,12 +3955,12 @@ void Sound::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTime
 		}
 
 		if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(Param::Global::DELAY_RATE)) {
-			displayDelaySettings();
+			displayDelaySettings(on);
 		}
 
 		if ((ourModKnob->paramDescriptor.hasJustOneSource()
 		     && ourModKnob->paramDescriptor.getTopLevelSource() == PatchSource::COMPRESSOR)) {
-			displayCompressorAndReverbSettings();
+			displayCompressorAndReverbSettings(on);
 		}
 	}
 }
