@@ -43,7 +43,7 @@
 #include "model/consequence/consequence.h"
 #include "model/consequence/consequence_begin_playback.h"
 #include "model/consequence/consequence_tempo_change.h"
-#include "model/drum/kit.h"
+#include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/sample/sample_holder.h"
 #include "model/settings/runtime_feature_settings.h"
