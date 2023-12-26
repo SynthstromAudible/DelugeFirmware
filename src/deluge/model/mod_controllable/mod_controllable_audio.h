@@ -191,7 +191,6 @@ protected:
 	void displayLPFMode();
 	void displayHPFMode();
 	void displayDelaySettings();
-	void displayCompressorAndReverbSettings();
 
 private:
 	void initializeSecondaryDelayBuffer(int32_t newNativeRate, bool makeNativeRatePreciseRelativeToOtherBuffer);

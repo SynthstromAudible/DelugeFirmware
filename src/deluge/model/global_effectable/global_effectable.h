@@ -69,5 +69,6 @@ protected:
 
 private:
 	void ensureModFXParamIsValid();
+	void displayCompressorAndReverbSettings();
 	void displayModFXSettings();
 };

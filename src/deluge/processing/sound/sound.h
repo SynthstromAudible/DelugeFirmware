@@ -296,4 +296,6 @@ private:
 	ModelStackWithAutoParam* getParamFromModEncoderDeeper(int32_t whichModEncoder,
 	                                                      ModelStackWithThreeMainThings* modelStack,
 	                                                      bool allowCreation = true);
+
+	void displayCompressorAndReverbSettings();
 };

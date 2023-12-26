@@ -107,8 +107,7 @@ void GlobalEffectable::modButtonAction(uint8_t whichModButton, bool on, ParamMan
 		int32_t modKnobMode = *getModKnobMode();
 
 		if (modKnobMode == 1) {
-			currentFilterType =
-				static_cast<FilterType>(util::to_underlying(currentFilterType) % kNumFilterTypes);
+			currentFilterType = static_cast<FilterType>(util::to_underlying(currentFilterType) % kNumFilterTypes);
 			switch (currentFilterType) {
 			case FilterType::LPF:
 				displayLPFMode();
@@ -123,10 +122,36 @@ void GlobalEffectable::modButtonAction(uint8_t whichModButton, bool on, ParamMan
 				break;
 			}
 		}
+		else if (modKnobMode == 3) {
+			displayDelaySettings();
+		}
+		else if (modKnobMode == 4) {
+			displayCompressorAndReverbSettings();
+		}
 		else if (modKnobMode == 5) {
 			displayModFXSettings();
 		}
 	}
+}
+
+void GlobalEffectable::displayCompressorAndReverbSettings() {
+	DEF_STACK_STRING_BUF(popupMsg, 100);
+	//Master Compressor
+	popupMsg.append("Comp Type: ");
+	popupMsg.append(editingComp ? "Full" : "One");
+
+	popupMsg.append("\n Comp Param: ");
+	currentCompParam = static_cast<CompParam>(util::to_underlying(currentCompParam) % maxCompParam);
+	const char* params[util::to_underlying(CompParam::LAST)] = {"ratio", "attack", "release", "hpf"};
+	popupMsg.append(params[int(currentCompParam)]);
+
+	popupMsg.append("\n");
+
+	//Reverb
+	int32_t currentPreset = view.getCurrentReverbPreset();
+	popupMsg.append(deluge::l10n::get(presetReverbNames[currentPreset]));
+
+	display->displayPopup(popupMsg.c_str());
 }
 
 void GlobalEffectable::displayModFXSettings() {
@@ -138,7 +163,7 @@ void GlobalEffectable::displayModFXSettings() {
 	        ? (kNumModFXTypes - 1)
 	        : kNumModFXTypes;
 
-	modFXType = static_cast<ModFXType>((util::to_underlying(modFXType)) % modTypeCount);
+	modFXType = static_cast<ModFXType>(util::to_underlying(modFXType) % modTypeCount);
 	if (modFXType == ModFXType::NONE) {
 		modFXType = static_cast<ModFXType>(1);
 	}
@@ -163,7 +188,7 @@ void GlobalEffectable::displayModFXSettings() {
 
 	popupMsg.append("\n Param: ");
 
-	currentModFXParam = static_cast<ModFXParam>((util::to_underlying(currentModFXParam)) % kNumModFXParams);
+	currentModFXParam = static_cast<ModFXParam>(util::to_underlying(currentModFXParam) % kNumModFXParams);
 
 	switch (currentModFXParam) {
 		using enum deluge::l10n::String;
