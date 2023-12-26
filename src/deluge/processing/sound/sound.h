@@ -297,5 +297,5 @@ private:
 	                                                      ModelStackWithThreeMainThings* modelStack,
 	                                                      bool allowCreation = true);
 
-	void displayCompressorAndReverbSettings();
+	void displayCompressorAndReverbSettings(bool on = false);
 };
