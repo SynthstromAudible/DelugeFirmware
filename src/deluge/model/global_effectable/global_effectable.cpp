@@ -103,8 +103,82 @@ void GlobalEffectable::modButtonAction(uint8_t whichModButton, bool on, ParamMan
 		endStutter(paramManager);
 	}
 
-	using enum l10n::String;
-	int32_t modKnobMode = *getModKnobMode();
+	if (!on) {
+		int32_t modKnobMode = *getModKnobMode();
+
+		if (modKnobMode == 1) {
+			currentFilterType =
+				static_cast<FilterType>(util::to_underlying(currentFilterType) % kNumFilterTypes);
+			switch (currentFilterType) {
+			case FilterType::LPF:
+				displayLPFMode();
+				break;
+
+			case FilterType::HPF:
+				displayHPFMode();
+				break;
+
+			case FilterType::EQ:
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_EQ));
+				break;
+			}
+		}
+		else if (modKnobMode == 5) {
+			displayModFXSettings();
+		}
+	}
+}
+
+void GlobalEffectable::displayModFXSettings() {
+	DEF_STACK_STRING_BUF(popupMsg, 100);
+	popupMsg.append("Type: ");
+
+	auto modTypeCount =
+	    (runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableGrainFX) == RuntimeFeatureStateToggle::Off)
+	        ? (kNumModFXTypes - 1)
+	        : kNumModFXTypes;
+
+	modFXType = static_cast<ModFXType>((util::to_underlying(modFXType)) % modTypeCount);
+	if (modFXType == ModFXType::NONE) {
+		modFXType = static_cast<ModFXType>(1);
+	}
+	switch (modFXType) {
+		using enum deluge::l10n::String;
+	case ModFXType::FLANGER:
+		popupMsg.append(l10n::get(STRING_FOR_FLANGER));
+		break;
+	case ModFXType::PHASER:
+		popupMsg.append(l10n::get(STRING_FOR_PHASER));
+		break;
+	case ModFXType::CHORUS:
+		popupMsg.append(l10n::get(STRING_FOR_CHORUS));
+		break;
+	case ModFXType::CHORUS_STEREO:
+		popupMsg.append(l10n::get(STRING_FOR_STEREO_CHORUS));
+		break;
+	case ModFXType::GRAIN:
+		popupMsg.append(l10n::get(STRING_FOR_GRAIN));
+		break;
+	}
+
+	popupMsg.append("\n Param: ");
+
+	currentModFXParam = static_cast<ModFXParam>((util::to_underlying(currentModFXParam)) % kNumModFXParams);
+
+	switch (currentModFXParam) {
+		using enum deluge::l10n::String;
+	case ModFXParam::DEPTH:
+		popupMsg.append(l10n::get(STRING_FOR_DEPTH));
+		break;
+	case ModFXParam::FEEDBACK:
+		popupMsg.append(l10n::get(STRING_FOR_FEEDBACK));
+		break;
+	case ModFXParam::OFFSET:
+		popupMsg.append(l10n::get(STRING_FOR_OFFSET));
+		break;
+	}
+
+	display->displayPopup(popupMsg.c_str());
 }
 
 // Returns whether Instrument changed

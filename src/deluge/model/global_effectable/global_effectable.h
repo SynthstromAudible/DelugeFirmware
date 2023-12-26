@@ -69,4 +69,5 @@ protected:
 
 private:
 	void ensureModFXParamIsValid();
+	void displayModFXSettings();
 };

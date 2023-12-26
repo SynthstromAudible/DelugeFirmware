@@ -188,6 +188,10 @@ protected:
 	/// This should be UNPATCHED_GLOBAL for GlobalEffectable and UNPATCHED_SOUND for Sound. If a new ModControllable
 	/// subclass is
 	deluge::modulation::params::Kind unpatchedParamKind_;
+	void displayLPFMode();
+	void displayHPFMode();
+	void displayDelaySettings();
+	void displayCompressorAndReverbSettings();
 
 private:
 	void initializeSecondaryDelayBuffer(int32_t newNativeRate, bool makeNativeRatePreciseRelativeToOtherBuffer);
