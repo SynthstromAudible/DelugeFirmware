@@ -56,10 +56,10 @@ MidiFollow midiFollow{};
 
 //initialize variables
 MidiFollow::MidiFollow() {
-	initView();
+	init();
 }
 
-void MidiFollow::initView() {
+void MidiFollow::init() {
 	successfullyReadDefaultsFromFile = false;
 
 	initMapping(paramToCC);
@@ -378,6 +378,71 @@ void MidiFollow::aftertouchReceived(MIDIDevice* fromDevice, int32_t channel, int
 	}
 }
 
+/// create default XML file and write defaults
+/// I should check if file exists before creating one
+void MidiFollow::writeDefaultsToFile() {
+	//MidiFollow.xml
+	int32_t error = storageManager.createXMLFile(MIDI_DEFAULTS_XML, true);
+	if (error) {
+		return;
+	}
+
+	//<defaults>
+	storageManager.writeOpeningTagBeginning(MIDI_DEFAULTS_TAG);
+	storageManager.writeOpeningTagEnd();
+
+	//<defaultCCMappings>
+	storageManager.writeOpeningTagBeginning(MIDI_DEFAULTS_CC_TAG);
+	storageManager.writeOpeningTagEnd();
+
+	writeDefaultMappingsToFile();
+
+	storageManager.writeClosingTag(MIDI_DEFAULTS_CC_TAG);
+
+	storageManager.writeClosingTag(MIDI_DEFAULTS_TAG);
+
+	storageManager.closeFileAfterWriting();
+}
+
+/// convert paramID to a paramName to write to XML
+void MidiFollow::writeDefaultMappingsToFile() {
+	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+			bool writeTag = false;
+			char const* paramName;
+
+			if (patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+				paramName = ((Sound*)NULL)->Sound::paramToString(patchedParamShortcuts[xDisplay][yDisplay]);
+				writeTag = true;
+			}
+			else if (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+				if ((unpatchedParamShortcuts[xDisplay][yDisplay] == Param::Unpatched::Sound::ARP_GATE)
+				    || (unpatchedParamShortcuts[xDisplay][yDisplay] == Param::Unpatched::Sound::PORTAMENTO)) {
+					paramName = ((Sound*)NULL)
+					                ->Sound::paramToString(Param::Unpatched::START
+					                                       + unpatchedParamShortcuts[xDisplay][yDisplay]);
+				}
+				else {
+					paramName = ModControllableAudio::paramToString(Param::Unpatched::START
+					                                                + unpatchedParamShortcuts[xDisplay][yDisplay]);
+				}
+				writeTag = true;
+			}
+			else if (globalEffectableParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+				paramName = GlobalEffectable::paramToString(Param::Unpatched::START
+				                                            + globalEffectableParamShortcuts[xDisplay][yDisplay]);
+				writeTag = true;
+			}
+
+			if (writeTag) {
+				char buffer[10];
+				intToString(paramToCC[xDisplay][yDisplay], buffer);
+				storageManager.writeTag(paramName, buffer);
+			}
+		}
+	}
+}
+
 /// read defaults from XML
 void MidiFollow::readDefaultsFromFile() {
 	//no need to keep reading from SD card after first load
@@ -385,13 +450,14 @@ void MidiFollow::readDefaultsFromFile() {
 		return;
 	}
 	else {
-		initView();
+		init();
 	}
 
 	FilePointer fp;
 	//MIDIFollow.XML
 	bool success = storageManager.fileExists(MIDI_DEFAULTS_XML, &fp);
 	if (!success) {
+		writeDefaultsToFile();
 		return;
 	}
 

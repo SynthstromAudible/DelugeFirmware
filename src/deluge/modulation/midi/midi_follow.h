@@ -58,8 +58,12 @@ public:
 
 private:
 	//initialize
-	void initView();
+	void init();
 	void initMapping(int32_t mapping[kDisplayWidth][kDisplayHeight]);
+
+	//saving
+	void writeDefaultsToFile();
+	void writeDefaultMappingsToFile();
 
 	//loading
 	bool successfullyReadDefaultsFromFile;
