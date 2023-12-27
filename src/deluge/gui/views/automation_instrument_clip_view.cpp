@@ -2722,71 +2722,35 @@ void AutomationInstrumentClipView::selectEncoderAction(int8_t offset) {
 		InstrumentClipMinder::selectEncoderAction(offset);
 	}
 	else if (instrument->type == InstrumentType::SYNTH || instrument->type == InstrumentType::KIT) {
-		int32_t idx;
-
 		//if you're a kit with affect entire enabled
 		if (instrument->type == InstrumentType::KIT && instrumentClipView.getAffectEntire()) {
-			//if you haven't selected a parameter yet, start at the beginning of the list
-			if (isOnAutomationOverview()) {
-				idx = 0;
-			}
-			//if you are scrolling left and are at the beginning of the list, go to the end of the list
-			else if ((clip->lastSelectedParamArrayPosition + offset) < 0) {
-				idx = kNumKitAffectEntireParamsForAutomation - 1;
-			}
-			//if you are scrolling right and are at the end of the list, go to the beginning of the list
-			else if ((clip->lastSelectedParamArrayPosition + offset) > (kNumKitAffectEntireParamsForAutomation - 1)) {
-				idx = 0;
-			}
-			//otherwise scrolling left/right within the list
-			else {
-				idx = clip->lastSelectedParamArrayPosition + offset;
-			}
+			auto idx = getNextSelectedParamArrayPosition(offset, clip->lastSelectedParamArrayPosition,
+			                                             kNumKitAffectEntireParamsForAutomation);
 			auto [kind, id] = kitAffectEntireParamsForAutomation[idx];
 			clip->lastSelectedParamID = id;
 			clip->lastSelectedParamKind = kind;
 			clip->lastSelectedParamArrayPosition = idx;
 		}
-
 		//if you're a synth or a kit (with affect entire off and a drum selected)
 		else if (instrument->type == InstrumentType::SYNTH
 		         || (instrument->type == InstrumentType::KIT && ((Kit*)instrument)->selectedDrum)) {
-			do {
-				//if you haven't selected a parameter yet, start at the beginning of the list
-				if (isOnAutomationOverview()) {
-					idx = 0;
+			auto idx = getNextSelectedParamArrayPosition(offset, clip->lastSelectedParamArrayPosition,
+			                                             kNumNonKitAffectEntireParamsForAutomation);
+			auto [kind, id] = nonKitAffectEntireParamsForAutomation[idx];
+			if ((instrument->type == InstrumentType::KIT) && (id == Param::Unpatched::Sound::PORTAMENTO)) {
+				if (offset < 0) {
+					offset -= 1;
 				}
-				//if you are scrolling left and are at the beginning of the list, go to the end of the list
-				else if ((clip->lastSelectedParamArrayPosition + offset) < 0) {
-					idx = kNumNonKitAffectEntireParamsForAutomation - 1;
+				else if (offset > 0) {
+					offset += 1;
 				}
-				//if you are scrolling right and are at the end of the list, go to the beginning of the list
-				else if ((clip->lastSelectedParamArrayPosition + offset)
-				         > (kNumNonKitAffectEntireParamsForAutomation - 1)) {
-					idx = 0;
-				}
-				//otherwise scrolling left/right within the list
-				else {
-					idx = clip->lastSelectedParamArrayPosition + offset;
-				}
-				auto [kind, id] = nonKitAffectEntireParamsForAutomation[idx];
-				if ((instrument->type == InstrumentType::KIT) && (id == Param::Unpatched::Sound::PORTAMENTO)) {
-					if (offset < 0) {
-						offset -= 1;
-					}
-					else if (offset > 0) {
-						offset += 1;
-					}
-				}
-				else {
-					clip->lastSelectedParamID = id;
-					clip->lastSelectedParamKind = kind;
-					clip->lastSelectedParamArrayPosition = idx;
-					break;
-				}
-			} while (true);
+				idx = getNextSelectedParamArrayPosition(offset, clip->lastSelectedParamArrayPosition,
+				                                        kNumNonKitAffectEntireParamsForAutomation);
+			}
+			clip->lastSelectedParamID = id;
+			clip->lastSelectedParamKind = kind;
+			clip->lastSelectedParamArrayPosition = idx;
 		}
-
 		//no shortcut to flash for Stutter, so no need to search for the Shortcut X,Y
 		//just update name on display, the LED mod indicators, and the grid
 		if (clip->lastSelectedParamID == Param::Unpatched::STUTTER_RATE) {
@@ -2856,6 +2820,30 @@ flashShortcut:
 	resetShortcutBlinking();
 	view.setModLedStates();
 	uiNeedsRendering(this);
+}
+
+//used with SelectEncoderAction to get the next parameter in the list of parameters
+int32_t AutomationInstrumentClipView::getNextSelectedParamArrayPosition(int32_t offset,
+                                                                        int32_t lastSelectedParamArrayPosition,
+                                                                        int32_t numParams) {
+	int32_t idx;
+	//if you haven't selected a parameter yet, start at the beginning of the list
+	if (isOnAutomationOverview()) {
+		idx = 0;
+	}
+	//if you are scrolling left and are at the beginning of the list, go to the end of the list
+	else if ((lastSelectedParamArrayPosition + offset) < 0) {
+		idx = numParams - 1;
+	}
+	//if you are scrolling right and are at the end of the list, go to the beginning of the list
+	else if ((lastSelectedParamArrayPosition + offset) > (numParams - 1)) {
+		idx = 0;
+	}
+	//otherwise scrolling left/right within the list
+	else {
+		idx = lastSelectedParamArrayPosition + offset;
+	}
+	return idx;
 }
 
 //tempo encoder action
