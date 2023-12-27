@@ -26,7 +26,6 @@ Here is a list of general improvements that have been made, ordered from newest 
 - ([#47]) Extra MIDI ports on the USB interface for MPE. Port 2 shows in the MIDI device menu, and improves the usability of MPE-capable devices through the USB interface by allowing MPE zones to be sent to port 2 and non-MPE to be sent to port 1 (or vice versa). A third port is added for future use such as a desktop/mobile companion app, DAW control or Mackie HUI emulation. When USB for MIDI is plugged into the Deluge, you can browse these settings in `SETTINGS > MIDI > DEVICES > UPSTREAM USB PORT 1` or `UPSTREAM USB PORT 2`.
 - ([#781]) Master MIDI Follow Mode whereby after enabling the mode, you set a master MIDI follow channel for synth clips, kit clips, and for parameters and all MIDI (notes + cc’s) received on the channel relevant for the active context will be directed to control the active view (e.g. arranger view, song view, audio clip view, instrument clip view). 
 	- Comes with a MIDI feedback mode to send updated parameter values on the MIDI follow channel for learned MIDI cc's. Feedback is sent whenever you change context on the deluge and whenever parameter values for the active context are changed.
-	- Comes with a MIDI learning view to make learning and managing your MIDI cc's to the deluge's parameters a breeze.
 	- Settings related to MIDI Follow Mode can be found in `SETTINGS > MIDI > MIDI FOLLOW`. 
 
 #### 3.4 - Tempo
