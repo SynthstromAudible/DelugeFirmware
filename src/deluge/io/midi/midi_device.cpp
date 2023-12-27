@@ -62,7 +62,7 @@ void MIDIDevice::dataEntryMessageReceived(ModelStack* modelStack, int32_t channe
 		if (zone >= 0) { // If it *is* MPE-related...
 
 			// If it's on the "main" channel
-			if (channel == 0 || channel == 15) {
+			if (ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isMasterChannel(channel)) {
 setMPEBendRange:
 				mpeZoneBendRanges[zone][whichBendRange] = msb;
 			}
@@ -88,8 +88,8 @@ setMPEBendRange:
 		if (msb < 16) {
 			int32_t zone;
 
-			// Lower zone
-			if (channel == 0) {
+			// Master Channel of Lower zone
+			if (ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeLowerZoneLastMemberChannel && channel == 0) {
 				zone = MPE_ZONE_LOWER_NUMBERED_FROM_0;
 				ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeLowerZoneLastMemberChannel = msb;
 				ports[MIDI_DIRECTION_INPUT_TO_DELUGE]
@@ -117,8 +117,8 @@ resetBendRanges
 				soundEditor.mpeZonesPotentiallyUpdated();
 			}
 
-			// Upper zone
-			else if (channel == 15) {
+			// Master Channel of Upper zone
+			else if (ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeUpperZoneLastMemberChannel < 15 && channel == 15) {
 				zone = MPE_ZONE_UPPER_NUMBERED_FROM_0;
 				ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeUpperZoneLastMemberChannel = 15 - msb;
 				ports[MIDI_DIRECTION_INPUT_TO_DELUGE]

@@ -20,7 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/load/load_ui.h"
 #include "hid/button.h"
-#include "model/drum/kit.h"
+#include "model/instrument/kit.h"
 #include "model/note/note_row.h"
 #include "processing/sound/sound_drum.h"
 
