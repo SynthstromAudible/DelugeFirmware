@@ -2927,26 +2927,12 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
 		    modelStack->addOtherTwoThingsButNoNoteRow(instrument->toModControllable(), &clip->paramManager);
 
 		if (modelStackWithThreeMainThings) {
-
-			ParamCollectionSummary* summary = nullptr;
-
 			if (paramKind == Param::Kind::PATCHED) {
-				summary = modelStackWithThreeMainThings->paramManager->getPatchedParamSetSummary();
+				modelStackWithParam = modelStackWithThreeMainThings->getPatchedAutoParamFromId(paramID);
 			}
 
 			else if (paramKind == Param::Kind::UNPATCHED) {
-				summary = modelStackWithThreeMainThings->paramManager->getUnpatchedParamSetSummary();
-			}
-
-			if (summary) {
-				ModelStackWithParamCollection* modelStackWithParamCollection =
-				    modelStackWithThreeMainThings->addParamCollectionSummary(summary);
-				if (modelStackWithParamCollection) {
-					ModelStackWithParamId* modelStackWithParamId = modelStackWithParamCollection->addParamId(paramID);
-					if (modelStackWithParamId) {
-						modelStackWithParam = summary->paramCollection->getAutoParamFromId(modelStackWithParamId, true);
-					}
-				}
+				modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
 			}
 		}
 	}
@@ -2969,28 +2955,12 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
 						    modelStackWithNoteRow->addOtherTwoThingsAutomaticallyGivenNoteRow();
 
 						if (modelStackWithThreeMainThings) {
-
-							ParamCollectionSummary* summary = nullptr;
-
 							if (paramKind == Param::Kind::PATCHED) {
-								summary = modelStackWithThreeMainThings->paramManager->getPatchedParamSetSummary();
+								modelStackWithParam = modelStackWithThreeMainThings->getPatchedAutoParamFromId(paramID);
 							}
-
 							else if (paramKind == Param::Kind::UNPATCHED) {
-								summary = modelStackWithThreeMainThings->paramManager->getUnpatchedParamSetSummary();
-							}
-
-							if (summary) {
-								ModelStackWithParamCollection* modelStackWithParamCollection =
-								    modelStackWithThreeMainThings->addParamCollectionSummary(summary);
-								if (modelStackWithParamCollection) {
-									ModelStackWithParamId* modelStackWithParamId =
-									    modelStackWithParamCollection->addParamId(paramID);
-									if (modelStackWithParamId) {
-										modelStackWithParam =
-										    summary->paramCollection->getAutoParamFromId(modelStackWithParamId, true);
-									}
-								}
+								modelStackWithParam =
+								    modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
 							}
 						}
 					}
@@ -3004,24 +2974,17 @@ ModelStackWithAutoParam* AutomationInstrumentClipView::getModelStackWithParam(Mo
 			    modelStack->addOtherTwoThingsButNoNoteRow(instrument->toModControllable(), &clip->paramManager);
 
 			if (modelStackWithThreeMainThings) {
-
-				ParamCollectionSummary* summary = nullptr;
-
-				summary = modelStackWithThreeMainThings->paramManager->getUnpatchedParamSetSummary();
-
-				if (summary) {
-					ModelStackWithParamCollection* modelStackWithParamCollection =
-					    modelStackWithThreeMainThings->addParamCollectionSummary(summary);
-					if (modelStackWithParamCollection) {
-						ModelStackWithParamId* modelStackWithParamId =
-						    modelStackWithParamCollection->addParamId(paramID);
-						if (modelStackWithParamId) {
-							modelStackWithParam =
-							    summary->paramCollection->getAutoParamFromId(modelStackWithParamId, true);
-						}
-					}
-				}
+				modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
 			}
+		}
+	}
+
+	else if (instrument->type == InstrumentType::AUDIO) {
+		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+		    modelStack->addOtherTwoThingsButNoNoteRow(instrument->toModControllable(), &clip->paramManager);
+
+		if (modelStackWithThreeMainThings) {
+			modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
 		}
 	}
 
