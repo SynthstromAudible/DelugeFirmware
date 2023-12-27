@@ -1352,7 +1352,7 @@ yesThisDrum:
 }
 
 void Kit::offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone,
-                               int32_t whichBendRange, int32_t bendSemitones, bool doingMidiFollow) {
+                               int32_t whichBendRange, int32_t bendSemitones) {
 
 	if (whichBendRange == BEND_RANGE_MAIN) {
 		return; // This is not used in Kits for Drums. Drums use their BEND_RANGE_FINGER_LEVEL for both kinds of bend.

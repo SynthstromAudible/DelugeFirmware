@@ -470,7 +470,7 @@ void MelodicInstrument::offerReceivedAftertouch(ModelStackWithTimelineCounter* m
 }
 
 void MelodicInstrument::offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone,
-                                             int32_t whichBendRange, int32_t bendSemitones, bool doingMidiFollow) {
+                                             int32_t whichBendRange, int32_t bendSemitones) {
 
 	if (midiInput.equalsChannelOrZone(device, channelOrZone)) {
 

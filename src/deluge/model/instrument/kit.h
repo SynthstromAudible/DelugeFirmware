@@ -97,7 +97,7 @@ public:
 	                             int16_t const* mpeValues, int32_t fromMIDIChannel = MIDI_CHANNEL_NONE);
 	void endAuditioningForDrum(ModelStackWithNoteRow* modelStack, Drum* drum, int32_t velocity = kDefaultLiftValue);
 	void offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone, int32_t whichBendRange,
-	                          int32_t bendSemitones, bool doingMidiFollow = false);
+	                          int32_t bendSemitones);
 
 	bool renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack, StereoSample* globalEffectableBuffer,
 	                                   int32_t* bufferToTransferTo, int32_t numSamples, int32_t* reverbBuffer,
