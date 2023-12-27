@@ -56,10 +56,10 @@ MidiFollowView midiFollowView{};
 
 //initialize variables
 MidiFollowView::MidiFollowView() {
-	initView();
+	init();
 }
 
-void MidiFollowView::initView() {
+void MidiFollowView::init() {
 	successfullyReadDefaultsFromFile = false;
 
 	anyChangesToSave = false;
@@ -886,21 +886,6 @@ void MidiFollowView::aftertouchReceived(MIDIDevice* fromDevice, int32_t channel,
 	}
 }
 
-/// called from song.cpp
-/// determines whether bend range update received is midi follow relevant
-/// and should be routed to the active context for further processing
-void MidiFollowView::bendRangeUpdateReceived(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone,
-                                             int32_t whichBendRange, int32_t bendSemitones) {
-	// midi follow mode
-	if ((getRootUI() != &midiFollowView) && midiEngine.midiFollow) {
-		//obtain clip for active context
-		Clip* clip = getClipForMidiFollow(true);
-		if (clip) {
-			clip->output->offerBendRangeUpdate(modelStack, device, channelOrZone, whichBendRange, bendSemitones, true);
-		}
-	}
-}
-
 /// checking to see if there are any changes have been made to the cc-param mappings
 /// since the last time the mappings were loaded from the MidiFollow.XML file
 void MidiFollowView::updateMappingChangeStatus() {
@@ -1028,13 +1013,14 @@ void MidiFollowView::readDefaultsFromFile() {
 		return;
 	}
 	else {
-		initView();
+		init();
 	}
 
 	FilePointer fp;
 	//MIDIFollow.XML
 	bool success = storageManager.fileExists(MIDI_DEFAULTS_XML, &fp);
 	if (!success) {
+		writeDefaultsToFile();
 		return;
 	}
 
