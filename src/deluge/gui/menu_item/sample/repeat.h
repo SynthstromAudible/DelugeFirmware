@@ -22,7 +22,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "model/clip/clip.h"
 #include "model/drum/drum.h"
-#include "model/drum/kit.h"
+#include "model/instrument/kit.h"
 #include "model/song/song.h"
 #include "processing/sound/sound_drum.h"
 #include "util/misc.h"

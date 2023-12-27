@@ -30,7 +30,7 @@
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
-#include "model/drum/kit.h"
+#include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/sample/sample.h"
 #include "model/settings/runtime_feature_settings.h"
