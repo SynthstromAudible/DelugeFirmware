@@ -20,6 +20,7 @@
 #include "gui/menu_item/mpe/zone_num_member_channels.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
+#include "io/midi/device_specific/specific_midi_device.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
 #include "memory/general_memory_allocator.h"
@@ -75,6 +76,12 @@ void slowRoutine() {
 	for (int32_t d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
 		MIDIDeviceUSBHosted* device = (MIDIDeviceUSBHosted*)hostedMIDIDevices.getElement(d);
 		device->sendMCMsNowIfNeeded();
+
+		// This routine placed here because for whatever reason we can't send sysex from hostedDeviceConfigured
+		if (device->freshly_connected) {
+			device->hookOnConnected();
+			device->freshly_connected = false; // Must be set to false here or the hook will run forever
+		}
 	}
 }
 
@@ -107,7 +114,7 @@ MIDIDeviceUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16
 
 		// If we'd already seen it before...
 		if (foundExact) {
-			MIDIDeviceUSBHosted* device = (MIDIDeviceUSBHosted*)hostedMIDIDevices.getElement(i);
+			MIDIDeviceUSBHosted* device = recastSpecificMidiDevice(hostedMIDIDevices.getElement(i));
 
 			// Update vendor and product id, if we have those
 			if (vendorId) {
@@ -121,7 +128,7 @@ MIDIDeviceUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16
 
 	// Ok, try searching by vendor / product id
 	for (int32_t i = 0; i < hostedMIDIDevices.getNumElements(); i++) {
-		MIDIDeviceUSBHosted* candidate = (MIDIDeviceUSBHosted*)hostedMIDIDevices.getElement(i);
+		MIDIDeviceUSBHosted* candidate = recastSpecificMidiDevice(hostedMIDIDevices.getElement(i));
 
 		if (candidate->vendorId == vendorId && candidate->productId == productId) {
 			// Update its name - if we got one and it's different
@@ -137,12 +144,28 @@ MIDIDeviceUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16
 		return NULL;
 	}
 
-	void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(MIDIDeviceUSBHosted));
-	if (!memory) {
-		return NULL;
+	MIDIDeviceUSBHosted* device = NULL;
+
+	SpecificMidiDeviceType devType = getSpecificMidiDeviceType(vendorId, productId);
+	if (devType == SpecificMidiDeviceType::LUMI_KEYS) {
+		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(MIDIDeviceLumiKeys));
+		if (!memory) {
+			return NULL;
+		}
+
+		MIDIDeviceLumiKeys* instDevice = new (memory) MIDIDeviceLumiKeys();
+		device = instDevice;
+	}
+	else {
+		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(MIDIDeviceUSBHosted));
+		if (!memory) {
+			return NULL;
+		}
+
+		MIDIDeviceUSBHosted* instDevice = new (memory) MIDIDeviceUSBHosted();
+		device = instDevice;
 	}
 
-	MIDIDeviceUSBHosted* device = new (memory) MIDIDeviceUSBHosted();
 	if (gotAName) {
 		device->name.set(name);
 	}
@@ -219,9 +242,12 @@ extern "C" void hostedDeviceConfigured(int32_t ip, int32_t midiDeviceNum) {
 
 	connectedDevice->sq = 0;
 	connectedDevice->canHaveMIDISent = (bool)strcmp(device->name.get(), "Synthstrom MIDI Foot Controller");
+	connectedDevice->canHaveMIDISent = (bool)strcmp(device->name.get(), "LUMI Keys BLOCK");
 
 	device->connectedNow(midiDeviceNum);
 	recountSmallestMPEZones(); // Must be called after setting device->connectionFlags
+
+	device->freshly_connected = true; // Used to trigger hookOnConnected from the input loop
 
 	if (display->haveOLED()) {
 		String text;
@@ -448,6 +474,8 @@ worthIt:
 		return;
 	}
 
+	MIDIDeviceUSBHosted* specificMIDIDevice = NULL;
+
 	storageManager.writeOpeningTagBeginning("midiDevices");
 	storageManager.writeFirmwareVersion();
 	storageManager.writeEarliestCompatibleFirmwareVersion("4.0.0");
@@ -468,11 +496,18 @@ worthIt:
 		if (device->worthWritingToFile()) {
 			device->writeToFile("hostedUSBDevice");
 		}
+		// Stow this for the hook  point later
+		specificMIDIDevice = recastSpecificMidiDevice(device);
 	}
 
 	storageManager.writeClosingTag("midiDevices");
 
 	storageManager.closeFileAfterWriting();
+
+	// Hook point for Hosted USB MIDI Device
+	if (specificMIDIDevice != NULL) {
+		specificMIDIDevice->hookOnWriteHostedDeviceToFile();
+	}
 }
 
 bool successfullyReadDevicesFromFile = false; // We'll only do this one time
@@ -579,6 +614,9 @@ checkDevice:
 
 		storageManager.exitTag();
 	}
+
+	// Hook point!
+	if (device) {}
 }
 
 } // namespace MIDIDeviceManager

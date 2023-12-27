@@ -73,7 +73,8 @@ public:
 
 	int8_t modKnobCCAssignments[kNumModButtons * kNumPhysicalModKnobs];
 
-	MPEOutputMemberChannel mpeOutputMemberChannels[15]; // Numbers 1 to 14. 0 is bogus
+	// Numbers 0 to 15 can all be an MPE member depending on configuration
+	MPEOutputMemberChannel mpeOutputMemberChannels[16];
 
 	char const* getXMLTag() { return sendsToMPE() ? "mpeZone" : "midiChannel"; }
 	char const* getSlotXMLTag() { return sendsToMPE() ? "zone" : "channel"; }
