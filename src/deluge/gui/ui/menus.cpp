@@ -621,16 +621,6 @@ Submenu globalDistortionMenu{
     },
 };
 
-submenu::Arpeggiator globalArpMenu{
-    STRING_FOR_ARPEGGIATOR,
-    {
-        &arpModeMenu,
-        &arpSyncMenu,
-        &arpOctavesMenu,
-        &arpGateMenu,
-    },
-};
-
 // Stutter Menu
 
 UnpatchedParam globalStutterRateMenu{
@@ -1038,7 +1028,6 @@ menu_item::Submenu soundEditorRootMenuPerformanceView{
         &globalDelayMenu,
         &globalModFXMenu,
         &globalDistortionMenu,
-        &globalStutterRateMenu,
     },
 };
 
@@ -1055,7 +1044,6 @@ menu_item::Submenu soundEditorRootMenuSongView{
         &globalDelayMenu,
         &globalModFXMenu,
         &globalDistortionMenu,
-        &globalStutterRateMenu,
     },
 };
 
@@ -1074,9 +1062,6 @@ menu_item::Submenu soundEditorRootMenuKitGlobalFX{
         &globalCompressorMenu,
         &globalModFXMenu,
         &globalDistortionMenu,
-        &globalArpMenu,
-        &portaMenu,
-        &globalStutterRateMenu,
     },
 };
 
@@ -1163,13 +1148,13 @@ MenuItem* paramShortcutsForKitGlobalFX[][8] = {
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
-    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  &globalStutterRateMenu             },
+    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr             				  },
     {&globalLevelMenu,        nullptr,                 &globalVibratoMenu,             &globalPanMenu,                 nullptr,              &srrMenu,               &bitcrushMenu,            nullptr                            },
-    {&portaMenu,              nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
+    {nullptr,              	  nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              &lpfModeMenu,           &globalLPFResMenu,        &globalLPFFreqMenu                 },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              &hpfModeMenu,           &globalHPFResMenu,        &globalHPFFreqMenu                 },
     {&compressorReleaseMenu,  &sidechainSyncMenu,      &globalCompressorVolumeMenu,    &compressorAttackMenu,          &compressorShapeMenu, nullptr,                &bassMenu,                &bassFreqMenu                      },
-    {nullptr,                 &arpSyncMenu,            &arpGateMenu,                   &arpOctavesMenu,                &arpModeMenu,         nullptr,                &trebleMenu,              &trebleFreqMenu                    },
+    {nullptr,                 nullptr,            	   nullptr,                        nullptr,                		   nullptr,         	 nullptr,                &trebleMenu,              &trebleFreqMenu                    },
     {nullptr,                 nullptr,                 nullptr,                        &modFXTypeMenu,                 &modFXOffsetMenu,     &modFXFeedbackMenu,     &globalModFXDepthMenu,    &globalModFXRateMenu               },
     {nullptr,                 nullptr,                 nullptr,                        &globalReverbSendAmountMenu,    &reverbPanMenu,       &reverbWidthMenu,       &reverbDampeningMenu,     &reverbRoomSizeMenu                },
     {&globalDelayRateMenu,    &delaySyncMenu,          &delayAnalogMenu,               &globalDelayFeedbackMenu,       &delayPingPongMenu,   nullptr,                nullptr,                  nullptr                            },
