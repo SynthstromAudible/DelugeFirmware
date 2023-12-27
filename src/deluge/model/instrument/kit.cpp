@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "model/drum/kit.h"
+#include "model/instrument/kit.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"

@@ -31,7 +31,7 @@
 #include "hid/buttons.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/clip.h"
-#include "model/drum/kit.h"
+#include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "modulation/params/param_set.h"

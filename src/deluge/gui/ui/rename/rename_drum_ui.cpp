@@ -26,7 +26,7 @@
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "model/clip/clip.h"
-#include "model/drum/kit.h"
+#include "model/instrument/kit.h"
 #include "model/song/song.h"
 #include "processing/sound/sound_drum.h"
 

@@ -54,8 +54,8 @@
 #include "model/consequence/consequence_note_row_length.h"
 #include "model/consequence/consequence_note_row_mute.h"
 #include "model/drum/drum.h"
-#include "model/drum/kit.h"
 #include "model/drum/midi_drum.h"
+#include "model/instrument/kit.h"
 #include "model/instrument/melodic_instrument.h"
 #include "model/model_stack.h"
 #include "model/note/copied_note_row.h"
@@ -927,7 +927,7 @@ void InstrumentClipView::copyNotes() {
 
 	for (int32_t i = 0; i < getCurrentClip()->noteRows.getNumElements(); i++) {
 		NoteRow* thisNoteRow = getCurrentClip()->noteRows.getElement(i);
-		/* this is a little hacky, ideally we could get the yDisplay 
+		/* this is a little hacky, ideally we could get the yDisplay
 		   of thisNoteRow efficiently, but the one we calculate will have to do now
 
 		   considered isNoteRowAuditioning but that required a modelstack and this was leaner
