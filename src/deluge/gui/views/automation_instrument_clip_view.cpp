@@ -2736,17 +2736,20 @@ void AutomationInstrumentClipView::selectEncoderAction(int8_t offset) {
 		         || (instrument->type == InstrumentType::KIT && ((Kit*)instrument)->selectedDrum)) {
 			auto idx = getNextSelectedParamArrayPosition(offset, clip->lastSelectedParamArrayPosition,
 			                                             kNumNonKitAffectEntireParamsForAutomation);
-			auto [kind, id] = nonKitAffectEntireParamsForAutomation[idx];
-			if ((instrument->type == InstrumentType::KIT) && (id == Param::Unpatched::Sound::PORTAMENTO)) {
-				if (offset < 0) {
-					offset -= 1;
+			{
+				auto [kind, id] = nonKitAffectEntireParamsForAutomation[idx];
+				if ((instrument->type == InstrumentType::KIT) && (id == Param::Unpatched::Sound::PORTAMENTO)) {
+					if (offset < 0) {
+						offset -= 1;
+					}
+					else if (offset > 0) {
+						offset += 1;
+					}
+					idx = getNextSelectedParamArrayPosition(offset, clip->lastSelectedParamArrayPosition,
+															kNumNonKitAffectEntireParamsForAutomation);
 				}
-				else if (offset > 0) {
-					offset += 1;
-				}
-				idx = getNextSelectedParamArrayPosition(offset, clip->lastSelectedParamArrayPosition,
-				                                        kNumNonKitAffectEntireParamsForAutomation);
 			}
+			auto [kind, id] = nonKitAffectEntireParamsForAutomation[idx];
 			clip->lastSelectedParamID = id;
 			clip->lastSelectedParamKind = kind;
 			clip->lastSelectedParamArrayPosition = idx;
