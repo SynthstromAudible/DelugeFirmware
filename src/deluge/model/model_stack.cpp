@@ -218,3 +218,35 @@ bool ModelStackWithSoundFlags::checkSourceEverActive(int32_t s) {
 void copyModelStack(void* newMemory, void const* oldMemory, int32_t size) {
 	memcpy(newMemory, oldMemory, size);
 }
+
+ModelStackWithAutoParam* ModelStackWithThreeMainThings::getUnpatchedAutoParamFromId(int32_t newParamId) {
+	ModelStackWithAutoParam* modelStackWithParam = nullptr;
+	ParamCollectionSummary* summary = nullptr;
+
+	summary = paramManager->getUnpatchedParamSetSummary();
+
+	if (summary) {
+		ModelStackWithParamId* modelStackWithParamId =
+		    addParamCollectionAndId(summary->paramCollection, summary, newParamId);
+		if (modelStackWithParamId) {
+			modelStackWithParam = summary->paramCollection->getAutoParamFromId(modelStackWithParamId, true);
+		}
+	}
+	return modelStackWithParam;
+}
+
+ModelStackWithAutoParam* ModelStackWithThreeMainThings::getPatchedAutoParamFromId(int32_t newParamId) {
+	ModelStackWithAutoParam* modelStackWithParam = nullptr;
+	ParamCollectionSummary* summary = nullptr;
+
+	summary = paramManager->getPatchedParamSetSummary();
+
+	if (summary) {
+		ModelStackWithParamId* modelStackWithParamId =
+		    addParamCollectionAndId(summary->paramCollection, summary, newParamId);
+		if (modelStackWithParamId) {
+			modelStackWithParam = summary->paramCollection->getAutoParamFromId(modelStackWithParamId, true);
+		}
+	}
+	return modelStackWithParam;
+}
