@@ -306,8 +306,17 @@ void MelodicInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelSt
 void MelodicInstrument::offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
                                                MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
                                                bool* doingMidiThru) {
+	MIDIMatchType match = midiInput.checkMatch(fromDevice, channel);
+	if (match != NO_MATCH) {
+		receivedPitchBend(modelStackWithTimelineCounter, fromDevice, match, channel, data1, data2, doingMidiThru);
+	}
+}
+
+void MelodicInstrument::receivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+                                          MIDIDevice* fromDevice, MIDIMatchType match, uint8_t channel, uint8_t data1,
+                                          uint8_t data2, bool* doingMidiThru) {
 	int32_t newValue;
-	switch (midiInput.checkMatch(fromDevice, channel)) {
+	switch (match) {
 
 	case MIDIMatchType::NO_MATCH:
 		return;
