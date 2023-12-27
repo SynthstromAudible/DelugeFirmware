@@ -18,7 +18,6 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "gui/ui/root_ui.h"
 #include "model/global_effectable/global_effectable.h"
 
 class InstrumentClip;
