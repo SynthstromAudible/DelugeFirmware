@@ -2746,7 +2746,7 @@ void AutomationInstrumentClipView::selectEncoderAction(int8_t offset) {
 						offset += 1;
 					}
 					idx = getNextSelectedParamArrayPosition(offset, clip->lastSelectedParamArrayPosition,
-															kNumNonKitAffectEntireParamsForAutomation);
+					                                        kNumNonKitAffectEntireParamsForAutomation);
 				}
 			}
 			auto [kind, id] = nonKitAffectEntireParamsForAutomation[idx];
