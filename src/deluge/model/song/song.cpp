@@ -51,7 +51,6 @@
 #include "model/note/note_row.h"
 #include "model/sample/sample_recorder.h"
 #include "model/settings/runtime_feature_settings.h"
-#include "io/midi/midi_follow.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
