@@ -6,7 +6,7 @@ Master midi follow mode whereby after enabling the mode, you set a master midi f
 
 - For example, Midi Notes received on the Synth Channel will send notes to the active Synth clip. Midi CC's received on the Param Channel will send cc's to control the params of the active view.
 
-Comes with a midi feedback mode to send updated parameter values on the midi follow channel for learned midi cc's. Feedback is sent whenever you change context on the deluge and whenever parameter values for the active context are changed.
+Comes with a midi feedback mode to send updated parameter values on the midi follow channel for mapped midi cc's. Feedback is sent whenever you change context on the deluge and whenever parameter values for the active context are changed.
 
 Comes with an XML file with default CC to Deluge parameter mappings. You can customize this XML file to map CC's differently as required.
 
@@ -48,7 +48,7 @@ You can manually edit the MIDIFollow.XML to enter your Midi CC mappings to each 
 
 The defaults from MIDIFollow.XML are loaded automatically when you start the Deluge so you can begin controlling the deluge with your MIDI controller right away without any need to enter a menu or Midi Learning View. 
 
-Note: A parameter can only be learned to one midi CC. Conversely, a midi CC can be learned to multiple parameters.
+Note: A parameter can only be mapped to one midi CC. Conversely, a midi CC can be mapped to multiple parameters.
 
 The parameters are controlled only in the current context.
 
@@ -61,7 +61,7 @@ Note: You can control the parameters of a synth or kit clip without entering the
 
 > Note: Midi pop-up's can be disabled in the Midi Follow Display Param submenu.
 
-For learned Midi CC's, I have added a pop-up on the display whenever Midi CC's are received to indicate the name of the parameter that is being controlled by that Midi CC and the current value being set for that parameter.
+For mapped Midi CC's, a pop up is shown on the display whenever Midi CC's are received to indicate the name of the parameter that is being controlled by that Midi CC and the current value being set for that parameter.
 
 <img width="170" alt="Screen Shot 2023-12-04 at 2 32 25 AM" src="https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/f4e8115c-c2af-4cfe-94cf-d2e117201cd5">
 
