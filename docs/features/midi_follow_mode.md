@@ -1,5 +1,7 @@
 # Midi Follow Mode with Midi Feedback
 
+<img width="240" alt="Screen Shot 2023-12-02 at 7 13 16 PM" src="https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/f019b488-11e8-442d-a47b-cd95fbc45d9b">
+
 ## Description:
 
 Master midi follow mode whereby after enabling the mode, you set a master midi follow channel for synth clips, kit clips, and for parameters and all midi (notes + cc’s) received on the channel relevant for the active context will be directed to control the active view (e.g. arranger view, song view, audio clip view, instrument clip view). 
@@ -27,8 +29,6 @@ To turn configure the various Midi Follow Mode settings, enter the settings menu
 - In the Midi-Follow > Feedback > Feedback submenu, enable or disable midi follow feedback
 - In the Midi-Follow > Feedback > Automation Feedback submenu, enabled or disable midi follow feedback for automated parameters and set the rate at which feedback for automated parameters is sent
 - In the Midi-Follow > Feedback > Filter Responses submenu, enable or disable filtering of responses received within 1 second of sending a midi feedback value update. 
-
-<img width="240" alt="Screen Shot 2023-12-02 at 7 13 16 PM" src="https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/f019b488-11e8-442d-a47b-cd95fbc45d9b">
 
 ### **Notes:**
 For notes, the functionality is simple: notes received on the master midi channel will play the instrument in the active clip (e.g. a synth, or all kit rows).
