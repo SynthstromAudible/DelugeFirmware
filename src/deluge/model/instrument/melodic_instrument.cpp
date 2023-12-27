@@ -98,16 +98,15 @@ bool MelodicInstrument::readTagFromFile(char const* tagName) {
 	return true;
 }
 
-void MelodicInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on,
-                                          int32_t midiChannel, int32_t note, int32_t velocity, bool shouldRecordNotes,
-                                          bool* doingMidiThru) {
+void MelodicInstrument::receivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on,
+                                     int32_t midiChannel, MIDIMatchType match, int32_t note, int32_t velocity,
+                                     bool shouldRecordNotes, bool* doingMidiThru) {
 	int16_t const* mpeValues = zeroMPEValues;
 	int16_t const* mpeValuesOrNull = NULL;
-	MIDIMatchType match = midiInput.checkMatch(fromDevice, midiChannel);
 	int32_t highlightNoteValue = -1;
 	switch (match) {
 	case MIDIMatchType::NO_MATCH:
-		break;
+		return;
 	case MIDIMatchType::MPE_MASTER:
 	case MIDIMatchType::MPE_MEMBER:
 		mpeValues = mpeValuesOrNull = fromDevice->defaultInputMPEValuesPerMIDIChannel[midiChannel];
@@ -292,6 +291,15 @@ justAuditionNote:
 	if (highlightNoteValue != -1) {
 		keyboardScreen.highlightedNotes[note] = highlightNoteValue;
 		keyboardScreen.requestRendering();
+	}
+}
+
+void MelodicInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on,
+                                          int32_t midiChannel, int32_t note, int32_t velocity, bool shouldRecordNotes,
+                                          bool* doingMidiThru) {
+	MIDIMatchType match = midiInput.checkMatch(fromDevice, midiChannel);
+	if (match != NO_MATCH) {
+		receivedNote(modelStack, fromDevice, on, midiChannel, match, note, velocity, shouldRecordNotes, doingMidiThru);
 	}
 }
 
