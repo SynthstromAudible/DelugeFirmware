@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "modulation/midi/midi_follow.h"
+#include "io/midi/midi_follow.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/menus.h"
 #include "gui/views/arranger_view.h"

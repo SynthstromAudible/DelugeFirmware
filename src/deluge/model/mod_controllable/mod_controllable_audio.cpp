@@ -31,7 +31,7 @@
 #include "model/note/note_row.h"
 #include "model/song/song.h"
 #include "model/timeline_counter.h"
-#include "modulation/midi/midi_follow.h"
+#include "io/midi/midi_follow.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"

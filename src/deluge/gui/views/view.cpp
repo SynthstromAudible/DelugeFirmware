@@ -68,7 +68,7 @@
 #include "model/song/song.h"
 #include "model/timeline_counter.h"
 #include "modulation/automation/auto_param.h"
-#include "modulation/midi/midi_follow.h"
+#include "io/midi/midi_follow.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_set.h"
 #include "playback/mode/arrangement.h"
