@@ -47,8 +47,6 @@ public:
 	                       ModelStack* modelStack);
 	void aftertouchReceived(MIDIDevice* fromDevice, int32_t channel, int32_t value, int32_t noteCode,
 	                        bool* doingMidiThru, ModelStack* modelStack);
-	void bendRangeUpdateReceived(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone,
-	                             int32_t whichBendRange, int32_t bendSemitones);
 
 	//midi CC mappings
 	int32_t getCCFromParam(Param::Kind paramKind, int32_t paramID);

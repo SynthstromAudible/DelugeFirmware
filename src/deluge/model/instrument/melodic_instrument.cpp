@@ -472,19 +472,7 @@ void MelodicInstrument::offerReceivedAftertouch(ModelStackWithTimelineCounter* m
 void MelodicInstrument::offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone,
                                              int32_t whichBendRange, int32_t bendSemitones, bool doingMidiFollow) {
 
-	MIDIMatchType match = MIDIMatchType::NO_MATCH;
-	if (doingMidiFollow) {
-		//check if:
-		// - device = midifollow device (only if input differation is enabled)
-		// - channel = midifollow channel
-		//if so, identify it as a match so incoming midi note is processed
-		match = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)].checkMatch(
-		    device, channelOrZone);
-	}
-
-	bool offerUpdate = match || midiInput.equalsChannelOrZone(device, channelOrZone);
-
-	if (offerUpdate) {
+	if (midiInput.equalsChannelOrZone(device, channelOrZone)) {
 
 		ParamManager* paramManager = getParamManager(modelStack->song);
 		if (paramManager) { // It could be NULL! - for a CVInstrument.

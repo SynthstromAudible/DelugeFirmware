@@ -378,21 +378,6 @@ void MidiFollow::aftertouchReceived(MIDIDevice* fromDevice, int32_t channel, int
 	}
 }
 
-/// called from song.cpp
-/// determines whether bend range update received is midi follow relevant
-/// and should be routed to the active context for further processing
-void MidiFollow::bendRangeUpdateReceived(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone,
-                                         int32_t whichBendRange, int32_t bendSemitones) {
-	// midi follow mode
-	if (midiEngine.midiFollow) {
-		//obtain clip for active context
-		Clip* clip = getClipForMidiFollow(true);
-		if (clip) {
-			clip->output->offerBendRangeUpdate(modelStack, device, channelOrZone, whichBendRange, bendSemitones, true);
-		}
-	}
-}
-
 /// read defaults from XML
 void MidiFollow::readDefaultsFromFile() {
 	//no need to keep reading from SD card after first load

@@ -1359,18 +1359,8 @@ void Kit::offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int32
 	}
 	// TODO: Hmm, for non-MPE instruments we'd want to use this kind of bend range update and just paste it into BEND_RANGE_FINGER_LEVEL though...
 
-	MIDIMatchType match = MIDIMatchType::NO_MATCH;
-	if (doingMidiFollow) {
-		//check if:
-		// - device = midifollow device (only if input differation is enabled)
-		// - channel = midifollow channel
-		//if so, identify it as a match so incoming midi note is processed
-		match = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)].checkMatch(
-		    device, channelOrZone);
-	}
-
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-		if (match || thisDrum->midiInput.equalsChannelOrZone(device, channelOrZone)) {
+		if (thisDrum->midiInput.equalsChannelOrZone(device, channelOrZone)) {
 
 			if (activeClip) {
 				NoteRow* noteRow = ((InstrumentClip*)activeClip)->getNoteRowForDrum(thisDrum);
