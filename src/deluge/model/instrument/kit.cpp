@@ -1083,7 +1083,7 @@ goingToRecordNoteOnEarly:
 		// If input is MPE, we need to give the Drum the most recent MPE expression values received on the channel on the Device.
 		// It doesn't keep track of these when a note isn't on, and
 		// even if it did this new note might be on a different channel (just same notecode).
-		if (thisDrum->midiInput.isForMPEZone()) {
+		if (fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isChannelPartOfAnMPEZone(channel)) {
 			for (int32_t i = 0; i < kNumExpressionDimensions; i++) {
 				thisDrum->lastExpressionInputsReceived[BEND_RANGE_FINGER_LEVEL][i] =
 				    fromDevice->defaultInputMPEValuesPerMIDIChannel[channel][i] >> 8;
@@ -1262,33 +1262,31 @@ void Kit::offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineC
 	}
 }
 
+void Kit::receivedAftertouchForDrum(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Drum* thisDrum,
+                                    int32_t level, uint8_t value) {
+	int32_t value15 = value << 8;
+	thisDrum->expressionEventPossiblyToRecord(modelStackWithTimelineCounter, value15, 2, level);
+}
+
 // noteCode -1 means channel-wide, including for MPE input (which then means it could still then just apply to one note).
 // This function could be optimized a bit better, there are lots of calls to similar functions.
 void Kit::offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
                                   int32_t channel, int32_t value, int32_t noteCode, bool* doingMidiThru) {
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-		int32_t level = BEND_RANGE_MAIN;
+		int32_t level = BEND_RANGE_FINGER_LEVEL;
 		if (noteCode == -1) { // Channel pressure message...
-			if (thisDrum->midiInput.equalsChannelAllowMPE(fromDevice, channel)) {
-				if (thisDrum->midiInput.isForMPEZone()) { // If Drum has MPE input.
-					if (channel
-					    == thisDrum->midiInput
-					           .getMasterChannel()) { // Message coming in on master channel - that's "main"/zone-level, too.
-						goto yesThisDrum;
-					}
-					if (channel
-					    == thisDrum
-					           ->lastMIDIChannelAuditioned) { // Or if per-finger level, check the member channel of the message matches the one sounding on the Drum right now.
-						level = BEND_RANGE_FINGER_LEVEL;
-						goto yesThisDrum;
-					}
-				}
-				else { // Or, if Drum does not have MPE input, then this is a channel-level message.
-yesThisDrum:
-					int32_t value15 = value << 8;
-					thisDrum->expressionEventPossiblyToRecord(modelStackWithTimelineCounter, value15, 2, level);
-				}
+			switch (thisDrum->midiInput.checkMatch(fromDevice, channel)) {
+			case CHANNEL:
+				[[fallthrough]];
+			case MPE_MASTER:
+				level = BEND_RANGE_MAIN;
+				[[fallthrough]];
+			case MPE_MEMBER:
+				receivedAftertouchForDrum(modelStackWithTimelineCounter, thisDrum, level, value);
+				break;
+			default:
+				continue;
 			}
 		}
 
@@ -1296,8 +1294,7 @@ yesThisDrum:
 		else {
 			if (thisDrum->midiInput.equalsNoteOrCCAllowMPEMasterChannels(fromDevice, channel, noteCode)
 			    && channel == thisDrum->lastMIDIChannelAuditioned) {
-				level = BEND_RANGE_FINGER_LEVEL;
-				goto yesThisDrum;
+				receivedAftertouchForDrum(modelStackWithTimelineCounter, thisDrum, level, value);
 			}
 		}
 	}

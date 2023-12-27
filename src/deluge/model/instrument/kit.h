@@ -67,6 +67,8 @@ public:
 	                     uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru);
 	void offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
 	                             int32_t channel, int32_t value, int32_t noteCode, bool* doingMidiThru);
+	void receivedAftertouchForDrum(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Drum* thisDrum,
+	                               int32_t level, uint8_t value);
 
 	void choke();
 	void resyncLFOs();
