@@ -344,13 +344,20 @@ void MelodicInstrument::receivedPitchBend(ModelStackWithTimelineCounter* modelSt
 		break;
 	}
 }
-
 void MelodicInstrument::offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
                                         MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
                                         bool* doingMidiThru) {
+	MIDIMatchType match = midiInput.checkMatch(fromDevice, channel);
+	if (match != NO_MATCH) {
+		receivedCC(modelStackWithTimelineCounter, fromDevice, match, channel, ccNumber, value, doingMidiThru);
+	}
+}
+void MelodicInstrument::receivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+                                   MIDIMatchType match, uint8_t channel, uint8_t ccNumber, uint8_t value,
+                                   bool* doingMidiThru) {
 	int yCC = 1;
 	int32_t value32 = 0;
-	switch (midiInput.checkMatch(fromDevice, channel)) {
+	switch (match) {
 
 	case MIDIMatchType::NO_MATCH:
 		return;
@@ -390,12 +397,21 @@ void MelodicInstrument::offerReceivedCC(ModelStackWithTimelineCounter* modelStac
 	}
 }
 
-// noteCode -1 means channel-wide, including for MPE input (which then means it could still then just apply to one note).
 void MelodicInstrument::offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
                                                 MIDIDevice* fromDevice, int32_t channel, int32_t value,
                                                 int32_t noteCode, bool* doingMidiThru) {
+	MIDIMatchType match = midiInput.checkMatch(fromDevice, channel);
+	if (match != NO_MATCH) {
+		receivedAftertouch(modelStackWithTimelineCounter, fromDevice, match, channel, value, noteCode, doingMidiThru);
+	}
+}
+
+// noteCode -1 means channel-wide, including for MPE input (which then means it could still then just apply to one note).
+void MelodicInstrument::receivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+                                           MIDIDevice* fromDevice, MIDIMatchType match, int32_t channel, int32_t value,
+                                           int32_t noteCode, bool* doingMidiThru) {
 	int32_t valueBig = (int32_t)value << 24;
-	switch (midiInput.checkMatch(fromDevice, channel)) {
+	switch (match) {
 
 	case MIDIMatchType::NO_MATCH:
 		return;

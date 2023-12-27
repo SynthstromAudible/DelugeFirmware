@@ -55,9 +55,12 @@ public:
 	                       MIDIMatchType match, uint8_t channel, uint8_t data1, uint8_t data2, bool* doingMidiThru);
 	void offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
 	                     uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru);
+	void receivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+	                MIDIMatchType match, uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru);
 	void offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
 	                             int32_t channel, int32_t value, int32_t noteCode, bool* doingMidiThru);
-
+	void receivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+	                        MIDIMatchType match, int32_t channel, int32_t value, int32_t noteCode, bool* doingMidiThru);
 	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs);
 	bool isNoteRowStillAuditioningAsLinearRecordingEnded(NoteRow* noteRow) final;
 	void stopAnyAuditioning(ModelStack* modelStack) final;
