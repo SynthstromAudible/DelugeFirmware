@@ -1197,8 +1197,8 @@ void Kit::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevic
 	}
 }
 
-void Kit::offerReceivedPitchBendToDrum(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Drum* thisDrum,
-                                       uint8_t data1, uint8_t data2, int32_t level, bool* doingMidiThru) {
+void Kit::receivedPitchBendForDrum(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Drum* thisDrum,
+                                   uint8_t data1, uint8_t data2, int32_t level, bool* doingMidiThru) {
 	int16_t value16 = (((uint32_t)data1 | ((uint32_t)data2 << 7)) - 8192) << 2;
 	thisDrum->expressionEventPossiblyToRecord(modelStackWithTimelineCounter, value16, 0, level);
 }
@@ -1224,14 +1224,13 @@ void Kit::offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTi
 			}
 			else { // Or, if Drum does not have MPE input, then this is a channel-level message.
 yesThisDrum:
-				offerReceivedPitchBendToDrum(modelStackWithTimelineCounter, thisDrum, data1, data2, level,
-				                             doingMidiThru);
+				receivedPitchBendForDrum(modelStackWithTimelineCounter, thisDrum, data1, data2, level, doingMidiThru);
 			}
 		}
 	}
 }
 
-void Kit::offerMPEYAxisToDrum(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Drum* thisDrum,
+void Kit::receivedMPEYForDrum(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Drum* thisDrum,
                               int32_t level, uint8_t value) {
 	int16_t value16 = (value - 64) << 9;
 	thisDrum->expressionEventPossiblyToRecord(modelStackWithTimelineCounter, value16, 1, level);
@@ -1253,7 +1252,7 @@ void Kit::offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineC
 			bend_range = BEND_RANGE_MAIN;
 			[[fallthrough]];
 		case MPE_MEMBER:
-			offerMPEYAxisToDrum(modelStackWithTimelineCounter, thisDrum, bend_range, value);
+			receivedMPEYForDrum(modelStackWithTimelineCounter, thisDrum, bend_range, value);
 			break;
 		default:
 			continue;
