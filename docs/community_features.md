@@ -24,6 +24,8 @@ Here is a list of general improvements that have been made, ordered from newest 
 
 #### 3.3 - MIDI
 - ([#47]) Extra MIDI ports on the USB interface for MPE. Port 2 shows in the MIDI device menu, and improves the usability of MPE-capable devices through the USB interface by allowing MPE zones to be sent to port 2 and non-MPE to be sent to port 1 (or vice versa). A third port is added for future use such as a desktop/mobile companion app, DAW control or Mackie HUI emulation. When USB for MIDI is plugged into the Deluge, you can browse these settings in `SETTINGS > MIDI > DEVICES > UPSTREAM USB PORT 1` or `UPSTREAM USB PORT 2`.
+  
+- (#147) Allows CCs to be learnt to the global commands (play, stop, loop, fill, etc.)
 
 #### 3.4 - Tempo
 - ([#178]) New option (`FINE TEMPO` in the `COMMUNITY FEATURES` menu). Inverts the push+turn behavior of the `TEMPO` encoder. With this option enabled the tempo changes by 1 when unpushed and ~4 when pushed (vs ~4 unpushed and 1 pushed in the official firmware).
@@ -412,6 +414,7 @@ This list includes all preprocessor switches that can alter firmware behaviour a
 [#129]: https://github.com/SynthstromAudible/DelugeFirmware/pull/129
 [#138]: https://github.com/SynthstromAudible/DelugeFirmware/pull/138
 [#141]: https://github.com/SynthstromAudible/DelugeFirmware/pull/141
+[#147]: https://github.com/SynthstromAudible/DelugeFirmware/pull/147
 [#157]: https://github.com/SynthstromAudible/DelugeFirmware/pull/157
 [#163]: https://github.com/SynthstromAudible/DelugeFirmware/pull/163
 [#170]: https://github.com/SynthstromAudible/DelugeFirmware/pull/170
