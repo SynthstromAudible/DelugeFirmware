@@ -21,7 +21,6 @@
 #include "model/global_effectable/global_effectable_for_clip.h"
 #include "model/instrument/instrument.h"
 #include "util/container/array/ordered_resizeable_array.h"
-
 class InstrumentClip;
 class Drum;
 class Sound;
@@ -30,7 +29,7 @@ class NoteRow;
 class GateDrum;
 class ModelStack;
 class ModelStackWithNoteRow;
-
+enum class MIDIMatchType;
 class Kit final : public Instrument, public GlobalEffectableForClip {
 public:
 	Kit();
@@ -68,7 +67,7 @@ public:
 	void offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
 	                             int32_t channel, int32_t value, int32_t noteCode, bool* doingMidiThru);
 	void receivedAftertouchForDrum(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Drum* thisDrum,
-	                               int32_t level, uint8_t value);
+	                               MIDIMatchType match, uint8_t value);
 
 	void choke();
 	void resyncLFOs();

@@ -298,7 +298,7 @@ void MelodicInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelSt
                                           int32_t midiChannel, int32_t note, int32_t velocity, bool shouldRecordNotes,
                                           bool* doingMidiThru) {
 	MIDIMatchType match = midiInput.checkMatch(fromDevice, midiChannel);
-	if (match != NO_MATCH) {
+	if (match != MIDIMatchType::NO_MATCH) {
 		receivedNote(modelStack, fromDevice, on, midiChannel, match, note, velocity, shouldRecordNotes, doingMidiThru);
 	}
 }
@@ -307,7 +307,7 @@ void MelodicInstrument::offerReceivedPitchBend(ModelStackWithTimelineCounter* mo
                                                MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
                                                bool* doingMidiThru) {
 	MIDIMatchType match = midiInput.checkMatch(fromDevice, channel);
-	if (match != NO_MATCH) {
+	if (match != MIDIMatchType::NO_MATCH) {
 		receivedPitchBend(modelStackWithTimelineCounter, fromDevice, match, channel, data1, data2, doingMidiThru);
 	}
 }
@@ -348,7 +348,7 @@ void MelodicInstrument::offerReceivedCC(ModelStackWithTimelineCounter* modelStac
                                         MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
                                         bool* doingMidiThru) {
 	MIDIMatchType match = midiInput.checkMatch(fromDevice, channel);
-	if (match != NO_MATCH) {
+	if (match != MIDIMatchType::NO_MATCH) {
 		receivedCC(modelStackWithTimelineCounter, fromDevice, match, channel, ccNumber, value, doingMidiThru);
 	}
 }
@@ -401,7 +401,7 @@ void MelodicInstrument::offerReceivedAftertouch(ModelStackWithTimelineCounter* m
                                                 MIDIDevice* fromDevice, int32_t channel, int32_t value,
                                                 int32_t noteCode, bool* doingMidiThru) {
 	MIDIMatchType match = midiInput.checkMatch(fromDevice, channel);
-	if (match != NO_MATCH) {
+	if (match != MIDIMatchType::NO_MATCH) {
 		receivedAftertouch(modelStackWithTimelineCounter, fromDevice, match, channel, value, noteCode, doingMidiThru);
 	}
 }
