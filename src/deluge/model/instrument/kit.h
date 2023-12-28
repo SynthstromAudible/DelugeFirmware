@@ -21,7 +21,6 @@
 #include "model/global_effectable/global_effectable_for_clip.h"
 #include "model/instrument/instrument.h"
 #include "util/container/array/ordered_resizeable_array.h"
-
 class InstrumentClip;
 class Drum;
 class Sound;
@@ -30,7 +29,7 @@ class NoteRow;
 class GateDrum;
 class ModelStack;
 class ModelStackWithNoteRow;
-
+enum class MIDIMatchType;
 class Kit final : public Instrument, public GlobalEffectableForClip {
 public:
 	Kit();
@@ -59,14 +58,16 @@ public:
 
 	void offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
 	                            uint8_t channel, uint8_t data1, uint8_t data2, bool* doingMidiThru);
-	void offerReceivedPitchBendToDrum(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Drum* thisDrum,
-	                                  uint8_t data1, uint8_t data2, int32_t level, bool* doingMidiThru);
-	void offerMPEYAxisToDrum(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Drum* thisDrum,
-	                         int32_t level, uint8_t value);
+	void receivedPitchBendForDrum(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Drum* thisDrum,
+	                              uint8_t data1, uint8_t data2, MIDIMatchType match, bool* doingMidiThru);
+	void receivedMPEYForDrum(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Drum* thisDrum,
+	                         MIDIMatchType match, uint8_t value);
 	void offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
 	                     uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru);
 	void offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
 	                             int32_t channel, int32_t value, int32_t noteCode, bool* doingMidiThru);
+	void receivedAftertouchForDrum(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Drum* thisDrum,
+	                               MIDIMatchType match, uint8_t value);
 
 	void choke();
 	void resyncLFOs();
