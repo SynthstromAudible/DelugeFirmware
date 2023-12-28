@@ -17,7 +17,7 @@
 
 #include "processing/engines/audio_engine.h"
 #include "definitions_cxx.hpp"
-#include "dsp/master_compressor/master_compressor.h"
+#include "dsp/compressor/rms_feedback.h"
 #include "dsp/reverb/freeverb/revmodel.hpp"
 #include "dsp/timestretch/time_stretcher.h"
 #include "gui/context_menu/sample_browser/kit.h"
