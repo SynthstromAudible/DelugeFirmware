@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp/compressor/compressor.h"
+#include "dsp/sidechain/sidechain.h"
 #include "dsp/delay/delay.h"
 #include "dsp/stereo_sample.h"
 #include "hid/button.h"
