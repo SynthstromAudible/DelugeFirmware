@@ -17,7 +17,7 @@
 
 #include "model/song/song.h"
 #include "definitions_cxx.hpp"
-#include "dsp/master_compressor/master_compressor.h"
+#include "dsp/compressor/rms_feedback.h"
 #include "dsp/reverb/freeverb/revmodel.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/browser/browser.h"

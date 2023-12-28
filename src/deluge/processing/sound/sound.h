@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp/compressor/compressor.h"
+#include "dsp/sidechain/sidechain.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/knob.h"

@@ -27,7 +27,7 @@
 #include "storage/storage_manager.h"
 #include <string.h>
 //#include <algorithm>
-#include "dsp/compressor/compressor.h"
+#include "dsp/sidechain/sidechain.h"
 #include "hid/buttons.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/clip.h"
