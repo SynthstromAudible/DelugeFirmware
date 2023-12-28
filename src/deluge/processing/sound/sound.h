@@ -297,6 +297,6 @@ private:
 	                                                      ModelStackWithThreeMainThings* modelStack,
 	                                                      bool allowCreation = true);
 
-	void displayCompressorAndReverbSettings(bool on);
-	char const* getCompressorDisplayName(int32_t insideWorldTickMagnitude);
+	void displaySidechainAndReverbSettings(bool on);
+	char const* getSidechainDisplayName(int32_t insideWorldTickMagnitude);
 };

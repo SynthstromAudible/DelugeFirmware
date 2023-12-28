@@ -3960,13 +3960,13 @@ void Sound::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTime
 
 		if ((ourModKnob->paramDescriptor.hasJustOneSource()
 		     && ourModKnob->paramDescriptor.getTopLevelSource() == PatchSource::COMPRESSOR)) {
-			displayCompressorAndReverbSettings(on);
+			displaySidechainAndReverbSettings(on);
 		}
 	}
 }
 
-void Sound::displayCompressorAndReverbSettings(bool on) {
-	//Sidechain Compressor
+void Sound::displaySidechainAndReverbSettings(bool on) {
+	//Sidechain
 	int32_t insideWorldTickMagnitude;
 	if (currentSong) { // Bit of a hack just referring to currentSong in here...
 		insideWorldTickMagnitude =
@@ -3978,8 +3978,8 @@ void Sound::displayCompressorAndReverbSettings(bool on) {
 
 	if (display->haveOLED()) {
 		DEF_STACK_STRING_BUF(popupMsg, 100);
-		//Sidechain Compressor
-		popupMsg.append(getCompressorDisplayName(insideWorldTickMagnitude));
+		//Sidechain
+		popupMsg.append(getSidechainDisplayName(insideWorldTickMagnitude));
 
 		popupMsg.append("\n");
 
@@ -3990,7 +3990,7 @@ void Sound::displayCompressorAndReverbSettings(bool on) {
 	}
 	else {
 		if (on) {
-			display->displayPopup(getCompressorDisplayName(insideWorldTickMagnitude));
+			display->displayPopup(getSidechainDisplayName(insideWorldTickMagnitude));
 		}
 		else {
 			display->displayPopup(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
@@ -3998,7 +3998,7 @@ void Sound::displayCompressorAndReverbSettings(bool on) {
 	}
 }
 
-char const* Sound::getCompressorDisplayName(int32_t insideWorldTickMagnitude) {
+char const* Sound::getSidechainDisplayName(int32_t insideWorldTickMagnitude) {
 	using enum deluge::l10n::String;
 	if (compressor.syncLevel == (SyncLevel)(7 - insideWorldTickMagnitude)) {
 		return l10n::get(STRING_FOR_SLOW_SIDECHAIN_COMPRESSOR);
