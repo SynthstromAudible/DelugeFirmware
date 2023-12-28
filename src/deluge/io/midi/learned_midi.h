@@ -25,7 +25,7 @@
 #define MIDI_MESSAGE_CC 2
 
 class MIDIDevice;
-enum MIDIMatchType { NO_MATCH, CHANNEL, MPE_MEMBER, MPE_MASTER };
+enum class MIDIMatchType { NO_MATCH, CHANNEL, MPE_MEMBER, MPE_MASTER };
 class LearnedMIDI {
 public:
 	LearnedMIDI();
