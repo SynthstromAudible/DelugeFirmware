@@ -324,7 +324,7 @@ void MelodicInstrument::receivedPitchBend(ModelStackWithTimelineCounter* modelSt
 		//each of these are 7 bit values but we need them to represent the range +-2^31
 		newValue = (int32_t)(((uint32_t)data1 | ((uint32_t)data2 << 7)) - 8192) << 18;
 		// Unlike for whole-Instrument pitch bend, this per-note kind is a modulation *source*, not the "preset" value for the parameter!
-		polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, newValue, 0, channel,
+		polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, newValue, X_PITCH_BEND, channel,
 		                                          MIDICharacteristic::CHANNEL);
 		break;
 	case MIDIMatchType::MPE_MASTER:
@@ -364,7 +364,7 @@ void MelodicInstrument::receivedCC(ModelStackWithTimelineCounter* modelStackWith
 	case MIDIMatchType::MPE_MEMBER:
 		if (ccNumber == 74) { // All other CCs are not supposed to be used for Member Channels, for anything.
 			int32_t value32 = (value - 64) << 25;
-			polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, value32, 1, channel,
+			polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, value32, Y_SLIDE_TIMBRE, channel,
 			                                          MIDICharacteristic::CHANNEL);
 			return;
 		}
@@ -416,7 +416,7 @@ void MelodicInstrument::receivedAftertouch(ModelStackWithTimelineCounter* modelS
 	case MIDIMatchType::NO_MATCH:
 		return;
 	case MIDIMatchType::MPE_MEMBER:
-		polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, valueBig, 2, channel,
+		polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, valueBig, Z_PRESSURE, channel,
 		                                          MIDICharacteristic::CHANNEL);
 		break;
 	case MIDIMatchType::MPE_MASTER:
@@ -433,7 +433,7 @@ void MelodicInstrument::receivedAftertouch(ModelStackWithTimelineCounter* modelS
 		// MPE should never send poly aftertouch but we might as well handle it anyway
 		// Polyphonic aftertouch gets processed along with MPE
 		if (noteCode != -1) {
-			polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, valueBig, 2, noteCode,
+			polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, valueBig, Z_PRESSURE, noteCode,
 			                                          MIDICharacteristic::NOTE);
 			// We wouldn't be here if this was MPE input, so we know this incoming polyphonic aftertouch message is allowed
 		}
