@@ -193,7 +193,7 @@ public:
 	bool interpolationBefore;
 	bool interpolationAfter;
 
-	//public to midiSessionView can access it
+	//public to midi follow can access it
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip,
 	                                                int32_t paramID = 0xFFFFFFFF,
 	                                                Param::Kind paramKind = Param::Kind::NONE);

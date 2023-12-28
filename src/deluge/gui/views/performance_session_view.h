@@ -142,7 +142,7 @@ public:
 	//public so Action Logger can access it
 	FXColumnPress fxPress[kDisplayWidth];
 
-	//public so midiSessionView can access it
+	//public so midi follow can access it
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithThreeMainThings* modelStack, int32_t paramID);
 
 private:
