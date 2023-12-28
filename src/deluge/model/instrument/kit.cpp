@@ -18,16 +18,13 @@
 #include "model/instrument/kit.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/ui.h"
-#include "gui/views/arranger_view.h"
 #include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "io/debug/print.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
-#include "io/midi/midi_engine.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
@@ -463,6 +460,18 @@ Drum* Kit::getDrumFromIndex(int32_t index) {
 	return firstDrum;
 }
 
+Drum* Kit::getDrumFromIndexAllowNull(int32_t index) {
+	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
+		if (index == 0) {
+			return thisDrum;
+		}
+		index--;
+	}
+
+	// Drum not found, return nullptr
+	return nullptr;
+}
+
 SoundDrum* Kit::getDrumFromName(char const* name, bool onlyIfNoNoteRow) {
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 
@@ -631,17 +640,22 @@ void Kit::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, Stere
 	                                      shouldLimitDelayFeedback, isClipActive, InstrumentType::KIT, 8);
 }
 
+//offer the CC to kit gold knobs without also offering to all drums
+void Kit::offerReceivedCCToModControllable(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
+                                           ModelStackWithTimelineCounter* modelStack) {
+	// NOTE: this call may change modelStack->timelineCounter etc!
+	ModControllableAudio::offerReceivedCCToLearnedParams(fromDevice, channel, ccNumber, value, modelStack);
+}
 void Kit::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
                                          ModelStackWithTimelineCounter* modelStack) {
 
 	// Do it for this whole Kit
-	ModControllableAudio::offerReceivedCCToLearnedParams(
-	    fromDevice, channel, ccNumber, value,
-	    modelStack); // NOTE: this call may change modelStack->timelineCounter etc!
+	// NOTE: this call may change modelStack->timelineCounter etc!
+	offerReceivedCCToModControllable(fromDevice, channel, ccNumber, value, modelStack);
 
 	// Now do it for each NoteRow / Drum
-	if (modelStack
-	        ->timelineCounterIsSet()) { // This is always actually true currently for calls to this function, but let's make this safe and future proof.
+	// This is always actually true currently for calls to this function, but let's make this safe and future proof.
+	if (modelStack->timelineCounterIsSet()) {
 		InstrumentClip* clip =
 		    (InstrumentClip*)modelStack->getTimelineCounter(); // May have been changed by call above!
 		for (int32_t i = 0; i < clip->noteRows.getNumElements(); i++) {
@@ -655,6 +669,8 @@ void Kit::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel
 	}
 }
 
+//not updated for midi follow, this seems dumb and is just left for backwards compatibility
+//Pitch bend is available in the mod matrix as X and shouldn't be learned to params anymore (post 4.0)
 bool Kit::offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
                                                 ModelStackWithTimelineCounter* modelStack) {
 
@@ -997,188 +1013,183 @@ void Kit::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** par
 	}
 }
 
-void Kit::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on, int32_t channel,
-                            int32_t note, int32_t velocity, bool shouldRecordNotes, bool* doingMidiThru,
-                            bool doingMidiFollow) {
-
+void Kit::receivedNoteForDrum(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on,
+                              int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
+                              bool* doingMidiThru, Drum* thisDrum) {
 	InstrumentClip* instrumentClip = (InstrumentClip*)modelStack->getTimelineCounterAllowNull(); // Yup it might be NULL
 
 	bool recordingNoteOnEarly = false;
-	bool lookingForFirstDrumForNoteOn = on;
 
 	bool shouldRecordNoteOn =
 	    shouldRecordNotes && instrumentClip
 	    && currentSong->isClipActive(instrumentClip); // Even if this comes out as false here, there are some
 	                                                  // special cases below where we might insist on making
 	                                                  // it true
+	// If MIDIDrum, outputting same note, then don't additionally do thru
+	if (doingMidiThru && thisDrum->type == DrumType::MIDI && ((MIDIDrum*)thisDrum)->channel == channel
+	    && ((MIDIDrum*)thisDrum)->note == note) {
+		*doingMidiThru = false;
+	}
+
+	// Just once, for first Drum we're doing a note-on on, see if we want to switch to a different InstrumentClip, for a couple of reasons
+	// For simplicity we can do this every time, it only matters if you have multiple drums mapped to the same note
+	if (on && instrumentClip && shouldRecordNotes) {
+
+		// Firstly, if recording session to arranger...
+		if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
+
+			instrumentClip->possiblyCloneForArrangementRecording(modelStack);
+
+			instrumentClip = (InstrumentClip*)modelStack->getTimelineCounter(); // Re-get it, cos it might have changed
+
+			if (instrumentClip->isArrangementOnlyClip()) {
+				shouldRecordNoteOn = true;
+			}
+		}
+
+		// If count-in is on, we only got here if it's very nearly finished
+		else if (currentUIMode == UI_MODE_RECORD_COUNT_IN) {
+goingToRecordNoteOnEarly:
+			recordingNoteOnEarly = true;
+			shouldRecordNoteOn = false;
+		}
+
+		// And another special case - if there's a pending overdub beginning really soon,
+		// and activeClip is not linearly recording (and maybe not even active)...
+		else if (currentPlaybackMode == &session && session.launchEventAtSwungTickCount
+		         && !instrumentClip->getCurrentlyRecordingLinearly()) {
+			int32_t ticksTilLaunch = session.launchEventAtSwungTickCount - playbackHandler.getActualSwungTickCount();
+			int32_t samplesTilLaunch = ticksTilLaunch * playbackHandler.getTimePerInternalTick();
+			if (samplesTilLaunch <= kLinearRecordingEarlyFirstNoteAllowance) {
+				Clip* clipAboutToRecord = currentSong->getClipWithOutputAboutToBeginLinearRecording(this);
+				if (clipAboutToRecord) {
+					goto goingToRecordNoteOnEarly;
+				}
+			}
+		}
+	}
+
+	ModelStackWithNoteRow* modelStackWithNoteRow;
+
+	NoteRow* thisNoteRow = NULL; // Will only be set to true if there's a Clip / activeClip
+
+	if (instrumentClip) {
+		modelStackWithNoteRow = instrumentClip->getNoteRowForDrum(modelStack, thisDrum);
+		thisNoteRow = modelStackWithNoteRow->getNoteRowAllowNull();
+		if (!thisNoteRow) {
+			return; // Yeah, we won't even let them sound one with no NoteRow
+		}
+	}
+	else {
+		modelStackWithNoteRow = modelStack->addNoteRow(0, NULL);
+	}
+
+	if (recordingNoteOnEarly) {
+		bool allowingNoteTails = instrumentClip && instrumentClip->allowNoteTails(modelStackWithNoteRow);
+		thisDrum->recordNoteOnEarly(velocity, allowingNoteTails);
+	}
+
+	// Note-on
+	if (on) {
+
+		// If input is MPE, we need to give the Drum the most recent MPE expression values received on the channel on the Device.
+		// It doesn't keep track of these when a note isn't on, and
+		// even if it did this new note might be on a different channel (just same notecode).
+		if (fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isChannelPartOfAnMPEZone(channel)) {
+			for (int32_t i = 0; i < kNumExpressionDimensions; i++) {
+				thisDrum->lastExpressionInputsReceived[BEND_RANGE_FINGER_LEVEL][i] =
+				    fromDevice->defaultInputMPEValuesPerMIDIChannel[channel][i] >> 8;
+			}
+		}
+
+		// And if non-MPE input, just set those finger-level MPE values to 0. If an MPE instrument had been used just before, it could have left them set to something.
+		else {
+			for (int32_t i = 0; i < kNumExpressionDimensions; i++) {
+				thisDrum->lastExpressionInputsReceived[BEND_RANGE_FINGER_LEVEL][i] = 0;
+			}
+		}
+
+		int16_t mpeValues[kNumExpressionDimensions];
+		thisDrum->getCombinedExpressionInputs(mpeValues);
+
+		// MPE stuff - if editing note, we need to take note of the initial values which might have been sent before this note-on.
+		instrumentClipView.reportMPEInitialValuesForNoteEditing(modelStackWithNoteRow, mpeValues);
+
+		if (!thisNoteRow || !thisNoteRow->soundingStatus) {
+
+			if (thisNoteRow && shouldRecordNoteOn) {
+
+				int16_t const* mpeValuesOrNull = NULL;
+
+				if (fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isChannelPartOfAnMPEZone(channel)) {
+					mpeValuesOrNull = mpeValues;
+				}
+
+				instrumentClip->recordNoteOn(modelStackWithNoteRow, velocity, false, mpeValuesOrNull);
+				if (getRootUI()) {
+					getRootUI()->noteRowChanged(instrumentClip, thisNoteRow);
+				}
+			}
+			// TODO: possibly should change the MPE params' currentValue to the initial values, since that usually does get updated by the
+			// subsequent MPE that will come in. Or does that not matter?
+
+			if (thisNoteRow && thisDrum->type == DrumType::SOUND
+			    && !thisNoteRow->paramManager.containsAnyMainParamCollections()) {
+				FREEZE_WITH_ERROR("E326"); // Trying to catch an E313 that Vinz got
+			}
+
+			beginAuditioningforDrum(modelStackWithNoteRow, thisDrum, velocity, mpeValues, channel);
+		}
+	}
+
+	// Note-off
+	else {
+		if (thisNoteRow) {
+			if (shouldRecordNotes && thisDrum->auditioned
+			    && ((playbackHandler.recording == RECORDING_ARRANGEMENT && instrumentClip->isArrangementOnlyClip())
+			        || currentSong->isClipActive(instrumentClip))) {
+
+				if (playbackHandler.recording == RECORDING_ARRANGEMENT && !instrumentClip->isArrangementOnlyClip()) {}
+				else {
+					instrumentClip->recordNoteOff(modelStackWithNoteRow, velocity);
+					if (getRootUI()) {
+						getRootUI()->noteRowChanged(instrumentClip, thisNoteRow);
+					}
+				}
+			}
+			instrumentClipView.reportNoteOffForMPEEditing(modelStackWithNoteRow);
+
+			// MPE-controlled params are a bit special in that we can see (via this note-off) when the user has removed their finger and won't be sending more
+			// values. So, let's unlatch those params now.
+			ExpressionParamSet* mpeParams = thisNoteRow->paramManager.getExpressionParamSet();
+			if (mpeParams) {
+				mpeParams->cancelAllOverriding();
+			}
+		}
+		endAuditioningForDrum(
+		    modelStackWithNoteRow, thisDrum,
+		    velocity); // Do this even if not marked as auditioned, to avoid stuck notes in cases like if two note-ons were sent
+	}
+}
+
+void Kit::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on, int32_t channel,
+                            int32_t note, int32_t velocity, bool shouldRecordNotes, bool* doingMidiThru) {
+
+	InstrumentClip* instrumentClip = (InstrumentClip*)modelStack->getTimelineCounterAllowNull(); // Yup it might be NULL
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-		bool midiFollow = false;
-		if (doingMidiFollow) {
-			//check if:
-			// - device = midifollow device (only if input differation is enabled)
-			// - channel = midifollow channel
-			// - thisDrum maps to note received
-			// if yes, offer received note
-			midiFollow = shouldMidiFollow(modelStack, instrumentClip, fromDevice, channel, note, thisDrum);
-		}
 
 		// If this is the "input" command, to sound / audition the Drum...
 		// Returns true if midi channel and note match the learned midi note
-		if (midiFollow || thisDrum->midiInput.equalsNoteOrCCAllowMPE(fromDevice, channel, note)) {
-
-			// If MIDIDrum, outputting same note, then don't additionally do thru
-			if (doingMidiThru && thisDrum->type == DrumType::MIDI && ((MIDIDrum*)thisDrum)->channel == channel
-			    && ((MIDIDrum*)thisDrum)->note == note) {
-				*doingMidiThru = false;
-			}
-
-			// Just once, for first Drum we're doing a note-on on, see if we want to switch to a different InstrumentClip, for a couple of reasons
-			if (lookingForFirstDrumForNoteOn && instrumentClip && shouldRecordNotes) {
-				lookingForFirstDrumForNoteOn = false;
-
-				// Firstly, if recording session to arranger...
-				if (playbackHandler.recording == RECORDING_ARRANGEMENT) {
-
-					instrumentClip->possiblyCloneForArrangementRecording(modelStack);
-
-					instrumentClip =
-					    (InstrumentClip*)modelStack->getTimelineCounter(); // Re-get it, cos it might have changed
-
-					if (instrumentClip->isArrangementOnlyClip()) {
-						shouldRecordNoteOn = true;
-					}
-				}
-
-				// If count-in is on, we only got here if it's very nearly finished
-				else if (currentUIMode == UI_MODE_RECORD_COUNT_IN) {
-goingToRecordNoteOnEarly:
-					recordingNoteOnEarly = true;
-					shouldRecordNoteOn = false;
-				}
-
-				// And another special case - if there's a pending overdub beginning really soon,
-				// and activeClip is not linearly recording (and maybe not even active)...
-				else if (currentPlaybackMode == &session && session.launchEventAtSwungTickCount
-				         && !instrumentClip->getCurrentlyRecordingLinearly()) {
-					int32_t ticksTilLaunch =
-					    session.launchEventAtSwungTickCount - playbackHandler.getActualSwungTickCount();
-					int32_t samplesTilLaunch = ticksTilLaunch * playbackHandler.getTimePerInternalTick();
-					if (samplesTilLaunch <= kLinearRecordingEarlyFirstNoteAllowance) {
-						Clip* clipAboutToRecord = currentSong->getClipWithOutputAboutToBeginLinearRecording(this);
-						if (clipAboutToRecord) {
-							goto goingToRecordNoteOnEarly;
-						}
-					}
-				}
-			}
-
-			ModelStackWithNoteRow* modelStackWithNoteRow;
-
-			NoteRow* thisNoteRow = NULL; // Will only be set to true if there's a Clip / activeClip
-
-			if (instrumentClip) {
-				modelStackWithNoteRow = instrumentClip->getNoteRowForDrum(modelStack, thisDrum);
-				thisNoteRow = modelStackWithNoteRow->getNoteRowAllowNull();
-				if (!thisNoteRow) {
-					continue; // Yeah, we won't even let them sound one with no NoteRow
-				}
-			}
-			else {
-				modelStackWithNoteRow = modelStack->addNoteRow(0, NULL);
-			}
-
-			if (recordingNoteOnEarly) {
-				bool allowingNoteTails = instrumentClip && instrumentClip->allowNoteTails(modelStackWithNoteRow);
-				thisDrum->recordNoteOnEarly(velocity, allowingNoteTails);
-			}
-
-			// Note-on
-			if (on) {
-
-				// If input is MPE, we need to give the Drum the most recent MPE expression values received on the channel on the Device. It doesn't keep track of these when a note isn't on, and
-				// even if it did, this new note might be on a different channel (just same notecode).
-				if (thisDrum->midiInput.isForMPEZone()) {
-					for (int32_t i = 0; i < kNumExpressionDimensions; i++) {
-						thisDrum->lastExpressionInputsReceived[BEND_RANGE_FINGER_LEVEL][i] =
-						    fromDevice->defaultInputMPEValuesPerMIDIChannel[channel][i] >> 8;
-					}
-				}
-
-				// And if non-MPE input, just set those finger-level MPE values to 0. If an MPE instrument had been used just before, it could have left them set to something.
-				else {
-					for (int32_t i = 0; i < kNumExpressionDimensions; i++) {
-						thisDrum->lastExpressionInputsReceived[BEND_RANGE_FINGER_LEVEL][i] = 0;
-					}
-				}
-
-				int16_t mpeValues[kNumExpressionDimensions];
-				thisDrum->getCombinedExpressionInputs(mpeValues);
-
-				// MPE stuff - if editing note, we need to take note of the initial values which might have been sent before this note-on.
-				instrumentClipView.reportMPEInitialValuesForNoteEditing(modelStackWithNoteRow, mpeValues);
-
-				if (!thisNoteRow || !thisNoteRow->soundingStatus) {
-
-					if (thisNoteRow && shouldRecordNoteOn) {
-
-						int16_t const* mpeValuesOrNull = NULL;
-
-						if (fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isChannelPartOfAnMPEZone(channel)) {
-							mpeValuesOrNull = mpeValues;
-						}
-
-						instrumentClip->recordNoteOn(modelStackWithNoteRow, velocity, false, mpeValuesOrNull);
-						if (getRootUI()) {
-							getRootUI()->noteRowChanged(instrumentClip, thisNoteRow);
-						}
-					}
-					// TODO: possibly should change the MPE params' currentValue to the initial values, since that usually does get updated by the
-					// subsequent MPE that will come in. Or does that not matter?
-
-					if (thisNoteRow && thisDrum->type == DrumType::SOUND
-					    && !thisNoteRow->paramManager.containsAnyMainParamCollections()) {
-						FREEZE_WITH_ERROR("E326"); // Trying to catch an E313 that Vinz got
-					}
-
-					beginAuditioningforDrum(modelStackWithNoteRow, thisDrum, velocity, mpeValues, channel);
-				}
-			}
-
-			// Note-off
-			else {
-				if (thisNoteRow) {
-					if (shouldRecordNotes && thisDrum->auditioned
-					    && ((playbackHandler.recording == RECORDING_ARRANGEMENT
-					         && instrumentClip->isArrangementOnlyClip())
-					        || currentSong->isClipActive(instrumentClip))) {
-
-						if (playbackHandler.recording == RECORDING_ARRANGEMENT
-						    && !instrumentClip->isArrangementOnlyClip()) {}
-						else {
-							instrumentClip->recordNoteOff(modelStackWithNoteRow, velocity);
-							if (getRootUI()) {
-								getRootUI()->noteRowChanged(instrumentClip, thisNoteRow);
-							}
-						}
-					}
-					instrumentClipView.reportNoteOffForMPEEditing(modelStackWithNoteRow);
-
-					// MPE-controlled params are a bit special in that we can see (via this note-off) when the user has removed their finger and won't be sending more
-					// values. So, let's unlatch those params now.
-					ExpressionParamSet* mpeParams = thisNoteRow->paramManager.getExpressionParamSet();
-					if (mpeParams) {
-						mpeParams->cancelAllOverriding();
-					}
-				}
-				endAuditioningForDrum(
-				    modelStackWithNoteRow, thisDrum,
-				    velocity); // Do this even if not marked as auditioned, to avoid stuck notes in cases like if two note-ons were sent
-			}
+		// We don't need the MPE match because all types of matches should sound the drum
+		if (thisDrum->midiInput.equalsNoteOrCCAllowMPE(fromDevice, channel, note)) {
+			receivedNoteForDrum(modelStack, fromDevice, on, channel, note, velocity, shouldRecordNotes, doingMidiThru,
+			                    thisDrum);
 		}
-
 		// Or if this is the Drum's mute command...
-		if (instrumentClip && on && thisDrum->muteMIDICommand.equalsNoteOrCC(fromDevice, channel, note)) {
+		// changed to else if dec 2023 because the same note should never be both mute and sound, this will save
+		// potential confusion if someone accidentally learns a note to mute as well as audition
+		else if (instrumentClip && on && thisDrum->muteMIDICommand.equalsNoteOrCC(fromDevice, channel, note)) {
 
 			ModelStackWithNoteRow* modelStackWithNoteRow = instrumentClip->getNoteRowForDrum(modelStack, thisDrum);
 
@@ -1198,50 +1209,59 @@ goingToRecordNoteOnEarly:
 	}
 }
 
-void Kit::offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
-                                 uint8_t channel, uint8_t data1, uint8_t data2, bool* doingMidiThru,
-                                 bool doingMidiFollow) {
-
-	MIDIMatchType match = MIDIMatchType::NO_MATCH;
-	if (doingMidiFollow) {
-		//check if:
-		// - device = midifollow device (only if input differation is enabled)
-		// - channel = midifollow channel
-		//if so, identify it as a match so incoming midi note is processed
-		match = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)].checkMatch(fromDevice,
-		                                                                                                     channel);
+void Kit::receivedPitchBendForDrum(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Drum* thisDrum,
+                                   uint8_t data1, uint8_t data2, MIDIMatchType match, bool* doingMidiThru) {
+	int32_t level;
+	switch (match) {
+		using enum MIDIMatchType;
+	case NO_MATCH:
+		return;
+	case MPE_MEMBER:
+		level = BEND_RANGE_FINGER_LEVEL;
+		break;
+	case MPE_MASTER:
+		[[fallthrough]];
+	case CHANNEL:
+		level = BEND_RANGE_MAIN;
 	}
+	int16_t value16 = (((uint32_t)data1 | ((uint32_t)data2 << 7)) - 8192) << 2;
+	thisDrum->expressionEventPossiblyToRecord(modelStackWithTimelineCounter, value16, X_PITCH_BEND, level);
+}
+
+void Kit::offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+                                 uint8_t channel, uint8_t data1, uint8_t data2, bool* doingMidiThru) {
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-		if (match || thisDrum->midiInput.equalsChannelAllowMPE(fromDevice, channel)) {
-			int32_t level = BEND_RANGE_MAIN;
-			bool hasMPEInput = (match && (match != MIDIMatchType::CHANNEL)) || thisDrum->midiInput.isForMPEZone();
-			if (hasMPEInput) { // If Drum has MPE input.
-				int32_t masterChannel =
-				    match ? midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)]
-				                .getMasterChannel()
-				          : thisDrum->midiInput.getMasterChannel();
-				if (channel == masterChannel) { // Message coming in on master channel - that's "main"/zone-level, too.
-					goto yesThisDrum;
-				}
-				if (channel
-				    == thisDrum
-				           ->lastMIDIChannelAuditioned) { // Or if per-finger level, check the member channel of the message matches the one sounding on the Drum right now.
-					level = BEND_RANGE_FINGER_LEVEL;
-					goto yesThisDrum;
-				}
-			}
-			else { // Or, if Drum does not have MPE input, then this is a channel-level message.
-yesThisDrum:
-				int16_t value16 = (((uint32_t)data1 | ((uint32_t)data2 << 7)) - 8192) << 2;
-				thisDrum->expressionEventPossiblyToRecord(modelStackWithTimelineCounter, value16, 0, level);
-			}
-		}
+		MIDIMatchType match = thisDrum->midiInput.checkMatch(fromDevice, channel);
+		receivedPitchBendForDrum(modelStackWithTimelineCounter, thisDrum, data1, data2, match, doingMidiThru);
 	}
 }
 
+void Kit::receivedMPEYForDrum(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Drum* thisDrum,
+                              MIDIMatchType match, uint8_t value) {
+
+	int32_t level = BEND_RANGE_MAIN;
+	switch (match) {
+		using enum MIDIMatchType;
+	case NO_MATCH:
+		return;
+	//note that in melodic instruments channel matches send Y on channel 1 but
+	//with the different data model it doesn't make sense for kit rows, all kit rows
+	//on that channel would send it out again later
+	case CHANNEL:
+		return;
+	case MPE_MEMBER:
+		level = BEND_RANGE_FINGER_LEVEL;
+		break;
+	case MPE_MASTER:
+		level = BEND_RANGE_MAIN;
+		break;
+	}
+	int16_t value16 = (value - 64) << 9;
+	thisDrum->expressionEventPossiblyToRecord(modelStackWithTimelineCounter, value16, Y_SLIDE_TIMBRE, level);
+}
 void Kit::offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
-                          uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru, bool doingMidiFollow) {
+                          uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru) {
 
 	if (ccNumber != 74) {
 		return;
@@ -1250,102 +1270,52 @@ void Kit::offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineC
 		return;
 	}
 
-	MIDIMatchType match = MIDIMatchType::NO_MATCH;
-	if (doingMidiFollow) {
-		//check if:
-		// - device = midifollow device (only if input differation is enabled)
-		// - channel = midifollow channel
-		//if so, identify it as a match so incoming midi note is processed
-		match = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)].checkMatch(fromDevice,
-		                                                                                                     channel);
-	}
-
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-		if (match || thisDrum->midiInput.equalsChannelAllowMPE(fromDevice, channel)) {
-			bool hasMPEInput = (match && (match != MIDIMatchType::CHANNEL)) || thisDrum->midiInput.isForMPEZone();
-			if (hasMPEInput) { // If Drum has MPE input.
-				int32_t level = BEND_RANGE_MAIN;
-				int32_t masterChannel =
-				    match ? midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)]
-				                .getMasterChannel()
-				          : thisDrum->midiInput.getMasterChannel();
-				if (channel == masterChannel) { // Message coming in on master channel - that's "main"/zone-level, too.
-					goto yesThisDrum;
-				}
-				if (channel
-				    == thisDrum
-				           ->lastMIDIChannelAuditioned) { // Or if per-finger level, check the member channel of the message matches the one sounding on the Drum right now.
-					level = BEND_RANGE_FINGER_LEVEL;
-yesThisDrum:
-					int16_t value16 = (value - 64) << 9;
-					thisDrum->expressionEventPossiblyToRecord(modelStackWithTimelineCounter, value16, 1, level);
-				}
-			}
-
-			// If not an MPE input, we don't want to respond to this CC74 at all (for this Drum).
+		MIDIMatchType match = thisDrum->midiInput.checkMatch(fromDevice, channel);
+		if (match == MIDIMatchType::MPE_MASTER || match == MIDIMatchType::MPE_MEMBER) {
+			receivedMPEYForDrum(modelStackWithTimelineCounter, thisDrum, match, value);
 		}
+	}
+}
+
+void Kit::receivedAftertouchForDrum(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Drum* thisDrum,
+                                    MIDIMatchType match, uint8_t value) {
+	int32_t level = BEND_RANGE_MAIN;
+	switch (match) {
+		using enum MIDIMatchType;
+	case NO_MATCH:
+		return;
+	case MPE_MEMBER:
+		level = BEND_RANGE_FINGER_LEVEL;
+		[[fallthrough]];
+	case MPE_MASTER:
+		[[fallthrough]];
+	case CHANNEL:
+		int32_t value15 = value << 8;
+		thisDrum->expressionEventPossiblyToRecord(modelStackWithTimelineCounter, value15, Z_PRESSURE, level);
+		break;
 	}
 }
 
 // noteCode -1 means channel-wide, including for MPE input (which then means it could still then just apply to one note).
 // This function could be optimized a bit better, there are lots of calls to similar functions.
 void Kit::offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
-                                  int32_t channel, int32_t value, int32_t noteCode, bool* doingMidiThru,
-                                  bool doingMidiFollow) {
-
-	MIDIMatchType match = MIDIMatchType::NO_MATCH;
-	if (doingMidiFollow && (noteCode == -1)) {
-		//check if:
-		// - device = midifollow device (only if input differation is enabled)
-		// - channel = midifollow channel
-		//if so, identify it as a match so incoming midi note is processed
-		match = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)].checkMatch(fromDevice,
-		                                                                                                     channel);
-	}
-
-	bool hasMPEInput = false;
+                                  int32_t channel, int32_t value, int32_t noteCode, bool* doingMidiThru) {
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-		int32_t level = BEND_RANGE_MAIN;
+		int32_t level = BEND_RANGE_FINGER_LEVEL;
 		if (noteCode == -1) { // Channel pressure message...
-			if (match || thisDrum->midiInput.equalsChannelAllowMPE(fromDevice, channel)) {
-				hasMPEInput = (match && (match != MIDIMatchType::CHANNEL)) || thisDrum->midiInput.isForMPEZone();
-				if (hasMPEInput) { // If Drum has MPE input.
-					int32_t masterChannel =
-					    match ? midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)]
-					                .getMasterChannel()
-					          : thisDrum->midiInput.getMasterChannel();
-					if (channel
-					    == masterChannel) { // Message coming in on master channel - that's "main"/zone-level, too.
-						goto yesThisDrum;
-					}
-					if (channel
-					    == thisDrum
-					           ->lastMIDIChannelAuditioned) { // Or if per-finger level, check the member channel of the message matches the one sounding on the Drum right now.
-						level = BEND_RANGE_FINGER_LEVEL;
-						goto yesThisDrum;
-					}
-				}
-				else { // Or, if Drum does not have MPE input, then this is a channel-level message.
-yesThisDrum:
-					int32_t value15 = value << 8;
-					thisDrum->expressionEventPossiblyToRecord(modelStackWithTimelineCounter, value15, 2, level);
-				}
+			MIDIMatchType match = thisDrum->midiInput.checkMatch(fromDevice, channel);
+			if (match != MIDIMatchType::NO_MATCH) {
+				receivedAftertouchForDrum(modelStackWithTimelineCounter, thisDrum, match, value);
 			}
 		}
 
 		// Or a polyphonic aftertouch message - these aren't allowed for MPE except on the "master" channel.
 		else {
-			bool midiFollow = false;
-			if (doingMidiFollow) {
-				midiFollow = shouldMidiFollow(modelStackWithTimelineCounter, (InstrumentClip*)activeClip, fromDevice,
-				                              channel, noteCode, thisDrum);
-			}
-			if (midiFollow
-			    || thisDrum->midiInput.equalsNoteOrCCAllowMPEMasterChannels(fromDevice, channel, noteCode)
-			           && channel == thisDrum->lastMIDIChannelAuditioned) {
-				level = BEND_RANGE_FINGER_LEVEL;
-				goto yesThisDrum;
+			if (thisDrum->midiInput.equalsNoteOrCCAllowMPEMasterChannels(fromDevice, channel, noteCode)
+			    && channel == thisDrum->lastMIDIChannelAuditioned) {
+				receivedAftertouchForDrum(modelStackWithTimelineCounter, thisDrum, MIDIMatchType::CHANNEL, value);
 			}
 		}
 	}
@@ -1378,31 +1348,6 @@ void Kit::offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int32
 			}
 		}
 	}
-}
-
-bool Kit::shouldMidiFollow(ModelStackWithTimelineCounter* modelStack, InstrumentClip* instrumentClip,
-                           MIDIDevice* fromDevice, int32_t channel, int32_t note, Drum* thisDrum) {
-	MIDIMatchType match = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)].checkMatch(
-	    fromDevice, channel);
-	if (match) {
-		ModelStackWithNoteRow* modelStackWithNoteRow;
-		if (instrumentClip) {
-			modelStackWithNoteRow = instrumentClip->getNoteRowForDrum(modelStack, thisDrum);
-		}
-		else {
-			modelStackWithNoteRow = modelStack->addNoteRow(0, NULL);
-		}
-		if (modelStackWithNoteRow) {
-			//bottom kit noteRowId = 0
-			//default middle C1 note number = 36
-			//noteRowId + 36 = C1 up for kit sounds
-			//this is configurable through the default menu
-			if ((modelStackWithNoteRow->noteRowId + midiEngine.midiFollowKitRootNote) == note) {
-				return true;
-			}
-		}
-	}
-	return false;
 }
 
 bool Kit::isNoteRowStillAuditioningAsLinearRecordingEnded(NoteRow* noteRow) {
