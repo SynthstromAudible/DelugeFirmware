@@ -1200,7 +1200,7 @@ void Kit::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevic
 void Kit::receivedPitchBendForDrum(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Drum* thisDrum,
                                    uint8_t data1, uint8_t data2, int32_t level, bool* doingMidiThru) {
 	int16_t value16 = (((uint32_t)data1 | ((uint32_t)data2 << 7)) - 8192) << 2;
-	thisDrum->expressionEventPossiblyToRecord(modelStackWithTimelineCounter, value16, 0, level);
+	thisDrum->expressionEventPossiblyToRecord(modelStackWithTimelineCounter, value16, X_PITCH_BEND, level);
 }
 
 void Kit::offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
@@ -1231,9 +1231,27 @@ yesThisDrum:
 }
 
 void Kit::receivedMPEYForDrum(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Drum* thisDrum,
-                              int32_t level, uint8_t value) {
+                              MIDIMatchType match, uint8_t value) {
+
+	int32_t level = BEND_RANGE_MAIN;
+	switch (match) {
+		using enum MIDIMatchType;
+	case NO_MATCH:
+		return;
+	//note that in melodic instruments channel matches send Y on channel 1 but
+	//with the different data model it doesn't make sense for kit rows, all kit rows
+	//on that channel would send it out again later
+	case CHANNEL:
+		return;
+	case MPE_MEMBER:
+		level = BEND_RANGE_FINGER_LEVEL;
+		break;
+	case MPE_MASTER:
+		level = BEND_RANGE_MAIN;
+		break;
+	}
 	int16_t value16 = (value - 64) << 9;
-	thisDrum->expressionEventPossiblyToRecord(modelStackWithTimelineCounter, value16, 1, level);
+	thisDrum->expressionEventPossiblyToRecord(modelStackWithTimelineCounter, value16, Y_SLIDE_TIMBRE, level);
 }
 void Kit::offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
                           uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru) {
@@ -1246,19 +1264,10 @@ void Kit::offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineC
 	}
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-		int32_t bend_range = BEND_RANGE_FINGER_LEVEL;
-		switch (thisDrum->midiInput.checkMatch(fromDevice, channel)) {
-			using enum MIDIMatchType;
-		case MPE_MASTER:
-			bend_range = BEND_RANGE_MAIN;
-			[[fallthrough]];
-		case MPE_MEMBER:
-			receivedMPEYForDrum(modelStackWithTimelineCounter, thisDrum, bend_range, value);
-			break;
-		default:
-			continue;
+		MIDIMatchType match = thisDrum->midiInput.checkMatch(fromDevice, channel);
+		if (match == MIDIMatchType::MPE_MASTER || match == MIDIMatchType::MPE_MEMBER) {
+			receivedMPEYForDrum(modelStackWithTimelineCounter, thisDrum, match, value);
 		}
-		// If not an MPE input, we don't want to respond to this CC74 at all (for this Drum).
 	}
 }
 
@@ -1276,7 +1285,7 @@ void Kit::receivedAftertouchForDrum(ModelStackWithTimelineCounter* modelStackWit
 		[[fallthrough]];
 	case CHANNEL:
 		int32_t value15 = value << 8;
-		thisDrum->expressionEventPossiblyToRecord(modelStackWithTimelineCounter, value15, 2, level);
+		thisDrum->expressionEventPossiblyToRecord(modelStackWithTimelineCounter, value15, Z_PRESSURE, level);
 		break;
 	}
 }
