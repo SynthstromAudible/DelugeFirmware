@@ -1198,13 +1198,17 @@ void Kit::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevic
 }
 
 void Kit::receivedPitchBendForDrum(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Drum* thisDrum,
-                                   uint8_t data1, uint8_t data2, MIDIMatchType match, bool* doingMidiThru) {
+                                   uint8_t data1, uint8_t data2, MIDIMatchType match, uint8_t channel,
+                                   bool* doingMidiThru) {
 	int32_t level;
 	switch (match) {
 		using enum MIDIMatchType;
 	case NO_MATCH:
 		return;
 	case MPE_MEMBER:
+		if (channel != thisDrum->lastMIDIChannelAuditioned) {
+			return;
+		}
 		level = BEND_RANGE_FINGER_LEVEL;
 		break;
 	case MPE_MASTER:
@@ -1221,7 +1225,7 @@ void Kit::offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTi
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		MIDIMatchType match = thisDrum->midiInput.checkMatch(fromDevice, channel);
-		receivedPitchBendForDrum(modelStackWithTimelineCounter, thisDrum, data1, data2, match, doingMidiThru);
+		receivedPitchBendForDrum(modelStackWithTimelineCounter, thisDrum, data1, data2, match, channel, doingMidiThru);
 	}
 }
 
@@ -1270,13 +1274,16 @@ void Kit::offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineC
 }
 
 void Kit::receivedAftertouchForDrum(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Drum* thisDrum,
-                                    MIDIMatchType match, uint8_t value) {
+                                    MIDIMatchType match, uint8_t channel, uint8_t value) {
 	int32_t level = BEND_RANGE_MAIN;
 	switch (match) {
 		using enum MIDIMatchType;
 	case NO_MATCH:
 		return;
 	case MPE_MEMBER:
+		if (channel != thisDrum->lastMIDIChannelAuditioned) {
+			return;
+		}
 		level = BEND_RANGE_FINGER_LEVEL;
 		[[fallthrough]];
 	case MPE_MASTER:
@@ -1298,7 +1305,7 @@ void Kit::offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithT
 		if (noteCode == -1) { // Channel pressure message...
 			MIDIMatchType match = thisDrum->midiInput.checkMatch(fromDevice, channel);
 			if (match != MIDIMatchType::NO_MATCH) {
-				receivedAftertouchForDrum(modelStackWithTimelineCounter, thisDrum, match, value);
+				receivedAftertouchForDrum(modelStackWithTimelineCounter, thisDrum, match, channel, value);
 			}
 		}
 
@@ -1306,7 +1313,8 @@ void Kit::offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithT
 		else {
 			if (thisDrum->midiInput.equalsNoteOrCCAllowMPEMasterChannels(fromDevice, channel, noteCode)
 			    && channel == thisDrum->lastMIDIChannelAuditioned) {
-				receivedAftertouchForDrum(modelStackWithTimelineCounter, thisDrum, MIDIMatchType::CHANNEL, value);
+				receivedAftertouchForDrum(modelStackWithTimelineCounter, thisDrum, MIDIMatchType::CHANNEL, channel,
+				                          value);
 			}
 		}
 	}

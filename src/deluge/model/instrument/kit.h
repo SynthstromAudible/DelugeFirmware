@@ -59,7 +59,8 @@ public:
 	void offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
 	                            uint8_t channel, uint8_t data1, uint8_t data2, bool* doingMidiThru);
 	void receivedPitchBendForDrum(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Drum* thisDrum,
-	                              uint8_t data1, uint8_t data2, MIDIMatchType match, bool* doingMidiThru);
+	                              uint8_t data1, uint8_t data2, MIDIMatchType match, uint8_t channel,
+	                              bool* doingMidiThru);
 	void receivedMPEYForDrum(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Drum* thisDrum,
 	                         MIDIMatchType match, uint8_t channel, uint8_t value);
 	void offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
@@ -67,7 +68,7 @@ public:
 	void offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
 	                             int32_t channel, int32_t value, int32_t noteCode, bool* doingMidiThru);
 	void receivedAftertouchForDrum(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Drum* thisDrum,
-	                               MIDIMatchType match, uint8_t value);
+	                               MIDIMatchType match, uint8_t channel, uint8_t value);
 
 	void choke();
 	void resyncLFOs();
