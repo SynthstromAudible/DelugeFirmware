@@ -1226,9 +1226,9 @@ void Kit::offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTi
 }
 
 void Kit::receivedMPEYForDrum(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Drum* thisDrum,
-                              MIDIMatchType match, uint8_t value) {
+                              MIDIMatchType match, uint8_t channel, uint8_t value) {
 
-	int32_t level = BEND_RANGE_MAIN;
+	int32_t level;
 	switch (match) {
 		using enum MIDIMatchType;
 	case NO_MATCH:
@@ -1239,6 +1239,9 @@ void Kit::receivedMPEYForDrum(ModelStackWithTimelineCounter* modelStackWithTimel
 	case CHANNEL:
 		return;
 	case MPE_MEMBER:
+		if (channel != thisDrum->lastMIDIChannelAuditioned) {
+			return;
+		}
 		level = BEND_RANGE_FINGER_LEVEL;
 		break;
 	case MPE_MASTER:
@@ -1261,7 +1264,7 @@ void Kit::offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineC
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		MIDIMatchType match = thisDrum->midiInput.checkMatch(fromDevice, channel);
 		if (match == MIDIMatchType::MPE_MASTER || match == MIDIMatchType::MPE_MEMBER) {
-			receivedMPEYForDrum(modelStackWithTimelineCounter, thisDrum, match, value);
+			receivedMPEYForDrum(modelStackWithTimelineCounter, thisDrum, match, channel, value);
 		}
 	}
 }
