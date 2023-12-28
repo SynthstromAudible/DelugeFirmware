@@ -1198,7 +1198,20 @@ void Kit::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevic
 }
 
 void Kit::receivedPitchBendForDrum(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Drum* thisDrum,
-                                   uint8_t data1, uint8_t data2, int32_t level, bool* doingMidiThru) {
+                                   uint8_t data1, uint8_t data2, MIDIMatchType match, bool* doingMidiThru) {
+	int32_t level;
+	switch (match) {
+		using enum MIDIMatchType;
+	case NO_MATCH:
+		return;
+	case MPE_MEMBER:
+		level = BEND_RANGE_FINGER_LEVEL;
+		break;
+	case MPE_MASTER:
+		[[fallthrough]];
+	case CHANNEL:
+		level = BEND_RANGE_MAIN;
+	}
 	int16_t value16 = (((uint32_t)data1 | ((uint32_t)data2 << 7)) - 8192) << 2;
 	thisDrum->expressionEventPossiblyToRecord(modelStackWithTimelineCounter, value16, X_PITCH_BEND, level);
 }
@@ -1207,26 +1220,8 @@ void Kit::offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTi
                                  uint8_t channel, uint8_t data1, uint8_t data2, bool* doingMidiThru) {
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-		if (thisDrum->midiInput.equalsChannelAllowMPE(fromDevice, channel)) {
-			int32_t level = BEND_RANGE_MAIN;
-			if (thisDrum->midiInput.isForMPEZone()) { // If Drum has MPE input.
-				if (channel
-				    == thisDrum->midiInput
-				           .getMasterChannel()) { // Message coming in on master channel - that's "main"/zone-level, too.
-					goto yesThisDrum;
-				}
-				if (channel
-				    == thisDrum
-				           ->lastMIDIChannelAuditioned) { // Or if per-finger level, check the member channel of the message matches the one sounding on the Drum right now.
-					level = BEND_RANGE_FINGER_LEVEL;
-					goto yesThisDrum;
-				}
-			}
-			else { // Or, if Drum does not have MPE input, then this is a channel-level message.
-yesThisDrum:
-				receivedPitchBendForDrum(modelStackWithTimelineCounter, thisDrum, data1, data2, level, doingMidiThru);
-			}
-		}
+		MIDIMatchType match = thisDrum->midiInput.checkMatch(fromDevice, channel);
+		receivedPitchBendForDrum(modelStackWithTimelineCounter, thisDrum, data1, data2, match, doingMidiThru);
 	}
 }
 
