@@ -18,17 +18,17 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp/compressor/compressor.h"
 #include "dsp/filter/ladder_components.h"
+#include "dsp/sidechain/sidechain.h"
 #include "util/functions.h"
 
 #include <algorithm> // for min(), max()
 #include <cassert>   // for assert()
 #include <cmath>
 
-class MasterCompressor {
+class RMSFeedbackCompressor {
 public:
-	MasterCompressor();
+	RMSFeedbackCompressor();
 	void setup(q31_t attack, q31_t release, q31_t threshold, q31_t ratio, q31_t sidechain_fc);
 
 	void render(StereoSample* buffer, uint16_t numSamples, q31_t volAdjustL, q31_t volAdjustR);
