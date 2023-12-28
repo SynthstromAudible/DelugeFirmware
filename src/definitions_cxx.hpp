@@ -1054,7 +1054,7 @@ constexpr int32_t kMaxImageStoreWidth = kDisplayWidth;
 
 constexpr int32_t kNumExpressionDimensions = 3;
 
-enum class Expression {
+enum Expression {
 	X_PITCH_BEND,
 	Y_SLIDE_TIMBRE,
 	Z_PRESSURE,

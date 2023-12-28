@@ -103,7 +103,7 @@ int32_t usageTimes[REPORT_AVERAGE_NUM];
 extern "C" uint32_t getAudioSampleTimerMS() {
 	return AudioEngine::audioSampleTimer / 44.1;
 }
-
+// Pitch, Y, Pressure
 int16_t zeroMPEValues[kNumExpressionDimensions] = {0, 0, 0};
 
 namespace AudioEngine {
