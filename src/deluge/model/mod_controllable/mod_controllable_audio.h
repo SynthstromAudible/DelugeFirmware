@@ -155,7 +155,7 @@ public:
 	StereoSample grabbedSample;
 	StereoSample lastGrabbedSample;
 
-	Compressor compressor; // Song doesn't use this, despite extending this class
+	SideChain compressor; // Song doesn't use this, despite extending this class
 
 	MidiKnobArray midiKnobArray;
 

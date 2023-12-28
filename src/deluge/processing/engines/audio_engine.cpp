@@ -109,7 +109,7 @@ int16_t zeroMPEValues[kNumExpressionDimensions] = {0, 0, 0};
 namespace AudioEngine {
 
 PLACE_INTERNAL_FRUNK revmodel reverb{};
-PLACE_INTERNAL_FRUNK Compressor reverbCompressor{};
+PLACE_INTERNAL_FRUNK SideChain reverbCompressor{};
 int32_t reverbCompressorVolume;
 int32_t reverbCompressorShape;
 int32_t reverbPan = 0;
