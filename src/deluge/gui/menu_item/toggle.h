@@ -37,7 +37,7 @@ public:
 		getTPtr = getTogglePtr;
 	}
 
-	void readCurrentValue() override { this->setValue(getTPtr()); }
+	void readCurrentValue() override { this->setValue(*(getTPtr())); }
 	void writeCurrentValue() override { *(getTPtr()) = this->getValue(); }
 
 	bool* (*getTPtr) ();

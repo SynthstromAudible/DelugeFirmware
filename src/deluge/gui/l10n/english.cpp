@@ -810,6 +810,7 @@ PLACE_SDRAM_DATA Language english{
         /* Strings Specifically for Song View
         * session_view.cpp
         */
+        {STRING_FOR_MIDILOOPBACK, "MIDI Loopback"},
 
         {STRING_FOR_SONG_VIEW, "Song View"},
         {STRING_FOR_SONG_FX, "Song FX"},
