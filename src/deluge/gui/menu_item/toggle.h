@@ -15,6 +15,8 @@ public:
 	void drawPixelsForOled();
 };
 
+/// the toggle pointer passed to this class must be valid for as long as the menu exists
+/// this means that you cannot use, for example, song specific or mod controllable stack toggles
 class ToggleBool : public Toggle {
 public:
 	using Toggle::Toggle;

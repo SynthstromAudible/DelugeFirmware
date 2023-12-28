@@ -18,8 +18,8 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp/compressor/compressor.h"
 #include "dsp/delay/delay.h"
+#include "dsp/sidechain/sidechain.h"
 #include "dsp/stereo_sample.h"
 #include "hid/button.h"
 #include "model/mod_controllable/mod_controllable.h"
@@ -160,7 +160,7 @@ public:
 	StereoSample grabbedSample;
 	StereoSample lastGrabbedSample;
 
-	Compressor compressor; // Song doesn't use this, despite extending this class
+	SideChain compressor; // Song doesn't use this, despite extending this class
 
 	MidiKnobArray midiKnobArray;
 

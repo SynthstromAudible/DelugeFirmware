@@ -25,9 +25,7 @@
 #include "gui/menu_item/cv/volts.h"
 #include "gui/menu_item/decimal.h"
 #include "gui/menu_item/defaults/bend_range.h"
-#include "gui/menu_item/defaults/grid_allow_green_selection.h"
 #include "gui/menu_item/defaults/grid_default_active_mode.h"
-#include "gui/menu_item/defaults/grid_unarm_empty_pads.h"
 #include "gui/menu_item/defaults/keyboard_layout.h"
 #include "gui/menu_item/defaults/magnitude.h"
 #include "gui/menu_item/defaults/metronome_volume.h"
@@ -64,8 +62,6 @@
 #include "gui/menu_item/master_transpose.h"
 #include "gui/menu_item/menu_item.h"
 #include "gui/menu_item/midi/bank.h"
-#include "gui/menu_item/midi/clock_in_status.h"
-#include "gui/menu_item/midi/clock_out_status.h"
 #include "gui/menu_item/midi/command.h"
 #include "gui/menu_item/midi/default_velocity_to_level.h"
 #include "gui/menu_item/midi/device.h"
@@ -81,7 +77,6 @@
 #include "gui/menu_item/midi/preset.h"
 #include "gui/menu_item/midi/sub.h"
 #include "gui/menu_item/midi/takeover.h"
-#include "gui/menu_item/midi/thru.h"
 #include "gui/menu_item/mod_fx/depth.h"
 #include "gui/menu_item/mod_fx/feedback.h"
 #include "gui/menu_item/mod_fx/offset.h"
@@ -115,8 +110,6 @@
 #include "gui/menu_item/performance_session_view/editing_mode.h"
 #include "gui/menu_item/ppqn.h"
 #include "gui/menu_item/range.h"
-#include "gui/menu_item/record/count_in.h"
-#include "gui/menu_item/record/margins.h"
 #include "gui/menu_item/record/quantize.h"
 #include "gui/menu_item/reverb/compressor/shape.h"
 #include "gui/menu_item/reverb/compressor/volume.h"
@@ -160,9 +153,7 @@
 #include "gui/menu_item/sync_level.h"
 #include "gui/menu_item/sync_level/relative_to_song.h"
 #include "gui/menu_item/synth_mode.h"
-#include "gui/menu_item/tempo/magnitude_matching.h"
 #include "gui/menu_item/transpose.h"
-#include "gui/menu_item/trigger/in/auto_start.h"
 #include "gui/menu_item/trigger/in/ppqn.h"
 #include "gui/menu_item/trigger/out/ppqn.h"
 #include "gui/menu_item/unison/count.h"
@@ -174,8 +165,12 @@
 #include "gui/menu_item/value.h"
 #include "gui/menu_item/voice/polyphony.h"
 #include "gui/menu_item/voice/priority.h"
+#include "gui/ui/sound_editor.h"
+#include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
+#include "playback/playback_handler.h"
 #include "processing/sound/sound.h"
+#include "storage/flash_storage.h"
 
 using namespace deluge;
 using namespace gui;
@@ -633,16 +628,6 @@ Submenu globalDistortionMenu{
     },
 };
 
-submenu::Arpeggiator globalArpMenu{
-    STRING_FOR_ARPEGGIATOR,
-    {
-        &arpModeMenu,
-        &arpSyncMenu,
-        &arpOctavesMenu,
-        &arpGateMenu,
-    },
-};
-
 // Stutter Menu
 
 UnpatchedParam globalStutterRateMenu{
@@ -746,8 +731,8 @@ Submenu padsSubmenu{
 
 // Record submenu
 record::Quantize recordQuantizeMenu{STRING_FOR_QUANTIZATION};
-record::Margins recordMarginsMenu{STRING_FOR_LOOP_MARGINS};
-record::CountIn recordCountInMenu{STRING_FOR_COUNT_IN, STRING_FOR_REC_COUNT_IN};
+ToggleBool recordMarginsMenu{STRING_FOR_LOOP_MARGINS, STRING_FOR_LOOP_MARGINS, FlashStorage::audioClipRecordMargins};
+ToggleBool recordCountInMenu{STRING_FOR_COUNT_IN, STRING_FOR_REC_COUNT_IN, playbackHandler.countInEnabled};
 monitor::Mode monitorModeMenu{STRING_FOR_SAMPLING_MONITORING, STRING_FOR_MONITORING};
 
 Submenu recordSubmenu{
@@ -772,7 +757,7 @@ runtime_feature::Settings runtimeFeatureSettingsMenu{STRING_FOR_COMMUNITY_FTS, S
 
 // MIDI
 // MIDI thru
-midi::Thru midiThruMenu{STRING_FOR_MIDI_THRU};
+ToggleBool midiThruMenu{STRING_FOR_MIDI_THRU, STRING_FOR_MIDI_THRU, midiEngine.midiThru};
 
 // MIDI Takeover
 midi::Takeover midiTakeoverMenu{STRING_FOR_TAKEOVER};
@@ -864,13 +849,14 @@ midi::Device midiDeviceMenu{
 };
 
 // MIDI input differentiation menu
-midi::InputDifferentiation midiInputDifferentiationMenu{STRING_FOR_DIFFERENTIATE_INPUTS};
+ToggleBool midiInputDifferentiationMenu{STRING_FOR_DIFFERENTIATE_INPUTS, STRING_FOR_DIFFERENTIATE_INPUTS,
+                                        MIDIDeviceManager::differentiatingInputsByDevice};
 
 // MIDI clock menu
-midi::ClockOutStatus midiClockOutStatusMenu{STRING_FOR_OUTPUT, STRING_FOR_MIDI_CLOCK_OUT};
-midi::ClockInStatus midiClockInStatusMenu{STRING_FOR_INPUT, STRING_FOR_MIDI_CLOCK_IN};
-tempo::MagnitudeMatching tempoMagnitudeMatchingMenu{STRING_FOR_TEMPO_MAGNITUDE_MATCHING,
-                                                    STRING_FOR_TEMPO_M_MATCH_MENU_TITLE};
+ToggleBool midiClockOutStatusMenu{STRING_FOR_OUTPUT, STRING_FOR_MIDI_CLOCK_OUT, playbackHandler.midiOutClockEnabled};
+ToggleBool midiClockInStatusMenu{STRING_FOR_INPUT, STRING_FOR_MIDI_CLOCK_IN, playbackHandler.midiInClockEnabled};
+ToggleBool tempoMagnitudeMatchingMenu{STRING_FOR_TEMPO_MAGNITUDE_MATCHING, STRING_FOR_TEMPO_M_MATCH_MENU_TITLE,
+                                      playbackHandler.tempoMagnitudeMatchingEnabled};
 
 //Midi devices menu
 midi::Devices midi::devicesMenu{STRING_FOR_DEVICES, STRING_FOR_MIDI_DEVICES};
@@ -902,7 +888,8 @@ Submenu midiMenu{
 // Clock menu
 // Trigger clock in menu
 trigger::in::PPQN triggerInPPQNMenu{STRING_FOR_PPQN, STRING_FOR_INPUT_PPQN};
-trigger::in::AutoStart triggerInAutoStartMenu{STRING_FOR_AUTO_START};
+ToggleBool triggerInAutoStartMenu{STRING_FOR_AUTO_START, STRING_FOR_AUTO_START,
+                                  playbackHandler.analogClockInputAutoStart};
 Submenu triggerClockInMenu{
     STRING_FOR_INPUT,
     STRING_FOR_T_CLOCK_INPUT_MENU_TITLE,
@@ -941,10 +928,12 @@ Submenu defaultUIKeyboard{
 
 defaults::DefaultGridDefaultActiveMode defaultGridDefaultActiveMode{STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ACTIVE_MODE,
                                                                     STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ACTIVE_MODE};
-defaults::DefaultGridAllowGreenSelection defaultGridAllowGreenSelection{
-    STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ALLOW_GREEN_SELECTION, STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ALLOW_GREEN_SELECTION};
-defaults::DefaultGridUnarmEmptyPads defaultGridUnarmEmptyPads{STRING_FOR_DEFAULT_UI_DEFAULT_GRID_UNARM_EMPTY_PADS,
-                                                              STRING_FOR_DEFAULT_UI_DEFAULT_GRID_UNARM_EMPTY_PADS};
+ToggleBool defaultGridAllowGreenSelection{STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ALLOW_GREEN_SELECTION,
+                                          STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ALLOW_GREEN_SELECTION,
+                                          FlashStorage::gridAllowGreenSelection};
+ToggleBool defaultGridUnarmEmptyPads{STRING_FOR_DEFAULT_UI_DEFAULT_GRID_UNARM_EMPTY_PADS,
+                                     STRING_FOR_DEFAULT_UI_DEFAULT_GRID_UNARM_EMPTY_PADS,
+                                     FlashStorage::gridUnarmEmptyPads};
 Submenu defaultSessionGridMenu{
     STRING_FOR_DEFAULT_UI_GRID,
     {&defaultGridDefaultActiveMode, &defaultGridAllowGreenSelection, &defaultGridUnarmEmptyPads},
@@ -1093,7 +1082,6 @@ menu_item::Submenu soundEditorRootMenuPerformanceView{
         &globalDelayMenu,
         &globalModFXMenu,
         &globalDistortionMenu,
-        &globalStutterRateMenu,
     },
 };
 
@@ -1110,7 +1098,6 @@ menu_item::Submenu soundEditorRootMenuSongView{
         &globalDelayMenu,
         &globalModFXMenu,
         &globalDistortionMenu,
-        &globalStutterRateMenu,
     },
 };
 
@@ -1129,9 +1116,6 @@ menu_item::Submenu soundEditorRootMenuKitGlobalFX{
         &globalCompressorMenu,
         &globalModFXMenu,
         &globalDistortionMenu,
-        &globalArpMenu,
-        &portaMenu,
-        &globalStutterRateMenu,
     },
 };
 
@@ -1218,13 +1202,13 @@ MenuItem* paramShortcutsForKitGlobalFX[][8] = {
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
-    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  &globalStutterRateMenu             },
-    {&globalLevelMenu,        &globalPitchMenu,        nullptr,               		   &globalPanMenu,                 nullptr,              &srrMenu,               &bitcrushMenu,            nullptr                            },
-    {&portaMenu,              nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
+    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr             				        },
+    {&globalLevelMenu,        &globalPitchMenu,        nullptr,                        &globalPanMenu,                 nullptr,              &srrMenu,               &bitcrushMenu,            nullptr                            },
+    {nullptr,              	  nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              &lpfModeMenu,           &globalLPFResMenu,        &globalLPFFreqMenu                 },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              &hpfModeMenu,           &globalHPFResMenu,        &globalHPFFreqMenu                 },
     {&compressorReleaseMenu,  &sidechainSyncMenu,      &globalCompressorVolumeMenu,    &compressorAttackMenu,          &compressorShapeMenu, nullptr,                &bassMenu,                &bassFreqMenu                      },
-    {nullptr,                 &arpSyncMenu,            &arpGateMenu,                   &arpOctavesMenu,                &arpModeMenu,         nullptr,                &trebleMenu,              &trebleFreqMenu                    },
+    {nullptr,                 nullptr,            	   nullptr,                        nullptr,                		     nullptr,         	   nullptr,                &trebleMenu,              &trebleFreqMenu                    },
     {nullptr,                 nullptr,                 nullptr,                        &modFXTypeMenu,                 &modFXOffsetMenu,     &modFXFeedbackMenu,     &globalModFXDepthMenu,    &globalModFXRateMenu               },
     {nullptr,                 nullptr,                 nullptr,                        &globalReverbSendAmountMenu,    &reverbPanMenu,       &reverbWidthMenu,       &reverbDampeningMenu,     &reverbRoomSizeMenu                },
     {&globalDelayRateMenu,    &delaySyncMenu,          &delayAnalogMenu,               &globalDelayFeedbackMenu,       &delayPingPongMenu,   nullptr,                nullptr,                  nullptr                            },

@@ -15,14 +15,14 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "dsp/compressor/compressor.h"
+#include "dsp/sidechain/sidechain.h"
 #include "definitions_cxx.hpp"
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
 #include "storage/flash_storage.h"
 #include "util/lookuptables/lookuptables.h"
 
-Compressor::Compressor() {
+SideChain::SideChain() {
 	status = EnvelopeStage::OFF;
 	lastValue = 2147483647;
 	pos = 0;
@@ -46,17 +46,17 @@ Compressor::Compressor() {
 	syncType = SYNC_TYPE_EVEN;
 }
 
-void Compressor::cloneFrom(Compressor* other) {
+void SideChain::cloneFrom(SideChain* other) {
 	attack = other->attack;
 	release = other->release;
 	syncLevel = other->syncLevel;
 }
 
-void Compressor::registerHit(int32_t strength) {
+void SideChain::registerHit(int32_t strength) {
 	pendingHitStrength = combineHitStrengths(pendingHitStrength, strength);
 }
 
-void Compressor::registerHitRetrospectively(int32_t strength, uint32_t numSamplesAgo) {
+void SideChain::registerHitRetrospectively(int32_t strength, uint32_t numSamplesAgo) {
 	pendingHitStrength = 0;
 	envelopeOffset = ONE_Q31 - strength;
 
@@ -90,7 +90,7 @@ void Compressor::registerHitRetrospectively(int32_t strength, uint32_t numSample
 	}
 }
 
-int32_t Compressor::getActualAttackRate() {
+int32_t SideChain::getActualAttackRate() {
 	int32_t alteredAttack;
 	if (syncLevel == SYNC_LEVEL_NONE) {
 		alteredAttack = attack;
@@ -109,7 +109,7 @@ int32_t Compressor::getActualAttackRate() {
 	return alteredAttack;
 }
 
-int32_t Compressor::getActualReleaseRate() {
+int32_t SideChain::getActualReleaseRate() {
 	int32_t alteredRelease;
 	if (syncLevel == SYNC_LEVEL_NONE) {
 		alteredRelease = release;
@@ -121,7 +121,7 @@ int32_t Compressor::getActualReleaseRate() {
 	return alteredRelease;
 }
 
-int32_t Compressor::render(uint16_t numSamples, int32_t shapeValue) {
+int32_t SideChain::render(uint16_t numSamples, int32_t shapeValue) {
 
 	// Initial hit detected...
 	if (pendingHitStrength != 0) {

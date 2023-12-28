@@ -228,6 +228,10 @@ private:
 	void copyAutomation();
 	void pasteAutomation();
 
+	//Select Encoder Action
+	int32_t getNextSelectedParamArrayPosition(int32_t offset, int32_t lastSelectedParamArrayPosition,
+	                                          int32_t numParams);
+
 	//Automation Lanes Functions
 	void initParameterSelection();
 	void initPadSelection();

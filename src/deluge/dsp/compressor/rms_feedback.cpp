@@ -15,14 +15,14 @@
  * If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "dsp/master_compressor/master_compressor.h"
+#include "dsp/compressor/rms_feedback.h"
 #include "dsp/stereo_sample.h"
 #include "io/debug/print.h"
 #include "model/song/song.h"
 #include "modulation/params/param_set.h"
 #include "processing/engines/audio_engine.h"
 #include "util/fast_fixed_math.h"
-MasterCompressor::MasterCompressor() {
+RMSFeedbackCompressor::RMSFeedbackCompressor() {
 
 	//an appropriate range is 0-50*one q 15
 
@@ -38,7 +38,7 @@ MasterCompressor::MasterCompressor() {
 }
 //16 is ln(1<<24) - 1, i.e. where we start clipping
 //since this applies to output
-void MasterCompressor::updateER(float numSamples) {
+void RMSFeedbackCompressor::updateER(float numSamples) {
 
 	//int32_t volumePostFX = getParamNeutralValue(Param::Global::VOLUME_POST_FX);
 	float songVolume;
@@ -62,7 +62,7 @@ void MasterCompressor::updateER(float numSamples) {
 	er = runEnvelope(lastER, er, numSamples);
 }
 
-void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t volAdjustL, q31_t volAdjustR) {
+void RMSFeedbackCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t volAdjustL, q31_t volAdjustR) {
 	//we update this every time since we won't know if the song volume changed
 	updateER(numSamples);
 
@@ -103,7 +103,7 @@ void MasterCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t v
 	rms = calc_rms(buffer, numSamples);
 }
 
-float MasterCompressor::runEnvelope(float current, float desired, float numSamples) {
+float RMSFeedbackCompressor::runEnvelope(float current, float desired, float numSamples) {
 	float s;
 	if (desired > current) {
 		s = desired + exp(a_ * numSamples) * (current - desired);
@@ -116,7 +116,7 @@ float MasterCompressor::runEnvelope(float current, float desired, float numSampl
 
 //output range is 0-21 (2^31)
 //dac clipping is at 16
-float MasterCompressor::calc_rms(StereoSample* buffer, uint16_t numSamples) {
+float RMSFeedbackCompressor::calc_rms(StereoSample* buffer, uint16_t numSamples) {
 	StereoSample* thisSample = buffer;
 	StereoSample* bufferEnd = buffer + numSamples;
 	q31_t sum = 0;
@@ -144,7 +144,7 @@ float MasterCompressor::calc_rms(StereoSample* buffer, uint16_t numSamples) {
 	return logmean;
 }
 //takes in knob positions in the range 0-ONE_Q31
-void MasterCompressor::setup(q31_t a, q31_t r, q31_t t, q31_t rat, q31_t fc) {
+void RMSFeedbackCompressor::setup(q31_t a, q31_t r, q31_t t, q31_t rat, q31_t fc) {
 	setAttack(a);
 	setRelease(r);
 	setThreshold(t);

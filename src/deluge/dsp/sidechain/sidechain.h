@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2023 Synthstrom Audible Limited
+ * Copyright © 2014-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -14,16 +14,38 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
 */
-#pragma once
-#include "gui/menu_item/toggle.h"
-#include "gui/ui/sound_editor.h"
-#include "playback/playback_handler.h"
 
-namespace deluge::gui::menu_item::midi {
-class ClockOutStatus final : public Toggle {
+#pragma once
+
+#include "definitions_cxx.hpp"
+#include <cstdint>
+
+class Song;
+
+class SideChain {
 public:
-	using Toggle::Toggle;
-	void readCurrentValue() override { this->setValue(playbackHandler.midiOutClockEnabled); }
-	void writeCurrentValue() override { playbackHandler.setMidiOutClockMode(this->getValue()); }
+	SideChain();
+	void cloneFrom(SideChain* other);
+
+	EnvelopeStage status;
+	uint32_t pos;
+	int32_t lastValue;
+	int32_t pendingHitStrength;
+
+	int32_t envelopeOffset;
+	int32_t envelopeHeight;
+
+	int32_t attack;
+	int32_t release;
+
+	SyncType syncType;
+	SyncLevel syncLevel; // Basically, 0 is off, max value is 9. Higher numbers are shorter intervals (higher speed).
+
+	int32_t render(uint16_t numSamples, int32_t shapeValue);
+	void registerHit(int32_t strength);
+	void registerHitRetrospectively(int32_t strength, uint32_t numSamplesAgo);
+
+private:
+	int32_t getActualAttackRate();
+	int32_t getActualReleaseRate();
 };
-} // namespace deluge::gui::menu_item::midi

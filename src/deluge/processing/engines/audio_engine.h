@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp/master_compressor/master_compressor.h"
+#include "dsp/compressor/rms_feedback.h"
 #include <cstdint>
 
 extern "C" {
@@ -36,11 +36,11 @@ class Voice;
 class VoiceSample;
 class TimeStretcher;
 class String;
-class Compressor;
+class SideChain;
 class VoiceVector;
 class revmodel;
 class Metronome;
-class MasterCompressor;
+class RMSFeedbackCompressor;
 class ModelStackWithSoundFlags;
 class SoundDrum;
 
@@ -185,7 +185,7 @@ extern int32_t cpuDireness;
 extern InputMonitoringMode inputMonitoringMode;
 extern bool audioRoutineLocked;
 extern uint8_t numHopsEndedThisRoutineCall;
-extern Compressor reverbCompressor;
+extern SideChain reverbCompressor;
 extern uint32_t timeThereWasLastSomeReverb;
 extern VoiceVector activeVoices;
 extern revmodel reverb;
@@ -196,7 +196,7 @@ extern int32_t reverbCompressorShape;
 extern int32_t reverbPan;
 extern SampleRecorder* firstRecorder;
 extern Metronome metronome;
-extern MasterCompressor mastercompressor;
+extern RMSFeedbackCompressor mastercompressor;
 extern uint32_t timeLastSideChainHit;
 extern int32_t sizeLastSideChainHit;
 } // namespace AudioEngine

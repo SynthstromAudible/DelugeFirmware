@@ -194,9 +194,7 @@ const std::array<std::pair<Param::Kind, ParamType>, kNumKitAffectEntireParamsFor
         {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::MOD_FX_FEEDBACK},
         {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::MOD_FX_DEPTH},
         {Param::Kind::UNPATCHED_GLOBAL, Param::Unpatched::GlobalEffectable::MOD_FX_RATE},
-        {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::Sound::ARP_GATE},   //Arp Gate
-        {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::Sound::PORTAMENTO}, //Portamento
-        {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::STUTTER_RATE},      //Stutter Rate
+        {Param::Kind::UNPATCHED_SOUND, Param::Unpatched::STUTTER_RATE}, //Stutter Rate
     }};
 
 //grid sized array to assign midi cc values to each pad on the grid
@@ -567,8 +565,16 @@ void AutomationInstrumentClipView::renderAutomationOverview(ModelStackWithTimeli
 
 			else if (unpatchedParamShortcuts[xDisplay][yDisplay] != 0xFFFFFFFF) {
 
-				modelStackWithParam = getModelStackWithParam(
-				    modelStack, clip, unpatchedParamShortcuts[xDisplay][yDisplay], Param::Kind::UNPATCHED_SOUND);
+				//don't make portamento available for automation in kit rows
+				if ((instrument->type == InstrumentType::KIT)
+				    && (unpatchedParamShortcutsForAutomation[xDisplay][yDisplay]
+				        == Param::Unpatched::Sound::PORTAMENTO)) {
+					continue;
+				}
+
+				modelStackWithParam =
+				    getModelStackWithParam(modelStack, clip, unpatchedParamShortcutsForAutomation[xDisplay][yDisplay],
+				                           Param::Kind::UNPATCHED_SOUND);
 			}
 		}
 
@@ -577,6 +583,13 @@ void AutomationInstrumentClipView::renderAutomationOverview(ModelStackWithTimeli
 		             || (globalEffectableParamShortcuts[xDisplay][yDisplay] != 0xFFFFFFFF))) {
 
 			if (unpatchedParamShortcuts[xDisplay][yDisplay] != 0xFFFFFFFF) {
+
+				//don't make portamento and arp gate available for automation in kit affect entire
+				if ((unpatchedParamShortcutsForAutomation[xDisplay][yDisplay] == Param::Unpatched::Sound::PORTAMENTO)
+				    || (unpatchedParamShortcutsForAutomation[xDisplay][yDisplay]
+				        == Param::Unpatched::Sound::ARP_GATE)) {
+					continue;
+				}
 
 				modelStackWithParam =
 				    getModelStackWithParam(modelStack, clip, unpatchedParamShortcuts[xDisplay][yDisplay]);
@@ -2634,83 +2647,38 @@ void AutomationInstrumentClipView::selectEncoderAction(int8_t offset) {
 		InstrumentClipMinder::selectEncoderAction(offset);
 	}
 	else if (instrument->type == InstrumentType::SYNTH || instrument->type == InstrumentType::KIT) {
-
 		//if you're a kit with affect entire enabled
 		if (instrument->type == InstrumentType::KIT && instrumentClipView.getAffectEntire()) {
-
-			//if you haven't selected a parameter yet, start at the beginning of the list
-			if (isOnAutomationOverview()) {
-				auto idx = 0;
-				auto [kind, id] = kitAffectEntireParamsForAutomation[idx];
-				clip->lastSelectedParamID = id;
-				clip->lastSelectedParamKind = kind;
-				clip->lastSelectedParamArrayPosition = idx;
-			}
-			//if you are scrolling left and are at the beginning of the list, go to the end of the list
-			else if ((clip->lastSelectedParamArrayPosition + offset) < 0) {
-				auto idx = kNumKitAffectEntireParamsForAutomation - 1;
-				auto [kind, id] = kitAffectEntireParamsForAutomation[idx];
-				clip->lastSelectedParamID = id;
-				clip->lastSelectedParamKind = kind;
-				clip->lastSelectedParamArrayPosition = idx;
-			}
-			//if you are scrolling right and are at the end of the list, go to the beginning of the list
-			else if ((clip->lastSelectedParamArrayPosition + offset) > (kNumKitAffectEntireParamsForAutomation - 1)) {
-				auto idx = 0;
-				auto [kind, id] = kitAffectEntireParamsForAutomation[idx];
-				clip->lastSelectedParamID = id;
-				clip->lastSelectedParamKind = kind;
-				clip->lastSelectedParamArrayPosition = idx;
-			}
-			//otherwise scrolling left/right within the list
-			else {
-				auto idx = clip->lastSelectedParamArrayPosition + offset;
-				auto [kind, id] = kitAffectEntireParamsForAutomation[idx];
-				clip->lastSelectedParamID = id;
-				clip->lastSelectedParamKind = kind;
-				clip->lastSelectedParamArrayPosition = idx;
-			}
+			auto idx = getNextSelectedParamArrayPosition(offset, clip->lastSelectedParamArrayPosition,
+			                                             kNumKitAffectEntireParamsForAutomation);
+			auto [kind, id] = kitAffectEntireParamsForAutomation[idx];
+			clip->lastSelectedParamID = id;
+			clip->lastSelectedParamKind = kind;
+			clip->lastSelectedParamArrayPosition = idx;
 		}
-
 		//if you're a synth or a kit (with affect entire off and a drum selected)
 		else if (instrument->type == InstrumentType::SYNTH
 		         || (instrument->type == InstrumentType::KIT && ((Kit*)instrument)->selectedDrum)) {
-
-			//if you haven't selected a parameter yet, start at the beginning of the list
-			if (isOnAutomationOverview()) {
-				auto idx = 0;
+			auto idx = getNextSelectedParamArrayPosition(offset, clip->lastSelectedParamArrayPosition,
+			                                             kNumNonKitAffectEntireParamsForAutomation);
+			{
 				auto [kind, id] = nonKitAffectEntireParamsForAutomation[idx];
-				clip->lastSelectedParamID = id;
-				clip->lastSelectedParamKind = kind;
-				clip->lastSelectedParamArrayPosition = idx;
+				if ((instrument->type == InstrumentType::KIT) && (id == Param::Unpatched::Sound::PORTAMENTO)) {
+					if (offset < 0) {
+						offset -= 1;
+					}
+					else if (offset > 0) {
+						offset += 1;
+					}
+					idx = getNextSelectedParamArrayPosition(offset, clip->lastSelectedParamArrayPosition,
+					                                        kNumNonKitAffectEntireParamsForAutomation);
+				}
 			}
-			//if you are scrolling left and are at the beginning of the list, go to the end of the list
-			else if ((clip->lastSelectedParamArrayPosition + offset) < 0) {
-				auto idx = kNumNonKitAffectEntireParamsForAutomation - 1;
-				auto [kind, id] = nonKitAffectEntireParamsForAutomation[idx];
-				clip->lastSelectedParamID = id;
-				clip->lastSelectedParamKind = kind;
-				clip->lastSelectedParamArrayPosition = idx;
-			}
-			//if you are scrolling right and are at the end of the list, go to the beginning of the list
-			else if ((clip->lastSelectedParamArrayPosition + offset)
-			         > (kNumNonKitAffectEntireParamsForAutomation - 1)) {
-				auto idx = 0;
-				auto [kind, id] = nonKitAffectEntireParamsForAutomation[idx];
-				clip->lastSelectedParamID = id;
-				clip->lastSelectedParamKind = kind;
-				clip->lastSelectedParamArrayPosition = idx;
-			}
-			//otherwise scrolling left/right within the list
-			else {
-				auto idx = clip->lastSelectedParamArrayPosition + offset;
-				auto [kind, id] = nonKitAffectEntireParamsForAutomation[idx];
-				clip->lastSelectedParamID = id;
-				clip->lastSelectedParamKind = kind;
-				clip->lastSelectedParamArrayPosition = idx;
-			}
+			auto [kind, id] = nonKitAffectEntireParamsForAutomation[idx];
+			clip->lastSelectedParamID = id;
+			clip->lastSelectedParamKind = kind;
+			clip->lastSelectedParamArrayPosition = idx;
 		}
-
 		//no shortcut to flash for Stutter, so no need to search for the Shortcut X,Y
 		//just update name on display, the LED mod indicators, and the grid
 		if (clip->lastSelectedParamID == Param::Unpatched::STUTTER_RATE) {
@@ -2780,6 +2748,30 @@ flashShortcut:
 	resetShortcutBlinking();
 	view.setModLedStates();
 	uiNeedsRendering(this);
+}
+
+//used with SelectEncoderAction to get the next parameter in the list of parameters
+int32_t AutomationInstrumentClipView::getNextSelectedParamArrayPosition(int32_t offset,
+                                                                        int32_t lastSelectedParamArrayPosition,
+                                                                        int32_t numParams) {
+	int32_t idx;
+	//if you haven't selected a parameter yet, start at the beginning of the list
+	if (isOnAutomationOverview()) {
+		idx = 0;
+	}
+	//if you are scrolling left and are at the beginning of the list, go to the end of the list
+	else if ((lastSelectedParamArrayPosition + offset) < 0) {
+		idx = numParams - 1;
+	}
+	//if you are scrolling right and are at the end of the list, go to the beginning of the list
+	else if ((lastSelectedParamArrayPosition + offset) > (numParams - 1)) {
+		idx = 0;
+	}
+	//otherwise scrolling left/right within the list
+	else {
+		idx = lastSelectedParamArrayPosition + offset;
+	}
+	return idx;
 }
 
 //tempo encoder action
@@ -3126,6 +3118,12 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 		    && ((patchedParamShortcuts[xDisplay][yDisplay] != 0xFFFFFFFF)
 		        || (unpatchedParamShortcuts[xDisplay][yDisplay] != 0xFFFFFFFF))) {
 
+			//don't allow automation of portamento in kit's
+			if ((instrument->type == InstrumentType::KIT)
+			    && (unpatchedParamShortcuts[xDisplay][yDisplay] == Param::Unpatched::Sound::PORTAMENTO)) {
+				return;
+			}
+
 			if (patchedParamShortcuts[xDisplay][yDisplay] != 0xFFFFFFFF) {
 				clip->lastSelectedParamKind = Param::Kind::PATCHED;
 				//if you are in a synth or a kit clip and the shortcut is valid, set current selected ParamID
@@ -3152,6 +3150,12 @@ void AutomationInstrumentClipView::handleSinglePadPress(ModelStackWithTimelineCo
 		else if (instrument->type == InstrumentType::KIT && instrumentClipView.getAffectEntire()
 		         && ((unpatchedParamShortcuts[xDisplay][yDisplay] != 0xFFFFFFFF)
 		             || (globalEffectableParamShortcuts[xDisplay][yDisplay] != 0xFFFFFFFF))) {
+
+			//don't allow automation of arp gate or portamento in kit affect entire
+			if ((unpatchedParamShortcuts[xDisplay][yDisplay] == Param::Unpatched::Sound::PORTAMENTO)
+			    || (unpatchedParamShortcuts[xDisplay][yDisplay] == Param::Unpatched::Sound::ARP_GATE)) {
+				return;
+			}
 
 			if (unpatchedParamShortcuts[xDisplay][yDisplay] != 0xFFFFFFFF) {
 				clip->lastSelectedParamKind = Param::Kind::UNPATCHED_SOUND;
