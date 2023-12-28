@@ -17,7 +17,7 @@
 
 #include "processing/engines/audio_engine.h"
 #include "definitions_cxx.hpp"
-#include "dsp/master_compressor/master_compressor.h"
+#include "dsp/compressor/rms_feedback.h"
 #include "dsp/reverb/freeverb/revmodel.hpp"
 #include "dsp/timestretch/time_stretcher.h"
 #include "gui/context_menu/sample_browser/kit.h"
@@ -109,7 +109,7 @@ int16_t zeroMPEValues[kNumExpressionDimensions] = {0, 0, 0};
 namespace AudioEngine {
 
 PLACE_INTERNAL_FRUNK revmodel reverb{};
-PLACE_INTERNAL_FRUNK Compressor reverbCompressor{};
+PLACE_INTERNAL_FRUNK SideChain reverbCompressor{};
 int32_t reverbCompressorVolume;
 int32_t reverbCompressorShape;
 int32_t reverbPan = 0;
@@ -125,7 +125,7 @@ uint32_t timeLastSideChainHit = 2147483648;
 int32_t sizeLastSideChainHit;
 
 Metronome metronome{};
-MasterCompressor mastercompressor{};
+RMSFeedbackCompressor mastercompressor{};
 
 SoundDrum* sampleForPreview;
 ParamManagerForTimeline* paramManagerForSamplePreview;

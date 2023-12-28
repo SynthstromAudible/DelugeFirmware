@@ -22,10 +22,10 @@
 
 class Song;
 
-class Compressor {
+class SideChain {
 public:
-	Compressor();
-	void cloneFrom(Compressor* other);
+	SideChain();
+	void cloneFrom(SideChain* other);
 
 	EnvelopeStage status;
 	uint32_t pos;
