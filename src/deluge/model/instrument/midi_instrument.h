@@ -52,7 +52,7 @@ public:
 	                                    ModelStackWithThreeMainThings* modelStack);
 	void offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
 	                       bool on, int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
-	                       bool* doingMidiThru, bool doingMidiFollow = false);
+	                       bool* doingMidiThru);
 
 	// ModControllable implementation
 	bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack);

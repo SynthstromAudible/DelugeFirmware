@@ -127,20 +127,19 @@ public:
 
 	virtual void offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
 	                               bool on, int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
-	                               bool* doingMidiThru, bool doingMidiFollow = false) {}
+	                               bool* doingMidiThru) {}
 	virtual void offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
 	                                    MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
-	                                    bool* doingMidiThru, bool doingMidiFollow = false) {}
+	                                    bool* doingMidiThru) {}
 	virtual void offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
-	                             uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru,
-	                             bool doingMidiFollow = false) {}
+	                             uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru) {}
 	virtual void offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
 	                                     MIDIDevice* fromDevice, int32_t channel, int32_t value, int32_t noteCode,
-	                                     bool* doingMidiThru, bool doingMidiFollow = false) {}
+	                                     bool* doingMidiThru) {}
 
 	virtual void stopAnyAuditioning(ModelStack* modelStack) {}
 	virtual void offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone,
-	                                  int32_t whichBendRange, int32_t bendSemitones, bool doingMidiFollow = false) {}
+	                                  int32_t whichBendRange, int32_t bendSemitones) {}
 
 	// Arrangement stuff
 	int32_t possiblyBeginArrangementRecording(Song* song, int32_t newPos);

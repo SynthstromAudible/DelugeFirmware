@@ -552,8 +552,7 @@ traverseClips2:
 
 void MIDIInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
                                        MIDIDevice* fromDevice, bool on, int32_t receivedChannel, int32_t note,
-                                       int32_t velocity, bool shouldRecordNotes, bool* doingMidiThru,
-                                       bool doingMidiFollow) {
+                                       int32_t velocity, bool shouldRecordNotes, bool* doingMidiThru) {
 
 	if (midiInput.channelOrZone == receivedChannel) {
 
@@ -566,7 +565,7 @@ void MIDIInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelStack
 	}
 
 	NonAudioInstrument::offerReceivedNote(modelStackWithTimelineCounter, fromDevice, on, receivedChannel, note,
-	                                      velocity, shouldRecordNotes, doingMidiThru, doingMidiFollow);
+	                                      velocity, shouldRecordNotes, doingMidiThru);
 }
 
 void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) {
