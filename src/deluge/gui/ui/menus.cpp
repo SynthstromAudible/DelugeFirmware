@@ -72,7 +72,6 @@
 #include "gui/menu_item/midi/follow/follow_channel_synth.h"
 #include "gui/menu_item/midi/follow/follow_feedback_automation.h"
 #include "gui/menu_item/midi/follow/follow_kit_root_note.h"
-#include "gui/menu_item/midi/input_differentiation.h"
 #include "gui/menu_item/midi/pgm.h"
 #include "gui/menu_item/midi/preset.h"
 #include "gui/menu_item/midi/sub.h"

@@ -567,14 +567,12 @@ void AutomationInstrumentClipView::renderAutomationOverview(ModelStackWithTimeli
 
 				//don't make portamento available for automation in kit rows
 				if ((instrument->type == InstrumentType::KIT)
-				    && (unpatchedParamShortcutsForAutomation[xDisplay][yDisplay]
-				        == Param::Unpatched::Sound::PORTAMENTO)) {
+				    && (unpatchedParamShortcuts[xDisplay][yDisplay] == Param::Unpatched::Sound::PORTAMENTO)) {
 					continue;
 				}
 
-				modelStackWithParam =
-				    getModelStackWithParam(modelStack, clip, unpatchedParamShortcutsForAutomation[xDisplay][yDisplay],
-				                           Param::Kind::UNPATCHED_SOUND);
+				modelStackWithParam = getModelStackWithParam(
+				    modelStack, clip, unpatchedParamShortcuts[xDisplay][yDisplay], Param::Kind::UNPATCHED_SOUND);
 			}
 		}
 
@@ -585,9 +583,8 @@ void AutomationInstrumentClipView::renderAutomationOverview(ModelStackWithTimeli
 			if (unpatchedParamShortcuts[xDisplay][yDisplay] != 0xFFFFFFFF) {
 
 				//don't make portamento and arp gate available for automation in kit affect entire
-				if ((unpatchedParamShortcutsForAutomation[xDisplay][yDisplay] == Param::Unpatched::Sound::PORTAMENTO)
-				    || (unpatchedParamShortcutsForAutomation[xDisplay][yDisplay]
-				        == Param::Unpatched::Sound::ARP_GATE)) {
+				if ((unpatchedParamShortcuts[xDisplay][yDisplay] == Param::Unpatched::Sound::PORTAMENTO)
+				    || (unpatchedParamShortcuts[xDisplay][yDisplay] == Param::Unpatched::Sound::ARP_GATE)) {
 					continue;
 				}
 
