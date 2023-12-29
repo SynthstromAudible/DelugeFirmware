@@ -83,7 +83,6 @@ void MidiFollow::init() {
 	for (int32_t i = 0; i < (kMaxMIDIValue + 1); i++) {
 		timeLastCCSent[i] = 0;
 		previousKnobPos[i] = kNoSelection;
-		clipForLastNoteReceived[i] = nullptr;
 	}
 
 	timeAutomationFeedbackLastSent = 0;
@@ -134,120 +133,184 @@ MidiFollow::getModelStackWithParam(ModelStackWithThreeMainThings* modelStackWith
                                    int32_t xDisplay, int32_t yDisplay, int32_t ccNumber, bool displayError) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
-	Param::Kind paramKind = Param::Kind::NONE;
-	int32_t paramID = kNoParamID;
-
 	bool isUISessionView =
 	    (getRootUI() == &performanceSessionView) || (getRootUI() == &sessionView) || (getRootUI() == &arrangerView);
 
 	if (!clip && isUISessionView) {
 		if (modelStackWithThreeMainThings) {
-			if (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-				paramKind = Param::Kind::UNPATCHED_SOUND;
-				paramID = unpatchedParamShortcuts[xDisplay][yDisplay];
-			}
-			else if (globalEffectableParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-				paramKind = Param::Kind::UNPATCHED_GLOBAL;
-				paramID = globalEffectableParamShortcuts[xDisplay][yDisplay];
-			}
-			if (paramID != kNoParamID) {
-				modelStackWithParam =
-				    performanceSessionView.getModelStackWithParam(modelStackWithThreeMainThings, paramID);
-			}
+			modelStackWithParam = getModelStackWithParamWithoutClip(modelStackWithThreeMainThings, xDisplay, yDisplay);
 		}
 	}
 	else {
 		if (modelStackWithTimelineCounter) {
-			InstrumentClip* instrumentClip = (InstrumentClip*)clip;
-			Instrument* instrument = (Instrument*)clip->output;
-
-			if (instrument->type == InstrumentType::SYNTH) {
-				if (patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-					paramKind = Param::Kind::PATCHED;
-					paramID = patchedParamShortcuts[xDisplay][yDisplay];
-				}
-				else if (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-					paramKind = Param::Kind::UNPATCHED_SOUND;
-					paramID = unpatchedParamShortcuts[xDisplay][yDisplay];
-				}
-			}
-			else if (instrument->type == InstrumentType::KIT) {
-				if (!instrumentClipView.getAffectEntire()) {
-					if (patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-						paramKind = Param::Kind::PATCHED;
-						paramID = patchedParamShortcuts[xDisplay][yDisplay];
-					}
-					else if (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-						//don't allow control of Portamento in Kit's
-						if (unpatchedParamShortcuts[xDisplay][yDisplay] != Param::Unpatched::Sound::PORTAMENTO) {
-							paramKind = Param::Kind::UNPATCHED_SOUND;
-							paramID = unpatchedParamShortcuts[xDisplay][yDisplay];
-						}
-					}
-				}
-				else {
-					if (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-						//don't allow control of Portamento or Arp Gate in Kit Affect Entire
-						if ((unpatchedParamShortcuts[xDisplay][yDisplay] != Param::Unpatched::Sound::PORTAMENTO)
-						    && (unpatchedParamShortcuts[xDisplay][yDisplay] != Param::Unpatched::Sound::ARP_GATE)) {
-							paramKind = Param::Kind::UNPATCHED_SOUND;
-							paramID = unpatchedParamShortcuts[xDisplay][yDisplay];
-						}
-					}
-					else if (globalEffectableParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-						paramKind = Param::Kind::UNPATCHED_GLOBAL;
-						paramID = globalEffectableParamShortcuts[xDisplay][yDisplay];
-					}
-				}
-			}
-			else if (instrument->type == InstrumentType::AUDIO) {
-				if (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-					paramKind = Param::Kind::UNPATCHED_SOUND;
-					paramID = unpatchedParamShortcuts[xDisplay][yDisplay];
-				}
-				else if (globalEffectableParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-					paramKind = Param::Kind::UNPATCHED_GLOBAL;
-					paramID = globalEffectableParamShortcuts[xDisplay][yDisplay];
-				}
-			}
-			if ((paramKind != Param::Kind::NONE) && (paramID != kNoParamID)) {
-				modelStackWithParam = automationInstrumentClipView.getModelStackWithParam(
-				    modelStackWithTimelineCounter, instrumentClip, paramID, paramKind);
-			}
+			modelStackWithParam =
+			    getModelStackWithParamWithClip(modelStackWithTimelineCounter, clip, xDisplay, yDisplay);
 		}
 	}
 
 	if (displayError && (paramToCC[xDisplay][yDisplay] == ccNumber)
 	    && (!modelStackWithParam || !modelStackWithParam->autoParam)) {
+		displayParamControlError(xDisplay, yDisplay);
+	}
+
+	return modelStackWithParam;
+}
+
+ModelStackWithAutoParam*
+MidiFollow::getModelStackWithParamWithoutClip(ModelStackWithThreeMainThings* modelStackWithThreeMainThings,
+                                              int32_t xDisplay, int32_t yDisplay) {
+	ModelStackWithAutoParam* modelStackWithParam = nullptr;
+	int32_t paramID = kNoParamID;
+
+	if (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+		paramID = unpatchedParamShortcuts[xDisplay][yDisplay];
+	}
+	else if (globalEffectableParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+		paramID = globalEffectableParamShortcuts[xDisplay][yDisplay];
+	}
+	if (paramID != kNoParamID) {
+		modelStackWithParam = performanceSessionView.getModelStackWithParam(modelStackWithThreeMainThings, paramID);
+	}
+
+	return modelStackWithParam;
+}
+
+ModelStackWithAutoParam*
+MidiFollow::getModelStackWithParamWithClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
+                                           int32_t xDisplay, int32_t yDisplay) {
+	ModelStackWithAutoParam* modelStackWithParam = nullptr;
+	Param::Kind paramKind = Param::Kind::NONE;
+	int32_t paramID = kNoParamID;
+
+	InstrumentClip* instrumentClip = (InstrumentClip*)clip;
+	Instrument* instrument = (Instrument*)clip->output;
+
+	if (instrument->type == InstrumentType::SYNTH) {
+		modelStackWithParam =
+		    getModelStackWithParamForSynthClip(modelStackWithTimelineCounter, instrumentClip, xDisplay, yDisplay);
+	}
+	else if (instrument->type == InstrumentType::KIT) {
+		modelStackWithParam =
+		    getModelStackWithParamForKitClip(modelStackWithTimelineCounter, instrumentClip, xDisplay, yDisplay);
+	}
+	else if (instrument->type == InstrumentType::AUDIO) {
+		modelStackWithParam =
+		    getModelStackWithParamForAudioClip(modelStackWithTimelineCounter, instrumentClip, xDisplay, yDisplay);
+	}
+
+	return modelStackWithParam;
+}
+
+ModelStackWithAutoParam*
+MidiFollow::getModelStackWithParamForSynthClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+                                               InstrumentClip* instrumentClip, int32_t xDisplay, int32_t yDisplay) {
+	ModelStackWithAutoParam* modelStackWithParam = nullptr;
+	Param::Kind paramKind = Param::Kind::NONE;
+	int32_t paramID = kNoParamID;
+
+	if (patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+		paramKind = Param::Kind::PATCHED;
+		paramID = patchedParamShortcuts[xDisplay][yDisplay];
+	}
+	else if (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+		paramKind = Param::Kind::UNPATCHED_SOUND;
+		paramID = unpatchedParamShortcuts[xDisplay][yDisplay];
+	}
+	if ((paramKind != Param::Kind::NONE) && (paramID != kNoParamID)) {
+		modelStackWithParam = automationInstrumentClipView.getModelStackWithParam(modelStackWithTimelineCounter,
+		                                                                          instrumentClip, paramID, paramKind);
+	}
+
+	return modelStackWithParam;
+}
+
+ModelStackWithAutoParam*
+MidiFollow::getModelStackWithParamForKitClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+                                             InstrumentClip* instrumentClip, int32_t xDisplay, int32_t yDisplay) {
+	ModelStackWithAutoParam* modelStackWithParam = nullptr;
+	Param::Kind paramKind = Param::Kind::NONE;
+	int32_t paramID = kNoParamID;
+
+	if (!instrumentClipView.getAffectEntire()) {
 		if (patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
 			paramKind = Param::Kind::PATCHED;
 			paramID = patchedParamShortcuts[xDisplay][yDisplay];
 		}
 		else if (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-			paramKind = Param::Kind::UNPATCHED_SOUND;
-			paramID = unpatchedParamShortcuts[xDisplay][yDisplay];
+			//don't allow control of Portamento in Kit's
+			if (unpatchedParamShortcuts[xDisplay][yDisplay] != Param::Unpatched::Sound::PORTAMENTO) {
+				paramKind = Param::Kind::UNPATCHED_SOUND;
+				paramID = unpatchedParamShortcuts[xDisplay][yDisplay];
+			}
+		}
+	}
+	else {
+		if (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+			//don't allow control of Portamento or Arp Gate in Kit Affect Entire
+			if ((unpatchedParamShortcuts[xDisplay][yDisplay] != Param::Unpatched::Sound::PORTAMENTO)
+			    && (unpatchedParamShortcuts[xDisplay][yDisplay] != Param::Unpatched::Sound::ARP_GATE)) {
+				paramKind = Param::Kind::UNPATCHED_SOUND;
+				paramID = unpatchedParamShortcuts[xDisplay][yDisplay];
+			}
 		}
 		else if (globalEffectableParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
 			paramKind = Param::Kind::UNPATCHED_GLOBAL;
 			paramID = globalEffectableParamShortcuts[xDisplay][yDisplay];
 		}
-
-		if (display->haveOLED()) {
-			DEF_STACK_STRING_BUF(popupMsg, 40);
-
-			const char* name = getParamDisplayName(paramKind, paramID);
-			if (name != l10n::get(l10n::String::STRING_FOR_NONE)) {
-				popupMsg.append("Can't control: \n");
-				popupMsg.append(name);
-			}
-			display->displayPopup(popupMsg.c_str());
-		}
-		else {
-			display->displayPopup(l10n::get(l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
-		}
 	}
 
 	return modelStackWithParam;
+}
+
+ModelStackWithAutoParam*
+MidiFollow::getModelStackWithParamForAudioClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+                                               InstrumentClip* instrumentClip, int32_t xDisplay, int32_t yDisplay) {
+	ModelStackWithAutoParam* modelStackWithParam = nullptr;
+	Param::Kind paramKind = Param::Kind::NONE;
+	int32_t paramID = kNoParamID;
+
+	if (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+		paramKind = Param::Kind::UNPATCHED_SOUND;
+		paramID = unpatchedParamShortcuts[xDisplay][yDisplay];
+	}
+	else if (globalEffectableParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+		paramKind = Param::Kind::UNPATCHED_GLOBAL;
+		paramID = globalEffectableParamShortcuts[xDisplay][yDisplay];
+	}
+
+	return modelStackWithParam;
+}
+
+void MidiFollow::displayParamControlError(int32_t xDisplay, int32_t yDisplay) {
+	Param::Kind paramKind = Param::Kind::NONE;
+	int32_t paramID = kNoParamID;
+
+	if (patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+		paramKind = Param::Kind::PATCHED;
+		paramID = patchedParamShortcuts[xDisplay][yDisplay];
+	}
+	else if (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+		paramKind = Param::Kind::UNPATCHED_SOUND;
+		paramID = unpatchedParamShortcuts[xDisplay][yDisplay];
+	}
+	else if (globalEffectableParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+		paramKind = Param::Kind::UNPATCHED_GLOBAL;
+		paramID = globalEffectableParamShortcuts[xDisplay][yDisplay];
+	}
+
+	if (display->haveOLED()) {
+		DEF_STACK_STRING_BUF(popupMsg, 40);
+
+		const char* name = getParamDisplayName(paramKind, paramID);
+		if (name != l10n::get(l10n::String::STRING_FOR_NONE)) {
+			popupMsg.append("Can't control: \n");
+			popupMsg.append(name);
+		}
+		display->displayPopup(popupMsg.c_str());
+	}
+	else {
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
+	}
 }
 
 /// a parameter can be learned t one cc at a time
@@ -271,6 +334,9 @@ int32_t MidiFollow::getCCFromParam(Param::Kind paramKind, int32_t paramID) {
 	}
 	return MIDI_CC_NONE;
 }
+
+/// used to store the clip's for each note received so that note off's can be sent to the right clip
+PLACE_SDRAM_BSS Clip* clipForLastNoteReceived[kMaxMIDIValue + 1] = {0};
 
 /// called from playback handler
 /// determines whether a note message received is midi follow relevant
