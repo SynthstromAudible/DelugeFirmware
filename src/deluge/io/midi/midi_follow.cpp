@@ -48,6 +48,8 @@ using namespace gui;
 #define MIDI_DEFAULTS_TAG "defaults"
 #define MIDI_DEFAULTS_CC_TAG "defaultCCMappings"
 
+/// default/standard MIDI CC to Param mappings for MIDI Follow
+/// if you do not customize MIDIFollow.XML, CC's will be mapped to Parameters as per the following
 const int32_t defaultParamToCCMapping[kDisplayWidth][kDisplayHeight] = {
     {MIDI_CC_NONE, MIDI_CC_NONE, MIDI_CC_NONE, MIDI_CC_NONE, MIDI_CC_NONE, MIDI_CC_NONE, MIDI_CC_NONE, MIDI_CC_NONE},
     {MIDI_CC_NONE, MIDI_CC_NONE, MIDI_CC_NONE, MIDI_CC_NONE, MIDI_CC_NONE, MIDI_CC_NONE, MIDI_CC_NONE, MIDI_CC_NONE},
