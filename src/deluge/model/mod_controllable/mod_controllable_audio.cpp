@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "deluge/model/settings/runtime_feature_settings.h"
 #include "gui/l10n/l10n.h"
+#include "gui/views/automation_instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
@@ -1704,6 +1705,17 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 				//Set the new Parameter Value for the MIDI Learned Parameter
 				modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos,
 				                                                          modLength);
+
+				//if you're in automation view and editing the same parameter that was just updated
+				//by a learned midi knob, then re-render the pads on the automation editor grid
+				if (getRootUI() == &automationInstrumentClipView) {
+					InstrumentClip* clip = (InstrumentClip*)currentSong->currentClip;
+					int32_t id = modelStackWithParam->paramId;
+					Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+					if ((clip->lastSelectedParamID == id) && (clip->lastSelectedParamKind == kind)) {
+						uiNeedsRendering(&automationInstrumentClipView);
+					}
+				}
 			}
 		}
 	}
@@ -1779,8 +1791,25 @@ void ModControllableAudio::offerReceivedCCToMidiFollow(ModelStack* modelStack, C
 
 								//check if you should display name of the parameter that was changed and the value that has been set
 								if (midiEngine.midiFollowDisplayParam) {
-									Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-									view.displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos);
+									bool editingParamInAutomationView = false;
+									//if you're in automation view and editing the same parameter that was just updated
+									//by a learned midi knob, then re-render the pads on the automation editor grid
+									if (getRootUI() == &automationInstrumentClipView) {
+										InstrumentClip* clip = (InstrumentClip*)currentSong->currentClip;
+										int32_t id = modelStackWithParam->paramId;
+										Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+										if ((clip->lastSelectedParamID == id)
+										    && (clip->lastSelectedParamKind == kind)) {
+											uiNeedsRendering(&automationInstrumentClipView);
+											editingParamInAutomationView = true;
+										}
+									}
+									//if you're in the automation view editor, don't display popup if you're currently editing the same param
+									if (!editingParamInAutomationView) {
+										Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+										view.displayModEncoderValuePopup(kind, modelStackWithParam->paramId,
+										                                 newKnobPos);
+									}
 								}
 							}
 						}
