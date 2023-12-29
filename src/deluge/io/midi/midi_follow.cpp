@@ -336,7 +336,7 @@ int32_t MidiFollow::getCCFromParam(Param::Kind paramKind, int32_t paramID) {
 }
 
 /// used to store the clip's for each note received so that note off's can be sent to the right clip
-PLACE_SDRAM_BSS Clip* clipForLastNoteReceived[kMaxMIDIValue + 1] = {0};
+PLACE_SDRAM_DATA Clip* clipForLastNoteReceived[kMaxMIDIValue + 1] = {0};
 
 /// called from playback handler
 /// determines whether a note message received is midi follow relevant

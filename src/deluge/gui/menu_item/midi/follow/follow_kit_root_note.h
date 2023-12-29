@@ -27,7 +27,7 @@ public:
 	void readCurrentValue() override { this->setValue(midiEngine.midiFollowKitRootNote); }
 	void writeCurrentValue() override { midiEngine.midiFollowKitRootNote = this->getValue(); }
 	[[nodiscard]] int32_t getMinValue() const override { return 0; }
-	[[nodiscard]] int32_t getMaxValue() const override { return 127; }
+	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMIDIValue; }
 	bool allowsLearnMode() override { return true; }
 
 	bool learnNoteOn(MIDIDevice* device, int32_t channel, int32_t noteCode) {

@@ -1685,8 +1685,8 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 					//if internal pos + 64 is greater than 127 (e.g. 128), adjust it to 127
 					//because midi can only send a max midi value of 127
 					int32_t knobPosForMidiValueComparison = knobPos + kKnobPosOffset;
-					if (knobPosForMidiValueComparison > 127) {
-						knobPosForMidiValueComparison = 127;
+					if (knobPosForMidiValueComparison > kMaxMIDIValue) {
+						knobPosForMidiValueComparison = kMaxMIDIValue;
 					}
 
 					//is the cc being received for the same value as the current knob pos? If so, do nothing
@@ -1771,8 +1771,8 @@ void ModControllableAudio::receivedCCFromMidiFollow(ModelStack* modelStack, Clip
 							//if internal pos + 64 is greater than 127 (e.g. 128), adjust it to 127
 							//because midi can only send a max midi value of 127
 							int32_t knobPosForMidiValueComparison = knobPos + kKnobPosOffset;
-							if (knobPosForMidiValueComparison > 127) {
-								knobPosForMidiValueComparison = 127;
+							if (knobPosForMidiValueComparison > kMaxMIDIValue) {
+								knobPosForMidiValueComparison = kMaxMIDIValue;
 							}
 
 							//is the cc being received for the same value as the current knob pos? If so, do nothing
@@ -1915,7 +1915,7 @@ int32_t ModControllableAudio::calculateKnobPosForMidiTakeover(ModelStackWithAuto
 	*/
 
 	int32_t midiKnobPos = 64;
-	if (value < 127) {
+	if (value < kMaxMIDIValue) {
 		midiKnobPos = value - 64;
 	}
 
