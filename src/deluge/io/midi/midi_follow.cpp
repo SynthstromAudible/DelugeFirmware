@@ -48,6 +48,24 @@ using namespace gui;
 #define MIDI_DEFAULTS_TAG "defaults"
 #define MIDI_DEFAULTS_CC_TAG "defaultCCMappings"
 
+const int32_t defaultParamToCCMapping[kDisplayWidth][kDisplayHeight] = {
+    {MIDI_CC_NONE, MIDI_CC_NONE, MIDI_CC_NONE, MIDI_CC_NONE, MIDI_CC_NONE, MIDI_CC_NONE, MIDI_CC_NONE, MIDI_CC_NONE},
+    {MIDI_CC_NONE, MIDI_CC_NONE, MIDI_CC_NONE, MIDI_CC_NONE, MIDI_CC_NONE, MIDI_CC_NONE, MIDI_CC_NONE, MIDI_CC_NONE},
+    {21, 12, MIDI_CC_NONE, 23, MIDI_CC_NONE, 24, 25, 41},
+    {26, 13, MIDI_CC_NONE, 28, MIDI_CC_NONE, 29, 30, MIDI_CC_NONE},
+    {54, 14, MIDI_CC_NONE, MIDI_CC_NONE, MIDI_CC_NONE, 55, MIDI_CC_NONE, MIDI_CC_NONE},
+    {56, 15, MIDI_CC_NONE, MIDI_CC_NONE, MIDI_CC_NONE, 57, MIDI_CC_NONE, MIDI_CC_NONE},
+    {7, 3, MIDI_CC_NONE, 10, MIDI_CC_NONE, 63, 62, MIDI_CC_NONE},
+    {5, MIDI_CC_NONE, MIDI_CC_NONE, MIDI_CC_NONE, MIDI_CC_NONE, MIDI_CC_NONE, MIDI_CC_NONE, 19},
+    {72, 76, 75, 73, 70, MIDI_CC_NONE, 71, 74},
+    {80, 79, 78, 77, 83, MIDI_CC_NONE, 82, 81},
+    {MIDI_CC_NONE, MIDI_CC_NONE, 61, MIDI_CC_NONE, 60, MIDI_CC_NONE, 86, 84},
+    {51, MIDI_CC_NONE, 50, MIDI_CC_NONE, MIDI_CC_NONE, MIDI_CC_NONE, 87, 85},
+    {58, MIDI_CC_NONE, MIDI_CC_NONE, MIDI_CC_NONE, 18, 17, 93, 16},
+    {59, MIDI_CC_NONE, MIDI_CC_NONE, 91, MIDI_CC_NONE, MIDI_CC_NONE, MIDI_CC_NONE, MIDI_CC_NONE},
+    {53, MIDI_CC_NONE, MIDI_CC_NONE, 52, MIDI_CC_NONE, MIDI_CC_NONE, MIDI_CC_NONE, MIDI_CC_NONE},
+    {MIDI_CC_NONE, MIDI_CC_NONE, MIDI_CC_NONE, MIDI_CC_NONE, MIDI_CC_NONE, MIDI_CC_NONE, MIDI_CC_NONE, MIDI_CC_NONE}};
+
 MidiFollow midiFollow{};
 
 //initialize variables
@@ -73,7 +91,7 @@ void MidiFollow::init() {
 void MidiFollow::initMapping(int32_t mapping[kDisplayWidth][kDisplayHeight]) {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-			mapping[xDisplay][yDisplay] = kNoSelection;
+			mapping[xDisplay][yDisplay] = defaultParamToCCMapping[xDisplay][yDisplay];
 		}
 	}
 }
@@ -250,7 +268,7 @@ int32_t MidiFollow::getCCFromParam(Param::Kind paramKind, int32_t paramID) {
 			}
 		}
 	}
-	return kNoSelection;
+	return MIDI_CC_NONE;
 }
 
 /// called from playback handler
@@ -622,12 +640,15 @@ void MidiFollow::readDefaultsFromFile() {
 	bool success = storageManager.fileExists(MIDI_DEFAULTS_XML, &fp);
 	if (!success) {
 		writeDefaultsToFile();
+		successfullyReadDefaultsFromFile = true;
 		return;
 	}
 
 	//<defaults>
 	int32_t error = storageManager.openXMLFile(&fp, MIDI_DEFAULTS_TAG);
 	if (error) {
+		writeDefaultsToFile();
+		successfullyReadDefaultsFromFile = true;
 		return;
 	}
 

@@ -1825,11 +1825,11 @@ void ModControllableAudio::sendCCWithoutModelStackForMidiFollowFeedback(bool isA
 		//loop through the grid to see if any parameters have been learned
 		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 			for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-				if (midiFollow.paramToCC[xDisplay][yDisplay] != kNoSelection) {
+				if (midiFollow.paramToCC[xDisplay][yDisplay] != MIDI_CC_NONE) {
 					//obtain the model stack for the parameter that has been learned
 					ModelStackWithAutoParam* modelStackWithParam =
 					    midiFollow.getModelStackWithParam(modelStackWithThreeMainThings, modelStackWithTimelineCounter,
-					                                      clip, xDisplay, yDisplay, kNoSelection, false);
+					                                      clip, xDisplay, yDisplay, MIDI_CC_NONE, false);
 					//check that model stack is valid
 					if (modelStackWithParam && modelStackWithParam->autoParam) {
 						if (modelStackWithParam->getTimelineCounter()

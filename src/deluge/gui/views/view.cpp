@@ -1317,7 +1317,7 @@ void View::sendMidiFollowFeedback(ModelStackWithAutoParam* modelStackWithParam, 
 		if (modelStackWithParam && modelStackWithParam->autoParam) {
 			Param::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 			int32_t ccNumber = midiFollow.getCCFromParam(kind, modelStackWithParam->paramId);
-			if (ccNumber != kNoSelection) {
+			if (ccNumber != MIDI_CC_NONE) {
 				((ModControllableAudio*)activeModControllableModelStack.modControllable)
 				    ->sendCCForMidiFollowFeedback(ccNumber, knobPos);
 			}

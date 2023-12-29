@@ -1081,6 +1081,7 @@ constexpr int32_t MIDI_CHANNEL_MPE_LOWER_ZONE = 16;
 constexpr int32_t MIDI_CHANNEL_MPE_UPPER_ZONE = 17;
 constexpr int32_t NUM_CHANNELS = 18;
 constexpr int32_t MIDI_CHANNEL_NONE = 255;
+constexpr int32_t MIDI_CC_NONE = 255;
 
 constexpr int32_t IS_A_CC = NUM_CHANNELS;
 // To be used instead of MIDI_CHANNEL_MPE_LOWER_ZONE etc for functions that require a "midi output filter". Although in

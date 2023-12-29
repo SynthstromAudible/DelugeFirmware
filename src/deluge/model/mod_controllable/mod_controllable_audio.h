@@ -167,7 +167,7 @@ public:
 private:
 	int32_t calculateKnobPosForMidiTakeover(ModelStackWithAutoParam* modelStackWithParam, int32_t knobPos,
 	                                        int32_t value, MIDIKnob* knob = nullptr, bool doingMidiFollow = false,
-	                                        int32_t ccNumber = kNoSelection);
+	                                        int32_t ccNumber = MIDI_CC_NONE);
 
 protected:
 	void processFX(StereoSample* buffer, int32_t numSamples, ModFXType modFXType, int32_t modFXRate, int32_t modFXDepth,
