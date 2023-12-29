@@ -62,13 +62,13 @@ public:
 		yPixel += kTextSpacingY;
 
 		char const* channelText;
-		if (midiFollow.channelOrZone == MIDI_CHANNEL_MPE_LOWER_ZONE) {
+		if (this->getValue() == MIDI_CHANNEL_MPE_LOWER_ZONE) {
 			channelText = l10n::get(l10n::String::STRING_FOR_MPE_LOWER_ZONE);
 		}
-		else if (midiFollow.channelOrZone == MIDI_CHANNEL_MPE_UPPER_ZONE) {
+		else if (this->getValue() == MIDI_CHANNEL_MPE_UPPER_ZONE) {
 			channelText = l10n::get(l10n::String::STRING_FOR_MPE_UPPER_ZONE);
 		}
-		else if (midiFollow.channelOrZone == MIDI_CHANNEL_NONE) {
+		else if (this->getValue() == MIDI_CHANNEL_NONE) {
 			channelText = l10n::get(l10n::String::STRING_FOR_FOLLOW_CHANNEL_UNASSIGNED);
 		}
 		else {
@@ -100,17 +100,28 @@ public:
 	}
 
 	void selectEncoderAction(int32_t offset) override {
-		this->setValue(this->getValue() + offset);
-		if (this->getValue() >= NUM_CHANNELS) {
-			this->setValue(this->getValue() - NUM_CHANNELS);
+		if (this->getValue() == MIDI_CHANNEL_NONE) {
+			if (offset > 0) {
+				this->setValue(0);
+			}
+			else if (offset < 0) {
+				this->setValue(MIDI_CHANNEL_MPE_UPPER_ZONE);
+			}
 		}
-		else if (this->getValue() < 0) {
-			this->setValue(this->getValue() + NUM_CHANNELS);
+		else {
+			this->setValue(this->getValue() + offset);
+			if (this->getValue() >= NUM_CHANNELS) {
+				this->setValue(this->getValue() - NUM_CHANNELS);
+			}
+			else if (this->getValue() < 0) {
+				this->setValue(this->getValue() + NUM_CHANNELS);
+			}
 		}
 		Number::selectEncoderAction(offset);
 	}
 
 	void unlearnAction() {
+		this->setValue(MIDI_CHANNEL_NONE);
 		midiFollow.clear();
 		if (soundEditor.getCurrentMenuItem() == this) {
 			if (display->haveOLED()) {
