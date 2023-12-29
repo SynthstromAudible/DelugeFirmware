@@ -80,12 +80,11 @@ void MidiFollow::init() {
 
 	initMapping(paramToCC);
 
-	for (int32_t i = 0; i < 128; i++) {
+	for (int32_t i = 0; i < (kMaxMIDIValue + 1); i++) {
 		timeLastCCSent[i] = 0;
 		previousKnobPos[i] = kNoSelection;
+		clipForLastNoteReceived[i] = nullptr;
 	}
-
-	clipForLastNoteReceived = nullptr;
 
 	timeAutomationFeedbackLastSent = 0;
 }
@@ -280,12 +279,14 @@ void MidiFollow::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32_t ch
                                      bool* doingMidiThru, bool shouldRecordNotesNowNow, ModelStack* modelStack) {
 	// midi follow mode
 	if (midiEngine.midiFollow) {
-		Clip* clip = getClipForMidiFollow(true);
-		if (!on && !clip) {
-			// for note off's when you're no longer in an active clip,
-			// see if a note on message was previously sent so you can
+		Clip* clip;
+		if (on) {
+			clip = getClipForMidiFollow(true);
+		}
+		else {
+			// for note off's, see if a note on message was previously sent so you can
 			// direct the note off to the right place
-			clip = clipForLastNoteReceived;
+			clip = clipForLastNoteReceived[note];
 		}
 
 		// Only send if not muted - but let note-offs through always, for safety
@@ -306,7 +307,7 @@ void MidiFollow::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32_t ch
 					                                     velocity, shouldRecordNotes, doingMidiThru, clip);
 				}
 				if (on) {
-					clipForLastNoteReceived = clip;
+					clipForLastNoteReceived[note] = clip;
 				}
 			}
 		}
@@ -363,7 +364,7 @@ void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t
 				if (match != MIDIMatchType::NO_MATCH) {
 					// See if it's learned to a parameter
 					((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
-					    ->offerReceivedCCToMidiFollow(modelStack, clip, ccNumber, value);
+					    ->receivedCCFromMidiFollow(modelStack, clip, ccNumber, value);
 				}
 			}
 		}

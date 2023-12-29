@@ -36,7 +36,6 @@ public:
 
 	//midi follow context
 	Clip* getClipForMidiFollow(bool useActiveClip = false);
-	Clip* clipForLastNoteReceived;
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithThreeMainThings* modelStackWithThreeMainThings,
 	                                                ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
 	                                                Clip* clip, int32_t xDisplay, int32_t yDisplay, int32_t ccNumber,
@@ -54,8 +53,8 @@ public:
 	int32_t getCCFromParam(Param::Kind paramKind, int32_t paramID);
 
 	int32_t paramToCC[kDisplayWidth][kDisplayHeight];
-	int32_t previousKnobPos[kMaxCCNumber + 1];
-	uint32_t timeLastCCSent[kMaxCCNumber + 1];
+	int32_t previousKnobPos[kMaxMIDIValue + 1];
+	uint32_t timeLastCCSent[kMaxMIDIValue + 1];
 	uint32_t timeAutomationFeedbackLastSent;
 
 private:
@@ -64,6 +63,7 @@ private:
 	void initMapping(int32_t mapping[kDisplayWidth][kDisplayHeight]);
 
 	//midi follow
+	Clip* clipForLastNoteReceived[kMaxMIDIValue + 1];
 	void offerReceivedNoteToKit(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on,
 	                            int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
 	                            bool* doingMidiThru, Clip* clip);

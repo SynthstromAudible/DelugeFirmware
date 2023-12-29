@@ -74,6 +74,10 @@ public:
 		         == MIDI_CHANNEL_MPE_UPPER_ZONE) {
 			channelText = l10n::get(l10n::String::STRING_FOR_MPE_UPPER_ZONE);
 		}
+		else if (midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)].channelOrZone
+		         == MIDI_CHANNEL_NONE) {
+			channelText = l10n::get(l10n::String::STRING_FOR_FOLLOW_CHANNEL_UNASSIGNED);
+		}
 		else {
 			channelText = l10n::get(l10n::String::STRING_FOR_CHANNEL);
 			char buffer[12];
@@ -99,6 +103,9 @@ public:
 		else if (this->getValue() == MIDI_CHANNEL_MPE_UPPER_ZONE) {
 			display->setText(l10n::get(l10n::String::STRING_FOR_MPE_UPPER_ZONE));
 		}
+		else if (this->getValue() == MIDI_CHANNEL_NONE) {
+			display->setText(l10n::get(l10n::String::STRING_FOR_NONE));
+		}
 		else {
 			display->setTextAsNumber(this->getValue() + 1);
 		}
@@ -117,6 +124,7 @@ public:
 
 	void unlearnAction() {
 		midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)].device = NULL;
+		midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)].channelOrZone = MIDI_CHANNEL_NONE;
 		if (soundEditor.getCurrentMenuItem() == this) {
 			if (display->haveOLED()) {
 				renderUIsForOled();
