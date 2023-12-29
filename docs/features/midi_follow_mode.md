@@ -82,10 +82,9 @@ Here are the Midi CC #'s that have been reserved for other purposes:
 #### Adjust Midi CC Mappings
 Midi CC mappings for Midi Follow Mode are saved to the root of your SD card in an XML file called MIDIFollow.XML
 
-Within MIDIFollow.XML, all Parameters that can mapped to a Midi CC are listed. The Midi CC value is enclosed between a Parameter XML tag - e.g. `<lpfFrequency>74</lpfFrequency>` indicates that Midi CC is mapped to the LPF Frequency parameter. Conversely when a value of 255 is entered (e.g. `<hpfFrequency>255</hpfFrequency>`) it indicates that no Midi CC value has been mapped to that parameter.
+Within MIDIFollow.XML, all Parameters that can mapped to a Midi CC are listed. The Midi CC value is enclosed between a Parameter XML tag - e.g. `<lpfFrequency>74</lpfFrequency>` indicates that Midi CC 74 is mapped to the LPF Frequency parameter. Conversely when a value of 255 is entered (e.g. `<hpfFrequency>255</hpfFrequency>`) it indicates that no Midi CC value has been mapped to that parameter.
 
-<img width="478" alt="Screen Shot 2023-12-02 at 4 34 59 PM" src="https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/674ace78-3b31-4a34-b3d0-15832b204b74">
-
+![image](https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/1ae66f8b-1627-4e2f-a05d-fd7a8c73b62f)
 You can manually edit the MIDIFollow.XML to enter your Midi CC mappings to each Parameter. 
 
 The defaults from MIDIFollow.XML are loaded automatically when you start the Deluge so you can begin controlling the deluge with your MIDI controller right away. 
