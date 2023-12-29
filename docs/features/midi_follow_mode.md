@@ -66,10 +66,23 @@ The parameters are controlled only in the current context.
 
 Note: You can control the parameters of a synth or kit clip without entering the clip from arranger or song view. Simply press and hold the clip in arranger or song view to preview the clip (as you would to change the parameters of that clip with the gold encoders) and then send midi cc's from your midi controller.
 
+#### Default Midi CC Mappings
+A default set of Midi CC # to Deluge Parameter mappings has been created for Midi Follow Mode. When you launch the Deluge after installing the firmware with Midi Follow Mode, an XML file will be created to the root folder of the SD card titled "MIDIFollow.XML"
+
+The default mappings have taken into account standard MIDI CC to parameter mappings and usages. It has also taken into account reserving of MIDI CC's for future Deluge functionality / feature implementations.
+
+The default Midi CC to parameter mappings, as mapped the to the parameter shortcuts on the Deluge grid are as follows:
+
+![image](https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/e5c6ecbf-e21e-4b3b-9cfc-8f433a56ed28)
+
+Here are the Midi CC #'s that have been reserved for other purposes:
+
+![image](https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/f076d9c8-d25f-4d13-a631-be552f84d7c8)
+
 #### Adjust Midi CC Mappings
 Midi CC mappings for Midi Follow Mode are saved to the root of your SD card in an XML file called MIDIFollow.XML
 
-Within MIDIFollow.XML, all Parameters that can mapped to a Midi CC are listed. The Midi CC value is enclosed between a Parameter XML tag - e.g. `<lpfFrequency>49</lpfFrequency>` indicates that Midi CC is mapped to the LPF Frequency parameter. Conversely when a value of 255 is entered (e.g. `<hpfFrequency>255</hpfFrequency>`) it indicates that no Midi CC value has been mapped to that parameter.
+Within MIDIFollow.XML, all Parameters that can mapped to a Midi CC are listed. The Midi CC value is enclosed between a Parameter XML tag - e.g. `<lpfFrequency>74</lpfFrequency>` indicates that Midi CC is mapped to the LPF Frequency parameter. Conversely when a value of 255 is entered (e.g. `<hpfFrequency>255</hpfFrequency>`) it indicates that no Midi CC value has been mapped to that parameter.
 
 <img width="478" alt="Screen Shot 2023-12-02 at 4 34 59 PM" src="https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/674ace78-3b31-4a34-b3d0-15832b204b74">
 
