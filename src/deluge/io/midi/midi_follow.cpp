@@ -279,35 +279,40 @@ void MidiFollow::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32_t ch
                                      bool* doingMidiThru, bool shouldRecordNotesNowNow, ModelStack* modelStack) {
 	// midi follow mode
 	if (midiEngine.midiFollow) {
-		Clip* clip;
-		if (on) {
-			clip = getClipForMidiFollow(true);
-		}
-		else {
-			// for note off's, see if a note on message was previously sent so you can
-			// direct the note off to the right place
-			clip = clipForLastNoteReceived[note];
-		}
+		MIDIMatchType matchSynth = checkMidiFollowMatch(fromDevice, channel, MIDIFollowChannelType::SYNTH);
+		MIDIMatchType matchKit = checkMidiFollowMatch(fromDevice, channel, MIDIFollowChannelType::KIT);
+		if ((matchSynth != MIDIMatchType::NO_MATCH) || (matchKit != MIDIMatchType::NO_MATCH)) {
+			Clip* clip;
+			if (on) {
+				clip = getClipForMidiFollow(true);
+			}
+			else {
+				// for note off's, see if a note on message was previously sent so you can
+				// direct the note off to the right place
+				clip = clipForLastNoteReceived[note];
+			}
 
-		// Only send if not muted - but let note-offs through always, for safety
-		if (clip && (!on || currentSong->isOutputActiveInArrangement(clip->output))) {
-			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
-			//Output is a kit or melodic instrument
-			//Note: Midi instruments not currently supported for midi follow mode
-			if (modelStackWithTimelineCounter) {
-				// Definitely don't record if muted in arrangement
-				bool shouldRecordNotes =
-				    shouldRecordNotesNowNow && currentSong->isOutputActiveInArrangement(clip->output);
-				if (clip->output->type == InstrumentType::KIT) {
-					offerReceivedNoteToKit(modelStackWithTimelineCounter, fromDevice, on, channel, note, velocity,
-					                       shouldRecordNotes, doingMidiThru, clip);
-				}
-				else {
-					offerReceivedNoteToMelodicInstrument(modelStackWithTimelineCounter, fromDevice, on, channel, note,
-					                                     velocity, shouldRecordNotes, doingMidiThru, clip);
-				}
-				if (on) {
-					clipForLastNoteReceived[note] = clip;
+			// Only send if not muted - but let note-offs through always, for safety
+			if (clip && (!on || currentSong->isOutputActiveInArrangement(clip->output))) {
+				ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
+				//Output is a kit or melodic instrument
+				//Note: Midi instruments not currently supported for midi follow mode
+				if (modelStackWithTimelineCounter) {
+					// Definitely don't record if muted in arrangement
+					bool shouldRecordNotes =
+					    shouldRecordNotesNowNow && currentSong->isOutputActiveInArrangement(clip->output);
+					if ((clip->output->type == InstrumentType::KIT) && (matchKit != MIDIMatchType::NO_MATCH)) {
+						offerReceivedNoteToKit(modelStackWithTimelineCounter, fromDevice, on, channel, note, velocity,
+						                       shouldRecordNotes, doingMidiThru, clip);
+					}
+					else if (matchSynth != MIDIMatchType::NO_MATCH) {
+						offerReceivedNoteToMelodicInstrument(modelStackWithTimelineCounter, fromDevice, matchSynth, on,
+						                                     channel, note, velocity, shouldRecordNotes, doingMidiThru,
+						                                     clip);
+					}
+					if (on) {
+						clipForLastNoteReceived[note] = clip;
+					}
 				}
 			}
 		}
@@ -317,28 +322,20 @@ void MidiFollow::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32_t ch
 void MidiFollow::offerReceivedNoteToKit(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on,
                                         int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
                                         bool* doingMidiThru, Clip* clip) {
-	MIDIMatchType match = checkMidiFollowMatch(fromDevice, channel, MIDIFollowChannelType::KIT);
+	Kit* kit = (Kit*)clip->output;
+	Drum* thisDrum = getDrumFromNoteCode(kit, note);
 
-	if (match != MIDIMatchType::NO_MATCH) {
-		Kit* kit = (Kit*)clip->output;
-		Drum* thisDrum = getDrumFromNoteCode(kit, note);
-
-		kit->receivedNoteForDrum(modelStack, fromDevice, on, channel, note, velocity, shouldRecordNotes, doingMidiThru,
-		                         thisDrum);
-	}
+	kit->receivedNoteForDrum(modelStack, fromDevice, on, channel, note, velocity, shouldRecordNotes, doingMidiThru,
+	                         thisDrum);
 }
 
 void MidiFollow::offerReceivedNoteToMelodicInstrument(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                                      MIDIDevice* fromDevice, bool on, int32_t channel, int32_t note,
-                                                      int32_t velocity, bool shouldRecordNotes, bool* doingMidiThru,
-                                                      Clip* clip) {
-	MIDIMatchType match = checkMidiFollowMatch(fromDevice, channel, MIDIFollowChannelType::SYNTH);
-
-	if (match != MIDIMatchType::NO_MATCH) {
-		MelodicInstrument* melodicInstrument = (MelodicInstrument*)clip->output;
-		melodicInstrument->receivedNote(modelStackWithTimelineCounter, fromDevice, on, channel, match, note, velocity,
-		                                shouldRecordNotes, doingMidiThru);
-	}
+                                                      MIDIDevice* fromDevice, MIDIMatchType match, bool on,
+                                                      int32_t channel, int32_t note, int32_t velocity,
+                                                      bool shouldRecordNotes, bool* doingMidiThru, Clip* clip) {
+	MelodicInstrument* melodicInstrument = (MelodicInstrument*)clip->output;
+	melodicInstrument->receivedNote(modelStackWithTimelineCounter, fromDevice, on, channel, match, note, velocity,
+	                                shouldRecordNotes, doingMidiThru);
 }
 
 /// called from playback handler
@@ -348,40 +345,49 @@ void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t
                                 bool* doingMidiThru, bool isMPE, ModelStack* modelStack) {
 	// midi follow mode
 	if (midiEngine.midiFollow) {
-		//obtain clip for active context (for params that's only for the active mod controllable stack)
-		Clip* clip = getClipForMidiFollow();
-		if (!isMPE && view.activeModControllableModelStack.modControllable) {
-			//if midi follow feedback and feedback filter is enabled,
-			//check time elapsed since last midi cc was sent with midi feedback for this same ccNumber
-			//if it was greater or equal than 1 second ago, allow received midi cc to go through
-			//this helps avoid additional processing of midi cc's receiver
-			if (!midiEngine.midiFollowFeedback
-			    || (midiEngine.midiFollowFeedback
-			        && (!midiEngine.midiFollowFeedbackFilter
-			            || (midiEngine.midiFollowFeedbackFilter
-			                && ((AudioEngine::audioSampleTimer - timeLastCCSent[ccNumber]) >= kSampleRate))))) {
-				MIDIMatchType match = checkMidiFollowMatch(fromDevice, channel, MIDIFollowChannelType::PARAM);
-				if (match != MIDIMatchType::NO_MATCH) {
+		MIDIMatchType matchSynth = checkMidiFollowMatch(fromDevice, channel, MIDIFollowChannelType::SYNTH);
+		MIDIMatchType matchKit = checkMidiFollowMatch(fromDevice, channel, MIDIFollowChannelType::KIT);
+		MIDIMatchType matchParam = checkMidiFollowMatch(fromDevice, channel, MIDIFollowChannelType::PARAM);
+		if ((matchSynth != MIDIMatchType::NO_MATCH)
+		    || (matchKit == MIDIMatchType::MPE_MASTER || matchKit == MIDIMatchType::MPE_MEMBER)
+		    || (matchParam != MIDIMatchType::NO_MATCH)) {
+			//obtain clip for active context (for params that's only for the active mod controllable stack)
+			Clip* clip = getClipForMidiFollow();
+			if (!isMPE && view.activeModControllableModelStack.modControllable
+			    && (matchParam != MIDIMatchType::NO_MATCH)) {
+				//if midi follow feedback and feedback filter is enabled,
+				//check time elapsed since last midi cc was sent with midi feedback for this same ccNumber
+				//if it was greater or equal than 1 second ago, allow received midi cc to go through
+				//this helps avoid additional processing of midi cc's receiver
+				if (!midiEngine.midiFollowFeedback
+				    || (midiEngine.midiFollowFeedback
+				        && (!midiEngine.midiFollowFeedbackFilter
+				            || (midiEngine.midiFollowFeedbackFilter
+				                && ((AudioEngine::audioSampleTimer - timeLastCCSent[ccNumber]) >= kSampleRate))))) {
 					// See if it's learned to a parameter
 					((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
 					    ->receivedCCFromMidiFollow(modelStack, clip, ccNumber, value);
 				}
 			}
-		}
-		//for these cc's, check if there's an active clip if the clip returned above is NULL
-		if (!clip) {
-			clip = currentSong->currentClip;
-		}
-		if (clip) {
-			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
-			if (modelStackWithTimelineCounter) {
-				if (clip->output->type == InstrumentType::KIT) {
-					offerReceivedCCToKit(modelStackWithTimelineCounter, fromDevice, channel, ccNumber, value,
-					                     doingMidiThru, clip);
+			if ((matchSynth != MIDIMatchType::NO_MATCH)
+			    || (matchKit == MIDIMatchType::MPE_MASTER || matchKit == MIDIMatchType::MPE_MEMBER)) {
+				//for these cc's, check if there's an active clip if the clip returned above is NULL
+				if (!clip) {
+					clip = currentSong->currentClip;
 				}
-				else {
-					offerReceivedCCToMelodicInstrument(modelStackWithTimelineCounter, fromDevice, channel, ccNumber,
-					                                   value, doingMidiThru, clip);
+				if (clip) {
+					ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
+					if (modelStackWithTimelineCounter) {
+						if ((clip->output->type == InstrumentType::KIT)
+						    && (matchKit == MIDIMatchType::MPE_MASTER || matchKit == MIDIMatchType::MPE_MEMBER)) {
+							offerReceivedCCToKit(modelStackWithTimelineCounter, fromDevice, matchKit, channel, ccNumber,
+							                     value, doingMidiThru, clip);
+						}
+						else if (matchSynth != MIDIMatchType::NO_MATCH) {
+							offerReceivedCCToMelodicInstrument(modelStackWithTimelineCounter, fromDevice, matchSynth,
+							                                   channel, ccNumber, value, doingMidiThru, clip);
+						}
+					}
 				}
 			}
 		}
@@ -389,8 +395,8 @@ void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t
 }
 
 void MidiFollow::offerReceivedCCToKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                      MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
-                                      bool* doingMidiThru, Clip* clip) {
+                                      MIDIDevice* fromDevice, MIDIMatchType match, uint8_t channel, uint8_t ccNumber,
+                                      uint8_t value, bool* doingMidiThru, Clip* clip) {
 	if (ccNumber != 74) {
 		return;
 	}
@@ -398,28 +404,20 @@ void MidiFollow::offerReceivedCCToKit(ModelStackWithTimelineCounter* modelStackW
 		return;
 	}
 
-	MIDIMatchType match = checkMidiFollowMatch(fromDevice, channel, MIDIFollowChannelType::KIT);
+	Kit* kit = (Kit*)clip->output;
+	Drum* firstDrum = kit->getDrumFromIndex(0);
 
-	if (match == MIDIMatchType::MPE_MASTER || match == MIDIMatchType::MPE_MEMBER) {
-		Kit* kit = (Kit*)clip->output;
-		Drum* firstDrum = kit->getDrumFromIndex(0);
-
-		for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-			kit->receivedMPEYForDrum(modelStackWithTimelineCounter, thisDrum, match, channel, value);
-		}
+	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
+		kit->receivedMPEYForDrum(modelStackWithTimelineCounter, thisDrum, match, channel, value);
 	}
 }
 
 void MidiFollow::offerReceivedCCToMelodicInstrument(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                                    MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber,
-                                                    uint8_t value, bool* doingMidiThru, Clip* clip) {
-	MIDIMatchType match = checkMidiFollowMatch(fromDevice, channel, MIDIFollowChannelType::SYNTH);
-
-	if (match != MIDIMatchType::NO_MATCH) {
-		MelodicInstrument* melodicInstrument = (MelodicInstrument*)clip->output;
-		melodicInstrument->receivedCC(modelStackWithTimelineCounter, fromDevice, match, channel, ccNumber, value,
-		                              doingMidiThru);
-	}
+                                                    MIDIDevice* fromDevice, MIDIMatchType match, uint8_t channel,
+                                                    uint8_t ccNumber, uint8_t value, bool* doingMidiThru, Clip* clip) {
+	MelodicInstrument* melodicInstrument = (MelodicInstrument*)clip->output;
+	melodicInstrument->receivedCC(modelStackWithTimelineCounter, fromDevice, match, channel, ccNumber, value,
+	                              doingMidiThru);
 }
 
 /// called from playback handler
@@ -429,19 +427,23 @@ void MidiFollow::pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel, uint
                                    bool* doingMidiThru, ModelStack* modelStack) {
 	// midi follow mode
 	if (midiEngine.midiFollow) {
-		//obtain clip for active context
-		Clip* clip = getClipForMidiFollow(true);
-		if (clip) {
-			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
+		MIDIMatchType matchSynth = checkMidiFollowMatch(fromDevice, channel, MIDIFollowChannelType::SYNTH);
+		MIDIMatchType matchKit = checkMidiFollowMatch(fromDevice, channel, MIDIFollowChannelType::KIT);
+		if ((matchSynth != MIDIMatchType::NO_MATCH) || (matchKit != MIDIMatchType::NO_MATCH)) {
+			//obtain clip for active context
+			Clip* clip = getClipForMidiFollow(true);
+			if (clip) {
+				ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
-			if (modelStackWithTimelineCounter) {
-				if (clip->output->type == InstrumentType::KIT) {
-					offerReceivedPitchBendToKit(modelStackWithTimelineCounter, fromDevice, channel, data1, data2,
-					                            doingMidiThru, clip);
-				}
-				else {
-					offerReceivedPitchBendToMelodicInstrument(modelStackWithTimelineCounter, fromDevice, channel, data1,
-					                                          data2, doingMidiThru, clip);
+				if (modelStackWithTimelineCounter) {
+					if ((clip->output->type == InstrumentType::KIT) && (matchKit != MIDIMatchType::NO_MATCH)) {
+						offerReceivedPitchBendToKit(modelStackWithTimelineCounter, fromDevice, matchKit, channel, data1,
+						                            data2, doingMidiThru, clip);
+					}
+					else if (matchSynth != MIDIMatchType::NO_MATCH) {
+						offerReceivedPitchBendToMelodicInstrument(modelStackWithTimelineCounter, fromDevice, matchSynth,
+						                                          channel, data1, data2, doingMidiThru, clip);
+					}
 				}
 			}
 		}
@@ -449,31 +451,24 @@ void MidiFollow::pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel, uint
 }
 
 void MidiFollow::offerReceivedPitchBendToKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                             MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
-                                             bool* doingMidiThru, Clip* clip) {
-	MIDIMatchType match = checkMidiFollowMatch(fromDevice, channel, MIDIFollowChannelType::KIT);
+                                             MIDIDevice* fromDevice, MIDIMatchType match, uint8_t channel,
+                                             uint8_t data1, uint8_t data2, bool* doingMidiThru, Clip* clip) {
+	Kit* kit = (Kit*)clip->output;
+	Drum* firstDrum = kit->getDrumFromIndex(0);
 
-	if (match != MIDIMatchType::NO_MATCH) {
-		Kit* kit = (Kit*)clip->output;
-		Drum* firstDrum = kit->getDrumFromIndex(0);
-
-		for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-			kit->receivedPitchBendForDrum(modelStackWithTimelineCounter, thisDrum, data1, data2, match, channel,
-			                              doingMidiThru);
-		}
+	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
+		kit->receivedPitchBendForDrum(modelStackWithTimelineCounter, thisDrum, data1, data2, match, channel,
+		                              doingMidiThru);
 	}
 }
 
 void MidiFollow::offerReceivedPitchBendToMelodicInstrument(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                                           MIDIDevice* fromDevice, uint8_t channel, uint8_t data1,
-                                                           uint8_t data2, bool* doingMidiThru, Clip* clip) {
-	MIDIMatchType match = checkMidiFollowMatch(fromDevice, channel, MIDIFollowChannelType::SYNTH);
-
-	if (match != MIDIMatchType::NO_MATCH) {
-		MelodicInstrument* melodicInstrument = (MelodicInstrument*)clip->output;
-		melodicInstrument->receivedPitchBend(modelStackWithTimelineCounter, fromDevice, match, channel, data1, data2,
-		                                     doingMidiThru);
-	}
+                                                           MIDIDevice* fromDevice, MIDIMatchType match, uint8_t channel,
+                                                           uint8_t data1, uint8_t data2, bool* doingMidiThru,
+                                                           Clip* clip) {
+	MelodicInstrument* melodicInstrument = (MelodicInstrument*)clip->output;
+	melodicInstrument->receivedPitchBend(modelStackWithTimelineCounter, fromDevice, match, channel, data1, data2,
+	                                     doingMidiThru);
 }
 
 /// called from playback handler
@@ -483,19 +478,24 @@ void MidiFollow::aftertouchReceived(MIDIDevice* fromDevice, int32_t channel, int
                                     bool* doingMidiThru, ModelStack* modelStack) {
 	// midi follow mode
 	if (midiEngine.midiFollow) {
-		//obtain clip for active context
-		Clip* clip = getClipForMidiFollow(true);
-		if (clip) {
-			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
+		MIDIMatchType matchSynth = checkMidiFollowMatch(fromDevice, channel, MIDIFollowChannelType::SYNTH);
+		MIDIMatchType matchKit = checkMidiFollowMatch(fromDevice, channel, MIDIFollowChannelType::KIT);
+		if ((matchSynth != MIDIMatchType::NO_MATCH) || (matchKit != MIDIMatchType::NO_MATCH)) {
+			//obtain clip for active context
+			Clip* clip = getClipForMidiFollow(true);
+			if (clip) {
+				ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
-			if (modelStackWithTimelineCounter) {
-				if (clip->output->type == InstrumentType::KIT) {
-					offerReceivedAftertouchToKit(modelStackWithTimelineCounter, fromDevice, channel, value, noteCode,
-					                             doingMidiThru, clip);
-				}
-				else {
-					offerReceivedAftertouchToMelodicInstrument(modelStackWithTimelineCounter, fromDevice, channel,
-					                                           value, noteCode, doingMidiThru, clip);
+				if (modelStackWithTimelineCounter) {
+					if ((clip->output->type == InstrumentType::KIT) && (matchKit != MIDIMatchType::NO_MATCH)) {
+						offerReceivedAftertouchToKit(modelStackWithTimelineCounter, fromDevice, matchKit, channel,
+						                             value, noteCode, doingMidiThru, clip);
+					}
+					else if (matchSynth != MIDIMatchType::NO_MATCH) {
+						offerReceivedAftertouchToMelodicInstrument(modelStackWithTimelineCounter, fromDevice,
+						                                           matchSynth, channel, value, noteCode, doingMidiThru,
+						                                           clip);
+					}
 				}
 			}
 		}
@@ -503,41 +503,34 @@ void MidiFollow::aftertouchReceived(MIDIDevice* fromDevice, int32_t channel, int
 }
 
 void MidiFollow::offerReceivedAftertouchToKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                              MIDIDevice* fromDevice, int32_t channel, int32_t value, int32_t noteCode,
-                                              bool* doingMidiThru, Clip* clip) {
-	MIDIMatchType match = checkMidiFollowMatch(fromDevice, channel, MIDIFollowChannelType::KIT);
-
-	if (match != MIDIMatchType::NO_MATCH) {
-		Kit* kit = (Kit*)clip->output;
-		// Channel pressure message...
-		if (noteCode == -1) {
-			Drum* firstDrum = kit->getDrumFromIndex(0);
-			for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-				int32_t level = BEND_RANGE_FINGER_LEVEL;
-				kit->receivedAftertouchForDrum(modelStackWithTimelineCounter, thisDrum, match, channel, value);
-			}
+                                              MIDIDevice* fromDevice, MIDIMatchType match, int32_t channel,
+                                              int32_t value, int32_t noteCode, bool* doingMidiThru, Clip* clip) {
+	Kit* kit = (Kit*)clip->output;
+	// Channel pressure message...
+	if (noteCode == -1) {
+		Drum* firstDrum = kit->getDrumFromIndex(0);
+		for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
+			int32_t level = BEND_RANGE_FINGER_LEVEL;
+			kit->receivedAftertouchForDrum(modelStackWithTimelineCounter, thisDrum, match, channel, value);
 		}
-		// Or a polyphonic aftertouch message - these aren't allowed for MPE except on the "master" channel.
-		else {
-			Drum* thisDrum = getDrumFromNoteCode(kit, noteCode);
-			if ((thisDrum != nullptr) && (channel == thisDrum->lastMIDIChannelAuditioned)) {
-				kit->receivedAftertouchForDrum(modelStackWithTimelineCounter, thisDrum, MIDIMatchType::CHANNEL, channel,
-				                               value);
-			}
+	}
+	// Or a polyphonic aftertouch message - these aren't allowed for MPE except on the "master" channel.
+	else {
+		Drum* thisDrum = getDrumFromNoteCode(kit, noteCode);
+		if ((thisDrum != nullptr) && (channel == thisDrum->lastMIDIChannelAuditioned)) {
+			kit->receivedAftertouchForDrum(modelStackWithTimelineCounter, thisDrum, MIDIMatchType::CHANNEL, channel,
+			                               value);
 		}
 	}
 }
 
 void MidiFollow::offerReceivedAftertouchToMelodicInstrument(
-    ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice, int32_t channel,
-    int32_t value, int32_t noteCode, bool* doingMidiThru, Clip* clip) {
-	MIDIMatchType match = checkMidiFollowMatch(fromDevice, channel, MIDIFollowChannelType::SYNTH);
+    ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice, MIDIMatchType match,
+    int32_t channel, int32_t value, int32_t noteCode, bool* doingMidiThru, Clip* clip) {
 
-	if (match != MIDIMatchType::NO_MATCH) {
-		MelodicInstrument* melodicInstrument = (MelodicInstrument*)clip->output;
-		melodicInstrument->receivedAftertouch(modelStackWithTimelineCounter, fromDevice, match, channel, value,
-		                                      noteCode, doingMidiThru);
-	}
+	MelodicInstrument* melodicInstrument = (MelodicInstrument*)clip->output;
+	melodicInstrument->receivedAftertouch(modelStackWithTimelineCounter, fromDevice, match, channel, value, noteCode,
+	                                      doingMidiThru);
 }
 
 /// obtain match to check if device is compatible with the midi follow channel

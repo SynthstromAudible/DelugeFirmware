@@ -124,7 +124,8 @@ public:
 
 	void unlearnAction() {
 		midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)].device = NULL;
-		midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)].channelOrZone = MIDI_CHANNEL_NONE;
+		midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)].channelOrZone =
+		    MIDI_CHANNEL_NONE;
 		if (soundEditor.getCurrentMenuItem() == this) {
 			if (display->haveOLED()) {
 				renderUIsForOled();

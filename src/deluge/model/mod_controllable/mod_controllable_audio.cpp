@@ -1728,7 +1728,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 /// this function works by first checking the active context to see if there is an active clip
 /// to determine if the cc intends to control a song level or clip level parameter
 void ModControllableAudio::receivedCCFromMidiFollow(ModelStack* modelStack, Clip* clip, int32_t ccNumber,
-                                                       int32_t value) {
+                                                    int32_t value) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
