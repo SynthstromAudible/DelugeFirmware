@@ -168,11 +168,11 @@ MidiFollow::getModelStackWithParamWithoutClip(ModelStackWithThreeMainThings* mod
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 	int32_t paramID = kNoParamID;
 
-	if (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-		paramID = unpatchedParamShortcuts[xDisplay][yDisplay];
+	if (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+		paramID = unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay];
 	}
-	else if (globalEffectableParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-		paramID = globalEffectableParamShortcuts[xDisplay][yDisplay];
+	else if (unpatchedGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+		paramID = unpatchedGlobalParamShortcuts[xDisplay][yDisplay];
 	}
 	if (paramID != kNoParamID) {
 		modelStackWithParam = performanceSessionView.getModelStackWithParam(modelStackWithThreeMainThings, paramID);
@@ -188,28 +188,26 @@ MidiFollow::getModelStackWithParamWithClip(ModelStackWithTimelineCounter* modelS
 	Param::Kind paramKind = Param::Kind::NONE;
 	int32_t paramID = kNoParamID;
 
-	InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 	Instrument* instrument = (Instrument*)clip->output;
 
 	if (instrument->type == OutputType::SYNTH) {
 		modelStackWithParam =
-		    getModelStackWithParamForSynthClip(modelStackWithTimelineCounter, instrumentClip, xDisplay, yDisplay);
+		    getModelStackWithParamForSynthClip(modelStackWithTimelineCounter, clip, xDisplay, yDisplay);
 	}
 	else if (instrument->type == OutputType::KIT) {
-		modelStackWithParam =
-		    getModelStackWithParamForKitClip(modelStackWithTimelineCounter, instrumentClip, xDisplay, yDisplay);
+		modelStackWithParam = getModelStackWithParamForKitClip(modelStackWithTimelineCounter, clip, xDisplay, yDisplay);
 	}
 	else if (instrument->type == OutputType::AUDIO) {
 		modelStackWithParam =
-		    getModelStackWithParamForAudioClip(modelStackWithTimelineCounter, instrumentClip, xDisplay, yDisplay);
+		    getModelStackWithParamForAudioClip(modelStackWithTimelineCounter, clip, xDisplay, yDisplay);
 	}
 
 	return modelStackWithParam;
 }
 
 ModelStackWithAutoParam*
-MidiFollow::getModelStackWithParamForSynthClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                               InstrumentClip* instrumentClip, int32_t xDisplay, int32_t yDisplay) {
+MidiFollow::getModelStackWithParamForSynthClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
+                                               int32_t xDisplay, int32_t yDisplay) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 	Param::Kind paramKind = Param::Kind::NONE;
 	int32_t paramID = kNoParamID;
@@ -218,21 +216,21 @@ MidiFollow::getModelStackWithParamForSynthClip(ModelStackWithTimelineCounter* mo
 		paramKind = Param::Kind::PATCHED;
 		paramID = patchedParamShortcuts[xDisplay][yDisplay];
 	}
-	else if (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+	else if (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
 		paramKind = Param::Kind::UNPATCHED_SOUND;
-		paramID = unpatchedParamShortcuts[xDisplay][yDisplay];
+		paramID = unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay];
 	}
 	if ((paramKind != Param::Kind::NONE) && (paramID != kNoParamID)) {
-		modelStackWithParam = automationInstrumentClipView.getModelStackWithParam(modelStackWithTimelineCounter,
-		                                                                          instrumentClip, paramID, paramKind);
+		modelStackWithParam = automationInstrumentClipView.getModelStackWithParam(modelStackWithTimelineCounter, clip,
+		                                                                          paramID, paramKind);
 	}
 
 	return modelStackWithParam;
 }
 
 ModelStackWithAutoParam*
-MidiFollow::getModelStackWithParamForKitClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                             InstrumentClip* instrumentClip, int32_t xDisplay, int32_t yDisplay) {
+MidiFollow::getModelStackWithParamForKitClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
+                                             int32_t xDisplay, int32_t yDisplay) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 	Param::Kind paramKind = Param::Kind::NONE;
 	int32_t paramID = kNoParamID;
@@ -242,50 +240,54 @@ MidiFollow::getModelStackWithParamForKitClip(ModelStackWithTimelineCounter* mode
 			paramKind = Param::Kind::PATCHED;
 			paramID = patchedParamShortcuts[xDisplay][yDisplay];
 		}
-		else if (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+		else if (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
 			//don't allow control of Portamento in Kit's
-			if (unpatchedParamShortcuts[xDisplay][yDisplay] != Param::Unpatched::Sound::PORTAMENTO) {
+			if (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != Param::Unpatched::Sound::PORTAMENTO) {
 				paramKind = Param::Kind::UNPATCHED_SOUND;
-				paramID = unpatchedParamShortcuts[xDisplay][yDisplay];
+				paramID = unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay];
 			}
 		}
 	}
 	else {
-		if (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+		if (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
 			//don't allow control of Portamento or Arp Gate in Kit Affect Entire
-			if ((unpatchedParamShortcuts[xDisplay][yDisplay] != Param::Unpatched::Sound::PORTAMENTO)
-			    && (unpatchedParamShortcuts[xDisplay][yDisplay] != Param::Unpatched::Sound::ARP_GATE)) {
+			if ((unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != Param::Unpatched::Sound::PORTAMENTO)
+			    && (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != Param::Unpatched::Sound::ARP_GATE)) {
 				paramKind = Param::Kind::UNPATCHED_SOUND;
-				paramID = unpatchedParamShortcuts[xDisplay][yDisplay];
+				paramID = unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay];
 			}
 		}
-		else if (globalEffectableParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+		else if (unpatchedGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
 			paramKind = Param::Kind::UNPATCHED_GLOBAL;
-			paramID = globalEffectableParamShortcuts[xDisplay][yDisplay];
+			paramID = unpatchedGlobalParamShortcuts[xDisplay][yDisplay];
 		}
 	}
 	if ((paramKind != Param::Kind::NONE) && (paramID != kNoParamID)) {
-		modelStackWithParam = automationInstrumentClipView.getModelStackWithParam(modelStackWithTimelineCounter,
-		                                                                          instrumentClip, paramID, paramKind);
+		modelStackWithParam = automationInstrumentClipView.getModelStackWithParam(modelStackWithTimelineCounter, clip,
+		                                                                          paramID, paramKind);
 	}
 
 	return modelStackWithParam;
 }
 
 ModelStackWithAutoParam*
-MidiFollow::getModelStackWithParamForAudioClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                               InstrumentClip* instrumentClip, int32_t xDisplay, int32_t yDisplay) {
+MidiFollow::getModelStackWithParamForAudioClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
+                                               int32_t xDisplay, int32_t yDisplay) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 	Param::Kind paramKind = Param::Kind::NONE;
 	int32_t paramID = kNoParamID;
 
-	if (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+	if (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
 		paramKind = Param::Kind::UNPATCHED_SOUND;
-		paramID = unpatchedParamShortcuts[xDisplay][yDisplay];
+		paramID = unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay];
 	}
-	else if (globalEffectableParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+	else if (unpatchedGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
 		paramKind = Param::Kind::UNPATCHED_GLOBAL;
-		paramID = globalEffectableParamShortcuts[xDisplay][yDisplay];
+		paramID = unpatchedGlobalParamShortcuts[xDisplay][yDisplay];
+	}
+	if ((paramKind != Param::Kind::NONE) && (paramID != kNoParamID)) {
+		modelStackWithParam = automationInstrumentClipView.getModelStackWithParam(modelStackWithTimelineCounter, clip,
+		                                                                          paramID, paramKind);
 	}
 	if ((paramKind != Param::Kind::NONE) && (paramID != kNoParamID)) {
 		modelStackWithParam = automationInstrumentClipView.getModelStackWithParam(modelStackWithTimelineCounter,
@@ -303,13 +305,13 @@ void MidiFollow::displayParamControlError(int32_t xDisplay, int32_t yDisplay) {
 		paramKind = Param::Kind::PATCHED;
 		paramID = patchedParamShortcuts[xDisplay][yDisplay];
 	}
-	else if (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+	else if (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
 		paramKind = Param::Kind::UNPATCHED_SOUND;
-		paramID = unpatchedParamShortcuts[xDisplay][yDisplay];
+		paramID = unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay];
 	}
-	else if (globalEffectableParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+	else if (unpatchedGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
 		paramKind = Param::Kind::UNPATCHED_GLOBAL;
-		paramID = globalEffectableParamShortcuts[xDisplay][yDisplay];
+		paramID = unpatchedGlobalParamShortcuts[xDisplay][yDisplay];
 	}
 
 	if (display->haveOLED()) {
@@ -337,9 +339,9 @@ int32_t MidiFollow::getCCFromParam(Param::Kind paramKind, int32_t paramID) {
 			bool foundParamShortcut =
 			    (((paramKind == Param::Kind::PATCHED) && (patchedParamShortcuts[xDisplay][yDisplay] == paramID))
 			     || ((paramKind == Param::Kind::UNPATCHED_SOUND)
-			         && (unpatchedParamShortcuts[xDisplay][yDisplay] == paramID))
+			         && (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] == paramID))
 			     || ((paramKind == Param::Kind::UNPATCHED_GLOBAL)
-			         && (globalEffectableParamShortcuts[xDisplay][yDisplay] == paramID)));
+			         && (unpatchedGlobalParamShortcuts[xDisplay][yDisplay] == paramID)));
 
 			if (foundParamShortcut) {
 				return paramToCC[xDisplay][yDisplay];
@@ -683,22 +685,22 @@ void MidiFollow::writeDefaultMappingsToFile() {
 				paramName = ((Sound*)NULL)->Sound::paramToString(patchedParamShortcuts[xDisplay][yDisplay]);
 				writeTag = true;
 			}
-			else if (unpatchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-				if ((unpatchedParamShortcuts[xDisplay][yDisplay] == Param::Unpatched::Sound::ARP_GATE)
-				    || (unpatchedParamShortcuts[xDisplay][yDisplay] == Param::Unpatched::Sound::PORTAMENTO)) {
+			else if (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+				if ((unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] == Param::Unpatched::Sound::ARP_GATE)
+				    || (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] == Param::Unpatched::Sound::PORTAMENTO)) {
 					paramName = ((Sound*)NULL)
 					                ->Sound::paramToString(Param::Unpatched::START
-					                                       + unpatchedParamShortcuts[xDisplay][yDisplay]);
+					                                       + unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay]);
 				}
 				else {
-					paramName = ModControllableAudio::paramToString(Param::Unpatched::START
-					                                                + unpatchedParamShortcuts[xDisplay][yDisplay]);
+					paramName = ModControllableAudio::paramToString(
+					    Param::Unpatched::START + unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay]);
 				}
 				writeTag = true;
 			}
-			else if (globalEffectableParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+			else if (unpatchedGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
 				paramName = GlobalEffectable::paramToString(Param::Unpatched::START
-				                                            + globalEffectableParamShortcuts[xDisplay][yDisplay]);
+				                                            + unpatchedGlobalParamShortcuts[xDisplay][yDisplay]);
 				writeTag = true;
 			}
 
@@ -763,18 +765,20 @@ void MidiFollow::readDefaultMappingsFromFile() {
 				if (!strcmp(tagName, ((Sound*)NULL)->Sound::paramToString(patchedParamShortcuts[xDisplay][yDisplay]))) {
 					paramToCC[xDisplay][yDisplay] = storageManager.readTagOrAttributeValueInt();
 				}
-				else if (!strcmp(tagName, ((Sound*)NULL)
-				                              ->Sound::paramToString(Param::Unpatched::START
-				                                                     + unpatchedParamShortcuts[xDisplay][yDisplay]))) {
+				else if (!strcmp(tagName,
+				                 ((Sound*)NULL)
+				                     ->Sound::paramToString(Param::Unpatched::START
+				                                            + unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay]))) {
 					paramToCC[xDisplay][yDisplay] = storageManager.readTagOrAttributeValueInt();
 				}
-				else if (!strcmp(tagName, ModControllableAudio::paramToString(
-				                              Param::Unpatched::START + unpatchedParamShortcuts[xDisplay][yDisplay]))) {
+				else if (!strcmp(tagName,
+				                 ModControllableAudio::paramToString(
+				                     Param::Unpatched::START + unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay]))) {
 					paramToCC[xDisplay][yDisplay] = storageManager.readTagOrAttributeValueInt();
 				}
 				else if (!strcmp(tagName,
 				                 GlobalEffectable::paramToString(
-				                     Param::Unpatched::START + globalEffectableParamShortcuts[xDisplay][yDisplay]))) {
+				                     Param::Unpatched::START + unpatchedGlobalParamShortcuts[xDisplay][yDisplay]))) {
 					paramToCC[xDisplay][yDisplay] = storageManager.readTagOrAttributeValueInt();
 				}
 			}
