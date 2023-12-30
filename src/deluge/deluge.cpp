@@ -65,6 +65,7 @@
 #include "io/midi/midi_follow.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
+#include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
 #include "model/note/note.h"
@@ -439,7 +440,12 @@ void setUIForLoadedSong(Song* song) {
 			}
 		}
 		else {
-			newUI = &audioClipView;
+			if (((AudioClip*)song->currentClip)->onAutomationAudioClipView) {
+				newUI = &automationInstrumentClipView;
+			}
+			else {
+				newUI = &audioClipView;
+			}
 		}
 	}
 

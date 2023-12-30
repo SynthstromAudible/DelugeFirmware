@@ -28,6 +28,7 @@
 #include "model/model_stack.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_recorder.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "model/voice/voice_sample.h"
 #include "modulation/params/param_manager.h"
@@ -63,6 +64,15 @@ AudioClip::AudioClip() : Clip(CLIP_TYPE_AUDIO) {
 
 	voicePriority = VoicePriority::MEDIUM;
 	attack = -2147483648;
+
+	//initialize automation audio clip view variables
+	onAutomationAudioClipView = false;
+	lastSelectedParamID = kNoSelection;
+	lastSelectedParamKind = Param::Kind::NONE;
+	lastSelectedParamShortcutX = kNoSelection;
+	lastSelectedParamShortcutY = kNoSelection;
+	lastSelectedParamArrayPosition = 0;
+	//end initialize of automation audio clip view variables
 }
 
 AudioClip::~AudioClip() {
@@ -113,6 +123,7 @@ int32_t AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldF
 void AudioClip::copyBasicsFrom(Clip* otherClip) {
 	Clip::copyBasicsFrom(otherClip);
 	overdubsShouldCloneOutput = ((AudioClip*)otherClip)->overdubsShouldCloneOutput;
+	onAutomationAudioClipView = ((AudioClip*)otherClip)->onAutomationAudioClipView;
 }
 
 void AudioClip::abortRecording() {
@@ -1007,6 +1018,17 @@ void AudioClip::writeDataToFile(Song* song) {
 
 	storageManager.writeAttribute("overdubsShouldCloneAudioTrack", overdubsShouldCloneOutput);
 
+	if (onAutomationAudioClipView) {
+		storageManager.writeAttribute("onAutomationAudioClipView", (char*)"1");
+	}
+	if (lastSelectedParamID != kNoSelection) {
+		storageManager.writeAttribute("lastSelectedParamID", lastSelectedParamID);
+		storageManager.writeAttribute("lastSelectedParamKind", util::to_underlying(lastSelectedParamKind));
+		storageManager.writeAttribute("lastSelectedParamShortcutX", lastSelectedParamShortcutX);
+		storageManager.writeAttribute("lastSelectedParamShortcutY", lastSelectedParamShortcutY);
+		storageManager.writeAttribute("lastSelectedParamArrayPosition", lastSelectedParamArrayPosition);
+	}
+
 	Clip::writeDataToFile(song);
 
 	storageManager.writeOpeningTagBeginning("params");
@@ -1089,6 +1111,30 @@ someError:
 			paramManager.setupUnpatched();
 			GlobalEffectableForClip::initParams(&paramManager);
 			GlobalEffectableForClip::readParamsFromFile(&paramManager, readAutomationUpToPos);
+		}
+
+		else if (!strcmp(tagName, "onAutomationAudioClipView")) {
+			onAutomationAudioClipView = storageManager.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "lastSelectedParamID")) {
+			lastSelectedParamID = storageManager.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "lastSelectedParamKind")) {
+			lastSelectedParamKind = static_cast<Param::Kind>(storageManager.readTagOrAttributeValueInt());
+		}
+
+		else if (!strcmp(tagName, "lastSelectedParamShortcutX")) {
+			lastSelectedParamShortcutX = storageManager.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "lastSelectedParamShortcutY")) {
+			lastSelectedParamShortcutY = storageManager.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "lastSelectedParamArrayPosition")) {
+			lastSelectedParamArrayPosition = storageManager.readTagOrAttributeValueInt();
 		}
 
 		else {
@@ -1217,9 +1263,13 @@ bool AudioClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int
 		return false;
 	}
 
-	if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
-		paramManager.shiftHorizontally(
-		    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager), amount, loopLength);
+	//this never gets called from Automation View because in the Automation View we shift specific parameters not all parameters
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AutomationShiftClip) == RuntimeFeatureStateToggle::Off) {
+		if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
+			paramManager.shiftHorizontally(
+			    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager), amount,
+			    loopLength);
+		}
 	}
 
 	uint64_t length = sampleHolder.endPos - sampleHolder.startPos;
