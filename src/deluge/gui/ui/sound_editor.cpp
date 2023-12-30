@@ -372,7 +372,6 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 			}
 
 			if (getRootUI() == &keyboardScreen) {
-
 				if (getCurrentInstrumentClip()->onAutomationInstrumentClipView) {
 					swapOutRootUILowLevel(&automationInstrumentClipView);
 					automationInstrumentClipView.openedInBackground();
@@ -387,10 +386,11 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 				swapOutRootUILowLevel(&keyboardScreen);
 				keyboardScreen.openedInBackground();
 			}
-
 			else if (getRootUI() == &automationInstrumentClipView) {
-				swapOutRootUILowLevel(&keyboardScreen);
-				keyboardScreen.openedInBackground();
+				if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
+					swapOutRootUILowLevel(&keyboardScreen);
+					keyboardScreen.openedInBackground();
+				}
 			}
 
 			if (getRootUI() != &performanceSessionView) {

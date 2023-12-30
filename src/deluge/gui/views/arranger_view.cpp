@@ -1672,37 +1672,40 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 		currentSong->xScroll[NAVIGATION_CLIP] = newScroll;
 	}
 
-	if (clip->type == CLIP_TYPE_AUDIO) {
+	currentUIMode = UI_MODE_EXPLODE_ANIMATION;
 
+	if (clip->type == CLIP_TYPE_AUDIO) {
+		// If going to automationAudioClipView...
+		if (((AudioClip*)clip)->onAutomationAudioClipView) {
+			PadLEDs::explodeAnimationYOriginBig = yPressedEffective << 16;
+
+			automationInstrumentClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1],
+			                                            &PadLEDs::occupancyMaskStore[1], false);
+		}
 		// If no sample, just skip directly there
-		if (!((AudioClip*)clip)->sampleHolder.audioFile) {
+		else if (!((AudioClip*)clip)->sampleHolder.audioFile) {
 			currentUIMode = UI_MODE_NONE;
 			changeRootUI(&audioClipView);
 
 			return;
 		}
+		else {
+			waveformRenderer.collapseAnimationToWhichRow = yPressedEffective;
+
+			int64_t xScrollSamples;
+			int64_t xZoomSamples;
+
+			((AudioClip*)clip)
+			    ->getScrollAndZoomInSamples(currentSong->xScroll[NAVIGATION_CLIP], currentSong->xZoom[NAVIGATION_CLIP],
+			                                &xScrollSamples, &xZoomSamples);
+
+			waveformRenderer.findPeaksPerCol((Sample*)((AudioClip*)clip)->sampleHolder.audioFile, xScrollSamples,
+			                                 xZoomSamples, &((AudioClip*)clip)->renderData);
+
+			PadLEDs::setupAudioClipCollapseOrExplodeAnimation((AudioClip*)clip);
+		}
 	}
-
-	currentUIMode = UI_MODE_EXPLODE_ANIMATION;
-
-	if (clip->type == CLIP_TYPE_AUDIO) {
-		waveformRenderer.collapseAnimationToWhichRow = yPressedEffective;
-
-		int64_t xScrollSamples;
-		int64_t xZoomSamples;
-
-		((AudioClip*)clip)
-		    ->getScrollAndZoomInSamples(currentSong->xScroll[NAVIGATION_CLIP], currentSong->xZoom[NAVIGATION_CLIP],
-		                                &xScrollSamples, &xZoomSamples);
-
-		waveformRenderer.findPeaksPerCol((Sample*)((AudioClip*)clip)->sampleHolder.audioFile, xScrollSamples,
-		                                 xZoomSamples, &((AudioClip*)clip)->renderData);
-
-		PadLEDs::setupAudioClipCollapseOrExplodeAnimation((AudioClip*)clip);
-	}
-
 	else {
-
 		PadLEDs::explodeAnimationYOriginBig = yPressedEffective << 16;
 
 		// If going to KeyboardView...
@@ -1717,7 +1720,6 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 			instrumentClipView.recalculateColours();
 			automationInstrumentClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1],
 			                                            &PadLEDs::occupancyMaskStore[1], false);
-			instrumentClipView.fillOffScreenImageStores();
 		}
 
 		// Or if just regular old InstrumentClipView
@@ -1751,7 +1753,7 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 
 	PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
 	PadLEDs::explodeAnimationDirection = 1;
-	if (clip->type == CLIP_TYPE_AUDIO) {
+	if ((clip->type == CLIP_TYPE_AUDIO) && !(((AudioClip*)clip)->onAutomationAudioClipView)) {
 		PadLEDs::renderAudioClipExplodeAnimation(0);
 	}
 	else {
@@ -1768,7 +1770,7 @@ bool ArrangerView::transitionToArrangementEditor() {
 
 	Sample* sample;
 
-	if (getCurrentClip()->type == CLIP_TYPE_AUDIO) {
+	if (getCurrentClip()->type == CLIP_TYPE_AUDIO && getCurrentUI() != &automationInstrumentClipView) {
 
 		// If no sample, just skip directly there
 		if (!getCurrentAudioClip()->sampleHolder.audioFile) {
@@ -1792,7 +1794,7 @@ bool ArrangerView::transitionToArrangementEditor() {
 
 	memcpy(PadLEDs::imageStore[1], PadLEDs::image, (kDisplayWidth + kSideBarWidth) * kDisplayHeight * 3);
 	memcpy(PadLEDs::occupancyMaskStore[1], PadLEDs::occupancyMask, (kDisplayWidth + kSideBarWidth) * kDisplayHeight);
-	if (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationInstrumentClipView) {
+	if (getCurrentUI() == &instrumentClipView) {
 		instrumentClipView.fillOffScreenImageStores();
 	}
 
@@ -1807,7 +1809,7 @@ bool ArrangerView::transitionToArrangementEditor() {
 		yDisplay = kDisplayHeight - 1;
 	}
 
-	if (getCurrentClip()->type == CLIP_TYPE_AUDIO) {
+	if (getCurrentClip()->type == CLIP_TYPE_AUDIO && getCurrentUI() != &automationInstrumentClipView) {
 		waveformRenderer.collapseAnimationToWhichRow = yDisplay;
 
 		PadLEDs::setupAudioClipCollapseOrExplodeAnimation(getCurrentAudioClip());
