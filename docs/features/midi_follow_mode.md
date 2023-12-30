@@ -73,6 +73,8 @@ The default MIDI CC to parameter mappings, as mapped the to the parameter shortc
 
 ![image](https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/e5c6ecbf-e21e-4b3b-9cfc-8f433a56ed28)
 
+> * See Appendix for detailed listing and description of default CC # to Parameter mappings.
+
 Here are the MIDI CC #'s that have been reserved for other purposes:
 
 ![image](https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/f076d9c8-d25f-4d13-a631-be552f84d7c8)
