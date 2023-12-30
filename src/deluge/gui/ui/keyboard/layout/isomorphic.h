@@ -35,6 +35,7 @@ public:
 	void precalculate() override;
 
 	void renderPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) override;
+	void renderSidebarPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) override;
 
 	char const* name() override { return "Isomorphic"; }
 	bool supportsInstrument() override { return true; }
@@ -46,6 +47,7 @@ private:
 	}
 
 	uint8_t noteColours[kDisplayHeight * kMaxIsomorphicRowInterval + kDisplayWidth][3];
+	uint8_t velocity = 64;
 };
 
 }; // namespace deluge::gui::ui::keyboard::layout

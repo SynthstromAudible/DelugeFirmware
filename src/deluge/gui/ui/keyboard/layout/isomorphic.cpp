@@ -32,9 +32,17 @@ void KeyboardLayoutIsomorphic::evaluatePads(PressedPad presses[kMaxNumKeyboardPa
 	currentNotesState = NotesState{}; // Erase active notes
 
 	for (int32_t idxPress = 0; idxPress < kMaxNumKeyboardPadPresses; ++idxPress) {
-		if (presses[idxPress].active && presses[idxPress].x < kDisplayWidth) {
-			currentNotesState.enableNote(noteFromCoords(presses[idxPress].x, presses[idxPress].y),
-			                             getDefaultVelocity());
+		if (presses[idxPress].active) {
+			// in note columns
+			if (presses[idxPress].x < kDisplayWidth) {
+				currentNotesState.enableNote(noteFromCoords(presses[idxPress].x, presses[idxPress].y), velocity);
+			}
+			else { // in velocity columns (audition pads)
+				velocity = 7 + (presses[idxPress].x - kDisplayWidth) * 8 + presses[idxPress].y * 16;
+				char velocityStr[4] = {0};
+				intToString(velocity, velocityStr, 1);
+				display->displayPopup(velocityStr);
+			}
 		}
 	}
 }
@@ -137,6 +145,22 @@ void KeyboardLayoutIsomorphic::renderPads(uint8_t image[][kDisplayWidth + kSideB
 			++noteCode;
 			++normalizedPadOffset;
 			noteWithinOctave = (noteWithinOctave + 1) % kOctaveSize;
+		}
+	}
+}
+
+void KeyboardLayoutIsomorphic::renderSidebarPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) {
+	// Iterate over velocity pads in sidebar
+	uint8_t brightness = 1;
+	uint8_t velocity_val = 7;
+	for (int32_t y = 0; y < kDisplayHeight; ++y) {
+		for (int32_t x = kDisplayWidth; x < kDisplayWidth + kSideBarWidth; ++x) {
+			uint8_t selection_brightness = (velocity >= velocity_val - 7 && velocity <= velocity_val) ? 0xf0 : 0;
+			image[y][x][0] = brightness + 0x04;
+			image[y][x][1] = selection_brightness;
+			image[y][x][2] = selection_brightness;
+			brightness += 10;
+			velocity_val += 8;
 		}
 	}
 }
