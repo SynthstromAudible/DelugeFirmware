@@ -363,7 +363,8 @@ void MidiFollow::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32_t ch
 			}
 
 			// Only send if not muted - but let note-offs through always, for safety
-			if (clip && (!on || currentSong->isOutputActiveInArrangement(clip->output))) {
+			if (clip && (clip->output->type != InstrumentType::AUDIO)
+			    && (!on || currentSong->isOutputActiveInArrangement(clip->output))) {
 				ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 				//Output is a kit or melodic instrument
 				//Note: Midi instruments not currently supported for midi follow mode
@@ -445,7 +446,7 @@ void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t
 				if (!clip) {
 					clip = currentSong->currentClip;
 				}
-				if (clip) {
+				if (clip && (clip->output->type != InstrumentType::AUDIO)) {
 					ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 					if (modelStackWithTimelineCounter) {
 						if ((clip->output->type == InstrumentType::KIT)
@@ -502,7 +503,7 @@ void MidiFollow::pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel, uint
 		if ((matchSynth != MIDIMatchType::NO_MATCH) || (matchKit != MIDIMatchType::NO_MATCH)) {
 			//obtain clip for active context
 			Clip* clip = getClipForMidiFollow(true);
-			if (clip) {
+			if (clip && (clip->output->type != InstrumentType::AUDIO)) {
 				ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
 				if (modelStackWithTimelineCounter) {
@@ -553,7 +554,7 @@ void MidiFollow::aftertouchReceived(MIDIDevice* fromDevice, int32_t channel, int
 		if ((matchSynth != MIDIMatchType::NO_MATCH) || (matchKit != MIDIMatchType::NO_MATCH)) {
 			//obtain clip for active context
 			Clip* clip = getClipForMidiFollow(true);
-			if (clip) {
+			if (clip && (clip->output->type != InstrumentType::AUDIO)) {
 				ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
 				if (modelStackWithTimelineCounter) {
