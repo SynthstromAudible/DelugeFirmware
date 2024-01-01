@@ -23,7 +23,13 @@
 #define REASSESSMENT_ACTION_STOP_OR_LOOP 0
 #define REASSESSMENT_ACTION_NEXT_CLUSTER 1
 
+#if defined(__arm__)
 typedef __simd64_int16_t int16x4_t;
+#else
+// XXX: this is a stupid hack for the tests that work because they currently mock arm_neon.h, but we should instead
+// have aint16x4 type that's common across all platforms.
+#include "arm_neon.h"
+#endif
 
 class VoiceSamplePlaybackGuide;
 class Voice;
