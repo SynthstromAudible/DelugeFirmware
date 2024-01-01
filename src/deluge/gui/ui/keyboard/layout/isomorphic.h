@@ -23,6 +23,7 @@ namespace deluge::gui::ui::keyboard::layout {
 
 constexpr int32_t kMinIsomorphicRowInterval = 1;
 constexpr int32_t kMaxIsomorphicRowInterval = 16;
+constexpr int32_t kVelModShift = 22;
 
 class KeyboardLayoutIsomorphic : public KeyboardLayout {
 public:
@@ -47,7 +48,24 @@ private:
 	}
 
 	uint8_t noteColours[kDisplayHeight * kMaxIsomorphicRowInterval + kDisplayWidth][3];
+
+	// use higher precision internally so that scaling and stepping is cleaner
+	int32_t velocityMax = 127 << kVelModShift;
+	int32_t velocityMin = 15 << kVelModShift;
+	uint32_t velocityStep = 16 << kVelModShift;
+	uint32_t velocity32 = 64 << kVelModShift;
 	uint8_t velocity = 64;
+
+	int32_t modMax = 127 << kVelModShift;
+	int32_t modMin = 15 << kVelModShift;
+	uint32_t modStep = 16 << kVelModShift;
+	uint32_t mod32 = 0 << kVelModShift;
+
+	bool velocityMinHeld = false;
+	bool velocityMaxHeld = false;
+
+	bool modMinHeld = false;
+	bool modMaxHeld = false;
 };
 
 }; // namespace deluge::gui::ui::keyboard::layout

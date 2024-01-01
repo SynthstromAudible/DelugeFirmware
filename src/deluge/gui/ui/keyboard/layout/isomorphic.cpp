@@ -20,35 +20,100 @@
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/sound_editor.h"
+#include "model/instrument/melodic_instrument.h"
+#include "model/model_stack.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "util/functions.h"
 #include <limits>
 
+#define VEL_COL kDisplayWidth
+#define MOD_COL (kDisplayWidth + 1)
+
 namespace deluge::gui::ui::keyboard::layout {
+
+static inline void popupUint8(deluge::hid::Display* display, uint8_t val) {
+	char valStr[4] = {0};
+	intToString(val, valStr, 1);
+	display->displayPopup(valStr);
+}
 
 void KeyboardLayoutIsomorphic::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
 	uint8_t noteIdx = 0;
 
 	currentNotesState = NotesState{}; // Erase active notes
 
+	velocityMinHeld = false;
+	velocityMaxHeld = false;
+
+	modMinHeld = false;
+	modMaxHeld = false;
+
 	for (int32_t idxPress = 0; idxPress < kMaxNumKeyboardPadPresses; ++idxPress) {
-		if (presses[idxPress].active) {
+		auto pressed = presses[idxPress];
+		if (pressed.active) {
 			// in note columns
-			if (presses[idxPress].x < kDisplayWidth) {
-				currentNotesState.enableNote(noteFromCoords(presses[idxPress].x, presses[idxPress].y), velocity);
+			if (pressed.x < kDisplayWidth) {
+				currentNotesState.enableNote(noteFromCoords(pressed.x, pressed.y), velocity);
 			}
-			else { // in velocity columns (audition pads)
-				velocity = 7 + (presses[idxPress].x - kDisplayWidth) * 8 + presses[idxPress].y * 16;
-				char velocityStr[4] = {0};
-				intToString(velocity, velocityStr, 1);
-				display->displayPopup(velocityStr);
+			else if (pressed.x == VEL_COL) { // in velocity columns (audition pads)
+				velocity32 = velocityMin + pressed.y * velocityStep;
+				velocity = velocity32 >> kVelModShift;
+				popupUint8(display, velocity);
+				if (pressed.y == 0) {
+					velocityMinHeld = true;
+				}
+				else {
+					velocityMaxHeld = true;
+				}
+			}
+			else if (pressed.x == MOD_COL) { // in mod columns (audition pads)
+				mod32 = modMin + pressed.y * modStep;
+				char modelStackMemory[MODEL_STACK_MAX_SIZE];
+				ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+				ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
+				    modelStack->addTimelineCounter(currentSong->currentClip);
+				((MelodicInstrument*)currentInstrument())
+				    ->processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, mod32, modelStackWithTimelineCounter);
+				popupUint8(display, mod32 >> kVelModShift);
+				if (pressed.y == 0) {
+					modMinHeld = true;
+				}
+				else {
+					modMaxHeld = true;
+				}
 			}
 		}
 	}
 }
 
 void KeyboardLayoutIsomorphic::handleVerticalEncoder(int32_t offset) {
-	handleHorizontalEncoder(offset * getState().isomorphic.rowInterval, false);
+	if (velocityMinHeld) {
+		velocityMin += offset << kVelModShift;
+		velocityMin = std::clamp(velocityMin, (int32_t)0, velocityMax);
+		popupUint8(display, velocityMin >> kVelModShift);
+		velocityStep = (velocityMax - velocityMin) / 7;
+	}
+	else if (velocityMaxHeld) {
+		velocityMax += offset << kVelModShift;
+		velocityMax = std::clamp(velocityMax, velocityMin, (int32_t)127 << kVelModShift);
+		popupUint8(display, velocityMax >> kVelModShift);
+		velocityStep = (velocityMax - velocityMin) / 7;
+	}
+	else if (modMinHeld) {
+		modMin += offset << kVelModShift;
+		modMin = std::clamp(modMin, (int32_t)0, modMax);
+		popupUint8(display, modMin >> kVelModShift);
+		modStep = (modMax - modMin) / 7;
+	}
+	else if (modMaxHeld) {
+		modMax += offset << kVelModShift;
+		modMax = std::clamp(modMax, modMin, (int32_t)127 << kVelModShift);
+		popupUint8(display, modMax >> kVelModShift);
+		modStep = (modMax - modMin) / 7;
+	}
+	else {
+		handleHorizontalEncoder(offset * getState().isomorphic.rowInterval, false);
+	}
 }
 
 void KeyboardLayoutIsomorphic::handleHorizontalEncoder(int32_t offset, bool shiftEnabled) {
@@ -150,18 +215,29 @@ void KeyboardLayoutIsomorphic::renderPads(uint8_t image[][kDisplayWidth + kSideB
 }
 
 void KeyboardLayoutIsomorphic::renderSidebarPads(uint8_t image[][kDisplayWidth + kSideBarWidth][3]) {
-	// Iterate over velocity pads in sidebar
+	// Iterate over velocity and mod pads in sidebar
 	uint8_t brightness = 1;
-	uint8_t velocity_val = 7;
+	uint8_t otherChannels = 0;
+	uint32_t velocityVal = velocityMin;
+	uint32_t modVal = modMin;
+
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
-		for (int32_t x = kDisplayWidth; x < kDisplayWidth + kSideBarWidth; ++x) {
-			uint8_t selection_brightness = (velocity >= velocity_val - 7 && velocity <= velocity_val) ? 0xf0 : 0;
-			image[y][x][0] = brightness + 0x04;
-			image[y][x][1] = selection_brightness;
-			image[y][x][2] = selection_brightness;
-			brightness += 10;
-			velocity_val += 8;
-		}
+		bool velocity_selected =
+		    velocity32 >= (y > 0 ? (velocityVal - (velocityStep - 1)) : 0) && velocity32 <= velocityVal;
+		otherChannels = velocity_selected ? 0xf0 : 0;
+		image[y][VEL_COL][0] = velocity_selected ? 0xff : brightness + 0x04;
+		image[y][VEL_COL][1] = otherChannels;
+		image[y][VEL_COL][2] = otherChannels;
+		velocityVal += velocityStep;
+
+		bool mod_selected = mod32 >= (y > 0 ? (modVal - (modStep - 1)) : 0) && mod32 <= modVal;
+		otherChannels = mod_selected ? 0xf0 : 0;
+		image[y][MOD_COL][1] = otherChannels;
+		image[y][MOD_COL][0] = otherChannels;
+		image[y][MOD_COL][2] = mod_selected ? 0xff : brightness + 0x04;
+		modVal += modStep;
+
+		brightness += 10;
 	}
 }
 
