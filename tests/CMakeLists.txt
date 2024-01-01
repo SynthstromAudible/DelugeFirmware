@@ -40,6 +40,8 @@ file(GLOB_RECURSE deluge_SOURCES
   ../src/deluge/gui/l10n/*
   # Used by most other modules
   ../src/deluge/util/*
+  # Voice code
+  ../src/deluge/model/voice/*
   # Mock implementations
   mocks/*
 )
