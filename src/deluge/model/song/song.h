@@ -19,8 +19,10 @@
 
 #include "definitions_cxx.hpp"
 #include "io/midi/learned_midi.h"
+#include "model/clip/clip.h"
 #include "model/clip/clip_array.h"
 #include "model/global_effectable/global_effectable_for_song.h"
+#include "model/output.h"
 #include "model/timeline_counter.h"
 #include "modulation/params/param_manager.h"
 #include "storage/flash_storage.h"
@@ -28,6 +30,8 @@
 #include "util/d_string.h"
 
 class MidiCommand;
+class Clip;
+class AudioClip;
 class InstrumentClip;
 class Synth;
 class ParamManagerForTimeline;
@@ -346,3 +350,26 @@ private:
 extern Song* currentSong;
 extern Song* preLoadedSong;
 extern int8_t defaultAudioClipOverdubOutputCloning;
+
+[[gnu::always_inline]] extern inline Clip* getCurrentClip() {
+	return currentSong->currentClip;
+};
+
+[[gnu::always_inline]] extern inline InstrumentClip* getCurrentInstrumentClip() {
+	return (InstrumentClip*)currentSong->currentClip;
+};
+
+[[gnu::always_inline]] extern inline AudioClip* getCurrentAudioClip() {
+	return (AudioClip*)currentSong->currentClip;
+};
+
+[[gnu::always_inline]] extern inline Instrument* getCurrentInstrument() {
+	return (Instrument*)currentSong->currentClip->output;
+};
+
+[[gnu::always_inline]] extern inline InstrumentType getCurrentInstrumentType() {
+	return (InstrumentType)currentSong->currentClip->output->type;
+};
+
+
+

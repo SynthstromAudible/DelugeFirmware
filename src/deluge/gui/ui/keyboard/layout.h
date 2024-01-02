@@ -31,14 +31,6 @@ constexpr uint8_t kMaxNumKeyboardPadPresses = 10;
 
 namespace deluge::gui::ui::keyboard {
 
-inline InstrumentClip* currentClip() {
-	return (InstrumentClip*)currentSong->currentClip;
-}
-
-inline Instrument* currentInstrument() {
-	return (Instrument*)currentSong->currentClip->output;
-}
-
 enum class RequiredScaleMode : uint8_t {
 	Undefined = 0,
 	Disabled = 1,
@@ -87,20 +79,20 @@ public:
 	virtual NotesState& getNotesState() { return currentNotesState; }
 
 protected:
-	inline bool isKit() { return currentInstrument()->type == InstrumentType::KIT; }
+	inline bool isKit() { return getCurrentInstrumentType() == InstrumentType::KIT; }
 	/// Song root note can be in any octave, layouts get the normalized one
 	inline int16_t getRootNote() { return (currentSong->rootNote % kOctaveSize); }
-	inline bool getScaleModeEnabled() { return currentClip()->inScaleMode; }
+	inline bool getScaleModeEnabled() { return getCurrentInstrumentClip()->inScaleMode; }
 	inline uint8_t getScaleNoteCount() { return currentSong->numModeNotes; }
 
 	inline ModesArray& getScaleNotes() { return currentSong->modeNotes; }
 
-	inline uint8_t getDefaultVelocity() { return currentInstrument()->defaultVelocity; }
+	inline uint8_t getDefaultVelocity() { return getCurrentInstrument()->defaultVelocity; }
 
 	inline int32_t getLowestClipNote() { return kLowestKeyboardNote; }
 	inline int32_t getHighestClipNote() {
 		if (isKit()) {
-			return currentClip()->noteRows.getNumElements() - 1;
+			return getCurrentInstrumentClip()->noteRows.getNumElements() - 1;
 		}
 
 		return kHighestKeyboardNote;
@@ -110,21 +102,21 @@ protected:
 		int32_t colourOffset = 0;
 
 		// Get colour offset for kit rows
-		if (currentInstrument()->type == InstrumentType::KIT) {
-			if (note >= 0 && note < currentClip()->noteRows.getNumElements()) {
-				NoteRow* noteRow = currentClip()->noteRows.getElement(note);
+		if (getCurrentInstrumentType() == InstrumentType::KIT) {
+			if (note >= 0 && note < getCurrentInstrumentClip()->noteRows.getNumElements()) {
+				NoteRow* noteRow = getCurrentInstrumentClip()->noteRows.getElement(note);
 				if (noteRow) {
-					colourOffset = noteRow->getColourOffset(currentClip());
+					colourOffset = noteRow->getColourOffset(getCurrentInstrumentClip());
 				}
 			}
 		}
 
-		currentClip()->getMainColourFromY(note, colourOffset, rgb);
+		getCurrentInstrumentClip()->getMainColourFromY(note, colourOffset, rgb);
 	}
 
 	inline NoteHighlightIntensity& getHighlightedNotes() { return keyboardScreen.highlightedNotes; }
 
-	inline KeyboardState& getState() { return currentClip()->keyboardState; }
+	inline KeyboardState& getState() { return getCurrentInstrumentClip()->keyboardState; }
 
 protected:
 	NotesState currentNotesState;
