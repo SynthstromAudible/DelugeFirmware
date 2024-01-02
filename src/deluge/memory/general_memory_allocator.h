@@ -59,9 +59,17 @@ class Stealable;
 class GeneralMemoryAllocator {
 public:
 	GeneralMemoryAllocator();
-	void* allocMaxSpeed(uint32_t requiredSize, void* thingNotToStealFrom = NULL);
-	void* allocLowSpeed(uint32_t requiredSize, void* thingNotToStealFrom = NULL);
-	void* allocStealable(uint32_t requiredSize, void* thingNotToStealFrom = NULL);
+	[[gnu::always_inline]] void* allocMaxSpeed(uint32_t requiredSize, void* thingNotToStealFrom = NULL) {
+		return alloc(requiredSize, true, false, thingNotToStealFrom);
+	}
+
+	[[gnu::always_inline]] void* allocLowSpeed(uint32_t requiredSize, void* thingNotToStealFrom = NULL) {
+		return alloc(requiredSize, false, false, thingNotToStealFrom);
+	}
+
+	[[gnu::always_inline]] void* allocStealable(uint32_t requiredSize, void* thingNotToStealFrom = NULL) {
+		return alloc(requiredSize, false, true, thingNotToStealFrom);
+	}
 
 	void* alloc(uint32_t requiredSize, bool mayUseOnChipRam, bool makeStealable, void* thingNotToStealFrom);
 	void dealloc(void* address);
