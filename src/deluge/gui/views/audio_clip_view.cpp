@@ -55,16 +55,12 @@ AudioClipView audioClipView{};
 AudioClipView::AudioClipView() {
 }
 
-inline AudioClip* getClip() {
-	return (AudioClip*)currentSong->currentClip;
-}
-
 inline Sample* getSample() {
-	if (getClip()->getCurrentlyRecordingLinearly()) {
-		return getClip()->recorder->sample;
+	if (getCurrentAudioClip()->getCurrentlyRecordingLinearly()) {
+		return getCurrentAudioClip()->recorder->sample;
 	}
 	else {
-		return (Sample*)getClip()->sampleHolder.audioFile;
+		return (Sample*)getCurrentAudioClip()->sampleHolder.audioFile;
 	}
 }
 
@@ -106,7 +102,7 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayW
 	}
 
 	int32_t endSquareDisplay = divide_round_negative(
-	    getClip()->loopLength - currentSong->xScroll[NAVIGATION_CLIP] - 1,
+	    getCurrentAudioClip()->loopLength - currentSong->xScroll[NAVIGATION_CLIP] - 1,
 	    currentSong->xZoom[NAVIGATION_CLIP]); // Rounds it well down, so we get the "final square" kinda...
 
 	// If no Sample, just clear display
@@ -120,16 +116,16 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayW
 	// Or if yes Sample...
 	else {
 
-		SampleRecorder* recorder = getClip()->recorder;
+		SampleRecorder* recorder = getCurrentAudioClip()->recorder;
 
 		int64_t xScrollSamples;
 		int64_t xZoomSamples;
 
-		getClip()->getScrollAndZoomInSamples(currentSong->xScroll[NAVIGATION_CLIP], currentSong->xZoom[NAVIGATION_CLIP],
+		getCurrentAudioClip()->getScrollAndZoomInSamples(currentSong->xScroll[NAVIGATION_CLIP], currentSong->xZoom[NAVIGATION_CLIP],
 		                                     &xScrollSamples, &xZoomSamples);
 
 		uint8_t rgb[3];
-		getClip()->getColour(rgb);
+		getCurrentAudioClip()->getColour(rgb);
 
 		int32_t visibleWaveformXEnd = endSquareDisplay + 1;
 		if (endMarkerVisible && blinkOn) {
@@ -138,8 +134,8 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayW
 		int32_t xEnd = std::min(kDisplayWidth, visibleWaveformXEnd);
 
 		bool success =
-		    waveformRenderer.renderFullScreen(getSample(), xScrollSamples, xZoomSamples, image, &getClip()->renderData,
-		                                      recorder, rgb, getClip()->sampleControls.reversed, xEnd);
+		    waveformRenderer.renderFullScreen(getSample(), xScrollSamples, xZoomSamples, image, &getCurrentAudioClip()->renderData,
+		                                      recorder, rgb, getCurrentAudioClip()->sampleControls.reversed, xEnd);
 
 		// If card being accessed and waveform would have to be re-examined, come back later
 		if (!success && image == PadLEDs::image) {
@@ -237,7 +233,7 @@ void AudioClipView::graphicsRoutine() {
 	else {
 		newTickSquare = getTickSquare();
 
-		if (getClip()->getCurrentlyRecordingLinearly()) {
+		if (getCurrentAudioClip()->getCurrentlyRecordingLinearly()) {
 			needsRenderingDependingOnSubMode();
 		}
 
@@ -348,7 +344,7 @@ dontDeactivateMarker:
 			ModelStackWithTimelineCounter* modelStack =
 			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, currentSong->currentClip);
 
-			getClip()->clear(action, modelStack);
+			getCurrentAudioClip()->clear(action, modelStack);
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_AUDIO_CLIP_CLEARED));
 			endMarkerVisible = false;
 			uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
@@ -386,7 +382,7 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 
 		if (Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC)) {
 			if (on) {
-				playbackHandler.grabTempoFromClip(getClip());
+				playbackHandler.grabTempoFromClip(getCurrentAudioClip());
 			}
 		}
 
@@ -411,7 +407,7 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 
 			else if (on && !currentUIMode) {
 
-				AudioClip* clip = getClip();
+				AudioClip* clip = getCurrentAudioClip();
 
 				int32_t endSquareDisplay = divide_round_negative(
 				    clip->loopLength - currentSong->xScroll[NAVIGATION_CLIP] - 1,
@@ -569,7 +565,7 @@ void AudioClipView::playbackEnded() {
 }
 
 void AudioClipView::clipNeedsReRendering(Clip* clip) {
-	if (clip == getClip()) {
+	if (clip == getCurrentAudioClip()) {
 
 		// Scroll back left if we need to - it's possible that the length just reverted, if recording got aborted.
 		// Ok, coming back to this, it seems it was a bit hacky that I put this in this function...
@@ -593,7 +589,7 @@ void AudioClipView::selectEncoderAction(int8_t offset) {
 		return;
 	}
 
-	view.navigateThroughAudioOutputsForAudioClip(offset, getClip());
+	view.navigateThroughAudioOutputsForAudioClip(offset, getCurrentAudioClip());
 }
 
 ActionResult AudioClipView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
@@ -603,7 +599,7 @@ ActionResult AudioClipView::verticalEncoderAction(int32_t offset, bool inCardRou
 		}
 
 		// Shift colour spectrum
-		getClip()->colourOffset += offset;
+		getCurrentAudioClip()->colourOffset += offset;
 		uiNeedsRendering(this, 0xFFFFFFFF, 0);
 	}
 	return ActionResult::DEALT_WITH;
@@ -611,7 +607,7 @@ ActionResult AudioClipView::verticalEncoderAction(int32_t offset, bool inCardRou
 
 bool AudioClipView::setupScroll(uint32_t oldScroll) {
 
-	if (!getClip()->currentlyScrollableAndZoomable()) {
+	if (!getCurrentAudioClip()->currentlyScrollableAndZoomable()) {
 		return false;
 	}
 
