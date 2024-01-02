@@ -351,22 +351,28 @@ extern Song* currentSong;
 extern Song* preLoadedSong;
 extern int8_t defaultAudioClipOverdubOutputCloning;
 
-[[gnu::always_inline]] extern inline Clip* getCurrentClip() {
+extern inline Clip* getCurrentClip() {
 	return currentSong->currentClip;
 };
 
-[[gnu::always_inline]] extern inline InstrumentClip* getCurrentInstrumentClip() {
-	return (InstrumentClip*)currentSong->currentClip;
+extern inline InstrumentClip* getCurrentInstrumentClip() {
+	if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
+		return (InstrumentClip*)currentSong->currentClip;
+	}
+	return nullptr;
 };
 
-[[gnu::always_inline]] extern inline AudioClip* getCurrentAudioClip() {
-	return (AudioClip*)currentSong->currentClip;
+extern inline AudioClip* getCurrentAudioClip() {
+	if (getCurrentClip()->type == CLIP_TYPE_AUDIO) {
+		return (AudioClip*)currentSong->currentClip;
+	}
+	return nullptr;
 };
 
-[[gnu::always_inline]] extern inline Instrument* getCurrentInstrument() {
+extern inline Instrument* getCurrentInstrument() {
 	return (Instrument*)currentSong->currentClip->output;
 };
 
-[[gnu::always_inline]] extern inline InstrumentType getCurrentInstrumentType() {
+extern inline InstrumentType getCurrentInstrumentType() {
 	return (InstrumentType)currentSong->currentClip->output->type;
 };
