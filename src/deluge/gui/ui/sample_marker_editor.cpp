@@ -60,8 +60,8 @@ SampleMarkerEditor::SampleMarkerEditor() {
 }
 
 SampleHolder* getCurrentSampleHolder() {
-	if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
-		return &((AudioClip*)currentSong->currentClip)->sampleHolder;
+	if (getCurrentClip()->type == CLIP_TYPE_AUDIO) {
+		return &getCurrentAudioClip()->sampleHolder;
 	}
 	else {
 		return &((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder;
@@ -73,8 +73,8 @@ MultisampleRange* getCurrentMultisampleRange() {
 }
 
 SampleControls* getCurrentSampleControls() {
-	if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
-		return &((AudioClip*)currentSong->currentClip)->sampleControls;
+	if (getCurrentClip()->type == CLIP_TYPE_AUDIO) {
+		return &getCurrentAudioClip()->sampleControls;
 	}
 	else {
 		return &soundEditor.currentSource->sampleControls;
@@ -131,14 +131,14 @@ void SampleMarkerEditor::writeValue(uint32_t value, MarkerType markerTypeNow) {
 		markerTypeNow = markerType;
 	}
 
-	int32_t clipType = currentSong->currentClip->type;
+	int32_t clipType = getCurrentClip()->type;
 
 	bool audioClipActive;
 	if (clipType == CLIP_TYPE_AUDIO) {
-		audioClipActive = (playbackHandler.isEitherClockActive() && currentSong->isClipActive(currentSong->currentClip)
-		                   && ((AudioClip*)currentSong->currentClip)->voiceSample);
+		audioClipActive = (playbackHandler.isEitherClockActive() && currentSong->isClipActive(getCurrentClip())
+		                   && getCurrentAudioClip()->voiceSample);
 
-		((AudioClip*)currentSong->currentClip)->unassignVoiceSample();
+		getCurrentAudioClip()->unassignVoiceSample();
 	}
 
 	if (markerTypeNow == MarkerType::START) {
@@ -179,14 +179,14 @@ void SampleMarkerEditor::writeValue(uint32_t value, MarkerType markerTypeNow) {
 		if (audioClipActive) {
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-			currentSong->currentClip->resumePlayback(modelStack, true);
+			getCurrentClip()->resumePlayback(modelStack, true);
 		}
 	}
 	else {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithSoundFlags* modelStack = soundEditor.getCurrentModelStack(modelStackMemory)->addSoundFlags();
 		soundEditor.currentSound->sampleZoneChanged(markerTypeNow, soundEditor.currentSourceIndex, modelStack);
-		((Instrument*)currentSong->currentClip->output)->beenEdited(true);
+		getCurrentInstrument()->beenEdited(true);
 	}
 }
 
@@ -213,7 +213,7 @@ void SampleMarkerEditor::getColsOnScreen(MarkerColumn* cols) {
 	cols[util::to_underlying(MarkerType::START)].colOnScreen =
 	    getStartColOnScreen(cols[util::to_underlying(MarkerType::START)].pos);
 
-	if (currentSong->currentClip->type != CLIP_TYPE_AUDIO) {
+	if (getCurrentClip()->type != CLIP_TYPE_AUDIO) {
 		cols[util::to_underlying(MarkerType::LOOP_START)].pos = getCurrentMultisampleRange()->sampleHolder.loopStartPos;
 		cols[util::to_underlying(MarkerType::LOOP_START)].colOnScreen =
 		    cols[util::to_underlying(MarkerType::LOOP_START)].pos
@@ -330,7 +330,7 @@ ActionResult SampleMarkerEditor::padAction(int32_t x, int32_t y, int32_t on) {
 
 	// Audition pads - pass to UI beneath
 	if (x == kDisplayWidth + 1) {
-		if (currentSong->currentClip->type == CLIP_TYPE_INSTRUMENT) {
+		if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
 			instrumentClipView.padAction(x, y, on);
 		}
 		return ActionResult::DEALT_WITH;
@@ -377,7 +377,7 @@ ActionResult SampleMarkerEditor::padAction(int32_t x, int32_t y, int32_t on) {
 			// If already holding a marker down...
 			if (currentUIMode == UI_MODE_HOLDING_SAMPLE_MARKER) {
 
-				if (currentSong->currentClip->type == CLIP_TYPE_INSTRUMENT) {
+				if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
 					// See which one we were holding down
 					MarkerType markerHeld = MarkerType::NONE;
 					for (int32_t m = 0; m < kNumMarkerTypes; m++) {
@@ -769,7 +769,7 @@ ActionResult SampleMarkerEditor::timerCallback() {
 
 ActionResult SampleMarkerEditor::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::X_ENC)
-	    || currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
+	    || getCurrentClip()->type == CLIP_TYPE_AUDIO) {
 		return ActionResult::DEALT_WITH;
 	}
 
@@ -896,7 +896,7 @@ void SampleMarkerEditor::graphicsRoutine() {
 	SamplePlaybackGuide* guide = NULL;
 
 	// InstrumentClips / Samples
-	if (currentSong->currentClip->type == CLIP_TYPE_INSTRUMENT) {
+	if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
 
 		if (soundEditor.currentSound->hasAnyVoices()) {
 
@@ -931,8 +931,8 @@ void SampleMarkerEditor::graphicsRoutine() {
 
 	// AudioClips
 	else {
-		voiceSample = ((AudioClip*)currentSong->currentClip)->voiceSample;
-		guide = &((AudioClip*)currentSong->currentClip)->guide;
+		voiceSample = getCurrentAudioClip()->voiceSample;
+		guide = &getCurrentAudioClip()->guide;
 	}
 
 	if (voiceSample) {
@@ -956,7 +956,7 @@ bool SampleMarkerEditor::shouldAllowExtraScrollRight() {
 		return false;
 	}
 
-	if (currentSong->currentClip->type == CLIP_TYPE_AUDIO) {
+	if (getCurrentClip()->type == CLIP_TYPE_AUDIO) {
 		return true;
 	}
 	else {

@@ -371,6 +371,10 @@ inline AudioClip* getCurrentAudioClip() {
 	return nullptr;
 };
 
+inline Output* getCurrentOutput() {
+	return getCurrentClip()->output;
+};
+
 inline Instrument* getCurrentInstrument() {
 	return (Instrument*)getCurrentClip()->output;
 };

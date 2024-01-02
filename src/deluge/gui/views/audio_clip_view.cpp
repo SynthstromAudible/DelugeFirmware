@@ -77,18 +77,18 @@ void AudioClipView::focusRegained() {
 	endMarkerVisible = false;
 	indicator_leds::setLedState(IndicatorLED::BACK, false);
 	view.focusRegained();
-	view.setActiveModControllableTimelineCounter(currentSong->currentClip);
+	view.setActiveModControllableTimelineCounter(getCurrentClip());
 
 	if (display->have7SEG()) {
-		view.displayOutputName(currentSong->currentClip->output, false);
+		view.displayOutputName(getCurrentOutput(), false);
 	}
 #ifdef currentClipStatusButtonX
-	view.drawCurrentClipPad(currentSong->currentClip);
+	view.drawCurrentClipPad(getCurrentClip());
 #endif
 }
 
 void AudioClipView::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
-	view.displayOutputName(currentSong->currentClip->output, false);
+	view.displayOutputName(getCurrentOutput(), false);
 }
 
 bool AudioClipView::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayWidth + kSideBarWidth][3],
@@ -212,20 +212,19 @@ void AudioClipView::graphicsRoutine() {
 
 	int32_t newTickSquare;
 
-	if (!playbackHandler.playbackState || !currentSong->isClipActive(currentSong->currentClip)
+	if (!playbackHandler.playbackState || !currentSong->isClipActive(getCurrentClip())
 	    || currentUIMode == UI_MODE_EXPLODE_ANIMATION || playbackHandler.ticksLeftInCountIn) {
 		newTickSquare = 255;
 	}
 
 	// Tempoless or arranger recording
 	else if (!playbackHandler.isEitherClockActive()
-	         || (currentPlaybackMode == &arrangement && currentSong->currentClip->getCurrentlyRecordingLinearly())) {
+	         || (currentPlaybackMode == &arrangement && getCurrentClip()->getCurrentlyRecordingLinearly())) {
 		newTickSquare = kDisplayWidth - 1;
 
 		// Linearly recording
-		if (currentSong->currentClip
-		        ->getCurrentlyRecordingLinearly()) { // This would have to be true if we got here, I think?
-			((AudioClip*)currentSong->currentClip)->renderData.xScroll = -1; // Make sure values are recalculated
+		if (getCurrentClip()->getCurrentlyRecordingLinearly()) { // This would have to be true if we got here, I think?
+			getCurrentAudioClip()->renderData.xScroll = -1;      // Make sure values are recalculated
 			needsRenderingDependingOnSubMode();
 		}
 	}
@@ -247,7 +246,7 @@ void AudioClipView::graphicsRoutine() {
 		uint8_t tickSquares[kDisplayHeight];
 		memset(tickSquares, newTickSquare, kDisplayHeight);
 
-		const uint8_t* colours = currentSong->currentClip->getCurrentlyRecordingLinearly() ? twos : zeroes;
+		const uint8_t* colours = getCurrentClip()->getCurrentlyRecordingLinearly() ? twos : zeroes;
 		PadLEDs::setTickSquares(tickSquares, colours);
 
 		lastTickSquare = newTickSquare;
@@ -282,8 +281,7 @@ ActionResult AudioClipView::buttonAction(deluge::hid::Button b, bool on, bool in
 
 			uiTimerManager.unsetTimer(TIMER_UI_SPECIFIC);
 
-			if (currentSong->lastClipInstanceEnteredStartPos != -1
-			    || currentSong->currentClip->isArrangementOnlyClip()) {
+			if (currentSong->lastClipInstanceEnteredStartPos != -1 || getCurrentClip()->isArrangementOnlyClip()) {
 				bool success = arrangerView.transitionToArrangementEditor();
 				if (!success) {
 					goto doOther;
@@ -320,7 +318,7 @@ dontDeactivateMarker:
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
-			if (!soundEditor.setup(currentSong->currentClip)) {
+			if (!soundEditor.setup(getCurrentClip())) {
 				return ActionResult::DEALT_WITH;
 			}
 			openUI(&soundEditor);
@@ -342,7 +340,7 @@ dontDeactivateMarker:
 
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStack =
-			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, currentSong->currentClip);
+			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, getCurrentClip());
 
 			getCurrentAudioClip()->clear(action, modelStack);
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_AUDIO_CLIP_CLEARED));
@@ -620,15 +618,15 @@ void AudioClipView::tellMatrixDriverWhichRowsContainSomethingZoomable() {
 
 uint32_t AudioClipView::getMaxLength() {
 	if (endMarkerVisible) {
-		return currentSong->currentClip->loopLength + 1;
+		return getCurrentClip()->loopLength + 1;
 	}
 	else {
-		return currentSong->currentClip->loopLength;
+		return getCurrentClip()->loopLength;
 	}
 }
 
 uint32_t AudioClipView::getMaxZoom() {
-	int32_t maxZoom = currentSong->currentClip->getMaxZoom();
+	int32_t maxZoom = getCurrentClip()->getMaxZoom();
 	if (endMarkerVisible && maxZoom < 1073741824) {
 		maxZoom <<= 1;
 	}

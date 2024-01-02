@@ -229,9 +229,9 @@ void KeyboardScreen::updateActiveNotes() {
 
 		// Recording - this only works *if* the Clip that we're viewing right now is the Instrument's activeClip
 		if (activeInstrument->type != InstrumentType::KIT && clipIsActiveOnInstrument
-		    && playbackHandler.shouldRecordNotesNow() && currentSong->isClipActive(currentSong->currentClip)) {
+		    && playbackHandler.shouldRecordNotesNow() && currentSong->isClipActive(getCurrentClip())) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-			    modelStack->addTimelineCounter(currentSong->currentClip);
+			    modelStack->addTimelineCounter(getCurrentClip());
 
 			// If count-in is on, we only got here if it's very nearly finished, so pre-empt that note.
 			// This is basic. For MIDI input, we do this in a couple more cases - see noteMessageReceived()
@@ -288,9 +288,9 @@ void KeyboardScreen::updateActiveNotes() {
 
 		// Recording - this only works *if* the Clip that we're viewing right now is the Instrument's activeClip
 		if (activeInstrument->type != InstrumentType::KIT && clipIsActiveOnInstrument
-		    && playbackHandler.shouldRecordNotesNow() && currentSong->isClipActive(currentSong->currentClip)) {
+		    && playbackHandler.shouldRecordNotesNow() && currentSong->isClipActive(getCurrentClip())) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-			    modelStack->addTimelineCounter(currentSong->currentClip);
+			    modelStack->addTimelineCounter(getCurrentClip());
 			ModelStackWithNoteRow* modelStackWithNoteRow =
 			    getCurrentInstrumentClip()->getNoteRowForYNote(oldNote, modelStackWithTimelineCounter);
 			if (modelStackWithNoteRow->getNoteRowAllowNull()) {
@@ -394,7 +394,7 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 	// Song view button
 	else if (b == SESSION_VIEW && on && currentUIMode == UI_MODE_NONE) {
 		// Transition back to arranger
-		if (currentSong->lastClipInstanceEnteredStartPos != -1 || currentSong->currentClip->section == 255) {
+		if (currentSong->lastClipInstanceEnteredStartPos != -1 || getCurrentClip()->section == 255) {
 			if (arrangerView.transitionToArrangementEditor()) {
 				return ActionResult::DEALT_WITH;
 			}
@@ -752,19 +752,19 @@ void KeyboardScreen::graphicsRoutine() {
 	const uint8_t* colours = keyboardTickColoursBasicRecording;
 
 	if (!playbackHandler.isEitherClockActive() || !playbackHandler.isCurrentlyRecording()
-	    || !currentSong->isClipActive(currentSong->currentClip) || currentUIMode == UI_MODE_EXPLODE_ANIMATION
+	    || !currentSong->isClipActive(getCurrentClip()) || currentUIMode == UI_MODE_EXPLODE_ANIMATION
 	    || playbackHandler.ticksLeftInCountIn) {
 		newTickSquare = 255;
 	}
 	else {
-		newTickSquare = (uint64_t)(currentSong->currentClip->lastProcessedPos
+		newTickSquare = (uint64_t)(getCurrentClip()->lastProcessedPos
 		                           + playbackHandler.getNumSwungTicksInSinceLastActionedSwungTick())
-		                * kDisplayWidth / currentSong->currentClip->loopLength;
+		                * kDisplayWidth / getCurrentClip()->loopLength;
 		if (newTickSquare < 0 || newTickSquare >= kDisplayWidth) {
 			newTickSquare = 255;
 		}
 
-		if (currentSong->currentClip->getCurrentlyRecordingLinearly()) {
+		if (getCurrentClip()->getCurrentlyRecordingLinearly()) {
 			colours = keyboardTickColoursLinearRecording;
 		}
 	}

@@ -21,11 +21,9 @@ namespace deluge::gui::menu_item::midi {
 class PGM final : public Preset {
 public:
 	using Preset::Preset;
-	void readCurrentValue() override {
-		this->setValue((static_cast<InstrumentClip*>(currentSong->currentClip))->midiPGM);
-	}
+	void readCurrentValue() override { this->setValue(getCurrentInstrumentClip()->midiPGM); }
 	void writeCurrentValue() override {
-		auto& currentClip = *(static_cast<InstrumentClip*>(currentSong->currentClip));
+		auto& currentClip = *getCurrentInstrumentClip();
 		currentClip.midiPGM = this->getValue();
 		if (currentClip.isActiveOnOutput()) {
 			currentClip.sendMIDIPGM();

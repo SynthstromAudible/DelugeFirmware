@@ -77,7 +77,7 @@ void InstrumentClipMinder::selectEncoderAction(int32_t offset) {
 
 	if (currentUIMode == UI_MODE_SELECTING_MIDI_CC) {
 		if (editingMIDICCForWhichModKnob < kNumPhysicalModKnobs) {
-			MIDIInstrument* instrument = (MIDIInstrument*)getCurrentInstrumentClip()->output;
+			MIDIInstrument* instrument = (MIDIInstrument*)getCurrentOutput();
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 			    modelStack->addOtherTwoThingsButNoNoteRow(instrument, &getCurrentInstrumentClip()->paramManager);
 
@@ -111,13 +111,13 @@ void InstrumentClipMinder::selectEncoderAction(int32_t offset) {
 void InstrumentClipMinder::redrawNumericDisplay() {
 	if (display->have7SEG()) {
 		if (getCurrentUI()->toClipMinder()) { // Seems a redundant check now? Maybe? Or not?
-			view.displayOutputName(getCurrentInstrumentClip()->output, false);
+			view.displayOutputName(getCurrentOutput(), false);
 		}
 	}
 }
 
 void InstrumentClipMinder::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
-	view.displayOutputName(getCurrentInstrumentClip()->output, false);
+	view.displayOutputName(getCurrentOutput(), false);
 }
 
 void InstrumentClipMinder::drawMIDIControlNumber(int32_t controlNumber, bool automationExists) {
@@ -160,7 +160,7 @@ void InstrumentClipMinder::drawMIDIControlNumber(int32_t controlNumber, bool aut
 void InstrumentClipMinder::createNewInstrument(InstrumentType newInstrumentType) {
 	int32_t error;
 
-	InstrumentType oldInstrumentType = getCurrentInstrumentClip()->output->type;
+	InstrumentType oldInstrumentType = getCurrentInstrumentType();
 
 	bool shouldReplaceWholeInstrument = currentSong->canOldOutputBeReplaced(getCurrentInstrumentClip());
 
@@ -225,7 +225,7 @@ gotError:
 		currentSong->backUpParamManager(
 		    (ModControllableAudio*)newInstrument->toModControllable(), NULL, &newParamManager,
 		    true); // This is how we feed a ParamManager into the replaceInstrument() function
-		currentSong->replaceInstrument((Instrument*)getCurrentInstrumentClip()->output, newInstrument, false);
+		currentSong->replaceInstrument(getCurrentInstrument(), newInstrument, false);
 	}
 
 	// Or if just adding new Instrument
@@ -279,11 +279,10 @@ void InstrumentClipMinder::displayOrLanguageChanged() {
 }
 
 void InstrumentClipMinder::setLedStates() {
-	indicator_leds::setLedState(IndicatorLED::SYNTH, getCurrentInstrumentClip()->output->type == InstrumentType::SYNTH);
-	indicator_leds::setLedState(IndicatorLED::KIT, getCurrentInstrumentClip()->output->type == InstrumentType::KIT);
-	indicator_leds::setLedState(IndicatorLED::MIDI,
-	                            getCurrentInstrumentClip()->output->type == InstrumentType::MIDI_OUT);
-	indicator_leds::setLedState(IndicatorLED::CV, getCurrentInstrumentClip()->output->type == InstrumentType::CV);
+	indicator_leds::setLedState(IndicatorLED::SYNTH, getCurrentInstrumentType() == InstrumentType::SYNTH);
+	indicator_leds::setLedState(IndicatorLED::KIT, getCurrentInstrumentType() == InstrumentType::KIT);
+	indicator_leds::setLedState(IndicatorLED::MIDI, getCurrentInstrumentType() == InstrumentType::MIDI_OUT);
+	indicator_leds::setLedState(IndicatorLED::CV, getCurrentInstrumentType() == InstrumentType::CV);
 
 	//cross screen editing doesn't currently work in automation view, so don't light it up
 	if (getCurrentUI() != &automationInstrumentClipView) {
@@ -324,14 +323,14 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 		indicator_leds::setLedState(IndicatorLED::SAVE, false);
 
 		if (b == SYNTH) {
-			if (getCurrentInstrumentClip()->output->type == InstrumentType::SYNTH) {
+			if (getCurrentInstrumentType() == InstrumentType::SYNTH) {
 yesSaveInstrument:
 				openUI(&saveInstrumentPresetUI);
 			}
 		}
 
 		else if (b == KIT) {
-			if (getCurrentInstrumentClip()->output->type == InstrumentType::KIT) {
+			if (getCurrentInstrumentType() == InstrumentType::KIT) {
 				goto yesSaveInstrument;
 			}
 		}
@@ -346,7 +345,7 @@ yesSaveInstrument:
 			Browser::instrumentTypeToLoad = InstrumentType::SYNTH;
 
 yesLoadInstrument:
-			loadInstrumentPresetUI.instrumentToReplace = (Instrument*)getCurrentInstrumentClip()->output;
+			loadInstrumentPresetUI.instrumentToReplace = getCurrentInstrument();
 			loadInstrumentPresetUI.instrumentClipToLoadFor = getCurrentInstrumentClip();
 			loadInstrumentPresetUI.loadingSynthToKitRow = false;
 			openUI(&loadInstrumentPresetUI);
@@ -366,12 +365,11 @@ yesLoadInstrument:
 	// Select button, without shift
 	else if (b == SELECT_ENC && !Buttons::isShiftButtonPressed()) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			if ((currentSong->currentClip->output->type == InstrumentType::KIT)
-			    && (((InstrumentClip*)currentSong->currentClip)->affectEntire)) {
+			if ((getCurrentInstrumentType() == InstrumentType::KIT) && (getCurrentInstrumentClip()->affectEntire)) {
 				soundEditor.setupKitGlobalFXMenu = true;
 			}
 
-			if (!soundEditor.setup(currentSong->currentClip)) {
+			if (!soundEditor.setup(getCurrentClip())) {
 				return ActionResult::DEALT_WITH;
 			}
 			openUI(&soundEditor);
@@ -381,7 +379,7 @@ yesLoadInstrument:
 	// Affect-entire
 	else if (b == AFFECT_ENTIRE) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			if (getCurrentInstrumentClip()->output->type == InstrumentType::KIT) {
+			if (getCurrentInstrumentType() == InstrumentType::KIT) {
 
 				getCurrentInstrumentClip()->affectEntire = !getCurrentInstrumentClip()->affectEntire;
 				view.setActiveModControllableTimelineCounter(getCurrentInstrumentClip());
@@ -397,7 +395,7 @@ yesLoadInstrument:
 
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStack =
-			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, currentSong->currentClip);
+			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, getCurrentClip());
 
 			getCurrentInstrumentClip()->clear(action, modelStack);
 
@@ -529,9 +527,8 @@ bool InstrumentClipMinder::makeCurrentClipActiveOnInstrumentIfPossible(ModelStac
 	bool clipIsActiveOnInstrument = (getCurrentInstrumentClip()->isActiveOnOutput());
 
 	if (!clipIsActiveOnInstrument) {
-		if (currentPlaybackMode->isOutputAvailable(getCurrentInstrumentClip()->output)) {
-			getCurrentInstrumentClip()->output->setActiveClip(
-			    modelStack->addTimelineCounter(getCurrentInstrumentClip()));
+		if (currentPlaybackMode->isOutputAvailable(getCurrentOutput())) {
+			getCurrentOutput()->setActiveClip(modelStack->addTimelineCounter(getCurrentInstrumentClip()));
 			clipIsActiveOnInstrument = true;
 		}
 	}

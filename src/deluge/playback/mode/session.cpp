@@ -140,8 +140,8 @@ bool Session::giveClipOpportunityToBeginLinearRecording(Clip* clip, int32_t clip
 	}
 
 	bool currentClipHasSameOutput =
-	    (currentSong->currentClip
-	     && currentSong->currentClip->output
+	    (getCurrentClip()
+	     && getCurrentOutput()
 	            == clip->output); // Must do this before calling opportunityToBeginLinearLoopRecording(), which may clone a new Output
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -981,8 +981,8 @@ void Session::toggleClipStatus(Clip* clip, int32_t* clipIndex, bool doInstant, i
 							armClipToStopAction(clip);
 
 							sessionView.clipNeedsReRendering(clip);
-							if (currentSong->currentClip) {
-								if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+							if (getCurrentClip()) {
+								if (getCurrentInstrumentClip()->onAutomationInstrumentClipView) {
 									uiNeedsRendering(&automationInstrumentClipView, 0xFFFFFFFF, 0);
 								}
 								else {

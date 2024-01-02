@@ -32,7 +32,7 @@ void Integer::writeCurrentValue() {
 	ModelStackWithAutoParam* modelStack = getModelStack(modelStackMemory);
 	modelStack->autoParam->setCurrentValueInResponseToUserInput(getFinalValue(), modelStack);
 
-	//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(getP(), getFinalValue(), 0xFFFFFFFF, 0, soundEditor.currentSound, currentSong, currentSong->currentClip, true, true);
+	//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(getP(), getFinalValue(), 0xFFFFFFFF, 0, soundEditor.currentSound, currentSong, getCurrentClip(), true, true);
 }
 
 int32_t Integer::getFinalValue() {
