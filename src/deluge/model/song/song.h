@@ -22,6 +22,7 @@
 #include "model/clip/clip.h"
 #include "model/clip/clip_array.h"
 #include "model/global_effectable/global_effectable_for_song.h"
+#include "model/instrument/instrument.h"
 #include "model/output.h"
 #include "model/timeline_counter.h"
 #include "modulation/params/param_manager.h"
@@ -32,6 +33,7 @@
 class MidiCommand;
 class Clip;
 class AudioClip;
+class Instrument;
 class InstrumentClip;
 class Synth;
 class ParamManagerForTimeline;
@@ -351,28 +353,28 @@ extern Song* currentSong;
 extern Song* preLoadedSong;
 extern int8_t defaultAudioClipOverdubOutputCloning;
 
-extern inline Clip* getCurrentClip() {
+inline Clip* getCurrentClip() {
 	return currentSong->currentClip;
 };
 
-extern inline InstrumentClip* getCurrentInstrumentClip() {
+inline InstrumentClip* getCurrentInstrumentClip() {
 	if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
-		return (InstrumentClip*)currentSong->currentClip;
+		return (InstrumentClip*)getCurrentClip();
 	}
 	return nullptr;
 };
 
-extern inline AudioClip* getCurrentAudioClip() {
+inline AudioClip* getCurrentAudioClip() {
 	if (getCurrentClip()->type == CLIP_TYPE_AUDIO) {
-		return (AudioClip*)currentSong->currentClip;
+		return (AudioClip*)getCurrentClip();
 	}
 	return nullptr;
 };
 
-extern inline Instrument* getCurrentInstrument() {
-	return (Instrument*)currentSong->currentClip->output;
+inline Instrument* getCurrentInstrument() {
+	return (Instrument*)getCurrentClip()->output;
 };
 
-extern inline InstrumentType getCurrentInstrumentType() {
-	return (InstrumentType)currentSong->currentClip->output->type;
+inline InstrumentType getCurrentInstrumentType() {
+	return (InstrumentType)getCurrentInstrument()->type;
 };
