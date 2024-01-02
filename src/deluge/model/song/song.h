@@ -370,6 +370,3 @@ extern int8_t defaultAudioClipOverdubOutputCloning;
 [[gnu::always_inline]] extern inline InstrumentType getCurrentInstrumentType() {
 	return (InstrumentType)currentSong->currentClip->output->type;
 };
-
-
-

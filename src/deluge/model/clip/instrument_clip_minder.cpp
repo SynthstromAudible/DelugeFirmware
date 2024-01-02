@@ -230,9 +230,9 @@ gotError:
 
 	// Or if just adding new Instrument
 	else {
-		int32_t error = getCurrentInstrumentClip()->changeInstrument(modelStack, newInstrument, &newParamManager,
-		                                                   InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL,
-		                                                   false); // There'll be no samples cos it's new and blank
+		int32_t error = getCurrentInstrumentClip()->changeInstrument(
+		    modelStack, newInstrument, &newParamManager, InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL,
+		    false); // There'll be no samples cos it's new and blank
 		// TODO: deal with errors
 
 		currentSong->addOutput(newInstrument);
@@ -281,7 +281,8 @@ void InstrumentClipMinder::displayOrLanguageChanged() {
 void InstrumentClipMinder::setLedStates() {
 	indicator_leds::setLedState(IndicatorLED::SYNTH, getCurrentInstrumentClip()->output->type == InstrumentType::SYNTH);
 	indicator_leds::setLedState(IndicatorLED::KIT, getCurrentInstrumentClip()->output->type == InstrumentType::KIT);
-	indicator_leds::setLedState(IndicatorLED::MIDI, getCurrentInstrumentClip()->output->type == InstrumentType::MIDI_OUT);
+	indicator_leds::setLedState(IndicatorLED::MIDI,
+	                            getCurrentInstrumentClip()->output->type == InstrumentType::MIDI_OUT);
 	indicator_leds::setLedState(IndicatorLED::CV, getCurrentInstrumentClip()->output->type == InstrumentType::CV);
 
 	//cross screen editing doesn't currently work in automation view, so don't light it up
@@ -529,7 +530,8 @@ bool InstrumentClipMinder::makeCurrentClipActiveOnInstrumentIfPossible(ModelStac
 
 	if (!clipIsActiveOnInstrument) {
 		if (currentPlaybackMode->isOutputAvailable(getCurrentInstrumentClip()->output)) {
-			getCurrentInstrumentClip()->output->setActiveClip(modelStack->addTimelineCounter(getCurrentInstrumentClip()));
+			getCurrentInstrumentClip()->output->setActiveClip(
+			    modelStack->addTimelineCounter(getCurrentInstrumentClip()));
 			clipIsActiveOnInstrument = true;
 		}
 	}

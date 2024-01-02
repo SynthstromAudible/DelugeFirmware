@@ -239,8 +239,9 @@ void KeyboardScreen::updateActiveNotes() {
 			if (isUIModeActive(UI_MODE_RECORD_COUNT_IN)) { // It definitely will be auditioning if we're here
 				ModelStackWithNoteRow* modelStackWithNoteRow = modelStackWithTimelineCounter->addNoteRow(0, NULL);
 				((MelodicInstrument*)activeInstrument)
-				    ->earlyNotes.insertElementIfNonePresent(newNote, currentNotesState.notes[idx].velocity,
-				                                            getCurrentInstrumentClip()->allowNoteTails(modelStackWithNoteRow));
+				    ->earlyNotes.insertElementIfNonePresent(
+				        newNote, currentNotesState.notes[idx].velocity,
+				        getCurrentInstrumentClip()->allowNoteTails(modelStackWithNoteRow));
 			}
 
 			else {
@@ -252,7 +253,8 @@ void KeyboardScreen::updateActiveNotes() {
 				    newNote, modelStackWithTimelineCounter, action, &scaleAltered);
 				NoteRow* thisNoteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 				if (thisNoteRow) {
-					getCurrentInstrumentClip()->recordNoteOn(modelStackWithNoteRow, currentNotesState.notes[idx].velocity);
+					getCurrentInstrumentClip()->recordNoteOn(modelStackWithNoteRow,
+					                                         currentNotesState.notes[idx].velocity);
 
 					// If this caused the scale to change, update scroll
 					if (action && scaleAltered) {
@@ -552,7 +554,8 @@ void KeyboardScreen::selectLayout(int8_t offset) {
 
 	// Ensure scale mode is as expected
 	if (getCurrentInstrumentType() != InstrumentType::KIT) {
-		auto requiredScaleMode = layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->requiredScaleMode();
+		auto requiredScaleMode =
+		    layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->requiredScaleMode();
 		if (requiredScaleMode == RequiredScaleMode::Enabled && !getCurrentInstrumentClip()->inScaleMode) {
 			getCurrentInstrumentClip()->yScroll = instrumentClipView.setupForEnteringScaleMode(currentSong->rootNote);
 			setLedStates();

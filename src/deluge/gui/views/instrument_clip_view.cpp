@@ -2150,8 +2150,8 @@ void InstrumentClipView::adjustProbability(int32_t offset) {
 					}
 
 					int32_t noteRowIndex;
-					NoteRow* noteRow =
-					    getCurrentInstrumentClip()->getNoteRowOnScreen(editPadPresses[i].yDisplay, currentSong, &noteRowIndex);
+					NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowOnScreen(editPadPresses[i].yDisplay,
+					                                                                  currentSong, &noteRowIndex);
 					int32_t noteRowId = getCurrentInstrumentClip()->getNoteRowId(noteRow, noteRowIndex);
 					ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, noteRow);
 
@@ -2177,7 +2177,8 @@ multiplePresses:
 
 				// "blurred square" with multiple notes
 				if (editPadPresses[i].isBlurredSquare) {
-					NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowOnScreen(editPadPresses[i].yDisplay, currentSong);
+					NoteRow* noteRow =
+					    getCurrentInstrumentClip()->getNoteRowOnScreen(editPadPresses[i].yDisplay, currentSong);
 					int32_t noteI = noteRow->notes.search(editPadPresses[i].intendedPos, GREATER_OR_EQUAL);
 					Note* note = noteRow->notes.getElement(noteI);
 					if (note) {
@@ -2222,8 +2223,8 @@ multiplePresses:
 					editPadPresses[i].intendedProbability = probabilityValue;
 
 					int32_t noteRowIndex;
-					NoteRow* noteRow =
-					    getCurrentInstrumentClip()->getNoteRowOnScreen(editPadPresses[i].yDisplay, currentSong, &noteRowIndex);
+					NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowOnScreen(editPadPresses[i].yDisplay,
+					                                                                  currentSong, &noteRowIndex);
 					int32_t noteRowId = getCurrentInstrumentClip()->getNoteRowId(noteRow, noteRowIndex);
 
 					ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, noteRow);
@@ -2401,8 +2402,8 @@ void InstrumentClipView::recalculateColour(uint8_t yDisplay) {
 	if (noteRow) {
 		colourOffset = noteRow->getColourOffset(getCurrentInstrumentClip());
 	}
-	getCurrentInstrumentClip()->getMainColourFromY(getCurrentInstrumentClip()->getYNoteFromYDisplay(yDisplay, currentSong), colourOffset,
-	                                     rowColour[yDisplay]);
+	getCurrentInstrumentClip()->getMainColourFromY(
+	    getCurrentInstrumentClip()->getYNoteFromYDisplay(yDisplay, currentSong), colourOffset, rowColour[yDisplay]);
 	getTailColour(rowTailColour[yDisplay], rowColour[yDisplay]);
 	getBlurColour(rowBlurColour[yDisplay], rowColour[yDisplay]);
 
@@ -2483,7 +2484,8 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 		    && (!draggingNoteRow || lastAuditionedYDisplay != yDisplay)) {
 			sendAuditionNote(false, yDisplay, 127, 0);
 
-			ModelStackWithNoteRow* modelStackWithNoteRow = getCurrentInstrumentClip()->getNoteRowOnScreen(yDisplay, modelStack);
+			ModelStackWithNoteRow* modelStackWithNoteRow =
+			    getCurrentInstrumentClip()->getNoteRowOnScreen(yDisplay, modelStack);
 			NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 
 			if (noteRow) {
@@ -2758,9 +2760,10 @@ void InstrumentClipView::sendAuditionNote(bool on, uint8_t yDisplay, uint8_t vel
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 	if (instrument->type == InstrumentType::KIT) {
-		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(getCurrentInstrumentClip());
-		ModelStackWithNoteRow* modelStackWithNoteRow =
-		    getCurrentInstrumentClip()->getNoteRowOnScreen(yDisplay, modelStackWithTimelineCounter); // On *current* clip!
+		ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
+		    modelStack->addTimelineCounter(getCurrentInstrumentClip());
+		ModelStackWithNoteRow* modelStackWithNoteRow = getCurrentInstrumentClip()->getNoteRowOnScreen(
+		    yDisplay, modelStackWithTimelineCounter); // On *current* clip!
 
 		NoteRow* noteRowOnCurrentClip = modelStackWithNoteRow->getNoteRowAllowNull();
 
@@ -3175,7 +3178,8 @@ void InstrumentClipView::auditionPadAction(int32_t velocity, int32_t yDisplay, b
 					yDisplayOfNewNoteRow = yDisplay;
 					yDisplayOfNewNoteRow =
 					    std::max((int32_t)yDisplayOfNewNoteRow, (int32_t)-1 - getCurrentInstrumentClip()->yScroll);
-					int32_t maximum = getCurrentInstrumentClip()->getNumNoteRows() - getCurrentInstrumentClip()->yScroll;
+					int32_t maximum =
+					    getCurrentInstrumentClip()->getNumNoteRows() - getCurrentInstrumentClip()->yScroll;
 					yDisplayOfNewNoteRow = std::min((int32_t)yDisplayOfNewNoteRow, maximum);
 
 					goto justReRender;
@@ -3242,9 +3246,9 @@ justReRender:
 			if (isUIModeActive(UI_MODE_RECORD_COUNT_IN)) {
 				if (isKit) {
 					if (drum) {
-						drum->recordNoteOnEarly((velocity == USE_DEFAULT_VELOCITY) ? instrument->defaultVelocity
-						                                                           : velocity,
-						                        getCurrentInstrumentClip()->allowNoteTails(modelStackWithNoteRowOnCurrentClip));
+						drum->recordNoteOnEarly(
+						    (velocity == USE_DEFAULT_VELOCITY) ? instrument->defaultVelocity : velocity,
+						    getCurrentInstrumentClip()->allowNoteTails(modelStackWithNoteRowOnCurrentClip));
 					}
 				}
 				else {
@@ -3267,9 +3271,9 @@ justReRender:
 				}
 
 				if (modelStackWithNoteRowOnCurrentClip->getNoteRowAllowNull()) {
-					getCurrentInstrumentClip()->recordNoteOn(modelStackWithNoteRowOnCurrentClip,
-					                               (velocity == USE_DEFAULT_VELOCITY) ? instrument->defaultVelocity
-					                                                                  : velocity);
+					getCurrentInstrumentClip()->recordNoteOn(
+					    modelStackWithNoteRowOnCurrentClip,
+					    (velocity == USE_DEFAULT_VELOCITY) ? instrument->defaultVelocity : velocity);
 					goto maybeRenderRow;
 				}
 			}
@@ -3795,8 +3799,9 @@ int32_t InstrumentClipView::setupForExitingScaleMode() {
 
 	// Or if there wasn't an instance of the root note onscreen..
 	if (!foundRootNoteOnScreen) {
-		scrollAdjust = getCurrentInstrumentClip()->getYNoteFromYVisual(getCurrentInstrumentClip()->yScroll + 1, currentSong) - 1
-		               - getCurrentInstrumentClip()->yScroll;
+		scrollAdjust =
+		    getCurrentInstrumentClip()->getYNoteFromYVisual(getCurrentInstrumentClip()->yScroll + 1, currentSong) - 1
+		    - getCurrentInstrumentClip()->yScroll;
 	}
 
 	getCurrentInstrumentClip()->inScaleMode = false;
@@ -5016,8 +5021,8 @@ void InstrumentClipView::fillOffScreenImageStores() {
 		noteRowIndexTop = getCurrentInstrumentClip()->yScroll + kDisplayHeight;
 	}
 	else {
-		noteRowIndexBottom =
-		    getCurrentInstrumentClip()->noteRows.search(getCurrentInstrumentClip()->getYNoteFromYDisplay(0, currentSong), GREATER_OR_EQUAL);
+		noteRowIndexBottom = getCurrentInstrumentClip()->noteRows.search(
+		    getCurrentInstrumentClip()->getYNoteFromYDisplay(0, currentSong), GREATER_OR_EQUAL);
 		noteRowIndexTop = getCurrentInstrumentClip()->noteRows.search(
 		    getCurrentInstrumentClip()->getYNoteFromYDisplay(kDisplayHeight, currentSong), GREATER_OR_EQUAL);
 	}

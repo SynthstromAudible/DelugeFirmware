@@ -121,8 +121,8 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayW
 		int64_t xScrollSamples;
 		int64_t xZoomSamples;
 
-		getCurrentAudioClip()->getScrollAndZoomInSamples(currentSong->xScroll[NAVIGATION_CLIP], currentSong->xZoom[NAVIGATION_CLIP],
-		                                     &xScrollSamples, &xZoomSamples);
+		getCurrentAudioClip()->getScrollAndZoomInSamples(
+		    currentSong->xScroll[NAVIGATION_CLIP], currentSong->xZoom[NAVIGATION_CLIP], &xScrollSamples, &xZoomSamples);
 
 		uint8_t rgb[3];
 		getCurrentAudioClip()->getColour(rgb);
@@ -133,9 +133,9 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, uint8_t image[][kDisplayW
 		}
 		int32_t xEnd = std::min(kDisplayWidth, visibleWaveformXEnd);
 
-		bool success =
-		    waveformRenderer.renderFullScreen(getSample(), xScrollSamples, xZoomSamples, image, &getCurrentAudioClip()->renderData,
-		                                      recorder, rgb, getCurrentAudioClip()->sampleControls.reversed, xEnd);
+		bool success = waveformRenderer.renderFullScreen(getSample(), xScrollSamples, xZoomSamples, image,
+		                                                 &getCurrentAudioClip()->renderData, recorder, rgb,
+		                                                 getCurrentAudioClip()->sampleControls.reversed, xEnd);
 
 		// If card being accessed and waveform would have to be re-examined, come back later
 		if (!success && image == PadLEDs::image) {
