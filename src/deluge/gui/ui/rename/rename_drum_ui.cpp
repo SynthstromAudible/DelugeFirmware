@@ -99,7 +99,7 @@ void RenameDrumUI::enterKeyPress() {
 
 	// If actually changing it...
 	if (!getDrum()->name.equalsCaseIrrespective(&enteredText)) {
-		if (((Kit*)currentSong->currentClip->output)->getDrumFromName(enteredText.get())) {
+		if (getCurrentKit()->getDrumFromName(enteredText.get())) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DUPLICATE_NAMES));
 			return;
 		}

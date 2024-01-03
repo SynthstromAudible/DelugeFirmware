@@ -124,7 +124,7 @@ void MelodicInstrument::receivedNote(ModelStackWithTimelineCounter* modelStack, 
 		if (on) {
 			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::HighlightIncomingNotes)
 			        == RuntimeFeatureStateToggle::On
-			    && instrumentClip == currentSong->currentClip) {
+			    && instrumentClip == getCurrentInstrumentClip()) {
 				highlightNoteValue = velocity;
 			}
 
@@ -235,7 +235,7 @@ justAuditionNote:
 		else {
 			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::HighlightIncomingNotes)
 			        == RuntimeFeatureStateToggle::On
-			    && instrumentClip == currentSong->currentClip) {
+			    && instrumentClip == getCurrentInstrumentClip()) {
 				highlightNoteValue = 0;
 			}
 			// NoteRow must already be auditioning

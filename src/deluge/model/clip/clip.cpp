@@ -650,7 +650,7 @@ void Clip::writeDataToFile(Song* song) {
 
 	//storageManager.writeTag("activeModFunction", modKnobMode);
 
-	if (currentSong->currentClip == this) {
+	if (getCurrentClip() == this) {
 		if (getRootUI()->toClipMinder()) {
 			storageManager.writeAttribute("beingEdited", "1");
 		}

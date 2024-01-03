@@ -346,16 +346,16 @@ cant:
 				}
 
 				// Can't do it for arranger-only Clips
-				if (currentSong->currentClip->isArrangementOnlyClip()) {
+				if (getCurrentClip()->isArrangementOnlyClip()) {
 					goto cant;
 				}
 
 				// Can't do it for Clips recording linearly
-				if (currentSong->currentClip->getCurrentlyRecordingLinearly()) {
+				if (getCurrentClip()->getCurrentlyRecordingLinearly()) {
 					goto cant;
 				}
 
-				currentSong->setInputTickScaleClip(currentSong->currentClip);
+				currentSong->setInputTickScaleClip(getCurrentClip());
 			}
 
 			// Or if scaling already, stop it
@@ -466,7 +466,7 @@ void View::endMIDILearn() {
 
 void View::setTimeBaseScaleLedState() {
 	// If this Clip is the inputTickScaleClip, flash the LED
-	if (getCurrentUI()->toClipMinder() && currentSong->currentClip == currentSong->getSyncScalingClip()) {
+	if (getCurrentUI()->toClipMinder() && getCurrentClip() == currentSong->getSyncScalingClip()) {
 		indicator_leds::blinkLed(IndicatorLED::SYNC_SCALING);
 	}
 
@@ -535,7 +535,7 @@ void View::drumMidiLearnPadPressed(bool on, Drum* drum, Kit* kit) {
 	else if (thingPressedForMidiLearn == MidiLearn::DRUM_INPUT) {
 		if (deleteMidiCommandOnRelease) {
 			learnedThing->clear();
-			((Instrument*)currentSong->currentClip->output)->beenEdited(false);
+			getCurrentInstrument()->beenEdited(false);
 		}
 		endMidiLearnPressSession();
 	}
@@ -588,7 +588,7 @@ void View::noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channelOrZ
 
 		case MidiLearn::DRUM_INPUT: {
 			// For a Drum, we can assume that the user must be viewing a Clip, as the currentClip.
-			((Instrument*)currentSong->currentClip->output)->beenEdited(false);
+			getCurrentInstrument()->beenEdited(false);
 
 			// Copy bend ranges if appropriate. This logic is duplicated in NoteRow::setDrum().
 			int32_t newBendRange;
@@ -601,8 +601,7 @@ void View::noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channelOrZ
 			}
 
 			if (newBendRange) {
-				NoteRow* noteRow =
-				    ((InstrumentClip*)currentSong->currentClip)->getNoteRowForDrum(drumPressedForMIDILearn);
+				NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowForDrum(drumPressedForMIDILearn);
 				if (noteRow) {
 					ExpressionParamSet* expressionParams = noteRow->paramManager.getOrCreateExpressionParamSet(true);
 					if (expressionParams) {
@@ -765,13 +764,13 @@ void View::ccReceivedForMIDILearn(MIDIDevice* fromDevice, int32_t channel, int32
 		if (thingPressedForMidiLearn == MidiLearn::MELODIC_INSTRUMENT_INPUT) {
 
 			// Special case for MIDIInstruments - CCs can learn the input MIDI channel
-			if (currentSong->currentClip->output->type == InstrumentType::MIDI_OUT) {
+			if (getCurrentInstrumentType() == InstrumentType::MIDI_OUT) {
 
 				// But only if user hasn't already started learning MPE stuff... Or regular note-ons...
 				if (highestMIDIChannelSeenWhileLearning < lowestMIDIChannelSeenWhileLearning) {
 					learnedThing->device = fromDevice;
 					learnedThing->channelOrZone = channel;
-					((Instrument*)currentSong->currentClip->output)->beenEdited(false);
+					getCurrentInstrument()->beenEdited(false);
 				}
 			}
 		}
@@ -1205,7 +1204,7 @@ void View::setModLedStates() {
 			affectEntire = true;
 		}
 		else {
-			affectEntire = ((InstrumentClip*)currentSong->currentClip)->affectEntire;
+			affectEntire = getCurrentInstrumentClip()->affectEntire;
 		}
 	}
 	indicator_leds::setLedState(IndicatorLED::AFFECT_ENTIRE, affectEntire);
@@ -1235,7 +1234,7 @@ void View::setModLedStates() {
 			}
 		}
 		else if (getRootUI() == &keyboardScreen) {
-			if (((InstrumentClip*)currentSong->currentClip)->onAutomationInstrumentClipView) {
+			if (getCurrentInstrumentClip()->onAutomationInstrumentClipView) {
 				goto setBlinkLED;
 			}
 		}
@@ -2018,7 +2017,8 @@ bool View::changeInstrumentType(InstrumentType newInstrumentType, ModelStackWith
 		return false;
 	}
 
-	setActiveModControllableTimelineCounter(clip); // Do a redraw. Obviously the Clip is the same
+	// Do a redraw. Obviously the Clip is the same
+	setActiveModControllableTimelineCounter(clip);
 	displayOutputName(newInstrument, doBlink);
 	if (display->haveOLED()) {
 		deluge::hid::display::OLED::sendMainImage();
@@ -2030,8 +2030,8 @@ bool View::changeInstrumentType(InstrumentType newInstrumentType, ModelStackWith
 void View::instrumentChanged(ModelStackWithTimelineCounter* modelStack, Instrument* newInstrument) {
 
 	((Clip*)modelStack->getTimelineCounter())->outputChanged(modelStack, newInstrument);
-	setActiveModControllableTimelineCounter(
-	    modelStack->getTimelineCounter()); // Do a redraw. Obviously the Clip is the same
+	// Do a redraw. Obviously the Clip is the same
+	setActiveModControllableTimelineCounter(modelStack->getTimelineCounter());
 }
 
 void View::getClipMuteSquareColour(Clip* clip, uint8_t thisColour[], bool dimInactivePads, bool allowMIDIFlash) {
@@ -2235,7 +2235,7 @@ void View::flashPlayDisable() {
 	}
 #ifdef currentClipStatusButtonX
 	else if (getRootUI()->toClipMinder()) {
-		drawCurrentClipPad(currentSong->currentClip);
+		drawCurrentClipPad(getCurrentClip());
 	}
 #endif
 }

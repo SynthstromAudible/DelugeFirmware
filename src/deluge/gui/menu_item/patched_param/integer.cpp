@@ -38,7 +38,7 @@ void Integer::writeCurrentValue() {
 	int32_t knobPos = modelStack->paramCollection->paramValueToKnobPos(value, modelStack);
 	view.sendMidiFollowFeedback(modelStack, knobPos);
 
-	//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(getP(), getFinalValue(), 0xFFFFFFFF, 0, soundEditor.currentSound, currentSong, currentSong->currentClip, true, true);
+	//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(getP(), getFinalValue(), 0xFFFFFFFF, 0, soundEditor.currentSound, currentSong, getCurrentClip(), true, true);
 }
 
 int32_t Integer::getFinalValue() {

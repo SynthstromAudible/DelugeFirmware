@@ -374,7 +374,7 @@ void PlaybackHandler::decideOnCurrentPlaybackMode() {
 	}
 
 	if (rootUIIsClipMinderScreen()
-	    && (currentSong->lastClipInstanceEnteredStartPos != -1 || currentSong->currentClip->isArrangementOnlyClip())) {
+	    && (currentSong->lastClipInstanceEnteredStartPos != -1 || getCurrentClip()->isArrangementOnlyClip())) {
 useArranger:
 		currentPlaybackMode = &arrangement;
 	}
@@ -2934,8 +2934,8 @@ doCreateNextOverdub:
 			}
 
 			// Otherwise, prioritize the currentClip - so long as it's not arrangement-only
-			else if (currentSong->currentClip && !currentSong->currentClip->isArrangementOnlyClip()) {
-				clipToCreateOverdubFrom = currentSong->currentClip;
+			else if (getCurrentClip() && !getCurrentClip()->isArrangementOnlyClip()) {
+				clipToCreateOverdubFrom = getCurrentClip();
 				clipIndexToCreateOverdubFrom = currentSong->sessionClips.getIndexForClip(clipToCreateOverdubFrom);
 			}
 
