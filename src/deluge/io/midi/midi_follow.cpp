@@ -116,11 +116,11 @@ Clip* MidiFollow::getClipForMidiFollow(bool useActiveClip) {
 		}
 	}
 	else {
-		clip = currentSong->currentClip;
+		clip = getCurrentClip();
 	}
 	//special case for instruments where you want to let notes and MPE through to the active clip
 	if (!clip && useActiveClip) {
-		clip = currentSong->currentClip;
+		clip = getCurrentClip();
 	}
 	return clip;
 }
