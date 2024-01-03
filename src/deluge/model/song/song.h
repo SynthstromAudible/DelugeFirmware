@@ -47,6 +47,7 @@ class ArrangementRow;
 class BackedUpParamManager;
 class ArpeggiatorSettings;
 class Kit;
+class MelodicInstrument;
 class MIDIInstrument;
 class NoteRow;
 class Output;
@@ -59,6 +60,7 @@ InstrumentClip* getCurrentInstrumentClip();
 AudioClip* getCurrentAudioClip();
 Output* getCurrentOutput();
 Kit* getCurrentKit();
+MelodicInstrument* getCurrentMelodicInstrument();
 Instrument* getCurrentInstrument();
 InstrumentType getCurrentInstrumentType();
 
