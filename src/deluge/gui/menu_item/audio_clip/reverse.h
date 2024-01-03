@@ -29,11 +29,9 @@ class Reverse final : public Toggle {
 public:
 	using Toggle::Toggle;
 
-	void readCurrentValue() override {
-		this->setValue((static_cast<AudioClip*>(currentSong->currentClip))->sampleControls.reversed);
-	}
+	void readCurrentValue() override { this->setValue(getCurrentAudioClip()->sampleControls.reversed); }
 	void writeCurrentValue() override {
-		auto* clip = static_cast<AudioClip*>(currentSong->currentClip);
+		auto* clip = getCurrentAudioClip();
 		bool active = (playbackHandler.isEitherClockActive() && currentSong->isClipActive(clip) && clip->voiceSample);
 
 		clip->unassignVoiceSample();
