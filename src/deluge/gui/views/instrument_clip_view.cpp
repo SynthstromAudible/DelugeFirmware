@@ -657,8 +657,8 @@ doOther:
 					}
 				}
 			}
-			enterUIMode(
-			    UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON); // Whether or not we did the "multiply" action above, we need to be in this UI mode, e.g. for rotating individual NoteRow
+			// Whether or not we did the "multiply" action above, we need to be in this UI mode, e.g. for rotating individual NoteRow
+			enterUIMode(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON);
 		}
 
 		// Otherwise...
@@ -688,8 +688,10 @@ doCancelPopup:
 		// If holding notes down...
 		if (isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)) {
 			if (on) {
-				editNoteRepeat(0); // Just pop up number - don't do anything
-				goto passToOthers; // Wait, why?
+				// Just pop up number - don't do anything
+				// Wait, why?
+				editNoteRepeat(0);
+				goto passToOthers;
 			}
 			else {
 				goto doCancelPopup;
@@ -727,9 +729,10 @@ doCancelPopup:
 				    ((InstrumentClip*)modelStack->getTimelineCounter())
 				        ->getNoteRowOnScreen(lastAuditionedYDisplay, modelStack);
 
-				editNumEuclideanEvents(modelStackWithNoteRow, 0,
-				                       lastAuditionedYDisplay); // Just pop up number - don't do anything
-				goto passToOthers;                              // Wait, why?
+				// Just pop up number - don't do anything
+				// Wait, why?
+				editNumEuclideanEvents(modelStackWithNoteRow, 0, lastAuditionedYDisplay);
+				goto passToOthers;
 			}
 			else {
 				goto doCancelPopup;
@@ -791,7 +794,8 @@ someError:
 		noteRow = getCurrentInstrumentClip()->getNoteRowOnScreen(lastAuditionedYDisplay, currentSong, &noteRowIndex);
 		if (noteRow->drum) {
 			if (drumType != DrumType::SOUND && noteRow->drum->type == drumType) {
-				return; // If it's already that kind of Drum, well, no need to do it again
+				// If it's already that kind of Drum, well, no need to do it again
+				return;
 			}
 			noteRow->drum->drumWontBeRenderedForAWhile();
 		}
@@ -887,12 +891,10 @@ void InstrumentClipView::copyAutomation(int32_t whichModEncoder) {
 	    whichModEncoder, &view.activeModControllableModelStack, false);
 	if (modelStack && modelStack->autoParam) {
 
-		bool isPatchCable =
-		    (modelStack->paramCollection
-		     == modelStack->paramManager
-		            ->getPatchCableSetAllowJibberish()); // Ok this is cursed, but will work fine so long as
-		                                                 // the possibly invalid memory here doesn't accidentally
-		                                                 // equal modelStack->paramCollection.
+		// Ok this is cursed, but will work fine so long as
+		// the possibly invalid memory here doesn't accidentally
+		// equal modelStack->paramCollection.
+		bool isPatchCable = (modelStack->paramCollection == modelStack->paramManager->getPatchCableSetAllowJibberish());
 		modelStack->autoParam->copy(startPos, endPos, &copiedParamAutomation, isPatchCable, modelStack);
 
 		if (copiedParamAutomation.nodes) {
