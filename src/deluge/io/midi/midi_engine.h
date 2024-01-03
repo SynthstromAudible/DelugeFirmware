@@ -62,7 +62,6 @@ public:
 	LearnedMIDI globalMIDICommands[kNumGlobalMIDICommands];
 
 	bool midiThru;
-	bool midiFollow;
 	LearnedMIDI midiFollowChannelType[kNumMIDIFollowChannelTypes]; //Synth, Kit, Param
 	uint8_t midiFollowKitRootNote;
 	bool midiFollowDisplayParam;

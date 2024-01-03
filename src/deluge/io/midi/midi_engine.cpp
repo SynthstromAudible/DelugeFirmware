@@ -218,7 +218,6 @@ MidiEngine::MidiEngine() {
 	lastStatusByteSent = 0;
 	currentlyReceivingSysExSerial = false;
 	midiThru = false;
-	midiFollow = false;
 	for (auto& midiChannelType : midiEngine.midiFollowChannelType) {
 		midiChannelType.clear();
 	}

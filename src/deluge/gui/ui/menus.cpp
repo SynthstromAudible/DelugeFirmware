@@ -760,7 +760,6 @@ ToggleBool midiThruMenu{STRING_FOR_MIDI_THRU, STRING_FOR_MIDI_THRU, midiEngine.m
 midi::Takeover midiTakeoverMenu{STRING_FOR_TAKEOVER};
 
 //MIDI Follow
-ToggleBool midiFollowMenu{STRING_FOR_FOLLOW, STRING_FOR_FOLLOW, midiEngine.midiFollow};
 midi::FollowChannel midiFollowChannelSynthMenu{
     STRING_FOR_FOLLOW_CHANNEL_SYNTH, STRING_FOR_FOLLOW_CHANNEL_SYNTH,
     midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)]};
@@ -803,7 +802,6 @@ Submenu midiFollowSubmenu{
     STRING_FOR_FOLLOW_TITLE,
     STRING_FOR_FOLLOW_TITLE,
     {
-        &midiFollowMenu,
         &midiFollowChannelSubmenu,
         &midiFollowKitRootNoteMenu,
         &midiFollowDisplayParamMenu,

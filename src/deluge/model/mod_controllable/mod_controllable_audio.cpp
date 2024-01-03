@@ -1827,7 +1827,7 @@ void ModControllableAudio::receivedCCFromMidiFollow(ModelStack* modelStack, Clip
 /// 2) sets up the model stack for that context
 /// 3) checks what parameters have been learned and obtains the model stack for those params
 /// 4) sends midi feedback of the current parameter value to the cc numbers learned to those parameters
-void ModControllableAudio::sendCCWithoutModelStackForMidiFollowFeedback(bool isAutomation) {
+void ModControllableAudio::sendCCWithoutModelStackForMidiFollowFeedback(int32_t channel, bool isAutomation) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
@@ -1873,7 +1873,7 @@ void ModControllableAudio::sendCCWithoutModelStackForMidiFollowFeedback(bool isA
 								    currentValue, modelStackWithParam);
 
 								//send midi feedback to the ccNumber learned to the param with the current knob position
-								sendCCForMidiFollowFeedback(midiFollow.paramToCC[xDisplay][yDisplay], knobPos);
+								sendCCForMidiFollowFeedback(channel, midiFollow.paramToCC[xDisplay][yDisplay], knobPos);
 							}
 						}
 					}
@@ -1884,15 +1884,11 @@ void ModControllableAudio::sendCCWithoutModelStackForMidiFollowFeedback(bool isA
 }
 
 /// called when updating parameter values using mod (gold) encoders or the select encoder in the soudnEditor menu
-void ModControllableAudio::sendCCForMidiFollowFeedback(int32_t ccNumber, int32_t knobPos) {
+void ModControllableAudio::sendCCForMidiFollowFeedback(int32_t channel, int32_t ccNumber, int32_t knobPos) {
 	LearnedMIDI& midiInput = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)];
-	int32_t channel;
 
 	if (midiInput.isForMPEZone()) {
 		channel = midiInput.getMasterChannel();
-	}
-	else {
-		channel = midiInput.channelOrZone;
 	}
 
 	int32_t midiOutputFilter = midiInput.channelOrZone;

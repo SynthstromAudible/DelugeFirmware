@@ -120,18 +120,17 @@ namespace FlashStorage {
 120: gridAllowGreenSelection
 121: defaultGridActiveMode
 122: defaultMetronomeVolume
-123: midiFollow enable/disable
-124: midiFollow set follow channel synth
-125: midiFollow set follow channel kit
-126: midiFollow set follow channel param
-127: midiFollow set kit root note
-128: midiFollow display param pop up
-129: midiFollow feedback
-130: midiFollow feedback automation mode
-131: midiFollow feedback filter to handle feedback loops
-132-135: midiFollow set follow device synth 	product / vendor ids
-136-139: midiFollow set follow device kit		product / vendor ids
-140-143: midiFollow set follow device param		product / vendor ids
+123: midiFollow set follow channel synth
+124: midiFollow set follow channel kit
+125: midiFollow set follow channel param
+126: midiFollow set kit root note
+127: midiFollow display param pop up
+128: midiFollow feedback
+129: midiFollow feedback automation mode
+130: midiFollow feedback filter to handle feedback loops
+131-134: midiFollow set follow device synth 	product / vendor ids
+135-138: midiFollow set follow device kit		product / vendor ids
+139-142: midiFollow set follow device param		product / vendor ids
 */
 
 uint8_t defaultScale;
@@ -182,7 +181,6 @@ void resetSettings() {
 	PadLEDs::flashCursor = FLASH_CURSOR_SLOW;
 
 	midiEngine.midiThru = false;
-	midiEngine.midiFollow = false;
 	for (auto& midiChannelType : midiEngine.midiFollowChannelType) {
 		midiChannelType.clear();
 	}
@@ -443,18 +441,17 @@ void readSettings() {
 	}
 	AudioEngine::metronome.setVolume(defaultMetronomeVolume);
 
-	midiEngine.midiFollow = buffer[123];
-	midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)].channelOrZone = buffer[124];
-	midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)].channelOrZone = buffer[125];
-	midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)].channelOrZone = buffer[126];
-	midiEngine.midiFollowKitRootNote = buffer[127];
-	midiEngine.midiFollowDisplayParam = buffer[128];
-	midiEngine.midiFollowFeedback = buffer[129];
-	midiEngine.midiFollowFeedbackAutomation = static_cast<MIDIFollowFeedbackAutomationMode>(buffer[130]);
-	midiEngine.midiFollowFeedbackFilter = buffer[131];
-	MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::SYNTH, &buffer[132]);
-	MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::KIT, &buffer[136]);
-	MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::PARAM, &buffer[140]);
+	midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)].channelOrZone = buffer[123];
+	midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)].channelOrZone = buffer[124];
+	midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)].channelOrZone = buffer[125];
+	midiEngine.midiFollowKitRootNote = buffer[126];
+	midiEngine.midiFollowDisplayParam = buffer[127];
+	midiEngine.midiFollowFeedback = buffer[128];
+	midiEngine.midiFollowFeedbackAutomation = static_cast<MIDIFollowFeedbackAutomationMode>(buffer[129]);
+	midiEngine.midiFollowFeedbackFilter = buffer[130];
+	MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::SYNTH, &buffer[131]);
+	MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::KIT, &buffer[135]);
+	MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::PARAM, &buffer[139]);
 }
 
 void writeSettings() {
@@ -566,18 +563,17 @@ void writeSettings() {
 
 	buffer[122] = defaultMetronomeVolume;
 
-	buffer[123] = midiEngine.midiFollow;
-	buffer[124] = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)].channelOrZone;
-	buffer[125] = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)].channelOrZone;
-	buffer[126] = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)].channelOrZone;
-	buffer[127] = midiEngine.midiFollowKitRootNote;
-	buffer[128] = midiEngine.midiFollowDisplayParam;
-	buffer[129] = midiEngine.midiFollowFeedback;
-	buffer[130] = util::to_underlying(midiEngine.midiFollowFeedbackAutomation);
-	buffer[131] = midiEngine.midiFollowFeedbackFilter;
-	MIDIDeviceManager::writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType::SYNTH, &buffer[132]);
-	MIDIDeviceManager::writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType::KIT, &buffer[136]);
-	MIDIDeviceManager::writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType::PARAM, &buffer[140]);
+	buffer[123] = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::SYNTH)].channelOrZone;
+	buffer[124] = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::KIT)].channelOrZone;
+	buffer[125] = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::PARAM)].channelOrZone;
+	buffer[126] = midiEngine.midiFollowKitRootNote;
+	buffer[127] = midiEngine.midiFollowDisplayParam;
+	buffer[128] = midiEngine.midiFollowFeedback;
+	buffer[129] = util::to_underlying(midiEngine.midiFollowFeedbackAutomation);
+	buffer[130] = midiEngine.midiFollowFeedbackFilter;
+	MIDIDeviceManager::writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType::SYNTH, &buffer[131]);
+	MIDIDeviceManager::writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType::KIT, &buffer[135]);
+	MIDIDeviceManager::writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType::PARAM, &buffer[139]);
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer, 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,
