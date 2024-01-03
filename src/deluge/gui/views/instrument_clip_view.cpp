@@ -918,8 +918,8 @@ void InstrumentClipView::copyNotes() {
 	}
 
 	copiedScaleType = getCurrentInstrumentClip()->getScaleType();
-	copiedYNoteOfBottomRow =
-	    getCurrentInstrumentClip()->getYNoteFromYDisplay(0, currentSong); //getCurrentClip()->yScroll;
+	//getCurrentClip()->yScroll;
+	copiedYNoteOfBottomRow = getCurrentInstrumentClip()->getYNoteFromYDisplay(0, currentSong);
 
 	CopiedNoteRow** prevPointer = &firstCopiedNoteRow;
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -3111,8 +3111,8 @@ void InstrumentClipView::setSelectedDrum(Drum* drum, bool shouldRedrawStuff) {
 		getCurrentKit()->selectedDrum = drum;
 
 		if (shouldRedrawStuff) {
-			view.setActiveModControllableTimelineCounter(
-			    getCurrentClip()); // Do a redraw. Obviously the Clip is the same
+			// Do a redraw. Obviously the Clip is the same
+			view.setActiveModControllableTimelineCounter(getCurrentClip());
 		}
 	}
 
@@ -3247,12 +3247,12 @@ justReRender:
 					}
 				}
 				else {
+					// NoteRow is allowed to be NULL in this case.
 					int32_t yNote = getCurrentInstrumentClip()->getYNoteFromYDisplay(yDisplay, currentSong);
 					((MelodicInstrument*)instrument)
 					    ->earlyNotes.insertElementIfNonePresent(
 					        yNote, instrument->defaultVelocity,
-					        getCurrentInstrumentClip()->allowNoteTails(
-					            modelStackWithNoteRowOnCurrentClip)); // NoteRow is allowed to be NULL in this case.
+					        getCurrentInstrumentClip()->allowNoteTails(modelStackWithNoteRowOnCurrentClip));
 				}
 			}
 

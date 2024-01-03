@@ -1985,7 +1985,8 @@ bool View::changeInstrumentType(InstrumentType newInstrumentType, ModelStackWith
 		return false;
 	}
 
-	setActiveModControllableTimelineCounter(clip); // Do a redraw. Obviously the Clip is the same
+	// Do a redraw. Obviously the Clip is the same
+	setActiveModControllableTimelineCounter(clip);
 	displayOutputName(newInstrument, doBlink);
 	if (display->haveOLED()) {
 		deluge::hid::display::OLED::sendMainImage();
@@ -1997,8 +1998,8 @@ bool View::changeInstrumentType(InstrumentType newInstrumentType, ModelStackWith
 void View::instrumentChanged(ModelStackWithTimelineCounter* modelStack, Instrument* newInstrument) {
 
 	((Clip*)modelStack->getTimelineCounter())->outputChanged(modelStack, newInstrument);
-	setActiveModControllableTimelineCounter(
-	    modelStack->getTimelineCounter()); // Do a redraw. Obviously the Clip is the same
+	// Do a redraw. Obviously the Clip is the same
+	setActiveModControllableTimelineCounter(modelStack->getTimelineCounter());
 }
 
 void View::getClipMuteSquareColour(Clip* clip, uint8_t thisColour[], bool dimInactivePads, bool allowMIDIFlash) {
