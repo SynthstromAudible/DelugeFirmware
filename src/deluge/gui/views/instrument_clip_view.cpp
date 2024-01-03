@@ -418,8 +418,8 @@ doOther:
 			if (getCurrentInstrumentType() == InstrumentType::SYNTH) {
 				cancelAllAuditioning();
 
-				bool success = soundEditor.setup(getCurrentInstrumentClip(), &menu_item::fileSelectorMenu,
-				                                 0); // Can't fail because we just set the selected Drum
+				// Can't fail because we just set the selected Drum
+				bool success = soundEditor.setup(getCurrentInstrumentClip(), &menu_item::fileSelectorMenu, 0);
 				if (success) {
 					openUI(&soundEditor);
 				}
@@ -800,7 +800,7 @@ someError:
 		reassessAuditionStatus(lastAuditionedYDisplay);
 	}
 
-	Kit* kit = (Kit*)getCurrentOutput();
+	Kit* kit = getCurrentKit();
 	if (drumType == DrumType::SOUND) {
 		Browser::instrumentTypeToLoad = InstrumentType::SYNTH;
 		loadInstrumentPresetUI.loadingSynthToKitRow = true;
@@ -1458,7 +1458,7 @@ possiblyAuditionPad:
 						if (!thisNoteRow || !thisNoteRow->drum) {
 							return ActionResult::DEALT_WITH;
 						}
-						view.drumMidiLearnPadPressed(velocity, thisNoteRow->drum, (Kit*)getCurrentOutput());
+						view.drumMidiLearnPadPressed(velocity, thisNoteRow->drum, getCurrentKit());
 					}
 					else {
 						view.melodicInstrumentMidiLearnPadPressed(velocity, (MelodicInstrument*)getCurrentOutput());
@@ -3021,7 +3021,7 @@ doRenderRow:
 			oldDrum->drumWontBeRenderedForAWhile();
 		}
 
-		noteRow->setDrum(newDrum, (Kit*)getCurrentOutput(), modelStackWithNoteRow);
+		noteRow->setDrum(newDrum, getCurrentKit(), modelStackWithNoteRow);
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 		setSelectedDrum(newDrum, true);
 		goto doRenderRow;
@@ -3073,7 +3073,7 @@ Drum* InstrumentClipView::flipThroughAvailableDrums(int32_t newOffset, Drum* dru
 
 Drum* InstrumentClipView::getNextDrum(Drum* oldDrum, bool mayBeNone) {
 	if (oldDrum == NULL) {
-		Drum* newDrum = ((Kit*)getCurrentOutput())->firstDrum;
+		Drum* newDrum = getCurrentKit()->firstDrum;
 		/*
     	if (newDrum == NULL) {
     		newDrum = (Drum*)0xFFFFFFFF;
@@ -3108,7 +3108,7 @@ void InstrumentClipView::setSelectedDrum(Drum* drum, bool shouldRedrawStuff) {
 	if (getCurrentUI() != &soundEditor && getCurrentUI() != &sampleBrowser && getCurrentUI() != &sampleMarkerEditor
 	    && getCurrentUI() != &renameDrumUI) {
 
-		((Kit*)getCurrentOutput())->selectedDrum = drum;
+		getCurrentKit()->selectedDrum = drum;
 
 		if (shouldRedrawStuff) {
 			view.setActiveModControllableTimelineCounter(
@@ -3460,9 +3460,9 @@ doDisplayError:
 
 	setSelectedDrum(newDrum); // Does this really need to render?
 
-	bool success = soundEditor.setup(getCurrentInstrumentClip(), &menu_item::fileSelectorMenu,
-	                                 0); // Can't fail because we just set the selected Drum
+	// Can't fail because we just set the selected Drum
 	// TODO: what if fail because no RAM
+	bool success = soundEditor.setup(getCurrentInstrumentClip(), &menu_item::fileSelectorMenu, 0);
 
 	if (doRecording) {
 		success = openUI(&audioRecorder);
@@ -3486,7 +3486,7 @@ doDisplayError:
 
 void InstrumentClipView::deleteDrum(SoundDrum* drum) {
 
-	Kit* kit = (Kit*)getCurrentOutput();
+	Kit* kit = getCurrentKit();
 
 	kit->removeDrum(drum);
 
@@ -3666,8 +3666,8 @@ int32_t InstrumentClipView::setupForEnteringScaleMode(int32_t newRootNote, int32
 	// If user manually selected what root note they want, then we've got it easy!
 	if (newRootNote != 2147483647) {
 		pinAnimationToYDisplay = yDisplay;
-		pinAnimationToYNote = getCurrentInstrumentClip()->getYNoteFromYDisplay(
-		    yDisplay, currentSong); // This is needed in case we're coming from Keyboard Screen
+		// This is needed in case we're coming from Keyboard Screen
+		pinAnimationToYNote = getCurrentInstrumentClip()->getYNoteFromYDisplay(yDisplay, currentSong);
 	}
 
 	// Otherwise, go with the previously calculated default root note
@@ -4016,7 +4016,7 @@ drawNormally:
 		// Kit - draw "selected Drum"
 		if (getCurrentInstrumentType() == InstrumentType::KIT) {
 			NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowOnScreen(yDisplay, currentSong);
-			if (noteRow != NULL && noteRow->drum != NULL && noteRow->drum == ((Kit*)getCurrentOutput())->selectedDrum) {
+			if (noteRow != NULL && noteRow->drum != NULL && noteRow->drum == getCurrentKit()->selectedDrum) {
 
 				int32_t totalColour =
 				    (uint16_t)rowColour[yDisplay][0] + rowColour[yDisplay][1] + rowColour[yDisplay][2]; // max 765

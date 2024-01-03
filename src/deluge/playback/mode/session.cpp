@@ -139,17 +139,15 @@ bool Session::giveClipOpportunityToBeginLinearRecording(Clip* clip, int32_t clip
 		return false; // Not allowed if recording to arranger
 	}
 
-	bool currentClipHasSameOutput =
-	    (getCurrentClip()
-	     && getCurrentOutput()
-	            == clip->output); // Must do this before calling opportunityToBeginLinearLoopRecording(), which may clone a new Output
+	// Must do this before calling opportunityToBeginLinearLoopRecording(), which may clone a new Output
+	bool currentClipHasSameOutput = (getCurrentClip() && getCurrentOutput() == clip->output);
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
 
 	bool newOutputCreated;
-	bool begun = clip->opportunityToBeginSessionLinearRecording(modelStack, &newOutputCreated,
-	                                                            buttonPressLatency); // May create new Output
+	// May create new Output
+	bool begun = clip->opportunityToBeginSessionLinearRecording(modelStack, &newOutputCreated, buttonPressLatency);
 
 	if (begun) {
 
@@ -170,10 +168,9 @@ bool Session::giveClipOpportunityToBeginLinearRecording(Clip* clip, int32_t clip
 			armClipToStopAction(clip);
 
 			// Create new clip if we're continuous-layering
+			// Make it spawn more too
 			if (clip->getCurrentlyRecordingLinearly() && clip->overdubNature == OverDubType::ContinuousLayering) {
-				currentSong->createPendingNextOverdubBelowClip(
-				    clip, clipIndex,
-				    OverDubType::ContinuousLayering); // Make it spawn more too
+				currentSong->createPendingNextOverdubBelowClip(clip, clipIndex, OverDubType::ContinuousLayering);
 			}
 		}
 	}

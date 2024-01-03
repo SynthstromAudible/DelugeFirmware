@@ -260,9 +260,8 @@ void SampleBrowser::exitAction() {
 	display->setNextTransitionDirection(-1);
 	if (!isUIOpen(&soundEditor)) {
 		// If no file was selected, the user wanted to get out of creating this Drum.
-		if (soundEditor.editingKit()
-		    && ((Kit*)getCurrentOutput())
-		           ->getFirstUnassignedDrum(getCurrentInstrumentClip()) // Only if some unassigned Drums
+		// Only if some unassigned Drums
+		if (soundEditor.editingKit() && getCurrentKit()->getFirstUnassignedDrum(getCurrentInstrumentClip())
 		    && soundEditor.getCurrentAudioFileHolder()->filePath.isEmpty()) {
 			instrumentClipView.deleteDrum((SoundDrum*)soundEditor.currentSound);
 			redrawUI = &instrumentClipView;
@@ -481,7 +480,7 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 bool SampleBrowser::canImportWholeKit() {
 	return (soundEditor.editingKit() && soundEditor.currentSourceIndex == 0
 	        && (SoundDrum*)getCurrentInstrumentClip()->noteRows.getElement(0)->drum == soundEditor.currentSound
-	        && (!((Kit*)getCurrentOutput())->firstDrum->next));
+	        && (!getCurrentKit()->firstDrum->next));
 }
 
 int32_t SampleBrowser::getCurrentFilePath(String* path) {
@@ -989,7 +988,7 @@ doLoadAsSample:
 					}
 				}
 
-				Kit* kit = (Kit*)getCurrentOutput();
+				Kit* kit = getCurrentKit();
 
 				// Ensure Drum name isn't a duplicate, and if need be, make a new name from the fileNamePostPrefix.
 				if (kit->getDrumFromName(newName.get())) {
@@ -1856,7 +1855,7 @@ doReturnFalse:
 		return false;
 	}
 
-	Kit* kit = (Kit*)getCurrentOutput();
+	Kit* kit = getCurrentKit();
 	SoundDrum* firstDrum = (SoundDrum*)soundEditor.currentSound;
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -1984,7 +1983,7 @@ skipNameStuff:
 	}
 
 	// Make NoteRows for all these new Drums
-	((Kit*)getCurrentOutput())->resetDrumTempValues();
+	getCurrentKit()->resetDrumTempValues();
 	firstDrum->noteRowAssignedTemp = 1;
 	ModelStackWithTimelineCounter* modelStack = (ModelStackWithTimelineCounter*)modelStackMemory;
 	getCurrentInstrumentClip()->assignDrumsToNoteRows(modelStack);

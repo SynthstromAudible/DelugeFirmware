@@ -58,6 +58,7 @@ Clip* getCurrentClip();
 InstrumentClip* getCurrentInstrumentClip();
 AudioClip* getCurrentAudioClip();
 Output* getCurrentOutput();
+Kit* getCurrentKit();
 Instrument* getCurrentInstrument();
 InstrumentType getCurrentInstrumentType();
 

@@ -222,18 +222,18 @@ gotError:
 	// If replacing whole Instrument
 	if (shouldReplaceWholeInstrument) {
 		//newInstrument->loadAllSamples(true); // There'll be no samples cos it's new and blank
-		currentSong->backUpParamManager(
-		    (ModControllableAudio*)newInstrument->toModControllable(), NULL, &newParamManager,
-		    true); // This is how we feed a ParamManager into the replaceInstrument() function
+		// This is how we feed a ParamManager into the replaceInstrument() function
+		currentSong->backUpParamManager((ModControllableAudio*)newInstrument->toModControllable(), NULL,
+		                                &newParamManager, true);
 		currentSong->replaceInstrument(getCurrentInstrument(), newInstrument, false);
 	}
 
 	// Or if just adding new Instrument
 	else {
-		int32_t error = getCurrentInstrumentClip()->changeInstrument(
-		    modelStack, newInstrument, &newParamManager, InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL,
-		    false); // There'll be no samples cos it's new and blank
+		// There'll be no samples cos it's new and blank
 		// TODO: deal with errors
+		int32_t error = getCurrentInstrumentClip()->changeInstrument(
+		    modelStack, newInstrument, &newParamManager, InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL, false);
 
 		currentSong->addOutput(newInstrument);
 	}

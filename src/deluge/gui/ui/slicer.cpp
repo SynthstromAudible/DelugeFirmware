@@ -168,7 +168,7 @@ void Slicer::graphicsRoutine() {
 	SamplePlaybackGuide* guide = NULL;
 
 	MultisampleRange* range;
-	Kit* kit = (Kit*)getCurrentOutput();
+	Kit* kit = getCurrentKit();
 	SoundDrum* drum = (SoundDrum*)kit->firstDrum;
 
 	if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
@@ -337,7 +337,7 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 			redraw();
 		}
 
-		((Kit*)getCurrentOutput())->firstDrum->unassignAllVoices(); //stop
+		getCurrentKit()->firstDrum->unassignAllVoices(); //stop
 		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 		return ActionResult::DEALT_WITH;
 	}
@@ -401,10 +401,10 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 			doSlice();
 		}
 		else {
-			((Kit*)getCurrentOutput())->firstDrum->unassignAllVoices(); //stop
+			getCurrentKit()->firstDrum->unassignAllVoices(); //stop
 			numClips = numManualSlice;
 			doSlice();
-			Kit* kit = (Kit*)getCurrentOutput();
+			Kit* kit = getCurrentKit();
 			for (int32_t i = 0; i < numManualSlice; i++) {
 				Drum* drum = kit->getDrumFromIndex(i);
 				SoundDrum* soundDrum = (SoundDrum*)drum;
@@ -427,8 +427,8 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 			waveformRenderer.renderFullScreen(waveformBasicNavigator.sample, waveformBasicNavigator.xScroll,
 			                                  waveformBasicNavigator.xZoom, PadLEDs::image,
 			                                  &waveformBasicNavigator.renderData);
-			((Kit*)getCurrentOutput())->firstDrum->unassignAllVoices(); //stop
-			Kit* kit = (Kit*)getCurrentOutput();
+			getCurrentKit()->firstDrum->unassignAllVoices(); //stop
+			Kit* kit = getCurrentKit();
 			Drum* drum = kit->firstDrum;
 			SoundDrum* soundDrum = (SoundDrum*)drum;
 			MultisampleRange* range = (MultisampleRange*)soundDrum->sources[0].getOrCreateFirstRange();
@@ -449,7 +449,7 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 }
 
 void Slicer::stopAnyPreviewing() {
-	Kit* kit = (Kit*)getCurrentOutput();
+	Kit* kit = getCurrentKit();
 	SoundDrum* drum = (SoundDrum*)kit->firstDrum;
 	drum->unassignAllVoices();
 	if (drum->sources[0].ranges.getNumElements()) {
@@ -459,7 +459,7 @@ void Slicer::stopAnyPreviewing() {
 }
 void Slicer::preview(int64_t startPoint, int64_t endPoint, int32_t transpose, int32_t on) {
 	if (on) {
-		Kit* kit = (Kit*)getCurrentOutput();
+		Kit* kit = getCurrentKit();
 		SoundDrum* drum = (SoundDrum*)kit->firstDrum;
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -522,7 +522,7 @@ ActionResult Slicer::padAction(int32_t x, int32_t y, int32_t on) {
 			VoiceSample* voiceSample = NULL;
 			SamplePlaybackGuide* guide = NULL;
 			MultisampleRange* range;
-			Kit* kit = (Kit*)getCurrentOutput();
+			Kit* kit = getCurrentKit();
 			SoundDrum* drum = (SoundDrum*)kit->firstDrum;
 
 			if (getCurrentClip()->type == CLIP_TYPE_INSTRUMENT) {
@@ -605,7 +605,7 @@ getOut:
 		return;
 	}
 
-	Kit* kit = (Kit*)getCurrentOutput();
+	Kit* kit = getCurrentKit();
 
 	// Do the first Drum
 
@@ -730,12 +730,12 @@ ramError2:
 				}
 			}
 
-			currentSong->backUpParamManager(newDrum, getCurrentClip(), &paramManager,
-			                                true); // I moved this here, from being earlier/above. Is this fine?
+			// I moved this here, from being earlier/above. Is this fine?
+			currentSong->backUpParamManager(newDrum, getCurrentClip(), &paramManager, true);
 		}
 
 		// Make NoteRows for all these new Drums
-		((Kit*)getCurrentOutput())->resetDrumTempValues();
+		getCurrentKit()->resetDrumTempValues();
 		firstDrum->noteRowAssignedTemp = 1;
 	}
 	ModelStackWithTimelineCounter* modelStack = (ModelStackWithTimelineCounter*)modelStackMemory;

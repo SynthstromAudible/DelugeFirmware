@@ -294,8 +294,8 @@ void setupInstrumentClipCollapseAnimation(bool collapsingOutOfClipMinder) {
 	clipLength = getCurrentClip()->loopLength;
 
 	if (collapsingOutOfClipMinder) {
-		view.getClipMuteSquareColour(getCurrentClip(),
-		                             clipMuteSquareColour); // This shouldn't have to be done every time
+		// This shouldn't have to be done every time
+		view.getClipMuteSquareColour(getCurrentClip(), clipMuteSquareColour);
 	}
 }
 

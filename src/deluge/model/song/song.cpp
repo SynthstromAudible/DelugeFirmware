@@ -96,6 +96,10 @@ Output* getCurrentOutput() {
 	return getCurrentClip()->output;
 }
 
+Kit* getCurrentKit() {
+	return (Kit*)getCurrentClip()->output;
+}
+
 Instrument* getCurrentInstrument() {
 	return (Instrument*)getCurrentClip()->output;
 }
