@@ -100,10 +100,6 @@ Kit* getCurrentKit() {
 	return (Kit*)getCurrentClip()->output;
 }
 
-MelodicInstrument* getCurrentMelodicInstrument() {
-	return (MelodicInstrument*)getCurrentClip()->output;
-}
-
 Instrument* getCurrentInstrument() {
 	return (Instrument*)getCurrentClip()->output;
 }

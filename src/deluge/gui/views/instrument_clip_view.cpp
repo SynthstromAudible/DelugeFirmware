@@ -1463,7 +1463,7 @@ possiblyAuditionPad:
 						view.drumMidiLearnPadPressed(velocity, thisNoteRow->drum, getCurrentKit());
 					}
 					else {
-						view.melodicInstrumentMidiLearnPadPressed(velocity, getCurrentMelodicInstrument());
+						view.melodicInstrumentMidiLearnPadPressed(velocity, (MelodicInstrument*)getCurrentOutput());
 					}
 				}
 			}
@@ -3958,7 +3958,7 @@ bool InstrumentClipView::isRowAuditionedByInstrument(int32_t yDisplay) {
 	}
 	else {
 		int32_t note = getCurrentInstrumentClip()->getYNoteFromYDisplay(yDisplay, currentSong);
-		return (getCurrentMelodicInstrument()->isNoteAuditioning(note));
+		return (((MelodicInstrument*)getCurrentOutput())->isNoteAuditioning(note));
 	}
 }
 
@@ -3973,7 +3973,7 @@ void InstrumentClipView::drawAuditionSquare(uint8_t yDisplay, uint8_t thisImage[
 			midiCommandAssigned = (noteRow && noteRow->drum && noteRow->drum->midiInput.containsSomething());
 		}
 		else {
-			midiCommandAssigned = (getCurrentMelodicInstrument()->midiInput.containsSomething());
+			midiCommandAssigned = (((MelodicInstrument*)getCurrentOutput())->midiInput.containsSomething());
 		}
 
 		// If MIDI command already assigned...
