@@ -804,7 +804,7 @@ Submenu midiFollowSubmenu{
     {
         &midiFollowChannelSubmenu,
         &midiFollowKitRootNoteMenu,
-		&midiFollowFeedbackSubmenu,
+        &midiFollowFeedbackSubmenu,
         &midiFollowDisplayParamMenu,
     },
 };
