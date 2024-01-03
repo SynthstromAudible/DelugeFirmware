@@ -107,7 +107,7 @@ private:
 	                                                MIDIDevice* fromDevice, MIDIMatchType match, int32_t channel,
 	                                                int32_t value, int32_t noteCode, bool* doingMidiThru, Clip* clip);
 
-	MIDIMatchType checkMidiFollowMatch(MIDIDevice* fromDevice, uint8_t channel, MIDIFollowChannelType type);
+	MIDIMatchType checkMidiFollowMatch(MIDIDevice* fromDevice, uint8_t channel);
 	Drum* getDrumFromNoteCode(Kit* kit, int32_t noteCode);
 
 	//saving
